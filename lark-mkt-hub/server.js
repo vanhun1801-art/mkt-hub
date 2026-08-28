@@ -502,6 +502,27 @@ async function api(req, res, u) {
         } catch (e) { /* thiếu danh bạ thì vẫn khai tay được */ }
       }
 
+      /* ĐỐI CHIẾU với danh bạ thật: dòng khai bằng tay rất dễ lệch (tên trong Lark
+       * là "Hân Phù MKT" mà khai "Phù Mỹ Hân", email đoán sai) — lệch là app không
+       * nhận ra người đó và họ rơi về mặc định THẤY MỌI BASE. Trả về kết quả đối
+       * chiếu để màn hình nói thẳng "đã khớp ai" hay "chưa khớp ai". */
+      const chuanTen = (x) => String(x || '').trim().toLowerCase().replace(/s+/g, ' ');
+      hang = hang.map((h) => {
+        const mail = String(h.email || '').toLowerCase();
+        const theoMail = mail && danhBa.find((x) => String(x.email || '').toLowerCase() === mail);
+        const theoId = h.openId && danhBa.find((x) => x.id === h.openId);
+        const cungTen = danhBa.filter((x) => chuanTen(x.ten) === chuanTen(h.nguoi));
+        const theoTen = cungTen.length === 1 ? cungTen[0] : null;
+        const ai = theoMail || theoId || theoTen || null;
+        return Object.assign({}, h, {
+          khop: ai ? {
+            id: ai.id, ten: ai.ten,
+            cach: theoMail ? 'email' : theoId ? 'open_id' : 'ten',
+          } : null,
+          trungTen: cungTen.length > 1 ? cungTen.length : 0,
+        });
+      });
+
       return ok(res, {
         base: danhSach().filter((x) => x.bat).map((x) => ({ id: x.id, ten: x.ten })),
         // mẫu quyền theo vị trí công việc: chọn vị trí là các ô tự tick theo mẫu

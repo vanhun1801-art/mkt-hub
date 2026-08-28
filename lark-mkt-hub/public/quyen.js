@@ -42,17 +42,24 @@ const chanDanhSach = () =>
   '<span class="grow"></span>' +
   '<button class="btn ghost" data-close="1">Đóng</button>';
 
-/** Cách app sẽ nhận ra người này khi họ đăng nhập — hiện thành một nhãn màu. */
-function nhanDien(h, ds) {
-  if (h.email) return { loai: 'luc', chu: 'Theo email', mo: 'Chắc nhất — email không đổi giữa các app Lark' };
-  if (h.openId) return { loai: 'luc', chu: 'Đã đăng nhập', mo: 'App đã ghi nhận đúng tài khoản của người này' };
-  const trung = ds.filter((x) => chuanTenQ(x.nguoi) === chuanTenQ(h.nguoi)).length;
-  if (trung > 1) {
-    return { loai: 'do', chu: 'Trùng tên',
-      mo: 'Có ' + trung + ' dòng cùng tên nên app không dám đoán — phải điền email' };
+/**
+ * Dòng này có thật sự bám được vào một người trong Lark chưa.
+ * Server đã đối chiếu với danh bạ (`khop`) — ở đây chỉ diễn đạt lại cho dễ đọc.
+ * KHÔNG khớp là chuyện nặng: người đó rơi về mặc định THẤY MỌI BASE.
+ */
+function nhanDien(h) {
+  if (!h.khop) {
+    return { loai: 'do', chu: 'Chưa khớp ai',
+      mo: 'Không tìm thấy ai trong Lark khớp dòng này (email hoặc tên đang lệch) — ' +
+          'quyền chưa có tác dụng, người đó vẫn thấy mọi base. Bấm Gán người để sửa.' };
   }
-  return { loai: 'vang', chu: 'Theo tên',
-    mo: 'Chưa có email và chưa đăng nhập lần nào — điền email cho chắc' };
+  const c = h.khop.cach;
+  const cach = c === 'email' ? 'theo email' : c === 'open_id' ? 'theo tài khoản đã đăng nhập' : 'theo tên';
+  return {
+    loai: c === 'ten' ? 'vang' : 'luc',
+    chu: 'Đã khớp: ' + h.khop.ten,
+    mo: 'Khớp ' + cach + '.' + (c === 'ten' ? ' Nên điền email cho chắc — tên có thể bị sửa.' : ''),
+  };
 }
 
 /* ---------------- màn 1: danh sách ---------------- */
@@ -83,7 +90,7 @@ function veDanhSachQuyen() {
   };
 
   const dong = (h, i) => {
-    const nd = nhanDien(h, ds);
+    const nd = nhanDien(h);
     return '<tr>' +
       '<td><div class="q-ten-o"><b>' + esc(h.nguoi || '(chưa đặt tên)') + '</b>' +
         (toiLa(h) ? '<span class="q-chip q-chip-toi">Bạn</span>' : '') + '</div></td>' +
@@ -95,6 +102,7 @@ function veDanhSachQuyen() {
       '<td><div class="q-chips">' + oQuyen(h) + '</div></td>' +
       '<td><span class="q-chip q-nd-' + nd.loai + '" title="' + esc(nd.mo) + '">' + esc(nd.chu) + '</span></td>' +
       '<td><div class="thao-tac">' +
+        (h.khop ? '' : '<button class="btn nho primary" data-sua="' + i + '">Gán người</button>') +
         '<button class="btn nho ghost" data-sua="' + i + '">Sửa</button>' +
         '<button class="btn nho ghost" data-xemnhu="' + i + '" title="Mở cả app bằng đúng con mắt của người này">Xem như</button>' +
         '<button class="btn nho do" data-xoaq="' + esc(h.recordId) + '">Xoá</button>' +
@@ -118,12 +126,20 @@ function veDanhSachQuyen() {
       : '<tr><td colspan="8" class="trong">Chưa khai ai. Bấm Thêm người dùng để bắt đầu.</td></tr>') +
     '</tbody></table></div>';
 
-  const thieu = ds.filter((h) => !h.email && !h.openId).length;
-  if (thieu) {
-    html += '<div class="canh-bao" style="margin-top:12px"><span class="grow">' +
-      thieu + ' người chưa có email và chưa đăng nhập lần nào — app đang nhận diện theo tên. ' +
-      'Điền email là chắc nhất: email công ty hay email đăng nhập Lark đều được, app khớp cả hai.' +
+  const chuaKhop = ds.filter((h) => !h.khop);
+  if (chuaKhop.length) {
+    html += '<div class="canh-bao do" style="margin-top:12px"><span class="grow">' +
+      '<b>' + chuaKhop.length + ' dòng chưa khớp được với ai trong Lark</b> (' +
+      chuaKhop.map((h) => esc(h.nguoi || h.email)).join(', ') + '). ' +
+      'Quyền của những dòng này CHƯA có tác dụng — người đó vẫn thấy mọi base. ' +
+      'Bấm <b>Gán người</b> rồi chọn đúng họ trong danh bạ.' +
       '</span></div>';
+  }
+  const theoTen = ds.filter((h) => h.khop && h.khop.cach === 'ten').length;
+  if (theoTen) {
+    html += '<div class="canh-bao" style="margin-top:10px"><span class="grow">' +
+      theoTen + ' dòng đang khớp theo TÊN. Chạy được, nhưng đổi tên trong Lark là mất khớp — ' +
+      'nên chọn lại người từ danh bạ để app ghi đúng tài khoản.</span></div>';
   }
 
   html += '<div class="q-ghi">Sửa xong có hiệu lực ngay — người đó chỉ cần tải lại trang. ' +
@@ -173,13 +189,19 @@ function moFormQuyen(i) {
 
   let html = '<div class="q-form">';
 
-  if (moi) {
-    html += hang('Chọn từ danh bạ',
-      '<select class="q-in" id="fNguoiMoi"><option value="">— chọn người —</option>' +
-      (d.danhBa || []).map((x) => '<option value="' + esc(x.id) + '" data-mail="' + esc(x.email || '') + '">' +
-        esc(x.ten) + '</option>').join('') + '</select>',
-      'Chọn xong app tự điền tên, và cả email nếu Lark có.');
-  }
+  /* Ô này là cách CHẮC NHẤT để dòng bám đúng người: danh bạ lấy từ chính Lark nên
+   * tên và tài khoản không thể lệch. Luôn hiện, cả khi sửa — vì dòng cũ khai tay
+   * rất dễ lệch tên và app không nhận ra ai. */
+  const dangKhop = h.khop
+    ? '<div class="q-ghi-nho">Đang khớp với <b>' + esc(h.khop.ten) + '</b> (' +
+      (h.khop.cach === 'email' ? 'theo email' : h.khop.cach === 'open_id' ? 'theo tài khoản' : 'theo tên') + ').</div>'
+    : '<div class="q-ghi-nho" style="color:var(--do)">Dòng này <b>chưa khớp được với ai</b> — ' +
+      'chọn đúng người ở đây rồi Lưu.</div>';
+  html += hang('Chọn từ danh bạ Lark',
+    '<select class="q-in" id="fNguoiMoi"><option value="">— chọn người —</option>' +
+    (d.danhBa || []).map((x) => '<option value="' + esc(x.id) + '" data-mail="' + esc(x.email || '') + '"' +
+      (h.khop && h.khop.id === x.id ? ' selected' : '') + '>' + esc(x.ten) + '</option>').join('') + '</select>',
+    'Chọn xong app điền đúng tên trong Lark và ghi nhận tài khoản của người đó.' + dangKhop);
 
   html += hang('Họ tên', '<input class="q-in" id="fTen" type="text" value="' + esc(h.nguoi) +
     '" placeholder="Nguyễn Văn A">');
@@ -234,8 +256,12 @@ function moFormQuyen(i) {
       if (!selMoi.value) return;
       const o = selMoi.options[selMoi.selectedIndex];
       S.quyenSua.openId = selMoi.value;
+      // GHI ĐÈ tên bằng đúng tên trong Lark: tên tự khai lệch là nguyên nhân
+      // dòng không khớp được với ai
       $('#fTen').value = o.textContent;
-      if (!$('#fMail').value) $('#fMail').value = o.getAttribute('data-mail') || '';
+      const mail = o.getAttribute('data-mail') || '';
+      if (mail) $('#fMail').value = mail;
+      toast('Đã gán vào ' + o.textContent + '. Bấm Lưu để ghi.', '');
     };
   }
 
