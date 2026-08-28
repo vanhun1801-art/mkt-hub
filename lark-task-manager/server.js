@@ -508,8 +508,11 @@ async function api(req, res, url) {
       fs.mkdirSync(absDir, { recursive: true });
       const abs = path.join(absDir, safe);
       fs.writeFileSync(abs, buf);
+      /* ?cot=ket-qua -> vào ô "File kết quả" (sản phẩm nhân sự nộp).
+       * Không khai thì vào ô "Tệp đính kèm" như cũ (tài liệu kèm yêu cầu). */
+      const cot = url.searchParams.get('cot') === 'ket-qua' ? F.fileKetQua.name : F.attachment.name;
       try {
-        await lark.uploadAttachment(id, F.attachment.name, './.tmp/' + slug + '/' + safe);
+        await lark.uploadAttachment(id, cot, './.tmp/' + slug + '/' + safe);
       } finally {
         try { fs.rmSync(absDir, { recursive: true, force: true }); } catch (_) {}
       }
@@ -539,7 +542,8 @@ async function api(req, res, url) {
       }, 422);
     }
 
-    const hasProof = (task.attachment || []).length > 0 || !!(patch.link || task.link);
+    const hasProof = (task.attachment || []).length > 0 ||
+      (task.fileKetQua || []).length > 0 || !!(patch.link || task.link);
     if (!hasProof) {
       return json(res, {
         error: 'Chưa có minh chứng kết quả',
@@ -681,7 +685,8 @@ async function api(req, res, url) {
     const token = url.searchParams.get('token') || '';
     if (!/^[A-Za-z0-9]+$/.test(token)) return json(res, { error: 'Tham số không hợp lệ' }, 400);
 
-    await lark.removeAttachment(id, F.attachment.name, token);
+    const cotXoa = url.searchParams.get('cot') === 'ket-qua' ? F.fileKetQua.name : F.attachment.name;
+    await lark.removeAttachment(id, cotXoa, token);
     cache.at = 0;
     return json(res, { ok: true });
   }

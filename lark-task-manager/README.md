@@ -244,7 +244,8 @@ vào "còn trong hàng đợi quá hạn". Hai khái niệm khác nhau — nộp
 hàng đợi, nhưng *đã trễ* thì không xoá được. Nếu chặn theo hàng đợi, nhân sự bấm
 Giải quyết rồi bấm tiếp Hoàn thành là xoá sạch dấu trễ trong cột Trạng thái.
 
-* Cả hai nút đều đòi minh chứng trước (`422 PROOF_REQUIRED`).
+* Cả hai nút đều đòi minh chứng trước (`422 PROOF_REQUIRED`). Minh chứng = có
+  `Link` **hoặc** `File kết quả` **hoặc** `Tệp đính kèm`.
 * Bấm `Giải quyết` cho việc chưa trễ → `422 NOT_LATE`.
 * Nộp lại lần hai: `Ngày giải quyết` giữ nguyên của lần đầu, để con số "trễ mấy
   ngày" không bị dịch đi.
@@ -267,6 +268,23 @@ Giải quyết rồi bấm tiếp Hoàn thành là xoá sạch dấu trễ trong
   app bằng đường khác ngoài nút này.
 
 Tắt luật này: đặt `chanHoanThanhKhiTre: false` trong `config.js`.
+
+---
+
+### Hai ô tệp, đừng lẫn
+
+| Cột trên Base | Ai đưa vào | Hiện ở đâu trong app |
+|---|---|---|
+| `Tệp đính kèm` (`fldJp3mzWY`) | người order — tài liệu để làm việc | thẻ "Yêu cầu từ người order", nhãn *Tài liệu kèm yêu cầu*, chỉ đọc với nhân sự |
+| `File kết quả` (`fld0qir7Qw`) | nhân sự — sản phẩm nộp về | thẻ "Phần của bạn", nhãn *File kết quả*, nhân sự tự thêm/xoá được |
+
+Tải lên chọn ô bằng tham số: `POST /api/tasks/:id/upload?cot=ket-qua` vào `File kết
+quả`, không khai `cot` thì vào `Tệp đính kèm`. Xoá cũng vậy:
+`DELETE /api/tasks/:id/attachment?token=…&cot=ket-qua`.
+
+Cửa sổ "Nộp kết quả" và ô tải lên trong "Phần của bạn" đều ghi vào `File kết quả`.
+Cửa sổ nộp vẫn liệt kê tài liệu của người order nhưng để mờ và có chú thích, để
+nhân sự không tưởng đó là sản phẩm mình đã nộp.
 
 ---
 

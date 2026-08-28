@@ -427,7 +427,8 @@ const laTreTheoHan = (t) => !isClosed(t) &&
   (t.status === 'Trễ deadline' ||
     (daysLeft(t.deadline) != null && daysLeft(t.deadline) < 0));
 const isOverdue = (t) => laTreTheoHan(t) && !daGiaiQuyet(t);
-const hasProof = (t) => (t.attachment || []).length > 0 || !!t.link;
+const hasProof = (t) => (t.attachment || []).length > 0 ||
+  (t.fileKetQua || []).length > 0 || !!t.link;
 
 function initials(name) {
   const parts = String(name || '?').trim().split(/\s+/);
@@ -731,16 +732,21 @@ function openDone(t, kieu) {
   $('#doneFile').value = '';
   $('#doneMsg').textContent = '';
 
+  /* Liệt kê cả hai ô nhưng ghi rõ tệp nào từ đâu — và tệp chọn ở đây luôn vào
+   * ô "File kết quả", không đứng lẫn với tài liệu người order gửi kèm. */
   const att = t.attachment || [];
+  const kq = t.fileKetQua || [];
   const list = $('#doneAttList');
   list.innerHTML = '';
-  for (const a of att) list.appendChild(el('span', 'md-file', a.name || 'tệp'));
-  $('#doneFileLabel').textContent = 'Chọn tệp để đính kèm';
+  for (const a of kq) list.appendChild(el('span', 'md-file', (a.name || 'tệp')));
+  for (const a of att) list.appendChild(el('span', 'md-file mo', (a.name || 'tệp') + ' · tài liệu kèm'));
+  $('#doneFileLabel').textContent = 'Chọn file kết quả để nộp';
 
   const co = $('#doneCallout');
   if (hasProof(t)) {
     const phan = [];
-    if (att.length) phan.push(att.length + ' tệp');
+    if (kq.length) phan.push(kq.length + ' file kết quả');
+    if (att.length) phan.push(att.length + ' tệp kèm yêu cầu');
     if (t.link) phan.push('có link');
     co.className = 'md-proof ok';
     co.textContent = 'Đã có minh chứng: ' + phan.join(' · ');
@@ -761,7 +767,7 @@ async function submitDone() {
     const files = [...($('#doneFile').files || [])];
     for (let i = 0; i < files.length; i++) {
       msg.textContent = 'Đang tải tệp ' + (i + 1) + '/' + files.length + '…';
-      const r = await fetch('/api/tasks/' + t.id + '/upload', {
+      const r = await fetch('/api/tasks/' + t.id + '/upload?cot=ket-qua', {
         method: 'POST',
         headers: { 'X-File-Name': encodeURIComponent(files[i].name) },
         body: files[i],
@@ -2253,6 +2259,8 @@ function buildDrawer() {
   b.appendChild(field('Ghi chú', note));
 
   b.appendChild(attachmentField(t, true));
+  b.appendChild(khoiTep(t, 'File kết quả', t.fileKetQua, 'ket-qua', true, 'Nhân sự chưa nộp file nào.'));
+  b.appendChild(oTaiLen(t, 'ket-qua'));
   b.appendChild(khoiBinhLuan(t));
 }
 
@@ -2364,13 +2372,20 @@ function theKhoi(tieuDe, phu) {
   return { the, than, dau };
 }
 
-/** Tệp kèm theo yêu cầu: chỉ đọc, mỗi tệp có Xem nhanh + Tải xuống. */
-function khoiTepYeuCau(t) {
-  const att = t.attachment || [];
+/**
+ * Danh sách tệp kèm Xem nhanh + Tải xuống.
+ * @param {string} nhan   nhãn hiển thị
+ * @param {Array}  att    danh sách tệp
+ * @param {string} cot    'ket-qua' | '' — quyết định xoá khỏi ô nào
+ * @param {boolean} xoaDuoc
+ * @param {string} khiTrong câu hiện khi chưa có tệp
+ */
+function khoiTep(t, nhan, att, cot, xoaDuoc, khiTrong) {
+  att = att || [];
   const box = el('div', 'field');
-  box.appendChild(el('label', '', 'Tệp đính kèm (' + att.length + ')'));
+  box.appendChild(el('label', '', nhan + ' (' + att.length + ')'));
   if (!att.length) {
-    box.appendChild(el('div', 'ro-note', 'Chưa có tệp nào.'));
+    box.appendChild(el('div', 'ro-note', khiTrong || 'Chưa có tệp nào.'));
     return box;
   }
   const ds = el('div', 'attgrid');
@@ -2405,6 +2420,24 @@ function khoiTepYeuCau(t) {
     tai.href = urlTep(t.id, a.token, true);
     tai.setAttribute('download', a.name || '');
     acts.appendChild(tai);
+    if (xoaDuoc) {
+      const xoa = el('button', 'attbtn del', 'Xoá');
+      xoa.onclick = async () => {
+        if (!confirm('Xoá tệp "' + (a.name || '') + '"?')) return;
+        xoa.disabled = true;
+        try {
+          await req('/api/tasks/' + t.id + '/attachment?token=' + encodeURIComponent(a.token) +
+            (cot ? '&cot=' + cot : ''), { method: 'DELETE' });
+          toast('Đã xoá tệp');
+          closeDrawer();
+          await refresh(true);
+        } catch (e) {
+          toast('Lỗi: ' + e.message, true);
+          xoa.disabled = false;
+        }
+      };
+      acts.appendChild(xoa);
+    }
     meta.appendChild(acts);
     o.appendChild(meta);
     ds.appendChild(o);
@@ -2433,7 +2466,8 @@ function buildStaffDrawer(b, t, o) {
   if (t.detail) yc.than.appendChild(moTaCoLink(t.detail));
   else yc.than.appendChild(el('div', 'd-desc trong-nhe', 'Người order chưa ghi chi tiết yêu cầu.'));
 
-  yc.than.appendChild(khoiTepYeuCau(t));
+  yc.than.appendChild(khoiTep(t, 'Tài liệu kèm yêu cầu', t.attachment, '', false,
+    'Người order không gửi tệp nào kèm theo.'));
 
   const chips = el('div', 'd-chips');
   const themVien = (nhan, v, tone) => { if (v) chips.appendChild(vien(nhan, v, tone)); };
@@ -2472,12 +2506,14 @@ function buildStaffDrawer(b, t, o) {
   note.oninput = () => set('note', note.value);
   cb.than.appendChild(field('Ghi chú', note));
 
+  cb.than.appendChild(khoiTep(t, 'File kết quả', t.fileKetQua, 'ket-qua', myRole === 'owner',
+    'Chưa nộp file nào.'));
   if (myRole === 'owner') {
     const nop = el('div', 'field');
-    nop.appendChild(el('label', '', 'Nộp file kết quả'));
     nop.appendChild(el('div', 'ro-note',
-      'Chọn trực tiếp ở đây, tệp vào thẳng ô Tệp đính kèm của bản ghi trên Base.'));
-    nop.appendChild(oTaiLen(t));
+      'Chọn tệp ở đây là vào thẳng ô "File kết quả" của bản ghi trên Base — ' +
+      'không lẫn với tài liệu người order gửi kèm.'));
+    nop.appendChild(oTaiLen(t, 'ket-qua'));
     cb.than.appendChild(nop);
   }
 
@@ -2587,7 +2623,8 @@ function attachmentField(t, canUpload) {
 }
 
 /** Ô chọn tệp để tải lên — tách riêng để đặt được vào đúng khối "Phần của bạn". */
-function oTaiLen(t) {
+/** @param {string} cot 'ket-qua' → vào ô File kết quả; bỏ trống → ô Tệp đính kèm. */
+function oTaiLen(t, cot) {
   const hop = el('div', 'field');
   {
     const row = el('div', 'uploadrow');
@@ -2602,7 +2639,7 @@ function oTaiLen(t) {
       try {
         for (let i = 0; i < files.length; i++) {
           st.textContent = 'Đang tải ' + (i + 1) + '/' + files.length + '…';
-          const r = await fetch('/api/tasks/' + t.id + '/upload', {
+          const r = await fetch('/api/tasks/' + t.id + '/upload' + (cot ? '?cot=' + cot : ''), {
             method: 'POST',
             headers: { 'X-File-Name': encodeURIComponent(files[i].name) },
             body: files[i],

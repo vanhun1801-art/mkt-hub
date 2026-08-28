@@ -106,6 +106,9 @@ module.exports = {
     note:       { id: 'fld59D2dAX', name: 'Ghi chú',           type: 'text' },
     rating:     { id: 'fldatiVxIl', name: 'Chấm điểm',         type: 'rating' },
     attachment: { id: 'fldJp3mzWY', name: 'Tệp đính kèm',      type: 'attachment', readOnly: true },
+    /* Tài liệu người order gửi kèm để riêng với sản phẩm nhân sự nộp về: ô trên là
+     * "Tệp đính kèm", ô này là "File kết quả". Nhìn Base là biết ai đưa gì. */
+    fileKetQua:  { id: 'fld0qir7Qw', name: 'File kết quả',       type: 'attachment', readOnly: true },
     /* Việc TRỄ thì nhân sự không đổi trạng thái được nữa (để cuối tháng còn thống
      * kê được ai trễ), nhưng vẫn phải có chỗ nộp sản phẩm và cho việc đó rời khỏi
      * hàng đợi "phải hối". Hai cột này giữ vai đó — tick được cả trong Base. */
