@@ -254,6 +254,25 @@ const json = async (p, opts) => {
   ok((vt.data.viTri || []).every((x) => x.ten && Array.isArray(x.base)),
     'Vị trí nào cũng có tên và danh sách base');
 
+  /* ---- 3e. nhân sự không quản được panel ----
+   * Ẩn nút là chưa đủ: gõ tay API cũng phải bị chặn. Ở chế độ cli (máy cá nhân)
+   * thì người ngồi trước máy chính là quản lý nên các phép thử này được bỏ qua.
+   */
+  console.log('\n[3e] Chốt quyền quản panel');
+  if (hub.data.che_do !== 'api') {
+    boQua('Chốt quyền quản panel', 'chế độ cli — máy cá nhân luôn là quản lý');
+  } else {
+    const idThu = (mods[0] || {}).id || 'cong-viec';
+    const tat = await json('/api/modules/' + idThu + '/tat', { method: 'POST' });
+    ok(tat.code === 403, 'Nhân sự không tắt được module (403)', tat.raw.slice(0, 100));
+    const xoa = await json('/api/modules/' + idThu, { method: 'DELETE' });
+    ok(xoa.code === 403, 'Nhân sự không xoá được base khỏi panel (403)');
+    const them = await json('/api/modules', { method: 'POST', body: { ten: 'Thử', kieu: 'lark' } });
+    ok(them.code === 403, 'Nhân sự không thêm được base (403)');
+    const kt = await json('/api/kiem-tra');
+    ok(kt.code === 403, 'Nhân sự không mở được Kiểm tra hệ thống (403)');
+  }
+
   /* ---- 4. log của module ---- */
   console.log('\n[4] Log module');
   if (dangChay.length) {

@@ -128,6 +128,27 @@ async function aiDangXem(req) {
   return { nguoi: { id: nhu.id, name: nhu.name, email: nhu.email }, q, xemNhu: nhu, quanLyThat: laQL };
 }
 
+/**
+ * Chặn những thứ CHỈ quản lý được làm: bật/tắt/thêm/xoá base trong panel, xem log
+ * của app con, tự kiểm tra hệ thống. Ẩn nút trên giao diện là chưa đủ — ai gõ tay
+ * API cũng phải bị chặn.
+ */
+async function chiQuanLy(req, res) {
+  if (cfg.mode !== 'api') return false;              // máy cá nhân: người ngồi máy là quản lý
+  const q = await quyenCua(auth.sessionUser(req));
+  if (!q.quanLy) {
+    loi(res, 403, 'Chỉ quản lý được thao tác này.');
+    return true;
+  }
+  // quản lý nhưng đang xem hộ nhân sự -> vẫn không cho ghi
+  const nhu = xemNhuCua(req);
+  if (nhu && !['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+    loi(res, 403, 'Đang xem bằng mắt của ' + nhu.name + ' — thoát chế độ này rồi hãy thao tác.');
+    return true;
+  }
+  return false;
+}
+
 /** Đang xem hộ thì chặn mọi thao tác ghi. */
 function chanGhiKhiXemHo(res, xemNhu, method) {
   if (!xemNhu || method === 'GET' || method === 'HEAD' || method === 'OPTIONS') return false;
@@ -280,6 +301,8 @@ async function api(req, res, u) {
   // /api/modules/<id>/<hanhDong>
   const mm = /^\/api\/modules\/([^/]+)(?:\/(bat|tat|bat-lai|log))?$/.exec(p);
   if (mm) {
+    // bật/tắt/sửa/xoá base trong panel, và cả log của app con: việc của quản lý
+    if (await chiQuanLy(req, res)) return;
     const mod = timMod(decodeURIComponent(mm[1]));
     if (!mod) return loi(res, 404, 'Không có module ' + mm[1]);
     const act = mm[2];
@@ -320,6 +343,7 @@ async function api(req, res, u) {
   }
 
   if (p === '/api/modules' && m === 'POST') {
+    if (await chiQuanLy(req, res)) return;
     const b = await docBody(req);
     const ten = String(b.ten || '').trim();
     if (!ten) return loi(res, 400, 'Thiếu tên base');
@@ -385,6 +409,7 @@ async function api(req, res, u) {
    * mã lỗi dưới đây nói rõ thiếu ở đâu: 99991672 (thiếu scope, hoặc chưa publish),
    * 91403 (chưa chia sẻ Base cho app), 20029 (redirect URL chưa khai). */
   if (p === '/api/kiem-tra' && m === 'GET') {
+    if (await chiQuanLy(req, res)) return;   // trang tự kiểm tra: chỉ quản lý
     const nguoi = cfg.mode === 'api' ? auth.sessionUser(req) : null;
     if (nguoi) nguoi.quanLy = laQuanLy(nguoi);
     const hostThat = String(req.headers['x-forwarded-host'] || req.headers.host || '');

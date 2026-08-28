@@ -175,7 +175,24 @@ Sửa danh sách mẫu: file `lark-mkt-hub/vi-tri.js`, hoặc biến môi trư�
 > Thêm base mới thì nhớ khai vào `vi-tri.js`, nếu không chỉ quản lý và người được
 > tick tay mới thấy base đó.
 
-### D3. Xem như một nhân sự
+### D3. Nhân sự không quản được panel
+
+Ba thứ chỉ quản lý làm được, nhân sự **không thấy nút và cũng không gọi được API**
+(gõ tay đường dẫn trả 403):
+
+| Việc | Route bị chặn |
+|---|---|
+| Thêm base vào panel | `POST /api/modules` |
+| Bật / tắt / sửa / xoá base | `POST /api/modules/<id>/{bat,tat,bat-lai}`, `PATCH`, `DELETE` |
+| Xem log app con, Kiểm tra hệ thống, Phân quyền, Xem như | `/api/modules/<id>/log`, `/api/kiem-tra`, `/api/quyen`, `/api/xem-nhu` |
+
+Kiểm lại bất cứ lúc nào (tự bật một hub chế độ api với khoá giả, không gọi Lark):
+
+```bash
+node test/quyen-panel.test.js
+```
+
+### D4. Xem như một nhân sự
 
 Trong bảng phân quyền, mỗi dòng có nút **Xem như** — cả app chuyển sang đúng con mắt
 người đó: panel chỉ còn base họ được xem, chỉ số bó theo việc của họ, chi phí ẩn nếu

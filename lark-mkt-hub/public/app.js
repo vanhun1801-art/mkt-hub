@@ -813,8 +813,11 @@ async function napHub() {
   S.modules = d.modules || [];
   $('#hubTen').textContent = d.ten;
   $('#hubPhu').textContent = d.phu;
-  // phân quyền là việc của quản lý -> nhân sự không thấy nút đó trong Cài đặt
+  /* Thêm base / Cài đặt / Phân quyền là việc của quản lý. Nhân sự không thấy các
+   * nút này (server cũng chặn 403 nếu ai gõ tay API). */
   S.quanLy = !!d.quanLy;
+  $('#btnAdd').hidden = !S.quanLy;
+  $('#btnSettings').hidden = !S.quanLy;
   S.quanLyThat = !!d.quanLyThat;
   S.xemNhu = d.xemNhu || null;
   veBangXemNhu();
@@ -1095,8 +1098,18 @@ function dinhTuyen() {
     location.hash = '#/tong-quan';
     return;
   }
-  if (h === '/cai-dat') { moHome(); modalCaiDat(); return; }
-  if (h === '/phan-quyen') { moHome(); modalPhanQuyen(); return; }
+  if (h === '/cai-dat') {
+    moHome();
+    if (S.quanLy) modalCaiDat();
+    else toast('Chỉ quản lý mở được phần Cài đặt', 'do');
+    return;
+  }
+  if (h === '/phan-quyen') {
+    moHome();
+    if (S.quanLy) modalPhanQuyen();
+    else toast('Chỉ quản lý mở được phần Phân quyền', 'do');
+    return;
+  }
   if (ml) { moModule(decodeURIComponent(ml[1])); return; }
   if (mm) { moModule(decodeURIComponent(mm[1])); return; }
   moHome();
