@@ -166,9 +166,12 @@ function chuyenTiep(req, res, mod, duongDan, nguoi) {
    * Xoá header do client tự gửi trước khi ghi lại, kẻo có người tự mạo danh. */
   delete opts.headers['x-hub-user-id'];
   delete opts.headers['x-hub-user-name'];
+  delete opts.headers['x-hub-user-manager'];
   if (nguoi && nguoi.id) {
     opts.headers['x-hub-user-id'] = nguoi.id;
     opts.headers['x-hub-user-name'] = encodeURIComponent(nguoi.name || nguoi.id);
+    // hub đã quyết vai (theo open_id hoặc email) — module chỉ việc tin
+    if (nguoi.quanLy) opts.headers['x-hub-user-manager'] = '1';
   }
 
   const upstream = http.request(opts, (r) => {
@@ -255,10 +258,10 @@ function goiJson(mod, duongDan, opts = {}) {
         path: duongDan,
         method: 'GET',
         timeout: timeoutMs,
-        headers: Object.assign({ accept: 'application/json' }, nguoi && nguoi.id ? {
+        headers: Object.assign({ accept: 'application/json' }, nguoi && nguoi.id ? Object.assign({
           'x-hub-user-id': nguoi.id,
           'x-hub-user-name': encodeURIComponent(nguoi.name || nguoi.id),
-        } : {}),
+        }, nguoi.quanLy ? { 'x-hub-user-manager': '1' } : {}) : {}),
       },
       (res) => {
         const buf = [];

@@ -102,7 +102,7 @@ Repo đã có `render.yaml` ở gốc, nên có thể dùng **New → Blueprint*
 | `LARK_APP_SECRET` | *(App Secret — dán trực tiếp vào Render)* |
 | `PUBLIC_URL` | điền sau ở bước C3 |
 | `SESSION_SECRET` | chuỗi ngẫu nhiên (lệnh dưới) |
-| `LARK_MANAGER_IDS` | `ou_f0d3514abf6b168bef076441f350c585` (nhiều người: cách bằng dấu phẩy) |
+| `LARK_MANAGER_EMAILS` | `marketing@rootytrip.com` (nhiều người: cách bằng dấu phẩy) — xem PHẦN D |
 | `NODE_VERSION` | `22` |
 
 ```bash
@@ -131,14 +131,30 @@ Hai lớp, đừng lẫn:
 | Lớp | Quyết định | Đặt ở đâu |
 |---|---|---|
 | **Ai mở được app** | vào được hay không | Developer Console → **Availability** (phạm vi khả dụng): chọn phòng Marketing hoặc từng người |
-| **Vai trong app** | quản lý hay nhân sự | biến `LARK_MANAGER_IDS` trên Render |
+| **Vai trong app** | quản lý hay nhân sự | biến `LARK_MANAGER_EMAILS` (khuyên dùng) hoặc `LARK_MANAGER_IDS` trên Render |
 
 Người không nằm trong Availability: đăng nhập được nhưng app không đọc được dữ liệu
 của họ. Người nằm ngoài `LARK_MANAGER_IDS`: vào với vai nhân sự — chỉ thấy việc của
 mình, không thấy tab quản lý.
 
-Lấy `open_id` của một người: mở app Bảng công việc → nút **Quyền**, hoặc gọi
-`lark-cli contact +user-get --email <email>`.
+**Khai bằng email, đừng dùng open_id.** `open_id` của một người **khác nhau giữa các
+app Lark** — đổi app là danh sách cũ hết khớp và quản lý tụt xuống vai nhân sự. Email thì
+không đổi:
+
+```
+LARK_MANAGER_EMAILS = marketing@rootytrip.com, nguoi.thu.hai@rootytrip.com
+```
+
+Hub đọc email từ phiên đăng nhập Lark, tự quyết vai rồi gửi kết luận xuống ba app qua
+header nội bộ — app không cần biết danh sách. `LARK_MANAGER_IDS` vẫn dùng được (cộng dồn)
+cho trường hợp tài khoản không có email công ty.
+
+Không biết email/open_id của mình dưới app đang chạy? Mở **`<link>/toi`** — trang đó in
+ra tên, email, open_id, và nói luôn đã có vai quản lý chưa. Trong app thì xem ở
+**⚙ Cài đặt** (khối đầu hộp thoại) hoặc **Kiểm tra hệ thống**.
+
+> Đổi `LARK_MANAGER_EMAILS` xong phải **đăng xuất rồi đăng nhập lại một lần**
+> (`<link>/auth/logout`): phiên cũ được ký trước khi hub biết lưu email.
 
 ---
 

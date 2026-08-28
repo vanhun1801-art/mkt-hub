@@ -53,13 +53,14 @@ function readCookie(req, name) {
 /** Người dùng của request hiện tại, hoặc null nếu chưa đăng nhập. */
 function sessionUser(req) {
   const p = verify(readCookie(req, COOKIE));
-  return p ? { id: p.id, name: p.name } : null;
+  return p ? { id: p.id, name: p.name, email: p.email || '' } : null;
 }
 
 function setSession(res, user) {
   const token = sign({
     id: user.id,
     name: user.name,
+    email: user.email || '',
     exp: Date.now() + cfg.sessionDays * 86400000,
   });
   const parts = [
@@ -131,7 +132,12 @@ async function exchangeCode(code) {
   const u = await ui.json();
   if (u.code !== 0) throw new Error('Lấy thông tin người dùng thất bại: ' + (u.msg || u.code));
 
-  return { id: u.data.open_id, name: u.data.name || u.data.en_name || u.data.open_id };
+  return {
+    id: u.data.open_id,
+    name: u.data.name || u.data.en_name || u.data.open_id,
+    // open_id khác nhau giữa các app Lark, còn email thì không -> giữ để phân quyền
+    email: u.data.enterprise_email || u.data.email || '',
+  };
 }
 
 /* ---------------- xử lý route ---------------- */

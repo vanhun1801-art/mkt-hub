@@ -237,6 +237,11 @@ async function whoAmI(req) {
 }
 
 async function isManager(req) {
+  /* Chạy sau lớp vỏ Marketing Hub: hub đã quyết vai (danh sách khai bằng open_id
+   * HOẶC email) và gửi kèm header. Tin được vì app chỉ nghe 127.0.0.1 và hub đã
+   * xoá header do client tự gửi. Tắt bằng HUB_TRUST_HEADER=0. */
+  if (req && req.headers && req.headers['x-hub-user-manager'] === '1' &&
+      process.env.HUB_TRUST_HEADER !== '0') return true;
   const me = await whoAmI(req);
   return !!(me && cfg.loadManagerIds().includes(me.id));
 }

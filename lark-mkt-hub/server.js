@@ -21,6 +21,26 @@ const { chuyenTiep, goiJson } = require('./proxy');
 
 const PUBLIC = path.join(__dirname, 'public');
 
+/* ---------------- ai là quản lý ----------------
+ * Khai bằng open_id (LARK_MANAGER_IDS) hoặc EMAIL (LARK_MANAGER_EMAILS). Nên dùng
+ * email: open_id khác nhau giữa các app Lark nên đổi app là phải khai lại, còn
+ * email thì không đổi. Hub quyết định rồi gửi kết luận xuống module qua header,
+ * module không phải biết danh sách.
+ */
+function dsQuanLyId() {
+  return (process.env.LARK_MANAGER_IDS || '').split(',').map((x) => x.trim()).filter(Boolean);
+}
+function dsQuanLyEmail() {
+  return (process.env.LARK_MANAGER_EMAILS || '').split(',')
+    .map((x) => x.trim().toLowerCase()).filter(Boolean);
+}
+function laQuanLy(nguoi) {
+  if (!nguoi) return false;
+  if (nguoi.id && dsQuanLyId().includes(nguoi.id)) return true;
+  const mail = String(nguoi.email || '').toLowerCase();
+  return !!(mail && dsQuanLyEmail().includes(mail));
+}
+
 /* ---------------- HTTP tiện ích ---------------- */
 function send(res, code, body, headers = {}) {
   const data = typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body);
@@ -231,13 +251,13 @@ async function api(req, res, u) {
      * LARK_MANAGER_IDS cũ không còn khớp -> quản lý bị tụt xuống vai nhân sự.
      * Endpoint này để lấy đúng open_id dưới app đang chạy. */
     const nguoi = cfg.mode === 'api' ? auth.sessionUser(req) : null;
-    const ds = (process.env.LARK_MANAGER_IDS || '').split(',').map((x) => x.trim()).filter(Boolean);
     return ok(res, {
       che_do: cfg.mode,
       id: nguoi ? nguoi.id : null,
       ten: nguoi ? nguoi.name : null,
-      la_quan_ly: !!(nguoi && ds.includes(nguoi.id)),
-      so_quan_ly_dang_khai: ds.length,
+      email: nguoi ? (nguoi.email || null) : null,
+      la_quan_ly: laQuanLy(nguoi),
+      so_quan_ly_dang_khai: dsQuanLyId().length + dsQuanLyEmail().length,
     });
   }
 
@@ -247,7 +267,7 @@ async function api(req, res, u) {
    * 91403 (chưa chia sẻ Base cho app), 20029 (redirect URL chưa khai). */
   if (p === '/api/kiem-tra' && m === 'GET') {
     const nguoi = cfg.mode === 'api' ? auth.sessionUser(req) : null;
-    const dsQL = (process.env.LARK_MANAGER_IDS || '').split(',').map((x) => x.trim()).filter(Boolean);
+    if (nguoi) nguoi.quanLy = laQuanLy(nguoi);
     const hostThat = String(req.headers['x-forwarded-host'] || req.headers.host || '');
     let hostKhai = '';
     try { hostKhai = new URL(cfg.publicUrl).host; } catch (_) {}
@@ -288,9 +308,9 @@ async function api(req, res, u) {
       hub: {
         che_do: cfg.mode,
         commit: (process.env.RENDER_GIT_COMMIT || '').slice(0, 7) || null,
-        toi: nguoi ? { id: nguoi.id, ten: nguoi.name } : null,
-        la_quan_ly: !!(nguoi && dsQL.includes(nguoi.id)),
-        so_quan_ly_dang_khai: dsQL.length,
+        toi: nguoi ? { id: nguoi.id, ten: nguoi.name, email: nguoi.email || null } : null,
+        la_quan_ly: laQuanLy(nguoi),
+        so_quan_ly_dang_khai: dsQuanLyId().length + dsQuanLyEmail().length,
         public_url: cfg.publicUrl || null,
         host_that: hostThat,
         public_url_khop: !hostKhai || !hostThat || hostKhai.toLowerCase() === hostThat.toLowerCase(),
@@ -355,6 +375,7 @@ const server = http.createServer(async (req, res) => {
     }
     kids.khoiDong(mod); // bảo đảm đang chạy (không chờ)
     const nguoi = cfg.mode === 'api' ? auth.sessionUser(req) : null;
+    if (nguoi) nguoi.quanLy = laQuanLy(nguoi);
     return chuyenTiep(req, res, mod, mm[2] + (u.search || ''), nguoi);
   }
 
@@ -363,8 +384,7 @@ const server = http.createServer(async (req, res) => {
    * LARK_MANAGER_IDS, mà đọc JSON thì bất tiện cho người không quen. */
   if (p === '/toi') {
     const nguoi = cfg.mode === 'api' ? auth.sessionUser(req) : null;
-    const dsQL = (process.env.LARK_MANAGER_IDS || '').split(',').map((x) => x.trim()).filter(Boolean);
-    const laQL = !!(nguoi && dsQL.includes(nguoi.id));
+    const laQL = laQuanLy(nguoi);
     const esc = (x) => String(x == null ? '' : x).replace(/[&<>"]/g, (c) =>
       ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -375,14 +395,19 @@ const server = http.createServer(async (req, res) => {
         ? '<h1>Chưa đăng nhập</h1><p><a href="/auth/login?next=%2Ftoi">Đăng nhập Lark</a></p>'
         : '<div class="nhan">Tài khoản Lark</div>' +
           '<h1>' + esc(nguoi.name) + '</h1>' +
-          '<div class="nhan">open_id dưới app này</div>' +
-          '<div class="id" id="id">' + esc(nguoi.id) + '</div>' +
-          '<button id="cp">Copy open_id</button>' +
+          (nguoi.email
+            ? '<div class="nhan">Email — dùng cái này để khai quản lý</div>' +
+              '<div class="id" id="id">' + esc(nguoi.email) + '</div>' +
+              '<button id="cp">Copy email</button>'
+            : '<div class="nhan">open_id dưới app này</div>' +
+              '<div class="id" id="id">' + esc(nguoi.id) + '</div>' +
+              '<button id="cp">Copy open_id</button>') +
           (laQL
             ? '<p class="ok">Đang có vai quản lý — không cần làm gì thêm.</p>'
             : '<p class="canh">Chưa có vai quản lý. Vào <b>Render → service → Environment</b>, ' +
-              'đặt <code>LARK_MANAGER_IDS</code> bằng chuỗi trên rồi <b>Save</b> ' +
-              '(đang khai ' + dsQL.length + ' người, không có anh/chị trong đó).</p>');
+              'thêm biến <code>' + (nguoi.email ? 'LARK_MANAGER_EMAILS' : 'LARK_MANAGER_IDS') +
+              '</code> bằng chuỗi trên rồi <b>Save</b>. Nhiều người thì cách nhau bằng dấu phẩy.</p>') +
+          '<p style="color:#8b95a7;font-size:13px">open_id: <code>' + esc(nguoi.id) + '</code></p>';
 
     const html = '<!doctype html><html lang="vi"><head><meta charset="utf-8">' +
       '<meta name="viewport" content="width=device-width,initial-scale=1"><title>Tài khoản của tôi</title><style>' +

@@ -148,10 +148,12 @@ const nguoiCuaRequest = new AsyncLocalStorage();
 function nguoiTuHeader(req) {
   const id = req.headers['x-hub-user-id'];
   if (!id) return null;
+  // hub đã quyết vai quản lý (theo open_id hoặc email), gửi kèm ở header này
+  const quanLy = req.headers['x-hub-user-manager'] === '1';
   const ten = req.headers['x-hub-user-name'];
   let deco = id;
   try { deco = ten ? decodeURIComponent(ten) : id; } catch (_) { deco = ten || id; }
-  return { id: String(id), name: String(deco) };
+  return { id: String(id), name: String(deco), quanLy };
 }
 
 async function whoAmI() {
@@ -165,6 +167,7 @@ async function whoAmI() {
 
 async function isManager() {
   const me = await whoAmI();
+  if (me && me.quanLy) return true;          // kết luận của lớp vỏ
   return !!(me && cfg.loadManagerIds().includes(me.id));
 }
 

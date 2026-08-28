@@ -791,12 +791,14 @@ function modalCaiDat() {
     if (!o || t.che_do !== 'api' || !t.id) return;
     o.hidden = false;
     o.className = 'canh-bao' + (t.la_quan_ly ? '' : ' do');
-    o.innerHTML = '<div class="grow"><b>' + esc(t.ten || '') + '</b> · open_id <code>' + esc(t.id) + '</code>' +
+    const khoa = t.email || t.id;
+    const bien = t.email ? 'LARK_MANAGER_EMAILS' : 'LARK_MANAGER_IDS';
+    o.innerHTML = '<div class="grow"><b>' + esc(t.ten || '') + '</b> · <code>' + esc(khoa) + '</code>' +
       '<div class="kh-sub">' + (t.la_quan_ly
         ? 'Đang có vai quản lý.'
-        : 'Chưa có vai quản lý — dán open_id này vào biến LARK_MANAGER_IDS trên Render rồi Save.') +
+        : 'Chưa có vai quản lý — thêm chuỗi này vào biến ' + bien + ' trên Render rồi Save.') +
       '</div></div>' +
-      '<button class="btn nho" data-copy-id="' + esc(t.id) + '">Copy open_id</button>';
+      '<button class="btn nho" data-copy-id="' + esc(khoa) + '">Copy</button>';
   }).catch(() => {});
 }
 
