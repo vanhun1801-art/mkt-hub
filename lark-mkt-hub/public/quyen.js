@@ -27,7 +27,7 @@ async function modalPhanQuyen() {
   moModal('Người dùng & phân quyền',
     '<div class="trong"><span class="spin"></span> Đang đọc bảng phân quyền…</div>',
     chanDanhSach(), true);
-  $('#qVeCaiDat').onclick = modalCaiDat;
+  $('#qVeCaiDat').onclick = () => modalCaiDat('nguoi');
   try {
     S.quyen = await goi('/api/quyen?refresh=1');
   } catch (e) {
@@ -168,7 +168,7 @@ function veDanhSachQuyen() {
 
   $('#mdTitle').textContent = 'Người dùng & phân quyền';
   $('#mdFoot').innerHTML = chanDanhSach();
-  $('#qVeCaiDat').onclick = modalCaiDat;
+  $('#qVeCaiDat').onclick = () => modalCaiDat('nguoi');
   $('#mdBody').innerHTML = html;
   $('#qThemNguoi').onclick = () => moFormQuyen(null);
 }

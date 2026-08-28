@@ -1264,7 +1264,9 @@ $('#btnPin').onclick = () => {
   try { localStorage.setItem('hub.rail.min', r.classList.contains('min') ? '1' : '0'); } catch (_) {}
 };
 $('#btnAdd').onclick = modalThem;
-$('#btnSettings').onclick = modalCaiDat;
+/* Gọi qua hàm bọc, không gán thẳng: bản Cài đặt mới nằm ở caidat.js (nạp sau file
+ * này) và ghi đè modalCaiDat — gán thẳng là giữ mãi bản cũ đã bắt được lúc nạp. */
+$('#btnSettings').onclick = () => modalCaiDat();
 $('#btnReload').onclick = () => napHub().then(() => napTongQuan(true));
 
 // hai ô ngày của bộ lọc "Tuỳ chọn" — thanh lọc được vẽ lại nên bắt kiểu uỷ quyền
