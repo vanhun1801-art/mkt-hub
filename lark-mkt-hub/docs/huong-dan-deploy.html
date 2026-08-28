@@ -352,7 +352,7 @@ git push -u origin main</pre>
             <tbody>
               <tr><td><code>LARK_APP_ID</code></td><td><code>cli_aa04305ecd385ed1</code></td></tr>
               <tr><td><code>LARK_APP_SECRET</code></td><td>App Secret đã copy ở phần chuẩn bị</td></tr>
-              <tr><td><code>PUBLIC_URL</code></td><td>Tạm để <code>https://mkt-hub.onrender.com</code> — bước 5 sẽ sửa lại cho đúng</td></tr>
+              <tr><td><code>PUBLIC_URL</code></td><td><code>https://mkt-hub-w6hi.onrender.com</code> — <b>phải đúng tên miền Render cấp</b>, xem bước 5</td></tr>
               <tr><td><code>LARK_MANAGER_IDS</code></td><td><code>ou_f0d3514abf6b168bef076441f350c585</code> (chính anh). Thêm quản lý khác thì viết tiếp, cách nhau bằng dấu phẩy</td></tr>
             </tbody>
           </table>
@@ -391,6 +391,7 @@ git push -u origin main</pre>
         <p>Trên trang service, đầu trang có đường link dạng <code>https://mkt-hub.onrender.com</code> (nếu tên đã có người dùng, Render thêm hậu tố, ví dụ <code>mkt-hub-a1b2</code>). Copy đúng đường link đó.</p>
         <p>Vào tab <b>Environment</b> → sửa <code>PUBLIC_URL</code> thành đúng đường link → <b>Save</b>. Render tự deploy lại một lần nữa.</p>
         <div class="seen"><b>Thấy gì là đúng:</b> mở <code>&lt;link&gt;/healthz</code> trên trình duyệt thấy <code>{"ok":true,...}</code>. Mở trang chủ thì bị đẩy sang trang đăng nhập Lark — đúng, chặng 3 mới xong phần đăng nhập.</div>
+        <div class="caution"><b>Đây là lỗi anh vừa gặp.</b> Render đặt tên service là <code>mkt-hub-w6hi</code> (vì <code>mkt-hub</code> đã có người dùng), mà <code>PUBLIC_URL</code> vẫn để <code>mkt-hub.onrender.com</code> → đăng nhập xong Lark trả về tên miền không phải của anh. Từ bản mới, app tự phát hiện và hiện luôn trang chỉ cách sửa thay vì im lặng.</div>
       </li>
     </ol>
   </section>
@@ -427,9 +428,9 @@ git push -u origin main</pre>
         <p>Developer Console → app của anh → <b>Security Settings</b> → mục <b>Redirect URL</b> → <b>Add</b>:</p>
         <div class="cmd">
           <div class="cmd-bar">dán vào ô Redirect URL<button type="button" data-copy="1">Copy</button></div>
-<pre>https://mkt-hub.onrender.com/auth/callback</pre>
+<pre>https://mkt-hub-w6hi.onrender.com/auth/callback</pre>
         </div>
-        <p>Thay <code>mkt-hub.onrender.com</code> bằng đúng đường link Render đã cấp. Sai một ký tự là lỗi <code>redirect_uri mismatch</code>.</p>
+        <p>Đây đúng là link Render đã cấp cho anh (<code>mkt-hub-w6hi</code>, có hậu tố vì tên <code>mkt-hub</code> đã có người dùng). Sai một ký tự là lỗi <code>redirect_uri mismatch</code>.</p>
       </li>
 
       <li>
