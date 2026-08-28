@@ -96,16 +96,22 @@ Mở automation → khối điều kiện → thêm: `Đã giải quyết` **is*
 
 ### C. Thêm automation mới cho nút Giải quyết
 
-Cách nhanh: mở `Thông báo đánh giá khi hoàn thành` → menu `...` → **Copy**, rồi
-trên bản sao chỉ đổi hai chỗ:
+Lưu ý: `Thông báo đánh giá khi hoàn thành` là workflow tạo bằng API nên nó **không
+nằm trong Automation center** (nó ở sidebar của Base) — không copy được từ đó.
+Phải dựng mới bằng `+ Create Automation`:
 
-* **Trigger**: bỏ `Trạng thái is Hoàn thành`, chọn `Đã giải quyết` → `is` → *đã tick*.
-* **Tiêu đề & nội dung tin**: nói rõ là việc trễ đã nộp, trạng thái trễ được giữ
-  lại để thống kê.
+* **Trigger**: `When record is updated` → table `Tracking` → Select fields: chỉ tick
+  `Đã giải quyết`, đặt điều kiện *is / checked*.
+* **Trigger limit settings**: bỏ tick "Updating data in bulk via Open API" — app
+  chính là nơi tick ô này.
+* **Action** `Send a Lark message`: người nhận = `Người order` (lấy từ "Record
+  updated in step 1") + thêm quản lý; nội dung nêu Công việc, Phụ trách chính,
+  Deadline 1, Ngày giải quyết, Link; bật `Add buttons at the bottom` với 3 nút
+  `Add/Edit records` ghi `Chấm điểm` = 1 / 3 / 5.
+* Kết thúc bằng **Save and Activate** (bấm `Save Only` thì automation nằm im).
 
-Giữ nguyên 3 nút 1★ / 3★ / 5★ ghi vào `Chấm điểm`, giữ nguyên người nhận là
-`Người order`, và **bỏ tick** "Updating data in bulk via Open API" ở bản sao này
-(app chính là nơi tick ô Đã giải quyết).
+Không cần bước `Delay`: app ghi link và ô Đã giải quyết trong cùng một lệnh, dữ
+liệu đã đầy đủ ngay lúc trigger chạy.
 
 Bản mô tả JSON tương đương (nếu tạo bằng `lark-cli base +workflow-create`):
 trigger `SetRecordTrigger` trên `Đã giải quyết` với
