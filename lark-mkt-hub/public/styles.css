@@ -913,3 +913,14 @@ body.dang-xem-ho .app { height: calc(100vh - 34px); margin-top: 34px; }
   .cd-nav { flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--vien); }
   .cd-nhom { display: none; }
 }
+
+/* ==========================================================================
+   App con mở cửa sổ -> tối cả lớp vỏ
+   App con tự vẽ lớp phủ của nó bên trong khung nhúng; phần này làm nốt phần
+   còn lại của màn hình để cửa sổ nổi hẳn lên.
+   ========================================================================== */
+/* Đặt thật sự bằng JS (r.style.filter) chứ không dựa vào luật theo class: ở đây
+   luật `body.mod-che .rail` không ăn, đặt inline thì ăn ngay. Phần CSS này chỉ
+   còn lo chuyện chuyển động cho đỡ giật. */
+/* Panel vẫn bấm được: tối lại là để mắt tập trung, không phải để cấm thao tác —
+   đang mở ô chi tiết mà muốn nhảy sang base khác thì vẫn nhảy được. */

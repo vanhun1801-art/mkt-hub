@@ -40,6 +40,14 @@ function shimJs(mod, nguoi) {
     prefix: P,
     id: ${JSON.stringify(mod.id)},
     quanLy: ${nguoi && nguoi.quanLy ? 'true' : 'false'},
+    /* App con mở cửa sổ / ô chi tiết thì gọi __HUB__.che(true) — lớp vỏ tự tối
+     * panel và thanh đầu lại, để cửa sổ nổi trên CẢ giao diện chứ không chỉ
+     * trong khung nhúng. Chạy trực tiếp ngoài Hub thì hàm này không tồn tại,
+     * app con phải tự bọc trong try hoặc kiểm tra trước khi gọi. */
+    che: function(mo){
+      try { parent.postMessage({ hub: 'che', id: window.__HUB__.id, mo: !!mo }, location.origin); }
+      catch (e) {}
+    },
   };
 
   var of = window.fetch;

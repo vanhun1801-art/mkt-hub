@@ -1524,6 +1524,66 @@ td.c-check { width: 34px; }
 #drawer .attthumb { width: 92px; height: 72px; }
 #drawer .attitem { gap: 13px; padding: 9px; }
 #drawer .attname { font-size: 13px; white-space: normal; }
+/* ==========================================================================
+   Ô CHI TIẾT CỤA NHÂN SỰ — từng khối là một thẻ có bóng nhỏ,
+   cùng ngôn ngữ với các app khác trong Marketing Hub.
+   ========================================================================== */
+.kh {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  box-shadow: 0 1px 2px rgba(20, 30, 60, .06), 0 6px 20px rgba(20, 30, 60, .05);
+  overflow: hidden;
+}
+.kh-dau {
+  display: flex; align-items: center; gap: 8px;
+  padding: 11px 14px;
+  background: var(--surface-3);
+  border-bottom: 1px solid var(--border);
+}
+.kh-ten {
+  font-size: 11.5px; font-weight: 650; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--text-2);
+}
+.kh-than { padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+.kh-than > .field { margin: 0; }
+/* Khối "Phần của bạn": viền xanh để tách hẳn khỏi phần chỉ đọc ở trên */
+.kh-cb { border-color: var(--blue); }
+.kh-cb .kh-dau { background: var(--blue-bg); border-bottom-color: var(--blue); }
+.kh-cb .kh-ten { color: var(--blue-text); }
+
+/* Khối gợi gửi yêu cầu điều chỉnh */
+.sd-dc {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 11px 12px;
+  background: var(--orange-bg); border-radius: var(--r-ctl);
+}
+.sd-dc-txt { font-size: 12px; line-height: 1.5; color: var(--orange-text); flex: 1; min-width: 220px; }
+.sd-dc .btn { flex: 0 0 auto; }
+
+/* Đầu ô chi tiết nhuốm màu theo giai đoạn — nhìn là biết đang ở bước nào */
+.drawer-head { border-left: 4px solid transparent; transition: background .18s; }
+.dh-new     { background: linear-gradient(180deg, var(--red-bg), var(--surface)); border-left-color: var(--red); }
+.dh-doing   { background: linear-gradient(180deg, var(--blue-bg), var(--surface)); border-left-color: var(--blue); }
+.dh-late    { background: linear-gradient(180deg, var(--red-bg), var(--surface)); border-left-color: var(--red); }
+.dh-redo    { background: linear-gradient(180deg, var(--orange-bg), var(--surface)); border-left-color: var(--orange); }
+.dh-daNop   { background: linear-gradient(180deg, var(--orange-bg), var(--surface)); border-left-color: var(--orange); }
+.dh-helping { background: linear-gradient(180deg, var(--purple-bg), var(--surface)); border-left-color: var(--purple); }
+.dh-done    { background: linear-gradient(180deg, var(--green-bg), var(--surface)); border-left-color: var(--green); }
+
+#dStage { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+#dStage .sb-lan {
+  font-size: 11.5px; font-weight: 650; padding: 3px 10px; border-radius: 999px;
+  background: var(--surface); border: 1px solid var(--border-2); color: var(--text);
+}
+#dStage .sb-han {
+  font-size: 11.5px; font-weight: 600; padding: 3px 10px; border-radius: 999px;
+  background: var(--surface-3); color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+#dStage .sb-han.tre { background: var(--red); color: #fff; }
+#dStage .sb-han.gq { background: var(--orange-bg); color: var(--orange-text); }
+
 
 .attbtn {
   font-size: 11.5px; padding: 2px 9px; border-radius: var(--r-sm);

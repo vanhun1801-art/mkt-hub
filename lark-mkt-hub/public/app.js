@@ -1301,6 +1301,15 @@ window.addEventListener('message', (ev) => {
     toast('Không thấy việc này trong phạm vi bạn xem được', 'do');
     return;
   }
+  /* App con mở cửa sổ -> tối cả panel và thanh đầu của lớp vỏ. Không làm thế thì
+   * lớp phủ chỉ tối được vùng bên trong khung nhúng, nhìn như nửa vời. */
+  if (d && d.hub === 'che') {
+    const mo = !!d.mo;
+    document.body.classList.toggle('mod-che', mo);
+    const r = document.getElementById('rail');
+    if (r) r.style.filter = mo ? 'brightness(.6) saturate(.9)' : '';
+    return;
+  }
   // app con vừa mở xong -> gửi ngay khoảng lọc đang áp
   if (d && d.hub === 'xin-loc') { guiKhoangXuongModule(); return; }
   // người dùng đổi khoảng bên trong app con -> kéo cả nhà theo

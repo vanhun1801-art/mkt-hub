@@ -926,12 +926,22 @@ async function saveQuyen() {
   }
 }
 
+/* Báo lớp vỏ Marketing Hub biết app con đang mở cửa sổ, để nó tối luôn panel bên
+ * ngoài — không thì lớp phủ chỉ tối được vùng trong khung nhúng. Chạy ngoài Hub
+ * thì __HUB__ không tồn tại và câu này không làm gì. */
+function baoChe(mo) {
+  try { if (window.__HUB__ && window.__HUB__.che) window.__HUB__.che(mo); } catch (_) {}
+}
+
 function openModal(id) {
   $('#' + id).classList.add('open');
+  baoChe(true);
 }
 function closeModal(id) {
   $('#' + id).classList.remove('open');
   S.modalTask = null;
+  // còn cửa sổ nào khác đang mở thì giữ nguyên nền tối
+  if (!document.querySelector('.modal.open') && !$('#drawer').classList.contains('open')) baoChe(false);
 }
 
 /* =======================  LỊCH  ======================= */
@@ -2131,6 +2141,7 @@ function openDrawer(task) {
   buildDrawer();
   $('#drawer').classList.add('open');
   $('#scrim').classList.add('open');
+  baoChe(true);
 }
 
 function closeDrawer() {
@@ -2139,6 +2150,7 @@ function closeDrawer() {
   $('#drawer').classList.remove('open');
   $('#scrim').classList.remove('open');
   $('#dStatusMsg').textContent = '';
+  if (!document.querySelector('.modal.open')) baoChe(false);
 }
 
 function set(key, val) {
@@ -2168,11 +2180,25 @@ function buildDrawer() {
   $('#dDelete').classList.toggle('hidden', isNew || staff);
   $('#dSave').textContent = isNew ? 'Tạo công việc' : 'Lưu thay đổi';
 
+  /* Đầu ô chi tiết nhuốm màu theo giai đoạn, và mang luôn cái quan trọng nhất
+   * là HẠN — vì dưới kia chỉ còn bốn viên trạng thái/ưu tiên/order/loại việc. */
+  const dhead = $('#drawer .drawer-head');
+  dhead.className = 'drawer-head';
   const badge = $('#dStage');
-  if (isNew) badge.textContent = '';
-  else {
-    const def = LANE_BY_KEY[laneOf(t, S.who && S.who.id)];
-    badge.textContent = def ? def.title : (t.status || '');
+  badge.innerHTML = '';
+  if (!isNew) {
+    const key = laneOf(t, S.who && S.who.id);
+    const def = LANE_BY_KEY[key];
+    if (key) dhead.classList.add('dh-' + key);
+    badge.appendChild(el('span', 'sb-lan', def ? def.title : (t.status || '')));
+    if (t.deadline) {
+      const tre = laTreTheoHan(t);
+      const con = daysLeft(t.deadline);
+      badge.appendChild(el('span', 'sb-han' + (tre ? ' tre' : ''),
+        (tre ? 'Trễ · hạn ' : 'Hạn ') + fmtDate(t.deadline, true) +
+        (tre && con != null && con < 0 ? ' (' + Math.abs(con) + ' ngày)' : '')));
+    }
+    if (daGiaiQuyet(t)) badge.appendChild(el('span', 'sb-han gq', nhanGiaiQuyet(t)));
   }
 
   const b = $('#drawerBody');
@@ -2327,6 +2353,66 @@ const toneTrangThai = (v) => (v === 'Hoàn thành' ? 'green'
   : v === 'Làm lại' ? 'orange'
   : v === 'Đang tiến hành' ? 'blue' : '');
 
+/** Một khối thông tin dạng thẻ, cùng ngôn ngữ đổ bóng với các app khác trong Hub. */
+function theKhoi(tieuDe, phu) {
+  const the = el('div', 'kh' + (phu ? ' kh-' + phu : ''));
+  const dau = el('div', 'kh-dau');
+  dau.appendChild(el('span', 'kh-ten', tieuDe));
+  the.appendChild(dau);
+  const than = el('div', 'kh-than');
+  the.appendChild(than);
+  return { the, than, dau };
+}
+
+/** Tệp kèm theo yêu cầu: chỉ đọc, mỗi tệp có Xem nhanh + Tải xuống. */
+function khoiTepYeuCau(t) {
+  const att = t.attachment || [];
+  const box = el('div', 'field');
+  box.appendChild(el('label', '', 'Tệp đính kèm (' + att.length + ')'));
+  if (!att.length) {
+    box.appendChild(el('div', 'ro-note', 'Chưa có tệp nào.'));
+    return box;
+  }
+  const ds = el('div', 'attgrid');
+  for (const a of att) {
+    if (!a.token) { ds.appendChild(el('span', 'att', a.name || 'tệp')); continue; }
+    const o = el('div', 'attitem');
+    const xem = el('div', 'attthumb');
+    if (laAnh(a.name)) {
+      const img = el('img');
+      img.src = urlTep(t.id, a.token);
+      img.alt = a.name || '';
+      img.loading = 'lazy';
+      xem.appendChild(img);
+    } else {
+      xem.classList.add('ic');
+      xem.textContent = laPdf(a.name) ? 'PDF' : laVideo(a.name) ? '▶' : 'TỆP';
+    }
+    xem.onclick = () => moXemTep(t, a);
+    xem.title = 'Bấm để xem';
+    o.appendChild(xem);
+
+    const meta = el('div', 'attmeta');
+    const ten = el('div', 'attname', a.name || 'tệp');
+    ten.onclick = () => moXemTep(t, a);
+    meta.appendChild(ten);
+    meta.appendChild(el('div', 'attsize', a.size ? Math.round(a.size / 1024) + ' KB' : ''));
+    const acts = el('div', 'attacts');
+    const nhanh = el('button', 'attbtn', 'Xem nhanh');
+    nhanh.onclick = () => moXemTep(t, a);
+    acts.appendChild(nhanh);
+    const tai = el('a', 'attbtn', 'Tải xuống');
+    tai.href = urlTep(t.id, a.token, true);
+    tai.setAttribute('download', a.name || '');
+    acts.appendChild(tai);
+    meta.appendChild(acts);
+    o.appendChild(meta);
+    ds.appendChild(o);
+  }
+  box.appendChild(ds);
+  return box;
+}
+
 /** Drawer cho Phụ trách chính — chỉ mở đúng những gì tài liệu cho phép sửa. */
 function buildStaffDrawer(b, t, o) {
   const stage = laneOf(t, S.who && S.who.id);
@@ -2340,58 +2426,65 @@ function buildStaffDrawer(b, t, o) {
   /* --- yêu cầu từ người order: chỉ đọc ---
    * Thứ tự đọc: PHẢI LÀM GÌ (mô tả) -> tài liệu kèm -> phần còn lại gọn thành
    * viên nhỏ. Tên việc đã nằm ở đầu drawer nên không lặp lại ở đây. */
-  b.appendChild(el('div', 'section-title', 'Yêu cầu từ người order'));
+  /* ---------- THẺ 1: yêu cầu từ người order (chỉ đọc) ----------
+   * Nhân sự cần đúng ba thứ để bắt tay vào làm: làm gì, tài liệu đâu, ai order.
+   * Phần còn lại gọn thành viên nhỏ. */
+  const yc = theKhoi('Yêu cầu từ người order');
+  if (t.detail) yc.than.appendChild(moTaCoLink(t.detail));
+  else yc.than.appendChild(el('div', 'd-desc trong-nhe', 'Người order chưa ghi chi tiết yêu cầu.'));
 
-  if (t.detail) b.appendChild(moTaCoLink(t.detail));
-  else b.appendChild(el('div', 'd-desc trong-nhe', 'Người order chưa ghi chi tiết yêu cầu.'));
-
-  /* Tệp đính kèm là tài liệu để làm việc, không phải phụ lục — đặt ngay dưới
-   * mô tả, có ảnh thì xem được tại chỗ. */
-  b.appendChild(attachmentField(t, myRole === 'owner'));
+  yc.than.appendChild(khoiTepYeuCau(t));
 
   const chips = el('div', 'd-chips');
   const themVien = (nhan, v, tone) => { if (v) chips.appendChild(vien(nhan, v, tone)); };
   themVien('', t.status, toneTrangThai(t.status));
   themVien('', plainLabel(t.priority), toneUuTien(t.priority));
-  themVien('hạn', fmtDate(t.deadline1, true), laTreTheoHan(t) ? 'red' : '');
-  if (t.deadline2) themVien('hạn 2', fmtDate(t.deadline2, true));
-  themVien('bắt đầu', fmtDate(t.startAt, true));
-  themVien('loại', t.workType);
-  themVien('chiến dịch', t.campaign);
   themVien('order', (t.requester || []).map((u) => u.name).join(', '));
-  if ((t.helper || []).length) themVien('hỗ trợ', t.helper.map((u) => u.name).join(', '));
+  themVien('loại', t.workType);
   if (t.rating) themVien('điểm', '★'.repeat(t.rating) + ' ' + t.rating + '/5', 'green');
-  if (daGiaiQuyet(t)) themVien('', nhanGiaiQuyet(t), 'orange');
-  if (chips.children.length) b.appendChild(chips);
+  if (chips.children.length) yc.than.appendChild(chips);
 
-  const ro = el('div', 'ro-note',
-    'Những thông tin trên do người order quản lý. Cần đổi Deadline / Chi tiết / người phụ trách → gửi Yêu cầu điều chỉnh, không tự sửa.');
-  b.appendChild(ro);
-
-  const adj = el('button', 'btn', 'Gửi Yêu cầu điều chỉnh');
+  /* Nút điều chỉnh: nói rõ khi nào dùng, đừng để họ đoán. */
+  const dc = el('div', 'sd-dc');
+  dc.appendChild(el('div', 'sd-dc-txt',
+    'Yêu cầu này có gì chưa rõ hoặc chưa đảm bảo để làm — thiếu tài liệu, sai thông tin, ' +
+    'deadline không kịp? Gửi yêu cầu điều chỉnh cho người order thay vì tự sửa.'));
+  const adj = el('button', 'btn', 'Gửi yêu cầu điều chỉnh');
   adj.onclick = () => { closeDrawer(); openAdjust(t); };
-  b.appendChild(adj);
+  dc.appendChild(adj);
+  yc.than.appendChild(dc);
+  b.appendChild(yc.the);
 
-  /* --- phần của tôi: được sửa --- */
-  b.appendChild(el('div', 'section-title', 'Phần của bạn'));
+  /* ---------- THẺ 2: phần của bạn (được sửa) ---------- */
+  const cb = theKhoi('Phần của bạn', 'cb');
 
   if (myRole !== 'owner') {
-    b.appendChild(el('div', 'callout', 'Bạn là ' +
+    cb.than.appendChild(el('div', 'callout', 'Bạn là ' +
       (myRole === 'helper' ? 'Người hỗ trợ' : 'Người order') +
       ' của task này. Người cập nhật trạng thái là Phụ trách chính.'));
   }
 
-  b.appendChild(field('Link kết quả', textInput(t.link, (v) => set('link', v), 'url')));
+  cb.than.appendChild(field('Link kết quả', textInput(t.link, (v) => set('link', v), 'url')));
 
   const note = el('textarea');
   note.value = t.note || '';
   note.style.minHeight = '60px';
   note.oninput = () => set('note', note.value);
-  b.appendChild(field('Ghi chú', note));
+  cb.than.appendChild(field('Ghi chú', note));
 
-  b.appendChild(field('Người hỗ trợ (chỉ thêm khi thật cần)',
+  if (myRole === 'owner') {
+    const nop = el('div', 'field');
+    nop.appendChild(el('label', '', 'Nộp file kết quả'));
+    nop.appendChild(el('div', 'ro-note',
+      'Chọn trực tiếp ở đây, tệp vào thẳng ô Tệp đính kèm của bản ghi trên Base.'));
+    nop.appendChild(oTaiLen(t));
+    cb.than.appendChild(nop);
+  }
+
+  cb.than.appendChild(field('Người hỗ trợ (chỉ thêm khi thật cần)',
     peopleDropdown(t.helper, (v) => set('helper', v), 'Chọn người hỗ trợ…')));
-  // tệp đính kèm đã ở khối trên (kèm nút thêm/xoá) — không bày lại lần hai
+  b.appendChild(cb.the);
+
   b.appendChild(khoiBinhLuan(t));
 
   /* --- hành động chính --- */
@@ -2488,8 +2581,15 @@ function attachmentField(t, canUpload) {
   if (!att.length) list.appendChild(el('div', 'att', 'Chưa có tệp nào.'));
 
   const f = field('Tệp đính kèm (' + att.length + ')', list);
+  if (canUpload) f.appendChild(oTaiLen(t));
+  else f.appendChild(el('div', 'ro-note', 'Bấm vào tệp để xem trực tiếp.'));
+  return f;
+}
 
-  if (canUpload) {
+/** Ô chọn tệp để tải lên — tách riêng để đặt được vào đúng khối "Phần của bạn". */
+function oTaiLen(t) {
+  const hop = el('div', 'field');
+  {
     const row = el('div', 'uploadrow');
     const input = el('input');
     input.type = 'file';
@@ -2520,12 +2620,10 @@ function attachmentField(t, canUpload) {
       }
     };
     row.appendChild(input);
-    f.appendChild(row);
-    f.appendChild(st);
-  } else {
-    f.appendChild(el('div', 'ro-note', 'Bấm vào tệp để xem trực tiếp.'));
+    hop.appendChild(row);
+    hop.appendChild(st);
   }
-  return f;
+  return hop;
 }
 
 /* ---- bình luận trong công việc ---- */
@@ -2682,6 +2780,13 @@ async function saveDrawer() {
   } finally {
     btn.disabled = false;
   }
+}
+
+/** Bấm ra ngoài ô chi tiết: có thay đổi thì lưu rồi đóng, không thì đóng luôn. */
+async function luuRoiDong() {
+  const t = S.editing;
+  if (t && !t.isNew && Object.keys(S.dirty).length) return saveDrawer();
+  closeDrawer();
 }
 
 async function deleteCurrent() {
@@ -3323,9 +3428,11 @@ function setupChrome() {
   // hiện "cập nhật lúc" mỗi 10 giây để biết dữ liệu mới tới đâu
   setInterval(capNhatNhanThoiGian, 10000);
 
+  /* X và Đóng = bỏ, không lưu. Bấm ra vùng trống = lưu luôn — để không ai gõ xong
+   * rồi mất bài vì quên bấm Lưu. */
   $('#dClose').onclick = closeDrawer;
   $('#dCancel').onclick = closeDrawer;
-  $('#scrim').onclick = closeDrawer;
+  $('#scrim').onclick = () => luuRoiDong();
   $('#dSave').onclick = saveDrawer;
   $('#dDelete').onclick = deleteCurrent;
 
