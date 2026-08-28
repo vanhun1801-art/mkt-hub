@@ -410,7 +410,21 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 .lane-l-helping { --g1: #572491; --g2: #6129a2; --g3: #6c2db4; }
 .lane-l-doing   { --g1: #184593; --g2: #1b4ea6; --g3: #1e57b8; }
 .lane-l-late    { --g1: #5e0d0a; --g2: #72100d; --g3: #85130f; }
+.lane-l-daNop   { --g1: #844608; --g2: #98510a; --g3: #ad5c0b; }
 .lane-l-done    { --g1: #055a3a; --g2: #066e48; --g3: #078355; }
+
+/* Làn không có việc thì thôi gào: xám lại, để màu mạnh chỉ còn ở chỗ có việc
+   thật. Nhìn một phát biết phải đọc đâu trước. */
+.lane.is-empty { box-shadow: none; }
+.lane.is-empty .lane-head {
+  background: var(--surface-3);
+  border-bottom: 1px solid var(--border);
+}
+.lane.is-empty .lane-head strong { color: var(--text-2); text-shadow: none; font-weight: 600; }
+.lane.is-empty .lane-head .lh-n { background: var(--border); color: var(--text-3); }
+.lane.is-empty .lane-head .lh-hint { color: var(--text-4); border-left-color: var(--border-2); }
+.lane.is-empty .lane-head .lh-caret { color: var(--text-4); }
+.lane.is-empty .lane-head:hover { filter: none; background: var(--surface-2); }
 
 .lane-items { display: flex; flex-direction: column; background: var(--surface); }
 .lane.collapsed .lane-items { display: none; }
@@ -855,6 +869,15 @@ td.c-check { width: 34px; }
   font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
   color: var(--text-2); margin: 4px 0 -4px;
 }
+/* Trong ô chi tiết, mỗi phần là một khối riêng: tiêu đề phần có gạch phân cách
+   phía trên để mắt biết đã sang chuyện khác. */
+#drawer .section-title {
+  margin: 20px 0 8px; padding-top: 15px;
+  border-top: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px;
+  color: var(--text); font-size: 11.5px;
+}
+#drawer .section-title:first-child { margin-top: 2px; padding-top: 0; border-top: none; }
 
 /* ---------------- callout ---------------- */
 .callout {
@@ -1458,6 +1481,50 @@ td.c-check { width: 34px; }
 .attname:hover { color: var(--blue-text); }
 .attsize { font-size: 11px; color: var(--text-2); }
 .attacts { display: flex; gap: 6px; margin-top: 5px; }
+/* ==========================================================================
+   Ô CHI TIẾT — phân cấp thông tin
+   Đọc theo thứ tự: phải làm gì (mô tả) -> tài liệu kèm -> dữ kiện phụ (viên nhỏ).
+   ========================================================================== */
+.d-desc {
+  font-size: 14px; line-height: 1.62; white-space: pre-wrap;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--blue);
+  border-radius: var(--r-ctl);
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  overflow-wrap: anywhere;
+}
+.d-desc.trong-nhe { color: var(--text-3); font-style: italic; border-left-color: var(--border-2); }
+.d-desc a { color: var(--blue-text); text-decoration: underline; text-underline-offset: 2px; }
+.d-desc a:hover { color: var(--blue-dark); }
+
+.d-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 4px; }
+.d-chip {
+  display: inline-flex; align-items: baseline; gap: 5px;
+  font-size: 11.5px; line-height: 1.5;
+  padding: 3px 9px; border-radius: 999px;
+  background: var(--surface-3); border: 1px solid var(--border);
+  color: var(--text-2);
+}
+.d-chip .k { font-size: 10.5px; font-weight: 500; color: var(--text-3); text-transform: lowercase; }
+.d-chip b { font-weight: 650; color: var(--text); font-variant-numeric: tabular-nums; }
+.d-chip.t-red    { background: var(--red-bg);    border-color: transparent; }
+.d-chip.t-red b, .d-chip.t-red .k       { color: var(--red-text); }
+.d-chip.t-orange { background: var(--orange-bg); border-color: transparent; }
+.d-chip.t-orange b, .d-chip.t-orange .k { color: var(--orange-text); }
+.d-chip.t-green  { background: var(--green-bg);  border-color: transparent; }
+.d-chip.t-green b, .d-chip.t-green .k   { color: var(--green-text); }
+.d-chip.t-blue   { background: var(--blue-bg);   border-color: transparent; }
+.d-chip.t-blue b, .d-chip.t-blue .k     { color: var(--blue-text); }
+
+/* Ảnh đính kèm là thứ cần xem, không phải thứ cần đoán — thumbnail to hẳn lên
+   trong ô chi tiết, bấm phóng to được như cũ. */
+#drawer .attthumb { width: 92px; height: 72px; }
+#drawer .attitem { gap: 13px; padding: 9px; }
+#drawer .attname { font-size: 13px; white-space: normal; }
+
 .attbtn {
   font-size: 11.5px; padding: 2px 9px; border-radius: var(--r-sm);
   border: 1px solid var(--border); background: var(--surface);

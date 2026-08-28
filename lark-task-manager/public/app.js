@@ -596,7 +596,7 @@ function renderLanes(list) {
     // đã nộp rồi thì biến khỏi màn hình, trừ khi người dùng đang tìm chính nó
     if (def.chiKhiTim && !S.filters.q.trim()) continue;
 
-    const lane = el('div', 'lane lane-l-' + def.key);
+    const lane = el('div', 'lane lane-l-' + def.key + (items.length ? '' : ' is-empty'));
     const collapsed = !!S.collapsed[def.key];
     if (collapsed) lane.classList.add('collapsed');
 
@@ -2291,6 +2291,42 @@ function buildCreateForm(b, t, o) {
     optionsDropdown(o.channel, t.channel, (v) => set('channel', v), 'Chọn kênh…')));
 }
 
+/* Biến URL trong mô tả thành link bấm được. Yêu cầu của người order hay có
+ * link Drive/Figma dán giữa đoạn văn — để dạng chữ thì phải bôi đen copy tay. */
+function moTaCoLink(text) {
+  const box = el('div', 'd-desc');
+  const re = /(https?:\/\/[^\s<>"')\]]+)/g;
+  let i = 0, m;
+  while ((m = re.exec(String(text))) !== null) {
+    if (m.index > i) box.appendChild(document.createTextNode(text.slice(i, m.index)));
+    const a = el('a', '', m[1].length > 60 ? m[1].slice(0, 57) + '\u2026' : m[1]);
+    a.href = m[1];
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.title = m[1];
+    box.appendChild(a);
+    i = m.index + m[1].length;
+  }
+  if (i < text.length) box.appendChild(document.createTextNode(text.slice(i)));
+  return box;
+}
+
+/** Viên thông tin nhỏ: nhãn mờ — giá trị đậm. `tone` cho màu ngụ nghĩa. */
+function vien(nhan, giaTri, tone) {
+  const c = el('span', 'd-chip' + (tone ? ' t-' + tone : ''));
+  if (nhan) c.appendChild(el('span', 'k', nhan));
+  c.appendChild(el('b', '', String(giaTri)));
+  return c;
+}
+
+/** Màu cho độ ưu tiên / trạng thái — cùng bộ với thẻ ngoài danh sách. */
+const toneUuTien = (v) => (/cao|urgent|g\u1ea5p/i.test(v || '') ? 'red'
+  : /trung/i.test(v || '') ? 'orange' : /th\u1ea5p/i.test(v || '') ? 'green' : '');
+const toneTrangThai = (v) => (v === 'Hoàn thành' ? 'green'
+  : v === 'Trễ deadline' ? 'red'
+  : v === 'Làm lại' ? 'orange'
+  : v === 'Đang tiến hành' ? 'blue' : '');
+
 /** Drawer cho Phụ trách chính — chỉ mở đúng những gì tài liệu cho phép sửa. */
 function buildStaffDrawer(b, t, o) {
   const stage = laneOf(t, S.who && S.who.id);
@@ -2301,38 +2337,35 @@ function buildStaffDrawer(b, t, o) {
   co.textContent = st ? st.hint : '';
   b.appendChild(co);
 
-  /* --- yêu cầu từ người order: chỉ đọc --- */
+  /* --- yêu cầu từ người order: chỉ đọc ---
+   * Thứ tự đọc: PHẢI LÀM GÌ (mô tả) -> tài liệu kèm -> phần còn lại gọn thành
+   * viên nhỏ. Tên việc đã nằm ở đầu drawer nên không lặp lại ở đây. */
   b.appendChild(el('div', 'section-title', 'Yêu cầu từ người order'));
-  const dl = el('dl', 'ro-grid');
-  const put = (k, v) => {
-    dl.appendChild(el('dt', '', k));
-    dl.appendChild(el('dd', '', v || '—'));
-  };
-  put('Công việc', t.title);
-  put('Loại việc', t.workType);
-  put('Độ ưu tiên', t.priority);
-  put('Campain', t.campaign);
-  put('Ngày bắt đầu', fmtDate(t.startAt, true));
-  put('Deadline 1', fmtDate(t.deadline1, true));
-  if (t.deadline2) put('Deadline 2', fmtDate(t.deadline2, true));
-  put('Người order', (t.requester || []).map((u) => u.name).join(', '));
-  put('Trạng thái', t.status);
-  if (t.rating) put('Chấm điểm', '★'.repeat(t.rating) + '  (' + t.rating + '/5)');
-  b.appendChild(dl);
 
-  if (t.detail) {
-    const d = el('div', 'field');
-    d.appendChild(el('label', '', 'Chi tiết yêu cầu'));
-    const box = el('div', 'ro-grid');
-    box.style.gridTemplateColumns = '1fr';
-    box.style.whiteSpace = 'pre-wrap';
-    box.textContent = t.detail;
-    d.appendChild(box);
-    b.appendChild(d);
-  }
+  if (t.detail) b.appendChild(moTaCoLink(t.detail));
+  else b.appendChild(el('div', 'd-desc trong-nhe', 'Người order chưa ghi chi tiết yêu cầu.'));
+
+  /* Tệp đính kèm là tài liệu để làm việc, không phải phụ lục — đặt ngay dưới
+   * mô tả, có ảnh thì xem được tại chỗ. */
+  b.appendChild(attachmentField(t, myRole === 'owner'));
+
+  const chips = el('div', 'd-chips');
+  const themVien = (nhan, v, tone) => { if (v) chips.appendChild(vien(nhan, v, tone)); };
+  themVien('', t.status, toneTrangThai(t.status));
+  themVien('', plainLabel(t.priority), toneUuTien(t.priority));
+  themVien('hạn', fmtDate(t.deadline1, true), laTreTheoHan(t) ? 'red' : '');
+  if (t.deadline2) themVien('hạn 2', fmtDate(t.deadline2, true));
+  themVien('bắt đầu', fmtDate(t.startAt, true));
+  themVien('loại', t.workType);
+  themVien('chiến dịch', t.campaign);
+  themVien('order', (t.requester || []).map((u) => u.name).join(', '));
+  if ((t.helper || []).length) themVien('hỗ trợ', t.helper.map((u) => u.name).join(', '));
+  if (t.rating) themVien('điểm', '★'.repeat(t.rating) + ' ' + t.rating + '/5', 'green');
+  if (daGiaiQuyet(t)) themVien('', nhanGiaiQuyet(t), 'orange');
+  if (chips.children.length) b.appendChild(chips);
 
   const ro = el('div', 'ro-note',
-    'Các trường trên do người order quản lý. Cần đổi Deadline / Chi tiết / người phụ trách → gửi Yêu cầu điều chỉnh, không tự sửa.');
+    'Những thông tin trên do người order quản lý. Cần đổi Deadline / Chi tiết / người phụ trách → gửi Yêu cầu điều chỉnh, không tự sửa.');
   b.appendChild(ro);
 
   const adj = el('button', 'btn', 'Gửi Yêu cầu điều chỉnh');
@@ -2358,7 +2391,7 @@ function buildStaffDrawer(b, t, o) {
 
   b.appendChild(field('Người hỗ trợ (chỉ thêm khi thật cần)',
     peopleDropdown(t.helper, (v) => set('helper', v), 'Chọn người hỗ trợ…')));
-  b.appendChild(attachmentField(t, true));
+  // tệp đính kèm đã ở khối trên (kèm nút thêm/xoá) — không bày lại lần hai
   b.appendChild(khoiBinhLuan(t));
 
   /* --- hành động chính --- */
@@ -2386,8 +2419,14 @@ function buildStaffDrawer(b, t, o) {
 const laAnh = (n) => /\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(n || '');
 const laPdf = (n) => /\.pdf$/i.test(n || '');
 const laVideo = (n) => /\.(mp4|mov|webm)$/i.test(n || '');
+/* Ảnh và tệp đính kèm nạp qua <img src> / <a href>, không đi qua fetch — nên shim
+ * của Marketing Hub không vá hộ. Chạy trong khung nhúng thì đường dẫn tuyệt đối
+ * "/api/..." trỏ về gốc Hub chứ không vào app con — ảnh vì thế chỉ hiện ô vỡ.
+ * Tự thêm tiền tố /m/<id> do Hub khai báo; chạy trực tiếp thì tiền tố rỗng. */
+const TIEN_TO_HUB = (window.__HUB__ && window.__HUB__.prefix) || '';
 const urlTep = (id, token, tai) =>
-  '/api/attachment?record=' + encodeURIComponent(id) + '&token=' + encodeURIComponent(token) + (tai ? '&tai=1' : '');
+  TIEN_TO_HUB + '/api/attachment?record=' + encodeURIComponent(id) +
+  '&token=' + encodeURIComponent(token) + (tai ? '&tai=1' : '');
 
 function attachmentField(t, canUpload) {
   const att = t.attachment || [];
