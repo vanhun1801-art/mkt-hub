@@ -150,6 +150,21 @@ async function deleteRecords(recordIds, tableId = cfg.tableId) {
   });
 }
 
+/* Lark từ chối vì app chưa được cấp scope tệp thì câu trả về là một danh sách scope
+ * tiếng Anh dài — nhân sự đọc không hiểu gì. Đổi thành câu nói rõ phải làm gì. */
+const thieuQuyenTep = (msg) => /Access denied/i.test(String(msg || '')) &&
+  /scopes? (is|are) required/i.test(String(msg || ''));
+
+function loiThieuQuyen(viec) {
+  const e = new Error('App Lark chưa được cấp quyền tệp nên không ' + viec + ' được từ đây. ' +
+    'Quản lý cần mở Developer Console, thêm scope drive:drive (hoặc cặp ' +
+    'drive:drive:readonly + docs:document.media:upload) rồi phát hành phiên bản mới. ' +
+    'Trong lúc chờ, mở bản ghi trong Base để xem/đính tệp trực tiếp.');
+  e.code = 'MISSING_SCOPE';
+  e.http = 424;
+  return e;
+}
+
 /**
  * Tải đính kèm của Base ở chế độ api (danh tính app).
  *
@@ -193,9 +208,12 @@ async function downloadAttachmentBuffer(recordId, fileToken, tableId = cfg.table
   const duong = (extra) => '/open-apis/drive/v1/medias/' + encodeURIComponent(fileToken) + '/download' +
     (extra ? '?extra=' + encodeURIComponent(typeof extra === 'string' ? extra : JSON.stringify(extra)) : '');
 
-  if (o && o.extra) {
+  /* get_attachments trả khoá tên là `extra_info` (không phải `extra`) — đo được từ
+   * bản online: các khoá là extra_info, file_token, name, size. */
+  const extra = (o && (o.extra_info || o.extra)) || null;
+  if (extra) {
     cach.push('extra-tra-ve');
-    try { return { buffer: await call('GET', duong(o.extra), { raw: true }), name }; }
+    try { return { buffer: await call('GET', duong(extra), { raw: true }), name }; }
     catch (_) { /* thử cách sau */ }
   }
 
@@ -205,6 +223,7 @@ async function downloadAttachmentBuffer(recordId, fileToken, tableId = cfg.table
     const tuDung = { bitablePerm: { tableId, rev: (o && o.rev) || undefined } };
     return { buffer: await call('GET', duong(tuDung), { raw: true }), name };
   } catch (e) {
+    if (thieuQuyenTep(e.message)) throw loiThieuQuyen('xem/tải tệp');
     const khoa = o ? Object.keys(o).join(',') : '(khong thay file_token trong get_attachments)';
     const err = new Error('Không tải được tệp từ Base. Đã thử: ' + cach.join(' -> ') +
       '. API trả về các khoá: ' + khoa + '. Lỗi cuối: ' + e.message);
@@ -242,7 +261,10 @@ async function uploadAttachment(recordId, fieldName, relFilePath, tableId = cfg.
     body: fd,
   });
   const d = await r.json();
-  if (d.code !== 0) throw new Error('Upload thất bại: ' + (d.msg || d.code));
+  if (d.code !== 0) {
+    if (thieuQuyenTep(d.msg)) throw loiThieuQuyen('tải tệp lên');
+    throw new Error('Upload thất bại: ' + (d.msg || d.code));
+  }
 
   return call('POST', baseUrl(tableId) + '/append_attachments', {
     body: { attachments: { [recordId]: { [fieldName]: [{ file_token: d.data.file_token }] } } },

@@ -985,7 +985,9 @@ const server = http.createServer(async (req, res) => {
     return serveStatic(res, url.pathname);
   } catch (e) {
     console.error('[ERR]', e.message);
-    return json(res, { error: e.message }, 500);
+    /* Lỗi có mã và mã HTTP riêng (VD thiếu scope tệp) thì giữ nguyên, đừng gộp hết
+     * thành 500 — giao diện dựa vào mã để nói cho người dùng phải làm gì. */
+    return json(res, { error: e.message, code: e.code || '' }, e.http && e.http < 500 ? e.http : 500);
   }
 });
 

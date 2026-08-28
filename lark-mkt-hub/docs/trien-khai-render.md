@@ -141,6 +141,30 @@ Deploy xong Render cấp URL dạng `https://mkt-hub.onrender.com`.
 
 ---
 
+
+## Quyền tệp cho app (bắt buộc nếu muốn xem/tải/đính tệp trên bản online)
+
+Bản chạy trên Render đọc ghi Base bằng **danh tính app**, và Lark chặn mọi thao tác
+tệp nếu app chưa có scope tệp. Đo được trên bản online ngày 29/08/2026:
+
+* xem/tải tệp → `code 99991672 · Access denied. One of the following scopes is
+  required: docs:doc, docs:doc:readonly, drive:drive, drive:drive:readonly, …`
+* tải tệp lên → `Access denied. One of the following scopes is required: docs:doc,
+  drive:drive, sheets:spreadsheet, vc:material, bitable:app,
+  docs:document.media:upload, …`
+
+Cách xử lý ở Developer Console (`https://open.larksuite.com/app/<app_id>`):
+
+1. **Quyền & phạm vi** → thêm **`drive:drive`** (đủ cho cả xem và tải lên).
+   Muốn chặt chẽ hơn thì thêm cặp `drive:drive:readonly` (xem) +
+   `docs:document.media:upload` (tải lên).
+2. **Phát hành phiên bản mới** — scope chỉ có hiệu lực sau khi phát hành, và nếu
+   tổ chức bật kiểm duyệt thì phải chờ admin duyệt.
+3. Không cần deploy lại Render: token của app tự lấy scope mới ở lần gọi sau.
+
+Chưa cấp thì app vẫn chạy bình thường, chỉ riêng phần tệp trả lỗi có mã
+`MISSING_SCOPE` kèm câu hướng dẫn; nhân sự đính tệp trực tiếp trong Base vẫn được.
+
 ## PHẦN D — Phân quyền ai được dùng
 
 Ba lớp, đừng lẫn:
