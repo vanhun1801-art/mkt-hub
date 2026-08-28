@@ -300,7 +300,7 @@ server.listen(cfg.port, () => {
   console.log('  ->  http://localhost:' + cfg.port);
   console.log('');
   console.log('  Base đang quản lý:');
-  mods.forEach((m) => console.log('   ' + (m.bat ? '•' : '·') + ' ' + m.icon + ' ' + m.ten +
+  mods.forEach((m) => console.log('   ' + (m.bat ? '•' : '·') + ' ' + m.ten +
     '  [' + m.kieu + (m.kieu === 'local' ? ' :' + m.cong : '') + ']' + (m.bat ? '' : '  (đang tắt)')));
   console.log('');
 
