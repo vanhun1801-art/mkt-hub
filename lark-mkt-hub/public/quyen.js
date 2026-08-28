@@ -56,7 +56,9 @@ function veBangQuyen() {
   const dongHtml = (h, i) =>
     '<tr data-i="' + i + '" data-rec="' + esc(h.recordId || '') + '" data-openid="' + esc(h.openId || '') + '">' +
     '<td><input class="q-in q-ten" type="text" value="' + esc(h.nguoi || '') + '" placeholder="Tên"></td>' +
-    '<td><input class="q-in q-mail" type="text" value="' + esc(h.email || '') + '" placeholder="email@rootytrip.com"></td>' +
+    '<td><input class="q-in q-mail' + (h.email ? '' : ' q-thieu') + '" type="text" value="' + esc(h.email || '') +
+      '" placeholder="email@rootytrip.com" title="' +
+      (h.email ? '' : 'Chưa có email — đang phải nhận diện theo tên. Điền email cho chắc.') + '"></td>' +
     '<td><select class="q-in q-vitri" data-i="' + i + '">' +
       '<option value="">— chọn vị trí —</option>' +
       (d.viTri || []).map((v) =>
@@ -100,7 +102,8 @@ function veBangQuyen() {
 
   let html = '<div class="q-them">' +
     '<select id="qNguoiMoi"><option value="">Chọn người trong danh bạ…</option>' +
-    (d.danhBa || []).map((x) => '<option value="' + esc(x.id) + '">' + esc(x.ten) + '</option>').join('') +
+    (d.danhBa || []).map((x) => '<option value="' + esc(x.id) + '" data-mail="' + esc(x.email || '') + '">' +
+      esc(x.ten) + '</option>').join('') +
     '</select>' +
     '<input type="text" id="qMailMoi" placeholder="email@rootytrip.com">' +
     '<button class="btn primary" id="qThem">Thêm dòng</button>' +
@@ -116,7 +119,15 @@ function veBangQuyen() {
         base.length + ' base với vai nhân sự.</td></tr>') +
     '</tbody></table></div>';
 
-  html += '<div class="q-ghi">Khớp người theo email · bỏ tick base nào thì base đó ' +
+  const soThieuMail = ds.filter((h) => h.recordId && !h.email).length;
+  if (soThieuMail) {
+    html += '<div class="canh-bao" style="margin-top:10px"><span class="grow">' +
+      soThieuMail + ' dòng chưa có email nên đang nhận diện theo TÊN. ' +
+      'open_id khác nhau giữa các app Lark, nên khai email là chắc nhất — app sẽ tự điền ' +
+      'open_id thật khi người đó đăng nhập lần tới.</span></div>';
+  }
+
+  html += '<div class="q-ghi">Khớp người theo email, rồi open_id, cuối cùng mới tới tên · bỏ tick base nào thì base đó ' +
     'biến khỏi panel của họ · quản lý khai trong biến môi trường luôn giữ vai quản lý' +
     (d.env_quan_ly && d.env_quan_ly.length ? ' (' + d.env_quan_ly.map(esc).join(', ') + ')' : '') +
     '.<br>Chọn <b>Vị trí</b> là các ô tự tick theo mẫu của vị trí đó — sửa tay lại được. ' +
@@ -129,8 +140,10 @@ function veBangQuyen() {
   $('#qThem').onclick = () => {
     const sel = $('#qNguoiMoi');
     const openId = sel.value;
-    const ten = openId ? sel.options[sel.selectedIndex].textContent : '';
-    const email = $('#qMailMoi').value.trim();
+    const opt = openId ? sel.options[sel.selectedIndex] : null;
+    const ten = opt ? opt.textContent : '';
+    // email gõ tay ưu tiên, không có thì lấy email trong danh bạ (nếu Lark cho)
+    const email = $('#qMailMoi').value.trim() || (opt ? opt.getAttribute('data-mail') || '' : '');
     if (!openId && !email) { toast('Chọn người trong danh bạ hoặc nhập email', 'do'); return; }
     if (S.quyenHang.some((h) => email && h.email === email.toLowerCase())) {
       toast('Email này đã có dòng phân quyền', 'do');

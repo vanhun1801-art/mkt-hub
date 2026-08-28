@@ -354,7 +354,7 @@ async function api(req, res, url) {
       // người app được cấp quyền dùng (Developer Console → phạm vi khả dụng)
       scopePeople: (cache.scope || []).map((p) => {
         const trongBang = collectPeople(allTasks).find((x) => x.id === p.id);
-        return { id: p.id, name: trongBang ? trongBang.name : p.name };
+        return { id: p.id, name: trongBang ? trongBang.name : p.name, email: p.email || '' };
       }),
       // chỉ chế độ api mới đọc được phạm vi; chế độ cli thì dùng danh bạ Base
       scopeAvailable: cfg.mode === 'api',

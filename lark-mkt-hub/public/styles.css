@@ -789,3 +789,5 @@ body.dang-xem-ho .app { height: calc(100vh - 34px); margin-top: 34px; }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="sang"]) .bang-xem-nhu { color: #ffd9a0; }
 }
+/* ô email còn trống: nhắc nhẹ vì thiếu email thì phải nhận diện theo tên */
+.q-in.q-thieu { border-color: var(--vang); background: var(--vang-nhat); }

@@ -457,8 +457,13 @@ async function api(req, res, u) {
         try {
           const meta = await goiJson(modCV, '/api/meta', { nguoi });
           const gop = new Map();
+          // giữ cả email nếu module biết: open_id khác nhau giữa các app Lark,
+          // khai bằng email thì đổi app vẫn khớp
           [...(meta.people || []), ...(meta.scopePeople || [])].forEach((x) => {
-            if (x && x.id && !gop.has(x.id)) gop.set(x.id, { id: x.id, ten: x.name || x.id });
+            if (!x || !x.id) return;
+            const cu = gop.get(x.id);
+            if (!cu) gop.set(x.id, { id: x.id, ten: x.name || x.id, email: x.email || '' });
+            else if (!cu.email && x.email) cu.email = x.email;
           });
           danhBa = [...gop.values()].sort((a, b) => a.ten.localeCompare(b.ten, 'vi'));
         } catch (e) { /* thiếu danh bạ thì vẫn khai tay được */ }

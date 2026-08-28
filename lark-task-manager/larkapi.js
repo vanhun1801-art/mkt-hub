@@ -259,7 +259,8 @@ async function scopeUsers() {
         d = await call('GET', '/open-apis/contact/v3/users/find_by_department' + q);
       } catch (_) { break; }
       for (const u of d.items || []) {
-        if (u.open_id) ra.set(u.open_id, u.name || u.en_name || u.open_id);
+        // giữ cả email: open_id khác nhau giữa các app Lark nên email mới là khoá chắc
+        if (u.open_id) ra.set(u.open_id, { ten: u.name || u.en_name || u.open_id, email: u.enterprise_email || u.email || '' });
       }
       if (!d.has_more || !d.page_token) break;
       pt = d.page_token;
@@ -272,14 +273,14 @@ async function scopeUsers() {
     try {
       const d = await call('GET', '/open-apis/contact/v3/users/' + encodeURIComponent(id) + '?user_id_type=open_id');
       const u = d.user || {};
-      ra.set(id, u.name || u.en_name || id);
+      ra.set(id, { ten: u.name || u.en_name || id, email: u.enterprise_email || u.email || '' });
     } catch (_) {
-      ra.set(id, id);
+      ra.set(id, { ten: id, email: '' });
     }
   }
 
   return [...ra.entries()]
-    .map(([id, name]) => ({ id, name }))
+    .map(([id, x]) => ({ id, name: x.ten, email: x.email || '' }))
     .sort((a, b) => a.name.localeCompare(b.name, 'vi'));
 }
 

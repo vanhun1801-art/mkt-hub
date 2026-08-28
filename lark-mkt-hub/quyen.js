@@ -189,13 +189,52 @@ async function docTatCa(boQuaCache) {
   return ds;
 }
 
-/** Dòng phân quyền của một người, hoặc null nếu chưa khai. */
+const chuanTen = (s) => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+/**
+ * Dòng phân quyền của một người, hoặc null nếu chưa khai.
+ *
+ * Khớp theo ba lớp, vì `open_id` KHÁC NHAU giữa các app Lark: quản lý thêm người
+ * từ danh bạ ở máy mình (open_id của lark-cli) mà nhân sự lại đăng nhập trên bản
+ * deploy (open_id của app Marketing Hub) -> hai chuỗi không giống nhau.
+ *   1. email        — không đổi giữa các app, chắc nhất
+ *   2. open_id      — đúng khi cùng một app
+ *   3. TÊN hiển thị — phao cứu sinh; chỉ nhận khi đúng MỘT dòng trùng tên
+ *
+ * Khớp được bằng tên thì tự vá dòng đó (ghi lại open_id/email thật) để lần sau
+ * khớp thẳng, không phải dựa vào tên nữa.
+ */
 async function cuaNguoi(nguoi) {
   if (!nguoi) return null;
   const ds = await docTatCa();
   const mail = String(nguoi.email || '').trim().toLowerCase();
-  return ds.find((r) => mail && r.email === mail) ||
-         ds.find((r) => nguoi.id && r.openId === nguoi.id) || null;
+
+  const theoMail = mail ? ds.find((r) => r.email === mail) : null;
+  if (theoMail) return theoMail;
+
+  const theoId = nguoi.id ? ds.find((r) => r.openId && r.openId === nguoi.id) : null;
+  if (theoId) return theoId;
+
+  const ten = chuanTen(nguoi.name);
+  if (!ten) return null;
+  const trungTen = ds.filter((r) => chuanTen(r.nguoi) === ten);
+  if (trungTen.length !== 1) return null;      // trùng tên nhiều dòng thì không đoán
+
+  vaDanhTinh(trungTen[0], nguoi).catch(() => {});
+  return trungTen[0];
+}
+
+/** Ghi open_id/email thật vào dòng vừa khớp bằng tên (chạy nền, lỗi thì bỏ qua). */
+async function vaDanhTinh(hang, nguoi) {
+  const mail = String(nguoi.email || '').trim();
+  const id = String(nguoi.id || '').trim();
+  if (!mail && !id) return;
+  if (hang.email === mail.toLowerCase() && hang.openId === id) return;
+  await ghi(Object.assign({}, hang, {
+    email: mail || hang.email,
+    openId: id || hang.openId,
+    ghiChu: (hang.ghiChu ? hang.ghiChu + ' · ' : '') + 'tự nhận diện theo tên',
+  }));
 }
 
 /* ---------------- ghi ---------------- */
