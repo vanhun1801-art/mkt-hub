@@ -1,0 +1,45 @@
+# ============================================================
+# Triển khai Marketing Hub lên Render.com
+#
+# MỘT web service duy nhất: chạy lớp vỏ (lark-mkt-hub). Chính nó tự bật ba app
+# module như tiến trình con trong cùng container rồi proxy vào một cổng — nên chỉ
+# cần một URL công khai, một chỗ đăng nhập, một service phải trả tiền.
+#
+# Biến có `sync: false` phải tự điền trong dashboard của Render (đừng để trong repo).
+# ============================================================
+services:
+  - type: web
+    name: mkt-hub
+    runtime: node
+    plan: free
+    region: singapore
+    rootDir: lark-mkt-hub
+    buildCommand: ""              # không có dependency npm nào
+    startCommand: node server.js
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+
+      # ---- Lark app (Developer Console) ----
+      - key: LARK_APP_ID
+        sync: false
+      - key: LARK_APP_SECRET
+        sync: false
+
+      # ---- URL công khai của service này, dùng làm redirect_uri khi đăng nhập ----
+      - key: PUBLIC_URL
+        sync: false
+
+      # ---- khoá ký cookie phiên; Render tự sinh ----
+      - key: SESSION_SECRET
+        generateValue: true
+
+      # ---- ai là quản lý (open_id, nhiều người cách nhau bằng dấu phẩy) ----
+      # Đặt bằng env var vì ổ đĩa Render là tạm: file quyen.json sẽ mất sau mỗi deploy.
+      - key: LARK_MANAGER_IDS
+        sync: false
+
+      # ---- cùng bộ credential cho ba app con ----
+      # Hub truyền toàn bộ env xuống tiến trình con, nên chỉ cần khai một lần ở trên.
+      # Ba app con tự chuyển sang chế độ `api` khi thấy LARK_APP_ID + LARK_APP_SECRET.

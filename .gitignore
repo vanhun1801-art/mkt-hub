@@ -1,0 +1,37 @@
+# ============================================================
+# Repo này CHỈ chứa 4 app của phòng Marketing. Thư mục .agents còn nhiều thứ
+# khác (skills của lark-cli, ảnh QR đăng nhập, thư mục tạm...) nên dùng cách
+# "chặn hết rồi mở đúng cái cần" — an toàn hơn liệt kê từng thứ phải chặn.
+# ============================================================
+/*
+!.gitignore
+!.gitattributes
+!README.md
+!render.yaml
+!package.json
+
+# bốn app
+!lark-mkt-hub/
+!lark-task-manager/
+!lark-lich-tac-nghiep/
+!lark-ads-manager/
+
+# ---- bí mật & dữ liệu cục bộ: KHÔNG bao giờ lên GitHub ----
+.env
+*.env
+**/.env
+**/*.env
+**/ket-noi.json
+**/quyen.json
+**/quyen-*.json
+**/quyen.nhansu.json
+**/muc-tieu.json
+
+# ---- rác ----
+**/node_modules/
+**/.tmp/
+**/dist/
+*.log
+**/*.log
+*.png
+.git-cu/

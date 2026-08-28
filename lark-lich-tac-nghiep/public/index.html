@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rooty Trip · Lịch tác nghiệp</title>
+<link rel="stylesheet" href="/styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%233370ff'/><text x='16' y='22' font-size='17' font-family='Arial' font-weight='bold' fill='white' text-anchor='middle'>R</text></svg>">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-mark">R</div>
+    <div>
+      <div class="brand-name">Lịch tác nghiệp</div>
+      <div class="brand-sub">Rooty Trip</div>
+    </div>
+  </div>
+
+  <nav class="tabs" id="tabs"></nav>
+
+  <div class="top-right">
+    <button class="btn primary" id="btnNew">+ Đăng ký lịch</button>
+    <button class="btn icon ghost" id="btnRefresh" title="Tải lại dữ liệu từ Lark Base">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13 2v3h-3" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+    <a class="btn icon ghost" id="btnLark" target="_blank" title="Mở Base trong Lark">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M6.5 3H3v10h10V9.5M9.5 2.5H13.5V6.5M13 3l-6 6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </a>
+    <div class="chip-user" id="chipUser"></div>
+  </div>
+</header>
+
+<main class="page" id="page">
+  <div class="loading" id="boot"><div class="spin"></div><div>Đang kết nối Lark Base…</div></div>
+</main>
+
+<div class="mask" id="mask"></div>
+
+<aside class="drawer" id="drawer">
+  <div class="dr-head">
+    <div style="flex:1;min-width:0">
+      <h3 id="drTitle">—</h3>
+      <div class="sub" id="drSub"></div>
+    </div>
+    <button class="btn icon ghost" id="drClose" title="Đóng">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4l8 8M12 4l-8 8" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+  <div class="dr-body" id="drBody"></div>
+  <div class="dr-foot" id="drFoot"></div>
+</aside>
+
+<div class="modal" id="modal">
+  <div class="mask on" data-close="1"></div>
+  <div class="modal-box" style="position:relative">
+    <div class="modal-head">
+      <h3 id="mdTitle">Đăng ký lịch tác nghiệp</h3>
+      <div class="sp"></div>
+      <button class="btn icon ghost" data-close="1">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4l8 8M12 4l-8 8" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" id="mdBody"></div>
+    <div class="modal-foot" id="mdFoot"></div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toasts"></div>
+
+<script src="/app.js"></script>
+</body>
+</html>

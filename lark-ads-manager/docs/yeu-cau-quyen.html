@@ -1,0 +1,470 @@
+<title>Token đọc báo cáo Rooty Trip</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400&display=swap">
+
+<style>
+:root {
+  --ground: #FAFBFB;
+  --surface: #FFFFFF;
+  --surface-2: #F2F6F5;
+  --ink: #17211F;
+  --ink-2: #55635F;
+  --ink-3: #87938F;
+  --line: #E0E7E5;
+  --line-2: #EDF2F1;
+  --accent: #0E6B5C;
+  --accent-ink: #0E6B5C;
+  --accent-soft: #E4F1EE;
+  --allow: #0F7A4D;
+  --allow-soft: #E6F4EC;
+  --deny: #A82B21;
+  --deny-soft: #FBEAE8;
+  --note: #9C5D00;
+  --note-soft: #FBF0DE;
+  --shadow: 0 1px 2px rgba(18, 40, 36, .05), 0 8px 24px rgba(18, 40, 36, .06);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #0C1413;
+    --surface: #131E1C;
+    --surface-2: #182524;
+    --ink: #E6EDEB;
+    --ink-2: #A0AFAB;
+    --ink-3: #73827E;
+    --line: #24332F;
+    --line-2: #1D2A28;
+    --accent: #5FC4B0;
+    --accent-ink: #7FD4C2;
+    --accent-soft: #122C28;
+    --allow: #5FD39B;
+    --allow-soft: #123026;
+    --deny: #F09A90;
+    --deny-soft: #351B18;
+    --note: #E3B168;
+    --note-soft: #33260F;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .28);
+  }
+}
+:root[data-theme="dark"] {
+  --ground: #0C1413;
+  --surface: #131E1C;
+  --surface-2: #182524;
+  --ink: #E6EDEB;
+  --ink-2: #A0AFAB;
+  --ink-3: #73827E;
+  --line: #24332F;
+  --line-2: #1D2A28;
+  --accent: #5FC4B0;
+  --accent-ink: #7FD4C2;
+  --accent-soft: #122C28;
+  --allow: #5FD39B;
+  --allow-soft: #123026;
+  --deny: #F09A90;
+  --deny-soft: #351B18;
+  --note: #E3B168;
+  --note-soft: #33260F;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .28);
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+.page { max-width: 760px; margin: 0 auto; padding: 44px 24px 88px; }
+@media (max-width: 620px) { .page { padding: 28px 16px 64px; } }
+
+.eyebrow {
+  font-size: 11.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--accent-ink); margin-bottom: 12px;
+}
+h1 {
+  font-family: "Source Serif 4", Georgia, serif;
+  font-weight: 700; font-size: clamp(28px, 4.2vw, 40px); line-height: 1.12;
+  letter-spacing: -.02em; margin: 0 0 14px; text-wrap: balance;
+}
+.lede { font-size: 17px; color: var(--ink-2); margin: 0; }
+
+h2 {
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: clamp(21px, 2.4vw, 26px); font-weight: 700; line-height: 1.2;
+  letter-spacing: -.015em; margin: 0 0 8px; text-wrap: balance;
+}
+h3 { font-size: 15.5px; font-weight: 600; margin: 22px 0 8px; }
+p { margin: 0 0 14px; max-width: 66ch; }
+p:last-child { margin-bottom: 0; }
+a { color: var(--accent-ink); border-bottom: 1px solid color-mix(in srgb, var(--accent) 38%, transparent); text-decoration: none; }
+a:hover { border-bottom-color: var(--accent); }
+strong { font-weight: 600; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+hr { border: 0; border-top: 1px solid var(--line); margin: 36px 0; }
+
+main > section { margin-top: 36px; }
+header.top { border-bottom: 1px solid var(--line); padding-bottom: 24px; }
+
+.meta-row {
+  display: flex; flex-wrap: wrap; gap: 22px; margin-top: 20px;
+  font-size: 14px;
+}
+.meta-row > div { min-width: 120px; }
+.meta-row .k { font-size: 11px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); }
+.meta-row .v { font-weight: 600; }
+
+.card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  box-shadow: var(--shadow); padding: 20px;
+}
+.card + .card { margin-top: 14px; }
+.card h3 { margin-top: 0; }
+
+.opt-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+.opt-head h3 { margin: 0; font-size: 17px; font-family: "Source Serif 4", Georgia, serif; font-weight: 700; }
+.pill {
+  font-size: 11.5px; font-weight: 700; letter-spacing: .04em;
+  padding: 3px 9px; border-radius: 99px; white-space: nowrap;
+}
+.pill.best { background: var(--accent-soft); color: var(--accent-ink); }
+.pill.time { background: var(--surface-2); color: var(--ink-2); border: 1px solid var(--line); }
+
+/* bảng quyền */
+.scope { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 620px) { .scope { grid-template-columns: 1fr; } }
+.scope-col {
+  border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.scope-col > .h {
+  padding: 11px 16px; font-weight: 700; font-size: 14px;
+  display: flex; align-items: center; gap: 8px;
+}
+.scope-col.yes > .h { background: var(--allow-soft); color: var(--allow); }
+.scope-col.no > .h { background: var(--deny-soft); color: var(--deny); }
+.scope-col ul { list-style: none; margin: 0; padding: 6px 16px 14px; }
+.scope-col li { position: relative; padding: 6px 0 6px 22px; font-size: 14.5px; }
+.scope-col li::before {
+  position: absolute; left: 0; top: 6px; font-weight: 700;
+}
+.scope-col.yes li::before { content: "✓"; color: var(--allow); }
+.scope-col.no li::before { content: "✕"; color: var(--deny); }
+
+ol.steps { list-style: none; counter-reset: st; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+ol.steps > li { counter-increment: st; position: relative; padding-left: 44px; }
+ol.steps > li::before {
+  content: counter(st);
+  position: absolute; left: 0; top: 1px;
+  width: 27px; height: 27px; border-radius: 50%;
+  background: var(--accent); color: var(--surface);
+  font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums;
+  display: grid; place-items: center;
+}
+ol.steps > li .note { display: block; font-size: 13.5px; color: var(--ink-2); margin-top: 3px; }
+ol.steps > li b { font-weight: 600; }
+
+ul.plain { margin: 0 0 14px; padding-left: 22px; }
+ul.plain li { margin-bottom: 7px; max-width: 64ch; }
+
+code {
+  font-family: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  font-size: .875em; background: var(--surface-2); border: 1px solid var(--line-2);
+  padding: 1px 5px; border-radius: 5px; word-break: break-word;
+}
+.codeblock pre {
+  margin: 12px 0 0; background: var(--surface-2); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 9px; padding: 13px 15px; overflow-x: auto;
+  font-family: "JetBrains Mono", ui-monospace, Consolas, monospace; font-size: 13px; line-height: 1.6;
+}
+
+.callout {
+  border-radius: 10px; padding: 14px 16px; margin: 16px 0 0;
+  border: 1px solid var(--line); background: var(--surface-2);
+  display: flex; gap: 12px; align-items: flex-start;
+}
+.callout .flag {
+  flex: none; font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  padding: 3px 8px; border-radius: 5px; margin-top: 3px; background: var(--accent); color: var(--surface);
+}
+.callout.note { background: var(--note-soft); border-color: color-mix(in srgb, var(--note) 32%, transparent); }
+.callout.note .flag { background: var(--note); color: var(--surface); }
+.callout p { font-size: 14.5px; }
+.callout > div:last-child { min-width: 0; }
+
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; margin-top: 14px; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 460px; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line-2); vertical-align: top; }
+th { background: var(--surface-2); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+tbody tr:last-child td { border-bottom: 0; }
+
+.small { font-size: 13.5px; color: var(--ink-2); }
+footer { margin-top: 44px; padding-top: 20px; border-top: 1px solid var(--line); font-size: 13.5px; color: var(--ink-3); }
+</style>
+
+<div class="page">
+
+  <header class="top">
+    <div class="eyebrow">Yêu cầu quyền · TKKD Rooty Trip</div>
+    <h1>Xin quyền đọc báo cáo quảng cáo Meta</h1>
+    <p class="lede">
+      Phòng Marketing đang dựng một công cụ nội bộ tự lấy số quảng cáo về bảng theo dõi, thay cho
+      việc gõ tay từng ngày. Công cụ cần <strong>quyền chỉ đọc</strong> trên tài khoản quảng cáo — và
+      thứ đó chỉ người có <strong>toàn quyền kiểm soát</strong> Business Manager mới cấp được.
+    </p>
+    <div class="meta-row">
+      <div><div class="k">Người nhờ</div><div class="v">Lê Văn Hùng · Marketing</div></div>
+      <div><div class="k">Quyền cần</div><div class="v"><code>ads_read</code> — chỉ đọc</div></div>
+      <div><div class="k">Mất khoảng</div><div class="v">10 phút</div></div>
+      <div><div class="k">Thu hồi</div><div class="v">bất cứ lúc nào, 1 click</div></div>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- ===== phạm vi quyền ===== -->
+    <section>
+      <h2>Token này làm được gì, và không làm được gì</h2>
+      <p>
+        Đây là câu quan trọng nhất nên trả lời trước. Quyền duy nhất được cấp là <code>ads_read</code>,
+        cộng với quyền tài sản <strong>Xem hiệu suất</strong> trên đúng tài khoản quảng cáo được chỉ định.
+      </p>
+      <div class="scope">
+        <div class="scope-col yes">
+          <div class="h">Làm được</div>
+          <ul>
+            <li>Đọc báo cáo: chi tiêu, lượt hiển thị, click, chuyển đổi theo từng ngày</li>
+            <li>Đọc tên chiến dịch, nhóm quảng cáo, quảng cáo</li>
+            <li>Chỉ trên tài khoản quảng cáo được chỉ định, không phải cả Business Manager</li>
+          </ul>
+        </div>
+        <div class="scope-col no">
+          <div class="h">Không làm được</div>
+          <ul>
+            <li>Tạo, sửa, bật hay tắt quảng cáo</li>
+            <li>Thay đổi ngân sách, hay tiêu bất kỳ đồng nào</li>
+            <li>Xem hoặc dùng thẻ, phương thức thanh toán</li>
+            <li>Đọc tin nhắn, bình luận, dữ liệu Trang hay Instagram</li>
+            <li>Thêm hay bớt người trong Business Manager</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout">
+        <span class="flag">Vì sao an toàn</span>
+        <div>
+          <p style="margin-bottom:8px">Quyền ghi trên Meta là một quyền <em>riêng</em> tên <code>ads_management</code> —
+          token này <strong>không có</strong>. Không có quyền đó thì kể cả muốn cũng không sửa được gì.</p>
+          <p style="margin-bottom:0">Không cần Meta xét duyệt (App Review), không công khai gì ra ngoài.
+          Công cụ chạy trên máy tính của phòng Marketing, số đi thẳng vào bảng theo dõi nội bộ,
+          không qua bên thứ ba nào.</p>
+        </div>
+      </div>
+    </section>
+
+    <hr>
+
+    <!-- ===== hai cách ===== -->
+    <section>
+      <h2>Hai cách, chọn một</h2>
+
+      <div class="card">
+        <div class="opt-head">
+          <h3>Cách 1 — Nâng Hùng lên Toàn quyền kiểm soát</h3>
+          <span class="pill best">Ít việc nhất</span>
+          <span class="pill time">2 phút</span>
+        </div>
+        <p>
+          Anh/chị chỉ cần nâng quyền một lần, Hùng tự làm phần còn lại và về sau không phải nhờ nữa.
+        </p>
+        <p style="margin-bottom:0">
+          <a href="https://business.facebook.com/settings/people" target="_blank" rel="noreferrer">business.facebook.com/settings/people</a>
+          → chọn <strong>Lê Văn Hùng</strong> → bật <strong>Toàn quyền kiểm soát</strong> → Lưu.
+        </p>
+        <div class="callout note">
+          <span class="flag">Cân nhắc</span>
+          <div><p style="margin-bottom:0">Toàn quyền kiểm soát là quyền rộng — kèm cả quản lý người và tài sản.
+          Nếu không muốn cấp rộng vậy thì đi Cách 2, quyền hẹp hơn nhiều.</p></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="opt-head">
+          <h3>Cách 2 — Anh/chị tự tạo token, quyền hẹp</h3>
+          <span class="pill time">10 phút</span>
+        </div>
+        <p style="margin-bottom:0">
+          Hùng không được thêm quyền gì trong Business Manager. Chỉ một token chỉ-đọc được tạo ra,
+          gắn với đúng một tài khoản quảng cáo. Làm theo 4 bước dưới.
+        </p>
+      </div>
+    </section>
+
+    <hr>
+
+    <!-- ===== 4 bước ===== -->
+    <section>
+      <h2>Cách 2 — bốn bước</h2>
+
+      <h3>Chuẩn bị: cần có một App</h3>
+      <p>
+        Meta bắt buộc token phải gắn với một App. Mở
+        <a href="https://business.facebook.com/settings/apps" target="_blank" rel="noreferrer">business.facebook.com/settings/apps</a>:
+      </p>
+      <ul class="plain">
+        <li><strong>Đã có App trong danh sách</strong> → dùng luôn, bỏ qua phần chuẩn bị này.</li>
+        <li><strong>Danh sách trống</strong> → vào
+          <a href="https://developers.facebook.com/apps" target="_blank" rel="noreferrer">developers.facebook.com/apps</a>
+          → <strong>Tạo ứng dụng</strong> → <strong>Khác</strong> → <strong>Doanh nghiệp</strong>
+          → tên <code>rooty-ads-sync</code> → chọn cổng thông tin doanh nghiệp <strong>TKKD ROOTY TRIP</strong> → Tạo.
+          Để nguyên chế độ Development, không cần submit duyệt.</li>
+      </ul>
+
+      <ol class="steps" style="margin-top:24px">
+        <li>
+          <b>Tạo Người dùng hệ thống.</b>
+          <a href="https://business.facebook.com/settings/system-users" target="_blank" rel="noreferrer">business.facebook.com/settings/system-users</a>
+          → <strong>Thêm</strong> → tên <code>rooty-ads-sync</code> → vai trò <strong>Employee access</strong> → Tạo.
+          <span class="note">Đây là "người dùng máy" thuộc Business Manager, không phải một người thật, không đăng nhập Facebook được.</span>
+        </li>
+        <li>
+          <b>Gán tài khoản quảng cáo, quyền chỉ đọc.</b>
+          Chọn system user vừa tạo → <strong>Thêm tài sản</strong> → <strong>Tài khoản quảng cáo</strong>
+          → tick tài khoản của Rooty Trip → bật <strong>Xem hiệu suất</strong> → Lưu.
+          <span class="note">Chỉ bật "Xem hiệu suất". Đừng bật "Quản lý chiến dịch" — công cụ không cần, và không nên có.</span>
+        </li>
+        <li>
+          <b>Tạo mã truy cập.</b>
+          Vẫn ở system user đó → <strong>Tạo mã truy cập mới</strong> → chọn App
+          → trong danh sách quyền tick <strong>duy nhất</strong> <code>ads_read</code> → <strong>Tạo mã</strong>.
+          <span class="note">Đừng tick <code>ads_management</code>. Đó là quyền ghi, công cụ không dùng tới.</span>
+        </li>
+        <li>
+          <b>Chuyển token cho Hùng.</b> Meta chỉ hiện token một lần — đóng hộp thoại là mất, phải tạo lại.
+          Xem cách chuyển an toàn ở mục dưới.
+        </li>
+      </ol>
+    </section>
+
+    <hr>
+
+    <!-- ===== chuyển token ===== -->
+    <section>
+      <h2>Chuyển token thế nào cho an toàn</h2>
+      <p>
+        Token là chuỗi bí mật, ai giữ được là đọc được báo cáo. Xếp theo mức an toàn:
+      </p>
+
+      <div class="card">
+        <div class="opt-head">
+          <h3>Tốt nhất — không chuyển gì cả</h3>
+          <span class="pill best">Khuyên dùng</span>
+        </div>
+        <p style="margin-bottom:0">
+          Anh/chị ngồi tại máy của Hùng, gõ lệnh dưới đây rồi tự dán token vào. Màn hình
+          <strong>không hiện ký tự nào</strong>, token đi thẳng vào file cấu hình trên máy đó và không
+          xuất hiện ở đâu khác. Hùng không cần nhìn thấy token.
+        </p>
+        <div class="codeblock">
+<pre>cd C:\Users\ASUS\.agents\lark-ads-manager
+node ket-noi.js --meta</pre>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Tạm được — tin nhắn riêng, xoá ngay sau khi dùng</h3>
+        <p style="margin-bottom:0">
+          Gửi qua tin nhắn riêng 1–1 (không phải nhóm), Hùng dán vào công cụ rồi <strong>xoá tin nhắn</strong>.
+          Nhắc Hùng xác nhận đã xoá.
+        </p>
+      </div>
+
+      <div class="card">
+        <h3>Không nên</h3>
+        <p style="margin-bottom:0">
+          Nhóm chat, email chuyển tiếp nhiều người, file dùng chung trên Drive, ảnh chụp màn hình.
+          Những chỗ này token còn nằm lại rất lâu sau khi việc đã xong.
+        </p>
+      </div>
+    </section>
+
+    <hr>
+
+    <!-- ===== thu hồi ===== -->
+    <section>
+      <h2>Thu hồi lúc nào cũng được</h2>
+      <p>
+        Đây là điểm khiến cách này an toàn hơn chia sẻ mật khẩu: token gỡ được ngay, không ảnh hưởng
+        tới ai khác.
+      </p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Muốn</th><th>Làm</th><th>Hiệu lực</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Chỉ vô hiệu token</td>
+              <td>System users → chọn user → xoá mã truy cập</td>
+              <td>Ngay lập tức</td>
+            </tr>
+            <tr>
+              <td>Cắt hẳn quyền đọc</td>
+              <td>System users → bỏ tài khoản quảng cáo khỏi tài sản của user</td>
+              <td>Ngay lập tức</td>
+            </tr>
+            <tr>
+              <td>Gỡ sạch</td>
+              <td>Xoá luôn system user <code>rooty-ads-sync</code></td>
+              <td>Ngay lập tức</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="small" style="margin-top:14px">
+        Sau khi thu hồi, công cụ chỉ dừng lấy số mới. Dữ liệu đã lấy trước đó vẫn nằm trong bảng theo dõi
+        nội bộ và không bị ảnh hưởng.
+      </p>
+    </section>
+
+    <hr>
+
+    <!-- ===== nếu vướng ===== -->
+    <section>
+      <h2>Nếu gặp vướng</h2>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Hiện tượng</th><th>Nghĩa là</th><th>Xử lý</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Menu không có "Người dùng hệ thống"</td>
+              <td>Tài khoản đang dùng cũng chỉ có quyền một phần</td>
+              <td>Nhờ người có toàn quyền, hoặc kiểm tra đang mở đúng Business Manager chưa</td>
+            </tr>
+            <tr>
+              <td>Danh sách quyền không có <code>ads_read</code></td>
+              <td>App chưa bật sản phẩm Marketing API</td>
+              <td>Trang App → Thêm sản phẩm → Marketing API → Thiết lập, rồi tạo mã lại</td>
+            </tr>
+            <tr>
+              <td>Đã đóng hộp thoại, chưa copy token</td>
+              <td>Meta chỉ hiện token một lần</td>
+              <td>Bấm Tạo mã truy cập mới lần nữa, token cũ tự vô hiệu</td>
+            </tr>
+            <tr>
+              <td>Không tick được tài khoản quảng cáo</td>
+              <td>Tài khoản đó chưa thuộc Business Manager này</td>
+              <td>Kiểm ở Cài đặt → Tài khoản → Tài khoản quảng cáo</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <footer>
+    Cảm ơn anh/chị. Có gì chưa rõ về công cụ hay phạm vi quyền, nhắn Hùng —
+    công cụ chạy nội bộ, mã nguồn nằm trên máy phòng Marketing, xem được bất cứ lúc nào.
+  </footer>
+</div>

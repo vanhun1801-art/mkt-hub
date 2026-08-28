@@ -1,0 +1,10 @@
+# Bi mat va du lieu cuc bo - KHONG duoc day len GitHub
+.env
+*.env
+quyen.json
+quyen-*.json
+
+# Log va file tam
+*.log
+.tmp/
+node_modules/

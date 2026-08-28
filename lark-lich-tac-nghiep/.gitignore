@@ -1,0 +1,9 @@
+.tmp/
+node_modules/
+*.log
+dist/
+quyen.json
+quyen-*.json
+quyen.nhansu.json
+.env
+*.env

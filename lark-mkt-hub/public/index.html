@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Marketing Hub · Rooty Trip</title>
+<meta name="description" content="Một cửa vào cho toàn bộ Lark Base của phòng Marketing Rooty Trip.">
+<meta name="theme-color" content="#3370ff">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<div class="app" id="app">
+
+  <!-- ============ PANEL BASE (đỏ) ============ -->
+  <aside class="rail" id="rail">
+    <div class="rail-head">
+      <a class="logo" href="#/tong-quan" title="Marketing Hub · Rooty Trip">
+        <img src="/icon.svg" width="30" height="30" alt="">
+        <span class="logo-text">
+          <strong id="hubTen">Marketing Hub</strong>
+          <small id="hubPhu">Rooty Trip</small>
+        </span>
+      </a>
+      <button class="rail-pin" id="btnPin" title="Thu gọn / mở rộng panel">‹</button>
+    </div>
+
+    <nav class="rail-nav" id="railNav"></nav>
+
+    <div class="rail-foot">
+      <button class="rail-item ghost" id="btnAdd" title="Thêm một base vào panel">
+        <span class="ri-ic" data-ic="them"></span><span class="ri-tx"><b>Thêm base</b></span>
+      </button>
+      <button class="rail-item ghost" id="btnSettings" title="Trạng thái module, log, phân quyền hiển thị">
+        <span class="ri-ic" data-ic="cai-dat"></span><span class="ri-tx"><b>Cài đặt</b></span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ============ SÂN KHẤU (xanh) ============ -->
+  <main class="stage" id="stage">
+
+    <!-- Trang chủ: Tổng quan chung, do lớp vỏ tự dựng -->
+    <section class="page" id="pageHome">
+      <header class="page-head">
+        <div>
+          <h1>Tổng quan chung</h1>
+          <p class="sub" id="homeSub"></p>
+        </div>
+        <div class="head-actions">
+          <span class="chip" id="homeUser"></span>
+          <!-- Sáng / Tối / Theo hệ thống — áp cho cả lớp vỏ và mọi app con -->
+          <div class="seg seg-theme" id="segTheme"></div>
+          <button class="btn ghost" id="btnReload" title="Đọc lại chỉ số của mọi base">Làm mới</button>
+        </div>
+      </header>
+
+      <!-- Bộ lọc thời gian dùng chung cho cả trang Tổng quan và Lịch chung -->
+      <section class="loc-bar"></section>
+
+      <div class="home-body" id="homeBody">
+        <div class="loading"><span class="spin"></span> Đang nạp…</div>
+      </div>
+    </section>
+
+
+  </main>
+</div>
+
+<div class="modal-wrap" id="modalWrap" hidden>
+  <div class="modal-mask" data-close="1"></div>
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <h3 id="mdTitle">—</h3>
+      <button class="btn icon ghost" data-close="1" title="Đóng">×</button>
+    </div>
+    <div class="modal-body" id="mdBody"></div>
+    <div class="modal-foot" id="mdFoot"></div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toasts"></div>
+
+<script src="/icons.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>

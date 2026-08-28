@@ -1,0 +1,12 @@
+{
+  "name": "lark-lich-tac-nghiep",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Giao dien quan ly & nhan su cho Lark Base Lich tac nghiep",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "build": "node build-html.js",
+    "test": "node test/api.test.js"
+  }
+}

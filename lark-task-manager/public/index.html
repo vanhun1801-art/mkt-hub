@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bảng công việc · Rooty Trip</title>
+<meta name="description" content="Quản lý công việc phòng Marketing Rooty Trip trên Lark Base Tracking.">
+<meta name="theme-color" content="#3370ff">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon.svg">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <a class="brand" href="/" title="Bảng công việc · Rooty Trip — về trang đầu">
+    <img class="brand-logo" src="/icon.svg" width="30" height="30" alt="">
+    <div class="brand-text">
+      <strong>Bảng công việc</strong>
+      <small id="subtitle">Rooty Trip · Tracking</small>
+    </div>
+  </a>
+
+  <div class="tabs" id="tabs">
+    <button class="tab hidden" data-view="dash">Tổng quan</button>
+    <button class="tab is-active" data-view="work">Việc của tôi</button>
+    <button class="tab" data-view="cal">Lịch</button>
+    <button class="tab" data-view="board">Kanban</button>
+    <button class="tab" data-view="table">Bảng</button>
+  </div>
+
+  <div class="topbar-actions">
+    <span id="meChip" class="mechip" title="Việc hiển thị theo tài khoản đang đăng nhập"></span>
+
+    <details id="meSwitch" class="dd mechip-dd hidden">
+      <summary class="mechip is-manager" id="meChipBtn"><span id="meChipText"></span><span class="dd-caret">▾</span></summary>
+      <div class="dd-panel dd-panel-right">
+        <input id="asSearch" class="dd-search" type="search" placeholder="Tìm nhân sự…" autocomplete="off">
+        <div id="asList" class="dd-list"></div>
+      </div>
+    </details>
+    <input id="search" class="search" type="search" placeholder="Tìm công việc…" autocomplete="off">
+    <button id="btnNew" class="btn btn-primary">+ Công việc</button>
+    <button id="btnReport" class="btn hidden" title="Xuất báo cáo tổng quan">Báo cáo</button>
+    <button id="btnQuyen" class="btn hidden" title="Phân quyền quản lý">Quyền</button>
+    <button id="btnRefresh" class="btn" title="Tải lại từ Base">Tải lại</button>
+    <a id="linkLark" class="btn" title="Mở Base trong Lark" target="_blank" rel="noreferrer">Base</a>
+  </div>
+</header>
+
+<!-- ======== TỔNG QUAN (QUẢN LÝ) ======== -->
+<section id="dashboard" class="hidden">
+  <div class="filters filters-dash">
+    <select id="dCampaign" class="sel"><option value="">Chiến dịch: tất cả</option></select>
+    <span id="dPersonHost" class="pick-host"></span>
+    <select id="dDue" class="sel"><option value="">Thời gian: tất cả</option></select>
+    <input id="dDueDate" class="sel dateinput hidden" type="date">
+    <button id="dClear" class="btn btn-ghost">Xoá lọc</button>
+    <span class="grow"></span>
+    <span id="dScope" class="muted"></span>
+  </div>
+
+  <div class="dash-scroll">
+    <div id="kpiRow" class="kpi-row"></div>
+
+    <div class="dash-block">
+      <div class="dash-head">
+        <h3>Cần xử lý ngay</h3>
+        
+      </div>
+      <div id="queues" class="queues"></div>
+    </div>
+
+    <div class="dash-block" id="doingBlock">
+      <div class="dash-head">
+        <h3>Đang tiến hành — toàn cảnh</h3>
+        
+      </div>
+      <div id="doingBoard" class="doing-board"></div>
+    </div>
+
+    <div class="dash-block">
+      <div class="dash-head">
+        <h3>Tải việc theo nhân sự</h3>
+        
+      </div>
+      <div id="workload" class="workload"></div>
+    </div>
+
+    <div class="dash-2col">
+      <div class="dash-block">
+        <div class="dash-head"><h3>Theo loại công việc</h3><span class="dash-sub">Việc đang mở</span></div>
+        <div id="distType" class="bars"></div>
+      </div>
+      <div class="dash-block">
+        <div class="dash-head"><h3>Theo chiến dịch</h3><span class="dash-sub">Việc đang mở</span></div>
+        <div id="distCampaign" class="bars"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======== MODAL: PHÂN CÔNG ======== -->
+<div id="mAssign" class="modal">
+  <div class="modal-box">
+    <h3>Phân công công việc</h3>
+    <p class="modal-note" id="assignTaskName"></p>
+    <div class="callout" id="assignCallout"></div>
+
+    <div class="field">
+      <label>Phụ trách chính <span class="req">*</span></label>
+      <div id="assignOwner"></div>
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <label>Deadline</label>
+        <input id="assignDeadline" type="datetime-local">
+      </div>
+      <div class="field">
+        <label>Độ ưu tiên</label>
+        <select id="assignPriority"></select>
+      </div>
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <label>Loại công việc</label>
+        <select id="assignType"></select>
+      </div>
+      <div class="field">
+        <label>Campain</label>
+        <select id="assignCampaign"></select>
+      </div>
+    </div>
+
+    <div class="modal-foot">
+      <span id="assignMsg" class="muted"></span>
+      <span class="grow"></span>
+      <button class="btn btn-ghost" data-close="mAssign">Huỷ</button>
+      <button id="assignSubmit" class="btn btn-primary">Phân công</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======== LỊCH ======== -->
+<section id="calendar" class="hidden">
+  <div class="cal-top">
+    <button id="calPrev" class="cal-arrow" title="Kỳ trước">‹</button>
+    <button id="calNext" class="cal-arrow" title="Kỳ sau">›</button>
+    <strong id="calTitle" class="cal-title"></strong>
+    <button id="calToday" class="btn">Hôm nay</button>
+    <span id="calCount" class="cal-count"></span>
+
+    <span class="grow"></span>
+    <div class="cal-modes" id="calModes">
+      <button class="cal-mode is-active" data-mode="month">Tháng</button>
+      <button class="cal-mode" data-mode="line">Dòng thời gian</button>
+    </div>
+  </div>
+
+  <div class="cal-filters">
+    <input id="calSearch" class="cal-search" type="search" placeholder="Tìm công việc, người phụ trách…" autocomplete="off">
+    <select id="calStatus" class="sel"><option value="">Mọi trạng thái</option></select>
+    <span id="calPersonHost" class="pick-host hidden"></span>
+    <select id="calCampaign" class="sel"><option value="">Mọi chiến dịch</option></select>
+    <label class="chk"><input type="checkbox" id="calOpenOnly" checked> Chỉ việc chưa đóng</label>
+    <span class="grow"></span>
+    <button id="calClear" class="btn btn-ghost">Xoá lọc</button>
+  </div>
+
+  <div id="calBody" class="cal-body"></div>
+</section>
+
+<!-- ======== VIỆC CỦA TÔI ======== -->
+<section id="workspace">
+  <div id="viewAsBar" class="viewas-bar hidden">
+    
+    <span id="viewAsText"></span>
+    <span class="grow"></span>
+    <button id="viewAsExit" class="btn">Quay về việc của tôi</button>
+  </div>
+
+  <div class="flowstrip" id="flowstrip"></div>
+
+  <div class="filters filters-work">
+    <select id="wCampaign" class="sel"><option value="">Chiến dịch: tất cả</option></select>
+    <select id="wPriority" class="sel"><option value="">Độ ưu tiên: tất cả</option></select>
+    <select id="wDue" class="sel"><option value="">Thời gian: tất cả</option></select>
+    <input id="wDueDate" class="sel dateinput hidden" type="date">
+    <button id="wClear" class="btn btn-ghost">Xoá lọc</button>
+    <span class="grow"></span>
+    <span id="wCount" class="muted"></span>
+  </div>
+
+  <div id="lanes" class="lanes"></div>
+</section>
+
+<!-- ======== KANBAN / BẢNG ======== -->
+<section id="adminArea" class="hidden">
+  <div class="stats" id="stats"></div>
+
+  <div class="filters" id="filters">
+    <select id="fCampaign" class="sel"><option value="">Campain: tất cả</option></select>
+    <select id="fWorkType" class="sel"><option value="">Loại việc: tất cả</option></select>
+    <span id="fOwnerHost" class="pick-host"></span>
+    <select id="fPriority" class="sel"><option value="">Ưu tiên: tất cả</option></select>
+    <select id="fStatus" class="sel"><option value="">Trạng thái: tất cả</option></select>
+    <select id="fDue" class="sel"><option value="">Thời gian: tất cả</option></select>
+    <input id="fDueDate" class="sel dateinput hidden" type="date">
+    <label class="chk"><input type="checkbox" id="fHideDone"> Ẩn việc đã đóng</label>
+    <button id="btnClear" class="btn btn-ghost">Xoá lọc</button>
+    <span class="grow"></span>
+    <span id="countLabel" class="muted"></span>
+  </div>
+
+  <div id="adminMain">
+    <div id="board" class="board"></div>
+    <div id="table" class="tablewrap hidden"></div>
+  </div>
+</section>
+
+<div id="bulkbar" class="bulkbar hidden">
+  <span id="bulkCount"></span>
+  <select id="bulkStatus" class="sel"><option value="">Đổi trạng thái…</option></select>
+  <select id="bulkPriority" class="sel"><option value="">Đổi ưu tiên…</option></select>
+  <button id="bulkDelete" class="btn btn-danger">Xoá</button>
+  <button id="bulkClear" class="btn btn-ghost">Bỏ chọn</button>
+</div>
+
+<!-- ======== DRAWER CHI TIẾT ======== -->
+<aside id="drawer" class="drawer">
+  <div class="drawer-head">
+    <div class="drawer-head-main">
+      <span id="dRecId" class="muted mono"></span>
+      <h2 id="dTitleView">—</h2>
+      <div id="dStage" class="stagebadge"></div>
+    </div>
+    <div class="drawer-head-actions">
+      <button id="dDelete" class="btn btn-danger">Xoá</button>
+      <button id="dClose" class="btn btn-icon">✕</button>
+    </div>
+  </div>
+  <div class="drawer-body" id="drawerBody"></div>
+  <div class="drawer-foot" id="drawerFoot">
+    <span id="dStatusMsg" class="muted"></span>
+    <span class="grow"></span>
+    <button id="dCancel" class="btn btn-ghost">Đóng</button>
+    <button id="dSave" class="btn btn-primary">Lưu thay đổi</button>
+  </div>
+</aside>
+<div id="scrim" class="scrim"></div>
+
+<!-- ======== MODAL: HOÀN THÀNH ======== -->
+<div id="mDone" class="modal">
+  <div class="modal-box modal-done">
+    <div class="md-head">
+      <div class="md-head-txt">
+        <div class="md-eyebrow">Nộp kết quả</div>
+        <h3 id="doneTaskName"></h3>
+      </div>
+      <button class="md-x" data-close="mDone" aria-label="Đóng">✕</button>
+    </div>
+
+    <div class="md-proof" id="doneCallout"></div>
+
+    <div class="md-body">
+      <label class="md-field">
+        <span class="md-lab">Link kết quả</span>
+        <input id="doneLink" type="url" placeholder="https://drive.google.com/…">
+      </label>
+
+      <div class="md-field">
+        <span class="md-lab">Tệp sản phẩm</span>
+        <label class="md-drop" for="doneFile">
+          <span class="md-drop-ic">＋</span>
+          <span id="doneFileLabel">Chọn tệp để đính kèm</span>
+        </label>
+        <input id="doneFile" type="file" multiple hidden>
+        <div id="doneAttList" class="md-files"></div>
+      </div>
+
+      <label class="md-field">
+        <span class="md-lab">Ghi chú <em>không bắt buộc</em></span>
+        <textarea id="doneNote" rows="2" placeholder="Ví dụ: đã xuất 3 phiên bản kích thước…"></textarea>
+      </label>
+    </div>
+
+    <div class="md-foot">
+      <span id="doneMsg" class="md-msg"></span>
+      <button class="btn btn-ghost" data-close="mDone">Huỷ</button>
+      <button id="doneSubmit" class="btn btn-primary">Xác nhận hoàn thành</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======== MODAL: YÊU CẦU ĐIỀU CHỈNH ======== -->
+<div id="mAdjust" class="modal">
+  <div class="modal-box">
+    <h3>Yêu cầu điều chỉnh</h3>
+    <p class="modal-note" id="adjTaskName"></p>
+    <div class="callout">
+      Không tự sửa ô của người order. Yêu cầu này gửi vào bảng
+      <b>Yêu cầu điều chỉnh</b> để Admin xử lý — chờ được tick xử lý rồi mới bắt đầu làm.
+    </div>
+
+    <div class="field">
+      <label>Thông tin cần sửa <span class="req">*</span></label>
+      <div id="adjParts" class="chips"></div>
+    </div>
+
+    <div class="field">
+      <label>Nội dung điều chỉnh đề xuất <span class="req">*</span></label>
+      <textarea id="adjProposal" placeholder="Ví dụ: dời Deadline sang 30/08, cần thêm brief kích thước ảnh…"></textarea>
+    </div>
+
+    <div class="field">
+      <label>Lý do</label>
+      <textarea id="adjReason" placeholder="Ví dụ: chưa có tư liệu từ bộ phận sản phẩm."></textarea>
+    </div>
+
+    <div class="modal-foot">
+      <span id="adjMsg" class="muted"></span>
+      <span class="grow"></span>
+      <button class="btn btn-ghost" data-close="mAdjust">Huỷ</button>
+      <button id="adjSubmit" class="btn btn-primary">Gửi yêu cầu</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======== MODAL: PHÂN QUYỀN ======== -->
+<div id="mQuyen" class="modal">
+  <div class="modal-box">
+    <h3>Phân quyền quản lý</h3>
+    <div class="callout">
+      <b>Quản lý</b> xem được việc toàn phòng, có tab Kanban / Bảng, phân công người
+      phụ trách, xoá và sửa hàng loạt.<br>
+      <b>Nhân sự triển khai</b> chỉ thấy việc mình phụ trách hoặc hỗ trợ, và đặt được việc mới.
+    </div>
+
+    <div class="field">
+      <label>Tìm người</label>
+      <input id="quyenSearch" type="text" placeholder="Nhập tên…" autocomplete="off">
+    </div>
+
+    <div id="quyenList" class="quyen-list"></div>
+
+    <div class="modal-foot">
+      <span id="quyenMsg" class="muted"></span>
+      <span class="grow"></span>
+      <button class="btn btn-ghost" data-close="mQuyen">Huỷ</button>
+      <button id="quyenSave" class="btn btn-primary">Lưu phân quyền</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======== MODAL: XEM TỆP ======== -->
+<div id="mViewer" class="modal">
+  <div class="modal-box vw-box">
+    <div class="vw-head">
+      <span id="viewerName" class="vw-name"></span>
+      <a id="viewerDl" class="btn" download>Tải về</a>
+      <button class="md-x" data-close="mViewer" aria-label="Đóng">✕</button>
+    </div>
+    <div id="viewerBody" class="vw-body"></div>
+  </div>
+</div>
+
+<div id="toasts" class="toasts"></div>
+<div id="loader" class="loader"><div class="spinner"></div><span>Đang tải dữ liệu từ Lark Base…</span></div>
+
+<script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+{
+  "name": "lark-mkt-hub",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sieu ung dung phong Marketing - Rooty Trip: mot cua vao cho tat ca Lark Base",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

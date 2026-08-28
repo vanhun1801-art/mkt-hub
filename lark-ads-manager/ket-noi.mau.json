@@ -1,0 +1,46 @@
+{
+  "_huongDan": "Copy file này thành ket-noi.json rồi điền token. ket-noi.json đã được gitignore và KHÔNG bao giờ hiện token ra giao diện app.",
+
+  "meta": {
+    "enabled": false,
+    "_token": "System User token lấy trong Business Manager → Cài đặt doanh nghiệp → Người dùng hệ thống → Tạo mã truy cập, tick quyền ads_read. Token này không hết hạn.",
+    "accessToken": "",
+    "_accountIds": "ID tài khoản quảng cáo, xem ở Ads Manager (dạng 1234567890). Ghi kèm act_ hoặc không đều được.",
+    "accountIds": [],
+    "apiVersion": "v21.0",
+    "_conversionMetric": "Chỉ số nào tính là 'Lượt chuyển đổi'. Chiến dịch Tin nhắn/Lead dùng onsite_conversion.messaging_conversation_started_7d. Chiến dịch mua hàng dùng purchase. Chiến dịch lead form dùng lead.",
+    "conversionMetric": "onsite_conversion.messaging_conversation_started_7d",
+    "_clickMetric": "clicks = Clicks (all) như Ads Manager mặc định. Đổi thành inline_link_clicks nếu muốn chỉ đếm click vào link.",
+    "clickMetric": "clicks"
+  },
+
+  "tiktok": {
+    "enabled": false,
+    "_token": "Tạo app tại business-api.tiktok.com → chờ duyệt → uỷ quyền advertiser account → lấy Access Token dài hạn.",
+    "accessToken": "",
+    "advertiserIds": [],
+    "_conversionMetric": "conversion = tổng chuyển đổi. Dùng result nếu muốn theo cột Kết quả của TikTok Ads Manager.",
+    "conversionMetric": "conversion"
+  },
+
+  "googleSheet": {
+    "enabled": false,
+    "_huongDan": "Google Ads KHÔNG cần API: dán docs/google-ads-script.js vào Google Ads → Công cụ → Tập lệnh, hẹn giờ mỗi giờ. Script ghi vào Google Sheet. Sau đó Sheet → Tệp → Chia sẻ → Xuất bản lên web → chọn định dạng CSV, dán link vào đây.",
+    "csvUrl": "",
+    "_level": "adgroup = mỗi dòng là 1 nhóm quảng cáo (nên dùng, vì quảng cáo tìm kiếm của Google không có tên). ad = mỗi dòng 1 quảng cáo.",
+    "level": "adgroup"
+  },
+
+  "dongBo": {
+    "_soNgayLui": "Mỗi lần đồng bộ ghi lại bao nhiêu ngày gần nhất. Để 7 vì các nền tảng khai báo lại chuyển đổi tới 7 ngày.",
+    "soNgayLui": 7,
+    "_moiSoGio": "Tự đồng bộ mỗi bao nhiêu giờ khi app đang chạy. 0 = tắt hẹn giờ.",
+    "moiSoGio": 3,
+    "_khiKhoiDong": "Đồng bộ ngay khi bật server.",
+    "khiKhoiDong": false,
+    "_ghiDeNhapTay": "true = số từ nền tảng ghi đè lên dòng nhập tay (nền tảng là nguồn đúng). false = giữ nguyên dòng nhập tay, chỉ ghi dòng chưa có.",
+    "ghiDeNhapTay": true,
+    "_tuTaoMoi": "true = tự tạo chiến dịch/nhóm/quảng cáo chưa có trong Base. false = chỉ ghi vào cái đã ghép ID, phần chưa ghép báo ra để ghép tay.",
+    "tuTaoMoi": false
+  }
+}

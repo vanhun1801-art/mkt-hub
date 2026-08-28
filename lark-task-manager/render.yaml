@@ -1,0 +1,24 @@
+# Cau hinh trien khai Render.com
+# Cac bien co sync:false phai tu dien trong dashboard cua Render.
+services:
+  - type: web
+    name: mkt-tracking
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: ""
+    startCommand: node server.js
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: LARK_APP_ID
+        sync: false
+      - key: LARK_APP_SECRET
+        sync: false
+      - key: PUBLIC_URL
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: LARK_MANAGER_IDS
+        sync: false

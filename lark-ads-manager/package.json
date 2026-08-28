@@ -1,0 +1,11 @@
+{
+  "name": "lark-ads-manager",
+  "version": "1.0.0",
+  "private": true,
+  "description": "App quan ly quang cao da nen tang doc/ghi truc tiep Lark Base",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/api.test.js"
+  }
+}

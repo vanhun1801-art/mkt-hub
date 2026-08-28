@@ -1,0 +1,14 @@
+{
+  "name": "rooty-task-manager",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Giao dien quan ly cong viec tren Lark Base Tracking",
+  "main": "server.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "_doc": [
+    "Danh sách base/module của siêu ứng dụng Marketing. Thêm một mục ở đây là thêm một base",
+    "vào panel bên trái — không phải sửa code. File được đọc lại mỗi lần gọi API nên chỉ cần",
+    "F5 trang, trừ khi đổi cổng/thư mục của module kiểu 'local' (phải khởi động lại hub).",
+    "",
+    "kieu:",
+    "  local  = app Node chạy trên máy này, hub tự bật và proxy vào /m/<id>/",
+    "  ngoai  = app đã có URL riêng (Render, server nội bộ...), hub nhúng thẳng iframe",
+    "  lark   = mở thẳng Lark Base trong tab mới (Lark chặn nhúng iframe)",
+    "",
+    "icon: tên icon 2D trong public/icons.js (cong-viec | lich | quang-cao | base | may | tien | nguoi). Tên lạ thì in ra dạng chữ.\nkpi: tên bộ đọc chỉ số cho trang Tổng quan chung (xem kpi.js). Để trống nếu chưa có."
+  ],
+  "modules": [
+    {
+      "id": "cong-viec",
+      "ten": "Bảng công việc",
+      "mo_ta": "Tracking · công việc toàn phòng",
+      "icon": "cong-viec",
+      "mau": "#3370ff",
+      "kieu": "local",
+      "thuMuc": "../lark-task-manager",
+      "cong": 5173,
+      "lenh": [
+        "node",
+        "server.js"
+      ],
+      "larkUrl": "https://rootytrip2.sg.larksuite.com/wiki/AruDwJU14iyla5k6LmYlfXrbgth?table=tbl2ZBrfhXfmrsD4&view=vewrwNpH8l",
+      "kpi": "cong-viec",
+      "an": [
+        "header.topbar > .brand"
+      ],
+      "phuSelector": "#subtitle",
+      "bat": true
+    },
+    {
+      "id": "lich-tac-nghiep",
+      "ten": "Lịch tác nghiệp",
+      "mo_ta": "Đăng ký · duyệt · báo cáo tác nghiệp",
+      "icon": "lich",
+      "mau": "#00b96b",
+      "kieu": "local",
+      "thuMuc": "../lark-lich-tac-nghiep",
+      "cong": 5174,
+      "lenh": [
+        "node",
+        "server.js"
+      ],
+      "larkUrl": "https://rootytrip2.sg.larksuite.com/base/U8bAbfnwgalWgDsEU11lpHfPgTb?table=tblwfl1sEXHI9HOp&view=vewJDIZobW",
+      "kpi": "lich-tac-nghiep",
+      "an": [
+        "header.topbar > .brand"
+      ],
+      "bat": true
+    },
+    {
+      "id": "quang-cao",
+      "ten": "Quản lý quảng cáo",
+      "mo_ta": "Meta · TikTok · Google · hiệu suất theo ngày",
+      "icon": "quang-cao",
+      "mau": "#ff7d00",
+      "kieu": "local",
+      "thuMuc": "../lark-ads-manager",
+      "cong": 5176,
+      "lenh": [
+        "node",
+        "server.js"
+      ],
+      "larkUrl": "https://rootytrip2.sg.larksuite.com/base/WmWvbjjFQaiRmjsd3Z7lumQXgeb",
+      "kpi": "quang-cao",
+      "an": [
+        "header.topbar > .brand"
+      ],
+      "phuSelector": "#brandSub",
+      "bat": true,
+      "css": ".topbar-right { margin-left: auto; }"
+    },
+    {
+      "id": "vi-du-app-ngoai",
+      "ten": "Bản trên Render",
+      "mo_ta": "Ví dụ module kiểu 'ngoai' — bật khi cần",
+      "icon": "may",
+      "mau": "#8b5cf6",
+      "kieu": "ngoai",
+      "url": "https://mkt-tracking.onrender.com/",
+      "kpi": "",
+      "bat": false
+    }
+  ]
+}

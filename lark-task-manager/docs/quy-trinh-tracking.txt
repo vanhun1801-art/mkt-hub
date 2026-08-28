@@ -1,0 +1,169 @@
+Nguon: wiki D31NwcY5ziFU5OkkIrWlt7QVg8b - "Base Tracking - Training.html"
+Trich xuat text de tham chieu khi phat trien app.
+
+Hướng dẫn quy trình — Người phụ trách chính | Base Tracking MKT
+◆ Base Tracking · Phòng Marketing Rootytrip
+Hướng dẫn sử dụng Base Tracking - Marketeting
+Toàn bộ luồng làm việc từ lúc nhận task đến khi kết thúc — cách cập nhật trạng thái đúng chuẩn và những lưu ý bắt buộc để công việc được ghi nhận & chấm điểm.
+👤 Vai trò: Phụ trách chính
+💻 Thao tác trên máy tính (web/desktop)
+🗂️ Bảng Tracking
+🔄 Cập nhật: 08/2026
+🎯
+Bạn là ai trong hệ thống?
+Người phụ trách chính là người trực tiếp thực hiện và chịu trách nhiệm hoàn thành công việc. Bạn nhận biết task của mình bằng việc tên bạn xuất hiện ở cột “Phụ trách chính”. Nhiệm vụ của bạn: thực hiện task đúng yêu cầu, đúng deadline, và cập nhật trạng thái trung thực để hệ thống tự động thông báo & chấm điểm.
+01
+Sơ đồ luồng tổng quát
+6 chặng — đi thẳng từ trái sang phải trong điều kiện bình thường.
+1
+Nhận task
+→
+2
+Kiểm tra thông tin
+→
+3
+Bắt đầu làm
+→
+4
+Thực hiện
+→
+5
+Hoàn thành
+→
+6
+Đánh giá & kết thúc
+⚙ Các bước có biểu tượng bánh răng ở bên dưới là  tự động chạy — bạn không cần thao tác.
+02
+Trường Trạng thái — thứ bạn cần cập nhật
+Bạn chỉ cần quan tâm một trường duy nhất.
+Trạng thái
+Trong công việc hằng ngày, bạn chủ yếu dùng 2 giá trị: Đang tiến hành (khi bắt đầu) và Hoàn thành (khi xong). Giá trị Làm lại xuất hiện khi order trả task về để bạn sửa. Các giá trị còn lại (Tạm dừng, Trễ deadline, Hủy) do admin/quản lý dùng — bạn không cần tự đặt.
+Mấu chốt: khi bạn chuyển sang Hoàn thành, hệ thống tự động gửi thẻ chấm điểm cho Người order — nên chỉ chọn khi đã thực sự xong & đã đính kèm kết quả.
+03
+Chi tiết từng bước
+Làm đúng thứ tự — mỗi bước ghi rõ cần cập nhật trường nào.
+1
+Nhận & nhận diện task
+Ai làm: Bạn (Phụ trách chính)
+- Task được giao đến bạn qua Form “Yêu cầu công việc” (xem mục 7) hoặc do người order gán trực tiếp — tên bạn nằm ở cột Phụ trách chính.
+- Mở view theo loại của bạn (Tracking - Designer / Content / Editor / Website) để chỉ thấy việc liên quan.
+- Đọc kỹ: Công việc, Chi tiết (yêu cầu đầy đủ), Loại công việc, Độ ưu tiên, Deadline 1 / Deadline 2, Link brief, Tệp đính kèm, Ghi chú.
+- Ưu tiên xử lý theo Độ ưu tiên: 🔴 Cao trước, rồi 🟡 Trung bình, 🟢 Thấp.
+2
+Kiểm tra thông tin & xác nhận
+Ai làm: Bạn — trước khi bắt tay vào việc
+- Kiểm tra đủ thông tin để làm chưa: yêu cầu rõ ràng? có link brief? deadline hợp lý?
+- Nếu thiếu / sai / deadline không khả thi → đừng tự ý sửa ô của order. Hãy gửi qua Form “Yêu cầu điều chỉnh” (xem mục 7): chọn Thông tin cần sửa, ghi Công việc cần điều chỉnh, Lý do + Nội dung đề xuất, đính Tệp minh chứng nếu có. Admin sẽ xử lý.
+- Chờ order/quản lý xử lý yêu cầu (tick Trạng thái xử lý) rồi mới bắt đầu.
+Không đổi trạng thái ở bước này — task vẫn giữ nguyên cho đến khi thông tin được chốt.
+3
+Bắt đầu làm → cập nhật trạng thái
+Ai làm: Bạn — ngay khi bắt tay vào task
+- Ngay khi bắt đầu thực hiện, hãy đánh dấu để mọi người biết task đã “chạy”.
+- Kiểm tra lại Ngày bắt đầu (hệ thống tự điền theo ngày tạo — sửa nếu cần cho đúng thực tế).
+Cập nhật:
+Trạng thái → Đang tiến hành
+·
+là dấu hiệu cho mọi người biết task đã bắt đầu chạy.
+4
+Trong quá trình thực hiện
+Ai làm: Bạn
+- Cần trao đổi / hỏi thêm: liên hệ trực tiếp Người order — nhắn qua kênh chat bất kỳ hoặc gọi điện cho nhanh, không bắt buộc ghi vào Base.
+- Lưu kết quả / tiến độ: đính Tệp đính kèm (bản nháp, file làm việc) và dán Link kết quả (Drive/Docs...) để order & quản lý theo dõi được.
+- Có nguy cơ trễ: chủ động báo order sớm; cần dời hạn thì gửi Yêu cầu điều chỉnh deadline (xem Bước 2).
+- Người hỗ trợ: chỉ khi thật sự cần người làm cùng thì mới thêm vào cột Người hỗ trợ.
+5
+Hoàn thành công việc
+Ai làm: Bạn — bước quyết định
+- Bắt buộc trước khi đóng: đính sản phẩm cuối cùng vào Tệp đính kèm và/hoặc dán Link kết quả — đây là căn cứ để order nghiệm thu & chấm điểm.
+- Rà lại yêu cầu trong Chi tiết một lần nữa để chắc chắn không sót.
+Cập nhật:
+Trạng thái → Hoàn thành
+Tự động (không cần bạn làm): Sau 1 phút, hệ thống gửi thẻ cho Người order với 3 nút chấm điểm 😞 Tệ (1★) · 😐 Trung bình (3★) · 🙂 Tốt (5★).
+6
+Được đánh giá & kết thúc
+Ai làm: Người order chấm điểm · Hệ thống tự báo cáo
+- Người order bấm chọn sao trên thẻ → ô Chấm điểm tự cập nhật (1–5★).
+- Nếu bị trả về: order chuyển Trạng thái sang Làm lại. Bạn đọc ghi chú/góp ý, chỉnh sửa, rồi quay lại Bước 5 để Hoàn thành lần nữa.
+- Khi đã có điểm và không còn việc phát sinh, task coi như kết thúc — bạn không cần thao tác gì thêm.
+Tự động: Ngay khi có điểm, hệ thống gửi kết quả tổng hợp (công việc · người order · người thực hiện · điểm) về cho quản lý (Lê Văn Hùng).
+04
+Bảng tra cứu trạng thái
+Bạn chỉ chủ động dùng vài trạng thái; số còn lại do admin/quản lý — chỉ cần hiểu để không nhầm.
+Trạng tháiAi dùngKhi nào
+Đang tiến hành |
+Bạn |
+Ngay khi bắt tay vào làm (Bước 3). |
+Hoàn thành |
+Bạn |
+Khi đã xong & đã đính kèm sản phẩm/link → kích hoạt chấm điểm. |
+Làm lại |
+Order |
+Order trả về để sửa. Bạn sửa xong → chuyển “Hoàn thành” lại. |
+Tạm dừng |
+Admin |
+Do admin quản lý — bạn không cần tự đặt. |
+Trễ deadline |
+Admin |
+Do admin/hệ thống quản lý — bạn chỉ cần báo order khi có nguy cơ trễ. |
+Hủy |
+Admin/Order |
+Khi quyết định bỏ task. |
+05
+Lưu ý bắt buộc
+Những điều giúp công việc của bạn được ghi nhận đúng.
+✅ Nên làm
+- Chuyển “Đang tiến hành” ngay khi bắt đầu làm.
+- Luôn đính sản phẩm/Link trước khi chuyển “Hoàn thành”.
+- Cần trao đổi thì gọi/chat trực tiếp order cho nhanh.
+- Báo order sớm khi có nguy cơ trễ deadline.
+- Chỉ thêm Người hỗ trợ khi thật sự cần.
+⛔ Tránh
+- Tự ý sửa Deadline, Người order, nội dung yêu cầu của order.
+- Chuyển “Hoàn thành” khi chưa có sản phẩm/link đính kèm.
+- Để task “Đang tiến hành” dù thực tế đã xong.
+- Tự đặt trạng thái Tạm dừng/Trễ deadline (đó là việc của admin).
+- Xóa hay chỉnh sửa dòng task của người khác.
+06
+Câu hỏi thường gặp
+Những tình huống hay gặp trong lúc chạy task.
+Làm sao biết task nào là của tôi?
+Tên bạn xuất hiện ở cột Phụ trách chính. Mở view theo loại của bạn (Designer/Content/Editor/Website) để chỉ thấy việc của mình.
+Tôi thấy deadline quá gấp / thông tin thiếu, phải làm sao?
+Không tự sửa ô của order. Gửi qua Form “Yêu cầu điều chỉnh” (mục 7): chọn thông tin cần sửa, ghi tên công việc + lý do + đề xuất. Chờ Admin xử lý rồi bắt đầu.
+Trong lúc làm, tôi muốn hỏi thêm order thì liên hệ thế nào?
+Cứ liên hệ trực tiếp — nhắn qua kênh chat bất kỳ hoặc gọi điện. Không bắt buộc phải ghi trao đổi vào Base.
+Bắt buộc phải đính file/link kết quả không?
+Có. Đây là căn cứ để order nghiệm thu và chấm điểm. Chưa có sản phẩm/link thì chưa chuyển “Hoàn thành”.
+Sau khi tôi chọn “Hoàn thành” thì điều gì xảy ra?
+Sau 1 phút, hệ thống tự gửi thẻ chấm điểm cho Người order (1★/3★/5★). Khi order chấm xong, kết quả được gửi về quản lý. Bạn không phải làm gì thêm — chỉ chờ đánh giá.
+Task của tôi bị chuyển sang “Làm lại”, tôi cần làm gì?
+Đọc kỹ góp ý của order, chỉnh sửa sản phẩm, cập nhật lại Tệp đính kèm/Link, rồi chuyển trạng thái về “Hoàn thành” lần nữa để được chấm điểm lại.
+Tôi có cần tự đặt “Tạm dừng” hay “Trễ deadline” không?
+Không. Hai trạng thái này do admin quản lý. Bạn chỉ cần dùng “Đang tiến hành” → “Hoàn thành”, và báo order khi có nguy cơ trễ.
+Tôi lỡ chọn nhầm trạng thái thì sao?
+Chọn lại giá trị đúng ngay. Nếu đã lỡ chuyển “Hoàn thành” khiến thẻ chấm điểm được gửi đi, hãy báo nhanh cho order/admin để xử lý.
+Tôi làm chung task với người khác thì sao?
+Người chịu trách nhiệm chính đứng ở cột Phụ trách chính và là người cập nhật trạng thái. Người làm cùng được thêm vào cột Người hỗ trợ khi thật sự cần.
+Điểm đánh giá thấp thì sao?
+Điểm phản ánh chất lượng lần giao việc đó. Nếu cần làm lại, order sẽ chuyển sang “Làm lại”; bạn cải thiện và rút kinh nghiệm cho các task sau.
+07
+Biểu mẫu (Form) liên quan
+Hai form dùng để tạo việc mới và xin điều chỉnh thông tin task.
+📝 Form Yêu cầu công việc
+Dùng để tạo một công việc mới — sau khi gửi, task tự xuất hiện trong bảng Tracking rồi được gán Phụ trách chính. Ai dùng: người cần đặt việc (Người order).
+- ⭐ Công việc · ⭐ Chi tiết
+- ⭐ Ngày bắt đầu · ⭐ Deadline
+- ⭐ Loại công việc · ⭐ Độ ưu tiên · ⭐ Người order
+- Tệp đính kèm · Link · Ghi chú (không bắt buộc)
+Mở form Yêu cầu công việc →
+✏️ Form Yêu cầu điều chỉnh
+Dùng khi cần Admin sửa lại thông tin của một task (đổi deadline, sửa nội dung, đổi người...). Ai dùng: Người order hoặc Phụ trách chính khi phát hiện thông tin cần chỉnh.
+- ⭐ Thông tin cần sửa (chọn: Deadline / Chi tiết / ...)
+- ⭐ Công việc cần điều chỉnh (ghi tên task)
+- ⭐ Nội dung điều chỉnh đề xuất · ⭐ Người gửi yêu cầu
+- Lý do · Tệp minh chứng (không bắt buộc)
+Mở form Yêu cầu điều chỉnh →
+⭐ = trường bắt buộc phải điền.
+Base Tracking · Phòng Marketing Rootytrip · Hướng dẫn dành cho Người phụ trách chính
+Mọi thao tác thực hiện trực tiếp trên bảng Tracking trong Larksuite.
