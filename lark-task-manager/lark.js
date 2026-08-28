@@ -218,7 +218,10 @@ async function sendMessage(openId, text) {
 /** Chế độ cli không đọc được phạm vi app — UI sẽ dùng danh bạ từ Base. */
 async function scopeUsers() { return []; }
 
-module.exports = {
+/* Chế độ api (deploy server chung): không có lark-cli trên máy đó, nên mọi file
+ * gọi require('./lark') đều phải nhận backend Open API. Chuyển hướng ngay tại đây
+ * để không phải sửa từng chỗ gọi (store.js, quyen.js, sync/*.js...). */
+module.exports = cfg.mode === 'api' ? require('./larkapi') : {
   cli, whoami, scopeUsers, removeAttachment, sendMessage, listAllRecords, listFields,
   updateRecord, updateMany, createRecord, deleteRecords,
   downloadAttachment, uploadAttachment,

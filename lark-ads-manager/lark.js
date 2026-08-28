@@ -147,4 +147,9 @@ async function deleteRecords(tableId, recordIds) {
     '--json', JSON.stringify({ record_id_list: recordIds })]);
 }
 
-module.exports = { cli, whoami, listAll, getRecord, createRecord, createMany, updateRecord, updateMany, deleteRecords };
+/* Chế độ api (deploy server chung): không có lark-cli trên máy đó, nên mọi file
+ * gọi require('./lark') đều phải nhận backend Open API. Chuyển hướng ngay tại đây
+ * để không phải sửa từng chỗ gọi (store.js, quyen.js, sync/*.js...). */
+module.exports = cfg.mode === 'api'
+  ? require('./larkapi')
+  : { cli, whoami, listAll, getRecord, createRecord, createMany, updateRecord, updateMany, deleteRecords };
