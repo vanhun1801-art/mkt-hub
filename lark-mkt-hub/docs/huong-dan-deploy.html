@@ -1,0 +1,530 @@
+<title>Đưa Marketing Hub lên mạng</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+
+<style>
+  :root {
+    /* nền hơi lệch xanh cho khớp màu thương hiệu của app */
+    --ground: #f5f7fc;
+    --surface: #ffffff;
+    --surface-2: #eef1f9;
+    --line: #dfe4f0;
+    --line-soft: #ecf0f8;
+    --ink: #161b26;
+    --ink-2: #4d5665;
+    --ink-3: #7d8797;
+    --accent: #2b5cff;
+    --accent-soft: #e8eeff;
+    --ok: #0f7a45;
+    --ok-soft: #e4f5eb;
+    --warn: #a56200;
+    --warn-soft: #fdf1dd;
+    --danger: #bd2130;
+    --danger-soft: #fdeaec;
+    --code-bg: #131926;
+    --code-ink: #dfe6f5;
+    --radius: 14px;
+    --shadow: 0 1px 2px rgba(20, 30, 60, .05), 0 8px 24px rgba(20, 30, 60, .06);
+    color-scheme: light;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0d111a;
+      --surface: #151b26;
+      --surface-2: #1c2331;
+      --line: #29323f;
+      --line-soft: #212936;
+      --ink: #e7ebf4;
+      --ink-2: #a8b2c2;
+      --ink-3: #7b8494;
+      --accent: #7fa2ff;
+      --accent-soft: #1a2440;
+      --ok: #4cc98a;
+      --ok-soft: #12291e;
+      --warn: #e5aa4a;
+      --warn-soft: #2b2213;
+      --danger: #ff8892;
+      --danger-soft: #2d191d;
+      --code-bg: #0a0e17;
+      --code-ink: #d8e0f0;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .3);
+      color-scheme: dark;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #0d111a;
+    --surface: #151b26;
+    --surface-2: #1c2331;
+    --line: #29323f;
+    --line-soft: #212936;
+    --ink: #e7ebf4;
+    --ink-2: #a8b2c2;
+    --ink-3: #7b8494;
+    --accent: #7fa2ff;
+    --accent-soft: #1a2440;
+    --ok: #4cc98a;
+    --ok-soft: #12291e;
+    --warn: #e5aa4a;
+    --warn-soft: #2b2213;
+    --danger: #ff8892;
+    --danger-soft: #2d191d;
+    --code-bg: #0a0e17;
+    --code-ink: #d8e0f0;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .3);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font: 16px/1.65 "Source Sans 3", -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 860px; margin: 0 auto; padding: 40px 22px 96px; }
+
+  h1, h2, h3 {
+    font-family: "Bricolage Grotesque", "Source Sans 3", sans-serif;
+    text-wrap: balance;
+    margin: 0;
+  }
+  h1 { font-size: clamp(30px, 5vw, 44px); font-weight: 700; letter-spacing: -.02em; line-height: 1.12; }
+  h2 { font-size: 23px; font-weight: 700; letter-spacing: -.01em; }
+  h3 { font-size: 17px; font-weight: 600; }
+  p { margin: 0; }
+
+  .lede { color: var(--ink-2); font-size: 17.5px; margin-top: 14px; max-width: 62ch; }
+
+  /* ---------- mở đầu ---------- */
+  header.top { padding-bottom: 8px; }
+  .eyebrow {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--accent); font-weight: 600;
+  }
+
+  .phases {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 12px; margin: 30px 0 8px;
+  }
+  .phase {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 16px; box-shadow: var(--shadow);
+  }
+  .phase .n {
+    font-family: "JetBrains Mono", monospace; font-size: 12px; font-weight: 600;
+    color: var(--accent);
+  }
+  .phase b { display: block; font-family: "Bricolage Grotesque", sans-serif; font-size: 16.5px; margin-top: 3px; }
+  .phase span { color: var(--ink-3); font-size: 14px; }
+
+  /* ---------- khối chuẩn bị ---------- */
+  .prep {
+    background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 20px 22px; margin: 26px 0 0;
+  }
+  .prep h2 { font-size: 18px; }
+  ul.check { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 10px; }
+  ul.check li { display: grid; grid-template-columns: 22px 1fr; gap: 10px; align-items: start; font-size: 15.5px; }
+  ul.check li::before {
+    content: ""; width: 15px; height: 15px; margin-top: 5px; border-radius: 4px;
+    border: 1.5px solid var(--accent); background: var(--accent-soft);
+  }
+
+  /* ---------- từng phần ---------- */
+  section.part { margin-top: 54px; }
+  .part-head { display: flex; align-items: baseline; gap: 12px; padding-bottom: 6px; border-bottom: 2px solid var(--line); }
+  .part-head .tag {
+    font-family: "JetBrains Mono", monospace; font-size: 12px; font-weight: 600;
+    color: var(--surface); background: var(--accent);
+    padding: 3px 9px; border-radius: 6px; white-space: nowrap;
+  }
+  .part-head .where { margin-left: auto; color: var(--ink-3); font-size: 13.5px; font-family: "JetBrains Mono", monospace; }
+
+  /* ---------- bước ---------- */
+  ol.steps { list-style: none; counter-reset: s; padding: 0; margin: 22px 0 0; display: grid; gap: 16px; }
+  ol.steps > li {
+    counter-increment: s;
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 18px 20px 18px 62px; position: relative; box-shadow: var(--shadow);
+  }
+  ol.steps > li::before {
+    content: counter(s);
+    position: absolute; left: 18px; top: 18px;
+    width: 28px; height: 28px; border-radius: 9px;
+    background: var(--accent-soft); color: var(--accent);
+    font-family: "JetBrains Mono", monospace; font-size: 13.5px; font-weight: 600;
+    display: grid; place-items: center;
+  }
+  ol.steps h3 { margin-bottom: 6px; }
+  ol.steps p + p { margin-top: 9px; }
+  ol.steps p, ol.steps li p { color: var(--ink-2); font-size: 15.5px; }
+
+  .seen {
+    margin-top: 12px; padding: 10px 13px; border-radius: 10px;
+    background: var(--ok-soft); border: 1px solid color-mix(in srgb, var(--ok) 28%, transparent);
+    font-size: 14.5px; color: var(--ink);
+  }
+  .seen b { color: var(--ok); font-weight: 600; }
+  .caution {
+    margin-top: 12px; padding: 10px 13px; border-radius: 10px;
+    background: var(--warn-soft); border: 1px solid color-mix(in srgb, var(--warn) 30%, transparent);
+    font-size: 14.5px;
+  }
+  .caution b { color: var(--warn); font-weight: 600; }
+
+  kbd {
+    font-family: "JetBrains Mono", monospace; font-size: 13px;
+    background: var(--surface-2); border: 1px solid var(--line);
+    border-radius: 5px; padding: 1px 6px; color: var(--ink);
+  }
+  code:not(pre code) {
+    font-family: "JetBrains Mono", monospace; font-size: 13.5px;
+    background: var(--surface-2); border: 1px solid var(--line-soft);
+    border-radius: 5px; padding: 1px 5px; overflow-wrap: anywhere;
+  }
+
+  /* ---------- lệnh ---------- */
+  .cmd { margin-top: 13px; border-radius: 11px; overflow: hidden; border: 1px solid var(--line); }
+  .cmd-bar {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface-2); padding: 7px 12px;
+    font-family: "JetBrains Mono", monospace; font-size: 11.5px;
+    color: var(--ink-3); letter-spacing: .06em; text-transform: uppercase;
+  }
+  .cmd-bar button {
+    margin-left: auto; font: inherit; letter-spacing: 0; text-transform: none;
+    background: var(--surface); color: var(--ink-2);
+    border: 1px solid var(--line); border-radius: 6px; padding: 3px 9px; cursor: pointer;
+  }
+  .cmd-bar button:hover { color: var(--accent); border-color: var(--accent); }
+  .cmd-bar button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  pre {
+    margin: 0; padding: 13px 14px; background: var(--code-bg); color: var(--code-ink);
+    font-family: "JetBrains Mono", monospace; font-size: 13px; line-height: 1.6;
+    overflow-x: auto;
+  }
+
+  /* ---------- bảng ---------- */
+  .tbl-wrap { overflow-x: auto; margin-top: 13px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+  th, td { text-align: left; padding: 9px 13px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  th {
+    font-family: "JetBrains Mono", monospace; font-size: 11px; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--ink-3); font-weight: 600;
+    background: var(--surface-2);
+  }
+  tr:last-child td { border-bottom: 0; }
+  td code { white-space: nowrap; }
+
+  /* ---------- kết ---------- */
+  .final {
+    margin-top: 54px; background: var(--surface); border: 1px solid var(--line);
+    border-left: 3px solid var(--accent); border-radius: var(--radius);
+    padding: 22px 24px; box-shadow: var(--shadow);
+  }
+  .final h2 { font-size: 20px; }
+  .final ol { margin: 14px 0 0; padding-left: 22px; display: grid; gap: 8px; color: var(--ink-2); font-size: 15.5px; }
+
+  footer.note { margin-top: 40px; color: var(--ink-3); font-size: 14px; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header class="top">
+    <div class="eyebrow">Marketing Hub · Rooty Trip Phú Quốc</div>
+    <h1>Đưa Marketing Hub lên mạng</h1>
+    <p class="lede">
+      Ba chặng, khoảng 40 phút. Sau khi xong, cả phòng dùng chung một đường link;
+      dữ liệu vẫn nằm nguyên trong Lark Base, Render chỉ là nơi chạy app và cấp domain.
+    </p>
+
+    <div class="phases">
+      <div class="phase">
+        <div class="n">CHẶNG 1</div>
+        <b>GitHub</b>
+        <span>Cất code vào một chỗ Render đọc được — 10 phút</span>
+      </div>
+      <div class="phase">
+        <div class="n">CHẶNG 2</div>
+        <b>Render</b>
+        <span>Chạy app, lấy đường link công khai — 15 phút</span>
+      </div>
+      <div class="phase">
+        <div class="n">CHẶNG 3</div>
+        <b>Lark Console</b>
+        <span>Cho app quyền đọc Base và cho người dùng quyền vào — 15 phút</span>
+      </div>
+    </div>
+
+    <div class="prep">
+      <h2>Chuẩn bị trước khi bắt đầu</h2>
+      <ul class="check">
+        <li>Tài khoản GitHub (anh đã có: <code>vanhun1801-art</code>).</li>
+        <li>Tài khoản Render — sẽ đăng nhập bằng chính GitHub ở chặng 2, chưa cần tạo trước.</li>
+        <li><b>App Secret</b> của app Lark <code>cli_aa04305ecd385ed1</code>. Lấy ở Developer Console → App → <b>Credentials &amp; Basic Info</b> → ô <b>App Secret</b> → Copy. Dán tạm vào Notepad, chặng 2 cần.</li>
+        <li>Quyền admin trên Lark để phát hành version của app.</li>
+      </ul>
+      <p class="caution" style="margin-top:16px">
+        <b>Một nguyên tắc:</b> App Secret chỉ dán vào Render, không dán vào file code, không gửi qua chat.
+        Nếu nó từng bị gửi đi đâu, vào Console bấm <b>Reset</b> rồi lấy cái mới.
+      </p>
+    </div>
+  </header>
+
+  <!-- ============== CHẶNG 1 ============== -->
+  <section class="part">
+    <div class="part-head">
+      <span class="tag">CHẶNG 1</span>
+      <h2>Đẩy code lên GitHub</h2>
+      <span class="where">github.com</span>
+    </div>
+
+    <ol class="steps">
+      <li>
+        <h3>Tạo kho chứa code mới</h3>
+        <p>Mở <a href="https://github.com/new">github.com/new</a>. Điền <b>Repository name</b> là <code>mkt-hub</code>.</p>
+        <p>Chọn <b>Private</b> — bắt buộc. Repo public là công khai luôn cấu trúc Base, field ID và toàn bộ logic phân quyền.</p>
+        <p>Đừng tích thêm README, .gitignore hay license — code đã có sẵn những thứ đó. Bấm <b>Create repository</b>.</p>
+        <div class="seen"><b>Thấy gì là đúng:</b> trang hiện dòng chữ "Quick setup — if you've done this kind of thing before" kèm địa chỉ repo.</div>
+      </li>
+
+      <li>
+        <h3>Đẩy code lên</h3>
+        <p>Mở <b>Command Prompt</b> (bấm Windows, gõ <kbd>cmd</kbd>, Enter) rồi dán nguyên khối lệnh này:</p>
+        <div class="cmd">
+          <div class="cmd-bar">Command Prompt<button type="button" data-copy="1">Copy</button></div>
+<pre>cd C:\Users\ASUS\.agents
+git remote add origin https://github.com/vanhun1801-art/mkt-hub.git
+git push -u origin main</pre>
+        </div>
+        <p>Lần đầu Git có thể mở một cửa sổ đòi đăng nhập GitHub — chọn <b>Sign in with your browser</b> rồi làm theo. Máy anh từng đẩy repo <code>-mkt-tracking</code> nên rất có thể nó nhớ sẵn và không hỏi gì.</p>
+        <div class="seen"><b>Thấy gì là đúng:</b> dòng cuối ghi <code>branch 'main' set up to track 'origin/main'</code>. F5 lại trang GitHub sẽ thấy 4 thư mục <code>lark-mkt-hub</code>, <code>lark-task-manager</code>, <code>lark-lich-tac-nghiep</code>, <code>lark-ads-manager</code>.</div>
+        <div class="caution"><b>Nếu báo</b> <code>remote origin already exists</code>: bỏ dòng <code>git remote add</code>, chạy hai dòng còn lại.</div>
+      </li>
+
+      <li>
+        <h3>Kiểm tra không có bí mật nào lọt lên</h3>
+        <p>Vẫn ở cửa sổ đó, chạy:</p>
+        <div class="cmd">
+          <div class="cmd-bar">Command Prompt<button type="button" data-copy="1">Copy</button></div>
+<pre>git ls-files | findstr /I "ket-noi.json quyen.json muc-tieu.json .env"</pre>
+        </div>
+        <div class="seen"><b>Thấy gì là đúng:</b> không in ra gì cả. Nghĩa là token quảng cáo và file phân quyền cục bộ đã bị chặn, chỉ code lên GitHub.</div>
+      </li>
+    </ol>
+  </section>
+
+  <!-- ============== CHẶNG 2 ============== -->
+  <section class="part">
+    <div class="part-head">
+      <span class="tag">CHẶNG 2</span>
+      <h2>Chạy app trên Render</h2>
+      <span class="where">render.com</span>
+    </div>
+
+    <ol class="steps">
+      <li>
+        <h3>Đăng nhập Render bằng GitHub</h3>
+        <p>Mở <a href="https://render.com">render.com</a> → <b>Get Started</b> → <b>GitHub</b>. Render sẽ xin quyền đọc repo — chọn <b>Only select repositories</b> và tích đúng <code>mkt-hub</code>.</p>
+        <div class="seen"><b>Thấy gì là đúng:</b> vào được Dashboard trống với nút <b>New +</b> ở góc trên phải.</div>
+      </li>
+
+      <li>
+        <h3>Tạo service từ bản thiết kế có sẵn</h3>
+        <p>Bấm <b>New +</b> → <b>Blueprint</b> → chọn repo <code>mkt-hub</code> → <b>Connect</b>.</p>
+        <p>Repo đã có file <code>render.yaml</code> nên Render tự điền hết: tên <code>mkt-hub</code>, vùng Singapore, thư mục gốc <code>lark-mkt-hub</code>, lệnh chạy <code>node server.js</code>. Anh không phải nhập tay gì.</p>
+        <div class="caution"><b>Không thấy mục Blueprint?</b> Dùng <b>New + → Web Service</b> rồi điền tay theo bảng ở bước 4.</div>
+      </li>
+
+      <li>
+        <h3>Điền bốn biến môi trường</h3>
+        <p>Render sẽ hỏi giá trị cho các biến đánh dấu "sync: false". Điền:</p>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Tên biến</th><th>Điền gì</th></tr></thead>
+            <tbody>
+              <tr><td><code>LARK_APP_ID</code></td><td><code>cli_aa04305ecd385ed1</code></td></tr>
+              <tr><td><code>LARK_APP_SECRET</code></td><td>App Secret đã copy ở phần chuẩn bị</td></tr>
+              <tr><td><code>PUBLIC_URL</code></td><td>Tạm để <code>https://mkt-hub.onrender.com</code> — bước 5 sẽ sửa lại cho đúng</td></tr>
+              <tr><td><code>LARK_MANAGER_IDS</code></td><td><code>ou_f0d3514abf6b168bef076441f350c585</code> (chính anh). Thêm quản lý khác thì viết tiếp, cách nhau bằng dấu phẩy</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p><code>SESSION_SECRET</code> Render tự sinh, <code>NODE_VERSION</code> đã cố định là 22 — không cần chạm.</p>
+        <p>Bấm <b>Apply</b> / <b>Create</b>. Render bắt đầu deploy, mất 1–3 phút.</p>
+        <div class="seen"><b>Thấy gì là đúng:</b> log chạy tới dòng <code>Marketing Hub · Rooty Trip Phú Quốc</code> và trạng thái service chuyển sang <b>Live</b> màu xanh.</div>
+      </li>
+
+      <li>
+        <h3>Nếu phải điền tay (không dùng Blueprint)</h3>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Mục</th><th>Điền</th></tr></thead>
+            <tbody>
+              <tr><td>Name</td><td><code>mkt-hub</code></td></tr>
+              <tr><td>Region</td><td>Singapore</td></tr>
+              <tr><td>Root Directory</td><td><code>lark-mkt-hub</code></td></tr>
+              <tr><td>Runtime</td><td>Node</td></tr>
+              <tr><td>Build Command</td><td>để trống</td></tr>
+              <tr><td>Start Command</td><td><code>node server.js</code></td></tr>
+              <tr><td>Instance Type</td><td>Free</td></tr>
+              <tr><td>Health Check Path</td><td><code>/healthz</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Rồi vào tab <b>Environment</b> thêm các biến ở bước 3, cộng thêm <code>SESSION_SECRET</code>. Sinh chuỗi này bằng:</p>
+        <div class="cmd">
+          <div class="cmd-bar">Command Prompt<button type="button" data-copy="1">Copy</button></div>
+<pre>node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"</pre>
+        </div>
+      </li>
+
+      <li>
+        <h3>Lấy đường link thật và sửa lại PUBLIC_URL</h3>
+        <p>Trên trang service, đầu trang có đường link dạng <code>https://mkt-hub.onrender.com</code> (nếu tên đã có người dùng, Render thêm hậu tố, ví dụ <code>mkt-hub-a1b2</code>). Copy đúng đường link đó.</p>
+        <p>Vào tab <b>Environment</b> → sửa <code>PUBLIC_URL</code> thành đúng đường link → <b>Save</b>. Render tự deploy lại một lần nữa.</p>
+        <div class="seen"><b>Thấy gì là đúng:</b> mở <code>&lt;link&gt;/healthz</code> trên trình duyệt thấy <code>{"ok":true,...}</code>. Mở trang chủ thì bị đẩy sang trang đăng nhập Lark — đúng, chặng 3 mới xong phần đăng nhập.</div>
+      </li>
+    </ol>
+  </section>
+
+  <!-- ============== CHẶNG 3 ============== -->
+  <section class="part">
+    <div class="part-head">
+      <span class="tag">CHẶNG 3</span>
+      <h2>Cấp quyền trong Lark</h2>
+      <span class="where">open.larksuite.com</span>
+    </div>
+
+    <ol class="steps">
+      <li>
+        <h3>Chia sẻ cả ba Base cho app</h3>
+        <p>Đây là bước hay sót nhất, và triệu chứng rất khó đoán: app vào được nhưng số liệu trống, hoặc log báo <code>91403</code>.</p>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Base</th><th>Làm gì</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>Tracking<br><span style="color:var(--ink-3)">Bảng công việc</span></td>
+                <td>Base này nằm trong <b>wiki</b> nên chia sẻ ở cấp Base là chưa đủ: mở <b>knowledge space</b> chứa nó → <b>Members</b> → thêm app <code>cli_aa04305ecd385ed1</code> với quyền <b>Full access</b></td>
+              </tr>
+              <tr><td>Lịch tác nghiệp</td><td>Mở Base → <b>Share</b> → thêm app, quyền <b>Can edit</b></td></tr>
+              <tr><td>Quản lý quảng cáo</td><td>Mở Base → <b>Share</b> → thêm app, quyền <b>Can edit</b></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </li>
+
+      <li>
+        <h3>Khai đường quay về sau khi đăng nhập</h3>
+        <p>Developer Console → app của anh → <b>Security Settings</b> → mục <b>Redirect URL</b> → <b>Add</b>:</p>
+        <div class="cmd">
+          <div class="cmd-bar">dán vào ô Redirect URL<button type="button" data-copy="1">Copy</button></div>
+<pre>https://mkt-hub.onrender.com/auth/callback</pre>
+        </div>
+        <p>Thay <code>mkt-hub.onrender.com</code> bằng đúng đường link Render đã cấp. Sai một ký tự là lỗi <code>redirect_uri mismatch</code>.</p>
+      </li>
+
+      <li>
+        <h3>Khai app chạy ở đâu</h3>
+        <p><b>Features</b> → <b>Web App</b> → điền cả hai ô <b>Desktop homepage</b> và <b>Mobile homepage</b> bằng đường link Render (không có <code>/auth/callback</code>).</p>
+        <p>Nhờ bước này, app hiện ngay trong thanh bên của Lark, mọi người bấm là vào — không phải nhớ link.</p>
+      </li>
+
+      <li>
+        <h3>Chọn ai được vào app</h3>
+        <p><b>Availability</b> (Phạm vi khả dụng) → chọn <b>phòng Marketing</b>, hoặc tích từng người.</p>
+        <p>Đây là lớp quyền thứ nhất: <b>ai mở được app</b>. Lớp thứ hai — <b>ai là quản lý</b> — nằm ở biến <code>LARK_MANAGER_IDS</code> bên Render. Người không có trong biến đó vào với vai nhân sự: chỉ thấy việc của mình, không có tab quản lý.</p>
+      </li>
+
+      <li>
+        <h3>Phát hành</h3>
+        <p><b>Create Version</b> → điền số version (ví dụ <code>1.0.0</code>) → <b>Save</b> → <b>Submit for release</b> / <b>Publish</b>.</p>
+        <div class="caution"><b>Đừng bỏ bước này.</b> Cấp quyền và khai URL mà không phát hành version thì mọi thay đổi ở chặng 3 <b>chưa có hiệu lực</b> — app vẫn báo <code>99991672</code>.</div>
+      </li>
+    </ol>
+  </section>
+
+  <!-- ============== KIỂM TRA ============== -->
+  <section class="part">
+    <div class="part-head">
+      <span class="tag">KIỂM TRA</span>
+      <h2>Sáu phép thử trước khi gửi cho phòng</h2>
+    </div>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th style="width:38px">#</th><th>Thử</th><th>Đúng thì thấy</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>Mở <code>&lt;link&gt;/healthz</code></td><td><code>{"ok":true,...}</code>, không đòi đăng nhập</td></tr>
+          <tr><td>2</td><td>Mở trang chủ ở cửa sổ ẩn danh</td><td>Chuyển sang trang đăng nhập Lark</td></tr>
+          <tr><td>3</td><td>Đăng nhập bằng tài khoản của anh</td><td>Trang Tổng quan chung, panel bên trái có ba base</td></tr>
+          <tr><td>4</td><td>Mở lần lượt ba base</td><td>Có dữ liệu thật, không đòi đăng nhập lại lần nào</td></tr>
+          <tr><td>5</td><td>⚙ Cài đặt trong app</td><td>Ba module đều trạng thái "Đang chạy"</td></tr>
+          <tr><td>6</td><td>Nhờ một nhân sự đăng nhập</td><td>Chỉ thấy việc của họ, không có tab quản lý</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============== GỠ RỐI ============== -->
+  <section class="part">
+    <div class="part-head">
+      <span class="tag">GỠ RỐI</span>
+      <h2>Gặp lỗi thì tra bảng này</h2>
+    </div>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Triệu chứng</th><th>Nguyên nhân &amp; cách sửa</th></tr></thead>
+        <tbody>
+          <tr><td>Trang trắng, chờ 30–60 giây mới hiện</td><td>Gói Free ngủ sau 15 phút không ai dùng. Bình thường. Hết hẳn thì lên gói Starter.</td></tr>
+          <tr><td><code>redirect_uri mismatch</code></td><td>Redirect URL trong Console khác <code>PUBLIC_URL</code> trên Render. So từng ký tự, kể cả <code>https</code> và dấu <code>/</code> cuối.</td></tr>
+          <tr><td><code>99991672 ... scopes is required</code></td><td>Chưa phát hành version sau khi cấp quyền. Làm lại bước "Phát hành".</td></tr>
+          <tr><td><code>91403</code> hoặc số liệu trống</td><td>App chưa được chia sẻ Base. Làm lại bước "Chia sẻ cả ba Base".</td></tr>
+          <tr><td>Đăng nhập xong lại quay về trang đăng nhập</td><td>Thiếu <code>SESSION_SECRET</code>, hoặc <code>PUBLIC_URL</code> ghi <code>http</code> thay vì <code>https</code>.</td></tr>
+          <tr><td>Panel báo một module <b>Lỗi</b></td><td>Mở ⚙ Cài đặt → <b>Log</b> của module đó để xem lỗi thật, rồi bấm <b>Bật lại</b>.</td></tr>
+          <tr><td>Deploy xong mất mục tiêu CPA / token quảng cáo</td><td>Ổ đĩa Render là tạm. Danh sách quản lý đã chuyển sang biến môi trường nên an toàn; hai thứ kia phải nhập lại, hoặc chuyển app quảng cáo sang VPS.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============== BÀN GIAO ============== -->
+  <div class="final">
+    <h2>Gửi cho phòng</h2>
+    <ol>
+      <li>Gửi đường link Render vào nhóm Lark, kèm một câu: "Lần đầu mở sẽ hỏi đăng nhập Lark, bấm đồng ý là xong."</li>
+      <li>Ai báo "không thấy dữ liệu của tôi" — kiểm <b>Availability</b> đã có tên họ chưa.</li>
+      <li>Cần thêm một người làm quản lý: Render → <b>Environment</b> → thêm <code>open_id</code> của họ vào <code>LARK_MANAGER_IDS</code>, cách nhau bằng dấu phẩy → Save. Lấy <code>open_id</code> ở app Bảng công việc, nút <b>Quyền</b>.</li>
+      <li>Sau này sửa code: chỉ cần <code>git add -A</code>, <code>git commit -m "..."</code>, <code>git push</code> — Render tự deploy lại trong 1–2 phút.</li>
+    </ol>
+  </div>
+
+  <footer class="note">
+    Bản chi tiết hơn cho người quen kỹ thuật: <code>lark-mkt-hub/docs/trien-khai-render.md</code> trong repo.
+  </footer>
+</div>
+
+<script>
+  // nút Copy cho từng khối lệnh
+  document.querySelectorAll('[data-copy]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var pre = btn.closest('.cmd').querySelector('pre');
+      navigator.clipboard.writeText(pre.textContent.trim()).then(function () {
+        var cu = btn.textContent;
+        btn.textContent = 'Đã copy';
+        setTimeout(function () { btn.textContent = cu; }, 1600);
+      }).catch(function () {
+        btn.textContent = 'Copy tay nhé';
+      });
+    });
+  });
+</script>
