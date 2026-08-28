@@ -938,7 +938,23 @@ function modalCaiDat() {
    * Hiện id ngay đây để dán vào LARK_MANAGER_IDS khi cần cấp vai quản lý. */
   goi('/api/toi').then((t) => {
     const o = $('#oToi');
-    if (!o || t.che_do !== 'api' || !t.id) return;
+    if (!o) return;
+    /* Khối này trả lời hai câu hay phải hỏi: "app đang chạy bằng app Lark nào" (để
+     * đối chiếu với trang phát hành bên Developer Console — phát hành sai app thì
+     * mọi thay đổi Availability không có tác dụng) và "tôi có vai quản lý chưa". */
+    const khoiApp = t.app_id
+      ? '<div class="kh-sub" style="margin-top:6px">App Lark đang chạy: <code>' + esc(t.app_id) + '</code>' +
+        ' · <a href="https://open.larksuite.com/app/' + esc(t.app_id) + '/version/create"' +
+        ' target="_blank" rel="noreferrer">mở trang phát hành</a></div>'
+      : '<div class="kh-sub" style="margin-top:6px">Đang chạy bằng phiên <code>lark-cli</code> của máy này, ' +
+        'không qua app Lark — Availability không ảnh hưởng gì ở đây.</div>';
+
+    if (t.che_do !== 'api' || !t.id) {
+      o.hidden = false;
+      o.className = 'canh-bao';
+      o.innerHTML = '<div class="grow">' + khoiApp + '</div>';
+      return;
+    }
     o.hidden = false;
     o.className = 'canh-bao' + (t.la_quan_ly ? '' : ' do');
     const khoa = t.email || t.id;
@@ -947,7 +963,7 @@ function modalCaiDat() {
       '<div class="kh-sub">' + (t.la_quan_ly
         ? 'Đang có vai quản lý.'
         : 'Chưa có vai quản lý — thêm chuỗi này vào biến ' + bien + ' trên Render rồi Save.') +
-      '</div></div>' +
+      '</div>' + khoiApp + '</div>' +
       '<button class="btn nho" data-copy-id="' + esc(khoa) + '">Copy</button>';
   }).catch(() => {});
 }
@@ -970,6 +986,8 @@ async function modalKiemTra() {
   let html = '<table class="bang"><tbody>' +
     dong('Chế độ', h.che_do === 'api' ? 'api (server chung)' : 'cli (máy cá nhân)') +
     (h.commit ? dong('Bản đang chạy', h.commit) : '') +
+    dong('App Lark đang chạy', h.app_id || '(không dùng app — chạy bằng lark-cli)',
+      h.che_do !== 'api' ? null : !!h.app_id) +
     (h.che_do === 'api' ? (
       dong('Tài khoản của bạn', h.toi ? h.toi.ten + '  ·  ' + h.toi.id : 'chưa đăng nhập', !!h.toi) +
       dong('Vai quản lý', h.la_quan_ly ? 'có' : 'KHÔNG — dán open_id trên vào LARK_MANAGER_IDS', h.la_quan_ly) +

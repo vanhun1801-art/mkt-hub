@@ -459,6 +459,9 @@ async function api(req, res, u) {
       email: nguoi ? (nguoi.email || null) : null,
       email_phu: nguoi ? (nguoi.emailPhu || null) : null,
       la_quan_ly: laQuanLy(nguoi),
+      // app_id KHÔNG phải bí mật (nó nằm trong URL Developer Console) — hiện ra để
+      // đối chiếu: app đang phát hành bên Lark có đúng là app hub đang chạy không
+      app_id: cfg.appId || '',
       so_quan_ly_dang_khai: dsQuanLyId().length + dsQuanLyEmail().length,
     });
   }
@@ -513,6 +516,7 @@ async function api(req, res, u) {
         commit: (process.env.RENDER_GIT_COMMIT || '').slice(0, 7) || null,
         toi: nguoi ? { id: nguoi.id, ten: nguoi.name, email: nguoi.email || null } : null,
         la_quan_ly: laQuanLy(nguoi),
+        app_id: cfg.appId || '',
         so_quan_ly_dang_khai: dsQuanLyId().length + dsQuanLyEmail().length,
         public_url: cfg.publicUrl || null,
         host_that: hostThat,
