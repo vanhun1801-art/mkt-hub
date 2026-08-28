@@ -411,8 +411,13 @@ function nhanGiaiQuyet(t) {
 }
 /** Cấu hình luật từ server (meta.rules) — thiếu thì coi như đang bật. */
 const cfg0 = () => ({ chanTre: !S.meta || !S.meta.rules || S.meta.rules.chanHoanThanhKhiTre !== false });
-const isOverdue = (t) => !isClosed(t) && !daGiaiQuyet(t) &&
+/* Hai khái niệm khác nhau, đừng lẫn:
+ *  - laTreTheoHan: đã trễ hạn, kể cả đã nộp sản phẩm  -> quyết định NÚT nào hiện.
+ *  - isOverdue:    đã trễ mà chưa nộp                 -> quyết định còn nằm trong
+ *                                                        hàng đợi quá hạn hay không. */
+const laTreTheoHan = (t) => !isClosed(t) &&
   daysLeft(t.deadline) != null && daysLeft(t.deadline) < 0;
+const isOverdue = (t) => laTreTheoHan(t) && !daGiaiQuyet(t);
 const hasProof = (t) => (t.attachment || []).length > 0 || !!t.link;
 
 function initials(name) {
@@ -659,12 +664,13 @@ function workCard(t, lane) {
 
   /* Việc đã trễ: nhân sự KHÔNG tự đặt Hoàn thành (trễ rồi thì phải chịu), nhưng
    * vẫn phải có chỗ nộp sản phẩm — nút "Giải quyết". Quản lý thì vẫn đóng được. */
-  const treCanGQ = !S.isManager && cfg0().chanTre && isOverdue(t);
+  const treCanGQ = !S.isManager && cfg0().chanTre && laTreTheoHan(t);
   const primary = {
     new:  { label: '▶ Bắt đầu làm', run: () => startTask(t) },
     doing: { label: '✓ Hoàn thành', run: () => openDone(t) },
     late:  treCanGQ
-      ? { label: '↥ Giải quyết · nộp sản phẩm', run: () => openDone(t, 'giai-quyet') }
+      ? { label: daGiaiQuyet(t) ? '↥ Nộp lại sản phẩm' : '↥ Giải quyết · nộp sản phẩm',
+          run: () => openDone(t, 'giai-quyet') }
       : { label: '✓ Hoàn thành', run: () => openDone(t) },
     redo:  { label: '↻ Nộp lại',    run: () => openDone(t) },
   }[lane];
@@ -2346,9 +2352,12 @@ function buildStaffDrawer(b, t, o) {
       bt.onclick = async () => { closeDrawer(); await startTask(t); };
       foot.appendChild(bt);
     } else if (stage === 'doing' || stage === 'redo' || stage === 'late') {
-      const treGQ = !S.isManager && cfg0().chanTre && isOverdue(t);
+      const treGQ = !S.isManager && cfg0().chanTre && laTreTheoHan(t);
       const bt = el('button', 'btn btn-primary',
-        treGQ ? '↥ Giải quyết · nộp sản phẩm (giữ nguyên trạng thái trễ)'
+        treGQ
+          ? (daGiaiQuyet(t)
+            ? '↥ Nộp lại sản phẩm (đang chờ nghiệm thu)'
+            : '↥ Giải quyết · nộp sản phẩm (giữ nguyên trạng thái trễ)')
           : stage === 'redo' ? '↻ Nộp lại  (→ Hoàn thành)' : '✓ Hoàn thành công việc');
       bt.onclick = () => { closeDrawer(); openDone(t, treGQ ? 'giai-quyet' : ''); };
       foot.appendChild(bt);

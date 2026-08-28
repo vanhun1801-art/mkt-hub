@@ -265,10 +265,11 @@ const khongDuocTao = (req) => quyenHub(req, 'x-hub-perm-khong-tao');
 
 const DONG_HAN = ['Hoàn thành', 'Hủy'];
 
-/** Việc đã quá hạn: deadline đã qua theo NGÀY, việc còn mở, và chưa giải quyết. */
-function daQuaHan(t) {
+/** Việc TRỄ so với hạn: deadline đã qua theo NGÀY và việc còn mở.
+ * Không quan tâm đã nộp hay chưa — "đã trễ" là chuyện không xoá được, và chốt
+ * chặn nhân sự tự đóng việc phải dựa vào đây. */
+function laTreTheoHan(t) {
   if (DONG_HAN.includes(t.status)) return false;
-  if (t.daGiaiQuyet) return false;
   const h = t.deadline ? new Date(t.deadline) : null;
   if (!h || isNaN(h.getTime())) return false;
   const d0 = new Date(); d0.setHours(0, 0, 0, 0);
@@ -526,7 +527,7 @@ async function api(req, res, url) {
     /* "Giải quyết" chỉ dành cho việc đã trễ. Việc còn hạn thì nộp bằng Hoàn thành
      * như thường — không đánh dấu "Đã giải quyết", vì dấu đó là bằng chứng của
      * một lần trễ. Nói trước cả phép kiểm minh chứng: bấm sai nút thì biết ngay. */
-    if (action === 'giai-quyet' && !daQuaHan(task)) {
+    if (action === 'giai-quyet' && !laTreTheoHan(task)) {
       return json(res, {
         error: 'Việc chưa quá hạn — hãy bấm Hoàn thành như bình thường',
         code: 'NOT_LATE',
@@ -548,7 +549,10 @@ async function api(req, res, url) {
      * số đó không mất đi kể cả sau này quản lý đóng việc.
      */
     if (action === 'giai-quyet') {
-      Object.assign(patch, { daGiaiQuyet: true, ngayGiaiQuyet: new Date().toISOString() });
+      /* Nộp lại lần hai thì chỉ cập nhật sản phẩm; giữ Ngày giải quyết của lần đầu
+       * để con số "trễ mấy ngày" không bị dịch đi. */
+      Object.assign(patch, { daGiaiQuyet: true });
+      if (!task.ngayGiaiQuyet) patch.ngayGiaiQuyet = new Date().toISOString();
       await lark.updateRecord(id, toCells(patch));
       applyLocal(rec, patch);
       baoTin((task.requester || []).map((u) => u.id),
@@ -559,11 +563,15 @@ async function api(req, res, url) {
 
     /* Việc đã quá hạn thì NHÂN SỰ không tự chuyển Hoàn thành — phải bấm "Giải
      * quyết". Quản lý vẫn đóng được, vì họ mới là người kết luận. */
-    if (cfg.chanHoanThanhKhiTre && !(await isManager(req)) && daQuaHan(task)) {
+    if (cfg.chanHoanThanhKhiTre && !(await isManager(req)) && laTreTheoHan(task)) {
       return json(res, {
-        error: 'Việc này đã quá hạn nên không tự chuyển Hoàn thành được',
+        error: task.daGiaiQuyet
+          ? 'Việc này đã nộp sản phẩm và đang chờ nghiệm thu — nhân sự không tự đóng được'
+          : 'Việc này đã quá hạn nên không tự chuyển Hoàn thành được',
         code: 'LATE_NEEDS_RESOLVE',
-        hint: 'Bấm "Giải quyết" để nộp sản phẩm. Trạng thái trễ được giữ lại để thống kê cuối tháng.',
+        hint: task.daGiaiQuyet
+          ? 'Trạng thái trễ được giữ lại để thống kê. Quản lý hoặc người order sẽ nghiệm thu và đóng việc.'
+          : 'Bấm "Giải quyết" để nộp sản phẩm. Trạng thái trễ được giữ lại để thống kê cuối tháng.',
       }, 422);
     }
 

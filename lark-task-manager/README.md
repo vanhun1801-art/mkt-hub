@@ -222,13 +222,20 @@ Nhân sự là người giữ file cuối, nên vẫn phải có chỗ nộp; nh
 không bấm nghiệm thu, nên không thể để việc trễ tự biến thành "Hoàn thành" —
 cuối tháng sẽ không còn đếm được ai trễ. Cách app xử lý:
 
-| | Việc còn hạn | Việc đã trễ |
-|---|---|---|
-| Nhân sự | `Hoàn thành` → trạng thái sang **Hoàn thành** | `Giải quyết` → ghi `Đã giải quyết` + `Ngày giải quyết`, **trạng thái giữ nguyên "Trễ deadline"** |
-| Quản lý | `Hoàn thành` | `Hoàn thành` (không bị chặn) |
+| | Việc còn hạn | Việc đã trễ | Việc đã trễ, đã nộp |
+|---|---|---|---|
+| Nhân sự | `Hoàn thành` → trạng thái sang **Hoàn thành** | `Giải quyết` → ghi `Đã giải quyết` + `Ngày giải quyết`, **trạng thái giữ nguyên "Trễ deadline"** | chỉ còn `Nộp lại sản phẩm`; **không có nút Hoàn thành** |
+| Quản lý | `Hoàn thành` | `Hoàn thành` (không bị chặn) | `Hoàn thành` — nghiệm thu xong mới đóng |
+
+Điểm dễ sai (đã từng sai): chốt chặn phải dựa vào "đã trễ theo hạn", KHÔNG dựa vào
+"còn trong hàng đợi quá hạn". Hai khái niệm khác nhau — nộp sản phẩm thì rời hàng
+đợi, nhưng *đã trễ* thì không xoá được. Nếu chặn theo hàng đợi, nhân sự bấm Giải
+quyết rồi bấm tiếp Hoàn thành là xoá sạch dấu trễ trong cột Trạng thái.
 
 * Cả hai nút đều đòi minh chứng trước (`422 PROOF_REQUIRED`).
 * Bấm `Giải quyết` cho việc chưa trễ → `422 NOT_LATE`.
+* Nộp lại lần hai: `Ngày giải quyết` giữ nguyên của lần đầu, để con số "trễ mấy
+  ngày" không bị dịch đi.
 * Việc đã giải quyết rời khỏi làn quá hạn và khỏi thẻ **Quá hạn** ở Marketing Hub,
   chuyển sang dòng ghi chú "N việc trễ đã giải quyết" (bấm vào xem được danh sách).
 * `Ngày giải quyết` đóng băng số ngày trễ: sau này quản lý có đóng việc thì con số

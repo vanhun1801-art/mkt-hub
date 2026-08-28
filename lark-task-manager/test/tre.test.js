@@ -101,6 +101,15 @@ async function goi(id, act) {
         g.status === 422 && g.ma === 'PROOF_REQUIRED', g.status + ' ' + g.ma);
     }
 
+    console.log('[1mViệc trễ ĐÃ nộp sản phẩm[0m');
+    const treDaGQ = ds.find((t) => hetHan(t) && !dong.test(String(t.status || '')) && t.daGiaiQuyet);
+    if (!treDaGQ) bo('nộp rồi vẫn không tự đóng được việc', 'không có việc trễ nào đã giải quyết');
+    else {
+      const r = await goi(treDaGQ.id, 'complete');
+      ok('nộp rồi vẫn không tự đóng được việc',
+        r.status === 422 && r.ma === 'LATE_NEEDS_RESOLVE', r.status + ' ' + r.ma);
+    }
+
     console.log('\n\x1b[1mViệc còn hạn\x1b[0m');
     const conHan = ds.find((t) => !hetHan(t) && !dong.test(String(t.status || '')));
     if (!conHan) bo('không cho Giải quyết việc chưa trễ', 'không có việc nào còn hạn');

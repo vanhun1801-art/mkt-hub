@@ -23,17 +23,18 @@ function viecLamDuoc(kpi, r, quanLy) {
       ds.push({ act: 'dat-han', ten: r.han ? 'Đổi hạn' : 'Đặt hạn', kieu: 'ngay' });
     }
     if (r.trangThai === 'Chờ tiếp nhận') ds.push({ act: 'bat-dau', ten: 'Bắt đầu', chinh: true });
-    /* Việc đã trễ mà chưa giải quyết: nút là "Giải quyết" (nộp sản phẩm, giữ dấu
-     * trễ) chứ không phải Hoàn thành — trừ khi mình là quản lý. */
-    const treThat = !r.daGiaiQuyet && r.han &&
+    /* Việc đã trễ thì nhân sự KHÔNG có nút Hoàn thành — kể cả sau khi đã nộp sản
+     * phẩm. Dấu trễ chỉ được xoá bởi quản lý lúc nghiệm thu. */
+    const treThat = r.han &&
       new Date(r.han).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0);
     if (r.trangThai !== 'Hoàn thành') {
       /* Chưa có minh chứng thì mở ô dán link — cửa sổ nhanh không đính kèm tệp
        * được, mà module bắt buộc phải có sản phẩm mới cho nộp. */
       if (treThat && !quanLy) {
+        const ten = r.daGiaiQuyet ? 'Nộp lại' : 'Giải quyết';
         ds.push(r.coMinhChung
-          ? { act: 'giai-quyet', ten: 'Giải quyết', chinh: true }
-          : { act: 'giai-quyet', ten: 'Giải quyết', chinh: true, kieu: 'link' });
+          ? { act: 'giai-quyet', ten, chinh: true }
+          : { act: 'giai-quyet', ten, chinh: true, kieu: 'link' });
       }
       else ds.push({ act: 'hoan-thanh', ten: 'Hoàn thành' });
     }
