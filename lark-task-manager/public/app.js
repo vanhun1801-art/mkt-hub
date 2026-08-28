@@ -20,9 +20,7 @@ const S = {
   filters: { campaign: '', workType: '', owner: '', priority: '', status: '', due: MAC_DINH_DUE, dueDate: '', moc: '', hideDone: false, q: '' },
   sort: { key: 'deadline', dir: 'asc' },
   selected: new Set(),
-  // lane key -> true. Làn "Đã nộp · chờ nghiệm thu" thu gọn sẵn: việc đã xong phần
-  // của nhân sự, để mở sẵn thì lại che mất làn đang trễ.
-  collapsed: { daNop: true },
+  collapsed: {},             // lane key -> true
   editing: null,
   dirty: {},
   modalTask: null,           // task đang xử lý trong modal
@@ -70,7 +68,9 @@ const LANES = [
   { key: 'late', title: 'Đang trễ deadline',
     hint: 'Đã bị đánh dấu trễ. Ưu tiên xử lý và báo người order.',
     empty: 'Không có việc nào bị đánh dấu trễ.' },
-  { key: 'daNop', title: 'Đã nộp · chờ nghiệm thu',
+  /* Nộp xong là xong phần của nhân sự -> ẨN HẲN khỏi "Việc của tôi".
+   * Vẫn tìm lại được bằng ô tìm kiếm khi cần nộp lại file cuối. */
+  { key: 'daNop', title: 'Đã nộp · chờ nghiệm thu', chiKhiTim: true,
     hint: 'Đã trễ nhưng đã nộp sản phẩm. Trạng thái trễ được giữ để thống kê; đợi người order hoặc quản lý nghiệm thu.',
     empty: 'Không có việc nào đang chờ nghiệm thu.' },
   { key: 'done', title: 'Đã hoàn thành', onlyWhenFiltered: true,
@@ -593,6 +593,8 @@ function renderLanes(list) {
     const keepEmpty = !S.wf.lane && (def.key === 'new' || def.key === 'doing');
     if (!items.length && !keepEmpty) continue;
     if (def.onlyWhenFiltered && S.wf.lane !== def.key) continue;
+    // đã nộp rồi thì biến khỏi màn hình, trừ khi người dùng đang tìm chính nó
+    if (def.chiKhiTim && !S.filters.q.trim()) continue;
 
     const lane = el('div', 'lane lane-l-' + def.key);
     const collapsed = !!S.collapsed[def.key];
