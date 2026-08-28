@@ -17,7 +17,7 @@ const kids = require('./children');
 const kpi = require('./kpi');
 const lich = require('./lichchung');
 const auth = require('./auth');
-const { chuyenTiep } = require('./proxy');
+const { chuyenTiep, goiJson } = require('./proxy');
 
 const PUBLIC = path.join(__dirname, 'public');
 
@@ -238,6 +238,65 @@ async function api(req, res, u) {
       ten: nguoi ? nguoi.name : null,
       la_quan_ly: !!(nguoi && ds.includes(nguoi.id)),
       so_quan_ly_dang_khai: ds.length,
+    });
+  }
+
+  /* Tự kiểm tra hệ thống: hỏi từng module xem nó thấy gì DƯỚI DANH TÍNH của người
+   * đang đăng nhập. Thiếu số liệu trên server chung hầu như luôn là quyền, và ba
+   * mã lỗi dưới đây nói rõ thiếu ở đâu: 99991672 (thiếu scope, hoặc chưa publish),
+   * 91403 (chưa chia sẻ Base cho app), 20029 (redirect URL chưa khai). */
+  if (p === '/api/kiem-tra' && m === 'GET') {
+    const nguoi = cfg.mode === 'api' ? auth.sessionUser(req) : null;
+    const dsQL = (process.env.LARK_MANAGER_IDS || '').split(',').map((x) => x.trim()).filter(Boolean);
+    const hostThat = String(req.headers['x-forwarded-host'] || req.headers.host || '');
+    let hostKhai = '';
+    try { hostKhai = new URL(cfg.publicUrl).host; } catch (_) {}
+
+    const mods = danhSach().filter((x) => x.bat && x.kieu === 'local');
+    const ket = await Promise.all(mods.map(async (mod) => {
+      const o = { id: mod.id, ten: mod.ten, trangThai: kids.tinhTrang(mod).trangThai };
+      try {
+        if (mod.kpi === 'quang-cao') {
+          const meta = await goiJson(mod, '/api/meta', { nguoi });
+          o.nguoi = meta.me ? meta.me.name : null;
+          o.dem = meta.counts || null;
+          o.tong = meta.counts ? meta.counts.daily : null;
+        } else if (mod.kpi === 'lich-tac-nghiep') {
+          const meta = await goiJson(mod, '/api/meta', { nguoi });
+          o.nguoi = meta.me ? meta.me.name : null;
+          o.vai = meta.manager ? 'quản lý' : 'nhân sự';
+          o.tong = (meta.items || []).length;
+          o.danhBa = (meta.people || []).length;
+        } else {
+          const [meta, ds] = await Promise.all([
+            goiJson(mod, '/api/meta', { nguoi }),
+            goiJson(mod, '/api/tasks', { nguoi }),
+          ]);
+          o.nguoi = meta.me ? meta.me.name : null;
+          o.vai = meta.role === 'manager' ? 'quản lý' : 'nhân sự';
+          o.tong = (ds.tasks || []).length;
+          o.danhBa = (meta.people || []).length;
+          o.phamVi = (meta.scopePeople || []).length;
+        }
+      } catch (e) {
+        o.loi = e.message;
+      }
+      return o;
+    }));
+
+    return ok(res, {
+      hub: {
+        che_do: cfg.mode,
+        commit: (process.env.RENDER_GIT_COMMIT || '').slice(0, 7) || null,
+        toi: nguoi ? { id: nguoi.id, ten: nguoi.name } : null,
+        la_quan_ly: !!(nguoi && dsQL.includes(nguoi.id)),
+        so_quan_ly_dang_khai: dsQL.length,
+        public_url: cfg.publicUrl || null,
+        host_that: hostThat,
+        public_url_khop: !hostKhai || !hostThat || hostKhai.toLowerCase() === hostThat.toLowerCase(),
+        co_session_secret: !!cfg.sessionSecret,
+      },
+      modules: ket,
     });
   }
 

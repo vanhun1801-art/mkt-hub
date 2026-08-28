@@ -778,7 +778,11 @@ function modalCaiDat() {
     '<div id="oToi" class="canh-bao" hidden></div>' +
     '<table class="bang"><thead><tr><th>Base</th><th>Kiểu</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>' +
     '<tbody>' + dong + '</tbody></table>',
+    '<button class="btn ghost" id="btnKiemTra">Kiểm tra hệ thống</button>' +
     '<button class="btn ghost" data-close="1">Đóng</button>');
+
+  const bkt = $('#btnKiemTra');
+  if (bkt) bkt.onclick = modalKiemTra;
 
   /* Chế độ chạy chung: mỗi app Lark thấy một open_id khác nhau cho cùng một người.
    * Hiện id ngay đây để dán vào LARK_MANAGER_IDS khi cần cấp vai quản lý. */
@@ -794,6 +798,55 @@ function modalCaiDat() {
       '</div></div>' +
       '<button class="btn nho" data-copy-id="' + esc(t.id) + '">Copy open_id</button>';
   }).catch(() => {});
+}
+
+/** Tự kiểm tra hệ thống: nói rõ đang thiếu quyền gì, ở đâu. */
+async function modalKiemTra() {
+  moModal('Kiểm tra hệ thống', '<div class="trong"><span class="spin"></span> Đang hỏi từng base…</div>',
+    '<button class="btn ghost" data-close="1">Đóng</button>');
+  let d;
+  try { d = await goi('/api/kiem-tra'); } catch (e) {
+    $('#mdBody').innerHTML = '<div class="canh-bao do"><span class="grow">' + esc(e.message) + '</span></div>';
+    return;
+  }
+
+  const h = d.hub;
+  const dong = (nhan, gt, tot) =>
+    '<tr><td>' + esc(nhan) + '</td><td><b class="' + (tot === false ? 'kt-xau' : tot === true ? 'kt-tot' : '') + '">' +
+    esc(gt) + '</b></td></tr>';
+
+  let html = '<table class="bang"><tbody>' +
+    dong('Chế độ', h.che_do === 'api' ? 'api (server chung)' : 'cli (máy cá nhân)') +
+    (h.commit ? dong('Bản đang chạy', h.commit) : '') +
+    (h.che_do === 'api' ? (
+      dong('Tài khoản của bạn', h.toi ? h.toi.ten + '  ·  ' + h.toi.id : 'chưa đăng nhập', !!h.toi) +
+      dong('Vai quản lý', h.la_quan_ly ? 'có' : 'KHÔNG — dán open_id trên vào LARK_MANAGER_IDS', h.la_quan_ly) +
+      dong('Số quản lý đang khai', String(h.so_quan_ly_dang_khai), h.so_quan_ly_dang_khai > 0) +
+      dong('PUBLIC_URL', (h.public_url || '(trống)') + (h.public_url_khop ? '' : '  ≠  ' + h.host_that), h.public_url_khop) +
+      dong('Khoá phiên (SESSION_SECRET)', h.co_session_secret ? 'có' : 'THIẾU', h.co_session_secret)
+    ) : '') +
+    '</tbody></table>';
+
+  html += '<div class="the-luoi" style="margin-top:14px">' + (d.modules || []).map((m) => {
+    const loi = m.loi || '';
+    const ma = /9999167d/.test(loi) ? 'Thiếu quyền (scope) hoặc chưa Publish version'
+      : /91403/.test(loi) ? 'App chưa được chia sẻ Base này'
+      : /Cannot find module|lark-cli/.test(loi) ? 'Đang gọi lark-cli — sai chế độ chạy'
+      : '';
+    return '<div class="the ' + (loi ? 'cao' : 'ok') + '">' +
+      '<div class="nhan">' + esc(m.ten) + '</div>' +
+      (loi
+        ? '<div class="ghi" style="color:var(--do)"><b>' + esc(ma || 'Lỗi') + '</b><br>' + esc(loi.slice(0, 180)) + '</div>'
+        : '<div class="so">' + (m.tong == null ? '—' : so(m.tong)) + '</div>' +
+          '<div class="ghi">bản ghi đọc được' +
+          (m.vai ? ' · vai: ' + esc(m.vai) : '') +
+          (m.danhBa != null ? ' · danh bạ ' + m.danhBa : '') +
+          (m.phamVi != null ? ' · phạm vi ' + m.phamVi : '') +
+          '</div>') +
+      '</div>';
+  }).join('') + '</div>';
+
+  $('#mdBody').innerHTML = html;
 }
 
 async function modalLog(id) {
