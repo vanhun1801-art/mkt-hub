@@ -68,6 +68,19 @@ async function quyenCua(nguoi) {
 /** Người này có được xem base đó không. */
 const duocXem = (q, id) => !q || !q.base || q.quanLy || q.base.includes(id);
 
+/* Danh tính kèm quyền để gửi xuống module. Thiếu bước gộp này thì hub tự gọi
+ * /api/meta mà không nói mình là quản lý -> chỉ số trên Tổng quan bị bó vào phạm
+ * vi nhân sự, lệch với con số trong chính app. */
+function nguoiKemQuyen(nguoi, q) {
+  if (!nguoi) return null;
+  return Object.assign({}, nguoi, {
+    quanLy: !!(q && q.quanLy),
+    toanBo: !!(q && q.toanBo),
+    taoMoi: !q || q.taoMoi !== false,
+    chiPhi: !!(q && q.chiPhi),
+  });
+}
+
 /* ---------------- HTTP tiện ích ---------------- */
 function send(res, code, body, headers = {}) {
   const data = typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body);
@@ -167,7 +180,7 @@ async function api(req, res, u) {
     const tu = ngay(u.searchParams.get('tu'));
     const den = ngay(u.searchParams.get('den'));
     const khoang = tu && den ? { tu, den } : null;
-    const kq = await kpi.tongQuan(mods, khoang, cfg.mode === 'api' ? auth.sessionUser(req) : null);
+    const kq = await kpi.tongQuan(mods, khoang, nguoiKemQuyen(nguoiTQ, qTQ));
     return ok(res, kq);
   }
 
@@ -194,7 +207,7 @@ async function api(req, res, u) {
     const mods = danhSach().filter((x) => x.bat && lich.BO_DOC[x.kpi] && duocXem(qLC, x.id));
     if (u.searchParams.get('refresh') === '1') lich.xoaCache();
     return ok(res, await lich.lichChung(mods, tu, den, u.searchParams.get('refresh') === '1',
-      cfg.mode === 'api' ? auth.sessionUser(req) : null));
+      nguoiKemQuyen(nguoiLC, qLC)));
   }
 
   // /api/modules/<id>/<hanhDong>
@@ -404,6 +417,99 @@ async function api(req, res, u) {
       if (!rec) return loi(res, 400, 'Thiếu recordId');
       await quyen.xoa(rec);
       return ok(res, { xoa: rec });
+    }
+  }
+
+  /* ---------------- cửa sổ xử lý nhanh ----------------
+   * Bấm một thẻ số ở Tổng quan -> mở danh sách bản ghi sau thẻ đó và làm luôn
+   * vài việc thường gặp, không phải nhảy sang app.
+   */
+  if (p === '/api/o' && m === 'GET') {
+    const nguoiO = cfg.mode === 'api' ? auth.sessionUser(req) : null;
+    const qO = await quyenCua(nguoiO);
+    const mod = timMod(u.searchParams.get('mod') || '');
+    if (!mod || !mod.bat) return loi(res, 404, 'Không có base này trong panel');
+    if (!duocXem(qO, mod.id)) return loi(res, 403, 'Bạn không được xem base này');
+
+    const ngay = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(v || '') ? v : '');
+    const tu = ngay(u.searchParams.get('tu'));
+    const den = ngay(u.searchParams.get('den'));
+    const khoaNhom = u.searchParams.get('khoa') || '';
+    let ds;
+    try {
+      ds = await kpi.nhomCua(mod, khoaNhom, tu && den ? { tu, den } : null, nguoiKemQuyen(nguoiO, qO));
+    } catch (e) { return loi(res, 400, e.message); }
+
+    /* Danh bạ để phân công / chốt nhân sự ngay trong cửa sổ. Lấy từ chính module
+     * nên luôn là người có thật trong base đó. */
+    let nhanSu = [];
+    if (mod.kpi === 'cong-viec' || mod.kpi === 'lich-tac-nghiep') {
+      try {
+        const meta = await goiJson(mod, '/api/meta', { nguoi: nguoiKemQuyen(nguoiO, qO) });
+        nhanSu = (meta.people || []).map((x) => ({ id: x.id, ten: x.name || x.id }));
+      } catch (_) { /* thiếu danh bạ thì chỉ mất nút phân công */ }
+    }
+
+    return ok(res, {
+      mod: mod.id, ten: mod.ten, kpi: mod.kpi, khoa: khoaNhom,
+      quanLy: qO.quanLy || cfg.mode !== 'api',
+      ds, nhanSu,
+    });
+  }
+
+  /* Bảng hành động cho phép làm từ cửa sổ nhanh. Danh sách trắng: hub không cho
+   * gọi tuỳ ý API của module, và module vẫn tự kiểm quyền lần nữa. */
+  function goiHanhDong(mod, id, act, v) {
+    if (mod.kpi === 'cong-viec') {
+      const bulk = (patch) => ({ duong: '/api/tasks/bulk', method: 'PATCH', body: { ids: [id], patch } });
+      if (act === 'bat-dau') return { duong: '/api/tasks/' + id + '/start', method: 'POST', body: {} };
+      if (act === 'hoan-thanh') return { duong: '/api/tasks/' + id + '/complete', method: 'POST', body: v && v.link ? { link: String(v.link) } : {} };
+      if (act === 'phan-cong') return bulk({ owner: [String(v)] });
+      /* Ô chọn ngày chỉ cho ra YYYY-MM-DD. Để nguyên thì module quy về 00:00 —
+       * tức việc "hạn hôm nay" thành quá hạn ngay lúc đặt. Hạn là HẾT ngày đó. */
+      if (act === 'dat-han') {
+        const ng = String(v || '');
+        return bulk({ deadline: /^\d{4}-\d{2}-\d{2}$/.test(ng) ? ng + 'T23:59:00' : ng });
+      }
+      if (act === 'trang-thai') return bulk({ status: String(v) });
+    }
+    if (mod.kpi === 'lich-tac-nghiep') {
+      const patch = (b) => ({ duong: '/api/items/' + id, method: 'PATCH', body: b });
+      if (act === 'duyet') return patch({ status: 'Duyệt/Chờ tác nghiệp' });
+      if (act === 'tra-lai') return patch({ status: 'Từ chối/Cần điều chỉnh' });
+      if (act === 'hoan-tat') return patch({ status: 'Đã hoàn tất' });
+      if (act === 'da-thanh-toan') return patch({ payment: 'Đã thanh toán' });
+      if (act === 'chot-nhan-su') return patch({ staff: [String(v)] });
+    }
+    return null;
+  }
+
+  if (p === '/api/viec' && m === 'POST') {
+    const nguoiV = cfg.mode === 'api' ? auth.sessionUser(req) : null;
+    const qV = await quyenCua(nguoiV);
+    const b = await docBody(req);
+    const mod = timMod(b.mod || '');
+    if (!mod || !mod.bat) return loi(res, 404, 'Không có base này trong panel');
+    if (!duocXem(qV, mod.id)) return loi(res, 403, 'Bạn không được xem base này');
+    if (!/^rec[A-Za-z0-9]+$/.test(String(b.id || ''))) return loi(res, 400, 'Thiếu mã bản ghi');
+
+    const g = goiHanhDong(mod, b.id, String(b.act || ''), b.giaTri);
+    if (!g) return loi(res, 400, 'Hành động không được phép ở đây');
+
+    try {
+      const kq = await goiJson(mod, g.duong, {
+        method: g.method, body: g.body, nguoi: nguoiKemQuyen(nguoiV, qV), timeoutMs: 30000,
+      });
+      kpi.xoaCache(mod.id);   // số trên thẻ phải đổi ngay sau khi xử lý
+      lich.xoaCache();
+      return ok(res, { ok: true, kq });
+    } catch (e) {
+      /* Giữ câu giải thích của module (VD "Chưa có minh chứng kết quả"). Lỗi thô
+       * của lark-cli dài cả trang JSON — cắt lại cho vừa một dòng thông báo. */
+      let msg = String(e.message || 'Lỗi không rõ').replace(/\s+/g, ' ');
+      if (msg.length > 240) msg = msg.slice(0, 240) + '…';
+      return send(res, e.http && e.http < 500 ? e.http : 502,
+        { error: msg, code: e.code || '', hint: e.hint || '' });
     }
   }
 

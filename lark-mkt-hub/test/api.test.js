@@ -22,8 +22,13 @@ const boQua = (ten, vi) => { bo++; console.log('  – ' + ten + '  (bỏ qua: ' 
 function goi(duongDan, opts = {}) {
   return new Promise((resolve, reject) => {
     const u = new URL(GOC + duongDan);
+    const than = opts.body == null ? null : Buffer.from(JSON.stringify(opts.body), 'utf8');
     const req = http.request(
-      { host: u.hostname, port: u.port, path: u.pathname + u.search, method: opts.method || 'GET', timeout: 45000 },
+      {
+        host: u.hostname, port: u.port, path: u.pathname + u.search,
+        method: opts.method || 'GET', timeout: 45000,
+        headers: than ? { 'content-type': 'application/json; charset=utf-8', 'content-length': than.length } : {},
+      },
       (res) => {
         const buf = [];
         res.on('data', (c) => buf.push(c));
@@ -32,10 +37,15 @@ function goi(duongDan, opts = {}) {
     );
     req.on('timeout', () => req.destroy(new Error('timeout')));
     req.on('error', reject);
+    if (than) req.write(than);
     req.end();
   });
 }
-const json = async (p) => { const r = await goi(p); try { r.data = JSON.parse(r.raw); } catch (_) { r.data = null; } return r; };
+const json = async (p, opts) => {
+  const r = await goi(p, opts);
+  try { r.data = JSON.parse(r.raw); } catch (_) { r.data = null; }
+  return r;
+};
 
 (async function () {
   console.log('\nKiểm thử Marketing Hub · ' + GOC + '\n');
@@ -157,6 +167,57 @@ const json = async (p) => { const r = await goi(p); try { r.data = JSON.parse(r.
   ok(rong.code === 400, 'Khoảng quá rộng (>92 ngày) bị từ chối');
   const trong = await json('/api/lich-chung');
   ok(trong.code === 200 && trong.data.ngay.length >= 28, 'Không truyền ngày thì lấy tháng hiện tại');
+  /* ---- 3c. cửa sổ xử lý nhanh ----
+   * Không có phép thử nào GHI vào Base: chỉ kiểm những đường bị chặn, và kiểm
+   * con số trên thẻ đúng bằng số dòng trong nhóm nó mở ra.
+   */
+  console.log('\n[3c] Cửa sổ xử lý nhanh');
+  let soThe = 0;
+  let lech = 0;
+  let recThu = '';
+  for (const mm of (tq.data.modules || [])) {
+    for (const t of (mm.the || [])) {
+      if (!t.khoa) continue;
+      soThe++;
+      const o = await json('/api/o?mod=' + mm.id + '&khoa=' + encodeURIComponent(t.khoa));
+      if (o.code !== 200 || !Array.isArray(o.data.ds)) { lech++; continue; }
+      if (t.dinhDang === 'so' && o.data.ds.length !== Number(t.so)) {
+        lech++;
+        console.log('     lệch: ' + mm.id + ' / ' + t.nhan + ' thẻ=' + t.so + ' ds=' + o.data.ds.length);
+      }
+      if (!recThu) {
+        const co = (o.data.ds || []).find((x) => x.id);
+        if (co) recThu = mm.id + '|' + co.id;
+      }
+    }
+  }
+  ok(soThe > 0, 'Có thẻ số mở được cửa sổ nhanh (' + soThe + ' thẻ)');
+  ok(lech === 0, 'Số trên thẻ đúng bằng số dòng nhóm nó mở ra', lech + ' thẻ lệch');
+
+  const oLa = await json('/api/o?mod=cong-viec&khoa=khong-co-nhom-nay');
+  ok(oLa.code === 400, 'Xin nhóm không tồn tại thì trả 400, không trả rỗng âm thầm');
+  const oBaseLa = await json('/api/o?mod=khong-co&khoa=mo');
+  ok(oBaseLa.code === 404, 'Xin base không có trong panel trả 404');
+
+  if (recThu) {
+    const [mId, rId] = recThu.split('|');
+    const mot = await json('/api/o?mod=' + mId + '&khoa=rec:' + rId);
+    ok(mot.code === 200 && mot.data.ds.length === 1 && mot.data.ds[0].id === rId,
+      'khoa=rec:<id> trả đúng một bản ghi đó');
+
+    /* các đường ghi bị chặn — không chạm Base */
+    const actLa = await json('/api/viec', { method: 'POST', body: { mod: mId, id: rId, act: 'xoa-sach' } });
+    ok(actLa.code === 400, 'Hành động ngoài danh sách trắng bị chặn (400)');
+    const idLa = await json('/api/viec', { method: 'POST', body: { mod: mId, id: '../../etc/passwd', act: 'bat-dau' } });
+    ok(idLa.code === 400, 'Mã bản ghi sai định dạng bị chặn (400)');
+    const modLa = await json('/api/viec', { method: 'POST', body: { mod: 'khong-co', id: rId, act: 'bat-dau' } });
+    ok(modLa.code === 404, 'Ghi vào base không có trong panel trả 404');
+    const recLa = await json('/api/viec', { method: 'POST', body: { mod: mId, id: 'recZZZZZZZZZZ', act: 'bat-dau' } });
+    ok(recLa.code === 404 || recLa.code === 400, 'Bản ghi không tồn tại thì module trả lỗi, hub không tự bịa');
+    ok(recLa.data && typeof recLa.data.error === 'string' && recLa.data.error.length < 260,
+      'Lỗi trả về đã cắt ngắn, đủ hiện một dòng thông báo');
+  } else boQua('Cửa sổ nhanh: bản ghi lẻ', 'không có nhóm nào có bản ghi');
+
   /* ---- 4. log của module ---- */
   console.log('\n[4] Log module');
   if (dangChay.length) {

@@ -160,7 +160,13 @@ async function goi(duongDan, opts) {
   const raw = await r.text();
   let d = {};
   try { d = raw ? JSON.parse(raw) : {}; } catch (e) { throw new Error(raw.slice(0, 200)); }
-  if (!r.ok) throw new Error(d.error || 'HTTP ' + r.status);
+  if (!r.ok) {
+    // module hay kèm mã lỗi + câu chỉ cách sửa — giữ lại để nói đúng lý do
+    const e = new Error(d.error || 'HTTP ' + r.status);
+    e.ma = d.code || '';
+    e.goiY = d.hint || '';
+    throw e;
+  }
   return d;
 }
 
@@ -356,15 +362,21 @@ function theHtml(t, moduleId) {
       (t.lech > 0 ? '+' : t.lech < 0 ? '−' : '') + Math.abs(t.lech) + '% vs kỳ trước</div>';
   }
   const dai = t.dinhDang === 'vnd' && Math.abs(Number(t.so) || 0) >= 1000000 ? ' dai' : '';
-  // thẻ số bấm được: mở thẳng app của base (kèm tab nếu bộ đọc khai)
+  /* Thẻ có `khoa` thì bấm vào mở cửa sổ xử lý nhanh ngay tại trang Tổng quan;
+   * thẻ không có (chỉ số tổng hợp) thì vẫn mở app như trước. */
   const mo = moduleId
     ? ' data-mo="' + esc(moduleId) + '"' + (t.tab ? ' data-tab="' + esc(t.tab) + '"' : '') +
-      ' title="Mở app để xử lý"'
+      (t.khoa ? ' data-khoa="' + esc(t.khoa) + '" title="Bấm để xem và xử lý ngay"'
+              : ' title="Mở app để xử lý"')
+    : '';
+  // dòng ghi chú cũng mở được nhóm riêng của nó (VD "8 việc chưa có deadline")
+  const ghi = t.ghi
+    ? '<div class="ghi' + (t.ghiKhoa ? ' ghi-mo" data-ghi-khoa="' + esc(t.ghiKhoa) + '"' : '"') + '>' +
+      esc(t.ghi) + '</div>'
     : '';
   return '<div class="the ' + muc + (moduleId ? ' bam-duoc' : '') + '"' + mo + '>' +
     '<div class="nhan">' + esc(t.nhan) + '</div>' +
-    '<div class="so' + dai + '">' + so(t.so, t.dinhDang) + '</div>' + lech +
-    (t.ghi ? '<div class="ghi">' + esc(t.ghi) + '</div>' : '') + '</div>';
+    '<div class="so' + dai + '">' + so(t.so, t.dinhDang) + '</div>' + lech + ghi + '</div>';
 }
 
 function dongViecHtml(v, tenModule) {
@@ -1030,12 +1042,33 @@ document.addEventListener('click', (e) => {
     apTheme(true);
     return;
   }
-  // bấm một việc (danh sách cần xử lý, hoặc trong ô chi tiết của dải nhiệt)
+  // bấm một việc -> cửa sổ xử lý nhanh cho đúng việc đó, không rời trang
   const viec = e.target.closest('[data-rec][data-mo]');
-  if (viec) { e.preventDefault(); moViec(viec.dataset.mo, viec.dataset.rec); return; }
-  // bấm thẻ số -> mở app của base đó (kèm tab nếu có)
+  if (viec) {
+    e.preventDefault();
+    moCuaSo(viec.dataset.mo, 'rec:' + viec.dataset.rec, 'Xử lý nhanh');
+    return;
+  }
+  // dòng ghi chú trong thẻ có nhóm riêng (VD "8 việc chưa có deadline")
+  const ghi = e.target.closest('[data-ghi-khoa]');
+  if (ghi) {
+    e.preventDefault();
+    const tThe = ghi.closest('.the[data-mo]');
+    if (tThe) moCuaSo(tThe.dataset.mo, ghi.getAttribute('data-ghi-khoa'), ghi.textContent.trim());
+    return;
+  }
+  // bấm thẻ số -> mở danh sách sau con số đó (thẻ tổng hợp thì mở app như trước)
   const the = e.target.closest('.the[data-mo]');
-  if (the) { e.preventDefault(); moTab(the.dataset.mo, the.dataset.tab || ''); return; }
+  if (the) {
+    e.preventDefault();
+    if (the.dataset.khoa) {
+      const nhanThe = the.querySelector('.nhan');
+      moCuaSo(the.dataset.mo, the.dataset.khoa, nhanThe ? nhanThe.textContent.trim() : '');
+    } else {
+      moTab(the.dataset.mo, the.dataset.tab || '');
+    }
+    return;
+  }
 
   const o = e.target.closest('.tn-o[data-n]');
   if (o) { moChiTietO(o.dataset.nguoi, o.dataset.n); return; }

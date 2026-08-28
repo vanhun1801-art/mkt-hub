@@ -750,3 +750,22 @@ code { background: var(--trang-2); border: 1px solid var(--vien-mem); border-rad
 
 /* bảng phân quyền cần rộng hơn hộp thoại thường (7 cột, có checkbox) */
 .modal.rong { width: min(1060px, calc(100vw - 40px)); }
+
+/* ---------------- cửa sổ xử lý nhanh ---------------- */
+.n-ds { display: flex; flex-direction: column; gap: 8px; }
+.n-hang {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 12px; background: var(--trang);
+  border: 1px solid var(--vien); border-radius: var(--r-nho);
+}
+.n-hang:hover { border-color: var(--vien-dam); }
+.n-noi { flex: 1; min-width: 0; }
+.n-td { font-size: 13.5px; font-weight: 560; line-height: 1.4; }
+.n-phu { font-size: 12.5px; color: var(--chu-mo); margin-top: 2px; }
+.n-nut { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; max-width: 46%; }
+.n-o { display: flex; gap: 6px; align-items: center; margin-top: 8px; }
+.n-o .n-chon { max-width: 240px; }
+.n-dem { font-size: 12.5px; color: var(--chu-nhat); }
+/* dòng ghi chú bấm được trong thẻ số */
+.the .ghi-mo { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 2px; }
+.the .ghi-mo:hover { color: var(--xanh); }

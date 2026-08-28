@@ -250,35 +250,67 @@ Xem log và bấm <b>Bật lại</b> ở mục <b>Cài đặt</b> của lớp v�
 </div></body></html>`;
 }
 
-/** Gọi API JSON của một module (dùng cho trang Tổng quan chung). */
+/** Header danh tính + quyền gửi kèm khi hub tự gọi API của module. */
+function headerNguoi(nguoi) {
+  if (!nguoi || !nguoi.id) return {};
+  const h = {
+    'x-hub-user-id': nguoi.id,
+    'x-hub-user-name': encodeURIComponent(nguoi.name || nguoi.id),
+  };
+  if (nguoi.quanLy) h['x-hub-user-manager'] = '1';
+  if (nguoi.toanBo) h['x-hub-perm-toan-bo'] = '1';
+  if (nguoi.taoMoi === false) h['x-hub-perm-khong-tao'] = '1';
+  if (nguoi.chiPhi) h['x-hub-perm-chi-phi'] = '1';
+  return h;
+}
+
+/**
+ * Gọi API JSON của một module (trang Tổng quan chung, cửa sổ xử lý nhanh).
+ * opts: { nguoi, method, body, timeoutMs }
+ *
+ * Module trả lỗi kèm mã (PROOF_REQUIRED, MANAGER_ONLY…) — giữ nguyên `code` và
+ * câu `error` của nó trên Error để hub nói lại đúng lý do, không thành "HTTP 403".
+ */
 function goiJson(mod, duongDan, opts = {}) {
   const timeoutMs = opts.timeoutMs || cfg.goiTimeoutMs;
-  const nguoi = opts.nguoi || null;
+  const method = opts.method || 'GET';
+  const than = opts.body == null ? null : Buffer.from(JSON.stringify(opts.body), 'utf8');
   return new Promise((resolve, reject) => {
     const req = http.request(
       {
         host: '127.0.0.1',
         port: mod.cong,
         path: duongDan,
-        method: 'GET',
+        method,
         timeout: timeoutMs,
-        headers: Object.assign({ accept: 'application/json' }, nguoi && nguoi.id ? Object.assign({
-          'x-hub-user-id': nguoi.id,
-          'x-hub-user-name': encodeURIComponent(nguoi.name || nguoi.id),
-        }, nguoi.quanLy ? { 'x-hub-user-manager': '1' } : {}) : {}),
+        headers: Object.assign(
+          { accept: 'application/json' },
+          headerNguoi(opts.nguoi),
+          than ? { 'content-type': 'application/json; charset=utf-8', 'content-length': than.length } : {}
+        ),
       },
       (res) => {
         const buf = [];
         res.on('data', (c) => buf.push(c));
         res.on('end', () => {
           const raw = Buffer.concat(buf).toString('utf8');
-          if (res.statusCode >= 400) return reject(new Error('HTTP ' + res.statusCode + ' ' + raw.slice(0, 160)));
-          try { resolve(JSON.parse(raw)); } catch (e) { reject(new Error('Không phải JSON: ' + raw.slice(0, 120))); }
+          let d = null;
+          try { d = raw ? JSON.parse(raw) : {}; } catch (_) { d = null; }
+          if (res.statusCode >= 400) {
+            const e = new Error((d && d.error) || 'HTTP ' + res.statusCode + ' ' + raw.slice(0, 160));
+            e.http = res.statusCode;
+            if (d && d.code) e.code = d.code;
+            if (d && d.hint) e.hint = d.hint;
+            return reject(e);
+          }
+          if (d === null) return reject(new Error('Không phải JSON: ' + raw.slice(0, 120)));
+          resolve(d);
         });
       }
     );
     req.on('timeout', () => { req.destroy(new Error('Quá thời gian chờ')); });
     req.on('error', reject);
+    if (than) req.write(than);
     req.end();
   });
 }

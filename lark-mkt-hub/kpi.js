@@ -76,16 +76,42 @@ async function congViec(mod, khoang, nguoi) {
   const choTiepNhan = mo.filter((t) => t.status === 'Chờ tiếp nhận');
   const denHan = mo.filter((t) => han(t) >= now && han(t) < homNay + 2 * NGAY);
 
+  const dangLam = mo.filter((t) => t.status === 'Đang tiến hành');
+
+  /* Nhóm bản ghi đứng sau từng thẻ số. Cửa sổ xử lý nhanh đọc lại đúng các nhóm
+   * này (qua /api/o) nên con số trên thẻ và danh sách mở ra luôn khớp — không
+   * lọc lại một lần nữa ở client. */
+  const dong = (t) => ({
+    id: t.id,
+    tieuDe: t.title || '(không tên)',
+    trangThai: nhan(t.status),
+    nguoi: ten(t.owner),
+    nguoiId: (t.owner || []).map((u) => u.id),
+    han: han(t) || 0,
+    the: [t.priority, t.workType, t.campaign].map(nhan).filter(Boolean),
+    coMinhChung: !!((t.attachment || []).length || t.link),
+  });
+  const nhom = {
+    'mo': mo.map(dong),
+    'qua-han': quaHan.map(dong),
+    'chua-phan-cong': chuaPhanCong.map(dong),
+    'dang-tien-hanh': dangLam.map(dong),
+    'sap-han': denHan.map(dong),
+    'cho-tiep-nhan': choTiepNhan.map(dong),
+    'thieu-deadline': thieuDeadline.map(dong),
+  };
+
   const the = [
-    { nhan: 'Việc đang mở', so: mo.length, dinhDang: 'so' },
-    { nhan: 'Quá hạn', so: quaHan.length, dinhDang: 'so', muc: quaHan.length ? 'cao' : 'ok' },
-    { nhan: 'Chưa phân công', so: chuaPhanCong.length, dinhDang: 'so', muc: chuaPhanCong.length ? 'cao' : 'ok' },
-    { nhan: 'Đang tiến hành', so: mo.filter((t) => t.status === 'Đang tiến hành').length, dinhDang: 'so' },
-    { nhan: 'Sắp tới hạn (48h)', so: denHan.length, dinhDang: 'so', muc: denHan.length ? 'vua' : 'ok' },
+    { nhan: 'Việc đang mở', so: mo.length, dinhDang: 'so', khoa: 'mo' },
+    { nhan: 'Quá hạn', so: quaHan.length, dinhDang: 'so', muc: quaHan.length ? 'cao' : 'ok', khoa: 'qua-han' },
+    { nhan: 'Chưa phân công', so: chuaPhanCong.length, dinhDang: 'so', muc: chuaPhanCong.length ? 'cao' : 'ok', khoa: 'chua-phan-cong' },
+    { nhan: 'Đang tiến hành', so: dangLam.length, dinhDang: 'so', khoa: 'dang-tien-hanh' },
+    { nhan: 'Sắp tới hạn (48h)', so: denHan.length, dinhDang: 'so', muc: denHan.length ? 'vua' : 'ok', khoa: 'sap-han' },
     // hàng đợi đầu vào: việc đã vào bảng nhưng người nhận chưa xác nhận bắt tay làm
     { nhan: 'Chờ tiếp nhận', so: choTiepNhan.length, dinhDang: 'so',
-      muc: choTiepNhan.length ? 'vua' : 'ok',
-      ghi: thieuDeadline.length ? thieuDeadline.length + ' việc chưa có deadline' : '' },
+      muc: choTiepNhan.length ? 'vua' : 'ok', khoa: 'cho-tiep-nhan',
+      ghi: thieuDeadline.length ? thieuDeadline.length + ' việc chưa có deadline' : '',
+      ghiKhoa: thieuDeadline.length ? 'thieu-deadline' : '' },
   ];
 
   const canXuLy = [];
@@ -112,6 +138,7 @@ async function congViec(mod, khoang, nguoi) {
 
   return {
     the,
+    nhom,
     canXuLy,
     tong: tasks.length,
     ngoaiKhoang: ngoai,
@@ -186,16 +213,42 @@ async function lichTacNghiep(mod, khoang, nguoi) {
   const chiPhi = dsChiPhi.reduce((s, t) => s + (t.costPlan || 0), 0);
   const chiPhiThuc = dsChiPhi.reduce((s, t) => s + (t.costActual || 0), 0);
 
+  // nhóm bản ghi sau từng thẻ — cửa sổ xử lý nhanh đọc lại chính các nhóm này
+  const dong = (t, lyDo) => ({
+    id: t.id,
+    tieuDe: t.title || '(không tên)',
+    trangThai: nhan(t.status),
+    nguoi: (t.staff || []).length ? ten(t.staff) : '',
+    phuTrach: ten(t.owner),
+    nguoiId: (t.staff || []).map((u) => u.id),
+    ngay: bd(t) || 0,
+    lyDo: lyDo || '',
+    chiPhi: t.costPlan || 0,
+    chiPhiThuc: t.costActual || 0,
+    thanhToan: t.payment || '',
+    the: (t.transport || []).slice(0, 2).map(nhan).filter(Boolean),
+    coBaoCao: !!(String(t.report || '').trim() || String(t.link || '').trim()),
+  });
+  const nhom = {
+    'cho-duyet': choDuyet.map((t) => dong(t)),
+    'hom-nay': homNay.map((t) => dong(t)),
+    '7-ngay': tuanToi.map((t) => dong(t)),
+    'nguy-co': nguyCo.map(({ t, r }) => dong(t, r.ly)),
+    'chua-chot': treBaoCao.map((t) => dong(t)),
+    'chi-phi': dsChiPhi.filter((t) => (t.costPlan || 0) || (t.costActual || 0))
+      .sort((a, b) => (b.costPlan || 0) - (a.costPlan || 0)).map((t) => dong(t)),
+  };
+
   const the = [
-    { nhan: 'Chờ duyệt', so: choDuyet.length, dinhDang: 'so', muc: choDuyet.length ? 'cao' : 'ok' },
-    { nhan: 'Lịch hôm nay', so: homNay.length, dinhDang: 'so' },
-    { nhan: '7 ngày tới', so: tuanToi.length, dinhDang: 'so' },
+    { nhan: 'Chờ duyệt', so: choDuyet.length, dinhDang: 'so', muc: choDuyet.length ? 'cao' : 'ok', khoa: 'cho-duyet' },
+    { nhan: 'Lịch hôm nay', so: homNay.length, dinhDang: 'so', khoa: 'hom-nay' },
+    { nhan: '7 ngày tới', so: tuanToi.length, dinhDang: 'so', khoa: '7-ngay' },
     // thay cho "Đang báo cáo" (số đó chỉ mô tả, không đòi ai làm gì)
-    { nhan: 'Lịch có nguy cơ', so: nguyCo.length, dinhDang: 'so',
+    { nhan: 'Lịch có nguy cơ', so: nguyCo.length, dinhDang: 'so', khoa: 'nguy-co',
       muc: nguyCoNang.length ? 'cao' : nguyCo.length ? 'vua' : 'ok',
       ghi: nguyCo.length ? nguyCo[0].r.ly.toLowerCase() + (nguyCo.length > 1 ? ' · +' + (nguyCo.length - 1) + ' việc khác' : '') : '' },
-    { nhan: 'Chưa chốt báo cáo', so: treBaoCao.length, dinhDang: 'so', muc: treBaoCao.length ? 'vua' : 'ok' },
-    { nhan: m ? 'Chi phí dự kiến' : 'Chi phí dự kiến tháng', so: chiPhi, dinhDang: 'vnd',
+    { nhan: 'Chưa chốt báo cáo', so: treBaoCao.length, dinhDang: 'so', muc: treBaoCao.length ? 'vua' : 'ok', khoa: 'chua-chot' },
+    { nhan: m ? 'Chi phí dự kiến' : 'Chi phí dự kiến tháng', so: chiPhi, dinhDang: 'vnd', khoa: 'chi-phi',
       ghi: chiPhiThuc ? 'thực tế ' + Math.round(chiPhiThuc).toLocaleString('vi-VN') + 'đ' : '' },
   ];
 
@@ -244,7 +297,7 @@ async function lichTacNghiep(mod, khoang, nguoi) {
   const ngoai = ngoaiDs.length;
 
   return {
-    the, canXuLy,
+    the, nhom, canXuLy,
     tong: items.length,
     ngoaiKhoang: ngoai,
     ngoaiKhoangNhan: ngoai ? ngoai + ' lịch chờ duyệt / có nguy cơ ngoài khoảng lọc' : '',
@@ -272,9 +325,19 @@ async function quangCao(mod, khoang, nguoi) {
     { nhan: 'CPA', so: k.cpa || 0, dinhDang: 'vnd', lech: d.cpa, dao: true },
     { nhan: 'ROAS', so: k.roas || 0, dinhDang: 'x', lech: d.roas },
     { nhan: 'CTR', so: k.ctr || 0, dinhDang: 'pt', lech: d.ctr },
-    { nhan: 'Cảnh báo', so: alerts.length, dinhDang: 'so', tab: 'canh-bao',
+    { nhan: 'Cảnh báo', so: alerts.length, dinhDang: 'so', tab: 'canh-bao', khoa: 'canh-bao',
       muc: nang.length ? 'cao' : alerts.length ? 'vua' : 'ok' },
   ];
+
+  /* Cảnh báo quảng cáo không phải bản ghi Base (nó là kết luận tính ra từ nhiều
+   * dòng chi tiêu) nên không có id để thao tác — chỉ đọc rồi mở app. */
+  const nhom = {
+    'canh-bao': alerts.map((a) => ({
+      id: '', tieuDe: a.title, lyDo: a.detail || '',
+      muc: a.level === 'high' ? 'cao' : a.level === 'mid' ? 'vua' : 'thap',
+      the: [a.kind].filter(Boolean),
+    })),
+  };
 
   const canXuLy = alerts
     .filter((a) => a.level === 'high' || a.level === 'mid')
@@ -288,6 +351,7 @@ async function quangCao(mod, khoang, nguoi) {
 
   return {
     the,
+    nhom,
     canXuLy,
     khoang: ov.range ? ov.range.from + ' → ' + ov.range.to : '',
   };
@@ -326,9 +390,38 @@ async function doc(mod, khoang, nguoi) {
   }
 }
 
+/**
+ * Danh sách bản ghi đứng sau một thẻ số (cửa sổ xử lý nhanh).
+ * Dùng lại cache của `doc()` nên mở cửa sổ gần như tức thì và con số luôn khớp
+ * với thẻ vừa bấm.
+ */
+async function nhomCua(mod, khoaNhom, khoang, nguoi) {
+  const d = await doc(mod, khoang, nguoi);
+  if (!d.ok) throw new Error(d.loi || 'Không đọc được chỉ số của base này');
+
+  /* "rec:<id>" = xin đúng một bản ghi (bấm một dòng trong Cần xử lý ngay). Tìm
+   * trong các nhóm đã tính nên không phải gọi thêm module. */
+  if (khoaNhom.startsWith('rec:')) {
+    const id = khoaNhom.slice(4);
+    for (const ds of Object.values(d.nhom || {})) {
+      const hit = ds.find((x) => x.id === id);
+      if (hit) return [hit];
+    }
+    return [];
+  }
+
+  const ds = (d.nhom || {})[khoaNhom];
+  if (!ds) throw new Error('Không có nhóm "' + khoaNhom + '" trong base này');
+  return ds;
+}
+
 /** Đọc song song chỉ số của mọi module đang bật, theo cùng một khoảng thời gian. */
 async function tongQuan(mods, khoang, nguoi) {
-  const ds = await Promise.all(mods.map(async (m) => ({ id: m.id, ...(await doc(m, khoang, nguoi)) })));
+  // `nhom` giữ ở server (nặng, có thể vài trăm dòng); client xin riêng khi cần
+  const ds = await Promise.all(mods.map(async (m) => {
+    const { nhom, ...cong } = await doc(m, khoang, nguoi);
+    return { id: m.id, ...cong };
+  }));
   const canXuLy = [];
   ds.forEach((r) => (r.canXuLy || []).forEach((v) => canXuLy.push({ ...v, module: r.id })));
   const uu = { cao: 0, vua: 1, thap: 2 };
@@ -348,4 +441,4 @@ function xoaCache(id) {
   [...cache.keys()].filter((k) => k.split('|')[0] === id).forEach((k) => cache.delete(k));
 }
 
-module.exports = { doc, tongQuan, xoaCache, BO_DOC };
+module.exports = { doc, tongQuan, nhomCua, xoaCache, BO_DOC };

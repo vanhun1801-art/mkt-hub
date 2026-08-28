@@ -7,6 +7,10 @@ Trang chủ **Tổng quan chung** gom ba thứ, theo thứ tự đọc từ trê
 thẻ số của từng base → **Tải nhân sự** (dải nhiệt ai làm gì ngày nào) →
 **Cần xử lý ngay** (việc gấp trộn từ mọi base).
 
+Mọi con số ở đó **bấm được**: một thẻ mở ra đúng danh sách bản ghi sau con số đó
+kèm nút xử lý ngay tại chỗ (phân công, đổi hạn, bắt đầu, duyệt lịch, xác nhận
+thanh toán) — xem [Cửa sổ xử lý nhanh](#cửa-sổ-xử-lý-nhanh).
+
 ```
 ┌────────────────────┬─────────────────────────────────────────────────────┐
 │ panel base         │ app của base đang chọn (tab của nó nằm nguyên trên)  │
@@ -134,6 +138,36 @@ Cách hoạt động — điểm quan trọng khi thêm base mới:
 
 Thêm base mới muốn ăn theo công tắc: khai token của app theo đúng hai selector ở trên là xong,
 không cần code thêm.
+
+## Cửa sổ xử lý nhanh
+
+Bấm một thẻ số (hoặc một dòng trong **Cần xử lý ngay**) → mở danh sách bản ghi
+đứng sau con số đó, xử lý luôn tại chỗ rồi đóng lại. Không phải sang app tìm lại việc.
+
+| Base | Làm được ngay |
+|---|---|
+| Bảng công việc | Phân công / đổi người · Đặt hoặc đổi hạn · Bắt đầu · Hoàn thành |
+| Lịch tác nghiệp | Duyệt · Trả lại · Chốt nhân sự · Hoàn tất · Xác nhận đã thanh toán |
+| Quản lý quảng cáo | chỉ đọc — cảnh báo là số tính ra từ nhiều dòng chi tiêu, không có bản ghi để sửa |
+
+Ba điểm đáng chú ý khi đọc code:
+
+- **Số và danh sách không thể lệch nhau.** `kpi.js` khi tính thẻ đã lưu luôn nhóm
+  bản ghi đằng sau nó (`nhom`), `GET /api/o?mod=&khoa=` chỉ đọc lại nhóm đó từ
+  cache — không có chỗ nào lọc lần thứ hai. Bộ kiểm thử so từng thẻ với danh sách
+  nó mở ra, lệch một dòng là fail.
+- **Hành động đi qua danh sách trắng.** `POST /api/viec` chỉ nhận vài hành động
+  khai sẵn trong `goiHanhDong()` rồi dịch sang đúng API của module — hub không
+  cho gọi tuỳ ý, và **module vẫn tự kiểm quyền lần nữa** (quản lý hay không, việc
+  có phải của mình không, đã có minh chứng chưa). Lý do module từ chối được đưa
+  nguyên văn lên thông báo, nên "Chưa có minh chứng kết quả" hiện đúng câu đó chứ
+  không thành "HTTP 403".
+- **Nút hiện theo trạng thái thật của dòng.** Việc chưa có người mới có "Phân
+  công"; lịch đã đóng thì không còn "Chốt nhân sự"; nhân sự thường không thấy nút
+  của quản lý. Xử lý xong: xoá cache của đúng base đó, nạp lại danh sách và số trên thẻ.
+
+Một dòng lẻ mở bằng `khoa=rec:<recordId>` — hub tìm bản ghi trong các nhóm đã tính,
+không gọi thêm module.
 
 ## Bộ lọc thời gian — mặc định THÁNG HIỆN TẠI
 
