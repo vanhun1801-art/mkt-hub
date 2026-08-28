@@ -2410,6 +2410,14 @@ function khoiTep(t, nhan, att, cot, xoaDuoc, khiTrong) {
       img.src = urlTep(t.id, a.token);
       img.alt = a.name || '';
       img.loading = 'lazy';
+      /* Tải ảnh hỏng thì nói thẳng, đừng để cái icon ảnh vỡ — người dùng không
+       * biết là lỗi hệ thống hay tệp hỏng. Nút Tải xuống bên cạnh vẫn dùng được. */
+      img.onerror = () => {
+        xem.innerHTML = '';
+        xem.classList.add('ic', 'loi');
+        xem.textContent = 'KHÔNG XEM ĐƯỢC';
+        xem.title = 'Không tải được ảnh để xem trước — thử nút Tải xuống';
+      };
       xem.appendChild(img);
     } else {
       xem.classList.add('ic');

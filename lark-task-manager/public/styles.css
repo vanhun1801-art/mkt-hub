@@ -594,6 +594,10 @@ td.c-check { width: 34px; }
 .drawer-head h2 { margin: 5px 0 0; font-size: 16px; font-weight: 600; line-height: 1.35; word-break: break-word; }
 .drawer-head-actions { display: flex; gap: 6px; margin-left: auto; flex: 0 0 auto; }
 .drawer-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+/* Flex item mặc định CO ĐƯỢC. Nội dung dài hơn ô là các khối bị nén dẹp lại: thẻ
+   trên cắt mất dòng cuối, thẻ dưới nén mất mấy trường chỉ còn cái hộp trống —
+   thay vì để ô cuộn. Cấm co, để tràn thì cuộn. */
+.drawer-body > * { flex: 0 0 auto; }
 .drawer-foot {
   display: flex; align-items: center; gap: 8px; padding: 12px 16px;
   border-top: 1px solid var(--border); flex: 0 0 auto;
@@ -1475,6 +1479,8 @@ td.c-check { width: 34px; }
 .attthumb:hover { filter: brightness(.94); }
 .attthumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .attthumb.ic { font-size: 10.5px; font-weight: 700; color: var(--text-3); letter-spacing: .03em; }
+.attthumb.ic.loi { font-size: 9px; line-height: 1.25; text-align: center; padding: 4px;
+  color: var(--red-text); background: var(--red-bg); }
 .attmeta { flex: 1; min-width: 0; }
 .attname {
   font-size: 12.5px; font-weight: 500; cursor: pointer;

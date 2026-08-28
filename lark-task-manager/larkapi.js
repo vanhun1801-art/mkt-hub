@@ -74,7 +74,10 @@ async function callOnce(method, url, { body, raw } = {}) {
 
   if (raw) {
     if (!r.ok) {
-      const e = new Error('HTTP ' + r.status + ' khi tải tệp');
+      // giữ nguyên câu Lark trả về, không thì chỉ còn con số vô nghĩa khi đi soi lỗi
+      const chi = await r.text().catch(() => '');
+      const e = new Error('HTTP ' + r.status + ' khi tải tệp' +
+        (chi ? ' — ' + chi.replace(/\s+/g, ' ').slice(0, 220) : ''));
       e.transient = isTransient(0, r.status);
       throw e;
     }
@@ -147,24 +150,67 @@ async function deleteRecords(recordIds, tableId = cfg.tableId) {
   });
 }
 
-/** Tải đính kèm: lấy metadata để có `extra` đúng, rồi tải media. */
+/**
+ * Tải đính kèm của Base ở chế độ api (danh tính app).
+ *
+ * Tệp của Base KHÔNG tải được bằng đường drive thông thường — tài liệu lark-cli nói
+ * thẳng: "Base 附件必须用这个命令下载" (phải dùng đúng lệnh của Base). Với app token,
+ * gọi /drive/v1/medias/<token>/download mà thiếu `extra` đúng thì Lark trả 400.
+ * Nên thử lần lượt:
+ *   1. get_attachments có trả URL tạm (url / tmp_url / download_url) -> tải luôn URL đó
+ *   2. có `extra` -> truyền đúng nguyên văn
+ *   3. tự dựng extra {"bitablePerm":{"tableId":…}} — dạng Lark đòi cho tệp Base
+ * Hỏng cả ba thì báo lỗi KÈM tên các khoá mà API trả về, để lần sau khỏi mò.
+ */
 async function downloadAttachmentBuffer(recordId, fileToken, tableId = cfg.tableId) {
   const meta = await call('POST', baseUrl(tableId) + '/get_attachments', {
     body: { record_id_list: [recordId] },
   });
 
-  let extra = null, name = null;
-  const duyet = (o) => {
-    if (!o || typeof o !== 'object') return;
-    if (Array.isArray(o)) return o.forEach(duyet);
-    if (o.file_token === fileToken) { extra = o.extra || null; name = o.name || null; }
-    Object.values(o).forEach(duyet);
+  let o = null;
+  const duyet = (x) => {
+    if (!x || typeof x !== 'object') return;
+    if (Array.isArray(x)) return x.forEach(duyet);
+    if (x.file_token === fileToken) o = x;
+    Object.values(x).forEach(duyet);
   };
   duyet(meta);
 
-  const q = extra ? '?extra=' + encodeURIComponent(typeof extra === 'string' ? extra : JSON.stringify(extra)) : '';
-  const buf = await call('GET', '/open-apis/drive/v1/medias/' + encodeURIComponent(fileToken) + '/download' + q, { raw: true });
-  return { buffer: buf, name };
+  const name = (o && o.name) || null;
+  const cach = [];
+
+  // 1. URL tạm sẵn có
+  const url = o && (o.url || o.tmp_url || o.tmp_download_url || o.download_url);
+  if (url) {
+    cach.push('url-tam');
+    try {
+      const r = await fetch(url);
+      if (r.ok) return { buffer: Buffer.from(await r.arrayBuffer()), name };
+    } catch (_) { /* thử cách sau */ }
+  }
+
+  // 2. extra nguyên văn do API trả
+  const duong = (extra) => '/open-apis/drive/v1/medias/' + encodeURIComponent(fileToken) + '/download' +
+    (extra ? '?extra=' + encodeURIComponent(typeof extra === 'string' ? extra : JSON.stringify(extra)) : '');
+
+  if (o && o.extra) {
+    cach.push('extra-tra-ve');
+    try { return { buffer: await call('GET', duong(o.extra), { raw: true }), name }; }
+    catch (_) { /* thử cách sau */ }
+  }
+
+  // 3. tự dựng extra cho tệp Base
+  cach.push('extra-tu-dung');
+  try {
+    const tuDung = { bitablePerm: { tableId, rev: (o && o.rev) || undefined } };
+    return { buffer: await call('GET', duong(tuDung), { raw: true }), name };
+  } catch (e) {
+    const khoa = o ? Object.keys(o).join(',') : '(khong thay file_token trong get_attachments)';
+    const err = new Error('Không tải được tệp từ Base. Đã thử: ' + cach.join(' -> ') +
+      '. API trả về các khoá: ' + khoa + '. Lỗi cuối: ' + e.message);
+    err.http = 502;
+    throw err;
+  }
 }
 
 /** Giữ cùng chữ ký với lark.js: ghi ra thư mục rồi trả về đường dẫn. */
