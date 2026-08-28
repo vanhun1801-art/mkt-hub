@@ -835,3 +835,18 @@ body.dang-xem-ho .app { height: calc(100vh - 34px); margin-top: 34px; }
   .q-hang { grid-template-columns: 1fr; gap: 6px; }
   .q-hang > label { padding-top: 0; }
 }
+
+/* khối "chưa khai quyền" — người có trong Lark mà chưa đặt quyền riêng */
+.q-khoi-phu {
+  margin-top: 14px; padding: 12px 14px;
+  background: var(--trang-2); border: 1px solid var(--vien); border-radius: 10px;
+}
+.q-khoi-dau { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.q-chua-khai { display: flex; flex-wrap: wrap; gap: 8px; }
+.q-nguoi-moi {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 5px 6px 5px 11px; border-radius: 999px;
+  background: var(--trang); border: 1px solid var(--vien); font-size: 12.5px;
+}
+.q-nguoi-moi b { font-weight: 550; }
+.q-nguoi-moi small { color: var(--chu-nhat); }

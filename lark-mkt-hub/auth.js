@@ -147,6 +147,18 @@ async function exchangeCode(code) {
 }
 
 /* ---------------- xử lý route ---------------- */
+
+/**
+ * Lọc đường dẫn quay lại sau khi đăng nhập: chỉ cho phép đường dẫn trong chính
+ * app này. Trả về '/' nếu chuỗi đưa vào có thể dẫn ra ngoài.
+ */
+function duongDanNoiBo(next) {
+  const s = String(next || '');
+  if (!s.startsWith('/')) return '/';        // tuyệt đối, hoặc rỗng
+  if (s.startsWith('//') || s.startsWith('/\\')) return '/';   // rút gọn giao thức
+  return s;
+}
+
 function redirect(res, to) {
   res.writeHead(302, { Location: to });
   res.end();
@@ -193,7 +205,8 @@ async function handle(req, res, url) {
         '<code>' + dung + '/auth/callback</code> → <b>Create Version</b> và phát hành lại.</p>', 500);
     }
 
-    return redirect(res, loginUrl(url.searchParams.get('next') || '/'));
+    // lọc ngay từ đây, đừng để đường dẫn lạ đi vòng qua Lark rồi mới lọc
+    return redirect(res, loginUrl(duongDanNoiBo(url.searchParams.get('next'))));
   }
 
   if (p === '/auth/logout') {
@@ -208,8 +221,11 @@ async function handle(req, res, url) {
     try {
       const user = await exchangeCode(code);
       setSession(res, user);
-      const next = url.searchParams.get('state') || '/';
-      return redirect(res, next.startsWith('/') ? next : '/');
+      /* Chỉ nhận đường dẫn NỘI BỘ. `startsWith('/')` là chưa đủ: chuỗi "//trang-la.com"
+       * cũng bắt đầu bằng gạch chéo, mà trình duyệt hiểu đó là URL rút gọn giao thức
+       * rồi đi thẳng ra tên miền lạ — đưa người vừa đăng nhập sang trang giả. Cũng
+       * chặn "/\evil.com" vì một số trình duyệt coi \ tương đương /. */
+      return redirect(res, duongDanNoiBo(url.searchParams.get('state')));
     } catch (e) {
       return page(res, 'Đăng nhập lỗi', '<h2>Không đăng nhập được</h2>' +
         '<p>' + String(e.message).replace(/[<>]/g, '') + '</p>' +
@@ -231,4 +247,7 @@ function requireLogin(res, url) {
   return redirect(res, '/auth/login?next=' + next);
 }
 
-module.exports = { sessionUser, setSession, clearSession, handle, requireLogin, COOKIE };
+module.exports = {
+  sessionUser, setSession, clearSession, handle, requireLogin, COOKIE,
+  sign, verify, duongDanNoiBo,
+};

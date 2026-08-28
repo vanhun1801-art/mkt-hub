@@ -641,7 +641,24 @@ if (cfg.mode === 'api' && (!cfg.appId || !cfg.appSecret)) {
   process.exit(1);
 }
 
-server.listen(cfg.port, () => {
+/* ---------------- cổng nghe ----------------
+ * MẶC ĐỊNH CHỈ NGHE 127.0.0.1. App này TIN header danh tính do lớp vỏ gửi kèm
+ * (x-hub-user-id / x-hub-user-manager...), nên mở cổng ra mạng ngoài đồng nghĩa
+ * ai cùng mạng Wi-Fi cũng tự xưng được là quản lý. Lớp vỏ luôn gọi qua 127.0.0.1
+ * nên chạy dưới hub không cần khai gì thêm.
+ *
+ * Muốn phơi app này ra ngoài thì đặt BIND_HOST=0.0.0.0 — khi đó việc tin header
+ * TỰ TẮT, vì hai thứ đó không được phép cùng bật.
+ */
+const BIND = process.env.BIND_HOST || '127.0.0.1';
+const LOOPBACK = ['127.0.0.1', '::1', 'localhost'];
+if (!LOOPBACK.includes(BIND) && process.env.HUB_TRUST_HEADER !== '0') {
+  process.env.HUB_TRUST_HEADER = '0';
+  console.warn('\n  [bảo mật] BIND_HOST=' + BIND + ' mở cổng ra mạng ngoài, nên đã TẮT\n' +
+    '  việc tin header danh tính của lớp vỏ. Chạy dưới Marketing Hub thì bỏ BIND_HOST.\n');
+}
+
+server.listen(cfg.port, BIND, () => {
   console.log('');
   console.log('  Rooty Trip · Lịch tác nghiệp');
   console.log('  ->  http://localhost:' + cfg.port);

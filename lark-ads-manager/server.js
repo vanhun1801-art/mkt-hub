@@ -495,6 +495,8 @@ async function api(req, res, u) {
 /** Người đang dùng: chế độ cli hỏi lark-cli, chế độ api đọc header của lớp vỏ. */
 async function nguoiDung(req) {
   if (cfg.mode !== 'api') return lark.whoami();
+  // Chỉ tin header khi app nghe trên loopback — xem khối "cổng nghe" cuối file.
+  if (process.env.HUB_TRUST_HEADER === '0') return null;
   const id = req.headers['x-hub-user-id'];
   if (!id) return null;
   const ten = req.headers['x-hub-user-name'];
@@ -513,7 +515,24 @@ const server = http.createServer((req, res) => {
   });
 });
 
-server.listen(cfg.port, () => {
+/* ---------------- cổng nghe ----------------
+ * MẶC ĐỊNH CHỈ NGHE 127.0.0.1. App này TIN header danh tính do lớp vỏ gửi kèm
+ * (x-hub-user-id / x-hub-user-manager...), nên mở cổng ra mạng ngoài đồng nghĩa
+ * ai cùng mạng Wi-Fi cũng tự xưng được là quản lý. Lớp vỏ luôn gọi qua 127.0.0.1
+ * nên chạy dưới hub không cần khai gì thêm.
+ *
+ * Muốn phơi app này ra ngoài thì đặt BIND_HOST=0.0.0.0 — khi đó việc tin header
+ * TỰ TẮT, vì hai thứ đó không được phép cùng bật.
+ */
+const BIND = process.env.BIND_HOST || '127.0.0.1';
+const LOOPBACK = ['127.0.0.1', '::1', 'localhost'];
+if (!LOOPBACK.includes(BIND) && process.env.HUB_TRUST_HEADER !== '0') {
+  process.env.HUB_TRUST_HEADER = '0';
+  console.warn('\n  [bảo mật] BIND_HOST=' + BIND + ' mở cổng ra mạng ngoài, nên đã TẮT\n' +
+    '  việc tin header danh tính của lớp vỏ. Chạy dưới Marketing Hub thì bỏ BIND_HOST.\n');
+}
+
+server.listen(cfg.port, BIND, () => {
   console.log(`\n  Quản lý quảng cáo đa nền tảng — Rooty Trip`);
   console.log(`  http://localhost:${cfg.port}`);
   console.log(`  Base: ${cfg.baseUrl}\n`);

@@ -291,6 +291,69 @@ const json = async (p, opts) => {
   ok(vuot.code === 404 || !/module\.exports/.test(vuot.raw), 'Không đọc được file ngoài public/ qua đường dẫn ..');
   ok(!/appSecret|SESSION_SECRET|access_token/i.test(hub.raw), '/api/hub không trả bí mật nào');
 
+  /* ---- 6. các lỗ đã vá ở chặng 1 ----
+   * Mỗi phép thử dưới đây ứng với một lỗ thật đã tìm ra khi rà soát 28/08/2026.
+   * Giữ chúng lại để lần sửa sau không vô tình mở lại.
+   */
+  console.log('\n[6] Chặng 1 — các lỗ đã vá');
+
+  // BM-3: header bảo mật phải có trên MỌI phản hồi, kể cả trang tĩnh
+  for (const [duong, ten] of [['/healthz', 'API'], ['/', 'trang']]) {
+    const r = await goi(duong);
+    const h = r.headers;
+    ok(/frame-ancestors/.test(h['content-security-policy'] || ''),
+      'Có frame-ancestors trên ' + ten + ' ' + duong, h['content-security-policy']);
+    ok(h['x-content-type-options'] === 'nosniff', 'Có nosniff trên ' + ten + ' ' + duong);
+    ok(h['referrer-policy'] === 'same-origin', 'Có Referrer-Policy trên ' + ten + ' ' + duong);
+  }
+  const cspM = (await goi('/m/' + ((mods.find((x) => x.kieu === 'local') || {}).id || 'cong-viec') + '/'))
+    .headers['content-security-policy'] || '';
+  ok(/frame-ancestors/.test(cspM), 'Header bảo mật phủ cả phần proxy vào app con', cspM);
+
+  // BM-2: đường dẫn quay lại sau đăng nhập không được dẫn ra ngoài
+  const authMod = require('../auth');
+  const dd = authMod.duongDanNoiBo;
+  ok(dd('/tong-quan') === '/tong-quan', 'Đường dẫn nội bộ được giữ nguyên');
+  ok(dd('//trang-la.com') === '/', 'Chặn URL rút gọn giao thức //trang-la.com');
+  ok(dd('/\\trang-la.com') === '/', 'Chặn /\\trang-la.com');
+  ok(dd('https://trang-la.com') === '/', 'Chặn URL tuyệt đối');
+  ok(dd('') === '/' && dd(null) === '/', 'Rỗng thì về trang chủ');
+
+  // BM-4: cookie xem hộ kiểu cũ (chỉ base64, không ký) phải bị từ chối
+  const giaNhu = Buffer.from(JSON.stringify({ id: 'ou_gia', ten: 'Người giả', email: 'gia@x.com' }))
+    .toString('base64url');
+  const gia = await json('/api/hub', { headers: { cookie: 'hub_nhu=' + giaNhu } });
+  ok(gia.code === 200 && !gia.data.xemNhu,
+    'Cookie xem hộ không ký bị bỏ qua', JSON.stringify(gia.data && gia.data.xemNhu));
+
+  // BM-1: app con chỉ được nghe trên loopback, không phơi ra mạng LAN
+  const os = require('os');
+  const net = require('net');
+  const ipNgoai = Object.values(os.networkInterfaces()).flat()
+    .filter((x) => x && x.family === 'IPv4' && !x.internal).map((x) => x.address)[0];
+  const congLocal = mods.filter((x) => x.kieu === 'local' && x.cong).map((x) => x.cong);
+  if (!ipNgoai) boQua('App con không phơi ra mạng LAN', 'máy này không có IP mạng ngoài');
+  else if (!congLocal.length) boQua('App con không phơi ra mạng LAN', 'không có module local');
+  else {
+    for (const cong of congLocal) {
+      const moDuoc = await new Promise((res) => {
+        const s = net.connect({ host: ipNgoai, port: cong, timeout: 2500 });
+        const xong = (v) => { s.destroy(); res(v); };
+        s.on('connect', () => xong(true));
+        s.on('error', () => xong(false));
+        s.on('timeout', () => xong(false));
+      });
+      ok(!moDuoc, 'Cổng ' + cong + ' không mở ra ' + ipNgoai +
+        ' (app con tin header danh tính nên chỉ được nghe loopback)');
+    }
+  }
+
+  // BM-5: /healthz công khai chỉ được trả đúng thứ Render cần
+  if (hub.data.che_do === 'api') {
+    ok(hz.data && !hz.data.commit && !hz.data.modules,
+      '/healthz không lộ commit / danh sách base cho người chưa phải quản lý');
+  } else boQua('/healthz không lộ thông tin nội bộ', 'chế độ cli — máy cá nhân luôn là quản lý');
+
   console.log('\n' + '-'.repeat(50));
   console.log('  ' + pass + ' pass · ' + fail + ' fail' + (bo ? ' · ' + bo + ' bỏ qua' : ''));
   console.log('-'.repeat(50) + '\n');

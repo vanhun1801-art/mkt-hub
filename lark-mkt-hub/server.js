@@ -12,6 +12,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const cfg = require('./config');
 const kids = require('./children');
 const kpi = require('./kpi');
@@ -89,15 +90,43 @@ function docCookie(req, ten) {
   return null;
 }
 
+/* Cookie này được KÝ. Trước đây nó chỉ là base64 nên ai cũng tự tạo được; lúc đó
+ * chưa khai thác được vì hàm dưới chỉ được gọi sau khi đã xác nhận người thật là
+ * quản lý. Nhưng an toàn nhờ "nhớ kiểm ở nơi gọi" là loại an toàn dễ vỡ: chỉ cần
+ * một route mới đọc cookie này mà quên kiểm vai là thành lỗ leo thang quyền.
+ * Ký rồi thì nó tự an toàn, không phụ thuộc nơi gọi nữa.
+ *
+ * Chạy trên máy cá nhân thì không có SESSION_SECRET -> dùng khoá ngẫu nhiên sinh
+ * lúc khởi động. Hệ quả duy nhất: restart hub thì thoát chế độ xem hộ, chấp nhận
+ * được vì đây vốn là trạng thái tạm 8 tiếng.
+ */
+const KHOA_NHU = cfg.sessionSecret || crypto.randomBytes(32).toString('hex');
+
+function kyNhu(o) {
+  const than = Buffer.from(JSON.stringify(o)).toString('base64url');
+  const mac = crypto.createHmac('sha256', KHOA_NHU).update(than).digest('base64url');
+  return than + '.' + mac;
+}
+
+function moNhu(token) {
+  const i = String(token || '').lastIndexOf('.');
+  if (i < 0) return null;
+  const than = token.slice(0, i);
+  const mac = Buffer.from(token.slice(i + 1));
+  const that = Buffer.from(crypto.createHmac('sha256', KHOA_NHU).update(than).digest('base64url'));
+  if (mac.length !== that.length || !crypto.timingSafeEqual(mac, that)) return null;
+  try {
+    const o = JSON.parse(Buffer.from(than, 'base64url').toString('utf8'));
+    if (!o || !o.exp || Date.now() > o.exp) return null;
+    return o;
+  } catch (_) { return null; }
+}
+
 /** Người đang được xem hộ, hoặc null. */
 function xemNhuCua(req) {
-  const raw = docCookie(req, COOKIE_NHU);
-  if (!raw) return null;
-  try {
-    const o = JSON.parse(Buffer.from(raw, 'base64url').toString('utf8'));
-    if (!o || (!o.id && !o.email)) return null;
-    return { id: o.id || '', name: o.ten || o.id || o.email, email: o.email || '' };
-  } catch (_) { return null; }
+  const o = moNhu(docCookie(req, COOKIE_NHU));
+  if (!o || (!o.id && !o.email)) return null;
+  return { id: o.id || '', name: o.ten || o.id || o.email, email: o.email || '' };
 }
 
 /**
@@ -167,6 +196,29 @@ function nguoiKemQuyen(nguoi, q) {
     taoMoi: !q || q.taoMoi !== false,
     chiPhi: !!(q && q.chiPhi),
   });
+}
+
+/* ---------------- header bảo mật ----------------
+ * Đặt MỘT LẦN ở đầu mọi request thay vì rải trong từng hàm trả lời. Node gộp các
+ * giá trị setHeader vào writeHead sau đó, nên cách này phủ luôn cả trang đăng nhập
+ * lẫn phần proxy vào app con — không có đường nào lọt.
+ *
+ * frame-ancestors: hub tự nhúng iframe module cùng origin nên phải có 'self'.
+ * Mở app trong Lark thì Lark có thể nhúng bằng iframe, nên cho sẵn tên miền Lark;
+ * đổi được bằng HUB_FRAME_ANCESTORS nếu môi trường khác.
+ */
+const KHUNG_CHA = process.env.HUB_FRAME_ANCESTORS ||
+  "'self' https://*.larksuite.com https://*.feishu.cn https://*.larkoffice.com";
+
+function headerBaoMat(res) {
+  res.setHeader('Content-Security-Policy', 'frame-ancestors ' + KHUNG_CHA);
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'same-origin');
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  // HSTS chỉ có nghĩa (và chỉ an toàn) khi thật sự chạy qua https
+  if (cfg.publicUrl.startsWith('https://')) {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
 }
 
 /* ---------------- HTTP tiện ích ---------------- */
@@ -655,8 +707,10 @@ async function api(req, res, u) {
     if (m === 'POST') {
       const b = await docBody(req);
       if (!b || (!b.id && !b.email)) return loi(res, 400, 'Thiếu người cần xem hộ.');
-      const gt = Buffer.from(JSON.stringify({ id: b.id || '', ten: b.ten || '', email: b.email || '' }))
-        .toString('base64url');
+      const gt = kyNhu({
+        id: b.id || '', ten: b.ten || '', email: b.email || '',
+        exp: Date.now() + 8 * 3600 * 1000,
+      });
       const parts = [COOKIE_NHU + '=' + encodeURIComponent(gt), 'Path=/', 'HttpOnly',
         'SameSite=Lax', 'Max-Age=' + 8 * 3600];
       if (cfg.publicUrl.startsWith('https://')) parts.push('Secure');
@@ -668,13 +722,17 @@ async function api(req, res, u) {
   if (p === '/api/bo-doc-kpi' && m === 'GET') return ok(res, { ds: Object.keys(kpi.BO_DOC) });
 
   if (p === '/healthz') {
-    const mods = danhSach();
+    /* Đây là endpoint DUY NHẤT mở công khai (Render gọi để biết app còn sống), nên
+     * chỉ trả đúng thứ Render cần. Commit, chế độ chạy và danh sách base là thông
+     * tin nội bộ — chỉ hiện cho quản lý đã đăng nhập. */
+    const nguoiH = cfg.mode === 'api' ? auth.sessionUser(req) : null;
+    if (cfg.mode === 'api' && !laQuanLy(nguoiH)) return ok(res, { ok: true });
     return ok(res, {
       ok: true, build: cfg.build,
       che_do: cfg.mode,
       // Render đặt biến này -> biết chắc đang chạy commit nào, đỡ đoán khi deploy
       commit: (process.env.RENDER_GIT_COMMIT || '').slice(0, 7) || null,
-      modules: mods.map((x) => ({ id: x.id, trangThai: kids.tinhTrang(x).trangThai })),
+      modules: danhSach().map((x) => ({ id: x.id, trangThai: kids.tinhTrang(x).trangThai })),
     });
   }
 
@@ -690,6 +748,7 @@ function khongDau(s) {
 
 /* ---------------- server ---------------- */
 const server = http.createServer(async (req, res) => {
+  headerBaoMat(res);
   const u = new URL(req.url, 'http://' + (req.headers.host || 'localhost'));
   const p = u.pathname;
 

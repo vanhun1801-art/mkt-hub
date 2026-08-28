@@ -110,9 +110,9 @@ function veDanhSachQuyen() {
   };
 
   let html = '<div class="q-dau">' +
-    '<div><b>' + ds.length + ' người đã khai</b>' +
-      '<div class="kh-sub">Ai chưa có trong danh sách thì thấy đủ ' + base.length +
-      ' base với vai nhân sự.</div></div>' +
+    '<div><b>' + ds.length + ' người đã khai quyền riêng</b>' +
+      '<div class="kh-sub">Người chưa khai thì thấy đủ ' + base.length +
+      ' base với vai nhân sự — xem danh sách ở cuối trang.</div></div>' +
     '<span class="grow"></span>' +
     '<a class="btn ghost nho" href="' + esc(d.larkUrl || '#') + '" target="_blank" rel="noreferrer">Mở bảng trong Lark</a>' +
     '<button class="btn primary" id="qThemNguoi">Thêm người dùng</button>' +
@@ -140,6 +140,23 @@ function veDanhSachQuyen() {
     html += '<div class="canh-bao" style="margin-top:10px"><span class="grow">' +
       theoTen + ' dòng đang khớp theo TÊN. Chạy được, nhưng đổi tên trong Lark là mất khớp — ' +
       'nên chọn lại người từ danh bạ để app ghi đúng tài khoản.</span></div>';
+  }
+
+  /* Người có trong Lark (phạm vi khả dụng của app + người có mặt trong Base) mà
+   * CHƯA có dòng phân quyền. Cấp quyền dùng app ở Developer Console thì họ tự hiện
+   * ở đây — khỏi phải nhớ vào khai tay, và cũng thấy ngay ai đang ở mặc định. */
+  const daKhop = new Set(ds.filter((h) => h.khop).map((h) => h.khop.id));
+  const chuaKhai = (d.danhBa || []).filter((x) => !daKhop.has(x.id));
+  if (chuaKhai.length) {
+    html += '<div class="q-khoi-phu">' +
+      '<div class="q-khoi-dau"><b>' + chuaKhai.length + ' người chưa khai quyền</b>' +
+      '<span class="kh-sub">Đang ở mặc định: thấy đủ ' + base.length +
+      ' base với vai nhân sự. Bấm Khai quyền để đặt riêng.</span></div>' +
+      '<div class="q-chua-khai">' + chuaKhai.map((x) =>
+        '<span class="q-nguoi-moi"><b>' + esc(x.ten) + '</b>' +
+        (x.email ? '<small>' + esc(x.email) + '</small>' : '') +
+        '<button class="btn nho ghost" data-khai="' + esc(x.id) + '">Khai quyền</button></span>').join('') +
+      '</div></div>';
   }
 
   html += '<div class="q-ghi">Sửa xong có hiệu lực ngay — người đó chỉ cần tải lại trang. ' +
@@ -173,15 +190,18 @@ function veLoiBang(d, base) {
 }
 
 /* ---------------- màn 2: form một người ---------------- */
-function moFormQuyen(i) {
+function moFormQuyen(i, nguoiSan) {
   const d = S.quyen || {};
   const base = d.base || [];
   const moi = i == null;
   const h = moi
-    ? { recordId: '', nguoi: '', email: '', openId: '', vai: 'Nhân sự', viTri: '',
-        base: [], toanBo: false, taoMoi: true, chiPhi: false, ghiChu: '' }
+    ? { recordId: '', nguoi: (nguoiSan && nguoiSan.ten) || '', email: (nguoiSan && nguoiSan.email) || '',
+        openId: (nguoiSan && nguoiSan.id) || '', vai: 'Nhân sự', viTri: '',
+        base: [], toanBo: false, taoMoi: true, chiPhi: false, ghiChu: '',
+        khop: nguoiSan ? { id: nguoiSan.id, ten: nguoiSan.ten, cach: 'open_id' } : null }
     : S.quyenHang[i];
   S.quyenSua = Object.assign({}, h);
+  if (nguoiSan) S.quyenSua.openId = nguoiSan.id;
 
   const hang = (nhan, noi, ghi) =>
     '<div class="q-hang"><label>' + nhan + '</label><div class="q-o">' + noi +
@@ -352,6 +372,14 @@ async function thoatXemNhu() {
 }
 
 document.addEventListener('click', (e) => {
+  const khai = e.target.closest('[data-khai]');
+  if (khai) {
+    e.preventDefault();
+    const id = khai.getAttribute('data-khai');
+    const ng = ((S.quyen || {}).danhBa || []).find((x) => x.id === id);
+    if (ng) moFormQuyen(null, ng);
+    return;
+  }
   const sua = e.target.closest('[data-sua]');
   if (sua) { e.preventDefault(); moFormQuyen(Number(sua.getAttribute('data-sua'))); return; }
 

@@ -4,6 +4,15 @@
  *
  * Token CHỈ nằm trong file này trên máy anh — không bao giờ trả ra API/giao diện,
  * không ghi vào Lark Base, không ghi vào log.
+ *
+ * TRÊN SERVER CHUNG (Render) thì ổ đĩa là tạm: file này mất sau mỗi lần deploy,
+ * và mất token là các kênh tự tắt. Nên có thêm đường thứ hai: biến môi trường
+ * ADS_CONNECT_JSON chứa đúng nội dung file đó. Cùng cách metrics.js đã làm với
+ * muc-tieu.json / ADS_TARGETS_JSON.
+ *
+ * Vì sao là biến môi trường chứ KHÔNG phải Lark Base — dù bảng phân quyền thì để
+ * trong Base: token quảng cáo là bí mật, ai xem được Base là xem được nó, mà cả
+ * phòng đều xem được Base. Biến môi trường của Render mới là chỗ giữ bí mật.
  */
 const fs = require('fs');
 const path = require('path');
@@ -35,9 +44,22 @@ function stripComments(o) {
   return out;
 }
 
+/** Cấu hình đang lấy từ đâu: 'file' (máy cá nhân) · 'env' (server chung) · 'trong'. */
+function nguon() {
+  try { if (fs.readFileSync(FILE, 'utf8').trim()) return 'file'; } catch (_) {}
+  if (process.env.ADS_CONNECT_JSON) return 'env';
+  return 'trong';
+}
+
 function read() {
   let raw = {};
   try { raw = stripComments(JSON.parse(fs.readFileSync(FILE, 'utf8'))); } catch (_) { raw = {}; }
+  // Không có file (hoặc file hỏng) -> thử biến môi trường. File luôn thắng, để sửa
+  // trên máy cá nhân có hiệu lực ngay mà không phải xoá biến.
+  if (!Object.keys(raw).length && process.env.ADS_CONNECT_JSON) {
+    try { raw = stripComments(JSON.parse(process.env.ADS_CONNECT_JSON)); }
+    catch (e) { console.error('  ADS_CONNECT_JSON không phải JSON hợp lệ: ' + e.message); raw = {}; }
+  }
   return {
     meta: { ...DEFAULT.meta, ...(raw.meta || {}) },
     tiktok: { ...DEFAULT.tiktok, ...(raw.tiktok || {}) },
@@ -66,6 +88,10 @@ function writeOptions(next = {}) {
     if (next[k] && next[k].enabled != null) cur[k].enabled = !!next[k].enabled;
   });
   fs.writeFileSync(FILE, JSON.stringify(cur, null, 2), 'utf8');
+  /* Trên server chung, file vừa ghi sống tới lần deploy tiếp theo rồi mất. Báo ra
+   * để giao diện nói thẳng là phải cập nhật biến ADS_CONNECT_JSON, thay vì để anh
+   * tưởng đã lưu xong rồi vài hôm sau thấy kênh tự tắt. */
+  if (nguon() === 'env' || process.env.ADS_CONNECT_JSON) cur._tamThoi = true;
   return cur;
 }
 
@@ -73,9 +99,13 @@ function writeOptions(next = {}) {
 function status() {
   const c = read();
   const exists = fs.existsSync(FILE);
+  const ng = nguon();
   return {
     fileTonTai: exists,
     file: cfg.connectFile,
+    // 'file' = máy cá nhân · 'env' = server chung (ADS_CONNECT_JSON) · 'trong' = chưa khai
+    nguon: ng,
+    canhBaoODiaTam: ng === 'file' && !!process.env.RENDER && !process.env.ADS_CONNECT_JSON,
     dongBo: c.dongBo,
     providers: [
       {
@@ -123,4 +153,4 @@ const maskUrl = (u) => {
   try { const x = new URL(u); return x.hostname + '/…'; } catch (_) { return 'đã đặt'; }
 };
 
-module.exports = { read, writeOptions, status, hanToken, FILE, DEFAULT };
+module.exports = { read, writeOptions, status, hanToken, nguon, FILE, DEFAULT };

@@ -40,6 +40,29 @@ services:
       - key: LARK_MANAGER_IDS
         sync: false
 
+      # ---- token kết nối nền tảng quảng cáo (Meta / TikTok / Google Sheet) ----
+      # Ổ đĩa Render là TẠM: ket-noi.json mất sau mỗi lần deploy, mất token là các
+      # kênh tự tắt mà không báo. Dán nguyên nội dung ket-noi.json vào biến này.
+      #
+      # KHÔNG để token trong Lark Base như bảng phân quyền: cả phòng xem được Base,
+      # còn đây là bí mật. Biến môi trường của Render mới là chỗ giữ bí mật.
+      - key: ADS_CONNECT_JSON
+        sync: false
+
+      # ---- ngưỡng cảnh báo của app quảng cáo (cùng lý do ổ đĩa tạm) ----
+      - key: ADS_TARGETS_JSON
+        sync: false
+
+      # ---- trang nào được nhúng hub bằng iframe ----
+      # Bỏ trống là dùng mặc định: chính nó + các tên miền Lark. Chỉ khai khi mở app
+      # trong một cổng thông tin khác.
+      # - key: HUB_FRAME_ANCESTORS
+      #   sync: false
+
       # ---- cùng bộ credential cho ba app con ----
       # Hub truyền toàn bộ env xuống tiến trình con, nên chỉ cần khai một lần ở trên.
       # Ba app con tự chuyển sang chế độ `api` khi thấy LARK_APP_ID + LARK_APP_SECRET.
+      #
+      # KHÔNG khai BIND_HOST cho service này: ba app con phải giữ mặc định chỉ nghe
+      # 127.0.0.1. Chúng tin header danh tính do hub gửi, nên mở cổng ra ngoài là ai
+      # cũng tự xưng được là quản lý.

@@ -112,6 +112,23 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 Hub truyền toàn bộ biến này xuống ba app con, nên **chỉ khai một lần**. Thấy đủ
 `LARK_APP_ID` + `LARK_APP_SECRET` là cả bốn app tự chuyển sang chế độ `api`.
 
+#### Biến không bắt buộc, nhưng nên có
+
+| Key | Dùng để làm gì |
+|---|---|
+| `ADS_CONNECT_JSON` | Nguyên nội dung `ket-noi.json` (token Meta/TikTok/Google Sheet). **Không khai là mất token sau mỗi lần deploy** và các kênh tự tắt mà không báo. |
+| `ADS_TARGETS_JSON` | Nguyên nội dung `muc-tieu.json` (ngưỡng CPA / cảnh báo). Cùng lý do ổ đĩa tạm. |
+| `HUB_FRAME_ANCESTORS` | Trang nào được nhúng hub bằng iframe. Bỏ trống = chính nó + các tên miền Lark. Chỉ khai khi mở app trong một cổng thông tin khác. |
+
+> **Vì sao token quảng cáo để ở biến môi trường chứ không để trong Lark Base như
+> bảng phân quyền?** Cả phòng xem được Base — đó là điểm mạnh của bảng phân quyền
+> và là điểm chết của token. Biến môi trường Render mới là chỗ giữ bí mật.
+
+> **Đừng khai `BIND_HOST`.** Ba app con phải giữ mặc định chỉ nghe `127.0.0.1`.
+> Chúng tin header danh tính do hub gửi kèm, nên mở cổng ra ngoài đồng nghĩa ai
+> cũng tự xưng được là quản lý. Khai `BIND_HOST` thì app tự tắt việc tin header và
+> mọi người thành "chưa đăng nhập".
+
 ### C3. Nối vòng URL
 
 Deploy xong Render cấp URL dạng `https://mkt-hub.onrender.com`.
