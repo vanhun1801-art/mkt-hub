@@ -53,7 +53,8 @@ function readCookie(req, name) {
 /** Người dùng của request hiện tại, hoặc null nếu chưa đăng nhập. */
 function sessionUser(req) {
   const p = verify(readCookie(req, COOKIE));
-  return p ? { id: p.id, name: p.name, email: p.email || '' } : null;
+  // e2 = email còn lại (công ty / cá nhân) — phân quyền khớp được cả hai
+  return p ? { id: p.id, name: p.name, email: p.email || '', emailPhu: p.e2 || '' } : null;
 }
 
 function setSession(res, user) {
@@ -61,6 +62,7 @@ function setSession(res, user) {
     id: user.id,
     name: user.name,
     email: user.email || '',
+    e2: user.emailPhu || '',
     exp: Date.now() + cfg.sessionDays * 86400000,
   });
   const parts = [
@@ -132,11 +134,15 @@ async function exchangeCode(code) {
   const u = await ui.json();
   if (u.code !== 0) throw new Error('Lấy thông tin người dùng thất bại: ' + (u.msg || u.code));
 
+  /* Lark trả hai email: enterprise_email (công ty cấp) và email (tài khoản dùng
+   * để đăng nhập Lark). Người khai quyền không biết chắc mình đang điền cái nào,
+   * nên giữ cả hai và khớp được cả hai. */
   return {
     id: u.data.open_id,
     name: u.data.name || u.data.en_name || u.data.open_id,
-    // open_id khác nhau giữa các app Lark, còn email thì không -> giữ để phân quyền
     email: u.data.enterprise_email || u.data.email || '',
+    emailPhu: (u.data.enterprise_email && u.data.email !== u.data.enterprise_email)
+      ? (u.data.email || '') : '',
   };
 }
 

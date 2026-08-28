@@ -374,6 +374,7 @@ async function api(req, res, u) {
       id: nguoi ? nguoi.id : null,
       ten: nguoi ? nguoi.name : null,
       email: nguoi ? (nguoi.email || null) : null,
+      email_phu: nguoi ? (nguoi.emailPhu || null) : null,
       la_quan_ly: laQuanLy(nguoi),
       so_quan_ly_dang_khai: dsQuanLyId().length + dsQuanLyEmail().length,
     });
@@ -707,6 +708,11 @@ const server = http.createServer(async (req, res) => {
             : '<div class="nhan">open_id dưới app này</div>' +
               '<div class="id" id="id">' + esc(nguoi.id) + '</div>' +
               '<button id="cp">Copy open_id</button>') +
+          // email còn lại (nếu Lark có cả email công ty và email đăng nhập)
+          (nguoi.emailPhu
+            ? '<p style="color:#8b95a7;font-size:13px">Email còn lại của tài khoản này: <code>' +
+              esc(nguoi.emailPhu) + '</code> — khai cái nào app cũng khớp.</p>'
+            : '') +
           (laQL
             ? '<p class="ok">Đang có vai quản lý — không cần làm gì thêm.</p>'
             : '<p class="canh">Chưa có vai quản lý. Vào <b>Render → service → Environment</b>, ' +

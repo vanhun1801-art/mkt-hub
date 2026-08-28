@@ -209,7 +209,9 @@ async function cuaNguoi(nguoi) {
   const ds = await docTatCa();
   const mail = String(nguoi.email || '').trim().toLowerCase();
 
-  const theoMail = mail ? ds.find((r) => r.email === mail) : null;
+  const mailPhu = String(nguoi.emailPhu || '').trim().toLowerCase();
+  const theoMail = (mail ? ds.find((r) => r.email === mail) : null) ||
+                   (mailPhu ? ds.find((r) => r.email === mailPhu) : null);
   if (theoMail) return theoMail;
 
   const theoId = nguoi.id ? ds.find((r) => r.openId && r.openId === nguoi.id) : null;

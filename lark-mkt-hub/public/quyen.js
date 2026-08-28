@@ -124,7 +124,8 @@ function veBangQuyen() {
     html += '<div class="canh-bao" style="margin-top:10px"><span class="grow">' +
       soThieuMail + ' dòng chưa có email nên đang nhận diện theo TÊN. ' +
       'open_id khác nhau giữa các app Lark, nên khai email là chắc nhất — app sẽ tự điền ' +
-      'open_id thật khi người đó đăng nhập lần tới.</span></div>';
+      'open_id thật khi người đó đăng nhập lần tới. Điền email nào cũng được: email ' +
+      'công ty cấp hay email dùng để đăng nhập Lark, app khớp cả hai.</span></div>';
   }
 
   html += '<div class="q-ghi">Khớp người theo email, rồi open_id, cuối cùng mới tới tên · bỏ tick base nào thì base đó ' +
