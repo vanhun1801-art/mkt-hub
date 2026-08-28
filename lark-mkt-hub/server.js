@@ -17,6 +17,7 @@ const kids = require('./children');
 const kpi = require('./kpi');
 const lich = require('./lichchung');
 const auth = require('./auth');
+const quyen = require('./quyen');
 const { chuyenTiep, goiJson } = require('./proxy');
 
 const PUBLIC = path.join(__dirname, 'public');
@@ -40,6 +41,32 @@ function laQuanLy(nguoi) {
   const mail = String(nguoi.email || '').toLowerCase();
   return !!(mail && dsQuanLyEmail().includes(mail));
 }
+
+/**
+ * Quyền hiệu lực: bảng "Phân quyền app" trong Base, cộng với biến môi trường.
+ * Env luôn thắng theo hướng MỞ (không ai tự khoá mình ra ngoài được nếu bảng
+ * trống, sai, hay Base tạm thời lỗi). Chưa khai dòng nào thì mặc định thấy mọi
+ * base — để thêm base mới không âm thầm biến mất với cả phòng.
+ */
+async function quyenCua(nguoi) {
+  const envQL = laQuanLy(nguoi);
+  const mac = { quanLy: envQL, base: null, toanBo: false, taoMoi: true, chiPhi: envQL, tuBang: false };
+  if (!nguoi || cfg.mode !== 'api') return mac;
+  let hang = null;
+  try { hang = await quyen.cuaNguoi(nguoi); } catch (e) { return mac; }
+  if (!hang) return mac;
+  return {
+    quanLy: envQL || hang.vai === 'Quản lý',
+    base: hang.base.length ? hang.base : null,
+    toanBo: hang.toanBo,
+    taoMoi: hang.taoMoi,
+    chiPhi: hang.chiPhi || envQL || hang.vai === 'Quản lý',
+    tuBang: true,
+  };
+}
+
+/** Người này có được xem base đó không. */
+const duocXem = (q, id) => !q || !q.base || q.quanLy || q.base.includes(id);
 
 /* ---------------- HTTP tiện ích ---------------- */
 function send(res, code, body, headers = {}) {
@@ -117,14 +144,23 @@ async function api(req, res, u) {
   const m = req.method;
 
   if (p === '/api/hub' && m === 'GET') {
+    const nguoi = cfg.mode === 'api' ? auth.sessionUser(req) : null;
+    const q = await quyenCua(nguoi);
     return ok(res, {
       ten: cfg.ten, phu: cfg.phu, build: cfg.build, cong: cfg.port,
-      modules: danhSach().map(congKhai),
+      che_do: cfg.mode,
+      // chạy trên máy cá nhân (cli) thì người ngồi trước máy chính là quản lý
+      quanLy: q.quanLy || cfg.mode !== 'api',
+      toi: nguoi ? { ten: nguoi.name, email: nguoi.email || null, quanLy: q.quanLy } : null,
+      // panel chỉ hiện base người này được xem
+      modules: danhSach().filter((x) => duocXem(q, x.id)).map(congKhai),
     });
   }
 
   if (p === '/api/tongquan' && m === 'GET') {
-    const mods = danhSach().filter((x) => x.bat && kpi.BO_DOC[x.kpi]);
+    const nguoiTQ = cfg.mode === 'api' ? auth.sessionUser(req) : null;
+    const qTQ = await quyenCua(nguoiTQ);
+    const mods = danhSach().filter((x) => x.bat && kpi.BO_DOC[x.kpi] && duocXem(qTQ, x.id));
     if (u.searchParams.get('refresh') === '1') kpi.xoaCache();
     // Khoảng lọc do client tính (nó biết múi giờ, "tháng này" theo máy người dùng)
     const ngay = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(v || '') ? v : '');
@@ -153,7 +189,9 @@ async function api(req, res, u) {
     const soNgay = Math.round((Date.parse(den) - Date.parse(tu)) / 86400000) + 1;
     if (soNgay > 92) return loi(res, 400, 'Khoảng quá rộng (' + soNgay + ' ngày) — chọn tối đa 3 tháng.');
 
-    const mods = danhSach().filter((x) => x.bat && lich.BO_DOC[x.kpi]);
+    const nguoiLC = cfg.mode === 'api' ? auth.sessionUser(req) : null;
+    const qLC = await quyenCua(nguoiLC);
+    const mods = danhSach().filter((x) => x.bat && lich.BO_DOC[x.kpi] && duocXem(qLC, x.id));
     if (u.searchParams.get('refresh') === '1') lich.xoaCache();
     return ok(res, await lich.lichChung(mods, tu, den, u.searchParams.get('refresh') === '1',
       cfg.mode === 'api' ? auth.sessionUser(req) : null));
@@ -320,6 +358,55 @@ async function api(req, res, u) {
     });
   }
 
+  /* ---------------- phân quyền thành viên (chỉ quản lý) ---------------- */
+  if (p === '/api/quyen') {
+    const nguoi = cfg.mode === 'api' ? auth.sessionUser(req) : null;
+    const q = await quyenCua(nguoi);
+    if (cfg.mode === 'api' && !q.quanLy) return loi(res, 403, 'Chỉ quản lý xem được phân quyền.');
+
+    if (m === 'GET') {
+      let hang = [];
+      let loiBang = '';
+      try { hang = await quyen.docTatCa(u.searchParams.get('refresh') === '1'); }
+      catch (e) { loiBang = e.message; }
+
+      // danh bạ lấy từ chính app Bảng công việc (người có trong Base)
+      let danhBa = [];
+      const modCV = danhSach().find((x) => x.kpi === 'cong-viec' && x.bat);
+      if (modCV) {
+        try {
+          const meta = await goiJson(modCV, '/api/meta', { nguoi });
+          const gop = new Map();
+          [...(meta.people || []), ...(meta.scopePeople || [])].forEach((x) => {
+            if (x && x.id && !gop.has(x.id)) gop.set(x.id, { id: x.id, ten: x.name || x.id });
+          });
+          danhBa = [...gop.values()].sort((a, b) => a.ten.localeCompare(b.ten, 'vi'));
+        } catch (e) { /* thiếu danh bạ thì vẫn khai tay được */ }
+      }
+
+      return ok(res, {
+        base: danhSach().filter((x) => x.bat).map((x) => ({ id: x.id, ten: x.ten })),
+        hang, danhBa, loiBang,
+        larkUrl: quyen.larkUrl,
+        env_quan_ly: dsQuanLyEmail().concat(dsQuanLyId()),
+      });
+    }
+
+    if (m === 'POST') {
+      const b = await docBody(req);
+      if (!b || (!b.email && !b.openId)) return loi(res, 400, 'Phải có email hoặc open_id để nhận diện người này.');
+      const id = await quyen.ghi(b);
+      return ok(res, { recordId: id });
+    }
+
+    if (m === 'DELETE') {
+      const rec = u.searchParams.get('recordId');
+      if (!rec) return loi(res, 400, 'Thiếu recordId');
+      await quyen.xoa(rec);
+      return ok(res, { xoa: rec });
+    }
+  }
+
   if (p === '/api/bo-doc-kpi' && m === 'GET') return ok(res, { ds: Object.keys(kpi.BO_DOC) });
 
   if (p === '/healthz') {
@@ -375,7 +462,18 @@ const server = http.createServer(async (req, res) => {
     }
     kids.khoiDong(mod); // bảo đảm đang chạy (không chờ)
     const nguoi = cfg.mode === 'api' ? auth.sessionUser(req) : null;
-    if (nguoi) nguoi.quanLy = laQuanLy(nguoi);
+    if (nguoi) {
+      const q = await quyenCua(nguoi);
+      if (!duocXem(q, mod.id)) {
+        // chặn ngay ở cổng: ẩn khỏi panel là chưa đủ, ai gõ tay URL cũng phải bị chặn
+        return send(res, 403, 'Bạn chưa được cấp quyền xem base "' + mod.ten + '".',
+          { 'Content-Type': 'text/plain; charset=utf-8' });
+      }
+      nguoi.quanLy = q.quanLy;
+      nguoi.toanBo = q.toanBo;
+      nguoi.taoMoi = q.taoMoi;
+      nguoi.chiPhi = q.chiPhi;
+    }
     return chuyenTiep(req, res, mod, mm[2] + (u.search || ''), nguoi);
   }
 

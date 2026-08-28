@@ -171,6 +171,26 @@ async function isManager() {
   return !!(me && cfg.loadManagerIds().includes(me.id));
 }
 
+/* Tùy chọn lớp vỏ cấp riêng cho từng nhân sự (bảng "Phân quyền app"). Chỉ tin
+ * header vì app chỉ nghe 127.0.0.1; tắt bằng HUB_TRUST_HEADER=0. */
+function quyenTuHeader(req) {
+  if (process.env.HUB_TRUST_HEADER === '0') return {};
+  return {
+    toanBo: req.headers['x-hub-perm-toan-bo'] === '1',
+    khongTao: req.headers['x-hub-perm-khong-tao'] === '1',
+    chiPhi: req.headers['x-hub-perm-chi-phi'] === '1',
+  };
+}
+
+/** Quyền của request hiện tại (rỗng khi chạy chế độ cli trên máy cá nhân). */
+function quyenHienTai() {
+  const store = nguoiCuaRequest.getStore();
+  return (store && store.quyen) || {};
+}
+const qToanBo = () => quyenHienTai().toanBo === true;
+const qDuocTao = () => quyenHienTai().khongTao !== true;
+const qChiPhi = () => quyenHienTai().chiPhi === true;
+
 /** Lịch thuộc phạm vi một người: phụ trách hoặc trong nhóm nhân sự. */
 function ownedBy(it, personId) {
   const has = (arr) => (arr || []).some((u) => u.id === personId);
@@ -189,6 +209,14 @@ async function requireOwn(res, it) {
   if (me && ownedBy(it, me.id)) return true;
   json(res, { error: 'Đây không phải lịch tác nghiệp của bạn.', code: 'NOT_YOURS' }, 403);
   return false;
+}
+
+/** Bỏ hai cột tiền khỏi một lịch trước khi trả cho người không được xem chi phí. */
+function boChiPhi(it) {
+  const o = Object.assign({}, it);
+  delete o.costPlan;
+  delete o.costActual;
+  return o;
 }
 
 function collectOptions(fields) {
@@ -277,11 +305,15 @@ async function api(req, res, url) {
 
     const scoped = acting ? all.filter((t) => ownedBy(t, acting.id))
       : manager ? all
-      : (me ? all.filter((t) => ownedBy(t, me.id)) : []);
+      // nhân sự được cấp "Xem toàn bộ" thì thấy lịch cả phòng (chỉ để xem)
+      : (me ? (qToanBo() ? all : all.filter((t) => ownedBy(t, me.id))) : []);
 
     return json(res, {
       me, manager, acting,
-      items: scoped,
+      // quản lý cấp riêng trong bảng "Phân quyền app" của lớp vỏ
+      perm: { toanBo: manager || qToanBo(), taoMoi: manager || qDuocTao(), chiPhi: manager || qChiPhi() },
+      // không được xem chi phí thì cắt luôn ở server, không chỉ ẩn trên giao diện
+      items: (manager || qChiPhi()) ? scoped : scoped.map(boChiPhi),
       blankRows: raw.length - all.length,
       people: collectPeople(all),
       options: collectOptions(fields),
@@ -320,6 +352,13 @@ async function api(req, res, url) {
     const body = await readBody(req);
     const me = await whoAmI();
     const manager = await isManager();
+
+    if (!manager && !qDuocTao()) {
+      return json(res, {
+        error: 'Quản lý chưa mở quyền tạo lịch mới cho bạn.',
+        code: 'CREATE_BLOCKED',
+      }, 403);
+    }
 
     for (const k of cfg.requiredOnCreate) {
       const v = body[k];
@@ -570,7 +609,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') { res.writeHead(allow ? 204 : 403); return res.end(); }
 
   // mọi xử lý của một request chạy trong ngữ cảnh của đúng người gửi request đó
-  await nguoiCuaRequest.run({ me: nguoiTuHeader(req) }, async () => {
+  await nguoiCuaRequest.run({ me: nguoiTuHeader(req), quyen: quyenTuHeader(req) }, async () => {
     try {
       if (url.pathname.startsWith('/api/')) return await api(req, res, url);
       return serveStatic(res, url.pathname);

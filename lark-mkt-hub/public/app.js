@@ -717,6 +717,8 @@ async function napHub() {
   S.modules = d.modules || [];
   $('#hubTen').textContent = d.ten;
   $('#hubPhu').textContent = d.phu;
+  // phân quyền là việc của quản lý -> nhân sự không thấy nút đó trong Cài đặt
+  S.quanLy = !!d.quanLy;
   veRail();
 }
 
@@ -745,7 +747,8 @@ async function napTongQuan(refresh) {
 }
 
 /* ---------------- modal ---------------- */
-function moModal(tieuDe, thanHtml, chanHtml) {
+function moModal(tieuDe, thanHtml, chanHtml, rong) {
+  $('.modal').classList.toggle('rong', !!rong);   // bảng nhiều cột thì nới hộp thoại
   $('#mdTitle').textContent = tieuDe;
   $('#mdBody').innerHTML = thanHtml;
   $('#mdFoot').innerHTML = chanHtml || '<button class="btn ghost" data-close="1">Đóng</button>';
@@ -778,11 +781,14 @@ function modalCaiDat() {
     '<div id="oToi" class="canh-bao" hidden></div>' +
     '<table class="bang"><thead><tr><th>Base</th><th>Kiểu</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>' +
     '<tbody>' + dong + '</tbody></table>',
+    (S.quanLy ? '<button class="btn ghost" id="btnPhanQuyen">Phân quyền thành viên</button>' : '') +
     '<button class="btn ghost" id="btnKiemTra">Kiểm tra hệ thống</button>' +
     '<button class="btn ghost" data-close="1">Đóng</button>');
 
   const bkt = $('#btnKiemTra');
   if (bkt) bkt.onclick = modalKiemTra;
+  const bpq = $('#btnPhanQuyen');
+  if (bpq) bpq.onclick = () => modalPhanQuyen();   // định nghĩa trong quyen.js
 
   /* Chế độ chạy chung: mỗi app Lark thấy một open_id khác nhau cho cùng một người.
    * Hiện id ngay đây để dán vào LARK_MANAGER_IDS khi cần cấp vai quản lý. */
@@ -991,6 +997,7 @@ function dinhTuyen() {
     return;
   }
   if (h === '/cai-dat') { moHome(); modalCaiDat(); return; }
+  if (h === '/phan-quyen') { moHome(); modalPhanQuyen(); return; }
   if (ml) { moModule(decodeURIComponent(ml[1])); return; }
   if (mm) { moModule(decodeURIComponent(mm[1])); return; }
   moHome();

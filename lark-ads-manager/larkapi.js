@@ -96,10 +96,13 @@ function columnsToRecords(data) {
   const fieldIds = data.field_id_list || [];
   const ids = data.record_id_list || [];
   const rows = data.data || [];
+  /* Phải trả ĐÚNG hình dạng của lark.js: { id, c } — store.js đọc r.c[fieldId].
+   * Trả { record_id, cells } thì mọi bảng vỡ với lỗi "Cannot read properties of
+   * undefined (reading 'fld...')" ngay khi deploy ở chế độ api. */
   return rows.map((row, i) => {
-    const cells = {};
-    fieldIds.forEach((fid, j) => { cells[fid] = row[j]; });
-    return { record_id: ids[i], cells };
+    const c = {};
+    fieldIds.forEach((fid, j) => { c[fid] = row[j]; });
+    return { id: ids[i], c };
   });
 }
 
@@ -118,7 +121,7 @@ async function listAll(tableId) {
 
 async function getRecord(tableId, recordId) {
   const ds = await listAll(tableId);
-  return ds.find((r) => r.record_id === recordId) || null;
+  return ds.find((r) => r.id === recordId) || null;
 }
 
 /** fields: { fieldId: cellValue } — trả về record_id vừa tạo. */

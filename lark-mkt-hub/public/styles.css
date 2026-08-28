@@ -723,3 +723,30 @@ code { background: var(--trang-2); border: 1px solid var(--vien-mem); border-rad
 /* trang tự kiểm tra hệ thống */
 .kt-tot { color: var(--luc); }
 .kt-xau { color: var(--do); }
+
+/* ---------------- phân quyền thành viên ---------------- */
+.q-them {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  padding: 10px; margin-bottom: 12px;
+  background: var(--trang-2); border: 1px solid var(--vien); border-radius: 10px;
+}
+.q-them select, .q-them input { min-width: 190px; }
+.q-cuon { overflow-x: auto; }
+.bang-quyen { min-width: 880px; }
+.bang-quyen td { vertical-align: top; }
+.q-in {
+  width: 100%; min-width: 120px; padding: 6px 8px; font: inherit; font-size: 13px;
+  color: var(--chu); background: var(--trang);
+  border: 1px solid var(--vien); border-radius: 7px;
+}
+.q-nhom { display: flex; flex-direction: column; gap: 4px; }
+.q-ck {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12.5px; color: var(--chu-mo); cursor: pointer; white-space: nowrap;
+}
+.q-ck input { accent-color: var(--xanh); width: 15px; height: 15px; margin: 0; cursor: pointer; }
+.q-ck:hover { color: var(--chu); }
+.q-ghi { margin-top: 12px; font-size: 12.5px; color: var(--chu-nhat); line-height: 1.55; }
+
+/* bảng phân quyền cần rộng hơn hộp thoại thường (7 cột, có checkbox) */
+.modal.rong { width: min(1060px, calc(100vw - 40px)); }

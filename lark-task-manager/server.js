@@ -246,6 +246,18 @@ async function isManager(req) {
   return !!(me && cfg.loadManagerIds().includes(me.id));
 }
 
+/* Tùy chọn hub cấp riêng cho từng nhân sự (bảng "Phân quyền app" trong Base).
+ * Cùng lý do như isManager(): chỉ tin header vì app chỉ nghe 127.0.0.1 và hub đã
+ * xoá header do client tự gửi. Tắt bằng HUB_TRUST_HEADER=0. */
+function quyenHub(req, ten) {
+  if (!req || !req.headers || process.env.HUB_TRUST_HEADER === '0') return false;
+  return req.headers[ten] === '1';
+}
+/** Nhân sự được xem dữ liệu cả phòng (chỉ xem — sửa vẫn theo việc của mình). */
+const xemToanBo = (req) => quyenHub(req, 'x-hub-perm-toan-bo');
+/** Nhân sự bị chặn tạo việc mới. */
+const khongDuocTao = (req) => quyenHub(req, 'x-hub-perm-khong-tao');
+
 /** Việc thuộc phạm vi một người: phụ trách chính hoặc người hỗ trợ. */
 function ownedBy(task, personId) {
   const has = (arr) => (arr || []).some((u) => u.id === personId);
@@ -254,7 +266,7 @@ function ownedBy(task, personId) {
 
 /** Danh sách task người đang đăng nhập được phép thấy. */
 async function visibleFor(tasks, req) {
-  if (await isManager(req)) return tasks;
+  if (await isManager(req) || xemToanBo(req)) return tasks;
   const me = await whoAmI(req);
   if (!me) return [];
   return tasks.filter((t) => ownedBy(t, me.id));
@@ -332,6 +344,8 @@ async function api(req, res, url) {
     return json(res, {
       me,
       role: manager ? 'manager' : 'staff',
+      // quản lý cấp riêng cho nhân sự này trong bảng "Phân quyền app" của hub
+      perm: { toanBo: manager || xemToanBo(req), taoMoi: manager || !khongDuocTao(req) },
       options: collectOptions(fields),
       // danh bạ để chọn Người hỗ trợ — lấy từ toàn bảng, không phải dữ liệu công việc
       people: collectPeople(allTasks),
@@ -371,6 +385,13 @@ async function api(req, res, url) {
     const body = await readBody(req);
     const me = await whoAmI(req);
     const manager = await isManager(req);
+
+    if (!manager && khongDuocTao(req)) {
+      return json(res, {
+        error: 'Quản lý chưa mở quyền tạo việc mới cho bạn.',
+        code: 'CREATE_BLOCKED',
+      }, 403);
+    }
 
     if (!manager) {
       // Nhân sự đặt việc: chỉ điền được bộ trường của Form "Yêu cầu công việc"

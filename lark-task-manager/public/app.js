@@ -2660,10 +2660,18 @@ function render() {
   $('#bulkCount').textContent = 'Đã chọn ' + n + ' việc';
 }
 
+/** Con số trên phụ đề đang đếm việc của ai — nói đúng để khỏi hiểu nhầm. */
+function nhanPhamVi() {
+  if (S.isManager) return ' việc toàn phòng';
+  return S.perm && S.perm.toanBo ? ' việc toàn phòng (chỉ xem)' : ' việc của bạn';
+}
+
 async function refresh(force) {
   await loadAll(force);
 
   S.isManager = S.meta.role === 'manager';
+  // Tùy chọn quản lý cấp riêng cho nhân sự này (bảng Phân quyền app của hub)
+  S.perm = Object.assign({ toanBo: S.isManager, taoMoi: true }, S.meta.perm || {});
   // Nhân sự luôn khoá theo tài khoản đăng nhập; quản lý được xem việc của người khác
   if (!S.isManager) S.viewAs = null;
   S.who = S.viewAs || S.meta.me || null;
@@ -2672,7 +2680,7 @@ async function refresh(force) {
   syncFilterInputs();
   applyRoleChrome();
   $('#subtitle').textContent = 'Tracking · ' + S.tasks.length +
-    (S.isManager ? ' việc toàn phòng' : ' việc của bạn');
+    nhanPhamVi();
   $('#linkLark').href = S.meta.larkUrl;
   render();
   updateBadge();
@@ -2696,16 +2704,20 @@ function applyRoleChrome() {
     renderViewAsList();
   }
 
-  // Nhân sự chỉ có tab "Việc của tôi"; Tổng quan / Kanban / Bảng là của quản lý
+  /* Nhân sự chỉ có tab "Việc của tôi". Ai được cấp "Xem toàn bộ" thì thêm Kanban
+   * và Bảng để nhìn được việc cả phòng — sửa vẫn chỉ sửa được việc của mình. */
+  const xemHet = S.isManager || S.perm.toanBo;
   for (const v of ['dash', 'board', 'table']) {
     const tab = document.querySelector('.tab[data-view="' + v + '"]');
-    if (tab) tab.classList.toggle('hidden', !S.isManager);
+    if (tab) tab.classList.toggle('hidden', v === 'dash' ? !S.isManager : !xemHet);
   }
   // Ai cũng đặt được việc (Form "Yêu cầu công việc"); phần phân công mới cần quản lý
   $('#btnNew').textContent = S.isManager ? '+ Công việc' : '+ Đặt việc';
+  $('#btnNew').classList.toggle('hidden', !S.perm.taoMoi);
   $('#btnQuyen').classList.toggle('hidden', !S.isManager);
   $('#btnReport').classList.toggle('hidden', !S.isManager);
-  if (!S.isManager && S.view !== 'work') S.view = 'work';
+  const choPhep = S.isManager ? null : (xemHet ? ['work', 'board', 'table'] : ['work']);
+  if (choPhep && !choPhep.includes(S.view)) S.view = 'work';
   // Quản lý mở app là vào Tổng quan trước
   if (S.isManager && !S.viewChosen) S.view = 'dash';
   document.querySelectorAll('.tab').forEach((x) => x.classList.toggle('is-active', x.dataset.view === S.view));
@@ -2957,7 +2969,7 @@ function capNhatNhanThoiGian() {
   const sub = $('#subtitle');
   if (sub && S.meta) {
     sub.textContent = 'Tracking · ' + S.tasks.length +
-      (S.isManager ? ' việc toàn phòng' : ' việc của bạn') + ' · ' + nhan;
+      nhanPhamVi() + ' · ' + nhan;
   }
 }
 

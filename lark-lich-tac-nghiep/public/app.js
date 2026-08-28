@@ -27,6 +27,11 @@ const MGR = () => S.manager && !S.acting;
 /** Đang xem thay người khác — mọi thao tác ghi bị khoá để không hành động hộ họ. */
 const PREVIEW = () => !!S.acting;
 
+/* Ba tùy chọn quản lý cấp thêm cho nhân sự. Server đã chặn thật, đây chỉ để giao
+ * diện không bày ra thứ người dùng không có quyền. */
+const CHIPHI = () => MGR() || !!(S.perm && S.perm.chiPhi);
+const DUOC_TAO = () => !(S.perm && S.perm.taoMoi === false);
+
 /** Người mà màn hình đang lấy làm "tôi". */
 const viewer = () => S.acting || S.me;
 
@@ -192,6 +197,8 @@ async function load(force) {
   const d = await api('/api/meta' + (qs.length ? '?' + qs.join('&') : ''));
   S.me = d.me;
   S.manager = d.manager;
+  // tùy chọn quản lý cấp riêng cho nhân sự này (bảng Phân quyền app của lớp vỏ)
+  S.perm = Object.assign({ toanBo: false, taoMoi: true, chiPhi: false }, d.perm || {});
   S.acting = d.acting || null;
   if (!S.acting) S.actingId = null;
   S.items = d.items || [];
@@ -282,11 +289,14 @@ function tabDefs() {
       { k: 'mine',     t: 'Lịch của tôi' },
     ];
   }
-  return [
+  // nhân sự: ba tab cơ bản, thêm Chi phí nếu quản lý mở quyền xem số tiền
+  const ds = [
     { k: 'mine',     t: 'Lịch của tôi' },
     { k: 'calendar', t: 'Lịch' },
     { k: 'list',     t: 'Danh sách' },
   ];
+  if (CHIPHI()) ds.push({ k: 'cost', t: 'Chi phí' });
+  return ds;
 }
 
 function renderTabs() {
@@ -623,7 +633,9 @@ function viewCost() {
     '<span><i style="background:var(--primary)"></i>Thực tế</span></div></div>';
 
   const unpaid = list.filter((t) => t.costActual != null && t.payment !== 'Đã thanh toán').sort(byStartDesc);
-  h += '<div style="height:16px"></div>' + queueCard('Chi phí chờ thanh toán', unpaid, 'Xác nhận sau khi chuyển khoản', 'pay');
+  // nhân sự chỉ được xem: nút xác nhận thanh toán là việc của quản lý
+  h += '<div style="height:16px"></div>' + queueCard('Chi phí chờ thanh toán', unpaid,
+    MGR() ? 'Xác nhận sau khi chuyển khoản' : '', MGR() ? 'pay' : 'xem');
   return h;
 }
 
@@ -795,7 +807,7 @@ function render() {
   renderChip();
   $('#btnLark').href = S.config.larkUrl || '#';
   // Xem hộ người khác thì không cho đăng ký lịch đứng tên họ
-  $('#btnNew').style.display = PREVIEW() ? 'none' : '';
+  $('#btnNew').style.display = (PREVIEW() || !DUOC_TAO()) ? 'none' : '';
 
   let h = '';
   if (PREVIEW()) {
@@ -997,10 +1009,12 @@ function renderDrawer() {
   h += fieldUsers('staff', 'Nhân sự cùng tác nghiệp');
   h += fieldMulti('transport', 'Phương tiện', O.transport);
 
-  h += '<div class="divider"></div><div class="sec-title">Chi phí</div>';
-  h += '<div class="frm-2">' + fieldNum('costPlan', 'Chi phí dự kiến (đ)') +
-       fieldNum('costActual', 'Chi phí thực tế (đ)', 'Cập nhật sau chuyến công tác') + '</div>';
-  h += fieldSelect('payment', 'Thanh toán chi phí', O.payment);
+  if (CHIPHI()) {
+    h += '<div class="divider"></div><div class="sec-title">Chi phí</div>';
+    h += '<div class="frm-2">' + fieldNum('costPlan', 'Chi phí dự kiến (đ)') +
+         fieldNum('costActual', 'Chi phí thực tế (đ)', 'Cập nhật sau chuyến công tác') + '</div>';
+    h += fieldSelect('payment', 'Thanh toán chi phí', O.payment);
+  }
 
   h += '<div class="divider"></div><div class="sec-title">Yêu cầu hỗ trợ</div>';
   h += '<div class="frm-row" style="gap:9px">' + fieldCheck('focRequest', 'Yêu cầu FOC (vé/dịch vụ miễn phí)') +
@@ -1202,9 +1216,12 @@ function renderCreate() {
       esc(p.name) + '</button>').join('') + '</div></div>' +
     '<div class="frm-row"><label>Phương tiện</label>' + chips('transport', O.transport) + '</div>' +
 
-    '<div class="divider"></div><div class="sec-title">Chi phí & hỗ trợ</div>' +
-    '<div class="frm-row"><label>Chi phí dự kiến (đ)</label>' +
-      '<input type="number" class="fld" data-n="costPlan" value="' + esc(NEW.costPlan) + '" step="1000" min="0" placeholder="600000"></div>' +
+    '<div class="divider"></div><div class="sec-title">' +
+      (CHIPHI() ? 'Chi phí &amp; hỗ trợ' : 'Yêu cầu hỗ trợ') + '</div>' +
+    (CHIPHI()
+      ? '<div class="frm-row"><label>Chi phí dự kiến (đ)</label>' +
+        '<input type="number" class="fld" data-n="costPlan" value="' + esc(NEW.costPlan) + '" step="1000" min="0" placeholder="600000"></div>'
+      : '') +
     '<div class="frm-row" style="gap:9px">' +
       '<label class="chk"><input type="checkbox" data-n="focRequest"' + (NEW.focRequest ? ' checked' : '') + '><span>Yêu cầu FOC (vé / dịch vụ miễn phí)</span></label>' +
       '<label class="chk"><input type="checkbox" data-n="mediaRequest"' + (NEW.mediaRequest ? ' checked' : '') + '><span>Yêu cầu nhân sự phòng Media hỗ trợ</span></label>' +

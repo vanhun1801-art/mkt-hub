@@ -166,12 +166,16 @@ function chuyenTiep(req, res, mod, duongDan, nguoi) {
    * Xoá header do client tự gửi trước khi ghi lại, kẻo có người tự mạo danh. */
   delete opts.headers['x-hub-user-id'];
   delete opts.headers['x-hub-user-name'];
-  delete opts.headers['x-hub-user-manager'];
+  ['x-hub-user-manager','x-hub-perm-toan-bo','x-hub-perm-khong-tao','x-hub-perm-chi-phi']
+    .forEach((h) => { delete opts.headers[h]; });
   if (nguoi && nguoi.id) {
     opts.headers['x-hub-user-id'] = nguoi.id;
     opts.headers['x-hub-user-name'] = encodeURIComponent(nguoi.name || nguoi.id);
-    // hub đã quyết vai (theo open_id hoặc email) — module chỉ việc tin
+    // hub đã quyết vai + tuỳ chọn (bảng "Phân quyền app") — module chỉ việc tin
     if (nguoi.quanLy) opts.headers['x-hub-user-manager'] = '1';
+    if (nguoi.toanBo) opts.headers['x-hub-perm-toan-bo'] = '1';
+    if (nguoi.taoMoi === false) opts.headers['x-hub-perm-khong-tao'] = '1';
+    if (nguoi.chiPhi) opts.headers['x-hub-perm-chi-phi'] = '1';
   }
 
   const upstream = http.request(opts, (r) => {

@@ -126,12 +126,35 @@ Deploy xong Render cấp URL dạng `https://mkt-hub.onrender.com`.
 
 ## PHẦN D — Phân quyền ai được dùng
 
-Hai lớp, đừng lẫn:
+Ba lớp, đừng lẫn:
 
 | Lớp | Quyết định | Đặt ở đâu |
 |---|---|---|
 | **Ai mở được app** | vào được hay không | Developer Console → **Availability** (phạm vi khả dụng): chọn phòng Marketing hoặc từng người |
 | **Vai trong app** | quản lý hay nhân sự | biến `LARK_MANAGER_EMAILS` (khuyên dùng) hoặc `LARK_MANAGER_IDS` trên Render |
+| **Từng người thấy gì** | base nào + tùy chọn cho nhân sự | trong app: **Cài đặt → Phân quyền thành viên** (lưu vào bảng Lark Base) |
+
+### D1. Phân quyền từng thành viên
+
+**Cài đặt → Phân quyền thành viên** (chỉ quản lý thấy nút này). Mỗi người một dòng:
+
+| Cột | Ý nghĩa |
+|---|---|
+| Base được xem | bỏ tick base nào thì base đó biến khỏi panel của họ — API của hub chặn luôn, không phải ẩn cho vui |
+| Xem toàn bộ | nhân sự thấy dữ liệu cả phòng thay vì chỉ việc của mình (thêm tab Kanban / Bảng ở Bảng công việc). Sửa vẫn chỉ sửa được việc của mình |
+| Được tạo mới | tắt là chặn tạo việc / lịch mới, chặn cả ở server |
+| Xem chi phí | mở hai cột tiền + tab Chi phí ở Lịch tác nghiệp. Tắt thì server **cắt luôn số tiền** khỏi dữ liệu trả về |
+
+Dữ liệu nằm trong bảng **"Phân quyền app"** (Base Tracking, `tblBKm6ZurhN3703`) nên
+không mất sau mỗi lần deploy và sửa trực tiếp trên Lark cũng được. Đổi bằng
+`HUB_QUYEN_BASE` / `HUB_QUYEN_TABLE` nếu muốn để chỗ khác.
+
+Chưa khai dòng nào = thấy đủ mọi base với vai nhân sự (mặc định mở, nên thêm base
+mới không âm thầm biến mất với cả phòng). Người khai trong `LARK_MANAGER_EMAILS`
+luôn giữ vai quản lý — không tự khoá mình ra ngoài được.
+
+Bảng này cần khoá app nên **chỉ dùng được trên bản đã deploy** (chế độ `api`); chạy
+localhost thì hộp thoại chỉ đưa link mở bảng trong Lark.
 
 Người không nằm trong Availability: đăng nhập được nhưng app không đọc được dữ liệu
 của họ. Người nằm ngoài `LARK_MANAGER_IDS`: vào với vai nhân sự — chỉ thấy việc của
