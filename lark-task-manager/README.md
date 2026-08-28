@@ -213,7 +213,32 @@ Kiểm tra **cả ở giao diện và ở server**, không chỉ ẩn nút.
 | `Tạm dừng` / `Trễ deadline` / `Hủy` do admin đặt | PATCH `?role=staff` với các trạng thái này → `403 STATUS_LOCKED` |
 | Chỉ Phụ trách chính cập nhật trạng thái | Làn "Cần hỗ trợ" không có nút đổi trạng thái; drawer hiện nhãn giải thích ai là người cập nhật |
 | Bước 2 không đổi trạng thái | Làn "Công việc mới" không có nút đổi trạng thái nào ngoài `Bắt đầu làm` |
+| Việc đã trễ thì nhân sự không tự chuyển `Hoàn thành` | Nút đổi thành **Giải quyết · nộp sản phẩm**. Gọi `complete` khi đã trễ → `422 LATE_NEEDS_RESOLVE`. Quản lý vẫn đóng được, vì họ mới là người kết luận |
 | Thiếu/sai thông tin thì gửi Yêu cầu điều chỉnh | Nút mở form ghi vào bảng `Yêu cầu điều chỉnh` — chọn Thông tin cần sửa, Nội dung đề xuất, Lý do; tự liên kết đúng bản ghi task và người gửi |
+
+### Việc trễ deadline — nút "Giải quyết"
+
+Nhân sự là người giữ file cuối, nên vẫn phải có chỗ nộp; nhưng người order thường
+không bấm nghiệm thu, nên không thể để việc trễ tự biến thành "Hoàn thành" —
+cuối tháng sẽ không còn đếm được ai trễ. Cách app xử lý:
+
+| | Việc còn hạn | Việc đã trễ |
+|---|---|---|
+| Nhân sự | `Hoàn thành` → trạng thái sang **Hoàn thành** | `Giải quyết` → ghi `Đã giải quyết` + `Ngày giải quyết`, **trạng thái giữ nguyên "Trễ deadline"** |
+| Quản lý | `Hoàn thành` | `Hoàn thành` (không bị chặn) |
+
+* Cả hai nút đều đòi minh chứng trước (`422 PROOF_REQUIRED`).
+* Bấm `Giải quyết` cho việc chưa trễ → `422 NOT_LATE`.
+* Việc đã giải quyết rời khỏi làn quá hạn và khỏi thẻ **Quá hạn** ở Marketing Hub,
+  chuyển sang dòng ghi chú "N việc trễ đã giải quyết" (bấm vào xem được danh sách).
+* `Ngày giải quyết` đóng băng số ngày trễ: sau này quản lý có đóng việc thì con số
+  thống kê vẫn còn.
+* Trong Base, nhân sự tick tay ô **Đã giải quyết** cũng có tác dụng tương đương,
+  nhưng không ghi được `Ngày giải quyết` — nên khuyến khích bấm trong app.
+* Cột `Đã giải quyết` không nằm trong `staffEditable`: nhân sự không sửa được qua
+  app bằng đường khác ngoài nút này.
+
+Tắt luật này: đặt `chanHoanThanhKhiTre: false` trong `config.js`.
 
 ---
 

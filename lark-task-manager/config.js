@@ -106,6 +106,11 @@ module.exports = {
     note:       { id: 'fld59D2dAX', name: 'Ghi chú',           type: 'text' },
     rating:     { id: 'fldatiVxIl', name: 'Chấm điểm',         type: 'rating' },
     attachment: { id: 'fldJp3mzWY', name: 'Tệp đính kèm',      type: 'attachment', readOnly: true },
+    /* Việc TRỄ thì nhân sự không đổi trạng thái được nữa (để cuối tháng còn thống
+     * kê được ai trễ), nhưng vẫn phải có chỗ nộp sản phẩm và cho việc đó rời khỏi
+     * hàng đợi "phải hối". Hai cột này giữ vai đó — tick được cả trong Base. */
+    daGiaiQuyet:   { id: 'fldhYDnqUx', name: 'Đã giải quyết',  type: 'checkbox' },
+    ngayGiaiQuyet: { id: 'fldFy0vF7l', name: 'Ngày giải quyết', type: 'datetime' },
     parent:     { id: 'fld80gHPbr', name: 'Parent items',      type: 'link',       readOnly: true },
   },
 
@@ -144,11 +149,18 @@ module.exports = {
   // Trạng thái do admin/quản lý giữ — nhân sự không tự đặt
   adminStatuses: ['Tạm dừng', 'Trễ deadline', 'Hủy'],
 
-  // Trường nhân sự được sửa; còn lại là của người order → phải gửi Yêu cầu điều chỉnh
+  /* Trường nhân sự được sửa; còn lại là của người order → phải gửi Yêu cầu điều chỉnh.
+   * daGiaiQuyet/ngayGiaiQuyet KHÔNG nằm ở đây: chỉ đặt được qua nút "Giải quyết"
+   * (bắt buộc có minh chứng), không sửa tự do qua PATCH. */
   staffEditable: ['status', 'link', 'note', 'helper', 'startAt'],
 
   // Chuyển sang trạng thái này bắt buộc phải có Tệp đính kèm hoặc Link kết quả
   proofRequiredFor: 'Hoàn thành',
+
+  /* Việc đã quá hạn: nhân sự KHÔNG được tự đặt Hoàn thành nữa. Họ bấm "Giải quyết"
+   * — nộp sản phẩm, việc rời khỏi hàng đợi quá hạn, nhưng TRẠNG THÁI KHÔNG ĐỔI để
+   * cuối tháng vẫn đếm được ai trễ. Quản lý muốn đóng hẳn thì tự đặt Hoàn thành. */
+  chanHoanThanhKhiTre: true,
 
   /* ---- Phân quyền xem ---- */
   // Mỗi người chỉ thấy việc của chính mình. Chỉ open_id trong danh sách này

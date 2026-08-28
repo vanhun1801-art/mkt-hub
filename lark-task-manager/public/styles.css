@@ -1600,3 +1600,5 @@ td.c-check { width: 34px; }
   font-size: 12.5px; padding: 4px 6px; border-radius: 6px; cursor: pointer;
 }
 .dd-clear:hover { background: var(--red-bg); color: var(--red-text); }
+/* việc trễ nhưng đã nộp sản phẩm — dấu vết trễ vẫn giữ, chỉ rời khỏi hàng đợi hối */
+.tag.tag-gq { background: var(--orange-bg); color: var(--orange-text); font-weight: 600; }

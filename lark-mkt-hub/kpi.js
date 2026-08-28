@@ -68,9 +68,11 @@ async function congViec(mod, khoang, nguoi) {
   const mo = tasks.filter((t) => !DONG.has(t.status));
   // "Quá hạn" tính theo NGÀY như trong app (hết hạn hôm nay chưa coi là trễ),
   // nếu so từng giây thì số trên hub lệch với số trong app.
-  const quaHan = mo
-    .filter((t) => han(t) && han(t) < homNay)
-    .sort((a, b) => han(a) - han(b));
+  /* Việc trễ mà nhân sự đã bấm "Giải quyết" (nộp sản phẩm) thì rời khỏi hàng đợi
+   * quá hạn — nhưng trạng thái vẫn giữ, nên cuối tháng vẫn đếm được ai trễ. */
+  const treTatCa = mo.filter((t) => han(t) && han(t) < homNay);
+  const quaHan = treTatCa.filter((t) => !t.daGiaiQuyet).sort((a, b) => han(a) - han(b));
+  const treDaGQ = treTatCa.filter((t) => t.daGiaiQuyet);
   const chuaPhanCong = mo.filter((t) => !(t.owner || []).length);
   const thieuDeadline = mo.filter((t) => !han(t));
   const choTiepNhan = mo.filter((t) => t.status === 'Chờ tiếp nhận');
@@ -90,6 +92,8 @@ async function congViec(mod, khoang, nguoi) {
     han: han(t) || 0,
     the: [t.priority, t.workType, t.campaign].map(nhan).filter(Boolean),
     coMinhChung: !!((t.attachment || []).length || t.link),
+    daGiaiQuyet: !!t.daGiaiQuyet,
+    ngayGiaiQuyet: ms(t.ngayGiaiQuyet) || 0,
   });
   const nhom = {
     'mo': mo.map(dong),
@@ -99,13 +103,16 @@ async function congViec(mod, khoang, nguoi) {
     'sap-han': denHan.map(dong),
     'cho-tiep-nhan': choTiepNhan.map(dong),
     'thieu-deadline': thieuDeadline.map(dong),
+    'tre-da-giai-quyet': treDaGQ.map(dong),
   };
 
   // Quản lý mới cần thẻ "Chưa phân công" — nhân sự không phân công cho ai cả
   const laQL = !nguoi || nguoi.quanLy;
   const the = [
     { nhan: 'Việc đang mở', so: mo.length, dinhDang: 'so', khoa: 'mo' },
-    { nhan: 'Quá hạn', so: quaHan.length, dinhDang: 'so', muc: quaHan.length ? 'cao' : 'ok', khoa: 'qua-han' },
+    { nhan: 'Quá hạn', so: quaHan.length, dinhDang: 'so', muc: quaHan.length ? 'cao' : 'ok', khoa: 'qua-han',
+      ghi: treDaGQ.length ? treDaGQ.length + ' việc trễ đã giải quyết' : '',
+      ghiKhoa: treDaGQ.length ? 'tre-da-giai-quyet' : '' },
     ...(laQL ? [{ nhan: 'Chưa phân công', so: chuaPhanCong.length, dinhDang: 'so', muc: chuaPhanCong.length ? 'cao' : 'ok', khoa: 'chua-phan-cong' }] : []),
     { nhan: 'Đang tiến hành', so: dangLam.length, dinhDang: 'so', khoa: 'dang-tien-hanh' },
     { nhan: 'Sắp tới hạn (48h)', so: denHan.length, dinhDang: 'so', muc: denHan.length ? 'vua' : 'ok', khoa: 'sap-han' },
@@ -134,7 +141,7 @@ async function congViec(mod, khoang, nguoi) {
 
   // Việc quá hạn nằm NGOÀI khoảng lọc — để bộ lọc tháng không âm thầm che tồn đọng
   const ngoai = m
-    ? (ds.tasks || []).filter((t) => !DONG.has(t.status) && han(t) && han(t) < homNay &&
+    ? (ds.tasks || []).filter((t) => !DONG.has(t.status) && !t.daGiaiQuyet && han(t) && han(t) < homNay &&
         !trongMoc(han(t), m)).length
     : 0;
 

@@ -647,7 +647,14 @@ async function api(req, res, u) {
     if (mod.kpi === 'cong-viec') {
       const bulk = (patch) => ({ duong: '/api/tasks/bulk', method: 'PATCH', body: { ids: [id], patch } });
       if (act === 'bat-dau') return { duong: '/api/tasks/' + id + '/start', method: 'POST', body: {} };
-      if (act === 'hoan-thanh') return { duong: '/api/tasks/' + id + '/complete', method: 'POST', body: v && v.link ? { link: String(v.link) } : {} };
+      /* Ô nhập của cửa sổ nhanh gửi giá trị dạng chuỗi; chỗ khác có thể gửi {link}. */
+      const nopLink = () => {
+        const l = typeof v === 'string' ? v : v && v.link;
+        return l ? { link: String(l) } : {};
+      };
+      if (act === 'hoan-thanh') return { duong: '/api/tasks/' + id + '/complete', method: 'POST', body: nopLink() };
+      // việc đã trễ: nộp sản phẩm nhưng KHÔNG đổi trạng thái (giữ dấu trễ)
+      if (act === 'giai-quyet') return { duong: '/api/tasks/' + id + '/giai-quyet', method: 'POST', body: nopLink() };
       if (act === 'phan-cong') return bulk({ owner: [String(v)] });
       /* Ô chọn ngày chỉ cho ra YYYY-MM-DD. Để nguyên thì module quy về 00:00 —
        * tức việc "hạn hôm nay" thành quá hạn ngay lúc đặt. Hạn là HẾT ngày đó. */

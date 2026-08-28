@@ -100,6 +100,11 @@ function toTask(rec) {
       case 'attachment':
         t[key] = asAttach(v);
         break;
+      case 'checkbox':
+        /* CLI trả "true"/"", Open API trả boolean — chuẩn hoá về boolean thật,
+         * vì asText(false) sẽ ra chuỗi "false" (truthy) và làm sai mọi phép kiểm. */
+        t[key] = v === true || v === 'true' || v === 1 || v === '1';
+        break;
       case 'link':
         t[key] = Array.isArray(v)
           ? v.map((x) => (x && (x.record_ids ? x.record_ids[0] : x.id)) || x).filter(Boolean)
@@ -258,6 +263,19 @@ const xemToanBo = (req) => quyenHub(req, 'x-hub-perm-toan-bo');
 /** Nhân sự bị chặn tạo việc mới. */
 const khongDuocTao = (req) => quyenHub(req, 'x-hub-perm-khong-tao');
 
+const DONG_HAN = ['Hoàn thành', 'Hủy'];
+
+/** Việc đã quá hạn: deadline đã qua theo NGÀY, việc còn mở, và chưa giải quyết. */
+function daQuaHan(t) {
+  if (DONG_HAN.includes(t.status)) return false;
+  if (t.daGiaiQuyet) return false;
+  const h = t.deadline ? new Date(t.deadline) : null;
+  if (!h || isNaN(h.getTime())) return false;
+  const d0 = new Date(); d0.setHours(0, 0, 0, 0);
+  const hd = new Date(h); hd.setHours(0, 0, 0, 0);
+  return hd < d0;
+}
+
 /** Việc thuộc phạm vi một người: phụ trách chính hoặc người hỗ trợ. */
 function ownedBy(task, personId) {
   const has = (arr) => (arr || []).some((u) => u.id === personId);
@@ -367,6 +385,8 @@ async function api(req, res, url) {
         staffCreatable: cfg.staffCreatable,
         managerOnlyFields: cfg.managerOnlyFields,
         proofRequiredFor: cfg.proofRequiredFor,
+        // việc đã trễ: nhân sự bấm "Giải quyết" chứ không tự đặt Hoàn thành
+        chanHoanThanhKhiTre: cfg.chanHoanThanhKhiTre !== false,
       },
       requestParts: (function () {
         const raw = requestFieldCache && requestFieldCache.find((x) => x.id === cfg.requestFields.parts.id);
@@ -462,7 +482,7 @@ async function api(req, res, url) {
 
   /* ---- luồng làm việc của Phụ trách chính (theo tài liệu Training) ---- */
 
-  const mAct = p.match(/^\/api\/tasks\/(rec[A-Za-z0-9]+)\/(start|complete|upload)$/);
+  const mAct = p.match(/^\/api\/tasks\/(rec[A-Za-z0-9]+)\/(start|complete|upload|giai-quyet)$/);
   if (mAct && req.method === 'POST') {
     const id = mAct[1];
     const action = mAct[2];
@@ -497,18 +517,53 @@ async function api(req, res, url) {
       return json(res, { ok: true, status: 'Đang tiến hành' });
     }
 
-    // complete: chặn nếu chưa có minh chứng (Tệp đính kèm hoặc Link kết quả)
+    /* complete & giai-quyet: cả hai đều bắt buộc có minh chứng (tệp hoặc link) */
     const body = await readBody(req);
     const patch = {};
     if (body.link) patch.link = String(body.link);
     if (body.note) patch.note = String(body.note);
+
+    /* "Giải quyết" chỉ dành cho việc đã trễ. Việc còn hạn thì nộp bằng Hoàn thành
+     * như thường — không đánh dấu "Đã giải quyết", vì dấu đó là bằng chứng của
+     * một lần trễ. Nói trước cả phép kiểm minh chứng: bấm sai nút thì biết ngay. */
+    if (action === 'giai-quyet' && !daQuaHan(task)) {
+      return json(res, {
+        error: 'Việc chưa quá hạn — hãy bấm Hoàn thành như bình thường',
+        code: 'NOT_LATE',
+      }, 422);
+    }
 
     const hasProof = (task.attachment || []).length > 0 || !!(patch.link || task.link);
     if (!hasProof) {
       return json(res, {
         error: 'Chưa có minh chứng kết quả',
         code: 'PROOF_REQUIRED',
-        hint: 'Tài liệu quy định: phải đính sản phẩm cuối cùng vào Tệp đính kèm hoặc dán Link kết quả trước khi chuyển Hoàn thành.',
+        hint: 'Phải đính sản phẩm cuối cùng vào Tệp đính kèm hoặc dán Link kết quả trước khi nộp.',
+      }, 422);
+    }
+
+    /* ---- Giải quyết: dành cho việc ĐÃ TRỄ ----
+     * Nộp sản phẩm để việc rời khỏi hàng đợi quá hạn, nhưng TRẠNG THÁI KHÔNG ĐỔI —
+     * cuối tháng vẫn đếm được ai trễ. `Ngày giải quyết` đóng băng "trễ mấy ngày",
+     * số đó không mất đi kể cả sau này quản lý đóng việc.
+     */
+    if (action === 'giai-quyet') {
+      Object.assign(patch, { daGiaiQuyet: true, ngayGiaiQuyet: new Date().toISOString() });
+      await lark.updateRecord(id, toCells(patch));
+      applyLocal(rec, patch);
+      baoTin((task.requester || []).map((u) => u.id),
+        'Việc "' + (task.title || '') + '" đã nộp sản phẩm (trễ so với deadline).' + XD +
+        'Trạng thái trễ được giữ lại để thống kê; mời bạn nghiệm thu.' + duoiTin());
+      return json(res, { ok: true, daGiaiQuyet: true, status: task.status });
+    }
+
+    /* Việc đã quá hạn thì NHÂN SỰ không tự chuyển Hoàn thành — phải bấm "Giải
+     * quyết". Quản lý vẫn đóng được, vì họ mới là người kết luận. */
+    if (cfg.chanHoanThanhKhiTre && !(await isManager(req)) && daQuaHan(task)) {
+      return json(res, {
+        error: 'Việc này đã quá hạn nên không tự chuyển Hoàn thành được',
+        code: 'LATE_NEEDS_RESOLVE',
+        hint: 'Bấm "Giải quyết" để nộp sản phẩm. Trạng thái trễ được giữ lại để thống kê cuối tháng.',
       }, 422);
     }
 

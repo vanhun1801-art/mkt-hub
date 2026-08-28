@@ -397,7 +397,22 @@ function matchDue(t, mode, exact) {
 }
 
 const isClosed = (t) => CLOSED.includes(t.status);
-const isOverdue = (t) => !isClosed(t) && daysLeft(t.deadline) != null && daysLeft(t.deadline) < 0;
+/* Đã giải quyết = đã nộp sản phẩm dù trễ: rời khỏi hàng đợi quá hạn, nhưng TRẠNG
+ * THÁI vẫn giữ nguyên để cuối tháng còn thống kê được ai trễ. */
+const daGiaiQuyet = (t) => !!t.daGiaiQuyet;
+
+/** "Đã giải quyết · trễ 6 ngày" — tính theo Ngày giải quyết, không theo hôm nay. */
+function nhanGiaiQuyet(t) {
+  const gq = t.ngayGiaiQuyet ? new Date(t.ngayGiaiQuyet) : null;
+  const dl = t.deadline ? new Date(t.deadline) : null;
+  if (!gq || !dl || isNaN(gq.getTime()) || isNaN(dl.getTime())) return 'Đã giải quyết';
+  const ngay = Math.floor((startOfDay(gq) - startOfDay(dl)) / 86400000);
+  return ngay > 0 ? 'Đã giải quyết · trễ ' + ngay + ' ngày' : 'Đã giải quyết';
+}
+/** Cấu hình luật từ server (meta.rules) — thiếu thì coi như đang bật. */
+const cfg0 = () => ({ chanTre: !S.meta || !S.meta.rules || S.meta.rules.chanHoanThanhKhiTre !== false });
+const isOverdue = (t) => !isClosed(t) && !daGiaiQuyet(t) &&
+  daysLeft(t.deadline) != null && daysLeft(t.deadline) < 0;
 const hasProof = (t) => (t.attachment || []).length > 0 || !!t.link;
 
 function initials(name) {
@@ -609,6 +624,9 @@ function workCard(t, lane) {
   if (t.campaign) meta.appendChild(el('span', 'tag', t.campaign));
   const dl = deadlineTag(t);
   if (dl) meta.appendChild(dl);
+  /* Đã nộp sản phẩm dù trễ: nói rõ ngay trên thẻ, và nói cả trễ mấy ngày — con số
+   * đó đóng băng theo Ngày giải quyết nên báo cáo cuối tháng đọc được. */
+  if (daGiaiQuyet(t)) meta.appendChild(el('span', 'tag tag-gq', nhanGiaiQuyet(t)));
 
   if (lane === 'doing' || lane === 'redo' || lane === 'late') {
     meta.appendChild(el('span', 'proofdot ' + (hasProof(t) ? 'has' : 'missing'),
@@ -639,10 +657,15 @@ function workCard(t, lane) {
     return c;
   }
 
+  /* Việc đã trễ: nhân sự KHÔNG tự đặt Hoàn thành (trễ rồi thì phải chịu), nhưng
+   * vẫn phải có chỗ nộp sản phẩm — nút "Giải quyết". Quản lý thì vẫn đóng được. */
+  const treCanGQ = !S.isManager && cfg0().chanTre && isOverdue(t);
   const primary = {
     new:  { label: '▶ Bắt đầu làm', run: () => startTask(t) },
     doing: { label: '✓ Hoàn thành', run: () => openDone(t) },
-    late:  { label: '✓ Hoàn thành', run: () => openDone(t) },
+    late:  treCanGQ
+      ? { label: '↥ Giải quyết · nộp sản phẩm', run: () => openDone(t, 'giai-quyet') }
+      : { label: '✓ Hoàn thành', run: () => openDone(t) },
     redo:  { label: '↻ Nộp lại',    run: () => openDone(t) },
   }[lane];
 
@@ -676,7 +699,8 @@ async function startTask(t) {
 }
 
 /* --- modal Hoàn thành --- */
-function openDone(t) {
+function openDone(t, kieu) {
+  S.doneKieu = kieu === 'giai-quyet' ? 'giai-quyet' : 'complete';
   S.modalTask = t;
   $('#doneTaskName').textContent = t.title || '(chưa có tên)';
   $('#doneLink').value = t.link || '';
@@ -726,13 +750,16 @@ async function submitDone() {
     msg.textContent = 'Đang cập nhật trạng thái…';
     const link = $('#doneLink').value.trim();
     const note = $('#doneNote').value.trim();
-    await req('/api/tasks/' + t.id + '/complete', {
+    const laGQ = S.doneKieu === 'giai-quyet';
+    await req('/api/tasks/' + t.id + '/' + (laGQ ? 'giai-quyet' : 'complete'), {
       method: 'POST',
       body: JSON.stringify({ link: link || undefined, note: note || undefined }),
     });
 
     closeModal('mDone');
-    toast('Đã hoàn thành. Hệ thống sẽ gửi thẻ chấm điểm cho người order.');
+    toast(laGQ
+      ? 'Đã nộp sản phẩm. Việc rời khỏi danh sách quá hạn, nhưng trạng thái trễ được giữ lại.'
+      : 'Đã hoàn thành. Hệ thống sẽ gửi thẻ chấm điểm cho người order.');
     await refresh(true);
   } catch (e) {
     msg.textContent = '';
@@ -2319,9 +2346,11 @@ function buildStaffDrawer(b, t, o) {
       bt.onclick = async () => { closeDrawer(); await startTask(t); };
       foot.appendChild(bt);
     } else if (stage === 'doing' || stage === 'redo' || stage === 'late') {
+      const treGQ = !S.isManager && cfg0().chanTre && isOverdue(t);
       const bt = el('button', 'btn btn-primary',
-        stage === 'redo' ? '↻ Nộp lại  (→ Hoàn thành)' : '✓ Hoàn thành công việc');
-      bt.onclick = () => { closeDrawer(); openDone(t); };
+        treGQ ? '↥ Giải quyết · nộp sản phẩm (giữ nguyên trạng thái trễ)'
+          : stage === 'redo' ? '↻ Nộp lại  (→ Hoàn thành)' : '✓ Hoàn thành công việc');
+      bt.onclick = () => { closeDrawer(); openDone(t, treGQ ? 'giai-quyet' : ''); };
       foot.appendChild(bt);
     }
   }

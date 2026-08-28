@@ -23,7 +23,20 @@ function viecLamDuoc(kpi, r, quanLy) {
       ds.push({ act: 'dat-han', ten: r.han ? 'Đổi hạn' : 'Đặt hạn', kieu: 'ngay' });
     }
     if (r.trangThai === 'Chờ tiếp nhận') ds.push({ act: 'bat-dau', ten: 'Bắt đầu', chinh: true });
-    if (r.trangThai !== 'Hoàn thành') ds.push({ act: 'hoan-thanh', ten: 'Hoàn thành' });
+    /* Việc đã trễ mà chưa giải quyết: nút là "Giải quyết" (nộp sản phẩm, giữ dấu
+     * trễ) chứ không phải Hoàn thành — trừ khi mình là quản lý. */
+    const treThat = !r.daGiaiQuyet && r.han &&
+      new Date(r.han).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0);
+    if (r.trangThai !== 'Hoàn thành') {
+      /* Chưa có minh chứng thì mở ô dán link — cửa sổ nhanh không đính kèm tệp
+       * được, mà module bắt buộc phải có sản phẩm mới cho nộp. */
+      if (treThat && !quanLy) {
+        ds.push(r.coMinhChung
+          ? { act: 'giai-quyet', ten: 'Giải quyết', chinh: true }
+          : { act: 'giai-quyet', ten: 'Giải quyết', chinh: true, kieu: 'link' });
+      }
+      else ds.push({ act: 'hoan-thanh', ten: 'Hoàn thành' });
+    }
   }
 
   if (kpi === 'lich-tac-nghiep') {
@@ -57,6 +70,9 @@ function phuCua(kpi, r) {
       const ngay = Math.floor((now - r.han) / 86400000);
       p.push(ngay > 0 ? 'quá hạn ' + ngay + ' ngày' : 'hạn ' + ngayVN(r.han));
     } else p.push('chưa có deadline');
+    if (r.daGiaiQuyet) {
+      p.push('đã giải quyết' + (r.ngayGiaiQuyet ? ' ' + ngayVN(r.ngayGiaiQuyet) : ''));
+    }
     p.push(r.nguoi || 'chưa phân công');
     if (r.trangThai) p.push(r.trangThai);
   }
@@ -161,6 +177,9 @@ function moONhap(i, act, kieu) {
       '<option value="">Chọn người…</option>' +
       ds.map((x) => '<option value="' + esc(x.id) + '">' + esc(x.ten) + '</option>').join('') +
       '</select><button class="btn nho primary" data-luunhanh="' + i + '">Lưu</button>';
+  } else if (kieu === 'link') {
+    box.innerHTML = '<input type="url" class="q-in n-chon" placeholder="Dán link sản phẩm cuối (Drive, Figma, bài đăng…)">' +
+      '<button class="btn nho primary" data-luunhanh="' + i + '">Nộp</button>';
   } else {
     const mac = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
     box.innerHTML = '<input type="date" class="q-in n-chon" value="' + mac + '">' +
