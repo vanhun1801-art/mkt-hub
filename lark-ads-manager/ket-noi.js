@@ -25,7 +25,7 @@ const meta = require('./sync/meta');
 const tiktok = require('./sync/tiktok');
 const gsheet = require('./sync/gsheet');
 const gads = require('./sync/gads');
-const { getJson, scrub, hideSecret } = require('./sync/http');
+const { getJson, postJson, scrub, hideSecret } = require('./sync/http');
 const store = require('./store');
 
 const FILE = ketnoi.FILE;
@@ -361,6 +361,54 @@ async function setupGoogle() {
 }
 
 /* =======================================================================
+   CHỜ CODE OAUTH — dùng chung cho Google và TikTok
+   ======================================================================= */
+
+/**
+ * Mở cổng 127.0.0.1:<cong> chờ nhà cung cấp gọi về, ĐỒNG THỜI cho dán tay URL.
+ * Đường nào tới trước thì lấy.
+ *
+ * Có đường dán tay vì hai lý do thật: (1) phải bấm qua màn hình cảnh báo nên hay
+ * quá thời gian chờ, (2) máy chạy lệnh có thể không phải máy đăng nhập được — anh
+ * Hùng điều khiển máy nhà từ máy công ty, Google đòi passkey ở gần máy nhà.
+ * Code còn hiệu lực vài phút nên mở đồng ý ở máy khác rồi dán URL sang vẫn chạy.
+ */
+async function choCode(cong, tenTham = 'code') {
+  const http = require('http');
+  let sv = null;
+  const cho = new Promise((resolve, reject) => {
+    sv = http.createServer((req, res) => {
+      const u = new URL(req.url, 'http://127.0.0.1:' + cong);
+      const c = u.searchParams.get(tenTham);
+      const err = u.searchParams.get('error') || u.searchParams.get('error_description');
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end('<meta charset="utf-8"><body style="font:16px system-ui;padding:40px">' +
+        (c ? '<b>Xong.</b> Quay lại cửa sổ dòng lệnh nhé.' : '<b>Bị từ chối:</b> ' + (err || 'không rõ')) +
+        '</body>');
+      try { sv.close(); } catch (_) {}
+      c ? resolve(c) : reject(new Error(err || 'Không nhận được ' + tenTham));
+    });
+    sv.on('error', reject);
+    sv.listen(cong, '127.0.0.1');
+    setTimeout(() => { try { sv.close(); } catch (_) {} reject(new Error('Chờ quá 15 phút')); }, 900000);
+  });
+
+  const danTay = ask('  (hoặc dán vào đây URL mà trình duyệt nhảy tới, rồi Enter): ')
+    .then((v) => {
+      const re = new RegExp('[?&]' + tenTham + '=([^&\\s]+)');
+      const m = String(v || '').match(re);
+      if (!m) throw new Error('Chuỗi dán vào không có tham số ' + tenTham + '=');
+      return decodeURIComponent(m[1]);
+    });
+
+  try {
+    return await Promise.race([cho, danTay]);
+  } finally {
+    try { sv.close(); } catch (_) {}
+  }
+}
+
+/* =======================================================================
    GOOGLE ADS — API THẬT
    ======================================================================= */
 
@@ -372,7 +420,6 @@ async function setupGoogle() {
  * Cổng chỉ mở đúng lúc chờ Google gọi về rồi đóng ngay.
  */
 async function layRefreshToken(clientId, clientSecret) {
-  const http = require('http');
   const CONG = 47123;
   const redirect = 'http://127.0.0.1:' + CONG;
 
@@ -390,24 +437,16 @@ async function layRefreshToken(clientId, clientSecret) {
   say('');
   say('  ' + C.accent(url));
   say('');
-  say(C.dim('  Đồng ý xong trình duyệt sẽ tự gọi về máy, cửa sổ này nhận được ngay.'));
+  say(C.dim('  Đồng ý xong trình duyệt tự gọi về máy, cửa sổ này nhận được ngay.'));
+  say(C.dim('  Nếu trình duyệt báo "127.0.0.1 refused to connect": copy nguyên URL trên'));
+  say(C.dim('  thanh địa chỉ của nó rồi dán vào dòng dưới — code vẫn còn hiệu lực ~10 phút.'));
 
-  const code = await new Promise((resolve, reject) => {
-    const sv = http.createServer((req, res) => {
-      const u = new URL(req.url, redirect);
-      const c = u.searchParams.get('code');
-      const err = u.searchParams.get('error');
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end('<meta charset="utf-8"><body style="font:16px system-ui;padding:40px">' +
-        (c ? '<b>Xong.</b> Quay lại cửa sổ dòng lệnh nhé.' : '<b>Bị từ chối:</b> ' + (err || 'không rõ')) +
-        '</body>');
-      sv.close();
-      c ? resolve(c) : reject(new Error(err || 'Không nhận được code'));
-    });
-    sv.on('error', reject);
-    sv.listen(CONG, '127.0.0.1');
-    setTimeout(() => { try { sv.close(); } catch (_) {} reject(new Error('Chờ quá 5 phút')); }, 300000);
-  });
+  let code;
+  try {
+    code = await choCode(CONG, 'code');
+  } catch (e) {
+    throw new Error(e.message);
+  }
 
   const r = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
@@ -500,9 +539,15 @@ async function setupTiktok() {
   chọn quyền Ad Account Management + Reporting → Submit → chờ duyệt
   → uỷ quyền tài khoản → đổi auth_code lấy access token dài hạn.
 `);
-  if (!(await yes('  Đã có access token TikTok chưa?', false))) {
-    say(C.dim('\n  Trong lúc chờ thì Meta + Google đã lo phần lớn số liệu rồi.\n'));
-    return false;
+  /* Hai đường: có token rồi thì dán; chưa có thì công cụ tự đi lấy bằng app_id +
+   * secret, vì bước cuối (đổi auth_code) là một lệnh POST, làm tay bằng trình
+   * duyệt không xong. */
+  if (!(await yes('  Đã có access token TikTok sẵn chưa?', false))) {
+    if (!(await yes('  Vậy để công cụ tự lấy token bằng app_id + secret nhé?', true))) {
+      say(C.dim('\n' + '  Trong lúc chờ thì Meta + Google đã lo phần lớn số liệu rồi.' + '\n'));
+      return false;
+    }
+    return await tiktokTuLayToken();
   }
   const token = (process.env.LARK_TIKTOK_TOKEN || '').trim() || await askSecret('  Token (nhập ẩn): ');
   if (!token) { say(C.err('  Không nhận được token.')); return false; }
@@ -517,6 +562,85 @@ async function setupTiktok() {
 
   patch('tiktok', { enabled: true, accessToken: token, advertiserIds, conversionMetric: 'conversion' });
   say(C.ok('\n  ✓ Đã lưu — kênh TikTok đã BẬT.'));
+  return true;
+}
+
+/**
+ * Tự lấy access token TikTok: mở trang uỷ quyền -> nhận auth_code -> đổi thành
+ * access token dài hạn (TikTok không đặt hạn cho token này) + danh sách advertiser.
+ */
+async function tiktokTuLayToken() {
+  const CONG = 47124;
+  const redirect = 'http://127.0.0.1:' + CONG;
+  say('');
+  say('  Cần hai thứ ở business-api.tiktok.com → My Apps → app của anh:');
+  say('    · App ID   (dãy số)');
+  say('    · App Secret');
+  say(C.dim('  Và trong phần cấu hình app, thêm ' + redirect + ' vào Redirect URL.'));
+  say('');
+
+  const appId = (await ask('  App ID: ')).trim();
+  if (!appId) { say(C.err('  Không nhận được App ID.')); return false; }
+  const secret = await askSecret('  App Secret: ');
+  if (!secret) { say(C.err('  Không nhận được App Secret.')); return false; }
+  hideSecret(secret);
+
+  const url = 'https://business-api.tiktok.com/portal/auth?' + new URLSearchParams({
+    app_id: appId, state: 'rooty', redirect_uri: redirect,
+  }).toString();
+
+  say('');
+  say('  Mở link này trong trình duyệt đang đăng nhập TikTok Business:');
+  say('');
+  say('  ' + C.accent(url));
+  say('');
+  say(C.dim('  Uỷ quyền xong trình duyệt tự gọi về máy. Nếu nó báo không kết nối được'));
+  say(C.dim('  thì copy nguyên URL trên thanh địa chỉ rồi dán vào dòng dưới.'));
+
+  let authCode;
+  try {
+    authCode = await choCode(CONG, 'auth_code');
+  } catch (e) {
+    say(C.err('\n' +  + '  ✗ ' + e.message));
+    return false;
+  }
+
+  say('\n' +  + '  Đang đổi auth_code lấy access token…');
+  let d;
+  try {
+    d = await postJson('https://business-api.tiktok.com/open_api/v1.3/oauth2/access_token/',
+      { app_id: appId, secret, auth_code: authCode }, { label: 'TikTok oauth', retries: 1 });
+  } catch (e) {
+    say(C.err('  ✗ ' + scrub(e.message)));
+    return false;
+  }
+  if (Number(d.code) !== 0 || !d.data || !d.data.access_token) {
+    say(C.err('  ✗ TikTok báo: (' + d.code + ') ' + scrub(d.message || 'không rõ')));
+    say(C.dim('    → thường là app chưa được duyệt, hoặc Redirect URL khai trong app khác ' + redirect));
+    return false;
+  }
+
+  const token = d.data.access_token;
+  hideSecret(token);
+  const advertiserIds = (d.data.advertiser_ids || []).map(String);
+  say(C.ok('  ✓ Lấy được token. Tài khoản được uỷ quyền: ' + (advertiserIds.join(', ') || '(không có)')));
+  if (!advertiserIds.length) {
+    say(C.err('  ✗ Không có advertiser nào được uỷ quyền — quay lại trang uỷ quyền và tick tài khoản.'));
+    return false;
+  }
+
+  say('\n' +  + '  Đang kiểm tra đọc số…');
+  const r = await tiktok.test({ accessToken: token, advertiserIds });
+  if (!r.ok) {
+    say(C.err('  ✗ ' + scrub(r.message || 'không rõ')));
+    patch('tiktok', { enabled: false, accessToken: token, advertiserIds, conversionMetric: 'conversion' });
+    say(C.dim('    Đã lưu token nhưng để TẮT kênh, khỏi phải uỷ quyền lại.'));
+    return false;
+  }
+  (r.results || []).forEach((x) => say(C.ok('  ✓ ' + x.name + ' · ' + x.currency + ' · ' + x.timezone)));
+
+  patch('tiktok', { enabled: true, accessToken: token, advertiserIds, conversionMetric: 'conversion' });
+  say(C.ok('\n' +  + '  ✓ Đã lưu — kênh TikTok đã BẬT.'));
   return true;
 }
 
