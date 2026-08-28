@@ -41,6 +41,10 @@ function log(id, dong, loai = 'out') {
   String(dong).split(/\r?\n/).forEach((d) => {
     if (!d.trim()) return;
     s.logs.push({ t, loai, d: d.length > 500 ? d.slice(0, 500) + '…' : d });
+    /* In ra console của hub luôn: trên server chung (Render) người quản trị chỉ đọc
+     * được log của tiến trình chính, còn muốn xem log module trong app thì phải đăng
+     * nhập — module chết lúc khởi động là mù hoàn toàn. */
+    console.log('[' + id + '] ' + d);
   });
   if (s.logs.length > MAX_LOG) s.logs.splice(0, s.logs.length - MAX_LOG);
 }

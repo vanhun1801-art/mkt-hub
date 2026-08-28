@@ -160,6 +160,27 @@ async function handle(req, res, url) {
   if (p === '/auth/login') {
     if (!cfg.publicUrl) return page(res, 'Thiếu cấu hình', '<h2>Thiếu PUBLIC_URL</h2>' +
       '<p>Đặt biến môi trường <code>PUBLIC_URL</code> bằng địa chỉ công khai của app.</p>', 500);
+
+    /* PUBLIC_URL sai tên miền là lỗi cấu hình hay gặp nhất khi deploy: Render cấp
+     * URL có hậu tố (mkt-hub-w6hi...) mà biến vẫn để tên dự kiến. Nếu cứ đẩy sang
+     * Lark thì người dùng bị trả về một tên miền chết và không hiểu vì sao — nên
+     * bắt tại đây và nói thẳng phải sửa gì. */
+    const hostThat = String(req.headers['x-forwarded-host'] || req.headers.host || '');
+    let hostKhai = '';
+    try { hostKhai = new URL(cfg.publicUrl).host; } catch (_) {}
+    if (hostThat && hostKhai && hostThat.toLowerCase() !== hostKhai.toLowerCase()) {
+      const dung = 'https://' + hostThat;
+      return page(res, 'PUBLIC_URL chưa đúng',
+        '<h2>PUBLIC_URL chưa đúng tên miền</h2>' +
+        '<p>Anh đang mở app qua <code>' + hostThat.replace(/[<>]/g, '') + '</code>, ' +
+        'nhưng biến <code>PUBLIC_URL</code> lại khai <code>' + hostKhai.replace(/[<>]/g, '') + '</code>. ' +
+        'Đăng nhập Lark sẽ trả về tên miền sai nên không vào được.</p>' +
+        '<p><b>Sửa:</b> Render → service → <b>Environment</b> → đặt<br>' +
+        '<code>PUBLIC_URL = ' + dung + '</code> → Save.</p>' +
+        '<p>Rồi trong Lark Developer Console → <b>Security Settings</b> → Redirect URL thêm<br>' +
+        '<code>' + dung + '/auth/callback</code> → <b>Create Version</b> và phát hành lại.</p>', 500);
+    }
+
     return redirect(res, loginUrl(url.searchParams.get('next') || '/'));
   }
 

@@ -16,7 +16,9 @@ function resolveCliScript() {
     const p = path.join(r, rel);
     if (fs.existsSync(p)) return p;
   }
-  throw new Error('Không tìm thấy lark-cli. Đặt biến môi trường LARK_CLI_SCRIPT trỏ tới scripts/run.js');
+  // Chế độ api (server chung như Render) không cài lark-cli — đừng ném lỗi ở đây,
+  // vì config.js nạp lúc khởi động thì cả app sẽ chết. lark.js sẽ báo khi thật sự dùng tới.
+  return null;
 }
 
 const QUYEN_FILE = process.env.LARK_QUYEN_FILE
