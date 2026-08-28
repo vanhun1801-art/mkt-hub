@@ -24,6 +24,8 @@ const S = {
   editing: null,
   dirty: {},
   modalTask: null,           // task đang xử lý trong modal
+  // Quản lý bấm "Sửa đầy đủ" trong ô chi tiết -> mở form mọi trường thay vì bản gọn
+  suaDayDu: false,
   quyen: null,               // dữ liệu modal phân quyền
   wlSort: { key: 'open', dir: 'desc' },   // sắp xếp bảng tải việc
   assignPick: [],            // người được chọn trong modal phân công
@@ -2144,6 +2146,7 @@ function openDrawer(task) {
     };
   }
   S.dirty = {};
+  S.suaDayDu = false;     // mở ra là bản gọn, muốn sửa sâu thì bấm nút
   buildDrawer();
   $('#drawer').classList.add('open');
   $('#scrim').classList.add('open');
@@ -2170,6 +2173,9 @@ function set(key, val) {
 function isStaffMode() {
   if (S.view !== 'work') return false;
   if (S.viewAs) return false;      // quản lý xem việc người khác → mở drawer đầy đủ
+  /* Quản lý sửa được tất cả: bản gọn chỉ là cách XEM, bấm "Sửa đầy đủ" là ra form
+   * mọi trường. Nhân sự không có nút này nên vẫn bị khoá trường của người order. */
+  if (S.isManager && S.suaDayDu) return false;
   const t = S.editing;
   if (!t || t.isNew) return false;
   return true;
@@ -2184,6 +2190,12 @@ function buildDrawer() {
   $('#dRecId').textContent = isNew ? 'CÔNG VIỆC MỚI' : t.id;
   $('#dTitleView').textContent = isNew ? 'Tạo công việc mới' : (t.title || '(chưa có tên)');
   $('#dDelete').classList.toggle('hidden', isNew || staff);
+  const nutFull = $('#dFull');
+  nutFull.classList.toggle('hidden', isNew || !S.isManager);
+  nutFull.textContent = staff ? '✎ Sửa đầy đủ' : '◀ Xem bản gọn';
+  nutFull.title = staff
+    ? 'Mở form sửa mọi trường (deadline, người phụ trách, chiến dịch…)'
+    : 'Về bản gọn — đúng những gì nhân sự nhìn thấy';
   $('#dSave').textContent = isNew ? 'Tạo công việc' : 'Lưu thay đổi';
 
   /* Đầu ô chi tiết nhuốm màu theo giai đoạn, và mang luôn cái quan trọng nhất
@@ -3467,6 +3479,10 @@ function setupChrome() {
 
   /* X và Đóng = bỏ, không lưu. Bấm ra vùng trống = lưu luôn — để không ai gõ xong
    * rồi mất bài vì quên bấm Lưu. */
+  $('#dFull').onclick = () => {
+    S.suaDayDu = !S.suaDayDu;
+    buildDrawer();
+  };
   $('#dClose').onclick = closeDrawer;
   $('#dCancel').onclick = closeDrawer;
   $('#scrim').onclick = () => luuRoiDong();
