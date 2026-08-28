@@ -29,6 +29,12 @@ const DEFAULT = {
   },
   tiktok: { enabled: false, accessToken: '', advertiserIds: [], conversionMetric: 'conversion' },
   googleSheet: { enabled: false, csvUrl: '', level: 'adgroup' },
+  /* Google Ads API thật. Song song với googleSheet: chưa được Google duyệt
+   * developer token thì đi đường Sheet, duyệt rồi thì bật cái này và tắt cái kia. */
+  googleAds: {
+    enabled: false, clientId: '', clientSecret: '', refreshToken: '',
+    developerToken: '', customerIds: [], loginCustomerId: '',
+  },
   dongBo: {
     soNgayLui: 7, moiSoGio: 1, khiKhoiDong: true,
     ghiDeNhapTay: true, tuTaoMoi: true,
@@ -60,12 +66,11 @@ function read() {
     try { raw = stripComments(JSON.parse(process.env.ADS_CONNECT_JSON)); }
     catch (e) { console.error('  ADS_CONNECT_JSON không phải JSON hợp lệ: ' + e.message); raw = {}; }
   }
-  return {
-    meta: { ...DEFAULT.meta, ...(raw.meta || {}) },
-    tiktok: { ...DEFAULT.tiktok, ...(raw.tiktok || {}) },
-    googleSheet: { ...DEFAULT.googleSheet, ...(raw.googleSheet || {}) },
-    dongBo: { ...DEFAULT.dongBo, ...(raw.dongBo || {}) },
-  };
+  /* Đắp từng phần theo DEFAULT: file cũ chưa có khối mới (VD googleAds) vẫn đọc
+   * được, không phải sửa file tay sau mỗi lần thêm kênh. */
+  const out = {};
+  Object.keys(DEFAULT).forEach((k) => { out[k] = { ...DEFAULT[k], ...(raw[k] || {}) }; });
+  return out;
 }
 
 /** Chỉ cho sửa các tuỳ chọn không phải bí mật. Token/ID phải sửa trong file. */
@@ -84,7 +89,7 @@ function writeOptions(next = {}) {
     ghiDeNhapTay: n.ghiDeNhapTay == null ? d.ghiDeNhapTay : !!n.ghiDeNhapTay,
     tuTaoMoi: n.tuTaoMoi == null ? d.tuTaoMoi : !!n.tuTaoMoi,
   };
-  ['meta', 'tiktok', 'googleSheet'].forEach((k) => {
+  ['meta', 'tiktok', 'googleAds', 'googleSheet'].forEach((k) => {
     if (next[k] && next[k].enabled != null) cur[k].enabled = !!next[k].enabled;
   });
   fs.writeFileSync(FILE, JSON.stringify(cur, null, 2), 'utf8');
@@ -122,6 +127,22 @@ function status() {
         taiKhoan: (c.tiktok.advertiserIds || []).map(maskAccount),
         chiSoChuyenDoi: c.tiktok.conversionMetric,
         sanSang: !!(c.tiktok.accessToken && (c.tiktok.advertiserIds || []).length),
+      },
+      {
+        key: 'googleAds', label: 'Google Ads (API)', enabled: c.googleAds.enabled,
+        coToken: !!(c.googleAds.refreshToken && c.googleAds.developerToken),
+        soTaiKhoan: (c.googleAds.customerIds || []).length,
+        taiKhoan: (c.googleAds.customerIds || []).map(maskAccount),
+        capDo: 'ad',
+        thieu: [
+          c.googleAds.clientId ? '' : 'clientId',
+          c.googleAds.clientSecret ? '' : 'clientSecret',
+          c.googleAds.refreshToken ? '' : 'refreshToken',
+          c.googleAds.developerToken ? '' : 'developerToken',
+          (c.googleAds.customerIds || []).length ? '' : 'customerIds',
+        ].filter(Boolean),
+        sanSang: !!(c.googleAds.clientId && c.googleAds.clientSecret && c.googleAds.refreshToken &&
+          c.googleAds.developerToken && (c.googleAds.customerIds || []).length),
       },
       {
         key: 'googleSheet', label: 'Google Ads (qua Google Sheet)', enabled: c.googleSheet.enabled,

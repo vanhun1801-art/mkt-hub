@@ -94,7 +94,9 @@ const post = async (p, b) => {
 
   console.log('— cấu hình kết nối không lộ bí mật');
   const st = ketnoi.status();
-  t('có 3 kênh', st.providers.length === 3);
+  t('có 4 kênh (meta · tiktok · Google Ads API · Google Sheet)', st.providers.length === 4);
+  t('kênh Google Ads API nói rõ còn thiếu gì',
+    Array.isArray((st.providers.find((p) => p.key === 'googleAds') || {}).thieu));
   t('không có trường accessToken', !JSON.stringify(st).includes('accessToken'));
   t('không lộ giá trị token', !JSON.stringify(st).toLowerCase().includes('eaa'));
   t('có cờ coToken', st.providers.every((p) => typeof p.coToken === 'boolean'));

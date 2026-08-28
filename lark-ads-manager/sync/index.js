@@ -14,10 +14,12 @@ const csv = require('./csv');
 const meta = require('./meta');
 const tiktok = require('./tiktok');
 const gsheet = require('./gsheet');
+const gads = require('./gads');
 
 const ADAPTERS = {
   meta: { mod: meta, source: 'Meta API', label: 'Facebook / Meta' },
   tiktok: { mod: tiktok, source: 'TikTok API', label: 'TikTok' },
+  googleAds: { mod: gads, source: 'Google Ads API', label: 'Google Ads (API)' },
   googleSheet: { mod: gsheet, source: 'Google Ads', label: 'Google Ads (qua Sheet)' },
 };
 

@@ -24,6 +24,7 @@ const ketnoi = require('./sync/ketnoi');
 const meta = require('./sync/meta');
 const tiktok = require('./sync/tiktok');
 const gsheet = require('./sync/gsheet');
+const gads = require('./sync/gads');
 const { getJson, scrub, hideSecret } = require('./sync/http');
 const store = require('./store');
 
@@ -360,6 +361,133 @@ async function setupGoogle() {
 }
 
 /* =======================================================================
+   GOOGLE ADS — API THẬT
+   ======================================================================= */
+
+/**
+ * Lấy refresh token bằng luồng OAuth "cài đặt" (loopback).
+ *
+ * Vì sao mở cổng 127.0.0.1 chứ không dán code bằng tay: Google đã bỏ luồng
+ * out-of-band (urn:ietf:wg:oauth:2.0:oob) từ 2022, dán code tay không còn chạy.
+ * Cổng chỉ mở đúng lúc chờ Google gọi về rồi đóng ngay.
+ */
+async function layRefreshToken(clientId, clientSecret) {
+  const http = require('http');
+  const CONG = 47123;
+  const redirect = 'http://127.0.0.1:' + CONG;
+
+  const url = 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: redirect,
+    response_type: 'code',
+    scope: 'https://www.googleapis.com/auth/adwords',
+    access_type: 'offline',
+    prompt: 'consent',           // bắt Google cấp refresh token cả khi đã đồng ý trước đó
+  }).toString();
+
+  say('');
+  say('  Mở link này trong trình duyệt đang đăng nhập đúng tài khoản Google Ads:');
+  say('');
+  say('  ' + C.accent(url));
+  say('');
+  say(C.dim('  Đồng ý xong trình duyệt sẽ tự gọi về máy, cửa sổ này nhận được ngay.'));
+
+  const code = await new Promise((resolve, reject) => {
+    const sv = http.createServer((req, res) => {
+      const u = new URL(req.url, redirect);
+      const c = u.searchParams.get('code');
+      const err = u.searchParams.get('error');
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end('<meta charset="utf-8"><body style="font:16px system-ui;padding:40px">' +
+        (c ? '<b>Xong.</b> Quay lại cửa sổ dòng lệnh nhé.' : '<b>Bị từ chối:</b> ' + (err || 'không rõ')) +
+        '</body>');
+      sv.close();
+      c ? resolve(c) : reject(new Error(err || 'Không nhận được code'));
+    });
+    sv.on('error', reject);
+    sv.listen(CONG, '127.0.0.1');
+    setTimeout(() => { try { sv.close(); } catch (_) {} reject(new Error('Chờ quá 5 phút')); }, 300000);
+  });
+
+  const r = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      code, client_id: clientId, client_secret: clientSecret,
+      redirect_uri: redirect, grant_type: 'authorization_code',
+    }).toString(),
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!d.refresh_token) {
+    throw new Error(scrub('Google không trả refresh token: ' + (d.error_description || d.error || 'không rõ')));
+  }
+  hideSecret(d.refresh_token);
+  return d.refresh_token;
+}
+
+async function setupGoogleApi() {
+  rule();
+  say(C.b('  GOOGLE ADS — API THẬT'));
+  rule();
+  say(`
+  Cần bốn thứ:
+
+    1. ${C.b('OAuth client')} — Google Cloud Console → API & Services → Credentials
+       → Create credentials → OAuth client ID → loại ${C.b('Desktop app')}
+       Nhớ thêm ${C.accent('http://127.0.0.1:47123')} vào Authorized redirect URIs.
+    2. ${C.b('Developer token')} — Google Ads → Công cụ → API Center.
+       Token mới ở mức ${C.warn('Test')} chỉ đọc được tài khoản test; muốn đọc tài khoản
+       thật phải xin ${C.b('Basic Access')} (Google duyệt, thường vài ngày).
+    3. ${C.b('ID tài khoản quảng cáo')} — góc trên Google Ads, dạng 123-456-7890.
+    4. ${C.b('ID tài khoản quản lý (MCC)')} nếu tài khoản nằm dưới MCC.
+`);
+  if (!(await yes('  Có đủ OAuth client và developer token chưa?', false))) {
+    say(C.dim('\n  Chưa đủ thì cứ dùng đường Google Sheet (`node ket-noi.js --google`), số vẫn về đủ.\n'));
+    return false;
+  }
+
+  const clientId = await ask('  Client ID: ');
+  if (!clientId) { say(C.err('  Không nhận được Client ID.')); return false; }
+  const clientSecret = await askSecret('  Client secret: ');
+  if (!clientSecret) { say(C.err('  Không nhận được Client secret.')); return false; }
+  const developerToken = await askSecret('  Developer token: ');
+  if (!developerToken) { say(C.err('  Không nhận được Developer token.')); return false; }
+  const ids = (await ask('  ID tài khoản quảng cáo (nhiều thì cách nhau dấu phẩy): '))
+    .split(',').map((x) => x.trim()).filter(Boolean);
+  if (!ids.length) { say(C.err('  Chưa khai tài khoản nào.')); return false; }
+  const mcc = await ask('  ID tài khoản quản lý MCC (Enter nếu không có): ');
+
+  let refreshToken;
+  try {
+    refreshToken = await layRefreshToken(clientId, clientSecret);
+  } catch (e) {
+    say(C.err('\n  ✗ ' + e.message));
+    say(C.dim('    → kiểm tra đã thêm http://127.0.0.1:47123 vào Authorized redirect URIs chưa.'));
+    return false;
+  }
+  say(C.ok('  ✓ Đã lấy được refresh token.'));
+
+  const conf = { clientId, clientSecret, refreshToken, developerToken, customerIds: ids, loginCustomerId: mcc };
+  say('\n  Đang thử đọc tài khoản…');
+  const r = await gads.test(conf);
+  if (!r.ok) {
+    const chi = r.message || (r.results || []).filter((x) => !x.ok).map((x) => x.account + ': ' + x.message).join(' · ');
+    say(C.err('  ✗ ' + scrub(chi)));
+    say(C.dim('    → developer token mức Test không đọc được tài khoản thật; cần Basic Access.'));
+    // vẫn lưu để khỏi phải lấy lại refresh token, chỉ không bật kênh
+    patch('googleAds', { ...conf, enabled: false });
+    say(C.dim('    Đã lưu cấu hình nhưng để TẮT. Xin duyệt xong chỉ cần bật lại trong app.'));
+    return false;
+  }
+  (r.results || []).forEach((x) => say(C.ok(`  ✓ ${x.account} · ${x.name} · ${x.currency} · ${x.timezone}`)));
+
+  patch('googleAds', { ...conf, enabled: true });
+  say(C.ok('\n  ✓ Đã lưu — kênh Google Ads (API) đã BẬT.'));
+  say(C.dim('    Nếu đang bật cả đường Google Sheet thì nên tắt một đường, tránh đếm hai lần.'));
+  return true;
+}
+
+/* =======================================================================
    TIKTOK
    ======================================================================= */
 async function setupTiktok() {
@@ -426,11 +554,13 @@ async function setupTiktok() {
     say(`    ${p.label.padEnd(32)} ${s}`);
   });
 
-  const only = (process.argv.slice(2).find((a) => /^--(meta|facebook|google|googlesheet|tiktok)$/i.test(a)) || '')
+  const only = (process.argv.slice(2)
+    .find((a) => /^--(meta|facebook|google|googlesheet|google-api|googleads|tiktok)$/i.test(a)) || '')
     .replace(/^--/, '');
   const chay = {
     meta: setupMeta, facebook: setupMeta,
     google: setupGoogle, googlesheet: setupGoogle,
+    'google-api': setupGoogleApi, googleads: setupGoogleApi,
     tiktok: setupTiktok,
   };
 
@@ -441,7 +571,9 @@ async function setupTiktok() {
     say('');
     if (await yes('  Cài Facebook / Meta bây giờ?')) daBat = (await setupMeta()) || daBat;
     say('');
-    if (await yes('  Cài Google Ads bây giờ?')) daBat = (await setupGoogle()) || daBat;
+    if (await yes('  Cài Google Ads qua API bây giờ?', false)) daBat = (await setupGoogleApi()) || daBat;
+    say('');
+    if (await yes('  Cài Google Ads qua Google Sheet bây giờ?')) daBat = (await setupGoogle()) || daBat;
     say('');
     if (await yes('  Cài TikTok bây giờ?', false)) daBat = (await setupTiktok()) || daBat;
   }

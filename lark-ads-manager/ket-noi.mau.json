@@ -1,6 +1,5 @@
 {
   "_huongDan": "Copy file này thành ket-noi.json rồi điền token. ket-noi.json đã được gitignore và KHÔNG bao giờ hiện token ra giao diện app.",
-
   "meta": {
     "enabled": false,
     "_token": "System User token lấy trong Business Manager → Cài đặt doanh nghiệp → Người dùng hệ thống → Tạo mã truy cập, tick quyền ads_read. Token này không hết hạn.",
@@ -13,7 +12,6 @@
     "_clickMetric": "clicks = Clicks (all) như Ads Manager mặc định. Đổi thành inline_link_clicks nếu muốn chỉ đếm click vào link.",
     "clickMetric": "clicks"
   },
-
   "tiktok": {
     "enabled": false,
     "_token": "Tạo app tại business-api.tiktok.com → chờ duyệt → uỷ quyền advertiser account → lấy Access Token dài hạn.",
@@ -22,7 +20,21 @@
     "_conversionMetric": "conversion = tổng chuyển đổi. Dùng result nếu muốn theo cột Kết quả của TikTok Ads Manager.",
     "conversionMetric": "conversion"
   },
-
+  "googleAds": {
+    "enabled": false,
+    "_huongDan": "Google Ads API thật. Cần 4 thứ: OAuth client (Desktop app) ở Google Cloud Console, refresh token (chạy `node ket-noi.js --google-api`), developer token (xin ở Google Ads API Center, phải được Google duyệt), và ID tài khoản quảng cáo. Chưa được duyệt developer token thì dùng khối googleSheet bên dưới.",
+    "_clientId": "OAuth 2.0 Client ID, dạng 1234-abc.apps.googleusercontent.com",
+    "clientId": "",
+    "clientSecret": "",
+    "_refreshToken": "Lấy một lần bằng `node ket-noi.js --google-api`; không hết hạn trừ khi bị thu hồi.",
+    "refreshToken": "",
+    "_developerToken": "Google Ads → Công cụ → API Center. Token mới ở mức Test chỉ đọc được tài khoản test; xin Basic Access mới đọc được tài khoản thật.",
+    "developerToken": "",
+    "_customerIds": "ID tài khoản quảng cáo, dạng 123-456-7890 hoặc 1234567890. Nhiều tài khoản thì thêm nhiều phần tử.",
+    "customerIds": [],
+    "_loginCustomerId": "ID tài khoản quản lý (MCC) nếu các tài khoản trên nằm dưới MCC. Không có MCC thì để trống.",
+    "loginCustomerId": ""
+  },
   "googleSheet": {
     "enabled": false,
     "_huongDan": "Google Ads KHÔNG cần API: dán docs/google-ads-script.js vào Google Ads → Công cụ → Tập lệnh, hẹn giờ mỗi giờ. Script ghi vào Google Sheet. Sau đó Sheet → Tệp → Chia sẻ → Xuất bản lên web → chọn định dạng CSV, dán link vào đây.",
@@ -30,7 +42,6 @@
     "_level": "adgroup = mỗi dòng là 1 nhóm quảng cáo (nên dùng, vì quảng cáo tìm kiếm của Google không có tên). ad = mỗi dòng 1 quảng cáo.",
     "level": "adgroup"
   },
-
   "dongBo": {
     "_soNgayLui": "Mỗi lần đồng bộ ghi lại bao nhiêu ngày gần nhất. Để 7 vì các nền tảng khai báo lại chuyển đổi tới 7 ngày.",
     "soNgayLui": 7,

@@ -315,3 +315,31 @@ node test/sync.test.js
 trong log lỗi, chuẩn hoá link Sheet, chọn đúng `action_type` của Meta, và đối chiếu
 dry-run trên Base thật (khớp đúng bản ghi cũ, không nhân đôi, cộng đúng khi gộp, chặn
 ID trùng). Không ghi gì vào Base.
+
+## Google Ads: hai đường, chọn một
+
+| | Google Ads (API) | Google Ads (qua Google Sheet) |
+|---|---|---|
+| Khối cấu hình | `googleAds` | `googleSheet` |
+| Cần gì | OAuth client + refresh token + **developer token** (Google duyệt) + ID tài khoản | một Google Sheet + Google Ads Script + link CSV |
+| Cấp chi tiết | tới từng quảng cáo (`ad_group_ad`) | theo cấp khai trong script (mặc định nhóm) |
+| Chờ duyệt | có — developer token mức Test không đọc được tài khoản thật | không |
+| Lấy cấu hình | `node ket-noi.js --google-api` | `node ket-noi.js --google` |
+
+**Chỉ nên bật một đường.** Bật cả hai thì cùng một ngày có hai nguồn ghi vào Base,
+số chi phí đếm hai lần.
+
+### Các bước cho đường API
+
+1. Google Cloud Console → **Credentials** → Create OAuth client ID → loại
+   **Desktop app**. Thêm `http://127.0.0.1:47123` vào *Authorized redirect URIs*.
+2. Google Ads → **Công cụ → API Center** → xin developer token. Token mới ở mức
+   *Test* chỉ đọc được tài khoản test; muốn đọc tài khoản thật phải xin **Basic
+   Access** (Google duyệt, thường vài ngày).
+3. Chạy `node ket-noi.js --google-api` — công cụ mở link đồng ý của Google, tự nhận
+   code qua `127.0.0.1:47123`, đổi thành refresh token rồi thử đọc tài khoản luôn.
+4. Trên Render: copy toàn bộ `ket-noi.json` vào biến môi trường `ADS_CONNECT_JSON`.
+   Ổ đĩa của Render là tạm, file sẽ mất sau mỗi lần deploy.
+
+Refresh token của Google không hết hạn (trừ khi bị thu hồi hoặc đổi mật khẩu), nên
+không phải lấy lại định kỳ như token Meta.

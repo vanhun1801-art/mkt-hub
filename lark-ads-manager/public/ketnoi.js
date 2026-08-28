@@ -4,7 +4,7 @@
 (function () {
   const KS = { lastReport: null, csvText: '', csvName: '' };
 
-  const PLAT_OF = { meta: 'Facebook', tiktok: 'TikTok', googleSheet: 'Google Ads' };
+  const PLAT_OF = { meta: 'Facebook', tiktok: 'TikTok', googleAds: 'Google Ads', googleSheet: 'Google Ads' };
 
   VIEW['ket-noi'] = async (view) => {
     const c = await api('/api/connect');
@@ -24,6 +24,9 @@
           ${han && (han.muc === 'het' || han.muc === 'sapHet') ? `<div class="help" style="margin:0 0 12px;border-color:var(--${han.muc === 'het' ? 'bad' : 'warn'});color:var(--${han.muc === 'het' ? 'bad' : 'warn'})">
             <b>${han.muc === 'het' ? 'Token đã hết hạn' : 'Token sắp hết hạn'}</b> — ${esc(han.text)}.
             Chạy <code>node ket-noi.js --meta</code> để lấy token mới.</div>` : ''}
+          ${(p.thieu || []).length ? `<div class="help" style="margin:0 0 12px">
+            <b>Còn thiếu:</b> ${p.thieu.map((x) => `<code>${esc(x)}</code>`).join(' · ')}.
+            Chạy <code>node ket-noi.js --google-api</code> để khai một lượt.</div>` : ''}
           <div class="stat-row" style="margin-bottom:10px">
             <div><div class="s-label">Token / Link</div><div class="s-value" style="font-size:14px">${p.coToken ? '<span class="tag good">đã có</span>' : '<span class="tag bad">chưa có</span>'}</div></div>
             ${han ? `<div><div class="s-label">Hạn token</div><div class="s-value" style="font-size:13px"><span class="tag ${HAN_CLASS[han.muc] || ''}">${esc(han.text)}</span></div></div>` : ''}
