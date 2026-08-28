@@ -199,15 +199,23 @@ function fillDueSelect(sel, placeholder) {
   /* Nhân sự chỉ được bảy mốc quanh hôm nay — danh sách do lớp vỏ cấp (loc.js),
    * dùng chung với Tổng quan và hai base kia. Không có "tất cả", không quá hạn
    * cả tháng trước: nhìn xa hơn là việc của quản lý. */
-  if (NS_HUB()) {
-    for (const x of window.HUB_LOC.danhSach()) {
+  const moc = MOC_HUB();
+  if (moc) {
+    /* Khoảng tuỳ chỉnh chỉ đặt được ở thanh lọc của lớp vỏ (có hai ô ngày) — ở đây
+     * hiện thành một lựa chọn "Bộ lọc chung" để biết đang lọc theo khoảng nào. */
+    if (S.hubKhoang && !window.HUB_LOC.macCuaKhoang(S.hubKhoang.tu, S.hubKhoang.den)) {
+      const op = el('option', '', 'Bộ lọc chung: ' + dmyNgan(S.hubKhoang.tu) + ' → ' + dmyNgan(S.hubKhoang.den));
+      op.value = 'khoang';
+      sel.appendChild(op);
+    }
+    for (const x of moc) {
       const op = el('option', '', x.ten);
       op.value = 'ns:' + x.tu + ':' + x.den;
       sel.appendChild(op);
     }
     sel.value = keep;
     if (!sel.value) {
-      const mac = window.HUB_LOC.danhSach().find((x) => x.k === window.HUB_LOC.MAC_DINH);
+      const mac = moc.find((x) => x.k === window.HUB_LOC.MAC_DINH) || moc[0];
       if (mac) sel.value = 'ns:' + mac.tu + ':' + mac.den;
     }
     return;
@@ -239,9 +247,12 @@ const startOfDay = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); retur
 
 const dmyNgan = (s) => (s ? s.slice(8, 10) + '/' + s.slice(5, 7) : '');
 
-/* Đang chạy dưới lớp vỏ Marketing Hub VÀ lớp vỏ nói đây là nhân sự. Lớp vỏ mới là
- * nơi quyết vai (theo email + bảng phân quyền), nên hỏi nó chứ không tự đoán. */
-const NS_HUB = () => !!(window.HUB_LOC && window.__HUB__ && window.__HUB__.quanLy === false);
+/* Đang chạy dưới lớp vỏ Marketing Hub: mốc thời gian lấy theo bộ chuẩn của lớp vỏ
+ * (loc.js) — quản lý một bộ, nhân sự một bộ hẹp hơn. Lớp vỏ mới là nơi quyết vai
+ * (theo email + bảng phân quyền), nên hỏi nó chứ không tự đoán. */
+const DUOI_HUB = () => !!(window.HUB_LOC && window.__HUB__);
+const NS_HUB = () => DUOI_HUB() && window.__HUB__.quanLy === false;
+const MOC_HUB = () => (DUOI_HUB() ? window.HUB_LOC.danhSachTheoVai(window.__HUB__.quanLy) : null);
 const isoNgay = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' +
   String(d.getDate()).padStart(2, '0');
 
@@ -297,7 +308,7 @@ function baoKhoangLenHub(mode, exact) {
 window.hubApKhoang = function (tu, den) {
   S.hubKhoang = tu && den ? { tu, den } : null;
   // nhân sự dùng đúng mã của bảy mốc để ô chọn hiện đúng tên, không phải "Bộ lọc chung"
-  const nsMoc = (NS_HUB() && tu && den && window.HUB_LOC.macCuaKhoang(tu, den))
+  const nsMoc = (DUOI_HUB() && tu && den && window.HUB_LOC.macCuaKhoang(tu, den))
     ? 'ns:' + tu + ':' + den : '';
   const moc = nsMoc || (S.hubKhoang ? 'khoang' : '');
   for (const f of [S.filters, S.wf, S.df]) { f.due = moc; f.dueDate = ''; }
@@ -2667,6 +2678,11 @@ function fillSelect(sel, options, placeholder, isPeople) {
 }
 
 function syncFilterInputs() {
+  /* Gán .value bằng code KHÔNG phát sự kiện change, nên dãy nút phải được vẽ lại
+   * tay — nếu không, đổi mốc ở một chỗ mà hai dãy nút kia vẫn sáng nút cũ. */
+  if (window.HUB_SEG && DUOI_HUB()) {
+    setTimeout(() => ['#wDue', '#dDue', '#fDue'].forEach((x) => window.HUB_SEG($(x))), 0);
+  }
   $('#fCampaign').value = S.filters.campaign;
   $('#fWorkType').value = S.filters.workType;
 
@@ -2710,6 +2726,9 @@ function setupFilters() {
   fillDueSelect($('#wDue'), 'Thời gian: tất cả');
   fillDueSelect($('#dDue'), 'Thời gian: tất cả');
   fillDueSelect($('#fDue'), 'Thời gian: tất cả');
+  /* Dưới lớp vỏ: ô chọn mốc khoác thành dãy nút, cùng một cách thể hiện với trang
+   * Tổng quan và hai base kia. Chạy đứng một mình thì giữ <select> như cũ. */
+  if (window.HUB_SEG && DUOI_HUB()) ['#wDue', '#dDue', '#fDue'].forEach((x) => window.HUB_SEG($(x)));
   fillSelect($('#calStatus'), o.status, 'Mọi trạng thái');
   fillSelect($('#calCampaign'), o.campaign, 'Mọi chiến dịch');
 
@@ -2776,8 +2795,8 @@ function render() {
  * định — nếu không ô chọn hiện một mốc mà dữ liệu lại lọc theo mốc khác.
  */
 function chuanMocNhanSu() {
-  if (!NS_HUB()) return;
-  const ds = window.HUB_LOC.danhSach();
+  const ds = MOC_HUB();
+  if (!ds) return;
   const ma = (x) => 'ns:' + x.tu + ':' + x.den;
   const hop = (v) => ds.some((x) => v === ma(x));
   const mac = ma(ds.find((x) => x.k === window.HUB_LOC.MAC_DINH) || ds[0]);

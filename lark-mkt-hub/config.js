@@ -48,7 +48,18 @@ function docModulesTho() {
   return JSON.parse(fs.readFileSync(MODULES_FILE, 'utf8')).modules || [];
 }
 
+/* Số bản của hai file dùng chung (loc.js, i18n.js) — lấy theo thời điểm sửa file
+ * thật, nên sửa từ điển là trình duyệt tự nạp lại, không phải nhớ đổi build. */
+function verTinh() {
+  let t = 0;
+  for (const f of ['public/loc.js', 'public/i18n.js', 'public/i18n.js']) {
+    try { t = Math.max(t, fs.statSync(path.join(__dirname, f)).mtimeMs); } catch (_) {}
+  }
+  return String(Math.round(t / 1000) || 1);
+}
+
 module.exports = {
+  verChung: verTinh(),
   root: ROOT,
   port: Number(process.env.PORT || 5180),
   build: '2026-08-28.1',

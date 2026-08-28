@@ -127,7 +127,7 @@ function shimJs(mod, nguoi) {
   /* document.write chứ không appendChild: script chèn động KHÔNG chặn parser, nên
    * app.js của module chạy trước và lúc đó chưa có HUB_LOC -> bộ lọc dựng sai một
    * nhịp. Viết thẳng vào lúc đang parse thì hai file này chắc chắn nạp xong trước. */
-  var V = "?v=2026-08-28.1";
+  var V = ${JSON.stringify('?v=' + (cfg.verChung || '1'))};
   document.write('<scr' + 'ipt src="/loc.js' + V + '"></scr' + 'ipt>');
   document.write('<scr' + 'ipt src="/i18n.js' + V + '"></scr' + 'ipt>');
 

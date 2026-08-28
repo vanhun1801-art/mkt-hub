@@ -220,7 +220,7 @@ function tinh(res, duongDan) {
   /* Trang chủ khai loc.js/i18n.js với ?v=BUILD — thay bằng số bản thật để đổi bản
    * là trình duyệt nạp lại từ điển, không dính bản cũ trong cache. */
   if (path.basename(f) === 'index.html') {
-    body = Buffer.from(body.toString('utf8').split('v=BUILD').join('v=' + cfg.build), 'utf8');
+    body = Buffer.from(body.toString('utf8').split('v=BUILD').join('v=' + cfg.verChung), 'utf8');
   }
   send(res, 200, body, { 'Content-Type': MIME[path.extname(f)] || 'application/octet-stream' });
 }
@@ -254,6 +254,8 @@ async function api(req, res, u) {
     return ok(res, {
       ten: cfg.ten, phu: cfg.phu, build: cfg.build, cong: cfg.port,
       che_do: cfg.mode,
+      // số bản của file dùng chung — client gắn vào src iframe để không dính cache
+      ver: cfg.verChung,
       // chạy trên máy cá nhân (cli) thì người ngồi trước máy chính là quản lý
       quanLy: xemNhu ? false : (q.quanLy || cfg.mode !== 'api'),
       // đang xem hộ: vẫn cho thoát chế độ này nên client cần biết mình thật là quản lý
@@ -712,7 +714,11 @@ const server = http.createServer(async (req, res) => {
       nguoi.taoMoi = q.taoMoi;
       nguoi.chiPhi = q.chiPhi;
     }
-    return chuyenTiep(req, res, mod, mm[2] + (u.search || ''), nguoi);
+    /* Chạy trên máy cá nhân thì không có phiên đăng nhập, nhưng người ngồi trước
+     * máy chính là quản lý — phải nói rõ cho app con, nếu không nó tưởng nhân sự
+     * và cắt bớt bộ lọc. Không có id thì proxy cũng không gửi header danh tính. */
+    const vai = nguoi || { quanLy: cfg.mode !== 'api', toanBo: cfg.mode !== 'api' };
+    return chuyenTiep(req, res, mod, mm[2] + (u.search || ''), vai);
   }
 
   /* Trang /toi: in thẳng open_id của người đang đăng nhập ra chữ to, có nút Copy.

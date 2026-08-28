@@ -27,9 +27,11 @@ const MGR = () => S.manager && !S.acting;
 /** Đang xem thay người khác — mọi thao tác ghi bị khoá để không hành động hộ họ. */
 const PREVIEW = () => !!S.acting;
 
-/* Đang chạy dưới lớp vỏ Marketing Hub VÀ lớp vỏ nói đây là nhân sự — lớp vỏ mới là
- * nơi quyết vai, nên hỏi nó chứ không tự đoán. */
-const NS_HUB = () => !!(window.HUB_LOC && window.__HUB__ && window.__HUB__.quanLy === false);
+/* Dưới lớp vỏ Marketing Hub thì mốc thời gian lấy theo bộ chuẩn của lớp vỏ
+ * (loc.js): quản lý một bộ, nhân sự một bộ hẹp hơn. Vai do lớp vỏ quyết. */
+const DUOI_HUB = () => !!(window.HUB_LOC && window.__HUB__);
+const NS_HUB = () => DUOI_HUB() && window.__HUB__.quanLy === false;
+const MOC_HUB = () => (DUOI_HUB() ? window.HUB_LOC.danhSachTheoVai(window.__HUB__.quanLy) : null);
 
 /* Ba tùy chọn quản lý cấp thêm cho nhân sự. Server đã chặn thật, đây chỉ để giao
  * diện không bày ra thứ người dùng không có quyền. */
@@ -218,8 +220,18 @@ function periodOptions() {
   /* Nhân sự chỉ được bảy mốc quanh hôm nay — danh sách do lớp vỏ cấp (loc.js),
    * dùng chung với Tổng quan và hai base kia. Không "tất cả thời gian", không
    * "đã qua": nhìn xa hơn là việc của quản lý. */
-  if (NS_HUB()) {
-    return window.HUB_LOC.danhSach().map((x) => ({ v: 'k:' + x.tu + ':' + x.den, t: x.ten }));
+  const moc = MOC_HUB();
+  if (moc) {
+    const ra = moc.map((x) => ({ v: 'k:' + x.tu + ':' + x.den, t: x.ten }));
+    /* Khoảng tuỳ chỉnh chỉ đặt ở thanh lọc lớp vỏ — ở đây hiện thành một lựa chọn
+     * để biết đang lọc theo khoảng nào. */
+    if (String(S.f.period).startsWith('k:')) {
+      const [, tu, den] = S.f.period.split(':');
+      if (!ra.some((x) => x.v === S.f.period)) {
+        ra.unshift({ v: S.f.period, t: 'Bộ lọc chung: ' + dmyNgan(tu) + ' → ' + dmyNgan(den) });
+      }
+    }
+    return ra;
   }
   const months = [...new Set(S.items.map((t) => t.month).filter((m) => m && m !== 'Chưa có ngày'))].sort().reverse();
   const ds = [
@@ -270,10 +282,10 @@ function khoangCuaKy(p) {
 /* Lớp vỏ Marketing Hub gọi xuống khi bộ lọc chung đổi. */
 /** Nhân sự: nếu kỳ đang chọn không nằm trong bảy mốc thì kéo về tháng này. */
 function chuanKyNhanSu() {
-  if (!NS_HUB()) return;
-  const ds = window.HUB_LOC.danhSach();
-  const dung = ds.some((x) => S.f.period === 'k:' + x.tu + ':' + x.den);
-  if (dung) return;
+  const ds = MOC_HUB();
+  if (!ds) return;
+  // khoảng do lớp vỏ đưa xuống (kể cả tuỳ chỉnh) thì giữ nguyên
+  if (String(S.f.period).startsWith('k:')) return;
   const mac = ds.find((x) => x.k === window.HUB_LOC.MAC_DINH) || ds[0];
   S.f.period = 'k:' + mac.tu + ':' + mac.den;
   if (window.hubBaoKhoang) window.hubBaoKhoang(mac.tu, mac.den);
@@ -899,6 +911,9 @@ function render() {
   else if (S.tab === 'mine') h += viewMine();
   else if (S.tab === 'calendar') h += viewCalendar();
   $('#page').innerHTML = h;
+  /* Dưới lớp vỏ: ô chọn thời gian khoác thành dãy nút — cùng một cách thể hiện với
+   * trang Tổng quan và hai base kia. Chạy đứng một mình thì giữ <select> như cũ. */
+  if (window.HUB_SEG && DUOI_HUB()) window.HUB_SEG($('#fPeriod'));
 }
 
 /* ============ drawer chi tiết ============ */

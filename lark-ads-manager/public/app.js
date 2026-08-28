@@ -210,11 +210,13 @@ function renderFilters() {
   $('#brandSub').textContent =
     `${m.counts.campaigns} chiến dịch · ${m.counts.groups} nhóm · ${m.counts.ads} quảng cáo · ${m.counts.daily} dòng ngày · dữ liệu tới ${dmy(m.maxDate)}`;
 
-  /* Nhân sự chỉ được bảy mốc quanh hôm nay (loc.js của lớp vỏ) — không "toàn bộ",
-   * không khoảng tuỳ chọn. Quản lý giữ nguyên bộ mốc đầy đủ. */
-  const laNS = !!(window.HUB_LOC && window.__HUB__ && window.__HUB__.quanLy === false);
-  const RANGES = laNS
-    ? window.HUB_LOC.danhSach().map((x) => ({ k: 'ns:' + x.tu + ':' + x.den, label: x.ten }))
+  /* Mốc thời gian lấy theo bộ chuẩn của lớp vỏ (loc.js): quản lý một bộ, nhân sự
+   * một bộ hẹp hơn. Chạy đứng một mình (không qua lớp vỏ) thì giữ bộ mốc cũ. */
+  const duoiHub = !!(window.HUB_LOC && window.__HUB__);
+  const laNS = duoiHub && window.__HUB__.quanLy === false;
+  const RANGES = duoiHub
+    ? window.HUB_LOC.danhSachTheoVai(window.__HUB__.quanLy)
+        .map((x) => ({ k: 'ns:' + x.tu + ':' + x.den, label: x.ten }))
     : [
       { k: 'today', label: 'Hôm nay' }, { k: 'thang', label: 'Tháng này' },
       { k: 7, label: '7 ngày' }, { k: 14, label: '14 ngày' },

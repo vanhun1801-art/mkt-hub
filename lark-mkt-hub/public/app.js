@@ -30,14 +30,13 @@ const S = {
  * Mặc định là tháng hiện tại, giống bộ lọc trong ba app module.
  * Khoảng ngày do client tính vì "tháng này" phụ thuộc đồng hồ/múi giờ của máy.
  */
+/* Mốc thời gian chuẩn nằm ở public/loc.js (dùng chung cho cả bốn app). Danh sách
+ * dưới đây chỉ là phương án dự phòng nếu chưa nạp được file đó. */
 const KY = [
   ['thang', 'Tháng này'],
   ['thang-truoc', 'Tháng trước'],
   ['tuan', 'Tuần này'],
-  ['7', '7 ngày'],
-  ['30', '30 ngày'],
-  ['tuychon', 'Tuỳ chọn'],
-  ['all', 'Toàn bộ'],
+  ['tuychon', 'Tuỳ chỉnh'],
 ];
 const KY_MAC_DINH = 'thang';
 
@@ -286,7 +285,11 @@ function khungCuaModule(mod) {
   wrap.innerHTML = '<div class="frame-loading"><span class="spin"></span> Đang mở ' + esc(mod.ten) + '…</div>';
 
   const f = document.createElement('iframe');
-  f.src = mod.kieu === 'local' ? '/m/' + mod.id + '/' : mod.url;
+  /* Gắn số bản vào src: đổi bản (hay đổi vai) là trình duyệt nạp lại trang app con
+   * thay vì dùng bản cũ trong cache — nếu không, bộ lọc/vai có thể lệch một nhịp. */
+  f.src = mod.kieu === 'local'
+    ? '/m/' + mod.id + '/?v=' + encodeURIComponent((S.hub && S.hub.ver) || '')
+    : mod.url;
   f.title = mod.ten;
   f.setAttribute('allow', 'clipboard-write; fullscreen');
   f.addEventListener('load', () => {
@@ -339,15 +342,18 @@ const dmy = (s) => String(s || '').split('-').reverse().join('/');
 /* Nhân sự chỉ được bảy mốc quanh hôm nay (loc.js) — không tháng trước, không
  * khoảng tuỳ chọn, không "toàn bộ". Quản lý giữ nguyên bộ lọc đầy đủ. */
 function dsKy() {
-  if (S.quanLy || !window.HUB_LOC) return KY;
-  return window.HUB_LOC.danhSach().map((x) => [x.k, x.ten]);
+  if (!window.HUB_LOC) return KY;
+  const ds = window.HUB_LOC.danhSachTheoVai(S.quanLy).map((x) => [x.k, x.ten]);
+  // chỉ quản lý có khoảng tuỳ chỉnh (hai ô ngày ngay cạnh)
+  return S.quanLy ? ds.concat([['tuychon', 'Tuỳ chỉnh']]) : ds;
 }
 
 function veThanhLoc() {
   /* Nhân sự có thể còn nhớ kỳ cũ trong máy (VD "Toàn bộ") — kéo về mặc định để
    * không có đường nào lọt ra ngoài bảy mốc cho phép. */
   const ds = dsKy();
-  if (!ds.some(([v]) => v === S.ky)) {
+  // 'all' không còn là nút riêng nhưng vẫn dùng được qua băng "Bộ lọc đang che…"
+  if (!ds.some(([v]) => v === S.ky) && !(S.quanLy && S.ky === 'all')) {
     S.ky = ds.some(([v]) => v === KY_MAC_DINH) ? KY_MAC_DINH : ds[0][0];
     luuLoc();
   }
@@ -407,7 +413,13 @@ function nhanKhoangTuModule(id, tu, den) {
   const k = khoangDangLoc();
   const nhuCu = (k ? k.tu : '') === (tu || '') && (k ? k.den : '') === (den || '');
   if (nhuCu) return;
-  if (tu && den) { S.ky = 'tuychon'; S.tu = tu; S.den = den; } else { S.ky = 'toanbo'; }
+  if (tu && den) {
+    /* Khoảng trùng một mốc chuẩn thì sáng đúng nút đó, đừng để "Tuỳ chỉnh" —
+     * bấm "Tuần trước" trong app con mà thanh lọc lại ghi Tuỳ chỉnh thì rất khó đọc. */
+    const ma = window.HUB_LOC ? window.HUB_LOC.macCuaKhoang(tu, den) : '';
+    if (ma && dsKy().some(([v]) => v === ma)) { S.ky = ma; S.tu = ''; S.den = ''; }
+    else { S.ky = 'tuychon'; S.tu = tu; S.den = den; }
+  } else { S.ky = 'all'; }
   luuLoc();
   veThanhLoc();
   napTheoTrang();
