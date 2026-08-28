@@ -793,3 +793,45 @@ body.dang-xem-ho .app { height: calc(100vh - 34px); margin-top: 34px; }
 .q-in.q-thieu { border-color: var(--vang); background: var(--vang-nhat); }
 /* khay chọn ngôn ngữ: chữ nhỏ, cùng dáng với khay sáng/tối */
 .seg-lang button { padding: 5px 9px; font-size: 11.5px; font-weight: 600; letter-spacing: .02em; }
+
+/* ---------------- Người dùng & phân quyền ---------------- */
+.q-dau {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 12px 14px; margin-bottom: 12px;
+  background: var(--trang-2); border: 1px solid var(--vien); border-radius: 10px;
+}
+.q-dau b { font-size: 13.5px; }
+.bang-nguoi { min-width: 1000px; }
+.bang-nguoi td { vertical-align: middle; font-size: 13px; }
+.bang-nguoi tbody tr:hover { background: var(--trang-2); }
+.q-ten-o { display: flex; align-items: center; gap: 7px; }
+.q-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.q-chip {
+  display: inline-block; padding: 2px 8px; border-radius: 999px;
+  background: var(--xanh-nhat); color: var(--xanh);
+  font-size: 11.5px; font-weight: 550; white-space: nowrap;
+}
+.q-chip-mo { background: var(--nhiet-0); color: var(--chu-mo); }
+.q-chip-toi { background: var(--luc-nhat); color: var(--luc); }
+.q-nd-luc { background: var(--luc-nhat); color: var(--luc); }
+.q-nd-vang { background: var(--vang-nhat); color: var(--vang); }
+.q-nd-do { background: var(--do-nhat); color: var(--do); }
+.q-nhat { color: var(--chu-nhat); font-size: 12px; }
+.q-vai-o {
+  display: inline-block; padding: 3px 10px; border-radius: 7px;
+  font-size: 12px; font-weight: 600;
+}
+.q-vai-o.ql { background: var(--vang-nhat); color: var(--vang); }
+.q-vai-o.ns { background: var(--xanh-nhat); color: var(--xanh); }
+
+/* form một người */
+.q-form { display: flex; flex-direction: column; gap: 14px; }
+.q-hang { display: grid; grid-template-columns: 168px 1fr; gap: 14px; align-items: start; }
+.q-hang > label { font-size: 13px; font-weight: 550; color: var(--chu); padding-top: 7px; }
+.q-o { min-width: 0; }
+.q-ghi-nho { margin-top: 5px; font-size: 12px; color: var(--chu-nhat); line-height: 1.5; }
+.q-ck small { color: var(--chu-nhat); font-size: 11.5px; }
+@media (max-width: 720px) {
+  .q-hang { grid-template-columns: 1fr; gap: 6px; }
+  .q-hang > label { padding-top: 0; }
+}

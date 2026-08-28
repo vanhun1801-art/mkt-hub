@@ -1,15 +1,16 @@
 'use strict';
 /*
- * Phân quyền thành viên — cửa sổ chỉ quản lý thấy.
+ * NGƯỜI DÙNG & PHÂN QUYỀN — màn hình chỉ quản lý thấy.
  *
- * Hai việc quản lý làm ở đây:
- *   1. Chọn người này được thấy những base nào (bỏ tick là base biến khỏi panel
- *      của họ, và API của hub cũng chặn luôn — không phải ẩn cho vui).
- *   2. Ba tùy chọn cho nhân sự trong base: xem toàn bộ dữ liệu, được tạo mới,
- *      xem số tiền.
+ * Hai màn trong cùng một hộp thoại:
+ *   1. DANH SÁCH — mỗi người một dòng, đọc là hiểu: vị trí, vai, base được xem,
+ *      và quan trọng nhất là cột "Nhận diện" cho biết app có nhận ra người đó
+ *      chưa. Trước đây phần này vô hình, nên sửa quyền mà không thấy tác dụng thì
+ *      không biết vì sao.
+ *   2. FORM — thêm/sửa một người, mỗi thứ một dòng có nhãn và câu giải thích.
  *
- * Dữ liệu nằm trong bảng "Phân quyền app" của Lark Base, nên sửa ở đây hay sửa
- * thẳng trên Lark đều được, và không mất sau mỗi lần deploy.
+ * Dữ liệu nằm trong bảng "Phân quyền app" của Lark Base: sửa ở đây hay sửa thẳng
+ * trên Lark đều được, và không mất sau mỗi lần deploy.
  */
 
 /* Ba tùy chọn dành cho nhân sự — mô tả ngắn để quản lý biết mình đang bật gì. */
@@ -19,11 +20,13 @@ const QUYEN_CO = [
   { k: 'chiPhi', ten: 'Xem chi phí', mo: 'Thấy các con số tiền' },
 ];
 
+const chuanTenQ = (s) => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+/* ---------------- nạp & điều phối ---------------- */
 async function modalPhanQuyen() {
-  moModal('Phân quyền thành viên',
+  moModal('Người dùng & phân quyền',
     '<div class="trong"><span class="spin"></span> Đang đọc bảng phân quyền…</div>',
-    '<button class="btn ghost" id="qVeCaiDat">Về Cài đặt</button>' +
-    '<button class="btn ghost" data-close="1">Đóng</button>', true);
+    chanDanhSach(), true);
   $('#qVeCaiDat').onclick = modalCaiDat;
   try {
     S.quyen = await goi('/api/quyen?refresh=1');
@@ -31,160 +34,251 @@ async function modalPhanQuyen() {
     $('#mdBody').innerHTML = '<div class="canh-bao do"><span class="grow">' + esc(e.message) + '</span></div>';
     return;
   }
-  veBangQuyen();
+  veDanhSachQuyen();
 }
 
-function veBangQuyen() {
+const chanDanhSach = () =>
+  '<button class="btn ghost" id="qVeCaiDat">Về Cài đặt</button>' +
+  '<span class="grow"></span>' +
+  '<button class="btn ghost" data-close="1">Đóng</button>';
+
+/** Cách app sẽ nhận ra người này khi họ đăng nhập — hiện thành một nhãn màu. */
+function nhanDien(h, ds) {
+  if (h.email) return { loai: 'luc', chu: 'Theo email', mo: 'Chắc nhất — email không đổi giữa các app Lark' };
+  if (h.openId) return { loai: 'luc', chu: 'Đã đăng nhập', mo: 'App đã ghi nhận đúng tài khoản của người này' };
+  const trung = ds.filter((x) => chuanTenQ(x.nguoi) === chuanTenQ(h.nguoi)).length;
+  if (trung > 1) {
+    return { loai: 'do', chu: 'Trùng tên',
+      mo: 'Có ' + trung + ' dòng cùng tên nên app không dám đoán — phải điền email' };
+  }
+  return { loai: 'vang', chu: 'Theo tên',
+    mo: 'Chưa có email và chưa đăng nhập lần nào — điền email cho chắc' };
+}
+
+/* ---------------- màn 1: danh sách ---------------- */
+function veDanhSachQuyen() {
   const d = S.quyen || {};
   const base = d.base || [];
-  // dòng chưa lưu (chưa có recordId) xuống cuối để quản lý thấy ngay mình vừa thêm gì
-  const ds = (d.hang || []).slice().sort((a, b) =>
-    (a.recordId ? 0 : 1) - (b.recordId ? 0 : 1) ||
-    (a.nguoi || '').localeCompare(b.nguoi || '', 'vi'));
-
-  const oBase = (h) => base.map((b) => {
-    const het = !h.base || !h.base.length;
-    return '<label class="q-ck"><input type="checkbox" data-base="' + esc(b.id) + '"' +
-      (het || h.base.includes(b.id) ? ' checked' : '') + '>' +
-      '<span>' + esc(b.ten) + '</span></label>';
-  }).join('');
-
-  const oQuyen = (h) => QUYEN_CO.map((q) =>
-    '<label class="q-ck" title="' + esc(q.mo) + '"><input type="checkbox" data-q="' + q.k + '"' +
-    (h[q.k] ? ' checked' : '') + '><span>' + esc(q.ten) + '</span></label>').join('');
-
-  const dongHtml = (h, i) =>
-    '<tr data-i="' + i + '" data-rec="' + esc(h.recordId || '') + '" data-openid="' + esc(h.openId || '') + '">' +
-    '<td><input class="q-in q-ten" type="text" value="' + esc(h.nguoi || '') + '" placeholder="Tên"></td>' +
-    '<td><input class="q-in q-mail' + (h.email ? '' : ' q-thieu') + '" type="text" value="' + esc(h.email || '') +
-      '" placeholder="email@rootytrip.com" title="' +
-      (h.email ? '' : 'Chưa có email — đang phải nhận diện theo tên. Điền email cho chắc.') + '"></td>' +
-    '<td><select class="q-in q-vitri" data-i="' + i + '">' +
-      '<option value="">— chọn vị trí —</option>' +
-      (d.viTri || []).map((v) =>
-        '<option value="' + esc(v.ten) + '"' + (h.viTri === v.ten ? ' selected' : '') +
-        ' title="' + esc(v.mo || '') + '">' + esc(v.ten) + '</option>').join('') +
-    '</select></td>' +
-    '<td><select class="q-in q-vai">' +
-      '<option value="Nhân sự"' + (h.vai === 'Quản lý' ? '' : ' selected') + '>Nhân sự</option>' +
-      '<option value="Quản lý"' + (h.vai === 'Quản lý' ? ' selected' : '') + '>Quản lý</option>' +
-    '</select></td>' +
-    '<td><div class="q-nhom">' + oBase(h) + '</div></td>' +
-    '<td><div class="q-nhom">' + oQuyen(h) + '</div></td>' +
-    '<td><div class="thao-tac">' +
-      '<button class="btn nho primary" data-luuq="' + i + '">Lưu</button>' +
-      (h.recordId
-        ? '<button class="btn nho ghost" data-xemnhu="' + i + '" ' +
-          'title="Mở cả app bằng đúng con mắt của người này">Xem như</button>' +
-          '<button class="btn nho ghost" data-xoaq="' + esc(h.recordId) + '">Xoá</button>'
-        : '') +
-    '</div></td></tr>';
-
-  /* Đọc bảng thất bại thì KHÔNG bày ô nhập: lưu lúc này dễ tạo dòng trùng với
-   * dòng đang có mà mình chưa đọc được. Nói rõ lý do rồi mời sửa thẳng trên Lark. */
-  if (d.loiBang) {
-    const thieuKhoa = /LARK_APP_ID|APP_SECRET/.test(d.loiBang);
-    $('#mdBody').innerHTML =
-      '<div class="canh-bao do"><span class="grow">' +
-      (thieuKhoa
-        ? 'Bản chạy trên máy này (chế độ cli) không có khoá app nên chưa đọc được bảng phân quyền. ' +
-          'Phân quyền trên link đã deploy, hoặc sửa trực tiếp trong Lark.'
-        : 'Không đọc được bảng phân quyền: ' + esc(d.loiBang)) +
-      '</span></div>' +
-      '<div class="q-them"><a class="btn primary" href="' + esc(d.larkUrl || '#') +
-      '" target="_blank" rel="noreferrer">Mở bảng phân quyền trong Lark</a>' +
-      '<span class="grow"></span></div>' +
-      '<div class="q-ghi">Bảng gồm: Người · Email · Vai · Base được xem (id các base, ' +
-      'cách nhau bằng dấu phẩy: ' + base.map((b) => esc(b.id)).join(', ') + ') · ' +
-      'Xem toàn bộ base · Được tạo mới · Xem chi phí.</div>';
-    return;
-  }
-
-  let html = '<div class="q-them">' +
-    '<select id="qNguoiMoi"><option value="">Chọn người trong danh bạ…</option>' +
-    (d.danhBa || []).map((x) => '<option value="' + esc(x.id) + '" data-mail="' + esc(x.email || '') + '">' +
-      esc(x.ten) + '</option>').join('') +
-    '</select>' +
-    '<input type="text" id="qMailMoi" placeholder="email@rootytrip.com">' +
-    '<button class="btn primary" id="qThem">Thêm dòng</button>' +
-    '<span class="grow"></span>' +
-    '<a class="btn ghost nho" href="' + esc(d.larkUrl || '#') + '" target="_blank" rel="noreferrer">Mở bảng trong Lark</a>' +
-    '</div>';
-
-  html += '<div class="q-cuon"><table class="bang bang-quyen"><thead><tr>' +
-    '<th>Người</th><th>Email</th><th>Vị trí</th><th>Vai</th><th>Base được xem</th>' +
-    '<th>Tùy chọn cho nhân sự</th><th></th></tr></thead><tbody>' +
-    (ds.length ? ds.map(dongHtml).join('')
-      : '<tr><td colspan="7" class="trong">Chưa khai ai — mặc định mọi người thấy đủ ' +
-        base.length + ' base với vai nhân sự.</td></tr>') +
-    '</tbody></table></div>';
-
-  const soThieuMail = ds.filter((h) => h.recordId && !h.email).length;
-  if (soThieuMail) {
-    html += '<div class="canh-bao" style="margin-top:10px"><span class="grow">' +
-      soThieuMail + ' dòng chưa có email nên đang nhận diện theo TÊN. ' +
-      'open_id khác nhau giữa các app Lark, nên khai email là chắc nhất — app sẽ tự điền ' +
-      'open_id thật khi người đó đăng nhập lần tới. Điền email nào cũng được: email ' +
-      'công ty cấp hay email dùng để đăng nhập Lark, app khớp cả hai.</span></div>';
-  }
-
-  html += '<div class="q-ghi">Khớp người theo email, rồi open_id, cuối cùng mới tới tên · bỏ tick base nào thì base đó ' +
-    'biến khỏi panel của họ · quản lý khai trong biến môi trường luôn giữ vai quản lý' +
-    (d.env_quan_ly && d.env_quan_ly.length ? ' (' + d.env_quan_ly.map(esc).join(', ') + ')' : '') +
-    '.<br>Chọn <b>Vị trí</b> là các ô tự tick theo mẫu của vị trí đó — sửa tay lại được. ' +
-    'Xem toàn bộ và Được tạo mới áp cho Bảng công việc và Lịch tác nghiệp; ' +
-    'Xem chi phí áp cho Lịch tác nghiệp.</div>';
-
-  $('#mdBody').innerHTML = html;
+  const ds = (d.hang || []).slice().sort((a, b) => (a.nguoi || '').localeCompare(b.nguoi || '', 'vi'));
   S.quyenHang = ds;
 
-  $('#qThem').onclick = () => {
-    const sel = $('#qNguoiMoi');
-    const openId = sel.value;
-    const opt = openId ? sel.options[sel.selectedIndex] : null;
-    const ten = opt ? opt.textContent : '';
-    // email gõ tay ưu tiên, không có thì lấy email trong danh bạ (nếu Lark cho)
-    const email = $('#qMailMoi').value.trim() || (opt ? opt.getAttribute('data-mail') || '' : '');
-    if (!openId && !email) { toast('Chọn người trong danh bạ hoặc nhập email', 'do'); return; }
-    if (S.quyenHang.some((h) => email && h.email === email.toLowerCase())) {
-      toast('Email này đã có dòng phân quyền', 'do');
-      return;
-    }
-    S.quyen.hang = (S.quyen.hang || []).concat([{
-      recordId: '', nguoi: ten, email, openId,
-      vai: 'Nhân sự', base: [], toanBo: false, taoMoi: true, chiPhi: false,
-    }]);
-    veBangQuyen();
+  if (d.loiBang) return veLoiBang(d, base);
+
+  const toiLa = (h) => {
+    const t = (S.hub && S.hub.toi) || {};
+    const mail = String(t.email || '').toLowerCase();
+    return !!((mail && h.email === mail) || (t.ten && chuanTenQ(t.ten) === chuanTenQ(h.nguoi)));
   };
+
+  const tenBase = (id) => (base.find((b) => b.id === id) || {}).ten || id;
+  const oBase = (h) => (!h.base || !h.base.length
+    ? '<span class="q-chip q-chip-mo">Tất cả ' + base.length + ' base</span>'
+    : h.base.map((id) => '<span class="q-chip">' + esc(tenBase(id)) + '</span>').join(''));
+
+  const oQuyen = (h) => {
+    if (h.vai === 'Quản lý') return '<span class="q-chip q-chip-mo">toàn quyền</span>';
+    const bat = QUYEN_CO.filter((q) => h[q.k]);
+    if (!bat.length) return '<span class="q-nhat">mặc định</span>';
+    return bat.map((q) => '<span class="q-chip">' + esc(q.ten) + '</span>').join('');
+  };
+
+  const dong = (h, i) => {
+    const nd = nhanDien(h, ds);
+    return '<tr>' +
+      '<td><div class="q-ten-o"><b>' + esc(h.nguoi || '(chưa đặt tên)') + '</b>' +
+        (toiLa(h) ? '<span class="q-chip q-chip-toi">Bạn</span>' : '') + '</div></td>' +
+      '<td>' + (h.email ? esc(h.email) : '<span class="q-nhat">chưa có</span>') + '</td>' +
+      '<td>' + (h.viTri ? '<span class="q-chip">' + esc(h.viTri) + '</span>' : '<span class="q-nhat">—</span>') + '</td>' +
+      '<td><span class="q-vai-o ' + (h.vai === 'Quản lý' ? 'ql' : 'ns') + '">' +
+        (h.vai === 'Quản lý' ? 'Quản lý' : 'Nhân sự') + '</span></td>' +
+      '<td><div class="q-chips">' + oBase(h) + '</div></td>' +
+      '<td><div class="q-chips">' + oQuyen(h) + '</div></td>' +
+      '<td><span class="q-chip q-nd-' + nd.loai + '" title="' + esc(nd.mo) + '">' + esc(nd.chu) + '</span></td>' +
+      '<td><div class="thao-tac">' +
+        '<button class="btn nho ghost" data-sua="' + i + '">Sửa</button>' +
+        '<button class="btn nho ghost" data-xemnhu="' + i + '" title="Mở cả app bằng đúng con mắt của người này">Xem như</button>' +
+        '<button class="btn nho do" data-xoaq="' + esc(h.recordId) + '">Xoá</button>' +
+      '</div></td></tr>';
+  };
+
+  let html = '<div class="q-dau">' +
+    '<div><b>' + ds.length + ' người đã khai</b>' +
+      '<div class="kh-sub">Ai chưa có trong danh sách thì thấy đủ ' + base.length +
+      ' base với vai nhân sự.</div></div>' +
+    '<span class="grow"></span>' +
+    '<a class="btn ghost nho" href="' + esc(d.larkUrl || '#') + '" target="_blank" rel="noreferrer">Mở bảng trong Lark</a>' +
+    '<button class="btn primary" id="qThemNguoi">Thêm người dùng</button>' +
+    '</div>';
+
+  html += '<div class="q-cuon"><table class="bang bang-nguoi"><thead><tr>' +
+    '<th>Họ tên</th><th>Email</th><th>Vị trí</th><th>Vai trò</th>' +
+    '<th>Base được xem</th><th>Quyền thêm</th><th>Nhận diện</th><th></th>' +
+    '</tr></thead><tbody>' +
+    (ds.length ? ds.map(dong).join('')
+      : '<tr><td colspan="8" class="trong">Chưa khai ai. Bấm Thêm người dùng để bắt đầu.</td></tr>') +
+    '</tbody></table></div>';
+
+  const thieu = ds.filter((h) => !h.email && !h.openId).length;
+  if (thieu) {
+    html += '<div class="canh-bao" style="margin-top:12px"><span class="grow">' +
+      thieu + ' người chưa có email và chưa đăng nhập lần nào — app đang nhận diện theo tên. ' +
+      'Điền email là chắc nhất: email công ty hay email đăng nhập Lark đều được, app khớp cả hai.' +
+      '</span></div>';
+  }
+
+  html += '<div class="q-ghi">Sửa xong có hiệu lực ngay — người đó chỉ cần tải lại trang. ' +
+    'Muốn kiểm tra họ thấy gì thì bấm <b>Xem như</b>; đang xem hộ thì mọi thao tác ghi bị chặn.' +
+    (d.env_quan_ly && d.env_quan_ly.length
+      ? '<br>Người khai trong biến môi trường luôn giữ vai quản lý: ' + d.env_quan_ly.map(esc).join(', ') + '.'
+      : '') +
+    '</div>';
+
+  $('#mdTitle').textContent = 'Người dùng & phân quyền';
+  $('#mdFoot').innerHTML = chanDanhSach();
+  $('#qVeCaiDat').onclick = modalCaiDat;
+  $('#mdBody').innerHTML = html;
+  $('#qThemNguoi').onclick = () => moFormQuyen(null);
 }
 
-/** Đọc một dòng đang hiển thị rồi ghi vào Base. */
-async function luuDongQuyen(tr) {
-  const oBase = [...tr.querySelectorAll('[data-base]')];
+function veLoiBang(d, base) {
+  const thieuKhoa = /LARK_APP_ID|APP_SECRET|lark-cli/.test(d.loiBang);
+  $('#mdBody').innerHTML =
+    '<div class="canh-bao do"><span class="grow">' +
+    (thieuKhoa
+      ? 'Máy này chưa đọc được bảng phân quyền (thiếu khoá app hoặc lark-cli). ' +
+        'Phân quyền trên link đã deploy, hoặc sửa trực tiếp trong Lark.'
+      : 'Không đọc được bảng phân quyền: ' + esc(d.loiBang)) +
+    '</span></div>' +
+    '<div class="q-dau"><a class="btn primary" href="' + esc(d.larkUrl || '#') +
+    '" target="_blank" rel="noreferrer">Mở bảng phân quyền trong Lark</a><span class="grow"></span></div>' +
+    '<div class="q-ghi">Bảng gồm: Người · Email · open_id · Vai · Vị trí · Base được xem (id các base, ' +
+    'cách nhau bằng dấu phẩy: ' + base.map((b) => esc(b.id)).join(', ') + ') · ' +
+    'Xem toàn bộ base · Được tạo mới · Xem chi phí.</div>';
+}
+
+/* ---------------- màn 2: form một người ---------------- */
+function moFormQuyen(i) {
+  const d = S.quyen || {};
+  const base = d.base || [];
+  const moi = i == null;
+  const h = moi
+    ? { recordId: '', nguoi: '', email: '', openId: '', vai: 'Nhân sự', viTri: '',
+        base: [], toanBo: false, taoMoi: true, chiPhi: false, ghiChu: '' }
+    : S.quyenHang[i];
+  S.quyenSua = Object.assign({}, h);
+
+  const hang = (nhan, noi, ghi) =>
+    '<div class="q-hang"><label>' + nhan + '</label><div class="q-o">' + noi +
+    (ghi ? '<div class="q-ghi-nho">' + ghi + '</div>' : '') + '</div></div>';
+
+  let html = '<div class="q-form">';
+
+  if (moi) {
+    html += hang('Chọn từ danh bạ',
+      '<select class="q-in" id="fNguoiMoi"><option value="">— chọn người —</option>' +
+      (d.danhBa || []).map((x) => '<option value="' + esc(x.id) + '" data-mail="' + esc(x.email || '') + '">' +
+        esc(x.ten) + '</option>').join('') + '</select>',
+      'Chọn xong app tự điền tên, và cả email nếu Lark có.');
+  }
+
+  html += hang('Họ tên', '<input class="q-in" id="fTen" type="text" value="' + esc(h.nguoi) +
+    '" placeholder="Nguyễn Văn A">');
+  html += hang('Email',
+    '<input class="q-in" id="fMail" type="text" value="' + esc(h.email) + '" placeholder="email@rootytrip.com">',
+    'Email công ty hay email đăng nhập Lark đều được — app khớp cả hai. Bỏ trống thì phải nhận diện theo tên.');
+
+  html += hang('Vị trí công việc',
+    '<select class="q-in" id="fViTri"><option value="">— chọn vị trí —</option>' +
+    (d.viTri || []).map((v) => '<option value="' + esc(v.ten) + '"' + (h.viTri === v.ten ? ' selected' : '') +
+      '>' + esc(v.ten) + '</option>').join('') + '</select>',
+    'Chọn vị trí là các ô bên dưới tự tick theo mẫu — sửa tay lại được.');
+
+  html += hang('Vai trò',
+    '<select class="q-in" id="fVai">' +
+    '<option value="Nhân sự"' + (h.vai === 'Quản lý' ? '' : ' selected') + '>Nhân sự — chỉ việc của mình</option>' +
+    '<option value="Quản lý"' + (h.vai === 'Quản lý' ? ' selected' : '') + '>Quản lý — toàn quyền</option>' +
+    '</select>');
+
+  html += hang('Base được xem',
+    '<div class="q-nhom" id="fBase">' + base.map((b) => {
+      const het = !h.base || !h.base.length;
+      return '<label class="q-ck"><input type="checkbox" data-base="' + esc(b.id) + '"' +
+        (het || h.base.includes(b.id) ? ' checked' : '') + '><span>' + esc(b.ten) + '</span></label>';
+    }).join('') + '</div>',
+    'Bỏ tick base nào thì base đó biến khỏi panel của họ, và API cũng chặn luôn.');
+
+  html += hang('Quyền thêm cho nhân sự',
+    '<div class="q-nhom" id="fQuyen">' + QUYEN_CO.map((q) =>
+      '<label class="q-ck"><input type="checkbox" data-q="' + q.k + '"' + (h[q.k] ? ' checked' : '') + '>' +
+      '<span>' + esc(q.ten) + '</span><small class="q-nhat">— ' + esc(q.mo) + '</small></label>').join('') +
+    '</div>');
+
+  html += hang('Ghi chú', '<input class="q-in" id="fGhiChu" type="text" value="' + esc(h.ghiChu || '') +
+    '" placeholder="(không bắt buộc)">');
+  html += '</div>';
+
+  $('#mdTitle').textContent = moi ? 'Thêm người dùng' : 'Sửa quyền · ' + (h.nguoi || h.email);
+  $('#mdBody').innerHTML = html;
+  $('#mdFoot').innerHTML =
+    '<button class="btn ghost" id="fQuayLai">← Danh sách</button>' +
+    '<span class="grow"></span>' +
+    '<button class="btn primary" id="fLuu">Lưu</button>' +
+    '<button class="btn ghost" data-close="1">Đóng</button>';
+
+  $('#fQuayLai').onclick = veDanhSachQuyen;
+  $('#fLuu').onclick = luuFormQuyen;
+
+  const selMoi = $('#fNguoiMoi');
+  if (selMoi) {
+    selMoi.onchange = () => {
+      if (!selMoi.value) return;
+      const o = selMoi.options[selMoi.selectedIndex];
+      S.quyenSua.openId = selMoi.value;
+      $('#fTen').value = o.textContent;
+      if (!$('#fMail').value) $('#fMail').value = o.getAttribute('data-mail') || '';
+    };
+  }
+
+  const selVT = $('#fViTri');
+  if (selVT) {
+    selVT.onchange = () => {
+      const mau = (d.viTri || []).find((v) => v.ten === selVT.value);
+      if (!mau) return;
+      $$('#fBase [data-base]').forEach((ck) => { ck.checked = (mau.base || []).includes(ck.dataset.base); });
+      QUYEN_CO.forEach((q) => {
+        const ck = $('#fQuyen [data-q="' + q.k + '"]');
+        if (ck) ck.checked = !!mau[q.k];
+      });
+      $('#fVai').value = mau.vai === 'Quản lý' ? 'Quản lý' : 'Nhân sự';
+      toast('Đã áp mẫu vị trí ' + mau.ten + (mau.mo ? ' — ' + mau.mo : ''), '');
+    };
+  }
+}
+
+async function luuFormQuyen() {
+  const oBase = $$('#fBase [data-base]');
   const chon = oBase.filter((x) => x.checked).map((x) => x.dataset.base);
-  const bat = (k) => {
-    const el = tr.querySelector('[data-q="' + k + '"]');
-    return !!(el && el.checked);
-  };
+  const bat = (k) => !!($('#fQuyen [data-q="' + k + '"]') || {}).checked;
   const hang = {
-    recordId: tr.dataset.rec || '',
-    nguoi: tr.querySelector('.q-ten').value.trim(),
-    email: tr.querySelector('.q-mail').value.trim(),
-    openId: tr.dataset.openid || '',
-    vai: tr.querySelector('.q-vai').value,
-    viTri: tr.querySelector('.q-vitri') ? tr.querySelector('.q-vitri').value : '',
-    // tick đủ = không giới hạn -> để trống ô trong Base cho dễ đọc
+    recordId: S.quyenSua.recordId || '',
+    nguoi: $('#fTen').value.trim(),
+    email: $('#fMail').value.trim(),
+    openId: S.quyenSua.openId || '',
+    vai: $('#fVai').value,
+    viTri: $('#fViTri').value,
+    // tick đủ = không giới hạn, để trống ô trong Base cho dễ đọc
     base: chon.length === oBase.length ? [] : chon,
     toanBo: bat('toanBo'),
     taoMoi: bat('taoMoi'),
     chiPhi: bat('chiPhi'),
+    ghiChu: $('#fGhiChu').value.trim(),
   };
-  if (!hang.email && !hang.openId) { toast('Dòng này thiếu email — không nhận ra người', 'do'); return; }
-  if (!chon.length) { toast('Bỏ tick hết base thì người này vào app không thấy gì', ''); }
+  if (!hang.nguoi && !hang.email) { toast('Cần ít nhất họ tên hoặc email', 'do'); return; }
+  if (!chon.length) toast('Bỏ tick hết base thì người này vào app không thấy gì', '');
 
-  const nut = tr.querySelector('[data-luuq]');
+  const nut = $('#fLuu');
   nut.disabled = true;
-  nut.textContent = 'Đang lưu';
+  nut.textContent = 'Đang lưu…';
   try {
     await goi('/api/quyen', { method: 'POST', body: JSON.stringify(hang) });
     toast('Đã lưu quyền của ' + (hang.nguoi || hang.email), 'luc');
@@ -197,6 +291,7 @@ async function luuDongQuyen(tr) {
   }
 }
 
+/* ---------------- xoá / xem như ---------------- */
 async function xoaDongQuyen(recordId) {
   try {
     await goi('/api/quyen?recordId=' + encodeURIComponent(recordId), { method: 'DELETE' });
@@ -230,28 +325,10 @@ async function thoatXemNhu() {
   } catch (e) { toast(e.message, 'do'); }
 }
 
-/**
- * Chọn vị trí công việc -> tick sẵn theo mẫu của vị trí đó. Không tự lưu: quản lý
- * còn sửa tay được cho từng người rồi mới bấm Lưu.
- */
-document.addEventListener('change', (e) => {
-  const sel = e.target.closest('.q-vitri');
-  if (!sel) return;
-  const mau = ((S.quyen && S.quyen.viTri) || []).find((v) => v.ten === sel.value);
-  if (!mau) return;
-  const tr = sel.closest('tr');
-  const dsBase = mau.base || [];
-  tr.querySelectorAll('[data-base]').forEach((ck) => { ck.checked = dsBase.includes(ck.dataset.base); });
-  QUYEN_CO.forEach((q) => {
-    const ck = tr.querySelector('[data-q="' + q.k + '"]');
-    if (ck) ck.checked = !!mau[q.k];
-  });
-  const vai = tr.querySelector('.q-vai');
-  if (vai) vai.value = mau.vai === 'Quản lý' ? 'Quản lý' : 'Nhân sự';
-  toast('Đã áp mẫu vị trí ' + mau.ten + (mau.mo ? ' — ' + mau.mo : '') + '. Bấm Lưu để ghi.', '');
-});
-
 document.addEventListener('click', (e) => {
+  const sua = e.target.closest('[data-sua]');
+  if (sua) { e.preventDefault(); moFormQuyen(Number(sua.getAttribute('data-sua'))); return; }
+
   const xn = e.target.closest('[data-xemnhu]');
   if (xn) {
     e.preventDefault();
@@ -260,8 +337,7 @@ document.addEventListener('click', (e) => {
     return;
   }
   if (e.target.closest('#btnThoatXemNhu')) { e.preventDefault(); thoatXemNhu(); return; }
-  const luu = e.target.closest('[data-luuq]');
-  if (luu) { e.preventDefault(); luuDongQuyen(luu.closest('tr')); return; }
+
   const xoa = e.target.closest('[data-xoaq]');
   if (xoa) {
     e.preventDefault();

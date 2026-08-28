@@ -101,10 +101,12 @@ async function congViec(mod, khoang, nguoi) {
     'thieu-deadline': thieuDeadline.map(dong),
   };
 
+  // Quản lý mới cần thẻ "Chưa phân công" — nhân sự không phân công cho ai cả
+  const laQL = !nguoi || nguoi.quanLy;
   const the = [
     { nhan: 'Việc đang mở', so: mo.length, dinhDang: 'so', khoa: 'mo' },
     { nhan: 'Quá hạn', so: quaHan.length, dinhDang: 'so', muc: quaHan.length ? 'cao' : 'ok', khoa: 'qua-han' },
-    { nhan: 'Chưa phân công', so: chuaPhanCong.length, dinhDang: 'so', muc: chuaPhanCong.length ? 'cao' : 'ok', khoa: 'chua-phan-cong' },
+    ...(laQL ? [{ nhan: 'Chưa phân công', so: chuaPhanCong.length, dinhDang: 'so', muc: chuaPhanCong.length ? 'cao' : 'ok', khoa: 'chua-phan-cong' }] : []),
     { nhan: 'Đang tiến hành', so: dangLam.length, dinhDang: 'so', khoa: 'dang-tien-hanh' },
     { nhan: 'Sắp tới hạn (48h)', so: denHan.length, dinhDang: 'so', muc: denHan.length ? 'vua' : 'ok', khoa: 'sap-han' },
     // hàng đợi đầu vào: việc đã vào bảng nhưng người nhận chưa xác nhận bắt tay làm
@@ -248,8 +250,11 @@ async function lichTacNghiep(mod, khoang, nguoi) {
       muc: nguyCoNang.length ? 'cao' : nguyCo.length ? 'vua' : 'ok',
       ghi: nguyCo.length ? nguyCo[0].r.ly.toLowerCase() + (nguyCo.length > 1 ? ' · +' + (nguyCo.length - 1) + ' việc khác' : '') : '' },
     { nhan: 'Chưa chốt báo cáo', so: treBaoCao.length, dinhDang: 'so', muc: treBaoCao.length ? 'vua' : 'ok', khoa: 'chua-chot' },
-    { nhan: m ? 'Chi phí dự kiến' : 'Chi phí dự kiến tháng', so: chiPhi, dinhDang: 'vnd', khoa: 'chi-phi',
-      ghi: chiPhiThuc ? 'thực tế ' + Math.round(chiPhiThuc).toLocaleString('vi-VN') + 'đ' : '' },
+    // thẻ tiền chỉ hiện với người được xem chi phí (quản lý, hoặc nhân sự được cấp)
+    ...((!nguoi || nguoi.quanLy || nguoi.chiPhi)
+      ? [{ nhan: m ? 'Chi phí dự kiến' : 'Chi phí dự kiến tháng', so: chiPhi, dinhDang: 'vnd', khoa: 'chi-phi',
+          ghi: chiPhiThuc ? 'thực tế ' + Math.round(chiPhiThuc).toLocaleString('vi-VN') + 'đ' : '' }]
+      : []),
   ];
 
   const gio = (t) => (bd(t) ? new Date(bd(t)).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'chưa có ngày');
