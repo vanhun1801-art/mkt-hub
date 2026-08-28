@@ -70,7 +70,9 @@ async function congViec(mod, khoang, nguoi) {
   // nếu so từng giây thì số trên hub lệch với số trong app.
   /* Việc trễ mà nhân sự đã bấm "Giải quyết" (nộp sản phẩm) thì rời khỏi hàng đợi
    * quá hạn — nhưng trạng thái vẫn giữ, nên cuối tháng vẫn đếm được ai trễ. */
-  const treTatCa = mo.filter((t) => han(t) && han(t) < homNay);
+  /* Trễ = quá hạn theo ngày HOẬC Base đã đặt trạng thái "Trễ deadline"
+   * (automation trong Base đặt sau deadline 2 tiếng, sớm hơn phép tính theo ngày). */
+  const treTatCa = mo.filter((t) => t.status === 'Trễ deadline' || (han(t) && han(t) < homNay));
   const quaHan = treTatCa.filter((t) => !t.daGiaiQuyet).sort((a, b) => han(a) - han(b));
   const treDaGQ = treTatCa.filter((t) => t.daGiaiQuyet);
   const chuaPhanCong = mo.filter((t) => !(t.owner || []).length);
@@ -141,8 +143,8 @@ async function congViec(mod, khoang, nguoi) {
 
   // Việc quá hạn nằm NGOÀI khoảng lọc — để bộ lọc tháng không âm thầm che tồn đọng
   const ngoai = m
-    ? (ds.tasks || []).filter((t) => !DONG.has(t.status) && !t.daGiaiQuyet && han(t) && han(t) < homNay &&
-        !trongMoc(han(t), m)).length
+    ? (ds.tasks || []).filter((t) => !DONG.has(t.status) && !t.daGiaiQuyet && han(t) &&
+        (t.status === 'Trễ deadline' || han(t) < homNay) && !trongMoc(han(t), m)).length
     : 0;
 
   return {

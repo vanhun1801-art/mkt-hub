@@ -264,12 +264,17 @@ const xemToanBo = (req) => quyenHub(req, 'x-hub-perm-toan-bo');
 const khongDuocTao = (req) => quyenHub(req, 'x-hub-perm-khong-tao');
 
 const DONG_HAN = ['Hoàn thành', 'Hủy'];
+const TRE = 'Trễ deadline';
 
 /** Việc TRỄ so với hạn: deadline đã qua theo NGÀY và việc còn mở.
  * Không quan tâm đã nộp hay chưa — "đã trễ" là chuyện không xoá được, và chốt
  * chặn nhân sự tự đóng việc phải dựa vào đây. */
 function laTreTheoHan(t) {
   if (DONG_HAN.includes(t.status)) return false;
+  /* Automation trong Base tự đặt "Trễ deadline" sau deadline 2 tiếng, tức nó biết
+   * trễ sớm hơn phép tính theo NGÀY ở đây. Trạng thái đó là kết luận của quản lý
+   * và của Base, nên cứ thấy nó là coi như đã trễ. */
+  if (t.status === TRE) return true;
   const h = t.deadline ? new Date(t.deadline) : null;
   if (!h || isNaN(h.getTime())) return false;
   const d0 = new Date(); d0.setHours(0, 0, 0, 0);

@@ -25,8 +25,8 @@ function viecLamDuoc(kpi, r, quanLy) {
     if (r.trangThai === 'Chờ tiếp nhận') ds.push({ act: 'bat-dau', ten: 'Bắt đầu', chinh: true });
     /* Việc đã trễ thì nhân sự KHÔNG có nút Hoàn thành — kể cả sau khi đã nộp sản
      * phẩm. Dấu trễ chỉ được xoá bởi quản lý lúc nghiệm thu. */
-    const treThat = r.han &&
-      new Date(r.han).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0);
+    const treThat = r.trangThai === 'Trễ deadline' ||
+      (r.han && new Date(r.han).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0));
     if (r.trangThai !== 'Hoàn thành') {
       /* Chưa có minh chứng thì mở ô dán link — cửa sổ nhanh không đính kèm tệp
        * được, mà module bắt buộc phải có sản phẩm mới cho nộp. */

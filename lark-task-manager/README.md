@@ -227,10 +227,22 @@ cuối tháng sẽ không còn đếm được ai trễ. Cách app xử lý:
 | Nhân sự | `Hoàn thành` → trạng thái sang **Hoàn thành** | `Giải quyết` → ghi `Đã giải quyết` + `Ngày giải quyết`, **trạng thái giữ nguyên "Trễ deadline"** | chỉ còn `Nộp lại sản phẩm`; **không có nút Hoàn thành** |
 | Quản lý | `Hoàn thành` | `Hoàn thành` (không bị chặn) | `Hoàn thành` — nghiệm thu xong mới đóng |
 
-Điểm dễ sai (đã từng sai): chốt chặn phải dựa vào "đã trễ theo hạn", KHÔNG dựa vào
-"còn trong hàng đợi quá hạn". Hai khái niệm khác nhau — nộp sản phẩm thì rời hàng
-đợi, nhưng *đã trễ* thì không xoá được. Nếu chặn theo hàng đợi, nhân sự bấm Giải
-quyết rồi bấm tiếp Hoàn thành là xoá sạch dấu trễ trong cột Trạng thái.
+### "Đã trễ" được tính thế nào
+
+Một việc coi là đã trễ khi còn mở và **một trong hai**:
+
+1. `Trạng thái` = `Trễ deadline` — do quan trị đặt, hoặc do automation
+   `[Auto] Tự động trễ Deadline sau 2 tiếng` trong Base đặt;
+2. hoặc deadline đã qua theo **ngày**.
+
+Phải có điều kiện 1: automation của Base chứng nhận trễ từ *deadline + 2 tiếng*,
+sớm hơn phép tính theo ngày. Thiếu nó thì việc hạn 10:00 hôm nay đã bị Base
+đóng dấu trễ từ 12:00 mà app vẫn hiện "Hạn hôm nay" kèm nút Hoàn thành.
+
+Điểm dễ sai thứ hai (đã từng sai): chốt chặn phải dựa vào "đã trễ", KHÔNG dựa
+vào "còn trong hàng đợi quá hạn". Hai khái niệm khác nhau — nộp sản phẩm thì rời
+hàng đợi, nhưng *đã trễ* thì không xoá được. Nếu chặn theo hàng đợi, nhân sự bấm
+Giải quyết rồi bấm tiếp Hoàn thành là xoá sạch dấu trễ trong cột Trạng thái.
 
 * Cả hai nút đều đòi minh chứng trước (`422 PROOF_REQUIRED`).
 * Bấm `Giải quyết` cho việc chưa trễ → `422 NOT_LATE`.

@@ -416,7 +416,8 @@ const cfg0 = () => ({ chanTre: !S.meta || !S.meta.rules || S.meta.rules.chanHoan
  *  - isOverdue:    đã trễ mà chưa nộp                 -> quyết định còn nằm trong
  *                                                        hàng đợi quá hạn hay không. */
 const laTreTheoHan = (t) => !isClosed(t) &&
-  daysLeft(t.deadline) != null && daysLeft(t.deadline) < 0;
+  (t.status === 'Trễ deadline' ||
+    (daysLeft(t.deadline) != null && daysLeft(t.deadline) < 0));
 const isOverdue = (t) => laTreTheoHan(t) && !daGiaiQuyet(t);
 const hasProof = (t) => (t.attachment || []).length > 0 || !!t.link;
 
@@ -450,6 +451,9 @@ function deadlineTag(t) {
   let txt = fmtDate(t.deadline);
   if (!isClosed(t)) {
     if (d < 0) { cls += ' late'; txt = 'Quá hạn ' + Math.abs(d) + ' ngày'; }
+    /* Base đã chứng nhận trễ (automation đầu sau deadline 2 tiếng) thì đừng
+     * ghi "Hạn hôm nay" nữa — nhân sự sẽ tưỏng còn kịp. */
+    else if (t.status === 'Trễ deadline') { cls += ' late'; txt = 'Trễ deadline'; }
     else if (d === 0) { cls += ' soon'; txt = 'Hạn hôm nay'; }
     else if (d <= 3) { cls += ' soon'; txt = 'Còn ' + d + ' ngày · ' + txt; }
   }
