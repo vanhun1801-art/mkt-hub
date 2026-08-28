@@ -115,6 +115,41 @@ function guiThemeXuongModule() {
   });
 }
 
+/* ---------------- ngôn ngữ ----------------
+ * Bản dịch nằm ở public/i18n.js (dùng chung cho cả bốn app). Ở đây chỉ là công
+ * tắc: nhớ lựa chọn, đổi cho lớp vỏ, rồi phát xuống mọi app con đang mở.
+ */
+const NGON_NGU = [['vi', 'VI'], ['en', 'EN']];
+
+function docNgonNgu() {
+  try {
+    const v = localStorage.getItem('hub.lang');
+    if (v === 'vi' || v === 'en') return v;
+  } catch (_) {}
+  return /^en/i.test(navigator.language || '') ? 'en' : 'vi';
+}
+
+function apNgonNgu(luu) {
+  if (window.__I18N__) window.__I18N__.dat(S.lang);
+  document.documentElement.setAttribute('data-lang', S.lang);
+  if (luu) { try { localStorage.setItem('hub.lang', S.lang); } catch (_) {} }
+  veSegNgonNgu();
+  guiNgonNguXuongModule();
+}
+
+function guiNgonNguXuongModule() {
+  S.frames.forEach((x) => {
+    try { x.iframe.contentWindow.postMessage({ hub: 'lang', v: S.lang }, location.origin); } catch (_) {}
+  });
+}
+
+function veSegNgonNgu() {
+  const host = $('#segLang');
+  if (!host) return;
+  host.innerHTML = NGON_NGU.map(([v, t]) =>
+    '<button data-lang-set="' + v + '" class="' + (S.lang === v ? 'on' : '') + '">' + t + '</button>').join('');
+}
+
 function veSegTheme() {
   const host = $('#segTheme');
   if (!host) return;
@@ -1087,6 +1122,13 @@ document.addEventListener('click', (e) => {
       .catch(() => toast('Không copy được — bấm giữ để chọn thủ công', 'do'));
     return;
   }
+  const nn = e.target.closest('[data-lang-set]');
+  if (nn) {
+    e.preventDefault();
+    S.lang = nn.getAttribute('data-lang-set');
+    apNgonNgu(true);
+    return;
+  }
   const th = e.target.closest('[data-theme-set]');
   if (th) {
     e.preventDefault();
@@ -1209,6 +1251,8 @@ window.addEventListener('message', (ev) => {
   // icon cho hai nút cuối panel (khai bằng data-ic trong index.html)
   $$('[data-ic]').forEach((el) => { el.innerHTML = icon(el.getAttribute('data-ic')); });
 
+  S.lang = docNgonNgu();
+  apNgonNgu(false);
   S.theme = docTheme();
   apTheme(false);
   // đang ở 'auto' mà hệ thống đổi sáng/tối -> đẩy tone mới xuống các module

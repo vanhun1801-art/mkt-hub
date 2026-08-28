@@ -114,6 +114,15 @@ function shimJs(mod) {
     if (ev.data.hub === 'loc') apKhoang(ev.data.tu, ev.data.den);
   });
 
+  /* Ngôn ngữ: nạp cùng một file từ điển của lớp vỏ (cùng origin nên dùng chung
+   * được). File tự đọc data-lang của trang cha lúc khởi tạo và nghe tin 'lang'. */
+  (function () {
+    var sc = document.createElement('script');
+    sc.src = '/i18n.js';        // file của lớp vỏ, nằm ở gốc origin
+    sc.async = false;
+    (document.head || document.documentElement).appendChild(sc);
+  })();
+
   // Cho lớp vỏ biết trang con đã sẵn sàng + gửi dòng phụ đề để rail hiển thị
   var SEL = ${JSON.stringify(mod.phuSelector || '')};
   function guiPhu(){
