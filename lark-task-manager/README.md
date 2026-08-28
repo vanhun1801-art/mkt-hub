@@ -248,7 +248,11 @@ Giải quyết rồi bấm tiếp Hoàn thành là xoá sạch dấu trễ trong
 * Bấm `Giải quyết` cho việc chưa trễ → `422 NOT_LATE`.
 * Nộp lại lần hai: `Ngày giải quyết` giữ nguyên của lần đầu, để con số "trễ mấy
   ngày" không bị dịch đi.
-* Việc đã giải quyết rời khỏi làn quá hạn và khỏi thẻ **Quá hạn** ở Marketing Hub,
+* Việc đã giải quyết chuyển sang làn riêng **Đã nộp · chờ nghiệm thu** (thu gọn sẵn),
+  rời khỏi làn "Đang trễ deadline" và không còn được đếm trong thẻ đếm đó — con số
+  ấy chỉ còn là việc trễ chưa nộp. Ở làn mới, nhân sự có nút "Nộp lại sản phẩm",
+  quản lý có nút "Nghiệm thu · đóng việc".
+* Việc đã giải quyết cũng rời khỏi thẻ **Quá hạn** ở Marketing Hub,
   chuyển sang dòng ghi chú "N việc trễ đã giải quyết" (bấm vào xem được danh sách).
 * `Ngày giải quyết` đóng băng số ngày trễ: sau này quản lý có đóng việc thì con số
   thống kê vẫn còn.

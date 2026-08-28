@@ -20,7 +20,9 @@ const S = {
   filters: { campaign: '', workType: '', owner: '', priority: '', status: '', due: MAC_DINH_DUE, dueDate: '', moc: '', hideDone: false, q: '' },
   sort: { key: 'deadline', dir: 'asc' },
   selected: new Set(),
-  collapsed: {},             // lane key -> true
+  // lane key -> true. Làn "Đã nộp · chờ nghiệm thu" thu gọn sẵn: việc đã xong phần
+  // của nhân sự, để mở sẵn thì lại che mất làn đang trễ.
+  collapsed: { daNop: true },
   editing: null,
   dirty: {},
   modalTask: null,           // task đang xử lý trong modal
@@ -68,6 +70,9 @@ const LANES = [
   { key: 'late', title: 'Đang trễ deadline',
     hint: 'Đã bị đánh dấu trễ. Ưu tiên xử lý và báo người order.',
     empty: 'Không có việc nào bị đánh dấu trễ.' },
+  { key: 'daNop', title: 'Đã nộp · chờ nghiệm thu',
+    hint: 'Đã trễ nhưng đã nộp sản phẩm. Trạng thái trễ được giữ để thống kê; đợi người order hoặc quản lý nghiệm thu.',
+    empty: 'Không có việc nào đang chờ nghiệm thu.' },
   { key: 'done', title: 'Đã hoàn thành', onlyWhenFiltered: true,
     hint: 'Đã nộp kết quả — chờ hoặc đã có chấm điểm.',
     empty: 'Chưa có việc nào hoàn thành.' },
@@ -87,6 +92,9 @@ function laneOf(t, me) {
   if (s === 'Hoàn thành') return 'done';
   if (s === 'Hủy' || s === 'Tạm dừng') return null;
   if (!isOwner) return 'helping';
+  /* Đã nộp sản phẩm thì rời làn "Đang trễ deadline" — việc của nhân sự xong,
+   * chỉ còn chờ nghiệm thu. Trạng thái vẫn là "Trễ deadline" để thống kê. */
+  if (t.daGiaiQuyet) return 'daNop';
   if (s === 'Trễ deadline') return 'late';
   if (s === 'Làm lại') return 'redo';
   if (s === 'Đang tiến hành') return 'doing';
@@ -637,7 +645,7 @@ function workCard(t, lane) {
    * đó đóng băng theo Ngày giải quyết nên báo cáo cuối tháng đọc được. */
   if (daGiaiQuyet(t)) meta.appendChild(el('span', 'tag tag-gq', nhanGiaiQuyet(t)));
 
-  if (lane === 'doing' || lane === 'redo' || lane === 'late') {
+  if (lane === 'doing' || lane === 'redo' || lane === 'late' || lane === 'daNop') {
     meta.appendChild(el('span', 'proofdot ' + (hasProof(t) ? 'has' : 'missing'),
       hasProof(t) ? 'Đã có kết quả' : 'Chưa có tệp/link'));
   }
@@ -677,6 +685,9 @@ function workCard(t, lane) {
           run: () => openDone(t, 'giai-quyet') }
       : { label: '✓ Hoàn thành', run: () => openDone(t) },
     redo:  { label: '↻ Nộp lại',    run: () => openDone(t) },
+    daNop: treCanGQ
+      ? { label: '↥ Nộp lại sản phẩm', run: () => openDone(t, 'giai-quyet') }
+      : { label: '✓ Nghiệm thu · đóng việc', run: () => openDone(t) },
   }[lane];
 
   if (primary) {
@@ -2355,7 +2366,7 @@ function buildStaffDrawer(b, t, o) {
       const bt = el('button', 'btn btn-primary', '▶ Bắt đầu làm  (→ Đang tiến hành)');
       bt.onclick = async () => { closeDrawer(); await startTask(t); };
       foot.appendChild(bt);
-    } else if (stage === 'doing' || stage === 'redo' || stage === 'late') {
+    } else if (stage === 'doing' || stage === 'redo' || stage === 'late' || stage === 'daNop') {
       const treGQ = !S.isManager && cfg0().chanTre && laTreTheoHan(t);
       const bt = el('button', 'btn btn-primary',
         treGQ

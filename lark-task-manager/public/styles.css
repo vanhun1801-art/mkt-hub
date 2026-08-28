@@ -370,6 +370,7 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 .lane-l-helping { --dot: var(--purple); }
 .lane-l-doing   { --dot: var(--blue); }
 .lane-l-late    { --dot: var(--red); }
+.lane-l-daNop   { --dot: var(--orange); }
 .lane-l-done    { --dot: var(--green); }
 
 /* Thanh tiêu đề phủ dải màu — nhận diện mục từ xa, không cần đọc chữ */
