@@ -81,6 +81,10 @@ function veCdChung(el) {
     '<div id="cdToi" class="cd-hang"><div class="cd-hang-tx"><b>Đang đọc…</b></div></div>' +
     cdHang('Ngôn ngữ', 'Áp cho lớp vỏ và cả ba app con. Mỗi người nhớ lựa chọn riêng trong máy mình.', segNgonNgu) +
     cdHang('Sáng / tối', 'Theo hệ thống là ăn theo cài đặt của máy.', segTheme) +
+    cdHang('Địa chỉ công khai',
+      'Chỉ lớp vỏ này ra internet. Ba app con chạy trên cổng nội bộ (5173 · 5174 · 5176) ' +
+      'trong cùng một máy chủ, chỉ lớp vỏ gọi được — nên cả hệ chỉ có MỘT link và MỘT lần đăng nhập.',
+      '<code>' + esc(location.origin) + '</code>') +
     '<div id="cdBanChay"></div>';
 
   goi('/api/toi').then((t) => {
@@ -133,7 +137,9 @@ function veCdBase(el) {
       '<span class="cd-ic" style="' + (m.mau ? 'background:' + esc(m.mau) + '22;color:' + esc(m.mau) : '') + '">' +
         icon(m.icon) + '</span>' +
       '<div class="cd-base-tx"><b>' + esc(m.ten) + '</b>' +
-        '<p>' + esc(m.kieu) + (m.kieu === 'local' ? ' · cổng ' + m.cong : '') +
+        '<p>' + (m.kieu === 'local'
+          ? 'hub tự bật · cổng nội bộ ' + m.cong + ' (không ra internet)'
+          : m.kieu === 'ngoai' ? 'app có URL riêng' : 'mở thẳng Lark Base') +
         (tt.loi ? ' · <span style="color:var(--do)">' + esc(tt.loi.slice(0, 80)) + '</span>' : '') + '</p></div>' +
       '<span class="chip ' + nhan[1] + '">' + esc(nhan[0]) + '</span>' +
       '<div class="thao-tac">' +
