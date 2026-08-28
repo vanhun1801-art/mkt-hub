@@ -25,12 +25,16 @@ const DEFAULT_TARGETS = {
 const targetsPath = path.join(__dirname, cfg.targetsFile);
 
 function readTargets() {
-  try {
-    const raw = JSON.parse(fs.readFileSync(targetsPath, 'utf8'));
-    return { ...DEFAULT_TARGETS, ...raw, cpa: { ...DEFAULT_TARGETS.cpa, ...(raw.cpa || {}) } };
-  } catch (_) {
-    return { ...DEFAULT_TARGETS, cpa: { ...DEFAULT_TARGETS.cpa } };
+  /* Thứ tự ưu tiên: file (máy cá nhân) -> biến môi trường ADS_TARGETS_JSON -> mặc định.
+   * Server chung như Render dùng ổ đĩa tạm: file muc-tieu.json mất sau mỗi lần deploy,
+   * nên ngưỡng CPA/cảnh báo phải đặt được bằng biến môi trường mới sống được. */
+  let raw = null;
+  try { raw = JSON.parse(fs.readFileSync(targetsPath, 'utf8')); } catch (_) {}
+  if (!raw && process.env.ADS_TARGETS_JSON) {
+    try { raw = JSON.parse(process.env.ADS_TARGETS_JSON); } catch (_) {}
   }
+  if (!raw) return { ...DEFAULT_TARGETS, cpa: { ...DEFAULT_TARGETS.cpa } };
+  return { ...DEFAULT_TARGETS, ...raw, cpa: { ...DEFAULT_TARGETS.cpa, ...(raw.cpa || {}) } };
 }
 
 function writeTargets(next) {

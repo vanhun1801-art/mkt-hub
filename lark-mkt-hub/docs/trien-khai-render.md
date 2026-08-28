@@ -163,6 +163,13 @@ Lấy `open_id` của một người: mở app Bảng công việc → nút **Qu
 | RAM 512MB | 4 tiến trình Node ~300MB — vừa đủ | nếu bị OOM: đặt `HUB_AUTOSTART=0` rồi bật từng module trong Cài đặt |
 | Ổ đĩa tạm | `quyen.json`, `muc-tieu.json`, `ket-noi.json` mất sau mỗi deploy | quản lý đặt bằng `LARK_MANAGER_IDS`; mục tiêu CPA và token quảng cáo phải nhập lại (hoặc chuyển sang VPS) |
 
+**Ngưỡng CPA / cảnh báo quảng cáo** trên Render: đặt bằng biến môi trường `ADS_TARGETS_JSON`
+vì file `muc-tieu.json` không sống qua deploy. Ví dụ:
+
+```json
+{"cpa":{"default":25000,"Facebook":22000,"TikTok":30000},"budgetWarnPct":80,"minSpendJudge":300000,"dataLagDays":2}
+```
+
 **Đồng bộ quảng cáo tự động** (Meta/TikTok/Google) cần `ket-noi.json` chứa token — file
 này không lên GitHub và cũng không sống qua deploy. Trên Render cứ dùng tab **Kết nối &
 Đồng bộ** để nhập CSV thủ công, hoặc chuyển app quảng cáo sang VPS nếu muốn hẹn giờ.
