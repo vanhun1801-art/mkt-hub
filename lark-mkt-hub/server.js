@@ -18,6 +18,7 @@ const kpi = require('./kpi');
 const lich = require('./lichchung');
 const auth = require('./auth');
 const quyen = require('./quyen');
+const viTri = require('./vi-tri');
 const { chuyenTiep, goiJson } = require('./proxy');
 
 const PUBLIC = path.join(__dirname, 'public');
@@ -67,6 +68,72 @@ async function quyenCua(nguoi) {
 
 /** Người này có được xem base đó không. */
 const duocXem = (q, id) => !q || !q.base || q.quanLy || q.base.includes(id);
+
+/* ---------------- XEM NHƯ MỘT NHÂN SỰ ----------------
+ * Quản lý bấm "Xem như" một người: cả lớp vỏ chuyển sang đúng con mắt của người
+ * đó — panel chỉ còn base họ được xem, chỉ số bó theo việc của họ, chi phí ẩn nếu
+ * họ không được xem. Nhờ vậy không phải mượn máy nhân sự để kiểm tra.
+ *
+ * Hai chốt an toàn:
+ *   1. Chỉ QUẢN LÝ mới được bật (người thường gửi cookie cũng bị bỏ qua).
+ *   2. Đang xem hộ thì MỌI THAO TÁC GHI bị chặn — không hành động dưới tên họ.
+ */
+const COOKIE_NHU = 'hub_nhu';
+
+function docCookie(req, ten) {
+  const raw = req.headers.cookie || '';
+  for (const ph of raw.split(';')) {
+    const [k, ...v] = ph.trim().split('=');
+    if (k === ten) { try { return decodeURIComponent(v.join('=')); } catch (_) { return null; } }
+  }
+  return null;
+}
+
+/** Người đang được xem hộ, hoặc null. */
+function xemNhuCua(req) {
+  const raw = docCookie(req, COOKIE_NHU);
+  if (!raw) return null;
+  try {
+    const o = JSON.parse(Buffer.from(raw, 'base64url').toString('utf8'));
+    if (!o || (!o.id && !o.email)) return null;
+    return { id: o.id || '', name: o.ten || o.id || o.email, email: o.email || '' };
+  } catch (_) { return null; }
+}
+
+/**
+ * Danh tính + quyền HIỆU LỰC của request. Trả về:
+ *   nguoi   - danh tính gửi xuống module (người thật, hoặc người đang xem hộ)
+ *   q       - quyền hiệu lực
+ *   xemNhu  - đang xem hộ ai (null nếu không)
+ * Mọi route dùng chung hàm này để không có chỗ nào quên áp phân quyền.
+ */
+async function aiDangXem(req) {
+  const that = cfg.mode === 'api' ? auth.sessionUser(req) : null;
+  const qThat = await quyenCua(that);
+  const laQL = qThat.quanLy || cfg.mode !== 'api';   // máy cá nhân: người ngồi máy là quản lý
+
+  const nhu = laQL ? xemNhuCua(req) : null;
+  if (!nhu) return { nguoi: that, q: qThat, xemNhu: null };
+
+  let hang = null;
+  try { hang = await quyen.cuaNguoi(nhu); } catch (_) { hang = null; }
+  const q = hang
+    ? {
+      quanLy: false,                       // xem bằng mắt nhân sự, không mang quyền quản lý
+      base: hang.base.length ? hang.base : null,
+      toanBo: hang.toanBo, taoMoi: hang.taoMoi, chiPhi: hang.chiPhi, tuBang: true,
+    }
+    : { quanLy: false, base: null, toanBo: false, taoMoi: true, chiPhi: false, tuBang: false };
+
+  return { nguoi: { id: nhu.id, name: nhu.name, email: nhu.email }, q, xemNhu: nhu, quanLyThat: laQL };
+}
+
+/** Đang xem hộ thì chặn mọi thao tác ghi. */
+function chanGhiKhiXemHo(res, xemNhu, method) {
+  if (!xemNhu || method === 'GET' || method === 'HEAD' || method === 'OPTIONS') return false;
+  loi(res, 403, 'Đang xem bằng mắt của ' + xemNhu.name + ' — thoát chế độ này rồi hãy thao tác.');
+  return true;
+}
 
 /* Danh tính kèm quyền để gửi xuống module. Thiếu bước gộp này thì hub tự gọi
  * /api/meta mà không nói mình là quản lý -> chỉ số trên Tổng quan bị bó vào phạm
@@ -157,13 +224,15 @@ async function api(req, res, u) {
   const m = req.method;
 
   if (p === '/api/hub' && m === 'GET') {
-    const nguoi = cfg.mode === 'api' ? auth.sessionUser(req) : null;
-    const q = await quyenCua(nguoi);
+    const { nguoi, q, xemNhu, quanLyThat } = await aiDangXem(req);
     return ok(res, {
       ten: cfg.ten, phu: cfg.phu, build: cfg.build, cong: cfg.port,
       che_do: cfg.mode,
       // chạy trên máy cá nhân (cli) thì người ngồi trước máy chính là quản lý
-      quanLy: q.quanLy || cfg.mode !== 'api',
+      quanLy: xemNhu ? false : (q.quanLy || cfg.mode !== 'api'),
+      // đang xem hộ: vẫn cho thoát chế độ này nên client cần biết mình thật là quản lý
+      quanLyThat: !!(quanLyThat || q.quanLy || cfg.mode !== 'api'),
+      xemNhu: xemNhu ? { ten: xemNhu.name, email: xemNhu.email || null } : null,
       toi: nguoi ? { ten: nguoi.name, email: nguoi.email || null, quanLy: q.quanLy } : null,
       // panel chỉ hiện base người này được xem
       modules: danhSach().filter((x) => duocXem(q, x.id)).map(congKhai),
@@ -171,8 +240,7 @@ async function api(req, res, u) {
   }
 
   if (p === '/api/tongquan' && m === 'GET') {
-    const nguoiTQ = cfg.mode === 'api' ? auth.sessionUser(req) : null;
-    const qTQ = await quyenCua(nguoiTQ);
+    const { nguoi: nguoiTQ, q: qTQ } = await aiDangXem(req);
     const mods = danhSach().filter((x) => x.bat && kpi.BO_DOC[x.kpi] && duocXem(qTQ, x.id));
     if (u.searchParams.get('refresh') === '1') kpi.xoaCache();
     // Khoảng lọc do client tính (nó biết múi giờ, "tháng này" theo máy người dùng)
@@ -202,8 +270,7 @@ async function api(req, res, u) {
     const soNgay = Math.round((Date.parse(den) - Date.parse(tu)) / 86400000) + 1;
     if (soNgay > 92) return loi(res, 400, 'Khoảng quá rộng (' + soNgay + ' ngày) — chọn tối đa 3 tháng.');
 
-    const nguoiLC = cfg.mode === 'api' ? auth.sessionUser(req) : null;
-    const qLC = await quyenCua(nguoiLC);
+    const { nguoi: nguoiLC, q: qLC } = await aiDangXem(req);
     const mods = danhSach().filter((x) => x.bat && lich.BO_DOC[x.kpi] && duocXem(qLC, x.id));
     if (u.searchParams.get('refresh') === '1') lich.xoaCache();
     return ok(res, await lich.lichChung(mods, tu, den, u.searchParams.get('refresh') === '1',
@@ -399,6 +466,8 @@ async function api(req, res, u) {
 
       return ok(res, {
         base: danhSach().filter((x) => x.bat).map((x) => ({ id: x.id, ten: x.ten })),
+        // mẫu quyền theo vị trí công việc: chọn vị trí là các ô tự tick theo mẫu
+        viTri: viTri.docDanhSach(),
         hang, danhBa, loiBang,
         larkUrl: quyen.larkUrl,
         env_quan_ly: dsQuanLyEmail().concat(dsQuanLyId()),
@@ -425,8 +494,7 @@ async function api(req, res, u) {
    * vài việc thường gặp, không phải nhảy sang app.
    */
   if (p === '/api/o' && m === 'GET') {
-    const nguoiO = cfg.mode === 'api' ? auth.sessionUser(req) : null;
-    const qO = await quyenCua(nguoiO);
+    const { nguoi: nguoiO, q: qO, xemNhu: nhuO } = await aiDangXem(req);
     const mod = timMod(u.searchParams.get('mod') || '');
     if (!mod || !mod.bat) return loi(res, 404, 'Không có base này trong panel');
     if (!duocXem(qO, mod.id)) return loi(res, 403, 'Bạn không được xem base này');
@@ -452,7 +520,8 @@ async function api(req, res, u) {
 
     return ok(res, {
       mod: mod.id, ten: mod.ten, kpi: mod.kpi, khoa: khoaNhom,
-      quanLy: qO.quanLy || cfg.mode !== 'api',
+      quanLy: nhuO ? false : (qO.quanLy || cfg.mode !== 'api'),
+      xemNhu: nhuO ? nhuO.name : null,
       ds, nhanSu,
     });
   }
@@ -485,8 +554,8 @@ async function api(req, res, u) {
   }
 
   if (p === '/api/viec' && m === 'POST') {
-    const nguoiV = cfg.mode === 'api' ? auth.sessionUser(req) : null;
-    const qV = await quyenCua(nguoiV);
+    const { nguoi: nguoiV, q: qV, xemNhu: nhuV } = await aiDangXem(req);
+    if (chanGhiKhiXemHo(res, nhuV, m)) return;
     const b = await docBody(req);
     const mod = timMod(b.mod || '');
     if (!mod || !mod.bat) return loi(res, 404, 'Không có base này trong panel');
@@ -510,6 +579,30 @@ async function api(req, res, u) {
       if (msg.length > 240) msg = msg.slice(0, 240) + '…';
       return send(res, e.http && e.http < 500 ? e.http : 502,
         { error: msg, code: e.code || '', hint: e.hint || '' });
+    }
+  }
+
+  /* Bật/tắt chế độ "Xem như". Cookie chứ không phải tham số URL: proxy vào module
+   * không thêm được tham số, mà app con vẫn phải thấy đúng danh tính đang xem. */
+  if (p === '/api/xem-nhu') {
+    const nguoiX = cfg.mode === 'api' ? auth.sessionUser(req) : null;
+    const qX = await quyenCua(nguoiX);
+    if (cfg.mode === 'api' && !qX.quanLy) return loi(res, 403, 'Chỉ quản lý dùng được chế độ xem hộ.');
+
+    if (m === 'DELETE') {
+      res.setHeader('Set-Cookie', COOKIE_NHU + '=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0');
+      return ok(res, { thoat: true });
+    }
+    if (m === 'POST') {
+      const b = await docBody(req);
+      if (!b || (!b.id && !b.email)) return loi(res, 400, 'Thiếu người cần xem hộ.');
+      const gt = Buffer.from(JSON.stringify({ id: b.id || '', ten: b.ten || '', email: b.email || '' }))
+        .toString('base64url');
+      const parts = [COOKIE_NHU + '=' + encodeURIComponent(gt), 'Path=/', 'HttpOnly',
+        'SameSite=Lax', 'Max-Age=' + 8 * 3600];
+      if (cfg.publicUrl.startsWith('https://')) parts.push('Secure');
+      res.setHeader('Set-Cookie', parts.join('; '));
+      return ok(res, { xemNhu: b.ten || b.email || b.id });
     }
   }
 
@@ -567,9 +660,12 @@ const server = http.createServer(async (req, res) => {
       return res.end();
     }
     kids.khoiDong(mod); // bảo đảm đang chạy (không chờ)
-    const nguoi = cfg.mode === 'api' ? auth.sessionUser(req) : null;
+    const { nguoi, q, xemNhu } = await aiDangXem(req);
+    if (xemNhu && !['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+      return send(res, 403, 'Đang xem bằng mắt của ' + xemNhu.name +
+        ' — thoát chế độ này rồi hãy thao tác.', { 'Content-Type': 'text/plain; charset=utf-8' });
+    }
     if (nguoi) {
-      const q = await quyenCua(nguoi);
       if (!duocXem(q, mod.id)) {
         // chặn ngay ở cổng: ẩn khỏi panel là chưa đủ, ai gõ tay URL cũng phải bị chặn
         return send(res, 403, 'Bạn chưa được cấp quyền xem base "' + mod.ten + '".',

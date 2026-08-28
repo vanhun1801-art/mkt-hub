@@ -57,6 +57,12 @@ function veBangQuyen() {
     '<tr data-i="' + i + '" data-rec="' + esc(h.recordId || '') + '" data-openid="' + esc(h.openId || '') + '">' +
     '<td><input class="q-in q-ten" type="text" value="' + esc(h.nguoi || '') + '" placeholder="Tên"></td>' +
     '<td><input class="q-in q-mail" type="text" value="' + esc(h.email || '') + '" placeholder="email@rootytrip.com"></td>' +
+    '<td><select class="q-in q-vitri" data-i="' + i + '">' +
+      '<option value="">— chọn vị trí —</option>' +
+      (d.viTri || []).map((v) =>
+        '<option value="' + esc(v.ten) + '"' + (h.viTri === v.ten ? ' selected' : '') +
+        ' title="' + esc(v.mo || '') + '">' + esc(v.ten) + '</option>').join('') +
+    '</select></td>' +
     '<td><select class="q-in q-vai">' +
       '<option value="Nhân sự"' + (h.vai === 'Quản lý' ? '' : ' selected') + '>Nhân sự</option>' +
       '<option value="Quản lý"' + (h.vai === 'Quản lý' ? ' selected' : '') + '>Quản lý</option>' +
@@ -65,7 +71,11 @@ function veBangQuyen() {
     '<td><div class="q-nhom">' + oQuyen(h) + '</div></td>' +
     '<td><div class="thao-tac">' +
       '<button class="btn nho primary" data-luuq="' + i + '">Lưu</button>' +
-      (h.recordId ? '<button class="btn nho ghost" data-xoaq="' + esc(h.recordId) + '">Xoá</button>' : '') +
+      (h.recordId
+        ? '<button class="btn nho ghost" data-xemnhu="' + i + '" ' +
+          'title="Mở cả app bằng đúng con mắt của người này">Xem như</button>' +
+          '<button class="btn nho ghost" data-xoaq="' + esc(h.recordId) + '">Xoá</button>'
+        : '') +
     '</div></td></tr>';
 
   /* Đọc bảng thất bại thì KHÔNG bày ô nhập: lưu lúc này dễ tạo dòng trùng với
@@ -99,17 +109,18 @@ function veBangQuyen() {
     '</div>';
 
   html += '<div class="q-cuon"><table class="bang bang-quyen"><thead><tr>' +
-    '<th>Người</th><th>Email</th><th>Vai</th><th>Base được xem</th>' +
+    '<th>Người</th><th>Email</th><th>Vị trí</th><th>Vai</th><th>Base được xem</th>' +
     '<th>Tùy chọn cho nhân sự</th><th></th></tr></thead><tbody>' +
     (ds.length ? ds.map(dongHtml).join('')
-      : '<tr><td colspan="6" class="trong">Chưa khai ai — mặc định mọi người thấy đủ ' +
+      : '<tr><td colspan="7" class="trong">Chưa khai ai — mặc định mọi người thấy đủ ' +
         base.length + ' base với vai nhân sự.</td></tr>') +
     '</tbody></table></div>';
 
   html += '<div class="q-ghi">Khớp người theo email · bỏ tick base nào thì base đó ' +
     'biến khỏi panel của họ · quản lý khai trong biến môi trường luôn giữ vai quản lý' +
     (d.env_quan_ly && d.env_quan_ly.length ? ' (' + d.env_quan_ly.map(esc).join(', ') + ')' : '') +
-    '.<br>Xem toàn bộ và Được tạo mới áp cho Bảng công việc và Lịch tác nghiệp; ' +
+    '.<br>Chọn <b>Vị trí</b> là các ô tự tick theo mẫu của vị trí đó — sửa tay lại được. ' +
+    'Xem toàn bộ và Được tạo mới áp cho Bảng công việc và Lịch tác nghiệp; ' +
     'Xem chi phí áp cho Lịch tác nghiệp.</div>';
 
   $('#mdBody').innerHTML = html;
@@ -147,6 +158,7 @@ async function luuDongQuyen(tr) {
     email: tr.querySelector('.q-mail').value.trim(),
     openId: tr.dataset.openid || '',
     vai: tr.querySelector('.q-vai').value,
+    viTri: tr.querySelector('.q-vitri') ? tr.querySelector('.q-vitri').value : '',
     // tick đủ = không giới hạn -> để trống ô trong Base cho dễ đọc
     base: chon.length === oBase.length ? [] : chon,
     toanBo: bat('toanBo'),
@@ -182,7 +194,58 @@ async function xoaDongQuyen(recordId) {
   }
 }
 
+/**
+ * Xem cả app bằng đúng con mắt của một nhân sự: panel chỉ còn base họ được xem,
+ * chỉ số bó theo việc của họ. Nạp lại trang để mọi app con nhận danh tính mới.
+ */
+async function batXemNhu(h) {
+  try {
+    await goi('/api/xem-nhu', {
+      method: 'POST',
+      body: JSON.stringify({ id: h.openId || '', ten: h.nguoi || h.email, email: h.email || '' }),
+    });
+    location.hash = '#/tong-quan';
+    location.reload();
+  } catch (e) { toast(e.message, 'do'); }
+}
+
+async function thoatXemNhu() {
+  try {
+    await goi('/api/xem-nhu', { method: 'DELETE' });
+    location.reload();
+  } catch (e) { toast(e.message, 'do'); }
+}
+
+/**
+ * Chọn vị trí công việc -> tick sẵn theo mẫu của vị trí đó. Không tự lưu: quản lý
+ * còn sửa tay được cho từng người rồi mới bấm Lưu.
+ */
+document.addEventListener('change', (e) => {
+  const sel = e.target.closest('.q-vitri');
+  if (!sel) return;
+  const mau = ((S.quyen && S.quyen.viTri) || []).find((v) => v.ten === sel.value);
+  if (!mau) return;
+  const tr = sel.closest('tr');
+  const dsBase = mau.base || [];
+  tr.querySelectorAll('[data-base]').forEach((ck) => { ck.checked = dsBase.includes(ck.dataset.base); });
+  QUYEN_CO.forEach((q) => {
+    const ck = tr.querySelector('[data-q="' + q.k + '"]');
+    if (ck) ck.checked = !!mau[q.k];
+  });
+  const vai = tr.querySelector('.q-vai');
+  if (vai) vai.value = mau.vai === 'Quản lý' ? 'Quản lý' : 'Nhân sự';
+  toast('Đã áp mẫu vị trí ' + mau.ten + (mau.mo ? ' — ' + mau.mo : '') + '. Bấm Lưu để ghi.', '');
+});
+
 document.addEventListener('click', (e) => {
+  const xn = e.target.closest('[data-xemnhu]');
+  if (xn) {
+    e.preventDefault();
+    const h = (S.quyenHang || [])[Number(xn.getAttribute('data-xemnhu'))];
+    if (h) batXemNhu(h);
+    return;
+  }
+  if (e.target.closest('#btnThoatXemNhu')) { e.preventDefault(); thoatXemNhu(); return; }
   const luu = e.target.closest('[data-luuq]');
   if (luu) { e.preventDefault(); luuDongQuyen(luu.closest('tr')); return; }
   const xoa = e.target.closest('[data-xoaq]');

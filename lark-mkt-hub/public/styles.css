@@ -772,3 +772,20 @@ code { background: var(--trang-2); border: 1px solid var(--vien-mem); border-rad
 /* dòng ghi chú bấm được trong thẻ số */
 .the .ghi-mo { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 2px; }
 .the .ghi-mo:hover { color: var(--xanh); }
+
+/* ---------------- băng "đang xem hộ một nhân sự" ---------------- */
+.bang-xem-nhu {
+  position: fixed; inset: 0 0 auto 0; z-index: 60; height: 34px;
+  display: flex; align-items: center; gap: 10px; padding: 0 14px;
+  background: var(--vang-nhat); border-bottom: 1px solid var(--vang);
+  color: #96591b; font-size: 12.5px;
+}
+.bang-xem-nhu b { font-weight: 600; }
+.bang-xem-nhu .ghi { color: #96591b; opacity: .8; }
+.bang-xem-nhu .btn { margin-left: auto; }
+/* đẩy cả app xuống để băng không che panel */
+body.dang-xem-ho .app { height: calc(100vh - 34px); margin-top: 34px; }
+:root[data-theme="toi"] .bang-xem-nhu { color: #ffd9a0; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="sang"]) .bang-xem-nhu { color: #ffd9a0; }
+}

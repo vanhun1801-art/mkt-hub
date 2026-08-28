@@ -13,6 +13,10 @@
  * Khớp người theo EMAIL trước, rồi mới tới open_id: open_id khác nhau giữa các
  * app Lark nên không dùng làm khoá chính được.
  */
+const os = require('os');
+const fsn = require('fs');
+const pathn = require('path');
+const { execFile } = require('child_process');
 const cfg = require('./config');
 
 const BASE = process.env.HUB_QUYEN_BASE || 'JhZtbxv0gamk5ys3Fr0luHnsgwG';
@@ -23,6 +27,7 @@ const F = {
   email: 'Email',
   openId: 'open_id',
   vai: 'Vai',
+  viTri: 'Vị trí',
   base: 'Base được xem',
   toanBo: 'Xem toàn bộ base',
   taoMoi: 'Được tạo mới',
@@ -47,6 +52,55 @@ async function tenantToken() {
   return tokenCache.value;
 }
 
+/* ---------------- gọi Base bằng lark-cli (máy cá nhân, chế độ cli) ----------------
+ * Chạy localhost thì không có App Secret, nhưng máy đã đăng nhập lark-cli — dùng
+ * luôn phiên đó để đọc/ghi cùng một bảng phân quyền. Nhờ vậy quản lý sửa quyền
+ * được cả ở máy mình lẫn trên bản deploy, dữ liệu vẫn một chỗ.
+ */
+function timLarkCli() {
+  if (process.env.LARK_CLI_SCRIPT) return process.env.LARK_CLI_SCRIPT;
+  const rel = pathn.join('node_modules', '@larksuite', 'cli', 'scripts', 'run.js');
+  const goc = [
+    pathn.join(process.env.APPDATA || pathn.join(os.homedir(), 'AppData', 'Roaming'), 'npm'),
+    pathn.join(os.homedir(), 'AppData', 'Roaming', 'npm'),
+    '/usr/local/lib',
+    '/usr/lib',
+  ];
+  for (const r of goc) {
+    const p = pathn.join(r, rel);
+    if (fsn.existsSync(p)) return p;
+  }
+  return null;
+}
+
+function cli(args) {
+  return new Promise((resolve, reject) => {
+    const script = timLarkCli();
+    if (!script) {
+      return reject(new Error('Máy này chưa có lark-cli (npm i -g @larksuite/cli), ' +
+        'hoặc chạy chế độ api bằng LARK_APP_ID + LARK_APP_SECRET.'));
+    }
+    execFile(process.execPath, [script, ...args],
+      { timeout: 60000, maxBuffer: 32 * 1024 * 1024, windowsHide: true },
+      (err, stdout) => {
+        const raw = String(stdout || '').trim();
+        let j = null;
+        const s = raw.indexOf('{');
+        const e = raw.lastIndexOf('}');
+        if (s >= 0 && e > s) { try { j = JSON.parse(raw.slice(s, e + 1)); } catch (_) {} }
+        if (j && j.ok === false) {
+          const m = (j.error && (j.error.message || j.error.hint)) || j.message || 'lark-cli lỗi';
+          return reject(new Error(String(m).slice(0, 200)));
+        }
+        if (err && !j) return reject(new Error(String(err.message || err).slice(0, 200)));
+        resolve((j && j.data) || j || {});
+      });
+  });
+}
+
+const cliArgs = () => ['--base-token', BASE, '--table-id', TABLE,
+  '--as', process.env.LARK_AS || 'user', '--format', 'json'];
+
 const url = (duoi) => cfg.apiHost + '/open-apis/base/v3/bases/' + BASE + '/tables/' + TABLE + duoi;
 
 async function goi(method, duoi, body) {
@@ -65,6 +119,8 @@ async function goi(method, duoi, body) {
   }
   return d.data || {};
 }
+
+const laApi = () => cfg.mode === 'api';
 
 /* ---------------- đọc ---------------- */
 const asText = (v) => {
@@ -90,7 +146,8 @@ let mapCot = { at: 0, theoId: null };
 /** id cột -> tên cột. Bản ghi Base trả về theo id, mà code đọc theo tên cho dễ hiểu. */
 async function tenCot() {
   if (mapCot.theoId && Date.now() - mapCot.at < 5 * 60000) return mapCot.theoId;
-  const d = await goi('GET', '/fields?limit=100&offset=0');
+  const d = laApi() ? await goi('GET', '/fields?limit=100&offset=0')
+                    : await cli(['base', '+field-list', ...cliArgs()]);
   const ds = d.fields || d.items || [];
   const theoId = {};
   ds.forEach((f) => { theoId[f.field_id || f.id] = f.field_name || f.name; });
@@ -105,7 +162,9 @@ async function docTatCa(boQuaCache) {
   const out = [];
   let offset = 0;
   for (let trang = 0; trang < 10; trang++) {
-    const d = await goi('GET', '/records?limit=200&offset=' + offset);
+    const d = laApi()
+      ? await goi('GET', '/records?limit=200&offset=' + offset)
+      : await cli(['base', '+record-list', ...cliArgs(), '--limit', '200', '--offset', String(offset)]);
     const ten = (d.field_id_list || []).map((id) => theoId[id] || id);
     out.push(...doiHang(ten, d.record_id_list || [], d.data || []));
     if (!d.has_more) break;
@@ -118,6 +177,7 @@ async function docTatCa(boQuaCache) {
     email: asText(r[F.email]).trim().toLowerCase(),
     openId: asText(r[F.openId]).trim(),
     vai: asText(Array.isArray(r[F.vai]) ? r[F.vai][0] : r[F.vai]) || '',
+    viTri: asText(r[F.viTri]).trim(),
     base: asText(r[F.base]).split(',').map((x) => x.trim()).filter(Boolean),
     toanBo: r[F.toanBo] === true,
     taoMoi: r[F.taoMoi] === true,
@@ -145,6 +205,7 @@ async function ghi(hang) {
     [F.email]: (hang.email || '').trim(),
     [F.openId]: (hang.openId || '').trim(),
     [F.vai]: hang.vai === 'Quản lý' ? 'Quản lý' : 'Nhân sự',
+    [F.viTri]: hang.viTri || '',
     [F.base]: (hang.base || []).join(','),
     [F.toanBo]: !!hang.toanBo,
     [F.taoMoi]: !!hang.taoMoi,
@@ -153,20 +214,25 @@ async function ghi(hang) {
   };
 
   if (hang.recordId) {
-    await goi('POST', '/records/batch_update', { update_records: { [hang.recordId]: cells } });
+    const body = { update_records: { [hang.recordId]: cells } };
+    if (laApi()) await goi('POST', '/records/batch_update', body);
+    else await cli(['base', '+record-batch-update', ...cliArgs(), '--json', JSON.stringify(body)]);
     cache.at = 0;
     return hang.recordId;
   }
   const ten = Object.keys(cells);
-  const d = await goi('POST', '/records/batch_create', {
-    fields: ten, rows: [ten.map((n) => cells[n])],
-  });
+  const body = { fields: ten, rows: [ten.map((n) => cells[n])] };
+  const d = laApi()
+    ? await goi('POST', '/records/batch_create', body)
+    : await cli(['base', '+record-batch-create', ...cliArgs(), '--json', JSON.stringify(body)]);
   cache.at = 0;
   return (d.record_id_list || [])[0] || null;
 }
 
 async function xoa(recordId) {
-  await goi('POST', '/records/batch_delete', { record_id_list: [recordId] });
+  const body = { record_id_list: [recordId] };
+  if (laApi()) await goi('POST', '/records/batch_delete', body);
+  else await cli(['base', '+record-batch-delete', ...cliArgs(), '--json', JSON.stringify(body)]);
   cache.at = 0;
 }
 

@@ -752,6 +752,25 @@ function moChiTietO(nguoiId, ngay) {
     '<button class="btn ghost" data-close="1">Đóng</button>');
 }
 
+/**
+ * Băng nhắc khi đang xem hộ một nhân sự. Phải nổi và luôn thấy: nhìn số liệu của
+ * người khác mà tưởng của mình thì rất dễ kết luận sai.
+ */
+function veBangXemNhu() {
+  let el = $('#bangXemNhu');
+  if (!S.xemNhu) { if (el) el.remove(); document.body.classList.remove('dang-xem-ho'); return; }
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'bangXemNhu';
+    el.className = 'bang-xem-nhu';
+    document.body.prepend(el);
+  }
+  document.body.classList.add('dang-xem-ho');
+  el.innerHTML = '<b>Đang xem bằng mắt của ' + esc(S.xemNhu.ten) + '</b>' +
+    '<span class="ghi">chỉ xem — mọi thao tác ghi bị chặn</span>' +
+    '<button class="btn nho" id="btnThoatXemNhu">Thoát</button>';
+}
+
 /* ---------------- nạp dữ liệu ---------------- */
 async function napHub() {
   const d = await goi('/api/hub');
@@ -761,6 +780,9 @@ async function napHub() {
   $('#hubPhu').textContent = d.phu;
   // phân quyền là việc của quản lý -> nhân sự không thấy nút đó trong Cài đặt
   S.quanLy = !!d.quanLy;
+  S.quanLyThat = !!d.quanLyThat;
+  S.xemNhu = d.xemNhu || null;
+  veBangXemNhu();
   veRail();
 }
 

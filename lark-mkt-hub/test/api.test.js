@@ -27,7 +27,10 @@ function goi(duongDan, opts = {}) {
       {
         host: u.hostname, port: u.port, path: u.pathname + u.search,
         method: opts.method || 'GET', timeout: 45000,
-        headers: than ? { 'content-type': 'application/json; charset=utf-8', 'content-length': than.length } : {},
+        headers: Object.assign(
+          than ? { 'content-type': 'application/json; charset=utf-8', 'content-length': than.length } : {},
+          opts.headers || {}
+        ),
       },
       (res) => {
         const buf = [];
@@ -217,6 +220,39 @@ const json = async (p, opts) => {
     ok(recLa.data && typeof recLa.data.error === 'string' && recLa.data.error.length < 260,
       'Lỗi trả về đã cắt ngắn, đủ hiện một dòng thông báo');
   } else boQua('Cửa sổ nhanh: bản ghi lẻ', 'không có nhóm nào có bản ghi');
+
+  /* ---- 3d. xem như một nhân sự ----
+   * Quản lý bật chế độ này để kiểm tra nhân sự thấy gì. Hai thứ phải đúng:
+   * chỉ còn base người đó được xem, và mọi thao tác ghi bị chặn.
+   */
+  console.log('\n[3d] Xem như một nhân sự');
+  const bat = await json('/api/xem-nhu', { method: 'POST', body: { id: 'ou_kiem_thu', ten: 'Người kiểm thử' } });
+  ok(bat.code === 200, 'POST /api/xem-nhu bật được chế độ xem hộ', bat.raw.slice(0, 120));
+  const ck = String((bat.headers && bat.headers['set-cookie']) || '');
+  ok(/hub_nhu=/.test(ck) && /HttpOnly/i.test(ck), 'Cookie xem hộ có HttpOnly');
+  const cookieNhu = (ck.match(/hub_nhu=[^;]+/) || [''])[0];
+
+  const hubNhu = await json('/api/hub', { headers: { cookie: cookieNhu } });
+  ok(hubNhu.code === 200 && hubNhu.data.xemNhu && hubNhu.data.xemNhu.ten === 'Người kiểm thử',
+    '/api/hub báo đang xem hộ ai');
+  ok(hubNhu.data.quanLy === false && hubNhu.data.quanLyThat === true,
+    'Đang xem hộ thì mất vai quản lý nhưng vẫn thoát ra được');
+
+  const ghiNhu = await json('/api/viec', {
+    method: 'POST', headers: { cookie: cookieNhu },
+    body: { mod: 'cong-viec', id: 'recZZZZZZZZZZ', act: 'bat-dau' },
+  });
+  ok(ghiNhu.code === 403 && /xem bằng mắt/i.test(ghiNhu.data.error || ''),
+    'Đang xem hộ thì mọi thao tác ghi bị chặn (403)', ghiNhu.raw.slice(0, 120));
+
+  const tat = await json('/api/xem-nhu', { method: 'DELETE' });
+  ok(tat.code === 200, 'DELETE /api/xem-nhu thoát được chế độ xem hộ');
+
+  const vt = await json('/api/quyen');
+  ok(vt.code === 200 && Array.isArray(vt.data.viTri) && vt.data.viTri.length >= 5,
+    'Có danh sách vị trí công việc kèm mẫu quyền (' + ((vt.data.viTri || []).length) + ')');
+  ok((vt.data.viTri || []).every((x) => x.ten && Array.isArray(x.base)),
+    'Vị trí nào cũng có tên và danh sách base');
 
   /* ---- 4. log của module ---- */
   console.log('\n[4] Log module');

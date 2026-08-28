@@ -153,8 +153,40 @@ Chưa khai dòng nào = thấy đủ mọi base với vai nhân sự (mặc đ�
 mới không âm thầm biến mất với cả phòng). Người khai trong `LARK_MANAGER_EMAILS`
 luôn giữ vai quản lý — không tự khoá mình ra ngoài được.
 
-Bảng này cần khoá app nên **chỉ dùng được trên bản đã deploy** (chế độ `api`); chạy
-localhost thì hộp thoại chỉ đưa link mở bảng trong Lark.
+Bảng đọc/ghi được ở **cả hai chế độ**: trên Render dùng khoá app, còn ở máy cá nhân
+thì dùng phiên `lark-cli` của máy — nên khai quyền ở đâu cũng vào cùng một chỗ.
+
+### D2. Vị trí công việc (mẫu quyền)
+
+Phòng có nhiều vị trí nên không tick tay từng người: cột **Vị trí** có sẵn mẫu cho
+Quản lý · Ads · Content · Editor · Designer · Chỉnh ảnh · Media · Website · KOL · Khác.
+Chọn vị trí là các ô tự tick theo mẫu, sửa tay lại được rồi mới Lưu.
+
+| Vị trí | Base được xem | Ghi chú |
+|---|---|---|
+| Quản lý | cả 3 | toàn quyền |
+| Ads | cả 3 | thêm base quảng cáo + xem số tiền |
+| Chỉnh ảnh | Bảng công việc + Lịch tác nghiệp | không được tạo việc mới |
+| Còn lại | Bảng công việc + Lịch tác nghiệp | không thấy base quảng cáo |
+
+Sửa danh sách mẫu: file `lark-mkt-hub/vi-tri.js`, hoặc biến môi trường
+`HUB_VI_TRI_JSON` (cả mảng dạng JSON) nếu không muốn sửa code.
+
+> Thêm base mới thì nhớ khai vào `vi-tri.js`, nếu không chỉ quản lý và người được
+> tick tay mới thấy base đó.
+
+### D3. Xem như một nhân sự
+
+Trong bảng phân quyền, mỗi dòng có nút **Xem như** — cả app chuyển sang đúng con mắt
+người đó: panel chỉ còn base họ được xem, chỉ số bó theo việc của họ, chi phí ẩn nếu
+họ không được xem. Có băng vàng ở trên và nút **Thoát**.
+
+Hai chốt an toàn: chỉ quản lý bật được, và **mọi thao tác ghi bị chặn** khi đang xem hộ
+(kể cả gõ tay URL vào base họ không được xem — trả 403).
+
+> Trên máy cá nhân (chế độ `cli`), "Xem như" phản ánh **đúng phần base được xem**,
+> nhưng số liệu vẫn theo phiên lark-cli của máy. Muốn thấy đúng y như nhân sự thì
+> dùng link đã deploy.
 
 Người không nằm trong Availability: đăng nhập được nhưng app không đọc được dữ liệu
 của họ. Người nằm ngoài `LARK_MANAGER_IDS`: vào với vai nhân sự — chỉ thấy việc của
