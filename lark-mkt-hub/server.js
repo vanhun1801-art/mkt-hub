@@ -226,12 +226,30 @@ async function api(req, res, u) {
     return ok(res, congKhai(mod));
   }
 
+  if (p === '/api/toi' && m === 'GET') {
+    /* open_id của một người KHÁC NHAU giữa các app Lark. Đổi app là danh sách
+     * LARK_MANAGER_IDS cũ không còn khớp -> quản lý bị tụt xuống vai nhân sự.
+     * Endpoint này để lấy đúng open_id dưới app đang chạy. */
+    const nguoi = cfg.mode === 'api' ? auth.sessionUser(req) : null;
+    const ds = (process.env.LARK_MANAGER_IDS || '').split(',').map((x) => x.trim()).filter(Boolean);
+    return ok(res, {
+      che_do: cfg.mode,
+      id: nguoi ? nguoi.id : null,
+      ten: nguoi ? nguoi.name : null,
+      la_quan_ly: !!(nguoi && ds.includes(nguoi.id)),
+      so_quan_ly_dang_khai: ds.length,
+    });
+  }
+
   if (p === '/api/bo-doc-kpi' && m === 'GET') return ok(res, { ds: Object.keys(kpi.BO_DOC) });
 
   if (p === '/healthz') {
     const mods = danhSach();
     return ok(res, {
       ok: true, build: cfg.build,
+      che_do: cfg.mode,
+      // Render đặt biến này -> biết chắc đang chạy commit nào, đỡ đoán khi deploy
+      commit: (process.env.RENDER_GIT_COMMIT || '').slice(0, 7) || null,
       modules: mods.map((x) => ({ id: x.id, trangThai: kids.tinhTrang(x).trangThai })),
     });
   }

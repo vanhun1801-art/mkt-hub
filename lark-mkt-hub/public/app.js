@@ -775,9 +775,25 @@ function modalCaiDat() {
   }).join('');
 
   moModal('Cài đặt · các base trong panel',
+    '<div id="oToi" class="canh-bao" hidden></div>' +
     '<table class="bang"><thead><tr><th>Base</th><th>Kiểu</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>' +
     '<tbody>' + dong + '</tbody></table>',
     '<button class="btn ghost" data-close="1">Đóng</button>');
+
+  /* Chế độ chạy chung: mỗi app Lark thấy một open_id khác nhau cho cùng một người.
+   * Hiện id ngay đây để dán vào LARK_MANAGER_IDS khi cần cấp vai quản lý. */
+  goi('/api/toi').then((t) => {
+    const o = $('#oToi');
+    if (!o || t.che_do !== 'api' || !t.id) return;
+    o.hidden = false;
+    o.className = 'canh-bao' + (t.la_quan_ly ? '' : ' do');
+    o.innerHTML = '<div class="grow"><b>' + esc(t.ten || '') + '</b> · open_id <code>' + esc(t.id) + '</code>' +
+      '<div class="kh-sub">' + (t.la_quan_ly
+        ? 'Đang có vai quản lý.'
+        : 'Chưa có vai quản lý — dán open_id này vào biến LARK_MANAGER_IDS trên Render rồi Save.') +
+      '</div></div>' +
+      '<button class="btn nho" data-copy-id="' + esc(t.id) + '">Copy open_id</button>';
+  }).catch(() => {});
 }
 
 async function modalLog(id) {
@@ -937,6 +953,14 @@ document.addEventListener('click', (e) => {
     return;
   }
   // một ô trong lưới lịch chung
+  const cp = e.target.closest('[data-copy-id]');
+  if (cp) {
+    e.preventDefault();
+    navigator.clipboard.writeText(cp.getAttribute('data-copy-id'))
+      .then(() => toast('Đã copy open_id', 'luc'))
+      .catch(() => toast('Không copy được — bấm giữ để chọn thủ công', 'do'));
+    return;
+  }
   const th = e.target.closest('[data-theme-set]');
   if (th) {
     e.preventDefault();
