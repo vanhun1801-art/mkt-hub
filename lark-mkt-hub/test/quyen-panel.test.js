@@ -61,6 +61,19 @@ const goi = async (p, o = {}) => {
   await thu('nhân sự mở Kiểm tra HT',  '/api/kiem-tra', {}, nhanSu, 403);
   await thu('nhân sự mở Phân quyền',   '/api/quyen', {}, nhanSu, 403);
   await thu('nhân sự bật Xem như',     '/api/xem-nhu', { method: 'POST', body: '{"id":"ou_x"}' }, nhanSu, 403);
+  /* Tải nhân sự: nhân sự chỉ thấy dòng của mình, quản lý thấy cả lưới. */
+  const lich = async (ai) => {
+    const r = await fetch(G + '/api/lich-chung', { headers: H(ai) });
+    const d = await r.json().catch(() => ({}));
+    return { code: r.status, hang: (d.hang || []).length, chiMinh: !!d.chiMinh };
+  };
+  const lNS = await lich(nhanSu);
+  const lQL = await lich(ql);
+  bang.push((lNS.chiMinh && lNS.hang <= 1 ? 'OK   ' : 'FAIL ') +
+    'nhân sự chỉ thấy tải của mình -> ' + lNS.hang + ' dòng, chiMinh=' + lNS.chiMinh);
+  bang.push((!lQL.chiMinh ? 'OK   ' : 'FAIL ') +
+    'quản lý thấy cả lưới tải -> ' + lQL.hang + ' dòng, chiMinh=' + lQL.chiMinh);
+
   await thu('quản lý xem log module',  '/api/modules/cong-viec/log', {}, ql, 200);
   await thu('quản lý mở Phân quyền',   '/api/quyen', {}, ql, 200);
 

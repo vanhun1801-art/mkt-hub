@@ -63,6 +63,7 @@
 
     /* --- trang Tổng quan chung --- */
     'Tải nhân sự': 'Workload',
+    'Tải của tôi': 'My workload',
     'Dải nhiệt': 'Heatmap',
     'Theo ngày': 'By day',
     'tác nghiệp': 'field trip',
@@ -352,6 +353,9 @@
     [/^(\d+) dòng$/, '$1 rows'],
     [/^top (\d+)$/, 'top $1'],
     [/^Tài khoản Lark: (.+)$/, 'Lark account: $1'],
+    [/^Tải của bạn · (\d+) lượt · đỉnh (\d+) việc\/ngày$/, 'Your load · $1 assignments · peak $2 tasks\/day'],
+    [/^Tải của bạn · (\d+) lượt$/, 'Your load · $1 assignments'],
+    [/^(\d+) người · (\d+) lượt$/, '$1 people · $2 assignments'],
     [/^Quá hạn (\d+) ngày · (.+)$/, 'Overdue $1 days · $2'],
     [/^Bộ lọc đang che (\d+) việc gấp$/, 'Filter is hiding $1 urgent items'],
     [/^(\d+) việc quá hạn từ trước khoảng lọc$/, '$1 overdue tasks from before this range'],

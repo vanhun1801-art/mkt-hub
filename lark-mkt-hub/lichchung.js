@@ -172,13 +172,22 @@ async function lichChung(mods, tu, den, boQuaCache, nguoi) {
   // người bị dồn nhiều xếp trước; "Chưa phân công" luôn ở cuối
   hang.sort((a, b) => (a.id === '' ? 1 : b.id === '' ? -1 : 0) || b.tong - a.tong || a.ten.localeCompare(b.ten, 'vi'));
 
+  /* Tải nhân sự là của ai người ấy xem. Nhân sự chỉ thấy ĐÚNG dòng của mình —
+   * việc chung với người khác vẫn còn trong dòng của họ, nhưng không lộ tên và
+   * khối lượng của đồng nghiệp. Quản lý (hoặc nhân sự được cấp "Xem toàn bộ")
+   * thấy cả lưới. Cắt ở server, không phải ẩn trên giao diện. */
+  const xemHet = !nguoi || nguoi.quanLy || nguoi.toanBo;
+  const hangHien = xemHet ? hang : hang.filter((r) => r.id && r.id === nguoi.id);
+
   const theoNgay = Object.fromEntries(ngay.map((n) => [n, 0]));
-  hang.forEach((r) => ngay.forEach((n) => { theoNgay[n] += (r.o[n] || []).length; }));
+  hangHien.forEach((r) => ngay.forEach((n) => { theoNgay[n] += (r.o[n] || []).length; }));
 
   const data = {
-    tu, den, ngay, hang, theoNgay,
-    tongViec: viec.length,
-    tongLuot: hang.reduce((s, r) => s + r.tong, 0),
+    tu, den, ngay, hang: hangHien, theoNgay,
+    // đếm theo đúng phần được xem, nếu không dòng phụ đề nói một đằng lưới một nẻo
+    tongViec: xemHet ? viec.length : hangHien.reduce((s, r) => s + r.tong, 0),
+    tongLuot: hangHien.reduce((s, r) => s + r.tong, 0),
+    chiMinh: !xemHet,
     loi,
   };
   cache.set(kh, { at: Date.now(), data });

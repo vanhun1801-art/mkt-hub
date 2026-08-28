@@ -610,11 +610,17 @@ function khoiTaiNhanSu() {
   const quaTai = nguoi.filter((r) => r.dinh >= NGUONG_QUA_TAI);
   const dinhCao = Math.max(1, ...d.hang.map((r) => r.tong));
 
+  /* Nhân sự chỉ thấy dòng của chính mình (server cắt) — dòng phụ đề phải nói đúng
+   * chuyện đó, chứ "1 người · 37 lượt" thì đọc như cả phòng chỉ có một người. */
+  const phu = d.chiMinh
+    ? 'Tải của bạn · ' + d.tongLuot + ' lượt' +
+      (nguoi[0] ? ' · đỉnh ' + nguoi[0].dinh + ' việc/ngày' : '')
+    : nguoi.length + ' người · ' + d.tongLuot + ' lượt' +
+      (quaTai.length ? ' · ' + quaTai.length + ' người có ngày ≥ ' + NGUONG_QUA_TAI + ' việc' : '');
+
   const head = '<div class="khoi-head">' +
     '<span class="kh-ic" style="background:#eaf0ff;color:#2b5cff">' + icon('nguoi') + '</span>' +
-    '<div><h2>Tải nhân sự</h2><div class="kh-sub">' +
-      nguoi.length + ' người · ' + d.tongLuot + ' lượt' +
-      (quaTai.length ? ' · ' + quaTai.length + ' người có ngày ≥ ' + NGUONG_QUA_TAI + ' việc' : '') +
+    '<div><h2>' + (d.chiMinh ? 'Tải của tôi' : 'Tải nhân sự') + '</h2><div class="kh-sub">' + phu +
     '</div></div>' +
     '<span class="grow"></span>' +
     '<div class="seg seg-nho">' +
