@@ -358,6 +358,55 @@ const server = http.createServer(async (req, res) => {
     return chuyenTiep(req, res, mod, mm[2] + (u.search || ''), nguoi);
   }
 
+  /* Trang /toi: in thẳng open_id của người đang đăng nhập ra chữ to, có nút Copy.
+   * Có trang này vì open_id khác nhau giữa các app Lark — đổi app là phải khai lại
+   * LARK_MANAGER_IDS, mà đọc JSON thì bất tiện cho người không quen. */
+  if (p === '/toi') {
+    const nguoi = cfg.mode === 'api' ? auth.sessionUser(req) : null;
+    const dsQL = (process.env.LARK_MANAGER_IDS || '').split(',').map((x) => x.trim()).filter(Boolean);
+    const laQL = !!(nguoi && dsQL.includes(nguoi.id));
+    const esc = (x) => String(x == null ? '' : x).replace(/[&<>"]/g, (c) =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+    const than = cfg.mode !== 'api'
+      ? '<h1>Đang chạy trên máy cá nhân</h1><p>Chế độ này dùng phiên lark-cli của máy, ' +
+        'không có open_id riêng. Trang này chỉ cần thiết khi chạy trên server chung.</p>'
+      : !nguoi
+        ? '<h1>Chưa đăng nhập</h1><p><a href="/auth/login?next=%2Ftoi">Đăng nhập Lark</a></p>'
+        : '<div class="nhan">Tài khoản Lark</div>' +
+          '<h1>' + esc(nguoi.name) + '</h1>' +
+          '<div class="nhan">open_id dưới app này</div>' +
+          '<div class="id" id="id">' + esc(nguoi.id) + '</div>' +
+          '<button id="cp">Copy open_id</button>' +
+          (laQL
+            ? '<p class="ok">Đang có vai quản lý — không cần làm gì thêm.</p>'
+            : '<p class="canh">Chưa có vai quản lý. Vào <b>Render → service → Environment</b>, ' +
+              'đặt <code>LARK_MANAGER_IDS</code> bằng chuỗi trên rồi <b>Save</b> ' +
+              '(đang khai ' + dsQL.length + ' người, không có anh/chị trong đó).</p>');
+
+    const html = '<!doctype html><html lang="vi"><head><meta charset="utf-8">' +
+      '<meta name="viewport" content="width=device-width,initial-scale=1"><title>Tài khoản của tôi</title><style>' +
+      'body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f4f6fa;color:#1a2233;' +
+      'font:15px/1.6 "Segoe UI",system-ui,sans-serif}' +
+      '.box{background:#fff;border:1px solid #e3e8f0;border-radius:14px;padding:30px 34px;max-width:560px;' +
+      'box-shadow:0 6px 24px rgba(20,30,60,.07)}' +
+      'h1{margin:2px 0 18px;font-size:22px}' +
+      '.nhan{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#8b95a7}' +
+      '.id{font:14px ui-monospace,Consolas,monospace;background:#f4f6fa;border:1px solid #e3e8f0;' +
+      'border-radius:9px;padding:12px 14px;margin:6px 0 14px;word-break:break-all;user-select:all}' +
+      'button{font:inherit;background:#2b5cff;color:#fff;border:0;border-radius:9px;padding:9px 16px;cursor:pointer}' +
+      'p{font-size:14px}.ok{color:#0c7a41}.canh{color:#96591b}' +
+      'code{background:#f4f6fa;border:1px solid #eef1f6;border-radius:5px;padding:1px 5px;font-size:13px}' +
+      'a{color:#2b5cff}@media(prefers-color-scheme:dark){body{background:#12161f;color:#e4e8f1}' +
+      '.box{background:#1a1f2b;border-color:#2c3444}.id{background:#12161f;border-color:#2c3444}' +
+      'code{background:#12161f;border-color:#2c3444}}</style></head><body><div class="box">' +
+      than + '</div><script>var b=document.getElementById("cp");if(b)b.onclick=function(){' +
+      'navigator.clipboard.writeText(document.getElementById("id").textContent.trim())' +
+      '.then(function(){b.textContent="Đã copy"}).catch(function(){b.textContent="Bấm giữ để chọn rồi Ctrl+C"})};' +
+      '</script></body></html>';
+    return send(res, 200, html, { 'Content-Type': 'text/html; charset=utf-8' });
+  }
+
   if (p.startsWith('/api/') || p === '/healthz') {
     return api(req, res, u).catch((e) => {
       console.error('[API]', p, '->', e.message);
