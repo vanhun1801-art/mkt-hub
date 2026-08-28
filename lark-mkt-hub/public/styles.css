@@ -52,6 +52,8 @@
 
   --r: 12px;
   --r-nho: 9px;
+  /* lề chuẩn dùng chung với ba app con: cùng một đường guide dọc */
+  --le: max(20px, calc((100% - 1520px) / 2));
   --bong: 0 1px 2px rgba(20, 30, 60, .06), 0 6px 20px rgba(20, 30, 60, .05);
   --bong-cao: 0 12px 40px rgba(20, 30, 60, .18);
 
@@ -328,7 +330,7 @@ button { font: inherit; }
 /* ---- đầu trang Tổng quan chung ---- */
 .page-head {
   display: flex; align-items: flex-start; gap: 16px;
-  padding: 14px 22px; background: var(--trang);
+  padding: 14px var(--le); background: var(--trang);
   border-bottom: 1px solid var(--vien);
   position: sticky; top: 0; z-index: 3;
 }
@@ -339,7 +341,7 @@ button { font: inherit; }
 /* ---- thanh lọc thời gian ---- */
 .loc-bar {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  padding: 11px 22px; background: var(--trang);
+  padding: 11px var(--le); background: var(--trang);
   border-bottom: 1px solid var(--vien);
   position: sticky; top: 62px; z-index: 2;
 }
@@ -362,7 +364,7 @@ button { font: inherit; }
 .seg button.on { background: var(--xanh); color: #fff; font-weight: 650; }
 
 /* ---- thân trang ---- */
-.home-body { padding: 18px 22px 60px; display: flex; flex-direction: column; gap: 14px; }
+.home-body { padding: 18px var(--le) 60px; display: flex; flex-direction: column; gap: 14px; }
 .luoi-base { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 16px 24px; }
 
 /* ---- thẻ khối (giống .card của app quảng cáo) ---- */
@@ -560,6 +562,7 @@ code { background: var(--trang-2); border: 1px solid var(--vien-mem); border-rad
   .rail .rail-item { justify-content: center; }
   .luoi-base { grid-template-columns: 1fr; }
   .home-body, .loc-bar, .page-head { padding-left: 14px; padding-right: 14px; }
+  :root { --le: 14px; }
 }
 
 /* ============================================================

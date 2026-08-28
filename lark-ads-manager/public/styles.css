@@ -20,6 +20,8 @@
   --tt: #111827;
   --gg: #ea9c1b;
   --radius: 12px;
+  /* lề chuẩn dùng chung với các base khác */
+  --le: max(20px, calc((100% - 1520px) / 2));
   --shadow: 0 1px 2px rgba(20, 30, 60, .06), 0 6px 20px rgba(20, 30, 60, .05);
 }
 
@@ -49,7 +51,7 @@ button { font: inherit; }
   .brand-title { font-size: 13px; }
   .brand-sub { display: none; }
   main { padding: 14px 12px 60px; }
-  .filters, .tabs { padding-left: 12px; padding-right: 12px; }
+  .filters, .tabsbar { padding-left: 12px; padding-right: 12px; }
 }
 .logo {
   width: 38px; height: 38px; border-radius: 10px; flex: none;
@@ -80,17 +82,33 @@ button { font: inherit; }
 .btn[disabled] { opacity: .5; cursor: not-allowed; }
 
 /* ---------- tabs ---------- */
+/* Khay tab: lấy đúng cách phân tab của base Tracking — khay xám nhạt, tab đang
+   chọn là thẻ trắng có bóng mảnh và gạch chân xanh. */
+.tabsbar {
+  background: var(--panel); border-bottom: 1px solid var(--line);
+  padding: 7px var(--le);
+}
 .tabs {
-  display: flex; gap: 2px; padding: 0 20px;
-  background: var(--panel); border-bottom: 1px solid var(--line); overflow-x: auto;
+  display: flex; gap: 2px; overflow-x: auto;
+  background: #f2f5fa; padding: 3px; border-radius: 6px;
+  width: max-content; max-width: 100%;
 }
+.tabs::-webkit-scrollbar { height: 0; }
 .tab {
-  border: 0; background: none; padding: 11px 14px; cursor: pointer;
-  color: var(--ink-2); font-weight: 550; border-bottom: 2px solid transparent;
-  white-space: nowrap;
+  position: relative;
+  border: 0; background: none; padding: 6px 14px; cursor: pointer;
+  color: var(--ink-2); font-size: 13px; font-weight: 500; border-radius: 4px;
+  white-space: nowrap; transition: color .12s, background .12s;
 }
-.tab:hover { color: var(--ink); background: var(--panel-2); }
-.tab.on { color: var(--brand); border-bottom-color: var(--brand); }
+.tab:hover { color: var(--ink); }
+.tab.on {
+  background: var(--panel); color: var(--ink); font-weight: 600;
+  box-shadow: 0 1px 2px rgba(31, 35, 41, .06);
+}
+.tab.on::after {
+  content: ''; position: absolute; left: 12px; right: 12px; bottom: 2px; height: 2px;
+  background: var(--brand); border-radius: 2px;
+}
 .tab .badge {
   display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 999px;
   background: var(--bad); color: #fff; font-size: 11px; font-weight: 700;
@@ -124,7 +142,7 @@ button { font: inherit; }
 .pill.gg.on { background: var(--gg); border-color: var(--gg); }
 
 /* ---------- layout ---------- */
-main { padding: 18px 20px 60px; max-width: 1680px; margin: 0 auto; }
+main { padding: 18px var(--le) 60px; margin: 0 auto; }
 .loading { padding: 60px; text-align: center; color: var(--ink-3); }
 .grid { display: grid; gap: 14px; }
 .g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -346,4 +364,11 @@ table.tbl tfoot td { font-weight: 700; background: var(--panel-2); border-top: 2
     --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 20px rgba(0, 0, 0, .25);
     color-scheme: dark;
   }
+}
+
+/* Khay tab ở chế độ tối: nền khay phải sáng hơn panel mới nổi (ở chế độ sáng thì
+   ngược lại — khay xám nhạt trên panel trắng). */
+:root[data-theme="toi"] .tabs { background: var(--panel-2); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="sang"]) .tabs { background: var(--panel-2); }
 }

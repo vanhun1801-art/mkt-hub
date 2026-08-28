@@ -92,16 +92,27 @@ a:hover { text-decoration: underline; }
 .brand-name { font-weight: 600; font-size: 15px; letter-spacing: -0.01em; }
 .brand-sub { font-size: 12px; color: var(--t3); }
 
-.tabs { display: flex; gap: 2px; margin-left: 8px; flex: 1; min-width: 0; overflow-x: auto; }
+/* Khay tab: lấy đúng cách phân tab của base Tracking — khay xám nhạt, tab đang
+   chọn là thẻ trắng có bóng mảnh và gạch chân xanh. */
+.tabs {
+  display: flex; gap: 2px; margin-left: 8px; min-width: 0; overflow-x: auto;
+  background: var(--gray-bg); padding: 3px; border-radius: 6px; flex: 0 1 auto;
+}
 .tabs::-webkit-scrollbar { height: 0; }
 .tab {
+  position: relative;
   border: 0; background: transparent; cursor: pointer;
-  padding: 7px 12px; border-radius: var(--r);
-  color: var(--t2); font-weight: 500; white-space: nowrap;
+  padding: 6px 14px; border-radius: 4px;
+  color: var(--t2); font-size: 13px; font-weight: 500; white-space: nowrap;
   display: flex; align-items: center; gap: 6px;
+  transition: color .12s, background .12s;
 }
-.tab:hover { background: var(--hover); color: var(--t1); }
-.tab.on { background: var(--primary-bg); color: var(--primary); }
+.tab:hover { color: var(--t1); }
+.tab.on { background: var(--surface); color: var(--t1); font-weight: 600; box-shadow: 0 1px 2px rgba(31, 35, 41, .06); }
+.tab.on::after {
+  content: ''; position: absolute; left: 12px; right: 12px; bottom: 2px; height: 2px;
+  background: var(--primary); border-radius: 2px;
+}
 .tab .cnt {
   min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
   background: var(--red); color: #fff; font-size: 11px; font-weight: 600;

@@ -44,6 +44,12 @@
   --r-lg: 8px;
   --r-xl: 12px;
 
+  /* Lề chuẩn dùng chung với các base khác: mọi khối nội dung bắt đầu đúng một
+     đường guide, và không kéo dài quá 1560px trên màn rộng. */
+  --le: max(20px, calc((100% - 1520px) / 2));
+
+  /* Bóng nhẹ tách khối khỏi nền — lấy theo app Lịch tác nghiệp */
+  --shadow-1:  0 1px 2px rgba(20, 30, 60, .06), 0 6px 20px rgba(20, 30, 60, .05);
   --shadow:    0 1px 2px rgba(31, 35, 41, .06);
   --shadow-md: 0 2px 8px rgba(31, 35, 41, .10);
   --shadow-lg: 0 6px 32px rgba(31, 35, 41, .16);
@@ -56,6 +62,7 @@
    HAI KHỐI DƯỚI CÙNG MỘT DANH SÁCH — sửa thì sửa cả hai.
    ============================================================ */
 :root[data-theme="toi"] {
+  --shadow-1:  0 1px 2px rgba(0, 0, 0, .3), 0 6px 20px rgba(0, 0, 0, .25);
   --bg:        #12161f;
   --surface:   #1a1f2b;
   --surface-2: #202634;
@@ -94,6 +101,7 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="sang"]) {
+    --shadow-1:  0 1px 2px rgba(0, 0, 0, .3), 0 6px 20px rgba(0, 0, 0, .25);
     --bg:        #12161f;
     --surface:   #1a1f2b;
     --surface-2: #202634;
@@ -234,7 +242,7 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 /* ---- băng báo đang xem vai khác ---- */
 .viewas-bar {
   display: flex; align-items: center; gap: 10px;
-  margin: 12px 16px 0; padding: 10px 14px;
+  margin: 12px var(--le) 0; padding: 10px 14px;
   background: var(--orange-bg); border-radius: var(--r-lg);
   font-size: 12.5px; color: var(--orange-text); line-height: 1.5;
 }
@@ -275,11 +283,11 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 
 /* ---------------- thẻ đếm ---------------- */
 #workspace, #adminArea { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
-#adminMain { flex: 1; min-height: 0; overflow: hidden; padding: 0 16px 16px; }
+#adminMain { flex: 1; min-height: 0; overflow: hidden; padding: 0 var(--le) 16px; }
 
 .flowstrip {
   display: flex; align-items: stretch; gap: 8px;
-  margin: 14px 16px 0; padding-bottom: 2px; overflow-x: auto;
+  margin: 14px var(--le) 0; padding-bottom: 2px; overflow-x: auto;
 }
 .fstage {
   --dot: var(--text-4);
@@ -320,12 +328,12 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 /* ---------------- thanh lọc ---------------- */
 .filters {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex: 0 0 auto;
-  padding: 10px 16px;
+  padding: 10px var(--le);
 }
 .filters-work {
-  margin: 12px 16px 2px; padding: 10px 12px;
+  margin: 12px var(--le) 2px; padding: 10px 12px;
   background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--r-lg);
+  border-radius: var(--r-lg); box-shadow: var(--shadow-1);
 }
 .filters-work::before {
   content: 'Lọc'; font-size: 11px; font-weight: 600; letter-spacing: .06em;
@@ -347,7 +355,7 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 }
 
 /* ---------------- các mục việc ---------------- */
-.lanes { flex: 1; min-height: 0; overflow-y: auto; padding: 6px 16px 28px; }
+.lanes { flex: 1; min-height: 0; overflow-y: auto; padding: 6px var(--le) 28px; }
 
 .lane {
   --dot: var(--text-4);
@@ -501,7 +509,7 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 .col-empty { padding: 20px 8px; text-align: center; color: var(--text-4); font-size: 12px; }
 
 /* ---------------- thẻ thống kê (tab quản lý) ---------------- */
-.stats { display: flex; gap: 8px; padding: 12px 16px 0; flex: 0 0 auto; overflow-x: auto; scrollbar-width: none; }
+.stats { display: flex; gap: 8px; padding: 12px var(--le) 0; flex: 0 0 auto; overflow-x: auto; scrollbar-width: none; }
 .stats::-webkit-scrollbar { display: none; }
 .stat {
   background: var(--surface); border: 1px solid var(--border);
@@ -600,10 +608,11 @@ td.c-check { width: 34px; }
    TỔNG QUAN — giao diện quản lý
    ========================================================================== */
 #dashboard { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
-.dash-scroll { flex: 1; overflow-y: auto; padding: 0 16px 28px; }
+.dash-scroll { flex: 1; overflow-y: auto; padding: 0 var(--le) 28px; }
 
 .filters-dash {
-  margin: 12px 16px 12px; padding: 10px 12px;
+  margin: 12px var(--le) 12px; padding: 10px 12px;
+  box-shadow: var(--shadow-1);
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--r-lg); flex: 0 0 auto;
 }
@@ -622,6 +631,7 @@ td.c-check { width: 34px; }
   --c: var(--text);
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--r-lg); padding: 14px 16px;
+  box-shadow: var(--shadow-1);
 }
 .kpi.is-link { cursor: pointer; transition: border-color .12s; }
 .kpi.is-link:hover { border-color: var(--border-2); }
@@ -639,6 +649,7 @@ td.c-check { width: 34px; }
 .dash-block {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--r-xl); margin-bottom: 16px; overflow: hidden;
+  box-shadow: var(--shadow-1);
 }
 .dash-head {
   display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
@@ -1102,7 +1113,8 @@ td.c-check { width: 34px; }
 }
 
 /* ---- khối lớn: bóng nhẹ để tách khỏi nền ---- */
-.lane, .dash-block, .filters-work, .filters-dash, .tablewrap { box-shadow: var(--shadow); }
+/* khối nội dung: bóng nhẹ tách khỏi nền, cùng tone với các base khác */
+.lane, .dash-block, .filters-work, .filters-dash, .tablewrap { box-shadow: var(--shadow-1); }
 
 /* ---- tiêu đề khối Tổng quan: vạch xanh dẫn mắt ---- */
 .dash-head { position: relative; padding-left: 20px; }
@@ -1123,7 +1135,7 @@ td.c-check { width: 34px; }
 /* ---- toàn cảnh đang chạy: thẻ nhấc nhẹ ---- */
 .dcard { transition: border-color .12s, box-shadow .12s, transform .12s; }
 .dcard:hover { border-color: var(--border-2); box-shadow: var(--shadow); transform: translateY(-1px); }
-.dcol { box-shadow: var(--shadow); }
+.dcol { box-shadow: var(--shadow-1); }
 
 /* ---- avatar: viền trắng mảnh cho tách nền ---- */
 .av { box-shadow: 0 0 0 1px rgba(31,35,41,.06); }
@@ -1254,7 +1266,7 @@ td.c-check { width: 34px; }
 /* ---- thanh điều hướng ---- */
 .cal-top {
   display: flex; align-items: center; gap: 10px;
-  padding: 14px 16px 0; flex: 0 0 auto; flex-wrap: wrap;
+  padding: 14px var(--le) 0; flex: 0 0 auto; flex-wrap: wrap;
 }
 .cal-arrow {
   width: var(--h-ctl); height: var(--h-ctl); flex: 0 0 auto;
@@ -1282,9 +1294,9 @@ td.c-check { width: 34px; }
 /* ---- thanh lọc ---- */
 .cal-filters {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-  margin: 12px 16px 0; padding: 10px 12px; flex: 0 0 auto;
+  margin: 12px var(--le) 0; padding: 10px 12px; flex: 0 0 auto;
   background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--r-card); box-shadow: var(--shadow);
+  border-radius: var(--r-card); box-shadow: var(--shadow-1);
 }
 .cal-search {
   flex: 1 1 240px; min-width: 180px; min-height: var(--h-ctl);
@@ -1296,7 +1308,7 @@ td.c-check { width: 34px; }
 .cal-search:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(51,112,255,.16); }
 
 /* ---- vùng cuộn ---- */
-.cal-body { flex: 1; min-height: 0; overflow: auto; padding: 12px 16px 20px; }
+.cal-body { flex: 1; min-height: 0; overflow: auto; padding: 12px var(--le) 20px; }
 
 /* ---- lưới tháng ---- */
 .cal-grid {

@@ -230,13 +230,14 @@ function renderFilters() {
     else if (k === 'all') { S.filter.from = m.minDate; S.filter.to = m.maxDate; }
     else { S.filter.from = ''; S.filter.to = ''; S.filter.days = Number(k); }
     syncDateInputs(); renderFilters(); render();
+    baoKhoangLenHub();
   });
 
   syncDateInputs();
   $('#fFrom').min = $('#fTo').min = m.minDate;
   $('#fFrom').onchange = $('#fTo').onchange = () => {
     S.filter.from = $('#fFrom').value; S.filter.to = $('#fTo').value;
-    if (S.filter.from && S.filter.to) { renderFilters(); render(); }
+    if (S.filter.from && S.filter.to) { renderFilters(); render(); baoKhoangLenHub(); }
   };
 
   $('#fPlatform').innerHTML = m.platforms.map((p) =>
@@ -261,6 +262,59 @@ function renderFilters() {
     S.filter = { days: 7, from: '', to: '', platforms: [], campaigns: [] };
     renderFilters(); render();
   };
+}
+
+/* ---------------- bộ lọc chung với lớp vỏ Marketing Hub ----------------
+ * Một khoảng thời gian cho cả phòng: đổi ở đây thì Bảng công việc, Lịch tác
+ * nghiệp và trang Tổng quan chung đổi theo, và ngược lại.
+ */
+function khoangDangLoc() {
+  const f = S.filter;
+  if (f.from && f.to) return { tu: f.from, den: f.to };
+  // đang lọc kiểu "N ngày gần nhất" -> quy về khoảng ngày thật để base khác hiểu
+  const el = $('#fFrom');
+  if (el && el.value && $('#fTo').value) return { tu: el.value, den: $('#fTo').value };
+  return null;
+}
+
+function baoKhoangLenHub() {
+  if (!window.hubBaoKhoang) return;
+  const m = S.meta || {};
+  const k = khoangDangLoc();
+  // "Toàn bộ" = cả kho số liệu -> báo lên là không giới hạn, đừng gửi min/max
+  if (k && k.tu === m.minDate && k.den === m.maxDate) return window.hubBaoKhoang('', '');
+  window.hubBaoKhoang(k ? k.tu : '', k ? k.den : '');
+}
+
+/** Lớp vỏ gọi xuống khi bộ lọc chung đổi. */
+window.hubApKhoang = function (tu, den) {
+  // Lớp vỏ gửi khoảng ngay khi trang vừa mở, có thể trước lúc nạp xong meta —
+  // nhớ lại rồi áp sau, nếu không lần mở đầu tiên sẽ lệch bộ lọc chung.
+  if (!S.meta) { window.__hubKhoangCho = { tu, den }; return; }
+  const m = S.meta;
+  if (tu && den) {
+    if (S.filter.from === tu && S.filter.to === den) return;
+    S.filter.from = tu;
+    S.filter.to = den;
+  } else {
+    if (S.filter.from === m.minDate && S.filter.to === m.maxDate) return;
+    S.filter.from = m.minDate;               // toàn bộ
+    S.filter.to = m.maxDate;
+  }
+  syncDateInputs();
+  renderFilters();
+  render();
+};
+
+/** Áp khoảng lớp vỏ vào bộ lọc lúc boot (chưa vẽ dữ liệu — boot vẽ ngay sau đó).
+ *  Vẫn phải đồng bộ lại thanh lọc, nếu không hai ô ngày hiện một khoảng mà số
+ *  liệu bên dưới lại tính theo khoảng khác. */
+function hubApKhoangSauNap(tu, den) {
+  const m = S.meta;
+  if (tu && den) { S.filter.from = tu; S.filter.to = den; }
+  else { S.filter.from = m.minDate; S.filter.to = m.maxDate; }
+  syncDateInputs();
+  renderFilters();
 }
 
 function isRangeOn(k) {
@@ -1015,6 +1069,8 @@ function theoDoiSangToi() {
 (async function boot() {
   try {
     await loadMeta();
+    const cho = window.__hubKhoangCho;
+    if (cho) { window.__hubKhoangCho = null; hubApKhoangSauNap(cho.tu, cho.den); }
     renderShell();
     await render();
     theoDoiSangToi();

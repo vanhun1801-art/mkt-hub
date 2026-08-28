@@ -212,19 +212,70 @@ async function load(force) {
 /* ============ lọc ============ */
 function periodOptions() {
   const months = [...new Set(S.items.map((t) => t.month).filter((m) => m && m !== 'Chưa có ngày'))].sort().reverse();
-  return [
+  const ds = [
     { v: 'all', t: 'Tất cả thời gian' },
     { v: 'upcoming', t: 'Sắp tới (7 ngày)' },
     { v: 'week', t: 'Tuần này' },
     { v: 'month', t: 'Tháng này' },
     { v: 'past', t: 'Đã qua' },
-  ].concat(months.slice(0, 18).map((m) => ({ v: 'm:' + m, t: 'Tháng ' + m.slice(5) + '/' + m.slice(0, 4) })));
+  ];
+  // khoảng lớp vỏ đưa xuống: hiện thành một lựa chọn thật để biết mình đang lọc gì
+  if (String(S.f.period).startsWith('k:')) {
+    const [, tu, den] = S.f.period.split(':');
+    ds.unshift({ v: S.f.period, t: 'Bộ lọc chung: ' + dmyNgan(tu) + ' → ' + dmyNgan(den) });
+  }
+  return ds.concat(months.slice(0, 18).map((m) => ({ v: 'm:' + m, t: 'Tháng ' + m.slice(5) + '/' + m.slice(0, 4) })));
 }
+
+const dmyNgan = (s) => (s ? s.slice(8, 10) + '/' + s.slice(5, 7) : '');
+const iso = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' +
+  String(d.getDate()).padStart(2, '0');
+
+/**
+ * Khoảng ngày tương đương của một lựa chọn thời gian — để báo lên lớp vỏ cho các
+ * base khác lọc theo. `null` = toàn bộ; `undefined` = không biểu diễn được bằng
+ * một khoảng (VD "Đã qua"), khi đó không đồng bộ ngược lên.
+ */
+function khoangCuaKy(p) {
+  const now = new Date();
+  const today = startOfDay(now);
+  if (p === 'all') return null;
+  if (p === 'upcoming') return { tu: iso(today), den: iso(addDays(today, 7)) };
+  if (p === 'week') {
+    const mon = addDays(today, -((today.getDay() + 6) % 7));
+    return { tu: iso(mon), den: iso(addDays(mon, 6)) };
+  }
+  if (p === 'month') {
+    return { tu: iso(new Date(now.getFullYear(), now.getMonth(), 1)),
+             den: iso(new Date(now.getFullYear(), now.getMonth() + 1, 0)) };
+  }
+  if (p.startsWith('m:')) {
+    const [y, m] = p.slice(2).split('-').map(Number);
+    return { tu: iso(new Date(y, m - 1, 1)), den: iso(new Date(y, m, 0)) };
+  }
+  if (p.startsWith('k:')) { const [, tu, den] = p.split(':'); return { tu, den }; }
+  return undefined;
+}
+
+/* Lớp vỏ Marketing Hub gọi xuống khi bộ lọc chung đổi. */
+window.hubApKhoang = function (tu, den) {
+  const moi = tu && den ? 'k:' + tu + ':' + den : 'all';
+  if (S.f.period === moi) return;
+  S.f.period = moi;
+  if (S.items && S.items.length) render();
+};
 
 function inPeriod(t, p) {
   if (p === 'all') return true;
   const d = toDate(t.start);
   if (p.startsWith('m:')) return t.month === p.slice(2);
+  // 'k:<tu>:<den>' — khoảng do bộ lọc chung của Marketing Hub đưa xuống
+  if (p.startsWith('k:')) {
+    if (!d) return false;
+    const [, tu, den] = p.split(':');
+    return d >= startOfDay(new Date(tu + 'T00:00:00')) &&
+           d < addDays(startOfDay(new Date(den + 'T00:00:00')), 1);
+  }
   if (!d) return false;
   const now = new Date();
   const today = startOfDay(now);
@@ -1558,7 +1609,14 @@ document.addEventListener('input', (e) => {
 
 document.addEventListener('change', async (e) => {
   const T = e.target;
-  if (T.id === 'fPeriod') { S.f.period = T.value; render(); return; }
+  if (T.id === 'fPeriod') {
+    S.f.period = T.value;
+    render();
+    // kéo cả lớp vỏ và các base khác theo (nếu khoảng này diễn tả được bằng ngày)
+    const k = khoangCuaKy(T.value);
+    if (k !== undefined && window.hubBaoKhoang) window.hubBaoKhoang(k ? k.tu : '', k ? k.den : '');
+    return;
+  }
   if (T.id === 'fStatus') { S.f.status = T.value; render(); return; }
   if (T.id === 'fPerson') { S.f.person = T.value; render(); return; }
 

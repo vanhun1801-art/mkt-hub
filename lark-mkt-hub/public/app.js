@@ -331,6 +331,36 @@ function datKy(ky) {
   luuLoc();
   veThanhLoc();
   napTheoTrang();
+  guiKhoangXuongModule();
+}
+
+/**
+ * Phát khoảng lọc xuống các app con. Một bộ lọc cho cả nhà: đổi ở thanh lọc của
+ * lớp vỏ thì Bảng công việc, Lịch tác nghiệp, Quảng cáo đổi theo ngay.
+ * @param {string} tru id module KHÔNG gửi (chính nơi vừa đổi, khỏi dội lại)
+ */
+function guiKhoangXuongModule(tru) {
+  const k = khoangDangLoc();
+  const tin = { hub: 'loc', tu: k ? k.tu : '', den: k ? k.den : '' };
+  S.frames.forEach((o, id) => {
+    if (id === tru) return;
+    try { o.iframe.contentWindow.postMessage(tin, location.origin); } catch (_) {}
+  });
+}
+
+/** Module tự đổi khoảng -> thanh lọc lớp vỏ đi theo rồi phát cho các module khác. */
+function nhanKhoangTuModule(id, tu, den) {
+  const k = khoangDangLoc();
+  const nhuCu = (k ? k.tu : '') === (tu || '') && (k ? k.den : '') === (den || '');
+  if (nhuCu) return;
+  if (tu && den) { S.ky = 'tuychon'; S.tu = tu; S.den = den; } else { S.ky = 'toanbo'; }
+  luuLoc();
+  veThanhLoc();
+  napTheoTrang();
+  guiKhoangXuongModule(id);
+  const mod = S.modules.find((m) => m.id === id);
+  toast('Bộ lọc chung theo ' + (mod ? mod.ten : id) + ': ' +
+    (tu && den ? dmy(tu) + ' → ' + dmy(den) : 'toàn bộ'), '');
 }
 
 function luuLoc() {
@@ -1106,7 +1136,11 @@ document.addEventListener('change', (e) => {
   const bar = e.target.closest('.loc-bar');
   S.tu = bar.querySelector('.tuNgay').value;
   S.den = bar.querySelector('.denNgay').value;
-  if (S.tu && S.den) { S.ky = 'tuychon'; luuLoc(); veThanhLoc(); napTheoTrang(); }
+  if (S.tu && S.den) {
+    S.ky = 'tuychon';
+    luuLoc(); veThanhLoc(); napTheoTrang();
+    guiKhoangXuongModule();
+  }
 });
 
 window.addEventListener('hashchange', dinhTuyen);
@@ -1128,6 +1162,10 @@ window.addEventListener('message', (ev) => {
     toast('Không thấy việc này trong phạm vi bạn xem được', 'do');
     return;
   }
+  // app con vừa mở xong -> gửi ngay khoảng lọc đang áp
+  if (d && d.hub === 'xin-loc') { guiKhoangXuongModule(); return; }
+  // người dùng đổi khoảng bên trong app con -> kéo cả nhà theo
+  if (d && d.hub === 'loc-doi' && d.id) { nhanKhoangTuModule(d.id, d.tu, d.den); return; }
   if (!d || d.hub !== 'phu' || !d.id) return;
   const cu = S.phu.get(d.id);
   if ((d.text || '') === cu) return;

@@ -87,9 +87,31 @@ function shimJs(mod) {
     if (cha) datTheme(cha);
     else datTheme(window.matchMedia('(prefers-color-scheme: dark)').matches ? 'toi' : 'sang');
   } catch (e) {}
+  /* ---- bộ lọc thời gian dùng chung ----
+   * Một nơi đổi, mọi nơi theo. Lớp vỏ giữ khoảng đang lọc rồi phát xuống; module
+   * chỉ cần khai hai hàm:
+   *   window.hubApKhoang(tu, den)  - áp khoảng lớp vỏ gửi xuống ('' = toàn bộ)
+   *   window.hubBaoKhoang(tu, den) - gọi khi NGƯỜI DÙNG tự đổi trong module
+   * Module nào chưa khai hubApKhoang thì đơn giản là không đồng bộ, không lỗi.
+   */
+  window.__HUB__.khoang = null;
+  function apKhoang(tu, den) {
+    window.__HUB__.khoang = tu && den ? { tu: tu, den: den } : null;
+    if (typeof window.hubApKhoang !== 'function') return;
+    try { window.hubApKhoang(tu || '', den || ''); } catch (e) {}
+  }
+  window.hubBaoKhoang = function (tu, den) {
+    try {
+      parent.postMessage({ hub: 'loc-doi', id: window.__HUB__.id, tu: tu || '', den: den || '' },
+        location.origin);
+    } catch (e) {}
+  };
+
   window.addEventListener('message', function (ev) {
     if (ev.origin !== location.origin) return;
-    if (ev.data && ev.data.hub === 'theme') datTheme(ev.data.v);
+    if (!ev.data) return;
+    if (ev.data.hub === 'theme') datTheme(ev.data.v);
+    if (ev.data.hub === 'loc') apKhoang(ev.data.tu, ev.data.den);
   });
 
   // Cho lớp vỏ biết trang con đã sẵn sàng + gửi dòng phụ đề để rail hiển thị
@@ -102,6 +124,8 @@ function shimJs(mod) {
   }
   function bao(){
     try { parent.postMessage({ hub: 'ready', id: window.__HUB__.id, title: document.title }, location.origin); } catch (e) {}
+    // xin khoảng lọc đang áp: mở app giữa phiên thì phải khớp ngay, không chờ đổi
+    try { parent.postMessage({ hub: 'xin-loc', id: window.__HUB__.id }, location.origin); } catch (e) {}
     guiPhu();
     setInterval(guiPhu, 4000);
   }

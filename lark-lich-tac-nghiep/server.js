@@ -176,6 +176,9 @@ async function isManager() {
 function quyenTuHeader(req) {
   if (process.env.HUB_TRUST_HEADER === '0') return {};
   return {
+    // Chạy đứng một mình (không qua lớp vỏ) thì KHÔNG áp phân quyền của hub —
+    // nếu không, app dùng trực tiếp sẽ tự nhiên mất quyền xem chi phí.
+    tuHub: !!req.headers['x-hub-user-id'],
     toanBo: req.headers['x-hub-perm-toan-bo'] === '1',
     khongTao: req.headers['x-hub-perm-khong-tao'] === '1',
     chiPhi: req.headers['x-hub-perm-chi-phi'] === '1',
@@ -189,7 +192,8 @@ function quyenHienTai() {
 }
 const qToanBo = () => quyenHienTai().toanBo === true;
 const qDuocTao = () => quyenHienTai().khongTao !== true;
-const qChiPhi = () => quyenHienTai().chiPhi === true;
+/* Chi phí mặc định MỞ khi không đi qua lớp vỏ; đi qua lớp vỏ thì theo bảng phân quyền. */
+const qChiPhi = () => { const q = quyenHienTai(); return q.tuHub ? q.chiPhi === true : true; };
 
 /** Lịch thuộc phạm vi một người: phụ trách hoặc trong nhóm nhân sự. */
 function ownedBy(it, personId) {
@@ -210,6 +214,9 @@ async function requireOwn(res, it) {
   json(res, { error: 'Đây không phải lịch tác nghiệp của bạn.', code: 'NOT_YOURS' }, 403);
   return false;
 }
+
+/** Hai cột tiền — ai không được xem chi phí thì cũng không đọc, không ghi được. */
+const COT_TIEN = ['costPlan', 'costActual'];
 
 /** Bỏ hai cột tiền khỏi một lịch trước khi trả cho người không được xem chi phí. */
 function boChiPhi(it) {
@@ -315,7 +322,9 @@ async function api(req, res, url) {
       // không được xem chi phí thì cắt luôn ở server, không chỉ ẩn trên giao diện
       items: (manager || qChiPhi()) ? scoped : scoped.map(boChiPhi),
       blankRows: raw.length - all.length,
-      people: collectPeople(all),
+      /* Nhân sự thường chỉ thấy người có mặt trong lịch của chính họ; muốn thấy
+       * cả phòng thì quản lý phải cấp "Xem toàn bộ". */
+      people: (manager || qToanBo()) ? collectPeople(all) : collectPeople(scoped),
       options: collectOptions(fields),
       config: {
         statusOrder: cfg.statusOrder,
@@ -371,6 +380,8 @@ async function api(req, res, url) {
     for (const k of Object.keys(body)) {
       if (!F[k] || F[k].readOnly) continue;
       if (!manager && !cfg.staffEditable.includes(k)) continue;
+      // không được xem chi phí thì cũng không ghi được chi phí (ẩn ở UI là chưa đủ)
+      if (!manager && !qChiPhi() && COT_TIEN.includes(k)) continue;
       patch[k] = body[k];
     }
     // Người đăng ký mặc định là phụ trách, và luôn nằm trong nhóm nhân sự
@@ -463,6 +474,11 @@ async function api(req, res, url) {
 
       const body = await readBody(req);
       const manager = await isManager();
+
+      if (!manager && !qChiPhi()) {
+        // không có quyền xem chi phí -> mọi thay đổi số tiền đều bị bỏ qua
+        COT_TIEN.forEach((k) => { delete body[k]; });
+      }
 
       if (!manager) {
         const bad = Object.keys(body).filter((k) => !cfg.staffEditable.includes(k));

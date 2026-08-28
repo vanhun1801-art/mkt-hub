@@ -347,8 +347,10 @@ async function api(req, res, url) {
       // quản lý cấp riêng cho nhân sự này trong bảng "Phân quyền app" của hub
       perm: { toanBo: manager || xemToanBo(req), taoMoi: manager || !khongDuocTao(req) },
       options: collectOptions(fields),
-      // danh bạ để chọn Người hỗ trợ — lấy từ toàn bảng, không phải dữ liệu công việc
-      people: collectPeople(allTasks),
+      /* Danh bạ để chọn Người hỗ trợ. Nhân sự thường KHÔNG được thấy cả phòng —
+       * chỉ những người có mặt trong việc của chính họ. Quản lý, hoặc nhân sự
+       * được cấp "Xem toàn bộ", mới thấy danh bạ đầy đủ. */
+      people: (manager || xemToanBo(req)) ? collectPeople(allTasks) : collectPeople(tasks),
       // người app được cấp quyền dùng (Developer Console → phạm vi khả dụng)
       scopePeople: (cache.scope || []).map((p) => {
         const trongBang = collectPeople(allTasks).find((x) => x.id === p.id);

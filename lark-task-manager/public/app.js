@@ -198,6 +198,12 @@ function fillDueSelect(sel, placeholder) {
   const p = el('option', '', placeholder);
   p.value = '';
   sel.appendChild(p);
+  // khoảng do bộ lọc chung của Marketing Hub đưa xuống — hiện thành lựa chọn thật
+  if (S.hubKhoang) {
+    const op = el('option', '', 'Bộ lọc chung: ' + dmyNgan(S.hubKhoang.tu) + ' → ' + dmyNgan(S.hubKhoang.den));
+    op.value = 'khoang';
+    sel.appendChild(op);
+  }
   for (const g of DUE_OPTIONS) {
     const og = document.createElement('optgroup');
     og.label = g.nhom;
@@ -212,6 +218,65 @@ function fillDueSelect(sel, placeholder) {
 }
 
 const startOfDay = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
+
+const dmyNgan = (s) => (s ? s.slice(8, 10) + '/' + s.slice(5, 7) : '');
+const isoNgay = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' +
+  String(d.getDate()).padStart(2, '0');
+
+/**
+ * Khoảng ngày tương đương của một mốc thời gian, để báo lên lớp vỏ cho các base
+ * khác lọc theo. `null` = không lọc (toàn bộ); `undefined` = không diễn tả được
+ * bằng khoảng ngày (VD "Đã quá hạn", "Chưa có deadline") -> không đồng bộ ngược.
+ */
+function khoangCuaMoc(mode, exact) {
+  const t0 = startOfDay(new Date());
+  const cong = (n) => { const x = new Date(t0); x.setDate(x.getDate() + n); return x; };
+  const thang = (lech) => {
+    const d = new Date(t0.getFullYear(), t0.getMonth() + lech, 1);
+    return { tu: isoNgay(d), den: isoNgay(new Date(d.getFullYear(), d.getMonth() + 1, 0)) };
+  };
+  const tuan = (lech) => {
+    const s = weekStart(t0); s.setDate(s.getDate() + lech * 7);
+    const e = new Date(s); e.setDate(e.getDate() + 6);
+    return { tu: isoNgay(s), den: isoNgay(e) };
+  };
+  switch (mode) {
+    case '':          return null;
+    case 'khoang':    return S.hubKhoang || null;
+    case 'exact':     return exact ? { tu: exact, den: exact } : undefined;
+    case 'today':     return { tu: isoNgay(t0), den: isoNgay(t0) };
+    case 'tomorrow':  return { tu: isoNgay(cong(1)), den: isoNgay(cong(1)) };
+    case 'yesterday': return { tu: isoNgay(cong(-1)), den: isoNgay(cong(-1)) };
+    case 'thisweek':  return tuan(0);
+    case 'lastweek':  return tuan(-1);
+    case 'thismonth': return thang(0);
+    case 'lastmonth': return thang(-1);
+    case 'past7':     return { tu: isoNgay(cong(-7)), den: isoNgay(t0) };
+    case 'next7':     return { tu: isoNgay(t0), den: isoNgay(cong(7)) };
+    case 'past30':    return { tu: isoNgay(cong(-30)), den: isoNgay(t0) };
+    case 'next30':    return { tu: isoNgay(t0), den: isoNgay(cong(30)) };
+    default:          return undefined;
+  }
+}
+
+/** Báo lên lớp vỏ khi người dùng tự đổi mốc thời gian trong app này. */
+function baoKhoangLenHub(mode, exact) {
+  if (!window.hubBaoKhoang) return;
+  const k = khoangCuaMoc(mode, exact);
+  if (k === undefined) return;
+  window.hubBaoKhoang(k ? k.tu : '', k ? k.den : '');
+}
+
+/* Lớp vỏ gọi xuống khi bộ lọc chung đổi: áp cho cả ba bộ lọc của app. */
+window.hubApKhoang = function (tu, den) {
+  S.hubKhoang = tu && den ? { tu, den } : null;
+  const moc = S.hubKhoang ? 'khoang' : '';
+  for (const f of [S.filters, S.wf, S.df]) { f.due = moc; f.dueDate = ''; }
+  if (!S.meta) return;                       // chưa nạp xong thì để load() tự áp
+  setupFilters();
+  syncFilterInputs();
+  render();
+};
 
 /** Thứ 2 đầu tuần chứa ngày d (tuần bắt đầu từ Thứ 2). */
 function weekStart(d) {
@@ -241,6 +306,14 @@ function matchDue(t, mode, exact) {
   const date = parseDate(t.deadline);
   if (mode === 'none') return date == null;
   if (!date) return false;
+
+  // khoảng do lớp vỏ Marketing Hub đưa xuống (một bộ lọc cho mọi base)
+  if (mode === 'khoang') {
+    if (!S.hubKhoang) return true;
+    const day0 = startOfDay(date).getTime();
+    return day0 >= startOfDay(new Date(S.hubKhoang.tu + 'T00:00:00')).getTime() &&
+           day0 <= startOfDay(new Date(S.hubKhoang.den + 'T00:00:00')).getTime();
+  }
 
   const d = daysLeft(t.deadline);
   const today = startOfDay(new Date());
@@ -3014,6 +3087,7 @@ function setupChrome() {
     if (S.wf.due !== 'exact') S.wf.dueDate = '';
     syncDateInputs();
     render();
+    baoKhoangLenHub(S.wf.due, S.wf.dueDate);
   };
   $('#wDueDate').onchange = () => { S.wf.dueDate = $('#wDueDate').value; render(); };
 
@@ -3034,6 +3108,7 @@ function setupChrome() {
     if (S.df.due !== 'exact') S.df.dueDate = '';
     syncDateInputs();
     render();
+    baoKhoangLenHub(S.df.due, S.df.dueDate);
   };
   $('#dDueDate').onchange = () => { S.df.dueDate = $('#dDueDate').value; render(); };
 
@@ -3055,6 +3130,7 @@ function setupChrome() {
     if (S.filters.due !== 'exact') S.filters.dueDate = '';
     syncDateInputs();
     render();
+    baoKhoangLenHub(S.filters.due, S.filters.dueDate);
   };
   $('#fDueDate').onchange = () => { S.filters.dueDate = $('#fDueDate').value; render(); };
   $('#fHideDone').onchange = () => { S.filters.hideDone = $('#fHideDone').checked; render(); };
