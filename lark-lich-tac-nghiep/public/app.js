@@ -27,6 +27,10 @@ const MGR = () => S.manager && !S.acting;
 /** Đang xem thay người khác — mọi thao tác ghi bị khoá để không hành động hộ họ. */
 const PREVIEW = () => !!S.acting;
 
+/* Đang chạy dưới lớp vỏ Marketing Hub VÀ lớp vỏ nói đây là nhân sự — lớp vỏ mới là
+ * nơi quyết vai, nên hỏi nó chứ không tự đoán. */
+const NS_HUB = () => !!(window.HUB_LOC && window.__HUB__ && window.__HUB__.quanLy === false);
+
 /* Ba tùy chọn quản lý cấp thêm cho nhân sự. Server đã chặn thật, đây chỉ để giao
  * diện không bày ra thứ người dùng không có quyền. */
 const CHIPHI = () => MGR() || !!(S.perm && S.perm.chiPhi);
@@ -211,6 +215,12 @@ async function load(force) {
 
 /* ============ lọc ============ */
 function periodOptions() {
+  /* Nhân sự chỉ được bảy mốc quanh hôm nay — danh sách do lớp vỏ cấp (loc.js),
+   * dùng chung với Tổng quan và hai base kia. Không "tất cả thời gian", không
+   * "đã qua": nhìn xa hơn là việc của quản lý. */
+  if (NS_HUB()) {
+    return window.HUB_LOC.danhSach().map((x) => ({ v: 'k:' + x.tu + ':' + x.den, t: x.ten }));
+  }
   const months = [...new Set(S.items.map((t) => t.month).filter((m) => m && m !== 'Chưa có ngày'))].sort().reverse();
   const ds = [
     { v: 'all', t: 'Tất cả thời gian' },
@@ -258,6 +268,17 @@ function khoangCuaKy(p) {
 }
 
 /* Lớp vỏ Marketing Hub gọi xuống khi bộ lọc chung đổi. */
+/** Nhân sự: nếu kỳ đang chọn không nằm trong bảy mốc thì kéo về tháng này. */
+function chuanKyNhanSu() {
+  if (!NS_HUB()) return;
+  const ds = window.HUB_LOC.danhSach();
+  const dung = ds.some((x) => S.f.period === 'k:' + x.tu + ':' + x.den);
+  if (dung) return;
+  const mac = ds.find((x) => x.k === window.HUB_LOC.MAC_DINH) || ds[0];
+  S.f.period = 'k:' + mac.tu + ':' + mac.den;
+  if (window.hubBaoKhoang) window.hubBaoKhoang(mac.tu, mac.den);
+}
+
 window.hubApKhoang = function (tu, den) {
   const moi = tu && den ? 'k:' + tu + ':' + den : 'all';
   if (S.f.period === moi) return;
@@ -351,6 +372,7 @@ function tabDefs() {
 }
 
 function renderTabs() {
+  chuanKyNhanSu();
   const defs = tabDefs();
   if (!defs.some((d) => d.k === S.tab)) S.tab = defs[0].k;
   $('#tabs').innerHTML = defs.map((d) =>

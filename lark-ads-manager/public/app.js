@@ -210,11 +210,23 @@ function renderFilters() {
   $('#brandSub').textContent =
     `${m.counts.campaigns} chiến dịch · ${m.counts.groups} nhóm · ${m.counts.ads} quảng cáo · ${m.counts.daily} dòng ngày · dữ liệu tới ${dmy(m.maxDate)}`;
 
-  const RANGES = [
-    { k: 'today', label: 'Hôm nay' }, { k: 'thang', label: 'Tháng này' },
-    { k: 7, label: '7 ngày' }, { k: 14, label: '14 ngày' },
-    { k: 30, label: '30 ngày' }, { k: 'all', label: 'Toàn bộ' },
-  ];
+  /* Nhân sự chỉ được bảy mốc quanh hôm nay (loc.js của lớp vỏ) — không "toàn bộ",
+   * không khoảng tuỳ chọn. Quản lý giữ nguyên bộ mốc đầy đủ. */
+  const laNS = !!(window.HUB_LOC && window.__HUB__ && window.__HUB__.quanLy === false);
+  const RANGES = laNS
+    ? window.HUB_LOC.danhSach().map((x) => ({ k: 'ns:' + x.tu + ':' + x.den, label: x.ten }))
+    : [
+      { k: 'today', label: 'Hôm nay' }, { k: 'thang', label: 'Tháng này' },
+      { k: 7, label: '7 ngày' }, { k: 14, label: '14 ngày' },
+      { k: 30, label: '30 ngày' }, { k: 'all', label: 'Toàn bộ' },
+    ];
+  // hai ô ngày là khoảng tuỳ chọn -> nhân sự không có
+  if (laNS) {
+    ['#fFrom', '#fTo'].forEach((sel) => {
+      const g = $(sel) && $(sel).closest('.fgroup');
+      if (g) g.hidden = true;
+    });
+  }
   // Nhiều mốc có thể trùng nhau (VD Base chỉ có dữ liệu tháng này thì "Tháng này"
   // và "Toàn bộ" cùng khớp) — chỉ sáng mốc khớp đầu tiên cho khỏi rối.
   let daSang = false;
@@ -225,7 +237,11 @@ function renderFilters() {
   }).join('');
   $$('#rangeSeg button').forEach((b) => b.onclick = () => {
     const k = b.dataset.range;
-    if (k === 'today') { S.filter.from = S.filter.to = m.today; }
+    if (String(k).startsWith('ns:')) {
+      const [, tu, den] = String(k).split(':');
+      S.filter.from = tu; S.filter.to = den;
+    }
+    else if (k === 'today') { S.filter.from = S.filter.to = m.today; }
     else if (k === 'thang') { const t = thangNay(m); S.filter.from = t.from; S.filter.to = t.to; }
     else if (k === 'all') { S.filter.from = m.minDate; S.filter.to = m.maxDate; }
     else { S.filter.from = ''; S.filter.to = ''; S.filter.days = Number(k); }
@@ -319,6 +335,10 @@ function hubApKhoangSauNap(tu, den) {
 
 function isRangeOn(k) {
   const f = S.filter, m = S.meta;
+  if (String(k).startsWith('ns:')) {
+    const [, tu, den] = String(k).split(':');
+    return f.from === tu && f.to === den;
+  }
   if (k === 'today') return f.from === m.today && f.to === m.today;
   if (k === 'thang') { const t = thangNay(m); return f.from === t.from && f.to === t.to; }
   if (k === 'all') return f.from === m.minDate && f.to === m.maxDate;

@@ -216,7 +216,12 @@ function tinh(res, duongDan) {
   if (!f.startsWith(PUBLIC) || !fs.existsSync(f) || !fs.statSync(f).isFile()) {
     return send(res, 404, 'Không có ' + p, { 'Content-Type': 'text/plain; charset=utf-8' });
   }
-  const body = fs.readFileSync(f);
+  let body = fs.readFileSync(f);
+  /* Trang chủ khai loc.js/i18n.js với ?v=BUILD — thay bằng số bản thật để đổi bản
+   * là trình duyệt nạp lại từ điển, không dính bản cũ trong cache. */
+  if (path.basename(f) === 'index.html') {
+    body = Buffer.from(body.toString('utf8').split('v=BUILD').join('v=' + cfg.build), 'utf8');
+  }
   send(res, 200, body, { 'Content-Type': MIME[path.extname(f)] || 'application/octet-stream' });
 }
 

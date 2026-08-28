@@ -53,6 +53,11 @@ function khoangDangLoc() {
   const k = S.ky;
   if (k === 'all') return null;
   if (k === 'tuychon') return S.tu && S.den ? { tu: S.tu, den: S.den } : null;
+  // các mốc dùng chung với nhân sự (loc.js): hôm qua · ngày mai · tuần tới · tháng sau
+  if (window.HUB_LOC) {
+    const kh = window.HUB_LOC.khoangCua(k);
+    if (kh) return kh;
+  }
   if (k === 'thang') {
     return { tu: d2s(new Date(now.getFullYear(), now.getMonth(), 1)),
              den: d2s(new Date(now.getFullYear(), now.getMonth() + 1, 0)) };
@@ -331,14 +336,28 @@ function moHome() {
 /* ---------------- thanh lọc thời gian (dùng chung cho các trang) ---------------- */
 const dmy = (s) => String(s || '').split('-').reverse().join('/');
 
+/* Nhân sự chỉ được bảy mốc quanh hôm nay (loc.js) — không tháng trước, không
+ * khoảng tuỳ chọn, không "toàn bộ". Quản lý giữ nguyên bộ lọc đầy đủ. */
+function dsKy() {
+  if (S.quanLy || !window.HUB_LOC) return KY;
+  return window.HUB_LOC.danhSach().map((x) => [x.k, x.ten]);
+}
+
 function veThanhLoc() {
+  /* Nhân sự có thể còn nhớ kỳ cũ trong máy (VD "Toàn bộ") — kéo về mặc định để
+   * không có đường nào lọt ra ngoài bảy mốc cho phép. */
+  const ds = dsKy();
+  if (!ds.some(([v]) => v === S.ky)) {
+    S.ky = ds.some(([v]) => v === KY_MAC_DINH) ? KY_MAC_DINH : ds[0][0];
+    luuLoc();
+  }
   const k = khoangDangLoc();
   const html =
     '<span class="loc-nhan">Thời gian</span>' +
-    '<div class="seg">' + KY.map(([v, t]) =>
+    '<div class="seg">' + dsKy().map(([v, t]) =>
       '<button data-ky="' + v + '" class="' + (S.ky === v ? 'on' : '') + '">' + esc(t) + '</button>').join('') +
     '</div>' +
-    '<span class="loc-ngay"' + (S.ky === 'tuychon' ? '' : ' hidden') + '>' +
+    '<span class="loc-ngay"' + (S.ky === 'tuychon' && S.quanLy ? '' : ' hidden') + '>' +
       '<input type="date" class="tuNgay" value="' + esc(S.tu) + '">' +
       '<span class="loc-mo">→</span>' +
       '<input type="date" class="denNgay" value="' + esc(S.den) + '">' +
@@ -526,7 +545,9 @@ function veHome() {
     html += '<div class="canh-bao">' +
       '<b>Bộ lọc đang che ' + tq.ngoaiKhoang + ' việc gấp</b>' +
       '<span class="grow">' + esc(chiTiet) + '</span>' +
-      '<button class="btn nho" data-ky="all">Xem toàn bộ</button></div>';
+      // "Toàn bộ" không nằm trong bảy mốc của nhân sự -> chỉ quản lý có nút này
+      (S.quanLy ? '<button class="btn nho" data-ky="all">Xem toàn bộ</button>' : '') +
+      '</div>';
   }
 
   /* --- tải nhân sự: ai làm gì ngày nào --- */
@@ -824,6 +845,9 @@ async function napHub() {
   S.quanLy = !!d.quanLy;
   $('#btnAdd').hidden = !S.quanLy;
   $('#btnSettings').hidden = !S.quanLy;
+  /* Thanh lọc vẽ lần đầu TRƯỚC khi biết vai (boot chưa gọi /api/hub xong) — vẽ lại
+   * ở đây, nếu không nhân sự vẫn thấy bộ lọc đầy đủ của quản lý trong nhịp đầu. */
+  veThanhLoc();
   S.quanLyThat = !!d.quanLyThat;
   S.xemNhu = d.xemNhu || null;
   veBangXemNhu();

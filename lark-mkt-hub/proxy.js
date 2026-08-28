@@ -21,7 +21,7 @@ const tienTo = (mod) => '/m/' + mod.id;
 
 /* ---------------- đoạn mã chèn vào trang module ---------------- */
 
-function shimJs(mod) {
+function shimJs(mod, nguoi) {
   const P = tienTo(mod);
   return `
 (function(){
@@ -34,7 +34,13 @@ function shimJs(mod) {
     if (u.indexOf(P + '/') === 0 || u === P) return u;
     return P + u;
   }
-  window.__HUB__ = { prefix: P, id: ${JSON.stringify(mod.id)} };
+  /* Vai do lớp vỏ quyết (theo email/open_id + bảng phân quyền) — app con nào
+   * chưa tự biết vai thì đọc thẳng ở đây, VD để giới hạn bộ lọc của nhân sự. */
+  window.__HUB__ = {
+    prefix: P,
+    id: ${JSON.stringify(mod.id)},
+    quanLy: ${nguoi && nguoi.quanLy ? 'true' : 'false'},
+  };
 
   var of = window.fetch;
   if (of) window.fetch = function(input, init){
@@ -114,14 +120,16 @@ function shimJs(mod) {
     if (ev.data.hub === 'loc') apKhoang(ev.data.tu, ev.data.den);
   });
 
-  /* Ngôn ngữ: nạp cùng một file từ điển của lớp vỏ (cùng origin nên dùng chung
-   * được). File tự đọc data-lang của trang cha lúc khởi tạo và nghe tin 'lang'. */
-  (function () {
-    var sc = document.createElement('script');
-    sc.src = '/i18n.js';        // file của lớp vỏ, nằm ở gốc origin
-    sc.async = false;
-    (document.head || document.documentElement).appendChild(sc);
-  })();
+  /* Hai file dùng chung của lớp vỏ (cùng origin nên app con nạp được):
+   *   loc.js  - danh sách mốc thời gian cho nhân sự
+   *   i18n.js - từ điển Tiếng Việt / English, tự đọc data-lang của trang cha
+   */
+  /* document.write chứ không appendChild: script chèn động KHÔNG chặn parser, nên
+   * app.js của module chạy trước và lúc đó chưa có HUB_LOC -> bộ lọc dựng sai một
+   * nhịp. Viết thẳng vào lúc đang parse thì hai file này chắc chắn nạp xong trước. */
+  var V = "?v=2026-08-28.1";
+  document.write('<scr' + 'ipt src="/loc.js' + V + '"></scr' + 'ipt>');
+  document.write('<scr' + 'ipt src="/i18n.js' + V + '"></scr' + 'ipt>');
 
   // Cho lớp vỏ biết trang con đã sẵn sàng + gửi dòng phụ đề để rail hiển thị
   var SEL = ${JSON.stringify(mod.phuSelector || '')};
@@ -156,7 +164,7 @@ ${them}
 `;
 }
 
-function chenVaoHtml(html, mod) {
+function chenVaoHtml(html, mod, nguoi) {
   let out = html;
 
   // href="/x" src="/x" action="/x" -> thêm tiền tố (bỏ qua "//" và "/m/<id>")
@@ -166,7 +174,7 @@ function chenVaoHtml(html, mod) {
   // đánh dấu để CSS của module (nếu muốn) biết đang chạy trong hub
   out = out.replace(/<html\b/i, '<html class="trong-hub"');
 
-  const chen = '<style data-hub="1">' + shimCss(mod) + '</style>\n<script data-hub="1">' + shimJs(mod) + '</script>\n';
+  const chen = '<style data-hub="1">' + shimCss(mod) + '</style>\n<script data-hub="1">' + shimJs(mod, nguoi) + '</script>\n';
   if (/<head[^>]*>/i.test(out)) out = out.replace(/<head([^>]*)>/i, (m) => m + '\n' + chen);
   else out = chen + out;
   return out;
@@ -225,7 +233,7 @@ function chuyenTiep(req, res, mod, duongDan, nguoi) {
       const buf = [];
       r.on('data', (c) => buf.push(c));
       r.on('end', () => {
-        const html = chenVaoHtml(Buffer.concat(buf).toString('utf8'), mod);
+        const html = chenVaoHtml(Buffer.concat(buf).toString('utf8'), mod, nguoi);
         const body = Buffer.from(html, 'utf8');
         headers['content-length'] = String(body.length);
         headers['cache-control'] = 'no-store';

@@ -32,6 +32,8 @@
     'Tháng này': 'This month',
     'Tháng trước': 'Last month',
     'Tuần này': 'This week',
+    'Tuần tới': 'Next week',
+    'Tháng tiếp theo': 'Next month',
     '7 ngày': '7 days',
     '14 ngày': '14 days',
     '30 ngày': '30 days',

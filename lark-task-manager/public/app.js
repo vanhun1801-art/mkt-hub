@@ -195,6 +195,24 @@ const DUE_LABEL = Object.fromEntries(
 function fillDueSelect(sel, placeholder) {
   const keep = sel.value;
   sel.innerHTML = '';
+
+  /* Nhân sự chỉ được bảy mốc quanh hôm nay — danh sách do lớp vỏ cấp (loc.js),
+   * dùng chung với Tổng quan và hai base kia. Không có "tất cả", không quá hạn
+   * cả tháng trước: nhìn xa hơn là việc của quản lý. */
+  if (NS_HUB()) {
+    for (const x of window.HUB_LOC.danhSach()) {
+      const op = el('option', '', x.ten);
+      op.value = 'ns:' + x.tu + ':' + x.den;
+      sel.appendChild(op);
+    }
+    sel.value = keep;
+    if (!sel.value) {
+      const mac = window.HUB_LOC.danhSach().find((x) => x.k === window.HUB_LOC.MAC_DINH);
+      if (mac) sel.value = 'ns:' + mac.tu + ':' + mac.den;
+    }
+    return;
+  }
+
   const p = el('option', '', placeholder);
   p.value = '';
   sel.appendChild(p);
@@ -220,6 +238,10 @@ function fillDueSelect(sel, placeholder) {
 const startOfDay = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
 
 const dmyNgan = (s) => (s ? s.slice(8, 10) + '/' + s.slice(5, 7) : '');
+
+/* Đang chạy dưới lớp vỏ Marketing Hub VÀ lớp vỏ nói đây là nhân sự. Lớp vỏ mới là
+ * nơi quyết vai (theo email + bảng phân quyền), nên hỏi nó chứ không tự đoán. */
+const NS_HUB = () => !!(window.HUB_LOC && window.__HUB__ && window.__HUB__.quanLy === false);
 const isoNgay = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' +
   String(d.getDate()).padStart(2, '0');
 
@@ -229,6 +251,10 @@ const isoNgay = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart
  * bằng khoảng ngày (VD "Đã quá hạn", "Chưa có deadline") -> không đồng bộ ngược.
  */
 function khoangCuaMoc(mode, exact) {
+  if (String(mode).startsWith('ns:')) {
+    const [, tu, den] = String(mode).split(':');
+    return { tu, den };
+  }
   const t0 = startOfDay(new Date());
   const cong = (n) => { const x = new Date(t0); x.setDate(x.getDate() + n); return x; };
   const thang = (lech) => {
@@ -270,7 +296,10 @@ function baoKhoangLenHub(mode, exact) {
 /* Lớp vỏ gọi xuống khi bộ lọc chung đổi: áp cho cả ba bộ lọc của app. */
 window.hubApKhoang = function (tu, den) {
   S.hubKhoang = tu && den ? { tu, den } : null;
-  const moc = S.hubKhoang ? 'khoang' : '';
+  // nhân sự dùng đúng mã của bảy mốc để ô chọn hiện đúng tên, không phải "Bộ lọc chung"
+  const nsMoc = (NS_HUB() && tu && den && window.HUB_LOC.macCuaKhoang(tu, den))
+    ? 'ns:' + tu + ':' + den : '';
+  const moc = nsMoc || (S.hubKhoang ? 'khoang' : '');
   for (const f of [S.filters, S.wf, S.df]) { f.due = moc; f.dueDate = ''; }
   if (!S.meta) return;                       // chưa nạp xong thì để load() tự áp
   setupFilters();
@@ -306,6 +335,14 @@ function matchDue(t, mode, exact) {
   const date = parseDate(t.deadline);
   if (mode === 'none') return date == null;
   if (!date) return false;
+
+  // mốc của nhân sự: 'ns:<tu>:<den>' (bảy mốc dùng chung, xem loc.js)
+  if (String(mode).startsWith('ns:')) {
+    const [, tu, den] = String(mode).split(':');
+    const d0 = startOfDay(date).getTime();
+    return d0 >= startOfDay(new Date(tu + 'T00:00:00')).getTime() &&
+           d0 <= startOfDay(new Date(den + 'T00:00:00')).getTime();
+  }
 
   // khoảng do lớp vỏ Marketing Hub đưa xuống (một bộ lọc cho mọi base)
   if (mode === 'khoang') {
@@ -2733,6 +2770,22 @@ function render() {
   $('#bulkCount').textContent = 'Đã chọn ' + n + ' việc';
 }
 
+/**
+ * Nhân sự chỉ được bảy mốc thời gian của lớp vỏ. Mốc đang giữ (VD 'thismonth' mặc
+ * định, hay 'overdue' nhớ từ trước) không nằm trong bảy mốc đó thì kéo về mốc mặc
+ * định — nếu không ô chọn hiện một mốc mà dữ liệu lại lọc theo mốc khác.
+ */
+function chuanMocNhanSu() {
+  if (!NS_HUB()) return;
+  const ds = window.HUB_LOC.danhSach();
+  const ma = (x) => 'ns:' + x.tu + ':' + x.den;
+  const hop = (v) => ds.some((x) => v === ma(x));
+  const mac = ma(ds.find((x) => x.k === window.HUB_LOC.MAC_DINH) || ds[0]);
+  for (const f of [S.filters, S.wf, S.df]) {
+    if (!hop(f.due)) { f.due = mac; f.dueDate = ''; }
+  }
+}
+
 /** Con số trên phụ đề đang đếm việc của ai — nói đúng để khỏi hiểu nhầm. */
 function nhanPhamVi() {
   if (S.isManager) return ' việc toàn phòng';
@@ -2745,6 +2798,7 @@ async function refresh(force) {
   S.isManager = S.meta.role === 'manager';
   // Tùy chọn quản lý cấp riêng cho nhân sự này (bảng Phân quyền app của hub)
   S.perm = Object.assign({ toanBo: S.isManager, taoMoi: true }, S.meta.perm || {});
+  chuanMocNhanSu();
   // Nhân sự luôn khoá theo tài khoản đăng nhập; quản lý được xem việc của người khác
   if (!S.isManager) S.viewAs = null;
   S.who = S.viewAs || S.meta.me || null;
