@@ -894,7 +894,9 @@ function theViec(t, buoc) {
   }
 
   /* --- thông tin cần nắm, chỉ hiện ở bước chuẩn bị đi --- */
-  let can = '';
+  /* Luôn vẽ hàng thông tin dù rỗng: thẻ nào cũng đủ bốn hàng thì lưới mới đều,
+   * nút ở chân thẻ mới thẳng hàng giữa các thẻ. */
+  let can = '<div class="ct-can"></div>';
   if (buoc === 'chuan-bi' || buoc === 'bao-cao') {
     const d = [];
     if ((t.transport || []).length) d.push('<span class="ct-mon">🚗 ' + esc(t.transport.join(', ')) + '</span>');
@@ -908,7 +910,7 @@ function theViec(t, buoc) {
       d.push('<span class="ct-mon">' + esc(t.foc.join(' · ')) + '</span>');
     }
     if ((t.tickets || []).length) d.push('<span class="ct-ve ok">📎 Đã có ' + t.tickets.length + ' tệp vé / thông tin</span>');
-    if (d.length) can = '<div class="ct-can">' + d.join('') + '</div>';
+    can = '<div class="ct-can">' + d.join('') + '</div>';
   }
 
   return '<div class="ct" data-open="' + t.id + '">' +

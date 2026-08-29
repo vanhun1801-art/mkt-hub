@@ -815,26 +815,41 @@ textarea.fld { height: auto; min-height: 84px; padding: 8px 10px; resize: vertic
 .buoc-than {
   padding: 12px; display: grid; gap: 10px;
   grid-template-columns: repeat(auto-fill, minmax(288px, 1fr));
+  align-items: stretch;          /* mọi thẻ cùng cao trong một hàng */
 }
 .buoc-trong { color: var(--t4); font-size: 12.5px; padding: 10px 4px; }
 
 /* ---- thẻ việc ---- */
+/* Thẻ chia thành BỐN HÀNG cố định: đầu · việc cần làm · thông tin · chân.
+   Hàng thông tin co giãn (1fr) nên chân thẻ — chỗ để nút — luôn nằm sát đáy và
+   thẳng hàng giữa các thẻ, dù nội dung dài ngắn khác nhau. */
 .ct {
   border: 1px solid var(--line); border-radius: 12px; padding: 12px 13px;
   background: var(--surface); cursor: pointer;
-  display: flex; flex-direction: column; gap: 8px;
+  display: grid; grid-template-rows: auto auto 1fr auto; gap: 9px;
+  height: 100%;
   transition: border-color .12s, box-shadow .12s, transform .12s;
 }
 .ct:hover { border-color: var(--primary); box-shadow: 0 6px 20px rgba(43,92,255,.10); transform: translateY(-1px); }
-.ct-dau { display: flex; align-items: baseline; gap: 8px; }
-.ct-ten { font-size: 14px; font-weight: 600; line-height: 1.35; flex: 1; }
-.ct-luc { font-size: 11.5px; color: var(--t3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ct-dau { display: flex; align-items: flex-start; gap: 8px; }
+/* Tên dài thì cắt còn 2 dòng — giữ cho đầu thẻ nào cũng cao bằng nhau */
+.ct-ten {
+  font-size: 14px; font-weight: 650; line-height: 1.35; flex: 1;
+  min-height: 2.7em;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.ct-luc {
+  font-size: 11.5px; color: var(--t3); white-space: nowrap;
+  font-variant-numeric: tabular-nums; padding-top: 1px;
+}
 
 /* Câu "bây giờ làm gì" — thứ đầu tiên mắt phải đọc */
 .ct-viec {
-  font-size: 12.5px; line-height: 1.45; font-weight: 500;
-  color: var(--primary-dark, #1f4ae0);
-  background: var(--blue-bg); border-radius: 8px; padding: 7px 10px;
+  font-size: 12.5px; line-height: 1.4; font-weight: 500;
+  color: #1f4ae0;
+  background: var(--blue-bg); border-radius: 8px; padding: 8px 10px;
+  min-height: 36px;              /* một dòng hay hai dòng cũng chiếm chỗ như nhau */
+  display: flex; align-items: center;
 }
 .buoc-nhap .ct-viec    { color: var(--orange-t); background: var(--orange-bg); }
 .buoc-cho .ct-viec     { color: var(--t2); background: var(--surface-2); }
@@ -842,8 +857,8 @@ textarea.fld { height: auto; min-height: 84px; padding: 8px 10px; resize: vertic
 .buoc-xong .ct-viec    { color: var(--green-t); background: var(--green-bg); }
 .buoc-dong .ct-viec    { color: var(--t3); background: var(--surface-2); }
 
-/* Thông tin cần nắm trước khi đi */
-.ct-can { display: flex; flex-wrap: wrap; gap: 6px; }
+/* Thông tin cần nắm trước khi đi — nằm ở hàng co giãn, dồn lên trên */
+.ct-can { display: flex; flex-wrap: wrap; gap: 6px; align-content: flex-start; }
 .ct-mon, .ct-ve {
   font-size: 11.5px; padding: 3px 9px; border-radius: 999px;
   background: var(--surface-2); border: 1px solid var(--line); color: var(--t2);
@@ -852,5 +867,10 @@ textarea.fld { height: auto; min-height: 84px; padding: 8px 10px; resize: vertic
 .ct-ve.cho { background: var(--orange-bg); color: var(--orange-t); border-color: transparent; font-weight: 600; }
 .ct-ve.no  { background: var(--red-bg);    color: var(--red-t);    border-color: transparent; font-weight: 600; }
 
-.ct-chan { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+/* Chân thẻ: có vạch ngăn, cao cố định, nút luôn cùng bề ngang */
+.ct-chan {
+  display: flex; align-items: center; gap: 8px;
+  border-top: 1px solid var(--line-soft); padding-top: 10px; min-height: 44px;
+}
 .ct-nut { margin-left: auto; }
+.ct-nut .btn { min-width: 96px; justify-content: center; }
