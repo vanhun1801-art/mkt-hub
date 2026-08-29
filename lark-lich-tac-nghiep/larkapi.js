@@ -116,10 +116,25 @@ async function listAllRecords(tableId = cfg.tableId) {
   return out;
 }
 
+/**
+ * Lấy MỘT bản ghi theo id.
+ *
+ * Trước đây hàm này chỉ đọc trang đầu (200 bản ghi) rồi tìm trong đó — bảng vượt
+ * 200 dòng là mọi bản ghi nằm sau đó "không tìm thấy", mà bản ghi MỚI TẠO luôn
+ * nằm cuối bảng. Hậu quả: vừa đăng ký lịch xong là không duyệt/sửa được.
+ * Nay lật hết các trang cho tới khi gặp, hoặc hết bảng.
+ */
 async function getRecord(recordId, tableId = cfg.tableId) {
-  const d = await call('GET', baseUrl(tableId) + '/records?limit=200&offset=0');
-  const ds = columnsToRecords(d);
-  return ds.find((r) => r.record_id === recordId) || null;
+  let offset = 0;
+  for (let trang = 0; trang < 30; trang++) {
+    const d = await call('GET', baseUrl(tableId) + '/records?limit=200&offset=' + offset);
+    const ds = columnsToRecords(d);
+    const thay = ds.find((r) => r.record_id === recordId);
+    if (thay) return thay;
+    if (!d.has_more) break;
+    offset += 200;
+  }
+  return null;
 }
 
 async function listFields(tableId = cfg.tableId) {
