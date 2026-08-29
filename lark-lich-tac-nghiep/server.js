@@ -129,7 +129,11 @@ function toCells(patch) {
  * "thời lượng" không phải kế hoạch — đó là kết quả thật của chuyến đi, nhân sự
  * điền đúng lúc lịch đang ở trạng thái đã duyệt, nên hai ô này phải mở. */
 const TRUONG_KE_HOACH = ['title', 'purpose', 'plan', 'start', 'transport', 'costPlan', 'foc'];
-const TRANG_THAI_KHOA = ['Duyệt/Chờ tác nghiệp', 'Đã hoàn tất', 'Hủy lịch', 'Từ chối'];
+/* Gửi duyệt rồi là khoá luôn, không đợi tới lúc được duyệt: quản lý đang đọc
+ * dở mà nhân sự sửa lén dưới tay thì họ duyệt một đằng, người đi một nẻo. Muốn
+ * sửa thì xin trả về "Từ chối/Cần điều chỉnh" — trạng thái đó mở lại quyền. */
+const TRANG_THAI_KHOA = ['Chờ duyệt/Xử lý', 'Duyệt/Chờ tác nghiệp', 'Đã hoàn tất',
+  'Hủy lịch', 'Từ chối'];
 
 /* Lịch đã huỷ thì với nhân sự coi như không còn: cắt ngay ở server để nó biến
  * mất khỏi mọi tab, mọi con số, chứ không phải chỉ ẩn trên giao diện. Quản lý

@@ -1006,9 +1006,9 @@ function theViec(t, buoc) {
       co = '<span class="ct-co do">Cần điều chỉnh</span>';
       if (!PREVIEW()) nut = '<button class="btn sm danger" data-open="' + t.id + '">Điều chỉnh</button>';
     } else {
-      viec = 'Đang chờ quản lý duyệt — chưa cần làm gì thêm';
+      // Đã gửi thì không sửa nữa — chỉ còn đường xin huỷ (nút thêm ở dưới)
+      viec = 'Đang chờ quản lý duyệt — muốn sửa thì nhờ quản lý trả về';
       co = '<span class="ct-co xam">Chờ duyệt</span>';
-      if (!PREVIEW()) nut = '<button class="btn sm" data-open="' + t.id + '">Chỉnh sửa</button>';
     }
   } else if (buoc === 'chuan-bi') {
     viec = qua ? 'Đã tới giờ — đi xong nhớ quay lại bấm Báo cáo' : 'Đã duyệt — chuẩn bị đi';
@@ -1225,7 +1225,11 @@ function statusChoices() {
  * máy chủ cũng khoá. Mở ô chỉnh sửa lúc đó chỉ tổ để người ta lỡ tay. Nên bấm
  * vào đâu cũng ra bảng thông tin chỉ đọc — muốn động vào thì chỉ còn đúng nút
  * Báo cáo. Quản lý vẫn vào ô sửa như thường. */
-const KHOA_SUA = ['Duyệt/Chờ tác nghiệp', 'Đang báo cáo', 'Đã hoàn tất', 'Từ chối', 'Hủy lịch'];
+/* Gửi đi rồi là hết sửa. Quản lý có thể đang đọc dở, sửa lén dưới tay người
+ * duyệt thì họ duyệt một đằng nhân sự đi một nẻo. Muốn sửa thì xin quản lý trả
+ * về "Cần điều chỉnh" — trạng thái đó mở lại quyền sửa. */
+const KHOA_SUA = ['Chờ duyệt/Xử lý', 'Duyệt/Chờ tác nghiệp', 'Đang báo cáo',
+  'Đã hoàn tất', 'Từ chối', 'Hủy lịch'];
 
 function chiXem(t) {
   return !MGR() && KHOA_SUA.includes(t.status);
@@ -1243,6 +1247,8 @@ function openItem(id) {
 }
 
 function closeDrawer() {
+  // còn thay đổi chưa kịp lưu (vừa gõ xong đã đóng) thì ghi nốt rồi hãy đóng
+  if (S.sel && Object.keys(S.draft || {}).length) saveDraft(true);
   $('#drawer').classList.remove('on');
   $('#mask').classList.remove('on');
   S.sel = null;
@@ -1549,9 +1555,11 @@ function renderDrawer() {
     filesBlock('files', 'Hoá đơn, hình ảnh…') +
     filesBlock('unc', 'UNC'));
 
-  h += khoi('Trạng thái',
-    fieldSelect('status', 'Trạng thái lịch', statusChoices(), false) +
-    (MGR() ? '' : '<div class="hint">Duyệt / Từ chối / Hủy lịch do quản lý quyết định.</div>') +
+  h += khoi(MGR() ? 'Trạng thái' : 'Thông tin lịch',
+    /* Nhân sự không tự đổi trạng thái: gửi duyệt có nút riêng, báo cáo có cửa
+     * sổ riêng, huỷ phải xin. Bày ô chọn ra chỉ tổ nhảy lung tung. */
+    (MGR() ? fieldSelect('status', 'Trạng thái lịch', statusChoices(), false)
+           : '<div class="hint">Trạng thái đổi theo thao tác: bấm Gửi duyệt, bấm Báo cáo, hoặc quản lý duyệt.</div>') +
     '<dl class="kv">' +
       '<dt>Thời lượng thực tế</dt><dd>' + esc(realHours(t)) + '</dd>' +
       '<dt>Tuần / Tháng</dt><dd>' + esc(t.week || '—') + ' · ' + esc(t.month || '—') + '</dd>' +
@@ -1594,59 +1602,69 @@ function renderDrawer() {
     if (!CLOSED_BAD.includes(t.status)) acts.push('<button class="btn sm ghost" data-act="cancel" data-id="' + t.id + '">Hủy lịch</button>');
     acts.push('<button class="btn sm danger" data-act="delete" data-id="' + t.id + '">Xoá</button>');
   } else {
-    if (['Đang lên kế hoạch', 'Từ chối/Cần điều chỉnh'].includes(t.status)) {
-      acts.push('<button class="btn primary" data-act="submit" data-id="' + t.id + '">' +
-        (t.status === 'Từ chối/Cần điều chỉnh' ? 'Gửi duyệt lại' : 'Gửi duyệt') + '</button>');
-    }
-    if (t.status === 'Duyệt/Chờ tác nghiệp') {
-      acts.push('<button class="btn primary" data-act="report" data-id="' + t.id + '">Điền báo cáo</button>');
-    }
-    if (!t.cancelWant && ['Đang lên kế hoạch', 'Chờ duyệt/Xử lý', 'Từ chối/Cần điều chỉnh'].includes(t.status)) {
+    /* Ô này với nhân sự chỉ còn đúng hai việc: sửa cho xong rồi gửi duyệt, hoặc
+     * xin huỷ. Báo cáo đi đường riêng (cửa sổ Báo cáo từ thẻ), nên không có nút
+     * chuyển sang "Đang báo cáo" ở đây — bấm nhầm là lịch nhảy trạng thái. */
+    acts.push('<button class="btn primary" data-act="submit" data-id="' + t.id + '">' +
+      (t.status === 'Từ chối/Cần điều chỉnh' ? 'Gửi duyệt lại' : 'Gửi duyệt') + '</button>');
+    if (!t.cancelWant) {
       acts.push('<button class="btn sm mo" data-xinhuy="' + t.id + '">Xin huỷ lịch</button>');
     }
   }
 
   $('#drFoot').innerHTML =
-    '<button class="btn primary" id="drSave" disabled>Lưu thay đổi</button>' +
-    '<span class="mini muted" id="drDirty"></span>' +
+    '<span class="luu-tt" id="drDirty"></span>' +
     '<div class="sp"></div>' + acts.join(' ');
   markDirty();
 }
 
-function markDirty() {
+function markDirty(chu) {
+  const o = $('#drDirty');
+  if (!o) return;
   const n = Object.keys(S.draft).length;
-  const b = $('#drSave');
-  if (!b) return;
-  b.disabled = !n;
-  $('#drDirty').textContent = n ? n + ' thay đổi chưa lưu' : '';
+  o.textContent = chu != null ? chu : (n ? 'Đang gõ…' : '');
+  o.className = 'luu-tt' + (chu === 'Đã lưu' ? ' xong' : '');
 }
+
+/* Tự lưu: gõ xong ngưng tay là ghi thẳng xuống Base, khỏi phải nhớ bấm nút. Đợi
+ * 900ms để một câu gõ dở không hoá thành hai chục lần ghi. */
+let henLuu = null;
 
 function setDraft(k, v) {
   const orig = S.sel[k];
   const same = JSON.stringify(orig ?? null) === JSON.stringify(v ?? null);
   if (same) delete S.draft[k]; else S.draft[k] = v;
   markDirty();
+  clearTimeout(henLuu);
+  if (Object.keys(S.draft).length) henLuu = setTimeout(() => saveDraft(true), 900);
 }
 
-async function saveDraft() {
-  if (!Object.keys(S.draft).length) return;
+async function saveDraft(tuDong) {
+  clearTimeout(henLuu);
+  if (!S.sel || !Object.keys(S.draft).length) return;
   const id = S.sel.id;
   const patch = Object.assign({}, S.draft);
-  const b = $('#drSave');
-  b.disabled = true; b.textContent = 'Đang lưu…';
+  markDirty('Đang lưu…');
   try {
     await api('/api/items/' + id, { method: 'PATCH', body: JSON.stringify(patch) });
     Object.assign(S.sel, patch);
-    S.draft = {};
-    toast('Đã lưu vào Lark Base', 'ok');
+    // chỉ xoá đúng những gì vừa ghi — người ta có thể đã gõ tiếp trong lúc chờ
+    for (const k of Object.keys(patch)) {
+      if (JSON.stringify(S.draft[k] ?? null) === JSON.stringify(patch[k] ?? null)) delete S.draft[k];
+    }
+    if (!tuDong) toast('Đã lưu vào Lark Base', 'ok');
+    markDirty(Object.keys(S.draft).length ? null : 'Đã lưu');
+    /* Tự lưu thì KHÔNG vẽ lại ô chi tiết: người ta đang gõ dở, vẽ lại là mất
+     * con trỏ và mất cả chữ chưa kịp đọc. Chỉ làm mới danh sách phía sau. */
     await refresh(true);
     const again = S.items.find((x) => x.id === id);
-    if (again) { S.sel = again; renderDrawer(); }
+    if (again) {
+      S.sel = again;
+      if (!tuDong) renderDrawer();
+    }
   } catch (e) {
+    markDirty('Chưa lưu được');
     toast(e.message, 'err');
-  } finally {
-    b.textContent = 'Lưu thay đổi';
-    markDirty();
   }
 }
 
@@ -2350,7 +2368,6 @@ document.addEventListener('click', async (e) => {
   if (T.closest('#btnNew')) { $('#mdTitle').textContent = 'Đăng ký lịch tác nghiệp'; openCreate(); return; }
   if (T.closest('#btnRefresh')) { toast('Đang tải lại…'); await refresh(true); return; }
   if (T.closest('#drClose') || T.closest('#mask')) { closeDrawer(); return; }
-  if (T.closest('#drSave')) { await saveDraft(); return; }
   if (T.closest('#bcGui')) { await guiBaoCao(); return; }
   if (T.closest('#xhGui')) { await guiXinHuy(); return; }
   if (T.closest('#fReset')) { S.f = { period: 'month', person: 'all', status: 'all', q: '', the: '' }; render(); return; }

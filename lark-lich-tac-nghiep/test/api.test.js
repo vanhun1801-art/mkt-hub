@@ -299,8 +299,15 @@ async function call(path, opts) {
       G.khoaKeHoach('Duyệt/Chờ tác nghiệp', ['start']));
     ok('lịch đã hoàn tất không sửa được Kế hoạch',
       G.khoaKeHoach('Đã hoàn tất', ['plan']));
-    ok('lịch chưa duyệt thì sửa thoải mái',
+    ok('bản nháp thì sửa thoải mái',
       !G.khoaKeHoach('Đang lên kế hoạch', ['title', 'start', 'plan']));
+    // Gửi đi rồi là khoá ngay, không đợi tới lúc được duyệt
+    ok('đã gửi duyệt thì không sửa được nữa',
+      G.khoaKeHoach('Chờ duyệt/Xử lý', ['title']));
+    ok('bị trả về thì mở lại quyền sửa',
+      !G.khoaKeHoach('Từ chối/Cần điều chỉnh', ['title', 'start', 'plan']));
+    ok('đang chờ duyệt vẫn xin huỷ được',
+      !G.khoaKeHoach('Chờ duyệt/Xử lý', ['cancelWant', 'cancelReason']));
 
     // Minh chứng: ghi chú TRƯỚC chuyến không được tính là đã báo cáo
     ok('có Báo cáo sau tác nghiệp thì đủ minh chứng',
