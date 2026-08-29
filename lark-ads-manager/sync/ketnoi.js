@@ -33,7 +33,7 @@ const DEFAULT = {
    * developer token thì đi đường Sheet, duyệt rồi thì bật cái này và tắt cái kia. */
   googleAds: {
     enabled: false, clientId: '', clientSecret: '', refreshToken: '',
-    developerToken: '', customerIds: [], loginCustomerId: '',
+    developerToken: '', customerIds: [], loginCustomerId: '', apiVersion: 'v22',
   },
   dongBo: {
     soNgayLui: 7, moiSoGio: 1, khiKhoiDong: true,

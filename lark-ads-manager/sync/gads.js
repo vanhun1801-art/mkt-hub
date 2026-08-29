@@ -17,8 +17,11 @@
 const { getJson, postJson, scrub, hideSecret } = require('./http');
 
 const PLATFORM = 'Google Ads';
-const API_VER = 'v18';
-const BASE = 'https://googleads.googleapis.com/' + API_VER;
+/* Google khai tử phiên bản API sau khoảng một năm. Đo ngày 29/08/2026: v15–v21 đều
+ * trả 404 kèm trang HTML, v22 còn sống. Khai được trong ket-noi.json để sau này đổi
+ * không phải sửa code — dấu hiệu nhận biết là lỗi 404 kèm HTML thay vì JSON. */
+const API_VER_MAC = 'v22';
+const base = (conf) => 'https://googleads.googleapis.com/' + ((conf && conf.apiVersion) || API_VER_MAC);
 
 const num = (v) => {
   const n = Number(String(v == null ? 0 : v).replace(/,/g, ''));
@@ -113,7 +116,7 @@ async function fetchRange(conf, from, to, log = () => {}) {
 
   for (const acc of accounts) {
     log(`Google Ads ${acc}: đang lấy ${from} → ${to}`);
-    const res = await postJson(`${BASE}/customers/${acc}/googleAds:searchStream`,
+    const res = await postJson(`${base(conf)}/customers/${acc}/googleAds:searchStream`,
       { query: GAQL(from, to) },
       { headers: headers(conf, token), label: `Google Ads ${acc}` });
 
@@ -121,6 +124,10 @@ async function fetchRange(conf, from, to, log = () => {}) {
      * `error` — không phải mảng, nên phải xét cả hai dạng. */
     if (res && res.error) {
       const e = res.error;
+      if (Number(e.code) === 404 || /not found/i.test(String(e.message || ''))) {
+        throw new Error('Phiên bản API ' + ((conf && conf.apiVersion) || API_VER_MAC) +
+          ' không còn — khai apiVersion mới trong ket-noi.json (Google khai tử sau ~1 năm).');
+      }
       throw new Error(scrub(`Google Ads báo lỗi (${e.code || '?'}): ${e.message || 'không rõ'}`));
     }
     const lo = Array.isArray(res) ? res : [res];
@@ -165,7 +172,7 @@ async function test(conf) {
     const results = [];
     for (const acc of accounts) {
       try {
-        const res = await postJson(`${BASE}/customers/${acc}/googleAds:search`,
+        const res = await postJson(`${base(conf)}/customers/${acc}/googleAds:search`,
           { query: 'SELECT customer.id, customer.descriptive_name, customer.currency_code, customer.time_zone FROM customer LIMIT 1' },
           { headers: headers(conf, token), label: `Google Ads test ${acc}`, retries: 1 });
         if (res && res.error) {
@@ -192,4 +199,4 @@ async function tokenInfo() {
   return { text: 'không hết hạn (tự làm mới bằng refresh token)', muc: 'ok' };
 }
 
-module.exports = { PLATFORM, fetchRange, test, tokenInfo, accessToken, GAQL };
+module.exports = { PLATFORM, fetchRange, test, tokenInfo, accessToken, GAQL, API_VER_MAC };
