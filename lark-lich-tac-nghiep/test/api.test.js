@@ -306,6 +306,10 @@ async function call(path, opts) {
       G.khoaKeHoach('Chờ duyệt/Xử lý', ['title']));
     ok('bị trả về thì mở lại quyền sửa',
       !G.khoaKeHoach('Từ chối/Cần điều chỉnh', ['title', 'start', 'plan']));
+    ok('đang báo cáo thì không sửa lại kế hoạch',
+      G.khoaKeHoach('Đang báo cáo', ['title', 'plan']));
+    ok('đang báo cáo vẫn nộp được nội dung báo cáo',
+      !G.khoaKeHoach('Đang báo cáo', ['end', 'duration', 'costActual', 'reportAfter', 'link']));
     ok('đang chờ duyệt vẫn xin huỷ được',
       !G.khoaKeHoach('Chờ duyệt/Xử lý', ['cancelWant', 'cancelReason']));
 
