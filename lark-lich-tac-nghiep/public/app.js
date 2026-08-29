@@ -996,7 +996,10 @@ function theViec(t, buoc) {
 
   if (buoc === 'nhap') {
     viec = 'Bản nháp — điền đủ thông tin rồi bấm Gửi duyệt';
-    if (!PREVIEW()) nut = '<button class="btn sm primary" data-act="submit" data-id="' + t.id + '">Gửi duyệt</button>';
+    if (!PREVIEW()) {
+      nut = '<button class="btn sm" data-open="' + t.id + '">Chỉnh sửa</button>' +
+        '<button class="btn sm primary" data-act="submit" data-id="' + t.id + '">Gửi duyệt</button>';
+    }
   } else if (buoc === 'cho') {
     if (traVe) {
       /* Lịch bị trả về nằm chung chỗ chờ duyệt (cùng là "đã gửi đi rồi"), nhưng
@@ -1007,7 +1010,7 @@ function theViec(t, buoc) {
       if (!PREVIEW()) nut = '<button class="btn sm danger" data-open="' + t.id + '">Điều chỉnh</button>';
     } else {
       // Đã gửi thì không sửa nữa — chỉ còn đường xin huỷ (nút thêm ở dưới)
-      viec = 'Đang chờ quản lý duyệt — muốn sửa thì nhờ quản lý trả về';
+      viec = 'Đang chờ quản lý duyệt';
       co = '<span class="ct-co xam">Chờ duyệt</span>';
     }
   } else if (buoc === 'chuan-bi') {
@@ -1046,7 +1049,10 @@ function theViec(t, buoc) {
     if (!d.length) d.push('<span class="ct-mon">chưa ghi kết quả nào</span>');
     can = '<div class="ct-can">' + d.join('') + '</div>';
   }
-  if (buoc === 'chuan-bi' || buoc === 'bao-cao') {
+  if (['cho', 'chuan-bi', 'bao-cao'].includes(buoc)) {
+    /* Hiện từ bước "đã gửi" trở đi: lịch đang chờ duyệt thì thứ đáng nhìn không
+     * phải câu nhắc suông, mà là mình đã khai những gì — đi bằng gì, mấy tiếng,
+     * dự chi bao nhiêu, có xin vé không. */
     const d = [];
     if ((t.transport || []).length) d.push('<span class="ct-mon">🚗 ' + esc(t.transport.join(', ')) + '</span>');
     if (t.duration) d.push('<span class="ct-mon">⏱ ' + esc(t.duration) + ' giờ</span>');
@@ -2093,9 +2099,13 @@ function renderCreate() {
       '<div class="hint">Cần thông báo muộn nhất 3 ngày kể từ ngày gửi phê duyệt.</div></div>' +
     '</div>';
 
+  /* Hai lối đi, nói thẳng ra khác nhau chỗ nào. Trước đây chân cửa sổ chỉ nhắc
+   * mỗi chuyện gửi duyệt, nên nút Lưu nháp đứng cạnh mà không ai đọc ra là một
+   * lựa chọn — ô Nháp vì thế lúc nào cũng trống. */
   $('#mdFoot').innerHTML =
-    '<span class="mini muted" style="margin-right:auto">Lịch gửi đi sẽ ở trạng thái <b>Chờ duyệt/Xử lý</b>.</span>' +
-    '<button class="btn" data-nsave="draft">Lưu nháp</button>' +
+    '<span class="mini muted" style="margin-right:auto">Chưa xong thì <b>Lưu nháp</b> để sửa tiếp sau. ' +
+    'Xong rồi thì <b>Gửi duyệt</b> — lịch chuyển sang <b>Chờ duyệt/Xử lý</b> và khoá lại.</span>' +
+    '<button class="btn nhap" data-nsave="draft">Lưu nháp</button>' +
     '<button class="btn primary" data-nsave="send">Gửi duyệt</button>';
 }
 
