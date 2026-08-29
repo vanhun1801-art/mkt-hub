@@ -653,6 +653,10 @@ textarea.fld { height: auto; min-height: 84px; padding: 8px 10px; resize: vertic
 .pk-x:hover { background: var(--red-bg); color: var(--red-t); }
 .pk-them { font-size: 11.5px; font-weight: 600; color: var(--t2); padding: 0 2px; }
 
+/* Mặc định ĐÓNG. Chỉ ô cha mang class "mo" mới cho bảng của nó hiện — nhờ vậy
+   hai bảng cùng hiện là điều không thể, dù đoạn mã nào có lỡ tay đi nữa. */
+.pk-panel { display: none; }
+.pk.mo > .pk-panel { display: block; }
 .pk-panel {
   position: absolute; z-index: 30; top: calc(100% + 4px); left: 0; right: 0;
   background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg);
@@ -709,15 +713,14 @@ textarea.fld { height: auto; min-height: 84px; padding: 8px 10px; resize: vertic
 .frm .sec-tien  { background: var(--green-bg); color: var(--green-t); border-left-color: var(--green); }
 .frm .sec-foc   { background: var(--orange-bg); color: var(--orange-t); border-left-color: var(--orange); }
 
-/* Bộ chọn trong form tạo mới: cho cao thoáng hơn, bảng chọn nổi lên trên */
+/* Bộ chọn trong form tạo mới.
+   TUYỆT ĐỐI không khai display cho .pk-panel ở đây. Khối này từng có
+   "display: flex", mà selector có #mdBody nên nó đè cả display:none của thuộc
+   tính hidden lẫn của .pk-panel — mọi bảng chọn trong form tạo mới hiện thường
+   trực, ba cái chồng lên nhau, bấm kiểu gì cũng không đóng. Phần dáng vẻ đã có
+   ở .pk-panel rồi, ở đây chỉ chỉnh mấy thứ riêng của form. */
 #mdBody .pk { position: relative; }
-#mdBody .pk-panel {
-  position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 5;
-  background: var(--surface); border: 1px solid var(--line);
-  border-radius: 10px; box-shadow: 0 10px 30px rgba(16, 24, 40, .16);
-  padding: 8px; max-height: 260px; display: flex; flex-direction: column;
-}
-#mdBody .pk-ds { overflow-y: auto; }
+#mdBody .pk-panel { z-index: 5; box-shadow: 0 10px 30px rgba(16, 24, 40, .16); }
 #mdBody .pk-sum { width: 100%; }
 
 /* ==========================================================================
@@ -827,7 +830,9 @@ textarea.fld { height: auto; min-height: 84px; padding: 8px 10px; resize: vertic
 
 .buoc-than {
   padding: 12px; display: grid; gap: 10px;
-  grid-template-columns: repeat(auto-fill, minmax(288px, 1fr));
+  /* Thẻ bước Nháp có tới ba nút (Huỷ · Chỉnh sửa · Gửi duyệt) — 288px là chật,
+     nút tụt xuống dòng dưới. Nới ra cho một hàng chứa đủ. */
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
   align-items: stretch;          /* mọi thẻ cùng cao trong một hàng */
 }
 .buoc-trong { color: var(--t4); font-size: 12.5px; padding: 10px 4px; }
@@ -882,11 +887,14 @@ textarea.fld { height: auto; min-height: 84px; padding: 8px 10px; resize: vertic
 
 /* Chân thẻ: có vạch ngăn, cao cố định, nút luôn cùng bề ngang */
 .ct-chan {
-  display: flex; align-items: center; gap: 8px;
+  display: flex; align-items: center; gap: 8px; flex-wrap: nowrap;
   border-top: 1px solid var(--line-soft); padding-top: 10px; min-height: 44px;
 }
 .ct-nut { margin-left: auto; }
-.ct-nut .btn { min-width: 96px; justify-content: center; }
+.ct-nut { display: flex; gap: 6px; flex: 0 0 auto; }
+.ct-nut .btn { min-width: 86px; justify-content: center; white-space: nowrap; }
+/* Ba nút thì để chúng vừa đúng chữ, khỏi ép bề ngang */
+.ct-nut .btn:nth-child(3), .ct-nut:has(.btn:nth-child(3)) .btn { min-width: 0; padding: 0 11px; }
 
 /* --- "Sắp đi — nhớ chuẩn bị": chỉ lịch ĐÃ DUYỆT, mỗi thẻ là một danh sách mang theo --- */
 .nhac { border-left: 3px solid var(--primary); }

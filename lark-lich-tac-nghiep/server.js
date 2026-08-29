@@ -527,7 +527,10 @@ async function api(req, res, url) {
             code: 'FIELD_LOCKED',
           }, 403);
         }
-        if (body.status && !cfg.staffStatuses.includes(body.status)) {
+        /* Bản nháp là của riêng người viết, chưa ai nhìn tới — huỷ thì huỷ,
+         * không phải xin phép ai. Từ lúc gửi duyệt trở đi mới phải xin. */
+        const tuHuyDuoc = body.status === 'Hủy lịch' && item.status === 'Đang lên kế hoạch';
+        if (body.status && !tuHuyDuoc && !cfg.staffStatuses.includes(body.status)) {
           return json(res, {
             error: 'Trạng thái "' + body.status + '" do quản lý đặt.',
             code: 'STATUS_LOCKED',

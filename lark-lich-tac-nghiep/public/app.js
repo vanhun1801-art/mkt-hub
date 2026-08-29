@@ -1074,7 +1074,10 @@ function theViec(t, buoc) {
   /* Nút huỷ để nhạt: đây là đường lùi, không phải việc chính của thẻ. Chỉ có ở
    * hai bước đầu — lịch đã duyệt thì huỷ hay không là chuyện của quản lý. */
   if (!PREVIEW() && ['nhap', 'cho'].includes(buoc)) {
-    nut = '<button class="btn sm mo" data-xinhuy="' + t.id + '">Huỷ</button>' + nut;
+    // Bản nháp huỷ thẳng; đã gửi rồi mới phải xin phép kèm lý do
+    nut = (buoc === 'nhap'
+      ? '<button class="btn sm mo" data-act="huy-nhap" data-id="' + t.id + '">Huỷ</button>'
+      : '<button class="btn sm mo" data-xinhuy="' + t.id + '">Huỷ</button>') + nut;
   }
 
   return '<div class="ct' + them + '" ' + moGi + '="' + t.id + '">' +
@@ -1327,7 +1330,7 @@ function fieldUsers(key, label, single) {
         '<span class="pk-chips">' + chipsHtml(cur, on, ph) + '</span>' +
         '<span class="pk-caret">▾</span>' +
       '</button>' +
-      '<div class="pk-panel" hidden>' +
+      '<div class="pk-panel">' +
         '<input class="pk-tim" type="search" placeholder="Tìm nhân sự…" autocomplete="off">' +
         '<div class="pk-ds">' + dong + '</div>' +
       '</div>' +
@@ -1607,7 +1610,9 @@ function renderDrawer() {
      * chuyển sang "Đang báo cáo" ở đây — bấm nhầm là lịch nhảy trạng thái. */
     acts.push('<button class="btn primary" data-act="submit" data-id="' + t.id + '">' +
       (t.status === 'Từ chối/Cần điều chỉnh' ? 'Gửi duyệt lại' : 'Gửi duyệt') + '</button>');
-    if (!t.cancelWant) {
+    if (t.status === 'Đang lên kế hoạch') {
+      acts.push('<button class="btn sm mo" data-act="huy-nhap" data-id="' + t.id + '">Huỷ</button>');
+    } else if (!t.cancelWant) {
       acts.push('<button class="btn sm mo" data-xinhuy="' + t.id + '">Xin huỷ lịch</button>');
     }
   }
@@ -1681,6 +1686,9 @@ const ACTIONS = {
   'huy-ok':    { patch: { status: 'Hủy lịch', cancelWant: false }, msg: 'Đã duyệt huỷ lịch',
                  confirm: 'Duyệt huỷ lịch này? Lịch sẽ biến mất khỏi giao diện của nhân sự.' },
   'huy-no':    { patch: { cancelWant: false }, msg: 'Đã từ chối yêu cầu huỷ' },
+  // Bản nháp là của riêng người viết — huỷ thẳng, không qua tay quản lý
+  'huy-nhap':  { patch: { status: 'Hủy lịch' }, msg: 'Đã huỷ bản nháp',
+                 confirm: 'Huỷ bản nháp này? Lịch sẽ không còn hiện trong danh sách của bạn.' },
   'foc-ok':    { patch: { focStatus: 'Phê duyệt' }, msg: 'Đã duyệt FOC' },
   'foc-no':    { patch: { focStatus: 'Từ chối' }, msg: 'Đã từ chối FOC' },
   'media-ok':  { patch: { mediaStatus: 'Phê duyệt' }, msg: 'Đã duyệt hỗ trợ Media' },
@@ -2046,7 +2054,7 @@ function pickerMoi(key, ds, single, ph, laNguoi) {
   return '<div class="pk" data-pk="' + key + '" data-ph="' + esc(ph) + '">' +
     '<button type="button" class="pk-sum"><span class="pk-chips">' + chip + '</span>' +
     '<span class="pk-caret">\u25be</span></button>' +
-    '<div class="pk-panel" hidden>' +
+    '<div class="pk-panel">' +
       '<input class="pk-tim" type="search" placeholder="' + (laNguoi ? 'T\u00ecm nh\u00e2n s\u1ef1\u2026' : 'T\u00ecm\u2026') + '" autocomplete="off">' +
       '<div class="pk-ds">' + dong + '</div>' +
     '</div></div>';
@@ -2502,28 +2510,36 @@ function dsChonNguoi() {
   return [...trong, ...(S.danhBa || []).filter((x) => !co.has(x.id))];
 }
 
-/* Ô chọn người: chỉ được mở một bảng tại một thời điểm, và cái đang mở là cái
- * nào thì ghi ở đây. Trước đây trạng thái nằm rải trong thuộc tính hidden của
- * từng bảng, mỗi chỗ bấm lại tự lật một kiểu — có lúc hai bảng cùng mở, chồng
- * lên nhau, che hết chỗ bấm. Giờ mọi đường đều đi qua ba hàm dưới đây. */
-let PK_MO = null;
-
+/* ==========================================================================
+   BẢNG CHỌN NGƯỜI — mở đóng
+   Hai lần sửa trước vẫn còn cảnh nhiều bảng cùng mở, mà ở máy thì không tài nào
+   tái hiện được. Nên lần này không vá tiếp mà đổi cách dựng, sao cho chuyện đó
+   KHÔNG THỂ xảy ra: bảng nào hiện là do ô cha của nó mang class "mo", và CSS
+   quy định .pk-panel mặc định display:none, chỉ .pk.mo mới cho hiện.
+   Muốn hai bảng cùng hiện thì phải có hai ô cùng mang class "mo" — mà chỉ
+   moBangChon() gắn được class đó, và nó luôn gỡ hết của mọi ô trước khi gắn.
+   Không còn phụ thuộc thuộc tính hidden, thứ mà bất kỳ đoạn mã nào cũng có thể
+   vô tình xoá mất.
+   ========================================================================== */
 function dongBangChon() {
-  document.querySelectorAll('.pk-panel').forEach((x) => { x.hidden = true; x.classList.remove('len'); });
-  PK_MO = null;
+  document.querySelectorAll('.pk.mo').forEach((x) => x.classList.remove('mo'));
+  document.querySelectorAll('.pk-panel.len').forEach((x) => x.classList.remove('len'));
 }
+
+const bangDangMo = () => document.querySelector('.pk.mo');
 
 function moBangChon(hop) {
   if (!hop) return;
   const pn = hop.querySelector('.pk-panel');
   if (!pn) return;
-  const dangMo = PK_MO === hop;
+  const dangMo = hop.classList.contains('mo');
   dongBangChon();                       // luôn dọn sạch trước, kể cả bảng của chính nó
   if (dangMo) return;                   // bấm lần nữa vào chính nó là đóng
-  pn.hidden = false;
-  PK_MO = hop;
+  hop.classList.add('mo');
   const tim = pn.querySelector('.pk-tim');
-  if (tim) { tim.value = ''; timNguoi(pn); tim.focus(); }
+  // preventScroll: không có nó thì trình duyệt cuộn khung để lộ ô tìm, mà cuộn
+  // khung lại là tín hiệu đóng bảng — vừa mở đã tự sập
+  if (tim) { tim.value = ''; timNguoi(pn); tim.focus({ preventScroll: true }); }
   datChoBangChon(pn);
 }
 
@@ -2548,9 +2564,10 @@ function datChoBangChon(pn) {
  * So với ĐÚNG ô đang mở chứ không phải "có nằm trong .pk nào đó không": bấm
  * sang ô chọn người thứ hai cũng là bấm ra ngoài đối với ô thứ nhất. */
 document.addEventListener('pointerdown', (e) => {
-  if (!PK_MO) return;
+  const mo = bangDangMo();
+  if (!mo) return;
   const trong = e.target.closest && e.target.closest('.pk');
-  if (trong === PK_MO) return;
+  if (trong === mo) return;
   dongBangChon();
 }, true);
 
@@ -2558,9 +2575,10 @@ document.addEventListener('pointerdown', (e) => {
  * nổi) — đóng luôn cho khỏi lơ lửng giữa màn hình. Nhưng cuộn chính danh sách
  * bên trong bảng thì phải để yên, không thì kéo tìm người là bảng tự sập. */
 document.addEventListener('scroll', (e) => {
-  if (!PK_MO) return;
+  const mo = bangDangMo();
+  if (!mo) return;
   const t = e.target;
-  if (t && t.closest && t.closest('.pk') === PK_MO) return;
+  if (t && t.closest && t.closest('.pk') === mo) return;
   dongBangChon();
 }, true);
 
@@ -2701,7 +2719,7 @@ document.addEventListener('change', async (e) => {
 });
 
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && PK_MO) {
+  if (e.key === 'Escape' && bangDangMo()) {
     dongBangChon();     // Esc đóng bảng chọn trước, chưa đóng cả cửa sổ
     return;
   }
