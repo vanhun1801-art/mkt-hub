@@ -20,10 +20,12 @@ const ketnoi = require('./ketnoi');
 const meta = require('./meta');
 const tiktok = require('./tiktok');
 const gsheet = require('./gsheet');
+const gads = require('./gads');
 
 const NGUON = {
   meta: { mod: meta, platform: 'Facebook' },
   tiktok: { mod: tiktok, platform: 'TikTok' },
+  googleAds: { mod: gads, platform: 'Google Ads' },
   googleSheet: { mod: gsheet, platform: 'Google Ads' },
 };
 
@@ -40,6 +42,11 @@ function kenhDangBat() {
     const cf = c[k];
     if (!cf || !cf.enabled) return false;
     if (k === 'googleSheet') return !!cf.csvUrl;
+    // Google Ads API không dùng accessToken sẵn mà tự đổi từ refresh token mỗi lần
+    if (k === 'googleAds') {
+      return !!(cf.clientId && cf.clientSecret && cf.refreshToken && cf.developerToken &&
+        (cf.customerIds || []).length > 0);
+    }
     return !!cf.accessToken && (cf.accountIds || cf.advertiserIds || []).length > 0;
   });
 }
