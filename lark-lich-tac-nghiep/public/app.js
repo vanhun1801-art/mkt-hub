@@ -15,7 +15,7 @@ const S = {
   sel: null,          // record đang mở trong drawer
   draft: {},          // thay đổi chưa lưu trong drawer
   cal: null,          // {y, m} tháng đang xem ở tab Lịch
-  f: { period: 'month', person: 'all', status: 'all', q: '' },   // mặc định: tháng hiện tại
+  f: { period: 'month', person: 'all', status: 'all', q: '', the: '' },   // mặc định: tháng hiện tại; `the` = thẻ số đang chọn ở Lịch của tôi
 };
 
 /**
@@ -725,6 +725,62 @@ function viewCost() {
 }
 
 /* ============ LỊCH CỦA TÔI ============ */
+/**
+ * Dải thẻ số của trang "Lịch của tôi".
+ *
+ * Bấm một thẻ là lọc luôn xuống làn tương ứng — số và danh sách phải khớp nhau,
+ * nên mỗi thẻ khai kèm bộ lọc của chính nó thay vì đếm một kiểu, lọc một kiểu.
+ */
+function theSoLichCuaToi(list) {
+  const homNay = startOfDay(new Date());
+  const mai2 = new Date(homNay.getTime() + 2 * 86400000);
+  const con = (t) => !CLOSED_BAD.includes(t.status);
+  const ngay = (t) => toDate(t.start);
+
+  const the = [
+    { k: 'cho-duyet', nhan: 'Chờ duyệt', loc: (t) => t.status === 'Chờ duyệt/Xử lý', tone: 'vang' },
+    { k: 'da-duyet', nhan: 'Đã duyệt', loc: (t) => t.status === 'Duyệt/Chờ tác nghiệp', tone: 'xanh' },
+    { k: 'hom-nay', nhan: 'Hôm nay', tone: 'dam',
+      loc: (t) => con(t) && ngay(t) && startOfDay(ngay(t)).getTime() === homNay.getTime() },
+    { k: 'sap-48h', nhan: '48 giờ tới', tone: 'cam',
+      loc: (t) => con(t) && ngay(t) && ngay(t) > new Date() && ngay(t) <= mai2 },
+    { k: 'chua-bao-cao', nhan: 'Chưa báo cáo', tone: 'do',
+      loc: (t) => ngay(t) && ngay(t) < homNay && ['Duyệt/Chờ tác nghiệp', 'Đang báo cáo'].includes(t.status) },
+    { k: 'hoan-tat', nhan: 'Hoàn tất', loc: (t) => t.status === 'Đã hoàn tất', tone: 'luc' },
+    { k: 'chua-thanh-toan', nhan: 'Chưa thanh toán', tone: 'tim',
+      loc: (t) => Number(t.costActual || 0) > 0 && t.payment !== 'Đã thanh toán' },
+  ];
+
+  return '<div class="the-lich">' + the.map((x) => {
+    const n = list.filter(x.loc).length;
+    const chon = S.f.the === x.k;
+    return '<button class="the-o t-' + x.tone + (n ? '' : ' rong') + (chon ? ' chon' : '') +
+      '" data-the="' + x.k + '"><span class="the-so">' + n + '</span>' +
+      '<span class="the-nhan">' + esc(x.nhan) + '</span></button>';
+  }).join('') + '</div>';
+}
+
+/** Bộ lọc của thẻ đang chọn — để làn bên dưới khớp với con số vừa bấm. */
+function locTheoThe(list) {
+  if (!S.f.the) return list;
+  const gia = theSoLichCuaToi(list);   // dựng lại để lấy đúng định nghĩa
+  void gia;
+  const homNay = startOfDay(new Date());
+  const mai2 = new Date(homNay.getTime() + 2 * 86400000);
+  const con = (t) => !CLOSED_BAD.includes(t.status);
+  const ngay = (t) => toDate(t.start);
+  const bang = {
+    'cho-duyet': (t) => t.status === 'Chờ duyệt/Xử lý',
+    'da-duyet': (t) => t.status === 'Duyệt/Chờ tác nghiệp',
+    'hom-nay': (t) => con(t) && ngay(t) && startOfDay(ngay(t)).getTime() === homNay.getTime(),
+    'sap-48h': (t) => con(t) && ngay(t) && ngay(t) > new Date() && ngay(t) <= mai2,
+    'chua-bao-cao': (t) => ngay(t) && ngay(t) < homNay && ['Duyệt/Chờ tác nghiệp', 'Đang báo cáo'].includes(t.status),
+    'hoan-tat': (t) => t.status === 'Đã hoàn tất',
+    'chua-thanh-toan': (t) => Number(t.costActual || 0) > 0 && t.payment !== 'Đã thanh toán',
+  };
+  return bang[S.f.the] ? list.filter(bang[S.f.the]) : list;
+}
+
 function viewMine() {
   const v = viewer();
   const meId = v && v.id;
@@ -757,8 +813,9 @@ function viewMine() {
   }
 
   h += filterBar({ noStatus: true, noPerson: true });
+  h += theSoLichCuaToi(list);
 
-  if (soon.length) {
+  if (soon.length && !S.f.the) {
     h += '<div class="card card-pad" style="margin-bottom:16px"><div class="section-head"><h2>Sắp diễn ra</h2>' +
       '<span class="muted">7 ngày tới · ' + soon.length + ' lịch</span></div>' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px">' +
@@ -775,9 +832,12 @@ function viewMine() {
       }).join('') + '</div></div>';
   }
 
+  const hien = locTheoThe(list);
   h += '<div class="lanes">';
   for (const ln of lanes) {
-    const arr = list.filter((t) => ln.st.includes(t.status)).sort(byStartAsc);
+    const arr = hien.filter((t) => ln.st.includes(t.status)).sort(byStartAsc);
+    // bấm một thẻ số thì chỉ giữ những làn còn việc, khỏi phải cuộn qua làn trống
+    if (S.f.the && !arr.length) continue;
     h += '<div class="lane"><div class="lane-head">' +
       '<i class="dot" style="width:7px;height:7px;border-radius:50%;background:' + stStyle(ln.st[0]).color + ';display:inline-block"></i>' +
       esc(ln.t) + '<span class="n">' + arr.length + '</span></div><div class="lane-body">';
@@ -1548,7 +1608,7 @@ document.addEventListener('click', async (e) => {
   if (T.closest('#btnRefresh')) { toast('Đang tải lại…'); await refresh(true); return; }
   if (T.closest('#drClose') || T.closest('#mask')) { closeDrawer(); return; }
   if (T.closest('#drSave')) { await saveDraft(); return; }
-  if (T.closest('#fReset')) { S.f = { period: 'month', person: 'all', status: 'all', q: '' }; render(); return; }
+  if (T.closest('#fReset')) { S.f = { period: 'month', person: 'all', status: 'all', q: '', the: '' }; render(); return; }
 
   // multi-select trong drawer
   const mo = T.closest('[data-multi]');
@@ -1580,6 +1640,14 @@ document.addEventListener('click', async (e) => {
     return;
   }
   if (!T.closest('.pk-panel')) document.querySelectorAll('.pk-panel').forEach((x) => { x.hidden = true; });
+
+  /* Bấm thẻ số ở "Lịch của tôi": bấm lần nữa vào thẻ đang chọn thì bỏ lọc. */
+  const oThe = T.closest('[data-the]');
+  if (oThe) {
+    S.f.the = S.f.the === oThe.dataset.the ? '' : oThe.dataset.the;
+    render();
+    return;
+  }
 
   const uo = T.closest('[data-user]');
   if (uo) {

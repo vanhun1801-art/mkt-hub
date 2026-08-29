@@ -717,3 +717,65 @@ textarea.fld { height: auto; min-height: 84px; padding: 8px 10px; resize: vertic
 }
 #mdBody .pk-ds { overflow-y: auto; }
 #mdBody .pk-sum { width: 100%; }
+
+/* ==========================================================================
+   "LỊCH CỦA TÔI" — dải thẻ số + làn việc
+   Cùng lối với Bảng công việc nhưng tông xanh dương đậm hơn, để nhân sự nhìn một
+   phát biết còn bao nhiêu việc ở mỗi chặng.
+   ========================================================================== */
+.the-lich {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 10px; margin: 0 0 16px;
+}
+.the-o {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  padding: 12px 14px; cursor: pointer; text-align: left;
+  background: var(--surface); border: 1px solid var(--line);
+  border-top: 3px solid var(--primary);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(20, 30, 60, .05), 0 6px 18px rgba(20, 30, 60, .04);
+  transition: transform .12s, box-shadow .12s, border-color .12s;
+}
+.the-o:hover { transform: translateY(-1px); box-shadow: 0 2px 4px rgba(20,30,60,.07), 0 10px 24px rgba(20,30,60,.07); }
+.the-so { font-size: 26px; font-weight: 700; line-height: 1.1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.the-nhan { font-size: 12px; color: var(--t2); font-weight: 500; }
+
+/* Màu theo ý nghĩa — xanh dương là tông chính, các màu khác chỉ điểm xuyết */
+.the-o.t-dam  { border-top-color: #1e40af; } .the-o.t-dam  .the-so { color: #1e40af; }
+.the-o.t-xanh { border-top-color: var(--primary); } .the-o.t-xanh .the-so { color: var(--primary); }
+.the-o.t-vang { border-top-color: #eab308; } .the-o.t-vang .the-so { color: #a16207; }
+.the-o.t-cam  { border-top-color: var(--orange); } .the-o.t-cam  .the-so { color: var(--orange-t); }
+.the-o.t-do   { border-top-color: var(--red); } .the-o.t-do   .the-so { color: var(--red-t); }
+.the-o.t-luc  { border-top-color: var(--green); } .the-o.t-luc  .the-so { color: var(--green-t); }
+.the-o.t-tim  { border-top-color: var(--purple); } .the-o.t-tim  .the-so { color: var(--purple-t); }
+
+/* Thẻ số 0: xám lại, đừng gào lên khi không có việc gì */
+.the-o.rong { border-top-color: var(--line); background: var(--surface-2); }
+.the-o.rong .the-so { color: var(--t4); }
+.the-o.rong .the-nhan { color: var(--t3); }
+
+/* Thẻ đang chọn: viền xanh đậm + nền nhạt */
+.the-o.chon {
+  border-color: var(--primary); background: var(--blue-bg);
+  box-shadow: 0 0 0 3px rgba(43, 92, 255, .12);
+}
+
+/* Làn việc: đầu làn có dải xanh, giống Bảng công việc */
+.lanes .lane-head {
+  background: linear-gradient(100deg, #1b3f9e, #2b5cff 60%, #4a75ff);
+  color: #fff; border-radius: 10px 10px 0 0;
+  padding: 10px 13px; font-size: 13.5px; font-weight: 650;
+  display: flex; align-items: center; gap: 8px;
+}
+.lanes .lane-head .n {
+  margin-left: auto; background: rgba(255,255,255,.26); color: #fff;
+  border-radius: 11px; padding: 1px 9px; font-size: 12px; font-variant-numeric: tabular-nums;
+}
+.lanes .lane-head .dot { display: none !important; }
+.lanes .lane {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: 12px; overflow: hidden;
+  box-shadow: 0 1px 2px rgba(20,30,60,.05), 0 6px 18px rgba(20,30,60,.04);
+}
+.lanes .lane-body { padding: 10px; display: flex; flex-direction: column; gap: 9px; }
+.lanes .lane-empty { color: var(--t4); font-size: 12.5px; text-align: center; padding: 14px 0; }
