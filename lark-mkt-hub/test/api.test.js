@@ -354,6 +354,40 @@ const json = async (p, opts) => {
       '/healthz không lộ commit / danh sách base cho người chưa phải quản lý');
   } else boQua('/healthz không lộ thông tin nội bộ', 'chế độ cli — máy cá nhân luôn là quản lý');
 
+  console.log('\n[9] Thông báo');
+  {
+    const r = await json('/api/thong-bao');
+    ok(r.code === 200, 'GET /api/thong-bao trả 200', 'code=' + r.code);
+    const ds = (r.data && r.data.items) || [];
+    ok(ds.every((x) => x.id && x.muc && x.tieuDe), 'mỗi mục có đủ mã, mức, tiêu đề',
+      'thiếu ở ' + ds.filter((x) => !(x.id && x.muc && x.tieuDe)).length + ' mục');
+    ok(new Set(ds.map((x) => x.id)).size === ds.length, 'mã thông báo không trùng nhau');
+    ok(ds.every((x) => ['gap', 'can', 'tin'].includes(x.muc)),
+      'mức chỉ nhận ba giá trị đã quy ước', [...new Set(ds.map((x) => x.muc))].join(','));
+    ok(ds.every((x) => x.mod && x.modTen), 'mục nào cũng biết mình từ Base nào');
+
+    /* Việc gấp phải nằm trên. Bậc của "gap" là 0 — chỗ sắp xếp từng viết
+     * `BAC[x] || 9`, mà 0 || 9 ra 9, nên việc gấp nhất bị đẩy xuống cuối. */
+    const bac = { gap: 0, can: 1, tin: 2 };
+    const chuaDoc = ds.filter((x) => x.moi).map((x) => bac[x.muc]);
+    ok(chuaDoc.every((v, k) => k === 0 || chuaDoc[k - 1] <= v),
+      'trong nhóm chưa đọc, việc gấp xếp trước', chuaDoc.join(','));
+
+    ok((r.data.soMoi || 0) === ds.filter((x) => x.moi).length,
+      'số chưa đọc khớp với danh sách');
+
+    if (ds.length) {
+      const ids = ds.slice(0, 3).map((x) => x.id);
+      const d2 = await json('/api/thong-bao/doc', { method: 'POST', body: { ids } });
+      ok(d2.code === 200 && d2.data && d2.data.ok, 'đánh dấu đã đọc trả về ok');
+      const r3 = await json('/api/thong-bao');
+      const con = ((r3.data && r3.data.items) || []).filter((x) => ids.includes(x.id) && x.moi);
+      ok(con.length === 0, 'mục đã đọc thì hết được tính là mới', 'còn ' + con.length);
+    } else {
+      boQua('vòng đánh dấu đã đọc', 'lúc chạy không có thông báo nào');
+    }
+  }
+
   console.log('\n' + '-'.repeat(50));
   console.log('  ' + pass + ' pass · ' + fail + ' fail' + (bo ? ' · ' + bo + ' bỏ qua' : ''));
   console.log('-'.repeat(50) + '\n');

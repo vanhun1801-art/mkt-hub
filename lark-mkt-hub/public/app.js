@@ -18,6 +18,8 @@ const S = {
   view: 'home',        // 'home' | id module
   frames: new Map(),   // id -> { wrap, iframe, phu }
   phu: new Map(),      // id -> dòng phụ đề module tự báo
+  tb: [],              // thông báo gom từ mọi Base
+  tbMoi: 0,            // số mục người này chưa đọc
   ky: 'thang',         // khoảng thời gian đang lọc — mặc định THÁNG HIỆN TẠI
   tu: '', den: '',     // dùng khi ky = 'tuychon'
   lich: null,          // dữ liệu /api/lich-chung
@@ -227,6 +229,88 @@ function demCanXuLy(id) {
   return (m.the || []).filter((t) => t.muc === 'cao').reduce((a, t) => a + (Number(t.so) || 0), 0);
 }
 
+/* ==========================================================================
+   THÔNG BÁO
+   Lớp vỏ chỉ hỏi và hiển thị; nội dung do từng Base tự suy ra từ dữ liệu của
+   mình. Không có ai phải bấm nút gửi thông báo, và việc xử lý xong thì mục tự
+   biến mất ở lần nạp sau.
+   ========================================================================== */
+const MUC_TB = {
+  gap: { nhan: 'Cần làm ngay', mau: '#dc2b3d' },
+  can: { nhan: 'Cần xử lý', mau: '#d98300' },
+  tin: { nhan: 'Thông tin', mau: '#2b5cff' },
+};
+
+async function napThongBao() {
+  try {
+    const d = await goi('/api/thong-bao');
+    S.tb = d.items || [];
+    S.tbMoi = d.soMoi || 0;
+    veRail();
+    if ($('#tbPanel')) veBangTB();
+  } catch (e) { /* mất mạng thì để nguyên số cũ, đừng xoá trắng */ }
+}
+
+function moBangTB() {
+  if ($('#tbPanel')) return dongBangTB();
+  const box = document.createElement('div');
+  box.id = 'tbPanel';
+  box.className = 'tb-panel';
+  document.body.appendChild(box);
+  veBangTB();
+  // đánh dấu đã đọc đúng những mã đang hiện, không "đọc hết" mù quáng
+  const ids = S.tb.filter((x) => x.moi).map((x) => x.id);
+  if (ids.length) {
+    fetch('/api/thong-bao/doc', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    }).then(() => { S.tbMoi = 0; veRail(); }).catch(() => {});
+  }
+  setTimeout(() => document.addEventListener('pointerdown', dongNeuNgoaiTB, true), 0);
+}
+
+function dongNeuNgoaiTB(e) {
+  if (e.target.closest && (e.target.closest('.tb-panel') || e.target.closest('#btnTB'))) return;
+  dongBangTB();
+}
+
+function dongBangTB() {
+  document.removeEventListener('pointerdown', dongNeuNgoaiTB, true);
+  const p = $('#tbPanel');
+  if (p) p.remove();
+}
+
+function veBangTB() {
+  const box = $('#tbPanel');
+  if (!box) return;
+  const ds = S.tb;
+  const dong = (x) => {
+    const m = MUC_TB[x.muc] || MUC_TB.tin;
+    return `<button class="tb-o${x.moi ? ' moi' : ''}" data-tb-mod="${esc(x.mod)}" data-tb-rec="${esc(x.rec || '')}">
+      <span class="tb-cham" style="background:${m.mau}"></span>
+      <span class="tb-noi">
+        <span class="tb-dau"><b>${esc(x.tieuDe)}</b><span class="tb-mod">${esc(x.modTen)}</span></span>
+        <span class="tb-mo">${esc(x.mo || '')}</span>
+      </span>
+    </button>`;
+  };
+  const nhom = ['gap', 'can', 'tin'].map((k) => {
+    const arr = ds.filter((x) => x.muc === k);
+    if (!arr.length) return '';
+    return `<div class="tb-nhom" style="color:${MUC_TB[k].mau}">${MUC_TB[k].nhan}
+      <span class="tb-n">${arr.length}</span></div>` + arr.map(dong).join('');
+  }).join('');
+
+  box.innerHTML = `
+    <div class="tb-dau-bang">
+      <b>Thông báo</b>
+      <span class="tb-phu">${ds.length ? ds.length + ' mục' : ''}</span>
+      <button class="tb-x" id="tbDong" title="Đóng">✕</button>
+    </div>
+    <div class="tb-than">${nhom || '<div class="tb-trong">Không có gì cần bạn để mắt. Nhẹ người.</div>'}</div>
+    <div class="tb-chan">Tự cập nhật từ dữ liệu các Base — xử lý xong là mục tự mất.</div>`;
+}
+
 function veRail() {
   const nav = $('#railNav');
   const hienTai = S.view;
@@ -243,6 +327,15 @@ function veRail() {
     id: '', href: '#/tong-quan', icon: 'tong-quan', ten: 'Tổng quan chung',
     mau: '#2b5cff', on: hienTai === 'home',
   });
+
+  /* Chuông đặt ở panel chứ không ở đầu trang: panel luôn hiện, kể cả khi một
+   * Base đang chiếm hết màn hình — còn đầu trang thì biến mất lúc đó. */
+  html += `
+    <button class="rail-item" id="btnTB" title="Thông báo">
+      <span class="ri-ic" style="background:#ef444422;color:#ef4444">${icon('chuong')}</span>
+      <span class="ri-tx"><b>Thông báo</b></span>
+      ${S.tbMoi ? '<span class="ri-badge">' + (S.tbMoi > 99 ? '99+' : S.tbMoi) + '</span>' : ''}
+    </button>`;
 
   const dsBat = S.modules.filter((m) => m.bat);
   html += '<div class="rail-group">Base đang quản lý</div>';
@@ -276,7 +369,7 @@ function veRail() {
 }
 
 /* ---------------- sân khấu: iframe từng module ---------------- */
-function khungCuaModule(mod) {
+function khungCuaModule(mod, rec) {
   if (S.frames.has(mod.id)) return S.frames.get(mod.id);
 
   const wrap = document.createElement('div');
@@ -288,7 +381,8 @@ function khungCuaModule(mod) {
   /* Gắn số bản vào src: đổi bản (hay đổi vai) là trình duyệt nạp lại trang app con
    * thay vì dùng bản cũ trong cache — nếu không, bộ lọc/vai có thể lệch một nhịp. */
   f.src = mod.kieu === 'local'
-    ? '/m/' + mod.id + '/?v=' + encodeURIComponent((S.hub && S.hub.ver) || '')
+    ? '/m/' + mod.id + '/?' + (rec ? 'rec=' + encodeURIComponent(rec) + '&' : '') +
+      'v=' + encodeURIComponent((S.hub && S.hub.ver) || '')
     : mod.url;
   f.title = mod.ten;
   f.setAttribute('allow', 'clipboard-write; fullscreen');
@@ -306,7 +400,7 @@ function khungCuaModule(mod) {
   return o;
 }
 
-function moModule(id) {
+function moModule(id, rec) {
   const mod = S.modules.find((m) => m.id === id);
   if (!mod) { location.hash = '#/tong-quan'; return; }
 
@@ -318,7 +412,14 @@ function moModule(id) {
 
   S.view = id;
   $('#pageHome').hidden = true;
-  const o = khungCuaModule(mod);
+  const o = khungCuaModule(mod, rec);
+  /* Khung đã dựng từ trước thì đổi src để app con mở đúng bản ghi. Chỉ làm khi
+   * có rec, không thì mỗi lần chuyển tab lại nạp lại app con từ đầu. */
+  if (rec && o.iframe) {
+    const moi = '/m/' + mod.id + '/?rec=' + encodeURIComponent(rec) +
+      '&v=' + encodeURIComponent((S.hub && S.hub.ver) || '');
+    if (o.iframe.getAttribute('src') !== moi) o.iframe.setAttribute('src', moi);
+  }
   S.frames.forEach((x, k) => { x.wrap.hidden = k !== id; });
   o.wrap.hidden = false;
   document.title = mod.ten + ' · Marketing Hub';
@@ -1148,7 +1249,8 @@ async function hanhDong(id, act) {
 /* ---------------- router ---------------- */
 function dinhTuyen() {
   const h = location.hash.replace(/^#/, '') || '/tong-quan';
-  const mm = /^\/m\/(.+)$/.exec(h);
+  // #/m/<id> hoặc #/m/<id>?rec=recXXX (bấm từ một thông báo -> mở luôn bản ghi)
+  const mm = /^\/m\/([^?]+)(?:\?(.*))?$/.exec(h);
   const ml = /^\/lark\/(.+)$/.exec(h);
   // #/lich-chung  hoặc  #/lich-chung?xem=ngay  (chia chuỗi, không dùng regex)
   const [duong, truyVan] = h.split('?');
@@ -1171,12 +1273,30 @@ function dinhTuyen() {
     return;
   }
   if (ml) { moModule(decodeURIComponent(ml[1])); return; }
-  if (mm) { moModule(decodeURIComponent(mm[1])); return; }
+  if (mm) {
+    const rec = new URLSearchParams(mm[2] || '').get('rec');
+    moModule(decodeURIComponent(mm[1]), rec);
+    return;
+  }
   moHome();
 }
 
 /* ---------------- gắn sự kiện ---------------- */
 document.addEventListener('click', (e) => {
+  /* --- thông báo --- */
+  if (e.target.closest('#btnTB')) { e.preventDefault(); moBangTB(); return; }
+  if (e.target.closest('#tbDong')) { e.preventDefault(); dongBangTB(); return; }
+  const oTB = e.target.closest('[data-tb-mod]');
+  if (oTB) {
+    e.preventDefault();
+    const mod = oTB.getAttribute('data-tb-mod');
+    const rec = oTB.getAttribute('data-tb-rec');
+    dongBangTB();
+    // mở đúng Base, và nếu biết bản ghi thì mở luôn ô chi tiết của nó
+    location.hash = '#/m/' + mod + (rec ? '?rec=' + encodeURIComponent(rec) : '');
+    return;
+  }
+
   // đổi khoảng lọc: nút trong thanh lọc, hoặc nút nhanh trong băng cảnh báo
   const dk = e.target.closest('[data-ky]');
   if (dk) { e.preventDefault(); datKy(dk.getAttribute('data-ky')); return; }
@@ -1356,5 +1476,10 @@ window.addEventListener('message', (ev) => {
   // trạng thái module 10s/lần; chỉ số 60s/lần (và khi quay lại tab)
   setInterval(() => napHub().catch(() => {}), 10000);
   setInterval(() => { if (!document.hidden) napTongQuan(); }, 60000);
+  /* Thông báo tự nạp 2 phút/lần — đủ nhanh để không lỡ việc, đủ thưa để không
+   * bắt từng Base đọc lại dữ liệu liên tục. */
+  napThongBao();
+  setInterval(() => { if (!document.hidden) napThongBao(); }, 120000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) napThongBao(); });
   document.addEventListener('visibilitychange', () => { if (!document.hidden && S.view === 'home') napTongQuan(); });
 })();

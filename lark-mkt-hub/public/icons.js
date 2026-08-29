@@ -67,6 +67,7 @@ const ICONS = {
 
   /* Thêm */
   'them': IC('<path d="M12 5.5v13M5.5 12h13"/>'),
+  'chuong': IC('<path d="M18 8.5a6 6 0 1 0-12 0c0 5-2 6.5-2 6.5h16s-2-1.5-2-6.5"/><path d="M13.7 19a2 2 0 0 1-3.4 0"/>'),
 
   /* Cài đặt: 3 cần trượt */
   'cai-dat': IC(

@@ -291,6 +291,20 @@ const timMod = (id) => danhSach().find((m) => m.id === id) || null;
 let demDanhBa = null;
 let demDanhBaLuc = 0;
 
+/* ---- thông báo: chỉ lưu "ai đã đọc mã nào" ---- */
+const BAC_TB = { gap: 0, can: 1, tin: 2 };
+const FILE_DA_DOC = path.join(__dirname, 'thong-bao.json');
+const khoaNguoi = (n) => (n && (n.email || n.id)) || 'khach';
+
+function docDaDoc() {
+  try { return JSON.parse(fs.readFileSync(FILE_DA_DOC, 'utf8')); }
+  catch (e) { return {}; }
+}
+function ghiDaDoc(o) {
+  try { fs.writeFileSync(FILE_DA_DOC, JSON.stringify(o, null, 2), 'utf8'); }
+  catch (e) { console.error('  [thông báo] không ghi được:', e.message); }
+}
+
 function congKhai(m) {
   return {
     id: m.id, ten: m.ten, mo_ta: m.mo_ta, icon: m.icon, mau: m.mau, kieu: m.kieu,
@@ -332,6 +346,52 @@ async function api(req, res, u) {
    * đủ dùng, mà không phải xin thêm quyền đọc danh bạ công ty trên Lark.
    *
    * Chỉ trả về tên và mã người — đúng những thứ vốn đã hiện đầy trên mọi lịch. */
+  /* ==========================================================================
+     THÔNG BÁO
+     Lớp vỏ không tự sinh ra thông báo: nó hỏi từng Base "có gì cần báo cho
+     người này không", mỗi Base suy ra từ chính dữ liệu của mình. Nhờ vậy không
+     có bảng sự kiện nào phải đồng bộ, và việc xử lý xong thì thông báo tự mất.
+     Lớp vỏ chỉ nhớ giúp một thứ: ai đã đọc mã nào.
+     ========================================================================== */
+  if (p === '/api/thong-bao' && m === 'GET') {
+    const { nguoi: nguoiTB, q: qTB } = await aiDangXem(req);
+    const mods = danhSach().filter((x) => x.bat && duocXem(qTB, x.id));
+    const ra = [];
+    for (const mod of mods) {
+      try {
+        const d = await goiJson(mod, '/api/thong-bao', { nguoi: nguoiTB });
+        for (const it of (d.items || [])) {
+          if (!it || !it.id) continue;
+          ra.push(Object.assign({}, it, { mod: mod.id, modTen: mod.ten || mod.id }));
+        }
+      } catch (e) { /* một Base im lặng thì vẫn gom được từ các Base còn lại */ }
+    }
+    const daDoc = new Set(docDaDoc()[khoaNguoi(nguoiTB)] || []);
+    for (const it of ra) it.moi = !daDoc.has(it.id);
+    // bac(): KHÔNG dùng "|| 9" — mức gấp nhất có bậc 0, mà 0 || 9 ra 9, thành ra
+    // việc gấp nhất bị đẩy xuống cuối danh sách
+    const bac = (x) => (BAC_TB[x] === undefined ? 9 : BAC_TB[x]);
+    ra.sort((a, b) => (a.moi === b.moi ? 0 : a.moi ? -1 : 1) ||
+      bac(a.muc) - bac(b.muc) ||
+      (new Date(b.khi || 0) - new Date(a.khi || 0)));
+    return ok(res, { items: ra, soMoi: ra.filter((x) => x.moi).length });
+  }
+
+  /* Đánh dấu đã đọc. Nhận đúng danh sách mã mà client đang hiển thị — không
+   * "đọc hết" mù quáng, để mục vừa xuất hiện lúc đang mở bảng không bị nuốt. */
+  if (p === '/api/thong-bao/doc' && m === 'POST') {
+    const { nguoi: nguoiTB } = await aiDangXem(req);
+    const body = await docBody(req);
+    const them = Array.isArray(body.ids) ? body.ids.map(String) : [];
+    const kho = docDaDoc();
+    const k = khoaNguoi(nguoiTB);
+    const gop = [...new Set([...(kho[k] || []), ...them])];
+    // giữ 400 mã gần nhất là quá đủ; mã cũ có quay lại thì coi như mới, không sao
+    kho[k] = gop.slice(-400);
+    ghiDaDoc(kho);
+    return ok(res, { ok: true, da: kho[k].length });
+  }
+
   if (p === '/api/danh-ba' && m === 'GET') {
     const { nguoi: nguoiDB, q: qDB } = await aiDangXem(req);
     const moi = u.searchParams.get('refresh') === '1';

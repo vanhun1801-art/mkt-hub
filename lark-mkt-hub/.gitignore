@@ -4,3 +4,6 @@ node_modules/
 .env
 *.env
 hub.log
+
+# Ai da doc thong bao nao — trang thai cua tung may, khong dua len kho
+thong-bao.json

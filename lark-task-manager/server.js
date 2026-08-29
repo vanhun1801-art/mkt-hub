@@ -286,6 +286,22 @@ function laTreTheoHan(t) {
   return hd < d0;
 }
 
+/* ---- phụ trợ cho thông báo ---- */
+const BAC_TB = { gap: 0, can: 1, tin: 2 };
+const LECH_VN_TB = 7 * 3600000;
+
+/** Nhãn ngày theo giờ Việt Nam — máy chủ Render chạy giờ UTC nên không mượn getDate(). */
+function nhanNgayVN(d) {
+  return new Date(d.getTime() + LECH_VN_TB).toISOString().slice(0, 10);
+}
+function hanHomNay(t) {
+  return !!t.deadline && nhanNgayVN(new Date(t.deadline)) === nhanNgayVN(new Date());
+}
+function nguoiViec(t) {
+  const ds = [...(t.owner || []), ...(t.helper || [])].map((u) => u.name).filter(Boolean);
+  return [...new Set(ds)].slice(0, 2).join(', ') || 'chưa gán người';
+}
+
 /** Việc thuộc phạm vi một người: phụ trách chính hoặc người hỗ trợ. */
 function ownedBy(task, personId) {
   const has = (arr) => (arr || []).some((u) => u.id === personId);
@@ -405,6 +421,58 @@ async function api(req, res, url) {
       larkUrl: cfg.larkUrl,
       total: tasks.length,
     });
+  }
+
+  /* ==========================================================================
+     THÔNG BÁO
+     Suy thẳng từ trạng thái hiện tại của Base, không lưu bảng sự kiện nào: đã
+     xử lý xong là mục tự biến mất, không bao giờ lệch với dữ liệu thật.
+     Loại phải nhắc lại (quá hạn, tới hạn hôm nay) có gắn mốc ngày vào mã, nên
+     đọc rồi thì im trong ngày, sang hôm sau nhắc tiếp.
+     ========================================================================== */
+  if (p === '/api/thong-bao' && req.method === 'GET') {
+    const all = (await getRecords()).map(toTask);
+    const me = await whoAmI(req);
+    const manager = await isManager(req);
+    const ds = [];
+    const them = (o2) => { if (ds.length < 60) ds.push(o2); };
+    const ten = (t) => t.title || '(chưa có tên)';
+    const moc = nhanNgayVN(new Date());
+    const conMo = (t) => !DONG_HAN.includes(t.status);
+
+    if (manager) {
+      for (const t of all.filter((x) => x.status === 'Chờ tiếp nhận')) {
+        them({ id: 'cv:cho-nhan:' + t.id, muc: 'can', rec: t.id, khi: t.deadline,
+          tieuDe: 'Việc chờ tiếp nhận', mo: ten(t) + ' · ' + nguoiViec(t) });
+      }
+      for (const t of all.filter((x) => conMo(x) && laTreTheoHan(x) && !x.daGiaiQuyet)) {
+        them({ id: 'cv:tre-ql:' + t.id + ':' + moc, muc: 'gap', rec: t.id, khi: t.deadline,
+          tieuDe: 'Việc trễ deadline chưa xử lý', mo: ten(t) + ' · ' + nguoiViec(t) });
+      }
+    }
+
+    if (me) {
+      const cuaToi = all.filter((t) => ownedBy(t, me.id));
+      for (const t of cuaToi.filter((x) => x.status === 'Chờ tiếp nhận')) {
+        them({ id: 'cv:giao-cho-toi:' + t.id, muc: 'can', rec: t.id, khi: t.deadline,
+          tieuDe: 'Việc mới giao cho bạn', mo: ten(t) + ' — bấm nhận việc để bắt đầu' });
+      }
+      for (const t of cuaToi.filter((x) => x.status === 'Làm lại')) {
+        them({ id: 'cv:lam-lai:' + t.id, muc: 'gap', rec: t.id, khi: t.deadline,
+          tieuDe: 'Việc bị trả về làm lại', mo: ten(t) });
+      }
+      for (const t of cuaToi.filter((x) => conMo(x) && laTreTheoHan(x) && !x.daGiaiQuyet)) {
+        them({ id: 'cv:tre:' + t.id + ':' + moc, muc: 'gap', rec: t.id, khi: t.deadline,
+          tieuDe: 'Việc đã trễ deadline', mo: ten(t) + ' — nộp kết quả rồi bấm Giải quyết' });
+      }
+      for (const t of cuaToi.filter((x) => conMo(x) && !laTreTheoHan(x) && hanHomNay(x))) {
+        them({ id: 'cv:han-hom-nay:' + t.id + ':' + moc, muc: 'can', rec: t.id, khi: t.deadline,
+          tieuDe: 'Hôm nay tới hạn', mo: ten(t) });
+      }
+    }
+
+    ds.sort((a, b) => (BAC_TB[a.muc] - BAC_TB[b.muc]) || (new Date(a.khi || 0) - new Date(b.khi || 0)));
+    return json(res, { items: ds });
   }
 
   if (p === '/api/tasks' && req.method === 'GET') {

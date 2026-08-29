@@ -315,6 +315,29 @@ function collectPeople(items) {
   return [...m.values()].sort((a, b) => String(a.name).localeCompare(String(b.name), 'vi'));
 }
 
+/* ---- phụ trợ cho thông báo ---- */
+const SETTLED_TB = ['Từ chối', 'Hủy lịch', 'Đã hoàn tất'];
+const BAC_TB = { gap: 0, can: 1, tin: 2 };
+const LECH_VN_TB = 7 * 3600000;
+
+/** Đầu ngày theo giờ Việt Nam — máy chủ Render chạy giờ UTC nên không mượn getDate(). */
+function ngayVN(d) {
+  return new Date(Math.floor((d.getTime() + LECH_VN_TB) / 86400000) * 86400000 - LECH_VN_TB);
+}
+function nhan(d) {
+  const x = new Date(d.getTime() + LECH_VN_TB);
+  return x.toISOString().slice(0, 10);
+}
+function gioVN(d) {
+  const x = new Date(d.getTime() + LECH_VN_TB);
+  const p = (n2) => String(n2).padStart(2, '0');
+  return p(x.getUTCDate()) + '/' + p(x.getUTCMonth() + 1) + ' ' + p(x.getUTCHours()) + ':' + p(x.getUTCMinutes());
+}
+function nguoiCua(t) {
+  const ds = [...(t.owner || []), ...(t.staff || [])].map((u) => u.name).filter(Boolean);
+  return [...new Set(ds)].slice(0, 2).join(', ') || 'chưa gán người';
+}
+
 /* ---------------- API ---------------- */
 async function api(req, res, url) {
   const p = url.pathname;
@@ -381,6 +404,84 @@ async function api(req, res, url) {
   }
 
   /* --- quyền quản lý --- */
+  /* ==========================================================================
+     THÔNG BÁO
+     Không có bảng sự kiện, không có ai bấm nút gửi: mọi mục ở đây suy thẳng ra
+     từ trạng thái hiện tại của Base. Cách này không cần lưu gì, không lệch với
+     dữ liệu thật, và tự tắt khi việc được xử lý xong.
+     Mã của mỗi mục có gắn mốc ngày với những loại phải nhắc lại (quá hạn, sắp
+     tới) — nhờ vậy đọc rồi thì im trong ngày, sang hôm sau nhắc tiếp.
+     ========================================================================== */
+  if (p === '/api/thong-bao' && req.method === 'GET') {
+    const items = (await getRecords()).map(toItem).filter((t) => !isBlank(t));
+    const me = await whoAmI();
+    const manager = await isManager();
+    const ds = [];
+    const homNay = ngayVN(new Date());
+
+    const them = (o2) => { if (ds.length < 60) ds.push(o2); };
+    const ten = (t) => t.title || '(chưa đặt tên)';
+
+    if (manager) {
+      for (const t of items.filter((x) => x.status === 'Chờ duyệt/Xử lý')) {
+        them({ id: 'lich:duyet:' + t.id, muc: 'can', rec: t.id, khi: t.start,
+          tieuDe: 'Lịch chờ duyệt kế hoạch', mo: ten(t) + ' · ' + nguoiCua(t) });
+      }
+      for (const t of items.filter((x) => x.cancelWant && !['Từ chối', 'Hủy lịch'].includes(x.status))) {
+        them({ id: 'lich:xin-huy:' + t.id, muc: 'gap', rec: t.id, khi: t.start,
+          tieuDe: 'Xin huỷ lịch', mo: ten(t) + ' — lý do: ' + (t.cancelReason || '(không ghi)') });
+      }
+      for (const t of items.filter((x) => x.focRequest && !x.focStatus && !SETTLED_TB.includes(x.status))) {
+        them({ id: 'lich:foc:' + t.id, muc: 'can', rec: t.id, khi: t.start,
+          tieuDe: 'Yêu cầu vé FOC chờ phản hồi', mo: ten(t) + ' · ' + (t.foc || []).join(', ') });
+      }
+      for (const t of items.filter((x) => x.mediaRequest && !x.mediaStatus && !SETTLED_TB.includes(x.status))) {
+        them({ id: 'lich:media:' + t.id, muc: 'can', rec: t.id, khi: t.start,
+          tieuDe: 'Yêu cầu nhân sự Media chờ phản hồi', mo: ten(t) });
+      }
+      for (const t of items.filter((x) => x.status === 'Đang báo cáo')) {
+        them({ id: 'lich:nghiem-thu:' + t.id, muc: 'tin', rec: t.id, khi: t.end || t.start,
+          tieuDe: 'Báo cáo chờ nghiệm thu', mo: ten(t) + ' · ' + nguoiCua(t) });
+      }
+    }
+
+    if (me) {
+      const cuaToi = items.filter((t) => ownedBy(t, me.id));
+      for (const t of cuaToi.filter((x) => x.status === 'Từ chối/Cần điều chỉnh')) {
+        them({ id: 'lich:tra-ve:' + t.id, muc: 'gap', rec: t.id, khi: t.start,
+          tieuDe: 'Lịch bị trả về', mo: ten(t) + ' — sửa lại rồi gửi duyệt lần nữa' });
+      }
+      for (const t of cuaToi.filter((x) => x.status === 'Duyệt/Chờ tác nghiệp')) {
+        const d = t.start ? new Date(t.start) : null;
+        if (!d) continue;
+        const cach = Math.round((ngayVN(d) - homNay) / 86400000);
+        if (cach === 0) {
+          them({ id: 'lich:hom-nay:' + t.id + ':' + nhan(homNay), muc: 'gap', rec: t.id, khi: t.start,
+            tieuDe: 'Hôm nay đi tác nghiệp', mo: ten(t) + ' · ' + gioVN(d) });
+        } else if (cach === 1) {
+          them({ id: 'lich:ngay-mai:' + t.id + ':' + nhan(homNay), muc: 'can', rec: t.id, khi: t.start,
+            tieuDe: 'Ngày mai đi tác nghiệp', mo: ten(t) + ' · ' + gioVN(d) + ' — xem lại vé và phương tiện' });
+        } else if (cach < 0) {
+          them({ id: 'lich:tre-bc:' + t.id + ':' + nhan(homNay), muc: 'gap', rec: t.id, khi: t.start,
+            tieuDe: 'Chưa nộp báo cáo', mo: ten(t) + ' — đã qua ngày đi, bấm Báo cáo' });
+        }
+      }
+      for (const t of cuaToi.filter((x) => x.status === 'Đang báo cáo')) {
+        them({ id: 'lich:dang-bc:' + t.id, muc: 'tin', rec: t.id, khi: t.end || t.start,
+          tieuDe: 'Đã nộp báo cáo', mo: ten(t) + ' — chờ quản lý nghiệm thu' });
+      }
+      for (const t of cuaToi.filter((x) => x.focStatus && (x.foc || []).length && !SETTLED_TB.includes(x.status))) {
+        const ok = t.focStatus === 'Phê duyệt';
+        them({ id: 'lich:foc-' + (ok ? 'ok' : 'no') + ':' + t.id, muc: ok ? 'tin' : 'can', rec: t.id, khi: t.start,
+          tieuDe: ok ? 'Vé FOC đã được duyệt' : 'Vé FOC bị từ chối',
+          mo: ten(t) + ' · ' + (t.foc || []).join(', ') + (ok ? ' — nhớ nhận vé trước khi đi' : '') });
+      }
+    }
+
+    ds.sort((a, b) => (BAC_TB[a.muc] - BAC_TB[b.muc]) || (new Date(b.khi || 0) - new Date(a.khi || 0)));
+    return json(res, { items: ds });
+  }
+
   if (p === '/api/quyen' && req.method === 'GET') {
     return json(res, { managers: cfg.loadManagerIds(), me: await whoAmI() });
   }
