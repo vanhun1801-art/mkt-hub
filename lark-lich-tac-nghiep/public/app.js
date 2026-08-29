@@ -997,7 +997,7 @@ function fieldUsers(key, label, single) {
 
   const dong = S.people.map((p) =>
     '<div class="pk-row' + (cur.includes(p.id) ? ' on' : '') + '" data-user="' + key + '" data-val="' + esc(p.id) +
-    '" data-single="' + (single ? '1' : '') + '" data-ten="' + esc(p.name.toLowerCase()) + '">' +
+    '" data-single="' + (single ? '1' : '') + '" data-ten="' + esc(khongDau(p.name)) + '">' +
     avatar(p, 22) + '<span class="pk-row-ten">' + esc(p.name) + '</span>' +
     '<span class="pk-tick">' + (cur.includes(p.id) ? '✓' : '') + '</span></div>').join('');
 
@@ -1258,7 +1258,7 @@ function openCreate(preDate) {
   NEW = {
     title: '', purpose: '', plan: '', start: preDate || '', end: '', duration: '',
     staff: [], owner: S.me ? [S.me.id] : [], transport: ['Tự túc phương tiện'],
-    costPlan: '', foc: [], focRequest: false, mediaRequest: false, link: '',
+    costPlan: '', foc: [],
     status: 'Chờ duyệt/Xử lý',
   };
   renderCreate();
@@ -1266,6 +1266,39 @@ function openCreate(preDate) {
 }
 
 function closeModal() { $('#modal').classList.remove('on'); }
+
+/**
+ * Bộ chọn có ô tìm — dùng cho form tạo mới (ghi vào NEW), khác fieldUsers() là cái
+ * ghi vào bản nháp của drawer. Cùng bộ class .pk nên dùng chung CSS và hàm tìm.
+ *
+ * @param {string} key    khoá trong NEW
+ * @param {Array}  ds     [{id, name}] — người hoặc lựa chọn
+ * @param {boolean} single chỉ chọn một
+ * @param {string} ph     chữ hiện khi chưa chọn gì
+ * @param {boolean} laNguoi  có vẽ ảnh đại diện không
+ */
+function pickerMoi(key, ds, single, ph, laNguoi) {
+  const cur = NEW[key] || [];
+  const ten = (id) => (ds.find((x) => x.id === id) || {}).name || id;
+  const chip = cur.length
+    ? cur.slice(0, 4).map((id) => '<span class="pk-chip">' + esc(ten(id)) + '</span>').join('') +
+      (cur.length > 4 ? '<span class="pk-them">+' + (cur.length - 4) + '</span>' : '')
+    : '<span class="pk-ph">' + esc(ph) + '</span>';
+
+  const dong = ds.map((p) =>
+    '<div class="pk-row' + (cur.includes(p.id) ? ' on' : '') + '" data-nuser="' + key + '" data-val="' + esc(p.id) +
+    '" data-single="' + (single ? '1' : '') + '" data-ten="' + esc(khongDau(p.name)) + '">' +
+    (laNguoi ? avatar(p, 22) : '') + '<span class="pk-row-ten">' + esc(p.name) + '</span>' +
+    '<span class="pk-tick">' + (cur.includes(p.id) ? '\u2713' : '') + '</span></div>').join('');
+
+  return '<div class="pk" data-pk="' + key + '" data-ph="' + esc(ph) + '">' +
+    '<button type="button" class="pk-sum"><span class="pk-chips">' + chip + '</span>' +
+    '<span class="pk-caret">\u25be</span></button>' +
+    '<div class="pk-panel" hidden>' +
+      '<input class="pk-tim" type="search" placeholder="' + (laNguoi ? 'T\u00ecm nh\u00e2n s\u1ef1\u2026' : 'T\u00ecm\u2026') + '" autocomplete="off">' +
+      '<div class="pk-ds">' + dong + '</div>' +
+    '</div></div>';
+}
 
 function renderCreate() {
   const O = S.options;
@@ -1292,33 +1325,26 @@ function renderCreate() {
     '<div class="frm-row"><label>Kế hoạch chi tiết</label>' +
       '<textarea class="fld" data-n="plan" placeholder="- 11h30 xuất phát&#10;- 12h00 có mặt tại địa điểm&#10;- 13h50 lên sóng&#10;- 20h00 kết thúc hành trình">' + esc(NEW.plan) + '</textarea></div>' +
 
-    '<div class="divider"></div><div class="sec-title">Nhân sự & di chuyển</div>' +
+    '<div class="sec-title sec-nguoi">Nhân sự & di chuyển</div>' +
     (MGR()
-      ? '<div class="frm-row"><label>Phụ trách chính</label><div class="multi">' + S.people.map((p) =>
-          '<button class="opt' + (NEW.owner.includes(p.id) ? ' on' : '') + '" data-nuser="owner" data-val="' + esc(p.id) +
-          '" data-single="1">' + esc(p.name) + '</button>').join('') + '</div></div>'
+      ? '<div class="frm-row"><label>Phụ trách chính</label>' +
+          pickerMoi('owner', S.people, true, 'Chọn một người…', true) + '</div>'
       : '<div class="frm-row"><label>Phụ trách chính</label><input class="fld" value="' +
           esc(S.me ? S.me.name : '—') + '" readonly><div class="hint">Bạn là người đăng ký nên mặc định phụ trách chuyến này.</div></div>') +
-    '<div class="frm-row"><label>Nhân sự cùng tác nghiệp</label><div class="multi">' + S.people.map((p) =>
-      '<button class="opt' + (NEW.staff.includes(p.id) ? ' on' : '') + '" data-nuser="staff" data-val="' + esc(p.id) + '">' +
-      esc(p.name) + '</button>').join('') + '</div></div>' +
+    '<div class="frm-row"><label>Nhân sự cùng tác nghiệp</label>' +
+      pickerMoi('staff', S.people, false, 'Chọn nhân sự…', true) + '</div>' +
     '<div class="frm-row"><label>Phương tiện</label>' + chips('transport', O.transport) + '</div>' +
 
-    '<div class="divider"></div><div class="sec-title">' +
-      (CHIPHI() ? 'Chi phí &amp; hỗ trợ' : 'Yêu cầu hỗ trợ') + '</div>' +
     (CHIPHI()
-      ? '<div class="frm-row"><label>Chi phí dự kiến (đ)</label>' +
+      ? '<div class="sec-title sec-tien">Chi phí</div>' +
+        '<div class="frm-row"><label>Chi phí dự kiến (đ)</label>' +
         '<input type="number" class="fld" data-n="costPlan" value="' + esc(NEW.costPlan) + '" step="1000" min="0" placeholder="600000"></div>'
       : '') +
-    '<div class="frm-row" style="gap:9px">' +
-      '<label class="chk"><input type="checkbox" data-n="focRequest"' + (NEW.focRequest ? ' checked' : '') + '><span>Yêu cầu FOC (vé / dịch vụ miễn phí)</span></label>' +
-      '<label class="chk"><input type="checkbox" data-n="mediaRequest"' + (NEW.mediaRequest ? ' checked' : '') + '><span>Yêu cầu nhân sự phòng Media hỗ trợ</span></label>' +
-      '<div class="hint">Vé FOC cần thông báo muộn nhất 3 ngày kể từ ngày gửi phê duyệt.</div></div>' +
-    '<div class="frm-row"><label>Danh mục FOC</label>' + chips('foc', O.foc) + '</div>' +
 
-    '<div class="divider"></div>' +
-    '<div class="frm-row"><label>Liên kết (nếu có)</label>' +
-      '<input class="fld" data-n="link" value="' + esc(NEW.link) + '" placeholder="https://drive.google.com/…"></div>' +
+    '<div class="sec-title sec-foc">Danh mục FOC</div>' +
+    '<div class="frm-row"><label>Vé / dịch vụ miễn phí xin kèm</label>' +
+      pickerMoi('foc', (O.foc || []).map((x) => ({ id: x, name: x })), false, 'Chọn danh mục…', false) +
+      '<div class="hint">Cần thông báo muộn nhất 3 ngày kể từ ngày gửi phê duyệt.</div></div>' +
     '</div>';
 
   $('#mdFoot').innerHTML =
@@ -1342,9 +1368,10 @@ async function submitCreate(mode) {
     transport: NEW.transport,
     costPlan: NEW.costPlan === '' ? null : Number(NEW.costPlan),
     foc: NEW.foc,
-    focRequest: !!NEW.focRequest,
-    mediaRequest: !!NEW.mediaRequest,
-    link: NEW.link.trim(),
+    /* Bỏ ô tick "Yêu cầu FOC" khỏi form: chọn danh mục FOC tức là đang xin FOC.
+     * Vẫn phải gửi cờ này vì hàng đợi duyệt của quản lý đếm theo nó. */
+    focRequest: (NEW.foc || []).length > 0,
+    mediaRequest: false,
     status: mode === 'draft' ? 'Đang lên kế hoạch' : 'Chờ duyệt/Xử lý',
   };
   if (MGR()) body.owner = NEW.owner;
@@ -1588,15 +1615,46 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
+  /* Bấm vào ô tóm tắt của bộ chọn trong form tạo mới -> mở bảng có ô tìm. */
+  const sumMoi = T.closest('.pk-sum');
+  if (sumMoi && sumMoi.closest('#mdBody')) {
+    const pn = sumMoi.parentElement.querySelector('.pk-panel');
+    document.querySelectorAll('.pk-panel').forEach((x) => { if (x !== pn) x.hidden = true; });
+    pn.hidden = !pn.hidden;
+    if (!pn.hidden) {
+      const tim = pn.querySelector('.pk-tim');
+      if (tim) { tim.value = ''; timNguoi(pn); tim.focus(); }
+    }
+    return;
+  }
+
   const nu = T.closest('[data-nuser]');
   if (nu) {
     const k = nu.dataset.nuser;
     const id = nu.dataset.val;
-    if (nu.dataset.single === '1') NEW[k] = NEW[k].includes(id) ? [] : [id];
-    else { const c = NEW[k]; const i = c.indexOf(id); if (i >= 0) c.splice(i, 1); else c.push(id); }
-    nu.parentElement.querySelectorAll('[data-nuser="' + k + '"]').forEach((b) => {
-      b.classList.toggle('on', NEW[k].includes(b.dataset.val));
+    const single = nu.dataset.single === '1';
+    if (single) NEW[k] = (NEW[k] || []).includes(id) ? [] : [id];
+    else { const c = NEW[k] || (NEW[k] = []); const i = c.indexOf(id); if (i >= 0) c.splice(i, 1); else c.push(id); }
+
+    const hop = nu.closest('.pk') || nu.parentElement;
+    hop.querySelectorAll('[data-nuser="' + k + '"]').forEach((b) => {
+      const chon = (NEW[k] || []).includes(b.dataset.val);
+      b.classList.toggle('on', chon);
+      const tick = b.querySelector('.pk-tick');
+      if (tick) tick.textContent = chon ? '\u2713' : '';
     });
+    // vẽ lại chip tóm tắt cho khớp
+    const oChip = hop.querySelector('.pk-chips');
+    if (oChip) {
+      const ds = k === 'foc' ? (S.options.foc || []).map((x) => ({ id: x, name: x })) : S.people;
+      const cur = NEW[k] || [];
+      const ten = (i2) => (ds.find((x) => x.id === i2) || {}).name || i2;
+      oChip.innerHTML = cur.length
+        ? cur.slice(0, 4).map((i2) => '<span class="pk-chip">' + esc(ten(i2)) + '</span>').join('') +
+          (cur.length > 4 ? '<span class="pk-them">+' + (cur.length - 4) + '</span>' : '')
+        : '<span class="pk-ph">' + esc(hop.dataset.ph || '') + '</span>';
+    }
+    if (single) { const pn = hop.querySelector('.pk-panel'); if (pn) pn.hidden = true; }
     return;
   }
 
@@ -1605,8 +1663,12 @@ document.addEventListener('click', async (e) => {
 });
 
 /** Lọc danh sách trong bảng chọn người theo ô tìm. */
+/* Gõ "khanh" phải ra "Nguyễn Long Khánh". Bỏ dấu cả hai phía rồi mới so. */
+const khongDau = (x) => String(x == null ? '' : x).toLowerCase()
+  .normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').trim();
+
 function timNguoi(panel) {
-  const q = (panel.querySelector('.pk-tim').value || '').trim().toLowerCase();
+  const q = khongDau(panel.querySelector('.pk-tim').value);
   let hien = 0;
   panel.querySelectorAll('.pk-row').forEach((r) => {
     const khop = !q || (r.dataset.ten || '').includes(q);
@@ -1617,7 +1679,7 @@ function timNguoi(panel) {
   if (!hien && !trong) {
     trong = document.createElement('div');
     trong.className = 'pk-trong-ds';
-    trong.textContent = 'Không có ai khớp';
+    trong.textContent = 'Không có mục nào khớp';
     panel.querySelector('.pk-ds').appendChild(trong);
   }
   if (trong) trong.hidden = !!hien;
