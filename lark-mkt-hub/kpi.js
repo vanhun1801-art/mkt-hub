@@ -93,7 +93,8 @@ async function congViec(mod, khoang, nguoi) {
     nguoiId: (t.owner || []).map((u) => u.id),
     han: han(t) || 0,
     the: [t.priority, t.workType, t.campaign].map(nhan).filter(Boolean),
-    coMinhChung: !!((t.attachment || []).length || (t.fileKetQua || []).length || t.link),
+    coMinhChung: !!((t.attachment || []).length || (t.fileKetQua || []).length ||
+      t.linkKetQua || t.link),
     daGiaiQuyet: !!t.daGiaiQuyet,
     ngayGiaiQuyet: ms(t.ngayGiaiQuyet) || 0,
   });

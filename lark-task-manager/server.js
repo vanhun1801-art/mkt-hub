@@ -529,6 +529,8 @@ async function api(req, res, url) {
     /* complete & giai-quyet: cả hai đều bắt buộc có minh chứng (tệp hoặc link) */
     const body = await readBody(req);
     const patch = {};
+    // 'link' cũ vẫn nhận để không vỡ bản cài đặt cũ, nhưng đường chính là linkKetQua
+    if (body.linkKetQua) patch.linkKetQua = String(body.linkKetQua);
     if (body.link) patch.link = String(body.link);
     if (body.note) patch.note = String(body.note);
 
@@ -542,8 +544,11 @@ async function api(req, res, url) {
       }, 422);
     }
 
+    /* Minh chứng = có sản phẩm ở BẤT KỲ ô nào. Vẫn tính cả 'Link' và 'Tệp đính
+     * kèm' cũ để những việc nộp từ trước không bị chặn ngược. */
     const hasProof = (task.attachment || []).length > 0 ||
-      (task.fileKetQua || []).length > 0 || !!(patch.link || task.link);
+      (task.fileKetQua || []).length > 0 ||
+      !!(patch.linkKetQua || task.linkKetQua) || !!(patch.link || task.link);
     if (!hasProof) {
       return json(res, {
         error: 'Chưa có minh chứng kết quả',

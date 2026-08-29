@@ -430,7 +430,7 @@ const laTreTheoHan = (t) => !isClosed(t) &&
     (daysLeft(t.deadline) != null && daysLeft(t.deadline) < 0));
 const isOverdue = (t) => laTreTheoHan(t) && !daGiaiQuyet(t);
 const hasProof = (t) => (t.attachment || []).length > 0 ||
-  (t.fileKetQua || []).length > 0 || !!t.link;
+  (t.fileKetQua || []).length > 0 || !!t.linkKetQua || !!t.link;
 
 function initials(name) {
   const parts = String(name || '?').trim().split(/\s+/);
@@ -729,7 +729,7 @@ function openDone(t, kieu) {
   S.doneKieu = kieu === 'giai-quyet' ? 'giai-quyet' : 'complete';
   S.modalTask = t;
   $('#doneTaskName').textContent = t.title || '(chưa có tên)';
-  $('#doneLink').value = t.link || '';
+  $('#doneLink').value = t.linkKetQua || '';
   $('#doneNote').value = '';
   $('#doneFile').value = '';
   $('#doneMsg').textContent = '';
@@ -749,7 +749,8 @@ function openDone(t, kieu) {
     const phan = [];
     if (kq.length) phan.push(kq.length + ' file kết quả');
     if (att.length) phan.push(att.length + ' tệp kèm yêu cầu');
-    if (t.link) phan.push('có link');
+    if (t.linkKetQua) phan.push('có link kết quả');
+    else if (t.link) phan.push('có link (ô cũ)');
     co.className = 'md-proof ok';
     co.textContent = 'Đã có minh chứng: ' + phan.join(' · ');
   } else {
@@ -784,7 +785,7 @@ async function submitDone() {
     const laGQ = S.doneKieu === 'giai-quyet';
     await req('/api/tasks/' + t.id + '/' + (laGQ ? 'giai-quyet' : 'complete'), {
       method: 'POST',
-      body: JSON.stringify({ link: link || undefined, note: note || undefined }),
+      body: JSON.stringify({ linkKetQua: link || undefined, note: note || undefined }),
     });
 
     closeModal('mDone');
@@ -2262,7 +2263,10 @@ function buildDrawer() {
   b.appendChild(field('Người hỗ trợ', peopleDropdown(t.helper, (v) => set('helper', v), 'Chọn người hỗ trợ…')));
   b.appendChild(field('Người order', onePersonInput(t.requester, (v) => set('requester', v))));
   b.appendChild(field('Kênh phân phối', optionsDropdown(o.channel, t.channel, (v) => set('channel', v), 'Chọn kênh…')));
-  b.appendChild(field('Link', textInput(t.link, (v) => set('link', v), 'url')));
+  b.appendChild(field('Link tài liệu / tracking (của người order)',
+    textInput(t.link, (v) => set('link', v), 'url')));
+  b.appendChild(field('Link kết quả (nhân sự nộp)',
+    textInput(t.linkKetQua, (v) => set('linkKetQua', v), 'url')));
 
   const note = el('textarea');
   note.value = t.note || '';
@@ -2486,6 +2490,12 @@ function buildStaffDrawer(b, t, o) {
   if (t.detail) yc.than.appendChild(moTaCoLink(t.detail));
   else yc.than.appendChild(el('div', 'd-desc trong-nhe', 'Người order chưa ghi chi tiết yêu cầu.'));
 
+  if (t.link) {
+    const oLink = el('div', 'field');
+    oLink.appendChild(el('label', '', 'Link tài liệu / tracking của người order'));
+    oLink.appendChild(moTaCoLink(t.link));
+    yc.than.appendChild(oLink);
+  }
   yc.than.appendChild(khoiTep(t, 'Tài liệu kèm yêu cầu', t.attachment, '', false,
     'Người order không gửi tệp nào kèm theo.'));
 
@@ -2518,7 +2528,7 @@ function buildStaffDrawer(b, t, o) {
       ' của task này. Người cập nhật trạng thái là Phụ trách chính.'));
   }
 
-  cb.than.appendChild(field('Link kết quả', textInput(t.link, (v) => set('link', v), 'url')));
+  cb.than.appendChild(field('Link kết quả', textInput(t.linkKetQua, (v) => set('linkKetQua', v), 'url')));
 
   const note = el('textarea');
   note.value = t.note || '';

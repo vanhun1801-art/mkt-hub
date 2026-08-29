@@ -109,6 +109,10 @@ module.exports = {
     /* Tài liệu người order gửi kèm để riêng với sản phẩm nhân sự nộp về: ô trên là
      * "Tệp đính kèm", ô này là "File kết quả". Nhìn Base là biết ai đưa gì. */
     fileKetQua:  { id: 'fld0qir7Qw', name: 'File kết quả',       type: 'attachment', readOnly: true },
+    /* Cùng lý do với hai ô tệp: cột "Link" là link tracking / tài liệu do người
+     * order đưa, còn đây là link sản phẩm nhân sự nộp về. Chung một ô thì ai nộp
+     * sau đè người trước. */
+    linkKetQua:  { id: 'fldjdI2qXM', name: 'Link kết quả',       type: 'url' },
     /* Việc TRỄ thì nhân sự không đổi trạng thái được nữa (để cuối tháng còn thống
      * kê được ai trễ), nhưng vẫn phải có chỗ nộp sản phẩm và cho việc đó rời khỏi
      * hàng đợi "phải hối". Hai cột này giữ vai đó — tick được cả trong Base. */
@@ -155,7 +159,9 @@ module.exports = {
   /* Trường nhân sự được sửa; còn lại là của người order → phải gửi Yêu cầu điều chỉnh.
    * daGiaiQuyet/ngayGiaiQuyet KHÔNG nằm ở đây: chỉ đặt được qua nút "Giải quyết"
    * (bắt buộc có minh chứng), không sửa tự do qua PATCH. */
-  staffEditable: ['status', 'link', 'note', 'helper', 'startAt'],
+  /* Bỏ 'link' khỏi đây: đó là ô của người order (link tracking, tài liệu tham
+   * chiếu). Nhân sự nộp vào 'linkKetQua'. */
+  staffEditable: ['status', 'linkKetQua', 'note', 'helper', 'startAt'],
 
   // Chuyển sang trạng thái này bắt buộc phải có Tệp đính kèm hoặc Link kết quả
   proofRequiredFor: 'Hoàn thành',

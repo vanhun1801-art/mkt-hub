@@ -271,12 +271,21 @@ Tắt luật này: đặt `chanHoanThanhKhiTre: false` trong `config.js`.
 
 ---
 
-### Hai ô tệp, đừng lẫn
+### Hai ô link và hai ô tệp, đừng lẫn
 
 | Cột trên Base | Ai đưa vào | Hiện ở đâu trong app |
 |---|---|---|
 | `Tệp đính kèm` (`fldJp3mzWY`) | người order — tài liệu để làm việc | thẻ "Yêu cầu từ người order", nhãn *Tài liệu kèm yêu cầu*, chỉ đọc với nhân sự |
 | `File kết quả` (`fld0qir7Qw`) | nhân sự — sản phẩm nộp về | thẻ "Phần của bạn", nhãn *File kết quả*, nhân sự tự thêm/xoá được |
+
+| Cột trên Base | Ai đưa vào | Hiện ở đâu trong app |
+|---|---|---|
+| `Link` (`fld7qO1zyb`) | người order — link tracking, tài liệu tham chiếu | thẻ "Yêu cầu từ người order", chỉ đọc với nhân sự |
+| `Link kết quả` (`fldjdI2qXM`) | nhân sự — link sản phẩm | thẻ "Phần của bạn" và cửa sổ Nộp kết quả |
+
+Trước đây chỉ có một ô `Link` dùng chung: người order để link tracking vào đó, nhân
+sự nộp bài cũng ghi vào đó, ai sau đè người trước. Nay `staffEditable` không còn
+`link` — nhân sự chỉ ghi được `linkKetQua`.
 
 Tải lên chọn ô bằng tham số: `POST /api/tasks/:id/upload?cot=ket-qua` vào `File kết
 quả`, không khai `cot` thì vào `Tệp đính kèm`. Xoá cũng vậy:
