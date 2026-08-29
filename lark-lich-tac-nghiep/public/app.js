@@ -78,24 +78,69 @@ function toDate(v) {
   return isNaN(d.getTime()) ? null : d;
 }
 
-function fmtD(v) {
+/* ==========================================================================
+   NGÀY GIỜ — cả app dùng đúng một dạng: dd/mm/yyyy HH:mm, 24 giờ, giờ Việt Nam.
+   Base ghi theo giờ Việt Nam (UTC+7, không có giờ mùa hè) nên quy đổi bằng độ
+   lệch cố định thay vì mượn múi giờ của máy: máy nhân sự đặt sai múi giờ, hay
+   máy chủ Render chạy giờ UTC, đều vẫn ra đúng một con số.
+   ========================================================================== */
+const LECH_VN = 7 * 3600000;
+
+/** Tách một mốc thời gian thành ngày–giờ Việt Nam. */
+function vnParts(v) {
   const d = toDate(v);
-  return d ? pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear() : '—';
+  if (!d) return null;
+  const x = new Date(d.getTime() + LECH_VN);
+  return {
+    y: x.getUTCFullYear(), m: x.getUTCMonth() + 1, d: x.getUTCDate(),
+    H: x.getUTCHours(), M: x.getUTCMinutes(),
+  };
+}
+
+/** Ghép ngày–giờ Việt Nam thành mốc ISO có kèm múi giờ để gửi lên máy chủ. */
+function vnISO(p) {
+  return new Date(Date.UTC(p.y, p.m - 1, p.d, p.H, p.M) - LECH_VN).toISOString();
+}
+
+function fmtD(v) {
+  const p = vnParts(v);
+  return p ? pad(p.d) + '/' + pad(p.m) + '/' + p.y : '—';
 }
 
 function fmtDT(v) {
-  const d = toDate(v);
-  if (!d) return '—';
-  const hm = (d.getHours() || d.getMinutes()) ? ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) : '';
-  return fmtD(v) + hm;
+  const p = vnParts(v);
+  if (!p) return '—';
+  // Mốc đúng 00:00 thường là ngày không có giờ cụ thể — khỏi hiện "00:00" thừa
+  return fmtD(v) + ((p.H || p.M) ? ' ' + pad(p.H) + ':' + pad(p.M) : '');
 }
 
-/** Giá trị cho <input type="datetime-local"> */
-function toLocalInput(v) {
-  const d = toDate(v);
-  if (!d) return '';
-  return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
-    'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+/** Dạng đầy đủ cho ô nhập: luôn có giờ, kể cả 00:00. */
+function vnText(v) {
+  const p = vnParts(v);
+  return p ? pad(p.d) + '/' + pad(p.m) + '/' + p.y + ' ' + pad(p.H) + ':' + pad(p.M) : '';
+}
+
+/**
+ * Đọc chuỗi người dùng gõ tay thành mốc ISO.
+ * Nhận rộng tay: 29/8/2026 14:40 · 29-08-2026 14:40 · 29/08/2026 (thành 00:00)
+ * · 29/08 (lấy năm hiện tại). Không đọc được thì trả null.
+ */
+function docNgayVN(str) {
+  const s0 = String(str || '').trim();
+  if (!s0) return null;
+  const m = s0.match(/^(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{2,4}))?(?:[\s,]+(\d{1,2})[:h.](\d{1,2}))?$/);
+  if (!m) return null;
+  const nay = vnParts(new Date());
+  const d = +m[1], mo = +m[2];
+  let y = m[3] == null ? nay.y : +m[3];
+  if (y < 100) y += 2000;
+  const H = m[4] == null ? 0 : +m[4];
+  const M = m[5] == null ? 0 : +m[5];
+  if (mo < 1 || mo > 12 || d < 1 || d > 31 || H > 23 || M > 59) return null;
+  const iso = vnISO({ y, m: mo, d, H, M });
+  const lai = vnParts(iso);
+  // 31/02 sẽ bị Date đẩy sang tháng sau — bắt lại chứ không nhận bừa
+  return (lai.d === d && lai.m === mo) ? iso : null;
 }
 
 function money(n) {
@@ -160,7 +205,9 @@ function badge(status) {
 }
 
 const dayKey = (d) => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
-const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+/* Đầu ngày theo giờ Việt Nam. Trả về đúng một mốc thời gian nên vẫn so sánh và
+ * cộng trừ được như cũ, chỉ khác là không phụ thuộc múi giờ của máy. */
+const startOfDay = (d) => new Date(Math.floor((d.getTime() + LECH_VN) / 86400000) * 86400000 - LECH_VN);
 const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
 
 function toast(msg, kind) {
@@ -906,8 +953,7 @@ function viewMine() {
 function toiHanBaoCao(t) {
   const d = toDate(t.start);
   if (!d) return false;
-  const moc = startOfDay(new Date(d.getTime() + 86400000));
-  moc.setHours(9, 0, 0, 0);
+  const moc = new Date(startOfDay(new Date(d.getTime() + 86400000)).getTime() + 9 * 3600000);
   return new Date() >= moc;
 }
 
@@ -1230,11 +1276,105 @@ function fieldUsers(key, label, single) {
     '</div></div>';
 }
 
+/**
+ * Ô nhập ngày giờ dùng chung cho cả app.
+ *
+ * Không dùng <input type="datetime-local"> nữa: trình duyệt vẽ ô đó theo ngôn
+ * ngữ của chính nó, máy nào cũng ra "08/29/2026 11:40 AM" — vừa lộn ngày với
+ * tháng vừa 12 giờ sáng chiều. Ô này gõ và hiện đúng một dạng: dd/mm/yyyy HH:mm.
+ *
+ * @param {string} thuoc  'k' cho ô sửa chi tiết, 'n' cho form đăng ký mới
+ */
+function oNgay(thuoc, key, giaTri, tat) {
+  return '<div class="ng' + (tat ? ' tat' : '') + '">' +
+    '<input type="text" class="fld ng-in" data-' + thuoc + '="' + key + '" data-kieu="ngay"' +
+      ' value="' + esc(vnText(giaTri)) + '" placeholder="dd/mm/yyyy hh:mm" autocomplete="off"' +
+      (tat ? ' disabled' : '') + '>' +
+    (tat ? '' : '<button type="button" class="ng-nut" data-nglich="1" title="Chọn trên lịch">' +
+      '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">' +
+      '<rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3" stroke-linecap="round"/>' +
+      '</svg></button>') +
+    '</div>';
+}
+
+/** Trạng thái của lịch đang bật: ô nào, đang xem tháng nào, đã chọn mốc nào. */
+let NG = null;
+
+function veLichNgay() {
+  if (!NG) return '';
+  const { y, m, chon } = NG;
+  const dauThang = new Date(Date.UTC(y, m - 1, 1));
+  // tuần bắt đầu từ thứ Hai, đúng thói quen bảng biểu trong nước
+  const lui = (dauThang.getUTCDay() + 6) % 7;
+  const soNgay = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const nay = vnParts(new Date());
+
+  let o = '';
+  for (let i = 0; i < lui; i++) o += '<span class="ng-o mo"></span>';
+  for (let d = 1; d <= soNgay; d++) {
+    const laNay = nay.y === y && nay.m === m && nay.d === d;
+    const laChon = chon && chon.y === y && chon.m === m && chon.d === d;
+    o += '<button type="button" class="ng-o' + (laChon ? ' chon' : '') + (laNay ? ' nay' : '') +
+      '" data-ngd="' + d + '">' + d + '</button>';
+  }
+
+  const gio = [];
+  for (let h = 0; h < 24; h++) gio.push('<option value="' + h + '"' + (chon && chon.H === h ? ' selected' : '') + '>' + pad(h) + '</option>');
+  const phut = [];
+  for (let p = 0; p < 60; p += 5) phut.push('<option value="' + p + '"' + (chon && chon.M === p ? ' selected' : '') + '>' + pad(p) + '</option>');
+  // phút lẻ do gõ tay thì vẫn phải hiện ra, không được nuốt mất
+  if (chon && chon.M % 5) phut.push('<option value="' + chon.M + '" selected>' + pad(chon.M) + '</option>');
+
+  return '<div class="ng-pop">' +
+    '<div class="ng-dau">' +
+      '<button type="button" class="ng-dh" data-ngthang="-1">‹</button>' +
+      '<span class="ng-thang">Tháng ' + m + ' / ' + y + '</span>' +
+      '<button type="button" class="ng-dh" data-ngthang="1">›</button>' +
+    '</div>' +
+    '<div class="ng-thu">' + ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map((x) => '<span>' + x + '</span>').join('') + '</div>' +
+    '<div class="ng-luoi">' + o + '</div>' +
+    '<div class="ng-gio">' +
+      '<span class="ng-nhan">Giờ</span>' +
+      '<select class="ng-sel" data-ngh="1">' + gio.join('') + '</select>' +
+      '<span class="ng-hai">:</span>' +
+      '<select class="ng-sel" data-ngm="1">' + phut.join('') + '</select>' +
+      '<span class="ng-24">24 giờ · giờ VN</span>' +
+    '</div>' +
+    '<div class="ng-chan">' +
+      '<button type="button" class="btn sm ghost" data-ngxoa="1">Xoá</button>' +
+      '<button type="button" class="btn sm" data-ngnay="1">Hôm nay</button>' +
+      '<button type="button" class="btn sm primary" data-ngxong="1">Xong</button>' +
+    '</div></div>';
+}
+
+/** Vẽ lại lịch đang bật vào đúng ô của nó. */
+function veLaiNgay() {
+  document.querySelectorAll('.ng-pop').forEach((x) => x.remove());
+  if (!NG || !NG.o) return;
+  NG.o.classList.add('mo');
+  NG.o.insertAdjacentHTML('beforeend', veLichNgay());
+}
+
+function dongLichNgay() {
+  document.querySelectorAll('.ng.mo').forEach((x) => x.classList.remove('mo'));
+  document.querySelectorAll('.ng-pop').forEach((x) => x.remove());
+  NG = null;
+}
+
+/** Ghi mốc mới vào ô nhập và vào bản nháp / form, cùng một đường. */
+function datNgay(inp, iso) {
+  inp.value = iso ? vnText(iso) : '';
+  const k = inp.dataset.k;
+  if (k && S.sel) { setDraft(k, iso); return; }
+  const n = inp.dataset.n;
+  if (n) NEW[n] = iso || '';
+}
+
 function fieldDate(key, label, hint) {
   const on = canEdit(key);
   return '<div class="frm-row"><label>' + esc(label) + '</label>' +
-    '<input type="datetime-local" class="fld" data-k="' + key + '" value="' + toLocalInput(dv(key)) + '"' +
-    (on ? '' : ' disabled') + '>' + (hint ? '<div class="hint">' + esc(hint) + '</div>' : '') + '</div>';
+    oNgay('k', key, dv(key), !on) +
+    (hint ? '<div class="hint">' + esc(hint) + '</div>' : '') + '</div>';
 }
 
 function fieldNum(key, label, hint) {
@@ -1298,55 +1438,76 @@ function renderDrawer() {
     ? '<div class="banner info">Lịch đã ở trạng thái "' + esc(t.status) + '" — nội dung kế hoạch đã khoá. Bạn vẫn cập nhật được báo cáo, liên kết và chi phí thực tế.</div>'
     : '';
 
-  let h = steps + lockNote + '<div class="frm">';
+  /* Mỗi nhóm trường là một thẻ riêng có đầu thẻ — cùng lối trình bày với ô chi
+   * tiết bên Bảng công việc. Nhờ vậy mắt bám được vào từng nhóm thay vì trôi
+   * tuột qua một dải ô nhập dài không có điểm dừng. */
+  const khoi = (ten, than, phu) =>
+    '<section class="kh' + (phu ? ' kh-' + phu : '') + '">' +
+    '<div class="kh-dau"><span class="kh-ten">' + esc(ten) + '</span></div>' +
+    '<div class="kh-than">' + than + '</div></section>';
 
-  h += '<div class="sec-title">Thông tin chuyến</div>';
-  h += fieldText('title', 'Tên hoạt động', 'Tên ngắn gọn của hoạt động');
-  h += fieldText('purpose', 'Mục đích', '- Cập nhật tư liệu truyền thông\n- Phát trực tiếp', true);
-  h += '<div class="frm-2">' + fieldDate('start', 'Thời gian bắt đầu') +
-       fieldSelect('duration', 'Thời lượng (giờ)', O.duration) + '</div>';
-  h += fieldDate('end', 'Thời gian kết thúc', 'Chỉ cập nhật sau khi đã hoàn tất tác nghiệp');
-  h += fieldText('plan', 'Kế hoạch chi tiết', '- 19:00 Có mặt tại địa điểm\n- 19:30 Thực hiện phát trực tiếp', true);
+  let h = steps + lockNote + '<div class="dr-khoi">';
 
-  h += '<div class="divider"></div><div class="sec-title">Nhân sự & di chuyển</div>';
-  h += fieldUsers('owner', 'Phụ trách', true);
-  h += fieldUsers('staff', 'Nhân sự cùng tác nghiệp');
-  h += fieldMulti('transport', 'Phương tiện', O.transport);
+  h += khoi('Thông tin chuyến',
+    fieldText('title', 'Tên hoạt động', 'Tên ngắn gọn của hoạt động') +
+    fieldText('purpose', 'Mục đích', '- Cập nhật tư liệu truyền thông\n- Phát trực tiếp', true) +
+    '<div class="frm-2">' + fieldDate('start', 'Thời gian bắt đầu') +
+      fieldSelect('duration', 'Thời lượng (giờ)', O.duration) + '</div>' +
+    fieldDate('end', 'Thời gian kết thúc', 'Chỉ cập nhật sau khi đã hoàn tất tác nghiệp') +
+    fieldText('plan', 'Kế hoạch chi tiết', '- 19:00 Có mặt tại địa điểm\n- 19:30 Thực hiện phát trực tiếp', true),
+    'chuyen');
+
+  h += khoi('Nhân sự & di chuyển',
+    fieldUsers('owner', 'Phụ trách', true) +
+    fieldUsers('staff', 'Nhân sự cùng tác nghiệp') +
+    fieldMulti('transport', 'Phương tiện', O.transport),
+    'nguoi');
 
   if (CHIPHI()) {
-    h += '<div class="divider"></div><div class="sec-title">Chi phí</div>';
-    h += '<div class="frm-2">' + fieldNum('costPlan', 'Chi phí dự kiến (đ)') +
-         fieldNum('costActual', 'Chi phí thực tế (đ)', 'Cập nhật sau chuyến công tác') + '</div>';
-    h += fieldSelect('payment', 'Thanh toán chi phí', O.payment);
+    h += khoi('Chi phí',
+      '<div class="frm-2">' + fieldNum('costPlan', 'Chi phí dự kiến (đ)') +
+        fieldNum('costActual', 'Chi phí thực tế (đ)', 'Cập nhật sau chuyến công tác') + '</div>' +
+      fieldSelect('payment', 'Thanh toán chi phí', O.payment),
+      'tien');
   }
 
-  h += '<div class="divider"></div><div class="sec-title">Yêu cầu hỗ trợ</div>';
-  h += '<div class="frm-row" style="gap:9px">' + fieldCheck('focRequest', 'Yêu cầu FOC (vé/dịch vụ miễn phí)') +
-       fieldCheck('mediaRequest', 'Yêu cầu nhân sự phòng Media') + '</div>';
-  h += fieldMulti('foc', 'Danh mục FOC', O.foc);
-  h += '<div class="frm-2">' + fieldSelect('focStatus', 'Trạng thái FOC', O.focStatus) +
-       fieldSelect('mediaStatus', 'Trạng thái nhân sự Media', O.mediaStatus) + '</div>';
-  h += fieldText('mediaNote', 'Feedback nhân sự Media', '', true);
+  h += khoi('Yêu cầu hỗ trợ',
+    '<div class="kh-chon">' + fieldCheck('focRequest', 'Yêu cầu FOC (vé/dịch vụ miễn phí)') +
+      fieldCheck('mediaRequest', 'Yêu cầu nhân sự phòng Media') + '</div>' +
+    fieldMulti('foc', 'Danh mục FOC', O.foc) +
+    '<div class="frm-2">' + fieldSelect('focStatus', 'Trạng thái FOC', O.focStatus) +
+      fieldSelect('mediaStatus', 'Trạng thái nhân sự Media', O.mediaStatus) + '</div>' +
+    fieldText('mediaNote', 'Feedback nhân sự Media', '', true),
+    'foc');
 
-  h += '<div class="divider"></div><div class="sec-title">Kết quả & báo cáo</div>';
-  h += fieldText('report', 'Báo cáo & ghi chú', 'a) Bảng kê chi phí:\nb) Hiệu chỉnh trước công tác:\nc) Lưu ý dịch vụ:', true);
-  h += fieldText('link', 'Liên kết sản phẩm', 'https://…');
-  h += filesBlock('tickets', 'Vé & thông tin cần thiết');
-  h += filesBlock('files', 'Tệp đính kèm (hoá đơn, hình ảnh…)');
-  h += filesBlock('unc', 'UNC');
+  h += khoi('Kết quả & báo cáo',
+    fieldText('report', 'Báo cáo & ghi chú', 'a) Bảng kê chi phí:\nb) Hiệu chỉnh trước công tác:\nc) Lưu ý dịch vụ:', true) +
+    fieldText('link', 'Liên kết sản phẩm', 'https://…'),
+    'ketqua');
 
-  h += '<div class="divider"></div><div class="sec-title">Trạng thái</div>';
-  h += fieldSelect('status', 'Trạng thái lịch', statusChoices(), false);
-  if (!MGR()) h += '<div class="hint" style="margin-top:-8px">Duyệt / Từ chối / Hủy lịch do quản lý quyết định.</div>';
+  h += khoi('Tệp đính kèm',
+    filesBlock('tickets', 'Vé & thông tin cần thiết') +
+    filesBlock('files', 'Hoá đơn, hình ảnh…') +
+    filesBlock('unc', 'UNC'));
 
-  h += '<div class="divider"></div><dl class="kv">' +
-    '<dt>Thời lượng thực tế</dt><dd>' + esc(realHours(t)) + '</dd>' +
-    '<dt>Tuần / Tháng</dt><dd>' + esc(t.week || '—') + ' · ' + esc(t.month || '—') + '</dd>' +
-    '<dt>Mã bản ghi</dt><dd class="mini muted">' + esc(t.id) + '</dd>' +
-    '</dl>';
+  h += khoi('Trạng thái',
+    fieldSelect('status', 'Trạng thái lịch', statusChoices(), false) +
+    (MGR() ? '' : '<div class="hint">Duyệt / Từ chối / Hủy lịch do quản lý quyết định.</div>') +
+    '<dl class="kv">' +
+      '<dt>Thời lượng thực tế</dt><dd>' + esc(realHours(t)) + '</dd>' +
+      '<dt>Tuần / Tháng</dt><dd>' + esc(t.week || '—') + ' · ' + esc(t.month || '—') + '</dd>' +
+      '<dt>Mã bản ghi</dt><dd class="mini muted">' + esc(t.id) + '</dd>' +
+    '</dl>');
 
   h += '</div>';
   $('#drBody').innerHTML = h;
+
+  // Đầu ô nhuốm màu theo giai đoạn — nhìn là biết lịch đang ở đâu trong quy trình
+  const dh = bad ? 'dong' : t.status === 'Từ chối/Cần điều chỉnh' ? 'sua'
+    : t.status === 'Chờ duyệt/Xử lý' ? 'cho' : t.status === 'Duyệt/Chờ tác nghiệp' ? 'duyet'
+    : t.status === 'Đang báo cáo' ? 'baocao' : t.status === 'Đã hoàn tất' ? 'xong' : 'nhap';
+  const head = $('.dr-head');
+  head.className = 'dr-head dh-' + dh;
 
   /* --- nút thao tác --- */
   const acts = [];
@@ -1615,7 +1776,7 @@ function renderCreate() {
 
     '<div class="frm-2">' +
       '<div class="frm-row"><label>Thời gian bắt đầu' + req + '</label>' +
-        '<input type="datetime-local" class="fld" data-n="start" value="' + esc(NEW.start) + '"></div>' +
+        oNgay('n', 'start', NEW.start) + '</div>' +
       '<div class="frm-row"><label>Thời lượng dự kiến (giờ)</label>' +
         '<select class="fld" data-n="duration"><option value="">— chọn —</option>' +
         (O.duration || []).map((o) => '<option value="' + esc(o) + '"' + (NEW.duration === o ? ' selected' : '') + '>' + esc(o) + ' giờ</option>').join('') +
@@ -1836,6 +1997,56 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
+  /* ---- ô chọn ngày giờ ---- */
+  if (NG && !T.closest('.ng')) dongLichNgay();          // bấm ra ngoài thì đóng lịch
+
+  const ngNut = T.closest('[data-nglich]');
+  if (ngNut) {
+    const o = ngNut.closest('.ng');
+    const dangMo = NG && NG.o === o;
+    dongLichNgay();
+    if (!dangMo) {
+      const inp = o.querySelector('.ng-in');
+      const chon = docNgayVN(inp.value) ? vnParts(docNgayVN(inp.value)) : null;
+      const nay = vnParts(new Date());
+      NG = { o, inp, y: (chon || nay).y, m: (chon || nay).m, chon: chon || null };
+      veLaiNgay();
+    }
+    return;
+  }
+
+  if (NG) {
+    const doiThang = T.closest('[data-ngthang]');
+    if (doiThang) {
+      const b = Number(doiThang.dataset.ngthang);
+      let m = NG.m + b, y = NG.y;
+      if (m < 1) { m = 12; y--; } else if (m > 12) { m = 1; y++; }
+      NG.m = m; NG.y = y;
+      veLaiNgay();
+      return;
+    }
+    const oNg = T.closest('[data-ngd]');
+    if (oNg) {
+      const gio = NG.chon || { H: 8, M: 0 };   // chưa đặt giờ thì lấy 08:00 cho khỏi ra 00:00
+      NG.chon = { y: NG.y, m: NG.m, d: Number(oNg.dataset.ngd), H: gio.H, M: gio.M };
+      datNgay(NG.inp, vnISO(NG.chon));
+      veLaiNgay();
+      return;
+    }
+    if (T.closest('[data-ngnay]')) {
+      const nay = vnParts(new Date());
+      const gio = NG.chon || { H: nay.H, M: nay.M - (nay.M % 5) };
+      NG.y = nay.y; NG.m = nay.m;
+      NG.chon = { y: nay.y, m: nay.m, d: nay.d, H: gio.H, M: gio.M };
+      datNgay(NG.inp, vnISO(NG.chon));
+      veLaiNgay();
+      return;
+    }
+    if (T.closest('[data-ngxoa]')) { datNgay(NG.inp, null); NG.chon = null; veLaiNgay(); return; }
+    if (T.closest('[data-ngxong]')) { dongLichNgay(); return; }
+    if (T.closest('.ng-pop')) return;      // bấm chỗ trống trong lịch thì đừng làm gì
+  }
+
   // Phiếu đi phải được xét trước [data-open]: nó là cửa sổ chỉ đọc, không phải ô sửa
   const phieu = T.closest('[data-phieu]');
   if (phieu) { moPhieuDi(phieu.dataset.phieu); return; }
@@ -2011,18 +2222,42 @@ document.addEventListener('input', (e) => {
 
   const k = T.dataset && T.dataset.k;
   if (k && S.sel) {
+    if (T.dataset.kieu === 'ngay') return;   // ngày giờ đọc khi rời ô, không đọc từng ký tự
     if (T.type === 'checkbox') setDraft(k, T.checked);
     else if (T.type === 'number') setDraft(k, T.value === '' ? null : Number(T.value));
-    else if (T.type === 'datetime-local') setDraft(k, T.value ? new Date(T.value).toISOString() : null);
     else setDraft(k, T.value);
     return;
   }
   const n = T.dataset && T.dataset.n;
-  if (n) { NEW[n] = T.type === 'checkbox' ? T.checked : T.value; }
+  if (n) {
+    if (T.dataset.kieu === 'ngay') return;
+    NEW[n] = T.type === 'checkbox' ? T.checked : T.value;
+  }
 });
 
 document.addEventListener('change', async (e) => {
   const T = e.target;
+
+  if (NG && T.classList && T.classList.contains('ng-sel')) {
+    const nay = vnParts(new Date());
+    const c = NG.chon || { y: NG.y, m: NG.m, d: nay.d, H: 8, M: 0 };
+    if (T.dataset.ngh) c.H = Number(T.value); else c.M = Number(T.value);
+    NG.chon = c;
+    datNgay(NG.inp, vnISO(c));
+    return;
+  }
+
+  /* Ô ngày giờ: đọc lúc người ta rời ô. Gõ đúng thì viết lại cho chuẩn dạng,
+   * gõ sai thì trả về giá trị cũ chứ không im lặng nuốt mất. */
+  if (T.dataset && T.dataset.kieu === 'ngay') {
+    const cu = T.dataset.k && S.sel ? S.sel[T.dataset.k] : (T.dataset.n ? NEW[T.dataset.n] : null);
+    if (!T.value.trim()) { datNgay(T, null); return; }
+    const iso = docNgayVN(T.value);
+    if (iso) datNgay(T, iso);
+    else { T.value = vnText(cu); toast('Ngày giờ phải theo dạng dd/mm/yyyy hh:mm', 'err'); }
+    return;
+  }
+
   if (T.id === 'fPeriod') {
     S.f.period = T.value;
     render();

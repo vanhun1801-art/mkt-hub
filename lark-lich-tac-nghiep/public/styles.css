@@ -1012,3 +1012,132 @@ a.phieu-f:hover { border-color: var(--primary); background: var(--blue-bg); }
 .phieu-chan { font-size: 11.5px; color: var(--t4); text-align: center; line-height: 1.5; }
 
 @media (max-width: 640px) { .phieu-luoi { grid-template-columns: 1fr; } }
+
+/* ==========================================================================
+   Ô CHỌN NGÀY GIỜ — dd/mm/yyyy HH:mm, 24 giờ, giờ Việt Nam.
+   Tự vẽ thay vì dùng input datetime-local, vì trình duyệt vẽ ô đó theo ngôn
+   ngữ của nó: máy nào cũng ra "08/29/2026 11:40 AM".
+   ========================================================================== */
+.ng { position: relative; display: flex; align-items: stretch; gap: 0; }
+.ng .ng-in {
+  flex: 1; min-width: 0; font-variant-numeric: tabular-nums; letter-spacing: .01em;
+  border-top-right-radius: 0; border-bottom-right-radius: 0;
+}
+.ng-nut {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 38px; flex: 0 0 38px; cursor: pointer;
+  border: 1px solid var(--line); border-left: none;
+  border-radius: 0 var(--r) var(--r) 0;
+  background: var(--surface-2); color: var(--t2);
+}
+.ng-nut:hover { background: var(--blue-bg); color: var(--primary); border-color: var(--primary); }
+.ng.mo .ng-nut { background: var(--blue-bg); color: var(--primary); border-color: var(--primary); }
+.ng.tat .ng-in { border-radius: var(--r); }
+
+.ng-pop {
+  position: absolute; z-index: 60; top: calc(100% + 6px); left: 0;
+  width: 268px; padding: 10px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  box-shadow: 0 12px 34px rgba(20, 30, 60, .18), 0 2px 6px rgba(20, 30, 60, .08);
+}
+.ng-dau { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.ng-thang { font-size: 13px; font-weight: 650; }
+.ng-dh {
+  width: 26px; height: 26px; border-radius: 7px; cursor: pointer; font-size: 15px; line-height: 1;
+  border: 1px solid var(--line); background: var(--surface); color: var(--t2);
+}
+.ng-dh:hover { background: var(--blue-bg); color: var(--primary); border-color: var(--primary); }
+
+.ng-thu, .ng-luoi { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.ng-thu span {
+  text-align: center; font-size: 10.5px; font-weight: 700; color: var(--t3);
+  padding-bottom: 4px; letter-spacing: .02em;
+}
+.ng-o {
+  height: 30px; border: none; background: none; cursor: pointer;
+  border-radius: 7px; font-size: 12.5px; color: var(--t1);
+  font-variant-numeric: tabular-nums;
+}
+.ng-o.mo { visibility: hidden; }                /* ô đệm đầu tháng */
+.ng-o:hover { background: var(--surface-2); }
+.ng-o.nay { box-shadow: inset 0 0 0 1px var(--primary); color: var(--primary); font-weight: 650; }
+.ng-o.chon { background: var(--primary); color: #fff; font-weight: 650; }
+.ng-o.chon:hover { background: var(--primary); }
+
+.ng-gio {
+  display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
+  margin-top: 9px; padding-top: 9px; border-top: 1px solid var(--line);
+}
+.ng-nhan { font-size: 11.5px; color: var(--t3); font-weight: 600; }
+.ng-sel {
+  padding: 4px 6px; border: 1px solid var(--line); border-radius: 7px;
+  background: var(--surface); color: var(--t1); font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.ng-hai { font-weight: 700; color: var(--t3); }
+.ng-24 { margin-left: auto; font-size: 10.5px; color: var(--t4); }
+
+.ng-chan { display: flex; gap: 6px; margin-top: 9px; }
+.ng-chan .btn { flex: 1; justify-content: center; }
+
+/* ==========================================================================
+   Ô CHỈNH SỬA LỊCH — từng nhóm trường là một thẻ có đầu thẻ và bóng nhỏ,
+   cùng ngôn ngữ trình bày với ô chi tiết bên Bảng công việc.
+   Trước đây cả ô là một dải input dài chỉ ngăn bằng gạch mảnh, mắt trôi tuột
+   không biết đang ở phần nào.
+   ========================================================================== */
+.dr-khoi { display: flex; flex-direction: column; gap: 14px; }
+.dr-khoi > * { flex: 0 0 auto; }        /* thẻ không được co lại theo nội dung */
+
+.kh {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(20, 30, 60, .06), 0 6px 20px rgba(20, 30, 60, .05);
+  overflow: hidden;
+}
+.kh-dau {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
+  border-left: 3px solid var(--line-soft);
+}
+.kh-ten {
+  font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--t2);
+}
+.kh-than { padding: 14px; display: flex; flex-direction: column; gap: 13px; min-width: 0; }
+/* Thẻ làm lòng ô hẹp đi, nên mọi thứ bên trong phải biết co lại — không khai
+   min-width:0 thì flex item giữ nguyên bề ngang nội dung và tràn ra ngoài. */
+.kh-than > *, .kh-than .frm-row, .kh-than .pk { min-width: 0; max-width: 100%; }
+.kh-than input, .kh-than textarea, .kh-than select { max-width: 100%; box-sizing: border-box; }
+.kh-than .kv { margin-top: 2px; padding-top: 12px; border-top: 1px solid var(--line-soft); }
+.kh-chon { display: flex; flex-direction: column; gap: 9px; }
+
+/* Mỗi nhóm một màu ở đầu thẻ — nhận ra nhóm bằng màu trước cả khi đọc chữ */
+.kh-chuyen .kh-dau { border-left-color: var(--primary); background: var(--blue-bg); }
+.kh-chuyen .kh-ten { color: var(--primary); }
+.kh-nguoi  .kh-dau { border-left-color: var(--purple); background: var(--purple-bg); }
+.kh-nguoi  .kh-ten { color: var(--purple-t); }
+.kh-tien   .kh-dau { border-left-color: var(--green); background: var(--green-bg); }
+.kh-tien   .kh-ten { color: var(--green-t); }
+.kh-foc    .kh-dau { border-left-color: var(--orange); background: var(--orange-bg); }
+.kh-foc    .kh-ten { color: var(--orange-t); }
+.kh-ketqua .kh-dau { border-left-color: var(--green); }
+.kh-ketqua .kh-ten { color: var(--t1); }
+
+/* Đầu ô nhuốm màu theo giai đoạn của lịch */
+.dr-head { border-left: 4px solid transparent; transition: background .18s; }
+.dh-nhap   { background: linear-gradient(180deg, var(--surface-2), var(--surface)); border-left-color: var(--line); }
+.dh-cho    { background: linear-gradient(180deg, var(--yellow-bg), var(--surface)); border-left-color: #eab308; }
+.dh-sua    { background: linear-gradient(180deg, var(--red-bg), var(--surface)); border-left-color: var(--red); }
+.dh-duyet  { background: linear-gradient(180deg, var(--blue-bg), var(--surface)); border-left-color: var(--primary); }
+.dh-baocao { background: linear-gradient(180deg, var(--orange-bg), var(--surface)); border-left-color: var(--orange); }
+.dh-xong   { background: linear-gradient(180deg, var(--green-bg), var(--surface)); border-left-color: var(--green); }
+.dh-dong   { background: linear-gradient(180deg, var(--gray-bg), var(--surface)); border-left-color: var(--line); }
+
+/* Nhãn trường rõ hơn một bậc, để tách khỏi chữ gợi ý bên dưới ô nhập */
+.kh-than .frm-row > label { font-size: 12px; font-weight: 600; color: var(--t2); }
+.kh-than .frm-2 { gap: 12px; }
+@media (max-width: 560px) { .kh-than .frm-2 { grid-template-columns: 1fr; } }
