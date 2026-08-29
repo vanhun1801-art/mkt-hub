@@ -7,6 +7,8 @@ const S = {
   manager: false,
   items: [],
   people: [],
+  // danh bạ phòng lấy từ lớp vỏ — rộng hơn danh sách người có trong Base này
+  danhBa: [],
   options: {},
   config: {},
   acting: null,       // quản lý đang xem thử giao diện của nhân sự nào
@@ -1298,11 +1300,20 @@ function fieldUsers(key, label, single) {
   const cur = (dv(key) || []).map((u) => (typeof u === 'string' ? u : u.id));
   const ph = single ? 'Chọn một người…' : 'Chọn nhân sự…';
 
-  const dong = S.people.map((p) =>
-    '<div class="pk-row' + (cur.includes(p.id) ? ' on' : '') + '" data-user="' + key + '" data-val="' + esc(p.id) +
+  const veDong = (p) =>
+    '<div class="pk-row' + (cur.includes(p.id) ? ' on' : '') + (p.ngoai ? ' ngoai' : '') +
+    '" data-user="' + key + '" data-val="' + esc(p.id) +
     '" data-single="' + (single ? '1' : '') + '" data-ten="' + esc(khongDau(p.name)) + '">' +
     avatar(p, 22) + '<span class="pk-row-ten">' + esc(p.name) + '</span>' +
-    '<span class="pk-tick">' + (cur.includes(p.id) ? '✓' : '') + '</span></div>').join('');
+    '<span class="pk-tick">' + (cur.includes(p.id) ? '✓' : '') + '</span></div>';
+
+  const ds = dsChonNguoi();
+  const ngoai = ds.filter((p) => p.ngoai);
+  let dong = ds.filter((p) => !p.ngoai).map(veDong).join('');
+  if (ngoai.length) {
+    dong += '<div class="pk-nhom" hidden>Người khác trong phòng — gõ để tìm</div>' +
+      ngoai.map(veDong).join('');
+  }
 
   return '<div class="frm-row"><label>' + esc(label) + (single ? ' <span class="hint">(một người)</span>' : '') + '</label>' +
     '<div class="pk' + (on ? '' : ' pk-tat') + '" data-pk="' + key + '" data-ph="' + esc(ph) + '">' +
@@ -2005,11 +2016,20 @@ function pickerMoi(key, ds, single, ph, laNguoi) {
       (cur.length > 4 ? '<span class="pk-them">+' + (cur.length - 4) + '</span>' : '')
     : '<span class="pk-ph">' + esc(ph) + '</span>';
 
-  const dong = ds.map((p) =>
-    '<div class="pk-row' + (cur.includes(p.id) ? ' on' : '') + '" data-nuser="' + key + '" data-val="' + esc(p.id) +
+  const veDong = (p) =>
+    '<div class="pk-row' + (cur.includes(p.id) ? ' on' : '') + (p.ngoai ? ' ngoai' : '') +
+    '" data-nuser="' + key + '" data-val="' + esc(p.id) +
     '" data-single="' + (single ? '1' : '') + '" data-ten="' + esc(khongDau(p.name)) + '">' +
     (laNguoi ? avatar(p, 22) : '') + '<span class="pk-row-ten">' + esc(p.name) + '</span>' +
-    '<span class="pk-tick">' + (cur.includes(p.id) ? '\u2713' : '') + '</span></div>').join('');
+    '<span class="pk-tick">' + (cur.includes(p.id) ? '\u2713' : '') + '</span></div>';
+
+  const trong = ds.filter((p) => !p.ngoai);
+  const ngoai = ds.filter((p) => p.ngoai);
+  let dong = trong.map(veDong).join('');
+  if (ngoai.length) {
+    dong += '<div class="pk-nhom">Người khác trong phòng — gõ để tìm</div>' +
+      ngoai.map(veDong).join('');
+  }
 
   return '<div class="pk" data-pk="' + key + '" data-ph="' + esc(ph) + '">' +
     '<button type="button" class="pk-sum"><span class="pk-chips">' + chip + '</span>' +
@@ -2048,11 +2068,11 @@ function renderCreate() {
     '<div class="sec-title sec-nguoi">Nhân sự & di chuyển</div>' +
     (MGR()
       ? '<div class="frm-row"><label>Phụ trách chính</label>' +
-          pickerMoi('owner', S.people, true, 'Chọn một người…', true) + '</div>'
+          pickerMoi('owner', dsChonNguoi(), true, 'Chọn một người…', true) + '</div>'
       : '<div class="frm-row"><label>Phụ trách chính</label><input class="fld" value="' +
           esc(S.me ? S.me.name : '—') + '" readonly><div class="hint">Bạn là người đăng ký nên mặc định phụ trách chuyến này.</div></div>') +
     '<div class="frm-row"><label>Nhân sự cùng tác nghiệp</label>' +
-      pickerMoi('staff', S.people, false, 'Chọn nhân sự…', true) + '</div>' +
+      pickerMoi('staff', dsChonNguoi(), false, 'Chọn nhân sự…', true) + '</div>' +
     '<div class="frm-row"><label>Phương tiện</label>' + chips('transport', O.transport) + '</div>' +
 
     (CHIPHI()
@@ -2359,12 +2379,15 @@ document.addEventListener('click', async (e) => {
   if (sum) {
     const pn = sum.parentElement.querySelector('.pk-panel');
     const dangMo = !pn.hidden;
-    document.querySelectorAll('.pk-panel').forEach((x) => { x.hidden = true; });
+    dongBangChon();
     pn.hidden = dangMo;
-    if (!pn.hidden) { const tim = pn.querySelector('.pk-tim'); if (tim) { tim.value = ''; timNguoi(pn); tim.focus(); } }
+    if (!pn.hidden) {
+      const tim = pn.querySelector('.pk-tim');
+      if (tim) { tim.value = ''; timNguoi(pn); tim.focus(); }
+      datChoBangChon(pn);
+    }
     return;
   }
-  if (!T.closest('.pk-panel')) document.querySelectorAll('.pk-panel').forEach((x) => { x.hidden = true; });
 
   /* Bấm thẻ số ở "Lịch của tôi": bấm lần nữa vào thẻ đang chọn thì bỏ lọc. */
   const oThe = T.closest('[data-the]');
@@ -2382,7 +2405,8 @@ document.addEventListener('click', async (e) => {
     const id = uo.dataset.val;
     if (single) cur = cur.includes(id) ? [] : [id];
     else { const i = cur.indexOf(id); if (i >= 0) cur.splice(i, 1); else cur.push(id); }
-    setDraft(k, cur.map((x) => ({ id: x, name: (S.people.find((p) => p.id === x) || {}).name || x })));
+    const tenCua = (x) => (dsChonNguoi().find((p) => p.id === x) || {}).name || x;
+    setDraft(k, cur.map((x) => ({ id: x, name: tenCua(x) })));
     const hop = uo.closest('.pk') || uo.parentElement;
     hop.querySelectorAll('[data-user="' + k + '"]').forEach((b) => {
       const chon = cur.includes(b.dataset.val);
@@ -2408,19 +2432,6 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
-  /* Bấm vào ô tóm tắt của bộ chọn trong form tạo mới -> mở bảng có ô tìm. */
-  const sumMoi = T.closest('.pk-sum');
-  if (sumMoi && sumMoi.closest('#mdBody')) {
-    const pn = sumMoi.parentElement.querySelector('.pk-panel');
-    document.querySelectorAll('.pk-panel').forEach((x) => { if (x !== pn) x.hidden = true; });
-    pn.hidden = !pn.hidden;
-    if (!pn.hidden) {
-      const tim = pn.querySelector('.pk-tim');
-      if (tim) { tim.value = ''; timNguoi(pn); tim.focus(); }
-    }
-    return;
-  }
-
   const nu = T.closest('[data-nuser]');
   if (nu) {
     const k = nu.dataset.nuser;
@@ -2439,7 +2450,7 @@ document.addEventListener('click', async (e) => {
     // vẽ lại chip tóm tắt cho khớp
     const oChip = hop.querySelector('.pk-chips');
     if (oChip) {
-      const ds = k === 'foc' ? (S.options.foc || []).map((x) => ({ id: x, name: x })) : S.people;
+      const ds = k === 'foc' ? (S.options.foc || []).map((x) => ({ id: x, name: x })) : dsChonNguoi();
       const cur = NEW[k] || [];
       const ten = (i2) => (ds.find((x) => x.id === i2) || {}).name || i2;
       oChip.innerHTML = cur.length
@@ -2455,6 +2466,66 @@ document.addEventListener('click', async (e) => {
   if (ns) { await submitCreate(ns.dataset.nsave); return; }
 });
 
+/**
+ * Danh bạ phòng, lấy từ lớp vỏ Marketing Hub.
+ *
+ * Base Lịch tác nghiệp chỉ biết 8 người từng có tên trong lịch — ai đi lần đầu
+ * thì không tìm ra tên mình. Lớp vỏ gom danh bạ từ mọi Base đang bật (Bảng công
+ * việc một mình đã 35 người), nên hỏi nó là đủ, khỏi xin thêm quyền đọc danh bạ
+ * công ty trên Lark. Chạy ngoài lớp vỏ thì không có gì, quay về danh sách cũ.
+ */
+async function taiDanhBa() {
+  if (!window.__HUB__) return;
+  try {
+    /* Lớp vỏ vá fetch để mọi đường dẫn bắt đầu bằng "/" chạy về app con — gọi
+     * "/api/danh-ba" là rơi vào chính app này rồi 404. Ghi đủ origin thì shim
+     * bỏ qua, request mới tới được lớp vỏ. */
+    const r = await fetch(location.origin + '/api/danh-ba');
+    if (!r.ok) return;
+    const d = await r.json();
+    if (Array.isArray(d.nguoi) && d.nguoi.length) S.danhBa = d.nguoi;
+  } catch (_) { /* không có danh bạ thì vẫn chọn được người trong Base */ }
+}
+
+/**
+ * Danh sách cho ô chọn người: người ĐÃ có trong Base đứng trước, phần còn lại
+ * của phòng xếp sau và chỉ hiện khi gõ tìm — để danh sách mở ra không dài dằng
+ * dặc, mà ai cần vẫn tìm ra.
+ */
+function dsChonNguoi() {
+  const trong = S.people || [];
+  const co = new Set(trong.map((x) => x.id));
+  const ngoai = (S.danhBa || []).filter((x) => !co.has(x.id)).map((x) => ({ ...x, ngoai: true }));
+  return [...trong, ...ngoai];
+}
+
+function dongBangChon() {
+  document.querySelectorAll('.pk-panel').forEach((x) => { x.hidden = true; x.classList.remove('len'); });
+}
+
+/**
+ * Bảng chọn cao 260px, mở xuống dưới thì nuốt mất mấy ô kế tiếp — kể cả ô chọn
+ * người thứ hai. Không đủ chỗ bên dưới thì lật lên trên.
+ */
+function datChoBangChon(pn) {
+  const hop = pn.closest('.pk');
+  const khung = pn.closest('.modal-body') || pn.closest('.dr-body');
+  if (!hop || !khung) return;
+  const a = hop.getBoundingClientRect(), k = khung.getBoundingClientRect();
+  const duoi = k.bottom - a.bottom;      // chỗ trống bên dưới ô
+  const tren = a.top - k.top;            // chỗ trống bên trên ô
+  if (duoi < 210 && tren > duoi) pn.classList.add('len');
+}
+
+/* Bấm ra ngoài thì đóng bảng chọn — bắt ở pha capture của mousedown nên không
+ * phụ thuộc vào thứ tự các nhánh trong bộ xử lý click. Trước đây nhánh nào
+ * return sớm (ô ngày, chip phương tiện, nút thao tác) là bảng cứ nằm đó che
+ * hết chỗ bấm bên dưới. */
+document.addEventListener('mousedown', (e) => {
+  if (e.target.closest && e.target.closest('.pk')) return;
+  dongBangChon();
+}, true);
+
 /** Lọc danh sách trong bảng chọn người theo ô tìm. */
 /* Gõ "khanh" phải ra "Nguyễn Long Khánh". Bỏ dấu cả hai phía rồi mới so. */
 const khongDau = (x) => String(x == null ? '' : x).toLowerCase()
@@ -2463,11 +2534,17 @@ const khongDau = (x) => String(x == null ? '' : x).toLowerCase()
 function timNguoi(panel) {
   const q = khongDau(panel.querySelector('.pk-tim').value);
   let hien = 0;
+  let hienNgoai = 0;
   panel.querySelectorAll('.pk-row').forEach((r) => {
-    const khop = !q || (r.dataset.ten || '').includes(q);
+    // Người chưa từng có trong Base chỉ hiện khi đã gõ tìm — bày hết ra thì
+    // danh sách dài lê thê mà 9/10 lần vẫn chọn đúng mấy người quen thuộc.
+    const laNgoai = r.classList.contains('ngoai');
+    const khop = (!q && !laNgoai) || (q && (r.dataset.ten || '').includes(q));
     r.hidden = !khop;
-    if (khop) hien += 1;
+    if (khop) { hien += 1; if (laNgoai) hienNgoai += 1; }
   });
+  const nhom = panel.querySelector('.pk-nhom');
+  if (nhom) nhom.hidden = !hienNgoai;
   let trong = panel.querySelector('.pk-trong-ds');
   if (!hien && !trong) {
     trong = document.createElement('div');
@@ -2592,6 +2669,10 @@ document.addEventListener('change', async (e) => {
 });
 
 document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && document.querySelector('.pk-panel:not([hidden])')) {
+    dongBangChon();     // Esc đóng bảng chọn trước, chưa đóng cả cửa sổ
+    return;
+  }
   if (e.key === 'Escape') {
     if ($('#modal').classList.contains('on')) closeModal();
     else if ($('#drawer').classList.contains('on')) closeDrawer();
@@ -2604,6 +2685,8 @@ document.addEventListener('keydown', (e) => {
   try {
     await load(false);
     render();
+    // danh bạ chỉ để mở rộng ô chọn người, thiếu cũng không chặn gì — tải sau
+    taiDanhBa().then(() => { if (!S.sel) render(); });
     // ?rec=recXXX -> mở luôn ô chi tiết (deep link từ hub hoặc từ Lark)
     const rec = new URLSearchParams(location.search).get('rec');
     if (rec && (S.items || []).some((x) => x.id === rec)) openItem(rec);

@@ -658,13 +658,15 @@ textarea.fld { height: auto; min-height: 84px; padding: 8px 10px; resize: vertic
   background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg);
   box-shadow: var(--shadow-2); padding: 8px;
 }
+/* Không đủ chỗ bên dưới thì lật lên trên, khỏi nuốt mất mấy ô kế tiếp */
+.pk-panel.len { top: auto; bottom: calc(100% + 4px); }
 .pk-tim {
   width: 100%; padding: 7px 10px; margin-bottom: 6px;
   border: 1px solid var(--line); border-radius: var(--r);
   background: var(--surface-2); color: var(--t1); font: inherit; font-size: 13px;
 }
 .pk-tim:focus { outline: 0; border-color: var(--primary); background: var(--surface); }
-.pk-ds { max-height: 240px; overflow-y: auto; display: flex; flex-direction: column; gap: 1px; }
+.pk-ds { max-height: 196px; overflow-y: auto; display: flex; flex-direction: column; gap: 1px; }
 
 .pk-row {
   display: flex; align-items: center; gap: 9px;
@@ -1180,3 +1182,12 @@ a.phieu-f:hover { border-color: var(--primary); background: var(--blue-bg); }
 .ct-xin-huy { opacity: .72; background: var(--surface-2); }
 .ct-xin-huy .ct-viec { color: var(--t2) !important; background: var(--surface) !important; }
 .ct-xin-huy:hover { opacity: 1; }
+
+/* Bảng chọn người: vạch ngăn giữa người đã có trong Base và phần còn lại của
+   phòng. Nhóm dưới chỉ hiện khi đã gõ tìm. */
+.pk-nhom {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--t4); padding: 9px 8px 5px; margin-top: 4px;
+  border-top: 1px solid var(--line-soft);
+}
+.pk-row.ngoai .pk-row-ten { color: var(--t2); }

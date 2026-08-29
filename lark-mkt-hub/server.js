@@ -286,6 +286,11 @@ function danhSach() {
 }
 const timMod = (id) => danhSach().find((m) => m.id === id) || null;
 
+/* Danh bạ gom từ mọi Base — đổi rất chậm nên giữ lại 5 phút, khỏi bắt từng
+ * module trả lời lại mỗi lần ai đó mở ô chọn người. */
+let demDanhBa = null;
+let demDanhBaLuc = 0;
+
 function congKhai(m) {
   return {
     id: m.id, ten: m.ten, mo_ta: m.mo_ta, icon: m.icon, mau: m.mau, kieu: m.kieu,
@@ -317,6 +322,35 @@ async function api(req, res, u) {
       // panel chỉ hiện base người này được xem
       modules: danhSach().filter((x) => duocXem(q, x.id)).map(congKhai),
     });
+  }
+
+  /* Danh bạ chung của phòng.
+   *
+   * Mỗi Base chỉ biết những người từng xuất hiện trong chính nó — Lịch tác
+   * nghiệp có 8 người, Bảng công việc có 35. Nhân sự đi tác nghiệp lần đầu thì
+   * không tìm ra tên mình ở ô chọn người. Gom danh bạ từ mọi Base đang bật là
+   * đủ dùng, mà không phải xin thêm quyền đọc danh bạ công ty trên Lark.
+   *
+   * Chỉ trả về tên và mã người — đúng những thứ vốn đã hiện đầy trên mọi lịch. */
+  if (p === '/api/danh-ba' && m === 'GET') {
+    const { nguoi: nguoiDB, q: qDB } = await aiDangXem(req);
+    const moi = u.searchParams.get('refresh') === '1';
+    if (!moi && demDanhBa && Date.now() - demDanhBaLuc < 5 * 60000) {
+      return ok(res, { nguoi: demDanhBa, tuCache: true });
+    }
+    const gop = new Map();
+    for (const mod of danhSach().filter((x) => x.bat && duocXem(qDB, x.id))) {
+      try {
+        const meta = await goiJson(mod, '/api/meta', { nguoi: nguoiDB });
+        for (const x of [...(meta.people || []), ...(meta.scopePeople || [])]) {
+          if (!x || !x.id || gop.has(x.id)) continue;
+          gop.set(x.id, { id: x.id, name: x.name || x.id });
+        }
+      } catch (e) { /* một Base trục trặc thì vẫn gom được từ các Base còn lại */ }
+    }
+    demDanhBa = [...gop.values()].sort((a, b) => String(a.name).localeCompare(String(b.name), 'vi'));
+    demDanhBaLuc = Date.now();
+    return ok(res, { nguoi: demDanhBa });
   }
 
   if (p === '/api/tongquan' && m === 'GET') {

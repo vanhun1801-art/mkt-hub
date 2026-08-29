@@ -14,8 +14,12 @@ const BY_KEY = Object.entries(F);
 let cache = { at: 0, records: null, fields: null, fieldsAt: 0, me: undefined };
 let inflight = null;
 
+/* Danh sách trường (và các lựa chọn trong đó, VD danh mục FOC) đọc thẳng từ
+ * Base, nên thêm/sửa/xoá lựa chọn bên Base là app tự theo — không phải khai lại
+ * ở đây. Giữ cache ngắn để thay đổi hiện ra trong khoảng một phút rưỡi mà không
+ * cần bấm gì; bấm nút tải lại thì thấy ngay. */
 async function getFields(force = false) {
-  if (!force && cache.fields && Date.now() - cache.fieldsAt < 5 * 60000) return cache.fields;
+  if (!force && cache.fields && Date.now() - cache.fieldsAt < 90000) return cache.fields;
   cache.fields = await lark.listFields();
   cache.fieldsAt = Date.now();
   return cache.fields;
