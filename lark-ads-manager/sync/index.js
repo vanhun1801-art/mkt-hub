@@ -19,7 +19,11 @@ const gads = require('./gads');
 const ADAPTERS = {
   meta: { mod: meta, source: 'Meta API', label: 'Facebook / Meta' },
   tiktok: { mod: tiktok, source: 'TikTok API', label: 'TikTok' },
-  googleAds: { mod: gads, source: 'Google Ads API', label: 'Google Ads (API)' },
+  /* `source` phải là một lựa chọn CÓ SẴN trong cột Nguồn của Base (Nhập tay ·
+   * Meta API · TikTok API · Google Ads · CSV) — khai chuỗi lạ là Lark từ chối ghi.
+   * Dùng chung nhãn "Google Ads" với đường Sheet: hai đường không bao giờ bật
+   * cùng lúc nên không lẫn được. Muốn phân biệt thì thêm lựa chọn mới vào Base. */
+  googleAds: { mod: gads, source: 'Google Ads', label: 'Google Ads (API)' },
   googleSheet: { mod: gsheet, source: 'Google Ads', label: 'Google Ads (qua Sheet)' },
 };
 
