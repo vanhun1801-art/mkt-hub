@@ -788,14 +788,22 @@ function viewMine() {
   const q = S.f.q.trim().toLowerCase();
   const list = mine.filter((t) => (!q || (t.title || '').toLowerCase().includes(q)) && inPeriod(t, S.f.period));
 
-  const lanes = [
-    { t: 'Nháp / Lên kế hoạch', st: ['Đang lên kế hoạch'] },
-    { t: 'Chờ duyệt', st: ['Chờ duyệt/Xử lý'] },
-    { t: 'Cần điều chỉnh', st: ['Từ chối/Cần điều chỉnh'] },
-    { t: 'Đã duyệt · chờ tác nghiệp', st: ['Duyệt/Chờ tác nghiệp'] },
-    { t: 'Đang báo cáo', st: ['Đang báo cáo'] },
-    { t: 'Đã hoàn tất', st: ['Đã hoàn tất'] },
-    { t: 'Đã đóng', st: ['Từ chối', 'Hủy lịch'] },
+  /* Bốn bước theo đúng đường đi thật của một chuyến tác nghiệp. Đặt tên theo việc
+   * phải làm, không theo tên trạng thái trong Base. */
+  const daQua = (t) => toDate(t.start) && toDate(t.start) < startOfDay(new Date());
+  const buocs = [
+    { k: 'nhap', t: '1 · Cần gửi duyệt', mo: 'Bản nháp và lịch bị trả về',
+      loc: (t) => ['Đang lên kế hoạch', 'Từ chối/Cần điều chỉnh'].includes(t.status) },
+    { k: 'cho', t: '2 · Đang chờ duyệt', mo: 'Quản lý đang xem, chưa cần làm gì',
+      loc: (t) => t.status === 'Chờ duyệt/Xử lý' },
+    { k: 'chuan-bi', t: '3 · Đã duyệt · chuẩn bị đi', mo: 'Xem lại giờ, phương tiện, vé',
+      loc: (t) => t.status === 'Duyệt/Chờ tác nghiệp' && !daQua(t) },
+    { k: 'bao-cao', t: '4 · Cần báo cáo', mo: 'Đã qua ngày hoặc đang viết báo cáo',
+      loc: (t) => t.status === 'Đang báo cáo' || (t.status === 'Duyệt/Chờ tác nghiệp' && daQua(t)) },
+    { k: 'xong', t: 'Đã hoàn tất', mo: 'Xong việc, để đối chiếu cuối tháng',
+      loc: (t) => t.status === 'Đã hoàn tất' },
+    { k: 'dong', t: 'Đã đóng', mo: 'Từ chối hoặc huỷ',
+      loc: (t) => ['Từ chối', 'Hủy lịch'].includes(t.status) },
   ];
 
   const today = startOfDay(new Date());
@@ -833,20 +841,86 @@ function viewMine() {
   }
 
   const hien = locTheoThe(list);
-  h += '<div class="lanes">';
-  for (const ln of lanes) {
-    const arr = hien.filter((t) => ln.st.includes(t.status)).sort(byStartAsc);
-    // bấm một thẻ số thì chỉ giữ những làn còn việc, khỏi phải cuộn qua làn trống
-    if (S.f.the && !arr.length) continue;
-    h += '<div class="lane"><div class="lane-head">' +
-      '<i class="dot" style="width:7px;height:7px;border-radius:50%;background:' + stStyle(ln.st[0]).color + ';display:inline-block"></i>' +
-      esc(ln.t) + '<span class="n">' + arr.length + '</span></div><div class="lane-body">';
-    if (!arr.length) h += '<div class="lane-empty">Trống</div>';
-    for (const t of arr) h += tileHtml(t);
-    h += '</div></div>';
+  h += '<div class="buocs">';
+  for (const b of buocs) {
+    const arr = hien.filter(b.loc).sort(byStartAsc);
+    // Bước rỗng thì ẩn hẳn — nhân sự chỉ nên thấy chỗ có việc của mình.
+    // Riêng hai bước đầu vẫn giữ khi không lọc, để biết mình đang trống.
+    if (!arr.length && (S.f.the || ['chuan-bi', 'bao-cao', 'xong', 'dong'].includes(b.k))) continue;
+    h += '<section class="buoc buoc-' + b.k + '">' +
+      '<div class="buoc-dau"><span class="buoc-ten">' + esc(b.t) + '</span>' +
+      '<span class="buoc-n">' + arr.length + '</span>' +
+      '<span class="buoc-mo">' + esc(b.mo) + '</span></div>' +
+      '<div class="buoc-than">';
+    if (!arr.length) h += '<div class="buoc-trong">Không có lịch nào ở bước này.</div>';
+    for (const t of arr) h += theViec(t, b.k);
+    h += '</div></section>';
   }
   h += '</div>';
   return h;
+}
+
+/**
+ * Thẻ việc ở trang "Lịch của tôi", viết theo VIỆC PHẢI LÀM chứ không theo trạng thái.
+ *
+ * Quy trình của nhân sự: gửi duyệt → chờ quản lý → được duyệt thì nắm thông tin và
+ * nhận vé → đi xong thì bấm Báo cáo → quản lý chốt thành Hoàn tất. Mỗi thẻ vì thế
+ * chỉ nói đúng một câu "bây giờ làm gì" và cho đúng một nút chính.
+ */
+function theViec(t, buoc) {
+  const qua = toDate(t.start) && toDate(t.start) < new Date();
+  const veXin = (t.foc || []).length;
+  const veDuyet = t.focStatus === 'Phê duyệt';
+  const veTuChoi = t.focStatus === 'Từ chối';
+
+  /* --- câu việc cần làm + nút chính --- */
+  let viec = '';
+  let nut = '';
+  if (buoc === 'nhap') {
+    viec = t.status === 'Từ chối/Cần điều chỉnh'
+      ? 'Quản lý trả về — sửa lại rồi gửi duyệt lần nữa'
+      : 'Bản nháp — điền đủ thông tin rồi gửi duyệt';
+    if (!PREVIEW()) nut = '<button class="btn sm primary" data-act="submit" data-id="' + t.id + '">Gửi duyệt</button>';
+  } else if (buoc === 'cho') {
+    viec = 'Đang chờ quản lý duyệt — chưa cần làm gì thêm';
+  } else if (buoc === 'chuan-bi') {
+    viec = qua ? 'Đã tới giờ — đi xong thì bấm Báo cáo' : 'Đã duyệt — chuẩn bị đi';
+    if (!PREVIEW()) nut = '<button class="btn sm primary" data-act="report" data-id="' + t.id + '">Báo cáo</button>';
+  } else if (buoc === 'bao-cao') {
+    viec = 'Đi về rồi — điền báo cáo, chi phí và tệp kèm';
+    if (!PREVIEW()) nut = '<button class="btn sm primary" data-act="report" data-id="' + t.id + '">Điền báo cáo</button>';
+  } else {
+    viec = 'Đã hoàn tất';
+  }
+
+  /* --- thông tin cần nắm, chỉ hiện ở bước chuẩn bị đi --- */
+  let can = '';
+  if (buoc === 'chuan-bi' || buoc === 'bao-cao') {
+    const d = [];
+    if ((t.transport || []).length) d.push('<span class="ct-mon">🚗 ' + esc(t.transport.join(', ')) + '</span>');
+    if (t.duration) d.push('<span class="ct-mon">⏱ ' + esc(t.duration) + ' giờ</span>');
+    if (t.costPlan) d.push('<span class="ct-mon">💰 ' + esc(shortMoney(t.costPlan)) + 'đ dự kiến</span>');
+    if (veXin) {
+      const mau = veDuyet ? 'ok' : veTuChoi ? 'no' : 'cho';
+      const chu = veDuyet ? 'Vé đã duyệt — nhận vé trước khi đi' :
+        veTuChoi ? 'Vé bị từ chối' : 'Vé đang chờ quản lý duyệt';
+      d.push('<span class="ct-ve ' + mau + '">🎟 ' + esc(chu) + '</span>');
+      d.push('<span class="ct-mon">' + esc(t.foc.join(' · ')) + '</span>');
+    }
+    if ((t.tickets || []).length) d.push('<span class="ct-ve ok">📎 Đã có ' + t.tickets.length + ' tệp vé / thông tin</span>');
+    if (d.length) can = '<div class="ct-can">' + d.join('') + '</div>';
+  }
+
+  return '<div class="ct" data-open="' + t.id + '">' +
+    '<div class="ct-dau">' +
+      '<div class="ct-ten">' + esc(t.title || '(chưa đặt tên)') + '</div>' +
+      '<div class="ct-luc">' + esc(fmtDT(t.start)) + '</div>' +
+    '</div>' +
+    '<div class="ct-viec">' + esc(viec) + '</div>' +
+    can +
+    '<div class="ct-chan">' + peopleStack(t.staff, 3) +
+      (nut ? '<div class="ct-nut" onclick="event.stopPropagation()">' + nut + '</div>' : '') +
+    '</div></div>';
 }
 
 function tileHtml(t) {
