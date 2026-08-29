@@ -625,7 +625,7 @@ function queueCard(title, arr, note, kind) {
       '<td>' + peopleStack(t.staff, 3) + '</td>' +
       '<td class="num nowrap">' + money(t.costPlan) + '</td>' +
       '<td>' + badge(t.status) + '</td>' +
-      '<td onclick="event.stopPropagation()"><div style="display:flex;gap:5px;flex-wrap:wrap">' + acts + '</div></td>' +
+      '<td><div style="display:flex;gap:5px;flex-wrap:wrap">' + acts + '</div></td>' +
       '</tr>';
   }
   return h + '</tbody></table></div></div>';
@@ -737,26 +737,39 @@ function theSoLichCuaToi(list) {
   const con = (t) => !CLOSED_BAD.includes(t.status);
   const ngay = (t) => toDate(t.start);
 
+  /* Xếp và tô theo MỨC CẤP BÁCH, gấp nhất đứng trước:
+   *   đỏ   = đã trễ, phải làm ngay
+   *   cam  = hôm nay
+   *   vàng = trong 48 giờ, lo trước đi
+   *   xám  = đang chờ người khác, chưa tới lượt mình
+   *   xanh / tím / lục = đang yên, chỉ để tra cứu
+   * Riêng hai thẻ đỏ và cam được tô nền (class "gap") để mắt bắt trước tiên. */
   const the = [
-    { k: 'cho-duyet', nhan: 'Chờ duyệt', loc: (t) => t.status === 'Chờ duyệt/Xử lý', tone: 'vang' },
-    { k: 'da-duyet', nhan: 'Đã duyệt', loc: (t) => t.status === 'Duyệt/Chờ tác nghiệp', tone: 'xanh' },
-    { k: 'hom-nay', nhan: 'Hôm nay', tone: 'dam',
-      loc: (t) => con(t) && ngay(t) && startOfDay(ngay(t)).getTime() === homNay.getTime() },
-    { k: 'sap-48h', nhan: '48 giờ tới', tone: 'cam',
-      loc: (t) => con(t) && ngay(t) && ngay(t) > new Date() && ngay(t) <= mai2 },
-    { k: 'chua-bao-cao', nhan: 'Chưa báo cáo', tone: 'do',
+    { k: 'chua-bao-cao', nhan: 'Trễ báo cáo', tone: 'do', gap: 1, phu: 'phải nộp ngay',
       loc: (t) => ngay(t) && ngay(t) < homNay && ['Duyệt/Chờ tác nghiệp', 'Đang báo cáo'].includes(t.status) },
-    { k: 'hoan-tat', nhan: 'Hoàn tất', loc: (t) => t.status === 'Đã hoàn tất', tone: 'luc' },
-    { k: 'chua-thanh-toan', nhan: 'Chưa thanh toán', tone: 'tim',
+    { k: 'hom-nay', nhan: 'Hôm nay', tone: 'cam', gap: 1, phu: 'đi trong hôm nay',
+      loc: (t) => con(t) && ngay(t) && startOfDay(ngay(t)).getTime() === homNay.getTime() },
+    { k: 'sap-48h', nhan: '48 giờ tới', tone: 'vang', phu: 'chuẩn bị trước',
+      loc: (t) => con(t) && ngay(t) && ngay(t) > new Date() && ngay(t) <= mai2 },
+    { k: 'cho-duyet', nhan: 'Chờ duyệt', tone: 'xam', phu: 'chờ quản lý',
+      loc: (t) => t.status === 'Chờ duyệt/Xử lý' },
+    { k: 'da-duyet', nhan: 'Đã duyệt', tone: 'xanh', phu: 'được đi',
+      loc: (t) => t.status === 'Duyệt/Chờ tác nghiệp' },
+    { k: 'chua-thanh-toan', nhan: 'Chưa thanh toán', tone: 'tim', phu: 'đang chờ tiền',
       loc: (t) => Number(t.costActual || 0) > 0 && t.payment !== 'Đã thanh toán' },
+    { k: 'hoan-tat', nhan: 'Hoàn tất', tone: 'luc', phu: 'xong việc',
+      loc: (t) => t.status === 'Đã hoàn tất' },
   ];
 
   return '<div class="the-lich">' + the.map((x) => {
     const n = list.filter(x.loc).length;
     const chon = S.f.the === x.k;
-    return '<button class="the-o t-' + x.tone + (n ? '' : ' rong') + (chon ? ' chon' : '') +
-      '" data-the="' + x.k + '"><span class="the-so">' + n + '</span>' +
-      '<span class="the-nhan">' + esc(x.nhan) + '</span></button>';
+    // thẻ rỗng thì nhạt hẳn, kể cả thẻ gấp — không có việc thì đừng gào lên
+    return '<button class="the-o t-' + x.tone + (n ? (x.gap ? ' gap' : '') : ' rong') +
+      (chon ? ' chon' : '') + '" data-the="' + x.k + '">' +
+      '<span class="the-so">' + n + '</span>' +
+      '<span class="the-nhan">' + esc(x.nhan) + '</span>' +
+      '<span class="the-phu">' + esc(x.phu) + '</span></button>';
   }).join('') + '</div>';
 }
 
@@ -792,10 +805,12 @@ function viewMine() {
    * phải làm, không theo tên trạng thái trong Base. */
   const daQua = (t) => toDate(t.start) && toDate(t.start) < startOfDay(new Date());
   const buocs = [
-    { k: 'nhap', t: '1 · Cần gửi duyệt', mo: 'Bản nháp và lịch bị trả về',
-      loc: (t) => ['Đang lên kế hoạch', 'Từ chối/Cần điều chỉnh'].includes(t.status) },
-    { k: 'cho', t: '2 · Đang chờ duyệt', mo: 'Quản lý đang xem, chưa cần làm gì',
-      loc: (t) => t.status === 'Chờ duyệt/Xử lý' },
+    { k: 'nhap', t: '1 · Nháp', mo: 'Chưa gửi đi — điền xong thì bấm Gửi duyệt',
+      loc: (t) => t.status === 'Đang lên kế hoạch' },
+    /* Lịch bị trả về gộp chung vào bước 2: với nhân sự thì cả hai đều là "đã gửi
+     * đi rồi", khác nhau ở chỗ một cái bị trả — nên thẻ trả về tô đỏ riêng. */
+    { k: 'cho', t: '2 · Đã gửi · chờ duyệt', mo: 'Gồm cả lịch bị trả về cần điều chỉnh',
+      loc: (t) => ['Chờ duyệt/Xử lý', 'Từ chối/Cần điều chỉnh'].includes(t.status) },
     { k: 'chuan-bi', t: '3 · Đã duyệt · chuẩn bị đi', mo: 'Xem lại giờ, phương tiện, vé',
       loc: (t) => t.status === 'Duyệt/Chờ tác nghiệp' && !daQua(t) },
     { k: 'bao-cao', t: '4 · Cần báo cáo', mo: 'Đã qua ngày hoặc đang viết báo cáo',
@@ -807,9 +822,11 @@ function viewMine() {
   ];
 
   const today = startOfDay(new Date());
+  /* Chỉ lịch ĐÃ DUYỆT mới lên bảng nhắc: đây là chỗ nhắc "sắp đi rồi, chuẩn bị gì".
+   * Lịch còn chờ duyệt thì chưa chắc được đi — nhắc chuẩn bị là nhắc sai. */
   const soon = list.filter((t) => {
     const d = toDate(t.start);
-    return d && d >= today && d < addDays(today, 8) && !CLOSED_BAD.includes(t.status);
+    return d && d >= today && d < addDays(today, 8) && t.status === 'Duyệt/Chờ tác nghiệp';
   }).sort(byStartAsc);
 
   let h = '';
@@ -824,18 +841,31 @@ function viewMine() {
   h += theSoLichCuaToi(list);
 
   if (soon.length && !S.f.the) {
-    h += '<div class="card card-pad" style="margin-bottom:16px"><div class="section-head"><h2>Sắp diễn ra</h2>' +
-      '<span class="muted">7 ngày tới · ' + soon.length + ' lịch</span></div>' +
-      '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px">' +
+    h += '<div class="card card-pad nhac" style="margin-bottom:16px"><div class="section-head">' +
+      '<h2>Sắp đi — nhớ chuẩn bị</h2>' +
+      '<span class="muted">Đã duyệt · 7 ngày tới · ' + soon.length + ' lịch</span></div>' +
+      '<div class="nhac-luoi">' +
       soon.slice(0, 8).map((t) => {
         const d = toDate(t.start);
         const days = Math.round((startOfDay(d) - today) / 86400000);
         const when = days === 0 ? 'Hôm nay' : days === 1 ? 'Ngày mai' : 'Còn ' + days + ' ngày';
-        return '<button class="tile" data-open="' + t.id + '" style="text-align:left">' +
-          '<div class="m" style="margin-bottom:5px"><span class="badge ' + (days <= 1 ? 'orange' : 'blue') + '">' + esc(when) + '</span>' +
-          '<span>' + esc(fmtDT(t.start)) + '</span></div>' +
-          '<div class="t">' + esc(t.title || '(chưa đặt tên)') + '</div>' +
-          '<div class="m">' + badge(t.status) + (t.duration ? '<span>' + esc(t.duration) + ' giờ</span>' : '') + '</div>' +
+        /* Mỗi thẻ trả lời đúng mấy câu nhân sự cần biết trước khi bước ra khỏi cửa:
+         * đi lúc nào, đi bằng gì, vé xong chưa, cầm theo cái gì, ai đi cùng. */
+        const cb = [];
+        cb.push((t.transport || []).length ? '🚗 ' + t.transport.join(', ') : '🚗 chưa chọn phương tiện');
+        if (t.duration) cb.push('⏱ dự kiến ' + t.duration + ' giờ');
+        if ((t.foc || []).length) {
+          cb.push(t.focStatus === 'Phê duyệt' ? '🎟 vé đã duyệt — nhớ nhận vé trước khi đi'
+            : t.focStatus === 'Từ chối' ? '🎟 vé bị từ chối — tự lo'
+            : '🎟 vé chưa duyệt — hỏi quản lý');
+        }
+        if ((t.tickets || []).length) cb.push('📎 đã có ' + t.tickets.length + ' tệp vé / thông tin');
+        if (t.mediaRequest) cb.push(t.mediaStatus === 'Phê duyệt' ? '🎥 có Media đi cùng' : '🎥 Media chưa xác nhận');
+        return '<button class="nhac-o" data-open="' + t.id + '">' +
+          '<div class="nhac-dau"><span class="badge ' + (days <= 1 ? 'orange' : 'blue') + '">' + esc(when) + '</span>' +
+          '<span class="nhac-gio">' + esc(fmtDT(t.start)) + '</span></div>' +
+          '<div class="nhac-ten">' + esc(t.title || '(chưa đặt tên)') + '</div>' +
+          '<ul class="nhac-ds">' + cb.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ul>' +
           '</button>';
       }).join('') + '</div></div>';
   }
@@ -844,10 +874,11 @@ function viewMine() {
   h += '<div class="buocs">';
   for (const b of buocs) {
     const arr = hien.filter(b.loc).sort(byStartAsc);
-    // Bước rỗng thì ẩn hẳn — nhân sự chỉ nên thấy chỗ có việc của mình.
-    // Riêng hai bước đầu vẫn giữ khi không lọc, để biết mình đang trống.
-    if (!arr.length && (S.f.the || ['chuan-bi', 'bao-cao', 'xong', 'dong'].includes(b.k))) continue;
-    h += '<section class="buoc buoc-' + b.k + '">' +
+    // Đang lọc theo thẻ số thì bỏ hẳn bước rỗng, khỏi phải cuộn qua chỗ trống.
+    // Lúc xem đủ thì vẫn giữ bước rỗng nhưng làm nhạt đầu bước, giống cách
+    // Bảng công việc làm mờ làn không có việc.
+    if (!arr.length && S.f.the) continue;
+    h += '<section class="buoc buoc-' + b.k + (arr.length ? '' : ' buoc-rong') + '">' +
       '<div class="buoc-dau"><span class="buoc-ten">' + esc(b.t) + '</span>' +
       '<span class="buoc-n">' + arr.length + '</span>' +
       '<span class="buoc-mo">' + esc(b.mo) + '</span></div>' +
@@ -867,6 +898,19 @@ function viewMine() {
  * nhận vé → đi xong thì bấm Báo cáo → quản lý chốt thành Hoàn tất. Mỗi thẻ vì thế
  * chỉ nói đúng một câu "bây giờ làm gì" và cho đúng một nút chính.
  */
+/**
+ * Đã tới lúc bị giục báo cáo chưa?
+ * Mốc: 9 giờ sáng NGÀY HÔM SAU ngày tác nghiệp — đi về, ngủ một giấc, sáng ra là
+ * phải nộp. Trước mốc đó thì chưa giục, để nhân sự còn nghỉ.
+ */
+function toiHanBaoCao(t) {
+  const d = toDate(t.start);
+  if (!d) return false;
+  const moc = startOfDay(new Date(d.getTime() + 86400000));
+  moc.setHours(9, 0, 0, 0);
+  return new Date() >= moc;
+}
+
 function theViec(t, buoc) {
   const qua = toDate(t.start) && toDate(t.start) < new Date();
   const veXin = (t.foc || []).length;
@@ -874,21 +918,40 @@ function theViec(t, buoc) {
   const veTuChoi = t.focStatus === 'Từ chối';
 
   /* --- câu việc cần làm + nút chính --- */
+  const traVe = t.status === 'Từ chối/Cần điều chỉnh';
+  const giuc = toiHanBaoCao(t);           // đã quá mốc 9h sáng hôm sau
   let viec = '';
   let nut = '';
+  let them = '';                          // class phụ tô màu thẻ khi cần gấp
+  let co = '';                            // cờ trạng thái dán cạnh tên
+
   if (buoc === 'nhap') {
-    viec = t.status === 'Từ chối/Cần điều chỉnh'
-      ? 'Quản lý trả về — sửa lại rồi gửi duyệt lần nữa'
-      : 'Bản nháp — điền đủ thông tin rồi gửi duyệt';
+    viec = 'Bản nháp — điền đủ thông tin rồi bấm Gửi duyệt';
     if (!PREVIEW()) nut = '<button class="btn sm primary" data-act="submit" data-id="' + t.id + '">Gửi duyệt</button>';
   } else if (buoc === 'cho') {
-    viec = 'Đang chờ quản lý duyệt — chưa cần làm gì thêm';
+    if (traVe) {
+      /* Lịch bị trả về nằm chung chỗ chờ duyệt (cùng là "đã gửi đi rồi"), nhưng
+       * phải nổi hẳn bằng màu đỏ vì đây là thứ duy nhất trong ô cần tay người. */
+      viec = 'Quản lý trả về — sửa lại rồi gửi duyệt lần nữa';
+      them = ' ct-tra-ve';
+      co = '<span class="ct-co do">Cần điều chỉnh</span>';
+      if (!PREVIEW()) nut = '<button class="btn sm danger" data-open="' + t.id + '">Điều chỉnh</button>';
+    } else {
+      viec = 'Đang chờ quản lý duyệt — chưa cần làm gì thêm';
+      co = '<span class="ct-co xam">Chờ duyệt</span>';
+      if (!PREVIEW()) nut = '<button class="btn sm" data-open="' + t.id + '">Chỉnh sửa</button>';
+    }
   } else if (buoc === 'chuan-bi') {
-    viec = qua ? 'Đã tới giờ — đi xong thì bấm Báo cáo' : 'Đã duyệt — chuẩn bị đi';
-    if (!PREVIEW()) nut = '<button class="btn sm primary" data-act="report" data-id="' + t.id + '">Báo cáo</button>';
+    viec = qua ? 'Đã tới giờ — đi xong nhớ quay lại bấm Báo cáo' : 'Đã duyệt — chuẩn bị đi';
+    if (giuc) { them = ' ct-giuc'; co = '<span class="ct-co vang">Tới hạn báo cáo</span>'; }
+    if (!PREVIEW()) nut = '<button class="btn sm ' + (giuc ? 'warn' : 'primary') +
+      '" data-act="report" data-id="' + t.id + '">Báo cáo</button>';
   } else if (buoc === 'bao-cao') {
-    viec = 'Đi về rồi — điền báo cáo, chi phí và tệp kèm';
-    if (!PREVIEW()) nut = '<button class="btn sm primary" data-act="report" data-id="' + t.id + '">Điền báo cáo</button>';
+    viec = giuc ? 'Đã qua ngày đi — nộp báo cáo, chi phí và tệp kèm ngay hôm nay'
+                : 'Đi về rồi — điền báo cáo, chi phí và tệp kèm';
+    if (giuc) { them = ' ct-giuc'; co = '<span class="ct-co vang">Tới hạn báo cáo</span>'; }
+    if (!PREVIEW()) nut = '<button class="btn sm ' + (giuc ? 'warn' : 'primary') +
+      '" data-act="report" data-id="' + t.id + '">' + (giuc ? 'Báo cáo ngay' : 'Điền báo cáo') + '</button>';
   } else {
     viec = 'Đã hoàn tất';
   }
@@ -897,6 +960,23 @@ function theViec(t, buoc) {
   /* Luôn vẽ hàng thông tin dù rỗng: thẻ nào cũng đủ bốn hàng thì lưới mới đều,
    * nút ở chân thẻ mới thẳng hàng giữa các thẻ. */
   let can = '<div class="ct-can"></div>';
+  if (buoc === 'xong') {
+    /* Việc xong rồi thì thứ đáng xem không còn là "chuẩn bị gì" nữa mà là
+     * "kết quả ra sao": giờ thực tế, tiền thực chi, thanh toán chưa, nộp được gì. */
+    const d = [];
+    const gio = realHours(t);
+    if (gio && gio !== '—') d.push('<span class="ct-mon">⏱ ' + esc(gio) + '</span>');
+    if (Number(t.costActual || 0) > 0) {
+      d.push('<span class="ct-mon">💰 ' + esc(shortMoney(t.costActual)) + 'đ thực chi</span>');
+      d.push('<span class="ct-ve ' + (t.payment === 'Đã thanh toán' ? 'ok' : 'cho') + '">' +
+        (t.payment === 'Đã thanh toán' ? '✔ đã thanh toán' : '⏳ chưa thanh toán') + '</span>');
+    }
+    if (t.report) d.push('<span class="ct-mon">📝 có báo cáo</span>');
+    if (t.link) d.push('<span class="ct-mon">🔗 có link sản phẩm</span>');
+    if ((t.files || []).length) d.push('<span class="ct-mon">📎 ' + t.files.length + ' tệp kèm</span>');
+    if (!d.length) d.push('<span class="ct-mon">chưa ghi kết quả nào</span>');
+    can = '<div class="ct-can">' + d.join('') + '</div>';
+  }
   if (buoc === 'chuan-bi' || buoc === 'bao-cao') {
     const d = [];
     if ((t.transport || []).length) d.push('<span class="ct-mon">🚗 ' + esc(t.transport.join(', ')) + '</span>');
@@ -913,15 +993,15 @@ function theViec(t, buoc) {
     can = '<div class="ct-can">' + d.join('') + '</div>';
   }
 
-  return '<div class="ct" data-open="' + t.id + '">' +
+  return '<div class="ct' + them + '" data-open="' + t.id + '">' +
     '<div class="ct-dau">' +
-      '<div class="ct-ten">' + esc(t.title || '(chưa đặt tên)') + '</div>' +
+      '<div class="ct-ten">' + esc(t.title || '(chưa đặt tên)') + co + '</div>' +
       '<div class="ct-luc">' + esc(fmtDT(t.start)) + '</div>' +
     '</div>' +
     '<div class="ct-viec">' + esc(viec) + '</div>' +
     can +
     '<div class="ct-chan">' + peopleStack(t.staff, 3) +
-      (nut ? '<div class="ct-nut" onclick="event.stopPropagation()">' + nut + '</div>' : '') +
+      (nut ? '<div class="ct-nut">' + nut + '</div>' : '') +
     '</div></div>';
 }
 
@@ -945,7 +1025,7 @@ function tileHtml(t) {
     (chk.length ? '<div class="m" style="margin-top:6px">' + chk.join('') + '</div>' : '') +
     '<div class="m" style="margin-top:7px">' + peopleStack(t.staff, 3) +
       (t.costPlan ? '<span class="muted">' + shortMoney(t.costPlan) + ' đ</span>' : '') + '</div>' +
-    (acts.length ? '<div class="acts" onclick="event.stopPropagation()">' + acts.join('') + '</div>' : '') +
+    (acts.length ? '<div class="acts">' + acts.join('') + '</div>' : '') +
     '</div>';
 }
 
@@ -1660,6 +1740,9 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
+  /* Nút thao tác luôn được xét TRƯỚC [data-open], nên thẻ/dòng bọc ngoài không bị
+   * mở kèm. Tuyệt đối không bọc nút bằng onclick="event.stopPropagation()": mọi
+   * thứ ở đây bắt sự kiện tại document, chặn nổi bọt là nút chết hẳn. */
   const act = T.closest('[data-act]');
   if (act) {
     e.stopPropagation();

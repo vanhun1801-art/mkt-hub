@@ -728,8 +728,8 @@ textarea.fld { height: auto; min-height: 84px; padding: 8px 10px; resize: vertic
   gap: 10px; margin: 0 0 16px;
 }
 .the-o {
-  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
-  padding: 12px 14px; cursor: pointer; text-align: left;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
+  padding: 11px 14px 12px; cursor: pointer; text-align: left;
   background: var(--surface); border: 1px solid var(--line);
   border-top: 3px solid var(--primary);
   border-radius: 12px;
@@ -738,7 +738,9 @@ textarea.fld { height: auto; min-height: 84px; padding: 8px 10px; resize: vertic
 }
 .the-o:hover { transform: translateY(-1px); box-shadow: 0 2px 4px rgba(20,30,60,.07), 0 10px 24px rgba(20,30,60,.07); }
 .the-so { font-size: 26px; font-weight: 700; line-height: 1.1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
-.the-nhan { font-size: 12px; color: var(--t2); font-weight: 500; }
+.the-nhan { font-size: 12px; color: var(--t1); font-weight: 600; }
+/* dòng phụ nói thẳng "vì sao thẻ này gấp" — con số một mình không nói được điều đó */
+.the-phu { font-size: 10.5px; color: var(--t3); line-height: 1.3; }
 
 /* Màu theo ý nghĩa — xanh dương là tông chính, các màu khác chỉ điểm xuyết */
 .the-o.t-dam  { border-top-color: #1e40af; } .the-o.t-dam  .the-so { color: #1e40af; }
@@ -748,6 +750,15 @@ textarea.fld { height: auto; min-height: 84px; padding: 8px 10px; resize: vertic
 .the-o.t-do   { border-top-color: var(--red); } .the-o.t-do   .the-so { color: var(--red-t); }
 .the-o.t-luc  { border-top-color: var(--green); } .the-o.t-luc  .the-so { color: var(--green-t); }
 .the-o.t-tim  { border-top-color: var(--purple); } .the-o.t-tim  .the-so { color: var(--purple-t); }
+/* xám = việc đang nằm ở tay người khác, mình chưa phải làm gì */
+.the-o.t-xam  { border-top-color: #94a3b8; } .the-o.t-xam  .the-so { color: var(--t2); }
+
+/* CÒN VIỆC GẤP thì tô cả nền + viền dày, để hai thẻ này nổi hẳn khỏi dãy còn lại */
+.the-o.gap { border-width: 1px; box-shadow: 0 2px 4px rgba(20,30,60,.07), 0 10px 24px rgba(20,30,60,.08); }
+.the-o.t-do.gap  { background: var(--red-bg);    border-color: var(--red-vien, #f7c9c7); }
+.the-o.t-cam.gap { background: var(--orange-bg); border-color: #f6d9a8; }
+.the-o.t-do.gap  .the-phu { color: var(--red-t); font-weight: 600; }
+.the-o.t-cam.gap .the-phu { color: var(--orange-t); font-weight: 600; }
 
 /* Thẻ số 0: xám lại, đừng gào lên khi không có việc gì */
 .the-o.rong { border-top-color: var(--line); background: var(--surface-2); }
@@ -874,3 +885,73 @@ textarea.fld { height: auto; min-height: 84px; padding: 8px 10px; resize: vertic
 }
 .ct-nut { margin-left: auto; }
 .ct-nut .btn { min-width: 96px; justify-content: center; }
+
+/* --- "Sắp đi — nhớ chuẩn bị": chỉ lịch ĐÃ DUYỆT, mỗi thẻ là một danh sách mang theo --- */
+.nhac { border-left: 3px solid var(--primary); }
+.nhac-luoi { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
+.nhac-o {
+  display: flex; flex-direction: column; gap: 7px; text-align: left; cursor: pointer;
+  padding: 11px 12px; border: 1px solid var(--line); border-radius: 11px;
+  background: var(--surface-2); font: inherit; color: inherit;
+  transition: border-color .12s, box-shadow .12s, transform .12s;
+}
+.nhac-o:hover { border-color: var(--primary); background: var(--surface); box-shadow: 0 6px 18px rgba(43,92,255,.10); transform: translateY(-1px); }
+.nhac-dau { display: flex; align-items: center; gap: 7px; }
+.nhac-gio { font-size: 11.5px; color: var(--t3); font-variant-numeric: tabular-nums; }
+.nhac-ten { font-size: 13.5px; font-weight: 650; line-height: 1.35; }
+.nhac-ds { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.nhac-ds li { font-size: 12px; color: var(--t2); line-height: 1.4; }
+
+/* Bước không có lịch nào: xoá màu đầu bước cho nhạt hẳn, giống cách Bảng công
+   việc làm mờ làn trống — chỗ có việc mới được quyền nổi. */
+.buoc-rong { box-shadow: none; }
+.buoc-rong .buoc-dau { background: var(--surface-2) !important; color: var(--t3); }
+.buoc-rong .buoc-ten { font-weight: 600; }
+.buoc-rong .buoc-n { background: var(--line); color: var(--t3); }
+.buoc-rong .buoc-mo { color: var(--t4); }
+.buoc-rong .buoc-than { padding: 6px 12px 10px; }
+
+/* --- thẻ cần tay người: đỏ khi bị trả về, vàng khi tới hạn báo cáo --- */
+.ct-tra-ve { border-color: var(--red-vien, #f7c9c7); background: var(--red-bg); }
+.ct-tra-ve .ct-viec { color: var(--red-t) !important; background: rgba(255,255,255,.55) !important; }
+.ct-tra-ve:hover { border-color: var(--red); box-shadow: 0 6px 20px rgba(220,43,61,.14); }
+
+.ct-giuc { border-color: #f0c976; background: var(--yellow-bg); }
+.ct-giuc .ct-viec { color: var(--yellow-t) !important; background: rgba(255,255,255,.6) !important; font-weight: 600; }
+.ct-giuc:hover { border-color: #d9a029; box-shadow: 0 6px 20px rgba(217,160,41,.18); }
+
+/* Cờ trạng thái dán cạnh tên — nói rõ thẻ đang ở tình cảnh nào */
+.ct-co {
+  display: inline-block; margin-left: 6px; vertical-align: 2px;
+  font-size: 10.5px; font-weight: 700; letter-spacing: .01em;
+  padding: 1px 7px; border-radius: 999px; white-space: nowrap;
+}
+.ct-co.do   { background: var(--red-t);    color: #fff; }
+.ct-co.vang { background: var(--yellow-t); color: #fff; }
+.ct-co.xam  { background: var(--line);     color: var(--t2); }
+
+/* Nút "báo cáo ngay" — vàng cảnh báo, đủ nặng để không lẫn với nút thường */
+.btn.warn {
+  background: #d9a029; border-color: #c68f1d; color: #fff; font-weight: 650;
+}
+.btn.warn:hover { filter: brightness(1.07); }
+
+/* Nền tối: mấy chỗ vừa thêm dùng chữ trắng trên nền sáng / lớp phủ trắng — cả hai
+   đều sai khi đảo nền, nên đổi lại cho đọc được. */
+:root[data-theme="toi"] .ct-co.do,
+:root[data-theme="toi"] .ct-co.vang { color: #1a1207; }
+:root[data-theme="toi"] .ct-tra-ve .ct-viec,
+:root[data-theme="toi"] .ct-giuc .ct-viec { background: rgba(0, 0, 0, .28) !important; }
+:root[data-theme="toi"] .ct-giuc { border-color: #6b5320; }
+:root[data-theme="toi"] .the-o.t-cam.gap { border-color: #6b5320; }
+:root[data-theme="toi"] .btn.warn { background: #b9821f; border-color: #a3711a; }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="sang"]) .ct-co.do,
+  :root:not([data-theme="sang"]) .ct-co.vang { color: #1a1207; }
+  :root:not([data-theme="sang"]) .ct-tra-ve .ct-viec,
+  :root:not([data-theme="sang"]) .ct-giuc .ct-viec { background: rgba(0, 0, 0, .28) !important; }
+  :root:not([data-theme="sang"]) .ct-giuc { border-color: #6b5320; }
+  :root:not([data-theme="sang"]) .the-o.t-cam.gap { border-color: #6b5320; }
+  :root:not([data-theme="sang"]) .btn.warn { background: #b9821f; border-color: #a3711a; }
+}
