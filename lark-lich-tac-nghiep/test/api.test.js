@@ -277,6 +277,46 @@ async function call(path, opts) {
     }
   }
 
+  /* ---------- chốt chặn khi nộp báo cáo ---------- */
+  group('9. Chốt chặn của cửa sổ báo cáo (không ghi gì)');
+  {
+    const G = require('../server.js');
+
+    // Nhân sự điền báo cáo lúc lịch đang ở "Duyệt/Chờ tác nghiệp" — hai ô này
+    // là kết quả thật của chuyến, không phải kế hoạch, nên phải ghi được.
+    ok('lịch đã duyệt vẫn ghi được Thời gian kết thúc',
+      !G.khoaKeHoach('Duyệt/Chờ tác nghiệp', ['end']));
+    ok('lịch đã duyệt vẫn ghi được Thời lượng',
+      !G.khoaKeHoach('Duyệt/Chờ tác nghiệp', ['duration']));
+    ok('cả bộ trường của cửa sổ báo cáo đều lọt',
+      !G.khoaKeHoach('Duyệt/Chờ tác nghiệp',
+        ['status', 'end', 'duration', 'costActual', 'reportAfter', 'link', 'mediaNote']));
+
+    // Còn nội dung kế hoạch thì vẫn phải khoá
+    ok('lịch đã duyệt không sửa được Tên hoạt động',
+      G.khoaKeHoach('Duyệt/Chờ tác nghiệp', ['title']));
+    ok('lịch đã duyệt không sửa được Thời gian bắt đầu',
+      G.khoaKeHoach('Duyệt/Chờ tác nghiệp', ['start']));
+    ok('lịch đã hoàn tất không sửa được Kế hoạch',
+      G.khoaKeHoach('Đã hoàn tất', ['plan']));
+    ok('lịch chưa duyệt thì sửa thoải mái',
+      !G.khoaKeHoach('Đang lên kế hoạch', ['title', 'start', 'plan']));
+
+    // Minh chứng: ghi chú TRƯỚC chuyến không được tính là đã báo cáo
+    ok('có Báo cáo sau tác nghiệp thì đủ minh chứng',
+      G.duMinhChung({}, { reportAfter: 'Đã quay xong 3 clip' }));
+    ok('có Liên kết sản phẩm thì đủ minh chứng',
+      G.duMinhChung({}, { link: 'https://roo.vn/a' }));
+    ok('ghi chú trước chuyến KHÔNG tính là đã báo cáo',
+      !G.duMinhChung({ report: 'Xin foc có ăn trưa nhé TP' }, {}));
+    ok('trống trơn thì không cho chuyển sang Đang báo cáo',
+      !G.duMinhChung({}, {}));
+    ok('khoảng trắng cũng không tính',
+      !G.duMinhChung({}, { reportAfter: '   ', link: '  ' }));
+    ok('lấy được giá trị cũ trên bản ghi khi body không gửi lại',
+      G.duMinhChung({ reportAfter: 'đã viết từ trước' }, { status: 'Đang báo cáo' }));
+  }
+
   /* ---------- tổng kết ---------- */
   console.log('\n' + '─'.repeat(52));
   console.log('  ' + pass + ' pass · ' + fail + ' fail');

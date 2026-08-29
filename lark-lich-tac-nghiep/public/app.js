@@ -1039,7 +1039,10 @@ function theViec(t, buoc) {
     can = '<div class="ct-can">' + d.join('') + '</div>';
   }
 
-  return '<div class="ct' + them + '" data-open="' + t.id + '">' +
+  /* Thẻ mở bảng thông tin chứ không mở ô sửa. Riêng lịch chưa gửi duyệt thì vẫn
+   * phải vào được ô sửa, không thì không có đường nào điền nốt bản nháp. */
+  const moGi = chiXem(t) ? 'data-phieu' : 'data-open';
+  return '<div class="ct' + them + '" ' + moGi + '="' + t.id + '">' +
     '<div class="ct-dau">' +
       '<div class="ct-ten">' + esc(t.title || '(chưa đặt tên)') + co + '</div>' +
       '<div class="ct-luc">' + esc(fmtDT(t.start)) + '</div>' +
@@ -1189,9 +1192,20 @@ function statusChoices() {
   return MGR() ? (S.config.statusOrder || []) : (S.config.staffStatuses || []);
 }
 
+/* Lịch đã duyệt trở đi thì với nhân sự không còn gì để sửa: kế hoạch đã chốt,
+ * máy chủ cũng khoá. Mở ô chỉnh sửa lúc đó chỉ tổ để người ta lỡ tay. Nên bấm
+ * vào đâu cũng ra bảng thông tin chỉ đọc — muốn động vào thì chỉ còn đúng nút
+ * Báo cáo. Quản lý vẫn vào ô sửa như thường. */
+const KHOA_SUA = ['Duyệt/Chờ tác nghiệp', 'Đang báo cáo', 'Đã hoàn tất', 'Từ chối', 'Hủy lịch'];
+
+function chiXem(t) {
+  return !MGR() && KHOA_SUA.includes(t.status);
+}
+
 function openItem(id) {
   const t = S.items.find((x) => x.id === id);
   if (!t) return;
+  if (chiXem(t)) return moPhieuDi(id);
   S.sel = t;
   S.draft = {};
   renderDrawer();
@@ -1803,12 +1817,19 @@ function moPhieuDi(id) {
 
   muc('Mục đích', nhieuDong(t.purpose), true);
   muc('Kế hoạch chi tiết', nhieuDong(t.plan), true);
+  muc('Ghi chú trước chuyến', nhieuDong(t.report), true);
   muc('Phụ trách', nguoi(t.owner));
   muc('Cùng tác nghiệp', nguoi(t.staff));
   muc('Phương tiện', chu((t.transport || []).join(', ')));
-  muc('Thời lượng dự kiến', t.duration ? chu(t.duration + ' giờ') : '');
-  muc('Kết thúc dự kiến', t.end ? chu(fmtDT(t.end)) : '');
+  muc('Thời lượng', t.duration ? chu(t.duration + ' giờ') : '');
+  muc('Thời gian kết thúc', t.end ? chu(fmtDT(t.end)) : '');
+  if (t.end) muc('Thời lượng thực tế', chu(realHours(t)));
   if (CHIPHI() && t.costPlan) muc('Chi phí dự kiến', chu(money(t.costPlan) + ' đ'));
+  if (CHIPHI() && t.costActual != null) {
+    muc('Chi phí thực tế', chu(money(t.costActual) + ' đ') +
+      (t.payment ? ' <span class="badge ' + (t.payment === 'Đã thanh toán' ? 'green' : 'yellow') + '">' +
+        esc(t.payment) + '</span>' : ''));
+  }
 
   if ((t.foc || []).length || t.focRequest) {
     const mau = t.focStatus === 'Phê duyệt' ? 'green' : t.focStatus === 'Từ chối' ? 'red' : 'orange';
@@ -1824,15 +1845,24 @@ function moPhieuDi(id) {
       (t.mediaNote ? nhieuDong(t.mediaNote) : ''), true);
   }
 
-  // Tệp vé / thông tin: thứ duy nhất bấm được ở đây, và chỉ để MỞ RA XEM
-  const tep = t.tickets || [];
-  if (tep.length) {
-    muc('Vé & thông tin cần mang',
-      '<div class="phieu-tep">' + tep.map((f) => (f.token
-        ? '<a class="phieu-f" target="_blank" href="' + apiUrl('/api/items/' + t.id + '/file/' + f.token) + '">' +
-          '📎 ' + esc(f.name || 'tệp') + '</a>'
-        : '<span class="phieu-f">📎 ' + esc(f.name || 'tệp') + '</span>')).join('') + '</div>', true);
+  // Kết quả sau chuyến — chỉ hiện khi đã có, để phiếu lúc chưa đi vẫn gọn
+  muc('Báo cáo sau tác nghiệp', nhieuDong(t.reportAfter), true);
+  if (t.link) {
+    muc('Liên kết sản phẩm',
+      '<a class="phieu-f" target="_blank" href="' + esc(t.link) + '">🔗 ' + esc(t.link) + '</a>', true);
   }
+
+  // Tệp: thứ duy nhất bấm được ở đây, và chỉ để MỞ RA XEM
+  const dsTep = (nhan, arr) => {
+    if (!(arr || []).length) return;
+    muc(nhan, '<div class="phieu-tep">' + arr.map((f) => (f.token
+      ? '<a class="phieu-f" target="_blank" href="' + apiUrl('/api/items/' + t.id + '/file/' + f.token) + '">' +
+        '📎 ' + esc(f.name || 'tệp') + '</a>'
+      : '<span class="phieu-f">📎 ' + esc(f.name || 'tệp') + '</span>')).join('') + '</div>', true);
+  };
+  dsTep('Vé & thông tin cần mang', t.tickets);
+  dsTep('Hoá đơn + chứng từ', t.files);
+  dsTep('UNC', t.unc);
 
   const d = toDate(t.start);
   const homNay = startOfDay(new Date());
@@ -1847,11 +1877,15 @@ function moPhieuDi(id) {
         '<div class="phieu-khi">' +
           (khi ? '<span class="badge ' + (cach <= 1 ? 'orange' : 'blue') + '">' + esc(khi) + '</span>' : '') +
           '<span class="phieu-gio">' + esc(fmtDT(t.start)) + '</span>' +
-          '<span class="badge green">Đã duyệt</span>' +
+          badge(t.status) +
         '</div>' +
       '</div>' +
       '<div class="phieu-luoi">' + mucs.join('') + '</div>' +
-      '<div class="phieu-chan">Thông tin đã chốt sau khi duyệt. Cần sửa thì mở lịch ở các bước bên dưới.</div>' +
+      '<div class="phieu-chan">' + esc(!chiXem(t) ? 'Bảng thông tin chỉ để xem.'
+        : t.status === 'Duyệt/Chờ tác nghiệp' ? 'Lịch đã duyệt — nội dung đã chốt. Đi về rồi thì bấm Báo cáo trên thẻ.'
+        : t.status === 'Đang báo cáo' ? 'Đã nộp báo cáo — chờ quản lý nghiệm thu.'
+        : t.status === 'Đã hoàn tất' ? 'Chuyến đi đã hoàn tất, giữ lại để đối chiếu cuối tháng.'
+        : 'Lịch đã đóng — chỉ còn để tra cứu.') + '</div>' +
     '</div>';
   $('#mdBody').onclick = null;
   $('#mdFoot').innerHTML = '';          // cố ý không có nút nào — chỉ còn nút X ở đầu cửa sổ

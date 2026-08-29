@@ -121,6 +121,24 @@ function toCells(patch) {
   return out;
 }
 
+/* Lịch đã duyệt thì nội dung KẾ HOẠCH khoá lại. Nhưng "thời gian kết thúc" và
+ * "thời lượng" không phải kế hoạch — đó là kết quả thật của chuyến đi, nhân sự
+ * điền đúng lúc lịch đang ở trạng thái đã duyệt, nên hai ô này phải mở. */
+const TRUONG_KE_HOACH = ['title', 'purpose', 'plan', 'start', 'transport', 'costPlan', 'foc'];
+const TRANG_THAI_KHOA = ['Duyệt/Chờ tác nghiệp', 'Đã hoàn tất', 'Hủy lịch', 'Từ chối'];
+
+function khoaKeHoach(status, keys) {
+  return TRANG_THAI_KHOA.includes(status) && keys.some((k) => TRUONG_KE_HOACH.includes(k));
+}
+
+/* Chuyển sang "Đang báo cáo" thì phải có gì đó chứng minh đã đi: báo cáo sau
+ * tác nghiệp, hoặc liên kết sản phẩm. 'report' là ghi chú TRƯỚC chuyến nên
+ * không tính — trước đây tính, thành ra nộp khống cũng lọt. */
+function duMinhChung(item, body) {
+  const lay = (k) => String((body[k] != null ? body[k] : item[k]) || '').trim();
+  return !!(lay('reportAfter') || lay('link'));
+}
+
 /** Ghi giá trị mới vào cache cục bộ, giữ đúng dạng của record-list. */
 function applyLocal(rec, patch) {
   for (const key of Object.keys(patch)) {
@@ -499,9 +517,7 @@ async function api(req, res, url) {
           }, 403);
         }
         // Lịch đã duyệt/đóng thì không tự sửa nội dung kế hoạch nữa
-        const locked = ['Duyệt/Chờ tác nghiệp', 'Đã hoàn tất', 'Hủy lịch', 'Từ chối'];
-        const planFields = ['title', 'purpose', 'plan', 'start', 'end', 'duration', 'transport', 'costPlan', 'foc'];
-        if (locked.includes(item.status) && Object.keys(body).some((k) => planFields.includes(k))) {
+        if (khoaKeHoach(item.status, Object.keys(body))) {
           return json(res, {
             error: 'Lịch ở trạng thái "' + item.status + '" - nội dung kế hoạch đã khoá. Hãy báo quản lý.',
             code: 'PLAN_LOCKED',
@@ -510,11 +526,9 @@ async function api(req, res, url) {
       }
 
       if (body.status === cfg.proofRequiredFor) {
-        const rp = body.report != null ? body.report : item.report;
-        const lk = body.link != null ? body.link : item.link;
-        if (!String(rp || '').trim() && !String(lk || '').trim()) {
+        if (!duMinhChung(item, body)) {
           return json(res, {
-            error: 'Cần điền "Báo cáo & ghi chú" hoặc "Liên kết" trước khi chuyển sang Đang báo cáo.',
+            error: 'Cần điền "Báo cáo sau tác nghiệp" hoặc "Liên kết" trước khi chuyển sang Đang báo cáo.',
             code: 'PROOF_REQUIRED',
           }, 400);
         }
@@ -660,6 +674,12 @@ if (!LOOPBACK.includes(BIND) && process.env.HUB_TRUST_HEADER !== '0') {
   process.env.HUB_TRUST_HEADER = '0';
   console.warn('\n  [bảo mật] BIND_HOST=' + BIND + ' mở cổng ra mạng ngoài, nên đã TẮT\n' +
     '  việc tin header danh tính của lớp vỏ. Chạy dưới Marketing Hub thì bỏ BIND_HOST.\n');
+}
+
+/* Được require từ bộ kiểm thử thì chỉ xuất hàm ra, đừng mở cổng. */
+if (require.main !== module) {
+  module.exports = { khoaKeHoach, duMinhChung };
+  return;
 }
 
 server.listen(cfg.port, BIND, () => {
