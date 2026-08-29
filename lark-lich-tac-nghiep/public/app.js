@@ -399,6 +399,7 @@ const SETTLED = [...CLOSED_BAD, 'Đã hoàn tất'];
 const qFoc = () => S.items.filter((t) => t.focRequest && !t.focStatus && !SETTLED.includes(t.status));
 const qMedia = () => S.items.filter((t) => t.mediaRequest && !t.mediaStatus && !SETTLED.includes(t.status));
 const qPay = () => S.items.filter((t) => t.status === 'Đã hoàn tất' && t.costActual != null && t.payment !== 'Đã thanh toán');
+const qHuy = () => S.items.filter((t) => t.cancelWant && !CLOSED_BAD.includes(t.status));
 const qReport = () => {
   const today = startOfDay(new Date());
   return S.items.filter((t) => {
@@ -406,7 +407,7 @@ const qReport = () => {
     return d && d < today && ['Duyệt/Chờ tác nghiệp'].includes(t.status);
   });
 };
-const approveCount = () => qWaiting().length + qFoc().length + qMedia().length;
+const approveCount = () => qWaiting().length + qFoc().length + qMedia().length + qHuy().length;
 
 /* ============ khung ============ */
 function tabDefs() {
@@ -654,6 +655,9 @@ function queueCard(title, arr, note, kind) {
     } else if (kind === 'media') {
       acts = '<button class="btn sm success" data-act="media-ok" data-id="' + t.id + '">Phê duyệt</button>' +
              '<button class="btn sm danger" data-act="media-no" data-id="' + t.id + '">Từ chối</button>';
+    } else if (kind === 'huy') {
+      acts = '<button class="btn sm danger" data-act="huy-ok" data-id="' + t.id + '">Duyệt huỷ</button>' +
+             '<button class="btn sm" data-act="huy-no" data-id="' + t.id + '">Giữ lịch</button>';
     } else if (kind === 'pay') {
       acts = '<button class="btn sm success" data-act="paid" data-id="' + t.id + '">Đã thanh toán</button>' +
              '<button class="btn sm" data-act="hold" data-id="' + t.id + '">Treo</button>';
@@ -662,7 +666,8 @@ function queueCard(title, arr, note, kind) {
     }
 
     const extra = kind === 'foc' ? (t.foc || []).map((x) => '<span class="tag">' + esc(x) + '</span>').join('')
-      : kind === 'pay' ? '<span class="mini muted">Thực tế ' + money(t.costActual) + ' đ</span>' : '';
+      : kind === 'pay' ? '<span class="mini muted">Thực tế ' + money(t.costActual) + ' đ</span>'
+      : kind === 'huy' ? '<span class="mini" style="color:var(--red-t)">Lý do: ' + esc(t.cancelReason || '(không ghi)') + '</span>' : '';
 
     h += '<tr data-open="' + t.id + '">' +
       '<td><div class="tname">' + esc(t.title || '(chưa đặt tên)') + '</div>' +
@@ -683,6 +688,7 @@ function viewApprove() {
     '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 7.2v4M8 4.8v.6" stroke-linecap="round"/></svg>' +
     '<div class="sp">Mọi thao tác ở đây ghi thẳng vào Lark Base. Bấm vào dòng để mở chi tiết trước khi quyết định.</div></div>';
   h += queueCard('Chờ duyệt kế hoạch', qWaiting(), 'Duyệt · Cần chỉnh · Từ chối', 'plan');
+  h += queueCard('Xin huỷ lịch', qHuy(), 'Nhân sự xin huỷ — đọc lý do rồi quyết định', 'huy');
   h += queueCard('Yêu cầu FOC', qFoc(), 'Thông báo muộn nhất 3 ngày kể từ ngày gửi', 'foc');
   h += queueCard('Yêu cầu nhân sự phòng Media', qMedia(), 'Phê duyệt hoặc từ chối hỗ trợ', 'media');
   h += queueCard('Quá ngày chưa báo cáo', qReport(), 'Đã duyệt nhưng chưa chuyển sang báo cáo', 'late');
@@ -866,7 +872,7 @@ function viewMine() {
       loc: (t) => t.status === 'Đã hoàn tất' },
     { k: 'dong', t: 'Đã đóng', mo: 'Từ chối hoặc huỷ',
       loc: (t) => ['Từ chối', 'Hủy lịch'].includes(t.status) },
-  ];
+  ].filter((b) => b.k !== 'dong' || MGR());   // lịch đã đóng chỉ quản lý cần thấy
 
   const today = startOfDay(new Date());
   /* Chỉ lịch ĐÃ DUYỆT mới lên bảng nhắc: đây là chỗ nhắc "sắp đi rồi, chuẩn bị gì".
@@ -971,6 +977,21 @@ function theViec(t, buoc) {
   let them = '';                          // class phụ tô màu thẻ khi cần gấp
   let co = '';                            // cờ trạng thái dán cạnh tên
 
+  /* Đang xin huỷ thì thẻ chỉ còn một việc: chờ quản lý trả lời. Mọi nút khác
+   * tắt đi, khỏi vừa xin huỷ vừa gửi duyệt. */
+  if (t.cancelWant && ['nhap', 'cho'].includes(buoc)) {
+    return '<div class="ct ct-xin-huy" data-phieu="' + t.id + '">' +
+      '<div class="ct-dau">' +
+        '<div class="ct-ten">' + esc(t.title || '(chưa đặt tên)') +
+          '<span class="ct-co xam">Đang xin huỷ</span></div>' +
+        '<div class="ct-luc">' + esc(fmtDT(t.start)) + '</div>' +
+      '</div>' +
+      '<div class="ct-viec">Đã gửi yêu cầu huỷ — chờ quản lý duyệt</div>' +
+      '<div class="ct-can">' + (t.cancelReason
+        ? '<span class="ct-mon">Lý do: ' + esc(t.cancelReason) + '</span>' : '') + '</div>' +
+      '<div class="ct-chan">' + peopleStack(t.staff, 3) + '</div></div>';
+  }
+
   if (buoc === 'nhap') {
     viec = 'Bản nháp — điền đủ thông tin rồi bấm Gửi duyệt';
     if (!PREVIEW()) nut = '<button class="btn sm primary" data-act="submit" data-id="' + t.id + '">Gửi duyệt</button>';
@@ -1042,6 +1063,12 @@ function theViec(t, buoc) {
   /* Thẻ mở bảng thông tin chứ không mở ô sửa. Riêng lịch chưa gửi duyệt thì vẫn
    * phải vào được ô sửa, không thì không có đường nào điền nốt bản nháp. */
   const moGi = chiXem(t) ? 'data-phieu' : 'data-open';
+  /* Nút huỷ để nhạt: đây là đường lùi, không phải việc chính của thẻ. Chỉ có ở
+   * hai bước đầu — lịch đã duyệt thì huỷ hay không là chuyện của quản lý. */
+  if (!PREVIEW() && ['nhap', 'cho'].includes(buoc)) {
+    nut = '<button class="btn sm mo" data-xinhuy="' + t.id + '">Huỷ</button>' + nut;
+  }
+
   return '<div class="ct' + them + '" ' + moGi + '="' + t.id + '">' +
     '<div class="ct-dau">' +
       '<div class="ct-ten">' + esc(t.title || '(chưa đặt tên)') + co + '</div>' +
@@ -1447,6 +1474,10 @@ function renderDrawer() {
     '<div class="s' + (!bad && idx >= 0 && i <= idx ? ' done' : '') + '">' + esc(s.split('/')[0]) + '</div>').join('') + '</div>';
   if (bad) steps = '<div class="banner" style="background:var(--red-bg);color:var(--red-t);border-color:#f7c9c7">' +
     'Lịch này đã <b style="margin:0 4px">' + esc(t.status) + '</b>.</div>';
+  if (t.cancelWant) {
+    steps += '<div class="banner" style="background:var(--red-bg);color:var(--red-t);border-color:var(--red-vien)">' +
+      '<div class="sp"><b>Nhân sự xin huỷ lịch này.</b> Lý do: ' + esc(t.cancelReason || '(không ghi)') + '</div></div>';
+  }
   if (t.status === 'Từ chối/Cần điều chỉnh') steps += '<div class="banner">Quản lý yêu cầu điều chỉnh — sửa nội dung rồi bấm <b style="margin:0 4px">Gửi duyệt lại</b>.</div>';
 
   const locked = !canEditItem();
@@ -1543,6 +1574,10 @@ function renderDrawer() {
     if (t.status === 'Đang báo cáo') {
       acts.push('<button class="btn success" data-act="done" data-id="' + t.id + '">Nghiệm thu hoàn tất</button>');
     }
+    if (t.cancelWant) {
+      acts.push('<button class="btn danger" data-act="huy-ok" data-id="' + t.id + '">Duyệt huỷ</button>');
+      acts.push('<button class="btn" data-act="huy-no" data-id="' + t.id + '">Giữ lịch</button>');
+    }
     if (t.focRequest && !t.focStatus) acts.push('<button class="btn sm" data-act="foc-ok" data-id="' + t.id + '">Duyệt FOC</button>');
     if (t.mediaRequest && !t.mediaStatus) acts.push('<button class="btn sm" data-act="media-ok" data-id="' + t.id + '">Duyệt Media</button>');
     if (!CLOSED_BAD.includes(t.status)) acts.push('<button class="btn sm ghost" data-act="cancel" data-id="' + t.id + '">Hủy lịch</button>');
@@ -1554,6 +1589,9 @@ function renderDrawer() {
     }
     if (t.status === 'Duyệt/Chờ tác nghiệp') {
       acts.push('<button class="btn primary" data-act="report" data-id="' + t.id + '">Điền báo cáo</button>');
+    }
+    if (!t.cancelWant && ['Đang lên kế hoạch', 'Chờ duyệt/Xử lý', 'Từ chối/Cần điều chỉnh'].includes(t.status)) {
+      acts.push('<button class="btn sm mo" data-xinhuy="' + t.id + '">Xin huỷ lịch</button>');
     }
   }
 
@@ -1610,6 +1648,10 @@ const ACTIONS = {
   done:      { patch: { status: 'Đã hoàn tất' }, msg: 'Đã nghiệm thu' },
   submit:    { patch: { status: 'Chờ duyệt/Xử lý' }, msg: 'Đã gửi quản lý duyệt' },
   report:    { patch: { status: 'Đang báo cáo' }, msg: 'Đã chuyển sang báo cáo' },
+  // Quản lý quyết định yêu cầu huỷ: duyệt thì huỷ thật, từ chối thì gỡ cờ xin huỷ
+  'huy-ok':    { patch: { status: 'Hủy lịch', cancelWant: false }, msg: 'Đã duyệt huỷ lịch',
+                 confirm: 'Duyệt huỷ lịch này? Lịch sẽ biến mất khỏi giao diện của nhân sự.' },
+  'huy-no':    { patch: { cancelWant: false }, msg: 'Đã từ chối yêu cầu huỷ' },
   'foc-ok':    { patch: { focStatus: 'Phê duyệt' }, msg: 'Đã duyệt FOC' },
   'foc-no':    { patch: { focStatus: 'Từ chối' }, msg: 'Đã từ chối FOC' },
   'media-ok':  { patch: { mediaStatus: 'Phê duyệt' }, msg: 'Đã duyệt hỗ trợ Media' },
@@ -1617,6 +1659,59 @@ const ACTIONS = {
   paid:      { patch: { payment: 'Đã thanh toán' }, msg: 'Đã đánh dấu thanh toán' },
   hold:      { patch: { payment: 'Treo thanh toán' }, msg: 'Đã treo thanh toán' },
 };
+
+/* ==========================================================================
+   CỬA SỔ XIN HUỶ LỊCH
+   Nhân sự không tự huỷ được — trạng thái "Hủy lịch" nằm trong nhóm chỉ quản lý
+   đặt, chốt cả ở máy chủ. Ở đây họ chỉ gửi yêu cầu kèm lý do.
+   ========================================================================== */
+let XH = null;
+
+function moXinHuy(id) {
+  const t = S.items.find((x) => x.id === id);
+  if (!t) return;
+  if (PREVIEW()) return toast('Đang xem giao diện của người khác — không xin huỷ thay họ được.', 'err');
+  XH = { id, reason: t.cancelReason || '' };
+
+  $('#mdTitle').textContent = 'Xin huỷ lịch tác nghiệp';
+  $('#mdBody').innerHTML =
+    '<div class="bc">' +
+      '<div class="bc-dau">' +
+        '<div class="bc-ten">' + esc(t.title || '(chưa đặt tên)') + '</div>' +
+        '<div class="bc-luc">' + esc(fmtDT(t.start)) + ' · ' + esc(t.status || '') + '</div>' +
+      '</div>' +
+      '<div class="banner">Huỷ hay không do quản lý quyết định. Gửi xong lịch vẫn giữ nguyên ' +
+        'trạng thái cho tới khi được duyệt huỷ.</div>' +
+      '<div class="frm-row"><label>Lý do huỷ *</label>' +
+        '<textarea class="fld" data-xh="reason" rows="4" placeholder="VD: Đối tác dời lịch sang tuần sau">' +
+        esc(XH.reason) + '</textarea></div>' +
+    '</div>';
+  $('#mdBody').onclick = null;
+  $('#mdFoot').innerHTML =
+    '<button class="btn" data-close="1">Thôi, giữ lịch</button>' +
+    '<button class="btn danger" id="xhGui">Gửi yêu cầu huỷ</button>';
+  $('#modal').classList.add('on');
+}
+
+async function guiXinHuy() {
+  if (!XH) return;
+  if (!String(XH.reason).trim()) return toast('Chưa ghi lý do huỷ', 'err');
+  const nut = $('#xhGui');
+  nut.disabled = true;
+  try {
+    await api('/api/items/' + XH.id, {
+      method: 'PATCH',
+      body: JSON.stringify({ cancelWant: true, cancelReason: XH.reason.trim() }),
+    });
+    closeModal();
+    XH = null;
+    toast('Đã gửi yêu cầu huỷ — chờ quản lý duyệt', 'ok');
+    await refresh(true);
+  } catch (e) {
+    nut.disabled = false;
+    toast(e.message, 'err');
+  }
+}
 
 /* ==========================================================================
    CỬA SỔ BÁO CÁO SAU TÁC NGHIỆP
@@ -2106,7 +2201,7 @@ document.addEventListener('click', async (e) => {
   const T = e.target;
 
   const close = T.closest('[data-close]');
-  if (close) { closeModal(); BC = null; $('#mdTitle').textContent = 'Đăng ký lịch tác nghiệp'; return; }
+  if (close) { closeModal(); BC = null; XH = null; $('#mdTitle').textContent = 'Đăng ký lịch tác nghiệp'; return; }
 
   const tab = T.closest('[data-tab]');
   if (tab) { S.tab = tab.dataset.tab; render(); return; }
@@ -2214,6 +2309,10 @@ document.addEventListener('click', async (e) => {
   }
 
   // Phiếu đi phải được xét trước [data-open]: nó là cửa sổ chỉ đọc, không phải ô sửa
+  // Xin huỷ xét trước [data-phieu]/[data-open]: nút nằm lọt trong thẻ và trong ô chi tiết
+  const xh = T.closest('[data-xinhuy]');
+  if (xh) { closeDrawer(); moXinHuy(xh.dataset.xinhuy); return; }
+
   const phieu = T.closest('[data-phieu]');
   if (phieu) { moPhieuDi(phieu.dataset.phieu); return; }
 
@@ -2233,6 +2332,7 @@ document.addEventListener('click', async (e) => {
   if (T.closest('#drClose') || T.closest('#mask')) { closeDrawer(); return; }
   if (T.closest('#drSave')) { await saveDraft(); return; }
   if (T.closest('#bcGui')) { await guiBaoCao(); return; }
+  if (T.closest('#xhGui')) { await guiXinHuy(); return; }
   if (T.closest('#fReset')) { S.f = { period: 'month', person: 'all', status: 'all', q: '', the: '' }; render(); return; }
 
   // multi-select trong drawer
@@ -2386,6 +2486,8 @@ document.addEventListener('input', (e) => {
   }
   const T = e.target;
   if (T.id === 'fQ') { S.f.q = T.value; clearTimeout(window.__qt); window.__qt = setTimeout(render, 240); return; }
+
+  if (T.dataset && T.dataset.xh && XH) { XH[T.dataset.xh] = T.value; return; }
 
   const bc = T.dataset && T.dataset.bc;
   if (bc && BC) {

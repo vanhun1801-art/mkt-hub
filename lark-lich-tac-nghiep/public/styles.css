@@ -1167,3 +1167,16 @@ a.phieu-f:hover { border-color: var(--primary); background: var(--blue-bg); }
 
 /* Cửa sổ báo cáo dài hơn cửa sổ đăng ký — cho cuộn trong thân, đầu và chân đứng yên */
 #modal .modal-body { max-height: min(66vh, 620px); }
+
+/* Nút đường lùi (Huỷ / Xin huỷ): xám nhạt, cố tình không mời gọi — đây không
+   phải việc chính của thẻ, chỉ là lối thoát khi cần. */
+.btn.mo {
+  background: transparent; border-color: var(--line);
+  color: var(--t3); font-weight: 500;
+}
+.btn.mo:hover { background: var(--red-bg); border-color: var(--red-vien); color: var(--red-t); }
+
+/* Thẻ đang chờ quản lý trả lời yêu cầu huỷ: mờ hẳn, không còn nút nào */
+.ct-xin-huy { opacity: .72; background: var(--surface-2); }
+.ct-xin-huy .ct-viec { color: var(--t2) !important; background: var(--surface) !important; }
+.ct-xin-huy:hover { opacity: 1; }

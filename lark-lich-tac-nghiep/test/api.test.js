@@ -317,6 +317,56 @@ async function call(path, opts) {
       G.duMinhChung({ reportAfter: 'đã viết từ trước' }, { status: 'Đang báo cáo' }));
   }
 
+  /* ---------- xin huỷ lịch ---------- */
+  group('10. Xin huỷ lịch (không ghi gì)');
+  {
+    const G = require('../server.js');
+    const mau = [
+      { id: 'a', status: 'Đang lên kế hoạch' },
+      { id: 'b', status: 'Duyệt/Chờ tác nghiệp' },
+      { id: 'c', status: 'Hủy lịch' },
+      { id: 'd', status: 'Từ chối' },
+      { id: 'e', status: 'Hủy lịch' },
+    ];
+
+    /* Chạy ở chế độ cli thì máy chủ lấy danh tính từ lark-cli chứ không đọc
+     * header, nên không giả vai nhân sự bằng request được — kiểm thẳng hàm lọc. */
+    const cuaNhanSu = G.anLichHuy(mau, false);
+    ok('nhân sự không còn thấy lịch đã huỷ',
+      !cuaNhanSu.some((t) => t.status === 'Hủy lịch'),
+      'còn ' + cuaNhanSu.filter((t) => t.status === 'Hủy lịch').length);
+    ok('lịch bị Từ chối thì nhân sự vẫn thấy (khác với huỷ)',
+      cuaNhanSu.some((t) => t.status === 'Từ chối'));
+    ok('cắt đúng 2 lịch huỷ, giữ lại 3', cuaNhanSu.length === 3, 'còn ' + cuaNhanSu.length);
+    ok('quản lý vẫn thấy đủ để đối chiếu', G.anLichHuy(mau, true).length === 5);
+
+    const cfgApp = (await call('/api/meta')).body.config || {};
+    ok('"Hủy lịch" nằm trong nhóm trạng thái chỉ quản lý đặt',
+      (cfgApp.managerStatuses || []).includes('Hủy lịch'));
+    ok('nhân sự không tự đặt được trạng thái Hủy lịch',
+      !(cfgApp.staffStatuses || []).includes('Hủy lịch'));
+
+    /* KHÔNG kiểm quyền xoá bằng cách gọi thật DELETE. Ở chế độ cli máy chủ lấy
+     * danh tính từ lark-cli chứ không đọc header, nên request nào cũng là quản
+     * lý — lần đầu viết bài này nó đã xoá thật một bản ghi của Base. Chốt chặn
+     * requireManager nằm ngay đầu nhánh DELETE, đọc mã là thấy. */
+
+    // Xin huỷ mà không ghi lý do thì máy chủ phải chặn, không chỉ giao diện chặn
+    const meta = await call('/api/meta');
+    const nhap = (meta.body.items || []).find((t) => t.status === 'Đang lên kế hoạch' && !t.cancelReason);
+    if (nhap) {
+      const bad = await call('/api/items/' + nhap.id, {
+        method: 'PATCH',
+        body: JSON.stringify({ cancelWant: true, cancelReason: '   ' }),
+      });
+      ok('xin huỷ không kèm lý do bị máy chủ chặn',
+        bad.status === 400 && bad.body.code === 'CANCEL_REASON_REQUIRED',
+        'status=' + bad.status + ' ' + JSON.stringify(bad.body));
+    } else {
+      ok('bỏ qua: Base không có bản nháp nào để thử', true);
+    }
+  }
+
   /* ---------- tổng kết ---------- */
   console.log('\n' + '─'.repeat(52));
   console.log('  ' + pass + ' pass · ' + fail + ' fail');

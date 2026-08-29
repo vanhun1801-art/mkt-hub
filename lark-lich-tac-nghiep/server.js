@@ -127,6 +127,13 @@ function toCells(patch) {
 const TRUONG_KE_HOACH = ['title', 'purpose', 'plan', 'start', 'transport', 'costPlan', 'foc'];
 const TRANG_THAI_KHOA = ['Duyệt/Chờ tác nghiệp', 'Đã hoàn tất', 'Hủy lịch', 'Từ chối'];
 
+/* Lịch đã huỷ thì với nhân sự coi như không còn: cắt ngay ở server để nó biến
+ * mất khỏi mọi tab, mọi con số, chứ không phải chỉ ẩn trên giao diện. Quản lý
+ * vẫn thấy đủ để đối chiếu cuối tháng. */
+function anLichHuy(items, manager) {
+  return manager ? items : items.filter((t) => t.status !== 'Hủy lịch');
+}
+
 function khoaKeHoach(status, keys) {
   return TRANG_THAI_KHOA.includes(status) && keys.some((k) => TRUONG_KE_HOACH.includes(k));
 }
@@ -332,10 +339,12 @@ async function api(req, res, url) {
       if (p) acting = p;
     }
 
-    const scoped = acting ? all.filter((t) => ownedBy(t, acting.id))
+    const scoped0 = acting ? all.filter((t) => ownedBy(t, acting.id))
       : manager ? all
       // nhân sự được cấp "Xem toàn bộ" thì thấy lịch cả phòng (chỉ để xem)
       : (me ? (qToanBo() ? all : all.filter((t) => ownedBy(t, me.id))) : []);
+
+    const scoped = anLichHuy(scoped0, manager);
 
     return json(res, {
       me, manager, acting,
@@ -525,6 +534,15 @@ async function api(req, res, url) {
         }
       }
 
+      /* Xin huỷ mà không nói vì sao thì quản lý không có gì để quyết. Chặn ở đây
+       * chứ không chỉ ở giao diện, vì API gọi thẳng vẫn phải chặn được. */
+      if (body.cancelWant === true) {
+        const ld = body.cancelReason != null ? body.cancelReason : item.cancelReason;
+        if (!String(ld || '').trim()) {
+          return json(res, { error: 'Phải ghi lý do huỷ.', code: 'CANCEL_REASON_REQUIRED' }, 400);
+        }
+      }
+
       if (body.status === cfg.proofRequiredFor) {
         if (!duMinhChung(item, body)) {
           return json(res, {
@@ -678,7 +696,7 @@ if (!LOOPBACK.includes(BIND) && process.env.HUB_TRUST_HEADER !== '0') {
 
 /* Được require từ bộ kiểm thử thì chỉ xuất hàm ra, đừng mở cổng. */
 if (require.main !== module) {
-  module.exports = { khoaKeHoach, duMinhChung };
+  module.exports = { khoaKeHoach, duMinhChung, anLichHuy };
   return;
 }
 

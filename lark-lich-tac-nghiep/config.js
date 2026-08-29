@@ -98,6 +98,10 @@ module.exports = {
     // Ghi chú TRƯỚC chuyến nằm ở 'report'; ô này là báo cáo SAU chuyến, nhân sự
     // tự điền trong cửa sổ Báo cáo. Tách hẳn để hai nội dung không đè lên nhau.
     reportAfter:  { id: 'fldOyWVGRZ', name: 'Báo cáo sau tác nghiệp',   type: 'text' },
+    // Xin huỷ: nhân sự không tự đặt trạng thái Hủy lịch được, chỉ gửi yêu cầu
+    // kèm lý do; quản lý duyệt thì mới thành huỷ thật.
+    cancelWant:   { id: 'fldYDTcc9j', name: 'Xin huỷ lịch',              type: 'checkbox' },
+    cancelReason: { id: 'fld9YWyXW6', name: 'Lý do huỷ',                 type: 'text' },
     link:         { id: 'fldXmEsMAD', name: 'Liên kết',                 type: 'text' },
     tickets:      { id: 'fld4ka0VLj', name: 'Vé & thông tin cần thiết', type: 'attachment', readOnly: true },
     files:        { id: 'fldhQfS9ch', name: 'Tệp đính kèm',             type: 'attachment', readOnly: true },
@@ -132,7 +136,10 @@ module.exports = {
   staffEditable: [
     'title', 'purpose', 'plan', 'start', 'end', 'duration', 'staff',
     'transport', 'costPlan', 'foc', 'focRequest', 'mediaRequest',
+    // 'cancelWant'/'cancelReason': nhân sự chỉ được XIN huỷ, việc huỷ thật do quản
+    // lý quyết định qua trạng thái — mà 'Hủy lịch' nằm trong managerStatuses.
     'report', 'reportAfter', 'link', 'status', 'costActual', 'mediaNote',
+    'cancelWant', 'cancelReason',
   ],
 
   // Trường chỉ quản lý được sửa (dùng cho form + chốt ở server)
