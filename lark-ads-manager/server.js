@@ -157,7 +157,7 @@ async function saveEntries(body) {
     }
   }
   if (toCreate.length) created.push(...(await lark.createMany(T.daily.id, toCreate)));
-  store.invalidate();
+  xoaDem();
   return { date, created: created.length, updated: updated.length, skipped };
 }
 
@@ -184,6 +184,18 @@ async function dataFor(u) {
     const d = await store.get();
     return { ...d, live: { bat: false, nenTang: [], loi: [{ loi: e.message }], layLuc: null } };
   }
+}
+
+/**
+ * Ghi xong thì phải xoá CẢ HAI lớp đệm.
+ *
+ * store là đệm đọc Base; live là đệm số lấy thẳng từ nền tảng (TTL 3 phút) và nó
+ * ĐÈ LÊN số Base trong 14 ngày gần nhất. Chỉ xoá store thì sửa xong đọc lại vẫn
+ * ra số cũ suốt 3 phút — người dùng tưởng app không lưu.
+ */
+function xoaDem() {
+  store.invalidate();
+  try { live.xoaCache(); } catch (_) {}
 }
 
 /* ---------------- router ---------------- */
@@ -390,12 +402,12 @@ async function api(req, res, u) {
       if (clash) return fail(res, 409, `ID "${extId}" đang gắn ở "${clash.name}" — bỏ ở đó trước đã`);
     }
     await lark.updateRecord(spec[0], body.recordId, { [spec[1]]: extId });
-    store.invalidate();
+    xoaDem();
     return ok(res, { updated: body.recordId, extId });
   }
 
   if (p === '/api/refresh' && method === 'POST') {
-    store.invalidate();
+    xoaDem();
     live.xoaCache();
     const data = await store.get({ force: true });
     return ok(res, { loadedAt: data.loadedAt, counts: { daily: data.daily.length } });
@@ -418,7 +430,7 @@ async function api(req, res, u) {
     });
     if (!Object.keys(fields).length) return fail(res, 400, 'Không có trường nào để cập nhật');
     await lark.updateRecord(T.campaign.id, m[1], fields);
-    store.invalidate();
+    xoaDem();
     return ok(res, { updated: m[1], fields: Object.keys(fields).length });
   }
 
@@ -434,7 +446,7 @@ async function api(req, res, u) {
     });
     if (!Object.keys(fields).length) return fail(res, 400, 'Không có trường nào để cập nhật');
     await lark.updateRecord(T.group.id, m[1], fields);
-    store.invalidate();
+    xoaDem();
     return ok(res, { updated: m[1] });
   }
 
@@ -449,7 +461,7 @@ async function api(req, res, u) {
     });
     if (!Object.keys(fields).length) return fail(res, 400, 'Không có trường nào để cập nhật');
     await lark.updateRecord(T.ad.id, m[1], fields);
-    store.invalidate();
+    xoaDem();
     return ok(res, { updated: m[1] });
   }
 
@@ -463,12 +475,12 @@ async function api(req, res, u) {
       });
       if (!Object.keys(fields).length) return fail(res, 400, 'Không có trường nào để cập nhật');
       await lark.updateRecord(T.daily.id, m[1], fields);
-      store.invalidate();
+      xoaDem();
       return ok(res, { updated: m[1] });
     }
     if (method === 'DELETE') {
       await lark.deleteRecords(T.daily.id, [m[1]]);
-      store.invalidate();
+      xoaDem();
       return ok(res, { deleted: m[1] });
     }
   }
