@@ -440,7 +440,13 @@ textarea.fld { height: auto; min-height: 84px; padding: 8px 10px; resize: vertic
   position: fixed; z-index: 70; inset: 0; display: none; place-items: center; padding: 24px;
 }
 .modal.on { display: grid; }
+/* Lớp phủ nằm BÊN TRONG .modal (để bấm ra ngoài thì đóng). Nó có z-index 50 và
+   .modal-box thì không có, nên trong cùng ngăn xếp lớp phủ đè lên chính nội dung
+   cửa sổ — bấm vào ô nhập là trúng lớp phủ, gõ không được chữ nào. Hạ lớp phủ
+   xuống và nâng hộp nội dung lên. */
+.modal > .mask { z-index: 0; }
 .modal-box {
+  position: relative; z-index: 1;
   background: var(--surface); border-radius: 10px; box-shadow: var(--shadow-3);
   width: 720px; max-width: 100%; max-height: 90vh; display: flex; flex-direction: column;
 }
