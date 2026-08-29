@@ -171,9 +171,13 @@ function toCells(patch) {
           out[f.name] = null;
           break;
         }
+        /* Base ghi giờ Việt Nam. Máy chủ trên Render chạy giờ UTC nên getHours()
+         * của máy sẽ lệch 7 tiếng — quy đổi thẳng sang UTC+7 để chạy ở đâu cũng
+         * ra một kết quả. Điều kiện: trình duyệt phải gửi mốc có kèm múi giờ. */
+        const vn = new Date(d.getTime() + 7 * 3600000);
         out[f.name] =
-          d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
-          ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':00';
+          vn.getUTCFullYear() + '-' + pad(vn.getUTCMonth() + 1) + '-' + pad(vn.getUTCDate()) +
+          ' ' + pad(vn.getUTCHours()) + ':' + pad(vn.getUTCMinutes()) + ':00';
         break;
       }
       case 'rating':

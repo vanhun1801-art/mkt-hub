@@ -149,20 +149,66 @@ function parseDate(v) {
   return isNaN(d.getTime()) ? null : d;
 }
 
-function fmtDate(v, withTime) {
+/* ==========================================================================
+   NGÀY GIỜ — cả app dùng đúng một dạng: dd/mm/yyyy HH:mm, 24 giờ, giờ Việt Nam.
+   Base ghi theo giờ Việt Nam (UTC+7, không có giờ mùa hè) nên quy đổi bằng độ
+   lệch cố định thay vì mượn múi giờ của máy: máy nhân sự đặt sai múi giờ, hay
+   máy chủ Render chạy giờ UTC, đều vẫn ra đúng một con số.
+   ========================================================================== */
+const LECH_VN = 7 * 3600000;
+const p2 = (n) => String(n).padStart(2, '0');
+
+/** Tách một mốc thời gian thành ngày–giờ Việt Nam. */
+function vnParts(v) {
   const d = parseDate(v);
-  if (!d) return '';
-  const s = d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: '2-digit' });
-  if (!withTime) return s;
-  const h = d.getHours(), m = d.getMinutes();
-  return h || m ? s + ' ' + String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') : s;
+  if (!d) return null;
+  const x = new Date(d.getTime() + LECH_VN);
+  return {
+    y: x.getUTCFullYear(), m: x.getUTCMonth() + 1, d: x.getUTCDate(),
+    H: x.getUTCHours(), M: x.getUTCMinutes(),
+  };
 }
 
-function toLocalInput(v) {
-  const d = parseDate(v);
-  if (!d) return '';
-  const p = (n) => String(n).padStart(2, '0');
-  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes());
+/** Ghép ngày–giờ Việt Nam thành mốc ISO có kèm múi giờ để gửi lên máy chủ. */
+function vnISO(p) {
+  return new Date(Date.UTC(p.y, p.m - 1, p.d, p.H, p.M) - LECH_VN).toISOString();
+}
+
+function fmtDate(v, withTime) {
+  const p = vnParts(v);
+  if (!p) return '';
+  const s = p2(p.d) + '/' + p2(p.m) + '/' + String(p.y).slice(2);
+  if (!withTime) return s;
+  return (p.H || p.M) ? s + ' ' + p2(p.H) + ':' + p2(p.M) : s;
+}
+
+/** Dạng đầy đủ cho ô nhập: luôn có giờ, kể cả 00:00. */
+function vnText(v) {
+  const p = vnParts(v);
+  return p ? p2(p.d) + '/' + p2(p.m) + '/' + p.y + ' ' + p2(p.H) + ':' + p2(p.M) : '';
+}
+
+/**
+ * Đọc chuỗi người dùng gõ tay thành mốc ISO.
+ * Nhận rộng tay: 29/8/2026 14:40 · 29-08-2026 14:40 · 29/08/2026 (thành 00:00)
+ * · 29/08 (lấy năm hiện tại). Không đọc được thì trả null.
+ */
+function docNgayVN(str) {
+  const s0 = String(str || '').trim();
+  if (!s0) return null;
+  const m = s0.match(/^(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{2,4}))?(?:[\s,]+(\d{1,2})[:h.](\d{1,2}))?$/);
+  if (!m) return null;
+  const nay = vnParts(new Date());
+  const d = +m[1], mo = +m[2];
+  let y = m[3] == null ? nay.y : +m[3];
+  if (y < 100) y += 2000;
+  const H = m[4] == null ? 0 : +m[4];
+  const M = m[5] == null ? 0 : +m[5];
+  if (mo < 1 || mo > 12 || d < 1 || d > 31 || H > 23 || M > 59) return null;
+  const iso = vnISO({ y, m: mo, d, H, M });
+  const lai = vnParts(iso);
+  // 31/02 sẽ bị Date đẩy sang tháng sau — bắt lại chứ không nhận bừa
+  return (lai.d === d && lai.m === mo) ? iso : null;
 }
 
 function daysLeft(v) {
@@ -1542,7 +1588,10 @@ function openAssign(t) {
   S.assignPick = (t.owner || []).slice();
   ownerBox.appendChild(peopleDropdown(t.owner, (v) => { S.assignPick = v; }, 'Chọn người phụ trách…'));
 
-  $('#assignDeadline').value = toLocalInput(t.deadline1 || t.deadline2);
+  S.assignDl = t.deadline1 || t.deadline2 || null;
+  const hopHan = $('#assignDeadline');
+  hopHan.innerHTML = '';
+  hopHan.appendChild(ngayInput(S.assignDl, (v) => { S.assignDl = v; }));
   fillNativeSelect($('#assignPriority'), o.priority, t.priority, '— Ưu tiên —');
   fillNativeSelect($('#assignType'), o.workType, t.workType, '— Loại việc —');
   fillNativeSelect($('#assignCampaign'), o.campaign, t.campaign, '— Campain —');
@@ -1571,8 +1620,7 @@ async function submitAssign() {
 
   const patch = {};
   if ((S.assignPick || []).length) patch.owner = S.assignPick;
-  const dl = $('#assignDeadline').value;
-  if (dl) patch.deadline1 = dl;
+  if (S.assignDl) patch.deadline1 = S.assignDl;
   const pri = $('#assignPriority').value;
   if (pri) patch.priority = pri;
   const wt = $('#assignType').value;
@@ -1904,6 +1952,164 @@ function field(label, node) {
   f.appendChild(el('label', '', label));
   f.appendChild(node);
   return f;
+}
+
+/**
+ * Ô nhập ngày giờ dùng chung.
+ *
+ * Không dùng <input type="datetime-local">: trình duyệt vẽ ô đó theo ngôn ngữ
+ * của chính nó, máy nào cũng ra "08/29/2026 11:40 AM" — vừa lộn ngày với tháng
+ * vừa 12 giờ sáng chiều. Ô này gõ và hiện đúng một dạng dd/mm/yyyy HH:mm.
+ *
+ * @param {string|null} value  mốc hiện tại (ISO)
+ * @param {(iso:string|null)=>void} onChange
+ */
+function ngayInput(value, onChange) {
+  const boc = el('div', 'ng');
+  const inp = el('input');
+  inp.type = 'text';
+  inp.className = 'ng-in';
+  inp.placeholder = 'dd/mm/yyyy hh:mm';
+  inp.autocomplete = 'off';
+  inp.value = vnText(value);
+
+  const nut = el('button', 'ng-nut');
+  nut.type = 'button';
+  nut.title = 'Chọn trên lịch';
+  nut.innerHTML = '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" ' +
+    'stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="1.5"/>' +
+    '<path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3" stroke-linecap="round"/></svg>';
+
+  boc.appendChild(inp);
+  boc.appendChild(nut);
+
+  let iso = value || null;
+  const dat = (v, goi) => {
+    iso = v;
+    inp.value = vnText(v);
+    if (goi !== false) onChange(v);
+  };
+
+  // Gõ tay đọc lúc rời ô: gõ đúng thì viết lại cho chuẩn dạng, gõ sai thì trả
+  // về giá trị cũ chứ không im lặng nuốt mất.
+  inp.onchange = () => {
+    if (!inp.value.trim()) { dat(null); return; }
+    const v = docNgayVN(inp.value);
+    if (v) dat(v);
+    else { inp.value = vnText(iso); toast('Ngày giờ phải theo dạng dd/mm/yyyy hh:mm', 'err'); }
+  };
+
+  let pop = null;
+  let xem = null;            // tháng đang xem
+  const dong = () => { if (pop) { pop.remove(); pop = null; boc.classList.remove('mo'); } };
+
+  const ve = () => {
+    if (pop) pop.remove();
+    pop = el('div', 'ng-pop');
+    const chon = iso ? vnParts(iso) : null;
+    const nay = vnParts(new Date());
+    if (!xem) xem = { y: (chon || nay).y, m: (chon || nay).m };
+
+    const dau = el('div', 'ng-dau');
+    const lui = el('button', 'ng-dh', '‹'); lui.type = 'button';
+    const toi = el('button', 'ng-dh', '›'); toi.type = 'button';
+    lui.onclick = () => { xem.m--; if (xem.m < 1) { xem.m = 12; xem.y--; } ve(); };
+    toi.onclick = () => { xem.m++; if (xem.m > 12) { xem.m = 1; xem.y++; } ve(); };
+    dau.appendChild(lui);
+    dau.appendChild(el('span', 'ng-thang', 'Tháng ' + xem.m + ' / ' + xem.y));
+    dau.appendChild(toi);
+    pop.appendChild(dau);
+
+    const thu = el('div', 'ng-thu');
+    // tuần bắt đầu từ thứ Hai, đúng thói quen bảng biểu trong nước
+    ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].forEach((x) => thu.appendChild(el('span', '', x)));
+    pop.appendChild(thu);
+
+    const luoi = el('div', 'ng-luoi');
+    const dem = (new Date(Date.UTC(xem.y, xem.m - 1, 1)).getUTCDay() + 6) % 7;
+    for (let i = 0; i < dem; i++) luoi.appendChild(el('span', 'ng-o mo'));
+    const soNgay = new Date(Date.UTC(xem.y, xem.m, 0)).getUTCDate();
+    for (let d = 1; d <= soNgay; d++) {
+      const laNay = nay.y === xem.y && nay.m === xem.m && nay.d === d;
+      const laChon = chon && chon.y === xem.y && chon.m === xem.m && chon.d === d;
+      const o = el('button', 'ng-o' + (laChon ? ' chon' : '') + (laNay ? ' nay' : ''), String(d));
+      o.type = 'button';
+      o.onclick = () => {
+        const g = chon || { H: 9, M: 0 };    // chưa đặt giờ thì lấy 09:00 cho khỏi ra 00:00
+        dat(vnISO({ y: xem.y, m: xem.m, d, H: g.H, M: g.M }));
+        ve();
+      };
+      luoi.appendChild(o);
+    }
+    pop.appendChild(luoi);
+
+    const hang = el('div', 'ng-gio');
+    hang.appendChild(el('span', 'ng-nhan', 'Giờ'));
+    const selG = el('select', 'ng-sel');
+    for (let h = 0; h < 24; h++) {
+      const op = el('option', '', p2(h)); op.value = h;
+      if (chon && chon.H === h) op.selected = true;
+      selG.appendChild(op);
+    }
+    const selP = el('select', 'ng-sel');
+    const phut = [];
+    for (let m = 0; m < 60; m += 5) phut.push(m);
+    // phút lẻ do gõ tay thì vẫn phải hiện ra, không được nuốt mất
+    if (chon && chon.M % 5) phut.push(chon.M);
+    phut.sort((a, b) => a - b).forEach((m) => {
+      const op = el('option', '', p2(m)); op.value = m;
+      if (chon && chon.M === m) op.selected = true;
+      selP.appendChild(op);
+    });
+    const datGio = () => {
+      const c = (iso ? vnParts(iso) : null) || { y: xem.y, m: xem.m, d: nay.d };
+      dat(vnISO({ y: c.y, m: c.m, d: c.d, H: Number(selG.value), M: Number(selP.value) }));
+      ve();
+    };
+    selG.onchange = datGio;
+    selP.onchange = datGio;
+    hang.appendChild(selG);
+    hang.appendChild(el('span', 'ng-hai', ':'));
+    hang.appendChild(selP);
+    hang.appendChild(el('span', 'ng-24', '24 giờ · giờ VN'));
+    pop.appendChild(hang);
+
+    const chan = el('div', 'ng-chan');
+    const xoa = el('button', 'btn btn-ghost ng-nho', 'Xoá'); xoa.type = 'button';
+    xoa.onclick = () => { dat(null); ve(); };
+    const homNay = el('button', 'btn ng-nho', 'Hôm nay'); homNay.type = 'button';
+    homNay.onclick = () => {
+      const g = chon || { H: nay.H, M: nay.M - (nay.M % 5) };
+      xem = { y: nay.y, m: nay.m };
+      dat(vnISO({ y: nay.y, m: nay.m, d: nay.d, H: g.H, M: g.M }));
+      ve();
+    };
+    const xong = el('button', 'btn btn-primary ng-nho', 'Xong'); xong.type = 'button';
+    xong.onclick = dong;
+    chan.appendChild(xoa);
+    chan.appendChild(homNay);
+    chan.appendChild(xong);
+    pop.appendChild(chan);
+
+    boc.appendChild(pop);
+    boc.classList.add('mo');
+  };
+
+  nut.onclick = (e) => {
+    e.stopPropagation();
+    if (pop) { dong(); return; }
+    xem = null;
+    ve();
+    // bấm ra ngoài thì đóng lịch
+    const ngoai = (ev) => {
+      if (boc.contains(ev.target)) return;
+      document.removeEventListener('click', ngoai, true);
+      dong();
+    };
+    setTimeout(() => document.addEventListener('click', ngoai, true), 0);
+  };
+
+  return boc;
 }
 
 function textInput(value, onChange, type) {
@@ -2254,11 +2460,11 @@ function buildDrawer() {
   b.appendChild(r3);
 
   const r4 = el('div', 'row2');
-  r4.appendChild(field('Ngày bắt đầu', textInput(toLocalInput(t.startAt), (v) => set('startAt', v || null), 'datetime-local')));
-  r4.appendChild(field('Deadline 1', textInput(toLocalInput(t.deadline1), (v) => set('deadline1', v || null), 'datetime-local')));
+  r4.appendChild(field('Ngày bắt đầu', ngayInput(t.startAt, (v) => set('startAt', v))));
+  r4.appendChild(field('Deadline 1', ngayInput(t.deadline1, (v) => set('deadline1', v))));
   b.appendChild(r4);
 
-  b.appendChild(field('Deadline 2', textInput(toLocalInput(t.deadline2), (v) => set('deadline2', v || null), 'datetime-local')));
+  b.appendChild(field('Deadline 2', ngayInput(t.deadline2, (v) => set('deadline2', v))));
   b.appendChild(field('Phụ trách chính', peopleDropdown(t.owner, (v) => set('owner', v), 'Chọn người phụ trách…')));
   b.appendChild(field('Người hỗ trợ', peopleDropdown(t.helper, (v) => set('helper', v), 'Chọn người hỗ trợ…')));
   b.appendChild(field('Người order', onePersonInput(t.requester, (v) => set('requester', v))));
@@ -2301,12 +2507,10 @@ function buildCreateForm(b, t, o) {
   b.appendChild(r1);
 
   const r2 = el('div', 'row2');
-  const fStart = field('Ngày bắt đầu',
-    textInput(toLocalInput(t.startAt), (v) => set('startAt', v || null), 'datetime-local'));
+  const fStart = field('Ngày bắt đầu', ngayInput(t.startAt, (v) => set('startAt', v)));
   fStart.appendChild(el('div', 'ro-note', 'Mặc định là thời điểm tạo việc.'));
   r2.appendChild(fStart);
-  r2.appendChild(field('Deadline *',
-    textInput(toLocalInput(t.deadline1), (v) => set('deadline1', v || null), 'datetime-local')));
+  r2.appendChild(field('Deadline *', ngayInput(t.deadline1, (v) => set('deadline1', v))));
   b.appendChild(r2);
 
   b.appendChild(field('Link brief / tư liệu', textInput(t.link, (v) => set('link', v), 'url')));
