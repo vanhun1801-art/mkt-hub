@@ -1307,19 +1307,13 @@ function fieldUsers(key, label, single) {
   const ph = single ? 'Chọn một người…' : 'Chọn nhân sự…';
 
   const veDong = (p) =>
-    '<div class="pk-row' + (cur.includes(p.id) ? ' on' : '') + (p.ngoai ? ' ngoai' : '') +
+    '<div class="pk-row' + (cur.includes(p.id) ? ' on' : '') +
     '" data-user="' + key + '" data-val="' + esc(p.id) +
     '" data-single="' + (single ? '1' : '') + '" data-ten="' + esc(khongDau(p.name)) + '">' +
     avatar(p, 22) + '<span class="pk-row-ten">' + esc(p.name) + '</span>' +
     '<span class="pk-tick">' + (cur.includes(p.id) ? '✓' : '') + '</span></div>';
 
-  const ds = dsChonNguoi();
-  const ngoai = ds.filter((p) => p.ngoai);
-  let dong = ds.filter((p) => !p.ngoai).map(veDong).join('');
-  if (ngoai.length) {
-    dong += '<div class="pk-nhom" hidden>Người khác trong phòng — gõ để tìm</div>' +
-      ngoai.map(veDong).join('');
-  }
+  const dong = dsChonNguoi().map(veDong).join('');
 
   return '<div class="frm-row"><label>' + esc(label) + (single ? ' <span class="hint">(một người)</span>' : '') + '</label>' +
     '<div class="pk' + (on ? '' : ' pk-tat') + '" data-pk="' + key + '" data-ph="' + esc(ph) + '">' +
@@ -2035,19 +2029,13 @@ function pickerMoi(key, ds, single, ph, laNguoi) {
     : '<span class="pk-ph">' + esc(ph) + '</span>';
 
   const veDong = (p) =>
-    '<div class="pk-row' + (cur.includes(p.id) ? ' on' : '') + (p.ngoai ? ' ngoai' : '') +
+    '<div class="pk-row' + (cur.includes(p.id) ? ' on' : '') +
     '" data-nuser="' + key + '" data-val="' + esc(p.id) +
     '" data-single="' + (single ? '1' : '') + '" data-ten="' + esc(khongDau(p.name)) + '">' +
     (laNguoi ? avatar(p, 22) : '') + '<span class="pk-row-ten">' + esc(p.name) + '</span>' +
     '<span class="pk-tick">' + (cur.includes(p.id) ? '\u2713' : '') + '</span></div>';
 
-  const trong = ds.filter((p) => !p.ngoai);
-  const ngoai = ds.filter((p) => p.ngoai);
-  let dong = trong.map(veDong).join('');
-  if (ngoai.length) {
-    dong += '<div class="pk-nhom">Người khác trong phòng — gõ để tìm</div>' +
-      ngoai.map(veDong).join('');
-  }
+  const dong = ds.map(veDong).join('');
 
   return '<div class="pk" data-pk="' + key + '" data-ph="' + esc(ph) + '">' +
     '<button type="button" class="pk-sum"><span class="pk-chips">' + chip + '</span>' +
@@ -2393,18 +2381,7 @@ document.addEventListener('click', async (e) => {
     return;
   }
   const sum = T.closest('.pk-sum');
-  if (sum) {
-    const pn = sum.parentElement.querySelector('.pk-panel');
-    const dangMo = !pn.hidden;
-    dongBangChon();
-    pn.hidden = dangMo;
-    if (!pn.hidden) {
-      const tim = pn.querySelector('.pk-tim');
-      if (tim) { tim.value = ''; timNguoi(pn); tim.focus(); }
-      datChoBangChon(pn);
-    }
-    return;
-  }
+  if (sum) { moBangChon(sum.closest('.pk')); return; }
 
   /* Bấm thẻ số ở "Lịch của tôi": bấm lần nữa vào thẻ đang chọn thì bỏ lọc. */
   const oThe = T.closest('[data-the]');
@@ -2433,7 +2410,7 @@ document.addEventListener('click', async (e) => {
     });
     const oChip = hop.querySelector('.pk-chips');
     if (oChip) oChip.innerHTML = chipsHtml(cur, true, hop.dataset.ph || 'Chọn nhân sự…');
-    if (single) { const pn = hop.querySelector('.pk-panel'); if (pn) pn.hidden = true; }
+    if (single) dongBangChon();   // chọn một người là xong, đóng luôn
     return;
   }
 
@@ -2475,7 +2452,7 @@ document.addEventListener('click', async (e) => {
           (cur.length > 4 ? '<span class="pk-them">+' + (cur.length - 4) + '</span>' : '')
         : '<span class="pk-ph">' + esc(hop.dataset.ph || '') + '</span>';
     }
-    if (single) { const pn = hop.querySelector('.pk-panel'); if (pn) pn.hidden = true; }
+    if (single) dongBangChon();   // chọn một người là xong, đóng luôn
     return;
   }
 
@@ -2505,19 +2482,39 @@ async function taiDanhBa() {
 }
 
 /**
- * Danh sách cho ô chọn người: người ĐÃ có trong Base đứng trước, phần còn lại
- * của phòng xếp sau và chỉ hiện khi gõ tìm — để danh sách mở ra không dài dằng
- * dặc, mà ai cần vẫn tìm ra.
+ * Danh sách cho ô chọn người: một danh sách phẳng, không chia nhóm. Người đã
+ * từng có trong Base xếp lên đầu cho dễ bắt, phần còn lại của phòng nối ngay
+ * sau — cùng một kiểu dòng, cuộn hay gõ tìm đều ra.
  */
 function dsChonNguoi() {
   const trong = S.people || [];
   const co = new Set(trong.map((x) => x.id));
-  const ngoai = (S.danhBa || []).filter((x) => !co.has(x.id)).map((x) => ({ ...x, ngoai: true }));
-  return [...trong, ...ngoai];
+  return [...trong, ...(S.danhBa || []).filter((x) => !co.has(x.id))];
 }
+
+/* Ô chọn người: chỉ được mở một bảng tại một thời điểm, và cái đang mở là cái
+ * nào thì ghi ở đây. Trước đây trạng thái nằm rải trong thuộc tính hidden của
+ * từng bảng, mỗi chỗ bấm lại tự lật một kiểu — có lúc hai bảng cùng mở, chồng
+ * lên nhau, che hết chỗ bấm. Giờ mọi đường đều đi qua ba hàm dưới đây. */
+let PK_MO = null;
 
 function dongBangChon() {
   document.querySelectorAll('.pk-panel').forEach((x) => { x.hidden = true; x.classList.remove('len'); });
+  PK_MO = null;
+}
+
+function moBangChon(hop) {
+  if (!hop) return;
+  const pn = hop.querySelector('.pk-panel');
+  if (!pn) return;
+  const dangMo = PK_MO === hop;
+  dongBangChon();                       // luôn dọn sạch trước, kể cả bảng của chính nó
+  if (dangMo) return;                   // bấm lần nữa vào chính nó là đóng
+  pn.hidden = false;
+  PK_MO = hop;
+  const tim = pn.querySelector('.pk-tim');
+  if (tim) { tim.value = ''; timNguoi(pn); tim.focus(); }
+  datChoBangChon(pn);
 }
 
 /**
@@ -2534,12 +2531,26 @@ function datChoBangChon(pn) {
   if (duoi < 210 && tren > duoi) pn.classList.add('len');
 }
 
-/* Bấm ra ngoài thì đóng bảng chọn — bắt ở pha capture của mousedown nên không
- * phụ thuộc vào thứ tự các nhánh trong bộ xử lý click. Trước đây nhánh nào
- * return sớm (ô ngày, chip phương tiện, nút thao tác) là bảng cứ nằm đó che
- * hết chỗ bấm bên dưới. */
-document.addEventListener('mousedown', (e) => {
-  if (e.target.closest && e.target.closest('.pk')) return;
+/* Bấm ra ngoài là đóng. Bắt ở pha capture của pointerdown nên không phụ thuộc
+ * thứ tự các nhánh trong bộ xử lý click — trước đây nhánh nào return sớm (ô
+ * ngày, chip phương tiện, nút thao tác) là bảng cứ nằm đó.
+ *
+ * So với ĐÚNG ô đang mở chứ không phải "có nằm trong .pk nào đó không": bấm
+ * sang ô chọn người thứ hai cũng là bấm ra ngoài đối với ô thứ nhất. */
+document.addEventListener('pointerdown', (e) => {
+  if (!PK_MO) return;
+  const trong = e.target.closest && e.target.closest('.pk');
+  if (trong === PK_MO) return;
+  dongBangChon();
+}, true);
+
+/* Cuộn KHUNG NGOÀI khi bảng đang mở thì bảng trôi khỏi ô của nó (nó nằm ở lớp
+ * nổi) — đóng luôn cho khỏi lơ lửng giữa màn hình. Nhưng cuộn chính danh sách
+ * bên trong bảng thì phải để yên, không thì kéo tìm người là bảng tự sập. */
+document.addEventListener('scroll', (e) => {
+  if (!PK_MO) return;
+  const t = e.target;
+  if (t && t.closest && t.closest('.pk') === PK_MO) return;
   dongBangChon();
 }, true);
 
@@ -2551,17 +2562,11 @@ const khongDau = (x) => String(x == null ? '' : x).toLowerCase()
 function timNguoi(panel) {
   const q = khongDau(panel.querySelector('.pk-tim').value);
   let hien = 0;
-  let hienNgoai = 0;
   panel.querySelectorAll('.pk-row').forEach((r) => {
-    // Người chưa từng có trong Base chỉ hiện khi đã gõ tìm — bày hết ra thì
-    // danh sách dài lê thê mà 9/10 lần vẫn chọn đúng mấy người quen thuộc.
-    const laNgoai = r.classList.contains('ngoai');
-    const khop = (!q && !laNgoai) || (q && (r.dataset.ten || '').includes(q));
+    const khop = !q || (r.dataset.ten || '').includes(q);
     r.hidden = !khop;
-    if (khop) { hien += 1; if (laNgoai) hienNgoai += 1; }
+    if (khop) hien += 1;
   });
-  const nhom = panel.querySelector('.pk-nhom');
-  if (nhom) nhom.hidden = !hienNgoai;
   let trong = panel.querySelector('.pk-trong-ds');
   if (!hien && !trong) {
     trong = document.createElement('div');
@@ -2686,7 +2691,7 @@ document.addEventListener('change', async (e) => {
 });
 
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && document.querySelector('.pk-panel:not([hidden])')) {
+  if (e.key === 'Escape' && PK_MO) {
     dongBangChon();     // Esc đóng bảng chọn trước, chưa đóng cả cửa sổ
     return;
   }
@@ -2737,19 +2742,3 @@ window.addEventListener('message', (ev) => {
   if (d.hub === 'tab' && d.v) { S.tab = d.v; render(); }
 });
 
-/* Bấm ra vùng trống (hoặc Esc) là đóng bảng chọn người — thao tác quen tay.
-   Đặt ở mousedown/document để không phụ thuộc thứ tự các nhánh trong handler click. */
-document.addEventListener('mousedown', (e) => {
-  const mo = document.querySelectorAll('.pk-panel:not([hidden])');
-  if (!mo.length) return;
-  if (e.target.closest && e.target.closest('.pk')) return;   // bấm trong chính ô chọn
-  mo.forEach((p) => { p.hidden = true; });
-});
-
-document.addEventListener('keydown', (e) => {
-  if (e.key !== 'Escape') return;
-  const mo = document.querySelectorAll('.pk-panel:not([hidden])');
-  if (!mo.length) return;
-  e.stopPropagation();                       // Esc đóng bảng chọn trước, không đóng drawer
-  mo.forEach((p) => { p.hidden = true; });
-}, true);
