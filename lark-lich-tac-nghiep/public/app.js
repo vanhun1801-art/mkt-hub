@@ -861,7 +861,7 @@ function viewMine() {
         }
         if ((t.tickets || []).length) cb.push('📎 đã có ' + t.tickets.length + ' tệp vé / thông tin');
         if (t.mediaRequest) cb.push(t.mediaStatus === 'Phê duyệt' ? '🎥 có Media đi cùng' : '🎥 Media chưa xác nhận');
-        return '<button class="nhac-o" data-open="' + t.id + '">' +
+        return '<button class="nhac-o" data-phieu="' + t.id + '">' +
           '<div class="nhac-dau"><span class="badge ' + (days <= 1 ? 'orange' : 'blue') + '">' + esc(when) + '</span>' +
           '<span class="nhac-gio">' + esc(fmtDT(t.start)) + '</span></div>' +
           '<div class="nhac-ten">' + esc(t.title || '(chưa đặt tên)') + '</div>' +
@@ -1484,6 +1484,90 @@ function openCreate(preDate) {
 function closeModal() { $('#modal').classList.remove('on'); }
 
 /**
+ * PHIẾU ĐI TÁC NGHIỆP — cửa sổ chỉ để đọc.
+ *
+ * Mở từ bảng "Sắp đi — nhớ chuẩn bị". Lịch ở đó đã được duyệt, nghĩa là mọi thứ
+ * đã chốt: nhân sự không còn gì phải sửa, chỉ cần đọc lại cho đủ trước khi đi.
+ * Vì vậy phiếu này CỐ Ý không có một nút thao tác nào — chỉ có nút X để thoát.
+ * Muốn sửa thì vào thẻ ở các bước bên dưới.
+ */
+function moPhieuDi(id) {
+  const t = S.items.find((x) => x.id === id);
+  if (!t) return;
+
+  const mucs = [];
+  const muc = (nhan, gt, rong) => {
+    if (!gt) return;
+    mucs.push('<div class="phieu-muc' + (rong ? ' rong' : '') + '">' +
+      '<div class="phieu-nhan">' + esc(nhan) + '</div>' +
+      '<div class="phieu-gt">' + gt + '</div></div>');
+  };
+  const chu = (v) => (v == null || v === '' ? '' : esc(String(v)));
+  // giữ nguyên xuống dòng của mục đích / kế hoạch — nhân sự gõ theo gạch đầu dòng
+  const nhieuDong = (v) => (v ? '<div class="phieu-pre">' + esc(String(v)) + '</div>' : '');
+  const nguoi = (ds) => ((ds || []).length
+    ? '<div class="phieu-ng">' + ds.map((u) =>
+        '<span class="phieu-ai">' + esc(initials(u.name)) + '<b>' + esc(u.name || '') + '</b></span>').join('') + '</div>'
+    : '');
+
+  muc('Mục đích', nhieuDong(t.purpose), true);
+  muc('Kế hoạch chi tiết', nhieuDong(t.plan), true);
+  muc('Phụ trách', nguoi(t.owner));
+  muc('Cùng tác nghiệp', nguoi(t.staff));
+  muc('Phương tiện', chu((t.transport || []).join(', ')));
+  muc('Thời lượng dự kiến', t.duration ? chu(t.duration + ' giờ') : '');
+  muc('Kết thúc dự kiến', t.end ? chu(fmtDT(t.end)) : '');
+  if (CHIPHI() && t.costPlan) muc('Chi phí dự kiến', chu(money(t.costPlan) + ' đ'));
+
+  if ((t.foc || []).length || t.focRequest) {
+    const mau = t.focStatus === 'Phê duyệt' ? 'green' : t.focStatus === 'Từ chối' ? 'red' : 'orange';
+    muc('Vé / dịch vụ FOC',
+      '<span class="badge ' + mau + '">' + esc(t.focStatus || 'Chờ duyệt') + '</span>' +
+      ((t.foc || []).length ? '<div class="phieu-ds">' +
+        t.foc.map((x) => '<span class="phieu-mon">' + esc(x) + '</span>').join('') + '</div>' : ''), true);
+  }
+  if (t.mediaRequest) {
+    const mau = t.mediaStatus === 'Phê duyệt' ? 'green' : t.mediaStatus === 'Từ chối' ? 'red' : 'orange';
+    muc('Nhân sự Media',
+      '<span class="badge ' + mau + '">' + esc(t.mediaStatus || 'Chờ duyệt') + '</span>' +
+      (t.mediaNote ? nhieuDong(t.mediaNote) : ''), true);
+  }
+
+  // Tệp vé / thông tin: thứ duy nhất bấm được ở đây, và chỉ để MỞ RA XEM
+  const tep = t.tickets || [];
+  if (tep.length) {
+    muc('Vé & thông tin cần mang',
+      '<div class="phieu-tep">' + tep.map((f) => (f.token
+        ? '<a class="phieu-f" target="_blank" href="' + apiUrl('/api/items/' + t.id + '/file/' + f.token) + '">' +
+          '📎 ' + esc(f.name || 'tệp') + '</a>'
+        : '<span class="phieu-f">📎 ' + esc(f.name || 'tệp') + '</span>')).join('') + '</div>', true);
+  }
+
+  const d = toDate(t.start);
+  const homNay = startOfDay(new Date());
+  const cach = d ? Math.round((startOfDay(d) - homNay) / 86400000) : null;
+  const khi = cach === null ? '' : cach === 0 ? 'Hôm nay' : cach === 1 ? 'Ngày mai' : 'Còn ' + cach + ' ngày';
+
+  $('#mdTitle').textContent = 'Phiếu đi tác nghiệp';
+  $('#mdBody').innerHTML =
+    '<div class="phieu">' +
+      '<div class="phieu-dau">' +
+        '<div class="phieu-ten">' + esc(t.title || '(chưa đặt tên)') + '</div>' +
+        '<div class="phieu-khi">' +
+          (khi ? '<span class="badge ' + (cach <= 1 ? 'orange' : 'blue') + '">' + esc(khi) + '</span>' : '') +
+          '<span class="phieu-gio">' + esc(fmtDT(t.start)) + '</span>' +
+          '<span class="badge green">Đã duyệt</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="phieu-luoi">' + mucs.join('') + '</div>' +
+      '<div class="phieu-chan">Thông tin đã chốt sau khi duyệt. Cần sửa thì mở lịch ở các bước bên dưới.</div>' +
+    '</div>';
+  $('#mdBody').onclick = null;
+  $('#mdFoot').innerHTML = '';          // cố ý không có nút nào — chỉ còn nút X ở đầu cửa sổ
+  $('#modal').classList.add('on');
+}
+
+/**
  * Bộ chọn có ô tìm — dùng cho form tạo mới (ghi vào NEW), khác fieldUsers() là cái
  * ghi vào bản nháp của drawer. Cùng bộ class .pk nên dùng chung CSS và hàm tìm.
  *
@@ -1751,6 +1835,10 @@ document.addEventListener('click', async (e) => {
     else await doAction(a, act.dataset.id);
     return;
   }
+
+  // Phiếu đi phải được xét trước [data-open]: nó là cửa sổ chỉ đọc, không phải ô sửa
+  const phieu = T.closest('[data-phieu]');
+  if (phieu) { moPhieuDi(phieu.dataset.phieu); return; }
 
   const open = T.closest('[data-open]');
   if (open) { openItem(open.dataset.open); return; }
