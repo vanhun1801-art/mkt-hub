@@ -1141,3 +1141,29 @@ a.phieu-f:hover { border-color: var(--primary); background: var(--blue-bg); }
 .kh-than .frm-row > label { font-size: 12px; font-weight: 600; color: var(--t2); }
 .kh-than .frm-2 { gap: 12px; }
 @media (max-width: 560px) { .kh-than .frm-2 { grid-template-columns: 1fr; } }
+
+/* ==========================================================================
+   CỬA SỔ BÁO CÁO SAU TÁC NGHIỆP
+   Mở giữa màn hình, chỉ đúng bảy ô cần điền. Dùng lại lối thẻ .kh của ô chi
+   tiết để nhân sự thấy quen mắt.
+   ========================================================================== */
+.bc { display: flex; flex-direction: column; gap: 14px; }
+.bc > * { flex: 0 0 auto; }
+
+.bc-dau {
+  padding: 12px 14px; border-radius: 12px;
+  background: var(--blue-bg); border: 1px solid var(--line);
+}
+.bc-ten { font-size: 15.5px; font-weight: 700; line-height: 1.3; letter-spacing: -.01em; }
+.bc-luc { font-size: 12px; color: var(--t2); margin-top: 3px; }
+
+.bc .kh-than { gap: 12px; }
+.bc-tep { display: flex; flex-wrap: wrap; gap: 5px; }
+.bc-f {
+  font-size: 11.5px; padding: 3px 9px; border-radius: 999px;
+  background: var(--surface-2); border: 1px solid var(--line); color: var(--t2);
+}
+.bc-chan { font-size: 11.5px; color: var(--t4); text-align: center; line-height: 1.5; }
+
+/* Cửa sổ báo cáo dài hơn cửa sổ đăng ký — cho cuộn trong thân, đầu và chân đứng yên */
+#modal .modal-body { max-height: min(66vh, 620px); }

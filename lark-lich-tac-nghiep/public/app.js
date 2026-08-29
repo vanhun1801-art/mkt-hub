@@ -1017,7 +1017,7 @@ function theViec(t, buoc) {
       d.push('<span class="ct-ve ' + (t.payment === 'Đã thanh toán' ? 'ok' : 'cho') + '">' +
         (t.payment === 'Đã thanh toán' ? '✔ đã thanh toán' : '⏳ chưa thanh toán') + '</span>');
     }
-    if (t.report) d.push('<span class="ct-mon">📝 có báo cáo</span>');
+    if (t.reportAfter || t.report) d.push('<span class="ct-mon">📝 có báo cáo</span>');
     if (t.link) d.push('<span class="ct-mon">🔗 có link sản phẩm</span>');
     if ((t.files || []).length) d.push('<span class="ct-mon">📎 ' + t.files.length + ' tệp kèm</span>');
     if (!d.length) d.push('<span class="ct-mon">chưa ghi kết quả nào</span>');
@@ -1364,6 +1364,8 @@ function dongLichNgay() {
 /** Ghi mốc mới vào ô nhập và vào bản nháp / form, cùng một đường. */
 function datNgay(inp, iso) {
   inp.value = iso ? vnText(iso) : '';
+  const bc = inp.dataset.bc;
+  if (bc && BC) { BC[bc] = iso; return; }
   const k = inp.dataset.k;
   if (k && S.sel) { setDraft(k, iso); return; }
   const n = inp.dataset.n;
@@ -1481,7 +1483,8 @@ function renderDrawer() {
     'foc');
 
   h += khoi('Kết quả & báo cáo',
-    fieldText('report', 'Báo cáo & ghi chú', 'a) Bảng kê chi phí:\nb) Hiệu chỉnh trước công tác:\nc) Lưu ý dịch vụ:', true) +
+    fieldText('report', 'Ghi chú trước chuyến', 'a) Bảng kê chi phí:\nb) Hiệu chỉnh trước công tác:\nc) Lưu ý dịch vụ:', true) +
+    fieldText('reportAfter', 'Báo cáo sau tác nghiệp', '- Đã làm được gì\n- Phát sinh gì\n- Lưu ý cho lần sau', true) +
     fieldText('link', 'Liên kết sản phẩm', 'https://…'),
     'ketqua');
 
@@ -1536,7 +1539,7 @@ function renderDrawer() {
         (t.status === 'Từ chối/Cần điều chỉnh' ? 'Gửi duyệt lại' : 'Gửi duyệt') + '</button>');
     }
     if (t.status === 'Duyệt/Chờ tác nghiệp') {
-      acts.push('<button class="btn primary" data-act="report" data-id="' + t.id + '">Chuyển sang báo cáo</button>');
+      acts.push('<button class="btn primary" data-act="report" data-id="' + t.id + '">Điền báo cáo</button>');
     }
   }
 
@@ -1600,6 +1603,133 @@ const ACTIONS = {
   paid:      { patch: { payment: 'Đã thanh toán' }, msg: 'Đã đánh dấu thanh toán' },
   hold:      { patch: { payment: 'Treo thanh toán' }, msg: 'Đã treo thanh toán' },
 };
+
+/* ==========================================================================
+   CỬA SỔ BÁO CÁO SAU TÁC NGHIỆP
+   Đi về rồi, nhân sự chỉ cần điền đúng bảy thứ rồi bấm gửi. Cố ý KHÔNG mở ô
+   chỉnh sửa đầy đủ ở đây: kế hoạch đã duyệt thì không sửa lại được nữa, mở ra
+   chỉ khiến người ta lỡ tay đổi thứ không nên đổi.
+   ========================================================================== */
+let BC = null;
+
+function moBaoCao(id) {
+  const t = S.items.find((x) => x.id === id);
+  if (!t) return;
+  if (PREVIEW()) return toast('Đang xem giao diện của người khác — không báo cáo thay họ được.', 'err');
+  BC = {
+    id,
+    end: t.end || null,
+    duration: t.duration || '',
+    costActual: t.costActual == null ? '' : t.costActual,
+    reportAfter: t.reportAfter || '',
+    link: t.link || '',
+    mediaNote: t.mediaNote || '',
+  };
+  veBaoCao();
+  $('#modal').classList.add('on');
+}
+
+function veBaoCao() {
+  const t = S.items.find((x) => x.id === BC.id);
+  if (!t) return;
+  const O = S.options;
+
+  const o = (nhan, than, goi) =>
+    '<div class="frm-row"><label>' + esc(nhan) + '</label>' + than +
+    (goi ? '<div class="hint">' + esc(goi) + '</div>' : '') + '</div>';
+
+  const khoi = (ten, than, phu) =>
+    '<section class="kh kh-' + phu + '">' +
+    '<div class="kh-dau"><span class="kh-ten">' + esc(ten) + '</span></div>' +
+    '<div class="kh-than">' + than + '</div></section>';
+
+  const chonGio = '<select class="fld" data-bc="duration"><option value="">— chọn —</option>' +
+    (O.duration || []).map((x) =>
+      '<option value="' + esc(x) + '"' + (BC.duration === x ? ' selected' : '') + '>' + esc(x) + ' giờ</option>').join('') +
+    '</select>';
+
+  const tep = (t.files || []);
+  const dsTep = tep.length
+    ? '<div class="bc-tep">' + tep.map((f) =>
+        '<span class="bc-f">📎 ' + esc(f.name || 'tệp') + '</span>').join('') + '</div>'
+    : '<div class="hint">Chưa có tệp nào.</div>';
+
+  $('#mdTitle').textContent = 'Báo cáo sau tác nghiệp';
+  $('#mdBody').innerHTML =
+    '<div class="bc">' +
+      '<div class="bc-dau">' +
+        '<div class="bc-ten">' + esc(t.title || '(chưa đặt tên)') + '</div>' +
+        '<div class="bc-luc">Đi lúc ' + esc(fmtDT(t.start)) +
+          ((t.transport || []).length ? ' · ' + esc(t.transport.join(', ')) : '') + '</div>' +
+      '</div>' +
+
+      khoi('Chuyến đi đã xong',
+        '<div class="frm-2">' +
+          o('Thời gian kết thúc *', oNgay('bc', 'end', BC.end)) +
+          o('Điều chỉnh thời lượng', chonGio) +
+        '</div>', 'chuyen') +
+
+      khoi('Chi phí & chứng từ',
+        o('Chi phí thực tế (đ)',
+          '<input type="number" class="fld" data-bc="costActual" step="1000" min="0" value="' +
+          (BC.costActual === '' ? '' : BC.costActual) + '" placeholder="0">') +
+        o('Hoá đơn + chứng từ', dsTep +
+          '<label class="btn sm" style="align-self:flex-start;margin-top:6px">' +
+          '<input type="file" data-bcup="1" hidden> + Tải tệp lên</label>',
+          'Tệp tải lên được lưu ngay vào Base, không cần chờ bấm gửi.'), 'tien') +
+
+      khoi('Báo cáo',
+        o('Báo cáo sau tác nghiệp *',
+          '<textarea class="fld" data-bc="reportAfter" rows="5" placeholder="- Đã làm được gì&#10;- Phát sinh gì&#10;- Lưu ý cho lần sau">' +
+          esc(BC.reportAfter) + '</textarea>') +
+        o('Liên kết sản phẩm',
+          '<input type="text" class="fld" data-bc="link" value="' + esc(BC.link) + '" placeholder="https://…">') +
+        (t.mediaRequest
+          ? o('Feedback nhân sự Media',
+              '<textarea class="fld" data-bc="mediaNote" rows="3" placeholder="Nhận xét về bạn Media đi cùng">' +
+              esc(BC.mediaNote) + '</textarea>',
+              'Chỉ hiện khi chuyến này có xin nhân sự Media.')
+          : ''), 'ketqua') +
+
+      '<div class="bc-chan">Gửi xong lịch chuyển sang <b>Đang báo cáo</b>, quản lý nghiệm thu rồi mới thành Hoàn tất.</div>' +
+    '</div>';
+
+  $('#mdBody').onclick = null;
+  $('#mdFoot').innerHTML =
+    '<button class="btn" data-close="1">Để sau</button>' +
+    '<button class="btn primary" id="bcGui">Gửi báo cáo</button>';
+}
+
+async function guiBaoCao() {
+  const t = S.items.find((x) => x.id === BC.id);
+  if (!t) return;
+  if (!BC.end) return toast('Chưa điền Thời gian kết thúc', 'err');
+  if (new Date(BC.end) <= new Date(t.start)) return toast('Thời gian kết thúc phải sau lúc bắt đầu', 'err');
+  if (!String(BC.reportAfter).trim()) return toast('Chưa viết Báo cáo sau tác nghiệp', 'err');
+
+  const body = {
+    status: 'Đang báo cáo',
+    end: BC.end,
+    duration: BC.duration || null,
+    costActual: BC.costActual === '' ? null : Number(BC.costActual),
+    reportAfter: BC.reportAfter.trim(),
+    link: BC.link.trim(),
+  };
+  if (t.mediaRequest) body.mediaNote = BC.mediaNote.trim();
+
+  const nut = $('#bcGui');
+  nut.disabled = true;
+  try {
+    await api('/api/items/' + BC.id, { method: 'PATCH', body: JSON.stringify(body) });
+    closeModal();
+    BC = null;
+    toast('Đã gửi báo cáo', 'ok');
+    await refresh(true);
+  } catch (e) {
+    nut.disabled = false;
+    toast(e.message, 'err');
+  }
+}
 
 async function doAction(act, id) {
   const a = ACTIONS[act];
@@ -1942,7 +2072,7 @@ document.addEventListener('click', async (e) => {
   const T = e.target;
 
   const close = T.closest('[data-close]');
-  if (close) { closeModal(); $('#mdTitle').textContent = 'Đăng ký lịch tác nghiệp'; return; }
+  if (close) { closeModal(); BC = null; $('#mdTitle').textContent = 'Đăng ký lịch tác nghiệp'; return; }
 
   const tab = T.closest('[data-tab]');
   if (tab) { S.tab = tab.dataset.tab; render(); return; }
@@ -1993,6 +2123,8 @@ document.addEventListener('click', async (e) => {
     e.stopPropagation();
     const a = act.dataset.act;
     if (a === 'delete') await deleteItem(act.dataset.id);
+    // Báo cáo không đổi trạng thái ngay nữa: mở cửa sổ điền cho xong rồi mới gửi
+    else if (a === 'report') { closeDrawer(); moBaoCao(act.dataset.id); }
     else await doAction(a, act.dataset.id);
     return;
   }
@@ -2066,6 +2198,7 @@ document.addEventListener('click', async (e) => {
   if (T.closest('#btnRefresh')) { toast('Đang tải lại…'); await refresh(true); return; }
   if (T.closest('#drClose') || T.closest('#mask')) { closeDrawer(); return; }
   if (T.closest('#drSave')) { await saveDraft(); return; }
+  if (T.closest('#bcGui')) { await guiBaoCao(); return; }
   if (T.closest('#fReset')) { S.f = { period: 'month', person: 'all', status: 'all', q: '', the: '' }; render(); return; }
 
   // multi-select trong drawer
@@ -2220,6 +2353,13 @@ document.addEventListener('input', (e) => {
   const T = e.target;
   if (T.id === 'fQ') { S.f.q = T.value; clearTimeout(window.__qt); window.__qt = setTimeout(render, 240); return; }
 
+  const bc = T.dataset && T.dataset.bc;
+  if (bc && BC) {
+    if (T.dataset.kieu === 'ngay') return;      // ngày giờ đọc lúc rời ô
+    BC[bc] = T.value;
+    return;
+  }
+
   const k = T.dataset && T.dataset.k;
   if (k && S.sel) {
     if (T.dataset.kieu === 'ngay') return;   // ngày giờ đọc khi rời ô, không đọc từng ký tự
@@ -2250,7 +2390,9 @@ document.addEventListener('change', async (e) => {
   /* Ô ngày giờ: đọc lúc người ta rời ô. Gõ đúng thì viết lại cho chuẩn dạng,
    * gõ sai thì trả về giá trị cũ chứ không im lặng nuốt mất. */
   if (T.dataset && T.dataset.kieu === 'ngay') {
-    const cu = T.dataset.k && S.sel ? S.sel[T.dataset.k] : (T.dataset.n ? NEW[T.dataset.n] : null);
+    const cu = T.dataset.bc && BC ? BC[T.dataset.bc]
+      : T.dataset.k && S.sel ? S.sel[T.dataset.k]
+      : (T.dataset.n ? NEW[T.dataset.n] : null);
     if (!T.value.trim()) { datNgay(T, null); return; }
     const iso = docNgayVN(T.value);
     if (iso) datNgay(T, iso);
@@ -2271,8 +2413,28 @@ document.addEventListener('change', async (e) => {
 
   const k = T.dataset && T.dataset.k;
   if (k && S.sel && T.tagName === 'SELECT') { setDraft(k, T.value || null); return; }
+  if (T.dataset && T.dataset.bc && BC && T.tagName === 'SELECT') { BC[T.dataset.bc] = T.value; return; }
+
   const n = T.dataset && T.dataset.n;
   if (n && T.tagName === 'SELECT') { NEW[n] = T.value; return; }
+
+  /* Hoá đơn tải thẳng từ cửa sổ báo cáo — không mượn đường của ô chi tiết, vì ô
+   * đó đang đóng và sẽ vẽ lại nhầm chỗ. */
+  if (T.dataset && T.dataset.bcup && T.files && T.files[0] && BC) {
+    const f = T.files[0];
+    T.value = '';
+    toast('Đang tải "' + f.name + '" lên…');
+    try {
+      const r = await fetch(apiUrl('/api/items/' + BC.id + '/attachment/files?name=' + encodeURIComponent(f.name)),
+        { method: 'POST', body: f });
+      const d = await r.json();
+      if (!r.ok || d.error) throw new Error(d.error || 'Tải lên thất bại');
+      toast('Đã lưu chứng từ vào Base', 'ok');
+      await refresh(true);
+      if (BC) veBaoCao();
+    } catch (err) { toast(err.message, 'err'); }
+    return;
+  }
 
   const up = T.dataset && T.dataset.up;
   if (up && T.files && T.files[0] && S.sel) {

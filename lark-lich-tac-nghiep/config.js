@@ -95,6 +95,9 @@ module.exports = {
     mediaSent:    { id: 'fldRidLKZS', name: 'Gửi Feedback Media',       type: 'checkbox' },
     mediaNote:    { id: 'fldWWha9wN', name: 'Feedback nhân sự Media',   type: 'text' },
     report:       { id: 'fld8UE0rNd', name: 'Báo cáo & ghi chú',        type: 'text' },
+    // Ghi chú TRƯỚC chuyến nằm ở 'report'; ô này là báo cáo SAU chuyến, nhân sự
+    // tự điền trong cửa sổ Báo cáo. Tách hẳn để hai nội dung không đè lên nhau.
+    reportAfter:  { id: 'fldOyWVGRZ', name: 'Báo cáo sau tác nghiệp',   type: 'text' },
     link:         { id: 'fldXmEsMAD', name: 'Liên kết',                 type: 'text' },
     tickets:      { id: 'fld4ka0VLj', name: 'Vé & thông tin cần thiết', type: 'attachment', readOnly: true },
     files:        { id: 'fldhQfS9ch', name: 'Tệp đính kèm',             type: 'attachment', readOnly: true },
@@ -129,11 +132,13 @@ module.exports = {
   staffEditable: [
     'title', 'purpose', 'plan', 'start', 'end', 'duration', 'staff',
     'transport', 'costPlan', 'foc', 'focRequest', 'mediaRequest',
-    'report', 'link', 'status', 'costActual',
+    'report', 'reportAfter', 'link', 'status', 'costActual', 'mediaNote',
   ],
 
   // Trường chỉ quản lý được sửa (dùng cho form + chốt ở server)
-  managerOnlyFields: ['owner', 'payment', 'focStatus', 'mediaStatus', 'mediaSent', 'mediaNote'],
+  // mediaNote là nhận xét VỀ nhân sự Media, do người xin hỗ trợ viết sau chuyến —
+  // nên để nhân sự điền trong cửa sổ Báo cáo, không phải quyền riêng của quản lý.
+  managerOnlyFields: ['owner', 'payment', 'focStatus', 'mediaStatus', 'mediaSent'],
 
   // Trường bắt buộc khi đăng ký lịch mới
   requiredOnCreate: ['title', 'purpose', 'start'],
