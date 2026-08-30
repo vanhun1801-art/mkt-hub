@@ -11,20 +11,33 @@
  * chỗ đang gọi modalCaiDat() vẫn dùng được, không phải sửa gì.
  */
 
+/* `ql: true` = chỉ quản lý thấy. Nhân sự vào Cài đặt chỉ để đổi ngôn ngữ và
+ * sáng/tối, nên mọi mục quản trị đều gắn cờ này. Không phải chỉ ẩn cho gọn:
+ * server cũng chặn 403 những đầu mối tương ứng, ẩn ở đây là để khỏi bày ra một
+ * cánh cửa mà bấm vào chỉ nhận lỗi. */
 const CD_MUC = [
   { nhom: 'Cài đặt', ds: [
-    { k: 'chung', ten: 'Chung', ic: 'cai-dat', mo: 'Tài khoản, app Lark, ngôn ngữ, sáng tối' },
-    { k: 'base', ten: 'Base trong panel', ic: 'base', mo: 'Bật, tắt, ẩn, thêm base' },
-    { k: 'nguoi', ten: 'Người dùng & phân quyền', ic: 'nguoi', mo: 'Ai thấy base nào' },
+    { k: 'chung', ten: 'Chung', ic: 'cai-dat', mo: 'Ngôn ngữ, sáng tối, tài khoản' },
+    { k: 'base', ten: 'Base trong panel', ic: 'base', mo: 'Bật, tắt, ẩn, thêm base', ql: true },
+    { k: 'nguoi', ten: 'Người dùng & phân quyền', ic: 'nguoi', mo: 'Ai thấy base nào', ql: true },
   ] },
   { nhom: 'Nâng cao', ds: [
-    { k: 'kiem-tra', ten: 'Kiểm tra hệ thống', ic: 'may', mo: 'Hỏi từng base xem đọc được gì' },
-    { k: 'log', ten: 'Log app con', ic: 'may', mo: 'Xem stderr thật của app con' },
+    { k: 'kiem-tra', ten: 'Kiểm tra hệ thống', ic: 'may', mo: 'Hỏi từng base xem đọc được gì', ql: true },
+    { k: 'log', ten: 'Log app con', ic: 'may', mo: 'Xem stderr thật của app con', ql: true },
   ] },
 ];
 
+/** Các mục người đang xem được vào. */
+function cdMucCuaToi() {
+  return CD_MUC
+    .map((g) => ({ nhom: g.nhom, ds: g.ds.filter((m) => S.quanLy || !m.ql) }))
+    .filter((g) => g.ds.length);
+}
+
 function modalCaiDat(mucDau) {
   S.cdMuc = mucDau || S.cdMuc || 'chung';
+  const duoc = cdMucCuaToi().flatMap((g) => g.ds.map((m) => m.k));
+  if (!duoc.includes(S.cdMuc)) S.cdMuc = duoc[0] || 'chung';
   moModal('Cài đặt',
     '<div class="cd">' +
       '<nav class="cd-nav" id="cdNav"></nav>' +
@@ -38,7 +51,7 @@ function modalCaiDat(mucDau) {
 }
 
 function veCdNav() {
-  $('#cdNav').innerHTML = CD_MUC.map((g) =>
+  $('#cdNav').innerHTML = cdMucCuaToi().map((g) =>
     '<div class="cd-nhom">' + esc(g.nhom) + '</div>' +
     g.ds.map((m) =>
       '<button class="cd-item' + (S.cdMuc === m.k ? ' on' : '') + '" data-cd="' + m.k + '">' +
@@ -77,22 +90,28 @@ function veCdChung(el) {
     '<button data-theme-set="' + v + '" class="' + (S.theme === v ? 'on' : '') + '" title="' + t + '">' +
     icon(v) + '</button>').join('') + '</div>';
 
-  el.innerHTML = cdTieuDe('Chung', 'Thông tin phiên đang chạy và cách hiển thị.') +
+  /* Nhân sự chỉ cần đổi ngôn ngữ và sáng/tối. Mấy dòng còn lại là chuyện vận
+   * hành — cổng nội bộ, app_id, số bản, commit — bày ra vừa rối vừa lộ ruột gan
+   * hệ thống, nên chỉ quản lý thấy. */
+  const ql = !!S.quanLy;
+
+  el.innerHTML = cdTieuDe('Chung', ql ? 'Thông tin phiên đang chạy và cách hiển thị.'
+                                      : 'Chọn ngôn ngữ và kiểu hiển thị cho riêng máy bạn.') +
     '<div id="cdToi" class="cd-hang"><div class="cd-hang-tx"><b>Đang đọc…</b></div></div>' +
     cdHang('Ngôn ngữ', 'Áp cho lớp vỏ và cả ba app con. Mỗi người nhớ lựa chọn riêng trong máy mình.', segNgonNgu) +
     cdHang('Sáng / tối', 'Theo hệ thống là ăn theo cài đặt của máy.', segTheme) +
-    cdHang('Địa chỉ công khai',
+    (ql ? cdHang('Địa chỉ công khai',
       'Chỉ lớp vỏ này ra internet. Ba app con chạy trên cổng nội bộ (5173 · 5174 · 5176) ' +
       'trong cùng một máy chủ, chỉ lớp vỏ gọi được — nên cả hệ chỉ có MỘT link và MỘT lần đăng nhập.',
-      '<code>' + esc(location.origin) + '</code>') +
-    '<div id="cdBanChay"></div>';
+      '<code>' + esc(location.origin) + '</code>') : '') +
+    (ql ? '<div id="cdBanChay"></div>' : '');
 
   goi('/api/toi').then((t) => {
     const o = $('#cdToi');
     if (!o) return;
     const nut = (v) => '<button class="btn nho" data-copy-id="' + esc(v) + '">Copy</button>';
     if (t.che_do !== 'api') {
-      o.outerHTML =
+      o.outerHTML = !ql ? '' :
         cdHang('Chế độ chạy', 'Đang dùng phiên <code>lark-cli</code> của máy này. Không qua app Lark, ' +
           'nên phạm vi khả dụng (Availability) không ảnh hưởng gì ở đây.',
         '<span class="cd-nhan">cli · máy cá nhân</span>');
@@ -102,11 +121,11 @@ function veCdChung(el) {
     o.outerHTML =
       cdHang('Tài khoản Lark',
         '<code>' + esc(khoa) + '</code>' +
-        (t.email_phu ? '<br>Email còn lại: <code>' + esc(t.email_phu) + '</code>' : ''),
+        (ql && t.email_phu ? '<br>Email còn lại: <code>' + esc(t.email_phu) + '</code>' : ''),
         '<div class="cd-doc">' +
           '<span class="cd-nhan ' + (t.la_quan_ly ? 'luc' : 'do') + '">' +
-          (t.la_quan_ly ? 'Quản lý' : 'Nhân sự') + '</span>' + nut(khoa) + '</div>') +
-      cdHang('App Lark đang chạy',
+          (t.la_quan_ly ? 'Quản lý' : 'Nhân sự') + '</span>' + (ql ? nut(khoa) : '') + '</div>') +
+      (!ql ? '' : cdHang('App Lark đang chạy',
         (t.app_id
           ? '<code>' + esc(t.app_id) + '</code> — so với app anh phát hành bên Developer Console. ' +
             'Khác nhau thì mọi thay đổi Availability không có tác dụng.'
@@ -115,7 +134,7 @@ function veCdChung(el) {
           ? '<div class="cd-doc"><a class="btn nho ghost" target="_blank" rel="noreferrer" ' +
             'href="https://open.larksuite.com/app/' + esc(t.app_id) + '/version/create">Trang phát hành</a>' +
             nut(t.app_id) + '</div>'
-          : ''));
+          : '')));
   }).catch(() => {});
 
   goi('/healthz').then((h) => {

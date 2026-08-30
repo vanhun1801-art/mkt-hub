@@ -932,7 +932,7 @@ body.dang-xem-ho .app { height: calc(100vh - 34px); margin-top: 34px; }
    ========================================================================== */
 .tb-panel {
   position: fixed; z-index: 90;
-  left: 12px; bottom: 12px; width: min(390px, calc(100vw - 24px));
+  right: 16px; top: 62px; width: min(390px, calc(100vw - 32px));
   max-height: min(70vh, 620px);
   display: flex; flex-direction: column;
   background: var(--surface, #fff);
@@ -995,3 +995,16 @@ body.dang-xem-ho .app { height: calc(100vh - 34px); margin-top: 34px; }
 
 /* Chuông trên panel: nút, không phải link — cho giống hệt các mục còn lại */
 #btnTB { width: 100%; text-align: left; font: inherit; cursor: pointer; border: 1px solid transparent; }
+
+/* Chuông ở đầu trang, cạnh tên người dùng */
+.btn.chuong { position: relative; padding: 0; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; }
+.btn.chuong .chuong-ic { width: 19px; height: 19px; display: block; }
+.btn.chuong .chuong-ic svg { width: 19px; height: 19px; display: block; }
+.btn.chuong.co-moi { color: var(--red, #dc2b3d); }
+.chuong-so {
+  position: absolute; top: -5px; right: -5px; min-width: 17px; height: 17px;
+  padding: 0 4px; border-radius: 999px;
+  background: var(--red, #dc2b3d); color: #fff;
+  font-size: 10.5px; font-weight: 700; line-height: 17px; text-align: center;
+  box-shadow: 0 0 0 2px var(--surface, #fff);
+}

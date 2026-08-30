@@ -50,10 +50,13 @@
         </div>
         <div class="head-actions">
           <span class="chip" id="homeUser"></span>
-          <!-- Sáng / Tối / Theo hệ thống — áp cho cả lớp vỏ và mọi app con -->
-          <!-- Tiếng Việt / English — áp cho cả lớp vỏ và ba app con -->
-          <div class="seg seg-lang" id="segLang" data-no-i18n="1"></div>
-          <div class="seg seg-theme" id="segTheme"></div>
+          <!-- Chuông thông báo: cạnh tên người dùng cho dễ với.
+               Ngôn ngữ và sáng/tối đã nằm trong Cài đặt > Chung nên bỏ khỏi đây,
+               khỏi bày hai đường vào cho cùng một thứ. -->
+          <button class="btn ghost chuong" id="btnTB" title="Thông báo">
+            <span class="chuong-ic"></span>
+            <span class="chuong-so" id="tbSo" hidden></span>
+          </button>
           <button class="btn ghost" id="btnReload" title="Đọc lại chỉ số của mọi base">Làm mới</button>
         </div>
       </header>

@@ -246,9 +246,20 @@ async function napThongBao() {
     const d = await goi('/api/thong-bao');
     S.tb = d.items || [];
     S.tbMoi = d.soMoi || 0;
-    veRail();
+    veChuong();
     if ($('#tbPanel')) veBangTB();
   } catch (e) { /* mất mạng thì để nguyên số cũ, đừng xoá trắng */ }
+}
+
+function veChuong() {
+  const ic = $('#btnTB .chuong-ic');
+  if (ic && !ic.innerHTML) ic.innerHTML = icon('chuong');
+  const o = $('#tbSo');
+  if (!o) return;
+  o.hidden = !S.tbMoi;
+  o.textContent = S.tbMoi > 99 ? '99+' : String(S.tbMoi || '');
+  const b = $('#btnTB');
+  if (b) b.classList.toggle('co-moi', !!S.tbMoi);
 }
 
 function moBangTB() {
@@ -264,7 +275,7 @@ function moBangTB() {
     fetch('/api/thong-bao/doc', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ids }),
-    }).then(() => { S.tbMoi = 0; veRail(); }).catch(() => {});
+    }).then(() => { S.tbMoi = 0; veChuong(); }).catch(() => {});
   }
   setTimeout(() => document.addEventListener('pointerdown', dongNeuNgoaiTB, true), 0);
 }
@@ -328,14 +339,6 @@ function veRail() {
     mau: '#2b5cff', on: hienTai === 'home',
   });
 
-  /* Chuông đặt ở panel chứ không ở đầu trang: panel luôn hiện, kể cả khi một
-   * Base đang chiếm hết màn hình — còn đầu trang thì biến mất lúc đó. */
-  html += `
-    <button class="rail-item" id="btnTB" title="Thông báo">
-      <span class="ri-ic" style="background:#ef444422;color:#ef4444">${icon('chuong')}</span>
-      <span class="ri-tx"><b>Thông báo</b></span>
-      ${S.tbMoi ? '<span class="ri-badge">' + (S.tbMoi > 99 ? '99+' : S.tbMoi) + '</span>' : ''}
-    </button>`;
 
   const dsBat = S.modules.filter((m) => m.bat);
   html += '<div class="rail-group">Base đang quản lý</div>';
@@ -957,7 +960,9 @@ async function napHub() {
    * nút này (server cũng chặn 403 nếu ai gõ tay API). */
   S.quanLy = !!d.quanLy;
   $('#btnAdd').hidden = !S.quanLy;
-  $('#btnSettings').hidden = !S.quanLy;
+  /* Cài đặt mở cho mọi người: nhân sự cần đổi ngôn ngữ và sáng/tối. Các mục
+   * quản trị bên trong tự ẩn theo vai, và server vẫn chặn 403 nếu gõ tay API. */
+  $('#btnSettings').hidden = false;
   /* Thanh lọc vẽ lần đầu TRƯỚC khi biết vai (boot chưa gọi /api/hub xong) — vẽ lại
    * ở đây, nếu không nhân sự vẫn thấy bộ lọc đầy đủ của quản lý trong nhịp đầu. */
   veThanhLoc();
