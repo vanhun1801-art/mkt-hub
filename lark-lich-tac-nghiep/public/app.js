@@ -800,9 +800,12 @@ function theSoLichCuaToi(list) {
    *   xanh / tím / lục = đang yên, chỉ để tra cứu
    * Riêng hai thẻ đỏ và cam được tô nền (class "gap") để mắt bắt trước tiên. */
   const the = [
+    /* Chỉ đếm lịch MÌNH phụ trách: nhân sự đi cùng không nộp báo cáo nên không
+     * việc gì phải mang con số đỏ của người khác. Nộp rồi (Đang báo cáo) cũng
+     * hết trễ — bóng đang ở sân quản lý. */
     { k: 'chua-bao-cao', nhan: 'Trễ báo cáo', tone: 'do', gap: 1, phu: 'phải nộp ngay',
-      // nộp rồi (Đang báo cáo) thì không còn là trễ nữa — bóng đang ở sân quản lý
-      loc: (t) => ngay(t) && ngay(t) < homNay && t.status === 'Duyệt/Chờ tác nghiệp' },
+      loc: (t) => ngay(t) && ngay(t) < homNay && t.status === 'Duyệt/Chờ tác nghiệp'
+        && (MGR() || laPhuTrach(t)) },
     { k: 'hom-nay', nhan: 'Hôm nay', tone: 'cam', gap: 1, phu: 'đi trong hôm nay',
       loc: (t) => con(t) && ngay(t) && startOfDay(ngay(t)).getTime() === homNay.getTime() },
     { k: 'sap-48h', nhan: '48 giờ tới', tone: 'vang', phu: 'chuẩn bị trước',
@@ -843,7 +846,8 @@ function locTheoThe(list) {
     'da-duyet': (t) => t.status === 'Duyệt/Chờ tác nghiệp',
     'hom-nay': (t) => con(t) && ngay(t) && startOfDay(ngay(t)).getTime() === homNay.getTime(),
     'sap-48h': (t) => con(t) && ngay(t) && ngay(t) > new Date() && ngay(t) <= mai2,
-    'chua-bao-cao': (t) => ngay(t) && ngay(t) < homNay && t.status === 'Duyệt/Chờ tác nghiệp',
+    'chua-bao-cao': (t) => ngay(t) && ngay(t) < homNay && t.status === 'Duyệt/Chờ tác nghiệp'
+      && (MGR() || laPhuTrach(t)),
     'hoan-tat': (t) => t.status === 'Đã hoàn tất',
     'chua-thanh-toan': (t) => Number(t.costActual || 0) > 0 && t.payment !== 'Đã thanh toán',
   };
@@ -984,6 +988,27 @@ function theViec(t, buoc) {
   let nut = '';
   let them = '';                          // class phụ tô màu thẻ khi cần gấp
   let co = '';                            // cờ trạng thái dán cạnh tên
+
+  /* Nhân sự cùng đi: thẻ chỉ để nắm thông tin, không có nút nào. Báo cáo do
+   * người phụ trách tổng hợp một lần, ai cũng nộp thì quản lý nhận mấy bản
+   * chồng nhau cho cùng một buổi. */
+  if (!MGR() && !laPhuTrach(t) && buoc !== 'xong' && buoc !== 'dong') {
+    const ten2 = (t.owner || [])[0];
+    return '<div class="ct ct-cung-di" data-phieu="' + t.id + '">' +
+      '<div class="ct-dau">' +
+        '<div class="ct-ten">' + esc(t.title || '(chưa đặt tên)') +
+          '<span class="ct-co xam">Bạn đi cùng</span></div>' +
+        '<div class="ct-luc">' + esc(fmtDT(t.start)) + '</div>' +
+      '</div>' +
+      '<div class="ct-viec">' + esc(ten2
+        ? ten2.name + ' phụ trách buổi này — báo cáo do bên đó tổng hợp'
+        : 'Chưa có người phụ trách') + '</div>' +
+      '<div class="ct-can">' +
+        ((t.transport || []).length ? '<span class="ct-mon">🚗 ' + esc(t.transport.join(', ')) + '</span>' : '') +
+        (t.duration ? '<span class="ct-mon">⏱ ' + esc(t.duration) + ' giờ</span>' : '') +
+      '</div>' +
+      '<div class="ct-chan">' + peopleStack(t.staff, 3) + '</div></div>';
+  }
 
   /* Đang xin huỷ thì thẻ chỉ còn một việc: chờ quản lý trả lời. Mọi nút khác
    * tắt đi, khỏi vừa xin huỷ vừa gửi duyệt. */
@@ -1250,7 +1275,19 @@ const KHOA_SUA = ['Chờ duyệt/Xử lý', 'Duyệt/Chờ tác nghiệp', 'Đan
   'Đã hoàn tất', 'Từ chối', 'Hủy lịch'];
 
 function chiXem(t) {
-  return !MGR() && KHOA_SUA.includes(t.status);
+  return !MGR() && (KHOA_SUA.includes(t.status) || !laPhuTrach(t));
+}
+
+/**
+ * Tôi có phải người phụ trách lịch này không?
+ *
+ * Khác với "lịch của tôi": nhân sự cùng tác nghiệp vẫn thấy lịch, vẫn nhận
+ * thông báo, nhưng người nộp báo cáo và động vào lịch chỉ có một — người phụ
+ * trách, vì họ là người tổng hợp cuối cùng. Máy chủ cũng chốt y hệt.
+ */
+function laPhuTrach(t) {
+  const v = viewer();
+  return !!(v && (t.owner || []).some((u) => u.id === v.id));
 }
 
 function openItem(id) {
@@ -1800,6 +1837,11 @@ function moBaoCao(id) {
   const t = S.items.find((x) => x.id === id);
   if (!t) return;
   if (PREVIEW()) return toast('Đang xem giao diện của người khác — không báo cáo thay họ được.', 'err');
+  if (!MGR() && !laPhuTrach(t)) {
+    const ai = (t.owner || [])[0];
+    return toast('Buổi này do ' + (ai ? ai.name : 'người phụ trách') +
+      ' tổng hợp báo cáo. Bạn đi cùng nên không cần nộp.', 'err');
+  }
   BC = {
     id,
     end: t.end || null,

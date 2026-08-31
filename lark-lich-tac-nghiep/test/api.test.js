@@ -351,6 +351,17 @@ async function call(path, opts) {
     ok('cắt đúng 2 lịch huỷ, giữ lại 3', cuaNhanSu.length === 3, 'còn ' + cuaNhanSu.length);
     ok('quản lý vẫn thấy đủ để đối chiếu', G.anLichHuy(mau, true).length === 5);
 
+    /* Nhân sự cùng đi vẫn THẤY lịch nhưng không phải người GHI vào lịch — hai
+     * câu hỏi khác nhau, hai hàm khác nhau, rất dễ nhầm nên chốt lại ở đây. */
+    const buoi = { owner: [{ id: 'A' }], staff: [{ id: 'B' }] };
+    ok('người phụ trách được nhận là phụ trách', G.laPhuTrach(buoi, 'A'));
+    ok('nhân sự cùng đi KHÔNG phải phụ trách', !G.laPhuTrach(buoi, 'B'));
+    ok('nhân sự cùng đi vẫn thấy lịch', G.ownedBy(buoi, 'B'));
+    ok('người ngoài thì không thấy, không ghi',
+      !G.laPhuTrach(buoi, 'C') && !G.ownedBy(buoi, 'C'));
+    ok('lịch chưa có phụ trách thì không ai là phụ trách',
+      !G.laPhuTrach({ staff: [{ id: 'B' }] }, 'B'));
+
     const cfgApp = (await call('/api/meta')).body.config || {};
     ok('"Hủy lịch" nằm trong nhóm trạng thái chỉ quản lý đặt',
       (cfgApp.managerStatuses || []).includes('Hủy lịch'));

@@ -1211,3 +1211,9 @@ a.phieu-f:hover { border-color: var(--primary); background: var(--blue-bg); }
   background: var(--yellow-bg); border-color: #f0c976; color: var(--yellow-t); font-weight: 600;
 }
 .btn.nhap:hover { background: #ffeccd; border-color: #d9a029; }
+
+/* Thẻ của người ĐI CÙNG: chỉ để nắm thông tin, không có nút nào — báo cáo do
+   người phụ trách tổng hợp một lần. Làm nhạt để phân biệt với việc của mình. */
+.ct-cung-di { background: var(--surface-2); border-style: dashed; }
+.ct-cung-di .ct-viec { color: var(--t2) !important; background: var(--surface) !important; }
+.ct-cung-di:hover { border-style: solid; }

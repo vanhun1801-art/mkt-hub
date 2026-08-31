@@ -244,6 +244,18 @@ async function requireManager(res) {
   return false;
 }
 
+/**
+ * Người phụ trách của một lịch.
+ *
+ * Khác với ownedBy(): ownedBy đúng cho câu hỏi "lịch này có phải việc của tôi
+ * không" (được xem, được nhận thông báo), còn hàm này trả lời "tôi có phải người
+ * chịu trách nhiệm không" — chỉ người đó mới ghi được vào lịch. Nhân sự cùng đi
+ * thì đi cùng, còn báo cáo do phụ trách tổng hợp một lần.
+ */
+function laPhuTrach(it, personId) {
+  return (it.owner || []).some((u) => u.id === personId);
+}
+
 async function requireOwn(res, it) {
   if (await isManager()) return true;
   const me = await whoAmI();
@@ -447,7 +459,11 @@ async function api(req, res, url) {
 
     if (me) {
       const cuaToi = items.filter((t) => ownedBy(t, me.id));
-      for (const t of cuaToi.filter((x) => x.status === 'Từ chối/Cần điều chỉnh')) {
+      /* Việc phải TAY LÀM thì chỉ người phụ trách nhận: sửa lại lịch bị trả về,
+       * nộp báo cáo. Còn tin cần biết — hôm nay đi, ngày mai đi, vé đã duyệt —
+       * thì cả nhóm cùng nhận, vì ai cũng phải sắp xếp mà đi. */
+      const toiLoc = cuaToi.filter((t) => (t.owner || []).some((u) => u.id === me.id));
+      for (const t of toiLoc.filter((x) => x.status === 'Từ chối/Cần điều chỉnh')) {
         them({ id: 'lich:tra-ve:' + t.id, muc: 'gap', rec: t.id, khi: t.start,
           tieuDe: 'Lịch bị trả về', mo: ten(t) + ' — sửa lại rồi gửi duyệt lần nữa' });
       }
@@ -461,12 +477,12 @@ async function api(req, res, url) {
         } else if (cach === 1) {
           them({ id: 'lich:ngay-mai:' + t.id + ':' + nhan(homNay), muc: 'can', rec: t.id, khi: t.start,
             tieuDe: 'Ngày mai đi tác nghiệp', mo: ten(t) + ' · ' + gioVN(d) + ' — xem lại vé và phương tiện' });
-        } else if (cach < 0) {
+        } else if (cach < 0 && (t.owner || []).some((u) => u.id === me.id)) {
           them({ id: 'lich:tre-bc:' + t.id + ':' + nhan(homNay), muc: 'gap', rec: t.id, khi: t.start,
             tieuDe: 'Chưa nộp báo cáo', mo: ten(t) + ' — đã qua ngày đi, bấm Báo cáo' });
         }
       }
-      for (const t of cuaToi.filter((x) => x.status === 'Đang báo cáo')) {
+      for (const t of toiLoc.filter((x) => x.status === 'Đang báo cáo')) {
         them({ id: 'lich:dang-bc:' + t.id, muc: 'tin', rec: t.id, khi: t.end || t.start,
           tieuDe: 'Đã nộp báo cáo', mo: ten(t) + ' — chờ quản lý nghiệm thu' });
       }
@@ -628,6 +644,19 @@ async function api(req, res, url) {
             code: 'FIELD_LOCKED',
           }, 403);
         }
+        /* Ghi vào lịch là việc của người phụ trách. Nhân sự cùng đi vẫn thấy
+         * lịch và vẫn nhận thông báo, nhưng không nộp báo cáo, không gửi duyệt,
+         * không xin huỷ thay — nếu ai cũng nộp thì quản lý nhận mấy bản báo cáo
+         * chồng nhau cho cùng một buổi. */
+        const toi = await whoAmI();
+        if (!toi || !laPhuTrach(item, toi.id)) {
+          return json(res, {
+            error: 'Chỉ người phụ trách lịch này mới sửa và nộp báo cáo được. ' +
+              'Bạn là nhân sự cùng tác nghiệp — góp nội dung thì gửi cho người phụ trách tổng hợp.',
+            code: 'NOT_OWNER',
+          }, 403);
+        }
+
         /* Bản nháp là của riêng người viết, chưa ai nhìn tới — huỷ thì huỷ,
          * không phải xin phép ai. Từ lúc gửi duyệt trở đi mới phải xin. */
         const tuHuyDuoc = body.status === 'Hủy lịch' && item.status === 'Đang lên kế hoạch';
@@ -808,7 +837,7 @@ if (!LOOPBACK.includes(BIND) && process.env.HUB_TRUST_HEADER !== '0') {
 
 /* Được require từ bộ kiểm thử thì chỉ xuất hàm ra, đừng mở cổng. */
 if (require.main !== module) {
-  module.exports = { khoaKeHoach, duMinhChung, anLichHuy };
+  module.exports = { khoaKeHoach, duMinhChung, anLichHuy, laPhuTrach, ownedBy };
   return;
 }
 
