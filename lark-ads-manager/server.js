@@ -18,6 +18,7 @@ const live = require('./sync/live');
 const giamSat = require('./giam-sat');
 const metaAds = require('./sync/meta');
 const gads = require('./sync/gads');
+const pancake = require('./sync/pancake');
 
 const T = cfg.tables;
 const PUBLIC = path.join(__dirname, 'public');
@@ -389,6 +390,100 @@ async function api(req, res, u) {
     live.xoaCache();
     sync.startScheduler((m) => console.log(m));
     return ok(res, { ...ketnoi.status(), hengio: sync.schedulerState(), daDoi });
+  }
+
+  /* ---------------- Pancake (hội thoại · ad_ids) ---------------- */
+
+  /**
+   * Lưu cấu hình Pancake. Token chỉ đi VÀO, phản hồi luôn là status() đã che sẵn.
+   * Ô token để trống = giữ token cũ (xem writePancake), nên sửa nhãn page không
+   * làm mất token.
+   */
+  if (p === '/api/pancake' && method === 'PUT') {
+    const body = await readBody(req);
+    let daDoi;
+    try { ({ daDoi } = ketnoi.writePancake(body)); }
+    catch (e) { return fail(res, e.code || 400, e.message); }
+    return ok(res, { ...ketnoi.status(), daDoi });
+  }
+
+  /**
+   * Dò danh sách page bằng token cấp tài khoản.
+   *
+   * page_id không hiện rõ ở đâu trong giao diện Pancake, mà khai sai một chữ số là
+   * mọi lệnh sau đó trả 401 mà không nói vì sao. Để máy đọc hộ.
+   */
+  if (p === '/api/pancake/pages' && method === 'POST') {
+    const body = await readBody(req);
+    // Cho phép dò bằng token vừa dán mà chưa lưu, để người dùng thử trước khi cất.
+    const conf = body && body.userToken
+      ? { userToken: String(body.userToken).trim() }
+      : ketnoi.read().pancake;
+    try { return ok(res, { rows: await pancake.danhSachPage(conf) }); }
+    catch (e) { return fail(res, 400, e.message); }
+  }
+
+  /** Kiểm tra từng page: đọc thử hội thoại, đếm xem có bao nhiêu cái mang ad_ids. */
+  if (p === '/api/pancake/test' && method === 'POST') {
+    try { return ok(res, await pancake.test(ketnoi.read().pancake)); }
+    catch (e) { return fail(res, 400, e.message); }
+  }
+
+  /** Tag của page, kèm cờ is_lead_event — để chọn tag nào tính là đơn chốt. */
+  if (p === '/api/pancake/tags' && method === 'POST') {
+    const body = await readBody(req);
+    const conf = ketnoi.read().pancake;
+    const page = (conf.pages || []).find((x) => String(x.pageId) === String(body.pageId));
+    if (!page) return fail(res, 400, 'Chưa lưu page này');
+    try { return ok(res, { rows: await pancake.danhSachTag(page) }); }
+    catch (e) { return fail(res, 400, e.message); }
+  }
+
+  /**
+   * Phép đếm phủ: hội thoại có ad_ids trên các page đã khai, so với số chuyển đổi
+   * nền tảng báo trong cùng khoảng. Lệch nhiều nghĩa là quảng cáo đang dẫn tin nhắn
+   * về page CHƯA khai — câu hỏi không trả lời được bằng cách nhìn giao diện.
+   */
+  if (p === '/api/pancake/phu' && method === 'POST') {
+    const body = await readBody(req);
+    const conf = ketnoi.read().pancake;
+    const pages = (conf.pages || []).filter((x) => x.pageId && x.token);
+    if (!pages.length) return fail(res, 400, 'Chưa khai page nào');
+    // Gio VN, khong phai UTC: o UTC thi truoc 07:00 sang se hoi sai mot ngay.
+    const ngayVN = (lui = 0) => new Date(Date.now() + 7 * 3600 * 1000 - lui * 86400 * 1000)
+      .toISOString().slice(0, 10);
+    const from = body.from || ngayVN(14);
+    const to = body.to || ngayVN(0);
+    const log = [];
+    const theoPage = [];
+    let tatCa = [];
+    for (const pg of pages) {
+      try {
+        const r = await pancake.fetchConversations(pg, from, to, (m) => log.push(m));
+        tatCa = tatCa.concat(r.rows);
+        theoPage.push({
+          pageId: pg.pageId, label: pg.label, platform: pg.platform, ok: true,
+          hoiThoai: r.rows.length,
+          coAd: r.rows.filter((x) => x.adIds.length).length,
+          coSdt: r.rows.filter((x) => x.coSdt).length,
+        });
+      } catch (e) {
+        theoPage.push({ pageId: pg.pageId, label: pg.label, ok: false, loi: e.message });
+      }
+    }
+    // Số nền tảng báo, cùng khoảng ngày, để đặt cạnh nhau.
+    const d = await store.get();
+    const o = M.overview(d, { from, to });
+    return ok(res, {
+      from, to, theoPage, log,
+      tong: {
+        hoiThoai: tatCa.length,
+        coAd: tatCa.filter((x) => x.adIds.length).length,
+        coSdt: tatCa.filter((x) => x.coSdt).length,
+      },
+      nenTang: o.byPlatform.map((x) => ({ platform: x.platform, chuyenDoi: x.conversions, spend: x.spend })),
+      theoAd: pancake.theoAdVaNgay(tatCa, { tagChot: conf.tagChot }),
+    });
   }
 
   /** Dò danh sách tài khoản quảng cáo bằng token vừa lưu — đỡ phải đi tra ID tay. */

@@ -9,6 +9,8 @@ const meta = require('../sync/meta');
 const gsheet = require('../sync/gsheet');
 const store = require('../store');
 const reconcile = require('../sync/reconcile');
+const sync = require('../sync');
+const pancake = require('../sync/pancake');
 
 const B = process.env.APP_URL || 'http://localhost:5176';
 let pass = 0, fail = 0;
@@ -94,12 +96,37 @@ const post = async (p, b) => {
 
   console.log('— cấu hình kết nối không lộ bí mật');
   const st = ketnoi.status();
-  t('có 4 kênh (meta · tiktok · Google Ads API · Google Sheet)', st.providers.length === 4);
+  /* KHÔNG neo vào con số kênh. Đã ba lần test vỡ chỉ vì thêm một kênh mới, mà lần
+   * nào cũng là test sai chứ không phải code sai. Bất biến đáng giữ là quan hệ giữa
+   * cấu hình và ADAPTERS: mọi nguồn CHI TIÊU phải có adapter để đồng bộ, còn nguồn
+   * chỉ để đo (Pancake) thì cố tình KHÔNG có adapter — bấm "Đồng bộ" vào nó là lỗi. */
+  const KHOI_CAU_HINH = Object.keys(ketnoi.DEFAULT).filter((k) => k !== 'dongBo');
+  const CO_ADAPTER = Object.keys(sync.ADAPTERS || {});
+  const CHI_DO = st.providers.filter((x) => x.laDoanhThu).map((x) => x.key);
+  t('mọi khối cấu hình đều hiện ra giao diện',
+    KHOI_CAU_HINH.every((k) => st.providers.some((x) => x.key === k)),
+    KHOI_CAU_HINH.filter((k) => !st.providers.some((x) => x.key === k)).join(', '));
+  t('mọi adapter đồng bộ đều có khối cấu hình',
+    CO_ADAPTER.every((k) => KHOI_CAU_HINH.includes(k)),
+    CO_ADAPTER.filter((k) => !KHOI_CAU_HINH.includes(k)).join(', '));
+  t('mọi nguồn chi tiêu đều có adapter (không kênh nào bật mà không đồng bộ được)',
+    st.providers.filter((x) => !x.laDoanhThu).every((x) => CO_ADAPTER.includes(x.key)),
+    st.providers.filter((x) => !x.laDoanhThu && !CO_ADAPTER.includes(x.key)).map((x) => x.key).join(', '));
+  t('nguồn chỉ-để-đo không có adapter đồng bộ',
+    CHI_DO.every((k) => !CO_ADAPTER.includes(k)),
+    CHI_DO.filter((k) => CO_ADAPTER.includes(k)).join(', '));
+  t('Pancake nằm trong nhóm chỉ-để-đo', CHI_DO.includes('pancake'), CHI_DO.join(', '));
   t('kênh Google Ads API nói rõ còn thiếu gì',
     Array.isArray((st.providers.find((p) => p.key === 'googleAds') || {}).thieu));
   t('không có trường accessToken', !JSON.stringify(st).includes('accessToken'));
   t('không lộ giá trị token', !JSON.stringify(st).toLowerCase().includes('eaa'));
   t('có cờ coToken', st.providers.every((p) => typeof p.coToken === 'boolean'));
+  /* Pancake giữ token trong pages[].token — một nhánh riêng, nên phải kiểm riêng:
+   * status() chỉ được nói có/không, tuyệt đối không trả lại giá trị token. */
+  t('danh sách page Pancake không mang token',
+    (st.providers.find((x) => x.key === 'pancake') || {}).pages
+      ? (st.providers.find((x) => x.key === 'pancake') || {}).pages.every((x) => !('token' in x))
+      : true);
 
   console.log('— chuẩn hoá link Google Sheet');
   t('link edit → export csv',

@@ -35,11 +35,34 @@ const DEFAULT = {
     enabled: false, clientId: '', clientSecret: '', refreshToken: '',
     developerToken: '', customerIds: [], loginCustomerId: '', apiVersion: 'v22',
   },
+  /* Pancake Chat (pages.fm) — KHONG phai nguon chi tieu, nen khong nam trong
+   * ADAPTERS cua sync/index.js. Day la nguon duy nhat con giu duoc "khach nay den
+   * tu quang cao nao" (truong ad_ids tren hoi thoai), dung de tinh doanh thu va
+   * ROAS. Token cap page khong het han, nen khai mot lan la chay mai. */
+  pancake: {
+    enabled: false,
+    userToken: '',   // cap tai khoan, chi dung de liet ke page (het han <=90 ngay)
+    pages: [],       // [{ pageId, token, platform, label }] — token cap page, khong het han
+    tagChot: [],     // ten tag coi la don chot, ngoai cac tag Pancake tu danh dau is_lead_event
+  },
   dongBo: {
     soNgayLui: 7, moiSoGio: 1, khiKhoiDong: true,
     ghiDeNhapTay: true, tuTaoMoi: true,
   },
 };
+
+/* Mot khoi cau hinh co thong tin thuc su chua? Dung o hai cho: coThongTin() (de
+ * biet file rong ma tut ve bien moi truong) va benVung() (de biet kenh nao song
+ * qua lan deploy toi). Pancake giu token trong pages[].token nen phai xet rieng —
+ * thieu nhanh nay thi cau hinh chi co Pancake bi coi la rong. */
+const KHOA_TOKEN = ['accessToken', 'refreshToken', 'clientSecret', 'developerToken', 'csvUrl', 'userToken'];
+
+function khoiCoThongTin(khoi) {
+  if (!khoi || typeof khoi !== 'object') return false;
+  if (KHOA_TOKEN.some((k) => typeof khoi[k] === 'string' && khoi[k].trim().length > 0)) return true;
+  return Array.isArray(khoi.pages)
+    && khoi.pages.some((p) => p && typeof p.token === 'string' && p.token.trim().length > 0);
+}
 
 /** Bỏ mọi khoá chú thích `_...` khỏi file cấu hình. */
 function stripComments(o) {
@@ -72,11 +95,7 @@ function nguon() {
  */
 function coThongTin(raw) {
   if (!raw || typeof raw !== 'object') return false;
-  return Object.values(raw).some((khoi) => {
-    if (!khoi || typeof khoi !== 'object') return false;
-    return ['accessToken', 'refreshToken', 'clientSecret', 'developerToken', 'csvUrl']
-      .some((k) => typeof khoi[k] === 'string' && khoi[k].trim().length > 0);
-  });
+  return Object.values(raw).some(khoiCoThongTin);
 }
 
 function read() {
@@ -312,11 +331,13 @@ function bieuMau() {
  * ADS_CONNECT_JSON là bền. Ở máy cá nhân thì file không mất, nên mọi thứ đều bền.
  */
 function benVung() {
-  const dangCo = (khoi) => ['accessToken', 'refreshToken', 'clientSecret', 'developerToken', 'csvUrl']
-    .some((k) => khoi && typeof khoi[k] === 'string' && khoi[k].trim().length > 0);
+  const dangCo = khoiCoThongTin;
 
   const c = read();
-  const dangChay = ['meta', 'tiktok', 'googleAds', 'googleSheet'].filter((k) => c[k] && c[k].enabled && dangCo(c[k]));
+  // Pancake co trong danh sach nay du khong phai nguon chi tieu: mat token Pancake
+  // sau deploy cung dau y het mat token Meta, nguoi dung can duoc canh bao nhu nhau.
+  const dangChay = ['meta', 'tiktok', 'googleAds', 'googleSheet', 'pancake']
+    .filter((k) => c[k] && c[k].enabled && dangCo(c[k]));
 
   // Máy cá nhân: file nằm trên đĩa thật, không mất đi đâu
   if (!process.env.RENDER) {
@@ -403,6 +424,33 @@ function status() {
         capDo: c.googleSheet.level,
         sanSang: !!c.googleSheet.csvUrl,
       },
+      /* Pancake khong do chi tieu — no do "khach den tu quang cao nao". De chung
+       * danh sach providers de giao dien khong phai co hai co che hien thi, nhung
+       * `laDoanhThu: true` cho giao dien biet dung xep no vao bang so sanh CPA. */
+      {
+        key: 'pancake', label: 'Pancake (hoi thoai · ad_ids)', enabled: c.pancake.enabled,
+        laDoanhThu: true,
+        coToken: (c.pancake.pages || []).some((x) => x && x.token),
+        soTaiKhoan: (c.pancake.pages || []).filter((x) => x && x.token).length,
+        taiKhoan: (c.pancake.pages || []).map((x) => `${x.label || x.pageId} (${x.platform || '?'})`),
+        // Danh sach page dang co CAU TRUC (khong phai chuoi da ghep) de giao dien
+        // dung lai duoc ma khong phai tach chuoi — va khong bao gio kem token.
+        pages: (c.pancake.pages || []).map((x) => ({
+          pageId: x.pageId, platform: x.platform || '', label: x.label || '', coToken: !!x.token,
+        })),
+        coUserToken: !!c.pancake.userToken,
+        tagChot: c.pancake.tagChot || [],
+        // Token cap page khong het han — noi ro ra vi day la diem khac biet lon
+        // so voi Meta (phai gia han) va Google (refresh token co the bi thu hoi).
+        hanToken: { vinhVien: true, mo_ta: 'token cap page khong het han' },
+        thieu: [
+          (c.pancake.pages || []).length ? '' : 'chua khai page nao',
+          (c.pancake.pages || []).every((x) => x && x.pageId) ? '' : 'co page thieu pageId',
+          (c.pancake.pages || []).every((x) => x && x.token) ? '' : 'co page thieu token',
+        ].filter(Boolean),
+        sanSang: (c.pancake.pages || []).length > 0
+          && (c.pancake.pages || []).every((x) => x && x.pageId && x.token),
+      },
     ],
   };
 }
@@ -426,7 +474,60 @@ const maskUrl = (u) => {
   try { const x = new URL(u); return x.hostname + '/…'; } catch (_) { return 'đã đặt'; }
 };
 
+/**
+ * Luu cau hinh Pancake.
+ *
+ * Khong dung writeSecrets/TRUONG duoc: `pages` la mang OBJECT, con TRUONG chi
+ * biet chuoi va mang chuoi. Nhoi vao do se phai noi long LAM_SACH cho moi kenh,
+ * doi lay mot cho de sai. Tach ham rieng, giu nguyen quy tac quan trong nhat:
+ * o token de TRONG = khong dung toi token cu.
+ */
+function writePancake(next = {}) {
+  const cur = read();
+  const doi = [];
+  const p = cur.pancake;
+
+  if (typeof next.userToken === 'string' && next.userToken.trim()) {
+    if (next.userToken.trim() !== p.userToken) { p.userToken = next.userToken.trim(); doi.push('pancake.userToken'); }
+  }
+  if (next.userToken === null) { p.userToken = ''; doi.push('pancake.userToken'); }
+
+  if (Array.isArray(next.pages)) {
+    const cu = new Map((p.pages || []).map((x) => [String(x.pageId), x]));
+    const moi = [];
+    next.pages.forEach((x) => {
+      const pageId = String((x && x.pageId) || '').replace(/[^0-9A-Za-z_-]/g, '').trim();
+      if (!pageId) return;
+      const truoc = cu.get(pageId) || {};
+      const tokenMoi = String((x && x.token) || '').trim();
+      moi.push({
+        pageId,
+        // Trong = giu token cu. Nguoi dung sua nhan page ma mat token la hong het.
+        token: tokenMoi || truoc.token || '',
+        platform: String((x && x.platform) || truoc.platform || '').trim(),
+        label: String((x && x.label) || truoc.label || '').trim().slice(0, 120),
+      });
+    });
+    if (JSON.stringify(moi.map(anToken)) !== JSON.stringify((p.pages || []).map(anToken))
+      || moi.some((x, i) => x.token !== ((p.pages || [])[i] || {}).token)) {
+      doi.push('pancake.pages');
+    }
+    p.pages = moi;
+  }
+
+  if (Array.isArray(next.tagChot)) {
+    const t = next.tagChot.map((x) => String(x).trim()).filter(Boolean);
+    if (JSON.stringify(t) !== JSON.stringify(p.tagChot || [])) { p.tagChot = t; doi.push('pancake.tagChot'); }
+  }
+  if (next.enabled != null) p.enabled = !!next.enabled;
+
+  ghiFile(cur);
+  return { daDoi: doi };
+}
+
+const anToken = (x) => ({ pageId: x.pageId, platform: x.platform, label: x.label });
+
 module.exports = { benVung,
-  read, writeOptions, writeSecrets, writeMetaTokenInfo, bieuMau,
+  read, writeOptions, writeSecrets, writeMetaTokenInfo, writePancake, bieuMau,
   status, hanToken, nguon, FILE, DEFAULT,
 };

@@ -16,7 +16,11 @@
    * Ẩn có điều kiện: kênh nào đang BẬT thì vẫn hiện, để không bao giờ có chuyện một
    * kênh lặng lẽ ghi số vào Base mà giao diện không nhắc tới nó. */
   const KENH_AN = ['googleSheet'];
-  const hienKenh = (p) => !KENH_AN.includes(p.key) || p.enabled;
+  /* Pancake nam chung mang providers de dung mot co che status(), nhung no do
+   * "khach den tu quang cao nao", khong do chi tieu. De lan vao luoi the nen tang
+   * thi no se co nut "Dong bo kenh nay" — bam vao la loi, vi sync/index.js khong
+   * co adapter cho no. Tach ra bang co laDoanhThu. */
+  const hienKenh = (p) => !p.laDoanhThu && (!KENH_AN.includes(p.key) || p.enabled);
 
   /* ===== Biểu mẫu điền token ngay trong app =====
    * Trước đây token chỉ điền được bằng `node ket-noi.js` trên máy cá nhân. App chạy
@@ -283,6 +287,8 @@
 
     <div id="kReport" style="margin-top:14px"></div>
 
+    ${thePancake(c)}
+
     <div class="card" style="margin-top:14px">
       <div class="card-head"><h3>Ghép ID nền tảng</h3>
         <span class="sub">bản ghi nào chưa có ID sẽ không nhận được số tự động</span></div>
@@ -462,7 +468,217 @@
   }
 
   /* ---------------- nút bấm ---------------- */
+  /* ===== Pancake — hội thoại & ID quảng cáo =====
+   *
+   * Vì sao có phần này: Tourwell giữ được nguồn ở mức NHÃN, mà nhãn đó do một
+   * webhook cấp cửa hàng đóng chung cho mọi page, nên không phân biệt được kênh.
+   * Pancake là chỗ duy nhất còn giữ `ad_ids` trên từng hội thoại — tức là biết
+   * khách này đến từ đúng quảng cáo nào.
+   *
+   * KS.pcPages là bộ đệm đang sửa. null = chưa sửa gì, lấy theo server. */
+  const PC_NEN_TANG = ['Facebook', 'TikTok', 'Instagram', 'Zalo', 'WhatsApp'];
+
+  function thePancake(c) {
+    const p = (c.providers || []).find((x) => x.key === 'pancake') || {};
+    const pages = KS.pcPages || p.pages || [];
+    const dong = (x, i) => `
+      <tr data-pc-row="${i}">
+        <td><input data-pc="pageId" value="${esc(x.pageId || '')}" placeholder="123456789" style="width:100%"></td>
+        <td><select data-pc="platform" style="width:100%">
+          <option value="">— chọn —</option>
+          ${PC_NEN_TANG.map((n) => `<option value="${n}" ${x.platform === n ? 'selected' : ''}>${n}</option>`).join('')}
+        </select></td>
+        <td><input data-pc="label" value="${esc(x.label || '')}" placeholder="Rooty Trip Phú Quốc" style="width:100%"></td>
+        <td><input data-pc="token" type="password" autocomplete="off"
+             placeholder="${x.coToken ? 'đã có — để trống là giữ nguyên' : 'dán Page Access Token'}" style="width:100%">
+          ${x.coToken ? '<span class="tag good">đã có token</span>' : '<span class="tag warn">chưa có token</span>'}</td>
+        <td><button class="btn small ghost" data-pc-xoa="${i}">Xoá</button></td>
+      </tr>`;
+
+    return `
+    <div class="card" style="margin-top:14px">
+      <div class="card-head">
+        <h3>Pancake — hội thoại &amp; ID quảng cáo</h3>
+        <span class="sub">nguồn duy nhất biết khách đến từ quảng cáo nào</span>
+      </div>
+      <div class="card-body">
+        <div class="help">
+          Mỗi page một <b>Page Access Token</b> riêng, lấy ở <b>Pancake chat (pages.fm) → mở page → Cài đặt → Công cụ</b>.
+          Token này <b>không hết hạn</b>, khai một lần là chạy mãi.
+          <br>Đừng lẫn với khoá ở <code>pos.pancake.vn</code> — bên đó là Pancake POS (đơn hàng), không đọc được hội thoại.
+        </div>
+
+        <div class="field full" style="margin-bottom:10px">
+          <label><input type="checkbox" id="pcBat" ${p.enabled ? 'checked' : ''}> Bật đọc Pancake</label>
+        </div>
+
+        <div class="form-grid">
+          <div class="field full">
+            <label>Token cấp tài khoản <span class="hint">— chỉ dùng để dò page_id, không bắt buộc</span></label>
+            <input id="pcUserToken" type="password" autocomplete="off"
+              placeholder="${p.coUserToken ? 'đã có — để trống là giữ nguyên' : 'Pancake → ảnh đại diện → Cài đặt cá nhân → API Access Token'}">
+            <span class="hint">page_id không hiện rõ ở đâu trong giao diện Pancake, mà khai sai một chữ số là mọi lệnh sau đó báo 401 mà không nói vì sao. Dán token này rồi bấm Dò để máy đọc hộ. Token cấp tài khoản hết hạn sau tối đa 90 ngày — nhưng token cấp page đã lấy được thì vẫn sống.</span>
+          </div>
+          <div class="field full">
+            <label>Tag tính là đơn chốt <span class="hint">— ngăn bằng dấu phẩy</span></label>
+            <input id="pcTagChot" value="${esc((p.tagChot || []).join(', '))}" placeholder="Chốt">
+            <span class="hint">Tag nào Pancake tự đánh dấu <code>is_lead_event</code> thì luôn được tính, không cần khai ở đây.</span>
+          </div>
+        </div>
+
+        <div style="overflow-x:auto;margin-top:12px">
+          <table class="tbl"><thead><tr>
+            <th style="min-width:130px">page_id</th><th style="min-width:110px">Nền tảng</th>
+            <th style="min-width:150px">Tên gợi nhớ</th><th style="min-width:210px">Page Access Token</th><th></th>
+          </tr></thead>
+          <tbody id="pcBody">${pages.length ? pages.map(dong).join('')
+            : '<tr><td colspan="5" class="sub" style="padding:12px">Chưa khai page nào. Bấm <b>Thêm page</b> hoặc dò bằng token cấp tài khoản.</td></tr>'}</tbody></table>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          <button class="btn ghost" id="pcDo">Dò danh sách page</button>
+          <button class="btn ghost" id="pcThem">+ Thêm page</button>
+          <button class="btn primary" id="pcLuu">Lưu cấu hình Pancake</button>
+          <button class="btn ghost" id="pcTest" ${p.sanSang ? '' : 'disabled'}>Kiểm tra kết nối</button>
+          <button class="btn primary" id="pcPhu" ${p.sanSang ? '' : 'disabled'}>Đếm phủ 14 ngày</button>
+        </div>
+        ${p.thieu && p.thieu.length ? `<div class="help" style="margin-top:10px;border-color:var(--warn);color:var(--warn)">Còn thiếu: ${esc(p.thieu.join(' · '))}</div>` : ''}
+        <div id="pcKetQua" style="margin-top:12px"></div>
+      </div>
+    </div>`;
+  }
+
+  /** Đọc bảng page trên màn hình thành mảng để gửi lên server. */
+  function pcNhatBang() {
+    return $$('#view [data-pc-row]').map((tr) => {
+      const g = (k) => {
+        const el = tr.querySelector(`[data-pc="${k}"]`);
+        return el ? el.value.trim() : '';
+      };
+      return { pageId: g('pageId'), platform: g('platform'), label: g('label'), token: g('token') };
+    }).filter((x) => x.pageId);
+  }
+
+  function wirePancake(c) {
+    const p = (c.providers || []).find((x) => x.key === 'pancake') || {};
+
+    const goiLuu = async () => {
+      const body = {
+        enabled: $('#pcBat').checked,
+        pages: pcNhatBang(),
+        tagChot: ($('#pcTagChot').value || '').split(',').map((x) => x.trim()).filter(Boolean),
+      };
+      const ut = ($('#pcUserToken').value || '').trim();
+      if (ut) body.userToken = ut;
+      const r = await api('/api/pancake', { method: 'PUT', body: JSON.stringify(body) });
+      KS.pcPages = null; // đã lưu → lấy lại theo server
+      return r;
+    };
+
+    const nut = (id, fn) => { const b = $(id); if (b) b.onclick = fn; };
+
+    nut('#pcThem', () => {
+      KS.pcPages = [...(KS.pcPages || p.pages || []), { pageId: '', platform: '', label: '', coToken: false }];
+      render();
+    });
+
+    $$('#view [data-pc-xoa]').forEach((b) => b.onclick = () => {
+      const i = Number(b.dataset.pcXoa);
+      const truoc = KS.pcPages || p.pages || [];
+      KS.pcPages = pcNhatBang()
+        .map((x, j) => ({ ...x, coToken: (truoc[j] || {}).coToken }))
+        .filter((_, j) => j !== i);
+      render();
+    });
+
+    nut('#pcDo', async (e) => {
+      const b = e.currentTarget; const cu = b.textContent;
+      b.disabled = true; b.textContent = 'Đang dò…';
+      try {
+        const ut = ($('#pcUserToken').value || '').trim();
+        // Dò được bằng token vừa dán mà chưa lưu — để thử trước khi cất.
+        const r = await api('/api/pancake/pages', { method: 'POST', body: JSON.stringify(ut ? { userToken: ut } : {}) });
+        const cuMap = new Map((p.pages || []).map((x) => [String(x.pageId), x]));
+        KS.pcPages = (r.rows || []).map((x) => ({
+          pageId: x.pageId, platform: x.platform, label: x.label,
+          coToken: !!(cuMap.get(String(x.pageId)) || {}).coToken,
+        }));
+        toast(`Thấy ${(r.rows || []).length} page — xoá dòng nào không dùng rồi dán token cho các page còn lại`, 'ok');
+        render();
+      } catch (err) { toast(err.message, 'err'); b.disabled = false; b.textContent = cu; }
+    });
+
+    nut('#pcLuu', async (e) => {
+      const b = e.currentTarget; const cu = b.textContent;
+      b.disabled = true; b.textContent = 'Đang lưu…';
+      try {
+        const r = await goiLuu();
+        const pp = (r.providers || []).find((x) => x.key === 'pancake') || {};
+        toast(pp.sanSang ? 'Đã lưu — bấm Kiểm tra kết nối' : 'Đã lưu, còn thiếu: ' + ((pp.thieu || []).join(', ') || 'token'),
+          pp.sanSang ? 'ok' : 'err');
+        render();
+      } catch (err) { toast(err.message, 'err'); b.disabled = false; b.textContent = cu; }
+    });
+
+    nut('#pcTest', async (e) => {
+      const b = e.currentTarget; const cu = b.textContent;
+      b.disabled = true; b.textContent = 'Đang thử…';
+      try {
+        await goiLuu();
+        const r = await api('/api/pancake/test', { method: 'POST', body: '{}' });
+        $('#pcKetQua').innerHTML = `<div class="card"><div class="card-body tight">${table('pcTest', [
+          { key: 'label', label: 'Page', cls: 'name', render: (x) => `<b>${esc(x.label || x.pageId)}</b><span class="sub-line">${esc(x.pageId)}</span>` },
+          { key: 'platform', label: 'Nền tảng', render: (x) => esc(x.platform || '—') },
+          { key: 'ok', label: 'Kết nối', render: (x) => (x.ok ? '<span class="tag good">OK</span>' : '<span class="tag bad">Lỗi</span>') },
+          { key: 'mau', label: 'Đọc thử', num: true, render: (x) => (x.ok ? `${x.mau} hội thoại` : esc(x.message || '')) },
+          { key: 'coAdIds', label: 'Có ad_ids', num: true, render: (x) => (x.ok ? `${x.coAdIds}/${x.mau}` : '—') },
+          { key: 'coSdt', label: 'Có SĐT', num: true, render: (x) => (x.ok ? `${x.coSdt}/${x.mau}` : '—') },
+        ], r.results || [])}</div></div>`;
+        toast(r.ok ? 'Cả ' + (r.results || []).length + ' page đọc được' : 'Có page lỗi — xem bảng', r.ok ? 'ok' : 'err');
+      } catch (err) { toast(err.message, 'err'); }
+      b.disabled = false; b.textContent = cu;
+    });
+
+    nut('#pcPhu', async (e) => {
+      const b = e.currentTarget; const cu = b.textContent;
+      b.disabled = true; b.textContent = 'Đang đếm…';
+      try {
+        await goiLuu();
+        const r = await api('/api/pancake/phu', { method: 'POST', body: '{}' });
+        /* Đây là phép đo quan trọng nhất của cả phần này: quảng cáo có thể dẫn tin
+         * nhắn về page CHƯA khai, và nhìn giao diện không bao giờ biết được. Đặt số
+         * Pancake cạnh số nền tảng báo là thấy ngay còn thiếu bao nhiêu. */
+        const tongCv = (r.nenTang || []).reduce((s, x) => s + (x.chuyenDoi || 0), 0);
+        const thieu = tongCv - r.tong.coAd;
+        const lech = thieu > tongCv * 0.15;
+        $('#pcKetQua').innerHTML = `
+          <div class="card"><div class="card-body">
+            <div class="help">${dmy(r.from)} → ${dmy(r.to)}</div>
+            <div class="help" style="${lech ? 'border-color:var(--warn);color:var(--warn)' : 'border-color:var(--good);color:var(--good)'}">
+              Pancake: <b>${int(r.tong.hoiThoai)}</b> hội thoại, <b>${int(r.tong.coAd)}</b> có ad_ids, <b>${int(r.tong.coSdt)}</b> có SĐT.
+              Nền tảng báo <b>${int(tongCv)}</b> chuyển đổi.
+              ${lech
+                ? `<br><b>Lệch ${int(thieu)}</b> — khả năng quảng cáo đang dẫn tin nhắn về page chưa khai ở đây.`
+                : '<br>Khớp — các page đã khai phủ gần hết lượng quảng cáo.'}
+            </div>
+            ${table('pcPhu', [
+              { key: 'label', label: 'Page', cls: 'name', render: (x) => `<b>${esc(x.label || x.pageId)}</b>` },
+              { key: 'platform', label: 'Nền tảng', render: (x) => esc(x.platform || '—') },
+              { key: 'hoiThoai', label: 'Hội thoại', num: true, render: (x) => (x.ok ? int(x.hoiThoai) : `<span class="tag bad">${esc(x.loi || '')}</span>`) },
+              { key: 'coAd', label: 'Có ad_ids', num: true, render: (x) => (x.ok ? int(x.coAd) : '—') },
+              { key: 'coSdt', label: 'Có SĐT', num: true, render: (x) => (x.ok ? int(x.coSdt) : '—') },
+            ], r.theoPage || [])}
+            <div class="help" style="margin-top:10px">Theo quảng cáo: <b>${int((r.theoAd || {}).rows ? r.theoAd.rows.length : 0)}</b> dòng (quảng cáo × ngày)${
+              (r.theoAd || {}).khongCoAd ? ` · ${int(r.theoAd.khongCoAd)} hội thoại không mang ad_ids (khách vào từ tự nhiên hoặc nguồn khác)` : ''}${
+              (r.theoAd || {}).trungAd ? ` · ${int(r.theoAd.trungAd)} hội thoại mang nhiều ad_ids nên được tính cho mọi ad — tổng theo ad sẽ lớn hơn tổng thật` : ''}</div>
+          </div></div>`;
+      } catch (err) { toast(err.message, 'err'); }
+      b.disabled = false; b.textContent = cu;
+    });
+  }
+
   function wire(c) {
+    wirePancake(c);
     wireForm();
 
     // bật/tắt kênh
