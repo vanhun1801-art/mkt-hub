@@ -75,6 +75,18 @@ function soLead(v) {
 async function danhSachShop(conf) {
   const key = (conf && conf.apiKey) || '';
   if (!key) throw new Error('Chưa có api_key (Pancake POS → Cấu hình → Nâng cao → Tích hợp bên thứ 3 → tab API Key)');
+  /* Chặn hai loại khoá dễ dán sai vào đây. api_key của POS là 32 ký tự hex; hai
+   * loại dưới đây có dạng khác hẳn nên nhận ra chắc chắn, nói thẳng còn hơn để
+   * Pancake trả về một câu lỗi chung không chỉ ra sai ở đâu. */
+  if (/^pos_user_/i.test(key)) {
+    throw new Error('Chuỗi này là khoá theo TÀI KHOẢN (pos_user_…) ở phần Cài đặt cá nhân — nó không đọc được đơn hàng. '
+      + 'Cần api_key ở Cấu hình → Nâng cao → Tích hợp bên thứ 3 → tab API Key.');
+  }
+  if (!/^[0-9a-f]{32}$/i.test(key.trim())) {
+    throw new Error('api_key của Pancake POS phải là 32 ký tự hex. Chuỗi vừa dán dài '
+      + key.trim().length + ' ký tự — có thể anh đang dán Page Access Token của pages.fm, '
+      + 'thứ đó thuộc thẻ "Pancake — hội thoại & ID quảng cáo" ở trên.');
+  }
   hideSecret(key);
   const res = await getJson(`${BASE}/shops?${qs({ api_key: key })}`,
     { label: 'POS danh sách shop', retries: 2 });

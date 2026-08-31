@@ -84,9 +84,25 @@ function qs(obj) {
  * Liệt kê page mà tài khoản quản. Dùng để lấy page_id — thứ không hiện rõ trong
  * giao diện Pancake, và là chỗ dễ gõ nhầm nhất khi khai bằng tay.
  */
+/**
+ * Key POS bị dán vào ô token của thẻ hội thoại — đã xảy ra thật, và Pancake chỉ
+ * trả về "Invalid access_token" nên không ai biết mình dán sai CHỖ.
+ *
+ * Nhận ra được: api_key của POS là 32 ký tự hex (đã thấy hai mẫu thật:
+ * b7c5321ef4d14cc08908beea0560d584 và a34cdb2e870a9b11aa96c1a...). Token của
+ * pages.fm không có dạng đó. Nói thẳng ra thay vì để người dùng tự mò.
+ */
+function laKeyPOS(v) {
+  return /^[0-9a-f]{32}$/i.test(String(v || '').trim());
+}
+
 async function danhSachPage(conf) {
   const token = (conf && conf.userToken) || '';
   if (!token) throw new Error('Chưa có userToken (Pancake → Ảnh đại diện → Cài đặt cá nhân → API Access Token)');
+  if (laKeyPOS(token)) {
+    throw new Error('Chuỗi này là api_key của Pancake POS (32 ký tự hex), không phải token của pages.fm. '
+      + 'Dán nó vào ô api_key ở thẻ "Pancake POS — đơn hàng & mã lead Tourwell" bên dưới.');
+  }
   hideSecret(token);
   const res = await getJson(`${BASE_USER}/pages?${qs({ access_token: token })}`,
     { label: 'Pancake danh sách page', retries: 2 });
@@ -477,6 +493,6 @@ function ghepVoiChiTieu(gomTheoAd, data, { from, to } = {}) {
 
 module.exports = {
   danhSachPage, danhSachTag, fetchConversations, test,
-  theoAdVaNgay, phanLoaiId, ghepVoiChiTieu,
+  theoAdVaNgay, phanLoaiId, ghepVoiChiTieu, laKeyPOS,
   chuanSdt, chuanNenTang, doanNenTang, ngayVN, dauNgay, cuoiNgay,
 };

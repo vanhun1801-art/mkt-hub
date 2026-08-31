@@ -89,6 +89,17 @@ t('và không bị coi là rõ ràng', nhap.rows[0].roRang === false);
 t('giữ ngày SỚM NHẤT — lúc quảng cáo sinh ra khách, không phải lúc sửa đơn',
   nhap.rows[0].ngay === '2026-08-30', nhap.rows[0].ngay);
 
+console.log('— chặn lẫn khoá giữa hai thẻ Pancake (đã xảy ra thật)');
+/* Người dùng dán api_key của POS vào ô token của thẻ hội thoại; Pancake chỉ trả
+ * "Invalid access_token" nên không biết mình sai CHỖ, không sai giá trị.
+ * (`pancake` đã require ở phần chuẩn hoá số điện thoại phía trên.) */
+t('api_key POS (32 hex) được nhận ra', pancake.laKeyPOS('b7c5321ef4d14cc08908beea0560d584'));
+t('chữ hoa cũng nhận', pancake.laKeyPOS('A34CDB2E870A9B11AA96C1A0B1C2D3E4'));
+t('33 ký tự thì không phải', pancake.laKeyPOS('b7c5321ef4d14cc08908beea0560d5840') === false);
+t('có ký tự ngoài hex thì không phải', pancake.laKeyPOS('g7c5321ef4d14cc08908beea0560d584') === false);
+t('pos_user_ không phải api_key', pancake.laKeyPOS('pos_user_ZjqPR06vv-An6I9IkY1Xma1') === false);
+t('rỗng thì không phải', pancake.laKeyPOS('') === false && pancake.laKeyPOS(null) === false);
+
 console.log('— ngày theo giờ VN');
 t('dauNgay là 17:00 UTC hôm trước',
   new Date(p.dauNgay('2026-08-31') * 1000).toISOString() === '2026-08-30T17:00:00.000Z');
