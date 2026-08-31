@@ -657,13 +657,13 @@ textarea.fld { height: auto; min-height: 84px; padding: 8px 10px; resize: vertic
    hai bảng cùng hiện là điều không thể, dù đoạn mã nào có lỡ tay đi nữa. */
 .pk-panel { display: none; }
 .pk.mo > .pk-panel { display: block; }
+/* position:fixed + toạ độ do JavaScript đặt: bảng nằm ở lớp nổi nên không bị
+   thẻ .kh, thân cửa sổ hay thân ô chi tiết cắt cụt. */
 .pk-panel {
-  position: absolute; z-index: 30; top: calc(100% + 4px); left: 0; right: 0;
+  position: fixed; z-index: 200; top: 0; left: 0;
   background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg);
   box-shadow: var(--shadow-2); padding: 8px;
 }
-/* Không đủ chỗ bên dưới thì lật lên trên, khỏi nuốt mất mấy ô kế tiếp */
-.pk-panel.len { top: auto; bottom: calc(100% + 4px); }
 .pk-tim {
   width: 100%; padding: 7px 10px; margin-bottom: 6px;
   border: 1px solid var(--line); border-radius: var(--r);
@@ -720,7 +720,7 @@ textarea.fld { height: auto; min-height: 84px; padding: 8px 10px; resize: vertic
    trực, ba cái chồng lên nhau, bấm kiểu gì cũng không đóng. Phần dáng vẻ đã có
    ở .pk-panel rồi, ở đây chỉ chỉnh mấy thứ riêng của form. */
 #mdBody .pk { position: relative; }
-#mdBody .pk-panel { z-index: 5; box-shadow: 0 10px 30px rgba(16, 24, 40, .16); }
+#mdBody .pk-panel { box-shadow: 0 10px 30px rgba(16, 24, 40, .16); }
 #mdBody .pk-sum { width: 100%; }
 
 /* ==========================================================================
@@ -1043,9 +1043,11 @@ a.phieu-f:hover { border-color: var(--primary); background: var(--blue-bg); }
 .ng-nut:hover { background: var(--blue-bg); color: var(--primary); border-color: var(--primary); }
 .ng.mo .ng-nut { background: var(--blue-bg); color: var(--primary); border-color: var(--primary); }
 .ng.tat .ng-in { border-radius: var(--r); }
+/* .ng-pop giờ ở body nên .ng không cần là mốc định vị nữa, giữ lại cũng vô hại */
 
+/* Treo ở tầng body: toạ độ do JavaScript đặt, nên không tổ tiên nào cắt được */
 .ng-pop {
-  position: absolute; z-index: 60; top: calc(100% + 6px); left: 0;
+  position: fixed; z-index: 200; top: 0; left: 0;
   width: 268px; padding: 10px;
   background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
   box-shadow: 0 12px 34px rgba(20, 30, 60, .18), 0 2px 6px rgba(20, 30, 60, .08);
@@ -1099,13 +1101,17 @@ a.phieu-f:hover { border-color: var(--primary); background: var(--blue-bg); }
 .dr-khoi { display: flex; flex-direction: column; gap: 14px; }
 .dr-khoi > * { flex: 0 0 auto; }        /* thẻ không được co lại theo nội dung */
 
+/* KHÔNG dùng overflow:hidden ở đây. Thẻ chỉ cao hơn trăm pixel, mà bảng chọn
+   người và lịch chọn ngày bật ra từ bên trong lại cao gấp đôi — overflow:hidden
+   là cắt cụt chúng, bấm nút mà không thấy gì hiện ra. Bo góc đầu thẻ bằng
+   border-radius riêng thay vì cắt. */
 .kh {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 12px;
   box-shadow: 0 1px 2px rgba(20, 30, 60, .06), 0 6px 20px rgba(20, 30, 60, .05);
-  overflow: hidden;
 }
+.kh > .kh-dau { border-radius: 11px 11px 0 0; }
 .kh-dau {
   display: flex; align-items: center; gap: 8px;
   padding: 10px 14px;

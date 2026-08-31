@@ -1408,12 +1408,36 @@ function veLichNgay() {
     '</div></div>';
 }
 
-/** Vẽ lại lịch đang bật vào đúng ô của nó. */
+/**
+ * Vẽ lại lịch đang bật.
+ *
+ * Lịch treo thẳng ở <body> chứ không nằm trong ô nhập, vì trên đường từ ô nhập
+ * ra ngoài có tới hai lớp cắt: thẻ .kh cao 122px với overflow:hidden, rồi thân
+ * cửa sổ với overflow:auto. Lịch cao 352px nên đặt bên trong là mất gần hết,
+ * người dùng bấm nút lịch mà chẳng thấy gì hiện ra.
+ * Treo ở body thì không tổ tiên nào cắt được; đổi lại phải tự tính toạ độ và
+ * tự đóng khi khung cuộn.
+ */
 function veLaiNgay() {
   document.querySelectorAll('.ng-pop').forEach((x) => x.remove());
   if (!NG || !NG.o) return;
   NG.o.classList.add('mo');
-  NG.o.insertAdjacentHTML('beforeend', veLichNgay());
+  document.body.insertAdjacentHTML('beforeend', veLichNgay());
+  datChoLich();
+}
+
+/** Đặt lịch ngay dưới ô nhập; không đủ chỗ bên dưới thì lật lên trên. */
+function datChoLich() {
+  const pop = document.querySelector('.ng-pop');
+  if (!pop || !NG || !NG.o) return;
+  const a = NG.o.getBoundingClientRect();
+  const cao = pop.offsetHeight || 352;
+  const rong = pop.offsetWidth || 268;
+  const duoi = window.innerHeight - a.bottom;
+  const tren = a.top;
+  pop.style.left = Math.round(Math.max(8, Math.min(a.left, window.innerWidth - rong - 8))) + 'px';
+  const y = (duoi < cao + 10 && tren > duoi) ? a.top - cao - 6 : a.bottom + 6;
+  pop.style.top = Math.round(Math.max(8, Math.min(y, window.innerHeight - cao - 8))) + 'px';
 }
 
 function dongLichNgay() {
@@ -1421,6 +1445,11 @@ function dongLichNgay() {
   document.querySelectorAll('.ng-pop').forEach((x) => x.remove());
   NG = null;
 }
+
+/* Lịch treo ở body nên không trôi theo khung khi cuộn — đóng lại cho khỏi lơ
+ * lửng sai chỗ. Đổi cỡ cửa sổ thì tính lại toạ độ. */
+window.addEventListener('resize', () => { if (NG) datChoLich(); });
+document.addEventListener('scroll', () => { if (NG) dongLichNgay(); }, true);
 
 /** Ghi mốc mới vào ô nhập và vào bản nháp / form, cùng một đường. */
 function datNgay(inp, iso) {
@@ -2303,7 +2332,9 @@ document.addEventListener('click', async (e) => {
   }
 
   /* ---- ô chọn ngày giờ ---- */
-  if (NG && !T.closest('.ng')) dongLichNgay();          // bấm ra ngoài thì đóng lịch
+  // Lịch nằm ở tầng body nên phải xét cả .ng-pop, không thì bấm vào chính lịch
+  // cũng bị tính là bấm ra ngoài
+  if (NG && !T.closest('.ng') && !T.closest('.ng-pop')) dongLichNgay();
 
   const ngNut = T.closest('[data-nglich]');
   if (ngNut) {
@@ -2544,17 +2575,27 @@ function moBangChon(hop) {
 }
 
 /**
- * Bảng chọn cao 260px, mở xuống dưới thì nuốt mất mấy ô kế tiếp — kể cả ô chọn
- * người thứ hai. Không đủ chỗ bên dưới thì lật lên trên.
+ * Đặt chỗ cho bảng chọn.
+ *
+ * Bảng dùng position:fixed và toạ độ tính ở đây, chứ không nằm theo dòng chảy
+ * bên trong ô. Lý do: trên đường ra ngoài có mấy lớp cắt — thẻ .kh, thân cửa sổ
+ * và thân ô chi tiết đều đặt overflow — nên bảng nào bật ra từ ô nằm gần đáy
+ * cũng bị cắt cụt, bấm không trúng dòng dưới. position:fixed thì không tổ tiên
+ * nào cắt được, đổi lại phải tự tính chỗ và tự đóng khi khung cuộn.
  */
 function datChoBangChon(pn) {
   const hop = pn.closest('.pk');
-  const khung = pn.closest('.modal-body') || pn.closest('.dr-body');
-  if (!hop || !khung) return;
-  const a = hop.getBoundingClientRect(), k = khung.getBoundingClientRect();
-  const duoi = k.bottom - a.bottom;      // chỗ trống bên dưới ô
-  const tren = a.top - k.top;            // chỗ trống bên trên ô
-  if (duoi < 210 && tren > duoi) pn.classList.add('len');
+  if (!hop) return;
+  const a = hop.getBoundingClientRect();
+  const cao = pn.offsetHeight || 260;
+  const duoi = window.innerHeight - a.bottom;   // chỗ trống bên dưới ô
+  const len = duoi < cao + 10 && a.top > duoi;  // thiếu chỗ dưới, mà trên thì rộng
+  pn.style.width = Math.round(a.width) + 'px';
+  pn.style.left = Math.round(Math.max(8, Math.min(a.left, window.innerWidth - a.width - 8))) + 'px';
+  // kẹp trong màn hình: ô nhập có thể đang nằm ngoài vùng nhìn thấy (khung vừa
+  // cuộn, hoặc màn hình thấp) — bảng vẫn phải hiện trọn vẹn
+  const y = len ? a.top - cao - 5 : a.bottom + 5;
+  pn.style.top = Math.round(Math.max(8, Math.min(y, window.innerHeight - cao - 8))) + 'px';
 }
 
 /* Bấm ra ngoài là đóng. Bắt ở pha capture của pointerdown nên không phụ thuộc
@@ -2581,6 +2622,25 @@ document.addEventListener('scroll', (e) => {
   if (t && t.closest && t.closest('.pk') === mo) return;
   dongBangChon();
 }, true);
+
+// đổi cỡ cửa sổ thì tính lại chỗ, khỏi để bảng lệch khỏi ô của nó
+window.addEventListener('resize', () => {
+  const mo = bangDangMo();
+  if (mo) datChoBangChon(mo.querySelector('.pk-panel'));
+});
+
+/* Ô chi tiết trượt vào bằng transform, mà phần tử có transform thì thành mốc
+ * định vị cho position:fixed bên trong — bấm mở bảng chọn ngay lúc hoạt ảnh
+ * chưa xong là bảng bay ra ngoài màn hình. Hoạt ảnh chạy xong thì đặt lại chỗ. */
+const oChiTiet = $('#drawer');
+if (oChiTiet) {
+  oChiTiet.addEventListener('transitionend', (e) => {
+    if (e.propertyName !== 'transform') return;
+    const mo = bangDangMo();
+    if (mo) datChoBangChon(mo.querySelector('.pk-panel'));
+    if (NG) datChoLich();
+  });
+}
 
 /** Lọc danh sách trong bảng chọn người theo ô tìm. */
 /* Gõ "khanh" phải ra "Nguyễn Long Khánh". Bỏ dấu cả hai phía rồi mới so. */
