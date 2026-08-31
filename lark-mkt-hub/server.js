@@ -766,6 +766,14 @@ async function api(req, res, u) {
       if (act === 'da-thanh-toan') return patch({ payment: 'Đã thanh toán' });
       if (act === 'chot-nhan-su') return patch({ staff: [String(v)] });
     }
+    if (mod.kpi === 'ota') {
+      /* Chỉ hai việc làm được từ hub. Số tiền và mã booking là dữ liệu của OTA —
+       * module cũng không cho sửa, nên ở đây càng không mở. */
+      const patch = (b) => ({ duong: '/api/booking/' + id, method: 'PATCH', body: b });
+      if (act === 'nhan-booking') return patch({ daNhan: true });
+      if (act === 'dien-diem-don') return patch({ diemDon: String(v || '') });
+      if (act === 'dien-sdt') return patch({ sdt: String(v || '') });
+    }
     return null;
   }
 
@@ -857,8 +865,32 @@ const server = http.createServer(async (req, res) => {
   const u = new URL(req.url, 'http://' + (req.headers.host || 'localhost'));
   const p = u.pathname;
 
+  /* ---- webhook OTA: đường CÔNG KHAI, nằm TRƯỚC cổng đăng nhập ----
+   * Máy của Klook / Viator / Ctrip không thể đăng nhập Lark, nên webhook buộc
+   * phải đi vòng ngoài cổng đăng nhập. Đổi lại nó bị bó rất hẹp:
+   *   - chỉ POST, chỉ đúng dạng /ota/webhook/<kênh>, chỉ chuyển tới module 'ota';
+   *   - KHÔNG gửi header danh tính (tham số `nguoi` = null) nên không ai mạo danh
+   *     được quản lý qua đường này — chuyenTiep xoá sạch header x-hub-* của client;
+   *   - chính module bắt buộc kiểm OTA_WEBHOOK_SECRET, sai thì trả 401.
+   * Thêm base khác cần webhook thì mở thêm một nhánh tương tự, ĐỪNG nới regex này.
+   */
+  const wh = /^\/ota\/webhook\/([A-Za-z0-9_-]{1,32})\/?$/.exec(p);
+  if (wh) {
+    if (req.method !== 'POST') {
+      return send(res, 405, 'Webhook chỉ nhận POST', { 'Content-Type': 'text/plain; charset=utf-8' });
+    }
+    const modOta = timMod('ota');
+    if (!modOta || modOta.kieu !== 'local' || !modOta.bat) {
+      return send(res, 404, JSON.stringify({ error: 'Base Booking OTA chưa được bật trong panel' }),
+        { 'Content-Type': 'application/json; charset=utf-8' });
+    }
+    kids.khoiDong(modOta);   // bảo đảm module đang chạy (không chờ)
+    return chuyenTiep(req, res, modOta, '/webhook/' + wh[1] + (u.search || ''), null);
+  }
+
   /* Chế độ api (deploy chung): hub đăng nhập Lark một lần cho cả hệ. Mọi thứ đều
-   * phải qua cổng này, trừ /healthz (Render gọi để biết app còn sống) và /auth/*. */
+   * phải qua cổng này, trừ /healthz (Render gọi để biết app còn sống), /auth/*
+   * và webhook OTA ở khối trên. */
   if (cfg.mode === 'api') {
     if (p.startsWith('/auth/')) {
       const xong = await auth.handle(req, res, u);

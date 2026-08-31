@@ -1,0 +1,7 @@
+.tmp/
+hang-doi.json
+schema.json
+*.log
+node_modules/
+.env
+*.env

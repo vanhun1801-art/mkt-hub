@@ -42,6 +42,13 @@ const ICONS = {
     '<path d="M4 20.5V13M9.5 20.5V8.5M15 20.5v-6M20.5 20.5V4.5"/>'
   ),
 
+  /* Booking OTA: vé/boarding pass có đường xé và lỗ bấm */
+  'ota': IC(
+    '<path d="M3.5 7.5A1.5 1.5 0 0 1 5 6h14a1.5 1.5 0 0 1 1.5 1.5V10a2 2 0 0 0 0 4v2.5A1.5 1.5 0 0 1 19 18H5a1.5 1.5 0 0 1-1.5-1.5V14a2 2 0 0 0 0-4Z"/>' +
+    '<path d="M13.5 6.6v10.8" stroke-dasharray="2 2.2"/>' +
+    '<path d="M6.4 10.2h4.4M6.4 13.4h3"/>'
+  ),
+
   /* Tải nhân sự / người */
   'nguoi': IC(
     '<circle cx="12" cy="8" r="3.5"/>' +

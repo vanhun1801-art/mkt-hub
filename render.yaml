@@ -53,16 +53,52 @@ services:
       - key: ADS_TARGETS_JSON
         sync: false
 
+      # ============================================================
+      # App Booking OTA
+      # ============================================================
+      # Base + 3 bảng đã cắm sẵn trong config.js (base XrMkbW5FPaQlHpsMSN8lQFO9geW:
+      # Bookings + Danh mục OTA + Danh mục Tour). Chỉ khai hai biến dưới khi đổi base.
+      # Bỏ TRỐNG OTA_BASE_TOKEN thì app vẫn nhận webhook nhưng chỉ giữ trong hàng
+      # đợi cục bộ — mà ổ đĩa Render là TẠM, deploy lại là mất.
+      # - key: OTA_BASE_TOKEN
+      #   sync: false
+      # - key: OTA_TABLE_ID
+      #   sync: false
+
+      # Bí mật webhook: OTA gửi kèm header x-ota-secret. CHƯA khai biến này thì
+      # app chỉ nhận webhook từ 127.0.0.1 — tức OTA gọi vào sẽ bị từ chối 403.
+      # Sinh một chuỗi ngẫu nhiên dài rồi đưa cho từng OTA.
+      - key: OTA_WEBHOOK_SECRET
+        generateValue: true
+
+      # ---- GIÁ và HOA HỒNG: KHÔNG khai ở đây ----
+      # Nguồn thật nằm TRONG BASE, và cũng chính là nguồn mà công thức của Base đọc:
+      #   giá thu về  -> bảng "Danh mục Tour", cột Giá thu về NL / Giá thu về TE
+      #   % hoa hồng  -> bảng "Danh mục OTA",  cột Hoa hồng %
+      # Sửa hai bảng đó là app đổi theo trong 10 phút — không deploy lại, không sửa
+      # code. Hai biến dưới CHỈ là bảng dự phòng cho lúc chưa nối được Base.
+      - key: OTA_GIA_JSON
+        sync: false
+      - key: OTA_RATES_JSON
+        sync: false
+
+      # Tỷ giá về VNĐ, VD {"USD":26200,"KRW":18.4}. App điền cột "Tỷ giá về VND" để
+      # công thức Gross VND của Base ra đúng — KHÔNG điền thì Gross VND bằng đúng số
+      # nguyên tệ (120 USD thành 120đ). Đây là số ƯỚC TÍNH, kế toán vẫn sửa tay khi
+      # đối soát; khai biến này khi tỷ giá lệch nhiều so với mặc định trong config.js.
+      - key: OTA_TY_GIA_JSON
+        sync: false
+
       # ---- trang nào được nhúng hub bằng iframe ----
       # Bỏ trống là dùng mặc định: chính nó + các tên miền Lark. Chỉ khai khi mở app
       # trong một cổng thông tin khác.
       # - key: HUB_FRAME_ANCESTORS
       #   sync: false
 
-      # ---- cùng bộ credential cho ba app con ----
+      # ---- cùng bộ credential cho bốn app con ----
       # Hub truyền toàn bộ env xuống tiến trình con, nên chỉ cần khai một lần ở trên.
-      # Ba app con tự chuyển sang chế độ `api` khi thấy LARK_APP_ID + LARK_APP_SECRET.
+      # Bốn app con tự chuyển sang chế độ `api` khi thấy LARK_APP_ID + LARK_APP_SECRET.
       #
-      # KHÔNG khai BIND_HOST cho service này: ba app con phải giữ mặc định chỉ nghe
+      # KHÔNG khai BIND_HOST cho service này: bốn app con phải giữ mặc định chỉ nghe
       # 127.0.0.1. Chúng tin header danh tính do hub gửi, nên mở cổng ra ngoài là ai
       # cũng tự xưng được là quản lý.

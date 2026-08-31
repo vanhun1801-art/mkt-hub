@@ -54,6 +54,23 @@ function viecLamDuoc(kpi, r, quanLy) {
     }
   }
 
+  if (kpi === 'ota') {
+    /* Booking huỷ/hoàn tiền thì không còn gì phải điền — điền vào cũng không ai
+     * chạy tour đó nữa. */
+    const daDong = ['Đã huỷ', 'No-show'].includes(r.trangThai);
+    if (!daDong) {
+      // r.coDaNhan = base OTA có cột "Sales đã nhận" hay chưa
+      if (!r.daNhan && r.coDaNhan !== false) {
+        ds.push({ act: 'nhan-booking', ten: 'Nhận booking', chinh: true });
+      }
+      if (!r.diemDon) {
+        ds.push({ act: 'dien-diem-don', ten: 'Điền điểm đón', kieu: 'chu',
+          goi: 'Tên khách sạn / điểm đón khách xác nhận' });
+      }
+      if (!r.sdt) ds.push({ act: 'dien-sdt', ten: 'Điền SĐT', kieu: 'chu', goi: 'Số điện thoại khách' });
+    }
+  }
+
   return ds;
 }
 
@@ -85,6 +102,15 @@ function phuCua(kpi, r) {
       p.push('dự kiến ' + tien(r.chiPhi) + (r.chiPhiThuc ? ' · thực tế ' + tien(r.chiPhiThuc) : ''));
     }
     if (r.thanhToan) p.push(r.thanhToan);
+  }
+  if (kpi === 'ota') {
+    // r.lyDo đã là chuỗi cờ "cần xử lý" — ở đây chỉ bổ sung thứ giúp gọi khách
+    p.push(r.maBooking || 'chưa có mã booking');
+    p.push(r.ngay ? 'đi ' + ngayVN(r.ngay) : 'chưa có ngày đi');
+    if (r.sdt) p.push(r.sdt);
+    if (r.diemDon) p.push(r.diemDon);
+    if (r.trangThai) p.push(r.trangThai);
+    if (r.daNhan) p.push('sales đã nhận');
   }
   return p.filter(Boolean).join(' · ');
 }
@@ -129,7 +155,8 @@ function veCuaSo() {
     const viec = viecLamDuoc(kpi, r, d.quanLy);
     const nut = viec.map((v) =>
       '<button class="btn nho' + (v.chinh ? ' primary' : ' ghost') + '" data-nhanh="' + v.act +
-      '" data-i="' + i + '"' + (v.kieu ? ' data-kieu="' + v.kieu + '"' : '') + '>' + esc(v.ten) + '</button>').join('');
+      '" data-i="' + i + '"' + (v.kieu ? ' data-kieu="' + v.kieu + '"' : '') +
+      (v.goi ? ' data-goi="' + esc(v.goi) + '"' : '') + '>' + esc(v.ten) + '</button>').join('');
     return '<div class="n-hang" data-hang="' + i + '">' +
       '<span class="muc muc-' + (r.muc || (r.lyDo ? 'cao' : 'thap')) + '"></span>' +
       '<div class="n-noi">' +
@@ -166,7 +193,7 @@ function veCuaSo() {
 }
 
 /** Ô nhập phụ cho hành động cần giá trị (chọn người / chọn ngày). */
-function moONhap(i, act, kieu) {
+function moONhap(i, act, kieu, goi) {
   const box = $('.n-o[data-o="' + i + '"]');
   if (!box) return;
   if (box.dataset.act === act && !box.hidden) { box.hidden = true; box.dataset.act = ''; return; }
@@ -181,6 +208,11 @@ function moONhap(i, act, kieu) {
   } else if (kieu === 'link') {
     box.innerHTML = '<input type="url" class="q-in n-chon" placeholder="Dán link sản phẩm cuối (Drive, Figma, bài đăng…)">' +
       '<button class="btn nho primary" data-luunhanh="' + i + '">Nộp</button>';
+  } else if (kieu === 'chu') {
+    /* Một dòng chữ thường: tên khách sạn, số điện thoại… KHÔNG dùng input[type=url]
+     * như nhánh 'link' vì trình duyệt sẽ chặn nội dung không phải URL. */
+    box.innerHTML = '<input type="text" class="q-in n-chon" placeholder="' + esc(goi || 'Nhập giá trị') + '">' +
+      '<button class="btn nho primary" data-luunhanh="' + i + '">Lưu</button>';
   } else {
     const mac = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
     box.innerHTML = '<input type="date" class="q-in n-chon" value="' + mac + '">' +
@@ -218,7 +250,7 @@ document.addEventListener('click', (e) => {
     const i = Number(nut.getAttribute('data-i'));
     const act = nut.getAttribute('data-nhanh');
     const kieu = nut.getAttribute('data-kieu');
-    if (kieu) moONhap(i, act, kieu);            // cần giá trị -> mở ô nhập
+    if (kieu) moONhap(i, act, kieu, nut.getAttribute('data-goi'));  // cần giá trị -> mở ô nhập
     else lamNhanh(i, act, null, nut);
     return;
   }

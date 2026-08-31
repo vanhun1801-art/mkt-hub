@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Booking OTA · Rooty Trip</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%237a3cff'/><text x='16' y='22' font-size='13' font-family='Arial' font-weight='bold' fill='white' text-anchor='middle'>OTA</text></svg>">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">OTA</span>
+    <div>
+      <div class="brand-title">Booking OTA</div>
+      <div class="brand-sub" id="brandSub">đang nạp dữ liệu…</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <button class="btn src" id="nguonChip" title="Booking đang đọc từ đâu — bấm để đổi nguồn">—</button>
+    <button class="btn ghost small" id="btnWebhook" title="Đường dẫn webhook để đưa cho OTA">Webhook</button>
+    <button class="btn ghost small" id="btnCsv" title="Xuất danh sách đang lọc ra CSV">Xuất CSV</button>
+    <button class="btn ghost small" id="btnRefresh" title="Nạp lại từ Lark Base">Làm mới</button>
+    <a class="btn ghost small" id="linkBase" target="_blank" rel="noreferrer" hidden>Mở Base</a>
+    <span class="chip" id="meChip">—</span>
+  </div>
+</header>
+
+<div class="tabsbar">
+  <nav class="tabs" id="tabs">
+    <button data-tab="moi" class="on">Booking mới</button>
+    <button data-tab="thongke">Thống kê OTA</button>
+    <button data-tab="thietlap">Thiết lập</button>
+  </nav>
+</div>
+
+<section class="filters" id="filters">
+  <div class="fgroup">
+    <label>Khoảng thời gian</label>
+    <div class="seg" id="mocSeg"></div>
+  </div>
+  <div class="fgroup">
+    <label>Tính theo</label>
+    <div class="seg" id="truongSeg"></div>
+  </div>
+  <div class="fgroup">
+    <label>Từ ngày</label>
+    <input type="date" id="fFrom">
+  </div>
+  <div class="fgroup">
+    <label>Đến ngày</label>
+    <input type="date" id="fTo">
+  </div>
+  <div class="fgroup grow">
+    <label>Kênh OTA</label>
+    <div class="pills" id="fKenh"></div>
+  </div>
+  <div class="fgroup">
+    <label>Trạng thái</label>
+    <div class="pills" id="fTrangThai"></div>
+  </div>
+  <div class="fgroup grow">
+    <label>Tìm khách / mã booking / tour</label>
+    <input type="text" id="fTim" placeholder="Nguyễn Văn A · KLK1234 · 0912…">
+  </div>
+  <div class="fgroup">
+    <label>&nbsp;</label>
+    <button class="btn small" id="btnBoLoc">Bỏ lọc</button>
+  </div>
+</section>
+
+<main id="view"><div class="loading">Đang nạp booking…</div></main>
+
+<div class="modal-wrap" id="modalWrap" hidden>
+  <div class="modal" id="modal"></div>
+</div>
+
+<div class="toast-wrap" id="toasts"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

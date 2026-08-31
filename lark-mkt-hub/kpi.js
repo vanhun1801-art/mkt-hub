@@ -372,10 +372,129 @@ async function quangCao(mod, khoang, nguoi) {
   };
 }
 
+/* ---------------- Booking OTA ---------------- */
+/**
+ * Chỉ số của app Booking OTA. Cũng như app quảng cáo, hub KHÔNG tự cộng lại —
+ * đưa khoảng lọc xuống module để mọi quy tắc (booking huỷ không tính doanh thu,
+ * cách bật cờ "cần xử lý") chỉ định nghĩa ở một nơi là thongke.js của module.
+ *
+ * Thẻ số ở đây chọn theo câu hỏi người quản lý hỏi vào buổi sáng: hôm nay chạy
+ * tour nào, booking nào phải gọi khách, cái nào chưa ai nhận, tiền về bao nhiêu.
+ */
+async function ota(mod, khoang, nguoi) {
+  /* Bộ lọc thời gian của hub áp theo NGÀY ĐI: vận hành tour quan tâm ngày chạy,
+   * không phải ngày khách bấm đặt. Không lọc thì xem toàn bộ. */
+  const q = khoang && khoang.tu && khoang.den
+    ? '?moc=ngayDi&from=' + encodeURIComponent(khoang.tu) + '&to=' + encodeURIComponent(khoang.den)
+    : '?moc=ngayDi';
+
+  const [ds, tk] = await Promise.all([
+    goiJson(mod, '/api/bookings' + q, { nguoi }),
+    goiJson(mod, '/api/thongke' + q, { nguoi }),
+  ]);
+
+  const vh = ds.vanHanh || { the: [], nhom: {} };
+  const t = tk.tong || {};
+  const lay = (khoa) => (vh.the.find((x) => x.khoa === khoa) || { so: 0, ghi: '' });
+  const homNay = lay('hom-nay');
+  const canGoi = lay('can-goi');
+  const chuaNhan = lay('chua-nhan');
+  const moiVe = lay('moi-ve');
+
+  const the = [
+    { nhan: 'Tour hôm nay', so: homNay.so, dinhDang: 'so', khoa: 'hom-nay', ghi: homNay.ghi },
+    { nhan: 'Cần liên hệ khách', so: canGoi.so, dinhDang: 'so', khoa: 'can-goi',
+      muc: canGoi.so ? 'cao' : 'ok', ghi: canGoi.ghi },
+    /* Base OTA chưa có cột "Sales đã nhận" thì module không trả thẻ này — bỏ hẳn
+     * chứ không hiện số 0 mãi mãi. */
+    ...(vh.the.some((x) => x.khoa === 'chua-nhan')
+      ? [{ nhan: 'Chưa ai nhận', so: chuaNhan.so, dinhDang: 'so', khoa: 'chua-nhan',
+        muc: chuaNhan.so ? 'vua' : 'ok' }] : []),
+    { nhan: 'Booking về 24h qua', so: moiVe.so, dinhDang: 'so', khoa: 'moi-ve' },
+    // thẻ tiền chỉ hiện với người được xem chi phí, giống Lịch tác nghiệp
+    ...((!nguoi || nguoi.quanLy || nguoi.chiPhi) ? [
+      /* Tên thẻ lấy đúng tên cột công thức của base OTA ("Doanh thu thu về") để
+       * người mở Base đối chiếu được ngay, khỏi phải đoán hai chữ có cùng nghĩa. */
+      { nhan: 'Doanh thu thu về', so: t.thucNhan || 0, dinhDang: 'vnd',
+        ghi: (t.bookingSong || 0) + ' booking · ' + (t.khach || 0) + ' khách' },
+      { nhan: 'Hoa hồng OTA', so: t.hoaHong || 0, dinhDang: 'vnd',
+        /* Hoa hồng = Gross VND × %. Chưa ai nhập giá OTA bán thì Gross = 0 và
+         * hoa hồng cũng 0 — nói ra lý do, đừng để người đọc tưởng OTA không lấy
+         * đồng nào. */
+        ghi: !t.tongTien ? 'chưa nhập giá OTA bán (Gross) nên chưa tính được'
+          : (t.tyLeHoaHong || 0) + '% doanh thu' +
+            (t.thieuTyGia ? ' · ' + t.thieuTyGia + ' booking thiếu tỷ giá' : '') },
+    ] : []),
+  ];
+
+  /* Chỉ những bản ghi ĐÃ nằm trong Lark Base mới có id dạng rec… — booking còn
+   * trong hàng đợi cục bộ thì để id rỗng, cửa sổ xử lý nhanh sẽ hiện đọc-thôi
+   * thay vì đưa ra nút bấm rồi báo lỗi. */
+  /* Cột "Sales đã nhận" là cột TUỲ CHỌN trong base OTA — chưa thêm thì module trả
+   * coDaNhan=false, và hub KHÔNG được hiện nút "Nhận booking": bấm vào chỉ nhận
+   * về lỗi. Gắn cờ vào từng dòng vì nhanh.js chỉ nhìn thấy dòng, không thấy meta. */
+  const coDaNhan = ds.coDaNhan !== false;
+
+  const dong = (b) => ({
+    id: /^rec/.test(b.id || '') ? b.id : '',
+    coDaNhan,
+    tieuDe: (b.tenKhach || '(chưa có tên khách)') + ' · ' + (b.tour || '(chưa có tên tour)'),
+    trangThai: b.trangThai || '',
+    nguoi: b.kenh || '',
+    ngay: b.ngayDi ? Date.parse(b.ngayDi + 'T00:00:00') : 0,
+    lyDo: b.canXuLyChuoi || '',
+    maBooking: b.maBooking || '',
+    sdt: b.sdt || '',
+    diemDon: b.diemDon || '',
+    daNhan: !!b.daNhan,
+    the: [b.kenh, b.sdt ? '' : 'chưa có SĐT', b.diemDon ? '' : 'chưa có điểm đón'].filter(Boolean),
+  });
+
+  const nhom = {};
+  Object.keys(vh.nhom || {}).forEach((k) => { nhom[k] = (vh.nhom[k] || []).map(dong); });
+
+  const canXuLy = (vh.nhom['can-goi'] || []).slice(0, 8).map((b) => ({
+    id: /^rec/.test(b.id || '') ? b.id : '',
+    muc: 'cao',
+    tieuDe: (b.tenKhach || '(chưa có tên khách)') + ' · ' + (b.maBooking || ''),
+    phu: b.canXuLyChuoi + ' · ' + (b.ngayDi ? 'đi ' + b.ngayDi : 'chưa có ngày đi') + ' · ' + b.kenh,
+    the: [b.kenh].filter(Boolean),
+  }));
+
+  /* Chưa nối được Base là việc của quản trị, không phải của sales — nhưng nó làm
+   * mọi số ở trên chỉ là số của hàng đợi tạm, nên phải nói ra ngay trên hub. */
+  if (ds.nguon !== 'base') {
+    canXuLy.unshift({
+      id: '', muc: 'cao',
+      tieuDe: 'App Booking OTA chưa ghi được vào Lark Base',
+      phu: (ds.loi || 'đang lưu tạm ở hàng đợi cục bộ') + ' — mở base OTA, tab Thiết lập',
+      the: [],
+    });
+  } else if (ds.chuaDay) {
+    /* ĐỌC được Base mà GHI không được — hay gặp nhất khi tài khoản chỉ có quyền
+     * Xem trên base. Lúc đó mọi số ở trên vẫn đúng nên không có gì trông như hỏng,
+     * chỉ có booking mới lặng lẽ nằm lại hàng đợi. Phải kêu lên. */
+    canXuLy.unshift({
+      id: '', muc: 'cao',
+      tieuDe: ds.chuaDay + ' booking mới chưa đẩy được lên Base',
+      phu: 'đọc Base thì được nhưng ghi thì không — thường là tài khoản chỉ có quyền Xem. ' +
+        'Mở base OTA, tab Thiết lập để xem lý do và bấm Đẩy hàng đợi vào Base.',
+      the: [],
+    });
+  }
+
+  return {
+    the, nhom, canXuLy,
+    tong: ds.tongTatCa || 0,
+    nguoi: '',
+  };
+}
+
 const BO_DOC = {
   'cong-viec': congViec,
   'lich-tac-nghiep': lichTacNghiep,
   'quang-cao': quangCao,
+  'ota': ota,
 };
 
 /* ---------------- cache + gom ---------------- */

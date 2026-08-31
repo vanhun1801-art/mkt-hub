@@ -208,8 +208,14 @@ function chuyenTiep(req, res, mod, duongDan, nguoi) {
     headers: { ...req.headers, host: '127.0.0.1:' + mod.cong },
     /* Tải tệp thì Base ngậm request khá lâu (nhận tệp rồi đẩy tiếp lên Lark),
      * 30 giây là thiếu với ảnh vài MB. Hết giờ giữa chừng là client nhận thân
-     * phản hồi rỗng và báo một câu khó hiểu. Riêng đường tải tệp cho 5 phút. */
-    timeout: /\/(upload|attachment)\b/.test(duongDan || '') ? 300000 : cfg.goiTimeoutMs,
+     * phản hồi rỗng và báo một câu khó hiểu. Riêng đường tải tệp cho 5 phút.
+     *
+     * `su-kien` là luồng SSE (chế độ Trực tiếp của base Booking OTA): nó CỐ Ý mở
+     * vô hạn, nên timeout theo mức không-hoạt-động của socket sẽ cắt nó giữa
+     * chừng. Module vẫn gửi nhịp tim 15s, nhưng để 0 (không giới hạn) cho chắc —
+     * kết nối đóng khi client đóng, đó mới là điều kiện đúng. */
+    timeout: /\/(upload|attachment)\b/.test(duongDan || '') ? 300000
+      : /\/su-kien\b/.test(duongDan || '') ? 0 : cfg.goiTimeoutMs,
   };
   delete opts.headers['accept-encoding']; // để không phải giải nén khi chèn HTML
   delete opts.headers['x-forwarded-host'];

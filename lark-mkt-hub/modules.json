@@ -74,6 +74,27 @@
       "phuSelector": "#brandSub",
       "bat": true,
       "css": ".topbar-right { margin-left: auto; }"
+    },
+    {
+      "id": "ota",
+      "ten": "Booking OTA",
+      "mo_ta": "Klook · KKday · GYG · Ctrip · WAUG · MyRealTrip · Viator",
+      "icon": "ota",
+      "mau": "#7a3cff",
+      "kieu": "local",
+      "thuMuc": "../lark-ota-manager",
+      "cong": 5177,
+      "lenh": [
+        "node",
+        "server.js"
+      ],
+      "kpi": "ota",
+      "an": [
+        "header.topbar > .brand"
+      ],
+      "phuSelector": "#brandSub",
+      "bat": true,
+      "css": ".topbar-right { margin-left: auto; }"
     }
   ]
 }

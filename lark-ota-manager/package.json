@@ -1,0 +1,11 @@
+{
+  "name": "lark-ota-manager",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Nhan booking tu cac kenh OTA qua webhook roi tu ghi vao Lark Base",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/chuanhoa.test.js && node test/api.test.js"
+  }
+}
