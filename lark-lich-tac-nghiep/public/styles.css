@@ -825,6 +825,7 @@ textarea.fld { height: auto; min-height: 84px; padding: 8px 10px; resize: vertic
 .buoc-nhap .buoc-dau     { background: linear-gradient(100deg, #92400e, #d98300 70%); }
 .buoc-cho .buoc-dau      { background: linear-gradient(100deg, #475569, #64748b 70%); }
 .buoc-bao-cao .buoc-dau  { background: linear-gradient(100deg, #9f1239, #dc2b3d 70%); }
+.buoc-da-nop .buoc-dau   { background: linear-gradient(100deg, #3730a3, #6366f1 70%); }
 .buoc-xong .buoc-dau     { background: linear-gradient(100deg, #065f46, #12a150 70%); }
 .buoc-dong .buoc-dau     { background: linear-gradient(100deg, #475569, #94a3b8 70%); }
 
@@ -872,6 +873,7 @@ textarea.fld { height: auto; min-height: 84px; padding: 8px 10px; resize: vertic
 .buoc-nhap .ct-viec    { color: var(--orange-t); background: var(--orange-bg); }
 .buoc-cho .ct-viec     { color: var(--t2); background: var(--surface-2); }
 .buoc-bao-cao .ct-viec { color: var(--red-t); background: var(--red-bg); }
+.buoc-da-nop .ct-viec  { color: var(--t2); background: var(--surface-2); }
 .buoc-xong .ct-viec    { color: var(--green-t); background: var(--green-bg); }
 .buoc-dong .ct-viec    { color: var(--t3); background: var(--surface-2); }
 

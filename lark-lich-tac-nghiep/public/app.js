@@ -801,7 +801,8 @@ function theSoLichCuaToi(list) {
    * Riêng hai thẻ đỏ và cam được tô nền (class "gap") để mắt bắt trước tiên. */
   const the = [
     { k: 'chua-bao-cao', nhan: 'Trễ báo cáo', tone: 'do', gap: 1, phu: 'phải nộp ngay',
-      loc: (t) => ngay(t) && ngay(t) < homNay && ['Duyệt/Chờ tác nghiệp', 'Đang báo cáo'].includes(t.status) },
+      // nộp rồi (Đang báo cáo) thì không còn là trễ nữa — bóng đang ở sân quản lý
+      loc: (t) => ngay(t) && ngay(t) < homNay && t.status === 'Duyệt/Chờ tác nghiệp' },
     { k: 'hom-nay', nhan: 'Hôm nay', tone: 'cam', gap: 1, phu: 'đi trong hôm nay',
       loc: (t) => con(t) && ngay(t) && startOfDay(ngay(t)).getTime() === homNay.getTime() },
     { k: 'sap-48h', nhan: '48 giờ tới', tone: 'vang', phu: 'chuẩn bị trước',
@@ -842,7 +843,7 @@ function locTheoThe(list) {
     'da-duyet': (t) => t.status === 'Duyệt/Chờ tác nghiệp',
     'hom-nay': (t) => con(t) && ngay(t) && startOfDay(ngay(t)).getTime() === homNay.getTime(),
     'sap-48h': (t) => con(t) && ngay(t) && ngay(t) > new Date() && ngay(t) <= mai2,
-    'chua-bao-cao': (t) => ngay(t) && ngay(t) < homNay && ['Duyệt/Chờ tác nghiệp', 'Đang báo cáo'].includes(t.status),
+    'chua-bao-cao': (t) => ngay(t) && ngay(t) < homNay && t.status === 'Duyệt/Chờ tác nghiệp',
     'hoan-tat': (t) => t.status === 'Đã hoàn tất',
     'chua-thanh-toan': (t) => Number(t.costActual || 0) > 0 && t.payment !== 'Đã thanh toán',
   };
@@ -868,8 +869,13 @@ function viewMine() {
       loc: (t) => ['Chờ duyệt/Xử lý', 'Từ chối/Cần điều chỉnh'].includes(t.status) },
     { k: 'chuan-bi', t: '3 · Đã duyệt · chuẩn bị đi', mo: 'Xem lại giờ, phương tiện, vé',
       loc: (t) => t.status === 'Duyệt/Chờ tác nghiệp' && !daQua(t) },
-    { k: 'bao-cao', t: '4 · Cần báo cáo', mo: 'Đã qua ngày hoặc đang viết báo cáo',
-      loc: (t) => t.status === 'Đang báo cáo' || (t.status === 'Duyệt/Chờ tác nghiệp' && daQua(t)) },
+    /* Bước này CHỈ chứa lịch chưa nộp. Trước đây nó nhận cả 'Đang báo cáo', mà
+     * bấm Gửi báo cáo chính là chuyển sang trạng thái đó — nên nộp xong thẻ vẫn
+     * nằm nguyên chỗ cũ, người ta tưởng bấm hụt. */
+    { k: 'bao-cao', t: '4 · Cần báo cáo', mo: 'Đã qua ngày đi mà chưa nộp',
+      loc: (t) => t.status === 'Duyệt/Chờ tác nghiệp' && daQua(t) },
+    { k: 'da-nop', t: '5 · Đã nộp · chờ nghiệm thu', mo: 'Quản lý đang xem, chưa cần làm gì',
+      loc: (t) => t.status === 'Đang báo cáo' },
     { k: 'xong', t: 'Đã hoàn tất', mo: 'Xong việc, để đối chiếu cuối tháng',
       loc: (t) => t.status === 'Đã hoàn tất' },
     { k: 'dong', t: 'Đã đóng', mo: 'Từ chối hoặc huỷ',
@@ -1018,6 +1024,9 @@ function theViec(t, buoc) {
     if (giuc) { them = ' ct-giuc'; co = '<span class="ct-co vang">Tới hạn báo cáo</span>'; }
     if (!PREVIEW()) nut = '<button class="btn sm ' + (giuc ? 'warn' : 'primary') +
       '" data-act="report" data-id="' + t.id + '">Báo cáo</button>';
+  } else if (buoc === 'da-nop') {
+    viec = 'Đã nộp báo cáo — chờ quản lý nghiệm thu';
+    co = '<span class="ct-co xam">Chờ nghiệm thu</span>';
   } else if (buoc === 'bao-cao') {
     viec = giuc ? 'Đã qua ngày đi — nộp báo cáo, chi phí và tệp kèm ngay hôm nay'
                 : 'Đi về rồi — điền báo cáo, chi phí và tệp kèm';
@@ -1032,7 +1041,7 @@ function theViec(t, buoc) {
   /* Luôn vẽ hàng thông tin dù rỗng: thẻ nào cũng đủ bốn hàng thì lưới mới đều,
    * nút ở chân thẻ mới thẳng hàng giữa các thẻ. */
   let can = '<div class="ct-can"></div>';
-  if (buoc === 'xong') {
+  if (buoc === 'xong' || buoc === 'da-nop') {
     /* Việc xong rồi thì thứ đáng xem không còn là "chuẩn bị gì" nữa mà là
      * "kết quả ra sao": giờ thực tế, tiền thực chi, thanh toán chưa, nộp được gì. */
     const d = [];
