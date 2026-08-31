@@ -102,6 +102,12 @@ module.exports = {
     // kèm lý do; quản lý duyệt thì mới thành huỷ thật.
     cancelWant:   { id: 'fldYDTcc9j', name: 'Xin huỷ lịch',              type: 'checkbox' },
     cancelReason: { id: 'fld9YWyXW6', name: 'Lý do huỷ',                 type: 'text' },
+    /* Lý do quản lý trả về / từ chối / huỷ. Tách khỏi "Lý do huỷ" ở trên: ô kia
+     * là lời của nhân sự khi XIN huỷ, ô này là lời của quản lý khi QUYẾT. */
+    mgrNote:      { id: 'fldN76fscl', name: 'Phản hồi của quản lý',      type: 'text' },
+    /* Mốc quản lý sửa nội dung SAU khi đã duyệt — để báo lại cho người đi cùng,
+     * vì họ đã ghi giờ cũ vào đầu rồi. */
+    editedAfter:  { id: 'fldbn8dlAj', name: 'Sửa sau khi duyệt',         type: 'datetime' },
     link:         { id: 'fldXmEsMAD', name: 'Liên kết',                 type: 'text' },
     tickets:      { id: 'fld4ka0VLj', name: 'Vé & thông tin cần thiết', type: 'attachment', readOnly: true },
     files:        { id: 'fldhQfS9ch', name: 'Tệp đính kèm',             type: 'attachment', readOnly: true },
@@ -145,7 +151,7 @@ module.exports = {
   // Trường chỉ quản lý được sửa (dùng cho form + chốt ở server)
   // mediaNote là nhận xét VỀ nhân sự Media, do người xin hỗ trợ viết sau chuyến —
   // nên để nhân sự điền trong cửa sổ Báo cáo, không phải quyền riêng của quản lý.
-  managerOnlyFields: ['owner', 'payment', 'focStatus', 'mediaStatus', 'mediaSent'],
+  managerOnlyFields: ['owner', 'payment', 'focStatus', 'mediaStatus', 'mediaSent', 'mgrNote', 'editedAfter'],
 
   // Trường bắt buộc khi đăng ký lịch mới
   requiredOnCreate: ['title', 'purpose', 'start'],

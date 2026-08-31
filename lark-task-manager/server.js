@@ -120,6 +120,17 @@ function toTask(rec) {
 }
 
 /** Bản ghi bảng "Yêu cầu điều chỉnh" -> object cho UI. */
+/* Bảng yêu cầu đổi rất chậm — giữ cache ngắn để hàng đợi và thông báo không
+ * phải đọc lại Base mỗi lần vẽ. */
+const cacheYC = { ds: null, at: 0 };
+
+async function docYeuCau(force) {
+  if (!force && cacheYC.ds && Date.now() - cacheYC.at < 30000) return cacheYC.ds;
+  cacheYC.ds = (await lark.listAllRecords(cfg.requestTableId)).map(toRequest);
+  cacheYC.at = Date.now();
+  return cacheYC.ds;
+}
+
 function toRequest(rec) {
   const RF = cfg.requestFields;
   const c = rec.cells;
@@ -441,6 +452,19 @@ async function api(req, res, url) {
     const conMo = (t) => !DONG_HAN.includes(t.status);
 
     if (manager) {
+      /* Yêu cầu điều chỉnh: nhân sự gửi rồi ngồi chờ. Trước đây yêu cầu nằm im
+       * trong Base, app không có chỗ nào hiện — người gửi tưởng đã hỏi, quản lý
+       * không biết có ai hỏi. */
+      let dsYC = [];
+      try { dsYC = await docYeuCau(false); } catch (e) { /* bảng lỗi thì bỏ qua */ }
+      const tenViec = new Map(all.map((t) => [t.id, t.title]));
+      for (const y of dsYC.filter((x) => !x.handled)) {
+        const viec = y.taskIds.map((id) => tenViec.get(id)).filter(Boolean)[0] || y.content || '(không rõ việc)';
+        them({ id: 'cv:yeu-cau:' + y.id, muc: 'can', rec: y.taskIds[0] || '', khi: null,
+          tieuDe: 'Yêu cầu điều chỉnh chờ trả lời',
+          mo: viec + ' — ' + (y.parts || []).join(', ') + ': ' + (y.proposal || '') });
+      }
+
       for (const t of all.filter((x) => x.status === 'Chờ tiếp nhận')) {
         them({ id: 'cv:cho-nhan:' + t.id, muc: 'can', rec: t.id, khi: t.deadline,
           tieuDe: 'Việc chờ tiếp nhận', mo: ten(t) + ' · ' + nguoiViec(t) });
@@ -825,8 +849,16 @@ async function api(req, res, url) {
   /* ---- bảng Yêu cầu điều chỉnh ---- */
 
   if (p === '/api/requests' && req.method === 'GET') {
-    const recs = await lark.listAllRecords(cfg.requestTableId);
-    return json(res, { requests: recs.map(toRequest) });
+    const ds = await docYeuCau(url.searchParams.get('refresh') === '1');
+    /* Kèm tên công việc: bảng yêu cầu chỉ lưu liên kết, mà quản lý cần đọc được
+     * "sửa cái gì của việc nào" ngay trên hàng đợi, khỏi bấm vào từng cái. */
+    const tasks = (await getRecords()).map(toTask);
+    const ten = new Map(tasks.map((t) => [t.id, t.title]));
+    return json(res, {
+      requests: ds.map((r) => Object.assign({}, r, {
+        taskTitle: r.taskIds.map((id) => ten.get(id)).filter(Boolean)[0] || r.content || '',
+      })),
+    });
   }
 
   if (p === '/api/requests' && req.method === 'POST') {
@@ -842,11 +874,28 @@ async function api(req, res, url) {
     cells[RF.proposal.name] = String(body.proposal);
     if (body.reason) cells[RF.reason.name] = String(body.reason);
     if (body.taskTitle) cells[RF.content.name] = String(body.taskTitle);
-    if (body.senderId) cells[RF.sender.name] = [{ id: body.senderId }];
+    /* Người gửi PHẢI được ghi, không chờ client tự khai: thiếu ô này thì quản lý
+     * mở yêu cầu ra không biết hỏi lại ai. */
+    const nguoiGui = body.senderId || ((await whoAmI(req)) || {}).id;
+    if (nguoiGui) cells[RF.sender.name] = [{ id: nguoiGui }];
     cells[RF.handled.name] = false;
 
     const result = await lark.createRecord(cells, cfg.requestTableId);
+    cacheYC.at = 0;
     return json(res, { ok: true, result });
+  }
+
+  /* Quản lý đánh dấu đã xử lý một yêu cầu điều chỉnh. Việc sửa thật (đổi
+   * deadline, đổi trạng thái…) làm ở ô chi tiết công việc như thường — ô này
+   * chỉ để yêu cầu rời khỏi hàng đợi và người gửi biết đã được xem. */
+  const mYC = p.match(/^\/api\/requests\/(rec[A-Za-z0-9]+)\/xong$/);
+  if (mYC && req.method === 'POST') {
+    if (!(await isManager(req))) {
+      return json(res, { error: 'Chỉ quản lý xử lý được yêu cầu điều chỉnh.', code: 'NOT_MANAGER' }, 403);
+    }
+    await lark.updateRecord(mYC[1], { [cfg.requestFields.handled.name]: true }, cfg.requestTableId);
+    cacheYC.at = 0;
+    return json(res, { ok: true });
   }
 
   if (p === '/api/attachment' && req.method === 'GET') {

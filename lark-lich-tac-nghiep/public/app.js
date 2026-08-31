@@ -402,6 +402,17 @@ const qFoc = () => S.items.filter((t) => t.focRequest && !t.focStatus && !SETTLE
 const qMedia = () => S.items.filter((t) => t.mediaRequest && !t.mediaStatus && !SETTLED.includes(t.status));
 const qPay = () => S.items.filter((t) => t.status === 'Đã hoàn tất' && t.costActual != null && t.payment !== 'Đã thanh toán');
 const qHuy = () => S.items.filter((t) => t.cancelWant && !CLOSED_BAD.includes(t.status));
+// Bước cuối của cả luồng, trước nay không có hàng đợi nào — báo cáo nộp xong
+// nằm im, quản lý chỉ tình cờ thấy trong tab Danh sách.
+const qNghiemThu = () => S.items.filter((t) => t.status === 'Đang báo cáo' && duBaoCao(t));
+const qBaoCaoDo = () => S.items.filter((t) => t.status === 'Đang báo cáo' && !duBaoCao(t));
+// Nháp để lâu: của ai người nấy dọn, nhưng quản lý cần thấy để nhắc
+const qNhapCu = () => {
+  const moc = Date.now() - 14 * 86400000;
+  return S.items.filter((t) => t.status === 'Đang lên kế hoạch' &&
+    toDate(t.start) && toDate(t.start).getTime() < moc);
+};
+
 const qReport = () => {
   const today = startOfDay(new Date());
   return S.items.filter((t) => {
@@ -409,7 +420,8 @@ const qReport = () => {
     return d && d < today && ['Duyệt/Chờ tác nghiệp'].includes(t.status);
   });
 };
-const approveCount = () => qWaiting().length + qFoc().length + qMedia().length + qHuy().length;
+const approveCount = () =>
+  qWaiting().length + qFoc().length + qMedia().length + qHuy().length + qNghiemThu().length;
 
 /* ============ khung ============ */
 function tabDefs() {
@@ -632,6 +644,14 @@ function viewOverview() {
 }
 
 /* ============ CẦN XỬ LÝ (quản lý) ============ */
+/* Yêu cầu FOC phải trả lời trong 3 ngày — app vẫn ghi câu đó, nhưng trước nay
+ * không đo. Mốc đếm lấy theo ngày tác nghiệp vì Base không lưu ngày gửi. */
+function soNgayCho(t) {
+  const d = toDate(t.start);
+  if (!d) return 0;
+  return Math.max(0, Math.round((Date.now() - d.getTime()) / 86400000));
+}
+
 function queueCard(title, arr, note, kind) {
   if (!arr.length) {
     return '<div class="card card-pad" style="margin-bottom:14px"><div class="section-head"><h2>' + esc(title) +
@@ -657,6 +677,11 @@ function queueCard(title, arr, note, kind) {
     } else if (kind === 'media') {
       acts = '<button class="btn sm success" data-act="media-ok" data-id="' + t.id + '">Phê duyệt</button>' +
              '<button class="btn sm danger" data-act="media-no" data-id="' + t.id + '">Từ chối</button>';
+    } else if (kind === 'nghiemthu') {
+      acts = '<button class="btn sm success" data-act="done" data-id="' + t.id + '">Nghiệm thu hoàn tất</button>' +
+             '<button class="btn sm" data-open="' + t.id + '">Xem báo cáo</button>';
+    } else if (kind === 'bcdo' || kind === 'nhapcu') {
+      acts = '<button class="btn sm" data-open="' + t.id + '">Xem chi tiết</button>';
     } else if (kind === 'huy') {
       acts = '<button class="btn sm danger" data-act="huy-ok" data-id="' + t.id + '">Duyệt huỷ</button>' +
              '<button class="btn sm" data-act="huy-no" data-id="' + t.id + '">Giữ lịch</button>';
@@ -667,9 +692,17 @@ function queueCard(title, arr, note, kind) {
       acts = '<button class="btn sm" data-open="' + t.id + '">Xem chi tiết</button>';
     }
 
-    const extra = kind === 'foc' ? (t.foc || []).map((x) => '<span class="tag">' + esc(x) + '</span>').join('')
+    /* Hàng đợi FOC vừa cần thấy danh mục xin, vừa cần thấy đã chờ bao lâu — quy
+     * tắc "trả lời trong 3 ngày" của phòng trước nay chỉ nằm trên chữ, không đo. */
+    const cho = soNgayCho(t);
+    const extra = kind === 'foc'
+      ? (t.foc || []).map((x) => '<span class="tag">' + esc(x) + '</span>').join('') +
+        '<span class="mini" style="' + (cho > 3 ? 'color:var(--red-t);font-weight:600' : 'color:var(--t3)') +
+        '">Đã chờ ' + cho + ' ngày' + (cho > 3 ? ' — quá 3 ngày' : '') + '</span>'
       : kind === 'pay' ? '<span class="mini muted">Thực tế ' + money(t.costActual) + ' đ</span>'
-      : kind === 'huy' ? '<span class="mini" style="color:var(--red-t)">Lý do: ' + esc(t.cancelReason || '(không ghi)') + '</span>' : '';
+      : kind === 'huy' ? '<span class="mini" style="color:var(--red-t)">Lý do: ' + esc(t.cancelReason || '(không ghi)') + '</span>'
+      : kind === 'bcdo' ? '<span class="mini" style="color:var(--orange-t)">Thiếu: ' + esc(thieuGiBaoCao(t).join(', ')) + '</span>'
+      : kind === 'nhapcu' ? '<span class="mini muted">Ngày dự định: ' + esc(fmtD(t.start)) + '</span>' : '';
 
     h += '<tr data-open="' + t.id + '">' +
       '<td><div class="tname">' + esc(t.title || '(chưa đặt tên)') + '</div>' +
@@ -691,10 +724,13 @@ function viewApprove() {
     '<div class="sp">Mọi thao tác ở đây ghi thẳng vào Lark Base. Bấm vào dòng để mở chi tiết trước khi quyết định.</div></div>';
   h += queueCard('Chờ duyệt kế hoạch', qWaiting(), 'Duyệt · Cần chỉnh · Từ chối', 'plan');
   h += queueCard('Xin huỷ lịch', qHuy(), 'Nhân sự xin huỷ — đọc lý do rồi quyết định', 'huy');
+  h += queueCard('Báo cáo chờ nghiệm thu', qNghiemThu(), 'Nhân sự đã nộp đủ — đọc rồi chốt Hoàn tất', 'nghiemthu');
+  h += queueCard('Báo cáo còn dở dang', qBaoCaoDo(), 'Đã bấm nộp nhưng chưa điền đủ — nhắc lại người phụ trách', 'bcdo');
   h += queueCard('Yêu cầu FOC', qFoc(), 'Thông báo muộn nhất 3 ngày kể từ ngày gửi', 'foc');
   h += queueCard('Yêu cầu nhân sự phòng Media', qMedia(), 'Phê duyệt hoặc từ chối hỗ trợ', 'media');
   h += queueCard('Quá ngày chưa báo cáo', qReport(), 'Đã duyệt nhưng chưa chuyển sang báo cáo', 'late');
   h += queueCard('Chờ thanh toán chi phí', qPay(), 'Đã hoàn tất và có chi phí thực tế', 'pay');
+  h += queueCard('Nháp để quá lâu', qNhapCu(), 'Quá 14 ngày kể từ ngày dự định đi mà chưa gửi duyệt', 'nhapcu');
   return h;
 }
 
@@ -1064,7 +1100,7 @@ function theViec(t, buoc) {
     if (traVe) {
       /* Lịch bị trả về nằm chung chỗ chờ duyệt (cùng là "đã gửi đi rồi"), nhưng
        * phải nổi hẳn bằng màu đỏ vì đây là thứ duy nhất trong ô cần tay người. */
-      viec = 'Quản lý trả về — sửa lại rồi gửi duyệt lần nữa';
+      viec = t.mgrNote ? 'Quản lý trả về: ' + t.mgrNote : 'Quản lý trả về — sửa lại rồi gửi duyệt lần nữa';
       them = ' ct-tra-ve';
       co = '<span class="ct-co do">Cần điều chỉnh</span>';
       if (!PREVIEW()) nut = '<button class="btn sm danger" data-open="' + t.id + '">Điều chỉnh</button>';
@@ -1611,6 +1647,10 @@ function renderDrawer() {
     steps += '<div class="banner" style="background:var(--red-bg);color:var(--red-t);border-color:var(--red-vien)">' +
       '<div class="sp"><b>Nhân sự xin huỷ lịch này.</b> Lý do: ' + esc(t.cancelReason || '(không ghi)') + '</div></div>';
   }
+  if (t.mgrNote) {
+    steps += '<div class="banner" style="background:var(--orange-bg);color:var(--orange-t);border-color:#f6d9a8">' +
+      '<div class="sp"><b>Quản lý phản hồi:</b> ' + esc(t.mgrNote) + '</div></div>';
+  }
   if (t.status === 'Từ chối/Cần điều chỉnh') steps += '<div class="banner">Quản lý yêu cầu điều chỉnh — sửa nội dung rồi bấm <b style="margin:0 4px">Gửi duyệt lại</b>.</div>';
 
   const locked = !canEditItem();
@@ -1789,17 +1829,23 @@ async function saveDraft(tuDong) {
 
 /* ============ hành động nhanh ============ */
 const ACTIONS = {
-  approve:   { patch: { status: 'Duyệt/Chờ tác nghiệp' }, msg: 'Đã duyệt kế hoạch' },
-  revise:    { patch: { status: 'Từ chối/Cần điều chỉnh' }, msg: 'Đã trả về để điều chỉnh' },
-  reject:    { patch: { status: 'Từ chối' }, msg: 'Đã từ chối', confirm: 'Từ chối lịch tác nghiệp này?' },
-  cancel:    { patch: { status: 'Hủy lịch' }, msg: 'Đã hủy lịch', confirm: 'Hủy lịch tác nghiệp này?' },
+  approve:   { patch: { status: 'Duyệt/Chờ tác nghiệp', mgrNote: '' }, msg: 'Đã duyệt kế hoạch' },
+  /* Ba việc dưới đây đều làm hỏng kế hoạch của người khác, nên phải nói vì sao.
+   * `hoi` = câu hỏi lý do; không nhập thì không chạy. */
+  revise:    { patch: { status: 'Từ chối/Cần điều chỉnh' }, msg: 'Đã trả về để điều chỉnh',
+               hoi: 'Cần điều chỉnh chỗ nào? Nhân sự sẽ đọc đúng câu này.' },
+  reject:    { patch: { status: 'Từ chối' }, msg: 'Đã từ chối',
+               hoi: 'Vì sao từ chối lịch này? Nhân sự sẽ đọc đúng câu này.' },
+  cancel:    { patch: { status: 'Hủy lịch' }, msg: 'Đã hủy lịch',
+               hoi: 'Vì sao huỷ lịch này? Nhân sự sẽ đọc đúng câu này.' },
   done:      { patch: { status: 'Đã hoàn tất' }, msg: 'Đã nghiệm thu' },
   submit:    { patch: { status: 'Chờ duyệt/Xử lý' }, msg: 'Đã gửi quản lý duyệt' },
   report:    { patch: { status: 'Đang báo cáo' }, msg: 'Đã chuyển sang báo cáo' },
   // Quản lý quyết định yêu cầu huỷ: duyệt thì huỷ thật, từ chối thì gỡ cờ xin huỷ
   'huy-ok':    { patch: { status: 'Hủy lịch', cancelWant: false }, msg: 'Đã duyệt huỷ lịch',
                  confirm: 'Duyệt huỷ lịch này? Lịch sẽ biến mất khỏi giao diện của nhân sự.' },
-  'huy-no':    { patch: { cancelWant: false }, msg: 'Đã từ chối yêu cầu huỷ' },
+  'huy-no':    { patch: { cancelWant: false }, msg: 'Đã từ chối yêu cầu huỷ',
+                 hoi: 'Vì sao giữ lịch này lại? Nhân sự sẽ đọc đúng câu này.' },
   // Bản nháp là của riêng người viết — huỷ thẳng, không qua tay quản lý
   'huy-nhap':  { patch: { status: 'Hủy lịch' }, msg: 'Đã huỷ bản nháp',
                  confirm: 'Huỷ bản nháp này? Lịch sẽ không còn hiện trong danh sách của bạn.' },
@@ -2004,8 +2050,15 @@ async function doAction(act, id) {
   const a = ACTIONS[act];
   if (!a) return;
   if (a.confirm && !confirm(a.confirm)) return;
+  const patch = Object.assign({}, a.patch);
+  if (a.hoi) {
+    const ly = prompt(a.hoi, '');
+    if (ly === null) return;                       // bấm Huỷ ở hộp thoại
+    if (!String(ly).trim()) return toast('Phải ghi lý do — nhân sự cần biết vì sao', 'err');
+    patch.mgrNote = String(ly).trim();
+  }
   try {
-    await api('/api/items/' + id, { method: 'PATCH', body: JSON.stringify(a.patch) });
+    await api('/api/items/' + id, { method: 'PATCH', body: JSON.stringify(patch) });
     toast(a.msg, 'ok');
     await refresh(true);
     if (S.sel && S.sel.id === id) {
@@ -2072,6 +2125,7 @@ function moPhieuDi(id) {
 
   muc('Mục đích', nhieuDong(t.purpose), true);
   muc('Kế hoạch chi tiết', nhieuDong(t.plan), true);
+  muc('Phản hồi của quản lý', nhieuDong(t.mgrNote), true);
   muc('Ghi chú trước chuyến', nhieuDong(t.report), true);
   muc('Phụ trách', nguoi(t.owner));
   muc('Cùng tác nghiệp', nguoi(t.staff));

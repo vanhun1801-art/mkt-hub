@@ -26,6 +26,18 @@ function ok(name, cond, detail) {
 }
 function group(t) { console.log('\n\x1b[1m' + t + '\x1b[0m'); }
 
+/* Bài này chỉ đúng khi STAFF_URL thật sự chạy vai nhân sự. Thiếu
+ * quyen.nhansu.json là instance rơi về vai quản lý, mọi chốt 403 không xảy ra,
+ * và các phép PATCH bên dưới GHI THẬT xuống Base — đã có hai bản ghi của phòng
+ * bị đổi tên vì chạy sai vai. Nên dừng hẳn thay vì chạy tiếp. */
+const BAO_DUNG_VAI = (url) => [
+  '',
+  'DỪNG  ' + url + ' đang chạy ở vai QUẢN LÝ, không phải nhân sự.',
+  '      Chạy đúng cách:  PORT=5175 LARK_QUYEN_FILE=quyen.nhansu.json node server.js',
+  '      (chạy tiếp ở vai quản lý thì các phép thử sẽ GHI THẬT xuống Base)',
+  '',
+].join(String.fromCharCode(10));
+
 async function call(base, path, opts) {
   const r = await fetch(base + path, Object.assign({ headers: { 'Content-Type': 'application/json' } }, opts || {}));
   let body = null;
@@ -41,15 +53,31 @@ const mgr = (p, o) => call(MGR, p, o);
   const s = (await staff('/api/meta')).body;
   const m = (await mgr('/api/meta')).body;
 
+  /* ---------- 0. đúng vai chưa ----------
+   * DỪNG NGAY nếu instance ở STAFF_URL không thật sự chạy vai nhân sự. Thiếu
+   * quyen.nhansu.json là nó rơi về vai quản lý, mọi chốt 403 không xảy ra, và
+   * mấy phép PATCH bên dưới GHI THẬT xuống Base. Đã có hai bản ghi của phòng bị
+   * đổi tên vì chạy bài này ở sai vai — không để tái diễn. */
+  if (s.manager !== false) {
+    console.log(BAO_DUNG_VAI(STAFF));
+    process.exit(2);
+  }
+
   /* ---------- 1. phạm vi nhìn thấy ---------- */
   group('1. Nhân sự chỉ thấy lịch của mình');
   ok('server báo không phải quản lý', s.manager === false);
   ok('thấy ít lịch hơn quản lý', s.items.length < m.items.length, s.items.length + ' < ' + m.items.length);
   ok('mọi lịch thấy được đều là của mình',
     s.items.every((t) => [...(t.owner || []), ...(t.staff || [])].some((u) => u.id === s.me.id)));
-  ok('số lịch khớp phép đếm từ phía quản lý',
+  // Lịch đã huỷ bị cắt khỏi phần của nhân sự, nên trừ ra khi đối chiếu
+  ok('số lịch khớp phép đếm từ phía quản lý (trừ lịch đã huỷ)',
     s.items.length === m.items.filter((t) =>
+      t.status !== 'Hủy lịch' &&
+      [...(t.owner || []), ...(t.staff || [])].some((u) => u.id === s.me.id)).length,
+    s.items.length + ' vs ' + m.items.filter((t) =>
+      t.status !== 'Hủy lịch' &&
       [...(t.owner || []), ...(t.staff || [])].some((u) => u.id === s.me.id)).length);
+  ok('không còn thấy lịch đã huỷ', !s.items.some((t) => t.status === 'Hủy lịch'));
   ok('chỉ được cấp danh sách trạng thái của nhân sự',
     (s.config.staffStatuses || []).length === 3);
 
@@ -104,7 +132,8 @@ const mgr = (p, o) => call(MGR, p, o);
     focStatus: 'Trạng thái FOC',
     mediaStatus: 'Trạng thái nhân sự Media',
     mediaSent: 'Gửi Feedback Media',
-    mediaNote: 'Feedback nhân sự Media',
+    /* mediaNote đã chuyển sang nhân sự điền: đó là nhận xét VỀ bạn Media, do
+     * chính người xin hỗ trợ viết sau chuyến — nên không còn nằm ở đây. */
   };
   for (const k of Object.keys(locked)) {
     const v = k === 'owner' ? [{ id: s.me.id }] : k === 'mediaSent' ? true : 'Phê duyệt';
@@ -120,21 +149,33 @@ const mgr = (p, o) => call(MGR, p, o);
   }
 
   /* ---------- 5. khoá kế hoạch sau khi duyệt ---------- */
+  // (chốt vai đã kiểm ở đầu bài — xem phần "0. Đúng vai chưa")
   group('5. Kế hoạch khoá sau khi lịch đã duyệt/đóng');
   const sealed = s.items.find((t) =>
     ['Duyệt/Chờ tác nghiệp', 'Đã hoàn tất', 'Hủy lịch', 'Từ chối'].includes(t.status));
   if (sealed) {
+    /* Gửi lại CHÍNH tên đang có, không phải một tên khác.
+     *
+     * Bài này kỳ vọng máy chủ trả 403. Nhưng nếu instance ở STAFF_URL không
+     * thật sự chạy vai nhân sự (thiếu quyen.nhansu.json thì nó rơi về vai quản
+     * lý), 403 không xảy ra và PATCH ghi thật xuống Base. Bản cũ gửi chuỗi
+     * "đổi tên trộm" và đã đổi tên hai bản ghi thật của phòng theo đúng đường
+     * này. Gửi lại tên cũ thì kể cả lọt cũng không đổi gì. */
     const r = await staff('/api/items/' + sealed.id, {
-      method: 'PATCH', body: JSON.stringify({ title: 'đổi tên trộm' }),
+      method: 'PATCH', body: JSON.stringify({ title: sealed.title }),
     });
+    /* Hai chốt cùng chặn được: NOT_OWNER (không phải phụ trách) chạy trước,
+     * PLAN_LOCKED (kế hoạch đã khoá) chạy sau. Lịch nào cũng chỉ cần một trong
+     * hai là đủ an toàn, nên nhận cả hai mã. */
+    const CHAN = ['PLAN_LOCKED', 'NOT_OWNER'];
     ok('không sửa được Tên hoạt động của lịch "' + sealed.status + '"',
-      r.status === 403 && r.body.code === 'PLAN_LOCKED', JSON.stringify(r.body));
+      r.status === 403 && CHAN.includes(r.body.code), JSON.stringify(r.body));
 
     const r2 = await staff('/api/items/' + sealed.id, {
-      method: 'PATCH', body: JSON.stringify({ costPlan: 1 }),
+      method: 'PATCH', body: JSON.stringify({ costPlan: sealed.costPlan ?? null }),
     });
     ok('không sửa được Chi phí dự kiến của lịch đã chốt',
-      r2.status === 403 && r2.body.code === 'PLAN_LOCKED', JSON.stringify(r2.body));
+      r2.status === 403 && CHAN.includes(r2.body.code), JSON.stringify(r2.body));
   } else {
     console.log('  \x1b[33mSKIP\x1b[0m không có lịch đã duyệt/đóng của người này để thử');
   }

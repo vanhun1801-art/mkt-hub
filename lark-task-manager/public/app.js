@@ -7,6 +7,7 @@ const MAC_DINH_DUE = 'thismonth';
 const S = {
   meta: null,
   tasks: [],
+  requests: [],       // yêu cầu điều chỉnh — chỉ quản lý tải
   view: 'work',
   who: null,                 // người mà tab "Việc của tôi" đang hiển thị
   viewAs: null,              // quản lý đang xem việc của ai (null = chính mình)
@@ -160,6 +161,15 @@ async function loadAll(refresh) {
   S.meta = meta;
   S.tasks = tasks.tasks;
   S.fetchedAt = tasks.fetchedAt || Date.now();
+  /* Yêu cầu điều chỉnh chỉ quản lý xử lý, nên chỉ quản lý mới phải tải.
+   * Đọc vai thẳng từ meta vừa nhận, KHÔNG dùng S.isManager: cờ đó được gán ở
+   * bước vẽ, tức là sau hàm này — lần nạp đầu nó vẫn còn false và danh sách
+   * yêu cầu sẽ không bao giờ được tải.
+   * Bảng lỗi thì bỏ qua, không được để nó chặn cả trang. */
+  if (meta && meta.role === 'manager') {
+    try { S.requests = (await req('/api/requests' + q)).requests || []; }
+    catch (e) { S.requests = S.requests || []; }
+  }
 }
 
 /* =======================  utils  ======================= */
@@ -1362,6 +1372,75 @@ function scrollToQueue(key) {
   if (n) n.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
+/**
+ * Hàng đợi "Yêu cầu điều chỉnh".
+ *
+ * Nhân sự không sửa được deadline, người phụ trách, campaign… của việc được
+ * giao — họ gửi yêu cầu. Trước đây yêu cầu ghi thẳng vào Base mà app không có
+ * chỗ nào hiện, nên nằm im: người gửi tưởng đã hỏi, quản lý không biết có ai
+ * hỏi. Hàng đợi này là chỗ đọc và đóng chúng.
+ */
+function khoiYeuCau() {
+  const ds = (S.requests || []).filter((r) => !r.handled);
+  const box = el('div', 'queue queue-alert');
+  box.dataset.q = 'yeucau';
+
+  const head = el('div', 'queue-head');
+  head.appendChild(el('strong', '', 'Yêu cầu điều chỉnh'));
+  head.appendChild(el('span', 'queue-n', String(ds.length)));
+  box.appendChild(head);
+  box.appendChild(el('div', 'queue-hint',
+    'Nhân sự xin đổi thông tin do người order giữ. Sửa ở ô chi tiết việc, rồi bấm Đã xử lý.'));
+
+  const list = el('div', 'queue-list');
+  if (!ds.length) {
+    list.appendChild(el('div', 'queue-empty', 'Không còn yêu cầu nào chờ trả lời.'));
+  }
+
+  for (const y of ds) {
+    const row = el('div', 'queue-row');
+    const main = el('div', 'queue-main');
+
+    const ttl = el('div', 'queue-title', y.taskTitle || '(không rõ việc)');
+    const viec = (S.tasks || []).find((t) => (y.taskIds || []).includes(t.id));
+    if (viec) ttl.onclick = () => openDrawer(viec);
+    main.appendChild(ttl);
+
+    const meta = el('div', 'queue-meta');
+    for (const p of (y.parts || [])) meta.appendChild(el('span', 'tag', p));
+    const ai = (y.sender || []).map((u) => u.name).join(', ');
+    if (ai) meta.appendChild(el('span', 'tag', ai));
+    main.appendChild(meta);
+
+    // Nội dung đề xuất là thứ quản lý cần đọc để quyết — cho ra hẳn một dòng
+    main.appendChild(el('div', 'yc-noi', y.proposal || ''));
+    if (y.reason) main.appendChild(el('div', 'yc-ly', 'Lý do: ' + y.reason));
+    row.appendChild(main);
+
+    const acts = el('div', 'queue-act');
+    if (viec) {
+      const b1 = el('button', 'btn small', 'Mở việc');
+      b1.onclick = () => openDrawer(viec);
+      acts.appendChild(b1);
+    }
+    const b2 = el('button', 'btn small btn-primary', 'Đã xử lý');
+    b2.onclick = async () => {
+      b2.disabled = true;
+      try {
+        await req('/api/requests/' + y.id + '/xong', { method: 'POST' });
+        toast('Đã đánh dấu xử lý xong');
+        await refresh(true);
+      } catch (e) { b2.disabled = false; toast('Lỗi: ' + e.message, true); }
+    };
+    acts.appendChild(b2);
+    row.appendChild(acts);
+    list.appendChild(row);
+  }
+
+  box.appendChild(list);
+  return box;
+}
+
 /** Một hàng đợi: tiêu đề + danh sách việc + nút hành động từng dòng. */
 function queueBlock(key, title, items, tone, hint, actionLabel, onAction) {
   const box = el('div', 'queue queue-' + tone);
@@ -1412,6 +1491,7 @@ function queueBlock(key, title, items, tone, hint, actionLabel, onAction) {
 function renderQueues(D) {
   const box = $('#queues');
   box.innerHTML = '';
+  box.appendChild(khoiYeuCau());
   box.appendChild(queueBlock('unassigned', 'Chưa phân công', D.unassigned, 'alert',
     '',
     'Phân công', openAssign));

@@ -1856,3 +1856,13 @@ td.c-check { width: 34px; }
 .xn-o:hover { background: var(--surface-3); border-color: var(--border); }
 .xn-ten { font-size: 13.5px; font-weight: 600; line-height: 1.4; }
 .xn-meta { display: flex; flex-wrap: wrap; gap: 5px; }
+
+/* Hàng đợi Yêu cầu điều chỉnh: nội dung đề xuất là thứ quản lý cần đọc để
+   quyết, nên cho hẳn một dòng riêng chứ không nhét vào đám thẻ nhỏ. */
+.queue-act { display: flex; gap: 6px; flex: 0 0 auto; align-items: center; }
+.yc-noi {
+  margin-top: 6px; font-size: 13px; line-height: 1.5; color: var(--text);
+  background: var(--surface-3); border-left: 3px solid var(--orange);
+  border-radius: var(--r-ctl); padding: 7px 10px;
+}
+.yc-ly { margin-top: 4px; font-size: 12px; color: var(--text-2); }

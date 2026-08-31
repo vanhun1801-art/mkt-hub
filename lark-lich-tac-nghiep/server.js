@@ -402,6 +402,8 @@ async function api(req, res, url) {
       // nhân sự được cấp "Xem toàn bộ" thì thấy lịch cả phòng (chỉ để xem)
       : (me ? (qToanBo() ? all : all.filter((t) => ownedBy(t, me.id))) : []);
 
+    /* Lịch đã huỷ vẫn bị cắt khỏi danh sách của nhân sự (theo ý anh Hùng), nhưng
+     * phần thông báo đọc từ `all` nên vẫn báo được cho họ biết một tiếng. */
     const scoped = anLichHuy(scoped0, manager);
 
     return json(res, {
@@ -484,7 +486,32 @@ async function api(req, res, url) {
       const toiLoc = cuaToi.filter((t) => (t.owner || []).some((u) => u.id === me.id));
       for (const t of toiLoc.filter((x) => x.status === 'Từ chối/Cần điều chỉnh')) {
         them({ id: 'lich:tra-ve:' + t.id, muc: 'gap', rec: t.id, khi: t.start,
-          tieuDe: 'Lịch bị trả về', mo: ten(t) + ' — sửa lại rồi gửi duyệt lần nữa' });
+          tieuDe: 'Lịch bị trả về',
+          mo: ten(t) + ' — ' + (t.mgrNote || 'sửa lại rồi gửi duyệt lần nữa') });
+      }
+
+      /* Ba mốc quan trọng nhất với nhân sự mà trước nay không ai báo: được
+       * duyệt, bị từ chối, bị huỷ. Riêng lịch huỷ còn bị cắt khỏi danh sách của
+       * họ nên nếu không báo thì nó chỉ đơn giản là biến mất. */
+      for (const t of cuaToi.filter((x) => x.status === 'Duyệt/Chờ tác nghiệp')) {
+        them({ id: 'lich:da-duyet:' + t.id, muc: 'tin', rec: t.id, khi: t.start,
+          tieuDe: 'Lịch đã được duyệt', mo: ten(t) + ' · ' + gioVN(new Date(t.start)) + ' — chuẩn bị đi' });
+      }
+      for (const t of cuaToi.filter((x) => x.status === 'Từ chối')) {
+        them({ id: 'lich:bi-tu-choi:' + t.id, muc: 'can', rec: t.id, khi: t.start,
+          tieuDe: 'Lịch bị từ chối', mo: ten(t) + ' — ' + (t.mgrNote || 'quản lý không nêu lý do') });
+      }
+      for (const t of cuaToi.filter((x) => x.status === 'Hủy lịch')) {
+        them({ id: 'lich:bi-huy:' + t.id, muc: 'can', rec: t.id, khi: t.start,
+          tieuDe: 'Lịch đã bị huỷ', mo: ten(t) + ' — ' + (t.mgrNote || t.cancelReason || 'không nêu lý do') });
+      }
+      /* Quản lý sửa giờ/phương tiện sau khi đã duyệt: người đi cùng đã ghi giờ
+       * cũ vào đầu rồi. Mốc sửa nằm trong mã thông báo nên mỗi lần sửa lại là
+       * một thông báo mới, chưa đọc. */
+      for (const t of cuaToi.filter((x) => x.editedAfter && x.status === 'Duyệt/Chờ tác nghiệp')) {
+        them({ id: 'lich:doi-sau-duyet:' + t.id + ':' + t.editedAfter, muc: 'gap', rec: t.id, khi: t.editedAfter,
+          tieuDe: 'Lịch đã đổi sau khi duyệt',
+          mo: ten(t) + ' — xem lại giờ và phương tiện: ' + gioVN(new Date(t.start)) });
       }
       for (const t of cuaToi.filter((x) => x.status === 'Duyệt/Chờ tác nghiệp')) {
         const d = t.start ? new Date(t.start) : null;
@@ -728,6 +755,15 @@ async function api(req, res, url) {
             code: 'PROOF_REQUIRED',
           }, 400);
         }
+      }
+
+      /* Quản lý sửa nội dung của lịch ĐÃ DUYỆT: đóng dấu mốc để báo lại cho
+       * người đi cùng — họ đã ghi giờ cũ vào đầu rồi. Chỉ tính khi động vào
+       * những thứ ảnh hưởng chuyến đi; sửa ghi chú thì không cần réo cả nhóm. */
+      const ANH_HUONG = ['start', 'end', 'duration', 'transport', 'plan', 'title'];
+      if (manager && item.status === 'Duyệt/Chờ tác nghiệp' &&
+          Object.keys(body).some((k) => ANH_HUONG.includes(k))) {
+        body.editedAfter = new Date().toISOString();
       }
 
       const cells = toCells(body);
