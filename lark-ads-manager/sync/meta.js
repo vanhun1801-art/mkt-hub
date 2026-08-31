@@ -154,4 +154,28 @@ async function test(conf) {
   return { ok: results.every((r) => r.ok), results, token: info };
 }
 
-module.exports = { PLATFORM, fetchRange, test, tokenInfo, conversionsOf, actionTypesSeen };
+/**
+ * Dò các tài khoản quảng cáo mà token này với tới — giao diện điền hộ accountIds,
+ * đỡ phải đi tra ID trong Ads Manager (chỗ dễ gõ nhầm nhất).
+ */
+async function danhSachTaiKhoan(conf) {
+  if (!conf.accessToken) throw new Error('Chưa có accessToken');
+  hideSecret(conf.accessToken);
+  const ver = conf.apiVersion || 'v21.0';
+  const r = await getJson(`https://graph.facebook.com/${ver}/me/adaccounts`
+    + '?fields=account_id,name,currency,account_status&limit=200'
+    + `&access_token=${encodeURIComponent(conf.accessToken)}`,
+    { label: 'Meta /me/adaccounts', retries: 1 });
+  if (r && r.error) throw new Error(scrub(r.error.message || 'Meta từ chối'));
+  return (r.data || []).map((a) => ({
+    id: String(a.account_id || '').replace(/^act_/, ''),
+    name: a.name || '',
+    currency: a.currency || '',
+    // 1 = đang chạy. Các trạng thái khác (2 = tắt, 3 = chưa duyệt…) vẫn cho chọn.
+    dangChay: Number(a.account_status) === 1,
+  })).filter((a) => a.id);
+}
+
+module.exports = {
+  PLATFORM, fetchRange, test, tokenInfo, danhSachTaiKhoan, conversionsOf, actionTypesSeen,
+};

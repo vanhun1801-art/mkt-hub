@@ -158,7 +158,31 @@ sở hữu. Google Ads cố tình đi đường Script để khỏi phải xin d
 
 App gọi ra ngoài từ máy anh nên **không cần domain public, không cần mở port**.
 
-## Cài đặt: chạy trình cài một lần
+## Cài đặt: điền ngay trong app (cách nhanh nhất)
+
+Mở tab **Kết nối & Đồng bộ** → mỗi thẻ nền tảng có nút **Điền thông tin** → dán token,
+mã tài khoản → **Lưu cấu hình** → **Kiểm tra kết nối**. App tự tạo `ket-noi.json` hộ,
+không phải sửa file tay và không cần dòng lệnh — đây là đường duy nhất dùng được khi app
+chạy trên Render.
+
+Ba tiện ích trong biểu mẫu:
+
+- **Dò tài khoản** (Facebook · Google Ads): hỏi thẳng nền tảng xem token này với tới
+  những tài khoản nào, tick rồi điền hộ vào ô mã tài khoản.
+- **Lấy link uỷ quyền** (Google Ads): lấy refresh token mà không cần chạy dòng lệnh.
+  Bấm nút → đồng ý ở trang Google → trình duyệt nhảy tới `127.0.0.1:47123` và báo không
+  kết nối được (bình thường) → copy nguyên URL trên thanh địa chỉ, dán vào ô bên dưới.
+- **Xoá token đã lưu**: gỡ token và tắt kênh.
+
+Quy tắc của biểu mẫu: token **đi vào được, không bao giờ đi ra** — giao diện chỉ hiện
+"đã lưu / chưa có", không bao giờ hiện lại giá trị. Vì thế **ô bí mật để trống = giữ
+nguyên cái đang lưu**, sửa chỉ số hay mã tài khoản không làm mất token.
+
+> Trên Render ổ đĩa là tạm: token điền ở đây sống tới lần deploy kế tiếp rồi mất. Muốn
+> giữ lâu dài thì dán nội dung `ket-noi.json` vào biến môi trường `ADS_CONNECT_JSON`.
+> App tự hiện cảnh báo này khi chạy trên Render.
+
+## Cài đặt: chạy trình cài một lần (trên máy cá nhân)
 
 ```bash
 node ket-noi.js

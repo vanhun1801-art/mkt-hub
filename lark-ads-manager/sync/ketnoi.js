@@ -92,12 +92,189 @@ function writeOptions(next = {}) {
   ['meta', 'tiktok', 'googleAds', 'googleSheet'].forEach((k) => {
     if (next[k] && next[k].enabled != null) cur[k].enabled = !!next[k].enabled;
   });
-  fs.writeFileSync(FILE, JSON.stringify(cur, null, 2), 'utf8');
+  ghiFile(cur);
   /* Trên server chung, file vừa ghi sống tới lần deploy tiếp theo rồi mất. Báo ra
    * để giao diện nói thẳng là phải cập nhật biến ADS_CONNECT_JSON, thay vì để anh
    * tưởng đã lưu xong rồi vài hôm sau thấy kênh tự tắt. */
   if (nguon() === 'env' || process.env.ADS_CONNECT_JSON) cur._tamThoi = true;
   return cur;
+}
+
+/* =======================================================================
+   ĐIỀN TOKEN TỪ GIAO DIỆN
+   -----------------------------------------------------------------------
+   writeOptions() ở trên cố tình không cho sửa bí mật: hồi đó token chỉ điền
+   bằng `node ket-noi.js` trên máy cá nhân. Nhưng khi app chạy trên Render thì
+   không có dòng lệnh nào để gõ, nên phải có đường điền ngay trong app.
+
+   Ba quy tắc giữ nguyên, để mở đường này không thành lỗ hổng:
+     1. Token ĐI VÀO được, KHÔNG BAO GIỜ đi ra. status()/bieuMau() chỉ trả
+        "đã có / chưa có", tuyệt đối không trả lại giá trị.
+     2. Ô để TRỐNG nghĩa là GIỮ NGUYÊN cái đang lưu — vì giao diện không hiện
+        token cũ nên nếu trống mà xoá thì mỗi lần sửa chỉ số lại mất token.
+        Muốn xoá hẳn thì gửi null (nút "Xoá token đã lưu").
+     3. File ghi với quyền 0600 (chỉ chủ máy đọc được).
+   ======================================================================= */
+
+/** Khai báo các trường giao diện được sửa, kèm cách làm sạch giá trị. */
+const TRUONG = {
+  meta: [
+    ['accessToken', 'biMat'],
+    ['accountIds', 'idMeta'],
+    ['apiVersion', 'phienBan'],
+    ['conversionMetric', 'chiSo'],
+    ['clickMetric', 'chiSo'],
+  ],
+  tiktok: [
+    ['accessToken', 'biMat'],
+    ['advertiserIds', 'idSo'],
+    ['conversionMetric', 'chiSo'],
+  ],
+  googleAds: [
+    ['clientId', 'chuoi'],
+    ['clientSecret', 'biMat'],
+    ['refreshToken', 'biMat'],
+    ['developerToken', 'biMat'],
+    ['customerIds', 'idGoogle'],
+    ['loginCustomerId', 'idGoogleMot'],
+  ],
+  googleSheet: [
+    ['csvUrl', 'lienKet'],
+    ['level', 'capDo'],
+  ],
+};
+
+/** Trường nào là bí mật — dùng để biết ô trống thì giữ nguyên. */
+const LA_BI_MAT = (kenh, key) => (TRUONG[kenh] || []).some(([k, t]) => k === key && t === 'biMat');
+
+const loi = (msg) => { const e = new Error(msg); e.code = 400; return e; };
+
+/** Tách một ô nhiều ID (xuống dòng / dấu phẩy / khoảng trắng) thành mảng, bỏ trùng. */
+function dsId(v, lam) {
+  const tho = Array.isArray(v) ? v : String(v == null ? '' : v).split(/[\s,;]+/);
+  const out = [];
+  tho.forEach((x) => {
+    const s = lam(String(x).trim());
+    if (s && !out.includes(s)) out.push(s);
+  });
+  return out;
+}
+
+const LAM_SACH = {
+  // Token dán từ trình duyệt hay dính khoảng trắng / xuống dòng ở hai đầu.
+  biMat: (v) => String(v).trim(),
+  chuoi: (v) => String(v).trim().slice(0, 300),
+  // act_1234567890 hay 1234567890 đều được — cất dạng số cho meta.js tự thêm act_
+  idMeta: (v) => dsId(v, (s) => s.replace(/^act_/i, '').replace(/[^0-9]/g, '')),
+  idSo: (v) => dsId(v, (s) => s.replace(/[^0-9]/g, '')),
+  // Google viết 123-456-7890; gads.js tự bỏ gạch nên cất y như anh nhìn thấy trên Ads
+  idGoogle: (v) => dsId(v, (s) => s.replace(/[^0-9-]/g, '').replace(/^-+|-+$/g, '')),
+  idGoogleMot: (v) => (dsId(v, (s) => s.replace(/[^0-9-]/g, '').replace(/^-+|-+$/g, ''))[0] || ''),
+  phienBan: (v) => {
+    const s = String(v).trim();
+    if (!s) return '';
+    if (!/^v\d+(\.\d+)?$/.test(s)) throw loi('Phiên bản API phải dạng v21.0');
+    return s;
+  },
+  chiSo: (v) => {
+    const s = String(v).trim();
+    if (s && !/^[a-z0-9_.]{2,80}$/i.test(s)) throw loi('Tên chỉ số chỉ gồm chữ, số, dấu chấm và gạch dưới');
+    return s;
+  },
+  lienKet: (v) => {
+    const s = String(v).trim();
+    if (s && !/^https?:\/\//i.test(s)) throw loi('Link CSV phải bắt đầu bằng https://');
+    return s;
+  },
+  capDo: (v) => {
+    const s = String(v).trim();
+    if (s && s !== 'ad' && s !== 'adgroup') throw loi('Cấp độ phải là ad hoặc adgroup');
+    return s || 'adgroup';
+  },
+};
+
+/** Ghi vào file với quyền 0600 — token không để cho tài khoản khác trên máy đọc. */
+function ghiFile(cur) {
+  fs.writeFileSync(FILE, JSON.stringify(cur, null, 2), { encoding: 'utf8', mode: 0o600 });
+  try { fs.chmodSync(FILE, 0o600); } catch (_) {} // Windows bỏ qua, không sao
+}
+
+/**
+ * Lưu token/ID điền từ giao diện.
+ *
+ * next = { meta: { accessToken: '…', accountIds: '123, 456' }, ... }
+ *   ''   -> giữ nguyên (với ô bí mật) / xoá trắng (với ô thường)
+ *   null -> xoá hẳn giá trị đang lưu
+ */
+function writeSecrets(next = {}) {
+  const cur = read();
+  const doi = [];
+
+  Object.keys(TRUONG).forEach((kenh) => {
+    const g = next[kenh];
+    if (!g || typeof g !== 'object') return;
+    TRUONG[kenh].forEach(([key, kieu]) => {
+      if (!(key in g)) return;
+      const v = g[key];
+      if (v === null) { cur[kenh][key] = Array.isArray(cur[kenh][key]) ? [] : ''; doi.push(kenh + '.' + key); return; }
+      // Ô bí mật để trống = không đụng tới; nếu không, mỗi lần sửa chỉ số lại mất token.
+      if (LA_BI_MAT(kenh, key) && String(v).trim() === '') return;
+      const sach = LAM_SACH[kieu](v);
+      const cu = cur[kenh][key];
+      const khac = Array.isArray(sach) ? JSON.stringify(sach) !== JSON.stringify(cu || []) : sach !== cu;
+      if (khac) { cur[kenh][key] = sach; doi.push(kenh + '.' + key); }
+    });
+    if (g.enabled != null) cur[kenh].enabled = !!g.enabled;
+  });
+
+  // Token Meta mới thì hạn cũ không còn đúng — xoá đi, server sẽ hỏi lại Meta.
+  if (doi.includes('meta.accessToken')) { cur.meta.tokenVinhVien = false; cur.meta.tokenHetHanLuc = ''; }
+
+  ghiFile(cur);
+  return { daDoi: doi };
+}
+
+/** Ghi lại hạn token Meta sau khi hỏi debug_token (không phải thứ người dùng gõ). */
+function writeMetaTokenInfo(info) {
+  const cur = read();
+  cur.meta.tokenVinhVien = !!(info && info.vinhVien);
+  cur.meta.tokenHetHanLuc = (info && info.hetHanLuc) || '';
+  ghiFile(cur);
+}
+
+/**
+ * Giá trị điền sẵn cho biểu mẫu: mọi thứ TRỪ bí mật.
+ * Bí mật chỉ trả cờ `daCo…` để giao diện hiện "đã lưu" mà không lộ giá trị.
+ */
+function bieuMau() {
+  const c = read();
+  return {
+    meta: {
+      accountIds: (c.meta.accountIds || []).join(', '),
+      apiVersion: c.meta.apiVersion || 'v21.0',
+      conversionMetric: c.meta.conversionMetric || '',
+      clickMetric: c.meta.clickMetric || '',
+      daCoAccessToken: !!c.meta.accessToken,
+    },
+    tiktok: {
+      advertiserIds: (c.tiktok.advertiserIds || []).join(', '),
+      conversionMetric: c.tiktok.conversionMetric || '',
+      daCoAccessToken: !!c.tiktok.accessToken,
+    },
+    googleAds: {
+      clientId: c.googleAds.clientId || '',
+      customerIds: (c.googleAds.customerIds || []).join(', '),
+      loginCustomerId: c.googleAds.loginCustomerId || '',
+      daCoClientSecret: !!c.googleAds.clientSecret,
+      daCoRefreshToken: !!c.googleAds.refreshToken,
+      daCoDeveloperToken: !!c.googleAds.developerToken,
+    },
+    googleSheet: {
+      csvUrl: c.googleSheet.csvUrl || '',
+      level: c.googleSheet.level || 'adgroup',
+      daCoCsvUrl: !!c.googleSheet.csvUrl,
+    },
+  };
 }
 
 /** Bản mô tả an toàn để trả ra giao diện — che token, chỉ nói có/không. */
@@ -111,7 +288,10 @@ function status() {
     // 'file' = máy cá nhân · 'env' = server chung (ADS_CONNECT_JSON) · 'trong' = chưa khai
     nguon: ng,
     canhBaoODiaTam: ng === 'file' && !!process.env.RENDER && !process.env.ADS_CONNECT_JSON,
+    // Ổ đĩa Render là tạm: token điền trên web sống tới lần deploy sau rồi mất.
+    oDiaTam: !!process.env.RENDER,
     dongBo: c.dongBo,
+    bieuMau: bieuMau(),
     providers: [
       {
         key: 'meta', label: 'Facebook / Meta', enabled: c.meta.enabled,
@@ -174,4 +354,7 @@ const maskUrl = (u) => {
   try { const x = new URL(u); return x.hostname + '/…'; } catch (_) { return 'đã đặt'; }
 };
 
-module.exports = { read, writeOptions, status, hanToken, nguon, FILE, DEFAULT };
+module.exports = {
+  read, writeOptions, writeSecrets, writeMetaTokenInfo, bieuMau,
+  status, hanToken, nguon, FILE, DEFAULT,
+};

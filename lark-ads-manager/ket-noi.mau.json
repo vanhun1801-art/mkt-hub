@@ -1,5 +1,5 @@
 {
-  "_huongDan": "Copy file này thành ket-noi.json rồi điền token. ket-noi.json đã được gitignore và KHÔNG bao giờ hiện token ra giao diện app.",
+  "_huongDan": "Cách nhanh nhất là điền thẳng trong app: tab Kết nối & Đồng bộ → Điền thông tin → Lưu cấu hình, app tự tạo ket-noi.json. Muốn làm tay thì copy file này thành ket-noi.json rồi điền token. ket-noi.json đã được gitignore và KHÔNG bao giờ hiện token ra giao diện app.",
   "meta": {
     "enabled": false,
     "_token": "System User token lấy trong Business Manager → Cài đặt doanh nghiệp → Người dùng hệ thống → Tạo mã truy cập, tick quyền ads_read. Token này không hết hạn.",

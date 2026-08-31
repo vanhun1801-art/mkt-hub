@@ -15,6 +15,8 @@ const M = require('./metrics');
 const ketnoi = require('./sync/ketnoi');
 const sync = require('./sync');
 const live = require('./sync/live');
+const metaAds = require('./sync/meta');
+const gads = require('./sync/gads');
 
 const T = cfg.tables;
 const PUBLIC = path.join(__dirname, 'public');
@@ -357,6 +359,88 @@ async function api(req, res, u) {
 
   if (p === '/api/connect/test' && method === 'POST') {
     return ok(res, { rows: await sync.testAll() });
+  }
+
+  /* Điền token/ID ngay trong app. Token chỉ đi VÀO — mọi phản hồi dưới đây đều
+   * trả ketnoi.status(), thứ đã che sẵn bí mật. */
+  if (p === '/api/connect/secrets' && method === 'PUT') {
+    const body = await readBody(req);
+    const { daDoi } = ketnoi.writeSecrets(body);
+
+    // Đổi token Meta thì hỏi lại Meta xem token sống tới bao giờ, để thẻ hiện đúng hạn.
+    if (daDoi.includes('meta.accessToken')) {
+      try { ketnoi.writeMetaTokenInfo(await metaAds.tokenInfo(ketnoi.read().meta)); } catch (_) {}
+    }
+    // Bật/tắt kênh hay đổi tài khoản thì số đang cache không còn đúng nữa.
+    live.xoaCache();
+    sync.startScheduler((m) => console.log(m));
+    return ok(res, { ...ketnoi.status(), hengio: sync.schedulerState(), daDoi });
+  }
+
+  /** Dò danh sách tài khoản quảng cáo bằng token vừa lưu — đỡ phải đi tra ID tay. */
+  if (p === '/api/connect/tai-khoan' && method === 'POST') {
+    const body = await readBody(req);
+    const c = ketnoi.read();
+    try {
+      if (body.provider === 'meta') return ok(res, { rows: await metaAds.danhSachTaiKhoan(c.meta) });
+      if (body.provider === 'googleAds') return ok(res, { rows: await gads.danhSachTaiKhoan(c.googleAds) });
+    } catch (e) { return fail(res, 400, e.message); }
+    return fail(res, 400, 'Chỉ dò được tài khoản của Facebook và Google Ads');
+  }
+
+  /**
+   * Lấy refresh token Google ngay trong giao diện.
+   *
+   * Trên máy cá nhân thì `node ket-noi.js --google-api` mở cổng 127.0.0.1 chờ Google
+   * gọi về. Chạy trên server chung thì không có cổng nào để chờ, nên đi đường dán tay:
+   * mở link → đồng ý → trình duyệt nhảy tới 127.0.0.1 và báo lỗi kết nối → copy nguyên
+   * URL trên thanh địa chỉ dán vào đây. Code trong URL còn hiệu lực khoảng 10 phút.
+   */
+  if (p === '/api/connect/google-oauth' && method === 'POST') {
+    const body = await readBody(req);
+    const g = ketnoi.read().googleAds;
+    if (!g.clientId || !g.clientSecret) return fail(res, 400, 'Lưu OAuth Client ID và Client Secret trước đã');
+    const redirect = 'http://127.0.0.1:47123';
+
+    if (body.buoc === 'link') {
+      return ok(res, {
+        url: 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams({
+          client_id: g.clientId,
+          redirect_uri: redirect,
+          response_type: 'code',
+          scope: 'https://www.googleapis.com/auth/adwords',
+          access_type: 'offline',
+          prompt: 'consent', // bắt Google cấp refresh token cả khi đã đồng ý lần trước
+        }).toString(),
+        redirect,
+      });
+    }
+
+    if (body.buoc === 'doi') {
+      const dan = String(body.dan || '').trim();
+      // Nhận cả URL đầy đủ lẫn mỗi mã code dán trần.
+      const m = dan.match(/[?&]code=([^&\s]+)/);
+      const code = m ? decodeURIComponent(m[1]) : dan;
+      if (!code || /\s/.test(code)) return fail(res, 400, 'Chưa thấy mã code trong chuỗi vừa dán');
+      const r = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          code, client_id: g.clientId, client_secret: g.clientSecret,
+          redirect_uri: redirect, grant_type: 'authorization_code',
+        }).toString(),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!d.refresh_token) {
+        return fail(res, 400, 'Google không trả refresh token: '
+          + (d.error_description || d.error || 'không rõ')
+          + '. Mã code chỉ dùng được một lần và hết hạn sau ~10 phút — bấm lấy link mới rồi làm lại.');
+      }
+      ketnoi.writeSecrets({ googleAds: { refreshToken: d.refresh_token } });
+      live.xoaCache();
+      return ok(res, { ...ketnoi.status(), daLay: true });
+    }
+    return fail(res, 400, 'buoc phải là link hoặc doi');
   }
 
   if (p === '/api/sync' && method === 'POST') {

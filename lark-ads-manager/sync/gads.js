@@ -199,4 +199,51 @@ async function tokenInfo() {
   return { text: 'không hết hạn (tự làm mới bằng refresh token)', muc: 'ok' };
 }
 
-module.exports = { PLATFORM, fetchRange, test, tokenInfo, accessToken, GAQL, API_VER_MAC };
+/* ---------------------------------------------------------------- dò tài khoản */
+
+/**
+ * Liệt kê các tài khoản mà refresh token này với tới được — để giao diện điền hộ
+ * customerIds thay vì bắt đi tra ID ở Google Ads.
+ *
+ * listAccessibleCustomers chỉ trả ID, không trả tên (Google cố ý). Có MCC thì hỏi
+ * thêm một lượt lấy tên; không có thì trả ID trơn, vẫn đủ để dán vào ô.
+ */
+async function danhSachTaiKhoan(conf) {
+  const token = await accessToken(conf);
+  const r = await getJson(`${base(conf)}/customers:listAccessibleCustomers`, {
+    headers: { Authorization: 'Bearer ' + token, 'developer-token': conf.developerToken || '' },
+    label: 'Google Ads listAccessibleCustomers', retries: 1,
+  });
+  if (r && r.error) throw new Error(scrub(r.error.message || 'Google Ads từ chối'));
+  const ids = (r.resourceNames || []).map((s) => String(s).split('/').pop()).filter(Boolean);
+
+  const ten = {};
+  if (conf.loginCustomerId) {
+    try {
+      const q = await postJson(`${base(conf)}/customers/${cid(conf.loginCustomerId)}/googleAds:search`,
+        { query: 'SELECT customer_client.id, customer_client.descriptive_name, customer_client.currency_code FROM customer_client WHERE customer_client.status = "ENABLED"' },
+        { headers: headers(conf, token), label: 'Google Ads customer_client', retries: 1 });
+      ((q && q.results) || []).forEach((x) => {
+        const c = x.customerClient || {};
+        if (c.id) ten[String(c.id)] = { name: c.descriptiveName || '', currency: c.currencyCode || '' };
+      });
+    } catch (_) { /* không có quyền đọc cây MCC thì thôi, ID vẫn dùng được */ }
+  }
+
+  return ids.map((id) => ({
+    id: dep(id),
+    raw: id,
+    name: (ten[id] || {}).name || '',
+    currency: (ten[id] || {}).currency || '',
+  }));
+}
+
+/** 1234567890 -> 123-456-7890, đúng cách Google Ads hiện trên màn hình. */
+const dep = (id) => {
+  const s = String(id).replace(/[^0-9]/g, '');
+  return s.length === 10 ? `${s.slice(0, 3)}-${s.slice(3, 6)}-${s.slice(6)}` : s;
+};
+
+module.exports = {
+  PLATFORM, fetchRange, test, tokenInfo, accessToken, danhSachTaiKhoan, GAQL, API_VER_MAC,
+};

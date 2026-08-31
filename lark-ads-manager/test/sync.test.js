@@ -200,6 +200,52 @@ const post = async (p, b) => {
   t('không bản ghi nào bị gắn ID rác',
     m.ads.every((x) => !/__TEST/.test(x.extId || '')) && m.campaigns.every((x) => !/__TEST/.test(x.extId || '')));
 
+  /* ---------------------------------------------------------------
+   * Biểu mẫu điền token trong giao diện.
+   * Chỉ thử đường KHÔNG ghi gì (body rỗng) và các đường bị chặn — không đụng
+   * vào token thật đang nằm trong ket-noi.json.
+   * ------------------------------------------------------------- */
+  console.log('\n— biểu mẫu điền token');
+  const put = async (p, b) => {
+    const r = await fetch(B + p, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) });
+    const txt = await r.text();
+    let j = null; try { j = JSON.parse(txt); } catch (_) {}
+    return { s: r.status, j, txt };
+  };
+
+  const cn = await get('/api/connect');
+  t('/api/connect có bieuMau', !!(cn.j && cn.j.bieuMau));
+  // Bất biến quan trọng nhất: token đi vào được, không bao giờ đi ra.
+  const traRa = JSON.stringify(cn.j);
+  const cauHinh = ketnoi.read();
+  const biMat = [cauHinh.meta.accessToken, cauHinh.tiktok.accessToken,
+    cauHinh.googleAds.clientSecret, cauHinh.googleAds.refreshToken, cauHinh.googleAds.developerToken]
+    .filter((x) => x && String(x).length > 8);
+  t('không lộ bí mật nào ra API', biMat.every((s) => !traRa.includes(s)), biMat.length + ' bí mật đang lưu');
+  t('bieuMau chỉ nói có/không', cn.j.bieuMau.meta.daCoAccessToken === !!cauHinh.meta.accessToken);
+
+  let rk = await put('/api/connect/secrets', {});
+  t('lưu rỗng → không đổi gì', rk.s === 200 && Array.isArray(rk.j.daDoi) && rk.j.daDoi.length === 0, rk.txt.slice(0, 120));
+
+  rk = await put('/api/connect/secrets', { googleSheet: { csvUrl: 'ftp://khong-phai-http' } });
+  t('chặn link CSV không phải http', rk.s === 400, rk.txt.slice(0, 120));
+  rk = await put('/api/connect/secrets', { meta: { apiVersion: '21' } });
+  t('chặn phiên bản API sai dạng', rk.s === 400, rk.txt.slice(0, 120));
+  rk = await put('/api/connect/secrets', { meta: { conversionMetric: 'a b c;rm' } });
+  t('chặn tên chỉ số có ký tự lạ', rk.s === 400, rk.txt.slice(0, 120));
+
+  // Token vẫn nguyên vẹn sau chuỗi thao tác trên — đây là chỗ dễ hỏng nhất.
+  const sau = ketnoi.read();
+  t('token không bị mất sau khi lưu', sau.meta.accessToken === cauHinh.meta.accessToken
+    && sau.googleAds.refreshToken === cauHinh.googleAds.refreshToken);
+
+  rk = await post('/api/connect/tai-khoan', { provider: 'khong-co' });
+  t('dò tài khoản nền tảng lạ → 400', rk.s === 400);
+  rk = await post('/api/connect/google-oauth', { buoc: 'sai' });
+  t('oauth bước sai → 400', rk.s === 400);
+  rk = await post('/api/connect/google-oauth', { buoc: 'doi', dan: '' });
+  t('oauth thiếu code → 400', rk.s === 400, rk.txt.slice(0, 120));
+
   console.log(`\n${pass} pass · ${fail} fail`);
   process.exit(fail ? 1 : 0);
 })().catch((e) => { console.error('LỖI TEST:', e.stack); process.exit(1); });
