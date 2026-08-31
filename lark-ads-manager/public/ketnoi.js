@@ -676,6 +676,25 @@
         ${xau ? '<br><b>Chưa nên tin bảng dưới.</b> Cấp không rõ ràng thì chi tiêu bị gán sai chỗ.' : ''}
       </div>
 
+      ${(() => {
+        /* Số ID không khớp không nói lên mức nghiêm trọng. 17 trên 33 ID nghe rất
+         * nhiều, nhưng nếu chúng chỉ mang 3% hội thoại thì bỏ qua được. Đặt khối
+         * lượng thật lên đây, ngay cạnh con số đếm ID, để không ai đọc lệch. */
+        const dl = g.doLonKhongKhop;
+        if (!dl || !dl.hoiThoai) return '';
+        const ty = dl.tyLeHoiThoai || 0;
+        return `<div class="help" style="${ty > 0.15
+          ? 'border-color:var(--warn);color:var(--warn)' : 'border-color:var(--rule)'}">
+          <b>Các ID không khớp mang ${int(dl.hoiThoai)} hội thoại</b> — ${(ty * 100).toFixed(1)}% tổng số,
+          trong đó ${int(dl.coSdt)} có số điện thoại${dl.soDon ? ` và ${int(dl.soDon)} đơn POS` : ''}.
+          ${ty > 0.15
+            ? '<br>Đủ lớn để đáng truy: chi tiêu của những quảng cáo này không nằm trong Base, nên phần chuyển đổi đó hiện không có giá.'
+            : '<br>Nhỏ, bỏ qua được — nhưng vẫn nên biết là có.'}
+          ${dl.nangNhat && dl.nangNhat.length ? `<br>Nặng nhất: ${dl.nangNhat
+            .map((x) => `<code>${esc(x.adId)}</code> ${int(x.hoiThoai)} hội thoại`).join(' · ')}` : ''}
+        </div>`;
+      })()}
+
       <div class="help" style="${tyChiMu > 0.3 ? 'border-color:var(--warn);color:var(--warn)' : ''}">
         Chi tiêu trong khoảng: <b>${vnd(g.chiTongKhoang)}</b>.
         Không ghép được với hội thoại nào: <b>${vnd(g.chiKhongGhep)}</b>

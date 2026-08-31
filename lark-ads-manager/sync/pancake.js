@@ -432,6 +432,24 @@ function ghepVoiChiTieu(gomTheoAd, data, { from, to } = {}) {
     if (!daDung.has(k)) chiKhongGhep += o.spend;
   });
 
+  /* Số ID không khớp KHÔNG nói lên mức độ nghiêm trọng — 17 trên 33 ID nghe nhiều
+   * nhưng có thể chỉ mang vài chục hội thoại. Đếm theo khối lượng thật để biết có
+   * đáng đi truy tiếp hay không. */
+  const khongKhop = rows.filter((r) => !r.ghepDuoc);
+  const doLon = {
+    hoiThoai: khongKhop.reduce((a, r) => a + r.hoiThoai, 0),
+    coSdt: khongKhop.reduce((a, r) => a + r.coSdt, 0),
+    chot: khongKhop.reduce((a, r) => a + r.chot, 0),
+    soDon: khongKhop.reduce((a, r) => a + r.soDon, 0),
+  };
+  const tongHoiThoai = rows.reduce((a, r) => a + r.hoiThoai, 0);
+  doLon.tyLeHoiThoai = tongHoiThoai ? doLon.hoiThoai / tongHoiThoai : 0;
+  // Năm ID không khớp mang nhiều hội thoại nhất — để truy đúng cái đáng truy
+  doLon.nangNhat = [...khongKhop]
+    .sort((a, b) => b.hoiThoai - a.hoiThoai)
+    .slice(0, 5)
+    .map((r) => ({ adId: r.adId, hoiThoai: r.hoiThoai, coSdt: r.coSdt }));
+
   const ghepDuoc = rows.filter((r) => r.ghepDuoc);
   const tong = ghepDuoc.reduce((s, r) => ({
     spend: s.spend + r.spend,
@@ -453,6 +471,7 @@ function ghepVoiChiTieu(gomTheoAd, data, { from, to } = {}) {
     chiKhongGhep,
     chiTongKhoang,
     soDongKhongGhep: rows.length - ghepDuoc.length,
+    doLonKhongKhop: doLon,
   };
 }
 

@@ -181,6 +181,14 @@ t('đếm đúng số dòng chưa ghép', gh.soDongKhongGhep === 1, String(gh.so
 t('tổng chỉ cộng dòng ghép được', gh.tong.spend === 100000 && gh.tong.hoiThoai === 10);
 t('sắp theo chi tiêu giảm dần', gh.rows[0].spend >= gh.rows[gh.rows.length - 1].spend);
 
+// Số ID không khớp không nói lên mức nghiêm trọng — phải đo bằng khối lượng hội thoại
+t('đếm được hội thoại của các ID không khớp', gh.doLonKhongKhop.hoiThoai === 7, String(gh.doLonKhongKhop.hoiThoai));
+t('và tỉ lệ trên tổng', Math.abs(gh.doLonKhongKhop.tyLeHoiThoai - 7 / 17) < 0.001,
+  String(gh.doLonKhongKhop.tyLeHoiThoai));
+t('đếm cả số có SĐT trong nhóm không khớp', gh.doLonKhongKhop.coSdt === 1);
+t('nêu được ID nặng nhất', gh.doLonKhongKhop.nangNhat[0].adId === 'khong-co-trong-base');
+t('khớp hết thì khối lượng không khớp bằng 0', gh0.doLonKhongKhop.hoiThoai === 0);
+
 // Pancake tra ID cap chien dich thi phai cong chi tieu CA chien dich trong ngay do
 const ghCd = p.ghepVoiChiTieu({ rows: [
   { adId: '52518121733306', ngay: '2026-08-31', platform: 'Facebook', hoiThoai: 20, coSdt: 5, chot: 1, soDon: 0, sdt: [] },
