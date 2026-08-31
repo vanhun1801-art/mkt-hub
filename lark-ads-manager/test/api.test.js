@@ -9,8 +9,17 @@ async function g(p){ const r=await fetch(B+p); const txt=await r.text(); let j=n
   t('status 200', r.status===200, r.txt.slice(0,200));
   const m=r.j;
   t('có me', !!m.me, JSON.stringify(m.me));
-  t('6 chiến dịch', m.counts.campaigns===6);
-  t('13 quảng cáo', m.counts.ads===13);
+  // Base sống: đồng bộ tự tạo chiến dịch/quảng cáo mới khi nền tảng có cái mới,
+  // nên KHÔNG neo vào con số cụ thể. Bất biến đáng giữ là cây phân cấp lành mạnh.
+  t('có chiến dịch', m.counts.campaigns > 0, String(m.counts.campaigns));
+  t('có quảng cáo', m.counts.ads > 0, String(m.counts.ads));
+  t('mọi quảng cáo đều thuộc một chiến dịch',
+    m.ads.every((a) => !!a.campaignId),
+    m.ads.filter((a) => !a.campaignId).map((a) => a.name).join(', '));
+  t('mọi nhóm đều thuộc một chiến dịch',
+    m.groups.every((g) => !!g.campaignId),
+    m.groups.filter((g) => !g.campaignId).map((g) => g.name).join(', '));
+  t('số quảng cáo >= số chiến dịch', m.counts.ads >= m.counts.campaigns);
   t('platforms >=3', m.platforms.length>=3, JSON.stringify(m.platforms));
   t('targets có cpa', m.targets && m.targets.cpa.default>0);
 
@@ -74,7 +83,8 @@ async function g(p){ const r=await fetch(B+p); const txt=await r.text(); let j=n
   const rBase = await g('/api/daily?nguon=base&from=2026-08-26&to=2026-08-26');
   t('dòng đọc từ Base đều là record thật', rBase.j.rows.every(x=>/^rec/.test(x.id)));
   r=await g('/api/entry?date=2026-08-26');
-  t('entry 13 dòng', r.j.rows.length===13, r.j.rows.length);
+  t('ma trận nhập có đủ mọi quảng cáo', r.j.rows.length === m.counts.ads,
+    r.j.rows.length + ' vs ' + m.counts.ads);
   t('entry có recordIds', r.j.rows.some(x=>x.recordIds.length>0));
 
   console.log('— /api/alerts, /api/sales, /api/targets, csv');

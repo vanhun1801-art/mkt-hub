@@ -133,6 +133,8 @@ async function reconcile(data, rows, opts = {}) {
   }
 
   /* ---------- 5. quảng cáo ---------- */
+  // Bản ghi Base nào đã bị một quảng cáo nền tảng nhận — chặn hai cái cùng dồn vào một chỗ
+  const daNhan = new Set();
   for (const [ak, a] of ads) {
     const parentG = resolved.group.get(a.gk);
     const parentC = resolved.campaign.get(a.ck);
@@ -150,7 +152,29 @@ async function reconcile(data, rows, opts = {}) {
       rec = uniqueOf(aByName.get(parentC.rec.id + '||' + norm(a.name)));
       if (rec) how = 'ten';
     }
+    /* Khớp theo HẬU TỐ.
+     *
+     * TikTok đặt tên quảng cáo bằng cả caption video, kết thúc bằng tên ngắn mà
+     * đội đặt: "😌 Nghe người ta đồn… #tourdao_IS_Fomo trải nghiệm Hè Phú Quốc".
+     * Base chỉ có "IS_Fomo trải nghiệm Hè Phú Quốc". Không khớp được thì mỗi
+     * quảng cáo thật sinh ra hai bản ghi, số bị chẻ đôi và CPA của cả hai đều sai.
+     *
+     * Hai chốt an toàn: chỉ nhận khi trong chiến dịch có ĐÚNG MỘT bản ghi Base là
+     * hậu tố, và bản ghi đó CHƯA bị quảng cáo nào khác nhận — kẻo hai quảng cáo
+     * nền tảng cùng dồn vào một bản ghi rồi cộng chồng lên nhau.
+     */
+    if (!rec && cReady && a.name) {
+      const ten = norm(a.name);
+      const ungVien = data.ads.filter((x) => {
+        if (x.campaignId !== parentC.rec.id) return false;
+        const t = norm(x.name);
+        return t.length >= 6 && ten !== t && ten.endsWith(t);
+      });
+      const chon = uniqueOf(ungVien);
+      if (chon && !daNhan.has(chon.id)) { rec = chon; how = 'hau-to'; }
+    }
     if (rec) {
+      daNhan.add(rec.id);
       resolved.ad.set(ak, { rec, how });
       if (how !== 'id' && a.extId && rec.extId !== a.extId) {
         attach.push({ table: T.ad.id, field: T.ad.f.extId, recordId: rec.id, extId: a.extId, label: `Quảng cáo "${rec.name}"` });

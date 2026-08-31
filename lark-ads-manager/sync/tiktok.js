@@ -84,7 +84,8 @@ async function test(conf) {
   try {
     const q = new URLSearchParams({
       advertiser_ids: JSON.stringify(advs),
-      fields: JSON.stringify(['advertiser_id', 'advertiser_name', 'currency', 'timezone']),
+      // TikTok chỉ nhận 'name', KHÔNG có 'advertiser_name' — sai là trả 40002
+      fields: JSON.stringify(['advertiser_id', 'name', 'currency', 'timezone']),
     });
     const res = await getJson(`${BASE}/advertiser/info/?${q}`, {
       headers: { 'Access-Token': conf.accessToken },
@@ -94,7 +95,7 @@ async function test(conf) {
     return {
       ok: true,
       results: ((res.data && res.data.list) || []).map((a) => ({
-        account: a.advertiser_id, ok: true, name: a.advertiser_name,
+        account: a.advertiser_id, ok: true, name: a.name,
         currency: a.currency, timezone: a.timezone,
       })),
     };

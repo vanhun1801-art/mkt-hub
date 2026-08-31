@@ -52,19 +52,46 @@ function stripComments(o) {
 
 /** Cấu hình đang lấy từ đâu: 'file' (máy cá nhân) · 'env' (server chung) · 'trong'. */
 function nguon() {
-  try { if (fs.readFileSync(FILE, 'utf8').trim()) return 'file'; } catch (_) {}
+  // Cùng luật với read(): file rỗng thông tin thì không tính là nguồn
+  try {
+    const raw = stripComments(JSON.parse(fs.readFileSync(FILE, 'utf8')));
+    if (coThongTin(raw)) return 'file';
+  } catch (_) {}
   if (process.env.ADS_CONNECT_JSON) return 'env';
   return 'trong';
+}
+
+/**
+ * File cấu hình có thông tin dùng được không (token / secret / link).
+ *
+ * Cần phân biệt "file rỗng" với "file không có gì dùng được". Trên Render, chỉ cần
+ * người dùng bấm Lưu tuỳ chọn một lần là app ghi cả khối cấu hình ra file — kể cả
+ * khi mọi token đều trống. File đó có đủ khoá nên trước đây được coi là hợp lệ và
+ * **che vĩnh viễn biến môi trường**: sửa ADS_CONNECT_JSON bao nhiêu lần cũng vô
+ * ích, vì app vẫn đọc cái file rỗng kia. Đúng lỗi đã làm mất cả ba kênh.
+ */
+function coThongTin(raw) {
+  if (!raw || typeof raw !== 'object') return false;
+  return Object.values(raw).some((khoi) => {
+    if (!khoi || typeof khoi !== 'object') return false;
+    return ['accessToken', 'refreshToken', 'clientSecret', 'developerToken', 'csvUrl']
+      .some((k) => typeof khoi[k] === 'string' && khoi[k].trim().length > 0);
+  });
 }
 
 function read() {
   let raw = {};
   try { raw = stripComments(JSON.parse(fs.readFileSync(FILE, 'utf8'))); } catch (_) { raw = {}; }
-  // Không có file (hoặc file hỏng) -> thử biến môi trường. File luôn thắng, để sửa
-  // trên máy cá nhân có hiệu lực ngay mà không phải xoá biến.
-  if (!Object.keys(raw).length && process.env.ADS_CONNECT_JSON) {
-    try { raw = stripComments(JSON.parse(process.env.ADS_CONNECT_JSON)); }
-    catch (e) { console.error('  ADS_CONNECT_JSON không phải JSON hợp lệ: ' + e.message); raw = {}; }
+  // File chỉ thắng khi thật sự CÓ thông tin. File rỗng thì lùi về biến môi trường,
+  // để hệ thống tự lành sau mỗi lần deploy thay vì kẹt cứng ở trạng thái trắng.
+  if (!coThongTin(raw) && process.env.ADS_CONNECT_JSON) {
+    try {
+      const tuEnv = stripComments(JSON.parse(process.env.ADS_CONNECT_JSON));
+      // Giữ lại tuỳ chọn đồng bộ người dùng vừa sửa trên web, chỉ lấy phần bí mật từ env
+      raw = { ...tuEnv, dongBo: { ...(tuEnv.dongBo || {}), ...(raw.dongBo || {}) } };
+    } catch (e) {
+      console.error('  ADS_CONNECT_JSON không phải JSON hợp lệ: ' + e.message);
+    }
   }
   /* Đắp từng phần theo DEFAULT: file cũ chưa có khối mới (VD googleAds) vẫn đọc
    * được, không phải sửa file tay sau mỗi lần thêm kênh. */
@@ -277,6 +304,34 @@ function bieuMau() {
   };
 }
 
+
+/**
+ * Kênh nào còn sống sau lần deploy tới.
+ *
+ * Trên Render, ổ đĩa bị xoá mỗi lần deploy nên chỉ những gì nằm trong
+ * ADS_CONNECT_JSON là bền. Ở máy cá nhân thì file không mất, nên mọi thứ đều bền.
+ */
+function benVung() {
+  const dangCo = (khoi) => ['accessToken', 'refreshToken', 'clientSecret', 'developerToken', 'csvUrl']
+    .some((k) => khoi && typeof khoi[k] === 'string' && khoi[k].trim().length > 0);
+
+  const c = read();
+  const dangChay = ['meta', 'tiktok', 'googleAds', 'googleSheet'].filter((k) => c[k] && c[k].enabled && dangCo(c[k]));
+
+  // Máy cá nhân: file nằm trên đĩa thật, không mất đi đâu
+  if (!process.env.RENDER) {
+    return { canLo: false, noiLuu: 'file trên máy', dangChay, seMat: [], seCon: dangChay };
+  }
+  let env = null;
+  try { env = stripComments(JSON.parse(process.env.ADS_CONNECT_JSON || 'null')); } catch (_) { env = null; }
+  if (!env) {
+    return { canLo: dangChay.length > 0, noiLuu: 'chưa có biến môi trường', dangChay, seMat: dangChay, seCon: [] };
+  }
+  const seCon = dangChay.filter((k) => dangCo(env[k]));
+  const seMat = dangChay.filter((k) => !dangCo(env[k]));
+  return { canLo: seMat.length > 0, noiLuu: 'ADS_CONNECT_JSON', dangChay, seMat, seCon };
+}
+
 /** Bản mô tả an toàn để trả ra giao diện — che token, chỉ nói có/không. */
 function status() {
   const c = read();
@@ -287,8 +342,25 @@ function status() {
     file: cfg.connectFile,
     // 'file' = máy cá nhân · 'env' = server chung (ADS_CONNECT_JSON) · 'trong' = chưa khai
     nguon: ng,
-    canhBaoODiaTam: ng === 'file' && !!process.env.RENDER && !process.env.ADS_CONNECT_JSON,
-    // Ổ đĩa Render là tạm: token điền trên web sống tới lần deploy sau rồi mất.
+    // Ổ đĩa Render là tạm: mọi thứ điền qua web đều nằm trên đĩa đó và mất sau deploy.
+    canhBaoODiaTam: ng === 'file' && !!process.env.RENDER,
+    /**
+     * Trường hợp nguy hiểm nhất, và cũng dễ tưởng là an toàn nhất: đã khai
+     * ADS_CONNECT_JSON rồi nhưng lại điền thêm token qua web. File tạm ĐÈ LÊN biến
+     * môi trường (xem read()), nên app chạy đúng ngay lúc này — tới lần deploy sau
+     * file bay mất, tụt về biến môi trường, và phần vừa thêm biến mất theo mà
+     * không có gì báo.
+     */
+    deLenBienMoiTruong: ng === 'file' && !!process.env.RENDER && !!process.env.ADS_CONNECT_JSON,
+    /**
+     * Kênh nào sống sót qua lần deploy tới.
+     *
+     * Câu hỏi thật của người dùng không phải "cấu hình nằm ở đâu" mà là "mai deploy
+     * xong tôi có phải gắn lại API không". Chỉ có biến môi trường trả lời được:
+     * ổ đĩa Render bị xoá mỗi lần deploy, nên kênh nào KHÔNG có trong
+     * ADS_CONNECT_JSON là kênh sẽ mất. Trả ra đây để giao diện nói thẳng ra.
+     */
+    benVung: benVung(),
     oDiaTam: !!process.env.RENDER,
     dongBo: c.dongBo,
     bieuMau: bieuMau(),
@@ -354,7 +426,7 @@ const maskUrl = (u) => {
   try { const x = new URL(u); return x.hostname + '/…'; } catch (_) { return 'đã đặt'; }
 };
 
-module.exports = {
+module.exports = { benVung,
   read, writeOptions, writeSecrets, writeMetaTokenInfo, bieuMau,
   status, hanToken, nguon, FILE, DEFAULT,
 };

@@ -373,6 +373,23 @@ async function setupGoogle() {
  * Hùng điều khiển máy nhà từ máy công ty, Google đòi passkey ở gần máy nhà.
  * Code còn hiệu lực vài phút nên mở đồng ý ở máy khác rồi dán URL sang vẫn chạy.
  */
+/**
+ * Lấy mã bằng cách xin người dùng dán URL — dùng khi redirect trỏ ra domain ngoài,
+ * không hứng tự động được. Chấp nhận cả URL đầy đủ lẫn mỗi đoạn mã.
+ */
+async function danCodeTay(tenTham = 'code') {
+  for (let lan = 0; lan < 3; lan++) {
+    const v = (await ask('  Dán URL trình duyệt nhảy tới (hoặc chỉ ' + tenTham + '): ')).trim();
+    if (!v) continue;
+    const m = v.match(new RegExp('[?&]' + tenTham + '=([^&\\s]+)'));
+    if (m) return decodeURIComponent(m[1]);
+    // không có dấu ? thì coi như người dùng dán thẳng mã
+    if (!/[?&=]/.test(v)) return v;
+    say(C.warn('  Chuỗi vừa dán không thấy ' + tenTham + '= — thử lại.'));
+  }
+  throw new Error('Không lấy được ' + tenTham);
+}
+
 async function choCode(cong, tenTham = 'code') {
   const http = require('http');
   let sv = null;
@@ -557,7 +574,25 @@ async function setupTiktok() {
 
   say('\n  Đang kiểm tra…');
   const r = await tiktok.test({ accessToken: token, advertiserIds });
-  if (!r.ok) { say(C.err('  ✗ ' + scrub(r.message || 'không rõ'))); return false; }
+  if (!r.ok) {
+    say(C.err('  ✗ ' + scrub(r.message || 'không rõ')));
+    // 40105 gần như luôn là dán nhầm chuỗi. App Secret dài đúng 40 ký tự nên rất
+    // hay bị nhầm sang ô này, mà hai thứ đó khác nhau hoàn toàn.
+    if (/40105|incorrect or has been revoked/i.test(r.message || '')) {
+      say('');
+      say(C.warn('  Access token KHÁC App Secret — kiểm lại xem có dán nhầm không.'));
+      if (token.length <= 45) {
+        say(C.dim(`    Chuỗi vừa nhập dài ${token.length} ký tự, đúng bằng độ dài App Secret hay gặp.`));
+      }
+      say(C.dim('    App Secret nằm ở trang app (mục Secret, có nút 👁 và Reset).'));
+      say(C.dim('    Access token KHÔNG hiện ở đó — nó chỉ sinh ra sau khi uỷ quyền'));
+      say(C.dim('    tài khoản quảng cáo, đổi auth_code lấy token.'));
+      say('');
+      say(C.dim('    Chưa từng uỷ quyền lần nào thì chạy lại và trả lời "chưa có token",'));
+      say(C.dim('    công cụ sẽ tự đi lấy giúp:  node ket-noi.js --tiktok'));
+    }
+    return false;
+  }
   (r.results || []).forEach((x) => say(C.ok(`  ✓ ${x.name} · ${x.currency} · ${x.timezone}`)));
 
   patch('tiktok', { enabled: true, accessToken: token, advertiserIds, conversionMetric: 'conversion' });
@@ -571,12 +606,15 @@ async function setupTiktok() {
  */
 async function tiktokTuLayToken() {
   const CONG = 47124;
-  const redirect = 'http://127.0.0.1:' + CONG;
+  const MAC_DINH = 'http://127.0.0.1:' + CONG;
   say('');
-  say('  Cần hai thứ ở business-api.tiktok.com → My Apps → app của anh:');
+  say('  Cần ba thứ ở business-api.tiktok.com → My Apps → app của anh:');
   say('    · App ID   (dãy số)');
   say('    · App Secret');
-  say(C.dim('  Và trong phần cấu hình app, thêm ' + redirect + ' vào Redirect URL.'));
+  say('    · Redirect URL đã khai trong app');
+  say('');
+  say(C.dim('  TikTok bắt redirect_uri phải khớp CHÍNH XÁC cái đã khai trong app.'));
+  say(C.dim('  App đã khai sẵn URL riêng thì dán đúng URL đó vào — công cụ tự xoay theo.'));
   say('');
 
   const appId = (await ask('  App ID: ')).trim();
@@ -584,6 +622,14 @@ async function tiktokTuLayToken() {
   const secret = await askSecret('  App Secret: ');
   if (!secret) { say(C.err('  Không nhận được App Secret.')); return false; }
   hideSecret(secret);
+
+  const redirectVao = (await ask(`  Redirect URL ${C.dim('(Enter = ' + MAC_DINH + ')')}: `)).trim();
+  const redirect = redirectVao || MAC_DINH;
+
+  // Chỉ hứng được mã tự động khi redirect trỏ về chính máy này. Trỏ ra domain
+  // ngoài thì trình duyệt nhảy tới đó, mình phải xin người dùng dán URL lại.
+  const veMayNay = /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?/i.test(redirect);
+  const congNghe = veMayNay ? Number((redirect.match(/:(\d+)/) || [])[1] || CONG) : null;
 
   const url = 'https://business-api.tiktok.com/portal/auth?' + new URLSearchParams({
     app_id: appId, state: 'rooty', redirect_uri: redirect,
@@ -594,18 +640,24 @@ async function tiktokTuLayToken() {
   say('');
   say('  ' + C.accent(url));
   say('');
-  say(C.dim('  Uỷ quyền xong trình duyệt tự gọi về máy. Nếu nó báo không kết nối được'));
-  say(C.dim('  thì copy nguyên URL trên thanh địa chỉ rồi dán vào dòng dưới.'));
+  if (veMayNay) {
+    say(C.dim('  Uỷ quyền xong trình duyệt tự gọi về máy. Nếu nó báo không kết nối được'));
+    say(C.dim('  thì copy nguyên URL trên thanh địa chỉ rồi dán vào dòng dưới.'));
+  } else {
+    say(C.dim('  Redirect trỏ ra ngoài máy này nên công cụ không tự bắt mã được.'));
+    say(C.dim('  Uỷ quyền xong, trình duyệt nhảy tới trang của anh — copy NGUYÊN URL'));
+    say(C.dim('  trên thanh địa chỉ (có đoạn auth_code=...) rồi dán vào dòng dưới.'));
+  }
 
   let authCode;
   try {
-    authCode = await choCode(CONG, 'auth_code');
+    authCode = veMayNay ? await choCode(congNghe, 'auth_code') : await danCodeTay('auth_code');
   } catch (e) {
-    say(C.err('\n' +  + '  ✗ ' + e.message));
+    say(C.err('\n' + '  ✗ ' + e.message));
     return false;
   }
 
-  say('\n' +  + '  Đang đổi auth_code lấy access token…');
+  say('\n' + '  Đang đổi auth_code lấy access token…');
   let d;
   try {
     d = await postJson('https://business-api.tiktok.com/open_api/v1.3/oauth2/access_token/',
@@ -629,7 +681,7 @@ async function tiktokTuLayToken() {
     return false;
   }
 
-  say('\n' +  + '  Đang kiểm tra đọc số…');
+  say('\n' + '  Đang kiểm tra đọc số…');
   const r = await tiktok.test({ accessToken: token, advertiserIds });
   if (!r.ok) {
     say(C.err('  ✗ ' + scrub(r.message || 'không rõ')));
@@ -640,7 +692,7 @@ async function tiktokTuLayToken() {
   (r.results || []).forEach((x) => say(C.ok('  ✓ ' + x.name + ' · ' + x.currency + ' · ' + x.timezone)));
 
   patch('tiktok', { enabled: true, accessToken: token, advertiserIds, conversionMetric: 'conversion' });
-  say(C.ok('\n' +  + '  ✓ Đã lưu — kênh TikTok đã BẬT.'));
+  say(C.ok('\n' + '  ✓ Đã lưu — kênh TikTok đã BẬT.'));
   return true;
 }
 

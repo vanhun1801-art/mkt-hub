@@ -10,6 +10,7 @@ const store = require('../store');
 const ketnoi = require('./ketnoi');
 const reconcile = require('./reconcile');
 const csv = require('./csv');
+const live = require('./live');
 
 const meta = require('./meta');
 const tiktok = require('./tiktok');
@@ -51,9 +52,15 @@ function range(conf, opts = {}) {
 async function run(opts = {}) {
   if (running) throw Object.assign(new Error('Đang có một lượt đồng bộ chạy dở, chờ xong đã'), { code: 409 });
   const conf = ketnoi.read();
-  const keys = (opts.providers && opts.providers.length ? opts.providers : Object.keys(ADAPTERS))
+  let keys = (opts.providers && opts.providers.length ? opts.providers : Object.keys(ADAPTERS))
     .filter((k) => ADAPTERS[k])
     .filter((k) => (opts.providers && opts.providers.length ? true : conf[k] && conf[k].enabled));
+
+  // Không bao giờ chạy hai nguồn cùng đại diện một nền tảng: googleAds (API) và
+  // googleSheet đều ghi nhãn "Google Ads", chạy cả hai là chi tiêu Google vào Base
+  // hai lần. Sai gấp đôi mà số nhìn vẫn hợp lý — loại lỗi khó thấy nhất.
+  const nguonBoQua = live.nguonBiBo().map((x) => x.kenh);
+  keys = keys.filter((k) => !nguonBoQua.includes(k));
 
   if (!keys.length) {
     throw Object.assign(new Error('Chưa bật kênh nào trong ket-noi.json (hoặc kênh chọn không hợp lệ)'), { code: 400 });
@@ -102,10 +109,13 @@ async function run(opts = {}) {
     loi: s.loi + (r.ok ? 0 : 1),
   }), { taoMoi: 0, capNhat: 0, boQua: 0, loi: 0 });
 
+  // Trả ra hẳn danh sách lỗi. Trước đây mảng này chỉ được dựng tại chỗ để đẩy vào
+  // history, nên người gọi (hẹn giờ, UI) không có cách nào đọc được kênh nào chết.
+  out.loi = out.ketQua.filter((r) => !r.ok).map((r) => `${r.label}: ${r.loi}`);
+
   pushHistory({
     loai: dryRun ? 'xem-truoc' : 'dong-bo',
-    kenh: keys, from, to, tong: out.tong,
-    loi: out.ketQua.filter((r) => !r.ok).map((r) => `${r.label}: ${r.loi}`),
+    kenh: keys, from, to, tong: out.tong, loi: out.loi,
   });
   return out;
 }
@@ -166,19 +176,34 @@ function startScheduler(logFn = console.log) {
     return;
   }
   const ms = hours * 3600 * 1000;
-  const tick = async () => {
-    nextAt = new Date(Date.now() + ms).toISOString();
+  /* Lỗi ở lượt tự động gần như luôn là chuyện thoáng qua: giây đầu sau khi khởi
+   * động mạng ra ngoài chưa sẵn, hoặc lúc deploy hai bản app còn chồng nhau nên
+   * hai lượt đồng bộ đâm nhau khi ghi. Khoá ghi là (quảng cáo × ngày) nên chạy
+   * lại KHÔNG nhân dòng — cứ thử lại đúng một lần là sạch, khỏi cần ai nhìn. */
+  const tick = async (laLanThuHai = false) => {
+    if (!laLanThuHai) nextAt = new Date(Date.now() + ms).toISOString();
+    const thuLai = () => {
+      logFn('  [hẹn giờ] còn lỗi — tự thử lại sau 60 giây');
+      setTimeout(() => tick(true), 60 * 1000);
+    };
     try {
       const r = await run({});
-      logFn(`  [hẹn giờ] đồng bộ xong: +${r.tong.taoMoi} dòng mới, ~${r.tong.capNhat} cập nhật, ${r.tong.loi} lỗi`);
+      logFn(`  [hẹn giờ] đồng bộ${laLanThuHai ? ' (lần 2)' : ''} xong: +${r.tong.taoMoi} dòng mới, ~${r.tong.capNhat} cập nhật, ${r.tong.loi} lỗi`);
+      // In hẳn nội dung từng lỗi. Chỉ in con số thì trên server chung (Render)
+      // không còn cách nào biết kênh nào chết vì sao.
+      (r.loi || []).forEach((m) => logFn(`  [hẹn giờ] LỖI  ${m}`));
+      if (r.tong.loi > 0 && !laLanThuHai) thuLai();
     } catch (e) {
-      logFn(`  [hẹn giờ] đồng bộ lỗi: ${e.message}`);
+      logFn(`  [hẹn giờ] đồng bộ${laLanThuHai ? ' (lần 2)' : ''} lỗi: ${e.message}`);
+      if (!laLanThuHai) thuLai();
     }
   };
   timer = setInterval(tick, ms);
   nextAt = new Date(Date.now() + ms).toISOString();
   logFn(`  Hẹn giờ đồng bộ: mỗi ${hours} giờ`);
-  if (conf.dongBo.khiKhoiDong) setTimeout(tick, 4000);
+  // 30 giây, không phải 4: lượt đầu tiên phải đợi Render chuyển giao xong bản cũ,
+  // nếu không cả ba kênh cùng chết vì lý do chẳng liên quan gì tới nền tảng.
+  if (conf.dongBo.khiKhoiDong) setTimeout(() => tick(), 30 * 1000);
 }
 
 function stopScheduler() {

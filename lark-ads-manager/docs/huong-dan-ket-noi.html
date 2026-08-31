@@ -4,637 +4,333 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
 
 <style>
-/* ============ tokens: sáng là mặc định, tối định nghĩa lại chỉ token ============ */
 :root {
-  --ground: #FBFCFD;
-  --surface: #FFFFFF;
-  --surface-2: #F4F7FA;
-  --ink: #16202B;
-  --ink-2: #55636F;
-  --ink-3: #8996A3;
-  --line: #E1E7EC;
-  --line-2: #EDF1F5;
-  --accent: #1F4B8E;
-  --accent-ink: #1F4B8E;
-  --accent-soft: #E9F0F8;
-  --ready: #0F7A4D;
-  --ready-soft: #E6F4EC;
-  --wait: #9C5D00;
-  --wait-soft: #FBF0DE;
-  --block: #A82B21;
-  --block-soft: #FBEAE8;
-  --fb: #1461C4;
-  --tt: #1C2530;
-  --gg: #B07314;
-  --code-bg: #F4F7FA;
-  --code-ink: #1B2A3A;
-  --shadow: 0 1px 2px rgba(18, 32, 48, .05), 0 8px 24px rgba(18, 32, 48, .06);
+  --ground: #FBFCFD; --surface: #FFFFFF; --surface-2: #F4F7FA;
+  --ink: #16202B; --ink-2: #55636F; --ink-3: #8996A3;
+  --line: #E1E7EC; --line-2: #EDF1F5;
+  --accent: #1F4B8E; --accent-ink: #1F4B8E; --accent-soft: #E9F0F8;
+  --ready: #0F7A4D; --ready-soft: #E6F4EC;
+  --wait: #9C5D00; --wait-soft: #FBF0DE;
+  --block: #A82B21; --block-soft: #FBEAE8;
+  --fb: #1461C4; --tt: #1C2530; --gg: #B07314;
+  --code-bg: #F4F7FA; --code-ink: #1B2A3A;
+  --shadow: 0 1px 2px rgba(18,32,48,.05), 0 8px 24px rgba(18,32,48,.06);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --ground: #0D141C;
-    --surface: #141E28;
-    --surface-2: #1A2632;
-    --ink: #E7EDF3;
-    --ink-2: #A2B0BC;
-    --ink-3: #74838F;
-    --line: #253340;
-    --line-2: #1E2A36;
-    --accent: #85AEE2;
-    --accent-ink: #A8C8EF;
-    --accent-soft: #17273A;
-    --ready: #5FD39B;
-    --ready-soft: #123026;
-    --wait: #E3B168;
-    --wait-soft: #33260F;
-    --block: #F09A90;
-    --block-soft: #351B18;
-    --fb: #6BA6F0;
-    --tt: #C9D4DF;
-    --gg: #E3B168;
-    --code-bg: #101A24;
-    --code-ink: #D3DEE8;
-    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .28);
+    --ground: #0D141C; --surface: #141E28; --surface-2: #1A2632;
+    --ink: #E7EDF3; --ink-2: #A2B0BC; --ink-3: #74838F;
+    --line: #253340; --line-2: #1E2A36;
+    --accent: #85AEE2; --accent-ink: #A8C8EF; --accent-soft: #17273A;
+    --ready: #5FD39B; --ready-soft: #123026;
+    --wait: #E3B168; --wait-soft: #33260F;
+    --block: #F09A90; --block-soft: #351B18;
+    --fb: #6BA6F0; --tt: #C9D4DF; --gg: #E3B168;
+    --code-bg: #101A24; --code-ink: #D3DEE8;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.28);
   }
 }
 :root[data-theme="dark"] {
-  --ground: #0D141C;
-  --surface: #141E28;
-  --surface-2: #1A2632;
-  --ink: #E7EDF3;
-  --ink-2: #A2B0BC;
-  --ink-3: #74838F;
-  --line: #253340;
-  --line-2: #1E2A36;
-  --accent: #85AEE2;
-  --accent-ink: #A8C8EF;
-  --accent-soft: #17273A;
-  --ready: #5FD39B;
-  --ready-soft: #123026;
-  --wait: #E3B168;
-  --wait-soft: #33260F;
-  --block: #F09A90;
-  --block-soft: #351B18;
-  --fb: #6BA6F0;
-  --tt: #C9D4DF;
-  --gg: #E3B168;
-  --code-bg: #101A24;
-  --code-ink: #D3DEE8;
-  --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .28);
+  --ground: #0D141C; --surface: #141E28; --surface-2: #1A2632;
+  --ink: #E7EDF3; --ink-2: #A2B0BC; --ink-3: #74838F;
+  --line: #253340; --line-2: #1E2A36;
+  --accent: #85AEE2; --accent-ink: #A8C8EF; --accent-soft: #17273A;
+  --ready: #5FD39B; --ready-soft: #123026;
+  --wait: #E3B168; --wait-soft: #33260F;
+  --block: #F09A90; --block-soft: #351B18;
+  --fb: #6BA6F0; --tt: #C9D4DF; --gg: #E3B168;
+  --code-bg: #101A24; --code-ink: #D3DEE8;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.28);
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body {
-  margin: 0;
-  background: var(--ground);
-  color: var(--ink);
+  margin: 0; background: var(--ground); color: var(--ink);
   font-family: "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif;
-  font-size: 16px;
-  line-height: 1.62;
-  -webkit-font-smoothing: antialiased;
+  font-size: 16px; line-height: 1.62; -webkit-font-smoothing: antialiased;
 }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 40px 28px 96px;
+  display: grid; grid-template-columns: 236px minmax(0,1fr); gap: 46px; align-items: start; }
+@media (max-width: 940px) { .wrap { grid-template-columns: 1fr; gap: 26px; padding: 26px 16px 70px; }
+  .rail { position: static !important; } }
 
-/* ============ khung ============ */
-.wrap {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 40px 28px 96px;
-  display: grid;
-  grid-template-columns: 250px minmax(0, 1fr);
-  gap: 48px;
-  align-items: start;
-}
-@media (max-width: 940px) {
-  .wrap { grid-template-columns: 1fr; gap: 28px; padding: 28px 18px 72px; }
-  .rail { position: static !important; }
-}
+.masthead { grid-column: 1/-1; border-bottom: 1px solid var(--line); padding-bottom: 24px; }
+.eyebrow { font-size: 12px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase;
+  color: var(--accent-ink); margin-bottom: 12px; }
+h1 { font-family: "Source Serif 4", Georgia, serif; font-weight: 700;
+  font-size: clamp(29px,4.2vw,44px); line-height: 1.1; letter-spacing: -.02em;
+  margin: 0 0 12px; text-wrap: balance; }
+.standfirst { font-size: 17px; color: var(--ink-2); max-width: 66ch; margin: 0; }
 
-/* ============ đầu trang ============ */
-.masthead { grid-column: 1 / -1; border-bottom: 1px solid var(--line); padding-bottom: 26px; }
-.eyebrow {
-  font-size: 12px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase;
-  color: var(--accent-ink); margin-bottom: 12px;
+/* bảng tình trạng 3 kênh */
+.trangthai { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; margin-top: 22px; }
+@media (max-width: 760px) { .trangthai { grid-template-columns: 1fr; } }
+.tt {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 11px;
+  padding: 14px 16px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 7px;
 }
-h1 {
-  font-family: "Source Serif 4", Georgia, serif;
-  font-weight: 700; font-size: clamp(30px, 4.4vw, 46px); line-height: 1.1;
-  letter-spacing: -.02em; margin: 0 0 12px; text-wrap: balance;
-}
-.standfirst { font-size: 17px; color: var(--ink-2); max-width: 64ch; margin: 0; }
+.tt.hong { border-color: color-mix(in srgb, var(--block) 45%, transparent); }
+.tt.chua { border-color: color-mix(in srgb, var(--wait) 40%, transparent); }
+.tt.ok { border-color: color-mix(in srgb, var(--ready) 40%, transparent); }
+.tt-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tt-ten { font-weight: 650; font-size: 15px; }
+.tt-mo { font-size: 13.5px; color: var(--ink-2); }
+.tt-mo b { font-variant-numeric: tabular-nums; }
 
-/* ============ rail ============ */
-.rail { position: sticky; top: 28px; display: flex; flex-direction: column; gap: 20px; }
-.progress-card {
-  background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
-  padding: 16px; box-shadow: var(--shadow);
-}
-.progress-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-.progress-num {
-  font-family: "Source Serif 4", Georgia, serif; font-weight: 700; font-size: 28px;
-  line-height: 1; font-variant-numeric: tabular-nums;
-}
-.progress-lbl { font-size: 12px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .07em; font-weight: 600; }
-.track { height: 5px; border-radius: 99px; background: var(--line-2); margin-top: 12px; overflow: hidden; }
-.track > i { display: block; height: 100%; background: var(--accent); width: 0; transition: width .3s ease; }
-.rail-reset {
-  margin-top: 12px; font: inherit; font-size: 13px; border: 1px solid var(--line);
-  background: var(--surface); color: var(--ink-2); border-radius: 7px; padding: 6px 10px; cursor: pointer; width: 100%;
-}
-.rail-reset:hover { background: var(--surface-2); color: var(--ink); }
+.rail { position: sticky; top: 26px; display: flex; flex-direction: column; gap: 4px; }
+.rail a { font-size: 14px; color: var(--ink-2); text-decoration: none; padding: 7px 10px;
+  border-radius: 7px; border-left: 2px solid transparent; }
+.rail a:hover { background: var(--surface-2); color: var(--ink); }
+.rail a.lead { font-weight: 600; color: var(--ink); }
 
-nav.toc { display: flex; flex-direction: column; gap: 2px; }
-nav.toc a {
-  font-size: 14px; color: var(--ink-2); text-decoration: none;
-  padding: 7px 10px; border-radius: 7px; border-left: 2px solid transparent;
-}
-nav.toc a:hover { background: var(--surface-2); color: var(--ink); }
-nav.toc a.lead { font-weight: 600; color: var(--ink); }
-nav.toc a code { font-size: 12px; }
-
-/* ============ nội dung ============ */
-main { display: flex; flex-direction: column; gap: 44px; min-width: 0; }
-section { scroll-margin-top: 24px; }
-h2 {
-  font-family: "Source Serif 4", Georgia, serif;
-  font-size: clamp(23px, 2.6vw, 29px); font-weight: 700; line-height: 1.2;
-  letter-spacing: -.015em; margin: 0 0 6px; text-wrap: balance;
-}
-h3 {
-  font-size: 16px; font-weight: 600; margin: 26px 0 8px; letter-spacing: -.005em;
-}
+main { display: flex; flex-direction: column; gap: 42px; min-width: 0; }
+section { scroll-margin-top: 22px; }
+h2 { font-family: "Source Serif 4", Georgia, serif; font-size: clamp(22px,2.5vw,28px);
+  font-weight: 700; line-height: 1.2; letter-spacing: -.015em; margin: 0 0 8px; text-wrap: balance; }
+h3 { font-size: 16px; font-weight: 600; margin: 24px 0 8px; }
 p { margin: 0 0 14px; max-width: 68ch; }
 p:last-child { margin-bottom: 0; }
-a { color: var(--accent-ink); text-decoration: none; border-bottom: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); }
+a { color: var(--accent-ink); text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); }
 a:hover { border-bottom-color: var(--accent); }
 strong { font-weight: 600; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+hr { border: 0; border-top: 1px solid var(--line); margin: 0; }
 
-/* thẻ kênh */
-.channel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
-.channel-head {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
-  padding: 16px 20px; border-bottom: 1px solid var(--line-2); background: var(--surface-2);
-}
-.channel-head h2 { margin: 0; flex: 1; min-width: 190px; font-size: 22px; }
-.channel-body { padding: 20px; }
-
-.badge {
-  display: inline-flex; align-items: center; gap: 5px; flex: none;
+.badge { display: inline-flex; align-items: center; gap: 5px; flex: none;
   font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 99px;
-  border: 1px solid transparent; letter-spacing: .01em; white-space: nowrap;
-}
-.badge.plat-fb { background: color-mix(in srgb, var(--fb) 12%, transparent); color: var(--fb); }
-.badge.plat-tt { background: color-mix(in srgb, var(--tt) 12%, transparent); color: var(--tt); border-color: var(--line); }
-.badge.plat-gg { background: color-mix(in srgb, var(--gg) 14%, transparent); color: var(--gg); }
+  border: 1px solid transparent; white-space: nowrap; }
+.badge.fb { background: color-mix(in srgb, var(--fb) 12%, transparent); color: var(--fb); }
+.badge.tt2 { background: color-mix(in srgb, var(--tt) 12%, transparent); color: var(--tt); border-color: var(--line); }
+.badge.gg { background: color-mix(in srgb, var(--gg) 14%, transparent); color: var(--gg); }
 .badge.ok { background: var(--ready-soft); color: var(--ready); }
 .badge.warn { background: var(--wait-soft); color: var(--wait); }
 .badge.stop { background: var(--block-soft); color: var(--block); }
 .badge.plain { background: var(--surface); color: var(--ink-2); border-color: var(--line); }
 
-/* các bước */
-ol.steps { list-style: none; counter-reset: st; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-ol.steps > li {
-  counter-increment: st; position: relative; padding: 10px 10px 10px 46px;
-  border-radius: 8px; transition: background .12s;
-}
-ol.steps > li:hover { background: var(--surface-2); }
-ol.steps > li::before {
-  content: counter(st);
-  position: absolute; left: 10px; top: 11px;
-  width: 24px; height: 24px; border-radius: 50%;
-  background: var(--accent-soft); color: var(--accent-ink);
-  font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums;
-  display: grid; place-items: center;
-}
-ol.steps > li > .st-body { font-size: 15px; }
-ol.steps > li .note { display: block; font-size: 13.5px; color: var(--ink-2); margin-top: 3px; }
+.channel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  box-shadow: var(--shadow); overflow: hidden; }
+.channel-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  padding: 15px 20px; border-bottom: 1px solid var(--line-2); background: var(--surface-2); }
+.channel-head h2 { margin: 0; flex: 1; min-width: 180px; font-size: 21px; }
+.channel-body { padding: 20px; }
 
-/* checkbox tiến độ */
+ol.steps { list-style: none; counter-reset: st; margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: 4px; }
+ol.steps > li { counter-increment: st; position: relative; padding: 10px 10px 10px 44px;
+  border-radius: 8px; transition: background .12s; }
+ol.steps > li:hover { background: var(--surface-2); }
+ol.steps > li::before { content: counter(st); position: absolute; left: 9px; top: 11px;
+  width: 24px; height: 24px; border-radius: 50%; background: var(--accent-soft);
+  color: var(--accent-ink); font-size: 12.5px; font-weight: 700;
+  font-variant-numeric: tabular-nums; display: grid; place-items: center; }
+ol.steps > li .note { display: block; font-size: 13.5px; color: var(--ink-2); margin-top: 3px; }
 .check { display: flex; align-items: flex-start; gap: 10px; }
-.check input {
-  appearance: none; -webkit-appearance: none; flex: none;
+.check input { appearance: none; -webkit-appearance: none; flex: none;
   width: 18px; height: 18px; margin: 3px 0 0; border: 1.5px solid var(--line);
-  border-radius: 5px; background: var(--surface); cursor: pointer; position: relative;
-}
+  border-radius: 5px; background: var(--surface); cursor: pointer; position: relative; }
 .check input:hover { border-color: var(--accent); }
 .check input:checked { background: var(--accent); border-color: var(--accent); }
-.check input:checked::after {
-  content: ""; position: absolute; left: 5px; top: 1.5px;
+.check input:checked::after { content: ""; position: absolute; left: 5px; top: 1.5px;
   width: 5px; height: 10px; border: solid var(--surface); border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
-}
+  transform: rotate(45deg); }
 .check input:checked ~ .st-body { color: var(--ink-3); }
-.check input:checked ~ .st-body strong { color: var(--ink-3); }
 .check label { cursor: pointer; }
 
-/* khối code */
 .codeblock { position: relative; margin: 14px 0; }
-.codeblock pre {
-  margin: 0; background: var(--code-bg); color: var(--code-ink);
-  border: 1px solid var(--line); border-radius: 9px;
-  padding: 14px 16px; overflow-x: auto;
-  font-family: "JetBrains Mono", ui-monospace, Consolas, monospace;
-  font-size: 13px; line-height: 1.62;
-}
-.codeblock .cap {
-  display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  font-size: 12px; color: var(--ink-3); font-weight: 600;
-  letter-spacing: .04em; text-transform: uppercase; margin-bottom: 6px;
-}
-.copy {
-  font: inherit; font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: none;
+.codeblock pre { margin: 0; background: var(--code-bg); color: var(--code-ink);
+  border: 1px solid var(--line); border-radius: 9px; padding: 13px 16px; overflow-x: auto;
+  font-family: "JetBrains Mono", ui-monospace, Consolas, monospace; font-size: 13px; line-height: 1.6; }
+.codeblock .cap { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  font-size: 12px; color: var(--ink-3); font-weight: 600; letter-spacing: .04em;
+  text-transform: uppercase; margin-bottom: 6px; }
+.copy { font: inherit; font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: none;
   border: 1px solid var(--line); background: var(--surface); color: var(--ink-2);
-  border-radius: 6px; padding: 3px 9px; cursor: pointer;
-}
+  border-radius: 6px; padding: 3px 9px; cursor: pointer; }
 .copy:hover { background: var(--accent-soft); color: var(--accent-ink); border-color: var(--accent); }
-code:not(pre code) {
-  font-family: "JetBrains Mono", ui-monospace, Consolas, monospace;
+code:not(pre code) { font-family: "JetBrains Mono", ui-monospace, Consolas, monospace;
   font-size: .875em; background: var(--surface-2); border: 1px solid var(--line-2);
-  padding: 1px 5px; border-radius: 5px; word-break: break-word;
-}
+  padding: 1px 5px; border-radius: 5px; word-break: break-word; }
 
-/* hộp lưu ý */
-.callout {
-  border-radius: 10px; padding: 14px 16px; margin: 16px 0;
+.callout { border-radius: 10px; padding: 14px 16px; margin: 16px 0;
   border: 1px solid var(--line); background: var(--surface-2);
-  display: flex; gap: 12px; align-items: flex-start;
-}
-.callout .flag {
-  flex: none; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
-  padding: 3px 8px; border-radius: 5px; margin-top: 2px;
-}
+  display: flex; gap: 12px; align-items: flex-start; }
+.callout .flag { flex: none; font-size: 10.5px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; padding: 3px 8px; border-radius: 5px; margin-top: 3px;
+  background: var(--accent); color: var(--surface); }
 .callout > div:last-child { min-width: 0; }
 .callout p { font-size: 14.5px; margin-bottom: 8px; }
 .callout.stop { background: var(--block-soft); border-color: color-mix(in srgb, var(--block) 30%, transparent); }
-.callout.stop .flag { background: var(--block); color: var(--surface); }
+.callout.stop .flag { background: var(--block); }
 .callout.warn { background: var(--wait-soft); border-color: color-mix(in srgb, var(--wait) 30%, transparent); }
-.callout.warn .flag { background: var(--wait); color: var(--surface); }
-.callout.info .flag { background: var(--accent); color: var(--surface); }
+.callout.warn .flag { background: var(--wait); }
+.callout.ok { background: var(--ready-soft); border-color: color-mix(in srgb, var(--ready) 30%, transparent); }
+.callout.ok .flag { background: var(--ready); }
 
-/* bảng */
-.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
-table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 560px; }
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; margin-top: 14px; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 520px; }
 th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line-2); vertical-align: top; }
-th {
-  background: var(--surface-2); font-size: 11.5px; font-weight: 700;
-  letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3);
-}
+th { background: var(--surface-2); font-size: 11px; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--ink-3); }
 tbody tr:last-child td { border-bottom: 0; }
 td code { white-space: nowrap; }
 
-/* lưới tóm tắt 3 kênh */
-.overview { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 18px 0 0; }
-@media (max-width: 760px) { .overview { grid-template-columns: 1fr; } }
-.ov {
-  background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
-  padding: 14px 16px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 8px;
-}
-.ov .ov-name { font-weight: 600; font-size: 15px; }
-.ov .ov-time { font-size: 13px; color: var(--ink-2); }
-.ov .ov-time b { font-variant-numeric: tabular-nums; }
-
-.divider { border: 0; border-top: 1px solid var(--line); margin: 0; }
-.small { font-size: 13.5px; color: var(--ink-2); }
 ul.plain { margin: 0 0 14px; padding-left: 20px; }
 ul.plain li { margin-bottom: 6px; max-width: 66ch; }
+.small { font-size: 13.5px; color: var(--ink-2); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 
 <div class="wrap">
 
   <header class="masthead">
-    <div class="eyebrow">Rooty Trip · App quản lý quảng cáo</div>
-    <h1>Cấu hình kết nối để hết phải nhập tay</h1>
+    <div class="eyebrow">Rooty Trip · cập nhật 31/08/2026</div>
+    <h1>Xử lý ba kênh để hết hẳn nhập tay</h1>
     <p class="standfirst">
-      Cấu hình một lần, sau đó app tự lấy số mỗi 3 giờ — không phải nhập tay nữa.
-      Việc duy nhất chỉ anh làm được là <strong>tạo token</strong>; phần còn lại có trình cài
-      <code>node ket-noi.js</code> lo. Làm Meta trước vì nhanh nhất, Google thứ hai vì không
-      phải xin duyệt gì, TikTok để sau vì phải chờ. Tick từng bước — trang này nhớ tiến độ của anh.
+      Google đã chạy. Facebook đang chết vì App bị Meta chặn. TikTok chưa nối.
+      Anh có toàn quyền nên cả ba đều xử lý được — dưới đây là đường ngắn nhất cho từng cái,
+      xếp theo mức độ gấp.
     </p>
+
+    <div class="trangthai">
+      <div class="tt hong">
+        <div class="tt-top"><span class="badge fb">Facebook</span><span class="badge stop">Đang chết</span></div>
+        <div class="tt-mo">App bị Meta chặn ở cấp ứng dụng. Số dừng ở <b>28/08</b> — thiếu 3 ngày,
+          khoảng <b>4–5 triệu</b> chưa vào Base.</div>
+      </div>
+      <div class="tt chua">
+        <div class="tt-top"><span class="badge tt2">TikTok</span><span class="badge warn">Chưa nối</span></div>
+        <div class="tt-mo">Vẫn đang nhập tay và đã ngừng nhập. Số dừng ở <b>26/08</b> — thiếu 5 ngày.</div>
+      </div>
+      <div class="tt ok">
+        <div class="tt-top"><span class="badge gg">Google Ads</span><span class="badge ok">Đang chạy</span></div>
+        <div class="tt-mo">API thật, số tới <b>31/08</b> hôm nay. Không phải làm gì thêm.</div>
+      </div>
+    </div>
   </header>
 
   <aside class="rail">
-    <div class="progress-card">
-      <div class="progress-top">
-        <span class="progress-num"><span id="pDone">0</span>/<span id="pAll">0</span></span>
-        <span class="progress-lbl">bước xong</span>
-      </div>
-      <div class="track"><i id="pBar"></i></div>
-      <button class="rail-reset" id="pReset" type="button">Bỏ hết tick</button>
-    </div>
-    <nav class="toc">
-      <a class="lead" href="#biet-truoc">Biết trước 3 điều</a>
-      <a href="#file">Trình cài (khỏi sửa file)</a>
-      <a class="lead" href="#meta">1 · Facebook / Meta</a>
-      <a class="lead" href="#google">2 · Google Ads</a>
-      <a class="lead" href="#tiktok">3 · TikTok</a>
-      <a class="lead" href="#lan-dau">Lần đồng bộ đầu tiên</a>
-      <a class="lead" href="#chay-nen">Chạy nền — bước cuối</a>
-      <a href="#csv">Dự phòng: nhập CSV</a>
-      <a href="#loi">Gặp lỗi thì tra ở đây</a>
-    </nav>
+    <a class="lead" href="#facebook">1 · Gỡ chặn Facebook</a>
+    <a class="lead" href="#tiktok">2 · Nối TikTok</a>
+    <a class="lead" href="#google">3 · Google — đã xong</a>
+    <a href="#dondep">Dọn 3 dòng nhập trùng</a>
+    <a href="#tuchay">Cho nó tự chạy mãi</a>
+    <a href="#tudongbao">Tự báo khi hỏng</a>
   </aside>
 
   <main>
 
-    <!-- ============ BIẾT TRƯỚC ============ -->
-    <section id="biet-truoc">
-      <h2>Biết trước 3 điều</h2>
-      <p>
-        <strong>Một, không có "thời gian thực".</strong> Chi tiêu chạy dần trong ngày, còn chuyển đổi bị
-        các nền tảng khai báo lại tới 7 ngày sau (Meta mặc định cửa sổ 7 ngày sau click). Nên app luôn
-        ghi lại <strong>7 ngày gần nhất</strong> mỗi lần chạy, không chỉ hôm nay. Số của ngày 20/08 vẫn được
-        sửa lại nếu Meta báo lại — đây là việc nhập tay không bao giờ làm được.
-      </p>
-      <p>
-        <strong>Hai, không cần domain hay mở port.</strong> App gọi ra ngoài từ máy anh. Chỉ Google Ads đi
-        đường khác: script chạy trong Google Ads ghi vào Google Sheet, app tải Sheet đó về.
-      </p>
-      <p>
-        <strong>Ba, token nằm trên máy anh.</strong> Chỉ ở file <code>ket-noi.json</code>, không bao giờ hiện ra
-        giao diện, không ghi vào Lark Base, và mọi <code>access_token=</code> trong log lỗi đều bị che thành
-        <code>***</code>. Anh tự dán token vào file — không dán vào chat, không dán vào ô nào trong app.
-      </p>
-
-      <div class="overview">
-        <div class="ov">
-          <span class="badge plat-fb">Facebook / Meta</span>
-          <span class="ov-name">Marketing API</span>
-          <span class="ov-time"><b>~30 phút</b> · không cần App Review · token không hết hạn</span>
+    <!-- ============ FACEBOOK ============ -->
+    <section id="facebook">
+      <div class="channel">
+        <div class="channel-head">
+          <span class="badge fb">Facebook / Meta</span>
+          <h2>Gỡ chặn App</h2>
+          <span class="badge stop">Gấp nhất</span>
         </div>
-        <div class="ov">
-          <span class="badge plat-gg">Google Ads</span>
-          <span class="ov-name">Script → Google Sheet</span>
-          <span class="ov-time"><b>~20 phút</b> · không xin duyệt gì · không cần token</span>
-        </div>
-        <div class="ov">
-          <span class="badge plat-tt">TikTok</span>
-          <span class="ov-name">Marketing API</span>
-          <span class="ov-time"><b>vài ngày</b> chờ TikTok duyệt app</span>
-        </div>
-      </div>
-    </section>
+        <div class="channel-body">
+          <div class="callout stop">
+            <span class="flag">Chẩn đoán</span>
+            <div>
+              <p>Meta trả <code>code 200 · API access blocked</code> cho <strong>mọi</strong> lời gọi — kể cả
+              <code>/me</code>, là lệnh đơn giản nhất chỉ hỏi "tôi là ai".</p>
+              <p style="margin-bottom:0">Nghĩa là chặn nằm ở <strong>cấp App</strong>, không phải token và cũng
+              không phải tài khoản quảng cáo. Token <code>Rooty Data</code> vẫn còn hạn vĩnh viễn, tài khoản
+              vẫn hoạt động. Chỉ cái Meta App đang bị hạn chế.</p>
+            </div>
+          </div>
 
-    <hr class="divider">
+          <h3>Bước 1 — Xem Meta nói gì</h3>
+          <p>
+            Mở <a href="https://developers.facebook.com/apps" target="_blank" rel="noreferrer">developers.facebook.com/apps</a>
+            → chọn app đang dùng. Tìm <strong>băng đỏ hoặc vàng ở đầu trang</strong>, và xem thêm mục
+            <strong>Cài đặt → Cơ bản</strong> (trạng thái app) và <strong>App Review</strong>.
+          </p>
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>Meta báo</th><th>Nghĩa là</th><th>Xử lý</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td>Yêu cầu <strong>Xác minh doanh nghiệp</strong></td>
+                  <td>Business Manager chưa xác minh, Meta khoá API cho tới khi xong</td>
+                  <td>Đi <strong>Bước 2A</strong> — nhưng làm <strong>Bước 3</strong> trước để có số ngay</td>
+                </tr>
+                <tr>
+                  <td>App bị <strong>hạn chế / vô hiệu hoá</strong></td>
+                  <td>Vi phạm chính sách, hoặc app lâu không hoạt động</td>
+                  <td><strong>Bước 3</strong> — chuyển sang app khác, nhanh nhất</td>
+                </tr>
+                <tr>
+                  <td>Cần chấp nhận <strong>điều khoản mới</strong></td>
+                  <td>Meta đổi điều khoản, chờ admin bấm đồng ý</td>
+                  <td>Bấm đồng ý là hết chặn ngay</td>
+                </tr>
+                <tr>
+                  <td>Không thấy băng nào</td>
+                  <td>Chặn có thể ở mức Business Manager</td>
+                  <td>Xem <strong>Trung tâm bảo mật</strong> của BM</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
-    <!-- ============ TRÌNH CÀI ============ -->
-    <section id="file">
-      <h2>Trình cài lo phần cấu hình</h2>
-      <p>
-        Anh không cần mở file JSON nào. Mở Command Prompt trong thư mục app rồi gõ:
-      </p>
-      <div class="codeblock">
-        <div class="cap"><span>Chạy một lần</span><button class="copy" type="button">Copy</button></div>
+          <h3>Bước 2A — Xác minh doanh nghiệp (bản gốc, mất vài ngày)</h3>
+          <p>
+            <a href="https://business.facebook.com/settings/security" target="_blank" rel="noreferrer">business.facebook.com/settings/security</a>
+            → <strong>Bắt đầu xác minh</strong>. Meta hỏi giấy phép kinh doanh và một cách xác nhận
+            (điện thoại, email tên miền, hoặc thư). Đây là cách chữa tận gốc, nhưng chờ vài ngày.
+          </p>
+
+          <h3>Bước 3 — Đổi sang App khác (có số lại trong 5 phút)</h3>
+          <p>
+            Token gắn với <em>một App cụ thể</em>. Đổi App là hết chặn, <strong>không phải làm lại
+            system user</strong> — <code>Rooty Data</code> và mọi quyền giữ nguyên.
+          </p>
+          <ol class="steps">
+            <li><div class="check"><input type="checkbox" id="f1"><label for="f1" class="st-body">
+              Mở <a href="https://business.facebook.com/settings/apps" target="_blank" rel="noreferrer">business.facebook.com/settings/apps</a>.
+              Có app nào khác không bị chặn thì dùng luôn, bỏ qua bước sau.
+            </label></div></li>
+            <li><div class="check"><input type="checkbox" id="f2"><label for="f2" class="st-body">
+              Không có thì tạo mới: <a href="https://developers.facebook.com/apps" target="_blank" rel="noreferrer">developers.facebook.com/apps</a>
+              → <strong>Tạo ứng dụng</strong> → <strong>Khác</strong> → <strong>Doanh nghiệp</strong>
+              → chọn cổng thông tin <strong>TKKD ROOTY TRIP</strong> → Tạo.
+              <span class="note">Để nguyên Development mode, không cần submit duyệt.</span>
+            </label></div></li>
+            <li><div class="check"><input type="checkbox" id="f3"><label for="f3" class="st-body">
+              Gán app cho system user: <a href="https://business.facebook.com/settings/system-users" target="_blank" rel="noreferrer">Người dùng hệ thống</a>
+              → <code>Rooty Data</code> → <strong>…</strong> → <strong>Thêm tài sản</strong> →
+              <strong>Ứng dụng</strong> → tick app mới → bật <strong>Quản lý ứng dụng</strong> → Lưu.
+              <span class="note">Bỏ bước này thì màn "Chỉ định quyền" sẽ báo "Không có quyền nào".</span>
+            </label></div></li>
+            <li><div class="check"><input type="checkbox" id="f4"><label for="f4" class="st-body">
+              <code>Rooty Data</code> → <strong>Tạo mã</strong> → chọn app mới → hết hạn
+              <strong>Không bao giờ</strong> → tick <strong>chỉ <code>ads_read</code></strong> → Tạo → copy ngay.
+            </label></div></li>
+            <li><div class="check"><input type="checkbox" id="f5"><label for="f5" class="st-body">
+              Đưa token vào app:
+              <div class="codeblock" style="margin:8px 0 0">
+                <div class="cap"><span>Command Prompt</span><button class="copy" type="button">Copy</button></div>
 <pre>cd C:\Users\ASUS\.agents\lark-ads-manager
-node ket-noi.js</pre>
-      </div>
-      <p>Trình cài làm thay đúng những việc dễ sai nhất:</p>
-      <ul class="plain">
-        <li>Nhận token qua <strong>nhập ẩn</strong> — không hiện ký tự nào trên màn hình, không vào lịch sử lệnh.</li>
-        <li>Kiểm tra ngay token còn sống và đã có quyền <code>ads_read</code> chưa; thiếu gì nó nói thiếu ở bước nào.</li>
-        <li><strong>Tự tìm danh sách tài khoản quảng cáo</strong> — anh chọn theo số, không phải đi tra ID ở Ads Manager.</li>
-        <li><strong>Tự quét các loại chuyển đổi thật trong 14 ngày</strong> rồi đề xuất đúng chỉ số, kèm CPA ước tính
-          để anh đối chiếu với Ads Manager. Đây là chỗ khai tay hay sai nhất.</li>
-        <li>Ghi cấu hình, bật kênh, in ra bước tiếp theo.</li>
-      </ul>
-      <p class="small">
-        Chỉ cài một kênh: <code>node ket-noi.js --meta</code> (hoặc <code>--google</code>, <code>--tiktok</code>).
-        Muốn token không đi qua bàn phím thì đặt biến môi trường <code>LARK_META_TOKEN</code> trước khi chạy.
-      </p>
-      <div class="callout info">
-        <span class="flag">Vẫn muốn sửa tay</span>
-        <div><p style="margin-bottom:0">File cấu hình là
-        <code>ket-noi.json</code> trong thư mục app, bên cạnh có <code>ket-noi.mau.json</code> chú thích từng khoá.
-        Sửa xong lưu lại là app đọc ngay, không cần restart. Các khối JSON ở dưới là để dùng cho đường này.</p></div>
-      </div>
-    </section>
-
-    <hr class="divider">
-
-    <!-- ============ META ============ -->
-    <section id="meta">
-      <div class="channel">
-        <div class="channel-head">
-          <span class="badge plat-fb">Facebook / Meta</span>
-          <h2>Lấy token</h2>
-          <span class="badge ok">~30 phút</span>
-          <span class="badge plain">không cần App Review</span>
-        </div>
-        <div class="channel-body">
-          <div class="callout stop">
-            <span class="flag">Kiểm tra quyền trước</span>
-            <div>
-              <p>System User token <strong>bắt buộc phải có toàn quyền kiểm soát Business Manager</strong>.
-              Mở <a href="https://business.facebook.com/settings/system-users" target="_blank" rel="noreferrer">business.facebook.com/settings/system-users</a>:</p>
-              <p style="margin-bottom:0">Nếu menu bên trái <strong>không có mục "Người dùng hệ thống"</strong>, hoặc trang
-              Ứng dụng hiện dòng <em>"Bạn có quyền truy cập một phần… liên hệ với người có toàn quyền kiểm soát"</em>
-              — thì tài khoản của anh chỉ có quyền một phần. Đi theo <strong>Cách 2</strong> bên dưới.</p>
-            </div>
-          </div>
-
-          <h3>Cách 1 — System User token (token vĩnh viễn)</h3>
-          <p>
-            Cần <strong>toàn quyền kiểm soát</strong> Business Manager. Token không hết hạn, cấu hình một lần
-            là xong hẳn. Không phải qua App Review vì chỉ đọc tài khoản do Business Manager của anh sở hữu.
-          </p>
-          <p class="small">
-            Chưa có toàn quyền thì mở <a href="https://business.facebook.com/settings/people" target="_blank" rel="noreferrer">settings/people</a>,
-            lọc theo <strong>Toàn quyền kiểm soát</strong> để biết ai đang giữ, rồi nhờ họ nâng quyền cho anh —
-            hoặc nhờ họ tạo token rồi đưa. Token là chuỗi bí mật: đừng gửi qua chat nhóm.
-          </p>
-
-          <ol class="steps">
-            <li><div class="check"><input type="checkbox" id="m1"><label for="m1" class="st-body">
-              Nếu chưa có app: vào <a href="https://developers.facebook.com/apps" target="_blank" rel="noreferrer">developers.facebook.com/apps</a>
-              → <strong>Create App</strong> → loại <strong>Business</strong> → đặt tên <code>rooty-ads-sync</code>.
-              <span class="note">Để nguyên chế độ Development, không cần submit gì.</span>
+node ket-noi.js --meta</pre>
+              </div>
+              <span class="note">Dán bằng <strong>chuột phải</strong>. Thấy dòng "Loại token: KHÔNG hết hạn" là đúng.</span>
             </label></div></li>
-
-            <li><div class="check"><input type="checkbox" id="m2"><label for="m2" class="st-body">
-              Vào <a href="https://business.facebook.com/settings" target="_blank" rel="noreferrer">business.facebook.com/settings</a>
-              → <strong>Người dùng</strong> → <strong>Người dùng hệ thống</strong> → <strong>Thêm</strong>.
-              <span class="note">Tên: <code>rooty-ads-sync</code>. Vai trò: <strong>Employee access</strong> là đủ.</span>
-            </label></div></li>
-
-            <li><div class="check"><input type="checkbox" id="m3"><label for="m3" class="st-body">
-              Chọn system user vừa tạo → <strong>Thêm tài sản</strong> → <strong>Tài khoản quảng cáo</strong> →
-              tick tài khoản của Rooty Trip → bật quyền <strong>Xem hiệu suất</strong>.
-              <span class="note">Bỏ bước này là sẽ gặp lỗi Meta code 200 khi đồng bộ.</span>
-            </label></div></li>
-
-            <li><div class="check"><input type="checkbox" id="m4"><label for="m4" class="st-body">
-              Bấm <strong>Tạo mã truy cập mới</strong> → chọn app vừa tạo → tick quyền <code>ads_read</code> → <strong>Tạo mã</strong>.
-              <span class="note">Chỉ cần <code>ads_read</code>. App chỉ đọc số, không sửa gì trên Meta.</span>
-            </label></div></li>
-
-            <li><div class="check"><input type="checkbox" id="m5"><label for="m5" class="st-body">
-              <strong>Copy token ngay</strong> — Meta chỉ hiện một lần, đóng hộp thoại là mất.
-              <span class="note">Token dạng <code>EAAG…</code>, dài khoảng 200 ký tự.</span>
-            </label></div></li>
-
-            <li><div class="check"><input type="checkbox" id="m6"><label for="m6" class="st-body">
-              Lấy <strong>ID tài khoản quảng cáo</strong>: Ads Manager → góc trên bên trái, dạng <code>act_1234567890</code>.
-              <span class="note">Điền số thôi cũng được, app tự thêm <code>act_</code>. Có nhiều tài khoản thì khai hết vào mảng.</span>
-            </label></div></li>
-
-            <li><div class="check"><input type="checkbox" id="m7"><label for="m7" class="st-body">
-              Về Command Prompt, gõ <code>node ket-noi.js --meta</code> → dán token khi được hỏi.
-              <span class="note">Trình cài tự tìm tài khoản, tự đề xuất chỉ số chuyển đổi, tự lưu. Xong kênh Meta.</span>
+            <li><div class="check"><input type="checkbox" id="f6"><label for="f6" class="st-body">
+              Lấy bù 3 ngày đã mất:
+              <div class="codeblock" style="margin:8px 0 0">
+                <div class="cap"><span>Chạy một lần</span><button class="copy" type="button">Copy</button></div>
+<pre>node dong-bo.js --tu 2026-08-28 --den 2026-08-31</pre>
+              </div>
             </label></div></li>
           </ol>
 
-          <div class="codeblock">
-            <div class="cap"><span>Hoặc sửa tay: khối meta</span><button class="copy" type="button">Copy</button></div>
-<pre>"meta": {
-  "enabled": true,
-  "accessToken": "EAAG_DAN_TOKEN_VAO_DAY",
-  "accountIds": ["1234567890"],
-  "apiVersion": "v21.0",
-  "conversionMetric": "onsite_conversion.messaging_conversation_started_7d",
-  "clickMetric": "clicks"
-}</pre>
-          </div>
-
-          <div class="callout stop">
-            <span class="flag">Quan trọng</span>
-            <div>
-              <p><strong><code>conversionMetric</code> là chỗ dễ sai nhất.</strong> 5 trong 6 chiến dịch của anh
-              đang tối ưu <strong>Tin nhắn/Lead</strong>, nên phải lấy số hội thoại tin nhắn bắt đầu — đúng như giá trị
-              mặc định ở trên. Nếu lấy <code>conversions</code> chung, CPA sẽ lệch vài lần và cột
-              <strong>Khuyến nghị</strong> trong app thành vô nghĩa.</p>
-              <p style="margin-bottom:0">Sau lần đồng bộ đầu, mở phần
-              <em>"Các loại chuyển đổi Meta thực có trong kỳ"</em> trong báo cáo — nó liệt kê mọi
-              <code>action_type</code> kèm số thật để anh đối chiếu với Ads Manager rồi chọn lại cho đúng.
-              Chiến dịch mua hàng thì đổi thành <code>purchase</code>, lead form thì <code>lead</code>,
-              nhiều loại thì cách nhau bằng dấu phẩy.</p>
-            </div>
-          </div>
-
-          <h3>Cách 2 — token cá nhân (không cần quyền Business Manager)</h3>
-          <p>
-            Dùng khi anh không có toàn quyền Business Manager. Vì tài khoản Facebook của anh vẫn vào Ads
-            Manager chạy quảng cáo hằng ngày nên nó đọc được số — không cần ai cấp thêm quyền gì.
-          </p>
           <div class="callout warn">
-            <span class="flag">Đánh đổi</span>
-            <div><p style="margin-bottom:0">Token này <strong>hết hạn sau ~60 ngày</strong>, cứ 2 tháng phải chạy lại
-            <code>node ket-noi.js --meta</code> một lần. App tự đọc ngày hết hạn và
-            <strong>cảnh báo trước 10 ngày</strong> ở tab Kết nối và ở mỗi lượt đồng bộ, nên không sợ chết âm thầm.</p></div>
-          </div>
-
-          <ol class="steps">
-            <li><div class="check"><input type="checkbox" id="p1"><label for="p1" class="st-body">
-              <a href="https://developers.facebook.com/apps" target="_blank" rel="noreferrer">developers.facebook.com/apps</a>
-              → bấm <strong>"Bắt đầu"</strong> góc trên phải nếu chưa đăng ký nhà phát triển → xác thực số điện thoại.
-              <span class="note">Miễn phí, không ai duyệt. Xong thì góc trên phải đổi thành "Ứng dụng của tôi".</span>
-            </label></div></li>
-
-            <li><div class="check"><input type="checkbox" id="p2"><label for="p2" class="st-body">
-              <strong>Tạo ứng dụng</strong> → <strong>Khác</strong> → <strong>Doanh nghiệp</strong>
-              → tên <code>rooty-ads-sync</code> → Tạo.
-            </label></div></li>
-
-            <li><div class="check"><input type="checkbox" id="p3"><label for="p3" class="st-body">
-              Mở <a href="https://developers.facebook.com/tools/explorer" target="_blank" rel="noreferrer">Graph API Explorer</a>
-              → chọn app vừa tạo → ô <strong>Permissions</strong> thêm <code>ads_read</code>
-              → <strong>Generate Access Token</strong> → cho phép.
-            </label></div></li>
-
-            <li><div class="check"><input type="checkbox" id="p4"><label for="p4" class="st-body">
-              Token này chỉ sống 1–2 giờ. Mở
-              <a href="https://developers.facebook.com/tools/debug/accesstoken" target="_blank" rel="noreferrer">Access Token Debugger</a>
-              → dán token vào → bấm <strong>Extend Access Token</strong> → copy token dài hạn (60 ngày).
-              <span class="note">Bỏ bước này là mai đồng bộ hết chạy.</span>
-            </label></div></li>
-
-            <li><div class="check"><input type="checkbox" id="p5"><label for="p5" class="st-body">
-              <code>node ket-noi.js --meta</code> → dán token. Trình cài sẽ in ra token còn bao nhiêu ngày.
-            </label></div></li>
-          </ol>
-
-          <h3>Kiểm tra</h3>
-          <div class="codeblock">
-            <div class="cap"><span>Terminal, trong thư mục app</span><button class="copy" type="button">Copy</button></div>
-            <pre>node dong-bo.js --kiem-tra</pre>
-          </div>
-          <p class="small">
-            Đúng thì hiện <code>✓ Facebook / Meta</code> kèm tên tài khoản, tiền tệ và múi giờ.
-            Hoặc bấm <strong>Kiểm tra kết nối</strong> trong tab <strong>🔌 Kết nối &amp; Đồng bộ</strong>.
-          </p>
-        </div>
-      </div>
-    </section>
-
-    <!-- ============ GOOGLE ============ -->
-    <section id="google">
-      <div class="channel">
-        <div class="channel-head">
-          <span class="badge plat-gg">Google Ads</span>
-          <h2>Script ghi ra Google Sheet</h2>
-          <span class="badge ok">~20 phút</span>
-          <span class="badge plain">không cần token</span>
-        </div>
-        <div class="channel-body">
-          <p>
-            Ở đây <strong>cố tình không dùng Google Ads API</strong>: xin developer token phải chờ duyệt cả tuần.
-            Thay vào đó, một script chạy sẵn trong giao diện Google Ads sẽ ghi số vào Google Sheet, app chỉ
-            việc tải link CSV của Sheet đó. Không token, không OAuth, không chờ ai duyệt.
-          </p>
-
-          <ol class="steps">
-            <li><div class="check"><input type="checkbox" id="g1"><label for="g1" class="st-body">
-              Tạo một Google Sheet trống, đặt tên <code>Rooty Ads Sync</code>. Copy ID từ URL:
-              <code>docs.google.com/spreadsheets/d/<strong>ID_Ở_ĐÂY</strong>/edit</code>
-            </label></div></li>
-
-            <li><div class="check"><input type="checkbox" id="g2"><label for="g2" class="st-body">
-              Mở file <code>docs\google-ads-script.js</code> trong thư mục app, sửa dòng <code>SHEET_ID</code>
-              thành ID vừa copy.
-              <span class="note">Ba dòng cấu hình khác để nguyên: <code>SHEET_NAME</code>, <code>SO_NGAY_LUI = 14</code>, <code>LEVEL = 'adgroup'</code>.</span>
-            </label></div></li>
-
-            <li><div class="check"><input type="checkbox" id="g3"><label for="g3" class="st-body">
-              Google Ads → <strong>Công cụ và cài đặt</strong> → <strong>Hành động khối lượng lớn</strong> →
-              <strong>Tập lệnh</strong> → dấu <strong>+</strong> → dán toàn bộ file vào → <strong>Cho phép</strong> (Authorize).
-            </label></div></li>
-
-            <li><div class="check"><input type="checkbox" id="g4"><label for="g4" class="st-body">
-              Bấm <strong>Chạy một lần</strong>, rồi mở Sheet kiểm tra: phải có tab <code>DuLieu</code> với các cột
-              <code>date</code>, <code>campaign_name</code>, <code>cost</code>… và ô ghi <em>"Cập nhật lúc"</em>.
-            </label></div></li>
-
-            <li><div class="check"><input type="checkbox" id="g5"><label for="g5" class="st-body">
-              Đặt <strong>Tần suất</strong> = <strong>Mỗi giờ</strong> (Hourly), lưu lại.
-            </label></div></li>
-
-            <li><div class="check"><input type="checkbox" id="g6"><label for="g6" class="st-body">
-              Trong Sheet: <strong>Tệp</strong> → <strong>Chia sẻ</strong> → <strong>Xuất bản lên web</strong> →
-              chọn sheet <code>DuLieu</code>, định dạng <strong>Giá trị được phân tách bằng dấu phẩy (.csv)</strong>
-              → <strong>Xuất bản</strong> → copy link.
-              <span class="note">Phải chọn .csv. Nếu để mặc định trang web, app sẽ báo <em>"Link trả về HTML chứ không phải CSV"</em>.</span>
-            </label></div></li>
-
-            <li><div class="check"><input type="checkbox" id="g7"><label for="g7" class="st-body">
-              Gõ <code>node ket-noi.js --google</code> → dán link khi được hỏi.
-              <span class="note">Trình cài tải thử Sheet ngay, báo đọc được bao nhiêu dòng và khoảng ngày nào.</span>
-            </label></div></li>
-          </ol>
-
-          <div class="codeblock">
-            <div class="cap"><span>Hoặc sửa tay: khối googleSheet</span><button class="copy" type="button">Copy</button></div>
-<pre>"googleSheet": {
-  "enabled": true,
-  "csvUrl": "https://docs.google.com/spreadsheets/d/e/XXXX/pub?output=csv",
-  "level": "adgroup"
-}</pre>
-          </div>
-
-          <div class="callout info">
-            <span class="flag">Vì sao adgroup</span>
-            <div><p style="margin-bottom:0">Quảng cáo tìm kiếm của Google thường <strong>không có tên</strong>, xuất ở cấp
-            quảng cáo sẽ ra một rừng dòng chỉ có ID. Nên mặc định xuất ở <strong>cấp nhóm quảng cáo</strong> —
-            mỗi nhóm thành một dòng "quảng cáo" trong Base. Muốn đổi thì sửa cả
-            <code>LEVEL</code> trong script và <code>level</code> trong JSON cho khớp nhau.</p></div>
+            <span class="flag">Lưu ý</span>
+            <div><p style="margin-bottom:0">Nếu Meta chặn ở mức <strong>Business Manager</strong> chứ không phải
+            App, thì app mới cũng dính y hệt. Thử Bước 3 trước — mất 5 phút. Vẫn <code>API access blocked</code>
+            thì bắt buộc phải làm Bước 2A.</p></div>
           </div>
         </div>
       </div>
@@ -644,277 +340,185 @@ node ket-noi.js</pre>
     <section id="tiktok">
       <div class="channel">
         <div class="channel-head">
-          <span class="badge plat-tt">TikTok</span>
-          <h2>Tạo app rồi chờ duyệt</h2>
-          <span class="badge warn">vài ngày</span>
-          <span class="badge plain">làm cuối</span>
+          <span class="badge tt2">TikTok</span>
+          <h2>Nối từ đầu</h2>
+          <span class="badge warn">Chờ duyệt vài ngày</span>
         </div>
         <div class="channel-body">
           <p>
-            Đây là kênh duy nhất buộc phải chờ. Cứ nộp đơn trước rồi làm Meta với Google trong lúc chờ;
-            TikTok trong thời gian đó dùng <a href="#csv">nhập CSV</a>.
+            Đây là kênh duy nhất phải chờ TikTok duyệt. <strong>Nộp đơn hôm nay</strong>, trong lúc chờ thì
+            Facebook và Google đã lo phần lớn số liệu.
           </p>
+          <div class="callout ok">
+            <span class="flag">Đã làm sẵn</span>
+            <div><p style="margin-bottom:0">Bước khó nhất — đổi <code>auth_code</code> lấy access token, bình thường
+            phải tự gọi API bằng tay — <strong>app làm hộ rồi</strong>. Anh chỉ cần App ID và App Secret, công cụ
+            tự mở link uỷ quyền, tự hứng mã trả về, tự đổi lấy token dài hạn.</p></div>
+          </div>
 
           <ol class="steps">
             <li><div class="check"><input type="checkbox" id="t1"><label for="t1" class="st-body">
-              Vào <a href="https://business-api.tiktok.com" target="_blank" rel="noreferrer">business-api.tiktok.com</a>
-              → <strong>My Apps</strong> → <strong>Create an App</strong>.
+              <a href="https://business-api.tiktok.com" target="_blank" rel="noreferrer">business-api.tiktok.com</a>
+              → đăng nhập bằng tài khoản TikTok Business của Rooty Trip → <strong>My Apps</strong>
+              → <strong>Create an App</strong>.
             </label></div></li>
-
             <li><div class="check"><input type="checkbox" id="t2"><label for="t2" class="st-body">
-              Điền thông tin công ty, chọn phạm vi quyền <strong>Ad Account Management</strong> và
-              <strong>Reporting</strong>, rồi <strong>Submit</strong>.
-              <span class="note">Chỉ cần quyền đọc báo cáo. Redirect URL điền <code>http://localhost:5176</code> cũng được.</span>
+              Điền thông tin công ty. Phần quyền chọn <strong>Ad Account Management</strong> và
+              <strong>Reporting</strong> — chỉ cần quyền đọc.
             </label></div></li>
-
             <li><div class="check"><input type="checkbox" id="t3"><label for="t3" class="st-body">
-              Chờ TikTok duyệt (thường vài ngày). Duyệt rồi sẽ có <code>App ID</code> và <code>Secret</code>.
+              Ô <strong>Redirect URL</strong> điền đúng địa chỉ này, không thừa dấu gạch chéo:
+              <div class="codeblock" style="margin:8px 0 0">
+                <div class="cap"><span>Redirect URL</span><button class="copy" type="button">Copy</button></div>
+<pre>http://127.0.0.1:47124</pre>
+              </div>
+              <span class="note">Đây là cổng công cụ mở ra để hứng mã uỷ quyền. Sai chỗ này là bước 6 hỏng.</span>
             </label></div></li>
-
             <li><div class="check"><input type="checkbox" id="t4"><label for="t4" class="st-body">
-              Mở <strong>Authorized Link</strong> của app → đăng nhập TikTok Business → uỷ quyền tài khoản
-              quảng cáo Rooty Trip → nhận <code>auth_code</code> trên URL trả về.
+              <strong>Submit</strong> → chờ TikTok duyệt, thường vài ngày. Duyệt xong sẽ có
+              <strong>App ID</strong> và <strong>App Secret</strong>.
             </label></div></li>
-
             <li><div class="check"><input type="checkbox" id="t5"><label for="t5" class="st-body">
-              Đổi <code>auth_code</code> lấy <strong>access token dài hạn</strong> (endpoint
-              <code>oauth2/access_token/</code> trong tài liệu TikTok).
+              Chạy công cụ:
+              <div class="codeblock" style="margin:8px 0 0">
+                <div class="cap"><span>Command Prompt</span><button class="copy" type="button">Copy</button></div>
+<pre>cd C:\Users\ASUS\.agents\lark-ads-manager
+node ket-noi.js --tiktok</pre>
+              </div>
+              <span class="note">Trả lời "chưa có token" → nó hỏi App ID và App Secret.</span>
             </label></div></li>
-
             <li><div class="check"><input type="checkbox" id="t6"><label for="t6" class="st-body">
-              Lấy <code>advertiser_id</code>: TikTok Ads Manager → góc trên, hoặc trong phản hồi bước 5.
+              Công cụ in ra một đường link. Mở link đó trong trình duyệt <strong>đang đăng nhập TikTok
+              Business</strong> → uỷ quyền tài khoản quảng cáo Rooty Trip.
+              <span class="note">Uỷ quyền xong trình duyệt tự gọi về máy, công cụ tự bắt mã và đổi lấy token.</span>
             </label></div></li>
-
             <li><div class="check"><input type="checkbox" id="t7"><label for="t7" class="st-body">
-              Gõ <code>node ket-noi.js --tiktok</code> → dán token và <code>advertiser_id</code> khi được hỏi.
+              Xong. Nó tự kiểm tra đọc được số chưa rồi bật kênh. Kiểm lại bất cứ lúc nào:
+              <div class="codeblock" style="margin:8px 0 0">
+                <div class="cap"><span>Kiểm tra</span><button class="copy" type="button">Copy</button></div>
+<pre>node dong-bo.js --kiem-tra</pre>
+              </div>
             </label></div></li>
           </ol>
+        </div>
+      </div>
+    </section>
 
-          <div class="codeblock">
-            <div class="cap"><span>Hoặc sửa tay: khối tiktok</span><button class="copy" type="button">Copy</button></div>
-<pre>"tiktok": {
-  "enabled": true,
-  "accessToken": "DAN_ACCESS_TOKEN_VAO_DAY",
-  "advertiserIds": ["7000000000000000000"],
-  "conversionMetric": "conversion"
-}</pre>
+    <!-- ============ GOOGLE ============ -->
+    <section id="google">
+      <div class="channel">
+        <div class="channel-head">
+          <span class="badge gg">Google Ads</span>
+          <h2>Đã chạy — chỉ cần biết một điều</h2>
+          <span class="badge ok">Xong</span>
+        </div>
+        <div class="channel-body">
+          <p>
+            API thật đã nối, đọc được <strong>Công Ty CP Rooty Trip Phú Quốc</strong>, số về tới
+            <strong>31/08 hôm nay</strong>. Không phải làm gì thêm.
+          </p>
+          <div class="callout stop">
+            <span class="flag">Đừng làm</span>
+            <div>
+              <p>Đừng bật thêm kênh <strong>"Google Ads (qua Google Sheet)"</strong>. Hai nguồn đó cùng ghi
+              nhãn "Google Ads", bật cả hai là chi tiêu Google <strong>vào Base hai lần</strong> — sai gấp đôi
+              mà nhìn số vẫn hợp lý, loại lỗi khó phát hiện nhất.</p>
+              <p style="margin-bottom:0">App đã có chốt chặn: bật cả hai thì nó tự bỏ nguồn Sheet, ưu tiên API,
+              và báo lý do trong tab Kết nối. Nhưng tốt nhất là để nguyên trạng thái tắt.</p>
+            </div>
           </div>
           <p class="small">
-            <code>conversionMetric</code>: để <code>conversion</code> là tổng chuyển đổi. Muốn khớp với cột
-            <em>Kết quả</em> của TikTok Ads Manager thì đổi thành <code>result</code>.
+            Đường Google Sheet chỉ còn dùng khi nào developer token bị thu hồi. Script vẫn nằm ở
+            <code>docs/google-ads-script.js</code>.
           </p>
         </div>
       </div>
     </section>
 
-    <hr class="divider">
+    <hr>
 
-    <!-- ============ LẦN ĐẦU ============ -->
-    <section id="lan-dau">
-      <h2>Lần đồng bộ đầu tiên — làm đúng thứ tự này</h2>
-
-      <div class="callout stop">
-        <span class="flag">Đọc trước</span>
-        <div>
-          <p><strong>Base của anh có tên trùng thật.</strong> Hai chiến dịch cùng tên <code>Daily_Tour Đảo</code>
-          (một Facebook, một TikTok), ba quảng cáo cùng tên <code>IS_Giá chưa tới 1 củ</code> ở các nhóm khác nhau.
-          Đồng bộ mà khớp theo tên một cách hồn nhiên là <strong>nhân đôi dữ liệu</strong>.</p>
-          <p style="margin-bottom:0">Nên app khớp theo thứ tự: ID nền tảng trước → rồi tên nhưng
-          <strong>có giới hạn phạm vi</strong> (quảng cáo khớp trong cùng nhóm trước, rồi mới cùng chiến dịch) và
-          <strong>chỉ nhận khi duy nhất</strong> → còn lại báo ra để anh ghép tay. Vì vậy
-          <strong>giữ <code>tuTaoMoi</code> = false ở lần đầu</strong> (mặc định đã tắt).</p>
-        </div>
+    <!-- ============ DỌN DẸP ============ -->
+    <section id="dondep">
+      <h2>Dọn 3 dòng nhập trùng trong Base</h2>
+      <p>
+        Có 3 cặp <strong>cùng quảng cáo, cùng ngày, hai dòng</strong> — số đang bị cộng cả hai. App không tự
+        xoá vì không đoán được dòng nào đúng, và đồng bộ cũng <strong>không dọn được</strong>: nó chỉ cập nhật
+        một dòng, dòng thừa nằm nguyên.
+      </p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Ngày</th><th>Quảng cáo</th><th>Hai dòng đang có</th></tr></thead>
+          <tbody>
+            <tr><td>16/08</td><td><code>IS_Giá chưa tới 1 củ</code> · TikTok</td><td>775.846đ <strong>+</strong> 1.750.000đ</td></tr>
+            <tr><td>17/08</td><td><code>Daily tour rootytrip.vn</code> · Google</td><td>120.963đ <strong>+</strong> 80.004đ</td></tr>
+            <tr><td>16/08</td><td><code>IS_Fomo</code> · TikTok</td><td>hai dòng 0đ</td></tr>
+          </tbody>
+        </table>
       </div>
-
-      <ol class="steps">
-        <li><div class="check"><input type="checkbox" id="f1"><label for="f1" class="st-body">
-          <code>node dong-bo.js --kiem-tra</code> — mọi kênh đã bật phải hiện dấu <code>✓</code>.
-        </label></div></li>
-
-        <li><div class="check"><input type="checkbox" id="f2"><label for="f2" class="st-body">
-          Mở app → tab <strong>🔌 Kết nối &amp; Đồng bộ</strong> → bấm <strong>Xem trước tất cả kênh</strong>.
-          <span class="note">Xem trước <strong>không ghi một byte nào</strong> vào Base.</span>
-        </label></div></li>
-
-        <li><div class="check"><input type="checkbox" id="f3"><label for="f3" class="st-body">
-          Đọc mục <strong>Khớp theo ID / tên</strong>. Số "theo tên" cao ở lần đầu là bình thường — app sẽ tự
-          ghi ID nền tảng vào Base, từ lần thứ hai mọi thứ khớp theo ID.
-        </label></div></li>
-
-        <li><div class="check"><input type="checkbox" id="f4"><label for="f4" class="st-body">
-          Có bảng <strong>⚠️ Chưa ghép được</strong> thì copy ID nền tảng ở đó, dán vào đúng bản ghi trong bảng
-          <strong>🔗 Ghép ID nền tảng</strong> phía dưới, bấm <strong>Lưu</strong>.
-          <span class="note">Một ID không thể gắn vào hai bản ghi — app chặn và báo rõ.</span>
-        </label></div></li>
-
-        <li><div class="check"><input type="checkbox" id="f5"><label for="f5" class="st-body">
-          Xem trước lại cho tới khi hết mục "chưa ghép được", rồi bấm
-          <strong>⟳ Đồng bộ tất cả kênh đang bật</strong>.
-        </label></div></li>
-
-        <li><div class="check"><input type="checkbox" id="f6"><label for="f6" class="st-body">
-          Sang tab <strong>📈 Tổng quan</strong>, so tổng chi tiêu 7 ngày với Ads Manager.
-          <span class="note">Lệch nhiều thì gần như chắc chắn là <code>conversionMetric</code> sai — xem lại phần Meta.</span>
-        </label></div></li>
-
-        <li><div class="check"><input type="checkbox" id="f7"><label for="f7" class="st-body">
-          Yên tâm rồi thì bật <strong>Tự tạo chiến dịch / nhóm / quảng cáo chưa có trong Base</strong>,
-          để quảng cáo mới trên nền tảng tự vào Base.
-        </label></div></li>
-      </ol>
-
-      <div class="callout info">
-        <span class="flag">Chốt an toàn</span>
-        <div><p style="margin-bottom:0">App <strong>không bao giờ xoá</strong> dòng nào. Dòng có trong Base mà
-        nền tảng không báo được liệt kê riêng ở mục <em>"Có trong Base nhưng nền tảng không báo"</em> để anh tự kiểm —
-        thường là số nhập tay sai ngày, hoặc quảng cáo đã tắt.</p></div>
-      </div>
+      <p style="margin-top:14px">
+        Mở app → tab <strong>Dữ liệu theo ngày</strong>, lọc đúng ngày đó, xoá dòng sai. Hoặc mở thẳng Lark Base.
+        Nối TikTok xong thì dòng 16/08 sẽ được API ghi đè đúng, nhưng <strong>dòng thừa vẫn phải xoá tay</strong>.
+      </p>
     </section>
 
-    <hr class="divider">
+    <hr>
 
-    <!-- ============ CHẠY NỀN ============ -->
-    <section id="chay-nen">
-      <h2>Chạy nền tự động — bước cuối, rồi xong hẳn</h2>
+    <!-- ============ TỰ CHẠY ============ -->
+    <section id="tuchay">
+      <h2>Nó đã tự chạy, không cần ai</h2>
       <p>
-        Hẹn giờ bên trong app chỉ chạy khi app đang mở. Muốn nó chạy mãi kể cả khi không mở app,
-        bấm đúp file này trong thư mục app:
-      </p>
-      <div class="codeblock">
-        <div class="cap"><span>Bấm đúp một lần</span><button class="copy" type="button">Copy</button></div>
-        <pre>cai-tac-vu.bat</pre>
-      </div>
-      <p>
-        Nó hỏi xác nhận rồi đăng ký một tác vụ Windows tên <code>RootyAdsSync</code> chạy
-        <strong>mỗi 3 giờ</strong>, ghi log vào <code>dong-bo.log</code>. Từ lúc này anh không phải
-        làm gì nữa — số tự về Base.
+        Tác vụ Windows <code>RootyAdsSync</code> đã đăng ký và đang chạy <strong>mỗi 3 giờ</strong>, không cần
+        mở app, không cần cửa sổ nào, không dính gì tới Claude.
       </p>
       <div class="tablewrap">
         <table>
           <thead><tr><th>Việc</th><th>Lệnh</th></tr></thead>
           <tbody>
-            <tr><td>Xem tác vụ đã đăng ký</td><td><code>schtasks /Query /TN RootyAdsSync</code></td></tr>
-            <tr><td>Chạy thử ngay, không chờ tới giờ</td><td><code>schtasks /Run /TN RootyAdsSync</code></td></tr>
-            <tr><td>Bỏ tác vụ</td><td><code>xoa-tac-vu.bat</code></td></tr>
+            <tr><td>Xem tác vụ</td><td><code>schtasks /Query /TN RootyAdsSync /V /FO LIST</code></td></tr>
+            <tr><td>Chạy ngay, không chờ</td><td><code>schtasks /Run /TN RootyAdsSync</code></td></tr>
             <tr><td>Xem lần chạy gần nhất làm gì</td><td>mở <code>dong-bo.log</code></td></tr>
+            <tr><td>Bỏ tác vụ</td><td><code>xoa-tac-vu.bat</code></td></tr>
           </tbody>
         </table>
       </div>
-      <p class="small">
-        Tác vụ chạy khi máy bật và đã đăng nhập. Nếu <code>cai-tac-vu.bat</code> báo lỗi thì bấm phải
-        → <strong>Run as administrator</strong>.
-      </p>
-      <h3>Các lệnh hay dùng</h3>
-      <div class="codeblock">
-        <div class="cap"><span>Terminal</span><button class="copy" type="button">Copy</button></div>
-<pre>node dong-bo.js --kiem-tra
-node dong-bo.js --xem-truoc --ngay 14
-node dong-bo.js --kenh meta --tu 2026-08-01 --den 2026-08-27
-node dong-bo.js --tao-moi</pre>
+      <div class="callout warn">
+        <span class="flag">Giới hạn</span>
+        <div><p style="margin-bottom:0">Tác vụ chạy ở chế độ <strong>Interactive only</strong> — chỉ chạy khi máy
+        bật và đã đăng nhập Windows. Tắt máy qua đêm thì sáng bật lên nó lấy bù 7 ngày gần nhất,
+        không hụt số.</p></div>
       </div>
     </section>
 
-    <hr class="divider">
+    <hr>
 
-    <!-- ============ CSV ============ -->
-    <section id="csv">
-      <h2>Đường dự phòng: nhập CSV</h2>
-      <p class="small" style="margin-bottom:14px">
-        Chỉ dùng khi chưa lấy được token, hoặc trong lúc chờ TikTok duyệt. Đã kết nối API rồi thì
-        không cần tới mục này nữa.
-      </p>
+    <!-- ============ TỰ BÁO ============ -->
+    <section id="tudongbao">
+      <h2>Tự báo khi hỏng</h2>
       <p>
-        Không cần token, không chờ ai duyệt. Export báo cáo từ Ads Manager (cần có cột <strong>Ngày</strong>,
-        <strong>Chi phí</strong> và tên quảng cáo), rồi vào tab <strong>🔌 Kết nối &amp; Đồng bộ</strong> →
-        <strong>Nhập từ file CSV</strong> → chọn nền tảng → kéo file vào → <strong>Xem trước</strong> →
-        <strong>Nhập vào Base</strong>.
+        Đây là chỗ vừa được vá. Trước đó tác vụ nền <strong>hỏng lặng lẽ</strong>: Facebook chết từ 29/08 mà
+        tới 31/08 mới phát hiện, vì mã lỗi nằm trong Task Scheduler còn thông báo nằm trong file log,
+        không ai mở ra xem.
       </p>
+      <p>Giờ sau mỗi lượt đồng bộ, app tự chấm sức khoẻ và kiểm 4 thứ:</p>
+      <ul class="plain">
+        <li>Kênh nào đang bật mà gọi không được</li>
+        <li>Kênh gọi được nhưng số đứng yên quá 2 ngày</li>
+        <li>Token sắp hết hạn hoặc đã hết</li>
+        <li>Hai nguồn cùng trỏ về một nền tảng</li>
+      </ul>
       <p>
-        App tự nhận cột theo tên tiếng Việt hoặc tiếng Anh, tự nhận dấu phân cách, tự nhận số kiểu Việt
-        <code>1.234.567,89</code> lẫn kiểu Anh <code>1,234,567.89</code>, và tự bỏ mấy dòng tiêu đề rác mà
-        Meta hay Google chèn ở đầu file. Báo cáo hiện rõ <strong>cột nào nhận ra, cột nào bỏ qua</strong> để anh
-        kiểm trước khi ghi.
+        Kết quả hiện thành <strong>băng đỏ ngay đầu tab Kết nối &amp; Đồng bộ</strong>, và ghi ra
+        <code>trang-thai.json</code>.
       </p>
-      <p class="small">
-        Dùng chung y nguyên tầng đối chiếu với API — nên khi có token rồi, mọi thứ đã quen tay.
-      </p>
-    </section>
-
-    <hr class="divider">
-
-    <!-- ============ LỖI ============ -->
-    <section id="loi">
-      <h2>Gặp lỗi thì tra ở đây</h2>
-      <div class="tablewrap">
-        <table>
-          <thead><tr><th>Thông báo</th><th>Nghĩa là</th><th>Sửa</th></tr></thead>
-          <tbody>
-            <tr>
-              <td><code>Chưa có accessToken</code></td>
-              <td>Chưa điền token, hoặc sửa xong chưa lưu file</td>
-              <td>Điền <code>accessToken</code> và lưu <code>ket-noi.json</code></td>
-            </tr>
-            <tr>
-              <td><code>Chưa bật kênh nào</code></td>
-              <td><code>enabled</code> vẫn là <code>false</code></td>
-              <td>Đổi thành <code>true</code>, hoặc tick <strong>Bật kênh này</strong> trong app</td>
-            </tr>
-            <tr>
-              <td>Meta <code>code 190</code></td>
-              <td>Token sai hoặc đã bị thu hồi</td>
-              <td>Tạo lại mã truy cập ở bước 4</td>
-            </tr>
-            <tr>
-              <td>Meta <code>code 200</code></td>
-              <td>Thiếu quyền <code>ads_read</code>, hoặc chưa gán tài khoản quảng cáo cho system user</td>
-              <td>Làm lại bước 3 và 4</td>
-            </tr>
-            <tr>
-              <td>Không thấy mục "Người dùng hệ thống"</td>
-              <td>Tài khoản chỉ có quyền một phần trên Business Manager</td>
-              <td>Xin toàn quyền kiểm soát, hoặc đi Cách 2 (token cá nhân 60 ngày)</td>
-            </tr>
-            <tr>
-              <td><code>Token đã hết hạn</code> trong app</td>
-              <td>Token cá nhân đã quá 60 ngày</td>
-              <td><code>node ket-noi.js --meta</code> để lấy token mới</td>
-            </tr>
-            <tr>
-              <td>Meta <code>code 803</code></td>
-              <td>ID tài khoản sai, hoặc system user không có quyền trên tài khoản đó</td>
-              <td>Kiểm tra lại <code>accountIds</code></td>
-            </tr>
-            <tr>
-              <td><code>Link Google Sheet trả về HTML</code></td>
-              <td>Sheet chưa xuất bản đúng định dạng CSV</td>
-              <td>Xuất bản lại, chọn định dạng <strong>.csv</strong></td>
-            </tr>
-            <tr>
-              <td>Google Sheet trống</td>
-              <td>Script chưa chạy, hoặc <code>SHEET_ID</code> sai</td>
-              <td>Vào Google Ads → Tập lệnh → Chạy một lần, xem Logger</td>
-            </tr>
-            <tr>
-              <td>TikTok <code>code 40105</code></td>
-              <td>Access token sai hoặc hết hạn</td>
-              <td>Lấy lại token dài hạn ở bước 5</td>
-            </tr>
-            <tr>
-              <td>Chuyển đổi = 0 nhưng Ads Manager có số</td>
-              <td><code>conversionMetric</code> không khớp mục tiêu chiến dịch</td>
-              <td>Mở <em>"Các loại chuyển đổi Meta thực có trong kỳ"</em> trong báo cáo, chọn đúng <code>action_type</code></td>
-            </tr>
-            <tr>
-              <td>Chi tiêu khớp nhưng chuyển đổi thấp hơn</td>
-              <td>Bình thường — nền tảng còn khai báo lại</td>
-              <td>Không cần làm gì, lần đồng bộ sau sẽ tự sửa</td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="callout">
+        <span class="flag">Chưa bật</span>
+        <div>
+          <p>Còn một mức nữa: <strong>nhắn thẳng vào Lark</strong> cho anh khi đồng bộ hỏng, và nhắn lại
+          khi đã khắc phục. Cùng một vấn đề chỉ nhắn lại sau 12 tiếng nên không spam.</p>
+          <p style="margin-bottom:0">Tính năng này <strong>đang tắt</strong> vì nó gửi tin nhắn thay anh —
+          tôi không tự bật. Muốn dùng thì bảo tôi, tôi bật và gửi một tin thử để anh kiểm.</p>
+        </div>
       </div>
-      <p class="small" style="margin-top:14px">
-        Mọi thông báo lỗi đều đã che token. Chi tiết đầy đủ nằm trong <code>README.md</code> của app.
-      </p>
     </section>
 
   </main>
@@ -923,22 +527,10 @@ node dong-bo.js --tao-moi</pre>
 <script>
 (function () {
   'use strict';
-  var KEY = 'rooty-ketnoi-tien-do';
-  var boxes = Array.prototype.slice.call(document.querySelectorAll('.check input[type=checkbox]'));
-
-  function load() {
-    try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; }
-  }
-  function save(state) {
-    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* chế độ riêng tư */ }
-  }
-  function paint() {
-    var done = boxes.filter(function (b) { return b.checked; }).length;
-    document.getElementById('pDone').textContent = done;
-    document.getElementById('pAll').textContent = boxes.length;
-    document.getElementById('pBar').style.width = boxes.length ? (done / boxes.length * 100) + '%' : '0';
-  }
-
+  var KEY = 'rooty-ketnoi-3kenh';
+  var boxes = [].slice.call(document.querySelectorAll('.check input[type=checkbox]'));
+  function load() { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; } }
+  function save(s) { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {} }
   var state = load();
   boxes.forEach(function (b) {
     if (state[b.id]) b.checked = true;
@@ -946,34 +538,19 @@ node dong-bo.js --tao-moi</pre>
       var s = load();
       if (b.checked) s[b.id] = 1; else delete s[b.id];
       save(s);
-      paint();
     });
   });
-  paint();
-
-  document.getElementById('pReset').addEventListener('click', function () {
-    boxes.forEach(function (b) { b.checked = false; });
-    save({});
-    paint();
-  });
-
-  // copy khối code
   document.querySelectorAll('.codeblock').forEach(function (block) {
     var btn = block.querySelector('.copy');
     var pre = block.querySelector('pre');
     if (!btn || !pre) return;
     btn.addEventListener('click', function () {
-      var text = pre.textContent;
       var done = function () {
         var old = btn.textContent;
         btn.textContent = 'Đã copy';
         setTimeout(function () { btn.textContent = old; }, 1400);
       };
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(done, selectFallback);
-      } else selectFallback();
-
-      function selectFallback() {
+      var fallback = function () {
         var r = document.createRange();
         r.selectNodeContents(pre);
         var sel = window.getSelection();
@@ -981,7 +558,10 @@ node dong-bo.js --tao-moi</pre>
         sel.addRange(r);
         btn.textContent = 'Bấm Ctrl+C';
         setTimeout(function () { btn.textContent = 'Copy'; }, 2200);
-      }
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(pre.textContent).then(done, fallback);
+      } else fallback();
     });
   });
 })();

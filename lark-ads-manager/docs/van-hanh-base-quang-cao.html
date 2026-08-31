@@ -1,0 +1,717 @@
+<title>Sổ tay vận hành Ads Rooty Trip</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lora:wght@600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+
+<style>
+:root {
+  --ground: #FAFAFB; --surface: #FFFFFF; --surface-2: #F3F3F6;
+  --ink: #1B1A21; --ink-2: #565467; --ink-3: #8C8A9C;
+  --line: #E4E3EA; --line-2: #EFEEF3;
+  --accent: #4A2E8C; --accent-ink: #4A2E8C; --accent-soft: #EEEAF8;
+  --ok: #12704A; --ok-soft: #E4F3EC;
+  --warn: #8F5A00; --warn-soft: #FBF1DE;
+  --stop: #A32620; --stop-soft: #FBE9E8;
+  --fb: #1461C4; --tt: #23202B; --gg: #A96D0F;
+  --code-bg: #F3F3F6; --code-ink: #241F33;
+  --shadow: 0 1px 2px rgba(24,20,40,.05), 0 8px 22px rgba(24,20,40,.06);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #121118; --surface: #1A1823; --surface-2: #221F2D;
+    --ink: #ECEAF2; --ink-2: #ABA7BB; --ink-3: #7C788E;
+    --line: #2E2A3B; --line-2: #262232;
+    --accent: #B49BEA; --accent-ink: #C7B4F2; --accent-soft: #241C3B;
+    --ok: #5FD3A0; --ok-soft: #102E22;
+    --warn: #E5B366; --warn-soft: #33260F;
+    --stop: #F0968F; --stop-soft: #351A18;
+    --fb: #79ADEF; --tt: #C9C4D6; --gg: #E0AE5E;
+    --code-bg: #16141E; --code-ink: #D9D4E6;
+    --shadow: 0 1px 2px rgba(0,0,0,.35), 0 8px 22px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"] {
+  --ground: #121118; --surface: #1A1823; --surface-2: #221F2D;
+  --ink: #ECEAF2; --ink-2: #ABA7BB; --ink-3: #7C788E;
+  --line: #2E2A3B; --line-2: #262232;
+  --accent: #B49BEA; --accent-ink: #C7B4F2; --accent-soft: #241C3B;
+  --ok: #5FD3A0; --ok-soft: #102E22;
+  --warn: #E5B366; --warn-soft: #33260F;
+  --stop: #F0968F; --stop-soft: #351A18;
+  --fb: #79ADEF; --tt: #C9C4D6; --gg: #E0AE5E;
+  --code-bg: #16141E; --code-ink: #D9D4E6;
+  --shadow: 0 1px 2px rgba(0,0,0,.35), 0 8px 22px rgba(0,0,0,.3);
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  margin: 0; background: var(--ground); color: var(--ink);
+  font-family: "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif;
+  font-size: 16px; line-height: 1.62; -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 1200px; margin: 0 auto; padding: 38px 26px 100px;
+  display: grid; grid-template-columns: 244px minmax(0,1fr); gap: 46px; align-items: start; }
+@media (max-width: 980px) { .wrap { grid-template-columns: 1fr; gap: 24px; padding: 24px 15px 70px; }
+  .rail { position: static !important; } }
+
+.masthead { grid-column: 1/-1; border-bottom: 2px solid var(--ink); padding-bottom: 22px; }
+.eyebrow { font-size: 11.5px; font-weight: 600; letter-spacing: .15em; text-transform: uppercase;
+  color: var(--accent-ink); margin-bottom: 11px; }
+h1 { font-family: Lora, Georgia, serif; font-weight: 700;
+  font-size: clamp(28px,4.1vw,42px); line-height: 1.12; letter-spacing: -.015em;
+  margin: 0 0 12px; text-wrap: balance; }
+.standfirst { font-size: 17px; color: var(--ink-2); max-width: 68ch; margin: 0; }
+.stamp { margin-top: 16px; font-size: 13px; color: var(--ink-3); display: flex; flex-wrap: wrap; gap: 18px; }
+.stamp b { color: var(--ink-2); font-weight: 600; }
+
+.rail { position: sticky; top: 24px; display: flex; flex-direction: column; gap: 1px; }
+.rail a { font-size: 13.5px; color: var(--ink-2); text-decoration: none; padding: 6px 10px;
+  border-radius: 6px; border-left: 2px solid transparent; }
+.rail a:hover { background: var(--surface-2); color: var(--ink); }
+.rail a.lead { font-weight: 600; color: var(--ink); margin-top: 10px; }
+.rail a.lead:first-child { margin-top: 0; }
+
+main { display: flex; flex-direction: column; gap: 40px; min-width: 0; }
+section { scroll-margin-top: 20px; }
+h2 { font-family: Lora, Georgia, serif; font-size: clamp(21px,2.4vw,27px);
+  font-weight: 700; line-height: 1.2; letter-spacing: -.01em; margin: 0 0 10px;
+  text-wrap: balance; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+h3 { font-size: 15.5px; font-weight: 600; margin: 24px 0 8px; }
+p { margin: 0 0 13px; max-width: 70ch; }
+p:last-child { margin-bottom: 0; }
+a { color: var(--accent-ink); text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 34%, transparent); }
+a:hover { border-bottom-color: var(--accent); }
+strong { font-weight: 600; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+/* sơ đồ luồng */
+.map { background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 20px; box-shadow: var(--shadow); overflow-x: auto; }
+.map svg { display: block; min-width: 620px; width: 100%; height: auto; }
+.map .box { fill: var(--surface-2); stroke: var(--line); }
+.map .boxa { fill: var(--accent-soft); stroke: color-mix(in srgb, var(--accent) 40%, transparent); }
+.map .t { fill: var(--ink); font-family: "Be Vietnam Pro", sans-serif; font-size: 13px; font-weight: 600; }
+.map .t2 { fill: var(--ink-3); font-family: "Be Vietnam Pro", sans-serif; font-size: 11px; }
+.map .ar { stroke: var(--ink-3); fill: none; stroke-width: 1.4; }
+.map .arh { fill: var(--ink-3); }
+
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; margin-top: 14px; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 540px; }
+th, td { text-align: left; padding: 9px 13px; border-bottom: 1px solid var(--line-2); vertical-align: top; }
+th { background: var(--surface-2); font-size: 11px; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--ink-3); }
+tbody tr:last-child td { border-bottom: 0; }
+td code, th code { white-space: nowrap; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.badge { display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11.5px; font-weight: 600; padding: 2px 8px; border-radius: 99px;
+  border: 1px solid transparent; white-space: nowrap; }
+.badge.fb { background: color-mix(in srgb, var(--fb) 12%, transparent); color: var(--fb); }
+.badge.tt2 { background: color-mix(in srgb, var(--tt) 12%, transparent); color: var(--tt); border-color: var(--line); }
+.badge.gg { background: color-mix(in srgb, var(--gg) 14%, transparent); color: var(--gg); }
+.badge.ok { background: var(--ok-soft); color: var(--ok); }
+.badge.warn { background: var(--warn-soft); color: var(--warn); }
+.badge.stop { background: var(--stop-soft); color: var(--stop); }
+.badge.plain { background: var(--surface-2); color: var(--ink-2); border-color: var(--line); }
+
+.codeblock { margin: 13px 0; }
+.codeblock pre { margin: 0; background: var(--code-bg); color: var(--code-ink);
+  border: 1px solid var(--line); border-radius: 9px; padding: 12px 15px; overflow-x: auto;
+  font-family: "JetBrains Mono", ui-monospace, Consolas, monospace; font-size: 12.5px; line-height: 1.6; }
+.codeblock .cap { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  font-size: 11.5px; color: var(--ink-3); font-weight: 600; letter-spacing: .04em;
+  text-transform: uppercase; margin-bottom: 5px; }
+.copy { font: inherit; font-size: 11.5px; font-weight: 600; letter-spacing: 0; text-transform: none;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink-2);
+  border-radius: 6px; padding: 2px 8px; cursor: pointer; }
+.copy:hover { background: var(--accent-soft); color: var(--accent-ink); border-color: var(--accent); }
+code:not(pre code) { font-family: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  font-size: .875em; background: var(--surface-2); border: 1px solid var(--line-2);
+  padding: 1px 5px; border-radius: 5px; word-break: break-word; }
+
+.callout { border-radius: 10px; padding: 13px 15px; margin: 15px 0;
+  border: 1px solid var(--line); background: var(--surface-2);
+  display: flex; gap: 11px; align-items: flex-start; }
+.callout .flag { flex: none; font-size: 10px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; padding: 3px 8px; border-radius: 5px; margin-top: 3px;
+  background: var(--accent); color: var(--surface); }
+.callout > div:last-child { min-width: 0; }
+.callout p { font-size: 14.5px; margin-bottom: 8px; }
+.callout.stop { background: var(--stop-soft); border-color: color-mix(in srgb, var(--stop) 30%, transparent); }
+.callout.stop .flag { background: var(--stop); }
+.callout.warn { background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 30%, transparent); }
+.callout.warn .flag { background: var(--warn); }
+.callout.ok { background: var(--ok-soft); border-color: color-mix(in srgb, var(--ok) 30%, transparent); }
+.callout.ok .flag { background: var(--ok); }
+
+ul.plain, ol.plain { margin: 0 0 13px; padding-left: 21px; }
+ul.plain li, ol.plain li { margin-bottom: 6px; max-width: 68ch; }
+.small { font-size: 13.5px; color: var(--ink-2); }
+
+/* việc định kỳ */
+.nhip { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; margin-top: 14px; }
+@media (max-width: 820px) { .nhip { grid-template-columns: 1fr; } }
+.nhip .n { background: var(--surface); border: 1px solid var(--line); border-radius: 11px;
+  padding: 14px 16px; box-shadow: var(--shadow); }
+.nhip .n h4 { margin: 0 0 4px; font-size: 14px; font-weight: 700;
+  font-family: Lora, Georgia, serif; }
+.nhip .n .khi { font-size: 11px; text-transform: uppercase; letter-spacing: .07em;
+  color: var(--accent-ink); font-weight: 600; margin-bottom: 8px; }
+.nhip .n ul { margin: 0; padding-left: 17px; font-size: 13.5px; }
+.nhip .n li { margin-bottom: 5px; }
+
+.dung { border-left: 3px solid var(--stop); padding-left: 14px; margin: 16px 0; }
+.dung h4 { margin: 0 0 4px; font-size: 14.5px; font-weight: 600; color: var(--stop); }
+.dung p { font-size: 14px; margin-bottom: 0; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">Rooty Trip · Sổ tay vận hành</div>
+    <h1>Base quảng cáo chạy thế nào, và làm gì khi nó hỏng</h1>
+    <p class="standfirst">
+      Ba nền tảng quảng cáo tự đổ số vào Lark Base mỗi giờ, không ai nhập tay. Tài liệu này
+      mô tả hệ thống đang chạy, cách đọc số cho đúng, việc cần làm định kỳ, và bảng tra khi
+      có sự cố — để ba tháng sau đọc lại vẫn vận hành được, và người khác cũng tiếp quản được.
+    </p>
+    <div class="stamp">
+      <span><b>Base:</b> Quản lý Quảng cáo TikTok &amp; Facebook</span>
+      <span><b>Kênh:</b> Facebook · TikTok · Google Ads</span>
+      <span><b>Cập nhật:</b> 31/08/2026</span>
+    </div>
+  </header>
+
+  <aside class="rail">
+    <a class="lead" href="#somap">Hệ thống trong một trang</a>
+    <a href="#haiban">Hai bản đang chạy</a>
+    <a class="lead" href="#base">Cấu trúc Base</a>
+    <a href="#cotdung">Cột không được sửa</a>
+    <a class="lead" href="#docso">Đọc số cho đúng</a>
+    <a href="#chisocv">Chỉ số chuyển đổi</a>
+    <a href="#thaydoi">Vì sao số cũ thay đổi</a>
+    <a class="lead" href="#dinhky">Việc định kỳ</a>
+    <a href="#cactab">10 tab trong app</a>
+    <a href="#canhbao">Cảnh báo nghĩa là gì</a>
+    <a class="lead" href="#suco">Bảng tra sự cố</a>
+    <a href="#dungbaogio">Tuyệt đối đừng làm</a>
+    <a href="#lenh">Lệnh hay dùng</a>
+    <a href="#dangdong">Việc còn đọng</a>
+  </aside>
+
+  <main>
+
+    <!-- ================= SƠ ĐỒ ================= -->
+    <section id="somap">
+      <h2>Hệ thống trong một trang</h2>
+      <div class="map">
+        <svg viewBox="0 0 660 260" role="img" aria-label="Sơ đồ luồng dữ liệu từ ba nền tảng quảng cáo qua app tới Lark Base">
+          <rect class="box" x="0" y="14" width="132" height="40" rx="8"/>
+          <text class="t" x="14" y="34">Facebook / Meta</text>
+          <text class="t2" x="14" y="48">2 tài khoản</text>
+
+          <rect class="box" x="0" y="70" width="132" height="40" rx="8"/>
+          <text class="t" x="14" y="90">TikTok</text>
+          <text class="t2" x="14" y="104">5 tài khoản · 1 có chi</text>
+
+          <rect class="box" x="0" y="126" width="132" height="40" rx="8"/>
+          <text class="t" x="14" y="146">Google Ads</text>
+          <text class="t2" x="14" y="160">1 tài khoản dưới MCC</text>
+
+          <path class="ar" d="M132 34 H196 V90"/>
+          <path class="ar" d="M132 90 H196"/>
+          <path class="ar" d="M132 146 H196 V90"/>
+          <path class="arh" d="M196 90 l0 -5 l10 5 l-10 5 z"/>
+
+          <rect class="boxa" x="210" y="56" width="176" height="70" rx="9"/>
+          <text class="t" x="226" y="80">App trên Render</text>
+          <text class="t2" x="226" y="96">tự chạy mỗi 1 giờ</text>
+          <text class="t2" x="226" y="110">ghi lại 7 ngày gần nhất</text>
+
+          <path class="ar" d="M386 91 H460"/>
+          <path class="arh" d="M460 91 l0 -5 l10 5 l-10 5 z"/>
+
+          <rect class="box" x="474" y="56" width="176" height="70" rx="9"/>
+          <text class="t" x="490" y="80">Lark Base</text>
+          <text class="t2" x="490" y="96">7 bảng · lịch sử lâu dài</text>
+          <text class="t2" x="490" y="110">nơi cả đội cùng xem</text>
+
+          <path class="ar" d="M298 126 V186 H150"/>
+          <path class="arh" d="M150 186 l5 -5 l-5 10 l-5 -5 z" transform="rotate(-90 150 186)"/>
+          <text class="t2" x="160" y="182">màn hình app đọc trực tiếp nền tảng cho 14 ngày gần nhất</text>
+
+          <path class="ar" d="M562 126 V210 H320"/>
+          <path class="arh" d="M320 210 l5 -5 l-5 10 l-5 -5 z" transform="rotate(-90 320 210)"/>
+          <text class="t2" x="330" y="206">lịch sử xa hơn 14 ngày lấy từ Base</text>
+
+          <rect class="box" x="0" y="228" width="660" height="30" rx="8"/>
+          <text class="t2" x="14" y="247">Hỏng ở đâu → app tự chấm sức khoẻ sau mỗi lượt, hiện băng đỏ ở tab Kết nối &amp; Đồng bộ</text>
+        </svg>
+      </div>
+
+      <p style="margin-top:16px">
+        Điểm cần nhớ: <strong>Base là bộ nhớ lâu dài, nền tảng là nguồn đúng.</strong> Mỗi giờ app
+        gọi cả ba nền tảng, ghi lại <strong>7 ngày gần nhất</strong> vào Base. Còn khi anh mở màn hình
+        app, số 14 ngày gần nhất được gọi <em>trực tiếp</em> từ nền tảng nên luôn mới, không phải chờ
+        tới lượt đồng bộ.
+      </p>
+    </section>
+
+    <!-- ================= HAI BẢN ================= -->
+    <section id="haiban">
+      <h2>Hai bản đang chạy</h2>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Bản</th><th>Vai trò</th><th>Cấu hình đọc từ</th><th>Hẹn giờ</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Render</strong> (server chung)</td>
+              <td>Bản chính. Chạy kể cả khi máy anh tắt.</td>
+              <td>Biến môi trường <code>ADS_CONNECT_JSON</code></td>
+              <td>Mỗi 1 giờ, tự động</td>
+            </tr>
+            <tr>
+              <td><strong>Máy anh</strong> — <code>localhost:5176</code></td>
+              <td>Dự phòng, và để chạy lệnh sửa chữa</td>
+              <td>File <code>ket-noi.json</code></td>
+              <td>Tác vụ Windows <code>RootyAdsSync</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout warn">
+        <span class="flag">Quy tắc</span>
+        <div><p style="margin-bottom:0">Chỉ nên để <strong>một bên</strong> bật hẹn giờ. Cả hai cùng chạy thì
+        không sai số — khoá ghi là (quảng cáo × ngày) nên ghi đè chứ không cộng dồn — nhưng gọi API gấp đôi
+        và khó lần ra ai vừa ghi gì. Render là bản chính, nên tắt tác vụ ở máy bằng
+        <code>xoa-tac-vu.bat</code>.</p></div>
+      </div>
+      <div class="callout stop">
+        <span class="flag">Bẫy Render</span>
+        <div>
+          <p>Ổ đĩa Render là <strong>tạm</strong>. Token điền qua form trên web nằm trên ổ đĩa đó, và
+          <strong>file đè lên biến môi trường</strong> — nên chạy đúng ngay lúc đó, rồi mất sạch ở lần deploy sau.</p>
+          <p style="margin-bottom:0">Đổi token thì <strong>luôn cập nhật biến <code>ADS_CONNECT_JSON</code></strong>,
+          đừng chỉ điền form. App có băng đỏ cảnh báo đúng tình huống này.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= BASE ================= -->
+    <section id="base">
+      <h2>Cấu trúc Base</h2>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Bảng</th><th class="num">Bản ghi</th><th>Dùng để</th><th>Ai ghi</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Chiến dịch</strong></td><td class="num">7</td>
+              <td>Ngân sách, mục tiêu, trạng thái, người phụ trách</td><td>Người + app</td></tr>
+            <tr><td><strong>Nhóm quảng cáo</strong></td><td class="num">11</td>
+              <td>Tệp đối tượng, vị trí hiển thị, cách tối ưu</td><td>Người + app</td></tr>
+            <tr><td><strong>Quảng cáo</strong></td><td class="num">20</td>
+              <td>Creative, trạng thái duyệt, link</td><td>Người + app</td></tr>
+            <tr><td><strong>Hiệu suất theo ngày</strong></td><td class="num">296</td>
+              <td><strong>Trái tim hệ thống</strong> — mỗi dòng là 1 quảng cáo × 1 ngày</td><td>App</td></tr>
+            <tr><td>Sản phẩm &amp; Tour</td><td class="num">6</td>
+              <td>Gắn chiến dịch với sản phẩm</td><td>Người</td></tr>
+            <tr><td>Báo cáo CPA (ngày × kênh)</td><td class="num">459</td>
+              <td>Bảng phụ để dashboard Lark lọc được CPA theo ngày</td><td>Công thức Lark</td></tr>
+            <tr><td>Báo cáo Sales (theo ngày)</td><td class="num">0</td>
+              <td>Doanh thu để tính ROAS — <strong>đang trống</strong></td><td>Sales nhập</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="margin-top:14px">
+        Mọi con số trong app đều cộng lại từ bảng <strong>Hiệu suất theo ngày</strong>, không dùng cột
+        công thức của Lark. Lý do: công thức Lark chỉ tính được cả kỳ hoặc "hôm nay", không lọc được
+        khoảng ngày bất kỳ.
+      </p>
+
+      <h3 id="cotdung">Cột không được sửa</h3>
+      <p>Bốn cột có tiền tố <strong>⚙️</strong> là của hệ thống. Sửa hoặc xoá là đồng bộ khớp sai bản ghi.</p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Bảng</th><th>Cột</th><th>Chứa gì</th></tr></thead>
+          <tbody>
+            <tr><td>Chiến dịch</td><td><code>⚙️ ID chiến dịch (nền tảng)</code></td><td>ID gốc bên Meta/TikTok/Google</td></tr>
+            <tr><td>Nhóm quảng cáo</td><td><code>⚙️ ID nhóm (nền tảng)</code></td><td>ID gốc của ad set / ad group</td></tr>
+            <tr><td>Quảng cáo</td><td><code>⚙️ ID quảng cáo (nền tảng)</code></td><td>ID gốc của quảng cáo</td></tr>
+            <tr><td>Hiệu suất theo ngày</td><td><code>⚙️ Nguồn</code></td><td>Dòng này từ đâu: Nhập tay / Meta API / TikTok API / Google Ads / CSV</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="small" style="margin-top:12px">
+        Tên chiến dịch, tên quảng cáo thì <strong>sửa được</strong> — sau lần đồng bộ đầu app đã ghi ID vào
+        nên nó khớp theo ID, không phụ thuộc tên nữa.
+      </p>
+    </section>
+
+    <!-- ================= ĐỌC SỐ ================= -->
+    <section id="docso">
+      <h2>Đọc số cho đúng</h2>
+      <p>
+        Trên thanh trên app có chip <strong>🟢 Trực tiếp · Facebook, TikTok, Google Ads</strong> kèm giờ.
+        Bấm vào để đổi giữa hai nguồn:
+      </p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Chip</th><th>Số ở đâu ra</th><th>Khi nào dùng</th></tr></thead>
+          <tbody>
+            <tr><td><span class="badge ok">Trực tiếp</span></td>
+              <td>14 ngày gần nhất gọi thẳng nền tảng, cũ hơn lấy từ Base</td>
+              <td>Mặc định. Xem tình hình hôm nay, ra quyết định tăng/giảm</td></tr>
+            <tr><td><span class="badge warn">Số trong Base</span></td>
+              <td>Toàn bộ từ Lark Base, đúng như lượt đồng bộ gần nhất</td>
+              <td>Khi cần khớp với những gì cả đội đang thấy trên Base</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="small" style="margin-top:12px">
+        Hai nguồn lệch nhau vài phần nghìn là <strong>bình thường</strong> — nền tảng vẫn đang cập nhật.
+        Lệch trên 5% thì mới đáng nghi, và app có test tự bắt ngưỡng đó.
+      </p>
+
+      <h3 id="chisocv">Chỉ số chuyển đổi đang dùng</h3>
+      <p>
+        Đây là chỗ quyết định mọi con số CPA. Mỗi nền tảng đếm khác nhau:
+      </p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Nền tảng</th><th>Chỉ số</th><th>Nghĩa</th></tr></thead>
+          <tbody>
+            <tr><td><span class="badge fb">Facebook</span></td>
+              <td><code>onsite_conversion.messaging_conversation_started_7d</code></td>
+              <td>Cuộc trò chuyện qua tin nhắn bắt đầu — đúng cho chiến dịch mục tiêu Tin nhắn</td></tr>
+            <tr><td><span class="badge tt2">TikTok</span></td><td><code>conversion</code></td>
+              <td>Tổng chuyển đổi</td></tr>
+            <tr><td><span class="badge gg">Google Ads</span></td><td><code>conversions</code></td>
+              <td>Chuyển đổi theo cấu hình trong Google Ads</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout warn">
+        <span class="flag">Cần biết</span>
+        <div><p style="margin-bottom:0">Ba chỉ số này <strong>không cùng đơn vị nghiệp vụ</strong>. Một "cuộc trò
+        chuyện tin nhắn" bên Facebook không tương đương một "conversion" bên TikTok. So CPA giữa các kênh
+        chỉ mang tính tham khảo, không phải so cùng thước đo. Muốn so công bằng thì phải quy về đơn hàng
+        thật ở bảng <strong>Báo cáo Sales</strong> — bảng đó đang trống.</p></div>
+      </div>
+      <p class="small">
+        Đổi chỉ số: chạy <code>node ket-noi.js --meta</code>, tới màn danh sách loại chuyển đổi thì chọn số
+        khác. App in kèm CPA ước tính để đối chiếu với Ads Manager trước khi chốt.
+      </p>
+
+      <h3 id="thaydoi">Vì sao số của ngày cũ vẫn thay đổi</h3>
+      <p>
+        Không phải lỗi. Các nền tảng <strong>khai báo lại chuyển đổi tới 7 ngày sau</strong> — Facebook mặc
+        định cửa sổ 7 ngày sau click. Nên mỗi lượt đồng bộ ghi lại <strong>7 ngày gần nhất</strong> chứ
+        không chỉ hôm nay, và số của thứ Ba có thể còn nhúc nhích tới thứ Hai tuần sau.
+      </p>
+      <p>
+        Hệ quả cần chấp nhận: <strong>đừng chốt báo cáo trong vòng 7 ngày.</strong> Số của tuần này chỉ ổn
+        định sau khi qua tuần sau.
+      </p>
+    </section>
+
+    <!-- ================= ĐỊNH KỲ ================= -->
+    <section id="dinhky">
+      <h2>Việc định kỳ</h2>
+      <div class="nhip">
+        <div class="n">
+          <div class="khi">Mỗi ngày · 2 phút</div>
+          <h4>Nhìn một lượt</h4>
+          <ul>
+            <li>Mở app, xem chip trên cùng có <strong>đủ tên 3 kênh</strong> không</li>
+            <li>Tab <strong>Cảnh báo</strong> — có cảnh báo <strong>đỏ</strong> nào mới không</li>
+            <li>Tab Tổng quan — chi tiêu hôm nay có bất thường không</li>
+          </ul>
+        </div>
+        <div class="n">
+          <div class="khi">Mỗi tuần · 15 phút</div>
+          <h4>Soát và quyết định</h4>
+          <ul>
+            <li>Tab <strong>Quảng cáo</strong>, lọc 7 ngày, đọc cột <strong>Khuyến nghị</strong></li>
+            <li>Tab <strong>Nền tảng</strong> — kênh nào đang rẻ hơn</li>
+            <li>Đối chiếu tổng chi 1 kênh với Ads Manager một lần cho chắc</li>
+            <li>Xem <strong>Ghép ID nền tảng</strong> còn bản ghi nào chưa có ID</li>
+          </ul>
+        </div>
+        <div class="n">
+          <div class="khi">Mỗi tháng · 30 phút</div>
+          <h4>Bảo dưỡng</h4>
+          <ul>
+            <li>Cập nhật <strong>ngân sách</strong> chiến dịch cho tháng mới</li>
+            <li>Xem lại <strong>🎯 Mục tiêu</strong> — CPA mục tiêu còn hợp lý không</li>
+            <li>Kiểm token còn hạn (Facebook/Google vĩnh viễn, TikTok nên xem)</li>
+            <li>Dọn dòng nhập trùng nếu cảnh báo còn báo</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TABS ================= -->
+    <section id="cactab">
+      <h2>10 tab trong app</h2>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Tab</th><th>Trả lời câu hỏi gì</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Tổng quan</strong></td><td>Tuần này tiêu bao nhiêu, ra bao nhiêu, so tuần trước thế nào</td></tr>
+            <tr><td><strong>Nền tảng</strong></td><td>Facebook, TikTok hay Google đang rẻ hơn</td></tr>
+            <tr><td><strong>Chiến dịch</strong></td><td>Chiến dịch nào vượt ngân sách, sức khoẻ ra sao</td></tr>
+            <tr><td><strong>Nhóm quảng cáo</strong></td><td>Tệp đối tượng nào hiệu quả</td></tr>
+            <tr><td><strong>Quảng cáo</strong></td><td>Nên tăng ngân sách, giữ, tối ưu hay tắt cái nào</td></tr>
+            <tr><td>Nhập số hằng ngày</td><td>Chỉ dùng khi API một kênh hỏng. Bình thường không cần</td></tr>
+            <tr><td><strong>Dữ liệu theo ngày</strong></td><td>Dòng thô — nơi sửa, xoá, xuất CSV</td></tr>
+            <tr><td><strong>Cảnh báo</strong></td><td>Có gì cần xử lý ngay</td></tr>
+            <tr><td>Doanh thu &amp; ROAS</td><td>Quảng cáo có lãi không — cần bảng Sales có dữ liệu</td></tr>
+            <tr><td><strong>Kết nối &amp; Đồng bộ</strong></td><td>Hệ thống có khoẻ không, đồng bộ lần cuối lúc nào</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ================= CẢNH BÁO ================= -->
+    <section id="canhbao">
+      <h2>Cảnh báo nghĩa là gì</h2>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Nhóm</th><th>Khi nào bật</th><th>Làm gì</th></tr></thead>
+          <tbody>
+            <tr><td>Ngân sách</td><td>Chi vượt hoặc ≥80% ngân sách chiến dịch</td><td>Tăng ngân sách hoặc tắt chiến dịch</td></tr>
+            <tr><td>Ngân sách ngày</td><td>Hôm nay chi vượt ngân sách/ngày</td><td>Kiểm cấu hình bên nền tảng</td></tr>
+            <tr><td>Lịch chạy</td><td>Chiến dịch quá ngày kết thúc mà vẫn "Đang chạy"</td><td>Cập nhật trạng thái trong Base</td></tr>
+            <tr><td>Dữ liệu</td><td>Quảng cáo đang chạy mà thiếu số, hoặc <strong>nhập trùng</strong></td><td>Xem tab Dữ liệu theo ngày</td></tr>
+            <tr><td>Hiệu suất</td><td>Chi nhiều mà 0 chuyển đổi, CPA cao, CTR thấp</td><td>Quyết định tắt hay tối ưu</td></tr>
+            <tr><td>Cấu hình</td><td>Trạng thái duyệt lệch với thực tế chi tiêu</td><td>Sửa trạng thái trong Base</td></tr>
+            <tr><td>Biến động</td><td>Chi hôm nay tăng &gt;50% so trung bình 7 ngày</td><td>Kiểm có ai đổi ngân sách không</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="small" style="margin-top:12px">
+        Ngưỡng đặt ở nút <strong>🎯 Mục tiêu</strong>. Hiện tại: CPA mục tiêu Facebook 22.000đ · TikTok 25.000đ ·
+        Google 30.000đ · CTR tối thiểu 1% · chi tối thiểu để kết luận 300.000đ.
+      </p>
+    </section>
+
+    <!-- ================= SỰ CỐ ================= -->
+    <section id="suco">
+      <h2>Bảng tra sự cố</h2>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Hiện tượng</th><th>Nguyên nhân thường gặp</th><th>Xử lý</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Chip trên cùng <strong>thiếu tên một kênh</strong></td>
+              <td>Kênh đó gọi API lỗi</td>
+              <td>Tab Kết nối xem băng đỏ, hoặc chạy <code>node dong-bo.js --kiem-tra</code></td>
+            </tr>
+            <tr>
+              <td>Meta <code>API access blocked</code></td>
+              <td>Meta App bị hạn chế (không phải token)</td>
+              <td>Đổi token sang App khác, hoặc xác minh doanh nghiệp</td>
+            </tr>
+            <tr>
+              <td>Meta <code>code 190</code></td>
+              <td>Token bị thu hồi</td>
+              <td>Tạo mã mới trong Business Manager → <code>node ket-noi.js --meta</code></td>
+            </tr>
+            <tr>
+              <td>Meta <code>code 200</code></td>
+              <td>Thiếu quyền <code>ads_read</code>, hoặc chưa gán tài khoản cho system user</td>
+              <td>Kiểm mục Tài sản đã chỉ định của system user</td>
+            </tr>
+            <tr>
+              <td>TikTok <code>40105</code></td>
+              <td>Token sai hoặc dán nhầm App Secret</td>
+              <td><code>node ket-noi.js --tiktok</code>, chọn "chưa có token" để lấy lại</td>
+            </tr>
+            <tr>
+              <td>TikTok <code>40002</code></td>
+              <td>Tên trường API sai</td>
+              <td>Lỗi code, không phải cấu hình — báo lại để sửa</td>
+            </tr>
+            <tr>
+              <td>Google không lấy được số</td>
+              <td>Refresh token bị thu hồi, hoặc developer token hết hiệu lực</td>
+              <td><code>node ket-noi.js --google-api</code> lấy lại refresh token</td>
+            </tr>
+            <tr>
+              <td>Số một kênh <strong>đứng yên</strong> nhiều ngày</td>
+              <td>API trả lỗi âm thầm, hoặc kênh bị tắt</td>
+              <td>Giám sát tự bắt sau 2 ngày và hiện băng đỏ</td>
+            </tr>
+            <tr>
+              <td>Số Base <strong>ít hơn</strong> Ads Manager nhiều</td>
+              <td>Thiếu tài khoản quảng cáo trong cấu hình, hoặc sai chỉ số chuyển đổi</td>
+              <td>Chạy <code>node ket-noi.js --meta</code> xem có tài khoản nào chưa khai</td>
+            </tr>
+            <tr>
+              <td>Một quảng cáo hiện <strong>hai lần</strong></td>
+              <td>Đồng bộ tạo bản ghi mới thay vì khớp bản cũ (tên lệch)</td>
+              <td>Dán ID nền tảng vào đúng bản ghi ở bảng <strong>Ghép ID nền tảng</strong></td>
+            </tr>
+            <tr>
+              <td>Cảnh báo <strong>Nhập trùng</strong></td>
+              <td>Cùng quảng cáo, cùng ngày, hai dòng — số bị cộng dồn</td>
+              <td>Xoá dòng sai ở tab Dữ liệu theo ngày. Đồng bộ <strong>không</strong> tự dọn</td>
+            </tr>
+            <tr>
+              <td>Sau deploy Render, kênh <strong>về "Chưa cấu hình"</strong></td>
+              <td>Token nằm trên ổ đĩa tạm, không phải biến môi trường</td>
+              <td>Cập nhật <code>ADS_CONNECT_JSON</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ================= ĐỪNG ================= -->
+    <section id="dungbaogio">
+      <h2>Tuyệt đối đừng làm</h2>
+
+      <div class="dung">
+        <h4>Đừng bật cả hai nguồn Google</h4>
+        <p>“Google Ads (API)” và “Google Ads (qua Google Sheet)” cùng ghi nhãn <em>Google Ads</em>. Bật cả hai là
+        chi tiêu Google vào Base hai lần — sai gấp đôi mà nhìn số vẫn hợp lý. App đã có chốt tự bỏ nguồn Sheet,
+        nhưng tốt nhất để nó tắt.</p>
+      </div>
+
+      <div class="dung">
+        <h4>Đừng xoá hay đổi cột ⚙️</h4>
+        <p>Bốn cột ID nền tảng là khoá khớp bản ghi. Xoá là lần đồng bộ sau tạo lại toàn bộ chiến dịch, nhóm,
+        quảng cáo — Base nhân đôi.</p>
+      </div>
+
+      <div class="dung">
+        <h4>Đừng dùng <code>form-questions-delete</code> trên Base này</h4>
+        <p>Lệnh đó không chỉ gỡ câu hỏi khỏi form — nó <strong>xoá luôn cột và toàn bộ dữ liệu</strong>, và nếu
+        là cột liên kết hai chiều thì xoá cả cột đối ứng bên bảng kia. Đã từng mất 4 ngày dữ liệu vì lệnh này.
+        Undo trình duyệt không cứu được.</p>
+      </div>
+
+      <div class="dung">
+        <h4>Đừng chốt báo cáo trong vòng 7 ngày</h4>
+        <p>Nền tảng còn khai báo lại chuyển đổi. Số chỉ ổn định sau 7 ngày.</p>
+      </div>
+
+      <div class="dung">
+        <h4>Đừng chỉ điền token vào form trên Render</h4>
+        <p>Mất ở lần deploy sau. Luôn cập nhật biến <code>ADS_CONNECT_JSON</code>.</p>
+      </div>
+    </section>
+
+    <!-- ================= LỆNH ================= -->
+    <section id="lenh">
+      <h2>Lệnh hay dùng</h2>
+      <p class="small">Chạy trong <code>C:\Users\ASUS\.agents\lark-ads-manager</code></p>
+
+      <div class="codeblock">
+        <div class="cap"><span>Kiểm tra ba kênh còn sống không</span><button class="copy" type="button">Copy</button></div>
+        <pre>node dong-bo.js --kiem-tra</pre>
+      </div>
+      <div class="codeblock">
+        <div class="cap"><span>Xem trước, không ghi gì vào Base</span><button class="copy" type="button">Copy</button></div>
+        <pre>node dong-bo.js --xem-truoc --ngay 14</pre>
+      </div>
+      <div class="codeblock">
+        <div class="cap"><span>Đồng bộ ngay · lấy bù một khoảng ngày</span><button class="copy" type="button">Copy</button></div>
+<pre>node dong-bo.js
+node dong-bo.js --tu 2026-08-01 --den 2026-08-31</pre>
+      </div>
+      <div class="codeblock">
+        <div class="cap"><span>Chấm sức khoẻ hệ thống</span><button class="copy" type="button">Copy</button></div>
+        <pre>node giam-sat.js</pre>
+      </div>
+      <div class="codeblock">
+        <div class="cap"><span>Nối lại một kênh</span><button class="copy" type="button">Copy</button></div>
+<pre>node ket-noi.js --meta
+node ket-noi.js --tiktok
+node ket-noi.js --google-api</pre>
+      </div>
+      <div class="codeblock">
+        <div class="cap"><span>Mở app · bật hoặc tắt chạy nền ở máy</span><button class="copy" type="button">Copy</button></div>
+<pre>start.bat
+cai-tac-vu.bat
+xoa-tac-vu.bat</pre>
+      </div>
+      <div class="codeblock">
+        <div class="cap"><span>Chạy toàn bộ bộ kiểm thử</span><button class="copy" type="button">Copy</button></div>
+<pre>node test/api.test.js
+node test/sync.test.js</pre>
+      </div>
+    </section>
+
+    <!-- ================= ĐANG ĐỌNG ================= -->
+    <section id="dangdong">
+      <h2>Việc còn đọng</h2>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Việc</th><th>Ảnh hưởng</th><th>Ai làm</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>3 dòng nhập trùng</strong> trong Base (16/08 ×2, 17/08 ×1)</td>
+              <td>Số của mấy ngày đó bị cộng dồn, cao hơn thực tế</td>
+              <td>Xoá tay ở tab Dữ liệu theo ngày</td>
+            </tr>
+            <tr>
+              <td><strong>Bảng Báo cáo Sales trống</strong></td>
+              <td>Tab Doanh thu &amp; ROAS không có số. Không biết quảng cáo có lãi hay không</td>
+              <td>Sales nhập đơn đã chốt</td>
+            </tr>
+            <tr>
+              <td><strong>Nhắc qua Lark khi hỏng</strong> đang tắt</td>
+              <td>Hỏng thì chỉ biết khi mở app. Facebook từng chết 3 ngày mới phát hiện</td>
+              <td>Bật khi cần</td>
+            </tr>
+            <tr>
+              <td><strong>2 dòng chưa gắn quảng cáo</strong> (26/08, 24.273đ)</td>
+              <td>Không vào được chiến dịch nào, lọt khỏi mọi báo cáo theo kênh</td>
+              <td>Tab Dữ liệu theo ngày → Sửa → chọn quảng cáo</td>
+            </tr>
+            <tr>
+              <td><strong>Google Ads CPA 86.327đ</strong> so với mục tiêu 30.000đ</td>
+              <td>Không phải lỗi hệ thống — là vấn đề hiệu quả cần xem</td>
+              <td>Quyết định về quảng cáo</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  document.querySelectorAll('.codeblock').forEach(function (block) {
+    var btn = block.querySelector('.copy');
+    var pre = block.querySelector('pre');
+    if (!btn || !pre) return;
+    btn.addEventListener('click', function () {
+      var done = function () {
+        var old = btn.textContent;
+        btn.textContent = 'Đã copy';
+        setTimeout(function () { btn.textContent = old; }, 1400);
+      };
+      var fallback = function () {
+        var r = document.createRange();
+        r.selectNodeContents(pre);
+        var sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(r);
+        btn.textContent = 'Bấm Ctrl+C';
+        setTimeout(function () { btn.textContent = 'Copy'; }, 2200);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(pre.textContent).then(done, fallback);
+      } else fallback();
+    });
+  });
+})();
+</script>

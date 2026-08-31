@@ -130,7 +130,9 @@ const SYNONYMS = {
     'so tien da chi tieu', 'so tien da chi tieu vnd', 'tong chi phi', 'chi tieu', 'total cost'],
   impressions: ['impressions', 'impr', 'luot hien thi', 'hien thi', 'so luot hien thi', 'lan hien thi'],
   clicks: ['clicks all', 'clicks', 'luot click', 'so lan nhap', 'so lan nhap chuot', 'nhap chuot',
-    'link clicks', 'luot nhap vao lien ket', 'so luot click', 'clicks tat ca'],
+    'link clicks', 'luot nhap vao lien ket', 'so luot click', 'clicks tat ca',
+    // TikTok Ads Manager: "Lượt nhấp (đích đến)" / "Clicks (destination)"
+    'luot nhap', 'clicks destination', 'destination clicks'],
   conversions: ['conversions', 'conversion', 'chuyen doi', 'luot chuyen doi', 'so luot chuyen doi',
     'results', 'ket qua', 'total conversions', 'messaging conversations started',
     'cuoc hoi thoai qua tin nhan da bat dau', 'so cuoc hoi thoai qua tin nhan da bat dau',

@@ -167,14 +167,63 @@
       </div>`;
     }
 
+    // Băng cảnh báo sức khoẻ — tác vụ nền chạy mỗi 3 giờ và khi hỏng thì hỏng lặng lẽ,
+    // nên kết quả chấm điểm gần nhất phải đập vào mắt ngay khi mở tab.
+    const sk = c.sucKhoe;
+    const bangSucKhoe = !sk ? '' : (sk.khoe
+      ? `<div class="help" style="border-color:var(--good);color:var(--good)">
+           <b>Đồng bộ đang khoẻ</b> — kiểm lúc ${esc(new Date(sk.luc).toLocaleString('vi-VN'))}.
+           Số mới nhất: ${esc(Object.entries(sk.moiNhat || {}).map(([k, v]) => k + ' ' + v).join(' · '))}</div>`
+      : `<div class="help" style="border-color:var(--${sk.coLoiNang ? 'bad' : 'warn'});color:var(--${sk.coLoiNang ? 'bad' : 'warn'})">
+           <b>${sk.coLoiNang ? 'Đồng bộ đang hỏng' : 'Đồng bộ có vấn đề'}</b> — kiểm lúc ${esc(new Date(sk.luc).toLocaleString('vi-VN'))}
+           <ul style="margin:6px 0 0;padding-left:18px">
+             ${(sk.vanDe || []).map((v) => `<li>${v.nang ? '🔴' : '🟠'} ${esc(v.mo_ta)}</li>`).join('')}
+           </ul>
+           <div style="margin-top:6px">Số mới nhất: ${esc(Object.entries(sk.moiNhat || {}).map(([k, v]) => k + ' ' + v).join(' · '))}</div>
+         </div>`);
+
     const d = c.dongBo;
     view.innerHTML = `
-    ${c.fileTonTai ? '' : `<div class="help">
+    ${bangSucKhoe}`;
+    view.innerHTML += `
+    ${
+      // "Chưa nối kênh nào" phải xét theo có kênh nào SẴN SÀNG không, chứ không phải
+      // theo việc file có trên đĩa hay không — trên Render cấu hình đến từ biến môi
+      // trường nên không hề có file, mà kênh vẫn chạy ngon.
+      c.providers.some((p) => p.sanSang) ? '' : `<div class="help">
       Chưa nối kênh nào. Bấm <b>Điền thông tin</b> ở thẻ nền tảng bên dưới, dán token vào rồi <b>Lưu cấu hình</b> —
       app tự tạo <b>${esc(c.file)}</b> hộ, không phải sửa file tay.</div>`}
-    ${c.oDiaTam ? `<div class="help" style="border-color:var(--warn);color:var(--warn)">
+    ${
+      // Nguy hiểm nhất: đã có ADS_CONNECT_JSON nhưng vừa điền thêm token qua web.
+      // File tạm đè lên biến môi trường nên bây giờ chạy đúng, deploy sau là mất.
+      c.deLenBienMoiTruong ? `<div class="help" style="border-color:var(--bad);color:var(--bad)">
+      <b>Phần vừa điền sẽ mất khi deploy lại.</b> Anh đã khai <code>ADS_CONNECT_JSON</code> rồi, nhưng token
+      điền qua web này nằm trên ổ đĩa tạm và đang <b>đè lên</b> biến môi trường. Deploy lần sau file mất,
+      app tụt về biến môi trường và phần vừa thêm biến mất theo.
+      <br>Cách xử lý: cập nhật lại biến <code>ADS_CONNECT_JSON</code> cho có đủ cả các kênh vừa thêm.</div>`
+      : c.canhBaoODiaTam ? `<div class="help" style="border-color:var(--warn);color:var(--warn)">
       App đang chạy trên server chung, <b>ổ đĩa là tạm</b>: token điền ở đây sống tới lần deploy kế tiếp rồi mất.
       Muốn giữ lâu dài thì dán nội dung <b>${esc(c.file)}</b> vào biến môi trường <code>ADS_CONNECT_JSON</code> của Render.</div>` : ''}
+    ${(() => {
+      /* Câu hỏi thật của người dùng là "mai deploy xong tôi có phải gắn lại API
+       * không". Trả lời thẳng bằng tên kênh, đừng bắt họ tự suy từ chuyện
+       * "cấu hình nằm ở file hay ở biến môi trường". */
+      const b = c.benVung;
+      if (!b) return '';
+      const ten = { meta: 'Facebook', tiktok: 'TikTok', googleAds: 'Google Ads', googleSheet: 'Google Sheet' };
+      const list = (a) => a.map((k) => ten[k] || k).join(', ');
+      if (!b.dangChay.length) return '';
+      if (!b.canLo) {
+        return `<div class="help" style="border-color:var(--good);color:var(--good)">
+          <b>Deploy lại không mất gì.</b> ${esc(list(b.seCon))} đều được lưu ở ${esc(b.noiLuu)}.
+          Không phải gắn lại API.</div>`;
+      }
+      return `<div class="help" style="border-color:var(--bad);color:var(--bad)">
+        <b>Deploy lại sẽ mất: ${esc(list(b.seMat))}.</b>
+        ${b.seCon.length ? `Giữ được: ${esc(list(b.seCon))}.` : 'Không kênh nào được giữ.'}
+        <br>Chạy <code>node tao-env.js</code> trên máy rồi dán nội dung
+        <code>ADS_CONNECT_JSON.txt</code> vào biến <code>ADS_CONNECT_JSON</code> của Render.</div>`;
+    })()}
 
     <div class="help">Đồng bộ luôn ghi lại <b>${d.soNgayLui} ngày gần nhất</b>, không chỉ hôm nay — vì Meta/TikTok/Google còn khai báo lại chuyển đổi trong vài ngày.
     Khoá ghi là (quảng cáo × ngày) nên chạy lại bao nhiêu lần cũng không nhân dòng.

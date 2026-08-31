@@ -15,6 +15,7 @@ const M = require('./metrics');
 const ketnoi = require('./sync/ketnoi');
 const sync = require('./sync');
 const live = require('./sync/live');
+const giamSat = require('./giam-sat');
 const metaAds = require('./sync/meta');
 const gads = require('./sync/gads');
 
@@ -171,6 +172,17 @@ async function saveEntries(body) {
  * lịch sử xa hơn vẫn từ Base. Muốn ép về Base thì thêm ?nguon=base.
  * Ghi thì luôn dùng store.get() vì cần record_id thật của Base.
  */
+/** Kết quả chấm sức khoẻ gần nhất do tác vụ nền ghi lại. */
+function docSucKhoe() {
+  try {
+    const t = JSON.parse(fs.readFileSync(giamSat.FILE_TT, 'utf8'));
+    return {
+      khoe: t.khoe, coLoiNang: t.coLoiNang, luc: t.luc,
+      vanDe: t.van_de || [], moiNhat: t.moiNhat || {}, guiLark: t.guiLark || null,
+    };
+  } catch (_) { return null; }
+}
+
 async function dataFor(u) {
   const xin = u.searchParams.get('nguon');
   const muonLive = xin ? xin === 'live' : live.kenhDangBat().length > 0;
@@ -345,6 +357,8 @@ async function api(req, res, u) {
       ...ketnoi.status(),
       hengio: sync.schedulerState(),
       dangChay: !!sync.dangChay(),
+      sucKhoe: docSucKhoe(),
+      nguonBiBo: live.nguonBiBo(),
       lichSu: sync.history.slice(0, 15),
       adapters: sync.ADAPTERS,
     });

@@ -35,10 +35,34 @@ const TTL = Number(process.env.LARK_LIVE_TTL || 180000);   // 3 phút
 
 const now = () => Date.now();
 
+/**
+ * Hai nguồn cùng đại diện cho MỘT nền tảng thì chỉ được lấy một.
+ *
+ * `googleAds` (API) và `googleSheet` (script → Sheet) đều gắn nhãn "Google Ads".
+ * Bật cả hai là mỗi ngày Google bị cộng hai lần — sai gấp đôi mà nhìn số vẫn hợp lý,
+ * loại lỗi khó phát hiện nhất. Ưu tiên API vì nó tươi hơn và không phụ thuộc script.
+ */
+function boNguonTrung(keys) {
+  if (keys.includes('googleAds') && keys.includes('googleSheet')) {
+    return keys.filter((k) => k !== 'googleSheet');
+  }
+  return keys;
+}
+
+/** Nguồn bị bỏ vì trùng nền tảng với nguồn khác — để báo cho người dùng biết. */
+function nguonBiBo() {
+  const c = ketnoi.read();
+  const bat = (k) => c[k] && c[k].enabled;
+  if (bat('googleAds') && bat('googleSheet')) {
+    return [{ kenh: 'googleSheet', platform: 'Google Ads', ly_do: 'đã có Google Ads API, bỏ nguồn Sheet để không cộng đôi' }];
+  }
+  return [];
+}
+
 /** Các nền tảng đang bật và đã cấu hình xong. */
 function kenhDangBat() {
   const c = ketnoi.read();
-  return Object.keys(NGUON).filter((k) => {
+  return boNguonTrung(Object.keys(NGUON).filter((k) => {
     const cf = c[k];
     if (!cf || !cf.enabled) return false;
     if (k === 'googleSheet') return !!cf.csvUrl;
@@ -48,7 +72,7 @@ function kenhDangBat() {
         (cf.customerIds || []).length > 0);
     }
     return !!cf.accessToken && (cf.accountIds || cf.advertiserIds || []).length > 0;
-  });
+  }));
 }
 
 const chuan = (s) => String(s == null ? '' : s).toLowerCase()
@@ -219,7 +243,7 @@ async function duLieu(opts = {}) {
     minDate: dates[0] || store.todayKey(),
     maxDate: dates[dates.length - 1] || store.todayKey(),
     live: {
-      bat: true, nenTang, loi, from, to, soNgay,
+      bat: true, nenTang, loi, from, to, soNgay, biBo: nguonBiBo(),
       layLuc: new Date().toISOString(),
       soDong: liveDaily.length,
       chuaCoTrongBase: {
@@ -235,4 +259,4 @@ async function duLieu(opts = {}) {
 
 function xoaCache() { cache = null; }
 
-module.exports = { duLieu, xoaCache, kenhDangBat, layRows, TTL };
+module.exports = { duLieu, xoaCache, kenhDangBat, nguonBiBo, layRows, TTL };
