@@ -1643,7 +1643,8 @@ function renderDrawer() {
     fieldMulti('transport', 'Phương tiện', O.transport),
     'nguoi');
 
-  if (CHIPHI()) {
+  // phụ trách thấy tiền chuyến của mình, dù không có quyền xem chi phí cả phòng
+  if (CHIPHI() || laPhuTrach(t)) {
     h += khoi('Chi phí',
       '<div class="frm-2">' + fieldNum('costPlan', 'Chi phí dự kiến (đ)') +
         fieldNum('costActual', 'Chi phí thực tế (đ)', 'Cập nhật sau chuyến công tác') + '</div>' +
@@ -2078,8 +2079,8 @@ function moPhieuDi(id) {
   muc('Thời lượng', t.duration ? chu(t.duration + ' giờ') : '');
   muc('Thời gian kết thúc', t.end ? chu(fmtDT(t.end)) : '');
   if (t.end) muc('Thời lượng thực tế', chu(realHours(t)));
-  if (CHIPHI() && t.costPlan) muc('Chi phí dự kiến', chu(money(t.costPlan) + ' đ'));
-  if (CHIPHI() && t.costActual != null) {
+  if ((CHIPHI() || laPhuTrach(t)) && t.costPlan) muc('Chi phí dự kiến', chu(money(t.costPlan) + ' đ'));
+  if ((CHIPHI() || laPhuTrach(t)) && t.costActual != null) {
     muc('Chi phí thực tế', chu(money(t.costActual) + ' đ') +
       (t.payment ? ' <span class="badge ' + (t.payment === 'Đã thanh toán' ? 'green' : 'yellow') + '">' +
         esc(t.payment) + '</span>' : ''));
@@ -2217,11 +2218,15 @@ function renderCreate() {
       pickerMoi('staff', dsChonNguoi(), false, 'Chọn nhân sự…', true) + '</div>' +
     '<div class="frm-row"><label>Phương tiện</label>' + chips('transport', O.transport) + '</div>' +
 
-    (CHIPHI()
-      ? '<div class="sec-title sec-tien">Chi phí</div>' +
-        '<div class="frm-row"><label>Chi phí dự kiến (đ)</label>' +
-        '<input type="number" class="fld" data-n="costPlan" value="' + esc(NEW.costPlan) + '" step="1000" min="0" placeholder="600000"></div>'
-      : '') +
+    /* Luôn hiện, không núp sau quyền "xem chi phí": người đăng ký chính là phụ
+     * trách chuyến, tiền này là tiền họ khai. Trước đây ẩn đi nên nhân sự không
+     * có quyền xem chi phí phòng thì đăng ký lịch mà không khai được ngân sách,
+     * quản lý duyệt trong tình trạng không biết chuyến tốn bao nhiêu. */
+    '<div class="sec-title sec-tien">Chi phí</div>' +
+    '<div class="frm-row"><label>Chi phí dự kiến (đ)</label>' +
+      '<input type="number" class="fld" data-n="costPlan" value="' + esc(NEW.costPlan) +
+      '" step="1000" min="0" placeholder="600000">' +
+      '<div class="hint">Dự trù cho chuyến này. Không tốn gì thì ghi 0.</div></div>' +
 
     '<div class="sec-title sec-foc">Danh mục FOC</div>' +
     '<div class="frm-row"><label>Vé / dịch vụ miễn phí xin kèm</label>' +

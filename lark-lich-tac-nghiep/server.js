@@ -276,9 +276,10 @@ const COT_TIEN = ['costPlan', 'costActual'];
  * đủ, mà cũng chẳng giấu được ai điều gì.
  */
 function boChiPhi(it, meId) {
+  if (meId && laPhuTrach(it, meId)) return it;   // chuyến của mình thì thấy đủ
   const o = Object.assign({}, it);
   delete o.costPlan;
-  if (!(meId && laPhuTrach(it, meId))) delete o.costActual;
+  delete o.costActual;
   return o;
 }
 
@@ -565,8 +566,9 @@ async function api(req, res, url) {
       if (!F[k] || F[k].readOnly) continue;
       if (!manager && !cfg.staffEditable.includes(k)) continue;
       // không được xem chi phí thì cũng không ghi được chi phí (ẩn ở UI là chưa đủ)
-      // lúc TẠO mới thì chưa có chuyến nào của ai, cứ chặn cả hai cột như cũ
-      if (!manager && !qChiPhi() && COT_TIEN.includes(k)) continue;
+      /* Người đăng ký chính là phụ trách chuyến đó (vài dòng dưới gán owner),
+       * nên tiền của chuyến này là tiền họ khai — không chặn. Quyền "xem chi
+       * phí" là để xem tiền của cả phòng, không phải để cấm khai tiền của mình. */
       patch[k] = body[k];
     }
     // Người đăng ký mặc định là phụ trách, và luôn nằm trong nhóm nhân sự
@@ -661,12 +663,14 @@ async function api(req, res, url) {
       const manager = await isManager();
 
       if (!manager && !qChiPhi()) {
-        /* Không có quyền xem chi phí thì không đụng được vào ngân sách dự kiến.
-         * Riêng chi phí THỰC TẾ của chuyến mình phụ trách thì vẫn ghi được —
-         * đó là số tiền chính họ tiêu và bắt buộc phải khai trong báo cáo. */
+        /* Quyền "xem chi phí" là để xem tiền của CẢ PHÒNG. Tiền của chuyến do
+         * chính mình phụ trách thì luôn khai được — dự kiến lúc đăng ký, thực
+         * tế lúc báo cáo. Chặn chỗ này thì báo cáo không bao giờ đủ, mà cũng
+         * chẳng giấu được ai điều gì. */
         const toiTien = await whoAmI();
-        delete body.costPlan;
-        if (!(toiTien && laPhuTrach(item, toiTien.id))) delete body.costActual;
+        if (!(toiTien && laPhuTrach(item, toiTien.id))) {
+          COT_TIEN.forEach((k) => { delete body[k]; });
+        }
       }
 
       if (!manager) {
@@ -870,7 +874,7 @@ if (!LOOPBACK.includes(BIND) && process.env.HUB_TRUST_HEADER !== '0') {
 
 /* Được require từ bộ kiểm thử thì chỉ xuất hàm ra, đừng mở cổng. */
 if (require.main !== module) {
-  module.exports = { khoaKeHoach, duMinhChung, anLichHuy, laPhuTrach, ownedBy, duBaoCao };
+  module.exports = { khoaKeHoach, duMinhChung, anLichHuy, laPhuTrach, ownedBy, duBaoCao, boChiPhi };
   return;
 }
 

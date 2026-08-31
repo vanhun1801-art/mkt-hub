@@ -373,6 +373,20 @@ async function call(path, opts) {
     ok('lịch chưa có phụ trách thì không ai là phụ trách',
       !G.laPhuTrach({ staff: [{ id: 'B' }] }, 'B'));
 
+    /* Quyền "xem chi phí" là để xem tiền của CẢ PHÒNG. Tiền chuyến của chính
+     * mình thì luôn thấy và luôn khai được — không thì đăng ký lịch mà không
+     * ghi nổi ngân sách, báo cáo cũng không bao giờ đủ. */
+    const chuyen = { owner: [{ id: 'A' }], staff: [{ id: 'B' }], costPlan: 600000, costActual: 450000 };
+    const cuaA = G.boChiPhi(chuyen, 'A');
+    ok(cuaA.costPlan === 600000 && cuaA.costActual === 450000,
+      'phụ trách thấy tiền chuyến của chính mình');
+    const cuaB = G.boChiPhi(chuyen, 'B');
+    ok(cuaB.costPlan === undefined && cuaB.costActual === undefined,
+      'người đi cùng không thấy tiền chuyến của người khác');
+    const cuaC = G.boChiPhi(chuyen, 'C');
+    ok(cuaC.costPlan === undefined && cuaC.costActual === undefined,
+      'người ngoài cũng không thấy');
+
     const cfgApp = (await call('/api/meta')).body.config || {};
     ok('"Hủy lịch" nằm trong nhóm trạng thái chỉ quản lý đặt',
       (cfgApp.managerStatuses || []).includes('Hủy lịch'));
