@@ -20,6 +20,7 @@ const S = {
   phu: new Map(),      // id -> dòng phụ đề module tự báo
   tb: [],              // thông báo gom từ mọi Base
   tbMoi: 0,            // số mục người này chưa đọc
+  tbHen: null,         // hẹn giờ đánh dấu đã đọc
   ky: 'thang',         // khoảng thời gian đang lọc — mặc định THÁNG HIỆN TẠI
   tu: '', den: '',     // dùng khi ky = 'tuychon'
   lich: null,          // dữ liệu /api/lich-chung
@@ -269,13 +270,18 @@ function moBangTB() {
   box.className = 'tb-panel';
   document.body.appendChild(box);
   veBangTB();
-  // đánh dấu đã đọc đúng những mã đang hiện, không "đọc hết" mù quáng
+  /* Đánh dấu đã đọc sau 1,5 giây, không phải ngay khi mở: mở ra mà nhãn "mới"
+   * biến mất tức thì thì chẳng ai kịp thấy cái nào mới. Đúng những mã đang hiện
+   * mới được đánh dấu, không "đọc hết" mù quáng. */
   const ids = S.tb.filter((x) => x.moi).map((x) => x.id);
   if (ids.length) {
-    fetch('/api/thong-bao/doc', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids }),
-    }).then(() => { S.tbMoi = 0; veChuong(); }).catch(() => {});
+    clearTimeout(S.tbHen);
+    S.tbHen = setTimeout(() => {
+      fetch('/api/thong-bao/doc', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      }).then(() => { S.tbMoi = 0; veChuong(); }).catch(() => {});
+    }, 1500);
   }
   setTimeout(() => document.addEventListener('pointerdown', dongNeuNgoaiTB, true), 0);
 }
@@ -286,9 +292,41 @@ function dongNeuNgoaiTB(e) {
 }
 
 function dongBangTB() {
+  clearTimeout(S.tbHen);
   document.removeEventListener('pointerdown', dongNeuNgoaiTB, true);
   const p = $('#tbPanel');
   if (p) p.remove();
+}
+
+/**
+ * Mốc thời gian của một thông báo, viết theo lối người ta nói.
+ *
+ * Mốc này là thời điểm của SỰ VIỆC (giờ đi tác nghiệp, hạn công việc), không
+ * phải giờ hệ thống sinh ra thông báo — vì không có bảng sự kiện nào để lấy giờ
+ * đó. Nên phải nói được cả hai chiều: việc đã qua thì "3 ngày trước", việc sắp
+ * tới thì "sau 2 ngày nữa".
+ */
+function khiNao(iso) {
+  const d = iso ? new Date(iso) : null;
+  if (!d || isNaN(d.getTime())) return '';
+  const lech = Date.now() - d.getTime();
+  const qua = lech >= 0;
+  const phut = Math.abs(lech) / 60000;
+  const noi = (n, dv) => (qua ? n + ' ' + dv + ' trước' : 'sau ' + n + ' ' + dv + ' nữa');
+  if (phut < 1) return 'vừa xong';
+  if (phut < 60) return noi(Math.round(phut), 'phút');
+  if (phut < 60 * 24) return noi(Math.round(phut / 60), 'giờ');
+  if (phut < 60 * 24 * 30) return noi(Math.round(phut / 60 / 24), 'ngày');
+  return noi(Math.round(phut / 60 / 24 / 30), 'tháng');
+}
+
+/** Ngày giờ đầy đủ, để trong tooltip cho ai cần con số chính xác. */
+function gioDayDu(iso) {
+  const d = iso ? new Date(iso) : null;
+  if (!d || isNaN(d.getTime())) return '';
+  const p = (n) => String(n).padStart(2, '0');
+  return p(d.getDate()) + '/' + p(d.getMonth() + 1) + '/' + d.getFullYear() +
+    ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
 }
 
 function veBangTB() {
@@ -297,29 +335,45 @@ function veBangTB() {
   const ds = S.tb;
   const dong = (x) => {
     const m = MUC_TB[x.muc] || MUC_TB.tin;
+    const khi = khiNao(x.khi);
     return `<button class="tb-o${x.moi ? ' moi' : ''}" data-tb-mod="${esc(x.mod)}" data-tb-rec="${esc(x.rec || '')}">
       <span class="tb-cham" style="background:${m.mau}"></span>
       <span class="tb-noi">
-        <span class="tb-dau"><b>${esc(x.tieuDe)}</b><span class="tb-mod">${esc(x.modTen)}</span></span>
+        <span class="tb-dau"><b>${esc(x.tieuDe)}</b>${x.moi ? '<span class="tb-moi">mới</span>' : ''}
+          <span class="tb-mod">${esc(x.modTen)}</span></span>
         <span class="tb-mo">${esc(x.mo || '')}</span>
+        <span class="tb-khi" title="${esc(gioDayDu(x.khi))}">${esc(khi)}</span>
       </span>
     </button>`;
   };
-  const nhom = ['gap', 'can', 'tin'].map((k) => {
-    const arr = ds.filter((x) => x.muc === k);
-    if (!arr.length) return '';
+
+  /* Chia hẳn hai phần thay vì chỉ tô nền khác: mở bảng ra là biết ngay có gì
+   * mới, khỏi phải dò xem ô nào đậm hơn ô nào. */
+  const veNhom = (arr) => ['gap', 'can', 'tin'].map((k) => {
+    const g = arr.filter((x) => x.muc === k);
+    if (!g.length) return '';
     return `<div class="tb-nhom" style="color:${MUC_TB[k].mau}">${MUC_TB[k].nhan}
-      <span class="tb-n">${arr.length}</span></div>` + arr.map(dong).join('');
+      <span class="tb-n">${g.length}</span></div>` + g.map(dong).join('');
   }).join('');
+
+  const chuaDoc = ds.filter((x) => x.moi);
+  const daDoc = ds.filter((x) => !x.moi);
+  let than = '';
+  if (chuaDoc.length) {
+    than += `<div class="tb-phan">Chưa đọc <span class="tb-n2">${chuaDoc.length}</span></div>` + veNhom(chuaDoc);
+  }
+  if (daDoc.length) {
+    than += `<div class="tb-phan mo">Đã đọc <span class="tb-n2">${daDoc.length}</span></div>` + veNhom(daDoc);
+  }
 
   box.innerHTML = `
     <div class="tb-dau-bang">
       <b>Thông báo</b>
-      <span class="tb-phu">${ds.length ? ds.length + ' mục' : ''}</span>
+      <span class="tb-phu">${ds.length ? ds.length + ' mục' + (chuaDoc.length ? ' · ' + chuaDoc.length + ' chưa đọc' : '') : ''}</span>
       <button class="tb-x" id="tbDong" title="Đóng">✕</button>
     </div>
-    <div class="tb-than">${nhom || '<div class="tb-trong">Không có gì cần bạn để mắt. Nhẹ người.</div>'}</div>
-    <div class="tb-chan">Tự cập nhật từ dữ liệu các Base — xử lý xong là mục tự mất.</div>`;
+    <div class="tb-than">${than || '<div class="tb-trong">Không có gì cần bạn để mắt. Nhẹ người.</div>'}</div>
+    <div class="tb-chan">Mốc thời gian là lúc diễn ra việc. Tự cập nhật từ các Base — xử lý xong là mục tự mất.</div>`;
 }
 
 function veRail() {

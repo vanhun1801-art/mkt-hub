@@ -206,7 +206,10 @@ function chuyenTiep(req, res, mod, duongDan, nguoi) {
     method: req.method,
     path: duongDan || '/',
     headers: { ...req.headers, host: '127.0.0.1:' + mod.cong },
-    timeout: cfg.goiTimeoutMs,
+    /* Tải tệp thì Base ngậm request khá lâu (nhận tệp rồi đẩy tiếp lên Lark),
+     * 30 giây là thiếu với ảnh vài MB. Hết giờ giữa chừng là client nhận thân
+     * phản hồi rỗng và báo một câu khó hiểu. Riêng đường tải tệp cho 5 phút. */
+    timeout: /\/(upload|attachment)\b/.test(duongDan || '') ? 300000 : cfg.goiTimeoutMs,
   };
   delete opts.headers['accept-encoding']; // để không phải giải nén khi chèn HTML
   delete opts.headers['x-forwarded-host'];

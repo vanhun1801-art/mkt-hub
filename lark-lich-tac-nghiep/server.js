@@ -267,11 +267,18 @@ async function requireOwn(res, it) {
 /** Hai cột tiền — ai không được xem chi phí thì cũng không đọc, không ghi được. */
 const COT_TIEN = ['costPlan', 'costActual'];
 
-/** Bỏ hai cột tiền khỏi một lịch trước khi trả cho người không được xem chi phí. */
-function boChiPhi(it) {
+/**
+ * Bỏ cột tiền trước khi trả cho người không được xem chi phí.
+ *
+ * Trừ MỘT chỗ: chi phí thực tế của chuyến chính họ phụ trách thì vẫn giữ.
+ * Quyền "xem chi phí" là để xem tiền của cả phòng; còn tiền chuyến của mình thì
+ * chính họ tiêu, chính họ khai trong báo cáo — cắt đi thì báo cáo không bao giờ
+ * đủ, mà cũng chẳng giấu được ai điều gì.
+ */
+function boChiPhi(it, meId) {
   const o = Object.assign({}, it);
   delete o.costPlan;
-  delete o.costActual;
+  if (!(meId && laPhuTrach(it, meId))) delete o.costActual;
   return o;
 }
 
@@ -401,7 +408,7 @@ async function api(req, res, url) {
       // quản lý cấp riêng trong bảng "Phân quyền app" của lớp vỏ
       perm: { toanBo: manager || qToanBo(), taoMoi: manager || qDuocTao(), chiPhi: manager || qChiPhi() },
       // không được xem chi phí thì cắt luôn ở server, không chỉ ẩn trên giao diện
-      items: (manager || qChiPhi()) ? scoped : scoped.map(boChiPhi),
+      items: (manager || qChiPhi()) ? scoped : scoped.map((t) => boChiPhi(t, me && me.id)),
       blankRows: raw.length - all.length,
       /* Nhân sự thường chỉ thấy người có mặt trong lịch của chính họ; muốn thấy
        * cả phòng thì quản lý phải cấp "Xem toàn bộ". */
@@ -558,6 +565,7 @@ async function api(req, res, url) {
       if (!F[k] || F[k].readOnly) continue;
       if (!manager && !cfg.staffEditable.includes(k)) continue;
       // không được xem chi phí thì cũng không ghi được chi phí (ẩn ở UI là chưa đủ)
+      // lúc TẠO mới thì chưa có chuyến nào của ai, cứ chặn cả hai cột như cũ
       if (!manager && !qChiPhi() && COT_TIEN.includes(k)) continue;
       patch[k] = body[k];
     }
@@ -653,8 +661,12 @@ async function api(req, res, url) {
       const manager = await isManager();
 
       if (!manager && !qChiPhi()) {
-        // không có quyền xem chi phí -> mọi thay đổi số tiền đều bị bỏ qua
-        COT_TIEN.forEach((k) => { delete body[k]; });
+        /* Không có quyền xem chi phí thì không đụng được vào ngân sách dự kiến.
+         * Riêng chi phí THỰC TẾ của chuyến mình phụ trách thì vẫn ghi được —
+         * đó là số tiền chính họ tiêu và bắt buộc phải khai trong báo cáo. */
+        const toiTien = await whoAmI();
+        delete body.costPlan;
+        if (!(toiTien && laPhuTrach(item, toiTien.id))) delete body.costActual;
       }
 
       if (!manager) {

@@ -122,11 +122,31 @@ const el = (tag, cls, txt) => {
 };
 
 /* =======================  api  ======================= */
+/**
+ * Đọc phản hồi của máy chủ.
+ *
+ * Đọc dạng văn bản trước rồi mới phân tích: khi request bị cắt giữa chừng (mạng
+ * rớt, lớp vỏ hết giờ chờ, máy chủ trả trang lỗi HTML) thì thân phản hồi rỗng
+ * hoặc không phải JSON. Gọi thẳng .json() lúc đó ném ra "Unexpected end of JSON
+ * input" — một câu chẳng ai hiểu, mà cũng chẳng nói được nên làm gì.
+ */
+async function docPhanHoi(r) {
+  const raw = await r.text().catch(() => '');
+  if (!raw.trim()) {
+    return { __loi: r.ok
+      ? 'Máy chủ không trả lời (kết nối bị cắt giữa chừng). Thử lại, hoặc tải tệp nhỏ hơn.'
+      : 'Máy chủ báo lỗi HTTP ' + r.status + ' và không kèm nội dung.' };
+  }
+  try { return JSON.parse(raw); } catch (_) {
+    return { __loi: 'Máy chủ trả về nội dung không đọc được: ' + raw.slice(0, 120) };
+  }
+}
+
 async function req(url, opts) {
   const r = await fetch(url, Object.assign({ headers: { 'Content-Type': 'application/json' } }, opts));
-  const data = await r.json().catch(() => ({}));
-  if (!r.ok || data.error) {
-    const e = new Error(data.error || 'HTTP ' + r.status);
+  const data = await docPhanHoi(r);
+  if (!r.ok || data.error || data.__loi) {
+    const e = new Error(data.error || data.__loi || 'HTTP ' + r.status);
     e.code = data.code;
     e.hint = data.hint;
     throw e;
@@ -821,8 +841,10 @@ async function submitDone() {
         headers: { 'X-File-Name': encodeURIComponent(files[i].name) },
         body: files[i],
       });
-      const d = await r.json().catch(() => ({}));
-      if (!r.ok || d.error) throw new Error(d.error || 'Tải tệp thất bại');
+      const d = await docPhanHoi(r);
+      if (!r.ok || d.error || d.__loi) {
+        throw new Error('Tệp "' + files[i].name + '": ' + (d.error || d.__loi || 'tải lên thất bại'));
+      }
     }
 
     msg.textContent = 'Đang cập nhật trạng thái…';
@@ -1228,6 +1250,8 @@ function dashSets() {
     all,
     open,
     unassigned: open.filter((t) => !(t.owner || []).length),
+    // đã có người phụ trách nhưng chưa ai bấm nhận — khác hẳn "chưa phân công"
+    choNhan: open.filter((t) => t.status === 'Chờ tiếp nhận'),
     overdue: open.filter(isOverdue),
     noDeadline: open.filter((t) => !t.deadline),
     doing: open.filter((t) => t.status === 'Đang tiến hành' || t.status === 'Làm lại'),
@@ -1256,14 +1280,81 @@ function renderKpi(D) {
 
   box.appendChild(kpiCard(D.all.length, 'Tổng công việc',
     dashFiltered() ? D.open.length + ' việc đang mở · đã lọc' : D.open.length + ' việc đang mở'));
-  box.appendChild(kpiCard(D.doing.length, 'Đang tiến hành', '', 'hot',
-    () => scrollToQueue('doing')));
   box.appendChild(kpiCard(D.unassigned.length, 'Chưa phân công', '', 'alert',
-    () => scrollToQueue('unassigned')));
+    () => moDanhSachNhanh('unassigned', 'Chưa phân công', D.unassigned)));
+  box.appendChild(kpiCard(D.choNhan.length, 'Chờ tiếp nhận',
+    'đã giao nhưng chưa ai bấm nhận', 'warn',
+    () => moDanhSachNhanh('choNhan', 'Chờ tiếp nhận', D.choNhan)));
   box.appendChild(kpiCard(D.overdue.length, 'Quá hạn', '', 'alert',
-    () => scrollToQueue('overdue')));
-  box.appendChild(kpiCard(diem, 'Điểm trung bình', D.scored.length + ' việc đã chấm', 'ok'));
-  box.appendChild(kpiCard(tyLe + '%', 'Tỉ lệ hoàn thành', dungHan + ' / ' + D.all.length));
+    () => moDanhSachNhanh('overdue', 'Quá hạn', D.overdue)));
+  box.appendChild(kpiCard(D.doing.length, 'Đang tiến hành', '', 'hot',
+    () => moDanhSachNhanh('doing', 'Đang tiến hành', D.doing)));
+  box.appendChild(kpiCard(diem, 'Điểm trung bình', D.scored.length + ' việc đã chấm', 'ok',
+    () => moDanhSachNhanh('scored', 'Đã chấm điểm', D.scored)));
+  box.appendChild(kpiCard(tyLe + '%', 'Tỉ lệ hoàn thành', dungHan + ' / ' + D.all.length, '',
+    () => moDanhSachNhanh('done', 'Đã hoàn thành',
+      D.all.filter((t) => t.status === 'Hoàn thành'))));
+}
+
+/**
+ * Xem nhanh danh sách việc sau một con số.
+ *
+ * Trước đây bấm ô chỉ cuộn xuống hàng đợi tương ứng — mà chỉ ba ô có hàng đợi,
+ * mấy ô còn lại bấm không ra gì. Giờ ô nào cũng mở được đúng danh sách của nó,
+ * bấm một dòng là vào thẳng ô chi tiết của việc đó.
+ */
+function moDanhSachNhanh(key, tieuDe, items) {
+  const ds = (items || []).slice().sort((a, b) => {
+    const x = a.deadline ? new Date(a.deadline).getTime() : Infinity;
+    const y = b.deadline ? new Date(b.deadline).getTime() : Infinity;
+    return x - y;
+  });
+
+  const than = el('div', 'xn');
+  if (!ds.length) {
+    than.appendChild(el('div', 'queue-empty', 'Không có việc nào ở nhóm này.'));
+  }
+  for (const t of ds.slice(0, 200)) {
+    const dong = el('button', 'xn-o');
+    dong.type = 'button';
+    dong.appendChild(el('div', 'xn-ten', t.title || '(chưa có tên)'));
+    const meta = el('div', 'xn-meta');
+    if (t.priority) meta.appendChild(el('span', 'tag ' + priClass(t.priority), plainLabel(t.priority)));
+    if (t.workType) meta.appendChild(el('span', 'tag', t.workType));
+    if (t.deadline) {
+      const con = daysLeft(t.deadline);
+      meta.appendChild(el('span', 'tag due' + (con < 0 ? ' late' : con === 0 ? ' soon' : ''),
+        con < 0 ? 'Quá hạn ' + Math.abs(con) + ' ngày' : con === 0 ? 'Hạn hôm nay' : 'Còn ' + con + ' ngày'));
+    }
+    const ai = (t.owner || []).map((u) => u.name).join(', ');
+    meta.appendChild(el('span', 'tag', ai || 'Chưa phân công'));
+    dong.appendChild(meta);
+    dong.onclick = () => { dongXemNhanh(); openDrawer(t); };
+    than.appendChild(dong);
+  }
+
+  dongXemNhanh();
+  const lop = el('div', 'xn-lop');
+  lop.id = 'xnLop';
+  const hop = el('div', 'xn-hop');
+  const dau = el('div', 'xn-dau');
+  dau.appendChild(el('b', '', tieuDe));
+  dau.appendChild(el('span', 'xn-n', ds.length + ' việc'));
+  const x = el('button', 'xn-x', '✕');
+  x.type = 'button';
+  x.onclick = dongXemNhanh;
+  dau.appendChild(x);
+  hop.appendChild(dau);
+  hop.appendChild(than);
+  lop.appendChild(hop);
+  lop.onclick = (e) => { if (e.target === lop) dongXemNhanh(); };
+  document.body.appendChild(lop);
+  void key;
+}
+
+function dongXemNhanh() {
+  const o = document.getElementById('xnLop');
+  if (o) o.remove();
 }
 
 function scrollToQueue(key) {
@@ -2882,8 +2973,8 @@ function oTaiLen(t, cot) {
             headers: { 'X-File-Name': encodeURIComponent(files[i].name) },
             body: files[i],
           });
-          const d = await r.json().catch(() => ({}));
-          if (!r.ok || d.error) throw new Error(d.error || 'Tải tệp thất bại');
+          const d = await docPhanHoi(r);
+          if (!r.ok || d.error || d.__loi) throw new Error(d.error || d.__loi || 'Tải tệp thất bại');
         } catch (e) {
           hong.push(files[i].name + ' (' + e.message + ')');
         }

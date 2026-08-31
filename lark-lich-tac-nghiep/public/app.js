@@ -984,7 +984,9 @@ function thieuGiBaoCao(t) {
   const thieu = [];
   if (!t.end) thieu.push('thời gian kết thúc');
   if (!String(t.reportAfter || '').trim()) thieu.push('báo cáo sau tác nghiệp');
-  if (CHIPHI() && t.costActual == null) thieu.push('chi phí thực tế');
+  // Người phụ trách LUÔN phải khai chi phí chuyến của mình, dù không có quyền
+  // xem chi phí của cả phòng — máy chủ cũng đã mở đúng ô này cho họ.
+  if ((CHIPHI() || laPhuTrach(t)) && t.costActual == null) thieu.push('chi phí thực tế');
   return thieu;
 }
 
@@ -1971,7 +1973,7 @@ async function guiBaoCao() {
   if (!String(BC.reportAfter).trim()) return toast('Chưa viết Báo cáo sau tác nghiệp', 'err');
   /* Chi phí phải điền, kể cả khi bằng 0 — bỏ trống thì cuối tháng không đối
    * chiếu được, mà "0" là một câu trả lời hợp lệ (chuyến không tốn gì). */
-  if (CHIPHI() && String(BC.costActual).trim() === '') return toast('Chưa điền Chi phí thực tế (không tốn gì thì ghi 0)', 'err');
+  if (String(BC.costActual).trim() === '') return toast('Chưa điền Chi phí thực tế (không tốn gì thì ghi 0)', 'err');
 
   const body = {
     status: 'Đang báo cáo',
@@ -2757,6 +2759,19 @@ function timNguoi(panel) {
 }
 
 /* input / change */
+/* Ô tìm nhân sự: lọc lại ở NHIỀU tín hiệu chứ không chỉ 'input'.
+ * Gõ tiếng Việt bằng Telex/VNI đi qua một chuỗi ghép chữ (composition); tuỳ
+ * trình duyệt và bộ gõ mà 'input' có lúc không bắn ra cho chữ cuối, thành ra ô
+ * hiện chữ "Hùng" mà danh sách vẫn nguyên. Bắt thêm compositionend và keyup thì
+ * kiểu gõ nào cũng lọc đúng; lọc lại vài lần thừa cũng không hại gì. */
+['compositionend', 'keyup', 'search', 'change'].forEach((loai) => {
+  document.addEventListener(loai, (e) => {
+    if (e.target.classList && e.target.classList.contains('pk-tim')) {
+      timNguoi(e.target.closest('.pk-panel'));
+    }
+  }, true);
+});
+
 document.addEventListener('input', (e) => {
   if (e.target.classList && e.target.classList.contains('pk-tim')) {
     timNguoi(e.target.closest('.pk-panel'));
@@ -2879,7 +2894,14 @@ async function taiNhieuTep(input, recId, cot) {
         const r = await fetch(
           apiUrl('/api/items/' + recId + '/attachment/' + cot + '?name=' + encodeURIComponent(f.name)),
           { method: 'POST', body: f });
-        const d = await r.json().catch(() => ({}));
+        /* Đọc văn bản trước rồi mới phân tích: request bị cắt giữa chừng thì
+         * thân phản hồi rỗng, gọi thẳng .json() sẽ ném ra "Unexpected end of
+         * JSON input" — câu đó chẳng nói được điều gì cho người dùng. */
+        const raw = await r.text().catch(() => '');
+        let d = {};
+        if (raw.trim()) { try { d = JSON.parse(raw); } catch (_) { d = { error: raw.slice(0, 120) }; } }
+        else if (!r.ok) d = { error: 'Máy chủ báo lỗi HTTP ' + r.status };
+        else d = { error: 'Máy chủ không trả lời — thử lại hoặc dùng tệp nhỏ hơn' };
         if (!r.ok || d.error) throw new Error(d.error || 'Tải lên thất bại');
       } catch (err) {
         hong.push(f.name + ' (' + err.message + ')');

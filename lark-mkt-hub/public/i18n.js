@@ -26,6 +26,16 @@
 
     /* --- thông báo --- */
     'Thông báo': 'Notifications',
+    'Chưa đọc': 'Unread',
+    'Đã đọc': 'Read',
+    'mới': 'new',
+    'Mốc thời gian là lúc diễn ra việc. Tự cập nhật từ các Base — xử lý xong là mục tự mất.':
+      'Times shown are when the work happens. Updated automatically — an item disappears once handled.',
+    'Chờ tiếp nhận': 'Awaiting pickup',
+    'đã giao nhưng chưa ai bấm nhận': 'assigned but nobody has picked it up',
+    'Không có việc nào ở nhóm này.': 'No tasks in this group.',
+    'Đã chấm điểm': 'Scored',
+    'Đã hoàn thành': 'Completed',
     'Cần làm ngay': 'Do it now',
     'Thông tin': 'For your information',
     'Không có gì cần bạn để mắt. Nhẹ người.': 'Nothing needs your attention. Enjoy.',
