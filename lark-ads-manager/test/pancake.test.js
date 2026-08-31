@@ -162,6 +162,8 @@ t('dòng khớp được gắn chi tiêu đúng', d1.spend === 100000, String(d1
 t('giá mỗi hội thoại = chi tiêu / hội thoại', d1.giaMoiHoiThoai === 10000, String(d1.giaMoiHoiThoai));
 t('giá mỗi SĐT = chi tiêu / số có SĐT', d1.giaMoiSdt === 25000, String(d1.giaMoiSdt));
 t('giá mỗi đơn chốt = chi tiêu / số chốt', d1.giaMoiChot === 50000, String(d1.giaMoiChot));
+// Đơn POS là tín hiệu tin nhất: Pancake tự gắn order_id, không ai gõ tay
+t('giá mỗi đơn POS = chi tiêu / số đơn', d1.giaMoiDon === 100000, String(d1.giaMoiDon));
 t('lấy được tên quảng cáo từ Base', d1.ten === 'IS_Giá chưa tới 1 củ', d1.ten);
 t('dòng không khớp được đánh dấu, không im lặng bỏ', d2 && d2.ghepDuoc === false);
 t('dòng không khớp có chi tiêu 0 chứ không phải NaN', d2.spend === 0);

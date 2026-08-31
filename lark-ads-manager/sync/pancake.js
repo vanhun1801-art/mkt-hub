@@ -416,6 +416,10 @@ function ghepVoiChiTieu(gomTheoAd, data, { from, to } = {}) {
       giaMoiHoiThoai: r.hoiThoai ? Math.round(spend / r.hoiThoai) : null,
       giaMoiSdt: r.coSdt ? Math.round(spend / r.coSdt) : null,
       giaMoiChot: r.chot ? Math.round(spend / r.chot) : null,
+      /* Đơn POS lấy từ recent_phone_numbers[].order_id — Pancake tự gắn, không do
+       * ai gõ tay. Tin được hơn cả has_phone (chỉ bật khi Pancake tự dò ra số) và
+       * hơn tag "Chốt" (sales phải nhớ gắn). */
+      giaMoiDon: r.soDon ? Math.round(spend / r.soDon) : null,
     };
   });
 

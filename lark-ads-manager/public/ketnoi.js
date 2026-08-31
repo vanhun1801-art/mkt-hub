@@ -528,8 +528,11 @@
         { key: 'coSdt', label: 'Có SĐT', num: true, render: (x) => int(x.coSdt) },
         { key: 'giaMoiSdt', label: 'Giá / SĐT', num: true,
           render: (x) => (x.giaMoiSdt == null ? '—' : vnd(x.giaMoiSdt)) },
-        { key: 'chot', label: 'Chốt', num: true, render: (x) => int(x.chot) },
-        { key: 'giaMoiChot', label: 'Giá / đơn chốt', num: true,
+        { key: 'soDon', label: 'Đơn POS', num: true, render: (x) => int(x.soDon) },
+        { key: 'giaMoiDon', label: 'Giá / đơn POS', num: true,
+          render: (x) => (x.giaMoiDon == null ? '—' : vnd(x.giaMoiDon)) },
+        { key: 'chot', label: 'Tag chốt', num: true, render: (x) => int(x.chot) },
+        { key: 'giaMoiChot', label: 'Giá / tag chốt', num: true,
           render: (x) => (x.giaMoiChot == null ? '—' : vnd(x.giaMoiChot)) },
       ], g.rows.slice(0, 60))}</div>
       ${g.rows.length > 60 ? `<div class="help">Hiện 60 dòng chi tiêu cao nhất trên tổng ${int(g.rows.length)} dòng.</div>` : ''}
