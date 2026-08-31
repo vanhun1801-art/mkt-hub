@@ -2273,12 +2273,38 @@ async function submitCreate(mode) {
     await api('/api/items', { method: 'POST', body: JSON.stringify(body) });
     closeModal();
     toast(mode === 'draft' ? 'Đã lưu nháp vào Base' : 'Đã gửi duyệt', 'ok');
+    const doiKy = keoLocToiLich(body.start);
     await refresh(true);
+    if (doiKy) toast('Lịch mới ở ' + doiKy + ' — đã chuyển bộ lọc sang đó cho bạn thấy', 'ok');
   } catch (e) {
     toast(e.message, 'err');
   } finally {
     btns.forEach((b) => (b.disabled = false));
   }
+}
+
+/**
+ * Kéo bộ lọc thời gian tới tháng của lịch vừa tạo, nếu nó nằm ngoài khoảng đang xem.
+ *
+ * Bộ lọc mặc định là THÁNG NÀY, mà lịch tác nghiệp thì hay đăng ký cho tuần sau
+ * hoặc tháng sau — lưu nháp xong quay ra không thấy đâu, tưởng mất bài. Thà tự
+ * chuyển bộ lọc rồi nói một câu, còn hơn để người ta đi tìm.
+ *
+ * @returns {string} tên tháng vừa chuyển tới, hoặc '' nếu không phải chuyển
+ */
+function keoLocToiLich(startISO) {
+  const p = vnParts(startISO);
+  if (!p) return '';
+  // đã nằm trong khoảng đang lọc thì thôi, đừng đụng vào lựa chọn của người ta
+  if (inPeriod({ start: startISO, month: p.y + '-' + pad(p.m) }, S.f.period)) return '';
+  const cuoi = new Date(Date.UTC(p.y, p.m, 0)).getUTCDate();
+  S.f.period = 'k:' + p.y + '-' + pad(p.m) + '-01:' + p.y + '-' + pad(p.m) + '-' + pad(cuoi);
+  // kéo cả lớp vỏ và các base khác theo cho khớp
+  if (window.hubBaoKhoang) {
+    try { window.hubBaoKhoang(p.y + '-' + pad(p.m) + '-01', p.y + '-' + pad(p.m) + '-' + pad(cuoi)); }
+    catch (_) {}
+  }
+  return 'tháng ' + p.m + '/' + p.y;
 }
 
 /* ============ chuyển vai ============ */
