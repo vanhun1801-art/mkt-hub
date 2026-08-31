@@ -52,9 +52,25 @@ function range(conf, opts = {}) {
 async function run(opts = {}) {
   if (running) throw Object.assign(new Error('Đang có một lượt đồng bộ chạy dở, chờ xong đã'), { code: 409 });
   const conf = ketnoi.read();
-  let keys = (opts.providers && opts.providers.length ? opts.providers : Object.keys(ADAPTERS))
+  const xin = opts.providers && opts.providers.length ? opts.providers : null;
+
+  /* Nguồn chỉ-để-đo có khối cấu hình nhưng KHÔNG có adapter đồng bộ (Pancake đo
+   * "khách đến từ quảng cáo nào", không đo chi tiêu). Trước đây nó bị bộ lọc dưới
+   * đây loại âm thầm, và người dùng nhận câu "kênh chọn không hợp lệ" — không nói
+   * được là kênh nào, cũng không nói vì sao. Gọi tên hẳn ra. */
+  const CHI_DO = Object.keys(ketnoi.DEFAULT)
+    .filter((k) => k !== 'dongBo' && !ADAPTERS[k]);
+  const xinNhamChiDo = (xin || []).filter((k) => CHI_DO.includes(k));
+  if (xinNhamChiDo.length) {
+    throw Object.assign(new Error(
+      `${xinNhamChiDo.join(', ')} không phải nguồn chi tiêu nên không có gì để đồng bộ vào Base. `
+      + 'Pancake dùng thẻ "Pancake — hội thoại & ad_ids" ở tab Kết nối, nút "Đếm phủ".',
+    ), { code: 400 });
+  }
+
+  let keys = (xin || Object.keys(ADAPTERS))
     .filter((k) => ADAPTERS[k])
-    .filter((k) => (opts.providers && opts.providers.length ? true : conf[k] && conf[k].enabled));
+    .filter((k) => (xin ? true : conf[k] && conf[k].enabled));
 
   // Không bao giờ chạy hai nguồn cùng đại diện một nền tảng: googleAds (API) và
   // googleSheet đều ghi nhãn "Google Ads", chạy cả hai là chi tiêu Google vào Base
@@ -76,6 +92,8 @@ async function run(opts = {}) {
 
   try {
     for (const key of keys) {
+      // ADAPTERS[key] chắc chắn tồn tại: keys đã lọc qua ADAPTERS ở đầu run(), và
+      // chỗ lọc đó báo lỗi có tên cụ thể nếu người dùng gửi lên một nguồn chỉ-để-đo.
       const { mod, source, label } = ADAPTERS[key];
       const logs = [];
       try {

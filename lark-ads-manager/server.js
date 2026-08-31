@@ -63,14 +63,33 @@ const MIME = {
   '.png': 'image/png',
 };
 
+/**
+ * Van tay noi dung cac file tinh, tinh mot lan khi khoi dong.
+ *
+ * Header no-store mot minh khong du: app nay chay sau proxy cua mkt-hub, va da co
+ * lan deploy xong nhung trinh duyet van dung ketnoi.js cu — giao dien cu goi API
+ * moi, ra man hinh sai ma khong ai biet vi sao. Gan ?v=<van tay> vao the script
+ * thi doi ma la doi URL, khong con cho nao de cache bam vao.
+ */
+const VAN_TAY = (() => {
+  const crypto = require('crypto');
+  const h = crypto.createHash('sha1');
+  ['app.js', 'ketnoi.js', 'charts.js', 'styles.css'].forEach((f) => {
+    try { h.update(fs.readFileSync(path.join(PUBLIC, f))); } catch (_) { h.update(f); }
+  });
+  return h.digest('hex').slice(0, 10);
+})();
+
 function serveStatic(req, res, urlPath) {
   const rel = urlPath === '/' ? 'index.html' : urlPath.replace(/^\/+/, '');
   const file = path.join(PUBLIC, rel);
   if (!file.startsWith(PUBLIC)) return fail(res, 403, 'Từ chối');
   fs.readFile(file, (err, buf) => {
     if (err) return fail(res, 404, 'Không tìm thấy ' + rel);
+    let out = buf;
+    if (rel === 'index.html') out = Buffer.from(buf.toString('utf8').split('__V__').join(VAN_TAY), 'utf8');
     res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-store' });
-    res.end(buf);
+    res.end(out);
   });
 }
 

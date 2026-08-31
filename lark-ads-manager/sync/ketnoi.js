@@ -424,29 +424,38 @@ function status() {
         capDo: c.googleSheet.level,
         sanSang: !!c.googleSheet.csvUrl,
       },
-      /* Pancake khong do chi tieu — no do "khach den tu quang cao nao". De chung
-       * danh sach providers de giao dien khong phai co hai co che hien thi, nhung
-       * `laDoanhThu: true` cho giao dien biet dung xep no vao bang so sanh CPA. */
+    ],
+
+    /**
+     * Nguồn CHỈ ĐỂ ĐO, không phải nguồn chi tiêu — để ở mảng riêng, không lẫn vào
+     * `providers`.
+     *
+     * Đã thử cách để chung rồi lọc bằng một cờ: sai. Giao diện cũ còn trong cache
+     * của trình duyệt không biết cờ đó, nên vẫn vẽ Pancake thành một thẻ nền tảng
+     * có nút "Đồng bộ kênh này" — bấm vào là lỗi, vì sync/index.js không có adapter
+     * cho nó. Hợp đồng dữ liệu phải tự nó không cho phép vẽ sai; đừng trông vào
+     * việc client đã cập nhật hay chưa.
+     */
+    doLuong: [
       {
-        key: 'pancake', label: 'Pancake (hoi thoai · ad_ids)', enabled: c.pancake.enabled,
-        laDoanhThu: true,
+        key: 'pancake', label: 'Pancake (hội thoại · ad_ids)', enabled: c.pancake.enabled,
         coToken: (c.pancake.pages || []).some((x) => x && x.token),
         soTaiKhoan: (c.pancake.pages || []).filter((x) => x && x.token).length,
         taiKhoan: (c.pancake.pages || []).map((x) => `${x.label || x.pageId} (${x.platform || '?'})`),
-        // Danh sach page dang co CAU TRUC (khong phai chuoi da ghep) de giao dien
-        // dung lai duoc ma khong phai tach chuoi — va khong bao gio kem token.
+        // Danh sách page dạng CÓ CẤU TRÚC (không phải chuỗi đã ghép) để giao diện
+        // dùng lại được mà không phải tách chuỗi — và không bao giờ kèm token.
         pages: (c.pancake.pages || []).map((x) => ({
           pageId: x.pageId, platform: x.platform || '', label: x.label || '', coToken: !!x.token,
         })),
         coUserToken: !!c.pancake.userToken,
         tagChot: c.pancake.tagChot || [],
-        // Token cap page khong het han — noi ro ra vi day la diem khac biet lon
-        // so voi Meta (phai gia han) va Google (refresh token co the bi thu hoi).
-        hanToken: { vinhVien: true, mo_ta: 'token cap page khong het han' },
+        // Token cấp page không hết hạn — nói rõ ra vì đây là điểm khác biệt lớn so
+        // với Meta (phải gia hạn) và Google (refresh token có thể bị thu hồi).
+        hanToken: { vinhVien: true, moTa: 'token cấp page không hết hạn' },
         thieu: [
-          (c.pancake.pages || []).length ? '' : 'chua khai page nao',
-          (c.pancake.pages || []).every((x) => x && x.pageId) ? '' : 'co page thieu pageId',
-          (c.pancake.pages || []).every((x) => x && x.token) ? '' : 'co page thieu token',
+          (c.pancake.pages || []).length ? '' : 'chưa khai page nào',
+          (c.pancake.pages || []).every((x) => x && x.pageId) ? '' : 'có page thiếu page_id',
+          (c.pancake.pages || []).every((x) => x && x.token) ? '' : 'có page thiếu token',
         ].filter(Boolean),
         sanSang: (c.pancake.pages || []).length > 0
           && (c.pancake.pages || []).every((x) => x && x.pageId && x.token),

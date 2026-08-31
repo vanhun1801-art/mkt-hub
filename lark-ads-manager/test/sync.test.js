@@ -102,20 +102,32 @@ const post = async (p, b) => {
    * chỉ để đo (Pancake) thì cố tình KHÔNG có adapter — bấm "Đồng bộ" vào nó là lỗi. */
   const KHOI_CAU_HINH = Object.keys(ketnoi.DEFAULT).filter((k) => k !== 'dongBo');
   const CO_ADAPTER = Object.keys(sync.ADAPTERS || {});
-  const CHI_DO = st.providers.filter((x) => x.laDoanhThu).map((x) => x.key);
-  t('mọi khối cấu hình đều hiện ra giao diện',
-    KHOI_CAU_HINH.every((k) => st.providers.some((x) => x.key === k)),
-    KHOI_CAU_HINH.filter((k) => !st.providers.some((x) => x.key === k)).join(', '));
+  const CHI_DO = (st.doLuong || []).map((x) => x.key);
+  const CHI_TIEU = st.providers.map((x) => x.key);
+
+  t('mọi khối cấu hình đều hiện ra giao diện (ở providers hoặc doLuong)',
+    KHOI_CAU_HINH.every((k) => CHI_TIEU.includes(k) || CHI_DO.includes(k)),
+    KHOI_CAU_HINH.filter((k) => !CHI_TIEU.includes(k) && !CHI_DO.includes(k)).join(', '));
   t('mọi adapter đồng bộ đều có khối cấu hình',
     CO_ADAPTER.every((k) => KHOI_CAU_HINH.includes(k)),
     CO_ADAPTER.filter((k) => !KHOI_CAU_HINH.includes(k)).join(', '));
-  t('mọi nguồn chi tiêu đều có adapter (không kênh nào bật mà không đồng bộ được)',
-    st.providers.filter((x) => !x.laDoanhThu).every((x) => CO_ADAPTER.includes(x.key)),
-    st.providers.filter((x) => !x.laDoanhThu && !CO_ADAPTER.includes(x.key)).map((x) => x.key).join(', '));
+  /* Bất biến quan trọng nhất của chỗ này: MỌI thứ trong `providers` phải đồng bộ
+   * được. Giao diện vẽ nút "Đồng bộ kênh này" cho từng phần tử của mảng đó, nên
+   * một phần tử không có adapter là một nút bấm vào là lỗi. Đã xảy ra thật với
+   * Pancake khi nó còn nằm chung mảng và chỉ được lọc bằng một cờ. */
+  t('mọi thứ trong providers đều đồng bộ được',
+    CHI_TIEU.every((k) => CO_ADAPTER.includes(k)),
+    CHI_TIEU.filter((k) => !CO_ADAPTER.includes(k)).join(', '));
+  t('nguồn chỉ-để-đo KHÔNG nằm trong providers',
+    CHI_DO.every((k) => !CHI_TIEU.includes(k)),
+    CHI_DO.filter((k) => CHI_TIEU.includes(k)).join(', '));
   t('nguồn chỉ-để-đo không có adapter đồng bộ',
     CHI_DO.every((k) => !CO_ADAPTER.includes(k)),
     CHI_DO.filter((k) => CO_ADAPTER.includes(k)).join(', '));
   t('Pancake nằm trong nhóm chỉ-để-đo', CHI_DO.includes('pancake'), CHI_DO.join(', '));
+  t('nhãn nguồn chỉ-để-đo không mất dấu tiếng Việt',
+    (st.doLuong || []).every((x) => /[ạảãàáâậầấẩẫăắằặẳẵóòọõỏôộổỗồốơờớợởỡéèẻẹẽêếềệểễúùụủũưựừứửữíìịỉĩýỳỷỹỵđ]/i.test(x.label)),
+    (st.doLuong || []).map((x) => x.label).join(' | '));
   t('kênh Google Ads API nói rõ còn thiếu gì',
     Array.isArray((st.providers.find((p) => p.key === 'googleAds') || {}).thieu));
   t('không có trường accessToken', !JSON.stringify(st).includes('accessToken'));
@@ -124,9 +136,9 @@ const post = async (p, b) => {
   /* Pancake giữ token trong pages[].token — một nhánh riêng, nên phải kiểm riêng:
    * status() chỉ được nói có/không, tuyệt đối không trả lại giá trị token. */
   t('danh sách page Pancake không mang token',
-    (st.providers.find((x) => x.key === 'pancake') || {}).pages
-      ? (st.providers.find((x) => x.key === 'pancake') || {}).pages.every((x) => !('token' in x))
-      : true);
+    ((st.doLuong || []).find((x) => x.key === 'pancake') || { pages: [] })
+      .pages.every((x) => !('token' in x)));
+  t('nguồn chỉ-để-đo cũng có cờ coToken', (st.doLuong || []).every((x) => typeof x.coToken === 'boolean'));
 
   console.log('— chuẩn hoá link Google Sheet');
   t('link edit → export csv',

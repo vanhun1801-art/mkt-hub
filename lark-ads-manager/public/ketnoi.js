@@ -16,11 +16,12 @@
    * Ẩn có điều kiện: kênh nào đang BẬT thì vẫn hiện, để không bao giờ có chuyện một
    * kênh lặng lẽ ghi số vào Base mà giao diện không nhắc tới nó. */
   const KENH_AN = ['googleSheet'];
-  /* Pancake nam chung mang providers de dung mot co che status(), nhung no do
-   * "khach den tu quang cao nao", khong do chi tieu. De lan vao luoi the nen tang
-   * thi no se co nut "Dong bo kenh nay" — bam vao la loi, vi sync/index.js khong
-   * co adapter cho no. Tach ra bang co laDoanhThu. */
-  const hienKenh = (p) => !p.laDoanhThu && (!KENH_AN.includes(p.key) || p.enabled);
+  const hienKenh = (p) => !KENH_AN.includes(p.key) || p.enabled;
+
+  /* Nguồn chỉ-để-đo (Pancake) nằm ở `c.doLuong`, KHÔNG nằm trong `c.providers` —
+   * xem chú thích trong sync/ketnoi.js status(). Hàm này chịu được cả bản server
+   * cũ chưa có doLuong: khi đó trả về rỗng và thẻ Pancake đơn giản không hiện. */
+  const layDoLuong = (c, key) => ((c && c.doLuong) || []).find((x) => x.key === key) || {};
 
   /* ===== Biểu mẫu điền token ngay trong app =====
    * Trước đây token chỉ điền được bằng `node ket-noi.js` trên máy cá nhân. App chạy
@@ -479,7 +480,9 @@
   const PC_NEN_TANG = ['Facebook', 'TikTok', 'Instagram', 'Zalo', 'WhatsApp'];
 
   function thePancake(c) {
-    const p = (c.providers || []).find((x) => x.key === 'pancake') || {};
+    const p = layDoLuong(c, 'pancake');
+    // Server cũ chưa có doLuong → không vẽ gì, thay vì vẽ một thẻ rỗng vô nghĩa.
+    if (!p.key) return '';
     const pages = KS.pcPages || p.pages || [];
     const dong = (x, i) => `
       <tr data-pc-row="${i}">
@@ -560,7 +563,8 @@
   }
 
   function wirePancake(c) {
-    const p = (c.providers || []).find((x) => x.key === 'pancake') || {};
+    const p = layDoLuong(c, 'pancake');
+    if (!p.key) return;
 
     const goiLuu = async () => {
       const body = {
@@ -613,7 +617,7 @@
       b.disabled = true; b.textContent = 'Đang lưu…';
       try {
         const r = await goiLuu();
-        const pp = (r.providers || []).find((x) => x.key === 'pancake') || {};
+        const pp = layDoLuong(r, 'pancake');
         toast(pp.sanSang ? 'Đã lưu — bấm Kiểm tra kết nối' : 'Đã lưu, còn thiếu: ' + ((pp.thieu || []).join(', ') || 'token'),
           pp.sanSang ? 'ok' : 'err');
         render();

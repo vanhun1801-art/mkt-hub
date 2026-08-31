@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Quản lý quảng cáo đa nền tảng · Rooty Trip</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%232b5cff'/><text x='16' y='22' font-size='14' font-family='Arial' font-weight='bold' fill='white' text-anchor='middle'>QC</text></svg>">
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css?v=__V__">
 </head>
 <body>
 
@@ -63,8 +63,11 @@
 
 <div class="toast-wrap" id="toasts"></div>
 
-<script src="charts.js"></script>
-<script src="app.js"></script>
-<script src="ketnoi.js"></script>
+<!-- ?v= do server thay bang van tay noi dung moi lan khoi dong. Header no-store mot
+     minh khong du: app chay sau proxy cua mkt-hub, va proxy co the tra ban cu. Thieu
+     cai nay thi deploy xong giao dien van la ban cu ma khong ai biet. -->
+<script src="charts.js?v=__V__"></script>
+<script src="app.js?v=__V__"></script>
+<script src="ketnoi.js?v=__V__"></script>
 </body>
 </html>
