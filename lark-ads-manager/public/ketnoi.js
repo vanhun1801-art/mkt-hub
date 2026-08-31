@@ -494,7 +494,9 @@
         <td><input data-pc="label" value="${esc(x.label || '')}" placeholder="Rooty Trip Phú Quốc" style="width:100%"></td>
         <td><input data-pc="token" type="password" autocomplete="off"
              placeholder="${x.coToken ? 'đã có — để trống là giữ nguyên' : 'dán Page Access Token'}" style="width:100%">
-          ${x.coToken ? '<span class="tag good">đã có token</span>' : '<span class="tag warn">chưa có token</span>'}</td>
+          <div style="margin-top:4px">${x.coToken
+            ? '<span class="tag good">đã có token</span>'
+            : '<span class="tag warn">chưa có token</span>'}</div></td>
         <td><button class="btn small ghost" data-pc-xoa="${i}">Xoá</button></td>
       </tr>`;
 

@@ -30,6 +30,32 @@ function chuanNenTang(v) {
   return NEN_TANG[k] || (v ? String(v) : '');
 }
 
+/**
+ * Đoán nền tảng từ tiền tố của page_id.
+ *
+ * API /pages trả trường platform cho page Facebook nhưng để trống với mấy loại
+ * khác, nên bảng hiện ra bắt người dùng tự chọn — mà nhìn `ttm_-0004gFkT50UIFZT…`
+ * thì không ai biết đó là TikTok. Tiền tố là tín hiệu chắc chắn, dùng luôn:
+ *   igo_  → Instagram        waba_ → WhatsApp
+ *   ttm_  → TikTok           chỉ toàn số → Facebook
+ * Zalo cũng toàn số như Facebook nên KHÔNG đoán bừa: chỉ nhận số là Facebook khi
+ * API không nói gì khác, và trường platform của API luôn được ưu tiên.
+ */
+const TIEN_TO = [
+  [/^igo[_-]/i, 'Instagram'],
+  [/^waba[_-]/i, 'WhatsApp'],
+  [/^ttm[_-]/i, 'TikTok'],
+  [/^zalo[_-]/i, 'Zalo'],
+];
+
+function doanNenTang(pageId, tuApi) {
+  const theoApi = chuanNenTang(tuApi);
+  if (theoApi) return theoApi;
+  const id = String(pageId || '');
+  for (const [re, ten] of TIEN_TO) if (re.test(id)) return ten;
+  return /^\d{6,}$/.test(id) ? 'Facebook' : '';
+}
+
 /** 'YYYY-MM-DD' (giờ VN) → unix giây tại 00:00:00 +07. */
 function dauNgay(ngay) {
   return Math.floor(Date.parse(`${ngay}T00:00:00+07:00`) / 1000);
@@ -67,12 +93,15 @@ async function danhSachPage(conf) {
   if (res && res.success === false) throw new Error(scrub(res.message || 'Pancake trả về success=false'));
   const raw = (res && (res.categorized || res.pages)) || {};
   const out = [];
-  const nhan = (arr, nenTang) => (arr || []).forEach((p) => out.push({
-    pageId: String(p.id || p.page_id || ''),
-    label: p.name || '',
-    platform: chuanNenTang(p.platform || nenTang),
-    username: p.username || p.page_username || '',
-  }));
+  const nhan = (arr, nenTang) => (arr || []).forEach((p) => {
+    const pageId = String(p.id || p.page_id || '');
+    out.push({
+      pageId,
+      label: p.name || '',
+      platform: doanNenTang(pageId, p.platform || nenTang),
+      username: p.username || p.page_username || '',
+    });
+  });
   if (Array.isArray(raw)) nhan(raw);
   else Object.entries(raw).forEach(([k, v]) => nhan(v, k));
   return out.filter((p) => p.pageId);
@@ -270,5 +299,5 @@ async function test(conf) {
 
 module.exports = {
   danhSachPage, danhSachTag, fetchConversations, test,
-  theoAdVaNgay, chuanSdt, chuanNenTang, ngayVN, dauNgay, cuoiNgay,
+  theoAdVaNgay, chuanSdt, chuanNenTang, doanNenTang, ngayVN, dauNgay, cuoiNgay,
 };

@@ -54,6 +54,23 @@ t('tiktok_business → TikTok', p.chuanNenTang('tiktok_business') === 'TikTok');
 t('tên lạ giữ nguyên chứ không mất', p.chuanNenTang('Threads') === 'Threads');
 t('rỗng ra rỗng', p.chuanNenTang('') === '');
 
+console.log('— đoán nền tảng từ tiền tố page_id');
+/* API /pages trả platform cho page Facebook nhưng để trống với loại khác, nên bảng
+ * hiện ra bắt người dùng tự chọn — mà nhìn 'ttm_-0004gFkT50UIFZT…' thì không ai
+ * biết đó là TikTok. Đã xảy ra thật. */
+const dnt = p.doanNenTang;
+t('igo_ → Instagram', dnt('igo_17841406452112743', '') === 'Instagram');
+t('waba_ → WhatsApp', dnt('waba_910524132139924', '') === 'WhatsApp');
+t('ttm_ → TikTok', dnt('ttm_-0004gFkT50UIFZT5TBGQP8f_8xEHbqIF2dI', '') === 'TikTok');
+t('chỉ toàn số → Facebook', dnt('1175309429179128', '') === 'Facebook');
+t('trường platform của API luôn thắng tiền tố',
+  dnt('1175309429179128', 'zalo') === 'Zalo', dnt('1175309429179128', 'zalo'));
+t('tiktok_business từ API vẫn quy về TikTok', dnt('ttm_abc', 'tiktok_business') === 'TikTok');
+t('id lạ không đoán bừa', dnt('gi-do-la', '') === '', dnt('gi-do-la', ''));
+t('id rỗng ra rỗng', dnt('', '') === '');
+// Số ngắn không phải page_id Facebook — đừng gán nhầm
+t('số quá ngắn không nhận là Facebook', dnt('123', '') === '', dnt('123', ''));
+
 console.log('— gom theo (quảng cáo × ngày)');
 const hoiThoai = [
   { adIds: ['A1'], ngay: '2026-08-31', platform: 'Facebook', coSdt: true, sdt: ['0900000001'], orderIds: [11], tags: ['Chốt'], tagChotCuaPancake: false },
