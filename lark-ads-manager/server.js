@@ -20,6 +20,8 @@ const metaAds = require('./sync/meta');
 const gads = require('./sync/gads');
 const pancake = require('./sync/pancake');
 const pancakePos = require('./sync/pancakepos');
+const tourwell = require('./sync/tourwell');
+const roasTinh = require('./sync/roas');
 
 const T = cfg.tables;
 const PUBLIC = path.join(__dirname, 'public');
@@ -527,6 +529,136 @@ async function api(req, res, u) {
       },
       nenTang: o.byPlatform.map((x) => ({ platform: x.platform, chuyenDoi: x.conversions, spend: x.spend })),
       theoAd, ghep,
+    });
+  }
+
+  /* ---------------- ROAS: nhập bản xuất Tourwell rồi ghi công ---------------- */
+
+  /**
+   * Kho tạm cho hai bản xuất Tourwell.
+   *
+   * Vì sao lưu ra đĩa chứ không giữ trong bộ nhớ: người dùng nhập file một lần rồi
+   * đổi khoảng ngày, mở lại tab, tính lại nhiều lượt — bắt nhập lại mỗi lần là
+   * không dùng được. Vì sao KHÔNG ghi vào Base: đây là dữ liệu thô của một lần
+   * nhập, không phải sổ sách; ghi vào Base là nhân đôi nguồn sự thật.
+   *
+   * Trên Render ổ đĩa là tạm nên kho này mất sau deploy — giao diện nói rõ điều đó
+   * kèm thời điểm nhập, chứ không im lặng trả bảng rỗng.
+   */
+  const KHO_TW = path.join(__dirname, 'roas-tourwell.json');
+  const docKho = () => {
+    try { return JSON.parse(fs.readFileSync(KHO_TW, 'utf8')); } catch (_) { return null; }
+  };
+
+  if (p === '/api/roas/trang-thai' && method === 'GET') {
+    const k = docKho();
+    return ok(res, {
+      coDuLieu: !!k,
+      luc: k ? k.luc : null,
+      lead: k ? k.lead.tomTat : null,
+      don: k ? k.don.tomTat : null,
+      oDiaTam: !!process.env.RENDER,
+    });
+  }
+
+  /**
+   * Nhập file. Nhận nhiều file một lượt và TỰ nhận dạng file nào là lead, file nào
+   * là đơn — theo tên cột chứ không theo tên file, vì tên file người dùng đổi được.
+   */
+  if (p === '/api/roas/nhap' && method === 'POST') {
+    const body = await readBody(req);
+    const files = Array.isArray(body.files) ? body.files : [];
+    if (!files.length) return fail(res, 400, 'Chưa chọn file nào');
+
+    const cu = docKho() || {};
+    const moi = { luc: new Date().toISOString(), lead: cu.lead || null, don: cu.don || null };
+    const nhanXet = [];
+    for (const f of files) {
+      let buf;
+      try { buf = Buffer.from(String(f.base64 || ''), 'base64'); }
+      catch (_) { return fail(res, 400, `Không đọc được ${f.ten || 'file'}`); }
+      if (!buf.length) return fail(res, 400, `${f.ten || 'File'} rỗng`);
+      let loai;
+      try { loai = tourwell.nhanDang(buf); }
+      catch (e) { return fail(res, 400, `${f.ten || 'File'}: ${e.message}`); }
+      if (!loai) {
+        return fail(res, 400, `${f.ten || 'File'} không phải bản xuất Lead hay Đơn hàng của Tourwell `
+          + '(không thấy cột "Mã lead" hay "Mã đơn")');
+      }
+      try {
+        const r = loai === 'lead' ? tourwell.docLead(buf) : tourwell.docDon(buf);
+        moi[loai] = { tomTat: tourwell.tomTat(loai, r.rows), rows: r.rows };
+        nhanXet.push({ ten: f.ten || '', loai, dong: r.rows.length });
+      } catch (e) { return fail(res, 400, `${f.ten || 'File'}: ${e.message}`); }
+    }
+    fs.writeFileSync(KHO_TW, JSON.stringify(moi), { mode: 0o600 });
+    return ok(res, {
+      nhanXet,
+      luc: moi.luc,
+      lead: moi.lead ? moi.lead.tomTat : null,
+      don: moi.don ? moi.don.tomTat : null,
+      oDiaTam: !!process.env.RENDER,
+    });
+  }
+
+  /** Xoá kho tạm — dùng khi nhập nhầm file. */
+  if (p === '/api/roas/xoa' && method === 'POST') {
+    try { fs.unlinkSync(KHO_TW); } catch (_) {}
+    return ok(res, { da: true });
+  }
+
+  /**
+   * Tính ROAS. Đọc đơn POS và hội thoại Pancake tại chỗ (chúng luôn tươi), ghép với
+   * hai bản xuất trong kho.
+   */
+  if (p === '/api/roas/tinh' && method === 'POST') {
+    const body = await readBody(req);
+    const kho = docKho();
+    if (!kho || !kho.lead || !kho.don) {
+      return fail(res, 400, 'Chưa nhập đủ hai bản xuất Tourwell (Danh sách lead và Danh sách đơn hàng)');
+    }
+    const c = ketnoi.read();
+    const ngayVN = (lui = 0) => new Date(Date.now() + 7 * 3600 * 1000 - lui * 86400 * 1000)
+      .toISOString().slice(0, 10);
+    /* Mặc định lấy đúng khoảng mà bản xuất ĐƠN phủ. Chọn khoảng rộng hơn bản xuất
+     * là tự tạo ra "chi tiêu không có doanh thu" một cách giả tạo. */
+    const from = body.from || kho.don.tomTat.tu || ngayVN(30);
+    const to = body.to || kho.don.tomTat.den || ngayVN(0);
+    const cuaSo = Number(body.cuaSo) > 0 ? Number(body.cuaSo) : 60;
+
+    const log = [];
+    let posRows = [];
+    let htRows = [];
+    const loi = [];
+    if (c.pancakePos.enabled && c.pancakePos.apiKey && (c.pancakePos.shopIds || []).length) {
+      try { posRows = (await pancakePos.fetchOrders(c.pancakePos, from, to, (m) => log.push(m))).rows; }
+      catch (e) { loi.push('Pancake POS: ' + e.message); }
+    } else loi.push('Pancake POS chưa bật — thiếu đường khoá cứng của Facebook');
+    for (const pg of (c.pancake.pages || []).filter((x) => x.pageId && x.token)) {
+      try {
+        const r = await pancake.fetchConversations(pg, from, to, (m) => log.push(m));
+        htRows = htRows.concat(r.rows);
+      } catch (e) { loi.push(`Pancake ${pg.label || pg.pageId}: ${e.message}`); }
+    }
+
+    const d = await store.get();
+    const kq = roasTinh.tinh({
+      posRows, hoiThoaiRows: htRows,
+      leadRows: kho.lead.rows, donRows: kho.don.rows,
+      data: d, from, to, cuaSo,
+    });
+    return ok(res, {
+      ...kq,
+      log, loi,
+      nguon: {
+        posDon: posRows.length,
+        hoiThoai: htRows.length,
+        lead: kho.lead.rows.length,
+        don: kho.don.rows.length,
+        nhapLuc: kho.luc,
+        khoangXuatDon: [kho.don.tomTat.tu, kho.don.tomTat.den],
+        khoangXuatLead: [kho.lead.tomTat.tu, kho.lead.tomTat.den],
+      },
     });
   }
 

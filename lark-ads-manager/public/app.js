@@ -825,8 +825,169 @@ VIEW['doanh-thu'] = async (view) => {
       { key: 'revenue', label: 'Doanh thu', num: true, render: (r) => vnd(r.revenue) },
       { key: 'staff', label: 'Sales', render: (r) => esc((r.staff || []).map((s) => s.name).join(', ')) },
     ], d.rows, { sort: { key: 'date', dir: 'desc' } })}</div>
-  </div>` : ''}`;
+  </div>` : ''}
+
+  <div id="roasKhoi" style="margin-top:14px"></div>`;
+
+  await roasVe();
 };
+
+/* ================= ROAS TỪNG QUẢNG CÁO =================
+ *
+ * Bảng trên cùng tab này (Hiệu quả theo kênh) lấy từ bảng "Báo cáo Sales" trong
+ * Base — số do người gõ. Khối dưới đây khác hẳn: nó ghi công doanh thu THẬT của
+ * Tourwell về từng quảng cáo, bằng khoá lấy từ Pancake.
+ *
+ * Hai đường ghi công, độ tin khác nhau, và bảng nói rõ dòng nào đi đường nào:
+ *   POS        — đơn POS mang cả ad_id lẫn mã lead Tourwell. Khoá cứng.
+ *   hội thoại  — ghép bằng số điện thoại. Yếu hơn. Đường duy nhất của TikTok.
+ */
+const RS = { kq: null, dangChay: false };
+
+async function roasVe() {
+  const khoi = $('#roasKhoi');
+  if (!khoi) return;
+  let tt;
+  try { tt = await api('/api/roas/trang-thai'); }
+  catch (e) { khoi.innerHTML = ''; return; }
+
+  const banXuat = (nhan, o) => (o
+    ? `<b>${esc(nhan)}</b> ${int(o.dong)} dòng · ${dmy(o.tu)} → ${dmy(o.den)}`
+      + (o.tongTien != null ? ` · ${vnd(o.tongTien)}` : '')
+    : `<b>${esc(nhan)}</b> <span style="color:var(--bad)">chưa nhập</span>`);
+
+  khoi.innerHTML = `
+  <div class="card">
+    <div class="card-head"><h3>ROAS từng quảng cáo</h3>
+      <span class="sub">doanh thu Tourwell ghi công về quảng cáo, không dùng trường Nguồn</span></div>
+    <div class="card-body">
+      <div class="help">
+        Cần hai bản xuất Excel từ Tourwell: <b>Danh sách lead</b> và <b>Danh sách đơn hàng</b>.
+        App tự nhận file nào là file nào theo tên cột.
+        <br>Xuất đơn hàng nhớ chọn tab <b>Tất cả</b> và <b>xoá bộ lọc Bán hàng</b> — nếu không sẽ chỉ ra đơn của chính mình.
+      </div>
+      <div class="help" style="${tt.coDuLieu ? '' : 'border-color:var(--warn);color:var(--warn)'}">
+        ${banXuat('Lead:', tt.lead)}<br>${banXuat('Đơn hàng:', tt.don)}
+        ${tt.coDuLieu ? `<br><span class="sub">nhập lúc ${new Date(tt.luc).toLocaleString('vi-VN')}</span>` : ''}
+        ${tt.coDuLieu && tt.oDiaTam ? '<br><b style="color:var(--warn)">Dữ liệu nhập nằm trên ổ đĩa tạm — mất sau lần deploy kế tiếp, nhập lại là xong.</b>' : ''}
+      </div>
+      <div class="form-grid">
+        <div class="field full"><label>Chọn hai file xuất từ Tourwell</label>
+          <input type="file" id="rsFile" accept=".xlsx" multiple>
+          <span class="hint">Chọn cả hai file một lượt cũng được</span></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+        <button class="btn ghost" id="rsNhap" disabled>Nhập file</button>
+        <button class="btn primary" id="rsTinh" ${tt.coDuLieu ? '' : 'disabled'}>Tính ROAS</button>
+        ${tt.coDuLieu ? '<button class="btn ghost" id="rsXoa">Xoá dữ liệu đã nhập</button>' : ''}
+      </div>
+      <div id="rsKetQua" style="margin-top:12px"></div>
+    </div>
+  </div>`;
+
+  const fi = $('#rsFile');
+  fi.onchange = () => { $('#rsNhap').disabled = !fi.files.length; };
+
+  $('#rsNhap').onclick = async (e) => {
+    const b = e.currentTarget; const cu = b.textContent;
+    b.disabled = true; b.textContent = 'Đang đọc…';
+    try {
+      const files = [];
+      for (const f of fi.files) {
+        const buf = await f.arrayBuffer();
+        let bin = '';
+        const u8 = new Uint8Array(buf);
+        for (let i = 0; i < u8.length; i += 8192) bin += String.fromCharCode(...u8.subarray(i, i + 8192));
+        files.push({ ten: f.name, base64: btoa(bin) });
+      }
+      const r = await api('/api/roas/nhap', { method: 'POST', body: JSON.stringify({ files }) });
+      toast('Đã nhập: ' + (r.nhanXet || []).map((x) => `${x.loai} ${x.dong} dòng`).join(' · '), 'ok');
+      await roasVe();
+    } catch (err) { toast(err.message, 'err'); b.disabled = false; b.textContent = cu; }
+  };
+
+  if ($('#rsXoa')) {
+    $('#rsXoa').onclick = async () => {
+      await api('/api/roas/xoa', { method: 'POST', body: '{}' });
+      RS.kq = null;
+      await roasVe();
+    };
+  }
+
+  $('#rsTinh').onclick = async (e) => {
+    const b = e.currentTarget; const cu = b.textContent;
+    b.disabled = true; b.textContent = 'Đang tính…';
+    try {
+      RS.kq = await api('/api/roas/tinh', { method: 'POST', body: '{}' });
+      roasBang();
+    } catch (err) { toast(err.message, 'err'); }
+    b.disabled = false; b.textContent = cu;
+  };
+
+  if (RS.kq) roasBang();
+}
+
+function roasBang() {
+  const r = RS.kq;
+  const el = $('#rsKetQua');
+  if (!el || !r) return;
+  const ty = (v) => (v == null ? '—' : v.toFixed(2) + '×');
+  const mauRoas = (v) => (v == null ? '' : v >= 3 ? 'good' : v >= 1 ? 'warn' : 'bad');
+
+  el.innerHTML = `
+    <div class="help">${dmy(r.from)} → ${dmy(r.to)} · cửa sổ ghi công ${r.cuaSo} ngày ·
+      đọc ${int(r.nguon.posDon)} đơn POS, ${int(r.nguon.hoiThoai)} hội thoại,
+      ${int(r.nguon.lead)} lead, ${int(r.nguon.don)} đơn Tourwell</div>
+    ${(r.loi || []).length ? `<div class="help" style="border-color:var(--warn);color:var(--warn)">
+      ${r.loi.map(esc).join('<br>')}</div>` : ''}
+
+    <div class="kpis" style="grid-template-columns:repeat(4,minmax(0,1fr));margin-top:10px">
+      <div class="kpi"><div class="k-label">Chi tiêu cả kỳ</div><div class="k-value">${vnd(r.tong.chiKy)}</div><div class="k-foot">mọi kênh</div></div>
+      <div class="kpi"><div class="k-label">Doanh thu ghi công</div><div class="k-value">${vnd(r.tong.tien)}</div><div class="k-foot">${int(r.tong.don)} đơn · ${int(r.tong.lead)} lead</div></div>
+      <div class="kpi"><div class="k-label">ROAS</div><div class="k-value">${ty(r.tong.roas)}</div><div class="k-foot">sàn dưới — xem ghi chú</div></div>
+      <div class="kpi"><div class="k-label">ROAS theo tiền đã thu</div><div class="k-value">${ty(r.tong.roasThu)}</div><div class="k-foot">${vnd(r.tong.thu)}</div></div>
+    </div>
+
+    <h4 style="margin:18px 0 6px;font-size:1rem">Theo kênh</h4>
+    <div style="overflow-x:auto">${table('rsKenh', [
+      { key: 'nenTang', label: 'Kênh', render: (x) => platTag(x.nenTang) },
+      { key: 'spendKy', label: 'Chi tiêu cả kỳ', num: true, render: (x) => vnd(x.spendKy) },
+      { key: 'phu', label: 'Phủ', num: true, render: (x) => (x.phu == null ? '—' : (x.phu * 100).toFixed(0) + '%') },
+      { key: 'tien', label: 'Doanh thu', num: true, render: (x) => `<b>${vnd(x.tien)}</b>` },
+      { key: 'thu', label: 'Đã thu', num: true, render: (x) => vnd(x.thu) },
+      { key: 'don', label: 'Đơn', num: true, render: (x) => int(x.don) },
+      { key: 'roas', label: 'ROAS', num: true, render: (x) => `<span class="tag ${mauRoas(x.roas)}">${ty(x.roas)}</span>` },
+    ], r.theoKenh)}</div>
+
+    <h4 style="margin:18px 0 6px;font-size:1rem">Theo từng quảng cáo</h4>
+    <div style="overflow-x:auto">${table('rsAd', [
+      { key: 'ten', label: 'Quảng cáo', cls: 'name', render: (x) => (x.coTrongBase
+        ? `<b>${esc(x.ten)}</b><span class="sub-line">${esc(x.adId)}</span>`
+        : `<span class="tag warn">chưa có trong Base</span> <code>${esc(x.adId)}</code>`) },
+      { key: 'nenTang', label: 'Kênh', render: (x) => (x.nenTang ? platTag(x.nenTang) : '—') },
+      { key: 'duong', label: 'Đường ghép', render: (x) => (x.duong === 'POS'
+        ? '<span class="tag good">khoá cứng</span>'
+        : '<span class="tag warn">số điện thoại</span>') },
+      { key: 'spend', label: 'Chi tiêu', num: true, render: (x) => vnd(x.spend) },
+      { key: 'lead', label: 'Lead', num: true, render: (x) => int(x.lead) },
+      { key: 'don', label: 'Đơn', num: true, render: (x) => int(x.don) },
+      { key: 'tien', label: 'Doanh thu', num: true, render: (x) => `<b>${vnd(x.tien)}</b>` },
+      { key: 'roas', label: 'ROAS', num: true, render: (x) => `<span class="tag ${mauRoas(x.roas)}">${ty(x.roas)}</span>` },
+      { key: 'treTB', label: 'Trễ TB', num: true, render: (x) => (x.treTB == null ? '—' : x.treTB + ' ngày') },
+    ], r.rows, { sort: { key: 'tien', dir: 'desc' }, empty: 'Không ghép được dòng nào' })}</div>
+
+    <div class="help" style="margin-top:12px">
+      <b>Đọc con số này cho đúng.</b> ROAS chia cho <b>toàn bộ</b> chi tiêu của kênh, nhưng doanh thu
+      chỉ tính phần ghép được — nên đây là <b>sàn dưới</b>: thật có thể cao hơn, không thể thấp hơn.
+      Cột <b>Phủ</b> cho biết bao nhiêu phần chi tiêu có ghép được.
+      <br>Dòng ghi <b>khoá cứng</b> đi qua đơn POS mang cả <code>ad_id</code> lẫn mã lead — không phải đoán.
+      Dòng ghi <b>số điện thoại</b> yếu hơn: một số có thể thuộc nhiều lead.
+      ${r.donKhongGhep && r.donKhongGhep.so ? `<br>Còn <b>${int(r.donKhongGhep.so)} đơn</b>
+        (${vnd(r.donKhongGhep.tien)}) không ghép được về quảng cáo nào — phần lớn là khách không đến từ quảng cáo.` : ''}
+      ${r.nhat && r.nhat.nhapNhangHoiThoai ? `<br>${int(r.nhat.nhapNhangHoiThoai)} hội thoại mang nhiều
+        <code>ad_ids</code> nên không ghi công cho quảng cáo nào — thà bỏ hơn gán bừa.` : ''}
+    </div>`;
+}
 
 /* ---------------- modal ---------------- */
 function modal(title, bodyHtml, footHtml) {
