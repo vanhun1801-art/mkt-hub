@@ -19,6 +19,7 @@ const giamSat = require('./giam-sat');
 const metaAds = require('./sync/meta');
 const gads = require('./sync/gads');
 const pancake = require('./sync/pancake');
+const pancakePos = require('./sync/pancakepos');
 
 const T = cfg.tables;
 const PUBLIC = path.join(__dirname, 'public');
@@ -507,6 +508,79 @@ async function api(req, res, u) {
       },
       nenTang: o.byPlatform.map((x) => ({ platform: x.platform, chuyenDoi: x.conversions, spend: x.spend })),
       theoAd, ghep,
+    });
+  }
+
+  /* ---------------- Pancake POS (đơn · ad_id · mã lead Tourwell) ---------------- */
+
+  if (p === '/api/pancake-pos' && method === 'PUT') {
+    const body = await readBody(req);
+    let daDoi;
+    try { ({ daDoi } = ketnoi.writePancakePos(body)); }
+    catch (e) { return fail(res, e.code || 400, e.message); }
+    return ok(res, { ...ketnoi.status(), daDoi });
+  }
+
+  /** Dò shop bằng api_key — shop_id không hiện rõ trong giao diện POS. */
+  if (p === '/api/pancake-pos/shops' && method === 'POST') {
+    const body = await readBody(req);
+    const conf = body && body.apiKey
+      ? { apiKey: String(body.apiKey).trim() }
+      : ketnoi.read().pancakePos;
+    try { return ok(res, { rows: await pancakePos.danhSachShop(conf) }); }
+    catch (e) { return fail(res, 400, e.message); }
+  }
+
+  if (p === '/api/pancake-pos/test' && method === 'POST') {
+    try { return ok(res, await pancakePos.test(ketnoi.read().pancakePos)); }
+    catch (e) { return fail(res, 400, e.message); }
+  }
+
+  /**
+   * Phép ghép chính: đơn POS → (ad_id × ngày) ghép với chi tiêu, và (mã lead → quảng cáo).
+   *
+   * Bảng thứ hai là thứ dùng để nối với bản xuất Excel của Tourwell — cột "Mã lead"
+   * trong file khớp thẳng vào đây, nên ra được doanh thu theo từng quảng cáo mà
+   * không cần API key đọc dữ liệu của Tourwell.
+   */
+  if (p === '/api/pancake-pos/ghep' && method === 'POST') {
+    const body = await readBody(req);
+    const conf = ketnoi.read().pancakePos;
+    if (!conf.apiKey) return fail(res, 400, 'Chưa có api_key');
+    if (!(conf.shopIds || []).length) return fail(res, 400, 'Chưa khai shop nào');
+    const ngayVN = (lui = 0) => new Date(Date.now() + 7 * 3600 * 1000 - lui * 86400 * 1000)
+      .toISOString().slice(0, 10);
+    const from = body.from || ngayVN(14);
+    const to = body.to || ngayVN(0);
+    const log = [];
+    let don;
+    try { don = await pancakePos.fetchOrders(conf, from, to, (m) => log.push(m)); }
+    catch (e) { return fail(res, 400, e.message); }
+
+    const theoAd = pancakePos.theoAdVaNgay(don.rows);
+    const d = await store.get();
+    /* Dùng lại đúng phép ghép của sync/pancake.js: nó đã biết cách đếm ad_ids khớp
+     * ở cấp nào và từ chối tính khi lẫn lộn. Chỉ đổi tên trường cho khớp chữ ký. */
+    const ghep = pancake.ghepVoiChiTieu(
+      { rows: theoAd.rows.map((r) => ({
+        adId: r.adId, ngay: r.ngay, platform: '',
+        hoiThoai: r.soDon, coSdt: r.sdt.length, chot: r.soLead, soDon: r.soDon,
+      })) },
+      d, { from, to },
+    );
+    return ok(res, {
+      from, to, log,
+      tong: {
+        don: don.rows.length,
+        coAdId: don.rows.filter((x) => x.adId).length,
+        coMaLead: don.rows.filter((x) => x.leadId != null).length,
+        coTien: don.rows.filter((x) => x.tien > 0).length,
+        tienPOS: don.rows.reduce((a, x) => a + x.tien, 0),
+      },
+      theoAd: { soDong: theoAd.rows.length, khongCoAd: theoAd.khongCoAd,
+        khongCoLead: theoAd.khongCoLead, soLeadDuyNhat: theoAd.soLeadDuyNhat },
+      ghep,
+      leadVeAd: pancakePos.leadVeQuangCao(don.rows),
     });
   }
 

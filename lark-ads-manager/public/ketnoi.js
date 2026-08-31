@@ -290,6 +290,8 @@
 
     ${thePancake(c)}
 
+    ${thePancakePos(c)}
+
     <div class="card" style="margin-top:14px">
       <div class="card-head"><h3>Ghép ID nền tảng</h3>
         <span class="sub">bản ghi nào chưa có ID sẽ không nhận được số tự động</span></div>
@@ -469,6 +471,171 @@
   }
 
   /* ---------------- nút bấm ---------------- */
+  /* ===== Pancake POS — đơn hàng, ad_id và mã lead Tourwell =====
+   *
+   * Đây là mắt nối quan trọng nhất của cả chuỗi. Một bản ghi đơn POS mang đồng
+   * thời `ad_id` (quảng cáo nào) và ghi chú "LU1998" (lead Tourwell nào), nên nối
+   * được quảng cáo với doanh thu bằng KHOÁ CỨNG — không phải ghép theo số điện
+   * thoại, không phải đoán theo ngày khi khách quay lại. */
+  function thePancakePos(c) {
+    const p = layDoLuong(c, 'pancakePos');
+    if (!p.key) return '';
+    return `
+    <div class="card" style="margin-top:14px">
+      <div class="card-head">
+        <h3>Pancake POS — đơn hàng &amp; mã lead Tourwell</h3>
+        <span class="sub">nối quảng cáo với doanh thu bằng khoá cứng</span>
+      </div>
+      <div class="card-body">
+        <div class="help">
+          Mỗi đơn POS mang <code>ad_id</code> và ghi chú <code>LU1998</code> — tức mã lead Tourwell.
+          Nhờ vậy nối được quảng cáo với doanh thu <b>không cần ghép theo số điện thoại</b>.
+          <br><b>api_key lấy ở:</b> Pancake POS → <code>Cấu hình</code> → <code>Nâng cao</code> →
+          <code>Tích hợp bên thứ 3</code> → tab <code>API Key</code>.
+          Đây <b>không phải</b> khoá <code>pos_user_…</code> ở Cài đặt cá nhân — hai loại khác nhau.
+        </div>
+
+        <div class="field full" style="margin-bottom:10px">
+          <label><input type="checkbox" id="ppBat" ${p.enabled ? 'checked' : ''}> Bật đọc Pancake POS</label>
+        </div>
+
+        <div class="form-grid">
+          <div class="field full">
+            <label>api_key</label>
+            <input id="ppKey" type="password" autocomplete="off"
+              placeholder="${p.coToken ? 'đã có — để trống là giữ nguyên' : 'dán api_key của cửa hàng'}">
+          </div>
+          <div class="field full">
+            <label>shop_id <span class="hint">— ngăn bằng dấu phẩy, hoặc bấm Dò shop để máy điền</span></label>
+            <input id="ppShops" value="${esc((p.shopIds || []).join(', '))}" placeholder="123456">
+            <span class="hint">shop_id không hiện rõ trong giao diện POS. Dán api_key rồi bấm <b>Dò shop</b>.</span>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          <button class="btn ghost" id="ppDo">Dò shop</button>
+          <button class="btn primary" id="ppLuu">Lưu cấu hình POS</button>
+          <button class="btn ghost" id="ppTest" ${p.sanSang ? '' : 'disabled'}>Kiểm tra kết nối</button>
+          <button class="btn primary" id="ppGhep" ${p.sanSang ? '' : 'disabled'}>Ghép 14 ngày</button>
+        </div>
+        ${p.thieu && p.thieu.length ? `<div class="help" style="margin-top:10px;border-color:var(--warn);color:var(--warn)">Còn thiếu: ${esc(p.thieu.join(' · '))}</div>` : ''}
+        <div id="ppKetQua" style="margin-top:12px"></div>
+      </div>
+    </div>`;
+  }
+
+  function wirePancakePos(c) {
+    const p = layDoLuong(c, 'pancakePos');
+    if (!p.key) return;
+
+    const goiLuu = async () => {
+      const body = {
+        enabled: $('#ppBat').checked,
+        shopIds: ($('#ppShops').value || '').split(',').map((x) => x.trim()).filter(Boolean),
+      };
+      const k = ($('#ppKey').value || '').trim();
+      if (k) body.apiKey = k;
+      return api('/api/pancake-pos', { method: 'PUT', body: JSON.stringify(body) });
+    };
+    const nut = (id, fn) => { const b = $(id); if (b) b.onclick = fn; };
+
+    nut('#ppDo', async (e) => {
+      const b = e.currentTarget; const cu = b.textContent;
+      b.disabled = true; b.textContent = 'Đang dò…';
+      try {
+        const k = ($('#ppKey').value || '').trim();
+        const r = await api('/api/pancake-pos/shops', { method: 'POST', body: JSON.stringify(k ? { apiKey: k } : {}) });
+        const rows = r.rows || [];
+        $('#ppShops').value = rows.map((x) => x.shopId).join(', ');
+        $('#ppKetQua').innerHTML = `<div class="help">Thấy ${int(rows.length)} shop: ${
+          rows.map((x) => `<b>${esc(x.name || x.shopId)}</b> (<code>${esc(x.shopId)}</code>${
+            x.soPage != null ? ` · ${int(x.soPage)} page` : ''})`).join(' · ')}
+          <br>Xoá shop_id nào không dùng rồi bấm Lưu.</div>`;
+        toast(`Thấy ${rows.length} shop`, 'ok');
+      } catch (err) { toast(err.message, 'err'); }
+      b.disabled = false; b.textContent = cu;
+    });
+
+    nut('#ppLuu', async (e) => {
+      const b = e.currentTarget; const cu = b.textContent;
+      b.disabled = true; b.textContent = 'Đang lưu…';
+      try {
+        const r = await goiLuu();
+        const pp = layDoLuong(r, 'pancakePos');
+        toast(pp.sanSang ? 'Đã lưu — bấm Kiểm tra kết nối' : 'Đã lưu, còn thiếu: ' + ((pp.thieu || []).join(', ')),
+          pp.sanSang ? 'ok' : 'err');
+        render();
+      } catch (err) { toast(err.message, 'err'); b.disabled = false; b.textContent = cu; }
+    });
+
+    nut('#ppTest', async (e) => {
+      const b = e.currentTarget; const cu = b.textContent;
+      b.disabled = true; b.textContent = 'Đang thử…';
+      try {
+        await goiLuu();
+        const r = await api('/api/pancake-pos/test', { method: 'POST', body: '{}' });
+        if (!r.results) {
+          $('#ppKetQua').innerHTML = `<div class="help" style="border-color:var(--bad);color:var(--bad)">${esc(r.message || 'Không đọc được')}</div>`;
+        } else {
+          $('#ppKetQua').innerHTML = `<div class="card"><div class="card-body tight">${table('ppTest', [
+            { key: 'name', label: 'Shop', cls: 'name', render: (x) => `<b>${esc(x.name || x.shopId)}</b><span class="sub-line">${esc(x.shopId)}</span>` },
+            { key: 'ok', label: 'Kết nối', render: (x) => (x.ok ? '<span class="tag good">OK</span>' : '<span class="tag bad">Lỗi</span>') },
+            { key: 'tongDon', label: 'Tổng đơn', num: true, render: (x) => (x.ok ? (x.tongDon == null ? '—' : int(x.tongDon)) : esc(x.message || '')) },
+            { key: 'coAdId', label: 'Có ad_id', num: true, render: (x) => (x.ok ? `${x.coAdId}/${x.mau}` : '—') },
+            { key: 'coMaLead', label: 'Có mã lead', num: true, render: (x) => (x.ok ? `${x.coMaLead}/${x.mau}` : '—') },
+            { key: 'coTien', label: 'Có tiền', num: true, render: (x) => (x.ok ? `${x.coTien}/${x.mau}` : '—') },
+            { key: 'viDuLead', label: 'Ví dụ', render: (x) => (x.viDuLead ? `<code>${esc(x.viDuLead)}</code>` : '—') },
+          ], r.results)}</div></div>`;
+        }
+        toast(r.ok ? 'Đọc được' : 'Có lỗi — xem bảng', r.ok ? 'ok' : 'err');
+      } catch (err) { toast(err.message, 'err'); }
+      b.disabled = false; b.textContent = cu;
+    });
+
+    nut('#ppGhep', async (e) => {
+      const b = e.currentTarget; const cu = b.textContent;
+      b.disabled = true; b.textContent = 'Đang ghép…';
+      try {
+        await goiLuu();
+        const r = await api('/api/pancake-pos/ghep', { method: 'POST', body: '{}' });
+        const t = r.tong;
+        const lv = r.leadVeAd || { rows: [] };
+        const tyLead = t.don ? t.coMaLead / t.don : 0;
+        $('#ppKetQua').innerHTML = `
+          <div class="card"><div class="card-body">
+            <div class="help">${dmy(r.from)} → ${dmy(r.to)}</div>
+            <div class="help" style="${tyLead > 0.8 ? 'border-color:var(--good);color:var(--good)' : 'border-color:var(--warn);color:var(--warn)'}">
+              <b>${int(t.don)}</b> đơn POS · <b>${int(t.coAdId)}</b> có <code>ad_id</code> ·
+              <b>${int(t.coMaLead)}</b> có mã lead Tourwell (${(tyLead * 100).toFixed(0)}%) ·
+              <b>${int(r.theoAd.soLeadDuyNhat)}</b> lead khác nhau.
+              ${t.coTien
+                ? `<br><b>${int(t.coTien)} đơn POS có tiền</b> — tổng ${vnd(t.tienPOS)}. Trước đây POS luôn 0đ, nên chỗ này đã đổi: xem lại xem doanh thu có nên lấy từ POS không.`
+                : '<br>Không đơn POS nào có tiền — đúng như đã kiểm, POS là vỏ rỗng. Doanh thu lấy từ Tourwell.'}
+            </div>
+            ${bangGhep(r.ghep)}
+            <h4 style="margin:18px 0 6px;font-size:1rem">Mã lead → quảng cáo</h4>
+            <div class="help">Bảng này ghép thẳng với cột <b>Mã lead</b> trong bản xuất Excel của Tourwell.
+              Có nó là ra doanh thu theo từng quảng cáo, <b>không cần API key đọc dữ liệu Tourwell</b>.
+              ${lv.nhapNhang ? `<br><b style="color:var(--warn)">${int(lv.nhapNhang)} lead có nhiều ad_id khác nhau</b> — những lead này không quy về một quảng cáo được, phải xem tay.` : ''}
+              ${lv.khongCoAd ? ` · ${int(lv.khongCoAd)} lead không có ad_id (khách vào từ tự nhiên).` : ''}</div>
+            <div style="overflow-x:auto">${table('ppLead', [
+              { key: 'leadMa', label: 'Mã lead', cls: 'name', render: (x) => `<b>${esc(x.leadMa)}</b>` },
+              { key: 'ngay', label: 'Ngày', render: (x) => dmy(x.ngay) },
+              { key: 'adIds', label: 'Quảng cáo', render: (x) => (x.adIds.length
+                ? x.adIds.map((a) => `<code>${esc(a)}</code>`).join(' ')
+                : '<span class="tag warn">không có</span>') },
+              { key: 'roRang', label: '', noSort: true, render: (x) => (x.adIds.length === 1
+                ? '<span class="tag good">rõ ràng</span>'
+                : x.adIds.length > 1 ? '<span class="tag bad">nhiều ad</span>' : '—') },
+              { key: 'soDon', label: 'Đơn POS', num: true, render: (x) => int(x.soDon) },
+            ], lv.rows.slice(0, 80))}</div>
+            ${lv.rows.length > 80 ? `<div class="help">Hiện 80 dòng trên tổng ${int(lv.rows.length)}.</div>` : ''}
+          </div></div>`;
+      } catch (err) { toast(err.message, 'err'); }
+      b.disabled = false; b.textContent = cu;
+    });
+  }
+
   /* ===== Pancake — hội thoại & ID quảng cáo =====
    *
    * Vì sao có phần này: Tourwell giữ được nguồn ở mức NHÃN, mà nhãn đó do một
@@ -749,6 +916,7 @@
 
   function wire(c) {
     wirePancake(c);
+    wirePancakePos(c);
     wireForm();
 
     // bật/tắt kênh

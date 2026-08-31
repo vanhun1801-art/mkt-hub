@@ -45,6 +45,18 @@ const DEFAULT = {
     pages: [],       // [{ pageId, token, platform, label }] — token cap page, khong het han
     tagChot: [],     // ten tag coi la don chot, ngoai cac tag Pancake tu danh dau is_lead_event
   },
+  /* Pancake POS (pos.pages.fm) — cũng là nguồn CHỈ ĐỂ ĐO, không phải nguồn chi
+   * tiêu. Đây là mắt nối quan trọng nhất: một bản ghi đơn POS mang đồng thời
+   * ad_id (quảng cáo nào) và note "LU1998" (lead Tourwell nào), nên nối được
+   * quảng cáo với doanh thu bằng khoá cứng thay vì ghép theo số điện thoại.
+   *
+   * api_key là loại ở Cấu hình → Nâng cao → Tích hợp bên thứ 3 → tab API Key.
+   * KHÔNG phải key pos_user_... ở Cài đặt cá nhân. */
+  pancakePos: {
+    enabled: false,
+    apiKey: '',
+    shopIds: [],
+  },
   dongBo: {
     soNgayLui: 7, moiSoGio: 1, khiKhoiDong: true,
     ghiDeNhapTay: true, tuTaoMoi: true,
@@ -55,7 +67,8 @@ const DEFAULT = {
  * biet file rong ma tut ve bien moi truong) va benVung() (de biet kenh nao song
  * qua lan deploy toi). Pancake giu token trong pages[].token nen phai xet rieng —
  * thieu nhanh nay thi cau hinh chi co Pancake bi coi la rong. */
-const KHOA_TOKEN = ['accessToken', 'refreshToken', 'clientSecret', 'developerToken', 'csvUrl', 'userToken'];
+const KHOA_TOKEN = ['accessToken', 'refreshToken', 'clientSecret', 'developerToken', 'csvUrl',
+  'userToken', 'apiKey'];
 
 function khoiCoThongTin(khoi) {
   if (!khoi || typeof khoi !== 'object') return false;
@@ -336,7 +349,7 @@ function benVung() {
   const c = read();
   // Pancake co trong danh sach nay du khong phai nguon chi tieu: mat token Pancake
   // sau deploy cung dau y het mat token Meta, nguoi dung can duoc canh bao nhu nhau.
-  const dangChay = ['meta', 'tiktok', 'googleAds', 'googleSheet', 'pancake']
+  const dangChay = ['meta', 'tiktok', 'googleAds', 'googleSheet', 'pancake', 'pancakePos']
     .filter((k) => c[k] && c[k].enabled && dangCo(c[k]));
 
   // Máy cá nhân: file nằm trên đĩa thật, không mất đi đâu
@@ -460,6 +473,19 @@ function status() {
         sanSang: (c.pancake.pages || []).length > 0
           && (c.pancake.pages || []).every((x) => x && x.pageId && x.token),
       },
+      {
+        key: 'pancakePos', label: 'Pancake POS (đơn · ad_id · mã lead)', enabled: c.pancakePos.enabled,
+        coToken: !!c.pancakePos.apiKey,
+        soTaiKhoan: (c.pancakePos.shopIds || []).length,
+        taiKhoan: (c.pancakePos.shopIds || []).map(String),
+        shopIds: (c.pancakePos.shopIds || []).map(String),
+        hanToken: { vinhVien: true, moTa: 'api_key không hết hạn' },
+        thieu: [
+          c.pancakePos.apiKey ? '' : 'chưa có api_key',
+          (c.pancakePos.shopIds || []).length ? '' : 'chưa khai shop nào',
+        ].filter(Boolean),
+        sanSang: !!(c.pancakePos.apiKey && (c.pancakePos.shopIds || []).length),
+      },
     ],
   };
 }
@@ -536,7 +562,29 @@ function writePancake(next = {}) {
 
 const anToken = (x) => ({ pageId: x.pageId, platform: x.platform, label: x.label });
 
+/** Lưu cấu hình Pancake POS. Ô api_key để TRỐNG = giữ nguyên key cũ. */
+function writePancakePos(next = {}) {
+  const cur = read();
+  const doi = [];
+  const p = cur.pancakePos;
+
+  if (typeof next.apiKey === 'string' && next.apiKey.trim()) {
+    if (next.apiKey.trim() !== p.apiKey) { p.apiKey = next.apiKey.trim(); doi.push('pancakePos.apiKey'); }
+  }
+  if (next.apiKey === null) { p.apiKey = ''; doi.push('pancakePos.apiKey'); }
+
+  if (next.shopIds != null) {
+    const tho = Array.isArray(next.shopIds) ? next.shopIds : String(next.shopIds).split(/[\s,;]+/);
+    const ds = [...new Set(tho.map((x) => String(x).replace(/[^0-9]/g, '')).filter(Boolean))];
+    if (JSON.stringify(ds) !== JSON.stringify(p.shopIds || [])) { p.shopIds = ds; doi.push('pancakePos.shopIds'); }
+  }
+  if (next.enabled != null) p.enabled = !!next.enabled;
+
+  ghiFile(cur);
+  return { daDoi: doi };
+}
+
 module.exports = { benVung,
-  read, writeOptions, writeSecrets, writeMetaTokenInfo, writePancake, bieuMau,
+  read, writeOptions, writeSecrets, writeMetaTokenInfo, writePancake, writePancakePos, bieuMau,
   status, hanToken, nguon, FILE, DEFAULT,
 };
