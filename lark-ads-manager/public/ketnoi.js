@@ -750,7 +750,18 @@
       'quang-cao': 'từng quảng cáo', nhom: 'từng nhóm quảng cáo',
       'chien-dich': 'từng chiến dịch', 'lan-lon': 'LẪN LỘN nhiều cấp', 'chua-ro': 'chưa rõ',
     };
-    const xau = pl.capDo === 'lan-lon' || pl.capDo === 'chua-ro' || (pl.tyLeKhop || 0) < 0.8;
+    /* Phán quyết "có tin được bảng không" phải xét KHỐI LƯỢNG, không xét số ID.
+     *
+     * Bản đầu xét pl.tyLeKhop — tỉ lệ ID khớp. Thực tế ra 16/33 = 48% nên nó in
+     * "Chưa nên tin bảng dưới", trong khi 17 ID không khớp chỉ mang 17 hội thoại
+     * trên 1.068, tức 1,4%. Bảng hoàn toàn dùng được. Đếm ID rồi kết luận là đọc
+     * lệch: một ID mang 1 hội thoại và một ID mang 300 hội thoại đếm bằng nhau.
+     *
+     * Cấp độ LẪN LỘN thì vẫn không tin được, bất kể khối lượng — vì lúc đó chi
+     * tiêu bị gán sang bản ghi khác, sai chứ không phải thiếu. */
+    const tyKhongKhop = (g.doLonKhongKhop && g.doLonKhongKhop.tyLeHoiThoai) || 0;
+    const capLanLon = pl.capDo === 'lan-lon' || pl.capDo === 'chua-ro';
+    const xau = capLanLon || tyKhongKhop > 0.15;
     const tyChiMu = g.chiTongKhoang ? g.chiKhongGhep / g.chiTongKhoang : 0;
 
     return `
@@ -764,7 +775,11 @@
         ${pl.viDuKhongKhop && pl.viDuKhongKhop.length
           ? `<br>Ví dụ ID không khớp: <code>${pl.viDuKhongKhop.map(esc).join('</code> <code>')}</code>
              — những ID này chưa có bản ghi nào trong Base mang nó.` : ''}
-        ${xau ? '<br><b>Chưa nên tin bảng dưới.</b> Cấp không rõ ràng thì chi tiêu bị gán sai chỗ.' : ''}
+        ${capLanLon
+          ? '<br><b>Chưa nên tin bảng dưới.</b> Cấp lẫn lộn thì chi tiêu bị gán sang bản ghi khác — sai, chứ không phải thiếu.'
+          : tyKhongKhop > 0.15
+            ? `<br><b>Dùng bảng dưới có dè dặt.</b> Các ID không khớp mang ${(tyKhongKhop * 100).toFixed(1)}% hội thoại — phần đó không có giá.`
+            : `<br><b>Bảng dưới dùng được.</b> Cấp rõ ràng, và các ID không khớp chỉ mang ${(tyKhongKhop * 100).toFixed(1)}% hội thoại.`}
       </div>
 
       ${(() => {
