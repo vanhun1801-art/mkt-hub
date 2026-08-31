@@ -1542,7 +1542,7 @@ function filesBlock(key, label) {
         apiUrl('/api/items/' + S.sel.id + '/file/' + f.token) + '">Mở</a>' : '') +
       '</div>').join('') : '<div class="mini muted">Chưa có tệp.</div>') +
     (canUp ? '<label class="btn sm" style="align-self:flex-start;margin-top:2px">' +
-      '<input type="file" data-up="' + key + '" hidden> + Tải tệp lên</label>' : '') +
+      '<input type="file" data-up="' + key + '" multiple hidden> + Tải tệp lên</label>' : '') +
     '</div></div>';
 }
 
@@ -1901,8 +1901,8 @@ function veBaoCao() {
           (BC.costActual === '' ? '' : BC.costActual) + '" placeholder="0">') +
         o('Hoá đơn + chứng từ', dsTep +
           '<label class="btn sm" style="align-self:flex-start;margin-top:6px">' +
-          '<input type="file" data-bcup="1" hidden> + Tải tệp lên</label>',
-          'Tệp tải lên được lưu ngay vào Base, không cần chờ bấm gửi.'), 'tien') +
+          '<input type="file" data-bcup="1" multiple hidden> + Tải tệp lên</label>',
+          'Chọn được nhiều tệp một lượt. Tệp tải lên lưu ngay vào Base, không cần chờ bấm gửi.'), 'tien') +
 
       khoi('Báo cáo',
         o('Báo cáo sau tác nghiệp *',
@@ -2794,40 +2794,66 @@ document.addEventListener('change', async (e) => {
 
   /* Hoá đơn tải thẳng từ cửa sổ báo cáo — không mượn đường của ô chi tiết, vì ô
    * đó đang đóng và sẽ vẽ lại nhầm chỗ. */
-  if (T.dataset && T.dataset.bcup && T.files && T.files[0] && BC) {
-    const f = T.files[0];
-    T.value = '';
-    toast('Đang tải "' + f.name + '" lên…');
-    try {
-      const r = await fetch(apiUrl('/api/items/' + BC.id + '/attachment/files?name=' + encodeURIComponent(f.name)),
-        { method: 'POST', body: f });
-      const d = await r.json();
-      if (!r.ok || d.error) throw new Error(d.error || 'Tải lên thất bại');
-      toast('Đã lưu chứng từ vào Base', 'ok');
-      await refresh(true);
-      if (BC) veBaoCao();
-    } catch (err) { toast(err.message, 'err'); }
+  if (T.dataset && T.dataset.bcup && T.files && T.files.length && BC) {
+    const id = BC.id;
+    const xong = await taiNhieuTep(T, id, 'files');
+    if (xong && BC && BC.id === id) veBaoCao();
     return;
   }
 
   const up = T.dataset && T.dataset.up;
-  if (up && T.files && T.files[0] && S.sel) {
+  if (up && T.files && T.files.length && S.sel) {
     if (PREVIEW()) { T.value = ''; return toast('Đang xem giao diện của người khác — không tải tệp thay họ được.', 'err'); }
-    const f = T.files[0];
-    toast('Đang tải "' + f.name + '" lên…');
-    try {
-      await fetch(apiUrl('/api/items/' + S.sel.id + '/attachment/' + up + '?name=' + encodeURIComponent(f.name)),
-        { method: 'POST', body: f }).then(async (r) => {
-          const d = await r.json();
-          if (!r.ok || d.error) throw new Error(d.error || 'Tải lên thất bại');
-        });
-      toast('Đã tải tệp lên Base', 'ok');
-      await refresh(true);
-      const again = S.items.find((x) => x.id === S.sel.id);
-      if (again) { S.sel = again; renderDrawer(); }
-    } catch (err) { toast(err.message, 'err'); }
+    const id = S.sel.id;
+    if (await taiNhieuTep(T, id, up)) {
+      const again = S.items.find((x) => x.id === id);
+      if (again && S.sel && S.sel.id === id) { S.sel = again; renderDrawer(); }
+    }
   }
 });
+
+/**
+ * Tải một loạt tệp lên cùng một ô đính kèm.
+ *
+ * Base nhận mỗi lần một tệp, nên ở đây gửi lần lượt chứ không song song — gửi
+ * cùng lúc thì Base hay báo xung đột phiên bản vì mấy request cùng ghi vào một
+ * bản ghi. Đổi lại phải báo tiến độ, không thì chọn 10 tệp là ngồi nhìn màn
+ * hình đứng im.
+ *
+ * Một tệp hỏng không làm hỏng cả mẻ: ghi lại tên rồi đi tiếp, cuối cùng nói rõ
+ * cái nào không lên được.
+ */
+async function taiNhieuTep(input, recId, cot) {
+  const ds = [...input.files];
+  input.value = '';                       // cho chọn lại đúng tệp đó nếu cần
+  if (!ds.length) return false;
+  input.disabled = true;
+  const hong = [];
+  try {
+    for (let i = 0; i < ds.length; i++) {
+      const f = ds[i];
+      toast(ds.length > 1
+        ? 'Đang tải ' + (i + 1) + '/' + ds.length + ' — ' + f.name
+        : 'Đang tải "' + f.name + '" lên…');
+      try {
+        const r = await fetch(
+          apiUrl('/api/items/' + recId + '/attachment/' + cot + '?name=' + encodeURIComponent(f.name)),
+          { method: 'POST', body: f });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok || d.error) throw new Error(d.error || 'Tải lên thất bại');
+      } catch (err) {
+        hong.push(f.name + ' (' + err.message + ')');
+      }
+    }
+  } finally {
+    input.disabled = false;
+  }
+  const duoc = ds.length - hong.length;
+  if (duoc) toast('Đã lưu ' + duoc + ' tệp vào Base', 'ok');
+  if (hong.length) toast('Không tải được: ' + hong.join(' · '), 'err');
+  await refresh(true);
+  return duoc > 0;
+}
 
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && bangDangMo()) {

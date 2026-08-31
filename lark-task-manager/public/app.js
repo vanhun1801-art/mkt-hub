@@ -2870,9 +2870,13 @@ function oTaiLen(t, cot) {
       const files = [...input.files];
       if (!files.length) return;
       input.disabled = true;
-      try {
-        for (let i = 0; i < files.length; i++) {
-          st.textContent = 'Đang tải ' + (i + 1) + '/' + files.length + '…';
+      /* Một tệp hỏng không được làm hỏng cả mẻ: ghi tên lại rồi đi tiếp, cuối
+       * cùng nói rõ cái nào không lên được. Trước đây ném lỗi giữa chừng là mấy
+       * tệp còn lại bị bỏ, mà người dùng không biết đã lên được cái nào. */
+      const hong = [];
+      for (let i = 0; i < files.length; i++) {
+        st.textContent = 'Đang tải ' + (i + 1) + '/' + files.length + ' — ' + files[i].name;
+        try {
           const r = await fetch('/api/tasks/' + t.id + '/upload' + (cot ? '?cot=' + cot : ''), {
             method: 'POST',
             headers: { 'X-File-Name': encodeURIComponent(files[i].name) },
@@ -2880,15 +2884,17 @@ function oTaiLen(t, cot) {
           });
           const d = await r.json().catch(() => ({}));
           if (!r.ok || d.error) throw new Error(d.error || 'Tải tệp thất bại');
+        } catch (e) {
+          hong.push(files[i].name + ' (' + e.message + ')');
         }
-        toast('Đã đính ' + files.length + ' tệp');
-        closeDrawer();
-        await refresh(true);
-      } catch (e) {
-        st.textContent = '';
-        toast('Lỗi: ' + e.message, true);
-        input.disabled = false;
       }
+      st.textContent = '';
+      input.disabled = false;
+      input.value = '';
+      const duoc = files.length - hong.length;
+      if (duoc) toast('Đã đính ' + duoc + ' tệp');
+      if (hong.length) toast('Không tải được: ' + hong.join(' · '), true);
+      if (duoc) { closeDrawer(); await refresh(true); }
     };
     row.appendChild(input);
     hop.appendChild(row);
