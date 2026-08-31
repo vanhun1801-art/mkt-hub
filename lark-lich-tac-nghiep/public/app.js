@@ -804,8 +804,9 @@ function theSoLichCuaToi(list) {
      * việc gì phải mang con số đỏ của người khác. Nộp rồi (Đang báo cáo) cũng
      * hết trễ — bóng đang ở sân quản lý. */
     { k: 'chua-bao-cao', nhan: 'Trễ báo cáo', tone: 'do', gap: 1, phu: 'phải nộp ngay',
-      loc: (t) => ngay(t) && ngay(t) < homNay && t.status === 'Duyệt/Chờ tác nghiệp'
-        && (MGR() || laPhuTrach(t)) },
+      loc: (t) => ngay(t) && ngay(t) < homNay && (MGR() || laPhuTrach(t)) &&
+        (t.status === 'Duyệt/Chờ tác nghiệp' ||
+         (t.status === 'Đang báo cáo' && !duBaoCao(t))) },
     { k: 'hom-nay', nhan: 'Hôm nay', tone: 'cam', gap: 1, phu: 'đi trong hôm nay',
       loc: (t) => con(t) && ngay(t) && startOfDay(ngay(t)).getTime() === homNay.getTime() },
     { k: 'sap-48h', nhan: '48 giờ tới', tone: 'vang', phu: 'chuẩn bị trước',
@@ -846,8 +847,9 @@ function locTheoThe(list) {
     'da-duyet': (t) => t.status === 'Duyệt/Chờ tác nghiệp',
     'hom-nay': (t) => con(t) && ngay(t) && startOfDay(ngay(t)).getTime() === homNay.getTime(),
     'sap-48h': (t) => con(t) && ngay(t) && ngay(t) > new Date() && ngay(t) <= mai2,
-    'chua-bao-cao': (t) => ngay(t) && ngay(t) < homNay && t.status === 'Duyệt/Chờ tác nghiệp'
-      && (MGR() || laPhuTrach(t)),
+    'chua-bao-cao': (t) => ngay(t) && ngay(t) < homNay && (MGR() || laPhuTrach(t)) &&
+      (t.status === 'Duyệt/Chờ tác nghiệp' ||
+       (t.status === 'Đang báo cáo' && !duBaoCao(t))),
     'hoan-tat': (t) => t.status === 'Đã hoàn tất',
     'chua-thanh-toan': (t) => Number(t.costActual || 0) > 0 && t.payment !== 'Đã thanh toán',
   };
@@ -876,10 +878,14 @@ function viewMine() {
     /* Bước này CHỈ chứa lịch chưa nộp. Trước đây nó nhận cả 'Đang báo cáo', mà
      * bấm Gửi báo cáo chính là chuyển sang trạng thái đó — nên nộp xong thẻ vẫn
      * nằm nguyên chỗ cũ, người ta tưởng bấm hụt. */
-    { k: 'bao-cao', t: '4 · Cần báo cáo', mo: 'Đã qua ngày đi mà chưa nộp',
-      loc: (t) => t.status === 'Duyệt/Chờ tác nghiệp' && daQua(t) },
+    /* Bấm nút Báo cáo là trạng thái đổi ngay, nhưng nội dung có thể còn dở —
+     * điền thiếu thì vẫn nằm ở bước này cho tới khi đủ, đừng đẩy sang chờ
+     * nghiệm thu để rồi quản lý mở ra thấy trống. */
+    { k: 'bao-cao', t: '4 · Cần báo cáo', mo: 'Đã qua ngày đi, hoặc báo cáo còn thiếu',
+      loc: (t) => (t.status === 'Duyệt/Chờ tác nghiệp' && daQua(t)) ||
+        (t.status === 'Đang báo cáo' && !duBaoCao(t)) },
     { k: 'da-nop', t: '5 · Đã nộp · chờ nghiệm thu', mo: 'Quản lý đang xem, chưa cần làm gì',
-      loc: (t) => t.status === 'Đang báo cáo' },
+      loc: (t) => t.status === 'Đang báo cáo' && duBaoCao(t) },
     { k: 'xong', t: 'Đã hoàn tất', mo: 'Xong việc, để đối chiếu cuối tháng',
       loc: (t) => t.status === 'Đã hoàn tất' },
     { k: 'dong', t: 'Đã đóng', mo: 'Từ chối hoặc huỷ',
@@ -963,6 +969,27 @@ function viewMine() {
  * nhận vé → đi xong thì bấm Báo cáo → quản lý chốt thành Hoàn tất. Mỗi thẻ vì thế
  * chỉ nói đúng một câu "bây giờ làm gì" và cho đúng một nút chính.
  */
+/**
+ * Báo cáo đã đủ thông tin chưa?
+ *
+ * Trạng thái "Đang báo cáo" trên Base chỉ nói người ta đã bấm nút, không nói đã
+ * điền xong. Có bản ghi mang trạng thái đó mà thiếu cả chi phí thực tế — coi là
+ * đã nộp thì quản lý nghiệm thu một bản trống, còn nhân sự thì không ai nhắc.
+ *
+ * Chi phí chỉ tính khi người đang xem được phép thấy cột tiền; ai không có
+ * quyền đó thì máy chủ cắt cột trước khi gửi xuống, kiểm ở đây sẽ luôn ra
+ * "thiếu" một cách oan uổng.
+ */
+function thieuGiBaoCao(t) {
+  const thieu = [];
+  if (!t.end) thieu.push('thời gian kết thúc');
+  if (!String(t.reportAfter || '').trim()) thieu.push('báo cáo sau tác nghiệp');
+  if (CHIPHI() && t.costActual == null) thieu.push('chi phí thực tế');
+  return thieu;
+}
+
+const duBaoCao = (t) => thieuGiBaoCao(t).length === 0;
+
 /**
  * Đã tới lúc bị giục báo cáo chưa?
  * Mốc: 9 giờ sáng NGÀY HÔM SAU ngày tác nghiệp — đi về, ngủ một giấc, sáng ra là
@@ -1053,11 +1080,20 @@ function theViec(t, buoc) {
     viec = 'Đã nộp báo cáo — chờ quản lý nghiệm thu';
     co = '<span class="ct-co xam">Chờ nghiệm thu</span>';
   } else if (buoc === 'bao-cao') {
-    viec = giuc ? 'Đã qua ngày đi — nộp báo cáo, chi phí và tệp kèm ngay hôm nay'
-                : 'Đi về rồi — điền báo cáo, chi phí và tệp kèm';
-    if (giuc) { them = ' ct-giuc'; co = '<span class="ct-co vang">Tới hạn báo cáo</span>'; }
-    if (!PREVIEW()) nut = '<button class="btn sm ' + (giuc ? 'warn' : 'primary') +
-      '" data-act="report" data-id="' + t.id + '">' + (giuc ? 'Báo cáo ngay' : 'Điền báo cáo') + '</button>';
+    // đã bấm nộp nhưng còn dở — nói thẳng thiếu cái gì, khỏi phải mở ra dò
+    const thieu = t.status === 'Đang báo cáo' ? thieuGiBaoCao(t) : [];
+    if (thieu.length) {
+      viec = 'Báo cáo còn thiếu: ' + thieu.join(', ');
+      them = ' ct-giuc';
+      co = '<span class="ct-co vang">Chưa xong</span>';
+    } else {
+      viec = giuc ? 'Đã qua ngày đi — nộp báo cáo, chi phí và tệp kèm ngay hôm nay'
+                  : 'Đi về rồi — điền báo cáo, chi phí và tệp kèm';
+      if (giuc) { them = ' ct-giuc'; co = '<span class="ct-co vang">Tới hạn báo cáo</span>'; }
+    }
+    if (!PREVIEW()) nut = '<button class="btn sm ' + (giuc || thieu.length ? 'warn' : 'primary') +
+      '" data-act="report" data-id="' + t.id + '">' +
+      (thieu.length ? 'Điền nốt' : giuc ? 'Báo cáo ngay' : 'Điền báo cáo') + '</button>';
   } else {
     viec = 'Đã hoàn tất';
   }
@@ -1896,9 +1932,10 @@ function veBaoCao() {
         '</div>', 'chuyen') +
 
       khoi('Chi phí & chứng từ',
-        o('Chi phí thực tế (đ)',
+        o('Chi phí thực tế (đ) *',
           '<input type="number" class="fld" data-bc="costActual" step="1000" min="0" value="' +
-          (BC.costActual === '' ? '' : BC.costActual) + '" placeholder="0">') +
+          (BC.costActual === '' ? '' : BC.costActual) + '" placeholder="0">',
+          'Chuyến không tốn gì thì ghi 0 — bỏ trống thì cuối tháng không đối chiếu được.') +
         o('Hoá đơn + chứng từ', dsTep +
           '<label class="btn sm" style="align-self:flex-start;margin-top:6px">' +
           '<input type="file" data-bcup="1" multiple hidden> + Tải tệp lên</label>',
@@ -1932,6 +1969,9 @@ async function guiBaoCao() {
   if (!BC.end) return toast('Chưa điền Thời gian kết thúc', 'err');
   if (new Date(BC.end) <= new Date(t.start)) return toast('Thời gian kết thúc phải sau lúc bắt đầu', 'err');
   if (!String(BC.reportAfter).trim()) return toast('Chưa viết Báo cáo sau tác nghiệp', 'err');
+  /* Chi phí phải điền, kể cả khi bằng 0 — bỏ trống thì cuối tháng không đối
+   * chiếu được, mà "0" là một câu trả lời hợp lệ (chuyến không tốn gì). */
+  if (CHIPHI() && String(BC.costActual).trim() === '') return toast('Chưa điền Chi phí thực tế (không tốn gì thì ghi 0)', 'err');
 
   const body = {
     status: 'Đang báo cáo',

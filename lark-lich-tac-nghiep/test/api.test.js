@@ -351,6 +351,17 @@ async function call(path, opts) {
     ok('cắt đúng 2 lịch huỷ, giữ lại 3', cuaNhanSu.length === 3, 'còn ' + cuaNhanSu.length);
     ok('quản lý vẫn thấy đủ để đối chiếu', G.anLichHuy(mau, true).length === 5);
 
+    /* "Đang báo cáo" chỉ nói đã bấm nút, không nói đã điền xong. Thiếu thì phải
+     * nằm lại ở bước Cần báo cáo chứ không đẩy sang chờ nghiệm thu. */
+    ok('chi phí bằng 0 vẫn tính là đã điền',
+      G.duBaoCao({ end: 'x', reportAfter: 'a', costActual: 0 }));
+    ok('thiếu chi phí thực tế thì chưa xong',
+      !G.duBaoCao({ end: 'x', reportAfter: 'a', costActual: null }));
+    ok('thiếu thời gian kết thúc thì chưa xong',
+      !G.duBaoCao({ reportAfter: 'a', costActual: 5 }));
+    ok('báo cáo chỉ có khoảng trắng thì chưa xong',
+      !G.duBaoCao({ end: 'x', reportAfter: '   ', costActual: 5 }));
+
     /* Nhân sự cùng đi vẫn THẤY lịch nhưng không phải người GHI vào lịch — hai
      * câu hỏi khác nhau, hai hàm khác nhau, rất dễ nhầm nên chốt lại ở đây. */
     const buoi = { owner: [{ id: 'A' }], staff: [{ id: 'B' }] };

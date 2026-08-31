@@ -345,6 +345,13 @@ function gioVN(d) {
   const p = (n2) => String(n2).padStart(2, '0');
   return p(x.getUTCDate()) + '/' + p(x.getUTCMonth() + 1) + ' ' + p(x.getUTCHours()) + ':' + p(x.getUTCMinutes());
 }
+/* Trạng thái "Đang báo cáo" chỉ nói người ta đã bấm nút, không nói đã điền
+ * xong. Báo cáo còn dở thì đừng bảo quản lý là sẵn sàng nghiệm thu, mà phải
+ * giục lại đúng người phụ trách. */
+function duBaoCao(t) {
+  return !!(t.end && String(t.reportAfter || '').trim() && t.costActual != null);
+}
+
 function nguoiCua(t) {
   const ds = [...(t.owner || []), ...(t.staff || [])].map((u) => u.name).filter(Boolean);
   return [...new Set(ds)].slice(0, 2).join(', ') || 'chưa gán người';
@@ -451,9 +458,13 @@ async function api(req, res, url) {
         them({ id: 'lich:media:' + t.id, muc: 'can', rec: t.id, khi: t.start,
           tieuDe: 'Yêu cầu nhân sự Media chờ phản hồi', mo: ten(t) });
       }
-      for (const t of items.filter((x) => x.status === 'Đang báo cáo')) {
+      for (const t of items.filter((x) => x.status === 'Đang báo cáo' && duBaoCao(x))) {
         them({ id: 'lich:nghiem-thu:' + t.id, muc: 'tin', rec: t.id, khi: t.end || t.start,
           tieuDe: 'Báo cáo chờ nghiệm thu', mo: ten(t) + ' · ' + nguoiCua(t) });
+      }
+      for (const t of items.filter((x) => x.status === 'Đang báo cáo' && !duBaoCao(x))) {
+        them({ id: 'lich:bc-do-dang:' + t.id, muc: 'can', rec: t.id, khi: t.end || t.start,
+          tieuDe: 'Báo cáo còn dở dang', mo: ten(t) + ' · ' + nguoiCua(t) + ' — chưa đủ thông tin để nghiệm thu' });
       }
     }
 
@@ -483,8 +494,18 @@ async function api(req, res, url) {
         }
       }
       for (const t of toiLoc.filter((x) => x.status === 'Đang báo cáo')) {
-        them({ id: 'lich:dang-bc:' + t.id, muc: 'tin', rec: t.id, khi: t.end || t.start,
-          tieuDe: 'Đã nộp báo cáo', mo: ten(t) + ' — chờ quản lý nghiệm thu' });
+        const du = duBaoCao(t);
+        them({
+          id: (du ? 'lich:dang-bc:' : 'lich:bc-thieu:' + nhan(homNay) + ':') + t.id,
+          muc: du ? 'tin' : 'gap', rec: t.id, khi: t.end || t.start,
+          tieuDe: du ? 'Đã nộp báo cáo' : 'Báo cáo chưa xong',
+          mo: du ? ten(t) + ' — chờ quản lý nghiệm thu'
+                 : ten(t) + ' — còn thiếu ' + [
+                     !t.end ? 'thời gian kết thúc' : '',
+                     !String(t.reportAfter || '').trim() ? 'báo cáo sau tác nghiệp' : '',
+                     t.costActual == null ? 'chi phí thực tế' : '',
+                   ].filter(Boolean).join(', '),
+        });
       }
       for (const t of cuaToi.filter((x) => x.focStatus && (x.foc || []).length && !SETTLED_TB.includes(x.status))) {
         const ok = t.focStatus === 'Phê duyệt';
@@ -837,7 +858,7 @@ if (!LOOPBACK.includes(BIND) && process.env.HUB_TRUST_HEADER !== '0') {
 
 /* Được require từ bộ kiểm thử thì chỉ xuất hàm ra, đừng mở cổng. */
 if (require.main !== module) {
-  module.exports = { khoaKeHoach, duMinhChung, anLichHuy, laPhuTrach, ownedBy };
+  module.exports = { khoaKeHoach, duMinhChung, anLichHuy, laPhuTrach, ownedBy, duBaoCao };
   return;
 }
 
