@@ -1,5 +1,6 @@
 const fs=require('fs'), path=require('path'), os=require('os'), cp=require('child_process');
-const ENV=fs.readFileSync('ADS_CONNECT_JSON.txt','utf8').trim();
+/* Token GIẢ — xem chú thích trong test/mau-cau-hinh.js. */
+const ENV=require('./mau-cau-hinh').json();
 const chay=(env,file)=>JSON.parse(cp.execFileSync(process.execPath,['-e',
   `const k=require(${JSON.stringify(path.resolve('sync/ketnoi.js'))});const s=k.status();
    console.log(JSON.stringify({nguon:s.nguon,canhBao:s.canhBaoODiaTam,deLen:s.deLenBienMoiTruong}));`],
