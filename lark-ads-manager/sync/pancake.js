@@ -297,7 +297,163 @@ async function test(conf) {
   return { ok: results.every((r) => r.ok), results };
 }
 
+
+/* ---------------- ghép với bảng chi tiêu ---------------- */
+
+/**
+ * `ad_ids` của Pancake là ID cấp nào?
+ *
+ * Pancake gắn nhãn "Ad ID", nhưng ID quảng cáo và ID chiến dịch của Meta cùng một
+ * không gian số và thường chỉ lệch nhau vài chữ số — trong Base này chiến dịch
+ * `Daily_Tour Đảo` là 52518121733306 còn quảng cáo `IS_Giá chưa tới 1 củ` là
+ * 52518121733506, lệch đúng MỘT chữ số. Nhìn mắt thường không phân biệt được, mà
+ * chọn sai cấp thì hoặc khớp 0 dòng, hoặc tệ hơn: khớp nhầm sang bản ghi khác và
+ * mọi con số sau đó đều sai mà vẫn nhìn hợp lý.
+ *
+ * Nên KHÔNG chọn. Đếm thật xem mỗi ID khớp ở cấp nào rồi báo ra, để người đọc tự
+ * thấy dữ liệu đang ở cấp nào.
+ */
+function phanLoaiId(adIds, data) {
+  const bang = (arr) => new Map((arr || [])
+    .filter((x) => x.extId)
+    .map((x) => [String(x.extId), x]));
+  const mAd = bang(data.ads);
+  const mNhom = bang(data.groups);
+  const mCd = bang(data.campaigns);
+
+  const out = { quangCao: [], nhom: [], chienDich: [], khongKhop: [] };
+  [...new Set((adIds || []).map(String))].forEach((id) => {
+    if (mAd.has(id)) out.quangCao.push({ id, ten: mAd.get(id).name, rec: mAd.get(id) });
+    else if (mNhom.has(id)) out.nhom.push({ id, ten: mNhom.get(id).name, rec: mNhom.get(id) });
+    else if (mCd.has(id)) out.chienDich.push({ id, ten: mCd.get(id).name, rec: mCd.get(id) });
+    else out.khongKhop.push({ id });
+  });
+
+  const dem = {
+    quangCao: out.quangCao.length, nhom: out.nhom.length,
+    chienDich: out.chienDich.length, khongKhop: out.khongKhop.length,
+  };
+  const tong = dem.quangCao + dem.nhom + dem.chienDich + dem.khongKhop;
+  // Cấp nào khớp nhiều nhất thì đó là cấp Pancake đang trả. Chỉ kết luận khi nó
+  // chiếm đa số rõ rệt; lẫn lộn thì nói là lẫn lộn, đừng đoán.
+  let capDo = 'chua-ro';
+  const khop = dem.quangCao + dem.nhom + dem.chienDich;
+  if (khop > 0) {
+    const cao = Math.max(dem.quangCao, dem.nhom, dem.chienDich);
+    if (cao / khop >= 0.8) {
+      capDo = cao === dem.quangCao ? 'quang-cao' : cao === dem.nhom ? 'nhom' : 'chien-dich';
+    } else capDo = 'lan-lon';
+  }
+  return { ...out, dem, tong, capDo, tyLeKhop: tong ? khop / tong : 0 };
+}
+
+/**
+ * Ghép (quảng cáo × ngày) của Pancake với chi tiêu (quảng cáo × ngày) trong Base.
+ *
+ * Ghép ở cấp nào là do phanLoaiId nói, không do mình đặt trước. Nếu Pancake trả ID
+ * chiến dịch thì cộng chi tiêu của mọi quảng cáo thuộc chiến dịch đó trong ngày đó.
+ *
+ * Trả về cả dòng KHÔNG ghép được (chi tiêu có mà không có hội thoại, và ngược lại)
+ * — đó mới là chỗ đáng xem, vì nó nói mình đang mù ở đâu.
+ */
+function ghepVoiChiTieu(gomTheoAd, data, { from, to } = {}) {
+  const phanLoai = phanLoaiId(gomTheoAd.rows.map((r) => r.adId), data);
+
+  // extId → danh sách record_id ở cấp quảng cáo, để tra chi tiêu theo dòng ngày.
+  const veAd = new Map();
+  (data.ads || []).forEach((a) => { if (a.extId) veAd.set(String(a.extId), [a.id]); });
+  (data.groups || []).forEach((g) => {
+    if (!g.extId) return;
+    veAd.set(String(g.extId), (data.ads || []).filter((a) => a.groupId === g.id).map((a) => a.id));
+  });
+  (data.campaigns || []).forEach((c) => {
+    if (!c.extId) return;
+    veAd.set(String(c.extId), (data.ads || []).filter((a) => a.campaignId === c.id).map((a) => a.id));
+  });
+
+  // (record_id quảng cáo × ngày) → chi tiêu
+  const chi = new Map();
+  (data.daily || []).forEach((r) => {
+    if (from && r.date < from) return;
+    if (to && r.date > to) return;
+    const k = `${r.adId}|${r.date}`;
+    const o = chi.get(k) || { spend: 0, conversions: 0, clicks: 0, impressions: 0 };
+    o.spend += r.spend || 0;
+    o.conversions += r.conversions || 0;
+    o.clicks += r.clicks || 0;
+    o.impressions += r.impressions || 0;
+    chi.set(k, o);
+  });
+
+  const ten = new Map();
+  ['ads', 'groups', 'campaigns'].forEach((k) => (data[k] || []).forEach((x) => {
+    if (x.extId) ten.set(String(x.extId), x.name);
+  }));
+
+  const daDung = new Set();
+  const rows = gomTheoAd.rows.map((r) => {
+    const recs = veAd.get(String(r.adId)) || [];
+    let spend = 0, cvNenTang = 0;
+    recs.forEach((rid) => {
+      const k = `${rid}|${r.ngay}`;
+      const o = chi.get(k);
+      if (o) { spend += o.spend; cvNenTang += o.conversions; daDung.add(k); }
+    });
+    return {
+      adId: r.adId,
+      ten: ten.get(String(r.adId)) || '',
+      ghepDuoc: recs.length > 0,
+      ngay: r.ngay,
+      platform: r.platform,
+      hoiThoai: r.hoiThoai,
+      coSdt: r.coSdt,
+      chot: r.chot,
+      soDon: r.soDon,
+      spend,
+      cvNenTang,
+      // Ba chỉ số quyết định ngân sách. Chia cho 0 thì để null, đừng để Infinity
+      // lọt ra giao diện rồi hiện "∞đ".
+      giaMoiHoiThoai: r.hoiThoai ? Math.round(spend / r.hoiThoai) : null,
+      giaMoiSdt: r.coSdt ? Math.round(spend / r.coSdt) : null,
+      giaMoiChot: r.chot ? Math.round(spend / r.chot) : null,
+    };
+  });
+
+  // Chi tiêu trong khoảng mà KHÔNG có hội thoại nào ghép vào — tiền đang chạy mà
+  // không đo được. Đây là con số cần nhìn nhất, nên tính hẳn ra.
+  let chiKhongGhep = 0;
+  let chiTongKhoang = 0;
+  chi.forEach((o, k) => {
+    chiTongKhoang += o.spend;
+    if (!daDung.has(k)) chiKhongGhep += o.spend;
+  });
+
+  const ghepDuoc = rows.filter((r) => r.ghepDuoc);
+  const tong = ghepDuoc.reduce((s, r) => ({
+    spend: s.spend + r.spend,
+    hoiThoai: s.hoiThoai + r.hoiThoai,
+    coSdt: s.coSdt + r.coSdt,
+    chot: s.chot + r.chot,
+    soDon: s.soDon + r.soDon,
+  }), { spend: 0, hoiThoai: 0, coSdt: 0, chot: 0, soDon: 0 });
+
+  rows.sort((a, b) => b.spend - a.spend);
+  return {
+    phanLoai: {
+      dem: phanLoai.dem, tong: phanLoai.tong, capDo: phanLoai.capDo,
+      tyLeKhop: phanLoai.tyLeKhop,
+      viDuKhongKhop: phanLoai.khongKhop.slice(0, 5).map((x) => x.id),
+    },
+    rows,
+    tong,
+    chiKhongGhep,
+    chiTongKhoang,
+    soDongKhongGhep: rows.length - ghepDuoc.length,
+  };
+}
+
 module.exports = {
   danhSachPage, danhSachTag, fetchConversations, test,
-  theoAdVaNgay, chuanSdt, chuanNenTang, doanNenTang, ngayVN, dauNgay, cuoiNgay,
+  theoAdVaNgay, phanLoaiId, ghepVoiChiTieu,
+  chuanSdt, chuanNenTang, doanNenTang, ngayVN, dauNgay, cuoiNgay,
 };

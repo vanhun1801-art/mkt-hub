@@ -113,5 +113,79 @@ function lay2(gg, ad, ngay) { return gg.rows.find((r) => r.adId === ad && r.ngay
 
 t('danh sách rỗng không nổ', p.theoAdVaNgay([], {}).rows.length === 0);
 
+console.log('— phân loại ad_ids ở cấp nào');
+/* Vì sao phải có hàm này: ID quảng cáo và ID chiến dịch của Meta cùng một không
+ * gian số. Trong Base thật, chiến dịch 'Daily_Tour Đảo' là 52518121733306 còn
+ * quảng cáo 'IS_Giá chưa tới 1 củ' là 52518121733506 — lệch ĐÚNG một chữ số.
+ * Ghép sai cấp thì số vẫn nhìn hợp lý mà sai hết, nên phải đếm chứ đừng đoán. */
+const BASE = {
+  campaigns: [{ id: 'recC1', name: 'Daily_Tour Đảo', extId: '52518121733306', platform: 'Facebook' }],
+  groups: [{ id: 'recG1', name: 'Nhóm 1', campaignId: 'recC1', extId: '777' }],
+  ads: [
+    { id: 'recA1', name: 'IS_Giá chưa tới 1 củ', groupId: 'recG1', campaignId: 'recC1', extId: '52518121733506', platform: 'Facebook' },
+    { id: 'recA2', name: 'QC hai', groupId: 'recG1', campaignId: 'recC1', extId: '888', platform: 'Facebook' },
+  ],
+  daily: [
+    { adId: 'recA1', date: '2026-08-31', spend: 100000, conversions: 5, clicks: 10, impressions: 100 },
+    { adId: 'recA2', date: '2026-08-31', spend: 50000, conversions: 2, clicks: 4, impressions: 40 },
+    { adId: 'recA1', date: '2026-08-20', spend: 999999, conversions: 1, clicks: 1, impressions: 1 },
+  ],
+};
+
+const pl1 = p.phanLoaiId(['52518121733506'], BASE);
+t('ID quảng cáo được nhận đúng cấp', pl1.capDo === 'quang-cao', pl1.capDo);
+const pl2 = p.phanLoaiId(['52518121733306'], BASE);
+t('ID chiến dịch KHÔNG bị nhận thành quảng cáo dù lệch một chữ số',
+  pl2.capDo === 'chien-dich' && pl2.dem.quangCao === 0, pl2.capDo);
+const pl3 = p.phanLoaiId(['52518121733506', '52518121733306'], BASE);
+t('trộn hai cấp thì báo lẫn lộn, không chọn bừa', pl3.capDo === 'lan-lon', pl3.capDo);
+const pl4 = p.phanLoaiId(['khong-co-trong-base'], BASE);
+t('ID lạ vào nhóm không khớp', pl4.dem.khongKhop === 1 && pl4.tyLeKhop === 0);
+t('ưu tiên cấp quảng cáo trước nhóm và chiến dịch',
+  p.phanLoaiId(['888'], BASE).capDo === 'quang-cao');
+t('ID trùng nhau chỉ đếm một lần',
+  p.phanLoaiId(['888', '888', '888'], BASE).tong === 1);
+
+console.log('— ghép Pancake với chi tiêu');
+const gom = {
+  rows: [
+    { adId: '52518121733506', ngay: '2026-08-31', platform: 'Facebook', hoiThoai: 10, coSdt: 4, chot: 2, soDon: 1, sdt: [] },
+    { adId: 'khong-co-trong-base', ngay: '2026-08-31', platform: 'TikTok', hoiThoai: 7, coSdt: 1, chot: 0, soDon: 0, sdt: [] },
+  ],
+  khongCoAd: 0, trungAd: 0,
+};
+const gh = p.ghepVoiChiTieu(gom, BASE, { from: '2026-08-25', to: '2026-08-31' });
+const d1 = gh.rows.find((r) => r.adId === '52518121733506');
+const d2 = gh.rows.find((r) => r.adId === 'khong-co-trong-base');
+
+t('dòng khớp được gắn chi tiêu đúng', d1.spend === 100000, String(d1.spend));
+t('giá mỗi hội thoại = chi tiêu / hội thoại', d1.giaMoiHoiThoai === 10000, String(d1.giaMoiHoiThoai));
+t('giá mỗi SĐT = chi tiêu / số có SĐT', d1.giaMoiSdt === 25000, String(d1.giaMoiSdt));
+t('giá mỗi đơn chốt = chi tiêu / số chốt', d1.giaMoiChot === 50000, String(d1.giaMoiChot));
+t('lấy được tên quảng cáo từ Base', d1.ten === 'IS_Giá chưa tới 1 củ', d1.ten);
+t('dòng không khớp được đánh dấu, không im lặng bỏ', d2 && d2.ghepDuoc === false);
+t('dòng không khớp có chi tiêu 0 chứ không phải NaN', d2.spend === 0);
+// Chia cho 0 phải ra null, đừng để Infinity lọt ra giao diện thành "∞đ"
+const gh0 = p.ghepVoiChiTieu({ rows: [
+  { adId: '52518121733506', ngay: '2026-08-31', platform: 'Facebook', hoiThoai: 3, coSdt: 0, chot: 0, soDon: 0, sdt: [] },
+], khongCoAd: 0, trungAd: 0 }, BASE, { from: '2026-08-25', to: '2026-08-31' });
+t('chia cho 0 ra null, không phải Infinity',
+  gh0.rows[0].giaMoiSdt === null && gh0.rows[0].giaMoiChot === null,
+  JSON.stringify([gh0.rows[0].giaMoiSdt, gh0.rows[0].giaMoiChot]));
+
+t('ngày ngoài khoảng không bị cộng vào', gh.chiTongKhoang === 150000, String(gh.chiTongKhoang));
+t('chi tiêu không ghép được tính đúng', gh.chiKhongGhep === 50000, String(gh.chiKhongGhep));
+t('đếm đúng số dòng chưa ghép', gh.soDongKhongGhep === 1, String(gh.soDongKhongGhep));
+t('tổng chỉ cộng dòng ghép được', gh.tong.spend === 100000 && gh.tong.hoiThoai === 10);
+t('sắp theo chi tiêu giảm dần', gh.rows[0].spend >= gh.rows[gh.rows.length - 1].spend);
+
+// Pancake tra ID cap chien dich thi phai cong chi tieu CA chien dich trong ngay do
+const ghCd = p.ghepVoiChiTieu({ rows: [
+  { adId: '52518121733306', ngay: '2026-08-31', platform: 'Facebook', hoiThoai: 20, coSdt: 5, chot: 1, soDon: 0, sdt: [] },
+], khongCoAd: 0, trungAd: 0 }, BASE, { from: '2026-08-25', to: '2026-08-31' });
+t('ID cấp chiến dịch cộng chi tiêu của mọi quảng cáo trong chiến dịch',
+  ghCd.rows[0].spend === 150000, String(ghCd.rows[0].spend));
+t('và không còn đồng nào bị coi là không ghép được', ghCd.chiKhongGhep === 0, String(ghCd.chiKhongGhep));
+
 console.log(`\n${pass} pass · ${fail} fail`);
 process.exitCode = fail ? 1 : 0;

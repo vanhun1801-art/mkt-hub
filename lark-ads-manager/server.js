@@ -493,6 +493,11 @@ async function api(req, res, u) {
     // Số nền tảng báo, cùng khoảng ngày, để đặt cạnh nhau.
     const d = await store.get();
     const o = M.overview(d, { from, to });
+    const theoAd = pancake.theoAdVaNgay(tatCa, { tagChot: conf.tagChot });
+    /* Ghép luôn ở đây: tải hội thoại là phần đắt nhất (phân trang 60 dòng, giãn
+     * 210ms vì Pancake giới hạn 5 request/giây mỗi page), nên đã tải rồi thì tính
+     * hết một lượt, đừng bắt người dùng bấm hai nút mà tải hai lần. */
+    const ghep = pancake.ghepVoiChiTieu(theoAd, d, { from, to });
     return ok(res, {
       from, to, theoPage, log,
       tong: {
@@ -501,7 +506,7 @@ async function api(req, res, u) {
         coSdt: tatCa.filter((x) => x.coSdt).length,
       },
       nenTang: o.byPlatform.map((x) => ({ platform: x.platform, chuyenDoi: x.conversions, spend: x.spend })),
-      theoAd: pancake.theoAdVaNgay(tatCa, { tagChot: conf.tagChot }),
+      theoAd, ghep,
     });
   }
 

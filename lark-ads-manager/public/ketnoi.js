@@ -479,6 +479,66 @@
    * KS.pcPages là bộ đệm đang sửa. null = chưa sửa gì, lấy theo server. */
   const PC_NEN_TANG = ['Facebook', 'TikTok', 'Instagram', 'Zalo', 'WhatsApp'];
 
+  /* Bảng ghép Pancake ↔ chi tiêu.
+   *
+   * Việc đầu tiên phải nói là ad_ids của Pancake đang ở CẤP NÀO. ID quảng cáo và
+   * ID chiến dịch của Meta cùng không gian số, trong Base này lệch nhau đúng một
+   * chữ số, nên nếu ghép sai cấp thì mọi con số dưới đây vẫn nhìn hợp lý mà sai
+   * hết. Đặt kết luận đó lên trên bảng, không giấu xuống chân trang. */
+  function bangGhep(g) {
+    if (!g || !g.rows) return '';
+    const pl = g.phanLoai || { dem: {} };
+    const TEN_CAP = {
+      'quang-cao': 'từng quảng cáo', nhom: 'từng nhóm quảng cáo',
+      'chien-dich': 'từng chiến dịch', 'lan-lon': 'LẪN LỘN nhiều cấp', 'chua-ro': 'chưa rõ',
+    };
+    const xau = pl.capDo === 'lan-lon' || pl.capDo === 'chua-ro' || (pl.tyLeKhop || 0) < 0.8;
+    const tyChiMu = g.chiTongKhoang ? g.chiKhongGhep / g.chiTongKhoang : 0;
+
+    return `
+      <div class="help" style="margin-top:12px;${xau
+        ? 'border-color:var(--warn);color:var(--warn)' : 'border-color:var(--good);color:var(--good)'}">
+        <b>ad_ids của Pancake đang ở cấp: ${esc(TEN_CAP[pl.capDo] || pl.capDo)}.</b>
+        Khớp được <b>${int(pl.dem.quangCao || 0)}</b> ID quảng cáo ·
+        <b>${int(pl.dem.nhom || 0)}</b> nhóm ·
+        <b>${int(pl.dem.chienDich || 0)}</b> chiến dịch ·
+        <b>${int(pl.dem.khongKhop || 0)}</b> không khớp gì (trên ${int(pl.tong || 0)} ID khác nhau).
+        ${pl.viDuKhongKhop && pl.viDuKhongKhop.length
+          ? `<br>Ví dụ ID không khớp: <code>${pl.viDuKhongKhop.map(esc).join('</code> <code>')}</code>
+             — những ID này chưa có bản ghi nào trong Base mang nó.` : ''}
+        ${xau ? '<br><b>Chưa nên tin bảng dưới.</b> Cấp không rõ ràng thì chi tiêu bị gán sai chỗ.' : ''}
+      </div>
+
+      <div class="help" style="${tyChiMu > 0.3 ? 'border-color:var(--warn);color:var(--warn)' : ''}">
+        Chi tiêu trong khoảng: <b>${vnd(g.chiTongKhoang)}</b>.
+        Không ghép được với hội thoại nào: <b>${vnd(g.chiKhongGhep)}</b>
+        (${(tyChiMu * 100).toFixed(0)}%) — phần tiền này đang chạy mà không đo được.
+      </div>
+
+      <div style="overflow-x:auto">${table('pcGhep', [
+        { key: 'ten', label: 'Quảng cáo', cls: 'name', render: (x) => (x.ghepDuoc
+          ? `<b>${esc(x.ten || '(chưa có tên trong Base)')}</b><span class="sub-line">${esc(x.adId)}</span>`
+          : `<span class="tag warn">chưa ghép</span> <code>${esc(x.adId)}</code>`) },
+        { key: 'platform', label: 'Nền tảng', render: (x) => esc(x.platform || '—') },
+        { key: 'ngay', label: 'Ngày', render: (x) => dmy(x.ngay) },
+        { key: 'spend', label: 'Chi tiêu', num: true, render: (x) => vnd(x.spend) },
+        { key: 'hoiThoai', label: 'Hội thoại', num: true, render: (x) => int(x.hoiThoai) },
+        { key: 'giaMoiHoiThoai', label: 'Giá / hội thoại', num: true,
+          render: (x) => (x.giaMoiHoiThoai == null ? '—' : vnd(x.giaMoiHoiThoai)) },
+        { key: 'coSdt', label: 'Có SĐT', num: true, render: (x) => int(x.coSdt) },
+        { key: 'giaMoiSdt', label: 'Giá / SĐT', num: true,
+          render: (x) => (x.giaMoiSdt == null ? '—' : vnd(x.giaMoiSdt)) },
+        { key: 'chot', label: 'Chốt', num: true, render: (x) => int(x.chot) },
+        { key: 'giaMoiChot', label: 'Giá / đơn chốt', num: true,
+          render: (x) => (x.giaMoiChot == null ? '—' : vnd(x.giaMoiChot)) },
+      ], g.rows.slice(0, 60))}</div>
+      ${g.rows.length > 60 ? `<div class="help">Hiện 60 dòng chi tiêu cao nhất trên tổng ${int(g.rows.length)} dòng.</div>` : ''}
+      ${g.soDongKhongGhep ? `<div class="help" style="border-color:var(--warn);color:var(--warn)">
+        <b>${int(g.soDongKhongGhep)} dòng chưa ghép được</b> — Pancake có hội thoại mang ID đó nhưng Base không có
+        bản ghi nào mang ID ấy. Dán ID vào bảng <b>Ghép ID nền tảng</b> bên dưới, hoặc bật
+        <b>Tự tạo chiến dịch / nhóm / quảng cáo</b> rồi đồng bộ để app tạo hộ.</div>` : ''}`;
+  }
+
   function thePancake(c) {
     const p = layDoLuong(c, 'pancake');
     // Server cũ chưa có doLuong → không vẽ gì, thay vì vẽ một thẻ rỗng vô nghĩa.
@@ -677,6 +737,7 @@
             <div class="help" style="margin-top:10px">Theo quảng cáo: <b>${int((r.theoAd || {}).rows ? r.theoAd.rows.length : 0)}</b> dòng (quảng cáo × ngày)${
               (r.theoAd || {}).khongCoAd ? ` · ${int(r.theoAd.khongCoAd)} hội thoại không mang ad_ids (khách vào từ tự nhiên hoặc nguồn khác)` : ''}${
               (r.theoAd || {}).trungAd ? ` · ${int(r.theoAd.trungAd)} hội thoại mang nhiều ad_ids nên được tính cho mọi ad — tổng theo ad sẽ lớn hơn tổng thật` : ''}</div>
+            ${bangGhep(r.ghep)}
           </div></div>`;
       } catch (err) { toast(err.message, 'err'); }
       b.disabled = false; b.textContent = cu;
