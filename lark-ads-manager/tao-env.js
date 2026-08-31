@@ -21,26 +21,17 @@ const path = require('path');
 const ketnoi = require('./sync/ketnoi');
 
 const RA = path.join(__dirname, 'ADS_CONNECT_JSON.txt');
-const boChuThich = (o) => (Array.isArray(o) || typeof o !== 'object' || !o ? o
-  : Object.fromEntries(Object.entries(o).filter(([k]) => !k.startsWith('_')).map(([k, v]) => [k, boChuThich(v)])));
-
-const c = boChuThich(ketnoi.read());
-const motDong = JSON.stringify(c);
+/* Dùng chung ketnoi.xuatEnv() với giao diện web, để hai bên không bao giờ nói khác
+ * nhau về việc kênh nào có thông tin. */
+const xuat = ketnoi.xuatEnv();
+const motDong = xuat.noiDung;
 fs.writeFileSync(RA, motDong, { encoding: 'utf8', mode: 0o600 });
 
-const st = ketnoi.status();
-/* Gộp cả nguồn chi tiêu và nguồn chỉ-để-đo. Đi từ status() nên không có danh sách
- * cứng nào để quên cập nhật. */
-const kenh = [
-  ...st.providers.map((p) => ({ ...p, loai: 'chi tiêu' })),
-  ...(st.doLuong || []).map((p) => ({ ...p, loai: 'đo lường' })),
-];
-
-const rong = [];
+const kenh = xuat.kenh;
+const rong = kenh.filter((p) => !p.coToken);
 const banRa = kenh.map((p) => {
   const co = p.coToken;
   const trangThai = p.enabled ? 'BẬT' : 'tắt';
-  if (!co) rong.push(p);
   return {
     ten: p.key,
     dong: `${trangThai.padEnd(4)} · ${co ? 'CÓ thông tin' : 'TRỐNG'}`
@@ -72,10 +63,9 @@ if (rong.length) {
   console.log('');
 }
 
-const batMaThieu = kenh.filter((p) => p.enabled && !p.sanSang);
-if (batMaThieu.length) {
+if (xuat.batMaThieu.length) {
   console.log('  ! Kênh đang BẬT nhưng chưa đủ thông tin: '
-    + batMaThieu.map((x) => x.key).join(', ') + '\n');
+    + xuat.batMaThieu.join(', ') + '\n');
 }
 
 console.log('  Việc tiếp theo:');

@@ -376,6 +376,8 @@ async function api(req, res, u) {
   if (p === '/api/connect' && method === 'GET') {
     return ok(res, {
       ...ketnoi.status(),
+      // giao diện cần biết có được phép lấy nội dung ADS_CONNECT_JSON ra hay không
+      laQuanLy: laQuanLy(req),
       hengio: sync.schedulerState(),
       dangChay: !!sync.dangChay(),
       sucKhoe: docSucKhoe(),
@@ -410,6 +412,23 @@ async function api(req, res, u) {
     live.xoaCache();
     sync.startScheduler((m) => console.log(m));
     return ok(res, { ...ketnoi.status(), hengio: sync.schedulerState(), daDoi });
+  }
+
+  /**
+   * Lấy nội dung cho biến môi trường ADS_CONNECT_JSON — CÓ TOKEN THẬT.
+   *
+   * Đây là ngoại lệ duy nhất của luật "token chỉ đi vào, không đi ra", và nó cần
+   * thiết: app cho điền token trong giao diện nhưng ổ đĩa Render là tạm, nên không
+   * có đường lấy ra thì token điền qua web mất sau mỗi lần deploy — đã mất ba lần.
+   *
+   * Khoá bằng vai quản lý. Không ghi ra log.
+   */
+  if (p === '/api/connect/xuat-env' && method === 'POST') {
+    if (!laQuanLy(req)) return fail(res, 403, 'Chỉ vai quản lý mới lấy được nội dung này');
+    const r = ketnoi.xuatEnv();
+    console.log('[xuat-env] ' + ((await nguoiDung(req)) || {}).name + ' đã lấy nội dung ADS_CONNECT_JSON ('
+      + r.noiDung.length + ' ký tự, ' + r.kenh.filter((x) => x.coToken).length + ' kênh có thông tin)');
+    return ok(res, r);
   }
 
   /* ---------------- Pancake (hội thoại · ad_ids) ---------------- */
@@ -796,6 +815,19 @@ async function api(req, res, u) {
 }
 
 /** Người đang dùng: chế độ cli hỏi lark-cli, chế độ api đọc header của lớp vỏ. */
+/**
+ * Người gọi có vai quản lý không.
+ *
+ * Trên máy cá nhân (mode 'file'): luôn có. Cấu hình nằm ngay trên đĩa của chính
+ * người đó, thêm một cái chốt ở đây không bảo vệ được gì.
+ *
+ * Trên server chung (mode 'api'): chỉ tin header x-hub-user-manager, do hub đặt
+ * sau khi đã đăng nhập Lark và tra bảng Phân quyền app. Hub xoá header do client
+ * tự gửi trước khi ghi lại, và app chỉ nghe trên 127.0.0.1 — xem khối "cổng nghe"
+ * ở cuối file.
+ */
+const laQuanLy = (req) => require('./quyen').laQuanLy(req, cfg);
+
 async function nguoiDung(req) {
   if (cfg.mode !== 'api') return lark.whoami();
   // Chỉ tin header khi app nghe trên loopback — xem khối "cổng nghe" cuối file.

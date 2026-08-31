@@ -562,6 +562,42 @@ function writePancake(next = {}) {
 
 const anToken = (x) => ({ pageId: x.pageId, platform: x.platform, label: x.label });
 
+/**
+ * Nội dung để dán vào biến môi trường ADS_CONNECT_JSON — CÓ TOKEN THẬT.
+ *
+ * Vì sao phải có hàm này: app cho điền token ngay trong giao diện (để chạy trên
+ * server chung, nơi không có dòng lệnh nào để gõ), nhưng lại không có đường lấy ra.
+ * Nên token điền qua web sống trên ổ đĩa tạm của Render và MẤT sau mỗi lần deploy.
+ * Thực tế đã mất ba lần. Điền được thì phải lấy ra được, nếu không thì đường điền
+ * đó là một cái bẫy.
+ *
+ * Đây là hàm DUY NHẤT trong file trả token ra ngoài. Người gọi phải tự kiểm quyền
+ * trước — xem chốt vai quản lý ở server.js. Không ghi ra log, không ghi ra Base.
+ *
+ * tao-env.js cũng dùng hàm này, để bảng đối chiếu hai bên không bao giờ lệch nhau.
+ */
+function xuatEnv() {
+  const c = stripComments(read());
+  const st = status();
+  const kenh = [
+    ...st.providers.map((x) => ({ ...x, loai: 'chi tiêu' })),
+    ...(st.doLuong || []).map((x) => ({ ...x, loai: 'đo lường' })),
+  ].map((x) => ({
+    key: x.key, label: x.label, loai: x.loai,
+    enabled: !!x.enabled, coToken: !!x.coToken,
+    soTaiKhoan: x.soTaiKhoan || 0,
+    thieu: x.thieu || [],
+    sanSang: !!x.sanSang,
+  }));
+  return {
+    noiDung: JSON.stringify(c),
+    kenh,
+    // Kênh TRỐNG là chỗ nguy hiểm: dán chuỗi này lên có thể ĐÈ MẤT kênh đang chạy
+    rong: kenh.filter((x) => !x.coToken).map((x) => x.key),
+    batMaThieu: kenh.filter((x) => x.enabled && !x.sanSang).map((x) => x.key),
+  };
+}
+
 /** Lưu cấu hình Pancake POS. Ô api_key để TRỐNG = giữ nguyên key cũ. */
 function writePancakePos(next = {}) {
   const cur = read();
@@ -586,5 +622,6 @@ function writePancakePos(next = {}) {
 
 module.exports = { benVung,
   read, writeOptions, writeSecrets, writeMetaTokenInfo, writePancake, writePancakePos, bieuMau,
+  xuatEnv,
   status, hanToken, nguon, FILE, DEFAULT,
 };

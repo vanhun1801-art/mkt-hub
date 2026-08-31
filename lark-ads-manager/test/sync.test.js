@@ -140,6 +140,30 @@ const post = async (p, b) => {
       .pages.every((x) => !('token' in x)));
   t('nguồn chỉ-để-đo cũng có cờ coToken', (st.doLuong || []).every((x) => typeof x.coToken === 'boolean'));
 
+  console.log('— xuatEnv: đường DUY NHẤT token đi ra, và nó phải đủ');
+  /* App cho điền token trong giao diện nhưng ổ đĩa Render là tạm, nên không có
+   * đường lấy ra thì token điền qua web mất sau mỗi lần deploy — đã mất ba lần. */
+  const xe = ketnoi.xuatEnv();
+  t('trả về chuỗi JSON hợp lệ, một dòng',
+    (() => { try { JSON.parse(xe.noiDung); return xe.noiDung.indexOf(String.fromCharCode(10)) < 0; } catch (_) { return false; } })());
+  t('liệt kê ĐỦ mọi khối cấu hình',
+    KHOI_CAU_HINH.every((k) => xe.kenh.some((x) => x.key === k)),
+    KHOI_CAU_HINH.filter((k) => !xe.kenh.some((x) => x.key === k)).join(', '));
+  t('nói đúng kênh nào TRỐNG',
+    xe.rong.every((k) => !xe.kenh.find((x) => x.key === k).coToken),
+    JSON.stringify(xe.rong));
+  t('bảng của xuatEnv khớp với status — hai nơi không được nói khác nhau',
+    xe.kenh.length === st.providers.length + (st.doLuong || []).length,
+    xe.kenh.length + ' vs ' + (st.providers.length + (st.doLuong || []).length));
+  /* Bất biến quan trọng: chuỗi trả ra phải chứa ĐỦ token của mọi kênh đang bật.
+   * Thiếu một kênh là dán lên Render sẽ đè mất nó. */
+  const daySau = JSON.parse(xe.noiDung);
+  t('chuỗi chứa đủ mọi khối, kể cả khối đang trống',
+    KHOI_CAU_HINH.every((k) => daySau[k] !== undefined),
+    KHOI_CAU_HINH.filter((k) => daySau[k] === undefined).join(', '));
+  t('không lẫn khoá chú thích _ vào chuỗi',
+    !Object.keys(daySau).some((k) => k.startsWith('_')), Object.keys(daySau).join(', '));
+
   console.log('— chuẩn hoá link Google Sheet');
   t('link edit → export csv',
     gsheet.normalizeUrl('https://docs.google.com/spreadsheets/d/ABC123/edit#gid=77')

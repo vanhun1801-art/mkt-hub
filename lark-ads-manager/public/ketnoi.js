@@ -230,6 +230,8 @@
         <code>ADS_CONNECT_JSON.txt</code> vào biến <code>ADS_CONNECT_JSON</code> của Render.</div>`;
     })()}
 
+    ${theGiuBen(c)}
+
     <div class="help">Đồng bộ luôn ghi lại <b>${d.soNgayLui} ngày gần nhất</b>, không chỉ hôm nay — vì Meta/TikTok/Google còn khai báo lại chuyển đổi trong vài ngày.
     Khoá ghi là (quảng cáo × ngày) nên chạy lại bao nhiêu lần cũng không nhân dòng.
     ${c.hengio.dangBat ? `Hẹn giờ <b>đang bật</b>, lượt kế tiếp khoảng ${c.hengio.lanKeTiep ? new Date(c.hengio.lanKeTiep).toLocaleTimeString('vi-VN') : '—'}.` : 'Hẹn giờ <b>đang tắt</b>.'}</div>
@@ -471,6 +473,95 @@
   }
 
   /* ---------------- nút bấm ---------------- */
+  /* ===== Giữ bền cấu hình: lấy nội dung cho ADS_CONNECT_JSON =====
+   *
+   * Vì sao cần: app cho điền token ngay trong giao diện — đúng, vì chạy trên server
+   * chung thì không có dòng lệnh nào để gõ. Nhưng ổ đĩa Render là TẠM, nên token
+   * điền qua web mất sau mỗi lần deploy. Đã mất ba lần. Điền được thì phải lấy ra
+   * được; nếu không, đường điền đó là một cái bẫy.
+   *
+   * Token đi ra ở đây là ngoại lệ duy nhất của luật "token chỉ đi vào". Server khoá
+   * bằng vai quản lý, và chỉ trả khi được hỏi thẳng. */
+  function theGiuBen(c) {
+    if (!c.laQuanLy) return '';
+    const b = c.benVung || {};
+    const canLam = (b.canLo || c.nguon === 'file') && c.oDiaTam;
+    return `
+    <div class="card" style="margin-top:14px">
+      <div class="card-head">
+        <h3>Giữ cấu hình qua lần deploy</h3>
+        <span class="sub">${canLam ? 'đang cần làm' : 'khi nào thêm/đổi token thì làm lại'}</span>
+      </div>
+      <div class="card-body">
+        <div class="help">
+          Token điền qua giao diện nằm trên <b>ổ đĩa tạm</b> của server, deploy là mất.
+          Bấm nút dưới để lấy nội dung, dán vào biến môi trường <code>ADS_CONNECT_JSON</code> của Render,
+          rồi mới deploy. Làm một lần là xong cho tới khi anh thêm hoặc đổi token.
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn primary" id="gbLay">Lấy nội dung ADS_CONNECT_JSON</button>
+          <button class="btn ghost" id="gbCopy" hidden>Copy vào clipboard</button>
+          <button class="btn ghost" id="gbAn" hidden>Ẩn đi</button>
+        </div>
+        <div id="gbKetQua" style="margin-top:12px"></div>
+      </div>
+    </div>`;
+  }
+
+  function wireGiuBen(c) {
+    if (!c.laQuanLy) return;
+    const nut = (id, fn) => { const b = $(id); if (b) b.onclick = fn; };
+
+    nut('#gbLay', async (e) => {
+      const b = e.currentTarget; const cu = b.textContent;
+      b.disabled = true; b.textContent = 'Đang lấy…';
+      try {
+        const r = await api('/api/connect/xuat-env', { method: 'POST', body: '{}' });
+        KS.envNoiDung = r.noiDung;
+        const coRong = (r.rong || []).length > 0;
+        $('#gbKetQua').innerHTML = `
+          <div class="help">Chuỗi dài <b>${int(r.noiDung.length)}</b> ký tự, <b>một dòng</b>.</div>
+          ${table('gbKenh', [
+            { key: 'key', label: 'Kênh', cls: 'name', render: (x) => `<b>${esc(x.key)}</b><span class="sub-line">${esc(x.loai)}</span>` },
+            { key: 'enabled', label: 'Bật', render: (x) => (x.enabled ? '<span class="tag good">bật</span>' : '<span class="tag">tắt</span>') },
+            { key: 'coToken', label: 'Thông tin', render: (x) => (x.coToken
+              ? '<span class="tag good">CÓ</span>' : '<span class="tag bad">TRỐNG</span>') },
+            { key: 'soTaiKhoan', label: 'Tài khoản', num: true, render: (x) => (x.soTaiKhoan ? int(x.soTaiKhoan) : '—') },
+            { key: 'thieu', label: 'Còn thiếu', render: (x) => ((x.thieu || []).length ? esc(x.thieu.join(', ')) : '—') },
+          ], r.kenh || [])}
+          ${coRong ? `<div class="help" style="border-color:var(--bad);color:var(--bad);margin-top:10px">
+            <b>${int(r.rong.length)} kênh TRỐNG trong chuỗi này: ${esc(r.rong.join(', '))}.</b>
+            Nếu kênh nào trong số đó anh đã khai ở nơi khác thì dán chuỗi này lên là <b>ĐÈ MẤT</b> nó.
+            Khai đủ ở đây trước, rồi lấy lại.</div>` : `<div class="help" style="border-color:var(--good);color:var(--good);margin-top:10px">
+            Không kênh nào trống — dán chuỗi này lên là giữ được đủ.</div>`}
+          <textarea id="gbText" readonly rows="4" style="width:100%;margin-top:10px;font-family:ui-monospace,monospace;font-size:.78rem"
+            >${esc(r.noiDung)}</textarea>
+          <div class="help" style="margin-top:8px">
+            <b>Rồi:</b> Render → Environment → biến <code>ADS_CONNECT_JSON</code> →
+            <b>xoá sạch giá trị cũ</b>, dán mới, Save Changes → deploy.
+            Đừng dán thêm vào cuối: giá trị cũ còn lại là JSON hỏng, mất hết kênh.
+          </div>`;
+        $('#gbCopy').hidden = false;
+        $('#gbAn').hidden = false;
+      } catch (err) { toast(err.message, 'err'); }
+      b.disabled = false; b.textContent = cu;
+    });
+
+    nut('#gbCopy', async () => {
+      try {
+        await navigator.clipboard.writeText(KS.envNoiDung || '');
+        toast('Đã copy — sang Render dán vào ADS_CONNECT_JSON', 'ok');
+      } catch (_) {
+        // Một số trình duyệt chặn clipboard trong iframe; chọn sẵn để người dùng Ctrl+C
+        const t = $('#gbText');
+        if (t) { t.focus(); t.select(); }
+        toast('Trình duyệt chặn clipboard — đã chọn sẵn, bấm Ctrl+C', 'err');
+      }
+    });
+
+    nut('#gbAn', () => { KS.envNoiDung = ''; $('#gbKetQua').innerHTML = ''; $('#gbCopy').hidden = true; $('#gbAn').hidden = true; });
+  }
+
   /* ===== Pancake POS — đơn hàng, ad_id và mã lead Tourwell =====
    *
    * Đây là mắt nối quan trọng nhất của cả chuỗi. Một bản ghi đơn POS mang đồng
@@ -934,6 +1025,7 @@
   }
 
   function wire(c) {
+    wireGiuBen(c);
     wirePancake(c);
     wirePancakePos(c);
     wireForm();
