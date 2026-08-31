@@ -743,6 +743,26 @@
    * ID chiến dịch của Meta cùng không gian số, trong Base này lệch nhau đúng một
    * chữ số, nên nếu ghép sai cấp thì mọi con số dưới đây vẫn nhìn hợp lý mà sai
    * hết. Đặt kết luận đó lên trên bảng, không giấu xuống chân trang. */
+  /* Bảng của đường POS. Cột khác hẳn đường hội thoại nên phải có bảng riêng —
+   * dùng lại bảng kia thì nhãn nói "Hội thoại" trong khi số là "đơn POS". */
+  function bangCotPOS(g) {
+    return `<div style="overflow-x:auto">${table('ppGhep', [
+      { key: 'ten', label: 'Quảng cáo', cls: 'name', render: (x) => (x.ghepDuoc
+        ? `<b>${esc(x.ten || '(chưa có tên trong Base)')}</b><span class="sub-line">${esc(x.adId)}</span>`
+        : `<span class="tag warn">chưa ghép</span> <code>${esc(x.adId)}</code>`) },
+      { key: 'platform', label: 'Nền tảng', render: (x) => esc(x.platform || '—') },
+      { key: 'ngay', label: 'Ngày', render: (x) => dmy(x.ngay) },
+      { key: 'spend', label: 'Chi tiêu', num: true, render: (x) => vnd(x.spend) },
+      { key: 'soDon', label: 'Đơn POS', num: true, render: (x) => int(x.soDon) },
+      { key: 'soLead', label: 'Lead Tourwell', num: true, render: (x) => int(x.soLead) },
+      { key: 'giaMoiLead', label: 'Giá / lead', num: true,
+        render: (x) => (x.giaMoiLead == null ? '—' : vnd(x.giaMoiLead)) },
+      { key: 'cvNenTang', label: 'Nền tảng báo', num: true, render: (x) => int(x.cvNenTang) },
+    ], g.rows.slice(0, 60))}</div>
+    <div class="help"><b>Giá / lead</b> là chi tiêu chia cho số lead Tourwell khác nhau — không chia cho
+    số đơn POS, vì một lead có thể có nhiều đơn POS và chia theo đơn sẽ làm giá rẻ đi một cách sai.</div>`;
+  }
+
   function bangGhep(g) {
     if (!g || !g.rows) return '';
     const pl = g.phanLoai || { dem: {} };
@@ -807,7 +827,7 @@
         (${(tyChiMu * 100).toFixed(0)}%) — phần tiền này đang chạy mà không đo được.
       </div>
 
-      <div style="overflow-x:auto">${table('pcGhep', [
+      ${g.laPOS ? bangCotPOS(g) : `<div style="overflow-x:auto">${table('pcGhep', [
         { key: 'ten', label: 'Quảng cáo', cls: 'name', render: (x) => (x.ghepDuoc
           ? `<b>${esc(x.ten || '(chưa có tên trong Base)')}</b><span class="sub-line">${esc(x.adId)}</span>`
           : `<span class="tag warn">chưa ghép</span> <code>${esc(x.adId)}</code>`) },
@@ -826,7 +846,7 @@
         { key: 'chot', label: 'Tag chốt', num: true, render: (x) => int(x.chot) },
         { key: 'giaMoiChot', label: 'Giá / tag chốt', num: true,
           render: (x) => (x.giaMoiChot == null ? '—' : vnd(x.giaMoiChot)) },
-      ], g.rows.slice(0, 60))}</div>
+      ], g.rows.slice(0, 60))}</div>`}
       ${g.rows.length > 60 ? `<div class="help">Hiện 60 dòng chi tiêu cao nhất trên tổng ${int(g.rows.length)} dòng.</div>` : ''}
       ${g.soDongKhongGhep ? `<div class="help" style="border-color:var(--warn);color:var(--warn)">
         <b>${int(g.soDongKhongGhep)} dòng chưa ghép được</b> — Pancake có hội thoại mang ID đó nhưng Base không có

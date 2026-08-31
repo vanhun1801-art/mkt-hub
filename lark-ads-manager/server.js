@@ -578,15 +578,34 @@ async function api(req, res, u) {
 
     const theoAd = pancakePos.theoAdVaNgay(don.rows);
     const d = await store.get();
-    /* Dùng lại đúng phép ghép của sync/pancake.js: nó đã biết cách đếm ad_ids khớp
-     * ở cấp nào và từ chối tính khi lẫn lộn. Chỉ đổi tên trường cho khớp chữ ký. */
-    const ghep = pancake.ghepVoiChiTieu(
+    /* Dùng lại phép ghép của sync/pancake.js để không viết lại phần phân loại cấp
+     * ID và cộng chi tiêu. Nhưng phải TRẢ VỀ ĐÚNG TÊN: đường POS đếm ĐƠN, không
+     * đếm hội thoại. Bản đầu nhồi soDon vào ô hoiThoai rồi để giao diện in nhãn
+     * "Hội thoại" — bốn cặp cột hiện ra giống hệt nhau, và bảng thành bảng dối. */
+    const nenTangCua = new Map();
+    (d.ads || []).forEach((a) => { if (a.extId) nenTangCua.set(String(a.extId), a.platform || ''); });
+
+    const ghepTho = pancake.ghepVoiChiTieu(
       { rows: theoAd.rows.map((r) => ({
-        adId: r.adId, ngay: r.ngay, platform: '',
+        adId: r.adId, ngay: r.ngay, platform: nenTangCua.get(String(r.adId)) || '',
         hoiThoai: r.soDon, coSdt: r.sdt.length, chot: r.soLead, soDon: r.soDon,
       })) },
       d, { from, to },
     );
+    // Đặt lại tên cho đúng nghĩa của đường POS trước khi trả ra giao diện
+    const ghep = {
+      ...ghepTho,
+      laPOS: true,
+      rows: ghepTho.rows.map((r) => ({
+        adId: r.adId, ten: r.ten, ghepDuoc: r.ghepDuoc, ngay: r.ngay, platform: r.platform,
+        spend: r.spend, cvNenTang: r.cvNenTang,
+        soDon: r.hoiThoai,                 // số đơn POS
+        soLead: r.chot,                    // số lead Tourwell khác nhau
+        soSdt: r.coSdt,                    // số điện thoại khác nhau
+        giaMoiDon: r.giaMoiHoiThoai,
+        giaMoiLead: r.giaMoiChot,
+      })),
+    };
     return ok(res, {
       from, to, log,
       tong: {
