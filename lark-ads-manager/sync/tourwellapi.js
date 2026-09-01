@@ -388,8 +388,43 @@ async function ghiGhiChuLead(conf, apiId, than, ghiChuCu) {
   return { apiId, note, res: scrub(r.text).slice(0, 200) };
 }
 
+/**
+ * Kéo lead + đơn về kho, dùng chung cho cả nút bấm trên web và bộ hẹn giờ.
+ *
+ * Ghi vào ĐÚNG cái kho mà bản nhập Excel vẫn ghi, nên phần tính ROAS phía sau
+ * không phải biết dữ liệu đến từ đường nào.
+ */
+async function keoVeKho(conf, from, to, log = () => {}) {
+  const kho = require('./khoroas');
+  const excel = require('./tourwell');
+
+  /* Số điện thoại lấy riêng vì bản lead của Tourwell KHÔNG kèm số, chỉ có mã KH.
+   * Hỏng ở bước này chỉ mất đường ghép dự phòng theo số điện thoại — đường khoá
+   * cứng (mã lead) vẫn chạy — nên không được để nó làm hỏng cả lượt kéo. */
+  let sdtTheoKH = null;
+  try { sdtTheoKH = await banDoSdt(conf, log); }
+  catch (e) { log('  ! không lấy được số điện thoại: ' + e.message); }
+
+  const lead = await docLead(conf, from, to, log, sdtTheoKH);
+  const don = await docDon(conf, from, to, log);
+
+  const moi = kho.ghi({
+    luc: new Date().toISOString(),
+    tuApi: true,
+    khoang: [from, to],
+    lead: { tomTat: excel.tomTat('lead', lead.rows), rows: lead.rows },
+    don: { tomTat: excel.tomTat('don', don.rows), rows: don.rows },
+  });
+  return {
+    luc: moi.luc, tuApi: true, khoang: moi.khoang,
+    lead: moi.lead.tomTat, don: moi.don.tomTat,
+    // Khoá thật sự nhận được — để nhìn ra ngay nếu Tourwell đổi tên trường
+    khoaLead: lead.khoaThay, khoaDon: don.khoaThay,
+  };
+}
+
 module.exports = {
   NHAN, chuanHost, khoangNgay, lay, tien, ngay, chuanSdt, soLead,
-  docLead, docDon, banDoSdt, test, ghepGhiChu, ghiGhiChuLead,
+  docLead, docDon, banDoSdt, test, keoVeKho, ghepGhiChu, ghiGhiChuLead,
   MOC_DAU, MOC_CUOI,
 };

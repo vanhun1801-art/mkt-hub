@@ -8,6 +8,8 @@
  */
 const store = require('../store');
 const ketnoi = require('./ketnoi');
+const tourwellApi = require('./tourwellapi');
+const khoRoas = require('./khoroas');
 const reconcile = require('./reconcile');
 const csv = require('./csv');
 const live = require('./live');
@@ -184,6 +186,11 @@ async function testAll() {
 let timer = null;
 let nextAt = null;
 
+/* Kho lead/đơn Tourwell coi là còn dùng được trong bao lâu. Mỗi lượt kéo là hàng
+ * trăm lời gọi API và Tourwell giới hạn 60 yêu cầu/phút, nên kéo lại mỗi giờ là
+ * phí. Sáu giờ đủ tươi cho một bảng ROAS. */
+const TUOI_KHO_GIO = Number(process.env.TOURWELL_TUOI_GIO || 6);
+
 function startScheduler(logFn = console.log) {
   stopScheduler();
   const conf = ketnoi.read();
@@ -210,6 +217,32 @@ function startScheduler(logFn = console.log) {
       // In hẳn nội dung từng lỗi. Chỉ in con số thì trên server chung (Render)
       // không còn cách nào biết kênh nào chết vì sao.
       (r.loi || []).forEach((m) => logFn(`  [hẹn giờ] LỖI  ${m}`));
+
+      /* Kéo lead + đơn Tourwell về kho, để ROAS không phải bấm tay.
+       *
+       * Đặt SAU phần đồng bộ chi tiêu và bọc try riêng: Tourwell hỏng thì chi tiêu
+       * vẫn phải vào Base. Và KHÔNG tính vào r.tong.loi, vì đó là con số của việc
+       * ghi vào Base — trộn vào sẽ kích cơ chế "thử lại sau 60 giây" cho một việc
+       * chẳng liên quan.
+       *
+       * Chỉ kéo khi kho đã cũ: mỗi lượt kéo là hàng trăm lời gọi API (Tourwell
+       * giới hạn 60 yêu cầu/phút), kéo lại mỗi giờ là phí và chậm. */
+      try {
+        const tw = ketnoi.read().tourwell;
+        if (tw && tw.enabled && tw.host && tw.token) {
+          if (khoRoas.conTuoi(TUOI_KHO_GIO)) {
+            logFn(`  [hẹn giờ] Tourwell: kho còn tươi (dưới ${TUOI_KHO_GIO} giờ), bỏ qua`);
+          } else {
+            const ngayVN = (lui = 0) => new Date(Date.now() + 7 * 3600 * 1000 - lui * 86400 * 1000)
+              .toISOString().slice(0, 10);
+            const k = await tourwellApi.keoVeKho(tw, ngayVN(60), ngayVN(0), () => {});
+            logFn(`  [hẹn giờ] Tourwell: ${k.lead ? k.lead.dong : 0} lead, `
+              + `${k.don ? k.don.dong : 0} đơn (${(k.khoang || []).join(' → ')})`);
+          }
+        }
+      } catch (e) {
+        logFn('  [hẹn giờ] Tourwell LỖI  ' + e.message);
+      }
       if (r.tong.loi > 0 && !laLanThuHai) thuLai();
     } catch (e) {
       logFn(`  [hẹn giờ] đồng bộ${laLanThuHai ? ' (lần 2)' : ''} lỗi: ${e.message}`);

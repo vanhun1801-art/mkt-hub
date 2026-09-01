@@ -22,6 +22,7 @@ const pancake = require('./sync/pancake');
 const pancakePos = require('./sync/pancakepos');
 const tourwell = require('./sync/tourwell');
 const tourwellApi = require('./sync/tourwellapi');
+const khoRoas = require('./sync/khoroas');
 const roasTinh = require('./sync/roas');
 
 const T = cfg.tables;
@@ -546,10 +547,7 @@ async function api(req, res, u) {
    * Trên Render ổ đĩa là tạm nên kho này mất sau deploy — giao diện nói rõ điều đó
    * kèm thời điểm nhập, chứ không im lặng trả bảng rỗng.
    */
-  const KHO_TW = path.join(__dirname, 'roas-tourwell.json');
-  const docKho = () => {
-    try { return JSON.parse(fs.readFileSync(KHO_TW, 'utf8')); } catch (_) { return null; }
-  };
+  const docKho = () => khoRoas.doc();
 
   if (p === '/api/roas/trang-thai' && method === 'GET') {
     const k = docKho();
@@ -594,7 +592,7 @@ async function api(req, res, u) {
         nhanXet.push({ ten: f.ten || '', loai, dong: r.rows.length });
       } catch (e) { return fail(res, 400, `${f.ten || 'File'}: ${e.message}`); }
     }
-    fs.writeFileSync(KHO_TW, JSON.stringify(moi), { mode: 0o600 });
+    khoRoas.ghi(moi);
     return ok(res, {
       nhanXet,
       luc: moi.luc,
@@ -606,7 +604,7 @@ async function api(req, res, u) {
 
   /** Xoá kho tạm — dùng khi nhập nhầm file. */
   if (p === '/api/roas/xoa' && method === 'POST') {
-    try { fs.unlinkSync(KHO_TW); } catch (_) {}
+    khoRoas.xoa();
     return ok(res, { da: true });
   }
 
@@ -643,35 +641,11 @@ async function api(req, res, u) {
     if (!conf || !conf.enabled) return fail(res, 400, 'Tourwell API chưa bật');
     const ngayVN = (lui = 0) => new Date(Date.now() + 7 * 3600 * 1000 - lui * 86400 * 1000)
       .toISOString().slice(0, 10);
-    const from = body.from || ngayVN(60);
-    const to = body.to || ngayVN(0);
     const log = [];
     try {
-      /* Số điện thoại lấy riêng: bản lead của Tourwell KHÔNG kèm số, chỉ có mã KH.
-       * Thiếu bước này thì mất đường ghép dự phòng theo số điện thoại — đường khoá
-       * cứng (mã lead) vẫn chạy, nên hỏng ở đây không được làm hỏng cả lượt kéo. */
-      let sdtTheoKH = null;
-      try { sdtTheoKH = await tourwellApi.banDoSdt(conf, (m) => log.push(m)); }
-      catch (e) { log.push('  ! không lấy được số điện thoại: ' + e.message); }
-
-      const lead = await tourwellApi.docLead(conf, from, to, (m) => log.push(m), sdtTheoKH);
-      const don = await tourwellApi.docDon(conf, from, to, (m) => log.push(m));
-
-      const moi = {
-        luc: new Date().toISOString(),
-        tuApi: true,
-        khoang: [from, to],
-        lead: { tomTat: tourwell.tomTat('lead', lead.rows), rows: lead.rows },
-        don: { tomTat: tourwell.tomTat('don', don.rows), rows: don.rows },
-      };
-      fs.writeFileSync(KHO_TW, JSON.stringify(moi), { mode: 0o600 });
-      return ok(res, {
-        luc: moi.luc, tuApi: true, khoang: moi.khoang, log,
-        lead: moi.lead.tomTat, don: moi.don.tomTat,
-        // Khoá thật sự nhận được — để nhìn ra ngay nếu Tourwell đổi tên trường
-        khoaLead: lead.khoaThay, khoaDon: don.khoaThay,
-        oDiaTam: !!process.env.RENDER,
-      });
+      const r = await tourwellApi.keoVeKho(conf, body.from || ngayVN(60), body.to || ngayVN(0),
+        (m) => log.push(m));
+      return ok(res, { ...r, log, oDiaTam: !!process.env.RENDER });
     } catch (e) { return fail(res, 400, e.message + (log.length ? ' | ' + log.join(' ') : '')); }
   }
 
