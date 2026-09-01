@@ -967,7 +967,7 @@ async function roasVe() {
           + `  • tạo mới ${xt.taoMoi} dòng\n`
           + `  • sửa ${xt.capNhat} dòng đã có\n`
           + `  • tổng doanh thu ${(xt.tongTien || 0).toLocaleString('vi-VN')}đ\n`
-          + `  • ${xt.soGhiCong} đơn xác định được kênh từ quảng cáo, còn lại ghi "Khác"\n\n`
+          + `  • kênh của từng đơn được xác định trong lúc ghi, đơn nào không ghi công được thì ghi "Khác"\n\n`
           + `App KHÔNG xoá dòng nào. Ghi lại lần sau thì sửa đúng dòng cũ theo mã đơn.\n\nTiếp tục?`;
         if (!confirm(cauHoi)) { b.disabled = false; b.textContent = cu; return; }
         const r = await api('/api/roas/ghi-base', { method: 'POST', body: '{}' });

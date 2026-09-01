@@ -699,37 +699,39 @@ async function api(req, res, u) {
     if (from) donRows = donRows.filter((r) => !r.ngay || r.ngay >= from);
     if (to) donRows = donRows.filter((r) => !r.ngay || r.ngay <= to);
 
-    /* Kênh của từng đơn lấy từ phép GHI CÔNG, không lấy trường Nguồn của Tourwell
-     * — đã chứng minh trường đó sai. Tính lại ở đây để mỗi dòng Base mang đúng
-     * kênh mà quảng cáo thật sự sinh ra nó. */
-    const ghiCongTheoDon = new Map();
-    try {
-      const c = ketnoi.read();
-      let posRows = [];
-      let htRows = [];
-      if (c.pancakePos.enabled && pancakePos.danhSachGian(c.pancakePos).some((x) => x.apiKey)) {
-        posRows = (await pancakePos.fetchOrders(c.pancakePos, from || kho.don.tomTat.tu,
-          to || kho.don.tomTat.den, () => {})).rows;
+    /* Phép ghi công (đơn -> quảng cáo -> kênh) là phần NẶNG: phải kéo đơn POS và
+     * hội thoại Pancake rồi tính lại ROAS. Nên chỉ chạy khi GHI THẬT, và lúc đó
+     * đã ở nền. Bước xem trước chỉ đếm tại chỗ — nó chỉ để người dùng quyết. */
+    const tinhGhiCong = async () => {
+      const m = new Map();
+      try {
+        const c = ketnoi.read();
+        const tu = from || kho.don.tomTat.tu;
+        const den = to || kho.don.tomTat.den;
+        let posRows = [];
+        let htRows = [];
+        if (c.pancakePos.enabled && pancakePos.danhSachGian(c.pancakePos).some((x) => x.apiKey)) {
+          posRows = (await pancakePos.fetchOrders(c.pancakePos, tu, den, () => {})).rows;
+        }
+        for (const pg of (c.pancake.pages || []).filter((x) => x.pageId && x.token)) {
+          const r = await pancake.fetchConversations(pg, tu, den, () => {});
+          htRows = htRows.concat(r.rows);
+        }
+        const kq = roasTinh.tinh({
+          posRows, hoiThoaiRows: htRows,
+          leadRows: (kho.lead && kho.lead.rows) || [], donRows: kho.don.rows,
+          data: await store.get(), from: tu, to: den,
+        });
+        (kq.ghiCongDon || []).forEach((gc) => {
+          m.set(String(gc.ma), { platform: gc.nenTang, tenQC: gc.ten, maLead: gc.maLead });
+        });
+      } catch (e) {
+        /* Không ghi công được thì VẪN ghi doanh thu, chỉ là cột Kênh để 'Khác'.
+         * Mất cột kênh còn hơn mất cả bản sao lưu. */
+        console.error('  ghi-base: không tính được ghi công — ' + e.message);
       }
-      for (const pg of (c.pancake.pages || []).filter((x) => x.pageId && x.token)) {
-        const r = await pancake.fetchConversations(pg, from || kho.don.tomTat.tu,
-          to || kho.don.tomTat.den, () => {});
-        htRows = htRows.concat(r.rows);
-      }
-      const d0 = await store.get();
-      const kq = roasTinh.tinh({
-        posRows, hoiThoaiRows: htRows,
-        leadRows: (kho.lead && kho.lead.rows) || [], donRows: kho.don.rows,
-        data: d0, from: from || kho.don.tomTat.tu, to: to || kho.don.tomTat.den,
-      });
-      (kq.ghiCongDon || []).forEach((g) => {
-        ghiCongTheoDon.set(String(g.ma), { platform: g.nenTang, tenQC: g.ten, maLead: g.maLead });
-      });
-    } catch (e) {
-      // Không ghi công được thì vẫn ghi doanh thu, chỉ là kênh để 'Khác'.
-      // Mất kênh còn hơn mất cả bản sao lưu.
-      console.error('  ghi-base: không tính được ghi công — ' + e.message);
-    }
+      return m;
+    };
 
     // Những dòng đã có trên Base, để SỬA chứ không tạo trùng
     const daCo = new Map();
@@ -741,17 +743,24 @@ async function api(req, res, u) {
       });
     } catch (e) { return fail(res, 400, 'Không đọc được bảng Báo cáo Sales: ' + e.message); }
 
-    const kh = ghiDT.lenKeHoach({ donRows, ghiCongTheoDon, daCo, F });
-    const tt = ghiDT.tomTat(kh);
     if (body.xemTruoc) {
-      return ok(res, { xemTruoc: true, ...tt, khoang: [from, to],
-        soGhiCong: ghiCongTheoDon.size,
-        mau: kh.taoMoi.slice(0, 3).map((x) => x.fields) });
+      const khNhanh = ghiDT.lenKeHoach({ donRows, ghiCongTheoDon: new Map(), daCo, F });
+      return ok(res, {
+        xemTruoc: true, ...ghiDT.tomTat(khNhanh), khoang: [from, to],
+        // Kênh chỉ biết được sau khi tính ghi công, mà việc đó thuộc lượt ghi thật
+        chuaBietKenh: true,
+        mau: khNhanh.taoMoi.slice(0, 3).map((x) => x.fields),
+      });
     }
 
     return ok(res, keoNen.dat({
       conf: null, from: from || '(cả kho)', to: to || '(cả kho)',
       chay: async (_c, _f, _t, ghi) => {
+        ghi('đang xác định kênh của từng đơn từ phép ghi công…');
+        const ghiCongTheoDon = await tinhGhiCong();
+        ghi(`  ${ghiCongTheoDon.size} đơn xác định được kênh từ quảng cáo`);
+        const kh = ghiDT.lenKeHoach({ donRows, ghiCongTheoDon, daCo, F });
+        const tt = ghiDT.tomTat(kh);
         ghi(`sẽ tạo ${kh.taoMoi.length} dòng, sửa ${kh.capNhat.length} dòng`);
         let taoXong = 0;
         for (let i = 0; i < kh.taoMoi.length; i += 200) {

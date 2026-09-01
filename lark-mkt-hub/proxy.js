@@ -13,26 +13,26 @@
  */
 const http = require('http');
 
-/* Những đường vốn dĩ lâu vì phải gọi nhiều API bên ngoài rồi mới trả lời được.
- * Cắt chúng ở 30 giây thì người dùng nhận "Module không trả lời trong 30s" —
- * đọc như thể module chết, trong khi nó vẫn đang chạy bình thường.
+/* Những NHÓM đường hay phải gọi API bên ngoài rồi mới trả lời được. Cắt chúng ở
+ * 30 giây thì người dùng nhận "Module không trả lời trong 30s" — đọc như thể
+ * module chết, trong khi nó vẫn đang chạy bình thường.
  *
- * THÊM ĐƯỜNG MỚI NÀO GỌI API NGOÀI THÌ PHẢI THÊM VÀO ĐÂY. Đã quên một lần: hai
- * đường Tourwell viết sau danh sách này nên vẫn bị cắt ở 30 giây, và người dùng
- * lại nhận đúng câu "module không trả lời" mà tôi vừa đi sửa.
+ * NHÓM, không phải danh sách từng đường. Bản trước liệt kê từng đường và tôi đã
+ * quên ba lần liên tiếp: /api/tourwell/test, rồi /api/roas/keo-api, rồi
+ * /api/roas/ghi-base. Mỗi lần thêm một đường mới là một cơ hội quên nữa.
  *
- * Cố ý KHÔNG nới cho những đường nhanh (PUT /api/tourwell chỉ ghi một file):
- * nới hết thì lỗi thật cũng phải chờ 4 phút mới lộ ra. */
-const VIEC_LAU_DS = [
-  'roas/tinh',        // đọc cả Base + đơn POS + hội thoại rồi mới tính
-  'roas/keo-api',     // kéo lead + đơn + khách từ Tourwell, hàng trăm lời gọi
-  'tourwell/test',    // gọi 3 endpoint, mỗi lượt giãn hơn 1 giây cho đủ 60/phút
-  'pancake-pos/ghep',
-  'pancake/phu',
-  'sync',
+ * Lý lẽ cũ ("đừng nới cho đường nhanh kẻo lỗi thật bị treo lâu mới lộ") là tính
+ * toán quá mức: mốc chờ là TRẦN, không phải độ trễ. Đường nhanh được cho 4 phút
+ * vẫn trả lời trong 50ms; cái treo thật vẫn lộ, chỉ muộn hơn. Đổi lại là không
+ * bao giờ phải sửa chỗ này khi thêm đường mới trong các nhóm này. */
+const VIEC_LAU_NHOM = [
+  'roas',         // tính ROAS, kéo Tourwell, ghi doanh thu lên Base
+  'tourwell',     // thử kết nối, đọc lead/đơn
+  'pancake',      // hội thoại và đơn POS — pancake, pancake-pos
+  'sync',         // đồng bộ chi tiêu mọi kênh rồi ghi Base
   'import-csv',
 ];
-const VIEC_LAU = new RegExp('/api/(' + VIEC_LAU_DS.join('|') + ')' + String.fromCharCode(92) + 'b');
+const VIEC_LAU = new RegExp('^/api/(' + VIEC_LAU_NHOM.join('|') + ')(-[a-z-]+)?(/|$|\\?)');
 const cfg = require('./config');
 
 const HTML_RE = /^text\/html/i;
