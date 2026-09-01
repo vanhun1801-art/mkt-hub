@@ -271,8 +271,13 @@ async function duyetTrang(xt, duong, thamSo, log = () => {}, maxTrang = 0) {
     if (tongTrang != null && trang >= tongTrang) break;
     if (tongTrang == null && lo.length < MOI_TRANG) break;
     trang += 1;
-    // Không nghỉ ở đây nữa: xepHang() đã giãn nhịp cho MỌI lời gọi, nghỉ thêm chỉ
-    // làm chậm gấp đôi mà không thưa hơn.
+    /* Báo tiến độ mỗi 5 trang. Một việc chạy vài phút mà im lặng thì người dùng
+     * không phân biệt được "đang chạy" với "đã treo". */
+    if (trang % 5 === 1) {
+      log(`  ${duong}: ${rows.length} dòng, trang ${trang}`
+        + (tongTrang ? `/${tongTrang}` : ''));
+    }
+    // Không nghỉ thêm ở đây: xepHang() đã giãn nhịp cho MỌI lời gọi.
   }
   if (trang > tran) {
     /* Cắt ngang mà im lặng là tệ nhất: bảng trông đầy đủ nhưng thiếu dữ liệu.

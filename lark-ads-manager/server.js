@@ -23,6 +23,7 @@ const pancakePos = require('./sync/pancakepos');
 const tourwell = require('./sync/tourwell');
 const tourwellApi = require('./sync/tourwellapi');
 const khoRoas = require('./sync/khoroas');
+const keoNen = require('./sync/keonen');
 const roasTinh = require('./sync/roas');
 
 const T = cfg.tables;
@@ -642,18 +643,36 @@ async function api(req, res, u) {
    * Nhờ vậy phần tính ROAS phía sau không phải biết dữ liệu đến từ đường nào, và
    * bản Excel vẫn dùng được nguyên vẹn làm đường lui khi API trục trặc.
    */
+  /**
+   * Đặt lượt kéo Tourwell rồi TRẢ LỜI NGAY. Giao diện hỏi tiến độ ở đường dưới.
+   *
+   * Vì sao không chờ tại chỗ: lượt 60 ngày mất vài phút, đã nới hạn chờ của hub
+   * lên 4 phút mà vẫn quá. Giữ một kết nối treo vài phút thì người dùng ngồi nhìn
+   * màn hình trắng, và bấm lại là chạy hai lượt song song — chính thứ đã gây 429.
+   */
   if (p === '/api/roas/keo-api' && method === 'POST') {
     const body = await readBody(req);
     const conf = ketnoi.read().tourwell;
     if (!conf || !conf.enabled) return fail(res, 400, 'Tourwell API chưa bật');
     const ngayVN = (lui = 0) => new Date(Date.now() + 7 * 3600 * 1000 - lui * 86400 * 1000)
       .toISOString().slice(0, 10);
-    const log = [];
-    try {
-      const r = await tourwellApi.keoVeKho(conf, body.from || ngayVN(60), body.to || ngayVN(0),
-        (m) => log.push(m), !!body.laySdt);
-      return ok(res, { ...r, log, oDiaTam: !!process.env.RENDER });
-    } catch (e) { return fail(res, 400, e.message + (log.length ? ' | ' + log.join(' ') : '')); }
+    return ok(res, keoNen.dat({
+      conf,
+      from: body.from || ngayVN(60),
+      to: body.to || ngayVN(0),
+      laySdt: !!body.laySdt,
+      chay: tourwellApi.keoVeKho,
+    }));
+  }
+
+  /** Tiến độ lượt kéo. Nhẹ và nhanh — giao diện gọi mỗi vài giây. */
+  if (p === '/api/roas/keo-api/trang-thai' && method === 'GET') {
+    return ok(res, { ...keoNen.trangThai(), oDiaTam: !!process.env.RENDER });
+  }
+
+  /** Quên lượt đã xong, để giao diện không hiện mãi kết quả cũ. */
+  if (p === '/api/roas/keo-api/quen' && method === 'POST') {
+    return ok(res, { da: keoNen.xoa() });
   }
 
   /**

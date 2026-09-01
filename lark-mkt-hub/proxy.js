@@ -221,6 +221,14 @@ function suaCookie(giaTri, mod) {
 }
 
 function chuyenTiep(req, res, mod, duongDan, nguoi) {
+  /* Tính mốc chờ MỘT LẦN rồi dùng lại cho cả thông báo lỗi. Trước đây câu lỗi
+   * luôn in cfg.goiTimeoutMs, nên một lời gọi được cho 4 phút mà quá giờ vẫn báo
+   * "không trả lời trong 30s" — đọc câu đó rồi đi sửa danh sách việc-lâu là sửa
+   * đúng thứ không hỏng. */
+  const mocCho = /\/(upload|attachment)\b/.test(duongDan || '') ? 300000
+    : /\/su-kien\b/.test(duongDan || '') ? 0
+      : VIEC_LAU.test(duongDan || '') ? cfg.goiLauMs : cfg.goiTimeoutMs;
+
   const opts = {
     host: '127.0.0.1',
     port: mod.cong,
@@ -235,9 +243,7 @@ function chuyenTiep(req, res, mod, duongDan, nguoi) {
      * vô hạn, nên timeout theo mức không-hoạt-động của socket sẽ cắt nó giữa
      * chừng. Module vẫn gửi nhịp tim 15s, nhưng để 0 (không giới hạn) cho chắc —
      * kết nối đóng khi client đóng, đó mới là điều kiện đúng. */
-    timeout: /\/(upload|attachment)\b/.test(duongDan || '') ? 300000
-      : /\/su-kien\b/.test(duongDan || '') ? 0
-        : VIEC_LAU.test(duongDan || '') ? cfg.goiLauMs : cfg.goiTimeoutMs,
+    timeout: mocCho,
   };
   delete opts.headers['accept-encoding']; // để không phải giải nén khi chèn HTML
   delete opts.headers['x-forwarded-host'];
@@ -288,7 +294,9 @@ function chuyenTiep(req, res, mod, duongDan, nguoi) {
   });
 
   upstream.on('timeout', () => {
-    upstream.destroy(new Error('Module không trả lời trong ' + Math.round(cfg.goiTimeoutMs / 1000) + 's'));
+    const giay = Math.round(mocCho / 1000);
+    upstream.destroy(new Error(`Module không trả lời trong ${giay}s`
+      + (giay > 60 ? ' (đây đã là mốc dài dành cho việc lâu — việc này cần chạy nền)' : '')));
   });
 
   upstream.on('error', (e) => {

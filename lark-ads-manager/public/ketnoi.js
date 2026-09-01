@@ -701,16 +701,49 @@
       } catch (e) { bao(esc(e.message), true); }
     };
 
+    /* Lượt kéo chạy Ở NỀN: đặt việc rồi hỏi tiến độ, chứ không giữ một kết nối
+     * treo vài phút. Việc vẫn chạy kể cả khi anh Hùng đóng tab. */
+    let dangHoi = null;
+    const veTienDo = (r) => {
+      const dong = (r.log || []).map(esc).join('<br>');
+      if (r.dangChay) {
+        return `<b>Đang kéo…</b> ${r.giay || 0} giây`
+          + '<br><span class="sub">Chạy ở nền — đóng tab cũng không sao, quay lại bấm '
+          + 'Kéo lead &amp; đơn là thấy tiến độ.</span>'
+          + (dong ? `<div style="margin-top:6px;font-size:12px">${dong}</div>` : '');
+      }
+      if (r.loi) return `<b style="color:var(--bad)">Lỗi:</b> ${esc(r.loi)}`
+        + (dong ? `<div style="margin-top:6px;font-size:12px">${dong}</div>` : '');
+      const k = r.kq || {};
+      return `<b>Đã kéo xong</b> ${esc((r.khoang || []).join(' → '))} — ${r.giay || 0} giây.`
+        + `<br>Lead: <b>${k.lead ? k.lead.dong : 0}</b> dòng`
+        + (k.lead && k.lead.tu ? ` (${esc(k.lead.tu)} → ${esc(k.lead.den)})` : '')
+        + `<br>Đơn: <b>${k.don ? k.don.dong : 0}</b> dòng`
+        + (k.don ? ` · tổng ${Number(k.don.tongTien || 0).toLocaleString('vi-VN')}đ` : '')
+        + (k.coSdt === false ? '<br><span class="sub">Không lấy số điện thoại — chỉ dùng khoá cứng mã lead.</span>' : '')
+        + '<br>Sang tab <b>Doanh thu &amp; ROAS</b>, chọn khoảng ngày rồi bấm Tính ROAS.';
+    };
+
+    const hoiTienDo = async () => {
+      try {
+        const r = await api('/api/roas/keo-api/trang-thai');
+        bao(veTienDo(r));
+        if (r.dangChay) dangHoi = setTimeout(hoiTienDo, 3000);
+        else dangHoi = null;
+      } catch (e) {
+        // Mất mạng một nhịp thì thử lại, đừng bỏ dở việc đang chạy
+        dangHoi = setTimeout(hoiTienDo, 5000);
+      }
+    };
+
     $('twKeo').onclick = async () => {
-      bao('Đang kéo dữ liệu từ Tourwell… việc này có thể mất vài phút.');
+      if (dangHoi) { clearTimeout(dangHoi); dangHoi = null; }
+      bao('Đang đặt việc…');
       try {
         const r = await api('/api/roas/keo-api', { method: 'POST', body: '{}' });
-        bao(`Đã kéo xong ${esc(r.khoang ? r.khoang.join(' → ') : '')}.`
-          + `<br>Lead: <b>${r.lead ? r.lead.dong : 0}</b> dòng`
-          + (r.lead && r.lead.tu ? ` (${esc(r.lead.tu)} → ${esc(r.lead.den)})` : '')
-          + `<br>Đơn: <b>${r.don ? r.don.dong : 0}</b> dòng`
-          + (r.don ? ` · tổng ${Number(r.don.tongTien || 0).toLocaleString('vi-VN')}đ` : '')
-          + '<br>Sang tab <b>Doanh thu &amp; ROAS</b> bấm Tính ROAS là xong.');
+        if (r.daChay) bao('Đã có một lượt đang chạy — hiện tiến độ của lượt đó.<br>' + veTienDo(r));
+        else bao(veTienDo(r));
+        if (r.dangChay) dangHoi = setTimeout(hoiTienDo, 2000);
       } catch (e) { bao(esc(e.message), true); }
     };
   }
