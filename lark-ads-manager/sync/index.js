@@ -191,6 +191,9 @@ let nextAt = null;
  * phí. Sáu giờ đủ tươi cho một bảng ROAS. */
 const TUOI_KHO_GIO = Number(process.env.TOURWELL_TUOI_GIO || 6);
 
+/* Số ngày lùi cho lượt kéo ĐỊNH KỲ. Lần nạp đầu vẫn dùng 60 ngày qua nút bấm. */
+const NGAY_LUI_TW = Number(process.env.TOURWELL_NGAY_LUI || 21);
+
 function startScheduler(logFn = console.log) {
   stopScheduler();
   const conf = ketnoi.read();
@@ -235,7 +238,14 @@ function startScheduler(logFn = console.log) {
           } else {
             const ngayVN = (lui = 0) => new Date(Date.now() + 7 * 3600 * 1000 - lui * 86400 * 1000)
               .toISOString().slice(0, 10);
-            const k = await tourwellApi.keoVeKho(tw, ngayVN(60), ngayVN(0), () => {});
+            /* 21 ngày, không phải 60. Đo được: một lượt 60 ngày mất 1.077 giây
+             * (~700 lời gọi) vì Tourwell trả 25 dòng/trang và mỗi trang mất ~11
+             * giây — 80 trang chỉ riêng đơn hàng. Lặp lại mỗi 6 giờ là bốn lần
+             * một ngày, phần lớn kéo lại dữ liệu không đổi.
+             *
+             * 21 ngày là đủ: đã đo trễ từ lead tới đơn là 0–3 ngày, xa nhất 6.
+             * Muốn nạp lịch sử xa hơn thì bấm nút "Kéo lead & đơn 60 ngày". */
+            const k = await tourwellApi.keoVeKho(tw, ngayVN(NGAY_LUI_TW), ngayVN(0), () => {});
             logFn(`  [hẹn giờ] Tourwell: ${k.lead ? k.lead.dong : 0} lead, `
               + `${k.don ? k.don.dong : 0} đơn (${(k.khoang || []).join(' → ')})`);
           }

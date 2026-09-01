@@ -139,6 +139,9 @@ module.exports = {
         province: 'fldn5MOnhc',
         country: 'fldLgPzJo8',
         note: 'fldFxapkUY',
+        // Khoá để ghi lại nhiều lần không sinh dòng trùng. Theo quy ước ⚙️ cho
+        // cột do máy quản lý, giống các cột ID nền tảng ở ba bảng kia.
+        orderCode: 'fldyWhdTOa',   // ⚙️ Mã đơn Tourwell
       },
     },
   },

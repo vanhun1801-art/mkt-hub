@@ -74,6 +74,10 @@ function tinh({ posRows = [], hoiThoaiRows = [], leadRows = [], donRows = [], da
   /* ---------- ghi công ---------- */
   const theoAd = new Map();
   const daDungDon = new Set();
+  /* Đơn -> quảng cáo đã ghi công cho nó. Bảng ROAS gom theo quảng cáo nên không
+   * ai truy được chiều ngược lại; mà chiều ngược lại mới là thứ cần khi muốn ghi
+   * đúng cột Kênh cho từng dòng doanh thu. */
+  const ghiCongDon = new Map();
   const nhat = { nhapNhangPOS: 0, nhapNhangHoiThoai: 0, leadKhongCoTrongXuat: 0, sdtKhongKhopLead: 0, sdtNhieuLead: 0 };
 
   const layO = (adId, duong) => {
@@ -92,6 +96,9 @@ function tinh({ posRows = [], hoiThoaiRows = [], leadRows = [], donRows = [], da
       if (tre < 0 || tre > cuaSo) return;
       if (daDungDon.has(d.ma)) return;
       daDungDon.add(d.ma);
+      ghiCongDon.set(String(d.ma), {
+        adId: o.adId, duong: o.duong, maLead: lead.ma || '', leadId: lead.id,
+      });
       o.don += 1;
       o.tien += d.tien;
       o.thu += d.thu;
@@ -213,6 +220,13 @@ function tinh({ posRows = [], hoiThoaiRows = [], leadRows = [], donRows = [], da
       roasThu: tongChiKy ? tongThu / tongChiKy : null,
     },
     nhat,
+    /* Kèm tên và nền tảng để người gọi không phải tự tra lại — và để chỉ có MỘT
+     * chỗ định nghĩa "đơn này thuộc kênh nào". */
+    ghiCongDon: [...ghiCongDon.entries()].map(([ma, g]) => {
+      const a = adTheoExt.get(String(g.adId)) || {};
+      return { ma, adId: g.adId, ten: a.name || '', nenTang: a.platform || '',
+        duong: g.duong, maLead: g.maLead, leadId: g.leadId };
+    }),
     donKhongGhep: {
       so: donRows.length - daDungDon.size,
       tien: donRows.filter((d) => !daDungDon.has(d.ma)).reduce((a, d) => a + d.tien, 0),

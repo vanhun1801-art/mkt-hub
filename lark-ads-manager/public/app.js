@@ -810,6 +810,13 @@ VIEW['doanh-thu'] = async (view) => {
     <div class="kpi"><div class="k-label">ROAS</div><div class="k-value">${totalSpend ? (Math.round((totalRev / totalSpend) * 100) / 100) + '×' : '—'}</div><div class="k-foot">doanh thu / chi tiêu</div></div>
     <div class="kpi"><div class="k-label">Lãi gộp trước COGS</div><div class="k-value" style="color:${totalRev - totalSpend >= 0 ? 'var(--good)' : 'var(--bad)'}">${vnd(totalRev - totalSpend)}</div><div class="k-foot">doanh thu − chi tiêu ads</div></div>
   </div>
+  ${!d.rows.length ? `<div class="help" style="margin-top:12px;border-color:var(--warn);color:var(--warn)">
+    <b>Bốn ô số trên đọc bảng <i>Báo cáo Sales (theo ngày)</i> của Base, và bảng đó đang rỗng —
+    nên chúng hiện 0đ.</b> Đây không phải lỗi tính toán: chưa có ai ghi doanh thu vào Base.
+    <br>Cuộn xuống mục <b>ROAS từng quảng cáo</b> — số ở đó lấy từ dữ liệu Tourwell vừa nạp và
+    dùng được ngay. Bấm <b>Ghi doanh thu lên Base</b> ở đó thì bốn ô này cũng sống theo,
+    và có bản sao lưu lâu dài (kho tạm mất sau mỗi lần deploy, Base thì còn mãi).
+  </div>` : ''}
   <div class="card" style="margin-top:14px">
     <div class="card-head"><h3>Hiệu quả theo kênh</h3><span class="sub">${dmy(d.from)} → ${dmy(d.to)}</span></div>
     <div class="card-body tight">${table('salesTbl', cols, d.byChannel, { footer: true, empty: 'Bảng Báo cáo Sales chưa có dữ liệu trong khoảng này' })}</div>
@@ -879,6 +886,7 @@ async function roasVe() {
       <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
         <button class="btn ghost" id="rsNhap" disabled>Nhập file</button>
         <button class="btn primary" id="rsTinh" ${tt.coDuLieu ? '' : 'disabled'}>Tính ROAS</button>
+        ${tt.coDuLieu ? '<button class="btn ghost" id="rsGhiBase">Ghi doanh thu lên Base</button>' : ''}
         ${tt.coDuLieu ? '<button class="btn ghost" id="rsXoa">Xoá dữ liệu đã nhập</button>' : ''}
       </div>
       <div id="rsKetQua" style="margin-top:12px"></div>
@@ -923,6 +931,53 @@ async function roasVe() {
     } catch (err) { toast(err.message, 'err'); }
     b.disabled = false; b.textContent = cu;
   };
+
+  /* Ghi lên Base: XEM TRƯỚC rồi mới ghi. Đây là ghi hàng nghìn dòng vào Base thật
+   * của công ty — không được để một cú bấm nhầm là xong. */
+  if ($('#rsGhiBase')) {
+    let hoiGhi = null;
+    const veGhi = (r) => {
+      const dong = (r.log || []).map(esc).join('<br>');
+      if (r.dangChay) {
+        return `<b>Đang ghi lên Base…</b> ${r.giay || 0} giây`
+          + '<br><span class="sub">Chạy ở nền — đóng tab cũng không sao.</span>'
+          + (dong ? `<div style="margin-top:6px;font-size:12px">${dong}</div>` : '');
+      }
+      if (r.loi) return `<b style="color:var(--bad)">Lỗi:</b> ${esc(r.loi)}`
+        + (dong ? `<div style="margin-top:6px;font-size:12px">${dong}</div>` : '');
+      const k = r.kq || {};
+      return `<b>Đã ghi lên Base</b> — ${r.giay || 0} giây.`
+        + `<br>Tạo mới <b>${int(k.taoMoi || 0)}</b> dòng · sửa <b>${int(k.capNhat || 0)}</b> dòng`
+        + `<br>Bấm <b>Làm mới</b> ở đầu trang là bốn ô số phía trên sẽ có số.`;
+    };
+    const hoi = async () => {
+      try {
+        const r = await api('/api/roas/keo-api/trang-thai');
+        $('#rsKetQua').innerHTML = `<div class="help">${veGhi(r)}</div>`;
+        hoiGhi = r.dangChay ? setTimeout(hoi, 3000) : null;
+      } catch (_) { hoiGhi = setTimeout(hoi, 5000); }
+    };
+
+    $('#rsGhiBase').onclick = async (e) => {
+      const b = e.currentTarget; const cu = b.textContent;
+      b.disabled = true; b.textContent = 'Đang xem trước…';
+      try {
+        const xt = await api('/api/roas/ghi-base', { method: 'POST', body: JSON.stringify({ xemTruoc: true }) });
+        const cauHoi = `Sẽ ghi vào bảng "Báo cáo Sales (theo ngày)" của Base:\n\n`
+          + `  • tạo mới ${xt.taoMoi} dòng\n`
+          + `  • sửa ${xt.capNhat} dòng đã có\n`
+          + `  • tổng doanh thu ${(xt.tongTien || 0).toLocaleString('vi-VN')}đ\n`
+          + `  • ${xt.soGhiCong} đơn xác định được kênh từ quảng cáo, còn lại ghi "Khác"\n\n`
+          + `App KHÔNG xoá dòng nào. Ghi lại lần sau thì sửa đúng dòng cũ theo mã đơn.\n\nTiếp tục?`;
+        if (!confirm(cauHoi)) { b.disabled = false; b.textContent = cu; return; }
+        const r = await api('/api/roas/ghi-base', { method: 'POST', body: '{}' });
+        if (r.daChay) toast('Đã có một việc đang chạy ở nền', 'err');
+        $('#rsKetQua').innerHTML = `<div class="help">${veGhi(r)}</div>`;
+        if (r.dangChay) hoiGhi = setTimeout(hoi, 2000);
+      } catch (err) { toast(err.message, 'err'); }
+      b.disabled = false; b.textContent = cu;
+    };
+  }
 
   if (RS.kq) roasBang();
 }

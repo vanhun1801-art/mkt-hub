@@ -24,6 +24,7 @@ const tourwell = require('./sync/tourwell');
 const tourwellApi = require('./sync/tourwellapi');
 const khoRoas = require('./sync/khoroas');
 const keoNen = require('./sync/keonen');
+const ghiDT = require('./sync/ghidoanhthu');
 const roasTinh = require('./sync/roas');
 
 const T = cfg.tables;
@@ -673,6 +674,105 @@ async function api(req, res, u) {
   /** Quên lượt đã xong, để giao diện không hiện mãi kết quả cũ. */
   if (p === '/api/roas/keo-api/quen' && method === 'POST') {
     return ok(res, { da: keoNen.xoa() });
+  }
+
+  /**
+   * Ghi doanh thu Tourwell lên Base, bảng "Báo cáo Sales (theo ngày)".
+   *
+   * Hai việc trong một: sao lưu (kho nằm trên ổ đĩa tạm, Base thì còn mãi) và làm
+   * sống bốn ô số ở đầu tab Doanh thu — chúng đọc THẲNG bảng này, bảng rỗng nên
+   * hiện 0đ. Không phải tab hỏng, chỉ là chưa có ai ghi vào.
+   *
+   * `xemTruoc: true` thì KHÔNG ghi gì, chỉ trả về sẽ làm gì. Ghi 2.000 dòng vào
+   * Base thật thì phải cho người ta xem trước.
+   */
+  if (p === '/api/roas/ghi-base' && method === 'POST') {
+    const body = await readBody(req);
+    const kho = docKho();
+    if (!kho || !kho.don || !kho.don.rows || !kho.don.rows.length) {
+      return fail(res, 400, 'Chưa có dữ liệu đơn hàng. Kéo từ Tourwell hoặc nhập file Excel trước.');
+    }
+    const F = T.sales.f;
+    const from = body.from || '';
+    const to = body.to || '';
+    let donRows = kho.don.rows;
+    if (from) donRows = donRows.filter((r) => !r.ngay || r.ngay >= from);
+    if (to) donRows = donRows.filter((r) => !r.ngay || r.ngay <= to);
+
+    /* Kênh của từng đơn lấy từ phép GHI CÔNG, không lấy trường Nguồn của Tourwell
+     * — đã chứng minh trường đó sai. Tính lại ở đây để mỗi dòng Base mang đúng
+     * kênh mà quảng cáo thật sự sinh ra nó. */
+    const ghiCongTheoDon = new Map();
+    try {
+      const c = ketnoi.read();
+      let posRows = [];
+      let htRows = [];
+      if (c.pancakePos.enabled && pancakePos.danhSachGian(c.pancakePos).some((x) => x.apiKey)) {
+        posRows = (await pancakePos.fetchOrders(c.pancakePos, from || kho.don.tomTat.tu,
+          to || kho.don.tomTat.den, () => {})).rows;
+      }
+      for (const pg of (c.pancake.pages || []).filter((x) => x.pageId && x.token)) {
+        const r = await pancake.fetchConversations(pg, from || kho.don.tomTat.tu,
+          to || kho.don.tomTat.den, () => {});
+        htRows = htRows.concat(r.rows);
+      }
+      const d0 = await store.get();
+      const kq = roasTinh.tinh({
+        posRows, hoiThoaiRows: htRows,
+        leadRows: (kho.lead && kho.lead.rows) || [], donRows: kho.don.rows,
+        data: d0, from: from || kho.don.tomTat.tu, to: to || kho.don.tomTat.den,
+      });
+      (kq.ghiCongDon || []).forEach((g) => {
+        ghiCongTheoDon.set(String(g.ma), { platform: g.nenTang, tenQC: g.ten, maLead: g.maLead });
+      });
+    } catch (e) {
+      // Không ghi công được thì vẫn ghi doanh thu, chỉ là kênh để 'Khác'.
+      // Mất kênh còn hơn mất cả bản sao lưu.
+      console.error('  ghi-base: không tính được ghi công — ' + e.message);
+    }
+
+    // Những dòng đã có trên Base, để SỬA chứ không tạo trùng
+    const daCo = new Map();
+    try {
+      const cu = await lark.listAll(T.sales.id);
+      cu.forEach((r) => {
+        const ma = String((r.fields && (r.fields[F.orderCode] || r.fields['⚙️ Mã đơn Tourwell'])) || '').trim();
+        if (ma) daCo.set(ma, r.record_id || r.id);
+      });
+    } catch (e) { return fail(res, 400, 'Không đọc được bảng Báo cáo Sales: ' + e.message); }
+
+    const kh = ghiDT.lenKeHoach({ donRows, ghiCongTheoDon, daCo, F });
+    const tt = ghiDT.tomTat(kh);
+    if (body.xemTruoc) {
+      return ok(res, { xemTruoc: true, ...tt, khoang: [from, to],
+        soGhiCong: ghiCongTheoDon.size,
+        mau: kh.taoMoi.slice(0, 3).map((x) => x.fields) });
+    }
+
+    return ok(res, keoNen.dat({
+      conf: null, from: from || '(cả kho)', to: to || '(cả kho)',
+      chay: async (_c, _f, _t, ghi) => {
+        ghi(`sẽ tạo ${kh.taoMoi.length} dòng, sửa ${kh.capNhat.length} dòng`);
+        let taoXong = 0;
+        for (let i = 0; i < kh.taoMoi.length; i += 200) {
+          const lo = kh.taoMoi.slice(i, i + 200).map((x) => x.fields);
+          await lark.createMany(T.sales.id, lo);
+          taoXong += lo.length;
+          ghi(`  đã tạo ${taoXong}/${kh.taoMoi.length}`);
+        }
+        const mapSua = {};
+        kh.capNhat.forEach((x) => { mapSua[x.record_id] = x.fields; });
+        if (Object.keys(mapSua).length) {
+          await lark.updateMany(T.sales.id, mapSua);
+          ghi(`  đã sửa ${Object.keys(mapSua).length} dòng`);
+        }
+        store.invalidate();
+        if (kh.khongConNguon.length) {
+          ghi(`  ! ${kh.khongConNguon.length} dòng trên Base không còn trong nguồn — KHÔNG xoá, tự xem lại`);
+        }
+        return { ...tt, taoXong };
+      },
+    }));
   }
 
   /**
