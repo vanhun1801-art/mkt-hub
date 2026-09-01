@@ -497,8 +497,14 @@ function status() {
           thieu: [
             gian.length ? '' : 'chưa khai gian hàng nào',
             thieuKhoa.length ? `gian chưa có khoá: ${thieuKhoa.join(', ')}` : '',
+            /* Bẫy âm thầm: khoá đủ, "Kiểm tra kết nối" báo OK cả hai gian, nhưng
+             * ô Bật đọc chưa tích thì server.js bỏ qua POS khi tính ROAS — mất
+             * sạch khoá cứng mà không có dòng lỗi nào. Phải nói thẳng ra. */
+            (!c.pancakePos.enabled && gian.some((x) => x.apiKey))
+              ? 'CÓ KHOÁ NHƯNG CHƯA TÍCH "Bật đọc Pancake POS" — ROAS đang bỏ qua khoá cứng'
+              : '',
           ].filter(Boolean),
-          sanSang: gian.length > 0 && gian.every((x) => x.apiKey),
+          sanSang: c.pancakePos.enabled && gian.length > 0 && gian.every((x) => x.apiKey),
         };
       })(),
     ],

@@ -633,7 +633,13 @@ async function api(req, res, u) {
     if (c.pancakePos.enabled && pancakePos.danhSachGian(c.pancakePos).some((x) => x.apiKey)) {
       try { posRows = (await pancakePos.fetchOrders(c.pancakePos, from, to, (m) => log.push(m))).rows; }
       catch (e) { loi.push('Pancake POS: ' + e.message); }
-    } else loi.push('Pancake POS chưa bật — thiếu đường khoá cứng của Facebook');
+    } else if (pancakePos.danhSachGian(c.pancakePos).some((x) => x.apiKey)) {
+      /* Trường hợp dễ nhầm nhất: gian có khoá, "Kiểm tra kết nối" báo OK, nhưng ô
+       * Bật đọc chưa tích. Không nói rõ thì người dùng tưởng đã đo bằng khoá cứng
+       * trong khi ROAS đang rơi hết về khoá số điện thoại. */
+      loi.push('Gian hàng POS đã có khoá nhưng ô "Bật đọc Pancake POS" chưa tích — '
+        + 'ROAS đang bỏ qua khoá cứng và chỉ ghép theo số điện thoại. Tích ô đó rồi Lưu cấu hình POS.');
+    } else loi.push('Pancake POS chưa có khoá gian hàng nào — thiếu hẳn đường khoá cứng');
     for (const pg of (c.pancake.pages || []).filter((x) => x.pageId && x.token)) {
       try {
         const r = await pancake.fetchConversations(pg, from, to, (m) => log.push(m));

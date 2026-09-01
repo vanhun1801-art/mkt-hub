@@ -101,5 +101,24 @@ r = chay(`
   console.log(JSON.stringify(pos.danhSachGian(k.read().pancakePos)));`, CU);
 t('chỉ còn gian có shop_id', r.length === 1 && r[0].shopId === '454586', JSON.stringify(r));
 
+console.log('— có khoá nhưng CHƯA BẬT thì phải la lên, không được báo sẵn sàng');
+/* Bẫy suýt xảy ra thật: hai gian đều "Kiểm tra kết nối → OK", nhưng ô Bật đọc
+ * chưa tích nên server.js bỏ qua POS lúc tính ROAS. Mọi thứ xanh, kết quả sai —
+ * ROAS rơi hết về khoá số điện thoại mà không có một dòng lỗi nào. */
+r = chay(`
+  k.writePancakePos({ enabled: false, shops: [{ shopId: '454586', apiKey: '${KHOA_CU}' }] });
+  const p = k.status().doLuong.find((x) => x.key === 'pancakePos');
+  console.log(JSON.stringify({ sanSang: p.sanSang, thieu: p.thieu }));`, CU);
+t('KHÔNG được coi là sẵn sàng khi chưa tích ô Bật đọc', r.sanSang === false, JSON.stringify(r));
+t('và phải nói thẳng nguyên nhân', r.thieu.some((x) => x.includes('Bật đọc')),
+  JSON.stringify(r.thieu));
+
+r = chay(`
+  k.writePancakePos({ enabled: true, shops: [{ shopId: '454586', apiKey: '${KHOA_CU}' }] });
+  const p = k.status().doLuong.find((x) => x.key === 'pancakePos');
+  console.log(JSON.stringify({ sanSang: p.sanSang, thieu: p.thieu }));`, CU);
+t('tích rồi thì sẵn sàng và hết cảnh báo', r.sanSang === true && r.thieu.length === 0,
+  JSON.stringify(r));
+
 console.log(`\n${pass} pass · ${fail} fail`);
 process.exitCode = fail ? 1 : 0;
