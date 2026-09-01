@@ -443,7 +443,12 @@ function openapi(goc) {
     paths['/bot/' + ten] = {
       get: {
         operationId: ten,
+        /* Khai CẢ summary VÀ description bằng cùng một câu. Coze lấy `description`
+         * làm "Tool description"; chỉ khai `summary` thì nó điền mặc định "new api"
+         * — mà mô tả tool chính là thứ bộ não đọc để chọn gọi tool nào, để "new
+         * api" là nó chọn bừa. Nền tảng khác lại đọc `summary`, nên khai cả hai. */
         summary: cc.moTa,
+        description: cc.moTa,
         parameters: Object.entries(cc.thamSo).map(([k, v]) => ({
           name: k, in: 'query', required: false,
           description: v.moTa, schema: { type: 'string' },

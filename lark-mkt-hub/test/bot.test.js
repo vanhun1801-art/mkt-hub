@@ -92,6 +92,16 @@ const NGAY = 86400000;
       Object.keys(s.paths).length === Object.keys(bot.CONG_CU).length);
     ok('mọi path đều chỉ có GET',
       Object.values(s.paths).every((p) => Object.keys(p).length === 1 && p.get));
+
+    /* Coze lấy `description` làm "Tool description"; thiếu nó thì nó điền mặc định
+     * "new api" — mà đây là thứ bộ não đọc để chọn gọi tool nào, nên "new api"
+     * đồng nghĩa chọn bừa. Nền tảng khác đọc `summary`, nên phải có cả hai. */
+    ok('mỗi tool khai cả summary và description',
+      Object.values(s.paths).every((p) => !!p.get.summary && !!p.get.description));
+    ok('summary và description cùng một câu',
+      Object.values(s.paths).every((p) => p.get.summary === p.get.description));
+    ok('mô tả tool đủ dài để bộ não phân biệt được',
+      Object.values(s.paths).every((p) => p.get.description.length > 80));
     /* Mô tả này là thứ DUY NHẤT ngăn bộ não đi trả lời câu hỏi về tiền bằng nguồn
      * không có tiền — mất câu đó là bot bắt đầu bịa số. */
     ok('mô tả nói rõ không có dữ liệu tiền',
