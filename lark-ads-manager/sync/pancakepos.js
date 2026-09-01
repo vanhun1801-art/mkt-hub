@@ -72,8 +72,18 @@ function soLead(v) {
 
 /* ---------------- gọi API ---------------- */
 
+/**
+ * Danh sách gian hàng mà MỘT api_key với tới.
+ *
+ * Khoá POS là THEO TỪNG GIAN HÀNG, không phải theo tài khoản. Ở Pancake POS mỗi
+ * page là một gian hàng riêng — công ty này có 15 gian: 5 Facebook, 6 TikTok,
+ * 3 WhatsApp, 1 Instagram. Khoá của gian Facebook (454586) gọi sang gian TikTok
+ * (100087658) thì bị từ chối với câu "Cửa hàng không tồn tại".
+ *
+ * Nên muốn đọc thêm gian nào thì phải tạo api_key TRONG chính gian đó.
+ */
 async function danhSachShop(conf) {
-  const key = (conf && conf.apiKey) || '';
+  const key = typeof conf === 'string' ? conf : ((conf && conf.apiKey) || '');
   if (!key) throw new Error('Chưa có api_key (Pancake POS → Cấu hình → Nâng cao → Tích hợp bên thứ 3 → tab API Key)');
   /* Chặn hai loại khoá dễ dán sai vào đây. api_key của POS là 32 ký tự hex; hai
    * loại dưới đây có dạng khác hẳn nên nhận ra chắc chắn, nói thẳng còn hơn để
@@ -107,11 +117,9 @@ async function danhSachShop(conf) {
  * kéo hết về là lãng phí và làm log khó đọc.
  */
 async function fetchOrders(conf, from, to, log = () => {}) {
-  const key = (conf && conf.apiKey) || '';
-  if (!key) throw new Error('Chưa có api_key');
-  const shops = (conf.shopIds || []).filter(Boolean);
-  if (!shops.length) throw new Error('Chưa khai shopIds');
-  hideSecret(key);
+  const shops = danhSachGian(conf);
+  if (!shops.length) throw new Error('Chưa khai gian hàng nào');
+  shops.forEach((x) => hideSecret(x.apiKey));
 
   const CAN = ['id', 'ad_id', 'conversation_id', 'page_id', 'post_id', 'note', 'note_print',
     'bill_phone_number', 'bill_full_name', 'total_price', 'cod', 'cash', 'money_to_collect',
@@ -119,7 +127,9 @@ async function fetchOrders(conf, from, to, log = () => {}) {
 
   const rows = [];
   let tongDon = 0;
-  for (const shopId of shops) {
+  for (const gian of shops) {
+    const shopId = gian.shopId;
+    const key = gian.apiKey;
     let trang = 1;
     let tongTrang = 1;
     const MAX_TRANG = 200; // chặn nếu total_pages trả về sai
@@ -268,24 +278,27 @@ function leadVeQuangCao(rows) {
 /* ---------------- kiểm tra kết nối ---------------- */
 
 async function test(conf) {
-  if (!conf || !conf.apiKey) return { ok: false, message: 'Chưa có api_key' };
-  hideSecret(conf.apiKey);
-  let shops = [];
-  try { shops = await danhSachShop(conf); }
-  catch (e) { return { ok: false, message: scrub(e.message) }; }
-
-  const khai = (conf.shopIds || []).map(String);
+  const gians = danhSachGian(conf);
+  if (!gians.length) return { ok: false, message: 'Chưa khai gian hàng nào' };
   const results = [];
-  for (const s of shops) {
-    if (khai.length && !khai.includes(s.shopId)) continue;
+  for (const g of gians) {
+    hideSecret(g.apiKey);
+    if (!g.apiKey) {
+      results.push({ shopId: g.shopId, name: g.ten, ok: false, message: 'Gian này chưa có api_key riêng' });
+      continue;
+    }
     try {
-      const url = `${BASE}/shops/${encodeURIComponent(s.shopId)}/orders?`
-        + qs({ api_key: conf.apiKey, page_size: 20, page_number: 1 });
-      const res = await getJson(url, { label: `POS test shop ${s.shopId}`, retries: 1 });
+      const url = `${BASE}/shops/${encodeURIComponent(g.shopId)}/orders?`
+        + qs({ api_key: g.apiKey, page_size: 20, page_number: 1 });
+      const res = await getJson(url, { label: `POS test shop ${g.shopId}`, retries: 1 });
+      if (res && res.success === false) {
+        results.push({ shopId: g.shopId, name: g.ten, ok: false, message: scrub(res.message || 'bị từ chối') });
+        continue;
+      }
       const batch = (res && res.data) || [];
-      const chuan = batch.map((o) => chuanHoa(o, s.shopId));
+      const chuan = batch.map((o) => chuanHoa(o, g.shopId));
       results.push({
-        shopId: s.shopId, name: s.name, ok: true,
+        shopId: g.shopId, name: g.ten, ok: true,
         tongDon: Number(res && res.total_entries) || null,
         mau: chuan.length,
         coAdId: chuan.filter((x) => x.adId).length,
@@ -294,17 +307,32 @@ async function test(conf) {
         viDuLead: chuan.find((x) => x.leadMa) ? chuan.find((x) => x.leadMa).leadMa : '',
       });
     } catch (e) {
-      results.push({ shopId: s.shopId, name: s.name, ok: false, message: scrub(e.message) });
+      results.push({ shopId: g.shopId, name: g.ten, ok: false, message: scrub(e.message) });
     }
     await nghi(150);
   }
-  if (!results.length) {
-    return { ok: false, message: `api_key đọc được ${shops.length} shop nhưng không shop nào khớp shopIds đã khai`, shops };
+  return { ok: results.every((r) => r.ok), results };
+}
+
+/**
+ * Chuẩn hoá cấu hình về danh sách gian hàng, mỗi gian một khoá.
+ *
+ * Chịu được cả dạng CŨ (`{apiKey, shopIds:[...]}` — một khoá cho mọi gian) để cấu
+ * hình đang chạy trên Render không chết khi deploy bản này. Dạng cũ chỉ đúng khi
+ * tất cả gian dùng chung một khoá, mà thực tế Pancake không cho như vậy.
+ */
+function danhSachGian(conf) {
+  if (!conf) return [];
+  if (Array.isArray(conf.shops) && conf.shops.length) {
+    return conf.shops
+      .filter((x) => x && x.shopId)
+      .map((x) => ({ shopId: String(x.shopId), apiKey: String(x.apiKey || conf.apiKey || '').trim(), ten: x.ten || '' }));
   }
-  return { ok: results.every((r) => r.ok), results, shops };
+  return (conf.shopIds || []).filter(Boolean)
+    .map((id) => ({ shopId: String(id), apiKey: String(conf.apiKey || '').trim(), ten: '' }));
 }
 
 module.exports = {
-  danhSachShop, fetchOrders, test,
+  danhSachShop, fetchOrders, test, danhSachGian,
   macLead, soLead, theoAdVaNgay, leadVeQuangCao, chuanSdt, dauNgay, cuoiNgay,
 };

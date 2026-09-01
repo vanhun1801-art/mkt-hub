@@ -571,6 +571,19 @@
   function thePancakePos(c) {
     const p = layDoLuong(c, 'pancakePos');
     if (!p.key) return '';
+    const shops = KS.ppShops || p.shops || [];
+    const dong = (x, i) => `
+      <tr data-pp-row="${i}">
+        <td><input data-pp="shopId" value="${esc(x.shopId || '')}" placeholder="100087658" style="width:100%"></td>
+        <td><input data-pp="ten" value="${esc(x.ten || '')}" placeholder="TikTok Rooty Trip" style="width:100%"></td>
+        <td><input data-pp="apiKey" type="password" autocomplete="off"
+             placeholder="${x.coKhoa ? 'đã có — để trống là giữ nguyên' : 'dán api_key của gian này'}" style="width:100%">
+          <div style="margin-top:4px">${x.coKhoa
+            ? '<span class="tag good">đã có khoá</span>'
+            : '<span class="tag warn">chưa có khoá</span>'}</div></td>
+        <td><button class="btn small ghost" data-pp-xoa="${i}">Xoá</button></td>
+      </tr>`;
+
     return `
     <div class="card" style="margin-top:14px">
       <div class="card-head">
@@ -581,30 +594,33 @@
         <div class="help">
           Mỗi đơn POS mang <code>ad_id</code> và ghi chú <code>LU1998</code> — tức mã lead Tourwell.
           Nhờ vậy nối được quảng cáo với doanh thu <b>không cần ghép theo số điện thoại</b>.
-          <br><b>api_key lấy ở:</b> Pancake POS → <code>Cấu hình</code> → <code>Nâng cao</code> →
-          <code>Tích hợp bên thứ 3</code> → tab <code>API Key</code>.
-          Đây <b>không phải</b> khoá <code>pos_user_…</code> ở Cài đặt cá nhân — hai loại khác nhau.
+        </div>
+        <div class="help" style="border-color:var(--warn);color:var(--warn)">
+          <b>Mỗi gian hàng một khoá riêng.</b> Ở Pancake POS mỗi page là một gian hàng riêng —
+          công ty đang có 15 gian. Khoá của gian này gọi sang gian kia sẽ bị từ chối
+          (<em>“Cửa hàng không tồn tại”</em>), nên muốn đọc gian nào thì phải tạo khoá <b>trong chính gian đó</b>.
+          <br><b>Lấy khoá:</b> mở gian hàng → <code>Cấu hình</code> → <code>Nâng cao</code> →
+          <code>Tích hợp bên thứ 3</code> → tab <code>API Key</code> → <b>+ Thêm mới</b>.
+          <br><b>Lấy shop_id:</b> nhìn URL khi đang mở gian đó —
+          <code>pos.pancake.vn/shop/<b>100087658</b>/overview</code>
         </div>
 
         <div class="field full" style="margin-bottom:10px">
           <label><input type="checkbox" id="ppBat" ${p.enabled ? 'checked' : ''}> Bật đọc Pancake POS</label>
         </div>
 
-        <div class="form-grid">
-          <div class="field full">
-            <label>api_key</label>
-            <input id="ppKey" type="password" autocomplete="off"
-              placeholder="${p.coToken ? 'đã có — để trống là giữ nguyên' : 'dán api_key của cửa hàng'}">
-          </div>
-          <div class="field full">
-            <label>shop_id <span class="hint">— ngăn bằng dấu phẩy, hoặc bấm Dò shop để máy điền</span></label>
-            <input id="ppShops" value="${esc((p.shopIds || []).join(', '))}" placeholder="123456">
-            <span class="hint">shop_id không hiện rõ trong giao diện POS. Dán api_key rồi bấm <b>Dò shop</b>.</span>
-          </div>
+        <div style="overflow-x:auto">
+          <table class="tbl"><thead><tr>
+            <th style="min-width:120px">shop_id</th><th style="min-width:150px">Tên gợi nhớ</th>
+            <th style="min-width:220px">api_key của gian này</th><th></th>
+          </tr></thead>
+          <tbody id="ppBody">${shops.length ? shops.map(dong).join('')
+            : '<tr><td colspan="4" class="sub" style="padding:12px">Chưa khai gian hàng nào. Bấm <b>Thêm gian hàng</b>.</td></tr>'}</tbody></table>
         </div>
 
         <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-          <button class="btn ghost" id="ppDo">Dò shop</button>
+          <button class="btn ghost" id="ppThem">+ Thêm gian hàng</button>
+          <button class="btn ghost" id="ppDo">Dò tên gian hàng</button>
           <button class="btn primary" id="ppLuu">Lưu cấu hình POS</button>
           <button class="btn ghost" id="ppTest" ${p.sanSang ? '' : 'disabled'}>Kiểm tra kết nối</button>
           <button class="btn primary" id="ppGhep" ${p.sanSang ? '' : 'disabled'}>Ghép 14 ngày</button>
@@ -615,35 +631,73 @@
     </div>`;
   }
 
+  /** Đọc bảng gian hàng trên màn hình. */
+  function ppNhatBang() {
+    return $$('#view [data-pp-row]').map((tr) => {
+      const g = (k) => { const e = tr.querySelector(`[data-pp="${k}"]`); return e ? e.value.trim() : ''; };
+      return { shopId: g('shopId'), ten: g('ten'), apiKey: g('apiKey') };
+    }).filter((x) => x.shopId);
+  }
+
   function wirePancakePos(c) {
     const p = layDoLuong(c, 'pancakePos');
     if (!p.key) return;
 
     const goiLuu = async () => {
-      const body = {
+      const r = await api('/api/pancake-pos', { method: 'PUT', body: JSON.stringify({
         enabled: $('#ppBat').checked,
-        shopIds: ($('#ppShops').value || '').split(',').map((x) => x.trim()).filter(Boolean),
-      };
-      const k = ($('#ppKey').value || '').trim();
-      if (k) body.apiKey = k;
-      return api('/api/pancake-pos', { method: 'PUT', body: JSON.stringify(body) });
+        shops: ppNhatBang(),
+      }) });
+      KS.ppShops = null;
+      return r;
     };
     const nut = (id, fn) => { const b = $(id); if (b) b.onclick = fn; };
 
+    nut('#ppThem', () => {
+      KS.ppShops = [...(KS.ppShops || p.shops || []), { shopId: '', ten: '', coKhoa: false }];
+      render();
+    });
+
+    $$('#view [data-pp-xoa]').forEach((b) => b.onclick = () => {
+      const i = Number(b.dataset.ppXoa);
+      const truoc = KS.ppShops || p.shops || [];
+      KS.ppShops = ppNhatBang()
+        .map((x, j) => ({ ...x, coKhoa: (truoc[j] || {}).coKhoa }))
+        .filter((_, j) => j !== i);
+      render();
+    });
+
+    /* Dò tên: mỗi khoá chỉ thấy gian của chính nó, nên hỏi từng khoá một rồi điền
+     * tên vào đúng dòng. Cũng là cách kiểm nhanh khoá có đúng gian không. */
     nut('#ppDo', async (e) => {
       const b = e.currentTarget; const cu = b.textContent;
       b.disabled = true; b.textContent = 'Đang dò…';
-      try {
-        const k = ($('#ppKey').value || '').trim();
-        const r = await api('/api/pancake-pos/shops', { method: 'POST', body: JSON.stringify(k ? { apiKey: k } : {}) });
-        const rows = r.rows || [];
-        $('#ppShops').value = rows.map((x) => x.shopId).join(', ');
-        $('#ppKetQua').innerHTML = `<div class="help">Thấy ${int(rows.length)} shop: ${
-          rows.map((x) => `<b>${esc(x.name || x.shopId)}</b> (<code>${esc(x.shopId)}</code>${
-            x.soPage != null ? ` · ${int(x.soPage)} page` : ''})`).join(' · ')}
-          <br>Xoá shop_id nào không dùng rồi bấm Lưu.</div>`;
-        toast(`Thấy ${rows.length} shop`, 'ok');
-      } catch (err) { toast(err.message, 'err'); }
+      const bang = ppNhatBang();
+      const truoc = KS.ppShops || p.shops || [];
+      const ra = [];
+      for (let i = 0; i < bang.length; i += 1) {
+        const x = bang[i];
+        let ten = x.ten;
+        let ghi = '';
+        if (x.apiKey) {
+          try {
+            const r = await api('/api/pancake-pos/shops', { method: 'POST', body: JSON.stringify({ apiKey: x.apiKey }) });
+            const thay = (r.rows || [])[0];
+            if (thay) {
+              ten = thay.name || ten;
+              ghi = String(thay.shopId) === String(x.shopId)
+                ? `khoá đúng gian ${thay.shopId}`
+                : `KHOÁ NÀY THUỘC GIAN ${thay.shopId}, không phải ${x.shopId}`;
+              if (String(thay.shopId) !== String(x.shopId)) x.shopId = thay.shopId;
+            }
+          } catch (err) { ghi = err.message; }
+        } else ghi = 'chưa dán khoá mới nên không dò được';
+        ra.push(`<b>${esc(x.ten || x.shopId)}</b>: ${esc(ghi)}`);
+        bang[i] = { ...x, ten };
+      }
+      KS.ppShops = bang.map((x, j) => ({ ...x, coKhoa: !!x.apiKey || !!(truoc[j] || {}).coKhoa }));
+      render();
+      if ($('#ppKetQua')) $('#ppKetQua').innerHTML = `<div class="help">${ra.join('<br>')}</div>`;
       b.disabled = false; b.textContent = cu;
     });
 
@@ -669,7 +723,7 @@
           $('#ppKetQua').innerHTML = `<div class="help" style="border-color:var(--bad);color:var(--bad)">${esc(r.message || 'Không đọc được')}</div>`;
         } else {
           $('#ppKetQua').innerHTML = `<div class="card"><div class="card-body tight">${table('ppTest', [
-            { key: 'name', label: 'Shop', cls: 'name', render: (x) => `<b>${esc(x.name || x.shopId)}</b><span class="sub-line">${esc(x.shopId)}</span>` },
+            { key: 'name', label: 'Gian hàng', cls: 'name', render: (x) => `<b>${esc(x.name || x.shopId)}</b><span class="sub-line">${esc(x.shopId)}</span>` },
             { key: 'ok', label: 'Kết nối', render: (x) => (x.ok ? '<span class="tag good">OK</span>' : '<span class="tag bad">Lỗi</span>') },
             { key: 'tongDon', label: 'Tổng đơn', num: true, render: (x) => (x.ok ? (x.tongDon == null ? '—' : int(x.tongDon)) : esc(x.message || '')) },
             { key: 'coAdId', label: 'Có ad_id', num: true, render: (x) => (x.ok ? `${x.coAdId}/${x.mau}` : '—') },
@@ -678,7 +732,7 @@
             { key: 'viDuLead', label: 'Ví dụ', render: (x) => (x.viDuLead ? `<code>${esc(x.viDuLead)}</code>` : '—') },
           ], r.results)}</div></div>`;
         }
-        toast(r.ok ? 'Đọc được' : 'Có lỗi — xem bảng', r.ok ? 'ok' : 'err');
+        toast(r.ok ? 'Đọc được' : 'Có gian lỗi — xem bảng', r.ok ? 'ok' : 'err');
       } catch (err) { toast(err.message, 'err'); }
       b.disabled = false; b.textContent = cu;
     });
@@ -700,27 +754,22 @@
               <b>${int(t.coMaLead)}</b> có mã lead Tourwell (${(tyLead * 100).toFixed(0)}%) ·
               <b>${int(r.theoAd.soLeadDuyNhat)}</b> lead khác nhau.
               ${t.coTien
-                ? `<br><b>${int(t.coTien)} đơn POS có tiền</b> — tổng ${vnd(t.tienPOS)}. Trước đây POS luôn 0đ, nên chỗ này đã đổi: xem lại xem doanh thu có nên lấy từ POS không.`
+                ? `<br><b>${int(t.coTien)} đơn POS có tiền</b> — tổng ${vnd(t.tienPOS)}. Trước đây POS luôn 0đ, nên chỗ này đã đổi.`
                 : '<br>Không đơn POS nào có tiền — đúng như đã kiểm, POS là vỏ rỗng. Doanh thu lấy từ Tourwell.'}
             </div>
             ${bangGhep(r.ghep)}
             <h4 style="margin:18px 0 6px;font-size:1rem">Mã lead → quảng cáo</h4>
             <div class="help">Bảng này ghép thẳng với cột <b>Mã lead</b> trong bản xuất Excel của Tourwell.
-              Có nó là ra doanh thu theo từng quảng cáo, <b>không cần API key đọc dữ liệu Tourwell</b>.
-              ${lv.nhapNhang ? `<br><b style="color:var(--warn)">${int(lv.nhapNhang)} lead có nhiều ad_id khác nhau</b> — những lead này không quy về một quảng cáo được, phải xem tay.` : ''}
-              ${lv.khongCoAd ? ` · ${int(lv.khongCoAd)} lead không có ad_id (khách vào từ tự nhiên).` : ''}</div>
+              ${lv.nhapNhang ? `<br><b style="color:var(--warn)">${int(lv.nhapNhang)} lead có nhiều ad_id khác nhau</b> — không quy về một quảng cáo được.` : ''}
+              ${lv.khongCoAd ? ` · ${int(lv.khongCoAd)} lead không có ad_id.` : ''}</div>
             <div style="overflow-x:auto">${table('ppLead', [
               { key: 'leadMa', label: 'Mã lead', cls: 'name', render: (x) => `<b>${esc(x.leadMa)}</b>` },
               { key: 'ngay', label: 'Ngày', render: (x) => dmy(x.ngay) },
               { key: 'adIds', label: 'Quảng cáo', render: (x) => (x.adIds.length
                 ? x.adIds.map((a) => `<code>${esc(a)}</code>`).join(' ')
                 : '<span class="tag warn">không có</span>') },
-              { key: 'roRang', label: '', noSort: true, render: (x) => (x.adIds.length === 1
-                ? '<span class="tag good">rõ ràng</span>'
-                : x.adIds.length > 1 ? '<span class="tag bad">nhiều ad</span>' : '—') },
               { key: 'soDon', label: 'Đơn POS', num: true, render: (x) => int(x.soDon) },
             ], lv.rows.slice(0, 80))}</div>
-            ${lv.rows.length > 80 ? `<div class="help">Hiện 80 dòng trên tổng ${int(lv.rows.length)}.</div>` : ''}
           </div></div>`;
       } catch (err) { toast(err.message, 'err'); }
       b.disabled = false; b.textContent = cu;

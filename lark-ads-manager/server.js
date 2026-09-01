@@ -630,7 +630,7 @@ async function api(req, res, u) {
     let posRows = [];
     let htRows = [];
     const loi = [];
-    if (c.pancakePos.enabled && c.pancakePos.apiKey && (c.pancakePos.shopIds || []).length) {
+    if (c.pancakePos.enabled && pancakePos.danhSachGian(c.pancakePos).some((x) => x.apiKey)) {
       try { posRows = (await pancakePos.fetchOrders(c.pancakePos, from, to, (m) => log.push(m))).rows; }
       catch (e) { loi.push('Pancake POS: ' + e.message); }
     } else loi.push('Pancake POS chưa bật — thiếu đường khoá cứng của Facebook');
@@ -697,8 +697,10 @@ async function api(req, res, u) {
   if (p === '/api/pancake-pos/ghep' && method === 'POST') {
     const body = await readBody(req);
     const conf = ketnoi.read().pancakePos;
-    if (!conf.apiKey) return fail(res, 400, 'Chưa có api_key');
-    if (!(conf.shopIds || []).length) return fail(res, 400, 'Chưa khai shop nào');
+    const gian = pancakePos.danhSachGian(conf);
+    if (!gian.length) return fail(res, 400, 'Chưa khai gian hàng nào');
+    const thieu = gian.filter((x) => !x.apiKey).map((x) => x.shopId);
+    if (thieu.length) return fail(res, 400, 'Gian chưa có api_key: ' + thieu.join(', '));
     const ngayVN = (lui = 0) => new Date(Date.now() + 7 * 3600 * 1000 - lui * 86400 * 1000)
       .toISOString().slice(0, 10);
     const from = body.from || ngayVN(14);

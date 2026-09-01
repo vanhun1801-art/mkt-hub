@@ -54,8 +54,13 @@ const DEFAULT = {
    * KHÔNG phải key pos_user_... ở Cài đặt cá nhân. */
   pancakePos: {
     enabled: false,
-    apiKey: '',
-    shopIds: [],
+    /* MỖI GIAN HÀNG MỘT KHOÁ. Ở Pancake POS mỗi page là một gian riêng — công ty
+     * này có 15 gian — và khoá của gian này gọi sang gian kia bị từ chối với câu
+     * "Cửa hàng không tồn tại". Bản đầu dùng một apiKey cho mọi shopIds nên chỉ
+     * đọc được đúng gian Facebook, TikTok mất trắng. */
+    shops: [],      // [{ shopId, apiKey, ten }]
+    apiKey: '',     // dạng cũ, giữ để cấu hình đang chạy không chết khi deploy
+    shopIds: [],    // dạng cũ
   },
   dongBo: {
     soNgayLui: 7, moiSoGio: 1, khiKhoiDong: true,
@@ -473,19 +478,24 @@ function status() {
         sanSang: (c.pancake.pages || []).length > 0
           && (c.pancake.pages || []).every((x) => x && x.pageId && x.token),
       },
-      {
-        key: 'pancakePos', label: 'Pancake POS (đơn · ad_id · mã lead)', enabled: c.pancakePos.enabled,
-        coToken: !!c.pancakePos.apiKey,
-        soTaiKhoan: (c.pancakePos.shopIds || []).length,
-        taiKhoan: (c.pancakePos.shopIds || []).map(String),
-        shopIds: (c.pancakePos.shopIds || []).map(String),
-        hanToken: { vinhVien: true, moTa: 'api_key không hết hạn' },
-        thieu: [
-          c.pancakePos.apiKey ? '' : 'chưa có api_key',
-          (c.pancakePos.shopIds || []).length ? '' : 'chưa khai shop nào',
-        ].filter(Boolean),
-        sanSang: !!(c.pancakePos.apiKey && (c.pancakePos.shopIds || []).length),
-      },
+      (() => {
+        const gian = require('./pancakepos').danhSachGian(c.pancakePos);
+        const thieuKhoa = gian.filter((x) => !x.apiKey).map((x) => x.shopId);
+        return {
+          key: 'pancakePos', label: 'Pancake POS (đơn · ad_id · mã lead)', enabled: c.pancakePos.enabled,
+          coToken: gian.some((x) => x.apiKey),
+          soTaiKhoan: gian.length,
+          taiKhoan: gian.map((x) => `${x.ten || x.shopId}`),
+          // Danh sách gian dạng CÓ CẤU TRÚC, không bao giờ kèm khoá
+          shops: gian.map((x) => ({ shopId: x.shopId, ten: x.ten, coKhoa: !!x.apiKey })),
+          hanToken: { vinhVien: true, moTa: 'api_key không hết hạn' },
+          thieu: [
+            gian.length ? '' : 'chưa khai gian hàng nào',
+            thieuKhoa.length ? `gian chưa có khoá: ${thieuKhoa.join(', ')}` : '',
+          ].filter(Boolean),
+          sanSang: gian.length > 0 && gian.every((x) => x.apiKey),
+        };
+      })(),
     ],
   };
 }
@@ -598,21 +608,34 @@ function xuatEnv() {
   };
 }
 
-/** Lưu cấu hình Pancake POS. Ô api_key để TRỐNG = giữ nguyên key cũ. */
+/**
+ * Lưu cấu hình Pancake POS — mỗi gian hàng một khoá.
+ * Ô khoá để TRỐNG = giữ nguyên khoá cũ của gian đó.
+ */
 function writePancakePos(next = {}) {
   const cur = read();
   const doi = [];
   const p = cur.pancakePos;
 
-  if (typeof next.apiKey === 'string' && next.apiKey.trim()) {
-    if (next.apiKey.trim() !== p.apiKey) { p.apiKey = next.apiKey.trim(); doi.push('pancakePos.apiKey'); }
-  }
-  if (next.apiKey === null) { p.apiKey = ''; doi.push('pancakePos.apiKey'); }
-
-  if (next.shopIds != null) {
-    const tho = Array.isArray(next.shopIds) ? next.shopIds : String(next.shopIds).split(/[\s,;]+/);
-    const ds = [...new Set(tho.map((x) => String(x).replace(/[^0-9]/g, '')).filter(Boolean))];
-    if (JSON.stringify(ds) !== JSON.stringify(p.shopIds || [])) { p.shopIds = ds; doi.push('pancakePos.shopIds'); }
+  if (Array.isArray(next.shops)) {
+    const cu = new Map(require('./pancakepos').danhSachGian(p).map((x) => [x.shopId, x]));
+    const moi = [];
+    next.shops.forEach((x) => {
+      const shopId = String((x && x.shopId) || '').replace(/[^0-9]/g, '');
+      if (!shopId) return;
+      const truoc = cu.get(shopId) || {};
+      const khoaMoi = String((x && x.apiKey) || '').trim();
+      moi.push({
+        shopId,
+        apiKey: khoaMoi || truoc.apiKey || '',
+        ten: String((x && x.ten) || truoc.ten || '').trim().slice(0, 120),
+      });
+    });
+    p.shops = moi;
+    // dọn dạng cũ để không còn hai nguồn sự thật
+    p.apiKey = '';
+    p.shopIds = [];
+    doi.push('pancakePos.shops');
   }
   if (next.enabled != null) p.enabled = !!next.enabled;
 

@@ -89,6 +89,25 @@ t('và không bị coi là rõ ràng', nhap.rows[0].roRang === false);
 t('giữ ngày SỚM NHẤT — lúc quảng cáo sinh ra khách, không phải lúc sửa đơn',
   nhap.rows[0].ngay === '2026-08-30', nhap.rows[0].ngay);
 
+console.log('— mỗi gian hàng một khoá riêng');
+/* Ở Pancake POS mỗi page là một gian hàng riêng; công ty này có 15 gian. Khoá của
+ * gian Facebook (454586) gọi sang gian TikTok (100087658) bị từ chối với câu
+ * "Cửa hàng không tồn tại". Bản đầu dùng MỘT apiKey cho mọi shopIds nên chỉ đọc
+ * được gian Facebook, còn TikTok mất trắng. */
+const dg = p.danhSachGian;
+let gi = dg({ shops: [{ shopId: '454586', apiKey: 'A', ten: 'FB' }, { shopId: '100087658', apiKey: 'B', ten: 'TT' }] });
+t('mỗi gian giữ khoá riêng', gi[0].apiKey === 'A' && gi[1].apiKey === 'B', JSON.stringify(gi));
+t('giữ tên gợi nhớ', gi[1].ten === 'TT');
+// dạng cũ phải còn đọc được, nếu không cấu hình đang chạy trên Render chết khi deploy
+gi = dg({ apiKey: 'K', shopIds: ['1', '2'] });
+t('dạng cũ vẫn đọc được', gi.length === 2 && gi[0].apiKey === 'K' && gi[1].apiKey === 'K', JSON.stringify(gi));
+t('shops mới thắng dạng cũ',
+  dg({ apiKey: 'CU', shopIds: ['9'], shops: [{ shopId: '1', apiKey: 'MOI' }] })[0].apiKey === 'MOI');
+t('gian thiếu khoá vẫn hiện ra để báo thiếu',
+  dg({ shops: [{ shopId: '1' }] })[0].apiKey === '', JSON.stringify(dg({ shops: [{ shopId: '1' }] })));
+t('gian không có shopId bị bỏ', dg({ shops: [{ apiKey: 'X' }] }).length === 0);
+t('cấu hình rỗng ra mảng rỗng', dg({}).length === 0 && dg(null).length === 0);
+
 console.log('— chặn lẫn khoá giữa hai thẻ Pancake (đã xảy ra thật)');
 /* Người dùng dán api_key của POS vào ô token của thẻ hội thoại; Pancake chỉ trả
  * "Invalid access_token" nên không biết mình sai CHỖ, không sai giá trị.
