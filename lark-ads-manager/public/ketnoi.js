@@ -876,6 +876,68 @@
         (${(tyChiMu * 100).toFixed(0)}%) — phần tiền này đang chạy mà không đo được.
       </div>
 
+      ${(() => {
+        /* Con số tổng cho biết CÓ chuyện, nhưng không cho biết đi sửa chỗ nào.
+         * Bảng này nói thẳng tiền đang mù nằm ở quảng cáo nào, và tách hai nguyên
+         * nhân khác hẳn nhau: bản ghi chưa gắn ID nền tảng (sửa ở Base) và có ID
+         * rồi mà không hội thoại nào mang nó (page đó chưa nối vào Pancake). */
+        const ke = g.chiKhongGhepTheoAd || [];
+        if (!ke.length) return '';
+        const nt = g.chiKhongGhepTheoNenTang || {};
+        const vi = g.chiKhongGhepTheoVi || {};
+        const muThat = (vi['thieu-id'] || 0) + (vi.mu || 0);
+        const dongNT = Object.keys(nt).sort((a, b) => nt[b].spend - nt[a].spend)
+          .map((k) => `<b>${esc(k)}</b> ${vnd(nt[k].spend)} (${int(nt[k].soAd)} quảng cáo`
+            + `${nt[k].thieuExtId ? `, ${int(nt[k].thieuExtId)} chưa gắn ID` : ''})`)
+          .join(' · ');
+        /* Xếp mù-thật lên trên: đọc từ trên xuống là đúng thứ tự việc cần làm,
+         * chứ không phải xếp theo tiền rồi để mấy dòng "bình thường" chiếm đầu bảng. */
+        const uuTien = { 'thieu-id': 0, mu: 1, 'ngay-trong': 2 };
+        const sapXep = [...ke].sort((a, b) =>
+          (uuTien[a.vi] - uuTien[b.vi]) || (b.spend - a.spend));
+        const top = sapXep.slice(0, 12);
+        const conLai = sapXep.length - top.length;
+        const tienConLai = sapXep.slice(top.length).reduce((a, x) => a + x.spend, 0);
+        return `
+          <details style="margin-top:10px" open>
+            <summary style="cursor:pointer;font-weight:600">
+              Tiền đang mù nằm ở đâu — ${int(ke.length)} quảng cáo
+            </summary>
+            <div class="help" style="margin-top:8px;border-color:var(--good);color:var(--good)">
+              <b>Phần lớn con số trên KHÔNG phải hỏng đo đạc.</b>
+              Phép ghép chạy theo <i>quảng cáo × ngày</i>, nên ngày nào quảng cáo chạy mà
+              không ai nhắn tin thì ngày đó cũng bị tính là không ghép được.
+              <br>Ngày không ai nhắn: <b>${vnd(vi['ngay-trong'] || 0)}</b> — bình thường, không phải lỗi.
+              <br>Mù thật sự: <b>${vnd(muThat)}</b>
+              (chưa gắn ID nền tảng ${vnd(vi['thieu-id'] || 0)} ·
+               không ngày nào có hội thoại ${vnd(vi.mu || 0)})
+              — chỉ phần này mới đáng đi sửa.
+            </div>
+            <div class="help" style="margin-top:8px">Theo nền tảng: ${dongNT}</div>
+            <div style="overflow-x:auto">
+              <table class="tbl"><thead><tr>
+                <th>Quảng cáo</th><th>Nền tảng</th>
+                <th class="num">Chi tiêu</th><th class="num">Số ngày</th><th>Nguyên nhân</th>
+              </tr></thead><tbody>
+                ${top.map((x) => `<tr>
+                  <td class="name"><b>${esc(x.ten)}</b>${x.extId
+                    ? `<span class="sub-line">${esc(x.extId)}</span>` : ''}</td>
+                  <td>${esc(x.platform || '—')}</td>
+                  <td class="num">${vnd(x.spend)}</td>
+                  <td class="num">${int(x.soNgay)}</td>
+                  <td>${x.vi === 'thieu-id'
+                    ? '<span class="tag warn">chưa gắn ID nền tảng</span> sửa ở Base'
+                    : x.vi === 'mu'
+                      ? '<span class="tag warn">không ngày nào có hội thoại</span> page chưa nối?'
+                      : '<span class="tag">ngày không ai nhắn</span> bình thường'}</td>
+                </tr>`).join('')}
+              </tbody></table>
+            </div>
+            ${conLai > 0 ? `<div class="help">Còn ${int(conLai)} quảng cáo nữa,
+              cộng lại ${vnd(tienConLai)}.</div>` : ''}
+          </details>`;
+      })()}
+
       ${g.laPOS ? bangCotPOS(g) : `<div style="overflow-x:auto">${table('pcGhep', [
         { key: 'ten', label: 'Quảng cáo', cls: 'name', render: (x) => (x.ghepDuoc
           ? `<b>${esc(x.ten || '(chưa có tên trong Base)')}</b><span class="sub-line">${esc(x.adId)}</span>`

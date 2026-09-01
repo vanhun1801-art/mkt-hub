@@ -197,5 +197,97 @@ t('ID cấp chiến dịch cộng chi tiêu của mọi quảng cáo trong chi�
   ghCd.rows[0].spend === 150000, String(ghCd.rows[0].spend));
 t('và không còn đồng nào bị coi là không ghép được', ghCd.chiKhongGhep === 0, String(ghCd.chiKhongGhep));
 
+console.log('— chi tiêu không ghép được: phải nói NẰM Ở ĐÂU, không chỉ tổng');
+/* Một con số "61% không đo được" cho biết có chuyện, nhưng không cho biết đi sửa
+ * chỗ nào. Hai nguyên nhân khác hẳn nhau và phải phân biệt được:
+ *   - bản ghi trong Base chưa gắn ID nền tảng  -> sửa ở Base
+ *   - có gắn ID rồi mà Pancake không thấy hội thoại nào -> page đó chưa nối
+ */
+{
+  const dataKG = {
+    ads: [
+      { id: 'recA', extId: 'A1', name: 'Có hội thoại', platform: 'Facebook' },
+      { id: 'recB', extId: 'B2', name: 'Không hội thoại nào', platform: 'TikTok' },
+      { id: 'recC', extId: '', name: 'Chưa gắn ID nền tảng', platform: 'TikTok' },
+    ],
+    groups: [], campaigns: [],
+    daily: [
+      { adId: 'recA', date: '2026-08-20', spend: 100000, conversions: 1 },
+      { adId: 'recB', date: '2026-08-20', spend: 700000, conversions: 0 },
+      { adId: 'recB', date: '2026-08-21', spend: 300000, conversions: 0 },
+      { adId: 'recC', date: '2026-08-20', spend: 200000, conversions: 0 },
+    ],
+  };
+  const kq = p.ghepVoiChiTieu(
+    { rows: [{ adId: 'A1', ngay: '2026-08-20', platform: 'Facebook', hoiThoai: 5, coSdt: 3, chot: 1 }] },
+    dataKG, { from: '2026-08-20', to: '2026-08-21' },
+  );
+
+  t('tổng tiền không ghép đúng', kq.chiKhongGhep === 1200000, String(kq.chiKhongGhep));
+  const ke = kq.chiKhongGhepTheoAd;
+  t('liệt kê đúng số quảng cáo không ghép được', ke.length === 2, JSON.stringify(ke.map((x) => x.ten)));
+  t('sắp giảm dần theo tiền — nhìn phát thấy ngay cái nặng nhất',
+    ke[0].spend === 1000000 && ke[0].ten === 'Không hội thoại nào', JSON.stringify(ke[0]));
+  t('gộp đúng nhiều ngày của cùng một quảng cáo', ke[0].soNgay === 2, String(ke[0].soNgay));
+  t('quảng cáo ĐÃ ghép được thì không có mặt trong danh sách',
+    !ke.some((x) => x.ten === 'Có hội thoại'), JSON.stringify(ke.map((x) => x.ten)));
+  t('phân biệt được nguyên nhân "chưa gắn ID nền tảng"',
+    ke.find((x) => x.ten === 'Chưa gắn ID nền tảng').thieuExtId === true);
+  t('và quảng cáo có ID rồi thì KHÔNG bị đổ cho nguyên nhân đó',
+    ke[0].thieuExtId === false);
+
+  const nt = kq.chiKhongGhepTheoNenTang;
+  t('gộp theo nền tảng', nt.TikTok && nt.TikTok.spend === 1200000, JSON.stringify(nt));
+  t('đếm đúng số quảng cáo mỗi nền tảng', nt.TikTok.soAd === 2, JSON.stringify(nt.TikTok));
+  t('đếm riêng số bản ghi thiếu ID nền tảng', nt.TikTok.thieuExtId === 1, JSON.stringify(nt.TikTok));
+  t('nền tảng đã ghép hết thì không xuất hiện', !nt.Facebook, JSON.stringify(nt));
+
+  // Tổng các phần phải bằng đúng con số tổng — nếu không thì bảng nói dối
+  const cong = Object.values(nt).reduce((a, x) => a + x.spend, 0);
+  t('tổng các phần = tổng đã báo (bảng không được nói dối)',
+    cong === kq.chiKhongGhep, cong + ' vs ' + kq.chiKhongGhep);
+
+  /* Ba nguyên nhân phải tách được, vì ba việc phải làm khác hẳn nhau. Gộp chung
+   * thành "61% không đo được" là nói quá: phần lớn thường chỉ là ngày quảng cáo
+   * chạy mà không ai nhắn tin — chuyện bình thường, không có gì để sửa. */
+  const vi = kq.chiKhongGhepTheoVi;
+  t('quảng cáo chưa gắn ID nền tảng vào đúng ô thiếu-id',
+    vi['thieu-id'] === 200000, JSON.stringify(vi));
+  t('quảng cáo không ngày nào có hội thoại vào đúng ô mù',
+    vi.mu === 1000000, JSON.stringify(vi));
+  t('ba ô cộng lại = tổng không ghép được',
+    vi['thieu-id'] + vi.mu + vi['ngay-trong'] === kq.chiKhongGhep, JSON.stringify(vi));
+}
+
+console.log('— ngày trống của quảng cáo ĐÃ ghép được: không được đổ cho page chưa nối');
+{
+  /* Quảng cáo A1 chạy 3 ngày, chỉ ngày 20 có hội thoại. Hai ngày kia là ngày
+   * không ai nhắn — KHÔNG phải lỗi kết nối, và bảng phải nói đúng như vậy. */
+  const dataNT = {
+    ads: [{ id: 'recA', extId: 'A1', name: 'Chạy 3 ngày', platform: 'Facebook' }],
+    groups: [], campaigns: [],
+    daily: [
+      { adId: 'recA', date: '2026-08-20', spend: 100000, conversions: 0 },
+      { adId: 'recA', date: '2026-08-21', spend: 400000, conversions: 0 },
+      { adId: 'recA', date: '2026-08-22', spend: 500000, conversions: 0 },
+    ],
+  };
+  const kq = p.ghepVoiChiTieu(
+    { rows: [{ adId: 'A1', ngay: '2026-08-20', platform: 'Facebook', hoiThoai: 2, coSdt: 1, chot: 1 }] },
+    dataNT, { from: '2026-08-20', to: '2026-08-22' },
+  );
+  t('hai ngày không ai nhắn vẫn bị tính vào tổng không ghép',
+    kq.chiKhongGhep === 900000, String(kq.chiKhongGhep));
+  const d = kq.chiKhongGhepTheoAd[0];
+  t('nhưng nguyên nhân là "ngày trống", KHÔNG phải mù',
+    d.vi === 'ngay-trong', JSON.stringify(d));
+  t('và ghi nhận quảng cáo này CÓ ghép được ở ngày khác', d.ghepDuocNgayKhac === true);
+  t('không đồng nào bị xếp vào mù thật sự',
+    kq.chiKhongGhepTheoVi.mu === 0 && kq.chiKhongGhepTheoVi['thieu-id'] === 0,
+    JSON.stringify(kq.chiKhongGhepTheoVi));
+  t('toàn bộ nằm ở ô ngày trống',
+    kq.chiKhongGhepTheoVi['ngay-trong'] === 900000, JSON.stringify(kq.chiKhongGhepTheoVi));
+}
+
 console.log(`\n${pass} pass · ${fail} fail`);
 process.exitCode = fail ? 1 : 0;

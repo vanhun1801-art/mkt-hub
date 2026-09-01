@@ -443,10 +443,26 @@ function ghepVoiChiTieu(gomTheoAd, data, { from, to } = {}) {
   // không đo được. Đây là con số cần nhìn nhất, nên tính hẳn ra.
   let chiKhongGhep = 0;
   let chiTongKhoang = 0;
+  /* Không chỉ TỔNG tiền không đo được, mà là NẰM Ở ĐÂU. Một con số 61% cho biết
+   * có chuyện, nhưng không cho biết phải đi sửa chỗ nào; gom theo từng quảng cáo
+   * và từng nền tảng thì thấy ngay là lệch cả một kênh hay chỉ vài mẫu lẻ. */
+  const theoAdChua = new Map();
   chi.forEach((o, k) => {
     chiTongKhoang += o.spend;
-    if (!daDung.has(k)) chiKhongGhep += o.spend;
+    if (!daDung.has(k)) {
+      chiKhongGhep += o.spend;
+      const rid = k.slice(0, k.lastIndexOf('|'));
+      const g = theoAdChua.get(rid) || { spend: 0, soNgay: 0 };
+      g.spend += o.spend;
+      g.soNgay += 1;
+      theoAdChua.set(rid, g);
+    }
   });
+  /* Quảng cáo nào đã ghép được ở ÍT NHẤT MỘT ngày. Thiếu chỗ này thì mọi ngày
+   * trống đều bị đổ cho "page chưa nối", trong khi thật ra chỉ là ngày không ai
+   * nhắn tin — hai chuyện phải làm hai việc khác nhau để sửa. */
+  const ghepDuocNgayNaoDo = new Set();
+  daDung.forEach((k) => ghepDuocNgayNaoDo.add(k.slice(0, k.lastIndexOf('|'))));
 
   /* Số ID không khớp KHÔNG nói lên mức độ nghiêm trọng — 17 trên 33 ID nghe nhiều
    * nhưng có thể chỉ mang vài chục hội thoại. Đếm theo khối lượng thật để biết có
@@ -475,6 +491,47 @@ function ghepVoiChiTieu(gomTheoAd, data, { from, to } = {}) {
     soDon: s.soDon + r.soDon,
   }), { spend: 0, hoiThoai: 0, coSdt: 0, chot: 0, soDon: 0 });
 
+  /* record_id quảng cáo -> tên và nền tảng, để dòng báo cáo đọc được bằng mắt
+   * chứ không phải một dãy recXXXX. */
+  const adTheoRec = new Map();
+  (data.ads || []).forEach((a) => adTheoRec.set(a.id, a));
+  const chiKhongGhepTheoAd = [...theoAdChua.entries()]
+    .map(([rid, g]) => {
+      const a = adTheoRec.get(rid) || {};
+      return {
+        recId: rid,
+        extId: a.extId || '',
+        ten: a.name || '(không rõ tên)',
+        platform: a.platform || '',
+        spend: g.spend,
+        soNgay: g.soNgay,
+        // Chưa có extId nghĩa là bản ghi chưa được ghép ID nền tảng — hỏng ở Base,
+        // khác hẳn với có extId mà Pancake không thấy hội thoại nào.
+        thieuExtId: !a.extId,
+        // Ngày khác của chính quảng cáo này VẪN ghép được -> đây chỉ là ngày
+        // không ai nhắn, không phải lỗi kết nối.
+        ghepDuocNgayKhac: ghepDuocNgayNaoDo.has(rid),
+        vi: !a.extId ? 'thieu-id' : (ghepDuocNgayNaoDo.has(rid) ? 'ngay-trong' : 'mu'),
+      };
+    })
+    .filter((x) => x.spend > 0)
+    .sort((a, b) => b.spend - a.spend);
+
+  /* Con số đáng nhìn nhất: bao nhiêu tiền MÙ THẬT SỰ. Tổng 61% gộp cả ngày trống
+   * nên nói quá mức nghiêm trọng; tách ra rồi mới quyết được có đáng đi sửa không. */
+  const chiKhongGhepTheoVi = { 'thieu-id': 0, mu: 0, 'ngay-trong': 0 };
+  chiKhongGhepTheoAd.forEach((x) => { chiKhongGhepTheoVi[x.vi] += x.spend; });
+
+  const chiKhongGhepTheoNenTang = {};
+  chiKhongGhepTheoAd.forEach((x) => {
+    const k = x.platform || '(không rõ)';
+    const o = chiKhongGhepTheoNenTang[k] || { spend: 0, soAd: 0, thieuExtId: 0 };
+    o.spend += x.spend;
+    o.soAd += 1;
+    if (x.thieuExtId) o.thieuExtId += 1;
+    chiKhongGhepTheoNenTang[k] = o;
+  });
+
   rows.sort((a, b) => b.spend - a.spend);
   return {
     phanLoai: {
@@ -485,6 +542,9 @@ function ghepVoiChiTieu(gomTheoAd, data, { from, to } = {}) {
     rows,
     tong,
     chiKhongGhep,
+    chiKhongGhepTheoAd,
+    chiKhongGhepTheoNenTang,
+    chiKhongGhepTheoVi,
     chiTongKhoang,
     soDongKhongGhep: rows.length - ghepDuoc.length,
     doLonKhongKhop: doLon,
