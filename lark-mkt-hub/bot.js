@@ -481,12 +481,14 @@ function openapi(goc) {
        *   - ASCII: Coze làm rụng hết chữ có dấu ("Chi doc" -> "Ch c"), mà đây lại
        *     là thứ bộ não đọc để biết gọi tool nào và để biết không được trả lời
        *     câu hỏi về tiền;
-       *   - tên: tối đa 30 ký tự, CHỈ chữ / số / gạch dưới / khoảng trắng — dấu
-       *     gạch ngang bị từ chối ngay ở form;
+       *   - tên: tối đa 30 ký tự, CHỈ chữ / số / gạch dưới. Form của Coze ghi là
+       *     "letters, numbers, underscores or spaces" nhưng backend lại chặn cả
+       *     khoảng trắng ("invalid name_for_model name") — tin backend, đừng tin
+       *     dòng hướng dẫn trên form. Dấu gạch ngang thì form chặn ngay;
        *   - mô tả: Coze cắt ở 200 ký tự, nên câu chốt về tiền phải nằm TRƯỚC mốc
        *     đó và câu cuối phải kết thúc gọn trong 200.
        * Vượt khuôn thì người nhập phải sửa tay giữa lúc đang làm. */
-      title: 'Rooty Trip Marketing data',
+      title: 'Rooty_Trip_Marketing_data',
       version: '1',
       /* Cảnh báo đặt LÊN ĐẦU: Coze cắt mô tả ở 200 ký tự, để cuối là nó bị cắt
        * mất gần hết — cảnh báo mà không ai đọc được thì bằng không có. */

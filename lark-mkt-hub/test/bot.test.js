@@ -123,8 +123,11 @@ const NGAY = 86400000;
      * Vượt khuôn thì người nhập phải sửa tay giữa lúc đang làm dở. */
     const t = s.info.title;
     ok('tên plugin không quá 30 ký tự (Coze cắt)', t.length <= 30, t.length + ' ký tự');
-    ok('tên plugin chỉ có chữ / số / gạch dưới / khoảng trắng',
-      /^[A-Za-z0-9_ ]+$/.test(t), 'Coze từ chối cả dấu gạch ngang: ' + t);
+    /* KHÔNG có khoảng trắng trong khuôn này. Form của Coze ghi "letters, numbers,
+     * underscores or spaces" nhưng backend trả "invalid name_for_model name" khi
+     * tên có khoảng trắng. Đo bằng lỗi thật, không tin dòng hướng dẫn. */
+    ok('tên plugin chỉ có chữ / số / gạch dưới, KHÔNG khoảng trắng',
+      /^[A-Za-z0-9_]+$/.test(t), 'Coze chặn cả khoảng trắng và gạch ngang: ' + t);
     ok('mô tả không quá 200 ký tự (Coze cắt)',
       s.info.description.length <= 200, s.info.description.length + ' ký tự');
 
