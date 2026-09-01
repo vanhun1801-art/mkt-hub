@@ -637,7 +637,10 @@ async function api(req, res, url) {
    * Lý do phải có đầu mối này: máy cá nhân gửi bằng app riêng của lark-cli, còn
    * bản trên Render gửi bằng app Marketing Hub — hai app khác nhau, hai bộ
    * quyền khác nhau. Thử ở máy KHÔNG chứng minh được bản Render gửi được. */
-  if (p === '/api/thu-tin-lark' && req.method === 'POST') {
+  /* Nhận cả GET để anh Hùng chỉ cần bấm một đường dẫn là thử được, khỏi phải
+   * mở cửa sổ Phân quyền. Vẫn chỉ quản lý gọi được và vẫn chỉ gửi cho chính
+   * người gọi, nên không có gì để lạm dụng. */
+  if (p === '/api/thu-tin-lark' && (req.method === 'POST' || req.method === 'GET')) {
     if (!(await requireManager(res))) return;
     const toi = await whoAmI();
     if (!toi || !toi.id) {
