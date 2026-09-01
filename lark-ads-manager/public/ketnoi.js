@@ -910,8 +910,11 @@
               <br>Ngày không ai nhắn: <b>${vnd(vi['ngay-trong'] || 0)}</b> — bình thường, không phải lỗi.
               <br>Mù thật sự: <b>${vnd(muThat)}</b>
               (chưa gắn ID nền tảng ${vnd(vi['thieu-id'] || 0)} ·
-               không ngày nào có hội thoại ${vnd(vi.mu || 0)})
-              — chỉ phần này mới đáng đi sửa.
+               không hội thoại nào mang ID ${vnd(vi.mu || 0)})
+              — chỉ phần này mới đáng xem tiếp.
+              <br>Ba lý do thường gặp, phải tra mới biết là cái nào:
+              kênh không đi qua Pancake (Google Ads), page chưa nối,
+              hoặc hội thoại có xảy ra mà Pancake không gắn ad_id vào.
             </div>
             <div class="help" style="margin-top:8px">Theo nền tảng: ${dongNT}</div>
             <div style="overflow-x:auto">
@@ -928,7 +931,8 @@
                   <td>${x.vi === 'thieu-id'
                     ? '<span class="tag warn">chưa gắn ID nền tảng</span> sửa ở Base'
                     : x.vi === 'mu'
-                      ? '<span class="tag warn">không ngày nào có hội thoại</span> page chưa nối?'
+                      ? '<span class="tag warn">không hội thoại nào mang ID này</span> '
+                        + 'page chưa nối, kênh không qua Pancake, hoặc Pancake không gắn ad_id'
                       : '<span class="tag">ngày không ai nhắn</span> bình thường'}</td>
                 </tr>`).join('')}
               </tbody></table>
