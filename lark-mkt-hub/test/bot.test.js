@@ -118,6 +118,21 @@ const NGAY = 86400000;
       /NO cost, budget, revenue or commission/.test(s.info.description));
     ok('mỗi công cụ vẫn có nhãn tiếng Việt cho người đọc',
       Object.values(bot.CONG_CU).every((c) => !!c.nhan));
+
+    /* Ba giới hạn dưới đây ĐO TỪ MÀN HÌNH IMPORT CỦA COZE, không phải suy đoán.
+     * Vượt khuôn thì người nhập phải sửa tay giữa lúc đang làm dở. */
+    const t = s.info.title;
+    ok('tên plugin không quá 30 ký tự (Coze cắt)', t.length <= 30, t.length + ' ký tự');
+    ok('tên plugin chỉ có chữ / số / gạch dưới / khoảng trắng',
+      /^[A-Za-z0-9_ ]+$/.test(t), 'Coze từ chối cả dấu gạch ngang: ' + t);
+    ok('mô tả không quá 200 ký tự (Coze cắt)',
+      s.info.description.length <= 200, s.info.description.length + ' ký tự');
+
+    /* Bản có cảnh báo thì dài hơn 200 — nên cảnh báo phải nằm ĐẦU câu, không thì
+     * nó bị cắt mất và cảnh báo không ai đọc được bằng không có. */
+    ok('cảnh báo PUBLIC_URL nằm trong 200 ký tự đầu',
+      noiBo.info.description.slice(0, 200).includes('PUBLIC_URL on Render is wrong'),
+      noiBo.info.description.slice(0, 200));
   }
 
   group('5. Bỏ khoá rỗng');

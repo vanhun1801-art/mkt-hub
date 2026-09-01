@@ -461,17 +461,23 @@ function openapi(goc) {
   return {
     openapi: '3.0.1',
     info: {
-      /* Tên và mô tả ở đây phải là ASCII: Coze làm rụng hết chữ có dấu khi nhập
-       * schema ("Chi doc" -> "Ch c"), mà đây lại là thứ bộ não đọc để biết gọi
-       * tool nào và để biết không được trả lời câu hỏi về tiền. */
-      title: 'Rooty Trip Marketing - live data source',
+      /* Ba giới hạn dưới đây đo từ chính màn hình Import của Coze, đừng đoán lại:
+       *   - ASCII: Coze làm rụng hết chữ có dấu ("Chi doc" -> "Ch c"), mà đây lại
+       *     là thứ bộ não đọc để biết gọi tool nào và để biết không được trả lời
+       *     câu hỏi về tiền;
+       *   - tên: tối đa 30 ký tự, CHỈ chữ / số / gạch dưới / khoảng trắng — dấu
+       *     gạch ngang bị từ chối ngay ở form;
+       *   - mô tả: Coze cắt ở 200 ký tự, nên câu chốt về tiền phải nằm TRƯỚC mốc
+       *     đó và câu cuối phải kết thúc gọn trong 200.
+       * Vượt khuôn thì người nhập phải sửa tay giữa lúc đang làm. */
+      title: 'Rooty Trip Marketing data',
       version: '1',
-      description: 'Read-only. Every call fetches straight from Lark Base, so the numbers ' +
-        'are always current. This source has NO cost, budget, revenue or commission data: ' +
-        'never answer a money question from it, and never estimate one.' +
-        (noiBo ? ' WARNING: the server address below is "' + goc + '", an internal address. ' +
-          'PUBLIC_URL on Render is missing or wrong, so this schema will NOT work for an ' +
-          'external brain. Fix PUBLIC_URL, then download the schema again.' : ''),
+      /* Cảnh báo đặt LÊN ĐẦU: Coze cắt mô tả ở 200 ký tự, để cuối là nó bị cắt
+       * mất gần hết — cảnh báo mà không ai đọc được thì bằng không có. */
+      description: (noiBo ? 'WARNING: server address "' + goc + '" is internal. ' +
+        'PUBLIC_URL on Render is wrong, this schema will not work. ' : '') +
+        'Read-only, always current: every call reads Lark Base live. This source has NO ' +
+        'cost, budget, revenue or commission data. Never answer a money question from it.',
     },
     servers: [{ url: goc, description: noiBo ? 'INTERNAL ADDRESS - see warning above' : 'Marketing Hub' }],
     paths,
