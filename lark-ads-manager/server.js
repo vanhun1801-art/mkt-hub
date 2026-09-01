@@ -644,7 +644,7 @@ async function api(req, res, u) {
     const log = [];
     try {
       const r = await tourwellApi.keoVeKho(conf, body.from || ngayVN(60), body.to || ngayVN(0),
-        (m) => log.push(m));
+        (m) => log.push(m), !!body.laySdt);
       return ok(res, { ...r, log, oDiaTam: !!process.env.RENDER });
     } catch (e) { return fail(res, 400, e.message + (log.length ? ' | ' + log.join(' ') : '')); }
   }

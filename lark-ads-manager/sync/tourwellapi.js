@@ -31,9 +31,40 @@ const { request, scrub, hideSecret } = require('./http');
 const NHAN = 'Tourwell';
 const MOI_TRANG = 100;      // xin nhiều nhất có thể, máy chủ tự cắt nếu vượt
 const MAX_TRANG = 200;      // chặn vòng lặp nếu phân trang không tiến
-const GIAN_MS = 1100;       // tài liệu ghi 60 yêu cầu/phút → hơn 1 giây một lượt
+
+/* Tourwell ghi 60 yêu cầu/phút. Giãn 1,1 giây ra đúng 55/phút — sát trần, không
+ * còn khoảng dư nào, và đã ăn 429 thật. 1,5 giây ra 40/phút, đủ thưa để chịu được
+ * cả trường hợp một lượt cũ còn đang chạy dở. */
+const GIAN_MS = Number(process.env.TOURWELL_GIAN_MS || 1500);
+
+/* Chờ tối đa bao lâu khi bị 429. Hub cho mỗi lời gọi 4 phút nên không chờ quá lâu
+ * được; chờ hết mức này mà vẫn 429 thì báo ra chứ đừng treo im. */
+const CHO_429_MS = Number(process.env.TOURWELL_CHO_429_MS || 70000);
 
 const nghi = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Điều nhịp Ở MỨC MODULE, không phải trong từng vòng lặp.
+ *
+ * Vì sao quan trọng: hub cắt lời gọi ở 4 phút nhưng module VẪN CHẠY TIẾP phần
+ * việc còn lại. Người dùng thấy lỗi rồi bấm lại — thành hai luồng cùng gọi
+ * Tourwell, mỗi luồng tự giãn 1,5 giây nhưng cộng lại là 80/phút. Vượt trần mà
+ * không ai hiểu vì sao. Một hàng đợi dùng chung cho cả tiến trình thì không thể
+ * xảy ra chuyện đó.
+ */
+let hangDoi = Promise.resolve();
+let lucCuoi = 0;
+function xepHang(viec) {
+  const ketQua = hangDoi.then(async () => {
+    const cach = Date.now() - lucCuoi;
+    if (cach < GIAN_MS) await nghi(GIAN_MS - cach);
+    lucCuoi = Date.now();
+    return viec();
+  });
+  // Hàng đợi không được chết vì một việc lỗi, nếu không mọi lời gọi sau đều tắc
+  hangDoi = ketQua.then(() => {}, () => {});
+  return ketQua;
+}
 
 /** `rootytrip.tourwell.net`, có hay không có https, có hay không có / cuối — đều nhận. */
 function chuanHost(v) {
@@ -164,12 +195,31 @@ async function goi({ host, token }, duong, thamSo = {}) {
     .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
     .join('&');
   const url = `${host}${duong}${q ? '?' + q : ''}`;
-  const r = await request(url, {
+
+  /* retries: 1 — KHÔNG để request() tự thử lại 429. Nó chờ 1,5 giây rồi gọi lại,
+   * mà cửa sổ chặn của Tourwell tính theo PHÚT nên gần như chắc chắn 429 tiếp,
+   * lại còn tiêu thêm lượt gọi. Việc chờ đúng do đoạn dưới lo. */
+  const goiMot = () => request(url, {
     method: 'GET',
     label: `${NHAN} ${duong}`,
-    retries: 2,
+    retries: 1,
     headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
   });
+
+  let r = await xepHang(goiMot);
+  if (r.status === 429) {
+    // Máy chủ nói chờ bao lâu thì chờ đúng thế; không nói thì chờ hết một phút
+    // vì cửa sổ chặn của Laravel tính theo phút.
+    const noi = Number(r.headers && (r.headers.get('retry-after') || r.headers.get('Retry-After')));
+    const cho = Math.min(Number.isFinite(noi) && noi > 0 ? (noi + 2) * 1000 : 62000, CHO_429_MS);
+    await nghi(cho);
+    r = await xepHang(goiMot);
+  }
+  if (r.status === 429) {
+    throw new Error(`Tourwell đang chặn vì quá nhiều yêu cầu (429), đã chờ `
+      + `${Math.round(CHO_429_MS / 1000)} giây vẫn chưa mở. Để yên vài phút rồi thử lại; `
+      + `nếu hay gặp thì tăng TOURWELL_GIAN_MS (đang ${GIAN_MS}ms).`);
+  }
 
   /* Phải tự đọc mã trạng thái: getJson() trả `json || {}` kể cả khi HTTP là 401,
    * miễn thân phản hồi là JSON. Tourwell trả 401 kèm thân JSON, nên token sai sẽ
@@ -204,12 +254,13 @@ async function goi({ host, token }, duong, thamSo = {}) {
  * Duyệt hết các trang. Đi theo `meta.last_page` khi có, và luôn dừng khi một
  * trang không trả thêm dòng nào — máy chủ nào bỏ qua `page` thì cũng không quay vòng.
  */
-async function duyetTrang(xt, duong, thamSo, log = () => {}) {
+async function duyetTrang(xt, duong, thamSo, log = () => {}, maxTrang = 0) {
   const rows = [];
   let trang = 1;
   let tongTrang = null;
   let khoaThay = null;
-  while (trang <= MAX_TRANG) {
+  const tran = maxTrang > 0 ? Math.min(maxTrang, MAX_TRANG) : MAX_TRANG;
+  while (trang <= tran) {
     const res = await goi(xt, duong, { ...thamSo, page: trang, per_page: MOI_TRANG });
     const lo = (res && (res.data || res.items || res.results)) || [];
     if (!khoaThay && lo.length) khoaThay = Object.keys(lo[0]);
@@ -220,9 +271,15 @@ async function duyetTrang(xt, duong, thamSo, log = () => {}) {
     if (tongTrang != null && trang >= tongTrang) break;
     if (tongTrang == null && lo.length < MOI_TRANG) break;
     trang += 1;
-    await nghi(GIAN_MS);
+    // Không nghỉ ở đây nữa: xepHang() đã giãn nhịp cho MỌI lời gọi, nghỉ thêm chỉ
+    // làm chậm gấp đôi mà không thưa hơn.
   }
-  if (trang > MAX_TRANG) log(`  ! ${duong}: dừng ở ${MAX_TRANG} trang`);
+  if (trang > tran) {
+    /* Cắt ngang mà im lặng là tệ nhất: bảng trông đầy đủ nhưng thiếu dữ liệu.
+     * Nói rõ đã bỏ bao nhiêu. */
+    log(`  ! ${duong}: DỪNG Ở ${tran} TRANG`
+      + (tongTrang ? ` — còn ${tongTrang - tran} trang chưa đọc` : ''));
+  }
   log(`  ${duong}: ${rows.length} dòng${tongTrang ? ` (${tongTrang} trang)` : ''}`);
   return { rows, khoaThay, soTrang: trang };
 }
@@ -234,9 +291,9 @@ async function duyetTrang(xt, duong, thamSo, log = () => {}) {
  * Thiếu bản đồ này thì mất hẳn đường ghép dự phòng theo số điện thoại; đường
  * khoá cứng (mã lead) vẫn chạy bình thường.
  */
-async function banDoSdt(conf, log = () => {}) {
+async function banDoSdt(conf, log = () => {}, maxTrang = 0) {
   const xt = kiemTra(conf);
-  const { rows } = await duyetTrang(xt, '/api/v1/customers', {}, log);
+  const { rows } = await duyetTrang(xt, '/api/v1/customers', {}, log, maxTrang);
   const m = new Map();
   rows.forEach((c) => {
     const ma = chu(lay(c, 'code'));
@@ -329,10 +386,9 @@ async function test(conf, from, to) {
     };
   };
 
+  // Không nghỉ thủ công: xepHang() đã giãn nhịp cho mọi lời gọi.
   kq.lead = await thu('/api/v1/leads', { created_at: khoang });
-  await nghi(GIAN_MS);
   kq.don = await thu('/api/v1/orders', { created_at: khoang });
-  await nghi(GIAN_MS);
   kq.khach = await thu('/api/v1/customers', {});
 
   /* Đọc thử để biết có lấy đúng tiền và ngày không, thay vì tin tài liệu.
@@ -437,16 +493,23 @@ async function ghiGhiChuLead(conf, apiId, than, ghiChuCu) {
  * Ghi vào ĐÚNG cái kho mà bản nhập Excel vẫn ghi, nên phần tính ROAS phía sau
  * không phải biết dữ liệu đến từ đường nào.
  */
-async function keoVeKho(conf, from, to, log = () => {}) {
+async function keoVeKho(conf, from, to, log = () => {}, laySdt = false) {
   const kho = require('./khoroas');
   const excel = require('./tourwell');
 
-  /* Số điện thoại lấy riêng vì bản lead của Tourwell KHÔNG kèm số, chỉ có mã KH.
-   * Hỏng ở bước này chỉ mất đường ghép dự phòng theo số điện thoại — đường khoá
-   * cứng (mã lead) vẫn chạy — nên không được để nó làm hỏng cả lượt kéo. */
+  /* Số điện thoại phải lấy riêng vì bản lead của Tourwell KHÔNG kèm số, chỉ có mã KH.
+   *
+   * MẶC ĐỊNH TẮT, và đây là con số lý do: công ty có 15.948 khách = 160 trang, giãn
+   * 1,5 giây một lượt là gần 4 phút CHỈ cho bước này — vượt hạn chờ của hub và ép
+   * sát trần 60 yêu cầu/phút của Tourwell. Số điện thoại chỉ dùng cho đường ghép
+   * DỰ PHÒNG; đường khoá cứng (mã lead trong ghi chú đơn POS) không cần tới nó. */
   let sdtTheoKH = null;
-  try { sdtTheoKH = await banDoSdt(conf, log); }
-  catch (e) { log('  ! không lấy được số điện thoại: ' + e.message); }
+  if (laySdt) {
+    try { sdtTheoKH = await banDoSdt(conf, log); }
+    catch (e) { log('  ! không lấy được số điện thoại: ' + e.message); }
+  } else {
+    log('  bỏ qua số điện thoại (15.948 khách ≈ 4 phút) — chỉ dùng khoá cứng mã lead');
+  }
 
   const lead = await docLead(conf, from, to, log, sdtTheoKH);
   const don = await docDon(conf, from, to, log);
@@ -461,6 +524,7 @@ async function keoVeKho(conf, from, to, log = () => {}) {
   return {
     luc: moi.luc, tuApi: true, khoang: moi.khoang,
     lead: moi.lead.tomTat, don: moi.don.tomTat,
+    coSdt: !!laySdt,
     // Khoá thật sự nhận được — để nhìn ra ngay nếu Tourwell đổi tên trường
     khoaLead: lead.khoaThay, khoaDon: don.khoaThay,
   };
@@ -468,6 +532,8 @@ async function keoVeKho(conf, from, to, log = () => {}) {
 
 module.exports = {
   NHAN, chuanHost, khoangNgay, lay, tien, ngay, chuanSdt, soLead,
+  // xepHang/GIAN_MS lộ ra để test được nhịp gọi — đây là phần dễ tưởng đúng mà sai
+  xepHang, GIAN_MS,
   docLead, docDon, banDoSdt, test, keoVeKho, ghepGhiChu, ghiGhiChuLead,
   MOC_DAU, MOC_CUOI,
 };
