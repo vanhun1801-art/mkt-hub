@@ -420,6 +420,15 @@ button { font: inherit; }
 .the .lech, .the .ghi { font-size: 12px; margin-top: 4px; color: var(--chu-nhat); }
 .the .lech.tot { color: var(--luc); font-weight: 650; }
 .the .lech.xau { color: var(--do); font-weight: 650; }
+/* Ô bằng 0 và không có mức nghiêm trọng: làm mờ đi.
+ * Bảng Tổng quan có những thẻ 4 trên 6 ô bằng 0, và chúng chiếm đúng bằng ấy sức
+ * nặng thị giác như ô có số — mắt không biết nhìn đâu. Số 0 ở đây thường là tin
+ * TỐT (không việc quá hạn, không lịch chờ duyệt) nên đáng thu nhỏ, không đáng
+ * nhấn. Vẫn đọc được rõ, chỉ là không giành sự chú ý. */
+.the.trong { background: var(--nen, transparent); box-shadow: none; }
+.the.trong .so { color: var(--chu-nhat); font-weight: 600; opacity: .55; }
+.the.trong .nhan { opacity: .7; }
+
 .the.cao { background: var(--do-nhat); border-color: var(--cao-vien); }
 .the.cao .so { color: var(--do); }
 .the.vua { background: var(--vang-nhat); border-color: var(--vua-vien); }

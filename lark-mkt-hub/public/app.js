@@ -669,6 +669,12 @@ function theHtml(t, moduleId) {
       (t.lech > 0 ? '+' : t.lech < 0 ? '−' : '') + Math.abs(t.lech) + '% vs kỳ trước</div>';
   }
   const dai = t.dinhDang === 'vnd' && Math.abs(Number(t.so) || 0) >= 1000000 ? ' dai' : '';
+  /* Ô bằng 0 và không có mức nghiêm trọng thì làm MỜ đi. Bảng Tổng quan hiện có
+   * những thẻ 4 trên 6 ô bằng 0 (Bảng công việc, Lịch tác nghiệp), và chúng chiếm
+   * đúng bằng ấy sức nặng thị giác như những ô có số — mắt không biết nhìn đâu.
+   * Số 0 là tin TỐT ở đây (không việc quá hạn, không lịch chờ duyệt), nên nó đáng
+   * được thu nhỏ chứ không đáng được nhấn. */
+  const trong = (Number(t.so) || 0) === 0 && !t.muc ? ' trong' : '';
   /* Thẻ có `khoa` thì bấm vào mở cửa sổ xử lý nhanh ngay tại trang Tổng quan;
    * thẻ không có (chỉ số tổng hợp) thì vẫn mở app như trước. */
   const mo = moduleId
@@ -681,7 +687,7 @@ function theHtml(t, moduleId) {
     ? '<div class="ghi' + (t.ghiKhoa ? ' ghi-mo" data-ghi-khoa="' + esc(t.ghiKhoa) + '"' : '"') + '>' +
       esc(t.ghi) + '</div>'
     : '';
-  return '<div class="the ' + muc + (moduleId ? ' bam-duoc' : '') + '"' + mo + '>' +
+  return '<div class="the ' + muc + trong + (moduleId ? ' bam-duoc' : '') + '"' + mo + '>' +
     '<div class="nhan">' + esc(t.nhan) + '</div>' +
     '<div class="so' + dai + '">' + so(t.so, t.dinhDang) + '</div>' + lech + ghi + '</div>';
 }

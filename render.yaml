@@ -89,6 +89,19 @@ services:
       - key: OTA_TY_GIA_JSON
         sync: false
 
+      # ============================================================
+      # Trợ lý hỏi đáp (bot)
+      # ============================================================
+      # Chìa khoá cho bộ não bên ngoài (Coze / n8n / gì cũng được) gọi vào lấy số
+      # liệu thật. CHƯA khai biến này thì nhánh /bot trả 404 như không tồn tại —
+      # cố ý fail closed, deploy quên khai thì cửa đóng chứ không mở toang.
+      #
+      # Render tự sinh giá trị. Muốn xem để dán vào Coze thì mở Environment của
+      # service trên dashboard Render, KHÔNG dán vào code hay vào chat.
+      # Nghi bị lộ thì bấm sinh lại — bot mất kết nối, dán chìa mới vào Coze là xong.
+      - key: BOT_API_TOKEN
+        generateValue: true
+
       # ---- trang nào được nhúng hub bằng iframe ----
       # Bỏ trống là dùng mặc định: chính nó + các tên miền Lark. Chỉ khai khi mở app
       # trong một cổng thông tin khác.

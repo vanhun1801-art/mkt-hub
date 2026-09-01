@@ -118,6 +118,12 @@ function salesIn(data, from, to, platforms) {
 }
 const revenueOf = (sales) => sales.reduce((s, x) => s + x.revenue, 0);
 
+/* Kênh nào là kênh QUẢNG CÁO. Mọi thứ khác — 'Khác', ô trống, khách lữ hành,
+ * khách cũ, khách gọi trực tiếp — là doanh thu công ty nhưng KHÔNG phải doanh thu
+ * từ quảng cáo, nên không được vào tử số của ROAS. */
+const laKenhQuangCao = (k) => cfg.platforms.includes(String(k || '').trim());
+const revenueQuangCao = (sales) => revenueOf(sales.filter((x) => laKenhQuangCao(x.channel)));
+
 /* ---------------- nhóm theo chiều ---------------- */
 function groupBy(rows, keyFn) {
   const m = new Map();
@@ -156,8 +162,15 @@ function overview(data, q = {}) {
   const sales = salesIn(data, from, to, q.platforms);
   const prevSales = salesIn(data, prevFrom, prevTo, q.platforms);
 
-  const cur = agg(rows, revenueOf(sales));
-  const prev = agg(prevRows, revenueOf(prevSales));
+  /* TỬ SỐ chỉ là doanh thu ghi công cho quảng cáo. Bản trước dùng revenueOf(sales)
+   * — tức cả doanh thu công ty — nên ROAS ra 162,63x ở thẻ Tổng quan của hub. */
+  const cur = agg(rows, revenueQuangCao(sales));
+  const prev = agg(prevRows, revenueQuangCao(prevSales));
+  // Doanh thu toàn công ty: vẫn đáng biết, nhưng là con số riêng
+  cur.revenueCongTy = revenueOf(sales);
+  prev.revenueCongTy = revenueOf(prevSales);
+  cur.revenueNgoaiQuangCao = cur.revenueCongTy - cur.revenue;
+  cur.tyLeTuQuangCao = cur.revenueCongTy > 0 ? r2(div(cur.revenue, cur.revenueCongTy) * 100) : null;
 
   const series = dailySeries(rows, from, to, sales);
 

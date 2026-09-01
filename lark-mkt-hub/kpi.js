@@ -321,6 +321,15 @@ async function lichTacNghiep(mod, khoang, nguoi) {
   };
 }
 
+/** Tiền gọn cho dòng phụ: 8.916.706.200 -> "8,9 tỷ". Dòng phụ chỉ vài chục pixel
+ *  nên in đủ chữ số là tràn, mà tràn thì không đọc được gì. */
+function dinhDangTien(n) {
+  const x = Number(n) || 0;
+  if (x >= 1e9) return (Math.round(x / 1e8) / 10).toString().replace('.', ',') + ' tỷ';
+  if (x >= 1e6) return Math.round(x / 1e6) + ' tr';
+  return x.toLocaleString('vi-VN') + 'đ';
+}
+
 /* ---------------- Quản lý quảng cáo ---------------- */
 async function quangCao(mod, khoang, nguoi) {
   // App quảng cáo đã nhận from/to nên đưa thẳng khoảng lọc xuống nó tính,
@@ -334,12 +343,25 @@ async function quangCao(mod, khoang, nguoi) {
   const alerts = ov.alerts || [];
   const nang = alerts.filter((a) => a.level === 'high');
 
+  /* Ba ô đầu là ba con số quyết định ngân sách, ba ô sau là chi tiết vận hành.
+   *
+   * Bỏ CTR khỏi bảng tổng quan: ở tầng này nó gần như không dẫn tới hành động nào —
+   * đó là chỉ số chẩn đoán nội dung quảng cáo, việc làm trong app. Chỗ đó nhường
+   * cho DOANH THU, con số trước đây thiếu hẳn dù thẻ có ô ROAS.
+   *
+   * `revenue` ở đây là doanh thu GHI CÔNG CHO QUẢNG CÁO, không phải doanh thu công
+   * ty — thẻ này từng hiện ROAS 162,63x vì lấy cả 8,6 tỷ của kênh "Khác" (lữ hành,
+   * khách cũ, gọi trực tiếp) làm tử số. */
   const the = [
     { nhan: 'Chi tiêu', so: k.spend || 0, dinhDang: 'vnd', lech: d.spend },
+    { nhan: 'Doanh thu từ QC', so: k.revenue || 0, dinhDang: 'vnd', lech: d.revenue,
+      ghi: k.revenueCongTy
+        ? (k.tyLeTuQuangCao != null ? k.tyLeTuQuangCao + '% của ' + dinhDangTien(k.revenueCongTy) + ' toàn công ty' : '')
+        : '' },
+    { nhan: 'ROAS', so: k.roas || 0, dinhDang: 'x', lech: d.roas,
+      ghi: k.revenue ? 'chỉ tính phần từ quảng cáo' : 'chưa ghi công được đơn nào' },
     { nhan: 'Chuyển đổi', so: k.conversions || 0, dinhDang: 'so', lech: d.conversions },
     { nhan: 'CPA', so: k.cpa || 0, dinhDang: 'vnd', lech: d.cpa, dao: true },
-    { nhan: 'ROAS', so: k.roas || 0, dinhDang: 'x', lech: d.roas },
-    { nhan: 'CTR', so: k.ctr || 0, dinhDang: 'pt', lech: d.ctr },
     { nhan: 'Cảnh báo', so: alerts.length, dinhDang: 'so', tab: 'canh-bao', khoa: 'canh-bao',
       muc: nang.length ? 'cao' : alerts.length ? 'vua' : 'ok' },
   ];

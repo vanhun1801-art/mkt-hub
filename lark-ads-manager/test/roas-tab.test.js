@@ -92,5 +92,55 @@ t('ô thứ tư hiện doanh thu toàn công ty riêng', ui.includes('Doanh thu 
 t('dòng không từ quảng cáo hiện chữ, không hiện 0×',
   ui.includes('không từ quảng cáo'));
 
+console.log('— metrics.overview: thẻ ở Tổng quan chung của hub đọc từ đây');
+/* Hub không tự tính ROAS — nó hỏi /api/overview của module này. Nên thẻ "Quản lý
+ * quảng cáo" hiện 162,63x là do metrics.js, và sửa ở đây thì cả hai chỗ cùng đúng. */
+{
+  const M = require('../metrics');
+  const data = {
+    daily: [
+      { date: '2026-08-10', platform: 'Facebook', adId: 'a1', spend: 25025955, impressions: 100, clicks: 10, conversions: 5 },
+      { date: '2026-08-10', platform: 'TikTok', adId: 'a2', spend: 25945846, impressions: 100, clicks: 10, conversions: 5 },
+      { date: '2026-08-10', platform: 'Google Ads', adId: 'a3', spend: 3832963, impressions: 100, clicks: 10, conversions: 0 },
+    ],
+    sales: [
+      { date: '2026-08-11', channel: 'Facebook', status: 'Đã chốt', revenue: 232161000 },
+      { date: '2026-08-11', channel: 'TikTok', status: 'Đã chốt', revenue: 88372000 },
+      // 8,6 tỷ của kênh Khác: doanh thu công ty, KHÔNG phải doanh thu quảng cáo
+      { date: '2026-08-11', channel: 'Khác', status: 'Đã chốt', revenue: 8596173200 },
+    ],
+    campaigns: [], groups: [], ads: [],
+    // alerts() cần maxDate để tính cửa sổ 7 ngày gần nhất
+    maxDate: '2026-08-31', minDate: '2026-08-01',
+  };
+  const ov = M.overview(data, { from: '2026-08-01', to: '2026-08-31' });
+  const k = ov.kpi;
+  t('doanh thu TỪ QUẢNG CÁO không gồm kênh Khác', k.revenue === 320533000, String(k.revenue));
+  t('doanh thu toàn công ty vẫn trả riêng', k.revenueCongTy === 8916706200, String(k.revenueCongTy));
+  t('phần ngoài quảng cáo tách đúng', k.revenueNgoaiQuangCao === 8596173200, String(k.revenueNgoaiQuangCao));
+  t('ROAS 5,85x chu KHONG phai 162,63x', k.roas === 5.85, String(k.roas));
+  t('mẫu số có cả Google Ads dù kênh đó 0 đơn', k.spend === 54804764, String(k.spend));
+  t('tỷ lệ từ quảng cáo tính ra được', k.tyLeTuQuangCao === 3.59, String(k.tyLeTuQuangCao));
+
+  const ov2 = M.overview({ ...data, sales: [data.sales[2]] }, { from: '2026-08-01', to: '2026-08-31' });
+  t('chỉ có kênh Khác thì ROAS 0, không phải số to', ov2.kpi.roas === 0, String(ov2.kpi.roas));
+}
+
+console.log('— thẻ hub: bỏ CTR, thêm Doanh thu từ QC');
+{
+  const path = require('path');
+  const kpiSrc = require('fs').readFileSync(
+    path.join(__dirname, '..', '..', 'lark-mkt-hub', 'kpi.js'), 'utf8');
+  const i2 = kpiSrc.indexOf('async function quangCao(');
+  const khoi = kpiSrc.slice(i2, kpiSrc.indexOf('const nhom', i2));
+  t('có ô Doanh thu từ QC', khoi.includes("nhan: 'Doanh thu từ QC'"));
+  t('ô đó dùng k.revenue (đã là doanh thu quảng cáo)', khoi.includes('so: k.revenue'));
+  t('bỏ CTR khỏi bảng tổng quan', !khoi.includes("nhan: 'CTR'"));
+  t('vẫn giữ Chi tiêu, ROAS, CPA, Cảnh báo',
+    ["'Chi tiêu'", "'ROAS'", "'CPA'", "'Cảnh báo'"].every((x) => khoi.includes(x)));
+  t('đúng sáu ô, không nhiều hơn', (khoi.match(/nhan: '/g) || []).length === 6,
+    String((khoi.match(/nhan: '/g) || []).length));
+}
+
 console.log(`\n${pass} pass · ${fail} fail`);
 process.exitCode = fail ? 1 : 0;

@@ -16,6 +16,7 @@ const crypto = require('crypto');
 const cfg = require('./config');
 const kids = require('./children');
 const kpi = require('./kpi');
+const bot = require('./bot');
 const lich = require('./lichchung');
 const auth = require('./auth');
 const quyen = require('./quyen');
@@ -886,6 +887,24 @@ const server = http.createServer(async (req, res) => {
     }
     kids.khoiDong(modOta);   // bảo đảm module đang chạy (không chờ)
     return chuyenTiep(req, res, modOta, '/webhook/' + wh[1] + (u.search || ''), null);
+  }
+
+  /* ---- nguồn số liệu cho trợ lý: đường CÔNG KHAI, nằm TRƯỚC cổng đăng nhập ----
+   * Coze (hoặc bộ não nào khác) ở ngoài Internet, không đăng nhập Lark được, nên
+   * buộc phải đi vòng ngoài cổng. Bó hẹp giống webhook OTA:
+   *   - chưa khai BOT_API_TOKEN thì nhánh này trả 404 như không tồn tại;
+   *   - chỉ GET, không endpoint nào ghi;
+   *   - KHÔNG đọc header danh tính của client — bot.js dùng một danh tính cố định
+   *     (xem toàn bộ, không quyền chi phí), nên gọi vào đây không mạo danh được ai;
+   *   - có trần lượt/phút và sổ ghi để biết ai đang dò cửa.
+   * Chi tiết vì sao không có dữ liệu tiền ở đây: xem đầu bot.js.
+   */
+  {
+    const xong = await bot.xuLy(req, res, u, {
+      timMod, khoiDong: (mod) => kids.khoiDong(mod), send,
+      goc: (cfg.publicUrl || 'http://127.0.0.1:' + cfg.port).replace(/\/$/, ''),
+    });
+    if (xong !== false) return;
   }
 
   /* Chế độ api (deploy chung): hub đăng nhập Lark một lần cho cả hệ. Mọi thứ đều
