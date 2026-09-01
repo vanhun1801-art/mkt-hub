@@ -52,6 +52,28 @@ module.exports = {
 
   baseToken: process.env.LARK_BASE_TOKEN || 'U8bAbfnwgalWgDsEU11lpHfPgTb',
   tableId:   process.env.LARK_TABLE_ID   || 'tblwfl1sEXHI9HOp',
+  /* Bảng "Cấu hình thông báo" — nơi quản lý tự bật/tắt từng loại tin Lark.
+   * Phải nằm trên Base chứ không phải file: ổ đĩa Render là tạm, file cấu hình
+   * sẽ mất sau mỗi lần deploy (cùng lý do vì sao danh sách quản lý đặt bằng
+   * biến môi trường). Trên Base thì sống mãi, và sửa thẳng trong Base cũng được. */
+  cauHinhTableId: process.env.LARK_TB_CAUHINH || 'tblZrFGHjUuHMpWI',
+
+  /* Tên bốn cột của bảng cấu hình. Khai ở đây để đổi tên cột trên Base thì chỉ
+   * sửa một chỗ. */
+  cauHinhFields: {
+    suKien: 'Sự kiện',
+    bat: 'Bật gửi Lark',
+    nguoiNhan: 'Người nhận',
+    moTa: 'Mô tả',
+  },
+
+  /* Nối tên dòng trong bảng cấu hình với trạng thái thật của lịch. */
+  cauHinhMap: {
+    'Duyệt/Chờ tác nghiệp': 'Lịch được duyệt',
+    'Từ chối/Cần điều chỉnh': 'Lịch bị trả về',
+    'Từ chối': 'Lịch bị từ chối',
+    'Hủy lịch': 'Lịch bị huỷ',
+  },
   identity:  process.env.LARK_AS || 'user',
 
   /* ---- Chế độ chạy ----

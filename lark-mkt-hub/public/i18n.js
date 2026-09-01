@@ -537,6 +537,10 @@
     '.card-title', 'td.c-title', '.dcard-title',   // Bảng công việc
     '.q-ten', '.q-mail', '.tn-ten', '.nm', '.av',  // tên người
     '.log', 'code', 'pre', 'option[data-giu]',
+    /* Vùng nào tự khai là dữ liệu thì tôn trọng. Cần thiết vì có bảng cấu hình
+       lấy tên dòng từ Base, mà mấy tên đó trùng nhãn giao diện trong từ điển —
+       không chắn thì bảng hiện nửa Việt nửa Anh. */
+    '[data-no-i18n]',
   ].join(',');
 
   let ngonNgu = 'vi';

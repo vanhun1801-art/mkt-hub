@@ -365,6 +365,63 @@ const BAO_LARK = {
   },
 };
 
+/* Cấu hình đọc từ Base, giữ 60 giây. Đủ ngắn để anh Hùng tắt một loại tin là
+ * thấy tác dụng gần như ngay, đủ dài để không đọc lại Base mỗi lần bấm nút. */
+const demCauHinh = { ds: null, at: 0 };
+
+async function docCauHinhBao(force) {
+  if (!force && demCauHinh.ds && Date.now() - demCauHinh.at < 60000) return demCauHinh.ds;
+  const F2 = cfg.cauHinhFields;
+  try {
+    /* Ô của bản ghi được khoá bằng FIELD_ID, không phải tên cột — nên phải đọc
+     * danh sách cột trước để dựng bảng tra tên → id. Bảng cấu hình do lark-cli
+     * tạo nên id không cố định giữa các môi trường, không thể khai cứng. */
+    const fields = await lark.listFields(cfg.cauHinhTableId);
+    const idCua = {};
+    for (const f of fields) {
+      const ten = f.name || f.field_name;
+      const fid = f.id || f.field_id;
+      if (ten && fid) idCua[ten] = fid;
+    }
+    const recs = await lark.listAllRecords(cfg.cauHinhTableId);
+    demCauHinh.ds = recs.map((r) => {
+      const c = r.cells || {};
+      const lay = (ten) => c[idCua[ten]];
+      return {
+        id: r.record_id,
+        suKien: asText(lay(F2.suKien)),
+        bat: lay(F2.bat) === true,
+        nguoiNhan: asText(first(lay(F2.nguoiNhan))) || 'Chỉ phụ trách',
+        moTa: asText(lay(F2.moTa)),
+      };
+    }).filter((x) => x.suKien);
+    demCauHinh.at = Date.now();
+  } catch (e) {
+    console.warn('[cấu hình thông báo] không đọc được, tạm dùng mặc định: ' + e.message);
+    demCauHinh.ds = null;
+  }
+  return demCauHinh.ds;
+}
+
+/**
+ * Loại tin này có được gửi không, và gửi cho ai.
+ * Đọc bảng lỗi (mất mạng, đổi tên cột) thì MẶC ĐỊNH VẪN GỬI cho phụ trách —
+ * thà gửi thừa một tin còn hơn im lặng để người ta không biết lịch bị trả về.
+ */
+async function luatBao(trangThaiMoi) {
+  const ten = cfg.cauHinhMap[trangThaiMoi];
+  if (!ten) return null;                       // trạng thái không thuộc diện báo
+  /* Không đọc được bảng, hoặc chưa khai dòng đó: giữ NGUYÊN nếp cũ — vẫn gửi,
+   * và "được duyệt" thì cả nhóm. Đổi âm thầm nếp cũ khi bảng lỗi là cách nhanh
+   * nhất để người ta mất tin mà không biết vì sao. */
+  const macDinh = { bat: true, caNhom: trangThaiMoi === 'Duyệt/Chờ tác nghiệp' };
+  const ds = await docCauHinhBao(false);
+  if (!ds) return macDinh;
+  const d = ds.find((x) => x.suKien === ten);
+  if (!d) return macDinh;
+  return { bat: d.bat, caNhom: /cả nhóm/i.test(d.nguoiNhan) };
+}
+
 /** Ghép nội dung tin nhắn — đọc là hiểu, không cần mở app mới biết chuyện gì. */
 function soanTinLich(item, trangThaiMoi, lyDo) {
   const m = BAO_LARK[trangThaiMoi];
@@ -387,18 +444,23 @@ function soanTinLich(item, trangThaiMoi, lyDo) {
  * phải sắp xếp mà đi; còn bị trả về / từ chối thì chỉ phụ trách — người khác
  * nhận cũng không làm gì được.
  */
-function nguoiNhanTin(item, trangThaiMoi) {
+function nguoiNhanTin(item, trangThaiMoi, caNhom) {
   const ds = (item.owner || []).map((u) => u.id).filter(Boolean);
-  if (trangThaiMoi === 'Duyệt/Chờ tác nghiệp') {
+  const rong = caNhom === undefined
+    ? trangThaiMoi === 'Duyệt/Chờ tác nghiệp'   // mặc định cũ, dùng khi chưa có cấu hình
+    : !!caNhom;
+  if (rong) {
     for (const u of (item.staff || [])) if (u.id && !ds.includes(u.id)) ds.push(u.id);
   }
   return ds;
 }
 
 async function baoVaoLark(item, trangThaiMoi, lyDo) {
+  const luat = await luatBao(trangThaiMoi);
+  if (!luat || !luat.bat) return;              // quản lý đã tắt loại tin này
   const noi = soanTinLich(item, trangThaiMoi, lyDo);
   if (!noi || typeof lark.guiTinNhan !== 'function') return;
-  for (const id of nguoiNhanTin(item, trangThaiMoi)) {
+  for (const id of nguoiNhanTin(item, trangThaiMoi, luat.caNhom)) {
     try {
       const kq = await lark.guiTinNhan(id, noi);
       if (!kq.ok) console.warn('[báo Lark] không gửi được cho ' + id + ': ' + kq.ly);
@@ -664,6 +726,33 @@ async function api(req, res, url) {
       nguoiNhan: toi.name || toi.id,
       ly: kq.ly || null,
     });
+  }
+
+  /* Cấu hình thông báo — quản lý tự bật tắt, không phải nhờ ai sửa mã.
+   * Nguồn dữ liệu là bảng "Cấu hình thông báo" trên Base, nên sửa ở app hay sửa
+   * thẳng trong Base đều được, và không mất sau mỗi lần deploy. */
+  if (p === '/api/cau-hinh-bao' && req.method === 'GET') {
+    if (!(await requireManager(res))) return;
+    const ds = await docCauHinhBao(url.searchParams.get('refresh') === '1');
+    return json(res, {
+      items: ds || [],
+      docDuoc: !!ds,
+      larkUrl: cfg.larkUrl.replace(/table=[^&]*/, 'table=' + cfg.cauHinhTableId),
+    });
+  }
+
+  if (p === '/api/cau-hinh-bao' && req.method === 'PATCH') {
+    if (!(await requireManager(res))) return;
+    const body = await readBody(req);
+    if (!body.id) return json(res, { error: 'Thiếu mã dòng cấu hình' }, 400);
+    const F2 = cfg.cauHinhFields;
+    const cells = {};
+    if (typeof body.bat === 'boolean') cells[F2.bat] = body.bat;
+    if (body.nguoiNhan) cells[F2.nguoiNhan] = String(body.nguoiNhan);
+    if (!Object.keys(cells).length) return json(res, { error: 'Không có gì để đổi' }, 400);
+    await lark.updateRecord(body.id, cells, cfg.cauHinhTableId);
+    demCauHinh.at = 0;                       // buộc đọc lại ngay lần sau
+    return json(res, { ok: true });
   }
 
   if (p === '/api/quyen' && req.method === 'GET') {
@@ -1032,7 +1121,7 @@ if (!LOOPBACK.includes(BIND) && process.env.HUB_TRUST_HEADER !== '0') {
 /* Được require từ bộ kiểm thử thì chỉ xuất hàm ra, đừng mở cổng. */
 if (require.main !== module) {
   module.exports = { khoaKeHoach, duMinhChung, anLichHuy, laPhuTrach, ownedBy, duBaoCao, boChiPhi,
-    soanTinLich, nguoiNhanTin };
+    soanTinLich, nguoiNhanTin, docCauHinhBao, luatBao };
   return;
 }
 

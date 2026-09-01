@@ -2361,6 +2361,67 @@ function keoLocToiLich(startISO) {
   return 'tháng ' + p.m + '/' + p.y;
 }
 
+/* ==========================================================================
+   CẤU HÌNH THÔNG BÁO
+   Quản lý tự quyết loại tin nào gửi vào Lark và gửi cho ai — không phải nhờ ai
+   sửa mã. Nguồn là bảng "Cấu hình thông báo" trên Base: sửa ở đây hay sửa thẳng
+   trong Base đều được, và không mất sau mỗi lần deploy (ổ đĩa Render là tạm).
+   ========================================================================== */
+async function moCauHinhBao() {
+  $('#mdTitle').textContent = 'Cấu hình thông báo Lark';
+  $('#mdBody').innerHTML = '<div class="mini muted">Đang đọc cấu hình…</div>';
+  $('#mdFoot').innerHTML = '<button class="btn" data-close="1">Đóng</button>';
+  $('#modal').classList.add('on');
+  try {
+    const d = await api('/api/cau-hinh-bao?refresh=1');
+    veCauHinhBao(d);
+  } catch (e) {
+    $('#mdBody').innerHTML = '<div class="banner" style="background:var(--red-bg);color:var(--red-t)">' +
+      esc(e.message) + '</div>';
+  }
+}
+
+function veCauHinhBao(d) {
+  const ds = d.items || [];
+  const dong = (x) => {
+    const caNhom = /cả nhóm/i.test(x.nguoiNhan);
+    return '<div class="ch-o">' +
+      '<div class="ch-tren">' +
+        '<label class="chk"><input type="checkbox" data-chbat="' + esc(x.id) + '"' +
+          (x.bat ? ' checked' : '') + '><span>' + esc(x.suKien) + '</span></label>' +
+        '<div class="seg-ai">' +
+          '<button class="ch-ai' + (caNhom ? '' : ' on') + '" data-chai="' + esc(x.id) +
+            '" data-gt="Chỉ phụ trách">Chỉ phụ trách</button>' +
+          '<button class="ch-ai' + (caNhom ? ' on' : '') + '" data-chai="' + esc(x.id) +
+            '" data-gt="Cả nhóm cùng đi">Cả nhóm cùng đi</button>' +
+        '</div>' +
+      '</div>' +
+      (x.moTa ? '<div class="ch-mo">' + esc(x.moTa) + '</div>' : '') +
+      '</div>';
+  };
+
+  $('#mdBody').innerHTML =
+    '<div class="banner info">Tắt loại nào thì app thôi gửi tin Lark cho loại đó. ' +
+      'Mấy kênh trong app (số đỏ, chuông, thẻ đỏ) vẫn chạy như thường.</div>' +
+    (d.docDuoc ? '' : '<div class="banner" style="background:var(--red-bg);color:var(--red-t)">' +
+      'Không đọc được bảng cấu hình — app đang tạm gửi theo nếp mặc định.</div>') +
+    /* data-no-i18n: tên dòng ở đây là DỮ LIỆU đọc từ Base, mà mấy tên đó lại
+     * trùng nhãn thông báo trong từ điển — không chắn thì lớp i18n dịch luôn cả
+     * dữ liệu, thành ra bảng cấu hình hiện nửa Việt nửa Anh. */
+    '<div class="ch" data-no-i18n="1">' + (ds.length ? ds.map(dong).join('')
+      : '<div class="mini muted">Bảng cấu hình chưa có dòng nào.</div>') + '</div>' +
+    '<div class="hint" style="margin-top:12px">Cấu hình lưu trên Base, sửa thẳng trong ' +
+      '<a href="' + esc(d.larkUrl || '#') + '" target="_blank" rel="noreferrer">bảng Cấu hình thông báo</a> cũng được.</div>';
+}
+
+async function luuCauHinhBao(id, patch) {
+  try {
+    await api('/api/cau-hinh-bao', { method: 'PATCH', body: JSON.stringify(Object.assign({ id }, patch)) });
+    toast('Đã lưu vào Base', 'ok');
+    veCauHinhBao(await api('/api/cau-hinh-bao?refresh=1'));
+  } catch (e) { toast(e.message, 'err'); }
+}
+
 /* ============ chuyển vai ============ */
 /** Số lịch mỗi người phụ trách hoặc tham gia — hiện trong bảng chọn vai. */
 function countFor(id) {
@@ -2416,7 +2477,8 @@ async function openQuyen() {
       '<button class="opt' + (cur.has(p.id) ? ' on' : '') + '" data-q="' + esc(p.id) + '">' + esc(p.name) + '</button>').join('') +
     '</div><div class="hint" style="margin-top:10px">Không thể tự bỏ quyền của chính mình.</div>';
   $('#mdFoot').innerHTML =
-    '<button class="btn" id="thuTinLark" style="margin-right:auto">Thử gửi tin Lark cho tôi</button>' +
+    '<button class="btn" id="moCauHinhBao" style="margin-right:auto">Cấu hình thông báo</button>' +
+    '<button class="btn" id="thuTinLark">Thử gửi tin Lark cho tôi</button>' +
     '<button class="btn" data-close="1">Đóng</button>' +
     '<button class="btn primary" id="qSave">Lưu quyền</button>';
   $('#modal').classList.add('on');
@@ -2598,6 +2660,10 @@ document.addEventListener('click', async (e) => {
     b.textContent = chu;
     return;
   }
+
+  if (T.closest('#moCauHinhBao')) { await moCauHinhBao(); return; }
+  const chAi = T.closest('[data-chai]');
+  if (chAi) { await luuCauHinhBao(chAi.dataset.chai, { nguoiNhan: chAi.dataset.gt }); return; }
 
   if (T.closest('#btnQuyen')) { await openQuyen(); return; }     // trước chipUser
   if (T.closest('#chipUser')) { openRoleSwitch(); return; }
@@ -2913,6 +2979,14 @@ document.addEventListener('input', (e) => {
 
 document.addEventListener('change', async (e) => {
   const T = e.target;
+
+  /* Ô tick trong màn hình cấu hình thông báo — lưu ngay, khỏi cần nút Lưu.
+   * Bắt ở 'change' chứ không phải 'input': với hộp kiểm thì change mới là tín
+   * hiệu đúng, và mã gọi bằng script cũng chỉ bắn change. */
+  if (T.dataset && T.dataset.chbat) {
+    await luuCauHinhBao(T.dataset.chbat, { bat: T.checked });
+    return;
+  }
 
   if (NG && T.classList && T.classList.contains('ng-sel')) {
     const nay = vnParts(new Date());
