@@ -627,6 +627,42 @@ async function api(req, res, url) {
     return json(res, { items: ds });
   }
 
+  /* Tự kiểm kênh Lark.
+   *
+   * Chỉ gửi cho CHÍNH người bấm, không gửi cho ai khác — nên bấm bao nhiêu lần
+   * cũng không làm ai bị quấy. Trả về nguyên văn kết quả của Lark để đọc là
+   * biết thiếu gì: chưa cấp quyền, app chưa bật Bot, hay người nhận ngoài phạm
+   * vi khả dụng.
+   *
+   * Lý do phải có đầu mối này: máy cá nhân gửi bằng app riêng của lark-cli, còn
+   * bản trên Render gửi bằng app Marketing Hub — hai app khác nhau, hai bộ
+   * quyền khác nhau. Thử ở máy KHÔNG chứng minh được bản Render gửi được. */
+  if (p === '/api/thu-tin-lark' && req.method === 'POST') {
+    if (!(await requireManager(res))) return;
+    const toi = await whoAmI();
+    if (!toi || !toi.id) {
+      return json(res, { error: 'Không xác định được bạn là ai để gửi thử.' }, 400);
+    }
+    if (typeof lark.guiTinNhan !== 'function') {
+      return json(res, { error: 'Chế độ chạy này chưa có hàm gửi tin.' }, 500);
+    }
+    const noi = [
+      'Thử kênh thông báo — app Lịch tác nghiệp',
+      '',
+      'Nhận được tin này nghĩa là app gửi được tin nhắn cho nhân sự.',
+      'Tin này chỉ gửi cho chính bạn, không gửi cho ai khác.',
+      cfg.hubUrl || '',
+    ].filter(Boolean).join('\n');
+    const kq = await lark.guiTinNhan(toi.id, noi);
+    return json(res, {
+      ok: kq.ok,
+      cheDo: cfg.mode,
+      guiTu: cfg.mode === 'api' ? 'app Marketing Hub (tenant token)' : 'app riêng của lark-cli trên máy này',
+      nguoiNhan: toi.name || toi.id,
+      ly: kq.ly || null,
+    });
+  }
+
   if (p === '/api/quyen' && req.method === 'GET') {
     return json(res, { managers: cfg.loadManagerIds(), me: await whoAmI() });
   }

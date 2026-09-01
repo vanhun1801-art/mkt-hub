@@ -2415,7 +2415,9 @@ async function openQuyen() {
     '<div class="multi">' + S.people.map((p) =>
       '<button class="opt' + (cur.has(p.id) ? ' on' : '') + '" data-q="' + esc(p.id) + '">' + esc(p.name) + '</button>').join('') +
     '</div><div class="hint" style="margin-top:10px">Không thể tự bỏ quyền của chính mình.</div>';
-  $('#mdFoot').innerHTML = '<button class="btn" data-close="1">Đóng</button>' +
+  $('#mdFoot').innerHTML =
+    '<button class="btn" id="thuTinLark" style="margin-right:auto">Thử gửi tin Lark cho tôi</button>' +
+    '<button class="btn" data-close="1">Đóng</button>' +
     '<button class="btn primary" id="qSave">Lưu quyền</button>';
   $('#modal').classList.add('on');
 
@@ -2576,6 +2578,26 @@ document.addEventListener('click', async (e) => {
   const roleCard = T.closest('[data-role]');
   if (roleCard) { await switchRole(roleCard.dataset.role); return; }
   if (T.closest('#btnExitActing')) { await switchRole(''); return; }
+
+  /* Tự kiểm kênh Lark. Chỉ gửi cho chính người bấm nên bấm bao nhiêu lần cũng
+   * không quấy ai. Phải thử TRÊN BẢN CHẠY THẬT: máy cá nhân gửi bằng app riêng
+   * của lark-cli, bản trên Render gửi bằng app Marketing Hub — hai app khác
+   * nhau, thử ở máy không kết luận được gì cho bản thật. */
+  if (T.closest('#thuTinLark')) {
+    const b = T.closest('#thuTinLark');
+    b.disabled = true;
+    const chu = b.textContent;
+    b.textContent = 'Đang gửi…';
+    try {
+      const d = await api('/api/thu-tin-lark', { method: 'POST' });
+      toast(d.ok
+        ? 'Đã gửi. Gửi từ ' + d.guiTu + ' → kiểm hộp thoại Lark của bạn.'
+        : 'Không gửi được: ' + (d.ly || 'không rõ lý do'), d.ok ? 'ok' : 'err');
+    } catch (e) { toast(e.message, 'err'); }
+    b.disabled = false;
+    b.textContent = chu;
+    return;
+  }
 
   if (T.closest('#btnQuyen')) { await openQuyen(); return; }     // trước chipUser
   if (T.closest('#chipUser')) { openRoleSwitch(); return; }
