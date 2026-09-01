@@ -363,8 +363,23 @@ trong Lark**, không liên quan tới vai quản lý/nhân sự bên trong từn
 | `proxy.js` | proxy ngược + chèn CSS/JS vào HTML module + `goiJson()` |
 | `kpi.js` | bộ đọc chỉ số cho Tổng quan chung (một hàm / một base) |
 | `lichchung.js` | gộp việc mọi base thành dải nhiệt nhân sự × ngày (khối Tải nhân sự) |
+| `bot.js` | nguồn số liệu chỉ-đọc cho trợ lý hỏi đáp (`/bot/*`) — xem `docs/tro-ly-bot.md` |
 | `public/index.html` · `styles.css` · `app.js` · `icons.js` | panel base, sân khấu iframe, trang Tổng quan chung, modal Cài đặt / Thêm base / Log |
 | `test/api.test.js` | kiểm thử chỉ đọc |
+| `test/bot.test.js` | kiểm thử lớp `/bot`: token, chỉ GET, và **không một đồng nào lọt ra** |
+
+## Trợ lý hỏi đáp (bot)
+
+Bot **không học** dữ liệu của phòng — nó **tra** lúc được hỏi, qua một bộ endpoint
+chỉ-đọc `/bot/*`. Bộ não (Coze, Claude, n8n…) nằm ngoài và thay được; lớp dữ liệu
+giữ nguyên.
+
+Chưa khai `BOT_API_TOKEN` thì nhánh đó trả 404 như không tồn tại. Đường này **không
+có dữ liệu tiền** — lý do và cách nới đúng: `docs/tro-ly-bot.md`.
+
+```
+curl -H "Authorization: Bearer <TOKEN>" "<URL>/bot/lich?tu=tuan-nay"
+```
 
 ## Gỡ rối
 
