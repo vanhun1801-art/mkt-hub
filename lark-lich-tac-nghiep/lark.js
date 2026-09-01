@@ -212,7 +212,12 @@ async function deleteRecords(recordIds, tableId = cfg.tableId) {
 async function guiTinNhan(openId, noiDung) {
   if (!openId || !noiDung) return { ok: false, ly: 'thiếu người nhận hoặc nội dung' };
   try {
-    await cli(['im', '+messages-send', '--user-id', openId, '--text', noiDung], { retries: 1 });
+    /* --as bot: gửi ở vai ỨNG DỤNG, giống hệt cách bản trên Render gửi bằng
+     * tenant token. Phải khai rõ vì lark-cli mặc định lấy vai user, mà vai user
+     * lại đòi một quyền khác (im:message.send_as_user) — người nhận cũng thấy
+     * tin đến từ cá nhân quản lý thay vì từ app. */
+    await cli(['im', '+messages-send', '--as', 'bot',
+      '--user-id', openId, '--text', noiDung], { retries: 1 });
     return { ok: true };
   } catch (e) {
     return { ok: false, ly: e.message };
