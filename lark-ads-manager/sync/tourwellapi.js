@@ -80,7 +80,20 @@ function tien(v) {
   if (v == null) return 0;
   if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
   if (typeof v === 'object') {
-    return tien(lay(v, 'original', 'value', 'amount', 'total', 'number'));
+    /* Tourwell bọc tiền trong object. Ở phần `services[].prices` thấy dạng
+     * {original, forex}; ở cấp đơn thì chưa có tài liệu nào mô tả, nên dò rộng.
+     * Mảng thì cộng lại — có API trả [{amount}] cho từng đợt thanh toán. */
+    if (Array.isArray(v)) return v.reduce((a, x) => a + tien(x), 0);
+    const co = lay(v, 'original', 'value', 'amount', 'total', 'number', 'raw', 'net', 'vnd');
+    if (co !== undefined) return tien(co);
+    /* Không khớp tên nào: lấy số dương lớn nhất trong object một tầng. Thà đọc ra
+     * số đúng còn hơn im lặng trả 0 — nhưng KHÔNG đi sâu quá một tầng, kẻo vớ
+     * phải id hay mã tiền tệ ở nhánh khác. */
+    const so = Object.entries(v)
+      .filter(([k]) => !/^(id|code|currency|type|rate)$/i.test(k))
+      .map(([, x]) => (typeof x === 'number' ? x : (typeof x === 'string' ? tien(x) : 0)))
+      .filter((n) => Number.isFinite(n));
+    return so.length ? Math.max(...so) : 0;
   }
   let s = String(v).replace(/[^\d.,-]/g, '').trim();
   if (!s) return 0;
@@ -252,7 +265,9 @@ async function docLead(conf, from, to, log = () => {}, sdtTheoKH = null) {
       kh,
       khach: chu(lay(r, 'customer.name')),
       sdt: (sdtTheoKH && sdtTheoKH.get(kh)) || '',
-      ngay: ngay(lay(r, 'created_at_timestamp') || lay(r, 'created_at')),
+      // `created_at_iso` có sẵn thì dùng — khỏi phải đoán 03/09 là ngày 3 tháng 9
+      // hay ngày 9 tháng 3. Thứ tự ngày/tháng là nguồn sai âm thầm kinh điển.
+      ngay: ngay(lay(r, 'created_at_iso') || lay(r, 'created_at_timestamp') || lay(r, 'created_at')),
       nguon: chu(lay(r, 'source.name')),
       trangThai: chu(lay(r, 'state.title', 'state.name', 'state')),
       nguoiTao: chu(lay(r, 'creator.name')),
@@ -278,8 +293,8 @@ async function docDon(conf, from, to, log = () => {}) {
     kh: chu(lay(r, 'customer.code')),
     khach: chu(lay(r, 'customer.name')),
     sdt: chuanSdt(lay(r, 'customer.phone.primary.number', 'customer.phone')),
-    ngay: ngay(lay(r, 'created_at')),
-    ngayXong: ngay(lay(r, 'order_at')),
+    ngay: ngay(lay(r, 'created_at_iso', 'created_at')),
+    ngayXong: ngay(lay(r, 'order_at_iso', 'order_at')),
     ngayDi: ngay(lay(r, 'services.0.departure_date')),
     tien: tien(lay(r, 'total_payment')),
     thu: tien(lay(r, 'total_paid')),
@@ -303,13 +318,14 @@ async function test(conf, from, to) {
   const khoang = khoangNgay(from, to);
 
   const thu = async (duong, thamSo) => {
-    const res = await goi(xt, duong, { ...thamSo, page: 1, per_page: 5 });
+    const res = await goi(xt, duong, { ...thamSo, page: 1, per_page: 25 });
     const lo = (res && (res.data || res.items || res.results)) || [];
     return {
       soDong: Array.isArray(lo) ? lo.length : 0,
       tong: Number(lay(res, 'meta.total')) || null,
       khoa: Array.isArray(lo) && lo[0] ? Object.keys(lo[0]) : [],
       mau: Array.isArray(lo) && lo[0] ? lo[0] : null,
+      loMau: Array.isArray(lo) ? lo : [],
     };
   };
 
@@ -319,21 +335,45 @@ async function test(conf, from, to) {
   await nghi(GIAN_MS);
   kq.khach = await thu('/api/v1/customers', {});
 
-  // Đọc thử một dòng để biết có lấy đúng tiền và ngày không, thay vì tin tài liệu
+  /* Đọc thử để biết có lấy đúng tiền và ngày không, thay vì tin tài liệu.
+   *
+   * Phải đếm trên CẢ LÔ MẪU chứ không phải đơn đầu tiên: đơn đầu danh sách rất
+   * có thể là đơn vừa tạo, chưa có dịch vụ nào, và 0đ là ĐÚNG. Kêu "đọc sai tên
+   * trường" trong trường hợp đó là bắt người dùng đi sửa một thứ không hỏng. */
   if (kq.don.mau) {
     kq.donDocThu = {
       ma: chu(lay(kq.don.mau, 'code')),
       kh: chu(lay(kq.don.mau, 'customer.code')),
       tien: tien(lay(kq.don.mau, 'total_payment')),
       thu: tien(lay(kq.don.mau, 'total_paid')),
-      ngay: ngay(lay(kq.don.mau, 'created_at')),
+      ngay: ngay(lay(kq.don.mau, 'created_at_iso', 'created_at')),
       nguon: chu(lay(kq.don.mau, 'source.name')),
+      // Dạng THẬT của trường tiền, để nhìn tận mắt thay vì đoán
+      dangTien: JSON.stringify(lay(kq.don.mau, 'total_payment') ?? null).slice(0, 200),
     };
+    const loDon = kq.don.loMau || [];
+    const coTien = loDon.filter((x) => tien(lay(x, 'total_payment')) > 0);
+    kq.tienTrenLo = {
+      tong: loDon.length,
+      coTien: coTien.length,
+      caoNhat: loDon.reduce((a, x) => Math.max(a, tien(lay(x, 'total_payment'))), 0),
+      coKH: loDon.filter((x) => chu(lay(x, 'customer.code'))).length,
+      coNgay: loDon.filter((x) => ngay(lay(x, 'created_at_iso', 'created_at'))).length,
+    };
+
     kq.canhBao = [];
     if (!kq.donDocThu.ma) kq.canhBao.push('không đọc được mã đơn');
-    if (!kq.donDocThu.kh) kq.canhBao.push('không đọc được mã KH — mất đường ghép lead với đơn');
-    if (!kq.donDocThu.tien) kq.canhBao.push('tiền đọc ra 0 — kiểm lại tên trường total_payment');
-    if (!kq.donDocThu.ngay) kq.canhBao.push('không đọc được ngày');
+    if (kq.tienTrenLo.coKH < loDon.length) {
+      kq.canhBao.push(`${loDon.length - kq.tienTrenLo.coKH}/${loDon.length} đơn không đọc được mã KH `
+        + '— mất đường ghép lead với đơn');
+    }
+    // Chỉ kêu khi KHÔNG đơn nào trong cả lô có tiền: một đơn 0đ là bình thường,
+    // cả lô 0đ mới là dấu hiệu đọc sai tên trường.
+    if (loDon.length && !kq.tienTrenLo.coTien) {
+      kq.canhBao.push(`cả ${loDon.length} đơn mẫu đều ra 0đ — nhiều khả năng đọc sai trường tiền. `
+        + `Dạng thật của total_payment: ${kq.donDocThu.dangTien}`);
+    }
+    if (kq.tienTrenLo.coNgay < loDon.length) kq.canhBao.push('có đơn không đọc được ngày');
   }
   if (kq.lead.mau) {
     kq.leadDocThu = {
@@ -344,6 +384,9 @@ async function test(conf, from, to) {
     };
   }
   kq.ok = kq.lead.soDong > 0 || kq.don.soDong > 0;
+  // Lô mẫu là dữ liệu thô của khách hàng thật — dùng để đếm xong thì bỏ, không
+  // trả về giao diện.
+  ['lead', 'don', 'khach'].forEach((k) => { if (kq[k]) { delete kq[k].loMau; delete kq[k].mau; } });
   return kq;
 }
 

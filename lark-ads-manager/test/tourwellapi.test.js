@@ -62,6 +62,37 @@ t('object lồng nhau vẫn ra số', t_.tien({ original: { value: '99,000' } })
 /* Chính xác cái ca đã làm hỏng cả cột Tổng tiền ở bản Excel */
 t('CA ĐÃ TỪNG HỎNG: "14,920,000" không được ra 0', t_.tien('14,920,000') === 14920000);
 
+
+/* Dạng thật của trường tiền ở cấp ĐƠN chưa có tài liệu nào mô tả — tài liệu
+ * Tourwell bỏ trống hẳn schema của `Get all order`. Nên phải chịu được nhiều
+ * dạng: đọc sai là cả cột về 0 mà không có lỗi nào. */
+[
+  [{ original: '40,000,000', forex: 0 }, 40000000, 'dạng thấy ở services[].prices'],
+  [{ value: 250000 }, 250000, '{value}'],
+  [{ amount: 1500000, currency: 'VND' }, 1500000, '{amount, currency}'],
+  [{ net: '14,920,000' }, 14920000, 'giá trị là chuỗi'],
+  [{ formatted: '8.000.000 d', raw: 8000000 }, 8000000, '{formatted, raw}'],
+  [{ formatted: '8.000.000 d' }, 8000000, 'chỉ có bản đã định dạng'],
+  [[{ amount: 100000 }, { amount: 200000 }], 300000, 'mảng thì cộng lại'],
+  [{ original: 0, forex: 0 }, 0, 'đơn 0đ THẬT vẫn phải ra 0'],
+  [{}, 0, 'object rỗng'],
+].forEach(([v, ra, ten]) => t(`tiền dạng ${ten}`, t_.tien(v) === ra, String(t_.tien(v))));
+
+/* Không được vớ nhầm id hay mã tiền tệ làm số tiền. */
+t('không lấy nhầm id làm tiền', t_.tien({ id: 99, total: 5000000 }) === 5000000);
+t('không lấy nhầm mã tiền tệ làm tiền', t_.tien({ currency: 12, value: 700000 }) === 700000);
+t('không lấy nhầm tỷ giá', t_.tien({ rate: 25000, value: 300000 }) === 300000);
+
+console.log('— ngày: ưu tiên bản _iso mà Tourwell có sẵn');
+/* Máy chủ thật trả cả `created_at` (03/09/2026 …) lẫn `created_at_iso`. Dùng bản
+ * ISO thì khỏi phải đoán 03/09 là ngày 3 tháng 9 hay ngày 9 tháng 3 — thứ tự
+ * ngày/tháng là nguồn sai âm thầm kinh điển. */
+const apiSrc = require('fs').readFileSync(require.resolve('../sync/tourwellapi.js'), 'utf8');
+t('lead ưu tiên created_at_iso', /created_at_iso/.test(apiSrc));
+t('đơn ưu tiên order_at_iso', /order_at_iso/.test(apiSrc));
+t('vẫn còn đường lui khi không có bản _iso', /'created_at_iso', 'created_at'/.test(apiSrc)
+  || /created_at_iso'\) \|\|/.test(apiSrc));
+
 console.log('— ngày: ba dạng, và phải ra chuỗi YYYY-MM-DD');
 t('DD/MM/YYYY kèm giờ', t_.ngay('23/07/2025 08:13:26') === '2025-07-23');
 t('ISO', t_.ngay('2025-07-23T00:00:00') === '2025-07-23');
