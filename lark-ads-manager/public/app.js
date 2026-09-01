@@ -793,22 +793,36 @@ function alertsHtml(rows) {
 /* ================= TAB: DOANH THU ================= */
 VIEW['doanh-thu'] = async (view) => {
   const d = await api('/api/sales?' + qs());
-  const totalRev = d.byChannel.reduce((s, c) => s + c.revenue, 0);
-  const totalSpend = d.byChannel.reduce((s, c) => s + c.spend, 0);
+  const T = d.tong || {};
   const cols = [
-    { key: 'channel', label: 'Kênh', render: (r) => platTag(r.channel) },
-    { key: 'spend', label: 'Chi tiêu ads', num: true, render: (r) => vnd(r.spend), foot: (rs) => vnd(sum(rs, 'spend')) },
+    { key: 'channel', label: 'Kênh', render: (r) => (r.laQuangCao ? platTag(r.channel)
+      : `<span class="tag">${esc(r.channel || '(chưa gán)')}</span>`) },
+    { key: 'spend', label: 'Chi tiêu ads', num: true, render: (r) => (r.laQuangCao ? vnd(r.spend) : '—'),
+      foot: (rs) => vnd(sum(rs.filter((x) => x.laQuangCao), 'spend')) },
     { key: 'orders', label: 'Đơn đã chốt', num: true, render: (r) => int(r.orders), foot: (rs) => int(sum(rs, 'orders')) },
     { key: 'revenue', label: 'Doanh thu', num: true, render: (r) => `<b>${vnd(r.revenue)}</b>`, foot: (rs) => vnd(sum(rs, 'revenue')) },
-    { key: 'cac', label: 'Chi phí / đơn', num: true, render: (r) => vnd(r.cac) },
-    { key: 'roas', label: 'ROAS', num: true, render: (r) => `<span class="tag ${r.roas >= 3 ? 'good' : r.roas >= 1 ? 'warn' : 'bad'}">${r.roas}×</span>` },
+    { key: 'cac', label: 'Chi phí / đơn', num: true, render: (r) => (r.cac == null ? '—' : vnd(r.cac)) },
+    /* Kênh không phải quảng cáo thì KHÔNG có ROAS. Bản trước hiện '0x' cho dòng
+     * "Khác" — đọc như thể kênh đó hiệu quả bằng không, trong khi thật ra nó
+     * không có chi tiêu quảng cáo nào để mà chia. */
+    { key: 'roas', label: 'ROAS', num: true, render: (r) => (r.roas == null
+      ? '<span class="sub">không từ quảng cáo</span>'
+      : `<span class="tag ${r.roas >= 3 ? 'good' : r.roas >= 1 ? 'warn' : 'bad'}">${r.roas}×</span>`) },
   ];
   view.innerHTML = `
   <div class="kpis" style="grid-template-columns:repeat(4,minmax(0,1fr))">
-    <div class="kpi"><div class="k-label">Doanh thu</div><div class="k-value">${vnd(totalRev)}</div><div class="k-foot">đơn đã chốt</div></div>
-    <div class="kpi"><div class="k-label">Chi tiêu ads</div><div class="k-value">${vnd(totalSpend)}</div><div class="k-foot">cùng khoảng thời gian</div></div>
-    <div class="kpi"><div class="k-label">ROAS</div><div class="k-value">${totalSpend ? (Math.round((totalRev / totalSpend) * 100) / 100) + '×' : '—'}</div><div class="k-foot">doanh thu / chi tiêu</div></div>
-    <div class="kpi"><div class="k-label">Lãi gộp trước COGS</div><div class="k-value" style="color:${totalRev - totalSpend >= 0 ? 'var(--good)' : 'var(--bad)'}">${vnd(totalRev - totalSpend)}</div><div class="k-foot">doanh thu − chi tiêu ads</div></div>
+    <div class="kpi"><div class="k-label">Doanh thu từ quảng cáo</div>
+      <div class="k-value">${vnd(T.dtTuQuangCao || 0)}</div>
+      <div class="k-foot">${int(T.donTuQuangCao || 0)} đơn ghi công được</div></div>
+    <div class="kpi"><div class="k-label">Chi tiêu ads</div>
+      <div class="k-value">${vnd(T.chiQuangCao || 0)}</div>
+      <div class="k-foot">cả kỳ, đủ mọi kênh</div></div>
+    <div class="kpi"><div class="k-label">ROAS</div>
+      <div class="k-value">${T.roas == null ? '—' : T.roas + '×'}</div>
+      <div class="k-foot">chỉ tính phần từ quảng cáo</div></div>
+    <div class="kpi"><div class="k-label">Doanh thu toàn công ty</div>
+      <div class="k-value">${vnd(T.dtCongTy || 0)}</div>
+      <div class="k-foot">${T.tyLeTuQuangCao == null ? '' : (T.tyLeTuQuangCao * 100).toFixed(1) + '% đến từ quảng cáo'}</div></div>
   </div>
   ${!d.rows.length ? `<div class="help" style="margin-top:12px;border-color:var(--warn);color:var(--warn)">
     <b>Bốn ô số trên đọc bảng <i>Báo cáo Sales (theo ngày)</i> của Base, và bảng đó đang rỗng —
@@ -816,7 +830,14 @@ VIEW['doanh-thu'] = async (view) => {
     <br>Cuộn xuống mục <b>ROAS từng quảng cáo</b> — số ở đó lấy từ dữ liệu Tourwell vừa nạp và
     dùng được ngay. Bấm <b>Ghi doanh thu lên Base</b> ở đó thì bốn ô này cũng sống theo,
     và có bản sao lưu lâu dài (kho tạm mất sau mỗi lần deploy, Base thì còn mãi).
-  </div>` : ''}
+  </div>` : `<div class="help" style="margin-top:12px">
+    <b>ROAS ở đây chỉ tính phần doanh thu ghi công được cho quảng cáo</b>
+    (${vnd(T.dtTuQuangCao || 0)}), không lấy cả doanh thu công ty.
+    ${T.dtNgoaiQuangCao ? `Phần còn lại ${vnd(T.dtNgoaiQuangCao)} — ${int(T.donNgoaiQuangCao || 0)} đơn
+      thuộc kênh <b>Khác</b> (lữ hành, khách cũ, gọi trực tiếp…) — nằm ngoài phép đo quảng cáo,
+      nên không được cộng vào tử số.` : ''}
+    ${T.thieuGoogle ? '<br>Google Ads có chi tiêu nhưng chưa ghi công được đơn nào — chi tiêu đó VẪN nằm trong mẫu số, nên ROAS ở đây là sàn dưới.' : ''}
+  </div>`}
   <div class="card" style="margin-top:14px">
     <div class="card-head"><h3>Hiệu quả theo kênh</h3><span class="sub">${dmy(d.from)} → ${dmy(d.to)}</span></div>
     <div class="card-body tight">${table('salesTbl', cols, d.byChannel, { footer: true, empty: 'Bảng Báo cáo Sales chưa có dữ liệu trong khoảng này' })}</div>

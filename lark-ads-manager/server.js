@@ -360,16 +360,52 @@ async function api(req, res, u) {
     const ad = M.filterDaily(data, q).rows;
     const spendByChannel = Object.fromEntries([...M.groupBy(ad, (r) => r.platform)]
       .map(([k, rs]) => [k, rs.reduce((a, b) => a + b.spend, 0)]));
+
+    /* Kênh nào là kênh QUẢNG CÁO. Mọi thứ khác — 'Khác', ô trống, khách lữ hành,
+     * khách cũ — là doanh thu công ty nhưng KHÔNG phải doanh thu từ quảng cáo. */
+    const laQuangCao = (k) => cfg.platforms.includes(String(k || '').trim());
+
+    const tuQC = byChannel.filter((c) => laQuangCao(c.channel));
+    const ngoaiQC = byChannel.filter((c) => !laQuangCao(c.channel));
+
+    /* MẪU SỐ là chi tiêu cả kỳ của MỌI kênh quảng cáo, không phải chỉ những kênh
+     * có đơn. Google Ads tiêu 3,8 triệu mà không có đơn nào; bỏ nó khỏi mẫu số là
+     * tô hồng ROAS. */
+    const chiQC = cfg.platforms.reduce((a, k) => a + (spendByChannel[k] || 0), 0);
+    const dtQC = tuQC.reduce((a, c) => a + c.revenue, 0);
+    const dtNgoaiQC = ngoaiQC.reduce((a, c) => a + c.revenue, 0);
+
     return ok(res, {
       from, to,
       total: rows.length,
       rows: rows.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 300),
-      byChannel: byChannel.map((c) => ({
-        ...c,
-        spend: spendByChannel[c.channel] || 0,
-        roas: spendByChannel[c.channel] > 0 ? Math.round((c.revenue / spendByChannel[c.channel]) * 100) / 100 : 0,
-        cac: c.orders > 0 ? Math.round((spendByChannel[c.channel] || 0) / c.orders) : 0,
-      })).sort((a, b) => b.revenue - a.revenue),
+      /* Bốn con số cho bốn ô ở đầu tab. Tính ở đây, một chỗ duy nhất, để giao diện
+       * không thể tự cộng sai như bản trước. */
+      tong: {
+        dtCongTy: dtQC + dtNgoaiQC,
+        dtTuQuangCao: dtQC,
+        dtNgoaiQuangCao: dtNgoaiQC,
+        donTuQuangCao: tuQC.reduce((a, c) => a + c.orders, 0),
+        donNgoaiQuangCao: ngoaiQC.reduce((a, c) => a + c.orders, 0),
+        chiQuangCao: chiQC,
+        // ROAS chỉ được tính trên phần ghi công cho quảng cáo
+        roas: chiQC > 0 ? Math.round((dtQC / chiQC) * 100) / 100 : null,
+        tyLeTuQuangCao: (dtQC + dtNgoaiQC) > 0 ? dtQC / (dtQC + dtNgoaiQC) : null,
+        thieuGoogle: !tuQC.some((c) => c.channel === 'Google Ads') && (spendByChannel['Google Ads'] || 0) > 0,
+      },
+      byChannel: byChannel.map((c) => {
+        const spend = spendByChannel[c.channel] || 0;
+        const qc = laQuangCao(c.channel);
+        return {
+          ...c,
+          laQuangCao: qc,
+          spend,
+          // Kênh không phải quảng cáo thì KHÔNG có ROAS — null, để giao diện hiện
+          // dấu gạch chứ không hiện '0x' như thể hiệu quả bằng không.
+          roas: qc && spend > 0 ? Math.round((c.revenue / spend) * 100) / 100 : null,
+          cac: qc && c.orders > 0 ? Math.round(spend / c.orders) : null,
+        };
+      }).sort((a, b) => (Number(b.laQuangCao) - Number(a.laQuangCao)) || (b.revenue - a.revenue)),
     });
   }
 
