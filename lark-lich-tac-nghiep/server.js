@@ -393,6 +393,7 @@ async function docCauHinhBao(force) {
         bat: lay(F2.bat) === true,
         nguoiNhan: asText(first(lay(F2.nguoiNhan))) || 'Chỉ phụ trách',
         moTa: asText(lay(F2.moTa)),
+        mau: asText(lay(F2.mau)),
       };
     }).filter((x) => x.suKien);
     demCauHinh.at = Date.now();
@@ -419,23 +420,52 @@ async function luatBao(trangThaiMoi) {
   if (!ds) return macDinh;
   const d = ds.find((x) => x.suKien === ten);
   if (!d) return macDinh;
-  return { bat: d.bat, caNhom: /cả nhóm/i.test(d.nguoiNhan) };
+  return { bat: d.bat, caNhom: /cả nhóm/i.test(d.nguoiNhan), mau: d.mau || '' };
 }
 
-/** Ghép nội dung tin nhắn — đọc là hiểu, không cần mở app mới biết chuyện gì. */
-function soanTinLich(item, trangThaiMoi, lyDo) {
+/**
+ * Chỗ điền động trong mẫu tin. Quản lý gõ {ten} thì app thay bằng tên hoạt động.
+ * Giữ danh sách này ở một chỗ để màn hình cấu hình liệt kê đúng những gì dùng được.
+ */
+const CHO_DIEN = {
+  ten: (t) => t.title || '(chưa đặt tên)',
+  gio: (t) => (t.start ? gioVN(new Date(t.start)) : 'chưa đặt'),
+  phutrach: (t) => ((t.owner || [])[0] || {}).name || '(chưa có)',
+  phuongtien: (t) => (t.transport || []).join(', ') || '(chưa chọn)',
+  thoiluong: (t) => (t.duration ? t.duration + ' giờ' : '(chưa đặt)'),
+};
+
+/** Thay các {cho_dien} trong mẫu. Chỗ nào không biết thì để nguyên, đừng xoá mất. */
+function dienMau(mau, item, lyDo) {
+  return String(mau).replace(/\{(\w+)\}/g, (nguyen, khoa) => {
+    if (khoa === 'lydo') return lyDo || '';
+    if (khoa === 'link') return cfg.hubUrl || '';
+    const f = CHO_DIEN[khoa];
+    return f ? f(item) : nguyen;
+  }).replace(/\n{3,}/g, '\n\n').trim();
+}
+
+/** Mẫu sẵn của một loại tin — hiện lên màn hình cấu hình làm điểm khởi đầu. */
+function mauMacDinh(trangThaiMoi) {
+  const m = BAO_LARK[trangThaiMoi];
+  if (!m) return '';
+  return [m.tieu, '', 'Hoạt động: {ten}', 'Thời gian: {gio}',
+    'Phản hồi của quản lý: {lydo}', '', m.nhac, '{link}'].join('\n');
+}
+
+/**
+ * Ghép nội dung tin nhắn — đọc là hiểu, không cần mở app mới biết chuyện gì.
+ * Có mẫu riêng thì dùng mẫu; không thì dùng mẫu sẵn. Cùng một đường đi để mẫu
+ * riêng và mẫu sẵn không bao giờ lệch cách xử lý.
+ */
+function soanTinLich(item, trangThaiMoi, lyDo, mauRieng) {
   const m = BAO_LARK[trangThaiMoi];
   if (!m) return null;
-  const dong = [
-    m.tieu,
-    '',
-    'Hoạt động: ' + (item.title || '(chưa đặt tên)'),
-    'Thời gian: ' + (item.start ? gioVN(new Date(item.start)) : 'chưa đặt'),
-  ];
-  if (lyDo) dong.push('Phản hồi của quản lý: ' + lyDo);
-  dong.push('', m.nhac);
-  if (cfg.hubUrl) dong.push(cfg.hubUrl);
-  return dong.join('\n');
+  const mau = String(mauRieng || '').trim() || mauMacDinh(trangThaiMoi);
+  /* Không có lý do thì xoá luôn cả dòng chứa {lydo}, chứ không để lại một dòng
+   * "Phản hồi của quản lý:" trống trơn. */
+  const sach = lyDo ? mau : mau.split('\n').filter((d) => !/\{lydo\}/.test(d)).join('\n');
+  return dienMau(sach, item, lyDo);
 }
 
 /**
@@ -458,7 +488,7 @@ function nguoiNhanTin(item, trangThaiMoi, caNhom) {
 async function baoVaoLark(item, trangThaiMoi, lyDo) {
   const luat = await luatBao(trangThaiMoi);
   if (!luat || !luat.bat) return;              // quản lý đã tắt loại tin này
-  const noi = soanTinLich(item, trangThaiMoi, lyDo);
+  const noi = soanTinLich(item, trangThaiMoi, lyDo, luat.mau);
   if (!noi || typeof lark.guiTinNhan !== 'function') return;
   for (const id of nguoiNhanTin(item, trangThaiMoi, luat.caNhom)) {
     try {
@@ -734,9 +764,31 @@ async function api(req, res, url) {
   if (p === '/api/cau-hinh-bao' && req.method === 'GET') {
     if (!(await requireManager(res))) return;
     const ds = await docCauHinhBao(url.searchParams.get('refresh') === '1');
+    /* Kèm cả GIẢI THÍCH và XEM TRƯỚC. Màn hình chỉ có công tắc thì quản lý không
+     * hiểu được loại tin nào bắn lúc nào, và không biết mình vừa sửa ra cái gì. */
+    const nguoc = {};
+    for (const [tt, ten] of Object.entries(cfg.cauHinhMap)) nguoc[ten] = tt;
+    const mau = {
+      title: 'Livestream show Tiên Cá — Vinwonders',
+      start: new Date(Date.now() + 2 * 86400000).toISOString(),
+      duration: '5', transport: ['Taxi'],
+      owner: [{ id: 'x', name: 'Danh Minh Trường' }], staff: [],
+    };
     return json(res, {
-      items: ds || [],
+      items: (ds || []).map((x) => {
+        const tt = nguoc[x.suKien];
+        const gt = (cfg.giaiThichBao || {})[x.suKien] || {};
+        return Object.assign({}, x, {
+          trangThai: tt || '',
+          banKhi: gt.khi || '',
+          khongBan: gt.khong || '',
+          mauMacDinh: tt ? mauMacDinh(tt) : '',
+          xemTruoc: tt ? soanTinLich(mau, tt, 'Trùng lịch với đoàn khách Hàn — dời sang 03/09', x.mau) : '',
+        });
+      }),
       docDuoc: !!ds,
+      choDien: Object.keys(CHO_DIEN).concat(['lydo', 'link']),
+      coHubUrl: !!cfg.hubUrl,
       larkUrl: cfg.larkUrl.replace(/table=[^&]*/, 'table=' + cfg.cauHinhTableId),
     });
   }
@@ -749,6 +801,8 @@ async function api(req, res, url) {
     const cells = {};
     if (typeof body.bat === 'boolean') cells[F2.bat] = body.bat;
     if (body.nguoiNhan) cells[F2.nguoiNhan] = String(body.nguoiNhan);
+    // gửi mẫu rỗng = quay về mẫu sẵn, nên phải nhận cả chuỗi trống
+    if (body.mau !== undefined) cells[F2.mau] = String(body.mau || '');
     if (!Object.keys(cells).length) return json(res, { error: 'Không có gì để đổi' }, 400);
     await lark.updateRecord(body.id, cells, cfg.cauHinhTableId);
     demCauHinh.at = 0;                       // buộc đọc lại ngay lần sau

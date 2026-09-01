@@ -414,6 +414,40 @@ async function call(path, opts) {
     }
   }
 
+  /* ---------- mẫu nội dung tin Lark ---------- */
+  group('11. Mẫu nội dung tin (không ghi gì)');
+  {
+    const G = require('../server.js');
+    const it = {
+      title: 'Quay clip Hòn Thơm', start: '2026-09-03T01:00:00.000Z', duration: '4',
+      transport: ['Xe máy'], owner: [{ id: 'x', name: 'Danh Minh Trường' }], staff: [],
+    };
+    const san = G.soanTinLich(it, 'Duyệt/Chờ tác nghiệp', '');
+    ok('mẫu sẵn điền được tên hoạt động', /Quay clip Hòn Thơm/.test(san));
+    ok('giờ trong tin là giờ Việt Nam', /08:00/.test(san), san);
+
+    // Không có lý do thì bỏ HẲN cả dòng, chứ không để lại nhãn trống lơ lửng
+    ok('không có lý do thì bỏ luôn dòng {lydo}', !/Phản hồi của quản lý/.test(san), san);
+    ok('có lý do thì dòng {lydo} hiện lại',
+      /Phản hồi của quản lý: Trùng đoàn/.test(G.soanTinLich(it, 'Từ chối', 'Trùng đoàn')));
+
+    const mau = 'Từ chối: {ten}\nLý do: {lydo}\nPhụ trách: {phutrach} — {phuongtien}';
+    const rieng = G.soanTinLich(it, 'Từ chối', '', mau);
+    ok('mẫu riêng thay được {phutrach}', /Danh Minh Trường/.test(rieng), rieng);
+    ok('mẫu riêng thay được {phuongtien}', /Xe máy/.test(rieng), rieng);
+    ok('mẫu riêng cũng bị bỏ dòng {lydo} khi không có lý do', !/Lý do:/.test(rieng), rieng);
+
+    /* Chỗ điền viết sai thì GIỮ NGUYÊN chữ, không xoá mất — người soạn nhìn tin
+     * là biết mình gõ sai, còn xoá âm thầm thì họ tưởng app hỏng. */
+    ok('chỗ điền lạ thì giữ nguyên',
+      /\{khongbiet\}/.test(G.soanTinLich(it, 'Hủy lịch', '', '{ten} {khongbiet}')));
+
+    ok('mẫu chỉ có khoảng trắng thì quay về mẫu sẵn',
+      G.soanTinLich(it, 'Từ chối', '', '   \n  ') === G.soanTinLich(it, 'Từ chối', ''));
+    ok('trạng thái không có tin thì không soạn gì',
+      G.soanTinLich(it, 'Đang lên kế hoạch', '') === null);
+  }
+
   /* ---------- tổng kết ---------- */
   console.log('\n' + '─'.repeat(52));
   console.log('  ' + pass + ' pass · ' + fail + ' fail');

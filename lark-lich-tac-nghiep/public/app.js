@@ -2383,9 +2383,12 @@ async function moCauHinhBao() {
 
 function veCauHinhBao(d) {
   const ds = d.items || [];
+  S.chBao = d;                             // giữ lại để vẽ lại khi mở/thu một dòng
+
   const dong = (x) => {
     const caNhom = /cả nhóm/i.test(x.nguoiNhan);
-    return '<div class="ch-o">' +
+    const moRong = S.chMo === x.id;
+    return '<div class="ch-o' + (x.bat ? '' : ' tat') + '">' +
       '<div class="ch-tren">' +
         '<label class="chk"><input type="checkbox" data-chbat="' + esc(x.id) + '"' +
           (x.bat ? ' checked' : '') + '><span>' + esc(x.suKien) + '</span></label>' +
@@ -2395,14 +2398,31 @@ function veCauHinhBao(d) {
           '<button class="ch-ai' + (caNhom ? ' on' : '') + '" data-chai="' + esc(x.id) +
             '" data-gt="Cả nhóm cùng đi">Cả nhóm cùng đi</button>' +
         '</div>' +
+        '<button class="ch-mo-nut" data-chmo="' + esc(x.id) + '">' +
+          (moRong ? 'Thu lại' : 'Sửa nội dung') + '</button>' +
       '</div>' +
-      (x.moTa ? '<div class="ch-mo">' + esc(x.moTa) + '</div>' : '') +
+
+      /* KHI NÀO BẮN — phần quan trọng nhất mà màn hình cũ thiếu. Chỉ có công tắc
+       * thì quản lý phải đoán hoặc phải đi hỏi mới biết loại tin nào chạy lúc nào. */
+      '<div class="ch-khi">' +
+        (x.banKhi ? '<div class="ch-d"><span class="ch-nhan on">Bắn khi</span><span>' +
+          esc(x.banKhi) + '</span></div>' : '') +
+        (x.khongBan ? '<div class="ch-d"><span class="ch-nhan">Không bắn</span><span>' +
+          esc(x.khongBan) + '</span></div>' : '') +
+        '<div class="ch-d"><span class="ch-nhan">Gửi cho</span><span>' +
+          (caNhom ? 'Người phụ trách và mọi nhân sự cùng đi'
+                  : 'Chỉ người phụ trách của lịch đó') + '</span></div>' +
+      '</div>' +
+
+      (moRong ? oSoanTin(x, d)
+              : '<div class="ch-xt-gon">Tin gửi đi: “' +
+                  esc((x.xemTruoc || '').split('\n').filter(Boolean)[0] || '') + '…”</div>') +
       '</div>';
   };
 
   $('#mdBody').innerHTML =
-    '<div class="banner info">Tắt loại nào thì app thôi gửi tin Lark cho loại đó. ' +
-      'Mấy kênh trong app (số đỏ, chuông, thẻ đỏ) vẫn chạy như thường.</div>' +
+    '<div class="banner info">Tắt loại nào thì app thôi gửi <b>tin Lark</b> cho loại đó. ' +
+      'Bốn kênh trong app — số đỏ ở panel, chuông, băng cảnh báo, thẻ đỏ — vẫn chạy như thường.</div>' +
     (d.docDuoc ? '' : '<div class="banner" style="background:var(--red-bg);color:var(--red-t)">' +
       'Không đọc được bảng cấu hình — app đang tạm gửi theo nếp mặc định.</div>') +
     /* data-no-i18n: tên dòng ở đây là DỮ LIỆU đọc từ Base, mà mấy tên đó lại
@@ -2412,6 +2432,35 @@ function veCauHinhBao(d) {
       : '<div class="mini muted">Bảng cấu hình chưa có dòng nào.</div>') + '</div>' +
     '<div class="hint" style="margin-top:12px">Cấu hình lưu trên Base, sửa thẳng trong ' +
       '<a href="' + esc(d.larkUrl || '#') + '" target="_blank" rel="noreferrer">bảng Cấu hình thông báo</a> cũng được.</div>';
+}
+
+/** Ô soạn nội dung tin: mẫu sửa được, chỗ điền bấm là chèn, xem trước ngay dưới. */
+function oSoanTin(x, d) {
+  const dangDung = String(x.mau || '').trim();
+  return '<div class="ch-soan">' +
+    '<div class="ch-lb">Nội dung tin ' +
+      (dangDung ? '<span class="ch-tag">mẫu riêng của anh</span>'
+                : '<span class="ch-tag mo">đang dùng mẫu sẵn</span>') + '</div>' +
+    '<textarea class="fld ch-ta" data-chmau="' + esc(x.id) + '" rows="8" spellcheck="false" ' +
+      'placeholder="' + esc(x.mauMacDinh || '') + '">' + esc(dangDung) + '</textarea>' +
+    '<div class="hint">Để trống là dùng mẫu sẵn (chữ mờ ở trên chính là mẫu sẵn).</div>' +
+    '<div class="ch-chodien"><span class="ch-nhan">Chỗ điền</span>' +
+      (d.choDien || []).map((k) => '<button class="ch-k" data-chchen="' + esc(x.id) +
+        '" data-k="' + esc(k) + '">{' + esc(k) + '}</button>').join('') +
+      '</div>' +
+    '<div class="hint">Bấm một chỗ điền để chèn vào vị trí con trỏ. Khi gửi, app thay ' +
+      'bằng dữ liệu thật của lịch đó. Dòng nào có {lydo} mà lần đó không có lý do thì ' +
+      'app bỏ luôn cả dòng, không để lại dòng trống.' +
+      (d.coHubUrl ? '' : ' Chưa đặt biến HUB_URL trên Render nên {link} sẽ ra rỗng.') + '</div>' +
+    '<div class="ch-nut">' +
+      '<button class="btn sm primary" data-chluu="' + esc(x.id) + '">Lưu nội dung</button>' +
+      (dangDung ? '<button class="btn sm" data-chreset="' + esc(x.id) + '">Về mẫu sẵn</button>' : '') +
+    '</div>' +
+    '<div class="ch-lb">Xem trước — dựng bằng một lịch mẫu</div>' +
+    '<pre class="ch-xt">' + esc(x.xemTruoc || '(chưa có)') + '</pre>' +
+    '<div class="hint">Xem trước lấy theo bản đã lưu. Sửa xong bấm Lưu nội dung để ' +
+      'thấy tin mới.</div>' +
+    '</div>';
 }
 
 async function luuCauHinhBao(id, patch) {
@@ -2664,6 +2713,42 @@ document.addEventListener('click', async (e) => {
   if (T.closest('#moCauHinhBao')) { await moCauHinhBao(); return; }
   const chAi = T.closest('[data-chai]');
   if (chAi) { await luuCauHinhBao(chAi.dataset.chai, { nguoiNhan: chAi.dataset.gt }); return; }
+
+  const chMo = T.closest('[data-chmo]');
+  if (chMo) {
+    S.chMo = S.chMo === chMo.dataset.chmo ? '' : chMo.dataset.chmo;
+    veCauHinhBao(S.chBao);
+    return;
+  }
+
+  // chèn chỗ điền vào đúng vị trí con trỏ, khỏi phải gõ tay dấu ngoặc
+  const chChen = T.closest('[data-chchen]');
+  if (chChen) {
+    const ta = $('.ch-ta[data-chmau="' + chChen.dataset.chchen + '"]');
+    if (ta) {
+      const k = '{' + chChen.dataset.k + '}';
+      const i = ta.selectionStart == null ? ta.value.length : ta.selectionStart;
+      const j = ta.selectionEnd == null ? i : ta.selectionEnd;
+      ta.value = ta.value.slice(0, i) + k + ta.value.slice(j);
+      ta.focus();
+      ta.selectionStart = ta.selectionEnd = i + k.length;
+    }
+    return;
+  }
+
+  const chLuu = T.closest('[data-chluu]');
+  if (chLuu) {
+    const ta = $('.ch-ta[data-chmau="' + chLuu.dataset.chluu + '"]');
+    await luuCauHinhBao(chLuu.dataset.chluu, { mau: ta ? ta.value : '' });
+    return;
+  }
+
+  const chReset = T.closest('[data-chreset]');
+  if (chReset) {
+    if (!confirm('Bỏ mẫu riêng, quay về mẫu sẵn của app?')) return;
+    await luuCauHinhBao(chReset.dataset.chreset, { mau: '' });
+    return;
+  }
 
   if (T.closest('#btnQuyen')) { await openQuyen(); return; }     // trước chipUser
   if (T.closest('#chipUser')) { openRoleSwitch(); return; }

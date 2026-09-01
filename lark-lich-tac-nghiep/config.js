@@ -65,6 +65,29 @@ module.exports = {
     bat: 'Bật gửi Lark',
     nguoiNhan: 'Người nhận',
     moTa: 'Mô tả',
+    mau: 'Nội dung tin',
+  },
+
+  /* Giải thích LUỒNG cho từng loại tin, hiện ngay trên màn hình cấu hình.
+   * Cố ý khai trong mã chứ không để trên Base: đây là mô tả CÁCH APP CHẠY, không
+   * phải thiết lập. Để trên Base thì sửa mã xong quên sửa mô tả là nó nói dối. */
+  giaiThichBao: {
+    'Lịch được duyệt': {
+      khi: 'Ngay khi quản lý bấm Duyệt kế hoạch ở hàng đợi Chờ duyệt, hoặc đổi trạng thái sang Duyệt/Chờ tác nghiệp.',
+      khong: 'Không bắn lại khi quản lý sửa nội dung của lịch đã duyệt — cái đó là loại tin khác (chưa mở).',
+    },
+    'Lịch bị trả về': {
+      khi: 'Khi quản lý bấm Cần chỉnh. Hệ thống buộc ghi lý do trước, nên tin luôn có lý do.',
+      khong: 'Không bắn khi nhân sự tự sửa rồi gửi duyệt lại.',
+    },
+    'Lịch bị từ chối': {
+      khi: 'Khi quản lý bấm Từ chối. Cũng buộc ghi lý do.',
+      khong: 'Khác với Cần chỉnh: từ chối là đóng hẳn, nhân sự không sửa gửi lại được.',
+    },
+    'Lịch bị huỷ': {
+      khi: 'Khi quản lý bấm Hủy lịch, hoặc duyệt một yêu cầu xin huỷ của nhân sự.',
+      khong: 'Không bắn khi nhân sự tự huỷ bản nháp của chính họ — chưa ai nhìn tới thì không cần báo ai.',
+    },
   },
 
   /* Nối tên dòng trong bảng cấu hình với trạng thái thật của lịch. */

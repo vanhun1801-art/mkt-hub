@@ -1238,3 +1238,62 @@ a.phieu-f:hover { border-color: var(--primary); background: var(--blue-bg); }
 .ch-ai.on {
   background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 600;
 }
+
+/* Dòng tắt vẫn phải đọc được: làm nhạt cả ô, đừng chỉ bỏ dấu tích — nhìn một
+   phát là biết loại nào đang im. */
+.ch-o.tat { background: var(--surface-2); }
+.ch-o.tat .ch-khi, .ch-o.tat .ch-xt-gon { opacity: .55; }
+
+.ch-mo-nut {
+  font: inherit; font-size: 11.5px; cursor: pointer; padding: 4px 11px;
+  border: 1px solid var(--line); border-radius: var(--r);
+  background: var(--surface); color: var(--t2); flex: 0 0 auto;
+}
+.ch-mo-nut:hover { color: var(--primary); border-color: var(--primary); }
+
+/* Khi nào bắn / khi nào không — nhãn cố định bên trái, chữ giải thích bên phải */
+.ch-khi { margin-top: 9px; display: flex; flex-direction: column; gap: 5px; }
+.ch-d { display: flex; gap: 8px; font-size: 12px; color: var(--t2); line-height: 1.5; }
+.ch-nhan {
+  flex: 0 0 74px; font-size: 10.5px; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--t3); padding-top: 1px;
+}
+.ch-nhan.on { color: var(--green-t); }
+
+.ch-xt-gon {
+  margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line);
+  font-size: 12px; color: var(--t3); overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ch-soan {
+  margin-top: 10px; padding-top: 11px; border-top: 1px solid var(--line);
+  display: flex; flex-direction: column; gap: 7px;
+}
+.ch-lb {
+  font-size: 10.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--t3);
+  display: flex; align-items: center; gap: 7px;
+}
+.ch-tag {
+  text-transform: none; letter-spacing: 0; font-size: 10.5px; padding: 1px 7px;
+  border-radius: 99px; background: var(--primary); color: #fff;
+}
+.ch-tag.mo { background: var(--surface-2); color: var(--t3); border: 1px solid var(--line); }
+.ch-ta {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 12.5px;
+  line-height: 1.55; resize: vertical;
+}
+.ch-chodien { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.ch-k {
+  font-family: ui-monospace, Consolas, monospace; font-size: 11.5px; cursor: pointer;
+  padding: 2px 8px; border-radius: 99px; border: 1px dashed var(--line);
+  background: var(--surface-2); color: var(--t2);
+}
+.ch-k:hover { border-style: solid; border-color: var(--primary); color: var(--primary); }
+.ch-nut { display: flex; gap: 7px; }
+.ch-xt {
+  margin: 0; padding: 11px 13px; border-radius: 9px; background: var(--surface-2);
+  border: 1px solid var(--line); font-size: 12.5px; line-height: 1.6; color: var(--t1);
+  white-space: pre-wrap; word-break: break-word;
+  font-family: inherit;              /* đây là TIN NHẮN, không phải mã — đọc như tin */
+}
