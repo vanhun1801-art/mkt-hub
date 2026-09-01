@@ -149,6 +149,22 @@ const NGAY = 86400000;
 
   group('6. So token');
   {
+    /* Nhận cả ba dạng chìa: mỗi nền tảng gửi một kiểu, mà người khai cấu hình
+     * không có cách nào biết nền tảng của mình thuộc kiểu nào. Coze gửi nguyên
+     * giá trị ô "Service token" thành header Authorization, nên nếu chỉ nhận
+     * "Bearer <chia>" thì họ mất một lượt thử chỉ để biết có phải gõ chữ đó. */
+    const doc = (h, q) => bot.chiaNguoiGoi(
+      { headers: h ? { authorization: h } : {} },
+      new URL('http://x/bot/lich' + (q || ''))
+    );
+    ok('dạng chuẩn Bearer <chìa>', doc('Bearer abc123') === 'abc123');
+    ok('Bearer viết thường cũng nhận', doc('bearer abc123') === 'abc123');
+    ok('chìa trần không có Bearer', doc('abc123') === 'abc123', doc('abc123'));
+    ok('khoảng trắng đầu cuối bị cắt', doc('  abc123  ') === 'abc123');
+    ok('?token= dùng được khi thử bằng trình duyệt',
+      doc('', '?token=abc123') === 'abc123');
+    ok('không đưa gì thì rỗng', doc('') === '');
+
     ok('khác độ dài thì khác', !bot.bangNhau('abc', 'abcd'));
     ok('giống thì bằng', bot.bangNhau('abcdef', 'abcdef'));
     ok('lệch một ký tự thì khác', !bot.bangNhau('abcdef', 'abcdeg'));

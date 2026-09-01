@@ -382,12 +382,28 @@ function bangNhau(a, b) {
   for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return r === 0;
 }
+/**
+ * Lấy chìa người gọi đưa. Nhận cả ba dạng, vì mỗi nền tảng làm một kiểu và người
+ * khai cấu hình không có cách nào biết nền tảng của mình thuộc kiểu nào:
+ *
+ *   Authorization: Bearer <chia>     dạng chuẩn
+ *   Authorization: <chia>            Coze và nhiều nơi khác gửi nguyên giá trị
+ *   ?token=<chia>                    cho lúc thử bằng trình duyệt
+ *
+ * Nhận thêm dạng thứ hai KHÔNG làm yếu gì: vẫn đúng một bí mật đó, vẫn so bằng
+ * thời gian không đổi. Đổi lại là người khai cấu hình khỏi phải đoán, và khỏi mất
+ * một lượt thử chỉ để biết nên gõ chữ "Bearer" hay không.
+ */
+function chiaNguoiGoi(req, u) {
+  const h = String(req.headers.authorization || '').trim();
+  if (h) return h.replace(/^Bearer\s+/i, '').trim();
+  return String(u.searchParams.get('token') || '').trim();
+}
+
 function coQuyen(req, u) {
   const that = tokenThat();
   if (!that) return false;
-  const h = String(req.headers.authorization || '');
-  const dua = /^Bearer\s+(.+)$/i.exec(h) ? /^Bearer\s+(.+)$/i.exec(h)[1].trim()
-    : String(u.searchParams.get('token') || '').trim();
+  const dua = chiaNguoiGoi(req, u);
   return !!dua && bangNhau(dua, that);
 }
 
@@ -577,5 +593,6 @@ module.exports = {
   xuLy, dangBat, CONG_CU, NGUOI_BOT, TU_KHOA,
   // để test gọi trực tiếp
   khoang, khongDau, khopTen, ngayVN, gioVN, thuVN, dauNgayVN, openapi, bangNhau, gon,
+  chiaNguoiGoi,
   TOI_THIEU_TOKEN,
 };
