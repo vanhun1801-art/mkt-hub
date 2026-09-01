@@ -15,8 +15,24 @@ const http = require('http');
 
 /* Những đường vốn dĩ lâu vì phải gọi nhiều API bên ngoài rồi mới trả lời được.
  * Cắt chúng ở 30 giây thì người dùng nhận "Module không trả lời trong 30s" —
- * đọc như thể module chết, trong khi nó vẫn đang chạy bình thường. */
-const VIEC_LAU = /\/api\/(roas\/tinh|pancake-pos\/ghep|pancake\/phu|sync|import-csv)\b/;
+ * đọc như thể module chết, trong khi nó vẫn đang chạy bình thường.
+ *
+ * THÊM ĐƯỜNG MỚI NÀO GỌI API NGOÀI THÌ PHẢI THÊM VÀO ĐÂY. Đã quên một lần: hai
+ * đường Tourwell viết sau danh sách này nên vẫn bị cắt ở 30 giây, và người dùng
+ * lại nhận đúng câu "module không trả lời" mà tôi vừa đi sửa.
+ *
+ * Cố ý KHÔNG nới cho những đường nhanh (PUT /api/tourwell chỉ ghi một file):
+ * nới hết thì lỗi thật cũng phải chờ 4 phút mới lộ ra. */
+const VIEC_LAU_DS = [
+  'roas/tinh',        // đọc cả Base + đơn POS + hội thoại rồi mới tính
+  'roas/keo-api',     // kéo lead + đơn + khách từ Tourwell, hàng trăm lời gọi
+  'tourwell/test',    // gọi 3 endpoint, mỗi lượt giãn hơn 1 giây cho đủ 60/phút
+  'pancake-pos/ghep',
+  'pancake/phu',
+  'sync',
+  'import-csv',
+];
+const VIEC_LAU = new RegExp('/api/(' + VIEC_LAU_DS.join('|') + ')' + String.fromCharCode(92) + 'b');
 const cfg = require('./config');
 
 const HTML_RE = /^text\/html/i;

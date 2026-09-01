@@ -26,11 +26,13 @@ const t = (n, c, x = '') => {
 const src = fs.readFileSync(path.join(__dirname, '..', 'proxy.js'), 'utf8');
 const cfg = require('../config');
 
-/* Lấy đúng biểu thức đang dùng trong proxy.js thay vì chép lại một bản ở đây.
- * Chép lại thì hai bên trôi xa nhau mà test vẫn xanh. */
-const m = src.match(/const VIEC_LAU = (\/.+\/);/);
-t('proxy.js có khai VIEC_LAU', !!m);
-const VIEC_LAU = m ? eval(m[1]) : /$^/;   // eslint-disable-line no-eval
+/* Dựng lại biểu thức từ CHÍNH danh sách trong proxy.js, không chép lại một bản ở
+ * đây — chép lại thì hai bên trôi xa nhau mà test vẫn xanh. */
+const mDs = src.match(/const VIEC_LAU_DS = (\[[\s\S]*?\]);/);
+t('proxy.js có khai VIEC_LAU_DS', !!mDs);
+const DS = mDs ? eval(mDs[1]) : [];                      // eslint-disable-line no-eval
+const VIEC_LAU = new RegExp('/api/(' + DS.join('|') + ')' + String.fromCharCode(92) + 'b');
+t('VIEC_LAU dựng từ danh sách đó', src.includes('VIEC_LAU_DS.join'));
 
 console.log('— những đường vốn dĩ lâu phải được nới giờ');
 [
@@ -39,6 +41,11 @@ console.log('— những đường vốn dĩ lâu phải được nới giờ');
   ['/api/pancake/phu', 'đếm phủ 14 ngày'],
   ['/api/sync', 'đồng bộ chi tiêu mọi kênh'],
   ['/api/import-csv', 'nhập CSV rồi ghi hàng loạt'],
+  /* Hai đường này viết SAU danh sách nên đã bị bỏ sót một lần: người dùng bấm
+   * "Kiểm tra kết nối" và nhận đúng câu "module không trả lời trong 30s" mà bản
+   * vá trước đó vừa đi sửa. */
+  ['/api/tourwell/test', 'thử Tourwell: 3 endpoint, mỗi lượt giãn hơn 1 giây'],
+  ['/api/roas/keo-api', 'kéo lead + đơn + khách từ Tourwell, hàng trăm lời gọi'],
 ].forEach(([p, vi]) => t(`${p} — ${vi}`, VIEC_LAU.test(p)));
 
 t('có tham số đuôi vẫn nhận', VIEC_LAU.test('/api/sync?days=14'));
@@ -51,6 +58,7 @@ console.log('— đường thường KHÔNG được nới, kẻo lỗi thật b
   '/api/meta',
   '/api/roas/trang-thai',   // chỉ đọc trạng thái, nhanh
   '/api/roas/xoa',
+  '/api/tourwell',          // chỉ ghi một file, phải nhanh
 ].forEach((p) => t(`${p} giữ mốc thường`, !VIEC_LAU.test(p), p));
 
 console.log('— các mốc thời gian');
@@ -67,6 +75,7 @@ console.log('— ba nhánh trong proxy.js còn nguyên');
 t('tải tệp vẫn 5 phút', /upload\|attachment.*\n?.*300000/.test(src) || src.includes('300000'));
 t('luồng su-kien vẫn không giới hạn', /su-kien\\b\/\.test\(duongDan \|\| ''\) \? 0/.test(src));
 t('nhánh việc lâu dùng cfg.goiLauMs', src.includes('cfg.goiLauMs'));
+t('mọi đường trong danh sách đều khớp được', DS.every((x) => VIEC_LAU.test('/api/' + x)));
 t('nhánh còn lại vẫn dùng cfg.goiTimeoutMs', src.includes('cfg.goiTimeoutMs'));
 
 console.log(`\n${pass} pass · ${fail} fail`);
