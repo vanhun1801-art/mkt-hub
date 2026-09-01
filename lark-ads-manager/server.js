@@ -21,6 +21,7 @@ const gads = require('./sync/gads');
 const pancake = require('./sync/pancake');
 const pancakePos = require('./sync/pancakepos');
 const tourwell = require('./sync/tourwell');
+const tourwellApi = require('./sync/tourwellapi');
 const roasTinh = require('./sync/roas');
 
 const T = cfg.tables;
@@ -555,8 +556,10 @@ async function api(req, res, u) {
     return ok(res, {
       coDuLieu: !!k,
       luc: k ? k.luc : null,
-      lead: k ? k.lead.tomTat : null,
-      don: k ? k.don.tomTat : null,
+      lead: k && k.lead ? k.lead.tomTat : null,
+      don: k && k.don ? k.don.tomTat : null,
+      tuApi: !!(k && k.tuApi),
+      khoang: (k && k.khoang) || null,
       oDiaTam: !!process.env.RENDER,
     });
   }
@@ -605,6 +608,71 @@ async function api(req, res, u) {
   if (p === '/api/roas/xoa' && method === 'POST') {
     try { fs.unlinkSync(KHO_TW); } catch (_) {}
     return ok(res, { da: true });
+  }
+
+  /** Lưu cấu hình Tourwell API. Ô token để trống = giữ token cũ. */
+  if (p === '/api/tourwell' && method === 'PUT') {
+    const body = await readBody(req);
+    try { return ok(res, ketnoi.writeTourwell(body)); }
+    catch (e) { return fail(res, 400, e.message); }
+  }
+
+  /**
+   * Thử kết nối. In ra ĐÚNG những khoá thật sự nhận được, không in theo tài liệu:
+   * riêng `Get all order` tài liệu bỏ trống hẳn phần schema, nên chỉ nhìn dữ liệu
+   * thật mới biết mình đọc đúng trường hay không.
+   */
+  if (p === '/api/tourwell/test' && method === 'POST') {
+    const body = await readBody(req);
+    const conf = ketnoi.read().tourwell;
+    const ngayVN = (lui = 0) => new Date(Date.now() + 7 * 3600 * 1000 - lui * 86400 * 1000)
+      .toISOString().slice(0, 10);
+    try {
+      return ok(res, await tourwellApi.test(conf, body.from || ngayVN(14), body.to || ngayVN(0)));
+    } catch (e) { return fail(res, 400, e.message); }
+  }
+
+  /**
+   * Kéo lead + đơn từ Tourwell API vào ĐÚNG cái kho mà bản nhập Excel vẫn ghi.
+   * Nhờ vậy phần tính ROAS phía sau không phải biết dữ liệu đến từ đường nào, và
+   * bản Excel vẫn dùng được nguyên vẹn làm đường lui khi API trục trặc.
+   */
+  if (p === '/api/roas/keo-api' && method === 'POST') {
+    const body = await readBody(req);
+    const conf = ketnoi.read().tourwell;
+    if (!conf || !conf.enabled) return fail(res, 400, 'Tourwell API chưa bật');
+    const ngayVN = (lui = 0) => new Date(Date.now() + 7 * 3600 * 1000 - lui * 86400 * 1000)
+      .toISOString().slice(0, 10);
+    const from = body.from || ngayVN(60);
+    const to = body.to || ngayVN(0);
+    const log = [];
+    try {
+      /* Số điện thoại lấy riêng: bản lead của Tourwell KHÔNG kèm số, chỉ có mã KH.
+       * Thiếu bước này thì mất đường ghép dự phòng theo số điện thoại — đường khoá
+       * cứng (mã lead) vẫn chạy, nên hỏng ở đây không được làm hỏng cả lượt kéo. */
+      let sdtTheoKH = null;
+      try { sdtTheoKH = await tourwellApi.banDoSdt(conf, (m) => log.push(m)); }
+      catch (e) { log.push('  ! không lấy được số điện thoại: ' + e.message); }
+
+      const lead = await tourwellApi.docLead(conf, from, to, (m) => log.push(m), sdtTheoKH);
+      const don = await tourwellApi.docDon(conf, from, to, (m) => log.push(m));
+
+      const moi = {
+        luc: new Date().toISOString(),
+        tuApi: true,
+        khoang: [from, to],
+        lead: { tomTat: tourwell.tomTat('lead', lead.rows), rows: lead.rows },
+        don: { tomTat: tourwell.tomTat('don', don.rows), rows: don.rows },
+      };
+      fs.writeFileSync(KHO_TW, JSON.stringify(moi), { mode: 0o600 });
+      return ok(res, {
+        luc: moi.luc, tuApi: true, khoang: moi.khoang, log,
+        lead: moi.lead.tomTat, don: moi.don.tomTat,
+        // Khoá thật sự nhận được — để nhìn ra ngay nếu Tourwell đổi tên trường
+        khoaLead: lead.khoaThay, khoaDon: don.khoaThay,
+        oDiaTam: !!process.env.RENDER,
+      });
+    } catch (e) { return fail(res, 400, e.message + (log.length ? ' | ' + log.join(' ') : '')); }
   }
 
   /**

@@ -62,6 +62,19 @@ const DEFAULT = {
     apiKey: '',     // dạng cũ, giữ để cấu hình đang chạy không chết khi deploy
     shopIds: [],    // dạng cũ
   },
+
+  /* Tourwell Open API — thay cho việc xuất Excel bằng tay mỗi tháng.
+   * Token lấy ở Cấu hình → Quản lý tài khoản → tài khoản "Api Official"
+   * (api@admin.com), KHÔNG phải ở màn hình API Key (chỗ đó chỉ có danh mục
+   * `pancake`, dành cho tích hợp Pancake). Token không có hạn dùng. */
+  tourwell: {
+    enabled: false,
+    host: '',       // rootytrip.tourwell.net
+    token: '',
+    /* Ghi ghi chú nguồn quảng cáo ngược sang lead Tourwell. MẶC ĐỊNH TẮT: nó sửa
+     * bản ghi mà sales đang đọc, phải có người quyết mới được bật. */
+    ghiNguoc: false,
+  },
   dongBo: {
     soNgayLui: 7, moiSoGio: 1, khiKhoiDong: true,
     ghiDeNhapTay: true, tuTaoMoi: true,
@@ -73,7 +86,7 @@ const DEFAULT = {
  * qua lan deploy toi). Pancake giu token trong pages[].token nen phai xet rieng —
  * thieu nhanh nay thi cau hinh chi co Pancake bi coi la rong. */
 const KHOA_TOKEN = ['accessToken', 'refreshToken', 'clientSecret', 'developerToken', 'csvUrl',
-  'userToken', 'apiKey'];
+  'userToken', 'apiKey', 'token'];
 
 function khoiCoThongTin(khoi) {
   if (!khoi || typeof khoi !== 'object') return false;
@@ -121,6 +134,36 @@ function coThongTin(raw) {
   return Object.values(raw).some(khoiCoThongTin);
 }
 
+/**
+ * Tourwell từ BIẾN MÔI TRƯỜNG.
+ *
+ * Anh Hùng đặt TOURWELL_BASE_URL và TOURWELL_TOKEN thẳng trên Render — và đó là
+ * cách tốt hơn ổ đĩa: biến môi trường sống sót qua mỗi lần deploy, ổ đĩa của
+ * Render thì không. Nên nhận cả hai đường.
+ *
+ * Thứ tự ưu tiên: giá trị trong file THẮNG, vì đó là thứ người dùng vừa gõ trên
+ * giao diện; biến môi trường chỉ điền vào chỗ còn trống. Làm ngược lại thì sửa
+ * trên web xong không có tác dụng gì mà cũng không ai báo.
+ */
+function tourwellTuEnv(khoi) {
+  const e = process.env;
+  const t = { ...(khoi || {}) };
+  const host = String(e.TOURWELL_BASE_URL || '').trim();
+  const token = String(e.TOURWELL_TOKEN || '').trim();
+  if (!String(t.host || '').trim() && host) { t.host = host; t.hostTuEnv = true; }
+  if (!String(t.token || '').trim() && token) { t.token = token; t.tokenTuEnv = true; }
+  /* Chuẩn hoá một lần ở đây, dù giá trị đến từ file hay từ biến môi trường. Không
+   * làm thì `rootytrip.tourwell.net` và `https://rootytrip.tourwell.net` là hai
+   * giá trị khác nhau tuỳ chỗ đọc — status() có gọi chuanHost nên thẻ trông vẫn
+   * đúng, còn read() thì trả bản thô. Đúng kiểu lệch âm thầm. */
+  if (t.host) t.host = require('./tourwellapi').chuanHost(t.host);
+  // Khai đủ ở biến môi trường thì coi như muốn dùng — khỏi phải vào bật tay
+  if (t.enabled === undefined || t.enabled === false) {
+    if (t.hostTuEnv && t.tokenTuEnv) t.enabled = true;
+  }
+  return t;
+}
+
 function read() {
   let raw = {};
   try { raw = stripComments(JSON.parse(fs.readFileSync(FILE, 'utf8'))); } catch (_) { raw = {}; }
@@ -139,6 +182,7 @@ function read() {
    * được, không phải sửa file tay sau mỗi lần thêm kênh. */
   const out = {};
   Object.keys(DEFAULT).forEach((k) => { out[k] = { ...DEFAULT[k], ...(raw[k] || {}) }; });
+  out.tourwell = tourwellTuEnv(out.tourwell);
   return out;
 }
 
@@ -507,6 +551,31 @@ function status() {
           sanSang: c.pancakePos.enabled && gian.length > 0 && gian.every((x) => x.apiKey),
         };
       })(),
+      (() => {
+        const tw = c.tourwell || {};
+        const host = require('./tourwellapi').chuanHost(tw.host);
+        const coToken = !!String(tw.token || '').trim();
+        return {
+          key: 'tourwell', label: 'Tourwell API (lead \u00b7 \u0111\u01a1n \u00b7 doanh thu)',
+          enabled: !!tw.enabled,
+          coToken,
+          host,
+          // Nói rõ giá trị đến từ đâu: ô nhập trên web trống mà thẻ báo "đã có
+          // token" là chuyện rất dễ làm người dùng tưởng hỏng.
+          tuEnv: { host: !!tw.hostTuEnv, token: !!tw.tokenTuEnv },
+          ghiNguoc: !!tw.ghiNguoc,
+          soTaiKhoan: host ? 1 : 0,
+          taiKhoan: host ? [host.replace(/^https:\/\//, '')] : [],
+          hanToken: { vinhVien: true, moTa: 'token Open API kh\u00f4ng h\u1ebft h\u1ea1n' },
+          thieu: [
+            host ? '' : 'ch\u01b0a khai \u0111\u1ecba ch\u1ec9 Tourwell',
+            coToken ? '' : 'ch\u01b0a c\u00f3 token',
+            (!tw.enabled && host && coToken)
+              ? 'C\u00d3 TOKEN NH\u01afNG CH\u01afA B\u1eacT \u2014 v\u1eabn ph\u1ea3i nh\u1eadp Excel tay' : '',
+          ].filter(Boolean),
+          sanSang: !!(tw.enabled && host && coToken),
+        };
+      })(),
     ],
   };
 }
@@ -654,8 +723,34 @@ function writePancakePos(next = {}) {
   return { daDoi: doi };
 }
 
+/**
+ * L\u01b0u c\u1ea5u h\u00ecnh Tourwell API.
+ *
+ * \u00d4 token \u0111\u1ec3 TR\u1ed0NG = gi\u1eef nguy\u00ean token c\u0169 \u2014 c\u00f9ng lu\u1eadt v\u1edbi m\u1ecdi th\u1ebb kh\u00e1c.
+ * Kh\u00f4ng c\u00f3 lu\u1eadt n\u00e0y th\u00ec m\u1ed7i l\u1ea7n s\u1eeda \u0111\u1ecba ch\u1ec9 l\u00e0 m\u1ea5t token.
+ */
+function writeTourwell(next = {}) {
+  const cur = read();
+  const t = { ...DEFAULT.tourwell, ...(cur.tourwell || {}) };
+  const doi = [];
+  if (next.enabled !== undefined) { t.enabled = !!next.enabled; doi.push('tourwell.enabled'); }
+  if (next.ghiNguoc !== undefined) { t.ghiNguoc = !!next.ghiNguoc; doi.push('tourwell.ghiNguoc'); }
+  if (next.host !== undefined) {
+    t.host = require('./tourwellapi').chuanHost(next.host);
+    doi.push('tourwell.host');
+  }
+  if (next.token === null) { t.token = ''; doi.push('tourwell.token (xo\u00e1)'); }
+  else if (typeof next.token === 'string' && next.token.trim()) {
+    t.token = next.token.trim(); doi.push('tourwell.token');
+  }
+  cur.tourwell = t;
+  ghiFile(cur);
+  return { daDoi: doi };
+}
+
 module.exports = { benVung,
-  read, writeOptions, writeSecrets, writeMetaTokenInfo, writePancake, writePancakePos, bieuMau,
+  read, writeOptions, writeSecrets, writeMetaTokenInfo, writePancake, writePancakePos,
+  writeTourwell, bieuMau,
   xuatEnv,
   status, hanToken, nguon, FILE, DEFAULT,
 };

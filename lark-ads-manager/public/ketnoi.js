@@ -294,6 +294,8 @@
 
     ${thePancakePos(c)}
 
+    ${theTourwell(c)}
+
     <div class="card" style="margin-top:14px">
       <div class="card-head"><h3>Ghép ID nền tảng</h3>
         <span class="sub">bản ghi nào chưa có ID sẽ không nhận được số tự động</span></div>
@@ -568,6 +570,140 @@
    * thời `ad_id` (quảng cáo nào) và ghi chú "LU1998" (lead Tourwell nào), nên nối
    * được quảng cáo với doanh thu bằng KHOÁ CỨNG — không phải ghép theo số điện
    * thoại, không phải đoán theo ngày khi khách quay lại. */
+  function theTourwell(c) {
+    const t = layDoLuong(c, 'tourwell');
+    if (!t.key) return '';
+    return `
+    <div class="card" style="margin-top:14px">
+      <div class="card-head">
+        <h3>Tourwell API — lead &amp; đơn hàng</h3>
+        <span class="sub">thay cho việc xuất Excel bằng tay mỗi tháng</span>
+      </div>
+      <div class="card-body">
+        <div class="help">
+          Nối thẳng vào Tourwell thì <b>không phải xuất hai file Excel</b> nữa, và không còn
+          bị chặn ở mức 1.000 dòng mỗi lần xuất. Bản nhập Excel vẫn giữ nguyên làm đường lui.
+        </div>
+        <div class="help" style="border-color:var(--warn);color:var(--warn)">
+          <b>Lấy token ở đúng chỗ.</b> Token Open API nằm ở
+          <code>Cấu hình → Quản lý tài khoản</code>, trên tài khoản tên
+          <b>Api Official</b> (email <code>api@admin.com</code>) — <b>không phải</b> ở màn hình
+          <code>API Key</code>. Màn hình API Key chỉ có danh mục <code>pancake</code>, đó là chỗ
+          dành cho tích hợp Pancake, không dùng để đọc dữ liệu.
+          <br>Token này <b>không có hạn dùng</b>.
+        </div>
+
+        <div class="field full">
+          <label>Địa chỉ Tourwell của công ty</label>
+          <input id="twHost" value="${esc(t.host || '')}" placeholder="rootytrip.tourwell.net">
+          <div class="hint">Gõ tên miền là đủ, không cần https.${t.tuEnv && t.tuEnv.host
+            ? ' <b>Đang lấy từ biến môi trường TOURWELL_BASE_URL</b> — cách này sống sót qua mỗi lần deploy, gõ vào đây chỉ để ghi đè.'
+            : ''}</div>
+        </div>
+        <div class="field full">
+          <label>Token Open API</label>
+          <input id="twToken" type="password" autocomplete="off"
+            placeholder="${t.coToken ? 'đã có — để trống là giữ nguyên' : 'dán token vào đây'}">
+          <div style="margin-top:4px">${t.coToken
+            ? '<span class="tag good">đã có token</span>'
+            : '<span class="tag warn">chưa có token</span>'}
+            ${t.tuEnv && t.tuEnv.token
+              ? '<span class="tag">lấy từ biến môi trường TOURWELL_TOKEN</span>' : ''}</div>
+        </div>
+        <div class="field full" style="margin-bottom:10px">
+          <label><input type="checkbox" id="twBat" ${t.enabled ? 'checked' : ''}> Bật đọc Tourwell qua API</label>
+        </div>
+
+        <div class="help" style="border-color:var(--warn);color:var(--warn)">
+          <b>Ghi ghi chú ngược sang Tourwell — đang TẮT.</b> Bật lên thì app sẽ ghi tên quảng
+          cáo và nền tảng vào ô <i>Ghi chú</i> của từng lead, để sales nhìn thấy khách đến từ
+          quảng cáo nào ngay trong Tourwell. Nó <b>sửa bản ghi mà sales đang đọc</b>, nên
+          phải anh Hùng quyết mới bật. App luôn nối thêm vào ghi chú cũ, không bao giờ đè.
+          <br>Trạng thái hiện tại: ${t.ghiNguoc
+            ? '<b>ĐANG BẬT</b>' : '<b>đang tắt</b>'}
+        </div>
+
+        <div class="row" style="gap:8px;margin-top:10px;flex-wrap:wrap">
+          <button class="btn" id="twLuu">Lưu cấu hình Tourwell</button>
+          <button class="btn ghost" id="twTest">Kiểm tra kết nối</button>
+          <button class="btn ghost" id="twKeo">Kéo lead &amp; đơn 60 ngày</button>
+        </div>
+        ${t.thieu && t.thieu.length
+          ? `<div class="help" style="border-color:var(--warn);color:var(--warn)">
+               ${t.thieu.map(esc).join(' · ')}</div>` : ''}
+        <div id="twKq" style="margin-top:10px"></div>
+      </div>
+    </div>`;
+  }
+
+  function wireTourwell(c) {
+    const $ = (id) => document.getElementById(id);
+    const kq = $('twKq');
+    if (!$('twLuu')) return;
+    const bao = (html, xau) => {
+      kq.innerHTML = `<div class="help" style="${xau
+        ? 'border-color:var(--bad);color:var(--bad)' : ''}">${html}</div>`;
+    };
+
+    $('twLuu').onclick = async () => {
+      const than = { host: $('twHost').value, enabled: $('twBat').checked };
+      // Ô trống = giữ token cũ. Gửi chuỗi rỗng thì writeTourwell bỏ qua, đúng ý.
+      const tk = $('twToken').value.trim();
+      if (tk) than.token = tk;
+      try {
+        await api('/api/tourwell', { method: 'PUT', body: JSON.stringify(than) });
+        $('twToken').value = '';
+        toast('Đã lưu cấu hình Tourwell', 'ok');
+        render();
+      } catch (e) { bao(esc(e.message), true); }
+    };
+
+    $('twTest').onclick = async () => {
+      bao('Đang thử…');
+      try {
+        const r = await api('/api/tourwell/test', { method: 'POST', body: '{}' });
+        const khoi = (ten, o) => `<b>${ten}</b>: ${o.soDong} dòng mẫu`
+          + (o.tong != null ? ` · tổng ${o.tong.toLocaleString('vi-VN')}` : '')
+          + (o.khoa && o.khoa.length
+            ? `<br><span class="sub">trường thật nhận được: <code>${o.khoa.map(esc).join('</code> <code>')}</code></span>`
+            : '');
+        let h = `<div>Máy chủ: <code>${esc(r.host)}</code></div>`
+          + `<div style="margin-top:6px">${khoi('Lead', r.lead)}</div>`
+          + `<div style="margin-top:6px">${khoi('Đơn hàng', r.don)}</div>`
+          + `<div style="margin-top:6px">${khoi('Khách hàng', r.khach)}</div>`;
+        if (r.leadDocThu) {
+          h += `<div style="margin-top:8px">Đọc thử một lead: mã <code>${esc(r.leadDocThu.ma)}</code>`
+            + ` → khoá ghép <code>${r.leadDocThu.id}</code> · KH <code>${esc(r.leadDocThu.kh)}</code>`
+            + ` · ngày ${esc(r.leadDocThu.ngay || '(không đọc được)')}</div>`;
+        }
+        if (r.donDocThu) {
+          h += `<div style="margin-top:6px">Đọc thử một đơn: <code>${esc(r.donDocThu.ma)}</code>`
+            + ` · KH <code>${esc(r.donDocThu.kh)}</code>`
+            + ` · tiền ${Number(r.donDocThu.tien || 0).toLocaleString('vi-VN')}đ`
+            + ` · đã thu ${Number(r.donDocThu.thu || 0).toLocaleString('vi-VN')}đ</div>`;
+        }
+        if (r.canhBao && r.canhBao.length) {
+          h += `<div style="margin-top:8px;color:var(--warn)"><b>Cần xem lại:</b> `
+            + r.canhBao.map(esc).join(' · ') + '</div>';
+        }
+        bao(h);
+      } catch (e) { bao(esc(e.message), true); }
+    };
+
+    $('twKeo').onclick = async () => {
+      bao('Đang kéo dữ liệu từ Tourwell… việc này có thể mất vài phút.');
+      try {
+        const r = await api('/api/roas/keo-api', { method: 'POST', body: '{}' });
+        bao(`Đã kéo xong ${esc(r.khoang ? r.khoang.join(' → ') : '')}.`
+          + `<br>Lead: <b>${r.lead ? r.lead.dong : 0}</b> dòng`
+          + (r.lead && r.lead.tu ? ` (${esc(r.lead.tu)} → ${esc(r.lead.den)})` : '')
+          + `<br>Đơn: <b>${r.don ? r.don.dong : 0}</b> dòng`
+          + (r.don ? ` · tổng ${Number(r.don.tongTien || 0).toLocaleString('vi-VN')}đ` : '')
+          + '<br>Sang tab <b>Doanh thu &amp; ROAS</b> bấm Tính ROAS là xong.');
+      } catch (e) { bao(esc(e.message), true); }
+    };
+  }
+
   function thePancakePos(c) {
     const p = layDoLuong(c, 'pancakePos');
     if (!p.key) return '';
@@ -1178,6 +1314,7 @@
     wireGiuBen(c);
     wirePancake(c);
     wirePancakePos(c);
+    wireTourwell(c);
     wireForm();
 
     // bật/tắt kênh
