@@ -62,7 +62,11 @@ module.exports = {
   verChung: verTinh(),
   root: ROOT,
   port: Number(process.env.PORT || 5180),
-  build: '2026-08-28.1',
+  /* Thêm mã commit của Render vào. Trước đây `build` là chuỗi gõ tay nên mở
+   * /healthz cũng không biết bản đang chạy là bản nào — mỗi lần deploy xong là
+   * lại đoán. RENDER_GIT_COMMIT do Render đặt sẵn; ở máy cá nhân không có thì
+   * ghi 'local'. Phần ngày giữ nguyên vì `build` còn dùng để phá cache. */
+  build: '2026-08-28.1+' + String(process.env.RENDER_GIT_COMMIT || 'local').slice(0, 7),
 
   /* ---- Chế độ chạy ----
    * cli : chạy trên máy cá nhân — module dùng phiên lark-cli của máy, không cần đăng nhập

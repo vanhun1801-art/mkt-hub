@@ -131,6 +131,29 @@ async function listAll(tableId) {
   return out;
 }
 
+/**
+ * Tài khoản đang dùng có quyền GHI vào base này không.
+ *
+ * VÌ SAO PHẢI HỎI RIÊNG: đọc được không có nghĩa là ghi được. Base do người khác
+ * dựng thường chỉ chia sẻ ở mức "Có thể xem" — mọi màn hình vẫn đầy đủ số, không
+ * có gì trông như hỏng, và chỉ tới khi booking THẬT đầu tiên về mới lòi ra là ghi
+ * không được. Hỏi trước một câu thì biết ngay từ lúc mở tab Thiết lập.
+ *
+ * @returns {Promise<boolean|null>} null = không xác định được (đừng suy diễn gì).
+ */
+async function quyenGhi() {
+  try {
+    const d = await cli(['drive', 'permission.members', 'auth',
+      '--type', 'bitable', '--token', cfg.baseToken, '--action', 'edit',
+      '--as', cfg.identity, '--format', 'json'], { retries: 1, timeout: 25000 });
+    return typeof d.auth_result === 'boolean' ? d.auth_result : null;
+  } catch (_) {
+    /* Lệnh không có, hết hạn đăng nhập, mạng hỏng… đều KHÔNG phải bằng chứng là
+     * thiếu quyền. Trả null để phía trên im lặng thay vì doạ nhầm. */
+    return null;
+  }
+}
+
 /** [{ table_id, name }] — để dò table ID theo tên bảng. */
 async function listTables(opts = {}) {
   const d = await cli(['base', '+table-list', ...baseArgs(), '--format', 'json'], opts);
@@ -207,7 +230,7 @@ async function deleteRecords(tableId, recordIds) {
 module.exports = cfg.mode === 'api'
   ? require('./larkapi')
   : {
-      cli, whoami, listAll, listTables, listFields,
+      cli, whoami, quyenGhi, listAll, listTables, listFields,
       createRecord, createMany, updateRecord, updateMany, deleteRecords,
       gonLoi,
     };

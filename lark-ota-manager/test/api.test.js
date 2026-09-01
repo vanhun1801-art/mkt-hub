@@ -69,6 +69,12 @@ const patch = (p, body) => goi(p, {
     ['thucNhan', 'hoaHong', 'tongTienVnd', 'tongKhach'].every((k) => cfg.cot[k].chiDoc));
   t('/api/meta nói rõ cột nào Base thực sự có',
     meta.coCot && typeof meta.coCot.daNhan === 'boolean');
+  /* Đọc được mà ghi không được là lỗi IM LẶNG: mọi màn hình vẫn đầy số vì chúng
+   * chỉ đọc, chỉ booking mới là kẹt lại hàng đợi. App phải tự biết trước chứ
+   * đừng đợi tới lúc mất booking đầu tiên. null = không hỏi được, chấp nhận. */
+  t('lược đồ nói được là ghi vào Base hay không',
+    [true, false, null].includes((meta.luocDo || {}).quyenGhi),
+    String((meta.luocDo || {}).quyenGhi));
   t('nói rõ đang đọc nguồn nào', ['base', 'hang-doi', 'loi'].includes(meta.nguon), String(meta.nguon));
   t('liệt kê trường cho sửa', Array.isArray(meta.choSua) && meta.choSua.includes('diemDon'));
 

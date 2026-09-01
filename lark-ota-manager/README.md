@@ -200,6 +200,27 @@ App chạy được khi thiếu, chỉ mất tính năng — tab **Thiết lập
 App **không tự tạo cột hộ**: tạo cột sai kiểu trong base vận hành là việc khó dọn,
 và người vận hành base mới biết cột nào nên là select với option gì.
 
+#### Quyền ghi: app tự hỏi trước, không đợi mất booking
+
+Đọc được **không** có nghĩa là ghi được. Base do người khác dựng thường chỉ chia
+sẻ ở mức *Có thể xem* — và đó là kiểu hỏng nguy hiểm nhất vì **trông như đang
+chạy tốt**: mọi thẻ số, mọi bảng đều đầy đủ (chúng chỉ đọc), chỉ có booking mới
+là lặng lẽ nằm lại hàng đợi.
+
+Nên mỗi lần dò lược đồ, app hỏi thẳng Lark *"tài khoản này có quyền `edit` trên
+base không"* và hiện kết quả ngay đầu tab **Thiết lập**; Marketing Hub cũng đẩy
+nó lên đầu danh sách *Cần xử lý*. Quyền **không** được nhớ ra `.tmp/schema.json`
+như tên cột — chủ base mở quyền một cái là đổi ngay, nhớ lại số cũ thì app còn
+kêu oan rất lâu.
+
+Không hỏi được (thiếu scope, mạng hỏng) thì trả `null` và **im lặng** — app không
+doạ nhầm, và cũng không bao giờ tự cấm ghi dựa trên câu trả lời này: quyền có thể
+vừa được mở mà đệm chưa hết hạn, cấm nhầm là mất booking.
+
+Sửa: mở Base → **Chia sẻ** → nâng tài khoản (chế độ `cli`) hoặc ứng dụng Lark
+(chế độ `api`) lên **Có thể chỉnh sửa** → bấm *Làm mới lược đồ* → *Đẩy hàng đợi
+vào Base*. Booking chờ trong hàng đợi không mất.
+
 #### Trạng thái: đúng 5 option của Base
 
 `Chờ xác nhận` → `Đã xác nhận` → `Đã hoàn thành` / `Đã huỷ` / `No-show`

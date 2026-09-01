@@ -182,8 +182,30 @@ async function deleteRecords(tableId, recordIds) {
 async function whoami() { return null; }
 const cli = async () => { throw new Error('Chế độ api không dùng lark-cli'); };
 
+/**
+ * Ứng dụng Lark có quyền GHI vào base này không — cùng câu hỏi như bản lark-cli,
+ * hỏi bằng Open API vì trên server chung không có lark-cli.
+ *
+ * Ở chế độ này người bị hỏi là ỨNG DỤNG (tenant token), nên câu trả lời phản ánh
+ * đúng thứ cần biết: app đã được thêm vào base với quyền chỉnh sửa hay chưa.
+ *
+ * @returns {Promise<boolean|null>} null = không xác định được.
+ */
+async function quyenGhi() {
+  try {
+    const d = await call('GET', '/open-apis/drive/v1/permissions/' +
+      encodeURIComponent(cfg.baseToken) + '/members/auth?type=bitable&action=edit',
+      { retries: 1 });
+    return typeof d.auth_result === 'boolean' ? d.auth_result : null;
+  } catch (_) {
+    /* Thiếu scope để HỎI cũng không phải bằng chứng là thiếu quyền GHI — trả null
+     * để phía trên im lặng thay vì doạ nhầm. */
+    return null;
+  }
+}
+
 module.exports = {
-  cli, whoami, listAll, listTables, listFields,
+  cli, whoami, quyenGhi, listAll, listTables, listFields,
   createRecord, createMany, updateRecord, updateMany, deleteRecords,
   tenantToken, call,
 };

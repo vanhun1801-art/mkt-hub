@@ -279,6 +279,9 @@ async function api(req, res, u) {
         ok: luoc.ok, noiBase: luoc.noiBase, tableId: luoc.tableId, tableTen: luoc.tableTen || '',
         thieu: luoc.thieu, thieuBatBuoc: luoc.thieuBatBuoc,
         thieuTuyChon: luoc.thieuTuyChon || [], thieuCongThuc: luoc.thieuCongThuc || [],
+        /* true/false/null — null nghĩa là KHÔNG hỏi được, giao diện im lặng chứ
+         * đừng vẽ cảnh báo dựa trên phỏng đoán. */
+        quyenGhi: luoc.quyenGhi === undefined ? null : luoc.quyenGhi,
         loi: luoc.loi,
         huongDan: schema.huongDan(luoc),
       },
@@ -334,6 +337,8 @@ async function api(req, res, u) {
        * được Base nhưng GHI không được — lúc đó mọi số khác vẫn đúng, không có
        * gì trông như hỏng. */
       chuaDay: hangdoi.demChuaDay(),
+      // Marketing Hub đọc để kêu lên TRƯỚC khi booking thật đầu tiên bị kẹt
+      quyenGhi: (d.luoc && d.luoc.quyenGhi) === undefined ? null : d.luoc.quyenGhi,
       tong: perm.chiPhi ? TK.gop(ds) : cheTienGop(TK.gop(ds)),
       vanHanh: vh,
       rows: (perm.chiPhi ? ds : cheTienDs(ds)).slice(0, 500),

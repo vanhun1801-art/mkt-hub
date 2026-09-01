@@ -388,6 +388,13 @@ async function api(req, res, u) {
       nguonBiBo: live.nguonBiBo(),
       lichSu: sync.history.slice(0, 15),
       adapters: sync.ADAPTERS,
+      /* Bản code đang chạy. Không có nó thì sau mỗi lần deploy cả tôi và người
+       * dùng đều phải đoán xem bản mới đã lên chưa — đã mất thời gian vì chuyện
+       * này một lần (giao diện mới chạy với sync/*.js cũ vì quên khởi động lại). */
+      ban: {
+        commit: String(process.env.RENDER_GIT_COMMIT || '').slice(0, 7) || 'local',
+        vanTay: VAN_TAY,
+      },
     });
   }
 

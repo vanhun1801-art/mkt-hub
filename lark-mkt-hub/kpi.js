@@ -470,6 +470,18 @@ async function ota(mod, khoang, nguoi) {
       phu: (ds.loi || 'đang lưu tạm ở hàng đợi cục bộ') + ' — mở base OTA, tab Thiết lập',
       the: [],
     });
+  } else if (ds.quyenGhi === false) {
+    /* Đọc được mà ghi không được: mọi thẻ số ở trên vẫn đúng nên không có gì
+     * trông như hỏng — đúng kiểu lỗi im lặng. Nói ngay cả khi hàng đợi còn trống,
+     * vì lúc booking thật đầu tiên về mới biết thì đã muộn. */
+    canXuLy.unshift({
+      id: '', muc: 'cao',
+      tieuDe: 'App Booking OTA chưa có quyền GHI vào Base',
+      phu: 'đọc thì được, ghi thì không — booking mới sẽ nằm lại hàng đợi cục bộ' +
+        (ds.chuaDay ? ' (đang có ' + ds.chuaDay + ' booking chờ)' : '') +
+        '. Mở Base → Chia sẻ → nâng lên "Có thể chỉnh sửa".',
+      the: [],
+    });
   } else if (ds.chuaDay) {
     /* ĐỌC được Base mà GHI không được — hay gặp nhất khi tài khoản chỉ có quyền
      * Xem trên base. Lúc đó mọi số ở trên vẫn đúng nên không có gì trông như hỏng,

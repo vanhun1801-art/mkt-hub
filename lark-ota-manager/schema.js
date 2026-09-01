@@ -59,7 +59,11 @@ function docDem() {
 function ghiDem(luoc) {
   try {
     fs.mkdirSync(path.dirname(cfg.schemaFile), { recursive: true });
-    fs.writeFileSync(cfg.schemaFile, JSON.stringify({ ...luoc, baseToken: cfg.baseToken }, null, 2));
+    /* KHÔNG nhớ `quyenGhi` ra đĩa: tên cột thì cả tháng không đổi, còn quyền thì
+     * chủ base mở một cái là đổi ngay. Nhớ lại số cũ nghĩa là app còn kêu "không
+     * ghi được" rất lâu sau khi đã ghi được. */
+    const { quyenGhi, ...ben } = luoc;
+    fs.writeFileSync(cfg.schemaFile, JSON.stringify({ ...ben, baseToken: cfg.baseToken }, null, 2));
   } catch (e) {
     console.warn('[schema] không ghi được ' + cfg.schemaFile + ': ' + e.message);
   }
@@ -199,6 +203,12 @@ function ghepCot(fields) {
   };
 }
 
+/** Hỏi backend xem có quyền ghi không; lỗi gì cũng trả null chứ không doạ nhầm. */
+function hoiQuyenGhi() {
+  if (!lark.quyenGhi) return Promise.resolve(null);
+  return lark.quyenGhi().catch(() => null);
+}
+
 /* --------------------------------------------------------------- công khai */
 
 /**
@@ -212,6 +222,7 @@ async function doc({ force = false } = {}) {
       ok: false, noiBase: false, tableId: '', fields: {}, ghiDuoc: {}, kieu: {},
       thieu: KEYS, thieuBatBuoc: [], thieuTuyChon: [], thieuCongThuc: [],
       danhMuc: { ota: { ok: false, fields: {} }, tour: { ok: false, fields: {} } },
+      quyenGhi: null,
       loi: 'Chưa khai OTA_BASE_TOKEN — app đang lưu booking vào hàng đợi cục bộ.',
       luc: Date.now(),
     };
@@ -226,7 +237,12 @@ async function doc({ force = false } = {}) {
     if (dem && !dem.luoc.ok && Date.now() - dem.at < LOI_TTL_MS) return dem.luoc;
     if (dangDo) return dangDo;
     const dia = docDem();
-    if (dia && dia.ok) { dem = { at: Date.now(), luoc: dia }; return dia; }
+    if (dia && dia.ok) {
+      // lược đồ thì dùng lại được, riêng quyền phải hỏi lại (xem ghiDem)
+      const luoc = { ...dia, quyenGhi: await hoiQuyenGhi() };
+      dem = { at: Date.now(), luoc };
+      return luoc;
+    }
   }
 
   dangDo = (async () => {
@@ -235,6 +251,12 @@ async function doc({ force = false } = {}) {
       // timTable() đã lấy fields khi kiểm tra ID khai sẵn — đừng gọi lại lần nữa
       const fields = tbl.fields || await lark.listFields(tbl.id);
       const ghep = ghepCot(fields);
+
+      /* Có quyền ghi không — hỏi song song, không chặn phần còn lại. Kết quả
+       * KHÔNG được dùng để cấm ghi: quyền có thể vừa được mở mà đệm chưa kịp
+       * hết hạn, cấm nhầm thì mất booking. Nó chỉ để nói trước cho người vận
+       * hành biết, và để Hub kêu lên. */
+      const pQuyen = hoiQuyenGhi();
 
       /* Hai bảng danh mục: chỉ gọi listTables MỘT lần rồi dùng chung cho cả hai. */
       let dsBang = [];
@@ -256,6 +278,7 @@ async function doc({ force = false } = {}) {
         tableTuDo: !!tbl.tuDo,
         tableTen: tbl.ten || cfg.tableName,
         danhMuc: { ota: dmOta, tour: dmTour },
+        quyenGhi: await pQuyen,
         ...ghep,
         loi: ghep.thieuBatBuoc.length
           ? 'Bảng thiếu cột bắt buộc: ' + ghep.thieuBatBuoc.map((k) => '"' + cfg.cot[k].ten + '"').join(', ')
@@ -270,6 +293,7 @@ async function doc({ force = false } = {}) {
         ok: false, noiBase: true, tableId: cfg.tableId, fields: {}, ghiDuoc: {}, kieu: {},
         thieu: KEYS, thieuBatBuoc: [], thieuTuyChon: [], thieuCongThuc: [],
         danhMuc: { ota: { ok: false, fields: {} }, tour: { ok: false, fields: {} } },
+        quyenGhi: null,
         loi: e.message, luc: Date.now(),
       };
       dem = { at: Date.now(), luoc };

@@ -290,6 +290,17 @@
 
     <div id="kReport" style="margin-top:14px"></div>
 
+    ${(() => {
+      /* Bản code đang chạy, để sau mỗi lần deploy nhìn một cái là biết bản mới đã
+       * lên chưa — thay vì đoán rồi thử lại vô ích. */
+      const b = c.ban || {};
+      return `<div class="help" style="margin-top:14px">
+        Bản code đang chạy: <code>${esc(b.commit || 'không rõ')}</code>
+        <span class="sub">· giao diện <code>${esc(b.vanTay || '')}</code></span>
+        ${b.commit === 'local' ? '<span class="tag">máy cá nhân</span>' : ''}
+      </div>`;
+    })()}
+
     ${thePancake(c)}
 
     ${thePancakePos(c)}

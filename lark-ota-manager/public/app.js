@@ -476,10 +476,26 @@ function veThietLap() {
   const L = m.luocDo;
   let html = '';
 
+  /* Đọc được nhưng KHÔNG ghi được — trạng thái nguy hiểm nhất vì trông như đang
+   * chạy tốt: mọi số trên dashboard đều đúng (chúng chỉ đọc), chỉ có booking mới
+   * là lặng lẽ nằm lại hàng đợi. Nên nó phải đứng trên cùng, màu đỏ. */
+  if (L.ok && L.quyenGhi === false) {
+    html += `<div class="canhbao xau"><div class="noi">
+      <b>Đọc được Base nhưng KHÔNG ghi được — booking mới sẽ nằm lại hàng đợi</b>
+      <p>Tài khoản Lark đang dùng chỉ có quyền <b>Xem</b> trên base
+        "${esc(L.tableTen || '')}". Mọi con số trên các màn hình khác vẫn đúng vì
+        chúng chỉ đọc — nhưng webhook về thì không ghi vào Base được.</p>
+      <p><b>Cách sửa:</b> mở Base → <b>Chia sẻ</b> → nâng tài khoản (hoặc ứng dụng
+        Lark, nếu chạy trên server chung) lên <b>Có thể chỉnh sửa</b>. Xong thì bấm
+        <b>Làm mới lược đồ</b> ở dưới, rồi <b>Đẩy hàng đợi vào Base</b> — booking
+        đang chờ không mất.</p>
+    </div></div>`;
+  }
+
   /* trạng thái nối base */
   if (L.ok) {
     html += `<div class="canhbao" style="background:var(--good-soft)"><div class="noi">
-      <b>Đã nối Lark Base — booking ghi thẳng vào bảng "${esc(L.tableTen || '')}"</b>
+      <b>Đã nối Lark Base — booking ${L.quyenGhi === false ? 'ĐỌC được' : 'ghi thẳng'} vào bảng "${esc(L.tableTen || '')}"</b>
       <p>Bảng <code>${esc(L.tableId)}</code> · danh mục:
         <b>${esc(m.danhMuc.tenBangOta)}</b> ${(m.danhMuc.ota || []).length} kênh ·
         <b>${esc(m.danhMuc.tenBangTour)}</b> ${(m.danhMuc.tour || []).length} tour.</p>
