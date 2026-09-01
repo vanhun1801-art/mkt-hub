@@ -6,6 +6,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node test/api.test.js"
+    "test": "node test/chay-het.js",
+    "test:ghi": "node test/write.test.js"
   }
 }

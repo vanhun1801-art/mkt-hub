@@ -1,12 +1,43 @@
 const B='http://localhost:5176';
 const j=async(p,o)=>{const r=await fetch(B+p,o?{...o,headers:{'Content-Type':'application/json'}}:undefined);
   const t=await r.text(); let x=null; try{x=JSON.parse(t)}catch(_){}; return {s:r.status,x,t};};
-/* Đọc lại luôn kèm ?nguon=base.
- * Từ khi bật kênh trực tiếp (Meta/Google Ads), các endpoint đọc lấy số THẲNG từ
- * nền tảng cho 14 ngày gần nhất và bỏ qua dòng cũ của Base trong khoảng đó — nên
- * dòng nhập tay mà test vừa ghi sẽ bị số live thay chỗ, không phải ghi hỏng. */
+
+/* BÀI KIỂM NÀY GHI VÀO BASE THẬT. Phải khai rõ mới chạy:
+ *     GHI_THAT=1 node test/write.test.js
+ * Vì sao chặn: khi chạy lẫn trong vòng "chạy hết các bộ test", nó đã ghi đè một
+ * dòng chi tiêu THẬT (CT7_Detail 27/08) — POST /api/entry là upsert theo
+ * (quảng cáo × ngày), nên gặp dòng thật là nó sửa dòng thật chứ không tạo dòng mới.
+ * Dòng bị hỏng nằm lại trong Base cho tới khi có người để ý. */
+if (!process.env.GHI_THAT) {
+  console.log('BỎ QUA: bộ này ghi vào Base thật.');
+  console.log('Muốn chạy:  GHI_THAT=1 node test/write.test.js   (cần server ở cổng 5176)');
+  console.log('');
+  console.log('0 pass · 0 fail');
+  process.exit(0);
+}
+
+const NHAN = '__TEST_APP_DELETE_ME__';
+
+/** Ngày dùng để thử: lùi 400 ngày — chắc chắn không có quảng cáo nào chạy, và
+ *  nằm ngoài cửa sổ 14 ngày lấy số trực tiếp, nên không đụng dữ liệu thật. */
+function ngayThu() {
+  const d = new Date(Date.now() - 400 * 86400000);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Dọn mọi dòng mang nhãn thử còn sót từ lần chạy trước bị đứt giữa chừng. */
+async function donRac(from, to) {
+  const d = (await j('/api/daily?nguon=base&from=' + from + '&to=' + to)).x;
+  const rac = ((d && d.rows) || []).filter((x) => String(x.label || '').includes(NHAN));
+  for (const r of rac) await j('/api/daily/' + r.id, { method: 'DELETE' });
+  if (rac.length) console.log('0) đã dọn ' + rac.length + ' dòng rác của lần chạy trước');
+  return rac.length;
+}
+
 (async()=>{
-  const DATE='2026-08-27';
+  const DATE=ngayThu();
+  console.log('ngày thử:', DATE, '(lùi 400 ngày, không có dữ liệu thật)');
+  await donRac(DATE, DATE);
   const meta=(await j('/api/meta')).x;
   const ad=meta.ads.find(a=>a.campaignName.includes('SPCN_CT7'))||meta.ads[0];
   console.log('QC test:', ad.name, '|', ad.campaignName);
@@ -15,6 +46,10 @@ const j=async(p,o)=>{const r=await fetch(B+p,o?{...o,headers:{'Content-Type':'ap
   let r=await j('/api/entry',{method:'POST',body:JSON.stringify({date:DATE,rows:[
     {adId:ad.id,spend:123456,impressions:1000,clicks:25,conversions:3,label:'__TEST_APP_DELETE_ME__'}]})});
   console.log('1) POST /api/entry ->',r.s,JSON.stringify(r.x));
+  /* created=0 nghĩa là ĐÃ CÓ dòng cho (quảng cáo × ngày) này và ta vừa sửa nó.
+   * Dừng ngay chứ không chạy tiếp: chạy tiếp là bước 6 xoá mất dòng thật. */
+  if(r.x.updated) throw new Error('CÓ DÒNG THẬT ở '+DATE+' cho quảng cáo này — đã sửa nhầm nó. '
+    +'Hãy đồng bộ lại ngày đó rồi đổi ngày thử.');
   if(r.x.created!==1) throw new Error('không tạo được dòng mới');
 
   // 2) đọc lại: đúng ngày, đúng số, đúng liên kết

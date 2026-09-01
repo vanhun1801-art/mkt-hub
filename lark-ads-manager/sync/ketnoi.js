@@ -78,8 +78,13 @@ const KHOA_TOKEN = ['accessToken', 'refreshToken', 'clientSecret', 'developerTok
 function khoiCoThongTin(khoi) {
   if (!khoi || typeof khoi !== 'object') return false;
   if (KHOA_TOKEN.some((k) => typeof khoi[k] === 'string' && khoi[k].trim().length > 0)) return true;
-  return Array.isArray(khoi.pages)
-    && khoi.pages.some((p) => p && typeof p.token === 'string' && p.token.trim().length > 0);
+  if (Array.isArray(khoi.pages)
+    && khoi.pages.some((p) => p && typeof p.token === 'string' && p.token.trim().length > 0)) return true;
+  // Gian hàng Pancake POS: mỗi gian một khoá riêng. Thiếu nhánh này thì một cấu
+  // hình chỉ khai gian POS bị coi là TRẮNG, và read() lùi về ADS_CONNECT_JSON —
+  // tức là xoá sạch phần người dùng vừa nhập.
+  return Array.isArray(khoi.shops)
+    && khoi.shops.some((p) => p && typeof p.apiKey === 'string' && p.apiKey.trim().length > 0);
 }
 
 /** Bỏ mọi khoá chú thích `_...` khỏi file cấu hình. */

@@ -13,6 +13,17 @@ const sync = require('../sync');
 const pancake = require('../sync/pancake');
 
 const B = process.env.APP_URL || 'http://localhost:5176';
+/** Chờ tới khi máy chủ không còn lượt đồng bộ nào đang chạy (tối đa ~60 giây). */
+async function choHetKhoa(giay = 60) {
+  for (let i = 0; i < giay * 2; i += 1) {
+    const r = await post('/api/sync', { providers: [], dryRun: true });
+    if (r.s !== 409 && !String(r.txt || '').includes('chạy dở')) return true;
+    await new Promise((ok) => setTimeout(ok, 500));
+  }
+  console.log('  !! vẫn còn lượt đồng bộ chạy dở sau ' + giay + 's');
+  return false;
+}
+
 let pass = 0, fail = 0;
 const t = (name, cond, extra = '') => {
   if (cond) { pass++; console.log('  ok  ' + name); }
@@ -229,6 +240,12 @@ const post = async (p, b) => {
   t('/api/connect 200', a.s === 200 && Array.isArray(a.j.providers));
   t('/api/connect không lộ token', !JSON.stringify(a.j).includes('accessToken'));
   t('có trạng thái hẹn giờ', a.j.hengio && typeof a.j.hengio.dangBat === 'boolean');
+
+  /* Máy chủ chỉ cho MỘT lượt đồng bộ chạy một lúc. Bộ test chạy trước có thể còn
+   * giữ khoá đó, và khi ấy /api/sync trả 409 "chờ xong đã" chứ không phải 400 —
+   * hai câu kiểm dưới đây sẽ FAIL vì lý do không liên quan gì tới thứ chúng kiểm.
+   * Nên chờ khoá nhả trước, và nói rõ nếu chờ mãi không được. */
+  await choHetKhoa();
 
   a = await post('/api/sync', { providers: ['khong-co-kenh-nay'], dryRun: true });
   t('kênh không hợp lệ → 400', a.s === 400, a.txt.slice(0, 120));
