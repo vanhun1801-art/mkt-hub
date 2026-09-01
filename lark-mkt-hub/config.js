@@ -95,4 +95,6 @@ module.exports = {
   kpiCacheMs: Number(process.env.HUB_KPI_MS || 20000),
   // Timeout khi hub gọi API của module
   goiTimeoutMs: Number(process.env.HUB_FETCH_MS || 30000),
+  // Việc lâu (ROAS, ghép POS, đồng bộ): 30 giây là thiếu, xem VIEC_LAU ở proxy.js
+  goiLauMs: Number(process.env.HUB_FETCH_LAU_MS || 240000),
 };

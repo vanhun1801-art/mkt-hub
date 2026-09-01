@@ -12,6 +12,11 @@
  * viết lại href/src, còn fetch/XHR lúc chạy do đoạn shim bên dưới vá lại.
  */
 const http = require('http');
+
+/* Những đường vốn dĩ lâu vì phải gọi nhiều API bên ngoài rồi mới trả lời được.
+ * Cắt chúng ở 30 giây thì người dùng nhận "Module không trả lời trong 30s" —
+ * đọc như thể module chết, trong khi nó vẫn đang chạy bình thường. */
+const VIEC_LAU = /\/api\/(roas\/tinh|pancake-pos\/ghep|pancake\/phu|sync|import-csv)\b/;
 const cfg = require('./config');
 
 const HTML_RE = /^text\/html/i;
@@ -215,7 +220,8 @@ function chuyenTiep(req, res, mod, duongDan, nguoi) {
      * chừng. Module vẫn gửi nhịp tim 15s, nhưng để 0 (không giới hạn) cho chắc —
      * kết nối đóng khi client đóng, đó mới là điều kiện đúng. */
     timeout: /\/(upload|attachment)\b/.test(duongDan || '') ? 300000
-      : /\/su-kien\b/.test(duongDan || '') ? 0 : cfg.goiTimeoutMs,
+      : /\/su-kien\b/.test(duongDan || '') ? 0
+        : VIEC_LAU.test(duongDan || '') ? cfg.goiLauMs : cfg.goiTimeoutMs,
   };
   delete opts.headers['accept-encoding']; // để không phải giải nén khi chèn HTML
   delete opts.headers['x-forwarded-host'];
