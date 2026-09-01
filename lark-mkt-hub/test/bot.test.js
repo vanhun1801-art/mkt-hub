@@ -95,15 +95,29 @@ const NGAY = 86400000;
     /* Mô tả này là thứ DUY NHẤT ngăn bộ não đi trả lời câu hỏi về tiền bằng nguồn
      * không có tiền — mất câu đó là bot bắt đầu bịa số. */
     ok('mô tả nói rõ không có dữ liệu tiền',
-      /KHÔNG có chi phí/.test(s.info.description), s.info.description);
+      /NO cost/.test(s.info.description), s.info.description);
     ok('khai bearer token', !!s.components.securitySchemes.bearer);
 
     /* PUBLIC_URL khai sai thì schema trỏ Coze về localhost: Coze gọi vào chính
      * máy nó, không báo lỗi rõ ràng, chỉ "không có dữ liệu". Phải tố giác. */
     const noiBo = bot.openapi('http://127.0.0.1:5180');
-    ok('địa chỉ nội bộ thì schema tự cảnh báo', /CẢNH BÁO/.test(noiBo.info.description));
+    ok('địa chỉ nội bộ thì schema tự cảnh báo', /WARNING/.test(noiBo.info.description));
     ok('cảnh báo chỉ đúng biến phải sửa', /PUBLIC_URL/.test(noiBo.info.description));
-    ok('địa chỉ https thì không cảnh báo gì', !/CẢNH BÁO/.test(s.info.description));
+    ok('địa chỉ https thì không cảnh báo gì', !/WARNING/.test(s.info.description));
+
+    /* CHỐT QUAN TRỌNG: cả schema phải là ASCII.
+     * Coze làm rụng hết chữ có dấu khi nhập schema ("Chỉ đọc" -> "Ch c"), mà mô tả
+     * tool lại chính là thứ bộ não đọc để biết gọi tool nào, và là chỗ duy nhất
+     * ghi "không có dữ liệu tiền". Rụng dấu là mất cả hai. Ai thấy mô tả tiếng Anh
+     * rồi dịch lại sang tiếng Việt cho "dễ đọc" sẽ làm hỏng đúng chỗ này. */
+    const chu = JSON.stringify(bot.openapi('https://a.onrender.com'));
+    const laVN = [...chu].filter((c) => c.charCodeAt(0) > 127);
+    ok('cả schema không có ký tự nào ngoài ASCII', !laVN.length,
+      'thấy: ' + laVN.slice(0, 12).join(' '));
+    ok('câu chặn tiền vẫn còn trong mô tả',
+      /NO cost, budget, revenue or commission/.test(s.info.description));
+    ok('mỗi công cụ vẫn có nhãn tiếng Việt cho người đọc',
+      Object.values(bot.CONG_CU).every((c) => !!c.nhan));
   }
 
   group('5. Bỏ khoá rỗng');

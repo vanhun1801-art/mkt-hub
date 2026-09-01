@@ -153,14 +153,17 @@ const CONG_CU = {};
 
 /* ---------------- Lịch tác nghiệp ---------------- */
 CONG_CU.lich = {
-  moTa: 'Tra lịch tác nghiệp (livestream, quay chụp, đi tour) trong một khoảng ngày. ' +
-    'Trả về ai phụ trách, ai đi cùng, mấy giờ, phương tiện, kế hoạch buổi, vé FOC, ' +
-    'trạng thái duyệt. Không có thông tin chi phí.',
+  nhan: 'Lịch tác nghiệp',
+  moTa: 'Look up field-work schedules (livestream, filming, tours) in a date range. ' +
+    'Returns who is in charge, who joins, start time, duration, transport, the session ' +
+    'plan with hourly steps, FOC tickets and approval status. No cost data.',
   thamSo: {
-    tu: { moTa: 'Khoảng thời gian: ' + TU_KHOA.join(' | ') + ' hoặc ngày bắt đầu YYYY-MM-DD. Bỏ trống là xem tất cả.' },
-    den: { moTa: 'Ngày kết thúc YYYY-MM-DD. Chỉ dùng khi `tu` là một ngày cụ thể.' },
-    nguoi: { moTa: 'Lọc theo tên người (phụ trách hoặc nhân sự cùng đi). Không dấu cũng được.' },
-    trangthai: { moTa: 'Lọc theo trạng thái, VD "Chờ duyệt", "Duyệt", "Đang báo cáo", "Đã hoàn tất".' },
+    tu: { moTa: 'Time range. Use a keyword: ' + TU_KHOA.join(' | ') +
+      '. Or a start date YYYY-MM-DD. Leave empty for all schedules.' },
+    den: { moTa: 'End date YYYY-MM-DD. Only used when `tu` is an explicit date.' },
+    nguoi: { moTa: 'Filter by person name, owner or team member. Vietnamese accents optional.' },
+    trangthai: { moTa: 'Filter by approval status. Vietnamese values: "Cho duyet" (waiting ' +
+      'for approval), "Duyet" (approved), "Dang bao cao" (reporting), "Da hoan tat" (done).' },
   },
   async chay(mod, q, now) {
     const k = khoang(q.tu, q.den, now);
@@ -221,14 +224,17 @@ CONG_CU.lich = {
 
 /* ---------------- Bảng công việc ---------------- */
 CONG_CU.viec = {
-  moTa: 'Tra công việc trong bảng Tracking của phòng Marketing: ai đang làm gì, ' +
-    'deadline khi nào, việc nào quá hạn. Không có thông tin chi phí.',
+  nhan: 'Bảng công việc',
+  moTa: 'Look up tasks on the Marketing department tracking board: who is working on ' +
+    'what, deadlines, how many days late, priority and campaign. No cost data.',
   thamSo: {
-    nguoi: { moTa: 'Lọc theo tên người được giao. Không dấu cũng được.' },
-    trangthai: { moTa: 'Lọc theo trạng thái, VD "Chờ tiếp nhận", "Đang tiến hành", "Hoàn thành".' },
-    quahan: { moTa: 'Đặt "1" để chỉ lấy việc đang quá hạn và chưa giải quyết.' },
-    tu: { moTa: 'Lọc theo DEADLINE: ' + TU_KHOA.join(' | ') + ' hoặc YYYY-MM-DD.' },
-    den: { moTa: 'Ngày kết thúc YYYY-MM-DD, dùng cùng `tu`.' },
+    nguoi: { moTa: 'Filter by assignee name. Vietnamese accents optional.' },
+    trangthai: { moTa: 'Filter by status. Vietnamese values: "Cho tiep nhan" (not accepted ' +
+      'yet), "Dang tien hanh" (in progress), "Hoan thanh" (done).' },
+    quahan: { moTa: 'Set to "1" to return only tasks that are overdue and not yet resolved.' },
+    tu: { moTa: 'Filter by DEADLINE. Use a keyword: ' + TU_KHOA.join(' | ') +
+      '. Or a date YYYY-MM-DD.' },
+    den: { moTa: 'End date YYYY-MM-DD, used together with `tu`.' },
   },
   async chay(mod, q, now) {
     const k = khoang(q.tu, q.den, now);
@@ -285,14 +291,16 @@ CONG_CU.viec = {
 
 /* ---------------- Booking OTA ---------------- */
 CONG_CU.booking = {
-  moTa: 'Tra booking tour từ các sàn OTA (Klook, KKday, GetYourGuide, Ctrip, WAUG, ' +
-    'MyRealTrip, Viator) theo ngày đi tour: bao nhiêu booking, bao nhiêu khách, ' +
-    'tour nào, sàn nào. KHÔNG trả doanh thu hay hoa hồng.',
+  nhan: 'Booking OTA',
+  moTa: 'Look up OTA tour bookings (Klook, KKday, GetYourGuide, Ctrip, WAUG, MyRealTrip, ' +
+    'Viator) by tour departure date: how many bookings, how many guests, which tour, ' +
+    'which platform, pickup point, guest language. Does NOT return revenue or commission.',
   thamSo: {
-    tu: { moTa: 'Theo NGÀY ĐI tour: ' + TU_KHOA.join(' | ') + ' hoặc YYYY-MM-DD.' },
-    den: { moTa: 'Ngày kết thúc YYYY-MM-DD, dùng cùng `tu`.' },
-    tour: { moTa: 'Lọc theo tên tour. Không dấu cũng được.' },
-    san: { moTa: 'Lọc theo sàn OTA, VD "Klook", "Viator".' },
+    tu: { moTa: 'Filter by tour DEPARTURE date. Use a keyword: ' + TU_KHOA.join(' | ') +
+      '. Or a date YYYY-MM-DD.' },
+    den: { moTa: 'End date YYYY-MM-DD, used together with `tu`.' },
+    tour: { moTa: 'Filter by tour name. Vietnamese accents optional.' },
+    san: { moTa: 'Filter by OTA platform, e.g. "Klook", "Viator".' },
   },
   async chay(mod, q, now) {
     const k = khoang(q.tu, q.den, now);
@@ -426,15 +434,16 @@ function openapi(goc) {
         })),
         responses: {
           200: {
-            description: 'Kết quả tra cứu. Đọc trường `tomTat` là đã thành câu trả lời; ' +
-              '`chiTiet` là danh sách đầy đủ khi cần liệt kê.',
+            description: 'Lookup result. The `tomTat` field is already a complete ' +
+              'Vietnamese sentence answering the question - read it out. `chiTiet` is the ' +
+              'full row list, use it when the user asks to enumerate.',
             content: {
               'application/json': {
                 schema: {
                   type: 'object',
                   properties: {
-                    tomTat: { type: 'string', description: 'Câu trả lời tiếng Việt đã dựng sẵn' },
-                    so: { type: 'integer', description: 'Số bản ghi khớp' },
+                    tomTat: { type: 'string', description: 'Ready-made Vietnamese answer' },
+                    so: { type: 'integer', description: 'Number of matching records' },
                     chiTiet: { type: 'array', items: { type: 'object' } },
                   },
                 },
@@ -452,17 +461,19 @@ function openapi(goc) {
   return {
     openapi: '3.0.1',
     info: {
-      title: 'Trợ lý Marketing Rooty Trip — nguồn số liệu',
+      /* Tên và mô tả ở đây phải là ASCII: Coze làm rụng hết chữ có dấu khi nhập
+       * schema ("Chi doc" -> "Ch c"), mà đây lại là thứ bộ não đọc để biết gọi
+       * tool nào và để biết không được trả lời câu hỏi về tiền. */
+      title: 'Rooty Trip Marketing - live data source',
       version: '1',
-      description: 'Chỉ đọc. Số liệu lấy trực tiếp từ Lark Base lúc được gọi, nên luôn là ' +
-        'số mới nhất. KHÔNG có chi phí, doanh thu, hoa hồng — đừng trả lời câu hỏi về tiền ' +
-        'bằng nguồn này.' +
-        (noiBo ? '\n\nCẢNH BÁO: địa chỉ máy chủ dưới đây là "' + goc + '" — địa chỉ nội bộ. ' +
-          'Biến PUBLIC_URL trên Render chưa khai hoặc khai sai, nên schema này DÙNG KHÔNG ĐƯỢC ' +
-          'cho bộ não ở ngoài. Sửa PUBLIC_URL thành đúng tên miền Render đã cấp rồi lấy lại ' +
-          'schema.' : ''),
+      description: 'Read-only. Every call fetches straight from Lark Base, so the numbers ' +
+        'are always current. This source has NO cost, budget, revenue or commission data: ' +
+        'never answer a money question from it, and never estimate one.' +
+        (noiBo ? ' WARNING: the server address below is "' + goc + '", an internal address. ' +
+          'PUBLIC_URL on Render is missing or wrong, so this schema will NOT work for an ' +
+          'external brain. Fix PUBLIC_URL, then download the schema again.' : ''),
     },
-    servers: [{ url: goc, description: noiBo ? 'ĐỊA CHỈ NỘI BỘ — xem cảnh báo ở trên' : 'Marketing Hub' }],
+    servers: [{ url: goc, description: noiBo ? 'INTERNAL ADDRESS - see warning above' : 'Marketing Hub' }],
     paths,
     components: {
       securitySchemes: { bearer: { type: 'http', scheme: 'bearer' } },
@@ -511,7 +522,7 @@ async function xuLy(req, res, u, { timMod, khoiDong, send, goc }) {
     return traLoi(200, {
       ten: 'Nguồn số liệu cho trợ lý Marketing',
       congCu: Object.entries(CONG_CU).map(([ten, cc]) => ({
-        goi: goc + '/bot/' + ten, moTa: cc.moTa,
+        goi: goc + '/bot/' + ten, nhan: cc.nhan, moTa: cc.moTa,
         thamSo: Object.fromEntries(Object.entries(cc.thamSo).map(([k, v]) => [k, v.moTa])),
       })),
       luuY: 'Chỉ đọc, không có dữ liệu chi phí / doanh thu.',
