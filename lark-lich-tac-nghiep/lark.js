@@ -205,8 +205,22 @@ async function deleteRecords(recordIds, tableId = cfg.tableId) {
 /* Chế độ api (deploy server chung): không có lark-cli trên máy đó, nên mọi file
  * gọi require('./lark') đều phải nhận backend Open API. Chuyển hướng ngay tại đây
  * để không phải sửa từng chỗ gọi (store.js, quyen.js, sync/*.js...). */
+/**
+ * Gửi tin nhắn Lark qua lark-cli (chạy trên máy cá nhân).
+ * Không ném lỗi — gửi tin là việc phụ, hỏng thì thôi, đừng chặn thao tác chính.
+ */
+async function guiTinNhan(openId, noiDung) {
+  if (!openId || !noiDung) return { ok: false, ly: 'thiếu người nhận hoặc nội dung' };
+  try {
+    await cli(['im', '+messages-send', '--user-id', openId, '--text', noiDung], { retries: 1 });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, ly: e.message };
+  }
+}
+
 module.exports = cfg.mode === 'api' ? require('./larkapi') : {
   cli, whoami, listAllRecords, listFields, getRecord,
   updateRecord, updateMany, createRecord, deleteRecords,
-  downloadAttachment, uploadAttachment,
+  downloadAttachment, uploadAttachment, guiTinNhan,
 };

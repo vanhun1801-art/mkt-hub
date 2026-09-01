@@ -32,6 +32,15 @@
     'Mốc thời gian là lúc diễn ra việc. Tự cập nhật từ các Base — xử lý xong là mục tự mất.':
       'Times shown are when the work happens. Updated automatically — an item disappears once handled.',
     'Chờ tiếp nhận': 'Awaiting pickup',
+    '7 ngày': '7 days',
+    '30 ngày': '30 days',
+    'Tất cả': 'All',
+    'Mọi base': 'All bases',
+    'Chỉ chưa đọc': 'Unread only',
+    'Xem hết': 'Show all',
+    'Không có mục nào khớp bộ lọc.': 'Nothing matches this filter.',
+    'Mốc thời gian là lúc diễn ra việc. Xử lý xong là mục tự mất.':
+      'Times shown are when the work happens. An item disappears once handled.',
     'Yêu cầu điều chỉnh': 'Change request',
     'Yêu cầu điều chỉnh chờ trả lời': 'Change request awaiting reply',
     'Đã xử lý': 'Handled',

@@ -21,6 +21,7 @@ const S = {
   tb: [],              // thông báo gom từ mọi Base
   tbMoi: 0,            // số mục người này chưa đọc
   tbHen: null,         // hẹn giờ đánh dấu đã đọc
+  tbLoc: { ngay: '30', mod: '', chuaDoc: false },   // bộ lọc bảng thông báo
   ky: 'thang',         // khoảng thời gian đang lọc — mặc định THÁNG HIỆN TẠI
   tu: '', den: '',     // dùng khi ky = 'tuychon'
   lich: null,          // dữ liệu /api/lich-chung
@@ -242,6 +243,12 @@ const MUC_TB = {
   tin: { nhan: 'Thông tin', mau: '#2b5cff' },
 };
 
+// nhớ bộ lọc của từng người, khỏi phải chọn lại mỗi lần mở bảng
+try {
+  const luu = JSON.parse(localStorage.getItem('hub.tbLoc') || 'null');
+  if (luu && typeof luu === 'object') Object.assign(S.tbLoc, luu);
+} catch (_) { /* trình duyệt chặn localStorage thì dùng mặc định */ }
+
 async function napThongBao() {
   try {
     const d = await goi('/api/thong-bao');
@@ -329,10 +336,37 @@ function gioDayDu(iso) {
     ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
 }
 
+/**
+ * Lọc danh sách thông báo.
+ *
+ * Mốc thời gian ở đây là lúc DIỄN RA việc, nên "cũ" nghĩa là việc đã lâu. Mặc
+ * định giữ 30 ngày: đủ dài để không giấu mất việc còn ý nghĩa, đủ ngắn để mấy
+ * cái từ tháng 4 không chen chỗ.
+ *
+ * Cố ý KHÔNG giấu im lặng: số mục bị lọc bớt được ghi rõ ở chân bảng, kèm nút
+ * xem hết — giấu mà không nói là cách nhanh nhất để người ta bỏ sót việc.
+ */
+function locThongBao(ds) {
+  const L = S.tbLoc;
+  const moc = L.ngay === 'all' ? 0 : Date.now() - Number(L.ngay) * 86400000;
+  return ds.filter((x) => {
+    if (L.chuaDoc && !x.moi) return false;
+    if (L.mod && x.mod !== L.mod) return false;
+    if (moc && x.khi) {
+      const t = new Date(x.khi).getTime();
+      // việc trong tương lai luôn giữ: đó là thứ sắp phải làm
+      if (!isNaN(t) && t < moc) return false;
+    }
+    return true;
+  });
+}
+
 function veBangTB() {
   const box = $('#tbPanel');
   if (!box) return;
-  const ds = S.tb;
+  const tatCa = S.tb;
+  const ds = locThongBao(tatCa);
+  const boBot = tatCa.length - ds.length;
   const dong = (x) => {
     const m = MUC_TB[x.muc] || MUC_TB.tin;
     const khi = khiNao(x.khi);
@@ -366,14 +400,33 @@ function veBangTB() {
     than += `<div class="tb-phan mo">Đã đọc <span class="tb-n2">${daDoc.length}</span></div>` + veNhom(daDoc);
   }
 
+  const L = S.tbLoc;
+  const chip = (thuoc, gt, nhan) =>
+    `<button class="tb-chip${String(L[thuoc]) === String(gt) ? ' on' : ''}" data-tbloc="${thuoc}" data-gt="${esc(String(gt))}">${esc(nhan)}</button>`;
+
+  // chỉ liệt kê Base thật sự có thông báo, khỏi bày ra nút bấm vào thấy rỗng
+  const cacMod = [...new Map(tatCa.map((x) => [x.mod, x.modTen])).entries()];
+
   box.innerHTML = `
     <div class="tb-dau-bang">
       <b>Thông báo</b>
       <span class="tb-phu">${ds.length ? ds.length + ' mục' + (chuaDoc.length ? ' · ' + chuaDoc.length + ' chưa đọc' : '') : ''}</span>
       <button class="tb-x" id="tbDong" title="Đóng">✕</button>
     </div>
-    <div class="tb-than">${than || '<div class="tb-trong">Không có gì cần bạn để mắt. Nhẹ người.</div>'}</div>
-    <div class="tb-chan">Mốc thời gian là lúc diễn ra việc. Tự cập nhật từ các Base — xử lý xong là mục tự mất.</div>`;
+    <div class="tb-loc">
+      <div class="tb-hang">
+        ${chip('ngay', '7', '7 ngày')}${chip('ngay', '30', '30 ngày')}${chip('ngay', 'all', 'Tất cả')}
+        <span class="tb-vach"></span>
+        ${chip('chuaDoc', !L.chuaDoc, 'Chỉ chưa đọc')}
+      </div>
+      ${cacMod.length > 1 ? `<div class="tb-hang">${chip('mod', '', 'Mọi base')}${
+        cacMod.map(([id, ten]) => chip('mod', id, ten)).join('')}</div>` : ''}
+    </div>
+    <div class="tb-than">${than || '<div class="tb-trong">' +
+      (boBot ? 'Không có mục nào khớp bộ lọc.' : 'Không có gì cần bạn để mắt. Nhẹ người.') + '</div>'}</div>
+    <div class="tb-chan">${boBot
+      ? `Đang ẩn <b>${boBot}</b> mục cũ hơn. <button class="tb-xemhet" data-tbloc="ngay" data-gt="all">Xem hết</button>`
+      : 'Mốc thời gian là lúc diễn ra việc. Xử lý xong là mục tự mất.'}</div>`;
 }
 
 function veRail() {
@@ -1345,6 +1398,16 @@ document.addEventListener('click', (e) => {
   /* --- thông báo --- */
   if (e.target.closest('#btnTB')) { e.preventDefault(); moBangTB(); return; }
   if (e.target.closest('#tbDong')) { e.preventDefault(); dongBangTB(); return; }
+  const chipTB = e.target.closest('[data-tbloc]');
+  if (chipTB) {
+    e.preventDefault();
+    const k = chipTB.getAttribute('data-tbloc');
+    const v = chipTB.getAttribute('data-gt');
+    S.tbLoc[k] = k === 'chuaDoc' ? v === 'true' : v;
+    try { localStorage.setItem('hub.tbLoc', JSON.stringify(S.tbLoc)); } catch (_) {}
+    veBangTB();
+    return;
+  }
   const oTB = e.target.closest('[data-tb-mod]');
   if (oTB) {
     e.preventDefault();

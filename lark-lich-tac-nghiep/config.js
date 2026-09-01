@@ -69,6 +69,10 @@ module.exports = {
 
   larkUrl: 'https://rootytrip2.sg.larksuite.com/base/U8bAbfnwgalWgDsEU11lpHfPgTb?table=tblwfl1sEXHI9HOp&view=vewJDIZobW',
 
+  /* Địa chỉ Marketing Hub, gắn vào cuối tin nhắn Lark để người nhận bấm là vào
+   * thẳng app. Đặt bằng biến môi trường HUB_URL trên Render. */
+  hubUrl: process.env.HUB_URL || '',
+
   cliScript: process.env.LARK_CLI_SCRIPT || resolveCliScript(),
   cacheTtlMs: 20000,
 

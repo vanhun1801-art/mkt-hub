@@ -335,6 +335,79 @@ function collectPeople(items) {
   return [...m.values()].sort((a, b) => String(a.name).localeCompare(String(b.name), 'vi'));
 }
 
+/* ==========================================================================
+   BÁO VÀO LARK
+   Bốn kênh trong app (số đỏ ở panel, chuông, băng cảnh báo, thẻ đỏ) đều chỉ
+   chạm được người ta khi họ MỞ app. Quyết định của quản lý — trả về, từ chối,
+   huỷ, duyệt — thì phải tới nơi ngay cả khi họ chưa mở, nên đẩy thẳng một tin
+   nhắn Lark.
+
+   Gửi tin là việc phụ: hỏng thì ghi log rồi thôi, tuyệt đối không để nó làm
+   hỏng thao tác chính. Chưa cấp quyền im:message:send_as_bot thì Lark từ chối,
+   app vẫn chạy bình thường.
+   ========================================================================== */
+const BAO_LARK = {
+  'Từ chối/Cần điều chỉnh': {
+    tieu: 'Lịch tác nghiệp bị trả về',
+    nhac: 'Sửa lại rồi bấm Gửi duyệt lần nữa.',
+  },
+  'Từ chối': {
+    tieu: 'Lịch tác nghiệp bị từ chối',
+    nhac: 'Cần trao đổi thêm thì nhắn lại quản lý.',
+  },
+  'Hủy lịch': {
+    tieu: 'Lịch tác nghiệp đã bị huỷ',
+    nhac: 'Lịch này không còn hiện trong danh sách của bạn.',
+  },
+  'Duyệt/Chờ tác nghiệp': {
+    tieu: 'Lịch tác nghiệp đã được duyệt',
+    nhac: 'Xem lại giờ, phương tiện và vé trước khi đi.',
+  },
+};
+
+/** Ghép nội dung tin nhắn — đọc là hiểu, không cần mở app mới biết chuyện gì. */
+function soanTinLich(item, trangThaiMoi, lyDo) {
+  const m = BAO_LARK[trangThaiMoi];
+  if (!m) return null;
+  const dong = [
+    m.tieu,
+    '',
+    'Hoạt động: ' + (item.title || '(chưa đặt tên)'),
+    'Thời gian: ' + (item.start ? gioVN(new Date(item.start)) : 'chưa đặt'),
+  ];
+  if (lyDo) dong.push('Phản hồi của quản lý: ' + lyDo);
+  dong.push('', m.nhac);
+  if (cfg.hubUrl) dong.push(cfg.hubUrl);
+  return dong.join('\n');
+}
+
+/**
+ * Ai cần biết quyết định này.
+ * Người phụ trách luôn nhận. Lịch được duyệt thì cả nhóm cùng nhận, vì ai cũng
+ * phải sắp xếp mà đi; còn bị trả về / từ chối thì chỉ phụ trách — người khác
+ * nhận cũng không làm gì được.
+ */
+function nguoiNhanTin(item, trangThaiMoi) {
+  const ds = (item.owner || []).map((u) => u.id).filter(Boolean);
+  if (trangThaiMoi === 'Duyệt/Chờ tác nghiệp') {
+    for (const u of (item.staff || [])) if (u.id && !ds.includes(u.id)) ds.push(u.id);
+  }
+  return ds;
+}
+
+async function baoVaoLark(item, trangThaiMoi, lyDo) {
+  const noi = soanTinLich(item, trangThaiMoi, lyDo);
+  if (!noi || typeof lark.guiTinNhan !== 'function') return;
+  for (const id of nguoiNhanTin(item, trangThaiMoi)) {
+    try {
+      const kq = await lark.guiTinNhan(id, noi);
+      if (!kq.ok) console.warn('[báo Lark] không gửi được cho ' + id + ': ' + kq.ly);
+    } catch (e) {
+      console.warn('[báo Lark] lỗi: ' + e.message);
+    }
+  }
+}
+
 /* ---- phụ trợ cho thông báo ---- */
 const SETTLED_TB = ['Từ chối', 'Hủy lịch', 'Đã hoàn tất'];
 const BAC_TB = { gap: 0, can: 1, tin: 2 };
@@ -773,6 +846,15 @@ async function api(req, res, url) {
         const rec = cache.records.find((r) => r.record_id === id);
         if (rec) applyLocal(rec, body);
       }
+
+      /* Ghi xong mới báo, và KHÔNG chờ gửi xong mới trả lời: người bấm nút
+       * không việc gì phải ngồi đợi Lark. Chỉ báo khi trạng thái THỰC SỰ đổi,
+       * không thì lưu lại một ô ghi chú cũng réo cả nhóm. */
+      if (body.status && body.status !== item.status) {
+        baoVaoLark(item, body.status, body.mgrNote || item.mgrNote || '')
+          .catch((e) => console.warn('[báo Lark]', e.message));
+      }
+
       return json(res, { ok: true });
     }
   }
@@ -910,7 +992,8 @@ if (!LOOPBACK.includes(BIND) && process.env.HUB_TRUST_HEADER !== '0') {
 
 /* Được require từ bộ kiểm thử thì chỉ xuất hàm ra, đừng mở cổng. */
 if (require.main !== module) {
-  module.exports = { khoaKeHoach, duMinhChung, anLichHuy, laPhuTrach, ownedBy, duBaoCao, boChiPhi };
+  module.exports = { khoaKeHoach, duMinhChung, anLichHuy, laPhuTrach, ownedBy, duBaoCao, boChiPhi,
+    soanTinLich, nguoiNhanTin };
   return;
 }
 

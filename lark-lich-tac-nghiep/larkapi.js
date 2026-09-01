@@ -233,7 +233,34 @@ async function whoami() { return null; }
 /** Cho server.js gọi khi cần biết mình đang chạy backend nào. */
 const cli = async () => { throw new Error('Chế độ api không dùng lark-cli'); };
 
+/**
+ * Gửi tin nhắn Lark tới một người.
+ *
+ * Cần quyền im:message:send_as_bot trên Developer Console; chưa cấp thì Lark
+ * trả mã 99991672 và hàm này im lặng báo false. Cố ý KHÔNG ném lỗi: gửi tin
+ * nhắn là việc phụ, không được làm hỏng thao tác chính của người dùng.
+ *
+ * @returns {Promise<{ok: boolean, ly?: string}>}
+ */
+async function guiTinNhan(openId, noiDung) {
+  if (!openId || !noiDung) return { ok: false, ly: 'thiếu người nhận hoặc nội dung' };
+  try {
+    await call('POST', '/open-apis/im/v1/messages?receive_id_type=open_id', {
+      body: {
+        receive_id: openId,
+        msg_type: 'text',
+        content: JSON.stringify({ text: noiDung }),
+      },
+      retries: 1,
+    });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, ly: e.message };
+  }
+}
+
 module.exports = {
+  guiTinNhan,
   cli, whoami, listAllRecords, listFields, getRecord,
   updateRecord, updateMany, createRecord, deleteRecords,
   downloadAttachment, uploadAttachment,
