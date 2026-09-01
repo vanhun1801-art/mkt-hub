@@ -132,6 +132,18 @@ function nhan(v) {
 }
 const tenNguoi = (us) => (us || []).map((u) => u.name || '').filter(Boolean);
 
+/**
+ * Bỏ mọi khoá rỗng khỏi một dòng kết quả.
+ *
+ * Gửi `ketThuc: ""` đi thì bộ não coi đó là một phát hiện và tường thuật "lịch
+ * này chưa có giờ kết thúc" — trong khi phần lớn lịch vốn không cần điền ô đó.
+ * Khoá nào không có giá trị thì đừng nhắc tới. Giữ số 0 và false vì đó là giá
+ * trị thật (0 khách, chưa giải quyết).
+ */
+const gon = (o) => Object.fromEntries(
+  Object.entries(o).filter(([, v]) => v !== '' && v != null)
+);
+
 /* ==========================================================================
    CÔNG CỤ — mỗi cái là một endpoint /bot/<ten>
    Mỗi công cụ khai `thamSo` để sinh được schema OpenAPI cho Coze, và trả về
@@ -142,7 +154,8 @@ const CONG_CU = {};
 /* ---------------- Lịch tác nghiệp ---------------- */
 CONG_CU.lich = {
   moTa: 'Tra lịch tác nghiệp (livestream, quay chụp, đi tour) trong một khoảng ngày. ' +
-    'Trả về ai đi, đi đâu, mấy giờ, trạng thái duyệt. Không có thông tin chi phí.',
+    'Trả về ai phụ trách, ai đi cùng, mấy giờ, phương tiện, kế hoạch buổi, vé FOC, ' +
+    'trạng thái duyệt. Không có thông tin chi phí.',
   thamSo: {
     tu: { moTa: 'Khoảng thời gian: ' + TU_KHOA.join(' | ') + ' hoặc ngày bắt đầu YYYY-MM-DD. Bỏ trống là xem tất cả.' },
     den: { moTa: 'Ngày kết thúc YYYY-MM-DD. Chỉ dùng khi `tu` là một ngày cụ thể.' },
@@ -162,22 +175,33 @@ CONG_CU.lich = {
       return true;
     }).sort((a, b) => ms(a.start) - ms(b.start));
 
-    /* LOC: danh sách CHO PHÉP, không phải danh sách cấm — module thêm cột tiền
-     * sau này thì cũng không lọt ra đường này. */
+    /* Danh sách CHO PHÉP, không phải danh sách cấm — module thêm cột tiền sau này
+     * thì cũng không lọt ra đường này.
+     *
+     * Mỗi khoá ở đây phải là một cột CÓ THẬT trên Base. Bịa ra một khoá thì nó
+     * rỗng mãi mãi, và bot sẽ tường thuật cái rỗng đó như một sự thật ("lịch này
+     * chưa có địa điểm") — tệ hơn là không có khoá. Bảng lịch tác nghiệp KHÔNG có
+     * cột địa điểm; đường đi nằm trong `plan`. */
     const dong = (t) => ({
       hoatDong: t.title || '(chưa đặt tên)',
       khiNao: gioVN(ms(t.start)),
       thu: thuVN(ms(t.start)),
+      ketThuc: ms(t.end) ? gioVN(ms(t.end)) : '',
       thoiLuong: t.duration ? t.duration + ' giờ' : '',
-      diaDiem: t.place || '',
       phuTrach: tenNguoi(t.owner).join(', '),
       nhanSuCungDi: tenNguoi(t.staff).join(', '),
       phuongTien: (t.transport || []).map(nhan).filter(Boolean).join(', '),
       trangThai: nhan(t.status),
       mucDich: t.purpose || '',
+      keHoach: t.plan || '',                    // đường đi + mốc giờ trong buổi
+      ve: (t.foc || []).map(nhan).filter(Boolean).join(', '),
+      veDuyet: nhan(t.focStatus),
+      lienKetSanPham: t.link || '',
     });
 
-    const chiTiet = ds.slice(0, 40).map(dong);
+    /* 25 chứ không phải 40: từ khi kèm `keHoach` (đoạn văn nhiều dòng) mỗi dòng
+     * nặng hơn hẳn, mà bộ não nào cũng có giới hạn ngữ cảnh. */
+    const chiTiet = ds.slice(0, 25).map((t) => gon(dong(t)));
     return {
       tomTat: ds.length
         ? 'Có ' + ds.length + ' lịch tác nghiệp' + (k ? ' ' + k.nhan : '') +
@@ -190,7 +214,7 @@ CONG_CU.lich = {
       so: ds.length,
       khoang: k ? k.nhan : 'tất cả',
       chiTiet,
-      catBot: ds.length > 40 ? ds.length - 40 : 0,
+      catBot: ds.length > 25 ? ds.length - 25 : 0,
     };
   },
 };
@@ -242,7 +266,7 @@ CONG_CU.viec = {
       daGiaiQuyet: !!t.daGiaiQuyet,
     });
 
-    const chiTiet = ds.slice(0, 40).map(dong);
+    const chiTiet = ds.slice(0, 40).map((t) => gon(dong(t)));
     return {
       tomTat: ds.length
         ? 'Có ' + ds.length + ' việc' +
@@ -301,7 +325,7 @@ CONG_CU.booking = {
       trangThai: nhan(b.trangThai),
     });
 
-    const chiTiet = ds.slice(0, 40).map(dong);
+    const chiTiet = ds.slice(0, 40).map((b) => gon(dong(b)));
     return {
       tomTat: ds.length
         ? 'Có ' + ds.length + ' booking' + (k ? ' đi tour ' + k.nhan : '') +
@@ -535,6 +559,6 @@ async function xuLy(req, res, u, { timMod, khoiDong, send, goc }) {
 module.exports = {
   xuLy, dangBat, CONG_CU, NGUOI_BOT, TU_KHOA,
   // để test gọi trực tiếp
-  khoang, khongDau, khopTen, ngayVN, gioVN, thuVN, dauNgayVN, openapi, bangNhau,
+  khoang, khongDau, khopTen, ngayVN, gioVN, thuVN, dauNgayVN, openapi, bangNhau, gon,
   TOI_THIEU_TOKEN,
 };

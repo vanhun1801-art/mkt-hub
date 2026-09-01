@@ -106,7 +106,19 @@ const NGAY = 86400000;
     ok('địa chỉ https thì không cảnh báo gì', !/CẢNH BÁO/.test(s.info.description));
   }
 
-  group('5. So token');
+  group('5. Bỏ khoá rỗng');
+  {
+    /* Gửi khoá rỗng đi thì bộ não coi đó là phát hiện và tường thuật "lịch này
+     * chưa có giờ kết thúc" — trong khi phần lớn lịch vốn không cần điền ô đó. */
+    const r = bot.gon({ a: 'co', b: '', c: null, d: undefined, e: 0, f: false, g: [] });
+    ok('bỏ chuỗi rỗng', !('b' in r));
+    ok('bỏ null và undefined', !('c' in r) && !('d' in r));
+    ok('GIỮ số 0 vì 0 là giá trị thật', r.e === 0);
+    ok('GIỮ false vì false là giá trị thật', r.f === false);
+    ok('giữ khoá có giá trị', r.a === 'co');
+  }
+
+  group('6. So token');
   {
     ok('khác độ dài thì khác', !bot.bangNhau('abc', 'abcd'));
     ok('giống thì bằng', bot.bangNhau('abcdef', 'abcdef'));
@@ -114,7 +126,7 @@ const NGAY = 86400000;
     ok('token tối thiểu đủ dài để không đoán được', bot.TOI_THIEU_TOKEN >= 24);
   }
 
-  group('6. Danh tính bot');
+  group('7. Danh tính bot');
   {
     /* Ba dòng này là chốt an toàn quan trọng nhất của cả tệp. Ai sửa NGUOI_BOT
      * thành quản lý hoặc bật chiPhi là mở đường cho tiền đi ra Internet. */
@@ -130,7 +142,7 @@ const NGAY = 86400000;
   const GOC = (process.env.HUB_URL || '').replace(/\/$/, '');
   const TOKEN = process.env.BOT_API_TOKEN || '';
   if (!GOC || !TOKEN) {
-    group('7. Chốt chặn HTTP (BỎ QUA)');
+    group('8. Chốt chặn HTTP (BỎ QUA)');
     console.log('  \x1b[33mbỏ qua\x1b[0m — cần HUB_URL và BOT_API_TOKEN để chạy nhóm này');
   } else {
     const goi = async (duong, opts = {}) => {
@@ -143,7 +155,7 @@ const NGAY = 86400000;
       return { status: r.status, body: b };
     };
 
-    group('7. Cửa vào');
+    group('8. Cửa vào');
     {
       ok('không token thì 401', (await goi('/bot/lich', { khongToken: true })).status === 401);
       ok('sai token thì 401', (await goi('/bot/lich', { token: 'sai-be-bet-nhung-du-dai-24-ky-tu' })).status === 401);
@@ -156,7 +168,7 @@ const NGAY = 86400000;
         r.status === 200 && r.body.congCu.length === Object.keys(bot.CONG_CU).length);
     }
 
-    group('8. Không một đồng nào lọt ra');
+    group('9. Không một đồng nào lọt ra');
     {
       /* Đây là test quan trọng nhất của tệp. Module TRẢ VỀ tiền (bảng OTA có
        * thucNhan/hoaHong, lịch có costPlan/costActual) — lớp bot phải lọc bằng
@@ -176,7 +188,7 @@ const NGAY = 86400000;
       }
     }
 
-    group('9. Tham số sai thì báo, không âm thầm trả hết');
+    group('10. Tham số sai thì báo, không âm thầm trả hết');
     {
       const r = await goi('/bot/lich?tu=hôm%20nay');
       ok('từ khoá ngày sai thì 400', r.status === 400, 'status=' + r.status);
