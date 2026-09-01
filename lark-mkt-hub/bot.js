@@ -421,6 +421,10 @@ function openapi(goc) {
       },
     };
   }
+  /* `goc` sinh từ PUBLIC_URL. Khai sai (hoặc bỏ trống) thì schema trỏ Coze về
+   * localhost — Coze gọi vào chính máy nó, không lỗi rõ ràng, chỉ "không có dữ
+   * liệu". Nên nói thẳng ra trong chính schema thay vì để anh Hùng đi đoán. */
+  const noiBo = !/^https:\/\//.test(goc);
   return {
     openapi: '3.0.1',
     info: {
@@ -428,9 +432,13 @@ function openapi(goc) {
       version: '1',
       description: 'Chỉ đọc. Số liệu lấy trực tiếp từ Lark Base lúc được gọi, nên luôn là ' +
         'số mới nhất. KHÔNG có chi phí, doanh thu, hoa hồng — đừng trả lời câu hỏi về tiền ' +
-        'bằng nguồn này.',
+        'bằng nguồn này.' +
+        (noiBo ? '\n\nCẢNH BÁO: địa chỉ máy chủ dưới đây là "' + goc + '" — địa chỉ nội bộ. ' +
+          'Biến PUBLIC_URL trên Render chưa khai hoặc khai sai, nên schema này DÙNG KHÔNG ĐƯỢC ' +
+          'cho bộ não ở ngoài. Sửa PUBLIC_URL thành đúng tên miền Render đã cấp rồi lấy lại ' +
+          'schema.' : ''),
     },
-    servers: [{ url: goc }],
+    servers: [{ url: goc, description: noiBo ? 'ĐỊA CHỈ NỘI BỘ — xem cảnh báo ở trên' : 'Marketing Hub' }],
     paths,
     components: {
       securitySchemes: { bearer: { type: 'http', scheme: 'bearer' } },
@@ -484,6 +492,10 @@ async function xuLy(req, res, u, { timMod, khoiDong, send, goc }) {
       })),
       luuY: 'Chỉ đọc, không có dữ liệu chi phí / doanh thu.',
       schemaChoCoze: goc + '/bot/openapi.json',
+      ...(/^https:\/\//.test(goc) ? {} : {
+        canhBao: 'PUBLIC_URL chưa khai đúng trên Render nên địa chỉ ở trên là nội bộ ("' +
+          goc + '"). Bộ não ở ngoài sẽ không gọi vào được.',
+      }),
     });
   }
 

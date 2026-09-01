@@ -97,6 +97,13 @@ const NGAY = 86400000;
     ok('mô tả nói rõ không có dữ liệu tiền',
       /KHÔNG có chi phí/.test(s.info.description), s.info.description);
     ok('khai bearer token', !!s.components.securitySchemes.bearer);
+
+    /* PUBLIC_URL khai sai thì schema trỏ Coze về localhost: Coze gọi vào chính
+     * máy nó, không báo lỗi rõ ràng, chỉ "không có dữ liệu". Phải tố giác. */
+    const noiBo = bot.openapi('http://127.0.0.1:5180');
+    ok('địa chỉ nội bộ thì schema tự cảnh báo', /CẢNH BÁO/.test(noiBo.info.description));
+    ok('cảnh báo chỉ đúng biến phải sửa', /PUBLIC_URL/.test(noiBo.info.description));
+    ok('địa chỉ https thì không cảnh báo gì', !/CẢNH BÁO/.test(s.info.description));
   }
 
   group('5. So token');
