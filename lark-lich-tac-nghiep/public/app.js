@@ -1702,7 +1702,7 @@ function renderDrawer() {
     'foc');
 
   h += khoi('Kết quả & báo cáo',
-    fieldText('report', 'Ghi chú trước chuyến', 'a) Bảng kê chi phí:\nb) Hiệu chỉnh trước công tác:\nc) Lưu ý dịch vụ:', true) +
+    fieldText('report', 'Ghi chú trước khi đi', '- Xin vé FOC lên Cầu Hôn cho 2 người\n- Cần xe công ty lúc 15h\n- Lưu ý: trùng ngày với đoàn khách Hàn', true) +
     fieldText('reportAfter', 'Báo cáo sau tác nghiệp', '- Đã làm được gì\n- Phát sinh gì\n- Lưu ý cho lần sau', true) +
     fieldText('link', 'Liên kết sản phẩm', 'https://…'),
     'ketqua');
@@ -2087,7 +2087,7 @@ function openCreate(preDate) {
   NEW = {
     title: '', purpose: '', plan: '', start: preDate || '', end: '', duration: '',
     staff: [], owner: S.me ? [S.me.id] : [], transport: ['Tự túc phương tiện'],
-    costPlan: '', foc: [],
+    costPlan: '', foc: [], report: '',
     status: 'Chờ duyệt/Xử lý',
   };
   renderCreate();
@@ -2126,7 +2126,7 @@ function moPhieuDi(id) {
   muc('Mục đích', nhieuDong(t.purpose), true);
   muc('Kế hoạch chi tiết', nhieuDong(t.plan), true);
   muc('Phản hồi của quản lý', nhieuDong(t.mgrNote), true);
-  muc('Ghi chú trước chuyến', nhieuDong(t.report), true);
+  muc('Ghi chú trước khi đi', nhieuDong(t.report), true);
   muc('Phụ trách', nguoi(t.owner));
   muc('Cùng tác nghiệp', nguoi(t.staff));
   muc('Phương tiện', chu((t.transport || []).join(', ')));
@@ -2286,6 +2286,16 @@ function renderCreate() {
     '<div class="frm-row"><label>Vé / dịch vụ miễn phí xin kèm</label>' +
       pickerMoi('foc', (O.foc || []).map((x) => ({ id: x, name: x })), false, 'Chọn danh mục…', false) +
       '<div class="hint">Cần thông báo muộn nhất 3 ngày kể từ ngày gửi phê duyệt.</div></div>' +
+
+    /* Đặt ngay sau FOC vì phần lớn ghi chú thật trên Base là chi tiết của FOC —
+     * ô chọn chỉ cho khai DANH MỤC ("Vé show", "Buffet"), còn "xin vé lên Cầu Hôn
+     * cho 2 người" thì không có chỗ nào chứa. Trước đây nhân sự phải chờ lịch được
+     * tạo xong rồi mở lại thẻ mới ghi được, nên hay quên hẳn. */
+    '<div class="sec-title sec-ghichu">Ghi chú</div>' +
+    '<div class="frm-row"><label>Ghi chú trước khi đi</label>' +
+      '<textarea class="fld" data-n="report" rows="4" placeholder="- Xin vé FOC lên Cầu Hôn cho 2 người&#10;- Cần xe công ty lúc 15h&#10;- Lưu ý: trùng ngày với đoàn khách Hàn">' + esc(NEW.report) + '</textarea>' +
+      '<div class="hint">Việc cần xin, cần lưu ý, hoặc điều kiện phải chốt trước chuyến. ' +
+      'Quản lý đọc ô này khi duyệt.</div></div>' +
     '</div>';
 
   /* Hai lối đi, nói thẳng ra khác nhau chỗ nào. Trước đây chân cửa sổ chỉ nhắc
@@ -2313,6 +2323,7 @@ async function submitCreate(mode) {
     transport: NEW.transport,
     costPlan: NEW.costPlan === '' ? null : Number(NEW.costPlan),
     foc: NEW.foc,
+    report: NEW.report.trim(),
     /* Bỏ ô tick "Yêu cầu FOC" khỏi form: chọn danh mục FOC tức là đang xin FOC.
      * Vẫn phải gửi cờ này vì hàng đợi duyệt của quản lý đếm theo nó. */
     focRequest: (NEW.foc || []).length > 0,
