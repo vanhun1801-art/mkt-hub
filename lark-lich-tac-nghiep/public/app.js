@@ -406,6 +406,11 @@ const qHuy = () => S.items.filter((t) => t.cancelWant && !CLOSED_BAD.includes(t.
 // nằm im, quản lý chỉ tình cờ thấy trong tab Danh sách.
 const qNghiemThu = () => S.items.filter((t) => t.status === 'Đang báo cáo' && duBaoCao(t));
 const qBaoCaoDo = () => S.items.filter((t) => t.status === 'Đang báo cáo' && !duBaoCao(t));
+/* Trả về rồi bỏ đó: quản lý bấm "Cần chỉnh", ghi lý do, rồi nhân sự im luôn.
+ * Nhân sự có băng đỏ nhắc trên màn hình của họ, còn quản lý — người đã trả về —
+ * trước đây không có chỗ nào thấy lại. Sắp lịch sát ngày lên trước. */
+const qTraVe = () => S.items.filter((t) => t.status === 'Từ chối/Cần điều chỉnh')
+  .sort((a, b) => (toDate(a.start) || 0) - (toDate(b.start) || 0));
 // Nháp để lâu: của ai người nấy dọn, nhưng quản lý cần thấy để nhắc
 const qNhapCu = () => {
   const moc = Date.now() - 14 * 86400000;
@@ -680,7 +685,7 @@ function queueCard(title, arr, note, kind) {
     } else if (kind === 'nghiemthu') {
       acts = '<button class="btn sm success" data-act="done" data-id="' + t.id + '">Nghiệm thu hoàn tất</button>' +
              '<button class="btn sm" data-open="' + t.id + '">Xem báo cáo</button>';
-    } else if (kind === 'bcdo' || kind === 'nhapcu') {
+    } else if (kind === 'bcdo' || kind === 'nhapcu' || kind === 'trave' || kind === 'late') {
       acts = '<button class="btn sm" data-open="' + t.id + '">Xem chi tiết</button>';
     } else if (kind === 'huy') {
       acts = '<button class="btn sm danger" data-act="huy-ok" data-id="' + t.id + '">Duyệt huỷ</button>' +
@@ -702,7 +707,11 @@ function queueCard(title, arr, note, kind) {
       : kind === 'pay' ? '<span class="mini muted">Thực tế ' + money(t.costActual) + ' đ</span>'
       : kind === 'huy' ? '<span class="mini" style="color:var(--red-t)">Lý do: ' + esc(t.cancelReason || '(không ghi)') + '</span>'
       : kind === 'bcdo' ? '<span class="mini" style="color:var(--orange-t)">Thiếu: ' + esc(thieuGiBaoCao(t).join(', ')) + '</span>'
-      : kind === 'nhapcu' ? '<span class="mini muted">Ngày dự định: ' + esc(fmtD(t.start)) + '</span>' : '';
+      : kind === 'nhapcu' ? '<span class="mini muted">Ngày dự định: ' + esc(fmtD(t.start)) + '</span>'
+      /* Nhắc lại chính câu quản lý đã ghi khi trả về — sau hai tuần thì không ai
+       * còn nhớ mình đã yêu cầu sửa cái gì. */
+      : kind === 'trave' ? '<span class="mini" style="color:var(--red-t)">Anh yêu cầu: ' +
+          esc(t.mgrNote || '(không ghi lý do)') + '</span>' : '';
 
     h += '<tr data-open="' + t.id + '">' +
       '<td><div class="tname">' + esc(t.title || '(chưa đặt tên)') + '</div>' +
@@ -719,15 +728,33 @@ function queueCard(title, arr, note, kind) {
 }
 
 function viewApprove() {
+  /* Con số trên tab CHỈ đếm việc chỉ quản lý làm được (xem `approveCount`).
+   * Mấy hàng đợi còn lại chờ người khác động tay, nên chúng không đẩy con số lên
+   * — nhưng trước đây màn hình không nói ra, thành ra tab báo 0 mà bên dưới bốn
+   * hàng đợi vẫn đầy, đọc không hiểu vì sao. Nói thẳng ra một câu. */
+  const cuaToi = approveCount();
+  const choNguoiKhac = qBaoCaoDo().length + qTraVe().length + qReport().length +
+    qPay().length + qNhapCu().length;
+
   let h = '<div class="banner info">' +
     '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 7.2v4M8 4.8v.6" stroke-linecap="round"/></svg>' +
     '<div class="sp">Mọi thao tác ở đây ghi thẳng vào Lark Base. Bấm vào dòng để mở chi tiết trước khi quyết định.</div></div>';
+  h += '<div class="banner">' +
+    '<div class="sp">Số trên tab <b>Cần xử lý</b> là <b>' + cuaToi + '</b> việc ' +
+    '<b>chỉ anh quyết được</b> — duyệt kế hoạch, xin huỷ, FOC, Media, nghiệm thu. ' +
+    (choNguoiKhac
+      ? 'Còn <b>' + choNguoiKhac + '</b> việc bên dưới đang chờ nhân sự làm; ' +
+        'chúng không tính vào con số đó, việc của anh ở đây chỉ là nhắc.'
+      : 'Không có việc nào đang chờ nhân sự.') +
+    '</div></div>';
   h += queueCard('Chờ duyệt kế hoạch', qWaiting(), 'Duyệt · Cần chỉnh · Từ chối', 'plan');
   h += queueCard('Xin huỷ lịch', qHuy(), 'Nhân sự xin huỷ — đọc lý do rồi quyết định', 'huy');
   h += queueCard('Báo cáo chờ nghiệm thu', qNghiemThu(), 'Nhân sự đã nộp đủ — đọc rồi chốt Hoàn tất', 'nghiemthu');
   h += queueCard('Báo cáo còn dở dang', qBaoCaoDo(), 'Đã bấm nộp nhưng chưa điền đủ — nhắc lại người phụ trách', 'bcdo');
   h += queueCard('Yêu cầu FOC', qFoc(), 'Thông báo muộn nhất 3 ngày kể từ ngày gửi', 'foc');
   h += queueCard('Yêu cầu nhân sự phòng Media', qMedia(), 'Phê duyệt hoặc từ chối hỗ trợ', 'media');
+  h += queueCard('Trả về mà chưa gửi lại', qTraVe(),
+    'Anh đã bấm Cần chỉnh — nhân sự chưa sửa xong để gửi duyệt lại', 'trave');
   h += queueCard('Quá ngày chưa báo cáo', qReport(), 'Đã duyệt nhưng chưa chuyển sang báo cáo', 'late');
   h += queueCard('Chờ thanh toán chi phí', qPay(), 'Đã hoàn tất và có chi phí thực tế', 'pay');
   h += queueCard('Nháp để quá lâu', qNhapCu(), 'Quá 14 ngày kể từ ngày dự định đi mà chưa gửi duyệt', 'nhapcu');
@@ -822,20 +849,20 @@ function viewCost() {
  * Bấm một thẻ là lọc luôn xuống làn tương ứng — số và danh sách phải khớp nhau,
  * nên mỗi thẻ khai kèm bộ lọc của chính nó thay vì đếm một kiểu, lọc một kiểu.
  */
-function theSoLichCuaToi(list) {
+/**
+ * Định nghĩa thẻ số của trang "Lịch của tôi" — MỘT NGUỒN DUY NHẤT.
+ *
+ * Trước đây mảng này viết hai lần: một bản để đếm số trên thẻ, một bản trong hàm
+ * lọc để bấm vào xem. Hai bản đó khớp nhau từng chữ, nhưng đúng loại lỗi này đã
+ * xảy ra thật ở app Bảng công việc — thẻ đếm 33 việc mà danh sách mở ra 7. Nên
+ * giờ chỉ có một chỗ, không thể lệch.
+ */
+function dsTheLich() {
   const homNay = startOfDay(new Date());
   const mai2 = new Date(homNay.getTime() + 2 * 86400000);
   const con = (t) => !CLOSED_BAD.includes(t.status);
   const ngay = (t) => toDate(t.start);
-
-  /* Xếp và tô theo MỨC CẤP BÁCH, gấp nhất đứng trước:
-   *   đỏ   = đã trễ, phải làm ngay
-   *   cam  = hôm nay
-   *   vàng = trong 48 giờ, lo trước đi
-   *   xám  = đang chờ người khác, chưa tới lượt mình
-   *   xanh / tím / lục = đang yên, chỉ để tra cứu
-   * Riêng hai thẻ đỏ và cam được tô nền (class "gap") để mắt bắt trước tiên. */
-  const the = [
+  return [
     /* Chỉ đếm lịch MÌNH phụ trách: nhân sự đi cùng không nộp báo cáo nên không
      * việc gì phải mang con số đỏ của người khác. Nộp rồi (Đang báo cáo) cũng
      * hết trễ — bóng đang ở sân quản lý. */
@@ -851,13 +878,27 @@ function theSoLichCuaToi(list) {
       loc: (t) => t.status === 'Chờ duyệt/Xử lý' },
     { k: 'da-duyet', nhan: 'Đã duyệt', tone: 'xanh', phu: 'được đi',
       loc: (t) => t.status === 'Duyệt/Chờ tác nghiệp' },
+    /* Đòi "Đã hoàn tất" cho khớp hàng đợi "Chờ thanh toán chi phí" của quản lý.
+     * Trước đây thẻ này đếm mọi lịch có chi phí chưa trả, kể cả lịch chưa nghiệm
+     * thu — nhân sự thấy "chưa thanh toán" mà quản lý không thấy trong hàng đợi
+     * nào, rồi đi hỏi nhau. Tiền chỉ tới lượt trả sau khi nghiệm thu. */
     { k: 'chua-thanh-toan', nhan: 'Chưa thanh toán', tone: 'tim', phu: 'đang chờ tiền',
-      loc: (t) => Number(t.costActual || 0) > 0 && t.payment !== 'Đã thanh toán' },
+      loc: (t) => t.status === 'Đã hoàn tất' && Number(t.costActual || 0) > 0 &&
+        t.payment !== 'Đã thanh toán' },
     { k: 'hoan-tat', nhan: 'Hoàn tất', tone: 'luc', phu: 'xong việc',
       loc: (t) => t.status === 'Đã hoàn tất' },
   ];
+}
 
-  return '<div class="the-lich">' + the.map((x) => {
+function theSoLichCuaToi(list) {
+  /* Xếp và tô theo MỨC CẤP BÁCH, gấp nhất đứng trước:
+   *   đỏ   = đã trễ, phải làm ngay
+   *   cam  = hôm nay
+   *   vàng = trong 48 giờ, lo trước đi
+   *   xám  = đang chờ người khác, chưa tới lượt mình
+   *   xanh / tím / lục = đang yên, chỉ để tra cứu
+   * Riêng hai thẻ đỏ và cam được tô nền (class "gap") để mắt bắt trước tiên. */
+  return '<div class="the-lich">' + dsTheLich().map((x) => {
     const n = list.filter(x.loc).length;
     const chon = S.f.the === x.k;
     // thẻ rỗng thì nhạt hẳn, kể cả thẻ gấp — không có việc thì đừng gào lên
@@ -872,24 +913,9 @@ function theSoLichCuaToi(list) {
 /** Bộ lọc của thẻ đang chọn — để làn bên dưới khớp với con số vừa bấm. */
 function locTheoThe(list) {
   if (!S.f.the) return list;
-  const gia = theSoLichCuaToi(list);   // dựng lại để lấy đúng định nghĩa
-  void gia;
-  const homNay = startOfDay(new Date());
-  const mai2 = new Date(homNay.getTime() + 2 * 86400000);
-  const con = (t) => !CLOSED_BAD.includes(t.status);
-  const ngay = (t) => toDate(t.start);
-  const bang = {
-    'cho-duyet': (t) => t.status === 'Chờ duyệt/Xử lý',
-    'da-duyet': (t) => t.status === 'Duyệt/Chờ tác nghiệp',
-    'hom-nay': (t) => con(t) && ngay(t) && startOfDay(ngay(t)).getTime() === homNay.getTime(),
-    'sap-48h': (t) => con(t) && ngay(t) && ngay(t) > new Date() && ngay(t) <= mai2,
-    'chua-bao-cao': (t) => ngay(t) && ngay(t) < homNay && (MGR() || laPhuTrach(t)) &&
-      (t.status === 'Duyệt/Chờ tác nghiệp' ||
-       (t.status === 'Đang báo cáo' && !duBaoCao(t))),
-    'hoan-tat': (t) => t.status === 'Đã hoàn tất',
-    'chua-thanh-toan': (t) => Number(t.costActual || 0) > 0 && t.payment !== 'Đã thanh toán',
-  };
-  return bang[S.f.the] ? list.filter(bang[S.f.the]) : list;
+  // đọc lại ĐÚNG mảng đã dùng để đếm, nên số trên thẻ và danh sách mở ra không lệch được
+  const the = dsTheLich().find((x) => x.k === S.f.the);
+  return the ? list.filter(the.loc) : list;
 }
 
 function viewMine() {
@@ -903,8 +929,11 @@ function viewMine() {
    * phải làm, không theo tên trạng thái trong Base. */
   const daQua = (t) => toDate(t.start) && toDate(t.start) < startOfDay(new Date());
   const buocs = [
+    /* Nhận cả lịch KHÔNG CÓ trạng thái: dòng tạo tay trên Base hay bị bỏ trống ô
+     * đó, và trước đây lịch như vậy không khớp làn nào — tàng hình với cả quản lý,
+     * chỉ hiện lên một con số trong biểu đồ mà không mở tới được. */
     { k: 'nhap', t: '1 · Nháp', mo: 'Chưa gửi đi — điền xong thì bấm Gửi duyệt',
-      loc: (t) => t.status === 'Đang lên kế hoạch' },
+      loc: (t) => t.status === 'Đang lên kế hoạch' || !t.status },
     /* Lịch bị trả về gộp chung vào bước 2: với nhân sự thì cả hai đều là "đã gửi
      * đi rồi", khác nhau ở chỗ một cái bị trả — nên thẻ trả về tô đỏ riêng. */
     { k: 'cho', t: '2 · Đã gửi · chờ duyệt', mo: 'Gồm cả lịch bị trả về cần điều chỉnh',
@@ -924,9 +953,13 @@ function viewMine() {
       loc: (t) => t.status === 'Đang báo cáo' && duBaoCao(t) },
     { k: 'xong', t: 'Đã hoàn tất', mo: 'Xong việc, để đối chiếu cuối tháng',
       loc: (t) => t.status === 'Đã hoàn tất' },
+    /* Hiện cho CẢ nhân sự. Trước đây làn này bị cắt cho họ, nên lịch bị từ chối
+     * nhận được thông báo "bị từ chối" mà mở màn hình chính ra không thấy đâu —
+     * phải sang tab Danh sách rồi đổi bộ lọc sang Toàn bộ mới ra. Với nhân sự làn
+     * này chỉ có lịch bị từ chối, vì lịch huỷ đã bị cắt từ máy chủ. */
     { k: 'dong', t: 'Đã đóng', mo: 'Từ chối hoặc huỷ',
       loc: (t) => ['Từ chối', 'Hủy lịch'].includes(t.status) },
-  ].filter((b) => b.k !== 'dong' || MGR());   // lịch đã đóng chỉ quản lý cần thấy
+  ];
 
   const today = startOfDay(new Date());
   /* Chỉ lịch ĐÃ DUYỆT mới lên bảng nhắc: đây là chỗ nhắc "sắp đi rồi, chuẩn bị gì".
@@ -1016,13 +1049,23 @@ function viewMine() {
  * quyền đó thì máy chủ cắt cột trước khi gửi xuống, kiểm ở đây sẽ luôn ra
  * "thiếu" một cách oan uổng.
  */
+/**
+ * Báo cáo còn thiếu những gì.
+ *
+ * Đây là tính chất của CÁI LỊCH, không phải của người đang xem — nên KHÔNG hỏi
+ * quyền xem chi phí ở đây. Trước đây điều kiện là `(CHIPHI() || laPhuTrach(t))`,
+ * nên cùng một lịch thiếu chi phí thì người phụ trách thấy ở bước 4 "Cần báo
+ * cáo" còn người đi cùng thấy ở bước 5 "Đã nộp chờ nghiệm thu", và cả hai đều
+ * lệch với máy chủ (`duBaoCao` bên server luôn đòi chi phí thực tế).
+ *
+ * Nói "thiếu chi phí thực tế" không hé ra số tiền nào, nên người không có quyền
+ * xem chi phí đọc câu này cũng không sao.
+ */
 function thieuGiBaoCao(t) {
   const thieu = [];
   if (!t.end) thieu.push('thời gian kết thúc');
   if (!String(t.reportAfter || '').trim()) thieu.push('báo cáo sau tác nghiệp');
-  // Người phụ trách LUÔN phải khai chi phí chuyến của mình, dù không có quyền
-  // xem chi phí của cả phòng — máy chủ cũng đã mở đúng ô này cho họ.
-  if ((CHIPHI() || laPhuTrach(t)) && t.costActual == null) thieu.push('chi phí thực tế');
+  if (t.costActual == null) thieu.push('chi phí thực tế');
   return thieu;
 }
 
@@ -1041,7 +1084,13 @@ function toiHanBaoCao(t) {
 }
 
 function theViec(t, buoc) {
-  const qua = toDate(t.start) && toDate(t.start) < new Date();
+  /* Cùng một thước "đã qua" với các làn: theo NGÀY, không theo giờ. Trước đây
+   * thẻ so theo giờ nên lịch 8h sáng nay xem lúc 20h nằm ở làn "3 · chuẩn bị đi"
+   * mà chữ trong thẻ lại nói "Đã tới giờ — đi xong nhớ bấm Báo cáo". */
+  const quaNgay = toDate(t.start) && toDate(t.start) < startOfDay(new Date());
+  const dungHomNay = toDate(t.start) &&
+    startOfDay(toDate(t.start)).getTime() === startOfDay(new Date()).getTime();
+  const qua = quaNgay;
   const veXin = (t.foc || []).length;
   const veDuyet = t.focStatus === 'Phê duyệt';
   const veTuChoi = t.focStatus === 'Từ chối';
@@ -1110,7 +1159,8 @@ function theViec(t, buoc) {
       co = '<span class="ct-co xam">Chờ duyệt</span>';
     }
   } else if (buoc === 'chuan-bi') {
-    viec = qua ? 'Đã tới giờ — đi xong nhớ quay lại bấm Báo cáo' : 'Đã duyệt — chuẩn bị đi';
+    viec = dungHomNay ? 'Đi trong hôm nay — xong việc nhớ quay lại bấm Báo cáo'
+      : 'Đã duyệt — chuẩn bị đi';
     if (giuc) { them = ' ct-giuc'; co = '<span class="ct-co vang">Tới hạn báo cáo</span>'; }
     if (!PREVIEW()) nut = '<button class="btn sm ' + (giuc ? 'warn' : 'primary') +
       '" data-act="report" data-id="' + t.id + '">Báo cáo</button>';
@@ -1199,35 +1249,6 @@ function theViec(t, buoc) {
       (nut ? '<div class="ct-nut">' + nut + '</div>' : '') +
     '</div></div>';
 }
-
-function tileHtml(t) {
-  const acts = [];
-  if (PREVIEW()) {
-    // đang xem hộ người khác: chỉ xem, không bấm thay họ
-  } else if (t.status === 'Đang lên kế hoạch' || t.status === 'Từ chối/Cần điều chỉnh') {
-    acts.push('<button class="btn sm primary" data-act="submit" data-id="' + t.id + '">Gửi duyệt</button>');
-  }
-  if (!PREVIEW() && t.status === 'Duyệt/Chờ tác nghiệp') {
-    acts.push('<button class="btn sm primary" data-act="report" data-id="' + t.id + '">Báo cáo</button>');
-  }
-  const chk = [];
-  if (t.focRequest) chk.push('<span class="badge ' + (t.focStatus === 'Phê duyệt' ? 'green' : t.focStatus === 'Từ chối' ? 'red' : 'orange') + '">FOC ' + esc(t.focStatus || 'chờ') + '</span>');
-  if (t.mediaRequest) chk.push('<span class="badge ' + (t.mediaStatus === 'Phê duyệt' ? 'green' : t.mediaStatus === 'Từ chối' ? 'red' : 'orange') + '">Media ' + esc(t.mediaStatus || 'chờ') + '</span>');
-
-  return '<div class="tile" data-open="' + t.id + '">' +
-    '<div class="t">' + esc(t.title || '(chưa đặt tên)') + '</div>' +
-    '<div class="m"><span>' + esc(fmtDT(t.start)) + '</span>' + (t.duration ? '<span>· ' + esc(t.duration) + 'h</span>' : '') + '</div>' +
-    (chk.length ? '<div class="m" style="margin-top:6px">' + chk.join('') + '</div>' : '') +
-    '<div class="m" style="margin-top:7px">' + peopleStack(t.staff, 3) +
-      (t.costPlan ? '<span class="muted">' + shortMoney(t.costPlan) + ' đ</span>' : '') + '</div>' +
-    (acts.length ? '<div class="acts">' + acts.join('') + '</div>' : '') +
-    '</div>';
-}
-
-/* ============ LỊCH THÁNG ============ */
-const DOW = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'];
-const MONTHS = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6',
-                'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'];
 
 function viewCalendar() {
   const { y, m } = S.cal;

@@ -316,12 +316,19 @@ async function findRecord(id) {
 /**
  * Base có nhiều dòng trống dùng để chừa chỗ. Bỏ qua chúng để không làm
  * sai lệch số đếm và biểu đồ; dòng chỉ cần có một dấu hiệu nội dung là giữ.
+ *
+ * CỐ Ý KHÔNG xét `status`. Base tự điền mặc định "Đang lên kế hoạch" cho cột
+ * đó, nên trạng thái không nói gì về việc dòng có nội dung hay không — trước
+ * đây điều kiện `!t.status` làm 10 dòng rác lọt qua, và biểu đồ "Phân bố trạng
+ * thái" báo 14 nháp trong khi thật chỉ có 4. An toàn vì app bắt buộc tên + mục
+ * đích + ngày khi tạo (`requiredOnCreate`), nên dòng thật không bao giờ trống
+ * cả sáu ô dưới đây.
  */
 function isBlank(t) {
   return !String(t.title || '').trim() &&
     !String(t.purpose || '').trim() &&
     !String(t.plan || '').trim() &&
-    !t.start && !t.status &&
+    !t.start &&
     !(t.owner || []).length && !(t.staff || []).length;
 }
 
@@ -666,9 +673,17 @@ async function api(req, res, url) {
         them({ id: 'lich:bi-tu-choi:' + t.id, muc: 'can', rec: t.id, khi: t.start,
           tieuDe: 'Lịch bị từ chối', mo: ten(t) + ' — ' + (t.mgrNote || 'quản lý không nêu lý do') });
       }
+      /* Lịch huỷ bị cắt khỏi danh sách của nhân sự (theo ý anh Hùng), nên với họ
+       * thông báo này KHÔNG kèm mã bản ghi: bấm vào cũng không mở được gì, chỉ ăn
+       * một câu "không thấy việc này" vô nghĩa. Tin đã nói đủ lý do rồi. Quản lý
+       * thì vẫn thấy lịch huỷ nên vẫn bấm được. */
       for (const t of cuaToi.filter((x) => x.status === 'Hủy lịch')) {
-        them({ id: 'lich:bi-huy:' + t.id, muc: 'can', rec: t.id, khi: t.start,
-          tieuDe: 'Lịch đã bị huỷ', mo: ten(t) + ' — ' + (t.mgrNote || t.cancelReason || 'không nêu lý do') });
+        them({ id: 'lich:bi-huy:' + t.id, muc: 'can',
+          ...(manager ? { rec: t.id } : {}),
+          khi: t.start,
+          tieuDe: 'Lịch đã bị huỷ',
+          mo: ten(t) + ' — ' + (t.mgrNote || t.cancelReason || 'không nêu lý do') +
+            (manager ? '' : ' (lịch huỷ không còn trong danh sách của bạn)') });
       }
       /* Quản lý sửa giờ/phương tiện sau khi đã duyệt: người đi cùng đã ghi giờ
        * cũ vào đầu rồi. Mốc sửa nằm trong mã thông báo nên mỗi lần sửa lại là
@@ -1174,7 +1189,7 @@ if (!LOOPBACK.includes(BIND) && process.env.HUB_TRUST_HEADER !== '0') {
 
 /* Được require từ bộ kiểm thử thì chỉ xuất hàm ra, đừng mở cổng. */
 if (require.main !== module) {
-  module.exports = { khoaKeHoach, duMinhChung, anLichHuy, laPhuTrach, ownedBy, duBaoCao, boChiPhi,
+  module.exports = { khoaKeHoach, duMinhChung, anLichHuy, laPhuTrach, ownedBy, duBaoCao, boChiPhi, isBlank,
     soanTinLich, nguoiNhanTin, docCauHinhBao, luatBao };
   return;
 }

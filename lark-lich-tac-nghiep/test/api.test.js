@@ -448,6 +448,40 @@ async function call(path, opts) {
       G.soanTinLich(it, 'Đang lên kế hoạch', '') === null);
   }
 
+  /* ---------- dòng rác trên Base ---------- */
+  group('12. Bộ lọc dòng rác (không ghi gì)');
+  {
+    const G = require('../server.js');
+    const rong = { title: '', purpose: '', plan: '', start: null, owner: [], staff: [] };
+
+    /* Dòng tạo bằng nút + trong Lark Base: Base TỰ ĐIỀN mặc định cho status và
+     * transport, nên hai ô đó không nói gì về việc dòng có nội dung. Trước đây
+     * `isBlank` đòi `!t.status`, nên 10 dòng như dưới đây lọt qua và biểu đồ
+     * "Phân bố trạng thái" báo 14 nháp trong khi thật chỉ có 4. */
+    ok('dòng rác có status mặc định vẫn bị coi là rác',
+      G.isBlank({ ...rong, status: 'Đang lên kế hoạch', transport: ['Tự túc phương tiện'] }));
+    ok('dòng rỗng hoàn toàn là rác', G.isBlank(rong));
+    ok('dòng rác có cả hours/focRequest vẫn là rác',
+      G.isBlank({ ...rong, status: 'Đang lên kế hoạch', hours: '-1107240', focRequest: false }));
+
+    // Còn dòng có bất kỳ dấu hiệu nội dung thật thì PHẢI giữ
+    ok('có tên thì giữ', !G.isBlank({ ...rong, title: 'Livestream Grand World' }));
+    ok('có mục đích thì giữ', !G.isBlank({ ...rong, purpose: 'Quay tư liệu' }));
+    ok('có kế hoạch thì giữ', !G.isBlank({ ...rong, plan: '15h xuất phát' }));
+    ok('có ngày thì giữ', !G.isBlank({ ...rong, start: '2026-09-10T08:00:00+07:00' }));
+    ok('có người phụ trách thì giữ',
+      !G.isBlank({ ...rong, owner: [{ id: 'x', name: 'Trường' }] }));
+    ok('có nhân sự cùng đi thì giữ',
+      !G.isBlank({ ...rong, staff: [{ id: 'y', name: 'Hằng' }] }));
+
+    /* App bắt buộc ba ô này khi tạo, nên mọi lịch tạo từ app đều thoát bộ lọc —
+     * đó là lý do bỏ điều kiện status là an toàn. */
+    const cfgApp = require('../config.js');
+    ok('app vẫn bắt buộc tên + mục đích + ngày khi tạo',
+      ['title', 'purpose', 'start'].every((k) => cfgApp.requiredOnCreate.includes(k)),
+      JSON.stringify(cfgApp.requiredOnCreate));
+  }
+
   /* ---------- tổng kết ---------- */
   console.log('\n' + '─'.repeat(52));
   console.log('  ' + pass + ' pass · ' + fail + ' fail');
