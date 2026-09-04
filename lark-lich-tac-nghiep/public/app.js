@@ -1393,7 +1393,7 @@ function fieldText(key, label, hint, multiline) {
     (multiline
       ? '<textarea class="fld" data-k="' + key + '"' + (on ? '' : ' readonly') + ' placeholder="' + esc(hint || '') + '">' + esc(v) + '</textarea>'
       : '<input class="fld" data-k="' + key + '" value="' + esc(v) + '"' + (on ? '' : ' readonly') + ' placeholder="' + esc(hint || '') + '">') +
-    (hint && multiline ? '<div class="hint">' + esc(hint) + '</div>' : '') + '</div>';
+    '</div>';
 }
 
 function fieldSelect(key, label, opts, allowEmpty) {
@@ -1669,12 +1669,12 @@ function renderDrawer() {
   let h = steps + lockNote + '<div class="dr-khoi">';
 
   h += khoi('Thông tin chuyến',
-    fieldText('title', 'Tên hoạt động', 'Tên ngắn gọn của hoạt động') +
-    fieldText('purpose', 'Mục đích', '- Cập nhật tư liệu truyền thông\n- Phát trực tiếp', true) +
+    fieldText('title', 'Tên hoạt động', 'Tên ngắn gọn của buổi tác nghiệp') +
+    fieldText('purpose', 'Mục đích', 'Vì sao cần đi chuyến này — mỗi việc một dòng', true) +
     '<div class="frm-2">' + fieldDate('start', 'Thời gian bắt đầu') +
       fieldSelect('duration', 'Thời lượng (giờ)', O.duration) + '</div>' +
     fieldDate('end', 'Thời gian kết thúc', 'Chỉ cập nhật sau khi đã hoàn tất tác nghiệp') +
-    fieldText('plan', 'Kế hoạch chi tiết', '- 19:00 Có mặt tại địa điểm\n- 19:30 Thực hiện phát trực tiếp', true),
+    fieldText('plan', 'Kế hoạch chi tiết', 'Các mốc giờ trong buổi, từ lúc xuất phát tới lúc kết thúc', true),
     'chuyen');
 
   h += khoi('Nhân sự & di chuyển',
@@ -1702,8 +1702,8 @@ function renderDrawer() {
     'foc');
 
   h += khoi('Kết quả & báo cáo',
-    fieldText('report', 'Ghi chú trước khi đi', '- Xin vé FOC lên Cầu Hôn cho 2 người\n- Cần xe công ty lúc 15h\n- Lưu ý: trùng ngày với đoàn khách Hàn', true) +
-    fieldText('reportAfter', 'Báo cáo sau tác nghiệp', '- Đã làm được gì\n- Phát sinh gì\n- Lưu ý cho lần sau', true) +
+    fieldText('report', 'Ghi chú trước khi đi', 'Việc cần xin hoặc lưu ý trước chuyến — mỗi việc một dòng', true) +
+    fieldText('reportAfter', 'Báo cáo sau tác nghiệp', 'Kết quả đạt được, phát sinh trong buổi, và lưu ý cho lần sau', true) +
     fieldText('link', 'Liên kết sản phẩm', 'https://…'),
     'ketqua');
 
@@ -1880,7 +1880,7 @@ function moXinHuy(id) {
       '<div class="banner">Huỷ hay không do quản lý quyết định. Gửi xong lịch vẫn giữ nguyên ' +
         'trạng thái cho tới khi được duyệt huỷ.</div>' +
       '<div class="frm-row"><label>Lý do huỷ *</label>' +
-        '<textarea class="fld" data-xh="reason" rows="4" placeholder="VD: Đối tác dời lịch sang tuần sau">' +
+        '<textarea class="fld" data-xh="reason" rows="4" placeholder="Vì sao không đi được nữa — quản lý đọc để quyết định">' +
         esc(XH.reason) + '</textarea></div>' +
     '</div>';
   $('#mdBody').onclick = null;
@@ -1992,7 +1992,7 @@ function veBaoCao() {
 
       khoi('Báo cáo',
         o('Báo cáo sau tác nghiệp *',
-          '<textarea class="fld" data-bc="reportAfter" rows="5" placeholder="- Đã làm được gì&#10;- Phát sinh gì&#10;- Lưu ý cho lần sau">' +
+          '<textarea class="fld" data-bc="reportAfter" rows="5" placeholder="Kết quả đạt được, phát sinh trong buổi, và lưu ý cho lần sau">' +
           esc(BC.reportAfter) + '</textarea>') +
         o('Liên kết sản phẩm',
           '<input type="text" class="fld" data-bc="link" value="' + esc(BC.link) + '" placeholder="https://…">') +
@@ -2246,9 +2246,9 @@ function renderCreate() {
 
   $('#mdBody').innerHTML = '<div class="frm">' +
     '<div class="frm-row"><label>Tên hoạt động' + req + '</label>' +
-      '<input class="fld" data-n="title" value="' + esc(NEW.title) + '" placeholder="VD: Livestream show Tiên Cá - Vinwonders"></div>' +
+      '<input class="fld" data-n="title" value="' + esc(NEW.title) + '" placeholder="Tên ngắn gọn của buổi tác nghiệp"></div>' +
     '<div class="frm-row"><label>Mục đích' + req + '</label>' +
-      '<textarea class="fld" data-n="purpose" placeholder="- Cập nhật tư liệu truyền thông&#10;- Phát trực tiếp&#10;- Tư vấn tour / bán hàng">' + esc(NEW.purpose) + '</textarea></div>' +
+      '<textarea class="fld" data-n="purpose" placeholder="Vì sao cần đi chuyến này — mỗi việc một dòng">' + esc(NEW.purpose) + '</textarea></div>' +
 
     '<div class="frm-2">' +
       '<div class="frm-row"><label>Thời gian bắt đầu' + req + '</label>' +
@@ -2260,7 +2260,7 @@ function renderCreate() {
     '</div>' +
 
     '<div class="frm-row"><label>Kế hoạch chi tiết</label>' +
-      '<textarea class="fld" data-n="plan" placeholder="- 11h30 xuất phát&#10;- 12h00 có mặt tại địa điểm&#10;- 13h50 lên sóng&#10;- 20h00 kết thúc hành trình">' + esc(NEW.plan) + '</textarea></div>' +
+      '<textarea class="fld" data-n="plan" placeholder="Các mốc giờ trong buổi, từ lúc xuất phát tới lúc kết thúc">' + esc(NEW.plan) + '</textarea></div>' +
 
     '<div class="sec-title sec-nguoi">Nhân sự & di chuyển</div>' +
     (MGR()
@@ -2279,7 +2279,7 @@ function renderCreate() {
     '<div class="sec-title sec-tien">Chi phí</div>' +
     '<div class="frm-row"><label>Chi phí dự kiến (đ)</label>' +
       '<input type="number" class="fld" data-n="costPlan" value="' + esc(NEW.costPlan) +
-      '" step="1000" min="0" placeholder="600000">' +
+      '" step="1000" min="0" placeholder="Số tiền dự trù">' +
       '<div class="hint">Dự trù cho chuyến này. Không tốn gì thì ghi 0.</div></div>' +
 
     '<div class="sec-title sec-foc">Danh mục FOC</div>' +
@@ -2293,7 +2293,7 @@ function renderCreate() {
      * tạo xong rồi mở lại thẻ mới ghi được, nên hay quên hẳn. */
     '<div class="sec-title sec-ghichu">Ghi chú</div>' +
     '<div class="frm-row"><label>Ghi chú trước khi đi</label>' +
-      '<textarea class="fld" data-n="report" rows="4" placeholder="- Xin vé FOC lên Cầu Hôn cho 2 người&#10;- Cần xe công ty lúc 15h&#10;- Lưu ý: trùng ngày với đoàn khách Hàn">' + esc(NEW.report) + '</textarea>' +
+      '<textarea class="fld" data-n="report" rows="4" placeholder="Việc cần xin hoặc lưu ý trước chuyến — mỗi việc một dòng">' + esc(NEW.report) + '</textarea>' +
       '<div class="hint">Việc cần xin, cần lưu ý, hoặc điều kiện phải chốt trước chuyến. ' +
       'Quản lý đọc ô này khi duyệt.</div></div>' +
     '</div>';
