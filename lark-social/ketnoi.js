@@ -7,9 +7,12 @@
  *   2. SOCIAL_CONNECT_JSON     — server chung (Render), vì ổ đĩa ở đó là tạm
  *   3. mặc định rỗng
  *
- * Và một lớp phủ lên trên: KHO KHOÁ (vault.js). Token của TikTok/Zalo xoay vòng
- * sau mỗi lần làm mới, nên bản trong file/biến môi trường già đi rất nhanh. Kho
- * giữ bản mới nhất; hàm doc() luôn ưu tiên bản trong kho khi có.
+ * Và một lớp phủ lên trên: KHO KHOÁ (vault.js), giữ bản mã hoá của CẢ BỐN khối
+ * trên Base. Hai lý do:
+ *   - token TikTok/Zalo xoay vòng, bản trong file/biến môi trường già rất nhanh;
+ *   - ổ đĩa Render là tạm, nên mọi thứ chỉ nằm trong ket-noi.json đều là thứ sẽ
+ *     phải nhập lại sau lần deploy tới — kể cả page token của Facebook.
+ * doc() lấy token mới nhất từ kho, và khi cấu hình nền rỗng thì khôi phục trọn.
  *
  * Token KHÔNG bao giờ được trả nguyên vẹn ra API/giao diện — xem checHet().
  */
@@ -129,32 +132,75 @@ function docTho() {
 }
 
 /**
- * Bản đầy đủ: cấu hình nền + token mới nhất trong kho.
+ * Ghép danh sách tài khoản giữa cấu hình nền và kho khoá.
  *
- * Kho chỉ giữ phần token xoay vòng của TikTok/Zalo, ghép theo openId/oaId. Kênh
- * nào có trong kho mà không còn trong cấu hình thì bỏ qua — người dùng đã gỡ kênh
- * đó, kho không được phép hồi sinh nó.
+ * Hai tình huống khác hẳn nhau, và bản đầu chỉ xử lý một:
+ *
+ *   - Cấu hình nền CÓ danh sách → ghép theo id, kho chỉ bù phần token mới. Kênh
+ *     người dùng đã gỡ thì không được hồi sinh, nên không lấy thêm từ kho.
+ *
+ *   - Cấu hình nền RỖNG → lấy trọn từ kho. Đây chính là cảnh sau mỗi lần deploy
+ *     trên Render: ket-noi.json bay sạch, mà bản đầu dùng .map() trên mảng rỗng
+ *     nên kết quả vẫn rỗng — kho có đủ token mà không bao giờ khôi phục được, và
+ *     phải đi cấp quyền lại cả sáu kênh.
  */
+function ghepDs(nen, kho, khoaId) {
+  if (!Array.isArray(kho) || !kho.length) return nen || [];
+  if (!Array.isArray(nen) || !nen.length) return kho;
+  return nen.map((x) => {
+    const v = kho.find((y) => y[khoaId] && y[khoaId] === x[khoaId]);
+    return v ? { ...x, ...v } : x;
+  });
+}
+
+/** Bản đầy đủ: cấu hình nền + những gì kho khoá đang giữ. */
 async function doc() {
   const c = docTho();
 
   const tt = await vault.doc('tiktok');
-  if (tt && Array.isArray(tt.channels)) {
-    c.tiktok.channels = (c.tiktok.channels || []).map((ch) => {
-      const v = tt.channels.find((x) => x.openId === ch.openId);
-      return v ? { ...ch, ...v } : ch;
-    });
+  if (tt) {
+    c.tiktok = { ...c.tiktok, ...bocToken(tt) };
+    c.tiktok.channels = ghepDs(docTho().tiktok.channels, tt.channels, 'openId');
+    if (c.tiktok.channels.length) c.tiktok.enabled = true;
   }
 
   const za = await vault.doc('zalo');
-  if (za && Array.isArray(za.oas)) {
-    c.zalo.oas = (c.zalo.oas || []).map((oa) => {
-      const v = za.oas.find((x) => x.oaId === oa.oaId);
-      return v ? { ...oa, ...v } : oa;
-    });
+  if (za) {
+    c.zalo = { ...c.zalo, ...bocToken(za) };
+    c.zalo.oas = ghepDs(docTho().zalo.oas, za.oas, 'oaId');
+    if (c.zalo.oas.length) c.zalo.enabled = true;
+  }
+
+  /* Facebook và Instagram KHÔNG có token xoay vòng, nhưng vẫn phải cất vào kho:
+   * page token nằm trong ket-noi.json, mà file đó bay sau mỗi lần deploy. Không
+   * cất thì mỗi lần deploy lại phải đi lấy System User token và tick lại Page. */
+  const fb = await vault.doc('facebook');
+  if (fb) {
+    const nen = docTho().facebook;
+    c.facebook = { ...c.facebook, ...bocToken(fb) };
+    c.facebook.pages = ghepDs(nen.pages, fb.pages, 'id');
+    if (!nen.userToken && fb.userToken) c.facebook.userToken = fb.userToken;
+    if (c.facebook.pages.length && c.facebook.userToken) c.facebook.enabled = true;
+  }
+
+  const ig = await vault.doc('instagram');
+  if (ig) {
+    c.instagram = { ...c.instagram, ...bocToken(ig) };
+    c.instagram.accounts = ghepDs(docTho().instagram.accounts, ig.accounts, 'id');
+    if (c.instagram.accounts.length) c.instagram.enabled = true;
   }
 
   return c;
+}
+
+/** Bỏ các khoá mảng/điều khiển ra, chỉ giữ phần vô hại khi trải lên cấu hình nền. */
+function bocToken(o) {
+  const out = {};
+  Object.keys(o || {}).forEach((k) => {
+    if (['channels', 'oas', 'pages', 'accounts', 'ghiLuc', 'enabled'].includes(k)) return;
+    if (o[k] !== '' && o[k] != null) out[k] = o[k];
+  });
+  return out;
 }
 
 /* ---------------- ghi ---------------- */
@@ -174,13 +220,27 @@ function ghiKhoi(khoi, values) {
  * Ổ đĩa chỉ đọc (Render) thì bước ghi file thất bại lặng lẽ — đúng ý.
  */
 async function luuToken(nenTang, danhSach) {
-  const khoaKho = nenTang === 'tiktok' ? 'tiktok' : 'zalo';
   const truong = nenTang === 'tiktok' ? 'channels' : 'oas';
-  await vault.ghi(khoaKho, { [truong]: danhSach, ghiLuc: new Date().toISOString() });
+  const c = docTho();
+  await vault.ghi(nenTang, { ...c[nenTang], [truong]: danhSach, ghiLuc: new Date().toISOString() });
   try {
-    const c = docTho();
     ghiKhoi(nenTang, { ...c[nenTang], [truong]: danhSach });
   } catch (_) { /* ổ đĩa tạm/chỉ đọc — kho khoá mới là chỗ tin cậy */ }
+}
+
+/**
+ * Cất nguyên một khối cấu hình vào kho khoá.
+ *
+ * Gọi sau MỌI lần ghi cấu hình, không chỉ lúc token xoay vòng. Lý do đơn giản:
+ * ổ đĩa Render là tạm, nên bất cứ thứ gì chỉ nằm trong ket-noi.json đều là thứ
+ * sẽ phải nhập lại sau lần deploy tới. Kho tắt (chưa khai SOCIAL_VAULT_KEY) thì
+ * hàm này im lặng không làm gì — đúng ý, vì trên máy cá nhân file là đủ bền.
+ */
+async function luuKho(khoi) {
+  if (!vault.bat()) return false;
+  const c = docTho();
+  return vault.ghi(khoi, { ...c[khoi], ghiLuc: new Date().toISOString() },
+    'App Social cất cấu hình ' + khoi + ' để sống qua lần deploy sau');
 }
 
 /* ---------------- che bí mật khi trả ra ngoài ---------------- */
@@ -205,4 +265,6 @@ function checHet(o) {
   return out;
 }
 
-module.exports = { FILE, MAC_DINH, doc, docTho, ghiKhoi, luuToken, nguon, checHet, coThongTin };
+module.exports = {
+  FILE, MAC_DINH, doc, docTho, ghiKhoi, luuToken, luuKho, nguon, checHet, coThongTin, ghepDs,
+};

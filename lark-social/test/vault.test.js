@@ -111,4 +111,48 @@ t('scrub() cắt token kể cả khi nó nằm trần giữa câu', () => {
   assert.ok(scrub('?access_token=abc123xyz789&x=1').includes('access_token=***'));
 });
 
+console.log('\nkhôi phục sau khi ổ đĩa bay (cảnh deploy lại trên Render)');
+
+const { ghepDs } = ketnoi;
+
+t('cấu hình nền RỖNG thì lấy trọn từ kho', () => {
+  // Đây là cảnh sau mỗi lần deploy: ket-noi.json bay sạch, kho còn nguyên.
+  // Bản đầu dùng .map() trên mảng rỗng nên kết quả vẫn rỗng — kho có đủ token
+  // mà không bao giờ khôi phục được, phải đi cấp quyền lại cả sáu kênh.
+  const kho = [{ openId: 'a', refreshToken: 'r1' }, { openId: 'b', refreshToken: 'r2' }];
+  assert.deepStrictEqual(ghepDs([], kho, 'openId'), kho);
+  assert.deepStrictEqual(ghepDs(undefined, kho, 'openId'), kho);
+});
+
+t('cấu hình nền CÓ danh sách thì kho chỉ bù token, ghép theo id', () => {
+  const nen = [{ openId: 'a', name: 'Kênh A' }];
+  const kho = [{ openId: 'a', refreshToken: 'moi' }];
+  const r = ghepDs(nen, kho, 'openId');
+  assert.strictEqual(r.length, 1);
+  assert.strictEqual(r[0].name, 'Kênh A', 'giữ tên từ cấu hình nền');
+  assert.strictEqual(r[0].refreshToken, 'moi', 'lấy token mới từ kho');
+});
+
+t('kênh đã gỡ KHÔNG được kho hồi sinh', () => {
+  // Người dùng cố ý gỡ kênh b; kho vẫn còn nó nhưng không được phép thêm lại.
+  const r = ghepDs([{ openId: 'a' }], [{ openId: 'a' }, { openId: 'b' }], 'openId');
+  assert.strictEqual(r.length, 1);
+  assert.strictEqual(r[0].openId, 'a');
+});
+
+t('kho rỗng thì giữ nguyên cấu hình nền', () => {
+  const nen = [{ openId: 'a', name: 'A' }];
+  assert.deepStrictEqual(ghepDs(nen, [], 'openId'), nen);
+  assert.deepStrictEqual(ghepDs(nen, null, 'openId'), nen);
+});
+
+t('ghép theo id chứ không theo vị trí trong mảng', () => {
+  // Đảo thứ tự: token phải bám đúng kênh, không rơi sang kênh bên cạnh.
+  const nen = [{ openId: 'a', name: 'A' }, { openId: 'b', name: 'B' }];
+  const kho = [{ openId: 'b', refreshToken: 'cua-B' }, { openId: 'a', refreshToken: 'cua-A' }];
+  const r = ghepDs(nen, kho, 'openId');
+  assert.strictEqual(r[0].refreshToken, 'cua-A');
+  assert.strictEqual(r[1].refreshToken, 'cua-B');
+});
+
 console.log('\n' + so + ' phép thử đạt' + (process.exitCode ? ' — CÓ LỖI' : '') + '\n');

@@ -131,10 +131,25 @@ AES-256-GCM rồi cất bản token mới nhất vào bảng *Kho khoá (mã ho�
 > nằm ở biến môi trường Render, thứ chỉ người quản trị thấy. Base ở đây đóng vai
 > **ổ đĩa bền**, không phải nơi công bố bí mật.
 
+Kho giữ **cả bốn khối** cấu hình, không chỉ token xoay vòng — vì page token của
+Facebook cũng chỉ nằm trong `ket-noi.json`, tức là cũng bay theo mỗi lần deploy.
+
+Cách ghép khi khởi động lại:
+
+| Cấu hình nền (file / biến môi trường) | Kết quả |
+|---|---|
+| có danh sách kênh | ghép theo id, kho chỉ bù phần token mới |
+| **rỗng** (vừa deploy xong) | **lấy trọn từ kho** — không phải cấp quyền lại |
+| kênh đã bị gỡ khỏi cấu hình | kho **không** hồi sinh nó |
+
+Ghép theo **id**, không theo vị trí trong mảng: xoá một dòng hay đảo thứ tự mà ghép
+theo vị trí thì token của kênh A rơi sang kênh B — cả hai kênh vẫn "có token", đồng
+bộ vẫn chạy, chỉ là số đổ nhầm kênh và không ai nhận ra.
+
 Chưa khai biến thì kho **tắt hẳn** (không ghi gì lên Base) và màn hình Kết nối hiện
 cảnh báo. **Đổi giá trị biến = mất hết token đã cất**, phải nối lại TikTok/Zalo từ đầu.
 
-`vault.js` · phép thử ở `test/vault.test.js`.
+`vault.js` · `ketnoi.ghepDs()` · phép thử ở `test/vault.test.js`.
 
 ---
 

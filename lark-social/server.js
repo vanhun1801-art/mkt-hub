@@ -396,6 +396,7 @@ async function api(req, res, u) {
     }
 
     ketnoi.ghiKhoi(b.khoi, moi);
+    await ketnoi.luuKho(b.khoi);
     return ok(res, { ok: true });
   }
 
@@ -441,6 +442,10 @@ async function api(req, res, u) {
       name: x.instagram.username || x.name,
     }));
     if (igs.length) ketnoi.ghiKhoi('instagram', { ...c.instagram, accounts: igs, enabled: true });
+    /* Cất ngay vào kho: page token chỉ nằm trong ket-noi.json, mà file đó bay sau
+     * mỗi lần deploy trên Render. */
+    await ketnoi.luuKho('facebook');
+    if (igs.length) await ketnoi.luuKho('instagram');
     return ok(res, { pages: pages.length, instagram: igs.length });
   }
 
