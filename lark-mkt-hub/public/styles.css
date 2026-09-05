@@ -55,6 +55,7 @@
   /* lề chuẩn dùng chung với ba app con: cùng một đường guide dọc */
   --le: max(20px, calc((100% - 1520px) / 2));
   --bong: 0 1px 2px rgba(20, 30, 60, .06), 0 6px 20px rgba(20, 30, 60, .05);
+  --bong-the: 0 1px 2px rgba(20, 30, 60, .07), 0 8px 22px -12px rgba(20, 30, 60, .28);
   --bong-cao: 0 12px 40px rgba(20, 30, 60, .18);
 
   /* dải nhiệt tải nhân sự */
@@ -120,6 +121,7 @@
   --rail-o: rgba(255, 255, 255, .08);
   --rail-cuon: rgba(255, 255, 255, .15);
   --bong: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 20px rgba(0, 0, 0, .25);
+  --bong-the: 0 1px 2px rgba(0, 0, 0, .35), 0 8px 22px -10px rgba(0, 0, 0, .5);
   --bong-cao: 0 12px 40px rgba(0, 0, 0, .55);
   --nhiet-0: #262d3b;
   --nhiet-cuoi: #212734;
@@ -172,7 +174,8 @@
   --rail-o: rgba(255, 255, 255, .08);
   --rail-cuon: rgba(255, 255, 255, .15);
     --bong: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 20px rgba(0, 0, 0, .25);
-    --bong-cao: 0 12px 40px rgba(0, 0, 0, .55);
+  --bong-the: 0 1px 2px rgba(0, 0, 0, .35), 0 8px 22px -10px rgba(0, 0, 0, .5);
+  --bong-cao: 0 12px 40px rgba(0, 0, 0, .55);
     --nhiet-0: #262d3b;
     --nhiet-cuoi: #212734;
     --nhiet-1: #24365c;
@@ -365,7 +368,14 @@ button { font: inherit; }
 
 /* ---- thân trang ---- */
 .home-body { padding: 18px var(--le) 60px; display: flex; flex-direction: column; gap: 14px; }
-.luoi-base { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 16px 24px; }
+/* Hai cột cố định: bốn base thành 2x2 kín, thay vì 3 + 1 bỏ trống hai phần ba
+   hàng dưới. Cột rộng hơn cũng cho các ô số thở hơn. */
+.luoi-base { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 24px; }
+/* Số base LẺ thì khối cuối trải hết hàng, thay vì đứng một mình nửa hàng và
+   bỏ trống nửa kia. Hiện có 5 base (Social chưa có bộ đọc chỉ số) — thêm hay
+   bớt base thì luật này tự đúng, không phải sửa tay. */
+.luoi-base > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+@media (max-width: 1180px) { .luoi-base { grid-template-columns: 1fr; } }
 
 /* ---- thẻ khối (giống .card của app quảng cáo) ---- */
 
@@ -373,7 +383,17 @@ button { font: inherit; }
    từng thẻ số tự nổi lên bằng bóng nhẹ, giống app quảng cáo. */
 .nhom-base { display: flex; flex-direction: column; gap: 10px; }
 .nhom-base > .khoi-head { border-bottom: 1px solid var(--vien); padding: 0 2px 9px; }
-.nhom-base > .the-luoi { grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); }
+/* Số cột CỐ ĐỊNH, không `auto-fit`: auto-fit làm hàng cuối thiếu ô thì mấy ô
+   còn lại giãn ra chiếm chỗ, nên cùng một base mà ô hàng trên nhỏ, ô hàng dưới
+   to gấp rưỡi. `grid-auto-rows: 1fr` cho mọi hàng cao bằng nhau, kể cả khi một
+   ô có thêm dòng ghi chú bên dưới. */
+.nhom-base > .the-luoi {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
+}
+@media (max-width: 760px) {
+  .nhom-base > .the-luoi { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 
 .khoi {
   background: var(--trang); border: 1px solid var(--vien); border-radius: var(--r);
@@ -403,9 +423,13 @@ button { font: inherit; }
 
 /* ---- thẻ số (giống .kpi) ---- */
 .the-luoi { display: grid; grid-template-columns: repeat(auto-fit, minmax(124px, 1fr)); gap: 10px; }
+/* Chiều sâu: nền xám là mặt đất, thẻ nổi lên trên. Bóng hai lớp — một lớp sát
+   mép cho cạnh sắc, một lớp toả rộng và mờ cho cảm giác nhấc lên. Chỉ đủ để
+   tách khỏi nền, không đổ bóng nặng. */
 .the {
   background: var(--trang); border: 1px solid var(--vien); border-radius: var(--r);
-  padding: 11px 13px; box-shadow: var(--bong);
+  padding: 13px 14px; box-shadow: var(--bong-the);
+  display: flex; flex-direction: column;
 }
 .the .nhan {
   font-size: 11px; color: var(--chu-nhat); font-weight: 650;
@@ -417,7 +441,10 @@ button { font: inherit; }
   overflow-wrap: anywhere;
 }
 .the .so.dai { font-size: 17px; }
-.the .lech, .the .ghi { font-size: 12px; margin-top: 4px; color: var(--chu-nhat); }
+/* `margin-top: auto` (thẻ là flex cột): dòng lệch/ghi chú tụt xuống ĐÁY thẻ,
+   nên con số của mọi ô cùng hàng nằm trên một đường ngang, dù ô bên cạnh có
+   ghi chú dài hay không có ghi chú. */
+.the .lech, .the .ghi { font-size: 12px; margin-top: auto; padding-top: 4px; color: var(--chu-nhat); }
 .the .lech.tot { color: var(--luc); font-weight: 650; }
 .the .lech.xau { color: var(--do); font-weight: 650; }
 /* Ô bằng 0 và không có mức nghiêm trọng: làm mờ đi.
@@ -721,7 +748,11 @@ code { background: var(--trang-2); border: 1px solid var(--vien-mem); border-rad
 /* phần tử bấm được trên trang Tổng quan */
 .the.bam-duoc, .viec-dong.bam-duoc { cursor: pointer; }
 .the.bam-duoc { transition: transform .08s, box-shadow .12s, border-color .12s; }
-.the.bam-duoc:hover { border-color: var(--xanh); box-shadow: 0 4px 14px rgba(20, 30, 60, .1); }
+/* Nhấc hẳn lên một chút khi rê vào: thẻ bấm được phải TRÔNG bấm được. */
+.the.bam-duoc:hover {
+  border-color: var(--xanh); transform: translateY(-2px);
+  box-shadow: 0 2px 4px rgba(20, 30, 60, .08), 0 14px 28px -14px rgba(20, 30, 60, .38);
+}
 .the.bam-duoc:active { transform: translateY(1px); }
 .viec-dong.bam-duoc:hover .tieu-de { color: var(--xanh); }
 .viec-dong.bam-duoc:hover { background: var(--xanh-nhat); }
