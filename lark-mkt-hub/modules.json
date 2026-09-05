@@ -95,6 +95,28 @@
       "phuSelector": "#brandSub",
       "bat": true,
       "css": ".topbar-right { margin-left: auto; }"
+    },
+    {
+      "id": "social",
+      "ten": "Social",
+      "mo_ta": "TikTok · Facebook · Instagram · Zalo OA — số liệu kênh",
+      "icon": "social",
+      "mau": "#d62976",
+      "kieu": "local",
+      "thuMuc": "../lark-social",
+      "cong": 5178,
+      "lenh": [
+        "node",
+        "server.js"
+      ],
+      "larkUrl": "https://rootytrip2.sg.larksuite.com/base/YzgUbMS3PaE0B9sDtdIlNYzFgsc",
+      "kpi": "social",
+      "an": [
+        "header.topbar > .brand"
+      ],
+      "phuSelector": "#brandSub",
+      "bat": true,
+      "css": ".topbar-right { margin-left: auto; }"
     }
   ]
 }

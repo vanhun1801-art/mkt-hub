@@ -547,11 +547,63 @@ async function ota(mod, khoang, nguoi) {
   };
 }
 
+/* ============================================================
+   Social — số liệu các kênh mạng xã hội
+   ============================================================ */
+async function social(mod, khoang, nguoi) {
+  /* App Social đã nhận from/to nên đưa thẳng khoảng lọc xuống nó tính — một
+     định nghĩa chỉ số duy nhất nằm ở metrics.js của app, hub không cộng lại. */
+  const q = khoang && khoang.tu && khoang.den
+    ? '?from=' + encodeURIComponent(khoang.tu) + '&to=' + encodeURIComponent(khoang.den)
+    : '?days=30';
+  const ov = await goiJson(mod, '/api/tong-quan' + q, { nguoi });
+  const t = ov.tong || {};
+  const d = ov.doi || {};
+
+  const the = [
+    { nhan: 'Lượt xem', so: t.views || 0, dinhDang: 'so', lech: d.views },
+    { nhan: 'Lượt tiếp cận', so: t.reach || 0, dinhDang: 'so', lech: d.reach },
+    /* Follower là số CHỐT ở ngày mới nhất, không phải tổng cộng dồn — nói rõ ra,
+       vì đây đúng là chỗ mọi bảng social hay cộng nhầm rồi ra số to gấp mấy chục lần. */
+    { nhan: 'Follower', so: t.followers || 0, dinhDang: 'so', ghi: 'chốt ngày mới nhất' },
+    { nhan: 'Follower tăng ròng', so: t.followNet || 0, dinhDang: 'so', lech: d.followNet,
+      muc: (t.followNet || 0) < 0 ? 'vua' : 'ok' },
+    { nhan: 'Tương tác', so: t.engagement || 0, dinhDang: 'so', lech: d.engagement },
+    { nhan: 'Tỷ lệ tương tác', so: (t.tyLeTuongTac || 0) * 100, dinhDang: 'pt', lech: d.tyLeTuongTac },
+  ];
+
+  /* Việc cần xử lý của một app số liệu không phải "duyệt cái gì", mà là "kênh nào
+     đang im". Kênh không đăng bài nào trong kỳ là thứ trưởng phòng cần thấy ngay
+     trên trang chủ — nó không tự kêu như một đơn hàng chờ duyệt. */
+  const im = (ov.kenh || []).filter((k) => !k.posts && !k.views);
+  const canXuLy = im.slice(0, 8).map((k) => ({
+    muc: 'vua',
+    tieuDe: k.name + ' — không có số liệu trong kỳ',
+    phu: k.platform + ' · chưa đăng bài hoặc chưa đồng bộ',
+    the: [k.platform].filter(Boolean),
+  }));
+
+  return {
+    the,
+    nhom: { 'kenh-im': im.map((k) => ({
+      id: '', tieuDe: k.name, lyDo: k.platform + ' · không có số liệu trong kỳ', muc: 'vua',
+      the: [k.platform].filter(Boolean),
+    })) },
+    canXuLy,
+    canXuLyTong: im.length,
+    canXuLyKhoa: 'kenh-im',
+    tong: (ov.kenh || []).length,
+    khoang: ov.tu ? ov.tu + ' → ' + ov.den : '',
+    nguoi: '',
+  };
+}
+
 const BO_DOC = {
   'cong-viec': congViec,
   'lich-tac-nghiep': lichTacNghiep,
   'quang-cao': quangCao,
   'ota': ota,
+  'social': social,
 };
 
 /* ---------------- cache + gom ---------------- */

@@ -49,6 +49,12 @@ const ICONS = {
     '<path d="M6.4 10.2h4.4M6.4 13.4h3"/>'
   ),
 
+  /* Social: bong bóng nội dung với nhịp tương tác lan ra */
+  'social': IC(
+    '<path d="M20.5 12.5c0 3.9-3.8 7-8.5 7-1.2 0-2.3-.2-3.3-.6L3.5 20.5l1.7-4.1A6.4 6.4 0 0 1 3.5 12.5c0-3.9 3.8-7 8.5-7s8.5 3.1 8.5 7Z"/>' +
+    '<path d="M9 11.5h6M9 14.5h3.5"/>'
+  ),
+
   /* Tải nhân sự / người */
   'nguoi': IC(
     '<circle cx="12" cy="8" r="3.5"/>' +

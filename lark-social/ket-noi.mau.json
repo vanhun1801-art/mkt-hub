@@ -1,0 +1,90 @@
+{
+  "_doc": [
+    "MẪU cấu hình kết nối. Chép thành ket-noi.json rồi điền — file thật đã nằm trong .gitignore.",
+    "Trên Render thì KHÔNG dùng file: dán nguyên nội dung vào biến môi trường SOCIAL_CONNECT_JSON,",
+    "vì ổ đĩa của Render là tạm, deploy lại là file bay sạch.",
+    "",
+    "Token của TikTok và Zalo XOAY VÒNG (mỗi lần làm mới là cái cũ chết). Khai thêm biến",
+    "SOCIAL_VAULT_KEY để app cất bản mới nhất vào kho khoá mã hoá trên Base — không có nó thì",
+    "sau lần deploy kế tiếp hai nền tảng đó tự tắt mà không báo gì."
+  ],
+
+  "facebook": {
+    "_doc": [
+      "Token gốc: business.facebook.com/settings → Người dùng hệ thống → tạo user → Thêm tài sản",
+      "→ chọn Trang → bật quyền xem thông tin chi tiết → Tạo mã truy cập.",
+      "Quyền cần: pages_read_engagement, pages_show_list, read_insights.",
+      "Thêm pages_manage_metadata nếu muốn đọc cả phiên LIVE.",
+      "pages[] để trống cũng được: bấm 'Liệt kê Page từ token' trong giao diện là app tự điền."
+    ],
+    "enabled": false,
+    "apiVersion": "v23.0",
+    "userToken": "",
+    "pages": [
+      { "id": "", "name": "Rooty Trip Phú Quốc", "handle": "", "url": "", "token": "" }
+    ]
+  },
+
+  "instagram": {
+    "_doc": [
+      "Không có token riêng — IG Business dùng page token của Facebook Page gắn với nó.",
+      "Bấm 'Liệt kê Page từ token' ở tab Facebook là app tự phát hiện và cắm luôn."
+    ],
+    "enabled": false,
+    "accounts": [
+      { "id": "", "username": "", "pageId": "", "name": "" }
+    ]
+  },
+
+  "tiktok": {
+    "_doc": [
+      "Tạo app ở developers.tiktok.com. Mỗi KÊNH phải tự bấm đồng ý một lần rồi lấy refresh token.",
+      "mode 'display'  : ai cũng nối được. Có follower + view/like/comment/share LUỸ KẾ từng video.",
+      "mode 'business' : cần tài khoản TikTok Business + phạm vi tương ứng. Có thêm lượt tiếp cận,",
+      "                  lượt xem hồ sơ, follower theo ngày, tỷ lệ xem hết, thời gian xem trung bình.",
+      "LIVE: TikTok KHÔNG mở API — nhập tay hoặc dán bảng xuất từ LIVE Center."
+    ],
+    "enabled": false,
+    "clientKey": "",
+    "clientSecret": "",
+    "channels": [
+      {
+        "openId": "",
+        "name": "Rooty Trip Phú Quốc",
+        "handle": "",
+        "mode": "display",
+        "businessId": "",
+        "refreshToken": ""
+      }
+    ]
+  },
+
+  "zalo": {
+    "_doc": [
+      "developers.zalo.me → app của OA. Lấy app_id + secret_key, rồi lấy oauth_code một lần",
+      "ở trang quản trị OA. Dán code vào giao diện, bấm 'Đổi mã lấy token' là xong.",
+      "access_token sống 1 giờ, refresh_token 3 tháng và dùng một lần — app tự lo, nhưng phải",
+      "có SOCIAL_VAULT_KEY thì bản mới mới sống qua lần deploy sau."
+    ],
+    "enabled": false,
+    "appId": "",
+    "secretKey": "",
+    "oas": [
+      { "oaId": "", "name": "", "refreshToken": "" }
+    ]
+  },
+
+  "dongBo": {
+    "_doc": [
+      "soNgayLui: mỗi lượt quét lại mấy ngày gần đây. Số liệu social còn chạy tiếp vài ngày sau",
+      "khi đăng, nên quét lại 7 ngày là cần chứ không phải chạy thừa.",
+      "moiSoGio: 0 là tắt chạy tự động."
+    ],
+    "soNgayLui": 7,
+    "moiSoGio": 6,
+    "khiKhoiDong": false,
+    "layBai": true,
+    "layLive": true,
+    "soBaiToiDa": 200
+  }
+}

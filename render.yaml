@@ -90,6 +90,33 @@ services:
         sync: false
 
       # ============================================================
+      # App Social (TikTok / Facebook / Instagram / Zalo OA)
+      # ============================================================
+      # Base đã cắm sẵn trong config.js (YzgUbMS3PaE0B9sDtdIlNYzFgsc). Chỉ khai
+      # SOCIAL_BASE_TOKEN khi đổi sang base khác.
+      # - key: SOCIAL_BASE_TOKEN
+      #   sync: false
+
+      # Token các nền tảng social. Cùng lý do với ADS_CONNECT_JSON: ổ đĩa Render
+      # là TẠM nên ket-noi.json bay sau mỗi lần deploy. Dán nguyên nội dung file
+      # ket-noi.json của lark-social vào biến này.
+      - key: SOCIAL_CONNECT_JSON
+        sync: false
+
+      # ---- CHÌA KHOÁ CHO KHO TOKEN — KHÔNG KHAI LÀ TIKTOK/ZALO TỰ CHẾT ----
+      # TikTok và Zalo cấp refresh token DÙNG MỘT LẦN: mỗi lần app làm mới là nền
+      # tảng huỷ cái cũ. Bản mới phải được cất ở chỗ sống qua lần deploy sau, mà
+      # SOCIAL_CONNECT_JSON thì đóng băng ở giá trị dán tay — tức là đã chết.
+      #
+      # Có biến này, app mã hoá AES-256-GCM rồi cất vào bảng "Kho khoá (mã hoá)"
+      # trên Base. Cả phòng mở Base ra chỉ thấy một chuỗi rác; chìa nằm ở đây,
+      # chỉ người quản trị Render thấy. Render tự sinh giá trị.
+      #
+      # ĐỔI GIÁ TRỊ NÀY = MẤT HẾT TOKEN ĐÃ CẤT (phải nối lại TikTok/Zalo từ đầu).
+      - key: SOCIAL_VAULT_KEY
+        generateValue: true
+
+      # ============================================================
       # Trợ lý hỏi đáp (bot)
       # ============================================================
       # Chìa khoá cho bộ não bên ngoài (Coze / n8n / gì cũng được) gọi vào lấy số
@@ -108,10 +135,10 @@ services:
       # - key: HUB_FRAME_ANCESTORS
       #   sync: false
 
-      # ---- cùng bộ credential cho bốn app con ----
+      # ---- cùng bộ credential cho năm app con ----
       # Hub truyền toàn bộ env xuống tiến trình con, nên chỉ cần khai một lần ở trên.
-      # Bốn app con tự chuyển sang chế độ `api` khi thấy LARK_APP_ID + LARK_APP_SECRET.
+      # Năm app con tự chuyển sang chế độ `api` khi thấy LARK_APP_ID + LARK_APP_SECRET.
       #
-      # KHÔNG khai BIND_HOST cho service này: bốn app con phải giữ mặc định chỉ nghe
+      # KHÔNG khai BIND_HOST cho service này: năm app con phải giữ mặc định chỉ nghe
       # 127.0.0.1. Chúng tin header danh tính do hub gửi, nên mở cổng ra ngoài là ai
       # cũng tự xưng được là quản lý.

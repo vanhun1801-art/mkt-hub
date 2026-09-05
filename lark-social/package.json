@@ -1,0 +1,13 @@
+{
+  "name": "lark-social",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Keo so lieu cac kenh social (TikTok / Facebook / Instagram / Zalo OA) tu API ve Lark Base",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "ket-noi": "node ket-noi.js",
+    "dong-bo": "node dong-bo.js",
+    "test": "node test/chuanhoa.test.js && node test/vault.test.js"
+  }
+}

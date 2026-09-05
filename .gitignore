@@ -1,5 +1,5 @@
 # ============================================================
-# Repo này CHỈ chứa 5 app của phòng Marketing. Thư mục .agents còn nhiều thứ
+# Repo này CHỈ chứa 6 app của phòng Marketing. Thư mục .agents còn nhiều thứ
 # khác (skills của lark-cli, ảnh QR đăng nhập, thư mục tạm...) nên dùng cách
 # "chặn hết rồi mở đúng cái cần" — an toàn hơn liệt kê từng thứ phải chặn.
 # ============================================================
@@ -10,12 +10,13 @@
 !render.yaml
 !package.json
 
-# năm app
+# sáu app
 !lark-mkt-hub/
 !lark-task-manager/
 !lark-lich-tac-nghiep/
 !lark-ads-manager/
 !lark-ota-manager/
+!lark-social/
 
 # ---- bí mật & dữ liệu cục bộ: KHÔNG bao giờ lên GitHub ----
 .env

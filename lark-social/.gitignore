@@ -1,0 +1,5 @@
+node_modules/
+ket-noi.json
+*.log
+.tmp/
+trang-thai.json
