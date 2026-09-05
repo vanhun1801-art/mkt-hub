@@ -686,7 +686,11 @@ function queueCard(title, arr, note, kind) {
       acts = '<button class="btn sm success" data-act="done" data-id="' + t.id + '">Nghiệm thu hoàn tất</button>' +
              '<button class="btn sm" data-open="' + t.id + '">Xem báo cáo</button>';
     } else if (kind === 'bcdo' || kind === 'nhapcu' || kind === 'trave' || kind === 'late') {
-      acts = '<button class="btn sm" data-open="' + t.id + '">Xem chi tiết</button>';
+      /* Bốn hàng đợi này đều đang chờ NGƯỜI KHÁC làm. Trước đây chỉ có "Xem chi
+       * tiết" — thấy người trễ mà muốn nhắc thì phải thoát app, mở Lark, tìm
+       * người, gõ tay. Câu nhắc do máy chủ dựng từ trạng thái thật của lịch. */
+      acts = '<button class="btn sm warn" data-nhac="' + t.id + '">Nhắc</button>' +
+             '<button class="btn sm" data-open="' + t.id + '">Xem chi tiết</button>';
     } else if (kind === 'huy') {
       acts = '<button class="btn sm danger" data-act="huy-ok" data-id="' + t.id + '">Duyệt huỷ</button>' +
              '<button class="btn sm" data-act="huy-no" data-id="' + t.id + '">Giữ lịch</button>';
@@ -2743,6 +2747,25 @@ document.addEventListener('click', async (e) => {
   }
 
   if (T.closest('#moCauHinhBao')) { await moCauHinhBao(); return; }
+  const nhacNut = T.closest('[data-nhac]');
+  if (nhacNut) {
+    nhacNut.disabled = true;
+    const cu = nhacNut.textContent;
+    nhacNut.textContent = 'Đang gửi…';
+    try {
+      const r = await api('/api/nhac', { method: 'POST', body: JSON.stringify({ id: nhacNut.dataset.nhac }) });
+      /* Nói rõ đã nhắc AI và VÌ SAO — quản lý bấm xong phải biết bên kia nhận
+       * được câu gì, không thì lần sau lại nhắc trùng nội dung bằng miệng. */
+      nhacNut.textContent = 'Đã nhắc';
+      toast('Đã nhắc ' + (r.nguoi || []).join(', ') + ' — "' + r.vi + '"', 'ok');
+    } catch (e) {
+      nhacNut.disabled = false;
+      nhacNut.textContent = cu;
+      toast(e.message, 'err');
+    }
+    return;
+  }
+
   const chAi = T.closest('[data-chai]');
   if (chAi) { await luuCauHinhBao(chAi.dataset.chai, { nguoiNhan: chAi.dataset.gt }); return; }
 

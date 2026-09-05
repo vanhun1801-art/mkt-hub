@@ -784,22 +784,33 @@ function veHome() {
 
   /* --- cần xử lý ngay (gộp mọi base), cuộn trong khối --- */
   const cxl = tq.canXuLy || [];
+  // tổng thật (server cộng trước khi cắt); bản cũ không có trường này thì lấy tạm độ dài
+  const tong = tq.canXuLyTong != null ? tq.canXuLyTong : cxl.length;
+  const con = Math.max(0, tong - cxl.length);
   html += '<section class="khoi">' +
     '<div class="khoi-head">' +
     '<span class="kh-ic" style="background:#fdeaec;color:#dc2b3d">' + icon('gap') + '</span>' +
+    /* Con số phải là TỔNG THẬT, không phải độ dài danh sách đã cắt. Từng bộ đọc
+     * chỉ đẩy lên 6 việc quá hạn, 4 việc chưa phân công… nên trước đây trang chủ
+     * báo "35 việc" trong khi riêng quá hạn đã 24. */
     '<div><h2>Cần xử lý ngay</h2>' +
-    (cxl.length ? '<div class="kh-sub">' + cxl.length + ' việc</div>' : '') + '</div>' +
+    (tong ? '<div class="kh-sub">' + tong + ' việc' +
+      (con ? ' · đang hiện ' + cxl.length + ' việc gấp nhất' : '') + '</div>' : '') + '</div>' +
     '<span class="grow"></span></div>' +
     '<div class="khoi-body"><div class="viec viec-cuon">' +
     (cxl.length ? cxl.map((v) => {
       const m = S.modules.find((x) => x.id === v.module);
       return dongViecHtml(v, m ? m.ten : v.module);
     }).join('') : '<div class="trong">Không còn việc nào.</div>') +
+    /* Nói ra phần bị cắt và chỉ chỗ xem hết — trước đây nó im lặng, mà im lặng ở
+     * đây nghĩa là quản lý tưởng đã xử lý xong tồn đọng. */
+    (con ? '<div class="viec-con">Còn <b>' + con + ' việc</b> nữa không hiện ở đây. ' +
+      'Bấm thẻ số của từng base ở trên để xem đủ danh sách.</div>' : '') +
     '</div></div></section>';
 
   body.innerHTML = html;
 
-  $('#homeSub').textContent = dsBat.length + ' base · ' + cxl.length + ' việc cần xử lý · cập nhật ' + gio(tq.luc);
+  $('#homeSub').textContent = dsBat.length + ' base · ' + tong + ' việc cần xử lý · cập nhật ' + gio(tq.luc);
   const ai = (tq.modules || []).map((m) => m.nguoi).find(Boolean);
   $('#homeUser').textContent = ai ? 'Tài khoản Lark: ' + ai : '';
   $('#homeUser').hidden = !ai;

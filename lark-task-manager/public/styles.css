@@ -1947,3 +1947,7 @@ td.c-check { width: 34px; }
   border-bottom: 1px solid var(--border); font-size: 13px; flex-wrap: wrap;
 }
 .pp-so-g { font-variant-numeric: tabular-nums; color: var(--text-2); font-size: 12px; }
+
+/* Hành động ngay trong danh sách nhanh — không bắt mở drawer rồi mới làm được. */
+.xn-nut { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.xn-o:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }

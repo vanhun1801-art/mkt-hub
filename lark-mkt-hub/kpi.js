@@ -129,8 +129,14 @@ async function congViec(mod, khoang, nguoi) {
       ghi: thieuDeadline.length ? thieuDeadline.length + ' việc chưa có deadline' : '',
       ghiKhoa: thieuDeadline.length ? 'thieu-deadline' : '' },
   ];
+  /* Nhóm nào đứng sau từng mục "cần xử lý" — để trang chủ chỉ đúng thẻ cần bấm
+   * khi muốn xem hết phần bị cắt, thay vì bảo người ta đi tìm. */
+  const canXuLyKhoa = { 'qua-han': quaHan.length, 'chua-phan-cong': chuaPhanCong.length };
 
   const canXuLy = [];
+  /* Tổng THẬT trước khi cắt. Không có nó thì trang chủ đếm chính danh sách đã cắt
+   * và báo thiếu — quản lý đọc "35 việc" rồi tưởng đó là toàn bộ tồn đọng. */
+  const canXuLyTong = quaHan.length + chuaPhanCong.length;
   quaHan.slice(0, 6).forEach((t) => canXuLy.push({
     id: t.id,
     muc: 'cao',
@@ -156,6 +162,8 @@ async function congViec(mod, khoang, nguoi) {
     the,
     nhom,
     canXuLy,
+    canXuLyTong,
+    canXuLyKhoa,
     tong: tasks.length,
     ngoaiKhoang: ngoai,
     ngoaiKhoangNhan: ngoai ? ngoai + ' việc quá hạn từ trước khoảng lọc' : '',
@@ -282,6 +290,8 @@ async function lichTacNghiep(mod, khoang, nguoi) {
   const aiDo = (t) => ((t.staff || []).length ? ten(t.staff)
     : (t.owner || []).length ? 'phụ trách ' + ten(t.owner) : 'chưa có nhân sự');
   const canXuLy = [];
+  // tổng THẬT trước khi cắt (xem chú thích cùng tên bên bộ đọc Bảng công việc)
+  const canXuLyTong = choDuyet.length + nguyCo.length + homNay.length;
   choDuyet.slice(0, 6).forEach((t) => canXuLy.push({
     id: t.id,
     muc: 'cao',
@@ -321,7 +331,7 @@ async function lichTacNghiep(mod, khoang, nguoi) {
   const ngoai = ngoaiDs.length;
 
   return {
-    the, nhom, canXuLy,
+    the, nhom, canXuLy, canXuLyTong,
     tong: items.length,
     ngoaiKhoang: ngoai,
     ngoaiKhoangNhan: ngoai ? ngoai + ' lịch chờ duyệt / có nguy cơ ngoài khoảng lọc' : '',
@@ -385,8 +395,11 @@ async function quangCao(mod, khoang, nguoi) {
     })),
   };
 
-  const canXuLy = alerts
-    .filter((a) => a.level === 'high' || a.level === 'mid')
+  /* Cảnh báo mức cao/vừa mới đáng lên trang chủ; cắt 8 cho danh sách ngắn nhưng
+   * vẫn khai tổng thật để trang chủ đếm đúng. */
+  const dangKe = alerts.filter((a) => a.level === 'high' || a.level === 'mid');
+  const canXuLyTong = dangKe.length;
+  const canXuLy = dangKe
     .slice(0, 8)
     .map((a) => ({
       muc: a.level === 'high' ? 'cao' : 'vua',
@@ -399,6 +412,7 @@ async function quangCao(mod, khoang, nguoi) {
     the,
     nhom,
     canXuLy,
+    canXuLyTong,
     khoang: ov.range ? ov.range.from + ' → ' + ov.range.to : '',
   };
 }
@@ -604,9 +618,14 @@ async function tongQuan(mods, khoang, nguoi) {
   const uu = { cao: 0, vua: 1, thap: 2 };
   canXuLy.sort((a, b) => (uu[a.muc] ?? 3) - (uu[b.muc] ?? 3));
   const ngoai = ds.reduce((s, r) => s + (r.ngoaiKhoang || 0), 0);
+  /* Tổng THẬT của cả hệ, cộng trước khi cắt. Từng bộ đọc đã cắt danh sách của nó
+   * (6 việc quá hạn, 4 chưa phân công…) rồi đây cắt thêm lần nữa ở 40 — nếu chỉ
+   * đếm mảng cuối thì trang chủ báo thiếu mà không ai biết. */
+  const tong = ds.reduce((s, r) => s + (r.canXuLyTong || (r.canXuLy || []).length), 0);
   return {
     modules: ds,
     canXuLy: canXuLy.slice(0, 40),
+    canXuLyTong: tong,
     khoang: khoang && khoang.tu ? khoang : null,
     ngoaiKhoang: ngoai,
     luc: Date.now(),

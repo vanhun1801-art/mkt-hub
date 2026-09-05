@@ -537,6 +537,51 @@ function nguoiCua(t) {
   return [...new Set(ds)].slice(0, 2).join(', ') || 'chưa gán người';
 }
 
+/* ==========================================================================
+   NHẮC NHÂN SỰ
+   ==========================================================================
+   Cả hệ được dựng để CHỈ RA ai đang trễ — hàng đợi báo cáo dở dang, quá ngày
+   chưa báo cáo, trả về chưa sửa, nháp để lâu. Nhưng trước đây mỗi hàng đợi chỉ
+   có nút "Xem chi tiết": quản lý thấy vấn đề rồi phải thoát app, mở Lark, tìm
+   người, gõ tay. Đường gửi tin thì đã có sẵn và đang chạy.
+
+   Câu nhắc do MÁY CHỦ tự dựng từ trạng thái thật của lịch, không phải chữ client
+   gửi lên — cùng nguyên tắc với câu giải thích của bộ phân phối: hệ thống nói
+   được vì sao nó nhắc.
+*/
+
+/** Đã nhắc lịch nào lúc nào. Giữ trong RAM: mất sau deploy thì cùng lắm nhắc lại
+ *  một lần, còn ghi thêm cột lên Base chỉ để chống trùng thì không đáng. */
+const daNhac = new Map();
+const CACH_NHAU = 6 * 3600000;      // cùng một lịch, 6 tiếng mới nhắc lại được
+
+/**
+ * Vì sao nhắc — dựng từ chính trạng thái của lịch.
+ * Trả null nghĩa là lịch này không có gì để nhắc.
+ */
+function lyDoNhac(t) {
+  const thieu = [];
+  if (!t.end) thieu.push('thời gian kết thúc');
+  if (!String(t.reportAfter || '').trim()) thieu.push('báo cáo sau tác nghiệp');
+  if (t.costActual == null) thieu.push('chi phí thực tế');
+
+  if (t.status === 'Đang báo cáo' && thieu.length) {
+    return 'Báo cáo còn thiếu: ' + thieu.join(', ') + '.';
+  }
+  const bd = t.start ? Date.parse(t.start) : 0;
+  if (t.status === 'Duyệt/Chờ tác nghiệp' && bd && bd < ngayVN(new Date()).getTime()) {
+    return 'Lịch đã qua ngày đi mà chưa bấm Báo cáo.';
+  }
+  if (t.status === 'Từ chối/Cần điều chỉnh') {
+    return 'Lịch bị trả về cần điều chỉnh rồi gửi duyệt lại.' +
+      (t.mgrNote ? ' Quản lý yêu cầu: ' + t.mgrNote : '');
+  }
+  if (t.status === 'Đang lên kế hoạch') {
+    return 'Bản nháp để lâu chưa gửi duyệt.';
+  }
+  return null;
+}
+
 /* ---------------- API ---------------- */
 async function api(req, res, url) {
   const p = url.pathname;
@@ -822,6 +867,53 @@ async function api(req, res, url) {
     await lark.updateRecord(body.id, cells, cfg.cauHinhTableId);
     demCauHinh.at = 0;                       // buộc đọc lại ngay lần sau
     return json(res, { ok: true });
+  }
+
+  /* Nhắc người phụ trách một lịch. Chỉ quản lý, và chỉ khi lịch THẬT SỰ đang
+   * treo — không cho nhắc bừa một lịch đang bình thường. */
+  if (p === '/api/nhac' && req.method === 'POST') {
+    if (!(await requireManager(res))) return;
+    const body = await readBody(req);
+    const rec0 = await findRecord(String(body.id || ''));
+    if (!rec0) return json(res, { error: 'Không tìm thấy lịch này' }, 404);
+    const item = toItem(rec0);
+
+    const ly = lyDoNhac(item);
+    if (!ly) return json(res, { error: 'Lịch này không có gì để nhắc.' }, 400);
+
+    const ai = (item.owner || []).filter((u) => u && u.id);
+    if (!ai.length) return json(res, { error: 'Lịch này chưa có người phụ trách để nhắc.' }, 400);
+
+    const truoc = daNhac.get(item.id);
+    if (truoc && Date.now() - truoc < CACH_NHAU) {
+      const con = Math.ceil((CACH_NHAU - (Date.now() - truoc)) / 3600000);
+      return json(res, {
+        error: 'Vừa nhắc lịch này rồi — chờ ' + con + ' tiếng nữa hãy nhắc lại.',
+        code: 'NHAC_QUA_DAY',
+      }, 429);
+    }
+
+    const tin = 'Nhắc việc: "' + (item.title || '(chưa đặt tên)') + '"' +
+      (item.start ? ' — ' + gioVN(new Date(item.start)) : '') + '\n' +
+      ly + (cfg.hubUrl ? '\n' + cfg.hubUrl : '');
+
+    /* Không gửi được thì KHÔNG im lặng báo thành công — quản lý sẽ bấm nhắc mấy
+     * lần mà bên kia không nhận gì. Nói thẳng, và chưa tính là đã nhắc. */
+    if (typeof lark.guiTinNhan !== 'function') {
+      return json(res, { error: 'Bản chạy này chưa nối được kênh gửi tin Lark.' }, 503);
+    }
+    let gui = 0;
+    const hong = [];
+    for (const u of ai) {
+      try { const kq = await lark.guiTinNhan(u.id, tin); if (kq !== false) gui++; }
+      catch (e) { hong.push((u.name || u.id) + ': ' + e.message); }
+    }
+    if (!gui) {
+      return json(res, { error: 'Không gửi được tin Lark. ' + (hong[0] || ''),
+        code: 'KHONG_GUI_DUOC' }, 502);
+    }
+    daNhac.set(item.id, Date.now());
+    return json(res, { ok: true, nguoi: ai.map((u) => u.name), vi: ly, gui });
   }
 
   if (p === '/api/quyen' && req.method === 'GET') {

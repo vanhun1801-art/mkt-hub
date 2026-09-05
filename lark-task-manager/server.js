@@ -463,6 +463,34 @@ async function danhBaPhanPhoi(tasks) {
     String(a.ten).localeCompare(String(b.ten), 'vi'));
 }
 
+/* ==========================================================================
+   NHẮC NGƯỜI PHỤ TRÁCH
+   ==========================================================================
+   Hệ thống chỉ ra 24 việc quá hạn nhưng không cho tác động — muốn nhắc thì phải
+   thoát app, mở Lark, tìm người, gõ tay. Câu nhắc do MÁY CHỦ dựng từ trạng thái
+   thật của việc, không nhận chữ từ client.
+*/
+const daNhac = new Map();
+const CACH_NHAU_NHAC = 6 * 3600000;   // cùng một việc, 6 tiếng mới nhắc lại được
+
+/** Vì sao nhắc. Trả null nghĩa là việc này không có gì để nhắc. */
+function lyDoNhacViec(t) {
+  if (['Hoàn thành', 'Hủy'].includes(t.status)) return null;
+  const han = t.deadline ? new Date(t.deadline) : null;
+  const treNgay = han
+    ? Math.floor((nhanNgayVNms(new Date()) - nhanNgayVNms(han)) / 86400000) : 0;
+
+  if (t.daGiaiQuyet) return null;                 // đã nộp sản phẩm thì thôi
+  if (t.status === 'Trễ deadline' || treNgay > 0) {
+    return 'Việc đã quá hạn ' + treNgay + ' ngày' +
+      (han ? ' (hạn ' + nhanNgayVN(han) + ')' : '') + '.';
+  }
+  if (t.status === 'Chờ tiếp nhận') return 'Việc đã giao nhưng chưa được tiếp nhận.';
+  return null;
+}
+const nhanNgayVNms = (d) =>
+  Math.floor((d.getTime() + LECH_VN_TB) / 86400000) * 86400000;
+
 /** Chặn thao tác chỉ dành cho quản lý. */
 async function requireManager(res, req) {
   if (await isManager(req)) return true;
@@ -997,6 +1025,39 @@ async function api(req, res, url) {
       'Bạn được giao việc mới: "' + (t.title || '') + '"' + XD +
       'Quản lý phân công theo bảng phân phối (' + dx.loai + ').' + duoiTin());
     return json(res, { ok: true, nguoi: dx.chon, vi: dx.vi });
+  }
+
+  /* Nhắc người phụ trách một việc đang trễ. Chỉ quản lý. */
+  if (p === '/api/nhac' && req.method === 'POST') {
+    if (!(await requireManager(res, req))) return;
+    const body = await readBody(req);
+    const t = (await getRecords(false)).map(toTask).find((x) => x.id === String(body.id || ''));
+    if (!t) return json(res, { error: 'Không tìm thấy việc này' }, 404);
+
+    const ly = lyDoNhacViec(t);
+    if (!ly) return json(res, { error: 'Việc này không có gì để nhắc.' }, 400);
+
+    const ai = (t.owner || []).filter((u) => u && u.id);
+    if (!ai.length) return json(res, { error: 'Việc này chưa có ai phụ trách để nhắc.' }, 400);
+
+    const truoc = daNhac.get(t.id);
+    if (truoc && Date.now() - truoc < CACH_NHAU_NHAC) {
+      const con = Math.ceil((CACH_NHAU_NHAC - (Date.now() - truoc)) / 3600000);
+      return json(res, { error: 'Vừa nhắc việc này rồi — chờ ' + con + ' tiếng nữa.',
+        code: 'NHAC_QUA_DAY' }, 429);
+    }
+    if (!cfg.notify) {
+      /* Không im lặng báo thành công: quản lý sẽ bấm nhắc mấy lần mà bên kia
+       * không nhận gì. Nói thẳng cả cách bật. */
+      return json(res, { error: 'Chưa bật gửi tin Lark (biến LARK_NOTIFY=1), nên chưa nhắc được.',
+        code: 'CHUA_BAT_TIN' }, 503);
+    }
+
+    daNhac.set(t.id, Date.now());
+    baoTin(ai.map((u) => u.id),
+      'Nhắc việc: "' + (t.title || '') + '"' + XD + ly + duoiTin());
+    console.log('  [nhắc] ' + t.id + ' -> ' + ai.map((u) => u.name).join(', ') + '  (' + ly + ')');
+    return json(res, { ok: true, nguoi: ai.map((u) => u.name), vi: ly });
   }
 
   if (p === '/api/managers' && req.method === 'GET') {

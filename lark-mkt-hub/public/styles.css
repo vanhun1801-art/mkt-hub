@@ -1065,3 +1065,9 @@ body.dang-xem-ho .app { height: calc(100vh - 34px); margin-top: 34px; }
   font: inherit; font-size: 11px; cursor: pointer; padding: 0;
   border: 0; background: none; color: var(--blue, #2b5cff); text-decoration: underline;
 }
+
+/* Phần "Cần xử lý ngay" bị cắt bớt — nói ra chứ không im lặng. */
+.viec-con {
+  padding: 10px 12px; margin-top: 6px; font-size: 13px; color: var(--t2);
+  background: var(--surface-2); border: 1px dashed var(--line); border-radius: 8px;
+}

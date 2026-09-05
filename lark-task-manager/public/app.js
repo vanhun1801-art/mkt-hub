@@ -1313,6 +1313,51 @@ function renderKpi(D) {
  * mấy ô còn lại bấm không ra gì. Giờ ô nào cũng mở được đúng danh sách của nó,
  * bấm một dòng là vào thẳng ô chi tiết của việc đó.
  */
+/**
+ * Việc nào nhắc được. Phải KHỚP với `lyDoNhacViec` bên máy chủ — client giấu nút
+ * mà server vẫn nhận, hoặc ngược lại, đều là kiểu lỗi khó thấy: quản lý không
+ * biết mình đang thiếu một thao tác.
+ *
+ * "Chờ tiếp nhận" cũng nhắc được: việc đã giao rồi mà người ta chưa bấm nhận.
+ */
+function nhacDuoc(t) {
+  if (['Hoàn thành', 'Hủy'].includes(t.status) || t.daGiaiQuyet) return false;
+  if (!(t.owner || []).length) return false;
+  if (t.status === 'Chờ tiếp nhận' || t.status === 'Trễ deadline') return true;
+  return !!t.deadline && daysLeft(t.deadline) < 0;
+}
+
+/** Giao một việc theo đúng người mà trung tâm phân phối đang đề xuất. */
+async function giaoNhanh(t, nut) {
+  nut.disabled = true;
+  const cu = nut.textContent;
+  nut.textContent = 'Đang giao…';
+  try {
+    const r = await req('/api/phan-phoi/giao', { method: 'POST', body: JSON.stringify({ id: t.id }) });
+    toast('Đã giao "' + (t.title || '') + '" cho ' + r.nguoi.ten);
+    dongXemNhanh();
+    await loadAll(true);
+  } catch (e) {
+    nut.disabled = false; nut.textContent = cu;
+    toast('Không giao được: ' + e.message, true);
+  }
+}
+
+/** Nhắc người phụ trách một việc đang trễ. */
+async function nhacNhanh(t, nut) {
+  nut.disabled = true;
+  const cu = nut.textContent;
+  nut.textContent = 'Đang gửi…';
+  try {
+    const r = await req('/api/nhac', { method: 'POST', body: JSON.stringify({ id: t.id }) });
+    nut.textContent = 'Đã nhắc';
+    toast('Đã nhắc ' + (r.nguoi || []).join(', ') + ' — "' + r.vi + '"');
+  } catch (e) {
+    nut.disabled = false; nut.textContent = cu;
+    toast(e.message, true);
+  }
+}
+
 function moDanhSachNhanh(key, tieuDe, items) {
   const ds = (items || []).slice().sort((a, b) => {
     const x = a.deadline ? new Date(a.deadline).getTime() : Infinity;
@@ -1325,8 +1370,15 @@ function moDanhSachNhanh(key, tieuDe, items) {
     than.appendChild(el('div', 'queue-empty', 'Không có việc nào ở nhóm này.'));
   }
   for (const t of ds.slice(0, 200)) {
-    const dong = el('button', 'xn-o');
-    dong.type = 'button';
+    /* KHÔNG dùng <button> cho cả hàng: hàng có nút hành động bên trong, mà button
+     * lồng button là HTML không hợp lệ — trình duyệt tháo ra và hàng mất luôn khả
+     * năng bấm. Dùng div + role/tabindex để vẫn bấm và vẫn đi được bằng bàn phím. */
+    const dong = el('div', 'xn-o');
+    dong.setAttribute('role', 'button');
+    dong.tabIndex = 0;
+    dong.onkeydown = (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); dong.onclick(); }
+    };
     dong.appendChild(el('div', 'xn-ten', t.title || '(chưa có tên)'));
     const meta = el('div', 'xn-meta');
     if (t.priority) meta.appendChild(el('span', 'tag ' + priClass(t.priority), plainLabel(t.priority)));
@@ -1340,6 +1392,26 @@ function moDanhSachNhanh(key, tieuDe, items) {
     meta.appendChild(el('span', 'tag', ai || 'Chưa phân công'));
     dong.appendChild(meta);
     dong.onclick = () => { dongXemNhanh(); openDrawer(t); };
+
+    /* Hành động ngay tại dòng, không bắt mở drawer rồi mới làm được. Đặt trong
+     * một khối riêng ngoài nút `dong` vì nút lồng trong nút là HTML không hợp lệ
+     * — trình duyệt tự tháo ra và cả hàng mất luôn khả năng bấm. */
+    const nut = el('div', 'xn-nut');
+    if (!(t.owner || []).length) {
+      const g = el('button', 'btn btn-primary btn-sm', 'Giao theo đề xuất');
+      g.type = 'button';
+      g.onclick = (e) => { e.stopPropagation(); giaoNhanh(t, g); };
+      nut.appendChild(g);
+    }
+    if (nhacDuoc(t)) {
+      const n = el('button', 'btn btn-sm',
+        t.status === 'Chờ tiếp nhận' ? 'Nhắc nhận việc' : 'Nhắc');
+      n.type = 'button';
+      n.title = 'Gửi tin Lark cho người phụ trách, kèm lý do';
+      n.onclick = (e) => { e.stopPropagation(); nhacNhanh(t, n); };
+      nut.appendChild(n);
+    }
+    if (nut.childElementCount) dong.appendChild(nut);
     than.appendChild(dong);
   }
 
@@ -3323,6 +3395,27 @@ function setupFilters() {
 
   fillSelect($('#bulkStatus'), o.status, 'Đổi trạng thái…');
   fillSelect($('#bulkPriority'), o.priority, 'Đổi ưu tiên…');
+  /* Phân công hàng loạt — thao tác quản lý cần nhất khi chọn nhiều dòng, mà thanh
+   * này trước chỉ có đổi trạng thái / ưu tiên / xoá. API bulk đã nhận `owner` từ
+   * lâu (lớp vỏ vẫn dùng), chỉ thiếu chỗ bấm. Xếp người đang giữ nhiều việc lên
+   * đầu để khỏi cuộn tìm trong 36 cái tên. */
+  const oNguoi = $('#bulkOwner');
+  if (oNguoi) {
+    /* `S.meta.people` không kèm số việc, nên tự đếm từ dữ liệu đang có — xếp theo
+     * ai đang giữ nhiều việc MỞ để người còn làm nổi lên trước, thay vì để 36 cái
+     * tên theo bảng chữ cái lẫn cả người đã nghỉ. */
+    const dem = new Map();
+    for (const t of S.tasks || []) {
+      if (['Hoàn thành', 'Hủy'].includes(t.status)) continue;
+      for (const u of t.owner || []) if (u && u.id) dem.set(u.id, (dem.get(u.id) || 0) + 1);
+    }
+    const ds = (S.meta.people || []).slice()
+      .sort((a, b) => (dem.get(b.id) || 0) - (dem.get(a.id) || 0) ||
+        String(a.name).localeCompare(String(b.name), 'vi'));
+    oNguoi.innerHTML = '<option value="">Phân công cho…</option>' +
+      ds.map((p) => '<option value="' + p.id + '">' + escPP(p.name) +
+        (dem.get(p.id) ? '  · ' + dem.get(p.id) + ' việc mở' : '') + '</option>').join('');
+  }
   fillSelect($('#wCampaign'), o.campaign, 'Chiến dịch: tất cả');
   fillSelect($('#wPriority'), o.priority, 'Độ ưu tiên: tất cả');
   fillSelect($('#dCampaign'), o.campaign, 'Chiến dịch: tất cả');
@@ -3977,6 +4070,13 @@ function setupChrome() {
     if (!v) return;
     e.target.value = '';
     bulkPatch({ priority: v }, 'Đã đổi độ ưu tiên');
+  };
+  $('#bulkOwner').onchange = (e) => {
+    const v = e.target.value;
+    if (!v) return;
+    const ten = e.target.options[e.target.selectedIndex].textContent;
+    e.target.value = '';
+    bulkPatch({ owner: [v] }, 'Đã phân công cho ' + ten);
   };
 
   document.addEventListener('keydown', (e) => {
