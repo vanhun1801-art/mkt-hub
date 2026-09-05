@@ -6,8 +6,6 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "ket-noi": "node ket-noi.js",
-    "dong-bo": "node dong-bo.js",
     "test": "node test/chuanhoa.test.js && node test/vault.test.js"
   }
 }

@@ -22,7 +22,7 @@
   --radius: 12px;
   /* lề chuẩn dùng chung với các base khác */
   --le: max(20px, calc((100% - 1520px) / 2));
-  --shadow: 0 1px 2px rgba(20, 30, 60, .06), 0 6px 20px rgba(20, 30, 60, .05);
+  --shadow: 0 1px 2px rgba(20, 30, 60, .07), 0 8px 22px -12px rgba(20, 30, 60, .28);
 }
 
 * { box-sizing: border-box; }
@@ -344,7 +344,7 @@ table.tbl tfoot td { font-weight: 700; background: var(--panel-2); border-top: 2
   --fb: #4a90f7;
   --tt: #cbd5e1;
   --gg: #f0b45a;
-  --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 20px rgba(0, 0, 0, .25);
+  --shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 8px 22px -10px rgba(0, 0, 0, .5);
   color-scheme: dark;
 }
 
@@ -369,7 +369,7 @@ table.tbl tfoot td { font-weight: 700; background: var(--panel-2); border-top: 2
     --fb: #4a90f7;
     --tt: #cbd5e1;
     --gg: #f0b45a;
-    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 20px rgba(0, 0, 0, .25);
+    --shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 8px 22px -10px rgba(0, 0, 0, .5);
     color-scheme: dark;
   }
 }

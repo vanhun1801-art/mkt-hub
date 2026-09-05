@@ -19,8 +19,13 @@ const fs = require('fs');
 const path = require('path');
 
 const GOC = path.join(__dirname, '..', '..');
-const APPS = ['lark-mkt-hub', 'lark-task-manager', 'lark-lich-tac-nghiep',
-  'lark-ads-manager', 'lark-ota-manager'];
+/* Mọi app trong nhà. `lark-social` còn đang dựng dở và chưa vào repo, nên danh
+ * sách được lọc lại bên dưới theo cái CÓ THẬT trên đĩa: thiếu nó thì bỏ qua,
+ * có nó thì canh như năm app kia. Không lọc thì ai clone repo về sẽ thấy phép
+ * thử vỡ vì đọc một thư mục không tồn tại — lỗi của phép thử, không phải lỗi
+ * của mã. */
+const MOI_APP = ['lark-mkt-hub', 'lark-task-manager', 'lark-lich-tac-nghiep',
+  'lark-ads-manager', 'lark-ota-manager', 'lark-social'];
 
 let pass = 0, fail = 0;
 const fails = [];
@@ -65,10 +70,17 @@ function boGocNut(s) {
   return m ? token(s, m[1]) : v;
 }
 
+const APPS = MOI_APP.filter((a) => fs.existsSync(path.join(GOC, a, 'public')));
+const VANG = MOI_APP.filter((a) => !APPS.includes(a));
+
 const CSS = Object.fromEntries(APPS.map((a) => [a, css(a)]));
 const ten = (a) => a.replace('lark-', '').padEnd(16);
 
 (async () => {
+  if (VANG.length) {
+    console.log('\n  (bỏ qua, chưa có trên đĩa: ' + VANG.join(', ') + ')');
+  }
+
   group('1. Nút — thứ mắt so trực tiếp nhất khi đổi base trong lớp vỏ');
   {
     const dem = APPS.map((a) => [a, trongKhoi(CSS[a], '.btn', 'padding')]);
@@ -99,6 +111,7 @@ const ten = (a) => a.replace('lark-', '').padEnd(16);
       'lark-lich-tac-nghiep': 'r-lg',
       'lark-ads-manager': 'radius',
       'lark-ota-manager': 'radius',
+      'lark-social': 'radius',
     };
     const v = APPS.map((a) => [a, token(CSS[a], tt[a])]);
     ok('mọi app bo góc thẻ 12px',
@@ -114,6 +127,7 @@ const ten = (a) => a.replace('lark-', '').padEnd(16);
       'lark-lich-tac-nghiep': 'primary',
       'lark-ads-manager': 'brand',
       'lark-ota-manager': 'brand',
+      'lark-social': 'brand',
     };
     const sang = APPS.map((a) => [a, token(CSS[a], tt[a])]);
     ok('chế độ sáng: #2b5cff',
@@ -141,6 +155,7 @@ const ten = (a) => a.replace('lark-', '').padEnd(16);
       'lark-lich-tac-nghiep': { nen: 'bg', chu: 't1', vien: 'line' },
       'lark-ads-manager': { nen: 'bg', chu: 'ink', vien: 'line' },
       'lark-ota-manager': { nen: 'bg', chu: 'ink', vien: 'line' },
+      'lark-social': { nen: 'bg', chu: 'ink', vien: 'line' },
     };
     for (const [khoa, mong] of [['nen', '#f4f6fa'], ['chu', '#1a2233'], ['vien', '#e3e8f0']]) {
       const v = APPS.map((a) => [a, token(CSS[a], bo[a][khoa])]);
@@ -158,6 +173,40 @@ const ten = (a) => a.replace('lark-', '').padEnd(16);
         s.includes('data-theme="toi"') && s.includes('data-theme="sang"') &&
         s.includes('prefers-color-scheme'));
     }
+  }
+
+  group('6. Bóng thẻ — cùng một chiều sâu, không app nào phẳng hơn app khác');
+  {
+    /* Đã trôi một lần: hub được thêm token bóng riêng để thẻ có chiều sâu, năm
+     * app kia giữ bóng phẳng cũ. Trong lớp vỏ hai thứ đó nằm cạnh nhau nên lệch
+     * lộ ngay. Không có token riêng nữa — mỗi app một tên (di sản), một GIÁ TRỊ. */
+    const tt = {
+      'lark-mkt-hub': 'bong',
+      'lark-task-manager': 'shadow-1',
+      'lark-lich-tac-nghiep': 'shadow-1',
+      'lark-ads-manager': 'shadow',
+      'lark-ota-manager': 'shadow',
+      'lark-social': 'shadow',
+    };
+    const CHUAN = '0 1px 2px rgba(20, 30, 60, .07), 0 8px 22px -12px rgba(20, 30, 60, .28)';
+    const sang = APPS.map((a) => [a, token(CSS[a], tt[a])]);
+    ok('chế độ sáng: cùng một bóng thẻ',
+      sang.every(([, x]) => x === CHUAN),
+      sang.map(([a, x]) => '\n        ' + ten(a) + (x || '(không thấy)')).join(''));
+
+    const CHUAN_TOI = '0 1px 2px rgba(0, 0, 0, .35), 0 8px 22px -10px rgba(0, 0, 0, .5)';
+    const cuoi = (s, k) => {
+      const ds = [...s.matchAll(new RegExp('--' + k + '\\s*:\\s*([^;/]+)', 'g'))];
+      return ds.length ? ds[ds.length - 1][1].trim() : '';
+    };
+    const toi = APPS.map((a) => [a, cuoi(CSS[a], tt[a])]);
+    ok('chế độ tối: cùng một bóng thẻ',
+      toi.every(([, x]) => x === CHUAN_TOI),
+      toi.map(([a, x]) => '\n        ' + ten(a) + (x || '(không thấy)')).join(''));
+
+    /* Token riêng cho hub đã gỡ — chặn nó mọc lại. */
+    ok('không app nào đẻ token bóng thẻ riêng',
+      !CSS['lark-mkt-hub'].includes('--bong-the'));
   }
 
   console.log('\n' + '─'.repeat(56));

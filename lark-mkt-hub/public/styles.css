@@ -54,8 +54,7 @@
   --r-nho: 9px;
   /* lề chuẩn dùng chung với ba app con: cùng một đường guide dọc */
   --le: max(20px, calc((100% - 1520px) / 2));
-  --bong: 0 1px 2px rgba(20, 30, 60, .06), 0 6px 20px rgba(20, 30, 60, .05);
-  --bong-the: 0 1px 2px rgba(20, 30, 60, .07), 0 8px 22px -12px rgba(20, 30, 60, .28);
+  --bong: 0 1px 2px rgba(20, 30, 60, .07), 0 8px 22px -12px rgba(20, 30, 60, .28);
   --bong-cao: 0 12px 40px rgba(20, 30, 60, .18);
 
   /* dải nhiệt tải nhân sự */
@@ -120,8 +119,7 @@
   --rail-nhom: #6d7789;
   --rail-o: rgba(255, 255, 255, .08);
   --rail-cuon: rgba(255, 255, 255, .15);
-  --bong: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 20px rgba(0, 0, 0, .25);
-  --bong-the: 0 1px 2px rgba(0, 0, 0, .35), 0 8px 22px -10px rgba(0, 0, 0, .5);
+  --bong: 0 1px 2px rgba(0, 0, 0, .35), 0 8px 22px -10px rgba(0, 0, 0, .5);
   --bong-cao: 0 12px 40px rgba(0, 0, 0, .55);
   --nhiet-0: #262d3b;
   --nhiet-cuoi: #212734;
@@ -173,8 +171,7 @@
   --rail-nhom: #6d7789;
   --rail-o: rgba(255, 255, 255, .08);
   --rail-cuon: rgba(255, 255, 255, .15);
-    --bong: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 20px rgba(0, 0, 0, .25);
-  --bong-the: 0 1px 2px rgba(0, 0, 0, .35), 0 8px 22px -10px rgba(0, 0, 0, .5);
+    --bong: 0 1px 2px rgba(0, 0, 0, .35), 0 8px 22px -10px rgba(0, 0, 0, .5);
   --bong-cao: 0 12px 40px rgba(0, 0, 0, .55);
     --nhiet-0: #262d3b;
     --nhiet-cuoi: #212734;
@@ -428,7 +425,7 @@ button { font: inherit; }
    tách khỏi nền, không đổ bóng nặng. */
 .the {
   background: var(--trang); border: 1px solid var(--vien); border-radius: var(--r);
-  padding: 13px 14px; box-shadow: var(--bong-the);
+  padding: 13px 14px; box-shadow: var(--bong);
   display: flex; flex-direction: column;
 }
 .the .nhan {

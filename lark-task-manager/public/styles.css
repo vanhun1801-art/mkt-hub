@@ -49,7 +49,7 @@
   --le: max(20px, calc((100% - 1520px) / 2));
 
   /* Bóng nhẹ tách khối khỏi nền — lấy theo app Lịch tác nghiệp */
-  --shadow-1:  0 1px 2px rgba(20, 30, 60, .06), 0 6px 20px rgba(20, 30, 60, .05);
+  --shadow-1:  0 1px 2px rgba(20, 30, 60, .07), 0 8px 22px -12px rgba(20, 30, 60, .28);
   --shadow:    0 1px 2px rgba(31, 35, 41, .06);
   --shadow-md: 0 2px 8px rgba(31, 35, 41, .10);
   --shadow-lg: 0 6px 32px rgba(31, 35, 41, .16);
@@ -62,7 +62,7 @@
    HAI KHỐI DƯỚI CÙNG MỘT DANH SÁCH — sửa thì sửa cả hai.
    ============================================================ */
 :root[data-theme="toi"] {
-  --shadow-1:  0 1px 2px rgba(0, 0, 0, .3), 0 6px 20px rgba(0, 0, 0, .25);
+  --shadow-1:  0 1px 2px rgba(0, 0, 0, .35), 0 8px 22px -10px rgba(0, 0, 0, .5);
   --bg:        #12161f;
   --surface:   #1a1f2b;
   --surface-2: #202634;
@@ -101,7 +101,7 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="sang"]) {
-    --shadow-1:  0 1px 2px rgba(0, 0, 0, .3), 0 6px 20px rgba(0, 0, 0, .25);
+    --shadow-1:  0 1px 2px rgba(0, 0, 0, .35), 0 8px 22px -10px rgba(0, 0, 0, .5);
     --bg:        #12161f;
     --surface:   #1a1f2b;
     --surface-2: #202634;
