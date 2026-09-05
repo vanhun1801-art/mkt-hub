@@ -219,6 +219,19 @@ async function nhapTayLive(ban) {
   return store.ghiTheoKhoa('live', [row], (x) => x[f.key]);
 }
 
+/**
+ * Bỏ giá trị là BẢN CHE do giao diện gửi ngược lên.
+ *
+ * Giao diện hiện token dạng "abcd••••wxyz". Người dùng không sửa ô đó thì trình
+ * duyệt gửi lại đúng chuỗi che ấy — mà chuỗi che khác rỗng, nên `b.x || cauHinh.x`
+ * chọn nhầm nó và đem đi gọi nền tảng. Kết quả là "Client key or secret is
+ * incorrect" trong khi secret thật vẫn nằm nguyên trong cấu hình.
+ *
+ * Đường Lưu cấu hình đã chặn từ đầu; ba endpoint hành động thì quên, nên tách
+ * hẳn ra một hàm để lần sau không sót chỗ nào.
+ */
+const tho = (v) => (typeof v === 'string' && v.includes('••••') ? '' : (v || ''));
+
 /* ---------------- API ---------------- */
 async function api(req, res, u) {
   const p = u.pathname;
@@ -410,7 +423,7 @@ async function api(req, res, u) {
     const loi = chanNeuKhongPhaiQuanLy(req); if (loi) throw loi;
     const b = await readBody(req);
     const c = await ketnoi.doc();
-    const conf = { ...c.facebook, userToken: b.userToken || c.facebook.userToken };
+    const conf = { ...c.facebook, userToken: tho(b.userToken) || c.facebook.userToken };
     const ds = await facebook.danhSachPage(conf);
     /* KHÔNG trả page token về trình duyệt. Giao diện chỉ cần biết có những trang
      * nào để tick chọn; token ở lại trên máy chủ. */
@@ -426,7 +439,7 @@ async function api(req, res, u) {
     const loi = chanNeuKhongPhaiQuanLy(req); if (loi) throw loi;
     const b = await readBody(req);
     const c = await ketnoi.doc();
-    const conf = { ...c.facebook, userToken: b.userToken || c.facebook.userToken };
+    const conf = { ...c.facebook, userToken: tho(b.userToken) || c.facebook.userToken };
     if (!conf.userToken) return fail(res, 400, 'Chưa có token Facebook');
     const ds = await facebook.danhSachPage(conf);
     const chon = new Set((b.pageIds || []).map(String));
@@ -453,7 +466,7 @@ async function api(req, res, u) {
     const loi = chanNeuKhongPhaiQuanLy(req); if (loi) throw loi;
     const b = await readBody(req);
     const c = await ketnoi.doc();
-    const conf = { ...c.tiktok, clientKey: b.clientKey || c.tiktok.clientKey };
+    const conf = { ...c.tiktok, clientKey: tho(b.clientKey) || c.tiktok.clientKey };
     return ok(res, { link: tiktok.linkCapQuyen(conf, b.redirectUri, b.mode || 'display') });
   }
 
@@ -464,8 +477,8 @@ async function api(req, res, u) {
     const c = await ketnoi.doc();
     const conf = {
       ...c.tiktok,
-      clientKey: b.clientKey || c.tiktok.clientKey,
-      clientSecret: b.clientSecret || c.tiktok.clientSecret,
+      clientKey: tho(b.clientKey) || c.tiktok.clientKey,
+      clientSecret: tho(b.clientSecret) || c.tiktok.clientSecret,
     };
     const tok = await tiktok.doiMa(conf, b.code, b.redirectUri || '');
 
@@ -502,8 +515,8 @@ async function api(req, res, u) {
     const c = await ketnoi.doc();
     const conf = {
       ...c.zalo,
-      appId: b.appId || c.zalo.appId,
-      secretKey: b.secretKey || c.zalo.secretKey,
+      appId: tho(b.appId) || c.zalo.appId,
+      secretKey: tho(b.secretKey) || c.zalo.secretKey,
     };
     const tok = await zalo.doiMa(conf, b.code, b.codeVerifier || '');
     const tt = await zalo.thongTinOa(tok.accessToken);

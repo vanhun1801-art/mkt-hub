@@ -602,6 +602,9 @@
       return;
     }
     const c = d.cauHinh;
+    /* Giữ lại bản kênh do máy chủ trả về: danh sách "đã nối" chỉ hiện tên chứ
+       không có ô để gõ, nên lúc lưu phải lấy lại các trường từ đây. */
+    S.ttKenh = (c.tiktok && c.tiktok.channels) || [];
     const kho = d.kho || {};
 
     const html = ''
@@ -646,20 +649,35 @@
       + '<div class="help">Phải khai <b>y hệt</b> chuỗi này trong phần Redirect URI của app trên '
       + 'developers.tiktok.com — lệch một dấu gạch chéo là TikTok từ chối. Trang đó không cần tồn tại: '
       + 'chỉ cần đọc <code>?code=…</code> trên thanh địa chỉ sau khi cấp quyền.</div>'
+      /* Hai phần TÁCH HẲN nhau. Bản trước xếp lẫn "kênh đã nối" với "ô khai tay"
+         thành một danh sách, nên nhìn vào không biết phải gõ vào ô hay bấm nút —
+         mà mỗi kênh TikTok phải làm lại một lượt nên chỗ rối này lặp sáu lần. */
+      + '<div style="margin-top:4px"><b style="font-size:12.5px">Kênh đã nối ('
+      + (c.tiktok.channels || []).length + ')</b></div>'
+      + '<div class="acc-list" id="ttList">'
+      + ((c.tiktok.channels || []).length
+        ? (c.tiktok.channels || []).map(theKenhTikTok).join('')
+        : '<div class="help">Chưa có kênh nào. Làm ba bước bên dưới.</div>')
+      + '</div>'
+
+      + '<div style="margin-top:10px;padding-top:12px;border-top:1px dashed var(--line)">'
+      + '<b style="font-size:12.5px">Thêm một kênh</b>'
+      + '<div class="help" style="margin-bottom:8px">Mỗi kênh TikTok là một tài khoản riêng nên '
+      + 'phải làm lại ba bước cho từng kênh — không có đường tắt kiểu một token thấy hết như Facebook.</div>'
       + '<div class="kn-row"><label>Chế độ</label><select id="ttModeMoi">'
       + '<option value="display">display — phổ thông</option>'
       + '<option value="business">business — nhiều chỉ số hơn</option></select></div>'
-      + '<div><button class="btn ghost small" id="ttLink">1 · Tạo link cấp quyền</button></div>'
+      + '<div style="margin:8px 0"><button class="btn ghost small" id="ttLink">1 · Tạo link cấp quyền</button></div>'
       + '<div id="ttLinkBox"></div>'
-      + '<div class="kn-row"><label>2 · Dán mã uỷ quyền</label>'
-      + '<input id="ttCode" placeholder="dán cả URL sau khi cấp quyền cũng được"></div>'
-      + '<div><button class="btn ghost small" id="ttDoi">3 · Đổi mã lấy token</button>'
-      + ' <span class="help">Làm lại ba bước này cho <b>từng kênh</b> — mỗi kênh TikTok là một '
-      + 'tài khoản riêng, không có đường tắt kiểu một token thấy hết như Facebook.</span></div>'
-      + '<div class="acc-list" id="ttList">'
-      + (c.tiktok.channels || []).map((ch, i) => dongTikTok(ch, i)).join('')
+      + '<div class="kn-row"><label>2 · Dán URL trả về</label>'
+      + '<input id="ttCode" placeholder="dán nguyên cả thanh địa chỉ sau khi bấm đồng ý"></div>'
+      + '<div style="margin-top:8px"><button class="btn primary small" id="ttDoi">3 · Đổi mã lấy token</button></div>'
       + '</div>'
-      + '<div><button class="btn ghost small" id="ttThem">Thêm kênh TikTok</button></div>'
+
+      + '<details style="margin-top:12px"><summary class="help" style="cursor:pointer">'
+      + 'Khai tay (hiếm khi cần — chỉ khi đã có sẵn refresh token, hoặc phải điền business_id)'
+      + '</summary><div class="acc-list" id="ttTay" style="margin-top:8px"></div>'
+      + '<button class="btn ghost small" id="ttThem" style="margin-top:6px">Thêm dòng</button></details>'
       + '</div></div>'
 
       /* --- Zalo --- */
@@ -696,8 +714,17 @@
 
     $('#mHuy').onclick = dongModal;
     $('#ttThem').onclick = () => {
-      $('#ttList').insertAdjacentHTML('beforeend',
-        dongTikTok({ mode: 'display' }, $$('#ttList .acc').length));
+      $('#ttTay').insertAdjacentHTML('beforeend', dongTikTok({ mode: 'display' }, 0));
+    };
+    $('#ttList').onclick = (e) => {
+      const b = e.target.closest('.tt-go');
+      if (!b) return;
+      const hang = b.closest('.acc');
+      const ten = hang.querySelector('b').textContent;
+      if (confirm('Gỡ kênh "' + ten + '" khỏi cấu hình?\n\n'
+        + 'Token của kênh này sẽ không được dùng nữa. Muốn nối lại thì phải cấp quyền từ đầu.')) {
+        hang.remove();
+      }
     };
     $('#fbLietKe').onclick = async () => {
       try {
@@ -750,9 +777,9 @@
           + (r.followers ? ' · ' + n0(r.followers) + ' follower' : '')
           + ' — tổng ' + r.soKenh + ' kênh');
         $('#ttCode').value = '';
-        $('#ttList').insertAdjacentHTML('beforeend', dongTikTok({
-          name: r.name, openId: r.openId, mode: $('#ttModeMoi').value, refreshToken: '••••',
-        }, 0));
+        /* Server đã ghi kênh vào cấu hình rồi — nạp lại cả hộp thay vì tự chèn một
+           dòng, để danh sách luôn đúng bằng thứ máy chủ thật sự đang giữ. */
+        moKetNoi();
       } catch (e) { toast(e.message, 'err'); }
     };
     $('#zaDoi').onclick = async () => {
@@ -785,13 +812,22 @@
             clientKey: $('#ttKey').value,
             clientSecret: $('#ttSecret').value,
             redirectUri: $('#ttRedirect').value.trim(),
-            channels: $$('#ttList .acc').map((r) => ({
-              openId: $('.tt-open', r).value.trim(),
-              name: $('.tt-name', r).value.trim(),
-              mode: $('.tt-mode', r).value,
-              businessId: $('.tt-biz', r).value.trim(),
-              refreshToken: $('.tt-rt', r).value.includes('••••') ? '' : $('.tt-rt', r).value.trim(),
-            })).filter((x) => x.openId || x.refreshToken),
+            /* Kênh đã nối gửi lên đúng openId; server ghép theo openId và giữ
+               nguyên token thật. Kênh nào bị Gỡ thì không còn trong mảng nên
+               server bỏ nó — đó là cách gỡ kênh. */
+            channels: $$('#ttList .acc').map((r) => {
+              const id = r.dataset.open;
+              const g = (S.ttKenh || []).find((x) => x.openId === id) || {};
+              return { openId: id, name: g.name || '', handle: g.handle || '',
+                mode: g.mode || 'display', businessId: g.businessId || '' };
+            }).filter((x) => x.openId)
+              .concat($$('#ttTay .acc').map((r) => ({
+                openId: $('.tt-open', r).value.trim(),
+                name: $('.tt-name', r).value.trim(),
+                mode: $('.tt-mode', r).value,
+                businessId: $('.tt-biz', r).value.trim(),
+                refreshToken: $('.tt-rt', r).value.includes('••••') ? '' : $('.tt-rt', r).value.trim(),
+              })).filter((x) => x.openId || x.refreshToken)),
           },
         });
         await goiJSON('/api/ket-noi', {
@@ -809,6 +845,16 @@
         toast('Đã lưu cấu hình kết nối');
       } catch (e) { toast(e.message, 'err'); }
     };
+  }
+
+  /** Một kênh ĐÃ NỐI: chỉ để nhìn, không phải để gõ. */
+  function theKenhTikTok(ch) {
+    return '<div class="acc" data-open="' + esc(ch.openId || '') + '">'
+      + '<span class="grow"><b>' + esc(ch.name || ch.openId || '(không tên)') + '</b>'
+      + '<span class="muted"> · ' + esc(ch.handle ? '@' + ch.handle : ch.openId)
+      + ' · ' + esc(ch.mode || 'display')
+      + (ch.refreshToken ? ' · đã cấp quyền' : ' · CHƯA có token') + '</span></span>'
+      + '<button class="btn ghost small tt-go" type="button">Gỡ</button></div>';
   }
 
   function dongTikTok(ch, i) {
