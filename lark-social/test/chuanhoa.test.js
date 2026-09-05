@@ -123,10 +123,40 @@ t('bài đã có trong Base: chỉ lấy phần tăng thêm', () => {
   assert.strictEqual(r[0].posts, 0, 'bài cũ không tính là bài mới');
 });
 
-t('bài mới đăng trong kỳ: tính trọn', () => {
+t('bài mới đăng trong kỳ: tính trọn, GÁN VÀO NGÀY ĐĂNG', () => {
   const r = chenhLech(new Map(), [bai({ views: 800 })], '2026-03-05', '2026-03-01', new Set(['k1']));
   assert.strictEqual(r[0].views, 800);
-  assert.strictEqual(r[0].posts, 1);
+  assert.strictEqual(r[0].date, '2026-03-02', 'phải là ngày đăng, không phải ngày chạy');
+});
+
+t('chenhLech KHÔNG đếm số bài — việc đó của vòng đếm theo ngày đăng', () => {
+  // Đếm ở cả hai chỗ là 448 bài thành 884, và 436 bài dồn vào một ngày.
+  const r = chenhLech(new Map(), [bai({ views: 10 })], '2026-03-05', '2026-03-01', new Set(['k1']));
+  assert.strictEqual(r[0].posts, 0);
+});
+
+t('nhiều bài đăng nhiều ngày thì rải ra nhiều dòng, không dồn một cột', () => {
+  const ds = [
+    bai({ postId: 'v1', publishedAt: '2026-03-01T10:00:00Z', views: 100 }),
+    bai({ postId: 'v2', publishedAt: '2026-03-02T10:00:00Z', views: 200 }),
+    bai({ postId: 'v3', publishedAt: '2026-03-02T20:00:00Z', views: 300 }),
+  ];
+  const r = chenhLech(new Map(), ds, '2026-03-05', '2026-03-01', new Set(['k1']));
+  const theoNgay = Object.fromEntries(r.map((x) => [x.date, x.views]));
+  assert.deepStrictEqual(theoNgay, { '2026-03-01': 100, '2026-03-02': 500 });
+});
+
+t('phần tăng thêm của bài cũ vẫn gán vào NGÀY CHẠY', () => {
+  const cu = new Map([['TikTok#v1', { views: 1000, likes: 0, comments: 0, shares: 0, saves: 0 }]]);
+  const r = chenhLech(cu, [bai({ views: 1200 })], '2026-03-05', '2026-03-01', new Set(['k1']));
+  assert.strictEqual(r[0].views, 200);
+  assert.strictEqual(r[0].date, '2026-03-05');
+});
+
+t('bài đăng SAU ngày chạy thì bỏ qua (đồng hồ nền tảng lệch)', () => {
+  const r = chenhLech(new Map(), [bai({ publishedAt: '2026-04-01T00:00:00Z', views: 999 })],
+    '2026-03-05', '2026-03-01', new Set(['k1']));
+  assert.strictEqual(r.length, 0);
 });
 
 t('bài lạ đăng TRƯỚC kỳ: bỏ qua, không đội số', () => {

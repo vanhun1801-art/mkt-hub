@@ -551,7 +551,9 @@ async function api(req, res, u) {
   if (p === '/api/dong-bo' && method === 'POST') {
     const loi = chanNeuKhongPhaiQuanLy(req); if (loi) throw loi;
     const b = await readBody(req);
-    return ok(res, await chayDongBo({ from: b.from, to: b.to, chi: b.chi || '' }));
+    return ok(res, await chayDongBo({
+      from: b.from, to: b.to, chi: b.chi || '', napLai: Boolean(b.napLai),
+    }));
   }
 
   if (p === '/api/dong-bo/trang-thai') {

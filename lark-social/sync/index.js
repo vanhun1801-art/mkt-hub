@@ -44,53 +44,74 @@ function gopDong(a, b) {
 /**
  * Tính số của ngày từ mức tăng của từng bài.
  *
- * baiCu   : Map 'platform#postId' -> bản đã lưu trong Base
+ * HAI LOẠI BÀI, GÁN VÀO HAI NGÀY KHÁC NHAU — chỗ này bản trước làm sai:
+ *
+ *   - Bài ĐÃ CÓ trong Base → lấy phần tăng thêm, gán vào NGÀY CHẠY. Đúng, vì
+ *     phần tăng đó kiếm được từ lần đồng bộ trước tới giờ.
+ *
+ *   - Bài LẦN ĐẦU nhìn thấy → lấy trọn số hiện tại, nhưng gán vào NGÀY ĐĂNG,
+ *     không phải ngày chạy. Bản trước dồn hết vào ngày chạy: nối 5 kênh mới với
+ *     khoảng 90 ngày là ra 21 triệu lượt xem đứng thành một cột duy nhất ngày
+ *     06/09, còn 89 ngày kia trắng trơn. Biểu đồ vô nghĩa và mọi so sánh kỳ đều
+ *     sai. Gán vào ngày đăng chỉ là XẤP XỈ (một video còn chạy tiếp nhiều ngày
+ *     sau khi đăng), nhưng là xấp xỉ hợp lý — phần lớn lượt xem của TikTok đến
+ *     trong ít ngày đầu — và nó cho một đường biểu đồ đọc được.
+ *
+ * KHÔNG đếm số bài ở đây. Việc đó do vòng riêng trong dongBo() lo, đếm theo ngày
+ * đăng. Bản trước đếm ở cả hai chỗ nên 448 bài thành 884, dồn 436 vào một ngày.
+ *
+ * baiCu   : Map 'platform#postId' -> bản đã lưu trong Base (rỗng = nạp lại từ đầu)
  * baiMoi  : mảng bài vừa lấy về
- * ngay    : ngày gán số vào
+ * ngay    : ngày chạy, dùng cho phần tăng thêm
  * chiKenh : Set extId của những kênh cần tính kiểu này (display/Zalo)
  */
 function chenhLech(baiCu, baiMoi, ngay, from, chiKenh) {
-  const theoKenh = new Map();
+  const theo = new Map();   // khoá 'extId#ngày'
+  const lay = (b, d) => {
+    const k = b.extId + '#' + d;
+    if (!theo.has(k)) {
+      theo.set(k, {
+        platform: b.platform, extId: b.extId, date: d, source: b.source,
+        followers: 0, followUp: 0, followDown: 0, views: 0, reach: 0, impressions: 0,
+        profileViews: 0, likes: 0, comments: 0, shares: 0, saves: 0,
+        engagement: 0, clicks: 0, messages: 0, leads: 0, posts: 0, lives: 0,
+      });
+    }
+    return theo.get(k);
+  };
+
   for (const b of baiMoi) {
     if (chiKenh && !chiKenh.has(String(b.extId))) continue;
-    const khoa = b.platform + '#' + b.postId;
-    const cu = baiCu.get(khoa);
+    const cu = baiCu.get(b.platform + '#' + b.postId);
     const ngayDang = String(b.publishedAt || '').slice(0, 10);
 
-    let d;
+    let d; let vaoNgay;
     if (cu) {
+      vaoNgay = ngay;
       d = {
         views: Math.max(0, num(b.views) - num(cu.views)),
         likes: Math.max(0, num(b.likes) - num(cu.likes)),
         comments: Math.max(0, num(b.comments) - num(cu.comments)),
         shares: Math.max(0, num(b.shares) - num(cu.shares)),
         saves: Math.max(0, num(b.saves) - num(cu.saves)),
-        moi: 0,
       };
-    } else if (ngayDang && from && ngayDang >= from) {
+    } else if (ngayDang && from && ngayDang >= from && ngayDang <= ngay) {
+      vaoNgay = ngayDang;
       d = {
         views: num(b.views), likes: num(b.likes), comments: num(b.comments),
-        shares: num(b.shares), saves: num(b.saves), moi: 1,
+        shares: num(b.shares), saves: num(b.saves),
       };
     } else {
-      // Chưa có mốc so sánh và bài đăng trước kỳ — bỏ qua, đừng đội số.
+      // Chưa có mốc so sánh và bài đăng ngoài kỳ — bỏ qua, đừng đội số.
       continue;
     }
 
-    if (!theoKenh.has(b.extId)) {
-      theoKenh.set(b.extId, {
-        platform: b.platform, extId: b.extId, date: ngay, source: b.source,
-        followers: 0, followUp: 0, followDown: 0, views: 0, reach: 0, impressions: 0,
-        profileViews: 0, likes: 0, comments: 0, shares: 0, saves: 0,
-        engagement: 0, clicks: 0, messages: 0, leads: 0, posts: 0, lives: 0,
-      });
-    }
-    const r = theoKenh.get(b.extId);
+    const r = lay(b, vaoNgay);
     r.views += d.views; r.likes += d.likes; r.comments += d.comments;
-    r.shares += d.shares; r.saves += d.saves; r.posts += d.moi;
+    r.shares += d.shares; r.saves += d.saves;
     r.engagement += d.likes + d.comments + d.shares + d.saves;
   }
-  return [...theoKenh.values()];
+  return [...theo.values()];
 }
 
 /* ---------------- gọi các adapter ---------------- */
@@ -275,7 +296,7 @@ function dongLive(row, kenhId) {
 /**
  * Một lượt đồng bộ đầy đủ: kéo → tính chênh lệch → ghi Base → ghi nhật ký.
  */
-async function dongBo({ from, to, chi = '', log = () => {} } = {}) {
+async function dongBo({ from, to, chi = '', napLai = false, log = () => {} } = {}) {
   const batDau = Date.now();
   const conf = await ketnoi.doc();
   const opts = conf.dongBo || {};
@@ -291,7 +312,13 @@ async function dongBo({ from, to, chi = '', log = () => {} } = {}) {
    * nên phải đọc bảng Bài đăng TRƯỚC khi ghi đè nó. Đảo thứ tự là chênh lệch
    * luôn bằng 0 và mọi kênh TikTok/Zalo im lìm mãi mãi. */
   const d0 = await store.tai(true);
-  const baiCu = new Map(d0.posts.map((p) => [p.key, p]));
+  /* napLai: cố tình BỎ QUA mốc cũ, coi mọi bài như lần đầu nhìn thấy — lượt xem
+   * tổng đời được rải về ngày đăng của từng bài. Dùng khi lịch sử đang sai (ví
+   * dụ dữ liệu ghi bởi bản cũ dồn hết vào một ngày) hoặc khi vừa nối thêm kênh
+   * và muốn dựng lại đường biểu đồ của quá khứ. Chạy thường xuyên thì KHÔNG nên:
+   * mỗi lần nạp lại là ghi đè phần tăng thêm đã tính đúng. */
+  const baiCu = napLai ? new Map() : new Map(d0.posts.map((p) => [p.key, p]));
+  if (napLai) log('Nạp lại từ đầu: bỏ mốc cũ, rải lượt xem về ngày đăng của từng bài.');
 
   const buChenh = r.kenhDisplay.size
     ? chenhLech(baiCu, r.posts, den, tu, r.kenhDisplay)
@@ -338,6 +365,27 @@ async function dongBo({ from, to, chi = '', log = () => {} } = {}) {
     const row = dongTrongCho(l.extId, d, l.platform, l.source);
     row.lives = num(row.lives) + 1;
   });
+
+  /* Nạp lại từ đầu thì phải DỌN trước khi dựng.
+   *
+   * ghiTheoKhoa() chỉ đè những dòng nó thật sự ghi, nên dòng cũ sai mà lượt nạp
+   * lại không sinh ra nữa sẽ nằm nguyên đó — đúng cái cột 21 triệu lượt xem ngày
+   * 06/09 vẫn trơ ra sau khi đã sửa cách tính.
+   *
+   * CHỈ xoá dòng do máy ghi, trong đúng khoảng ngày, của đúng những kênh vừa kéo.
+   * Dòng "Nhập tay" và "CSV LIVE Center" là công người gõ — không được đụng. */
+  if (napLai) {
+    const cuaKenh = new Set(r.channels.map((c) => String(c.extId)));
+    const MAY_GHI = (ng) => ng && ng !== 'Nhập tay' && ng !== 'CSV LIVE Center';
+    const boDi = d0.daily
+      .filter((x) => cuaKenh.has(String(x.channelExtId))
+        && x.date >= tu && x.date <= den && MAY_GHI(x.source))
+      .map((x) => x.id);
+    if (boDi.length) {
+      await store.xoaDong('daily', boDi);
+      log('Nạp lại: đã dọn ' + boDi.length + ' dòng ngày cũ do máy ghi (giữ nguyên dòng nhập tay).');
+    }
+  }
 
   // Kênh phải có trước, vì ba bảng kia đều link sang nó
   const mapKenh = await store.baoDamKenh(r.channels);

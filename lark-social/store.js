@@ -318,6 +318,21 @@ async function ghiTheoKhoa(tenBang, rows, layKhoa) {
   return { them: them.length, sua: Object.keys(sua).length, boQua };
 }
 
+/**
+ * Xoá hẳn một số dòng. Chỉ dùng cho "nạp lại từ đầu" — xem dongBo() trong
+ * sync/index.js: dựng lại lịch sử mà không dọn thì dòng cũ sai vẫn nằm nguyên,
+ * vì ghiTheoKhoa() chỉ đè những dòng nó thật sự ghi.
+ */
+async function xoaDong(tenBang, ids) {
+  if (!ids.length) return 0;
+  const bang = T[tenBang];
+  for (let i = 0; i < ids.length; i += 200) {
+    await lark.deleteRecords(bang.id, ids.slice(i, i + 200));
+  }
+  xoaCache();
+  return ids.length;
+}
+
 /** Một dòng nhật ký đồng bộ. Lỗi ở đây không được làm hỏng lượt đồng bộ. */
 async function ghiNhatKy(ban) {
   const f = T.log.f;
@@ -341,7 +356,7 @@ async function ghiNhatKy(ban) {
 }
 
 module.exports = {
-  T, tai, xoaCache, baoDamKenh, ghiTheoKhoa, ghiNhatKy,
+  T, tai, xoaCache, baoDamKenh, ghiTheoKhoa, xoaDong, ghiNhatKy,
   toKey, ngayVeBase, gioVeBase, homNay, themNgay,
   num, txt, clean, sel, links, users, url,
 };

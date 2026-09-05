@@ -542,6 +542,13 @@
       + '<div class="kn-row"><label>Chỉ một nền tảng</label><select id="dbChi">'
       + '<option value="">Tất cả</option><option>Facebook</option><option>Instagram</option>'
       + '<option>TikTok</option><option>Zalo OA</option></select></div></div>'
+      + '<div class="kn-row"><label>Nạp lại từ đầu</label>'
+      + '<label class="help" style="display:flex;gap:6px;align-items:flex-start">'
+      + '<input type="checkbox" id="dbNapLai" style="margin-top:2px">'
+      + '<span>Bỏ mốc cũ, coi mọi bài như lần đầu thấy và rải lượt xem về <b>ngày đăng</b>. '
+      + '<b>Xoá và dựng lại</b> các dòng ngày do máy ghi trong khoảng đã chọn — dòng nhập tay '
+      + 'và dòng LIVE giữ nguyên. Dùng khi vừa nối thêm kênh hoặc lịch sử đang sai; '
+      + 'đừng bật cho lần chạy hằng ngày.</span></label></div>'
       + '<div class="log-box" id="dbLog" style="margin-top:12px">Chưa chạy.</div>'
       + '</div>'
       + '<div class="modal-foot"><button class="btn ghost" id="mHuy">Đóng</button>'
@@ -574,6 +581,7 @@
       try {
         const r = await goiJSON('/api/dong-bo', {
           from: $('#dbFrom').value, to: $('#dbTo').value, chi: $('#dbChi').value,
+          napLai: $('#dbNapLai').checked,
         });
         toast('Đồng bộ xong sau ' + r.giay + 's — ' + r.soDongNgay + ' dòng ngày, '
           + r.soBai + ' bài, ' + r.soLive + ' LIVE',
