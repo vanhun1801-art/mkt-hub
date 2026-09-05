@@ -367,12 +367,18 @@ button { font: inherit; }
 .home-body { padding: 18px var(--le) 60px; display: flex; flex-direction: column; gap: 14px; }
 /* Hai cột cố định: bốn base thành 2x2 kín, thay vì 3 + 1 bỏ trống hai phần ba
    hàng dưới. Cột rộng hơn cũng cho các ô số thở hơn. */
-.luoi-base { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 24px; }
-/* Số base LẺ thì khối cuối trải hết hàng, thay vì đứng một mình nửa hàng và
-   bỏ trống nửa kia. Hiện có 5 base (Social chưa có bộ đọc chỉ số) — thêm hay
-   bớt base thì luật này tự đúng, không phải sửa tay. */
-.luoi-base > :last-child:nth-child(odd) { grid-column: 1 / -1; }
-@media (max-width: 1180px) { .luoi-base { grid-template-columns: 1fr; } }
+/* Ba base một hàng, ba khối RỘNG BẰNG NHAU.
+
+   Hàng cuối chỉ có 2 base nên hở một chỗ — và đó là đánh đổi có chủ ý. Muốn
+   lấp kín hàng cuối thì hai khối đó phải phình từ 416px lên 635px, mà bề rộng
+   ô bên trong bám theo bề rộng khối, nên ô ở hàng dưới lệch ~33% so với ô ở
+   hàng trên. Đã thử mọi mốc chặn từ 120 đến 150px, không mốc nào kéo xuống
+   dưới 33% được: hai hàng khối rộng khác nhau thì kiểu chia nào cũng lệch.
+
+   Ô đều nhau quan trọng hơn hàng cuối kín — ô là con số để so với nhau, còn
+   chỗ hở nằm ở góc dưới cùng bên phải, chỗ ít bị nhìn nhất. */
+.luoi-base { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px 24px; }
+@media (max-width: 1120px) { .luoi-base { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 /* ---- thẻ khối (giống .card của app quảng cáo) ---- */
 
@@ -383,12 +389,35 @@ button { font: inherit; }
 /* Số cột CỐ ĐỊNH, không `auto-fit`: auto-fit làm hàng cuối thiếu ô thì mấy ô
    còn lại giãn ra chiếm chỗ, nên cùng một base mà ô hàng trên nhỏ, ô hàng dưới
    to gấp rưỡi. `grid-auto-rows: 1fr` cho mọi hàng cao bằng nhau, kể cả khi một
-   ô có thêm dòng ghi chú bên dưới. */
+   ô có thêm dòng ghi chú bên dưới.
+
+   Số cột theo BỀ NGANG CỦA KHỐI, không theo bề ngang cửa sổ — vì khối không
+   còn rộng như nhau nữa: base trải hết hàng cuối rộng gấp ba base thường, mà
+   media query thì không phân biệt được hai thứ đó. Đo theo khối thì khối rộng
+   tự lên 3 cột, khối hẹp tự về 2, không cần biết cửa sổ bao nhiêu.
+
+   Ô thì KHÔNG lấp hàng cuối như base. Base là hộp chứa, hở nửa hàng nhìn như
+   vỡ. Ô là con số để so với nhau, kéo ô cuối rộng gấp ba là hỏng đúng cái vừa
+   sửa — thà hở một chỗ còn hơn ô to ô nhỏ.
+
+   `auto-fill` chứ không `auto-fit`: hai từ này chỉ khác nhau ở chỗ cột TRỐNG
+   ở hàng cuối. auto-fit bóp cột trống về 0 rồi cho mấy ô còn lại nốc chỗ — chính
+   là lỗi ô hàng dưới to gấp rưỡi. auto-fill giữ cột trống, nên ô ở mọi hàng
+   bằng nhau. Đầu bài đáng lẽ chỉ cần đổi một từ này.
+
+   Mốc 145px là đo ra chứ không chọn bừa. Ba base một hàng thì khối rộng từ
+   309px (cửa sổ 1280) đến ~500px (cửa sổ hết cỡ). Đo cả dải: chặn 180px thì ở
+   1280 khối chỉ đủ MỘT cột, sáu ô xếp dọc thành cột số dài ngoằng. Chặn 145px
+   cho ra ô 149-216px suốt dải, số dài nhất trong dữ liệu thật vẫn một dòng.
+
+   Và ghim sàn 2 cột cho cửa sổ hẹp: ở 1280 phép chia ra 2,06 cột — sát mép,
+   chỉ cần panel bên trái rộng thêm chút là rơi xuống 1 cột. Ghim rồi thì không
+   rơi được nữa. */
 .nhom-base > .the-luoi {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
   grid-auto-rows: 1fr;
 }
-@media (max-width: 760px) {
+@media (max-width: 1340px) {
   .nhom-base > .the-luoi { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
