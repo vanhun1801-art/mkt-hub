@@ -38,7 +38,7 @@
   --gray-bg: #f2f5fa;
   --gray-t: #5b6779;
 
-  --r: 8px;
+  --r: 9px;        /* nút, ô nhập — chung cả hệ */
   --r-lg: 12px;
   --shadow-1: 0 1px 2px rgba(20, 30, 60, .06), 0 6px 20px rgba(20, 30, 60, .05);
   --shadow-2: 0 6px 24px rgba(20, 30, 60, .1);
@@ -125,7 +125,8 @@ a:hover { text-decoration: underline; }
 /* ---------------- buttons ---------------- */
 .btn {
   border: 1px solid var(--line); background: var(--surface); color: var(--t1);
-  padding: 6px 14px; border-radius: var(--r); cursor: pointer; font-weight: 500;
+  padding: 7px 12px; border-radius: var(--r); cursor: pointer; font-weight: 500;
+  font-size: 13px;
   display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
   transition: background .12s, border-color .12s;
 }
@@ -141,7 +142,7 @@ a:hover { text-decoration: underline; }
 .btn.success:hover { filter: brightness(1.08); }
 .btn.ghost { border-color: transparent; background: transparent; color: var(--t2); }
 .btn.ghost:hover { background: var(--hover); color: var(--t1); }
-.btn.sm { padding: 4px 10px; font-size: 13px; }
+.btn.sm { padding: 5px 10px; font-size: 12.5px; }
 .btn.icon { padding: 6px 8px; }
 
 .chip-user {

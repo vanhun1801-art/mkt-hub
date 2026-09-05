@@ -8,8 +8,8 @@
   --ink: #1a2233;
   --ink-2: #5b6779;
   --ink-3: #8b95a7;
-  --brand: #7a3cff;
-  --brand-soft: #f1eaff;
+  --brand: #2b5cff;
+  --brand-soft: #eaf0ff;
   --good: #12a150;
   --good-soft: #e6f7ee;
   --warn: #d98300;
@@ -38,8 +38,8 @@
   --ink: #e4e8f1;
   --ink-2: #a3adbf;
   --ink-3: #7f8899;
-  --brand: #a586ff;
-  --brand-soft: #241a3d;
+  --brand: #6f9bff;
+  --brand-soft: #1b2338;
   --good: #34d399;
   --good-soft: #122b21;
   --warn: #ffb457;
@@ -59,8 +59,8 @@
     --ink: #e4e8f1;
     --ink-2: #a3adbf;
     --ink-3: #7f8899;
-    --brand: #a586ff;
-    --brand-soft: #241a3d;
+    --brand: #6f9bff;
+    --brand-soft: #1b2338;
     --good: #34d399;
     --good-soft: #122b21;
     --warn: #ffb457;
@@ -104,12 +104,12 @@ button { font: inherit; }
 
 .btn {
   border: 1px solid var(--line); background: var(--panel); color: var(--ink);
-  border-radius: 9px; padding: 7px 13px; cursor: pointer; white-space: nowrap;
+  border-radius: 9px; padding: 7px 12px; cursor: pointer; white-space: nowrap;
 }
 .btn:hover { border-color: var(--brand); color: var(--brand); }
 .btn.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
 .btn.primary:hover { filter: brightness(1.08); color: #fff; }
-.btn.small { padding: 5px 10px; font-size: 13px; }
+.btn.small { padding: 5px 10px; font-size: 12.5px; }
 .btn:disabled { opacity: .5; cursor: default; }
 .chip {
   font-size: 12px; color: var(--ink-2); background: var(--panel-2);

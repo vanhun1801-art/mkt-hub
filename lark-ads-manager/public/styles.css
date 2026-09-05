@@ -77,7 +77,7 @@ button { font: inherit; }
 .btn.primary:hover { background: #1f4ae0; }
 .btn.danger { background: var(--panel); border-color: var(--bad); color: var(--bad); }
 .btn.danger:hover { background: var(--bad-soft); }
-.btn.small { padding: 5px 9px; font-size: 12.5px; }
+.btn.small { padding: 5px 10px; font-size: 12.5px; }
 .btn.ghost { background: var(--panel); }
 .btn[disabled] { opacity: .5; cursor: not-allowed; }
 
