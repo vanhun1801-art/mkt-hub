@@ -173,7 +173,33 @@ cảnh báo. **Đổi giá trị biến = mất hết token đã cất**, phải
 
 ---
 
-## 5. Base gồm những bảng gì
+## 5. Base phải được chia sẻ cho app Lark — nếu không thì im lặng hỏng
+
+Trên máy cá nhân app chạy chế độ `cli`: nó mượn phiên lark-cli của chính người
+dùng, nên Base nào người đó mở được thì app ghi được.
+
+Trên Render là chế độ `api`: app dùng token của **ứng dụng Lark**
+(`LARK_APP_ID`), một danh tính hoàn toàn khác. Base do người dùng tạo thì ứng
+dụng đó **không có quyền gì cả**.
+
+Triệu chứng rất dễ đọc nhầm: đồng bộ chạy ngon, log in ra đủ số liệu của từng
+kênh, rồi chết ở dòng cuối với `Lark API 91403: you don't have permission`. Kéo
+được nhưng không ghi được.
+
+Chữa một lần, bằng lark-cli trên máy có phiên của chủ Base:
+
+```bash
+lark-cli drive +member-add --as user   --token <base_token> --type bitable   --member-type appid --member-id <LARK_APP_ID của hub> --perm edit --yes
+```
+
+Tra `LARK_APP_ID` mà Render đang dùng bằng cách mở trang chủ hub và đọc tham số
+`app_id=` trong link chuyển hướng sang màn hình đăng nhập Lark — khỏi phải vào
+dashboard. Lưu ý app của lark-cli trên máy và app của hub **thường là hai app
+khác nhau**, nên cấp nhầm là vẫn 91403.
+
+---
+
+## 6. Base gồm những bảng gì
 
 | Bảng | Vai trò | Khoá chống trùng |
 |---|---|---|
@@ -197,7 +223,7 @@ một kênh mới.
 
 ---
 
-## 6. Vài quyết định kỹ thuật, và lý do
+## 7. Vài quyết định kỹ thuật, và lý do
 
 **Follower không bao giờ được cộng dồn.** Nó là số chốt tại một thời điểm, không phải
 lưu lượng. Cộng follower của 30 ngày lại ra một con số vô nghĩa nhưng trông rất to —
@@ -228,7 +254,7 @@ kiểu "Malformed access token EAAG…". Có phép thử riêng cho việc này.
 
 ---
 
-## 7. Vận hành
+## 8. Vận hành
 
 **Đồng bộ** (nút góc trên phải, chỉ quản lý): chọn khoảng ngày → *Thử kết nối* →
 *Chạy đồng bộ*. Log chạy hiện ngay trong hộp, cảnh báo in ở cuối.
@@ -244,7 +270,7 @@ không cần mạng, không đụng Base).
 
 ---
 
-## 8. File nào làm gì
+## 9. File nào làm gì
 
 | File | Việc |
 |---|---|
@@ -261,7 +287,7 @@ không cần mạng, không đụng Base).
 
 ---
 
-## 9. Chưa làm
+## 10. Chưa làm
 
 **Chấm điểm KPI theo Google Sheet.** Sheet hiện tại có chỉ tiêu tháng, tỷ trọng từng
 tiêu chí và tỷ trọng kênh của từng người (Thư · Hằng · Khánh · Trường · Hân · Ngọc).
