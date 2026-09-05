@@ -71,30 +71,96 @@
     return new Date(Date.UTC(y, m - 1, dd + d)).toISOString().slice(0, 10);
   }
 
-  /* ---------------- thanh lọc ---------------- */
-  const KHOANG = [
-    ['7 ngày', 7], ['30 ngày', 30], ['90 ngày', 90], ['Tháng này', 0],
-  ];
+  /* ---------------- thanh lọc ----------------
+   *
+   * Chạy dưới Marketing Hub thì bộ lọc thời gian phải DÙNG CHUNG với bốn app kia:
+   * một nơi đổi, mọi nơi theo. Lớp vỏ lo phần này qua hai hàm mà module tự khai
+   * (xem shim trong lark-mkt-hub/proxy.js):
+   *
+   *   window.hubApKhoang(tu, den)  — lớp vỏ gửi khoảng xuống
+   *   window.hubBaoKhoang(tu, den) — module báo lên khi NGƯỜI DÙNG tự đổi
+   *
+   * Và danh sách mốc lấy từ loc.js của lớp vỏ, không tự bịa bộ riêng: quản lý
+   * thấy Tháng này / Tháng trước / Tuần này…, nhân sự thấy bộ hẹp quanh hôm nay.
+   * Bấm "Tuần trước" trong app này mà thanh lọc của hub vẫn ghi "Tuỳ chỉnh" thì
+   * rất khó đọc — nên phải báo ngược lên.
+   *
+   * Chạy một mình (mở thẳng cổng 5178) thì giữ bộ mốc riêng, vẫn dùng được.
+   */
+  const duoiHub = () => Boolean(window.HUB_LOC && window.__HUB__);
+
+  /** [{ k, ten, tu, den }] — mốc của lớp vỏ khi có, bộ riêng khi chạy một mình. */
+  function mocLoc() {
+    if (duoiHub()) {
+      return window.HUB_LOC.danhSachTheoVai(window.__HUB__.quanLy)
+        .map((x) => ({ k: x.tu + '|' + x.den, ten: x.ten, tu: x.tu, den: x.den }));
+    }
+    const den = homNay();
+    return [
+      { ten: '7 ngày', tu: themNgay(den, -6), den },
+      { ten: '30 ngày', tu: themNgay(den, -29), den },
+      { ten: '90 ngày', tu: themNgay(den, -89), den },
+      { ten: 'Tháng này', tu: den.slice(0, 8) + '01', den },
+    ].map((x) => ({ ...x, k: x.tu + '|' + x.den }));
+  }
+
+  function veSeg() {
+    const ds = mocLoc();
+    const dang = S.from + '|' + S.to;
+    $('#rangeSeg').innerHTML = ds.map((m) =>
+      '<button data-k="' + esc(m.k) + '"' + (m.k === dang ? ' class="on"' : '') + '>'
+      + esc(m.ten) + '</button>').join('');
+    /* Nhân sự không có khoảng tuỳ chọn — giống ba app kia, để mọi người nhìn cùng
+     * một bộ mốc thay vì mỗi app một kiểu. */
+    if (duoiHub() && window.__HUB__.quanLy === false) {
+      ['#fFrom', '#fTo'].forEach((sel) => {
+        const g = $(sel) && $(sel).closest('.fgroup');
+        if (g) g.hidden = true;
+      });
+    }
+  }
 
   function dungBoLoc() {
-    const seg = $('#rangeSeg');
-    seg.innerHTML = KHOANG.map(([t, d]) =>
-      '<button data-days="' + d + '">' + t + '</button>').join('');
-    seg.onclick = (e) => {
+    $('#rangeSeg').onclick = (e) => {
       const b = e.target.closest('button');
       if (!b) return;
-      const d = Number(b.dataset.days);
-      S.to = homNay();
-      S.from = d ? themNgay(S.to, -(d - 1)) : S.to.slice(0, 8) + '01';
-      $$('#rangeSeg button').forEach((x) => x.classList.toggle('on', x === b));
+      const [tu, den] = b.dataset.k.split('|');
+      S.from = tu; S.to = den;
+      veSeg();
+      dongBoInput();
+      baoHub();
+      tai();
+    };
+
+    const doiTay = () => {
+      S.from = $('#fFrom').value;
+      S.to = $('#fTo').value;
+      if (!S.from || !S.to) return;
+      veSeg();
+      baoHub();
+      tai();
+    };
+    $('#fFrom').onchange = doiTay;
+    $('#fTo').onchange = doiTay;
+    $('#btnClearFilter').onclick = () => { S.platforms = []; veLocNenTang(); tai(); };
+
+    /* Lớp vỏ gửi khoảng xuống. '' nghĩa là "toàn bộ" — app này luôn cần một
+     * khoảng cụ thể (biểu đồ theo ngày), nên lùi về 30 ngày gần nhất. */
+    window.hubApKhoang = function (tu, den) {
+      const t = den || homNay();
+      S.to = t;
+      S.from = tu || themNgay(t, -29);
+      veSeg();
       dongBoInput();
       tai();
     };
-    seg.children[1].classList.add('on');
+  }
 
-    $('#fFrom').onchange = () => { S.from = $('#fFrom').value; tai(); };
-    $('#fTo').onchange = () => { S.to = $('#fTo').value; tai(); };
-    $('#btnClearFilter').onclick = () => { S.platforms = []; veLocNenTang(); tai(); };
+  /** Báo khoảng đang lọc lên lớp vỏ để bốn app kia đi theo. */
+  function baoHub() {
+    if (typeof window.hubBaoKhoang === 'function') {
+      try { window.hubBaoKhoang(S.from, S.to); } catch (_) { /* chạy một mình */ }
+    }
   }
 
   function dongBoInput() {
@@ -923,7 +989,13 @@
   (async function main() {
     S.to = homNay();
     S.from = themNgay(S.to, -29);
+    /* Dưới lớp vỏ thì mở lên phải khớp ngay khoảng đang lọc chung, đừng để người
+     * dùng thấy 30 ngày rồi giật một nhịp sang mốc khác. Shim của lớp vỏ đã đặt
+     * sẵn __HUB__.khoang và cũng sẽ gửi 'loc' xuống, nhưng đọc trước cho mượt. */
+    const kh = window.__HUB__ && window.__HUB__.khoang;
+    if (kh && kh.tu && kh.den) { S.from = kh.tu; S.to = kh.den; }
     dungBoLoc();
+    veSeg();
     dongBoInput();
     dungTabs();
 
