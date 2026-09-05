@@ -92,15 +92,35 @@ tới ngày là đồng bộ chết lặng lẽ; nút *Thử kết nối* có b�
 
 ### TikTok — mỗi kênh cấp quyền một lần
 
-1. `developers.tiktok.com` → tạo app → lấy **Client key** + **Client secret**.
-2. Xin phạm vi: `user.info.basic`, `user.info.stats`, `video.list`.
-   Muốn chế độ **business** (nhiều chỉ số hơn hẳn: tiếp cận, xem hồ sơ, follower theo
-   ngày, tỷ lệ xem hết) thì tài khoản phải là TikTok Business và app phải được duyệt
-   thêm phạm vi tương ứng.
-3. **Từng kênh** tự bấm đồng ý một lần → lấy `refresh token` của kênh đó → thêm một
-   dòng trong ô TikTok (tên kênh · open_id · chế độ · refresh token).
+**Bên TikTok** (`developers.tiktok.com`): tạo app kiểu **Other** (chọn nhầm kiểu là
+phải xoá app làm lại — TikTok không cho đổi). Thêm sản phẩm **Login Kit**, thêm scope
+`user.info.profile` · `user.info.stats` · `video.list` (`user.info.basic` kèm sẵn).
 
-Sáu kênh trong bảng KPI = sáu dòng, mỗi dòng một lần cấp quyền.
+Dùng tab **Sandbox** thay vì Production: Production bắt *Submit for review* kèm **video
+demo quay màn hình** và chờ TikTok duyệt vài ngày. Sandbox không cần gì, thêm tài khoản
+vào **Target Users** là cấp quyền được ngay.
+
+> Sandbox có **cặp khoá riêng**, khác Production. Khoá sandbox bắt đầu bằng `sbaw`,
+> production bằng `aw`. Dán nhầm là lỗi rất khó đoán.
+
+Vài chỗ Sandbox đòi mà hay vướng: **App icon phải đúng 1024x1024** (512 bị từ chối
+thẳng), Category, Description, Terms of Service URL, Privacy Policy URL, Platforms =
+Web. Redirect URI khai `https://mkt-hub-w6hi.onrender.com/healthz` — trang đó trả JSON
+mà **không chuyển hướng**, nên tham số `?code=...` còn nguyên trên thanh địa chỉ để copy.
+
+**Bên app**, khối TikTok có ba nút, làm lại cho **từng kênh**:
+
+1. **Tạo link cấp quyền** -> mở link bằng trình duyệt đang đăng nhập đúng kênh đó
+   (kênh thứ hai trở đi dùng **cửa sổ ẩn danh**, không thì TikTok cấp quyền nhầm kênh
+   đang đăng nhập mà chẳng báo gì)
+2. Bấm đồng ý -> copy **nguyên cả URL** trả về
+3. **Đổi mã lấy token** -> app tự lấy tên kênh và follower
+
+Mã uỷ quyền sống vài phút, dùng một lần. Không phải tự đụng tới `refresh token`.
+
+Chế độ **business** (thêm tiếp cận, xem hồ sơ, follower theo ngày, tỷ lệ xem hết) cần
+tài khoản TikTok Business và app được TikTok bật sản phẩm Business Account. Chưa có thì
+để **display**; sau này được duyệt chỉ đổi ô Chế độ, không phải nối lại.
 
 ### Zalo OA
 
