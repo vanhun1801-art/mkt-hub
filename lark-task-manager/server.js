@@ -385,6 +385,10 @@ async function giaoViec(taskId, nguoi, vi, tuDong) {
     if (rec) rec.cells[F.owner.id] = [{ id: nguoi.id, name: nguoi.ten }];
   }
   ppdoc.ghiSo({ task: taskId, nguoiId: nguoi.id, nguoi: nguoi.ten, vi, tuDong: !!tuDong });
+  /* Máy tự ghi vào Base thì phải để lại dấu ở log máy chủ, không chỉ trong sổ
+   * giữ trên RAM — sổ mất sau mỗi lần deploy, còn log thì đọc lại được. */
+  console.log('  [phân phối] ' + (tuDong ? 'TỰ GIAO' : 'giao tay') + ' ' + taskId +
+    ' -> ' + nguoi.ten + '  (' + vi + ')');
   return true;
 }
 

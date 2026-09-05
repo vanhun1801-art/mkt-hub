@@ -165,8 +165,12 @@ function dangCho(tasks, cauHinh, now, thayLuc) {
      * còn Thiết kế thì nên chừa thời gian cho quản lý tự chọn. Không khai thì lấy
      * mốc chung, không có nữa thì 5 phút. */
     const luongCua = (cauHinh.luong || []).find((x) => x.loai === dx.loai);
-    const phut = Number((luongCua && luongCua.phut) ||
-      (cauHinh.chung && cauHinh.chung.phut) || 5);
+    /* Dùng `??` chứ KHÔNG dùng `||`: mốc chờ 0 phút ("giao ngay") là một lựa chọn
+     * hợp lệ, mà `0 || 5` cho ra 5 — người dùng đặt 0 rồi ngồi chờ mãi không hiểu
+     * vì sao. Cùng lớp lỗi đã gặp ở bảng xếp hạng thông báo của lớp vỏ. */
+    const soPhut = (luongCua && luongCua.phut != null ? luongCua.phut : null)
+      ?? (cauHinh.chung && cauHinh.chung.phut != null ? cauHinh.chung.phut : null) ?? 5;
+    const phut = Number(soPhut);
     const conLai = tu ? Math.max(0, Math.ceil((tu + phut * 60000 - now) / 60000)) : phut;
     ds.push({
       id: t.id,
