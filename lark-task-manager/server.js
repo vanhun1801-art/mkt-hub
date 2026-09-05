@@ -431,6 +431,34 @@ async function quetPhanPhoi() {
   }
 }
 
+/**
+ * Danh bạ cho ô chọn người của trung tâm phân phối.
+ *
+ * Kèm số việc để phân biệt người còn làm với người đã nghỉ — bảng Base giữ tên
+ * người cũ mãi mãi, nhìn danh sách 36 cái tên thì không nhớ nổi ai còn ai nghỉ.
+ */
+async function danhBaPhanPhoi(tasks) {
+  const m = new Map();
+  const mo = new Map();
+  for (const t of tasks) {
+    /* Lấy cả cột "Người order": người mới vào phòng thường đặt việc trước khi
+     * được giao việc, nên nếu chỉ quét phụ trách/hỗ trợ thì họ không có trong
+     * danh sách và quản lý không thêm được vào luồng. */
+    for (const u of [...(t.owner || []), ...(t.helper || []), ...(t.requester || [])]) {
+      if (!u || !u.id) continue;
+      if (!m.has(u.id)) m.set(u.id, { id: u.id, ten: u.name || u.id, soViec: 0, dangMo: 0 });
+    }
+    for (const u of t.owner || []) {
+      if (!u || !u.id) continue;
+      m.get(u.id).soViec++;
+      if (!PP.dong(t)) mo.set(u.id, (mo.get(u.id) || 0) + 1);
+    }
+  }
+  for (const [id, n] of mo) if (m.has(id)) m.get(id).dangMo = n;
+  return [...m.values()].sort((a, b) => b.dangMo - a.dangMo || b.soViec - a.soViec ||
+    String(a.ten).localeCompare(String(b.ten), 'vi'));
+}
+
 /** Chặn thao tác chỉ dành cho quản lý. */
 async function requireManager(res, req) {
   if (await isManager(req)) return true;
@@ -897,6 +925,11 @@ async function api(req, res, url) {
       nguoi: ch.nguoi,
       cach: PP.CACH_NHAN,
       so: ppdoc.docSo(),
+      /* Danh bạ để chọn người thêm vào luồng. Kèm `soViec` (tổng việc từng nhận)
+       * và `dangMo` — người đã nghỉ thì hai số này đứng yên, nhìn là biết ai còn
+       * đang làm mà không phải nhớ. */
+      nhanSu: await danhBaPhanPhoi(tasks),
+      trangThaiCanPhanPhoi: cfg.phanPhoiTrangThai,
       /* Loại có việc thật nhưng chưa khai luồng — nói ra để anh biết còn thiếu gì,
        * chứ không im lặng bỏ qua. */
       thieuLuong: [...new Set(tasks.filter((t) => !PP.dong(t)).map((t) => PP.loaiCua(t)))]
@@ -919,6 +952,24 @@ async function api(req, res, url) {
     const body = await readBody(req);
     if (!body.rec) return json(res, { error: 'Thiếu mã dòng' }, 400);
     try { await ppdoc.suaTrongSo(body.rec, body.trongSo); }
+    catch (e) { return json(res, { error: e.message }, 400); }
+    return json(res, { ok: true });
+  }
+
+  if (p === '/api/phan-phoi/nguoi' && req.method === 'POST') {
+    if (!(await requireManager(res, req))) return;
+    const body = await readBody(req);
+    if (!body.loai || !body.id) return json(res, { error: 'Thiếu loại hoặc người' }, 400);
+    try { await ppdoc.themNguoi(body.loai, body.id, body.ten, body.trongSo); }
+    catch (e) { return json(res, { error: e.message }, 400); }
+    return json(res, { ok: true });
+  }
+
+  if (p === '/api/phan-phoi/nguoi' && req.method === 'DELETE') {
+    if (!(await requireManager(res, req))) return;
+    const body = await readBody(req);
+    if (!body.rec) return json(res, { error: 'Thiếu mã dòng' }, 400);
+    try { await ppdoc.xoaNguoi(body.rec); }
     catch (e) { return json(res, { error: e.message }, 400); }
     return json(res, { ok: true });
   }

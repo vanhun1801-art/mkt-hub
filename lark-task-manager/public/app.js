@@ -3870,9 +3870,24 @@ function setupChrome() {
       { rec: t.dataset.ppcach, cach: t.value }, 'Không đổi được cách chia');
     if (t.dataset.ppts != null) return luuPhanPhoi('/api/phan-phoi/nguoi',
       { rec: t.dataset.ppts, trongSo: t.value }, 'Không đổi được trọng số');
+    if (t.dataset.ppchon != null && t.value) {
+      const ten = t.options[t.selectedIndex].textContent.split('  ·')[0];
+      return luuPhanPhoi('/api/phan-phoi/nguoi',
+        { loai: t.dataset.ppchon, id: t.value, ten, trongSo: 1 },
+        'Không thêm được', 'POST');
+    }
   });
 
   $('#ppBody').addEventListener('click', async (e) => {
+    /* Bỏ hẳn một người: hỏi lại, vì đây là xoá dòng chứ không phải tạm ngưng, và
+     * lấy lại thì phải thêm mới rồi gõ lại trọng số. */
+    const x = e.target.closest('[data-ppxoa]');
+    if (x) {
+      if (!confirm('Bỏ hẳn ' + x.dataset.ten + ' khỏi luồng ' + x.dataset.loai + '?\n\nDùng cho người đã NGHỈ VIỆC. Nếu chỉ nghỉ phép thì đặt trọng số 0 để tạm ngưng.')) return;
+      return luuPhanPhoi('/api/phan-phoi/nguoi', { rec: x.dataset.ppxoa },
+        'Không bỏ được', 'DELETE');
+    }
+
     const b = e.target.closest('[data-ppgiao]');
     if (!b) return;
     b.disabled = true;
@@ -4109,8 +4124,9 @@ function vePhanPhoi() {
   h += '<h4 class="pp-h">Đang chờ phân công <span class="pp-dem">' +
     (d.dangCho || []).length + '</span></h4>';
   if (!(d.dangCho || []).length) {
-    h += '<div class="pp-rong">Không có việc nào chưa có người phụ trách. ' +
-      'Việc mới chưa giao sẽ hiện ở đây kèm đề xuất.</div>';
+    h += '<div class="pp-rong">Không có việc nào đang ở <b>' +
+      (d.trangThaiCanPhanPhoi || ['Chờ tiếp nhận']).map(escPP).join(' / ') +
+      '</b> mà chưa có người phụ trách. Việc mới đặt sẽ hiện ở đây kèm đề xuất.</div>';
   } else {
     for (const x of d.dangCho) {
       h += '<div class="pp-cho">' +
@@ -4154,7 +4170,7 @@ function vePhanPhoi() {
         '</select>' +
       '</div>' +
       '<table class="pp-tb"><thead><tr><th>Người nhận</th><th>Tỷ lệ</th>' +
-        '<th>Đang giữ</th><th>Thực tế</th></tr></thead><tbody>';
+        '<th>Đang giữ</th><th>Thực tế</th><th></th></tr></thead><tbody>';
     for (const n of b.nguoi) {
       const rec = (d.nguoi || []).find((x) => x.loai === b.loai && x.id === n.id) || {};
       /* Lệch nhiều thì tô — đây là chỗ anh Hùng nhìn ra "ai đang gánh, ai đang rảnh"
@@ -4167,14 +4183,32 @@ function vePhanPhoi() {
           '" data-ppts="' + escPP(rec.rec || '') + '"></td>' +
         '<td class="num">' + n.dangMo + '</td>' +
         '<td class="num' + mau + '">' + (b.tongMo ? n.thucTe + '%' : '—') + '</td>' +
+        '<td class="num"><button class="pp-x" title="Bỏ khỏi luồng này" ' +
+          'data-ppxoa="' + escPP(rec.rec || '') + '" data-ten="' + escPP(n.ten) +
+          '" data-loai="' + escPP(b.loai) + '">✕</button></td>' +
         '</tr>';
     }
-    h += '</tbody></table></div>';
+    /* Ô thêm người ngay dưới từng luồng: người đã nghỉ thì bỏ bằng nút ✕, người
+     * mới vào thì thêm ở đây — không phải mở Base. Danh sách xếp người đang giữ
+     * nhiều việc lên trước, vì đó gần như chắc chắn là người còn đang làm. */
+    const daCo = new Set(b.nguoi.map((x) => x.id));
+    const conLai = (d.nhanSu || []).filter((x) => !daCo.has(x.id));
+    h += '</tbody></table>' +
+      '<div class="pp-them">' +
+        '<select class="pp-sel" data-ppchon="' + escPP(b.loai) + '">' +
+          '<option value="">+ Thêm người vào ' + escPP(b.loai) + '…</option>' +
+          conLai.map((x) => '<option value="' + escPP(x.id) + '">' + escPP(x.ten) +
+            (x.dangMo ? '  · đang giữ ' + x.dangMo + ' việc'
+                      : x.soViec ? '  · đã làm ' + x.soViec + ' việc'
+                                 : '  · chưa từng nhận việc') +
+            '</option>').join('') +
+        '</select>' +
+      '</div></div>';
   }
   h += '</div>';
-  h += '<div class="pp-ghi">Trọng số <b>0</b> = tạm ngưng người đó (khi nghỉ phép), ' +
-    'việc tự dạt sang người còn lại rồi tự cân lại khi mở lại. ' +
-    'Thêm/bớt người thì sửa bảng <b>Phân phối - người</b> trên Base.</div>';
+  h += '<div class="pp-ghi">Trọng số <b>0</b> = <b>tạm ngưng</b> (nghỉ phép) — còn trong ' +
+    'bảng, việc dạt sang người khác, mở lại là tự cân về. Nút <b>✕</b> = <b>bỏ hẳn</b> ' +
+    'khỏi luồng, dùng khi người đó nghỉ việc.</div>';
 
   /* ---------------- 3. Sổ ---------------- */
   if ((d.so || []).length) {
@@ -4197,10 +4231,10 @@ const gioNgan = (t) => {
 };
 
 /** Lưu một ô cấu hình rồi nạp lại — số liệu đổi theo ngay, khỏi đoán. */
-async function luuPhanPhoi(duong, body, loi) {
+async function luuPhanPhoi(duong, body, loi, method) {
   $('#ppMsg').textContent = 'Đang lưu…';
   try {
-    await req(duong, { method: 'PATCH', body: JSON.stringify(body) });
+    await req(duong, { method: method || 'PATCH', body: JSON.stringify(body) });
     await napPhanPhoi(true);
     toast('Đã lưu vào Base');
   } catch (e) {

@@ -85,6 +85,12 @@ module.exports = {
     trongSo: 'Trọng số',
     ghiChu: 'Ghi chú',
   },
+  /* CHỈ việc ở mấy trạng thái này mới vào hàng đợi phân phối. "Chờ tiếp nhận" là
+   * cửa vào của việc mới đặt; việc chưa có chủ ở trạng thái khác thì là đang làm
+   * dở bị gỡ người, hoặc dữ liệu cũ — tự giao mấy cái đó là xen vào việc quản lý
+   * đang xử lý tay. */
+  phanPhoiTrangThai: ['Chờ tiếp nhận'],
+
   // Nhãn trong Base -> mã dùng trong phanphoi.js
   cachChia: {
     'Tỷ lệ + cân tải': 'tai',

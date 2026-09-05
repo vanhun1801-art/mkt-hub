@@ -47,6 +47,23 @@ function nhan(v) {
 
 const dong = (t) => MO_DONG.includes(nhan(t.status));
 const chuaGiao = (t) => !(t.owner || []).length;
+
+/**
+ * Việc này có cần phân phối không?
+ *
+ * CHỈ những việc đang ở trạng thái yêu cầu mới ("Chờ tiếp nhận") — đó là cửa vào
+ * của việc mới đặt. Việc chưa có chủ ở trạng thái khác thì là chuyện khác: đang
+ * làm dở mà gỡ người ra, hoặc dữ liệu cũ thiếu — tự giao mấy cái đó là xen vào
+ * việc quản lý đang xử lý tay.
+ *
+ * Danh sách trạng thái khai trong config (`phanPhoiTrangThai`) chứ không cắm
+ * cứng ở đây, để đổi tên trạng thái trên Base thì sửa một chỗ.
+ */
+function canPhanPhoi(t, cauHinh) {
+  if (dong(t) || !chuaGiao(t)) return false;
+  const ds = (cauHinh && cauHinh.chung && cauHinh.chung.trangThai) || [];
+  return !ds.length || ds.includes(nhan(t.status));
+}
 const loaiCua = (t) => nhan(t.workType);
 
 /**
@@ -141,7 +158,7 @@ function deXuat(task, tasks, cauHinh) {
 function dangCho(tasks, cauHinh, now, thayLuc) {
   const ds = [];
   for (const t of tasks || []) {
-    if (dong(t) || !chuaGiao(t)) continue;
+    if (!canPhanPhoi(t, cauHinh)) continue;
     const dx = deXuat(t, tasks, cauHinh);
     const tu = thayLuc && thayLuc.get(t.id);
     /* Mốc chờ khai theo TỪNG LOẠI: Website chỉ một người thì chờ 5 phút vô nghĩa,
@@ -205,5 +222,5 @@ function bangTai(tasks, cauHinh) {
 module.exports = {
   CACH, CACH_NHAN, MO_DONG,
   nhan, dong, chuaGiao, loaiCua,
-  demViec, chonNguoi, deXuat, dangCho, denLuotTuGiao, bangTai,
+  canPhanPhoi, demViec, chonNguoi, deXuat, dangCho, denLuotTuGiao, bangTai,
 };

@@ -89,10 +89,12 @@ async function docCauHinh(force) {
       }
     }
 
-    dem = { luc: Date.now(), ch: { luong, nguoi, chung: { bat: true, phut: 5 }, docDuoc: true } };
+    dem = { luc: Date.now(), ch: { luong, nguoi, docDuoc: true,
+      chung: { bat: true, phut: 5, trangThai: cfg.phanPhoiTrangThai } } };
   } catch (e) {
     console.warn('  [phân phối] không đọc được cấu hình, tạm KHÔNG phân phối: ' + e.message);
-    dem = { luc: Date.now(), ch: { luong: [], nguoi: [], chung: { bat: false, phut: 5 }, docDuoc: false } };
+    dem = { luc: Date.now(), ch: { luong: [], nguoi: [], docDuoc: false,
+      chung: { bat: false, phut: 5, trangThai: cfg.phanPhoiTrangThai } } };
   }
   return dem.ch;
 }
@@ -127,6 +129,39 @@ async function suaTrongSo(rec, trongSo) {
   xoaCache();
 }
 
+/**
+ * Thêm một người vào một luồng.
+ *
+ * Chặn trùng ở đây chứ không chỉ ở giao diện: thêm hai dòng cho cùng một người
+ * thì trọng số của họ bị cộng đôi mà nhìn bảng không thấy gì bất thường.
+ */
+async function themNguoi(loai, nguoiId, ten, trongSo) {
+  const ch = await docCauHinh(true);
+  if (!ch.docDuoc) throw new Error('Chưa đọc được cấu hình, thử lại sau');
+  if (!ch.luong.some((x) => x.loai === loai)) throw new Error('Không có luồng "' + loai + '"');
+  if (ch.nguoi.some((x) => x.loai === loai && x.id === nguoiId)) {
+    throw new Error((ten || 'Người này') + ' đã có trong luồng ' + loai);
+  }
+  const idN = await idCua(cfg.phanNguoiTableId);
+  const FN = cfg.phanNguoiFields;
+  await lark.createRecord({
+    [idN[FN.loai]]: loai,
+    [idN[FN.nguoi]]: [{ id: nguoiId }],
+    // mặc định 1: có mặt trong nhóm nhưng phần nhỏ, để quản lý tự nâng lên
+    [idN[FN.trongSo]]: Number(trongSo) > 0 ? Number(trongSo) : 1,
+  }, cfg.phanNguoiTableId);
+  xoaCache();
+}
+
+/**
+ * Bỏ hẳn một người khỏi luồng — dùng khi họ NGHỈ VIỆC.
+ * Khác với đặt trọng số 0 (tạm ngưng, còn trong bảng để mở lại sau).
+ */
+async function xoaNguoi(rec) {
+  await lark.deleteRecords([rec], cfg.phanNguoiTableId);
+  xoaCache();
+}
+
 /* ---------------- sổ ghi ----------------
  * 200 lượt gần nhất, giữ trong RAM. Cố ý KHÔNG ghi ra tệp (ổ đĩa Render là tạm)
  * và cũng chưa ghi lên Base — sổ này để anh Hùng soi xem hệ thống đã giao gì,
@@ -141,7 +176,7 @@ function ghiSo(muc) {
 const docSo = () => SO.slice().reverse();
 
 module.exports = {
-  docCauHinh, xoaCache, suaLuong, suaTrongSo, ghiSo, docSo,
+  docCauHinh, xoaCache, suaLuong, suaTrongSo, themNguoi, xoaNguoi, ghiSo, docSo,
   // để test gọi trực tiếp
   asText, asSo, asUsers, PP,
 };

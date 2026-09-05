@@ -27,12 +27,12 @@ const PHUT = 60000;
 const ng = (id, ten) => ({ id, name: ten });
 const viec = (o) => Object.assign({
   id: 'r' + Math.random().toString(36).slice(2, 8),
-  title: 'việc', status: 'Đang tiến hành', workType: 'Content', owner: [], requester: [],
+  title: 'việc', status: 'Chờ tiếp nhận', workType: 'Content', owner: [], requester: [],
 }, o);
 
 /** Cấu hình mẫu: Content chia 50/50 cho Ngọc và Thư. */
 const CH = () => ({
-  chung: { bat: true, phut: 5 },
+  chung: { bat: true, phut: 5, trangThai: ['Chờ tiếp nhận'] },
   luong: [{ loai: 'Content', bat: true, cach: 'tai' }],
   nguoi: [
     { loai: 'Content', id: 'u-ngoc', ten: 'Hồng Ngọc', trongSo: 50 },
@@ -44,10 +44,10 @@ const CH = () => ({
   group('1. Đếm việc — mở và tổng lượt là hai con số khác nhau');
   {
     const ts = [
-      viec({ owner: [ng('u-ngoc', 'Hồng Ngọc')] }),
+      viec({ owner: [ng('u-ngoc', 'Hồng Ngọc')], status: 'Đang tiến hành' }),
       viec({ owner: [ng('u-ngoc', 'Hồng Ngọc')], status: 'Hoàn thành' }),
-      viec({ owner: [ng('u-thu', 'Anh Thư')] }),
-      viec({ owner: [ng('u-thu', 'Anh Thư')], workType: 'Thiết kế' }),
+      viec({ owner: [ng('u-thu', 'Anh Thư')], status: 'Đang tiến hành' }),
+      viec({ owner: [ng('u-thu', 'Anh Thư')], status: 'Đang tiến hành', workType: 'Thiết kế' }),
     ];
     const mo = P.demViec(ts, 'Content', 'mo');
     const tat = P.demViec(ts, 'Content', 'tatCa');
@@ -195,6 +195,38 @@ const CH = () => ({
       ds3[0].conLaiPhut === 5 && ds3[0].denHan === false);
   }
 
+  group('7b. Chỉ việc "Chờ tiếp nhận" mới cần phân phối');
+  {
+    const ch = CH();
+    const cua = viec({ id: 'r1', status: 'Chờ tiếp nhận' });
+    const dangLam = viec({ id: 'r2', status: 'Đang tiến hành' });
+    const lamLai = viec({ id: 'r3', status: 'Làm lại' });
+    const tamDung = viec({ id: 'r4', status: 'Tạm dừng' });
+
+    ok('việc ở cửa vào thì nhận', P.canPhanPhoi(cua, ch));
+
+    /* Ba trạng thái dưới đây cũng chưa có chủ, nhưng KHÔNG phải việc mới đặt —
+     * đang làm dở mà bị gỡ người, hoặc dữ liệu cũ. Tự giao mấy cái đó là xen vào
+     * việc quản lý đang xử lý tay. */
+    ok('việc đang tiến hành mà trống người thì KHÔNG tự giao', !P.canPhanPhoi(dangLam, ch));
+    ok('việc làm lại thì KHÔNG tự giao', !P.canPhanPhoi(lamLai, ch));
+    ok('việc tạm dừng thì KHÔNG tự giao', !P.canPhanPhoi(tamDung, ch));
+    ok('việc đã đóng thì KHÔNG tự giao',
+      !P.canPhanPhoi(viec({ status: 'Hoàn thành' }), ch));
+    ok('việc đã có chủ thì KHÔNG tự giao',
+      !P.canPhanPhoi(viec({ owner: [ng('u-thu', 'Anh Thư')] }), ch));
+
+    const ds = P.dangCho([cua, dangLam, lamLai, tamDung], ch, NOW, new Map());
+    ok('hàng đợi chỉ có đúng việc ở cửa vào', ds.length === 1 && ds[0].id === 'r1',
+      JSON.stringify(ds.map((x) => x.id)));
+
+    /* Không khai trạng thái nào thì nhận hết — để đổi tên trạng thái trên Base
+     * mà quên sửa config thì hệ thống rộng tay chứ không câm lặng bỏ sót. */
+    const moRong = CH(); delete moRong.chung.trangThai;
+    ok('chưa khai trạng thái thì nhận mọi việc chưa có chủ',
+      P.canPhanPhoi(dangLam, moRong));
+  }
+
   group('8. Công tắc — mặc định phải AN TOÀN');
   {
     const a = viec({ id: 'ra' });
@@ -219,9 +251,9 @@ const CH = () => ({
   group('9. Bảng tải hiện tại');
   {
     const ts = [
-      viec({ owner: [ng('u-ngoc', 'Hồng Ngọc')] }),
-      viec({ owner: [ng('u-ngoc', 'Hồng Ngọc')] }),
-      viec({ owner: [ng('u-thu', 'Anh Thư')] }),
+      viec({ owner: [ng('u-ngoc', 'Hồng Ngọc')], status: 'Đang tiến hành' }),
+      viec({ owner: [ng('u-ngoc', 'Hồng Ngọc')], status: 'Đang tiến hành' }),
+      viec({ owner: [ng('u-thu', 'Anh Thư')], status: 'Đang tiến hành' }),
       viec({ owner: [ng('u-thu', 'Anh Thư')], status: 'Hủy' }),
     ];
     const b = P.bangTai(ts, CH())[0];
