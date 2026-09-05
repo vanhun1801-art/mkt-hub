@@ -4,6 +4,8 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const cfg = require('./config');
+const PP = require('./phanphoi');
+const ppdoc = require('./ppdoc');
 // cli: dùng phiên lark-cli của máy · api: gọi thẳng Open API bằng app credentials
 const lark = cfg.mode === 'api' ? require('./larkapi') : require('./lark');
 const auth = require('./auth');
@@ -346,6 +348,89 @@ function baoTin(openIds, text) {
 /** Đuôi tin nhắn: link mở app. */
 const duoiTin = () => (cfg.publicUrl ? XD + cfg.publicUrl : '');
 
+/* ==========================================================================
+   TRUNG TÂM PHÂN PHỐI CÔNG VIỆC
+   ==========================================================================
+   Hai lớp, cố ý tách bạch:
+     - lớp HỖ TRỢ: hiện việc chưa có chủ + đề xuất người nhận + lý do. Luôn chạy.
+     - lớp TỰ ĐỘNG: hết mốc chờ thì tự giao. Chỉ chạy với loại đã BẬT trên Base.
+   Mặc định mọi loại đều tắt, nên cài xong sẽ không có gì tự động xảy ra cho tới
+   khi anh Hùng bật từng loại.
+*/
+
+/* Việc id -> mốc máy chủ THẤY nó lần đầu chưa có chủ. Giữ trong RAM: bảng không
+ * có cột "ngày tạo" và lark-cli không lấy được `created_time` của bản ghi. Máy
+ * chủ khởi động lại thì đồng hồ chạy lại từ đầu — hệ quả duy nhất là việc chờ
+ * thêm một lượt, KHÔNG BAO GIỜ giao sai người. */
+const thayLuc = new Map();
+
+function ghiNhanThayViec(tasks) {
+  const now = Date.now();
+  const con = new Set();
+  for (const t of tasks) {
+    if (PP.dong(t) || !PP.chuaGiao(t)) continue;
+    con.add(t.id);
+    if (!thayLuc.has(t.id)) thayLuc.set(t.id, now);
+  }
+  // việc đã có chủ hoặc đã đóng thì quên đi, khỏi phình bộ nhớ
+  for (const id of [...thayLuc.keys()]) if (!con.has(id)) thayLuc.delete(id);
+}
+
+/** Giao một việc cho một người + báo tin. Dùng chung cho bấm tay và tự động. */
+async function giaoViec(taskId, nguoi, vi, tuDong) {
+  const F = cfg.fields;
+  await lark.updateRecord(taskId, { [F.owner.id]: [{ id: nguoi.id }] });
+  if (cache.records) {
+    const rec = cache.records.find((r) => r.record_id === taskId);
+    if (rec) rec.cells[F.owner.id] = [{ id: nguoi.id, name: nguoi.ten }];
+  }
+  ppdoc.ghiSo({ task: taskId, nguoiId: nguoi.id, nguoi: nguoi.ten, vi, tuDong: !!tuDong });
+  return true;
+}
+
+/**
+ * Một lượt quét: ghi nhận việc mới thấy, rồi tự giao những việc đã tới hạn.
+ * Gọi cả theo nhịp lẫn mỗi lần có người gọi /api/tasks — gói Free của Render ngủ
+ * sau ~15 phút, nên nhịp một mình là không đủ.
+ */
+let dangQuet = false;
+async function quetPhanPhoi() {
+  if (dangQuet) return { giao: [] };
+  dangQuet = true;
+  try {
+    const tasks = (await getRecords(false)).map(toTask);
+    ghiNhanThayViec(tasks);
+    const ch = await ppdoc.docCauHinh(false);
+    if (!ch.docDuoc) return { giao: [] };
+
+    const den = PP.denLuotTuGiao(tasks, ch, Date.now(), thayLuc);
+    const giao = [];
+    for (const x of den) {
+      try {
+        await giaoViec(x.id, x.deXuat, x.vi, true);
+        giao.push(x);
+        baoTin([x.deXuat.id],
+          'Bạn được giao việc mới: "' + x.tieuDe + '"' + XD +
+          'Hệ thống tự phân công theo bảng phân phối (' + x.loai + ') — ' + x.vi + '.' + XD +
+          'Quản lý đổi được bất cứ lúc nào.' + duoiTin());
+      } catch (e) {
+        console.warn('  [phân phối] không giao được ' + x.id + ': ' + e.message);
+      }
+    }
+    if (giao.length) {
+      baoTin(cfg.loadManagerIds(),
+        'Đã tự phân công ' + giao.length + ' việc:' + XD +
+        giao.map((x) => '· ' + x.tieuDe + ' -> ' + x.deXuat.ten).join(XD) + duoiTin());
+    }
+    return { giao };
+  } catch (e) {
+    console.warn('  [phân phối] lượt quét lỗi: ' + e.message);
+    return { giao: [] };
+  } finally {
+    dangQuet = false;
+  }
+}
+
 /** Chặn thao tác chỉ dành cho quản lý. */
 async function requireManager(res, req) {
   if (await isManager(req)) return true;
@@ -501,6 +586,10 @@ async function api(req, res, url) {
 
   if (p === '/api/tasks' && req.method === 'GET') {
     const records = await getRecords(url.searchParams.get('refresh') === '1');
+    /* Quét kèm mỗi lần có người mở app: gói Free của Render ngủ sau ~15 phút nên
+     * nhịp hẹn giờ một mình không đủ. Không chờ kết quả — người mở app không việc
+     * gì phải đợi việc của người khác được giao xong. */
+    quetPhanPhoi().catch(() => {});
     const tasks = await visibleFor(records.map(toTask), req);
     return json(res, { tasks, fetchedAt: cache.at });
   }
@@ -793,6 +882,67 @@ async function api(req, res, url) {
   }
 
   /* ---- phân quyền ---- */
+
+  /* ---- trung tâm phân phối: chỉ quản lý ---- */
+  if (p === '/api/phan-phoi' && req.method === 'GET') {
+    if (!(await requireManager(res, req))) return;
+    const tasks = (await getRecords(url.searchParams.get('refresh') === '1')).map(toTask);
+    ghiNhanThayViec(tasks);
+    const ch = await ppdoc.docCauHinh(url.searchParams.get('refresh') === '1');
+    return json(res, {
+      docDuoc: ch.docDuoc,
+      luong: ch.luong,
+      bangTai: PP.bangTai(tasks, ch),
+      dangCho: PP.dangCho(tasks, ch, Date.now(), thayLuc),
+      nguoi: ch.nguoi,
+      cach: PP.CACH_NHAN,
+      so: ppdoc.docSo(),
+      /* Loại có việc thật nhưng chưa khai luồng — nói ra để anh biết còn thiếu gì,
+       * chứ không im lặng bỏ qua. */
+      thieuLuong: [...new Set(tasks.filter((t) => !PP.dong(t)).map((t) => PP.loaiCua(t)))]
+        .filter((L) => L && !ch.luong.some((x) => x.loai === L)),
+      larkUrl: cfg.larkUrl ? cfg.larkUrl.replace(/table=[^&]*/, 'table=' + cfg.luongTableId) : '',
+    });
+  }
+
+  if (p === '/api/phan-phoi/luong' && req.method === 'PATCH') {
+    if (!(await requireManager(res, req))) return;
+    const body = await readBody(req);
+    if (!body.rec) return json(res, { error: 'Thiếu mã dòng' }, 400);
+    try { await ppdoc.suaLuong(body.rec, body); }
+    catch (e) { return json(res, { error: e.message }, 400); }
+    return json(res, { ok: true });
+  }
+
+  if (p === '/api/phan-phoi/nguoi' && req.method === 'PATCH') {
+    if (!(await requireManager(res, req))) return;
+    const body = await readBody(req);
+    if (!body.rec) return json(res, { error: 'Thiếu mã dòng' }, 400);
+    try { await ppdoc.suaTrongSo(body.rec, body.trongSo); }
+    catch (e) { return json(res, { error: e.message }, 400); }
+    return json(res, { ok: true });
+  }
+
+  /* Bấm tay: giao đúng người mà hệ thống đang đề xuất. Tính lại đề xuất ngay lúc
+   * bấm chứ không tin con số client gửi lên — màn hình có thể đã cũ vài phút. */
+  if (p === '/api/phan-phoi/giao' && req.method === 'POST') {
+    if (!(await requireManager(res, req))) return;
+    const body = await readBody(req);
+    const tasks = (await getRecords(false)).map(toTask);
+    const t = tasks.find((x) => x.id === body.id);
+    if (!t) return json(res, { error: 'Không tìm thấy việc này' }, 404);
+    if (!PP.chuaGiao(t)) return json(res, { error: 'Việc này đã có người phụ trách rồi.' }, 409);
+
+    const ch = await ppdoc.docCauHinh(false);
+    const dx = PP.deXuat(t, tasks, ch);
+    if (!dx.chon) return json(res, { error: dx.khong || 'Không đề xuất được ai' }, 400);
+
+    await giaoViec(t.id, dx.chon, dx.vi, false);
+    baoTin([dx.chon.id],
+      'Bạn được giao việc mới: "' + (t.title || '') + '"' + XD +
+      'Quản lý phân công theo bảng phân phối (' + dx.loai + ').' + duoiTin());
+    return json(res, { ok: true, nguoi: dx.chon, vi: dx.vi });
+  }
 
   if (p === '/api/managers' && req.method === 'GET') {
     if (!(await requireManager(res, req))) return;
@@ -1182,4 +1332,10 @@ server.listen(cfg.port, BIND, () => {
   console.log('  Ctrl+C để dừng.');
   console.log('');
   napPhamVi();
+
+  /* Nhịp quét mỗi phút. Trên gói Free của Render, service ngủ sau ~15 phút không
+   * ai truy cập nên nhịp này cũng ngủ theo — vì vậy /api/tasks quét kèm. Hai
+   * đường cộng lại: có người mở app thì đúng hẹn, không ai mở thì việc chờ tới
+   * lần mở tiếp theo. Chậm, chứ không sai. */
+  setInterval(() => { quetPhanPhoi().catch(() => {}); }, 60000).unref();
 });

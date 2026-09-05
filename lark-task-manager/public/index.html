@@ -42,6 +42,7 @@
     <input id="search" class="search" type="search" placeholder="Tìm công việc…" autocomplete="off">
     <button id="btnNew" class="btn btn-primary">+ Công việc</button>
     <button id="btnReport" class="btn hidden" title="Xuất báo cáo tổng quan">Báo cáo</button>
+    <button id="btnPhanPhoi" class="btn hidden" title="Trung tâm phân phối công việc">Phân phối</button>
     <button id="btnQuyen" class="btn hidden" title="Phân quyền quản lý">Quyền</button>
     <button id="btnRefresh" class="btn" title="Tải lại từ Base">Tải lại</button>
     <a id="linkLark" class="btn" title="Mở Base trong Lark" target="_blank" rel="noreferrer">Base</a>
@@ -352,6 +353,22 @@
       <span class="grow"></span>
       <button class="btn btn-ghost" data-close="mQuyen">Huỷ</button>
       <button id="quyenSave" class="btn btn-primary">Lưu phân quyền</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======== MODAL: TRUNG TÂM PHÂN PHỐI ======== -->
+<div id="mPhanPhoi" class="modal">
+  <div class="modal-box pp-box">
+    <h3>Trung tâm phân phối công việc
+      <button class="md-x" data-close="mPhanPhoi" aria-label="Đóng">✕</button></h3>
+    <div id="ppBody" class="pp-body"></div>
+    <div class="modal-foot">
+      <span id="ppMsg" class="muted"></span>
+      <span class="grow"></span>
+      <a id="ppBase" class="btn btn-ghost" target="_blank" rel="noreferrer">Mở bảng trên Base</a>
+      <button id="ppLoad" class="btn">Tải lại</button>
+      <button class="btn btn-ghost" data-close="mPhanPhoi">Đóng</button>
     </div>
   </div>
 </div>

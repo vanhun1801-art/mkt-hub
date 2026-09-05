@@ -3465,6 +3465,7 @@ function applyRoleChrome() {
   $('#btnNew').textContent = S.isManager ? '+ Công việc' : '+ Đặt việc';
   $('#btnNew').classList.toggle('hidden', !S.perm.taoMoi);
   $('#btnQuyen').classList.toggle('hidden', !S.isManager);
+  $('#btnPhanPhoi').classList.toggle('hidden', !S.isManager);
   $('#btnReport').classList.toggle('hidden', !S.isManager);
   const choPhep = S.isManager ? null : (xemHet ? ['work', 'board', 'table'] : ['work']);
   if (choPhep && !choPhep.includes(S.view)) S.view = 'work';
@@ -3854,6 +3855,38 @@ function setupChrome() {
   };
   $('#adjSubmit').onclick = submitAdjust;
   $('#btnQuyen').onclick = openQuyen;
+  $('#btnPhanPhoi').onclick = openPhanPhoi;
+  $('#ppLoad').onclick = () => napPhanPhoi(true);
+
+  /* Một chỗ bắt cho cả ba loại ô cấu hình + nút Giao ngay. Dùng `change` chứ
+   * không `input`: gõ dở dang mà đã ghi lên Base thì mỗi phím một lần ghi. */
+  $('#ppBody').addEventListener('change', (e) => {
+    const t = e.target;
+    if (t.dataset.ppbat != null) return luuPhanPhoi('/api/phan-phoi/luong',
+      { rec: t.dataset.ppbat, bat: t.checked }, 'Không bật/tắt được');
+    if (t.dataset.ppphut != null) return luuPhanPhoi('/api/phan-phoi/luong',
+      { rec: t.dataset.ppphut, phut: t.value }, 'Không đổi được mốc chờ');
+    if (t.dataset.ppcach != null) return luuPhanPhoi('/api/phan-phoi/luong',
+      { rec: t.dataset.ppcach, cach: t.value }, 'Không đổi được cách chia');
+    if (t.dataset.ppts != null) return luuPhanPhoi('/api/phan-phoi/nguoi',
+      { rec: t.dataset.ppts, trongSo: t.value }, 'Không đổi được trọng số');
+  });
+
+  $('#ppBody').addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-ppgiao]');
+    if (!b) return;
+    b.disabled = true;
+    try {
+      const r = await req('/api/phan-phoi/giao',
+        { method: 'POST', body: JSON.stringify({ id: b.dataset.ppgiao }) });
+      toast('Đã giao cho ' + r.nguoi.ten);
+      await napPhanPhoi(true);
+      await loadAll(true);
+    } catch (err) {
+      b.disabled = false;
+      toast('Không giao được: ' + err.message, true);
+    }
+  });
   $('#btnReport').onclick = () => window.open('/api/report', '_blank', 'noopener');
   $('#assignSubmit').onclick = submitAssign;
 
@@ -4011,3 +4044,167 @@ document.addEventListener('keydown', (e) => {
   e.stopPropagation();                       // đừng để Esc đóng luôn cả drawer
   mo.forEach((dd) => dd.removeAttribute('open'));
 }, true);
+
+/* ==========================================================================
+   TRUNG TÂM PHÂN PHỐI CÔNG VIỆC
+   ==========================================================================
+   Ba khối, theo đúng thứ tự anh Hùng cần nhìn:
+     1. Đang chờ phân công  — việc chưa có chủ, kèm đề xuất + LÝ DO + nút giao
+     2. Luồng & tỷ lệ       — bật/tắt tự động, mốc chờ, cách chia, trọng số
+     3. Sổ đã giao          — hệ thống đã làm gì, để soi trong lúc chưa tin nó
+
+   Vì sao lý do luôn hiện ra: giao việc cho người khác mà không nói được vì sao
+   thì không ai dám bật tự động. Câu giải thích do chính bộ luật sinh ra, không
+   phải chữ trang trí.
+   ========================================================================== */
+/* App này dựng DOM bằng textContent là chính nên chưa có hàm thoát HTML dùng
+ * chung. Đặt riêng ở đây, tên khác hẳn để không đụng ai. */
+const escPP = (v) => String(v == null ? '' : v)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+async function openPhanPhoi() {
+  $('#ppBody').innerHTML = '<div class="muted" style="padding:20px 0">Đang tải…</div>';
+  openModal('mPhanPhoi');
+  await napPhanPhoi();
+}
+
+async function napPhanPhoi(refresh) {
+  try {
+    const d = await req('/api/phan-phoi' + (refresh ? '?refresh=1' : ''));
+    S.pp = d;
+    vePhanPhoi();
+    $('#ppMsg').textContent = '';
+    if (d.larkUrl) $('#ppBase').href = d.larkUrl;
+  } catch (e) {
+    $('#ppBody').innerHTML = '<div class="callout warn">Lỗi: ' + escPP(e.message) + '</div>';
+  }
+}
+
+function vePhanPhoi() {
+  const d = S.pp;
+  const soBat = (d.luong || []).filter((x) => x.bat).length;
+  let h = '';
+
+  /* Nói ngay tình trạng: đang tự động hay chưa. Người dùng mở màn hình này ra là
+   * muốn biết "nó có đang tự làm gì sau lưng tôi không". */
+  h += '<div class="callout' + (soBat ? '' : ' pp-tat') + '">' +
+    (soBat
+      ? '<b>Đang tự phân công</b> cho ' + soBat + '/' + d.luong.length + ' loại. ' +
+        'Việc chưa có chủ sẽ tự giao khi hết mốc chờ.'
+      : '<b>Tự động đang TẮT hết.</b> Màn hình vẫn đề xuất người nhận để anh bấm giao — ' +
+        'xem vài hôm thấy đúng ý thì bật từng loại ở dưới.') +
+    '</div>';
+
+  if (!d.docDuoc) {
+    h += '<div class="callout warn">Không đọc được bảng cấu hình trên Base — ' +
+      'hệ thống tạm KHÔNG phân phối gì cả.</div>';
+  }
+  if ((d.thieuLuong || []).length) {
+    h += '<div class="callout warn">Có việc thuộc loại <b>' +
+      d.thieuLuong.map(escPP).join(', ') + '</b> nhưng loại đó chưa khai trong bảng phân phối, ' +
+      'nên hệ thống không đề xuất được. Thêm dòng trên Base nếu muốn.</div>';
+  }
+
+  /* ---------------- 1. Đang chờ ---------------- */
+  h += '<h4 class="pp-h">Đang chờ phân công <span class="pp-dem">' +
+    (d.dangCho || []).length + '</span></h4>';
+  if (!(d.dangCho || []).length) {
+    h += '<div class="pp-rong">Không có việc nào chưa có người phụ trách. ' +
+      'Việc mới chưa giao sẽ hiện ở đây kèm đề xuất.</div>';
+  } else {
+    for (const x of d.dangCho) {
+      h += '<div class="pp-cho">' +
+        '<div class="pp-cho-tren">' +
+          '<span class="pp-ten">' + escPP(x.tieuDe) + '</span>' +
+          (x.loai ? '<span class="tag">' + escPP(x.loai) + '</span>' : '<span class="tag warn">chưa có loại</span>') +
+          (x.uuTien ? '<span class="tag">' + escPP(x.uuTien) + '</span>' : '') +
+        '</div>' +
+        (x.nguoiOrder ? '<div class="pp-phu">Người order: ' + escPP(x.nguoiOrder) + '</div>' : '') +
+        (x.deXuat
+          ? '<div class="pp-dx"><b>Đề xuất: ' + escPP(x.deXuat.ten) + '</b>' +
+            '<div class="pp-vi">' + escPP(x.vi) + '</div></div>'
+          : '<div class="pp-dx pp-khong">Không đề xuất được — ' + escPP(x.khong) + '</div>') +
+        '<div class="pp-cho-duoi">' +
+          (x.tuDong
+            ? '<span class="pp-dh">Tự giao sau ' + x.conLaiPhut + ' phút</span>'
+            : '<span class="pp-dh mo">Tự động đang tắt cho loại này</span>') +
+          (x.deXuat
+            ? '<button class="btn btn-primary btn-sm" data-ppgiao="' + escPP(x.id) + '">Giao ngay</button>'
+            : '') +
+        '</div></div>';
+    }
+  }
+
+  /* ---------------- 2. Luồng & tỷ lệ ---------------- */
+  h += '<h4 class="pp-h">Luồng &amp; tỷ lệ</h4>';
+  h += '<div class="pp-luong">';
+  for (const b of d.bangTai || []) {
+    const l = (d.luong || []).find((x) => x.loai === b.loai) || {};
+    h += '<div class="pp-l">' +
+      '<div class="pp-l-tren">' +
+        '<label class="pp-sw"><input type="checkbox" data-ppbat="' + escPP(l.rec || '') + '"' +
+          (b.bat ? ' checked' : '') + '><span>' + escPP(b.loai) + '</span></label>' +
+        '<span class="grow"></span>' +
+        '<label class="pp-nho">Chờ <input type="number" class="pp-so" min="0" max="1440" ' +
+          'value="' + Number(l.phut || 5) + '" data-ppphut="' + escPP(l.rec || '') + '"> phút</label>' +
+        '<select class="pp-sel" data-ppcach="' + escPP(l.rec || '') + '">' +
+          Object.entries(d.cach || {}).map(([ma, nhan]) =>
+            '<option value="' + escPP(ma) + '"' + (b.cach === ma ? ' selected' : '') + '>' +
+            escPP(nhan) + '</option>').join('') +
+        '</select>' +
+      '</div>' +
+      '<table class="pp-tb"><thead><tr><th>Người nhận</th><th>Tỷ lệ</th>' +
+        '<th>Đang giữ</th><th>Thực tế</th></tr></thead><tbody>';
+    for (const n of b.nguoi) {
+      const rec = (d.nguoi || []).find((x) => x.loai === b.loai && x.id === n.id) || {};
+      /* Lệch nhiều thì tô — đây là chỗ anh Hùng nhìn ra "ai đang gánh, ai đang rảnh"
+       * mà không cần mở báo cáo. */
+      const lech = n.thucTe - n.tyLe;
+      const mau = !b.tongMo ? '' : lech >= 20 ? ' pp-nhieu' : lech <= -20 ? ' pp-it' : '';
+      h += '<tr class="' + (n.trongSo ? '' : 'pp-ngung') + '">' +
+        '<td>' + escPP(n.ten) + (n.trongSo ? '' : ' <span class="tag">tạm ngưng</span>') + '</td>' +
+        '<td><input type="number" class="pp-so" min="0" max="1000" value="' + n.trongSo +
+          '" data-ppts="' + escPP(rec.rec || '') + '"></td>' +
+        '<td class="num">' + n.dangMo + '</td>' +
+        '<td class="num' + mau + '">' + (b.tongMo ? n.thucTe + '%' : '—') + '</td>' +
+        '</tr>';
+    }
+    h += '</tbody></table></div>';
+  }
+  h += '</div>';
+  h += '<div class="pp-ghi">Trọng số <b>0</b> = tạm ngưng người đó (khi nghỉ phép), ' +
+    'việc tự dạt sang người còn lại rồi tự cân lại khi mở lại. ' +
+    'Thêm/bớt người thì sửa bảng <b>Phân phối - người</b> trên Base.</div>';
+
+  /* ---------------- 3. Sổ ---------------- */
+  if ((d.so || []).length) {
+    h += '<h4 class="pp-h">Đã giao gần đây</h4><div class="pp-so">';
+    for (const m of d.so.slice(0, 20)) {
+      h += '<div class="pp-so-d"><span class="pp-so-g">' + gioNgan(m.luc) + '</span>' +
+        (m.tuDong ? '<span class="tag">tự động</span>' : '<span class="tag">bấm tay</span>') +
+        '<b>' + escPP(m.nguoi) + '</b><span class="pp-vi">' + escPP(m.vi || '') + '</span></div>';
+    }
+    h += '</div>';
+  }
+
+  $('#ppBody').innerHTML = h;
+}
+
+const gioNgan = (t) => {
+  const d = new Date(t);
+  const p = (n) => String(n).padStart(2, '0');
+  return p(d.getHours()) + ':' + p(d.getMinutes());
+};
+
+/** Lưu một ô cấu hình rồi nạp lại — số liệu đổi theo ngay, khỏi đoán. */
+async function luuPhanPhoi(duong, body, loi) {
+  $('#ppMsg').textContent = 'Đang lưu…';
+  try {
+    await req(duong, { method: 'PATCH', body: JSON.stringify(body) });
+    await napPhanPhoi(true);
+    toast('Đã lưu vào Base');
+  } catch (e) {
+    $('#ppMsg').textContent = '';
+    toast(loi + ': ' + e.message, true);
+  }
+}

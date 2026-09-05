@@ -1866,3 +1866,84 @@ td.c-check { width: 34px; }
   border-radius: var(--r-ctl); padding: 7px 10px;
 }
 .yc-ly { margin-top: 4px; font-size: 12px; color: var(--text-2); }
+
+/* ==========================================================================
+   TRUNG TÂM PHÂN PHỐI CÔNG VIỆC
+   ========================================================================== */
+.pp-box { width: 860px; max-width: 96vw; }
+.pp-body { max-height: 68vh; overflow-y: auto; padding-right: 4px; }
+.callout.pp-tat { background: var(--surface-2); color: var(--text-2); }
+
+.pp-h {
+  margin: 20px 0 8px; font-size: 12px; font-weight: 650; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--text-2);
+  display: flex; align-items: center; gap: 8px;
+}
+.pp-dem {
+  background: var(--surface-3); color: var(--text-2); border-radius: 99px;
+  padding: 1px 8px; font-size: 12px; letter-spacing: 0;
+}
+.pp-rong {
+  border: 1px dashed var(--border-2); border-radius: var(--r-ctl);
+  padding: 14px; color: var(--text-2); font-size: 13px;
+}
+
+/* ---- việc đang chờ ---- */
+.pp-cho {
+  border: 1px solid var(--border); border-radius: var(--r-ctl);
+  padding: 11px 13px; margin-bottom: 8px; background: var(--surface);
+}
+.pp-cho-tren { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.pp-ten { font-weight: 600; }
+.pp-phu { font-size: 12px; color: var(--text-2); margin-top: 3px; }
+.pp-dx {
+  margin-top: 8px; padding: 8px 10px; border-radius: 8px;
+  background: var(--green-bg); color: var(--green-text); font-size: 13px;
+}
+.pp-dx.pp-khong { background: var(--orange-bg); color: var(--orange-text); }
+.pp-vi { font-weight: 400; font-size: 12px; margin-top: 2px; opacity: .9; }
+.pp-cho-duoi {
+  margin-top: 9px; display: flex; align-items: center; gap: 10px;
+}
+.pp-dh { font-size: 12px; color: var(--text-2); margin-right: auto; }
+.pp-dh.mo { opacity: .7; }
+
+/* ---- luồng & tỷ lệ ---- */
+.pp-l {
+  border: 1px solid var(--border); border-radius: var(--r-ctl);
+  margin-bottom: 10px; overflow: hidden;
+}
+.pp-l-tren {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 9px 12px; background: var(--surface-2); border-bottom: 1px solid var(--border);
+}
+.pp-sw { display: flex; align-items: center; gap: 7px; font-weight: 600; cursor: pointer; }
+.pp-nho { font-size: 12px; color: var(--text-2); display: flex; align-items: center; gap: 5px; }
+.pp-so {
+  width: 62px; text-align: right; font-variant-numeric: tabular-nums;
+  border: 1px solid var(--border); border-radius: 6px; padding: 3px 6px;
+  background: var(--surface); color: var(--text);
+}
+.pp-sel {
+  border: 1px solid var(--border); border-radius: 6px; padding: 3px 6px;
+  background: var(--surface); color: var(--text); font-size: 12.5px;
+}
+.pp-tb { width: 100%; border-collapse: collapse; font-size: 13px; }
+.pp-tb th {
+  text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--text-2); font-weight: 600; padding: 6px 12px;
+}
+.pp-tb td { padding: 5px 12px; border-top: 1px solid var(--border); }
+.pp-tb td.num { text-align: right; font-variant-numeric: tabular-nums; }
+/* Lệch ≥20 điểm so với tỷ lệ khai thì tô — chỗ này để nhìn ra ai đang gánh. */
+.pp-tb td.pp-nhieu { color: var(--red-text); font-weight: 600; }
+.pp-tb td.pp-it { color: var(--text-2); }
+.pp-tb tr.pp-ngung { opacity: .55; }
+.pp-ghi { font-size: 12px; color: var(--text-2); line-height: 1.5; margin-top: 6px; }
+
+/* ---- sổ ---- */
+.pp-so-d {
+  display: flex; align-items: center; gap: 8px; padding: 5px 0;
+  border-bottom: 1px solid var(--border); font-size: 13px; flex-wrap: wrap;
+}
+.pp-so-g { font-variant-numeric: tabular-nums; color: var(--text-2); font-size: 12px; }
