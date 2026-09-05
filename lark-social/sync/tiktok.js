@@ -328,6 +328,7 @@ async function fetchRange(conf, from, to, opts = {}, log = () => {}, onMoi = nul
   if (!chs.length) throw new Error('Chưa khai kênh TikTok nào trong cấu hình kết nối');
 
   const canhBao = [];
+  const ghiChu = [];
   const daily = []; const posts = []; const channels = [];
   let coDisplay = false;
 
@@ -442,15 +443,18 @@ async function fetchRange(conf, from, to, opts = {}, log = () => {}, onMoi = nul
     }
   }
 
-  canhBao.push('TikTok không mở API cho LIVE — LIVE-view / LIVE-theo dõi / LIVE-bình luận '
+  /* Hai câu dưới là GHI CHÚ, không phải cảnh báo: chúng đúng ở mọi lượt chạy, mãi
+   * mãi. Trộn vào cảnh báo thì cột Kết quả trong Nhật ký không bao giờ ra "Thành
+   * công" nữa — mà một cột lúc nào cũng vàng thì chẳng ai còn nhìn nó. */
+  ghiChu.push('TikTok không mở API cho LIVE — LIVE-view / LIVE-theo dõi / LIVE-bình luận '
     + 'phải nhập tay hoặc nhập từ file xuất của LIVE Center.');
   if (coDisplay) {
-    canhBao.push('Có kênh TikTok chạy chế độ display: lượt xem nền tảng trả về là TỔNG ĐỜI của '
+    ghiChu.push('Có kênh TikTok chạy chế độ display: lượt xem nền tảng trả về là TỔNG ĐỜI của '
       + 'video, nên số theo ngày được tính bằng phần tăng thêm so với lần đồng bộ trước. '
       + 'Lần chạy đầu tiên chưa có mốc so sánh nên số ngày sẽ bằng 0.');
   }
 
-  return { channels, daily, posts, lives: [], canhBao, coDisplay };
+  return { channels, daily, posts, lives: [], canhBao, ghiChu, coDisplay };
 }
 
 async function test(conf, onMoi = null) {

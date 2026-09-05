@@ -115,6 +115,10 @@ function taoLayToken(confFb) {
 async function keoVe(conf, from, to, opts = {}, log = () => {}, chi = '') {
   const goi = [];
   const canhBao = [];
+  /* GHI CHÚ khác CẢNH BÁO: ghi chú là những câu đúng ở mọi lượt chạy (TikTok không
+   * có API LIVE, Zalo không có chuỗi theo ngày…). Trộn chung thì cột Kết quả trong
+   * Nhật ký vàng vĩnh viễn, và một cột lúc nào cũng vàng thì không ai nhìn nữa. */
+  const ghiChu = [];
   const kenhDisplay = new Set();   // kênh dùng nguồn luỹ kế → phải tính chênh lệch
 
   const chay = async (ten, fn) => {
@@ -123,6 +127,7 @@ async function keoVe(conf, from, to, opts = {}, log = () => {}, chi = '') {
       const r = await fn();
       goi.push(r);
       if (r.canhBao) canhBao.push(...r.canhBao);
+      if (r.ghiChu) ghiChu.push(...r.ghiChu);
     } catch (e) {
       canhBao.push(ten + ': ' + e.message);
       log(ten + ' lỗi: ' + e.message);
@@ -177,7 +182,7 @@ async function keoVe(conf, from, to, opts = {}, log = () => {}, chi = '') {
     lives.push(...(r.lives || []));
   });
 
-  return { channels, daily, posts, lives, canhBao, kenhDisplay };
+  return { channels, daily, posts, lives, canhBao, ghiChu, kenhDisplay };
 }
 
 /* ---------------- ghi vào Base ---------------- */
@@ -301,17 +306,37 @@ async function dongBo({ from, to, chi = '', log = () => {} } = {}) {
   });
 
   // Đếm số bài / số phiên LIVE theo ngày đăng
+  /* Đếm bài / phiên LIVE vào ĐÚNG NGÀY ĐĂNG, và tạo dòng ngày nếu chưa có.
+   *
+   * Bản đầu chỉ cộng khi dòng ngày đã tồn tại (`if (gop.has(k))`). Với nguồn có
+   * chuỗi theo ngày thì không sao, nhưng TikTok display và Zalo chỉ sinh đúng một
+   * dòng cho ngày cuối kỳ — nên bài đăng ngày 02 rơi vào một khoá không tồn tại và
+   * bị bỏ im lặng. Kết quả: cột "Số bài đăng" luôn trống đúng ở những kênh mà chỉ
+   * tiêu KPI đang đếm số bài. */
+  const dongTrongCho = (extId, d, platform, source) => {
+    const k = extId + '#' + d;
+    if (!gop.has(k)) {
+      gop.set(k, {
+        platform, extId, date: d, source: source || 'Nhập tay',
+        followers: 0, followUp: 0, followDown: 0, views: 0, reach: 0, impressions: 0,
+        profileViews: 0, likes: 0, comments: 0, shares: 0, saves: 0,
+        engagement: 0, clicks: 0, messages: 0, leads: 0, posts: 0, lives: 0,
+      });
+    }
+    return gop.get(k);
+  };
+
   r.posts.forEach((p) => {
     const d = String(p.publishedAt || '').slice(0, 10);
     if (!d || d < tu || d > den) return;
-    const k = p.extId + '#' + d;
-    if (gop.has(k)) gop.get(k).posts = num(gop.get(k).posts) + 1;
+    const row = dongTrongCho(p.extId, d, p.platform, p.source);
+    row.posts = num(row.posts) + 1;
   });
   r.lives.forEach((l) => {
     const d = String(l.start || '').slice(0, 10);
     if (!d || d < tu || d > den) return;
-    const k = l.extId + '#' + d;
-    if (gop.has(k)) gop.get(k).lives = num(gop.get(k).lives) + 1;
+    const row = dongTrongCho(l.extId, d, l.platform, l.source);
+    row.lives = num(row.lives) + 1;
   });
 
   // Kênh phải có trước, vì ba bảng kia đều link sang nó
@@ -338,7 +363,8 @@ async function dongBo({ from, to, chi = '', log = () => {} } = {}) {
     platform: chi || 'Tất cả', from: tu, to: den, result: ketQua,
     rowsDaily: dsDaily.length, rowsPost: r.posts.length, rowsLive: r.lives.length,
     seconds: giay,
-    message: r.canhBao.join(' | '),
+    // Cảnh báo trước, ghi chú sau — người đọc nhật ký cần thấy cái hỏng trước tiên.
+    message: r.canhBao.concat(r.ghiChu).join(' | '),
   });
 
   store.xoaCache();
@@ -350,7 +376,7 @@ async function dongBo({ from, to, chi = '', log = () => {} } = {}) {
     soKenh: r.channels.length,
     daily: kq.daily, posts: kq.posts, lives: kq.lives,
     soDongNgay: dsDaily.length, soBai: r.posts.length, soLive: r.lives.length,
-    canhBao: r.canhBao,
+    canhBao: r.canhBao, ghiChu: r.ghiChu,
   };
 }
 

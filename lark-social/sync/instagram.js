@@ -313,9 +313,10 @@ async function fetchRange(conf, confFb, layToken, from, to, opts = {}, log = () 
    * một buổi phát trực tiếp. Trả mảng rỗng và nói thẳng, để người dùng biết mà
    * nhập tay chứ không ngồi chờ số tự về. */
   return {
-    channels, daily, posts, lives: [],
-    canhBao: canhBao.concat(accs.length
-      ? ['Instagram không mở API cho LIVE — chỉ số LIVE của IG phải nhập tay.'] : []),
+    channels, daily, posts, lives: [], canhBao,
+    /* Ghi chú, không phải cảnh báo — xem lý do ở sync/tiktok.js. */
+    ghiChu: accs.length
+      ? ['Instagram không mở API cho LIVE — chỉ số LIVE của IG phải nhập tay.'] : [],
   };
 }
 

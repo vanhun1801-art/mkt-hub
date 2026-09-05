@@ -193,6 +193,7 @@ async function fetchRange(conf, from, to, opts = {}, log = () => {}, onMoi = nul
   if (!oas.length) throw new Error('Chưa khai OA Zalo nào trong cấu hình kết nối');
 
   const canhBao = [];
+  const ghiChu = [];
   const daily = []; const posts = []; const channels = [];
 
   for (const oa of oas) {
@@ -256,10 +257,11 @@ async function fetchRange(conf, from, to, opts = {}, log = () => {}, onMoi = nul
     daily.push(row);
   }
 
-  canhBao.push('Zalo không có API chuỗi theo ngày — mỗi lượt đồng bộ chốt số của ngày cuối kỳ. '
+  /* Ghi chú, không phải cảnh báo — xem lý do ở sync/tiktok.js. */
+  ghiChu.push('Zalo không có API chuỗi theo ngày — mỗi lượt đồng bộ chốt số của ngày cuối kỳ. '
     + 'Chạy tự động hằng ngày thì lịch sử tự đầy lên.');
 
-  return { channels, daily, posts, lives: [], canhBao };
+  return { channels, daily, posts, lives: [], canhBao, ghiChu };
 }
 
 async function test(conf, onMoi = null) {
