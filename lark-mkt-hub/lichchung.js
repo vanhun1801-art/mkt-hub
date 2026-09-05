@@ -19,14 +19,13 @@ const LICH_DONG = new Set(['Đã hoàn tất', 'Từ chối', 'Hủy lịch']);
 
 const ms = (v) => (v == null || v === '' ? 0 : typeof v === 'number' ? v : Date.parse(v) || 0);
 const p2 = (n) => String(n).padStart(2, '0');
+const gioVN = require('./gio-vn');
 
-/** epoch ms -> 'YYYY-MM-DD' theo giờ địa phương của máy chạy hub. */
-function ngayCua(t) {
-  if (!t) return '';
-  const d = new Date(t);
-  return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate());
-}
-const gioCua = (t) => (t ? p2(new Date(t).getHours()) + ':' + p2(new Date(t).getMinutes()) : '');
+/* Giờ VIỆT NAM, không phải giờ máy chạy hub. Render chạy UTC, nên bản cũ đẩy
+ * mọi mốc 00:00–06:59 giờ VN sang cột NGÀY HÔM TRƯỚC trên dải nhiệt — đã đo:
+ * 16 lịch và 3 việc rơi sai cột, và giờ hiển thị sớm 7 tiếng. */
+const ngayCua = gioVN.ngayKhoa;
+const gioCua = gioVN.gio;
 
 /** Bỏ emoji dẫn đầu của giá trị select trong Base ("🔴 Cao" -> "Cao"). */
 function nhan(v) {

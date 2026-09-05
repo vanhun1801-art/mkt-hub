@@ -1367,19 +1367,6 @@ function dongXemNhanh() {
   if (o) o.remove();
 }
 
-function scrollToQueue(key) {
-  const n = document.querySelector('.queue[data-q="' + key + '"]');
-  if (n) n.scrollIntoView({ behavior: 'smooth', block: 'center' });
-}
-
-/**
- * Hàng đợi "Yêu cầu điều chỉnh".
- *
- * Nhân sự không sửa được deadline, người phụ trách, campaign… của việc được
- * giao — họ gửi yêu cầu. Trước đây yêu cầu ghi thẳng vào Base mà app không có
- * chỗ nào hiện, nên nằm im: người gửi tưởng đã hỏi, quản lý không biết có ai
- * hỏi. Hàng đợi này là chỗ đọc và đóng chúng.
- */
 function khoiYeuCau() {
   const ds = (S.requests || []).filter((r) => !r.handled);
   const box = el('div', 'queue queue-alert');
@@ -2305,21 +2292,6 @@ function selectInput(value, options, onChange, disabledSet) {
   return s;
 }
 
-function chipsInput(selected, options, onChange) {
-  const box = el('div', 'chips');
-  const cur = new Set(selected || []);
-  for (const o of options || []) {
-    const c = el('div', 'chip' + (cur.has(o) ? ' on' : ''), o);
-    c.onclick = () => {
-      if (cur.has(o)) cur.delete(o); else cur.add(o);
-      c.classList.toggle('on');
-      onChange([...cur]);
-    };
-    box.appendChild(c);
-  }
-  return box;
-}
-
 function onePersonInput(selected, onChange) {
   const cur = (selected || [])[0];
   const s = el('select');
@@ -2491,21 +2463,6 @@ function peopleDropdown(selected, onChange, placeholder) {
 function optionsDropdown(options, selected, onChange, placeholder) {
   const items = (options || []).map((o) => ({ id: o, name: o }));
   return multiDropdown(items, selected || [], (ids) => onChange(ids), placeholder || 'Chọn…', { avatar: false });
-}
-
-function peopleInput(selected, onChange) {
-  const box = el('div', 'chips');
-  const cur = new Map((selected || []).map((u) => [u.id, u]));
-  for (const p of dsNguoi()) {
-    const c = el('div', 'chip' + (cur.has(p.id) ? ' on' : ''), p.name);
-    c.onclick = () => {
-      if (cur.has(p.id)) cur.delete(p.id); else cur.set(p.id, p);
-      c.classList.toggle('on');
-      onChange([...cur.values()]);
-    };
-    box.appendChild(c);
-  }
-  return box;
 }
 
 function openDrawer(task) {

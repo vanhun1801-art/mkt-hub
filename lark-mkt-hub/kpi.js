@@ -9,13 +9,16 @@
  */
 const cfg = require('./config');
 const { goiJson } = require('./proxy');
+const gio = require('./gio-vn');
 
 const DONG = new Set(['Hoàn thành', 'Hủy']);
 // trạng thái coi như đã đóng của Lịch tác nghiệp
 const LICH_DONG = new Set(['Đã hoàn tất', 'Từ chối', 'Hủy lịch']);
 const NGAY = 86400000;
 
-const dauNgay = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x.getTime(); };
+/* Giờ VN, KHÔNG phải giờ máy chủ: Render chạy UTC nên setHours(0,0,0,0) cho ra
+ * 07:00 giờ VN, và mọi việc đúng hạn 00:00 bị tính quá hạn sớm một ngày. */
+const dauNgay = gio.dauNgay;
 
 /* ---------------- khoảng thời gian ----------------
  * Client gửi `tu`/`den` dạng YYYY-MM-DD (nó biết múi giờ và "tháng này" của máy
@@ -23,8 +26,9 @@ const dauNgay = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x
  */
 function moc(k) {
   if (!k || !k.tu || !k.den) return null;
-  const tu = dauNgay(new Date(k.tu + 'T00:00:00'));
-  const den = dauNgay(new Date(k.den + 'T00:00:00')) + NGAY - 1;   // hết ngày cuối
+  // '2026-09-01T00:00:00' không có múi giờ => máy chủ UTC hiểu là 00:00 UTC. Ghim +07.
+  const tu = gio.tuNgayKhoa(k.tu);
+  const den = gio.tuNgayKhoa(k.den) + NGAY - 1;                    // hết ngày cuối
   if (!Number.isFinite(tu) || !Number.isFinite(den) || tu > den) return null;
   return { tu, den };
 }
@@ -138,7 +142,7 @@ async function congViec(mod, khoang, nguoi) {
     id: t.id,
     muc: 'vua',
     tieuDe: t.title || '(không tên)',
-    phu: 'Chưa có phụ trách chính' + (han(t) ? ' · hạn ' + new Date(han(t)).toLocaleDateString('vi-VN') : ''),
+    phu: 'Chưa có phụ trách chính' + (han(t) ? ' · hạn ' + gio.ngayDai(han(t)) : ''),
     the: [t.campaign].map(nhan).filter(Boolean),
   }));
 
@@ -267,7 +271,12 @@ async function lichTacNghiep(mod, khoang, nguoi) {
       : []),
   ];
 
-  const gio = (t) => (bd(t) ? new Date(bd(t)).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'chưa có ngày');
+  /* KHÔNG dùng toLocaleString('vi-VN'): 'vi-VN' chỉ đặt cách viết, múi giờ vẫn
+   * là của máy chủ. Render chạy UTC nên cả trang Tổng quan hiện sớm 7 tiếng, và
+   * mốc 00:00 lùi hẳn sang ngày hôm trước. */
+  const gioNgay = (t) => (bd(t)
+    ? gio.gio(bd(t)) + ' ' + gio.ngayNgan(bd(t)).replace('/', '-')
+    : 'chưa có ngày');
   // nói rõ đang là nhân sự hay chỉ có phụ trách đứng tên — nếu không, câu
   // "chưa có nhân sự" lại đi kèm một cái tên thì đọc rất khó hiểu
   const aiDo = (t) => ((t.staff || []).length ? ten(t.staff)
@@ -277,7 +286,7 @@ async function lichTacNghiep(mod, khoang, nguoi) {
     id: t.id,
     muc: 'cao',
     tieuDe: t.title || '(không tên)',
-    phu: 'Chờ duyệt · ' + gio(t) + ' · ' + aiDo(t),
+    phu: 'Chờ duyệt · ' + gioNgay(t) + ' · ' + aiDo(t),
     the: (t.transport || []).slice(0, 2).map(nhan).filter(Boolean),
   }));
   // lịch có nguy cơ: đưa thẳng lên danh sách cần xử lý kèm lý do
@@ -287,7 +296,7 @@ async function lichTacNghiep(mod, khoang, nguoi) {
       id: t.id,
       muc: r.muc,
       tieuDe: t.title || '(không tên)',
-      phu: r.ly + ' · ' + gio(t) + ' · ' + aiDo(t),
+      phu: r.ly + ' · ' + gioNgay(t) + ' · ' + aiDo(t),
       the: [nhan(t.status)].filter(Boolean),
     });
   });
@@ -297,7 +306,7 @@ async function lichTacNghiep(mod, khoang, nguoi) {
       id: t.id,
       muc: 'thap',
       tieuDe: t.title || '(không tên)',
-      phu: 'Hôm nay · ' + gio(t) + ' · ' + nhan(t.status),
+      phu: 'Hôm nay · ' + gioNgay(t) + ' · ' + nhan(t.status),
       the: [],
     });
   });

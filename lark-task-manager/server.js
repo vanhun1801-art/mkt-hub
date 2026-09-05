@@ -985,7 +985,7 @@ async function api(req, res, url) {
           .filter((x) => x && !cu.includes(x));
         baoTin(moi,
           'Bạn được giao việc mới: "' + (truoc.title || '') + '"' +
-          (truoc.deadline ? XD + 'Hạn: ' + new Date(truoc.deadline).toLocaleDateString('vi-VN') : '') +
+          (truoc.deadline ? XD + 'Hạn: ' + nhanNgayVN(new Date(truoc.deadline)) : '') +
           duoiTin());
       }
       // bị trả về làm lại → báo người phụ trách

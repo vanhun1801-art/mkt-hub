@@ -364,6 +364,7 @@ trong Lark**, không liên quan tới vai quản lý/nhân sự bên trong từn
 | `kpi.js` | bộ đọc chỉ số cho Tổng quan chung (một hàm / một base) |
 | `lichchung.js` | gộp việc mọi base thành dải nhiệt nhân sự × ngày (khối Tải nhân sự) |
 | `bot.js` | nguồn số liệu chỉ-đọc cho trợ lý hỏi đáp (`/bot/*`) — xem `docs/tro-ly-bot.md` |
+| `gio-vn.js` | **giờ Việt Nam cho cả lớp vỏ** — Render chạy UTC, đừng dùng `getHours()`/`toLocaleString` |
 | `public/index.html` · `styles.css` · `app.js` · `icons.js` | panel base, sân khấu iframe, trang Tổng quan chung, modal Cài đặt / Thêm base / Log |
 | `test/api.test.js` | kiểm thử chỉ đọc |
 | `test/bot.test.js` | kiểm thử lớp `/bot`: token, chỉ GET, và **không một đồng nào lọt ra** |

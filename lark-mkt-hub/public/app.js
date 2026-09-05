@@ -971,36 +971,6 @@ function vienViecHtml(v) {
  * Lớp vỏ không tự sửa dữ liệu: nó mở app của base rồi nhờ app mở ô chi tiết
  * (postMessage cùng origin). Mọi quy tắc nghiệp vụ vẫn nằm trong app.
  */
-function moViec(moduleId, rec) {
-  const mod = S.modules.find((m) => m.id === moduleId);
-  if (!mod) return;
-  if (mod.kieu === 'lark') { window.open(mod.larkUrl || mod.url, '_blank', 'noopener'); return; }
-
-  dongModal();
-  location.hash = '#/m/' + moduleId;
-
-  /* App con phải nạp xong dữ liệu từ Base mới mở được ô chi tiết, mà lúc iframe
-   * vừa load thì nó chưa có gì. Nên gửi lại đến khi app báo "đã mở" (ack) hoặc
-   * hết 12s. Rẻ hơn nhiều so với việc bắt app phát tín hiệu "đã nạp xong". */
-  if (S.doiMo) { clearInterval(S.doiMo.timer); S.doiMo = null; }
-  const gui = () => {
-    const f = S.frames.get(moduleId);
-    if (!f) return;
-    try { f.iframe.contentWindow.postMessage({ hub: 'open', rec }, location.origin); } catch (_) {}
-  };
-  let lan = 0;
-  gui();
-  S.doiMo = {
-    rec,
-    timer: setInterval(() => {
-      lan += 1;
-      if (lan > 12) { clearInterval(S.doiMo.timer); S.doiMo = null; return; }
-      gui();
-    }, 1000),
-  };
-}
-
-/** Mở app của base, kèm gợi ý tab nếu app hiểu (VD tab Cảnh báo của app quảng cáo). */
 function moTab(moduleId, tab) {
   const daCo = S.frames.has(moduleId);
   location.hash = '#/m/' + moduleId;

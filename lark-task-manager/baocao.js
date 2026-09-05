@@ -9,11 +9,18 @@ const CLOSED = ['Hoàn thành', 'Hủy'];
 const esc = (s) => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-const ngay = (v) => {
-  if (!v) return '—';
-  const d = new Date(v);
-  return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('vi-VN');
-};
+/* Giờ Việt Nam, ghim cứng. `toLocaleDateString('vi-VN')` chỉ đặt cách viết —
+ * múi giờ vẫn là của máy chủ, mà Render chạy UTC, nên mọi hạn 00:00 lùi sang
+ * ngày hôm trước trong báo cáo xuất ra. */
+const LECH_VN = 7 * 3600000;
+const p2n = (x) => String(x).padStart(2, '0');
+function ngayVN(v) {
+  const t = v == null || v === '' ? NaN : (typeof v === 'number' ? v : Date.parse(v));
+  if (!Number.isFinite(t)) return '';
+  const x = new Date(t + LECH_VN);
+  return p2n(x.getUTCDate()) + '/' + p2n(x.getUTCMonth() + 1) + '/' + x.getUTCFullYear();
+}
+const ngay = (v) => (v ? (ngayVN(v) || '—') : '—');
 
 function conLai(v) {
   if (!v) return null;
@@ -162,7 +169,10 @@ function dungBaoCao(tasks, opt = {}) {
     </div>
     <div class="meta">
       Kỳ báo cáo: <b>${kyBaoCao}</b><br>
-      Xuất lúc: ${new Date().toLocaleString('vi-VN')}<br>
+      Xuất lúc: ${ngayVN(Date.now())} ${(() => {
+        const x = new Date(Date.now() + LECH_VN);
+        return p2n(x.getUTCHours()) + ':' + p2n(x.getUTCMinutes());
+      })()} (giờ Việt Nam)<br>
       ${opt.nguoiXuat ? 'Người xuất: ' + esc(opt.nguoiXuat) : ''}
     </div>
   </div>

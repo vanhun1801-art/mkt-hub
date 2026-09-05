@@ -17,6 +17,7 @@ const cfg = require('./config');
 const kids = require('./children');
 const kpi = require('./kpi');
 const bot = require('./bot');
+const gioVN = require('./gio-vn');
 const lich = require('./lichchung');
 const auth = require('./auth');
 const quyen = require('./quyen');
@@ -432,13 +433,11 @@ async function api(req, res, u) {
     let tu = ngay(u.searchParams.get('tu'));
     let den = ngay(u.searchParams.get('den'));
     if (!tu || !den) {
-      // không truyền khoảng thì lấy tháng hiện tại — lưới người × ngày phải có biên
-      const now = new Date();
-      const p2 = (n) => String(n).padStart(2, '0');
-      const dau = new Date(now.getFullYear(), now.getMonth(), 1);
-      const cuoi = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      const s = (d) => d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate());
-      tu = s(dau); den = s(cuoi);
+      /* Không truyền khoảng thì lấy tháng hiện tại — lưới người × ngày phải có
+       * biên. Theo giờ VN: máy chủ Render chạy UTC nên trong khoảng 00:00–06:59
+       * giờ VN ngày mùng 1, bản cũ tính ra THÁNG TRƯỚC. */
+      const th = gioVN.thangNay();
+      tu = th.tu; den = th.den;
     }
     if (tu > den) [tu, den] = [den, tu];
     // lưới quá rộng thì vô dụng mà còn nặng — chặn ở 92 ngày
