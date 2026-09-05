@@ -50,7 +50,17 @@ const ngayCua = (giay) => (giay ? new Date(num(giay) * 1000).toISOString().slice
  */
 const PHAM_VI = {
   display: ['user.info.basic', 'user.info.profile', 'user.info.stats', 'video.list'],
-  business: ['user.info.basic', 'user.info.profile', 'user.info.stats', 'video.list', 'biz.creation.info'],
+  /* CỐ Ý GIỐNG HỆT display.
+   *
+   * Bản trước xin thêm `biz.creation.info` cho chế độ business. App nào chưa được
+   * TikTok bật phạm vi đó thì bị chặn ngay ở màn hình cấp quyền, với đúng một chữ
+   * "scope" — không nói là scope nào, nên rất khó đoán.
+   *
+   * Mà xin thêm cũng vô ích: quyền gọi Business Account API do TikTok cấp ở mức
+   * SẢN PHẨM của app, không phải qua phạm vi này. Nên cứ xin bộ an toàn; app chưa
+   * được bật sản phẩm thì bizGet() báo lỗi rõ ràng lúc gọi số, còn hơn chết câm
+   * ngay từ bước cấp quyền. */
+  business: ['user.info.basic', 'user.info.profile', 'user.info.stats', 'video.list'],
 };
 
 /**
