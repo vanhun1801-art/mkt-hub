@@ -42,6 +42,90 @@ const ngayCua = (giay) => (giay ? new Date(num(giay) * 1000).toISOString().slice
 /* ---------------- token ---------------- */
 
 /**
+ * Phạm vi xin của mỗi kênh.
+ *   display  — đủ cho follower + danh sách video kèm view/like/comment/share
+ *   business — thêm phạm vi tài khoản doanh nghiệp (tiếp cận, xem hồ sơ, tỷ lệ
+ *              xem hết). App phải được TikTok bật sản phẩm Business Account thì
+ *              phạm vi này mới hiện ra, không thì tick cũng vô ích.
+ */
+const PHAM_VI = {
+  display: ['user.info.basic', 'user.info.profile', 'user.info.stats', 'video.list'],
+  business: ['user.info.basic', 'user.info.profile', 'user.info.stats', 'video.list', 'biz.creation.info'],
+};
+
+/**
+ * Dựng link để CHỦ KÊNH bấm vào và bấm đồng ý.
+ *
+ * Mỗi kênh TikTok là một tài khoản riêng nên phải làm một lần cho từng kênh —
+ * không có đường tắt kiểu "một token thấy hết" như Facebook Page.
+ */
+function linkCapQuyen(conf, redirectUri, mode = 'display', state = '') {
+  if (!conf.clientKey) throw new Error('Chưa khai clientKey của TikTok');
+  if (!redirectUri) throw new Error('Chưa khai địa chỉ chuyển hướng (redirect URI)');
+  const q = new URLSearchParams({
+    client_key: conf.clientKey,
+    scope: (PHAM_VI[mode] || PHAM_VI.display).join(','),
+    response_type: 'code',
+    redirect_uri: redirectUri,
+    state: state || String(Date.now()),
+  });
+  return 'https://www.tiktok.com/v2/auth/authorize/?' + q.toString();
+}
+
+/**
+ * Đổi mã uỷ quyền lấy cặp token. Chạy MỘT LẦN cho mỗi kênh.
+ *
+ * BẪY: mã TikTok trả về trên thanh địa chỉ đang ở dạng URL-encode và thường kết
+ * thúc bằng `%2A` (dấu *). Dán nguyên vào mà không giải mã thì TikTok trả lỗi
+ * "invalid_grant" rất khó đoán — nên ở đây giải mã trước, và chịu được cả khi
+ * người dùng đã tự giải mã sẵn.
+ */
+async function doiMa(conf, code, redirectUri, codeVerifier = '') {
+  if (!conf.clientKey || !conf.clientSecret) throw new Error('Chưa khai clientKey / clientSecret của TikTok');
+  if (!code) throw new Error('Chưa có mã uỷ quyền');
+  hideSecret(conf.clientSecret);
+
+  let ma = String(code).trim();
+  // Người dùng hay dán nguyên cả URL chuyển hướng — tự nhặt tham số code ra.
+  if (/[?&]code=/.test(ma)) {
+    const m = ma.match(/[?&]code=([^&#]+)/);
+    if (m) ma = m[1];
+  }
+  try { ma = decodeURIComponent(ma); } catch (_) { /* đã ở dạng thô rồi */ }
+
+  const body = { client_key: conf.clientKey, client_secret: conf.clientSecret,
+    code: ma, grant_type: 'authorization_code' };
+  if (redirectUri) body.redirect_uri = redirectUri;
+  if (codeVerifier) body.code_verifier = codeVerifier;
+
+  const r = await request(OPEN + '/oauth/token/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams(body).toString(),
+    label: 'TikTok đổi mã', retries: 1,
+  });
+  let j = {};
+  try { j = JSON.parse(r.text); } catch (_) {}
+  if (j.error || !j.access_token) {
+    throw new Error(scrub('TikTok từ chối đổi mã: '
+      + (j.error_description || j.error || r.text.slice(0, 200))
+      + (String(j.error) === 'invalid_grant'
+        ? ' — mã chỉ dùng được MỘT LẦN và sống vài phút; bấm lại link cấp quyền để lấy mã mới.'
+        : '')));
+  }
+  hideSecret(j.access_token);
+  hideSecret(j.refresh_token);
+  return {
+    openId: j.open_id || '',
+    accessToken: j.access_token,
+    refreshToken: j.refresh_token || '',
+    expiresAt: Date.now() + Math.max(60, num(j.expires_in) - 120) * 1000,
+    refreshExpiresAt: Date.now() + num(j.refresh_expires_in) * 1000,
+    scope: j.scope || '',
+  };
+}
+
+/**
  * Làm mới access token. TikTok cấp refresh token DÙNG MỘT LẦN: mỗi lần gọi là
  * nhận refresh token mới và cái cũ chết ngay. Người gọi BẮT BUỘC phải lưu lại
  * bản mới (xem ketnoi.luuToken) — không lưu thì lần sau kênh tắt.
@@ -400,4 +484,5 @@ async function test(conf, onMoi = null) {
 module.exports = {
   PLATFORM, NGUON, fetchRange, test,
   lamMoiToken, tokenCuaKenh, hoSoDisplay, videoDisplay, bizGet, ngayTuBiz,
+  doiMa, linkCapQuyen, PHAM_VI,
 };

@@ -18,6 +18,7 @@ const vault = require('./vault');
 const sync = require('./sync');
 const facebook = require('./sync/facebook');
 const zalo = require('./sync/zalo');
+const tiktok = require('./sync/tiktok');
 const { docBangDan } = require('./bang-dan');
 
 const T = cfg.tables;
@@ -368,7 +369,33 @@ async function api(req, res, u) {
       });
       return out;
     };
-    ketnoi.ghiKhoi(b.khoi, loc(b.giaTri, cu));
+    const moi = loc(b.giaTri, cu);
+
+    /* Kênh TikTok: KHÔNG tin thứ tự mảng mà giao diện gửi lên.
+     *
+     * Bản che của giao diện được khôi phục theo VỊ TRÍ trong mảng, nên chỉ cần
+     * người dùng xoá một dòng hoặc đảo thứ tự là token của kênh A rơi sang kênh B
+     * — hai kênh vẫn "có token", đồng bộ vẫn chạy, chỉ là số đổ nhầm kênh và
+     * không ai nhận ra. Ghép lại theo openId cho chắc. */
+    if (b.khoi === 'tiktok' && Array.isArray(moi.channels)) {
+      const cuTheoId = new Map((cu.channels || []).map((x) => [x.openId, x]));
+      moi.channels = moi.channels.map((ch) => {
+        const g = cuTheoId.get(ch.openId);
+        if (!g) return ch;
+        const ra = { ...g, ...ch };
+        // Ô token còn che (hoặc trống) nghĩa là người dùng không sửa — giữ bản cũ.
+        ['accessToken', 'refreshToken'].forEach((k) => {
+          if (!ch[k] || String(ch[k]).includes('••••')) ra[k] = g[k];
+        });
+        if (ra.refreshToken === g.refreshToken) {
+          ra.expiresAt = g.expiresAt;
+          ra.refreshExpiresAt = g.refreshExpiresAt;
+        }
+        return ra;
+      });
+    }
+
+    ketnoi.ghiKhoi(b.khoi, moi);
     return ok(res, { ok: true });
   }
 
@@ -415,6 +442,52 @@ async function api(req, res, u) {
     }));
     if (igs.length) ketnoi.ghiKhoi('instagram', { ...c.instagram, accounts: igs, enabled: true });
     return ok(res, { pages: pages.length, instagram: igs.length });
+  }
+
+  if (p === '/api/ket-noi/tiktok/link' && method === 'POST') {
+    const loi = chanNeuKhongPhaiQuanLy(req); if (loi) throw loi;
+    const b = await readBody(req);
+    const c = await ketnoi.doc();
+    const conf = { ...c.tiktok, clientKey: b.clientKey || c.tiktok.clientKey };
+    return ok(res, { link: tiktok.linkCapQuyen(conf, b.redirectUri, b.mode || 'display') });
+  }
+
+  if (p === '/api/ket-noi/tiktok/doi-ma' && method === 'POST') {
+    const loi = chanNeuKhongPhaiQuanLy(req); if (loi) throw loi;
+    const b = await readBody(req);
+    if (!b.code) return fail(res, 400, 'Thiếu mã uỷ quyền');
+    const c = await ketnoi.doc();
+    const conf = {
+      ...c.tiktok,
+      clientKey: b.clientKey || c.tiktok.clientKey,
+      clientSecret: b.clientSecret || c.tiktok.clientSecret,
+    };
+    const tok = await tiktok.doiMa(conf, b.code, b.redirectUri || '');
+
+    /* Hỏi luôn tên kênh: người dùng vừa cấp quyền cho tài khoản nào thì thấy ngay
+     * tên tài khoản đó, khỏi phải đoán open_id nào là kênh nào. Hỏng bước này
+     * cũng không sao — token đã có rồi, chỉ là thiếu cái tên. */
+    let hs = { name: '', handle: '', followers: 0 };
+    try { hs = await tiktok.hoSoDisplay(tok.accessToken); } catch (_) {}
+
+    const chs = (c.tiktok.channels || []).filter((x) => x.openId !== tok.openId);
+    chs.push({
+      openId: tok.openId,
+      name: b.name || hs.name || tok.openId,
+      handle: hs.handle || '',
+      mode: b.mode === 'business' ? 'business' : 'display',
+      businessId: b.businessId || '',
+      accessToken: tok.accessToken,
+      refreshToken: tok.refreshToken,
+      expiresAt: tok.expiresAt,
+      refreshExpiresAt: tok.refreshExpiresAt,
+    });
+    ketnoi.ghiKhoi('tiktok', { ...conf, channels: chs, enabled: true });
+    await ketnoi.luuToken('tiktok', chs);
+    return ok(res, {
+      openId: tok.openId, name: hs.name || '', handle: hs.handle || '',
+      followers: hs.followers || 0, scope: tok.scope, soKenh: chs.length,
+    });
   }
 
   if (p === '/api/ket-noi/zalo/doi-ma' && method === 'POST') {

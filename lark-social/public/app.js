@@ -640,8 +640,22 @@
       + '<input id="ttKey" value="' + esc(c.tiktok.clientKey || '') + '"></div>'
       + '<div class="kn-row"><label>Client secret</label>'
       + '<input id="ttSecret" value="' + esc(c.tiktok.clientSecret || '') + '"></div>'
-      + '<div class="help">Mỗi kênh TikTok phải cấp quyền riêng. Sau khi kênh bấm đồng ý ở '
-      + 'developers.tiktok.com, dán refresh token của kênh đó vào một dòng dưới đây.</div>'
+      + '<div class="kn-row"><label>Địa chỉ chuyển hướng</label>'
+      + '<input id="ttRedirect" value="' + esc(c.tiktok.redirectUri || (location.origin + '/tiktok-callback'))
+      + '" placeholder="https://…"></div>'
+      + '<div class="help">Phải khai <b>y hệt</b> chuỗi này trong phần Redirect URI của app trên '
+      + 'developers.tiktok.com — lệch một dấu gạch chéo là TikTok từ chối. Trang đó không cần tồn tại: '
+      + 'chỉ cần đọc <code>?code=…</code> trên thanh địa chỉ sau khi cấp quyền.</div>'
+      + '<div class="kn-row"><label>Chế độ</label><select id="ttModeMoi">'
+      + '<option value="display">display — phổ thông</option>'
+      + '<option value="business">business — nhiều chỉ số hơn</option></select></div>'
+      + '<div><button class="btn ghost small" id="ttLink">1 · Tạo link cấp quyền</button></div>'
+      + '<div id="ttLinkBox"></div>'
+      + '<div class="kn-row"><label>2 · Dán mã uỷ quyền</label>'
+      + '<input id="ttCode" placeholder="dán cả URL sau khi cấp quyền cũng được"></div>'
+      + '<div><button class="btn ghost small" id="ttDoi">3 · Đổi mã lấy token</button>'
+      + ' <span class="help">Làm lại ba bước này cho <b>từng kênh</b> — mỗi kênh TikTok là một '
+      + 'tài khoản riêng, không có đường tắt kiểu một token thấy hết như Facebook.</span></div>'
       + '<div class="acc-list" id="ttList">'
       + (c.tiktok.channels || []).map((ch, i) => dongTikTok(ch, i)).join('')
       + '</div>'
@@ -703,6 +717,44 @@
         };
       } catch (e) { toast(e.message, 'err'); }
     };
+    $('#ttLink').onclick = async () => {
+      try {
+        const r = await goiJSON('/api/ket-noi/tiktok/link', {
+          clientKey: $('#ttKey').value.trim(),
+          redirectUri: $('#ttRedirect').value.trim(),
+          mode: $('#ttModeMoi').value,
+        });
+        /* Mở tab mới, KHÔNG điều hướng tab đang mở: người dùng đang gõ dở cấu hình
+           trong modal này, chuyển trang là mất sạch chưa lưu. */
+        $('#ttLinkBox').innerHTML = '<div class="note info"><span class="ico">→</span><span>'
+          + 'Mở link này bằng trình duyệt <b>đang đăng nhập kênh cần nối</b> '
+          + '(cửa sổ ẩn danh cho kênh thứ hai trở đi, không thì TikTok cấp quyền nhầm kênh):<br>'
+          + '<a href="' + esc(r.link) + '" target="_blank" rel="noreferrer">' + esc(r.link.slice(0, 110))
+          + '…</a><br><button class="btn ghost small" id="ttChep">Chép link</button></span></div>';
+        $('#ttChep').onclick = () => {
+          navigator.clipboard.writeText(r.link).then(() => toast('Đã chép link'),
+            () => toast('Không chép được — bôi đen link rồi Ctrl+C', 'err'));
+        };
+      } catch (e) { toast(e.message, 'err'); }
+    };
+    $('#ttDoi').onclick = async () => {
+      try {
+        const r = await goiJSON('/api/ket-noi/tiktok/doi-ma', {
+          code: $('#ttCode').value.trim(),
+          clientKey: $('#ttKey').value.trim(),
+          clientSecret: $('#ttSecret').value.trim(),
+          redirectUri: $('#ttRedirect').value.trim(),
+          mode: $('#ttModeMoi').value,
+        });
+        toast('Đã nối kênh ' + (r.name || r.openId)
+          + (r.followers ? ' · ' + n0(r.followers) + ' follower' : '')
+          + ' — tổng ' + r.soKenh + ' kênh');
+        $('#ttCode').value = '';
+        $('#ttList').insertAdjacentHTML('beforeend', dongTikTok({
+          name: r.name, openId: r.openId, mode: $('#ttModeMoi').value, refreshToken: '••••',
+        }, 0));
+      } catch (e) { toast(e.message, 'err'); }
+    };
     $('#zaDoi').onclick = async () => {
       try {
         const r = await goiJSON('/api/ket-noi/zalo/doi-ma', {
@@ -732,12 +784,13 @@
             enabled: $('#ttOn').checked,
             clientKey: $('#ttKey').value,
             clientSecret: $('#ttSecret').value,
+            redirectUri: $('#ttRedirect').value.trim(),
             channels: $$('#ttList .acc').map((r) => ({
               openId: $('.tt-open', r).value.trim(),
               name: $('.tt-name', r).value.trim(),
               mode: $('.tt-mode', r).value,
               businessId: $('.tt-biz', r).value.trim(),
-              refreshToken: $('.tt-rt', r).value.trim(),
+              refreshToken: $('.tt-rt', r).value.includes('••••') ? '' : $('.tt-rt', r).value.trim(),
             })).filter((x) => x.openId || x.refreshToken),
           },
         });

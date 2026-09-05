@@ -39,6 +39,10 @@ const MAC_DINH = {
     enabled: false,
     clientKey: '',
     clientSecret: '',
+    /* Địa chỉ TikTok trả người dùng về sau khi bấm đồng ý. Phải trùng KHÍT với
+     * chuỗi khai trong app trên developers.tiktok.com. Trang đó không cần tồn
+     * tại thật — app chỉ cần tham số ?code=… trên thanh địa chỉ. */
+    redirectUri: '',
     /* mode 'business' cho số liệu đầy đủ (reach, xem hồ sơ, tỷ lệ xem hết…) —
      * cần tài khoản đã chuyển sang TikTok Business. 'display' là đường phổ thông:
      * chỉ có follower, và view/like/comment/share theo từng video. */
