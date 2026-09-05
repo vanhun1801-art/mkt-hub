@@ -59,6 +59,16 @@ function giaiMa(s) {
  * lại gọi Base là chậm và tốn quota vô ích. */
 let cache = { luc: 0, rows: null };
 
+/* Lỗi ghi gần nhất.
+ *
+ * ghi() KHÔNG ném lỗi — người gọi đang giữa lúc xoay token, ném ra là làm hỏng
+ * cả lượt đồng bộ vì một chuyện phụ. Nhưng nuốt luôn thì tệ hơn nhiều: đã có lần
+ * app trên Render chưa được chia sẻ Base, mọi lời ghi kho đều hỏng lặng lẽ, và
+ * năm kênh TikTok vừa cấp quyền bay sạch sau lần deploy kế tiếp — không một dòng
+ * cảnh báo nào tới được người dùng. Nên lỗi được giữ lại ở đây để tinhTrang()
+ * và màn hình Kết nối nói ra. */
+let loiGhi = '';
+
 async function docRows(moi = false) {
   if (!moi && cache.rows && Date.now() - cache.luc < 30000) return cache.rows;
   const rows = await lark.listAll(T.id);
@@ -107,10 +117,31 @@ async function ghi(ten, obj, ghiChu = '') {
     if (r) await lark.updateRecord(T.id, r.id, fields);
     else await lark.createRecord(T.id, fields);
     cache = { luc: 0, rows: null };
+    loiGhi = '';
     return true;
   } catch (e) {
-    console.warn('[vault] không ghi được ngăn "' + ten + '": ' + e.message);
+    loiGhi = 'Không ghi được ngăn "' + ten + '": ' + e.message;
+    console.warn('[vault] ' + loiGhi);
     return false;
+  }
+}
+
+/**
+ * Thử ghi rồi đọc lại một ngăn nháp — chứng minh kho THẬT SỰ dùng được, thay vì
+ * chỉ báo "đã bật" rồi hỏng lúc cần.
+ */
+async function kiemTra() {
+  if (!bat()) return { ok: false, ly_do: 'Chưa khai SOCIAL_VAULT_KEY' };
+  const moc = 'thu-' + Date.now();
+  try {
+    const ghiDuoc = await ghi('_kiem-tra', { moc }, 'Ngăn nháp của nút Kiểm tra kho — xoá được');
+    if (!ghiDuoc) return { ok: false, ly_do: loiGhi || 'Ghi thất bại' };
+    const lai = await doc('_kiem-tra');
+    if (!lai || lai.moc !== moc) return { ok: false, ly_do: 'Ghi được nhưng đọc lại không khớp' };
+    await xoa('_kiem-tra').catch(() => {});
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, ly_do: e.message };
   }
 }
 
@@ -142,12 +173,12 @@ async function tinhTrang() {
         ten: chuoi(r.c[T.f.key]),
         ghiLuc: r.c[T.f.at] || null,
         doc: (() => { try { giaiMa(chuoi(r.c[T.f.blob])); return true; } catch (_) { return false; } })(),
-      })),
-      canhBao: '',
+      })).filter((n) => n.ten !== '_kiem-tra'),
+      canhBao: loiGhi,
     };
   } catch (e) {
     return { bat: true, ngan: [], canhBao: 'Không đọc được kho: ' + e.message };
   }
 }
 
-module.exports = { bat, doc, ghi, xoa, tinhTrang, maHoa, giaiMa };
+module.exports = { bat, doc, ghi, xoa, tinhTrang, kiemTra, maHoa, giaiMa };

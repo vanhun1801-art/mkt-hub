@@ -610,6 +610,12 @@
     const html = ''
       + (kho.canhBao ? '<div class="notes" style="margin-bottom:12px"><div class="note">'
         + '<span class="ico">!</span><span>' + esc(kho.canhBao) + '</span></div></div>' : '')
+      + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">'
+      + '<button class="btn ghost small" id="khoThu">Kiểm tra kho khoá</button>'
+      + '<span class="help" id="khoKq">'
+      + (kho.bat ? 'Kho đang bật · ' + (kho.ngan || []).length + ' ngăn. Bấm để thử ghi–đọc thật.'
+        : 'Kho đang tắt — token chỉ nằm trên đĩa.')
+      + '</span></div>'
       + '<div class="notes" style="margin-bottom:12px"><div class="note info"><span class="ico">i</span>'
       + '<span>Cấu hình đang lấy từ <b>' + esc(d.nguon === 'file' ? 'ket-noi.json trên máy'
         : (d.nguon === 'env' ? 'biến môi trường SOCIAL_CONNECT_JSON' : 'chưa có gì')) + '</b>. '
@@ -717,6 +723,19 @@
       + '<button class="btn primary" id="mLuu">Lưu cấu hình</button></div>';
 
     $('#mHuy').onclick = dongModal;
+    $('#khoThu').onclick = async () => {
+      $('#khoKq').textContent = 'Đang thử ghi rồi đọc lại…';
+      try {
+        const r = await goiJSON('/api/ket-noi/kiem-tra-kho', {});
+        $('#khoKq').textContent = r.ok
+          ? '✓ Kho ghi và đọc được — token sẽ sống qua lần deploy.'
+          : '✗ Kho KHÔNG dùng được: ' + r.ly_do;
+        $('#khoKq').style.color = r.ok ? 'var(--good)' : 'var(--bad)';
+      } catch (e) {
+        $('#khoKq').textContent = '✗ ' + e.message;
+        $('#khoKq').style.color = 'var(--bad)';
+      }
+    };
     $('#ttThem').onclick = () => {
       $('#ttTay').insertAdjacentHTML('beforeend', dongTikTok({ mode: 'display' }, 0));
     };
@@ -780,6 +799,9 @@
         toast('Đã nối kênh ' + (r.name || r.openId)
           + (r.followers ? ' · ' + n0(r.followers) + ' follower' : '')
           + ' — tổng ' + r.soKenh + ' kênh');
+        // Nối được nhưng chưa cất được vào kho là chuyện phải hiện ra ngay, không
+        // để tới lần deploy sau mới phát hiện mất trắng.
+        if (r.canhBao) toast(r.canhBao, 'err');
         $('#ttCode').value = '';
         /* Server đã ghi kênh vào cấu hình rồi — nạp lại cả hộp thay vì tự chèn một
            dòng, để danh sách luôn đúng bằng thứ máy chủ thật sự đang giữ. */

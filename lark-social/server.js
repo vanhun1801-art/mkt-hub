@@ -413,6 +413,11 @@ async function api(req, res, u) {
     return ok(res, { ok: true });
   }
 
+  if (p === '/api/ket-noi/kiem-tra-kho' && method === 'POST') {
+    const loi = chanNeuKhongPhaiQuanLy(req); if (loi) throw loi;
+    return ok(res, await vault.kiemTra());
+  }
+
   if (p === '/api/ket-noi/thu' && method === 'POST') {
     const loi = chanNeuKhongPhaiQuanLy(req); if (loi) throw loi;
     const b = await readBody(req);
@@ -502,9 +507,24 @@ async function api(req, res, u) {
     });
     ketnoi.ghiKhoi('tiktok', { ...conf, channels: chs, enabled: true });
     await ketnoi.luuToken('tiktok', chs);
+
+    /* KIỂM CHỨNG, không chỉ "đã gọi hàm lưu".
+     *
+     * Đã có lần app trên Render chưa được chia sẻ Base nên mọi lời ghi kho hỏng
+     * lặng lẽ; người dùng cấp quyền xong năm kênh, thấy báo thành công, rồi mất
+     * sạch sau lần deploy kế tiếp. Đọc lại kho và nói thẳng nếu chưa vào. */
+    let canhBao = '';
+    if (vault.bat()) {
+      const kho = await vault.doc('tiktok');
+      const co = ((kho || {}).channels || []).some((x) => x.openId === tok.openId);
+      if (!co) {
+        canhBao = 'Kênh đã nối NHƯNG chưa cất được vào kho khoá — lần deploy tới sẽ mất. '
+          + ((await vault.tinhTrang()).canhBao || 'Bấm "Kiểm tra kho" để xem vì sao.');
+      }
+    }
     return ok(res, {
       openId: tok.openId, name: hs.name || '', handle: hs.handle || '',
-      followers: hs.followers || 0, scope: tok.scope, soKenh: chs.length,
+      followers: hs.followers || 0, scope: tok.scope, soKenh: chs.length, canhBao,
     });
   }
 
