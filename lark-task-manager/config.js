@@ -59,6 +59,39 @@ module.exports = {
   requestTableId: process.env.LARK_REQ_TABLE_ID || 'tblYblcwsjzEVaXM', // Yêu cầu điều chỉnh
   commentTableId: process.env.LARK_CMT_TABLE_ID || 'tbl5uA7zSY0TJMLq', // Bình luận
 
+  /* ---- Trung tâm phân phối công việc ----
+   * Hai bảng, cố ý tách đôi: một dòng mỗi LOẠI (bật/tắt, mốc chờ, cách chia) và
+   * một dòng mỗi (loại × NGƯỜI) kèm trọng số. Nhét chung một bảng thì hoặc phải
+   * gói danh sách người vào một ô chữ (gõ sai tên là hỏng ngầm), hoặc phải lặp
+   * lại thiết lập của loại ở mọi dòng.
+   *
+   * Để trên Base chứ không phải trong mã: anh Hùng sửa được ngay, và không mất
+   * sau mỗi lần deploy (ổ đĩa Render là tạm). */
+  luongTableId: process.env.LARK_LUONG_TABLE_ID || 'tbl4zkfB8QtBsRty',  // Phân phối - luồng
+  phanNguoiTableId: process.env.LARK_PP_NGUOI_TABLE_ID || 'tblT6RaebdLHW4st', // Phân phối - người
+
+  // Tên cột của hai bảng đó. Đọc theo TÊN rồi tra ra field_id lúc chạy — bảng do
+  // lark-cli tạo nên id không cố định giữa các môi trường, khai cứng là gãy.
+  luongFields: {
+    loai: 'Loại công việc',
+    bat: 'Bật',
+    phut: 'Chờ (phút)',
+    cach: 'Cách chia',
+    ghiChu: 'Ghi chú',
+  },
+  phanNguoiFields: {
+    loai: 'Loại công việc',
+    nguoi: 'Người nhận',
+    trongSo: 'Trọng số',
+    ghiChu: 'Ghi chú',
+  },
+  // Nhãn trong Base -> mã dùng trong phanphoi.js
+  cachChia: {
+    'Tỷ lệ + cân tải': 'tai',
+    'Luân phiên theo tỷ lệ': 'luot',
+    'Ít việc nhất': 'it',
+  },
+
   identity: process.env.LARK_AS || 'user',   // user | bot
 
   /* ---- Chế độ chạy ----
