@@ -82,6 +82,31 @@ function followerChot(tatCa, den, filter) {
   return [...cuoi.values()];
 }
 
+/**
+ * Những câu cần đọc TRƯỚC khi tin vào biểu đồ, sinh theo nền tảng đang có mặt.
+ *
+ * Trước đây các câu này chỉ nằm trong nhật ký đồng bộ. Người mở tab Tổng quan
+ * nhìn đường lượt xem TikTok không bao giờ đọc tới đó, và sẽ hiểu mỗi đỉnh là
+ * "hôm ấy nhiều người xem" — trong khi thật ra là "hôm ấy đăng một bài về sau
+ * rất nhiều lượt xem". Hai câu chuyện khác hẳn nhau.
+ */
+function luuYNenTang(rows) {
+  const co = new Set(rows.map((r) => r.platform));
+  const ra = [];
+  if (co.has('TikTok')) {
+    ra.push('TikTok: API chỉ trả tổng lượt xem trọn đời của mỗi video, không có số theo ngày. '
+      + 'Cột của một ngày là tổng đời của các video ĐĂNG ngày đó, không phải lượt xem phát sinh trong ngày.');
+  }
+  if (co.has('Facebook')) {
+    ra.push('Facebook: Meta đã gỡ mọi chỉ số đếm người duy nhất nên không có lượt tiếp cận. '
+      + 'Cột "Hiển thị" là số LẦN hiển thị — một người xem ba lần tính ba.');
+  }
+  if (co.has('Instagram')) {
+    ra.push('Instagram: API không còn trả follower theo ngày, chỉ chốt được tại lúc đồng bộ.');
+  }
+  return ra;
+}
+
 /** Lọc theo khoảng ngày + nền tảng + kênh. */
 function loc(rows, { from, to, platforms, channels } = {}) {
   const pset = platforms && platforms.length ? new Set(platforms) : null;
@@ -248,6 +273,7 @@ async function tongQuan({ from, to, platforms, channels } = {}) {
       .slice(0, 50),
     nenCoReach,
     thieuFollower,
+    luuY: luuYNenTang(rows),
     soKenh: d.channels.length,
     soBai: d.posts.length,
     capNhat: d.luc,

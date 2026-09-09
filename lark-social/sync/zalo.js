@@ -20,6 +20,7 @@
  * (ketnoi.luuToken → kho khoá mã hoá trên Base), nếu không thì sau đúng một giờ
  * kênh chết và không ai biết vì sao.
  */
+const crypto = require('crypto');
 const { getJson, request, scrub, hideSecret } = require('./http');
 
 const PLATFORM = 'Zalo OA';
@@ -67,6 +68,30 @@ async function goiOauth(conf, body, nhan) {
     refreshToken: j.refresh_token || '',
     expiresAt: Date.now() + Math.max(60, num(j.expires_in) - 120) * 1000,
   };
+}
+
+/**
+ * Dựng link uỷ quyền OA kèm cặp PKCE.
+ *
+ * Zalo v4 bắt buộc PKCE: link mang `code_challenge` = base64url(sha256(verifier)),
+ * và lúc đổi mã phải nộp lại đúng `verifier` đó. Ghép link bằng tay thì phải tự
+ * băm SHA-256 rồi tự nhớ chuỗi verifier suốt lúc bấm qua bấm lại trên trình
+ * duyệt — sai một ký tự là Zalo từ chối mà không nói vì sao. Nên máy dựng cả
+ * cặp, giao diện chỉ việc cất verifier đi cùng link.
+ */
+function linkCapQuyen(conf, redirectUri, state = '') {
+  if (!conf.appId) throw new Error('Chưa khai App ID của ứng dụng Zalo');
+  if (!redirectUri) throw new Error('Chưa khai địa chỉ chuyển hướng (redirect URI)');
+  const codeVerifier = crypto.randomBytes(48).toString('base64url');
+  const codeChallenge = crypto.createHash('sha256').update(codeVerifier).digest('base64url');
+  const q = new URLSearchParams({
+    app_id: conf.appId,
+    redirect_uri: redirectUri,
+    code_challenge: codeChallenge,
+    code_challenge_method: 'S256',
+    state: state || String(Date.now()),
+  });
+  return { link: 'https://oauth.zaloapp.com/v4/oa/permission?' + q.toString(), codeVerifier };
 }
 
 /** Đổi oauth_code (lấy tay ở trang quản trị OA) sang cặp token. Chạy một lần. */
@@ -281,4 +306,4 @@ async function test(conf, onMoi = null) {
   return { ok: results.some((r) => r.ok), results };
 }
 
-module.exports = { PLATFORM, NGUON, fetchRange, test, doiMa, lamMoiToken, tokenCuaOa, thongTinOa };
+module.exports = { PLATFORM, NGUON, fetchRange, test, linkCapQuyen, doiMa, lamMoiToken, tokenCuaOa, thongTinOa };

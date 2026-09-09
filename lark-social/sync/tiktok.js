@@ -459,9 +459,12 @@ async function fetchRange(conf, from, to, opts = {}, log = () => {}, onMoi = nul
   ghiChu.push('TikTok không mở API cho LIVE — LIVE-view / LIVE-theo dõi / LIVE-bình luận '
     + 'phải nhập tay hoặc nhập từ file xuất của LIVE Center.');
   if (coDisplay) {
-    ghiChu.push('Có kênh TikTok chạy chế độ display: lượt xem nền tảng trả về là TỔNG ĐỜI của '
-      + 'video, nên số theo ngày được tính bằng phần tăng thêm so với lần đồng bộ trước. '
-      + 'Lần chạy đầu tiên chưa có mốc so sánh nên số ngày sẽ bằng 0.');
+    ghiChu.push('Kênh TikTok chạy chế độ display: API chỉ trả TỔNG ĐỜI của mỗi video, '
+      + 'không có số liệu theo ngày. Bài gặp lần đầu thì trọn số đời của nó được ghi vào '
+      + 'NGÀY ĐĂNG; những lần đồng bộ sau chỉ ghi phần tăng thêm, vào ngày chạy. '
+      + 'Nên "lượt xem ngày 12/5" của TikTok đọc là "lượt xem trọn đời của các video đăng '
+      + 'ngày 12/5", không phải "lượt xem phát sinh trong ngày 12/5" — đối chiếu trên dữ liệu '
+      + 'thật: 499/500 dòng ngày khớp đúng tổng đời của bài đăng hôm đó.');
   }
 
   return { channels, daily, posts, lives: [], canhBao, ghiChu, coDisplay };

@@ -12,9 +12,9 @@
  *     → trả sẵn từng ngày.
  *   - họ total_value (metric_type=total_value): views, likes, comments, shares,
  *     saves, total_interactions… → trả MỘT con số cho cả khoảng, không chia ngày.
- * Muốn có số theo ngày ở họ thứ hai thì phải gọi từng ngày một. Đắt, nên chỉ làm
- * khi khoảng ngày đủ ngắn (xem NGAY_TOI_DA); dài hơn thì lấy tổng và dồn vào ngày
- * cuối, kèm cảnh báo — thà nói thật còn hơn bịa số cho từng ngày.
+ * Muốn có số theo ngày ở họ thứ hai thì phải gọi từng ngày một — đắt, mỗi ngày
+ * một request, nhưng không có đường nào khác và cũng không được đi đường tắt:
+ * xem chú thích dài ở chỗ khai báo bên dưới.
  */
 const { getJson, scrub, hideSecret } = require('./http');
 const { chiaKhoang } = require('./ngay');
@@ -22,8 +22,21 @@ const { chiaKhoang } = require('./ngay');
 const PLATFORM = 'Instagram';
 const NGUON = 'Instagram API';
 
-/** Trần số ngày còn chịu gọi từng ngày cho họ total_value. */
-const NGAY_TOI_DA = 45;
+/* Họ total_value (views, likes, comments, shares, saves) KHÔNG có bản chuỗi
+ * theo ngày — hỏi period=day kèm metric=views là Instagram trả thẳng "(#100) The
+ * following metrics (views) should be specified with parameter metric_type". Đã
+ * thử tay, không phải đọc tài liệu. Muốn có số của một ngày thì chỉ còn cách hỏi
+ * riêng đúng ngày đó, mỗi ngày một request.
+ *
+ * Bản trước có ngưỡng 45 ngày: dài hơn thì chia cửa sổ 30 ngày, lấy TỔNG cửa sổ
+ * rồi dồn vào ngày cuối. Chạy "Nạp lại từ đầu" cho cả năm là ra 9 cửa sổ — và
+ * 1.590.229 lượt xem của Instagram nằm gọn trong 9 ngày, 237 ngày còn lại trống
+ * trơn. Biểu đồ mọc chín cái cột chọc trời, lọc theo tháng thì tháng trúng cửa
+ * sổ phình lên còn tháng không trúng bằng 0. Cảnh báo có ghi, nhưng người xem
+ * biểu đồ không đọc cảnh báo.
+ *
+ * Nên bỏ hẳn đường đó. Thà chậm còn hơn dựng ra một hình dạng dữ liệu không có
+ * thật: một năm là 252 request cho mỗi tài khoản, chạy vài chục giây. */
 
 const num = (v) => {
   const n = Number(String(v == null ? 0 : v).replace(/,/g, ''));
@@ -154,50 +167,51 @@ async function ngayCuaIg(fb, token, acc, from, to, canhBao) {
     canhBao.push('Instagram · ' + (acc.name || igId) + ': ' + e.message);
   }
 
-  // --- họ total_value: phải gọi từng ngày mới có số theo ngày ---
+  // --- họ total_value: mỗi ngày một request, không có cách nào khác ---
   const ds = cacNgay(from, to);
-  if (ds.length <= NGAY_TOI_DA) {
-    for (const d of ds) {
-      const sau = new Date(d + 'T00:00:00Z');
-      sau.setUTCDate(sau.getUTCDate() + 1);
-      const u = g(fb) + '/' + igId + '/insights?period=day&metric_type=total_value'
-        + '&since=' + d + '&until=' + sau.toISOString().slice(0, 10)
-        + '&access_token=' + encodeURIComponent(token);
-      try {
-        const { data } = await doInsights(u, TONG, 'Instagram total_value ' + d);
-        const row = lay(d);
-        data.forEach((m) => {
-          const cot = COT[m.name];
-          if (!cot) return;
-          row[cot] += num(m.total_value && m.total_value.value);
-        });
-      } catch (_) { /* một ngày lỗi không đáng dừng cả tháng */ }
+  const ngayLoi = [];
+
+  /* Chạy vài ngày một lúc. Đo thật trên 50 ngày: tuần tự 126s, bốn luồng 94s,
+   * tám luồng 84s — nút cổ chai nằm ở phía Meta chứ không phải ở mình, nên tăng
+   * luồng gần như không lợi thêm. Lấy bốn: rẻ nhất trong ba lựa chọn về rủi ro
+   * chạm ngưỡng gọi, mà vẫn cắt được một phần tư thời gian. Cả ba lần đo đều ra
+   * đúng 154.974 lượt xem, nên chạy song song không làm sai số.
+   *
+   * Nạp lại cả năm vẫn mất khoảng tám phút cho mỗi tài khoản IG. Đồng bộ hằng
+   * ngày thì chỉ vài ngày, không đáng kể. */
+  const LUONG = 4;
+  const motNgay = async (d) => {
+    const sau = new Date(d + 'T00:00:00Z');
+    sau.setUTCDate(sau.getUTCDate() + 1);
+    const u = g(fb) + '/' + igId + '/insights?period=day&metric_type=total_value'
+      + '&since=' + d + '&until=' + sau.toISOString().slice(0, 10)
+      + '&access_token=' + encodeURIComponent(token);
+    try {
+      const { data } = await doInsights(u, TONG, 'Instagram total_value ' + d);
+      const row = lay(d);
+      data.forEach((m) => {
+        const cot = COT[m.name];
+        if (!cot) return;
+        row[cot] += num(m.total_value && m.total_value.value);
+      });
+    } catch (e) {
+      /* Trước đây nuốt im lặng. Một ngày hỏng thì không đáng dừng cả năm, nhưng
+       * hỏng bao nhiêu ngày thì phải nói ra — nếu không, gặp giới hạn gọi của
+       * Meta giữa chừng là mất trắng nửa cuối mà nhìn màn hình vẫn thấy bình
+       * thường, chỉ là đường biểu đồ thấp xuống. */
+      ngayLoi.push(d);
     }
-  } else {
-    /* Khoảng dài: gọi từng ngày thì quá tốn, mà gọi một phát thì Instagram chặn ở
-     * 30 ngày. Chia cửa sổ 30 ngày, mỗi cửa sổ lấy TỔNG rồi dồn vào ngày cuối cửa
-     * sổ đó. Không phải số từng ngày, nhưng còn đọc được theo tháng — và nói thẳng
-     * ra để không ai tưởng đó là số của đúng ngày ấy. */
-    const cua = chiaKhoang(from, to, 30);
-    for (const [tu, den] of cua) {
-      try {
-        const u = g(fb) + '/' + igId + '/insights?period=day&metric_type=total_value'
-          + '&since=' + tu + '&until=' + den
-          + '&access_token=' + encodeURIComponent(token);
-        const { data } = await doInsights(u, TONG, 'Instagram total_value ' + tu + '→' + den);
-        const row = lay(den);
-        data.forEach((m) => {
-          const cot = COT[m.name];
-          if (cot) row[cot] += num(m.total_value && m.total_value.value);
-        });
-      } catch (e) {
-        canhBao.push('Instagram · ' + (acc.name || igId) + ' (' + tu + '→' + den + '): ' + e.message);
-      }
-    }
-    canhBao.push('Instagram · ' + (acc.name || igId) + ': khoảng ' + ds.length
-      + ' ngày dài hơn ' + NGAY_TOI_DA + ' nên views/thích/bình luận/chia sẻ/lưu chỉ có TỔNG '
-      + 'theo từng cửa sổ 30 ngày, dồn vào ngày cuối mỗi cửa sổ (' + cua.length + ' mốc). '
-      + 'Chạy lại theo từng tháng nếu cần số từng ngày.');
+  };
+  for (let i = 0; i < ds.length; i += LUONG) {
+    await Promise.all(ds.slice(i, i + LUONG).map(motNgay));
+  }
+
+  if (ngayLoi.length) {
+    ngayLoi.sort();
+    canhBao.push('Instagram · ' + (acc.name || igId) + ': ' + ngayLoi.length + '/' + ds.length
+      + ' ngày không lấy được lượt xem/thích/bình luận/chia sẻ/lưu (' + ngayLoi[0]
+      + (ngayLoi.length > 1 ? ' → ' + ngayLoi[ngayLoi.length - 1] : '') + '). '
+      + 'Các cột đó ở những ngày này để trống chứ không phải bằng 0.');
   }
 
   /* Follower luỹ kế: IG chỉ trả follower_count = số follow MỚI trong ngày, không

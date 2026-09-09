@@ -317,4 +317,36 @@ t('lượt hiển thị của Facebook không được đổ vào cột tiếp c
     'không metric Facebook nào được ánh xạ sang reach');
 });
 
+console.log('\nlink uỷ quyền Zalo');
+
+t('link cấp quyền Zalo mang đúng cặp PKCE', () => {
+  /* Zalo v4 bắt buộc PKCE. Nếu code_challenge không phải là sha256 của verifier
+     mình giữ lại thì lúc đổi mã Zalo từ chối, mà thông báo lỗi không nói ra
+     nguyên nhân — rất khó lần. */
+  const crypto = require('crypto');
+  const zalo = require('../sync/zalo');
+  const r = zalo.linkCapQuyen({ appId: '999' }, 'https://vi.du/zalo-callback');
+  const u = new URL(r.link);
+  assert.strictEqual(u.origin + u.pathname, 'https://oauth.zaloapp.com/v4/oa/permission');
+  assert.strictEqual(u.searchParams.get('app_id'), '999');
+  assert.strictEqual(u.searchParams.get('redirect_uri'), 'https://vi.du/zalo-callback');
+  assert.strictEqual(u.searchParams.get('code_challenge_method'), 'S256');
+  assert.strictEqual(u.searchParams.get('code_challenge'),
+    crypto.createHash('sha256').update(r.codeVerifier).digest('base64url'));
+  assert.ok(r.codeVerifier.length >= 43 && r.codeVerifier.length <= 128);
+});
+
+t('mỗi lần tạo link là một verifier khác', () => {
+  const zalo = require('../sync/zalo');
+  const a = zalo.linkCapQuyen({ appId: '1' }, 'https://vi.du/cb');
+  const b = zalo.linkCapQuyen({ appId: '1' }, 'https://vi.du/cb');
+  assert.notStrictEqual(a.codeVerifier, b.codeVerifier);
+});
+
+t('thiếu appId hoặc redirect thì nói rõ thiếu gì', () => {
+  const zalo = require('../sync/zalo');
+  assert.throws(() => zalo.linkCapQuyen({}, 'https://vi.du/cb'), /App ID/);
+  assert.throws(() => zalo.linkCapQuyen({ appId: '1' }, ''), /chuyển hướng/);
+});
+
 console.log('\n' + so + ' phép thử đạt' + (process.exitCode ? ' — CÓ LỖI' : '') + '\n');

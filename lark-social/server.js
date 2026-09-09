@@ -542,6 +542,18 @@ async function api(req, res, u) {
     });
   }
 
+  if (p === '/api/ket-noi/zalo/link' && method === 'POST') {
+    const loi = chanNeuKhongPhaiQuanLy(req); if (loi) throw loi;
+    const b = await readBody(req);
+    const c = await ketnoi.doc();
+    const conf = { ...c.zalo, appId: tho(b.appId) || c.zalo.appId };
+    const r = zalo.linkCapQuyen(conf, b.redirectUri);
+    /* Cất verifier lại ngay: người dùng sẽ rời trang sang Zalo rồi mới quay về
+     * dán mã, mà mã chỉ đổi được nếu nộp đúng verifier đã dùng lúc tạo link. */
+    ketnoi.ghiKhoi('zalo', { ...conf, codeVerifier: r.codeVerifier });
+    return ok(res, { link: r.link });
+  }
+
   if (p === '/api/ket-noi/zalo/doi-ma' && method === 'POST') {
     const loi = chanNeuKhongPhaiQuanLy(req); if (loi) throw loi;
     const b = await readBody(req);
@@ -552,7 +564,7 @@ async function api(req, res, u) {
       appId: tho(b.appId) || c.zalo.appId,
       secretKey: tho(b.secretKey) || c.zalo.secretKey,
     };
-    const tok = await zalo.doiMa(conf, b.code, b.codeVerifier || '');
+    const tok = await zalo.doiMa(conf, b.code, b.codeVerifier || c.zalo.codeVerifier || '');
     const tt = await zalo.thongTinOa(tok.accessToken);
     const oas = (c.zalo.oas || []).filter((o) => o.oaId !== tt.oaId);
     oas.push({ oaId: tt.oaId, name: tt.name, ...tok });

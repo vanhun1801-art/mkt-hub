@@ -18,7 +18,7 @@
     .replace(/"/g, '&quot;');
 
   const LOP = {
-    Facebook: 'fb', TikTok: 'tt', Instagram: 'ig', 'Zalo OA': 'za',
+    Facebook: 'fb', TikTok: 'tt', Instagram: 'ig', 'Zalo OA': 'za', 'Zalo Video': 'zv',
     Douyin: 'dy', Xiaohongshu: 'xhs',
   };
   const lop = (p) => LOP[p] || '';
@@ -281,6 +281,15 @@
       + theKpi('Tương tác', gon(t.engagement), d.doi.engagement)
       + theKpi('Tỷ lệ tương tác', pct(t.tyLeTuongTac), d.doi.tyLeTuongTac)
       + '</div>'
+
+      /* Đặt ngay dưới hàng số, trên biểu đồ — chứ không nhét vào nhật ký đồng bộ.
+       * Người đọc biểu đồ không mở nhật ký. */
+      + ((d.luuY || []).length
+        ? '<div class="notes" style="margin-top:14px">'
+          + d.luuY.map((x) => '<div class="note"><span class="ico">!</span><span>'
+            + esc(x) + '</span></div>').join('')
+          + '</div>'
+        : '')
 
       + '<div class="grid g-2-1" style="margin-top:14px">'
       + '<div class="card"><div class="card-head"><h3>Lượt xem &amp; tiếp cận theo ngày</h3>'
@@ -553,7 +562,11 @@
   }
 
   function moThemKenh() {
-    const ds = ['TikTok', 'Facebook', 'Instagram', 'Zalo OA', 'Douyin', 'Xiaohongshu', 'YouTube'];
+    /* Zalo Video không có API mở — số phải nhập tay hoặc dán từ file
+     * "Xuất dữ liệu thống kê" của Creator Center, nên nó nằm ở đây chứ không ở
+     * khối kết nối. */
+    const ds = ['TikTok', 'Facebook', 'Instagram', 'Zalo OA', 'Zalo Video',
+      'Douyin', 'Xiaohongshu', 'YouTube'];
     moModal('<div class="modal-head"><h3>Thêm kênh</h3></div>'
       + '<div class="modal-body"><div class="kn-form">'
       + '<div class="kn-row"><label>Tên kênh</label><input id="kName" placeholder="Cuộc sống tại Phú Quốc"></div>'
@@ -801,9 +814,16 @@
       + '<input id="zaApp" value="' + esc(c.zalo.appId || '') + '"></div>'
       + '<div class="kn-row"><label>Secret key</label>'
       + '<input id="zaSecret" value="' + esc(c.zalo.secretKey || '') + '"></div>'
-      + '<div class="kn-row"><label>Mã uỷ quyền</label>'
-      + '<input id="zaCode" placeholder="oauth_code lấy ở trang quản trị OA — chỉ cần một lần"></div>'
-      + '<div><button class="btn ghost small" id="zaDoi">Đổi mã lấy token</button>'
+      + '<div class="kn-row"><label>Địa chỉ chuyển hướng</label>'
+      + '<input id="zaRedirect" value="' + esc(c.zalo.redirectUri || (location.origin + '/zalo-callback'))
+      + '"><span class="help">Phải trùng từng ký tự với ô Redirect URI khai trong ứng dụng ở '
+      + 'developers.zalo.me. Trang đó không cần tồn tại — chỉ cần Zalo chịu chuyển về, rồi '
+      + 'chép mã trên thanh địa chỉ.</span></div>'
+      + '<div style="margin:8px 0"><button class="btn ghost small" id="zaLink">1 · Tạo link cấp quyền</button></div>'
+      + '<div id="zaLinkBox"></div>'
+      + '<div class="kn-row"><label>2 · Mã uỷ quyền</label>'
+      + '<input id="zaCode" placeholder="dán giá trị code=... trên thanh địa chỉ sau khi bấm Cho phép"></div>'
+      + '<div><button class="btn ghost small" id="zaDoi">3 · Đổi mã lấy token</button>'
       + ' <span class="help">Token Zalo sống 1 giờ; app tự làm mới và cất bản mới vào kho khoá.</span></div>'
       + '<div class="acc-list">'
       + (c.zalo.oas || []).map((o) => '<div class="acc"><span class="grow">'
@@ -870,6 +890,26 @@
         };
       } catch (e) { toast(e.message, 'err'); }
     };
+    $('#zaLink').onclick = async () => {
+      try {
+        const r = await goiJSON('/api/ket-noi/zalo/link', {
+          appId: $('#zaApp').value.trim(),
+          redirectUri: $('#zaRedirect').value.trim(),
+        });
+        $('#zaLinkBox').innerHTML = '<div class="note info"><span class="ico">→</span><span>'
+          + 'Mở link này bằng trình duyệt <b>đang đăng nhập tài khoản quản trị OA</b>. '
+          + 'Bấm <b>Cho phép</b>, Zalo sẽ chuyển sang một trang trắng (hoặc báo lỗi không sao) — '
+          + 'chép đoạn <b>code=…</b> trên thanh địa chỉ rồi dán xuống ô bên dưới. '
+          + 'Mã chỉ dùng được một lần và hết hạn nhanh, nên dán ngay.<br>'
+          + '<a href="' + esc(r.link) + '" target="_blank" rel="noreferrer">' + esc(r.link.slice(0, 110))
+          + '…</a><br><button class="btn ghost small" id="zaChep">Chép link</button></span></div>';
+        $('#zaChep').onclick = () => {
+          navigator.clipboard.writeText(r.link).then(() => toast('Đã chép link'),
+            () => toast('Không chép được — bôi đen link rồi Ctrl+C', 'err'));
+        };
+      } catch (e) { toast(e.message, 'err'); }
+    };
+
     $('#ttLink').onclick = async () => {
       try {
         const r = await goiJSON('/api/ket-noi/tiktok/link', {
@@ -964,6 +1004,7 @@
           giaTri: {
             enabled: $('#zaOn').checked,
             appId: $('#zaApp').value, secretKey: $('#zaSecret').value,
+            redirectUri: $('#zaRedirect').value.trim(),
           },
         });
         await goiJSON('/api/ket-noi', {
