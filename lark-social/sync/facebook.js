@@ -94,6 +94,17 @@ const QUYEN_CAN = [
  * Nhớ ở mức tiến trình nên trang thứ hai trở đi khỏi dò lại. */
 const DA_CHET = new Set();
 
+/**
+ * Lỗi này có đúng nghĩa "metric không tồn tại" không?
+ *
+ * Phân biệt sống còn: thiếu quyền (#10, #200), token hết hạn (#190) hay quá tải
+ * (#4, #17) đều KHÔNG phải metric chết. Gộp chung thì một token thiếu quyền làm
+ * app đánh dấu chết sạch mọi metric và báo sai hoàn toàn nguyên nhân.
+ */
+const laMetricHong = (err) => Number(err && err.code) === 100
+  && /valid insights metric|nonexisting field|Unsupported get request/i
+    .test(String((err && err.message) || ''));
+
 const g = (conf) => 'https://graph.facebook.com/' + (conf.apiVersion || 'v23.0');
 
 /**
@@ -108,6 +119,9 @@ async function doInsights(url0, metrics, nhan) {
     } catch (e) { throw new Error(scrub(nhan + ': ' + e.message)); }
   };
 
+  const neLoi = (err) => new Error(scrub(nhan + ' — Meta báo lỗi ('
+    + err.code + '): ' + String(err.message || '')));
+
   let conLai = metrics.filter((m) => !DA_CHET.has(m));
   const bo = [];
 
@@ -115,6 +129,15 @@ async function doInsights(url0, metrics, nhan) {
     if (!conLai.length) return { data: [], bo };
     const res = await goi(conLai);
     if (!res.error) return { data: res.data || [], bo };
+
+    /* Lỗi KHÔNG phải "metric không hợp lệ" thì ném thẳng, đừng dò gì cả.
+     *
+     * Bản trước coi mọi lỗi là metric chết, nên một token thiếu read_insights làm
+     * cả tám metric bị đánh dấu chết và nhật ký ghi "v23.0 không còn nhận
+     * page_post_engagements, page_views_total…" — kể tên đúng những metric vừa
+     * kiểm chứng là còn sống. Một câu bịa như thế còn tệ hơn im lặng: người đọc
+     * đi tìm cách thay metric trong khi việc phải làm là cấp lại token. */
+    if (!laMetricHong(res.error)) throw neLoi(res.error);
 
     const msg = String(res.error.message || '');
     const thuPham = conLai.find((m) => msg.includes(m));
@@ -126,22 +149,20 @@ async function doInsights(url0, metrics, nhan) {
       continue;
     }
 
-    /* Meta KHÔNG nói metric nào hỏng — chỉ "The value must be a valid insights
-     * metric". Bản trước gặp câu này là ném lỗi và mất trắng cả ngày dữ liệu của
-     * trang. Giờ dò từng cái một: tốn thêm mấy lượt gọi đúng một lần, rồi nhớ lại
-     * ở DA_CHET nên những trang sau khỏi dò. Nhờ vậy Meta có bỏ thêm metric nào
-     * nữa thì app tự lách, không cần ai sửa code. */
+    /* Meta biết là metric hỏng nhưng KHÔNG nói cái nào — chỉ "The value must be a
+     * valid insights metric". Dò từng cái một, rồi nhớ vào DA_CHET nên trang sau
+     * khỏi dò lại. Nhờ vậy Meta có gỡ thêm metric nào nữa thì app tự lách. */
     const song = [];
     for (const m of conLai) {
       const r1 = await goi([m]);
-      if (r1.error) { DA_CHET.add(m); bo.push(m); } else song.push(m);
+      if (!r1.error) { song.push(m); continue; }
+      if (!laMetricHong(r1.error)) throw neLoi(r1.error);
+      DA_CHET.add(m);
+      bo.push(m);
     }
     if (!song.length) return { data: [], bo };
     const cuoi = await goi(song);
-    if (cuoi.error) {
-      throw new Error(scrub(nhan + ' — Meta báo lỗi (' + cuoi.error.code + '): '
-        + String(cuoi.error.message || '')));
-    }
+    if (cuoi.error) throw neLoi(cuoi.error);
     return { data: cuoi.data || [], bo };
   }
   return { data: [], bo };
@@ -468,5 +489,6 @@ async function test(conf) {
 }
 
 module.exports = {
-  PLATFORM, NGUON, fetchRange, test, danhSachPage, METRIC_NGAY, QUYEN_CAN, doInsights,
+  PLATFORM, NGUON, fetchRange, test, danhSachPage,
+  METRIC_NGAY, QUYEN_CAN, doInsights, laMetricHong,
 };

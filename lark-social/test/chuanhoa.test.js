@@ -209,4 +209,37 @@ t('themNgay qua mốc tháng vẫn đúng', () => {
   assert.strictEqual(store.themNgay('2026-02-28', 1), '2026-03-01');
 });
 
+console.log('\nphân loại lỗi của Meta');
+
+const { laMetricHong } = require('../sync/facebook');
+
+t('chỉ lỗi "metric không hợp lệ" mới được coi là metric đã bị gỡ', () => {
+  assert.strictEqual(laMetricHong(
+    { code: 100, message: '(#100) The value must be a valid insights metric' }), true);
+  assert.strictEqual(laMetricHong(
+    { code: 100, message: '(#100) Tried accessing nonexisting field' }), true);
+});
+
+t('thiếu quyền / hết hạn / quá tải KHÔNG phải metric chết', () => {
+  /* Bản trước gộp chung: một token thiếu read_insights làm cả tám metric bị đánh
+     dấu chết, và nhật ký ghi "v23.0 không còn nhận page_post_engagements,
+     page_views_total…" — kể tên đúng những metric vừa kiểm chứng là còn sống.
+     Câu bịa đó tệ hơn im lặng: người đọc đi thay metric trong khi việc phải làm
+     là cấp lại token. */
+  [
+    { code: 10, message: "(#10) This endpoint requires the 'pages_read_user_content' permission" },
+    { code: 200, message: '(#200) Permissions error' },
+    { code: 190, message: 'Error validating access token: Session has expired' },
+    { code: 4, message: '(#4) Application request limit reached' },
+    { code: 100, message: '(#100) Missing permissions' },
+  ].forEach((e) => assert.strictEqual(laMetricHong(e), false,
+    'lỗi ' + e.code + ' không được coi là metric chết'));
+});
+
+t('không nổ khi thiếu err hoặc thiếu message', () => {
+  assert.strictEqual(laMetricHong(null), false);
+  assert.strictEqual(laMetricHong({}), false);
+  assert.strictEqual(laMetricHong({ code: 100 }), false);
+});
+
 console.log('\n' + so + ' phép thử đạt' + (process.exitCode ? ' — CÓ LỖI' : '') + '\n');
