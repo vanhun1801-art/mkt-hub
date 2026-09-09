@@ -209,6 +209,56 @@ const ten = (a) => a.replace('lark-', '').padEnd(16);
       !CSS['lark-mkt-hub'].includes('--bong-the'));
   }
 
+  group('7. Thanh trên phải xuống dòng được — không thì nút bị đẩy ra ngoài khung');
+  {
+    /* Đã vỡ thật một lần, ở app Bảng công việc: thanh trên gom logo + 5 tab + ô
+     * tìm + 6 nút, cộng lại 1476px. Không cho xuống dòng thì ở cửa sổ 1280 nó
+     * đẩy cả TRANG rộng ra 1476 — trang trượt ngang, và ba nút cuối (Quyền, Tải
+     * lại, Base) nằm ngoài khung, không cách nào bấm tới.
+     *
+     * Bốn app còn lại lúc đó chưa vỡ chỉ vì nội dung vừa đủ vừa. Thêm một nút
+     * là vỡ y như vậy, nên canh cả năm.
+     *
+     * Và chiều cao phải là min-height: `height` cứng thì hàng thứ hai bị cắt,
+     * tức là vẫn mất nút, chỉ mất theo chiều khác. */
+    const TB = {
+      'lark-mkt-hub': '.page-head',
+      'lark-task-manager': '.topbar',
+      'lark-lich-tac-nghiep': '.topbar',
+      'lark-ads-manager': '.topbar',
+      'lark-ota-manager': '.topbar',
+      'lark-social': '.topbar',
+    };
+    const wrap = APPS.map((a) => [a, trongKhoi(CSS[a], TB[a], 'flex-wrap')]);
+    ok('mọi app: thanh trên khai flex-wrap: wrap',
+      wrap.every(([, v]) => v === 'wrap'),
+      wrap.map(([a, v]) => '\n        ' + ten(a) + TB[a] + ' → ' + (v || '(không khai)')).join(''));
+
+    const cao = APPS.map((a) => [a, trongKhoi(CSS[a], TB[a], 'height')]);
+    ok('không app nào đặt chiều cao CỨNG cho thanh trên',
+      cao.every(([, v]) => !v),
+      cao.map(([a, v]) => '\n        ' + ten(a) + (v ? 'height: ' + v : '—')).join(''));
+  }
+
+  group('8. Dãy nút phân đoạn của lớp vỏ không được cắt mất nút');
+  {
+    /* .seg dùng overflow: hidden để bo góc ăn vào nút đầu/nút cuối. Khi khung
+     * hẹp thì chính nó ăn luôn nút: dãy 7 mốc thời gian cần 404px, ở cửa sổ
+     * 390px chỉ được 294 — "Năm nay" và "Tuỳ chỉnh" mất hẳn. */
+    const s = CSS['lark-mkt-hub'];
+    ok('.seg khai flex-wrap: wrap', trongKhoi(s, '.seg', 'flex-wrap') === 'wrap',
+      trongKhoi(s, '.seg', 'flex-wrap') || '(không khai)');
+    ok('.khoi-head khai flex-wrap: wrap', trongKhoi(s, '.khoi-head', 'flex-wrap') === 'wrap',
+      trongKhoi(s, '.khoi-head', 'flex-wrap') || '(không khai)');
+    /* Dải 30 ngày: bề rộng tối thiểu do CẢ HÀNG lo, và khối bọc phải tự cuộn.
+     * Bỏ một trong hai thì hoặc ô ngày bị bóp còn 1,7px, hoặc chúng tràn sang
+     * đè lên cột tổng bên phải — đã gặp đúng cả hai. */
+    ok('.tn-hang có min-width bằng px', /^\d+px$/.test(trongKhoi(s, '.tn-hang', 'min-width') || ''),
+      trongKhoi(s, '.tn-hang', 'min-width') || '(không khai)');
+    ok('.tai-nhiet tự cuộn ngang', trongKhoi(s, '.tai-nhiet', 'overflow-x') === 'auto',
+      trongKhoi(s, '.tai-nhiet', 'overflow-x') || '(không khai)');
+  }
+
   console.log('\n' + '─'.repeat(56));
   console.log('  ' + pass + ' pass · ' + fail + ' fail');
   if (fail) { console.log('\n  Không đạt:'); fails.forEach((f) => console.log('   - ' + f)); }

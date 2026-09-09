@@ -329,7 +329,7 @@ button { font: inherit; }
 
 /* ---- đầu trang Tổng quan chung ---- */
 .page-head {
-  display: flex; align-items: flex-start; gap: 16px;
+  display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px 16px;
   padding: 14px var(--le); background: var(--trang);
   border-bottom: 1px solid var(--vien);
   position: sticky; top: 0; z-index: 3;
@@ -354,7 +354,18 @@ button { font: inherit; }
 .loc-ngay { display: inline-flex; align-items: center; gap: 6px; }
 .loc-ngay input[type=date] { width: auto; padding: 5px 8px; font-size: 13px; }
 
-.seg { display: inline-flex; border: 1px solid var(--vien); border-radius: var(--r-nho); overflow: hidden; background: var(--trang); }
+/* `overflow: hidden` ở đây chỉ để bo góc ăn vào nút đầu và nút cuối. Nhưng khi
+   khung hẹp lại thì chính nó ăn luôn mấy nút cuối: ở 390px dãy 7 mốc cần 404px
+   mà chỉ được 294 — "Năm nay" và "Tuỳ chỉnh" không còn cách nào bấm tới.
+
+   `flex-wrap: wrap` cho nút xuống dòng thay vì bị cắt. Vẫn để dãy co được (không
+   đặt flex-shrink: 0), vì giữ nguyên 404px thì đến lượt cả trang trượt ngang —
+   đổi một chỗ mất thành phần lấy một chỗ khác. */
+.seg {
+  display: inline-flex; flex-wrap: wrap;
+  border: 1px solid var(--vien); border-radius: var(--r-nho);
+  overflow: hidden; background: var(--trang);
+}
 .seg button {
   border: 0; background: var(--trang); color: var(--chu-mo);
   padding: 6px 11px; font-size: 13px; cursor: pointer; border-right: 1px solid var(--vien);
@@ -497,10 +508,14 @@ button { font: inherit; }
   background: var(--trang); border: 1px solid var(--vien); border-radius: var(--r);
   box-shadow: var(--bong); overflow: hidden;
 }
+/* Cho xuống dòng: tiêu đề base dài nên nó nở ra và bóp mọi thứ bên phải. Dãy
+   Heatmap/Theo ngày từng bị bóp còn 20px trên 111px cần thiết — tức là mất cả
+   hai nút. Xuống dòng thì dãy nút giữ đúng bề rộng của nó. */
 .khoi-head {
-  display: flex; align-items: center; gap: 9px; padding: 12px 14px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 9px; padding: 12px 14px;
   border-bottom: 1px solid var(--vien-mem);
 }
+.khoi-head .seg { flex: 0 0 auto; }
 .khoi-head .kh-ic {
   width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center;
   font-size: 10.5px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; flex: 0 0 auto;
@@ -756,11 +771,32 @@ code { background: var(--trang-2); border: 1px solid var(--vien-mem); border-rad
    ============================================================ */
 .khoi-tai .khoi-body { padding: 12px 14px 14px; }
 
-.tai-nhiet { display: flex; flex-direction: column; gap: 4px; }
+/* Cuộn ngang khi không đủ chỗ. Khối cha (.khoi) đang overflow-x: hidden để bo
+   góc, nên nếu bảng này nở ra mà không tự cuộn thì phần bên phải bị cắt mất
+   chứ không phải kéo tới được. */
+.tai-nhiet { display: flex; flex-direction: column; gap: 4px; overflow-x: auto; }
 
+/* Cột giữa dùng minmax(min-content, …) chứ không phải minmax(0, …): dải 30 ngày
+   có bề rộng tối thiểu (xem .tn-o) và cột phải tôn trọng nó. Với minmax(0, …)
+   thì ở 390px cột giữa chỉ còn 50px cho 30 ngày — 1,7px mỗi ngày, tức là dải
+   thời gian còn đó mà không đọc được gì. */
+/* `min-width` bằng px, không phải min-content.
+ *
+ * Đã thử minmax(min-content, 1fr) cộng min-width: min-content — không ăn: hàng
+ * là flex item của .tai-nhiet nên bị kéo về bề ngang khung, và các ô ngày tràn
+ * ra ĐÈ LÊN cột tổng bên phải. Tệ hơn cả lúc bị bóp.
+ *
+ * Một con số px thì đoán được: dưới mức này khối tự cuộn ngang (.tai-nhiet),
+ * trên mức này lưới giãn như thường. 560 = 168 + 96 + hai khe 12 + 272 cho dải
+ * 30 ngày, tức mỗi ngày còn hơn 6px — nhỏ nhưng còn đọc được thành dải. */
 .tn-hang {
   display: grid; grid-template-columns: 168px minmax(0, 1fr) 96px;
-  gap: 12px; align-items: center;
+  gap: 12px; align-items: center; min-width: 560px;
+}
+/* Hẹp thì thu hai cột cố định lại trước, cắt dải thời gian là phương án cuối. */
+/* Hẹp thì thu hai cột cố định lại trước, cho dải thời gian giữ được chỗ lâu hơn. */
+@media (max-width: 1000px) {
+  .tn-hang { grid-template-columns: 120px minmax(0, 1fr) 72px; gap: 8px; min-width: 470px; }
 }
 .tn-hang:hover .tn-ten { color: var(--chu); }
 
@@ -777,6 +813,8 @@ code { background: var(--trang-2); border: 1px solid var(--vien-mem); border-rad
 
 .tn-dai { display: flex; gap: 3px; }
 .tn-o {
+  /* min-width: 0 — bề rộng tối thiểu do CẢ HÀNG lo (.tn-hang), không phải từng
+     ô. Đặt ở đây thì các ô cộng lại vượt cột giữa và tràn sang cột bên phải. */
   flex: 1 1 0; min-width: 0; height: 22px; border-radius: 6px;
   background: var(--nhiet-0);
   display: grid; place-items: center;

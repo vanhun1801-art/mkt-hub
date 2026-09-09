@@ -155,8 +155,12 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; color: var(--text-4); }
 
 /* ---------------- thanh trên ---------------- */
+/* flex-wrap: wrap — thanh trên có logo + 5 tab + ô tìm + 6 nút, cộng lại 1476px.
+   Không cho xuống dòng thì ở 1280px nó đẩy cả TRANG rộng ra 1476: trang trượt
+   ngang, và ba nút cuối (Quyền, Tải lại, Base) nằm ngoài khung — không bấm tới
+   được. Xuống dòng thì mất một hàng, nhưng không mất nút nào. */
 .topbar {
-  display: flex; align-items: center; gap: 16px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px;
   padding: 10px 16px; background: var(--surface);
   border-bottom: 1px solid var(--border); flex: 0 0 auto;
 }
@@ -179,7 +183,7 @@ body { display: flex; flex-direction: column; overflow: hidden; }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 210px;
 }
 
-.tabs { display: flex; gap: 2px; background: var(--surface-3); padding: 3px; border-radius: var(--r); flex: 0 0 auto; }
+.tabs { display: flex; flex-wrap: wrap; gap: 2px; background: var(--surface-3); padding: 3px; border-radius: var(--r); flex: 0 1 auto; }
 .tab {
   border: 0; background: transparent; color: var(--text-2);
   padding: 6px 14px; border-radius: var(--r-sm); cursor: pointer;
@@ -189,7 +193,12 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 .tab:hover { color: var(--text); }
 .tab.is-active { background: var(--surface); color: var(--text); font-weight: 600; box-shadow: var(--shadow); }
 
-.topbar-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; min-width: 0; }
+/* Cho cả nhóm nút tự xuống dòng trong nội bộ nó nữa: sáu nút mà chỉ còn nửa
+   hàng thì vẫn phải xếp được thành hai hàng. */
+.topbar-actions {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  margin-left: auto; min-width: 0;
+}
 
 .mechip {
   display: inline-flex; align-items: center; gap: 7px; flex: 0 0 auto;

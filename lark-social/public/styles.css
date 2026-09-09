@@ -41,7 +41,12 @@ button { font: inherit; }
 /* ---------- top bar ---------- */
 .topbar {
   position: sticky; top: 0; z-index: 40;
-  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+/* flex-wrap + min-height (không phải height): thanh trên gom logo, tab và một
+   dãy nút, cộng lại dễ vượt bề ngang khung. Không cho xuống dòng thì nó đẩy cả
+   TRANG rộng ra và mấy nút cuối nằm ngoài khung, không bấm tới được — đúng lỗi
+   đã gặp ở app Bảng công việc. Chiều cao phải là min-height, vì height cứng thì
+   hàng thứ hai bị cắt. */
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px;
   padding: 10px 20px;
   background: var(--panel); border-bottom: 1px solid var(--line);
 }
@@ -395,6 +400,7 @@ table.tbl tfoot td { font-weight: 700; background: var(--panel-2); border-top: 2
 .pill.xhs.on { background: var(--xhs); border-color: var(--xhs); }
 .tag.ig { background: #fde7f1; color: var(--ig); }
 .tag.za { background: #e6f0ff; color: var(--za); }
+.tag.zv { background: #e0ecff; color: #1a4fa0; }
 .tag.dy { background: #f0e9ff; color: var(--dy); }
 .tag.xhs { background: #ffe8eb; color: var(--xhs); }
 
