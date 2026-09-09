@@ -615,7 +615,8 @@
       + '<b>Xoá và dựng lại</b> các dòng ngày do máy ghi trong khoảng đã chọn — dòng nhập tay '
       + 'và dòng LIVE giữ nguyên. Dùng khi vừa nối thêm kênh hoặc lịch sử đang sai; '
       + 'đừng bật cho lần chạy hằng ngày.</span></label></div>'
-      + '<div class="log-box" id="dbLog" style="margin-top:12px">Chưa chạy.</div>'
+      + '<div id="dbTT" class="help" style="margin-top:12px">Chưa chạy.</div>'
+      + '<div class="log-box" id="dbLog" style="margin-top:6px">—</div>'
       + '</div>'
       + '<div class="modal-foot"><button class="btn ghost" id="mHuy">Đóng</button>'
       + '<button class="btn ghost" id="mThu">Thử kết nối</button>'
@@ -636,13 +637,33 @@
     };
     $('#mChay').onclick = async () => {
       $('#mChay').disabled = true;
-      $('#dbLog').textContent = 'Đang chạy…';
+      $('#dbLog').textContent = 'Đang khởi động…';
+      $('#dbTT').textContent = 'Đang chạy — 0 giây';
+
+      /* Nhịp tim.
+         Một lượt "Nạp lại từ đầu" cả năm chạy hơn 10 phút, và có những đoạn dài
+         không sinh dòng log nào — kéo hết bài của một kênh, hoặc ghi hàng trăm
+         dòng lên Base. Không có đồng hồ chạy thì màn hình trông y hệt đã treo,
+         và người dùng bấm lại hoặc đóng tab giữa chừng. */
+      let nhip = 0;
       hen = setInterval(async () => {
         try {
           const t = await goi('/api/dong-bo/trang-thai');
-          $('#dbLog').textContent = (t.log || []).join('\n') || 'Đang chạy…';
+          $('#dbLog').textContent = (t.log || []).join('\n') || 'Đang khởi động…';
           $('#dbLog').scrollTop = $('#dbLog').scrollHeight;
-        } catch (_) {}
+          nhip = (nhip + 1) % 4;
+          const ph = Math.floor(t.giay / 60);
+          const gio = (ph ? ph + ' phút ' : '') + (t.giay % 60) + ' giây';
+          $('#dbTT').innerHTML = t.dangChay
+            ? '<b>Đang chạy</b> — ' + gio + '.'.repeat(nhip)
+              + ' · ' + (t.log || []).length + ' dòng nhật ký'
+              + '<br><span style="opacity:.75">Nạp lại cả năm mất khoảng 10 phút. '
+              + 'Có lúc log đứng yên vài phút vì đang ghi hàng trăm dòng lên Base — '
+              + 'đồng hồ còn chạy là còn sống.</span>'
+            : 'Đã dừng.';
+        } catch (_) {
+          $('#dbTT').textContent = 'Mất liên lạc với máy chủ — việc vẫn có thể đang chạy.';
+        }
       }, 1500);
       try {
         const r = await goiJSON('/api/dong-bo', {
@@ -662,6 +683,8 @@
       } finally {
         clearInterval(hen); hen = null;
         $('#mChay').disabled = false;
+        const el = $('#dbTT');
+        if (el) el.textContent = 'Đã xong.';
       }
     };
   }

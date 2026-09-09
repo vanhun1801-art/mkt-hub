@@ -17,6 +17,7 @@
  * cuối, kèm cảnh báo — thà nói thật còn hơn bịa số cho từng ngày.
  */
 const { getJson, scrub, hideSecret } = require('./http');
+const { chiaKhoang } = require('./ngay');
 
 const PLATFORM = 'Instagram';
 const NGUON = 'Instagram API';
@@ -117,12 +118,22 @@ async function ngayCuaIg(fb, token, acc, from, to, canhBao) {
     return theoNgay.get(d);
   };
 
-  // --- họ chuỗi thời gian: một lời gọi cho cả khoảng ---
-  const url0 = g(fb) + '/' + igId + '/insights?period=day'
-    + '&since=' + from + '&until=' + to
-    + '&access_token=' + encodeURIComponent(token);
+  /* --- họ chuỗi thời gian ---
+   * Instagram chặn ở ĐÚNG 30 ngày và trả "(#100) There cannot be more than 30
+   * days between since and until" cho cả request. Hỏi cả năm là mất trắng, nên
+   * phải chia cửa sổ — lỗi này chỉ lộ ra lúc chạy "Nạp lại từ đầu". */
   try {
-    const { data, bo } = await doInsights(url0, CHUOI_TG, 'Instagram insights ' + (acc.name || igId));
+    const data = [];
+    const boTatCa = new Set();
+    for (const [tu, den] of chiaKhoang(from, to, 30)) {
+      const url0 = g(fb) + '/' + igId + '/insights?period=day'
+        + '&since=' + tu + '&until=' + den
+        + '&access_token=' + encodeURIComponent(token);
+      const r = await doInsights(url0, CHUOI_TG, 'Instagram insights ' + (acc.name || igId));
+      data.push(...r.data);
+      r.bo.forEach((x) => boTatCa.add(x));
+    }
+    const bo = [...boTatCa];
     if (bo.length) {
       canhBao.push('Instagram · ' + (acc.name || igId) + ': API không còn nhận '
         + bo.join(', ') + ' — các cột đó để trống.');
@@ -163,22 +174,30 @@ async function ngayCuaIg(fb, token, acc, from, to, canhBao) {
       } catch (_) { /* một ngày lỗi không đáng dừng cả tháng */ }
     }
   } else {
-    try {
-      const u = g(fb) + '/' + igId + '/insights?period=day&metric_type=total_value'
-        + '&since=' + from + '&until=' + to
-        + '&access_token=' + encodeURIComponent(token);
-      const { data } = await doInsights(u, TONG, 'Instagram total_value gộp');
-      const row = lay(to);
-      data.forEach((m) => {
-        const cot = COT[m.name];
-        if (cot) row[cot] += num(m.total_value && m.total_value.value);
-      });
-      canhBao.push('Instagram · ' + (acc.name || igId) + ': khoảng ' + ds.length
-        + ' ngày dài hơn ' + NGAY_TOI_DA + ' nên các chỉ số views/thích/bình luận/chia sẻ/lưu '
-        + 'chỉ có TỔNG cả kỳ, đã dồn vào ngày ' + to + '. Chạy lại theo từng tháng để có số từng ngày.');
-    } catch (e) {
-      canhBao.push('Instagram · ' + (acc.name || igId) + ': ' + e.message);
+    /* Khoảng dài: gọi từng ngày thì quá tốn, mà gọi một phát thì Instagram chặn ở
+     * 30 ngày. Chia cửa sổ 30 ngày, mỗi cửa sổ lấy TỔNG rồi dồn vào ngày cuối cửa
+     * sổ đó. Không phải số từng ngày, nhưng còn đọc được theo tháng — và nói thẳng
+     * ra để không ai tưởng đó là số của đúng ngày ấy. */
+    const cua = chiaKhoang(from, to, 30);
+    for (const [tu, den] of cua) {
+      try {
+        const u = g(fb) + '/' + igId + '/insights?period=day&metric_type=total_value'
+          + '&since=' + tu + '&until=' + den
+          + '&access_token=' + encodeURIComponent(token);
+        const { data } = await doInsights(u, TONG, 'Instagram total_value ' + tu + '→' + den);
+        const row = lay(den);
+        data.forEach((m) => {
+          const cot = COT[m.name];
+          if (cot) row[cot] += num(m.total_value && m.total_value.value);
+        });
+      } catch (e) {
+        canhBao.push('Instagram · ' + (acc.name || igId) + ' (' + tu + '→' + den + '): ' + e.message);
+      }
     }
+    canhBao.push('Instagram · ' + (acc.name || igId) + ': khoảng ' + ds.length
+      + ' ngày dài hơn ' + NGAY_TOI_DA + ' nên views/thích/bình luận/chia sẻ/lưu chỉ có TỔNG '
+      + 'theo từng cửa sổ 30 ngày, dồn vào ngày cuối mỗi cửa sổ (' + cua.length + ' mốc). '
+      + 'Chạy lại theo từng tháng nếu cần số từng ngày.');
   }
 
   /* Follower luỹ kế: IG chỉ trả follower_count = số follow MỚI trong ngày, không

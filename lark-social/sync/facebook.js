@@ -27,6 +27,7 @@
  * từng metric một rồi nhớ lại. Trang mất một chỉ số chứ không mất cả ngày dữ liệu.
  */
 const { getJson, scrub, hideSecret } = require('./http');
+const { chiaKhoang } = require('./ngay');
 
 const PLATFORM = 'Facebook';
 const NGUON = 'Facebook API';
@@ -211,13 +212,24 @@ async function tokenPage(conf, page) {
 
 async function ngayCuaPage(conf, page, from, to, canhBao) {
   const token = await tokenPage(conf, page);
-  const url0 = g(conf) + '/' + page.id + '/insights'
-    + '?period=day&since=' + from + '&until=' + to
-    + '&access_token=' + encodeURIComponent(token);
+  const ten = page.name || page.id;
 
-  const { data, bo } = await doInsights(url0, METRIC_NGAY, 'Facebook insights ' + (page.name || page.id));
+  /* Chia nhỏ khoảng: Meta chặn ở ~93 ngày và trả "(#100) Invalid parameter" cho
+   * cả request. Kéo 7 ngày thì không bao giờ gặp, nên lỗi này chỉ lộ ra lúc chạy
+   * "Nạp lại từ đầu" cho cả năm — và khi đó Facebook mất trắng số liệu. */
+  const data = [];
+  const boTatCa = new Set();
+  for (const [tu, den] of chiaKhoang(from, to, 90)) {
+    const url0 = g(conf) + '/' + page.id + '/insights'
+      + '?period=day&since=' + tu + '&until=' + den
+      + '&access_token=' + encodeURIComponent(token);
+    const r = await doInsights(url0, METRIC_NGAY, 'Facebook insights ' + ten);
+    data.push(...r.data);
+    r.bo.forEach((m) => boTatCa.add(m));
+  }
+  const bo = [...boTatCa];
   if (bo.length) {
-    canhBao.push('Facebook · ' + (page.name || page.id) + ': phiên bản API '
+    canhBao.push('Facebook · ' + ten + ': phiên bản API '
       + (conf.apiVersion || 'v23.0') + ' không còn nhận ' + bo.join(', ') + ' — các cột đó để trống.');
   }
 
@@ -262,6 +274,14 @@ async function ngayCuaPage(conf, page, from, to, canhBao) {
 
 /* ---------------- bài đăng ---------------- */
 
+/** Phần luôn lấy được, không phụ thuộc metric insight nào. */
+const TRUONG_BAI_GON = [
+  'id', 'created_time', 'message', 'permalink_url', 'status_type',
+  'shares',
+  'comments.summary(true).limit(0)',
+  'likes.summary(true).limit(0)',
+].join(',');
+
 const LOAI_BAI = {
   video: 'Video', photo: 'Ảnh', album: 'Album', link: 'Bài viết',
   status: 'Bài viết', reel: 'Reels', share: 'Bài viết',
@@ -269,22 +289,35 @@ const LOAI_BAI = {
 
 async function baiCuaPage(conf, page, from, to, tran, canhBao) {
   const token = await tokenPage(conf, page);
-  const fields = [
-    'id', 'created_time', 'message', 'permalink_url', 'status_type',
-    'shares',
-    'comments.summary(true).limit(0)',
-    'likes.summary(true).limit(0)',
+  const fields = [TRUONG_BAI_GON,
     'insights.metric(post_impressions,post_impressions_unique,post_clicks,post_video_views,post_video_avg_time_watched)',
   ].join(',');
 
   const out = [];
-  let url = g(conf) + '/' + page.id + '/posts?limit=50'
+  const dungUrl = (f) => g(conf) + '/' + page.id + '/posts?limit=50'
     + '&since=' + from + '&until=' + to
-    + '&fields=' + encodeURIComponent(fields)
+    + '&fields=' + encodeURIComponent(f)
     + '&access_token=' + encodeURIComponent(token);
 
+  let truong = fields;
+  let url = dungUrl(truong);
+
   for (let trang = 0; url && trang < 40 && out.length < tran; trang++) {
-    const res = await getJson(url, { label: 'Facebook posts ' + (page.name || page.id), retries: 2 });
+    let res = await getJson(url, { label: 'Facebook posts ' + (page.name || page.id), retries: 2 });
+
+    /* Insight từng bài nhúng ngay trong lời gọi danh sách — tiện, nhưng Meta gỡ
+     * metric mức bài thì hỏng CẢ request và mất luôn danh sách bài, dù phần tên
+     * bài / thích / bình luận chẳng liên quan gì. Gặp lỗi metric thì bỏ khối
+     * insights ra rồi hỏi lại: mất mấy cột chi tiết còn hơn mất sạch bài. */
+    if (res.error && laMetricHong(res.error) && truong !== TRUONG_BAI_GON) {
+      canhBao.push('Facebook · ' + (page.name || page.id) + ': Meta đã gỡ vài chỉ số '
+        + 'mức bài, nên bỏ phần insight từng bài — vẫn lấy được bài, thích, bình luận, '
+        + 'chia sẻ; riêng lượt hiển thị và thời gian xem của từng bài để trống.');
+      truong = TRUONG_BAI_GON;
+      url = dungUrl(truong);
+      res = await getJson(url, { label: 'Facebook posts (gọn) ' + (page.name || page.id), retries: 2 });
+    }
+
     if (res.error) {
       /* Thiếu quyền đọc insight từng bài thì vẫn còn số liệu mức trang — báo cho
        * người dùng biết rồi đi tiếp, đừng làm hỏng cả lượt đồng bộ. */
