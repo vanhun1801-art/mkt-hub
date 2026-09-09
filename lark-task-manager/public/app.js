@@ -506,35 +506,31 @@ const laTreTheoHan = (t) => !isClosed(t) &&
     (daysLeft(t.deadline) != null && daysLeft(t.deadline) < 0));
 const isOverdue = (t) => laTreTheoHan(t) && !daGiaiQuyet(t);
 /* Hai câu hỏi khác nhau, đừng dùng chung một hàm — đây từng là lỗi thật: việc
- * vừa tạo, người yêu cầu gắn brief vào "Tệp đính kèm", danh sách hiện luôn
- * "Đã có kết quả" trong khi chưa ai làm gì.
+ * vừa tạo, người order gắn brief vào "Tệp đính kèm" hoặc nhập gì vào ô "Link",
+ * danh sách hiện luôn "Đã có kết quả" trong khi chưa ai làm gì.
  *
- *  - daNopKetQua: nhân sự đã nộp SẢN PHẨM chưa? Chỉ đếm hai ô kết quả, vì
- *    "Tệp đính kèm" và "Link" là chỗ NGƯỜI YÊU CẦU gắn brief với link tham
- *    khảo. Dùng cho NHÃN — nhãn phải đúng.
- *  - coMinhChung: có gì ở bất kỳ ô nào không? Đếm cả hai ô cũ. Dùng cho CỔNG
- *    nộp — cổng phải rộng tay, việc nộp từ trước không được chặn ngược. */
+ *  - daNopKetQua: NGƯỜI THỰC HIỆN đã nộp sản phẩm chưa? Chỉ đếm hai ô mà họ
+ *    nộp vào: "File kết quả" và "Link kết quả". Dùng cho NHÃN.
+ *  - coMinhChung: có gì ở bất kỳ ô nào không? Đếm cả "Tệp đính kèm" và "Link".
+ *    Dùng cho CỔNG nộp — cổng phải rộng tay, vì lời hướng dẫn cũ từng bảo nhân
+ *    sự đính sản phẩm vào "Tệp đính kèm", nên việc nộp theo lối đó không được
+ *    chặn ngược. */
 const daNopKetQua = (t) => (t.fileKetQua || []).length > 0 || !!t.linkKetQua;
 const coMinhChung = (t) => daNopKetQua(t) ||
   (t.attachment || []).length > 0 || !!t.link;
 
-/** Nhãn minh chứng: BA trạng thái. Gộp về hai thì việc cũ có sản phẩm nằm ở ô
- *  "Tệp đính kèm" bị nói ngược lại là chưa nộp — đổi một lời nói dối lấy một
- *  lời nói dối khác. Trạng thái giữa dùng màu xám mặc định của .proofdot. */
+/** Nhãn minh chứng: CHỈ hai trạng thái — đã nộp, hoặc chưa.
+ *
+ *  Từng có một trạng thái thứ ba cho việc chỉ có dữ liệu ở hai ô cũ. Đã bỏ, vì
+ *  hai ô đó là của NGƯỜI ORDER: "Tệp đính kèm" là tệp gắn kèm yêu cầu, còn ô
+ *  "Link" thì chính app gọi là "Link brief / tư liệu". Người order nhập gì vào
+ *  đấy cũng không nói lên được người thực hiện đã nộp sản phẩm hay chưa — đưa
+ *  nó lên nhãn chỉ làm quản lý hiểu là đã có sản phẩm trong khi chưa có.
+ *
+ *  Cổng nộp thì vẫn nhận hai ô cũ — xem chú thích ở coMinhChung. */
 function theMinhChung(t, ngan) {
   if (daNopKetQua(t)) {
     return el('span', 'proofdot has', ngan ? 'có kết quả' : 'Đã có kết quả');
-  }
-  /* Nói rõ đang có gì, vì hai ô cũ là hai chuyện khác nhau: "Tệp đính kèm"
-   * thường là brief người yêu cầu gắn, còn "Link" có khi là sản phẩm nộp kiểu
-   * cũ — mà cũng có khi là rác (trên Base đang có 3 việc ô Link là
-   * "http://Không", do gõ chữ "Không" vào ô kiểu URL nên Base tự thêm
-   * "http://"). Gộp hai thứ vào một câu là lại nói sai một nửa. */
-  if ((t.attachment || []).length > 0) {
-    return el('span', 'proofdot', ngan ? 'chỉ tệp kèm' : 'Chỉ có tệp kèm yêu cầu');
-  }
-  if (coMinhChung(t)) {
-    return el('span', 'proofdot', ngan ? 'chỉ link cũ' : 'Chỉ có link ở ô cũ');
   }
   return el('span', 'proofdot missing', ngan ? 'chưa nộp' : 'Chưa nộp kết quả');
 }
