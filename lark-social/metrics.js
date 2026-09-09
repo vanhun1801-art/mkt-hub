@@ -27,8 +27,18 @@ function agg(rows) {
   CONG.forEach((k) => { t[k] = 0; });
   const cuoiTheoKenh = new Map();
 
+  /* Mẫu số của tỷ lệ tương tác phải chọn THEO TỪNG DÒNG rồi mới cộng.
+   *
+   * Bản trước cộng hết rồi mới chọn: `engagement / (reach || views)`. Gộp ba nền
+   * tảng lại thì `reach` chỉ có Instagram (Meta đã gỡ reach của Facebook, TikTok
+   * display không có) — thành ra lấy 919.384 tương tác của cả ba chia cho 60.402
+   * lượt tiếp cận của riêng Instagram, ra 1.522%. Chọn mẫu số theo từng dòng thì
+   * con số thật là 4,93%. */
+  let mauSo = 0;
+
   rows.forEach((r) => {
     CONG.forEach((k) => { t[k] += num(r[k]); });
+    mauSo += num(r.reach) || num(r.views);
     const kenh = r.channelExtId || r.channel || r.platform;
     const cu = cuoiTheoKenh.get(kenh);
     if (num(r.followers) && (!cu || r.date > cu.date)) {
@@ -38,15 +48,38 @@ function agg(rows) {
 
   t.followers = [...cuoiTheoKenh.values()].reduce((s, x) => s + x.followers, 0);
   t.followNet = t.followUp - t.followDown;
+  t.mauSo = mauSo;
 
   // Các tỷ lệ — định nghĩa duy nhất của cả app
-  t.tyLeTuongTac = chia(t.engagement, t.reach || t.views);
+  t.tyLeTuongTac = chia(t.engagement, mauSo);
   t.xemMoiBai = chia(t.views, t.posts);
   t.tuongTacMoiBai = chia(t.engagement, t.posts);
   t.tanSuat = chia(t.impressions, t.reach);
   t.leadTrenNghinXem = chia(t.leads * 1000, t.views);
 
   return t;
+}
+
+/**
+ * Follower chốt gần nhất TẠI HOẶC TRƯỚC `den`, tính theo từng kênh rồi cộng ngang.
+ *
+ * Vì sao không lấy trong khoảng lọc: Facebook trả follower luỹ kế mỗi ngày, còn
+ * TikTok và Zalo chỉ chốt được follower vào ngày chạy đồng bộ. Lọc tháng 5 thì
+ * TikTok/Instagram không có dòng nào mang follower, và ô "Follower hiện có" tụt
+ * xuống chỉ còn Facebook — nhìn như mất kênh. Lấy mốc gần nhất trước đó mới đúng
+ * nghĩa "đang có bao nhiêu follower tính tới cuối kỳ".
+ */
+function followerChot(tatCa, den, filter) {
+  const cuoi = new Map();
+  loc(tatCa, { ...filter, from: '', to: den }).forEach((r) => {
+    if (!num(r.followers)) return;
+    const k = r.channelExtId || r.channel || r.platform;
+    const c = cuoi.get(k);
+    if (!c || r.date > c.date) {
+      cuoi.set(k, { kenh: k, platform: r.platform, date: r.date, followers: num(r.followers) });
+    }
+  });
+  return [...cuoi.values()];
 }
 
 /** Lọc theo khoảng ngày + nền tảng + kênh. */
@@ -80,7 +113,7 @@ function theoNgay(rows, from, to) {
 }
 
 /** Bảng theo kênh. */
-function theoKenh(rows, channels) {
+function theoKenh(rows, channels, chotFollower) {
   const m = new Map();
   rows.forEach((r) => {
     const k = r.channelExtId || r.channel || '(chưa gắn kênh)';
@@ -90,6 +123,7 @@ function theoKenh(rows, channels) {
   const byExt = new Map((channels || []).map((c) => [c.extId, c]));
   return [...m.entries()].map(([k, ds]) => {
     const c = byExt.get(k);
+    const chot = chotFollower && chotFollower.get(k);
     return {
       extId: k,
       name: (c && c.name) || (ds[0] && ds[0].channel) || k,
@@ -97,20 +131,29 @@ function theoKenh(rows, channels) {
       url: (c && c.url) || '',
       owner: (c && c.owner) || [],
       ...agg(ds),
+      ...(chot ? { followers: chot } : {}),
     };
   }).sort((a, b) => b.views - a.views);
 }
 
 /** Bảng theo nền tảng. */
-function theoNenTang(rows) {
+function theoNenTang(rows, chotFollower) {
   const m = new Map();
   rows.forEach((r) => {
     const k = r.platform || '(không rõ)';
     if (!m.has(k)) m.set(k, []);
     m.get(k).push(r);
   });
+  const theoNen = new Map();
+  (chotFollower || []).forEach((x) => {
+    theoNen.set(x.platform, (theoNen.get(x.platform) || 0) + x.followers);
+  });
   return [...m.entries()]
-    .map(([platform, ds]) => ({ platform, ...agg(ds) }))
+    .map(([platform, ds]) => ({
+      platform,
+      ...agg(ds),
+      ...(theoNen.has(platform) ? { followers: theoNen.get(platform) } : {}),
+    }))
     .sort((a, b) => b.views - a.views);
 }
 
@@ -162,6 +205,33 @@ async function tongQuan({ from, to, platforms, channels } = {}) {
   const rows = loc(d.daily, { ...f, from: tu, to: den });
   const so = soKyTruoc(d.daily, tu, den, f);
 
+  /* Follower lấy mốc gần nhất trước `den`, không giới hạn trong khoảng lọc —
+   * xem chú thích ở followerChot(). Tính lại luôn cả kỳ trước và % thay đổi,
+   * nếu không mũi tên bên cạnh ô follower sẽ so hai cách đo khác nhau. */
+  const chot = followerChot(d.daily, den, f);
+  const chotTruoc = followerChot(d.daily, so.kyTruoc.to, f);
+  const cong = (ds) => ds.reduce((x, y) => x + y.followers, 0);
+  so.nay.followers = cong(chot);
+  so.truoc.followers = cong(chotTruoc);
+  so.doi.followers = so.truoc.followers
+    ? (so.nay.followers - so.truoc.followers) / so.truoc.followers
+    : (so.nay.followers ? 1 : 0);
+  const chotTheoKenh = new Map(chot.map((x) => [x.kenh, x.followers]));
+
+  /* Kênh có lưu lượng trong kỳ nhưng chưa từng chốt follower trước `den`.
+   * TikTok và Zalo chỉ đọc được follower TẠI THỜI ĐIỂM chạy đồng bộ — không nền
+   * tảng nào trả lại lịch sử — nên lọc một tháng đã qua thì mấy kênh đó không có
+   * mốc nào để lấy. Con số vẫn đúng, nhưng phải nói ra là nó chưa gồm những kênh
+   * này, kẻo đọc 770.240 lại tưởng là của cả 10 kênh. */
+  const coLuuLuong = new Set(rows.map((r) => r.channelExtId || r.channel || r.platform));
+  const thieuFollower = [...coLuuLuong].filter((k) => !chotTheoKenh.has(k));
+  so.nay.soKenhCoFollower = chotTheoKenh.size;
+  so.nay.soKenhThieuFollower = thieuFollower.length;
+
+  /* Tiếp cận cũng vậy: Meta đã gỡ page_impressions_unique của Facebook và TikTok
+   * display không có reach, nên ô "Lượt tiếp cận" thực chất chỉ là của Instagram. */
+  const nenCoReach = [...new Set(rows.filter((r) => num(r.reach)).map((r) => r.platform))];
+
   return {
     tu, den,
     tong: so.nay,
@@ -169,17 +239,20 @@ async function tongQuan({ from, to, platforms, channels } = {}) {
     doi: so.doi,
     khoangTruoc: so.kyTruoc,
     ngay: theoNgay(rows, tu, den),
-    kenh: theoKenh(rows, d.channels),
-    nenTang: theoNenTang(rows),
+    kenh: theoKenh(rows, d.channels, chotTheoKenh),
+    nenTang: theoNenTang(rows, chot),
     topBai: topBai(d.posts, { ...f, from: tu, to: den, theo: 'views', n: 20 }),
     live: d.lives.filter((l) => (!l.date || (l.date >= tu && l.date <= den))
       && (!platforms || !platforms.length || platforms.includes(l.platform)))
       .sort((a, b) => String(b.start).localeCompare(String(a.start)))
       .slice(0, 50),
+    nenCoReach,
+    thieuFollower,
     soKenh: d.channels.length,
     soBai: d.posts.length,
     capNhat: d.luc,
   };
 }
 
-module.exports = { agg, loc, theoNgay, theoKenh, theoNenTang, topBai, soKyTruoc, tongQuan, chia };
+module.exports = { agg, loc, followerChot, theoNgay, theoKenh, theoNenTang, topBai,
+  soKyTruoc, tongQuan, chia };

@@ -271,8 +271,12 @@
     const html = ''
       + '<div class="kpis">'
       + theKpi('Lượt xem', gon(t.views), d.doi.views)
-      + theKpi('Lượt tiếp cận', gon(t.reach), d.doi.reach)
-      + theKpi('Follower hiện có', gon(t.followers), null, 'chốt ngày mới nhất')
+      + theKpi('Lượt tiếp cận', gon(t.reach), d.doi.reach,
+        (d.nenCoReach || []).length ? 'chỉ ' + d.nenCoReach.join(', ') + ' có tiếp cận' : '')
+      + theKpi('Follower hiện có', gon(t.followers), d.doi.followers,
+        t.soKenhThieuFollower
+          ? 'chưa gồm ' + t.soKenhThieuFollower + ' kênh chưa có mốc trước ' + d.den
+          : 'chốt gần nhất tính đến ' + d.den)
       + theKpi('Follower tăng ròng', (t.followNet >= 0 ? '+' : '') + n0(t.followNet), d.doi.followNet)
       + theKpi('Tương tác', gon(t.engagement), d.doi.engagement)
       + theKpi('Tỷ lệ tương tác', pct(t.tyLeTuongTac), d.doi.tyLeTuongTac)

@@ -242,4 +242,68 @@ t('không nổ khi thiếu err hoặc thiếu message', () => {
   assert.strictEqual(laMetricHong({ code: 100 }), false);
 });
 
+console.log('\nmetrics — mẫu số và follower chốt');
+
+t('tỷ lệ tương tác chọn mẫu số theo từng dòng, không cộng xong mới chọn', () => {
+  /* Đúng hình dạng dữ liệu thật của tháng 5: chỉ Instagram có `reach`, còn
+     Facebook và TikTok chỉ có `views`. Cộng hết rồi mới chọn mẫu số thì ra
+     1.522% — con số đã thật sự hiện lên màn hình. Chọn theo từng dòng thì mẫu
+     số là 60.000 + 18.000.000 + 600.000. */
+  const r = M.agg([
+    { platform: 'instagram', views: 70000, reach: 60000, engagement: 4000 },
+    { platform: 'facebook', views: 18000000, engagement: 900000 },
+    { platform: 'tiktok', views: 600000, engagement: 15384 },
+  ]);
+  assert.strictEqual(r.mauSo, 18660000);
+  assert.ok(Math.abs(r.tyLeTuongTac - 919384 / 18660000) < 1e-12);
+  assert.ok(r.tyLeTuongTac < 0.1, 'tỷ lệ tương tác không được vượt 100%');
+});
+
+t('dòng có tiếp cận thì lấy tiếp cận, không cộng cả tiếp cận lẫn lượt xem', () => {
+  const r = M.agg([{ views: 1000, reach: 400, engagement: 40 }]);
+  assert.strictEqual(r.mauSo, 400);
+  assert.strictEqual(r.tyLeTuongTac, 0.1);
+});
+
+t('không dòng nào có số thì tỷ lệ bằng 0, không phải NaN', () => {
+  const r = M.agg([]);
+  assert.strictEqual(r.mauSo, 0);
+  assert.strictEqual(r.tyLeTuongTac, 0);
+});
+
+t('follower chốt lấy mốc gần nhất trước ngày cuối, kể cả ngoài khoảng lọc', () => {
+  /* TikTok chỉ chốt được follower vào ngày chạy đồng bộ, nên lọc tháng 5 thì
+     trong khoảng không có dòng nào mang follower — bảng từng hiện 0 như thể
+     mất kênh. */
+  const ds = [
+    { date: '2026-04-20', platform: 'tiktok', channelExtId: 'tt1', followers: 12000 },
+    { date: '2026-05-10', platform: 'tiktok', channelExtId: 'tt1', views: 500 },
+    { date: '2026-05-31', platform: 'facebook', channelExtId: 'fb1', followers: 671763 },
+    { date: '2026-06-15', platform: 'tiktok', channelExtId: 'tt1', followers: 99999 },
+  ];
+  const chot = M.followerChot(ds, '2026-05-31', {});
+  const m = new Map(chot.map((x) => [x.kenh, x.followers]));
+  assert.strictEqual(m.get('tt1'), 12000, 'phải lấy mốc 20/4, không phải 0');
+  assert.strictEqual(m.get('fb1'), 671763);
+  assert.strictEqual(chot.reduce((a, b) => a + b.followers, 0), 683763);
+});
+
+t('follower chốt không lấy số của tương lai', () => {
+  const ds = [
+    { date: '2026-05-01', platform: 'tiktok', channelExtId: 'tt1', followers: 10 },
+    { date: '2026-09-01', platform: 'tiktok', channelExtId: 'tt1', followers: 900 },
+  ];
+  assert.strictEqual(M.followerChot(ds, '2026-05-31', {})[0].followers, 10);
+});
+
+t('follower chốt vẫn tôn trọng bộ lọc nền tảng', () => {
+  const ds = [
+    { date: '2026-04-01', platform: 'tiktok', channelExtId: 'tt1', followers: 10 },
+    { date: '2026-04-01', platform: 'facebook', channelExtId: 'fb1', followers: 700 },
+  ];
+  const chot = M.followerChot(ds, '2026-05-31', { platforms: ['tiktok'] });
+  assert.strictEqual(chot.length, 1);
+  assert.strictEqual(chot[0].followers, 10);
+});
+
 console.log('\n' + so + ' phép thử đạt' + (process.exitCode ? ' — CÓ LỖI' : '') + '\n');
