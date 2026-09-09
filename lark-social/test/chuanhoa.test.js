@@ -306,4 +306,15 @@ t('follower chốt vẫn tôn trọng bộ lọc nền tảng', () => {
   assert.strictEqual(chot[0].followers, 10);
 });
 
+t('lượt hiển thị của Facebook không được đổ vào cột tiếp cận', () => {
+  /* v23.0 đã gỡ sạch chỉ số đếm NGƯỜI duy nhất của Page — thử tay 21 tên, chỉ
+     page_posts_impressions_organic còn sống, và nó đếm LẦN hiển thị. Đổ nó vào
+     "Lượt tiếp cận" thì ô đó đầy lên trông rất thuyết phục và sai. */
+  const fb = require('../sync/facebook');
+  assert.strictEqual(fb.COT.page_posts_impressions_organic, 'impressions');
+  assert.ok(fb.METRIC_NGAY.includes('page_posts_impressions_organic'));
+  assert.ok(!Object.values(fb.COT).includes('reach'),
+    'không metric Facebook nào được ánh xạ sang reach');
+});
+
 console.log('\n' + so + ' phép thử đạt' + (process.exitCode ? ' — CÓ LỖI' : '') + '\n');

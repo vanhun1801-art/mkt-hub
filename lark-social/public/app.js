@@ -295,6 +295,7 @@
       + bangGon([
         { t: 'Nền tảng', v: (r) => theTag(r.platform) },
         { t: 'Lượt xem', num: 1, k: 'views', v: (r) => n0(r.views) },
+        { t: 'Hiển thị', num: 1, k: 'impressions', v: (r) => n0(r.impressions) },
         { t: 'Tiếp cận', num: 1, k: 'reach', v: (r) => n0(r.reach) },
         { t: 'Tương tác', num: 1, k: 'engagement', v: (r) => n0(r.engagement) },
         { t: 'Follower', num: 1, v: (r) => n0(r.followers) },
@@ -336,6 +337,7 @@
         { t: 'Follower', num: 1, v: (r) => n0(r.followers) },
         { t: 'Tăng ròng', num: 1, v: (r) => (r.followNet >= 0 ? '+' : '') + n0(r.followNet) },
         { t: 'Lượt xem', num: 1, k: 'views', v: (r) => n0(r.views) },
+        { t: 'Hiển thị', num: 1, k: 'impressions', v: (r) => n0(r.impressions) },
         { t: 'Tiếp cận', num: 1, k: 'reach', v: (r) => n0(r.reach) },
         { t: 'Tương tác', num: 1, k: 'engagement', v: (r) => n0(r.engagement) },
         { t: 'Tỷ lệ TT', num: 1, v: (r) => pct(r.tyLeTuongTac) },
