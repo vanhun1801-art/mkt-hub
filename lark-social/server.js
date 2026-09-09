@@ -415,8 +415,15 @@ async function api(req, res, u) {
       });
     }
 
+    /* Cất vào kho BẢN ĐẦY ĐỦ, không phải phần vừa gửi lên.
+     *
+     * Giao diện chỉ gửi vài trường của khối (khối facebook gửi enabled +
+     * userToken + apiVersion, KHÔNG gửi pages). Cất thẳng `moi` là kho mất sạch
+     * danh sách Page — đã xảy ra thật: 3 page token biến khỏi kho sau một cú bấm
+     * Lưu cấu hình, dù người dùng không đụng gì tới phần Page. */
+    const dayDu = { ...cu, ...moi };
     ketnoi.ghiKhoi(b.khoi, moi);
-    await ketnoi.luuKho(b.khoi, moi);
+    await ketnoi.luuKho(b.khoi, dayDu);
     return ok(res, { ok: true });
   }
 

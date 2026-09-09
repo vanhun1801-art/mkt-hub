@@ -203,7 +203,9 @@ async function keoVe(conf, from, to, opts = {}, log = () => {}, chi = '') {
     lives.push(...(r.lives || []));
   });
 
-  return { channels, daily, posts, lives, canhBao, ghiChu, kenhDisplay };
+  /* Ghi chú thường lặp lại theo từng trang/kênh (mỗi Page một lần "Facebook LIVE
+   * cần App Review"). Đọc ba dòng y hệt nhau chỉ làm nhật ký khó đọc. */
+  return { channels, daily, posts, lives, canhBao, ghiChu: [...new Set(ghiChu)], kenhDisplay };
 }
 
 /* ---------------- ghi vào Base ---------------- */

@@ -119,6 +119,28 @@
       "phuSelector": "#brandSub",
       "bat": true,
       "css": ".topbar-right { margin-left: auto; }"
+    },
+    {
+      "id": "kpi",
+      "ten": "Báo cáo & KPI",
+      "mo_ta": "Chấm điểm KPI tháng · bộ luật tách khỏi số liệu",
+      "icon": "base",
+      "mau": "#106b52",
+      "kieu": "local",
+      "thuMuc": "../lark-kpi",
+      "cong": 5179,
+      "lenh": [
+        "node",
+        "server.js"
+      ],
+      "_thuApi": "app KPI chưa có /api/meta kiểu bốn app kia thì thôi, nhưng nó có — khai để test proxy gọi đúng đường",
+      "thuApi": "/api/meta",
+      "an": [
+        "header.topbar > .brand"
+      ],
+      "phuSelector": "#brandSub",
+      "bat": true,
+      "css": ".topbar-right { margin-left: auto; }"
     }
   ]
 }

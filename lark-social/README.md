@@ -20,22 +20,28 @@ chỗ nào người phải gõ, để không ai ngồi chờ số không bao gi�
 |---|---|---|---|---|---|
 | Follower hiện tại | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Follower tăng/giảm **theo ngày** | ✅ | ✅ | ➖ tính gián tiếp | ✅ | ❌ chốt từng lượt chạy |
-| Lượt xem theo ngày | ✅ | ✅ | ➖ tính chênh lệch | ✅ | ➖ tính chênh lệch |
-| Lượt tiếp cận | ✅ | ✅ | ❌ | ✅ | ❌ |
+| Lượt xem theo ngày | ✅ video | ✅ | ➖ tính chênh lệch | ✅ | ➖ tính chênh lệch |
+| Lượt tiếp cận | ❌ Meta đã bỏ | ✅ | ❌ | ✅ | ❌ |
 | Lượt xem trang / hồ sơ | ✅ | ✅ | ❌ | ✅ | ❌ |
-| Từng bài: xem/thích/bình luận/chia sẻ | ✅ | ✅ | ✅ | ✅ | ⚠️ tuỳ gói |
+| Từng bài: xem/thích/bình luận/chia sẻ | ⚠️ cần `pages_read_user_content` | ✅ | ✅ | ✅ | ⚠️ tuỳ gói |
 | Tỷ lệ xem hết video, thời gian xem TB | ➖ chỉ thời gian xem | ➖ chỉ Reels | ❌ | ✅ | ❌ |
-| **LIVE** (xem / bình luận / follow mới) | ✅ **có API** | ❌ | ❌ | ❌ | ❌ |
+| **LIVE** (xem / bình luận / follow mới) | ⚠️ cần Meta duyệt App Review | ❌ | ❌ | ❌ | ❌ |
 | Tin nhắn / hội thoại | ❌ | ➖ replies | ❌ | ❌ | ✅ |
 
 ✅ máy lấy được · ➖ lấy được nhưng gián tiếp · ⚠️ tuỳ gói dịch vụ · ❌ phải nhập tay
 
 **Ba điều đáng nhớ:**
 
-1. **TikTok không mở API cho LIVE.** Không có endpoint nào cho lượt xem / bình luận /
-   follow mới của một buổi phát. Dùng tab LIVE → *Dán bảng LIVE*: xuất báo cáo từ
-   TikTok LIVE Center rồi dán vào, app đọc cột theo tên nên xuất bản nào cũng nhận.
-   Facebook thì ngược lại — LIVE có API thật, số tự về.
+1. **Không nền tảng nào cho số LIVE.** TikTok không mở API. Facebook có endpoint
+   `live_videos` nhưng đòi Meta duyệt **App Review** — xin thêm scope vô ích.
+   Chưa duyệt thì LIVE của cả hai đều phải nhập tay: tab LIVE → *Dán bảng LIVE*,
+   app đọc cột theo tên nên bản xuất nào cũng nhận.
+
+4. **Facebook Page mất Lượt hiển thị và Lượt tiếp cận.** Đã dò thật trên Page của
+   Rooty Trip ngày 09/09/2026 với API v23.0: Meta bỏ hẳn `page_impressions`,
+   `page_impressions_unique` và `page_fans`. Hai cột đó của Facebook sẽ trống
+   vĩnh viễn, không phải app thiếu quyền. Chạy `node .tmp/do-metric.js` để kiểm
+   lại khi Meta đổi lần nữa.
 2. **Douyin và Xiaohongshu** không mở API cho tài khoản ngoài Trung Quốc → tab
    *Nhập tay*, mỗi tháng gõ một lần.
 3. **Zalo mở API hẹp.** Follower và hội thoại thì chắc chắn có; lượt xem bài viết
@@ -79,8 +85,11 @@ Mọi thứ làm trong giao diện: nút **Kết nối** ở góc trên phải (
    (vai trò Employee access).
 2. Chọn user đó → **Thêm tài sản** → **Trang** → tick các Page của Rooty Trip →
    bật quyền xem thông tin chi tiết.
-3. **Tạo mã truy cập mới** → chọn app → tick `pages_read_engagement`, `pages_show_list`,
-   `read_insights`. Muốn lấy cả LIVE thì thêm `pages_manage_metadata`.
+3. **Tạo mã truy cập mới** → chọn app → hết hạn **Không bao giờ** → tick:
+   `pages_show_list`, `pages_read_engagement`, `read_insights`,
+   **`pages_read_user_content`** (thiếu là không đọc được bài nào),
+   `instagram_basic`, `instagram_manage_insights`.
+   `pages_manage_metadata` cũng nên tick, dù LIVE vẫn cần App Review mới chạy.
 4. Copy token **ngay** (Meta chỉ hiện một lần) → dán vào ô *Token gốc* →
    bấm **Liệt kê Page từ token** → tick trang → **Lưu các trang đã tick**.
 

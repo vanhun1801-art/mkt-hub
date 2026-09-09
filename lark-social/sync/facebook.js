@@ -4,16 +4,27 @@
  * Quảng cáo đã có app riêng (lark-ads-manager) đọc Marketing API; ở đây là
  * Graph API phần Page Insights.
  *
- * Ba mức số liệu, ba endpoint:
- *   trang  → /{page-id}/insights          (theo ngày: hiển thị, tiếp cận, follower…)
- *   bài    → /{page-id}/posts + insights  (từng bài)
- *   LIVE   → /{page-id}/live_videos       (Facebook có API LIVE thật, khác TikTok)
+ * Ba mức số liệu, ba endpoint — và mỗi cái vướng một kiểu, đã kiểm chứng thật
+ * trên Page của Rooty Trip ngày 09/09/2026 với API v23.0:
+ *
+ *   trang → /{page-id}/insights
+ *           Chạy được, nhưng Meta đã BỎ page_impressions và page_impressions_unique,
+ *           nên Lượt hiển thị và Lượt tiếp cận của Facebook KHÔNG còn lấy được.
+ *
+ *   bài   → /{page-id}/posts + insights
+ *           Đòi thêm quyền `pages_read_user_content`. Thiếu là (#10), không đọc
+ *           được bài nào — nhưng số liệu mức trang vẫn về bình thường.
+ *
+ *   LIVE  → /{page-id}/live_videos
+ *           Đòi Meta duyệt App Review. Xin thêm scope KHÔNG giải quyết được.
+ *           Chưa duyệt thì LIVE của Facebook phải nhập tay như TikTok.
  *
  * BẪY LỚN NHẤT của Graph API Insights: xin một metric mà phiên bản API đó đã bỏ
- * thì Meta trả lỗi cho CẢ REQUEST, không phải chỉ metric đó. Meta lại bỏ metric
- * khá thường xuyên (v22 bỏ một loạt page_*). Nên ở đây không hard-code một danh
- * sách rồi cầu trời: xem doInsights() — nó tự đọc tên metric trong câu lỗi, bỏ
- * đúng cái đó ra rồi hỏi lại. Kênh mất một chỉ số chứ không mất cả ngày dữ liệu.
+ * thì Meta trả lỗi cho CẢ REQUEST, không phải chỉ metric đó — và nhiều khi nó
+ * KHÔNG nói metric nào hỏng, chỉ buông một câu "The value must be a valid
+ * insights metric". Nên ở đây không hard-code một danh sách rồi cầu trời: xem
+ * doInsights() — đọc được tên thủ phạm thì bỏ đúng cái đó, không đọc được thì dò
+ * từng metric một rồi nhớ lại. Trang mất một chỉ số chứ không mất cả ngày dữ liệu.
  */
 const { getJson, scrub, hideSecret } = require('./http');
 
@@ -26,31 +37,47 @@ const num = (v) => {
 };
 const ngay = (s) => String(s || '').slice(0, 10);
 
-/** Metric theo ngày ở mức trang. Thứ tự không quan trọng; tên thì rất quan trọng. */
+/**
+ * Metric theo ngày ở mức trang — DANH SÁCH NÀY LÀ KẾT QUẢ DÒ THẬT, không phải
+ * chép từ tài liệu.
+ *
+ * Dò trên Page thật ngày 09/09/2026, API v23.0: Meta đã BỎ HẲN ba chỉ số cốt lõi
+ * mà ai cũng tưởng còn — `page_impressions`, `page_impressions_unique` và
+ * `page_fans` (cùng `page_fan_adds`, `page_fan_removes`, `page_posts_impressions`).
+ * Tất cả trả về "(#100) The value must be a valid insights metric".
+ *
+ * Hệ quả nghiệp vụ, phải nói thẳng: **Facebook Page không còn cho Lượt hiển thị
+ * và Lượt tiếp cận qua API nữa.** Hai cột đó của Facebook sẽ trống, và không có
+ * cách nào lấy được — không phải app thiếu quyền.
+ *
+ * Muốn kiểm lại khi Meta đổi lần nữa: `node .tmp/do-metric.js`.
+ */
 const METRIC_NGAY = [
-  'page_impressions',            // lượt hiển thị
-  'page_impressions_unique',     // lượt tiếp cận
-  'page_post_engagements',       // tương tác
-  'page_views_total',            // lượt xem trang
-  'page_video_views',            // lượt xem video
-  'page_daily_follows_unique',   // follower tăng trong ngày
-  'page_daily_unfollows_unique', // follower giảm trong ngày
-  'page_fans',                   // tổng người thích (luỹ kế)
-  'page_follows',                // tổng follower (luỹ kế)
+  'page_post_engagements',            // tương tác
+  'page_views_total',                 // lượt xem trang
+  'page_video_views',                 // lượt xem video
+  'page_daily_follows_unique',        // follower tăng trong ngày
+  'page_daily_unfollows_unique',      // follower giảm trong ngày
+  'page_follows',                     // tổng follower (luỹ kế)
+  'page_actions_post_reactions_total', // cảm xúc trên bài
+  'page_total_actions',               // lượt bấm vào nút/liên kết của trang
 ];
 
 /** Ánh xạ tên metric của Meta sang tên cột của mình. */
 const COT = {
-  page_impressions: 'impressions',
-  page_impressions_unique: 'reach',
   page_post_engagements: 'engagement',
   page_views_total: 'profileViews',
   page_video_views: 'views',
   page_daily_follows_unique: 'followUp',
   page_daily_unfollows_unique: 'followDown',
-  page_fans: 'followers',
-  page_follows: 'followers',      // ưu tiên page_follows nếu có cả hai
+  page_follows: 'followers',
+  page_actions_post_reactions_total: 'likes',
+  page_total_actions: 'clicks',
 };
+
+/* Metric mà Meta đã từ chối trong tiến trình này — hỏi lại chỉ tốn lượt gọi.
+ * Nhớ ở mức tiến trình nên trang thứ hai trở đi khỏi dò lại. */
+const DA_CHET = new Set();
 
 const g = (conf) => 'https://graph.facebook.com/' + (conf.apiVersion || 'v23.0');
 
@@ -59,25 +86,48 @@ const g = (conf) => 'https://graph.facebook.com/' + (conf.apiVersion || 'v23.0')
  * Trả { data, bo: [tên metric đã phải bỏ] }.
  */
 async function doInsights(url0, metrics, nhan) {
-  let conLai = metrics.slice();
-  const bo = [];
-  for (let vong = 0; vong < metrics.length; vong++) {
-    if (!conLai.length) break;
-    const url = url0 + '&metric=' + encodeURIComponent(conLai.join(','));
-    let res;
+  const goi = async (ds) => {
     try {
-      res = await getJson(url, { label: nhan, retries: 2 });
-    } catch (e) {
-      throw new Error(scrub(nhan + ': ' + e.message));
-    }
+      return await getJson(url0 + '&metric=' + encodeURIComponent(ds.join(',')),
+        { label: nhan, retries: 2 });
+    } catch (e) { throw new Error(scrub(nhan + ': ' + e.message)); }
+  };
+
+  let conLai = metrics.filter((m) => !DA_CHET.has(m));
+  const bo = [];
+
+  for (let vong = 0; vong < metrics.length; vong++) {
+    if (!conLai.length) return { data: [], bo };
+    const res = await goi(conLai);
     if (!res.error) return { data: res.data || [], bo };
 
     const msg = String(res.error.message || '');
-    // Meta gọi tên metric hỏng ngay trong câu lỗi — bắt lấy rồi loại nó ra.
     const thuPham = conLai.find((m) => msg.includes(m));
-    if (!thuPham) throw new Error(scrub(nhan + ' — Meta báo lỗi (' + res.error.code + '): ' + msg));
-    bo.push(thuPham);
-    conLai = conLai.filter((m) => m !== thuPham);
+    if (thuPham) {
+      // Meta gọi tên metric hỏng ngay trong câu lỗi — loại đúng cái đó rồi hỏi lại.
+      DA_CHET.add(thuPham);
+      bo.push(thuPham);
+      conLai = conLai.filter((m) => m !== thuPham);
+      continue;
+    }
+
+    /* Meta KHÔNG nói metric nào hỏng — chỉ "The value must be a valid insights
+     * metric". Bản trước gặp câu này là ném lỗi và mất trắng cả ngày dữ liệu của
+     * trang. Giờ dò từng cái một: tốn thêm mấy lượt gọi đúng một lần, rồi nhớ lại
+     * ở DA_CHET nên những trang sau khỏi dò. Nhờ vậy Meta có bỏ thêm metric nào
+     * nữa thì app tự lách, không cần ai sửa code. */
+    const song = [];
+    for (const m of conLai) {
+      const r1 = await goi([m]);
+      if (r1.error) { DA_CHET.add(m); bo.push(m); } else song.push(m);
+    }
+    if (!song.length) return { data: [], bo };
+    const cuoi = await goi(song);
+    if (cuoi.error) {
+      throw new Error(scrub(nhan + ' — Meta báo lỗi (' + cuoi.error.code + '): '
+        + String(cuoi.error.message || '')));
+    }
+    return { data: cuoi.data || [], bo };
   }
   return { data: [], bo };
 }
@@ -202,8 +252,12 @@ async function baiCuaPage(conf, page, from, to, tran, canhBao) {
     if (res.error) {
       /* Thiếu quyền đọc insight từng bài thì vẫn còn số liệu mức trang — báo cho
        * người dùng biết rồi đi tiếp, đừng làm hỏng cả lượt đồng bộ. */
+      const m = String(res.error.message || '');
       canhBao.push('Facebook · ' + (page.name || page.id) + ': không đọc được danh sách bài — '
-        + scrub(res.error.message || ''));
+        + scrub(m)
+        + (/pages_read_user_content/.test(m)
+          ? ' → Token thiếu quyền pages_read_user_content. Tạo lại mã ở Người dùng hệ thống'
+            + ' và tick thêm đúng quyền này.' : ''));
       break;
     }
     (res.data || []).forEach((p) => {
@@ -242,7 +296,7 @@ async function baiCuaPage(conf, page, from, to, tran, canhBao) {
 
 /* ---------------- phiên LIVE ---------------- */
 
-async function liveCuaPage(conf, page, from, to, canhBao) {
+async function liveCuaPage(conf, page, from, to, canhBao, ghiChu = []) {
   const token = await tokenPage(conf, page);
   const fields = [
     'id', 'title', 'description', 'status', 'creation_time',
@@ -259,8 +313,16 @@ async function liveCuaPage(conf, page, from, to, canhBao) {
   for (let trang = 0; url && trang < 20; trang++) {
     const res = await getJson(url, { label: 'Facebook live ' + (page.name || page.id), retries: 2 });
     if (res.error) {
-      canhBao.push('Facebook · ' + (page.name || page.id) + ': không đọc được LIVE — '
-        + scrub(res.error.message || '') + ' (thường là thiếu quyền pages_manage_metadata)');
+      const m = String(res.error.message || '');
+      /* Endpoint live_videos đòi App Review của Meta, không phải thiếu quyền — xin
+       * thêm scope bao nhiêu cũng vô ích. Đây là GHI CHÚ đúng ở mọi lượt chạy, để
+       * vào cảnh báo thì cột Kết quả vàng vĩnh viễn và cảnh báo thật chìm nghỉm. */
+      if (/reviewed and approved|review/i.test(m)) {
+        ghiChu.push('Facebook LIVE cần Meta duyệt App Review mới gọi được — '
+          + 'chưa duyệt thì số phiên LIVE của Facebook phải nhập tay như TikTok.');
+      } else {
+        canhBao.push('Facebook · ' + (page.name || page.id) + ': không đọc được LIVE — ' + scrub(m));
+      }
       break;
     }
     for (const lv of (res.data || [])) {
@@ -329,6 +391,7 @@ async function fetchRange(conf, from, to, opts = {}, log = () => {}) {
   if (!pages.length) throw new Error('Chưa khai trang Facebook nào trong cấu hình kết nối');
 
   const canhBao = [];
+  const ghiChu = [];
   const daily = []; const posts = []; const lives = []; const channels = [];
 
   for (const page of pages) {
@@ -352,14 +415,14 @@ async function fetchRange(conf, from, to, opts = {}, log = () => {}) {
     }
     if (opts.layLive !== false) {
       try {
-        const l = await liveCuaPage(conf, page, from, to, canhBao);
+        const l = await liveCuaPage(conf, page, from, to, canhBao, ghiChu);
         lives.push(...l);
         log('Facebook · ' + (page.name || page.id) + ': ' + l.length + ' phiên LIVE');
       } catch (e) { canhBao.push('Facebook LIVE · ' + (page.name || page.id) + ': ' + e.message); }
     }
   }
 
-  return { channels, daily, posts, lives, canhBao };
+  return { channels, daily, posts, lives, canhBao, ghiChu };
 }
 
 /** Soi token: còn sống không, hết hạn khi nào, có quyền gì. */
