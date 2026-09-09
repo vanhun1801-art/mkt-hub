@@ -75,6 +75,21 @@ const COT = {
   page_total_actions: 'clicks',
 };
 
+/**
+ * Bộ quyền System User token cần có. Nút "Thử kết nối" đối chiếu với bộ này rồi
+ * nói thẳng cái nào thiếu — vì hậu quả của việc thiếu quyền rất khó đoán từ màn
+ * hình: thiếu pages_read_user_content thì số mức trang vẫn chạy ngon, chỉ có bài
+ * đăng trống trơn.
+ */
+const QUYEN_CAN = [
+  'pages_show_list',
+  'pages_read_engagement',
+  'read_insights',
+  'pages_read_user_content',   // đọc bài đăng — thiếu là 0 bài
+  'instagram_basic',
+  'instagram_manage_insights',
+];
+
 /* Metric mà Meta đã từ chối trong tiến trình này — hỏi lại chỉ tốn lượt gọi.
  * Nhớ ở mức tiến trình nên trang thứ hai trở đi khỏi dò lại. */
 const DA_CHET = new Set();
@@ -443,11 +458,15 @@ async function test(conf) {
       vinhVien: exp === 0,
       conNgay: exp > 0 ? Math.floor((exp * 1000 - Date.now()) / 86400000) : null,
       quyen: d.scopes || [],
-      thieuQuyen: ['pages_read_engagement', 'pages_show_list', 'read_insights']
-        .filter((q) => !(d.scopes || []).includes(q)),
+      /* Liệt kê đủ bộ, không chỉ ba cái tối thiểu. Thiếu pages_read_user_content
+       * thì số mức trang vẫn về bình thường còn bài đăng trống trơn — nhìn màn
+       * hình không đoán ra được, nên để nút Thử kết nối nói thẳng tên quyền thiếu. */
+      thieuQuyen: QUYEN_CAN.filter((q) => !(d.scopes || []).includes(q)),
       results: pages.map((p) => ({ account: p.id, ok: true, name: p.name, followers: p.followers })),
     };
   } catch (e) { return { ok: false, message: e.message }; }
 }
 
-module.exports = { PLATFORM, NGUON, fetchRange, test, danhSachPage, METRIC_NGAY, doInsights };
+module.exports = {
+  PLATFORM, NGUON, fetchRange, test, danhSachPage, METRIC_NGAY, QUYEN_CAN, doInsights,
+};
