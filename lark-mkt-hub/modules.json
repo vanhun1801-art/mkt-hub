@@ -111,6 +111,8 @@
       ],
       "larkUrl": "https://rootytrip2.sg.larksuite.com/base/YzgUbMS3PaE0B9sDtdIlNYzFgsc",
       "kpi": "social",
+    "_thuApi": "app Social đặt tên endpoint khác /api/meta, khai ở đây để test proxy gọi đúng đường — ý định của phép kiểm là JSON đi xuyên proxy được, không phải một tên cố định",
+    "thuApi": "/api/tong-quan?days=1",
       "an": [
         "header.topbar > .brand"
       ],

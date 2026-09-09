@@ -659,14 +659,88 @@ function docLoc() {
   } catch (_) {}
 }
 
-function theHtml(t, moduleId) {
+/**
+ * Xếp các ô của một thẻ base theo ba tầng, và gộp những ô bằng 0 thành một dòng.
+ *
+ * Vì sao cần: trước đây mọi ô đổ vào một lưới phẳng nên sáu con số cùng đòi được
+ * nhìn — mắt không biết nhìn đâu. Và trong một lần xem thật có tới bảy ô bằng 0
+ * trải khắp năm thẻ, mỗi ô chiếm đúng bằng ô có số thật.
+ *
+ * Thứ tự cố ý: ô chính -> cần chú ý -> còn lại. Đọc từ trên xuống là "đang thế
+ * nào" -> "có gì phải xử lý" -> "chi tiết".
+ */
+function xepTheoTang(ds, moduleId) {
+  const MUC = { cao: 0, vua: 1 };
+  const chinh = [];
+  const chuY = [];
+  const phu = [];
+  const khong = [];
+
+  ds.forEach((t) => {
+    if (t.chinh) { chinh.push(t); return; }
+    const canhBao = t.muc === 'cao' || t.muc === 'vua';
+    /* Số 0 gộp vào một dòng — TRỪ hai ngoại lệ, vì ở đó số 0 là TIN chứ không
+     * phải sự vắng mặt:
+     *  - đang cảnh báo (cao/vua): luôn giữ, kể cả bằng 0
+     *  - có dòng ghi chú riêng: VD "0 quá hạn · 3 việc trễ đã giải quyết", hay
+     *    "ROAS 0x · chưa ghi công được đơn nào". Gộp đi là mất lời giải thích và
+     *    người đọc lại tưởng hỏng.
+     * `muc: 'ok'` KHÔNG phải ngoại lệ: nó nghĩa là "chuyện này đang ổn", tức
+     * không có việc gì phải làm — đúng thứ nên nhường chỗ. */
+    if ((Number(t.so) || 0) === 0 && !canhBao && !t.ghi) { khong.push(t); return; }
+    if (canhBao) { chuY.push(t); return; }
+    phu.push(t);
+  });
+
+  chuY.sort((a, b) => (MUC[a.muc] ?? 9) - (MUC[b.muc] ?? 9));
+  /* Trong tầng phụ, ô CÓ SỐ đứng trước ô bằng 0. Không xếp thì mắt phải nhảy qua
+   * chỗ trống mới tới số thật — đã thấy đúng vậy: "Đang tiến hành 10" nằm sau
+   * hai ô 0. Giữ nguyên thứ tự tương đối trong từng nhóm để module vẫn kiểm soát
+   * được cái nào quan trọng hơn. */
+  const coSo = (x) => ((Number(x.so) || 0) !== 0 ? 0 : 1);
+  phu.sort((a, b) => coSo(a) - coSo(b));
+
+  const oHtml = (t, lop) => theHtml(t, moduleId, lop);
+  let ra = '';
+  if (chinh.length || chuY.length || phu.length) {
+    ra += '<div class="the-luoi">'
+      + chinh.map((t) => oHtml(t, 'chinh')).join('')
+      + chuY.map((t) => oHtml(t, '')).join('')
+      + phu.map((t) => oHtml(t, 'phu')).join('')
+      + '</div>';
+  }
+  if (khong.length) {
+    /* Một dòng chữ thay cho N ô trống. Vẫn bấm được từng cái, vẫn đọc được rõ,
+     * chỉ là không giành sự chú ý với những số thật. */
+    ra += '<div class="the-khong"><span class="tkn-nhan">Không có</span>'
+      /* KHÔNG hạ chữ: i18n của hệ này dịch theo "khớp nguyên câu một text node",
+       * hạ chữ là không còn khớp khoá nào và nhãn kẹt lại tiếng Việt giữa giao
+       * diện tiếng Anh. Đã lộ ra đúng như vậy: "Không có: today's trips". */
+      + khong.map((t) => '<span class="tkn"' + (moduleId
+        ? ' data-mo="' + esc(moduleId) + '"' + (t.tab ? ' data-tab="' + esc(t.tab) + '"' : '')
+          + (t.khoa ? ' data-khoa="' + esc(t.khoa) + '"' : '')
+        : '') + '>' + esc(String(t.nhan)) + '</span>').join('')
+      + '</div>';
+  }
+  return ra;
+}
+
+function theHtml(t, moduleId, lopTang = '') {
   const muc = t.muc || '';
   let lech = '';
   // 0% vs kỳ trước khi số cũng bằng 0 chỉ là rác — bỏ đi
   if (t.lech != null && Number.isFinite(t.lech) && !(t.lech === 0 && !Number(t.so))) {
     const tot = t.dao ? t.lech < 0 : t.lech > 0;
+    /* Làm tròn Ở ĐÂY, không tin chỗ gọi đã tròn. Thẻ Social từng in
+     * "−0.9760725233955753%" vì một module trả số thô. Tầng vẽ chặn được mọi
+     * module, kể cả module viết sau này.
+     * Dưới 10% thì giữ một chữ số thập phân (2,6% khác 3%); từ 10% trở lên thì
+     * phần thập phân không còn ý nghĩa gì với người đọc. */
+    const p0 = Math.abs(t.lech);
+    const soLech = p0 >= 10 ? Math.round(p0) : Math.round(p0 * 10) / 10;
     lech = '<div class="lech ' + (t.lech === 0 ? '' : tot ? 'tot' : 'xau') + '">' +
-      (t.lech > 0 ? '+' : t.lech < 0 ? '−' : '') + Math.abs(t.lech) + '% vs kỳ trước</div>';
+      (t.lech > 0 ? '+' : t.lech < 0 ? '−' : '') +
+      String(soLech).replace('.', ',') + '% vs kỳ trước</div>';
   }
   const dai = t.dinhDang === 'vnd' && Math.abs(Number(t.so) || 0) >= 1000000 ? ' dai' : '';
   /* Ô bằng 0 và không có mức nghiêm trọng thì làm MỜ đi. Bảng Tổng quan hiện có
@@ -687,9 +761,16 @@ function theHtml(t, moduleId) {
     ? '<div class="ghi' + (t.ghiKhoa ? ' ghi-mo" data-ghi-khoa="' + esc(t.ghiKhoa) + '"' : '"') + '>' +
       esc(t.ghi) + '</div>'
     : '';
-  return '<div class="the ' + muc + trong + (moduleId ? ' bam-duoc' : '') + '"' + mo + '>' +
+  /* Ô chính rộng hết hàng, nên gói dòng so sánh + ghi chú vào MỘT cột rồi đẩy
+   * sang phải. Không gói thì lúc thiếu dòng so sánh, nửa bên phải trống trơn và
+   * thẻ trông như chưa dựng xong ("Việc đang mở 13", "7 ngày tới 4"). */
+  const duoi = lopTang === 'chinh' && (lech || ghi)
+    ? '<div class="ben-phai">' + lech + ghi + '</div>'
+    : lech + ghi;
+  return '<div class="the ' + muc + trong + (lopTang ? ' ' + lopTang : '')
+    + (moduleId ? ' bam-duoc' : '') + '"' + mo + '>' +
     '<div class="nhan">' + esc(t.nhan) + '</div>' +
-    '<div class="so' + dai + '">' + so(t.so, t.dinhDang) + '</div>' + lech + ghi + '</div>';
+    '<div class="so' + dai + '">' + so(t.so, t.dinhDang) + '</div>' + duoi + '</div>';
 }
 
 function dongViecHtml(v, tenModule) {
@@ -741,7 +822,7 @@ function veHome() {
       noi = '<div class="canh-bao do"><span class="grow">Không đọc được chỉ số: ' + esc(r.loi || '') + '</span>' +
         '<button class="btn nho" data-batlai="' + esc(m.id) + '">Bật lại module</button></div>';
     } else {
-      noi = '<div class="the-luoi">' + (r.the || []).map((x) => theHtml(x, m.id)).join('') + '</div>' +
+      noi = xepTheoTang(r.the || [], m.id) +
         (r.cu ? '<div class="canh-bao" style="margin-top:12px"><span class="grow">Đang hiển thị số cũ (' +
           gio(r.luc) + ') — lần đọc mới nhất lỗi: ' + esc(r.loi || '') + '</span></div>' : '');
     }

@@ -38,6 +38,8 @@
     'Mọi base': 'All bases',
     'Chỉ chưa đọc': 'Unread only',
     'Xem hết': 'Show all',
+    // nhãn dòng gộp các ô bằng 0 ở Tổng quan chung
+    'Không có': 'None',
     'Không có mục nào khớp bộ lọc.': 'Nothing matches this filter.',
     'Mốc thời gian là lúc diễn ra việc. Xử lý xong là mục tự mất.':
       'Times shown are when the work happens. An item disappears once handled.',

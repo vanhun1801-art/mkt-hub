@@ -116,7 +116,7 @@ async function congViec(mod, khoang, nguoi) {
   // Quản lý mới cần thẻ "Chưa phân công" — nhân sự không phân công cho ai cả
   const laQL = !nguoi || nguoi.quanLy;
   const the = [
-    { nhan: 'Việc đang mở', so: mo.length, dinhDang: 'so', khoa: 'mo' },
+    { chinh: true, nhan: 'Việc đang mở', so: mo.length, dinhDang: 'so', khoa: 'mo' },
     { nhan: 'Quá hạn', so: quaHan.length, dinhDang: 'so', muc: quaHan.length ? 'cao' : 'ok', khoa: 'qua-han',
       ghi: treDaGQ.length ? treDaGQ.length + ' việc trễ đã giải quyết' : '',
       ghiKhoa: treDaGQ.length ? 'tre-da-giai-quyet' : '' },
@@ -266,7 +266,7 @@ async function lichTacNghiep(mod, khoang, nguoi) {
   const the = [
     { nhan: 'Chờ duyệt', so: choDuyet.length, dinhDang: 'so', muc: choDuyet.length ? 'cao' : 'ok', khoa: 'cho-duyet' },
     { nhan: 'Lịch hôm nay', so: homNay.length, dinhDang: 'so', khoa: 'hom-nay' },
-    { nhan: '7 ngày tới', so: tuanToi.length, dinhDang: 'so', khoa: '7-ngay' },
+    { chinh: true, nhan: '7 ngày tới', so: tuanToi.length, dinhDang: 'so', khoa: '7-ngay' },
     // thay cho "Đang báo cáo" (số đó chỉ mô tả, không đòi ai làm gì)
     { nhan: 'Lịch có nguy cơ', so: nguyCo.length, dinhDang: 'so', khoa: 'nguy-co',
       muc: nguyCoNang.length ? 'cao' : nguyCo.length ? 'vua' : 'ok',
@@ -372,7 +372,7 @@ async function quangCao(mod, khoang, nguoi) {
    * ty — thẻ này từng hiện ROAS 162,63x vì lấy cả 8,6 tỷ của kênh "Khác" (lữ hành,
    * khách cũ, gọi trực tiếp) làm tử số. */
   const the = [
-    { nhan: 'Chi tiêu', so: k.spend || 0, dinhDang: 'vnd', lech: d.spend },
+    { chinh: true, nhan: 'Chi tiêu', so: k.spend || 0, dinhDang: 'vnd', lech: d.spend },
     { nhan: 'Doanh thu từ QC', so: k.revenue || 0, dinhDang: 'vnd', lech: d.revenue,
       ghi: k.revenueCongTy
         ? (k.tyLeTuQuangCao != null ? k.tyLeTuQuangCao + '% của ' + dinhDangTien(k.revenueCongTy) + ' toàn công ty' : '')
@@ -460,7 +460,7 @@ async function ota(mod, khoang, nguoi) {
     ...((!nguoi || nguoi.quanLy || nguoi.chiPhi) ? [
       /* Tên thẻ lấy đúng tên cột công thức của base OTA ("Doanh thu thu về") để
        * người mở Base đối chiếu được ngay, khỏi phải đoán hai chữ có cùng nghĩa. */
-      { nhan: 'Doanh thu thu về', so: t.thucNhan || 0, dinhDang: 'vnd',
+      { chinh: true, nhan: 'Doanh thu thu về', so: t.thucNhan || 0, dinhDang: 'vnd',
         ghi: (t.bookingSong || 0) + ' booking · ' + (t.khach || 0) + ' khách' },
       { nhan: 'Hoa hồng OTA', so: t.hoaHong || 0, dinhDang: 'vnd',
         /* Hoa hồng = Gross VND × %. Chưa ai nhập giá OTA bán thì Gross = 0 và
@@ -558,10 +558,18 @@ async function social(mod, khoang, nguoi) {
     : '?days=30';
   const ov = await goiJson(mod, '/api/tong-quan' + q, { nguoi });
   const t = ov.tong || {};
-  const d = ov.doi || {};
+
+  /* App Social trả `doi` là TỶ LỆ ((nay-truoc)/|truoc|), còn thẻ ở hub dùng đơn vị
+   * PHẦN TRĂM như mọi thẻ khác. Không đổi ở app Social được vì giao diện riêng của
+   * nó tự nhân 100; đổi ở đó là làm app kia sai. Nên quy đổi ở đúng ranh giới này.
+   * Thiếu chỗ này thì thẻ hiện "−0,98%" cho một cú giảm 98% — sai 100 lần. */
+  const d = {};
+  Object.entries(ov.doi || {}).forEach(([k, v]) => {
+    d[k] = typeof v === 'number' && Number.isFinite(v) ? v * 100 : v;
+  });
 
   const the = [
-    { nhan: 'Lượt xem', so: t.views || 0, dinhDang: 'so', lech: d.views },
+    { chinh: true, nhan: 'Lượt xem', so: t.views || 0, dinhDang: 'so', lech: d.views },
     { nhan: 'Lượt tiếp cận', so: t.reach || 0, dinhDang: 'so', lech: d.reach },
     /* Follower là số CHỐT ở ngày mới nhất, không phải tổng cộng dồn — nói rõ ra,
        vì đây đúng là chỗ mọi bảng social hay cộng nhầm rồi ra số to gấp mấy chục lần. */

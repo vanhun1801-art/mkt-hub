@@ -81,6 +81,16 @@ const json = async (p, opts) => {
   /* ---- 2. proxy vào từng module ---- */
   console.log('\n[2] Proxy module');
   const dangChay = [];
+  /* id module -> đường API để thử xuyên proxy. Không khai thì mặc định /api/meta. */
+  const khaiApi = {};
+  try {
+    const raw = require('fs').readFileSync(require('path').join(__dirname, '..', 'modules.json'), 'utf8');
+    const ds = JSON.parse(raw);
+    (Array.isArray(ds) ? ds : ds.modules || []).forEach((x) => {
+      if (x && x.id && x.thuApi) khaiApi[x.id] = x.thuApi;
+    });
+  } catch (_) { /* không đọc được thì cứ dùng mặc định */ }
+
   for (const m of mods.filter((x) => x.kieu === 'local' && x.bat)) {
     const tt = (m.tinhTrang || {}).trangThai;
     if (!['chay', 'ngoai'].includes(tt)) { boQua('Proxy ' + m.id, 'trạng thái ' + tt); continue; }
@@ -101,8 +111,17 @@ const json = async (p, opts) => {
       '  ' + m.id + ': href/src tuyệt đối (nếu có) đã mang tiền tố /m/<id>/');
     ok(/no-store/.test(String(html.headers['cache-control'] || '')), '  ' + m.id + ': HTML không bị cache');
 
-    const meta = await json('/m/' + m.id + '/api/meta');
-    ok(meta.code === 200 && meta.data, '  ' + m.id + ': API /api/meta xuyên proxy trả JSON', meta.raw.slice(0, 100));
+    /* Phép kiểm này hỏi "lời gọi API có đi xuyên proxy và về được JSON không",
+     * chứ không hỏi "có đường /api/meta không". Bốn app có /api/meta, app Social
+     * đặt tên khác — ghi cứng một tên là test đỏ vì test sai. Module tự khai
+     * `thuApi` trong modules.json; không khai thì mặc định /api/meta như cũ. */
+    /* Đọc thẳng modules.json chứ không xin hub trả thêm trường: `congKhai()` là
+     * danh sách trắng cố ý, mở rộng nó chỉ để phục vụ test là nới bề mặt API
+     * công khai vì một lý do sai. Test chạy ngay cạnh file nên đọc là được. */
+    const duongThu = (khaiApi[m.id] || '/api/meta');
+    const meta = await json('/m/' + m.id + duongThu);
+    ok(meta.code === 200 && meta.data,
+      '  ' + m.id + ': API ' + duongThu + ' xuyên proxy trả JSON', meta.raw.slice(0, 100));
 
     const chuyen = await goi('/m/' + m.id);
     ok(chuyen.code === 302 && String(chuyen.headers.location || '').endsWith('/m/' + m.id + '/'),

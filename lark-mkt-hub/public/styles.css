@@ -421,6 +421,50 @@ button { font: inherit; }
   .nhom-base > .the-luoi { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+/* ---------- ba tầng ô trong một thẻ base ----------
+   Trước đây mọi ô cùng cỡ nên sáu con số cùng đòi được nhìn. Nay khác nhau về
+   kích cỡ chứ không thêm màu mới: màu vẫn chỉ dùng để báo mức nghiêm trọng. */
+
+/* Tầng 1 — ô chính: trả lời "base này đang thế nào". Rộng hết hàng để nó là thứ
+   đầu tiên mắt chạm tới, và để con số dài (tiền tỷ) không bị bó lại. */
+.nhom-base > .the-luoi > .the.chinh { grid-column: 1 / -1; }
+.the.chinh {
+  padding: 13px 15px;
+  /* Xếp ngang: nhãn chiếm cả hàng trên, số bên trái, dòng so sánh dồn sang phải.
+     Không xếp thì lúc thiếu dòng so sánh nửa bên phải trống trơn. */
+  display: grid; grid-template-columns: auto 1fr; column-gap: 14px;
+  align-items: end;
+}
+.the.chinh .nhan { font-size: 11.5px; grid-column: 1 / -1; }
+.the.chinh .so { font-size: 30px; margin-top: 4px; grid-column: 1; }
+.the.chinh .so.dai { font-size: 25px; }
+.the.chinh .ben-phai {
+  grid-column: 2; justify-self: end; text-align: right;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
+  padding-bottom: 3px;
+}
+.the.chinh .ben-phai .lech, .the.chinh .ben-phai .ghi { margin-top: 0; }
+
+/* Tầng 3 — ô phụ: vẫn đọc rõ, nhưng nhường chỗ cho hai tầng trên. */
+.the.phu { padding: 9px 12px; }
+.the.phu .so { font-size: 18px; }
+.the.phu .so.dai { font-size: 15px; }
+.the.phu .nhan { font-size: 10px; }
+
+/* Tầng 4 — những ô bằng 0 gộp lại thành MỘT dòng chữ.
+   Bảy ô trống trải khắp năm thẻ, mỗi ô chiếm đúng bằng ô có số thật — đó là phần
+   lớn cảm giác rối. Ở đây vẫn bấm được từng cái, chỉ là không giành sự chú ý. */
+.the-khong {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  padding: 2px 2px 0; font-size: 12px; color: var(--chu-nhat);
+}
+.the-khong .tkn-nhan { font-weight: 650; opacity: .75; }
+.the-khong .tkn-nhan::after { content: ':'; }
+.the-khong .tkn { opacity: .8; }
+.the-khong .tkn + .tkn::before { content: '·'; margin-right: 6px; opacity: .55; }
+.the-khong .tkn[data-mo] { cursor: pointer; }
+.the-khong .tkn[data-mo]:hover { opacity: 1; text-decoration: underline; }
+
 .khoi {
   background: var(--trang); border: 1px solid var(--vien); border-radius: var(--r);
   box-shadow: var(--bong); overflow: hidden;
@@ -433,8 +477,13 @@ button { font: inherit; }
   width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center;
   font-size: 11.5px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; flex: 0 0 auto;
 }
-.khoi-head > div:not([class]) { min-width: 0; }
-.khoi-head h2 { font-size: 14px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Tiêu đề ĐƯỢC XUỐNG DÒNG thay vì bị cắt. Tên base là nhãn duy nhất cho biết đang
+   đọc base nào — ở 1200px mỗi thẻ chỉ còn ~300px và nó từng bị cắt thành
+   "Bảng côn…", "Quản lý q…". Cho cả đầu thẻ xuống dòng thì hai nút rơi xuống hàng
+   riêng, đầu thẻ cao thêm và các thẻ lệch nhau — nên chỉ cho TIÊU ĐỀ xuống dòng,
+   nút giữ nguyên chỗ. */
+.khoi-head > div:not([class]) { min-width: 0; flex: 1 1 auto; }
+.khoi-head h2 { font-size: 14px; font-weight: 650; line-height: 1.25; }
 .khoi-head .kh-sub {
   font-size: 12px; color: var(--chu-nhat); font-weight: 400;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
