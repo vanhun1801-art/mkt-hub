@@ -131,6 +131,20 @@ async function listFields(tableId, opts = {}) {
   })).filter((f) => f.id);
 }
 
+/**
+ * Tạo đúng MỘT cột trong Base. Chỉ schema.js được gọi hàm này và chỉ cho ba cột
+ * vận hành đã chốt; không dùng nó để tự tạo cột công thức hoặc thay đổi cột cũ.
+ * API Base v3 nhận trực tiếp { name, type, description? }.
+ */
+async function createField(tableId, spec) {
+  const name = String((spec && spec.name) || '').trim();
+  const type = String((spec && spec.type) || '').trim();
+  if (!name || !type) throw Object.assign(new Error('Tạo cột cần đủ name và type'), { code: 400 });
+  const body = { name, type };
+  if (spec.description) body.description = String(spec.description);
+  return call('POST', baseUrl(tableId) + '/fields', { body });
+}
+
 async function createRecord(tableId, fields) {
   const names = Object.keys(fields);
   const d = await call('POST', baseUrl(tableId) + '/records/batch_create', {
@@ -205,7 +219,7 @@ async function quyenGhi() {
 }
 
 module.exports = {
-  cli, whoami, quyenGhi, listAll, listTables, listFields,
+  cli, whoami, quyenGhi, listAll, listTables, listFields, createField,
   createRecord, createMany, updateRecord, updateMany, deleteRecords,
   tenantToken, call,
 };

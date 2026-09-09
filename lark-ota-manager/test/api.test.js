@@ -77,6 +77,13 @@ const patch = (p, body) => goi(p, {
     String((meta.luocDo || {}).quyenGhi));
   t('nói rõ đang đọc nguồn nào', ['base', 'hang-doi', 'loi'].includes(meta.nguon), String(meta.nguon));
   t('liệt kê trường cho sửa', Array.isArray(meta.choSua) && meta.choSua.includes('diemDon'));
+  t('meta trả link/view nhập booking Lark', meta.nhapBooking && !!meta.nhapBooking.viewName && !!meta.nhapBooking.url,
+    JSON.stringify(meta.nhapBooking));
+  t('chu kỳ tự đọc Lark không thấp hơn 30 giây', meta.tuDongLark && meta.tuDongLark.moiMs >= 30000,
+    JSON.stringify(meta.tuDongLark));
+  t('7 OTA đều có trạng thái API tương lai', (meta.apiOta || []).length === 7 &&
+    meta.apiOta.every((x) => ['chua-duoc-cap-api', 'co-credential'].includes(x.trangThai)),
+    JSON.stringify(meta.apiOta || []));
 
   const noiBase = !!(meta.luocDo && meta.luocDo.ok);
   console.log('  → chế độ: ' + (noiBase ? 'ĐÃ NỐI BASE (bỏ qua phần ghi)' : 'hàng đợi cục bộ'));
@@ -230,6 +237,9 @@ const patch = (p, body) => goi(p, {
   const tk = r.j || {};
   t('trả 200', r.s === 200);
   t('có tổng + theo kênh + theo ngày + theo tour', tk.tong && tk.kenh && tk.ngay && tk.tour);
+  t('tổng có dữ liệu lead time', tk.tong && typeof tk.tong.datTruocCoDuLieu === 'number' &&
+    tk.tong.datTruocNhom && typeof tk.tong.datTruocNhom.motDenBa === 'number',
+    JSON.stringify(tk.tong && tk.tong.datTruocNhom));
   /* KHÔNG còn đẳng thức "thực nhận = tổng tiền − hoa hồng": thực nhận lấy từ bảng
    * giá NET (luôn VNĐ, cộng cả booking ngoại tệ), còn tổng tiền/hoa hồng là số của
    * OTA theo nguyên tệ nên chỉ cộng booking VNĐ. Kiểm bằng bất biến khác. */
@@ -320,7 +330,7 @@ const patch = (p, body) => goi(p, {
         .map((b) => [b.maBooking, b.thucNhan, b.tongTien])));
 
     const meta2 = (await get('/api/meta')).j;
-    t('/api/meta trả bảng giá cho màn Thiết lập',
+    t('/api/meta trả bảng giá cho màn Dữ liệu Lark',
       Array.isArray(meta2.bangGia) && meta2.bangGia[0] && meta2.bangGia[0].sanPham.length >= 7,
       JSON.stringify((meta2.bangGia || []).map((b) => b.sanPham.length)));
     /* Nối được Base thì giá PHẢI đến từ Danh mục Tour, không phải bảng cứng trong

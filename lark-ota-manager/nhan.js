@@ -291,7 +291,7 @@ async function sua(id, patch) {
     if (khongCoCot.length) {
       const e = new Error('Bảng "' + (luoc.tableTen || cfg.tableName) + '" chưa có cột ' +
         khongCoCot.map((k) => '"' + cfg.cot[k].ten + '"').join(', ') +
-        ' — thêm cột đó vào Base rồi thử lại (xem tab Thiết lập).');
+        ' — thêm cột đó vào Base rồi thử lại (xem màn Dữ liệu Lark).');
       e.code = 400;
       throw e;
     }

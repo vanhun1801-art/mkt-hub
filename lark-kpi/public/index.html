@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Báo cáo &amp; KPI · Rooty Trip</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23106b52'/><text x='16' y='22' font-size='12' font-family='Arial' font-weight='bold' fill='white' text-anchor='middle'>KPI</text></svg>">
+<link rel="stylesheet" href="styles.css?v=__V__">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">KPI</span>
+    <div>
+      <div class="brand-title">Báo cáo &amp; KPI</div>
+      <div class="brand-sub" id="brandSub">đang nạp…</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <label class="fld" id="oThang">Tháng
+      <select id="selThang"></select>
+    </label>
+    <button class="btn ghost" id="btnLamMoi">Làm mới</button>
+    <span class="chip" id="meChip">—</span>
+  </div>
+</header>
+
+<div class="tabsbar"><nav class="tabs" id="tabs"></nav></div>
+
+<main id="noiDung"><div class="rong">đang nạp…</div></main>
+
+<div class="modal" id="modal" hidden>
+  <div class="modal-nen" data-dong></div>
+  <div class="modal-hop">
+    <header><h3 id="modalTieuDe">—</h3><button class="btn ghost small" data-dong>Đóng</button></header>
+    <div id="modalThan"></div>
+  </div>
+</div>
+
+<div id="doc" class="doc" hidden></div>
+
+<script src="baocao.js?v=__V__"></script>
+<script src="tiendo.js?v=__V__"></script>
+<script src="app.js?v=__V__"></script>
+</body>
+</html>

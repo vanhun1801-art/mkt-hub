@@ -183,7 +183,7 @@ function tuBanGhi(r, luoc) {
     ghiChu: clean(o('ghiChu')),
     ngonNgu: clean(o('ngonNgu')),
     tienTe: nguyenTe,
-    /* Số nguyên tệ giữ riêng để tab Thiết lập đối chiếu được với Gross VND khi
+    /* Số nguyên tệ giữ riêng để màn Dữ liệu Lark đối chiếu được với Gross VND khi
      * nghi tỷ giá sai. Dashboard thì luôn dùng bản VNĐ. */
     tongTienGoc: num(o('tongTien')),
     tyGia: num(o('tyGia')),

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Booking OTA · Rooty Trip</title>
+<title>OTA Manager · Rooty Trip</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%237a3cff'/><text x='16' y='22' font-size='13' font-family='Arial' font-weight='bold' fill='white' text-anchor='middle'>OTA</text></svg>">
 <link rel="stylesheet" href="styles.css">
 </head>
@@ -13,15 +13,15 @@
   <div class="brand">
     <span class="logo">OTA</span>
     <div>
-      <div class="brand-title">Booking OTA</div>
-      <div class="brand-sub" id="brandSub">đang nạp dữ liệu…</div>
+      <div class="brand-title">OTA Manager</div>
+      <div class="brand-sub" id="brandSub">Lark Base là nguồn dữ liệu gốc</div>
     </div>
   </div>
   <div class="topbar-right">
-    <button class="btn src" id="nguonChip" title="Booking đang đọc từ đâu — bấm để đổi nguồn">—</button>
-    <button class="btn ghost small" id="btnWebhook" title="Đường dẫn webhook để đưa cho OTA">Webhook</button>
+    <button class="btn src" id="nguonChip" title="Tự đọc lại bảng Bookings từ Lark Base">—</button>
+    <a class="btn primary small" id="btnNhapBooking" target="_blank" rel="noreferrer" hidden>+ Nhập booking OTA</a>
     <button class="btn ghost small" id="btnCsv" title="Xuất danh sách đang lọc ra CSV">Xuất CSV</button>
-    <button class="btn ghost small" id="btnRefresh" title="Nạp lại từ Lark Base">Làm mới</button>
+    <button class="btn ghost small" id="btnRefresh" title="Đọc lại dữ liệu mới nhất từ Lark Base">Đọc lại Lark</button>
     <a class="btn ghost small" id="linkBase" target="_blank" rel="noreferrer" hidden>Mở Base</a>
     <span class="chip" id="meChip">—</span>
   </div>
@@ -31,7 +31,7 @@
   <nav class="tabs" id="tabs">
     <button data-tab="moi" class="on">Booking mới</button>
     <button data-tab="thongke">Thống kê OTA</button>
-    <button data-tab="thietlap">Thiết lập</button>
+    <button data-tab="lark">Dữ liệu Lark</button>
   </nav>
 </div>
 

@@ -29,6 +29,16 @@ function chuanTen(s) {
 }
 
 const KEYS = Object.keys(cfg.cot);
+
+/* Ba cột vận hành đã được chủ Base duyệt để thêm ngay. Payload gốc vẫn để sau,
+ * vì hiện tại booking nhập tay và chưa có OTA API. */
+const COT_VAN_HANH = ['gioDon', 'ghiChu', 'daNhan'];
+const KIEU_TAO_COT = {
+  gioDon: 'text',
+  ghiChu: 'text',
+  daNhan: 'checkbox',
+};
+let dangTaoCot = null;
 /* Cột app được phép GHI = không phải công thức/tự động. Danh sách này là hàng rào
  * cuối cùng trước khi gọi API: ghi vào cột công thức là Lark từ chối CẢ bản ghi,
  * nên một booking hỏng vì lý do đó sẽ mất luôn chứ không chỉ thiếu một ô. */
@@ -310,6 +320,94 @@ function xoaCache() {
 }
 
 /**
+ * Tạo đúng ba cột vận hành đã chốt: Giờ đón, Ghi chú khách, Sales đã nhận.
+ *
+ * An toàn theo bốn lớp:
+ *  - chỉ quản lý gọi được endpoint ở server.js;
+ *  - chỉ thêm cột còn thiếu, nhận cả tên gọi khác nên không tạo trùng;
+ *  - không đổi kiểu, không xoá, không sửa bất kỳ cột/dữ liệu hiện có;
+ *  - không tạo Payload gốc hay cột công thức.
+ *
+ * Hàm có khoá trong tiến trình để hai lần bấm gần nhau không tạo hai cột cùng tên.
+ */
+async function taoCotVanHanh() {
+  if (dangTaoCot) return dangTaoCot;
+
+  dangTaoCot = (async () => {
+    if (!cfg.baseToken) {
+      throw Object.assign(new Error('Chưa khai OTA_BASE_TOKEN nên chưa thể thêm cột vào Lark Base.'), { code: 400 });
+    }
+    if (typeof lark.createField !== 'function') {
+      throw Object.assign(new Error('Backend Lark hiện tại chưa hỗ trợ tạo cột.'), { code: 501 });
+    }
+
+    let luoc = await doc({ force: true });
+    if (!luoc.tableId) {
+      throw Object.assign(new Error(luoc.loi || 'Không tìm thấy bảng Bookings.'), { code: 400 });
+    }
+    if (luoc.quyenGhi === false) {
+      throw Object.assign(new Error(
+        'Ứng dụng Lark đang chỉ có quyền xem. Mở Base → Chia sẻ → cấp quyền chỉnh sửa cho ứng dụng rồi thử lại.'
+      ), { code: 403 });
+    }
+
+    const tao = [];
+    const daCo = [];
+    const loi = [];
+
+    for (const key of COT_VAN_HANH) {
+      /* Dò lại trước từng cột. Ngoài việc tránh tạo trùng khi tên gọi khác đã có,
+       * bước này còn bảo vệ trường hợp một lượt trước tạo thành công nhưng client
+       * mất mạng trước khi nhận phản hồi rồi người dùng bấm lại. */
+      xoaCache();
+      luoc = await doc({ force: true });
+      if (luoc.fields && luoc.fields[key]) {
+        daCo.push({ key, ten: cfg.cot[key].ten, fieldId: luoc.fields[key] });
+        continue;
+      }
+
+      const spec = cfg.cot[key];
+      try {
+        const kq = await lark.createField(luoc.tableId, {
+          name: spec.ten,
+          type: KIEU_TAO_COT[key],
+          description: VI_SAO[key] || '',
+        });
+        tao.push({
+          key,
+          ten: spec.ten,
+          kieu: spec.kieu,
+          fieldId: (kq && (kq.field_id || kq.id || (kq.field && kq.field.field_id))) || '',
+        });
+        // Lark thường phản hồi ngay, nhưng chờ ngắn để field-list nhìn thấy cột mới.
+        await new Promise((r) => setTimeout(r, 250));
+      } catch (e) {
+        loi.push({ key, ten: spec.ten, loi: e.message || String(e) });
+      }
+    }
+
+    xoaCache();
+    const sau = await doc({ force: true });
+    const conThieu = COT_VAN_HANH
+      .filter((k) => !(sau.fields && sau.fields[k]))
+      .map((k) => ({ key: k, ten: cfg.cot[k].ten, kieu: cfg.cot[k].kieu }));
+
+    return {
+      ok: loi.length === 0 && conThieu.length === 0,
+      tableId: sau.tableId,
+      tableTen: sau.tableTen || cfg.tableName,
+      tao,
+      daCo,
+      loi,
+      conThieu,
+      luocDo: sau,
+    };
+  })().finally(() => { dangTaoCot = null; });
+
+  return dangTaoCot;
+}
+
+/**
  * Bản hướng dẫn tạo bảng, để màn hình thiết lập in ra đúng thứ cần bấm trong
  * Lark Base. Không tự tạo cột hộ: tạo cột sai kiểu trong base thật là việc khó
  * dọn, mà người vận hành base mới biết cột nào nên là select có sẵn option gì.
@@ -319,7 +417,7 @@ function huongDan(luoc) {
   const dm = (luoc && luoc.danhMuc) || {};
   return {
     tenBang: cfg.tableName,
-    /* Bốn cột app cần mà bảng Bookings chưa có — tách riêng để tab Thiết lập nói
+    /* Bốn cột app cần mà bảng Bookings chưa có — tách riêng để màn Dữ liệu Lark nói
      * gọn "thêm 4 cột này là xong" thay vì bắt người đọc soi cả bảng 36 dòng. */
     canThem: KEYS.filter((k) => thieu.includes(k) && cfg.cot[k].tuyChon).map((k) => ({
       key: k, ten: cfg.cot[k].ten, kieu: cfg.cot[k].kieu,
@@ -353,4 +451,7 @@ const VI_SAO = {
   payloadGoc: 'Bản gốc OTA gửi. Khi kế toán hỏi "số này ở đâu ra" thì đây là bằng chứng.',
 };
 
-module.exports = { doc, xoaCache, huongDan, chuanTen, timBang, KEYS, KEYS_GHI };
+module.exports = {
+  doc, xoaCache, taoCotVanHanh, huongDan, chuanTen, timBang,
+  KEYS, KEYS_GHI, COT_VAN_HANH,
+};

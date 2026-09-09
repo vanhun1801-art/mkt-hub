@@ -20,7 +20,7 @@ const lark = require('./lark');
 const schema = require('./schema');
 
 /* Danh mục đổi rất thưa (thêm tour, sửa % hoa hồng) nên đệm dài hơn booking
- * nhiều. Bấm "Dò lại lược đồ" trong tab Thiết lập là xoá đệm ngay. */
+ * nhiều. Bấm "Dò lại lược đồ" trong màn Dữ liệu Lark là xoá đệm ngay. */
 const TTL_MS = Number(process.env.OTA_DANHMUC_TTL || 10 * 60 * 1000);
 
 let dem = null;      // { at, data }

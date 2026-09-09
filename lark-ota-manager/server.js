@@ -92,6 +92,34 @@ function serveStatic(req, res, urlPath) {
   });
 }
 
+
+/* ---------------- trạng thái credential API OTA ----------------
+ * Chỉ trả CÓ/CHƯA CÓ biến môi trường cho màn Dữ liệu Lark.
+ * Tuyệt đối không trả giá trị secret/token về browser. Tên biến là quy ước nội bộ
+ * của Rooty Marketing Hub; khi nối từng provider thật, connector server sẽ đọc các
+ * biến này để đổi token/gọi API. */
+const OTA_API_ENV = [
+  { id: 'waug', ten: 'WAUG', loai: 'Partner API + webhook', env: ['OTA_WAUG_CLIENT_ID', 'OTA_WAUG_CLIENT_SECRET'] },
+  { id: 'klook', ten: 'Klook', loai: 'Supplier API + webhook', env: ['OTA_KLOOK_API_KEY', 'OTA_KLOOK_API_SECRET'] },
+  { id: 'kkday', ten: 'KKday', loai: 'Supplier API / partner access', env: ['OTA_KKDAY_API_KEY', 'OTA_KKDAY_API_SECRET'] },
+  { id: 'gyg', ten: 'GetYourGuide', loai: 'Supplier API + webhook', env: ['OTA_GYG_API_KEY', 'OTA_GYG_API_SECRET'] },
+  { id: 'ctrip', ten: 'Trip.com / Ctrip', loai: 'Partner API', env: ['OTA_CTRIP_APP_ID', 'OTA_CTRIP_APP_SECRET'] },
+  { id: 'myrealtrip', ten: 'MyRealTrip', loai: 'Partner API (khi được cấp)', env: ['OTA_MYREALTRIP_API_KEY', 'OTA_MYREALTRIP_API_SECRET'] },
+  { id: 'viator', ten: 'Viator', loai: 'Supplier API + webhook', env: ['OTA_VIATOR_API_KEY'] },
+];
+
+function trangThaiApiOta() {
+  return OTA_API_ENV.map((k) => {
+    const daNhap = k.env.filter((x) => String(process.env[x] || '').trim()).length;
+    return { id: k.id, ten: k.ten, loai: k.loai, env: k.env, daNhap, tong: k.env.length,
+      daCauHinh: daNhap === k.env.length,
+      /* `daCauHinh` chỉ nói credential đã xuất hiện, KHÔNG đồng nghĩa connector
+       * đang chạy. Giao diện manual-first luôn ghi rõ phương thức hiện tại. */
+      phuongThucHienTai: 'Nhập tại Lark Base',
+      trangThai: daNhap === k.env.length ? 'co-credential' : 'chua-duoc-cap-api' };
+  });
+}
+
 /* ---------------- bộ lọc từ query ---------------- */
 function queryOpts(u) {
   const list = (k) => {
@@ -105,7 +133,7 @@ function queryOpts(u) {
     kenh: list('kenh'),
     trangThai: list('trangThai'),
     canXuLy: u.searchParams.get('canXuLy') || '',
-    // 'ngayDi' (mặc định — gần nhất trước) hoặc 'nhanLuc' (mới về hệ thống trước)
+    // 'ngayDi' (mặc định — gần nhất trước) hoặc 'nhanLuc' (mới nhập vào Lark trước)
     sap: TK.KIEU_SAP.includes(u.searchParams.get('sap')) ? u.searchParams.get('sap') : 'ngayDi',
     chuaNhan: u.searchParams.get('chuaNhan') === '1',
     tim: u.searchParams.get('tim') || '',
@@ -115,8 +143,9 @@ function queryOpts(u) {
   };
 }
 
-/* ---------------- chế độ TRỰC TIẾP (SSE) ----------------
- * Màn vận hành phải thấy booking NGAY khi OTA gửi về, không phải ngồi bấm Làm mới.
+/* ---------------- kênh sự kiện API tương lai (SSE) ----------------
+ * Luồng chính hiện tại đọc Bookings từ Lark theo chu kỳ. SSE được giữ làm đường
+ * nhanh khi một OTA được cấp API/webhook trong tương lai.
  * Dùng SSE chứ không WebSocket vì:
  *   - luồng một chiều (server → client) là đủ: app chỉ cần nói "có thay đổi rồi";
  *   - đi qua proxy của lớp vỏ được (proxy pipe thẳng response không phải HTML);
@@ -205,6 +234,58 @@ function duocGoiWebhook(req) {
       };
 }
 
+/* ---------------- sửa bảng giá / Danh mục Tour ---------------- */
+function suaMetaGhiChu(ghiChuCu, nhom, luat) {
+  const giu = String(ghiChuCu || '').split(/\r?\n/)
+    .filter((x) => !/^\s*\[OTA Manager\]\s*(Nhóm|Luật nhận diện)\s*:/i.test(x));
+  if (String(nhom || '').trim()) giu.push('[OTA Manager] Nhóm: ' + String(nhom).trim());
+  if (String(luat || '').trim()) giu.push('[OTA Manager] Luật nhận diện: ' + String(luat).trim());
+  return giu.filter((x, i, a) => x.trim() || (i > 0 && i < a.length - 1)).join('\n').trim();
+}
+
+function soGia(v, ten) {
+  if (v == null || v === '') return null;
+  const n = Number(v);
+  if (!Number.isFinite(n) || n < 0) throw Object.assign(new Error(ten + ' phải là số từ 0 trở lên'), { code: 400 });
+  return Math.round(n);
+}
+
+async function luuTourDanhMuc(body, recordId) {
+  const luoc = await schema.doc();
+  const dm = luoc.danhMuc && luoc.danhMuc.tour;
+  if (!dm || !dm.ok) throw Object.assign(new Error((dm && dm.loi) || 'Chưa đọc được bảng Danh mục Tour'), { code: 400 });
+  const F = dm.fields || {};
+  if (!F.ten || !F.nguoiLon || !F.treEm) throw Object.assign(new Error('Danh mục Tour thiếu cột Tên tour / Giá thu về NL / Giá thu về TE'), { code: 400 });
+
+  const ten = String(body.ten || '').trim();
+  if (!ten) throw Object.assign(new Error('Tên sản phẩm không được để trống'), { code: 400 });
+  const nl = soGia(body.nguoiLon, 'Giá người lớn');
+  const te = soGia(body.treEm, 'Giá trẻ em');
+
+  let ghiChuCu = '';
+  if (recordId) {
+    const hienTai = await danhmuc.get({ force: true });
+    const cu = (hienTai.tour || []).find((x) => x.recordId === recordId);
+    if (!cu) throw Object.assign(new Error('Không tìm thấy sản phẩm trong Danh mục Tour'), { code: 404 });
+    ghiChuCu = cu.ghiChu || '';
+  }
+
+  const fields = { [F.ten]: ten, [F.nguoiLon]: nl, [F.treEm]: te };
+  if (F.ma && body.ma !== undefined) fields[F.ma] = String(body.ma || '').trim();
+  if (F.dangBan && body.dangBan !== undefined) fields[F.dangBan] = !!body.dangBan;
+  if (F.ghiChu) fields[F.ghiChu] = suaMetaGhiChu(ghiChuCu, body.nhom, body.luat);
+
+  let id = recordId;
+  if (recordId) await lark.updateRecord(dm.tableId, recordId, fields);
+  else id = await lark.createRecord(dm.tableId, fields);
+
+  danhmuc.xoaCache();
+  gia.xoaCache();
+  store.invalidate();
+  schema.xoaCache();
+  return { recordId: id, ten, nguoiLon: nl, treEm: te };
+}
+
 /* ---------------- router ---------------- */
 async function api(req, res, u) {
   const p = u.pathname;
@@ -250,6 +331,29 @@ async function api(req, res, u) {
     });
   }
 
+  /* ======================= bảng giá / Danh mục Tour ======================= */
+  if (p === '/api/danh-muc-tour' && method === 'POST') {
+    const q = quyenCua(req);
+    if (!q.quanLy || !q.chiPhi) return fail(res, 403, 'Chỉ quản lý có quyền xem chi phí mới được thêm sản phẩm.', { code: 'MANAGER_ONLY' });
+    try {
+      const body = await readBody(req);
+      const kq = await luuTourDanhMuc(body, '');
+      phatSuKien('bang-gia', { loai: 'them', recordId: kq.recordId });
+      return ok(res, kq);
+    } catch (e) { return fail(res, e.code || 500, e.message || 'Không thêm được sản phẩm'); }
+  }
+
+  if ((m = p.match(/^\/api\/danh-muc-tour\/([\w-]+)$/)) && method === 'PATCH') {
+    const q = quyenCua(req);
+    if (!q.quanLy || !q.chiPhi) return fail(res, 403, 'Chỉ quản lý có quyền xem chi phí mới được sửa bảng giá.', { code: 'MANAGER_ONLY' });
+    try {
+      const body = await readBody(req);
+      const kq = await luuTourDanhMuc(body, m[1]);
+      phatSuKien('bang-gia', { loai: 'sua', recordId: kq.recordId });
+      return ok(res, kq);
+    } catch (e) { return fail(res, e.code || 500, e.message || 'Không sửa được bảng giá'); }
+  }
+
   /* ======================= dashboard ======================= */
   if (p === '/api/meta' && method === 'GET') {
     const q = quyenCua(req);
@@ -275,6 +379,12 @@ async function api(req, res, u) {
       soBooking: d.rows.length,
       chuaDay: hangdoi.demChuaDay(),
       baseUrl: cfg.baseUrl,
+      nhapBooking: {
+        url: cfg.inputFormUrl || cfg.baseUrl,
+        laForm: !!cfg.inputFormUrl,
+        viewName: cfg.inputViewName,
+      },
+      tuDongLark: { moiMs: cfg.autoRefreshMs },
       luocDo: {
         ok: luoc.ok, noiBase: luoc.noiBase, tableId: luoc.tableId, tableTen: luoc.tableTen || '',
         thieu: luoc.thieu, thieuBatBuoc: luoc.thieuBatBuoc,
@@ -298,6 +408,7 @@ async function api(req, res, u) {
         tenBangTour: cfg.tableTourName,
       },
       nguonGia: gia.nguonGia(),
+      apiOta: trangThaiApiOta(),
       kenh: cfg.kenh.map((k) => ({ id: k.id, ten: k.ten, hoaHong: k.hoaHong })),
       // Bảng giá NET là thông tin thương mại — chỉ người có quyền chi phí thấy
       bangGia: q.chiPhi ? gia.tomTat() : [],
@@ -401,6 +512,17 @@ async function api(req, res, u) {
       thieu: luoc.thieu, thieuBatBuoc: luoc.thieuBatBuoc, loi: luoc.loi,
       huongDan: schema.huongDan(luoc),
     });
+  }
+
+  if (p === '/api/tao-cot-van-hanh' && method === 'POST') {
+    if (!quyenCua(req).quanLy) {
+      return fail(res, 403, 'Chỉ quản lý được thêm cột vận hành vào Lark Base.', { code: 'MANAGER_ONLY' });
+    }
+    const kq = await schema.taoCotVanHanh();
+    store.invalidate();
+    gia.xoaCache();
+    danhmuc.xoaCache();
+    return ok(res, kq);
   }
 
   if (p === '/api/day-hang-doi' && method === 'POST') {

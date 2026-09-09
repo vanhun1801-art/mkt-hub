@@ -17,6 +17,7 @@
 !lark-ads-manager/
 !lark-ota-manager/
 !lark-social/
+!lark-kpi/
 
 # ---- bí mật & dữ liệu cục bộ: KHÔNG bao giờ lên GitHub ----
 .env
@@ -30,6 +31,9 @@
 **/muc-tieu.json
 **/hang-doi.json
 **/schema.json
+# Điểm KPI gắn với lương của từng người — repo này đẩy lên GitHub, dữ liệu này
+# thì không. Bộ luật và mã nguồn vẫn lên; số điểm ở lại máy.
+lark-kpi/du-lieu/
 
 # ---- rác ----
 **/node_modules/

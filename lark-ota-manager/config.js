@@ -1,13 +1,13 @@
 'use strict';
 /**
- * Cấu hình app "Booking OTA" — nhận booking từ các kênh OTA rồi tự ghi vào Lark Base.
+ * Cấu hình OTA Manager — Lark Base là nguồn dữ liệu gốc duy nhất.
  *
- * KHÁC ba app kia một điểm quan trọng: base OTA chưa tồn tại lúc viết code, nên ở
- * đây KHÔNG hardcode field ID. App dò field ID theo TÊN CỘT lúc chạy (schema.js) —
- * đúng nguyên tắc "không đoán ID" của repo, mà vẫn chạy được ngay từ hôm nay.
+ * Luồng hiện tại: nhân viên nhập booking một lần trong form/view Lark, dashboard
+ * chỉ đọc bảng Bookings để vận hành và thống kê. Hạ tầng webhook vẫn được giữ cho
+ * tương lai; khi OTA cấp API, adapter cũng phải ghi vào đúng bảng Bookings này.
  *
- * Chưa nối base thì app vẫn nhận webhook và lưu vào hàng đợi cục bộ, không mất
- * booking nào; nối base xong bấm "Đẩy hàng đợi vào Base" là chuyển hết sang Base.
+ * App không hardcode field ID: schema.js dò field ID theo TÊN CỘT lúc chạy, đúng
+ * nguyên tắc không đoán ID và không phụ thuộc thứ tự cột trong Base.
  */
 const path = require('path');
 
@@ -122,6 +122,17 @@ module.exports = {
 
   cacheTtlMs: Number(process.env.OTA_CACHE_TTL || 30000),
 
+  /* Luồng hiện tại không phụ thuộc API OTA: nhân viên nhập đúng một lần vào
+   * form/view "Nhập booking OTA" của Lark Base, OTA Manager chỉ đọc lại cùng
+   * bảng Bookings. Khi có link form chia sẻ riêng, khai biến dưới để nút trên
+   * giao diện mở thẳng form; chưa khai thì nút mở Base và nhắc chọn đúng view. */
+  inputFormUrl: process.env.OTA_INPUT_FORM_URL || process.env.OTA_FORM_URL || '',
+  inputViewName: process.env.OTA_INPUT_VIEW_NAME || 'Nhập booking OTA',
+
+  /* Booking được nhập trực tiếp trong Lark không phát SSE về app, nên giao diện
+   * kiểm tra lại Base theo nhịp này. Tối thiểu 30 giây để không gọi Lark quá dày. */
+  autoRefreshMs: Math.max(30000, Number(process.env.OTA_AUTO_REFRESH_MS || 60000) || 60000),
+
   /* Bí mật webhook. Bắt buộc khi chạy server chung: OTA gọi vào
    * POST /webhook/<kenh>?secret=... hoặc header x-ota-secret.
    * Để trống ở máy cá nhân thì app chỉ nhận webhook từ 127.0.0.1. */
@@ -179,7 +190,7 @@ module.exports = {
    *
    * `ten`     tên cột trong Base — app dò field ID theo tên này, không hardcode ID.
    * `bi`      tên gọi khác cũng chấp nhận, để đổi tên cột mà không phải sửa code.
-   * `kieu`    loại cột, để màn hình Thiết lập in ra đúng thứ cần tạo.
+   * `kieu`    loại cột, để màn Dữ liệu Lark in ra đúng thứ cần tạo.
    * `batBuoc` thiếu là không ghi được.
    * `chiDoc`  ⚠️ CỘT CÔNG THỨC / TỰ ĐỘNG — app CHỈ ĐỌC, ghi vào là Lark báo lỗi
    *           cả bản ghi. Đây là điểm khác lớn nhất so với bản app gốc: tiền
@@ -187,7 +198,7 @@ module.exports = {
    *           thu thu về, Lệch giá…), app không được tính lại rồi ghi đè.
    * `link`    cột liên kết sang bảng danh mục — ghi bằng mảng record_id.
    * `tuyChon` cột app muốn có nhưng base CHƯA có; thiếu thì app vẫn chạy, chỉ
-   *           tắt bớt tính năng và nhắc trong tab Thiết lập.
+   *           tắt bớt tính năng và nhắc trong màn Dữ liệu Lark.
    *
    * NGUYÊN TẮC CHIA VIỆC: app ghi dữ liệu THÔ mà OTA gửi (khách, ngày, số khách,
    * nguyên tệ, gross, tỷ giá, link OTA + link Tour); Base tự tính mọi con tiền.

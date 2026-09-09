@@ -1,0 +1,11 @@
+{
+  "name": "lark-kpi",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Bao cao & KPI - cham diem thang tu so lieu cac app con, bo luat tach khoi du lieu",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/luat.test.js && node test/tinh.test.js && node test/lich-su.test.js"
+  }
+}

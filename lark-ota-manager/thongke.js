@@ -102,6 +102,27 @@ const so = (v) => (v == null ? 0 : Number(v) || 0);
 
 const laVnd = (b) => !b.tienTe || b.tienTe === 'VND';
 
+/**
+ * Số ngày khách đặt trước ngày đi. Chỉ dùng phần ngày (UTC) để 01/09 → 02/09
+ * luôn là 1 ngày, không bị lệch vì timezone của máy chạy server.
+ * Ngày đặt sau ngày đi là dữ liệu sai nên trả null và được đếm vào nhóm thiếu.
+ */
+function soNgayDatTruoc(b) {
+  if (!b || !b.ngayDat || !b.ngayDi) return null;
+  const dat = Date.parse(String(b.ngayDat).slice(0, 10) + 'T00:00:00Z');
+  const di = Date.parse(String(b.ngayDi).slice(0, 10) + 'T00:00:00Z');
+  if (!Number.isFinite(dat) || !Number.isFinite(di)) return null;
+  const n = Math.round((di - dat) / 86400000);
+  return n >= 0 ? n : null;
+}
+
+function trungVi(ds) {
+  if (!ds.length) return 0;
+  const a = ds.slice().sort((x, y) => x - y);
+  const i = Math.floor(a.length / 2);
+  return a.length % 2 ? a[i] : Math.round(((a[i - 1] + a[i]) / 2) * 10) / 10;
+}
+
 function gop(rows) {
   const song = rows.filter((b) => SONG.has(b.trangThai));
   const huy = rows.filter((b) => b.trangThai === 'Đã huỷ');
@@ -119,6 +140,18 @@ function gop(rows) {
   const thucNhan = song.reduce((s, b) => s + so(b.thucNhan), 0);
   // số khách không phụ thuộc tiền tệ nên đếm cả booking ngoại tệ
   const khach = song.reduce((s, b) => s + so(b.tongKhach), 0);
+
+  /* Lead time chỉ tính booking còn sống. Booking huỷ/no-show không đại diện cho
+   * hành vi mua thật và sẽ làm sai báo cáo đặt trước. */
+  const datTruoc = song.map(soNgayDatTruoc).filter((n) => n != null);
+  const datTruocTong = datTruoc.reduce((s, n) => s + n, 0);
+  const datTruocNhom = {
+    cungNgay: datTruoc.filter((n) => n === 0).length,
+    motDenBa: datTruoc.filter((n) => n >= 1 && n <= 3).length,
+    bonDenBay: datTruoc.filter((n) => n >= 4 && n <= 7).length,
+    tamDenMuoiBon: datTruoc.filter((n) => n >= 8 && n <= 14).length,
+    trenMuoiBon: datTruoc.filter((n) => n > 14).length,
+  };
 
   return {
     booking: rows.length,
@@ -140,6 +173,11 @@ function gop(rows) {
     dsNgoaiTe: [...new Set(ngoai.map((b) => b.tienTe))].sort(),
     tbBooking: dungTien.length ? Math.round(tongTien / dungTien.length) : 0,
     tbKhach: khach ? Math.round(tongTien / khach) : 0,
+    datTruocTb: datTruoc.length ? Math.round((datTruocTong / datTruoc.length) * 10) / 10 : 0,
+    datTruocTrungVi: trungVi(datTruoc),
+    datTruocCoDuLieu: datTruoc.length,
+    datTruocThieu: song.length - datTruoc.length,
+    datTruocNhom,
     tyLeHoaHong: tongTien > 0 ? Math.round((hoaHong / tongTien) * 1000) / 10 : 0,
     tyLeHuy: rows.length ? Math.round(((huy.length + hoan.length) / rows.length) * 1000) / 10 : 0,
     hoaHongUocTinh: song.filter((b) => b.nguonThucNhan === 'uoc-tinh').length,
@@ -196,7 +234,7 @@ function vanHanh(rows, { coDaNhan = true } = {}) {
       ghi: canGoi.length ? 'thiếu SĐT / điểm đón / chưa xác nhận' : 'không có booking nào thiếu' },
     ...(coDaNhan ? [{ nhan: 'Chưa ai nhận', so: chuaNhan.length, khoa: 'chua-nhan',
       muc: chuaNhan.length ? 'vua' : 'ok' }] : []),
-    { nhan: 'Booking về 24h qua', so: moiVe.length, khoa: 'moi-ve' },
+    { nhan: 'Mới nhập 24h qua', so: moiVe.length, khoa: 'moi-ve' },
   ];
 
   return { the, nhom };
@@ -276,5 +314,6 @@ function thongKe(rows, q = {}) {
 module.exports = {
   loc, sapXep, gop, vanHanh, thongKe,
   theoKenh, theoNgay, theoTour, theoCanXuLy,
+  soNgayDatTruoc, trungVi,
   MOC, KIEU_SAP, SONG,
 };

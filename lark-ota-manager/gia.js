@@ -177,6 +177,22 @@ function capNhatTuDanhMuc(tours) {
      * khai tour này ứng với tên nào trong bảng giá cũ. Cắt bằng indexOf cho chắc,
      * khỏi phụ thuộc regex có dấu tiếng Việt. */
     const gc = String(t.ghiChu || '');
+    const layDongMeta = (nhan) => {
+      const dong = gc.split(/\r?\n/).find((x) => x.trim().toLowerCase().startsWith('[ota manager] ' + nhan.toLowerCase() + ':'));
+      return dong ? dong.slice(dong.indexOf(':') + 1).trim() : '';
+    };
+    const nhomTuBase = layDongMeta('Nhóm');
+    const luatTuBaseRaw = layDongMeta('Luật nhận diện');
+    const tachLuat = (raw) => {
+      if (!raw) return null;
+      const parts = raw.split(/\s+[—-]\s+loại nếu có:\s*/i);
+      const luat = parts[0].split(/\s+VÀ\s+/i)
+        .map((g) => g.replace(/^\(|\)$/g, '').split('/').map((x) => x.trim()).filter(Boolean))
+        .filter((g) => g.length);
+      const khongCo = (parts[1] || '').split('/').map((x) => x.trim()).filter(Boolean);
+      return luat.length ? { luat, khongCo } : null;
+    };
+    const luatTuBase = tachLuat(luatTuBaseRaw);
     const vt = gc.toLowerCase().indexOf('bảng giá gọi là');
     const tenGoc = vt < 0 ? '' : gc.slice(gc.indexOf(':', vt) + 1).split('.')[0].trim();
     const theoGhiChu = tenGoc ? tatCaSp.find((sp) => chuan(sp.ten) === chuan(tenGoc)) : null;
@@ -190,14 +206,14 @@ function capNhatTuDanhMuc(tours) {
       id: t.ma || chuan(t.ten),
       ten: t.ten,
       recordId: t.recordId,
-      nhom: (cu && cu.nhom) || '',
+      nhom: nhomTuBase || (cu && cu.nhom) || '',
       nguoiLon: t.nguoiLon,
       treEm: t.treEm,
       dangBan: t.dangBan !== false,
       tuDanhMuc: true,
       ghepVoi: cu ? cu.ten : '',
-      luat: cu ? cu.luat.map((nhom) => nhom.slice()) : [rieng],
-      khongCo: cu ? (cu.khongCo || []).slice() : [],
+      luat: luatTuBase ? luatTuBase.luat : (cu ? cu.luat.map((nhom) => nhom.slice()) : [rieng]),
+      khongCo: luatTuBase ? luatTuBase.khongCo : (cu ? (cu.khongCo || []).slice() : []),
     };
   });
 
@@ -303,7 +319,7 @@ function thucNhanTheoBangGia({ tour, ngay, nguoiLon, treEm }) {
   };
 }
 
-/** Bảng giá đang dùng, cho màn hình Thiết lập. */
+/** Bảng giá đang dùng, cho màn Dữ liệu Lark. */
 function tomTat() {
   return banGia().map((b) => ({
     hieuLuc: b.hieuLuc,
@@ -312,7 +328,7 @@ function tomTat() {
     sanPham: b.sanPham.map((sp) => ({
       id: sp.id, ten: sp.ten, nhom: sp.nhom || '',
       recordId: sp.recordId || '', ghepVoi: sp.ghepVoi || '',
-      nguoiLon: sp.nguoiLon, treEm: sp.treEm,
+      nguoiLon: sp.nguoiLon, treEm: sp.treEm, dangBan: sp.dangBan !== false,
       luat: luatCua(sp).map((nhom) => '(' + nhom.join(' / ') + ')').join(' VÀ ') +
         ((sp.khongCo || []).length ? '  — loại nếu có: ' + sp.khongCo.join(' / ') : ''),
     })),
@@ -321,7 +337,7 @@ function tomTat() {
 
 function xoaCache() { cache = null; banBase = null; }
 
-/** Bảng giá hiện đang dùng lấy từ đâu — tab Thiết lập in ra để khỏi đoán. */
+/** Bảng giá hiện đang dùng lấy từ đâu — màn Dữ liệu Lark in ra để khỏi đoán. */
 const nguonGia = () => (banBase ? 'danh-muc' : (process.env.OTA_GIA_JSON ? 'env' : 'du-phong'));
 
 module.exports = {

@@ -137,7 +137,7 @@ async function listAll(tableId) {
  * VÌ SAO PHẢI HỎI RIÊNG: đọc được không có nghĩa là ghi được. Base do người khác
  * dựng thường chỉ chia sẻ ở mức "Có thể xem" — mọi màn hình vẫn đầy đủ số, không
  * có gì trông như hỏng, và chỉ tới khi booking THẬT đầu tiên về mới lòi ra là ghi
- * không được. Hỏi trước một câu thì biết ngay từ lúc mở tab Thiết lập.
+ * không được. Hỏi trước một câu thì biết ngay từ lúc mở màn Dữ liệu Lark.
  *
  * @returns {Promise<boolean|null>} null = không xác định được (đừng suy diễn gì).
  */
@@ -173,6 +173,20 @@ async function listFields(tableId, opts = {}) {
     name: String(f.field_name || f.name || ''),
     type: f.type || f.ui_type || '',
   })).filter((f) => f.id);
+}
+
+/**
+ * Tạo một cột bằng lark-cli. Lệnh chính thức nhận JSON { name, type } hoặc mảng;
+ * app gọi từng cột một để lỗi cột nào nói đúng tên cột đó và không tạo trùng.
+ */
+async function createField(tableId, spec) {
+  const name = String((spec && spec.name) || '').trim();
+  const type = String((spec && spec.type) || '').trim();
+  if (!name || !type) throw Object.assign(new Error('Tạo cột cần đủ name và type'), { code: 400 });
+  const body = { name, type };
+  if (spec.description) body.description = String(spec.description);
+  return cli(['base', '+field-create', ...baseArgs(), '--table-id', tableId,
+    '--json', JSON.stringify(body), '--format', 'json'], { retries: 1 });
 }
 
 /** fields: { fieldId: cellValue } */
@@ -230,7 +244,7 @@ async function deleteRecords(tableId, recordIds) {
 module.exports = cfg.mode === 'api'
   ? require('./larkapi')
   : {
-      cli, whoami, quyenGhi, listAll, listTables, listFields,
+      cli, whoami, quyenGhi, listAll, listTables, listFields, createField,
       createRecord, createMany, updateRecord, updateMany, deleteRecords,
       gonLoi,
     };
