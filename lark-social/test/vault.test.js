@@ -155,4 +155,45 @@ t('ghép theo id chứ không theo vị trí trong mảng', () => {
   assert.strictEqual(r[1].refreshToken, 'cua-B');
 });
 
+console.log('\nluuToken không được thu nhỏ kho');
+
+const { gopVaoKho } = ketnoi;
+
+t('gộp theo id: kênh chỉ có trong kho vẫn được giữ', () => {
+  /* Máy cá nhân chỉ biết 1 kênh nhưng dùng chung SOCIAL_VAULT_KEY với Render nơi
+   * có đủ 6. Bản trước ghi đè cả danh sách, nên sau ba ngày chạy nền kho tụt từ
+   * 6 kênh xuống 1 — mất token của 5 kênh, không một dòng cảnh báo. */
+  const kho = { clientKey: 'k', channels: [
+    { openId: 'a', refreshToken: 'ra' },
+    { openId: 'b', refreshToken: 'rb' },
+    { openId: 'c', refreshToken: 'rc' },
+  ] };
+  const r = gopVaoKho(kho, { clientKey: 'k', channels: [] },
+    [{ openId: 'a', refreshToken: 'ra-moi' }], 'channels', 'openId');
+  assert.strictEqual(r.channels.length, 3, 'không được rơi mất kênh nào');
+  assert.strictEqual(r.channels.find((x) => x.openId === 'a').refreshToken, 'ra-moi', 'token mới phải thắng');
+  assert.strictEqual(r.channels.find((x) => x.openId === 'c').refreshToken, 'rc', 'kênh máy này không biết phải giữ nguyên');
+});
+
+t('kênh máy này mới nối mà kho chưa có thì được thêm vào', () => {
+  const r = gopVaoKho({ channels: [{ openId: 'a' }] }, {},
+    [{ openId: 'z', refreshToken: 'rz' }], 'channels', 'openId');
+  assert.strictEqual(r.channels.length, 2);
+  assert.ok(r.channels.some((x) => x.openId === 'z'));
+});
+
+t('trường vô hướng rỗng KHÔNG được đè lên giá trị thật trong kho', () => {
+  const r = gopVaoKho({ clientKey: 'that', clientSecret: 'that2', channels: [] },
+    { clientKey: '', clientSecret: 'moi', channels: [] }, [], 'channels', 'openId');
+  assert.strictEqual(r.clientKey, 'that', 'chuỗi rỗng không được xoá giá trị thật');
+  assert.strictEqual(r.clientSecret, 'moi', 'giá trị thật mới thì được đè');
+});
+
+t('kho rỗng hoàn toàn thì lấy đúng danh sách máy này gửi', () => {
+  const r = gopVaoKho({}, { clientKey: 'k' },
+    [{ openId: 'a' }, { openId: 'b' }], 'channels', 'openId');
+  assert.strictEqual(r.channels.length, 2);
+  assert.strictEqual(r.clientKey, 'k');
+});
+
 console.log('\n' + so + ' phép thử đạt' + (process.exitCode ? ' — CÓ LỖI' : '') + '\n');

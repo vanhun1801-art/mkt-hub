@@ -213,6 +213,36 @@ function ghiKhoi(khoi, values) {
   fs.writeFileSync(FILE, JSON.stringify(raw, null, 2) + '\n', 'utf8');
 }
 
+
+/**
+ * Gộp một khối cấu hình của MÁY NÀY vào bản đang nằm trong kho, theo luật:
+ *
+ *   - danh sách tài khoản: ghép theo id, chỉ CẬP NHẬT và THÊM. Mục kho đang có
+ *     mà máy này không biết thì giữ nguyên.
+ *   - trường vô hướng: chỉ đè khi máy này thật sự có giá trị.
+ *
+ * Tách riêng để thử được bằng test mà không phải chạm tới Base.
+ */
+function gopVaoKho(kho, cuaMay, danhSach, truong, khoaId) {
+  const cu = Array.isArray(kho[truong]) ? kho[truong] : [];
+  const ds = cu.slice();
+  (danhSach || []).forEach((x) => {
+    if (!x) return;
+    const i = ds.findIndex((y) => y && y[khoaId] && y[khoaId] === x[khoaId]);
+    if (i >= 0) ds[i] = { ...ds[i], ...x };
+    else ds.push(x);
+  });
+
+  const voHuong = {};
+  Object.keys(cuaMay || {}).forEach((k) => {
+    if (k === truong) return;
+    const v = cuaMay[k];
+    if (v !== '' && v != null && !(Array.isArray(v) && !v.length)) voHuong[k] = v;
+  });
+
+  return { ...kho, ...voHuong, [truong]: ds };
+}
+
 /**
  * Ghi lại token vừa làm mới. Hai chỗ, cố ý:
  *   - kho khoá  → sống qua deploy trên Render (chỗ quan trọng);
@@ -221,8 +251,24 @@ function ghiKhoi(khoi, values) {
  */
 async function luuToken(nenTang, danhSach) {
   const truong = nenTang === 'tiktok' ? 'channels' : 'oas';
+  const khoaId = nenTang === 'tiktok' ? 'openId' : 'oaId';
   const c = docTho();
-  await vault.ghi(nenTang, { ...c[nenTang], [truong]: danhSach, ghiLuc: new Date().toISOString() });
+
+  /* GỘP vào kho, TUYỆT ĐỐI không thu nhỏ danh sách.
+   *
+   * Đã trả giá để học: máy cá nhân chỉ nối 1 kênh TikTok, nhưng vẫn khai chung
+   * SOCIAL_VAULT_KEY với Render nơi có đủ 6. Mỗi lần token xoay, hàm này ghi đè
+   * kho bằng danh sách 1 phần tử của máy cá nhân — sau ba ngày chạy nền, kho từ
+   * 6 kênh còn 1, và không một dòng cảnh báo nào.
+   *
+   * Đây là đường TỰ ĐỘNG (đồng bộ, làm mới token) nên chỉ được phép cập nhật và
+   * thêm. Muốn GỠ một kênh thì đi đường có chủ ý: sửa trong màn hình Kết nối rồi
+   * Lưu cấu hình — đó là luuKho(), và nó mới được phép ghi đè cả danh sách. */
+  const kho = (await vault.doc(nenTang)) || {};
+  await vault.ghi(nenTang, {
+    ...gopVaoKho(kho, c[nenTang] || {}, danhSach || [], truong, khoaId),
+    ghiLuc: new Date().toISOString(),
+  });
   try {
     ghiKhoi(nenTang, { ...c[nenTang], [truong]: danhSach });
   } catch (_) { /* ổ đĩa tạm/chỉ đọc — kho khoá mới là chỗ tin cậy */ }
@@ -266,5 +312,6 @@ function checHet(o) {
 }
 
 module.exports = {
-  FILE, MAC_DINH, doc, docTho, ghiKhoi, luuToken, luuKho, nguon, checHet, coThongTin, ghepDs,
+  FILE, MAC_DINH, doc, docTho, ghiKhoi, luuToken, luuKho, nguon, checHet, coThongTin,
+  ghepDs, gopVaoKho,
 };
