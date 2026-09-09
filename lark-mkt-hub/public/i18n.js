@@ -83,6 +83,7 @@
     'Hôm nay tới hạn': 'Due today',
     'Base đang quản lý': 'Bases you manage',
     'Đang ẩn': 'Hidden',
+    'mục cũ hơn': 'older items',
     'Thêm base': 'Add base',
     'Cài đặt': 'Settings',
     'Làm mới': 'Refresh',

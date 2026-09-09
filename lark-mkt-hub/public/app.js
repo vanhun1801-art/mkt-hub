@@ -20,8 +20,8 @@ const S = {
   phu: new Map(),      // id -> dòng phụ đề module tự báo
   tb: [],              // thông báo gom từ mọi Base
   tbMoi: 0,            // số mục người này chưa đọc
-  tbHen: null,         // hẹn giờ đánh dấu đã đọc
-  tbLoc: { ngay: '30', mod: '', chuaDoc: false },   // bộ lọc bảng thông báo
+  // bộ lọc bảng thông báo — `ky` dùng chung bộ mốc với mọi bộ lọc khác của hệ
+  tbLoc: { ky: 'thang', mod: '', chuaDoc: false },
   ky: 'thang',         // khoảng thời gian đang lọc — mặc định THÁNG HIỆN TẠI
   tu: '', den: '',     // dùng khi ky = 'tuychon'
   lich: null,          // dữ liệu /api/lich-chung
@@ -246,7 +246,16 @@ const MUC_TB = {
 // nhớ bộ lọc của từng người, khỏi phải chọn lại mỗi lần mở bảng
 try {
   const luu = JSON.parse(localStorage.getItem('hub.tbLoc') || 'null');
-  if (luu && typeof luu === 'object') Object.assign(S.tbLoc, luu);
+  if (luu && typeof luu === 'object') {
+    /* Máy nào đã dùng bản cũ thì trong localStorage còn khoá `ngay` ('7'/'30'/
+     * 'all'). Quy đổi sang mốc tương đương rồi bỏ, không thì bộ lọc mở ra
+     * trống trơn mà chẳng hiểu tại sao. */
+    if (luu.ngay && !luu.ky) {
+      luu.ky = luu.ngay === '7' ? 'tuan' : luu.ngay === 'all' ? 'all' : 'thang';
+    }
+    delete luu.ngay;
+    Object.assign(S.tbLoc, luu);
+  }
 } catch (_) { /* trình duyệt chặn localStorage thì dùng mặc định */ }
 
 async function napThongBao() {
@@ -277,19 +286,14 @@ function moBangTB() {
   box.className = 'tb-panel';
   document.body.appendChild(box);
   veBangTB();
-  /* Đánh dấu đã đọc sau 1,5 giây, không phải ngay khi mở: mở ra mà nhãn "mới"
-   * biến mất tức thì thì chẳng ai kịp thấy cái nào mới. Đúng những mã đang hiện
-   * mới được đánh dấu, không "đọc hết" mù quáng. */
-  const ids = S.tb.filter((x) => x.moi).map((x) => x.id);
-  if (ids.length) {
-    clearTimeout(S.tbHen);
-    S.tbHen = setTimeout(() => {
-      fetch('/api/thong-bao/doc', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids }),
-      }).then(() => { S.tbMoi = 0; veChuong(); }).catch(() => {});
-    }, 1500);
-  }
+  /* KHÔNG đánh dấu đọc khi mở bảng.
+   *
+   * Bản trước hẹn 1,5 giây rồi đánh dấu đọc mọi mục đang hiện. Hệ quả: mở bảng
+   * một lần là 17 mục thành "đã đọc" dù chưa xem mục nào — mất sạch dấu vết
+   * "cái nào mình còn chưa nhìn tới", tức là mất đúng công dụng của nhãn.
+   *
+   * Giờ chỉ mục nào BẤM VÀO mới tính đã đọc (xem xuLyBamTB). Còn mục đã xử lý
+   * xong thì tự rời danh sách vì app con thôi báo về, nên không cần đánh dấu. */
   setTimeout(() => document.addEventListener('pointerdown', dongNeuNgoaiTB, true), 0);
 }
 
@@ -299,7 +303,6 @@ function dongNeuNgoaiTB(e) {
 }
 
 function dongBangTB() {
-  clearTimeout(S.tbHen);
   document.removeEventListener('pointerdown', dongNeuNgoaiTB, true);
   const p = $('#tbPanel');
   if (p) p.remove();
@@ -336,19 +339,34 @@ function gioDayDu(iso) {
     ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
 }
 
+/** Mốc "cũ hơn thì ẩn" của bảng thông báo: đầu kỳ đang chọn. */
+function mocThongBao() {
+  const k = S.tbLoc.ky;
+  if (k === 'all') return 0;
+  const kh = window.HUB_LOC && window.HUB_LOC.khoangCua(k);
+  if (!kh || !kh.tu) return 0;
+  const t = new Date(kh.tu + 'T00:00:00').getTime();
+  return isNaN(t) ? 0 : t;
+}
+
 /**
  * Lọc danh sách thông báo.
  *
- * Mốc thời gian ở đây là lúc DIỄN RA việc, nên "cũ" nghĩa là việc đã lâu. Mặc
- * định giữ 30 ngày: đủ dài để không giấu mất việc còn ý nghĩa, đủ ngắn để mấy
- * cái từ tháng 4 không chen chỗ.
+ * Mốc thời gian ở đây là lúc DIỄN RA việc, nên "cũ" nghĩa là việc đã lâu.
+ *
+ * Bộ mốc lấy từ HUB_LOC — đúng bộ mà thanh lọc trang và cả bốn app con đang
+ * dùng. Trước đây bảng này có bộ riêng ("7 ngày / 30 ngày / Tất cả"), đọc lên
+ * là thấy lệch hẳn với mọi bộ lọc khác trong app.
+ *
+ * Chỉ cắt phía CŨ, không cắt phía tương lai: việc sắp phải làm thì luôn giữ,
+ * kể cả khi nó rơi ngoài kỳ đang chọn — đó là thứ cần biết nhất.
  *
  * Cố ý KHÔNG giấu im lặng: số mục bị lọc bớt được ghi rõ ở chân bảng, kèm nút
  * xem hết — giấu mà không nói là cách nhanh nhất để người ta bỏ sót việc.
  */
 function locThongBao(ds) {
   const L = S.tbLoc;
-  const moc = L.ngay === 'all' ? 0 : Date.now() - Number(L.ngay) * 86400000;
+  const moc = mocThongBao();
   return ds.filter((x) => {
     if (L.chuaDoc && !x.moi) return false;
     if (L.mod && x.mod !== L.mod) return false;
@@ -370,7 +388,7 @@ function veBangTB() {
   const dong = (x) => {
     const m = MUC_TB[x.muc] || MUC_TB.tin;
     const khi = khiNao(x.khi);
-    return `<button class="tb-o${x.moi ? ' moi' : ''}" data-tb-mod="${esc(x.mod)}" data-tb-rec="${esc(x.rec || '')}">
+    return `<button class="tb-o${x.moi ? ' moi' : ''}" data-tb-mod="${esc(x.mod)}" data-tb-rec="${esc(x.rec || '')}" data-tb-id="${esc(x.id)}">
       <span class="tb-cham" style="background:${m.mau}"></span>
       <span class="tb-noi">
         <span class="tb-dau"><b>${esc(x.tieuDe)}</b>${x.moi ? '<span class="tb-moi">mới</span>' : ''}
@@ -415,7 +433,7 @@ function veBangTB() {
     </div>
     <div class="tb-loc">
       <div class="tb-hang">
-        ${chip('ngay', '7', '7 ngày')}${chip('ngay', '30', '30 ngày')}${chip('ngay', 'all', 'Tất cả')}
+        ${dsKy().filter(([k]) => k !== 'tuychon').map(([k, t]) => chip('ky', k, t)).join('')}
         <span class="tb-vach"></span>
         ${chip('chuaDoc', !L.chuaDoc, 'Chỉ chưa đọc')}
       </div>
@@ -425,7 +443,7 @@ function veBangTB() {
     <div class="tb-than">${than || '<div class="tb-trong">' +
       (boBot ? 'Không có mục nào khớp bộ lọc.' : 'Không có gì cần bạn để mắt. Nhẹ người.') + '</div>'}</div>
     <div class="tb-chan">${boBot
-      ? `Đang ẩn <b>${boBot}</b> mục cũ hơn. <button class="tb-xemhet" data-tbloc="ngay" data-gt="all">Xem hết</button>`
+      ? `Đang ẩn <b>${boBot}</b> mục cũ hơn. <button class="tb-xemhet" data-tbloc="ky" data-gt="all">Xem hết</button>`
       : 'Mốc thời gian là lúc diễn ra việc. Xử lý xong là mục tự mất.'}</div>`;
 }
 
@@ -1481,6 +1499,21 @@ document.addEventListener('click', (e) => {
     e.preventDefault();
     const mod = oTB.getAttribute('data-tb-mod');
     const rec = oTB.getAttribute('data-tb-rec');
+    /* Đánh dấu đọc ĐÚNG mục vừa bấm. Không chờ máy chủ trả lời mới đi tiếp:
+     * người dùng đang muốn mở việc, không nên bắt họ đợi một lượt ghi. */
+    const idTB = oTB.getAttribute('data-tb-id');
+    if (idTB) {
+      const m = S.tb.find((x) => x.id === idTB);
+      if (m && m.moi) {
+        m.moi = false;
+        S.tbMoi = S.tb.filter((x) => x.moi).length;
+        veChuong();
+        fetch('/api/thong-bao/doc', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: [idTB] }),
+        }).catch(() => {});
+      }
+    }
     dongBangTB();
     // mở đúng Base, và nếu biết bản ghi thì mở luôn ô chi tiết của nó
     location.hash = '#/m/' + mod + (rec ? '?rec=' + encodeURIComponent(rec) : '');

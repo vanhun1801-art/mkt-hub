@@ -398,6 +398,53 @@ const byStartAsc = (a, b) => (toDate(a.start) || 8e15) - (toDate(b.start) || 8e1
 const qWaiting = () => S.items.filter((t) => t.status === 'Chờ duyệt/Xử lý');
 // Lịch đã đóng (hủy/từ chối) hoặc đã hoàn tất thì yêu cầu hỗ trợ không còn ý nghĩa
 const SETTLED = [...CLOSED_BAD, 'Đã hoàn tất'];
+
+/* ============================================================================
+ * NHÓM VIỆC CHỜ QUẢN LÝ — một nơi khai duy nhất
+ * ============================================================================
+ * Mỗi nhóm gồm: điều kiện nhận biết, và những nút xử lý nó.
+ *
+ * Dùng ở hai chỗ khác nhau: bảng "Cần xử lý" gọi theo MÃ nhóm (vì nó đã chia
+ * sẵn thành từng hàng đợi), còn bảng "Danh sách" gọi theo ĐIỀU KIỆN (vì nó
+ * trộn mọi trạng thái, phải tự nhận ra dòng nào đang chờ gì).
+ *
+ * Khai một nơi để hai bảng không trôi khỏi nhau: đổi nút ở đây là cả hai đổi
+ * theo. Trước đây danh sách nút chỉ nằm trong bảng Cần xử lý dưới dạng chuỗi
+ * viết thẳng, nên thêm bảng thứ hai là chắc chắn có ngày lệch.
+ *
+ * `nut`: [mã thao tác, nhãn, lớp CSS]. Mã phải trùng với `data-act` mà
+ * doAction() nhận — xem chỗ bắt sự kiện [data-act].
+ */
+const NHOM_DUYET = [
+  /* Xin huỷ lên trước: nó chặn mọi thứ khác của lịch đó. */
+  { k: 'huy', co: (t) => t.cancelWant && !CLOSED_BAD.includes(t.status),
+    nut: [['huy-ok', 'Duyệt huỷ', 'danger'], ['huy-no', 'Giữ lịch', '']] },
+  { k: 'plan', co: (t) => t.status === 'Chờ duyệt/Xử lý',
+    nut: [['approve', 'Duyệt', 'success'], ['revise', 'Cần chỉnh', ''],
+          ['reject', 'Từ chối', 'danger']] },
+  { k: 'foc', co: (t) => t.focRequest && !t.focStatus && !SETTLED.includes(t.status),
+    nut: [['foc-ok', 'Duyệt FOC', 'success'], ['foc-no', 'Từ chối', 'danger']] },
+  { k: 'media', co: (t) => t.mediaRequest && !t.mediaStatus && !SETTLED.includes(t.status),
+    nut: [['media-ok', 'Phê duyệt', 'success'], ['media-no', 'Từ chối', 'danger']] },
+  { k: 'nghiemthu', co: (t) => t.status === 'Đang báo cáo' && duBaoCao(t),
+    nut: [['done', 'Nghiệm thu hoàn tất', 'success']] },
+  { k: 'pay', co: (t) => t.status === 'Đã hoàn tất' && t.costActual != null &&
+      t.payment !== 'Đã thanh toán',
+    nut: [['paid', 'Đã thanh toán', 'success'], ['hold', 'Treo', '']] },
+];
+
+/** Nút của một nhóm, theo mã. */
+function nutNhomDuyet(k, id) {
+  const n = NHOM_DUYET.find((x) => x.k === k);
+  if (!n) return '';
+  return n.nut.map(([a, nhan, cls]) =>
+    '<button class="btn sm' + (cls ? ' ' + cls : '') + '" data-act="' + a +
+    '" data-id="' + esc(id) + '">' + esc(nhan) + '</button>').join('');
+}
+
+/** Những nhóm mà một lịch đang chờ — thứ tự theo NHOM_DUYET (việc chặn nhất trước). */
+const nhomDangCho = (t) => NHOM_DUYET.filter((n) => n.co(t));
+
 const qFoc = () => S.items.filter((t) => t.focRequest && !t.focStatus && !SETTLED.includes(t.status));
 const qMedia = () => S.items.filter((t) => t.mediaRequest && !t.mediaStatus && !SETTLED.includes(t.status));
 const qPay = () => S.items.filter((t) => t.status === 'Đã hoàn tất' && t.costActual != null && t.payment !== 'Đã thanh toán');
@@ -672,31 +719,17 @@ function queueCard(title, arr, note, kind) {
 
   for (const t of arr.slice().sort(byStartAsc)) {
     let acts = '';
-    if (kind === 'plan') {
-      acts = '<button class="btn sm success" data-act="approve" data-id="' + t.id + '">Duyệt</button>' +
-             '<button class="btn sm" data-act="revise" data-id="' + t.id + '">Cần chỉnh</button>' +
-             '<button class="btn sm danger" data-act="reject" data-id="' + t.id + '">Từ chối</button>';
-    } else if (kind === 'foc') {
-      acts = '<button class="btn sm success" data-act="foc-ok" data-id="' + t.id + '">Duyệt FOC</button>' +
-             '<button class="btn sm danger" data-act="foc-no" data-id="' + t.id + '">Từ chối</button>';
-    } else if (kind === 'media') {
-      acts = '<button class="btn sm success" data-act="media-ok" data-id="' + t.id + '">Phê duyệt</button>' +
-             '<button class="btn sm danger" data-act="media-no" data-id="' + t.id + '">Từ chối</button>';
-    } else if (kind === 'nghiemthu') {
-      acts = '<button class="btn sm success" data-act="done" data-id="' + t.id + '">Nghiệm thu hoàn tất</button>' +
-             '<button class="btn sm" data-open="' + t.id + '">Xem báo cáo</button>';
+    if (NHOM_DUYET.some((n) => n.k === kind)) {
+      // nút lấy từ NHOM_DUYET, khỏi viết lại — xem chú thích ở bảng đó
+      acts = nutNhomDuyet(kind, t.id);
+      // nghiệm thu còn cần đọc báo cáo trước khi ký
+      if (kind === 'nghiemthu') acts += '<button class="btn sm" data-open="' + t.id + '">Xem báo cáo</button>';
     } else if (kind === 'bcdo' || kind === 'nhapcu' || kind === 'trave' || kind === 'late') {
       /* Bốn hàng đợi này đều đang chờ NGƯỜI KHÁC làm. Trước đây chỉ có "Xem chi
        * tiết" — thấy người trễ mà muốn nhắc thì phải thoát app, mở Lark, tìm
        * người, gõ tay. Câu nhắc do máy chủ dựng từ trạng thái thật của lịch. */
       acts = '<button class="btn sm warn" data-nhac="' + t.id + '">Nhắc</button>' +
              '<button class="btn sm" data-open="' + t.id + '">Xem chi tiết</button>';
-    } else if (kind === 'huy') {
-      acts = '<button class="btn sm danger" data-act="huy-ok" data-id="' + t.id + '">Duyệt huỷ</button>' +
-             '<button class="btn sm" data-act="huy-no" data-id="' + t.id + '">Giữ lịch</button>';
-    } else if (kind === 'pay') {
-      acts = '<button class="btn sm success" data-act="paid" data-id="' + t.id + '">Đã thanh toán</button>' +
-             '<button class="btn sm" data-act="hold" data-id="' + t.id + '">Treo</button>';
     } else {
       acts = '<button class="btn sm" data-open="' + t.id + '">Xem chi tiết</button>';
     }
@@ -771,9 +804,14 @@ function viewList() {
   let h = filterBar();
   if (!list.length) return h + emptyBox('Không có lịch nào khớp bộ lọc', 'Thử đổi khoảng thời gian hoặc xoá bộ lọc.');
 
+  /* Cột Thao tác chỉ dựng cho quản lý, và không dựng khi đang xem hộ người
+   * khác — bày nút duyệt cho người không có quyền duyệt là hứa suông. */
+  const coThaoTac = MGR() && !PREVIEW();
+
   h += '<div class="card"><div class="tbl-wrap"><table class="tbl"><thead><tr>' +
     '<th style="min-width:250px">Hoạt động</th><th>Bắt đầu</th><th>Thời lượng</th><th>Phụ trách</th><th>Nhân sự</th>' +
     '<th>Phương tiện</th><th class="num">Dự kiến</th><th class="num">Thực tế</th><th>Thanh toán</th><th>Trạng thái</th>' +
+    (coThaoTac ? '<th style="min-width:210px">Thao tác</th>' : '') +
     '</tr></thead><tbody>';
   for (const t of list) {
     h += '<tr data-open="' + t.id + '">' +
@@ -788,9 +826,31 @@ function viewList() {
       '<td class="num nowrap">' + money(t.costActual) + '</td>' +
       '<td>' + (t.payment ? '<span class="badge ' + (t.payment === 'Đã thanh toán' ? 'green' : 'yellow') + '">' + esc(t.payment) + '</span>' : '<span class="muted">—</span>') + '</td>' +
       '<td>' + badge(t.status) + '</td>' +
+      (coThaoTac ? '<td>' + oThaoTacDanhSach(t) + '</td>' : '') +
       '</tr>';
   }
   return h + '</tbody></table></div></div>';
+}
+
+/**
+ * Ô Thao tác của một dòng trong bảng Danh sách.
+ *
+ * Trước đây bảng này không có nút nào: từ Tổng quan bấm "Chờ duyệt" là sang
+ * đây, nhìn thấy lịch cần duyệt mà phải mở chi tiết mới duyệt được — hai bước
+ * cho một thao tác một bước.
+ *
+ * Một lịch có thể chờ NHIỀU thứ cùng lúc (vừa chờ duyệt kế hoạch, vừa xin
+ * FOC). Nhồi hết nút vào một ô thì dòng dài ra và không ai đọc nổi, nên chỉ
+ * hiện nhóm chặn nhất rồi ghi rõ còn mấy việc nữa — thà nói còn việc khác hơn
+ * là im lặng để người ta tưởng đã xong.
+ */
+function oThaoTacDanhSach(t) {
+  const nhom = nhomDangCho(t);
+  if (!nhom.length) return '<span class="muted">—</span>';
+  return nutNhomDuyet(nhom[0].k, t.id) +
+    (nhom.length > 1
+      ? '<div class="mini muted">+' + (nhom.length - 1) + ' việc nữa — mở chi tiết</div>'
+      : '');
 }
 
 /* ============ CHI PHÍ (quản lý) ============ */
@@ -1628,10 +1688,19 @@ function fieldCheck(key, label) {
     (on ? '' : ' disabled') + '><span>' + esc(label) + '</span></label>';
 }
 
-function filesBlock(key, label) {
+/**
+ * Một ô đính kèm.
+ *
+ * `hint` in ra ngay dưới nhãn và LUÔN hiện, không phải gợi ý mờ trong ô trống:
+ * ba ô đính kèm của lịch thuộc ba thời điểm khác nhau của chuyến, mà gợi ý mờ
+ * thì biến mất ngay khi có tệp đầu tiên — đúng lúc người sau cần đọc để biết ô
+ * này đựng gì.
+ */
+function filesBlock(key, label, hint) {
   const arr = S.sel[key] || [];
   const canUp = !PREVIEW() && (S.config.uploadable || []).includes(key) && (MGR() || canEditItem());
-  return '<div class="frm-row"><label>' + esc(label) + '</label><div class="files">' +
+  return '<div class="frm-row"><label>' + esc(label) + '</label>' +
+    (hint ? '<div class="hint">' + esc(hint) + '</div>' : '') + '<div class="files">' +
     (arr.length ? arr.map((f) =>
       '<div class="file"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">' +
       '<path d="M9 1.5H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5.5L9 1.5z"/><path d="M9 1.5V5.5H13"/></svg>' +
@@ -1723,19 +1792,27 @@ function renderDrawer() {
     fieldMulti('foc', 'Danh mục FOC', O.foc) +
     '<div class="frm-2">' + fieldSelect('focStatus', 'Trạng thái FOC', O.focStatus) +
       fieldSelect('mediaStatus', 'Trạng thái nhân sự Media', O.mediaStatus) + '</div>' +
-    fieldText('mediaNote', 'Feedback nhân sự Media', '', true),
+    fieldText('mediaNote', 'Feedback nhân sự Media',
+      'Phòng Media trả lời: có nhận hay không, ai đi, cần chuẩn bị trước gì', true),
     'foc');
 
   h += khoi('Kết quả & báo cáo',
     fieldText('report', 'Ghi chú trước khi đi', 'Việc cần xin hoặc lưu ý trước chuyến — mỗi việc một dòng', true) +
     fieldText('reportAfter', 'Báo cáo sau tác nghiệp', 'Kết quả đạt được, phát sinh trong buổi, và lưu ý cho lần sau', true) +
-    fieldText('link', 'Liên kết sản phẩm', 'https://…'),
+    /* Gợi ý cũ là 'https://…' — đúng về hình thức, vô nghĩa về nội dung: không
+     * nói được đây là link tư liệu gửi trước hay link sản phẩm nộp sau. */
+    fieldText('link', 'Liên kết sản phẩm',
+      'Link bài/video đã đăng — dán vào sau khi tác nghiệp xong'),
     'ketqua');
 
+  /* Ba ô, ba thời điểm — nói thẳng ra thay vì để người dùng đoán. */
   h += khoi('Tệp đính kèm',
-    filesBlock('tickets', 'Vé & thông tin cần thiết') +
-    filesBlock('files', 'Hoá đơn, hình ảnh…') +
-    filesBlock('unc', 'UNC'));
+    filesBlock('tickets', 'Vé & thông tin cần thiết',
+      'Trước khi đi: vé, mã đặt chỗ, giấy tờ, thông tin liên hệ cần mang theo.') +
+    filesBlock('files', 'Hoá đơn, hình ảnh…',
+      'Sau khi về: hoá đơn và hình ảnh làm căn cứ cho ô Chi phí thực tế.') +
+    filesBlock('unc', 'UNC',
+      'Uỷ nhiệm chi — chứng từ chuyển tiền, đính vào khi đã thanh toán.'));
 
   h += khoi(MGR() ? 'Trạng thái' : 'Thông tin lịch',
     /* Nhân sự không tự đổi trạng thái: gửi duyệt có nút riêng, báo cáo có cửa

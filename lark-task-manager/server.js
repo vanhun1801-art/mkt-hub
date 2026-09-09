@@ -156,6 +156,19 @@ function pad(n) {
   return String(n).padStart(2, '0');
 }
 
+/**
+ * Date -> 'YYYY-MM-DD HH:mm:00' theo giờ Việt Nam.
+ *
+ * Base đọc chuỗi giờ TRẦN theo múi giờ của Base, không phải UTC. Máy chủ trên
+ * Render lại chạy giờ UTC nên getHours() của máy lệch 7 tiếng — cộng tay 7 giờ
+ * rồi đọc bằng getUTC* để chạy ở máy nào cũng ra một kết quả.
+ */
+function chuoiGioVN(d) {
+  const vn = new Date(d.getTime() + 7 * 3600000);
+  return vn.getUTCFullYear() + '-' + pad(vn.getUTCMonth() + 1) + '-' + pad(vn.getUTCDate()) +
+    ' ' + pad(vn.getUTCHours()) + ':' + pad(vn.getUTCMinutes()) + ':00';
+}
+
 function toCells(patch) {
   const out = {};
   for (const key of Object.keys(patch)) {
@@ -184,13 +197,8 @@ function toCells(patch) {
           out[f.name] = null;
           break;
         }
-        /* Base ghi giờ Việt Nam. Máy chủ trên Render chạy giờ UTC nên getHours()
-         * của máy sẽ lệch 7 tiếng — quy đổi thẳng sang UTC+7 để chạy ở đâu cũng
-         * ra một kết quả. Điều kiện: trình duyệt phải gửi mốc có kèm múi giờ. */
-        const vn = new Date(d.getTime() + 7 * 3600000);
-        out[f.name] =
-          vn.getUTCFullYear() + '-' + pad(vn.getUTCMonth() + 1) + '-' + pad(vn.getUTCDate()) +
-          ' ' + pad(vn.getUTCHours()) + ':' + pad(vn.getUTCMinutes()) + ':00';
+        /* Điều kiện: trình duyệt phải gửi mốc có kèm múi giờ. */
+        out[f.name] = chuoiGioVN(d);
         break;
       }
       case 'rating':
@@ -912,6 +920,10 @@ async function api(req, res, url) {
       cells[CF.content.name] = noiDung;
       cells[CF.task.name] = [{ id }];
       if (me) cells[CF.author.name] = [{ id: me.id }];
+      /* Ghi thẳng GIỜ vào ô "Thời gian". Bỏ trống thì Base tự điền ngày với giờ
+       * 00:00, thành ra mọi bình luận trong cùng một ngày cùng một mốc — nhìn
+       * thì tưởng chưa gửi được, mà sắp theo thời gian cũng không ra thứ tự. */
+      cells[CF.at.name] = chuoiGioVN(new Date());
 
       const kq = await lark.createRecord(cells, cfg.commentTableId);
 
