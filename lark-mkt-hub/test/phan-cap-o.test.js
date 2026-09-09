@@ -158,6 +158,50 @@ console.log('— CSS phải có đủ ba tầng + dòng gộp');
   t('cỡ số ô chính > ô phụ', Number(cChinh) > Number(cPhu), `${cChinh} vs ${cPhu}`);
 }
 
+console.log('— hình khối: nhóm LÀ thẻ, ô LÀ ô bảng (không thẻ nào lồng thẻ nào)');
+{
+  const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'styles.css'), 'utf8');
+  const khoi = (sel) => {
+    const k = css.indexOf('\n' + sel + ' {');
+    return k < 0 ? '' : css.slice(k, css.indexOf('}', k));
+  };
+
+  /* Sáu nhóm trên một trang: không có khung thì mắt thấy "30 hộp rời" chứ không
+   * thấy "6 base". Đây là phần lớn cảm giác rối mà anh Hùng nói. */
+  const nb = khoi('.nhom-base');
+  t('.nhom-base có nền thẻ', /background:\s*var\(--trang\)/.test(nb), nb.slice(0, 80));
+  t('.nhom-base có viền', /border:\s*1px solid var\(--vien\)/.test(nb));
+  t('.nhom-base bo góc bằng token dùng chung', /border-radius:\s*var\(--r\)/.test(nb));
+  t('.nhom-base dùng bóng thẻ dùng chung', /box-shadow:\s*var\(--bong\)/.test(nb));
+
+  /* Và ô thì KHÔNG còn là thẻ — đó là cách giải lo ngại "thẻ trong thẻ". */
+  const the = khoi('.the');
+  t('ô KHÔNG có viền riêng', /border:\s*0/.test(the), the.slice(0, 120));
+  t('ô KHÔNG bo góc riêng', /border-radius:\s*0/.test(the));
+  t('ô KHÔNG dùng bóng thẻ (chỉ có vòng kẻ 1px)',
+    !/box-shadow:\s*var\(--bong\)/.test(the) && /box-shadow:\s*0 0 0 1px/.test(the), the);
+
+  /* Đường kẻ vẽ bằng vòng trên TỪNG ô, không bằng nền của lưới: dùng nền lưới thì
+   * ô nào không có nội dung vẫn để lộ cả ô màu xám. */
+  const luoi = khoi('.nhom-base > .the-luoi');
+  t('lưới ô để khe 1px cho vòng kẻ lấp vào', /gap:\s*1px/.test(luoi), luoi.slice(0, 120));
+  t('lưới ô KHÔNG lấy nền viền (kẻo ô trống thành mảng xám)',
+    /background:\s*transparent/.test(luoi), luoi);
+
+  /* Thẻ chỉ cao bằng nội dung. Thiếu dòng này thì thẻ ngắn bị kéo cao bằng thẻ cao
+   * nhất trong hàng, và từ khi thẻ có nền thì nó thành mảng trắng rỗng to. */
+  t('.luoi-base để thẻ cao theo nội dung',
+    /align-items:\s*start/.test(khoi('.luoi-base')), khoi('.luoi-base'));
+
+  /* Ba cột chỉ khi đủ rộng: ở 1150px mỗi thẻ ~305px và tiêu đề vỡ thành ba dòng. */
+  t('3 cột chỉ dùng từ ~1400px trở lên', /max-width:\s*1400px\)\s*\{\s*\.luoi-base/.test(css));
+  t('có mốc 1 cột cho cửa sổ hẹp', /max-width:\s*820px\)\s*\{\s*\.luoi-base/.test(css));
+
+  /* Tiêu đề là nhãn duy nhất cho biết đang đọc base nào — không được cắt. */
+  t('tiêu đề thẻ KHÔNG bị cắt bằng ellipsis',
+    !/text-overflow:\s*ellipsis/.test(khoi('.khoi-head h2')), khoi('.khoi-head h2'));
+}
+
 console.log('— nhãn dòng gộp phải có trong từ điển, kẻo kẹt tiếng Việt giữa giao diện Anh');
 {
   const i18n = fs.readFileSync(path.join(__dirname, '..', 'public', 'i18n.js'), 'utf8');

@@ -377,15 +377,37 @@ button { font: inherit; }
 
    Ô đều nhau quan trọng hơn hàng cuối kín — ô là con số để so với nhau, còn
    chỗ hở nằm ở góc dưới cùng bên phải, chỗ ít bị nhìn nhất. */
-.luoi-base { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px 24px; }
-@media (max-width: 1120px) { .luoi-base { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* `align-items: start`: thẻ chỉ cao bằng nội dung của nó. Thiếu dòng này thì mọi
+   thẻ trong một hàng bị kéo cao bằng thẻ cao nhất — trước đây nền trong suốt nên
+   chỉ thấy khoảng trống, giờ thẻ có nền thì nó thành một mảng trắng rỗng to. */
+.luoi-base {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px; align-items: start;
+}
+/* Đo ra chứ không chọn bừa: đầu thẻ cần ~330px để tiêu đề nằm một dòng cạnh hai
+   nút. Ở 1150px với 3 cột thì mỗi thẻ chỉ ~305px và tiêu đề vỡ thành ba dòng
+   ("Bảng / công / việc"). Nên 3 cột chỉ từ ~1400px, dưới đó 2 cột, hẹp nữa 1 cột. */
+@media (max-width: 1400px) { .luoi-base { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 820px) { .luoi-base { grid-template-columns: 1fr; } }
 
 /* ---- thẻ khối (giống .card của app quảng cáo) ---- */
 
-/* Nhóm base trên trang Tổng quan: KHÔNG bọc thẻ trong thẻ — nền xám là mặt đất,
-   từng thẻ số tự nổi lên bằng bóng nhẹ, giống app quảng cáo. */
-.nhom-base { display: flex; flex-direction: column; gap: 10px; }
-.nhom-base > .khoi-head { border-bottom: 1px solid var(--vien); padding: 0 2px 9px; }
+/* Nhóm base trên trang Tổng quan là MỘT THẺ, và các ô bên trong là Ô BẢNG.
+
+   Bản trước cố ý không bọc thẻ ("nền xám là mặt đất, từng thẻ số tự nổi lên bằng
+   bóng nhẹ, giống app quảng cáo"). Đúng cho app quảng cáo — ở đó chỉ có MỘT nhóm
+   ô trên màn hình. Ở đây có SÁU nhóm: không có khung thì mắt không gộp được
+   "6 base" mà thấy "30 hộp rời", và đó là phần lớn cảm giác rối.
+
+   Lo ngại "thẻ trong thẻ" vẫn được tôn trọng, chỉ giải theo cách khác: nhóm được
+   NÂNG lên thành thẻ, ô được HẠ xuống thành ô bảng — mất hết viền, bóng, nền
+   riêng, phân cách bằng đường kẻ 1px. Không còn thẻ nào lồng thẻ nào. */
+.nhom-base {
+  display: flex; flex-direction: column;
+  background: var(--trang); border: 1px solid var(--vien);
+  border-radius: var(--r); box-shadow: var(--bong); overflow: hidden;
+}
+.nhom-base > .khoi-head { border-bottom: 1px solid var(--vien); padding: 10px 13px; }
 /* Số cột CỐ ĐỊNH, không `auto-fit`: auto-fit làm hàng cuối thiếu ô thì mấy ô
    còn lại giãn ra chiếm chỗ, nên cùng một base mà ô hàng trên nhỏ, ô hàng dưới
    to gấp rưỡi. `grid-auto-rows: 1fr` cho mọi hàng cao bằng nhau, kể cả khi một
@@ -414,8 +436,12 @@ button { font: inherit; }
    chỉ cần panel bên trái rộng thêm chút là rơi xuống 1 cột. Ghim rồi thì không
    rơi được nữa. */
 .nhom-base > .the-luoi {
-  grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   grid-auto-rows: 1fr;
+  /* Đường kẻ giữa các ô vẽ bằng VÒNG 1px trên từng ô (xem .the), không phải bằng
+     nền của lưới. Dùng nền lưới thì ô nào không có nội dung vẫn để lộ cả ô màu
+     xám — đã thấy đúng vậy ở thẻ "Bảng công việc", cạnh ô "Quá hạn". */
+  gap: 1px; background: transparent; margin: 0;
 }
 @media (max-width: 1340px) {
   .nhom-base > .the-luoi { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -429,15 +455,15 @@ button { font: inherit; }
    đầu tiên mắt chạm tới, và để con số dài (tiền tỷ) không bị bó lại. */
 .nhom-base > .the-luoi > .the.chinh { grid-column: 1 / -1; }
 .the.chinh {
-  padding: 13px 15px;
+  padding: 11px 13px 12px;
   /* Xếp ngang: nhãn chiếm cả hàng trên, số bên trái, dòng so sánh dồn sang phải.
      Không xếp thì lúc thiếu dòng so sánh nửa bên phải trống trơn. */
   display: grid; grid-template-columns: auto 1fr; column-gap: 14px;
   align-items: end;
 }
-.the.chinh .nhan { font-size: 11.5px; grid-column: 1 / -1; }
-.the.chinh .so { font-size: 30px; margin-top: 4px; grid-column: 1; }
-.the.chinh .so.dai { font-size: 25px; }
+.the.chinh .nhan { font-size: 10px; grid-column: 1 / -1; }
+.the.chinh .so { font-size: 26px; margin-top: 2px; grid-column: 1; }
+.the.chinh .so.dai { font-size: 22px; }
 .the.chinh .ben-phai {
   grid-column: 2; justify-self: end; text-align: right;
   display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
@@ -446,17 +472,19 @@ button { font: inherit; }
 .the.chinh .ben-phai .lech, .the.chinh .ben-phai .ghi { margin-top: 0; }
 
 /* Tầng 3 — ô phụ: vẫn đọc rõ, nhưng nhường chỗ cho hai tầng trên. */
-.the.phu { padding: 9px 12px; }
-.the.phu .so { font-size: 18px; }
-.the.phu .so.dai { font-size: 15px; }
-.the.phu .nhan { font-size: 10px; }
+.the.phu { padding: 8px 12px 9px; }
+.the.phu .so { font-size: 16px; }
+.the.phu .so.dai { font-size: 14px; }
 
 /* Tầng 4 — những ô bằng 0 gộp lại thành MỘT dòng chữ.
    Bảy ô trống trải khắp năm thẻ, mỗi ô chiếm đúng bằng ô có số thật — đó là phần
    lớn cảm giác rối. Ở đây vẫn bấm được từng cái, chỉ là không giành sự chú ý. */
 .the-khong {
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
-  padding: 2px 2px 0; font-size: 12px; color: var(--chu-nhat);
+  /* Nằm TRONG thẻ nên có đệm của thẻ và một đường kẻ trên, thay vì lơ lửng dưới
+     đáy như khi các ô còn là thẻ rời. */
+  padding: 7px 13px 8px; font-size: 11.5px; color: var(--chu-nhat);
+  border-top: 1px solid var(--vien-mem);
 }
 .the-khong .tkn-nhan { font-weight: 650; opacity: .75; }
 .the-khong .tkn-nhan::after { content: ':'; }
@@ -474,8 +502,8 @@ button { font: inherit; }
   border-bottom: 1px solid var(--vien-mem);
 }
 .khoi-head .kh-ic {
-  width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center;
-  font-size: 11.5px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; flex: 0 0 auto;
+  width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center;
+  font-size: 10.5px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; flex: 0 0 auto;
 }
 /* Tiêu đề ĐƯỢC XUỐNG DÒNG thay vì bị cắt. Tên base là nhãn duy nhất cho biết đang
    đọc base nào — ở 1200px mỗi thẻ chỉ còn ~300px và nó từng bị cắt thành
@@ -501,18 +529,25 @@ button { font: inherit; }
 /* Chiều sâu: nền xám là mặt đất, thẻ nổi lên trên. Bóng hai lớp — một lớp sát
    mép cho cạnh sắc, một lớp toả rộng và mờ cho cảm giác nhấc lên. Chỉ đủ để
    tách khỏi nền, không đổ bóng nặng. */
+/* Ô là Ô BẢNG, không phải thẻ: không viền, không bóng, không bo góc. Một con số
+   không cần hộp cao 95px — đo trên ảnh thật, ô "Việc đang mở 13" là 490×95 cho
+   hai chữ số. */
 .the {
-  background: var(--trang); border: 1px solid var(--vien); border-radius: var(--r);
-  padding: 13px 14px; box-shadow: var(--bong);
+  background: var(--trang); border: 0; border-radius: 0;
+  padding: 9px 12px 10px;
+  /* Vòng 1px lấp đúng khe 1px của lưới: hai ô cạnh nhau cho ra MỘT đường liền,
+     ô trống thì không có vòng nên vẫn trắng. Vòng ở rìa ngoài bị overflow:hidden
+     của thẻ cắt đi nên không đè lên viền thẻ. */
+  box-shadow: 0 0 0 1px var(--vien-mem);
   display: flex; flex-direction: column;
 }
 .the .nhan {
-  font-size: 11px; color: var(--chu-nhat); font-weight: 650;
+  font-size: 10px; color: var(--chu-nhat); font-weight: 650;
   text-transform: uppercase; letter-spacing: .04em;
-  display: flex; align-items: center; gap: 6px;
+  display: flex; align-items: center; gap: 5px;
 }
 .the .so {
-  font-size: 22px; font-weight: 700; letter-spacing: -.02em; margin-top: 3px;
+  font-size: 19px; font-weight: 700; letter-spacing: -.02em; margin-top: 2px;
   overflow-wrap: anywhere;
 }
 .the .so.dai { font-size: 17px; }
@@ -527,7 +562,11 @@ button { font: inherit; }
  * nặng thị giác như ô có số — mắt không biết nhìn đâu. Số 0 ở đây thường là tin
  * TỐT (không việc quá hạn, không lịch chờ duyệt) nên đáng thu nhỏ, không đáng
  * nhấn. Vẫn đọc được rõ, chỉ là không giành sự chú ý. */
-.the.trong { background: var(--nen, transparent); box-shadow: none; }
+/* Ô mờ giữ nền của THẺ, không lấy nền trang: từ khi nhóm có nền trắng, nền trang
+   ở đây thành một mảng xám đục giữa các ô bảng. Làm mờ bằng chữ, không bằng nền. */
+/* Giữ VÒNG kẻ, chỉ làm mờ bằng chữ — xoá box-shadow ở đây là mất luôn đường kẻ
+   của riêng ô đó và lưới bị hở một mắt. */
+.the.trong { background: var(--trang); }
 .the.trong .so { color: var(--chu-nhat); font-weight: 600; opacity: .55; }
 .the.trong .nhan { opacity: .7; }
 
