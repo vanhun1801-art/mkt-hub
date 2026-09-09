@@ -366,7 +366,14 @@ async function api(req, res, u) {
     }
     /* Giá trị "abcd••••wxyz" là bản đã che mà giao diện gửi trả — nghĩa là người
      * dùng KHÔNG sửa ô đó. Ghi nguyên chuỗi che vào là xoá mất token thật. */
-    const cu = ketnoi.docTho()[b.khoi] || {};
+    /* Bản CŨ phải lấy từ doc() — bản có kho khoá — chứ KHÔNG phải docTho().
+     *
+     * docTho() chỉ đọc ket-noi.json / biến môi trường. Trên Render vừa deploy thì
+     * file rỗng, mọi cấu hình đang sống nhờ kho; lấy bản cũ từ docTho() là ra rỗng,
+     * nên nhánh "giữ token cũ" bên dưới không có gì để giữ và bấm Lưu cấu hình một
+     * cái là xoá sạch token của những kênh khôi phục từ kho. Đã xảy ra thật: kênh
+     * rootytrip.official mất refreshToken đúng theo đường này. */
+    const cu = (await ketnoi.doc())[b.khoi] || {};
     const loc = (o, o0) => {
       const out = Array.isArray(o) ? [] : {};
       Object.keys(o).forEach((k) => {
@@ -409,7 +416,7 @@ async function api(req, res, u) {
     }
 
     ketnoi.ghiKhoi(b.khoi, moi);
-    await ketnoi.luuKho(b.khoi);
+    await ketnoi.luuKho(b.khoi, moi);
     return ok(res, { ok: true });
   }
 

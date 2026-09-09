@@ -31,6 +31,12 @@ const VIEC_LAU_NHOM = [
   'pancake',      // hội thoại và đơn POS — pancake, pancake-pos
   'sync',         // đồng bộ chi tiêu mọi kênh rồi ghi Base
   'import-csv',
+  /* App Social đặt tên đường dẫn bằng tiếng Việt nên không lọt danh sách trên,
+   * và mỗi lượt đồng bộ 6 kênh TikTok + 3 Page Facebook chạy vài phút — hub cắt
+   * ở 30 giây, người dùng thấy "Module không trả lời trong 30s" trong khi việc
+   * vẫn đang chạy ngon lành phía sau. */
+  'dong-bo',      // kéo số mọi nền tảng rồi ghi Base (vài phút)
+  'ket-noi',      // thử kết nối, liệt kê Page, đổi mã lấy token
 ];
 const VIEC_LAU = new RegExp('^/api/(' + VIEC_LAU_NHOM.join('|') + ')(-[a-z-]+)?(/|$|\\?)');
 const cfg = require('./config');

@@ -282,10 +282,16 @@ async function luuToken(nenTang, danhSach) {
  * sẽ phải nhập lại sau lần deploy tới. Kho tắt (chưa khai SOCIAL_VAULT_KEY) thì
  * hàm này im lặng không làm gì — đúng ý, vì trên máy cá nhân file là đủ bền.
  */
-async function luuKho(khoi) {
+async function luuKho(khoi, giaTri) {
   if (!vault.bat()) return false;
-  const c = docTho();
-  return vault.ghi(khoi, { ...c[khoi], ghiLuc: new Date().toISOString() },
+  /* Nhận thẳng giá trị vừa ghi thay vì đọc lại file.
+   *
+   * ghiKhoi() ghi ket-noi.json rồi luuKho() đọc lại — nhưng trên ổ đĩa chỉ đọc
+   * thì bước ghi file thất bại lặng lẽ, và luuKho() sẽ cất NGUYÊN BẢN CŨ (hoặc
+   * bản rỗng) lên kho, xoá mất thứ vừa lưu. Người gọi biết chính xác mình vừa
+   * lưu gì thì truyền vào; không truyền thì mới lùi về đọc file. */
+  const khoiVal = giaTri || docTho()[khoi];
+  return vault.ghi(khoi, { ...khoiVal, ghiLuc: new Date().toISOString() },
     'App Social cất cấu hình ' + khoi + ' để sống qua lần deploy sau');
 }
 
