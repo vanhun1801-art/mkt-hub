@@ -798,7 +798,12 @@ async function api(req, res, url) {
       return json(res, {
         error: 'Chưa có minh chứng kết quả',
         code: 'PROOF_REQUIRED',
-        hint: 'Phải đính sản phẩm cuối cùng vào Tệp đính kèm hoặc dán Link kết quả trước khi nộp.',
+        /* Trỏ đúng ô. Câu cũ bảo đính vào "Tệp đính kèm" — mà đó là ô của
+         * NGƯỜI YÊU CẦU gắn brief, nên sản phẩm nộp vào đấy thì sau này không
+         * còn cách nào phân biệt brief với sản phẩm. Cổng phía trên vẫn nhận
+         * ô cũ để việc nộp từ trước không bị chặn; chỉ lời hướng dẫn cho lần
+         * nộp MỚI là phải trỏ vào ô kết quả. */
+        hint: 'Chọn tệp ở nút nộp (vào ô "File kết quả") hoặc dán "Link kết quả" trước khi bấm Hoàn thành.',
       }, 422);
     }
 

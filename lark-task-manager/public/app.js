@@ -505,8 +505,39 @@ const laTreTheoHan = (t) => !isClosed(t) &&
   (t.status === 'Trễ deadline' ||
     (daysLeft(t.deadline) != null && daysLeft(t.deadline) < 0));
 const isOverdue = (t) => laTreTheoHan(t) && !daGiaiQuyet(t);
-const hasProof = (t) => (t.attachment || []).length > 0 ||
-  (t.fileKetQua || []).length > 0 || !!t.linkKetQua || !!t.link;
+/* Hai câu hỏi khác nhau, đừng dùng chung một hàm — đây từng là lỗi thật: việc
+ * vừa tạo, người yêu cầu gắn brief vào "Tệp đính kèm", danh sách hiện luôn
+ * "Đã có kết quả" trong khi chưa ai làm gì.
+ *
+ *  - daNopKetQua: nhân sự đã nộp SẢN PHẨM chưa? Chỉ đếm hai ô kết quả, vì
+ *    "Tệp đính kèm" và "Link" là chỗ NGƯỜI YÊU CẦU gắn brief với link tham
+ *    khảo. Dùng cho NHÃN — nhãn phải đúng.
+ *  - coMinhChung: có gì ở bất kỳ ô nào không? Đếm cả hai ô cũ. Dùng cho CỔNG
+ *    nộp — cổng phải rộng tay, việc nộp từ trước không được chặn ngược. */
+const daNopKetQua = (t) => (t.fileKetQua || []).length > 0 || !!t.linkKetQua;
+const coMinhChung = (t) => daNopKetQua(t) ||
+  (t.attachment || []).length > 0 || !!t.link;
+
+/** Nhãn minh chứng: BA trạng thái. Gộp về hai thì việc cũ có sản phẩm nằm ở ô
+ *  "Tệp đính kèm" bị nói ngược lại là chưa nộp — đổi một lời nói dối lấy một
+ *  lời nói dối khác. Trạng thái giữa dùng màu xám mặc định của .proofdot. */
+function theMinhChung(t, ngan) {
+  if (daNopKetQua(t)) {
+    return el('span', 'proofdot has', ngan ? 'có kết quả' : 'Đã có kết quả');
+  }
+  /* Nói rõ đang có gì, vì hai ô cũ là hai chuyện khác nhau: "Tệp đính kèm"
+   * thường là brief người yêu cầu gắn, còn "Link" có khi là sản phẩm nộp kiểu
+   * cũ — mà cũng có khi là rác (trên Base đang có 3 việc ô Link là
+   * "http://Không", do gõ chữ "Không" vào ô kiểu URL nên Base tự thêm
+   * "http://"). Gộp hai thứ vào một câu là lại nói sai một nửa. */
+  if ((t.attachment || []).length > 0) {
+    return el('span', 'proofdot', ngan ? 'chỉ tệp kèm' : 'Chỉ có tệp kèm yêu cầu');
+  }
+  if (coMinhChung(t)) {
+    return el('span', 'proofdot', ngan ? 'chỉ link cũ' : 'Chỉ có link ở ô cũ');
+  }
+  return el('span', 'proofdot missing', ngan ? 'chưa nộp' : 'Chưa nộp kết quả');
+}
 
 function initials(name) {
   const parts = String(name || '?').trim().split(/\s+/);
@@ -727,8 +758,7 @@ function workCard(t, lane) {
   if (daGiaiQuyet(t)) meta.appendChild(el('span', 'tag tag-gq', nhanGiaiQuyet(t)));
 
   if (lane === 'doing' || lane === 'redo' || lane === 'late' || lane === 'daNop') {
-    meta.appendChild(el('span', 'proofdot ' + (hasProof(t) ? 'has' : 'missing'),
-      hasProof(t) ? 'Đã có kết quả' : 'Chưa có tệp/link'));
+    meta.appendChild(theMinhChung(t, false));
   }
   if (lane === 'done' && t.rating) {
     meta.appendChild(el('span', 'stars-in', '★'.repeat(t.rating)));
@@ -821,7 +851,7 @@ function openDone(t, kieu) {
   $('#doneFileLabel').textContent = 'Chọn file kết quả để nộp';
 
   const co = $('#doneCallout');
-  if (hasProof(t)) {
+  if (coMinhChung(t)) {
     const phan = [];
     if (kq.length) phan.push(kq.length + ' file kết quả');
     if (att.length) phan.push(att.length + ' tệp kèm yêu cầu');
@@ -1611,8 +1641,7 @@ function renderDoing(D) {
       const dl = deadlineTag(t);
       if (dl) meta.appendChild(dl);
       if (t.status === 'Làm lại') meta.appendChild(el('span', 'tag p-mid', 'Làm lại'));
-      meta.appendChild(el('span', 'proofdot ' + (hasProof(t) ? 'has' : 'missing'),
-        hasProof(t) ? 'có kết quả' : 'chưa có'));
+      meta.appendChild(theMinhChung(t, true));
       row.appendChild(meta);
       list.appendChild(row);
     }
