@@ -918,10 +918,16 @@ const server = http.createServer(async (req, res) => {
    * gọi đưa vào — nếu không thì đây thành lỗ đọc trộm tệp của máy chủ. */
   const zaloVerify = /^\/zalo-callback\/(zalo_verifier[A-Za-z0-9_-]{1,120})\.html$/.exec(p);
   if (zaloVerify) {
-    /* Nội dung tệp: ưu tiên biến môi trường ZALO_VERIFIER (dán y nguyên nội dung
-     * tệp Zalo cho tải về), không có thì trả chính chuỗi mã trong tên tệp — quy
-     * ước thường gặp. Có biến môi trường nghĩa là sửa được mà không cần deploy. */
-    const noiDung = process.env.ZALO_VERIFIER || zaloVerify[1].replace(/^zalo_verifier/, '');
+    /* Tệp Zalo cho tải về là một trang HTML đủ bộ, mã nằm trong thẻ meta
+     * `zalo-platform-site-verification` — KHÔNG phải chuỗi trần như thoạt tưởng.
+     * Mã trong thẻ trùng đúng phần đuôi của tên tệp, nên dựng lại được mà không
+     * cần ai tải tệp lên. ZALO_VERIFIER vẫn được tôn trọng, phòng khi Zalo đổi
+     * khuôn: sửa bằng biến môi trường, không phải sửa code rồi deploy lại. */
+    const ma = zaloVerify[1].replace(/^zalo_verifier/, '');
+    const noiDung = process.env.ZALO_VERIFIER
+      || '<!DOCTYPE html>\n<html lang="en">\n\n<head>\n'
+        + '    <meta property="zalo-platform-site-verification" content="' + ma + '" />\n'
+        + '</head>\n\n<body>\nThere Is No Limit To What You Can Accomplish Using Zalo!\n</body>\n\n</html>';
     return send(res, 200, noiDung, { 'Content-Type': 'text/html; charset=utf-8' });
   }
   if (p === '/zalo-callback') {
