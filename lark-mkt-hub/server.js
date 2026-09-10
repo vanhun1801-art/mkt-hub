@@ -1109,7 +1109,14 @@ const server = http.createServer(async (req, res) => {
       const xong = await auth.handle(req, res, u);
       if (xong !== false) return;
     }
-    if (p !== '/healthz' && !auth.sessionUser(req)) return auth.requireLogin(res, u);
+    /* GET /api/logo mở như /healthz. Đây là NHÃN HIỆU in lên tệp báo cáo, không
+     * phải dữ liệu — và app con gọi nó từ máy chủ sang máy chủ nên không mang
+     * theo phiên đăng nhập nào. Chặn ở đây thì mọi tệp xuất trên server chung
+     * đều in bản chữ thay logo, mà không có gì báo là vì sao. Ghi logo vẫn chỉ
+     * quản lý (POST/DELETE đi qua chiQuanLy trong api()). */
+    const moCong = p === '/healthz'
+      || (p === '/api/logo' && (req.method === 'GET' || req.method === 'HEAD'));
+    if (!moCong && !auth.sessionUser(req)) return auth.requireLogin(res, u);
   }
 
   // proxy vào module: /m/<id>/...

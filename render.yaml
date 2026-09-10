@@ -6,6 +6,16 @@
 # cần một URL công khai, một chỗ đăng nhập, một service phải trả tiền.
 #
 # Biến có `sync: false` phải tự điền trong dashboard của Render (đừng để trong repo).
+#
+# LẦN DEPLOY ĐẦU Render chỉ hỏi 4 giá trị — cố ý gom lại ít nhất có thể:
+#
+#   LARK_APP_SECRET      App Secret của app "Tracking" (cli_aa04305ecd385ed1)
+#   ANH_TIN_APP_SECRET   App Secret của app "Marketing Hub" (cli_aa1a8ae21a78ded2)
+#   LARK_MANAGER_EMAILS  email Lark của quản lý, VD hunglv@rootytrip.com
+#   PUBLIC_URL           để TRỐNG lần đầu; điền URL Render cấp rồi deploy lại
+#
+# Bốn biến khác Render tự sinh. Mọi biến còn lại đã comment vì KHÔNG cần cho lần
+# đầu — app nào thiếu token thì chỉ app đó không đồng bộ, Hub vẫn chạy.
 # ============================================================
 services:
   - type: web
@@ -21,9 +31,13 @@ services:
       - key: NODE_VERSION
         value: "22"
 
-      # ---- Lark app (Developer Console) ----
+      # ---- Lark app nền tảng: đọc/ghi Base + đăng nhập Lark ----
+      # App "Tracking" trong Developer Console. App ID không phải bí mật nên cắm sẵn
+      # để Render bớt một câu hỏi; chỉ Secret là phải dán tay.
+      # LƯU Ý: app gửi tin nhóm là app KHÁC ("Marketing Hub") — xem ANH_TIN_APP_ID
+      # ở phần dưới. Đừng lẫn hai App ID với nhau.
       - key: LARK_APP_ID
-        sync: false
+        value: cli_aa04305ecd385ed1
       - key: LARK_APP_SECRET
         sync: false
 
@@ -35,10 +49,19 @@ services:
       - key: SESSION_SECRET
         generateValue: true
 
-      # ---- ai là quản lý (open_id, nhiều người cách nhau bằng dấu phẩy) ----
-      # Đặt bằng env var vì ổ đĩa Render là tạm: file quyen.json sẽ mất sau mỗi deploy.
-      - key: LARK_MANAGER_IDS
+      # ---- ai là quản lý ----
+      # Đặt bằng env var vì ổ đĩa Render là tạm: file quyen.json mất sau mỗi deploy.
+      #
+      # DÙNG EMAIL, ĐỪNG DÙNG open_id: **open_id khác nhau giữa các app Lark**, nên
+      # đổi app nền tảng là phải khai lại và quản lý bị tụt xuống vai nhân sự mà
+      # không hiểu vì sao. Email thì không đổi. Nhiều người thì cách nhau bằng phẩy.
+      # VD: hunglv@rootytrip.com
+      - key: LARK_MANAGER_EMAILS
         sync: false
+
+      # Vẫn dùng được (cộng dồn với EMAILS) nếu ai đó không có email công ty.
+      # - key: LARK_MANAGER_IDS
+      #   sync: false
 
       # ---- token kết nối nền tảng quảng cáo (Meta / TikTok / Google Sheet) ----
       # Ổ đĩa Render là TẠM: ket-noi.json mất sau mỗi lần deploy, mất token là các
@@ -46,12 +69,15 @@ services:
       #
       # KHÔNG để token trong Lark Base như bảng phân quyền: cả phòng xem được Base,
       # còn đây là bí mật. Biến môi trường của Render mới là chỗ giữ bí mật.
-      - key: ADS_CONNECT_JSON
-        sync: false
+      # CHƯA CẦN cho lần deploy đầu: thiếu thì app quảng cáo chỉ không đồng bộ được,
+      # phần còn lại của Hub vẫn chạy. Bỏ dấu # khi nào cần bật đồng bộ quảng cáo.
+      # - key: ADS_CONNECT_JSON
+      #   sync: false
 
       # ---- ngưỡng cảnh báo của app quảng cáo (cùng lý do ổ đĩa tạm) ----
-      - key: ADS_TARGETS_JSON
-        sync: false
+      # CHƯA CẦN: không khai thì dùng mục tiêu CPA mặc định trong code.
+      # - key: ADS_TARGETS_JSON
+      #   sync: false
 
       # ============================================================
       # App Booking OTA
@@ -77,17 +103,20 @@ services:
       #   % hoa hồng  -> bảng "Danh mục OTA",  cột Hoa hồng %
       # Sửa hai bảng đó là app đổi theo trong 10 phút — không deploy lại, không sửa
       # code. Hai biến dưới CHỈ là bảng dự phòng cho lúc chưa nối được Base.
-      - key: OTA_GIA_JSON
-        sync: false
-      - key: OTA_RATES_JSON
-        sync: false
+      # CHƯA CẦN: không khai thì dùng bảng giá mặc định trong lark-ota-manager/gia.js.
+      # - key: OTA_GIA_JSON
+      #   sync: false
+      # CHƯA CẦN: không khai thì giữ tỷ lệ hoa hồng mặc định.
+      # - key: OTA_RATES_JSON
+      #   sync: false
 
       # Tỷ giá về VNĐ, VD {"USD":26200,"KRW":18.4}. App điền cột "Tỷ giá về VND" để
       # công thức Gross VND của Base ra đúng — KHÔNG điền thì Gross VND bằng đúng số
       # nguyên tệ (120 USD thành 120đ). Đây là số ƯỚC TÍNH, kế toán vẫn sửa tay khi
       # đối soát; khai biến này khi tỷ giá lệch nhiều so với mặc định trong config.js.
-      - key: OTA_TY_GIA_JSON
-        sync: false
+      # CHƯA CẦN: không khai thì dùng tỷ giá mặc định.
+      # - key: OTA_TY_GIA_JSON
+      #   sync: false
 
       # ============================================================
       # App Social (TikTok / Facebook / Instagram / Zalo OA)
@@ -100,8 +129,9 @@ services:
       # Token các nền tảng social. Cùng lý do với ADS_CONNECT_JSON: ổ đĩa Render
       # là TẠM nên ket-noi.json bay sau mỗi lần deploy. Dán nguyên nội dung file
       # ket-noi.json của lark-social vào biến này.
-      - key: SOCIAL_CONNECT_JSON
-        sync: false
+      # CHƯA CẦN cho lần deploy đầu: thiếu thì app Social chỉ không đồng bộ được.
+      # - key: SOCIAL_CONNECT_JSON
+      #   sync: false
 
       # ---- CHÌA KHOÁ CHO KHO TOKEN — KHÔNG KHAI LÀ TIKTOK/ZALO TỰ CHẾT ----
       # TikTok và Zalo cấp refresh token DÙNG MỘT LẦN: mỗi lần app làm mới là nền

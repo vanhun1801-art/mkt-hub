@@ -38,7 +38,11 @@ const hEsc = (s) => String(s == null ? '' : s)
  * biết app nào đang đóng bản nào lên tệp gửi Sếp.
  */
 const LOGO_MAU = '#2aa08c';
-const HUB = (process.env.KPI_URL_HUB || 'http://127.0.0.1:5180').replace(/\/+$/, '');
+/* Hub chạy cổng nào thì chính hub bảo (HUB_PORT). Đoán 5180 chỉ đúng trên máy
+ * cá nhân — trên Render hub nghe cổng do Render cấp, gọi 5180 là hỏng im lặng và
+ * mọi tệp xuất in bản chữ thay logo. */
+const HUB = (process.env.KPI_URL_HUB
+  || 'http://127.0.0.1:' + (process.env.HUB_PORT || '5180')).replace(/\/+$/, '');
 
 function taiTuHub(duong, giay = 6) {
   return new Promise((giai) => {

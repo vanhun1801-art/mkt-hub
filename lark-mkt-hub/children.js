@@ -97,7 +97,18 @@ async function khoiDong(mod) {
   try {
     proc = spawn(cmd, args, {
       cwd: mod.thuMuc,
-      env: { ...process.env, PORT: String(mod.cong), HUB: '1', HUB_PREFIX: '/m/' + mod.id },
+      /* HUB_PORT: app con phải gọi ngược lên hub được (app KPI xin logo để đóng
+       * lên tệp xuất). Không truyền thì nó đoán 5180 — đúng trên máy cá nhân,
+       * SAI trên Render vì ở đó hub nghe cổng do Render cấp. Lưu ý PORT ngay
+       * bên cạnh đã bị ghi đè thành cổng của app con, nên app con không còn
+       * cách nào biết cổng hub nữa. */
+      env: {
+        ...process.env,
+        PORT: String(mod.cong),
+        HUB: '1',
+        HUB_PREFIX: '/m/' + mod.id,
+        HUB_PORT: String(require('./config').port),
+      },
       windowsHide: true,
       stdio: ['ignore', 'pipe', 'pipe'],
     });

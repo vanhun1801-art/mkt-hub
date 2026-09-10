@@ -19,6 +19,7 @@ const { chamThang, chotDuoc } = require('./tinh');
 const store = require('./store');
 const nguon = require('./nguon');
 const X = require('./xuat');
+const { laQuanLy } = require('./quyen');
 const cfgKho = require('./config').dungBase;
 const baoCao = require('./bao-cao');
 
@@ -82,18 +83,27 @@ function serveStatic(req, res, urlPath) {
  * Điểm KPI gắn với lương nên phạm vi xem phải chặt: mỗi người chỉ thấy phiếu của
  * mình; trưởng phòng và HCNS thấy cả phòng. Chạy một mình (không qua hub) thì coi
  * như quản lý — để còn phát triển được. */
-const QUAN_LY = (process.env.KPI_QUAN_LY || '').split(',').map((s) => s.trim()).filter(Boolean);
 const MA_CUA = (() => {
   try { return JSON.parse(process.env.KPI_MA_NGUOI || '{}'); } catch (_) { return {}; }
 })();
 
 function nguoiXem(req) {
   const id = req.headers['x-hub-user-id'] || '';
-  const ten = req.headers['x-hub-user-name'] || '';
+  /* Hub gửi tên đã `encodeURIComponent` — không giải mã thì tên hiện lên màn
+   * hình thành "L%C3%AA%20V%C4%83n%20H%C3%B9ng". Bốn app con kia đều giải ở đây. */
+  const tho = req.headers['x-hub-user-name'] || '';
+  let ten = tho;
+  try { ten = tho ? decodeURIComponent(tho) : ''; } catch (_) { ten = tho; }
+
   if (!id) return { id: '', ten: 'Chạy cục bộ', quanLy: true, ma: '' };
   return {
-    id, ten,
-    quanLy: QUAN_LY.includes(id) || QUAN_LY.includes(ten),
+    id,
+    ten: ten || id,
+    /* Vai quản lý do HUB chốt và gửi xuống bằng header — xem quyen.js. Bản trước
+     * app này tự dựng danh sách riêng từ biến KPI_QUAN_LY, mà biến đó không có
+     * trong render.yaml: trên server chung mọi người đều rơi xuống vai nhân sự
+     * và sáu tab chỉ-quản-lý biến mất. */
+    quanLy: laQuanLy(req),
     ma: MA_CUA[id] || MA_CUA[ten] || '',
   };
 }
