@@ -906,9 +906,50 @@ const server = http.createServer(async (req, res) => {
     if (xong !== false) return;
   }
 
+  /* --- lối công khai cho Zalo, đặt TRƯỚC cổng đăng nhập ---
+   *
+   * Zalo đòi chứng minh mình sở hữu địa chỉ callback bằng cách gọi thẳng vào
+   * /zalo-callback/zalo_verifier<mã>.html — máy chủ của Zalo, không có phiên
+   * đăng nhập Lark nào. Không mở lối này thì nó gặp trang đăng nhập và báo
+   * "không tìm thấy tệp", mà nhìn từ trình duyệt của mình thì mọi thứ vẫn bình
+   * thường vì mình đang đăng nhập sẵn.
+   *
+   * Mở đúng hai đường, khớp biểu thức chặt, không đọc tệp theo đường dẫn người
+   * gọi đưa vào — nếu không thì đây thành lỗ đọc trộm tệp của máy chủ. */
+  const zaloVerify = /^\/zalo-callback\/(zalo_verifier[A-Za-z0-9_-]{1,120})\.html$/.exec(p);
+  if (zaloVerify) {
+    /* Nội dung tệp: ưu tiên biến môi trường ZALO_VERIFIER (dán y nguyên nội dung
+     * tệp Zalo cho tải về), không có thì trả chính chuỗi mã trong tên tệp — quy
+     * ước thường gặp. Có biến môi trường nghĩa là sửa được mà không cần deploy. */
+    const noiDung = process.env.ZALO_VERIFIER || zaloVerify[1].replace(/^zalo_verifier/, '');
+    return send(res, 200, noiDung, { 'Content-Type': 'text/html; charset=utf-8' });
+  }
+  if (p === '/zalo-callback') {
+    /* Zalo trả mã uỷ quyền về đây dưới dạng ?code=…&oa_id=… Trang này chỉ bày mã
+     * ra cho dễ chép — chứ để trắng thì phải mò trên thanh địa chỉ. Không lưu,
+     * không gửi đi đâu: mã chỉ sống vài phút và phải tự tay dán sang app Social. */
+    const escZ = (x) => String(x == null ? '' : x).replace(/[&<>"]/g, (c) =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const ma = u.searchParams.get('code') || '';
+    const oa = u.searchParams.get('oa_id') || '';
+    return send(res, 200,
+      '<!doctype html><meta charset="utf-8"><title>Mã uỷ quyền Zalo</title>'
+      + '<style>body{font:15px/1.6 system-ui,sans-serif;margin:40px auto;max-width:640px;padding:0 16px}'
+      + 'code{display:block;background:#f4f5f7;padding:12px;border-radius:8px;word-break:break-all;'
+      + 'margin:8px 0;font-size:14px}</style>'
+      + (ma
+        ? '<h2>Mã uỷ quyền Zalo</h2><p>Chép chuỗi dưới đây, dán vào ô <b>Mã uỷ quyền</b> '
+          + 'trong Social rồi bấm <b>Đổi mã lấy token</b>. Mã dùng một lần và hết hạn nhanh.</p>'
+          + '<code>' + escZ(ma) + '</code>'
+          + (oa ? '<p>OA: <b>' + escZ(oa) + '</b></p>' : '')
+        : '<h2>Chưa có mã</h2><p>Trang này chỉ hiện mã khi Zalo chuyển về kèm <code>?code=…</code>. '
+          + 'Nếu đang xác thực quyền sở hữu thì không cần mở trang này.</p>'),
+      { 'Content-Type': 'text/html; charset=utf-8' });
+  }
+
   /* Chế độ api (deploy chung): hub đăng nhập Lark một lần cho cả hệ. Mọi thứ đều
-   * phải qua cổng này, trừ /healthz (Render gọi để biết app còn sống), /auth/*
-   * và webhook OTA ở khối trên. */
+   * phải qua cổng này, trừ /healthz (Render gọi để biết app còn sống), /auth/*,
+   * hai đường Zalo ở ngay trên và webhook OTA ở khối trên. */
   if (cfg.mode === 'api') {
     if (p.startsWith('/auth/')) {
       const xong = await auth.handle(req, res, u);
