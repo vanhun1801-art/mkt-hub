@@ -32,6 +32,13 @@ const CONG_ECHO = 5193;
 fs.writeFileSync(path.join(tmp, 'server.js'), [
   'require("http").createServer((q, r) => {',
   '  r.writeHead(200, { "Content-Type": "application/json" });',
+  /* /api/meta: danh bạ mà app con này biết. Chỉ app này biết người đó — đó là
+   * đúng tình huống thật đã gặp (một người chỉ có trong Lịch tác nghiệp). */
+  '  if (q.url === "/api/meta") {',
+  '    return r.end(JSON.stringify({ people: [',
+  '      { id: "ou_chi_app_thu", name: "Chỉ có trong app thử", email: "chiapp@rootytrip.com" },',
+  '    ] }));',
+  '  }',
   '  r.end(JSON.stringify({',
   '    ql: q.headers["x-hub-user-manager"] || "",',
   '    ai: q.headers["x-hub-user-id"] || "",',
@@ -126,6 +133,30 @@ const nhuNhau = (a, b) => a.length === b.length && a.every((x, i) => x === b[i])
     const la = await panelCua('nguoila@rootytrip.com', 'Chưa khai quyền');
     ghi(nhuNhau(la, chung), 'người chưa khai quyền chỉ thấy base cả phòng', la.join(','));
     ghi(!la.includes('base-moi'), 'base mới dựng KHÔNG tự hiện cho người chưa khai');
+
+    /* ---- Danh bạ của màn Phân quyền phải gom từ MỌI app ----
+     * Lỗi đã gặp: danh bạ chỉ hỏi đúng app Bảng công việc, nên người chỉ có
+     * trong Lịch tác nghiệp thì không thêm được thành dòng phân quyền, và
+     * không tick được trong "Xem tải của ai" — tải của họ không bao giờ cấp
+     * được cho ai, mà màn hình không hề nói gì.
+     *
+     * Ở đây "Chỉ có trong app thử" chỉ được app echo khai. Các module giả
+     * trong tệp này KHÔNG khai `kpi`, nên cách tìm cũ (một app tên
+     * 'cong-viec') sẽ ra danh bạ rỗng — bài thử đỏ ngay nếu ai quay lại cách
+     * đó. */
+    {
+      const r = await fetch(G + '/api/quyen', {
+        headers: { cookie: kyPhien('quanly@rootytrip.com', 'Quản lý') },
+      });
+      const j = await r.json();
+      const d = j.data || j;
+      const db = d.danhBa || [];
+      ghi(db.some((x) => x.id === 'ou_chi_app_thu'),
+        'danh bạ gom cả người mà chỉ MỘT app con biết',
+        db.length + ' người: ' + db.map((x) => x.ten).join(', '));
+      ghi(db.every((x, i) => i === 0 || db[i - 1].id !== x.id),
+        'danh bạ không có ai bị lặp hai lần');
+    }
 
     const ql = await panelCua('quanly@rootytrip.com', 'Quản lý');
     ghi(ql.length === 5, 'quản lý thấy cả 5 base', ql.join(','));

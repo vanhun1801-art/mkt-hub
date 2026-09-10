@@ -780,23 +780,35 @@ async function api(req, res, u) {
       try { hang = await quyen.docTatCa(u.searchParams.get('refresh') === '1'); }
       catch (e) { loiBang = e.message; }
 
-      // danh bạ lấy từ chính app Bảng công việc (người có trong Base)
+      /* Danh bạ gom người từ MỌI app đang bật, không chỉ Bảng công việc.
+       *
+       * Đo bằng dữ liệu thật: lưới bảng nhiệt có 9 dòng, mà một dòng — người
+       * chỉ có trong Lịch tác nghiệp — KHÔNG có trong danh bạ. Hậu quả kép:
+       * không thêm được họ thành một dòng phân quyền, và không tick được họ
+       * trong "Xem tải của ai", nên tải của họ không bao giờ cấp được cho ai.
+       * Danh bạ trước đây chỉ hỏi đúng một app nên hụt đúng những người này.
+       *
+       * Gọi song song và bỏ qua app nào không trả lời: panel này quản lý mở
+       * thường xuyên, đừng để một app chậm làm cả màn hình treo. */
       let danhBa = [];
-      const modCV = danhSach().find((x) => x.kpi === 'cong-viec' && x.bat);
-      if (modCV) {
-        try {
-          const meta = await goiJson(modCV, '/api/meta', { nguoi });
-          const gop = new Map();
-          // giữ cả email nếu module biết: open_id khác nhau giữa các app Lark,
-          // khai bằng email thì đổi app vẫn khớp
-          [...(meta.people || []), ...(meta.scopePeople || [])].forEach((x) => {
-            if (!x || !x.id) return;
-            const cu = gop.get(x.id);
-            if (!cu) gop.set(x.id, { id: x.id, ten: x.name || x.id, email: x.email || '' });
-            else if (!cu.email && x.email) cu.email = x.email;
-          });
-          danhBa = [...gop.values()].sort((a, b) => a.ten.localeCompare(b.ten, 'vi'));
-        } catch (e) { /* thiếu danh bạ thì vẫn khai tay được */ }
+      {
+        const gop = new Map();
+        // giữ cả email nếu module biết: open_id khác nhau giữa các app Lark,
+        // khai bằng email thì đổi app vẫn khớp
+        const nap = (x) => {
+          if (!x || !x.id) return;
+          const cu = gop.get(x.id);
+          if (!cu) gop.set(x.id, { id: x.id, ten: x.name || x.id, email: x.email || '' });
+          else if (!cu.email && x.email) cu.email = x.email;
+        };
+        const mods = danhSach().filter((x) => x.bat && x.kieu === 'local' && x.cong);
+        const metas = await Promise.all(mods.map((mod) =>
+          goiJson(mod, '/api/meta', { nguoi }).catch(() => null)));
+        metas.forEach((meta) => {
+          if (!meta) return;
+          [...(meta.people || []), ...(meta.scopePeople || [])].forEach(nap);
+        });
+        danhBa = [...gop.values()].sort((a, b) => a.ten.localeCompare(b.ten, 'vi'));
       }
 
       /* ĐỐI CHIẾU với danh bạ thật: dòng khai bằng tay rất dễ lệch (tên trong Lark

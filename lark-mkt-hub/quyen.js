@@ -7,8 +7,12 @@
  * Lark, và dữ liệu đi cùng chỗ với mọi thứ khác của phòng.
  *
  * Bảng: "Phân quyền app" (mặc định nằm trong Base Tracking).
- *   Người · Email · open_id · Vai · Base được xem · Quản lý base ·
- *   Xem toàn bộ base · Được tạo mới · Xem chi phí · Ghi chú
+ *   Người · Email · open_id · Vai · Vị trí · Base được xem · Quản lý base ·
+ *   Xem toàn bộ base · Xem tải người khác · Được tạo mới · Xem chi phí · Ghi chú
+ *
+ * Hai cột KIỂU VĂN BẢN giữ danh sách — "Base được xem" và "Xem tải người khác" —
+ * đọc bằng cùng một quy ước (xem docOBase / docXemTai ở dưới). Các cột quyền
+ * còn lại là Checkbox.
  *
  * "Vai = Quản lý" là toàn quyền TOÀN HỆ. "Quản lý base" là nấc giữa: trong đúng
  * những base ghi ở ô đó thì người này là quản lý (thấy mọi bản ghi, mọi số tiền,
