@@ -497,7 +497,28 @@ function veRail() {
 }
 
 /* ---------------- sân khấu: iframe từng module ---------------- */
-function khungCuaModule(mod, rec) {
+
+/**
+ * Địa chỉ iframe của một module.
+ *
+ * MỘT chỗ dựng duy nhất, dùng cho cả lúc mở lần đầu và lúc đổi màn của khung
+ * đã có. Trước đây ghép ở hai nơi, nên thêm tham số mới mà quên một nơi thì
+ * lần bấm THỨ HAI không mở gì — khung đã dựng, nhánh còn lại không biết tham
+ * số đó.
+ *
+ * `v` là số bản: đổi bản (hay đổi vai) thì trình duyệt nạp lại app con thay vì
+ * dùng bản cũ trong cache, nếu không bộ lọc hay vai có thể lệch một nhịp.
+ */
+function srcCuaModule(mod, rec, mo) {
+  if (mod.kieu !== 'local') return mod.url;
+  const q = new URLSearchParams();
+  if (rec) q.set('rec', rec);
+  if (mo) q.set('mo', mo);
+  q.set('v', (S.hub && S.hub.ver) || '');
+  return '/m/' + mod.id + '/?' + q.toString();
+}
+
+function khungCuaModule(mod, rec, mo) {
   if (S.frames.has(mod.id)) return S.frames.get(mod.id);
 
   const wrap = document.createElement('div');
@@ -506,12 +527,7 @@ function khungCuaModule(mod, rec) {
   wrap.innerHTML = '<div class="frame-loading"><span class="spin"></span> Đang mở ' + esc(mod.ten) + '…</div>';
 
   const f = document.createElement('iframe');
-  /* Gắn số bản vào src: đổi bản (hay đổi vai) là trình duyệt nạp lại trang app con
-   * thay vì dùng bản cũ trong cache — nếu không, bộ lọc/vai có thể lệch một nhịp. */
-  f.src = mod.kieu === 'local'
-    ? '/m/' + mod.id + '/?' + (rec ? 'rec=' + encodeURIComponent(rec) + '&' : '') +
-      'v=' + encodeURIComponent((S.hub && S.hub.ver) || '')
-    : mod.url;
+  f.src = srcCuaModule(mod, rec, mo);
   f.title = mod.ten;
   f.setAttribute('allow', 'clipboard-write; fullscreen');
   f.addEventListener('load', () => {
@@ -528,7 +544,7 @@ function khungCuaModule(mod, rec) {
   return o;
 }
 
-function moModule(id, rec) {
+function moModule(id, rec, mo) {
   const mod = S.modules.find((m) => m.id === id);
   if (!mod) { location.hash = '#/tong-quan'; return; }
 
@@ -540,12 +556,12 @@ function moModule(id, rec) {
 
   S.view = id;
   $('#pageHome').hidden = true;
-  const o = khungCuaModule(mod, rec);
-  /* Khung đã dựng từ trước thì đổi src để app con mở đúng bản ghi. Chỉ làm khi
-   * có rec, không thì mỗi lần chuyển tab lại nạp lại app con từ đầu. */
-  if (rec && o.iframe) {
-    const moi = '/m/' + mod.id + '/?rec=' + encodeURIComponent(rec) +
-      '&v=' + encodeURIComponent((S.hub && S.hub.ver) || '');
+  const o = khungCuaModule(mod, rec, mo);
+  /* Khung đã dựng từ trước thì đổi src để app con mở đúng bản ghi / đúng màn.
+   * Chỉ làm khi CÓ rec hoặc mo — không thì mỗi lần chuyển tab lại nạp lại app
+   * con từ đầu. */
+  if ((rec || mo) && o.iframe) {
+    const moi = srcCuaModule(mod, rec, mo);
     if (o.iframe.getAttribute('src') !== moi) o.iframe.setAttribute('src', moi);
   }
   S.frames.forEach((x, k) => { x.wrap.hidden = k !== id; });
@@ -1508,8 +1524,8 @@ function dinhTuyen() {
   }
   if (ml) { moModule(decodeURIComponent(ml[1])); return; }
   if (mm) {
-    const rec = new URLSearchParams(mm[2] || '').get('rec');
-    moModule(decodeURIComponent(mm[1]), rec);
+    const q = new URLSearchParams(mm[2] || '');
+    moModule(decodeURIComponent(mm[1]), q.get('rec'), q.get('mo'));
     return;
   }
   moHome();

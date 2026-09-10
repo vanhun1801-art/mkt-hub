@@ -19,7 +19,11 @@ const CD_MUC = [
   { nhom: 'Cài đặt', ds: [
     { k: 'chung', ten: 'Chung', ic: 'cai-dat', mo: 'Ngôn ngữ, sáng tối, tài khoản' },
     { k: 'base', ten: 'Base trong panel', ic: 'base', mo: 'Bật, tắt, ẩn, thêm base', ql: true },
-    { k: 'nguoi', ten: 'Người dùng & phân quyền', ic: 'nguoi', mo: 'Ai thấy base nào', ql: true },
+    { k: 'nguoi', ten: 'Nhân sự & phân quyền', ic: 'nguoi', mo: 'Ai thấy base nào', ql: true },
+    { k: 'quan-ly-app', ten: 'Quản lý từng app', ic: 'cong-viec',
+      mo: 'Ai duyệt được trong từng app', ql: true },
+    { k: 'phan-phoi', ten: 'Phân phối công việc', ic: 'lich',
+      mo: 'Tự giao việc mới theo tỷ lệ', ql: true },
   ] },
   { nhom: 'Nâng cao', ds: [
     { k: 'kiem-tra', ten: 'Kiểm tra hệ thống', ic: 'may', mo: 'Hỏi từng base xem đọc được gì', ql: true },
@@ -77,11 +81,146 @@ function veCdNoi() {
   if (S.cdMuc === 'chung') return veCdChung(el);
   if (S.cdMuc === 'base') return veCdBase(el);
   if (S.cdMuc === 'nguoi') return veCdNguoi(el);
+  if (S.cdMuc === 'quan-ly-app') return veCdQuanLyApp(el);
+  if (S.cdMuc === 'phan-phoi') return veCdPhanPhoi(el);
   if (S.cdMuc === 'kiem-tra') return veCdKiemTra(el);
   if (S.cdMuc === 'log') return veCdLog(el);
 }
 
 /* ---------------- Chung ---------------- */
+/* ---------------- Quản lý của từng app ----------------
+ * Khác mục "Nhân sự & phân quyền": mục kia quyết ai THẤY base nào (luật của
+ * lớp vỏ, lưu ở lớp vỏ). Mục này quyết ai là QUẢN LÝ trong một app — luật của
+ * chính app đó, lưu ở app đó, nên phải gọi xuyên proxy sang app mà đọc/ghi.
+ *
+ * Hai app hai hình dạng endpoint khác nhau (đã đọc thật, không đoán), nên khai
+ * thành bảng: thêm app thứ ba chỉ là thêm một dòng.
+ */
+const QL_APP = [
+  { id: 'cong-viec', ten: 'Bảng công việc', doc: '/api/managers',
+    than: (ids) => ({ ids }) },
+  /* Lịch không trả danh bạ trong /api/quyen — phải lấy thêm ở /api/meta. */
+  { id: 'lich-tac-nghiep', ten: 'Lịch tác nghiệp', doc: '/api/quyen',
+    dsNguoi: '/api/meta', than: (ids) => ({ managers: ids }) },
+];
+
+function veCdQuanLyApp(el) {
+  el.innerHTML = cdTieuDe('Quản lý từng app',
+    'Ai được quyền quản lý bên trong mỗi app. Không phải "ai thấy base nào" — ' +
+    'cái đó ở mục Nhân sự & phân quyền.') +
+    QL_APP.map((a) => '<div id="cdQl-' + esc(a.id) + '">' +
+      cdHang(a.ten, 'đang đọc…', '') + '</div>').join('');
+  QL_APP.forEach((a) => napCdQl(a));
+}
+
+/**
+ * Đọc lại rồi vẽ lại một khối.
+ *
+ * `y` = { moDs, tin }: giữ danh sách đang mở, và câu báo hiện SAU khi vẽ.
+ * Không có hai thứ này thì bấm Lưu xong khối bị vẽ lại, ô thông báo bị xoá và
+ * danh sách đóng lại — đúng lỗi đã gặp: ghi thành công mà mặt màn hình như
+ * chưa xảy ra gì.
+ */
+async function napCdQl(a, y) {
+  const hop = $('#cdQl-' + a.id);
+  if (!hop) return;
+  try {
+    const d = await goi('/m/' + a.id + a.doc);
+    let nguoi = d.people || [];
+    if (!nguoi.length && a.dsNguoi) {
+      const m = await goi('/m/' + a.id + a.dsNguoi);
+      nguoi = m.people || [];
+    }
+    S.cdQl = S.cdQl || {};
+    S.cdQl[a.id] = { chon: new Set(d.managers || []), me: d.me || null, nguoi };
+    veCdQlApp(a, y);
+  } catch (e) {
+    if (!hop) return;
+    hop.innerHTML = cdHang(a.ten,
+      'Không đọc được: ' + esc(e.message || '') +
+      '. App này có đang chạy không?', '');
+  }
+}
+
+function veCdQlApp(a, y) {
+  const hop = $('#cdQl-' + a.id);
+  const t = S.cdQl[a.id];
+  if (!hop || !t) return;
+  const moDs = !!(y && y.moDs);
+
+  const meId = t.me && t.me.id;
+  const ds = t.nguoi.slice().sort((x, y) => String(x.name).localeCompare(String(y.name), 'vi'));
+  const dangChon = ds.filter((n) => t.chon.has(n.id));
+
+  hop.innerHTML = cdHang(a.ten,
+    (dangChon.length
+      ? '<b>' + dangChon.length + ' quản lý:</b> ' + esc(dangChon.map((n) => n.name).join(', '))
+      : 'Chưa có ai — app sẽ không có người duyệt.'),
+    '<button class="btn nho" data-ql-mo="' + esc(a.id) + '">Sửa</button>') +
+    '<div class="cd-ql-ds" id="cdQlDs-' + esc(a.id) + '"' + (moDs ? '' : ' hidden') + '>' +
+      ds.map((n) => {
+        const laToi = n.id === meId;
+        return '<label class="cd-ql-o' + (laToi ? ' la-toi' : '') + '">' +
+          '<input type="checkbox" data-ql-tick="' + esc(a.id) + '" value="' + esc(n.id) + '"' +
+          (t.chon.has(n.id) ? ' checked' : '') + (laToi ? ' disabled' : '') + '>' +
+          '<span>' + esc(n.name) + (laToi ? ' <i>(bạn — không tự bỏ quyền được)</i>' : '') + '</span>' +
+          '</label>';
+      }).join('') +
+      '<div class="cd-ql-luu">' +
+        '<button class="btn nho chinh" data-ql-luu="' + esc(a.id) + '">Lưu</button>' +
+        '<span class="cd-ql-tin" id="cdQlTin-' + esc(a.id) + '"></span>' +
+      '</div>' +
+    '</div>';
+
+  hop.querySelector('[data-ql-mo]').onclick = () => {
+    const o = $('#cdQlDs-' + a.id);
+    o.hidden = !o.hidden;
+  };
+  hop.querySelectorAll('[data-ql-tick]').forEach((i) => {
+    i.onchange = () => { if (i.checked) t.chon.add(i.value); else t.chon.delete(i.value); };
+  });
+  hop.querySelector('[data-ql-luu]').onclick = () => luuCdQl(a);
+  if (y && y.tin) $('#cdQlTin-' + a.id).textContent = y.tin;
+}
+
+async function luuCdQl(a) {
+  const t = S.cdQl[a.id];
+  const tin = $('#cdQlTin-' + a.id);
+  const ids = [...t.chon];
+  /* Chặn ngay ở đây cho người dùng biết liền, chứ không đợi server trả 400:
+   * app không còn quản lý nào là không ai duyệt được gì nữa. */
+  if (!ids.length) { tin.textContent = 'Phải còn ít nhất một quản lý.'; return; }
+  tin.textContent = 'Đang lưu…';
+  try {
+    await goi('/m/' + a.id + a.doc, {
+      method: 'POST', body: JSON.stringify(a.than(ids)),
+    });
+    /* Giữ danh sách mở và mang câu báo sang bản vẽ mới — xem chú thích ở
+     * napCdQl(). */
+    await napCdQl(a, { moDs: true, tin: 'Đã lưu.' });
+  } catch (e) {
+    tin.textContent = e.message || 'Không lưu được.';
+  }
+}
+
+/* ---------------- Phân phối công việc ----------------
+ * Mở thẳng màn phân phối của Bảng công việc thay vì dựng lại ở đây: nó là bảng
+ * nhiều cột với trọng số từng người, dựng lại là hai bản phải sửa song song.
+ * Cài đặt làm đúng việc của nó — chỗ duy nhất để TÌM ra thiết lập.
+ */
+function veCdPhanPhoi(el) {
+  el.innerHTML = cdTieuDe('Phân phối công việc',
+    'Việc mới không ai nhận sau một khoảng chờ thì hệ tự giao, theo loại việc và ' +
+    'tỷ lệ của từng nhân sự.') +
+    cdHang('Mở màn phân phối',
+      'Bật/tắt từng loại việc, đặt mốc chờ, và đặt tỷ lệ cho từng nhân sự.',
+      '<button class="btn nho chinh" id="cdMoPhanPhoi">Mở</button>');
+  $('#cdMoPhanPhoi').onclick = () => {
+    dongModal();
+    location.hash = '#/m/cong-viec?mo=phan-phoi';
+  };
+}
+
 function veCdChung(el) {
   const segNgonNgu = '<div class="seg seg-lang" data-no-i18n="1">' + NGON_NGU.map(([v, t]) =>
     '<button data-lang-set="' + v + '" class="' + (S.lang === v ? 'on' : '') + '">' + t + '</button>').join('') +

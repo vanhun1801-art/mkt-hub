@@ -4129,11 +4129,16 @@ function setupChrome() {
     setupAutoRefresh();
     setInterval(poll, 25000);
     // ?rec=recXXX -> mở luôn ô chi tiết việc đó (deep link từ hub hoặc từ Lark)
-    const rec = new URLSearchParams(location.search).get('rec');
+    const tv = new URLSearchParams(location.search);
+    const rec = tv.get('rec');
     if (rec) {
       const t = (S.tasks || []).find((x) => x.id === rec);
       if (t) openDrawer(t);
     }
+    /* ?mo=phan-phoi -> mở thẳng màn phân phối. Cài đặt của lớp vỏ gọi đường
+     * này: thiết lập TÌM ở Cài đặt, còn giao diện vẫn ở đây, không dựng lại
+     * hai bản. Chỉ quản lý mở được — nhân sự bấm vào cũng chỉ nhận 403. */
+    if (tv.get('mo') === 'phan-phoi' && S.isManager) openPhanPhoi();
   } catch (e) {
     toast('Không tải được dữ liệu: ' + (e && e.message), true);
   }

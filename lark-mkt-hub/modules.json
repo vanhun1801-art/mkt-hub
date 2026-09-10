@@ -31,7 +31,9 @@
         "header.topbar > .brand",
         "#linkLark",
         "#btnRefresh",
-        "#btnReport"
+        "#btnReport",
+        "#btnQuyen",
+        "#btnPhanPhoi"
       ],
       "phuSelector": "#subtitle",
       "bat": true,
@@ -55,7 +57,8 @@
       "an": [
         "header.topbar > .brand",
         "#btnLark",
-        "#btnRefresh"
+        "#btnRefresh",
+        "#btnQuyen"
       ],
       "bat": true,
       "caPhong": true
