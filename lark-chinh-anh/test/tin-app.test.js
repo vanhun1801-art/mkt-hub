@@ -134,6 +134,42 @@ async function chay() {
   cfg.tinAppId = idCu;
   cfg.tinAppSecret = secretCu;
 
+  console.log('\nchế độ api (bản online) — server gửi bằng bot NÀO');
+
+  await ta('trên server, tin vẫn đi qua Marketing Hub chứ không phải app nền tảng', async () => {
+    /* Đây là rủi ro lớn nhất của bản deploy: chế độ api có sẵn tenant token của
+     * LARK_APP_ID (app "Tracking"), nên rất dễ vô tình gửi bằng bot đó. Nhóm sẽ
+     * thấy hai người gửi khác nhau tuỳ app chạy ở máy hay trên server, và phải mời
+     * hai bot vào nhóm. Chốt lại: tinAppId khác appId thì PHẢI đi qua tin-app. */
+    const modeCu = cfg.mode;
+    const appIdCu = cfg.appId;
+    const idCu2 = cfg.tinAppId;
+    const secretCu2 = cfg.tinAppSecret;
+    try {
+      cfg.mode = 'api';
+      cfg.appId = 'cli_aa04305ecd385ed1';          // Tracking — app nền tảng khi deploy
+      cfg.tinAppId = 'cli_aa1a8ae21a78ded2';       // Marketing Hub — app đứng tên gửi
+      cfg.tinAppSecret = 'secret-gia';
+
+      delete require.cache[require.resolve('../larkapi')];
+      const larkapi = require('../larkapi');
+      tinApp.xoaToken();
+      const goi = gia({ code: 0, data: { message_id: 'om_api' } });
+      const r = await larkapi.guiTin({ chatId: 'oc_1', text: 'x' });
+      assert.strictEqual(r.ok, true);
+      const xinToken = goi.find((x) => x.url.includes('tenant_access_token'));
+      assert.strictEqual(xinToken.body.app_id, 'cli_aa1a8ae21a78ded2',
+        'server đang xin token của app nền tảng, không phải app đứng tên gửi');
+    } finally {
+      cfg.mode = modeCu;
+      cfg.appId = appIdCu;
+      cfg.tinAppId = idCu2;
+      cfg.tinAppSecret = secretCu2;
+      delete require.cache[require.resolve('../larkapi')];
+      global.fetch = fetchThat;
+    }
+  });
+
   console.log('\nnguoiGui — giao diện phải nói rõ đang gửi bằng bot nào');
 
   await ta('chưa khai App ID thì báo là đang dùng bot của lark-cli, và nêu bot ĐÁNG LẼ phải dùng', async () => {

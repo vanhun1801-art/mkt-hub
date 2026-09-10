@@ -5,7 +5,7 @@ tự **gửi về nhóm chat Lark** — thay cho việc dán link vào nhóm b�
 
 ```
 node server.js        # http://localhost:5181  (hoặc bấm start.bat)
-npm test              # 92 phép thử, chỉ đọc Base, không gửi tin
+npm test              # 93 phép thử, chỉ đọc Base, không gửi tin
 ```
 
 Base: <https://rootytrip2.sg.larksuite.com/base/OzF9bSPkPamYQHsNcU8lmMVQgFb>
