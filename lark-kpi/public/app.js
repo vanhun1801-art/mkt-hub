@@ -106,7 +106,7 @@ async function khoiDong() {
   $('#modal').onclick = (ev) => { if (ev.target.closest('[data-dong]')) $('#modal').hidden = true; };
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $('#modal').hidden = true; });
 
-  /* Chưa có tháng nào thì ĐỪNG gọi API tháng.
+  /* Kho KPI rỗng thì ĐỪNG gọi API tháng.
    *
    * THANG lúc đó là chuỗi rỗng, máy chủ coi là không truyền rồi tự suy ra
    * danhSachThang()[0] — với kho rỗng thì ra undefined, và nó trả 404 "Chưa có
@@ -114,17 +114,40 @@ async function khoiDong() {
    * chữ undefined, trông như app lỗi chứ không phải như app chưa có dữ liệu.
    *
    * Cảnh này gặp NGAY trên server chung: du-lieu/ cố ý không lên GitHub (điểm
-   * KPI gắn với lương từng người), mà ổ đĩa Render lại là tạm. */
-  if (!(META.thang || []).length) {
-    $('#brandSub').textContent = 'chưa có dữ liệu';
-    $('#noiDung').innerHTML = '<div class="rong">Chưa nhập lịch sử KPI.<br>'
-      + 'Mã nguồn và bộ luật có sẵn, nhưng số điểm nằm trong <code>du-lieu/</code> — '
-      + 'thư mục này cố ý không lên GitHub vì gắn với lương từng người, nên bản chạy '
-      + 'trên server chung luôn trống. Chạy bước nhập lịch sử trên máy cá nhân.</div>';
+   * KPI gắn với lương từng người), mà ổ đĩa Render lại là tạm.
+   *
+   * NHƯNG chỉ NỬA KPI chết, không phải cả app: nửa Báo cáo đọc thẳng từ năm app
+   * con qua HTTP, không đụng gì tới kho này — trên Render nó chạy đủ 66 chỉ số.
+   * Bản trước `return` ngay ở đây nên chặn luôn cả tab Báo cáo, tức là bản chạy
+   * trên server chung không dùng được vào việc gì, dù một nửa của nó vẫn tốt. */
+  KHO_RONG = !(META.thang || []).length;
+  if (KHO_RONG) {
+    $('#brandSub').textContent = 'chưa có số KPI · phần Báo cáo vẫn chạy';
+    $('#oThang').hidden = true;
+    /* Nhảy sang Báo cáo — tab duy nhất còn dùng được. Nhân sự thường không thấy
+     * tab đó, với họ thì đúng là không còn gì, cứ để nguyên tab đầu. */
+    if (tabs.some(([k]) => k === 'baocao')) {
+      TAB = 'baocao';
+      [...$('#tabs').children].forEach((x) => x.classList.toggle('chon', x.dataset.tab === TAB));
+    }
+    ve();
     return;
   }
 
   await napThang();
+}
+
+/* Kho lịch sử KPI có rỗng không. Nửa Báo cáo không cần nó; mọi tab KPI thì cần. */
+var KHO_RONG = false;   // eslint-disable-line no-var
+
+/** Màn giải thích cho các tab KPI khi kho rỗng — nói rõ vì sao và cần làm gì. */
+function veKhoRong() {
+  $('#noiDung').innerHTML = '<div class="rong">Chưa có số KPI trên bản chạy này.<br>'
+    + 'Mã nguồn và bộ luật có sẵn, nhưng điểm từng người nằm trong <code>du-lieu/</code> — '
+    + 'thư mục đó cố ý không lên GitHub vì gắn với lương, và ổ đĩa của server chung '
+    + 'cũng là ổ tạm nên có tải lên cũng mất sau lần deploy sau.<br><br>'
+    + '<b>Tab “Báo cáo” vẫn chạy đủ</b> — nó đọc thẳng từ năm app con, không cần kho này.'
+    + '</div>';
 }
 
 async function napThang() {
@@ -142,9 +165,11 @@ async function napThang() {
 function ve() {
   /* Chọn tháng chỉ có nghĩa với nửa KPI. Tab Báo cáo có thanh lọc khoảng thời
    * gian riêng, để nguyên ô chọn tháng ở trên là gây hiểu nhầm. */
-  $('#oThang').hidden = (TAB === 'baocao');
-  if (TAB === 'baocao') veBaoCao();
-  else if (TAB === 'tiendo') veTienDo();
+  $('#oThang').hidden = (TAB === 'baocao') || KHO_RONG;
+  if (TAB === 'baocao') return veBaoCao();
+  /* Mọi tab KPI đều ăn theo DATA của một tháng; kho rỗng thì không có gì để vẽ. */
+  if (KHO_RONG) return veKhoRong();
+  if (TAB === 'tiendo') veTienDo();
   else if (TAB === 'tong') veTongQuan();
   else if (TAB === 'phieu') vePhieu();
   else if (TAB === 'nguon') veNguon();
