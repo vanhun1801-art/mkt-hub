@@ -538,6 +538,8 @@ async function api(req, res, u) {
       ['ten', 'mo_ta', 'icon', 'mau', 'larkUrl', 'url', 'bat', 'kpi'].forEach((k) => {
         if (k in body) tho[i][k] = body[k];
       });
+      // mở/đóng cho cả phòng: chỉ nhận đúng true/false, đừng để chuỗi "false" lọt vào
+      if ('caPhong' in body) tho[i].caPhong = body.caPhong === true;
       cfg.ghiModules(tho);
       const moi = timMod(mod.id);
       if (moi && moi.bat && moi.kieu === 'local') kids.khoiDong(moi);
@@ -560,8 +562,6 @@ async function api(req, res, u) {
     const ten = String(b.ten || '').trim();
     if (!ten) return loi(res, 400, 'Thiếu tên base');
     const kieu = ['local', 'ngoai', 'lark'].includes(b.kieu) ? b.kieu : 'ngoai';
-      // mở/đóng cho cả phòng: chỉ nhận đúng true/false, đừng để chuỗi "false" lọt vào
-      if ('caPhong' in body) tho[i].caPhong = body.caPhong === true;
     const id = String(b.id || '').trim() || khongDau(ten);
     if (timMod(id)) return loi(res, 400, 'Đã có module id "' + id + '"');
 
@@ -583,6 +583,10 @@ async function api(req, res, u) {
       kpi: b.kpi && kpi.BO_DOC[b.kpi] ? b.kpi : '',
       larkUrl: String(b.larkUrl || ''),
       bat: true,
+      /* Base MỚI mặc định KÍN: chỉ quản lý và người được cấp tên mới thấy.
+       * Trước đây thêm base là cả phòng thấy ngay trong panel — dựng thử một base
+       * chưa xong đã có người vào xem. Mở cho cả phòng là một thao tác riêng. */
+      caPhong: b.caPhong === true,
     };
     if (kieu === 'local') {
       moi.thuMuc = String(b.thuMuc);
@@ -605,10 +609,6 @@ async function api(req, res, u) {
   if (p === '/api/toi' && m === 'GET') {
     /* open_id của một người KHÁC NHAU giữa các app Lark. Đổi app là danh sách
      * LARK_MANAGER_IDS cũ không còn khớp -> quản lý bị tụt xuống vai nhân sự.
-      /* Base MỚI mặc định KÍN: chỉ quản lý và người được cấp tên mới thấy.
-       * Trước đây thêm base là cả phòng thấy ngay trong panel — dựng thử một base
-       * chưa xong đã có người vào xem. Mở cho cả phòng là một thao tác riêng. */
-      caPhong: b.caPhong === true,
      * Endpoint này để lấy đúng open_id dưới app đang chạy. */
     const nguoi = cfg.mode === 'api' ? auth.sessionUser(req) : null;
     return ok(res, {
@@ -1036,6 +1036,16 @@ const server = http.createServer(async (req, res) => {
     const id = decodeURIComponent(mm[1]);
     const mod = timMod(id);
     if (!mod) return send(res, 404, 'Không có module ' + id, { 'Content-Type': 'text/plain; charset=utf-8' });
+
+    /* Kiểm quyền TRƯỚC mọi thứ khác, kể cả trước cú chuyển hướng của module ngoài:
+     * ẩn khỏi panel là chưa đủ, ai gõ tay URL cũng phải bị chặn — và người không
+     * được xem thì cũng không nên biết URL riêng của app đó. */
+    const { nguoi, q, xemNhu } = await aiDangXem(req);
+    if (nguoi && !duocXem(q, mod)) {
+      return send(res, 403, 'Bạn chưa được cấp quyền xem base "' + mod.ten + '".',
+        { 'Content-Type': 'text/plain; charset=utf-8' });
+    }
+
     if (mod.kieu !== 'local') {
       // module ngoài chỉ có URL — chuyển hướng thẳng ra đó
       res.writeHead(302, { Location: mod.url || '/' });
@@ -1105,16 +1115,6 @@ const server = http.createServer(async (req, res) => {
       '<meta name="viewport" content="width=device-width,initial-scale=1"><title>Tài khoản của tôi</title><style>' +
       'body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f4f6fa;color:#1a2233;' +
       'font:15px/1.6 "Segoe UI",system-ui,sans-serif}' +
-
-    /* Kiểm quyền TRƯỚC mọi thứ khác, kể cả trước cú chuyển hướng của module ngoài:
-     * ẩn khỏi panel là chưa đủ, ai gõ tay URL cũng phải bị chặn — và người không
-     * được xem thì cũng không nên biết URL riêng của app đó. */
-    const { nguoi, q, xemNhu } = await aiDangXem(req);
-    if (nguoi && !duocXem(q, mod)) {
-      return send(res, 403, 'Bạn chưa được cấp quyền xem base "' + mod.ten + '".',
-        { 'Content-Type': 'text/plain; charset=utf-8' });
-    }
-
       '.box{background:#fff;border:1px solid #e3e8f0;border-radius:14px;padding:30px 34px;max-width:560px;' +
       'box-shadow:0 6px 24px rgba(20,30,60,.07)}' +
       'h1{margin:2px 0 18px;font-size:22px}' +

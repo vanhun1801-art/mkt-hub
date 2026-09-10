@@ -161,7 +161,16 @@ function veCdBase(el) {
           : m.kieu === 'ngoai' ? 'app có URL riêng' : 'mở thẳng Lark Base') +
         (tt.loi ? ' · <span style="color:var(--do)">' + esc(tt.loi.slice(0, 80)) + '</span>' : '') + '</p></div>' +
       '<span class="chip ' + nhan[1] + '">' + esc(nhan[0]) + '</span>' +
+      /* Ai thấy base này — dòng nào cũng phải trả lời được câu đó ngay, không
+       * phải mở màn Phân quyền mới biết. Bấm vào là đổi. */
+      '<span class="chip ' + (m.caPhong ? 'vang' : '') + '" title="' + (m.caPhong
+        ? 'Cả phòng thấy base này'
+        : 'Chỉ quản lý và người được cấp tên') + '">' +
+        (m.caPhong ? 'Cả phòng' : 'Kín') + '</span>' +
       '<div class="thao-tac">' +
+        '<button class="btn nho ghost" data-caphong="' + esc(m.id) + '"' +
+          ' data-moi="' + (m.caPhong ? '0' : '1') + '">' +
+          (m.caPhong ? 'Đóng lại' : 'Mở cả phòng') + '</button>' +
         (m.kieu === 'local'
           ? '<button class="btn nho" data-batlai="' + esc(m.id) + '">Bật lại</button>' +
             '<button class="btn nho ghost" data-tat="' + esc(m.id) + '">Tắt</button>' +
@@ -224,16 +233,7 @@ async function veCdKiemTra(el) {
     return;
   }
   const h = d.hub;
-      /* Ai thấy base này — dòng nào cũng phải trả lời được câu đó ngay, không
-       * phải mở màn Phân quyền mới biết. Bấm vào là đổi. */
-      '<span class="chip ' + (m.caPhong ? 'vang' : '') + '" title="' + (m.caPhong
-        ? 'Cả phòng thấy base này'
-        : 'Chỉ quản lý và người được cấp tên') + '">' +
-        (m.caPhong ? 'Cả phòng' : 'Kín') + '</span>' +
   const hang = (ten, gt, tot) => cdHang(ten, '', '<span class="cd-nhan ' +
-        '<button class="btn nho ghost" data-caphong="' + esc(m.id) + '"' +
-          ' data-moi="' + (m.caPhong ? '0' : '1') + '">' +
-          (m.caPhong ? 'Đóng lại' : 'Mở cả phòng') + '</button>' +
     (tot === false ? 'do' : tot === true ? 'luc' : '') + '">' + esc(gt) + '</span>');
 
   let html = cdTieuDe('Kiểm tra hệ thống', 'Hỏi thẳng từng base xem đang đọc được gì.') +
