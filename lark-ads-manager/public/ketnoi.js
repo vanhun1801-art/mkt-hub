@@ -248,47 +248,49 @@
       return '';
     })()}
 
+    <!-- Ngay dưới băng cảnh báo, vì băng đó nói "Bấm Lấy nội dung ADS_CONNECT_JSON
+         ngay dưới đây". Chỉ hiện khi ổ đĩa thật là ổ tạm. -->
     ${theGiuBen(c)}
-
-    <div class="help">Đồng bộ luôn ghi lại <b>${d.soNgayLui} ngày gần nhất</b>, không chỉ hôm nay — vì Meta/TikTok/Google còn khai báo lại chuyển đổi trong vài ngày.
-    Khoá ghi là (quảng cáo × ngày) nên chạy lại bao nhiêu lần cũng không nhân dòng.
-    ${c.hengio.dangBat ? `Hẹn giờ <b>đang bật</b>, lượt kế tiếp khoảng ${c.hengio.lanKeTiep ? new Date(c.hengio.lanKeTiep).toLocaleTimeString('vi-VN') : '—'}.` : 'Hẹn giờ <b>đang tắt</b>.'}</div>
 
     <div class="grid g3">${c.providers.filter(hienKenh).map(providerCard).join('')}</div>
 
-    <div class="grid g2" style="margin-top:14px">
-      <div class="card">
-        <div class="card-head"><h3>Tuỳ chọn đồng bộ</h3>
-          <button class="btn small ghost" id="kTest">Kiểm tra kết nối</button></div>
-        <div class="card-body">
-          <div class="form-grid">
+    <div class="card" style="margin-top:14px">
+      <div class="card-head"><h3>Đồng bộ &amp; kiểm tra</h3>
+        <span class="sub">${c.hengio.dangBat
+          ? `tự chạy mỗi ${d.moiSoGio} giờ · lượt kế tiếp khoảng ${c.hengio.lanKeTiep ? new Date(c.hengio.lanKeTiep).toLocaleTimeString('vi-VN') : '—'}`
+          : 'hẹn giờ đang tắt'}</span></div>
+      <div class="card-body">
+        <div class="help">Mỗi lượt ghi lại <b>${d.soNgayLui} ngày gần nhất</b>, không chỉ hôm nay — vì
+          Meta/TikTok/Google còn khai báo lại chuyển đổi trong vài ngày. Khoá ghi là
+          (quảng cáo × ngày) nên chạy lại bao nhiêu lần cũng không nhân dòng.</div>
+        <!-- Ba việc anh Hùng vào tab này để làm, bấm được ngay. Bản trước chúng
+             nằm lẫn dưới bốn ô số kỹ thuật. -->
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+          <button class="btn primary" id="kSyncAll">⟳ Đồng bộ tất cả kênh đang bật</button>
+          <button class="btn ghost" id="kTest">Kiểm tra kết nối</button>
+          <button class="btn ghost" id="kPreviewAll">Xem trước — chưa ghi gì</button>
+        </div>
+
+        <details class="lui" style="margin-top:14px">
+          <summary>Tuỳ chọn nâng cao — nhịp đồng bộ, tự tạo bản ghi, nhập file CSV</summary>
+          <div class="form-grid" style="margin-top:8px">
             <div class="field"><label>Ghi lại bao nhiêu ngày gần nhất</label>
               <input type="number" id="oNgay" min="1" max="90" value="${d.soNgayLui}">
               <span class="hint">7 là hợp lý cho cửa sổ attribution 7 ngày</span></div>
             <div class="field"><label>Tự đồng bộ mỗi (giờ)</label>
               <input type="number" id="oGio" min="0" max="24" value="${d.moiSoGio}">
-              <span class="hint">0 = tắt. Chỉ chạy khi app đang mở — muốn chạy nền thì dùng Task Scheduler</span></div>
+              <span class="hint">0 = tắt. Chỉ chạy khi app đang mở</span></div>
             <div class="field full"><label>
               <input type="checkbox" id="oKhiKhoiDong" ${d.khiKhoiDong ? 'checked' : ''}> Đồng bộ ngay khi bật server</label></div>
-            <div class="field full"><label>
-              <input type="checkbox" id="oGhiDe" ${d.ghiDeNhapTay ? 'checked' : ''}> Số từ nền tảng ghi đè lên dòng nhập tay</label>
-              <span class="hint">Bật: nền tảng là nguồn đúng. Tắt: giữ nguyên số anh đã gõ, chỉ thêm dòng mới</span></div>
             <div class="field full"><label>
               <input type="checkbox" id="oTaoMoi" ${d.tuTaoMoi ? 'checked' : ''}> Tự tạo chiến dịch / nhóm / quảng cáo chưa có trong Base</label>
               <span class="hint">Nên để TẮT lần đầu, xem trước rồi ghép tay để không nhân đôi dữ liệu cũ</span></div>
           </div>
-          <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
-            <button class="btn primary" id="kSave">Lưu tuỳ chọn</button>
-            <button class="btn ghost" id="kPreviewAll">Xem trước tất cả kênh</button>
-            <button class="btn primary" id="kSyncAll">⟳ Đồng bộ tất cả kênh đang bật</button>
-          </div>
-        </div>
-      </div>
+          <button class="btn ghost" id="kSave">Lưu tuỳ chọn</button>
 
-      <div class="card">
-        <div class="card-head"><h3>Nhập từ file CSV</h3><span class="sub">dùng được ngay, không cần token</span></div>
-        <div class="card-body">
-          <div class="help">Export báo cáo từ Ads Manager (có cột Ngày + Chi phí + tên quảng cáo), rồi kéo file vào đây. App tự nhận cột theo tên tiếng Việt hoặc tiếng Anh.</div>
+          <div class="help" style="margin-top:14px"><b>Nhập từ file CSV</b> — đường lùi khi một nền tảng
+            không gọi được API. Export báo cáo từ Ads Manager (có cột Ngày + Chi phí + tên quảng cáo)
+            rồi chọn file ở đây; app tự nhận cột theo tên tiếng Việt hoặc tiếng Anh.</div>
           <div class="form-grid">
             <div class="field"><label>Nền tảng của file này</label>
               <select id="cPlat"><option value="Facebook">Facebook</option><option value="TikTok">TikTok</option><option value="Google Ads">Google Ads</option></select></div>
@@ -298,11 +300,11 @@
               <input type="file" id="cFile" accept=".csv,.tsv,.txt">
               <span class="hint" id="cInfo">Chưa chọn file</span></div>
           </div>
-          <div style="display:flex;gap:8px;margin-top:12px">
+          <div style="display:flex;gap:8px">
             <button class="btn ghost" id="cPreview" disabled>Xem trước</button>
-            <button class="btn primary" id="cImport" disabled>Nhập vào Base</button>
+            <button class="btn ghost" id="cImport" disabled>Nhập vào Base</button>
           </div>
-        </div>
+        </details>
       </div>
     </div>
 
@@ -514,7 +516,10 @@
    * Token đi ra ở đây là ngoại lệ duy nhất của luật "token chỉ đi vào". Server khoá
    * bằng vai quản lý, và chỉ trả khi được hỏi thẳng. */
   function theGiuBen(c) {
-    if (!c.laQuanLy) return '';
+    /* `oDiaTam` mới là điều kiện thật, không phải chỉ quyền quản lý: trên máy cá
+     * nhân ổ đĩa không phải ổ tạm và cũng chẳng có deploy nào, mà thẻ vẫn nói
+     * "deploy là mất" — nói một điều không đúng với hoàn cảnh. */
+    if (!c.laQuanLy || !c.oDiaTam) return '';
     const b = c.benVung || {};
     const canLam = (b.canLo || c.nguon === 'file') && c.oDiaTam;
     return `
@@ -1408,7 +1413,11 @@
               soNgayLui: Number($('#oNgay').value),
               moiSoGio: Number($('#oGio').value),
               khiKhoiDong: $('#oKhiKhoiDong').checked,
-              ghiDeNhapTay: $('#oGhiDe').checked,
+              /* Gửi cứng true, không còn ô cho chọn: tab "Nhập số hằng ngày" đã
+               * bỏ nên không còn dòng nhập tay mới, và giá trị đúng duy nhất là
+               * để nền tảng làm nguồn. Gửi thẳng ở đây còn sửa lại được cấu hình
+               * cũ nào đang để tắt. */
+              ghiDeNhapTay: true,
               tuTaoMoi: $('#oTaoMoi').checked,
             },
           }),

@@ -26,6 +26,7 @@ const doc = (f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
 const app = doc('public/app.js');
 const srv = doc('server.js');
 const css = doc('public/styles.css');
+const kn = doc('public/ketnoi.js');
 
 console.log('— tab nhập tay đã bỏ');
 {
@@ -122,6 +123,53 @@ console.log('— nhập Excel còn, nhưng là đường lùi');
   t('nút kéo dùng cửa sổ của lượt tự động, không phải 60 ngày',
     /tuDongSoNgay \|\| 21/.test(app));
   t('khối gấp lại có CSS riêng, không phải chữ trần', css.includes('.lui > summary'));
+}
+
+console.log('— tab Kết nối: việc chính lên trên, ô kỹ thuật gấp lại');
+{
+  /* Bốn ô số kỹ thuật từng chiếm nửa chiều ngang để hỏi những câu người dùng
+   * không có cách nào tự trả lời, còn ba việc anh Hùng thật sự vào đây để làm
+   * thì nằm lẫn bên dưới. */
+  const gap = kn.indexOf('<details class="lui"');
+  t('có khối gấp lại cho tuỳ chọn nâng cao', gap > 0);
+  const nut = kn.indexOf('id="kSyncAll"');
+  t('nút Đồng bộ nằm TRƯỚC khối gấp lại', nut > 0 && nut < gap);
+  ['kTest', 'kPreviewAll'].forEach((id) => {
+    const i = kn.indexOf(`id="${id}"`);
+    t(`${id} cũng nằm ngoài khối gấp lại`, i > 0 && i < gap);
+  });
+  /* Bốn ô kỹ thuật và cả nhập CSV thì vào trong. */
+  ['oNgay', 'oGio', 'oKhiKhoiDong', 'oTaoMoi', 'kSave', 'cPlat', 'cFile', 'cImport']
+    .forEach((id) => t(`${id} nằm trong khối gấp lại`, kn.indexOf(`id="${id}"`) > gap));
+  t('vẫn còn thẻ CSV như đường lùi', /Nhập từ file CSV[\s\S]{0,120}?đường lùi/.test(kn));
+}
+
+console.log('— ô "ghi đè lên dòng nhập tay" bỏ hẳn, không phải ẩn đi');
+{
+  /* Bỏ tab nhập tay rồi thì không còn dòng nhập tay mới, nên ô này chỉ còn một
+   * câu trả lời đúng. Để lại là bắt người ta quyết một việc không có gì để quyết. */
+  t('không còn ô oGhiDe', !kn.includes('oGhiDe'));
+  /* Nhưng giá trị vẫn phải được gửi, và gửi là true: nếu bỏ luôn thì cấu hình cũ
+   * nào đang để tắt sẽ nằm im mãi ở tắt. */
+  t('lưu tuỳ chọn vẫn gửi ghiDeNhapTay: true', /ghiDeNhapTay:\s*true/.test(kn));
+}
+
+console.log('— thẻ "Giữ cấu hình qua lần deploy" chỉ hiện khi câu nó nói là đúng');
+{
+  /* Trên máy cá nhân ổ đĩa không phải ổ tạm và cũng chẳng có deploy nào, mà thẻ
+   * vẫn nói "deploy là mất". Cùng loại lỗi với "cần hai bản xuất Excel". */
+  t('có điều kiện oDiaTam', /function theGiuBen[\s\S]{0,400}?!c\.oDiaTam/.test(kn));
+
+  /* Băng cảnh báo nói "Bấm Lấy nội dung ADS_CONNECT_JSON NGAY DƯỚI ĐÂY", nên thẻ
+   * phải thật sự ở ngay dưới. Tôi đã một lần dời nó xuống cuối tab và làm câu đó
+   * trỏ vào chỗ không có gì — cùng lỗi với băng gọi tên nút "Lấy lại quyền". */
+  const bang = kn.indexOf('ngay dưới đây');
+  const the = kn.indexOf('${theGiuBen(c)}');
+  const kenh = kn.indexOf('c.providers.filter(hienKenh)');
+  t('băng cảnh báo có trỏ xuống dưới', bang > 0);
+  t('thẻ đứng ngay dưới băng, trước các thẻ kênh', the > 0 && the < kenh);
+  t('nút mà băng gọi tên đúng là nút có thật',
+    kn.includes('Lấy nội dung ADS_CONNECT_JSON'));
 }
 
 console.log(`\n${pass} pass · ${fail} fail`);
