@@ -896,17 +896,31 @@
           appId: $('#zaApp').value.trim(),
           redirectUri: $('#zaRedirect').value.trim(),
         });
+        /* Hai đường, tuỳ trang quản trị Zalo bày ra cái nào:
+         *  - Trang có ô "Code Challenge": dán chuỗi challenge vào đó, Zalo tự
+         *    dựng link — đây là đường Zalo đang dùng.
+         *  - Không có ô đó: mở thẳng link mình dựng sẵn.
+         * Cùng một cặp PKCE nên đường nào cũng đổi được mã. */
         $('#zaLinkBox').innerHTML = '<div class="note info"><span class="ico">→</span><span>'
-          + 'Mở link này bằng trình duyệt <b>đang đăng nhập tài khoản quản trị OA</b>. '
-          + 'Bấm <b>Cho phép</b>, Zalo sẽ chuyển sang một trang trắng (hoặc báo lỗi không sao) — '
-          + 'chép đoạn <b>code=…</b> trên thanh địa chỉ rồi dán xuống ô bên dưới. '
-          + 'Mã chỉ dùng được một lần và hết hạn nhanh, nên dán ngay.<br>'
+          + '<b>Nếu trang ứng dụng Zalo có ô "Code Challenge"</b> — dán chuỗi này vào đó, '
+          + 'điền Callback Url đúng bằng ô Địa chỉ chuyển hướng ở trên, bấm Lưu. '
+          + 'Zalo sẽ tự dựng đường dẫn cấp quyền cho anh:'
+          + '<div class="log-box" style="margin:6px 0;word-break:break-all">' + esc(r.codeChallenge) + '</div>'
+          + '<button class="btn ghost small" id="zaChepCh">Chép Code Challenge</button>'
+          + '<hr style="margin:10px 0;border:0;border-top:1px solid var(--line)">'
+          + '<b>Nếu không thấy ô đó</b> — mở thẳng link này bằng trình duyệt đang đăng nhập '
+          + 'tài khoản quản trị OA:<br>'
           + '<a href="' + esc(r.link) + '" target="_blank" rel="noreferrer">' + esc(r.link.slice(0, 110))
-          + '…</a><br><button class="btn ghost small" id="zaChep">Chép link</button></span></div>';
-        $('#zaChep').onclick = () => {
-          navigator.clipboard.writeText(r.link).then(() => toast('Đã chép link'),
-            () => toast('Không chép được — bôi đen link rồi Ctrl+C', 'err'));
-        };
+          + '…</a> <button class="btn ghost small" id="zaChep">Chép link</button>'
+          + '<hr style="margin:10px 0;border:0;border-top:1px solid var(--line)">'
+          + 'Đường nào cũng vậy: bấm <b>Cho phép</b>, Zalo chuyển sang trang trắng hoặc báo lỗi '
+          + '— không sao. Chép đoạn <b>code=…</b> trên thanh địa chỉ, dán xuống ô bên dưới. '
+          + 'Mã dùng một lần và hết hạn nhanh, nên dán ngay. Bấm lại nút này là sinh cặp mới, '
+          + 'và mã cũ hết dùng được.</span></div>';
+        const chep = (t, ten) => navigator.clipboard.writeText(t).then(
+          () => toast('Đã chép ' + ten), () => toast('Không chép được — bôi đen rồi Ctrl+C', 'err'));
+        $('#zaChepCh').onclick = () => chep(r.codeChallenge, 'Code Challenge');
+        $('#zaChep').onclick = () => chep(r.link, 'link');
       } catch (e) { toast(e.message, 'err'); }
     };
 

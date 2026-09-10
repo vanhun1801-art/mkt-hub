@@ -78,6 +78,11 @@ async function goiOauth(conf, body, nhan) {
  * băm SHA-256 rồi tự nhớ chuỗi verifier suốt lúc bấm qua bấm lại trên trình
  * duyệt — sai một ký tự là Zalo từ chối mà không nói vì sao. Nên máy dựng cả
  * cặp, giao diện chỉ việc cất verifier đi cùng link.
+ *
+ * Trả về cả `codeChallenge` vì trang quản trị ứng dụng của Zalo có ô "Code
+ * Challenge" riêng và tự dựng link cho mình — lúc đó cái cần chép sang không
+ * phải là link mà là chuỗi challenge. Hai đường vẫn khớp nhau: link do Zalo
+ * dựng mang đúng challenge này, nên verifier mình giữ vẫn đổi được mã.
  */
 function linkCapQuyen(conf, redirectUri, state = '') {
   if (!conf.appId) throw new Error('Chưa khai App ID của ứng dụng Zalo');
@@ -91,7 +96,10 @@ function linkCapQuyen(conf, redirectUri, state = '') {
     code_challenge_method: 'S256',
     state: state || String(Date.now()),
   });
-  return { link: 'https://oauth.zaloapp.com/v4/oa/permission?' + q.toString(), codeVerifier };
+  return {
+    link: 'https://oauth.zaloapp.com/v4/oa/permission?' + q.toString(),
+    codeVerifier, codeChallenge,
+  };
 }
 
 /** Đổi oauth_code (lấy tay ở trang quản trị OA) sang cặp token. Chạy một lần. */

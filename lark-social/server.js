@@ -551,7 +551,7 @@ async function api(req, res, u) {
     /* Cất verifier lại ngay: người dùng sẽ rời trang sang Zalo rồi mới quay về
      * dán mã, mà mã chỉ đổi được nếu nộp đúng verifier đã dùng lúc tạo link. */
     ketnoi.ghiKhoi('zalo', { ...conf, codeVerifier: r.codeVerifier });
-    return ok(res, { link: r.link });
+    return ok(res, { link: r.link, codeChallenge: r.codeChallenge });
   }
 
   if (p === '/api/ket-noi/zalo/doi-ma' && method === 'POST') {

@@ -334,6 +334,9 @@ t('link cấp quyền Zalo mang đúng cặp PKCE', () => {
   assert.strictEqual(u.searchParams.get('code_challenge'),
     crypto.createHash('sha256').update(r.codeVerifier).digest('base64url'));
   assert.ok(r.codeVerifier.length >= 43 && r.codeVerifier.length <= 128);
+  /* Trang quản trị ứng dụng của Zalo có ô "Code Challenge" riêng và tự dựng link,
+     nên phải trả chuỗi này ra ngoài chứ không chỉ nhét vào link. */
+  assert.strictEqual(r.codeChallenge, u.searchParams.get('code_challenge'));
 });
 
 t('mỗi lần tạo link là một verifier khác', () => {
