@@ -242,16 +242,6 @@ table.tbl tfoot td { font-weight: 700; background: var(--panel-2); border-top: 2
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
 .legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
 
-/* ---------- entry grid ---------- */
-.entry-tbl input {
-  width: 100%; min-width: 92px; border: 1px solid var(--line); border-radius: 7px;
-  padding: 6px 8px; font: inherit; text-align: right; font-variant-numeric: tabular-nums;
-}
-.entry-tbl input:focus { outline: 2px solid var(--brand-soft); border-color: var(--brand); }
-.entry-tbl input.text { text-align: left; min-width: 130px; }
-.entry-tbl tr.dirty { background: #fffdf0; }
-.entry-tbl tr.filled td:first-child { box-shadow: inset 3px 0 0 var(--good); }
-.entry-tbl tr.inactive { opacity: .55; }
 .sticky-actions {
   position: sticky; bottom: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 12px 14px; background: var(--panel); border-top: 1px solid var(--line);

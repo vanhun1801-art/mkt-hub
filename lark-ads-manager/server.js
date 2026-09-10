@@ -380,6 +380,10 @@ async function api(req, res, u) {
     return ok(res, M.dailyTable(data, queryOpts(u)));
   }
 
+  /* Tab "Nhập số hằng ngày" đã bỏ (API lấy đủ số của cả ba nền tảng), nhưng
+   * hai đường /api/entry này CÒN: api.test.js và write.test.js dùng chúng để
+   * kiểm phép ghi vào Base, và đây là đường vá bằng tay nếu một nền tảng để hở
+   * một ngày. Trên giao diện, việc sửa từng dòng nằm ở tab "Dữ liệu theo ngày". */
   if (p === '/api/entry' && method === 'GET') {
     const data = await store.get();
     return ok(res, M.entryMatrix(data, u.searchParams.get('date') || undefined));

@@ -8,7 +8,6 @@ const S = {
   filter: { days: 7, from: '', to: '', platforms: [], campaigns: [] },
   cache: {},
   sort: {},
-  entry: { date: '', rows: [], dirty: {} },
   nguon: localStorage.getItem('nguon-so') || '',   // '' = tự chọn, 'live', 'base'
   alertCount: 0,
 };
@@ -19,7 +18,6 @@ const TABS = [
   { id: 'chien-dich', label: 'Chiến dịch', filters: true },
   { id: 'nhom', label: 'Nhóm quảng cáo', filters: true },
   { id: 'quang-cao', label: 'Quảng cáo', filters: true },
-  { id: 'nhap-so', label: 'Nhập số hằng ngày', filters: false },
   { id: 'du-lieu', label: 'Dữ liệu theo ngày', filters: true },
   { id: 'canh-bao', label: 'Cảnh báo', filters: false },
   { id: 'doanh-thu', label: 'Doanh thu & ROAS', filters: true },
@@ -693,159 +691,6 @@ VIEW['quang-cao'] = async (view) => {
   </div>`;
 };
 
-/* ================= TAB: NHẬP SỐ ================= */
-VIEW['nhap-so'] = async (view) => {
-  const date = S.entry.date || S.meta.today;
-  const d = await api('/api/entry?date=' + date);
-  S.entry.date = d.date;
-  S.entry.rows = d.rows;
-  S.entry.dirty = {};
-
-  const rowHtml = (r) => `
-    <tr data-ad="${r.adId}" class="${r.filled ? 'filled' : ''} ${r.active ? '' : 'inactive'}">
-      <td class="name">
-        <b>${esc(r.adName)}</b>
-        <span class="sub-line">${esc(r.campaignName)} › ${esc(r.groupName)}</span>
-      </td>
-      <td>${platTag(r.platform)}</td>
-      <td>${r.filled ? `<span class="tag good">đã có${r.duplicated ? ' (' + r.recordIds.length + ' dòng)' : ''}</span>` : r.active ? '<span class="tag warn">chưa nhập</span>' : '<span class="tag">không chạy</span>'}</td>
-      <td class="num"><input data-f="spend" value="${r.spend || ''}" placeholder="0" inputmode="numeric"></td>
-      <td class="num"><input data-f="impressions" value="${r.impressions || ''}" placeholder="0" inputmode="numeric"></td>
-      <td class="num"><input data-f="clicks" value="${r.clicks || ''}" placeholder="0" inputmode="numeric"></td>
-      <td class="num"><input data-f="conversions" value="${r.conversions || ''}" placeholder="0" inputmode="numeric"></td>
-      <td class="num" data-cpa>${r.conversions ? vnd(r.spend / r.conversions) : '—'}</td>
-      <td class="num" data-prev='${JSON.stringify(r.prev)}'>${r.prev.spend
-        ? `<span class="sub-line">${vnd(r.prev.spend)} · ${int(r.prev.conversions)} CĐ · CPA ${r.prev.conversions ? vnd(r.prev.cpa) : '—'}</span>
-           <button class="btn small ghost" data-copy title="Chép số ngày trước vào dòng này">⤒ chép</button>`
-        : '<span class="sub-line">—</span>'}</td>
-      <td><input class="text" data-f="label" value="${esc(r.label || '')}" placeholder="ghi chú"></td>
-    </tr>`;
-
-  view.innerHTML = `
-  <div class="card">
-    <div class="card-head">
-      <h3>Nhập hiệu suất ngày
-        <span class="sub">đã nhập ${d.filled}/${d.total} quảng cáo đang chạy</span></h3>
-      <div style="display:flex;gap:8px;align-items:center">
-        <button class="btn small ghost" id="dPrev">‹ Ngày trước</button>
-        <input type="date" id="dDate" value="${d.date}" max="${S.meta.today}">
-        <button class="btn small ghost" id="dNext">Ngày sau ›</button>
-        <button class="btn small ghost" id="dToday">Hôm nay</button>
-      </div>
-    </div>
-    <div class="card-body tight">
-      <div class="tbl-wrap"><table class="tbl entry-tbl" id="entryTbl">
-        <thead><tr>
-          <th class="no-sort">Quảng cáo</th><th class="no-sort">Nền tảng</th><th class="no-sort">Tình trạng</th>
-          <th class="no-sort num">Chi tiêu (đ)</th><th class="no-sort num">Hiển thị</th><th class="no-sort num">Click</th>
-          <th class="no-sort num">Chuyển đổi</th><th class="no-sort num">CPA</th>
-          <th class="no-sort num">Ngày trước (${dmy(d.prevDate)})</th><th class="no-sort">Nhãn</th>
-        </tr></thead>
-        <tbody>${d.rows.map(rowHtml).join('')}</tbody>
-      </table></div>
-      <div class="sticky-actions">
-        <div id="entryStat" class="mono">—</div>
-        <div style="display:flex;gap:8px">
-          <button class="btn ghost" id="btnReset">Hoàn tác thay đổi</button>
-          <button class="btn primary" id="btnSave">Lưu vào Lark Base</button>
-        </div>
-      </div>
-    </div>
-  </div>`;
-
-  const recalcStat = () => {
-    let spend = 0, conv = 0, filled = 0;
-    $$('#entryTbl tbody tr').forEach((tr) => {
-      const g = (f) => Number(($('[data-f=' + f + ']', tr) || {}).value || 0);
-      const s = g('spend'), c = g('conversions');
-      spend += s; conv += c;
-      if (s || c || g('impressions') || g('clicks')) filled++;
-      const cpaCellEl = $('[data-cpa]', tr);
-      if (cpaCellEl) cpaCellEl.textContent = c ? vnd(s / c) : '—';
-    });
-    const nDirty = Object.keys(S.entry.dirty).length;
-    $('#entryStat').innerHTML = `Tổng nhập: <b>${vnd(spend)}</b> · <b>${int(conv)}</b> chuyển đổi · CPA <b>${conv ? vnd(spend / conv) : '—'}</b> · ${filled} dòng có số${nDirty ? ` · <span style="color:var(--warn)">${nDirty} dòng đã sửa</span>` : ''}`;
-  };
-
-  const markDirty = (tr) => { tr.classList.add('dirty'); S.entry.dirty[tr.dataset.ad] = true; };
-
-  $('#entryTbl').addEventListener('input', (e) => {
-    const inp = e.target.closest('input[data-f]');
-    if (!inp) return;
-    markDirty(inp.closest('tr'));
-    recalcStat();
-  });
-
-  // chép số của ngày trước vào dòng hiện tại
-  $('#entryTbl').addEventListener('click', (e) => {
-    const btn = e.target.closest('button[data-copy]');
-    if (!btn) return;
-    const tr = btn.closest('tr');
-    const prev = JSON.parse(tr.querySelector('[data-prev]').dataset.prev);
-    ['spend', 'impressions', 'clicks', 'conversions'].forEach((f) => {
-      const el = $('[data-f=' + f + ']', tr);
-      if (el) el.value = prev[f] || '';
-    });
-    markDirty(tr);
-    recalcStat();
-  });
-
-  // Enter = xuống ô cùng cột ở dòng dưới (nhập nhanh theo cột)
-  $('#entryTbl').addEventListener('keydown', (e) => {
-    if (e.key !== 'Enter') return;
-    const inp = e.target.closest('input[data-f]');
-    if (!inp) return;
-    e.preventDefault();
-    const f = inp.dataset.f;
-    const trs = $$('#entryTbl tbody tr');
-    const i = trs.indexOf(inp.closest('tr'));
-    const next = trs[i + 1] && $('[data-f=' + f + ']', trs[i + 1]);
-    if (next) { next.focus(); next.select(); }
-  });
-  recalcStat();
-
-  const go = (dt) => { S.entry.date = dt; render(); };
-  const shift = (n) => {
-    const x = new Date(d.date + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + n);
-    go(x.toISOString().slice(0, 10));
-  };
-  $('#dPrev').onclick = () => shift(-1);
-  $('#dNext').onclick = () => shift(1);
-  $('#dToday').onclick = () => go(S.meta.today);
-  $('#dDate').onchange = (e) => go(e.target.value);
-  $('#btnReset').onclick = () => render();
-
-  $('#btnSave').onclick = async () => {
-    const dirty = Object.keys(S.entry.dirty);
-    if (!dirty.length) return toast('Chưa có thay đổi nào để lưu');
-    const rows = dirty.map((adId) => {
-      const tr = $(`#entryTbl tbody tr[data-ad="${adId}"]`);
-      const g = (f) => ($('[data-f=' + f + ']', tr) || {}).value;
-      const src = S.entry.rows.find((r) => r.adId === adId) || {};
-      return {
-        adId,
-        recordId: src.recordIds && src.recordIds.length === 1 ? src.recordIds[0] : undefined,
-        spend: Number(g('spend') || 0),
-        impressions: Number(g('impressions') || 0),
-        clicks: Number(g('clicks') || 0),
-        conversions: Number(g('conversions') || 0),
-        label: g('label') || '',
-      };
-    });
-    const btn = $('#btnSave');
-    btn.disabled = true; btn.textContent = 'Đang lưu…';
-    try {
-      const r = await api('/api/entry', { method: 'POST', body: JSON.stringify({ date: d.date, rows }) });
-      toast(`Đã lưu ngày ${dmy(r.date)}: tạo mới ${r.created}, cập nhật ${r.updated}${r.skipped.length ? `, bỏ qua ${r.skipped.length}` : ''}`, 'ok');
-      S.entry.dirty = {};
-      render();
-    } catch (e) {
-      toast('Lưu thất bại: ' + e.message, 'err');
-      btn.disabled = false; btn.textContent = 'Lưu vào Lark Base';
-    }
-  };
-};
-
 /* ================= TAB: DỮ LIỆU THEO NGÀY ================= */
 VIEW['du-lieu'] = async (view) => {
   const d = await api('/api/daily?' + qs());
@@ -1428,7 +1273,7 @@ window.addEventListener('resize', () => {
   if (Math.abs(window.innerWidth - lastWidth) < 40) return;
   lastWidth = window.innerWidth;
   clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(() => { if (S.meta && S.tab !== 'nhap-so') render(); }, 300);
+  resizeTimer = setTimeout(() => { if (S.meta) render(); }, 300);
 });
 
 /* Biểu đồ SVG lấy màu khung bằng giá trị đã tính (không phải var()), nên khi đổi
