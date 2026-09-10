@@ -229,21 +229,7 @@
     'Họ tên': 'Full name',
     'Vai trò': 'Role',
     'Nhân sự & phân quyền': 'Staff & permissions',
-    /* --- Nhận diện thương hiệu --- */
-    'Nhận diện thương hiệu': 'Brand identity',
-    'Logo đóng lên tệp xuất ra': 'Logo stamped on exported files',
-    'Logo này được nhúng thẳng vào mọi tệp báo cáo các app xuất ra, nên tệp gửi đi đâu cũng thấy.':
-      'This logo is embedded directly into every report the apps export, so it travels with the file.',
-    'Logo hiện dùng': 'Current logo',
-    'Định dạng nhận vào': 'Accepted formats',
-    'PNG · JPG · SVG · WEBP, tối đa 2 MB. Nên dùng bản nền trong suốt (PNG hoặc SVG) vì báo cáo in ra nền trắng. Chỉ giữ MỘT tệp — tải bản mới là bản cũ bị thay.':
-      'PNG · JPG · SVG · WEBP, up to 2 MB. Prefer a transparent version (PNG or SVG) — reports print on white. Only ONE file is kept; uploading a new one replaces the old.',
-    'Chưa có tệp nào. Báo cáo đang in tạm bằng chữ theo màu thương hiệu.':
-      'No file yet. Reports fall back to a text wordmark in the brand colour.',
-    'chưa có logo': 'no logo yet',
-    'Tải ảnh lên': 'Upload image',
-    'Đổi ảnh': 'Replace image',
-    'Gỡ': 'Remove',
+
     /* ============ app Báo cáo & KPI ============
        Lớp vỏ bơm tệp này vào MỌI iframe app con và khoá theo chính chuỗi tiếng
        Việt. Thiếu khoá thì chuỗi đó ở nguyên tiếng Việt — không lỗi, không cảnh
@@ -340,6 +326,21 @@
     'Phân phối công việc': 'Task distribution',
     'Tự giao việc mới theo tỷ lệ': 'Auto-assign new tasks by ratio',
     'Mở màn phân phối': 'Open the distribution screen',
+    /* --- Nhận diện thương hiệu --- */
+    'Nhận diện thương hiệu': 'Brand identity',
+    'Logo đóng lên tệp xuất ra': 'Logo stamped on exported files',
+    'Logo này được nhúng thẳng vào mọi tệp báo cáo các app xuất ra, nên tệp gửi đi đâu cũng thấy.':
+      'This logo is embedded directly into every report the apps export, so it travels with the file.',
+    'Logo hiện dùng': 'Current logo',
+    'Định dạng nhận vào': 'Accepted formats',
+    'PNG · JPG · SVG · WEBP, tối đa 2 MB. Nên dùng bản nền trong suốt (PNG hoặc SVG) vì báo cáo in ra nền trắng. Chỉ giữ MỘT tệp — tải bản mới là bản cũ bị thay.':
+      'PNG · JPG · SVG · WEBP, up to 2 MB. Prefer a transparent version (PNG or SVG) — reports print on white. Only ONE file is kept; uploading a new one replaces the old.',
+    'Chưa có tệp nào. Báo cáo đang in tạm bằng chữ theo màu thương hiệu.':
+      'No file yet. Reports fall back to a text wordmark in the brand colour.',
+    'chưa có logo': 'no logo yet',
+    'Tải ảnh lên': 'Upload image',
+    'Đổi ảnh': 'Replace image',
+    'Gỡ': 'Remove',
     'Thêm nhân sự': 'Add staff',
     'Sửa': 'Edit',
     'Theo email': 'By email',
@@ -562,6 +563,80 @@
     'Tắt / xem lại': 'Pause / review',
     'Quảng cáo (Ads)': 'Ads',
 
+    /* --- app Chỉnh ảnh & Edit video --- */
+    'Chỉnh ảnh & Edit video': 'Photo & video editing',
+    'Báo cáo link sản phẩm · nghiệm thu · gửi nhóm chat':
+      'Report product links · sign-off · post to chat',
+    'Sản phẩm đã làm': 'Finished work',
+    'Báo cáo sản phẩm': 'Report your work',
+    'Dán tên thư mục Google Photos / Drive': 'Paste the Google Photos / Drive folder name',
+    'tên thư mục, người làm, ghi chú': 'folder name, person, note',
+    '— chọn Tour —': '— pick a Tour —',
+    'Ngày tác nghiệp': 'Shoot date',
+    'Hạng mục': 'Work type',
+    /* Ghép / VIP là hai kiểu đoàn khách, không phải "merge" — dịch theo nghĩa
+       nghiệp vụ, không dịch theo chữ. Giá trị gửi lên Base vẫn nguyên tiếng Việt. */
+    'Ghép': 'Shared group',
+    'Chỉnh ảnh': 'Photo editing',
+    'Edit video': 'Video editing',
+    'Link thư mục ảnh (Google Photos)': 'Photo folder link (Google Photos)',
+    'Link thư mục video (Google Drive)': 'Video folder link (Google Drive)',
+    'Số ảnh': 'Photo count',
+    'Số video': 'Video count',
+    'Loại': 'Type',
+    'Người chỉnh': 'Edited by',
+    'Thêm mục': 'Add item',
+    'Xoá mục': 'Remove item',
+    'chưa chọn ai': 'nobody selected',
+    'gõ tên để tìm trong danh bạ Lark': 'type a name to search the Lark directory',
+    'không thấy ai khớp': 'no match',
+    'chưa đủ Tour và ngày': 'Tour and date still missing',
+    'Dán tên thư mục — VD: TOUR ĐẢO Ghép 10.09.2026':
+      'Paste the folder name — e.g. TOUR ĐẢO Ghép 10.09.2026',
+    'Của tôi gần đây': 'My recent reports',
+    'Chưa có báo cáo nào trong khoảng đang lọc.': 'No reports in the selected period.',
+    'Lô đã báo': 'Batches reported',
+    'Ảnh': 'Photos',
+    'Video': 'Videos',
+    'Chờ nghiệm thu': 'Awaiting sign-off',
+    'Cần sửa lại': 'Needs rework',
+    'Đạt': 'Approved',
+    'Chưa gửi nhóm': 'Not posted to chat',
+    'chưa gửi': 'not posted',
+    'Sản phẩm': 'Products',
+    'Theo người làm': 'By person',
+    'Theo Tour': 'By tour',
+    'Người làm': 'Person',
+    'Thư mục': 'Folder',
+    'Việc': 'Actions',
+    'Gửi nhóm': 'Post to chat',
+    'Đang gửi…': 'Sending…',
+    'Nghiệm thu': 'Sign off',
+    'Lưu nghiệm thu': 'Save sign-off',
+    'Gửi kết quả về nhóm': 'Post result to chat',
+    'Trả về sửa thì phải ghi rõ sửa gì': 'If sending back, say what needs fixing',
+    'Nhận xét': 'Comment',
+    'Kết quả': 'Result',
+    'Nhóm chat nhận báo cáo': 'Chat group for reports',
+    'Chọn nhóm': 'Pick a group',
+    'Lưu nhóm': 'Save group',
+    'Danh mục Tour': 'Tour catalogue',
+    'Sửa danh mục trên Base': 'Edit catalogue in Base',
+    'Chỉ quản lý đổi được nhóm nhận báo cáo.': 'Only managers can change the chat group.',
+    'Chỉ của tôi': 'Mine only',
+    'Không có lô nào khớp bộ lọc.': 'No batches match the filter.',
+    'Chưa có số liệu.': 'No data yet.',
+    'Thứ tự': 'Order',
+    'Dùng': 'Active',
+    'tắt': 'off',
+
+    /* --- nhãn bộ lọc dùng chung: thiếu từ trước, app nào cũng có --- */
+    'Khoảng thời gian': 'Date range',
+    'Từ ngày': 'From',
+    'Đến ngày': 'To',
+    'Tìm': 'Search',
+    'Bỏ lọc': 'Clear filter',
+
     /* --- nhãn bộ lọc dạng "…: tất cả" --- */
     'Trạng thái: tất cả': 'Status: all',
     'Ưu tiên: tất cả': 'Priority: all',
@@ -593,6 +668,12 @@
    * Cho những câu ghép số/tên vào giữa. $1, $2… là nhóm bắt được.
    */
   const MAU_EN = [
+    /* --- app Chỉnh ảnh & Edit video: nhãn mang con số hoặc tên nhóm --- */
+    [/^Gửi tin về nhóm (.+)$/, 'Post to $1'],
+    [/^Báo cáo (\d+) mục$/, 'Report $1 item(s)'],
+    [/^(\d+) mục$/, '$1 item(s)'],
+    [/^(\d+) mục · (.+)$/, '$1 item(s) · $2'],
+    [/^(\d+) lô$/, '$1 batch(es)'],
     [/^Quá hạn (\d+) ngày$/, 'Overdue $1 days'],
     [/^quá hạn (\d+) ngày$/, 'overdue $1 days'],
     [/^Còn (\d+) ngày · (.+)$/, '$1 days left · $2'],
@@ -669,6 +750,10 @@
     '.n-td', '.n-phu', '.tieu-de',            // tiêu đề việc/lịch trong lớp vỏ
     '.card-title', 'td.c-title', '.dcard-title',   // Bảng công việc
     '.q-ten', '.q-mail', '.tn-ten', '.nm', '.av',  // tên người
+    /* Chỉnh ảnh & Edit video: tên thư mục và nhận xét nghiệm thu là chữ người gõ,
+       dịch là sai nghĩa. Tên thư mục thì không trùng khoá nào, nhưng nhận xét
+       ngắn kiểu "Đạt" thì trùng — chắn cả hai cho chắc. */
+    '.ml-ten', '.ml-nx', 'td .phu',
     '.log', 'code', 'pre', 'option[data-giu]',
     /* Vùng nào tự khai là dữ liệu thì tôn trọng. Cần thiết vì có bảng cấu hình
        lấy tên dòng từ Base, mà mấy tên đó trùng nhãn giao diện trong từ điển —

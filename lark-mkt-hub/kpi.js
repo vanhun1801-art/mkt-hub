@@ -606,12 +606,52 @@ async function social(mod, khoang, nguoi) {
   };
 }
 
+/* ============================================================
+   Chỉnh ảnh & Edit video — nhân sự báo cáo link sản phẩm
+   ============================================================ */
+async function chinhAnh(mod, khoang, nguoi) {
+  /* App tự cộng theo khoảng (một định nghĩa chỉ số duy nhất nằm trong app, hub
+     không đọc Base trực tiếp) — cùng lối với năm base kia. */
+  const q = khoang && khoang.tu && khoang.den
+    ? '?tu=' + encodeURIComponent(khoang.tu) + '&den=' + encodeURIComponent(khoang.den)
+    : '';
+  const ov = await goiJson(mod, '/api/tong-quan' + q, { nguoi });
+
+  const the = [
+    { chinh: true, nhan: 'Lô đã báo', so: ov.soBaoCao || 0, dinhDang: 'so' },
+    { nhan: 'Ảnh', so: ov.soAnh || 0, dinhDang: 'so' },
+    { nhan: 'Video', so: ov.soVideo || 0, dinhDang: 'so' },
+    { nhan: 'Chờ nghiệm thu', so: ov.choNghiemThu || 0, dinhDang: 'so',
+      muc: (ov.choNghiemThu || 0) > 0 ? 'vua' : 'ok' },
+    { nhan: 'Cần sửa lại', so: ov.canSua || 0, dinhDang: 'so',
+      muc: (ov.canSua || 0) > 0 ? 'gap' : 'ok' },
+    /* Lô ghi vào Base mà chưa vào nhóm chat là lỗi câm đúng nghĩa: người làm tưởng
+       đã báo, người kiểm không thấy gì. Phải nằm trên thẻ, không được ẩn trong app. */
+    { nhan: 'Chưa gửi nhóm', so: ov.chuaGui || 0, dinhDang: 'so',
+      muc: (ov.chuaGui || 0) > 0 ? 'vua' : 'ok', ghi: 'nhóm ' + (ov.nhom || '—') },
+  ];
+
+  const cxl = ov.canXuLy || [];
+  return {
+    the,
+    canXuLy: cxl.slice(0, 8),
+    /* Việc bị trả về sửa nằm NGOÀI khoảng lọc vẫn phải đếm — bài học từ 44 việc
+       quá hạn tháng 5 biến mất khỏi màn quản lý khi lọc theo tháng. */
+    canXuLyTong: cxl.length,
+    ngoaiKhoang: ov.ngoaiKhoang || 0,
+    tong: ov.soBaoCao || 0,
+    khoang: ov.tu ? ov.tu + ' → ' + ov.den : '',
+    nguoi: '',
+  };
+}
+
 const BO_DOC = {
   'cong-viec': congViec,
   'lich-tac-nghiep': lichTacNghiep,
   'quang-cao': quangCao,
   'ota': ota,
   'social': social,
+  'chinh-anh': chinhAnh,
 };
 
 /* ---------------- cache + gom ---------------- */

@@ -24,14 +24,20 @@ App đang dùng: <https://open.larksuite.com/app/cli_aa04305ecd385ed1>
 
 ### A1. Quyền (Permissions & Scopes)
 
-Cần đủ 8 scope (app Bảng công việc đã cấp trước đó, kiểm lại cho chắc):
+Cần đủ 9 scope (app Bảng công việc đã cấp 8 cái đầu trước đó, kiểm lại cho chắc):
 
 ```
 base:record:read      base:record:create    base:record:update    base:record:delete
 base:field:read       drive:file:upload     drive:file:download   contact:user.base:readonly
+im:message
 ```
 
-### A2. Chia sẻ CẢ BA base cho app
+`im:message` thêm từ 10/09/2026 cho app **Chỉnh ảnh & Edit video** — nó gửi thẻ báo cáo
+vào nhóm chat SỬA ẢNH bằng danh tính bot của app này. Thiếu scope (hoặc cấp mà chưa phát
+hành version) thì Lark trả `99991672`, báo cáo vẫn ghi được vào Base nhưng nhóm không
+nhận tin. **Và phải mời bot của app vào chính nhóm đó**, nếu không thì `230002/230013`.
+
+### A2. Chia sẻ MỌI base cho app
 
 Đây là bước hay sót nhất. App phải là thành viên **quyền chỉnh sửa** của:
 
@@ -40,8 +46,29 @@ base:field:read       drive:file:upload     drive:file:download   contact:user.b
 | Tracking (Bảng công việc) | Base nằm trong **wiki** → thêm app vào **knowledge space**, không phải chỉ ở Base |
 | Lịch tác nghiệp | mở Base → Share → thêm app |
 | Quản lý quảng cáo | mở Base → Share → thêm app |
+| Booking OTA | mở Base → Share → thêm app |
+| Social | mở Base → Share → thêm app |
+| Báo cáo & KPI | mở Base → Share → thêm app |
+| **Chỉnh ảnh & Edit video** | <https://rootytrip2.sg.larksuite.com/base/OzF9bSPkPamYQHsNcU8lmMVQgFb> → Share → thêm app |
 
 Thiếu bước này: lỗi `91403`. Cấp scope mà chưa phát hành version: lỗi `99991672`.
+
+### A2b. App gửi tin nhóm là app KHÁC — "Marketing Hub"
+
+Phòng có **5 app Lark** trong Console. App nền tảng của Hub là **Tracking**
+(`cli_aa04305ecd385ed1`, chính là `LARK_APP_ID` ở trên), nhưng app **đứng tên gửi tin
+báo cáo ảnh vào nhóm** là **Marketing Hub** (`cli_aa1a8ae21a78ded2`) — anh Hùng chọn
+vậy để nhóm chỉ thấy một cái tên quen.
+
+Với app **Marketing Hub** cần:
+
+1. scope **`im:message`** → rồi **Create Version → Publish** (cấp mà không phát hành thì `99991672`)
+2. **mời bot vào nhóm** nhận báo cáo (thiếu thì `230002` / `230013`)
+3. App Secret của nó dán vào biến `ANH_TIN_APP_SECRET` trong dashboard Render
+
+Đừng lẫn hai App ID với nhau: `ANH_TIN_APP_ID` phải là Marketing Hub, `LARK_APP_ID` là
+Tracking. Trỏ sai thì Lark trả `10014 app secret invalid`. Tab **Cài đặt** của app luôn
+in ra đang gửi bằng bot nào **kèm App ID** để kiểm nhanh.
 
 ### A3. Phát hành
 

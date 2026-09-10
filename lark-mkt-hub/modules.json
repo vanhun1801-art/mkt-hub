@@ -140,6 +140,32 @@
       "caPhong": false
     },
     {
+      "id": "chinh-anh",
+      "ten": "Chỉnh ảnh & Edit video",
+      "mo_ta": "Báo cáo link sản phẩm · nghiệm thu · gửi nhóm chat",
+      "icon": "chinh-anh",
+      "mau": "#00a6b8",
+      "kieu": "local",
+      "thuMuc": "../lark-chinh-anh",
+      "cong": 5181,
+      "lenh": [
+        "node",
+        "server.js"
+      ],
+      "larkUrl": "https://rootytrip2.sg.larksuite.com/base/OzF9bSPkPamYQHsNcU8lmMVQgFb",
+      "kpi": "chinh-anh",
+      "thuApi": "/api/meta",
+      "an": [
+        "header.topbar > .brand",
+        "#linkBase",
+        "#btnRefresh"
+      ],
+      "phuSelector": "#brandSub",
+      "bat": true,
+      "css": ".topbar-right { margin-left: auto; }",
+      "caPhong": true
+    },
+    {
       "id": "kpi",
       "ten": "Báo cáo & KPI",
       "mo_ta": "Chấm điểm KPI tháng · bộ luật tách khỏi số liệu",

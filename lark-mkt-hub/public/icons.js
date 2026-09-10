@@ -55,6 +55,14 @@ const ICONS = {
     '<path d="M9 11.5h6M9 14.5h3.5"/>'
   ),
 
+  /* Chỉnh ảnh & Edit video: thân máy ảnh + ống kính.
+     KHÔNG đặt tên 'anh' — tên đó đã là khung ảnh của mục Nhận diện thương hiệu
+     trong Cài đặt, khai trùng thì một trong hai icon chết câm. */
+  'chinh-anh': IC(
+    '<path d="M3.5 8.5A2 2 0 0 1 5.5 6.5h1.9l1.3-2h6.6l1.3 2h1.9a2 2 0 0 1 2 2v8.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2Z"/>' +
+    '<circle cx="12" cy="12.8" r="3.4"/>'
+  ),
+
   /* Tải nhân sự / người */
   'nguoi': IC(
     '<circle cx="12" cy="8" r="3.5"/>' +

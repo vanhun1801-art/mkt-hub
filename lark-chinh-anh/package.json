@@ -1,0 +1,11 @@
+{
+  "name": "lark-chinh-anh",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Nhan su bao cao link san pham chinh anh / edit video ve Lark Base va nhom chat",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/ten-thu-muc.test.js && node test/tin.test.js && node test/tin-app.test.js && node test/api.test.js"
+  }
+}

@@ -1,7 +1,7 @@
 # ============================================================
 # Triển khai Marketing Hub lên Render.com
 #
-# MỘT web service duy nhất: chạy lớp vỏ (lark-mkt-hub). Chính nó tự bật ba app
+# MỘT web service duy nhất: chạy lớp vỏ (lark-mkt-hub). Chính nó tự bật sáu app
 # module như tiến trình con trong cùng container rồi proxy vào một cổng — nên chỉ
 # cần một URL công khai, một chỗ đăng nhập, một service phải trả tiền.
 #
@@ -117,6 +117,56 @@ services:
         generateValue: true
 
       # ============================================================
+      # App Chỉnh ảnh & Edit video
+      # ============================================================
+      # Base đã cắm sẵn trong config.js (OzF9bSPkPamYQHsNcU8lmMVQgFb). Chỉ khai
+      # ANH_BASE_TOKEN khi đổi sang base khác.
+      # - key: ANH_BASE_TOKEN
+      #   sync: false
+
+      # ---- BẮT BUỘC: app Lark đứng tên gửi tin vào nhóm ----
+      # Anh Hùng chốt nhóm SỬA ẢNH chỉ thấy MỘT người gửi, là app "Marketing Hub".
+      # Đó là app KHÁC với LARK_APP_ID ở trên (app "Tracking") — phòng có 5 app Lark,
+      # xem lark-chinh-anh/README.md. Không khai hai biến này thì app gửi bằng bot của
+      # app nền tảng, và phải mời thêm một bot nữa vào nhóm.
+      #
+      # App ID lấy ở https://open.larksuite.com/app/cli_aa1a8ae21a78ded2
+      # Secret dán tay trong dashboard Render (sync: false) — KHÔNG để trong repo.
+      - key: ANH_TIN_APP_ID
+        value: cli_aa1a8ae21a78ded2
+      - key: ANH_TIN_APP_SECRET
+        sync: false
+
+      # Tiêu đề thẻ gửi vào nhóm. Người đọc là Media và CSKH, không phải người chỉnh
+      # ảnh — đổi câu chữ ở đây, không phải sửa code.
+      # - key: ANH_TIEU_DE_TIN
+      #   value: Media khách hàng Rooty Trip
+
+      # Nhóm chat nhận báo cáo nằm ở bảng "Cài đặt" TRÊN BASE (quản lý đổi được
+      # ngay trong app), nên bình thường không phải khai gì ở đây. Hai biến dưới
+      # chỉ là mồi cho lần chạy đầu khi bảng Cài đặt còn rỗng.
+      # - key: ANH_CHAT_ID
+      #   value: oc_510640bcfd1063a51d32db0d58f95d72
+      # - key: ANH_CHAT_TEN
+      #   value: SỬA ẢNH
+
+      # ---- BA VIỆC PHẢI LÀM TRONG LARK, KHÔNG PHẢI Ở ĐÂY ----
+      # 1. Chia sẻ Base "Chỉnh ảnh & Edit video" cho app **Tracking** (quyền chỉnh
+      #    sửa). Thiếu bước này thì app đọc/ghi Base ở chế độ api trả `91403`.
+      # 2. Cấp scope `im:message` cho app **Marketing Hub** rồi PHÁT HÀNH version mới.
+      #    Cấp mà không phát hành thì Lark trả `99991672`.
+      # 3. Mời bot **Marketing Hub** vào nhóm SỬA ẢNH. Thiếu thì Lark trả
+      #    230002/230013 — báo cáo vẫn ghi được vào Base, chỉ là nhóm không nhận tin,
+      #    và app hiện nhãn "chưa gửi" kèm nút gửi lại.
+      #
+      # ---- Một hạn chế đã biết của bản online ----
+      # Ô "Người chỉnh" tra danh bạ Lark bằng `contact +search-user`, mà lệnh đó chỉ
+      # chạy với danh tính NGƯỜI (lark-cli trên máy cá nhân). Ở chế độ api chỉ có
+      # tenant token nên ô tìm trả rỗng; app lùi về danh sách người ĐÃ TỪNG xuất hiện
+      # trong bảng Báo cáo. Người tự báo cáo việc của mình thì vẫn đúng (mặc định là
+      # chính người đang đăng nhập), và danh sách tự đầy lên sau vài ngày.
+
+      # ============================================================
       # App Báo cáo & KPI
       # ============================================================
       # Base "KPI Marketing" đã cắm sẵn trong config.js
@@ -153,9 +203,9 @@ services:
       # - key: HUB_FRAME_ANCESTORS
       #   sync: false
 
-      # ---- cùng bộ credential cho năm app con ----
+      # ---- cùng bộ credential cho sáu app con ----
       # Hub truyền toàn bộ env xuống tiến trình con, nên chỉ cần khai một lần ở trên.
-      # Năm app con tự chuyển sang chế độ `api` khi thấy LARK_APP_ID + LARK_APP_SECRET.
+      # Sáu app con tự chuyển sang chế độ `api` khi thấy LARK_APP_ID + LARK_APP_SECRET.
       #
       # KHÔNG khai BIND_HOST cho service này: năm app con phải giữ mặc định chỉ nghe
       # 127.0.0.1. Chúng tin header danh tính do hub gửi, nên mở cổng ra ngoài là ai
