@@ -142,12 +142,42 @@ async function lichChung(mods, tu, den, boQuaCache, nguoi) {
 
   /* dòng theo người: mỗi việc tính cho từng người phụ trách */
   const dong = new Map();   // idNguoi -> { id, ten, o: Map(ngay -> [viec]), tong, chuaXong }
+  /**
+   * Ghi một việc vào dòng của một người.
+   *
+   * MỘT NGƯỜI CÓ THỂ ĐỨNG Ở CẢ HAI Ô của cùng một buổi — vừa Phụ trách vừa
+   * Nhân sự. Bên Lịch tác nghiệp chuyện này là bình thường: người phụ trách
+   * cũng đi tác nghiệp. Đếm hai lần thì ô đồ nhiệt hiện HAI DÒNG y hệt nhau
+   * (chỉ khác chữ "hỗ trợ"), tổng tải của người đó bị thổi lên, và đỉnh tải
+   * cũng sai theo — tức là bảng đồ nhiệt nói người ta bận gấp đôi thực tế.
+   *
+   * Chống trùng theo (module, id việc) chứ không theo tên: hai base có thể
+   * trùng mã bản ghi. Vai CHÍNH thắng vai hỗ trợ, và không phụ thuộc thứ tự
+   * gọi — ai đã vào với vai hỗ trợ rồi mà sau đó hoá ra là phụ trách thì được
+   * nâng vai, không thêm dòng mới.
+   */
   const themVao = (ng, v, vai) => {
     const id = ng ? ng.id : '';
-    if (!dong.has(id)) dong.set(id, { id, ten: ng ? ng.name : 'Chưa phân công', o: new Map(), tong: 0, gap: 0 });
+    if (!dong.has(id)) {
+      dong.set(id, {
+        id, ten: ng ? ng.name : 'Chưa phân công',
+        o: new Map(), tong: 0, gap: 0,
+        da: new Map(),   // 'module/id việc' -> ô việc đã ghi (không lộ ra ngoài)
+      });
+    }
     const r = dong.get(id);
+    const khoa = v.module + '/' + v.id;
+
+    const cu = r.da.get(khoa);
+    if (cu) {
+      if (vai === 'chinh') cu.vai = 'chinh';
+      return;
+    }
+
     if (!r.o.has(v.ngay)) r.o.set(v.ngay, []);
-    r.o.get(v.ngay).push({ ...v, vai });
+    const o = { ...v, vai };
+    r.o.get(v.ngay).push(o);
+    r.da.set(khoa, o);
     r.tong += 1;
     if (v.muc === 'cao') r.gap += 1;
   };
