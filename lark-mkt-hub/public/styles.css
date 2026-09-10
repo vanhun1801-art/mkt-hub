@@ -945,6 +945,11 @@ code { background: var(--trang-2); border: 1px solid var(--vien-mem); border-rad
    nhóm bên dưới mờ đi để không ai tưởng mình còn đang giới hạn base. */
 .q-ck-manh { color: var(--chu); font-weight: 600; margin-bottom: 6px; }
 .q-nhom.q-mo-het { opacity: .42; pointer-events: none; }
+
+/* Danh sách người cho "Xem tải của ai": ~36 người thì không thể đổ hết ra
+   form, nên cuộn trong khối và có ô lọc ngay trên. */
+.q-nhom-cuon { max-height: 200px; overflow-y: auto; padding-right: 4px; }
+.q-loc { margin-bottom: 6px; }
 .q-ghi { margin-top: 12px; font-size: 12.5px; color: var(--chu-nhat); line-height: 1.55; }
 
 /* bảng phân quyền cần rộng hơn hộp thoại thường (7 cột, có checkbox) */

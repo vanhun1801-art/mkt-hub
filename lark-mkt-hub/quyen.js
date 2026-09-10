@@ -48,8 +48,11 @@ const F = {
   base: 'Base được xem',
   quanLyBase: 'Quản lý base',
   toanBo: 'Xem toàn bộ base',
-  /* Hẹp hơn toanBo: chỉ mở lưới bảng nhiệt ở lớp vỏ, KHÔNG chuyển xuống app
-   * con. Content xem được editor đang bận gì mà không mở toàn bộ bản ghi. */
+  /* Hẹp hơn toanBo hai lần: chỉ mở lưới bảng nhiệt ở lớp vỏ (KHÔNG chuyển
+   * xuống app con), và chỉ mở tải của ĐÚNG những người được kê tên.
+   *
+   * Kiểu cột: VĂN BẢN, cùng quy ước với "Base được xem" — open_id cách nhau
+   * bằng dấu phẩy, `*` là tất cả, để trống là không ai. */
   xemTai: 'Xem tải người khác',
   taoMoi: 'Được tạo mới',
   chiPhi: 'Xem chi phí',
@@ -183,6 +186,31 @@ function docOBase(raw) {
   return { base: phan.filter((x) => !laMoi(x)), moiBase: phan.some(laMoi) };
 }
 
+/**
+ * Ô "Xem tải người khác" -> { ai: [...open_id], moiAi: true/false }.
+ *
+ * Cùng quy ước với "Base được xem": danh sách cách nhau bằng dấu phẩy, `*` là
+ * cả phòng, để trống là KHÔNG AI (không phải "tất cả").
+ *
+ * Để riêng một hàm vì cùng cái ô này được giải nghĩa ở ba chỗ — đọc từ Base,
+ * đọc từ file, ghi xuống Base. Ba đoạn code rời thì sớm muộn lệch nhau một
+ * mức, mà lệch ở đây nghĩa là có người thấy tải của người mình không được thấy.
+ */
+function docXemTai(raw) {
+  /* Đường lùi: cột này từng được hướng dẫn tạo kiểu Checkbox. Boolean phải bắt
+   * riêng — `asText(true)` ra chuỗi "true", đem tách dấu phẩy thì thành một
+   * open_id rác tên là "true". true hiểu là `*`, để đổi kiểu cột không làm mất
+   * quyền đã cấp cho ai. */
+  if (typeof raw === 'boolean') return { ai: [], moiAi: raw };
+  const o = docOBase(asText(raw));
+  return { ai: o.base, moiAi: o.moiBase };
+}
+
+/** Ngược lại: { xemTaiAi, moiXemTai } -> chuỗi ghi vào ô Văn bản. */
+function ghiXemTai(hang) {
+  return hang && hang.moiXemTai ? '*' : ((hang && hang.xemTaiAi) || []).join(',');
+}
+
 async function docTatCa(boQuaCache) {
   if (!boQuaCache && cache.ds && Date.now() - cache.at < 20000) return cache.ds;
   if (FILE) return docTuFile();
@@ -202,6 +230,7 @@ async function docTatCa(boQuaCache) {
 
   const ds = out.map((r) => {
     const oB = docOBase(asText(r[F.base]));
+    const oX = docXemTai(r[F.xemTai]);
     return {
       recordId: r.id,
       nguoi: asText(r[F.nguoi]),
@@ -213,7 +242,8 @@ async function docTatCa(boQuaCache) {
       moiBase: oB.moiBase,
       quanLyBase: docOBase(asText(r[F.quanLyBase])).base,
       toanBo: r[F.toanBo] === true,
-      xemTai: r[F.xemTai] === true,
+      xemTaiAi: oX.ai,
+      moiXemTai: oX.moiAi,
       taoMoi: r[F.taoMoi] === true,
       chiPhi: r[F.chiPhi] === true,
       ghiChu: asText(r[F.ghiChu]),
@@ -287,7 +317,7 @@ async function ghi(hang) {
     [F.base]: hang.moiBase ? '*' : (hang.base || []).join(','),
     [F.quanLyBase]: (hang.quanLyBase || []).join(','),
     [F.toanBo]: !!hang.toanBo,
-    [F.xemTai]: !!hang.xemTai,
+    [F.xemTai]: ghiXemTai(hang),
     [F.taoMoi]: !!hang.taoMoi,
     [F.chiPhi]: !!hang.chiPhi,
     [F.ghiChu]: hang.ghiChu || '',
@@ -369,6 +399,10 @@ function docTuFile() {
   if (!Array.isArray(tho)) tho = tho && Array.isArray(tho.hang) ? tho.hang : [];
   const ds = tho.map((r, i) => {
     const o = typeof r.base === 'string' ? docOBase(r.base) : { base: r.base || [], moiBase: !!r.moiBase };
+    /* File cho khai hai kiểu: `xemTai` một ô như trên Base, hoặc đôi
+     * xemTaiAi/moiXemTai đã tách sẵn như code dùng. */
+    const oX = 'xemTai' in r ? docXemTai(r.xemTai)
+      : { ai: r.xemTaiAi || [], moiAi: !!r.moiXemTai };
     return {
       recordId: r.recordId || 'f' + i,
       nguoi: String(r.nguoi || ''),
@@ -379,7 +413,7 @@ function docTuFile() {
       base: o.base, moiBase: o.moiBase,
       quanLyBase: typeof r.quanLyBase === 'string'
         ? docOBase(r.quanLyBase).base : (r.quanLyBase || []),
-      toanBo: !!r.toanBo, xemTai: !!r.xemTai,
+      toanBo: !!r.toanBo, xemTaiAi: oX.ai, moiXemTai: oX.moiAi,
       taoMoi: r.taoMoi !== false, chiPhi: !!r.chiPhi,
       ghiChu: String(r.ghiChu || ''),
     };
@@ -399,6 +433,6 @@ function ghiVaoFile(hang) {
 
 module.exports = {
   BASE, TABLE, F,
-  docTatCa, cuaNguoi, ghi, xoa, xoaCache, cotThieu, docOBase,
+  docTatCa, cuaNguoi, ghi, xoa, xoaCache, cotThieu, docOBase, docXemTai, ghiXemTai,
   larkUrl: 'https://rootytrip2.sg.larksuite.com/base/' + BASE + '?table=' + TABLE,
 };

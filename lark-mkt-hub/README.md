@@ -329,6 +329,33 @@ Trước đây ô trống bị hiểu là "tất cả", nên trong màn Phân qu
 thành mở hết** cho người đó, và ai chưa có dòng nào trong bảng thì thấy sạch mọi base —
 kể cả base vừa dựng. Ba trạng thái giờ tách rời, `test/quyen-base.test.js` chốt lại luật này.
 
+### Ô "Xem tải người khác" — cùng quy ước đó, cho bảng nhiệt
+
+Nhân sự content cần biết editor và thiết kế đang bận gì để xếp việc. Cờ "Xem toàn bộ base"
+làm được, nhưng nó còn được chuyển xuống app con qua header, tức là mở luôn **toàn bộ bản
+ghi** của cả ba app — rộng hơn nhu cầu rất nhiều.
+
+Nên có cột riêng, và nó **hẹp hai lần**: chỉ mở lưới bảng nhiệt ở trang Tổng quan (mở Bảng
+công việc thì vẫn chỉ thấy việc của mình), và chỉ mở tải của **đúng những người được kê
+tên**. Cột kiểu **Văn bản**, đọc bằng cùng một hàm với "Base được xem":
+
+| Ô ghi | Nghĩa |
+|---|---|
+| trống | chỉ thấy tải của chính mình — **mặc định** |
+| `ou_a,ou_b` | thấy thêm đúng hai người đó (tải của chính mình luôn thấy, không cần kê) |
+| `*` | cả phòng, kể cả người vào sau |
+
+Sửa ở màn **Phân quyền → sửa một người → Xem tải của ai**: một danh sách tick từng người,
+có ô lọc theo tên, cộng một ô "Cả phòng".
+
+Hai chuyện đã tính trước, ghi lại vì cả hai đều là loại lỗi im lặng:
+
+- Cột này từng được hướng dẫn tạo kiểu **Checkbox**. Nếu Base còn trả boolean thì `true`
+  được hiểu là `*` — đổi kiểu cột không làm mất quyền đã cấp cho ai.
+- `nguoiKemQuyen()` dựng một object **mới** và liệt kê từng quyền một, nên quyền nào không
+  được kê ở đó là rơi mất trên đường tới lưới: cột đã tick đúng người mà lưới vẫn chỉ hiện
+  dòng của họ, không lỗi, không log. `test/xem-tai.test.js` soi cả đường đi này.
+
 ### Ba nấc vai, không phải hai
 
 | Vai | Khai ở đâu | Được gì |

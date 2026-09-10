@@ -64,7 +64,7 @@ async function quyenCua(nguoi) {
   const envQL = laQuanLy(nguoi);
   const mac = {
     quanLy: envQL, base: null, moiBase: false, quanLyBase: [],
-    toanBo: false, xemTai: false, taoMoi: true, chiPhi: envQL, tuBang: false,
+    toanBo: false, xemTaiAi: [], moiXemTai: false, taoMoi: true, chiPhi: envQL, tuBang: false,
   };
   if (!nguoi || cfg.mode !== 'api') return Object.assign(mac, { moiBase: true });
   let hang = null;
@@ -86,7 +86,8 @@ function tuHang(hang) {
     moiBase: !!hang.moiBase,
     quanLyBase: hang.quanLyBase || [],
     toanBo: hang.toanBo,
-    xemTai: hang.xemTai,
+    xemTaiAi: hang.xemTaiAi || [],
+    moiXemTai: !!hang.moiXemTai,
     taoMoi: hang.taoMoi,
     chiPhi: hang.chiPhi,
     tuBang: true,
@@ -252,6 +253,14 @@ function nguoiKemQuyen(nguoi, q, mod) {
   return Object.assign({}, nguoi, {
     quanLy: ql,
     toanBo: ql || !!(q && q.toanBo),
+    /* Quyền hẹp "Xem tải người khác" — chỉ lichChung() đọc tới.
+     *
+     * PHẢI kê ở đây. Hàm này dựng object MỚI nên quyền nào không liệt kê là
+     * rơi mất trên đường, mà rơi kiểu này im lặng: cột đã tick đúng người,
+     * lưới vẫn chỉ hiện dòng của họ, không báo gì. Bản đầu quên đúng chỗ này.
+     * Xem phép thử "đường đi của quyền" trong test/xem-tai.test.js. */
+    xemTaiAi: (q && q.xemTaiAi) || [],
+    moiXemTai: ql || !!(q && q.moiXemTai),
     taoMoi: ql || !q || q.taoMoi !== false,
     chiPhi: ql || !!(q && q.chiPhi),
   });

@@ -13,16 +13,11 @@
  * trên Lark đều được, và không mất sau mỗi lần deploy.
  */
 
-/* Mấy tùy chọn dành cho nhân sự — mô tả ngắn để quản lý biết mình đang bật gì.
- *
- * "Xem tải người khác" HẸP hơn "Xem toàn bộ": nó chỉ mở lưới bảng nhiệt ở trang
- * Tổng quan chung, mở app con vẫn chỉ thấy việc của mình. Dùng cho trường hợp
- * content cần biết editor đang bận gì để xếp việc, mà không cần mở toàn bộ bản
- * ghi của cả ba app. */
+/* Mấy tùy chọn BẬT/TẮT dành cho nhân sự — mô tả ngắn để quản lý biết mình đang
+ * bật gì. "Xem tải người khác" từng nằm ở đây, giờ ra khối riêng bên dưới: nó
+ * không phải bật/tắt mà là CHỌN AI (xem khối "Xem tải của ai"). */
 const QUYEN_CO = [
   { k: 'toanBo', ten: 'Xem toàn bộ', mo: 'Thấy dữ liệu cả phòng, không chỉ việc của mình' },
-  { k: 'xemTai', ten: 'Xem tải người khác',
-    mo: 'Chỉ bảng nhiệt ở Tổng quan: thấy đồng nghiệp bận gì, bấm vào thấy tên việc' },
   { k: 'taoMoi', ten: 'Được tạo mới', mo: 'Tạo việc / lịch mới trong base' },
   { k: 'chiPhi', ten: 'Xem chi phí', mo: 'Thấy các con số tiền' },
 ];
@@ -109,6 +104,15 @@ function veDanhSachQuyen() {
       '<span class="q-chip q-chip-ql">Quản trị ' + esc(tenBase(id)) + '</span>');
     const bat = QUYEN_CO.filter((q) => h[q.k] && !(h.quanLyBase || []).length);
     ra.push(...bat.map((q) => '<span class="q-chip">' + esc(q.ten) + '</span>'));
+    /* Nói rõ MẤY người, vì "xem tải 2 người" và "xem tải cả phòng" khác nhau
+     * hẳn về mức độ — một cái chip chung chung thì đọc bảng không phân biệt
+     * được, mà bảng này là chỗ duy nhất soát lại quyền của cả phòng. */
+    if (!(h.quanLyBase || []).length && h.vai !== 'Quản lý') {
+      if (h.moiXemTai) ra.push('<span class="q-chip">Xem tải cả phòng</span>');
+      else if ((h.xemTaiAi || []).length) {
+        ra.push('<span class="q-chip">Xem tải ' + (h.xemTaiAi || []).length + ' người</span>');
+      }
+    }
     if (!ra.length) return '<span class="q-nhat">mặc định</span>';
     return ra.join('');
   };
@@ -224,7 +228,9 @@ function veLoiBang(d, base) {
     'cách nhau bằng dấu phẩy: ' + base.map((b) => esc(b.id)).join(', ') +
     '; ghi <code>*</code> là mọi base kể cả base thêm sau; bỏ trống là không base nào) · ' +
     'Quản lý base (id các base mà người này làm quản lý — nấc giữa cho Lead một app) · ' +
-    'Xem toàn bộ base · Được tạo mới · Xem chi phí.</div>';
+    'Xem toàn bộ base · Được tạo mới · Xem chi phí · ' +
+    '<b>Xem tải người khác</b> (cột <b>Văn bản</b>, không phải Checkbox: các open_id cách nhau ' +
+    'bằng dấu phẩy, <code>*</code> là cả phòng, bỏ trống là không ai).</div>';
 }
 
 /* ---------------- màn 2: form một người ---------------- */
@@ -235,7 +241,7 @@ function moFormQuyen(i, nguoiSan) {
   const h = moi
     ? { recordId: '', nguoi: (nguoiSan && nguoiSan.ten) || '', email: (nguoiSan && nguoiSan.email) || '',
         openId: (nguoiSan && nguoiSan.id) || '', vai: 'Nhân sự', viTri: '',
-        base: [], quanLyBase: [], toanBo: false, xemTai: false,
+        base: [], quanLyBase: [], toanBo: false, xemTaiAi: [], moiXemTai: false,
         taoMoi: true, chiPhi: false, ghiChu: '',
         khop: nguoiSan ? { id: nguoiSan.id, ten: nguoiSan.ten, cach: 'open_id' } : null }
     : S.quyenHang[i];
@@ -296,6 +302,31 @@ function moFormQuyen(i, nguoiSan) {
       '<label class="q-ck"><input type="checkbox" data-q="' + q.k + '"' + (h[q.k] ? ' checked' : '') + '>' +
       '<span>' + esc(q.ten) + '</span><small class="q-nhat">— ' + esc(q.mo) + '</small></label>').join('') +
     '</div>');
+
+  /* CHỌN TỪNG NGƯỜI, không phải một ô tick.
+   *
+   * Bản đầu là cờ bật/tắt: bật là thấy tải của cả phòng. Anh Hùng chốt lại
+   * "chỉ cho phép thấy một số người nhất định chứ không phải ấn vào là xem
+   * hết" — content cần xem editor và thiết kế, không cần xem kế toán.
+   *
+   * Danh sách lấy từ danh bạ Lark (đang ~36 người) nên phải cuộn được, và có
+   * ô lọc để không phải rà mắt. Người đang sửa tự bỏ khỏi danh sách: tải của
+   * chính mình thì luôn thấy, kê tên mình vào chỉ gây hiểu lầm là cần kê. */
+  const dbXT = (d.danhBa || []).filter((x) => x.id !== (h.khop && h.khop.id) && x.id !== h.openId);
+  html += hang('Xem tải của ai',
+    '<label class="q-ck q-ck-manh"><input type="checkbox" id="fMoiXemTai"' +
+      (h.moiXemTai ? ' checked' : '') + '>' +
+      '<span>Cả phòng</span><small class="q-nhat">— kể cả người vào sau này</small></label>' +
+    '<input class="q-in q-loc" id="fLocXemTai" type="text" placeholder="Lọc theo tên…">' +
+    '<div class="q-nhom q-nhom-cuon" id="fXemTai">' + dbXT.map((x) =>
+      '<label class="q-ck" data-ten="' + esc(chuanTenQ(x.ten)) + '">' +
+      '<input type="checkbox" data-xt="' + esc(x.id) + '"' +
+        ((h.xemTaiAi || []).includes(x.id) ? ' checked' : '') + '>' +
+      '<span>' + esc(x.ten) + '</span></label>').join('') +
+    '</div>',
+    'Chỉ mở <b>bảng nhiệt ở Tổng quan</b>: thấy đúng những người đã tick đang bận gì, ' +
+    'bấm vào ô thì thấy tên việc. Mở Bảng công việc thì vẫn chỉ thấy việc của mình. ' +
+    'Không tick ai thì chỉ thấy tải của chính mình.');
 
   html += hang('Base được xem',
     '<label class="q-ck q-ck-manh"><input type="checkbox" id="fMoiBase"' + (h.moiBase ? ' checked' : '') + '>' +
@@ -369,6 +400,25 @@ function moFormQuyen(i, nguoiSan) {
     dongBo();
   }
 
+  /* Tick "Cả phòng" thì danh sách người mờ đi và không bấm được — cùng cách
+   * đã dùng cho "Mọi base", để không ai phải đoán tick lẻ còn tính không. */
+  const ckMoiXT = $('#fMoiXemTai');
+  if (ckMoiXT) {
+    const dongBoXT = () => { $('#fXemTai').classList.toggle('q-mo-het', ckMoiXT.checked); };
+    ckMoiXT.onchange = dongBoXT;
+    dongBoXT();
+  }
+  const oLoc = $('#fLocXemTai');
+  if (oLoc) {
+    oLoc.oninput = () => {
+      const t = chuanTenQ(oLoc.value);
+      $$('#fXemTai .q-ck').forEach((l) => {
+        // đã tick thì luôn hiện, không thì lọc xong tưởng mình bỏ tick mất
+        l.hidden = !!t && !l.dataset.ten.includes(t) && !l.querySelector('input').checked;
+      });
+    };
+  }
+
   const selVT = $('#fViTri');
   if (selVT) {
     selVT.onchange = () => {
@@ -407,7 +457,8 @@ async function luuFormQuyen() {
     moiBase: !!($('#fMoiBase') || {}).checked,
     quanLyBase: $$('#fQLBase [data-qlbase]').filter((x) => x.checked).map((x) => x.dataset.qlbase),
     toanBo: bat('toanBo'),
-    xemTai: bat('xemTai'),
+    xemTaiAi: $$('#fXemTai [data-xt]').filter((x) => x.checked).map((x) => x.dataset.xt),
+    moiXemTai: !!($('#fMoiXemTai') || {}).checked,
     taoMoi: bat('taoMoi'),
     chiPhi: bat('chiPhi'),
     ghiChu: $('#fGhiChu').value.trim(),

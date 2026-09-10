@@ -205,11 +205,20 @@ async function lichChung(mods, tu, den, boQuaCache, nguoi) {
    * việc chung với người khác vẫn còn trong dòng của họ, nhưng không lộ tên và
    * khối lượng của đồng nghiệp. Quản lý (hoặc nhân sự được cấp "Xem toàn bộ")
    * thấy cả lưới. Cắt ở server, không phải ẩn trên giao diện. */
-  /* `xemTai` là quyền HẸP: chỉ mở lưới này, cố ý KHÔNG có header nào chuyển nó
-   * xuống app con (xem proxy.js). Content xem được editor đang bận gì, mà mở
-   * Bảng công việc thì vẫn chỉ thấy việc của mình. */
-  const xemHet = !nguoi || nguoi.quanLy || nguoi.toanBo || nguoi.xemTai;
-  const hangHien = xemHet ? hang : hang.filter((r) => r.id && r.id === nguoi.id);
+  /* Quyền "Xem tải người khác" có BA mức, không phải hai:
+   *
+   *   thấy hết    — quản lý, hoặc "Xem toàn bộ base", hoặc kê `*`
+   *   thấy một số — kê đúng mấy người (content xem editor + thiết kế)
+   *   chỉ mình    — mặc định
+   *
+   * Dòng của CHÍNH MÌNH luôn thấy, không cần kê tên mình vào danh sách.
+   *
+   * Đây là quyền HẸP: cố ý KHÔNG có header nào chuyển nó xuống app con (xem
+   * proxy.js), nên mở Bảng công việc vẫn chỉ thấy việc của mình. */
+  const xemHet = !nguoi || nguoi.quanLy || nguoi.toanBo || nguoi.moiXemTai;
+  const duocKe = new Set((nguoi && nguoi.xemTaiAi) || []);
+  const hangHien = xemHet ? hang
+    : hang.filter((r) => r.id && (r.id === nguoi.id || duocKe.has(r.id)));
 
   const theoNgay = Object.fromEntries(ngay.map((n) => [n, 0]));
   hangHien.forEach((r) => ngay.forEach((n) => { theoNgay[n] += (r.o[n] || []).length; }));
@@ -219,7 +228,9 @@ async function lichChung(mods, tu, den, boQuaCache, nguoi) {
     // đếm theo đúng phần được xem, nếu không dòng phụ đề nói một đằng lưới một nẻo
     tongViec: xemHet ? viec.length : hangHien.reduce((s, r) => s + r.tong, 0),
     tongLuot: hangHien.reduce((s, r) => s + r.tong, 0),
-    chiMinh: !xemHet,
+    /* `chiMinh` đổi nhãn khối thành "Tải của tôi". Chỉ đúng khi thật sự còn
+     * một dòng — kê thêm được hai người thì vẫn là "Tải nhân sự". */
+    chiMinh: !xemHet && hangHien.length <= 1,
     loi,
   };
   cache.set(kh, { at: Date.now(), data });
