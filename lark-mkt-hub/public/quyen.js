@@ -13,9 +13,16 @@
  * trên Lark đều được, và không mất sau mỗi lần deploy.
  */
 
-/* Ba tùy chọn dành cho nhân sự — mô tả ngắn để quản lý biết mình đang bật gì. */
+/* Mấy tùy chọn dành cho nhân sự — mô tả ngắn để quản lý biết mình đang bật gì.
+ *
+ * "Xem tải người khác" HẸP hơn "Xem toàn bộ": nó chỉ mở lưới bảng nhiệt ở trang
+ * Tổng quan chung, mở app con vẫn chỉ thấy việc của mình. Dùng cho trường hợp
+ * content cần biết editor đang bận gì để xếp việc, mà không cần mở toàn bộ bản
+ * ghi của cả ba app. */
 const QUYEN_CO = [
   { k: 'toanBo', ten: 'Xem toàn bộ', mo: 'Thấy dữ liệu cả phòng, không chỉ việc của mình' },
+  { k: 'xemTai', ten: 'Xem tải người khác',
+    mo: 'Chỉ bảng nhiệt ở Tổng quan: thấy đồng nghiệp bận gì, bấm vào thấy tên việc' },
   { k: 'taoMoi', ten: 'Được tạo mới', mo: 'Tạo việc / lịch mới trong base' },
   { k: 'chiPhi', ten: 'Xem chi phí', mo: 'Thấy các con số tiền' },
 ];
@@ -24,10 +31,10 @@ const chuanTenQ = (s) => String(s || '').trim().toLowerCase().replace(/\s+/g, ' 
 
 /* ---------------- nạp & điều phối ---------------- */
 async function modalPhanQuyen() {
-  moModal('Người dùng & phân quyền',
+  moModal('Phân quyền',
     '<div class="trong"><span class="spin"></span> Đang đọc bảng phân quyền…</div>',
     chanDanhSach(), true);
-  $('#qVeCaiDat').onclick = () => modalCaiDat('nguoi');
+  $('#qVeCaiDat').onclick = () => modalCaiDat('quyen');
   try {
     S.quyen = await goi('/api/quyen?refresh=1');
   } catch (e) {
@@ -127,7 +134,17 @@ function veDanhSachQuyen() {
   };
 
   const tenChung = chung.map((b) => b.ten).join(', ') || 'không base nào';
-  let html = '<div class="q-dau">' +
+  /* Bật một quyền mà bảng trên Base chưa có cột tương ứng thì đường ghi lặng lẽ
+ * bỏ ô đó (xem quyen.js phía máy chủ) — quyền hiện là "đã bật" trên giao diện
+ * mà thực tế KHÔNG có tác dụng. Nói thẳng ra, kèm tên cột cần thêm. */
+  const thieu = d.thieuCot || [];
+  let html = (thieu.length
+    ? '<div class="canh-bao do"><span class="grow"><b>Bảng phân quyền trên Base thiếu ' +
+      thieu.length + ' cột:</b> ' + thieu.map(esc).join(', ') +
+      '. Quyền tương ứng bật ở đây sẽ KHÔNG có tác dụng — thêm cột kiểu Checkbox ' +
+      'đúng tên đó trên Base rồi bấm Làm mới.</span></div>'
+    : '') +
+    '<div class="q-dau">' +
     '<div><b>' + ds.length + ' người đã khai quyền riêng</b>' +
       '<div class="kh-sub">Người chưa khai thì chỉ thấy base mở cho cả phòng (' + esc(tenChung) +
       ') với vai nhân sự — xem danh sách ở cuối trang. Base khác phải cấp tên mới thấy.</div></div>' +
@@ -185,9 +202,9 @@ function veDanhSachQuyen() {
       : '') +
     '</div>';
 
-  $('#mdTitle').textContent = 'Người dùng & phân quyền';
+  $('#mdTitle').textContent = 'Phân quyền';
   $('#mdFoot').innerHTML = chanDanhSach();
-  $('#qVeCaiDat').onclick = () => modalCaiDat('nguoi');
+  $('#qVeCaiDat').onclick = () => modalCaiDat('quyen');
   $('#mdBody').innerHTML = html;
   $('#qThemNguoi').onclick = () => moFormQuyen(null);
 }
@@ -218,7 +235,8 @@ function moFormQuyen(i, nguoiSan) {
   const h = moi
     ? { recordId: '', nguoi: (nguoiSan && nguoiSan.ten) || '', email: (nguoiSan && nguoiSan.email) || '',
         openId: (nguoiSan && nguoiSan.id) || '', vai: 'Nhân sự', viTri: '',
-        base: [], quanLyBase: [], toanBo: false, taoMoi: true, chiPhi: false, ghiChu: '',
+        base: [], quanLyBase: [], toanBo: false, xemTai: false,
+        taoMoi: true, chiPhi: false, ghiChu: '',
         khop: nguoiSan ? { id: nguoiSan.id, ten: nguoiSan.ten, cach: 'open_id' } : null }
     : S.quyenHang[i];
   S.quyenSua = Object.assign({}, h);
@@ -381,6 +399,7 @@ async function luuFormQuyen() {
     moiBase: !!($('#fMoiBase') || {}).checked,
     quanLyBase: $$('#fQLBase [data-qlbase]').filter((x) => x.checked).map((x) => x.dataset.qlbase),
     toanBo: bat('toanBo'),
+    xemTai: bat('xemTai'),
     taoMoi: bat('taoMoi'),
     chiPhi: bat('chiPhi'),
     ghiChu: $('#fGhiChu').value.trim(),

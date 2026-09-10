@@ -48,6 +48,9 @@ const F = {
   base: 'Base được xem',
   quanLyBase: 'Quản lý base',
   toanBo: 'Xem toàn bộ base',
+  /* Hẹp hơn toanBo: chỉ mở lưới bảng nhiệt ở lớp vỏ, KHÔNG chuyển xuống app
+   * con. Content xem được editor đang bận gì mà không mở toàn bộ bản ghi. */
+  xemTai: 'Xem tải người khác',
   taoMoi: 'Được tạo mới',
   chiPhi: 'Xem chi phí',
   ghiChu: 'Ghi chú',
@@ -210,6 +213,7 @@ async function docTatCa(boQuaCache) {
       moiBase: oB.moiBase,
       quanLyBase: docOBase(asText(r[F.quanLyBase])).base,
       toanBo: r[F.toanBo] === true,
+      xemTai: r[F.xemTai] === true,
       taoMoi: r[F.taoMoi] === true,
       chiPhi: r[F.chiPhi] === true,
       ghiChu: asText(r[F.ghiChu]),
@@ -283,6 +287,7 @@ async function ghi(hang) {
     [F.base]: hang.moiBase ? '*' : (hang.base || []).join(','),
     [F.quanLyBase]: (hang.quanLyBase || []).join(','),
     [F.toanBo]: !!hang.toanBo,
+    [F.xemTai]: !!hang.xemTai,
     [F.taoMoi]: !!hang.taoMoi,
     [F.chiPhi]: !!hang.chiPhi,
     [F.ghiChu]: hang.ghiChu || '',
@@ -332,6 +337,27 @@ async function xoa(recordId) {
 
 function xoaCache() { cache.at = 0; }
 
+/**
+ * Những cột của F còn THIẾU trên bảng phân quyền.
+ *
+ * Đường ghi đã lọc bỏ cột thiếu để không làm mất cả bản ghi, nhưng nó chỉ
+ * console.warn — mà quản lý không đọc log. Trả danh sách ra để panel nói thẳng:
+ * bật một quyền mà cột chưa có thì quyền đó KHÔNG có tác dụng, và im lặng là
+ * cách chắc nhất để không ai biết.
+ */
+async function cotThieu() {
+  /* Chỉ bỏ qua ở chế độ FILE (tệp JSON không có khái niệm cột). Chế độ cli đọc
+   * được danh sách cột qua `base +field-list`, nên vẫn kiểm — bản đầu tôi chặn
+   * luôn cả cli, thành ra ở máy cá nhân không bao giờ biết bảng thiếu cột. */
+  if (FILE) return [];
+  try {
+    const co = new Set(Object.values(await tenCot()));
+    return Object.values(F).filter((ten) => !co.has(ten));
+  } catch (e) {
+    return [];
+  }
+}
+
 /* ---------------- bảng phân quyền để trong file (kiểm thử / máy rời Lark) ----
  * File là một mảng JSON các dòng đã chuẩn hoá:
  *   [{ "nguoi": "...", "email": "...", "base": ["cong-viec"], "moiBase": false,
@@ -353,7 +379,8 @@ function docTuFile() {
       base: o.base, moiBase: o.moiBase,
       quanLyBase: typeof r.quanLyBase === 'string'
         ? docOBase(r.quanLyBase).base : (r.quanLyBase || []),
-      toanBo: !!r.toanBo, taoMoi: r.taoMoi !== false, chiPhi: !!r.chiPhi,
+      toanBo: !!r.toanBo, xemTai: !!r.xemTai,
+      taoMoi: r.taoMoi !== false, chiPhi: !!r.chiPhi,
       ghiChu: String(r.ghiChu || ''),
     };
   }).filter((r) => r.email || r.openId || r.nguoi);
@@ -372,6 +399,6 @@ function ghiVaoFile(hang) {
 
 module.exports = {
   BASE, TABLE, F,
-  docTatCa, cuaNguoi, ghi, xoa, xoaCache, docOBase,
+  docTatCa, cuaNguoi, ghi, xoa, xoaCache, cotThieu, docOBase,
   larkUrl: 'https://rootytrip2.sg.larksuite.com/base/' + BASE + '?table=' + TABLE,
 };

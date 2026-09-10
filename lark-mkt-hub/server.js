@@ -64,7 +64,7 @@ async function quyenCua(nguoi) {
   const envQL = laQuanLy(nguoi);
   const mac = {
     quanLy: envQL, base: null, moiBase: false, quanLyBase: [],
-    toanBo: false, taoMoi: true, chiPhi: envQL, tuBang: false,
+    toanBo: false, xemTai: false, taoMoi: true, chiPhi: envQL, tuBang: false,
   };
   if (!nguoi || cfg.mode !== 'api') return Object.assign(mac, { moiBase: true });
   let hang = null;
@@ -86,6 +86,7 @@ function tuHang(hang) {
     moiBase: !!hang.moiBase,
     quanLyBase: hang.quanLyBase || [],
     toanBo: hang.toanBo,
+    xemTai: hang.xemTai,
     taoMoi: hang.taoMoi,
     chiPhi: hang.chiPhi,
     tuBang: true,
@@ -815,6 +816,8 @@ async function api(req, res, u) {
         // mẫu quyền theo vị trí công việc: chọn vị trí là các ô tự tick theo mẫu
         viTri: viTri.docDanhSach(),
         hang, danhBa, loiBang,
+        // cột thiếu -> panel cảnh báo; xem chú thích ở quyen.cotThieu()
+        thieuCot: await quyen.cotThieu(),
         larkUrl: quyen.larkUrl,
         env_quan_ly: dsQuanLyEmail().concat(dsQuanLyId()),
       });
@@ -824,6 +827,11 @@ async function api(req, res, u) {
       const b = await docBody(req);
       if (!b || (!b.email && !b.openId)) return loi(res, 400, 'Phải có email hoặc open_id để nhận diện người này.');
       const id = await quyen.ghi(b);
+      /* Hai bộ đệm này giữ dữ liệu ĐÃ LỌC theo quyền, nên đổi quyền mà không
+       * xoá thì người vừa được cấp vẫn thấy y như cũ tới khi đệm hết hạn —
+       * cấp quyền sẽ trông như không chạy. */
+      lich.xoaCache();
+      kpi.xoaCache();
       return ok(res, { recordId: id });
     }
 
@@ -831,6 +839,8 @@ async function api(req, res, u) {
       const rec = u.searchParams.get('recordId');
       if (!rec) return loi(res, 400, 'Thiếu recordId');
       await quyen.xoa(rec);
+      lich.xoaCache();
+      kpi.xoaCache();
       return ok(res, { xoa: rec });
     }
   }

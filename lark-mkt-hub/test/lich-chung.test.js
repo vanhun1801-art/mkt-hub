@@ -17,6 +17,8 @@
  *
  * Chạy: node test/lich-chung.test.js
  */
+const fs = require('fs');
+const path = require('path');
 const { lichChung, BO_DOC, xoaCache } = require('../lichchung');
 
 let pass = 0, fail = 0;
@@ -48,10 +50,10 @@ function viec(o) {
 }
 
 /** Gọi lichChung với một bộ đọc giả. */
-async function chay(ds) {
+async function chay(ds, nguoi) {
   BO_DOC.__thu = async () => ds;
   xoaCache();
-  const kq = await lichChung([{ id: 'lich', kpi: '__thu' }], TU, DEN, true, null);
+  const kq = await lichChung([{ id: 'lich', kpi: '__thu' }], TU, DEN, true, nguoi || null);
   delete BO_DOC.__thu;
   return kq;
 }
@@ -114,7 +116,44 @@ const dongCua = (kq, ten) => (kq.hang || []).find((h) => h.ten === ten);
     ok('cùng mã nhưng khác base thì đếm 2', h && h.tong === 2, h ? 'tong=' + h.tong : '');
   }
 
-  group('5. Việc chưa phân công vẫn gom về dòng riêng');
+  group('5. Quyền "Xem tải người khác" — mở đúng lưới này, không mở gì thêm');
+  {
+    /* Nhu cầu thật: nhân sự content cần xem editor/thiết kế đang bận gì để xếp
+     * việc. Cờ "Xem toàn bộ base" làm được, nhưng nó còn được chuyển xuống ba
+     * app con nên mở luôn toàn bộ bản ghi của cả ba — rộng quá. `xemTai` là cờ
+     * hẹp: chỉ lưới này. */
+    const KHACH = { id: 'ou_content', name: 'Bạn content' };
+    /* Bạn content phải CÓ việc của mình, không thì "chỉ thấy dòng của mình" ra
+     * 0 dòng và phép thử không phân biệt được "lọc đúng" với "lọc sạch trơn".
+     * Bản đầu tôi quên chuyện này nên phép thử đỏ oan. */
+    const ds = [viec({ id: 'r1', chinh: [HANG] }), viec({ id: 'r2', chinh: [THANH] }),
+      viec({ id: 'r3', chinh: [KHACH], tieuDe: 'Viết bài landing' })];
+
+    const khongCo = await chay(ds, KHACH);
+    ok('không có quyền: chỉ thấy ĐÚNG dòng của mình',
+      (khongCo.hang || []).length === 1 &&
+      (khongCo.hang || [])[0].ten === 'Bạn content' && khongCo.chiMinh === true,
+      'thấy ' + (khongCo.hang || []).map((h) => h.ten).join(', ') +
+      ' · chiMinh=' + khongCo.chiMinh);
+
+    const co = await chay(ds, Object.assign({ xemTai: true }, KHACH));
+    ok('có quyền: thấy cả lưới', (co.hang || []).length === 3 && co.chiMinh === false,
+      'thấy ' + (co.hang || []).length + ' dòng, chiMinh=' + co.chiMinh);
+
+    ok('có quyền: đọc được TÊN VIỆC của người khác',
+      (co.hang || []).some((h) => h.ten === 'Võ Hằng' &&
+        (h.o[NGAY] || []).some((x) => x.tieuDe.includes('Awaken'))),
+      '(không thấy tên việc trong dòng của người khác)');
+
+    /* Nửa còn lại của quyền: KHÔNG được rò xuống app con. Nếu proxy chuyển nó
+     * thành header thì content mở Bảng công việc là thấy hết — đúng thứ mà cờ
+     * hẹp này ra đời để tránh. */
+    const proxy = fs.readFileSync(path.join(__dirname, '..', 'proxy.js'), 'utf8');
+    ok('proxy KHÔNG chuyển xemTai xuống app con', !proxy.includes('xemTai'),
+      'proxy.js có nhắc xemTai — cờ hẹp bị rò thành quyền rộng');
+  }
+
+  group('6. Việc chưa phân công vẫn gom về dòng riêng');
   {
     const kq = await chay([viec({ chinh: [], hoTro: [] })]);
     const h = dongCua(kq, 'Chưa phân công');

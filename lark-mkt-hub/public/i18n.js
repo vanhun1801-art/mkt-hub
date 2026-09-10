@@ -106,6 +106,9 @@
     'Hôm nay': 'Today',
     'Về mặc định': 'Reset',
     'Xem toàn bộ': 'View all',
+    'Xem tải người khác': "See others' workload",
+    'Chỉ bảng nhiệt ở Tổng quan: thấy đồng nghiệp bận gì, bấm vào thấy tên việc':
+      'Overview heatmap only: see how busy colleagues are, click for task names',
     'Xoá lọc': 'Clear filters',
     'Bỏ lọc': 'Clear filters',
     'LỌC': 'FILTER',

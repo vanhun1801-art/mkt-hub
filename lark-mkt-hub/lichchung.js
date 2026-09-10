@@ -205,7 +205,10 @@ async function lichChung(mods, tu, den, boQuaCache, nguoi) {
    * việc chung với người khác vẫn còn trong dòng của họ, nhưng không lộ tên và
    * khối lượng của đồng nghiệp. Quản lý (hoặc nhân sự được cấp "Xem toàn bộ")
    * thấy cả lưới. Cắt ở server, không phải ẩn trên giao diện. */
-  const xemHet = !nguoi || nguoi.quanLy || nguoi.toanBo;
+  /* `xemTai` là quyền HẸP: chỉ mở lưới này, cố ý KHÔNG có header nào chuyển nó
+   * xuống app con (xem proxy.js). Content xem được editor đang bận gì, mà mở
+   * Bảng công việc thì vẫn chỉ thấy việc của mình. */
+  const xemHet = !nguoi || nguoi.quanLy || nguoi.toanBo || nguoi.xemTai;
   const hangHien = xemHet ? hang : hang.filter((r) => r.id && r.id === nguoi.id);
 
   const theoNgay = Object.fromEntries(ngay.map((n) => [n, 0]));
