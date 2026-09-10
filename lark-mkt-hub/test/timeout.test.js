@@ -53,12 +53,21 @@ console.log('— những đường vốn dĩ lâu phải được nới giờ');
   ['/api/roas/keo-api/trang-thai', 'hỏi tiến độ — nằm trong nhóm nên cũng được nới'],
   ['/api/pancake-pos/test', 'thử từng gian hàng POS'],
   ['/api/tourwell', 'lưu cấu hình — cùng nhóm, nới cũng không sao vì mốc là TRẦN'],
+  /* Nhóm điều khiển quảng cáo. Chỗ này nguy hơn mọi đường trên: lệnh bật/tắt và
+   * đổi ngân sách GHI ra nền tảng. Bị cắt ở 30 giây thì người dùng thấy "module
+   * không trả lời" trong khi lệnh có thể ĐÃ GỬI — bấm lại lần nữa là tắt rồi bật,
+   * hoặc đổi ngân sách hai lượt. */
+  ['/api/dieu-khien/kha-nang', 'dò quyền ghi của cả ba nền tảng'],
+  ['/api/dieu-khien/xem-truoc', 'đọc trạng thái + ngân sách thật, 2-3 lời gọi nối tiếp'],
+  ['/api/dieu-khien/lam', 'ghi thật lên nền tảng rồi đọc lại để đối chiếu'],
+  ['/api/dieu-khien/nhat-ky', 'cùng nhóm — mốc là TRẦN nên nới không sao'],
 ].forEach(([p, vi]) => t(`${p} — ${vi}`, VIEC_LAU.test(p)));
 
 /* Điểm cốt lõi của cách làm mới: một đường CHƯA TỒN TẠI trong nhóm cũng phải khớp,
  * để lần sau thêm đường mới không phải sửa proxy.js nữa. */
 t('đường tương lai trong nhóm roas tự được nới', VIEC_LAU.test('/api/roas/mot-duong-chua-co'));
 t('đường tương lai trong nhóm pancake tự được nới', VIEC_LAU.test('/api/pancake/gi-do-moi'));
+t('đường tương lai trong nhóm điều khiển tự được nới', VIEC_LAU.test('/api/dieu-khien/gi-do-moi'));
 
 t('có tham số đuôi vẫn nhận', VIEC_LAU.test('/api/sync?days=14'));
 

@@ -37,6 +37,11 @@ const VIEC_LAU_NHOM = [
    * vẫn đang chạy ngon lành phía sau. */
   'dong-bo',      // kéo số mọi nền tảng rồi ghi Base (vài phút)
   'ket-noi',      // thử kết nối, liệt kê Page, đổi mã lấy token
+  /* Điều khiển quảng cáo: mỗi lượt xem trước là 2-3 lời gọi nền tảng nối tiếp, và
+   * riêng Google phải hỏi lần lượt từng tài khoản mới tìm ra quảng cáo. Cắt ở 30
+   * giây thì lệnh bật/tắt hiện "Module không trả lời" trong khi nó có thể ĐÃ GỬI
+   * lên nền tảng — người dùng bấm lại lần nữa là tắt rồi bật. */
+  'dieu-khien',
 ];
 const VIEC_LAU = new RegExp('^/api/(' + VIEC_LAU_NHOM.join('|') + ')(-[a-z-]+)?(/|$|\\?)');
 const cfg = require('./config');
