@@ -1651,7 +1651,35 @@ $('#btnAdd').onclick = modalThem;
 /* Gọi qua hàm bọc, không gán thẳng: bản Cài đặt mới nằm ở caidat.js (nạp sau file
  * này) và ghi đè modalCaiDat — gán thẳng là giữ mãi bản cũ đã bắt được lúc nạp. */
 $('#btnSettings').onclick = () => modalCaiDat();
-$('#btnReload').onclick = () => napHub().then(() => napTongQuan(true));
+/**
+ * MỘT nút Làm mới cho cả ứng dụng.
+ *
+ * Trước đây mỗi app con có nút tải lại riêng, ba tên cho cùng một việc: "Tải
+ * lại" (Bảng công việc), "Làm mới" (Lịch, Ads, Social), "Đọc lại Lark" (OTA).
+ * Người dùng phải biết mình đang đứng ở đâu để bấm đúng nút, mà nút của lớp vỏ
+ * thì lại chỉ nạp số của riêng nó.
+ *
+ * Giờ nút này làm cả hai phần. Nút của app con được ẩn khi chạy trong lớp vỏ
+ * (danh sách `an` trong modules.json) — mở app riêng thì vẫn còn, vì lúc đó
+ * không có nút nào khác thay.
+ */
+function napLaiModuleDangMo() {
+  const o = S.frames.get(S.view);
+  if (!o || !o.iframe || o.wrap.hidden) return false;
+  try {
+    o.iframe.contentWindow.location.reload();
+    return true;
+  } catch (_) {
+    /* Khác origin (module kiểu 'lark') thì không với tới được — bỏ qua, đừng
+     * để nó làm chết luôn phần nạp lại của lớp vỏ. */
+    return false;
+  }
+}
+
+$('#btnReload').onclick = () => {
+  napLaiModuleDangMo();
+  return napHub().then(() => napTongQuan(true));
+};
 
 // hai ô ngày của bộ lọc "Tuỳ chọn" — thanh lọc được vẽ lại nên bắt kiểu uỷ quyền
 document.addEventListener('change', (e) => {

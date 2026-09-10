@@ -28,7 +28,10 @@
       "larkUrl": "https://rootytrip2.sg.larksuite.com/wiki/AruDwJU14iyla5k6LmYlfXrbgth?table=tbl2ZBrfhXfmrsD4&view=vewrwNpH8l",
       "kpi": "cong-viec",
       "an": [
-        "header.topbar > .brand"
+        "header.topbar > .brand",
+        "#linkLark",
+        "#btnRefresh",
+        "#btnReport"
       ],
       "phuSelector": "#subtitle",
       "bat": true,
@@ -50,7 +53,9 @@
       "larkUrl": "https://rootytrip2.sg.larksuite.com/base/U8bAbfnwgalWgDsEU11lpHfPgTb?table=tblwfl1sEXHI9HOp&view=vewJDIZobW",
       "kpi": "lich-tac-nghiep",
       "an": [
-        "header.topbar > .brand"
+        "header.topbar > .brand",
+        "#btnLark",
+        "#btnRefresh"
       ],
       "bat": true,
       "caPhong": true
@@ -71,7 +76,9 @@
       "larkUrl": "https://rootytrip2.sg.larksuite.com/base/WmWvbjjFQaiRmjsd3Z7lumQXgeb",
       "kpi": "quang-cao",
       "an": [
-        "header.topbar > .brand"
+        "header.topbar > .brand",
+        "#linkBase",
+        "#btnRefresh"
       ],
       "phuSelector": "#brandSub",
       "bat": true,
@@ -93,7 +100,9 @@
       ],
       "kpi": "ota",
       "an": [
-        "header.topbar > .brand"
+        "header.topbar > .brand",
+        "#linkBase",
+        "#btnRefresh"
       ],
       "phuSelector": "#brandSub",
       "bat": true,
@@ -118,7 +127,9 @@
       "_thuApi": "app Social đặt tên endpoint khác /api/meta, khai ở đây để test proxy gọi đúng đường — ý định của phép kiểm là JSON đi xuyên proxy được, không phải một tên cố định",
       "thuApi": "/api/tong-quan?days=1",
       "an": [
-        "header.topbar > .brand"
+        "header.topbar > .brand",
+        "#linkBase",
+        "#btnRefresh"
       ],
       "phuSelector": "#brandSub",
       "bat": true,
