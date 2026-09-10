@@ -25,7 +25,8 @@
  */
 const APP_CD = [
   { id: 'cong-viec', ten: 'Bảng công việc', ic: 'cong-viec',
-    mo: 'Phân phối việc mới', phanPhoi: true },
+    mo: 'Phân phối việc mới', tu: 'tỷ lệ tự giao mốc chờ loại việc quản lý',
+    phanPhoi: true },
 ];
 
 /**
@@ -43,18 +44,24 @@ const APP_CD = [
 function cdNhom() {
   return [
     { nhom: 'Của tôi', ds: [
-      { k: 'toi', ten: 'Của tôi', ic: 'nguoi', mo: 'Ngôn ngữ, sáng tối, tài khoản' },
+      { k: 'toi', ten: 'Của tôi', ic: 'nguoi', mo: 'Ngôn ngữ, sáng tối, tài khoản',
+        tu: 'tiếng anh english theme giao diện đăng nhập' },
     ] },
     { nhom: 'Hệ thống', ds: [
-      { k: 'base', ten: 'Base trong panel', ic: 'base', mo: 'Bật, tắt, ẩn, thêm base', ql: true },
+      { k: 'base', ten: 'Base trong panel', ic: 'base', mo: 'Bật, tắt, ẩn, thêm base',
+        tu: 'module app cả phòng kín', ql: true },
       /* MỘT mục cho mọi câu hỏi "ai được làm gì" — xem chú thích ở veCdQuyen. */
       { k: 'quyen', ten: 'Phân quyền', ic: 'nguoi',
-        mo: 'Ai thấy base nào, ai duyệt được trong app nào', ql: true },
+        mo: 'Ai thấy base nào, ai duyệt được trong app nào',
+        tu: 'quản lý nhân sự chi phí tạo mới lead availability', ql: true },
+    { k: 'thuong-hieu', ten: 'Nhận diện thương hiệu', ic: 'anh',
+      mo: 'Logo đóng lên tệp xuất ra', ql: true },
       { k: 'he-thong', ten: 'Hệ thống', ic: 'may',
-        mo: 'Địa chỉ công khai, app Lark, bản đang chạy', ql: true },
+        mo: 'Địa chỉ công khai, app Lark, bản đang chạy',
+        tu: 'url link app id build commit chế độ chạy render', ql: true },
     ] },
     { nhom: 'Từng app', ds: APP_CD.map((a) => ({
-      k: 'app:' + a.id, ten: a.ten, ic: a.ic, mo: a.mo, ql: true,
+      k: 'app:' + a.id, ten: a.ten, ic: a.ic, mo: a.mo, tu: a.tu, ql: true,
     })) },
     { nhom: 'Nâng cao', ds: [
       { k: 'kiem-tra', ten: 'Kiểm tra hệ thống', ic: 'may', mo: 'Hỏi từng base xem đọc được gì', ql: true },
@@ -72,8 +79,12 @@ function cdNhom() {
  */
 function cdMucCuaToi() {
   const q = (S.cdTim || '').trim().toLowerCase();
+  /* Xét cả `tu` — từ khoá không hiện ra mắt. Chỉ tìm theo tên và dòng mô tả
+   * thì gõ "tỷ lệ" ra RỖNG, dù thứ anh muốn nằm trong trang Bảng công việc:
+   * chữ "tỷ lệ" chỉ có trong thân trang, không có trên nhãn. Người ta nhớ mình
+   * muốn làm gì, không nhớ mục tên gì. */
   const khop = (m) => !q ||
-    (m.ten + ' ' + (m.mo || '')).toLowerCase().includes(q);
+    (m.ten + ' ' + (m.mo || '') + ' ' + (m.tu || '')).toLowerCase().includes(q);
   return cdNhom()
     .map((g) => ({ nhom: g.nhom, ds: g.ds.filter((m) => (S.quanLy || !m.ql) && khop(m)) }))
     .filter((g) => g.ds.length);
@@ -147,12 +158,12 @@ function veCdNoi() {
   if (S.cdMuc === 'he-thong') return veCdHeThong(el);
   if (S.cdMuc === 'quyen') return veCdQuyen(el);
   if (S.cdMuc === 'base') return veCdBase(el);
+  if (S.cdMuc === 'thuong-hieu') return veCdThuongHieu(el);
   if (S.cdMuc === 'kiem-tra') return veCdKiemTra(el);
   if (S.cdMuc === 'log') return veCdLog(el);
 }
 
 
-/* ---------------- Chung ---------------- */
 /* ---------------- Quản lý của từng app ----------------
  * Khác mục "Nhân sự & phân quyền": mục kia quyết ai THẤY base nào (luật của
  * lớp vỏ, lưu ở lớp vỏ). Mục này quyết ai là QUẢN LÝ trong một app — luật của
@@ -252,6 +263,67 @@ async function luuCdQl(a) {
 }
 
 
+
+/* ---------------- Nhận diện thương hiệu ----------------
+ * Logo ở ĐÂY chứ không ở từng app con: mọi tệp báo cáo xuất ra đều gọi
+ * GET /api/logo của lớp vỏ, nên đổi một lần là cả hệ đổi theo. Trước đây app
+ * KPI giữ bản riêng — đổi logo là phải nhớ đi sửa từng app, và không cách nào
+ * biết app nào đang đóng bản nào lên tệp gửi Sếp.
+ */
+function veCdThuongHieu(el) {
+  el.innerHTML = cdTieuDe('Nhận diện thương hiệu',
+    'Logo này được nhúng thẳng vào mọi tệp báo cáo các app xuất ra, nên tệp gửi đi đâu cũng thấy.') +
+    '<div id="cdLogo" class="cd-hang"><div class="cd-hang-tx"><b>Đang đọc…</b></div></div>' +
+    cdHang('Định dạng nhận vào',
+      'PNG · JPG · SVG · WEBP, tối đa 2 MB. Nên dùng bản nền trong suốt (PNG hoặc SVG) ' +
+      'vì báo cáo in ra nền trắng. Chỉ giữ MỘT tệp — tải bản mới là bản cũ bị thay.',
+      '<span class="cd-nhan">≤ 2 MB</span>');
+  napCdLogo();
+}
+
+function napCdLogo() {
+  goi('/api/logo-tin').then((t) => {
+    const o = $('#cdLogo');
+    if (!o) return;
+    const xem = t.co
+      ? '<div class="cd-logo-xem"><img src="/api/logo?v=' + t.luc + '" alt="Logo"></div>'
+      : '<div class="cd-logo-xem trong">chưa có logo</div>';
+    const mo = t.co
+      ? esc(t.ten) + ' · ' + t.kb + ' KB · tải lên ' + new Date(t.luc).toLocaleString('vi-VN')
+      : 'Chưa có tệp nào. Báo cáo đang in tạm bằng chữ theo màu thương hiệu.';
+    o.outerHTML = '<div id="cdLogo" class="cd-hang"><div class="cd-hang-tx">' +
+      '<b>Logo hiện dùng</b><p>' + mo + '</p>' + xem + '</div>' +
+      '<div class="cd-hang-dk"><div class="cd-doc">' +
+      '<button class="btn nho chinh" id="cdLogoChon">' + (t.co ? 'Đổi ảnh' : 'Tải ảnh lên') + '</button>' +
+      (t.co ? '<button class="btn nho ghost" id="cdLogoXoa">Gỡ</button>' : '') +
+      '<input type="file" id="cdLogoTep" accept="image/png,image/jpeg,image/svg+xml,image/webp" hidden>' +
+      '</div></div></div>';
+
+    $('#cdLogoChon').onclick = () => $('#cdLogoTep').click();
+    const xoa = $('#cdLogoXoa');
+    if (xoa) {
+      xoa.onclick = async () => {
+        if (!confirm('Gỡ logo? Các tệp báo cáo xuất sau đó sẽ in tạm bằng chữ.')) return;
+        try { await goi('/api/logo', { method: 'DELETE' }); napCdLogo(); }
+        catch (e) { alert(e.message); }
+      };
+    }
+    $('#cdLogoTep').onchange = (ev) => {
+      const f = ev.target.files[0];
+      if (!f) return;
+      const fr = new FileReader();
+      fr.onload = async () => {
+        try {
+          await goi('/api/logo', { method: 'POST', body: JSON.stringify({ anh: fr.result }) });
+          napCdLogo();
+        } catch (e) { alert(e.message); }
+      };
+      fr.readAsDataURL(f);
+    };
+  }).catch(() => {});
+}
+
+/* ---------------- Chung ---------------- */
 /* ---------------- Của tôi ----------------
  * Chỉ những thứ đổi xong CHỈ MÌNH THẤY. Tách khỏi phần hệ thống vì trước đây
  * hai loại nằm lẫn một trang: ngôn ngữ (riêng máy) đứng cạnh địa chỉ công khai

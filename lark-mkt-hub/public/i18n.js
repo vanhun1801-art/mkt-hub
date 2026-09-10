@@ -229,6 +229,100 @@
     'Họ tên': 'Full name',
     'Vai trò': 'Role',
     'Nhân sự & phân quyền': 'Staff & permissions',
+    /* --- Nhận diện thương hiệu --- */
+    'Nhận diện thương hiệu': 'Brand identity',
+    'Logo đóng lên tệp xuất ra': 'Logo stamped on exported files',
+    'Logo này được nhúng thẳng vào mọi tệp báo cáo các app xuất ra, nên tệp gửi đi đâu cũng thấy.':
+      'This logo is embedded directly into every report the apps export, so it travels with the file.',
+    'Logo hiện dùng': 'Current logo',
+    'Định dạng nhận vào': 'Accepted formats',
+    'PNG · JPG · SVG · WEBP, tối đa 2 MB. Nên dùng bản nền trong suốt (PNG hoặc SVG) vì báo cáo in ra nền trắng. Chỉ giữ MỘT tệp — tải bản mới là bản cũ bị thay.':
+      'PNG · JPG · SVG · WEBP, up to 2 MB. Prefer a transparent version (PNG or SVG) — reports print on white. Only ONE file is kept; uploading a new one replaces the old.',
+    'Chưa có tệp nào. Báo cáo đang in tạm bằng chữ theo màu thương hiệu.':
+      'No file yet. Reports fall back to a text wordmark in the brand colour.',
+    'chưa có logo': 'no logo yet',
+    'Tải ảnh lên': 'Upload image',
+    'Đổi ảnh': 'Replace image',
+    'Gỡ': 'Remove',
+    /* ============ app Báo cáo & KPI ============
+       Lớp vỏ bơm tệp này vào MỌI iframe app con và khoá theo chính chuỗi tiếng
+       Việt. Thiếu khoá thì chuỗi đó ở nguyên tiếng Việt — không lỗi, không cảnh
+       báo, chỉ là thanh tab nửa Anh nửa Việt. */
+    'Báo cáo & KPI': 'Reports & KPI',
+    'Chấm điểm KPI tháng · bộ luật tách khỏi số liệu':
+      'Monthly KPI scoring · rules kept apart from data',
+
+    /* --- tám tab --- */
+    'Tiến độ KPI': 'KPI progress',
+    'Tổng quan KPI': 'KPI overview',
+    'Phiếu KPI': 'KPI sheets',
+    'Nguồn số liệu': 'Data sources',
+    /* "Phân công KÊNH" chứ không phải "Phân công" trơn — chuỗi sau đã là nút
+       giao việc cho người bên Bảng công việc, dịch là "Assign". */
+    'Phân công kênh': 'Channel assignment',
+    'Mục tiêu & thử luật': 'Targets & rule sandbox',
+    'Soát & chốt': 'Review & lock',
+
+    /* --- thanh lọc của tab Báo cáo ---
+       "Khoảng thời gian", "Năm nay", "Tháng này/trước", "Tuần này/trước" đã có
+       khoá ở khối lọc chung phía trên — khai lại là khoá sau đè khoá trước mà
+       không báo gì. */
+    'Quý này': 'This quarter',
+    'Xuất báo cáo': 'Export report',
+    'Tải thẳng bảng số cho Excel': 'Download the raw figures for Excel',
+    'Mở tệp báo cáo hoàn chỉnh — trong đó có nút Lưu PDF, tải HTML, tải CSV':
+      'Opens the full report — it has Save as PDF, download HTML and download CSV inside',
+
+    /* --- tiêu đề các thẻ --- */
+    'Tính đến hôm nay': 'As of today',
+    '% kết quả công việc theo người': 'Work completion by person',
+    '% đạt mục tiêu theo kênh': 'Target attainment by channel',
+    'Chi tiết từng chỉ số của từng kênh': 'Every metric of every channel',
+    'Mốc theo tuần — theo người': 'Weekly milestones — by person',
+    'Mốc theo tuần — theo kênh': 'Weekly milestones — by channel',
+    'Sức khoẻ phòng': 'Team health',
+    'Mạnh yếu hệ thống': 'Systemic strengths and weaknesses',
+    'Theo nhân sự': 'By person',
+    'Tăng trưởng theo kênh': 'Growth by channel',
+    'Điểm tính lương': 'Payroll score',
+    'Điểm chấm tay': 'Manually scored items',
+    'Số máy tự lấy được': 'Figures the system fetches on its own',
+    'Tải file lên': 'Upload a file',
+    'Soát phân công': 'Assignment check',
+    'Kênh × nhân sự': 'Channels × staff',
+    'Nhân sự không chấm theo kênh': 'Staff not scored by channel',
+    'Gợi ý mục tiêu từ số liệu cũ': 'Target suggestions from past figures',
+    'Điểm trước → sau': 'Score before → after',
+    'Đã trả lương → app tính lại': 'Paid → recomputed by the app',
+
+    /* --- nhãn hay gặp --- */
+    'Nhịp chuẩn': 'Expected pace',
+    'Trung bình phòng': 'Team average',
+    'Kịp nhịp': 'On pace',
+    'Chưa đo được': 'Not measurable yet',
+    'chưa đo được': 'not measurable yet',
+    'đủ dữ liệu': 'complete',
+    'chưa có nguồn': 'no source yet',
+    'Đang hụt nhịp': 'Behind pace',
+    'Đạt nhịp': 'On pace',
+    'Còn thiếu': 'Still needed',
+    'Đo được': 'Measured',
+    'Xuất phiếu': 'Export sheet',
+    'Xuất phiếu của tôi': 'Export my sheet',
+    'Xuất văn bản KPI phòng': 'Export team KPI document',
+    'Lưu phân công': 'Save assignment',
+    'Chưa sửa gì': 'Nothing changed',
+    'Bỏ sửa': 'Discard changes',
+    'Nhập tại base nguồn': 'Enter in the source base',
+    'Tải file lên đây': 'Upload a file here',
+    'Người phụ trách tự chấm': 'Scored by the owner',
+    'Chờ nối app': 'Waiting to be wired up',
+    'Sai ở bộ luật': 'Rule set error',
+    'Máy tự lấy được': 'Fetched automatically',
+    'Kênh không ai nhận': 'Channels nobody owns',
+    'Kênh nhiều người nhận': 'Channels owned by several people',
+    'Nhân sự ăn theo kênh': 'Staff scored by channel',
+    'Không đủ 100%': 'Not adding up to 100%',
     'Của tôi': 'Mine',
     'Hệ thống': 'System',
     'Từng app': 'Per app',

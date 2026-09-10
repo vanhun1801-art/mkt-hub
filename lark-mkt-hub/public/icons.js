@@ -79,6 +79,11 @@ const ICONS = {
   ),
 
   /* Thêm */
+  /* khung ảnh — dùng cho mục Nhận diện thương hiệu trong Cài đặt */
+  'anh': IC(
+    '<rect x="3" y="4.5" width="18" height="15" rx="2.5"/>' +
+    '<circle cx="8.5" cy="10" r="1.6"/>' +
+    '<path d="M4 17l4.6-4.4a2 2 0 0 1 2.7 0L20 20"/>'),
   'them': IC('<path d="M12 5.5v13M5.5 12h13"/>'),
   'chuong': IC('<path d="M18 8.5a6 6 0 1 0-12 0c0 5-2 6.5-2 6.5h16s-2-1.5-2-6.5"/><path d="M13.7 19a2 2 0 0 1-3.4 0"/>'),
 

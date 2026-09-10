@@ -42,4 +42,8 @@ lark-kpi/du-lieu/
 *.log
 **/*.log
 *.png
+# ...trừ logo thương hiệu. Nó không phải bí mật, và ổ đĩa Render là ổ TẠM: tải
+# lên qua Cài đặt thì mất sau lần deploy sau, nên mọi báo cáo xuất trên server
+# chung sẽ in bản chữ thay logo. Để trong repo là cách duy nhất nó sống được.
+!lark-mkt-hub/du-lieu/logo.*
 .git-cu/

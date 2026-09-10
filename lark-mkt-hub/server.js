@@ -374,6 +374,28 @@ function congKhai(m) {
 }
 
 /* ---------------- API ---------------- */
+/* Logo dùng chung cho mọi tệp xuất của các app con. Chỉ giữ MỘT tệp: tải lên
+ * bản mới là xoá bản cũ, nên không bao giờ có hai logo cùng tồn tại rồi app này
+ * lấy .png còn app kia lấy .svg. */
+const THU_MUC_DL = path.join(__dirname, 'du-lieu');
+const DUOI_LOGO = { 'image/png': '.png', 'image/jpeg': '.jpg', 'image/svg+xml': '.svg', 'image/webp': '.webp' };
+const MIME_LOGO = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.svg': 'image/svg+xml', '.webp': 'image/webp' };
+
+function tepLogo() {
+  for (const d of ['.svg', '.png', '.jpg', '.jpeg', '.webp']) {
+    const duong = path.join(THU_MUC_DL, 'logo' + d);
+    if (fs.existsSync(duong)) return { duong, mime: MIME_LOGO[d] };
+  }
+  return null;
+}
+
+function xoaLogo() {
+  for (const d of ['.svg', '.png', '.jpg', '.jpeg', '.webp']) {
+    const duong = path.join(THU_MUC_DL, 'logo' + d);
+    try { if (fs.existsSync(duong)) fs.unlinkSync(duong); } catch (_) { /* khoá tệp thì thôi */ }
+  }
+}
+
 async function api(req, res, u) {
   const p = u.pathname;
   const m = req.method;
@@ -604,6 +626,56 @@ async function api(req, res, u) {
     const mod = timMod(id);
     if (mod && mod.kieu === 'local') kids.khoiDong(mod);
     return ok(res, congKhai(mod));
+  }
+
+  /* ---------------- logo thương hiệu ----------------
+   * MỘT bản logo cho cả hệ, giữ ở lớp vỏ. App con nào cần đóng logo lên tệp
+   * xuất thì gọi GET /api/logo lấy về — trước đây app KPI giữ bản riêng, đổi
+   * logo là phải đi sửa từng app và không ai biết app nào đang dùng bản nào.
+   *
+   * GET không đòi đăng nhập: đây là nhãn hiệu in trên báo cáo chứ không phải
+   * dữ liệu, và app con gọi từ máy chủ sang nên không mang theo phiên nào cả.
+   * Ghi thì chỉ quản lý.
+   */
+  if (p === '/api/logo' && (m === 'GET' || m === 'HEAD')) {
+    const t = tepLogo();
+    if (!t) return loi(res, 404, 'Chưa có logo');
+    const buf = fs.readFileSync(t.duong);
+    res.writeHead(200, {
+      'Content-Type': t.mime,
+      'Content-Length': buf.length,
+      'Cache-Control': 'no-cache',
+    });
+    return res.end(m === 'HEAD' ? undefined : buf);
+  }
+
+  if (p === '/api/logo-tin' && m === 'GET') {
+    const t = tepLogo();
+    if (!t) return ok(res, { co: false });
+    const st = fs.statSync(t.duong);
+    return ok(res, {
+      co: true, ten: path.basename(t.duong), mime: t.mime,
+      kb: Math.round(st.size / 1024), luc: st.mtimeMs,
+    });
+  }
+
+  if (p === '/api/logo' && m === 'POST') {
+    if (await chiQuanLy(req, res)) return;
+    const b = await docBody(req);
+    const khop = /^data:(image\/(?:png|jpeg|svg\+xml|webp));base64,([A-Za-z0-9+/=]+)$/.exec(String(b.anh || ''));
+    if (!khop) return loi(res, 400, 'Chỉ nhận PNG · JPG · SVG · WEBP');
+    const buf = Buffer.from(khop[2], 'base64');
+    if (buf.length > 2 * 1024 * 1024) return loi(res, 400, 'Ảnh quá 2 MB — nén bớt rồi tải lại');
+    xoaLogo();
+    if (!fs.existsSync(THU_MUC_DL)) fs.mkdirSync(THU_MUC_DL, { recursive: true });
+    fs.writeFileSync(path.join(THU_MUC_DL, 'logo' + DUOI_LOGO[khop[1]]), buf);
+    return ok(res, { ok: true, kb: Math.round(buf.length / 1024) });
+  }
+
+  if (p === '/api/logo' && m === 'DELETE') {
+    if (await chiQuanLy(req, res)) return;
+    xoaLogo();
+    return ok(res, { ok: true });
   }
 
   if (p === '/api/toi' && m === 'GET') {
