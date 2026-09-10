@@ -150,6 +150,47 @@ function dailySeries(rows, from, to, sales) {
   return out;
 }
 
+/* ---------------- luật chọn của hai thẻ khuyến nghị ----------------
+ *
+ * Tách ra thành hàm có tên vì đây là QUYẾT ĐỊNH NGHIỆP VỤ, và vì cái nút bật/tắt
+ * trên bảng sẽ dựa lên đúng hai luật này. Để inline trong overview() thì muốn
+ * kiểm phải dựng cả bộ dữ liệu Base giả và còn phụ thuộc file muc-tieu.json.
+ */
+
+const SO_DONG_BANG = 8;
+
+/**
+ * Thẻ "Quảng cáo hiệu quả nhất" — CHỈ nhận quảng cáo có khuyến nghị tốt.
+ *
+ * Bản trước lấy 8 cái CPA thấp nhất bất kể khuyến nghị, nên khi chưa đủ 8 cái tốt
+ * thì nó lấy cái xấu bù cho đủ tám dòng. Đo thật 30 ngày ra hai dòng
+ * "Tắt / xem lại" nằm trong thẻ "hiệu quả nhất" — cùng lúc chúng cũng nằm ở thẻ
+ * "cần xử lý". Đủ tám dòng không phải mục tiêu của thẻ này; nói đúng mới là.
+ */
+function chonHieuQua(ads, t) {
+  return ads
+    .filter((a) => a.conversions > 0 && a.spend >= t.minSpendJudge
+      && (a.actionLevel === 'great' || a.actionLevel === 'good'))
+    .sort((a, b) => a.cpa - b.cpa)
+    .slice(0, SO_DONG_BANG);
+}
+
+/**
+ * Thẻ "Quảng cáo cần xử lý" — CPA vượt mục tiêu hoặc không ra chuyển đổi.
+ *
+ * Quảng cáo 0 chuyển đổi xếp lên đầu (CPA của nó là vô cực, không phải 0): đã chi
+ * tiền mà không ra gì là chuyện gấp nhất, không được để nó tụt xuống dưới vì phép
+ * chia cho 0.
+ */
+function chonCanXuLy(ads, t) {
+  const hang = (a) => (a.conversions === 0 ? Infinity : a.cpa);
+  return ads
+    .filter((a) => a.spend >= t.minSpendJudge
+      && (a.actionLevel === 'bad' || a.actionLevel === 'warn'))
+    .sort((a, b) => hang(b) - hang(a))
+    .slice(0, SO_DONG_BANG);
+}
+
 /* ---------------- báo cáo tổng quan ---------------- */
 function overview(data, q = {}) {
   const t = readTargets();
@@ -213,11 +254,8 @@ function overview(data, q = {}) {
     platformKeys,
     byPlatform,
     byCampaign,
-    topAds: ads.filter((a) => a.conversions > 0 && a.spend >= t.minSpendJudge)
-      .sort((a, b) => a.cpa - b.cpa).slice(0, 8),
-    worstAds: ads.filter((a) => a.spend >= t.minSpendJudge && (a.actionLevel === 'bad' || a.actionLevel === 'warn'))
-      .sort((a, b) => (b.conversions === 0 ? Infinity : b.cpa) - (a.conversions === 0 ? Infinity : a.cpa))
-      .slice(0, 8),
+    topAds: chonHieuQua(ads, t),
+    worstAds: chonCanXuLy(ads, t),
     alerts: alerts(data, t),
     targets: t,
   };
@@ -529,4 +567,5 @@ module.exports = {
   agg, EMPTY, delta, filterDaily, normRange, dailySeries, groupBy,
   overview, campaignRows, adRows, alerts, dailyTable, entryMatrix,
   readTargets, writeTargets, cpaTarget, verdict, health, fmtVnd,
+  chonHieuQua, chonCanXuLy, SO_DONG_BANG,
 };
