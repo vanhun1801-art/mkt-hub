@@ -255,15 +255,6 @@ async function api(req, res, u) {
     });
   }
 
-  /* Dán tên thư mục (hoặc link có tên) → tách ra Tour / Loại / Ngày. */
-  if (p === '/api/doc-ten') {
-    const d = await store.tai();
-    const s = u.searchParams.get('s') || '';
-    const r = ttm.doc(s, d.tours.map((t) => t.ten), store.homNay());
-    const tour = d.tours.find((t) => t.ten === r.tour);
-    return ok(res, { ...r, tourId: tour ? tour.id : '', thuMuc: ttm.dat(r) });
-  }
-
   if (p === '/api/bao-cao' && method === 'GET') {
     const d = await store.tai(u.searchParams.get('moi') === '1');
     const t = thamSo(u);

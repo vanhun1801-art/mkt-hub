@@ -268,23 +268,32 @@ async function goiThat() {
       assert.ok(meta.j.tours.every((x) => x.ten), 'có Tour không tên');
     });
 
-    await ta('danh mục Tour trên Base đủ để đọc được tên thư mục thật', () => {
+    await ta('danh mục Tour trên Base sinh ra khoá chống trùng KHÔNG bị đụng nhau', () => {
+      /* Từ 10/09/2026 tên sản phẩm ghép từ danh mục Tour trong Base, không gõ tay.
+       * Nên rủi ro chuyển sang chính danh mục: hai Tour mà `gon()` ra cùng chuỗi
+       * (VD "TOUR ĐẢO" và "Tour đảo") sẽ dùng CHUNG một khoá, và lô của tour này
+       * đè lô của tour kia trên Base. Kiểm ngay trên danh mục thật. */
       const ds = meta.j.toursAll.map((x) => x.ten);
-      assert.strictEqual(ttm.docTour('1 TOUR ĐẢO ghép 10.09', ds), 'TOUR ĐẢO');
-      assert.strictEqual(ttm.docTour('2 LAND TOUR VIP', ds), 'LAND TOUR');
+      assert.ok(ds.length > 0, 'danh mục Tour rỗng');
+      assert.ok(ds.every((x) => x && x.trim()), 'có Tour tên rỗng');
+
+      const theoGon = new Map();
+      ds.forEach((ten) => {
+        const g = ttm.gon(ten);
+        assert.ok(g, 'Tour "' + ten + '" gọn hoá ra chuỗi rỗng — khoá sẽ lửng');
+        if (theoGon.has(g)) {
+          throw new Error('hai Tour đụng khoá: "' + theoGon.get(g) + '" và "' + ten + '"');
+        }
+        theoGon.set(g, ten);
+      });
+
+      /* Và tên thư mục ghép ra phải khác nhau giữa các Tour. */
+      const ten = ds.map((x) => ttm.dat({ tour: x, loai: 'Ghép', ngay: '2026-09-10' }));
+      assert.strictEqual(new Set(ten).size, ten.length, 'hai Tour ghép ra cùng một tên thư mục');
     });
 
     await ta('/api/meta nói rõ nhóm chat đang dùng', () => {
       assert.ok(/^oc_/.test(meta.j.nhom.id), 'chat_id lạ: ' + meta.j.nhom.id);
-    });
-
-    await ta('/api/doc-ten tách được Tour / Loại / ngày', async () => {
-      const r = await get(port, '/api/doc-ten?s=' + encodeURIComponent('TOUR ĐẢO VIP 08.09.2026'));
-      assert.strictEqual(r.code, 200);
-      assert.strictEqual(r.j.tour, 'TOUR ĐẢO');
-      assert.strictEqual(r.j.loai, 'VIP');
-      assert.strictEqual(r.j.ngay, '2026-09-08');
-      assert.ok(/^rec/.test(r.j.tourId), 'không map được sang record của Danh mục Tour');
     });
 
     await ta('/api/bao-cao đọc được bảng Báo cáo và trả tổng hợp', async () => {
@@ -318,6 +327,31 @@ async function goiThat() {
       const r = await get(port, '/api/nhan-su');
       assert.strictEqual(r.code, 200);
       assert.ok(Array.isArray(r.j.nguoi));
+    });
+
+    await ta('nghiệm thu: trạng thái lạ bị chặn TRƯỚC khi ghi', async () => {
+      const r = await post(port, '/api/quan-ly/nghiem-thu',
+        { id: 'recKhongCo', trangThai: 'Đang xem' });
+      assert.strictEqual(r.code, 400);
+      assert.ok(/Đạt/.test(r.j.error), r.j.error);
+    });
+
+    await ta('nghiệm thu: "Chờ nghiệm thu" không phải kết quả nghiệm thu', async () => {
+      /* Gửi lại chính trạng thái đang chờ thì chẳng quyết gì cả, nhưng vẫn ghi
+       * "Nghiệm thu lúc" và bắn tin về nhóm — phải chặn. */
+      const r = await post(port, '/api/quan-ly/nghiem-thu',
+        { id: 'recKhongCo', trangThai: 'Chờ nghiệm thu' });
+      assert.strictEqual(r.code, 400);
+    });
+
+    await ta('nghiệm thu: trả về sửa mà KHÔNG ghi nhận xét thì bị chặn', async () => {
+      /* Đây là chốt quan trọng nhất của nghiệm thu: "xấu thì sửa lại" mà không nói
+       * sửa gì là đúng cái tình trạng cũ mà app này ra đời để bỏ. Và nhận xét cũng
+       * là nguyên liệu cho phần AI sau này. */
+      const r = await post(port, '/api/quan-ly/nghiem-thu',
+        { id: 'recKhongCo', trangThai: 'Cần sửa lại', nhanXet: '   ' });
+      assert.strictEqual(r.code, 400);
+      assert.ok(/sửa gì/.test(r.j.error), r.j.error);
     });
 
     await ta('POST nhiều mục: chặn hai mục cùng Tour + Loại + ngày TRƯỚC khi ghi', async () => {

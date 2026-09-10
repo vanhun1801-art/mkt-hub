@@ -283,6 +283,20 @@ function moFormQuyen(i, nguoiSan) {
   /* Ô này từng có một cái bẫy: dòng để trống thì mọi hộp hiện ra ĐÃ TICK, mà bỏ
    * tick sạch lại lưu thành "xem tất cả". Giờ tick nào là đúng base đó, muốn mở
    * hết thì phải bật riêng ô "Mọi base" — không có trạng thái nào đoán hộ nữa. */
+  /* Khối này ĐẶT TRÊN hai danh sách base, không phải dưới.
+   *
+   * Trước đây nó nằm cuối form, sau "Base được xem" và "Quản trị base" — hai
+   * danh sách dài bằng số base (đang 7). Anh Hùng mở form ra tìm chỗ tick
+   * "Xem tải người khác" mà không thấy, vì nó nằm ngoài tầm nhìn và phải cuộn
+   * hết hai danh sách kia mới tới. Quyền là thứ hay sửa nhất trong form này,
+   * nên nó phải ở chỗ thấy được ngay.
+   */
+  html += hang('Quyền thêm cho nhân sự',
+    '<div class="q-nhom" id="fQuyen">' + QUYEN_CO.map((q) =>
+      '<label class="q-ck"><input type="checkbox" data-q="' + q.k + '"' + (h[q.k] ? ' checked' : '') + '>' +
+      '<span>' + esc(q.ten) + '</span><small class="q-nhat">— ' + esc(q.mo) + '</small></label>').join('') +
+    '</div>');
+
   html += hang('Base được xem',
     '<label class="q-ck q-ck-manh"><input type="checkbox" id="fMoiBase"' + (h.moiBase ? ' checked' : '') + '>' +
     '<span>Mọi base</span><small class="q-nhat">— kể cả base thêm vào sau này</small></label>' +
@@ -304,12 +318,6 @@ function moFormQuyen(i, nguoiSan) {
     'Trong base đã tick, người này <b>là quản lý của base đó</b>: thấy mọi bản ghi, mọi số tiền, ' +
     'thao tác được hết — như anh. Ngoài base đó vẫn là nhân sự: không thêm/xoá base, ' +
     'không sửa phân quyền, không Xem như. Tick ở đây thì base đó tự hiện trong panel của họ.');
-
-  html += hang('Quyền thêm cho nhân sự',
-    '<div class="q-nhom" id="fQuyen">' + QUYEN_CO.map((q) =>
-      '<label class="q-ck"><input type="checkbox" data-q="' + q.k + '"' + (h[q.k] ? ' checked' : '') + '>' +
-      '<span>' + esc(q.ten) + '</span><small class="q-nhat">— ' + esc(q.mo) + '</small></label>').join('') +
-    '</div>');
 
   html += hang('Ghi chú', '<input class="q-in" id="fGhiChu" type="text" value="' + esc(h.ghiChu || '') +
     '" placeholder="(không bắt buộc)">');

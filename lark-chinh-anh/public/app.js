@@ -56,6 +56,10 @@
     tour: '', trangThai: '', hangMuc: '', q: '', chiToi: false,
     meta: null,
     ds: [], tong: null,
+    /* Hàng đợi nghiệm thu: KHÔNG dùng chung S.ds vì S.ds bị bộ lọc thời gian cắt
+     * (mặc định 30 ngày). Lô chờ nghiệm thu từ tháng trước vẫn phải hiện ra, nếu
+     * không nó nằm đó mãi mà không ai thấy. */
+    hangDoi: [], dangNT: '',
     /* Bản nháp của biểu mẫu báo cáo. Giữ ngoài DOM vì mỗi lần vẽ lại danh sách
      * Tour (Làm mới) là DOM bị dựng lại — không giữ thì người đang gõ mất nội dung.
      *
@@ -80,7 +84,7 @@
       ngay: t.ngay || (S.meta ? S.meta.homNay : ''),
       hangMuc: (t.hangMuc || ['Chỉnh ảnh']).slice(),
       nguoiIds: (t.nguoiIds || []).slice(),
-      linkAnh: '', linkVideo: '', soAnh: '', soVideo: '', ghiChu: '', dan: '',
+      linkAnh: '', linkVideo: '', soAnh: '', soVideo: '', ghiChu: '',
     };
   }
 
@@ -130,17 +134,22 @@
   };
 
   /* ---------------- tab ---------------- */
-  const TABS = [
+  /* Tab Nghiệm thu chỉ hiện với quản lý: nhân sự vào đó cũng không làm được gì
+   * (server chặn), mà thấy một tab bấm vào là lỗi 403 thì rất khó hiểu. */
+  const TABS = () => [
     { k: 'bao-cao', ten: 'Báo cáo' },
     { k: 'san-pham', ten: 'Sản phẩm đã làm' },
+    ...(S.meta && S.meta.quanLy ? [{ k: 'nghiem-thu', ten: 'Nghiệm thu' }] : []),
     { k: 'cai-dat', ten: 'Cài đặt' },
   ];
 
   function veTabs() {
-    $('#tabs').innerHTML = TABS.map((t) => {
-      /* Số việc bị trả về sửa nằm ngay trên tab: đó là thứ duy nhất trong app này
-       * cần người ta quay lại làm, nên không được để nó nằm im trong danh sách. */
-      const n = t.k === 'san-pham' ? soCanSua() : 0;
+    $('#tabs').innerHTML = TABS().map((t) => {
+      /* Con số trên tab là thứ CẦN người ta quay lại làm: việc bị trả về sửa (của
+       * mình) và hàng đợi chờ nghiệm thu (của quản lý). Không được để nó nằm im
+       * trong danh sách. */
+      const n = t.k === 'san-pham' ? soCanSua()
+        : (t.k === 'nghiem-thu' ? S.hangDoi.length : 0);
       return '<button class="tab' + (S.tab === t.k ? ' on' : '') + '" data-k="' + t.k + '">'
         + esc(t.ten) + (n ? '<span class="badge">' + n + '</span>' : '') + '</button>';
     }).join('');
@@ -152,6 +161,7 @@
       veTabs();
       ve();
       if (S.tab === 'san-pham' && !S.ds.length) napDs();
+      if (S.tab === 'nghiem-thu') napHangDoi();
     };
   }
 
@@ -199,10 +209,23 @@
     if (S.tab === 'san-pham') ve();
   }
 
+  /** Hàng đợi nghiệm thu — lấy TOÀN BỘ lô chờ, không theo bộ lọc thời gian. */
+  async function napHangDoi() {
+    if (!(S.meta && S.meta.quanLy)) return;
+    try {
+      const r = await goi('/api/bao-cao?tu=2000-01-01&den=2999-12-31'
+        + '&trangThai=' + encodeURIComponent('Chờ nghiệm thu'));
+      S.hangDoi = r.baoCao;
+      veTabs();
+      if (S.tab === 'nghiem-thu') ve();
+    } catch (e) { toast(e.message, 'err'); }
+  }
+
   /* ---------------- vẽ ---------------- */
   function ve() {
     if (S.tab === 'bao-cao') return veForm();
     if (S.tab === 'san-pham') return veDs();
+    if (S.tab === 'nghiem-thu') return veNghiemThu();
     return veCaiDat();
   }
 
@@ -292,11 +315,6 @@
         <span class="muc-so">${i + 1}</span>
         <span class="muc-ten">${esc(ten || 'chưa đủ Tour và ngày')}</span>
         ${S.form.muc.length > 1 ? `<button class="btn ghost small" data-xoa="${i}">Xoá mục</button>` : ''}
-      </div>
-
-      <div class="field full dan">
-        <input data-f="dan" value="${esc(m.dan || '')}" placeholder="Dán tên thư mục — VD: TOUR ĐẢO Ghép 10.09.2026" autocomplete="off">
-        <div class="hint" data-kq="${i}"></div>
       </div>
 
       <div class="form-grid">
@@ -412,7 +430,6 @@
       const f = el.dataset.f;
       if (!f) return;
       m[f] = el.value;
-      if (f === 'dan') { henDocTen(i, el.value); return; }
       /* Số ảnh/số video đổi thì dòng tổng ở đầu thẻ phải đổi theo, nhưng KHÔNG
        * vẽ lại cả biểu mẫu — chỉ sửa đúng chỗ đó. */
       if (f === 'soAnh' || f === 'soVideo') capNhatTong();
@@ -477,14 +494,6 @@
       }
     });
 
-    /* Dán xong là đọc ngay, không đợi hết thời gian chờ — dán là hành động dứt khoát. */
-    ds.addEventListener('paste', (e) => {
-      const el = e.target;
-      if (!el.dataset || el.dataset.f !== 'dan') return;
-      const i = chiSo(el);
-      setTimeout(() => { if (i >= 0) docTen(i, el.value); }, 0);
-    });
-
     $('#btnThemMuc').onclick = () => {
       if (S.form.muc.length >= 20) return toast('Một lần báo cáo tối đa 20 mục.', 'err');
       S.form.muc.push(mucMoi(S.form.muc[S.form.muc.length - 1]));
@@ -511,38 +520,8 @@
     }
   }
 
-  /* ---- dán tên thư mục ---- */
-  const hen = {};
-  function henDocTen(i, v) {
-    clearTimeout(hen['d' + i]);
-    hen['d' + i] = setTimeout(() => docTen(i, v), 280);
-  }
-
-  async function docTen(i, v) {
-    const m = S.form.muc[i];
-    if (!m) return;
-    const kq = () => $(`[data-kq="${i}"]`);
-    if (!String(v || '').trim()) { const e2 = kq(); if (e2) e2.textContent = ''; return; }
-    try {
-      const r = await goi('/api/doc-ten?s=' + encodeURIComponent(v));
-      const doc = [];
-      if (r.tourId) { m.tourId = r.tourId; doc.push('Tour: ' + r.tour); }
-      if (r.loai) { m.loai = r.loai; doc.push('Loại: ' + r.loai); }
-      if (r.ngay) { m.ngay = r.ngay; doc.push('Ngày: ' + r.ngay); }
-      const thieu = ['tour', 'loai', 'ngay'].filter((k) => !r[k]);
-      const nhan = { tour: 'Tour', loai: 'Loại', ngay: 'ngày' };
-      veForm();
-      const e3 = kq();
-      if (e3) {
-        e3.innerHTML = doc.length
-          ? 'Đã điền — ' + esc(doc.join(' · '))
-            + (thieu.length ? ' · <span class="canh">chưa đọc được ' + thieu.map((k) => nhan[k]).join(', ') + '</span>' : '')
-          : '<span class="canh">Không đọc được Tour/Loại/ngày trong chuỗi này — chọn tay bên dưới.</span>';
-      }
-    } catch (e) { const e4 = kq(); if (e4) e4.textContent = e.message; }
-  }
-
   /* ---- tìm người trong danh bạ ---- */
+  const hen = {};
   async function timNguoi(i, q) {
     clearTimeout(hen['n' + i]);
     if (!String(q || '').trim()) { S.goiY = null; return; }
@@ -829,6 +808,100 @@
     };
   }
 
+  /* ===== tab Nghiệm thu ===== */
+  /**
+   * Hàng đợi cho quản lý: mỗi lô một khối, mở thư mục ảnh ra xem rồi bấm Đạt hoặc
+   * Cần sửa lại ngay tại đó.
+   *
+   * Vì sao là một TAB riêng chứ không phải nút trong bảng "Sản phẩm đã làm": xem ảnh
+   * là việc làm liên tục nhiều lô một lượt, mà bảng thì bị bộ lọc thời gian cắt và
+   * trộn lẫn lô đã duyệt với lô chưa. Ở đây chỉ còn thứ cần quyết.
+   */
+  function veNghiemThu() {
+    const ds = S.hangDoi || [];
+    const tongAnh = ds.reduce((a, b) => a + (b.soAnh || 0), 0);
+    const tongVideo = ds.reduce((a, b) => a + (b.soVideo || 0), 0);
+
+    $('#view').innerHTML = `
+    <div class="kpis" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+      <div class="kpi"><div class="k-label">Chờ nghiệm thu</div><div class="k-value">${n0(ds.length)}</div></div>
+      <div class="kpi"><div class="k-label">Ảnh chờ xem</div><div class="k-value">${n0(tongAnh)}</div></div>
+      <div class="kpi"><div class="k-label">Video chờ xem</div><div class="k-value">${n0(tongVideo)}</div></div>
+    </div>
+
+    <div class="grid" style="margin-top:14px">
+      <div class="card">
+        <div class="card-head"><h3>Hàng đợi nghiệm thu</h3><span class="sub">cũ nhất trước</span></div>
+        <div class="card-body">${ds.length ? veHangDoi(ds) : '<div class="empty">Không còn lô nào chờ nghiệm thu.</div>'}</div>
+      </div>
+    </div>`;
+
+    ganNghiemThu();
+  }
+
+  function veHangDoi(ds) {
+    /* Cũ nhất trước: lô để lâu là lô dễ bị quên, phải đẩy lên đầu. */
+    const xep = ds.slice().sort((a, b) => String(a.ngay).localeCompare(String(b.ngay)));
+    return xep.map((b) => `<section class="nt" data-id="${esc(b.id)}">
+      <div class="nt-dau">
+        <div class="nt-ten">${esc(b.thuMuc)}</div>
+        <div class="nt-phu">${esc(ngayGon(b.ngay))} · ${esc(b.hangMuc.join(' · ') || '—')}${b.soAnh ? ' · ' + n0(b.soAnh) + ' ảnh' : ''}${b.soVideo ? ' · ' + n0(b.soVideo) + ' video' : ''} · ${esc(b.nguoiLam.map((u) => u.name).join(', ') || 'chưa ghi người')}</div>
+      </div>
+      <div class="nt-link">
+        ${b.linkAnh ? `<a class="btn ghost small" href="${esc(b.linkAnh)}" target="_blank" rel="noreferrer">Mở thư mục ảnh</a>` : ''}
+        ${b.linkVideo ? `<a class="btn ghost small" href="${esc(b.linkVideo)}" target="_blank" rel="noreferrer">Mở thư mục video</a>` : ''}
+        ${b.daGui ? '' : '<span class="tag warn">chưa gửi nhóm</span>'}
+      </div>
+      <div class="nt-lam">
+        <input data-nx="${esc(b.id)}" placeholder="Cần sửa gì? (bắt buộc khi trả về sửa)" autocomplete="off">
+        <button class="btn ok" data-dat="${esc(b.id)}">Đạt</button>
+        <button class="btn danger" data-sua="${esc(b.id)}">Cần sửa lại</button>
+      </div>
+    </section>`).join('');
+  }
+
+  function ganNghiemThu() {
+    const v = $('#view');
+    v.onclick = async (e) => {
+      const dat = e.target.closest('[data-dat]');
+      const sua = e.target.closest('[data-sua]');
+      if (!dat && !sua) return;
+      const id = (dat || sua).dataset.dat || (dat || sua).dataset.sua;
+      const o = $(`.nt[data-id="${id}"]`);
+      const nx = (o && $('input[data-nx]', o) ? $('input[data-nx]', o).value : '').trim();
+
+      if (sua && !nx) {
+        toast('Ghi rõ cần sửa gì trước khi trả về.', 'err');
+        const el = o && $('input[data-nx]', o);
+        if (el) el.focus();
+        return;
+      }
+      if (S.dangNT === id) return;
+      S.dangNT = id;
+      $$('.nt[data-id="' + id + '"] button').forEach((b) => { b.disabled = true; });
+
+      try {
+        const r = await goiJSON('/api/quan-ly/nghiem-thu', {
+          id, trangThai: dat ? 'Đạt' : 'Cần sửa lại', nhanXet: nx, gui: true,
+        });
+        toast((dat ? 'Đã duyệt: ' : 'Đã trả về sửa: ') + (r.baoCao ? r.baoCao.thuMuc : '')
+          + (r.gui.ok ? ' · đã báo nhóm' : ''));
+        if (!r.gui.ok) toast('Không gửi được nhóm: ' + r.gui.loi, 'err');
+        /* Bỏ khỏi hàng đợi ngay, không đợi nạp lại — quản lý đang xem liên tục
+         * nhiều lô, chờ một vòng gọi Base là mất nhịp. */
+        S.hangDoi = S.hangDoi.filter((x) => x.id !== id);
+        veTabs();
+        ve();
+        napDs();
+      } catch (err) {
+        toast(err.message, 'err');
+        $$('.nt[data-id="' + id + '"] button').forEach((b) => { b.disabled = false; });
+      } finally {
+        S.dangNT = '';
+      }
+    };
+  }
+
   /* ===== tab Cài đặt ===== */
   function veCaiDat() {
     const m = S.meta || {};
@@ -907,7 +980,7 @@
 
   /* ---------------- khởi động ---------------- */
   $('#btnRefresh').onclick = async () => {
-    try { await napMeta(true); await napDs(); ve(); toast('Đã đọc lại từ Base.'); }
+    try { await napMeta(true); await napDs(); await napHangDoi(); ve(); toast('Đã đọc lại từ Base.'); }
     catch (e) { toast(e.message, 'err'); }
   };
 
@@ -920,13 +993,14 @@
     S.tu = (kh && kh.tu) || themNgay(S.den, -29);
 
     const h = (location.hash || '').replace(/^#\//, '');
-    if (TABS.some((x) => x.k === h)) S.tab = h;
+    if (['bao-cao', 'san-pham', 'nghiem-thu', 'cai-dat'].includes(h)) S.tab = h;
 
     try {
       await napMeta();
       veTabs();
       ve();
       await napDs();
+      await napHangDoi();
       ve();
     } catch (e) {
       $('#view').innerHTML = '<div class="empty">Không nạp được dữ liệu: ' + esc(e.message) + '</div>';

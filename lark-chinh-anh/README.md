@@ -5,7 +5,7 @@ tự **gửi về nhóm chat Lark** — thay cho việc dán link vào nhóm b�
 
 ```
 node server.js        # http://localhost:5181  (hoặc bấm start.bat)
-npm test              # 93 phép thử, chỉ đọc Base, không gửi tin
+npm test              # 87 phép thử, chỉ đọc Base, không gửi tin
 ```
 
 Base: <https://rootytrip2.sg.larksuite.com/base/OzF9bSPkPamYQHsNcU8lmMVQgFb>
@@ -82,13 +82,16 @@ nào" để sau này đừng ai thêm lại.
 
 ## Ba quyết định đáng biết trước khi sửa code
 
-**1. Dán tên thư mục, không bắt chọn ba lần.** Nhân sự vừa tạo thư mục trên Google
-Photos xong, trong tay đã có sẵn cái tên. Bắt họ chọn lại Tour trong combobox, chọn
-lại Ghép/VIP, chọn lại ngày là ba lần gõ cho một thứ máy đọc được. Nên ô đầu tiên của
-biểu mẫu là ô **dán tên thư mục** — `ten-thu-muc.js` tách ra Tour / Loại / Ngày rồi
-điền hộ. Tên thư mục thật rất bừa (`1 TOUR ĐẢO`, `tour dao ghep 10/9`,
-`TOURDAO-VIP-10.09.2026`) nên cách đọc là bỏ dấu → bỏ ký tự phân cách → tìm tour có
-tên khớp **dài nhất**. `test/ten-thu-muc.test.js` giữ 18 kiểu bừa có thật.
+**1. Tên sản phẩm do app GHÉP, không ai gõ.** `<TOUR> · <Loại> · <dd.mm.yyyy>` ghép từ
+ba thứ nhân sự chọn. Danh sách Tour là bảng *Danh mục Tour* trên Base — anh Hùng
+thêm/bớt ở đó và app đọc theo, nên tên sản phẩm luôn khớp danh mục.
+
+Bản đầu còn có một ô **dán tên thư mục** (tách chuỗi người gõ ra Tour/Loại/Ngày, chịu
+được 18 kiểu viết bừa). Anh Hùng bỏ ô đó ngày 10/09/2026: quản danh mục trong Base là
+đủ, không cần đoán từ chuỗi. Nửa "đọc" của `ten-thu-muc.js` đã xoá — cần lại thì lấy
+trong git. Nửa còn lại (`dat()` ghép tên, `khoa()` sinh khoá chống trùng) vẫn là chỗ
+nguy hiểm nhất nên vẫn có test riêng: hai Tour mà gọn hoá ra cùng chuỗi sẽ **dùng chung
+một khoá** và đè lô của nhau — có phép thử chạy trên danh mục THẬT để chặn.
 
 **2. Một lô chỉ có một dòng trên Base.** Cột `⚙️ Khoá` = `tour|loại|ngày`. Báo cáo lại
 cùng một lô thì **đè** dòng cũ, không đẻ dòng mới — báo hai lần là mọi con số đếm gấp
@@ -196,6 +199,26 @@ Không khai cũng chạy — app chỉ gửi bằng bot khác và **nói rõ đi
 biến đã có trong môi trường thì file **không** ghi đè.
 
 **Đừng cất secret vào bảng Cài đặt trên Base** — cả phòng mở Base ra là đọc được.
+
+## Nghiệm thu — tab riêng cho quản lý
+
+Hàng đợi những lô đang *Chờ nghiệm thu*: mỗi lô một khối, mở thư mục ảnh ra xem rồi bấm
+**Đạt** (xanh) hoặc **Cần sửa lại** (đỏ) ngay tại đó. Kết quả tự báo về nhóm chat.
+
+Ba quyết định:
+
+- **Là một TAB riêng, không phải nút trong bảng "Sản phẩm đã làm".** Xem ảnh là việc làm
+  liên tục nhiều lô một lượt; còn bảng thì bị bộ lọc thời gian cắt và trộn lẫn lô đã
+  duyệt với lô chưa. Ở tab này chỉ còn thứ cần quyết.
+- **Hàng đợi KHÔNG theo bộ lọc thời gian** — nó đọc riêng, toàn bộ. Lô chờ từ tháng
+  trước vẫn phải hiện ra, nếu không nó nằm đó mãi mà không ai thấy. Xếp **cũ nhất
+  trước**: lô để lâu là lô dễ bị quên.
+- **Trả về sửa thì BẮT BUỘC ghi rõ sửa gì** (server chặn, không chỉ giao diện). Đây
+  chính là tình trạng cũ mà app ra đời để bỏ — "xấu thì chỉnh lại" mà không nói sửa gì.
+  Và nó là nguyên liệu để sau này đúc bộ tiêu chí cho phần AI.
+
+Tab chỉ hiện với quản lý. Nhân sự vào cũng không làm được gì (server chặn 403), mà thấy
+một tab bấm vào là lỗi thì rất khó hiểu.
 
 ## Kiểm nhanh đường gửi tin
 
