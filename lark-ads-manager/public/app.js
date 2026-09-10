@@ -174,6 +174,56 @@ function renderShell() {
 
 
 /** Huy hiệu nguồn số: trực tiếp từ nền tảng, hay đọc từ Lark Base. */
+/**
+ * Băng cảnh báo cho kênh ĐANG BẬT mà gọi lỗi.
+ *
+ * Vì sao cần một băng chứ không chỉ chữ trên chip: số vẫn hiện ra bình thường (lấy
+ * từ Base cũ), nên không có gì TRÔNG sai. Phải nói rõ kênh nào, lỗi gì, và làm gì
+ * — nếu không thì người đọc thấy "Google Ads 285.052đ" và tin đó là số hôm nay,
+ * trong khi thật ra là số lần chảy cuối cùng trước khi mất kết nối.
+ */
+function veBangKenhLoi(L) {
+  const el = $('#bangKenhLoi');
+  if (!el) return;
+  const ds = (L && L.loi) || [];
+  if (!ds.length) { el.hidden = true; el.innerHTML = ''; return; }
+
+  /* Câu lỗi của Google nói đúng nhưng nói bằng tiếng của Google. Dịch sang việc
+   * phải làm — người đọc cần biết bấm vào đâu, không cần biết chữ "revoked". */
+  const goiY = (loi) => {
+    const s = String(loi || '');
+    if (/expired or revoked|invalid_grant/i.test(s)) {
+      /* Nhãn nút phải ĐÚNG như trong giao diện. Bản đầu tôi viết "Lấy lại quyền" —
+       * một nút không tồn tại; chỉ người ta vào chỗ không có gì thì tệ hơn không nói. */
+      return 'Refresh token đã hết hiệu lực. Vào tab <b>Kết nối &amp; Đồng bộ</b> → thẻ Google Ads → '
+        + 'bấm <b>Lấy link uỷ quyền</b>, đồng ý ở trang Google, copy URL trên thanh địa chỉ, '
+        + 'dán vào ô dưới rồi bấm <b>Đổi lấy token</b>.'
+        + '<br>Nếu tuần sau lại mất nữa: màn hình OAuth trong Google Cloud đang ở chế độ '
+        + '<b>Testing</b> — refresh token loại đó chỉ sống <b>7 ngày</b>, phải chuyển sang '
+        + '<b>In production</b> mới hết lặp.';
+    }
+    if (/invalid_client/i.test(s)) return 'Client ID hoặc Client Secret sai — khai lại ở thẻ Google Ads.';
+    if (/developer token/i.test(s)) return 'Developer token chưa được duyệt hoặc sai — kiểm ở Google Ads API Center.';
+    if (/PERMISSION_DENIED|USER_PERMISSION_DENIED/i.test(s)) {
+      return 'Tài khoản không có quyền đọc customer id đang khai — kiểm lại ID và MCC.';
+    }
+    if (/401|Invalid access_token|Malformed/i.test(s)) return 'Token sai hoặc hết hạn — khai lại ở tab Kết nối & Đồng bộ.';
+    return 'Mở tab <b>Kết nối &amp; Đồng bộ</b> và bấm <b>Kiểm tra kết nối</b> ở thẻ của kênh này.';
+  };
+
+  el.hidden = false;
+  el.innerHTML = ds.map((x) => `
+    <div class="bang-loi">
+      <div class="bl-noi">
+        <b>${esc(x.platform || x.kenh)} không lấy được số trực tiếp.</b>
+        Số đang hiện là số cũ trong Lark Base, không phải số hôm nay.
+        <div class="bl-ly">${esc(x.loi || '')}</div>
+        <div class="bl-lam">${goiY(x.loi)}</div>
+      </div>
+      <a class="btn small" href="#/ket-noi">Mở Kết nối &amp; Đồng bộ</a>
+    </div>`).join('');
+}
+
 function renderNguon() {
   const el = $('#srcChip');
   if (!el) return;
@@ -183,9 +233,15 @@ function renderNguon() {
   if (L.bat) {
     const gio = L.layLuc ? new Date(L.layLuc).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '';
     el.className = 'btn src on';
-    el.innerHTML = `<span class="dot"></span>Trực tiếp · ${esc(L.nenTang.join(', '))}` + (gio ? ` <span class="t">${gio}</span>` : '');
+    /* Kênh lỗi phải hiện NGAY TRÊN CHIP. Trước đây nó chỉ nằm trong tooltip, nên
+     * một kênh ngừng chảy số là chuyện âm thầm: tên nó lặng lẽ rời khỏi danh sách
+     * và số vẫn hiện bình thường vì lấy từ Base cũ. Không sai, chỉ cũ, không ai biết. */
+    const loi = (L.loi || []);
+    el.innerHTML = `<span class="dot"></span>Trực tiếp · ${esc(L.nenTang.join(', '))}`
+      + (loi.length ? ` <span class="loi">· ${esc(loi.map((x) => x.platform).join(', '))} LỖI</span>` : '')
+      + (gio ? ` <span class="t">${gio}</span>` : '');
     el.title = `Số ${L.from} → ${L.to} lấy thẳng từ ${L.nenTang.join(', ')}, lịch sử cũ hơn lấy từ Lark Base.`
-      + (L.loi && L.loi.length ? '\nLỗi: ' + L.loi.map((x) => x.platform + ': ' + x.loi).join('; ') : '')
+      + (loi.length ? '\nLỗi: ' + loi.map((x) => x.platform + ': ' + x.loi).join('; ') : '')
       + '\nBấm để xem số đang lưu trong Base.';
   } else {
     el.className = 'btn src' + (coKenh ? ' off' : '');
@@ -194,6 +250,8 @@ function renderNguon() {
       ? 'Đang đọc số đã lưu trong Base. Bấm để lấy trực tiếp từ nền tảng.'
       : 'Chưa nối kênh nào — chạy: node ket-noi.js';
   }
+  veBangKenhLoi(L);
+
   el.onclick = () => {
     if (!coKenh) { toast('Chưa nối kênh nào. Chạy: node ket-noi.js', 'err'); return; }
     S.nguon = L.bat ? 'base' : 'live';

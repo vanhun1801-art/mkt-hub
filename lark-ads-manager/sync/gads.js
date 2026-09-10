@@ -42,7 +42,12 @@ const tuMicro = (v) => num(v) / 1000000;
  */
 async function accessToken(conf) {
   if (!conf.clientId || !conf.clientSecret) throw new Error('Chưa khai clientId/clientSecret cho Google Ads');
-  if (!conf.refreshToken) throw new Error('Chưa có refreshToken — chạy `node ket-noi.js --google` để lấy');
+  /* KHÔNG bảo chạy dòng lệnh: bản đang dùng chạy trên Render, ở đó không có dòng
+   * lệnh nào để gõ. Chỉ vào đúng nút trong giao diện. */
+  if (!conf.refreshToken) {
+    throw new Error('Chưa có refresh token — vào tab Kết nối & Đồng bộ, thẻ Google Ads, '
+      + 'bấm "Lấy link uỷ quyền" rồi "Đổi lấy token"');
+  }
   hideSecret(conf.clientSecret);
   hideSecret(conf.refreshToken);
 
@@ -63,7 +68,7 @@ async function accessToken(conf) {
     const chi = d.error_description || d.error || ('HTTP ' + r.status);
     // refresh token bị thu hồi là ca hay gặp nhất: nói rõ cách sửa
     const them = /invalid_grant/i.test(String(d.error || ''))
-      ? ' — refresh token đã bị thu hồi hoặc hết hiệu lực, chạy lại `node ket-noi.js --google`'
+      ? ' — refresh token đã bị thu hồi hoặc hết hiệu lực'
       : '';
     throw new Error(scrub('Google từ chối cấp access token: ' + chi + them));
   }
@@ -162,7 +167,9 @@ async function fetchRange(conf, from, to, log = () => {}) {
 
 async function test(conf) {
   if (!conf.clientId || !conf.clientSecret) return { ok: false, message: 'Chưa khai clientId/clientSecret' };
-  if (!conf.refreshToken) return { ok: false, message: 'Chưa có refreshToken — chạy `node ket-noi.js --google`' };
+  if (!conf.refreshToken) {
+    return { ok: false, message: 'Chưa có refresh token — bấm "Lấy link uỷ quyền" ở thẻ này' };
+  }
   if (!conf.developerToken) return { ok: false, message: 'Chưa có developerToken (xin ở Google Ads API Center)' };
   const accounts = (conf.customerIds || []).map(cid).filter(Boolean);
   if (!accounts.length) return { ok: false, message: 'Chưa khai customerIds' };

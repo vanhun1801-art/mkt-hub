@@ -385,3 +385,27 @@ table.tbl tfoot td { font-weight: 700; background: var(--panel-2); border-top: 2
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="sang"]) .tabs { background: var(--panel-2); }
 }
+
+/* ---------- băng: kênh đang bật mà gọi lỗi ----------
+   Vì sao phải là BĂNG chứ không chỉ chữ trên chip: khi một kênh mất kết nối, số
+   vẫn hiện ra bình thường vì lấy từ Base cũ — không có gì TRÔNG sai. Anh Hùng
+   phát hiện mất Google Ads bằng cách tự đếm tên trên chip; lý do thì đang trốn
+   trong tooltip, mà không ai hover một cái chip. */
+#bangKenhLoi { margin: 0 0 12px; display: grid; gap: 8px; }
+.bang-loi {
+  display: flex; align-items: flex-start; gap: 12px;
+  /* Dùng token nền lỗi CÓ SẴN của app (--bad-soft), không tự đặt màu: token đó đã
+     có bản cho chế độ tối, còn màu tôi tự gõ thì chỉ đúng ở chế độ sáng.
+     Chỉ một vạch đỏ bên trái, không viền đỏ cả bốn phía — theo đúng kiểu .help
+     của app này, và bốn phía đỏ thì băng hét to hơn mức cần. */
+  background: var(--bad-soft); border: 0;
+  border-left: 3px solid var(--bad); border-radius: var(--r);
+  padding: 11px 13px; font-size: 13px;
+}
+.bang-loi .bl-noi { flex: 1 1 auto; min-width: 0; }
+.bang-loi .bl-ly {
+  margin-top: 5px; font-family: ui-monospace, monospace; font-size: 11.5px;
+  color: var(--chu-nhat); overflow-wrap: anywhere;
+}
+.bang-loi .bl-lam { margin-top: 6px; }
+.bang-loi .btn { flex: 0 0 auto; }
