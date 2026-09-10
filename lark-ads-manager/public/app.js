@@ -531,11 +531,13 @@ VIEW['tong-quan'] = async (view) => {
 
   <div class="grid g2" style="margin-top:14px">
     <div class="card">
-      <div class="card-head"><h3>Quảng cáo hiệu quả nhất</h3><span class="sub">CPA thấp nhất, chi tiêu ≥ ${vnd(d.targets.minSpendJudge)}</span></div>
+      <div class="card-head"><h3>Quảng cáo hiệu quả nhất</h3>
+        <span class="sub">${int(d.topAds.length)} quảng cáo đạt mục tiêu CPA · chi tiêu ≥ ${vnd(d.targets.minSpendJudge)}</span></div>
       <div class="card-body tight" id="topAds"></div>
     </div>
     <div class="card">
-      <div class="card-head"><h3>Quảng cáo cần xử lý</h3><span class="sub">CPA cao hoặc không ra chuyển đổi</span></div>
+      <div class="card-head"><h3>Quảng cáo cần xử lý</h3>
+        <span class="sub">${int(d.worstAds.length)} quảng cáo · CPA vượt mục tiêu hoặc không ra chuyển đổi</span></div>
       <div class="card-body tight" id="worstAds"></div>
     </div>
   </div>
@@ -1236,6 +1238,9 @@ window.__adDetail = async (id) => {
       ${field('Link creative', inputHtml('url', a.url))}
       <div class="field full"><label>Nội dung / Caption</label><textarea data-k="caption">${esc(a.caption || '')}</textarea></div>
     </div>
+    <h4 style="margin:18px 0 8px">Điều khiển trên nền tảng</h4>
+    <div id="dkKhoi"><div class="help">Đang hỏi nền tảng…</div></div>
+
     <h4 style="margin:18px 0 8px">Hiệu suất từng ngày</h4>
     ${table('adDaily', [
       { key: 'date', label: 'Ngày', render: (r) => dmy(r.date) },
@@ -1249,7 +1254,191 @@ window.__adDetail = async (id) => {
     `<button class="btn ghost" onclick="closeModalGlobal()">Đóng</button>
      <button class="btn primary" id="mSave">Lưu vào Base</button>`);
   $('#mSave').onclick = () => saveModal(`/api/ad/${id}`, ['name', 'approval', 'creative', 'url', 'caption']);
+
+  /* Nạp RIÊNG: khối này gọi thẳng nền tảng nên mất vài giây, cả hộp không nên
+   * đứng chờ. Và nếu nền tảng lỗi thì chỉ khối này báo lỗi, phần còn lại vẫn dùng. */
+  veDieuKhien(a);
 };
+
+/* ================= ĐIỀU KHIỂN TRÊN NỀN TẢNG =================
+ *
+ * Đây là chỗ duy nhất trong giao diện GHI ra ngoài Lark Base — nó bật/tắt quảng
+ * cáo và đổi ngân sách thật. Ba nguyên tắc:
+ *
+ * 1. Không bao giờ bày một cái nút mà bấm vào sẽ lỗi. Hỏi /kha-nang trước; nền
+ *    tảng nào chưa cấp quyền ghi thì nói ra và chỉ cách cấp, thay vì để anh Hùng
+ *    bấm rồi ăn 403.
+ *
+ * 2. Trước khi ghi, hiện TRẠNG THÁI THẬT đọc từ nền tảng — không dùng số trong
+ *    Base. Base là ảnh chụp lúc đồng bộ gần nhất, có thể đã cũ vài giờ.
+ *
+ * 3. Xác nhận in đủ tên + chi tiêu + CPA + lý do. Riêng đổi ngân sách thì in cả
+ *    số cũ, số mới và phần trăm — đây là lệnh tiêu tiền.
+ */
+const DK = { khaNang: null };
+
+/** Đọc trạng thái nền tảng nói bằng tiếng người. */
+const NHAN_TRANG_THAI = {
+  ACTIVE: 'đang chạy', ENABLED: 'đang chạy', ENABLE: 'đang chạy',
+  PAUSED: 'đang tắt', DISABLE: 'đang tắt', ADGROUP_STATUS_DISABLE: 'đang tắt',
+  CAMPAIGN_PAUSED: 'chiến dịch đang tắt', ADSET_PAUSED: 'nhóm đang tắt',
+  PENDING_REVIEW: 'đang chờ duyệt', DISAPPROVED: 'bị từ chối',
+  IN_PROCESS: 'đang xử lý', WITH_ISSUES: 'có vấn đề',
+  ARCHIVED: 'đã lưu trữ', DELETED: 'đã xoá',
+};
+const nhanTT = (s) => (NHAN_TRANG_THAI[String(s || '').toUpperCase()] || String(s || '—'));
+const dangChay = (s) => /^(ACTIVE|ENABLED?|ENABLE)$/i.test(String(s || ''));
+
+async function veDieuKhien(a) {
+  const el = $('#dkKhoi');
+  if (!el) return;
+  if (!DK.khaNang) {
+    try { DK.khaNang = await api('/api/dieu-khien/kha-nang'); }
+    catch (e) { el.innerHTML = `<div class="help">Không hỏi được quyền điều khiển: ${esc(e.message)}</div>`; return; }
+  }
+  const kn = DK.khaNang;
+  if (!kn.laQuanLy) {
+    el.innerHTML = '<div class="help">Chỉ vai quản lý mới bật/tắt hoặc đổi ngân sách từ app.</div>';
+    return;
+  }
+  const q = (kn.nenTang || {})[a.platform] || {};
+
+  /* Đọc trạng thái THẬT. `viec: 'tat'` ở đây chỉ để chọn nhánh đọc — xem trước
+   * không ghi gì, tên tham số nói việc sẽ làm NẾU bấm. */
+  let tt = null; let loiTT = '';
+  try { tt = await api('/api/dieu-khien/xem-truoc', { method: 'POST', body: JSON.stringify({ adId: a.id, viec: 'tat' }) }); }
+  catch (e) { loiTT = e.message; }
+
+  let ns = null; let loiNS = '';
+  try { ns = await api('/api/dieu-khien/xem-truoc', { method: 'POST', body: JSON.stringify({ adId: a.id, viec: 'ngan-sach' }) }); }
+  catch (e) { loiNS = e.message; }
+
+  const lk = (tt && tt.lienKet) || (ns && ns.lienKet) || null;
+  const mo = lk ? `<a class="btn small ghost" href="${esc(lk.url)}" target="_blank" rel="noreferrer">${esc(lk.nhan)}</a>` : '';
+
+  if (q.ghi !== true) {
+    /* Chưa cấp quyền ghi: nói ra, chỉ cách cấp, và vẫn hiện trạng thái thật +
+     * link sang nền tảng — để anh Hùng vẫn làm được việc, chỉ là làm ở bên kia. */
+    el.innerHTML = `
+      <div class="help" style="border-color:var(--warn);color:var(--warn)">
+        <b>Chưa bật/tắt được ${esc(a.platform)} từ app.</b> ${esc(q.vi || '')}
+        ${q.cachSua ? `<br><b>Cách cấp quyền:</b> ${esc(q.cachSua)}` : ''}
+      </div>
+      ${veTrangThai(tt, ns, loiTT, loiNS)}
+      ${mo ? `<div style="margin-top:10px">${mo}</div>` : ''}`;
+    return;
+  }
+
+  const truoc = (tt && tt.truoc) || {};
+  const bat = dangChay(truoc.trangThai);
+  const nsCu = ns && ns.nganSachCu != null ? Math.round(ns.nganSachCu) : null;
+
+  el.innerHTML = `
+    ${veTrangThai(tt, ns, loiTT, loiNS)}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:10px">
+      ${loiTT ? '' : `<button class="btn ${bat ? 'danger' : 'primary'}" id="dkBatTat">${bat ? 'Tắt quảng cáo này' : 'Bật quảng cáo này'}</button>`}
+      ${nsCu == null ? '' : `
+        <div class="field" style="margin:0;min-width:190px">
+          <label>Ngân sách ngày mới (đ)</label>
+          <input type="number" id="dkNS" value="${nsCu}" step="10000" min="1">
+          <span class="hint">đang là ${int(nsCu)}đ · một lệnh đổi tối đa ±50%</span>
+        </div>
+        <button class="btn ghost" id="dkDoiNS">Đổi ngân sách</button>`}
+      ${mo}
+    </div>
+    <div id="dkKetQua" style="margin-top:10px"></div>`;
+
+  const xong = (r) => {
+    const s2 = (r.sau || {});
+    $('#dkKetQua').innerHTML = `<div class="help" style="border-color:var(--good);color:var(--good)">
+      <b>Đã ghi lên ${esc(a.platform)}.</b> Trạng thái giờ: <b>${esc(nhanTT(s2.trangThai))}</b>
+      ${s2.trangThaiThat && s2.trangThaiThat !== s2.trangThai
+        ? ` · thực tế <b>${esc(nhanTT(s2.trangThaiThat))}</b>` : ''}
+      ${s2.nganSachNgay != null ? ` · ngân sách <b>${int(s2.nganSachNgay)}đ</b>` : ''}
+      <br><span class="sub">Số trong Base chưa đổi theo — lượt đồng bộ kế tiếp mới cập nhật.</span>
+    </div>`;
+  };
+
+  if ($('#dkBatTat')) {
+    $('#dkBatTat').onclick = async (e) => {
+      const b = e.currentTarget; const cu2 = b.textContent;
+      const cauHoi = `${bat ? 'TẮT' : 'BẬT'} quảng cáo trên ${a.platform}:\n\n`
+        + `  ${a.name}\n`
+        + `  chiến dịch: ${a.campaignName}\n`
+        + `  chi tiêu kỳ này: ${vnd(a.spend)} · ${int(a.conversions)} chuyển đổi`
+        + `${a.conversions ? ' · CPA ' + vnd(a.cpa) : ''}\n`
+        + `  khuyến nghị của app: ${a.action} — ${a.reason}\n\n`
+        + `Lệnh này đổi thật trên ${a.platform}, không phải chỉ trong Base.\n\nTiếp tục?`;
+      if (!confirm(cauHoi)) return;
+      b.disabled = true; b.textContent = 'Đang gửi…';
+      try {
+        const r = await api('/api/dieu-khien/lam', { method: 'POST',
+          body: JSON.stringify({ adId: a.id, viec: bat ? 'tat' : 'bat' }) });
+        xong(r);
+        b.remove();
+      } catch (err) {
+        $('#dkKetQua').innerHTML = `<div class="help" style="border-color:var(--bad);color:var(--bad)">${esc(err.message)}</div>`;
+        b.disabled = false; b.textContent = cu2;
+      }
+    };
+  }
+
+  if ($('#dkDoiNS')) {
+    $('#dkDoiNS').onclick = async (e) => {
+      const b = e.currentTarget; const cu2 = b.textContent;
+      const moi = Number($('#dkNS').value);
+      if (!(moi > 0)) return toast('Ngân sách phải lớn hơn 0', 'err');
+      if (moi === nsCu) return toast('Số mới bằng số đang có', 'err');
+      const pctDoi = Math.round(((moi - nsCu) / nsCu) * 100);
+      const capNS = (ns.truoc && ns.truoc.cap) ? ns.truoc.cap : 'nhóm/chiến dịch';
+      const chung = (ns.truoc && ns.truoc.dungChung && ns.truoc.dungChung.length > 1)
+        ? `\n\n  CẢNH BÁO: ngân sách này đang dùng chung cho ${ns.truoc.dungChung.length} chiến dịch:\n`
+          + ns.truoc.dungChung.map((x) => '    · ' + x).join('\n')
+          + '\n  Đổi là đổi cho tất cả.'
+        : '';
+      const cauHoi = `ĐỔI NGÂN SÁCH NGÀY trên ${a.platform}:\n\n`
+        + `  ${vnd(nsCu)} → ${vnd(moi)}  (${pctDoi > 0 ? '+' : ''}${pctDoi}%)\n`
+        + `  đặt ở cấp: ${capNS} — ${(ns.truoc && ns.truoc.ten) || ''}\n`
+        + `  do quảng cáo: ${a.name}${chung}\n\n`
+        + 'Đây là lệnh TIÊU TIỀN, đổi thật trên nền tảng.\n\nTiếp tục?';
+      if (!confirm(cauHoi)) return;
+      b.disabled = true; b.textContent = 'Đang gửi…';
+      try {
+        /* Gửi kèm soTienCu: server đọc lại số trên nền tảng và TỪ CHỐI nếu lệch —
+         * để không ghi đè lên con số ai đó vừa sửa trong lúc hộp này đang mở. */
+        const r = await api('/api/dieu-khien/lam', { method: 'POST',
+          body: JSON.stringify({ adId: a.id, viec: 'ngan-sach', soTien: moi, soTienCu: nsCu }) });
+        xong(r);
+      } catch (err) {
+        $('#dkKetQua').innerHTML = `<div class="help" style="border-color:var(--bad);color:var(--bad)">${esc(err.message)}</div>`;
+      }
+      b.disabled = false; b.textContent = cu2;
+    };
+  }
+}
+
+/**
+ * Trạng thái thật đọc từ nền tảng.
+ *
+ * Hiện CẢ hai trạng thái khi chúng khác nhau. Đo trên tài khoản thật: có nhóm
+ * `ACTIVE` mà thực tế là `CAMPAIGN_PAUSED` — bật quảng cáo lên vẫn không chạy vì
+ * chiến dịch đang tắt. Chỉ hiện cái đầu là app nói một điều không đúng.
+ */
+function veTrangThai(tt, ns, loiTT, loiNS) {
+  if (loiTT && loiNS) return `<div class="help" style="border-color:var(--bad);color:var(--bad)">${esc(loiTT)}</div>`;
+  const t = (tt && tt.truoc) || {};
+  const khac = t.trangThaiThat && t.trangThaiThat !== t.trangThai;
+  return `<div class="help">
+    <b>Trên nền tảng lúc này:</b> ${esc(nhanTT(t.trangThai))}
+    ${khac ? ` — nhưng thực tế <b>${esc(nhanTT(t.trangThaiThat))}</b>` : ''}
+    ${ns && ns.nganSachCu != null
+      ? `<br>Ngân sách ngày <b>${int(Math.round(ns.nganSachCu))}đ</b>`
+        + `${ns.truoc && ns.truoc.cap ? ` — đặt ở cấp <b>${esc(ns.truoc.cap)}</b>` : ''}`
+        + `${ns.truoc && ns.truoc.ten ? ` (${esc(ns.truoc.ten)})` : ''}`
+      : (loiNS ? `<br><span style="color:var(--warn)">Ngân sách: ${esc(loiNS)}</span>` : '')}
+    <br><span class="sub">Đọc thẳng từ nền tảng, không lấy số trong Base — Base là ảnh chụp lúc đồng bộ gần nhất.</span>
+  </div>`;
+}
 
 /* ---- sửa 1 dòng ngày ---- */
 window.__dailyEdit = async (id) => {

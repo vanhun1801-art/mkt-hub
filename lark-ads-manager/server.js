@@ -25,6 +25,8 @@ const tourwell = require('./sync/tourwell');
 const tourwellApi = require('./sync/tourwellapi');
 const khoRoas = require('./sync/khoroas');
 const keoNen = require('./sync/keonen');
+const dieuKhien = require('./sync/dieukhien');
+const nhatKyGhi = require('./sync/nhatkyghi');
 const ghiDT = require('./sync/ghidoanhthu');
 const roasTinh = require('./sync/roas');
 
@@ -744,6 +746,245 @@ async function api(req, res, u) {
    * lên 4 phút mà vẫn quá. Giữ một kết nối treo vài phút thì người dùng ngồi nhìn
    * màn hình trắng, và bấm lại là chạy hai lượt song song — chính thứ đã gây 429.
    */
+  /* ================= ĐIỀU KHIỂN NỀN TẢNG =================
+   *
+   * Đây là những đường DUY NHẤT trong app ghi ra ngoài Lark Base — chúng bật/tắt
+   * quảng cáo và đổi ngân sách thật. Mọi hàng rào nằm ở sync/dieukhien.js và ở
+   * đây, không nằm trong giao diện: giao diện thì sửa được, tiền thì không lấy
+   * lại được.
+   */
+
+  /**
+   * Nền tảng nào ghi được — ĐO chứ không đoán.
+   *
+   * Meta: hỏi debug_token xem có ads_management. Đo ngày 10/09/2026 trên token
+   * đang dùng: chỉ có ads_read, nên Facebook chưa ghi được và app phải nói trước
+   * thay vì để anh bấm rồi ăn 403.
+   * Google Ads: scope auth/adwords gồm cả ghi, nên đã uỷ quyền.
+   * TikTok: không có đường hỏi quyền, nên trả "chưa rõ" — không đoán bên nào.
+   */
+  if (p === '/api/dieu-khien/kha-nang' && method === 'GET') {
+    const c = ketnoi.read();
+    const meta = await dieuKhien.metaKhaNang(c.meta);
+    const tt = await dieuKhien.ttKhaNang(c.tiktok);
+    return ok(res, {
+      laQuanLy: laQuanLy(req),
+      oDiaTam: !!process.env.RENDER,
+      nenTang: {
+        Facebook: meta,
+        TikTok: tt,
+        'Google Ads': dieuKhien.gaKhaNang(c.googleAds),
+      },
+    });
+  }
+
+  /**
+   * Xem trước / thực hiện một lệnh điều khiển.
+   *
+   * Nhận `adId` là id bản ghi trong Base — KHÔNG phải id nền tảng. Server tự tra
+   * lấy id nền tảng từ store: giao diện đỡ phải giữ thêm id, và bản ghi chưa ghép
+   * ID nền tảng thì bị chặn ngay ở đây với câu nói rõ, thay vì gửi lệnh với id
+   * rỗng rồi để nền tảng trả một lỗi khó hiểu.
+   *
+   * Hai đường dùng CHUNG một khối: xem-truoc chạy đúng các bước đọc của lam rồi
+   * dừng lại trước khi ghi. Viết thành hai khối riêng là hai chỗ để trôi xa nhau,
+   * và cái trôi ở đây là "màn hình xem trước nói một đằng, lệnh ghi làm một nẻo".
+   */
+  if ((p === '/api/dieu-khien/xem-truoc' || p === '/api/dieu-khien/lam') && method === 'POST') {
+    if (!laQuanLy(req)) return fail(res, 403, 'Chỉ vai quản lý mới điều khiển được quảng cáo');
+    const body = await readBody(req);
+    const laLam = p === '/api/dieu-khien/lam';
+    const viec = String(body.viec || '').trim();          // 'bat' | 'tat' | 'ngan-sach'
+    if (!['bat', 'tat', 'ngan-sach'].includes(viec)) return fail(res, 400, 'Việc không hợp lệ');
+
+    const data = await store.get();
+    const qc = (data.ads || []).find((a) => a.id === String(body.adId || ''));
+    if (!qc) return fail(res, 404, 'Không tìm thấy quảng cáo trong Base');
+    if (!qc.extId) {
+      return fail(res, 400, `Quảng cáo "${qc.name}" chưa ghép ID nền tảng trong Base, `
+        + 'nên app không biết phải điều khiển cái nào. Ghép ở tab Kết nối & Đồng bộ, '
+        + 'mục "Ghép ID nền tảng".');
+    }
+    const nenTang = qc.platform || '';
+    const c = ketnoi.read();
+    const ai = await nguoiDung(req);
+    const ghiNhat = (kq) => nhatKyGhi.ghi({
+      ai: (ai && ai.name) || 'không rõ', nenTang, viec,
+      adId: qc.id, adExtId: qc.extId, tenQC: qc.name, ...kq,
+    });
+    /* Đọc-trước-khi-ghi: số giao diện đang thấy phải khớp số trên nền tảng. Anh
+     * Hùng mở tab lúc 9h và bấm lúc 14h — trong 5 tiếng đó ai cũng có thể đã đổi. */
+    const lechKhongGhi = (cu) => (body.soTienCu != null
+      && Math.round(Number(body.soTienCu)) !== Math.round(cu));
+    const cauLech = (ten, cu) => `Ngân sách trên ${ten} giờ là ${Math.round(cu).toLocaleString('vi-VN')}đ, `
+      + `không phải ${Math.round(Number(body.soTienCu)).toLocaleString('vi-VN')}đ như màn hình đang hiện. `
+      + 'Ai đó vừa đổi. Bấm Làm mới rồi xem lại.';
+
+    try {
+      /* ---------------------------------------------------------- Facebook */
+      if (nenTang === 'Facebook') {
+        /* Quyền GHI chỉ chặn bước ghi. Xem trước là đọc — cho chạy, để anh Hùng
+         * vẫn thấy trạng thái và ngân sách THẬT dù chưa cấp quyền ghi; màn hình
+         * xem trước mang theo `khaNang` để nút bị mờ kèm lý do. */
+        const kn = await dieuKhien.metaKhaNang(c.meta);
+        if (laLam && !kn.ghi) return fail(res, 400, kn.vi, { cachSua: kn.cachSua || '' });
+
+        if (viec !== 'ngan-sach') {
+          const truoc = await dieuKhien.metaDoc(c.meta, qc.extId, 'quang-cao');
+          const lk = dieuKhien.lienKetNenTang('Facebook', { taiKhoanId: truoc.taiKhoanId, adExtId: qc.extId });
+          if (!laLam) return ok(res, { xemTruoc: true, khaNang: kn, nenTang, viec, truoc, lienKet: lk });
+          await dieuKhien.metaDatTrangThai(c.meta, qc.extId, viec === 'bat');
+          const sau = await dieuKhien.metaDoc(c.meta, qc.extId, 'quang-cao');
+          return ok(res, { da: true, truoc, sau, nhatKy: ghiNhat({ ok: true, truoc, sau }) });
+        }
+
+        /* Đơn vị tiền KHÔNG đoán. Đo thật: VND, hệ số 1. Tiền khác thì từ chối. */
+        const tien = await dieuKhien.metaTien(c.meta);
+        const heSo = dieuKhien.heSoTien(tien);
+        if (heSo == null) {
+          return fail(res, 400, `Tài khoản dùng tiền ${tien || 'không rõ'} mà app chưa đo `
+            + 'hệ số quy đổi cho loại tiền này. Không đoán, vì đoán sai là lệch 100 lần.');
+        }
+
+        /* Ngân sách nằm ở NHÓM hay ở CHIẾN DỊCH? Đo thật: nhiều nhóm trả rỗng vì
+         * ngân sách đặt ở cấp chiến dịch (CBO). Ghi vào cấp không giữ ngân sách
+         * thì Facebook nhận nhưng không có tác dụng — tệ hơn là báo lỗi.
+         *
+         * Lấy id nhóm/chiến dịch TỪ CHÍNH quảng cáo trên Meta, không tra Base: đo
+         * thật thấy nhóm "Khách lẻ - Nhóm Tour Trọn Gói" trong Base chưa ghép ID
+         * nền tảng, nên đường qua Base tắc — còn Meta thì luôn trả adset_id và
+         * campaign_id kèm quảng cáo. */
+        const nhinTuMeta = await dieuKhien.metaDoc(c.meta, qc.extId, 'quang-cao');
+        let muc = null;
+        if (nhinTuMeta.nhomExtId) {
+          const m = await dieuKhien.metaDoc(c.meta, nhinTuMeta.nhomExtId, 'nhom');
+          if (m.nganSachNgay != null) muc = { ...m, cap: 'nhóm quảng cáo' };
+        }
+        if (!muc && nhinTuMeta.chienDichExtId) {
+          const m = await dieuKhien.metaDoc(c.meta, nhinTuMeta.chienDichExtId, 'chien-dich');
+          if (m.nganSachNgay != null) muc = { ...m, cap: 'chiến dịch' };
+        }
+        if (!muc) {
+          return fail(res, 400, `Quảng cáo "${qc.name}" không có ngân sách NGÀY ở cả nhóm `
+            + 'lẫn chiến dịch — nó đang dùng ngân sách trọn đời (lifetime budget). '
+            + 'Loại đó app chưa đổi được, phải sửa trên Facebook.');
+        }
+
+        const cu = muc.nganSachNgay / heSo;
+        if (!laLam) {
+          return ok(res, {
+            xemTruoc: true, khaNang: kn, nenTang, viec, truoc: muc, nganSachCu: cu, tien,
+            lienKet: dieuKhien.lienKetNenTang('Facebook',
+              { taiKhoanId: nhinTuMeta.taiKhoanId, adExtId: qc.extId }),
+          });
+        }
+        const moi = Number(body.soTien);
+        const bd = dieuKhien.kiemBienDo(cu, moi);
+        if (!bd.ok) return fail(res, 400, bd.vi);
+        if (lechKhongGhi(cu)) return fail(res, 409, cauLech('Facebook', cu));
+        await dieuKhien.metaDatNganSach(c.meta, muc.id, moi * heSo);
+        const sau = await dieuKhien.metaDoc(c.meta, muc.id, muc.capDo);
+        return ok(res, { da: true, truoc: muc, sau,
+          nhatKy: ghiNhat({ ok: true, cap: muc.cap, cu, moi, truoc: muc, sau }) });
+      }
+
+      /* ------------------------------------------------------------ TikTok */
+      if (nenTang === 'TikTok') {
+        const kn = await dieuKhien.ttKhaNang(c.tiktok);
+        if (laLam && kn.ghi === false) return fail(res, 400, kn.vi, { cachSua: kn.cachSua || '' });
+
+        if (viec !== 'ngan-sach') {
+          const truoc = await dieuKhien.ttDoc(c.tiktok, qc.extId);
+          if (!laLam) {
+            return ok(res, {
+              xemTruoc: true, khaNang: kn, nenTang, viec, truoc,
+              lienKet: dieuKhien.lienKetNenTang('TikTok', { advertiserId: truoc.advertiserId }),
+            });
+          }
+          await dieuKhien.ttDatTrangThai(c.tiktok, qc.extId, viec === 'bat');
+          const sau = await dieuKhien.ttDoc(c.tiktok, qc.extId);
+          return ok(res, { da: true, truoc, sau, nhatKy: ghiNhat({ ok: true, truoc, sau }) });
+        }
+        const tt = await dieuKhien.ttDoc(c.tiktok, qc.extId);
+        if (!tt.groupExtId) return fail(res, 400, 'TikTok không trả về nhóm quảng cáo của quảng cáo này');
+        const truoc = await dieuKhien.ttDocNhom(c.tiktok, tt.advertiserId, tt.groupExtId);
+        const cu = truoc.nganSachNgay || 0;
+        if (!laLam) {
+          return ok(res, {
+            xemTruoc: true, khaNang: kn, nenTang, viec, truoc, nganSachCu: cu,
+            lienKet: dieuKhien.lienKetNenTang('TikTok', { advertiserId: tt.advertiserId }),
+          });
+        }
+        const moi = Number(body.soTien);
+        const bd = dieuKhien.kiemBienDo(cu, moi);
+        if (!bd.ok) return fail(res, 400, bd.vi);
+        if (lechKhongGhi(cu)) return fail(res, 409, cauLech('TikTok', cu));
+        await dieuKhien.ttDatNganSach(c.tiktok, tt.advertiserId, tt.groupExtId, moi);
+        const sau = await dieuKhien.ttDocNhom(c.tiktok, tt.advertiserId, tt.groupExtId);
+        return ok(res, { da: true, truoc, sau, nhatKy: ghiNhat({ ok: true, cu, moi, truoc, sau }) });
+      }
+
+      /* -------------------------------------------------------- Google Ads */
+      if (nenTang === 'Google Ads') {
+        const kn = dieuKhien.gaKhaNang(c.googleAds);
+        if (laLam && !kn.ghi) return fail(res, 400, kn.vi);
+        const muc = await gads.timQuangCao(c.googleAds, qc.extId);
+        if (!muc) return fail(res, 404, `Không tìm thấy quảng cáo ${qc.extId} trong các tài khoản Google Ads đã khai`);
+
+        if (viec !== 'ngan-sach') {
+          if (!laLam) {
+            return ok(res, {
+              xemTruoc: true, khaNang: kn, nenTang, viec, truoc: muc,
+              lienKet: dieuKhien.lienKetNenTang('Google Ads', { customerId: muc.customerId }),
+            });
+          }
+          await gads.datTrangThai(c.googleAds, qc.extId, viec === 'bat');
+          const sau = await gads.timQuangCao(c.googleAds, qc.extId);
+          return ok(res, { da: true, truoc: muc, sau, nhatKy: ghiNhat({ ok: true, truoc: muc, sau }) });
+        }
+
+        const ns = await gads.nganSachChienDich(c.googleAds, muc.customerId, muc.campaignId);
+        if (!ns) return fail(res, 404, 'Không đọc được ngân sách của chiến dịch này');
+        const cu = ns.nganSachNgay || 0;
+        /* Google đặt ngân sách ở campaign_budget — một resource RIÊNG mà nhiều
+         * chiến dịch chia nhau được. Đổi nó là đổi cho cả nhóm, nên `dungChung`
+         * đi kèm để màn hình xem trước nói ra trước khi ghi. */
+        if (!laLam) {
+          return ok(res, {
+            xemTruoc: true, khaNang: kn, nenTang, viec, truoc: { ...muc, ...ns }, nganSachCu: cu,
+            lienKet: dieuKhien.lienKetNenTang('Google Ads', { customerId: muc.customerId }),
+          });
+        }
+        const moi = Number(body.soTien);
+        const bd = dieuKhien.kiemBienDo(cu, moi);
+        if (!bd.ok) return fail(res, 400, bd.vi);
+        if (lechKhongGhi(cu)) return fail(res, 409, cauLech('Google Ads', cu));
+        await gads.datNganSach(c.googleAds, ns.customerId, ns.resourceName, moi);
+        const sau = await gads.nganSachChienDich(c.googleAds, muc.customerId, muc.campaignId);
+        return ok(res, { da: true, truoc: { ...muc, ...ns }, sau,
+          nhatKy: ghiNhat({ ok: true, cu, moi, dungChung: ns.dungChung, truoc: ns, sau }) });
+      }
+
+      return fail(res, 400, `Chưa hỗ trợ điều khiển nền tảng ${nenTang}`);
+    } catch (e) {
+      /* Ghi cả lệnh THẤT BẠI. Một lệnh bị nền tảng từ chối cũng là điều cần biết,
+       * nhất là khi bị từ chối vì thiếu quyền. */
+      if (laLam) ghiNhat({ ok: false, loi: e.message });
+      return fail(res, 502, e.message);
+    }
+  }
+
+  /** Nhật ký các lệnh đã ghi ra nền tảng. Chỉ quản lý xem — nó có tên người bấm. */
+  if (p === '/api/dieu-khien/nhat-ky' && method === 'GET') {
+    if (!laQuanLy(req)) return fail(res, 403, 'Chỉ vai quản lý mới xem được nhật ký điều khiển');
+    return ok(res, {
+      rows: nhatKyGhi.doc(),
+      /* Nói thẳng hạn chế: trên Render ổ đĩa là tạm nên nhật ký mất sau deploy.
+       * Giữ lâu dài thì phải có một bảng riêng trong Base. */
+      oDiaTam: !!process.env.RENDER,
+    });
+  }
+
   if (p === '/api/roas/keo-api' && method === 'POST') {
     const body = await readBody(req);
     const conf = ketnoi.read().tourwell;

@@ -172,5 +172,69 @@ console.log('— thẻ "Giữ cấu hình qua lần deploy" chỉ hiện khi câ
     kn.includes('Lấy nội dung ADS_CONNECT_JSON'));
 }
 
+console.log('— khối điều khiển: không bày nút mà bấm vào sẽ lỗi');
+{
+  /* Nguyên tắc số một của khối này. Đo thật ngày 10/09/2026: Facebook và TikTok
+   * đều thiếu quyền ghi. Bày nút "Tắt quảng cáo" ở đó là hứa một việc app không
+   * làm được — và anh Hùng chỉ biết sau khi đã bấm. */
+  t('có hàm vẽ khối điều khiển', /async function veDieuKhien\(/.test(app));
+  t('hộp chi tiết quảng cáo gọi nó', /veDieuKhien\(a\);/.test(app));
+  t('hỏi quyền trước khi vẽ', /\/api\/dieu-khien\/kha-nang/.test(app));
+  t('nút chỉ hiện khi ĐO ĐƯỢC là ghi được', /q\.ghi !== true/.test(app));
+  t('chưa ghi được thì nói vì sao', /Chưa bật\/tắt được/.test(app));
+  t('và chỉ cách cấp quyền', /Cách cấp quyền/.test(app));
+  /* Vẫn phải cho đường làm việc: link sang nền tảng. Chặn nút mà không chỉ đường
+   * nào khác là bỏ mặc người dùng. */
+  t('vẫn hiện link mở nền tảng khi chưa ghi được', /lienKet/.test(app));
+}
+
+console.log('— trạng thái hiện ra phải là trạng thái THẬT');
+{
+  /* Base là ảnh chụp lúc đồng bộ gần nhất, có thể đã cũ vài giờ. Bấm tắt dựa
+   * trên số cũ là bấm dựa trên một điều có thể không còn đúng. */
+  t('đọc trạng thái từ nền tảng, không từ Base', /\/api\/dieu-khien\/xem-truoc/.test(app));
+  t('nói rõ là đọc thẳng từ nền tảng', /Đọc thẳng từ nền tảng/.test(app));
+  /* Đo thật: nhóm ACTIVE mà effective_status là CAMPAIGN_PAUSED — bật lên vẫn
+   * không chạy. Chỉ hiện cái đầu là app nói một điều không đúng. */
+  t('hiện CẢ trạng thái thật khi nó khác', /trangThaiThat/.test(app));
+  t('có bảng dịch trạng thái ra tiếng người', /CAMPAIGN_PAUSED:/.test(app));
+}
+
+console.log('— xác nhận trước khi ghi phải in đủ số để quyết');
+{
+  /* Hộp xác nhận là hàng rào cuối. Nó phải in đủ thứ để người bấm biết mình đang
+   * bấm cái gì — chứ không phải "Bạn có chắc không?". */
+  const iBat = app.indexOf("$('#dkBatTat').onclick");
+  const khoiBat = app.slice(iBat, iBat + 2200);
+  ['a.name', 'a.campaignName', 'a.spend', 'a.conversions', 'a.cpa', 'a.action', 'a.reason']
+    .forEach((x) => t(`xác nhận bật/tắt in ${x}`, khoiBat.includes(x)));
+  t('và nói rõ là đổi THẬT trên nền tảng', /đổi thật trên/.test(khoiBat));
+
+  /* Neo vào chỗ GẮN xử lý, không vào chỗ khai nút: `dkDoiNS` xuất hiện lần đầu
+   * trong HTML của nút, cách xử lý cả nghìn ký tự — cắt từ đó thì lát cắt không
+   * chứa hộp xác nhận, và test đo nhầm chỗ. Tôi đã cắt sai đúng như vậy. */
+  const iNS = app.indexOf("$('#dkDoiNS').onclick");
+  const khoiNS = app.slice(iNS, iNS + 3000);
+  t('xác nhận ngân sách in số cũ và số mới', /vnd\(nsCu\)/.test(khoiNS) && /vnd\(moi\)/.test(khoiNS));
+  t('và in phần trăm thay đổi', /pctDoi/.test(khoiNS));
+  t('và in ngân sách đặt ở CẤP nào', /cấp:/.test(khoiNS));
+  t('và gọi đúng tên: lệnh TIÊU TIỀN', /TIÊU TIỀN/.test(khoiNS));
+  /* Google đặt ngân sách ở campaign_budget — resource riêng mà nhiều chiến dịch
+   * chia nhau được. Đổi tưởng một, thật ra đổi cả nhóm. */
+  t('cảnh báo khi ngân sách dùng chung nhiều chiến dịch', /dùng chung cho/.test(khoiNS));
+
+  /* Đọc-trước-khi-ghi: không có soTienCu thì server không phát hiện được là màn
+   * hình đang hiện số cũ, và app ghi đè lên việc của người khác. */
+  t('gửi kèm soTienCu để server đối chiếu', /soTienCu: nsCu/.test(khoiNS));
+}
+
+console.log('— sau khi ghi, không được nói quá');
+{
+  /* Ghi lên nền tảng KHÔNG làm số trong Base đổi theo. Không nói ra thì anh Hùng
+   * bấm Làm mới, thấy số cũ, và tưởng lệnh không ăn. */
+  t('nói rõ Base chưa đổi theo', /Base chưa đổi theo/.test(app));
+  t('nói rõ phải chờ lượt đồng bộ kế tiếp', /đồng bộ kế tiếp/.test(app));
+}
+
 console.log(`\n${pass} pass · ${fail} fail`);
 process.exitCode = fail ? 1 : 0;

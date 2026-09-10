@@ -317,7 +317,143 @@ const dep = (id) => {
   return s.length === 10 ? `${s.slice(0, 3)}-${s.slice(3, 6)}-${s.slice(6)}` : s;
 };
 
+/* ---------------------------------------------------------------- ghi vào Google */
+
+/**
+ * Tìm quảng cáo theo id: nó thuộc tài khoản nào, resource name là gì, đang bật
+ * hay tắt, và chiến dịch của nó.
+ *
+ * Phải tìm vì id quảng cáo không mang theo tài khoản, mà app thì khai nhiều
+ * customerIds. Hỏi lần lượt, thấy thì dừng.
+ */
+async function timQuangCao(conf, adExtId) {
+  const token = await accessToken(conf);
+  const q = `
+    SELECT ad_group_ad.resource_name, ad_group_ad.status,
+           ad_group_ad.ad.id, ad_group_ad.ad.name,
+           ad_group.id, ad_group.name,
+           campaign.id, campaign.name, campaign.status
+    FROM ad_group_ad
+    WHERE ad_group_ad.ad.id = ${cid(adExtId)}
+  `.replace(/\s+/g, ' ').trim();
+
+  for (const acc of (conf.customerIds || []).map(cid).filter(Boolean)) {
+    const res = await postJson(`${base(conf)}/customers/${acc}/googleAds:search`,
+      { query: q, pageSize: 1 },
+      { headers: headers(conf, token), label: `Google Ads tìm QC ${acc}` });
+    if (res && res.error) continue;   // tài khoản này không có, hỏi tài khoản sau
+    const r = ((res && res.results) || [])[0];
+    if (!r) continue;
+    const aga = r.adGroupAd || {};
+    return {
+      customerId: acc,
+      resourceName: aga.resourceName || '',
+      id: String((aga.ad && aga.ad.id) || adExtId),
+      ten: (aga.ad && aga.ad.name) || '',
+      trangThai: aga.status || '',
+      /* Google không có effective_status như Meta. Trạng thái thật là tổ hợp của
+       * quảng cáo và chiến dịch: chiến dịch tắt thì quảng cáo bật vẫn không chạy. */
+      trangThaiThat: (r.campaign && r.campaign.status) === 'ENABLED'
+        ? (aga.status || '') : 'CHIẾN DỊCH ĐANG TẮT',
+      campaignId: String((r.campaign && r.campaign.id) || ''),
+      campaignName: (r.campaign && r.campaign.name) || '',
+      groupId: String((r.adGroup && r.adGroup.id) || ''),
+      groupName: (r.adGroup && r.adGroup.name) || '',
+    };
+  }
+  return null;
+}
+
+/**
+ * Ngân sách của một chiến dịch: resource nào giữ, bao nhiêu đồng, và có bao nhiêu
+ * chiến dịch khác đang DÙNG CHUNG resource đó.
+ *
+ * Cái cuối là chỗ dễ gây tai nạn: campaign_budget ở Google là resource riêng và
+ * nhiều chiến dịch chia nhau được. Đổi nó tưởng là đổi một chiến dịch, thật ra
+ * đổi cho cả nhóm. Phải đếm rồi nói ra trước khi ghi.
+ */
+async function nganSachChienDich(conf, customerId, campaignId) {
+  const token = await accessToken(conf);
+  const acc = cid(customerId);
+  const q1 = `
+    SELECT campaign.id, campaign_budget.resource_name, campaign_budget.amount_micros,
+           campaign_budget.name, campaign_budget.explicitly_shared
+    FROM campaign WHERE campaign.id = ${cid(campaignId)}
+  `.replace(/\s+/g, ' ').trim();
+  const res = await postJson(`${base(conf)}/customers/${acc}/googleAds:search`,
+    { query: q1, pageSize: 1 },
+    { headers: headers(conf, token), label: 'Google Ads đọc ngân sách' });
+  if (res && res.error) {
+    throw new Error(scrub('Google Ads báo lỗi khi đọc ngân sách: '
+      + ((res.error && res.error.message) || 'không rõ')));
+  }
+  const r = ((res && res.results) || [])[0];
+  if (!r || !r.campaignBudget) return null;
+  const b = r.campaignBudget;
+
+  /* Đếm số chiến dịch đang dùng chung resource ngân sách này. */
+  const q2 = `
+    SELECT campaign.id, campaign.name FROM campaign
+    WHERE campaign_budget.resource_name = '${b.resourceName}'
+  `.replace(/\s+/g, ' ').trim();
+  const res2 = await postJson(`${base(conf)}/customers/${acc}/googleAds:search`,
+    { query: q2, pageSize: 50 },
+    { headers: headers(conf, token), label: 'Google Ads đếm chiến dịch dùng chung' });
+  const dungChung = ((res2 && res2.results) || [])
+    .map((x) => (x.campaign && x.campaign.name) || '').filter(Boolean);
+
+  return {
+    customerId: acc,
+    resourceName: b.resourceName || '',
+    ten: b.name || '',
+    /* micro -> đồng. Google luôn dùng micro cho mọi loại tiền, nên chỗ này KHÔNG
+     * phải đoán hệ số như bên Meta. */
+    nganSachNgay: tuMicro(b.amountMicros),
+    chiaSe: b.explicitlyShared === true,
+    dungChung,
+  };
+}
+
+/** Bật/tắt một quảng cáo. Tìm trước, ghi sau — không dựng resource name bằng tay. */
+async function datTrangThai(conf, adExtId, bat) {
+  const muc = await timQuangCao(conf, adExtId);
+  if (!muc) throw new Error(`Không tìm thấy quảng cáo ${adExtId} trong các tài khoản Google Ads đã khai`);
+  const token = await accessToken(conf);
+  const res = await postJson(
+    `${base(conf)}/customers/${muc.customerId}/adGroupAds:mutate`,
+    {
+      operations: [{
+        updateMask: 'status',
+        update: { resourceName: muc.resourceName, status: bat ? 'ENABLED' : 'PAUSED' },
+      }],
+    },
+    { headers: headers(conf, token), label: 'Google Ads đặt trạng thái' });
+  if (res && res.error) {
+    throw new Error(scrub('Google Ads từ chối: ' + ((res.error && res.error.message) || 'không rõ')));
+  }
+  return { ok: true, muc, ketQua: (res && res.results) || [] };
+}
+
+/** Đổi ngân sách ngày của một campaign_budget, tính bằng đồng. */
+async function datNganSach(conf, customerId, budgetResource, soTienDong) {
+  const token = await accessToken(conf);
+  const res = await postJson(
+    `${base(conf)}/customers/${cid(customerId)}/campaignBudgets:mutate`,
+    {
+      operations: [{
+        updateMask: 'amount_micros',
+        update: { resourceName: budgetResource, amountMicros: String(Math.round(soTienDong * 1000000)) },
+      }],
+    },
+    { headers: headers(conf, token), label: 'Google Ads đặt ngân sách' });
+  if (res && res.error) {
+    throw new Error(scrub('Google Ads từ chối: ' + ((res.error && res.error.message) || 'không rõ')));
+  }
+  return { ok: true, ketQua: (res && res.results) || [] };
+}
+
 module.exports = {
   hanhDongChuyenDoi,
   PLATFORM, fetchRange, test, tokenInfo, accessToken, danhSachTaiKhoan, GAQL, API_VER_MAC,
+  timQuangCao, nganSachChienDich, datTrangThai, datNganSach,
 };
