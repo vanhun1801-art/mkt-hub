@@ -836,6 +836,51 @@ VIEW['doanh-thu'] = async (view) => {
  */
 const RS = { kq: null, dangChay: false };
 
+/**
+ * Câu đầu tiên của thẻ ROAS: số đang dùng đến từ ĐÂU và lúc nào.
+ *
+ * Vì sao là câu đầu: bản trước mở ra là "Cần hai bản xuất Excel từ Tourwell" —
+ * một việc thủ công không còn cần kể từ khi nối API, và người đọc thì tin.
+ *
+ * Bốn trường hợp, ba trong số đó phải nói ra điều không vui. Không gộp lại thành
+ * một câu chung chung: "chưa bật API" và "đã bật nhưng kho rỗng" cần hai hành
+ * động khác nhau, gộp lại là bắt người đọc tự đoán.
+ */
+function nguonSo(tt) {
+  const nhip = `App tự kéo <b>${tt.tuDongSoNgay} ngày</b> gần nhất mỗi khi kho cũ hơn `
+    + `<b>${tt.tuDongMoiGio} giờ</b>`;
+
+  if (!tt.tourwellBat) {
+    return `<div class="help" style="border-color:var(--warn);color:var(--warn)">
+      <b>Chưa bật API Tourwell — nên số ở đây phải nhập bằng file Excel.</b>
+      Bật ở tab <b>Kết nối &amp; Đồng bộ</b>, thẻ <b>Tourwell</b>, là số tự về và không phải xuất file nữa.
+    </div>`;
+  }
+  if (!tt.coDuLieu) {
+    return `<div class="help" style="border-color:var(--warn);color:var(--warn)">
+      <b>API Tourwell đã bật nhưng kho còn rỗng.</b> ${nhip} — hoặc bấm
+      <b>Kéo lại từ Tourwell ngay</b> để không phải đợi lượt hẹn giờ.
+      <br><span class="sub">Một lượt kéo mất vài phút và chạy ở nền, đóng tab cũng không sao.</span>
+    </div>`;
+  }
+  const luc = new Date(tt.luc).toLocaleString('vi-VN');
+  const khoang = (tt.khoang || []).length === 2
+    ? ` khoảng <b>${dmy(tt.khoang[0])} → ${dmy(tt.khoang[1])}</b>` : '';
+  if (!tt.tuApi) {
+    return `<div class="help">
+      Số đang dùng đến từ <b>file Excel</b> nhập lúc ${luc}.
+      <b>API Tourwell đã bật rồi</b> — bấm <b>Kéo lại từ Tourwell ngay</b> là hết phải xuất file.
+      <br><span class="sub">${nhip}.</span>
+    </div>`;
+  }
+  return `<div class="help">
+    <b>Số tự về từ API Tourwell</b> — không cần xuất Excel.
+    Lần kéo gần nhất <b>${luc}</b>${khoang}.
+    <br><span class="sub">${nhip}${tt.conTuoi ? ' · kho đang còn tươi' : ' · kho đã cũ, lượt hẹn giờ kế tiếp sẽ kéo lại'}.
+    ${tt.oDiaTam ? 'Kho nằm trên ổ đĩa tạm nên mất sau mỗi lần deploy — nhưng lượt hẹn giờ tự kéo lại, không phải làm gì.' : ''}</span>
+  </div>`;
+}
+
 async function roasVe() {
   const khoi = $('#roasKhoi');
   if (!khoi) return;
@@ -853,27 +898,32 @@ async function roasVe() {
     <div class="card-head"><h3>ROAS từng quảng cáo</h3>
       <span class="sub">doanh thu Tourwell ghi công về quảng cáo, không dùng trường Nguồn</span></div>
     <div class="card-body">
-      <div class="help">
-        Cần hai bản xuất Excel từ Tourwell: <b>Danh sách lead</b> và <b>Danh sách đơn hàng</b>.
-        App tự nhận file nào là file nào theo tên cột.
-        <br>Xuất đơn hàng nhớ chọn tab <b>Tất cả</b> và <b>xoá bộ lọc Bán hàng</b> — nếu không sẽ chỉ ra đơn của chính mình.
-      </div>
+      ${nguonSo(tt)}
       <div class="help" style="${tt.coDuLieu ? '' : 'border-color:var(--warn);color:var(--warn)'}">
         ${banXuat('Lead:', tt.lead)}<br>${banXuat('Đơn hàng:', tt.don)}
-        ${tt.coDuLieu ? `<br><span class="sub">nhập lúc ${new Date(tt.luc).toLocaleString('vi-VN')}</span>` : ''}
-        ${tt.coDuLieu && tt.oDiaTam ? '<br><b style="color:var(--warn)">Dữ liệu nhập nằm trên ổ đĩa tạm — mất sau lần deploy kế tiếp, nhập lại là xong.</b>' : ''}
-      </div>
-      <div class="form-grid">
-        <div class="field full"><label>Chọn hai file xuất từ Tourwell</label>
-          <input type="file" id="rsFile" accept=".xlsx" multiple>
-          <span class="hint">Chọn cả hai file một lượt cũng được</span></div>
+        ${tt.coDuLieu && tt.oDiaTam && !tt.tourwellBat ? '<br><b style="color:var(--warn)">Kho nằm trên ổ đĩa tạm — mất sau lần deploy kế tiếp, nhập lại là xong.</b>' : ''}
       </div>
       <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-        <button class="btn ghost" id="rsNhap" disabled>Nhập file</button>
         <button class="btn primary" id="rsTinh" ${tt.coDuLieu ? '' : 'disabled'}>Tính ROAS</button>
+        ${tt.tourwellBat ? '<button class="btn ghost" id="rsKeo">Kéo lại từ Tourwell ngay</button>' : ''}
         ${tt.coDuLieu ? '<button class="btn ghost" id="rsGhiBase">Ghi doanh thu lên Base</button>' : ''}
         ${tt.coDuLieu ? '<button class="btn ghost" id="rsXoa">Xoá dữ liệu đã nhập</button>' : ''}
       </div>
+      <details class="lui" style="margin-top:12px">
+        <summary>Nhập bằng file Excel — đường lùi khi API Tourwell không dùng được</summary>
+        <div class="help" style="margin-top:8px">
+          Hai bản xuất từ Tourwell: <b>Danh sách lead</b> và <b>Danh sách đơn hàng</b>.
+          App tự nhận file nào là file nào theo tên cột.
+          <br>Xuất đơn hàng nhớ chọn tab <b>Tất cả</b> và <b>xoá bộ lọc Bán hàng</b> — nếu không sẽ chỉ ra đơn của chính mình.
+          <br><b>File nhập vào THAY kho đang có</b>, kể cả kho vừa tự kéo từ API.
+        </div>
+        <div class="form-grid">
+          <div class="field full"><label>Chọn hai file xuất từ Tourwell</label>
+            <input type="file" id="rsFile" accept=".xlsx" multiple>
+            <span class="hint">Chọn cả hai file một lượt cũng được</span></div>
+        </div>
+        <button class="btn ghost" id="rsNhap" disabled>Nhập file</button>
+      </details>
       <div id="rsKetQua" style="margin-top:12px"></div>
     </div>
   </div>`;
@@ -904,6 +954,57 @@ async function roasVe() {
       await api('/api/roas/xoa', { method: 'POST', body: '{}' });
       RS.kq = null;
       await roasVe();
+    };
+  }
+
+  /* Nút kéo lại ngay. Cùng một khe việc nền với lượt ghi Base (sync/keonen.js),
+   * nên cùng một đường hỏi tiến độ — hai khe song song là hai lượt gọi Tourwell
+   * cùng lúc, mà Tourwell chỉ cho 60 yêu cầu mỗi phút.
+   *
+   * Kéo đúng bằng cửa sổ của lượt tự động, KHÔNG phải 60 ngày như nút ở tab Kết
+   * nối: đo được một lượt 60 ngày mất 1.077 giây. Ở đây anh Hùng đang đứng đợi
+   * để xem số, nên lấy đúng khoảng mà lượt tự động vẫn lấy. */
+  if ($('#rsKeo')) {
+    let hoiKeo = null;
+    const veKeo = (r) => {
+      const dong = (r.log || []).map(esc).join('<br>');
+      if (r.dangChay) {
+        return `<b>Đang kéo từ Tourwell…</b> ${r.giay || 0} giây`
+          + '<br><span class="sub">Chạy ở nền — đóng tab cũng không sao.</span>'
+          + (dong ? `<div style="margin-top:6px;font-size:12px">${dong}</div>` : '');
+      }
+      if (r.loi) return `<b style="color:var(--bad)">Lỗi:</b> ${esc(r.loi)}`
+        + (dong ? `<div style="margin-top:6px;font-size:12px">${dong}</div>` : '');
+      const k = r.kq || {};
+      return `<b>Đã kéo xong</b> ${esc((r.khoang || []).join(' → '))} — ${r.giay || 0} giây.`
+        + `<br>Lead <b>${int((k.lead && k.lead.dong) || 0)}</b> dòng · `
+        + `đơn <b>${int((k.don && k.don.dong) || 0)}</b> dòng`
+        + (k.don && k.don.tongTien != null ? ` · ${vnd(k.don.tongTien)}` : '')
+        + '<br>Bấm <b>Tính ROAS</b> để xem số mới.';
+    };
+    const hoi = async () => {
+      try {
+        const r = await api('/api/roas/keo-api/trang-thai');
+        $('#rsKetQua').innerHTML = `<div class="help">${veKeo(r)}</div>`;
+        if (r.dangChay) { hoiKeo = setTimeout(hoi, 3000); return; }
+        hoiKeo = null;
+        /* Xong thì vẽ lại cả thẻ: câu "số tự về từ API… lần kéo gần nhất" phải
+         * đổi theo, nếu không nó nói giờ cũ. */
+        if (!r.loi) await roasVe();
+      } catch (_) { hoiKeo = setTimeout(hoi, 5000); }
+    };
+    $('#rsKeo').onclick = async () => {
+      if (hoiKeo) { clearTimeout(hoiKeo); hoiKeo = null; }
+      const den = S.meta.today;
+      const t0 = new Date(den + 'T00:00:00Z');
+      t0.setUTCDate(t0.getUTCDate() - (tt.tuDongSoNgay || 21));
+      const tu = t0.toISOString().slice(0, 10);
+      $('#rsKetQua').innerHTML = '<div class="help">Đang đặt việc…</div>';
+      try {
+        const r = await api('/api/roas/keo-api', { method: 'POST', body: JSON.stringify({ from: tu, to: den }) });
+        $('#rsKetQua').innerHTML = `<div class="help">${r.daChay ? 'Đã có một lượt đang chạy — hiện tiến độ của lượt đó.<br>' : ''}${veKeo(r)}</div>`;
+        if (r.dangChay) hoiKeo = setTimeout(hoi, 2000);
+      } catch (e) { $('#rsKetQua').innerHTML = `<div class="help" style="color:var(--bad)">${esc(e.message)}</div>`; }
     };
   }
 

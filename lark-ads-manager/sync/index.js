@@ -276,6 +276,9 @@ const schedulerState = () => ({ dangBat: !!timer, lanKeTiep: nextAt });
 
 module.exports = {
   run, importCsv, testAll, history, schedulerState,
+  /* Xuất ra để giao diện nói ĐÚNG nhịp tự kéo, thay vì gõ cứng "6 giờ" và "21
+   * ngày" vào HTML rồi nói sai khi ai đó đổi biến môi trường. */
+  TUOI_KHO_GIO, NGAY_LUI_TW,
   startScheduler, stopScheduler,
   dangChay: () => running,
   ADAPTERS: Object.fromEntries(Object.entries(ADAPTERS).map(([k, v]) => [k, { source: v.source, label: v.label }])),

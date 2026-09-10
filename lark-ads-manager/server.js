@@ -645,6 +645,7 @@ async function api(req, res, u) {
 
   if (p === '/api/roas/trang-thai' && method === 'GET') {
     const k = docKho();
+    const tw = ketnoi.read().tourwell || {};
     return ok(res, {
       coDuLieu: !!k,
       luc: k ? k.luc : null,
@@ -653,6 +654,13 @@ async function api(req, res, u) {
       tuApi: !!(k && k.tuApi),
       khoang: (k && k.khoang) || null,
       oDiaTam: !!process.env.RENDER,
+      /* Ba số dưới đây để giao diện nói ĐÚNG: số tự về hay phải nhập tay, và tự
+       * về theo nhịp nào. Trước đây tab Doanh thu mở ra là dạy "cần hai bản xuất
+       * Excel từ Tourwell" — câu đó sai kể từ khi nối API. */
+      tourwellBat: !!(tw.enabled && tw.host && tw.token),
+      tuDongMoiGio: sync.TUOI_KHO_GIO,
+      tuDongSoNgay: sync.NGAY_LUI_TW,
+      conTuoi: khoRoas.conTuoi(sync.TUOI_KHO_GIO),
     });
   }
 

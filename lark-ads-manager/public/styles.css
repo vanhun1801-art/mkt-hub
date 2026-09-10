@@ -425,3 +425,18 @@ table.tbl tfoot td { font-weight: 700; background: var(--panel-2); border-top: 2
 .hd-o.good .hd-so { color: var(--good); }
 .hd-o.good .hd-nhom { color: var(--good); }
 .hd-o.info .hd-so { color: var(--brand); }
+
+/* ---------- đường lùi: việc thủ công đã bị API thay, gấp lại nhưng vẫn còn ----------
+   Không xoá hẳn vì API có thể chết token hoặc Tourwell có thể đổi; nhưng cũng
+   không để ngang hàng với đường chính, vì bày ra là dạy người ta làm việc tay. */
+.lui > summary {
+  cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--ink-3); padding: 4px 0; user-select: none;
+}
+.lui > summary::-webkit-details-marker { display: none; }
+.lui > summary::before {
+  content: '›'; display: inline-block; font-size: 14px; line-height: 1;
+  transition: transform .15s;
+}
+.lui[open] > summary::before { transform: rotate(90deg); }
+.lui > summary:hover { color: var(--ink-2); text-decoration: underline; }
