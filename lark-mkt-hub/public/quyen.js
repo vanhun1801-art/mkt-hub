@@ -133,7 +133,7 @@ function veDanhSachQuyen() {
       ') với vai nhân sự — xem danh sách ở cuối trang. Base khác phải cấp tên mới thấy.</div></div>' +
     '<span class="grow"></span>' +
     '<a class="btn ghost nho" href="' + esc(d.larkUrl || '#') + '" target="_blank" rel="noreferrer">Mở bảng trong Lark</a>' +
-    '<button class="btn primary" id="qThemNguoi">Thêm người dùng</button>' +
+    '<button class="btn primary" id="qThemNguoi">Thêm nhân sự</button>' +
     '</div>';
 
   html += '<div class="q-cuon"><table class="bang bang-nguoi"><thead><tr>' +
@@ -141,7 +141,7 @@ function veDanhSachQuyen() {
     '<th>Base được xem</th><th>Quyền thêm</th><th>Nhận diện</th><th></th>' +
     '</tr></thead><tbody>' +
     (ds.length ? ds.map(dong).join('')
-      : '<tr><td colspan="8" class="trong">Chưa khai ai. Bấm Thêm người dùng để bắt đầu.</td></tr>') +
+      : '<tr><td colspan="8" class="trong">Chưa khai ai. Bấm Thêm nhân sự để bắt đầu.</td></tr>') +
     '</tbody></table></div>';
 
   const chuaKhop = ds.filter((h) => !h.khop);
@@ -297,7 +297,7 @@ function moFormQuyen(i, nguoiSan) {
     '" placeholder="(không bắt buộc)">');
   html += '</div>';
 
-  $('#mdTitle').textContent = moi ? 'Thêm người dùng' : 'Sửa quyền · ' + (h.nguoi || h.email);
+  $('#mdTitle').textContent = moi ? 'Thêm nhân sự' : 'Sửa quyền · ' + (h.nguoi || h.email);
   $('#mdBody').innerHTML = html;
   $('#mdFoot').innerHTML =
     '<button class="btn ghost" id="fQuayLai">← Danh sách</button>' +

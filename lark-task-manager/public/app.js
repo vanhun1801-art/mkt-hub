@@ -1030,7 +1030,7 @@ async function saveQuyen() {
     const ids = [...S.quyen.chon];
     const d = await req('/api/managers', { method: 'POST', body: JSON.stringify({ ids }) });
     closeModal('mQuyen');
-    toast('Đã lưu: ' + d.managers.length + ' quản lý. Người bị đổi quyền cần tải lại trang.');
+    toast('Đã lưu: ' + d.managers.length + ' quản lý. Người bị đổi quyền cần mở lại trang.');
     await refresh(true);
   } catch (e) {
     $('#quyenMsg').textContent = 'Lỗi: ' + e.message;
@@ -3836,7 +3836,7 @@ function capNhatNhanThoiGian() {
   const nhan = giay < 15 ? 'vừa xong'
     : giay < 60 ? giay + ' giây trước'
     : Math.round(giay / 60) + ' phút trước';
-  n.title = 'Dữ liệu lấy từ Lark ' + nhan + ' — bấm để tải lại ngay';
+  n.title = 'Dữ liệu lấy từ Lark ' + nhan + ' — bấm để làm mới ngay';
   const sub = $('#subtitle');
   if (sub && S.meta) {
     sub.textContent = 'Tracking · ' + S.tasks.length +
@@ -3946,7 +3946,7 @@ function setupChrome() {
     const t0 = Date.now();
     try {
       await refresh(true);
-      toast('Đã tải lại từ Lark Base · ' + ((Date.now() - t0) / 1000).toFixed(1) + 's');
+      toast('Đã làm mới · ' + ((Date.now() - t0) / 1000).toFixed(1) + 's');
     } catch (e) { toast('Lỗi: ' + e.message, true); }
     b.disabled = false; b.textContent = '⟳';
   };

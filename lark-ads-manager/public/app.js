@@ -1333,7 +1333,7 @@ window.__goTab = (id) => { S.tab = id; renderShell(); render(); };
 $('#btnRefresh').onclick = async () => {
   const b = $('#btnRefresh');
   b.disabled = true; b.textContent = '⟳ Đang nạp…';
-  try { await api('/api/refresh', { method: 'POST' }); await loadMeta(); await render(); toast('Đã nạp lại số mới nhất', 'ok'); }
+  try { await api('/api/refresh', { method: 'POST' }); await loadMeta(); await render(); toast('Đã làm mới', 'ok'); }
   catch (e) { toast(e.message, 'err'); }
   b.disabled = false; b.textContent = '⟳ Làm mới';
 };

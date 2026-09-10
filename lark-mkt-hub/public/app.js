@@ -1224,7 +1224,7 @@ function modalCaiDat() {
     '<div id="oToi" class="canh-bao" hidden></div>' +
     '<table class="bang"><thead><tr><th>Base</th><th>Kiểu</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>' +
     '<tbody>' + dong + '</tbody></table>',
-    (S.quanLy ? '<button class="btn ghost" id="btnPhanQuyen">Phân quyền thành viên</button>' : '') +
+    (S.quanLy ? '<button class="btn ghost" id="btnPhanQuyen">Phân quyền nhân sự</button>' : '') +
     '<button class="btn ghost" id="btnKiemTra">Kiểm tra hệ thống</button>' +
     '<button class="btn ghost" data-close="1">Đóng</button>');
 

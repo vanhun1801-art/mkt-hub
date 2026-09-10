@@ -2886,7 +2886,7 @@ document.addEventListener('click', async (e) => {
   if (T.closest('#chipUser')) { openRoleSwitch(); return; }
 
   if (T.closest('#btnNew')) { $('#mdTitle').textContent = 'Đăng ký lịch tác nghiệp'; openCreate(); return; }
-  if (T.closest('#btnRefresh')) { toast('Đang tải lại…'); await refresh(true); return; }
+  if (T.closest('#btnRefresh')) { toast('Đang làm mới…'); await refresh(true); return; }
   if (T.closest('#drClose') || T.closest('#mask')) { closeDrawer(); return; }
   if (T.closest('#bcGui')) { await guiBaoCao(); return; }
   if (T.closest('#xhGui')) { await guiXinHuy(); return; }

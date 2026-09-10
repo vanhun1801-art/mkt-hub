@@ -196,7 +196,7 @@
     'chưa có nhân sự': 'no crew',
 
     /* --- phân quyền --- */
-    'Phân quyền thành viên': 'Member permissions',
+    'Phân quyền nhân sự': 'Staff permissions',
     'Về Cài đặt': 'Back to settings',
     'Chọn người trong danh bạ…': 'Pick from directory…',
     'Thêm dòng': 'Add row',
@@ -229,7 +229,7 @@
     'Họ tên': 'Full name',
     'Vai trò': 'Role',
     'Người dùng & phân quyền': 'Users & permissions',
-    'Thêm người dùng': 'Add user',
+    'Thêm nhân sự': 'Add staff',
     'Sửa': 'Edit',
     'Theo email': 'By email',
     'Chưa khớp ai': 'No match',
