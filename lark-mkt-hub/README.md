@@ -292,13 +292,71 @@ của module `local` thì phải khởi động lại hub):
   "kpi": "",
   "an": ["header.topbar > .brand"],
   "phuSelector": "#subtitle",
-  "bat": true
+  "bat": true,
+  "caPhong": false
 }
 ```
 
 - `an` — selector của khối logo/tiêu đề riêng cần ẩn (vì panel đã thay).
 - `phuSelector` — selector của dòng phụ đề động để panel hiển thị. Để trống thì panel dùng `mo_ta`.
 - `bat: false` — giữ trong file nhưng ẩn khỏi panel.
+- `caPhong: false` (mặc định, kể cả khi thiếu field) — base **kín**: chỉ quản lý và người
+  được cấp tên trong bảng Phân quyền thấy. Đặt `true` là mở cho cả phòng. Xem mục dưới.
+
+## Ai thấy base nào
+
+Base mới thêm vào panel **luôn kín**. Dựng một base chưa xong mà cả phòng đã thấy nó trong
+panel là chuyện đã xảy ra một lần — nên mở cho cả phòng bây giờ là một thao tác riêng
+(`Cài đặt → Base trong panel → Mở cả phòng`), không phải hệ quả của việc thêm base.
+
+Quyết định "người này thấy base nào" ghép từ hai nguồn:
+
+| Nguồn | Ở đâu | Nói gì |
+|---|---|---|
+| `caPhong` của base | `modules.json` / Cài đặt | base này có phải base dùng chung của cả phòng |
+| Ô "Base được xem" | bảng **Phân quyền app** trong Lark Base | người này được cấp thêm base nào |
+| Ô "Quản lý base" | cùng bảng đó | base nào người này **quản trị** (xem được là hệ quả) |
+
+Ô "Base được xem" có **ba** trạng thái, và đây là chỗ từng sai:
+
+| Ô ghi | Nghĩa |
+|---|---|
+| `cong-viec,lich-tac-nghiep` | đúng những base đó (base thêm sau **không** tự có) |
+| trống | không cấp base nào — chỉ còn các base `caPhong` và base mình quản trị |
+| `*` | mọi base, kể cả base thêm sau này |
+
+Trước đây ô trống bị hiểu là "tất cả", nên trong màn Phân quyền **bỏ tick hết base lại
+thành mở hết** cho người đó, và ai chưa có dòng nào trong bảng thì thấy sạch mọi base —
+kể cả base vừa dựng. Ba trạng thái giờ tách rời, `test/quyen-base.test.js` chốt lại luật này.
+
+### Ba nấc vai, không phải hai
+
+| Vai | Khai ở đâu | Được gì |
+|---|---|---|
+| Nhân sự | mặc định | việc của mình, trong những base được cấp |
+| **Quản trị base** (Lead) | ô **Quản lý base** trong bảng Phân quyền | **quản lý bên trong đúng base đó**: mọi bản ghi, mọi số tiền, thao tác được hết. Base đó tự hiện trong panel dù đang Kín |
+| Quản lý | `Vai = Quản lý`, hoặc `LARK_MANAGER_EMAILS` trên Render | mọi base + thêm/xoá base + phân quyền + Xem như + log app con |
+
+Nấc giữa là để giao một app cho một Lead **mà không phải cho họ quyền quản lý toàn hệ** —
+không thêm ai vào `LARK_MANAGER_EMAILS` (biến đó không có phạm vi, thêm là toàn quyền).
+Ví dụ: ô `Quản lý base` = `ota` → trong app Booking OTA họ là quản lý; mở base khác vẫn là
+nhân sự; ở lớp vỏ **không** thêm/xoá base, **không** sửa phân quyền, **không** Xem như,
+**không** xem log app con, **không** mở/đóng base cho cả phòng.
+
+Vai được tính **theo từng base ở từng request**: `laQLBase(q, mod)` trong `server.js`, rồi
+`nguoiKemQuyen(nguoi, q, mod)` gắn vào header `x-hub-user-manager` mà proxy gửi xuống app
+con. Vì vậy trang Tổng quan phải truyền **một hàm** `(mod) => danhTinh` xuống `kpi.tongQuan`,
+không phải một danh tính dùng chung — cùng một người có thể là quản lý base này và nhân sự
+base kia. Khoá cache chỉ số cũng gồm vai, nếu không thì đổi quyền xong vẫn trả bộ số vai cũ.
+
+Còn hai đường luôn thắng theo hướng mở, cố ý để không ai tự khoá mình ra ngoài:
+
+- `LARK_MANAGER_EMAILS` / `LARK_MANAGER_IDS` — vai quản lý, thấy mọi base.
+- Đọc bảng phân quyền **thất bại** (token hết hạn, Base lỗi) — mở tạm mọi base thay vì
+  khoá cả phòng. Khác hẳn "chưa khai dòng nào": chưa khai thì chỉ thấy base `caPhong`.
+
+Kiểm tra nhanh mình đã cấp đúng chưa: màn Phân quyền → **Xem như** một người, cả app
+chuyển sang đúng con mắt của họ (mọi thao tác ghi bị chặn trong lúc xem hộ).
 
 ## Thẻ chỉ số cho base mới
 
@@ -324,7 +382,8 @@ Bộ đọc hiện có: `cong-viec`, `lich-tac-nghiep`, `quang-cao`.
 ## Kiểm thử
 
 ```bash
-node test/api.test.js
+node test/chay-het.js      # tất cả các bộ, cộng tổng
+node test/api.test.js      # chỉ bộ tích hợp
 ```
 
 64 phép thử, **chỉ đọc** — không ghi gì lên Lark Base. Kiểm tra: lớp vỏ, proxy từng

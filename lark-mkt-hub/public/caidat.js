@@ -173,7 +173,9 @@ function veCdBase(el) {
   };
 
   el.innerHTML = cdTieuDe('Base trong panel',
-    'Mỗi base là một app riêng. Tắt hay ẩn ở đây không ảnh hưởng dữ liệu trong Lark.') +
+    'Mỗi base là một app riêng. Tắt hay ẩn ở đây không ảnh hưởng dữ liệu trong Lark. ' +
+    'Base "Kín" chỉ quản lý và người được cấp tên trong Phân quyền mới thấy — base mới ' +
+    'luôn bắt đầu ở Kín.') +
     '<div class="cd-ds-base">' + S.modules.map(dong).join('') + '</div>' +
     '<div class="cd-hang"><div class="cd-hang-tx"><b>Thêm base</b>' +
       '<p>Khai thêm một app hoặc một Lark Base vào panel.</p></div>' +
@@ -222,7 +224,16 @@ async function veCdKiemTra(el) {
     return;
   }
   const h = d.hub;
+      /* Ai thấy base này — dòng nào cũng phải trả lời được câu đó ngay, không
+       * phải mở màn Phân quyền mới biết. Bấm vào là đổi. */
+      '<span class="chip ' + (m.caPhong ? 'vang' : '') + '" title="' + (m.caPhong
+        ? 'Cả phòng thấy base này'
+        : 'Chỉ quản lý và người được cấp tên') + '">' +
+        (m.caPhong ? 'Cả phòng' : 'Kín') + '</span>' +
   const hang = (ten, gt, tot) => cdHang(ten, '', '<span class="cd-nhan ' +
+        '<button class="btn nho ghost" data-caphong="' + esc(m.id) + '"' +
+          ' data-moi="' + (m.caPhong ? '0' : '1') + '">' +
+          (m.caPhong ? 'Đóng lại' : 'Mở cả phòng') + '</button>' +
     (tot === false ? 'do' : tot === true ? 'luc' : '') + '">' + esc(gt) + '</span>');
 
   let html = cdTieuDe('Kiểm tra hệ thống', 'Hỏi thẳng từng base xem đang đọc được gì.') +

@@ -1357,7 +1357,16 @@ function modalThem() {
       <label>Link Lark Base</label><input type="url" id="fLark" placeholder="https://rootytrip2.sg.larksuite.com/base/...">
       <label>Bộ đọc chỉ số</label>
       <select id="fKpi"><option value="">— chưa có —</option></select>
-    </div>`,
+    </div>
+    <div class="dong-form">
+      <label>Ai thấy</label>
+      <select id="fCaPhong">
+        <option value="0">Kín — chỉ quản lý, cấp tên từng người sau</option>
+        <option value="1">Cả phòng — ai đăng nhập cũng thấy</option>
+      </select>
+    </div>
+    <div class="kh-sub" style="margin-top:6px">Base mới nên để <b>Kín</b> cho tới khi dựng xong:
+      mở cho cả phòng là mọi người thấy ngay trong panel. Đổi lại được trong Cài đặt.</div>`,
     '<button class="btn ghost" data-close="1">Huỷ</button><button class="btn primary" id="btnLuuThem">Thêm base</button>');
 
   goi('/api/bo-doc-kpi').then((d) => {
@@ -1387,11 +1396,13 @@ function modalThem() {
       thuMuc: $('#fThuMuc') ? $('#fThuMuc').value.trim() : '',
       cong: $('#fCong') ? Number($('#fCong').value) : 0,
       url: $('#fUrl') ? $('#fUrl').value.trim() : '',
+      caPhong: $('#fCaPhong') ? $('#fCaPhong').value === '1' : false,
     };
     try {
       const m = await goi('/api/modules', { method: 'POST', body: JSON.stringify(b) });
       dongModal();
-      toast('Đã thêm "' + m.ten + '" vào panel', 'luc');
+      toast('Đã thêm "' + m.ten + '" vào panel' +
+        (m.caPhong ? ' — cả phòng thấy' : ' — đang kín, chỉ quản lý thấy'), 'luc');
       await napHub();
       location.hash = m.kieu === 'lark' ? '#/tong-quan' : '#/m/' + m.id;
       napTongQuan(true);
@@ -1439,6 +1450,31 @@ async function hanhDong(id, act) {
       if (S.view === id) location.hash = '#/tong-quan';
       modalCaiDat();
     }
+  } catch (e) {
+    toast(e.message, 'do');
+  }
+}
+
+/**
+ * Mở base cho cả phòng, hoặc đóng lại.
+ *
+ * Mở là việc có hậu quả với người khác (cả phòng thấy ngay khi F5) nên phải hỏi
+ * lại; đóng thì không cần hỏi — đóng bớt không làm ai mất việc đang làm.
+ */
+async function doiCaPhong(id, caPhong) {
+  const m = S.modules.find((x) => x.id === id);
+  const ten = m ? m.ten : id;
+  if (caPhong && !confirm('Mở "' + ten + '" cho CẢ PHÒNG?\n\n' +
+    'Mọi người đăng nhập Hub sẽ thấy base này trong panel, kể cả người chưa được cấp tên. ' +
+    'Đóng lại được bất cứ lúc nào.')) return;
+  try {
+    await goi('/api/modules/' + encodeURIComponent(id), {
+      method: 'PATCH', body: JSON.stringify({ caPhong: !!caPhong }),
+    });
+    toast(caPhong ? 'Đã mở "' + ten + '" cho cả phòng'
+                  : 'Đã đóng "' + ten + '" — chỉ quản lý và người được cấp tên thấy', 'luc');
+    await napHub();
+    if (!$('#modalWrap').hidden) modalCaiDat('base');
   } catch (e) {
     toast(e.message, 'do');
   }
@@ -1590,11 +1626,16 @@ document.addEventListener('click', (e) => {
     return;
   }
 
-  const t = e.target.closest('[data-close],[data-batlai],[data-tat],[data-an],[data-xoa],[data-log],[data-lograeload]');
+  const t = e.target.closest('[data-close],[data-batlai],[data-tat],[data-an],[data-xoa],[data-log],[data-lograeload],[data-caphong]');
   if (!t) return;
   if (t.hasAttribute('data-close')) { dongModal(); return; }
   if (t.hasAttribute('data-log')) { e.preventDefault(); modalLog(t.getAttribute('data-log')); return; }
   if (t.hasAttribute('data-lograeload')) { e.preventDefault(); modalLog(t.getAttribute('data-lograeload')); return; }
+  if (t.hasAttribute('data-caphong')) {
+    e.preventDefault();
+    doiCaPhong(t.getAttribute('data-caphong'), t.getAttribute('data-moi') === '1');
+    return;
+  }
   for (const a of ['batlai', 'tat', 'an', 'xoa']) {
     if (t.hasAttribute('data-' + a)) { e.preventDefault(); hanhDong(t.getAttribute('data-' + a), a); return; }
   }

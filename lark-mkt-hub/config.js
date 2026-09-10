@@ -33,6 +33,12 @@ function docModules() {
     css: typeof m.css === 'string' ? m.css : '',
     phuSelector: m.phuSelector || '',
     bat: m.bat !== false,
+    /* Ai thấy base này khi CHƯA được cấp riêng:
+     *   true  = cả phòng (base dùng chung, ai đăng nhập cũng thấy)
+     *   false = chỉ quản lý + người được cấp tên trong bảng Phân quyền
+     * Thiếu field thì mặc định false — base mới thêm phải được mở tay, không
+     * tự phơi ra cho cả phòng. */
+    caPhong: m.caPhong === true,
   }));
 }
 

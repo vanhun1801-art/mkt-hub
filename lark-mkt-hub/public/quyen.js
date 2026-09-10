@@ -51,7 +51,8 @@ function nhanDien(h) {
   if (!h.khop) {
     return { loai: 'do', chu: 'Chưa khớp ai',
       mo: 'Không tìm thấy ai trong Lark khớp dòng này (email hoặc tên đang lệch) — ' +
-          'quyền chưa có tác dụng, người đó vẫn thấy mọi base. Bấm Gán người để sửa.' };
+          'quyền chưa có tác dụng, người đó rơi về mặc định (chỉ base mở cho cả phòng). ' +
+          'Bấm Gán người để sửa.' };
   }
   const c = h.khop.cach;
   const cach = c === 'email' ? 'theo email' : c === 'open_id' ? 'theo tài khoản đã đăng nhập' : 'theo tên';
@@ -78,15 +79,31 @@ function veDanhSachQuyen() {
   };
 
   const tenBase = (id) => (base.find((b) => b.id === id) || {}).ten || id;
-  const oBase = (h) => (!h.base || !h.base.length
-    ? '<span class="q-chip q-chip-mo">Tất cả ' + base.length + ' base</span>'
-    : h.base.map((id) => '<span class="q-chip">' + esc(tenBase(id)) + '</span>').join(''));
+  const chung = base.filter((b) => b.caPhong);
+  /* Ba trạng thái, hiện đúng ba kiểu chip — đọc dòng là biết ngay người đó thấy
+   * gì, không phải suy ra từ ô trống. */
+  const oBase = (h) => {
+    if (h.moiBase) return '<span class="q-chip q-chip-mo">Mọi base (kể cả base mới)</span>';
+    const them = (h.quanLyBase || []).filter((id) => !(h.base || []).includes(id))
+      .map((id) => '<span class="q-chip q-chip-ql">' + esc(tenBase(id)) + '</span>');
+    if ((h.base && h.base.length) || them.length) {
+      return (h.base || []).map((id) => '<span class="q-chip">' + esc(tenBase(id)) + '</span>')
+        .concat(them).join('');
+    }
+    return chung.length
+      ? '<span class="q-chip q-nhat">Chỉ ' + chung.length + ' base cả phòng</span>'
+      : '<span class="q-chip q-nd-do">Không base nào</span>';
+  };
 
   const oQuyen = (h) => {
     if (h.vai === 'Quản lý') return '<span class="q-chip q-chip-mo">toàn quyền</span>';
-    const bat = QUYEN_CO.filter((q) => h[q.k]);
-    if (!bat.length) return '<span class="q-nhat">mặc định</span>';
-    return bat.map((q) => '<span class="q-chip">' + esc(q.ten) + '</span>').join('');
+    // "Quản trị <base>" đứng trước, vì nó nặng hơn mấy tùy chọn lẻ
+    const ra = (h.quanLyBase || []).map((id) =>
+      '<span class="q-chip q-chip-ql">Quản trị ' + esc(tenBase(id)) + '</span>');
+    const bat = QUYEN_CO.filter((q) => h[q.k] && !(h.quanLyBase || []).length);
+    ra.push(...bat.map((q) => '<span class="q-chip">' + esc(q.ten) + '</span>'));
+    if (!ra.length) return '<span class="q-nhat">mặc định</span>';
+    return ra.join('');
   };
 
   const dong = (h, i) => {
@@ -109,10 +126,11 @@ function veDanhSachQuyen() {
       '</div></td></tr>';
   };
 
+  const tenChung = chung.map((b) => b.ten).join(', ') || 'không base nào';
   let html = '<div class="q-dau">' +
     '<div><b>' + ds.length + ' người đã khai quyền riêng</b>' +
-      '<div class="kh-sub">Người chưa khai thì thấy đủ ' + base.length +
-      ' base với vai nhân sự — xem danh sách ở cuối trang.</div></div>' +
+      '<div class="kh-sub">Người chưa khai thì chỉ thấy base mở cho cả phòng (' + esc(tenChung) +
+      ') với vai nhân sự — xem danh sách ở cuối trang. Base khác phải cấp tên mới thấy.</div></div>' +
     '<span class="grow"></span>' +
     '<a class="btn ghost nho" href="' + esc(d.larkUrl || '#') + '" target="_blank" rel="noreferrer">Mở bảng trong Lark</a>' +
     '<button class="btn primary" id="qThemNguoi">Thêm người dùng</button>' +
@@ -131,7 +149,8 @@ function veDanhSachQuyen() {
     html += '<div class="canh-bao do" style="margin-top:12px"><span class="grow">' +
       '<b>' + chuaKhop.length + ' dòng chưa khớp được với ai trong Lark</b> (' +
       chuaKhop.map((h) => esc(h.nguoi || h.email)).join(', ') + '). ' +
-      'Quyền của những dòng này CHƯA có tác dụng — người đó vẫn thấy mọi base. ' +
+      'Quyền của những dòng này CHƯA có tác dụng — người đó đang ở mặc định, ' +
+      'thấy các base mở cho cả phòng. ' +
       'Bấm <b>Gán người</b> rồi chọn đúng họ trong danh bạ.' +
       '</span></div>';
   }
@@ -150,8 +169,8 @@ function veDanhSachQuyen() {
   if (chuaKhai.length) {
     html += '<div class="q-khoi-phu">' +
       '<div class="q-khoi-dau"><b>' + chuaKhai.length + ' người chưa khai quyền</b>' +
-      '<span class="kh-sub">Đang ở mặc định: thấy đủ ' + base.length +
-      ' base với vai nhân sự. Bấm Khai quyền để đặt riêng.</span></div>' +
+      '<span class="kh-sub">Đang ở mặc định: chỉ thấy base mở cho cả phòng (' + esc(tenChung) +
+      ') với vai nhân sự. Bấm Khai quyền để cấp thêm base.</span></div>' +
       '<div class="q-chua-khai">' + chuaKhai.map((x) =>
         '<span class="q-nguoi-moi"><b>' + esc(x.ten) + '</b>' +
         (x.email ? '<small>' + esc(x.email) + '</small>' : '') +
@@ -185,7 +204,9 @@ function veLoiBang(d, base) {
     '<div class="q-dau"><a class="btn primary" href="' + esc(d.larkUrl || '#') +
     '" target="_blank" rel="noreferrer">Mở bảng phân quyền trong Lark</a><span class="grow"></span></div>' +
     '<div class="q-ghi">Bảng gồm: Người · Email · open_id · Vai · Vị trí · Base được xem (id các base, ' +
-    'cách nhau bằng dấu phẩy: ' + base.map((b) => esc(b.id)).join(', ') + ') · ' +
+    'cách nhau bằng dấu phẩy: ' + base.map((b) => esc(b.id)).join(', ') +
+    '; ghi <code>*</code> là mọi base kể cả base thêm sau; bỏ trống là không base nào) · ' +
+    'Quản lý base (id các base mà người này làm quản lý — nấc giữa cho Lead một app) · ' +
     'Xem toàn bộ base · Được tạo mới · Xem chi phí.</div>';
 }
 
@@ -197,7 +218,7 @@ function moFormQuyen(i, nguoiSan) {
   const h = moi
     ? { recordId: '', nguoi: (nguoiSan && nguoiSan.ten) || '', email: (nguoiSan && nguoiSan.email) || '',
         openId: (nguoiSan && nguoiSan.id) || '', vai: 'Nhân sự', viTri: '',
-        base: [], toanBo: false, taoMoi: true, chiPhi: false, ghiChu: '',
+        base: [], quanLyBase: [], toanBo: false, taoMoi: true, chiPhi: false, ghiChu: '',
         khop: nguoiSan ? { id: nguoiSan.id, ten: nguoiSan.ten, cach: 'open_id' } : null }
     : S.quyenHang[i];
   S.quyenSua = Object.assign({}, h);
@@ -241,13 +262,30 @@ function moFormQuyen(i, nguoiSan) {
     '<option value="Quản lý"' + (h.vai === 'Quản lý' ? ' selected' : '') + '>Quản lý — toàn quyền</option>' +
     '</select>');
 
+  /* Ô này từng có một cái bẫy: dòng để trống thì mọi hộp hiện ra ĐÃ TICK, mà bỏ
+   * tick sạch lại lưu thành "xem tất cả". Giờ tick nào là đúng base đó, muốn mở
+   * hết thì phải bật riêng ô "Mọi base" — không có trạng thái nào đoán hộ nữa. */
   html += hang('Base được xem',
-    '<div class="q-nhom" id="fBase">' + base.map((b) => {
-      const het = !h.base || !h.base.length;
-      return '<label class="q-ck"><input type="checkbox" data-base="' + esc(b.id) + '"' +
-        (het || h.base.includes(b.id) ? ' checked' : '') + '><span>' + esc(b.ten) + '</span></label>';
-    }).join('') + '</div>',
-    'Bỏ tick base nào thì base đó biến khỏi panel của họ, và API cũng chặn luôn.');
+    '<label class="q-ck q-ck-manh"><input type="checkbox" id="fMoiBase"' + (h.moiBase ? ' checked' : '') + '>' +
+    '<span>Mọi base</span><small class="q-nhat">— kể cả base thêm vào sau này</small></label>' +
+    '<div class="q-nhom" id="fBase">' + base.map((b) =>
+      '<label class="q-ck"><input type="checkbox" data-base="' + esc(b.id) + '"' +
+        (h.base && h.base.includes(b.id) ? ' checked' : '') + '><span>' + esc(b.ten) + '</span>' +
+        (b.caPhong ? '<small class="q-nhat">— cả phòng đã thấy</small>' : '') + '</label>').join('') +
+    '</div>',
+    'Tick base nào thì thấy đúng base đó. Không tick gì thì chỉ còn các base mở cho cả phòng ' +
+    '(đánh dấu ở trên) — bỏ tick là base biến khỏi panel của họ và API cũng chặn luôn.');
+
+  /* Nấc giữa giữa nhân sự và quản lý tổng: Lead phụ trách một app.
+   * Không hiện khi Vai = Quản lý vì lúc đó đã là quản lý mọi base. */
+  html += hang('Quản trị base',
+    '<div class="q-nhom" id="fQLBase">' + base.map((b) =>
+      '<label class="q-ck"><input type="checkbox" data-qlbase="' + esc(b.id) + '"' +
+        (h.quanLyBase && h.quanLyBase.includes(b.id) ? ' checked' : '') + '>' +
+        '<span>' + esc(b.ten) + '</span></label>').join('') + '</div>',
+    'Trong base đã tick, người này <b>là quản lý của base đó</b>: thấy mọi bản ghi, mọi số tiền, ' +
+    'thao tác được hết — như anh. Ngoài base đó vẫn là nhân sự: không thêm/xoá base, ' +
+    'không sửa phân quyền, không Xem như. Tick ở đây thì base đó tự hiện trong panel của họ.');
 
   html += hang('Quyền thêm cho nhân sự',
     '<div class="q-nhom" id="fQuyen">' + QUYEN_CO.map((q) =>
@@ -285,12 +323,36 @@ function moFormQuyen(i, nguoiSan) {
     };
   }
 
+  /* Vai = Quản lý là toàn quyền mọi base rồi, hiện thêm nhóm "Quản trị base"
+   * chỉ gây tưởng là phải tick mới có. */
+  const selVai = $('#fVai');
+  if (selVai) {
+    const dongBoVai = () => {
+      const laQL = selVai.value === 'Quản lý';
+      const o = $('#fQLBase');
+      if (o) o.closest('.q-hang').hidden = laQL;
+    };
+    selVai.addEventListener('change', dongBoVai);
+    dongBoVai();
+  }
+
+  const ckMoi = $('#fMoiBase');
+  if (ckMoi) {
+    const dongBo = () => { $('#fBase').classList.toggle('q-mo-het', ckMoi.checked); };
+    ckMoi.onchange = dongBo;
+    dongBo();
+  }
+
   const selVT = $('#fViTri');
   if (selVT) {
     selVT.onchange = () => {
       const mau = (d.viTri || []).find((v) => v.ten === selVT.value);
       if (!mau) return;
       $$('#fBase [data-base]').forEach((ck) => { ck.checked = (mau.base || []).includes(ck.dataset.base); });
+      const cm = $('#fMoiBase');
+      if (cm) { cm.checked = mau.vai === 'Quản lý'; cm.onchange(); }
+      // mẫu vị trí không khai "quản trị base" — đó là việc chỉ định riêng từng người
+      $$('#fQLBase [data-qlbase]').forEach((ck) => { ck.checked = false; });
       QUYEN_CO.forEach((q) => {
         const ck = $('#fQuyen [data-q="' + q.k + '"]');
         if (ck) ck.checked = !!mau[q.k];
@@ -312,15 +374,24 @@ async function luuFormQuyen() {
     openId: S.quyenSua.openId || '',
     vai: $('#fVai').value,
     viTri: $('#fViTri').value,
-    // tick đủ = không giới hạn, để trống ô trong Base cho dễ đọc
-    base: chon.length === oBase.length ? [] : chon,
+    /* Lưu ĐÚNG những gì đã tick. Trước đây "tick đủ" được lưu thành ô trống với
+     * ý "không giới hạn" — mà ô trống cũng là kết quả của "bỏ tick hết", nên hai
+     * ý ngược nhau ra cùng một giá trị, và base thêm sau tự động mở cho họ. */
+    base: chon,
+    moiBase: !!($('#fMoiBase') || {}).checked,
+    quanLyBase: $$('#fQLBase [data-qlbase]').filter((x) => x.checked).map((x) => x.dataset.qlbase),
     toanBo: bat('toanBo'),
     taoMoi: bat('taoMoi'),
     chiPhi: bat('chiPhi'),
     ghiChu: $('#fGhiChu').value.trim(),
   };
   if (!hang.nguoi && !hang.email) { toast('Cần ít nhất họ tên hoặc email', 'do'); return; }
-  if (!chon.length) toast('Bỏ tick hết base thì người này vào app không thấy gì', '');
+  if (!chon.length && !hang.moiBase) {
+    const soChung = (((S.quyen || {}).base) || []).filter((b) => b.caPhong).length;
+    toast(soChung
+      ? 'Không tick base nào — người này chỉ còn ' + soChung + ' base mở cho cả phòng'
+      : 'Không tick base nào — người này vào app không thấy base nào', '');
+  }
 
   const nut = $('#fLuu');
   nut.disabled = true;
@@ -341,7 +412,7 @@ async function luuFormQuyen() {
 async function xoaDongQuyen(recordId) {
   try {
     await goi('/api/quyen?recordId=' + encodeURIComponent(recordId), { method: 'DELETE' });
-    toast('Đã xoá — người này trở về mặc định', 'luc');
+    toast('Đã xoá — người này trở về mặc định (chỉ base cả phòng)', 'luc');
     await modalPhanQuyen();
     napHub();
   } catch (e) {
@@ -395,7 +466,7 @@ document.addEventListener('click', (e) => {
   const xoa = e.target.closest('[data-xoaq]');
   if (xoa) {
     e.preventDefault();
-    if (confirm('Xoá dòng này? Người đó trở về mặc định: thấy mọi base, vai nhân sự.')) {
+    if (confirm('Xoá dòng này? Người đó trở về mặc định: chỉ thấy base mở cho cả phòng, vai nhân sự.')) {
       xoaDongQuyen(xoa.getAttribute('data-xoaq'));
     }
   }

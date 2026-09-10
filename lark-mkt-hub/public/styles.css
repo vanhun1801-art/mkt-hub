@@ -941,6 +941,10 @@ code { background: var(--trang-2); border: 1px solid var(--vien-mem); border-rad
 }
 .q-ck input { accent-color: var(--xanh); width: 15px; height: 15px; margin: 0; cursor: pointer; }
 .q-ck:hover { color: var(--chu); }
+/* "Mọi base" đứng trên cả nhóm tick nên phải nặng hơn một chút, và khi bật thì
+   nhóm bên dưới mờ đi để không ai tưởng mình còn đang giới hạn base. */
+.q-ck-manh { color: var(--chu); font-weight: 600; margin-bottom: 6px; }
+.q-nhom.q-mo-het { opacity: .42; pointer-events: none; }
 .q-ghi { margin-top: 12px; font-size: 12.5px; color: var(--chu-nhat); line-height: 1.55; }
 
 /* bảng phân quyền cần rộng hơn hộp thoại thường (7 cột, có checkbox) */
@@ -1004,6 +1008,8 @@ body.dang-xem-ho .app { height: calc(100vh - 34px); margin-top: 34px; }
   font-size: 11.5px; font-weight: 550; white-space: nowrap;
 }
 .q-chip-mo { background: var(--nhiet-0); color: var(--chu-mo); }
+/* base mà người này QUẢN TRỊ — nặng hơn base chỉ được xem, nên có màu riêng */
+.q-chip-ql { background: rgba(255, 149, 0, .14); color: #b45309; font-weight: 600; }
 .q-chip-toi { background: var(--luc-nhat); color: var(--luc); }
 .q-nd-luc { background: var(--luc-nhat); color: var(--luc); }
 .q-nd-vang { background: var(--vang-nhat); color: var(--vang); }

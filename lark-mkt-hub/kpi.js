@@ -620,11 +620,20 @@ const cache = new Map(); // "id|tu|den" -> { at, data }
 /* Khoá cache mang cả khoảng lọc VÀ id người xem: chế độ chạy chung, mỗi người
  * thấy một phạm vi khác nhau — dùng chung cache là lộ dữ liệu của nhau. */
 const khoa = (mod, k, nguoi) => mod.id + '|' + ((k && k.tu) || '') + '|' + ((k && k.den) || '') +
-  '|' + ((nguoi && nguoi.id) || '');
+  '|' + ((nguoi && nguoi.id) || '') +
+  /* Vai vào khoá luôn: cùng một người, cùng một base, mà vai đổi (được cấp thêm
+   * "Quản lý base") thì con số phải tính lại — không được trả bộ số của vai cũ. */
+  '|' + (nguoi ? (nguoi.quanLy ? 'q' : '') + (nguoi.toanBo ? 't' : '') + (nguoi.chiPhi ? 'c' : '') : '');
 
-async function doc(mod, khoang, nguoi) {
+/* `nguoi` nhận cả HÀM `(mod) => danhTinh`: vai của một người khác nhau theo từng
+ * base (ô "Quản lý base" — Lead phụ trách một app), mà trang Tổng quan đọc nhiều
+ * base một lượt nên không thể dùng chung một danh tính. */
+const aiCua = (nguoi, mod) => (typeof nguoi === 'function' ? nguoi(mod) : nguoi);
+
+async function doc(mod, khoang, nguoiHoacHam) {
   const fn = BO_DOC[mod.kpi];
   if (!fn) return { ok: false, loi: '', khongCo: true };
+  const nguoi = aiCua(nguoiHoacHam, mod);
 
   const kh = khoa(mod, khoang, nguoi);
   const c = cache.get(kh);
@@ -646,7 +655,8 @@ async function doc(mod, khoang, nguoi) {
  * Dùng lại cache của `doc()` nên mở cửa sổ gần như tức thì và con số luôn khớp
  * với thẻ vừa bấm.
  */
-async function nhomCua(mod, khoaNhom, khoang, nguoi) {
+async function nhomCua(mod, khoaNhom, khoang, nguoiHoacHam) {
+  const nguoi = aiCua(nguoiHoacHam, mod);
   const d = await doc(mod, khoang, nguoi);
   if (!d.ok) throw new Error(d.loi || 'Không đọc được chỉ số của base này');
 

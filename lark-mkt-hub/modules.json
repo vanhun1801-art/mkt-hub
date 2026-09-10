@@ -9,7 +9,7 @@
     "  ngoai  = app đã có URL riêng (Render, server nội bộ...), hub nhúng thẳng iframe",
     "  lark   = mở thẳng Lark Base trong tab mới (Lark chặn nhúng iframe)",
     "",
-    "icon: tên icon 2D trong public/icons.js (cong-viec | lich | quang-cao | base | may | tien | nguoi). Tên lạ thì in ra dạng chữ.\nkpi: tên bộ đọc chỉ số cho trang Tổng quan chung (xem kpi.js). Để trống nếu chưa có."
+    "icon: tên icon 2D trong public/icons.js (cong-viec | lich | quang-cao | base | may | tien | nguoi). Tên lạ thì in ra dạng chữ.\nkpi: tên bộ đọc chỉ số cho trang Tổng quan chung (xem kpi.js). Để trống nếu chưa có.\ncaPhong: true = base dùng chung, ai đăng nhập cũng thấy. false (mặc định) = chỉ quản lý và người được cấp tên trong bảng Phân quyền app. Base thêm mới luôn bắt đầu ở false."
   ],
   "modules": [
     {
@@ -31,7 +31,8 @@
         "header.topbar > .brand"
       ],
       "phuSelector": "#subtitle",
-      "bat": true
+      "bat": true,
+      "caPhong": true
     },
     {
       "id": "lich-tac-nghiep",
@@ -51,7 +52,8 @@
       "an": [
         "header.topbar > .brand"
       ],
-      "bat": true
+      "bat": true,
+      "caPhong": true
     },
     {
       "id": "quang-cao",
@@ -73,7 +75,8 @@
       ],
       "phuSelector": "#brandSub",
       "bat": true,
-      "css": ".topbar-right { margin-left: auto; }"
+      "css": ".topbar-right { margin-left: auto; }",
+      "caPhong": false
     },
     {
       "id": "ota",
@@ -94,7 +97,8 @@
       ],
       "phuSelector": "#brandSub",
       "bat": true,
-      "css": ".topbar-right { margin-left: auto; }"
+      "css": ".topbar-right { margin-left: auto; }",
+      "caPhong": false
     },
     {
       "id": "social",
@@ -111,14 +115,15 @@
       ],
       "larkUrl": "https://rootytrip2.sg.larksuite.com/base/YzgUbMS3PaE0B9sDtdIlNYzFgsc",
       "kpi": "social",
-    "_thuApi": "app Social đặt tên endpoint khác /api/meta, khai ở đây để test proxy gọi đúng đường — ý định của phép kiểm là JSON đi xuyên proxy được, không phải một tên cố định",
-    "thuApi": "/api/tong-quan?days=1",
+      "_thuApi": "app Social đặt tên endpoint khác /api/meta, khai ở đây để test proxy gọi đúng đường — ý định của phép kiểm là JSON đi xuyên proxy được, không phải một tên cố định",
+      "thuApi": "/api/tong-quan?days=1",
       "an": [
         "header.topbar > .brand"
       ],
       "phuSelector": "#brandSub",
       "bat": true,
-      "css": ".topbar-right { margin-left: auto; }"
+      "css": ".topbar-right { margin-left: auto; }",
+      "caPhong": false
     },
     {
       "id": "kpi",
@@ -140,7 +145,8 @@
       ],
       "phuSelector": "#brandSub",
       "bat": true,
-      "css": ".topbar-right { margin-left: auto; }"
+      "css": ".topbar-right { margin-left: auto; }",
+      "caPhong": false
     }
   ]
 }

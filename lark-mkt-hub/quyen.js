@@ -7,11 +7,23 @@
  * Lark, và dữ liệu đi cùng chỗ với mọi thứ khác của phòng.
  *
  * Bảng: "Phân quyền app" (mặc định nằm trong Base Tracking).
- *   Người · Email · open_id · Vai · Base được xem · Xem toàn bộ base ·
- *   Được tạo mới · Xem chi phí · Ghi chú
+ *   Người · Email · open_id · Vai · Base được xem · Quản lý base ·
+ *   Xem toàn bộ base · Được tạo mới · Xem chi phí · Ghi chú
+ *
+ * "Vai = Quản lý" là toàn quyền TOÀN HỆ. "Quản lý base" là nấc giữa: trong đúng
+ * những base ghi ở ô đó thì người này là quản lý (thấy mọi bản ghi, mọi số tiền,
+ * thao tác được hết), còn ở lớp vỏ vẫn là nhân sự — không thêm/xoá base, không
+ * sửa phân quyền, không Xem như. Dành cho Lead phụ trách một app.
  *
  * Khớp người theo EMAIL trước, rồi mới tới open_id: open_id khác nhau giữa các
  * app Lark nên không dùng làm khoá chính được.
+ *
+ * Ô "Base được xem" có BA trạng thái, đừng lẫn:
+ *   "cong-viec,lich-tac-nghiep"  chỉ đúng những base này (base thêm sau KHÔNG có)
+ *   ""  (trống)                  không base nào — đã cấp quyền mà bỏ trống là cấm sạch
+ *   "*"                          mọi base, kể cả base thêm sau này
+ * Trước đây trống bị hiểu là "mọi base", nên bỏ tick hết trong màn Phân quyền lại
+ * thành mở hết — xem [[quyen-base-trong]] trong README.
  */
 const os = require('os');
 const fsn = require('fs');
@@ -22,6 +34,11 @@ const cfg = require('./config');
 const BASE = process.env.HUB_QUYEN_BASE || 'JhZtbxv0gamk5ys3Fr0luHnsgwG';
 const TABLE = process.env.HUB_QUYEN_TABLE || 'tblBKm6ZurhN3703';
 
+/* Bảng phân quyền để trong một FILE thay vì Base — chỉ dùng cho kiểm thử và cho
+ * máy không nối được Lark. Có seam này thì luật "ai thấy base nào" kiểm thử được
+ * mà không cần khoá app thật (xem test/quyen-base.test.js). */
+const FILE = process.env.HUB_QUYEN_FILE || '';
+
 const F = {
   nguoi: 'Người',
   email: 'Email',
@@ -29,6 +46,7 @@ const F = {
   vai: 'Vai',
   viTri: 'Vị trí',
   base: 'Base được xem',
+  quanLyBase: 'Quản lý base',
   toanBo: 'Xem toàn bộ base',
   taoMoi: 'Được tạo mới',
   chiPhi: 'Xem chi phí',
@@ -155,8 +173,16 @@ async function tenCot() {
   return theoId;
 }
 
+/** Ô "Base được xem" -> { base: [...id], moiBase: true/false }. Xem đầu file. */
+function docOBase(raw) {
+  const phan = String(raw == null ? '' : raw).split(',').map((x) => x.trim()).filter(Boolean);
+  const laMoi = (x) => x === '*' || /^(tất cả|tat ca|all)$/i.test(x);
+  return { base: phan.filter((x) => !laMoi(x)), moiBase: phan.some(laMoi) };
+}
+
 async function docTatCa(boQuaCache) {
   if (!boQuaCache && cache.ds && Date.now() - cache.at < 20000) return cache.ds;
+  if (FILE) return docTuFile();
 
   const theoId = await tenCot();
   const out = [];
@@ -171,19 +197,24 @@ async function docTatCa(boQuaCache) {
     offset += 200;
   }
 
-  const ds = out.map((r) => ({
-    recordId: r.id,
-    nguoi: asText(r[F.nguoi]),
-    email: asText(r[F.email]).trim().toLowerCase(),
-    openId: asText(r[F.openId]).trim(),
-    vai: asText(Array.isArray(r[F.vai]) ? r[F.vai][0] : r[F.vai]) || '',
-    viTri: asText(r[F.viTri]).trim(),
-    base: asText(r[F.base]).split(',').map((x) => x.trim()).filter(Boolean),
-    toanBo: r[F.toanBo] === true,
-    taoMoi: r[F.taoMoi] === true,
-    chiPhi: r[F.chiPhi] === true,
-    ghiChu: asText(r[F.ghiChu]),
-  })).filter((r) => r.email || r.openId || r.nguoi);
+  const ds = out.map((r) => {
+    const oB = docOBase(asText(r[F.base]));
+    return {
+      recordId: r.id,
+      nguoi: asText(r[F.nguoi]),
+      email: asText(r[F.email]).trim().toLowerCase(),
+      openId: asText(r[F.openId]).trim(),
+      vai: asText(Array.isArray(r[F.vai]) ? r[F.vai][0] : r[F.vai]) || '',
+      viTri: asText(r[F.viTri]).trim(),
+      base: oB.base,
+      moiBase: oB.moiBase,
+      quanLyBase: docOBase(asText(r[F.quanLyBase])).base,
+      toanBo: r[F.toanBo] === true,
+      taoMoi: r[F.taoMoi] === true,
+      chiPhi: r[F.chiPhi] === true,
+      ghiChu: asText(r[F.ghiChu]),
+    };
+  }).filter((r) => r.email || r.openId || r.nguoi);
 
   cache = { at: Date.now(), ds };
   return ds;
@@ -241,18 +272,34 @@ async function vaDanhTinh(hang, nguoi) {
 
 /* ---------------- ghi ---------------- */
 async function ghi(hang) {
+  if (FILE) return ghiVaoFile(hang);
   const cells = {
     [F.nguoi]: hang.nguoi || '',
     [F.email]: (hang.email || '').trim(),
     [F.openId]: (hang.openId || '').trim(),
     [F.vai]: hang.vai === 'Quản lý' ? 'Quản lý' : 'Nhân sự',
     [F.viTri]: hang.viTri || '',
-    [F.base]: (hang.base || []).join(','),
+    // '*' = mọi base kể cả base thêm sau; trống = không base nào (KHÔNG phải "tất cả")
+    [F.base]: hang.moiBase ? '*' : (hang.base || []).join(','),
+    [F.quanLyBase]: (hang.quanLyBase || []).join(','),
     [F.toanBo]: !!hang.toanBo,
     [F.taoMoi]: !!hang.taoMoi,
     [F.chiPhi]: !!hang.chiPhi,
     [F.ghiChu]: hang.ghiChu || '',
   };
+
+  /* Bảng của người dùng có thể thiếu cột mới (chưa thêm "Quản lý base" chẳng
+   * hạn). Ghi vào cột không tồn tại là Lark trả lỗi và mất luôn cả bản ghi —
+   * nên lọc theo cột thật, và nói ra cột nào bị bỏ để không âm thầm mất dữ liệu. */
+  try {
+    const co = new Set(Object.values(await tenCot()));
+    for (const ten of Object.keys(cells)) {
+      if (!co.has(ten)) {
+        delete cells[ten];
+        console.warn('  [phân quyền] bảng chưa có cột "' + ten + '" — bỏ qua ô này khi ghi.');
+      }
+    }
+  } catch (_) { /* không đọc được danh sách cột thì cứ ghi như cũ */ }
 
   if (hang.recordId) {
     const body = { update_records: { [hang.recordId]: cells } };
@@ -271,6 +318,12 @@ async function ghi(hang) {
 }
 
 async function xoa(recordId) {
+  if (FILE) {
+    const ds = docTuFile().filter((r) => r.recordId !== recordId);
+    fsn.writeFileSync(pathn.resolve(FILE), JSON.stringify(ds, null, 2), 'utf8');
+    cache.at = 0;
+    return;
+  }
   const body = { record_id_list: [recordId] };
   if (laApi()) await goi('POST', '/records/batch_delete', body);
   else await cli(['base', '+record-batch-delete', ...cliArgs(), '--json', JSON.stringify(body)]);
@@ -279,8 +332,46 @@ async function xoa(recordId) {
 
 function xoaCache() { cache.at = 0; }
 
+/* ---------------- bảng phân quyền để trong file (kiểm thử / máy rời Lark) ----
+ * File là một mảng JSON các dòng đã chuẩn hoá:
+ *   [{ "nguoi": "...", "email": "...", "base": ["cong-viec"], "moiBase": false,
+ *      "vai": "Nhân sự", "toanBo": false, "taoMoi": true, "chiPhi": false }]
+ */
+function docTuFile() {
+  let tho = [];
+  try { tho = JSON.parse(fsn.readFileSync(pathn.resolve(FILE), 'utf8')); } catch (_) { tho = []; }
+  if (!Array.isArray(tho)) tho = tho && Array.isArray(tho.hang) ? tho.hang : [];
+  const ds = tho.map((r, i) => {
+    const o = typeof r.base === 'string' ? docOBase(r.base) : { base: r.base || [], moiBase: !!r.moiBase };
+    return {
+      recordId: r.recordId || 'f' + i,
+      nguoi: String(r.nguoi || ''),
+      email: String(r.email || '').trim().toLowerCase(),
+      openId: String(r.openId || '').trim(),
+      vai: r.vai === 'Quản lý' ? 'Quản lý' : 'Nhân sự',
+      viTri: String(r.viTri || ''),
+      base: o.base, moiBase: o.moiBase,
+      quanLyBase: typeof r.quanLyBase === 'string'
+        ? docOBase(r.quanLyBase).base : (r.quanLyBase || []),
+      toanBo: !!r.toanBo, taoMoi: r.taoMoi !== false, chiPhi: !!r.chiPhi,
+      ghiChu: String(r.ghiChu || ''),
+    };
+  }).filter((r) => r.email || r.openId || r.nguoi);
+  cache = { at: Date.now(), ds };
+  return ds;
+}
+
+function ghiVaoFile(hang) {
+  const ds = docTuFile().filter((r) => !hang.recordId || r.recordId !== hang.recordId);
+  const id = hang.recordId || 'f' + Date.now();
+  ds.push(Object.assign({}, hang, { recordId: id }));
+  fsn.writeFileSync(pathn.resolve(FILE), JSON.stringify(ds, null, 2), 'utf8');
+  cache.at = 0;
+  return id;
+}
+
 module.exports = {
   BASE, TABLE, F,
-  docTatCa, cuaNguoi, ghi, xoa, xoaCache,
+  docTatCa, cuaNguoi, ghi, xoa, xoaCache, docOBase,
   larkUrl: 'https://rootytrip2.sg.larksuite.com/base/' + BASE + '?table=' + TABLE,
 };

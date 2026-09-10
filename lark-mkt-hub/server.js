@@ -49,28 +49,80 @@ function laQuanLy(nguoi) {
 /**
  * Quyền hiệu lực: bảng "Phân quyền app" trong Base, cộng với biến môi trường.
  * Env luôn thắng theo hướng MỞ (không ai tự khoá mình ra ngoài được nếu bảng
- * trống, sai, hay Base tạm thời lỗi). Chưa khai dòng nào thì mặc định thấy mọi
- * base — để thêm base mới không âm thầm biến mất với cả phòng.
+ * trống, sai, hay Base tạm thời lỗi).
+ *
+ * `base` mang BA nghĩa khác nhau, và đây là chỗ dễ nhầm nhất của cả app:
+ *   null      chưa có dòng phân quyền -> chỉ thấy base mở cho CẢ PHÒNG
+ *   []        có dòng mà bỏ trống     -> KHÔNG thấy base nào (trừ base cả phòng)
+ *   ['a','b'] đúng hai base đó
+ * cộng cờ `moiBase` (ô ghi '*') = thấy mọi base, kể cả base thêm sau này.
+ *
+ * Trước đây [] bị gộp thành null, nên "bỏ tick hết base" lại thành "mở hết" —
+ * và base mới thêm vào panel là cả phòng thấy ngay. Giờ tách rõ ba nghĩa.
  */
 async function quyenCua(nguoi) {
   const envQL = laQuanLy(nguoi);
-  const mac = { quanLy: envQL, base: null, toanBo: false, taoMoi: true, chiPhi: envQL, tuBang: false };
-  if (!nguoi || cfg.mode !== 'api') return mac;
+  const mac = {
+    quanLy: envQL, base: null, moiBase: false, quanLyBase: [],
+    toanBo: false, taoMoi: true, chiPhi: envQL, tuBang: false,
+  };
+  if (!nguoi || cfg.mode !== 'api') return Object.assign(mac, { moiBase: true });
   let hang = null;
-  try { hang = await quyen.cuaNguoi(nguoi); } catch (e) { return mac; }
+  // Base lỗi/hết hạn token: mở hết còn hơn khoá cả phòng ra ngoài, nhưng phải
+  // là ĐÚNG nhánh lỗi — chưa khai dòng nào là chuyện khác, xem dưới.
+  try { hang = await quyen.cuaNguoi(nguoi); } catch (e) { return Object.assign(mac, { moiBase: true, loiBang: true }); }
   if (!hang) return mac;
-  return {
+  return Object.assign(tuHang(hang), {
     quanLy: envQL || hang.vai === 'Quản lý',
-    base: hang.base.length ? hang.base : null,
+    chiPhi: hang.chiPhi || envQL || hang.vai === 'Quản lý',
+  });
+}
+
+/** Một dòng trong bảng Phân quyền -> quyền hiệu lực (không tính env). */
+function tuHang(hang) {
+  return {
+    quanLy: hang.vai === 'Quản lý',
+    base: hang.base || [],
+    moiBase: !!hang.moiBase,
+    quanLyBase: hang.quanLyBase || [],
     toanBo: hang.toanBo,
     taoMoi: hang.taoMoi,
-    chiPhi: hang.chiPhi || envQL || hang.vai === 'Quản lý',
+    chiPhi: hang.chiPhi,
     tuBang: true,
   };
 }
 
-/** Người này có được xem base đó không. */
-const duocXem = (q, id) => !q || !q.base || q.quanLy || q.base.includes(id);
+/**
+ * Người này có được xem base đó không. Nhận cả object module (để đọc `caPhong`)
+ * lẫn id trần cho những chỗ gọi cũ.
+ */
+function duocXem(q, mod) {
+  const m = typeof mod === 'string' ? (timMod(mod) || { id: mod, caPhong: false }) : mod;
+  if (!q) return true;                          // chưa xác thực (chế độ cli)
+  if (q.quanLy || q.moiBase) return true;
+  if (q.base && q.base.includes(m.id)) return true;   // được cấp riêng
+  if (laQLBase(q, m)) return true;              // Lead phụ trách base thì đương nhiên xem được
+  return m.caPhong === true;                    // còn lại: chỉ base mở cho cả phòng
+}
+
+/**
+ * Người này có phải QUẢN LÝ CỦA BASE NÀY.
+ *
+ * Ba đường thành quản lý của một base:
+ *   1. quản lý toàn hệ (env LARK_MANAGER_* hoặc Vai = Quản lý)   -> mọi base
+ *   2. ô "Quản lý base" có id base đó                            -> đúng base đó
+ *   3. chạy trên máy cá nhân (chế độ cli)                        -> người ngồi máy
+ *
+ * Cách 2 là nấc dành cho Lead: bên TRONG app đó họ là quản lý (thấy mọi bản ghi,
+ * mọi số tiền, thao tác được hết), còn lớp vỏ vẫn coi họ là nhân sự — không
+ * thêm/xoá base, không sửa phân quyền, không Xem như. Cố ý hẹp: xem `chiQuanLy`.
+ */
+function laQLBase(q, mod) {
+  if (cfg.mode !== 'api') return true;
+  if (!q || !mod) return !!(q && q.quanLy);
+  if (q.quanLy) return true;
+  return (q.quanLyBase || []).includes(typeof mod === 'string' ? mod : mod.id);
+}
 
 /* ---------------- XEM NHƯ MỘT NHÂN SỰ ----------------
  * Quản lý bấm "Xem như" một người: cả lớp vỏ chuyển sang đúng con mắt của người
@@ -149,12 +201,8 @@ async function aiDangXem(req) {
   let hang = null;
   try { hang = await quyen.cuaNguoi(nhu); } catch (_) { hang = null; }
   const q = hang
-    ? {
-      quanLy: false,                       // xem bằng mắt nhân sự, không mang quyền quản lý
-      base: hang.base.length ? hang.base : null,
-      toanBo: hang.toanBo, taoMoi: hang.taoMoi, chiPhi: hang.chiPhi, tuBang: true,
-    }
-    : { quanLy: false, base: null, toanBo: false, taoMoi: true, chiPhi: false, tuBang: false };
+    ? Object.assign(tuHang(hang), { quanLy: false })   // xem bằng mắt nhân sự, không mang quyền quản lý
+    : { quanLy: false, base: null, moiBase: false, quanLyBase: [], toanBo: false, taoMoi: true, chiPhi: false, tuBang: false };
 
   return { nguoi: { id: nhu.id, name: nhu.name, email: nhu.email }, q, xemNhu: nhu, quanLyThat: laQL };
 }
@@ -189,14 +237,22 @@ function chanGhiKhiXemHo(res, xemNhu, method) {
 
 /* Danh tính kèm quyền để gửi xuống module. Thiếu bước gộp này thì hub tự gọi
  * /api/meta mà không nói mình là quản lý -> chỉ số trên Tổng quan bị bó vào phạm
- * vi nhân sự, lệch với con số trong chính app. */
-function nguoiKemQuyen(nguoi, q) {
+ * vi nhân sự, lệch với con số trong chính app.
+ *
+ * `mod` quyết định vai: cùng một người có thể là QUẢN LÝ của base này và NHÂN SỰ
+ * của base kia (ô "Quản lý base"). Nên hàm này phải biết đang gọi vào base nào —
+ * bỏ `mod` là quay về vai toàn hệ, chỉ dùng cho chỗ gộp nhiều base (lịch chung).
+ *
+ * Quản lý của một base thì trong base đó được xem hết và xem được tiền: một Lead
+ * phụ trách OTA mà không thấy doanh thu OTA thì không phụ trách được gì. */
+function nguoiKemQuyen(nguoi, q, mod) {
   if (!nguoi) return null;
+  const ql = mod ? laQLBase(q, mod) : !!(q && q.quanLy);
   return Object.assign({}, nguoi, {
-    quanLy: !!(q && q.quanLy),
-    toanBo: !!(q && q.toanBo),
-    taoMoi: !q || q.taoMoi !== false,
-    chiPhi: !!(q && q.chiPhi),
+    quanLy: ql,
+    toanBo: ql || !!(q && q.toanBo),
+    taoMoi: ql || !q || q.taoMoi !== false,
+    chiPhi: ql || !!(q && q.chiPhi),
   });
 }
 
@@ -311,7 +367,7 @@ function congKhai(m) {
   return {
     id: m.id, ten: m.ten, mo_ta: m.mo_ta, icon: m.icon, mau: m.mau, kieu: m.kieu,
     cong: m.cong, url: m.kieu === 'local' ? '/m/' + m.id + '/' : m.url,
-    larkUrl: m.larkUrl, kpi: m.kpi, bat: m.bat, coKpi: !!kpi.BO_DOC[m.kpi],
+    larkUrl: m.larkUrl, kpi: m.kpi, bat: m.bat, caPhong: m.caPhong, coKpi: !!kpi.BO_DOC[m.kpi],
     thuMuc: m.thuMuc ? path.basename(m.thuMuc) : '',
     tinhTrang: kids.tinhTrang(m),
   };
@@ -336,7 +392,9 @@ async function api(req, res, u) {
       xemNhu: xemNhu ? { ten: xemNhu.name, email: xemNhu.email || null } : null,
       toi: nguoi ? { ten: nguoi.name, email: nguoi.email || null, quanLy: q.quanLy } : null,
       // panel chỉ hiện base người này được xem
-      modules: danhSach().filter((x) => duocXem(q, x.id)).map(congKhai),
+      modules: danhSach().filter((x) => duocXem(q, x))
+        // quanLyToi: base này mình có vai quản lý không (Lead một base)
+        .map((x) => Object.assign(congKhai(x), { quanLyToi: xemNhu ? false : laQLBase(q, x) })),
     });
   }
 
@@ -357,7 +415,7 @@ async function api(req, res, u) {
      ========================================================================== */
   if (p === '/api/thong-bao' && m === 'GET') {
     const { nguoi: nguoiTB, q: qTB } = await aiDangXem(req);
-    const mods = danhSach().filter((x) => x.bat && duocXem(qTB, x.id));
+    const mods = danhSach().filter((x) => x.bat && duocXem(qTB, x));
     const ra = [];
     for (const mod of mods) {
       try {
@@ -401,7 +459,7 @@ async function api(req, res, u) {
       return ok(res, { nguoi: demDanhBa, tuCache: true });
     }
     const gop = new Map();
-    for (const mod of danhSach().filter((x) => x.bat && duocXem(qDB, x.id))) {
+    for (const mod of danhSach().filter((x) => x.bat && duocXem(qDB, x))) {
       try {
         const meta = await goiJson(mod, '/api/meta', { nguoi: nguoiDB });
         for (const x of [...(meta.people || []), ...(meta.scopePeople || [])]) {
@@ -417,14 +475,15 @@ async function api(req, res, u) {
 
   if (p === '/api/tongquan' && m === 'GET') {
     const { nguoi: nguoiTQ, q: qTQ } = await aiDangXem(req);
-    const mods = danhSach().filter((x) => x.bat && kpi.BO_DOC[x.kpi] && duocXem(qTQ, x.id));
+    const mods = danhSach().filter((x) => x.bat && kpi.BO_DOC[x.kpi] && duocXem(qTQ, x));
     if (u.searchParams.get('refresh') === '1') kpi.xoaCache();
     // Khoảng lọc do client tính (nó biết múi giờ, "tháng này" theo máy người dùng)
     const ngay = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(v || '') ? v : '');
     const tu = ngay(u.searchParams.get('tu'));
     const den = ngay(u.searchParams.get('den'));
     const khoang = tu && den ? { tu, den } : null;
-    const kq = await kpi.tongQuan(mods, khoang, nguoiKemQuyen(nguoiTQ, qTQ));
+    // hàm chứ không phải object: vai của người này khác nhau theo từng base
+    const kq = await kpi.tongQuan(mods, khoang, (mod) => nguoiKemQuyen(nguoiTQ, qTQ, mod));
     return ok(res, kq);
   }
 
@@ -445,7 +504,7 @@ async function api(req, res, u) {
     if (soNgay > 92) return loi(res, 400, 'Khoảng quá rộng (' + soNgay + ' ngày) — chọn tối đa 3 tháng.');
 
     const { nguoi: nguoiLC, q: qLC } = await aiDangXem(req);
-    const mods = danhSach().filter((x) => x.bat && lich.BO_DOC[x.kpi] && duocXem(qLC, x.id));
+    const mods = danhSach().filter((x) => x.bat && lich.BO_DOC[x.kpi] && duocXem(qLC, x));
     if (u.searchParams.get('refresh') === '1') lich.xoaCache();
     return ok(res, await lich.lichChung(mods, tu, den, u.searchParams.get('refresh') === '1',
       nguoiKemQuyen(nguoiLC, qLC)));
@@ -501,6 +560,8 @@ async function api(req, res, u) {
     const ten = String(b.ten || '').trim();
     if (!ten) return loi(res, 400, 'Thiếu tên base');
     const kieu = ['local', 'ngoai', 'lark'].includes(b.kieu) ? b.kieu : 'ngoai';
+      // mở/đóng cho cả phòng: chỉ nhận đúng true/false, đừng để chuỗi "false" lọt vào
+      if ('caPhong' in body) tho[i].caPhong = body.caPhong === true;
     const id = String(b.id || '').trim() || khongDau(ten);
     if (timMod(id)) return loi(res, 400, 'Đã có module id "' + id + '"');
 
@@ -544,6 +605,10 @@ async function api(req, res, u) {
   if (p === '/api/toi' && m === 'GET') {
     /* open_id của một người KHÁC NHAU giữa các app Lark. Đổi app là danh sách
      * LARK_MANAGER_IDS cũ không còn khớp -> quản lý bị tụt xuống vai nhân sự.
+      /* Base MỚI mặc định KÍN: chỉ quản lý và người được cấp tên mới thấy.
+       * Trước đây thêm base là cả phòng thấy ngay trong panel — dựng thử một base
+       * chưa xong đã có người vào xem. Mở cho cả phòng là một thao tác riêng. */
+      caPhong: b.caPhong === true,
      * Endpoint này để lấy đúng open_id dưới app đang chạy. */
     const nguoi = cfg.mode === 'api' ? auth.sessionUser(req) : null;
     return ok(res, {
@@ -674,7 +739,7 @@ async function api(req, res, u) {
       });
 
       return ok(res, {
-        base: danhSach().filter((x) => x.bat).map((x) => ({ id: x.id, ten: x.ten })),
+        base: danhSach().filter((x) => x.bat).map((x) => ({ id: x.id, ten: x.ten, caPhong: x.caPhong })),
         // mẫu quyền theo vị trí công việc: chọn vị trí là các ô tự tick theo mẫu
         viTri: viTri.docDanhSach(),
         hang, danhBa, loiBang,
@@ -706,7 +771,7 @@ async function api(req, res, u) {
     const { nguoi: nguoiO, q: qO, xemNhu: nhuO } = await aiDangXem(req);
     const mod = timMod(u.searchParams.get('mod') || '');
     if (!mod || !mod.bat) return loi(res, 404, 'Không có base này trong panel');
-    if (!duocXem(qO, mod.id)) return loi(res, 403, 'Bạn không được xem base này');
+    if (!duocXem(qO, mod)) return loi(res, 403, 'Bạn không được xem base này');
 
     const ngay = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(v || '') ? v : '');
     const tu = ngay(u.searchParams.get('tu'));
@@ -714,7 +779,7 @@ async function api(req, res, u) {
     const khoaNhom = u.searchParams.get('khoa') || '';
     let ds;
     try {
-      ds = await kpi.nhomCua(mod, khoaNhom, tu && den ? { tu, den } : null, nguoiKemQuyen(nguoiO, qO));
+      ds = await kpi.nhomCua(mod, khoaNhom, tu && den ? { tu, den } : null, nguoiKemQuyen(nguoiO, qO, mod));
     } catch (e) { return loi(res, 400, e.message); }
 
     /* Danh bạ để phân công / chốt nhân sự ngay trong cửa sổ. Lấy từ chính module
@@ -722,14 +787,15 @@ async function api(req, res, u) {
     let nhanSu = [];
     if (mod.kpi === 'cong-viec' || mod.kpi === 'lich-tac-nghiep') {
       try {
-        const meta = await goiJson(mod, '/api/meta', { nguoi: nguoiKemQuyen(nguoiO, qO) });
+        const meta = await goiJson(mod, '/api/meta', { nguoi: nguoiKemQuyen(nguoiO, qO, mod) });
         nhanSu = (meta.people || []).map((x) => ({ id: x.id, ten: x.name || x.id }));
       } catch (_) { /* thiếu danh bạ thì chỉ mất nút phân công */ }
     }
 
     return ok(res, {
       mod: mod.id, ten: mod.ten, kpi: mod.kpi, khoa: khoaNhom,
-      quanLy: nhuO ? false : (qO.quanLy || cfg.mode !== 'api'),
+      // nút thao tác trong cửa sổ: Lead của base này cũng được, không chỉ quản lý tổng
+      quanLy: nhuO ? false : laQLBase(qO, mod),
       xemNhu: nhuO ? nhuO.name : null,
       ds, nhanSu,
     });
@@ -783,7 +849,7 @@ async function api(req, res, u) {
     const b = await docBody(req);
     const mod = timMod(b.mod || '');
     if (!mod || !mod.bat) return loi(res, 404, 'Không có base này trong panel');
-    if (!duocXem(qV, mod.id)) return loi(res, 403, 'Bạn không được xem base này');
+    if (!duocXem(qV, mod)) return loi(res, 403, 'Bạn không được xem base này');
     if (!/^rec[A-Za-z0-9]+$/.test(String(b.id || ''))) return loi(res, 400, 'Thiếu mã bản ghi');
 
     const g = goiHanhDong(mod, b.id, String(b.act || ''), b.giaTri);
@@ -791,7 +857,7 @@ async function api(req, res, u) {
 
     try {
       const kq = await goiJson(mod, g.duong, {
-        method: g.method, body: g.body, nguoi: nguoiKemQuyen(nguoiV, qV), timeoutMs: 30000,
+        method: g.method, body: g.body, nguoi: nguoiKemQuyen(nguoiV, qV, mod), timeoutMs: 30000,
       });
       kpi.xoaCache(mod.id);   // số trên thẻ phải đổi ngay sau khi xử lý
       lich.xoaCache();
@@ -980,21 +1046,18 @@ const server = http.createServer(async (req, res) => {
       return res.end();
     }
     kids.khoiDong(mod); // bảo đảm đang chạy (không chờ)
-    const { nguoi, q, xemNhu } = await aiDangXem(req);
     if (xemNhu && !['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
       return send(res, 403, 'Đang xem bằng mắt của ' + xemNhu.name +
         ' — thoát chế độ này rồi hãy thao tác.', { 'Content-Type': 'text/plain; charset=utf-8' });
     }
     if (nguoi) {
-      if (!duocXem(q, mod.id)) {
-        // chặn ngay ở cổng: ẩn khỏi panel là chưa đủ, ai gõ tay URL cũng phải bị chặn
-        return send(res, 403, 'Bạn chưa được cấp quyền xem base "' + mod.ten + '".',
-          { 'Content-Type': 'text/plain; charset=utf-8' });
-      }
-      nguoi.quanLy = q.quanLy;
-      nguoi.toanBo = q.toanBo;
-      nguoi.taoMoi = q.taoMoi;
-      nguoi.chiPhi = q.chiPhi;
+      /* Vai tính theo ĐÚNG base đang mở: Lead phụ trách base này vào app con với
+       * vai quản lý, mà mở base khác thì vẫn là nhân sự. */
+      const ql = laQLBase(q, mod);
+      nguoi.quanLy = ql;
+      nguoi.toanBo = ql || q.toanBo;
+      nguoi.taoMoi = ql || q.taoMoi;
+      nguoi.chiPhi = ql || q.chiPhi;
     }
     /* Chạy trên máy cá nhân thì không có phiên đăng nhập, nhưng người ngồi trước
      * máy chính là quản lý — phải nói rõ cho app con, nếu không nó tưởng nhân sự
@@ -1042,6 +1105,16 @@ const server = http.createServer(async (req, res) => {
       '<meta name="viewport" content="width=device-width,initial-scale=1"><title>Tài khoản của tôi</title><style>' +
       'body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f4f6fa;color:#1a2233;' +
       'font:15px/1.6 "Segoe UI",system-ui,sans-serif}' +
+
+    /* Kiểm quyền TRƯỚC mọi thứ khác, kể cả trước cú chuyển hướng của module ngoài:
+     * ẩn khỏi panel là chưa đủ, ai gõ tay URL cũng phải bị chặn — và người không
+     * được xem thì cũng không nên biết URL riêng của app đó. */
+    const { nguoi, q, xemNhu } = await aiDangXem(req);
+    if (nguoi && !duocXem(q, mod)) {
+      return send(res, 403, 'Bạn chưa được cấp quyền xem base "' + mod.ten + '".',
+        { 'Content-Type': 'text/plain; charset=utf-8' });
+    }
+
       '.box{background:#fff;border:1px solid #e3e8f0;border-radius:14px;padding:30px 34px;max-width:560px;' +
       'box-shadow:0 6px 24px rgba(20,30,60,.07)}' +
       'h1{margin:2px 0 18px;font-size:22px}' +

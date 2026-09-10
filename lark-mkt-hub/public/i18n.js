@@ -206,6 +206,22 @@
     'Vị trí': 'Position',
     'Vai': 'Role',
     'Base được xem': 'Visible bases',
+    /* --- ai thấy base nào: base "kín" vs base mở cho cả phòng --- */
+    'Ai thấy': 'Who can see',
+    'Quản trị base': 'Base admin',
+    'Quản lý base': 'Base admin',
+    'Kín': 'Private',
+    'Cả phòng': 'Whole team',
+    'Mở cả phòng': 'Open to team',
+    'Đóng lại': 'Make private',
+    'Cả phòng thấy base này': 'The whole team can see this base',
+    'Chỉ quản lý và người được cấp tên': 'Managers and named people only',
+    'Mọi base (kể cả base mới)': 'All bases (including new ones)',
+    'Không base nào': 'No base',
+    '— kể cả base thêm vào sau này': '— including bases added later',
+    '— cả phòng đã thấy': '— whole team already sees it',
+    'Kín — chỉ quản lý, cấp tên từng người sau': 'Private — managers only, grant people later',
+    'Cả phòng — ai đăng nhập cũng thấy': 'Whole team — everyone signed in can see it',
     'Tùy chọn cho nhân sự': 'Staff options',
     'Quyền thêm': 'Extra rights',
     'Quyền thêm cho nhân sự': 'Extra rights for staff',
@@ -276,8 +292,11 @@
     'máy cá nhân': 'personal machine',
     'server chung': 'shared server',
     'Thông tin phiên đang chạy và cách hiển thị.': 'Current session info and how things look.',
-    'Mỗi base là một app riêng. Tắt hay ẩn ở đây không ảnh hưởng dữ liệu trong Lark.':
-      'Each base is its own app. Stopping or hiding it here does not touch the data in Lark.',
+    // khoá phải là MỘT chuỗi liền (không nối được bằng +) vì nó là tên thuộc tính
+    'Mỗi base là một app riêng. Tắt hay ẩn ở đây không ảnh hưởng dữ liệu trong Lark. Base "Kín" chỉ quản lý và người được cấp tên trong Phân quyền mới thấy — base mới luôn bắt đầu ở Kín.':
+      'Each base is its own app. Stopping or hiding it here does not touch the data in Lark. ' +
+      'A "Private" base is visible only to managers and people named in Permissions — a new ' +
+      'base always starts private.',
     'Hỏi thẳng từng base xem đang đọc được gì.': 'Ask each base directly what it can read.',
     'Đọc lại từ đầu, không dùng số đã nhớ.': 'Read again from scratch, ignoring cached numbers.',
     'Khai thêm một app hoặc một Lark Base vào panel.': 'Add another app or Lark Base to the panel.',
