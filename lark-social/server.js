@@ -548,9 +548,14 @@ async function api(req, res, u) {
     const c = await ketnoi.doc();
     const conf = { ...c.zalo, appId: tho(b.appId) || c.zalo.appId };
     const r = zalo.linkCapQuyen(conf, b.redirectUri);
-    /* Cất verifier lại ngay: người dùng sẽ rời trang sang Zalo rồi mới quay về
-     * dán mã, mà mã chỉ đổi được nếu nộp đúng verifier đã dùng lúc tạo link. */
+    /* Cất verifier lại ngay, và phải cất vào KHO KHOÁ chứ không chỉ ra tệp.
+     *
+     * Giữa lúc bấm "Tạo link" và lúc quay về dán mã, người dùng đi sang Zalo cấp
+     * quyền — mất vài phút. Render ngủ sau ít phút không ai gọi, tỉnh dậy là ổ
+     * đĩa trắng: verifier ghi ra tệp sẽ biến mất đúng trong khoảng đó, và bước
+     * đổi mã đổ với thông báo chẳng liên quan gì tới nguyên nhân thật. */
     ketnoi.ghiKhoi('zalo', { ...conf, codeVerifier: r.codeVerifier });
+    await ketnoi.luuKho('zalo', { ...conf, codeVerifier: r.codeVerifier });
     return ok(res, { link: r.link, codeChallenge: r.codeChallenge });
   }
 

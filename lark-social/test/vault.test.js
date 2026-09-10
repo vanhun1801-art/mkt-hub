@@ -196,4 +196,19 @@ t('kho rỗng hoàn toàn thì lấy đúng danh sách máy này gửi', () => {
   assert.strictEqual(r.clientKey, 'k');
 });
 
+t('phủ kho khoá giữ lại codeVerifier của Zalo', () => {
+  /* Verifier phải sống sót qua một lần Render ngủ dậy, vì nó được sinh ra lúc
+     bấm "Tạo link" còn được dùng vài phút sau, lúc dán mã về. Nếu bocToken lọc
+     mất nó thì bước đổi mã đổ, với thông báo lỗi không liên quan tới nguyên nhân. */
+  const { bocToken } = require('../ketnoi');
+  const ra = bocToken({
+    appId: '123', secretKey: 's', codeVerifier: 'abc-xyz',
+    oas: [{ oaId: '1' }], ghiLuc: '2026-09-10', enabled: true,
+  });
+  assert.strictEqual(ra.codeVerifier, 'abc-xyz');
+  assert.strictEqual(ra.appId, '123');
+  assert.strictEqual(ra.oas, undefined, 'danh sách OA đi đường ghepDs riêng');
+  assert.strictEqual(ra.ghiLuc, undefined);
+});
+
 console.log('\n' + so + ' phép thử đạt' + (process.exitCode ? ' — CÓ LỖI' : '') + '\n');

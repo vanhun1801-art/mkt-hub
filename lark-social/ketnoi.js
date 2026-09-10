@@ -319,5 +319,5 @@ function checHet(o) {
 
 module.exports = {
   FILE, MAC_DINH, doc, docTho, ghiKhoi, luuToken, luuKho, nguon, checHet, coThongTin,
-  ghepDs, gopVaoKho,
+  ghepDs, gopVaoKho, bocToken,
 };
