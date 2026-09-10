@@ -18,6 +18,7 @@ const L = require('./luat');
 const { chamThang, chotDuoc } = require('./tinh');
 const store = require('./store');
 const nguon = require('./nguon');
+const X = require('./xuat');
 const baoCao = require('./bao-cao');
 
 const PORT = Number(process.env.PORT || 5179);
@@ -118,6 +119,14 @@ function tinhThang(th, luatThayThe) {
   const luat = luatThayThe || t.luat;
   const kq = chamThang(luat, t.soLieu, t.chamTay, th);
   const c = chotDuoc(luat, kq);
+  /* Dán ghi chú chấm tay vào đúng tiêu chí. Làm ở đây chứ không trong tinh.js:
+   * lõi tính lương chỉ nên biết về SỐ, còn "vì sao chấm thế" là chuyện của
+   * người đọc phiếu. */
+  const gc = t.ghiChuCham || {};
+  kq.nguoi.forEach((ng) => (ng.tieuChi || []).forEach((tc) => {
+    const v = (gc[ng.ma] || {})[tc.ma];
+    if (v) tc.ghiChu = v;
+  }));
   return {
     ...kq,
     daTraLuong: t.daTraLuong,
@@ -234,7 +243,10 @@ async function api(req, res, u) {
     if (!nx.quanLy) return fail(res, 403, 'Chỉ trưởng phòng và HCNS chấm được');
     const b = await readBody(req);
     if (!b.thang || !b.nguoi || !b.tieuChi) return fail(res, 400, 'Thiếu tham số');
-    store.luuChamTay(b.thang, b.nguoi, b.tieuChi, b.diem);
+    /* Chấm điểm và ghi chú đi riêng: sửa mỗi ghi chú thì đừng đụng vào điểm,
+     * và ngược lại. `diem === undefined` = lần gọi này không nói gì về điểm. */
+    if (b.diem !== undefined) store.luuChamTay(b.thang, b.nguoi, b.tieuChi, b.diem);
+    if (b.ghiChu !== undefined) store.luuGhiChuCham(b.thang, b.nguoi, b.tieuChi, b.ghiChu);
     return ok(res, loc(tinhThang(b.thang), nx));
   }
 
@@ -267,11 +279,139 @@ async function api(req, res, u) {
     if (!nx.quanLy) return fail(res, 403, 'Chỉ trưởng phòng xuất được báo cáo toàn phòng');
     const { tu, den } = khoangTu(u);
     const d = await baoCao.gomSoSanh(tu, den);
-    const html = trangBaoCao(d, nx);
+    const html = X.trangBaoCao(d, nx, await X.logoHtml(store.THU_MUC));
     return send(res, 200, html, {
       'Content-Type': 'text/html; charset=utf-8',
       'Content-Disposition': 'inline; filename="bao-cao-marketing.html"',
     });
+  }
+
+  /** Cùng số liệu, dạng CSV — cho ai cần bê sang bảng tính khác. */
+  if (p === '/api/xuat-bao-cao-csv') {
+    if (!nx.quanLy) return fail(res, 403, 'Chỉ trưởng phòng xuất được báo cáo toàn phòng');
+    const { tu, den } = khoangTu(u);
+    const d = await baoCao.gomSoSanh(tu, den);
+    return send(res, 200, X.csvBaoCao(d), {
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': 'attachment; filename="'
+        + encodeURIComponent('Bao cao Marketing ' + tu + ' den ' + den) + '.csv"',
+    });
+  }
+
+  /* Logo giờ ở Cài đặt của Marketing Hub, không còn tải lên tại app này. Giữ
+   * đường dẫn cũ để chỉ đúng chỗ, thay vì trả 404 rồi ai đó đi tìm nút đã bị gỡ. */
+  if (p === '/api/logo') {
+    return fail(res, 410, 'Logo đã chuyển sang Cài đặt của Marketing Hub → Nhận diện thương hiệu');
+  }
+
+  /* ---------------- phân công: ai chịu kênh nào ----------------
+   * Bộ luật có hai tầng tách rời. Tầng CHUNG là mục tiêu và tỷ trọng của mỗi
+   * kênh — ai làm cũng như nhau. Tầng RIÊNG là bảng `nguoi[].kenh`: người này
+   * chịu kênh nào, ở tỷ trọng bao nhiêu. Tầng riêng mới là chỗ "áp chỉ số lên
+   * người", và trước nay nó chỉ nằm trong tệp JSON — không màn hình nào bày ra,
+   * không sửa được trên app, dù máy chủ đã nhận `phanBo` từ lâu.
+   *
+   * Trả về theo chiều KÊNH → NGƯỜI (ngược với hình dạng trong bộ luật) vì đó là
+   * chiều nhìn ra lỗi: kênh nào không ai nhận, kênh nào hai người cùng nhận.
+   */
+  if (p === '/api/phan-cong') {
+    if (!nx.quanLy) return fail(res, 403, 'Chỉ trưởng phòng xem được bảng phân công');
+    const th = u.searchParams.get('thang') || store.danhSachThang()[0];
+    const t = store.thang(th);
+    if (!t) return fail(res, 404, 'Chưa có dữ liệu tháng ' + th);
+    const luat = t.luat;
+
+    /* Ai ăn theo kênh thì bảng phân bổ của họ mới có tác dụng. HÂN và HÙNG chấm
+     * bằng chỉ số riêng — hiện họ ra cột nhưng khoá lại, để người xem biết vì
+     * sao cột đó trống chứ không tưởng là quên điền. */
+    const nguoi = (luat.nguoi || []).map((ng) => {
+      const tcKenh = (ng.tieuChi || []).find((x) => x.nguon && x.nguon.kieu === 'kenh');
+      return {
+        ma: ng.ma,
+        ten: ng.ten || ng.ma,
+        viTri: ng.viTri || '',
+        anTheoKenh: !!tcKenh,
+        trongSoKenh: tcKenh ? tcKenh.trongSo : 0,
+        tenTieuChi: tcKenh ? tcKenh.ten : '',
+        kenh: Object.assign({}, ng.kenh),
+        tong: Object.values(ng.kenh || {}).reduce((s, x) => s + (Number(x) || 0), 0),
+      };
+    });
+
+    /* Kèm "kỳ này kênh đó có số không" — một kênh không ai phụ trách mà cũng
+     * không có số liệu là chuyện khác hẳn một kênh đang chạy đều mà bỏ rơi. */
+    let coSo = {};
+    try {
+      const r = await nguon.docTuApp(th, luat);
+      (luat.nhom || []).forEach((n) => {
+        const khoa = L.khoaNhom(n);
+        const ma = (n.tieuChi || []).map((tc) => tc.nguon);
+        coSo[khoa] = r.nhatKy.some((x) => ma.includes(x.ma) && x.trangThai === 'lay-duoc');
+      });
+    } catch (_) { coSo = {}; }   // app nguồn tắt thì thôi, đừng làm hỏng cả màn
+
+    const nhom = (luat.nhom || []).map((n) => {
+      const khoa = L.khoaNhom(n);
+      const ai = nguoi.filter((x) => x.anTheoKenh && Number(x.kenh[khoa]) > 0)
+        .map((x) => ({ ma: x.ma, ten: x.ten, tyTrong: Number(x.kenh[khoa]) }));
+      return {
+        khoa,
+        ten: [n.kenh, n.tenKenh, n.loai].filter(Boolean).join(' · '),
+        nenTang: n.kenh || '',
+        soTieuChi: (n.tieuChi || []).length,
+        coSoLieu: !!coSo[khoa],
+        ai,
+      };
+    });
+
+    return ok(res, {
+      thang: th, nguoi, nhom,
+      soat: L.soat(JSON.parse(JSON.stringify(luat))),
+      daChot: !!t.chot,
+      daSuaLuat: t.daSuaLuat,
+    });
+  }
+
+  /**
+   * Ghi lại bảng phân công.
+   *
+   * Nhận `phanBo: { maNguoi: { khoaNhóm: tỷTrọng } }` — bảng ĐẦY ĐỦ của mỗi
+   * người có mặt trong `phanBo`, không phải phần sửa. Ghi đè hẳn thay vì trộn:
+   * bỏ một kênh khỏi một người là XOÁ khoá đó, mà trộn thì khoá cũ ở lại mãi.
+   */
+  if (p === '/api/luu-phan-cong' && req.method === 'POST') {
+    if (!nx.quanLy) return fail(res, 403, 'Chỉ trưởng phòng sửa được phân công');
+    const b = await readBody(req);
+    if (!b.thang || !b.phanBo) return fail(res, 400, 'Thiếu tháng hoặc bảng phân công');
+    const t = store.thang(b.thang);
+    if (!t) return fail(res, 404, 'Chưa có dữ liệu tháng ' + b.thang);
+    /* Tháng đã chốt là số đã đi vào bảng lương. Sửa phân công lúc này là đổi
+     * điểm của người ta sau khi đã trả tiền. */
+    if (t.chot) return fail(res, 409, 'Tháng này đã chốt — bỏ chốt ở tab “Soát & chốt” trước');
+
+    const luat = JSON.parse(JSON.stringify(t.luat));
+    const hopLe = new Set((luat.nhom || []).map((n) => L.khoaNhom(n)));
+    (luat.nguoi || []).forEach((ng) => {
+      const moi = b.phanBo[ng.ma];
+      if (!moi) return;
+      const sach = {};
+      Object.entries(moi).forEach(([k, v]) => {
+        const w = Number(v);
+        if (!hopLe.has(k)) return;          // nhóm lạ thì bỏ, đừng ghi rác vào luật
+        if (!Number.isFinite(w) || w <= 0) return;  // 0 nghĩa là không phụ trách → xoá khoá
+        sach[k] = Math.round(w * 10000) / 10000;
+      });
+      ng.kenh = sach;
+    });
+
+    const v = L.soat(luat);
+    const chan = v.filter((x) => x.muc === 'chan');
+    /* Chặn thì KHÔNG ghi. Nhưng trả nguyên danh sách về để giao diện chỉ đúng ô
+     * sai, thay vì chỉ nói "có 3 lỗi" rồi bắt đi mò. */
+    if (chan.length) return send(res, 400, { error: 'Còn ' + chan.length + ' lỗi chặn', soat: v });
+
+    store.luuLuat(b.thang, luat);
+    return ok(res, { luu: true, soat: v });
   }
 
   /* ---------------- thu số liệu ---------------- */
@@ -566,7 +706,16 @@ async function api(req, res, u) {
         nhipChuan: ngay / soNgay,
         layDuoc: r.dem.layDuoc,
         nguoi: nguoiPT,
-        nhom: cham.nhom.map((n) => ({ khoa: n.khoa, ten: n.ten, phanTram: n.diem })),
+        /* Kèm luôn từng tiêu chí của mỗi nhóm kênh: màn Tiến độ cần trả lời
+         * "kênh này đang hụt ở CHỖ NÀO" chứ không chỉ "kênh này 34%". Một con số
+         * gộp không cho biết nên đẩy view hay đẩy tương tác. */
+        nhom: cham.nhom.map((n) => ({
+          khoa: n.khoa, ten: n.ten, phanTram: n.diem,
+          tieuChi: (n.tieuChi || []).map((tc) => ({
+            ten: tc.ten, ketQua: tc.ketQua, mucTieu: tc.mucTieu,
+            datMucTieu: tc.datMucTieu, boQua: !!tc.boQua, tyTrong: tc.tyTrong,
+          })),
+        })),
       });
     }
 
@@ -577,6 +726,37 @@ async function api(req, res, u) {
       capNhat: Date.now(),
       chiMinh: !nx.quanLy,
       loc: nx.quanLy ? null : nx.ma,
+    });
+  }
+
+  /* ---------------- xuất phiếu KPI dạng văn bản ----------------
+   * Khác /api/xuat (CSV): đây là VĂN BẢN — có logo, tiêu đề, khối ký, in ra A4
+   * là đưa ký được. CSV vẫn còn cho ai cần bê số sang bảng tính khác.
+   */
+  if (p === '/api/xuat-kpi') {
+    const th = u.searchParams.get('thang') || store.danhSachThang()[0];
+    const kieu = u.searchParams.get('kieu') || 'phong';
+    const kq0 = tinhThang(th);
+    if (!kq0) return fail(res, 404, 'Chưa có dữ liệu tháng ' + th);
+    const kq = loc(kq0, nx);
+    const logo = await X.logoHtml(store.THU_MUC);
+    let html; let ten;
+
+    if (kieu === 'nguoi') {
+      const ng = kq.nguoi.find((x) => x.ma === u.searchParams.get('ma'));
+      if (!ng) return fail(res, 404, 'Không thấy người này (hoặc bạn không có quyền xem)');
+      html = X.vanBanNguoi(ng, kq, th, nx, logo);
+      ten = 'Phieu KPI ' + ng.ten + ' T' + Number(th.slice(5)) + '-' + th.slice(0, 4);
+    } else {
+      if (!nx.quanLy) return fail(res, 403, 'Chỉ trưởng phòng xuất được báo cáo cả phòng');
+      html = X.vanBanPhong(kq, th, nx, logo);
+      ten = 'Bao cao KPI phong T' + Number(th.slice(5)) + '-' + th.slice(0, 4);
+    }
+    /* `inline` chứ không `attachment`: mở thẳng trong trình duyệt rồi Ctrl+P ra
+     * PDF. Bắt tải về trước rồi mới mở là thêm một bước không để làm gì. */
+    return send(res, 200, html, {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Content-Disposition': 'inline; filename="' + encodeURIComponent(ten) + '.html"',
     });
   }
 
@@ -638,7 +818,7 @@ async function api(req, res, u) {
         kq.chan.forEach((x) => dong.push([x.o, x.viec]));
       }
     }
-    const csv = '﻿' + dong.map((d) => d.map(oCsv).join(',')).join('\r\n');
+    const csv = X.lamCsv(dong);
     return send(res, 200, csv, {
       'Content-Type': 'text/csv; charset=utf-8',
       'Content-Disposition': 'attachment; filename="' + encodeURIComponent(ten) + '.csv"',
@@ -658,103 +838,6 @@ function khoangTu(u) {
   if (tu && den) return { tu, den };
   const th = u.searchParams.get('thang') || new Date().toISOString().slice(0, 7);
   return nguon.khoang(th);
-}
-
-const hEsc = (s) => String(s == null ? '' : s)
-  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-
-function soDep(v, kieu) {
-  if (v == null || !Number.isFinite(v)) return '—';
-  if (kieu === 'vnd') return Math.round(v).toLocaleString('vi-VN') + ' ₫';
-  if (kieu === 'pt') return (Math.round(v * 10) / 10).toString().replace('.', ',') + '%';
-  if (kieu === 'x') return (Math.round(v * 100) / 100).toString().replace('.', ',') + 'x';
-  return Math.round(v).toLocaleString('vi-VN');
-}
-
-/**
- * Trang báo cáo hoàn chỉnh — một tệp HTML tự chứa, không phụ thuộc server.
- * Gửi Sếp bằng cách in ra PDF hoặc gửi thẳng tệp; mở bằng trình duyệt nào cũng
- * đọc được. Dùng lại đúng bảng màu của Marketing Hub.
- */
-function trangBaoCao(d, nx) {
-  const ngay = (s) => s.split('-').reverse().join('/');
-  const o = (x) => {
-    const l = x.lech;
-    /* CPA thấp là tốt nên mũi tên đảo chiều — không đảo thì "CPA giảm 20%" bị
-     * tô đỏ như một tin xấu. */
-    const tot = l == null ? null : (x.dao ? l < 0 : l > 0);
-    return '<div class="o"><div class="nhan">' + hEsc(x.nhan) + '</div>'
-      + '<div class="so">' + soDep(x.so, x.dinhDang) + '</div>'
-      + (l != null && Number.isFinite(l)
-        ? '<div class="lech ' + (tot ? 'tot' : 'xau') + '">'
-          + (l > 0 ? '▲ ' : '▼ ') + Math.abs(Math.round(l * 10) / 10).toString().replace('.', ',')
-          + '% so kỳ trước</div>'
-        : (x.ghi ? '<div class="ghi">' + hEsc(x.ghi) + '</div>' : ''))
-      + '</div>';
-  };
-  const bang = (b) => {
-    if (!b) return '';
-    const soCot = new Set(b.soCot || []);
-    return '<h3>' + hEsc(b.tieuDe) + '</h3><table><thead><tr>'
-      + b.cot.map((c, i) => '<th' + (soCot.has(i) ? ' class="r"' : '') + '>' + hEsc(c) + '</th>').join('')
-      + '</tr></thead><tbody>'
-      + b.dong.map((r) => '<tr>' + r.map((c, i) => '<td' + (soCot.has(i) ? ' class="r"' : '') + '>'
-        + (typeof c === 'number' ? soDep(c, 'so') : hEsc(c)) + '</td>').join('') + '</tr>').join('')
-      + '</tbody></table>';
-  };
-  const khoi = d.base.map((b) => '<section class="base">'
-    + '<header><span class="cham" style="background:' + hEsc(b.mau) + '"></span>'
-    + '<b>' + hEsc(b.ten) + '</b><span class="mo">' + hEsc(b.mo) + '</span></header>'
-    + (b.chay
-      ? '<div class="luoi">' + (b.o || []).map(o).join('') + '</div>' + bang(b.bang)
-      : '<p class="loi">Không đọc được số liệu — ' + hEsc(b.loi) + '</p>')
-    + '</section>').join('');
-
-  return '<!doctype html><html lang="vi"><head><meta charset="utf-8">'
-    + '<title>Báo cáo Marketing ' + ngay(d.tu) + ' – ' + ngay(d.den) + '</title>'
-    + '<style>'
-    + ':root{--vien:#e3e8f0;--mem:#eef1f6;--chu:#1a2233;--mo:#5b6779;--nhat:#8b95a7;'
-    + '--luc:#12a150;--do:#dc2b3d}'
-    + '*{box-sizing:border-box}body{margin:0;background:#f4f6fa;color:var(--chu);'
-    + 'font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}'
-    + '.trang{max-width:1080px;margin:0 auto;padding:28px 22px 60px}'
-    + 'h1{font-size:22px;margin:0 0 4px}h3{font-size:13px;margin:16px 0 6px;color:var(--mo)}'
-    + '.ky{color:var(--mo);margin-bottom:20px}'
-    + '.base{background:#fff;border:1px solid var(--vien);border-radius:12px;margin-bottom:16px;overflow:hidden}'
-    + '.base>header{display:flex;align-items:center;gap:9px;padding:11px 14px;border-bottom:1px solid var(--vien)}'
-    + '.base>header .mo{color:var(--nhat);font-size:12px}'
-    + '.cham{width:9px;height:9px;border-radius:50%;display:inline-block}'
-    + '.luoi{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr))}'
-    + '.o{padding:10px 13px;box-shadow:0 0 0 1px var(--mem);display:flex;flex-direction:column}'
-    + '.o .nhan{font-size:10px;color:var(--nhat);font-weight:650;text-transform:uppercase;letter-spacing:.04em}'
-    + '.o .so{font-size:20px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums}'
-    + '.o .lech,.o .ghi{font-size:11.5px;margin-top:auto;padding-top:4px;color:var(--nhat)}'
-    + '.o .lech.tot{color:var(--luc);font-weight:600}.o .lech.xau{color:var(--do);font-weight:600}'
-    + 'table{width:100%;border-collapse:collapse;font-size:13px}'
-    + 'th,td{padding:6px 14px;text-align:left;border-bottom:1px solid var(--mem)}'
-    + 'th{font-size:10px;color:var(--nhat);text-transform:uppercase;letter-spacing:.04em;background:#fbfcfe}'
-    + '.r{text-align:right;font-variant-numeric:tabular-nums}'
-    + '.loi{margin:12px 14px;color:var(--do)}'
-    + '.chan{margin-top:26px;color:var(--nhat);font-size:12px;border-top:1px solid var(--vien);padding-top:12px}'
-    + '@media print{body{background:#fff}.trang{padding:0}.base{break-inside:avoid;box-shadow:none}}'
-    + '</style></head><body><div class="trang">'
-    + '<h1>Báo cáo Marketing</h1>'
-    + '<div class="ky">Kỳ ' + ngay(d.tu) + ' – ' + ngay(d.den) + ' (' + d.soNgay + ' ngày)'
-    + ' · so với kỳ trước ' + ngay(d.kyTruoc.tu) + ' – ' + ngay(d.kyTruoc.den)
-    + ' · ' + d.soChay + '/' + d.soApp + ' base đọc được</div>'
-    + khoi
-    + '<div class="chan">Xuất lúc ' + new Date(d.luc).toLocaleString('vi-VN')
-    + ' bởi ' + hEsc(nx.ten) + ' · Marketing Hub — Báo cáo &amp; KPI.'
-    + ' Số liệu đọc trực tiếp từ các base tại thời điểm xuất; base nào không đọc được đã ghi rõ.'
-    + '</div></div></body></html>';
-}
-
-/** Một ô CSV. Số giữ nguyên dấu chấm thập phân để Excel còn tính được. */
-function oCsv(v) {
-  if (v == null) return '';
-  if (typeof v === 'number') return Number.isInteger(v) ? String(v) : String(Math.round(v * 10000) / 10000);
-  const s = String(v);
-  return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
 }
 
 /**

@@ -63,20 +63,61 @@ button, select, input, textarea { font: inherit; color: inherit; }
 .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .fld { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--chu-mo); }
 .fld select, .fld input {
-  padding: 5px 9px; border: 1px solid var(--vien); border-radius: 8px; background: var(--trang);
+  height: 34px; padding: 0 10px; border: 1px solid var(--vien);
+  border-radius: var(--r-nho); background: var(--trang);
 }
+.fld select:focus, .fld input:focus { outline: 2px solid var(--xanh); outline-offset: 1px; }
 .chip {
   padding: 3px 10px; border-radius: 999px; background: var(--trang-2);
   border: 1px solid var(--vien-mem); font-size: 12px; color: var(--chu-mo);
 }
+/* ---- nút ----
+   Ba bậc rõ ràng, không để người dùng phải đoán cái nào là việc chính:
+     .btn.chinh  — hành động chính của màn (xanh đặc, đúng một cái mỗi khối)
+     .btn        — hành động phụ (viền)
+     .btn.ghost  — hành động nhẹ / rút lui (không viền cho đến khi rê chuột)
+     .btn.bt     — chỉ biểu tượng, vuông, cho những việc lặp lại như đọc lại
+
+   Chiều cao chốt 34px cho mọi bậc: nút cao thấp so le trên cùng một hàng là thứ
+   làm thanh công cụ trông lệch dù từng nút đều đúng. */
 .btn {
-  padding: 6px 12px; border: 1px solid var(--vien); border-radius: 8px;
-  background: var(--trang); cursor: pointer; font-weight: 500;
+  height: 34px; padding: 0 14px; border: 1px solid var(--vien); border-radius: var(--r-nho);
+  background: var(--trang); cursor: pointer; font-weight: 550; font-size: 13.5px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  white-space: nowrap; transition: background .12s, border-color .12s, box-shadow .12s, transform .06s;
 }
-.btn:hover { border-color: var(--vien-dam); }
-.btn.chinh { background: var(--xanh); border-color: var(--xanh); color: #fff; }
+.btn:hover { border-color: var(--vien-dam); background: var(--trang-2); }
+.btn:active { transform: translateY(1px); }
+/* Vòng lấy nét phải thấy rõ — bàn phím là cách duy nhất dùng app của một số người. */
+.btn:focus-visible { outline: 2px solid var(--xanh); outline-offset: 2px; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn:disabled:hover { background: var(--trang); border-color: var(--vien); }
+
+.btn.chinh {
+  background: var(--xanh); border-color: var(--xanh); color: #fff;
+  box-shadow: 0 1px 2px rgba(43, 92, 255, .28);
+}
+.btn.chinh:hover { background: #1f4ae0; border-color: #1f4ae0; }
 .btn.chinh:disabled { opacity: .45; cursor: not-allowed; }
-.btn.small { padding: 3px 9px; font-size: 12px; }
+.btn.chinh:disabled:hover { background: var(--xanh); border-color: var(--xanh); }
+
+.btn.ghost { border-color: transparent; background: transparent; color: var(--chu-mo); }
+.btn.ghost:hover { border-color: var(--vien); background: var(--trang-2); color: var(--chu); }
+
+/* Nút biểu tượng — vuông, không chữ. Luôn kèm title + aria-label ở JS. */
+.btn.bt { width: 34px; padding: 0; color: var(--chu-mo); }
+.btn.bt:hover { color: var(--chu); }
+.btn.bt svg { display: block; }
+/* Quay một vòng khi bấm đọc lại: phản hồi tức thì, khỏi bấm hai lần vì tưởng hụt. */
+.btn.bt.quay svg { animation: xoay .7s ease-in-out; }
+@keyframes xoay { to { transform: rotate(360deg); } }
+
+.btn.small, .btn.nho { height: 28px; padding: 0 10px; font-size: 12.5px; border-radius: 7px; }
+.btn.do { color: var(--do); border-color: var(--do-nhat); background: var(--do-nhat); }
+.btn.do:hover { border-color: var(--do); background: var(--do-nhat); }
+
+/* Hàng nút: khoảng cách do CSS lo, không rải marginLeft trong JS nữa. */
+.nut-hang { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
 /* ---- tab ---- */
 .tabsbar {
@@ -85,12 +126,17 @@ button, select, input, textarea { font: inherit; color: inherit; }
 }
 .tabs { display: flex; gap: 2px; }
 .tab {
-  padding: 10px 14px; border: 0; background: none; cursor: pointer; color: var(--chu-mo);
-  border-bottom: 2px solid transparent; font-weight: 550;
+  padding: 11px 14px; border: 0; background: none; cursor: pointer; color: var(--chu-mo);
+  border-bottom: 2px solid transparent; font-weight: 550; font-size: 13.5px;
+  transition: color .12s, background .12s;
 }
+.tab:hover { color: var(--chu); background: var(--trang-2); }
 .tab.chon { color: var(--xanh); border-bottom-color: var(--xanh); }
+.tab:focus-visible { outline: 2px solid var(--xanh); outline-offset: -2px; }
 
-main { padding: 16px var(--le) 40px; }
+main { padding: 18px var(--le) 60px; }
+/* Màn hẹp thu lề lại — 20px hai bên trên điện thoại là mất gần 1/6 bề ngang. */
+@media (max-width: 720px) { :root { --le: 14px; } }
 .rong { padding: 44px; text-align: center; color: var(--chu-nhat); }
 
 /* ---- KHỐI: thẻ trắng ---- */
@@ -100,19 +146,23 @@ main { padding: 16px var(--le) 40px; }
   box-shadow: var(--bong); overflow: hidden; margin-bottom: 14px;
 }
 .the > header {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 13px; border-bottom: 1px solid var(--vien);
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 12px 14px; border-bottom: 1px solid var(--vien);
 }
+/* Tiêu đề được xuống dòng chứ không bị cắt; dãy nút bên phải giữ nguyên bề rộng
+   — đúng lối đầu thẻ của Hub. */
+.the > header > h3 { flex: 0 1 auto; min-width: 0; }
+.the > header > .nut-hang { flex: 0 0 auto; margin-left: auto; }
 .the > header .phu { margin-left: auto; font-size: 12px; color: var(--chu-nhat); }
-.than { padding: 12px 13px; }
+.than { padding: 14px; }
 
 /* ---- Ô: ô bảng, không phải thẻ ---- */
 .o-luoi {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
   grid-auto-rows: 1fr;
 }
 .o {
-  background: var(--trang); padding: 9px 12px 10px;
+  background: var(--trang); padding: 11px 13px 12px;
   box-shadow: 0 0 0 1px var(--vien-mem);
   display: flex; flex-direction: column;
 }
@@ -124,7 +174,24 @@ main { padding: 16px var(--le) 40px; }
   font-size: 21px; font-weight: 700; letter-spacing: -.02em; margin-top: 2px;
   font-variant-numeric: tabular-nums;
 }
-.o .ghi { font-size: 12px; margin-top: auto; padding-top: 4px; color: var(--chu-nhat); }
+.o .ghi { font-size: 12px; padding-top: 3px; color: var(--chu-nhat); }
+.o.chinh { background: linear-gradient(var(--trang-2), var(--trang)); }
+.o.chinh .so { font-size: 23px; }
+
+/* Dòng "nền tảng nào góp vào con số này". Luôn dính đáy ô để mọi ô cùng hàng
+   thẳng nhau, dù ô nào có mức lệch ô nào không. */
+.o-nen {
+  margin-top: auto; padding-top: 5px; border-top: 1px dashed var(--vien-mem);
+  font-size: 10.5px; color: var(--chu-nhat); line-height: 1.5;
+  display: flex; flex-wrap: wrap; gap: 1px 8px;
+}
+.o-nen b { color: var(--chu-mo); font-weight: 650; }
+.o-nen-thieu { font-style: italic; opacity: .8; }
+.o-nen.trong { font-style: italic; }
+
+/* Lời cảnh báo giới hạn số liệu do chính app nguồn khai. */
+.luu-y { margin: 5px 0 0; padding-left: 18px; font-size: 12px; line-height: 1.6; }
+.luu-y li { margin: 2px 0; }
 .o.tot .so { color: var(--luc); }
 .o.xau .so { color: var(--do); }
 .o.im .so { color: var(--chu-nhat); font-weight: 600; opacity: .55; }
@@ -188,6 +255,33 @@ tr.phu td { background: var(--trang-2); }
 .canhbao.canhBao { border-color: var(--vang); background: var(--vang-nhat); }
 .canhbao.tin { border-color: var(--vien); background: var(--trang-2); color: var(--chu-mo); }
 
+/* ---- lưới phân công: kênh × nhân sự ----
+   Ô nhập nhỏ và sát nhau, vì cả bảng là một lưới số chứ không phải một biểu
+   mẫu. Hai màu hàng cảnh báo dùng nền RẤT nhạt: hàng lỗi phải nổi lên khi lướt
+   mắt, nhưng tô đậm thì cả bảng đỏ rực và mất hết ý nghĩa. */
+.pc-bang { min-width: 880px; }
+.pc-bang th.so, .pc-bang td.so { min-width: 84px; }
+input.pc-o {
+  width: 62px; height: 30px; padding: 3px 8px; text-align: right;
+  border: 1px solid var(--vien); border-radius: 7px; background: var(--trang);
+  font-variant-numeric: tabular-nums; font-weight: 650;
+}
+input.pc-o:focus { outline: 2px solid var(--xanh); outline-offset: 1px; border-color: var(--xanh); }
+input.pc-o::placeholder { color: var(--vien-dam); font-weight: 400; }
+/* Bỏ nút tăng giảm: bảng này gõ số chứ không bấm từng nấc, mà nút chiếm mất
+   một phần ba bề ngang ô. */
+input.pc-o::-webkit-outer-spin-button,
+input.pc-o::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input.pc-o { -moz-appearance: textfield; appearance: textfield; }
+
+tr.pc-trung > td { background: var(--vang-nhat); }
+tr.pc-mocoi > td { background: var(--do-nhat); }
+tr.pc-chan > td {
+  background: var(--trang-2); border-top: 2px solid var(--vien-dam);
+  position: sticky; bottom: 0; z-index: 2;
+}
+.pc-ai { max-width: 240px; white-space: normal; }
+
 /* ---- thử luật ---- */
 .thu-luoi { display: grid; grid-template-columns: 1fr 350px; gap: 14px; align-items: start; }
 @media (max-width: 1040px) { .thu-luoi { grid-template-columns: 1fr; } }
@@ -200,9 +294,19 @@ input.so.doi { border-color: var(--xanh); background: var(--xanh-nhat); }
 .lech { font-variant-numeric: tabular-nums; font-weight: 650; }
 .lech.len { color: var(--luc); } .lech.xuong { color: var(--do); }
 input.cham {
-  width: 74px; padding: 3px 7px; border: 1px solid var(--vien); border-radius: 7px; text-align: right;
+  width: 74px; height: 30px; padding: 3px 9px; border: 1px solid var(--vien);
+  border-radius: 7px; text-align: right; background: var(--trang);
+  font-variant-numeric: tabular-nums; font-weight: 650;
 }
+input.cham:focus, input.ghi-cham:focus { outline: 2px solid var(--xanh); outline-offset: 1px; border-color: var(--xanh); }
 input.cham.thieu { border-color: var(--do); background: var(--do-nhat); }
+
+/* Ô ghi chú chấm tay. Rộng hết cột vì một câu giải trình dài hơn một con số. */
+input.ghi-cham {
+  width: 100%; min-width: 260px; height: 30px; padding: 3px 9px;
+  border: 1px solid var(--vien); border-radius: 7px; background: var(--trang);
+}
+input.ghi-cham::placeholder { color: var(--chu-nhat); font-style: italic; }
 
 /* ---- cột tháng ---- */
 .cot-thang { display: flex; gap: 10px; align-items: flex-end; }
@@ -250,17 +354,24 @@ input.cham.thieu { border-color: var(--do); background: var(--do-nhat); }
   text-transform: uppercase; letter-spacing: .04em;
 }
 .loc-nhom input[type=date] {
-  padding: 6px 9px; border: 1px solid var(--vien); border-radius: 8px; background: var(--trang);
+  height: 34px; padding: 0 10px; border: 1px solid var(--vien);
+  border-radius: var(--r-nho); background: var(--trang);
 }
-.seg { display: flex; gap: 0; border: 1px solid var(--vien); border-radius: 8px; overflow: hidden; }
+.loc-nhom input[type=date]:focus { outline: 2px solid var(--xanh); outline-offset: 1px; }
+.seg { display: flex; gap: 0; border: 1px solid var(--vien); border-radius: var(--r-nho); overflow: hidden; }
 .seg-nut {
-  padding: 6px 12px; border: 0; border-right: 1px solid var(--vien);
-  background: var(--trang); cursor: pointer; font-size: 13px; color: var(--chu-mo); white-space: nowrap;
+  height: 34px; padding: 0 13px; border: 0; border-right: 1px solid var(--vien);
+  background: var(--trang); cursor: pointer; font-size: 13px; color: var(--chu-mo);
+  white-space: nowrap; font-weight: 550; transition: background .12s, color .12s;
 }
 .seg-nut:last-child { border-right: 0; }
 .seg-nut:hover { background: var(--trang-2); }
-.seg-nut.chon { background: var(--xanh); color: #fff; font-weight: 600; }
-.cham { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: 0 0 auto; }
+.seg-nut.chon { background: var(--xanh); color: #fff; font-weight: 650; }
+.seg-nut:focus-visible { outline: 2px solid var(--xanh); outline-offset: -2px; }
+/* Chấm tròn màu trước tên base. ĐỔI TÊN từ `.cham` sang `.cham-tron`: tên cũ
+   đụng `input.cham` của bảng chấm tay — `input.cham` không khai `height` nên ô
+   nhập điểm ăn phải `height:9px` của cái chấm và bị bẹp thành một sợi chỉ. */
+.cham-tron { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: 0 0 auto; }
 .o .ghi.tot { color: var(--luc); font-weight: 600; }
 .o .ghi.xau { color: var(--do); font-weight: 600; }
 
@@ -269,3 +380,22 @@ input.cham.thieu { border-color: var(--do); background: var(--do-nhat); }
    tác dụng — đã dính hai lần: cửa sổ rỗng đè lên trang, và ô chọn tháng không
    ẩn ở tab Báo cáo. Chặn một lần ở đây cho mọi phần tử. */
 [hidden] { display: none !important; }
+
+/* Bí danh biến màu cho charts.js — tệp đó lấy nguyên từ app Social nên đọc theo
+   tên biến của app đó. Khai bí danh ở đây thay vì sửa charts.js: hai app dùng
+   CHUNG một tệp, sửa một bên là lần sau chép sang lại lệch. */
+:root {
+  --line-soft: #eef1f6;
+  --ink: #1a2233;
+  --ink-2: #5b6779;
+  --ink-3: #8b95a7;
+  --panel-2: #fbfcfe;
+  --bad: #dc2b3d;
+  --fb: #1877f2; --tt: #111827; --ig: #d62976; --za: #0068ff;
+  --dy: #7a3cff; --xhs: #ff2442; --gg: #ea9c1b;
+}
+.bieu-do { padding: 10px 13px; }
+.bieu-do-doi { display: grid; grid-template-columns: 1fr 260px; gap: 6px; align-items: center; }
+@media (max-width: 900px) { .bieu-do-doi { grid-template-columns: 1fr; } }
+.chu-thich { display: flex; gap: 14px; flex-wrap: wrap; padding: 0 13px 10px; font-size: 12px; color: var(--chu-mo); }
+.chu-thich i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; margin-right: 5px; }

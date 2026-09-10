@@ -51,6 +51,7 @@ function thang(th) {
     luatGoc: goc.luat,
     soLieu: Object.assign({}, goc.soLieu, sua.soLieu || {}),
     chamTay: gopChamTay(goc.chamTay, sua.chamTay),
+    ghiChuCham: sua.ghiChuCham || {},
     daTraLuong: goc.daTraLuong || {},
     boQuaKhiNhap: goc.boQuaKhiNhap || [],
     chot: sua.chot || null,
@@ -75,6 +76,26 @@ function luuChamTay(th, maNguoi, maTieuChi, diem) {
   const ng = c[maNguoi] || (c[maNguoi] = {});
   if (diem === null || diem === '' || diem === undefined) delete ng[maTieuChi];
   else ng[maTieuChi] = Number(diem);
+  ghiJson(F_SUA, s);
+  return true;
+}
+
+/**
+ * Ghi chú cho một điểm chấm tay: "vì sao chấm 0,7".
+ *
+ * Để RIÊNG khỏi `chamTay` chứ không nhét chung thành object {diem, ghiChu}: cả
+ * `tinh.js` lẫn 38 phép kiểm đều đọc `chamTay[ng][tc]` là một SỐ. Đổi hình dạng
+ * đó để thêm một dòng chữ là sửa lõi tính lương vì một việc của giao diện.
+ */
+function luuGhiChuCham(th, maNguoi, maTieuChi, chu) {
+  const s = suaTay();
+  const t = s.thang[th] || (s.thang[th] = {});
+  const c = t.ghiChuCham || (t.ghiChuCham = {});
+  const ng = c[maNguoi] || (c[maNguoi] = {});
+  const v = String(chu == null ? '' : chu).trim().slice(0, 500);
+  if (!v) delete ng[maTieuChi];
+  else ng[maTieuChi] = v;
+  if (!Object.keys(ng).length) delete c[maNguoi];
   ghiJson(F_SUA, s);
   return true;
 }
@@ -139,7 +160,7 @@ function boChot(th) {
 
 module.exports = {
   THU_MUC, F_LICH_SU, F_SUA,
-  danhSachThang, thang, luuChamTay, luuLuat, boSuaLuat, chot, boChot,
+  danhSachThang, thang, luuChamTay, luuGhiChuCham, luuLuat, boSuaLuat, chot, boChot,
   luuSoLieu, boSoLieu,
   coLichSu: () => fs.existsSync(F_LICH_SU),
 };

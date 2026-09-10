@@ -87,7 +87,11 @@ async function khoiDong() {
   if (META.nguoiXem.quanLy) tabs.push(['tong', 'Tổng quan KPI']);
   tabs.push(['phieu', 'Phiếu KPI']);
   if (META.nguoiXem.quanLy) {
-    tabs.push(['nguon', 'Nguồn số liệu'], ['thu', 'Mục tiêu & thử luật'], ['soat', 'Soát & chốt']);
+    /* "Phân công" đứng ngay trước "Mục tiêu & thử luật" vì hai tab này là hai
+     * tầng của cùng một bộ luật: phân công quyết định AI gánh kênh nào, mục
+     * tiêu quyết định kênh đó phải đạt bao nhiêu. */
+    tabs.push(['nguon', 'Nguồn số liệu'], ['phancong', 'Phân công'],
+      ['thu', 'Mục tiêu & thử luật'], ['soat', 'Soát & chốt']);
   }
   TAB = tabs[0][0];
   $('#tabs').innerHTML = tabs.map(([k, t]) =>
@@ -144,6 +148,7 @@ function ve() {
   else if (TAB === 'tong') veTongQuan();
   else if (TAB === 'phieu') vePhieu();
   else if (TAB === 'nguon') veNguon();
+  else if (TAB === 'phancong') vePhanCong();
   else if (TAB === 'thu') veThu();
   else veSoat();
 }
@@ -160,6 +165,32 @@ function taiVe(duong) {
  * Hai đường vào: đổ tự động từ app con, và tải file cho nền tảng không có API.
  * Cả hai đều BẮT BUỘC xem trước rồi mới ghi — số này chạy thẳng vào bảng lương,
  * không được để ai bấm một nút rồi mới biết mình vừa đè lên số nào. */
+/* ---------------- tab: nguồn số liệu ----------------
+ * Trả lời đúng một câu: "chỉ số nào máy tự lấy được, chỉ số nào phải có người
+ * làm gì đó — và làm ở ĐÂU".
+ *
+ * Bản trước dồn tất cả vào một bảng dài với cột "Nguồn" ghi chữ "chưa có nguồn"
+ * cho mọi thứ còn thiếu. Nhưng "thiếu" có bốn nghĩa hoàn toàn khác nhau về
+ * người làm và nơi làm — nhập ở base, tải file lên, tự chấm, hay đi nối app —
+ * nên bây giờ tách hẳn thành từng khối.
+ */
+const NG_CACH = {
+  base: { ten: 'Nhập tại base nguồn', mau: 'canh',
+    mo: 'Số này lấy tự động được, chỉ là base nguồn chưa có dòng đó. '
+      + 'Vào đúng base thêm/sửa rồi bấm Làm mới — không cần tải file gì cả.' },
+  file: { ten: 'Tải file lên đây', mau: 'canh',
+    mo: 'Nền tảng không mở API nên không có cách nào lấy tự động. '
+      + 'Xuất file từ nền tảng rồi dán vào ô ở khối “Tải file lên” bên dưới.' },
+  tay: { ten: 'Người phụ trách tự chấm', mau: 'im',
+    mo: 'Không nền tảng nào đo được thứ này. Chấm tay ở tab “Phiếu KPI”, nhớ ghi lý do.' },
+  noi: { ten: 'Chờ nối app', mau: 'chan',
+    mo: 'App nguồn đã chạy trong Hub, chỉ là phần KPI chưa đọc sang. '
+      + 'Đây là việc của người dựng app, không phải việc nhập liệu.' },
+  luat: { ten: 'Sai ở bộ luật', mau: 'chan',
+    mo: 'Không phải thiếu số — bộ luật đang gọi tên một chỉ số hoặc một kênh không tồn tại. '
+      + 'Sửa ở tab “Mục tiêu & thử luật”.' },
+};
+
 async function veNguon() {
   $('#noiDung').innerHTML = '<div class="rong">đang dò nguồn…</div>';
   let r;
@@ -167,35 +198,57 @@ async function veNguon() {
   catch (e) { $('#noiDung').innerHTML = '<div class="rong">' + esc(e.message) + '</div>'; return; }
 
   const g = el('div');
+  const nk = r.nhatKy || [];
+  const layDuoc = nk.filter((x) => x.trangThai === 'lay-duoc');
+  const conLai = nk.filter((x) => x.trangThai !== 'lay-duoc');
 
-  /* --- đổ tự động --- */
+  /* --- ô tổng: bức tranh một dòng --- */
+  const t0 = el('div', 'the');
+  t0.appendChild(el('header', '', '<h3>Tháng ' + Number(THANG.slice(5)) + '/' + THANG.slice(0, 4)
+    + ' cần ' + nk.length + ' chỉ số</h3>'
+    + '<span class="phu">' + Math.round((layDuoc.length / (nk.length || 1)) * 100)
+    + '% tự lấy được</span>'));
+  const luoi = el('div', 'o-luoi');
+  const oo = (nhan, so, ghi, lop) => luoi.appendChild(el('div', 'o' + (lop ? ' ' + lop : ''),
+    '<div class="nhan">' + nhan + '</div><div class="so">' + so + '</div>'
+    + (ghi ? '<div class="ghi">' + ghi + '</div>' : '')));
+  oo('Máy tự lấy được', layDuoc.length, 'không cần ai làm gì', layDuoc.length ? 'tot' : 'im');
+  Object.keys(NG_CACH).forEach((k) => {
+    const n = conLai.filter((x) => x.cach === k).length;
+    if (n) oo(NG_CACH[k].ten, n, 'chỉ số', k === 'tay' ? 'im' : 'xau');
+  });
+  t0.appendChild(luoi);
+  g.appendChild(t0);
+
+  /* --- khối 1: đổ tự động --- */
   const t1 = el('div', 'the');
-  t1.appendChild(el('header', '', '<h3>Đổ số tự động từ các app</h3>'
-    + '<span class="phu">' + r.dem.layDuoc + ' lấy được · ' + r.dem.thieu + ' thiếu nguồn'
-    + (r.dem.loi ? ' · ' + r.dem.loi + ' lỗi' : '') + '</span>'));
+  t1.appendChild(el('header', '', '<h3>Số máy tự lấy được</h3>'
+    + '<span class="phu">' + layDuoc.length + ' chỉ số · đọc thẳng từ base của các app</span>'));
   const than1 = el('div', 'than');
   Object.entries(r.loiApp || {}).forEach(([app, loi]) =>
     than1.appendChild(el('div', 'canhbao chan', '<b>App ' + esc(app) + ' không gọi được</b> — ' + esc(loi))));
   if (DATA.chot) {
-    than1.appendChild(el('div', 'canhbao canhBao', '<b>Tháng này đã chốt.</b> Bỏ chốt ở tab “Soát & đối chiếu” trước khi đổ số mới.'));
+    than1.appendChild(el('div', 'canhbao canhBao',
+      '<b>Tháng này đã chốt.</b> Bỏ chốt ở tab “Soát & chốt” trước khi đổ số mới.'));
   }
-  const nutDo = el('button', 'btn chinh', 'Đổ ' + r.dem.layDuoc + ' số về tháng này');
-  nutDo.disabled = !r.dem.layDuoc || !!DATA.chot;
+
   /* Chỉ số đang có số mà đổ về thành 0 gần như luôn là "app nguồn chưa đo được
    * cái này", chứ không phải "tháng này làm ra 0". Ghi đè kiểu đó là xoá thành
    * quả thật bằng một khoảng trống — phải cảnh báo riêng, đậm hơn cảnh báo đổi số. */
-  const veKhong = r.nhatKy.filter((x) => x.trangThai === 'lay-duoc'
-    && x.so === 0 && x.dangDung != null && x.dangDung > 0);
+  const veKhong = layDuoc.filter((x) => x.so === 0 && x.dangDung != null && x.dangDung > 0);
   if (veKhong.length) {
     than1.appendChild(el('div', 'canhbao chan',
       '<b>' + veKhong.length + ' chỉ số đang có số sẽ bị đổ về 0</b> — app nguồn chưa đo được '
       + 'các chỉ số này (thường là lead và follow). Đổ về là mất số thật đang dùng. '
       + 'Nên nối đủ nguồn trước, hoặc tải file cho phần thiếu.'));
   }
+
+  const hang1 = el('div', 'nut-hang');
+  const nutDo = el('button', 'btn chinh', 'Đổ ' + layDuoc.length + ' số về tháng này');
+  nutDo.disabled = !layDuoc.length || !!DATA.chot;
   nutDo.onclick = async () => {
-    const doi = r.nhatKy.filter((x) => x.trangThai === 'lay-duoc'
-      && x.dangDung != null && Math.abs(x.dangDung - x.so) > 0.5).length;
-    if (!confirm('Ghi ' + r.dem.layDuoc + ' số vào tháng này?\n\n'
+    const doi = layDuoc.filter((x) => x.dangDung != null && Math.abs(x.dangDung - x.so) > 0.5).length;
+    if (!confirm('Ghi ' + layDuoc.length + ' số vào tháng này?\n\n'
       + (doi ? doi + ' chỉ số sẽ ĐỔI so với số đang dùng.\n' : '')
       + (veKhong.length ? '⚠ ' + veKhong.length + ' chỉ số đang có số sẽ bị đổ về 0.\n' : '')
       + '\nSố gốc nhập từ Excel không bị mất — bấm “Về số gốc” là quay lại được.')) return;
@@ -204,10 +257,9 @@ async function veNguon() {
       bao('Đã ghi ' + kq.ghi + ' số'); await napThang(); ve();
     } catch (e) { bao(e.message, true); }
   };
-  than1.appendChild(nutDo);
+  hang1.appendChild(nutDo);
   if (r.coSoLieuMoi) {
     const ve0 = el('button', 'btn ghost', 'Về số gốc');
-    ve0.style.marginLeft = '8px';
     ve0.onclick = async () => {
       if (!confirm('Bỏ toàn bộ số đã đổ về / tải lên của tháng này và quay lại số gốc?')) return;
       try {
@@ -215,30 +267,55 @@ async function veNguon() {
         bao('Đã về số gốc'); await napThang(); ve();
       } catch (e) { bao(e.message, true); }
     };
-    than1.appendChild(ve0);
+    hang1.appendChild(ve0);
   }
+  than1.appendChild(hang1);
   t1.appendChild(than1);
 
-  const b1 = el('table');
-  b1.innerHTML = '<thead><tr><th>Chỉ số</th><th>Nguồn</th><th class="so">Đang dùng</th>'
-    + '<th class="so">Sẽ thành</th><th>Ghi chú</th></tr></thead>';
-  const tb1 = el('tbody');
-  const uu = { 'lay-duoc': 0, loi: 1, thieu: 2 };
-  r.nhatKy.slice().sort((a, b) => (uu[a.trangThai] - uu[b.trangThai]) || a.ma.localeCompare(b.ma))
-    .forEach((x) => {
-      const doi = x.trangThai === 'lay-duoc' && x.dangDung != null && Math.abs(x.dangDung - x.so) > 0.5;
-      tb1.appendChild(el('tr', '', '<td class="nho">' + esc(x.ma) + '</td>'
-        + '<td>' + (x.trangThai === 'lay-duoc' ? '<span class="nhan-o ok">' + esc(x.nguon) + '</span>'
-          : x.trangThai === 'loi' ? '<span class="nhan-o chan">lỗi</span>'
-            : '<span class="nhan-o im">chưa có nguồn</span>') + '</td>'
+  if (layDuoc.length) {
+    const b1 = el('table');
+    b1.innerHTML = '<thead><tr><th>Chỉ số</th><th>Lấy từ đâu</th><th class="so">Đang dùng</th>'
+      + '<th class="so">Sẽ thành</th><th>Ghi chú</th></tr></thead>';
+    const tb1 = el('tbody');
+    layDuoc.slice().sort((a, b) => a.ma.localeCompare(b.ma)).forEach((x) => {
+      const doi = x.dangDung != null && Math.abs(x.dangDung - x.so) > 0.5;
+      tb1.appendChild(el('tr', '', '<td class="nho dai">' + esc(x.ma) + '</td>'
+        + '<td><span class="nhan-o ok">' + esc(x.nguon) + '</span></td>'
         + '<td class="so mo">' + (x.dangDung == null ? '—' : gon(x.dangDung)) + '</td>'
         + '<td class="so">' + (x.so == null ? '—' : '<b>' + gon(x.so) + '</b>'
           + (doi ? ' <span class="lech ' + (x.so > x.dangDung ? 'len' : 'xuong') + '">≠</span>' : '')) + '</td>'
         + '<td class="nho mo">' + esc(x.ghi || '') + '</td>'));
     });
-  b1.appendChild(tb1);
-  t1.appendChild(el('div', 'bang-cuon')).appendChild(b1);
+    b1.appendChild(tb1);
+    t1.appendChild(el('div', 'bang-cuon')).appendChild(b1);
+  }
   g.appendChild(t1);
+
+  /* --- khối 2..n: mỗi cách một thẻ riêng --- */
+  Object.keys(NG_CACH).forEach((k) => {
+    const ds = conLai.filter((x) => x.cach === k);
+    if (!ds.length) return;
+    const c = NG_CACH[k];
+    const the = el('div', 'the');
+    the.appendChild(el('header', '',
+      '<span class="nhan-o ' + c.mau + '">' + esc(c.ten) + '</span>'
+      + '<h3>' + ds.length + ' chỉ số</h3>'));
+    the.appendChild(el('div', 'than nho mo', c.mo));
+    const t = el('table');
+    t.innerHTML = '<thead><tr><th>Chỉ số</th><th>Nguồn đáng lẽ phải có</th>'
+      + '<th class="so">Số đang dùng</th><th>Vì sao chưa có</th></tr></thead>';
+    const tb = el('tbody');
+    ds.slice().sort((a, b) => a.ma.localeCompare(b.ma)).forEach((x) => {
+      tb.appendChild(el('tr', '', '<td class="nho dai">' + esc(x.ma) + '</td>'
+        + '<td class="mo nho">' + esc(x.nguon || '—') + '</td>'
+        + '<td class="so">' + (x.dangDung == null
+          ? '<span class="nhan-o im">chưa có</span>' : gon(x.dangDung)) + '</td>'
+        + '<td class="nho mo">' + esc(x.ghi || '') + '</td>'));
+    });
+    t.appendChild(tb);
+    the.appendChild(el('div', 'bang-cuon')).appendChild(t);
+    g.appendChild(the);
+  });
 
   /* --- tải file --- */
   const t2 = el('div', 'the');
@@ -253,8 +330,8 @@ async function veNguon() {
   oFile.style.marginBottom = '8px';
   const oText = el('textarea');
   oText.rows = 6; oText.placeholder = 'Kênh\tChỉ số\tGiá trị\nRooty Trip Phú Quốc\tview\t1.234.567';
-  oText.style.cssText = 'width:100%;font:12px ui-monospace,Consolas,monospace;padding:8px;'
-    + 'border:1px solid var(--vien);border-radius:8px;resize:vertical';
+  oText.style.cssText = 'width:100%;font:12px ui-monospace,Consolas,monospace;padding:9px;'
+    + 'border:1px solid var(--vien);border-radius:9px;resize:vertical';
   oFile.onchange = () => {
     const f = oFile.files[0]; if (!f) return;
     const fr = new FileReader();
@@ -264,7 +341,7 @@ async function veNguon() {
   const ketQua = el('div');
   const nutXem = el('button', 'btn', 'Xem thử khớp vào đâu');
   const nutNap = el('button', 'btn chinh', 'Nạp vào tháng này');
-  nutNap.style.marginLeft = '8px'; nutNap.disabled = true;
+  nutNap.disabled = true;
   nutXem.onclick = async () => {
     try {
       const d = await goi('tai-file', { method: 'POST', body: JSON.stringify({ thang: THANG, noiDung: oText.value, xem: true }) });
@@ -286,7 +363,7 @@ async function veNguon() {
     } catch (e) { bao(e.message, true); }
   };
   than2.appendChild(oFile); than2.appendChild(oText);
-  const hang2 = el('div'); hang2.style.marginTop = '8px';
+  const hang2 = el('div', 'nut-hang'); hang2.style.marginTop = '10px';
   hang2.appendChild(nutXem); hang2.appendChild(nutNap);
   than2.appendChild(hang2); than2.appendChild(ketQua);
   t2.appendChild(than2);
@@ -456,11 +533,22 @@ function vePhieu() {
     + '<span class="phu">' + (DATA.chot
       ? 'đã chốt ' + new Date(DATA.chot.luc).toLocaleString('vi-VN')
       : 'chưa chốt') + '</span>');
-  const nutXuat = el('button', 'btn small', DATA.chiMinh ? 'Xuất phiếu của tôi' : 'Xuất báo cáo phòng');
-  nutXuat.onclick = () => taiVe(DATA.chiMinh
-    ? 'xuat?kieu=nguoi&ma=' + encodeURIComponent(DATA.nguoi[0] ? DATA.nguoi[0].ma : '') + '&thang=' + THANG
-    : 'xuat?kieu=phong&thang=' + THANG);
-  hd.appendChild(nutXuat);
+  /* Hai bậc rõ ràng: VĂN BẢN là thứ đưa cho người đọc và ký; CSV là thứ bê số
+   * sang bảng tính. Bản trước chỉ có CSV nên "xuất KPI" ra một bảng thô không
+   * tiêu đề, không logo — không đưa cho ai được. */
+  const q = DATA.chiMinh
+    ? 'kieu=nguoi&ma=' + encodeURIComponent(DATA.nguoi[0] ? DATA.nguoi[0].ma : '') + '&thang=' + THANG
+    : 'kieu=phong&thang=' + THANG;
+  const nutXuat = el('button', 'btn chinh small',
+    DATA.chiMinh ? 'Xuất phiếu của tôi' : 'Xuất văn bản KPI phòng');
+  nutXuat.title = 'Văn bản có logo và khối ký — mở ra bấm Ctrl+P là ra PDF';
+  nutXuat.onclick = () => window.open('api/xuat-kpi?' + q, '_blank');
+  const nutCsv = el('button', 'btn small', 'CSV');
+  nutCsv.title = 'Bảng số thô để bê sang Excel';
+  nutCsv.onclick = () => taiVe('xuat?' + q);
+  const hangX = el('div', 'nut-hang');
+  hangX.appendChild(nutXuat); hangX.appendChild(nutCsv);
+  hd.appendChild(hangX);
   the.appendChild(hd);
 
   const t = el('table');
@@ -483,10 +571,14 @@ function vePhieu() {
         ? '<span class="nhan-o ok">đủ dữ liệu</span>'
         : '<span class="nhan-o chan">thiếu ' + thieu.length + ' mục</span>') + '</td>'
       + '<td class="so"><span class="mo nho">xem chuỗi tính ›</span>'
-      + ' <button class="btn small" data-xuat="' + esc(ng.ma) + '">Xuất</button></td>';
+      + ' <button class="btn small" data-xuat="' + esc(ng.ma) + '" title="Phiếu KPI dạng văn bản, có logo và chỗ ký">Xuất phiếu</button></td>';
     tr.onclick = (ev) => {
       const b = ev.target.closest('[data-xuat]');
-      if (b) { ev.stopPropagation(); return taiVe('xuat?kieu=nguoi&ma=' + encodeURIComponent(b.dataset.xuat) + '&thang=' + THANG); }
+      if (b) {
+        ev.stopPropagation();
+        return window.open('api/xuat-kpi?kieu=nguoi&ma='
+          + encodeURIComponent(b.dataset.xuat) + '&thang=' + THANG, '_blank');
+      }
       return moPhieu(ng);
     };
     tb.appendChild(tr);
@@ -502,41 +594,75 @@ function vePhieu() {
   $('#noiDung').appendChild(g);
 }
 
+/**
+ * Bảng chấm tay — trưởng phòng chấm cả phòng ở một chỗ.
+ *
+ * Dựng lại từ dạng lưới ngang (mỗi tiêu chí một cột) sang dạng DANH SÁCH: một
+ * dòng = một người × một tiêu chí, kèm ô ghi chú. Lưới ngang không còn chỗ cho
+ * ghi chú, mà chấm tay không có ghi chú là chấm không giải trình được — cuối
+ * tháng hỏi "sao bạn này 0,7" thì không ai nhớ.
+ */
 function bangChamTay() {
-  const cot = [];
-  DATA.nguoi.forEach((ng) => ng.tieuChi.forEach((tc) => {
-    if (tc.kieu === 'tay' && !cot.some((c) => c.ma === tc.ma)) cot.push({ ma: tc.ma, ten: tc.ten, boi: tc.boi });
+  const hang = [];
+  DATA.nguoi.forEach((ng) => (ng.tieuChi || []).forEach((tc) => {
+    if (tc.kieu === 'tay') hang.push({ ng, tc });
   }));
+
   const the = el('div', 'the');
+  const thieu = hang.filter((x) => x.tc.chuaCo).length;
   the.appendChild(el('header', '', '<h3>Điểm chấm tay</h3>'
-    + '<span class="phu">ô đỏ là chưa chấm — tháng không chốt được khi còn ô đỏ</span>'));
+    + '<span class="phu">' + (thieu
+      ? '<span class="nhan-o chan">còn ' + thieu + ' mục chưa chấm</span> — tháng chưa chốt được'
+      : '<span class="nhan-o ok">đã chấm đủ</span>') + '</span>'));
+
+  if (!hang.length) {
+    the.appendChild(el('div', 'than nhat', 'Bộ luật tháng này không có tiêu chí nào chấm tay.'));
+    return the;
+  }
+
+  const than = el('div', 'than nho nhat');
+  than.innerHTML = 'Thang điểm <b>0 – 2</b>: 1,0 là làm đúng yêu cầu, dưới 1 là chưa đạt, '
+    + 'trên 1 là vượt. Ghi chú tự lưu khi rời ô — nên viết một câu vì sao chấm mức đó, '
+    + 'vì phiếu KPI xuất ra có in kèm.';
+  the.appendChild(than);
+
   const t = el('table');
-  t.innerHTML = '<thead><tr><th>Người</th>'
-    + cot.map((c) => '<th class="so">' + esc(c.ten) + '<div class="mo nho">' + esc(c.boi || '') + '</div></th>').join('')
-    + '</tr></thead>';
+  t.innerHTML = '<thead><tr><th>Người</th><th>Tiêu chí</th><th class="so">Điểm</th>'
+    + '<th>Ghi chú — vì sao chấm mức này</th><th>Người chấm</th></tr></thead>';
   const tb = el('tbody');
-  DATA.nguoi.forEach((ng) => {
+  hang.forEach(({ ng, tc }) => {
     const tr = el('tr');
-    let h = '<td><b>' + esc(ng.ten) + '</b></td>';
-    cot.forEach((c) => {
-      const tc = ng.tieuChi.find((x) => x.ma === c.ma);
-      if (!tc) { h += '<td class="so mo">—</td>'; return; }
-      h += '<td class="so"><input class="cham' + (tc.chuaCo ? ' thieu' : '') + '" type="number" step="0.1" min="0" max="2"'
-        + ' value="' + (tc.chuaCo ? '' : tc.diem) + '" data-ng="' + ng.ma + '" data-tc="' + c.ma + '"></td>';
-    });
-    tr.innerHTML = h;
+    tr.innerHTML = '<td><b>' + esc(ng.ten) + '</b></td>'
+      + '<td class="dai">' + esc(tc.ten) + '</td>'
+      + '<td class="so"><input class="cham' + (tc.chuaCo ? ' thieu' : '') + '" type="number"'
+        + ' step="0.1" min="0" max="2" placeholder="—"'
+        + ' value="' + (tc.chuaCo ? '' : tc.diem) + '"'
+        + ' data-ng="' + esc(ng.ma) + '" data-tc="' + esc(tc.ma) + '"></td>'
+      + '<td><input class="ghi-cham" type="text" maxlength="500"'
+        + ' placeholder="' + (tc.chuaCo ? 'chấm điểm rồi ghi lý do' : 'chưa có ghi chú') + '"'
+        + ' value="' + esc(tc.ghiChu || '') + '"'
+        + ' data-ng="' + esc(ng.ma) + '" data-tc="' + esc(tc.ma) + '"></td>'
+      + '<td class="nhat nho">' + esc(tc.boi || 'người phụ trách') + '</td>';
     tb.appendChild(tr);
   });
   t.appendChild(tb);
   the.appendChild(el('div', 'bang-cuon')).appendChild(t);
 
+  /* Ghi chú lưu bằng `change` (rời ô) chứ không `input` (từng phím) — gõ một
+   * câu là mấy chục lần ghi đĩa và mấy chục lần tính lại điểm cả phòng. */
   the.addEventListener('change', async (ev) => {
-    const i = ev.target.closest('input.cham'); if (!i) return;
+    const i = ev.target.closest('input.cham, input.ghi-cham');
+    if (!i) return;
+    const laGhi = i.classList.contains('ghi-cham');
+    const than0 = { thang: THANG, nguoi: i.dataset.ng, tieuChi: i.dataset.tc };
+    if (laGhi) than0.ghiChu = i.value;
+    else than0.diem = i.value === '' ? null : Number(i.value);
     try {
-      DATA = await goi('cham', { method: 'POST', body: JSON.stringify({
-        thang: THANG, nguoi: i.dataset.ng, tieuChi: i.dataset.tc,
-        diem: i.value === '' ? null : Number(i.value) }) });
-      bao('Đã chấm'); ve();
+      DATA = await goi('cham', { method: 'POST', body: JSON.stringify(than0) });
+      bao(laGhi ? 'Đã lưu ghi chú' : 'Đã chấm');
+      /* Sửa ghi chú thì KHÔNG vẽ lại cả bảng: vẽ lại là con trỏ nhảy đi chỗ
+       * khác giữa chừng, người dùng đang gõ tiếp ô bên cạnh thì mất chữ. */
+      if (!laGhi) ve();
     } catch (e) { bao(e.message, true); }
   });
   return the;
@@ -549,7 +675,8 @@ function moPhieu(ng) {
 
   const t1 = el('table');
   t1.innerHTML = '<thead><tr><th>Tiêu chí tính lương</th><th class="so">Điểm</th>'
-    + '<th class="so">Trọng số</th><th class="so">Điểm tính lương</th><th>Nguồn</th></tr></thead>';
+    + '<th class="so">Trọng số</th><th class="so">Điểm tính lương</th><th>Nguồn</th>'
+    + '<th>Ghi chú</th></tr></thead>';
   const tb1 = el('tbody');
   ng.tieuChi.forEach((tc) => {
     const nguon = tc.kieu === 'kenh' ? 'gộp từ ' + tc.ghi
@@ -558,11 +685,12 @@ function moPhieu(ng) {
       + '<td class="so">' + (tc.chuaCo ? '<span class="nhan-o chan">chưa có</span>' : n3(tc.diem)) + '</td>'
       + '<td class="so mo">' + n3(tc.trongSo) + '</td>'
       + '<td class="so"><b>' + n3(tc.diemTinhLuong) + '</b></td>'
-      + '<td class="mo nho">' + esc(nguon) + '</td>'));
+      + '<td class="mo nho">' + esc(nguon) + '</td>'
+      + '<td class="mo nho">' + (tc.ghiChu ? esc(tc.ghiChu) : '') + '</td>'));
   });
   tb1.appendChild(el('tr', '', '<td><b>Tổng</b></td><td></td>'
     + '<td class="so mo">' + n3(ng.tongTrongSo) + '</td>'
-    + '<td class="so"><span class="diem">' + n3(ng.tong) + '</span></td><td></td>'));
+    + '<td class="so"><span class="diem">' + n3(ng.tong) + '</span></td><td></td><td></td>'));
   t1.appendChild(tb1);
   b.appendChild(t1);
 

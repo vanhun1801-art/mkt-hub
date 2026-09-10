@@ -128,34 +128,62 @@ async function docTuApp(thang, luat, khoangRieng) {
     liveTheoKenh.set(k, o);
   });
 
-  const ghi = (ma, nguon, so, trangThai, chuThich) => {
+  /**
+   * @param cach với số CHƯA lấy được: phải làm gì để có nó. Bốn cách khác nhau
+   *   hẳn về người làm và nơi làm, nên đừng dồn hết thành một chữ "thiếu":
+   *     'base' — số có thể có, chỉ là base nguồn chưa nhập / chưa đồng bộ
+   *     'file' — nền tảng không mở API, phải xuất file rồi tải lên đây
+   *     'tay'  — không nền tảng nào đo được, người phụ trách tự nhập
+   *     'noi'  — app nguồn đã có nhưng app này chưa nối vào
+   *     'luat' — sai ở bộ luật, không phải thiếu số
+   */
+  const ghi = (ma, nguon, so, trangThai, chuThich, cach) => {
     if (typeof so === 'number' && Number.isFinite(so)) soLieu[ma] = so;
-    nhatKy.push({ ma, nguon, so: (typeof so === 'number' ? so : null), trangThai, ghi: chuThich || '' });
+    nhatKy.push({
+      ma, nguon, so: (typeof so === 'number' ? so : null), trangThai,
+      ghi: chuThich || '', cach: trangThai === 'lay-duoc' ? '' : (cach || 'luat'),
+    });
   };
 
   (luat.nhom || []).forEach((n) => {
     (n.tieuChi || []).forEach((tc) => {
       const t = tach(tc.nguon);
-      if (!t) { ghi(tc.nguon, '', null, 'thieu', 'Mã nguồn không theo dạng Kênh|Tên|Loại#chỉ số'); return; }
+      if (!t) { ghi(tc.nguon, '', null, 'thieu', 'Mã nguồn không theo dạng Kênh|Tên|Loại#chỉ số', 'luat'); return; }
 
       const nt = NEN_TANG[chuan(t.kenh)];
       const laLive = chuan(t.loai) === 'live' || !!CHI_SO_LIVE[t.chiSo];
 
-      if (!nt) { ghi(tc.nguon, t.kenh, null, 'thieu', 'Không phải kênh mạng xã hội — nhập tay hoặc tải file'); return; }
-      if (loiApp.social) { ghi(tc.nguon, 'Social', null, 'loi', loiApp.social); return; }
+      if (!nt) { ghi(tc.nguon, t.kenh, null, 'thieu', 'Nền tảng này không có trong app Social — xuất file từ nền tảng rồi tải lên', 'file'); return; }
+      if (loiApp.social) { ghi(tc.nguon, 'Social', null, 'loi', loiApp.social, 'noi'); return; }
 
       if (laLive) {
         const o = liveTheoKenh.get(chuan(t.tenKenh));
         const truong = CHI_SO_LIVE[t.chiSo];
-        if (!truong) return ghi(tc.nguon, 'Social · LIVE', null, 'thieu', 'Chưa biết chỉ số LIVE "' + t.chiSo + '"');
-        if (!o) return ghi(tc.nguon, 'Social · LIVE', null, 'thieu', 'Không có phiên LIVE nào của kênh này trong tháng');
+        if (!truong) return ghi(tc.nguon, 'Social · LIVE', null, 'thieu', 'Bộ luật gọi tên chỉ số LIVE "' + t.chiSo + '" mà app Social không có', 'luat');
+        /* Phân biệt hai chuyện mà bản trước gộp làm một:
+         *   - CẢ THÁNG không kênh nào có phiên LIVE → nguồn LIVE chưa nối, chứ
+         *     không phải phòng không livestream. LIVE của TikTok/Instagram
+         *     KHÔNG có API (app Social khai rõ ở màn Nhập tay), nên số này chỉ
+         *     có khi có người gõ vào.
+         *   - Có kênh khác live mà kênh này không → đây mới là số 0 thật.
+         * Bản trước lúc nào cũng ghi "kênh này chưa có phiên LIVE nào", đọc lên
+         * thành "bạn đó không live" trong khi sự thật là chưa ai nối nguồn. */
+        if (!o) {
+          return liveTheoKenh.size === 0
+            ? ghi(tc.nguon, 'Social · LIVE', null, 'thieu',
+              'Chưa nối nguồn LIVE — cả tháng không kênh nào có phiên nào. '
+              + 'LIVE của TikTok/Instagram không có API, phải nhập tay ở app Social → Nhập tay', 'tay')
+            : ghi(tc.nguon, 'Social · LIVE', null, 'thieu',
+              'Các kênh khác có phiên LIVE trong tháng, riêng kênh này không — '
+              + 'nếu đúng là không live thì đây là số 0 thật, không phải thiếu nguồn', 'base');
+        }
         return ghi(tc.nguon, 'Social · LIVE (' + o.soPhien + ' phiên)', o[truong], 'lay-duoc');
       }
 
       const k = kenhTheoTen.get(chuan(nt) + '|' + chuan(t.tenKenh));
       const truong = CHI_SO_BAI[t.chiSo];
-      if (!truong) return ghi(tc.nguon, 'Social', null, 'thieu', 'Chưa biết chỉ số "' + t.chiSo + '"');
-      if (!k) return ghi(tc.nguon, 'Social', null, 'thieu', 'Không tìm thấy kênh "' + t.tenKenh + '" (' + nt + ') trong app Social');
+      if (!truong) return ghi(tc.nguon, 'Social', null, 'thieu', 'Bộ luật gọi tên chỉ số "' + t.chiSo + '" mà app Social không có', 'luat');
+      if (!k) return ghi(tc.nguon, 'Social', null, 'thieu', 'Base Social chưa có kênh "' + t.tenKenh + '" (' + nt + ') — thêm kênh rồi đồng bộ', 'base');
       /* Số từ nền tảng là số THÔ: chưa qua luật bù view, chưa nhân hệ số
        * Bán hàng / Tương tác. Cột kết quả trong Excel là số ĐÃ qua hai bước đó,
        * nên hai con số không cùng nghĩa. Đánh dấu để giao diện cảnh báo, đừng
@@ -172,11 +200,11 @@ async function docTuApp(thang, luat, khoangRieng) {
     if (tc.nguon && tc.nguon.kieu === 'chiSo' && tc.nguon.ma) donLe.add(tc.nguon.ma);
   }));
   for (const ma of donLe) {
-    ghi(ma, '', null, 'thieu',
-      ma.startsWith('seo.') ? 'SEO chưa có nguồn — tải file Search Console / GA4'
-        : ma.startsWith('kol.') ? 'KOL chưa có nguồn — nhập tay hoặc tải file'
-          : ma.startsWith('ads.') ? 'Cần nối app Quản lý quảng cáo'
-            : ma.startsWith('ota.') ? 'Cần nối app Booking OTA' : 'Chưa khai nguồn');
+    if (ma.startsWith('seo.')) ghi(ma, 'Search Console / GA4', null, 'thieu', 'Google không mở API cho app này — xuất file rồi tải lên', 'file');
+    else if (ma.startsWith('kol.')) ghi(ma, 'KOL', null, 'thieu', 'Không nền tảng nào đo — người phụ trách tự nhập', 'tay');
+    else if (ma.startsWith('ads.')) ghi(ma, 'App Quản lý quảng cáo', null, 'thieu', 'App đã chạy, chỉ chưa nối vào phần KPI', 'noi');
+    else if (ma.startsWith('ota.')) ghi(ma, 'App Booking OTA', null, 'thieu', 'App đã chạy, chỉ chưa nối vào phần KPI', 'noi');
+    else ghi(ma, '', null, 'thieu', 'Bộ luật chưa khai nguồn cho chỉ số này', 'luat');
   }
 
   const dem = { layDuoc: 0, thieu: 0, loi: 0 };

@@ -161,6 +161,37 @@ function soat(luat) {
     }
   }
 
+  /* ---- soát theo chiều NGƯỢC LẠI: từ kênh nhìn ra người ----
+   * Mấy phép trên đều đứng ở phía người mà hỏi "người này phân bổ đủ 100% chưa".
+   * Hỏi thế thì hai lỗi dưới đây lọt hết, vì mỗi người tính riêng đều hợp lệ:
+   *   - kênh KHÔNG AI phụ trách: có số liệu chạy về hằng ngày mà không vào KPI
+   *     của ai, nên kênh chết cũng chẳng ai chịu trách nhiệm
+   *   - kênh NHIỀU NGƯỜI cùng phụ trách: một lượt view được tính điểm hai lần,
+   *     cho hai người
+   * Chỉ mức cảnh báo, không chặn: hai người cùng giữ một kênh là chuyện có thật
+   * (bàn giao, làm chung), nhưng phải là quyết định chứ không phải lỗi chép. */
+  const nguoiTheoNhom = new Map();
+  nguoi.forEach((ng) => {
+    const anTheoKenh = (ng.tieuChi || []).some((t) => t.nguon && t.nguon.kieu === 'kenh');
+    if (!anTheoKenh) return;
+    Object.entries(ng.kenh || {}).forEach(([k, w]) => {
+      if (!soHopLe(w) || w <= 0) return;
+      if (!nguoiTheoNhom.has(k)) nguoiTheoNhom.set(k, []);
+      nguoiTheoNhom.get(k).push({ ten: ng.ten || ng.ma, w });
+    });
+  });
+  nhom.forEach((n) => {
+    const k = khoaNhom(n);
+    const ai = nguoiTheoNhom.get(k) || [];
+    if (!ai.length) {
+      canh(k, 'Không ai phụ trách kênh này — số liệu của nó không vào KPI của ai');
+    } else if (ai.length > 1) {
+      canh(k, ai.length + ' người cùng phụ trách ('
+        + ai.map((x) => x.ten + ' ' + pt(x.w)).join(' · ')
+        + ') — mỗi lượt view được tính điểm ' + ai.length + ' lần');
+    }
+  });
+
   nguoi.forEach((n) => { delete n._tongTrongSo; });
   return v;
 }

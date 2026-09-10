@@ -158,4 +158,51 @@ t('bộ luật mới tạo ra đúng hình dạng, chỉ thiếu nội dung', ()
   assert.ok(co(v, 'chưa có người nào'));
 });
 
+t('kênh không ai phụ trách thì cảnh báo', () => {
+  /* Soát từ phía người thì lỗi này lọt: mỗi người phân bổ đủ 100% của mình,
+   * chỉ là chẳng ai nhận kênh kia. Số liệu vẫn chạy về hằng ngày mà không vào
+   * KPI của ai — kênh chết cũng không ai chịu trách nhiệm. */
+  const l = luatOk();
+  l.nhom.push({
+    kenh: 'Tiktok', tenKenh: 'Kênh mồ côi', loai: 'Bài viết',
+    tieuChi: [{ ma: 'view', ten: 'Lượt view', nguon: 'tt.mc.view', mucTieu: 1000, tyTrong: 1 }],
+  });
+  const v = L.soat(l);
+  assert.deepStrictEqual(chan(v), [], 'chỉ cảnh báo, không chặn');
+  assert.ok(co(v, 'Không ai phụ trách'));
+});
+
+t('hai người cùng phụ trách một kênh thì cảnh báo tính điểm hai lần', () => {
+  /* Ca thật: NGỌC được chép y bảng phân bổ của THƯ, nên cùng một lượt view
+   * cho điểm cả hai người, suốt tháng 4 đến tháng 7. */
+  const l = luatOk();
+  const ngoc = nguoiThu();
+  ngoc.ma = 'ngoc'; ngoc.ten = 'NGỌC';
+  l.nguoi.push(ngoc);
+  const v = L.soat(l);
+  assert.deepStrictEqual(chan(v), [], 'chỉ cảnh báo, không chặn');
+  assert.ok(co(v, 'cùng phụ trách'));
+  assert.ok(co(v, 'tính điểm 2 lần'));
+});
+
+t('người không ăn theo kênh thì không bị tính vào phép soát phụ trách', () => {
+  /* HÂN và HÙNG chấm bằng chỉ số riêng (SEO, Ads, KOL), bảng kênh của họ bị bỏ
+   * qua khi tính. Nếu phép soát vẫn đếm họ là "người phụ trách" thì một kênh
+   * mồ côi bị coi là đã có người, và lỗi thật bị che đi. */
+  const l = luatOk();
+  l.nguoi.push({
+    ma: 'han', ten: 'HÂN', viTri: 'Website',
+    tieuChi: [
+      { ma: 'seo', ten: 'SEO', trongSo: 0.9, nguon: { kieu: 'chiSo', ma: 'seo.tong' } },
+      { ma: 'tuanThu', ten: 'Tuân thủ quy định', trongSo: 0.1, nguon: { kieu: 'tay', boi: 'HCNS' } },
+      { ma: 'quanLy', ten: 'Quản lý đánh giá', trongSo: 0.1, nguon: { kieu: 'tay', boi: 'TP' } },
+      { ma: 'dongGop', ten: 'Đóng góp tiêu chí 2', trongSo: 0.3, nguon: { kieu: 'tay', boi: 'TP' } },
+    ],
+    kenh: { 'FB|Rooty Trip Phú Quốc|Bài viết': 1 },
+  });
+  const v = L.soat(l);
+  assert.ok(!co(v, 'cùng phụ trách'), 'HÂN không ăn theo kênh nên không tính là người phụ trách');
+  assert.ok(co(v, 'không có tiêu chí nào ăn theo kênh'), 'nhưng phải cảnh báo bảng kênh thừa');
+});
+
 console.log('\n' + so + ' phép thử đạt' + (process.exitCode ? ' — CÓ LỖI' : '') + '\n');
