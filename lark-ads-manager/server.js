@@ -18,6 +18,7 @@ const live = require('./sync/live');
 const giamSat = require('./giam-sat');
 const metaAds = require('./sync/meta');
 const gads = require('./sync/gads');
+const { xepHanhDong, gomTrungLap } = require('./sync/metrics-hanhdong');
 const pancake = require('./sync/pancake');
 const pancakePos = require('./sync/pancakepos');
 const tourwell = require('./sync/tourwell');
@@ -279,6 +280,50 @@ async function api(req, res, u) {
       },
       targets: M.readTargets(),
     });
+  }
+
+  /**
+   * Chi tiết hành động chuyển đổi, hỏi THẲNG nền tảng.
+   *
+   * Không lấy từ Base: Base chỉ lưu một con số "chuyển đổi" gộp theo (quảng cáo ×
+   * ngày), phần chia theo từng hành động không có ở đó. Muốn thêm vào Base thì
+   * phải thêm cả một bảng mới — không đáng, vì bảng này để xem chứ không để đối
+   * chiếu sổ sách.
+   *
+   * Mỗi nền tảng bọc try riêng: Google Ads chết token thì Facebook vẫn phải lên số.
+   */
+  if (p === '/api/hanh-dong' && method === 'GET') {
+    const c = ketnoi.read();
+    const q = queryOpts(u);
+    const data = await dataFor(u);
+    const { from, to } = M.normRange(data, q);
+    const ra = [];
+    for (const [ten, mod, conf] of [
+      ['Facebook', metaAds, c.meta],
+      ['Google Ads', gads, c.googleAds],
+    ]) {
+      if (!conf || !conf.enabled) continue;
+      try {
+        const r = await mod.hanhDongChuyenDoi(conf, from, to, () => {});
+        /* GOM trước khi xếp: Meta báo cùng một sự kiện dưới nhiều "bề mặt"
+         * (omni_purchase, onsite_web_purchase, onsite_app_purchase…). Không gom
+         * thì tám dòng mua hàng ×24 làm người đọc tưởng có 192 lượt. */
+        /* Truyền bảng dịch để tên hiện ra tra theo TÊN GỐC. Chỉ Meta có bảng
+         * này; tên hành động của Google Ads vốn đã là tiếng người. */
+        const bangDich = mod === metaAds
+          ? (goc) => metaAds.TEN_HANH_DONG[goc] || ''
+          : null;
+        const gom = gomTrungLap(r.rows || [], bangDich);
+        ra.push({
+          platform: ten, rows: xepHanhDong(gom),
+          tong: gom.reduce((a, x) => a + (Number(x.so) || 0), 0),
+          soGoc: (r.rows || []).length, loi: r.loi || '',
+        });
+      } catch (e) {
+        ra.push({ platform: ten, rows: [], tong: 0, loi: e.message });
+      }
+    }
+    return ok(res, { from, to, nenTang: ra });
   }
 
   if (p === '/api/overview' && method === 'GET') {

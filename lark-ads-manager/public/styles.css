@@ -409,3 +409,29 @@ table.tbl tfoot td { font-weight: 700; background: var(--panel-2); border-top: 2
 }
 .bang-loi .bl-lam { margin-top: 6px; }
 .bang-loi .btn { flex: 0 0 auto; }
+
+/* ---------- chi tiết hành động chuyển đổi ---------- */
+.hd-kenh { padding: 10px 14px 12px; border-top: 1px solid var(--line); }
+.hd-kenh:first-child { border-top: 0; }
+.hd-dau { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+/* Hai cột: bảng có thể tới 46 dòng nên một cột là cột số dài ngoằng. */
+.hd-luoi { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1px; }
+.hd-o {
+  display: grid; grid-template-columns: 1fr auto; align-items: center;
+  gap: 4px 10px; padding: 7px 10px; background: var(--panel);
+  box-shadow: 0 0 0 1px var(--line);
+}
+.hd-o .hd-ten { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.hd-o .hd-nhom {
+  grid-row: 2; font-size: 10px; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--ink-3);
+}
+.hd-o .hd-so {
+  grid-column: 2; grid-row: 1 / -1; font-size: 17px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+/* Nhóm gần tiền thì tô nổi — tô theo NHÓM, không theo số: một lượt mua hàng đáng
+   nhìn hơn mười nghìn lượt xem video. */
+.hd-o.good .hd-so { color: var(--good); }
+.hd-o.good .hd-nhom { color: var(--good); }
+.hd-o.info .hd-so { color: var(--brand); }

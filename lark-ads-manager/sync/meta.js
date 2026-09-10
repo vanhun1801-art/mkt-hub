@@ -7,6 +7,9 @@
  *   adExtId, adName, spend, impressions, clicks, conversions }
  */
 const { getJson, scrub, hideSecret } = require('./http');
+/* Chỉ lấy tenGoc: bảng dịch dưới đây khoá theo tên gốc, nên phải tra
+ * cùng một cách với chỗ gom trùng lặp. Hai đường tra là hai chỗ để lỗi trốn. */
+const { tenGoc } = require('./metrics-hanhdong');
 
 const PLATFORM = 'Facebook';
 
@@ -33,6 +36,118 @@ function conversionsOf(row, metric) {
   // cho phép khai nhiều loại cách nhau bằng dấu phẩy (vd purchase,lead)
   const wants = want.split(',').map((s) => s.trim()).filter(Boolean);
   return list.reduce((s, a) => (wants.includes(a.action_type) ? s + num(a.value) : s), 0);
+}
+
+/**
+ * Mã hành động của Meta -> tiếng người.
+ *
+ * Mã gốc như `onsite_conversion.messaging_first_reply` đọc không ra nghĩa với
+ * người không làm quảng cáo. Mã nào chưa có trong bảng thì VẪN hiện mã gốc —
+ * bỏ đi là mất số, mà mất số thì tổng không khớp và không ai biết vì sao.
+ */
+/* Bảng dịch khoá theo TÊN GỐC — tên đã bỏ tiền tố bề mặt của Meta
+ * (`onsite_conversion.`, `omni_`, `onsite_web_`…), do tenGoc() rút ra.
+ *
+ * Vì sao không khoá theo mã đầy đủ: cùng một sự kiện được Meta báo lại dưới
+ * nhiều bề mặt, nên khoá theo mã đầy đủ là phải khai đủ mọi biến thể — và thiếu
+ * một biến thể thì dòng đó hiện nguyên mã máy. Đo thật: messaging_block trượt
+ * đúng vì lý do này.
+ */
+const TEN_HANH_DONG = {
+  messaging_conversation_started_7d: 'Bắt đầu nhắn tin',
+  messaging_first_reply: 'Khách trả lời lần đầu',
+  messaging_conversation_replied_7d: 'Hội thoại có trả lời',
+  total_messaging_connection: 'Kết nối nhắn tin',
+  messaging_welcome_message_view: 'Xem tin chào',
+  /* Meta đánh dấu độ sâu hội thoại: khách đã gửi tới tin thứ N. Càng sâu càng gần
+   * chốt, nên đáng đọc chứ không phải mã rác. */
+  messaging_user_depth_2_message_send: 'Khách nhắn tới tin thứ 2',
+  messaging_user_depth_3_message_send: 'Khách nhắn tới tin thứ 3',
+  messaging_user_depth_5_message_send: 'Khách nhắn tới tin thứ 5',
+  messaging_block: 'Khách chặn tin',
+  messaging_user_call_placed: 'Khách bấm gọi trong hội thoại',
+  messaging_20s_call_connect: 'Gọi nối được trên 20 giây',
+  messaging_60s_call_connect: 'Gọi nối được trên 60 giây',
+  messaging_order_created_v2: 'Tạo đơn trong hội thoại',
+  lead: 'Khách tiềm năng',
+  purchase: 'Mua hàng',
+  link_click: 'Bấm vào link',
+  landing_page_view: 'Xem trang đích',
+  post_engagement: 'Tương tác bài viết',
+  page_engagement: 'Tương tác trang',
+  video_view: 'Xem video',
+  post_reaction: 'Cảm xúc bài viết',
+  comment: 'Bình luận',
+  post: 'Chia sẻ bài',
+  post_save: 'Lưu bài',
+  post_unsave: 'Bỏ lưu bài',
+  post_net_save: 'Lưu bài (đã trừ lượt bỏ)',
+  /* Hai cặp này KHÔNG được trùng tên nhau. `like` là thích TRANG, còn
+   * `post_net_like` là thích BÀI đã trừ lượt bỏ — đo thật ra 136 và 797, cùng
+   * tên thì người đọc không biết dòng nào là gì. */
+  post_net_comment: 'Bình luận bài (đã trừ lượt xoá)',
+  post_net_like: 'Thích bài (đã trừ lượt bỏ)',
+  post_unlike: 'Bỏ thích bài',
+  like: 'Thích trang',
+  /* Meta trả cả gross (mọi lượt) và net (đã trừ lượt bỏ) — giữ riêng hai dòng,
+   * gộp lại là mất nghĩa. */
+  post_interaction_gross: 'Tương tác bài (gồm lượt đã bỏ)',
+  post_interaction_net: 'Tương tác bài (đã trừ lượt bỏ)',
+  add_to_cart: 'Thêm vào giỏ',
+  initiate_checkout: 'Bắt đầu thanh toán',
+  complete_registration: 'Hoàn tất đăng ký',
+  contact: 'Liên hệ',
+  find_location: 'Tìm địa điểm',
+};
+
+
+/** Nhóm để xếp cùng loại với nhau, giống cột nhóm của Google Ads. */
+function nhomHanhDong(ma) {
+  const s = String(ma || '');
+  if (/messaging|connection|welcome_message/.test(s)) return 'NHẮN TIN';
+  if (/lead|complete_registration|contact|find_location/.test(s)) return 'LIÊN HỆ';
+  if (/purchase|add_to_cart|checkout/.test(s)) return 'MUA HÀNG';
+  if (/link_click|landing_page/.test(s)) return 'TRUY CẬP';
+  if (/video/.test(s)) return 'XEM VIDEO';
+  return 'TƯƠNG TÁC';
+}
+
+/**
+ * Chi tiết hành động chuyển đổi trong khoảng ngày, hỏi ở cấp TÀI KHOẢN.
+ *
+ * Một lời gọi mỗi tài khoản, thay vì đi qua cả lượt đồng bộ per-ad-per-day chỉ để
+ * cộng lại một bảng tổng.
+ */
+async function hanhDongChuyenDoi(conf, from, to, log = () => {}) {
+  if (!conf || !conf.accessToken) return { rows: [], tong: 0, loi: 'Meta chưa nối' };
+  hideSecret(conf.accessToken);
+  const accs = (conf.accountIds || []).map(actId).filter(Boolean);
+  if (!accs.length) return { rows: [], tong: 0, loi: 'Chưa khai accountIds' };
+
+  /* Cùng cách lấy phiên bản như bốn hàm khác trong file này: `conf.apiVersion`
+   * rồi lùi về v21.0. Bản đầu tôi gõ một hằng API_VER không tồn tại. */
+  const ver = conf.apiVersion || 'v21.0';
+  const gom = new Map();
+  for (const acc of accs) {
+    const u = `https://graph.facebook.com/${ver}/${acc}/insights`
+      + `?level=account&fields=actions`
+      + `&time_range=${encodeURIComponent(JSON.stringify({ since: from, until: to }))}`
+      + `&access_token=${encodeURIComponent(conf.accessToken)}`;
+    const res = await getJson(u, { label: `Meta hành động ${acc}`, retries: 2 });
+    ((res && res.data) || []).forEach((r) => {
+      (r.actions || []).forEach((a) => {
+        const ma = String(a.action_type || '');
+        if (!ma) return;
+        gom.set(ma, (gom.get(ma) || 0) + num(a.value));
+      });
+    });
+  }
+  const rows = [...gom.entries()]
+    .filter(([, v]) => v > 0)
+    .map(([ma, so]) => ({ ma, ten: TEN_HANH_DONG[tenGoc(ma)] || ma, nhom: nhomHanhDong(ma), so }))
+    .sort((a, b) => b.so - a.so);
+  log(`  Meta: ${rows.length} hành động có dữ liệu`);
+  return { rows, tong: rows.reduce((a, x) => a + x.so, 0) };
 }
 
 /** Các action_type thực có trong dữ liệu — dùng để anh chọn đúng chỉ số. */
@@ -177,5 +292,6 @@ async function danhSachTaiKhoan(conf) {
 }
 
 module.exports = {
+  hanhDongChuyenDoi, TEN_HANH_DONG, nhomHanhDong,
   PLATFORM, fetchRange, test, tokenInfo, danhSachTaiKhoan, conversionsOf, actionTypesSeen,
 };

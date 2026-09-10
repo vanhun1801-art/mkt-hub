@@ -104,6 +104,72 @@ const GAQL = (from, to) => `
     AND metrics.impressions > 0
 `.replace(/\s+/g, ' ').trim();
 
+/**
+ * GAQL lấy chuyển đổi CHIA THEO TỪNG HÀNH ĐỘNG.
+ *
+ * `all_conversions` chứ không `conversions`: cột `conversions` chỉ đếm hành động
+ * được đánh dấu "primary" (tính vào tối ưu hoá), nên click_call / click_zalo /
+ * click_whatsapp biến mất hết — mà đó đúng là những hành động cần thấy.
+ *
+ * FROM customer: hỏi ở cấp tài khoản vì đây là bảng tổng, không cần biết hành
+ * động thuộc quảng cáo nào. Hỏi ở cấp quảng cáo thì số dòng nhân lên hàng chục
+ * lần mà bảng vẫn phải cộng lại.
+ */
+const GAQL_HANH_DONG = (from, to) => `
+  SELECT
+    segments.conversion_action_name,
+    segments.conversion_action_category,
+    metrics.all_conversions
+  FROM customer
+  WHERE segments.date BETWEEN '${from}' AND '${to}'
+`.replace(/\s+/g, ' ').trim();
+
+/**
+ * Chi tiết hành động chuyển đổi trong khoảng ngày.
+ * @returns {Promise<{rows: Array<{ten,nhom,so}>, tong:number}>} sắp giảm dần theo số
+ */
+async function hanhDongChuyenDoi(conf, from, to, log = () => {}) {
+  if (!conf || !conf.refreshToken) return { rows: [], tong: 0, loi: 'Google Ads chưa nối' };
+  const accounts = (conf.customerIds || []).map(cid).filter(Boolean);
+  if (!accounts.length) return { rows: [], tong: 0, loi: 'Chưa khai customerIds' };
+
+  const token = await accessToken(conf);
+  /* Gộp theo (tên × nhóm) vì nhiều tài khoản có thể trùng tên hành động, và
+   * Google cũng trả nhiều dòng cho cùng một hành động khi chia theo ngày. */
+  const gom = new Map();
+  for (const acc of accounts) {
+    const res = await postJson(`${base(conf)}/customers/${acc}/googleAds:searchStream`,
+      { query: GAQL_HANH_DONG(from, to) },
+      { headers: headers(conf, token), label: `Google Ads hành động ${acc}` });
+    if (res && res.error) {
+      throw new Error(scrub(`Google Ads báo lỗi (${res.error.code || '?'}): `
+        + (res.error.message || 'không rõ')));
+    }
+    const lo = Array.isArray(res) ? res : [res];
+    for (const l of lo) {
+      for (const r of ((l && l.results) || [])) {
+        const sg = r.segments || {};
+        const ten = String(sg.conversionActionName || '').trim();
+        if (!ten) continue;
+        const nhom = String(sg.conversionActionCategory || '').trim();
+        const so = Number((r.metrics || {}).allConversions || 0);
+        const k = ten + '\u0000' + nhom;
+        const o = gom.get(k) || { ten, nhom, so: 0 };
+        o.so += so;
+        gom.set(k, o);
+      }
+    }
+  }
+  /* Làm tròn ở đây: Google trả số thập phân (một chuyển đổi có thể được ghi công
+   * một phần), nhưng "9,000000001 lượt bấm gọi" thì không ai đọc. */
+  const rows = [...gom.values()]
+    .map((x) => ({ ...x, so: Math.round(x.so * 100) / 100 }))
+    .filter((x) => x.so > 0)
+    .sort((a, b) => b.so - a.so);
+  log(`  Google Ads: ${rows.length} hành động có dữ liệu`);
+  return { rows, tong: rows.reduce((a, x) => a + x.so, 0) };
+}
+
 /** Tên quảng cáo của Google hay để trống — lấy tên nhóm cho đỡ trống trơn. */
 const tenQC = (r) => {
   const ad = (r.adGroupAd && r.adGroupAd.ad) || {};
@@ -252,5 +318,6 @@ const dep = (id) => {
 };
 
 module.exports = {
+  hanhDongChuyenDoi,
   PLATFORM, fetchRange, test, tokenInfo, accessToken, danhSachTaiKhoan, GAQL, API_VER_MAC,
 };

@@ -432,6 +432,57 @@ async function render() {
 }
 
 /* ================= TAB: TỔNG QUAN ================= */
+/**
+ * Thẻ "Chi tiết hành động chuyển đổi".
+ *
+ * Vì sao đáng có: bảng chỉ có một cột "Chuyển đổi" gộp — nhìn 668 thì không biết
+ * khách đã LÀM GÌ. Gửi form, bấm gọi, nhấn Zalo hay chỉ xem video là bốn chuyện
+ * khác nhau rất xa về giá trị.
+ *
+ * Thứ tự do server xếp (sync/metrics-hanhdong.js): nhóm gần tiền lên trên, rồi
+ * mới theo số. Xếp theo số thì "Tương tác trang 105.951" nhấn chìm "Bắt đầu nhắn
+ * tin 1.221" — mà cái sau mới có thể thành đơn.
+ */
+async function veHanhDong() {
+  const el = $('#theHanhDong');
+  if (!el) return;
+  const than = el.querySelector('.card-body');
+  let d;
+  try {
+    d = await api('/api/hanh-dong?' + qs());
+  } catch (e) {
+    than.innerHTML = `<div class="trong">Không lấy được: ${esc(e.message)}</div>`;
+    return;
+  }
+  const ds = (d.nenTang || []).filter((x) => x.rows.length || x.loi);
+  if (!ds.length) {
+    than.innerHTML = '<div class="trong">Chưa nối kênh nào có dữ liệu hành động.</div>';
+    return;
+  }
+
+  /* Nhóm nào gần tiền thì tô nổi. Tô theo NHÓM chứ không theo số: một lượt mua
+   * hàng đáng nhìn hơn mười nghìn lượt xem video. */
+  const MUC = { PURCHASE: 'good', 'MUA HÀNG': 'good', SUBMIT_LEAD_FORM: 'good',
+    'LIÊN HỆ': 'good', CONTACT: 'good', PHONE_CALL_LEAD: 'good', 'NHẮN TIN': 'info' };
+
+  than.innerHTML = ds.map((x) => {
+    if (x.loi) {
+      return `<div class="hd-kenh"><div class="hd-dau">${platTag(x.platform)}
+        <span class="sub" style="color:var(--bad)">${esc(x.loi)}</span></div></div>`;
+    }
+    return `<div class="hd-kenh">
+      <div class="hd-dau">${platTag(x.platform)}
+        <span class="sub">${int(x.rows.length)} hành động có dữ liệu · tổng ${int(Math.round(x.tong))}</span></div>
+      <div class="hd-luoi">${x.rows.map((r) => `
+        <div class="hd-o${MUC[r.nhom] ? ' ' + MUC[r.nhom] : ''}">
+          <div class="hd-ten">${esc(r.ten)}</div>
+          <div class="hd-nhom">${esc(r.nhom || '')}</div>
+          <div class="hd-so">${int(Math.round(r.so))}</div>
+        </div>`).join('')}</div>
+    </div>`;
+  }).join('');
+}
+
 VIEW['tong-quan'] = async (view) => {
   const d = await api('/api/overview?' + qs());
   S.alertCount = d.alerts.length;
@@ -491,11 +542,21 @@ VIEW['tong-quan'] = async (view) => {
     </div>
   </div>
 
+  <div class="card" style="margin-top:14px" id="theHanhDong">
+    <div class="card-head"><h3>Chi tiết hành động chuyển đổi</h3>
+      <span class="sub">form, hotline, Zalo, WhatsApp và các chuyển đổi khác</span></div>
+    <div class="card-body tight"><div class="trong">Đang hỏi nền tảng…</div></div>
+  </div>
+
   <div class="card" style="margin-top:14px">
     <div class="card-head"><h3>Cảnh báo nổi bật</h3>
       <button class="btn small ghost" onclick="window.__goTab('canh-bao')">Xem tất cả (${d.alerts.length})</button></div>
     <div class="card-body tight"><div class="alert-list">${alertsHtml(d.alerts.slice(0, 6))}</div></div>
   </div>`;
+
+  /* Nạp RIÊNG, không chờ cùng lượt đầu: thẻ này gọi thẳng Meta và Google nên mất
+   * vài giây, mà cả màn hình không nên đứng chờ một cái thẻ. */
+  veHanhDong();
 
   const keys = d.platformKeys.filter((k) => d.stack.some((s) => s[k] > 0));
   const stackRows = d.stack.map((s, i) => ({ ...s, cpa: d.series[i].cpa }));
