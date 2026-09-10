@@ -1380,7 +1380,9 @@ async function nhacNhanh(t, nut) {
     toast('Đã nhắc ' + (r.nguoi || []).join(', ') + ' — "' + r.vi + '"');
   } catch (e) {
     nut.disabled = false; nut.textContent = cu;
-    toast(e.message, true);
+    /* Kèm cả `hint`: khi gửi trượt, câu lỗi chỉ nói "không gửi được", còn cách
+     * sửa nằm ở hint — bỏ mất thì người dùng biết là hỏng mà không biết làm gì. */
+    toast(e.message + (e.hint ? ' — ' + e.hint : ''), true);
   }
 }
 

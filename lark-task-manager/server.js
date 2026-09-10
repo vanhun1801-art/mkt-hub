@@ -353,6 +353,33 @@ function baoTin(openIds, text) {
   })().catch(() => {});
 }
 
+/**
+ * Gửi tin NGAY và CHỜ kết quả — dành cho thao tác người dùng bấm trực tiếp.
+ *
+ * Khác baoTin() ở hai điểm, và cả hai đều có lý:
+ *
+ *   - Không xét cfg.notify. Cờ đó để chặn thông báo TỰ ĐỘNG (giao việc, bình
+ *     luận, tới hạn) khỏi nhắn bừa. Còn nhắc việc là người bấm — bấm là ý muốn
+ *     rõ ràng, chặn lại thì nút đó chỉ để trưng. App Lịch tác nghiệp có nút
+ *     Nhắc tương đương và cũng gửi không cần cờ.
+ *   - Không nuốt lỗi. Không ai chờ một thông báo tự động, nhưng người bấm Nhắc
+ *     thì đang chờ: báo "đã nhắc" mà bên kia không nhận gì là nói sai.
+ */
+async function guiTinNgay(openIds, text) {
+  const ds = [...new Set((openIds || []).filter(Boolean))].slice(0, 30);
+  let gui = 0;
+  const loi = [];
+  for (const id of ds) {
+    try {
+      await lark.sendMessage(id, text);
+      gui += 1;
+    } catch (e) {
+      loi.push(String((e && e.message) || e).slice(0, 200));
+    }
+  }
+  return { gui, loi };
+}
+
 /** Đuôi tin nhắn: link mở app. */
 const duoiTin = () => (cfg.publicUrl ? XD + cfg.publicUrl : '');
 
@@ -1063,18 +1090,26 @@ async function api(req, res, url) {
       return json(res, { error: 'Vừa nhắc việc này rồi — chờ ' + con + ' tiếng nữa.',
         code: 'NHAC_QUA_DAY' }, 429);
     }
-    if (!cfg.notify) {
-      /* Không im lặng báo thành công: quản lý sẽ bấm nhắc mấy lần mà bên kia
-       * không nhận gì. Nói thẳng cả cách bật. */
-      return json(res, { error: 'Chưa bật gửi tin Lark (biến LARK_NOTIFY=1), nên chưa nhắc được.',
-        code: 'CHUA_BAT_TIN' }, 503);
+    /* Gửi và CHỜ, không dùng baoTin(): xem chú thích ở guiTinNgay(). */
+    const kq = await guiTinNgay(ai.map((u) => u.id),
+      'Nhắc việc: "' + (t.title || '') + '"' + XD + ly + duoiTin());
+
+    if (!kq.gui) {
+      /* KHÔNG ghi mốc chặn 6 tiếng khi gửi trượt: cấp quyền xong phải nhắc lại
+       * được ngay, không phải chờ hết mốc vì một lần thất bại. */
+      console.log('  [nhắc] TRƯỢT ' + t.id + ' -> ' + ai.map((u) => u.name).join(', ') +
+        '  ' + (kq.loi[0] || ''));
+      return json(res, {
+        error: 'Không gửi được tin Lark cho ' + ai.map((u) => u.name).join(', ') + '.',
+        hint: kq.loi[0] ||
+          'Thường là app Lark chưa được cấp quyền im:message trong Developer Console.',
+        code: 'GUI_TRUOT',
+      }, 502);
     }
 
     daNhac.set(t.id, Date.now());
-    baoTin(ai.map((u) => u.id),
-      'Nhắc việc: "' + (t.title || '') + '"' + XD + ly + duoiTin());
     console.log('  [nhắc] ' + t.id + ' -> ' + ai.map((u) => u.name).join(', ') + '  (' + ly + ')');
-    return json(res, { ok: true, nguoi: ai.map((u) => u.name), vi: ly });
+    return json(res, { ok: true, nguoi: ai.map((u) => u.name), vi: ly, soGui: kq.gui });
   }
 
   if (p === '/api/managers' && req.method === 'GET') {
