@@ -397,6 +397,32 @@ function bieuMau() {
  * Trên Render, ổ đĩa bị xoá mỗi lần deploy nên chỉ những gì nằm trong
  * ADS_CONNECT_JSON là bền. Ở máy cá nhân thì file không mất, nên mọi thứ đều bền.
  */
+/**
+ * Vân tay của phần BÍ MẬT trong một khối cấu hình.
+ *
+ * Dùng để trả lời "hai bên có giống nhau không" mà không cần so token trần. Băm
+ * sha1 nên dù có lỡ lọt vào log thì cũng không lấy lại được token.
+ *
+ * Vì sao phải so giá trị chứ không so sự có mặt: ổ đĩa có thể giữ token MỚI trong
+ * khi biến môi trường giữ token CŨ ĐÃ BỊ THU HỒI. Xét "có mặt" thì cả hai đều có,
+ * và app hứa "deploy không mất gì" — rồi deploy xong là tụt về token chết.
+ */
+function vanTayBiMat(khoi) {
+  if (!khoi || typeof khoi !== 'object') return '';
+  const phan = [];
+  KHOA_TOKEN.forEach((k) => {
+    if (typeof khoi[k] === 'string' && khoi[k].trim()) phan.push(k + '=' + khoi[k].trim());
+  });
+  (Array.isArray(khoi.pages) ? khoi.pages : []).forEach((x) => {
+    if (x && x.token) phan.push('page:' + (x.pageId || '') + '=' + x.token);
+  });
+  (Array.isArray(khoi.shops) ? khoi.shops : []).forEach((x) => {
+    if (x && x.apiKey) phan.push('shop:' + (x.shopId || '') + '=' + x.apiKey);
+  });
+  if (!phan.length) return '';
+  return require('crypto').createHash('sha1').update(phan.sort().join('|')).digest('hex');
+}
+
 function benVung() {
   const dangCo = khoiCoThongTin;
 
@@ -408,16 +434,34 @@ function benVung() {
 
   // Máy cá nhân: file nằm trên đĩa thật, không mất đi đâu
   if (!process.env.RENDER) {
-    return { canLo: false, noiLuu: 'file trên máy', dangChay, seMat: [], seCon: dangChay };
+    return { canLo: false, noiLuu: 'file trên máy', dangChay, seMat: [], seCon: dangChay, khacNhau: [] };
   }
   let env = null;
   try { env = stripComments(JSON.parse(process.env.ADS_CONNECT_JSON || 'null')); } catch (_) { env = null; }
   if (!env) {
-    return { canLo: dangChay.length > 0, noiLuu: 'chưa có biến môi trường', dangChay, seMat: dangChay, seCon: [] };
+    return { canLo: dangChay.length > 0, noiLuu: 'chưa có biến môi trường', dangChay, seMat: dangChay, seCon: [], khacNhau: [] };
   }
-  const seCon = dangChay.filter((k) => dangCo(env[k]));
-  const seMat = dangChay.filter((k) => !dangCo(env[k]));
-  return { canLo: seMat.length > 0, noiLuu: 'ADS_CONNECT_JSON', dangChay, seMat, seCon };
+  /* Đọc file TRÊN ĐĨA riêng, không dùng read(): read() đã trộn file với biến môi
+   * trường nên không còn phân biệt được hai bên. */
+  let tep = {};
+  try { tep = stripComments(JSON.parse(fs.readFileSync(FILE, 'utf8'))); } catch (_) { tep = {}; }
+
+  const seCon = [];
+  const seMat = [];
+  const khacNhau = [];
+  dangChay.forEach((k) => {
+    const vEnv = vanTayBiMat(env[k]);
+    if (!vEnv) { seMat.push(k); return; }          // biến môi trường trống -> mất hẳn
+    const vTep = vanTayBiMat(tep[k]);
+    if (!vTep) { seCon.push(k); return; }          // đĩa không có -> env đang là nguồn thật
+    if (vTep === vEnv) { seCon.push(k); return; }
+    /* Hai bên KHÁC nhau: deploy xong file bay mất, app tụt về biến môi trường và
+     * chạy bằng giá trị CŨ. Không mất kênh, nhưng mất đúng cái vừa sửa — tệ hơn
+     * mất hẳn, vì mất hẳn thì còn báo lỗi, còn cái này thì im lặng chạy sai. */
+    seMat.push(k);
+    khacNhau.push(k);
+  });
+  return { canLo: seMat.length > 0, noiLuu: 'ADS_CONNECT_JSON', dangChay, seMat, seCon, khacNhau };
 }
 
 /** Bản mô tả an toàn để trả ra giao diện — che token, chỉ nói có/không. */

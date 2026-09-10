@@ -198,36 +198,54 @@
       c.providers.some((p) => p.sanSang) ? '' : `<div class="help">
       Chưa nối kênh nào. Bấm <b>Điền thông tin</b> ở thẻ nền tảng bên dưới, dán token vào rồi <b>Lưu cấu hình</b> —
       app tự tạo <b>${esc(c.file)}</b> hộ, không phải sửa file tay.</div>`}
-    ${
-      // Nguy hiểm nhất: đã có ADS_CONNECT_JSON nhưng vừa điền thêm token qua web.
-      // File tạm đè lên biến môi trường nên bây giờ chạy đúng, deploy sau là mất.
-      c.deLenBienMoiTruong ? `<div class="help" style="border-color:var(--bad);color:var(--bad)">
-      <b>Phần vừa điền sẽ mất khi deploy lại.</b> Anh đã khai <code>ADS_CONNECT_JSON</code> rồi, nhưng token
-      điền qua web này nằm trên ổ đĩa tạm và đang <b>đè lên</b> biến môi trường. Deploy lần sau file mất,
-      app tụt về biến môi trường và phần vừa thêm biến mất theo.
-      <br>Cách xử lý: cập nhật lại biến <code>ADS_CONNECT_JSON</code> cho có đủ cả các kênh vừa thêm.</div>`
-      : c.canhBaoODiaTam ? `<div class="help" style="border-color:var(--warn);color:var(--warn)">
-      App đang chạy trên server chung, <b>ổ đĩa là tạm</b>: token điền ở đây sống tới lần deploy kế tiếp rồi mất.
-      Muốn giữ lâu dài thì dán nội dung <b>${esc(c.file)}</b> vào biến môi trường <code>ADS_CONNECT_JSON</code> của Render.</div>` : ''}
     ${(() => {
-      /* Câu hỏi thật của người dùng là "mai deploy xong tôi có phải gắn lại API
-       * không". Trả lời thẳng bằng tên kênh, đừng bắt họ tự suy từ chuyện
-       * "cấu hình nằm ở file hay ở biến môi trường". */
+      /* BỐN khả năng, MỘT băng. Bản trước tính hai băng độc lập rồi in cả hai,
+       * nên hiện ra "SẼ MẤT" ngay cạnh "KHÔNG MẤT GÌ" — hai lời khuyên ngược
+       * nhau, và tin sai cái nào cũng dở. */
       const b = c.benVung;
-      if (!b) return '';
-      const ten = { meta: 'Facebook', tiktok: 'TikTok', googleAds: 'Google Ads', googleSheet: 'Google Sheet' };
-      const list = (a) => a.map((k) => ten[k] || k).join(', ');
-      if (!b.dangChay.length) return '';
-      if (!b.canLo) {
-        return `<div class="help" style="border-color:var(--good);color:var(--good)">
-          <b>Deploy lại không mất gì.</b> ${esc(list(b.seCon))} đều được lưu ở ${esc(b.noiLuu)}.
-          Không phải gắn lại API.</div>`;
+      const ten = { meta: 'Facebook', tiktok: 'TikTok', googleAds: 'Google Ads',
+        googleSheet: 'Google Sheet', pancake: 'Pancake', pancakePos: 'Pancake POS' };
+      const list = (a) => (a || []).map((k) => ten[k] || k).join(', ');
+      const cachXuLy = 'Bấm <b>Lấy nội dung ADS_CONNECT_JSON</b> ngay dưới đây, copy, '
+        + 'rồi dán vào biến <code>ADS_CONNECT_JSON</code> trong Environment của Render — '
+        + '<b>xong mới deploy</b>.';
+
+      // 1. Có kênh sẽ mất, hoặc sẽ bị tụt về giá trị cũ
+      if (b && b.canLo && b.dangChay.length) {
+        const cu = (b.khacNhau || []);
+        const hanh = (b.seMat || []).filter((k) => !cu.includes(k));
+        return `<div class="help" style="border-color:var(--bad);color:var(--bad)">
+          <b>Đừng deploy trước khi làm việc này.</b>
+          ${cu.length ? `<br>${esc(list(cu))}: biến môi trường đang giữ <b>giá trị CŨ</b>.
+            Deploy xong app tụt về giá trị đó — kênh vẫn còn nhưng chạy bằng token cũ,
+            và không có gì báo.` : ''}
+          ${hanh.length ? `<br>${esc(list(hanh))}: chưa có trong biến môi trường, deploy là <b>mất hẳn</b>.` : ''}
+          ${b.seCon.length ? `<br><span style="color:var(--muted)">Giữ được: ${esc(list(b.seCon))}.</span>` : ''}
+          <br>${cachXuLy}</div>`;
       }
-      return `<div class="help" style="border-color:var(--bad);color:var(--bad)">
-        <b>Deploy lại sẽ mất: ${esc(list(b.seMat))}.</b>
-        ${b.seCon.length ? `Giữ được: ${esc(list(b.seCon))}.` : 'Không kênh nào được giữ.'}
-        <br>Chạy <code>node tao-env.js</code> trên máy rồi dán nội dung
-        <code>ADS_CONNECT_JSON.txt</code> vào biến <code>ADS_CONNECT_JSON</code> của Render.</div>`;
+
+      // 2. Đĩa đang đè lên biến môi trường, nhưng giá trị giống nhau
+      if (c.deLenBienMoiTruong) {
+        return `<div class="help" style="border-color:var(--warn);color:var(--warn)">
+          Token điền qua web đang nằm trên ổ đĩa tạm và đè lên biến môi trường, nhưng
+          <b>giá trị hai bên giống nhau</b> nên deploy không đổi gì. Vẫn nên cập nhật
+          biến mỗi lần đổi token cho khỏi phải nhớ.</div>`;
+      }
+
+      // 3. Ổ đĩa là tạm mà chưa có biến môi trường
+      if (c.canhBaoODiaTam) {
+        return `<div class="help" style="border-color:var(--warn);color:var(--warn)">
+          App đang chạy trên server chung, <b>ổ đĩa là tạm</b>: token điền ở đây sống tới
+          lần deploy kế tiếp rồi mất. ${cachXuLy}</div>`;
+      }
+
+      // 4. Không có gì phải lo
+      if (b && b.dangChay.length && !b.canLo) {
+        return `<div class="help" style="border-color:var(--good);color:var(--good)">
+          <b>Deploy lại không mất gì.</b> ${esc(list(b.seCon))} đều được lưu ở
+          ${esc(b.noiLuu)}. Không phải gắn lại API.</div>`;
+      }
+      return '';
     })()}
 
     ${theGiuBen(c)}
