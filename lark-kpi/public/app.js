@@ -102,6 +102,24 @@ async function khoiDong() {
   $('#modal').onclick = (ev) => { if (ev.target.closest('[data-dong]')) $('#modal').hidden = true; };
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $('#modal').hidden = true; });
 
+  /* Chưa có tháng nào thì ĐỪNG gọi API tháng.
+   *
+   * THANG lúc đó là chuỗi rỗng, máy chủ coi là không truyền rồi tự suy ra
+   * danhSachThang()[0] — với kho rỗng thì ra undefined, và nó trả 404 "Chưa có
+   * dữ liệu tháng undefined". Client in nguyên câu đó ra mặt người dùng: lọt
+   * chữ undefined, trông như app lỗi chứ không phải như app chưa có dữ liệu.
+   *
+   * Cảnh này gặp NGAY trên server chung: du-lieu/ cố ý không lên GitHub (điểm
+   * KPI gắn với lương từng người), mà ổ đĩa Render lại là tạm. */
+  if (!(META.thang || []).length) {
+    $('#brandSub').textContent = 'chưa có dữ liệu';
+    $('#noiDung').innerHTML = '<div class="rong">Chưa nhập lịch sử KPI.<br>'
+      + 'Mã nguồn và bộ luật có sẵn, nhưng số điểm nằm trong <code>du-lieu/</code> — '
+      + 'thư mục này cố ý không lên GitHub vì gắn với lương từng người, nên bản chạy '
+      + 'trên server chung luôn trống. Chạy bước nhập lịch sử trên máy cá nhân.</div>';
+    return;
+  }
+
   await napThang();
 }
 
