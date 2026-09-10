@@ -45,7 +45,20 @@ const num = (v) => {
 
 const g = (fb) => 'https://graph.facebook.com/' + ((fb && fb.apiVersion) || 'v23.0');
 
-const CHUOI_TG = ['reach', 'follower_count', 'profile_views', 'website_clicks'];
+const CHUOI_TG = ['reach'];
+
+/* follower_count sống, nhưng CHỈ trả được 30 ngày gần nhất: hỏi xa hơn là
+ * "(#100) (follower_count) metric only supports querying data for the last 30
+ * days". Trước đây nó nằm chung CHUOI_TG, nên chạy "Nạp lại từ đầu" cho cả năm
+ * thì mọi cửa sổ cũ đều lỗi, doInsights gạt nó ra, rồi app kết luận nhầm thành
+ * "API không còn nhận follower_count" — đổ cho Meta trong khi lỗi là hỏi sai
+ * khoảng. Giờ chỉ hỏi ở cửa sổ nào thật sự nằm trong tầm với. */
+const CHUOI_TG_GAN = ['follower_count'];
+const SO_NGAY_FOLLOWER = 30;
+
+/* profile_views và website_clicks thì chết thật — Meta bắt chuyển sang họ
+ * total_value, và bản total_value của chúng trả null. Không xin nữa cho đỡ tốn
+ * một vòng thử-rồi-bỏ ở mỗi cửa sổ. */
 const TONG = ['views', 'accounts_engaged', 'total_interactions', 'likes', 'comments',
   'shares', 'saves', 'replies', 'profile_links_taps'];
 
@@ -138,11 +151,16 @@ async function ngayCuaIg(fb, token, acc, from, to, canhBao) {
   try {
     const data = [];
     const boTatCa = new Set();
+    const gioiHan = new Date(Date.now() - (SO_NGAY_FOLLOWER - 1) * 86400000)
+      .toISOString().slice(0, 10);
+    let boFollower = false;
     for (const [tu, den] of chiaKhoang(from, to, 30)) {
       const url0 = g(fb) + '/' + igId + '/insights?period=day'
         + '&since=' + tu + '&until=' + den
         + '&access_token=' + encodeURIComponent(token);
-      const r = await doInsights(url0, CHUOI_TG, 'Instagram insights ' + (acc.name || igId));
+      const xin = den >= gioiHan ? CHUOI_TG.concat(CHUOI_TG_GAN) : CHUOI_TG;
+      if (den < gioiHan) boFollower = true;
+      const r = await doInsights(url0, xin, 'Instagram insights ' + (acc.name || igId));
       data.push(...r.data);
       r.bo.forEach((x) => boTatCa.add(x));
     }
@@ -150,6 +168,13 @@ async function ngayCuaIg(fb, token, acc, from, to, canhBao) {
     if (bo.length) {
       canhBao.push('Instagram · ' + (acc.name || igId) + ': API không còn nhận '
         + bo.join(', ') + ' — các cột đó để trống.');
+    }
+    if (boFollower) {
+      /* Ghi chú, không phải lỗi. Nói rõ là giới hạn của Instagram chứ không phải
+       * mình bỏ sót, để không ai đi chạy lại mong số tự về. */
+      canhBao.push('Instagram · ' + (acc.name || igId) + ': follower tăng/giảm theo ngày chỉ '
+        + 'lấy được ' + SO_NGAY_FOLLOWER + ' ngày gần nhất — Instagram không trả xa hơn. '
+        + 'Những ngày trước đó để trống, và không có cách nào lấy lại.');
     }
     data.forEach((m) => {
       const cot = COT[m.name];

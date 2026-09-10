@@ -98,8 +98,9 @@ function luuYNenTang(rows) {
       + 'Cột của một ngày là tổng đời của các video ĐĂNG ngày đó, không phải lượt xem phát sinh trong ngày.');
   }
   if (co.has('Facebook')) {
-    ra.push('Facebook: Meta đã gỡ mọi chỉ số đếm người duy nhất nên không có lượt tiếp cận. '
-      + 'Cột "Hiển thị" là số LẦN hiển thị — một người xem ba lần tính ba.');
+    ra.push('Facebook: "Tiếp cận" đếm người, "Hiển thị" đếm lần — một người xem ba lần '
+      + 'thì tiếp cận +1 còn hiển thị +3. Dòng nào ghi trước ngày nối lại chỉ số này '
+      + 'thì cột tiếp cận trống; chạy "Nạp lại từ đầu" để dựng lại.');
   }
   if (co.has('Instagram')) {
     ra.push('Instagram: API không còn trả follower theo ngày, chỉ chốt được tại lúc đồng bộ.');

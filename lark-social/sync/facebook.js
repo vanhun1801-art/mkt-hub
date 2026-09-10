@@ -63,6 +63,7 @@ const METRIC_NGAY = [
   'page_actions_post_reactions_total', // cảm xúc trên bài
   'page_total_actions',               // lượt bấm vào nút/liên kết của trang
   'page_posts_impressions_organic',   // lượt hiển thị bài — KHÔNG phải tiếp cận
+  'page_posts_impressions_organic_unique_v2', // tiếp cận thật, đếm người
 ];
 
 /** Ánh xạ tên metric của Meta sang tên cột của mình. */
@@ -75,15 +76,22 @@ const COT = {
   page_follows: 'followers',
   page_actions_post_reactions_total: 'likes',
   page_total_actions: 'clicks',
-  /* Vào cột "hiển thị", KHÔNG vào "tiếp cận".
-   *
-   * v23.0 đã gỡ sạch mọi chỉ số đếm người duy nhất của Page — đã thử tay 21 tên
-   * (page_impressions_unique, page_posts_impressions_organic_unique, page_reach,
-   * page_engaged_users, post_impressions_unique…), tất cả trả về "(#100) The
-   * value must be a valid insights metric". Cái duy nhất còn sống là chỉ số đếm
-   * LẦN hiển thị, một người xem ba lần tính ba. Đổ nó vào ô "Lượt tiếp cận" thì
-   * số sẽ đầy lên trông rất đẹp và sai — nên nó nằm ở cột riêng. */
+  /* Đếm LẦN hiển thị: một người xem ba lần tính ba. Khác hẳn tiếp cận ngay dưới,
+   * nên hai cột riêng. */
   page_posts_impressions_organic: 'impressions',
+  /* TIẾP CẬN THẬT — đếm người.
+   *
+   * Lượt trước tôi kết luận "v23.0 đã gỡ sạch mọi chỉ số đếm người duy nhất" sau
+   * khi thử 21 tên. Kết luận đó SAI: tôi thử page_posts_impressions_organic_unique
+   * và page_impressions_organic_unique_v2, nhưng không thử đúng cái ghép cả hai —
+   * page_posts_impressions_organic_unique_v2. Nó sống, 44.224 người/ngày trên
+   * Rooty Trip Phú Quốc. Bài học: "thử 21 tên đều chết" không chứng minh được
+   * metric không tồn tại, chỉ chứng minh 21 tên đó chết. */
+  page_posts_impressions_organic_unique_v2: 'reach',
+  /* Phải xin bằng tên có _v2, nhưng Meta TRẢ VỀ dưới tên không có _v2. Thiếu
+   * dòng này thì request thành công, số về đủ, mà cột tiếp cận vẫn trắng — vì
+   * bảng ánh xạ tra theo tên trong phản hồi chứ không phải tên mình đã xin. */
+  page_posts_impressions_organic_unique: 'reach',
 };
 
 /**

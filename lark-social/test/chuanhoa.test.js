@@ -306,6 +306,37 @@ t('follower chốt vẫn tôn trọng bộ lọc nền tảng', () => {
   assert.strictEqual(chot[0].followers, 10);
 });
 
+t('Facebook có ánh xạ tiếp cận, dưới CẢ HAI tên Meta dùng', () => {
+  /* Xin bằng tên có _v2 nhưng Meta trả về dưới tên không có _v2. Thiếu một
+     trong hai dòng ánh xạ thì request vẫn thành công, số vẫn về, mà cột tiếp cận
+     trắng trơn — không có gì báo cho biết. */
+  const fb = require('../sync/facebook');
+  assert.ok(fb.METRIC_NGAY.includes('page_posts_impressions_organic_unique_v2'),
+    'phải XIN bằng tên có _v2');
+  assert.strictEqual(fb.COT.page_posts_impressions_organic_unique_v2, 'reach');
+  assert.strictEqual(fb.COT.page_posts_impressions_organic_unique, 'reach',
+    'Meta TRẢ VỀ dưới tên không có _v2');
+});
+
+t('tiếp cận và hiển thị là hai cột khác nhau', () => {
+  const fb = require('../sync/facebook');
+  assert.strictEqual(fb.COT.page_posts_impressions_organic, 'impressions');
+  assert.notStrictEqual(fb.COT.page_posts_impressions_organic,
+    fb.COT.page_posts_impressions_organic_unique);
+});
+
+t('Instagram không xin follower_count ngoài tầm 30 ngày', () => {
+  /* follower_count chỉ trả 30 ngày gần nhất. Để nó trong danh sách chung thì mọi
+     cửa sổ cũ đều lỗi, rồi app kết luận nhầm "API không còn nhận follower_count"
+     — đổ cho Meta trong khi lỗi là mình hỏi sai khoảng. */
+  const src = require('fs').readFileSync(require.resolve('../sync/instagram'), 'utf8');
+  const m = /const CHUOI_TG = (\[[^\]]*\])/.exec(src);
+  assert.ok(m, 'không tìm thấy CHUOI_TG');
+  assert.ok(!m[1].includes('follower_count'),
+    'follower_count phải nằm ở nhóm riêng, không nằm trong danh sách hỏi mọi cửa sổ');
+  assert.ok(/CHUOI_TG_GAN = \[[^\]]*follower_count/.test(src));
+});
+
 t('lượt hiển thị của Facebook không được đổ vào cột tiếp cận', () => {
   /* v23.0 đã gỡ sạch chỉ số đếm NGƯỜI duy nhất của Page — thử tay 21 tên, chỉ
      page_posts_impressions_organic còn sống, và nó đếm LẦN hiển thị. Đổ nó vào
@@ -313,8 +344,8 @@ t('lượt hiển thị của Facebook không được đổ vào cột tiếp c
   const fb = require('../sync/facebook');
   assert.strictEqual(fb.COT.page_posts_impressions_organic, 'impressions');
   assert.ok(fb.METRIC_NGAY.includes('page_posts_impressions_organic'));
-  assert.ok(!Object.values(fb.COT).includes('reach'),
-    'không metric Facebook nào được ánh xạ sang reach');
+  assert.notStrictEqual(fb.COT.page_posts_impressions_organic, 'reach',
+    'chỉ số đếm LẦN hiển thị không được coi là tiếp cận');
 });
 
 console.log('\nlink uỷ quyền Zalo');
