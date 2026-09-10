@@ -15,26 +15,67 @@
  * sáng/tối, nên mọi mục quản trị đều gắn cờ này. Không phải chỉ ẩn cho gọn:
  * server cũng chặn 403 những đầu mối tương ứng, ẩn ở đây là để khỏi bày ra một
  * cánh cửa mà bấm vào chỉ nhận lỗi. */
-const CD_MUC = [
-  { nhom: 'Cài đặt', ds: [
-    { k: 'chung', ten: 'Chung', ic: 'cai-dat', mo: 'Ngôn ngữ, sáng tối, tài khoản' },
-    { k: 'base', ten: 'Base trong panel', ic: 'base', mo: 'Bật, tắt, ẩn, thêm base', ql: true },
-    { k: 'nguoi', ten: 'Nhân sự & phân quyền', ic: 'nguoi', mo: 'Ai thấy base nào', ql: true },
-    { k: 'quan-ly-app', ten: 'Quản lý từng app', ic: 'cong-viec',
-      mo: 'Ai duyệt được trong từng app', ql: true },
-    { k: 'phan-phoi', ten: 'Phân phối công việc', ic: 'lich',
-      mo: 'Tự giao việc mới theo tỷ lệ', ql: true },
-  ] },
-  { nhom: 'Nâng cao', ds: [
-    { k: 'kiem-tra', ten: 'Kiểm tra hệ thống', ic: 'may', mo: 'Hỏi từng base xem đọc được gì', ql: true },
-    { k: 'log', ten: 'Log app con', ic: 'may', mo: 'Xem stderr thật của app con', ql: true },
-  ] },
+/* Bảng app có thiết lập riêng. Trang của mỗi app gom TẤT CẢ thiết lập của nó,
+ * để không phải vào tận trong app mới sửa được. Thêm app hay thêm thiết lập
+ * chỉ là thêm một dòng ở đây.
+ *
+ * `phanPhoi`: app có trung tâm phân phối. Cố ý KHÔNG dựng lại giao diện đó ở
+ * Cài đặt — nó là bảng nhiều cột với trọng số từng người, dựng hai bản là có
+ * ngày lệch. Cài đặt làm đúng việc của nó: chỗ duy nhất để TÌM ra thiết lập.
+ */
+const APP_CD = [
+  { id: 'cong-viec', ten: 'Bảng công việc', ic: 'cong-viec',
+    mo: 'Phân phối việc mới', phanPhoi: true },
 ];
 
-/** Các mục người đang xem được vào. */
+/**
+ * Danh sách mục, xếp theo VIỆC chứ không theo chỗ lưu.
+ *
+ *   Của tôi   — riêng máy này, đổi xong chỉ mình thấy
+ *   Hệ thống  — cả phòng chịu ảnh hưởng
+ *   Từng app  — thiết lập thuộc về một app cụ thể
+ *   Nâng cao  — chẩn đoán, không phải thiết lập
+ *
+ * `ql: true` = chỉ quản lý thấy. Không phải để cho gọn: máy chủ cũng chặn 403
+ * những đầu mối tương ứng, ẩn ở đây là để khỏi bày ra một cánh cửa mà bấm vào
+ * chỉ nhận lỗi.
+ */
+function cdNhom() {
+  return [
+    { nhom: 'Của tôi', ds: [
+      { k: 'toi', ten: 'Của tôi', ic: 'nguoi', mo: 'Ngôn ngữ, sáng tối, tài khoản' },
+    ] },
+    { nhom: 'Hệ thống', ds: [
+      { k: 'base', ten: 'Base trong panel', ic: 'base', mo: 'Bật, tắt, ẩn, thêm base', ql: true },
+      /* MỘT mục cho mọi câu hỏi "ai được làm gì" — xem chú thích ở veCdQuyen. */
+      { k: 'quyen', ten: 'Phân quyền', ic: 'nguoi',
+        mo: 'Ai thấy base nào, ai duyệt được trong app nào', ql: true },
+      { k: 'he-thong', ten: 'Hệ thống', ic: 'may',
+        mo: 'Địa chỉ công khai, app Lark, bản đang chạy', ql: true },
+    ] },
+    { nhom: 'Từng app', ds: APP_CD.map((a) => ({
+      k: 'app:' + a.id, ten: a.ten, ic: a.ic, mo: a.mo, ql: true,
+    })) },
+    { nhom: 'Nâng cao', ds: [
+      { k: 'kiem-tra', ten: 'Kiểm tra hệ thống', ic: 'may', mo: 'Hỏi từng base xem đọc được gì', ql: true },
+      { k: 'log', ten: 'Log app con', ic: 'may', mo: 'Xem stderr thật của app con', ql: true },
+    ] },
+  ];
+}
+
+/**
+ * Các mục người đang xem được vào, đã lọc theo ô tìm.
+ *
+ * Tìm theo TÊN, DÒNG MÔ TẢ, và cả TỪ KHOÁ ẩn (`tu`) — người ta nhớ mình muốn
+ * làm gì, không nhớ mục tên gì. Ví dụ gõ "tỷ lệ" ra trang Bảng công việc, gõ
+ * "chi phí" ra Phân quyền: hai chữ đó không có trên nhãn nào cả.
+ */
 function cdMucCuaToi() {
-  return CD_MUC
-    .map((g) => ({ nhom: g.nhom, ds: g.ds.filter((m) => S.quanLy || !m.ql) }))
+  const q = (S.cdTim || '').trim().toLowerCase();
+  const khop = (m) => !q ||
+    (m.ten + ' ' + (m.mo || '')).toLowerCase().includes(q);
+  return cdNhom()
+    .map((g) => ({ nhom: g.nhom, ds: g.ds.filter((m) => (S.quanLy || !m.ql) && khop(m)) }))
     .filter((g) => g.ds.length);
 }
 
@@ -54,14 +95,34 @@ function modalCaiDat(mucDau) {
   veCdNoi();
 }
 
+/* Ô tìm: gõ tới đâu lọc tới đó. Giữ con trỏ trong ô sau khi vẽ lại danh sách,
+ * không thì gõ được một chữ là mất focus. */
+function ganCdTim() {
+  const o = $('#cdTim');
+  if (!o) return;
+  o.oninput = () => {
+    S.cdTim = o.value;
+    const vt = o.selectionStart;
+    veCdNav();
+    const moi = $('#cdTim');
+    if (moi) { moi.focus(); moi.setSelectionRange(vt, vt); }
+  };
+}
+
 function veCdNav() {
-  $('#cdNav').innerHTML = cdMucCuaToi().map((g) =>
+  const nhom = cdMucCuaToi();
+  $('#cdNav').innerHTML =
+    '<div class="cd-tim"><input id="cdTim" placeholder="Tìm thiết lập…" value="' +
+      esc(S.cdTim || '') + '"></div>' +
+    (nhom.length ? '' : '<div class="cd-tim-trong">Không có mục nào khớp.</div>') +
+    nhom.map((g) =>
     '<div class="cd-nhom">' + esc(g.nhom) + '</div>' +
     g.ds.map((m) =>
       '<button class="cd-item' + (S.cdMuc === m.k ? ' on' : '') + '" data-cd="' + m.k + '">' +
       '<span class="cd-ic">' + icon(m.ic) + '</span>' +
       '<span class="cd-tx"><b>' + esc(m.ten) + '</b></span></button>').join('')
   ).join('');
+  ganCdTim();
 }
 
 const cdTieuDe = (ten, mo) =>
@@ -78,14 +139,18 @@ function veCdNoi() {
   const chan = $('#cdChanGhi');
   if (chan) chan.textContent = '';
   el.scrollTop = 0;
-  if (S.cdMuc === 'chung') return veCdChung(el);
+  if (S.cdMuc.indexOf('app:') === 0) {
+    const a = APP_CD.find((x) => 'app:' + x.id === S.cdMuc);
+    if (a) return veCdApp(el, a);
+  }
+  if (S.cdMuc === 'toi') return veCdToi(el);
+  if (S.cdMuc === 'he-thong') return veCdHeThong(el);
+  if (S.cdMuc === 'quyen') return veCdQuyen(el);
   if (S.cdMuc === 'base') return veCdBase(el);
-  if (S.cdMuc === 'nguoi') return veCdNguoi(el);
-  if (S.cdMuc === 'quan-ly-app') return veCdQuanLyApp(el);
-  if (S.cdMuc === 'phan-phoi') return veCdPhanPhoi(el);
   if (S.cdMuc === 'kiem-tra') return veCdKiemTra(el);
   if (S.cdMuc === 'log') return veCdLog(el);
 }
+
 
 /* ---------------- Chung ---------------- */
 /* ---------------- Quản lý của từng app ----------------
@@ -104,23 +169,6 @@ const QL_APP = [
     dsNguoi: '/api/meta', than: (ids) => ({ managers: ids }) },
 ];
 
-function veCdQuanLyApp(el) {
-  el.innerHTML = cdTieuDe('Quản lý từng app',
-    'Ai được quyền quản lý bên trong mỗi app. Không phải "ai thấy base nào" — ' +
-    'cái đó ở mục Nhân sự & phân quyền.') +
-    QL_APP.map((a) => '<div id="cdQl-' + esc(a.id) + '">' +
-      cdHang(a.ten, 'đang đọc…', '') + '</div>').join('');
-  QL_APP.forEach((a) => napCdQl(a));
-}
-
-/**
- * Đọc lại rồi vẽ lại một khối.
- *
- * `y` = { moDs, tin }: giữ danh sách đang mở, và câu báo hiện SAU khi vẽ.
- * Không có hai thứ này thì bấm Lưu xong khối bị vẽ lại, ô thông báo bị xoá và
- * danh sách đóng lại — đúng lỗi đã gặp: ghi thành công mà mặt màn hình như
- * chưa xảy ra gì.
- */
 async function napCdQl(a, y) {
   const hop = $('#cdQl-' + a.id);
   if (!hop) return;
@@ -203,77 +251,73 @@ async function luuCdQl(a) {
   }
 }
 
-/* ---------------- Phân phối công việc ----------------
- * Mở thẳng màn phân phối của Bảng công việc thay vì dựng lại ở đây: nó là bảng
- * nhiều cột với trọng số từng người, dựng lại là hai bản phải sửa song song.
- * Cài đặt làm đúng việc của nó — chỗ duy nhất để TÌM ra thiết lập.
+
+/* ---------------- Của tôi ----------------
+ * Chỉ những thứ đổi xong CHỈ MÌNH THẤY. Tách khỏi phần hệ thống vì trước đây
+ * hai loại nằm lẫn một trang: ngôn ngữ (riêng máy) đứng cạnh địa chỉ công khai
+ * (cả hệ), nên không ai biết đổi cái nào thì ai bị ảnh hưởng.
  */
-function veCdPhanPhoi(el) {
-  el.innerHTML = cdTieuDe('Phân phối công việc',
-    'Việc mới không ai nhận sau một khoảng chờ thì hệ tự giao, theo loại việc và ' +
-    'tỷ lệ của từng nhân sự.') +
-    cdHang('Mở màn phân phối',
-      'Bật/tắt từng loại việc, đặt mốc chờ, và đặt tỷ lệ cho từng nhân sự.',
-      '<button class="btn nho chinh" id="cdMoPhanPhoi">Mở</button>');
-  $('#cdMoPhanPhoi').onclick = () => {
-    dongModal();
-    location.hash = '#/m/cong-viec?mo=phan-phoi';
-  };
-}
-
-function veCdChung(el) {
-  const segNgonNgu = '<div class="seg seg-lang" data-no-i18n="1">' + NGON_NGU.map(([v, t]) =>
-    '<button data-lang-set="' + v + '" class="' + (S.lang === v ? 'on' : '') + '">' + t + '</button>').join('') +
+function veCdToi(el) {
+  const segNgonNgu = '<div class="seg seg-lang" data-no-i18n="1">' + NGON_NGU.map(([val, t]) =>
+    '<button data-lang-set="' + val + '" class="' + (S.lang === val ? 'on' : '') + '">' + t + '</button>').join('') +
     '</div>';
-  const segTheme = '<div class="seg seg-theme">' + THEME.map(([v, t]) =>
-    '<button data-theme-set="' + v + '" class="' + (S.theme === v ? 'on' : '') + '" title="' + t + '">' +
-    icon(v) + '</button>').join('') + '</div>';
+  const segTheme = '<div class="seg seg-theme">' + THEME.map(([val, t]) =>
+    '<button data-theme-set="' + val + '" class="' + (S.theme === val ? 'on' : '') + '" title="' + t + '">' +
+    icon(val) + '</button>').join('') + '</div>';
 
-  /* Nhân sự chỉ cần đổi ngôn ngữ và sáng/tối. Mấy dòng còn lại là chuyện vận
-   * hành — cổng nội bộ, app_id, số bản, commit — bày ra vừa rối vừa lộ ruột gan
-   * hệ thống, nên chỉ quản lý thấy. */
-  const ql = !!S.quanLy;
-
-  el.innerHTML = cdTieuDe('Chung', ql ? 'Thông tin phiên đang chạy và cách hiển thị.'
-                                      : 'Chọn ngôn ngữ và kiểu hiển thị cho riêng máy bạn.') +
-    '<div id="cdToi" class="cd-hang"><div class="cd-hang-tx"><b>Đang đọc…</b></div></div>' +
-    cdHang('Ngôn ngữ', 'Áp cho lớp vỏ và cả ba app con. Mỗi người nhớ lựa chọn riêng trong máy mình.', segNgonNgu) +
+  el.innerHTML = cdTieuDe('Của tôi',
+    'Ba thứ dưới đây nhớ riêng trong máy bạn — đổi xong người khác không bị ảnh hưởng.') +
+    cdHang('Ngôn ngữ', 'Áp cho lớp vỏ và cả các app con.', segNgonNgu) +
     cdHang('Sáng / tối', 'Theo hệ thống là ăn theo cài đặt của máy.', segTheme) +
-    (ql ? cdHang('Địa chỉ công khai',
-      'Chỉ lớp vỏ này ra internet. Ba app con chạy trên cổng nội bộ (5173 · 5174 · 5176) ' +
-      'trong cùng một máy chủ, chỉ lớp vỏ gọi được — nên cả hệ chỉ có MỘT link và MỘT lần đăng nhập.',
-      '<code>' + esc(location.origin) + '</code>') : '') +
-    (ql ? '<div id="cdBanChay"></div>' : '');
+    '<div id="cdToiTk" class="cd-hang"><div class="cd-hang-tx"><b>Đang đọc…</b></div></div>';
 
   goi('/api/toi').then((t) => {
-    const o = $('#cdToi');
+    const o = $('#cdToiTk');
     if (!o) return;
-    const nut = (v) => '<button class="btn nho" data-copy-id="' + esc(v) + '">Copy</button>';
+    const khoa = t.email || t.id || '';
+    o.outerHTML = cdHang('Tài khoản Lark',
+      khoa ? '<code>' + esc(khoa) + '</code>' : 'Chưa đọc được tài khoản.',
+      '<span class="cd-nhan ' + (t.la_quan_ly ? 'luc' : 'do') + '">' +
+      (t.la_quan_ly ? 'Quản lý' : 'Nhân sự') + '</span>');
+  }).catch(() => {});
+}
+
+/* ---------------- Hệ thống ----------------
+ * Phần đọc-để-biết của cả hệ: một link ra internet, app Lark nào đang chạy,
+ * bản nào đang chạy. Không sửa được ở đây — mấy thứ này đặt bằng biến môi
+ * trường trên Render; nói ra để đối chiếu khi có sự cố.
+ */
+function veCdHeThong(el) {
+  el.innerHTML = cdTieuDe('Hệ thống',
+    'Thông tin phiên đang chạy. Đặt bằng biến môi trường, không sửa ở đây.') +
+    cdHang('Địa chỉ công khai',
+      'Chỉ lớp vỏ này ra internet. Các app con chạy trên cổng nội bộ trong cùng máy chủ, ' +
+      'chỉ lớp vỏ gọi được — nên cả hệ chỉ có MỘT link và MỘT lần đăng nhập.',
+      '<code>' + esc(location.origin) + '</code>') +
+    '<div id="cdHtApp" class="cd-hang"><div class="cd-hang-tx"><b>Đang đọc…</b></div></div>' +
+    '<div id="cdBanChay"></div>';
+
+  goi('/api/toi').then((t) => {
+    const o = $('#cdHtApp');
+    if (!o) return;
+    const nut = (val) => '<button class="btn nho" data-copy-id="' + esc(val) + '">Copy</button>';
     if (t.che_do !== 'api') {
-      o.outerHTML = !ql ? '' :
-        cdHang('Chế độ chạy', 'Đang dùng phiên <code>lark-cli</code> của máy này. Không qua app Lark, ' +
-          'nên phạm vi khả dụng (Availability) không ảnh hưởng gì ở đây.',
+      o.outerHTML = cdHang('Chế độ chạy',
+        'Đang dùng phiên <code>lark-cli</code> của máy này. Không qua app Lark, nên phạm vi ' +
+        'khả dụng (Availability) không ảnh hưởng gì ở đây.',
         '<span class="cd-nhan">cli · máy cá nhân</span>');
       return;
     }
-    const khoa = t.email || t.id;
-    o.outerHTML =
-      cdHang('Tài khoản Lark',
-        '<code>' + esc(khoa) + '</code>' +
-        (ql && t.email_phu ? '<br>Email còn lại: <code>' + esc(t.email_phu) + '</code>' : ''),
-        '<div class="cd-doc">' +
-          '<span class="cd-nhan ' + (t.la_quan_ly ? 'luc' : 'do') + '">' +
-          (t.la_quan_ly ? 'Quản lý' : 'Nhân sự') + '</span>' + (ql ? nut(khoa) : '') + '</div>') +
-      (!ql ? '' : cdHang('App Lark đang chạy',
-        (t.app_id
-          ? '<code>' + esc(t.app_id) + '</code> — so với app anh phát hành bên Developer Console. ' +
-            'Khác nhau thì mọi thay đổi Availability không có tác dụng.'
-          : 'Chưa khai LARK_APP_ID.'),
-        (t.app_id
-          ? '<div class="cd-doc"><a class="btn nho ghost" target="_blank" rel="noreferrer" ' +
-            'href="https://open.larksuite.com/app/' + esc(t.app_id) + '/version/create">Trang phát hành</a>' +
-            nut(t.app_id) + '</div>'
-          : '')));
+    o.outerHTML = cdHang('App Lark đang chạy',
+      (t.app_id
+        ? '<code>' + esc(t.app_id) + '</code> — so với app anh phát hành bên Developer Console. ' +
+          'Khác nhau thì mọi thay đổi Availability không có tác dụng.'
+        : 'Chưa khai LARK_APP_ID.'),
+      (t.app_id
+        ? '<div class="cd-doc"><a class="btn nho ghost" target="_blank" rel="noreferrer" ' +
+          'href="https://open.larksuite.com/app/' + esc(t.app_id) + '/version/create">Trang phát hành</a>' +
+          nut(t.app_id) + '</div>'
+        : ''));
   }).catch(() => {});
 
   goi('/healthz').then((h) => {
@@ -284,6 +328,80 @@ function veCdChung(el) {
       (h.commit ? ' · commit <code>' + esc(h.commit) + '</code>' : ''),
       '<span class="cd-nhan">' + esc(h.che_do || '') + '</span>');
   }).catch(() => {});
+}
+
+/* ---------------- Phân quyền (MỘT mục duy nhất) ----------------
+ * Trước đây là HAI mục nghe giống nhau: "Nhân sự & phân quyền" quyết ai THẤY
+ * base nào, "Quản lý từng app" quyết ai là QUẢN LÝ trong app. Muốn cho ai
+ * quyền duyệt lịch thì phải đoán vào mục nào — lỗi thiết kế, không phải chuyện
+ * nhãn.
+ *
+ * Giờ mọi câu hỏi "ai được làm gì" vào đúng một cửa. Hai tầng vẫn tách bạch
+ * TRONG trang (hai khối, hai lời giải thích), chỉ bỏ chuyện phải đoán.
+ */
+function veCdQuyen(el) {
+  el.innerHTML = cdTieuDe('Phân quyền',
+    'Ai mở được app là do Lark quyết (Availability). Ai thấy base nào và ai duyệt được thì quyết ở đây.') +
+    '<div class="cd-muc-nho">Thấy base nào · quyền từng người</div>' +
+    '<div id="cdQuyenTom" class="cd-hang"><div class="cd-hang-tx"><b>Đang đọc bảng phân quyền…</b></div></div>' +
+    cdHang('Mở màn quản lý',
+      'Danh sách từng người: vị trí, vai, base được xem, và app có nhận ra họ chưa.',
+      '<button class="btn primary" id="cdMoQuyen">Mở phân quyền</button>') +
+    '<div class="cd-muc-nho">Ai là quản lý bên trong từng app</div>' +
+    QL_APP.map((a) => '<div id="cdQl-' + esc(a.id) + '">' +
+      cdHang(a.ten, 'đang đọc…', '') + '</div>').join('');
+
+  $('#cdMoQuyen').onclick = () => modalPhanQuyen();
+  QL_APP.forEach((a) => napCdQl(a));
+
+  goi('/api/quyen').then((d) => {
+    const o = $('#cdQuyenTom');
+    if (!o) return;
+    const hang = d.hang || [];
+    const chuaKhop = hang.filter((h) => !h.khop).length;
+    const daKhop = new Set(hang.filter((h) => h.khop).map((h) => h.khop.id));
+    const chuaKhai = (d.danhBa || []).filter((x) => !daKhop.has(x.id)).length;
+    o.outerHTML = cdHang('Tình trạng',
+      hang.length + ' người đã khai quyền riêng · ' + chuaKhai + ' người chưa khai (đang ở mặc định: thấy đủ ' +
+      (d.base || []).length + ' base)' +
+      (chuaKhop ? '<br><b style="color:var(--do)">' + chuaKhop +
+        ' dòng chưa khớp được với ai trong Lark — quyền đó chưa có tác dụng.</b>' : ''),
+      '<span class="cd-nhan ' + (chuaKhop ? 'do' : 'luc') + '">' +
+      (chuaKhop ? 'cần xử lý' : 'ổn') + '</span>');
+  }).catch((e) => {
+    const o = $('#cdQuyenTom');
+    if (o) o.outerHTML = cdHang('Tình trạng', esc(e.message), '');
+  });
+}
+
+/* ---------------- Trang của một app ----------------
+ * "Phân phối công việc" trước đây là một mục CẤP CAO mà bên trong chỉ có một
+ * cái nút — ngang hàng với Phân quyền, trong khi nó chỉ là thiết lập của một
+ * app. Hạ xuống thành một dòng ở đây.
+ *
+ * Trang này là chỗ để kéo dần thiết lập còn nằm trong app ra: Mục tiêu của
+ * Quảng cáo, Kết nối của Social, Cấu hình thông báo của Lịch.
+ */
+function veCdApp(el, a) {
+  el.innerHTML = cdTieuDe(a.ten, 'Thiết lập riêng của app này.') +
+    (a.phanPhoi
+      ? cdHang('Phân phối việc mới',
+        'Việc mới không ai nhận sau một khoảng chờ thì hệ tự giao, theo loại việc và tỷ lệ ' +
+        'của từng nhân sự. Bật/tắt từng loại, đặt mốc chờ, đặt tỷ lệ.',
+        '<button class="btn nho chinh" id="cdMoPhanPhoi">Mở</button>')
+      : '') +
+    cdHang('Quản lý của app này',
+      'Ai duyệt được bên trong app — sửa ở mục <b>Phân quyền</b>, để mọi câu hỏi ' +
+      '"ai được làm gì" nằm chung một chỗ.',
+      '<button class="btn nho" data-cd="quyen">Mở Phân quyền</button>');
+
+  const n = $('#cdMoPhanPhoi');
+  if (n) {
+    n.onclick = () => {
+      dongModal();
+      location.hash = '#/m/' + a.id + '?mo=phan-phoi';
+    };
+  }
 }
 
 /* ---------------- Base trong panel ---------------- */
@@ -332,35 +450,6 @@ function veCdBase(el) {
 }
 
 /* ---------------- Người dùng & phân quyền ---------------- */
-function veCdNguoi(el) {
-  el.innerHTML = cdTieuDe('Người dùng & phân quyền',
-    'Ai mở được app là do Lark quyết (Availability). Ai thấy base nào là do anh quyết ở đây.') +
-    '<div id="cdQuyenTom" class="cd-hang"><div class="cd-hang-tx"><b>Đang đọc bảng phân quyền…</b></div></div>' +
-    cdHang('Mở màn quản lý',
-      'Danh sách từng người: vị trí, vai, base được xem, và app có nhận ra họ chưa.',
-      '<button class="btn primary" id="cdMoQuyen">Mở phân quyền</button>');
-  $('#cdMoQuyen').onclick = () => modalPhanQuyen();
-
-  goi('/api/quyen').then((d) => {
-    const o = $('#cdQuyenTom');
-    if (!o) return;
-    const hang = d.hang || [];
-    const chuaKhop = hang.filter((h) => !h.khop).length;
-    const daKhop = new Set(hang.filter((h) => h.khop).map((h) => h.khop.id));
-    const chuaKhai = (d.danhBa || []).filter((x) => !daKhop.has(x.id)).length;
-    o.outerHTML = cdHang('Tình trạng',
-      hang.length + ' người đã khai quyền riêng · ' + chuaKhai + ' người chưa khai (đang ở mặc định: thấy đủ ' +
-      (d.base || []).length + ' base)' +
-      (chuaKhop ? '<br><b style="color:var(--do)">' + chuaKhop +
-        ' dòng chưa khớp được với ai trong Lark — quyền đó chưa có tác dụng.</b>' : ''),
-      '<span class="cd-nhan ' + (chuaKhop ? 'do' : 'luc') + '">' +
-      (chuaKhop ? 'cần xử lý' : 'ổn') + '</span>');
-  }).catch((e) => {
-    const o = $('#cdQuyenTom');
-    if (o) o.outerHTML = cdHang('Tình trạng', esc(e.message), '');
-  });
-}
-
 /* ---------------- Kiểm tra hệ thống ---------------- */
 async function veCdKiemTra(el) {
   el.innerHTML = cdTieuDe('Kiểm tra hệ thống', 'Hỏi thẳng từng base xem đang đọc được gì.') +

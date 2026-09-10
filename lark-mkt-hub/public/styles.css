@@ -1280,3 +1280,24 @@ body.dang-xem-ho .app { height: calc(100vh - 34px); margin-top: 34px; }
   margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--vien-mem);
 }
 .cd-ql-tin { font-size: 12.5px; color: var(--chu-nhat); }
+
+/* ---- Cài đặt · ô tìm và nhãn nhóm nhỏ trong một trang ----
+   Ô tìm dính trên đầu cột trái: danh sách sẽ dài dần khi kéo thiết lập trong
+   app ra, cuộn xuống mà mất ô tìm thì phải cuộn ngược lên. */
+.cd-tim { position: sticky; top: 0; z-index: 1; padding: 0 0 8px; background: var(--trang); }
+.cd-tim input {
+  width: 100%; padding: 7px 10px; font-size: 13px;
+  border: 1px solid var(--vien); border-radius: var(--r-nho);
+  background: var(--nen); color: var(--chu);
+}
+.cd-tim input:focus { outline: none; border-color: var(--xanh); }
+.cd-tim-trong { padding: 10px 2px; font-size: 12.5px; color: var(--chu-nhat); }
+
+/* Nhãn chia khối TRONG một trang cài đặt — dùng ở trang Phân quyền để tách
+   "thấy base nào" khỏi "ai là quản lý app", hai tầng khác nhau nhưng cùng trả
+   lời một câu hỏi nên để chung trang. */
+.cd-muc-nho {
+  margin: 16px 0 6px; font-size: 11.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .04em; color: var(--chu-nhat);
+}
+.cd-muc-nho:first-of-type { margin-top: 6px; }
