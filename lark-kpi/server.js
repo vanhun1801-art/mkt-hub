@@ -19,6 +19,7 @@ const { chamThang, chotDuoc } = require('./tinh');
 const store = require('./store');
 const nguon = require('./nguon');
 const X = require('./xuat');
+const cfgKho = require('./config').dungBase;
 const baoCao = require('./bao-cao');
 
 const PORT = Number(process.env.PORT || 5179);
@@ -165,6 +166,27 @@ function apSua(luat, sua) {
   return l;
 }
 
+/**
+ * Ghi xong thì ĐẨY LÊN BASE rồi mới trả lời.
+ *
+ * Không đẩy được thì vẫn trả 200 — số đã nằm trong RAM và trong tệp trên máy,
+ * nên với người đang ngồi trước màn hình thì việc đó ĐÃ xong. Nhưng kèm
+ * `khoLoi` để giao diện hiện băng đỏ: im lặng coi như đã lưu là cách chắc chắn
+ * nhất để mất một tháng điểm mà không ai biết, nhất là trên server chung nơi
+ * tệp trên đĩa bay sau mỗi lần deploy.
+ */
+async function daLuu(body) {
+  try {
+    await store.day();
+    return body;
+  } catch (e) {
+    return Object.assign({}, body, {
+      khoLoi: 'Đã lưu trên máy chủ này nhưng CHƯA ghi được lên Lark Base: ' + e.message
+        + ' — số sẽ mất khi server khởi động lại. Thử thao tác lại.',
+    });
+  }
+}
+
 /* ---------------- định tuyến ---------------- */
 async function api(req, res, u) {
   const p = u.pathname;
@@ -184,7 +206,10 @@ async function api(req, res, u) {
       thangCoSo: ths.filter(coSo),
       thangGoiY: ths.find(coSo) || ths[0] || '',
       nguoiXem: { ten: nx.ten, quanLy: nx.quanLy, ma: nx.ma },
-      nguon: 'du-lieu/lich-su-2026.json',
+      /* Kho nằm ở đâu và có gì chưa ghi lên được — giao diện cần biết để nói
+       * thật, thay vì để người dùng tin là đã lưu. */
+      kho: store.trangThai(),
+      nguon: store.trangThai().nguon === 'base' ? 'Lark Base — KPI Marketing' : 'du-lieu/lich-su-2026.json',
     });
   }
 
@@ -229,14 +254,14 @@ async function api(req, res, u) {
     const chan = L.soat(body.luat).filter((x) => x.muc === 'chan');
     if (chan.length) return fail(res, 400, 'Bộ luật còn ' + chan.length + ' lỗi chặn');
     store.luuLuat(body.thang, body.luat);
-    return ok(res, { luu: true });
+    return ok(res, await daLuu({ luu: true }));
   }
 
   if (p === '/api/bo-sua-luat' && req.method === 'POST') {
     if (!nx.quanLy) return fail(res, 403, 'Chỉ trưởng phòng làm được');
     const body = await readBody(req);
     store.boSuaLuat(body.thang);
-    return ok(res, { ve: 'bản nhập từ Excel' });
+    return ok(res, await daLuu({ ve: 'bản nhập từ Excel' }));
   }
 
   if (p === '/api/cham' && req.method === 'POST') {
@@ -247,7 +272,7 @@ async function api(req, res, u) {
      * và ngược lại. `diem === undefined` = lần gọi này không nói gì về điểm. */
     if (b.diem !== undefined) store.luuChamTay(b.thang, b.nguoi, b.tieuChi, b.diem);
     if (b.ghiChu !== undefined) store.luuGhiChuCham(b.thang, b.nguoi, b.tieuChi, b.ghiChu);
-    return ok(res, loc(tinhThang(b.thang), nx));
+    return ok(res, await daLuu(loc(tinhThang(b.thang), nx)));
   }
 
   if (p === '/api/chot' && req.method === 'POST') {
@@ -256,14 +281,14 @@ async function api(req, res, u) {
     const kq = tinhThang(b.thang);
     if (!kq) return fail(res, 404, 'Chưa có dữ liệu tháng ' + b.thang);
     if (!kq.chotDuoc) return fail(res, 400, 'Còn ' + kq.soChan + ' mục chặn, chưa chốt được');
-    return ok(res, store.chot(b.thang, kq, nx.ten));
+    return ok(res, await daLuu(store.chot(b.thang, kq, nx.ten)));
   }
 
   if (p === '/api/bo-chot' && req.method === 'POST') {
     if (!nx.quanLy) return fail(res, 403, 'Chỉ trưởng phòng làm được');
     const b = await readBody(req);
     store.boChot(b.thang);
-    return ok(res, { boChot: true });
+    return ok(res, await daLuu({ boChot: true }));
   }
 
   /* ---------------- BÁO CÁO: gom mọi base ---------------- */
@@ -411,7 +436,7 @@ async function api(req, res, u) {
     if (chan.length) return send(res, 400, { error: 'Còn ' + chan.length + ' lỗi chặn', soat: v });
 
     store.luuLuat(b.thang, luat);
-    return ok(res, { luu: true, soat: v });
+    return ok(res, await daLuu({ luu: true, soat: v }));
   }
 
   /* ---------------- thu số liệu ---------------- */
@@ -438,7 +463,7 @@ async function api(req, res, u) {
     if (t.chot) return fail(res, 400, 'Tháng này đã chốt — bỏ chốt trước khi đổ số mới');
     const r = await nguon.docTuApp(th, t.luat);
     const n = store.luuSoLieu(th, r.soLieu, 'app');
-    return ok(res, { ghi: n, dem: r.dem, loiApp: r.loiApp });
+    return ok(res, await daLuu({ ghi: n, dem: r.dem, loiApp: r.loiApp }));
   }
 
   if (p === '/api/tai-file' && req.method === 'POST') {
@@ -455,14 +480,14 @@ async function api(req, res, u) {
      * trước khi số chạy vào bảng lương. */
     if (b.xem) return ok(res, { khop: g.khop, truot: g.truot, soDong: doc.hang.length });
     const n = store.luuSoLieu(th, g.soLieu, 'file');
-    return ok(res, { ghi: n, khop: g.khop, truot: g.truot, soDong: doc.hang.length });
+    return ok(res, await daLuu({ ghi: n, khop: g.khop, truot: g.truot, soDong: doc.hang.length }));
   }
 
   if (p === '/api/bo-so-lieu' && req.method === 'POST') {
     if (!nx.quanLy) return fail(res, 403, 'Chỉ trưởng phòng làm được');
     const b = await readBody(req);
     store.boSoLieu(b.thang);
-    return ok(res, { ve: 'số liệu gốc' });
+    return ok(res, await daLuu({ ve: 'số liệu gốc' }));
   }
 
   /**
@@ -861,11 +886,27 @@ const server = http.createServer((req, res) => {
   serveStatic(req, res, u.pathname);
 });
 
-server.listen(PORT, BIND, () => {
-  console.log('Báo cáo & KPI  →  http://localhost:' + PORT);
-  if (!store.coLichSu()) {
-    console.log('  ⚠ chưa có du-lieu/lich-su-2026.json — chạy bước nhập lịch sử trước');
-  } else {
-    console.log('  ' + store.danhSachThang().length + ' tháng có dữ liệu');
-  }
-});
+/* NẠP KHO TRƯỚC KHI MỞ CỔNG.
+ * Kho nằm trên Lark Base, đọc qua mạng — nhưng mọi chỗ trong app đọc nó theo lối
+ * đồng bộ (xem đầu store.js). Nên phải nạp xong vào RAM rồi mới nhận yêu cầu,
+ * chứ mở cổng trước thì mấy giây đầu app trả về "chưa có tháng nào" y như lúc
+ * kho rỗng thật — người dùng bấm vào đúng lúc đó sẽ tưởng mất sạch dữ liệu. */
+(async () => {
+  let r;
+  try { r = await store.nap(); }
+  catch (e) { r = { nguon: 'tep', thang: 0, loi: e.message }; }
+
+  server.listen(PORT, BIND, () => {
+    console.log('Báo cáo & KPI  →  http://localhost:' + PORT);
+    const t = store.trangThai();
+    if (r.loi) console.log('  ⚠ ' + r.loi);
+    if (t.nguon === 'base') {
+      console.log('  kho: Lark Base · ' + store.danhSachThang().length + ' tháng');
+    } else if (store.coLichSu()) {
+      console.log('  kho: tệp du-lieu/ · ' + store.danhSachThang().length + ' tháng'
+        + (cfgKho ? ' (KHÔNG đọc được Base — số ghi ra sẽ không lên server chung)' : ''));
+    } else {
+      console.log('  ⚠ kho rỗng — nửa KPI sẽ trống, nửa Báo cáo vẫn chạy');
+    }
+  });
+})();

@@ -35,6 +35,46 @@ Nguyên tắc thiết kế số một ở đây: **bộ luật tách khỏi số
 chỉ là thêm dòng số liệu; bộ luật đứng yên, có phiên bản, và tháng đã chốt không
 bị bộ luật mới chạm vào.
 
+## Kho dữ liệu — Lark Base
+
+Điểm KPI nằm ở Base **KPI Marketing** (`E2nYbb69OaJxdVs0nGGlHTy5g0f`), hai bảng
+đúng theo hai tệp JSON cũ, giữ nguyên nguyên tắc **bản gốc không bao giờ bị ghi
+đè**:
+
+| Bảng | Chứa gì |
+|---|---|
+| `Tháng — bản gốc` | số nhập từ Excel: bộ luật, số liệu, điểm đã trả lương |
+| `Tháng — đã sửa` | bộ luật sửa trên app, số đổ về, chấm tay, ghi chú, chốt |
+
+Đọc thì gộp hai tầng; đổ nhầm thì xoá bản ghi ở bảng "đã sửa" là quay lại số gốc.
+
+**Vì sao phải chuyển khỏi tệp**: `du-lieu/` cố ý không lên GitHub (điểm gắn với
+lương từng người, repo thì công khai), mà ổ đĩa Render là ổ TẠM — mất sau mỗi
+lần deploy. Nên trên server chung nửa KPI luôn trống, và nhập tay vào cũng bay
+sau lần deploy sau.
+
+**API vẫn ĐỒNG BỘ dù Base là mạng.** `tinhThang()` và ~15 đầu mối trong
+`server.js` đọc kho theo lối đồng bộ, và màn Tiến độ gọi `chamThang` năm lần cho
+một yêu cầu — đổi hết sang async là sửa lõi tính lương vì một chuyện hạ tầng.
+Thay vào đó: nạp MỘT LẦN lúc khởi động vào RAM (trước khi mở cổng), đọc từ RAM,
+ghi thì vừa sửa RAM vừa đẩy lên Base.
+
+**Ghi hụt thì phải kêu.** Mỗi đầu mối ghi đều `await store.day()` rồi mới trả
+lời. Đẩy không được thì vẫn trả 200 — việc người dùng vừa làm đã xong ở phía họ
+— nhưng kèm `khoLoi`, và giao diện hiện băng đỏ nói rõ *"số sẽ mất khi server
+khởi động lại"*. Im lặng coi như đã lưu là cách chắc chắn nhất để mất một tháng
+điểm mà không ai biết.
+
+**Một tháng một lời gọi, không gộp lô.** Ở chế độ `cli`, lark-cli nhận JSON qua
+tham số dòng lệnh mà Windows chặn ở ~32.000 ký tự; một tháng đã ~17.000 nên gộp
+hai tháng là `spawn ENAMETOOLONG` — lỗi nổ ra ở tầng hệ điều hành, nhìn chẳng
+liên quan gì tới Base.
+
+Để trống `KPI_BASE_TOKEN` thì app quay về đọc hai tệp JSON — hợp với máy không
+nối được Lark. Nhập lần đầu lên Base: `node cong-cu/len-base.js` (xem trước) rồi
+`--ghi`; công cụ từ chối chạy khi Base đã có dòng, và nhập xong tự đối chiếu lại
+với tệp.
+
 ## Ba tệp lõi
 
 | Tệp | Việc |

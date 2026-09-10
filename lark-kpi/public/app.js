@@ -48,6 +48,10 @@ async function goi(duong, opts) {
   const t = await r.text();
   let j; try { j = JSON.parse(t); } catch (_) { throw new Error(t.slice(0, 200)); }
   if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
+  /* Máy chủ ghi được vào RAM nhưng KHÔNG đẩy lên Lark Base được. Không ném lỗi
+   * — việc người dùng vừa làm đã xong ở phía họ — nhưng phải kêu to, vì trên
+   * server chung số nằm trong RAM sẽ bay khi service khởi động lại. */
+  if (j && j.khoLoi) bao(j.khoLoi, true);
   return j;
 }
 
@@ -90,7 +94,11 @@ async function khoiDong() {
     /* "Phân công" đứng ngay trước "Mục tiêu & thử luật" vì hai tab này là hai
      * tầng của cùng một bộ luật: phân công quyết định AI gánh kênh nào, mục
      * tiêu quyết định kênh đó phải đạt bao nhiêu. */
-    tabs.push(['nguon', 'Nguồn số liệu'], ['phancong', 'Phân công'],
+    /* "Phân công KÊNH", không phải "Phân công" trơn: từ điển i18n của lớp vỏ
+     * khoá theo chính chuỗi tiếng Việt, mà "Phân công" đã là nút giao việc cho
+     * người bên Bảng công việc (dịch là "Assign" — đúng nghĩa bên đó). Trùng
+     * chuỗi thì tab này ăn nhầm bản dịch của app khác. */
+    tabs.push(['nguon', 'Nguồn số liệu'], ['phancong', 'Phân công kênh'],
       ['thu', 'Mục tiêu & thử luật'], ['soat', 'Soát & chốt']);
   }
   TAB = tabs[0][0];

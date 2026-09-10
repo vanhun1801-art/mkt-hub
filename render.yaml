@@ -117,6 +117,24 @@ services:
         generateValue: true
 
       # ============================================================
+      # App Báo cáo & KPI
+      # ============================================================
+      # Base "KPI Marketing" đã cắm sẵn trong config.js
+      # (E2nYbb69OaJxdVs0nGGlHTy5g0f). Chỉ khai KPI_BASE_TOKEN khi đổi base.
+      #
+      # VÌ SAO PHẢI CÓ BASE Ở ĐÂY: điểm KPI trước nay nằm ở hai tệp JSON trong
+      # `lark-kpi/du-lieu/`. Thư mục đó cố ý KHÔNG lên GitHub (gắn với lương
+      # từng người, repo thì công khai), mà ổ đĩa Render lại là ổ TẠM — nhập tay
+      # vào cũng bay sau lần deploy sau. Nên trước khi có Base, nửa KPI trên
+      # server chung luôn trống. Base là chỗ duy nhất số sống được mà vẫn không
+      # lọt lên GitHub.
+      #
+      # Để TRỐNG biến này (KPI_BASE_TOKEN=) thì app quay về đọc hai tệp JSON —
+      # chỉ hợp với máy cá nhân, trên Render là mất số.
+      # - key: KPI_BASE_TOKEN
+      #   sync: false
+
+      # ============================================================
       # Trợ lý hỏi đáp (bot)
       # ============================================================
       # Chìa khoá cho bộ não bên ngoài (Coze / n8n / gì cũng được) gọi vào lấy số
