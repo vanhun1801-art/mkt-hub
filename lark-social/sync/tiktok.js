@@ -321,7 +321,7 @@ async function videoBiz(token, businessId, tran, from, to) {
 function dongTrong(extId, d) {
   return {
     platform: PLATFORM, extId: String(extId), date: d, source: NGUON,
-    followers: 0, followUp: 0, followDown: 0, views: 0, reach: 0, impressions: 0,
+    followers: 0, followUp: 0, followDown: 0, views: 0, viewsOrganic: 0, watchTime: 0, reach: 0, impressions: 0,
     profileViews: 0, likes: 0, comments: 0, shares: 0, saves: 0,
     engagement: 0, clicks: 0, messages: 0, leads: 0, posts: 0, lives: 0,
   };

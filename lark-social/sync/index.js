@@ -27,7 +27,7 @@ const zalo = require('./zalo');
 const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 
 /** Cộng dồn hai dòng cùng (kênh, ngày) từ hai nguồn khác nhau. */
-const CONG = ['views', 'reach', 'impressions', 'profileViews', 'likes', 'comments',
+const CONG = ['views', 'viewsOrganic', 'watchTime', 'reach', 'impressions', 'profileViews', 'likes', 'comments',
   'shares', 'saves', 'engagement', 'clicks', 'messages', 'leads', 'posts', 'lives',
   'followUp', 'followDown'];
 
@@ -72,7 +72,7 @@ function chenhLech(baiCu, baiMoi, ngay, from, chiKenh) {
     if (!theo.has(k)) {
       theo.set(k, {
         platform: b.platform, extId: b.extId, date: d, source: b.source,
-        followers: 0, followUp: 0, followDown: 0, views: 0, reach: 0, impressions: 0,
+        followers: 0, followUp: 0, followDown: 0, views: 0, viewsOrganic: 0, watchTime: 0, reach: 0, impressions: 0,
         profileViews: 0, likes: 0, comments: 0, shares: 0, saves: 0,
         engagement: 0, clicks: 0, messages: 0, leads: 0, posts: 0, lives: 0,
       });
@@ -220,6 +220,8 @@ function dongDaily(row, kenhId) {
     [f.followUp]: num(row.followUp),
     [f.followDown]: num(row.followDown),
     [f.views]: num(row.views),
+    [f.viewsOrganic]: num(row.viewsOrganic),
+    [f.watchTime]: num(row.watchTime),
     [f.reach]: num(row.reach),
     [f.impressions]: num(row.impressions),
     [f.profileViews]: num(row.profileViews),
@@ -249,6 +251,8 @@ function dongPost(row, kenhId) {
     [f.type]: row.type || 'Bài viết',
     [f.url]: row.url || '',
     [f.views]: num(row.views),
+    [f.viewsOrganic]: num(row.viewsOrganic),
+    [f.watchTime]: num(row.watchTime),
     [f.reach]: num(row.reach),
     [f.impressions]: num(row.impressions),
     [f.likes]: num(row.likes),
@@ -279,6 +283,8 @@ function dongLive(row, kenhId) {
     [f.extId]: String(row.liveId),
     [f.minutes]: num(row.minutes),
     [f.views]: num(row.views),
+    [f.viewsOrganic]: num(row.viewsOrganic),
+    [f.watchTime]: num(row.watchTime),
     [f.peak]: num(row.peak),
     [f.comments]: num(row.comments),
     [f.likes]: num(row.likes),
@@ -347,7 +353,7 @@ async function dongBo({ from, to, chi = '', napLai = false, log = () => {} } = {
     if (!gop.has(k)) {
       gop.set(k, {
         platform, extId, date: d, source: source || 'Nhập tay',
-        followers: 0, followUp: 0, followDown: 0, views: 0, reach: 0, impressions: 0,
+        followers: 0, followUp: 0, followDown: 0, views: 0, viewsOrganic: 0, watchTime: 0, reach: 0, impressions: 0,
         profileViews: 0, likes: 0, comments: 0, shares: 0, saves: 0,
         engagement: 0, clicks: 0, messages: 0, leads: 0, posts: 0, lives: 0,
       });

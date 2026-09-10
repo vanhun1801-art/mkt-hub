@@ -325,6 +325,31 @@ t('tiếp cận và hiển thị là hai cột khác nhau', () => {
     fb.COT.page_posts_impressions_organic_unique);
 });
 
+t('mọi adapter dựng dòng trống đủ khoá, không để cột mới thành NaN', () => {
+  /* row[cot] += so trên một khoá chưa khai là undefined + số = NaN, và NaN ghi
+     xuống Base thì ô trống — nhìn y như "hôm đó không có số". Thêm cột mà quên
+     một adapter là hỏng lặng lẽ đúng kiểu đó. */
+  const fs = require('fs');
+  ['facebook', 'instagram', 'tiktok', 'zalo', 'index'].forEach((ten) => {
+    const src = fs.readFileSync(require.resolve('../sync/' + ten), 'utf8');
+    ['viewsOrganic', 'watchTime'].forEach((k) => assert.ok(src.includes(k + ': 0'),
+      'sync/' + ten + '.js thiếu ' + k + ' trong dòng trống'));
+  });
+});
+
+t('cột mới đi hết một vòng: đọc từ Base, cộng, ghi lại', () => {
+  const fs = require('fs');
+  const cfg = require('../config');
+  ['viewsOrganic', 'watchTime'].forEach((k) => {
+    assert.ok(cfg.tables.daily.f[k], 'config thiếu field id cho ' + k);
+    assert.ok(fs.readFileSync(require.resolve('../store'), 'utf8').includes('f.' + k),
+      'store.js không đọc ' + k);
+    assert.ok(fs.readFileSync(require.resolve('../sync/index'), 'utf8').includes('f.' + k),
+      'sync/index.js không ghi ' + k);
+    assert.ok(M.agg([{ [k]: 5 }, { [k]: 7 }])[k] === 12, 'agg không cộng ' + k);
+  });
+});
+
 t('Instagram không xin follower_count ngoài tầm 30 ngày', () => {
   /* follower_count chỉ trả 30 ngày gần nhất. Để nó trong danh sách chung thì mọi
      cửa sổ cũ đều lỗi, rồi app kết luận nhầm "API không còn nhận follower_count"

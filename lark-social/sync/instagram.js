@@ -130,7 +130,7 @@ async function hoSo(fb, token, igId) {
 function dongTrong(igId, d) {
   return {
     platform: PLATFORM, extId: String(igId), date: d, source: NGUON,
-    followers: 0, followUp: 0, followDown: 0, views: 0, reach: 0, impressions: 0,
+    followers: 0, followUp: 0, followDown: 0, views: 0, viewsOrganic: 0, watchTime: 0, reach: 0, impressions: 0,
     profileViews: 0, likes: 0, comments: 0, shares: 0, saves: 0,
     engagement: 0, clicks: 0, messages: 0, leads: 0, posts: 0, lives: 0,
   };
@@ -275,7 +275,11 @@ async function baiCuaIg(fb, token, acc, from, to, tran, canhBao) {
 
   for (const m of dsMedia.slice(0, tran)) {
     const laReel = m.media_product_type === 'REELS';
-    const metrics = ['views', 'reach', 'likes', 'comments', 'shares', 'saves', 'total_interactions']
+    /* Mức BÀI gọi là `saved`, mức TÀI KHOẢN gọi là `saves` — cùng một thứ, hai
+     * tên. Xin nhầm thì Instagram trả "(#100) metric[0] must be one of…", nhánh
+     * bắt lỗi lặng lẽ gạt metric ra, và cột Lưu của mọi bài đứng yên ở 0 mà
+     * không ai biết là đang thiếu chứ không phải thật sự không ai lưu. */
+    const metrics = ['views', 'reach', 'likes', 'comments', 'shares', 'saved', 'total_interactions']
       .concat(laReel ? ['ig_reels_avg_watch_time', 'ig_reels_video_view_total_time'] : []);
     const ins = {};
     try {
@@ -303,8 +307,8 @@ async function baiCuaIg(fb, token, acc, from, to, tran, canhBao) {
       impressions: 0,
       likes, comments: cmts,
       shares: ins.shares || 0,
-      saves: ins.saves || 0,
-      engagement: ins.total_interactions || (likes + cmts + (ins.shares || 0) + (ins.saves || 0)),
+      saves: ins.saved || 0,
+      engagement: ins.total_interactions || (likes + cmts + (ins.shares || 0) + (ins.saved || 0)),
       clicks: 0,
       // API trả mili-giây
       avgWatch: ins.ig_reels_avg_watch_time ? ins.ig_reels_avg_watch_time / 1000 : 0,

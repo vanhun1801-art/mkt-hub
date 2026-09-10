@@ -64,6 +64,8 @@ const METRIC_NGAY = [
   'page_total_actions',               // lượt bấm vào nút/liên kết của trang
   'page_posts_impressions_organic',   // lượt hiển thị bài — KHÔNG phải tiếp cận
   'page_posts_impressions_organic_unique_v2', // tiếp cận thật, đếm người
+  'page_video_views_organic',         // lượt xem video KHÔNG do quảng cáo đẩy
+  'page_video_view_time',             // tổng thời gian xem video (mili giây)
 ];
 
 /** Ánh xạ tên metric của Meta sang tên cột của mình. */
@@ -92,6 +94,12 @@ const COT = {
    * dòng này thì request thành công, số về đủ, mà cột tiếp cận vẫn trắng — vì
    * bảng ánh xạ tra theo tên trong phản hồi chứ không phải tên mình đã xin. */
   page_posts_impressions_organic_unique: 'reach',
+  /* `page_video_views` đếm cả lượt do quảng cáo đẩy. Với một app đo organic thì
+   * đó là lẫn: một chiến dịch chạy mạnh có thể làm "lượt xem tự nhiên" của tháng
+   * trông tăng vọt trong khi nội dung chẳng khá hơn. Nên giữ cả hai cạnh nhau —
+   * cột Lượt xem là tổng, cột Lượt xem tự nhiên là phần thật sự do nội dung. */
+  page_video_views_organic: 'viewsOrganic',
+  page_video_view_time: 'watchTime',
 };
 
 /**
@@ -259,7 +267,7 @@ async function ngayCuaPage(conf, page, from, to, canhBao) {
     if (!theoNgay.has(d)) {
       theoNgay.set(d, {
         platform: PLATFORM, extId: String(page.id), date: d, source: NGUON,
-        followers: 0, followUp: 0, followDown: 0, views: 0, reach: 0, impressions: 0,
+        followers: 0, followUp: 0, followDown: 0, views: 0, viewsOrganic: 0, watchTime: 0, reach: 0, impressions: 0,
         profileViews: 0, likes: 0, comments: 0, shares: 0, saves: 0,
         engagement: 0, clicks: 0, messages: 0, leads: 0, posts: 0, lives: 0,
       });
@@ -283,6 +291,8 @@ async function ngayCuaPage(conf, page, from, to, canhBao) {
       // page_fans và page_follows cùng đổ vào followers — lấy số lớn hơn (follows
       // luôn >= fans, và trang nào tắt nút Thích thì chỉ có follows).
       if (cot === 'followers') row.followers = Math.max(row.followers, so);
+      // Meta trả thời gian xem bằng mili giây; bảng ghi giây.
+      else if (cot === 'watchTime') row.watchTime += Math.round(so / 1000);
       else row[cot] += so;
     });
   });
@@ -308,7 +318,13 @@ const LOAI_BAI = {
 async function baiCuaPage(conf, page, from, to, tran, canhBao) {
   const token = await tokenPage(conf, page);
   const fields = [TRUONG_BAI_GON,
-    'insights.metric(post_impressions,post_impressions_unique,post_clicks,post_video_views,post_video_avg_time_watched)',
+    /* Chỉ những metric mức bài đã thử tay và thấy còn sống trên v23.0. Bản trước
+     * xin post_impressions, post_impressions_unique và post_video_views — cả ba
+     * đều đã bị gỡ, mà chỉ cần một cái hỏng là Meta trả lỗi cho CẢ request. Hậu
+     * quả: mọi lần chạy đều rơi xuống nhánh dự phòng, ba trang cùng ghi một dòng
+     * cảnh báo, và bảng Bài đăng trống các cột chi tiết suốt mấy tháng. */
+    'insights.metric(post_clicks,post_video_views_organic,post_video_avg_time_watched,'
+      + 'post_video_complete_views_organic,post_video_view_time)',
   ].join(',');
 
   const out = [];
@@ -355,8 +371,10 @@ async function baiCuaPage(conf, page, from, to, tran, canhBao) {
       const likes = num(p.likes && p.likes.summary && p.likes.summary.total_count);
       const cmts = num(p.comments && p.comments.summary && p.comments.summary.total_count);
       const shares = num(p.shares && p.shares.count);
-      const reach = ins.post_impressions_unique || 0;
-      const views = ins.post_video_views || 0;
+      /* Mức bài không còn chỉ số đếm người — tiếp cận chỉ có ở mức trang. */
+      const reach = 0;
+      const views = ins.post_video_views_organic || 0;
+      const xemHet = ins.post_video_complete_views_organic || 0;
       out.push({
         platform: PLATFORM,
         extId: String(page.id),
@@ -365,14 +383,15 @@ async function baiCuaPage(conf, page, from, to, tran, canhBao) {
         publishedAt: p.created_time || '',
         type: LOAI_BAI[p.status_type] || 'Bài viết',
         url: p.permalink_url || '',
-        views: views || reach,
+        views,
         reach,
-        impressions: ins.post_impressions || 0,
+        impressions: 0,
         likes, comments: cmts, shares, saves: 0,
         engagement: likes + cmts + shares,
         clicks: ins.post_clicks || 0,
+        /* Meta trả mili giây, bảng ghi giây. */
         avgWatch: ins.post_video_avg_time_watched ? ins.post_video_avg_time_watched / 1000 : 0,
-        fullWatchRate: 0,
+        fullWatchRate: views ? xemHet / views : 0,
         source: NGUON,
       });
     });

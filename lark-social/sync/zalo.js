@@ -155,9 +155,11 @@ async function tongFollower(token) {
 /** Số hội thoại gần đây — thước đo tin nhắn vào, dùng thay cột "Tin nhắn". */
 async function soHoiThoai(token, tran = 200) {
   let tong = 0;
-  for (let offset = 0; offset < tran; offset += 50) {
+  for (let offset = 0; offset < tran; offset += 10) {
+    /* Trần của Zalo là 10, xin 50 thì trả "(-210) maximum count is 10" và không
+     * đếm được hội thoại nào. */
     const r = await getJson(API + '/oa/listrecentchat?data='
-      + encodeURIComponent(JSON.stringify({ offset, count: 50 })),
+      + encodeURIComponent(JSON.stringify({ offset, count: 10 })),
       { headers: dau(token), label: 'Zalo listrecentchat', retries: 1 });
     neuLoi(r, 'Zalo listrecentchat');
     const ds = (r.data || []).length ? r.data : ((r.data || {}).items || []);
@@ -171,15 +173,27 @@ async function soHoiThoai(token, tran = 200) {
 const layView = (o) => num(o.total_view != null ? o.total_view
   : (o.view != null ? o.view : (o.views != null ? o.views : o.total_views)));
 
+/* OA có hai loại bài: `normal` (bài viết) và `video`. Lấy thiếu một loại là mất
+ * hẳn một mảng nội dung mà bảng vẫn trông đầy đủ. */
+const LOAI_BAI_ZALO = ['normal', 'video'];
+
 async function baiViet(token, tran, from, to, canhBao) {
   const out = [];
   let thieuView = false;
-  for (let offset = 0; offset < tran; offset += 10) {
+  for (const loai of LOAI_BAI_ZALO) {
+    /* Nhãn để thoát ĐÚNG vòng phân trang của loại này khi đã lùi quá `from`,
+     * chứ không thoát luôn cả hàm — thoát cả hàm là mất trắng loại còn lại. */
+    theoLoai:
+    for (let offset = 0; offset < tran; offset += 10) {
     let r;
     try {
-      r = await getJson(API + '/article/getslice?data='
-        + encodeURIComponent(JSON.stringify({ offset, limit: 10, type: 'normal' })),
-        { headers: dau(token), label: 'Zalo article/getslice', retries: 1 });
+      /* `type` phải nằm NGOÀI `data`, làm tham số riêng. Nhét vào trong data thì
+       * Zalo trả "(-201) type accept only 2 value normal and video" — đúng cái
+       * giá trị mình vừa gửi — nên rất dễ đi sửa giá trị thay vì sửa chỗ đặt.
+       * Đã thử tay cả bốn cách xếp tham số, chỉ cách này chạy. */
+      r = await getJson(API + '/article/getslice?type=' + loai + '&data='
+        + encodeURIComponent(JSON.stringify({ offset, limit: 10 })),
+        { headers: dau(token), label: 'Zalo article/getslice ' + loai, retries: 1 });
       neuLoi(r, 'Zalo article/getslice');
     } catch (e) {
       canhBao.push('Zalo OA: không đọc được danh sách bài viết — ' + e.message
@@ -194,7 +208,7 @@ async function baiViet(token, tran, from, to, canhBao) {
       // Zalo trả mili-giây ở chỗ này, giây ở chỗ khác — chuẩn hoá theo độ dài
       const ms = ts > 1e12 ? ts : ts * 1000;
       const d0 = ts ? new Date(ms).toISOString().slice(0, 10) : '';
-      if (from && d0 && d0 < from) return out;
+      if (from && d0 && d0 < from) break theoLoai;
       if (to && d0 && d0 > to) continue;
       const view = layView(a);
       if (!view) thieuView = true;
@@ -211,6 +225,7 @@ async function baiViet(token, tran, from, to, canhBao) {
       });
     }
     if (ds.length < 10) break;
+    }
   }
   if (thieuView && out.length) {
     canhBao.push('Zalo OA: có bài viết Zalo không trả lượt xem qua API (tuỳ gói dịch vụ) — '
@@ -256,7 +271,7 @@ async function fetchRange(conf, from, to, opts = {}, log = () => {}, onMoi = nul
     const row = {
       platform: PLATFORM, extId: String(id), date: to, source: NGUON,
       followers: tt.followers, followUp: 0, followDown: 0,
-      views: 0, reach: 0, impressions: 0, profileViews: 0,
+      views: 0, viewsOrganic: 0, watchTime: 0, reach: 0, impressions: 0, profileViews: 0,
       likes: 0, comments: 0, shares: 0, saves: 0, engagement: 0,
       clicks: 0, messages: 0, leads: 0, posts: 0, lives: 0,
     };

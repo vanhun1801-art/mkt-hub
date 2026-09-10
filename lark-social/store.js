@@ -122,6 +122,8 @@ function docNgay(r) {
     followUp: num(r.c[f.followUp]),
     followDown: num(r.c[f.followDown]),
     views: num(r.c[f.views]),
+    viewsOrganic: num(r.c[f.viewsOrganic]),
+    watchTime: num(r.c[f.watchTime]),
     reach: num(r.c[f.reach]),
     impressions: num(r.c[f.impressions]),
     profileViews: num(r.c[f.profileViews]),

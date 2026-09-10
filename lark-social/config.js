@@ -74,6 +74,8 @@ module.exports = {
         followUp: 'fld3y8pj8A',   // Follower tăng
         followDown: 'fld13wCHqg', // Follower giảm
         views: 'fldy02Z82B',      // Lượt xem
+        viewsOrganic: 'fldKBN92x0', // Lượt xem tự nhiên (không do quảng cáo đẩy)
+        watchTime: 'fldgbcpIOP',  // Thời gian xem video (giây)
         reach: 'fldaVYHFEa',      // Lượt tiếp cận
         impressions: 'fldkwBo77E', // Lượt hiển thị
         profileViews: 'fldFIGjEJv', // Lượt xem hồ sơ

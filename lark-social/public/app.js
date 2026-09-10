@@ -304,7 +304,12 @@
       + bangGon([
         { t: 'Nền tảng', v: (r) => theTag(r.platform) },
         { t: 'Lượt xem', num: 1, k: 'views', v: (r) => n0(r.views) },
-        { t: 'Hiển thị', num: 1, k: 'impressions', v: (r) => n0(r.impressions) },
+        { t: 'Xem tự nhiên', num: 1, k: 'viewsOrganic',
+          v: (r) => (r.viewsOrganic ? n0(r.viewsOrganic) : '—') },
+        { t: 'Giờ xem', num: 1, k: 'watchTime',
+          v: (r) => (r.watchTime ? n0(Math.round(r.watchTime / 3600)) : '—') },
+        { t: 'Xem tự nhiên', num: 1, k: 'viewsOrganic',
+          v: (r) => (r.viewsOrganic ? n0(r.viewsOrganic) : '—') },
         { t: 'Tiếp cận', num: 1, k: 'reach', v: (r) => n0(r.reach) },
         { t: 'Tương tác', num: 1, k: 'engagement', v: (r) => n0(r.engagement) },
         { t: 'Follower', num: 1, v: (r) => n0(r.followers) },
@@ -507,7 +512,9 @@
   /* ---------------- tab: nhập tay ---------------- */
   const O_NHAP = [
     ['followers', 'Follower cuối ngày'], ['followUp', 'Follower tăng'], ['followDown', 'Follower giảm'],
-    ['views', 'Lượt xem'], ['reach', 'Lượt tiếp cận'], ['impressions', 'Lượt hiển thị'],
+    ['views', 'Lượt xem'], ['viewsOrganic', 'Lượt xem tự nhiên'],
+    ['watchTime', 'Thời gian xem video (giây)'],
+    ['reach', 'Lượt tiếp cận'], ['impressions', 'Lượt hiển thị'],
     ['profileViews', 'Lượt xem hồ sơ'], ['likes', 'Thích'], ['comments', 'Bình luận'],
     ['shares', 'Chia sẻ'], ['saves', 'Lưu'], ['clicks', 'Click liên kết'],
     ['messages', 'Tin nhắn'], ['leads', 'Lead'], ['posts', 'Số bài đăng'],

@@ -10,7 +10,7 @@ const store = require('./store');
 const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 const chia = (a, b) => (num(b) ? num(a) / num(b) : 0);
 
-const CONG = ['views', 'reach', 'impressions', 'profileViews', 'likes', 'comments',
+const CONG = ['views', 'viewsOrganic', 'watchTime', 'reach', 'impressions', 'profileViews', 'likes', 'comments',
   'shares', 'saves', 'engagement', 'clicks', 'messages', 'leads', 'posts', 'lives',
   'followUp', 'followDown'];
 
