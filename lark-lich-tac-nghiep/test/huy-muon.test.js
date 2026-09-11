@@ -154,13 +154,40 @@ group('5. Giao diện dùng ĐÚNG con số của máy chủ');
     mac[1].includes(L.status), mac ? mac[1].trim() : '(không thấy)');
 
   /* Nút chỉ dành cho NGƯỜI PHỤ TRÁCH: người đi cùng không nộp báo cáo thì cũng
-   * không xin huỷ thay — cùng một luật với mọi thao tác khác của lịch. */
-  const bam = /function huyMuonBamDuoc\(t\) \{([\s\S]*?)\n\}/.exec(app);
-  ok('nút chỉ hiện cho người phụ trách, không hiện khi Xem như',
-    !!bam && /laPhuTrach\(t\)/.test(bam[1]) && /PREVIEW\(\)/.test(bam[1]) &&
-    /huyMuonDuoc\(t\)/.test(bam[1]), bam ? bam[1].trim() : '(không thấy)');
+   * không xin huỷ thay — cùng một luật với mọi thao tác khác của lịch. Và quản
+   * lý không có nút này: họ đã có "Hủy lịch" thẳng trong ô chi tiết. */
+  const co = /function huyMuonCoNut\(t\) \{([\s\S]*?)\n\}/.exec(app);
+  ok('nút chỉ hiện cho người phụ trách, không hiện cho quản lý',
+    !!co && /laPhuTrach\(t\)/.test(co[1]) && /!MGR\(\)/.test(co[1]) &&
+    /huyMuonDuoc\(t\)/.test(co[1]), co ? co[1].trim() : '(không thấy)');
   ok('đang xin huỷ rồi thì không hiện nút lần nữa',
-    !!bam && /!t\.cancelWant/.test(bam[1]));
+    !!co && /!t\.cancelWant/.test(co[1]));
+
+  /* Xem như: VẼ nút nhưng KHOÁ.
+   *
+   * Nút này chỉ hiện cho người phụ trách không phải quản lý, nên nó không bao
+   * giờ xuất hiện trên màn hình quản lý — mà Xem như lại ẩn sạch mọi nút thao
+   * tác, nên ở đó cũng không soát được. Anh Hùng phải chạy một bản riêng đóng
+   * vai nhân sự ở cổng khác mới thấy. Giờ Xem như vẽ nút, khoá lại, kèm chữ. */
+  const bam = /function huyMuonBamDuoc\(t\) \{([\s\S]*?)\n\}/.exec(app);
+  ok('"bấm được" = không ở Xem như, cộng đủ điều kiện có nút',
+    !!bam && /!PREVIEW\(\)/.test(bam[1]) && /huyMuonCoNut\(t\)/.test(bam[1]),
+    bam ? bam[1].trim() : '(không thấy)');
+
+  const ve = /function nutHuyMuon\(t, nhan\) \{([\s\S]*?)\n\}/.exec(app);
+  ok('có hàm vẽ nút dùng chung cho hai chỗ (thẻ và bảng thông tin)', !!ve);
+  ok('Xem như: nút KHOÁ và KHÔNG mang data-huymuon (bấm cũng không mở gì)',
+    !!ve && /disabled/.test(ve[1]) &&
+    /PREVIEW\(\)/.test(ve[1]) &&
+    // nhánh có data-huymuon phải nằm trong nhánh !PREVIEW()
+    ve[1].indexOf('data-huymuon') < ve[1].indexOf('disabled'),
+    ve ? ve[1].trim() : '(không thấy)');
+  ok('Xem như: có dòng chữ nói đây là nút của nhân sự',
+    !!ve && /Nhân sự thấy nút này/.test(ve[1]));
+  /* Chân bảng thông tin cũng phải theo, không thì hai chỗ nói hai đằng. */
+  ok('chân bảng thông tin cũng vẽ nút khoá khi Xem như',
+    /huyMuonCoNut\(t\)\s*\n?\s*\?/.test(app) &&
+    /Nhân sự thấy nút này[\s\S]{0,200}btn danger" disabled/.test(app));
 
   /* Cửa sổ phải khác hẳn cửa xin huỷ thường: đỏ, kê tác hại, bắt xác nhận. */
   ok('có cửa sổ riêng cho huỷ muộn', /function moXinHuyMuon\(/.test(app));

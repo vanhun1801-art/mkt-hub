@@ -1178,9 +1178,43 @@ function huyMuonDuoc(t) {
   return !!m && Date.now() >= m;
 }
 
-/** Người đang xem có được bấm xin huỷ muộn lịch này không. */
+/**
+ * Lịch này CÓ nút xin huỷ muộn cho người đang được xem — dù bấm được hay không.
+ *
+ * Tách khỏi "bấm được" để chế độ Xem như vẽ được nút mà vẫn khoá. Không có
+ * `MGR()` trong này vì quản lý đã có nút "Hủy lịch" thẳng trong ô chi tiết:
+ * cho họ thêm một nút xin phép chính mình thì vô nghĩa.
+ */
+function huyMuonCoNut(t) {
+  return !MGR() && laPhuTrach(t) && !t.cancelWant && huyMuonDuoc(t);
+}
+
+/** ...và người đang xem thật sự bấm được (Xem như thì chỉ xem). */
 function huyMuonBamDuoc(t) {
-  return !PREVIEW() && !MGR() && laPhuTrach(t) && !t.cancelWant && huyMuonDuoc(t);
+  return !PREVIEW() && huyMuonCoNut(t);
+}
+
+/**
+ * Nút xin huỷ muộn — bản bấm được, hoặc bản khoá kèm lời giải thích.
+ *
+ * Vì sao Xem như phải vẽ nút: nút này chỉ hiện cho người phụ trách KHÔNG phải
+ * quản lý, nên nó không bao giờ xuất hiện trên màn hình quản lý. Mà Xem như thì
+ * ẩn sạch mọi nút thao tác, nên quản lý cũng không soát được ở đó — muốn xem
+ * phải chạy một bản riêng đóng vai nhân sự ở cổng khác. Khoá nút thì vẫn giữ
+ * nguyên luật "không thao tác thay họ".
+ *
+ * Dòng chữ kèm theo là phần bắt buộc, không phải trang trí: Xem như vẫn ẩn các
+ * nút khác của thẻ, nên nếu chỉ hiện một nút khoá thì chân thẻ đọc như bản sao
+ * y của nhân sự — mà nó không phải.
+ */
+function nutHuyMuon(t, nhan) {
+  if (!huyMuonCoNut(t)) return '';
+  if (!PREVIEW()) {
+    return '<button class="btn sm mo" data-huymuon="' + t.id + '">' + nhan + '</button>';
+  }
+  return '<span class="xem-thu">Nhân sự thấy nút này</span>' +
+    '<button class="btn sm mo" disabled title="Đang xem giao diện của người khác — chỉ xem">' +
+    nhan + '</button>';
 }
 
 /**
@@ -1329,9 +1363,9 @@ function theViec(t, buoc) {
     /* Đường lùi, đặt SAU nút báo cáo và để nhạt: đi được thì vẫn phải đi, huỷ
      * chỉ dành cho trường hợp thật sự không đi được. Trước mốc 36 tiếng thì
      * không có nút nào — xem chú thích ở luatHuyMuon(). */
-    if (huyMuonBamDuoc(t)) {
+    if (huyMuonCoNut(t)) {
       viec = 'Đã qua ngày đi — nộp báo cáo, hoặc nếu không đi được thì xin huỷ';
-      nut += '<button class="btn sm mo" data-huymuon="' + t.id + '">Không đi được</button>';
+      nut += nutHuyMuon(t, 'Không đi được');
     }
   } else {
     viec = 'Đã hoàn tất';
@@ -2505,9 +2539,12 @@ function moPhieuDi(id) {
    * quá mốc thì đây là CỬA DUY NHẤT người phụ trách mở được — thẻ của lịch đã
    * duyệt mở bảng này chứ không mở ô sửa (xem chiXem), nên nút không ở đây thì
    * không ở đâu cả. */
-  $('#mdFoot').innerHTML = huyMuonBamDuoc(t)
+  $('#mdFoot').innerHTML = huyMuonCoNut(t)
     ? '<span class="mini muted">Không đi được buổi này?</span><div class="sp"></div>' +
-      '<button class="btn danger" data-huymuon="' + t.id + '">Xin huỷ lịch đã duyệt</button>'
+      (PREVIEW()
+        ? '<span class="xem-thu">Nhân sự thấy nút này</span>' +
+          '<button class="btn danger" disabled>Xin huỷ lịch đã duyệt</button>'
+        : '<button class="btn danger" data-huymuon="' + t.id + '">Xin huỷ lịch đã duyệt</button>')
     : '';
   $('#modal').classList.add('on');
 }

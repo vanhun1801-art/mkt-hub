@@ -1371,3 +1371,11 @@ a.phieu-f:hover { border-color: var(--primary); background: var(--blue-bg); }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="sang"]) .ct-huy-muon .ct-viec { background: rgba(0,0,0,.22) !important; }
 }
+
+/* Dấu "đây là nút của nhân sự" trong chế độ Xem như.
+   Bắt buộc phải có chữ, không chỉ nút khoá: Xem như vẫn ẩn các nút khác của
+   thẻ, nên một nút khoá đứng trơ sẽ bị đọc như bản sao y giao diện nhân sự. */
+.xem-thu {
+  font-size: 11px; color: var(--t3); font-style: italic;
+  margin-right: 6px; white-space: nowrap;
+}
