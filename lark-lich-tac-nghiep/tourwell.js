@@ -55,7 +55,11 @@ const TEP = path.join(__dirname, 'tourwell.json');
 function docCauHinh() {
   let tep = {};
   try { tep = JSON.parse(fs.readFileSync(TEP, 'utf8')); } catch (_) {}
-  const host = String(process.env.TOURWELL_HOST || tep.host || MAC_DINH_HOST)
+  /* TOURWELL_BASE_URL là cái tên anh Hùng đã đặt sẵn trên Render cho app Ads
+   * Manager, và Hub truyền cả process.env xuống app con — nên app này phải
+   * nhận đúng cái tên đó, đừng bắt khai thêm một biến nữa cho cùng một máy chủ. */
+  const host = String(process.env.TOURWELL_HOST || process.env.TOURWELL_BASE_URL
+    || tep.host || MAC_DINH_HOST)
     .trim().replace(/^https?:\/\//, '').replace(/\/+$/, '');
   const token = String(process.env.TOURWELL_TOKEN || tep.token || '').trim();
   /* Tắt được bằng tay: "bật" chỉ khi có token VÀ không bị tắt hẳn. Người dùng

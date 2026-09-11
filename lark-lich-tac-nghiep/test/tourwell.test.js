@@ -128,6 +128,13 @@ group('Chốt an toàn');
   ok('chưa có token thì tắt', cf.token ? true : cf.bat === false);
   ok('host mặc định là rootytrip', cf.host === 'https://rootytrip.tourwell.net', cf.host);
 
+  /* Render đã có sẵn TOURWELL_BASE_URL (app Ads Manager đặt), và Hub truyền cả
+   * process.env xuống app con — app này phải đọc được đúng tên đó. */
+  process.env.TOURWELL_BASE_URL = 'https://abc.tourwell.net/';
+  ok('đọc được TOURWELL_BASE_URL của Render, bỏ https:// và / cuối',
+    tw.docCauHinh().host === 'https://abc.tourwell.net', tw.docCauHinh().host);
+  delete process.env.TOURWELL_BASE_URL;
+
   /* Token còn là chữ mẫu có dấu: fetch sẽ ném "Cannot convert argument to a
    * ByteString ... value of 7853" — đã xảy ra thật hai lần lúc dựng tính năng
    * này. Câu lỗi phải chỉ đúng vào việc phải làm. */
