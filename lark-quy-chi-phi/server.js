@@ -12,9 +12,14 @@
  * trong app. Nên không có tầng phân quyền hai chiều, chỉ có một chốt: người
  * đang đăng nhập có nằm trong `chuQuy` không.
  *
- * SỐ DƯ KHÔNG CỘNG DỒN THEO DÒNG như sheet. Base không làm được, và cũng không
- * nên: chèn một dòng cũ vào giữa là phải tính lại toàn cột. Số dư tính ở cấp
- * đợt — tổng nạp trừ tổng chi — do công thức của Base lo, app chỉ đọc.
+ * QUỸ LÀ MỘT CỤC. Sáu "đợt tạm ứng" chỉ là sáu lần ứng tiền khác nhau, không
+ * phải sáu túi tiền riêng — tiêu thì tiêu từ một quỹ. Nên số dư là MỘT con số
+ * cho cả sổ, và không chỗ nào bắt người dùng chọn "chi từ cục nào". Bản ghi vẫn
+ * gắn vào một đợt, nhưng server tự gắn: đó là chuyện đối chiếu phiếu chi của kế
+ * toán, không phải chuyện của người tiêu tiền.
+ *
+ * Số dư cũng KHÔNG cộng dồn theo dòng như sheet — chèn một dòng cũ vào giữa là
+ * phải tính lại cả cột. Cộng cả sổ mỗi lần đọc thì không bao giờ lệch.
  */
 const http = require('http');
 const fs = require('fs');
@@ -120,6 +125,37 @@ async function nap(buoc = false) {
   return kho;
 }
 
+/* ---------------------------------------------------------------------------
+ * QUỸ LÀ MỘT CỤC
+ * -------------------------------------------------------------------------
+ * Sáu "đợt tạm ứng" chỉ là sáu lần anh Hùng ứng tiền, không phải sáu túi tiền
+ * riêng. Tiêu thì tiêu từ một quỹ. Nên số dư là MỘT con số cho cả sổ, và không
+ * chỗ nào bắt người dùng chọn "chi từ cục nào".
+ *
+ * Một chỗ phải cẩn thận: dòng "Chuyển từ kỳ trước" là tồn của kỳ trước chuyển
+ * sang, KHÔNG phải tiền công ty đưa thêm. Cộng cả vào thì quỹ phồng lên
+ * 11.194.600 đ không có thật.
+ * ------------------------------------------------------------------------- */
+const NAP_CHUYEN_TIEP = 'Chuyển từ kỳ trước';
+
+function tinhQuy(chi, nap) {
+  const tongUng = nap.filter((n) => n.loai !== NAP_CHUYEN_TIEP)
+    .reduce((a, n) => a + (Number(n.tien) || 0), 0);
+  const tongChi = chi.reduce((a, c) => a + (Number(c.tien) || 0), 0);
+  return { tongUng, tongChi, conLai: tongUng - tongChi, soLanUng: nap.filter((n) => n.loai !== NAP_CHUYEN_TIEP).length };
+}
+
+/**
+ * Đợt để gắn bản ghi mới vào. Người dùng không chọn — nhưng bản ghi vẫn phải
+ * thuộc một đợt, vì kế toán đối chiếu theo phiếu chi PC…; đó là chuyện của
+ * chứng từ, không phải chuyện của người tiêu tiền.
+ */
+async function dotMacDinh(dotRows) {
+  const dang = dotRows.find((d) => d.tinhTrang === 'Đang dùng');
+  const chon = dang || dotRows[dotRows.length - 1];
+  return chon ? chon.id : null;
+}
+
 /* ---------------- danh tính ---------------- */
 const nguoiCuaRequest = new AsyncLocalStorage();
 
@@ -190,6 +226,7 @@ async function xuLy(req, res) {
     return json(res, {
       me: await toiLaAi(),
       chuQuy: await laChuQuy(),
+      quy: tinhQuy(chi, lan),
       chi, dot, nap: lan,
       options: { loaiChi: cfg.loaiChi, tinhTrang: cfg.tinhTrang },
       larkUrl: cfg.larkUrl,
@@ -210,6 +247,13 @@ async function xuLy(req, res) {
     if (!body.nguoi && me) body.nguoi = [me.id];
     if (!body.tinhTrang) body.tinhTrang = 'Đã chi';
     if (!body.ngayChi) body.ngayChi = new Date().toISOString();
+    /* Giao diện không hỏi đợt nữa — server tự gắn. Bản ghi vẫn phải có đợt để
+     * kế toán đối chiếu theo phiếu chi. */
+    if (!body.dot || !body.dot.length) {
+      const k = await nap();
+      const id = await dotMacDinh(k.dot.map((r) => doiRa(r, F.dot)));
+      if (id) body.dot = [id];
+    }
     const out = await lark.createRecord(doiVao(body, F.chi), cfg.tableId);
     kho.at = 0;
     const id = (out && (out.record_id || (out.record && out.record.record_id)
@@ -284,7 +328,11 @@ async function xuLy(req, res) {
     if (!(await doiChuQuy(res))) return;
     const body = await docThan(req);
     if (!(Number(body.tien) > 0)) return json(res, { error: 'Số tiền nạp phải lớn hơn 0.' }, 400);
-    if (!body.dot || !body.dot.length) return json(res, { error: 'Chọn đợt tạm ứng.' }, 400);
+    if (!body.dot || !body.dot.length) {
+      const k = await nap();
+      const id = await dotMacDinh(k.dot.map((r) => doiRa(r, F.dot)));
+      if (id) body.dot = [id];
+    }
     if (!body.loai) body.loai = 'Nạp thêm';
     if (!body.ngay) body.ngay = new Date().toISOString();
     if (!body.noiDung) body.noiDung = 'Tạm ứng ngày ' + new Date().toLocaleDateString('vi-VN');

@@ -205,3 +205,8 @@ button.tep.thieu:hover { background: var(--red-bg); }
   .form { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* Dòng "Chuyển từ kỳ trước" trong nhật ký ứng tiền: có thật, nhưng không phải
+   tiền công ty đưa thêm. Làm mờ để mắt không cộng nhầm vào tổng. */
+tr.mo td { color: var(--t3); }
+tr.mo .nd b { font-weight: 500; }

@@ -43,7 +43,22 @@ const nhom = (t) => console.log('\n\x1b[1m' + t + '\x1b[0m');
   ok('biết mình là ai', !!(m.me && m.me.id), JSON.stringify(m.me));
   ok('có đủ lựa chọn loại chi', (m.options.loaiChi || []).length >= 5);
 
-  nhom('Số dư — đối chiếu hai đường tính độc lập');
+  nhom('Quỹ là MỘT cục');
+  ok('server trả về tổng quỹ', !!m.quy, JSON.stringify(m.quy));
+  /* Tiền công ty ứng thật = mọi lần nạp TRỪ dòng "Chuyển từ kỳ trước" — dòng đó
+   * là tồn của kỳ trước mang sang, cộng vào là tính trùng 11.194.600 đ. */
+  const ungThat = m.nap.filter((n) => n.loai !== 'Chuyển từ kỳ trước')
+    .reduce((a, n) => a + n.tien, 0);
+  const chiHet = m.chi.reduce((a, c) => a + c.tien, 0);
+  ok('tổng đã ứng khớp khi tính lại', m.quy.tongUng === ungThat, m.quy.tongUng + ' vs ' + ungThat);
+  ok('tổng đã chi khớp khi tính lại', m.quy.tongChi === chiHet, m.quy.tongChi + ' vs ' + chiHet);
+  ok('còn lại = đã ứng − đã chi', m.quy.conLai === ungThat - chiHet, String(m.quy.conLai));
+  /* Chốt chặn hồi quy: nếu ai đó lỡ đếm cả dòng chuyển tiếp, con số này vọt lên
+   * 76.194.600 và bài thử phải đỏ ngay. */
+  ok('KHÔNG cộng nhầm dòng chuyển từ kỳ trước', m.quy.tongUng < 70000000,
+    'đang là ' + m.quy.tongUng.toLocaleString('vi'));
+
+  nhom('Số dư từng đợt — đối chiếu hai đường tính độc lập');
   let lech = 0;
   for (const d of m.dot) {
     const chi = m.chi.filter((c) => (c.dot || []).includes(d.id))

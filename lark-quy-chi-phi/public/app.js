@@ -16,12 +16,12 @@
  * ========================================================================== */
 
 const S = {
-  chi: [], dot: [], nap: [],
+  chi: [], dot: [], nap: [], quy: { tongUng: 0, tongChi: 0, conLai: 0, soLanUng: 0 },
   options: { loaiChi: [], tinhTrang: [] },
   me: null, chuQuy: false, larkUrl: '',
-  loc: { dot: '', loai: '', tinhTrang: '', thang: '', tim: '' },
+  loc: { loai: '', tinhTrang: '', thang: '', tim: '' },
   chon: new Set(),
-  tab: 'so',              // so | thieu | dot
+  tab: 'so',              // so | thieu | ung
 };
 
 const $ = (s, g = document) => g.querySelector(s);
@@ -75,23 +75,18 @@ async function taiLai(moi) {
   S.chi = d.chi || [];
   S.dot = d.dot || [];
   S.nap = d.nap || [];
+  S.quy = d.quy || S.quy;
   S.options = d.options || S.options;
   S.me = d.me; S.chuQuy = !!d.chuQuy; S.larkUrl = d.larkUrl || '';
   S.chon.clear();
   ve();
 }
 
-/* Đợt đang dùng = đợt có tình trạng "Đang dùng"; không có thì lấy đợt còn tiền
- * nhiều nhất. Sổ quỹ luôn phải trả lời được "tiêu vào đâu bây giờ". */
-function dotDangDung() {
-  return S.dot.find((d) => d.tinhTrang === 'Đang dùng')
-    || [...S.dot].sort((a, b) => b.conLai - a.conLai)[0] || null;
-}
-
-const tenDot = (id) => {
-  const d = S.dot.find((x) => x.id === id);
-  return d ? d.ma : '';
-};
+/* Các lần ứng tiền, mới nhất trước. "Chuyển từ kỳ trước" không phải tiền công
+ * ty đưa thêm — nó là tồn của kỳ trước, đếm vào là tính trùng. */
+const LAN_CHUYEN_TIEP = 'Chuyển từ kỳ trước';
+const cacLanUng = () => S.nap.filter((n) => n.loai !== LAN_CHUYEN_TIEP)
+  .sort((a, b) => String(b.ngay || '').localeCompare(String(a.ngay || '')));
 
 /** Khoản đã chi mà chưa có đủ chứng từ — cả tệp lẫn link cũ đều tính là có. */
 function thieuChungTu(c) {
@@ -105,7 +100,6 @@ function locChi() {
   const l = S.loc;
   const tim = l.tim.trim().toLowerCase();
   return S.chi.filter((c) => {
-    if (l.dot && !(c.dot || []).includes(l.dot)) return false;
     if (l.loai && c.loai !== l.loai) return false;
     if (l.tinhTrang && c.tinhTrang !== l.tinhTrang) return false;
     if (l.thang && thangCua(c.ngayChi || c.ngayDeNghi) !== l.thang) return false;
@@ -121,27 +115,28 @@ function locChi() {
 
 /* ---------------- vẽ ---------------- */
 function ve() {
-  const dd = dotDangDung();
   $('#phuDe').textContent = (S.chuQuy ? 'Sổ quỹ · ' : 'Chỉ xem · ')
-    + S.chi.length + ' khoản chi · ' + S.dot.length + ' đợt tạm ứng';
+    + S.chi.length + ' khoản chi · ' + S.quy.soLanUng + ' lần ứng tiền';
 
-  $('#man').innerHTML = veTong(dd) + veLoc() + (S.tab === 'dot' ? veDot() : veBang());
+  $('#man').innerHTML = veTong() + veLoc() + (S.tab === 'ung' ? veUng() : veBang());
   ganSuKien();
 }
 
-function veTong(dd) {
+function veTong() {
   const thangNay = thangCua(new Date().toISOString());
   const chiThang = S.chi.filter((c) => thangCua(c.ngayChi || c.ngayDeNghi) === thangNay)
     .reduce((a, c) => a + c.tien, 0);
   const soThieu = S.chi.filter(thieuChungTu).length;
   const chuaQuyetToan = S.chi.filter((c) => c.tinhTrang === 'Đã chi').length;
 
+  /* MỘT con số cho cả quỹ. Các lần ứng chỉ là mốc nhận tiền, không phải sáu
+   * túi riêng — nên không chia số dư theo đợt nữa. */
   return '<section class="tong">'
     + '<div class="o chinh">'
-      + '<div class="nhan">Còn trong quỹ' + (dd ? ' · ' + esc(dd.ma) : '') + '</div>'
-      + '<div class="so ' + (dd && dd.conLai < 0 ? 'am' : '') + '">'
-        + (dd ? tien(dd.conLai) : '—') + '<span class="d">đ</span></div>'
-      + (dd ? '<div class="mo">nạp ' + tien(dd.tongNap) + ' · đã chi ' + tien(dd.tongChi) + '</div>' : '')
+      + '<div class="nhan">Còn trong quỹ</div>'
+      + '<div class="so ' + (S.quy.conLai < 0 ? 'am' : '') + '">'
+        + tien(S.quy.conLai) + '<span class="d">đ</span></div>'
+      + '<div class="mo">đã ứng ' + tien(S.quy.tongUng) + ' · đã chi ' + tien(S.quy.tongChi) + '</div>'
     + '</div>'
     + '<div class="o"><div class="nhan">Chi tháng này</div><div class="so nho">' + tien(chiThang)
       + '<span class="d">đ</span></div></div>'
@@ -163,15 +158,14 @@ function veLoc() {
 
   return '<section class="thanh">'
     + '<div class="tabs">'
-      + ['so:Sổ quỹ', 'thieu:Thiếu chứng từ', 'dot:Đợt tạm ứng'].map((x) => {
+      + ['so:Sổ quỹ', 'thieu:Thiếu chứng từ', 'ung:Các lần ứng tiền'].map((x) => {
         const [k, t] = x.split(':');
         return '<button class="tab' + (S.tab === k ? ' on' : '') + '" data-tab="' + k + '">' + t + '</button>';
       }).join('')
     + '</div>'
-    + (S.tab === 'dot' ? '' :
+    + (S.tab === 'ung' ? '' :
       '<div class="loc">'
       + '<input id="lTim" placeholder="Tìm nội dung, mã điều hành, mã quyết toán…" value="' + esc(S.loc.tim) + '">'
-      + '<select id="lDot">' + opt(S.dot.map((d) => ({ v: d.id, t: d.ma })), S.loc.dot, 'Mọi đợt') + '</select>'
       + '<select id="lThang">' + opt(thangs.map((m) => ({ v: m, t: 'Tháng ' + m.slice(5) + '/' + m.slice(0, 4) })), S.loc.thang, 'Mọi tháng') + '</select>'
       + '<select id="lLoai">' + opt(S.options.loaiChi, S.loc.loai, 'Mọi loại') + '</select>'
       + '<select id="lTT">' + opt(S.options.tinhTrang, S.loc.tinhTrang, 'Mọi tình trạng') + '</select>'
@@ -206,9 +200,9 @@ function veBang() {
       + '<td class="chon">' + (S.chuQuy
         ? '<input type="checkbox" data-chon="' + c.id + '"' + (S.chon.has(c.id) ? ' checked' : '') + '>' : '') + '</td>'
       + '<td class="nd"><b>' + esc(c.noiDung || '(không tên)') + '</b>'
-        + '<div class="phu2">' + esc(tenDot((c.dot || [])[0]))
-        + (c.maDieuHanh ? ' · ' + esc(c.maDieuHanh) : '')
-        + (c.maQuyetToan ? ' · <span class="qt">' + esc(c.maQuyetToan) + '</span>' : '') + '</div></td>'
+        + '<div class="phu2">' + [esc(c.maDieuHanh || ''), esc(c.maDon || ''),
+          c.maQuyetToan ? '<span class="qt">' + esc(c.maQuyetToan) + '</span>' : '']
+          .filter(Boolean).join(' · ') + '</div></td>'
       + '<td class="loai"><span class="the">' + esc(c.loai || '—') + '</span></td>'
       + '<td class="num">' + tien(c.tien) + '</td>'
       + '<td class="ngay">' + esc(ngayVN(c.ngayChi || c.ngayDeNghi)) + '</td>'
@@ -245,28 +239,39 @@ function veThanhChon() {
   + '</div>';
 }
 
-function veDot() {
-  if (!S.dot.length) return '<section class="bang"><div class="trong">Chưa có đợt nào.</div></section>';
-  const dong = (d) => {
-    const lan = S.nap.filter((n) => (n.dot || []).includes(d.id));
-    return '<tr>'
-      + '<td class="nd"><b>' + esc(d.ma) + '</b><div class="phu2">'
-        + esc(((d.nguoiGiu || [])[0] || {}).name || '') + (d.ngayMo ? ' · mở ' + ngayVN(d.ngayMo) : '') + '</div></td>'
-      + '<td class="num">' + tien(d.tongNap) + '</td>'
-      + '<td class="num">' + tien(d.tongChi) + '</td>'
-      + '<td class="num ' + (d.conLai < 0 ? 'am' : 'duong') + '"><b>' + tien(d.conLai) + '</b></td>'
-      + '<td>' + lan.length + ' lần nạp</td>'
-      + '<td><span class="badge ' + (d.tinhTrang === 'Đang dùng' ? 'xanh' : 'xam') + '">'
-        + esc(d.tinhTrang || '—') + '</span></td>'
-      + '<td class="tacvu">' + (S.chuQuy
-        ? '<button class="btn sm" data-napdot="' + d.id + '">Nạp tiền</button>' : '') + '</td>'
+/**
+ * CÁC LẦN ỨNG TIỀN — không phải "các cục tiền".
+ *
+ * Mã phiếu chi PC… chỉ là chứng từ của từng lần công ty đưa tiền; tiêu thì tiêu
+ * từ một quỹ chung. Nên bảng này là một cuốn nhật ký nhận tiền, không có cột
+ * "còn lại của đợt" — số dư chỉ có một, nằm ở đầu trang.
+ *
+ * Dòng "Chuyển từ kỳ trước" cố ý hiện mờ và KHÔNG cộng vào tổng: nó là tồn của
+ * kỳ trước, đếm vào là tính trùng 11.194.600 đ.
+ */
+function veUng() {
+  if (!S.nap.length) return '<section class="bang"><div class="trong">Chưa có lần ứng nào.</div></section>';
+  const ds = [...S.nap].sort((a, b) => String(b.ngay || '').localeCompare(String(a.ngay || '')));
+
+  const dong = (n) => {
+    const chuyen = n.loai === LAN_CHUYEN_TIEP;
+    return '<tr' + (chuyen ? ' class="mo"' : '') + '>'
+      + '<td class="nd"><b>' + esc(n.noiDung || n.loai || '(không tên)') + '</b>'
+        + (n.ghiChu ? '<div class="phu2">' + esc(n.ghiChu) + '</div>' : '') + '</td>'
+      + '<td class="num' + (chuyen ? '' : ' duong') + '">' + (chuyen ? '' : '+ ') + tien(n.tien) + '</td>'
+      + '<td class="ngay">' + esc(ngayVN(n.ngay)) + '</td>'
+      + '<td><span class="badge ' + (chuyen ? 'xam' : 'xanh') + '">' + esc(n.loai || '—') + '</span></td>'
+      + '<td class="phu2">' + (chuyen ? 'không tính vào tiền công ty đưa' : '') + '</td>'
     + '</tr>';
   };
+
   return '<section class="bang"><div class="cuon"><table><thead><tr>'
-    + '<th>Đợt</th><th class="num">Tổng nạp</th><th class="num">Đã chi</th><th class="num">Còn lại</th>'
-    + '<th>Lần nạp</th><th>Tình trạng</th><th></th></tr></thead><tbody>'
-    + S.dot.map(dong).join('') + '</tbody></table></div>'
-    + (S.chuQuy ? '<div class="duoi"><button class="btn" id="btnDotMoi">+ Mở đợt tạm ứng mới</button></div>' : '')
+    + '<th>Nội dung</th><th class="num">Số tiền</th><th>Ngày</th><th>Loại</th><th></th>'
+    + '</tr></thead><tbody>' + ds.map(dong).join('') + '</tbody>'
+    + '<tfoot><tr><td>Công ty đã ứng ' + S.quy.soLanUng + ' lần</td>'
+      + '<td class="num">' + tien(S.quy.tongUng) + '</td><td colspan="3"></td></tr></tfoot>'
+    + '</table></div>'
+    + (S.chuQuy ? '<div class="duoi"><button class="btn" id="btnNap2">+ Ghi một lần ứng tiền</button></div>' : '')
   + '</section>';
 }
 
@@ -286,8 +291,6 @@ const chon = (id, ds, gt) => '<select id="' + id + '">'
 
 function moKhaiChi(sua) {
   const c = sua ? S.chi.find((x) => x.id === sua) : null;
-  const dd = dotDangDung();
-  const dotId = c ? (c.dot || [])[0] : (dd && dd.id);
 
   moModal(c ? 'Sửa khoản chi' : 'Khai khoản chi',
     '<div class="form">'
@@ -296,9 +299,6 @@ function moKhaiChi(sua) {
     + o('Loại chi', chon('fLoai', S.options.loaiChi, c ? c.loai : 'Khác'))
     + o('Ngày chi', '<input id="fNgay" type="date" value="'
         + (c && c.ngayChi ? new Date(c.ngayChi).toISOString().slice(0, 10) : homNay()) + '">')
-    + o('Đợt tạm ứng', '<select id="fDot">'
-        + S.dot.map((d) => '<option value="' + d.id + '"' + (d.id === dotId ? ' selected' : '') + '>'
-          + esc(d.ma) + ' · còn ' + tien(d.conLai) + '</option>').join('') + '</select>')
     + o('Tình trạng', chon('fTT', S.options.tinhTrang, c ? c.tinhTrang : 'Đã chi'))
     + o('Mã điều hành', '<input id="fMaDH" value="' + esc(c ? c.maDieuHanh : '') + '" placeholder="SG…">')
     + o('Số hoá đơn', '<input id="fSoHD" value="' + esc(c ? c.soHoaDon : '') + '">')
@@ -315,34 +315,18 @@ function moKhaiChi(sua) {
   setTimeout(() => $('#fNoiDung') && $('#fNoiDung').focus(), 30);
 }
 
-function moNapQuy(dotId) {
-  const dd = dotId ? S.dot.find((d) => d.id === dotId) : dotDangDung();
-  moModal('Nạp tiền vào quỹ',
+function moNapQuy() {
+  moModal('Ghi một lần ứng tiền',
     '<div class="form">'
-    + o('Đợt tạm ứng', '<select id="nDot">'
-      + S.dot.map((d) => '<option value="' + d.id + '"' + (dd && d.id === dd.id ? ' selected' : '') + '>'
-        + esc(d.ma) + ' · còn ' + tien(d.conLai) + '</option>').join('') + '</select>')
     + o('Số tiền (đ)', '<input id="nTien" type="number" min="0" step="100000" placeholder="10000000">')
-    + o('Ngày nạp', '<input id="nNgay" type="date" value="' + homNay() + '">')
-    + o('Nội dung', '<input id="nNoiDung" placeholder="Tạm ứng ngày …">', true)
-    + '<div class="nhac">Số dư của đợt tự cộng lại ngay: <b>tổng nạp − tổng chi</b>. '
-      + 'Không có cột Tồn gõ tay như sheet cũ nên không thể lệch.</div>'
+    + o('Ngày nhận', '<input id="nNgay" type="date" value="' + homNay() + '">')
+    + o('Nội dung', '<input id="nNoiDung" placeholder="Tạm ứng đợt tháng 10 · phiếu chi PC…">', true)
+    + '<div class="nhac">Quỹ là <b>một cục</b>: số dư đầu trang cộng mọi lần ứng rồi trừ mọi khoản chi. '
+      + 'Mã phiếu chi ghi vào ô Nội dung để đối chiếu với kế toán, không phải để chia tiền thành nhiều túi.</div>'
     + '</div>',
     '<div class="sp"></div><button class="btn" data-close="1">Đóng</button>'
     + '<button class="btn primary" id="btnLuuNap">Ghi vào quỹ</button>');
-}
-
-function moDotMoi() {
-  moModal('Mở đợt tạm ứng mới',
-    '<div class="form">'
-    + o('Mã phiếu chi', '<input id="dMa" placeholder="PC17xxx hoặc THÁNG 10">', true)
-    + o('Ngày mở', '<input id="dNgay" type="date" value="' + homNay() + '">')
-    + o('Ghi chú', '<input id="dGhiChu">')
-    + '<div class="nhac">Đợt cũ nên chuyển sang <b>Đã chốt</b> sau khi quyết toán xong, '
-      + 'để màn hình đầu luôn chỉ vào đúng quỹ đang tiêu.</div>'
-    + '</div>',
-    '<div class="sp"></div><button class="btn" data-close="1">Đóng</button>'
-    + '<button class="btn primary" id="btnLuuDot">Mở đợt</button>');
+  setTimeout(() => $('#nTien') && $('#nTien').focus(), 30);
 }
 
 function moQuyetToan() {
@@ -390,7 +374,6 @@ function taiTep(id, key) {
 function ganSuKien() {
   const g = (id, ev, fn) => { const e = $(id); if (e) e.addEventListener(ev, fn); };
   g('#lTim', 'input', (e) => { S.loc.tim = e.target.value; veLai(); });
-  g('#lDot', 'change', (e) => { S.loc.dot = e.target.value; ve(); });
   g('#lThang', 'change', (e) => { S.loc.thang = e.target.value; ve(); });
   g('#lLoai', 'change', (e) => { S.loc.loai = e.target.value; ve(); });
   g('#lTT', 'change', (e) => { S.loc.tinhTrang = e.target.value; ve(); });
@@ -400,7 +383,7 @@ function ganSuKien() {
     else ds.forEach((c) => S.chon.delete(c.id));
     ve();
   });
-  g('#btnDotMoi', 'click', moDotMoi);
+  g('#btnNap2', 'click', () => moNapQuy());
 }
 
 /* Gõ tìm kiếm thì chỉ vẽ lại phần bảng, giữ nguyên con trỏ trong ô tìm. */
@@ -409,7 +392,7 @@ function veLai() {
   clearTimeout(henVe);
   henVe = setTimeout(() => {
     const b = $('.bang');
-    if (b) b.outerHTML = S.tab === 'dot' ? veDot() : veBang();
+    if (b) b.outerHTML = S.tab === 'ung' ? veUng() : veBang();
   }, 160);
 }
 
@@ -430,9 +413,6 @@ document.addEventListener('click', async (e) => {
 
   const tep = T.closest('[data-taitep]');
   if (tep) return taiTep(tep.dataset.taitep, tep.dataset.o);
-
-  const napDot = T.closest('[data-napdot]');
-  if (napDot) return moNapQuy(napDot.dataset.napdot);
 
   if (T.closest('[data-bochon]')) { S.chon.clear(); return ve(); }
   if (T.closest('[data-quyettoan]')) return moQuyetToan();
@@ -456,7 +436,6 @@ document.addEventListener('click', async (e) => {
       tien: Number($('#fTien').value || 0),
       loai: $('#fLoai').value,
       ngayChi: $('#fNgay').value ? $('#fNgay').value + 'T00:00:00+07:00' : null,
-      dot: $('#fDot').value ? [$('#fDot').value] : [],
       tinhTrang: $('#fTT').value,
       maDieuHanh: $('#fMaDH').value.trim(),
       soHoaDon: $('#fSoHD').value.trim(),
@@ -479,7 +458,6 @@ document.addEventListener('click', async (e) => {
   /* ---- nạp quỹ ---- */
   if (T.closest('#btnLuuNap')) {
     const body = {
-      dot: $('#nDot').value ? [$('#nDot').value] : [],
       tien: Number($('#nTien').value || 0),
       ngay: $('#nNgay').value ? $('#nNgay').value + 'T00:00:00+07:00' : null,
       noiDung: $('#nNoiDung').value.trim(),
@@ -489,22 +467,6 @@ document.addEventListener('click', async (e) => {
     try {
       await api('/api/nap', { method: 'POST', body: JSON.stringify(body) });
       dongModal(); toast('Đã ghi ' + tien(body.tien) + ' đ vào quỹ', 'ok'); await taiLai(true);
-    } catch (err) { toast(err.message, 'err'); }
-    return;
-  }
-
-  /* ---- mở đợt ---- */
-  if (T.closest('#btnLuuDot')) {
-    const body = {
-      ma: $('#dMa').value.trim(),
-      ngayMo: $('#dNgay').value ? $('#dNgay').value + 'T00:00:00+07:00' : null,
-      ghiChu: $('#dGhiChu').value.trim(),
-      tinhTrang: 'Đang dùng',
-    };
-    if (!body.ma) return toast('Phải có mã phiếu chi.', 'err');
-    try {
-      await api('/api/dot', { method: 'POST', body: JSON.stringify(body) });
-      dongModal(); toast('Đã mở đợt ' + body.ma, 'ok'); await taiLai(true);
     } catch (err) { toast(err.message, 'err'); }
     return;
   }
