@@ -878,21 +878,24 @@ async function napCdCuaSo(a) {
     return;
   }
   const L = d.luatTho || {};
-  const khung = L.moThu
-    ? (d.thu || [])[L.moThu - 1] + ' ' + esc(L.moGio || '') + ' → ' +
-      (d.thu || [])[L.dongThu - 1] + ' ' + esc(L.dongGio || '')
-    : 'chưa khai';
+  const thu = d.thu || [];
   const tay = L.dongTayToi && L.dongTayToi > Date.now() ? 'dong'
     : L.moTayToi && L.moTayToi > Date.now() ? 'mo' : '';
+  const oThu = (id, val) => '<select class="cd-in cd-in-nho" id="' + id + '">' +
+    thu.map((t, i) => '<option value="' + (i + 1) + '"' +
+      (Number(val) === i + 1 ? ' selected' : '') + '>' + esc(t) + '</option>').join('') + '</select>';
 
+  /* MỘT nhóm, ba hàng, theo đúng thứ tự người ta hỏi:
+   *   bây giờ sao · cần mở/đóng ngay không · luật hằng tuần là gì
+   * Bản trước đẩy việc sửa luật sang app Lịch — hai màn hình cho một việc,
+   * đúng cái anh Hùng gọi là loạn. */
   o.innerHTML =
     cdHang('Đang ' + (d.mo ? 'MỞ' : 'ĐÓNG'),
       esc(d.vi || '') +
       (d.moLuc ? ' Mở lại <b>' + esc(cdMocCuaSo(d.moLuc)) + '</b>.' : '') +
-      (d.dongLuc ? ' Đóng lúc <b>' + esc(cdMocCuaSo(d.dongLuc)) + '</b>.' : '') +
-      '<br>Khung hằng tuần: <b>' + khung + '</b>' +
-      (L.bat === false ? ' — <b>đang tắt</b>, nút mở liên tục.' : ''),
+      (d.dongLuc ? ' Đóng lúc <b>' + esc(cdMocCuaSo(d.dongLuc)) + '</b>.' : ''),
       '<span class="cd-nhan ' + (d.mo ? 'luc' : 'do') + '">' + (d.mo ? 'mở' : 'đóng') + '</span>') +
+
     cdHang('Mở / đóng ngay',
       'Bấm là áp ngay, hết một giờ tự trở về khung giờ hằng tuần.' +
       (tay ? '<br>Đang <b>' + (tay === 'mo' ? 'mở tay' : 'đóng tay') + '</b> tới <b>' +
@@ -902,9 +905,21 @@ async function napCdCuaSo(a) {
         '<button class="btn nho" data-cs-viec="dong">Đóng 1 giờ</button>' +
         (tay ? '<button class="btn nho ghost" data-cs-viec="bo">Bỏ</button>' : '') +
       '</div>') +
-    cdHang('Sửa khung giờ hằng tuần',
-      'Đổi thứ và giờ mở/đóng — mở app Lịch tác nghiệp, vào <b>Phân quyền quản lý → Khung giờ đăng ký</b>.',
-      '<button class="btn nho" id="cdMoAppLich">Mở app</button>');
+
+    cdHang('Khung giờ hằng tuần',
+      '<label class="q-ck q-ck-manh" style="margin:2px 0 8px">' +
+        '<input type="checkbox" id="cdCsBat"' + (L.bat === false ? '' : ' checked') + '>' +
+        '<span>Áp khung giờ</span><small class="q-nhat">— bỏ tick là nút đăng ký mở liên tục</small>' +
+      '</label>' +
+      '<div class="cd-doc" style="margin-bottom:4px">' +
+        '<span class="cd-nhan">Mở</span>' + oThu('cdCsMoThu', L.moThu) +
+        '<input class="cd-in cd-in-nho" id="cdCsMoGio" value="' + esc(L.moGio || '15:00') + '" placeholder="15:00">' +
+        '<span class="cd-nhan">Đóng</span>' + oThu('cdCsDongThu', L.dongThu) +
+        '<input class="cd-in cd-in-nho" id="cdCsDongGio" value="' + esc(L.dongGio || '12:00') + '" placeholder="12:00">' +
+      '</div>' +
+      'Đặt mốc đóng <b>trước</b> mốc mở cũng được — ví dụ mở Thứ 7 15:00, đóng Thứ 2 12:00 ' +
+      'thì cửa sổ vắt qua cuối tuần.',
+      '<button class="btn nho chinh" id="cdCsLuu">Lưu khung giờ</button>');
 
   $$('#cdCuaSo [data-cs-viec]').forEach((b) => {
     b.onclick = async () => {
@@ -920,8 +935,29 @@ async function napCdCuaSo(a) {
       }
     };
   });
-  const oMo = $('#cdMoAppLich');
-  if (oMo) oMo.onclick = () => { dongModal(); location.hash = '#/m/' + a.id; };
+
+  $('#cdCsLuu').onclick = async () => {
+    const nut = $('#cdCsLuu');
+    nut.disabled = true;
+    nut.textContent = 'Đang lưu…';
+    try {
+      /* Chỉ gửi phần KHUNG GIỜ. Gửi kèm hai ô ngoại lệ thì bấm Lưu để đổi giờ
+       * sẽ vô tình xoá ngoại lệ vừa đặt, mà không có gì báo. */
+      await goi('/api/lich-cua-so', { method: 'POST', body: JSON.stringify({ luat: {
+        bat: !!$('#cdCsBat').checked,
+        moThu: Number($('#cdCsMoThu').value),
+        moGio: $('#cdCsMoGio').value,
+        dongThu: Number($('#cdCsDongThu').value),
+        dongGio: $('#cdCsDongGio').value,
+      } }) });
+      toast('Đã lưu khung giờ đăng ký', 'luc');
+      napCdCuaSo(a);
+    } catch (e) {
+      nut.disabled = false;
+      nut.textContent = 'Lưu khung giờ';
+      toast(e.message, 'do');
+    }
+  };
 }
 
 /** "Thứ 6 17:00 ngày 11/09" theo giờ VN — hub chạy ở đâu cũng ra đúng. */

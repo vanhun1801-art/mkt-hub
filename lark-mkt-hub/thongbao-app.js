@@ -212,44 +212,94 @@ async function cuaNguoi(nguoi, boQuaCache) {
 /* ---------------- ghi ---------------- */
 
 /**
+ * Ghi một lượt xác nhận, rồi ĐỌC LẠI để chắc nó còn ở đó.
+ *
+ * Cả danh sách đã đọc nằm trong MỘT ô văn bản, nên mỗi lượt bấm là đọc–sửa–ghi
+ * lại cả ô. Hai người bấm cùng một nhịp thì người sau ghi đè người trước, và
+ * Lark không có kiểu ghi "chỉ khi chưa ai đổi" — nên lúc ghi không phát hiện
+ * được, chỉ sau khi ghi mới biết.
+ *
+ * Trước đây chuyện này gần như không xảy ra vì mỗi thông báo gửi cho một người.
+ * Giờ một thông báo gửi cho cả phòng: popup bật cùng lúc trên tám máy, nên bấm
+ * trùng nhịp là chuyện SẼ xảy ra — 11/09 đã có hai lượt cách nhau 2 giây.
+ *
+ * Chỉ tự lo cho MÌNH: đọc lại không thấy id của mình thì ghi lại. Không dựng
+ * lại giúp người khác — lượt ghi nào cũng tự kiểm tra phần của nó, mà "dựng lại
+ * giúp" thì lỡ quản lý vừa xoá tay ô đó để hỏi lại cả phòng là mình lôi mấy tên
+ * cũ về, xoá xong lại thấy y như cũ.
+ *
+ * Thử hết số lần vẫn không được thì NÉM LỖI. Người nhận thấy popup chưa đóng và
+ * một câu bảo bấm lại — khó chịu, nhưng đúng: im lặng coi như xong thì họ tưởng
+ * đã xác nhận, còn bảng của quản lý thì không có tên họ.
+ *
+ * `doc()` trả Map(open_id -> lúc) của đúng dòng đó, hoặc null nếu dòng không
+ * còn. `ghi(map)` ghi cả ô. Truyền vào từ ngoài để thử được cảnh ghi đè mà
+ * không cần Base thật.
+ */
+async function ghiCoDocLai(doc, ghi, nguoiId, soLan) {
+  const lan = soLan || 3;
+  /* Giữ NGUYÊN một mốc thời gian cho mọi lần thử: đó là lúc họ bấm, không phải
+   * lúc lần ghi cuối cùng lọt. */
+  const luc = new Date().toISOString();
+  for (let i = 0; i < lan; i++) {
+    const m = await doc();
+    if (!m) throw new Error('Không thấy thông báo này.');
+    /* Vòng đầu thấy sẵn = họ đã xác nhận từ trước, không ghi đè thời điểm cũ
+     * (đó là bằng chứng "đọc lúc nào"). Vòng sau thấy = lần ghi vừa rồi lọt. */
+    if (m.has(nguoiId)) return i === 0 ? { daCo: true } : { ok: true, lanGhi: i };
+    m.set(nguoiId, luc);
+    await ghi(m);
+  }
+  const cuoi = await doc();
+  if (cuoi && cuoi.has(nguoiId)) return { ok: true, lanGhi: lan };
+  throw new Error('Lark nhận lượt xác nhận rồi lại làm mất — có người bấm cùng nhịp. ' +
+    'Bấm "Tôi đã đọc" thêm lần nữa giúp em.');
+}
+
+/** Ghi lại cả tệp với ô "Đã đọc" của một dòng đã đổi. Chỉ dùng cho kiểm thử. */
+function ghiDaDocVaoFile(recordId, m) {
+  const tho = docTuFile().map((x) => ({
+    recordId: x.recordId, tieuDe: x.tieuDe, noiDung: x.noiDung, mucDo: x.mucDo,
+    nhanNut: x.nhanNut, lienKet: x.lienKet, buocBam: x.buocBam,
+    tuNgay: x.tuNgay, denNgay: x.denNgay,
+    nguoiNhan: x.moiAi ? '*' : x.ai.join(','), bat: x.bat,
+    daDoc: ghiDaDoc(x.recordId === recordId ? m : x.daDoc),
+  }));
+  fsn.writeFileSync(pathn.resolve(FILE), JSON.stringify(tho, null, 2), 'utf8');
+}
+
+/**
  * Đánh dấu người này đã đọc.
  *
- * Đọc lại đúng dòng đó từ Base ngay trước khi ghi — xem chú thích đầu tệp về
- * khe hở đọc–sửa–ghi. Đã đọc rồi thì không ghi lại: bấm hai lần không được làm
- * đổi thời điểm xác nhận, vì đó là bằng chứng "họ đọc lúc nào".
+ * Đọc lại đúng dòng đó BỎ QUA bộ đệm ngay trước khi ghi, và đọc lại lần nữa sau
+ * khi ghi — xem ghiCoDocLai. Cố ý đọc cả bảng chứ không đọc một dòng: đường đọc
+ * cả bảng là đường đã chạy thật ở cả hai chế độ api/cli, còn record-get thì
+ * chưa. Bảng này chỉ có mấy chục dòng nên rẻ.
  */
 async function xacNhan(recordId, nguoiId) {
   if (!recordId || !nguoiId) throw new Error('Thiếu mã thông báo hoặc người đọc.');
+
   if (FILE) {
-    const ds = docTuFile();
-    const tb = ds.find((x) => x.recordId === recordId);
-    if (!tb) throw new Error('Không thấy thông báo này.');
-    if (tb.daDoc.has(nguoiId)) return { daCo: true };
-    tb.daDoc.set(nguoiId, new Date().toISOString());
-    /* File chỉ dùng cho kiểm thử: ghi lại nguyên mảng đã chuẩn hoá. */
-    const tho = ds.map((x) => ({
-      recordId: x.recordId, tieuDe: x.tieuDe, noiDung: x.noiDung, mucDo: x.mucDo,
-      nhanNut: x.nhanNut, lienKet: x.lienKet, buocBam: x.buocBam,
-      tuNgay: x.tuNgay, denNgay: x.denNgay,
-      nguoiNhan: x.moiAi ? '*' : x.ai.join(','), bat: x.bat, daDoc: ghiDaDoc(x.daDoc),
-    }));
-    fsn.writeFileSync(pathn.resolve(FILE), JSON.stringify(tho, null, 2), 'utf8');
-    xoaCache();
-    return { ok: true };
+    return ghiCoDocLai(
+      () => {
+        const tb = docTuFile().find((x) => x.recordId === recordId);
+        return tb ? tb.daDoc : null;
+      },
+      (m) => { ghiDaDocVaoFile(recordId, m); xoaCache(); },
+      nguoiId);
   }
   if (!B) throw new Error('Chưa khai HUB_TB_TABLE — xem README.');
 
-  /* Đọc lại BỎ QUA bộ đệm ngay trước khi ghi — xem chú thích đầu tệp về khe hở
-   * đọc–sửa–ghi. Cố ý đọc cả bảng chứ không đọc một dòng: đường đọc cả bảng là
-   * đường đã chạy thật ở cả hai chế độ api/cli, còn record-get thì chưa. Bảng
-   * này chỉ có mấy chục dòng nên rẻ. */
-  const tb = (await docTatCa(true)).find((x) => x.recordId === recordId);
-  if (!tb) throw new Error('Không thấy thông báo này.');
-  if (tb.daDoc.has(nguoiId)) return { daCo: true };
-  tb.daDoc.set(nguoiId, new Date().toISOString());
-  await B.ghi(recordId, { [F.daDoc]: ghiDaDoc(tb.daDoc) });
-  xoaCache();
-  return { ok: true };
+  return ghiCoDocLai(
+    async () => {
+      const tb = (await docTatCa(true)).find((x) => x.recordId === recordId);
+      return tb ? tb.daDoc : null;
+    },
+    async (m) => {
+      await B.ghi(recordId, { [F.daDoc]: ghiDaDoc(m) });
+      xoaCache();
+    },
+    nguoiId);
 }
 
 /** Soạn / sửa một thông báo (chỉ quản lý — máy chủ chốt). */
@@ -272,6 +322,25 @@ async function luu(hang) {
   await B.locCotThat(cells, 'thông báo');
   const id = hang.recordId ? await B.ghi(hang.recordId, cells) : await B.tao(cells);
   xoaCache();
+
+  /* ĐỌC LẠI để chắc nó thật sự nằm trên bảng.
+   *
+   * Ngày 11/09 đã có một lần: quản lý soạn xong, panel báo "Đã lưu" màu xanh,
+   * mà đọc bảng bằng API mấy phút sau vẫn chỉ thấy hai dòng cũ. Không phân biệt
+   * được là ghi rơi hay Lark trả bản chụp cũ, vì lúc đó không có chỗ nào kiểm
+   * tra lại cả.
+   *
+   * Nên: ghi xong đọc lại. Không thấy thì NÉM LỖI thay vì hiện "Đã lưu" —
+   * "gửi rồi mà cả phòng không nhận được gì" là loại lỗi không có dấu hiệu nào,
+   * phải nói ra ngay lúc nó xảy ra chứ không để đoán về sau. Thà báo nhầm một
+   * lần rồi soạn lại, còn hơn tưởng đã gửi.
+   */
+  const co = (await docTatCa(true)).some((x) => x.recordId === id);
+  if (!co) {
+    throw new Error('Lark nhận rồi nhưng đọc lại chưa thấy thông báo trên bảng. ' +
+      'Mở bảng trong Lark xem có dòng vừa soạn không: có thì chỉ là Lark chậm, ' +
+      'không có thì soạn lại.');
+  }
   return id;
 }
 
@@ -299,5 +368,5 @@ const larkUrl = () => (B ? B.larkUrl : '');
 module.exports = {
   F, MUC_DO, docTatCa, cuaNguoi, xacNhan, luu, xoa, xoaCache, cotThieu, coBang, larkUrl,
   // để kiểm thử gọi trực tiếp
-  dangHieuLuc, daXacNhan, docDaDoc, ghiDaDoc, chuanHoa,
+  dangHieuLuc, daXacNhan, docDaDoc, ghiDaDoc, chuanHoa, ghiCoDocLai,
 };

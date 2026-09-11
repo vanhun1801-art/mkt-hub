@@ -897,13 +897,29 @@ async function api(req, res, u) {
       if (await chiQuanLy(req, res)) return;
       const b = await docBody(req);
       const MOT_GIO = 3600000;
-      /* Ba hành động, không hơn: mở một giờ, đóng một giờ, bỏ. Mỗi cái ghi CẢ
-       * hai ô nên không bao giờ còn hai ngoại lệ cùng sống. */
-      const than = b.viec === 'mo' ? { moTayToi: Date.now() + MOT_GIO, dongTayToi: 0 }
+      /* Hai loại yêu cầu, cùng một đường ghi:
+       *
+       *   viec — ba hành động tức thì. Mỗi cái ghi CẢ hai ô ngoại lệ nên không
+       *          bao giờ còn hai ngoại lệ cùng sống.
+       *   luat — sửa khung giờ hằng tuần (bật/tắt, thứ + giờ).
+       *
+       * Gộp vào một đầu mối vì cả hai đều là "sửa cùng một dòng trên Base";
+       * tách đôi thì hai đường phải cùng biết cách gọi app con và cùng phải nhớ
+       * xoá đệm — sớm muộn một bên quên. */
+      let than = b.viec === 'mo' ? { moTayToi: Date.now() + MOT_GIO, dongTayToi: 0 }
         : b.viec === 'dong' ? { dongTayToi: Date.now() + MOT_GIO, moTayToi: 0 }
         : b.viec === 'bo' ? { moTayToi: 0, dongTayToi: 0 }
         : null;
-      if (!than) return loi(res, 400, 'Việc phải là mo / dong / bo.');
+      if (!than && b.luat) {
+        /* Chuyển tiếp ĐÚNG những ô app con biết. Bê nguyên body xuống thì hub
+         * thành một lỗ hổng: ai gõ tay API là ghi được ô bất kỳ. */
+        than = {};
+        for (const k of ['bat', 'moThu', 'moGio', 'dongThu', 'dongGio', 'ghiChu']) {
+          if (b.luat[k] != null) than[k] = b.luat[k];
+        }
+        if (!Object.keys(than).length) than = null;
+      }
+      if (!than) return loi(res, 400, 'Cần `viec` (mo/dong/bo) hoặc `luat` để sửa.');
       const { nguoi: nguoiCS, q: qCS } = await aiDangXem(req);
       try {
         return ok(res, await goiJson(modCS, '/api/cua-so', {

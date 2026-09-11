@@ -147,6 +147,93 @@ const LUC = NGAY('2026-09-11') + 10 * 3600000;   // 10h sáng 11/09 giờ VN
     ok('người khác vẫn chưa đọc', !ds2.find((x) => x.recordId === rec).daDoc.has('ou_z'));
   }
 
+  group('5b. Hai người bấm cùng một nhịp — không được nuốt mất lượt nào');
+  {
+    /* Cảnh này không dựng được bằng Base thật nên phải bơm tay: một người khác
+     * ĐỌC trước mình và GHI sau mình, nên lượt của mình bay khỏi ô.
+     *
+     * `chen` = số lần người kia chen ngang. Mỗi lần chen, ô quay về trạng thái
+     * họ đã đọc (tức không có tên mình) rồi thêm tên họ vào. */
+    const dungO = (banDau, chen) => {
+      const o = { m: tb.docDaDoc(banDau || ''), soLanGhi: 0, conChen: chen || 0, lucDaGhi: [] };
+      o.doc = async () => new Map(o.m);
+      o.ghi = async (m) => {
+        o.soLanGhi++;
+        o.lucDaGhi.push(m.get('ou_toi'));
+        o.m = new Map(m);
+        if (o.conChen > 0) {
+          o.conChen--;
+          o.m = tb.docDaDoc(banDau || '');
+          o.m.set('ou_kia', '2026-09-11T09:54:48.000Z');
+        }
+      };
+      return o;
+    };
+
+    {
+      const o = dungO('', 0);
+      const kq = await tb.ghiCoDocLai(o.doc, o.ghi, 'ou_toi');
+      ok('êm xuôi: ghi đúng một lần và tên mình nằm lại trong ô',
+        kq.ok === true && o.soLanGhi === 1 && o.m.has('ou_toi'),
+        JSON.stringify(kq) + ' · ghi ' + o.soLanGhi + ' lần');
+    }
+
+    {
+      const o = dungO('ou_toi@2026-09-01T00:00:00Z', 0);
+      const kq = await tb.ghiCoDocLai(o.doc, o.ghi, 'ou_toi');
+      ok('đã xác nhận từ trước thì KHÔNG ghi lại (giữ nguyên bằng chứng cũ)',
+        kq.daCo === true && o.soLanGhi === 0 &&
+        o.m.get('ou_toi') === '2026-09-01T00:00:00Z',
+        JSON.stringify(kq) + ' · ghi ' + o.soLanGhi + ' lần');
+    }
+
+    /* Đây là bài chính: trước bản sửa này, lượt của mình mất luôn và không ai
+     * biết — popup hiện lại, còn bảng "ai đã xem" của quản lý thì đếm thiếu. */
+    {
+      const o = dungO('', 1);
+      const kq = await tb.ghiCoDocLai(o.doc, o.ghi, 'ou_toi');
+      ok('bị ghi đè một lần: phát hiện và ghi lại, tên mình có mặt',
+        kq.ok === true && o.m.has('ou_toi'), JSON.stringify(kq));
+      ok('ghi lại KHÔNG xoá tên người bấm cùng nhịp', o.m.has('ou_kia'),
+        [...o.m.keys()].join(','));
+      ok('thời điểm giữ nguyên qua các lần thử — đó là lúc họ bấm',
+        o.lucDaGhi.length === 2 && o.lucDaGhi[0] === o.lucDaGhi[1],
+        o.lucDaGhi.join(' vs '));
+    }
+
+    {
+      const o = dungO('', 99);
+      let cau = '';
+      try { await tb.ghiCoDocLai(o.doc, o.ghi, 'ou_toi', 3); }
+      catch (e) { cau = e.message; }
+      /* Thử hết lần vẫn không được thì phải NÉM. Im lặng coi như xong thì họ
+       * tưởng đã xác nhận, mà bảng của quản lý không có tên họ. */
+      ok('ghi đè mãi thì báo lỗi chứ không im lặng coi như xong',
+        /Bấm "Tôi đã đọc"/.test(cau), cau || '(không ném lỗi)');
+      ok('thử đúng số lần đã hẹn rồi mới bỏ cuộc', o.soLanGhi === 3, 'ghi ' + o.soLanGhi + ' lần');
+    }
+
+    {
+      let cau = '';
+      try { await tb.ghiCoDocLai(async () => null, async () => {}, 'ou_toi'); }
+      catch (e) { cau = e.message; }
+      ok('dòng bị xoá mất giữa chừng thì nói đúng bệnh',
+        /Không thấy thông báo này/.test(cau), cau || '(không ném lỗi)');
+    }
+  }
+
+  group('5c. Soạn xong phải đọc lại — "Đã lưu" màu xanh mà bảng trống là lỗi câm');
+  {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'thongbao-app.js'), 'utf8');
+    const than = src.slice(src.indexOf('async function luu('), src.indexOf('async function xoa('));
+    ok('lưu xong có đọc lại bảng để chắc bản ghi nằm ở đó',
+      /docTatCa\(true\)[\s\S]{0,160}recordId === id/.test(than),
+      '(không thấy bước đọc lại trong luu())');
+    ok('đọc lại không thấy thì ném lỗi, không trả về như đã lưu',
+      /if \(!co\) \{[\s\S]{0,400}throw new Error/.test(than),
+      '(không thấy chỗ ném lỗi)');
+  }
+
   group('6. Máy chủ phải CHỐT, không chỉ ẩn trên giao diện');
   {
     const sv = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');

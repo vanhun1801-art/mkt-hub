@@ -1092,7 +1092,7 @@ body.dang-xem-ho .app { height: calc(100vh - 34px); margin-top: 34px; }
 .cd-hang-tx b { font-size: 13.5px; font-weight: 560; }
 .cd-hang-tx p { margin: 4px 0 0; font-size: 12.5px; color: var(--chu-mo); line-height: 1.6; }
 .cd-hang-dk { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; flex-wrap: wrap; justify-content: flex-end; }
-.cd-doc { display: flex; align-items: center; gap: 8px; }
+.cd-doc { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 /* Ô xem thử logo. Nền kẻ caro để nhìn ra ảnh có nền trong suốt thật không —
    PNG nền trắng đóng lên báo cáo in ra là một khối vuông trắng lộ rõ. */
 .cd-logo-xem {
@@ -1454,3 +1454,14 @@ body.bb-chan { overflow: hidden; }
 /* open_id không tra được tên = id đó không thuộc vùng của bản đang chạy. Đây là
    dấu hiệu DUY NHẤT của chuyện lệch vùng open_id, nên phải đọc được. */
 .bb-la { font-size: 11px; color: var(--do); font-style: normal; }
+
+/* Ô nhập nhỏ trong trang Cài đặt — dùng cho khung giờ đăng ký. Hẹp có chủ ý:
+   "Thứ 6" và "15:00" là hai mẩu ngắn, ô rộng bằng cả hàng thì mắt phải đi xa
+   giữa nhãn và giá trị. */
+.cd-in {
+  padding: 5px 9px; border-radius: 7px; font: inherit; font-size: 13px;
+  background: var(--trang); color: var(--chu); border: 1px solid var(--vien);
+}
+.cd-in:focus { outline: none; border-color: var(--xanh); }
+.cd-in-nho { width: auto; min-width: 84px; }
+input.cd-in-nho { width: 72px; }
