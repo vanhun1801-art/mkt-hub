@@ -245,6 +245,25 @@ group('8. Giao diện: khoá nút, và nói bao giờ mở lại');
   ok('public/app.js không dùng `$$` (hàm đó không tồn tại ở app này)',
     !/\$\$\(/.test(app), 'có chỗ dùng $$ — handler đó sẽ ném ReferenceError khi bấm');
 
+  /* Trang nhân sự phải TỰ đổi khi quản lý mở/đóng. Anh Hùng mở tay bên quản lý,
+   * sang bản nhân sự vẫn thấy "đang đóng" — vì nhịp tự nạp có sẵn là
+   * refresh(false) (máy chủ trả bản trong bộ đệm, trễ tới ~2 phút) và nó bị bỏ
+   * qua khi đang mở cửa sổ hay đang chọn một lịch. Với cổng mở đúng 15:00 thứ 6
+   * thì thế là hỏng. */
+  ok('có nhịp riêng hỏi trạng thái cửa sổ', /async function napCuaSo\(/.test(app));
+  ok('nhịp đó chạy 30 giây một lần', /setInterval\(napCuaSo, 30000\)/.test(app));
+  ok('và chạy lại khi quay về tab',
+    /visibilitychange[\s\S]{0,80}napCuaSo\(\)/.test(app));
+  /* Chỉ vẽ lại khi trạng thái LẬT — không thì cứ 30 giây dựng lại cả màn hình,
+   * mất cả thứ người ta đang gõ dở. */
+  ok('chỉ vẽ lại khi trạng thái đổi',
+    /if \(cu\.mo === d\.mo && cu\.vi === d\.vi/.test(app));
+
+  /* Và đệm phía máy chủ phải NGẮN: luật này lật đúng vào một phút cụ thể. */
+  const sv2 = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+  ok('đệm luật ở máy chủ ngắn (15 giây), không phải 60',
+    /const DEM_CUA_SO_MS = 15000;/.test(sv2));
+
   ok('giao diện lấy trạng thái từ /api/meta', /S\.cuaSo = d\.cuaSo/.test(app));
   const sv = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
   ok('máy chủ có gửi trạng thái đó', /cuaSo: await trangThaiCuaSo\(/.test(sv));

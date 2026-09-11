@@ -1168,6 +1168,28 @@ function mocCuaSo(ms) {
  * Cần một câu ở chỗ dễ thấy, không chỉ tooltip trên nút: nhân sự mở app ra thấy
  * nút xám thì phải biết NGAY là do khung giờ, chứ không phải app lỗi.
  */
+/**
+ * Nhịp riêng cho cửa sổ đăng ký — 30 giây một lần.
+ *
+ * Vì sao KHÔNG dựa vào nhịp `refresh(false)` 60 giây có sẵn: nhịp đó không kèm
+ * `refresh=1` nên máy chủ trả bản trong bộ đệm, cộng lại trễ tới ~2 phút, và nó
+ * bị bỏ qua khi đang mở cửa sổ hay đang chọn một lịch. Với một cái cổng mở đúng
+ * 15:00 thứ 6 thì thế là hỏng: nhân sự ngồi nhìn màn hình lúc 15:01 vẫn thấy
+ * nút xám. Anh Hùng gặp đúng chuyện này khi thử.
+ *
+ * Đầu mối /api/cua-so nhẹ (một dòng Base), nên hỏi riêng được. Chỉ vẽ lại khi
+ * trạng thái LẬT — không thì cứ 30 giây lại dựng lại cả màn hình.
+ */
+async function napCuaSo() {
+  try {
+    const d = await api('/api/cua-so');
+    const cu = S.cuaSo || {};
+    if (cu.mo === d.mo && cu.vi === d.vi && cu.moLuc === d.moLuc && cu.dongLuc === d.dongLuc) return;
+    S.cuaSo = d;
+    render();
+  } catch (_) { /* im lặng: đây là nhịp nền, không phải thao tác của người dùng */ }
+}
+
 function bangCuaSo() {
   const cs = S.cuaSo;
   if (!cs || MGR() || PREVIEW()) return '';
@@ -3939,6 +3961,10 @@ document.addEventListener('keydown', (e) => {
       '<div class="ttl">Không kết nối được Lark Base</div><div class="mini">' + esc(e.message) + '</div></div></div>';
   }
   setInterval(() => { if (!S.sel && !$('#modal').classList.contains('on')) refresh(false); }, 60000);
+  /* Cửa sổ đăng ký đi nhịp riêng, và KHÔNG bị bỏ qua khi đang mở cửa sổ khác —
+   * nó chỉ đổi cái nút và băng nhắc, không dựng lại gì đang gõ dở. */
+  setInterval(napCuaSo, 30000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) napCuaSo(); });
 })();
 
 /* ============================================================

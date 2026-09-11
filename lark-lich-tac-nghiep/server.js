@@ -433,8 +433,14 @@ let demCuaSo = { at: 0, luat: null };
  * phòng không đăng ký được và không ai biết vì sao, còn mở thừa một hôm thì
  * quản lý chỉ phải xếp thêm vài lịch.
  */
+/* Đệm NGẮN. Luật này gác một cái nút, và nó lật đúng vào một phút cụ thể
+ * (15:00 thứ 6). Đệm 60 giây như mấy bảng cấu hình khác thì nhân sự ngồi nhìn
+ * màn hình lúc 15:01 vẫn thấy nút xám — đã gặp đúng thế. Đọc một dòng Base thì
+ * rẻ, đệm 15 giây là đủ để không gọi liên tục. */
+const DEM_CUA_SO_MS = 15000;
+
 async function docLuatCuaSo(force) {
-  if (!force && demCuaSo.luat !== null && Date.now() - demCuaSo.at < 60000) return demCuaSo.luat;
+  if (!force && demCuaSo.luat !== null && Date.now() - demCuaSo.at < DEM_CUA_SO_MS) return demCuaSo.luat;
   const F2 = cfg.cuaSoFields;
   try {
     const fields = await lark.listFields(cfg.cuaSoTableId);
