@@ -1409,3 +1409,12 @@ body.bb-chan { overflow: hidden; }
 }
 .bb-ai.roi { border-color: var(--luc); color: var(--luc); }
 .bb-ai.chua { border-color: var(--do); color: var(--do); }
+
+/* Băng "đang xem thử" của quản lý. Phải nổi hẳn: nếu nhìn giống bản thật thì
+   xem thử xong lại tưởng mình vừa xác nhận một thông báo có thật. */
+.bb-thu {
+  margin: -4px 0 2px; padding: 8px 11px; border-radius: 8px;
+  font-size: 12px; line-height: 1.5;
+  background: var(--vang-nhat); color: var(--vang);
+  border: 1px dashed var(--vang);
+}

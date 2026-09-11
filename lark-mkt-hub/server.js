@@ -888,6 +888,16 @@ async function api(req, res, u) {
      * popup chặn màn hình, rồi bấm "Tôi đã đọc" là xác nhận HỘ người ta — mất
      * luôn bằng chứng ai đã đọc lúc nào. */
     if (m === 'GET') {
+      /* Máy cá nhân (chế độ cli) KHÔNG bị chặn. Đây là cái bẫy đã đo được:
+       * chế độ cli cố ý không có danh tính phiên (xem aiDangXem), nên một thông
+       * báo "cả phòng" vẫn hiện ra — mà đường xác nhận lại đòi id từ phiên và
+       * trả 401. Popup hiện lên và KHÔNG BAO GIỜ đóng được, khoá luôn hub trên
+       * máy của chính người gửi.
+       *
+       * Chặn ở đây thay vì nới đường xác nhận: máy cá nhân là máy của quản lý —
+       * người GỬI thông báo — không có lý gì chặn họ bằng câu họ vừa viết. Muốn
+       * xem trước thì dùng nút "Xem thử" trong Cài đặt. */
+      if (cfg.mode !== 'api') return ok(res, { ds: [], cuBo: 'cli' });
       const { nguoi: nguoiTB, xemNhu: nhuTB } = await aiDangXem(req);
       if (nhuTB) return ok(res, { ds: [], xemNhu: true });
       let ds = [];

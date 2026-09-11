@@ -169,6 +169,26 @@ const LUC = NGAY('2026-09-11') + 10 * 3600000;   // 10h sáng 11/09 giờ VN
       /Chưa chọn người nhận/.test(sv));
   }
 
+  group('6b. Máy cá nhân (chế độ cli) không được bị chặn — cái bẫy đã đo được');
+  {
+    /* Chế độ cli CỐ Ý không có danh tính phiên (xem aiDangXem trong server.js).
+     * Nên một thông báo "cả phòng" vẫn qua được luật hiển thị — đo thật:
+     * dangHieuLuc(tb, '') = true — mà đường xác nhận lại đòi id từ phiên và trả
+     * 401. Popup hiện lên và KHÔNG BAO GIỜ đóng được, khoá luôn hub trên máy
+     * của chính người gửi. */
+    const caPhong = tb.chuanHoa({ recordId: 'r', tieuDe: 'x', bat: true, nguoiNhan: '*' });
+    ok('vẫn đúng là luật hiển thị cho qua khi người xem không có id',
+      tb.dangHieuLuc(caPhong, '', LUC) === true,
+      '(nếu đổi thì bỏ được cái chặn ở server, đọc lại chú thích ở đó)');
+
+    const sv = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+    const i = sv.indexOf("if (p === '/api/tb-app')");
+    const than = i < 0 ? '' : sv.slice(i, i + 3000);
+    ok('nên server chặn thẳng ở chế độ cli, trả danh sách rỗng',
+      /cfg\.mode !== 'api'\) return ok\(res, \{ ds: \[\], cuBo: 'cli' \}\)/.test(than),
+      '(không thấy — máy cá nhân sẽ bị popup khoá cứng)');
+  }
+
   group('7. Giao diện: không có đường thoát nào ngoài nút xác nhận');
   {
     const app = fs.readFileSync(path.join(__dirname, '..', 'public', 'tbapp.js'), 'utf8');
@@ -182,6 +202,23 @@ const LUC = NGAY('2026-09-11') + 10 * 3600000;   // 10h sáng 11/09 giờ VN
     ok('khoá cuộn trang nền khi đang chặn', /classList\.add\('bb-chan'\)/.test(app));
     ok('nút xác nhận khoá khi buộc bấm mà chưa bấm',
       /const khoa = tb\.buocBam && nut && !TB\.daBam/.test(app));
+
+    /* "Xem thử" là cửa của QUẢN LÝ, không phải lỗ thoát của bản thật. Ba điều
+     * phải đúng: có băng nói rõ đang xem thử, bấm gì cũng KHÔNG ghi xác nhận,
+     * và Escape đóng được (chỉ ở chế độ xem thử). */
+    ok('có chế độ xem thử', /function xemThuTb\(/.test(app) && /TB\.thu/.test(app));
+    ok('xem thử: bấm "Tôi đã đọc" thì ĐÓNG, không gọi xác nhận',
+      /TB\.thu \? dongXemThu\(\) : xacNhanTb\(tb\)/.test(app),
+      '(bấm ở chế độ xem thử mà vẫn ghi thì quản lý xác nhận hộ chính mình)');
+    ok('xem thử: có băng nói rõ để không nhầm với bản thật',
+      /bb-thu/.test(app) && /xem thử/.test(app));
+    ok('Escape chỉ đóng được khi đang xem thử', /if \(TB\.thu\) dongXemThu\(\)/.test(app));
+    /* Nhịp tự nạp 60 giây ghi đè TB.ds bằng danh sách của máy chủ — mà trên máy
+     * quản lý danh sách đó rỗng. Không đứng yên thì bản xem thử biến mất giữa
+     * lúc đang xem (đã đo được đúng thế lúc thử tay). */
+    ok('nhịp tự nạp đứng yên khi đang xem thử',
+      /if \(TB\.thu\) return;/.test(app),
+      '(không thì xem thử bị chính nhịp tự nạp xoá mất sau 60 giây)');
 
     const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'styles.css'), 'utf8');
     /* Cắt đúng khối `.bb-phu { ... }` rồi mới tìm z-index trong đó. Bản đầu tôi

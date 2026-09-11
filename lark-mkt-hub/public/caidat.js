@@ -563,6 +563,16 @@ function veCdTbDs() {
 
   $('#tbSoan').onclick = () => moFormTb(null);
   $('#tbLai').onclick = () => napCdTb(true);
+  /* Xem thử đóng hộp Cài đặt trước: lớp phủ nằm TRÊN hộp đó, không đóng thì
+   * bấm "Đóng xem thử" xong lại thấy Cài đặt nằm dưới, rối. */
+  $$('#tbqlNoi [data-tb-thu]').forEach((b) => {
+    b.onclick = () => {
+      const tb = (TBQL.ds || []).find((x) => x.recordId === b.dataset.tbThu);
+      if (!tb) return;
+      dongModal();
+      xemThuTb(tb);
+    };
+  });
   $$('#tbqlNoi [data-tb-sua]').forEach((b) => {
     b.onclick = () => moFormTb((TBQL.ds || []).find((x) => x.recordId === b.dataset.tbSua));
   });
@@ -612,6 +622,7 @@ function veCdTbDong(tb) {
       '</div>' +
     '</div>' +
     '<div class="bb-dong-nut">' +
+      '<button class="btn nho" data-tb-thu="' + esc(tb.recordId) + '">Xem thử</button>' +
       '<button class="btn nho" data-tb-sua="' + esc(tb.recordId) + '">Sửa</button>' +
       '<button class="btn nho ghost" data-tb-xoa="' + esc(tb.recordId) + '">Xoá</button>' +
     '</div>' +
@@ -680,6 +691,7 @@ function moFormTb(tb) {
 
   moModal(tb ? 'Sửa thông báo' : 'Soạn thông báo', html,
     '<button class="btn ghost" id="tbQuay">← Danh sách</button><span class="grow"></span>' +
+    '<button class="btn" id="tbThu">Xem thử</button>' +
     '<button class="btn primary" id="tbLuu">Lưu</button>' +
     '<button class="btn ghost" data-close="1">Đóng</button>');
 
@@ -697,6 +709,21 @@ function moFormTb(tb) {
   };
   $('#tbQuay').onclick = () => { modalCaiDat('thong-bao'); };
   $('#tbLuu').onclick = luuFormTb;
+  /* Xem thử ngay từ form, đọc nội dung ĐANG GÕ chứ không phải bản đã lưu — xem
+   * trước mà phải lưu rồi mới xem được thì chẳng còn là xem trước. */
+  $('#tbThu').onclick = () => {
+    dongModal();
+    xemThuTb({
+      recordId: '(xem-thu)',
+      mucDo: $('#tbMucDo').value,
+      tieuDe: $('#tbTieuDe').value.trim(),
+      noiDung: $('#tbNoiDung').value,
+      nhanNut: $('#tbNhanNut').value.trim(),
+      lienKet: $('#tbLienKet').value.trim(),
+      buocBam: !!$('#tbBuocBam').checked,
+      denNgay: msTuO($('#tbDen').value),
+    });
+  };
 }
 
 async function luuFormTb() {

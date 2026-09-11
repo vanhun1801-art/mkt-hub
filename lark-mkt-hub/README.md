@@ -436,6 +436,27 @@ Các cột:
 Thiếu cột nào thì trang Cài đặt nói thẳng ra tên cột đó, và cảnh báo rằng thiết
 lập tương ứng **không có tác dụng** — thay vì âm thầm bỏ qua ô khi ghi.
 
+### Xem thử trước khi gửi
+
+Nút **Xem thử** (trong danh sách và ngay trong form soạn) mở đúng popup mà nhân
+sự sẽ thấy, kèm băng vàng nói rõ đang xem thử. Bấm gì ở đó cũng **không ghi xác
+nhận của ai**, và Escape đóng được — khác hẳn bản thật.
+
+Cần nút này vì bản thật không xem trước được: máy cá nhân (chế độ `cli`) không
+nhận thông báo (xem dưới), còn trên bản deploy thì quản lý chỉ thấy thông báo
+gửi cho chính mình. Không có nó thì cách duy nhất để biết popup trông ra sao là
+gửi thật cho cả phòng.
+
+### Máy cá nhân không bị chặn
+
+Chế độ `cli` cố ý không có danh tính phiên. Nên một thông báo "cả phòng" vẫn qua
+được luật hiển thị, mà đường xác nhận lại đòi id từ phiên và trả 401: **popup
+hiện lên và không bao giờ đóng được**, khoá luôn hub trên máy của chính người
+gửi. Đã đo được đúng thế, nên `/api/tb-app` trả danh sách rỗng khi `mode !== 'api'`.
+
+Chặn ở đó thay vì nới đường xác nhận: máy cá nhân là máy của quản lý — người
+gửi — không có lý gì chặn họ bằng câu họ vừa viết.
+
 ### Mấy chỗ đã tính trước
 
 - **Chặn vĩnh viễn.** Bật "buộc bấm" mà không điền nút thì nút "Tôi đã đọc" chờ

@@ -17,8 +17,9 @@
    người ta cuộn qua rồi bấm cho xong, đúng cái cần tránh.
    ========================================================================== */
 
-/* Danh sách còn phải đọc, và cái đang hiện. */
-let TB = { ds: [], i: 0, daBam: false };
+/* Danh sách còn phải đọc, và cái đang hiện. `thu` = đang xem thử (quản lý xem
+ * trước), lúc đó không ghi xác nhận và cho đóng thẳng. */
+let TB = { ds: [], i: 0, daBam: false, thu: false };
 
 const tbEl = () => document.getElementById('tbPhu');
 
@@ -30,6 +31,10 @@ const tbEl = () => document.getElementById('tbPhu');
  * quản lý có nói rõ bảng đang lỗi gì.
  */
 async function napTbApp() {
+  /* Đang xem thử thì đứng yên. Nhịp tự nạp 60 giây ghi đè TB.ds bằng danh sách
+   * của máy chủ, mà trên máy quản lý danh sách đó RỖNG — nên bản xem thử biến
+   * mất giữa lúc đang xem, và `TB.thu` còn treo lại true. Đã đo được đúng thế. */
+  if (TB.thu) return;
   try {
     const d = await goi('/api/tb-app');
     TB.ds = d.ds || [];
@@ -74,9 +79,11 @@ function veTbApp() {
 
   el.innerHTML =
     '<div class="bb-hop bb-' + esc(mucTb(tb.mucDo)) + '" role="alertdialog" aria-modal="true">' +
+      (TB.thu ? '<div class="bb-thu">Đang <b>xem thử</b> — nhân sự sẽ thấy đúng thế này. ' +
+        'Bấm gì ở đây cũng không ghi xác nhận của ai.</div>' : '') +
       '<div class="bb-dau">' +
         '<span class="bb-nhan">' + esc(tb.mucDo || 'Tin') + '</span>' +
-        (conLai > 0 ? '<span class="bb-dem">còn ' + conLai + ' thông báo nữa</span>' : '') +
+        (conLai > 0 && !TB.thu ? '<span class="bb-dem">còn ' + conLai + ' thông báo nữa</span>' : '') +
       '</div>' +
       '<h2 class="bb-ten">' + esc(tb.tieuDe || 'Thông báo') + '</h2>' +
       '<div class="bb-noi">' + (noiDung || '<p class="bb-trong">(không có nội dung)</p>') + '</div>' +
@@ -88,7 +95,11 @@ function veTbApp() {
       '<div class="bb-chan-hop">' +
         (tb.denNgay ? '<span class="bb-ghi">Hiển thị tới ' + esc(ngayTb(tb.denNgay)) + '</span>' : '') +
         '<span class="grow"></span>' +
+        /* Xem thử: vẫn vẽ đúng nút đó, kèm trạng thái khoá/mở như thật, nhưng
+           bấm là đóng chứ không ghi gì. Thêm một nút thoát riêng vì bản thật
+           cố ý không có đường nào khác. */
         '<button class="btn primary" id="tbDoc"' + (khoa ? ' disabled' : '') + '>Tôi đã đọc</button>' +
+        (TB.thu ? '<button class="btn ghost" id="tbThuDong">Đóng xem thử</button>' : '') +
       '</div>' +
     '</div>';
 
@@ -107,7 +118,35 @@ function veTbApp() {
     };
   }
   const oDoc = document.getElementById('tbDoc');
-  if (oDoc) oDoc.onclick = () => xacNhanTb(tb);
+  if (oDoc) oDoc.onclick = () => (TB.thu ? dongXemThu() : xacNhanTb(tb));
+  const oThu = document.getElementById('tbThuDong');
+  if (oThu) oThu.onclick = dongXemThu;
+}
+
+/**
+ * Xem trước đúng thứ nhân sự sẽ thấy.
+ *
+ * Cần thiết vì bản thật KHÔNG xem trước được: chế độ cli trên máy quản lý cố ý
+ * không có danh tính phiên nên thông báo không hiện ở đó, còn trên bản deploy
+ * thì quản lý chỉ thấy thông báo gửi cho chính mình. Không có nút này thì cách
+ * duy nhất để biết nó trông ra sao là gửi thật cho cả phòng.
+ */
+function xemThuTb(tb) {
+  TB.thu = true;
+  TB.daBam = false;
+  TB.dsCu = TB.ds;
+  TB.ds = [tb];
+  TB.i = 0;
+  veTbApp();
+}
+
+function dongXemThu() {
+  TB.thu = false;
+  TB.daBam = false;
+  TB.ds = TB.dsCu || [];
+  TB.dsCu = null;
+  TB.i = 0;
+  veTbApp();
 }
 
 const mucTb = (m) => (m === 'Gấp' ? 'gap' : m === 'Quan trọng' ? 'quan' : 'tin');
@@ -142,5 +181,9 @@ async function xacNhanTb(tb) {
    handler Escape chung của hub (nó đóng modal), không thì bấm Escape là thoát
    được một thứ sinh ra để không thoát được. */
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && tbEl()) { e.stopPropagation(); e.preventDefault(); }
+  if (e.key !== 'Escape' || !tbEl()) return;
+  e.stopPropagation();
+  e.preventDefault();
+  // ...trừ lúc xem thử: đó là cửa của quản lý, không phải cửa cần chặn
+  if (TB.thu) dongXemThu();
 }, true);
