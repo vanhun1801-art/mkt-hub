@@ -413,8 +413,12 @@ chứng, đổi được thì hết là bằng chứng.
 
 Lưu trên Base chứ không phải file: ổ đĩa Render là tạm, mất file nghĩa là mất cả
 danh sách **ai đã đọc** — cả phòng bị chặn lại bởi một thông báo họ đã xác nhận
-tuần trước. Tạo một bảng trong **cùng Base với bảng Phân quyền**, rồi khai
-`HUB_TB_TABLE` trên Render. Các cột:
+tuần trước.
+
+Bảng **đã tạo sẵn**: `Thông báo app` (`tblcJnEvbMfHgNgn`) trong cùng Base với bảng
+Phân quyền, và table id khai mặc định trong `thongbao-app.js` — không cần đặt
+biến môi trường nào. `HUB_TB_TABLE` chỉ để ghi đè khi muốn trỏ sang bảng khác.
+Các cột:
 
 | Cột | Kiểu |
 |---|---|

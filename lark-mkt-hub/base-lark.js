@@ -200,8 +200,16 @@ function bang(baseToken, tableId) {
 
   async function xoa(recordId) {
     const body = { record_id_list: [recordId] };
-    if (laApi()) await goi('POST', '/records/batch_delete', body);
-    else await cli(['base', '+record-batch-delete', ...cliArgs(), '--json', JSON.stringify(body)]);
+    if (laApi()) return void await goi('POST', '/records/batch_delete', body);
+    /* Tên lệnh của lark-cli là `+record-delete`, KHÔNG phải
+     * `+record-batch-delete` (tên đó không tồn tại). Bản cũ gọi sai tên nên xoá
+     * bản ghi ở chế độ cli chưa bao giờ chạy — kể cả xoá một dòng phân quyền
+     * trên máy cá nhân. Trên Render thì không lộ ra vì đường api đi lối khác.
+     *
+     * `--yes` là bắt buộc: lark-cli xếp xoá vào nhóm high-risk-write. Người bấm
+     * nút Xoá trong panel chính là bước xác nhận đó. */
+    await cli(['base', '+record-delete', ...cliArgs(),
+      '--json', JSON.stringify(body), '--yes']);
   }
 
   const larkUrl = 'https://rootytrip2.sg.larksuite.com/base/' + baseToken + '?table=' + tableId;

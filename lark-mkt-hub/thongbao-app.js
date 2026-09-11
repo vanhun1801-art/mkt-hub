@@ -44,9 +44,14 @@ const baseLark = require('./base-lark');
  * này và bảng Phân quyền không bao giờ hiểu "ai nhận" theo hai cách khác nhau. */
 const { docOBase } = require('./quyen');
 
-/* Cùng Base với bảng Phân quyền; table id khai riêng. */
+/* Cùng Base với bảng Phân quyền; table id khai riêng.
+ *
+ * Có giá trị mặc định cứng, cùng lối với quyen.js: bảng này đã tạo sẵn trên
+ * Base của phòng nên khai mặc định là deploy chạy được ngay, không phải nhớ
+ * thêm một biến môi trường nữa. Biến HUB_TB_TABLE vẫn ghi đè được khi cần
+ * trỏ sang bảng khác (kiểm thử, hoặc phòng khác dùng lại code này). */
 const BASE = process.env.HUB_TB_BASE || process.env.HUB_QUYEN_BASE || 'JhZtbxv0gamk5ys3Fr0luHnsgwG';
-const TABLE = process.env.HUB_TB_TABLE || '';
+const TABLE = process.env.HUB_TB_TABLE || 'tblcJnEvbMfHgNgn';
 
 /* Bảng để trong FILE thay vì Base — chỉ dùng cho kiểm thử và máy rời Lark.
  * Có seam này thì luật "ai thấy thông báo nào" thử được mà không cần khoá app. */
