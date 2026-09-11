@@ -110,11 +110,25 @@ Giờ app tự áp. Sửa ở **Phân quyền quản lý → Khung giờ đăng 
 |---|---|
 | **Áp khung giờ** | Bỏ chọn là nút mở liên tục như trước |
 | **Mở / Đóng** | Thứ + giờ. Đặt mốc đóng **trước** mốc mở cũng được — ví dụ mở T7 15:00, đóng T2 12:00 thì cửa sổ vắt qua cuối tuần |
-| **Mở tay tới** | Ngoại lệ: mở thêm dù ngoài khung, tới đúng mốc thì hết hiệu lực |
-| **Đóng tay tới** | Ngoại lệ: đóng dù đang trong khung |
+| **Ngay bây giờ** | Ba nút loại nhau: *Theo khung giờ* · *Mở tay* · *Đóng tay*, kèm thời lượng (1/2/4 giờ, hết hôm nay, hết tuần này) |
 
-Hai nút tay **thắng** khung giờ — chúng là câu "tôi quyết thế" của quản lý. Cùng
-bật cả hai thì **đóng thắng**.
+Ngoại lệ tay **thắng** khung giờ — nó là câu "tôi quyết thế" của quản lý. Hết
+thời lượng thì tự trở về theo khung giờ.
+
+Bản đầu chỗ này là **hai ô ngày** "Mở tay tới" / "Đóng tay tới". Anh Hùng thử và
+nói thẳng là khó hiểu — đúng, và cả bốn nguyên nhân là lỗi thiết kế:
+
+1. **Hai ô cho một câu hỏi.** Câu hỏi thật là *"bây giờ mở hay đóng"*, mà giao
+   diện bắt trả lời bằng hai ô độc lập — điền cả hai là một trạng thái vô nghĩa
+   (ảnh anh chụp có đúng thế: 15:50 và 15:55).
+2. Luật *"đóng thắng mở"* chỉ nằm trong chú thích code, không có trên màn hình.
+3. Chữ **"tới"** bắt tự cộng giờ: *"bây giờ 15:40, muốn mở một tiếng thì gõ gì"*.
+4. Bộ chọn lịch cho một việc mất 30 giây là quá nặng.
+
+Giờ là một hàng ba nút + chọn thời lượng, và màn hình **viết ra kết quả** trước
+khi bấm Lưu: *"→ Đóng tới Thứ 6 23:59 ngày 11/09, sau đó tự theo khung giờ."*
+Chọn một trạng thái thì trạng thái kia bị **xoá hẳn** — không còn ngoại lệ cũ
+sót lại rồi thắng cái vừa chọn.
 
 **Nháp không bị chặn — cố ý.** Cửa thật là lúc **Gửi duyệt**: soạn sẵn trong tuần
 rồi tới khung giờ bấm gửi là nếp tốt hơn, mà hàng đợi của quản lý vẫn chỉ đầy
@@ -146,6 +160,10 @@ Hai chỗ đã sai trong lúc dựng, nay có phép thử canh:
 - **Ô ngày trả về chuỗi ISO** ở chế độ cli (số ms ở chế độ api). `Number()` trên
   chuỗi đó ra NaN rồi thành 0 — bấm "đóng tay" xong đọc lại vẫn là mở, giá trị
   nằm trên Base mà đọc ra 0.
+- **`$$` không tồn tại ở app này** (chỉ hub có). Gõ theo quán tính từ hub là
+  handler ném `ReferenceError` ngay dòng đó: bấm nút không đổi gì, mà trên màn
+  hình chỉ là "bấm không ăn" — không lỗi đỏ, không toast, phải mở console mới
+  thấy. Phép thử giờ canh cả tệp `public/app.js`.
 
 Phép tính "mở hay đóng" tách ra `cua-so-dang-ky.js` (giờ VN, xử được cửa sổ vắt
 tuần); `test/cua-so.test.js` canh 62 phép, không cần server không cần Base.

@@ -211,13 +211,40 @@ group('8. Giao diện: khoá nút, và nói bao giờ mở lại');
     /Đang MỞ/.test(app) && /Đang ĐÓNG/.test(app));
   /* Ô ngày của hai ngoại lệ dùng chung bộ chọn lịch của app — phải có nhánh
    * riêng trong datNgay, không thì mốc chọn trên lịch rơi vào hư không. */
-  ok('ô ngày của màn này được datNgay() nhận',
-    /const c = inp\.dataset\.cs;/.test(app) && /CS_NGAY\[c\] = iso/.test(app));
-  ok('mở lại màn thì nạp lại mốc từ bản ghi, không giữ mốc lần trước',
-    /CS_NGAY = \{\s*\n\s*moTayToi: L\.moTayToi/.test(app));
+  /* Anh Hùng thử rồi nói "chỗ đóng mở này hơi khó hiểu", và ảnh anh chụp có CẢ
+   * HAI ô ngày cùng điền — một trạng thái vô nghĩa mà màn hình không nói cái
+   * nào thắng. Bốn thứ làm nó khó hiểu, và cả bốn là lỗi thiết kế:
+   *   hai ô cho một câu hỏi · luật "đóng thắng mở" chỉ nằm trong code ·
+   *   chữ "tới" bắt tự cộng giờ · bộ chọn lịch cho một việc 30 giây.
+   * Giờ là MỘT hàng ba nút loại nhau + chọn thời lượng. */
+  ok('không còn hai ô ngày cho ngoại lệ tay',
+    !/oNgay\('cs'/.test(app) && !/CS_NGAY/.test(app),
+    '(hai ô độc lập cho phép tạo trạng thái vô nghĩa: điền cả hai)');
+  ok('thay bằng ba nút loại nhau: theo khung giờ / mở tay / đóng tay',
+    /\['theo', 'mo', 'dong'\]/.test(app) && /data-tay="/.test(app));
+  ok('chọn thời lượng chứ không bắt gõ mốc',
+    /const CS_LAU = \[/.test(app) && /trong 1 giờ/.test(app) && /tới hết tuần này/.test(app));
+  ok('viết ra KẾT QUẢ bằng câu tiếng Việt trước khi Lưu',
+    /→ Mở tới /.test(app) && /sau đó tự theo khung giờ/.test(app));
+  /* Ba trạng thái loại nhau thì Lưu phải ghi CẢ HAI cột — chọn "mở tay" mà
+   * không xoá "đóng tay" cũ thì cái cũ thắng, đúng cái vừa gây khó hiểu. */
+  ok('chọn một trạng thái thì xoá hẳn trạng thái kia',
+    /moTayToi: tayChon === 'mo' \?/.test(app) && /: 0,/.test(app) &&
+    /dongTayToi: tayChon === 'dong' \?/.test(app));
+  /* Nút nào đang bật phải suy ra từ dữ liệu theo ĐÚNG luật máy chủ (đóng thắng
+   * mở), không thì mở màn ra thấy nút này mà thực tế đang chạy nút kia. */
+  ok('nút đang bật suy theo đúng luật "đóng thắng mở"',
+    /function tayHienTai\(L\)[\s\S]{0,240}dongTayToi[\s\S]{0,80}return 'dong'/.test(app));
 
   /* Giao diện phải đọc trạng thái từ máy chủ, không tự tính lại — tự tính là
    * hai bên lệch nhau và nút mở mà bấm vào bị chặn. */
+  /* App này KHÔNG có `$$` — chỉ hub có. Gõ `$$` theo quán tính từ hub là handler
+   * ném ReferenceError, nút không đổi được, mà trên màn hình chỉ là "bấm không
+   * ăn": không lỗi đỏ, không toast, phải mở console mới thấy. Đã gặp đúng thế
+   * ở chính ba nút này. Canh cả tệp, không chỉ đoạn của cửa sổ đăng ký. */
+  ok('public/app.js không dùng `$$` (hàm đó không tồn tại ở app này)',
+    !/\$\$\(/.test(app), 'có chỗ dùng $$ — handler đó sẽ ném ReferenceError khi bấm');
+
   ok('giao diện lấy trạng thái từ /api/meta', /S\.cuaSo = d\.cuaSo/.test(app));
   const sv = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
   ok('máy chủ có gửi trạng thái đó', /cuaSo: await trangThaiCuaSo\(/.test(sv));

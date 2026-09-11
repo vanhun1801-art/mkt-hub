@@ -1836,17 +1836,8 @@ function datNgay(inp, iso) {
   const k = inp.dataset.k;
   if (k && S.sel) { setDraft(k, iso); return; }
   const n = inp.dataset.n;
-  if (n) { NEW[n] = iso || ''; return; }
-  /* Màn Khung giờ đăng ký dùng chung ô ngày này. Không có nhánh riêng thì mốc
-   * người ta chọn trên lịch rơi vào hư không — ô hiện đúng giờ, mà bấm Lưu là
-   * mất. Đúng loại lỗi im lặng nhất của ô nhập. */
-  const c = inp.dataset.cs;
-  if (c) CS_NGAY[c] = iso || '';
+  if (n) NEW[n] = iso || '';
 }
-
-/* Mốc của hai ngoại lệ tay ở màn Khung giờ đăng ký. Để riêng chứ không nhét vào
- * NEW/BC: hai ô kia thuộc form lịch, lẫn vào là sửa màn này ghi sang màn khác. */
-let CS_NGAY = { moTayToi: '', dongTayToi: '' };
 
 function fieldDate(key, label, hint) {
   const on = canEdit(key);
@@ -2889,6 +2880,38 @@ function keoLocToiLich(startISO) {
    ========================================================================== */
 let CS = null;
 
+/* Thời lượng cho ngoại lệ tay. Mấy mốc này là mấy trường hợp thật: mở thêm một
+ * lúc cho người đi gấp, hay đóng tới hết ngày vì chưa xếp xong. */
+const CS_LAU = [
+  [60, 'trong 1 giờ'],
+  [120, 'trong 2 giờ'],
+  [240, 'trong 4 giờ'],
+  ['ngay', 'tới hết hôm nay'],
+  ['tuan', 'tới hết tuần này'],
+];
+
+/** Trạng thái tay đang có: 'dong' thắng 'mo', giống đúng luật ở máy chủ. */
+function tayHienTai(L) {
+  const t = Date.now();
+  if (L.dongTayToi && L.dongTayToi > t) return 'dong';
+  if (L.moTayToi && L.moTayToi > t) return 'mo';
+  return 'theo';
+}
+
+/** Thời lượng đã chọn -> mốc hết hiệu lực (ms), theo giờ VN. */
+function mocHetTay(v) {
+  const t = Date.now();
+  if (v === 'ngay' || v === 'tuan') {
+    const d = new Date(t + LECH_VN);
+    /* Hết ngày = 23:59 giờ VN hôm nay. Hết tuần = 23:59 Chủ nhật. Tính trên mốc
+     * đã cộng lệch VN rồi trừ ra, không dùng giờ máy. */
+    const themNgay = v === 'ngay' ? 0 : (7 - (d.getUTCDay() === 0 ? 7 : d.getUTCDay()));
+    const cuoi = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + themNgay, 23, 59);
+    return cuoi - LECH_VN;
+  }
+  return t + Number(v) * 60000;
+}
+
 async function moManCuaSo() {
   $('#mdTitle').textContent = 'Khung giờ đăng ký lịch';
   $('#mdBody').innerHTML = '<div class="mini muted">Đang đọc…</div>';
@@ -2906,12 +2929,6 @@ async function moManCuaSo() {
 
 function veManCuaSo() {
   const L = CS.luatTho || {};
-  /* Nạp lại từ bản ghi mỗi lần vẽ: không nạp thì lần mở thứ hai vẫn giữ mốc
-   * của lần trước, và Lưu sẽ ghi lại cái cũ. */
-  CS_NGAY = {
-    moTayToi: L.moTayToi ? new Date(L.moTayToi).toISOString() : '',
-    dongTayToi: L.dongTayToi ? new Date(L.dongTayToi).toISOString() : '',
-  };
   const thu = CS.thu || [];
   const oThu = (id, val) => '<select class="fld" id="' + id + '">' + thu.map((t, i) =>
     '<option value="' + (i + 1) + '"' + (Number(val) === i + 1 ? ' selected' : '') + '>' +
@@ -2951,16 +2968,24 @@ function veManCuaSo() {
     '<div class="hint" style="margin:-4px 0 14px">Đặt mốc đóng TRƯỚC mốc mở cũng được — ' +
       'ví dụ mở Thứ 7 15:00, đóng Thứ 2 12:00 thì cửa sổ vắt qua cuối tuần.</div>' +
 
-    '<div class="banner info"><div class="sp"><b>Ngoại lệ cho một lần.</b> ' +
-      'Hai nút dưới đây thắng khung giờ ở trên, tới đúng mốc đã đặt thì hết hiệu lực.' +
-      '</div></div>' +
-    '<div class="frm-2">' +
-      '<div class="frm-row"><label>Mở tay tới</label>' +
-        oNgay('cs', 'moTayToi', L.moTayToi ? new Date(L.moTayToi).toISOString() : '') +
-        '<div class="hint">Mở thêm dù ngoài khung.</div></div>' +
-      '<div class="frm-row"><label>Đóng tay tới</label>' +
-        oNgay('cs', 'dongTayToi', L.dongTayToi ? new Date(L.dongTayToi).toISOString() : '') +
-        '<div class="hint">Đóng dù đang trong khung.</div></div>' +
+    /* MỘT hàng ba nút cho MỘT câu hỏi. Bản trước là hai ô ngày độc lập: điền
+     * cả hai là một trạng thái vô nghĩa, mà màn hình không nói cái nào thắng —
+     * anh Hùng thử và nói thẳng là khó hiểu. Ba nút thì không tạo ra được
+     * trạng thái đó nữa. */
+    '<div class="frm-row" style="margin-top:4px"><label>Ngay bây giờ</label>' +
+      '<div class="multi" id="csTay">' +
+        ['theo', 'mo', 'dong'].map((k) =>
+          '<button class="opt' + (tayHienTai(L) === k ? ' on' : '') + '" data-tay="' + k + '">' +
+          ({ theo: 'Theo khung giờ', mo: 'Mở tay', dong: 'Đóng tay' })[k] + '</button>').join('') +
+      '</div>' +
+      /* Thời lượng thay cho ô ngày: câu hỏi thật là "mở thêm bao lâu", không
+       * phải "mở tới mốc nào" — bắt tự cộng giờ là chỗ dễ gõ sai nhất. */
+      '<div class="row-2" id="csLauBoc" style="margin-top:8px"' +
+        (tayHienTai(L) === 'theo' ? ' hidden' : '') + '>' +
+        '<select class="fld" id="csLau">' + CS_LAU.map(([v, t]) =>
+          '<option value="' + v + '">' + esc(t) + '</option>').join('') + '</select>' +
+        '<div class="hint" id="csKetQua" style="align-self:center"></div>' +
+      '</div>' +
     '</div>' +
     '<div class="frm-row"><label>Ghi chú</label>' +
       '<input class="fld" id="csGhiChu" value="' + esc(L.ghiChu || '') + '"></div>' +
@@ -2970,6 +2995,30 @@ function veManCuaSo() {
   $('#mdFoot').innerHTML =
     '<button class="btn" data-close="1">Đóng</button>' +
     '<button class="btn primary" id="csLuu">Lưu</button>';
+
+  /* Ba nút loại nhau, và viết ra KẾT QUẢ bằng câu tiếng Việt ngay dưới —
+   * người ta thấy hệ quả trước khi bấm Lưu, không phải đoán. */
+  const veKetQua = () => {
+    const tay = ($('#csTay .opt.on') || {}).dataset ? $('#csTay .opt.on').dataset.tay : 'theo';
+    const boc = $('#csLauBoc');
+    boc.hidden = tay === 'theo';
+    if (tay === 'theo') return;
+    const moc = mocHetTay($('#csLau').value);
+    $('#csKetQua').textContent = (tay === 'mo' ? '→ Mở tới ' : '→ Đóng tới ') +
+      mocCuaSo(moc) + ', sau đó tự theo khung giờ.';
+  };
+  $('#csTay').onclick = (e) => {
+    const b = e.target.closest('[data-tay]');
+    if (!b) return;
+    /* App này KHÔNG có `$$` (chỉ hub có). Bản đầu tôi gõ `$$` theo quán tính từ
+     * hub: handler ném ReferenceError ngay dòng này, nút không đổi được, mà
+     * trên màn hình chỉ là "bấm không ăn" — không có gì báo. */
+    document.querySelectorAll('#csTay [data-tay]')
+      .forEach((x) => x.classList.toggle('on', x === b));
+    veKetQua();
+  };
+  $('#csLau').onchange = veKetQua;
+  veKetQua();
 
   $('#csBat').onclick = () => {
     const o = $('#csBat');
@@ -2981,6 +3030,8 @@ function veManCuaSo() {
 }
 
 async function luuCuaSo() {
+  const oTay = $('#csTay .opt.on');
+  const tayChon = oTay ? oTay.dataset.tay : 'theo';
   const nut = $('#csLuu');
   nut.disabled = true;
   nut.textContent = 'Đang lưu…';
@@ -2991,9 +3042,11 @@ async function luuCuaSo() {
       moGio: $('#csMoGio').value,
       dongThu: Number($('#csDongThu').value),
       dongGio: $('#csDongGio').value,
-      /* CS_NGAY giữ mốc do oNgay() ghi vào; rỗng = xoá ngoại lệ. */
-      moTayToi: CS_NGAY.moTayToi ? Date.parse(CS_NGAY.moTayToi) : 0,
-      dongTayToi: CS_NGAY.dongTayToi ? Date.parse(CS_NGAY.dongTayToi) : 0,
+      /* Ba trạng thái loại nhau, nên luôn ghi CẢ HAI cột: chọn "mở tay" thì
+       * đóng tay phải bị xoá. Không xoá thì một ngoại lệ cũ còn sót lại và nó
+       * thắng cái vừa chọn — đúng cái làm màn hình trước khó hiểu. */
+      moTayToi: tayChon === 'mo' ? mocHetTay($('#csLau').value) : 0,
+      dongTayToi: tayChon === 'dong' ? mocHetTay($('#csLau').value) : 0,
       ghiChu: $('#csGhiChu').value,
     }) });
     S.cuaSo = d.cuaSo || S.cuaSo;
@@ -3760,8 +3813,7 @@ document.addEventListener('change', async (e) => {
   if (T.dataset && T.dataset.kieu === 'ngay') {
     const cu = T.dataset.bc && BC ? BC[T.dataset.bc]
       : T.dataset.k && S.sel ? S.sel[T.dataset.k]
-      : T.dataset.n ? NEW[T.dataset.n]
-      : (T.dataset.cs ? CS_NGAY[T.dataset.cs] : null);
+      : (T.dataset.n ? NEW[T.dataset.n] : null);
     if (!T.value.trim()) { datNgay(T, null); return; }
     const iso = docNgayVN(T.value);
     if (iso) datNgay(T, iso);
