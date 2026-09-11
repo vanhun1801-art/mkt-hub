@@ -384,13 +384,18 @@ async function api(req, res, u) {
     const daLam = nguoiDaLam(d.baoCao);
     if (!q) return ok(res, { nguoi: daLam, tra: false });
     const kq = await lark.timNguoi(q);
-    const theoId = new Map(daLam.map((x) => [x.id, x]));
-    kq.forEach((x) => { if (!theoId.has(x.id)) theoId.set(x.id, x); });
+
+    /* Lọc theo tên CHỈ áp cho danh sách người đã từng làm — Lark đã tự khớp rồi,
+     * lọc lại là vứt đi kết quả đúng: Lark còn khớp theo email, biệt danh, phiên âm…
+     * mà mấy thứ đó không nằm trong tên hiển thị. Trước đây lọc cả hai nên có lúc
+     * Lark tìm ra người mà app vẫn báo "không thấy ai khớp". */
     const g = ttm.gon(q);
-    return ok(res, {
-      nguoi: [...theoId.values()].filter((x) => ttm.gon(x.ten).includes(g)),
-      tra: kq.length > 0,
-    });
+    const theoId = new Map(
+      daLam.filter((x) => ttm.gon(x.ten).includes(g)).map((x) => [x.id, x])
+    );
+    kq.forEach((x) => { if (!theoId.has(x.id)) theoId.set(x.id, x); });
+
+    return ok(res, { nguoi: [...theoId.values()], tra: kq.length > 0 });
   }
 
   /* Gửi lại tin cho một báo cáo đã có — dùng khi lần gửi đầu thất bại. */

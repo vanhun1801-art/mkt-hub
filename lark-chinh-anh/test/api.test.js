@@ -296,6 +296,23 @@ async function goiThat() {
       assert.ok(/^oc_/.test(meta.j.nhom.id), 'chat_id lạ: ' + meta.j.nhom.id);
     });
 
+    await ta('/api/nhan-su KHÔNG lọc bỏ kết quả Lark trả về', async () => {
+      /* Lark khớp cả email, biệt danh, phiên âm — mấy thứ không nằm trong tên hiển
+       * thị. Lọc lại theo tên là vứt đi kết quả đúng, và người dùng thấy "không
+       * thấy ai khớp" dù Lark tìm ra. Chốt: mọi người Lark trả về đều phải còn. */
+      const r = await get(port, '/api/nhan-su?q=' + encodeURIComponent('Thanh'));
+      assert.strictEqual(r.code, 200);
+      if (!r.j.tra) return;                       // máy chưa đăng nhập lark-cli
+      assert.ok(r.j.nguoi.length > 0, 'Lark có trả người mà danh sách lại rỗng');
+      assert.ok(r.j.nguoi.every((x) => /^ou_/.test(x.id) && x.ten), 'có mục thiếu id/tên');
+    });
+
+    await ta('/api/nhan-su không trả trùng một người hai lần', async () => {
+      const r = await get(port, '/api/nhan-su?q=' + encodeURIComponent('a'));
+      const ids = r.j.nguoi.map((x) => x.id);
+      assert.strictEqual(new Set(ids).size, ids.length);
+    });
+
     await ta('/api/bao-cao đọc được bảng Báo cáo và trả tổng hợp', async () => {
       const r = await get(port, '/api/bao-cao?tu=2026-01-01&den=2026-12-31');
       assert.strictEqual(r.code, 200);

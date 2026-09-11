@@ -47,7 +47,13 @@
     try { if (window.__HUB__) window.__HUB__.che(false); } catch (_) {}
   };
   $('#modalWrap').addEventListener('click', (e) => { if (e.target.id === 'modalWrap') dongModal(); });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') dongModal(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    /* Esc đóng khung gợi ý danh bạ trước, chỉ khi không có khung nào mới đóng modal —
+     * không thì đang chọn người mà bấm Esc là văng luôn cả cửa sổ. */
+    if (S.goiY) { datGoiY(null); return; }
+    dongModal();
+  });
 
   /* ---------------- trạng thái ---------------- */
   const S = {
@@ -162,6 +168,8 @@
       ve();
       if (S.tab === 'san-pham' && !S.ds.length) napDs();
       if (S.tab === 'nghiem-thu') napHangDoi();
+      if (S.tab === 'bao-cao') dongBoTour();
+      if (S.tab === 'cai-dat') dongBoTour();
     };
   }
 
@@ -207,6 +215,36 @@
     veTabs();
     capNhatPhu();
     if (S.tab === 'san-pham') ve();
+  }
+
+  /**
+   * Đọc lại danh mục Tour từ Base và cập nhật combobox nếu nó đã đổi.
+   *
+   * Vì sao cần: anh Hùng thêm/bớt Tour ngay trong Base, nhưng app chỉ đọc danh mục
+   * MỘT LẦN lúc mở trang — thêm Tour xong quay lại tab thì combobox vẫn là bản cũ,
+   * trông như app không đồng bộ. Gọi ở mỗi lần vào tab Báo cáo.
+   *
+   * Gọi KHÔNG kèm ?moi=1: server đã có cache 45 giây, nên bấm qua lại giữa các tab
+   * không biến thành một lượt đọc cả Base mỗi lần.
+   *
+   * Chỉ vẽ lại khi danh mục THẬT SỰ đổi — vẽ lại vô cớ là xoá mất con trỏ và nội
+   * dung người dùng đang gõ dở.
+   */
+  const vanTayTour = (m) => ((m && m.toursAll) || [])
+    .map((t) => t.id + '·' + t.ten + '·' + (t.dung ? 1 : 0)).join('|');
+
+  async function dongBoTour() {
+    const truoc = vanTayTour(S.meta);
+    try { await napMeta(); } catch (_) { return; }
+    if (vanTayTour(S.meta) === truoc) return;
+
+    /* Tour đang chọn có thể vừa bị xoá hoặc tắt trong Base. Im lặng bỏ nó là người
+     * dùng bấm Báo cáo mới biết; nói ra ngay thì họ chọn lại được. */
+    const mat = S.form.muc.filter((m) => m.tourId && !tourCua(m)).length;
+    if (S.tab === 'bao-cao') veForm();
+    toast(mat
+      ? 'Danh mục Tour vừa đổi — ' + mat + ' mục mất Tour đã chọn, chọn lại giúp em.'
+      : 'Danh mục Tour vừa đổi, đã cập nhật.', mat ? 'err' : 'ok');
   }
 
   /** Hàng đợi nghiệm thu — lấy TOÀN BỘ lô chờ, không theo bộ lọc thời gian. */
@@ -375,17 +413,50 @@
     </section>`;
   }
 
-  /** Ô chọn người chỉnh của MỘT mục: chip + ô tìm trong danh bạ Lark. */
+  /**
+   * Ô chọn người chỉnh của MỘT mục: chip + ô tìm trong danh bạ Lark.
+   *
+   * Khung gợi ý LUÔN nằm sẵn trong DOM (rỗng + hidden), chỉ đổi ruột bằng veGoiY().
+   * Trước đây mỗi lần có kết quả là dựng lại cả khối này, tức là thay luôn thẻ
+   * <input> đang gõ — phải nhét lại giá trị rồi focus(), mà focus() đẩy con trỏ về
+   * cuối. Sửa giữa chuỗi là con trỏ nhảy. Giờ ô input không bao giờ bị thay.
+   */
   function veChonNguoi(m, i) {
     const chip = m.nguoiIds.map((id) => `<span class="ng-chip">${esc(S.tenNguoi[id] || id)}<button data-bo="${esc(id)}" title="Bỏ">×</button></span>`).join('');
-    const g = S.goiY && S.goiY.i === i ? S.goiY.ds : null;
     return `<div class="chon-nguoi">
       <div class="ng-chips">${chip || '<span class="ng-trong">chưa chọn ai</span>'}</div>
       <input data-nguoi="${i}" placeholder="gõ tên để tìm trong danh bạ Lark" autocomplete="off">
-      ${g ? `<div class="ng-goiy">${g.length
-        ? g.map((x) => `<button data-them="${esc(x.id)}" data-ten="${esc(x.ten)}">${esc(x.ten)}${x.phong ? ' <span class="ng-phong">' + esc(x.phong) + '</span>' : ''}</button>`).join('')
-        : '<div class="ng-trong">không thấy ai khớp</div>'}</div>` : ''}
+      <div class="ng-goiy" data-goiy="${i}" hidden></div>
     </div>`;
+  }
+
+  /** Đổi ruột khung gợi ý của mục i. Không đụng tới ô input. */
+  function veGoiY(i) {
+    const o = $(`[data-goiy="${i}"]`);
+    if (!o) return;
+    const g = S.goiY && S.goiY.i === i ? S.goiY : null;
+    if (!g) { o.hidden = true; o.innerHTML = ''; return; }
+    o.hidden = false;
+    if (g.dangTim) { o.innerHTML = '<div class="ng-trong">đang tìm…</div>'; return; }
+    if (g.loi) { o.innerHTML = '<div class="ng-trong canh">' + esc(g.loi) + '</div>'; return; }
+    o.innerHTML = g.ds.length
+      ? g.ds.map((x) => `<button data-them="${esc(x.id)}" data-ten="${esc(x.ten)}">${esc(x.ten)}${x.phong ? ' <span class="ng-phong">' + esc(x.phong) + '</span>' : ''}</button>`).join('')
+      : '<div class="ng-trong">không thấy ai khớp</div>';
+  }
+
+  /**
+   * Đặt trạng thái gợi ý và vẽ lại ĐÚNG những khung bị ảnh hưởng.
+   *
+   * Phải vẽ lại cả khung CŨ: mở gợi ý ở mục 1 rồi sang gõ mục 2 thì khung của mục 1
+   * còn treo đó. Và khi xoá sạch ô tìm, trước đây chỉ gán S.goiY = null mà không vẽ
+   * lại — nên dòng "không thấy ai khớp" nằm lì trên màn hình dù ô đã trống. Đó đúng
+   * là cái anh Hùng chụp lại.
+   */
+  function datGoiY(g) {
+    const cu = S.goiY ? S.goiY.i : -1;
+    S.goiY = g;
+    if (cu >= 0 && (!g || g.i !== cu)) veGoiY(cu);
+    if (g) veGoiY(g.i);
   }
 
   function veCuaToi() {
@@ -462,6 +533,7 @@
       if (bo && i >= 0) {
         const m = S.form.muc[i];
         m.nguoiIds = m.nguoiIds.filter((x) => x !== bo.dataset.bo);
+        S.goiY = null;
         veForm();
         return;
       }
@@ -472,6 +544,7 @@
         const id = them.dataset.them;
         S.tenNguoi[id] = them.dataset.ten;
         if (!m.nguoiIds.includes(id)) m.nguoiIds.push(id);
+        lanTim[i] = (lanTim[i] || 0) + 1;   // huỷ lượt tra đang bay, khỏi mở lại khung
         S.goiY = null;
         veForm();
         return;
@@ -522,25 +595,30 @@
 
   /* ---- tìm người trong danh bạ ---- */
   const hen = {};
+  /* Đếm lượt gõ của TỪNG mục. Một lượt tra danh bạ mất ~0,7 giây (lark-cli phải bật
+   * một tiến trình Node), nên gõ nhanh là có hai lượt cùng bay; lượt cũ về sau sẽ
+   * đè kết quả của lượt mới. Chỉ nhận kết quả của lượt gõ MỚI NHẤT. */
+  const lanTim = {};
+
   async function timNguoi(i, q) {
     clearTimeout(hen['n' + i]);
-    if (!String(q || '').trim()) { S.goiY = null; return; }
+    const tu = String(q || '').trim();
+    if (!tu) { datGoiY(null); return; }
+
+    /* Hiện "đang tìm…" NGAY, đừng đợi. Gõ xong mà cả giây không có gì nhúc nhích
+     * thì người dùng kết luận là hỏng — đúng như anh Hùng vừa gặp. */
+    datGoiY({ i, dangTim: true, ds: [] });
+
+    const lan = (lanTim[i] = (lanTim[i] || 0) + 1);
     hen['n' + i] = setTimeout(async () => {
       try {
-        const r = await goi('/api/nhan-su?q=' + encodeURIComponent(q));
-        S.goiY = { i, ds: r.nguoi.slice(0, 8) };
-        /* Chỉ vẽ lại khối gợi ý, không vẽ lại biểu mẫu — vẽ lại là mất con trỏ
-         * đang gõ trong chính ô tìm kiếm này. */
-        const o = $(`.muc[data-i="${i}"] .chon-nguoi`);
-        if (o) {
-          const cu = $('input[data-nguoi]', o);
-          const giu = cu ? cu.value : '';
-          o.outerHTML = veChonNguoi(S.form.muc[i], i);
-          const moi2 = $(`.muc[data-i="${i}"] input[data-nguoi]`);
-          if (moi2) { moi2.value = giu; moi2.focus(); }
-        }
-      } catch (e) { /* mất mạng thì thôi, không phá biểu mẫu */ }
-    }, 320);
+        const r = await goi('/api/nhan-su?q=' + encodeURIComponent(tu));
+        if (lan !== lanTim[i]) return;           // đã có lượt gõ mới
+        datGoiY({ i, ds: r.nguoi.slice(0, 8) });
+      } catch (e) {
+        if (lan === lanTim[i]) datGoiY({ i, ds: [], loi: e.message });
+      }
+    }, 280);
   }
 
   /* ---- gửi ---- */
@@ -922,7 +1000,7 @@
         </div>
       </div>
       <div class="card">
-        <div class="card-head"><h3>Danh mục Tour</h3><span class="sub">${n0((m.toursAll || []).length)} mục</span></div>
+        <div class="card-head"><h3>Danh mục Tour</h3><span class="sub">${n0((m.toursAll || []).length)} mục · từ Base</span></div>
         <div class="card-body tight">
           <div class="tbl-wrap"><table class="tbl">
             <thead><tr><th class="no-sort">Tour</th><th class="no-sort">Nhóm</th><th class="no-sort num">Thứ tự</th><th class="no-sort">Dùng</th></tr></thead>
@@ -931,12 +1009,31 @@
               <td class="num">${t.thuTu || '—'}</td>
               <td>${t.dung ? '<span class="tag good">có</span>' : '<span class="tag">tắt</span>'}</td>
             </tr>`).join('')}</tbody></table></div>
-          ${ql ? '<div class="sticky-actions"><a class="btn ghost" href="' + esc(m.baseUrl || '') + '" target="_blank" rel="noreferrer">Sửa danh mục trên Base</a></div>' : ''}
+          ${ql ? `<div class="sticky-actions">
+            <a class="btn ghost" href="${esc(m.baseUrl || '')}" target="_blank" rel="noreferrer">Sửa danh mục trên Base</a>
+            <button class="btn ghost" id="cTour">Đọc lại danh mục</button>
+          </div>` : ''}
         </div>
       </div>
     </div>`;
 
     if (ql) napNhom();
+    const bt = $('#cTour');
+    if (bt) {
+      bt.onclick = async () => {
+        bt.disabled = true;
+        const truoc = vanTayTour(S.meta);
+        try {
+          /* Nút này ép đọc thẳng Base (?moi=1), bỏ qua cache 45 giây — sửa xong
+           * trong Base là muốn thấy ngay, không đợi. */
+          await napMeta(true);
+          ve();
+          toast(vanTayTour(S.meta) === truoc
+            ? 'Danh mục không đổi — app đang khớp Base.'
+            : 'Đã đọc lại danh mục từ Base.');
+        } catch (e) { toast(e.message, 'err'); bt.disabled = false; }
+      };
+    }
   }
 
   /** Bot nào đứng tên gửi — và phải mời bot NÀO vào nhóm. */
