@@ -183,11 +183,15 @@ trình kia còn đọc luật cũ tới một phút.
 
 ### Chỉnh từ Cài đặt của hub
 
-Cùng cơ chế đó có mặt trong **Marketing Hub → Cài đặt → Từng app → Lịch tác
-nghiệp**: trạng thái hiện tại, khung hằng tuần, và hai nút *Mở khoá 1 giờ* /
-*Đóng 1 giờ*. Hub **không giữ luật** — nó gọi thẳng `/api/cua-so` của app con
-qua proxy (`/api/lich-cua-so`), nên chỉ có một nơi giữ luật và hai màn hình
-không thể lệch nhau.
+**Marketing Hub → Cài đặt → Từng app → Lịch tác nghiệp** sửa được **toàn bộ**:
+trạng thái hiện tại, hai nút *Mở khoá 1 giờ* / *Đóng 1 giờ*, và cả khung hằng
+tuần (bật/tắt, thứ + giờ mở/đóng) — không phải nhảy sang app Lịch nữa.
+
+Hub **không giữ luật** — mọi đường ghi đi qua `/api/cua-so` của app con (proxy
+`/api/lich-cua-so`), nên chỉ có một nơi giữ luật và hai màn hình không thể lệch
+nhau. App con từ chối vì dữ liệu sai thì hub trả lại **đúng mã lỗi của nó**, không
+gói thành 502: 502 nghĩa "app con hỏng", còn `25:99` là "gõ sai" — hai chuyện
+phải xử lý khác nhau.
 
 ### Xin huỷ MUỘN — lịch đã duyệt mà không đi được
 

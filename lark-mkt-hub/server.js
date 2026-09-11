@@ -927,7 +927,10 @@ async function api(req, res, u) {
           nguoi: nguoiKemQuyen(nguoiCS, qCS, modCS),
         }));
       } catch (e) {
-        return loi(res, 502, e.message);
+        /* App con từ chối vì dữ liệu sai (giờ "25:99") thì trả lại ĐÚNG mã của
+         * nó. Gói hết thành 502 là nói dối: 502 nghĩa "app con hỏng", còn đây
+         * là "anh gõ sai" — hai chuyện phải xử lý khác nhau. */
+        return loi(res, e.http && e.http < 500 ? e.http : 502, e.message);
       }
     }
   }

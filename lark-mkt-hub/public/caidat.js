@@ -912,9 +912,12 @@ async function napCdCuaSo(a) {
         '<span>Áp khung giờ</span><small class="q-nhat">— bỏ tick là nút đăng ký mở liên tục</small>' +
       '</label>' +
       '<div class="cd-doc" style="margin-bottom:4px">' +
-        '<span class="cd-nhan">Mở</span>' + oThu('cdCsMoThu', L.moThu) +
+        /* data-no-i18n: "Đóng" là một khoá trong từ điển (nút Đóng của hộp thoại)
+         * nên lớp dịch đổi cái nhãn này thành "Close" — đã thấy trên màn hình.
+         * Đây là nhãn của một ô nhập, không phải nút, nên chặn dịch. */
+        '<span class="cd-nhan" data-no-i18n="1">Mở</span>' + oThu('cdCsMoThu', L.moThu) +
         '<input class="cd-in cd-in-nho" id="cdCsMoGio" value="' + esc(L.moGio || '15:00') + '" placeholder="15:00">' +
-        '<span class="cd-nhan">Đóng</span>' + oThu('cdCsDongThu', L.dongThu) +
+        '<span class="cd-nhan" data-no-i18n="1">Đóng</span>' + oThu('cdCsDongThu', L.dongThu) +
         '<input class="cd-in cd-in-nho" id="cdCsDongGio" value="' + esc(L.dongGio || '12:00') + '" placeholder="12:00">' +
       '</div>' +
       'Đặt mốc đóng <b>trước</b> mốc mở cũng được — ví dụ mở Thứ 7 15:00, đóng Thứ 2 12:00 ' +
