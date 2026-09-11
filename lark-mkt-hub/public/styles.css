@@ -1418,3 +1418,39 @@ body.bb-chan { overflow: hidden; }
   background: var(--vang-nhat); color: var(--vang);
   border: 1px dashed var(--vang);
 }
+
+/* "Ai đã xem" — hai danh sách cạnh nhau. Chưa-xem đứng TRƯỚC vì đó là phần còn
+   việc phải làm; đã-xem để đối chiếu. */
+.bb-ai-noi { display: flex; flex-direction: column; gap: 12px; }
+.bb-hai-cot { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 720px) { .bb-hai-cot { grid-template-columns: minmax(0, 1fr); } }
+
+.bb-cot {
+  border: 1px solid var(--vien); border-radius: 9px;
+  background: var(--trang-2); overflow: hidden;
+}
+.bb-cot-dau {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 12px; border-bottom: 1px solid var(--vien);
+  font-size: 13px; background: var(--trang);
+}
+.bb-cot-ds { max-height: 320px; overflow-y: auto; }
+.bb-ai-dong {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 12px; font-size: 12.5px; color: var(--chu);
+  border-bottom: 1px solid var(--vien-mem);
+}
+.bb-ai-dong:last-child { border-bottom: 0; }
+.bb-ai-dong > span:first-child { flex: 1; min-width: 0; }
+.bb-luc { font-size: 11.5px; color: var(--chu-nhat); white-space: nowrap; }
+
+/* Thanh tiến độ đọc trên dòng thu gọn: nhìn một nhịp là biết còn nhiều hay ít,
+   không phải đọc số rồi tự chia. */
+.bb-tien-do {
+  display: inline-block; width: 76px; height: 6px; border-radius: 999px;
+  background: var(--vien); overflow: hidden; vertical-align: middle;
+}
+.bb-tien-do i { display: block; height: 100%; background: var(--luc); }
+/* open_id không tra được tên = id đó không thuộc vùng của bản đang chạy. Đây là
+   dấu hiệu DUY NHẤT của chuyện lệch vùng open_id, nên phải đọc được. */
+.bb-la { font-size: 11px; color: var(--do); font-style: normal; }

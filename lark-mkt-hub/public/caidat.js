@@ -546,6 +546,19 @@ function veCdTbDs() {
     h += '<div class="canh-bao do"><span class="grow">' + esc(d.loiBang) + '</span></div>';
   }
 
+  /* Cảnh báo NẶNG, và nó đứng trên cả nút Soạn: đây là loại lỗi không có dấu
+   * hiệu nào. Tick đúng tên, lưu thành công, rồi không ai nhận được gì — vì
+   * open_id cấp theo từng app Lark, máy cá nhân và bản deploy ra hai chuỗi khác
+   * nhau cho cùng một người. Đã đo được đúng thế trên Base thật. */
+  if (d.cheDo && d.cheDo !== 'api') {
+    h += '<div class="canh-bao do"><span class="grow">' +
+      '<b>Đang mở ở máy cá nhân — đừng soạn thông báo ở đây.</b> Danh bạ máy này ' +
+      'cho <code>open_id</code> khác với bản đã deploy, nên người nhận sẽ không ' +
+      'khớp: tick đúng tên, lưu xong, mà không ai nhận được gì. ' +
+      'Soạn trên <b>link đã deploy</b>. Xem thử và xem "ai đã xem" ở đây thì vẫn đúng.' +
+      '</span></div>';
+  }
+
   h += '<div class="cd-doc" style="margin-bottom:12px">' +
     '<button class="btn primary" id="tbSoan">Soạn thông báo</button>' +
     '<button class="btn nho" id="tbLai">Làm mới</button>' +
@@ -565,6 +578,12 @@ function veCdTbDs() {
   $('#tbLai').onclick = () => napCdTb(true);
   /* Xem thử đóng hộp Cài đặt trước: lớp phủ nằm TRÊN hộp đó, không đóng thì
    * bấm "Đóng xem thử" xong lại thấy Cài đặt nằm dưới, rối. */
+  $$('#tbqlNoi [data-tb-ai]').forEach((b) => {
+    b.onclick = () => {
+      const tb = (TBQL.ds || []).find((x) => x.recordId === b.dataset.tbAi);
+      if (tb) moAiDaXem(tb);
+    };
+  });
   $$('#tbqlNoi [data-tb-thu]').forEach((b) => {
     b.onclick = () => {
       const tb = (TBQL.ds || []).find((x) => x.recordId === b.dataset.tbThu);
@@ -614,14 +633,20 @@ function veCdTbDong(tb) {
         ' · Hiển thị: ' + esc(khoang) +
         (tb.nhanNut ? ' · Nút "' + esc(tb.nhanNut) + '"' + (tb.buocBam ? ' (buộc bấm)' : '') : '') +
       '</div>' +
+      /* Thanh tiến độ + một con số, rồi hết. Bản đầu bày tám cái tên "chưa đọc"
+       * cắt ngang ở đây: vừa chật vừa không trả lời được gì — 8 tên trong 34
+       * người thì nhìn xong vẫn phải đi tìm. Danh sách đầy đủ nằm sau nút. */
       '<div class="bb-doc-ds">' +
-        '<span class="bb-ai roi">' + daDoc.size + ' đã đọc</span>' +
-        (chua.length ? '<span class="bb-ai chua">' + chua.length + ' chưa đọc</span>' : '') +
-        chua.slice(0, 8).map((id) => '<span class="bb-ai">' + esc(tenCua(id)) + '</span>').join('') +
-        (chua.length > 8 ? '<span class="bb-ai">+' + (chua.length - 8) + '</span>' : '') +
+        '<span class="bb-tien-do" title="' + daDoc.size + '/' + nhan.length + ' đã đọc">' +
+          '<i style="width:' + (nhan.length ? Math.round((daDoc.size / nhan.length) * 100) : 0) + '%"></i>' +
+        '</span>' +
+        '<span class="bb-ai ' + (chua.length ? 'chua' : 'roi') + '">' +
+          daDoc.size + '/' + nhan.length + ' đã đọc' +
+          (chua.length ? ' · còn ' + chua.length : ' · đủ') + '</span>' +
       '</div>' +
     '</div>' +
     '<div class="bb-dong-nut">' +
+      '<button class="btn nho" data-tb-ai="' + esc(tb.recordId) + '">Ai đã xem</button>' +
       '<button class="btn nho" data-tb-thu="' + esc(tb.recordId) + '">Xem thử</button>' +
       '<button class="btn nho" data-tb-sua="' + esc(tb.recordId) + '">Sửa</button>' +
       '<button class="btn nho ghost" data-tb-xoa="' + esc(tb.recordId) + '">Xoá</button>' +
@@ -635,6 +660,72 @@ function veCdTbDong(tb) {
 /* Ô <input type="date"> cần YYYY-MM-DD theo giờ VN, không phải theo giờ máy. */
 const ngayO = (ms) => (ms ? new Date(Number(ms) + 7 * 3600000).toISOString().slice(0, 10) : '');
 const msTuO = (v) => (v ? Date.parse(v + 'T00:00:00+07:00') || 0 : 0);
+
+/**
+ * Hai danh sách: ai đã xem (kèm giờ), ai chưa.
+ *
+ * Đây mới là câu trả lời quản lý cần — con số chỉ nói có bao nhiêu, còn việc
+ * phải làm là đi nhắc ĐÚNG NGƯỜI. Xếp chưa-đọc lên trước vì đó là phần còn
+ * việc; đã-đọc để dưới, theo thứ tự đọc sớm trước.
+ */
+function moAiDaXem(tb) {
+  const db = (TBQL && TBQL.danhBa) || [];
+  const tenCua = (id) => (db.find((x) => x.ten && x.id === id) || {}).ten || id;
+  const nhan = tb.moiAi ? db.map((x) => x.id) : (tb.ai || []);
+  const daDoc = (tb.daDoc || []).slice()
+    .sort((a, b) => String(a.luc).localeCompare(String(b.luc)));
+  const idDaDoc = new Set(daDoc.map((x) => x.id));
+  const chua = nhan.filter((id) => !idDaDoc.has(id))
+    .sort((a, b) => tenCua(a).localeCompare(tenCua(b), 'vi'));
+
+  /* Giờ đọc theo giờ VN, dạng ngắn. "23:14 hôm qua" và "8:02 sáng nay" là hai
+   * câu chuyện khác nhau khi có việc, nên phải hiện giờ chứ không chỉ ngày. */
+  const gio = (iso) => {
+    const t = Date.parse(iso || '');
+    if (!t) return 'không rõ lúc nào';
+    const d = new Date(t + 7 * 3600000);
+    const p2 = (n) => String(n).padStart(2, '0');
+    return p2(d.getUTCDate()) + '/' + p2(d.getUTCMonth() + 1) + ' ' +
+      p2(d.getUTCHours()) + ':' + p2(d.getUTCMinutes());
+  };
+
+  const khoi = (ten, ds, lop) =>
+    '<div class="bb-cot">' +
+      '<div class="bb-cot-dau"><b>' + ten + '</b><span class="bb-ai ' + lop + '">' +
+        ds.length + '</span></div>' +
+      (ds.length
+        ? '<div class="bb-cot-ds">' + ds.join('') + '</div>'
+        : '<div class="q-ghi-nho">— không có ai —</div>') +
+    '</div>';
+
+  moModal('Ai đã xem · ' + (tb.tieuDe || '(không tiêu đề)'),
+    '<div class="bb-ai-noi">' +
+      '<div class="q-ghi-nho">Gửi cho <b>' +
+        (tb.moiAi ? 'cả phòng — tính theo danh bạ ' + db.length + ' người' : nhan.length + ' người') +
+        '</b>. ' +
+        (tb.moiAi ? 'Người mới vào sau cũng nhận, nên con số có thể nhích lên.' : '') +
+      '</div>' +
+      '<div class="bb-hai-cot">' +
+        khoi('Chưa xem', chua.map((id) =>
+          '<div class="bb-ai-dong"><span>' + esc(tenCua(id)) + '</span></div>'), 'chua') +
+        khoi('Đã xem', daDoc.map((x) => {
+          /* Không tra được tên nghĩa là open_id đó KHÔNG thuộc vùng của bản
+           * đang chạy — dấu hiệu duy nhất của chuyện lệch vùng, nên nói ra chứ
+           * đừng để một chuỗi ou_... trần không ai đọc được. */
+          const ten = x.ten && x.ten !== x.id ? x.ten : '';
+          return '<div class="bb-ai-dong">' +
+            (ten ? '<span>' + esc(ten) + '</span>'
+                 : '<span><code>' + esc(String(x.id).slice(0, 14)) + '…</code> ' +
+                   '<em class="bb-la">không có trong danh bạ bản này</em></span>') +
+            '<span class="bb-luc">' + esc(gio(x.luc)) + '</span></div>';
+        }), 'roi') +
+      '</div>' +
+    '</div>',
+    '<button class="btn ghost" id="tbAiQuay">← Danh sách</button><span class="grow"></span>' +
+    '<button class="btn ghost" data-close="1">Đóng</button>', true);
+
+  $('#tbAiQuay').onclick = () => { modalCaiDat('thong-bao'); };
+}
 
 function moFormTb(tb) {
   const d = TBQL || {};
@@ -674,6 +765,10 @@ function moFormTb(tb) {
     'Bỏ trống là hiện ngay và hiện mãi tới khi tắt. "Đến ngày" tính <b>hết</b> ngày đó.');
 
   html += hang('Gửi cho',
+    ((TBQL && TBQL.cheDo && TBQL.cheDo !== 'api')
+      ? '<div class="q-ghi-nho" style="color:var(--do)">Máy cá nhân: danh sách dưới đây ' +
+        'cho open_id KHÁC bản deploy — chọn ở đây thì người nhận không khớp.</div>'
+      : '') +
     '<label class="q-ck q-ck-manh"><input type="checkbox" id="tbMoiAi"' + (t.moiAi ? ' checked' : '') + '>' +
       '<span>Cả phòng</span><small class="q-nhat">— kể cả người vào sau này</small></label>' +
     '<input class="q-in q-loc" id="tbLoc" type="text" placeholder="Lọc theo tên…">' +

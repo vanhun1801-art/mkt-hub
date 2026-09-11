@@ -447,6 +447,38 @@ nhận thông báo (xem dưới), còn trên bản deploy thì quản lý chỉ 
 gửi cho chính mình. Không có nó thì cách duy nhất để biết popup trông ra sao là
 gửi thật cho cả phòng.
 
+### Ai đã xem, ai chưa
+
+Mỗi dòng thông báo có thanh tiến độ + `3/37 đã đọc · còn 34`, và nút **Ai đã xem**
+mở hai danh sách đầy đủ: **Chưa xem** (xếp theo tên, để dò bằng mắt rồi đi nhắc)
+và **Đã xem** kèm **giờ đọc**. Giờ quan trọng hơn nó trông: "đọc lúc 23:14 hôm
+qua" và "8:02 sáng nay" là hai câu chuyện khác nhau khi có việc.
+
+Bản đầu chỉ có mấy con số cộng tám cái tên cắt ngang — con số nói *có bao nhiêu*,
+mà câu hỏi của quản lý là *những ai*.
+
+Gửi "cả phòng" thì người nhận suy ra từ **danh bạ**, nên màn hình nói rõ chỗ đó:
+con số là ước lượng theo danh bạ, không phải tuyệt đối.
+
+### KHÔNG soạn thông báo ở máy cá nhân
+
+`open_id` cấp theo **từng app Lark**. Máy cá nhân đọc danh bạ qua phiên
+`lark-cli`, bản deploy đọc qua app Marketing Hub — hai bên ra **hai chuỗi khác
+nhau cho cùng một người**. Đo được trên Base thật: cùng anh Hùng, bản deploy cho
+`ou_5c7965c6…`, máy cá nhân cho `ou_f0d3514a…`.
+
+Hậu quả là loại im lặng nhất của cả tính năng này: tick đúng tên, lưu thành công,
+**không ai nhận được gì**. Không lỗi, không dấu hiệu.
+
+Không vá được ở tầng này — không có đường đổi `open_id` vùng này sang vùng kia
+khi người đó không tồn tại trên máy đang chạy. Nên panel **cảnh báo hai lần**:
+một băng đỏ trên đầu trang, và một dòng ngay tại khối "Gửi cho". Dấu hiệu nhận
+ra khi đã lỡ: trong "Ai đã xem", người đọc hiện thành `ou_…` kèm chữ *không có
+trong danh bạ bản này*.
+
+Xem thử và xem "ai đã xem" ở máy cá nhân thì vẫn đúng — chỉ việc **chọn người
+nhận** là không được.
+
 ### Máy cá nhân không bị chặn
 
 Chế độ `cli` cố ý không có danh tính phiên. Nên một thông báo "cả phòng" vẫn qua

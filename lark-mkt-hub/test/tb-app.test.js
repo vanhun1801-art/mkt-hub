@@ -232,6 +232,63 @@ const LUC = NGAY('2026-09-11') + 10 * 3600000;   // 10h sáng 11/09 giờ VN
       z ? 'bb-phu=' + z[1] + ' · cao nhất trong tệp=' + Math.max(...zKhac) : '(không thấy khối .bb-phu)');
   }
 
+  group('7b. "Ai đã xem, ai chưa" — phải là danh sách, không phải con số');
+  {
+    /* Anh Hùng mở trang ra và không biết ai đã xem ai chưa. Bản đầu chỉ có
+     * "3 đã đọc / 34 chưa đọc" cộng tám cái tên cắt ngang: con số nói CÓ BAO
+     * NHIÊU, còn câu hỏi của quản lý là NHỮNG AI — để đi nhắc đúng người. */
+    const cd = fs.readFileSync(path.join(__dirname, '..', 'public', 'caidat.js'), 'utf8');
+
+    ok('có cửa sổ hai danh sách', /function moAiDaXem\(/.test(cd));
+    ok('mỗi dòng thông báo có nút mở nó', /data-tb-ai="/.test(cd));
+    ok('danh sách ĐÃ XEM kèm giờ đọc, không chỉ tên',
+      /bb-luc/.test(cd) && /gio\(x\.luc\)/.test(cd),
+      '(giờ đọc là thứ phân biệt "đọc lúc 23:14 hôm qua" với "8:02 sáng nay")');
+    ok('chưa-xem xếp theo tên để dò được bằng mắt',
+      /localeCompare\(tenCua\(b\), 'vi'\)/.test(cd));
+    ok('đã-xem xếp theo thứ tự đọc sớm trước',
+      /sort\(\(a, b\) => String\(a\.luc\)\.localeCompare\(String\(b\.luc\)\)\)/.test(cd));
+    /* Gửi "cả phòng" thì người nhận suy ra từ danh bạ — phải nói ra chỗ đó,
+     * không thì con số trông như tuyệt đối mà thực ra là ước lượng. */
+    ok('nói rõ "cả phòng" đang tính theo danh bạ',
+      /tính theo danh bạ/.test(cd));
+    /* Bỏ hẳn kiểu bày tám cái tên cắt ngang ở dòng thu gọn. */
+    ok('dòng thu gọn không còn cắt tên ở số 8',
+      !/chua\.slice\(0, 8\)/.test(cd));
+
+    const sv = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+    /* Máy chủ phải trả kèm TÊN, không chỉ open_id: panel mà tự dò tên thì người
+     * đã rời khỏi danh bạ sẽ hiện thành một chuỗi ou_... không ai đọc được. */
+    ok('máy chủ đổi open_id thành tên trước khi trả về',
+      /daDoc: \[\.\.\.tb\.daDoc\.entries\(\)\]\.map\(\(\[id, luc\]\) => \(\{ id, ten: ten\.get\(id\) \|\| id, luc \}\)\)/.test(sv));
+  }
+
+  group('7c. Soạn ở máy cá nhân thì người nhận không khớp — phải nói ra');
+  {
+    /* Đo được trên Base thật: anh Hùng tạo hai thông báo trên Render, người
+     * nhận là ou_5c7965c6..., đã xác nhận cả hai. Còn danh bạ ở máy cá nhân
+     * trả về ou_f0d3514a... cho CÙNG một người. open_id cấp theo từng app Lark:
+     * máy cá nhân đọc qua phiên lark-cli, bản deploy đọc qua app Marketing Hub.
+     *
+     * Hậu quả im lặng nhất trong cả tính năng này: tick đúng tên, lưu thành
+     * công, không ai nhận được gì. Không lỗi, không dấu hiệu. Vá ở tầng này thì
+     * không được (không có đường đổi open_id vùng này sang vùng kia khi người
+     * đó không tồn tại trên máy đang chạy), nên phải nói thẳng trên màn hình. */
+    const sv = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+    const cd = fs.readFileSync(path.join(__dirname, '..', 'public', 'caidat.js'), 'utf8');
+
+    ok('máy chủ báo chế độ đang chạy cho panel', /cheDo: cfg\.mode/.test(sv));
+    ok('panel cảnh báo khi không phải chế độ api',
+      /d\.cheDo && d\.cheDo !== 'api'/.test(cd) &&
+      /đừng soạn thông báo ở đây/.test(cd));
+    ok('cảnh báo nói rõ NGUYÊN NHÂN là open_id khác vùng',
+      /open_id<\/code> khác/.test(cd) || /open_id.{0,40}khác/.test(cd));
+    /* Và cảnh báo lần hai ngay tại khối chọn người — người ta đọc băng trên rồi
+     * vẫn cuộn xuống tick, nên phải có chữ ở đúng chỗ tay đang làm. */
+    ok('khối "Gửi cho" cũng cảnh báo tại chỗ',
+      /Máy cá nhân: danh sách dưới đây/.test(cd));
+  }
+
   group('8. Không tệp public nào khai trùng tên ở phạm vi toàn cục');
   {
     /* Lỗi đã xảy ra thật lúc dựng tính năng này: `ngayTb` khai ở cả caidat.js

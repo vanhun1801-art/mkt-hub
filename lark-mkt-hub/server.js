@@ -948,6 +948,11 @@ async function api(req, res, u) {
         thieuCot: await tbApp.cotThieu(),
         larkUrl: tbApp.larkUrl(),
         mucDo: tbApp.MUC_DO,
+        /* Máy cá nhân đọc danh bạ qua phiên lark-cli, bản deploy đọc qua app
+         * Marketing Hub — open_id cấp theo TỪNG app nên hai bên ra hai chuỗi
+         * khác nhau cho cùng một người. Soạn ở máy cá nhân là tick đúng tên,
+         * lưu thành công, và không ai nhận được gì. Nói ra để panel cảnh báo. */
+        cheDo: cfg.mode,
       });
     }
 
