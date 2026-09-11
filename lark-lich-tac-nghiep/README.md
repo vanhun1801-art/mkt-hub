@@ -98,6 +98,62 @@ Quyết định phân quyền đọc bản ghi bằng `+record-get` (một lần
 bị đổi trong Lark hoặc ở máy người khác — dựa vào bản cũ sẽ mở một cửa sổ cho
 nhân sự sửa kế hoạch sau khi quản lý đã duyệt.
 
+### Khung giờ đăng ký
+
+Chỗ kẹt: nút đăng ký mở liên tục, nhân sự thêm lịch bất kỳ lúc nào, nên quản lý
+phải xử lý lịch rải rác cả tuần. Nếp làm bằng tay là nhắn cho cả phòng: đăng ký
+từ **15:00 T6** tới **12:00 T7**, phần còn lại của T7 dành để xếp việc tuần sau.
+
+Giờ app tự áp. Sửa ở **Phân quyền quản lý → Khung giờ đăng ký** (chỉ quản lý):
+
+| Thiết lập | Nghĩa |
+|---|---|
+| **Áp khung giờ** | Bỏ chọn là nút mở liên tục như trước |
+| **Mở / Đóng** | Thứ + giờ. Đặt mốc đóng **trước** mốc mở cũng được — ví dụ mở T7 15:00, đóng T2 12:00 thì cửa sổ vắt qua cuối tuần |
+| **Mở tay tới** | Ngoại lệ: mở thêm dù ngoài khung, tới đúng mốc thì hết hiệu lực |
+| **Đóng tay tới** | Ngoại lệ: đóng dù đang trong khung |
+
+Hai nút tay **thắng** khung giờ — chúng là câu "tôi quyết thế" của quản lý. Cùng
+bật cả hai thì **đóng thắng**.
+
+**Nháp không bị chặn — cố ý.** Cửa thật là lúc **Gửi duyệt**: soạn sẵn trong tuần
+rồi tới khung giờ bấm gửi là nếp tốt hơn, mà hàng đợi của quản lý vẫn chỉ đầy
+lên trong khung. Chặn cả nháp thì chỉ đẩy người ta đi ghi ra chỗ khác.
+
+Quản lý **không bao giờ** bị chặn: họ là người xếp việc.
+
+Chốt ở server, không chỉ khoá nút:
+
+| Quy tắc | Mã lỗi |
+|---|---|
+| Tạo lịch đi thẳng vào hàng đợi duyệt, ngoài khung | `DANG_KY_DONG` |
+| Bấm Gửi duyệt một bản nháp, ngoài khung | `DANG_KY_DONG` |
+| Lưu giờ sai định dạng (`25:99`) | `BAD_TIME` |
+
+Câu lỗi và tooltip đều **nói ra mốc mở lại** ("mở lại Thứ 6 15:00 ngày 18/09") —
+nút khoá mà không nói bao giờ mở thì người ta bấm lại mỗi tiếng.
+
+Luật nằm ở bảng **Cửa sổ đăng ký** (`tbl8TOoS3hQIhjPE`, một dòng) trong cùng Base.
+Trên Base chứ không phải file: ổ đĩa Render là tạm, mất file là nút mở liên tục
+trở lại mà không ai biết. Đọc bảng lỗi thì **không áp** cửa sổ — nghiêng về phía
+mở, vì đọc lỗi mà đóng nút thì cả phòng không đăng ký được và không có gì báo.
+
+Hai chỗ đã sai trong lúc dựng, nay có phép thử canh:
+
+- **Lệch một ngày.** "Thứ 6" là ISO **5**, không phải 6. Bản đầu gõ 6 nên cửa sổ
+  chạy T7→CN, mà màn hình vẫn hiện một câu đọc thấy hợp lý. Dùng `THU_SO` để
+  tra, đừng gõ số.
+- **Ô ngày trả về chuỗi ISO** ở chế độ cli (số ms ở chế độ api). `Number()` trên
+  chuỗi đó ra NaN rồi thành 0 — bấm "đóng tay" xong đọc lại vẫn là mở, giá trị
+  nằm trên Base mà đọc ra 0.
+
+Phép tính "mở hay đóng" tách ra `cua-so-dang-ky.js` (giờ VN, xử được cửa sổ vắt
+tuần); `test/cua-so.test.js` canh 62 phép, không cần server không cần Base.
+
+**Còn thiếu:** luật được đệm 60 giây. Một tiến trình thì đổi xong áp ngay (đường
+ghi tự xoá đệm), nhưng nếu chạy hai tiến trình cùng lúc trên một máy thì tiến
+trình kia còn đọc luật cũ tới một phút.
+
 ### Xin huỷ MUỘN — lịch đã duyệt mà không đi được
 
 Chỗ kẹt có thật: lịch đã duyệt, tới ngày nhân sự bất khả kháng không đi được. Họ
@@ -218,6 +274,7 @@ khai ở `SO` trong `tourwell.js` — **dò từ máy chủ thật, không cái 
 node test/api.test.js          # chỉ đọc
 node test/quyen.test.js        # chỉ đọc, cần instance vai nhân sự ở 5175
 node test/huy-muon.test.js     # thuần logic — không cần server, không cần Base
+node test/cua-so.test.js       # thuần logic + soi nguồn
 node test/tourwell.test.js     # thuần logic — ngày, VAT, số danh mục
 ```
 

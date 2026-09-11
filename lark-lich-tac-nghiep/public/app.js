@@ -260,6 +260,7 @@ async function load(force) {
   S.people = d.people || [];
   S.options = d.options || {};
   S.config = d.config || {};
+  S.cuaSo = d.cuaSo || { mo: true };
   if (!S.tab) S.tab = MGR() ? 'overview' : 'mine';
   if (!S.cal) { const n = new Date(); S.cal = { y: n.getFullYear(), m: n.getMonth() }; }
 }
@@ -1050,6 +1051,7 @@ function viewMine() {
       '<div class="sp"><b>' + needFix.length + ' lịch</b> bị trả về cần điều chỉnh rồi gửi duyệt lại.</div></div>';
   }
 
+  h += bangCuaSo();
   h += filterBar({ noStatus: true, noPerson: true });
   h += theSoLichCuaToi(list);
 
@@ -1149,6 +1151,37 @@ const duBaoCao = (t) => thieuGiBaoCao(t).length === 0;
  * Mốc: 9 giờ sáng NGÀY HÔM SAU ngày tác nghiệp — đi về, ngủ một giấc, sáng ra là
  * phải nộp. Trước mốc đó thì chưa giục, để nhân sự còn nghỉ.
  */
+/** Mốc cửa sổ -> "Thứ 6 15:00 ngày 12/09", giờ Việt Nam. */
+function mocCuaSo(ms) {
+  const p = vnParts(new Date(Number(ms)).toISOString());
+  if (!p) return '';
+  /* Tên thứ suy từ mốc đã cộng lệch VN, không dùng getDay() của máy: máy nhân
+   * sự đặt sai múi giờ là ra sai thứ, mà thứ chính là thông tin duy nhất ở đây. */
+  const d = new Date(Number(ms) + LECH_VN);
+  const ten = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'][d.getUTCDay()];
+  return ten + ' ' + pad(p.H) + ':' + pad(p.M) + ' ngày ' + pad(p.d) + '/' + pad(p.m);
+}
+
+/**
+ * Băng nhắc về khung giờ đăng ký, đặt ở đầu màn "Lịch của tôi".
+ *
+ * Cần một câu ở chỗ dễ thấy, không chỉ tooltip trên nút: nhân sự mở app ra thấy
+ * nút xám thì phải biết NGAY là do khung giờ, chứ không phải app lỗi.
+ */
+function bangCuaSo() {
+  const cs = S.cuaSo;
+  if (!cs || MGR() || PREVIEW()) return '';
+  if (cs.mo) {
+    if (!cs.dongLuc) return '';
+    return '<div class="banner"><div class="sp">Đang mở đăng ký lịch — ' +
+      '<b>đóng lúc ' + esc(mocCuaSo(cs.dongLuc)) + '</b>. Qua mốc đó thì chờ tuần sau.</div></div>';
+  }
+  return '<div class="banner" style="background:var(--orange-bg);color:var(--orange-t);border-color:#f6d9a8">' +
+    '<div class="sp"><b>Đăng ký lịch đang đóng.</b> ' + esc(cs.vi || '') +
+    (cs.moLuc ? ' Mở lại <b>' + esc(mocCuaSo(cs.moLuc)) + '</b>.' : '') +
+    ' Soạn trước thành bản nháp thì vẫn được — tới khung giờ bấm Gửi duyệt.</div></div>';
+}
+
 function toiHanBaoCao(t) {
   const d = toDate(t.start);
   if (!d) return false;
@@ -1513,7 +1546,21 @@ function render() {
   renderChip();
   $('#btnLark').href = S.config.larkUrl || '#';
   // Xem hộ người khác thì không cho đăng ký lịch đứng tên họ
-  $('#btnNew').style.display = (PREVIEW() || !DUOC_TAO()) ? 'none' : '';
+  /* Nút đăng ký: ẩn khi không có quyền, KHOÁ khi ngoài khung giờ.
+   *
+   * Khoá chứ không ẩn — nút biến mất thì người ta tưởng app lỗi hoặc tưởng mất
+   * quyền; nút khoá kèm chữ "mở lại Thứ 6 15:00" thì họ biết chờ tới lúc nào.
+   * Quản lý không bao giờ bị khoá: họ là người xếp việc. */
+  const nutMoi = $('#btnNew');
+  nutMoi.style.display = (PREVIEW() || !DUOC_TAO()) ? 'none' : '';
+  const cs = S.cuaSo || { mo: true };
+  const khoaDK = !MGR() && !cs.mo;
+  nutMoi.disabled = khoaDK;
+  nutMoi.textContent = khoaDK ? 'Đăng ký đang đóng' : '+ Đăng ký lịch';
+  nutMoi.title = khoaDK
+    ? (cs.vi || 'Ngoài khung giờ đăng ký.') +
+      (cs.moLuc ? ' Mở lại ' + mocCuaSo(cs.moLuc) + '.' : '')
+    : '';
 
   let h = '';
   if (PREVIEW()) {
@@ -1789,8 +1836,17 @@ function datNgay(inp, iso) {
   const k = inp.dataset.k;
   if (k && S.sel) { setDraft(k, iso); return; }
   const n = inp.dataset.n;
-  if (n) NEW[n] = iso || '';
+  if (n) { NEW[n] = iso || ''; return; }
+  /* Màn Khung giờ đăng ký dùng chung ô ngày này. Không có nhánh riêng thì mốc
+   * người ta chọn trên lịch rơi vào hư không — ô hiện đúng giờ, mà bấm Lưu là
+   * mất. Đúng loại lỗi im lặng nhất của ô nhập. */
+  const c = inp.dataset.cs;
+  if (c) CS_NGAY[c] = iso || '';
 }
+
+/* Mốc của hai ngoại lệ tay ở màn Khung giờ đăng ký. Để riêng chứ không nhét vào
+ * NEW/BC: hai ô kia thuộc form lịch, lẫn vào là sửa màn này ghi sang màn khác. */
+let CS_NGAY = { moTayToi: '', dongTayToi: '' };
 
 function fieldDate(key, label, hint) {
   const on = canEdit(key);
@@ -2822,6 +2878,137 @@ function keoLocToiLich(startISO) {
 }
 
 /* ==========================================================================
+   KHUNG GIỜ ĐĂNG KÝ
+   ==========================================================================
+   Nếp anh Hùng đang làm bằng tay: nhắn cho cả phòng "đăng ký từ 15:00 T6 tới
+   12:00 T7", phần còn lại của T7 anh xếp việc cho tuần sau. Màn này biến câu
+   nhắn đó thành luật app tự áp, và anh sửa được khi cần.
+
+   Hai nút tay đứng riêng vì chúng là ngoại lệ, không phải thiết lập: "mở thêm
+   2 tiếng" cho một tuần có việc gấp, hay "đóng luôn" khi anh chưa xếp xong.
+   ========================================================================== */
+let CS = null;
+
+async function moManCuaSo() {
+  $('#mdTitle').textContent = 'Khung giờ đăng ký lịch';
+  $('#mdBody').innerHTML = '<div class="mini muted">Đang đọc…</div>';
+  $('#mdFoot').innerHTML = '<button class="btn" data-close="1">Đóng</button>';
+  $('#modal').classList.add('on');
+  try {
+    CS = await api('/api/cua-so?refresh=1');
+  } catch (e) {
+    $('#mdBody').innerHTML = '<div class="banner" style="background:var(--red-bg);color:var(--red-t)">' +
+      '<div class="sp">' + esc(e.message) + '</div></div>';
+    return;
+  }
+  veManCuaSo();
+}
+
+function veManCuaSo() {
+  const L = CS.luatTho || {};
+  /* Nạp lại từ bản ghi mỗi lần vẽ: không nạp thì lần mở thứ hai vẫn giữ mốc
+   * của lần trước, và Lưu sẽ ghi lại cái cũ. */
+  CS_NGAY = {
+    moTayToi: L.moTayToi ? new Date(L.moTayToi).toISOString() : '',
+    dongTayToi: L.dongTayToi ? new Date(L.dongTayToi).toISOString() : '',
+  };
+  const thu = CS.thu || [];
+  const oThu = (id, val) => '<select class="fld" id="' + id + '">' + thu.map((t, i) =>
+    '<option value="' + (i + 1) + '"' + (Number(val) === i + 1 ? ' selected' : '') + '>' +
+    esc(t) + '</option>').join('') + '</select>';
+
+  /* Trạng thái LÚC NÀY đứng đầu màn: câu hỏi đầu tiên khi mở màn này ra luôn là
+   * "giờ đang mở hay đóng", không phải "luật là gì". */
+  const dang = CS.mo
+    ? '<div class="banner" style="background:var(--green-bg,#e6f7ee);color:var(--green-t,#12a150);border-color:#bfe6d0">' +
+      '<div class="sp"><b>Đang MỞ.</b> ' + esc(CS.vi || '') +
+      (CS.dongLuc ? ' Đóng lúc <b>' + esc(mocCuaSo(CS.dongLuc)) + '</b>.' : '') + '</div></div>'
+    : '<div class="banner" style="background:var(--orange-bg);color:var(--orange-t);border-color:#f6d9a8">' +
+      '<div class="sp"><b>Đang ĐÓNG.</b> ' + esc(CS.vi || '') +
+      (CS.moLuc ? ' Mở lại <b>' + esc(mocCuaSo(CS.moLuc)) + '</b>.' : '') + '</div></div>';
+
+  $('#mdBody').innerHTML = dang +
+    (CS.chuaKhai
+      ? '<div class="banner" style="background:var(--red-bg);color:var(--red-t)"><div class="sp">' +
+        'Chưa đọc được bảng <b>Cửa sổ đăng ký</b> — cơ chế đang không áp, nút mở liên tục.' +
+        '</div></div>'
+      : '') +
+    '<div class="frm-row" style="margin-bottom:12px">' +
+      '<label class="opt' + (L.bat ? ' on' : '') + '" id="csBat" style="cursor:pointer">' +
+        (L.bat ? '✔ ' : '') + 'Áp khung giờ đăng ký</label>' +
+      '<div class="hint">Bỏ chọn là nút đăng ký mở liên tục như trước.</div>' +
+    '</div>' +
+    '<div class="frm-2">' +
+      '<div class="frm-row"><label>Mở</label><div class="row-2">' +
+        oThu('csMoThu', L.moThu) +
+        '<input class="fld" id="csMoGio" value="' + esc(L.moGio || '15:00') + '" placeholder="15:00">' +
+      '</div></div>' +
+      '<div class="frm-row"><label>Đóng</label><div class="row-2">' +
+        oThu('csDongThu', L.dongThu) +
+        '<input class="fld" id="csDongGio" value="' + esc(L.dongGio || '12:00') + '" placeholder="12:00">' +
+      '</div></div>' +
+    '</div>' +
+    '<div class="hint" style="margin:-4px 0 14px">Đặt mốc đóng TRƯỚC mốc mở cũng được — ' +
+      'ví dụ mở Thứ 7 15:00, đóng Thứ 2 12:00 thì cửa sổ vắt qua cuối tuần.</div>' +
+
+    '<div class="banner info"><div class="sp"><b>Ngoại lệ cho một lần.</b> ' +
+      'Hai nút dưới đây thắng khung giờ ở trên, tới đúng mốc đã đặt thì hết hiệu lực.' +
+      '</div></div>' +
+    '<div class="frm-2">' +
+      '<div class="frm-row"><label>Mở tay tới</label>' +
+        oNgay('cs', 'moTayToi', L.moTayToi ? new Date(L.moTayToi).toISOString() : '') +
+        '<div class="hint">Mở thêm dù ngoài khung.</div></div>' +
+      '<div class="frm-row"><label>Đóng tay tới</label>' +
+        oNgay('cs', 'dongTayToi', L.dongTayToi ? new Date(L.dongTayToi).toISOString() : '') +
+        '<div class="hint">Đóng dù đang trong khung.</div></div>' +
+    '</div>' +
+    '<div class="frm-row"><label>Ghi chú</label>' +
+      '<input class="fld" id="csGhiChu" value="' + esc(L.ghiChu || '') + '"></div>' +
+    (CS.larkUrl ? '<div class="hint" style="margin-top:10px">Sửa thẳng trong ' +
+      '<a href="' + esc(CS.larkUrl) + '" target="_blank" rel="noreferrer">bảng Cửa sổ đăng ký</a> cũng được.</div>' : '');
+
+  $('#mdFoot').innerHTML =
+    '<button class="btn" data-close="1">Đóng</button>' +
+    '<button class="btn primary" id="csLuu">Lưu</button>';
+
+  $('#csBat').onclick = () => {
+    const o = $('#csBat');
+    const bat = !o.classList.contains('on');
+    o.classList.toggle('on', bat);
+    o.textContent = (bat ? '✔ ' : '') + 'Áp khung giờ đăng ký';
+  };
+  $('#csLuu').onclick = luuCuaSo;
+}
+
+async function luuCuaSo() {
+  const nut = $('#csLuu');
+  nut.disabled = true;
+  nut.textContent = 'Đang lưu…';
+  try {
+    const d = await api('/api/cua-so', { method: 'PATCH', body: JSON.stringify({
+      bat: $('#csBat').classList.contains('on'),
+      moThu: Number($('#csMoThu').value),
+      moGio: $('#csMoGio').value,
+      dongThu: Number($('#csDongThu').value),
+      dongGio: $('#csDongGio').value,
+      /* CS_NGAY giữ mốc do oNgay() ghi vào; rỗng = xoá ngoại lệ. */
+      moTayToi: CS_NGAY.moTayToi ? Date.parse(CS_NGAY.moTayToi) : 0,
+      dongTayToi: CS_NGAY.dongTayToi ? Date.parse(CS_NGAY.dongTayToi) : 0,
+      ghiChu: $('#csGhiChu').value,
+    }) });
+    S.cuaSo = d.cuaSo || S.cuaSo;
+    toast('Đã lưu khung giờ đăng ký', 'ok');
+    CS = await api('/api/cua-so?refresh=1');
+    veManCuaSo();
+    render();
+  } catch (e) {
+    nut.disabled = false;
+    nut.textContent = 'Lưu';
+    toast(e.message, 'err');
+  }
+}
+
+/* ==========================================================================
    CẤU HÌNH THÔNG BÁO
    Quản lý tự quyết loại tin nào gửi vào Lark và gửi cho ai — không phải nhờ ai
    sửa mã. Nguồn là bảng "Cấu hình thông báo" trên Base: sửa ở đây hay sửa thẳng
@@ -2986,7 +3173,8 @@ async function openQuyen() {
       '<button class="opt' + (cur.has(p.id) ? ' on' : '') + '" data-q="' + esc(p.id) + '">' + esc(p.name) + '</button>').join('') +
     '</div><div class="hint" style="margin-top:10px">Không thể tự bỏ quyền của chính mình.</div>';
   $('#mdFoot').innerHTML =
-    '<button class="btn" id="moCauHinhBao" style="margin-right:auto">Cấu hình thông báo</button>' +
+    '<button class="btn" id="moCuaSo" style="margin-right:auto">Khung giờ đăng ký</button>' +
+    '<button class="btn" id="moCauHinhBao">Cấu hình thông báo</button>' +
     '<button class="btn" id="thuTinLark">Thử gửi tin Lark cho tôi</button>' +
     '<button class="btn" data-close="1">Đóng</button>' +
     '<button class="btn primary" id="qSave">Lưu quyền</button>';
@@ -2996,6 +3184,7 @@ async function openQuyen() {
     const b = e.target.closest('[data-q]');
     if (b) b.classList.toggle('on');
   };
+  $('#moCuaSo').onclick = moManCuaSo;
   $('#qSave').onclick = async () => {
     const ids = [...$('#mdBody').querySelectorAll('[data-q].on')].map((b) => b.dataset.q);
     try {
@@ -3571,7 +3760,8 @@ document.addEventListener('change', async (e) => {
   if (T.dataset && T.dataset.kieu === 'ngay') {
     const cu = T.dataset.bc && BC ? BC[T.dataset.bc]
       : T.dataset.k && S.sel ? S.sel[T.dataset.k]
-      : (T.dataset.n ? NEW[T.dataset.n] : null);
+      : T.dataset.n ? NEW[T.dataset.n]
+      : (T.dataset.cs ? CS_NGAY[T.dataset.cs] : null);
     if (!T.value.trim()) { datNgay(T, null); return; }
     const iso = docNgayVN(T.value);
     if (iso) datNgay(T, iso);

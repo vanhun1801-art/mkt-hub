@@ -151,6 +151,9 @@ function khoaKeHoach(status, keys) {
  * khi lấy đầu ngày, và app này đã có một lỗi đúng kiểu đó. Chú thích đầy đủ và
  * phép thử ở trong tệp đó. */
 const huyMuon = require('./huy-muon');
+/* Phép tính "bây giờ mở hay đóng" tách riêng: nó tính theo giờ VN và phải xử
+ * được cửa sổ vắt qua tuần. Chú thích và phép thử ở trong tệp đó. */
+const cuaSo = require('./cua-so-dang-ky');
 const mocHuyMuon = (item) => huyMuon.moc(item, cfg.lateCancel.afterMs);
 const huyMuonDuoc = (item, luc) => huyMuon.duoc(item, cfg.lateCancel, luc);
 
@@ -417,6 +420,74 @@ async function docCauHinhBao(force) {
     demCauHinh.ds = null;
   }
   return demCauHinh.ds;
+}
+
+/* ---------------- cửa sổ đăng ký ---------------- */
+let demCuaSo = { at: 0, luat: null };
+
+/**
+ * Luật cửa sổ đăng ký, đọc từ bảng một dòng trên Base.
+ *
+ * Đọc lỗi (mất mạng, đổi tên cột) thì trả null, và chỗ gọi hiểu là KHÔNG ÁP
+ * cửa sổ — nút mở như cũ. Cố ý nghiêng về phía mở: đọc lỗi mà đóng nút thì cả
+ * phòng không đăng ký được và không ai biết vì sao, còn mở thừa một hôm thì
+ * quản lý chỉ phải xếp thêm vài lịch.
+ */
+async function docLuatCuaSo(force) {
+  if (!force && demCuaSo.luat !== null && Date.now() - demCuaSo.at < 60000) return demCuaSo.luat;
+  const F2 = cfg.cuaSoFields;
+  try {
+    const fields = await lark.listFields(cfg.cuaSoTableId);
+    const idCua = {};
+    for (const f of fields) {
+      const ten = f.name || f.field_name;
+      const fid = f.id || f.field_id;
+      if (ten && fid) idCua[ten] = fid;
+    }
+    const recs = await lark.listAllRecords(cfg.cuaSoTableId);
+    const r = recs[0];
+    if (!r) { demCuaSo = { at: Date.now(), luat: null }; return null; }
+    const c = r.cells || {};
+    const lay = (ten) => c[idCua[ten]];
+    const thuSo = (v) => cuaSo.THU_SO[asText(first(v))] || 0;
+    /* Ô NGÀY của Base trả về CHUỖI ISO ở chế độ cli ("2026-09-11T16:25+07:00"),
+     * còn chế độ api trả số ms. Number() trên chuỗi đó ra NaN, rồi `|| 0` biến
+     * nó thành "không đặt" — nên bấm "đóng tay" xong đọc lại vẫn là mở, im lặng
+     * hoàn toàn. Đã đo được đúng thế: giá trị NẰM trên Base mà đọc ra 0. */
+    const asMs = (v) => {
+      const x = first(v);
+      if (x == null || x === '') return 0;
+      if (typeof x === 'number') return x;
+      return Date.parse(asText(x)) || 0;
+    };
+    demCuaSo = {
+      at: Date.now(),
+      luat: {
+        recordId: r.record_id,
+        bat: lay(F2.bat) === true,
+        moThu: thuSo(lay(F2.moThu)),
+        moGio: asText(lay(F2.moGio)),
+        dongThu: thuSo(lay(F2.dongThu)),
+        dongGio: asText(lay(F2.dongGio)),
+        moTayToi: asMs(lay(F2.moTayToi)),
+        dongTayToi: asMs(lay(F2.dongTayToi)),
+        ghiChu: asText(lay(F2.ghiChu)),
+      },
+    };
+  } catch (e) {
+    console.warn('[cửa sổ đăng ký] không đọc được, tạm không áp: ' + e.message);
+    demCuaSo = { at: Date.now(), luat: null };
+  }
+  return demCuaSo.luat;
+}
+
+/** Trạng thái cửa sổ lúc này. Không có luật -> coi như mở. */
+async function trangThaiCuaSo(force) {
+  const luat = await docLuatCuaSo(force);
+  if (!luat) {
+    return { mo: true, vi: 'Chưa khai bảng Cửa sổ đăng ký — nút mở liên tục.', chuaKhai: true };
+  }
+  return Object.assign(cuaSo.trangThai(luat), { ghiChu: luat.ghiChu, recordId: luat.recordId });
 }
 
 /**
@@ -692,6 +763,10 @@ async function api(req, res, url) {
       perm: { toanBo: manager || qToanBo(), taoMoi: manager || qDuocTao(), chiPhi: manager || qChiPhi() },
       // không được xem chi phí thì cắt luôn ở server, không chỉ ẩn trên giao diện
       items: (manager || qChiPhi()) ? scoped : scoped.map((t) => boChiPhi(t, me && me.id)),
+      /* Cửa sổ đăng ký: giao diện phải biết đang mở hay đóng để vẽ nút cho
+       * đúng. Gửi kèm cả mốc kế tiếp — nút bị khoá mà không nói bao giờ mở lại
+       * thì người ta bấm lại mỗi tiếng. */
+      cuaSo: await trangThaiCuaSo(url.searchParams.get('refresh') === '1'),
       blankRows: raw.length - all.length,
       /* Nhân sự thường chỉ thấy người có mặt trong lịch của chính họ; muốn thấy
        * cả phòng thì quản lý phải cấp "Xem toàn bộ". */
@@ -712,6 +787,58 @@ async function api(req, res, url) {
         fieldNames: Object.fromEntries(BY_KEY.map(([k, f]) => [k, f.name])),
       },
     });
+  }
+
+  /* --- cửa sổ đăng ký: đọc cho mọi người, SỬA chỉ quản lý --- */
+  if (p === '/api/cua-so') {
+    if (req.method === 'GET') {
+      const cs = await trangThaiCuaSo(url.searchParams.get('refresh') === '1');
+      const luat = await docLuatCuaSo(false);
+      return json(res, {
+        ...cs,
+        luatTho: luat,
+        thu: cuaSo.THU.slice(1),
+        larkUrl: cfg.larkUrl.replace(/table=[^&]*/, 'table=' + cfg.cuaSoTableId),
+      });
+    }
+
+    if (req.method === 'PATCH') {
+      if (!(await requireManager(res))) return;
+      const body = await readBody(req);
+      const luat = await docLuatCuaSo(true);
+      if (!luat) {
+        return json(res, {
+          error: 'Chưa đọc được bảng "Cửa sổ đăng ký" — kiểm tra bảng và cột.',
+          code: 'NO_TABLE',
+        }, 400);
+      }
+      const F2 = cfg.cuaSoFields;
+      const cells = {};
+      const soThu = (v) => cuaSo.THU[Number(v)] || '';
+      if (body.bat != null) cells[F2.bat] = !!body.bat;
+      if (body.moThu != null && soThu(body.moThu)) cells[F2.moThu] = soThu(body.moThu);
+      if (body.dongThu != null && soThu(body.dongThu)) cells[F2.dongThu] = soThu(body.dongThu);
+      /* Giờ sai định dạng thì TỪ CHỐI, không im lặng lấy mặc định: lưu xong mà
+       * khung giờ khác cái vừa gõ là loại lỗi không ai soát lại. */
+      for (const [k, cot] of [['moGio', F2.moGio], ['dongGio', F2.dongGio]]) {
+        if (body[k] == null) continue;
+        if (cuaSo.docGio(body[k]) == null) {
+          return json(res, { error: 'Giờ "' + body[k] + '" không đọc được. Ghi kiểu 15:00.',
+            code: 'BAD_TIME' }, 400);
+        }
+        cells[cot] = cuaSo.veGio(cuaSo.docGio(body[k]));
+      }
+      if (body.moTayToi != null) cells[F2.moTayToi] = Number(body.moTayToi) || null;
+      if (body.dongTayToi != null) cells[F2.dongTayToi] = Number(body.dongTayToi) || null;
+      if (body.ghiChu != null) cells[F2.ghiChu] = String(body.ghiChu);
+      if (!Object.keys(cells).length) return json(res, { error: 'Không có gì để sửa' }, 400);
+
+      /* updateRecord nhận tableId ở tham số thứ ba — cả hai chế độ api/cli
+       * đều vậy, nên không cần hàm riêng. */
+      await lark.updateRecord(luat.recordId, cells, cfg.cuaSoTableId);
+      demCuaSo = { at: 0, luat: null };
+      return json(res, { ok: true, cuaSo: await trangThaiCuaSo(true) });
+    }
   }
 
   /* --- quyền quản lý --- */
@@ -1014,6 +1141,30 @@ async function api(req, res, url) {
       }, 403);
     }
 
+    /* CỬA SỔ ĐĂNG KÝ — chốt ở đây, không chỉ khoá nút.
+     *
+     * Chỉ chặn khi lịch đi thẳng vào hàng đợi duyệt. NHÁP thì cho tạo bất cứ
+     * lúc nào: nhân sự soạn sẵn trong tuần rồi tới khung giờ bấm Gửi duyệt là
+     * nếp tốt hơn, mà vẫn gọn cho quản lý vì hàng đợi chỉ đầy lên trong khung.
+     * Chặn cả nháp thì chỉ đẩy người ta đi ghi ra chỗ khác.
+     *
+     * Quản lý không bị chặn: họ là người xếp việc, phải thêm được bất cứ lúc nào.
+     */
+    if (!manager) {
+      const dinhGui = !body.status || body.status === 'Chờ duyệt/Xử lý';
+      if (dinhGui) {
+        const cs = await trangThaiCuaSo();
+        if (!cs.mo) {
+          return json(res, {
+            error: 'Ngoài khung giờ đăng ký. Mở lại ' + cuaSo.noiMoc(cs.moLuc) +
+              '. Cần đi gấp thì nói trực tiếp với quản lý.',
+            code: 'DANG_KY_DONG',
+            moLuc: cs.moLuc || 0,
+          }, 403);
+        }
+      }
+    }
+
     for (const k of cfg.requiredOnCreate) {
       const v = body[k];
       if (v == null || v === '' || (Array.isArray(v) && !v.length)) {
@@ -1152,6 +1303,21 @@ async function api(req, res, url) {
               'Bạn là nhân sự cùng tác nghiệp — góp nội dung thì gửi cho người phụ trách tổng hợp.',
             code: 'NOT_OWNER',
           }, 403);
+        }
+
+        /* Gửi duyệt = ĐĂNG KÝ. Đây là cửa thật của cơ chế khung giờ: nháp soạn
+         * lúc nào cũng được, nhưng đẩy vào hàng đợi của quản lý thì phải đúng
+         * khung — nếu không thì cả tuần vẫn có lịch mới rơi vào hàng đợi. */
+        if (body.status === 'Chờ duyệt/Xử lý' && item.status !== 'Chờ duyệt/Xử lý') {
+          const cs = await trangThaiCuaSo();
+          if (!cs.mo) {
+            return json(res, {
+              error: 'Ngoài khung giờ đăng ký. Mở lại ' + cuaSo.noiMoc(cs.moLuc) +
+                '. Lịch vẫn giữ ở bản nháp, tới khung giờ bấm Gửi duyệt là được.',
+              code: 'DANG_KY_DONG',
+              moLuc: cs.moLuc || 0,
+            }, 403);
+          }
         }
 
         /* Bản nháp là của riêng người viết, chưa ai nhìn tới — huỷ thì huỷ,

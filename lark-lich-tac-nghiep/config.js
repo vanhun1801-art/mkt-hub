@@ -58,6 +58,22 @@ module.exports = {
    * biến môi trường). Trên Base thì sống mãi, và sửa thẳng trong Base cũng được. */
   cauHinhTableId: process.env.LARK_TB_CAUHINH || 'tblZrFGHjUuHMpWI',
 
+  /* Bảng "Cửa sổ đăng ký" — MỘT dòng, giữ khung giờ mở/đóng nút đăng ký.
+   * Trên Base chứ không phải file, cùng lý do với bảng cấu hình thông báo: ổ
+   * đĩa Render là tạm, file mất sau mỗi lần deploy — mà mất luật này thì nút
+   * đăng ký mở liên tục trở lại và không ai biết. */
+  cuaSoTableId: process.env.LARK_TB_CUASO || 'tbl8TOoS3hQIhjPE',
+  cuaSoFields: {
+    bat: 'Bật cơ chế',
+    moThu: 'Mở thứ',
+    moGio: 'Mở giờ',
+    dongThu: 'Đóng thứ',
+    dongGio: 'Đóng giờ',
+    moTayToi: 'Mở tay tới',
+    dongTayToi: 'Đóng tay tới',
+    ghiChu: 'Ghi chú',
+  },
+
   /* Tên bốn cột của bảng cấu hình. Khai ở đây để đổi tên cột trên Base thì chỉ
    * sửa một chỗ. */
   cauHinhFields: {
