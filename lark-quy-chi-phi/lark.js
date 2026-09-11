@@ -63,11 +63,7 @@ function cliOnce(args, { timeout = 60000, cwd } = {}) {
   });
 }
 
-/* Mặc định là Base của app này. Tham số `base` mở đường ghi sang Base KHÁC —
- * cần từ khi bấm "Đã thanh toán" phải ghi thêm một dòng vào sổ quỹ, vốn nằm ở
- * Base "Chi phí Marketing". Không có nó thì phải dựng lại cả lớp gọi lark-cli
- * lần hai chỉ để đổi một tham số. */
-const baseArgs = (base) => ['--base-token', base || cfg.baseToken, '--as', cfg.identity];
+const baseArgs = () => ['--base-token', cfg.baseToken, '--as', cfg.identity];
 
 /** Người dùng đang đăng nhập lark-cli (dùng cho tab "Của tôi"). */
 async function whoami() {
@@ -102,12 +98,12 @@ function columnsToRecords(data) {
   });
 }
 
-async function listAllRecords(tableId = cfg.tableId, base) {
+async function listAllRecords(tableId = cfg.tableId) {
   const out = [];
   let offset = 0;
   for (let page = 0; page < 30; page++) {
     const data = await cli([
-      'base', '+record-list', ...baseArgs(base),
+      'base', '+record-list', ...baseArgs(),
       '--table-id', tableId,
       '--limit', '200', '--offset', String(offset),
       '--format', 'json',
@@ -133,8 +129,8 @@ async function getRecord(recordId, tableId = cfg.tableId) {
   return columnsToRecords(data)[0] || null;
 }
 
-async function listFields(tableId = cfg.tableId, base) {
-  const data = await cli(['base', '+field-list', ...baseArgs(base), '--table-id', tableId, '--format', 'json']);
+async function listFields(tableId = cfg.tableId) {
+  const data = await cli(['base', '+field-list', ...baseArgs(), '--table-id', tableId, '--format', 'json']);
   return data.fields || [];
 }
 
@@ -154,11 +150,11 @@ async function updateMany(map, tableId = cfg.tableId) {
   ]);
 }
 
-async function createRecord(fields, tableId = cfg.tableId, base) {
+async function createRecord(fields, tableId = cfg.tableId) {
   const names = Object.keys(fields);
   const row = names.map((n) => fields[n]);
   return cli([
-    'base', '+record-batch-create', ...baseArgs(base),
+    'base', '+record-batch-create', ...baseArgs(),
     '--table-id', tableId,
     '--json', JSON.stringify({ fields: names, rows: [row] }),
   ]);

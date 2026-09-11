@@ -632,6 +632,44 @@ async function taoDonTourwell(recId, item) {
   }
 }
 
+/* ---------------------------------------------------------------------------
+ * GHI KHOẢN CHI VÀO SỔ QUỸ
+ * -------------------------------------------------------------------------
+ * Cùng ba luật với phần Tourwell ở trên — một lịch một dòng, hỏng không được
+ * chặn việc đánh dấu, và phải nói ra kết quả. Chốt chống trùng ở đây là ô
+ * "Sổ quỹ" trong Base lịch, chứ không phải đếm dòng bên kia: đếm thì hai buổi
+ * cùng tên cùng tiền sẽ bị coi là một.
+ * ------------------------------------------------------------------------- */
+const soQuy = require('./so-quy');
+const dangGhiQuy = new Set();
+
+async function ghiSoQuy(recId, item, maDon) {
+  if (!soQuy.bat()) return { bo: 'chua-cau-hinh' };
+  if (String(item.soQuy || '').trim()) return { bo: 'da-co', ma: String(item.soQuy).trim() };
+  if (!(Number(item.costActual) > 0)) return { bo: 'khong-co-chi-phi' };
+  if (dangGhiQuy.has(recId)) return { bo: 'dang-ghi' };
+
+  dangGhiQuy.add(recId);
+  try {
+    const kq = await soQuy.ghiKhoanChi({ ...item, id: recId }, maDon);
+    if (kq && kq.id && F.soQuy) {
+      const ghi = 'Đã ghi sổ quỹ' + (kq.dot ? ' · ' + kq.dot : '');
+      try {
+        await lark.updateRecord(recId, { [F.soQuy.name]: ghi });
+        if (cache.records) {
+          const rec = cache.records.find((r) => r.record_id === recId);
+          if (rec) rec.cells[F.soQuy.id] = ghi;
+        }
+      } catch (e) { kq.loiGhiBase = e.message; }
+    }
+    return kq;
+  } catch (e) {
+    return { loi: e.message };
+  } finally {
+    dangGhiQuy.delete(recId);
+  }
+}
+
 async function baoVaoLark(item, trangThaiMoi, lyDo) {
   const luat = await luatBao(trangThaiMoi);
   if (!luat || !luat.bat) return;              // quản lý đã tắt loại tin này
@@ -1435,12 +1473,18 @@ async function api(req, res, url) {
        * cần nhận ngay mã đơn và danh sách việc còn phải làm tay. Chạy ngầm thì
        * họ đóng máy mất, không ai biết đơn đã tạo hay chưa. */
       let tw;
+      let sq;
       if (body.payment === 'Đã thanh toán' && item.payment !== 'Đã thanh toán') {
         tw = await taoDonTourwell(id, { ...item, ...body });
         if (tw && tw.loi) console.warn('[Tourwell]', tw.loi);
+
+        /* Rồi ghi tiếp một dòng vào SỔ QUỸ. Hai việc độc lập: Tourwell hỏng thì
+         * sổ quỹ vẫn phải có dòng chi, vì đó là chỗ theo dõi tiền còn lại. */
+        sq = await ghiSoQuy(id, { ...item, ...body }, tw && tw.ma);
+        if (sq && sq.loi) console.warn('[sổ quỹ]', sq.loi);
       }
 
-      return json(res, { ok: true, tourwell: tw });
+      return json(res, { ok: true, tourwell: tw, soQuy: sq });
     }
   }
 

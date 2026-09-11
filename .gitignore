@@ -10,7 +10,7 @@
 !render.yaml
 !package.json
 
-# bảy app
+# tám app
 !lark-mkt-hub/
 !lark-task-manager/
 !lark-lich-tac-nghiep/
@@ -19,6 +19,7 @@
 !lark-social/
 !lark-kpi/
 !lark-chinh-anh/
+!lark-quy-chi-phi/
 
 # ---- bí mật & dữ liệu cục bộ: KHÔNG bao giờ lên GitHub ----
 .env
@@ -27,6 +28,7 @@
 **/*.env
 **/ket-noi.json
 **/tourwell.json
+**/so-quy.json
 **/quyen.json
 **/quyen-*.json
 **/quyen.nhansu.json

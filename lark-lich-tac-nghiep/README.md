@@ -303,6 +303,16 @@ Hoặc đặt biến môi trường `TOURWELL_TOKEN` (dùng cách này trên Ren
 Số danh mục (nguồn 17, NCC 274, sale 33, sản phẩm 280, dịch vụ 7, chi nhánh 1)
 khai ở `SO` trong `tourwell.js` — **dò từ máy chủ thật, không cái nào đoán**.
 
+### Và một dòng vào sổ quỹ
+
+Cùng cú bấm đó còn ghi một khoản chi sang Base **Chi phí Marketing** (app
+[Quỹ chi phí](../lark-quy-chi-phi)): loại *Tác nghiệp*, người đề nghị là **người
+phụ trách buổi đó** chứ không phải người bấm nút, gắn vào đợt tạm ứng đang dùng.
+Mã ghi vào cột **Sổ quỹ** (`fld7T1Lytr`) — cũng là chốt chống ghi trùng.
+
+Hai việc độc lập: Tourwell hỏng thì sổ quỹ vẫn có dòng chi, và ngược lại. Tắt
+riêng phần sổ quỹ bằng `QUY_TAT=1` hoặc `so-quy.json` với `"tat": true`.
+
 ## Kiểm thử
 
 ```bash
@@ -311,6 +321,7 @@ node test/quyen.test.js        # chỉ đọc, cần instance vai nhân sự ở
 node test/huy-muon.test.js     # thuần logic — không cần server, không cần Base
 node test/cua-so.test.js       # thuần logic + soi nguồn
 node test/tourwell.test.js     # thuần logic — ngày, VAT, số danh mục
+node test/so-quy.test.js       # thuần logic — ngày sổ quỹ, chốt an toàn
 ```
 
 `test/tourwell.live.test.js --that` tạo một đơn THẬT trên Tourwell rồi tự huỷ —
@@ -328,7 +339,7 @@ không chứa tài khoản đang đăng nhập:
 PORT=5175 LARK_QUYEN_FILE=quyen.nhansu.json node server.js
 ```
 
-Lần chạy gần nhất: **152 pass · 0 fail** (65 + 47 + 40).
+Lần chạy gần nhất: **166 pass · 0 fail** (65 + 47 + 42 + 12).
 
 ## Lưu ý về dữ liệu Base
 
@@ -353,6 +364,7 @@ server.js        REST API + phục vụ file tĩnh, chốt quyền ở server
 public/app.js    toàn bộ giao diện (không framework)
 public/styles.css design token theo Lark
 tourwell.js      tạo đơn chi phí bên Tourwell khi đánh dấu đã thanh toán
+so-quy.js        ghi khoản chi sang Base Chi phí Marketing (app Quỹ chi phí)
 quyen.json       danh sách open_id của quản lý
 tourwell.json    host + token Tourwell (không lên git)
 ```

@@ -179,6 +179,10 @@ module.exports = {
      * bằng tên cột. Ô này cũng chính là CHỐT CHỐNG TẠO TRÙNG: đã có mã thì
      * không tạo đơn lần hai. */
     tourwell:     { id: 'fld8XjYhLe', name: 'Đơn Tourwell',             type: 'text', readOnly: true },
+    /* Dấu đã đưa khoản chi sang Base "Chi phí Marketing". Cũng là chốt chống
+     * ghi trùng — đếm dòng bên sổ quỹ thì hai buổi cùng tên cùng tiền sẽ bị
+     * coi là một. */
+    soQuy:        { id: 'fld7T1Lytr', name: 'Sổ quỹ',                    type: 'text', readOnly: true },
     tickets:      { id: 'fld4ka0VLj', name: 'Vé & thông tin cần thiết', type: 'attachment', readOnly: true },
     files:        { id: 'fldhQfS9ch', name: 'Tệp đính kèm',             type: 'attachment', readOnly: true },
     unc:          { id: 'fld7DqfHbF', name: 'UNC',                      type: 'attachment', readOnly: true },

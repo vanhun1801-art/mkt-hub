@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quỹ chi phí Marketing</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">₫</span>
+    <div>
+      <div class="ten">Quỹ chi phí Marketing</div>
+      <div class="phu" id="phuDe">đang tải…</div>
+    </div>
+  </div>
+  <div class="sp"></div>
+  <button class="btn" id="btnLark" title="Mở Base trên Lark">Base</button>
+  <button class="btn" id="btnTaiLai" title="Đọc lại từ Base">Tải lại</button>
+  <button class="btn" id="btnNap">Nạp quỹ</button>
+  <button class="btn primary" id="btnChiMoi">Khai khoản chi</button>
+</header>
+
+<main id="man">
+  <div class="dangTai">Đang đọc sổ quỹ…</div>
+</main>
+
+<div id="modal" class="modal">
+  <div class="hop">
+    <div class="hop-dau">
+      <div id="mdTitle">…</div>
+      <button class="x" data-close="1">×</button>
+    </div>
+    <div class="hop-than" id="mdBody"></div>
+    <div class="hop-chan" id="mdFoot"></div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

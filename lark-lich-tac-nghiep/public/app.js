@@ -2126,7 +2126,7 @@ async function saveDraft(tuDong) {
     const kq = await api('/api/items/' + id, { method: 'PATCH', body: JSON.stringify(patch) });
     Object.assign(S.sel, patch);
     // Sửa ô "Thanh toán chi phí" trong bảng cũng tạo đơn — không được im lặng
-    if (kq && kq.tourwell) moKetQuaTourwell(kq.tourwell, S.sel);
+    if (kq && (kq.tourwell || kq.soQuy)) moKetQuaTourwell(kq.tourwell, S.sel, kq.soQuy);
     // chỉ xoá đúng những gì vừa ghi — người ta có thể đã gõ tiếp trong lúc chờ
     for (const k of Object.keys(patch)) {
       if (JSON.stringify(S.draft[k] ?? null) === JSON.stringify(patch[k] ?? null)) delete S.draft[k];
@@ -2491,7 +2491,9 @@ async function doAction(act, id) {
       if (again) { S.sel = again; S.draft = {}; renderDrawer(); }
     }
     // Tạo đơn Tourwell xong thì phải nói ra, kèm việc còn lại — xem moKetQuaTourwell
-    if (kq && kq.tourwell) moKetQuaTourwell(kq.tourwell, S.items.find((x) => x.id === id));
+    if (kq && (kq.tourwell || kq.soQuy)) {
+      moKetQuaTourwell(kq.tourwell, S.items.find((x) => x.id === id), kq.soQuy);
+    }
   } catch (e) {
     toast(e.message, 'err');
   }
@@ -2516,18 +2518,57 @@ function tachDonTourwell(v) {
  * Năm việc dưới đây là 5 nút CÒN LẠI của quy trình 22 bước cũ; phần gõ số —
  * chỗ dễ sai nhất — máy đã làm.
  */
-function moKetQuaTourwell(tw, t) {
-  // Không có gì đáng báo: chưa khai token, lịch không có chi phí, hoặc đã có đơn từ trước
-  if (tw.bo && tw.bo !== 'da-co') return;
-  if (tw.bo === 'da-co') return toast('Lịch này đã có đơn Tourwell: ' + tw.ma, 'ok');
+function moKetQuaTourwell(tw, t, sq) {
+  /* Dòng về sổ quỹ. Ghép vào cùng cửa sổ chứ không mở cửa sổ thứ hai: người
+   * bấm một nút thì chỉ nên đọc một bản báo cáo. */
+  const dongSoQuy = () => {
+    if (!sq) return '';
+    if (sq.loi) {
+      return '<div class="tw-loi-chu">Chưa ghi được vào sổ quỹ: ' + esc(sq.loi) +
+        '<br>Vào app Quỹ chi phí khai tay khoản này.</div>';
+    }
+    if (sq.bo === 'da-co') return '<div class="tw-xong">✔ Khoản chi đã có sẵn trong sổ quỹ.</div>';
+    if (sq.bo) return '';
+    return '<div class="tw-xong">✔ Đã ghi vào sổ quỹ' +
+      (sq.dot ? ' — đợt <b>' + esc(sq.dot) + '</b>' : '') + '.</div>';
+  };
 
-  if (tw.loi && !tw.ma) {
+  tw = tw || {};
+  /* Có đơn Tourwell để khoe hay không — quyết định cả hình dạng cửa sổ. Hai
+   * tính năng bật/tắt độc lập nhau, nên phải chịu được cả bốn tổ hợp. */
+  const coDon = !!tw.ma;
+  const twImLang = !tw.ma && !tw.loi;         // tắt, hoặc bỏ qua vì không có chi phí
+
+  if (twImLang && !sq) return;                // chẳng có gì xảy ra, đừng làm phiền
+
+  /* Chỉ có sổ quỹ: cửa sổ gọn, không kê 5 việc Tourwell vì chẳng có đơn nào. */
+  if (twImLang) {
+    if (sq.bo && sq.bo !== 'da-co') return;
+    if (sq.loi) {
+      $('#mdTitle').textContent = 'Chưa ghi được vào sổ quỹ';
+      $('#mdBody').innerHTML = '<div class="tw-hop tw-loi">' +
+        '<p><b>Đã đánh dấu thanh toán trong Base</b> — phần đó không sao.</p>' +
+        '<div class="tw-loi-chu">' + esc(sq.loi) + '</div>' +
+        '<p class="mini muted">Vào app Quỹ chi phí khai tay khoản này.</p></div>';
+      $('#mdFoot').innerHTML = '<button class="btn" data-close="1">Đóng</button>';
+      $('#modal').classList.add('on');
+      return;
+    }
+    return toast(sq.bo === 'da-co'
+      ? 'Khoản chi đã có sẵn trong sổ quỹ'
+      : 'Đã ghi vào sổ quỹ' + (sq.dot ? ' — đợt ' + sq.dot : ''), 'ok');
+  }
+
+  if (tw.bo === 'da-co' && !sq) return toast('Lịch này đã có đơn Tourwell: ' + tw.ma, 'ok');
+
+  if (tw.loi && !coDon) {
     $('#mdTitle').textContent = 'Chưa tạo được đơn Tourwell';
     $('#mdBody').innerHTML =
       '<div class="tw-hop tw-loi">' +
         '<p><b>Đã đánh dấu thanh toán trong Base</b> — phần đó không sao.</p>' +
         '<p>Nhưng đơn bên Tourwell chưa tạo được:</p>' +
         '<div class="tw-loi-chu">' + esc(tw.loi) + '</div>' +
+        dongSoQuy() +
         '<p class="mini muted">Tạo tay như cũ, hoặc sửa xong thì bỏ đánh dấu thanh toán rồi bấm lại.</p>' +
       '</div>';
     $('#mdFoot').innerHTML = '<button class="btn" data-close="1">Đóng</button>';
@@ -2554,6 +2595,7 @@ function moKetQuaTourwell(tw, t) {
           '<br>Vào đơn thêm tay ở mục <b>Sửa giá net</b>.</div>'
         : '<div class="tw-xong">✔ Dòng chi phí Quỹ Marketing đã vào — điều hành sẽ thấy sẵn, ' +
           'không phải nhập lại.</div>') +
+      dongSoQuy() +
       '<div class="tw-con">Còn ' + viec.length + ' việc phải bấm tay trên Tourwell ' +
         '<span class="mini muted">(API không làm được mấy bước này)</span></div>' +
       '<ol class="tw-ds">' + viec.map((v) => '<li>' + v + '</li>').join('') + '</ol>' +

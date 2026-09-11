@@ -187,6 +187,30 @@
       "bat": true,
       "css": ".topbar-right { margin-left: auto; }",
       "caPhong": false
+    },
+    {
+      "id": "quy-chi-phi",
+      "ten": "Quỹ chi phí",
+      "mo_ta": "Sổ quỹ tạm ứng · chứng từ · quyết toán",
+      "icon": "tien",
+      "mau": "#f2a33c",
+      "kieu": "local",
+      "thuMuc": "../lark-quy-chi-phi",
+      "cong": 5182,
+      "lenh": [
+        "node",
+        "server.js"
+      ],
+      "larkUrl": "https://rootytrip2.sg.larksuite.com/base/IQfUbtDDZacFdCsl657l9hOPged",
+      "thuApi": "/api/meta",
+      "an": [
+        "header.topbar > .brand",
+        "#btnLark",
+        "#btnTaiLai"
+      ],
+      "phuSelector": "#phuDe",
+      "bat": true,
+      "caPhong": false
     }
   ]
 }

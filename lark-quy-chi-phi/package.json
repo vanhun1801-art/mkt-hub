@@ -1,0 +1,11 @@
+{
+  "name": "lark-quy-chi-phi",
+  "version": "1.0.0",
+  "private": true,
+  "description": "So quy chi phi Marketing tren Lark Base",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/quy.test.js"
+  }
+}

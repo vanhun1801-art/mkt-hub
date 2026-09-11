@@ -88,10 +88,8 @@ async function callOnce(method, url, { body, raw } = {}) {
   return d.data || {};
 }
 
-/* `base` mặc định là Base của app; truyền khác đi để ghi sang Base "Chi phí
- * Marketing" — cùng lý do với baseArgs() bên lark.js. */
-const baseUrl = (tableId, base) =>
-  '/open-apis/base/v3/bases/' + (base || cfg.baseToken) + '/tables/' + tableId;
+const baseUrl = (tableId) =>
+  '/open-apis/base/v3/bases/' + cfg.baseToken + '/tables/' + tableId;
 
 /* ---------------- Base -> bản ghi ---------------- */
 function columnsToRecords(data) {
@@ -106,11 +104,11 @@ function columnsToRecords(data) {
 }
 
 /* ---------------- các thao tác (cùng chữ ký với lark.js) ---------------- */
-async function listAllRecords(tableId = cfg.tableId, base) {
+async function listAllRecords(tableId = cfg.tableId) {
   const out = [];
   let offset = 0;
   for (let trang = 0; trang < 30; trang++) {
-    const d = await call('GET', baseUrl(tableId, base) + '/records?limit=200&offset=' + offset);
+    const d = await call('GET', baseUrl(tableId) + '/records?limit=200&offset=' + offset);
     out.push(...columnsToRecords(d));
     if (!d.has_more) break;
     offset += 200;
@@ -139,8 +137,8 @@ async function getRecord(recordId, tableId = cfg.tableId) {
   return null;
 }
 
-async function listFields(tableId = cfg.tableId, base) {
-  const d = await call('GET', baseUrl(tableId, base) + '/fields?limit=100&offset=0');
+async function listFields(tableId = cfg.tableId) {
+  const d = await call('GET', baseUrl(tableId) + '/fields?limit=100&offset=0');
   return d.fields || d.items || [];
 }
 
@@ -154,9 +152,9 @@ async function updateMany(map, tableId = cfg.tableId) {
   return call('POST', baseUrl(tableId) + '/records/batch_update', { body: { update_records: map } });
 }
 
-async function createRecord(fields, tableId = cfg.tableId, base) {
+async function createRecord(fields, tableId = cfg.tableId) {
   const names = Object.keys(fields);
-  return call('POST', baseUrl(tableId, base) + '/records/batch_create', {
+  return call('POST', baseUrl(tableId) + '/records/batch_create', {
     body: { fields: names, rows: [names.map((n) => fields[n])] },
   });
 }
