@@ -313,12 +313,33 @@ function moFormQuyen(i, nguoiSan) {
    * ô lọc để không phải rà mắt. Người đang sửa tự bỏ khỏi danh sách: tải của
    * chính mình thì luôn thấy, kê tên mình vào chỉ gây hiểu lầm là cần kê. */
   const dbXT = (d.danhBa || []).filter((x) => x.id !== (h.khop && h.khop.id) && x.id !== h.openId);
+
+  /* Id ĐÃ KÊ mà không còn trong danh bạ vẫn phải hiện ra.
+   *
+   * Ô tick vẽ từ danh bạ. Một id đã lưu trên Base mà danh bạ không có nữa —
+   * người đó rời khỏi mọi app, hoặc id đổi phạm vi — thì không có ô nào để vẽ,
+   * nhưng GIÁ TRỊ VẪN CÒN trên Base. Mở form ra thấy trống trơn, bấm Lưu một
+   * cái là nó mất thật, im lặng hoàn toàn.
+   *
+   * Nên vẽ thành dòng riêng có đánh dấu, vẫn tick sẵn (đúng trạng thái đang
+   * lưu). Bỏ tick là thực sự bỏ — không tự dọn hộ, quyền thì không nên tự đổi. */
+  const laCoTrongDb = new Set(dbXT.map((x) => x.id));
+  const keLac = (h.xemTaiAi || []).filter((id) => id && !laCoTrongDb.has(id) &&
+    id !== h.openId && !(h.khop && h.khop.id === id));
+
   html += hang('Xem tải của ai',
     '<label class="q-ck q-ck-manh"><input type="checkbox" id="fMoiXemTai"' +
       (h.moiXemTai ? ' checked' : '') + '>' +
       '<span>Cả phòng</span><small class="q-nhat">— kể cả người vào sau này</small></label>' +
     '<input class="q-in q-loc" id="fLocXemTai" type="text" placeholder="Lọc theo tên…">' +
-    '<div class="q-nhom q-nhom-cuon" id="fXemTai">' + dbXT.map((x) =>
+    '<div class="q-nhom q-nhom-cuon" id="fXemTai">' +
+    keLac.map((id) =>
+      '<label class="q-ck" data-ten="' + esc(chuanTenQ(id)) + '">' +
+      '<input type="checkbox" data-xt="' + esc(id) + '" checked>' +
+      '<span><code>' + esc(id) + '</code></span>' +
+      '<small class="q-nhat" style="color:var(--do)">— đã kê nhưng không còn ' +
+      'trong danh bạ, quyền này không có tác dụng</small></label>').join('') +
+    dbXT.map((x) =>
       '<label class="q-ck" data-ten="' + esc(chuanTenQ(x.ten)) + '">' +
       '<input type="checkbox" data-xt="' + esc(x.id) + '"' +
         ((h.xemTaiAi || []).includes(x.id) ? ' checked' : '') + '>' +

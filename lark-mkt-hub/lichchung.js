@@ -118,10 +118,36 @@ async function lichChung(mods, tu, den, boQuaCache, nguoi) {
   const c = cache.get(kh);
   if (!boQuaCache && c && Date.now() - c.at < cfg.kpiCacheMs) return { ...c.data, luc: c.at };
 
+  /* ĐỌC RỘNG, CẮT HẸP — và đây là chỗ quyền "Xem tải người khác" từng chết.
+   *
+   * Hub không đọc Base trực tiếp, nó gọi API của app con BẰNG DANH TÍNH CỦA
+   * NGƯỜI XEM. App con thấy nhân sự thì trả về đúng việc của người đó:
+   *
+   *   lark-task-manager      visibleFor()  -> manager || toanBo ? all : của mình
+   *   lark-lich-tac-nghiep   /api/meta     -> qToanBo() ? all : của mình
+   *
+   * Nên bộ lọc bên dưới chỉ lọc một tập đã bị cắt sạch từ trước. Đo thật:
+   * cấp cho một bạn content xem ba người, bạn ấy thấy hai dòng — mình, và một
+   * người tình cờ đứng chung MỘT việc với mình. Đúng cái tạo ra ảo giác
+   * "quyền có chạy, chỉ là hơi ít".
+   *
+   * Vậy ai có quyền xem tải thì lần đọc gộp này đọc bằng tầm nhìn đầy đủ, rồi
+   * cắt xuống đúng những dòng được kê ở dưới. An toàn vì: khoá bộ đệm có id
+   * người xem nên dữ liệu rộng không rớt sang người khác, và hàm này chỉ trả
+   * ra `hangHien` — phần đã cắt.
+   *
+   * Ai KHÔNG có quyền thì vẫn đọc hẹp như cũ: không có lý do gì kéo cả phòng
+   * vào bộ nhớ để rồi cắt đi hết. */
+  const coXemTai = !!(nguoi &&
+    (nguoi.moiXemTai || ((nguoi.xemTaiAi || []).length > 0)));
+  const nguoiDoc = coXemTai && !nguoi.quanLy && !nguoi.toanBo
+    ? Object.assign({}, nguoi, { toanBo: true })
+    : nguoi;
+
   const dsMod = mods.filter((m) => BO_DOC[m.kpi]);
   const ket = await Promise.all(dsMod.map(async (m) => {
     try {
-      return { id: m.id, viec: await BO_DOC[m.kpi](m, tu, den, nguoi) };
+      return { id: m.id, viec: await BO_DOC[m.kpi](m, tu, den, nguoiDoc) };
     } catch (e) {
       return { id: m.id, viec: [], loi: e.message };
     }

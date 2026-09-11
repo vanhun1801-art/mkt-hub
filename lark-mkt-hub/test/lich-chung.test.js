@@ -186,6 +186,88 @@ const dongCua = (kq, ten) => (kq.hang || []).find((h) => h.ten === ten);
     ok('có dòng "Chưa phân công" với 1 việc', h && h.tong === 1, h ? 'tong=' + h.tong : 'không thấy');
   }
 
+  group('7. Quyền có tới được APP CON không — lỗi đã xảy ra thật');
+  {
+    /* Muc 5 dùng một bộ đọc luôn trả về đủ danh sách, nên nó chứng minh được
+     * bộ lọc chạy đúng mà KHÔNG chứng minh được có gì để lọc. Đó đúng là chỗ
+     * hỏng.
+     *
+     * Hub không đọc Base trực tiếp: nó gọi /api/tasks và /api/meta của app con
+     * BẰNG DANH TÍNH CỦA NGƯỜI XEM, và app con cắt theo quyền:
+     *
+     *   lark-task-manager      visibleFor()  -> manager || toanBo ? all : của mình
+     *   lark-lich-tac-nghiep   /api/meta     -> qToanBo() ? all : của mình
+     *
+     * Nên cấp quyền xem tải mà không nâng tầm nhìn của LẦN ĐỌC GỘP thì bộ lọc
+     * chỉ lọc một tập đã bị cắt sạch. Đo thật trên máy anh Hùng: cấp cho một
+     * bạn content xem ba người, bạn ấy thấy hai dòng — mình, và một người tình
+     * cờ đứng chung MỘT việc với mình. Trông như "quyền có chạy, chỉ hơi ít".
+     *
+     * Bộ đọc ở đây cắt y như app con, nên bài thử đi qua đúng chỗ đã hỏng. */
+    const KHACH = { id: 'ou_content', name: 'Bạn content' };
+    const CHUNG = viec({ id: 'r0', chinh: [KHACH], hoTro: [HANG],
+      tieuDe: 'Việc Thư và Hằng làm chung' });
+    const ds = [
+      CHUNG,
+      viec({ id: 'r1', chinh: [HANG], tieuDe: 'Việc riêng của Hằng' }),
+      viec({ id: 'r2', chinh: [THANH], tieuDe: 'Việc riêng của Thành' }),
+    ];
+    const dungTrong = (v, id) =>
+      [...(v.chinh || []), ...(v.hoTro || [])].some((x) => x && x.id === id);
+
+    /** Bộ đọc CẮT theo quyền, đúng như app con thật. */
+    async function chayNhuAppCon(nguoi) {
+      let thay = null;
+      BO_DOC.__thu = async (m, tu2, den2, ai) => {
+        thay = ai;                       // giữ lại để soi đúng thứ được gửi xuống
+        const het = !!(ai && (ai.quanLy || ai.toanBo));
+        return het ? ds : ds.filter((v) => ai && dungTrong(v, ai.id));
+      };
+      xoaCache();
+      const kq = await lichChung([{ id: 'lich', kpi: '__thu' }], TU, DEN, true, nguoi);
+      delete BO_DOC.__thu;
+      return { kq, thay };
+    }
+    const ten = (kq) => (kq.hang || []).map((h) => h.ten).sort().join(', ');
+
+    /* Không có quyền: đọc hẹp là ĐÚNG — không có lý do kéo cả phòng vào bộ nhớ
+     * để rồi cắt đi hết. Hằng vẫn hiện vì có việc chung, nhưng đó là việc của
+     * chính Thư nên không phải rò rỉ. */
+    const khong = await chayNhuAppCon(KHACH);
+    ok('không có quyền: KHÔNG nâng tầm nhìn khi đọc',
+      !(khong.thay && khong.thay.toanBo),
+      'gửi xuống app con toanBo=' + (khong.thay && khong.thay.toanBo));
+    ok('không có quyền: không thấy việc riêng của người khác',
+      !(khong.kq.hang || []).some((h) => (h.o[NGAY] || [])
+        .some((x) => /riêng của/.test(x.tieuDe))),
+      'thấy: ' + ten(khong.kq));
+
+    /* Có quyền, kê đúng hai người. Đây là bài canh lỗi. */
+    const co = await chayNhuAppCon(Object.assign({ xemTaiAi: [HANG.id] }, KHACH));
+    ok('có quyền: lần đọc gộp được nâng tầm nhìn',
+      !!(co.thay && co.thay.toanBo),
+      'app con vẫn nhận toanBo=' + (co.thay && co.thay.toanBo) +
+      ' nên nó chỉ trả về việc của chính người xem — bộ lọc không có gì để lọc');
+    ok('có quyền: thấy TẢI THẬT của người được kê, không chỉ việc chung',
+      (co.kq.hang || []).some((h) => h.ten === 'Võ Hằng' && h.tong === 2),
+      'dòng của Hằng: tong=' +
+      (((co.kq.hang || []).find((h) => h.ten === 'Võ Hằng') || {}).tong));
+    ok('có quyền: đọc được TÊN việc riêng của người được kê',
+      (co.kq.hang || []).some((h) => h.ten === 'Võ Hằng' &&
+        (h.o[NGAY] || []).some((x) => x.tieuDe === 'Việc riêng của Hằng')),
+      '(bấm vào ô không ra tên việc — đúng điều anh Hùng báo)');
+    ok('có quyền: người KHÔNG được kê vẫn bị cắt dù đã đọc rộng',
+      !(co.kq.hang || []).some((h) => h.ten === 'Lê Trung Thành'),
+      'đọc rộng mà quên cắt thì thành mở hết — thấy: ' + ten(co.kq));
+
+    /* Kê `*` thì cũng phải nâng, không thì "cả phòng" cũng rỗng như trên. */
+    const caPhong = await chayNhuAppCon(Object.assign({ moiXemTai: true }, KHACH));
+    ok('kê cả phòng: cũng được nâng tầm nhìn và thấy đủ 3 dòng',
+      !!(caPhong.thay && caPhong.thay.toanBo) && (caPhong.kq.hang || []).length === 3,
+      'thấy: ' + ten(caPhong.kq));
+  }
+
+
   console.log('\n' + '─'.repeat(56));
   console.log('  ' + pass + ' pass · ' + fail + ' fail');
   if (fail) { console.log('\n  Không đạt:'); fails.forEach((f) => console.log('   - ' + f)); }
