@@ -1379,3 +1379,44 @@ a.phieu-f:hover { border-color: var(--primary); background: var(--blue-bg); }
   font-size: 11px; color: var(--t3); font-style: italic;
   margin-right: 6px; white-space: nowrap;
 }
+
+/* ==========================================================================
+   KẾT QUẢ TẠO ĐƠN TOURWELL
+   Cửa sổ này phải làm nổi BA thứ theo đúng thứ tự người đọc cần: mã đơn (để
+   tra cứu), việc máy đã làm xong (để yên tâm), việc còn phải bấm tay (để
+   không tưởng là xong). Danh sách việc còn lại cố ý đánh số — nó là phần
+   còn sót của một quy trình 22 bước, người dùng đang quen đếm.
+   ========================================================================== */
+.tw-hop { display: flex; flex-direction: column; gap: 10px; }
+
+.tw-ma {
+  font-size: 22px; font-weight: 700; letter-spacing: .4px; color: var(--t1);
+}
+.tw-tien { font-size: 13px; color: var(--t2); margin-top: -6px; }
+
+.tw-xong {
+  font-size: 13px; color: var(--green-t); background: var(--green-bg);
+  border: 1px solid var(--green-bg); border-radius: 8px; padding: 8px 10px;
+}
+
+.tw-con { font-size: 13px; font-weight: 600; color: var(--t1); margin-top: 2px; }
+
+.tw-ds { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+.tw-ds li { font-size: 13px; color: var(--t2); line-height: 1.5; }
+.tw-ds b { color: var(--t1); }
+
+.tw-loi-chu {
+  font-size: 13px; line-height: 1.55; color: var(--red-t);
+  background: var(--red-bg); border: 1px solid var(--red-vien);
+  border-radius: 8px; padding: 8px 10px; word-break: break-word;
+}
+.tw-loi .tw-loi-chu { margin: 4px 0; }
+
+/* Dòng mã đơn trong Phiếu đi tác nghiệp */
+.phieu-tw { font-weight: 600; }
+
+.tw-link {
+  font-size: 11px; color: var(--t2); text-decoration: none; white-space: nowrap;
+  border: 1px solid var(--line); border-radius: 6px; padding: 1px 5px; margin-left: 4px;
+}
+.tw-link:hover { color: var(--primary); border-color: var(--primary-border); }

@@ -157,13 +157,73 @@ nút nào — phải nói trực tiếp với quản lý. Đây là chủ ý (m�
 của mốc), nhưng nếu chuyện này xảy ra thường thì nên có một đường riêng cho nó
 chứ không nên nới mốc.
 
+## Tự tạo đơn Tourwell khi đánh dấu "Đã thanh toán"
+
+Mỗi buổi tác nghiệp đã chi tiền, anh Hùng phải làm **22 thao tác** trên Tourwell
+để chi phí đó vào sổ: tạo đơn → chuyển thành công → nhận điều hành → gõ dòng chi
+phí Quỹ Marketing → hoàn thành. Đoạn gõ số là chỗ dễ sai nhất, và đúng đoạn đó
+thì Open API của Tourwell làm được.
+
+Giờ khi quản lý bấm **Đã thanh toán**, `tourwell.js` gọi hai lần ghi:
+
+| | |
+|---|---|
+| `POST /api/v1/orders/products` | tạo đơn **Dịch vụ khác**, khách Lê Văn Hùng, nguồn *Khác*, ngày = ngày tác nghiệp |
+| `POST /api/v1/order-items/{id}/costs` | dòng chi phí **Quỹ Marketing**, SL 1, **VAT 8% đã gồm** |
+
+Mã đơn ghi ngược vào cột **Đơn Tourwell** (`fld8XjYhLe`) của Base — cột này cũng
+là **chốt chống tạo trùng**: đã có mã thì không tạo đơn lần hai.
+
+**Đã kiểm chứng trên hệ thống thật** (đơn RT16407 / RT16408, 11/09/2026): chi phí
+bắn ở *cấp đơn* tự chảy sang phiếu điều hành và Tourwell tự sinh luôn Phiếu đặt
+dịch vụ cho Quỹ Marketing. Bước 13–21 của quy trình tay biến mất hẳn.
+
+### Năm việc API KHÔNG làm được
+
+Đơn tạo ra dừng ở trạng thái **"Đang xử lý"**. Còn phải bấm tay trên Tourwell:
+chuyển thành công · xác nhận · tải UNC + hoá đơn · nhận điều hành · hoàn thành.
+Cửa sổ kết quả trong app kê đúng năm việc này kèm link — **cố ý không giấu**, vì
+người bấm mà tưởng đã xong thì tháng sau kế toán mới phát hiện đơn treo.
+
+Cũng không đặt được ô *Tên dịch vụ* (đã thử 5 tên trường, máy chủ nhận hết nhưng
+bỏ qua hết), nên tên hoạt động sống ở *Ghi chú đơn hàng* và ở dòng chi phí.
+
+### Bật
+
+Tính năng **tự tắt khi chưa có token**. Để bật, tạo `tourwell.json` (đã gitignore):
+
+```json
+{ "host": "rootytrip.tourwell.net", "token": "<token Api Official>" }
+```
+
+Hoặc đặt biến môi trường `TOURWELL_TOKEN` (dùng cách này trên Render). Token lấy
+ở Tourwell → **Cấu hình → Quản lý tài khoản** → tài khoản **Api Official**
+(`api@admin.com`) — *không phải* màn hình *API Key*. Tắt tạm: `"tat": true` hoặc
+`TOURWELL_TAT=1`.
+
+### Hai điều phải biết trước khi bật
+
+1. **Người tạo đơn hiện là "Api Official"**, không phải anh Hùng — API không đổi
+   được. Sale phụ trách thì vẫn đúng (Lê Văn Hùng, id 33).
+2. **Đơn này lọt vào `GET /api/v1/orders`** — đúng nguồn mà app Ads Manager đọc
+   để tính ROAS. Doanh thu bằng 0 nên không làm sai tiền, nhưng làm sai *số đơn*
+   nếu ai đó đếm. Lọc bằng nguồn *Khác* + nhà cung cấp Quỹ Marketing.
+
+Số danh mục (nguồn 17, NCC 274, sale 33, sản phẩm 280, dịch vụ 7, chi nhánh 1)
+khai ở `SO` trong `tourwell.js` — **dò từ máy chủ thật, không cái nào đoán**.
+
 ## Kiểm thử
 
 ```bash
 node test/api.test.js          # chỉ đọc
 node test/quyen.test.js        # chỉ đọc, cần instance vai nhân sự ở 5175
 node test/huy-muon.test.js     # thuần logic — không cần server, không cần Base
+node test/tourwell.test.js     # thuần logic — ngày, VAT, số danh mục
 ```
+
+`test/tourwell.live.test.js --that` tạo một đơn THẬT trên Tourwell rồi tự huỷ —
+phép thử duy nhất chứng minh máy chủ nhận, vì tài liệu của Tourwell đã sai một
+lần (bảo `service_id` chỉ nhận 6/10, thực tế nhận 7). Phải gõ `--that` mới chạy.
 
 Thêm `--write` để chạy vòng ghi thật (tạo → sửa → đính kèm → xoá). Bản ghi thử
 đặt tên `[TEST ...] <thời gian>` và bị xoá ở cuối bài, nhưng vẫn kích hoạt
@@ -176,7 +236,7 @@ không chứa tài khoản đang đăng nhập:
 PORT=5175 LARK_QUYEN_FILE=quyen.nhansu.json node server.js
 ```
 
-Lần chạy gần nhất: **112 pass · 0 fail** (65 + 47).
+Lần chạy gần nhất: **152 pass · 0 fail** (65 + 47 + 40).
 
 ## Lưu ý về dữ liệu Base
 
@@ -200,7 +260,9 @@ lark.js          gọi lark-cli, retry khi gặp lỗi tạm thời (1254291, ti
 server.js        REST API + phục vụ file tĩnh, chốt quyền ở server
 public/app.js    toàn bộ giao diện (không framework)
 public/styles.css design token theo Lark
+tourwell.js      tạo đơn chi phí bên Tourwell khi đánh dấu đã thanh toán
 quyen.json       danh sách open_id của quản lý
+tourwell.json    host + token Tourwell (không lên git)
 ```
 
 ## API

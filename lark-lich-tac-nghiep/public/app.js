@@ -829,7 +829,11 @@ function viewList() {
       '<td>' + ((t.transport || []).map((x) => '<span class="tag">' + esc(x) + '</span>').join('') || '<span class="muted">—</span>') + '</td>' +
       '<td class="num nowrap">' + money(t.costPlan) + '</td>' +
       '<td class="num nowrap">' + money(t.costActual) + '</td>' +
-      '<td>' + (t.payment ? '<span class="badge ' + (t.payment === 'Đã thanh toán' ? 'green' : 'yellow') + '">' + esc(t.payment) + '</span>' : '<span class="muted">—</span>') + '</td>' +
+      '<td>' + (t.payment ? '<span class="badge ' + (t.payment === 'Đã thanh toán' ? 'green' : 'yellow') + '">' + esc(t.payment) + '</span>' : '<span class="muted">—</span>') +
+        // Đơn Tourwell đã tạo: mở thẳng từ bảng chi phí, vì đây là nơi người
+        // đối chiếu cuối tháng ngồi, không phải trong từng phiếu
+        (t.tourwell ? ' <a class="tw-link" target="_blank" title="Mở đơn Tourwell" href="' +
+          esc(tachDonTourwell(t.tourwell).link) + '">🧾 ' + esc(tachDonTourwell(t.tourwell).ma) + '</a>' : '') + '</td>' +
       '<td>' + badge(t.status) + '</td>' +
       (coThaoTac ? '<td>' + oThaoTacDanhSach(t) + '</td>' : '') +
       '</tr>';
@@ -2023,6 +2027,20 @@ let henLuu = null;
 function setDraft(k, v) {
   const orig = S.sel[k];
   const same = JSON.stringify(orig ?? null) === JSON.stringify(v ?? null);
+
+  /* Ô "Thanh toán chi phí" trong bảng sửa tự lưu sau 900ms như mọi ô khác —
+   * nhưng riêng ô này, chuyển sang "Đã thanh toán" là tạo một ĐƠN THẬT bên
+   * Tourwell, thứ kế toán nhìn thấy và không xoá hẳn được. Chọn nhầm trong
+   * lúc lướt qua danh sách thì không có đường lùi êm. Nên hỏi một câu.
+   * Nút "Đã thanh toán" ngoài hàng đợi là hành động cố ý, không hỏi lại. */
+  if (k === 'payment' && v === 'Đã thanh toán' && orig !== 'Đã thanh toán' &&
+      !S.sel.tourwell && Number(S.sel.costActual) > 0) {
+    const ok = confirm('Đánh dấu đã thanh toán sẽ TẠO ĐƠN CHI PHÍ trên Tourwell\n\n' +
+      (S.sel.title || '(chưa đặt tên)') + '\n' + money(S.sel.costActual) + ' đ · Quỹ Marketing · VAT 8%\n\n' +
+      'Tiếp tục?');
+    if (!ok) { renderDrawer(); return; }
+  }
+
   if (same) delete S.draft[k]; else S.draft[k] = v;
   markDirty();
   clearTimeout(henLuu);
@@ -2036,8 +2054,10 @@ async function saveDraft(tuDong) {
   const patch = Object.assign({}, S.draft);
   markDirty('Đang lưu…');
   try {
-    await api('/api/items/' + id, { method: 'PATCH', body: JSON.stringify(patch) });
+    const kq = await api('/api/items/' + id, { method: 'PATCH', body: JSON.stringify(patch) });
     Object.assign(S.sel, patch);
+    // Sửa ô "Thanh toán chi phí" trong bảng cũng tạo đơn — không được im lặng
+    if (kq && kq.tourwell) moKetQuaTourwell(kq.tourwell, S.sel);
     // chỉ xoá đúng những gì vừa ghi — người ta có thể đã gõ tiếp trong lúc chờ
     for (const k of Object.keys(patch)) {
       if (JSON.stringify(S.draft[k] ?? null) === JSON.stringify(patch[k] ?? null)) delete S.draft[k];
@@ -2394,16 +2414,89 @@ async function doAction(act, id) {
     patch.mgrNote = String(ly).trim();
   }
   try {
-    await api('/api/items/' + id, { method: 'PATCH', body: JSON.stringify(patch) });
+    const kq = await api('/api/items/' + id, { method: 'PATCH', body: JSON.stringify(patch) });
     toast(a.msg, 'ok');
     await refresh(true);
     if (S.sel && S.sel.id === id) {
       const again = S.items.find((x) => x.id === id);
       if (again) { S.sel = again; S.draft = {}; renderDrawer(); }
     }
+    // Tạo đơn Tourwell xong thì phải nói ra, kèm việc còn lại — xem moKetQuaTourwell
+    if (kq && kq.tourwell) moKetQuaTourwell(kq.tourwell, S.items.find((x) => x.id === id));
   } catch (e) {
     toast(e.message, 'err');
   }
+}
+
+/** Ô "Đơn Tourwell" của Base lưu "RT16408 · https://…" — tách lại thành mã + link. */
+function tachDonTourwell(v) {
+  const s = String(v || '').trim();
+  const m = s.match(/(https?:\/\/\S+)/);
+  return { ma: s.split('·')[0].trim() || s, link: m ? m[1] : '' };
+}
+
+/**
+ * KẾT QUẢ TẠO ĐƠN TOURWELL
+ *
+ * Cửa sổ này tồn tại vì một lý do: Open API của Tourwell chỉ làm được nửa quy
+ * trình. Đơn đã có, dòng chi phí Quỹ Marketing đã có, nhưng đơn đang ở "Đang
+ * xử lý" — chưa chuyển thành công, chưa gửi điều hành, chưa đính kèm UNC.
+ * Đóng cửa sổ mà không kê ra thì người bấm tưởng xong việc, và tháng sau kế
+ * toán mới phát hiện đơn treo.
+ *
+ * Năm việc dưới đây là 5 nút CÒN LẠI của quy trình 22 bước cũ; phần gõ số —
+ * chỗ dễ sai nhất — máy đã làm.
+ */
+function moKetQuaTourwell(tw, t) {
+  // Không có gì đáng báo: chưa khai token, lịch không có chi phí, hoặc đã có đơn từ trước
+  if (tw.bo && tw.bo !== 'da-co') return;
+  if (tw.bo === 'da-co') return toast('Lịch này đã có đơn Tourwell: ' + tw.ma, 'ok');
+
+  if (tw.loi && !tw.ma) {
+    $('#mdTitle').textContent = 'Chưa tạo được đơn Tourwell';
+    $('#mdBody').innerHTML =
+      '<div class="tw-hop tw-loi">' +
+        '<p><b>Đã đánh dấu thanh toán trong Base</b> — phần đó không sao.</p>' +
+        '<p>Nhưng đơn bên Tourwell chưa tạo được:</p>' +
+        '<div class="tw-loi-chu">' + esc(tw.loi) + '</div>' +
+        '<p class="mini muted">Tạo tay như cũ, hoặc sửa xong thì bỏ đánh dấu thanh toán rồi bấm lại.</p>' +
+      '</div>';
+    $('#mdFoot').innerHTML = '<button class="btn" data-close="1">Đóng</button>';
+    $('#modal').classList.add('on');
+    return;
+  }
+
+  const viec = [
+    'Bấm <b>Chuyển thành công</b> ở góc trên phải',
+    'Bấm <b>Xác nhận chuyển thành công</b>',
+    'Tải <b>UNC + hoá đơn</b> vào ô Tệp đính kèm',
+    'Vào <b>Mã điều hành</b> → <b>Nhận điều hành</b> → <b>Đồng ý</b>',
+    'Bấm <b>Hoàn thành</b>',
+  ];
+
+  $('#mdTitle').textContent = 'Đã tạo đơn Tourwell';
+  $('#mdBody').innerHTML =
+    '<div class="tw-hop">' +
+      '<div class="tw-ma">' + esc(tw.ma) + '</div>' +
+      '<div class="tw-tien">' + esc(money(tw.tien)) + ' đ · Quỹ Marketing · VAT 8% đã gồm</div>' +
+      (t ? '<div class="mini muted">' + esc(t.title || '') + '</div>' : '') +
+      (tw.dayDu === false
+        ? '<div class="tw-loi-chu">Đơn đã tạo nhưng dòng chi phí chưa vào: ' + esc(tw.loi || '') +
+          '<br>Vào đơn thêm tay ở mục <b>Sửa giá net</b>.</div>'
+        : '<div class="tw-xong">✔ Dòng chi phí Quỹ Marketing đã vào — điều hành sẽ thấy sẵn, ' +
+          'không phải nhập lại.</div>') +
+      '<div class="tw-con">Còn ' + viec.length + ' việc phải bấm tay trên Tourwell ' +
+        '<span class="mini muted">(API không làm được mấy bước này)</span></div>' +
+      '<ol class="tw-ds">' + viec.map((v) => '<li>' + v + '</li>').join('') + '</ol>' +
+      (tw.loiGhiBase
+        ? '<div class="tw-loi-chu">Chưa ghi được mã đơn vào Base: ' + esc(tw.loiGhiBase) +
+          '<br>Lưu mã <b>' + esc(tw.ma) + '</b> lại, kẻo lần bấm sau tạo thêm đơn nữa.</div>'
+        : '') +
+    '</div>';
+  $('#mdFoot').innerHTML =
+    '<a class="btn primary" target="_blank" href="' + esc(tw.link) + '">Mở đơn trên Tourwell</a>' +
+    '<div class="sp"></div><button class="btn" data-close="1">Để sau</button>';
+  $('#modal').classList.add('on');
 }
 
 async function deleteItem(id) {
@@ -2474,6 +2567,14 @@ function moPhieuDi(id) {
     muc('Chi phí thực tế', chu(money(t.costActual) + ' đ') +
       (t.payment ? ' <span class="badge ' + (t.payment === 'Đã thanh toán' ? 'green' : 'yellow') + '">' +
         esc(t.payment) + '</span>' : ''));
+  }
+  /* Mã đơn Tourwell: chỗ duy nhất người dùng tìm lại được đơn đã tạo sau khi
+   * đóng cửa sổ kết quả. Cùng lớp quyền với tiền — nó chính là chứng từ chi. */
+  if (t.tourwell && (CHIPHI() || laPhuTrach(t))) {
+    const d = tachDonTourwell(t.tourwell);
+    muc('Đơn Tourwell', d.link
+      ? '<a class="phieu-f phieu-tw" target="_blank" href="' + esc(d.link) + '">🧾 ' + esc(d.ma) + '</a>'
+      : chu(d.ma));
   }
 
   if ((t.foc || []).length || t.focRequest) {

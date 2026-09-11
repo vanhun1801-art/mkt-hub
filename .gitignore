@@ -26,6 +26,7 @@
 **/.env
 **/*.env
 **/ket-noi.json
+**/tourwell.json
 **/quyen.json
 **/quyen-*.json
 **/quyen.nhansu.json

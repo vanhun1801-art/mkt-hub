@@ -500,6 +500,61 @@ function nguoiNhanTin(item, trangThaiMoi, caNhom) {
   return ds;
 }
 
+/* ---------------------------------------------------------------------------
+ * TỰ TẠO ĐƠN TOURWELL KHI ĐÁNH DẤU "ĐÃ THANH TOÁN"
+ * -------------------------------------------------------------------------
+ * Ba luật, và cả ba đều phải chốt Ở ĐÂY chứ không phải ở giao diện:
+ *
+ *  1. MỘT LỊCH MỘT ĐƠN. Ô "Đơn Tourwell" có mã rồi thì thôi. Bấm nhầm hai lần
+ *     là hai đơn thật trên hệ thống kế toán, mà Tourwell không chống trùng hộ.
+ *     Thêm một khoá trong bộ nhớ cho trường hợp hai cú bấm sát nhau: ô Base
+ *     chưa kịp ghi xong thì cú thứ hai đã đọc và thấy trống.
+ *
+ *  2. TOURWELL HỎNG KHÔNG ĐƯỢC LÀM HỎNG VIỆC ĐÁNH DẤU. Tiền đã chuyển rồi;
+ *     việc ghi nhận thanh toán trong Base phải xong bất kể CRM có sống hay
+ *     không. Lỗi được trả kèm để báo cho người bấm, không ném ra ngoài.
+ *
+ *  3. NÓI RÕ ĐƠN CHƯA XONG. API không chuyển được đơn sang "Thành công",
+ *     không gửi được điều hành, không tải được UNC. Đơn tạo ra đang ở "Đang
+ *     xử lý" và còn 5 nút phải bấm tay — giấu chuyện đó đi thì người dùng
+ *     tưởng xong, và tháng sau kế toán mới phát hiện.
+ * ------------------------------------------------------------------------- */
+const tourwell = require('./tourwell');
+const dangTaoDon = new Set();
+
+async function taoDonTourwell(recId, item) {
+  if (!tourwell.bat()) return { bo: 'chua-cau-hinh' };
+  if (String(item.tourwell || '').trim()) {
+    return { bo: 'da-co', ma: String(item.tourwell).trim() };
+  }
+  if (!(Number(item.costActual) > 0)) return { bo: 'khong-co-chi-phi' };
+  if (dangTaoDon.has(recId)) return { bo: 'dang-tao' };
+
+  dangTaoDon.add(recId);
+  try {
+    const kq = await tourwell.taoDonChoLich(item);
+
+    /* Ghi mã ngược vào Base NGAY, kể cả khi dòng chi phí lỗi: đơn đã tồn tại
+     * thì ô này phải có mã, nếu không lần bấm sau sẽ đẻ thêm đơn nữa. */
+    const ghi = kq.ma + ' · ' + kq.link;
+    try {
+      await lark.updateRecord(recId, { [F.tourwell.name]: ghi });
+      if (cache.records) {
+        const rec = cache.records.find((r) => r.record_id === recId);
+        // applyLocal() cố ý bỏ qua trường readOnly nên phải tự đặt vào cache
+        if (rec) rec.cells[F.tourwell.id] = ghi;
+      }
+    } catch (e) {
+      kq.loiGhiBase = e.message;
+    }
+    return kq;
+  } catch (e) {
+    return { loi: e.message };
+  } finally {
+    dangTaoDon.delete(recId);
+  }
+}
+
 async function baoVaoLark(item, trangThaiMoi, lyDo) {
   const luat = await luatBao(trangThaiMoi);
   if (!luat || !luat.bat) return;              // quản lý đã tắt loại tin này
@@ -1191,7 +1246,20 @@ async function api(req, res, url) {
           .catch((e) => console.warn('[báo Lark]', e.message));
       }
 
-      return json(res, { ok: true });
+      /* Đánh dấu đã thanh toán => tạo đơn chi phí bên Tourwell. Chỉ khi trạng
+       * thái thanh toán THỰC SỰ đổi sang "Đã thanh toán": lưu lại một ô ghi chú
+       * của lịch đã thanh toán từ tháng trước không được đẻ thêm đơn.
+       *
+       * Cố ý CHỜ xong mới trả lời (khoảng 3 giây) thay vì chạy ngầm: người bấm
+       * cần nhận ngay mã đơn và danh sách việc còn phải làm tay. Chạy ngầm thì
+       * họ đóng máy mất, không ai biết đơn đã tạo hay chưa. */
+      let tw;
+      if (body.payment === 'Đã thanh toán' && item.payment !== 'Đã thanh toán') {
+        tw = await taoDonTourwell(id, { ...item, ...body });
+        if (tw && tw.loi) console.warn('[Tourwell]', tw.loi);
+      }
+
+      return json(res, { ok: true, tourwell: tw });
     }
   }
 

@@ -158,6 +158,11 @@ module.exports = {
      * vì họ đã ghi giờ cũ vào đầu rồi. */
     editedAfter:  { id: 'fldbn8dlAj', name: 'Sửa sau khi duyệt',         type: 'datetime' },
     link:         { id: 'fldXmEsMAD', name: 'Liên kết',                 type: 'text' },
+    /* Mã đơn Tourwell app tự tạo lúc quản lý bấm "Đã thanh toán". Máy ghi,
+     * người không sửa — để readOnly nên toCells() bỏ qua; server ghi thẳng
+     * bằng tên cột. Ô này cũng chính là CHỐT CHỐNG TẠO TRÙNG: đã có mã thì
+     * không tạo đơn lần hai. */
+    tourwell:     { id: 'fld8XjYhLe', name: 'Đơn Tourwell',             type: 'text', readOnly: true },
     tickets:      { id: 'fld4ka0VLj', name: 'Vé & thông tin cần thiết', type: 'attachment', readOnly: true },
     files:        { id: 'fldhQfS9ch', name: 'Tệp đính kèm',             type: 'attachment', readOnly: true },
     unc:          { id: 'fld7DqfHbF', name: 'UNC',                      type: 'attachment', readOnly: true },
