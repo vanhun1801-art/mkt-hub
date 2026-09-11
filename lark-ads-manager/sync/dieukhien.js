@@ -294,8 +294,15 @@ async function ttDocNhom(c, advertiserId, groupId, deps = {}) {
     id: String(groupId), ten: g.adgroup_name || '',
     trangThai: g.operation_status || '', trangThaiThat: g.secondary_status || '',
     /* TikTok trả ngân sách bằng ĐƠN VỊ TIỀN của tài khoản, không phải đơn vị nhỏ
-     * nhất — khác Meta. Nên không nhân chia gì ở đây. */
-    nganSachNgay: g.budget == null ? null : so(g.budget),
+     * nhất — khác Meta. Nên không nhân chia gì ở đây.
+     *
+     * BUDGET_MODE_INFINITE: nhóm KHÔNG giữ ngân sách, nó nằm ở cấp chiến dịch.
+     * TikTok vẫn trả budget=0 trong trường hợp đó — đo trên cả bốn nhóm thật.
+     * Trả null chứ không trả 0: "ngân sách bằng không" và "ngân sách không đặt ở
+     * đây" là hai chuyện khác hẳn, và lẫn hai cái thì (a) giao diện nói sai, (b)
+     * hàng rào ±50% bị tháo vì kiemBienDo(0, x) coi là lần đặt đầu tiên. */
+    nganSachNgay: (g.budget_mode === 'BUDGET_MODE_INFINITE' || g.budget == null)
+      ? null : so(g.budget),
     kieuNganSach: g.budget_mode || '',
   };
 }

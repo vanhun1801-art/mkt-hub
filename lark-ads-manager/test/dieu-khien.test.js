@@ -111,6 +111,7 @@ console.log('— hàng rào 3: chỉ ghi khi ĐO ĐƯỢC là có quyền');
       /developer token/i.test(dk.gaKhaNang({ enabled: true, refreshToken: 'r', developerToken: 'd' }).vi));
 
     await phanDoc();
+    await phanNganSachTikTok();
     await phanLoi();
     ketThuc();
   })();
@@ -153,6 +154,36 @@ async function phanDoc() {
     gia({ name: 'Nhóm CBO', status: 'ACTIVE', effective_status: 'ACTIVE' }));
   t('không có daily_budget thì ra null, không ra 0', cbo.nganSachNgay === null,
     String(cbo.nganSachNgay));
+}
+
+/* ---- TikTok: ngân sách 0 KHÔNG phải là ngân sách bằng không ---- */
+async function phanNganSachTikTok() {
+  console.log('— TikTok: nhóm không giữ ngân sách phải ra null, không ra 0');
+  const gia = (g) => ({ getJson: async () => ({ code: 0, data: { list: [g] } }) });
+
+  /* Đo thật trên cả bốn nhóm quảng cáo của công ty:
+   *   MienTay_CT7        budget=0  budget_mode=BUDGET_MODE_INFINITE
+   *   Daily_Tour Đảo_01  budget=0  budget_mode=BUDGET_MODE_INFINITE
+   * INFINITE nghĩa là nhóm KHÔNG giữ ngân sách — nó nằm ở cấp chiến dịch. Đọc
+   * thành 0 thì hai chuyện bị lẫn, và hậu quả không chỉ là hiển thị sai:
+   * kiemBienDo(0, x) coi đó là lần đặt đầu tiên nên THÁO luôn hàng rào ±50%. */
+  const vo = await dk.ttDocNhom({ accessToken: 'x' }, '1', '2',
+    gia({ adgroup_name: 'Daily_Tour Đảo_01', budget: 0, budget_mode: 'BUDGET_MODE_INFINITE',
+      operation_status: 'ENABLE', secondary_status: 'ADGROUP_STATUS_DELIVERY_OK' }));
+  t('BUDGET_MODE_INFINITE thì ngân sách ra null', vo.nganSachNgay === null, String(vo.nganSachNgay));
+  t('vẫn giữ lại kiểu ngân sách để giải thích được',
+    vo.kieuNganSach === 'BUDGET_MODE_INFINITE', vo.kieuNganSach);
+
+  const co = await dk.ttDocNhom({ accessToken: 'x' }, '1', '2',
+    gia({ adgroup_name: 'Có ngân sách', budget: 300000, budget_mode: 'BUDGET_MODE_DAY',
+      operation_status: 'ENABLE', secondary_status: 'ADGROUP_STATUS_DELIVERY_OK' }));
+  t('nhóm có ngân sách thật thì đọc ra số', co.nganSachNgay === 300000, String(co.nganSachNgay));
+
+  /* Và đây là lý do phải phân biệt: nếu để 0 thì hàng rào biến mất. */
+  t('so với null thì KHÔNG được coi là lần đặt đầu tiên',
+    dk.kiemBienDo(300000, 900000).ok === false);
+  t('còn so với 0 thì hàng rào bị tháo — đúng như lo ngại',
+    dk.kiemBienDo(0, 900000).lanDau === true);
 }
 
 /* ---- lỗi phải nói đúng nguyên nhân ---- */

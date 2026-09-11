@@ -1280,14 +1280,39 @@ const DK = { khaNang: null };
 /** Đọc trạng thái nền tảng nói bằng tiếng người. */
 const NHAN_TRANG_THAI = {
   ACTIVE: 'đang chạy', ENABLED: 'đang chạy', ENABLE: 'đang chạy',
-  PAUSED: 'đang tắt', DISABLE: 'đang tắt', ADGROUP_STATUS_DISABLE: 'đang tắt',
-  CAMPAIGN_PAUSED: 'chiến dịch đang tắt', ADSET_PAUSED: 'nhóm đang tắt',
-  PENDING_REVIEW: 'đang chờ duyệt', DISAPPROVED: 'bị từ chối',
+  DELIVERY_OK: 'đang chạy',
+  PAUSED: 'đang tắt', DISABLE: 'đang tắt',
+  CAMPAIGN_PAUSED: 'chiến dịch đang tắt', CAMPAIGN_DISABLE: 'chiến dịch đang tắt',
+  ADSET_PAUSED: 'nhóm đang tắt', ADGROUP_DISABLE: 'nhóm đang tắt',
+  PENDING_REVIEW: 'đang chờ duyệt', AUDIT: 'đang chờ duyệt', REAUDIT: 'đang duyệt lại',
+  DISAPPROVED: 'bị từ chối', AUDIT_DENY: 'bị từ chối',
   IN_PROCESS: 'đang xử lý', WITH_ISSUES: 'có vấn đề',
-  ARCHIVED: 'đã lưu trữ', DELETED: 'đã xoá',
+  NOT_START: 'chưa tới lịch chạy', TIME_DONE: 'đã hết lịch chạy',
+  BUDGET_EXCEED: 'đã hết ngân sách', BALANCE_EXCEED: 'đã hết số dư tài khoản',
+  FROZEN: 'bị đóng băng',
+  ARCHIVED: 'đã lưu trữ', DELETED: 'đã xoá', DELETE: 'đã xoá',
 };
-const nhanTT = (s) => (NHAN_TRANG_THAI[String(s || '').toUpperCase()] || String(s || '—'));
-const dangChay = (s) => /^(ACTIVE|ENABLED?|ENABLE)$/i.test(String(s || ''));
+
+/* TikTok đặt tên theo công thức <CẤP>_STATUS_<TÌNH TRẠNG>, ba cấp dùng chung một
+ * bộ hậu tố: AD_STATUS_DELIVERY_OK, ADGROUP_STATUS_DELIVERY_OK,
+ * CAMPAIGN_STATUS_DELIVERY_OK. Bỏ tiền tố cấp rồi tra hậu tố thì một bảng phủ cả
+ * ba, khỏi phải khai ba lần và khỏi sót khi TikTok thêm cấp mới. */
+const TIEN_TO_CAP = /^(AD|ADGROUP|CAMPAIGN)_STATUS_/;
+
+/** Mã lạ thì hiện NGUYÊN VĂN, không đoán — thà thấy mã máy còn hơn đọc một chữ sai. */
+const nhanTT = (s) => {
+  const ma = String(s || '').toUpperCase();
+  if (!ma) return '—';
+  return NHAN_TRANG_THAI[ma]
+    || NHAN_TRANG_THAI[ma.replace(TIEN_TO_CAP, '')]
+    || String(s);
+};
+/* Dùng để chọn nút hiện ra là "Tắt" hay "Bật". Đọc cờ riêng của quảng cáo
+ * (operation_status bên TikTok, status bên Meta), KHÔNG đọc trạng thái thật —
+ * một quảng cáo ENABLE mà chiến dịch đang tắt thì nút vẫn phải là "Tắt", vì cờ
+ * của chính nó đang bật. */
+const dangChay = (s) => /^(ACTIVE|ENABLED?|ENABLE|DELIVERY_OK)$/i
+  .test(String(s || '').toUpperCase().replace(TIEN_TO_CAP, ''));
 
 async function veDieuKhien(a) {
   const el = $('#dkKhoi');
@@ -1352,7 +1377,7 @@ async function veDieuKhien(a) {
     const s2 = (r.sau || {});
     $('#dkKetQua').innerHTML = `<div class="help" style="border-color:var(--good);color:var(--good)">
       <b>Đã ghi lên ${esc(a.platform)}.</b> Trạng thái giờ: <b>${esc(nhanTT(s2.trangThai))}</b>
-      ${s2.trangThaiThat && s2.trangThaiThat !== s2.trangThai
+      ${s2.trangThaiThat && nhanTT(s2.trangThaiThat) !== nhanTT(s2.trangThai)
         ? ` · thực tế <b>${esc(nhanTT(s2.trangThaiThat))}</b>` : ''}
       ${s2.nganSachNgay != null ? ` · ngân sách <b>${int(s2.nganSachNgay)}đ</b>` : ''}
       <br><span class="sub">Số trong Base chưa đổi theo — lượt đồng bộ kế tiếp mới cập nhật.</span>
@@ -1427,7 +1452,11 @@ async function veDieuKhien(a) {
 function veTrangThai(tt, ns, loiTT, loiNS) {
   if (loiTT && loiNS) return `<div class="help" style="border-color:var(--bad);color:var(--bad)">${esc(loiTT)}</div>`;
   const t = (tt && tt.truoc) || {};
-  const khac = t.trangThaiThat && t.trangThaiThat !== t.trangThai;
+  /* So sau khi DỊCH, không so mã máy. Meta và TikTok đặt tên khác nhau cho cùng
+   * một tình trạng — `ENABLE` với `AD_STATUS_DELIVERY_OK` là hai mã khác nhau mà
+   * dịch ra đều là "đang chạy". So mã thì màn hình viết "đang chạy — nhưng thực
+   * tế đang chạy". */
+  const khac = t.trangThaiThat && nhanTT(t.trangThaiThat) !== nhanTT(t.trangThai);
   return `<div class="help">
     <b>Trên nền tảng lúc này:</b> ${esc(nhanTT(t.trangThai))}
     ${khac ? ` — nhưng thực tế <b>${esc(nhanTT(t.trangThaiThat))}</b>` : ''}

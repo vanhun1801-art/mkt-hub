@@ -266,5 +266,40 @@ console.log('— thẻ kênh tự nói được "quyền GHI đã có chưa"');
   t('kênh không có trong câu trả lời thì nói không áp dụng', /không áp dụng/.test(kn));
 }
 
+console.log('— trạng thái nền tảng phải ra tiếng người, và không tự nói ngược');
+{
+  /* Đo thật sau khi nối xong TikTok: AD_STATUS_DELIVERY_OK và
+   * ADGROUP_STATUS_DELIVERY_OK rơi thẳng ra màn hình, vì bảng dịch chỉ có mã của
+   * Meta. Cùng loại lỗi với bảng hành động chuyển đổi hồi trước. */
+  const i = app.indexOf('const nhanTT =');
+  t('có hàm dịch trạng thái', i > 0);
+  let nhanTT = null;
+  if (i > 0) {
+    /* Kéo cả bảng dịch lẫn hàm ra chạy thật, thay vì chỉ dò chữ trong mã nguồn. */
+    const j = app.indexOf('const NHAN_TRANG_THAI');
+    const k = app.indexOf('};', i);
+    nhanTT = new Function(app.slice(j, k + 2) + '; return nhanTT;')();
+  }
+
+  /* TikTok đặt tên <CẤP>_STATUS_<TÌNH TRẠNG>, ba cấp chung một bộ hậu tố. Bỏ tiền
+   * tố rồi tra hậu tố thì một bảng phủ cả ba — khỏi khai ba lần, khỏi sót. */
+  t('dịch được mã cấp quảng cáo của TikTok', nhanTT('AD_STATUS_DELIVERY_OK') === 'đang chạy',
+    nhanTT && nhanTT('AD_STATUS_DELIVERY_OK'));
+  t('dịch được mã cấp nhóm của TikTok', nhanTT('ADGROUP_STATUS_DELIVERY_OK') === 'đang chạy');
+  t('dịch được mã cấp chiến dịch của TikTok',
+    nhanTT('CAMPAIGN_STATUS_DELIVERY_OK') === 'đang chạy');
+  t('vẫn dịch được mã của Meta', nhanTT('ACTIVE') === 'đang chạy'
+    && nhanTT('CAMPAIGN_PAUSED') === 'chiến dịch đang tắt');
+  t('mã chưa biết thì hiện NGUYÊN VĂN, không đoán bừa',
+    nhanTT('MOT_MA_HOAN_TOAN_MOI') === 'MOT_MA_HOAN_TOAN_MOI');
+
+  /* Màn hình từng viết "đang chạy — nhưng thực tế đang chạy": phép so đang so MÃ
+   * MÁY (`ENABLE` khác `AD_STATUS_DELIVERY_OK`) trong khi dịch ra thì y hệt. */
+  t('so trạng thái SAU KHI DỊCH, không so mã máy',
+    /nhanTT\(t\.trangThaiThat\) !== nhanTT\(t\.trangThai\)/.test(app));
+  t('ô kết quả sau khi ghi cũng so sau khi dịch',
+    /nhanTT\(s2\.trangThaiThat\) !== nhanTT\(s2\.trangThai\)/.test(app));
+}
+
 console.log(`\n${pass} pass · ${fail} fail`);
 process.exitCode = fail ? 1 : 0;

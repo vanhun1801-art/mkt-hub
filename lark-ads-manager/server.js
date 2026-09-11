@@ -908,7 +908,21 @@ async function api(req, res, u) {
         const tt = await dieuKhien.ttDoc(c.tiktok, qc.extId);
         if (!tt.groupExtId) return fail(res, 400, 'TikTok không trả về nhóm quảng cáo của quảng cáo này');
         const truoc = await dieuKhien.ttDocNhom(c.tiktok, tt.advertiserId, tt.groupExtId);
-        const cu = truoc.nganSachNgay || 0;
+        /* Nhóm không giữ ngân sách (BUDGET_MODE_INFINITE — ngân sách ở cấp chiến
+         * dịch) thì TỪ CHỐI ngay, cả ở bước xem trước. Cho đi tiếp thì giao diện
+         * hiện "ngân sách 0đ", hàng rào ±50% bị tháo vì so với 0, và lệnh ghi rơi
+         * vào chỗ TikTok bỏ qua — rồi app báo đã ghi xong.
+         *
+         * App KHÔNG đổi ngân sách cấp chiến dịch của TikTok: việc đó nằm trong
+         * nhóm quyền "Campaign" mà mình cố ý không xin, vì nhóm đó kèm cả tạo và
+         * xoá chiến dịch. */
+        if (truoc.nganSachNgay == null) {
+          return fail(res, 400, `Nhóm "${truoc.ten}" không giữ ngân sách riêng`
+            + `${truoc.kieuNganSach === 'BUDGET_MODE_INFINITE' ? ' (ngân sách đặt ở cấp chiến dịch)' : ''}`
+            + ' — nên không có số nào ở đây để đổi. Sửa ngân sách chiến dịch đó trên TikTok Ads Manager. '
+            + 'App cố ý không xin quyền đổi chiến dịch vì nhóm quyền đó kèm cả tạo và xoá chiến dịch.');
+        }
+        const cu = truoc.nganSachNgay;
         if (!laLam) {
           return ok(res, {
             xemTruoc: true, khaNang: kn, nenTang, viec, truoc, nganSachCu: cu,
