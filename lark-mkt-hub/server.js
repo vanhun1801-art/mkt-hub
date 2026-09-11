@@ -874,6 +874,48 @@ async function api(req, res, u) {
     }
   }
 
+  /* ---------------- khung giờ đăng ký của app Lịch ----------------
+   * Hub KHÔNG giữ luật — nó gọi thẳng API của app con. Một nơi giữ luật thì hai
+   * màn hình (hub và app Lịch) không thể lệch nhau; giữ bản sao ở hub là sớm
+   * muộn có người sửa một bên rồi bên kia nói khác.
+   */
+  if (p === '/api/lich-cua-so') {
+    const modCS = timMod('lich-tac-nghiep');
+    if (!modCS || !modCS.bat) return loi(res, 404, 'App Lịch tác nghiệp đang không chạy.');
+
+    if (m === 'GET') {
+      const { nguoi: nguoiCS, q: qCS } = await aiDangXem(req);
+      try {
+        return ok(res, await goiJson(modCS, '/api/cua-so',
+          { nguoi: nguoiKemQuyen(nguoiCS, qCS, modCS) }));
+      } catch (e) {
+        return loi(res, 502, e.message);
+      }
+    }
+
+    if (m === 'POST') {
+      if (await chiQuanLy(req, res)) return;
+      const b = await docBody(req);
+      const MOT_GIO = 3600000;
+      /* Ba hành động, không hơn: mở một giờ, đóng một giờ, bỏ. Mỗi cái ghi CẢ
+       * hai ô nên không bao giờ còn hai ngoại lệ cùng sống. */
+      const than = b.viec === 'mo' ? { moTayToi: Date.now() + MOT_GIO, dongTayToi: 0 }
+        : b.viec === 'dong' ? { dongTayToi: Date.now() + MOT_GIO, moTayToi: 0 }
+        : b.viec === 'bo' ? { moTayToi: 0, dongTayToi: 0 }
+        : null;
+      if (!than) return loi(res, 400, 'Việc phải là mo / dong / bo.');
+      const { nguoi: nguoiCS, q: qCS } = await aiDangXem(req);
+      try {
+        return ok(res, await goiJson(modCS, '/api/cua-so', {
+          method: 'PATCH', body: than,
+          nguoi: nguoiKemQuyen(nguoiCS, qCS, modCS),
+        }));
+      } catch (e) {
+        return loi(res, 502, e.message);
+      }
+    }
+  }
+
   /* ---------------- thông báo chặn màn hình ----------------
    * Quản lý gửi một câu, người nhận buộc phải đọc mới dùng app tiếp được.
    * Luật "ai thấy cái gì, còn hiệu lực không" nằm ở thongbao-app.js.

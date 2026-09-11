@@ -27,6 +27,10 @@ const APP_CD = [
   { id: 'cong-viec', ten: 'Bảng công việc', ic: 'cong-viec',
     mo: 'Phân phối việc mới', tu: 'tỷ lệ tự giao mốc chờ loại việc quản lý',
     phanPhoi: true },
+  { id: 'lich-tac-nghiep', ten: 'Lịch tác nghiệp', ic: 'lich',
+    mo: 'Khung giờ đăng ký lịch',
+    tu: 'mở đóng nút đăng ký thứ 6 thứ 7 khung giờ mở khoá',
+    cuaSo: true },
 ];
 
 /**
@@ -462,6 +466,8 @@ function veCdQuyen(el) {
  */
 function veCdApp(el, a) {
   el.innerHTML = cdTieuDe(a.ten, 'Thiết lập riêng của app này.') +
+    (a.cuaSo ? '<div id="cdCuaSo"><div class="cd-hang"><div class="cd-hang-tx">' +
+      '<b>Đang đọc khung giờ đăng ký…</b></div></div></div>' : '') +
     (a.phanPhoi
       ? cdHang('Phân phối việc mới',
         'Việc mới không ai nhận sau một khoảng chờ thì hệ tự giao, theo loại việc và tỷ lệ ' +
@@ -473,6 +479,7 @@ function veCdApp(el, a) {
       '"ai được làm gì" nằm chung một chỗ.',
       '<button class="btn nho" data-cd="quyen">Mở Phân quyền</button>');
 
+  if (a.cuaSo) napCdCuaSo(a);
   const n = $('#cdMoPhanPhoi');
   if (n) {
     n.onclick = () => {
@@ -854,6 +861,77 @@ async function luuFormTb() {
     nut.textContent = 'Lưu';
     toast(e.message, 'do');
   }
+}
+
+/* ---------------- Khung giờ đăng ký (app Lịch) ----------------
+ * Hub không giữ luật, chỉ gọi API của app con. Ở đây chỉ cần trả lời hai câu:
+ * bây giờ mở hay đóng, và mở khoá / đóng một giờ.
+ */
+async function napCdCuaSo(a) {
+  const o = $('#cdCuaSo');
+  if (!o) return;
+  let d;
+  try {
+    d = await goi('/api/lich-cua-so');
+  } catch (e) {
+    o.innerHTML = cdHang('Khung giờ đăng ký', 'Không đọc được: ' + esc(e.message), '');
+    return;
+  }
+  const L = d.luatTho || {};
+  const khung = L.moThu
+    ? (d.thu || [])[L.moThu - 1] + ' ' + esc(L.moGio || '') + ' → ' +
+      (d.thu || [])[L.dongThu - 1] + ' ' + esc(L.dongGio || '')
+    : 'chưa khai';
+  const tay = L.dongTayToi && L.dongTayToi > Date.now() ? 'dong'
+    : L.moTayToi && L.moTayToi > Date.now() ? 'mo' : '';
+
+  o.innerHTML =
+    cdHang('Đang ' + (d.mo ? 'MỞ' : 'ĐÓNG'),
+      esc(d.vi || '') +
+      (d.moLuc ? ' Mở lại <b>' + esc(cdMocCuaSo(d.moLuc)) + '</b>.' : '') +
+      (d.dongLuc ? ' Đóng lúc <b>' + esc(cdMocCuaSo(d.dongLuc)) + '</b>.' : '') +
+      '<br>Khung hằng tuần: <b>' + khung + '</b>' +
+      (L.bat === false ? ' — <b>đang tắt</b>, nút mở liên tục.' : ''),
+      '<span class="cd-nhan ' + (d.mo ? 'luc' : 'do') + '">' + (d.mo ? 'mở' : 'đóng') + '</span>') +
+    cdHang('Mở / đóng ngay',
+      'Bấm là áp ngay, hết một giờ tự trở về khung giờ hằng tuần.' +
+      (tay ? '<br>Đang <b>' + (tay === 'mo' ? 'mở tay' : 'đóng tay') + '</b> tới <b>' +
+        esc(cdMocCuaSo(tay === 'mo' ? L.moTayToi : L.dongTayToi)) + '</b>.' : ''),
+      '<div class="cd-doc">' +
+        '<button class="btn nho chinh" data-cs-viec="mo">Mở khoá 1 giờ</button>' +
+        '<button class="btn nho" data-cs-viec="dong">Đóng 1 giờ</button>' +
+        (tay ? '<button class="btn nho ghost" data-cs-viec="bo">Bỏ</button>' : '') +
+      '</div>') +
+    cdHang('Sửa khung giờ hằng tuần',
+      'Đổi thứ và giờ mở/đóng — mở app Lịch tác nghiệp, vào <b>Phân quyền quản lý → Khung giờ đăng ký</b>.',
+      '<button class="btn nho" id="cdMoAppLich">Mở app</button>');
+
+  $$('#cdCuaSo [data-cs-viec]').forEach((b) => {
+    b.onclick = async () => {
+      b.disabled = true;
+      try {
+        await goi('/api/lich-cua-so', { method: 'POST', body: JSON.stringify({ viec: b.dataset.csViec }) });
+        toast(b.dataset.csViec === 'mo' ? 'Đã mở khoá đăng ký 1 giờ'
+          : b.dataset.csViec === 'dong' ? 'Đã đóng đăng ký 1 giờ' : 'Đã về theo khung giờ', 'luc');
+        napCdCuaSo(a);
+      } catch (e) {
+        b.disabled = false;
+        toast(e.message, 'do');
+      }
+    };
+  });
+  const oMo = $('#cdMoAppLich');
+  if (oMo) oMo.onclick = () => { dongModal(); location.hash = '#/m/' + a.id; };
+}
+
+/** "Thứ 6 17:00 ngày 11/09" theo giờ VN — hub chạy ở đâu cũng ra đúng. */
+function cdMocCuaSo(ms) {
+  if (!ms) return '';
+  const d = new Date(Number(ms) + 7 * 3600000);
+  const p2 = (n) => String(n).padStart(2, '0');
+  const ten = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'][d.getUTCDay()];
+  return ten + ' ' + p2(d.getUTCHours()) + ':' + p2(d.getUTCMinutes()) +
+    ' ngày ' + p2(d.getUTCDate()) + '/' + p2(d.getUTCMonth() + 1);
 }
 
 /* ---------------- Base trong panel ---------------- */

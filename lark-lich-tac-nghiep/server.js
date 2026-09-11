@@ -834,8 +834,17 @@ async function api(req, res, url) {
         }
         cells[cot] = cuaSo.veGio(cuaSo.docGio(body[k]));
       }
-      if (body.moTayToi != null) cells[F2.moTayToi] = Number(body.moTayToi) || null;
-      if (body.dongTayToi != null) cells[F2.dongTayToi] = Number(body.dongTayToi) || null;
+      /* BỎ ngoại lệ = ghi một mốc ĐÃ QUA, không phải ghi null.
+       *
+       * Đo được: ghi `null`, `""` hay `0` vào ô ngày thì lark-cli trả ok:true mà
+       * giá trị trên Base KHÔNG đổi — nút "Bỏ" bấm xong không có gì xảy ra, và
+       * không có lỗi nào. Luật chỉ xét `mốc > bây giờ`, nên một mốc quá khứ có
+       * đúng nghĩa "không còn hiệu lực", và nó là một datetime thật nên ghi
+       * được. Ô trên Base giữ lại mốc cũ — đọc ra là "lần ghi đè gần nhất, đã
+       * hết hạn", không sai gì. */
+      const mocTay = (v) => (Number(v) > 0 ? Number(v) : Date.now() - 60000);
+      if (body.moTayToi != null) cells[F2.moTayToi] = mocTay(body.moTayToi);
+      if (body.dongTayToi != null) cells[F2.dongTayToi] = mocTay(body.dongTayToi);
       if (body.ghiChu != null) cells[F2.ghiChu] = String(body.ghiChu);
       if (!Object.keys(cells).length) return json(res, { error: 'Không có gì để sửa' }, 400);
 

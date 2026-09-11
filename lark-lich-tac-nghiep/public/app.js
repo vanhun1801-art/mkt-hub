@@ -2902,36 +2902,12 @@ function keoLocToiLich(startISO) {
    ========================================================================== */
 let CS = null;
 
-/* Thời lượng cho ngoại lệ tay. Mấy mốc này là mấy trường hợp thật: mở thêm một
- * lúc cho người đi gấp, hay đóng tới hết ngày vì chưa xếp xong. */
-const CS_LAU = [
-  [60, 'trong 1 giờ'],
-  [120, 'trong 2 giờ'],
-  [240, 'trong 4 giờ'],
-  ['ngay', 'tới hết hôm nay'],
-  ['tuan', 'tới hết tuần này'],
-];
-
 /** Trạng thái tay đang có: 'dong' thắng 'mo', giống đúng luật ở máy chủ. */
 function tayHienTai(L) {
   const t = Date.now();
   if (L.dongTayToi && L.dongTayToi > t) return 'dong';
   if (L.moTayToi && L.moTayToi > t) return 'mo';
   return 'theo';
-}
-
-/** Thời lượng đã chọn -> mốc hết hiệu lực (ms), theo giờ VN. */
-function mocHetTay(v) {
-  const t = Date.now();
-  if (v === 'ngay' || v === 'tuan') {
-    const d = new Date(t + LECH_VN);
-    /* Hết ngày = 23:59 giờ VN hôm nay. Hết tuần = 23:59 Chủ nhật. Tính trên mốc
-     * đã cộng lệch VN rồi trừ ra, không dùng giờ máy. */
-    const themNgay = v === 'ngay' ? 0 : (7 - (d.getUTCDay() === 0 ? 7 : d.getUTCDay()));
-    const cuoi = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + themNgay, 23, 59);
-    return cuoi - LECH_VN;
-  }
-  return t + Number(v) * 60000;
 }
 
 async function moManCuaSo() {
@@ -2990,24 +2966,24 @@ function veManCuaSo() {
     '<div class="hint" style="margin:-4px 0 14px">Đặt mốc đóng TRƯỚC mốc mở cũng được — ' +
       'ví dụ mở Thứ 7 15:00, đóng Thứ 2 12:00 thì cửa sổ vắt qua cuối tuần.</div>' +
 
-    /* MỘT hàng ba nút cho MỘT câu hỏi. Bản trước là hai ô ngày độc lập: điền
-     * cả hai là một trạng thái vô nghĩa, mà màn hình không nói cái nào thắng —
-     * anh Hùng thử và nói thẳng là khó hiểu. Ba nút thì không tạo ra được
-     * trạng thái đó nữa. */
+    /* HAI nút, mỗi nút một giờ, bấm là áp NGAY.
+     *
+     * Bản trước là ba nút + ô chọn thời lượng, và anh Hùng nói gọn lại: "chỉ
+     * cần ấn vào là mở khoá trong một giờ". Đúng — thứ này dùng để xử lý một
+     * tình huống ngay lúc đó, không phải để cấu hình. Bấm là áp luôn, không
+     * phải bấm Lưu: nút Lưu ở trên thuộc về khung giờ, trộn hai việc vào một
+     * nút là lại rối như cũ. */
     '<div class="frm-row" style="margin-top:4px"><label>Ngay bây giờ</label>' +
-      '<div class="multi" id="csTay">' +
-        ['theo', 'mo', 'dong'].map((k) =>
-          '<button class="opt' + (tayHienTai(L) === k ? ' on' : '') + '" data-tay="' + k + '">' +
-          ({ theo: 'Theo khung giờ', mo: 'Mở tay', dong: 'Đóng tay' })[k] + '</button>').join('') +
+      '<div class="row-2">' +
+        '<button type="button" class="btn" id="csMo1h">Mở khoá 1 giờ</button>' +
+        '<button type="button" class="btn" id="csDong1h">Đóng 1 giờ</button>' +
       '</div>' +
-      /* Thời lượng thay cho ô ngày: câu hỏi thật là "mở thêm bao lâu", không
-       * phải "mở tới mốc nào" — bắt tự cộng giờ là chỗ dễ gõ sai nhất. */
-      '<div class="row-2" id="csLauBoc" style="margin-top:8px"' +
-        (tayHienTai(L) === 'theo' ? ' hidden' : '') + '>' +
-        '<select class="fld" id="csLau">' + CS_LAU.map(([v, t]) =>
-          '<option value="' + v + '">' + esc(t) + '</option>').join('') + '</select>' +
-        '<div class="hint" id="csKetQua" style="align-self:center"></div>' +
-      '</div>' +
+      (tayHienTai(L) === 'theo'
+        ? '<div class="hint">Bấm là áp ngay, hết một giờ tự trở về khung giờ ở trên.</div>'
+        : '<div class="hint" style="display:flex;align-items:center;gap:8px">' +
+          '<span>' + (tayHienTai(L) === 'mo' ? 'Đang <b>mở tay</b> tới ' : 'Đang <b>đóng tay</b> tới ') +
+          esc(mocCuaSo(tayHienTai(L) === 'mo' ? L.moTayToi : L.dongTayToi)) + '.</span>' +
+          '<button type="button" class="btn sm ghost" id="csBoTay">Bỏ, về khung giờ</button></div>') +
     '</div>' +
     '<div class="frm-row"><label>Ghi chú</label>' +
       '<input class="fld" id="csGhiChu" value="' + esc(L.ghiChu || '') + '"></div>' +
@@ -3018,29 +2994,25 @@ function veManCuaSo() {
     '<button class="btn" data-close="1">Đóng</button>' +
     '<button class="btn primary" id="csLuu">Lưu</button>';
 
-  /* Ba nút loại nhau, và viết ra KẾT QUẢ bằng câu tiếng Việt ngay dưới —
-   * người ta thấy hệ quả trước khi bấm Lưu, không phải đoán. */
-  const veKetQua = () => {
-    const tay = ($('#csTay .opt.on') || {}).dataset ? $('#csTay .opt.on').dataset.tay : 'theo';
-    const boc = $('#csLauBoc');
-    boc.hidden = tay === 'theo';
-    if (tay === 'theo') return;
-    const moc = mocHetTay($('#csLau').value);
-    $('#csKetQua').textContent = (tay === 'mo' ? '→ Mở tới ' : '→ Đóng tới ') +
-      mocCuaSo(moc) + ', sau đó tự theo khung giờ.';
+  /* Ba nút tức thì. Mỗi nút gửi ĐÚNG hai ô ngoại lệ — chọn cái này thì cái kia
+   * bị xoá, nên không bao giờ còn hai ngoại lệ cùng sống. */
+  const datTay = async (than, chu) => {
+    try {
+      const d = await api('/api/cua-so', { method: 'PATCH', body: JSON.stringify(than) });
+      S.cuaSo = d.cuaSo || S.cuaSo;
+      CS = await api('/api/cua-so?refresh=1');
+      veManCuaSo();
+      render();
+      toast(chu, 'ok');
+    } catch (e) { toast(e.message, 'err'); }
   };
-  $('#csTay').onclick = (e) => {
-    const b = e.target.closest('[data-tay]');
-    if (!b) return;
-    /* App này KHÔNG có `$$` (chỉ hub có). Bản đầu tôi gõ `$$` theo quán tính từ
-     * hub: handler ném ReferenceError ngay dòng này, nút không đổi được, mà
-     * trên màn hình chỉ là "bấm không ăn" — không có gì báo. */
-    document.querySelectorAll('#csTay [data-tay]')
-      .forEach((x) => x.classList.toggle('on', x === b));
-    veKetQua();
-  };
-  $('#csLau').onchange = veKetQua;
-  veKetQua();
+  const MOT_GIO = 3600000;
+  $('#csMo1h').onclick = () => datTay(
+    { moTayToi: Date.now() + MOT_GIO, dongTayToi: 0 }, 'Đã mở khoá đăng ký trong 1 giờ');
+  $('#csDong1h').onclick = () => datTay(
+    { dongTayToi: Date.now() + MOT_GIO, moTayToi: 0 }, 'Đã đóng đăng ký trong 1 giờ');
+  const oBo = $('#csBoTay');
+  if (oBo) oBo.onclick = () => datTay({ moTayToi: 0, dongTayToi: 0 }, 'Đã về theo khung giờ');
 
   $('#csBat').onclick = () => {
     const o = $('#csBat');
@@ -3052,8 +3024,6 @@ function veManCuaSo() {
 }
 
 async function luuCuaSo() {
-  const oTay = $('#csTay .opt.on');
-  const tayChon = oTay ? oTay.dataset.tay : 'theo';
   const nut = $('#csLuu');
   nut.disabled = true;
   nut.textContent = 'Đang lưu…';
@@ -3064,11 +3034,9 @@ async function luuCuaSo() {
       moGio: $('#csMoGio').value,
       dongThu: Number($('#csDongThu').value),
       dongGio: $('#csDongGio').value,
-      /* Ba trạng thái loại nhau, nên luôn ghi CẢ HAI cột: chọn "mở tay" thì
-       * đóng tay phải bị xoá. Không xoá thì một ngoại lệ cũ còn sót lại và nó
-       * thắng cái vừa chọn — đúng cái làm màn hình trước khó hiểu. */
-      moTayToi: tayChon === 'mo' ? mocHetTay($('#csLau').value) : 0,
-      dongTayToi: tayChon === 'dong' ? mocHetTay($('#csLau').value) : 0,
+      /* KHÔNG gửi hai ô ngoại lệ ở đây. Nút Lưu thuộc về khung giờ; hai nút tức
+       * thì ở dưới tự ghi lấy. Gửi kèm thì bấm Lưu (để đổi giờ) sẽ vô tình xoá
+       * ngoại lệ vừa đặt, mà không có gì báo. */
       ghiChu: $('#csGhiChu').value,
     }) });
     S.cuaSo = d.cuaSo || S.cuaSo;

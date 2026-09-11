@@ -211,39 +211,28 @@ group('8. Giao diện: khoá nút, và nói bao giờ mở lại');
     /Đang MỞ/.test(app) && /Đang ĐÓNG/.test(app));
   /* Ô ngày của hai ngoại lệ dùng chung bộ chọn lịch của app — phải có nhánh
    * riêng trong datNgay, không thì mốc chọn trên lịch rơi vào hư không. */
-  /* Anh Hùng thử rồi nói "chỗ đóng mở này hơi khó hiểu", và ảnh anh chụp có CẢ
-   * HAI ô ngày cùng điền — một trạng thái vô nghĩa mà màn hình không nói cái
-   * nào thắng. Bốn thứ làm nó khó hiểu, và cả bốn là lỗi thiết kế:
-   *   hai ô cho một câu hỏi · luật "đóng thắng mở" chỉ nằm trong code ·
-   *   chữ "tới" bắt tự cộng giờ · bộ chọn lịch cho một việc 30 giây.
-   * Giờ là MỘT hàng ba nút loại nhau + chọn thời lượng. */
-  ok('không còn hai ô ngày cho ngoại lệ tay',
-    !/oNgay\('cs'/.test(app) && !/CS_NGAY/.test(app),
-    '(hai ô độc lập cho phép tạo trạng thái vô nghĩa: điền cả hai)');
-  ok('thay bằng ba nút loại nhau: theo khung giờ / mở tay / đóng tay',
-    /\['theo', 'mo', 'dong'\]/.test(app) && /data-tay="/.test(app));
-  ok('chọn thời lượng chứ không bắt gõ mốc',
-    /const CS_LAU = \[/.test(app) && /trong 1 giờ/.test(app) && /tới hết tuần này/.test(app));
-  ok('viết ra KẾT QUẢ bằng câu tiếng Việt trước khi Lưu',
-    /→ Mở tới /.test(app) && /sau đó tự theo khung giờ/.test(app));
-  /* Ba trạng thái loại nhau thì Lưu phải ghi CẢ HAI cột — chọn "mở tay" mà
-   * không xoá "đóng tay" cũ thì cái cũ thắng, đúng cái vừa gây khó hiểu. */
-  ok('chọn một trạng thái thì xoá hẳn trạng thái kia',
-    /moTayToi: tayChon === 'mo' \?/.test(app) && /: 0,/.test(app) &&
-    /dongTayToi: tayChon === 'dong' \?/.test(app));
-  /* Nút nào đang bật phải suy ra từ dữ liệu theo ĐÚNG luật máy chủ (đóng thắng
-   * mở), không thì mở màn ra thấy nút này mà thực tế đang chạy nút kia. */
-  ok('nút đang bật suy theo đúng luật "đóng thắng mở"',
-    /function tayHienTai\(L\)[\s\S]{0,240}dongTayToi[\s\S]{0,80}return 'dong'/.test(app));
-
-  /* Giao diện phải đọc trạng thái từ máy chủ, không tự tính lại — tự tính là
-   * hai bên lệch nhau và nút mở mà bấm vào bị chặn. */
-  /* App này KHÔNG có `$$` — chỉ hub có. Gõ `$$` theo quán tính từ hub là handler
-   * ném ReferenceError, nút không đổi được, mà trên màn hình chỉ là "bấm không
-   * ăn": không lỗi đỏ, không toast, phải mở console mới thấy. Đã gặp đúng thế
-   * ở chính ba nút này. Canh cả tệp, không chỉ đoạn của cửa sổ đăng ký. */
-  ok('public/app.js không dùng `$$` (hàm đó không tồn tại ở app này)',
-    !/\$\$\(/.test(app), 'có chỗ dùng $$ — handler đó sẽ ném ReferenceError khi bấm');
+  /* Bản đầu là hai ô ngày; anh Hùng nói khó hiểu nên đổi thành ba nút + chọn
+   * thời lượng; anh thử tiếp rồi chốt gọn hơn nữa: "chỉ cần ấn vào là mở khoá
+   * trong một giờ", thêm nút đóng một giờ. Thứ này dùng để xử lý một tình
+   * huống ngay lúc đó, không phải để cấu hình — nên hai nút là đủ. */
+  ok('không còn ô ngày, không còn chọn thời lượng',
+    !/oNgay\('cs'/.test(app) && !/CS_NGAY/.test(app) &&
+    !/CS_LAU/.test(app) && !/mocHetTay/.test(app));
+  ok('đúng hai nút một giờ', /id="csMo1h"/.test(app) && /id="csDong1h"/.test(app) &&
+    /Mở khoá 1 giờ/.test(app) && /Đóng 1 giờ/.test(app));
+  ok('mỗi nút ghi CẢ HAI ô — không để hai ngoại lệ cùng sống',
+    /moTayToi: Date\.now\(\) \+ MOT_GIO, dongTayToi: 0/.test(app) &&
+    /dongTayToi: Date\.now\(\) \+ MOT_GIO, moTayToi: 0/.test(app));
+  ok('bấm là áp NGAY, không phải bấm Lưu', /const datTay = async/.test(app) &&
+    /api\('\/api\/cua-so', \{ method: 'PATCH'/.test(app));
+  /* Đang có ngoại lệ thì phải nói rõ tới lúc nào, và có đường bỏ — không thì
+   * lỡ tay bấm là kẹt nguyên một giờ. */
+  ok('đang có ngoại lệ thì hiện mốc + nút Bỏ',
+    /id="csBoTay"/.test(app) && /Bỏ, về khung giờ/.test(app));
+  /* Nút Lưu ở trên thuộc về KHUNG GIỜ. Gửi kèm hai ô ngoại lệ thì bấm Lưu để
+   * đổi giờ sẽ vô tình xoá ngoại lệ vừa đặt, mà không có gì báo. */
+  ok('nút Lưu (khung giờ) KHÔNG đụng vào hai ô ngoại lệ',
+    /KHÔNG gửi hai ô ngoại lệ ở đây/.test(app));
 
   /* Trang nhân sự phải TỰ đổi khi quản lý mở/đóng. Anh Hùng mở tay bên quản lý,
    * sang bản nhân sự vẫn thấy "đang đóng" — vì nhịp tự nạp có sẵn là

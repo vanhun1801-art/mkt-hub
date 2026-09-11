@@ -110,12 +110,12 @@ Giờ app tự áp. Sửa ở **Phân quyền quản lý → Khung giờ đăng 
 |---|---|
 | **Áp khung giờ** | Bỏ chọn là nút mở liên tục như trước |
 | **Mở / Đóng** | Thứ + giờ. Đặt mốc đóng **trước** mốc mở cũng được — ví dụ mở T7 15:00, đóng T2 12:00 thì cửa sổ vắt qua cuối tuần |
-| **Ngay bây giờ** | Ba nút loại nhau: *Theo khung giờ* · *Mở tay* · *Đóng tay*, kèm thời lượng (1/2/4 giờ, hết hôm nay, hết tuần này) |
+| **Ngay bây giờ** | Hai nút: **Mở khoá 1 giờ** · **Đóng 1 giờ**. Bấm là áp ngay (không phải bấm Lưu), hết một giờ tự về khung giờ. Đang có ngoại lệ thì hiện mốc + nút **Bỏ** |
 
 Ngoại lệ tay **thắng** khung giờ — nó là câu "tôi quyết thế" của quản lý. Hết
 thời lượng thì tự trở về theo khung giờ.
 
-Bản đầu chỗ này là **hai ô ngày** "Mở tay tới" / "Đóng tay tới". Anh Hùng thử và
+Chỗ này đã đi qua ba bản. Đầu tiên là **hai ô ngày** "Mở tay tới" / "Đóng tay tới". Anh Hùng thử và
 nói thẳng là khó hiểu — đúng, và cả bốn nguyên nhân là lỗi thiết kế:
 
 1. **Hai ô cho một câu hỏi.** Câu hỏi thật là *"bây giờ mở hay đóng"*, mà giao
@@ -125,10 +125,19 @@ nói thẳng là khó hiểu — đúng, và cả bốn nguyên nhân là lỗi 
 3. Chữ **"tới"** bắt tự cộng giờ: *"bây giờ 15:40, muốn mở một tiếng thì gõ gì"*.
 4. Bộ chọn lịch cho một việc mất 30 giây là quá nặng.
 
-Giờ là một hàng ba nút + chọn thời lượng, và màn hình **viết ra kết quả** trước
-khi bấm Lưu: *"→ Đóng tới Thứ 6 23:59 ngày 11/09, sau đó tự theo khung giờ."*
-Chọn một trạng thái thì trạng thái kia bị **xoá hẳn** — không còn ngoại lệ cũ
-sót lại rồi thắng cái vừa chọn.
+Bản thứ hai là ba nút + chọn thời lượng. Anh Hùng thử tiếp rồi chốt gọn hơn
+nữa: *"chỉ cần ấn vào là mở khoá trong một giờ"*, thêm nút đóng một giờ. Đúng —
+thứ này dùng để xử lý một tình huống **ngay lúc đó**, không phải để cấu hình.
+
+Nên bản hiện tại là **hai nút**, bấm là áp ngay. Mỗi nút ghi **cả hai** ô ngoại
+lệ nên không bao giờ còn hai ngoại lệ cùng sống. Nút **Lưu** ở trên chỉ thuộc về
+khung giờ — gửi kèm hai ô ngoại lệ thì bấm Lưu để đổi giờ sẽ vô tình xoá ngoại
+lệ vừa đặt, mà không có gì báo.
+
+**Bỏ ngoại lệ = ghi một mốc ĐÃ QUA, không phải ghi null.** Đo được: ghi `null`,
+`""` hay `0` vào ô ngày thì lark-cli trả `ok:true` mà giá trị trên Base **không
+đổi** — nút "Bỏ" bấm xong không có gì xảy ra và không có lỗi nào. Luật chỉ xét
+`mốc > bây giờ`, nên một mốc quá khứ có đúng nghĩa "không còn hiệu lực".
 
 **Nháp không bị chặn — cố ý.** Cửa thật là lúc **Gửi duyệt**: soạn sẵn trong tuần
 rồi tới khung giờ bấm gửi là nếp tốt hơn, mà hàng đợi của quản lý vẫn chỉ đầy
@@ -171,6 +180,14 @@ tuần); `test/cua-so.test.js` canh 62 phép, không cần server không cần B
 **Còn thiếu:** luật được đệm 60 giây. Một tiến trình thì đổi xong áp ngay (đường
 ghi tự xoá đệm), nhưng nếu chạy hai tiến trình cùng lúc trên một máy thì tiến
 trình kia còn đọc luật cũ tới một phút.
+
+### Chỉnh từ Cài đặt của hub
+
+Cùng cơ chế đó có mặt trong **Marketing Hub → Cài đặt → Từng app → Lịch tác
+nghiệp**: trạng thái hiện tại, khung hằng tuần, và hai nút *Mở khoá 1 giờ* /
+*Đóng 1 giờ*. Hub **không giữ luật** — nó gọi thẳng `/api/cua-so` của app con
+qua proxy (`/api/lich-cua-so`), nên chỉ có một nơi giữ luật và hai màn hình
+không thể lệch nhau.
 
 ### Xin huỷ MUỘN — lịch đã duyệt mà không đi được
 
