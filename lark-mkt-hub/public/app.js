@@ -1788,6 +1788,12 @@ window.addEventListener('message', (ev) => {
    * bắt từng Base đọc lại dữ liệu liên tục. */
   napThongBao();
   setInterval(() => { if (!document.hidden) napThongBao(); }, 120000);
+  /* Thông báo chặn màn hình: nạp ngay khi vào, và nạp lại mỗi phút. Nhịp dày
+   * hơn chuông thông báo (2 phút) vì loại này quản lý gửi để CHẶN — gửi rồi mà
+   * người đang mở app phải chờ hai phút mới thấy thì không còn là chặn. */
+  napTbApp();
+  setInterval(() => { if (!document.hidden) napTbApp(); }, 60000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) napTbApp(); });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) napThongBao(); });
   document.addEventListener('visibilitychange', () => { if (!document.hidden && S.view === 'home') napTongQuan(); });
 })();

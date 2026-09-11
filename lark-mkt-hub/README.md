@@ -385,6 +385,74 @@ Còn hai đường luôn thắng theo hướng mở, cố ý để không ai t�
 Kiểm tra nhanh mình đã cấp đúng chưa: màn Phân quyền → **Xem như** một người, cả app
 chuyển sang đúng con mắt của họ (mọi thao tác ghi bị chặn trong lúc xem hộ).
 
+## Thông báo chặn màn hình
+
+Chỗ để quản lý nói một câu mà cả phòng **buộc phải đọc**: popup che toàn bộ app
+— kể cả iframe của app con — và **không có đường thoát nào ngoài nút "Tôi đã
+đọc"**. Không dấu X, không Escape, không bấm ra ngoài. Cố ý: nó sinh ra để chặn.
+
+Soạn ở **Cài đặt → Thông báo tới nhân sự** (chỉ quản lý). Mỗi thông báo chọn
+riêng ba thứ:
+
+| Thiết lập | Nghĩa |
+|---|---|
+| **Mức độ** | Tin / Quan trọng / Gấp — đổi màu vạch trên hộp và thứ tự hiện. **Không** đổi mức chặn: cái nào cũng chặn. |
+| **Nút hành động** + **Liên kết** | Bỏ trống cả hai = thông báo *chỉ cần đọc*. Điền vào là có thêm chỗ để ấn. Link bắt đầu bằng `#` mở trong hub **sau khi** xác nhận; còn lại mở tab mới. |
+| **Buộc bấm nút** | Chưa bấm nút đó thì nút "Tôi đã đọc" còn khoá. |
+| **Khoảng hiển thị** | Từ ngày – đến ngày. Ngoài khoảng thì không hiện, khỏi phải nhớ vào tắt. "Đến ngày" tính **hết** ngày đó. |
+| **Gửi cho** | Cả phòng (`*`), hoặc tick từng người — cùng quy ước với ô "Base được xem". |
+
+Một lúc chỉ hiện **một** thông báo, Gấp trước. Dồn năm cái vào một màn hình thì
+người ta cuộn qua rồi bấm cho xong, đúng cái cần tránh.
+
+Xác nhận được ghi kèm **thời điểm**, nên trang Cài đặt trả lời được câu quan
+trọng nhất: *ai chưa đọc*. Bấm lần hai không đổi thời điểm đã ghi — đó là bằng
+chứng, đổi được thì hết là bằng chứng.
+
+### Bảng trên Base
+
+Lưu trên Base chứ không phải file: ổ đĩa Render là tạm, mất file nghĩa là mất cả
+danh sách **ai đã đọc** — cả phòng bị chặn lại bởi một thông báo họ đã xác nhận
+tuần trước. Tạo một bảng trong **cùng Base với bảng Phân quyền**, rồi khai
+`HUB_TB_TABLE` trên Render. Các cột:
+
+| Cột | Kiểu |
+|---|---|
+| Tiêu đề | Văn bản |
+| Nội dung | Văn bản (nhiều dòng) |
+| Mức độ | Lựa chọn: `Tin` · `Quan trọng` · `Gấp` |
+| Nút hành động | Văn bản |
+| Liên kết | Văn bản |
+| Buộc bấm nút | Checkbox |
+| Từ ngày · Đến ngày | Ngày |
+| Người nhận | Văn bản (`*` hoặc các open_id cách nhau bằng dấu phẩy) |
+| Bật | Checkbox |
+| Đã đọc | Văn bản (`open_id@thời-điểm`, app tự ghi) |
+
+Thiếu cột nào thì trang Cài đặt nói thẳng ra tên cột đó, và cảnh báo rằng thiết
+lập tương ứng **không có tác dụng** — thay vì âm thầm bỏ qua ô khi ghi.
+
+### Mấy chỗ đã tính trước
+
+- **Chặn vĩnh viễn.** Bật "buộc bấm" mà không điền nút thì nút "Tôi đã đọc" chờ
+  một cái nút không tồn tại — người nhận không thoát được. Chặn ngay lúc lưu.
+- **Xác nhận hộ người khác.** Người xác nhận lấy từ **phiên**, không nhận từ
+  client. Và đang **Xem như** thì không trả thông báo, cũng không cho xác nhận:
+  quản lý soát giao diện nhân sự mà bấm "Tôi đã đọc" là ký hộ họ.
+- **Nội dung của người khác.** Danh sách gửi xuống máy nhân sự chỉ chứa thông
+  báo của chính họ, và **không** kèm danh sách người nhận hay ai đã đọc — cắt ở
+  máy chủ, không ẩn bằng CSS.
+- **Hai người xác nhận cùng lúc.** "Đã đọc" nằm trong một ô nên đường ghi là
+  đọc–sửa–ghi; `xacNhan()` đọc lại bỏ qua bộ đệm ngay trước khi ghi. Khe hở còn
+  một nhịp gọi API, và nếu lỡ mất thì tự lành: popup hiện lại, bấm lần nữa.
+  Phòng đông lên thì đổi sang bảng-thứ-hai (một dòng một người).
+- **Va chạm tên.** Các tệp trong `public/` là `<script>` thường nên dùng **chung
+  một phạm vi toàn cục**: khai `const` cùng tên ở hai tệp là SyntaxError và tệp
+  nạp sau **chết hoàn toàn** — trên màn hình chỉ là "tính năng không chạy".
+  Đã gặp đúng lỗi này lúc dựng (`ngayTb` ở cả `caidat.js` và `tbapp.js`), nên
+  `test/tb-app.test.js` canh luôn cả chuyện đó. Tiền tố class cũng vậy: `tb-*`
+  đã thuộc về bảng chuông thông báo, lớp phủ này dùng `bb-*`.
+
 ## Thẻ chỉ số cho base mới
 
 Thêm một hàm trong `kpi.js` rồi khai tên hàm vào `kpi` của module:
@@ -451,9 +519,13 @@ trong Lark**, không liên quan tới vai quản lý/nhân sự bên trong từn
 | `lichchung.js` | gộp việc mọi base thành dải nhiệt nhân sự × ngày (khối Tải nhân sự) |
 | `bot.js` | nguồn số liệu chỉ-đọc cho trợ lý hỏi đáp (`/bot/*`) — xem `docs/tro-ly-bot.md` |
 | `gio-vn.js` | **giờ Việt Nam cho cả lớp vỏ** — Render chạy UTC, đừng dùng `getHours()`/`toLocaleString` |
+| `base-lark.js` | **lớp gọi Lark Base dùng chung** — `bang(baseToken, tableId)` cho api/cli; mọi bảng của hub đi qua đây |
+| `quyen.js` | bảng Phân quyền: ai thấy base nào, ai quản trị base nào |
+| `thongbao-app.js` | bảng Thông báo chặn màn hình: ai nhận, còn hiệu lực không, ai đã đọc |
 | `public/index.html` · `styles.css` · `app.js` · `icons.js` | panel base, sân khấu iframe, trang Tổng quan chung, modal Cài đặt / Thêm base / Log |
 | `test/api.test.js` | kiểm thử chỉ đọc |
 | `test/bot.test.js` | kiểm thử lớp `/bot`: token, chỉ GET, và **không một đồng nào lọt ra** |
+| `test/tb-app.test.js` | thông báo chặn màn hình: ai bị chặn, chặn tới khi nào, và canh va chạm tên giữa các tệp `public/` |
 
 ## Trợ lý hỏi đáp (bot)
 

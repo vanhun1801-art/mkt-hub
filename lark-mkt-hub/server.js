@@ -23,6 +23,7 @@ const auth = require('./auth');
 const quyen = require('./quyen');
 const viTri = require('./vi-tri');
 const { chuyenTiep, goiJson } = require('./proxy');
+const tbApp = require('./thongbao-app');
 
 const PUBLIC = path.join(__dirname, 'public');
 
@@ -247,6 +248,41 @@ function chanGhiKhiXemHo(res, xemNhu, method) {
  *
  * Quản lý của một base thì trong base đó được xem hết và xem được tiền: một Lead
  * phụ trách OTA mà không thấy doanh thu OTA thì không phụ trách được gì. */
+/**
+ * Danh bạ gom người từ MỌI app đang bật, không chỉ Bảng công việc.
+ *
+ * Đo bằng dữ liệu thật: lưới bảng nhiệt có 9 dòng, mà một dòng — người chỉ có
+ * trong Lịch tác nghiệp — KHÔNG có trong danh bạ. Hậu quả kép: không thêm được
+ * họ thành một dòng phân quyền, và không tick được họ trong "Xem tải của ai",
+ * nên tải của họ không bao giờ cấp được cho ai. Danh bạ trước đây chỉ hỏi đúng
+ * một app nên hụt đúng những người này.
+ *
+ * Gọi song song và bỏ qua app nào không trả lời: mấy panel dùng hàm này quản lý
+ * mở thường xuyên, đừng để một app chậm làm cả màn hình treo.
+ *
+ * Dùng ở hai chỗ (Phân quyền, Thông báo) nên phải là MỘT hàm: sao chép lần hai
+ * thì lần sau sửa một bên, bên kia im lặng hụt người.
+ */
+async function danhBaMoiApp(nguoi) {
+  const gop = new Map();
+  // giữ cả email nếu module biết: open_id khác nhau giữa các app Lark,
+  // khai bằng email thì đổi app vẫn khớp
+  const nap = (x) => {
+    if (!x || !x.id) return;
+    const cu = gop.get(x.id);
+    if (!cu) gop.set(x.id, { id: x.id, ten: x.name || x.id, email: x.email || '' });
+    else if (!cu.email && x.email) cu.email = x.email;
+  };
+  const mods = danhSach().filter((x) => x.bat && x.kieu === 'local' && x.cong);
+  const metas = await Promise.all(mods.map((mod) =>
+    goiJson(mod, '/api/meta', { nguoi }).catch(() => null)));
+  metas.forEach((meta) => {
+    if (!meta) return;
+    [...(meta.people || []), ...(meta.scopePeople || [])].forEach(nap);
+  });
+  return [...gop.values()].sort((a, b) => a.ten.localeCompare(b.ten, 'vi'));
+}
+
 function nguoiKemQuyen(nguoi, q, mod) {
   if (!nguoi) return null;
   const ql = mod ? laQLBase(q, mod) : !!(q && q.quanLy);
@@ -781,36 +817,7 @@ async function api(req, res, u) {
       try { hang = await quyen.docTatCa(u.searchParams.get('refresh') === '1'); }
       catch (e) { loiBang = e.message; }
 
-      /* Danh bạ gom người từ MỌI app đang bật, không chỉ Bảng công việc.
-       *
-       * Đo bằng dữ liệu thật: lưới bảng nhiệt có 9 dòng, mà một dòng — người
-       * chỉ có trong Lịch tác nghiệp — KHÔNG có trong danh bạ. Hậu quả kép:
-       * không thêm được họ thành một dòng phân quyền, và không tick được họ
-       * trong "Xem tải của ai", nên tải của họ không bao giờ cấp được cho ai.
-       * Danh bạ trước đây chỉ hỏi đúng một app nên hụt đúng những người này.
-       *
-       * Gọi song song và bỏ qua app nào không trả lời: panel này quản lý mở
-       * thường xuyên, đừng để một app chậm làm cả màn hình treo. */
-      let danhBa = [];
-      {
-        const gop = new Map();
-        // giữ cả email nếu module biết: open_id khác nhau giữa các app Lark,
-        // khai bằng email thì đổi app vẫn khớp
-        const nap = (x) => {
-          if (!x || !x.id) return;
-          const cu = gop.get(x.id);
-          if (!cu) gop.set(x.id, { id: x.id, ten: x.name || x.id, email: x.email || '' });
-          else if (!cu.email && x.email) cu.email = x.email;
-        };
-        const mods = danhSach().filter((x) => x.bat && x.kieu === 'local' && x.cong);
-        const metas = await Promise.all(mods.map((mod) =>
-          goiJson(mod, '/api/meta', { nguoi }).catch(() => null)));
-        metas.forEach((meta) => {
-          if (!meta) return;
-          [...(meta.people || []), ...(meta.scopePeople || [])].forEach(nap);
-        });
-        danhBa = [...gop.values()].sort((a, b) => a.ten.localeCompare(b.ten, 'vi'));
-      }
+      const danhBa = await danhBaMoiApp(nguoi);
 
       /* ĐỐI CHIẾU với danh bạ thật: dòng khai bằng tay rất dễ lệch (tên trong Lark
        * là "Hân Phù MKT" mà khai "Phù Mỹ Hân", email đoán sai) — lệch là app không
@@ -864,6 +871,103 @@ async function api(req, res, u) {
       lich.xoaCache();
       kpi.xoaCache();
       return ok(res, { xoa: rec });
+    }
+  }
+
+  /* ---------------- thông báo chặn màn hình ----------------
+   * Quản lý gửi một câu, người nhận buộc phải đọc mới dùng app tiếp được.
+   * Luật "ai thấy cái gì, còn hiệu lực không" nằm ở thongbao-app.js.
+   */
+  if (p === '/api/tb-app') {
+    /* Danh sách CÒN PHẢI ĐỌC của chính người đang xem.
+     *
+     * Cắt ở máy chủ: cái này che màn hình người ta, nên nội dung thông báo gửi
+     * cho người khác không được lọt xuống máy họ rồi mới ẩn bằng CSS.
+     *
+     * Đang "Xem như" thì trả rỗng. Quản lý soát giao diện nhân sự mà bị một
+     * popup chặn màn hình, rồi bấm "Tôi đã đọc" là xác nhận HỘ người ta — mất
+     * luôn bằng chứng ai đã đọc lúc nào. */
+    if (m === 'GET') {
+      const { nguoi: nguoiTB, xemNhu: nhuTB } = await aiDangXem(req);
+      if (nhuTB) return ok(res, { ds: [], xemNhu: true });
+      let ds = [];
+      let loiBang = '';
+      try { ds = await tbApp.cuaNguoi(nguoiTB, u.searchParams.get('refresh') === '1'); }
+      catch (e) { loiBang = e.message; }
+      return ok(res, { ds, loiBang });
+    }
+
+    /* Xác nhận đã đọc. Người xác nhận lấy từ PHIÊN, không nhận từ client:
+     * nhận theo client thì gõ tay một open_id khác là xác nhận hộ người ta. */
+    if (m === 'POST') {
+      const { nguoi: nguoiTB, xemNhu: nhuTB } = await aiDangXem(req);
+      if (nhuTB) return loi(res, 403, 'Đang xem giao diện của người khác — không xác nhận thay họ được.');
+      if (!nguoiTB || !nguoiTB.id) return loi(res, 401, 'Chưa nhận ra bạn là ai.');
+      const b = await docBody(req);
+      if (!b.recordId) return loi(res, 400, 'Thiếu recordId');
+      try {
+        const kq = await tbApp.xacNhan(b.recordId, nguoiTB.id);
+        return ok(res, kq);
+      } catch (e) {
+        return loi(res, 400, e.message);
+      }
+    }
+  }
+
+  /* Soạn / sửa / xoá thông báo, và xem ai đã đọc — chỉ quản lý. */
+  if (p === '/api/tb-app/quan-ly') {
+    if (await chiQuanLy(req, res)) return;
+
+    if (m === 'GET') {
+      const { nguoi: nguoiQL } = await aiDangXem(req);
+      let ds = [];
+      let loiBang = '';
+      try { ds = await tbApp.docTatCa(u.searchParams.get('refresh') === '1'); }
+      catch (e) { loiBang = e.message; }
+      /* Map không đi qua JSON được — đổi "đã đọc" thành danh sách để panel vẽ
+       * được "ai đọc lúc nào" mà không phải đọc lại Base lần nữa. */
+      const danhBa = await danhBaMoiApp(nguoiQL).catch(() => []);
+      const ten = new Map(danhBa.map((x) => [x.id, x.ten]));
+      return ok(res, {
+        ds: ds.map((tb) => Object.assign({}, tb, {
+          daDoc: [...tb.daDoc.entries()].map(([id, luc]) => ({ id, ten: ten.get(id) || id, luc })),
+        })),
+        danhBa,
+        loiBang,
+        coBang: tbApp.coBang(),
+        thieuCot: await tbApp.cotThieu(),
+        larkUrl: tbApp.larkUrl(),
+        mucDo: tbApp.MUC_DO,
+      });
+    }
+
+    if (m === 'POST') {
+      const b = await docBody(req);
+      if (!String(b.tieuDe || '').trim() && !String(b.noiDung || '').trim()) {
+        return loi(res, 400, 'Thông báo phải có tiêu đề hoặc nội dung.');
+      }
+      /* Không gửi cho ai thì popup không bao giờ hiện — chặn ở đây, không để
+       * quản lý soạn xong tưởng đã gửi. */
+      if (!b.moiAi && !((b.ai || []).length)) {
+        return loi(res, 400, 'Chưa chọn người nhận. Tick "Cả phòng" hoặc chọn ít nhất một người.');
+      }
+      try {
+        const id = await tbApp.luu(b);
+        return ok(res, { recordId: id });
+      } catch (e) {
+        return loi(res, 400, e.message);
+      }
+    }
+
+    if (m === 'DELETE') {
+      const rec = u.searchParams.get('recordId');
+      if (!rec) return loi(res, 400, 'Thiếu recordId');
+      try {
+        await tbApp.xoa(rec);
+        return ok(res, { xoa: rec });
+      } catch (e) {
+        return loi(res, 400, e.message);
+      }
     }
   }
 

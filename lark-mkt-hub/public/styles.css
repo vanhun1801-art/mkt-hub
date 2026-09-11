@@ -1320,3 +1320,92 @@ body.dang-xem-ho .app { height: calc(100vh - 34px); margin-top: 34px; }
   text-transform: uppercase; letter-spacing: .04em; color: var(--chu-nhat);
 }
 .cd-muc-nho:first-of-type { margin-top: 6px; }
+
+/* ==========================================================================
+   THÔNG BÁO CHẶN MÀN HÌNH
+   ==========================================================================
+   z-index phải trên MỌI thứ: trên iframe app con, trên hộp Cài đặt, trên cả
+   băng "Đang xem như". Cái này sinh ra để chặn — nằm dưới một lớp nào đó là nó
+   mất nghĩa. Modal của hub ở 50, toast ở 90, băng "Đang xem như" ở 60 — lấy 900 cho chắc.
+   ========================================================================== */
+.bb-phu {
+  position: fixed; inset: 0; z-index: 900;
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+  /* Nền mờ ĐẬM, không phải mờ nhẹ như modal thường: phải thấy rõ là app đang
+     bị chặn, không phải một hộp thoại bấm ra ngoài là xong. */
+  background: rgba(15, 20, 30, .72);
+  backdrop-filter: blur(3px);
+  overflow-y: auto;
+}
+/* Khoá cuộn trang nền — không khoá thì cuộn được phía sau, nhìn như app vẫn
+   dùng được, chỉ là có hộp chắn ngang. */
+body.bb-chan { overflow: hidden; }
+
+.bb-hop {
+  width: 100%; max-width: 560px; margin: auto;
+  background: var(--trang); border-radius: 14px;
+  border: 1px solid var(--vien);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, .34);
+  padding: 22px 24px 18px;
+  display: flex; flex-direction: column; gap: 14px;
+  /* Căn trái rõ ràng: hộp này nằm giữa màn hình nên rất dễ thừa hưởng
+     text-align:center của khối cha, mà một đoạn thông báo nhiều dòng căn giữa
+     thì đọc rất mệt (đã thấy lúc chụp thử). */
+  text-align: left;
+}
+/* Vạch màu trên đỉnh hộp theo mức độ — đọc được trước cả khi đọc chữ. */
+.bb-hop { border-top: 4px solid var(--xanh); }
+.bb-quan { border-top-color: var(--vang); }
+.bb-gap  { border-top-color: var(--do); }
+
+.bb-dau { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.bb-nhan {
+  font-size: 11.5px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase;
+  padding: 3px 9px; border-radius: 999px;
+  background: var(--trang-2); color: var(--chu-nhat); border: 1px solid var(--vien);
+}
+.bb-tin .bb-nhan  { color: var(--xanh); border-color: var(--xanh); }
+.bb-quan .bb-nhan { color: var(--vang); border-color: var(--vang); }
+.bb-gap .bb-nhan  { color: var(--do); border-color: var(--do); }
+.bb-dem { font-size: 12px; color: var(--chu-nhat); }
+
+.bb-ten { margin: 0; font-size: 19px; line-height: 1.35; color: var(--chu); }
+.bb-noi { font-size: 14px; line-height: 1.62; color: var(--chu-mo); }
+.bb-noi p { margin: 0 0 9px; }
+.bb-noi p:last-child { margin-bottom: 0; }
+.bb-trong { color: var(--chu-nhat); font-style: italic; }
+
+.bb-viec {
+  display: flex; align-items: center; gap: 11px; flex-wrap: wrap;
+  padding: 12px; border-radius: 9px;
+  background: var(--trang-2); border: 1px solid var(--vien);
+}
+.bb-ghi { font-size: 12px; color: var(--chu-nhat); line-height: 1.45; }
+
+.bb-chan-hop {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding-top: 12px; border-top: 1px solid var(--vien);
+}
+.bb-chan-hop .grow { flex: 1; }
+
+/* ---- trang soạn thông báo trong Cài đặt ---- */
+.bb-ds { display: flex; flex-direction: column; gap: 9px; }
+.bb-dong {
+  display: flex; align-items: flex-start; gap: 11px;
+  padding: 11px 13px; border-radius: 9px;
+  background: var(--trang-2); border: 1px solid var(--vien);
+}
+.bb-dong.tat { opacity: .55; }
+.bb-dong-noi { flex: 1; min-width: 0; }
+.bb-dong-ten { font-weight: 600; font-size: 13.5px; color: var(--chu); }
+.bb-dong-phu { font-size: 12px; color: var(--chu-nhat); margin-top: 3px; line-height: 1.5; }
+.bb-dong-nut { display: flex; gap: 5px; flex-wrap: wrap; }
+/* Ai đã đọc / ai chưa: hai danh sách phải đọc được bằng mắt trong một nhịp,
+   vì đó là câu hỏi duy nhất quản lý mở trang này để hỏi. */
+.bb-doc-ds { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; }
+.bb-ai {
+  font-size: 11.5px; padding: 2px 8px; border-radius: 999px;
+  background: var(--trang); border: 1px solid var(--vien); color: var(--chu-nhat);
+}
+.bb-ai.roi { border-color: var(--luc); color: var(--luc); }
+.bb-ai.chua { border-color: var(--do); color: var(--do); }

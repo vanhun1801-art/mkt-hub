@@ -54,6 +54,11 @@ function cdNhom() {
       { k: 'quyen', ten: 'Phân quyền', ic: 'nguoi',
         mo: 'Ai thấy base nào, ai duyệt được trong app nào',
         tu: 'quản lý nhân sự chi phí tạo mới lead availability', ql: true },
+      /* Đặt cạnh Phân quyền vì cùng một loại việc: tác động tới màn hình của
+       * người khác. Khác Phân quyền ở chỗ nó tác động NGAY và CHẶN. */
+      { k: 'thong-bao', ten: 'Thông báo tới nhân sự', ic: 'chuong',
+        mo: 'Popup chặn màn hình, buộc đọc mới dùng app tiếp',
+        tu: 'popup thông báo bắt buộc đọc gấp phổ biến nhắc cả phòng', ql: true },
     { k: 'thuong-hieu', ten: 'Nhận diện thương hiệu', ic: 'anh',
       mo: 'Logo đóng lên tệp xuất ra', ql: true },
       { k: 'he-thong', ten: 'Hệ thống', ic: 'may',
@@ -157,6 +162,7 @@ function veCdNoi() {
   if (S.cdMuc === 'toi') return veCdToi(el);
   if (S.cdMuc === 'he-thong') return veCdHeThong(el);
   if (S.cdMuc === 'quyen') return veCdQuyen(el);
+  if (S.cdMuc === 'thong-bao') return veCdThongBao(el);
   if (S.cdMuc === 'base') return veCdBase(el);
   if (S.cdMuc === 'thuong-hieu') return veCdThuongHieu(el);
   if (S.cdMuc === 'kiem-tra') return veCdKiemTra(el);
@@ -473,6 +479,258 @@ function veCdApp(el, a) {
       dongModal();
       location.hash = '#/m/' + a.id + '?mo=phan-phoi';
     };
+  }
+}
+
+/* ---------------- Thông báo tới nhân sự ----------------
+ * Chỗ duy nhất trong cả hệ mà một người bấm một nút là màn hình người khác bị
+ * chặn. Nên trang này phải trả lời được BA câu, và trả lời ngay trên màn hình
+ * chứ không bắt đi tìm:
+ *
+ *   gửi cái gì · cho ai · ai đã đọc rồi
+ *
+ * Câu thứ ba là câu quan trọng nhất: gửi xong mà không biết ai chưa đọc thì
+ * thông báo bắt buộc chẳng khác gì thông báo thường.
+ */
+let TBQL = null;      // dữ liệu đang hiện
+let TBSUA = null;     // thông báo đang soạn / sửa
+
+function veCdThongBao(el) {
+  el.innerHTML = cdTieuDe('Thông báo tới nhân sự',
+    'Popup che toàn bộ app, người nhận buộc bấm "Tôi đã đọc" mới dùng tiếp được.') +
+    '<div id="tbqlNoi"><div class="cd-hang"><div class="cd-hang-tx"><b>Đang đọc…</b></div></div></div>';
+  napCdTb();
+}
+
+async function napCdTb(refresh) {
+  const o = $('#tbqlNoi');
+  if (!o) return;
+  try {
+    TBQL = await goi('/api/tb-app/quan-ly' + (refresh ? '?refresh=1' : ''));
+  } catch (e) {
+    o.innerHTML = cdHang('Không đọc được', esc(e.message), '');
+    return;
+  }
+  veCdTbDs();
+}
+
+function veCdTbDs() {
+  const o = $('#tbqlNoi');
+  if (!o) return;
+  const d = TBQL || {};
+  let h = '';
+
+  /* Chưa khai bảng thì nói đúng việc phải làm, kèm danh sách cột. Không nói ra
+   * thì màn hình này chỉ là một cái nút Gửi bấm vào ra lỗi. */
+  if (!d.coBang) {
+    h += '<div class="canh-bao do"><span class="grow">Chưa có bảng thông báo. ' +
+      'Tạo một bảng trong Base Phân quyền với đúng các cột bên dưới, rồi khai ' +
+      '<code>HUB_TB_TABLE</code> trên Render.</span></div>' +
+      cdHang('Các cột cần tạo',
+        '<code>Tiêu đề</code> (văn bản) · <code>Nội dung</code> (văn bản nhiều dòng) · ' +
+        '<code>Mức độ</code> (lựa chọn: Tin / Quan trọng / Gấp) · ' +
+        '<code>Nút hành động</code> (văn bản) · <code>Liên kết</code> (văn bản) · ' +
+        '<code>Buộc bấm nút</code> (checkbox) · <code>Từ ngày</code>, <code>Đến ngày</code> (ngày) · ' +
+        '<code>Người nhận</code> (văn bản) · <code>Bật</code> (checkbox) · ' +
+        '<code>Đã đọc</code> (văn bản)', '');
+    o.innerHTML = h;
+    return;
+  }
+
+  if ((d.thieuCot || []).length) {
+    h += '<div class="canh-bao do"><span class="grow">Bảng còn thiếu cột: <b>' +
+      d.thieuCot.map(esc).join(', ') + '</b> — mấy ô đó sẽ bị bỏ khi lưu, ' +
+      'nghĩa là thiết lập tương ứng KHÔNG có tác dụng.</span></div>';
+  }
+  if (d.loiBang) {
+    h += '<div class="canh-bao do"><span class="grow">' + esc(d.loiBang) + '</span></div>';
+  }
+
+  h += '<div class="cd-doc" style="margin-bottom:12px">' +
+    '<button class="btn primary" id="tbSoan">Soạn thông báo</button>' +
+    '<button class="btn nho" id="tbLai">Làm mới</button>' +
+    (d.larkUrl ? '<a class="btn nho ghost" target="_blank" rel="noreferrer" href="' +
+      esc(d.larkUrl) + '">Mở bảng trong Lark</a>' : '') +
+    '</div>';
+
+  const ds = d.ds || [];
+  if (!ds.length) {
+    h += '<div class="cd-hang"><div class="cd-hang-tx">Chưa có thông báo nào.</div></div>';
+  } else {
+    h += '<div class="bb-ds">' + ds.map(veCdTbDong).join('') + '</div>';
+  }
+  o.innerHTML = h;
+
+  $('#tbSoan').onclick = () => moFormTb(null);
+  $('#tbLai').onclick = () => napCdTb(true);
+  $$('#tbqlNoi [data-tb-sua]').forEach((b) => {
+    b.onclick = () => moFormTb((TBQL.ds || []).find((x) => x.recordId === b.dataset.tbSua));
+  });
+  $$('#tbqlNoi [data-tb-xoa]').forEach((b) => {
+    b.onclick = async () => {
+      if (!confirm('Xoá thông báo này?')) return;
+      try {
+        await goi('/api/tb-app/quan-ly?recordId=' + encodeURIComponent(b.dataset.tbXoa),
+          { method: 'DELETE' });
+        toast('Đã xoá', 'luc');
+        napCdTb(true);
+      } catch (e) { toast(e.message, 'do'); }
+    };
+  });
+}
+
+function veCdTbDong(tb) {
+  const db = (TBQL && TBQL.danhBa) || [];
+  /* Ai CHƯA đọc = người nhận trừ người đã đọc. Đây là con số quản lý cần, nên
+   * tính ra sẵn thay vì bày hai danh sách rồi để anh tự trừ. */
+  const nhan = tb.moiAi ? db.map((x) => x.id) : (tb.ai || []);
+  const daDoc = new Set((tb.daDoc || []).map((x) => x.id));
+  const chua = nhan.filter((id) => !daDoc.has(id));
+  const tenCua = (id) => (db.find((x) => x.id === id) || {}).ten || id;
+
+  const khoang = [tb.tuNgay ? 'từ ' + ngayTb(tb.tuNgay) : '',
+    tb.denNgay ? 'đến ' + ngayTb(tb.denNgay) : ''].filter(Boolean).join(' ') || 'không giới hạn';
+
+  return '<div class="bb-dong' + (tb.bat ? '' : ' tat') + '">' +
+    '<div class="bb-dong-noi">' +
+      '<div class="bb-dong-ten">' +
+        '<span class="bb-nhan bb-' + esc(tb.mucDo === 'Gấp' ? 'gap' : tb.mucDo === 'Quan trọng' ? 'quan' : 'tin') +
+          '">' + esc(tb.mucDo) + '</span> ' + esc(tb.tieuDe || '(không tiêu đề)') +
+        (tb.bat ? '' : ' <span class="cd-nhan">đang tắt</span>') +
+      '</div>' +
+      '<div class="bb-dong-phu">' +
+        esc(String(tb.noiDung || '').replace(/\s+/g, ' ').slice(0, 110)) +
+        '<br>Gửi cho: <b>' + (tb.moiAi ? 'cả phòng' : (tb.ai || []).length + ' người') + '</b>' +
+        ' · Hiển thị: ' + esc(khoang) +
+        (tb.nhanNut ? ' · Nút "' + esc(tb.nhanNut) + '"' + (tb.buocBam ? ' (buộc bấm)' : '') : '') +
+      '</div>' +
+      '<div class="bb-doc-ds">' +
+        '<span class="bb-ai roi">' + daDoc.size + ' đã đọc</span>' +
+        (chua.length ? '<span class="bb-ai chua">' + chua.length + ' chưa đọc</span>' : '') +
+        chua.slice(0, 8).map((id) => '<span class="bb-ai">' + esc(tenCua(id)) + '</span>').join('') +
+        (chua.length > 8 ? '<span class="bb-ai">+' + (chua.length - 8) + '</span>' : '') +
+      '</div>' +
+    '</div>' +
+    '<div class="bb-dong-nut">' +
+      '<button class="btn nho" data-tb-sua="' + esc(tb.recordId) + '">Sửa</button>' +
+      '<button class="btn nho ghost" data-tb-xoa="' + esc(tb.recordId) + '">Xoá</button>' +
+    '</div>' +
+    '</div>';
+}
+
+/* `ngayTb` khai ở tbapp.js — hai tệp cùng một phạm vi toàn cục, khai hai lần
+ * là SyntaxError và tệp nạp sau chết hẳn (đã gặp: lớp phủ không chạy, chỉ có
+ * một dòng lỗi trong console). Dùng lại bản ở đó. */
+/* Ô <input type="date"> cần YYYY-MM-DD theo giờ VN, không phải theo giờ máy. */
+const ngayO = (ms) => (ms ? new Date(Number(ms) + 7 * 3600000).toISOString().slice(0, 10) : '');
+const msTuO = (v) => (v ? Date.parse(v + 'T00:00:00+07:00') || 0 : 0);
+
+function moFormTb(tb) {
+  const d = TBQL || {};
+  TBSUA = tb || { mucDo: 'Tin', moiAi: true, ai: [], bat: true };
+  const t = TBSUA;
+  const db = d.danhBa || [];
+  const hang = (nhan, noi, ghi) =>
+    '<div class="q-hang"><label>' + nhan + '</label><div class="q-o">' + noi +
+    (ghi ? '<div class="q-ghi-nho">' + ghi + '</div>' : '') + '</div></div>';
+
+  let html = '<div class="q-form">';
+  html += hang('Mức độ',
+    '<select class="q-in" id="tbMucDo">' + (d.mucDo || ['Tin']).map((x) =>
+      '<option value="' + esc(x) + '"' + (t.mucDo === x ? ' selected' : '') + '>' + esc(x) + '</option>').join('') +
+    '</select>', 'Chỉ đổi màu và thứ tự hiện — không đổi mức chặn. Cái nào cũng chặn màn hình.');
+  html += hang('Tiêu đề',
+    '<input class="q-in" id="tbTieuDe" type="text" value="' + esc(t.tieuDe || '') +
+    '" placeholder="Câu người ta đọc đầu tiên">');
+  html += hang('Nội dung',
+    '<textarea class="q-in" id="tbNoiDung" rows="5" placeholder="Xuống dòng được — mỗi dòng một đoạn">' +
+    esc(t.noiDung || '') + '</textarea>');
+
+  html += hang('Nút hành động',
+    '<input class="q-in" id="tbNhanNut" type="text" value="' + esc(t.nhanNut || '') +
+      '" placeholder="Nhãn nút, ví dụ: Đọc quy định mới">' +
+    '<input class="q-in" id="tbLienKet" type="text" value="' + esc(t.lienKet || '') +
+      '" placeholder="https://... hoặc #/m/cong-viec (một base trong hub)" style="margin-top:6px">' +
+    '<label class="q-ck" style="margin-top:6px"><input type="checkbox" id="tbBuocBam"' +
+      (t.buocBam ? ' checked' : '') + '>' +
+      '<span>Buộc bấm nút này trước khi xác nhận</span></label>',
+    'Bỏ trống cả hai ô là thông báo <b>chỉ cần đọc</b>. Điền vào là có thêm chỗ để ấn. ' +
+    'Link bắt đầu bằng <code>#</code> thì mở trong hub sau khi xác nhận; còn lại mở tab mới.');
+
+  html += hang('Khoảng hiển thị',
+    '<div class="cd-doc"><input class="q-in" id="tbTu" type="date" value="' + esc(ngayO(t.tuNgay)) + '">' +
+    '<input class="q-in" id="tbDen" type="date" value="' + esc(ngayO(t.denNgay)) + '"></div>',
+    'Bỏ trống là hiện ngay và hiện mãi tới khi tắt. "Đến ngày" tính <b>hết</b> ngày đó.');
+
+  html += hang('Gửi cho',
+    '<label class="q-ck q-ck-manh"><input type="checkbox" id="tbMoiAi"' + (t.moiAi ? ' checked' : '') + '>' +
+      '<span>Cả phòng</span><small class="q-nhat">— kể cả người vào sau này</small></label>' +
+    '<input class="q-in q-loc" id="tbLoc" type="text" placeholder="Lọc theo tên…">' +
+    '<div class="q-nhom q-nhom-cuon" id="tbAi">' + db.map((x) =>
+      '<label class="q-ck" data-ten="' + esc(String(x.ten).toLowerCase()) + '">' +
+      '<input type="checkbox" data-ai="' + esc(x.id) + '"' +
+        ((t.ai || []).includes(x.id) ? ' checked' : '') + '>' +
+      '<span>' + esc(x.ten) + '</span></label>').join('') + '</div>');
+
+  html += hang('Bật',
+    '<label class="q-ck q-ck-manh"><input type="checkbox" id="tbBat"' +
+      (t.bat !== false ? ' checked' : '') + '>' +
+      '<span>Đang gửi</span><small class="q-nhat">— bỏ tick là giữ lại nhưng không hiện nữa</small></label>');
+  html += '</div>';
+
+  moModal(tb ? 'Sửa thông báo' : 'Soạn thông báo', html,
+    '<button class="btn ghost" id="tbQuay">← Danh sách</button><span class="grow"></span>' +
+    '<button class="btn primary" id="tbLuu">Lưu</button>' +
+    '<button class="btn ghost" data-close="1">Đóng</button>');
+
+  const ckMoi = $('#tbMoiAi');
+  const dongBo = () => { $('#tbAi').classList.toggle('q-mo-het', ckMoi.checked); };
+  ckMoi.onchange = dongBo;
+  dongBo();
+  const oLoc = $('#tbLoc');
+  oLoc.oninput = () => {
+    const q = oLoc.value.trim().toLowerCase();
+    // đã tick thì luôn hiện, không thì lọc xong tưởng mình bỏ tick mất
+    $$('#tbAi .q-ck').forEach((l) => {
+      l.hidden = !!q && !l.dataset.ten.includes(q) && !l.querySelector('input').checked;
+    });
+  };
+  $('#tbQuay').onclick = () => { modalCaiDat('thong-bao'); };
+  $('#tbLuu').onclick = luuFormTb;
+}
+
+async function luuFormTb() {
+  const than = {
+    recordId: (TBSUA && TBSUA.recordId) || '',
+    mucDo: $('#tbMucDo').value,
+    tieuDe: $('#tbTieuDe').value.trim(),
+    noiDung: $('#tbNoiDung').value,
+    nhanNut: $('#tbNhanNut').value.trim(),
+    lienKet: $('#tbLienKet').value.trim(),
+    buocBam: !!$('#tbBuocBam').checked,
+    tuNgay: msTuO($('#tbTu').value),
+    denNgay: msTuO($('#tbDen').value),
+    moiAi: !!$('#tbMoiAi').checked,
+    ai: $$('#tbAi [data-ai]').filter((x) => x.checked).map((x) => x.dataset.ai),
+    bat: !!$('#tbBat').checked,
+  };
+  /* Buộc bấm mà không có nút thì người nhận bị khoá vĩnh viễn: nút "Tôi đã đọc"
+   * chờ một cái nút không tồn tại. Chặn ở đây, đây là loại lỗi tự gây ra cho
+   * chính nhân sự của mình. */
+  if (than.buocBam && !(than.nhanNut && than.lienKet)) {
+    return toast('Bật "buộc bấm" thì phải có cả nhãn nút và liên kết — không thì người nhận không đóng được popup.', 'do');
+  }
+  const nut = $('#tbLuu');
+  nut.disabled = true;
+  nut.textContent = 'Đang lưu…';
+  try {
+    await goi('/api/tb-app/quan-ly', { method: 'POST', body: JSON.stringify(than) });
+    toast('Đã lưu thông báo', 'luc');
+    modalCaiDat('thong-bao');
+  } catch (e) {
+    nut.disabled = false;
+    nut.textContent = 'Lưu';
+    toast(e.message, 'do');
   }
 }
 

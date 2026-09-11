@@ -29,11 +29,11 @@
  * Trước đây trống bị hiểu là "mọi base", nên bỏ tick hết trong màn Phân quyền lại
  * thành mở hết — xem [[quyen-base-trong]] trong README.
  */
-const os = require('os');
 const fsn = require('fs');
 const pathn = require('path');
-const { execFile } = require('child_process');
-const cfg = require('./config');
+/* Lớp gọi Base tách ra base-lark.js từ lúc hub có bảng thứ hai (Thông báo) —
+ * hai bản sao của cùng một lớp gọi API thì sớm muộn lệch nhau. */
+const baseLark = require('./base-lark');
 
 const BASE = process.env.HUB_QUYEN_BASE || 'JhZtbxv0gamk5ys3Fr0luHnsgwG';
 const TABLE = process.env.HUB_QUYEN_TABLE || 'tblBKm6ZurhN3703';
@@ -63,92 +63,8 @@ const F = {
   ghiChu: 'Ghi chú',
 };
 
-/* ---------------- gọi Base bằng token của app ---------------- */
-let tokenCache = { value: null, exp: 0 };
-
-async function tenantToken() {
-  if (tokenCache.value && Date.now() < tokenCache.exp) return tokenCache.value;
-  if (!cfg.appId || !cfg.appSecret) throw new Error('Thiếu LARK_APP_ID / LARK_APP_SECRET');
-  const r = await fetch(cfg.apiHost + '/open-apis/auth/v3/tenant_access_token/internal', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json; charset=utf-8' },
-    body: JSON.stringify({ app_id: cfg.appId, app_secret: cfg.appSecret }),
-  });
-  const d = await r.json();
-  if (d.code !== 0) throw new Error('Lấy tenant_access_token thất bại: ' + (d.msg || d.code));
-  tokenCache = { value: d.tenant_access_token, exp: Date.now() + Math.max(60, (d.expire || 7200) - 300) * 1000 };
-  return tokenCache.value;
-}
-
-/* ---------------- gọi Base bằng lark-cli (máy cá nhân, chế độ cli) ----------------
- * Chạy localhost thì không có App Secret, nhưng máy đã đăng nhập lark-cli — dùng
- * luôn phiên đó để đọc/ghi cùng một bảng phân quyền. Nhờ vậy quản lý sửa quyền
- * được cả ở máy mình lẫn trên bản deploy, dữ liệu vẫn một chỗ.
- */
-function timLarkCli() {
-  if (process.env.LARK_CLI_SCRIPT) return process.env.LARK_CLI_SCRIPT;
-  const rel = pathn.join('node_modules', '@larksuite', 'cli', 'scripts', 'run.js');
-  const goc = [
-    pathn.join(process.env.APPDATA || pathn.join(os.homedir(), 'AppData', 'Roaming'), 'npm'),
-    pathn.join(os.homedir(), 'AppData', 'Roaming', 'npm'),
-    '/usr/local/lib',
-    '/usr/lib',
-  ];
-  for (const r of goc) {
-    const p = pathn.join(r, rel);
-    if (fsn.existsSync(p)) return p;
-  }
-  return null;
-}
-
-function cli(args) {
-  return new Promise((resolve, reject) => {
-    const script = timLarkCli();
-    if (!script) {
-      return reject(new Error('Máy này chưa có lark-cli (npm i -g @larksuite/cli), ' +
-        'hoặc chạy chế độ api bằng LARK_APP_ID + LARK_APP_SECRET.'));
-    }
-    execFile(process.execPath, [script, ...args],
-      { timeout: 60000, maxBuffer: 32 * 1024 * 1024, windowsHide: true },
-      (err, stdout) => {
-        const raw = String(stdout || '').trim();
-        let j = null;
-        const s = raw.indexOf('{');
-        const e = raw.lastIndexOf('}');
-        if (s >= 0 && e > s) { try { j = JSON.parse(raw.slice(s, e + 1)); } catch (_) {} }
-        if (j && j.ok === false) {
-          const m = (j.error && (j.error.message || j.error.hint)) || j.message || 'lark-cli lỗi';
-          return reject(new Error(String(m).slice(0, 200)));
-        }
-        if (err && !j) return reject(new Error(String(err.message || err).slice(0, 200)));
-        resolve((j && j.data) || j || {});
-      });
-  });
-}
-
-const cliArgs = () => ['--base-token', BASE, '--table-id', TABLE,
-  '--as', process.env.LARK_AS || 'user', '--format', 'json'];
-
-const url = (duoi) => cfg.apiHost + '/open-apis/base/v3/bases/' + BASE + '/tables/' + TABLE + duoi;
-
-async function goi(method, duoi, body) {
-  const token = await tenantToken();
-  const r = await fetch(url(duoi), {
-    method,
-    headers: Object.assign({ Authorization: 'Bearer ' + token },
-      body ? { 'Content-Type': 'application/json; charset=utf-8' } : {}),
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const d = await r.json();
-  if (d.code !== 0) {
-    const e = new Error('Lark API ' + d.code + ': ' + (d.msg || 'lỗi không rõ'));
-    e.code = d.code;
-    throw e;
-  }
-  return d.data || {};
-}
-
-const laApi = () => cfg.mode === 'api';
+/* Bộ hàm gọi đúng bảng này. Chế độ api / cli nằm trong base-lark.js. */
+const B = baseLark.bang(BASE, TABLE);
 
 /* ---------------- đọc ---------------- */
 const asText = (v) => {
@@ -159,29 +75,7 @@ const asText = (v) => {
   return String(v);
 };
 
-function doiHang(fieldIds, ids, rows) {
-  // Base trả dạng cột -> đổi về từng bản ghi, khoá là TÊN cột cho dễ đọc
-  return rows.map((row, i) => {
-    const o = { id: ids[i] };
-    fieldIds.forEach((ten, j) => { o[ten] = row[j]; });
-    return o;
-  });
-}
-
 let cache = { at: 0, ds: null };
-let mapCot = { at: 0, theoId: null };
-
-/** id cột -> tên cột. Bản ghi Base trả về theo id, mà code đọc theo tên cho dễ hiểu. */
-async function tenCot() {
-  if (mapCot.theoId && Date.now() - mapCot.at < 5 * 60000) return mapCot.theoId;
-  const d = laApi() ? await goi('GET', '/fields?limit=100&offset=0')
-                    : await cli(['base', '+field-list', ...cliArgs()]);
-  const ds = d.fields || d.items || [];
-  const theoId = {};
-  ds.forEach((f) => { theoId[f.field_id || f.id] = f.field_name || f.name; });
-  mapCot = { at: Date.now(), theoId };
-  return theoId;
-}
 
 /** Ô "Base được xem" -> { base: [...id], moiBase: true/false }. Xem đầu file. */
 function docOBase(raw) {
@@ -219,24 +113,14 @@ async function docTatCa(boQuaCache) {
   if (!boQuaCache && cache.ds && Date.now() - cache.at < 20000) return cache.ds;
   if (FILE) return docTuFile();
 
-  const theoId = await tenCot();
-  const out = [];
-  let offset = 0;
-  for (let trang = 0; trang < 10; trang++) {
-    const d = laApi()
-      ? await goi('GET', '/records?limit=200&offset=' + offset)
-      : await cli(['base', '+record-list', ...cliArgs(), '--limit', '200', '--offset', String(offset)]);
-    const ten = (d.field_id_list || []).map((id) => theoId[id] || id);
-    out.push(...doiHang(ten, d.record_id_list || [], d.data || []));
-    if (!d.has_more) break;
-    offset += 200;
-  }
+  const out = await B.docHet();
 
   const ds = out.map((r) => {
     const oB = docOBase(asText(r[F.base]));
+    const recId = r.recordId;
     const oX = docXemTai(r[F.xemTai]);
     return {
-      recordId: r.id,
+      recordId: recId,
       nguoi: asText(r[F.nguoi]),
       email: asText(r[F.email]).trim().toLowerCase(),
       openId: asText(r[F.openId]).trim(),
@@ -329,31 +213,17 @@ async function ghi(hang) {
 
   /* Bảng của người dùng có thể thiếu cột mới (chưa thêm "Quản lý base" chẳng
    * hạn). Ghi vào cột không tồn tại là Lark trả lỗi và mất luôn cả bản ghi —
-   * nên lọc theo cột thật, và nói ra cột nào bị bỏ để không âm thầm mất dữ liệu. */
-  try {
-    const co = new Set(Object.values(await tenCot()));
-    for (const ten of Object.keys(cells)) {
-      if (!co.has(ten)) {
-        delete cells[ten];
-        console.warn('  [phân quyền] bảng chưa có cột "' + ten + '" — bỏ qua ô này khi ghi.');
-      }
-    }
-  } catch (_) { /* không đọc được danh sách cột thì cứ ghi như cũ */ }
+   * nên lọc theo cột thật, và nói ra cột nào bị bỏ (xem B.locCotThat). */
+  await B.locCotThat(cells, 'phân quyền');
 
   if (hang.recordId) {
-    const body = { update_records: { [hang.recordId]: cells } };
-    if (laApi()) await goi('POST', '/records/batch_update', body);
-    else await cli(['base', '+record-batch-update', ...cliArgs(), '--json', JSON.stringify(body)]);
+    await B.ghi(hang.recordId, cells);
     cache.at = 0;
     return hang.recordId;
   }
-  const ten = Object.keys(cells);
-  const body = { fields: ten, rows: [ten.map((n) => cells[n])] };
-  const d = laApi()
-    ? await goi('POST', '/records/batch_create', body)
-    : await cli(['base', '+record-batch-create', ...cliArgs(), '--json', JSON.stringify(body)]);
+  const id = await B.tao(cells);
   cache.at = 0;
-  return (d.record_id_list || [])[0] || null;
+  return id;
 }
 
 async function xoa(recordId) {
@@ -363,9 +233,7 @@ async function xoa(recordId) {
     cache.at = 0;
     return;
   }
-  const body = { record_id_list: [recordId] };
-  if (laApi()) await goi('POST', '/records/batch_delete', body);
-  else await cli(['base', '+record-batch-delete', ...cliArgs(), '--json', JSON.stringify(body)]);
+  await B.xoa(recordId);
   cache.at = 0;
 }
 
@@ -385,7 +253,7 @@ async function cotThieu() {
    * luôn cả cli, thành ra ở máy cá nhân không bao giờ biết bảng thiếu cột. */
   if (FILE) return [];
   try {
-    const co = new Set(Object.values(await tenCot()));
+    const co = new Set(Object.values(await B.tenCot()));
     return Object.values(F).filter((ten) => !co.has(ten));
   } catch (e) {
     return [];
