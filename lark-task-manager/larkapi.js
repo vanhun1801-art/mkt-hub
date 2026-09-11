@@ -37,7 +37,9 @@ async function tenantToken() {
 }
 
 /* ---------------- gọi API ---------------- */
-const TRANSIENT_CODES = [1254291, 1254036, 99991400, 99991661];
+/* 800004135 = 'OpenAPIListRecord limited': Lark chặn tần suất đọc bảng. Đợi
+ * một nhịp rồi đọc lại là qua, nên xếp vào nhóm tạm thời như các mã kia. */
+const TRANSIENT_CODES = [1254291, 1254036, 99991400, 99991661, 800004135];
 
 function isTransient(code, status) {
   return TRANSIENT_CODES.includes(code) || status === 429 || (status >= 500 && status < 600);
@@ -353,7 +355,7 @@ async function scopeUsers() {
 }
 
 module.exports = {
-  tenantToken, call, whoami, scopeUsers, removeAttachment, sendMessage,
+  tenantToken, call, isTransient, whoami, scopeUsers, removeAttachment, sendMessage,
   listAllRecords, listFields,
   updateRecord, updateMany, createRecord, deleteRecords,
   downloadAttachment, downloadAttachmentBuffer, uploadAttachment,

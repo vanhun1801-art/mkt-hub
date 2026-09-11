@@ -10,6 +10,6 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test": "node test/phanphoi.test.js && node test/tre.test.js && node test/nhac.test.js"
+    "test": "node test/phanphoi.test.js && node test/tre.test.js && node test/nhac.test.js && node test/tam-thoi.test.js"
   }
 }

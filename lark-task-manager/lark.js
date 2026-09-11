@@ -9,6 +9,11 @@ const TRANSIENT = [
   1254291,          // ghi đồng thời, xung đột revision
   1254036,          // quá tần suất
   99991400,         // rate limit
+  /* 'the method：OpenAPIListRecord limited' — Lark chặn tần suất ĐỌC BẢNG.
+   * Thiếu mã này trong danh sách nên trước đây nó nổ thẳng ra màn hình: danh
+   * sách công việc trống trơn kèm một câu tiếng Anh, mà chỉ cần đợi một nhịp
+   * rồi đọc lại là xong. Đã thấy thật trong log ngày 11/09. */
+  800004135,
 ];
 
 function isTransient(err) {
@@ -222,7 +227,7 @@ async function scopeUsers() { return []; }
  * gọi require('./lark') đều phải nhận backend Open API. Chuyển hướng ngay tại đây
  * để không phải sửa từng chỗ gọi (store.js, quyen.js, sync/*.js...). */
 module.exports = cfg.mode === 'api' ? require('./larkapi') : {
-  cli, whoami, scopeUsers, removeAttachment, sendMessage, listAllRecords, listFields,
+  cli, isTransient, whoami, scopeUsers, removeAttachment, sendMessage, listAllRecords, listFields,
   updateRecord, updateMany, createRecord, deleteRecords,
   downloadAttachment, uploadAttachment,
 };
