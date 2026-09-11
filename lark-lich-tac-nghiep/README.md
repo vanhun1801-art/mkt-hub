@@ -98,11 +98,71 @@ Quyết định phân quyền đọc bản ghi bằng `+record-get` (một lần
 bị đổi trong Lark hoặc ở máy người khác — dựa vào bản cũ sẽ mở một cửa sổ cho
 nhân sự sửa kế hoạch sau khi quản lý đã duyệt.
 
+### Xin huỷ MUỘN — lịch đã duyệt mà không đi được
+
+Chỗ kẹt có thật: lịch đã duyệt, tới ngày nhân sự bất khả kháng không đi được. Họ
+**không báo cáo được** (chưa đi thì không có gì nộp) mà cũng **không huỷ được**
+(lịch đã duyệt thì huỷ là việc của quản lý). Lịch treo mãi ở làn *4 · Cần báo
+cáo*, và cách duy nhất là nhắn riêng cho quản lý.
+
+Nên mở một đường lùi, nhưng mở **muộn** và mở **nặng**.
+
+**Muộn** — nút chỉ hiện từ **36 tiếng tính từ đầu ngày đi**, tức **12h trưa ngày
+hôm sau**. Đo theo *đầu ngày* chứ không theo giờ đi: cả app đang dùng cùng thước
+"đã qua" theo ngày, và một chuyến 6h sáng với một chuyến 22h cùng ngày thì không
+có lý gì hạn xin huỷ lệch nhau 16 tiếng. Mốc này đứng **sau** mốc nhắc báo cáo
+(9h sáng hôm sau) ba tiếng: giục nộp trước, không nộp được thì trưa mới mở đường
+lùi. Mở sớm hơn thì nó thành nút huỷ tiện tay cho những chuyến chỉ đang chậm.
+
+**Nặng** — cửa sổ đỏ, cố tình không giống cửa xin huỷ thường, và khác ba chỗ:
+
+1. Kê ra **đúng những gì chuyến này đã tiêu tốn**, lấy từ chính bản ghi: vé FOC
+   nào đã duyệt, mấy tệp vé đã gửi, Media đã nhận hỗ trợ chưa, mấy người đã xếp
+   lịch đi cùng, chi phí dự kiến bao nhiêu. Một câu răn đe chung chung thì đọc
+   xong vẫn bấm; bản kê cụ thể thì mới thấy mình đang bỏ đi cái gì — và quản lý
+   cũng thấy đúng bản kê đó ngay trong ô chi tiết khi quyết.
+2. Lý do phải là **câu thật** (tối thiểu 20 ký tự). Quản lý đọc "không đi được"
+   thì không quyết được gì.
+3. Phải **tự tay xác nhận** một dòng. Nút gửi khoá tới khi đủ cả hai điều kiện,
+   để người ta biết mình còn thiếu gì thay vì bấm rồi nhận lỗi.
+
+Gửi xong lịch **vẫn tính là đã duyệt** cho tới khi quản lý quyết — hàng đợi *Xin
+huỷ lịch* của quản lý gắn thêm dấu `Đã duyệt · đã qua ngày đi`, vì bấm "Duyệt
+huỷ" ở hai trường hợp này là hai quyết định khác nhau hẳn mà bảng thì trông y
+như nhau.
+
+Luật khai một chỗ ở `config.js` (`lateCancel`) và **chuyển cho giao diện qua
+`/api/meta`**: nút hiện theo một mốc mà máy chủ chốt theo mốc khác thì người ta
+bấm vào bị chặn và không hiểu vì sao. Chốt ở server, không chỉ ẩn nút:
+
+| Quy tắc | Mã lỗi |
+|---|---|
+| Chưa tới mốc 36 tiếng (câu lỗi nói rõ mốc mở cửa) | `CANCEL_TOO_EARLY` |
+| Lý do ngắn hơn 20 ký tự | `CANCEL_REASON_SHORT` |
+| Lịch chưa có ngày đi nên không tính được mốc | `CANCEL_NO_DATE` |
+| Xin huỷ mà không ghi lý do (mọi trạng thái) | `CANCEL_REASON_REQUIRED` |
+
+Phép tính mốc tách riêng ra `huy-muon.js` vì nó phải cộng độ lệch Việt Nam
+**trước** khi lấy đầu ngày — app này đã có một lỗi đúng kiểu đó (Render chạy giờ
+UTC nên mọi mốc 00:00–06:59 giờ VN bị đẩy sang ngày hôm trước). Sai một ngày ở
+đây nghĩa là nút huỷ mở sớm 24 tiếng, và không có gì trên màn hình nói ra điều
+đó. `test/huy-muon.test.js` canh cả bốn góc giờ trong ngày.
+
+Đường lùi này chỉ dành cho **người phụ trách**, và chỉ ở trạng thái `Duyệt/Chờ
+tác nghiệp`. Đã bấm Báo cáo nghĩa là đã đi; nháp và chờ duyệt đã có cửa huỷ
+riêng, nhẹ hơn hẳn.
+
+**Còn thiếu:** trước mốc 36 tiếng, nhân sự biết chắc không đi được vẫn không có
+nút nào — phải nói trực tiếp với quản lý. Đây là chủ ý (mở sớm thì mất tác dụng
+của mốc), nhưng nếu chuyện này xảy ra thường thì nên có một đường riêng cho nó
+chứ không nên nới mốc.
+
 ## Kiểm thử
 
 ```bash
 node test/api.test.js          # chỉ đọc
 node test/quyen.test.js        # chỉ đọc, cần instance vai nhân sự ở 5175
+node test/huy-muon.test.js     # thuần logic — không cần server, không cần Base
 ```
 
 Thêm `--write` để chạy vòng ghi thật (tạo → sửa → đính kèm → xoá). Bản ghi thử

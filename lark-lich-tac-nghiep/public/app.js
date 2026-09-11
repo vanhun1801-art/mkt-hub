@@ -742,7 +742,12 @@ function queueCard(title, arr, note, kind) {
         '<span class="mini" style="' + (cho > 3 ? 'color:var(--red-t);font-weight:600' : 'color:var(--t3)') +
         '">Đã chờ ' + cho + ' ngày' + (cho > 3 ? ' — quá 3 ngày' : '') + '</span>'
       : kind === 'pay' ? '<span class="mini muted">Thực tế ' + money(t.costActual) + ' đ</span>'
-      : kind === 'huy' ? '<span class="mini" style="color:var(--red-t)">Lý do: ' + esc(t.cancelReason || '(không ghi)') + '</span>'
+      /* Nói ngay trên dòng rằng đây là lịch ĐÃ DUYỆT và ĐÃ QUA NGÀY ĐI: quản lý
+       * bấm "Duyệt huỷ" ở hai trường hợp này là hai quyết định khác nhau hẳn,
+       * mà bảng thì trông y như nhau. */
+      : kind === 'huy' ? (huyMuonDuoc(t)
+          ? '<span class="tag tag-do">Đã duyệt · đã qua ngày đi</span>' : '') +
+        '<span class="mini" style="color:var(--red-t)">Lý do: ' + esc(t.cancelReason || '(không ghi)') + '</span>'
       : kind === 'bcdo' ? '<span class="mini" style="color:var(--orange-t)">Thiếu: ' + esc(thieuGiBaoCao(t).join(', ')) + '</span>'
       : kind === 'nhapcu' ? '<span class="mini muted">Ngày dự định: ' + esc(fmtD(t.start)) + '</span>'
       /* Nhắc lại chính câu quản lý đã ghi khi trả về — sau hai tuần thì không ai
@@ -1147,6 +1152,73 @@ function toiHanBaoCao(t) {
   return new Date() >= moc;
 }
 
+/* ==========================================================================
+   XIN HUỶ MUỘN — đường lùi cho lịch ĐÃ DUYỆT mà không đi được
+   ==========================================================================
+   Chỗ kẹt có thật: tới ngày, nhân sự bất khả kháng không đi được. Họ không báo
+   cáo được (chưa đi thì không có gì nộp) mà cũng không huỷ được (lịch đã duyệt
+   thì huỷ là việc của quản lý). Lịch treo mãi ở làn "4 · Cần báo cáo".
+
+   Con số lấy từ máy chủ qua /api/meta, KHÔNG khai lại ở đây: nút hiện theo một
+   mốc mà máy chủ chốt theo mốc khác thì bấm vào bị chặn, không ai hiểu vì sao.
+   Bộ mặc định chỉ để màn hình không vỡ khi meta chưa về. */
+const HUY_MUON_MAC = { status: 'Duyệt/Chờ tác nghiệp', afterMs: 36 * 3600000, minReason: 20 };
+const luatHuyMuon = () => Object.assign({}, HUY_MUON_MAC, S.config.lateCancel || {});
+
+/** Mốc mở cửa xin huỷ muộn: 36 tiếng từ ĐẦU NGÀY đi, tức 12h trưa hôm sau. */
+function mocHuyMuon(t) {
+  const d = toDate(t.start);
+  return d ? startOfDay(d).getTime() + luatHuyMuon().afterMs : 0;
+}
+
+/** Lịch này đã tới lúc người phụ trách được xin huỷ muộn chưa. */
+function huyMuonDuoc(t) {
+  if (!t || t.status !== luatHuyMuon().status) return false;
+  const m = mocHuyMuon(t);
+  return !!m && Date.now() >= m;
+}
+
+/** Người đang xem có được bấm xin huỷ muộn lịch này không. */
+function huyMuonBamDuoc(t) {
+  return !PREVIEW() && !MGR() && laPhuTrach(t) && !t.cancelWant && huyMuonDuoc(t);
+}
+
+/**
+ * Chuyến này đã tiêu tốn những gì rồi — kê ra từ chính bản ghi.
+ *
+ * Cố ý không viết một câu răn đe chung chung. "Huỷ thì ảnh hưởng nhiều thứ" thì
+ * đọc xong vẫn bấm; "vé máy bay đã được duyệt · 2 tệp vé đã có · 3 người đã
+ * xếp lịch đi cùng" thì mới thấy mình đang bỏ đi cái gì. Câu chung chung cũng
+ * không giúp quản lý quyết, mà bản kê này thì có.
+ */
+function tacHaiHuy(t) {
+  const ra = [];
+  if (t.focStatus === 'Phê duyệt') {
+    ra.push('Vé FOC <b>đã được duyệt</b>' + ((t.foc || []).length ? ' (' + esc(t.foc.join(', ')) + ')' : '') +
+      ' — huỷ là phải trả lại vé');
+  } else if ((t.foc || []).length) {
+    ra.push('Đã xin vé FOC: ' + esc(t.foc.join(', ')));
+  }
+  if ((t.tickets || []).length) {
+    ra.push('<b>' + t.tickets.length + ' tệp vé / thông tin</b> đã được gửi cho chuyến này');
+  }
+  if (t.mediaStatus === 'Phê duyệt') {
+    ra.push('Phòng Media <b>đã nhận hỗ trợ</b> — huỷ là họ mất một buổi đã xếp');
+  }
+  const cungDi = (t.staff || []).filter((u) => !(t.owner || []).some((o) => o.id === u.id));
+  if (cungDi.length) {
+    ra.push('<b>' + cungDi.length + ' người đi cùng</b> đã xếp lịch theo buổi này: ' +
+      esc(cungDi.map((u) => u.name).join(', ')));
+  }
+  if (Number(t.costPlan || 0) > 0) {
+    ra.push('Chi phí dự kiến <b>' + esc(shortMoney(t.costPlan)) + 'đ</b> đã được duyệt theo kế hoạch');
+  }
+  if (t.editedAfter) ra.push('Kế hoạch đã được quản lý chỉnh lại sau khi duyệt');
+  ra.push('Lịch đã <b>qua ngày đi</b> (' + esc(fmtD(t.start)) + ') — huỷ lúc này là ghi nhận ' +
+    'một buổi tác nghiệp <b>không thực hiện</b>, không phải một kế hoạch bị bỏ');
+  return ra;
+}
+
 function theViec(t, buoc) {
   /* Cùng một thước "đã qua" với các làn: theo NGÀY, không theo giờ. Trước đây
    * thẻ so theo giờ nên lịch 8h sáng nay xem lúc 20h nằm ở làn "3 · chuẩn bị đi"
@@ -1189,15 +1261,23 @@ function theViec(t, buoc) {
   }
 
   /* Đang xin huỷ thì thẻ chỉ còn một việc: chờ quản lý trả lời. Mọi nút khác
-   * tắt đi, khỏi vừa xin huỷ vừa gửi duyệt. */
-  if (t.cancelWant && ['nhap', 'cho'].includes(buoc)) {
-    return '<div class="ct ct-xin-huy" data-phieu="' + t.id + '">' +
+   * tắt đi, khỏi vừa xin huỷ vừa gửi duyệt.
+   *
+   * Có cả bước 'bao-cao': lịch đã duyệt mà xin huỷ muộn vẫn nằm ở làn đó, và
+   * nếu không bắt ở đây thì thẻ hiện nút "Báo cáo ngay" cho một chuyến người ta
+   * vừa khai là không đi được. */
+  if (t.cancelWant && ['nhap', 'cho', 'bao-cao'].includes(buoc)) {
+    const muon = t.status === luatHuyMuon().status;
+    return '<div class="ct ct-xin-huy' + (muon ? ' ct-huy-muon' : '') + '" data-phieu="' + t.id + '">' +
       '<div class="ct-dau">' +
         '<div class="ct-ten">' + esc(t.title || '(chưa đặt tên)') +
-          '<span class="ct-co xam">Đang xin huỷ</span></div>' +
+          '<span class="ct-co ' + (muon ? 'do' : 'xam') + '">' +
+          (muon ? 'Đang xin huỷ lịch đã duyệt' : 'Đang xin huỷ') + '</span></div>' +
         '<div class="ct-luc">' + esc(fmtDT(t.start)) + '</div>' +
       '</div>' +
-      '<div class="ct-viec">Đã gửi yêu cầu huỷ — chờ quản lý duyệt</div>' +
+      '<div class="ct-viec">' + (muon
+        ? 'Đã gửi yêu cầu huỷ — lịch vẫn tính là đã duyệt cho tới khi quản lý quyết'
+        : 'Đã gửi yêu cầu huỷ — chờ quản lý duyệt') + '</div>' +
       '<div class="ct-can">' + (t.cancelReason
         ? '<span class="ct-mon">Lý do: ' + esc(t.cancelReason) + '</span>' : '') + '</div>' +
       '<div class="ct-chan">' + peopleStack(t.staff, 3) + '</div></div>';
@@ -1246,6 +1326,13 @@ function theViec(t, buoc) {
     if (!PREVIEW()) nut = '<button class="btn sm ' + (giuc || thieu.length ? 'warn' : 'primary') +
       '" data-act="report" data-id="' + t.id + '">' +
       (thieu.length ? 'Điền nốt' : giuc ? 'Báo cáo ngay' : 'Điền báo cáo') + '</button>';
+    /* Đường lùi, đặt SAU nút báo cáo và để nhạt: đi được thì vẫn phải đi, huỷ
+     * chỉ dành cho trường hợp thật sự không đi được. Trước mốc 36 tiếng thì
+     * không có nút nào — xem chú thích ở luatHuyMuon(). */
+    if (huyMuonBamDuoc(t)) {
+      viec = 'Đã qua ngày đi — nộp báo cáo, hoặc nếu không đi được thì xin huỷ';
+      nut += '<button class="btn sm mo" data-huymuon="' + t.id + '">Không đi được</button>';
+    }
   } else {
     viec = 'Đã hoàn tất';
   }
@@ -1738,8 +1825,16 @@ function renderDrawer() {
   if (bad) steps = '<div class="banner" style="background:var(--red-bg);color:var(--red-t);border-color:#f7c9c7">' +
     'Lịch này đã <b style="margin:0 4px">' + esc(t.status) + '</b>.</div>';
   if (t.cancelWant) {
+    /* Lịch đã duyệt mà xin huỷ thì kê luôn những gì việc huỷ kéo theo — quản lý
+     * quyết ngay tại đây, nên bản kê phải nằm ngay đây, không phải ở một cửa sổ
+     * mà chỉ nhân sự nhìn thấy. */
+    const muon = huyMuonDuoc(t);
     steps += '<div class="banner" style="background:var(--red-bg);color:var(--red-t);border-color:var(--red-vien)">' +
-      '<div class="sp"><b>Nhân sự xin huỷ lịch này.</b> Lý do: ' + esc(t.cancelReason || '(không ghi)') + '</div></div>';
+      '<div class="sp"><b>Nhân sự xin huỷ lịch ' + (muon ? 'ĐÃ DUYỆT' : 'này') + '.</b> ' +
+      'Lý do: ' + esc(t.cancelReason || '(không ghi)') +
+      (muon ? '<ul class="hm-ds hm-ds-nho">' +
+        tacHaiHuy(t).map((x) => '<li>' + x + '</li>').join('') + '</ul>' : '') +
+      '</div></div>';
   }
   if (t.mgrNote) {
     steps += '<div class="banner" style="background:var(--orange-bg);color:var(--orange-t);border-color:#f6d9a8">' +
@@ -2005,6 +2100,111 @@ async function guiXinHuy() {
     closeModal();
     XH = null;
     toast('Đã gửi yêu cầu huỷ — chờ quản lý duyệt', 'ok');
+    await refresh(true);
+  } catch (e) {
+    nut.disabled = false;
+    toast(e.message, 'err');
+  }
+}
+
+/* ==========================================================================
+   CỬA SỔ XIN HUỶ MUỘN — cố tình KHÔNG giống cửa sổ xin huỷ thường
+   ==========================================================================
+   Huỷ một bản nháp và huỷ một lịch đã duyệt là hai việc khác hẳn nhau, nên hai
+   cửa sổ phải khác hẳn nhau. Cửa sổ này đỏ, và ba chỗ nó khác:
+
+     1. Kê ra ĐÚNG những gì chuyến này đã tiêu tốn — vé nào đã duyệt, mấy tệp
+        vé đã gửi, mấy người đã xếp lịch đi cùng. Một câu răn đe chung chung
+        thì đọc xong vẫn bấm.
+     2. Lý do phải là câu thật (máy chủ chốt độ dài). Quản lý đọc "không đi
+        được" thì không quyết được gì.
+     3. Phải tự tay xác nhận một dòng. Không phải thủ tục cho vui: đây là bước
+        biến cái bấm thành một câu người ta đã đọc và đồng ý.
+
+   Nút gửi khoá tới khi đủ cả hai điều kiện, để người ta biết mình còn thiếu gì
+   thay vì bấm rồi nhận lỗi.
+   ========================================================================== */
+let HM = null;
+
+function moXinHuyMuon(id) {
+  const t = S.items.find((x) => x.id === id);
+  if (!t) return;
+  if (PREVIEW()) return toast('Đang xem giao diện của người khác — không xin huỷ thay họ được.', 'err');
+  if (!huyMuonDuoc(t)) {
+    const m = mocHuyMuon(t);
+    return toast(m ? 'Chỉ xin huỷ được từ ' + fmtDT(new Date(m).toISOString())
+                   : 'Lịch này chưa có ngày đi', 'err');
+  }
+  HM = { id };
+  const L = luatHuyMuon();
+
+  $('#mdTitle').textContent = 'Xin huỷ lịch ĐÃ DUYỆT';
+  $('#mdBody').innerHTML =
+    '<div class="hm">' +
+      '<div class="hm-dau">' +
+        '<div class="hm-ten">' + esc(t.title || '(chưa đặt tên)') + '</div>' +
+        '<div class="hm-luc">' + esc(fmtDT(t.start)) + ' · ' + esc(t.status || '') + '</div>' +
+      '</div>' +
+      '<div class="hm-canh">' +
+        '<b>Đây không phải huỷ một kế hoạch.</b> Lịch này đã được duyệt, và đã qua ngày đi. ' +
+        'Huỷ ở đây là ghi nhận một buổi tác nghiệp <b>không thực hiện</b> — quản lý sẽ thấy ' +
+        'đúng như vậy khi đối chiếu cuối tháng.' +
+      '</div>' +
+      '<div class="hm-muc">Huỷ buổi này sẽ kéo theo</div>' +
+      '<ul class="hm-ds">' + tacHaiHuy(t).map((x) => '<li>' + x + '</li>').join('') + '</ul>' +
+      '<div class="frm-row"><label>Vì sao bất khả kháng *</label>' +
+        '<textarea class="fld" id="hmLyDo" rows="4" placeholder="Nói rõ chuyện gì xảy ra và vì sao không thể đi — quản lý đọc đúng câu này để quyết"></textarea>' +
+        '<div class="mini muted" id="hmDem">Cần ít nhất ' + L.minReason + ' ký tự</div></div>' +
+      '<label class="hm-nhan"><input type="checkbox" id="hmNhan">' +
+        '<span>Tôi xác nhận buổi này <b>thật sự không thực hiện được</b>, và tôi đã đọc ' +
+        'những gì việc huỷ kéo theo ở trên.</span></label>' +
+      '<div class="hm-cuoi">Gửi xong lịch <b>vẫn tính là đã duyệt</b> cho tới khi quản lý quyết. ' +
+        'Quản lý có thể giữ lịch lại.</div>' +
+    '</div>';
+  $('#mdBody').onclick = null;
+  $('#mdFoot').innerHTML =
+    '<button class="btn" data-close="1">Thôi, để tôi báo cáo</button>' +
+    '<div class="sp"></div>' +
+    '<button class="btn danger" id="hmGui" disabled>Gửi yêu cầu huỷ</button>';
+  $('#modal').classList.add('on');
+
+  /* Soát ngay tại chỗ thay vì để máy chủ trả lỗi: người ta thấy nút còn khoá
+   * và thấy còn thiếu bao nhiêu ký tự, không phải viết bừa rồi bị đá lại. */
+  const oLd = $('#hmLyDo');
+  const oOk = $('#hmNhan');
+  const oGui = $('#hmGui');
+  const oDem = $('#hmDem');
+  const soat = () => {
+    const n = oLd.value.trim().length;
+    const duLd = n >= L.minReason;
+    oDem.textContent = duLd ? 'Lý do đã đủ dài'
+      : 'Cần ít nhất ' + L.minReason + ' ký tự — còn thiếu ' + (L.minReason - n);
+    oDem.className = 'mini ' + (duLd ? 'muted' : 'hm-thieu');
+    oGui.disabled = !(duLd && oOk.checked);
+  };
+  oLd.oninput = soat;
+  oOk.onchange = soat;
+  oLd.focus();
+}
+
+async function guiXinHuyMuon() {
+  if (!HM) return;
+  const ld = ($('#hmLyDo') || {}).value || '';
+  const ok = (($('#hmNhan') || {}).checked) === true;
+  const L = luatHuyMuon();
+  if (ld.trim().length < L.minReason) return toast('Lý do còn quá ngắn', 'err');
+  if (!ok) return toast('Chưa xác nhận dòng ở dưới', 'err');
+
+  const nut = $('#hmGui');
+  nut.disabled = true;
+  try {
+    await api('/api/items/' + HM.id, {
+      method: 'PATCH',
+      body: JSON.stringify({ cancelWant: true, cancelReason: ld.trim() }),
+    });
+    closeModal();
+    HM = null;
+    toast('Đã gửi yêu cầu huỷ — lịch vẫn giữ nguyên tới khi quản lý quyết', 'ok');
     await refresh(true);
   } catch (e) {
     nut.disabled = false;
@@ -2293,13 +2493,22 @@ function moPhieuDi(id) {
       '</div>' +
       '<div class="phieu-luoi">' + mucs.join('') + '</div>' +
       '<div class="phieu-chan">' + esc(!chiXem(t) ? 'Bảng thông tin chỉ để xem.'
+        : t.cancelWant ? 'Đã gửi yêu cầu huỷ — chờ quản lý quyết định.'
+        : huyMuonDuoc(t) ? 'Đã qua ngày đi. Đi rồi thì bấm Báo cáo trên thẻ; không đi được thì xin huỷ ở dưới.'
         : t.status === 'Duyệt/Chờ tác nghiệp' ? 'Lịch đã duyệt — nội dung đã chốt. Đi về rồi thì bấm Báo cáo trên thẻ.'
         : t.status === 'Đang báo cáo' ? 'Đã nộp báo cáo — chờ quản lý nghiệm thu.'
         : t.status === 'Đã hoàn tất' ? 'Chuyến đi đã hoàn tất, giữ lại để đối chiếu cuối tháng.'
         : 'Lịch đã đóng — chỉ còn để tra cứu.') + '</div>' +
     '</div>';
   $('#mdBody').onclick = null;
-  $('#mdFoot').innerHTML = '';          // cố ý không có nút nào — chỉ còn nút X ở đầu cửa sổ
+  /* Bảng thông tin cố ý không có nút nào. Ngoại lệ duy nhất: lịch đã duyệt mà
+   * quá mốc thì đây là CỬA DUY NHẤT người phụ trách mở được — thẻ của lịch đã
+   * duyệt mở bảng này chứ không mở ô sửa (xem chiXem), nên nút không ở đây thì
+   * không ở đâu cả. */
+  $('#mdFoot').innerHTML = huyMuonBamDuoc(t)
+    ? '<span class="mini muted">Không đi được buổi này?</span><div class="sp"></div>' +
+      '<button class="btn danger" data-huymuon="' + t.id + '">Xin huỷ lịch đã duyệt</button>'
+    : '';
   $('#modal').classList.add('on');
 }
 
@@ -2678,7 +2887,7 @@ document.addEventListener('click', async (e) => {
   const T = e.target;
 
   const close = T.closest('[data-close]');
-  if (close) { closeModal(); BC = null; XH = null; $('#mdTitle').textContent = 'Đăng ký lịch tác nghiệp'; return; }
+  if (close) { closeModal(); BC = null; XH = null; HM = null; $('#mdTitle').textContent = 'Đăng ký lịch tác nghiệp'; return; }
 
   const tab = T.closest('[data-tab]');
   if (tab) { S.tab = tab.dataset.tab; render(); return; }
@@ -2792,6 +3001,10 @@ document.addEventListener('click', async (e) => {
   const xh = T.closest('[data-xinhuy]');
   if (xh) { closeDrawer(); moXinHuy(xh.dataset.xinhuy); return; }
 
+  // Huỷ muộn: nút nằm trong thẻ ở làn 4 và trong chân bảng thông tin
+  const hm = T.closest('[data-huymuon]');
+  if (hm) { closeDrawer(); moXinHuyMuon(hm.dataset.huymuon); return; }
+
   const phieu = T.closest('[data-phieu]');
   if (phieu) { moPhieuDi(phieu.dataset.phieu); return; }
 
@@ -2890,6 +3103,7 @@ document.addEventListener('click', async (e) => {
   if (T.closest('#drClose') || T.closest('#mask')) { closeDrawer(); return; }
   if (T.closest('#bcGui')) { await guiBaoCao(); return; }
   if (T.closest('#xhGui')) { await guiXinHuy(); return; }
+  if (T.closest('#hmGui')) { await guiXinHuyMuon(); return; }
   if (T.closest('#fReset')) { S.f = { period: 'month', person: 'all', status: 'all', q: '', the: '' }; render(); return; }
 
   // multi-select trong drawer

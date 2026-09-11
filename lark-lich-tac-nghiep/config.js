@@ -208,6 +208,36 @@ module.exports = {
   // Chuyển sang trạng thái này bắt buộc có Báo cáo hoặc Liên kết
   proofRequiredFor: 'Đang báo cáo',
 
+  /* ---- Xin huỷ MUỘN: lịch đã duyệt mà không đi được ----
+   *
+   * Chỗ kẹt có thật: lịch đã duyệt, tới ngày nhân sự bất khả kháng không đi
+   * được. Họ KHÔNG báo cáo được (chưa đi thì không có gì nộp) mà cũng KHÔNG
+   * huỷ được (lịch đã duyệt thì huỷ là việc của quản lý). Lịch treo mãi ở làn
+   * "4 · Cần báo cáo", và cách duy nhất là nhắn riêng cho quản lý.
+   *
+   * Nên mở một đường lùi, nhưng mở MUỘN và mở NẶNG:
+   *
+   *   muộn — 36 tiếng tính từ ĐẦU NGÀY đi, tức 12h trưa ngày hôm sau. Đo theo
+   *          đầu ngày chứ không theo giờ đi, cùng thước "đã qua" mà cả app
+   *          đang dùng. Mốc này đứng sau mốc nhắc báo cáo (9h sáng hôm sau)
+   *          ba tiếng: giục nộp trước, không nộp được thì trưa mới mở đường lùi.
+   *          Mở sớm hơn thì nó thành nút huỷ tiện tay cho những chuyến chỉ
+   *          đang lười đi.
+   *
+   *   nặng — huỷ ở đây khác hẳn huỷ một bản nháp: lịch đã duyệt, vé đã xin,
+   *          đối tác đã hẹn. Cửa sổ phải đỏ, phải kê ra đúng những gì chuyến
+   *          này đã tiêu tốn, và lý do phải là một câu thật chứ không phải
+   *          "không đi được".
+   *
+   * Khai ở đây để máy chủ và giao diện dùng CÙNG con số — giao diện nhận qua
+   * /api/meta. Hai nơi hai con số thì nút hiện ra mà bấm vào bị chặn.
+   */
+  lateCancel: {
+    status: 'Duyệt/Chờ tác nghiệp',
+    afterMs: 36 * 3600 * 1000,
+    minReason: 20,
+  },
+
   defaultManagerIds: (process.env.LARK_MANAGER_IDS || 'ou_f0d3514abf6b168bef076441f350c585')
     .split(',').map((s) => s.trim()).filter(Boolean),
 

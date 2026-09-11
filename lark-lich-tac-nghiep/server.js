@@ -146,6 +146,14 @@ function khoaKeHoach(status, keys) {
   return TRANG_THAI_KHOA.includes(status) && keys.some((k) => TRUONG_KE_HOACH.includes(k));
 }
 
+/* ---- Xin huỷ MUỘN ----
+ * Phép tính mốc nằm ở huy-muon.js — tách ra vì nó phải cộng độ lệch VN trước
+ * khi lấy đầu ngày, và app này đã có một lỗi đúng kiểu đó. Chú thích đầy đủ và
+ * phép thử ở trong tệp đó. */
+const huyMuon = require('./huy-muon');
+const mocHuyMuon = (item) => huyMuon.moc(item, cfg.lateCancel.afterMs);
+const huyMuonDuoc = (item, luc) => huyMuon.duoc(item, cfg.lateCancel, luc);
+
 /* Chuyển sang "Đang báo cáo" thì phải có gì đó chứng minh đã đi: báo cáo sau
  * tác nghiệp, hoặc liên kết sản phẩm. 'report' là ghi chú TRƯỚC chuyến nên
  * không tính — trước đây tính, thành ra nộp khống cũng lọt. */
@@ -642,6 +650,8 @@ async function api(req, res, url) {
         managerOnlyFields: cfg.managerOnlyFields,
         requiredOnCreate: cfg.requiredOnCreate,
         proofRequiredFor: cfg.proofRequiredFor,
+        // giao diện phải dùng ĐÚNG con số của máy chủ, không tự khai lại
+        lateCancel: cfg.lateCancel,
         uploadable: cfg.uploadable,
         larkUrl: cfg.larkUrl,
         fieldNames: Object.fromEntries(BY_KEY.map(([k, f]) => [k, f.name])),
@@ -674,8 +684,14 @@ async function api(req, res, url) {
           tieuDe: 'Lịch chờ duyệt kế hoạch', mo: ten(t) + ' · ' + nguoiCua(t) });
       }
       for (const t of items.filter((x) => x.cancelWant && !['Từ chối', 'Hủy lịch'].includes(x.status))) {
+        /* Huỷ một bản nháp và huỷ một lịch ĐÃ DUYỆT là hai việc khác hẳn nhau:
+         * cái sau đã có vé, đã hẹn đối tác. Nói rõ ngay ở tiêu đề tin, không
+         * để quản lý phải mở ra mới biết mình đang quyết chuyện gì. */
+        const muon = huyMuonDuoc(t);
         them({ id: 'lich:xin-huy:' + t.id, muc: 'gap', rec: t.id, khi: t.start,
-          tieuDe: 'Xin huỷ lịch', mo: ten(t) + ' — lý do: ' + (t.cancelReason || '(không ghi)') });
+          tieuDe: muon ? 'Xin huỷ lịch ĐÃ DUYỆT' : 'Xin huỷ lịch',
+          mo: ten(t) + (muon ? ' — đã duyệt, đã qua ngày đi' : '') +
+            ' — lý do: ' + (t.cancelReason || '(không ghi)') });
       }
       for (const t of items.filter((x) => x.focRequest && !x.focStatus && !SETTLED_TB.includes(x.status))) {
         them({ id: 'lich:foc:' + t.id, muc: 'can', rec: t.id, khi: t.start,
@@ -1104,9 +1120,40 @@ async function api(req, res, url) {
       /* Xin huỷ mà không nói vì sao thì quản lý không có gì để quyết. Chặn ở đây
        * chứ không chỉ ở giao diện, vì API gọi thẳng vẫn phải chặn được. */
       if (body.cancelWant === true) {
-        const ld = body.cancelReason != null ? body.cancelReason : item.cancelReason;
-        if (!String(ld || '').trim()) {
+        const ld = String((body.cancelReason != null ? body.cancelReason : item.cancelReason) || '').trim();
+        if (!ld) {
           return json(res, { error: 'Phải ghi lý do huỷ.', code: 'CANCEL_REASON_REQUIRED' }, 400);
+        }
+
+        /* Lịch ĐÃ DUYỆT: hai cửa hẹp hơn, và cả hai phải chốt ở đây. Giao diện
+         * chỉ hiện nút khi tới mốc, nhưng nút ẩn không phải là luật — gọi thẳng
+         * API vẫn phải bị chặn. */
+        if (!manager && item.status === cfg.lateCancel.status) {
+          const moc = mocHuyMuon(item);
+          if (!moc) {
+            return json(res, {
+              error: 'Lịch này chưa có ngày đi nên chưa tính được mốc xin huỷ. Báo quản lý.',
+              code: 'CANCEL_NO_DATE',
+            }, 400);
+          }
+          if (Date.now() < moc) {
+            return json(res, {
+              error: 'Lịch đã duyệt thì chỉ xin huỷ được từ ' + gioVN(new Date(moc)) +
+                ' (36 tiếng tính từ đầu ngày đi). Trước mốc đó, đi được thì đi rồi ' +
+                'báo cáo; có việc gấp thì nói trực tiếp với quản lý.',
+              code: 'CANCEL_TOO_EARLY',
+              moHoiLuc: new Date(moc).toISOString(),
+            }, 403);
+          }
+          /* Huỷ một lịch đã duyệt là huỷ cả vé, cả hẹn với đối tác. Quản lý
+           * đọc "không đi được" thì không quyết được gì, nên bắt viết thật. */
+          if (ld.length < cfg.lateCancel.minReason) {
+            return json(res, {
+              error: 'Lịch đã duyệt, đã xin vé và đã hẹn đối tác — lý do phải nói rõ ' +
+                'vì sao bất khả kháng (ít nhất ' + cfg.lateCancel.minReason + ' ký tự).',
+              code: 'CANCEL_REASON_SHORT',
+            }, 400);
+          }
         }
       }
 
