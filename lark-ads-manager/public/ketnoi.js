@@ -111,7 +111,11 @@
             <div><div class="s-label">Tài khoản</div><div class="s-value" style="font-size:14px">${p.soTaiKhoan ? esc(p.taiKhoan.join(', ')) : '—'}</div></div>
             ${p.chiSoChuyenDoi ? `<div><div class="s-label">Chỉ số chuyển đổi</div><div class="s-value" style="font-size:12.5px">${esc(p.chiSoChuyenDoi)}</div></div>` : ''}
             ${p.capDo ? `<div><div class="s-label">Cấp độ</div><div class="s-value" style="font-size:14px">${esc(p.capDo)}</div></div>` : ''}
+            <div><div class="s-label">Quyền ghi</div>
+              <div class="s-value" style="font-size:13px" data-quyen-ghi="${esc(p.key)}">
+                <span class="sub">đang dò…</span></div></div>
           </div>
+          <div class="help" style="margin:0 0 10px;display:none" data-quyen-vi="${esc(p.key)}"></div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
             <label style="display:flex;align-items:center;gap:6px;font-size:13px">
               <input type="checkbox" data-enable="${p.key}" ${p.enabled ? 'checked' : ''} ${p.sanSang ? '' : 'disabled'}> Bật kênh này
@@ -268,6 +272,7 @@
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
           <button class="btn primary" id="kSyncAll">⟳ Đồng bộ tất cả kênh đang bật</button>
           <button class="btn ghost" id="kTest">Kiểm tra kết nối</button>
+          <button class="btn ghost" id="kQuyenGhi">Dò lại quyền bật/tắt</button>
           <button class="btn ghost" id="kPreviewAll">Xem trước — chưa ghi gì</button>
         </div>
 
@@ -1377,6 +1382,60 @@
     });
   }
 
+  /**
+   * Dò quyền GHI của từng kênh rồi điền vào ô "Quyền ghi" của thẻ kênh.
+   *
+   * Vì sao đáng có: đọc số và ghi số là hai quyền khác nhau, mà thẻ kênh trước
+   * đây chỉ nói về quyền đọc ("Token: đã có"). Nên sau khi đi cấp quyền bật/tắt
+   * trên Facebook hay TikTok, không có chỗ nào trong app xác nhận là đã ăn —
+   * anh Hùng phải nhắn hỏi. Ba lần.
+   *
+   * Nạp riêng, không chặn: mỗi lượt là hai lời gọi ra Meta và TikTok.
+   */
+  async function doQuyenGhi() {
+    /* Khoá theo KEY của kênh, không theo tên nền tảng: PLAT_OF gán cả
+     * googleSheet lẫn googleAds về "Google Ads", nên khoá theo tên thì hai thẻ
+     * khác nhau dính chung một câu trả lời. */
+    const KEY_CUA = { Facebook: 'meta', TikTok: 'tiktok', 'Google Ads': 'googleAds' };
+    const o = (key) => $$(`[data-quyen-ghi="${key}"]`);
+    const vi = (key) => $$(`[data-quyen-vi="${key}"]`);
+    let d;
+    try { d = await api('/api/dieu-khien/kha-nang'); }
+    catch (e) {
+      $$('[data-quyen-ghi]').forEach((x) => { x.innerHTML = '<span class="sub">không dò được</span>'; });
+      return;
+    }
+    if (!d.laQuanLy) {
+      $$('[data-quyen-ghi]').forEach((x) => { x.innerHTML = '<span class="sub">chỉ quản lý xem</span>'; });
+      return;
+    }
+    /* Kênh nào KHÔNG điều khiển được (Google Sheet chẳng hạn) thì nói thẳng là
+     * không áp dụng, chứ không để nó đứng "đang dò…" mãi mãi. */
+    const coTraLoi = new Set();
+    Object.entries(d.nenTang || {}).forEach(([ten, q]) => {
+      const key = KEY_CUA[ten];
+      if (!key) return;
+      coTraLoi.add(key);
+      const nhan = q.ghi === true ? '<span class="tag good">bật/tắt được</span>'
+        : q.ghi === false ? '<span class="tag bad">chưa cấp quyền</span>'
+          : '<span class="tag warn">chưa rõ</span>';
+      o(key).forEach((x) => { x.innerHTML = nhan; });
+      /* Nói LÝ DO và CÁCH SỬA ngay tại thẻ, không bắt đi tìm. Riêng khi đã ghi
+       * được thì im lặng — thêm chữ vào chỗ đang ổn chỉ làm thẻ dài ra. */
+      vi(key).forEach((x) => {
+        if (q.ghi === true) { x.style.display = 'none'; return; }
+        x.style.display = '';
+        x.style.borderColor = 'var(--warn)';
+        x.style.color = 'var(--warn)';
+        x.innerHTML = `<b>Chưa bật/tắt được từ app.</b> ${esc(q.vi || '')}`
+          + (q.cachSua ? `<br><b>Cách cấp:</b> ${esc(q.cachSua)}` : '');
+      });
+    });
+    $$('[data-quyen-ghi]').forEach((x) => {
+      if (!coTraLoi.has(x.dataset.quyenGhi)) x.innerHTML = '<span class="sub">không áp dụng</span>';
+    });
+  }
+
   function wire(c) {
     wireGiuBen(c);
     wirePancake(c);
@@ -1425,6 +1484,17 @@
         toast('Đã lưu tuỳ chọn', 'ok');
         render();
       } catch (e) { toast(e.message, 'err'); }
+    };
+
+    /* Dò ngay khi mở tab, và có nút dò lại: đúng lúc này người dùng vừa đi đổi
+     * quyền ở bên kia và muốn thử lại mà không phải tải lại cả trang. */
+    doQuyenGhi();
+    $('#kQuyenGhi').onclick = async (e) => {
+      const b = e.currentTarget; const cu = b.textContent;
+      b.disabled = true; b.textContent = 'Đang dò…';
+      $$('[data-quyen-ghi]').forEach((x) => { x.innerHTML = '<span class="sub">đang dò…</span>'; });
+      await doQuyenGhi();
+      b.disabled = false; b.textContent = cu;
     };
 
     $('#kTest').onclick = async (e) => {

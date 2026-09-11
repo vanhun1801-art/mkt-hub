@@ -236,5 +236,35 @@ console.log('— sau khi ghi, không được nói quá');
   t('nói rõ phải chờ lượt đồng bộ kế tiếp', /đồng bộ kế tiếp/.test(app));
 }
 
+console.log('— thẻ kênh tự nói được "quyền GHI đã có chưa"');
+{
+  /* Anh Hùng đã ba lần phải nhắn hỏi "kiểm tra lại" sau mỗi lần đi cấp quyền
+   * trên Facebook/TikTok. App biết câu trả lời — /api/dieu-khien/kha-nang dò
+   * thẳng nền tảng — nhưng chỉ nói trong hộp chi tiết của một quảng cáo, mà lúc
+   * vừa cấp quyền xong thì người ta đang đứng ở tab Kết nối. Bắt người dùng đi
+   * hỏi người khác một điều app tự trả lời được là lỗi của app. */
+  t('thẻ kênh có ô Quyền ghi', /Quyền ghi/.test(kn));
+  t('có hàm dò', /async function doQuyenGhi/.test(kn));
+  t('dò ngay khi mở tab', /\n\s*doQuyenGhi\(\);/.test(kn));
+  t('và có nút dò lại tại chỗ', kn.includes('id="kQuyenGhi"'));
+
+  /* Đọc số và ghi số là HAI quyền khác nhau. Ô "Token: đã có" chỉ nói về quyền
+   * đọc, nên nó không thay được ô này. */
+  t('phân biệt được ba trạng thái', /bật\/tắt được/.test(kn)
+    && /chưa cấp quyền/.test(kn) && /chưa rõ/.test(kn));
+  t('chưa cấp quyền thì in luôn CÁCH cấp', /Cách cấp:/.test(kn));
+
+  /* PLAT_OF gán cả googleSheet lẫn googleAds về "Google Ads". Khoá ô theo TÊN
+   * nền tảng thì hai thẻ khác nhau dính chung một câu trả lời — tôi đã viết sai
+   * đúng như vậy ở bản đầu. */
+  t('ô khoá theo key kênh, không theo tên nền tảng',
+    /data-quyen-ghi="\$\{esc\(p\.key\)\}"/.test(kn));
+  t('có bảng đổi tên nền tảng sang key', /KEY_CUA/.test(kn));
+
+  /* Kênh không điều khiển được thì phải nói "không áp dụng"; để nó đứng
+   * "đang dò…" mãi là một lời nói sai nhỏ mà không bao giờ tự sửa. */
+  t('kênh không có trong câu trả lời thì nói không áp dụng', /không áp dụng/.test(kn));
+}
+
 console.log(`\n${pass} pass · ${fail} fail`);
 process.exitCode = fail ? 1 : 0;
