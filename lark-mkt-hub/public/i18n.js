@@ -216,6 +216,9 @@
     'Quản lý base': 'Base admin',
     'Kín': 'Private',
     'Cả phòng': 'Whole team',
+    /* Base mở bằng biến HUB_CA_PHONG — nút bấm bị khoá vì nút chỉ sửa file. */
+    'Cả phòng · env': 'Whole team · env',
+    'Mở bằng env': 'Opened by env',
     'Mở cả phòng': 'Open to team',
     'Đóng lại': 'Make private',
     'Cả phòng thấy base này': 'The whole team can see this base',

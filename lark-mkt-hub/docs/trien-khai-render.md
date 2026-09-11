@@ -53,6 +53,26 @@ nhận tin. **Và phải mời bot của app vào chính nhóm đó**, nếu kh�
 
 Thiếu bước này: lỗi `91403`. Cấp scope mà chưa phát hành version: lỗi `99991672`.
 
+### A2a. Base nào mở cho CẢ PHÒNG — khai bằng biến, không bằng nút
+
+Nút **Mở cả phòng** / **Đóng lại** trong *Cài đặt → Base trong panel* ghi vào
+`modules.json`. File đó nằm **trong git** và ổ đĩa Render là **tạm**, nên mỗi lần
+deploy nó bị dựng lại theo bản trong git — mọi lần bấm đều mất, và base quay về
+trạng thái của git. Đây là lý do có lúc thấy base "tự chuyển cho cả phòng xem".
+
+Cách làm đúng, gồm hai nửa:
+
+1. Trong git, **mọi base để `caPhong: false`** → deploy chỉ có thể ĐÓNG, không bao
+   giờ tự mở. Có phép thử canh việc này: `test/ca-phong.test.js`.
+2. Danh sách mở thật nằm ở biến **`HUB_CA_PHONG`** trên Render (đã cắm sẵn
+   `cong-viec,lich-tac-nghiep`). Biến sống qua deploy.
+
+Không khai biến = **không base nào** mở cho cả phòng; ai cần base nào thì cấp tên
+từng người trong bảng *Phân quyền app*.
+
+Base mở bằng biến thì trong Cài đặt hiện chip **"Cả phòng · env"** và nút bấm bị
+**khoá** — vì bấm cũng chỉ sửa file, biến vẫn mở base ra.
+
 ### A2b. App gửi tin nhóm là app KHÁC — "Marketing Hub"
 
 Phòng có **5 app Lark** trong Console. App nền tảng của Hub là **Tracking**

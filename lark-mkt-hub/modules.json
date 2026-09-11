@@ -37,7 +37,7 @@
       ],
       "phuSelector": "#subtitle",
       "bat": true,
-      "caPhong": true
+      "caPhong": false
     },
     {
       "id": "lich-tac-nghiep",
@@ -61,7 +61,7 @@
         "#btnQuyen"
       ],
       "bat": true,
-      "caPhong": true
+      "caPhong": false
     },
     {
       "id": "quang-cao",
@@ -163,7 +163,7 @@
       "phuSelector": "#brandSub",
       "bat": true,
       "css": ".topbar-right { margin-left: auto; }",
-      "caPhong": true
+      "caPhong": false
     },
     {
       "id": "kpi",

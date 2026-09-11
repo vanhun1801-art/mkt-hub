@@ -377,7 +377,8 @@ function congKhai(m) {
   return {
     id: m.id, ten: m.ten, mo_ta: m.mo_ta, icon: m.icon, mau: m.mau, kieu: m.kieu,
     cong: m.cong, url: m.kieu === 'local' ? '/m/' + m.id + '/' : m.url,
-    larkUrl: m.larkUrl, kpi: m.kpi, bat: m.bat, caPhong: m.caPhong, coKpi: !!kpi.BO_DOC[m.kpi],
+    larkUrl: m.larkUrl, kpi: m.kpi, bat: m.bat, caPhong: m.caPhong,
+    caPhongTuEnv: m.caPhongTuEnv === true, coKpi: !!kpi.BO_DOC[m.kpi],
     thuMuc: m.thuMuc ? path.basename(m.thuMuc) : '',
     tinhTrang: kids.tinhTrang(m),
   };

@@ -493,13 +493,22 @@ function veCdBase(el) {
       /* Ai thấy base này — dòng nào cũng phải trả lời được câu đó ngay, không
        * phải mở màn Phân quyền mới biết. Bấm vào là đổi. */
       '<span class="chip ' + (m.caPhong ? 'vang' : '') + '" title="' + (m.caPhong
-        ? 'Cả phòng thấy base này'
+        ? (m.caPhongTuEnv
+          ? 'Cả phòng thấy base này — mở bằng biến HUB_CA_PHONG, không phải bằng nút ở đây'
+          : 'Cả phòng thấy base này')
         : 'Chỉ quản lý và người được cấp tên') + '">' +
-        (m.caPhong ? 'Cả phòng' : 'Kín') + '</span>' +
+        (m.caPhong ? 'Cả phòng' : 'Kín') + (m.caPhongTuEnv ? ' · env' : '') + '</span>' +
       '<div class="thao-tac">' +
-        '<button class="btn nho ghost" data-caphong="' + esc(m.id) + '"' +
-          ' data-moi="' + (m.caPhong ? '0' : '1') + '">' +
-          (m.caPhong ? 'Đóng lại' : 'Mở cả phòng') + '</button>' +
+        /* Mở bằng biến môi trường thì nút này bấm cũng vô ích: nó chỉ sửa
+         * modules.json, còn biến vẫn mở base ra. Khoá nút và nói rõ phải sửa ở đâu,
+         * đừng để người dùng bấm rồi tưởng app không nghe. */
+        (m.caPhongTuEnv
+          ? '<button class="btn nho ghost" disabled title="Base này mở bằng biến'
+            + ' HUB_CA_PHONG. Muốn đóng thì bỏ id khỏi biến đó (trên Render:'
+            + ' Environment → HUB_CA_PHONG) rồi deploy lại.">Mở bằng env</button>'
+          : '<button class="btn nho ghost" data-caphong="' + esc(m.id) + '"'
+            + ' data-moi="' + (m.caPhong ? '0' : '1') + '">'
+            + (m.caPhong ? 'Đóng lại' : 'Mở cả phòng') + '</button>') +
         (m.kieu === 'local'
           ? '<button class="btn nho" data-batlai="' + esc(m.id) + '">Bật lại</button>' +
             '<button class="btn nho ghost" data-tat="' + esc(m.id) + '">Tắt</button>' +

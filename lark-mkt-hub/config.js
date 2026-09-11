@@ -11,11 +11,37 @@ const MODULES_FILE = process.env.HUB_MODULES_FILE
   ? path.resolve(ROOT, process.env.HUB_MODULES_FILE)
   : path.join(ROOT, 'modules.json');
 
+/**
+ * Base nào mở cho cả phòng — khai bằng BIẾN MÔI TRƯỜNG, cộng dồn với modules.json.
+ *
+ * VÌ SAO PHẢI CÓ: `caPhong` vốn chỉ nằm trong modules.json, mà file đó (a) nằm
+ * trong git và (b) ở trên Render thì ổ đĩa là TẠM. Nên mỗi lần deploy, modules.json
+ * bị dựng lại theo đúng bản trong git — mọi lần bấm "Đóng lại" / "Mở cả phòng"
+ * trong app đều mất, và base quay về trạng thái của git. Anh Hùng gặp đúng chuyện
+ * này: "mỗi lần deploy lại thì hay tự chuyển cho cả phòng xem" (11/09/2026).
+ *
+ * Cùng lý do mà bảng Phân quyền đã để trong Lark Base chứ không để file (xem đầu
+ * quyen.js). `caPhong` là mảnh quyền duy nhất còn sót lại ở file.
+ *
+ * Cách chữa gồm hai nửa, phải có CẢ HAI:
+ *   1. Trong git, MỌI base để `caPhong: false` → deploy chỉ có thể ĐÓNG, không bao
+ *      giờ tự mở. Hỏng thì hỏng về phía an toàn.
+ *   2. Biến HUB_CA_PHONG giữ danh sách base mở thật, sống qua deploy.
+ *
+ * VD: HUB_CA_PHONG=cong-viec,lich-tac-nghiep
+ * Không khai, hoặc khai rỗng = không base nào mở cho cả phòng.
+ */
+function dsCaPhongEnv() {
+  return String(process.env.HUB_CA_PHONG || '')
+    .split(',').map((x) => x.trim()).filter(Boolean);
+}
+
 /** Đọc lại modules.json mỗi lần gọi để thêm/sửa base không cần restart. */
 function docModules() {
   const raw = fs.readFileSync(MODULES_FILE, 'utf8');
   const data = JSON.parse(raw);
   const list = Array.isArray(data.modules) ? data.modules : [];
+  const env = dsCaPhongEnv();
   return list.map((m, i) => ({
     id: String(m.id || 'module-' + i),
     ten: m.ten || m.id || 'Module',
@@ -37,8 +63,12 @@ function docModules() {
      *   true  = cả phòng (base dùng chung, ai đăng nhập cũng thấy)
      *   false = chỉ quản lý + người được cấp tên trong bảng Phân quyền
      * Thiếu field thì mặc định false — base mới thêm phải được mở tay, không
-     * tự phơi ra cho cả phòng. */
-    caPhong: m.caPhong === true,
+     * tự phơi ra cho cả phòng. Chuỗi "true" cũng KHÔNG tính là mở: chỉ đúng
+     * boolean true, để một giá trị lạ lọt vào file không mở base ra. */
+    caPhong: m.caPhong === true || env.includes(String(m.id || '')),
+    /* Mở do BIẾN MÔI TRƯỜNG chứ không do file. Giao diện cần biết để nói thật:
+     * bấm "Đóng lại" chỉ sửa file, không tắt được cái mở bằng biến. */
+    caPhongTuEnv: env.includes(String(m.id || '')),
   }));
 }
 
@@ -96,6 +126,7 @@ module.exports = {
   docModules,
   docModulesTho,
   ghiModules,
+  dsCaPhongEnv,
 
   // Hub tự bật các module kiểu 'local' khi khởi động
   tuKhoiDong: process.env.HUB_AUTOSTART !== '0',

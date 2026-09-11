@@ -14,6 +14,10 @@
 #   LARK_MANAGER_EMAILS  email Lark của quản lý, VD hunglv@rootytrip.com
 #   PUBLIC_URL           để TRỐNG lần đầu; điền URL Render cấp rồi deploy lại
 #
+# HUB_CA_PHONG đã cắm sẵn `cong-viec,lich-tac-nghiep` — hai base cả phòng dùng.
+# Base nào muốn mở thêm thì thêm id vào đó; KHÔNG dùng nút trong app vì nút đó ghi
+# vào file và mất sau mỗi lần deploy.
+#
 # Bốn biến khác Render tự sinh. Mọi biến còn lại đã comment vì KHÔNG cần cho lần
 # đầu — app nào thiếu token thì chỉ app đó không đồng bộ, Hub vẫn chạy.
 # ============================================================
@@ -62,6 +66,24 @@ services:
       # Vẫn dùng được (cộng dồn với EMAILS) nếu ai đó không có email công ty.
       # - key: LARK_MANAGER_IDS
       #   sync: false
+
+      # ---- base nào mở cho CẢ PHÒNG ----
+      # Phải khai ở ĐÂY, không phải bằng nút trong app.
+      #
+      # Nút "Mở cả phòng" / "Đóng lại" trong Cài đặt ghi vào modules.json — mà file
+      # đó nằm trong git VÀ ổ đĩa Render là tạm. Nên mỗi lần deploy, modules.json bị
+      # dựng lại theo bản trong git và mọi lần bấm đều mất. Anh Hùng gặp đúng chuyện
+      # này (11/09/2026): "mỗi lần deploy lại thì hay tự chuyển cho cả phòng xem".
+      #
+      # Trong git MỌI base để caPhong: false — deploy chỉ có thể ĐÓNG, không bao giờ
+      # tự mở. Danh sách mở thật nằm ở biến này và sống qua deploy.
+      #
+      # Không khai = KHÔNG base nào mở cho cả phòng; ai cần base nào thì cấp tên
+      # từng người trong bảng Phân quyền app.
+      # Base mở bằng biến này thì trong Cài đặt hiện chip "Cả phòng · env" và nút
+      # bấm bị khoá — sửa phải sửa ở đây.
+      - key: HUB_CA_PHONG
+        value: cong-viec,lich-tac-nghiep
 
       # ---- token kết nối nền tảng quảng cáo (Meta / TikTok / Google Sheet) ----
       # Ổ đĩa Render là TẠM: ket-noi.json mất sau mỗi lần deploy, mất token là các
