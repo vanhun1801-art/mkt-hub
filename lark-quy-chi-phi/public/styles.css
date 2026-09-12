@@ -244,4 +244,4 @@ tr.mo .nd b { font-weight: 500; }
 
 /* chip chứng từ: bấm vào là XEM, nên phải trông bấm được */
 .tep[data-xem] { cursor: pointer; }
-.tep.tai { padding: 2px 6px; }
+.tep.tai { padding: 2px 6px; cursor: pointer; }

@@ -1911,46 +1911,111 @@ const urlTep = (recId, token, tai) =>
 /** Một hàng tệp dùng chung: tên bấm được + nút Xem + nút Tải. */
 function hangTep(recId, f) {
   const ten = f.name || 'tệp';
-  const co = xemDuocTep(ten) && f.token;
-  const nut = (nhan, them) =>
-    '<a class="btn sm ghost"' + them + '>' + nhan + '</a>';
+  const moDuoc = xemDuocTep(ten) && f.token;
+  const mo = ' data-rec="' + esc(recId) + '" data-token="' + esc(f.token || '') +
+    '" data-ten="' + esc(ten) + '" data-co="' + (Number(f.size) || 0) + '"';
   return '<div class="file">' +
     '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">' +
     '<path d="M9 1.5H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5.5L9 1.5z"/><path d="M9 1.5V5.5H13"/></svg>' +
-    '<span class="nm' + (co ? ' co-the-xem' : '') + '"' +
-      (co ? ' data-xem="' + esc(f.token) + '" data-rec="' + esc(recId) + '" data-ten="' + esc(ten) + '"' : '') +
-      '>' + esc(ten) + '</span>' +
+    '<span class="nm' + (moDuoc ? ' co-the-xem" data-xem="1"' + mo : '"') + '>' + esc(ten) + '</span>' +
     '<span class="sz">' + (f.size ? Math.round(f.size / 1024) + ' KB' : '') + '</span>' +
-    (co ? nut('Xem', ' data-xem="' + esc(f.token) + '" data-rec="' + esc(recId) +
-      '" data-ten="' + esc(ten) + '"') : '') +
-    (f.token ? nut('Tải', ' href="' + urlTep(recId, f.token, true) + '" download="' + esc(ten) + '"') : '') +
+    (moDuoc ? '<a class="btn sm ghost" data-xem="1"' + mo + '>Xem</a>' : '') +
+    (f.token ? '<a class="btn sm ghost" data-tai="1"' + mo + '>Tải</a>' : '') +
     '</div>';
 }
 
-function moXemTep(recId, token, ten) {
-  const src = urlTep(recId, token);
-  $('#xtTen').textContent = ten || 'tệp';
-  const tai = $('#xtTai');
-  tai.href = urlTep(recId, token, true);
-  tai.setAttribute('download', ten || '');
+/* Tệp được LẤY VỀ bằng fetch rồi mới dựng, chứ không gán thẳng URL vào <img>.
+ *
+ * Vì sao phiền thế: khi máy chủ trả lỗi (hay gặp nhất là app Lark chưa được cấp
+ * quyền tệp nên bản online không tải được đính kèm), <img src> chỉ hiện một ô
+ * vỡ và <a download> thì trình duyệt báo "Site wasn't available" — không ai biết
+ * vì sao. Anh Hùng gặp đúng cảnh đó 12/09/2026. Lấy bằng fetch thì đọc được câu
+ * lỗi máy chủ viết ra và in thẳng lên màn hình.
+ *
+ * Tệp to thì không nhét vào bộ nhớ: video vài chục MB cứ để trình duyệt tự phát
+ * và tự tải theo đường dẫn như cũ. */
+const TEP_NHO_NHAT_LA = 25 * 1024 * 1024;
+let xtUrl = null;                       // object URL đang mở, phải thu hồi khi đóng
 
-  let than;
-  if (laAnh(ten)) than = '<img src="' + esc(src) + '" alt="">';
-  else if (laPdf(ten)) than = '<iframe src="' + esc(src) + '"></iframe>';
-  else if (laVideo(ten)) than = '<video src="' + esc(src) + '" controls></video>';
-  else if (laChu(ten)) than = '<iframe src="' + esc(src) + '"></iframe>';
-  else {
-    than = '<div class="xt-none"><div class="ic">TỆP</div>' +
-      '<div>Kiểu tệp này không xem trực tiếp được.</div>' +
-      '<a class="btn primary" href="' + urlTep(recId, token, true) + '" download="' + esc(ten || '') + '">Tải về để mở</a></div>';
+async function layTep(recId, token) {
+  const r = await fetch(urlTep(recId, token));
+  if (!r.ok) {
+    let lyDo = 'Máy chủ trả lỗi ' + r.status;
+    try {
+      const d = await r.json();
+      if (d && d.error) lyDo = d.error;
+    } catch (_) { /* không phải JSON thì giữ câu theo mã lỗi */ }
+    const e = new Error(lyDo);
+    e.http = r.status;
+    throw e;
   }
-  $('#xtBody').innerHTML = than;
+  return r.blob();
+}
+
+async function moXemTep(recId, token, ten, co) {
+  $('#xtTen').textContent = ten || 'tệp';
+  /* Nút Tải xuống trên đầu cửa sổ đi cùng một đường với nút Tải ở hàng tệp —
+   * hỏng thì cũng nói được hỏng cái gì. */
+  const tai = $('#xtTai');
+  tai.removeAttribute('href');
+  tai.setAttribute('data-tai', '1');
+  tai.dataset.rec = recId;
+  tai.dataset.token = token;
+  tai.dataset.ten = ten || '';
+  tai.dataset.co = String(co || 0);
+  $('#xtBody').innerHTML = '<div class="xt-none"><div class="ic">ĐANG MỞ</div></div>';
   $('#xemTep').classList.add('on');
+
+  if (!xemDuocTep(ten)) {
+    $('#xtBody').innerHTML = '<div class="xt-none"><div class="ic">TỆP</div>' +
+      '<div>Kiểu tệp này không xem trực tiếp được.</div>' +
+      '<a class="btn primary" href="' + urlTep(recId, token, true) +
+      '" download="' + esc(ten || '') + '">Tải về để mở</a></div>';
+    return;
+  }
+
+  // Video to thì phát thẳng từ đường dẫn — nhét vào bộ nhớ chỉ tổ nghẽn
+  if (laVideo(ten) && (!co || co > TEP_NHO_NHAT_LA)) {
+    $('#xtBody').innerHTML = '<video src="' + esc(urlTep(recId, token)) + '" controls></video>';
+    return;
+  }
+
+  try {
+    const blob = await layTep(recId, token);
+    if (xtUrl) URL.revokeObjectURL(xtUrl);
+    xtUrl = URL.createObjectURL(blob);
+    $('#xtBody').innerHTML = laAnh(ten) ? '<img src="' + xtUrl + '" alt="">'
+      : laVideo(ten) ? '<video src="' + xtUrl + '" controls></video>'
+        : '<iframe src="' + xtUrl + '"></iframe>';
+  } catch (e) {
+    $('#xtBody').innerHTML = '<div class="xt-none"><div class="ic">KHÔNG MỞ ĐƯỢC</div>' +
+      '<div>' + esc(e.message) + '</div></div>';
+  }
+}
+
+/* Tải cũng đi bằng fetch với tệp nhỏ, vì lý do y hệt: hỏng thì nói được hỏng
+ * cái gì, thay vì để trình duyệt báo "Site wasn't available". */
+async function taiTepVe(recId, token, ten, co) {
+  if (co && co > TEP_NHO_NHAT_LA) {   // tệp to: để trình duyệt tự tải theo đường dẫn
+    window.open(urlTep(recId, token, true), '_blank');
+    return;
+  }
+  try {
+    const blob = await layTep(recId, token);
+    const u = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = u; a.download = ten || 'tep';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(u), 30000);
+  } catch (e) {
+    toast('Không tải được "' + (ten || 'tệp') + '": ' + e.message, 'err');
+  }
 }
 
 function dongXemTep() {
   $('#xemTep').classList.remove('on');
-  $('#xtBody').innerHTML = '';   // dừng video đang chạy, thả ảnh ra khỏi bộ nhớ
+  $('#xtBody').innerHTML = '';   // dừng video đang chạy
+  if (xtUrl) { URL.revokeObjectURL(xtUrl); xtUrl = null; }
 }
 
 function filesBlock(key, label, hint) {
@@ -3370,7 +3435,16 @@ document.addEventListener('click', async (e) => {
   const xtMo = T.closest('[data-xem]');
   if (xtMo) {
     e.preventDefault();
-    moXemTep(xtMo.dataset.rec, xtMo.dataset.xem, xtMo.dataset.ten);
+    const d = xtMo.dataset;
+    moXemTep(d.rec, d.token, d.ten, Number(d.co) || 0);
+    return;
+  }
+
+  const xtTai = T.closest('[data-tai]');
+  if (xtTai) {
+    e.preventDefault();
+    const d = xtTai.dataset;
+    taiTepVe(d.rec, d.token, d.ten, Number(d.co) || 0);
     return;
   }
 

@@ -236,7 +236,13 @@ function chuyenTiep(req, res, mod, duongDan, nguoi) {
    * luôn in cfg.goiTimeoutMs, nên một lời gọi được cho 4 phút mà quá giờ vẫn báo
    * "không trả lời trong 30s" — đọc câu đó rồi đi sửa danh sách việc-lâu là sửa
    * đúng thứ không hỏng. */
-  const mocCho = /\/(upload|attachment)\b/.test(duongDan || '') ? 300000
+  /* Mọi đường CHẠM VÀO TỆP đều được mốc dài, không riêng hai chữ upload và
+   * attachment. Ba app đặt tên khác nhau cho cùng một việc — Tracking dùng
+   * /api/attachment, Lịch tác nghiệp dùng .../file/<token>, Quỹ chi phí dùng
+   * .../tep/<token>/tai — nên bản trước chỉ có Tracking được mốc dài, hai app kia
+   * bị cắt ở 30 giây. Tệp phải đi qua Lark hai chặng (hỏi chỗ, rồi tải về) nên
+   * 30 giây là thiếu, và người dùng nhận một lần tải đứt giữa chừng. */
+  const mocCho = /\/(upload|attachment|file|tep|media)\b/.test(duongDan || '') ? 300000
     : /\/su-kien\b/.test(duongDan || '') ? 0
       : VIEC_LAU.test(duongDan || '') ? cfg.goiLauMs : cfg.goiTimeoutMs;
 

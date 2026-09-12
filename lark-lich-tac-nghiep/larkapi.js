@@ -168,29 +168,89 @@ async function deleteRecords(recordIds, tableId = cfg.tableId, base) {
 }
 
 /* ---------------- đính kèm ---------------- */
+/* Lark từ chối vì app chưa được cấp scope tệp thì câu trả về là một danh sách
+ * scope tiếng Anh dài — nhân sự đọc không hiểu gì. Đổi thành câu nói rõ phải làm gì. */
+const thieuQuyenTep = (msg) => /Access denied/i.test(String(msg || '')) &&
+  /scopes? (is|are) required/i.test(String(msg || ''));
+
+function loiThieuQuyen(viec) {
+  const e = new Error('App Lark chưa được cấp quyền tệp nên không ' + viec + ' được từ đây. ' +
+    'Quản lý cần mở Developer Console, thêm scope drive:drive (hoặc cặp ' +
+    'drive:drive:readonly + docs:document.media:upload) rồi phát hành phiên bản mới. ' +
+    'Trong lúc chờ, mở bản ghi trong Base để xem/đính tệp trực tiếp.');
+  e.code = 'MISSING_SCOPE';
+  e.http = 424;
+  return e;
+}
+
+/**
+ * Tải đính kèm của Base ở chế độ api (danh tính app).
+ *
+ * Tệp của Base KHÔNG tải được bằng đường drive thông thường: gọi
+ * /drive/v1/medias/<token>/download mà thiếu `extra` đúng thì Lark trả 400.
+ * Nên thử lần lượt:
+ *   1. get_attachments có trả URL tạm (url / tmp_url / download_url) -> tải luôn URL đó
+ *   2. có `extra` -> truyền đúng nguyên văn
+ *   3. tự dựng extra {"bitablePerm":{"tableId":...}} — dạng Lark đòi cho tệp Base
+ * Hỏng cả ba thì báo lỗi KÈM tên các khoá mà API trả về, để lần sau khỏi mò.
+ *
+ * KHOÁ TÊN LÀ `extra_info`, KHÔNG PHẢI `extra` — đo được từ bản online: các khoá
+ * get_attachments trả về là extra_info, file_token, name, size. Bản trước chỉ đọc
+ * `o.extra` nên luôn ra null, gọi download không kèm extra và Lark từ chối. Ở máy
+ * anh Hùng không lộ vì chạy chế độ cli (token người dùng), chỉ hỏng trên Render —
+ * đúng cảnh "ấn vào tệp không xem được, không tải được" ngày 12/09/2026.
+ */
 async function downloadAttachmentBuffer(recordId, fileToken, tableId = cfg.tableId, base) {
   const meta = await call('POST', baseUrl(tableId, base) + '/get_attachments', {
     body: { record_id_list: [recordId] },
   });
 
-  let extra = null, name = null;
-  const duyet = (o) => {
-    if (!o || typeof o !== 'object') return;
-    if (Array.isArray(o)) return o.forEach(duyet);
-    if (o.file_token === fileToken) { extra = o.extra || null; name = o.name || null; }
-    Object.values(o).forEach(duyet);
+  let o = null;
+  const duyet = (x) => {
+    if (!x || typeof x !== 'object') return;
+    if (Array.isArray(x)) return x.forEach(duyet);
+    if (x.file_token === fileToken) o = x;
+    Object.values(x).forEach(duyet);
   };
   duyet(meta);
 
-  const q = extra
-    ? '?extra=' + encodeURIComponent(typeof extra === 'string' ? extra : JSON.stringify(extra))
-    : '';
-  const buf = await call(
-    'GET',
-    '/open-apis/drive/v1/medias/' + encodeURIComponent(fileToken) + '/download' + q,
-    { raw: true }
-  );
-  return { buffer: buf, name };
+  const name = (o && o.name) || null;
+  const cach = [];
+
+  // 1. URL tạm sẵn có
+  const url = o && (o.url || o.tmp_url || o.tmp_download_url || o.download_url);
+  if (url) {
+    cach.push('url-tam');
+    try {
+      const r = await fetch(url);
+      if (r.ok) return { buffer: Buffer.from(await r.arrayBuffer()), name };
+    } catch (_) { /* thử cách sau */ }
+  }
+
+  const duong = (extra) => '/open-apis/drive/v1/medias/' + encodeURIComponent(fileToken) + '/download' +
+    (extra ? '?extra=' + encodeURIComponent(typeof extra === 'string' ? extra : JSON.stringify(extra)) : '');
+
+  // 2. extra nguyên văn do API trả
+  const extra = (o && (o.extra_info || o.extra)) || null;
+  if (extra) {
+    cach.push('extra-tra-ve');
+    try { return { buffer: await call('GET', duong(extra), { raw: true }), name }; }
+    catch (_) { /* thử cách sau */ }
+  }
+
+  // 3. tự dựng extra cho tệp Base
+  cach.push('extra-tu-dung');
+  try {
+    const tuDung = { bitablePerm: { tableId, rev: (o && o.rev) || undefined } };
+    return { buffer: await call('GET', duong(tuDung), { raw: true }), name };
+  } catch (e) {
+    if (thieuQuyenTep(e.message)) throw loiThieuQuyen('xem/tải tệp');
+    const khoa = o ? Object.keys(o).join(',') : '(khong thay file_token trong get_attachments)';
+    const err = new Error('Không tải được tệp từ Base. Đã thử: ' + cach.join(' -> ') +
+      '. API trả về các khoá: ' + khoa + '. Lỗi cuối: ' + e.message);
+    err.http = 502;
+    throw err;
+  }
 }
 
 /** Giữ cùng chữ ký với lark.js: ghi ra thư mục tạm rồi trả về đường dẫn thư mục. */

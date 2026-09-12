@@ -82,6 +82,30 @@ console.log('— đường thường KHÔNG được nới, kẻo lỗi thật b
   '/api/muc-tieu',
 ].forEach((p) => t(`${p} giữ mốc thường`, !VIEC_LAU.test(p), p));
 
+/* Ba app đặt tên khác nhau cho cùng một việc là phục vụ tệp. Bản đầu chỉ nới cho
+ * `upload` và `attachment`, nên riêng Tracking được 5 phút còn Lịch tác nghiệp và
+ * Quỹ chi phí bị cắt ở 30 giây — anh Hùng bấm Tải và nhận một lần tải đứt giữa
+ * chừng ("Site wasn't available", 12/09/2026). Rút biểu thức từ CHÍNH proxy.js,
+ * không chép lại, kẻo hai bên trôi xa nhau mà test vẫn xanh. */
+console.log('— mọi đường CHẠM VÀO TỆP đều được mốc dài, dù app đặt tên gì');
+const mTep = src.match(/const mocCho = (\/[^\n]*?\/)\.test\(duongDan/);
+t('proxy.js còn nhánh nhận diện đường tệp', !!mTep);
+const TEP_RE = mTep ? eval(mTep[1]) : /$^/;             // eslint-disable-line no-eval
+[
+  ['/api/attachment?record=recX&token=T', 'Tracking · xem tệp'],
+  ['/api/tasks/recX/upload?cot=ket-qua', 'Tracking · nộp tệp'],
+  ['/api/items/recX/file/TOKEN', 'Lịch tác nghiệp · xem tệp'],
+  ['/api/items/recX/attachment/files', 'Lịch tác nghiệp · nộp tệp'],
+  ['/api/chi/recX/tep/TOKEN/tai', 'Quỹ chi phí · xem chứng từ'],
+].forEach(([p, vi]) => t(`${p} — ${vi}`, TEP_RE.test(p), p));
+
+[
+  '/api/meta',
+  '/api/items',
+  '/api/tasks',
+  '/api/cua-so',
+].forEach((p) => t(`${p} KHÔNG phải đường tệp`, !TEP_RE.test(p), p));
+
 console.log('— các mốc thời gian');
 t('goiTimeoutMs là số dương', Number.isFinite(cfg.goiTimeoutMs) && cfg.goiTimeoutMs > 0,
   String(cfg.goiTimeoutMs));
