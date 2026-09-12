@@ -14,6 +14,8 @@
  * Chạy: node test/viec-tracking.test.js
  */
 const http = require('http');
+const fs = require('fs');
+const path = require('path');
 const VT = require('../viec-tracking');
 
 let pass = 0, fail = 0;
@@ -76,6 +78,13 @@ group('Đoán nhóm việc từ "Loại công việc" bên Tracking');
     VT.doanNhom('', 'Dựng video tour Rạch Vẹm') === 'Edit video');
   ok('không đoán ra thì về Khác, không bịa',
     VT.doanNhom('Linh tinh', 'Việc gì đó') === 'Khác');
+  /* Việc thật trong Base: mẫu dò chữ "dựng" đứng một mình khớp luôn "Xây dựng",
+   * nên việc soạn tài liệu bị xếp vào Edit video. */
+  ok('"Xây dựng Profile" KHÔNG phải Edit video',
+    VT.doanNhom('Khác', 'Xây dựng Profile + các sự kiện hết năm 2026') === 'Khác',
+    'đang ra: ' + VT.doanNhom('Khác', 'Xây dựng Profile + các sự kiện hết năm 2026'));
+  ok('nhưng "dựng clip" thì vẫn là Edit video',
+    VT.doanNhom('', 'Dựng clip Rạch Vẹm') === 'Edit video');
   ok('rỗng cũng ra Khác, không nổ', VT.doanNhom(null, undefined) === 'Khác');
 }
 
@@ -102,7 +111,11 @@ group('Đoán nhóm việc từ "Loại công việc" bên Tracking');
     ],
   };
 
+  /* Máy chủ giả GHI LẠI header nhận được — đó là cả điểm của nhóm kiểm tra
+   * "gửi danh tính" bên dưới. */
+  const nhanDuoc = [];
   const sv = http.createServer((req, res) => {
+    nhanDuoc.push(req.headers);
     res.writeHead(200, { 'content-type': 'application/json' });
     res.end(JSON.stringify(TASKS));
   });
@@ -126,6 +139,66 @@ group('Đoán nhóm việc từ "Loại công việc" bên Tracking');
       ds.find((v) => v.ten === 'Vừa xong hôm qua').dong === true);
     ok('mang theo id để nối về Tracking', dangLam.id === 'r1');
     ok('mang theo loại việc', dangLam.loai === 'Thiết kế');
+  }
+
+  group('Gửi DANH TÍNH sang Tracking — thiếu là nhân sự thấy menu rỗng');
+  {
+    /* Đây là lỗi đã lọt lên bản chạy thật. `visibleFor()` bên Tracking viết:
+     *     const me = await whoAmI(req);
+     *     if (!me) return [];
+     * Không danh tính thì nó trả MẢNG RỖNG, không báo lỗi gì. Trên máy anh Hùng
+     * không lộ vì quyen.json xếp anh vào quản lý nên Tracking trả hết việc;
+     * trên Render thì nhân sự mở ra thấy menu trống trơn. */
+    nhanDuoc.length = 0;
+    await VT2.vieCuaNguoi({ id: 'ou_a', ten: 'Nguyễn Văn A', email: 'a@rootytrip.com' },
+      nay, true, false);
+    const h = nhanDuoc[nhanDuoc.length - 1] || {};
+
+    ok('có gửi x-hub-user-id', h['x-hub-user-id'] === 'ou_a',
+      'thiếu header này thì Tracking trả về mảng rỗng — im lặng, không lỗi');
+    ok('có gửi tên, đã mã hoá để không vỡ dấu',
+      decodeURIComponent(h['x-hub-user-name'] || '') === 'Nguyễn Văn A',
+      'đang ra: ' + h['x-hub-user-name']);
+    ok('có gửi email làm khoá phụ', decodeURIComponent(h['x-hub-user-email'] || '') === 'a@rootytrip.com');
+    ok('nhân sự thì KHÔNG gắn cờ quản lý', h['x-hub-user-manager'] === undefined,
+      'gắn cờ đó là mở đúng cái cửa mà bảng phân quyền đang giữ');
+
+    nhanDuoc.length = 0;
+    await VT2.vieCuaNguoi({ id: 'ou_sep', ten: 'Sếp' }, nay, true, true);
+    const hq = nhanDuoc[nhanDuoc.length - 1] || {};
+    ok('quản lý thì có cờ quản lý', hq['x-hub-user-manager'] === '1',
+      'thiếu thì quản lý không xem được đầu việc của nhân sự khác');
+  }
+
+  group('Nhớ tạm phải khoá theo NGƯỜI');
+  {
+    /* Kết quả nay phụ thuộc danh tính gửi kèm. Dùng chung một ô nhớ thì người mở
+     * sau nhận nguyên danh sách của người mở trước — rò dữ liệu, và im lặng. */
+    nhanDuoc.length = 0;
+    await VT2.vieCuaNguoi({ id: 'ou_a', ten: 'A' }, nay, false);
+    const lan1 = nhanDuoc.length;
+    await VT2.vieCuaNguoi({ id: 'ou_b', ten: 'B' }, nay, false);
+    ok('người khác thì hỏi Tracking lại, không dùng lại ô nhớ của người trước',
+      nhanDuoc.length > lan1,
+      'dùng chung ô nhớ nghĩa là B thấy đúng danh sách việc của A');
+
+    const lan2 = nhanDuoc.length;
+    await VT2.vieCuaNguoi({ id: 'ou_a', ten: 'A' }, nay, false);
+    ok('cùng một người trong vòng một phút thì dùng lại ô nhớ',
+      nhanDuoc.length === lan2);
+  }
+
+  group('Thời gian chờ — 6 giây là quá ngắn cho Render');
+  {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'viec-tracking.js'), 'utf8');
+    const m = src.match(/BC_TIMEOUT_TRACKING \|\| (\d+)/);
+    ok('có khai thời gian chờ', !!m);
+    ok('chờ ít nhất 15 giây', m && Number(m[1]) >= 15000,
+      'đang là ' + (m && m[1]) + 'ms. Render gói Free ngủ sau ~15 phút; lần gọi ' +
+      'đầu Tracking phải đọc 425 bản ghi từ Base, 6 giây là hụt — và màn hình ' +
+      'báo "Không nối được" trong khi Tracking vẫn sống');
+    ok('có thử lại một lần khi hụt giờ', /catch \(e\) \{[\s\S]{0,400}goiTracking/.test(src),
+      'lần đầu hụt, lần hai thì cache đã ấm');
   }
 
   group('Tracking tắt — phải nói thật, không im lặng');

@@ -418,13 +418,18 @@ async function api(req, res, u) {
   if (p === '/api/viec-cua-toi' && m === 'GET') {
     const ai = nguoiXem(toi, q);
     try {
-      const ds = await VT.vieCuaNguoi(ai, moc(), q.get('moi') === '1');
+      /* Cờ quản lý chỉ truyền khi NGƯỜI GỌI thật sự là quản lý (`toi`), không
+       * phải người đang được xem (`ai`) — nhân sự không được mượn vai ai cả. */
+      const ds = await VT.vieCuaNguoi(ai, moc(), q.get('moi') === '1', toi.quanLy);
       return json(res, {
         chay: true,
+        cuaAi: ai.ten || ai.email || ai.id,
         ds: ds.map((v) => Object.assign({}, v, { nhom: VT.doanNhom(v.loai, v.ten) })),
       });
     } catch (e) {
-      return json(res, { chay: false, ly: e.message, ds: [] });
+      /* Kèm cổng và nguyên văn lỗi: lần trước anh Hùng chụp màn hình gửi sang
+       * mà dòng cảnh báo không nói được vì sao, phải lần ngược từ code. */
+      return json(res, { chay: false, ly: e.message, cong: VT.CONG, ds: [] });
     }
   }
 

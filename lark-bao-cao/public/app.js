@@ -222,11 +222,26 @@ function cauHan(d) {
 function theBang(d) {
   const dong = d.dong.length ? d.dong : [dongTrong()];
   const ca = (d.phieu && d.phieu.ca) || 'Cả ngày';
-  const canhBao = VIEC && !VIEC.chay
-    ? '<div class="the-than" style="padding:10px 16px;border-bottom:1px solid var(--border)">' +
-      '<span class="nhan-tt cam">Không nối được Bảng công việc</span> ' +
-      '<span class="nho">nên danh sách đầu việc đang trống. Vẫn gõ tay được bằng nhóm "Khác".</span>' +
-      '</div>' : '';
+  /* Ba trạng thái khác nhau, và gộp chúng lại là cách chắc chắn để người dùng
+   * hiểu sai: hỏng đường truyền · nối được nhưng không ai giao việc · có việc.
+   * Bản đầu chỉ có hai, nên "bạn không có việc nào" hiện ra y như bình thường —
+   * menu trống trơn mà không một dòng giải thích. */
+  const canhBao = !VIEC ? ''
+    : !VIEC.chay
+      ? '<div class="the-than" style="padding:10px 16px;border-bottom:1px solid var(--border)">' +
+        '<span class="nhan-tt do">Không nối được Bảng công việc</span> ' +
+        '<span class="nho">' + esc(VIEC.ly || '') +
+        (VIEC.cong ? ' (cổng ' + esc(VIEC.cong) + ')' : '') +
+        ' — vẫn gõ tay được bằng nhóm "Khác".</span>' +
+        '</div>'
+      : !VIEC.ds.length
+        ? '<div class="the-than" style="padding:10px 16px;border-bottom:1px solid var(--border)">' +
+          '<span class="nhan-tt cam">Không có đầu việc nào</span> ' +
+          '<span class="nho">Bảng công việc hiện không giao việc nào cho ' +
+          esc(VIEC.cuaAi || 'anh/chị') + '. Gõ tay bằng nhóm "Khác", ' +
+          'hoặc nhờ quản lý giao việc trong Bảng công việc trước.</span>' +
+          '</div>'
+        : '';
 
   return '<div class="the">' +
     '<div class="the-dau"><h2>Đầu việc trong ngày</h2>' +

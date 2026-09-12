@@ -21,21 +21,56 @@
 const http = require('http');
 
 /* Cổng của app Bảng công việc. Cả hai app con đều chạy trên cùng máy (hub bật
- * chúng lên), nên gọi thẳng loopback. */
+ * chúng lên như tiến trình con), nên gọi thẳng loopback. */
 const CONG = Number(process.env.BC_CONG_TRACKING || 5173);
 const HOST = process.env.BC_HOST_TRACKING || '127.0.0.1';
-const CHO_MS = Number(process.env.BC_TIMEOUT_TRACKING || 6000);
+/* 20 giây, không phải 6.
+ *
+ * Bản đầu để 6s và trên máy thì không bao giờ lộ — Base đã nằm sẵn trong cache
+ * của Tracking nên nó trả về trong tích tắc. Trên Render thì khác hẳn: gói Free
+ * ngủ sau ~15 phút, lần gọi đầu Tracking phải đọc 425 bản ghi từ Base, và 6 giây
+ * là quá ngắn. Anh Hùng mở app ra thấy đúng dòng "Không nối được Bảng công việc"
+ * trong khi Tracking vẫn sống nhăn ở tab bên cạnh. */
+const CHO_MS = Number(process.env.BC_TIMEOUT_TRACKING || 20000);
 
 const NGAY = 86400000;
 
-/* Danh sách việc đổi chậm và màn nhập gọi nó mỗi lần mở phiếu. */
-let dem = { luc: 0, ds: null };
+/* Danh sách việc đổi chậm và màn nhập gọi nó mỗi lần mở phiếu. Khoá theo NGƯỜI
+ * vì kết quả nay phụ thuộc danh tính gửi kèm — dùng chung một ô nhớ thì người mở
+ * sau thấy việc của người mở trước. */
+const dem = new Map();
 
-function goiTracking(duong) {
+/**
+ * Header danh tính gửi sang Tracking.
+ *
+ * Bắt buộc phải có. `visibleFor()` bên Tracking viết:
+ *     const me = await whoAmI(req);
+ *     if (!me) return [];
+ * — không danh tính thì nó trả về MẢNG RỖNG, không báo lỗi gì. Trên máy anh Hùng
+ * chuyện này không lộ vì `quyen.json` xếp anh vào quản lý nên Tracking trả hết;
+ * trên Render thì nhân sự mở ra thấy menu trống trơn.
+ *
+ * Cờ quản lý chỉ gửi khi người gọi THẬT SỰ là quản lý — lúc đó Tracking trả toàn
+ * bộ việc và app này tự lọc lấy việc của người đang được xem. Không bao giờ gắn
+ * cờ đó để "cho chắc": đây là app đọc việc của người khác, mạo quyền ở đây là mở
+ * đúng cái cửa mà bảng phân quyền đang giữ.
+ */
+function headerNguoi(nguoi, quanLy) {
+  const h = { accept: 'application/json' };
+  if (!nguoi) return h;
+  if (nguoi.id) h['x-hub-user-id'] = nguoi.id;
+  const ten = nguoi.ten || nguoi.name;
+  if (ten) h['x-hub-user-name'] = encodeURIComponent(ten);
+  if (nguoi.email) h['x-hub-user-email'] = encodeURIComponent(nguoi.email);
+  if (quanLy) h['x-hub-user-manager'] = '1';
+  return h;
+}
+
+function goiTracking(duong, headers) {
   return new Promise((ok, ko) => {
     const req = http.request(
       { host: HOST, port: CONG, path: duong, method: 'GET', timeout: CHO_MS,
-        headers: { accept: 'application/json' } },
+        headers: headers || { accept: 'application/json' } },
       (res) => {
         const buf = [];
         res.on('data', (c) => buf.push(c));
@@ -52,18 +87,29 @@ function goiTracking(duong) {
 }
 
 /**
- * Đọc RỘNG rồi cắt HẸP tại đây.
+ * Hỏi Tracking, KÈM danh tính, rồi vẫn tự lọc lại một lần nữa.
  *
- * Không gửi danh tính sang Tracking để nhờ nó lọc hộ: làm thế thì kết quả phụ
- * thuộc vào việc hai app có cùng open_id hay không, mà open_id do TỪNG app Lark
- * cấp riêng nên chúng khác nhau trên Render. Lấy hết rồi tự khớp bằng id, email
- * và tên thì sai một khoá vẫn còn hai khoá đỡ.
+ * Hai tầng lọc nghe như thừa nhưng mỗi tầng chữa một chuyện khác nhau. Tầng của
+ * Tracking là hàng rào thật: nó quyết ai được thấy việc nào, và đó là luật của
+ * app đó chứ không phải của app này. Tầng ở đây là để khớp người khi id lệch —
+ * open_id do TỪNG app Lark cấp riêng, nên `cuaAi()` bên dưới còn dò cả tên và
+ * email; và nó cũng là chỗ cắt hẹp khi Tracking trả về toàn bộ việc cho quản lý.
  */
-async function docHet(force) {
-  if (!force && dem.ds && Date.now() - dem.luc < 60000) return dem.ds;
-  const d = await goiTracking('/api/tasks');
+async function docHet(nguoi, quanLy, force) {
+  const khoa = (quanLy ? 'ql:' : 'ns:') + ((nguoi && (nguoi.email || nguoi.id)) || 'khuyet');
+  const o = dem.get(khoa);
+  if (!force && o && Date.now() - o.luc < 60000) return o.ds;
+  const h = headerNguoi(nguoi, quanLy);
+  let d;
+  try {
+    d = await goiTracking('/api/tasks', h);
+  } catch (e) {
+    /* Một lần thử lại: trên Render gói Free, lần gọi đầu sau khi container ngủ
+     * dậy hay chạm trần thời gian chờ, còn lần thứ hai thì cache đã ấm. */
+    d = await goiTracking('/api/tasks', h);
+  }
   const ds = Array.isArray(d && d.tasks) ? d.tasks : [];
-  dem = { luc: Date.now(), ds };
+  dem.set(khoa, { luc: Date.now(), ds });
   return ds;
 }
 
@@ -97,8 +143,8 @@ const daXong = (v) => DA_XONG.includes(chuan(v.status)) || DA_XONG.includes(chua
  * thái bên Tracking đã chuyển sang Hoàn thành rồi. Bỏ chúng đi là người ta
  * không tìm thấy đúng việc mình vừa làm, và quay về gõ tay.
  */
-async function vieCuaNguoi(nguoi, ngayMs, force) {
-  const het = await docHet(force);
+async function vieCuaNguoi(nguoi, ngayMs, force, quanLy) {
+  const het = await docHet(nguoi, quanLy, force);
   const moc = (Number(ngayMs) || Date.now()) - 7 * NGAY;
   return het
     .filter((v) => cuaAi(v, nguoi))
@@ -125,7 +171,9 @@ async function vieCuaNguoi(nguoi, ngayMs, force) {
  */
 const BAN_DO_NHOM = [
   [/thiết kế|design/i, 'Thiết kế'],
-  [/edit|dựng|video/i, 'Edit video'],
+  /* "dựng" đứng một mình khớp luôn cả "Xây dựng Profile" — việc xây dựng tài
+   * liệu bị xếp vào Edit video. Phải nêu rõ dựng CÁI GÌ. */
+  [/edit|video|dựng (phim|clip|video)/i, 'Edit video'],
   [/ảnh|photo|retouch/i, 'Chỉnh ảnh'],
   [/kịch bản|script|content|bài viết/i, 'Kịch bản'],
   [/chụp|quay|shoot/i, 'Chụp/Quay'],
@@ -144,7 +192,7 @@ function doanNhom(loai, ten) {
 
 /** Tracking có đang chạy không — để giao diện nói thật thay vì im lặng hiện menu rỗng. */
 async function song() {
-  try { await docHet(true); return true; } catch (_) { return false; }
+  try { await docHet(null, false, true); return true; } catch (_) { return false; }
 }
 
 module.exports = { vieCuaNguoi, doanNhom, cuaAi, daXong, song, CONG };

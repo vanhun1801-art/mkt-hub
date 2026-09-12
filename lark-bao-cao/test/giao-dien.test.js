@@ -242,14 +242,35 @@ function nap() {
     ok('phiếu đã nộp thì nút là "Cập nhật"', ctx.__goi('theLuu(DU)').includes('Cập nhật báo cáo'));
   }
 
-  group('Cảnh báo khi Tracking tắt');
+  group('Ba trạng thái của danh sách đầu việc — gộp lại là người dùng hiểu sai');
   {
-    ctx.__goi('VIEC = { chay: false, ds: [] }');
-    const b = ve('bảng khi không nối được Tracking', 'theBang(DU)');
-    ok('nói thật là không nối được', b.includes('Không nối được Bảng công việc'),
-      'menu rỗng mà im lặng thì người dùng tưởng mình không có việc nào');
-    ok('vẫn chỉ đường gõ tay', b.includes('nhóm "Khác"'));
+    /* Anh Hùng mở bản trên Render và thấy "Không nối được Bảng công việc" trong
+     * khi Tracking vẫn chạy ở tab bên cạnh. Hai nguyên nhân chồng nhau: app này
+     * gọi Tracking mà không gửi danh tính (Tracking trả mảng rỗng), và thời gian
+     * chờ 6 giây quá ngắn cho lần gọi lạnh trên Render. Từ đó ba trạng thái phải
+     * tách bạch, mỗi cái một câu khác nhau. */
+
+    ctx.__goi('VIEC = { chay: false, ly: "Tracking không trả lời", cong: 5173, ds: [] }');
+    const hong = ve('bảng khi KHÔNG NỐI ĐƯỢC', 'theBang(DU)');
+    ok('nói thật là không nối được', hong.includes('Không nối được Bảng công việc'));
+    ok('kèm nguyên văn lý do', hong.includes('Tracking không trả lời'),
+      'không có lý do thì lần sau lại phải lần ngược từ code để đoán');
+    ok('kèm cả cổng đang gọi', hong.includes('5173'));
+    ok('vẫn chỉ đường gõ tay', hong.includes('nhóm "Khác"'));
+
+    ctx.__goi('VIEC = { chay: true, cuaAi: "Huỳnh Chí Khanh", ds: [] }');
+    const trong = ve('bảng khi NỐI ĐƯỢC mà không có việc nào', 'theBang(DU)');
+    ok('không đổ oan cho đường truyền', !trong.includes('Không nối được'),
+      'nối được mà báo không nối được thì người ta đi tìm lỗi mạng vô ích');
+    ok('nói rõ là không có đầu việc nào', trong.includes('Không có đầu việc nào'));
+    ok('gọi tên người đang xem', trong.includes('Huỳnh Chí Khanh'));
+    ok('chỉ đúng việc cần làm tiếp', trong.includes('nhờ quản lý giao việc'),
+      'người dùng cần biết bước tiếp theo, không chỉ biết là trống');
+
     ctx.__goi('VIEC = ' + JSON.stringify(VIEC));
+    const co = ve('bảng khi CÓ việc', 'theBang(DU)');
+    ok('có việc thì không cảnh báo gì cả',
+      !co.includes('Không nối được') && !co.includes('Không có đầu việc nào'));
   }
 
   group('Màn tuần / tháng — phần máy cộng');
