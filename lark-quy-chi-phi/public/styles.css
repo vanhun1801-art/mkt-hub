@@ -210,3 +210,11 @@ button.tep.thieu:hover { background: var(--red-bg); }
    tiền công ty đưa thêm. Làm mờ để mắt không cộng nhầm vào tổng. */
 tr.mo td { color: var(--t3); }
 tr.mo .nd b { font-weight: 500; }
+
+/* ---- kết quả tạo đơn Tourwell ---- */
+.tw-hop { display: flex; flex-direction: column; gap: 10px; }
+.tw-ma { font-size: 22px; font-weight: 700; letter-spacing: .4px; }
+.tw-con { font-size: 13px; font-weight: 600; margin-top: 2px; }
+.tw-ds { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+.tw-ds li { font-size: 13px; color: var(--t2); line-height: 1.5; }
+.tw-ds b { color: var(--t1); }

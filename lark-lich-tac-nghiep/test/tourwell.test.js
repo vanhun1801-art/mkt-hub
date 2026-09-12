@@ -113,7 +113,8 @@ group('Chốt an toàn');
   let loi = null;
   try { await tw.taoDonChoLich({ ...lich, costActual: 0 }); }
   catch (e) { loi = e.message; }
-  ok('chi phí 0 thì không gọi mạng, báo lỗi ngay', !!loi && /chi phí/i.test(loi), String(loi));
+  ok('chi phí 0 thì không gọi mạng, báo lỗi ngay',
+    !!loi && /(chi phí|số tiền)/i.test(loi), String(loi));
 
   loi = null;
   try { await tw.taoDonChoLich({ ...lich, costActual: -5000 }); }

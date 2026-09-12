@@ -351,6 +351,61 @@ function moQuyetToan() {
   setTimeout(() => $('#qMa') && $('#qMa').focus(), 30);
 }
 
+/**
+ * KẾT QUẢ TẠO ĐƠN TOURWELL
+ *
+ * Cửa sổ này tồn tại vì Open API chỉ làm được nửa quy trình: đơn đã có, dòng
+ * chi phí Quỹ Marketing đã có, nhưng đơn đang ở "Đang xử lý" — chưa chuyển
+ * thành công, chưa gửi điều hành. Đóng lại mà không kê ra thì người khai tưởng
+ * xong, và tháng sau kế toán mới phát hiện đơn treo.
+ *
+ * Năm việc dưới đây là phần Tourwell KHÔNG mở API; phần gõ số — chỗ dễ sai
+ * nhất — máy đã làm.
+ */
+function moKetQuaTourwell(tw, khoan) {
+  if (!tw || (tw.bo && tw.bo !== 'da-co')) return;
+
+  if (tw.loi && !tw.ma) {
+    moModal('Chưa tạo được đơn Tourwell',
+      '<div class="tw-hop">'
+      + '<p><b>Khoản chi đã ghi vào sổ quỹ</b> — phần đó không sao.</p>'
+      + '<div class="nhac canhbao">' + esc(tw.loi) + '</div>'
+      + '<p class="nho">Tạo tay trên Tourwell như cũ, hoặc sửa xong thì xoá ô '
+      + '<b>Mã đơn Tourwell</b> của khoản này rồi khai lại.</p></div>',
+      '<div class="sp"></div><button class="btn" data-close="1">Đóng</button>');
+    return;
+  }
+
+  const viec = [
+    'Bấm <b>Chuyển thành công</b> ở góc trên phải',
+    'Bấm <b>Xác nhận chuyển thành công</b>',
+    'Tải <b>hoá đơn + UNC</b> vào ô Tệp đính kèm',
+    'Vào <b>Mã điều hành</b> → <b>Nhận điều hành</b> → <b>Đồng ý</b>',
+    'Bấm <b>Hoàn thành</b>',
+  ];
+
+  moModal('Đã tạo đơn Tourwell',
+    '<div class="tw-hop">'
+    + '<div class="tw-ma">' + esc(tw.ma) + '</div>'
+    + '<div class="nho">' + tien(tw.tien) + ' đ · Quỹ Marketing · VAT 8% đã gồm'
+      + (khoan && khoan.noiDung ? ' · ' + esc(khoan.noiDung) : '') + '</div>'
+    + (tw.dayDu === false
+      ? '<div class="nhac canhbao">Đơn đã tạo nhưng dòng chi phí chưa vào: ' + esc(tw.loi || '')
+        + '<br>Vào đơn thêm tay ở mục <b>Sửa giá net</b>.</div>'
+      : '<div class="nhac ok">✔ Dòng chi phí Quỹ Marketing đã vào — điều hành thấy sẵn, '
+        + 'và khoản này sẽ hiện trong lịch sử chi của nhà cung cấp Quỹ Marketing.</div>')
+    + '<div class="tw-con">Còn ' + viec.length + ' việc phải bấm tay trên Tourwell '
+      + '<span class="nho">(API không làm được mấy bước này)</span></div>'
+    + '<ol class="tw-ds">' + viec.map((v) => '<li>' + v + '</li>').join('') + '</ol>'
+    + (tw.loiGhiBase
+      ? '<div class="nhac canhbao">Chưa ghi được mã đơn vào sổ: ' + esc(tw.loiGhiBase)
+        + '<br>Lưu mã <b>' + esc(tw.ma) + '</b> lại, kẻo lần sửa sau tạo thêm đơn nữa.</div>'
+      : '')
+    + '</div>',
+    '<a class="btn primary" target="_blank" href="' + esc(tw.link) + '">Mở đơn trên Tourwell</a>'
+    + '<div class="sp"></div><button class="btn" data-close="1">Để sau</button>');
+}
+
 /* ---------------- tải tệp ---------------- */
 function taiTep(id, key) {
   const inp = document.createElement('input');
@@ -446,11 +501,13 @@ document.addEventListener('click', async (e) => {
     if (!body.noiDung) return toast('Phải ghi nội dung chi.', 'err');
     if (!(body.tien > 0)) return toast('Số tiền phải lớn hơn 0.', 'err');
     try {
+      let kq = null;
       if (id) await api('/api/chi/' + id, { method: 'PATCH', body: JSON.stringify(body) });
-      else await api('/api/chi', { method: 'POST', body: JSON.stringify(body) });
+      else kq = await api('/api/chi', { method: 'POST', body: JSON.stringify(body) });
       dongModal();
       toast(id ? 'Đã lưu' : 'Đã ghi vào sổ', 'ok');
       await taiLai(true);
+      if (kq && kq.tourwell) moKetQuaTourwell(kq.tourwell, body);
     } catch (err) { toast(err.message, 'err'); }
     return;
   }

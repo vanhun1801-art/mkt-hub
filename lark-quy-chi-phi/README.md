@@ -85,6 +85,24 @@ tệp thật trong Base.
 Hai cột suy ra bằng máy, sửa tay được: **Loại chi** (đoán từ nội dung) và
 **Tình trạng** (có mã quyết toán → *Đã quyết toán*, không → *Đã chi*).
 
+## Khai khoản chi là tạo đơn Tourwell
+
+Mọi khoản tiêu từ quỹ đều đi qua nhà cung cấp **QUỸ MARKETING (id 274)** bên
+Tourwell — lịch sử chi của quỹ nằm ở
+`/admin/supplier/274/show?tab=history`. Nên khai một khoản ở đây mà không tạo
+đơn thì lịch sử bên đó thủng.
+
+Bấm **Khai khoản chi** giờ làm ba việc: ghi vào sổ · tạo đơn *Dịch vụ khác* trên
+Tourwell với dòng chi phí Quỹ Marketing (VAT 8% đã gồm) · ghi mã `RT…` ngược vào
+ô **Mã đơn Tourwell** — cũng là chốt chống tạo trùng.
+
+Đơn dừng ở **"Đang xử lý"**, còn 5 nút phải bấm tay (chuyển thành công · xác
+nhận · đính chứng từ · nhận điều hành · hoàn thành) vì Open API không mở mấy
+bước đó. Cửa sổ kết quả kê thẳng ra, không giấu.
+
+Mã code Tourwell dùng chung ở `../lark-chung/tourwell.js` — app Lịch tác nghiệp
+cũng gọi đúng module đó. Chép đôi thì sửa VAT một nơi là nơi kia sai lặng lẽ.
+
 ## Nối với app Lịch tác nghiệp
 
 Bấm **Đã thanh toán** bên app Lịch tác nghiệp thì ngoài đơn Tourwell, một dòng
@@ -94,7 +112,8 @@ chi phí tự rơi vào đây: loại *Tác nghiệp*, người đề nghị là
 ## Kiểm thử
 
 ```bash
-node test/quy.test.js     # chỉ đọc, cần app đang chạy ở 5182
+node test/quy.test.js                    # chỉ đọc, cần app đang chạy ở 5182
+node test/tourwell.live.test.js --that   # khai một khoản 10.000đ THẬT rồi tự dọn
 ```
 
 Hai phép thử đáng giá nhất ở đó không phải "API có trả về không":

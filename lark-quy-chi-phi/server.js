@@ -28,6 +28,7 @@ const { AsyncLocalStorage } = require('async_hooks');
 
 const cfg = require('./config');
 const lark = cfg.mode === 'api' ? require('./larkapi') : require('./lark');
+const tourwell = require('../lark-chung/tourwell');
 
 const F = cfg.fields;
 const BIND = process.env.BIND || '127.0.0.1';
@@ -156,6 +157,42 @@ async function dotMacDinh(dotRows) {
   return chon ? chon.id : null;
 }
 
+/* ---------------------------------------------------------------------------
+ * TẠO ĐƠN TOURWELL CHO MỘT KHOẢN CHI
+ * -------------------------------------------------------------------------
+ * Mọi khoản tiêu từ quỹ đều đi qua nhà cung cấp "QUỸ MARKETING" (id 274) bên
+ * Tourwell — lịch sử chi của quỹ nằm ở
+ * https://rootytrip.tourwell.net/admin/supplier/274/show?tab=history
+ * Nên khai một khoản chi ở đây mà không tạo đơn thì lịch sử bên kia thủng.
+ *
+ * Ba luật giống hệt app Lịch tác nghiệp, và giống vì cùng một lý do:
+ *   1. một khoản chi một đơn — ô "Mã đơn Tourwell" có mã rồi thì thôi
+ *   2. Tourwell hỏng không chặn việc ghi sổ — tiền đã tiêu rồi
+ *   3. nói rõ đơn mới ở "Đang xử lý", còn 5 nút phải bấm tay
+ * ------------------------------------------------------------------------- */
+async function taoDonTourwell(recId, khoan) {
+  if (!tourwell.bat()) return { bo: 'chua-cau-hinh' };
+  if (!recId) return { bo: 'khong-co-ban-ghi' };
+  if (!(Number(khoan.tien) > 0)) return { bo: 'khong-co-chi-phi' };
+
+  try {
+    const kq = await tourwell.taoDon({
+      ten: khoan.noiDung,
+      ngay: khoan.ngayChi || khoan.ngayDeNghi,
+      tien: khoan.tien,
+    });
+    /* Ghi mã ngược vào Base NGAY, kể cả khi dòng chi phí lỗi: đơn đã tồn tại
+     * thì ô này phải có mã, nếu không lần sửa sau lại đẻ thêm đơn nữa. */
+    try {
+      await lark.updateRecord(recId, { [F.chi.maDon.name]: kq.ma + ' · ' + kq.link }, cfg.tableId);
+      kho.at = 0;
+    } catch (e) { kq.loiGhiBase = e.message; }
+    return kq;
+  } catch (e) {
+    return { loi: e.message };
+  }
+}
+
 /* ---------------- danh tính ---------------- */
 const nguoiCuaRequest = new AsyncLocalStorage();
 
@@ -256,9 +293,22 @@ async function xuLy(req, res) {
     }
     const out = await lark.createRecord(doiVao(body, F.chi), cfg.tableId);
     kho.at = 0;
-    const id = (out && (out.record_id || (out.record && out.record.record_id)
-      || (out.records && out.records[0] && out.records[0].record_id))) || null;
-    return json(res, { ok: true, id, result: out });
+    /* lark-cli +record-batch-create trả về `record_id_list`; bản Open API trả
+     * `records[]`. Đọc thiếu một dạng thì id ra null, và đơn Tourwell không bao
+     * giờ được tạo — mà API vẫn báo thành công. */
+    const id = (out && (
+      (out.record_id_list && out.record_id_list[0])
+      || out.record_id
+      || (out.record && out.record.record_id)
+      || (out.records && out.records[0] && out.records[0].record_id)
+    )) || null;
+
+    /* Rồi tạo đơn bên Tourwell — giống hệt đường của app Lịch tác nghiệp, vì
+     * mọi khoản chi qua Quỹ Marketing đều phải có một đơn để kế toán chi tiền.
+     * Tourwell hỏng KHÔNG được làm hỏng việc ghi sổ: tiền đã tiêu rồi. */
+    const tw = await taoDonTourwell(id, body);
+    if (tw && tw.loi) console.warn('[Tourwell]', tw.loi);
+    return json(res, { ok: true, id, tourwell: tw });
   }
 
   const mChi = p.match(/^\/api\/chi\/(rec[A-Za-z0-9]+)$/);

@@ -21,6 +21,9 @@
 !lark-chinh-anh/
 !lark-quy-chi-phi/
 
+# mã dùng chung giữa các app (Tourwell…)
+!lark-chung/
+
 # ---- bí mật & dữ liệu cục bộ: KHÔNG bao giờ lên GitHub ----
 .env
 *.env
