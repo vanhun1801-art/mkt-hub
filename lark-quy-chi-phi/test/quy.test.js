@@ -58,11 +58,18 @@ const nhom = (t) => console.log('\n\x1b[1m' + t + '\x1b[0m');
   ok('KHÔNG cộng nhầm dòng chuyển từ kỳ trước', m.quy.tongUng < 70000000,
     'đang là ' + m.quy.tongUng.toLocaleString('vi'));
 
-  /* Con số anh Hùng chốt ngày 12/09/2026, đối chiếu với chứng từ thật. Mọi thay
-   * đổi cách tính quỹ phải đi qua đây: lệch là biết ngay, không phải đợi cuối
-   * tháng kế toán hỏi. */
-  ok('số dư khớp con số đã đối chiếu với kế toán (7.378.056)',
-    m.quy.conLai === 7378056, 'đang là ' + m.quy.conLai.toLocaleString('vi'));
+  /* TỪNG ghim cứng 7.378.056 — con số anh Hùng đối chiếu với kế toán ngày
+   * 12/09/2026. Sai lầm: đó là ảnh chụp một khoảnh khắc, mà sổ thì sống. Ngay
+   * khoản chi thật đầu tiên (406.000) đã làm bài thử đỏ trong khi phần mềm
+   * không hỏng gì. Một bài thử kêu oan thì sớm muộn bị tắt đi.
+   *
+   * Giữ lại phần BẤT BIẾN: số dư phải luôn bằng phép cộng lại từ sổ (đã kiểm ở
+   * trên), và mốc 12/09 thì ghi vào README chứ không ghim vào phép thử. */
+  console.log('       số dư hiện tại: ' + m.quy.conLai.toLocaleString('vi') + ' đ'
+    + '  (mốc đối chiếu 12/09/2026: 7.378.056 đ)');
+  ok('số dư nằm trong khoảng hợp lý của một quỹ tạm ứng',
+    m.quy.conLai > -20000000 && m.quy.conLai < 100000000,
+    'đang là ' + m.quy.conLai.toLocaleString('vi'));
 
   nhom('Số dư từng đợt — đối chiếu hai đường tính độc lập');
   let lech = 0;

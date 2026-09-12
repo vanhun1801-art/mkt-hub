@@ -195,4 +195,19 @@ async function chepChungTu(cf, lich, chiId) {
   };
 }
 
-module.exports = { bat, docCauHinh, ngayBase, dotDangDung, ghiKhoanChi };
+/**
+ * Gắn mã đơn Tourwell vào một dòng chi đã có sẵn trong sổ quỹ.
+ *
+ * Cần vì hai việc chạy độc lập: lần bấm đầu Tourwell hỏng (404) nhưng sổ quỹ
+ * vẫn ghi — đúng thiết kế. Lần bấm sau Tourwell chạy được, sổ quỹ bỏ qua vì đã
+ * có dòng rồi, và mã đơn không bao giờ về tới sổ. Kế toán đối chiếu theo mã đó
+ * nên để trống là hỏng đúng chỗ quan trọng nhất.
+ */
+async function ganMaDon(chiId, maDon) {
+  const cf = docCauHinh();
+  if (!cf.bat || !chiId || !maDon) return { bo: 'khong-du' };
+  await lark.updateRecord(chiId, { 'Mã đơn Tourwell': maDon }, cf.chiTableId, cf.baseToken);
+  return { chiId, maDon };
+}
+
+module.exports = { bat, docCauHinh, ngayBase, dotDangDung, ghiKhoanChi, ganMaDon };

@@ -138,17 +138,17 @@ async function listFields(tableId = cfg.tableId, base) {
   return data.fields || [];
 }
 
-async function updateRecord(recordId, fields, tableId = cfg.tableId) {
+async function updateRecord(recordId, fields, tableId = cfg.tableId, base) {
   return cli([
-    'base', '+record-batch-update', ...baseArgs(),
+    'base', '+record-batch-update', ...baseArgs(base),
     '--table-id', tableId,
     '--json', JSON.stringify({ update_records: { [recordId]: fields } }),
   ]);
 }
 
-async function updateMany(map, tableId = cfg.tableId) {
+async function updateMany(map, tableId = cfg.tableId, base) {
   return cli([
-    'base', '+record-batch-update', ...baseArgs(),
+    'base', '+record-batch-update', ...baseArgs(base),
     '--table-id', tableId,
     '--json', JSON.stringify({ update_records: map }),
   ]);

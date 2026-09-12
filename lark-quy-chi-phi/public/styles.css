@@ -245,3 +245,13 @@ tr.mo .nd b { font-weight: 500; }
 /* chip chứng từ: bấm vào là XEM, nên phải trông bấm được */
 .tep[data-xem] { cursor: pointer; }
 .tep.tai { padding: 2px 6px; cursor: pointer; }
+
+/* Mã đơn Tourwell trong dòng phụ: kế toán đối chiếu theo mã này nên cho nó nổi
+   hơn phần chữ xám còn lại, và bấm được để mở thẳng đơn. */
+.ma-don { color: var(--primary); text-decoration: none; font-weight: 600; }
+.ma-don:hover { text-decoration: underline; }
+.ma-them {
+  border: 1px dashed var(--line); background: transparent; color: var(--t3);
+  border-radius: 5px; padding: 0 5px; font-size: 11px; font-family: inherit; cursor: pointer;
+}
+.ma-them:hover { color: var(--primary); border-color: var(--primary-border); }

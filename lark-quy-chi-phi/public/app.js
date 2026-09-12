@@ -204,6 +204,7 @@ function veBang() {
 
   const dong = (c) => {
     const thieu = thieuChungTu(c);
+    const dv = tachDon(c.maDon);
     const tep = (arr, linkCu, nhan, key) => {
       /* Chip chứng từ mở XEM tại chỗ, kèm một chip ⇩ để tải về. Trước đây nó chỉ
        * là liên kết bắn sang tab mới, mà tab mới hoặc bị chặn hoặc lạc khỏi app
@@ -229,9 +230,17 @@ function veBang() {
       + '<td class="chon">' + (S.chuQuy
         ? '<input type="checkbox" data-chon="' + c.id + '"' + (S.chon.has(c.id) ? ' checked' : '') + '>' : '') + '</td>'
       + '<td class="nd"><b>' + esc(c.noiDung || '(không tên)') + '</b>'
-        + '<div class="phu2">' + [esc(c.maDieuHanh || ''), esc(c.maDon || ''),
-          c.maQuyetToan ? '<span class="qt">' + esc(c.maQuyetToan) + '</span>' : '']
-          .filter(Boolean).join(' · ') + '</div></td>'
+        + '<div class="phu2">' + [
+          /* Mã đơn Tourwell: bấm được, mở thẳng đơn. Kế toán đối chiếu theo mã
+           * này nên nó phải nổi hơn mấy thứ khác trong dòng phụ. */
+          dv ? (dv.link
+            ? '<a class="ma-don" target="_blank" href="' + esc(dv.link) + '">' + esc(dv.ma) + '</a>'
+            : '<span class="ma-don">' + esc(dv.ma) + '</span>') : '',
+          c.maDieuHanh
+            ? esc(c.maDieuHanh)
+            : (S.chuQuy ? '<button class="ma-them" data-gansg="' + c.id + '">+ mã điều hành</button>' : ''),
+          c.maQuyetToan ? '<span class="qt">' + esc(c.maQuyetToan) + '</span>' : '',
+        ].filter(Boolean).join(' · ') + '</div></td>'
       + '<td class="loai"><span class="the">' + esc(c.loai || '—') + '</span></td>'
       + '<td class="num">' + tien(c.tien) + '</td>'
       + '<td class="ngay">' + esc(ngayVN(c.ngayChi || c.ngayDeNghi)) + '</td>'
@@ -597,6 +606,25 @@ document.addEventListener('click', async (e) => {
 
   const sua = T.closest('[data-sua]');
   if (sua) return moKhaiChi(sua.dataset.sua);
+
+  /* Gán mã điều hành SG… — Tourwell không đưa mã này qua API nên phải dán tay.
+   * Đặt ngay trên dòng thay vì bắt mở cửa sổ sửa: việc này làm sau khi nhận
+   * điều hành xong, lúc đang nhìn danh sách. */
+  const gansg = T.closest('[data-gansg]');
+  if (gansg) {
+    const id = gansg.dataset.gansg;
+    const c = S.chi.find((x) => x.id === id);
+    const ma = prompt('Mã điều hành của khoản "' + ((c && c.noiDung) || '') + '"'
+      + '\n\nChép từ mục Điều hành & Đặt dịch vụ trên Tourwell (dạng SG…)',
+      (c && c.maDieuHanh) || '');
+    if (ma === null) return;
+    try {
+      await api('/api/chi/' + id, { method: 'PATCH', body: JSON.stringify({ maDieuHanh: ma.trim() }) });
+      toast(ma.trim() ? 'Đã gán ' + ma.trim() : 'Đã xoá mã điều hành', 'ok');
+      await taiLai(true);
+    } catch (e) { toast(e.message, 'err'); }
+    return;
+  }
 
   const tep = T.closest('[data-taitep]');
   if (tep) return taiTep(tep.dataset.taitep, tep.dataset.o);

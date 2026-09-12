@@ -144,14 +144,14 @@ async function listFields(tableId = cfg.tableId, base) {
   return d.fields || d.items || [];
 }
 
-async function updateRecord(recordId, fields, tableId = cfg.tableId) {
-  return call('POST', baseUrl(tableId) + '/records/batch_update', {
+async function updateRecord(recordId, fields, tableId = cfg.tableId, base) {
+  return call('POST', baseUrl(tableId, base) + '/records/batch_update', {
     body: { update_records: { [recordId]: fields } },
   });
 }
 
-async function updateMany(map, tableId = cfg.tableId) {
-  return call('POST', baseUrl(tableId) + '/records/batch_update', { body: { update_records: map } });
+async function updateMany(map, tableId = cfg.tableId, base) {
+  return call('POST', baseUrl(tableId, base) + '/records/batch_update', { body: { update_records: map } });
 }
 
 async function createRecord(fields, tableId = cfg.tableId, base) {

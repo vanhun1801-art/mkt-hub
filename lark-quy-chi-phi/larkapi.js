@@ -88,8 +88,10 @@ async function callOnce(method, url, { body, raw } = {}) {
   return d.data || {};
 }
 
-const baseUrl = (tableId) =>
-  '/open-apis/base/v3/bases/' + cfg.baseToken + '/tables/' + tableId;
+/* `base` mặc định là Base của app; truyền khác đi để ghi sang Base "Chi phí
+ * Marketing" — cùng lý do với baseArgs() bên lark.js. */
+const baseUrl = (tableId, base) =>
+  '/open-apis/base/v3/bases/' + (base || cfg.baseToken) + '/tables/' + tableId;
 
 /* ---------------- Base -> bản ghi ---------------- */
 function columnsToRecords(data) {
@@ -104,11 +106,11 @@ function columnsToRecords(data) {
 }
 
 /* ---------------- các thao tác (cùng chữ ký với lark.js) ---------------- */
-async function listAllRecords(tableId = cfg.tableId) {
+async function listAllRecords(tableId = cfg.tableId, base) {
   const out = [];
   let offset = 0;
   for (let trang = 0; trang < 30; trang++) {
-    const d = await call('GET', baseUrl(tableId) + '/records?limit=200&offset=' + offset);
+    const d = await call('GET', baseUrl(tableId, base) + '/records?limit=200&offset=' + offset);
     out.push(...columnsToRecords(d));
     if (!d.has_more) break;
     offset += 200;
@@ -137,30 +139,30 @@ async function getRecord(recordId, tableId = cfg.tableId) {
   return null;
 }
 
-async function listFields(tableId = cfg.tableId) {
-  const d = await call('GET', baseUrl(tableId) + '/fields?limit=100&offset=0');
+async function listFields(tableId = cfg.tableId, base) {
+  const d = await call('GET', baseUrl(tableId, base) + '/fields?limit=100&offset=0');
   return d.fields || d.items || [];
 }
 
-async function updateRecord(recordId, fields, tableId = cfg.tableId) {
-  return call('POST', baseUrl(tableId) + '/records/batch_update', {
+async function updateRecord(recordId, fields, tableId = cfg.tableId, base) {
+  return call('POST', baseUrl(tableId, base) + '/records/batch_update', {
     body: { update_records: { [recordId]: fields } },
   });
 }
 
-async function updateMany(map, tableId = cfg.tableId) {
-  return call('POST', baseUrl(tableId) + '/records/batch_update', { body: { update_records: map } });
+async function updateMany(map, tableId = cfg.tableId, base) {
+  return call('POST', baseUrl(tableId, base) + '/records/batch_update', { body: { update_records: map } });
 }
 
-async function createRecord(fields, tableId = cfg.tableId) {
+async function createRecord(fields, tableId = cfg.tableId, base) {
   const names = Object.keys(fields);
-  return call('POST', baseUrl(tableId) + '/records/batch_create', {
+  return call('POST', baseUrl(tableId, base) + '/records/batch_create', {
     body: { fields: names, rows: [names.map((n) => fields[n])] },
   });
 }
 
-async function deleteRecords(recordIds, tableId = cfg.tableId) {
-  return call('POST', baseUrl(tableId) + '/records/batch_delete', {
+async function deleteRecords(recordIds, tableId = cfg.tableId, base) {
+  return call('POST', baseUrl(tableId, base) + '/records/batch_delete', {
     body: { record_id_list: recordIds },
   });
 }
@@ -198,8 +200,8 @@ function loiThieuQuyen(viec) {
  * anh Hùng không lộ vì chạy chế độ cli (token người dùng), chỉ hỏng trên Render —
  * đúng cảnh "ấn vào tệp không xem được, không tải được" ngày 12/09/2026.
  */
-async function downloadAttachmentBuffer(recordId, fileToken, tableId = cfg.tableId) {
-  const meta = await call('POST', baseUrl(tableId) + '/get_attachments', {
+async function downloadAttachmentBuffer(recordId, fileToken, tableId = cfg.tableId, base) {
+  const meta = await call('POST', baseUrl(tableId, base) + '/get_attachments', {
     body: { record_id_list: [recordId] },
   });
 
@@ -252,16 +254,16 @@ async function downloadAttachmentBuffer(recordId, fileToken, tableId = cfg.table
 }
 
 /** Giữ cùng chữ ký với lark.js: ghi ra thư mục tạm rồi trả về đường dẫn thư mục. */
-async function downloadAttachment(recordId, fileToken, relDirName, tableId = cfg.tableId) {
+async function downloadAttachment(recordId, fileToken, relDirName, tableId = cfg.tableId, base) {
   const absDir = path.join(__dirname, '.tmp', relDirName);
   fs.mkdirSync(absDir, { recursive: true });
-  const { buffer, name } = await downloadAttachmentBuffer(recordId, fileToken, tableId);
+  const { buffer, name } = await downloadAttachmentBuffer(recordId, fileToken, tableId, base);
   const ten = String(name || fileToken).replace(/[\\/:*?"<>|]/g, '_').slice(-120);
   fs.writeFileSync(path.join(absDir, ten), buffer);
   return absDir;
 }
 
-async function uploadAttachment(recordId, fieldName, relFilePath, tableId = cfg.tableId) {
+async function uploadAttachment(recordId, fieldName, relFilePath, tableId = cfg.tableId, base) {
   const abs = path.resolve(__dirname, relFilePath);
   const buf = fs.readFileSync(abs);
   const fileName = path.basename(abs);
@@ -270,7 +272,7 @@ async function uploadAttachment(recordId, fieldName, relFilePath, tableId = cfg.
   fd.append('file', new Blob([buf]), fileName);
   fd.append('file_name', fileName);
   fd.append('parent_type', 'bitable_file');
-  fd.append('parent_node', cfg.baseToken);
+  fd.append('parent_node', base || cfg.baseToken);
   fd.append('size', String(buf.length));
 
   const token = await tenantToken();
@@ -282,7 +284,7 @@ async function uploadAttachment(recordId, fieldName, relFilePath, tableId = cfg.
   const d = await r.json();
   if (d.code !== 0) throw new Error('Upload thất bại: ' + (d.msg || d.code));
 
-  return call('POST', baseUrl(tableId) + '/append_attachments', {
+  return call('POST', baseUrl(tableId, base) + '/append_attachments', {
     body: { attachments: { [recordId]: { [fieldName]: [{ file_token: d.data.file_token }] } } },
   });
 }

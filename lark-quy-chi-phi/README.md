@@ -55,8 +55,14 @@ không sửa số cho vừa khớp. Giờ `65.559.931 − 58.181.875 = 7.378.056
 
 ## Một vai
 
-App này **chỉ anh Hùng nhập** (`LARK_CHU_QUY`, mặc định open_id của anh). Người
-khác mở ra vẫn xem được nhưng mọi lệnh ghi bị chặn ở server, không chỉ ẩn nút.
+App này **chỉ anh Hùng nhập**. Người khác mở ra vẫn xem được nhưng mọi lệnh ghi
+bị chặn ở server, không chỉ ẩn nút.
+
+Ai là chủ quỹ được quyết theo thứ tự: **cờ `x-hub-user-manager` do Hub gửi
+xuống** trước, rồi mới tới danh sách `LARK_CHU_QUY`. Đừng đảo lại — `open_id`
+**khác nhau theo từng app Lark**, nên id lấy từ bản ghi Base (app Tracking)
+không bao giờ khớp id Hub gửi (app riêng của Hub). Chính chỗ này làm anh Hùng mở
+bản web ra thấy mình bị coi là khách chỉ xem hôm 12/09/2026.
 
 **Kế toán không dùng app** — họ mở thẳng Base với quyền chỉ đọc. Ba view dựng
 sẵn cho họ:
@@ -151,7 +157,7 @@ Hai phép thử đáng giá nhất ở đó không phải "API có trả về kh
 - **chốt chặn dòng "Chuyển từ kỳ trước"** — nếu ai đó lỡ cộng cả chúng vào, tổng
   đã ứng vọt từ 65 lên 76,2 triệu và bài thử đỏ ngay
 
-Lần chạy gần nhất: **28 pass · 0 fail**.
+Lần chạy gần nhất: **34 pass · 0 fail**.
 
 ## Cấu trúc
 

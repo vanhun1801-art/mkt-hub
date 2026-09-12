@@ -645,7 +645,22 @@ const dangGhiQuy = new Set();
 
 async function ghiSoQuy(recId, item, maDon) {
   if (!soQuy.bat()) return { bo: 'chua-cau-hinh' };
-  if (String(item.soQuy || '').trim()) return { bo: 'da-co', ma: String(item.soQuy).trim() };
+  if (String(item.soQuy || '').trim()) {
+    const dau = String(item.soQuy).trim();
+    /* Dòng chi đã có từ lần bấm trước. Nếu lần đó Tourwell hỏng mà lần này chạy
+     * được, mã đơn phải được gắn bù — nếu không kế toán mở sổ quỹ thấy khoản
+     * chi không có mã đơn nào để đối chiếu. */
+    const m = dau.match(/rec[A-Za-z0-9]+/);
+    if (maDon && m) {
+      try {
+        await soQuy.ganMaDon(m[0], maDon);
+        return { bo: 'da-co', ma: dau, ganBuMaDon: maDon };
+      } catch (e) {
+        return { bo: 'da-co', ma: dau, loi: 'chưa gắn được mã đơn: ' + e.message };
+      }
+    }
+    return { bo: 'da-co', ma: dau };
+  }
   if (!(Number(item.costActual) > 0)) return { bo: 'khong-co-chi-phi' };
   if (dangGhiQuy.has(recId)) return { bo: 'dang-ghi' };
 
@@ -653,7 +668,9 @@ async function ghiSoQuy(recId, item, maDon) {
   try {
     const kq = await soQuy.ghiKhoanChi({ ...item, id: recId }, maDon);
     if (kq && kq.id && F.soQuy) {
-      const ghi = 'Đã ghi sổ quỹ' + (kq.dot ? ' · ' + kq.dot : '');
+      /* Ghi kèm record_id của dòng chi: lần bấm sau còn biết đường quay lại
+       * gắn bù mã đơn Tourwell nếu lần này Tourwell hỏng. */
+      const ghi = 'Đã ghi sổ quỹ' + (kq.dot ? ' · ' + kq.dot : '') + ' · ' + kq.id;
       try {
         await lark.updateRecord(recId, { [F.soQuy.name]: ghi });
         if (cache.records) {

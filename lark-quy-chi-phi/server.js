@@ -202,7 +202,8 @@ function nguoiTuHeader(req) {
   let ten = id;
   try { ten = req.headers['x-hub-user-name'] ? decodeURIComponent(req.headers['x-hub-user-name']) : id; }
   catch (_) { ten = req.headers['x-hub-user-name'] || id; }
-  return { id: String(id), name: ten };
+  /* Hub đã quyết ai là quản lý (theo open_id hoặc email) và gửi kèm cờ này. */
+  return { id: String(id), name: ten, quanLy: req.headers['x-hub-user-manager'] === '1' };
 }
 
 async function toiLaAi() {
@@ -214,10 +215,22 @@ async function toiLaAi() {
   return null;
 }
 
-/** Một chốt duy nhất: có phải chủ quỹ không. */
+/**
+ * Một chốt duy nhất: có phải chủ quỹ không.
+ *
+ * TIN CỜ QUẢN LÝ CỦA HUB trước, rồi mới tới danh sách open_id.
+ *
+ * Vì sao: open_id KHÁC NHAU theo từng app Lark. Cái id ghi trong cfg.chuQuy lấy
+ * từ bản ghi Base (app Tracking), còn Hub đăng nhập bằng app riêng của nó nên
+ * gửi xuống một open_id khác hẳn — so bằng id thì không bao giờ khớp, và anh
+ * Hùng mở app trên web ra thấy mình bị coi là khách chỉ xem. Đúng lỗi ngày
+ * 12/09/2026. App Lịch tác nghiệp không dính vì nó tin cờ này ngay từ đầu.
+ */
 async function laChuQuy() {
   const me = await toiLaAi();
-  return !!(me && cfg.chuQuy.includes(me.id));
+  if (!me) return false;
+  if (me.quanLy) return true;
+  return cfg.chuQuy.includes(me.id);
 }
 
 async function doiChuQuy(res) {

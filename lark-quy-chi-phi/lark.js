@@ -63,7 +63,11 @@ function cliOnce(args, { timeout = 60000, cwd } = {}) {
   });
 }
 
-const baseArgs = () => ['--base-token', cfg.baseToken, '--as', cfg.identity];
+/* Mặc định là Base của app này. Tham số `base` mở đường ghi sang Base KHÁC —
+ * cần từ khi bấm "Đã thanh toán" phải ghi thêm một dòng vào sổ quỹ, vốn nằm ở
+ * Base "Chi phí Marketing". Không có nó thì phải dựng lại cả lớp gọi lark-cli
+ * lần hai chỉ để đổi một tham số. */
+const baseArgs = (base) => ['--base-token', base || cfg.baseToken, '--as', cfg.identity];
 
 /** Người dùng đang đăng nhập lark-cli (dùng cho tab "Của tôi"). */
 async function whoami() {
@@ -98,12 +102,12 @@ function columnsToRecords(data) {
   });
 }
 
-async function listAllRecords(tableId = cfg.tableId) {
+async function listAllRecords(tableId = cfg.tableId, base) {
   const out = [];
   let offset = 0;
   for (let page = 0; page < 30; page++) {
     const data = await cli([
-      'base', '+record-list', ...baseArgs(),
+      'base', '+record-list', ...baseArgs(base),
       '--table-id', tableId,
       '--limit', '200', '--offset', String(offset),
       '--format', 'json',
@@ -129,32 +133,32 @@ async function getRecord(recordId, tableId = cfg.tableId) {
   return columnsToRecords(data)[0] || null;
 }
 
-async function listFields(tableId = cfg.tableId) {
-  const data = await cli(['base', '+field-list', ...baseArgs(), '--table-id', tableId, '--format', 'json']);
+async function listFields(tableId = cfg.tableId, base) {
+  const data = await cli(['base', '+field-list', ...baseArgs(base), '--table-id', tableId, '--format', 'json']);
   return data.fields || [];
 }
 
-async function updateRecord(recordId, fields, tableId = cfg.tableId) {
+async function updateRecord(recordId, fields, tableId = cfg.tableId, base) {
   return cli([
-    'base', '+record-batch-update', ...baseArgs(),
+    'base', '+record-batch-update', ...baseArgs(base),
     '--table-id', tableId,
     '--json', JSON.stringify({ update_records: { [recordId]: fields } }),
   ]);
 }
 
-async function updateMany(map, tableId = cfg.tableId) {
+async function updateMany(map, tableId = cfg.tableId, base) {
   return cli([
-    'base', '+record-batch-update', ...baseArgs(),
+    'base', '+record-batch-update', ...baseArgs(base),
     '--table-id', tableId,
     '--json', JSON.stringify({ update_records: map }),
   ]);
 }
 
-async function createRecord(fields, tableId = cfg.tableId) {
+async function createRecord(fields, tableId = cfg.tableId, base) {
   const names = Object.keys(fields);
   const row = names.map((n) => fields[n]);
   return cli([
-    'base', '+record-batch-create', ...baseArgs(),
+    'base', '+record-batch-create', ...baseArgs(base),
     '--table-id', tableId,
     '--json', JSON.stringify({ fields: names, rows: [row] }),
   ]);
@@ -165,12 +169,12 @@ async function createRecord(fields, tableId = cfg.tableId) {
  * trong cwd, nên tải vào .tmp/<id> ngay trong thư mục project.
  * Trả về đường dẫn tuyệt đối của thư mục chứa tệp.
  */
-async function downloadAttachment(recordId, fileToken, relDirName, tableId = cfg.tableId) {
+async function downloadAttachment(recordId, fileToken, relDirName, tableId = cfg.tableId, base) {
   const relDir = './.tmp/' + relDirName;
   const absDir = path.join(__dirname, '.tmp', relDirName);
   fs.mkdirSync(absDir, { recursive: true });
   await cli([
-    'base', '+record-download-attachment', ...baseArgs(),
+    'base', '+record-download-attachment', ...baseArgs(base),
     '--table-id', tableId,
     '--record-id', recordId,
     '--file-token', fileToken,
@@ -182,9 +186,9 @@ async function downloadAttachment(recordId, fileToken, relDirName, tableId = cfg
 }
 
 /** Upload tệp lên một ô attachment. lark-cli cần --file là đường dẫn tương đối trong cwd. */
-async function uploadAttachment(recordId, fieldName, relFilePath, tableId = cfg.tableId) {
+async function uploadAttachment(recordId, fieldName, relFilePath, tableId = cfg.tableId, base) {
   return cli([
-    'base', '+record-upload-attachment', ...baseArgs(),
+    'base', '+record-upload-attachment', ...baseArgs(base),
     '--table-id', tableId,
     '--record-id', recordId,
     '--field-id', fieldName,
@@ -193,9 +197,9 @@ async function uploadAttachment(recordId, fieldName, relFilePath, tableId = cfg.
   ], { timeout: 300000, cwd: __dirname });
 }
 
-async function deleteRecords(recordIds, tableId = cfg.tableId) {
+async function deleteRecords(recordIds, tableId = cfg.tableId, base) {
   return cli([
-    'base', '+record-delete', ...baseArgs(),
+    'base', '+record-delete', ...baseArgs(base),
     '--table-id', tableId,
     '--json', JSON.stringify({ record_id_list: recordIds }),
     '--yes',
