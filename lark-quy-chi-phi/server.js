@@ -362,10 +362,21 @@ async function xuLy(req, res) {
       if (!files.length) return json(res, { error: 'Không tải được tệp' }, 404);
       const file = path.join(dir, files[0]);
       const buf = fs.readFileSync(file);
+      const kieu = MIME_TEP[path.extname(file).toLowerCase()] || 'application/octet-stream';
+      /* Xem trước trong app thì phải để `inline`; ?tai=1 là người ta bấm "Tải
+       * xuống" nên ép `attachment`. Kiểu không xem được cũng tải luôn — mở ra
+       * chỉ được một trang trắng. */
+      /* HEIC/HEIF thì KHÔNG: trình duyệt nào cũng chịu, để inline là người ta
+       * nhận một khung trắng. Ảnh iPhone tải thẳng lên hay dính đuôi này. */
+      const xemDuoc = (/^(image|text)\//.test(kieu) || kieu === 'application/pdf')
+        && !/^image\/hei[cf]$/.test(kieu);
+      const tai = url.searchParams.get('tai') === '1' || !xemDuoc;
       res.writeHead(200, {
-        'Content-Type': MIME_TEP[path.extname(file).toLowerCase()] || 'application/octet-stream',
+        'Content-Type': kieu,
         'Content-Length': buf.length,
-        'Content-Disposition': "inline; filename*=UTF-8''" + encodeURIComponent(files[0]),
+        'Content-Disposition': (tai ? 'attachment' : 'inline') +
+          "; filename*=UTF-8''" + encodeURIComponent(files[0]),
+        'Cache-Control': 'private, max-age=300',
       });
       return res.end(buf);
     } finally {

@@ -1420,3 +1420,35 @@ a.phieu-f:hover { border-color: var(--primary); background: var(--blue-bg); }
   border: 1px solid var(--line); border-radius: 6px; padding: 1px 5px; margin-left: 4px;
 }
 .tw-link:hover { color: var(--primary); border-color: var(--primary-border); }
+
+/* ============ xem tệp ngay trong app ============
+   Trước đây mỗi tệp chỉ có một liên kết "Mở" mở tab mới. Anh Hùng báo 12/09/2026
+   "ấn vào các tệp này thì xem không được" — tab mới bị chặn hoặc mở ra rồi lạc
+   mất khỏi app, mà cái tên tệp thì lại không bấm được. Nên tệp giờ mở tại chỗ,
+   và nút Tải xuống đứng riêng cho ai muốn giữ về máy.
+   z-index trên #modal (70) vì tệp hay được mở từ trong phiếu / form báo cáo. */
+.xt { position: fixed; z-index: 90; inset: 0; display: none; place-items: center; padding: 24px; }
+.xt.on { display: grid; }
+.xt > .mask { z-index: 0; }
+.xt-box {
+  position: relative; z-index: 1;
+  background: var(--surface); border-radius: 10px; box-shadow: var(--shadow-3);
+  width: 940px; max-width: 100%; height: 86vh; display: flex; flex-direction: column;
+}
+.xt-head { padding: 9px 12px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px; }
+.xt-head .sp { flex: 1; }
+.xt-ten { font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xt-body {
+  flex: 1; min-height: 0; overflow: auto; display: grid; place-items: center;
+  background: var(--surface-2); border-radius: 0 0 10px 10px;
+}
+.xt-body img, .xt-body video { max-width: 100%; max-height: 100%; display: block; }
+/* PDF cần khung chiếm hết chỗ; nền trắng để trang giấy không lọt thỏm trong nền tối */
+.xt-body iframe { width: 100%; height: 100%; border: 0; background: #fff; }
+.xt-none { display: grid; gap: 12px; justify-items: center; padding: 40px 24px; color: var(--t2); font-size: 13px; text-align: center; }
+.xt-none .ic { font-size: 12px; font-weight: 700; letter-spacing: .05em; color: var(--t3); }
+
+/* hàng tệp: tên chiếm phần rộng, hai nút đứng cuối và không co lại */
+.file .nm.co-the-xem { cursor: pointer; }
+.file .nm.co-the-xem:hover { color: var(--primary); text-decoration: underline; }
+.file .btn { flex: none; }

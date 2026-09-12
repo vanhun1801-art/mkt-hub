@@ -205,8 +205,17 @@ function veBang() {
   const dong = (c) => {
     const thieu = thieuChungTu(c);
     const tep = (arr, linkCu, nhan, key) => {
-      const co = (arr || []).map((f) => '<a class="tep" target="_blank" href="'
-        + apiUrl('/api/chi/' + c.id + '/tep/' + f.token + '/tai') + '">' + esc(nhan) + '</a>').join('');
+      /* Chip chứng từ mở XEM tại chỗ, kèm một chip ⇩ để tải về. Trước đây nó chỉ
+       * là liên kết bắn sang tab mới, mà tab mới hoặc bị chặn hoặc lạc khỏi app
+       * — anh Hùng báo 12/09/2026 "ấn vào xem không được". */
+      const co = (arr || []).map((f, i) => {
+        const ten = f.name || (nhan + (arr.length > 1 ? ' ' + (i + 1) : ''));
+        return '<span class="tep" data-xem="' + esc(f.token) + '" data-rec="' + esc(c.id) +
+          '" data-ten="' + esc(ten) + '" title="' + esc(ten) + '">' + esc(nhan) +
+          (arr.length > 1 ? ' ' + (i + 1) : '') + '</span>' +
+          '<a class="tep tai" title="Tải ' + esc(ten) + ' về máy" download="' + esc(ten) + '" href="'
+          + urlTep(c.id, f.token, true) + '">⇩</a>';
+      }).join('');
       if (co) return co;
       if (String(linkCu || '').trim()) {
         return '<a class="tep cu" target="_blank" href="' + esc(linkCu) + '" title="Chứng từ cũ trên Google Drive">'
@@ -308,6 +317,44 @@ function moModal(tieuDe, than, chan) {
   $('#modal').classList.add('on');
 }
 const dongModal = () => $('#modal').classList.remove('on');
+
+/* ============ xem chứng từ ============
+ * Hoá đơn và UNC là thứ người ta phải NHÌN mới đối chiếu được. Trước đây mỗi
+ * chứng từ chỉ là một liên kết bắn sang tab mới; anh Hùng báo 12/09/2026 bấm vào
+ * "xem không được". Giờ mở ngay tại chỗ, nút Tải xuống đứng riêng.
+ * HEIC không trình duyệt nào mở được (ảnh iPhone hay dính đuôi này) nên không
+ * nhận là xem được — đưa người ta một khung trắng còn tệ hơn là bảo tải về.
+ */
+const laAnh = (n) => /\.(png|jpe?g|gif|webp|bmp|svg|avif)$/i.test(n || '');
+const laPdf = (n) => /\.pdf$/i.test(n || '');
+const laChu = (n) => /\.(txt|csv|md|log)$/i.test(n || '');
+const xemDuocTep = (n) => laAnh(n) || laPdf(n) || laChu(n);
+
+const urlTep = (recId, token, tai) =>
+  apiUrl('/api/chi/' + recId + '/tep/' + token + '/tai' + (tai ? '?tai=1' : ''));
+
+function moXemTep(recId, token, ten) {
+  const src = urlTep(recId, token);
+  $('#xtTen').textContent = ten || 'chứng từ';
+  const tai = $('#xtTai');
+  tai.href = urlTep(recId, token, true);
+  tai.setAttribute('download', ten || '');
+
+  $('#xtThan').innerHTML = laAnh(ten)
+    ? '<img src="' + esc(src) + '" alt="">'
+    : (laPdf(ten) || laChu(ten))
+      ? '<iframe src="' + esc(src) + '"></iframe>'
+      : '<div class="xt-khong"><div class="ic">TỆP</div>' +
+        '<div>Kiểu tệp này không xem trực tiếp được.</div>' +
+        '<a class="btn primary" download="' + esc(ten || '') + '" href="' +
+        urlTep(recId, token, true) + '">Tải về để mở</a></div>';
+  $('#xemTep').classList.add('on');
+}
+
+function dongXemTep() {
+  $('#xemTep').classList.remove('on');
+  $('#xtThan').innerHTML = '';    // thả ảnh / PDF ra khỏi bộ nhớ
+}
 
 const o = (nhan, html, rong) => '<label class="o' + (rong ? ' rong' : '') + '">'
   + '<span>' + esc(nhan) + '</span>' + html + '</label>';
@@ -483,6 +530,12 @@ function veLai() {
 document.addEventListener('click', async (e) => {
   const T = e.target;
 
+  /* Xem chứng từ đứng TRƯỚC data-close: chip tệp nằm trong bảng lẫn trong form
+   * khai chi, bắt sau là mở chứng từ xong đóng luôn form đang gõ dở. */
+  if (T.closest('[data-xtclose]') || T.id === 'xemTep') return dongXemTep();
+  const xt = T.closest('[data-xem]');
+  if (xt) return moXemTep(xt.dataset.rec, xt.dataset.xem, xt.dataset.ten);
+
   if (T.closest('[data-close]') || T.id === 'modal') return dongModal();
   if (T.closest('#btnTaiLai')) { toast('Đang đọc lại…'); return taiLai(true).then(() => toast('Xong', 'ok')); }
   if (T.closest('#btnLark')) return window.open(S.larkUrl, '_blank');
@@ -584,6 +637,9 @@ document.addEventListener('change', (e) => {
 });
 
 document.addEventListener('keydown', (e) => {
+  /* Lớp xem chứng từ nằm trên cùng nên Esc đóng nó trước — đóng cả form khai chi
+   * bên dưới thì người ta mất công gõ lại chỉ vì liếc qua một cái hoá đơn. */
+  if (e.key === 'Escape' && $('#xemTep').classList.contains('on')) return dongXemTep();
   if (e.key === 'Escape') dongModal();
 });
 

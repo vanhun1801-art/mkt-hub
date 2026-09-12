@@ -71,6 +71,24 @@
   </div>
 </div>
 
+<!-- Xem tệp. Lớp RIÊNG, không dùng chung #modal: tệp hay nằm trong phiếu đi
+     hoặc form báo cáo, mà hai thứ đó đang chiếm #modal — dùng chung là mở tệp
+     ra thì đóng mất cái người ta đang làm dở. -->
+<div class="xt" id="xemTep">
+  <div class="mask on" data-xtclose="1"></div>
+  <div class="xt-box">
+    <div class="xt-head">
+      <span class="xt-ten" id="xtTen"></span>
+      <div class="sp"></div>
+      <a class="btn sm" id="xtTai" download>Tải xuống</a>
+      <button class="btn sm icon ghost" data-xtclose="1" title="Đóng">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4l8 8M12 4l-8 8" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="xt-body" id="xtBody"></div>
+  </div>
+</div>
+
 <div class="toast-wrap" id="toasts"></div>
 
 <script src="/app.js"></script>

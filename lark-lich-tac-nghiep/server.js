@@ -1294,10 +1294,22 @@ async function api(req, res, url) {
       const file = path.join(dir, files[0]);
       const buf = fs.readFileSync(file);
       const ext = path.extname(file).toLowerCase();
+      const kieu = FILE_MIME[ext] || 'application/octet-stream';
+      /* Xem trước trong app (ảnh / PDF / video / text) thì phải để `inline`, còn
+       * ?tai=1 là người ta bấm "Tải xuống" — ép `attachment` để trình duyệt lưu
+       * chứ đừng mở ra. Kiểu tệp không xem được thì cũng tải luôn, mở ra chỉ ra
+       * một trang trắng hoặc một mớ ký tự. */
+      /* HEIC/HEIF thì KHÔNG: trình duyệt nào cũng chịu, để inline là người ta
+       * nhận một khung trắng. Ảnh iPhone tải thẳng lên hay dính đuôi này. */
+      const xemDuoc = (/^(image|video|text)\//.test(kieu) || kieu === 'application/pdf')
+        && !/^image\/hei[cf]$/.test(kieu);
+      const tai = url.searchParams.get('tai') === '1' || !xemDuoc;
       res.writeHead(200, {
-        'Content-Type': FILE_MIME[ext] || 'application/octet-stream',
+        'Content-Type': kieu,
         'Content-Length': buf.length,
-        'Content-Disposition': "inline; filename*=UTF-8''" + encodeURIComponent(files[0]),
+        'Content-Disposition': (tai ? 'attachment' : 'inline') +
+          "; filename*=UTF-8''" + encodeURIComponent(files[0]),
+        'Cache-Control': 'private, max-age=300',
       });
       return res.end(buf);
     } finally {
@@ -1537,10 +1549,17 @@ const MIME = {
   '.json': 'application/json; charset=utf-8',
 };
 
+/* Kiểu nào nhận ra được thì xem ngay trong app; còn lại rơi về octet-stream và
+ * bị ép tải xuống. Nên đuôi nào hay gặp ở hoá đơn, vé, ảnh chụp màn hình đều
+ * phải có tên ở đây — thiếu một đuôi là người dùng bấm Xem ra trang trắng. */
 const FILE_MIME = {
   '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif',
-  '.webp': 'image/webp', '.svg': 'image/svg+xml', '.pdf': 'application/pdf',
-  '.mp4': 'video/mp4', '.mov': 'video/quicktime', '.txt': 'text/plain; charset=utf-8',
+  '.webp': 'image/webp', '.svg': 'image/svg+xml', '.bmp': 'image/bmp',
+  '.heic': 'image/heic', '.heif': 'image/heif', '.avif': 'image/avif',
+  '.pdf': 'application/pdf',
+  '.mp4': 'video/mp4', '.mov': 'video/quicktime', '.webm': 'video/webm', '.m4v': 'video/mp4',
+  '.txt': 'text/plain; charset=utf-8', '.csv': 'text/csv; charset=utf-8',
+  '.md': 'text/plain; charset=utf-8', '.log': 'text/plain; charset=utf-8',
 };
 
 const PUBLIC_DIR = path.join(__dirname, 'public');

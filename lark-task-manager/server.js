@@ -1259,7 +1259,10 @@ async function api(req, res, url) {
       const kieu = FILE_MIME[path.extname(target).toLowerCase()] || 'application/octet-stream';
       // Xem trực tiếp trong trình duyệt với ảnh / video / PDF / text;
       // chỉ ép tải xuống khi có ?tai=1 hoặc kiểu tệp không xem được.
-      const xemDuoc = /^(image|video|text)\//.test(kieu) || kieu === 'application/pdf';
+      /* HEIC/HEIF thì KHÔNG: trình duyệt nào cũng chịu, để inline là người ta
+       * nhận một khung trắng. Ảnh iPhone tải thẳng lên hay dính đuôi này. */
+      const xemDuoc = (/^(image|video|text)\//.test(kieu) || kieu === 'application/pdf')
+        && !/^image\/hei[cf]$/.test(kieu);
       const taiXuong = url.searchParams.get('tai') === '1' || !xemDuoc;
       res.writeHead(200, {
         'Content-Type': kieu,
@@ -1396,10 +1399,17 @@ const MIME = {
   '.json': 'application/json; charset=utf-8',
 };
 
+/* Kiểu nào nhận ra được thì xem ngay trong app; còn lại rơi về octet-stream và
+ * bị ép tải xuống. Nên đuôi nào hay gặp ở brief, ảnh mẫu, video edit đều phải có
+ * tên ở đây — thiếu một đuôi là người dùng bấm Xem ra một trang trắng. */
 const FILE_MIME = {
   '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif',
-  '.webp': 'image/webp', '.svg': 'image/svg+xml', '.pdf': 'application/pdf',
-  '.mp4': 'video/mp4', '.mov': 'video/quicktime', '.txt': 'text/plain; charset=utf-8',
+  '.webp': 'image/webp', '.svg': 'image/svg+xml', '.bmp': 'image/bmp',
+  '.heic': 'image/heic', '.heif': 'image/heif', '.avif': 'image/avif',
+  '.pdf': 'application/pdf',
+  '.mp4': 'video/mp4', '.mov': 'video/quicktime', '.webm': 'video/webm', '.m4v': 'video/mp4',
+  '.txt': 'text/plain; charset=utf-8', '.csv': 'text/csv; charset=utf-8',
+  '.md': 'text/plain; charset=utf-8', '.log': 'text/plain; charset=utf-8',
 };
 
 const PUBLIC_DIR = path.join(__dirname, 'public');

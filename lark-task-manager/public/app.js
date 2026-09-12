@@ -2873,10 +2873,10 @@ function khoiTep(t, nhan, att, cot, xoaDuoc, khiTrong) {
     meta.appendChild(ten);
     meta.appendChild(el('div', 'attsize', a.size ? Math.round(a.size / 1024) + ' KB' : ''));
     const acts = el('div', 'attacts');
-    const nhanh = el('button', 'attbtn', 'Xem nhanh');
+    const nhanh = el('button', 'attbtn', 'Xem');
     nhanh.onclick = () => moXemTep(t, a);
     acts.appendChild(nhanh);
-    const tai = el('a', 'attbtn', 'Tải xuống');
+    const tai = el('a', 'attbtn', 'Tải về');
     tai.href = urlTep(t.id, a.token, true);
     tai.setAttribute('download', a.name || '');
     acts.appendChild(tai);
@@ -3052,7 +3052,14 @@ function attachmentField(t, canUpload) {
     meta.appendChild(ten);
     meta.appendChild(el('div', 'attsize', a.size ? Math.round(a.size / 1024) + ' KB' : ''));
 
+    /* Bấm vào ảnh hoặc tên tệp vẫn mở xem được, nhưng không có gì trên màn hình
+     * nói ra điều đó — anh Hùng bấm mãi tưởng hỏng (12/09/2026). Nút Xem đứng
+     * cạnh Tải về cho thấy rõ hai việc khác nhau: coi tại chỗ hay giữ về máy. */
     const acts = el('div', 'attacts');
+    const nhanh = el('button', 'attbtn', 'Xem');
+    nhanh.onclick = () => moXemTep(t, a);
+    acts.appendChild(nhanh);
+
     const tai = el('a', 'attbtn', 'Tải về');
     tai.href = urlTep(t.id, a.token, true);
     tai.setAttribute('download', a.name || '');

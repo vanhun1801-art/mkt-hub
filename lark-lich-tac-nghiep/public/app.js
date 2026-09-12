@@ -1890,19 +1890,76 @@ function fieldCheck(key, label) {
  * thì biến mất ngay khi có tệp đầu tiên — đúng lúc người sau cần đọc để biết ô
  * này đựng gì.
  */
+/* ============ xem tệp ============
+ * Anh Hùng báo 12/09/2026: "ấn vào các tệp này thì xem không được". Trước đây
+ * mỗi tệp chỉ có một liên kết "Mở" bắn sang tab mới — tab mới thì hoặc bị chặn,
+ * hoặc mở ra rồi lạc khỏi app; còn cái tên tệp, thứ ai cũng bấm vào đầu tiên,
+ * thì lại không bấm được. Giờ ảnh / PDF / video / text mở ngay tại chỗ, và nút
+ * "Tải" đứng riêng cho ai muốn giữ về máy.
+ */
+const laAnh = (n) => /\.(png|jpe?g|gif|webp|bmp|svg|avif)$/i.test(n || '');
+const laPdf = (n) => /\.pdf$/i.test(n || '');
+const laVideo = (n) => /\.(mp4|mov|webm|m4v)$/i.test(n || '');
+const laChu = (n) => /\.(txt|csv|md|log)$/i.test(n || '');
+/* HEIC không trình duyệt nào mở được: ảnh iPhone tải thẳng lên hay dính đuôi
+ * này. Đừng nhận là xem được rồi đưa người ta một khung trắng — cho tải luôn. */
+const xemDuocTep = (n) => laAnh(n) || laPdf(n) || laVideo(n) || laChu(n);
+
+const urlTep = (recId, token, tai) =>
+  apiUrl('/api/items/' + recId + '/file/' + token + (tai ? '?tai=1' : ''));
+
+/** Một hàng tệp dùng chung: tên bấm được + nút Xem + nút Tải. */
+function hangTep(recId, f) {
+  const ten = f.name || 'tệp';
+  const co = xemDuocTep(ten) && f.token;
+  const nut = (nhan, them) =>
+    '<a class="btn sm ghost"' + them + '>' + nhan + '</a>';
+  return '<div class="file">' +
+    '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">' +
+    '<path d="M9 1.5H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5.5L9 1.5z"/><path d="M9 1.5V5.5H13"/></svg>' +
+    '<span class="nm' + (co ? ' co-the-xem' : '') + '"' +
+      (co ? ' data-xem="' + esc(f.token) + '" data-rec="' + esc(recId) + '" data-ten="' + esc(ten) + '"' : '') +
+      '>' + esc(ten) + '</span>' +
+    '<span class="sz">' + (f.size ? Math.round(f.size / 1024) + ' KB' : '') + '</span>' +
+    (co ? nut('Xem', ' data-xem="' + esc(f.token) + '" data-rec="' + esc(recId) +
+      '" data-ten="' + esc(ten) + '"') : '') +
+    (f.token ? nut('Tải', ' href="' + urlTep(recId, f.token, true) + '" download="' + esc(ten) + '"') : '') +
+    '</div>';
+}
+
+function moXemTep(recId, token, ten) {
+  const src = urlTep(recId, token);
+  $('#xtTen').textContent = ten || 'tệp';
+  const tai = $('#xtTai');
+  tai.href = urlTep(recId, token, true);
+  tai.setAttribute('download', ten || '');
+
+  let than;
+  if (laAnh(ten)) than = '<img src="' + esc(src) + '" alt="">';
+  else if (laPdf(ten)) than = '<iframe src="' + esc(src) + '"></iframe>';
+  else if (laVideo(ten)) than = '<video src="' + esc(src) + '" controls></video>';
+  else if (laChu(ten)) than = '<iframe src="' + esc(src) + '"></iframe>';
+  else {
+    than = '<div class="xt-none"><div class="ic">TỆP</div>' +
+      '<div>Kiểu tệp này không xem trực tiếp được.</div>' +
+      '<a class="btn primary" href="' + urlTep(recId, token, true) + '" download="' + esc(ten || '') + '">Tải về để mở</a></div>';
+  }
+  $('#xtBody').innerHTML = than;
+  $('#xemTep').classList.add('on');
+}
+
+function dongXemTep() {
+  $('#xemTep').classList.remove('on');
+  $('#xtBody').innerHTML = '';   // dừng video đang chạy, thả ảnh ra khỏi bộ nhớ
+}
+
 function filesBlock(key, label, hint) {
   const arr = S.sel[key] || [];
   const canUp = !PREVIEW() && (S.config.uploadable || []).includes(key) && (MGR() || canEditItem());
   return '<div class="frm-row"><label>' + esc(label) + '</label>' +
     (hint ? '<div class="hint">' + esc(hint) + '</div>' : '') + '<div class="files">' +
-    (arr.length ? arr.map((f) =>
-      '<div class="file"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">' +
-      '<path d="M9 1.5H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5.5L9 1.5z"/><path d="M9 1.5V5.5H13"/></svg>' +
-      '<span class="nm">' + esc(f.name || 'tệp') + '</span>' +
-      '<span class="sz">' + (f.size ? Math.round(f.size / 1024) + ' KB' : '') + '</span>' +
-      (f.token ? '<a class="btn sm ghost" target="_blank" href="' +
-        apiUrl('/api/items/' + S.sel.id + '/file/' + f.token) + '">Mở</a>' : '') +
-      '</div>').join('') : '<div class="mini muted">Chưa có tệp.</div>') +
+    (arr.length ? arr.map((f) => hangTep(S.sel.id, f)).join('')
+      : '<div class="mini muted">Chưa có tệp.</div>') +
     (canUp ? '<label class="btn sm" style="align-self:flex-start;margin-top:2px">' +
       '<input type="file" data-up="' + key + '" multiple hidden> + Tải tệp lên</label>' : '') +
     '</div></div>';
@@ -2384,10 +2441,11 @@ function veBaoCao() {
       '<option value="' + esc(x) + '"' + (BC.duration === x ? ' selected' : '') + '>' + esc(x) + ' giờ</option>').join('') +
     '</select>';
 
+  /* Hoá đơn vừa tải lên phải mở ra xem lại được ngay tại đây — nộp nhầm ảnh hay
+   * nhầm hoá đơn của chuyến khác là chuyện thường, mà lúc này còn sửa được. */
   const tep = (t.files || []);
   const dsTep = tep.length
-    ? '<div class="bc-tep">' + tep.map((f) =>
-        '<span class="bc-f">📎 ' + esc(f.name || 'tệp') + '</span>').join('') + '</div>'
+    ? '<div class="files">' + tep.map((f) => hangTep(t.id, f)).join('') + '</div>'
     : '<div class="hint">Chưa có tệp nào.</div>';
 
   $('#mdTitle').textContent = 'Báo cáo sau tác nghiệp';
@@ -2715,13 +2773,12 @@ function moPhieuDi(id) {
       '<a class="phieu-f" target="_blank" href="' + esc(t.link) + '">🔗 ' + esc(t.link) + '</a>', true);
   }
 
-  // Tệp: thứ duy nhất bấm được ở đây, và chỉ để MỞ RA XEM
+  /* Tệp: thứ duy nhất bấm được ở đây, và chỉ để MỞ RA XEM.
+   * Đây là phiếu người ta đọc ngay trước lúc đi, nên vé và mã đặt chỗ phải xem
+   * được tại chỗ — bắn sang tab mới là lạc khỏi phiếu, đọc dở lại phải mở lại. */
   const dsTep = (nhan, arr) => {
     if (!(arr || []).length) return;
-    muc(nhan, '<div class="phieu-tep">' + arr.map((f) => (f.token
-      ? '<a class="phieu-f" target="_blank" href="' + apiUrl('/api/items/' + t.id + '/file/' + f.token) + '">' +
-        '📎 ' + esc(f.name || 'tệp') + '</a>'
-      : '<span class="phieu-f">📎 ' + esc(f.name || 'tệp') + '</span>')).join('') + '</div>', true);
+    muc(nhan, '<div class="files">' + arr.map((f) => hangTep(t.id, f)).join('') + '</div>', true);
   };
   dsTep('Vé & thông tin cần mang', t.tickets);
   dsTep('Hoá đơn + chứng từ', t.files);
@@ -3303,6 +3360,19 @@ async function refresh(force) {
 /* ============ sự kiện ============ */
 document.addEventListener('click', async (e) => {
   const T = e.target;
+
+  /* Xem tệp phải đứng TRƯỚC data-close: hàng tệp nằm trong phiếu / form báo cáo,
+   * mà mấy cửa sổ đó đầy nút data-close — bắt sau là mở tệp xong đóng luôn cả
+   * cửa sổ bên dưới. */
+  const xtDong = T.closest('[data-xtclose]');
+  if (xtDong) { dongXemTep(); return; }
+
+  const xtMo = T.closest('[data-xem]');
+  if (xtMo) {
+    e.preventDefault();
+    moXemTep(xtMo.dataset.rec, xtMo.dataset.xem, xtMo.dataset.ten);
+    return;
+  }
 
   const close = T.closest('[data-close]');
   if (close) { closeModal(); BC = null; XH = null; HM = null; $('#mdTitle').textContent = 'Đăng ký lịch tác nghiệp'; return; }
@@ -3948,6 +4018,9 @@ async function taiNhieuTep(input, recId, cot) {
 }
 
 document.addEventListener('keydown', (e) => {
+  /* Lớp xem tệp nằm trên cùng nên Esc phải đóng nó trước — đóng cả phiếu bên
+   * dưới thì người ta mất chỗ đang đọc chỉ vì liếc qua một cái hoá đơn. */
+  if (e.key === 'Escape' && $('#xemTep').classList.contains('on')) { dongXemTep(); return; }
   if (e.key === 'Escape' && bangDangMo()) {
     dongBangChon();     // Esc đóng bảng chọn trước, chưa đóng cả cửa sổ
     return;
