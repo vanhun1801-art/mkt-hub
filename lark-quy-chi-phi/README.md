@@ -17,7 +17,7 @@ Hoặc bấm `start.bat`. Vào qua Marketing Hub thì Hub tự bật.
 | Hết quỹ | mở tab mới | ghi một dòng ở *Các lần ứng tiền* — vẫn một quỹ |
 | Số dư | cột `Tồn` gõ tay từng dòng, chia theo tab | **một con số** = tổng đã ứng − tổng đã chi, không gõ được nên không lệch được |
 | Chứng từ | link Google Drive, kế toán phải xin quyền | tệp đính kèm ngay trong bảng |
-| Thiếu UNC | không ai nhìn ra — **67/162 dòng thiếu** | thẻ "Thiếu chứng từ" đếm sẵn, dòng tô đỏ |
+| Chứng từ thiếu | không ai nhìn ra | thẻ "Cần bổ sung chứng từ" đếm sẵn, dòng tô đỏ |
 | Quyết toán | sửa mã QTTU từng dòng | chọn nhiều khoản, gán một lượt |
 
 ## Ba bảng
@@ -63,7 +63,12 @@ sẵn cho họ:
 
 - `Kế toán · đã chi` — mọi khoản đã chi
 - `Kế toán · chờ quyết toán` — đã chi mà chưa có mã QTTU
-- `Thiếu hoá đơn` — đã chi mà trống cả ô Hoá đơn lẫn link chứng từ cũ
+- `Cần bổ sung chứng từ` — chưa quyết toán, chưa được miễn, và không có mảnh
+  giấy nào
+
+Cả ba view sắp theo **ngày thanh toán mới nhất trước**, và mang sẵn những cột kế
+toán cần đọc: thời gian · mã đơn hàng · tên người chi · số tiền · chứng từ · mã
+số thuế NCC.
 
 ## Bốn việc app làm
 
@@ -71,7 +76,25 @@ sẵn cho họ:
    số khoản thiếu chứng từ, số khoản chờ quyết toán
 2. **Khai khoản chi** + đính hoá đơn/UNC ngay tại dòng của khoản
 3. **Quyết toán theo lô** — chọn nhiều khoản, gán một mã QTTU, đổi tình trạng
-4. **Cảnh báo thiếu chứng từ** — tab riêng, dòng tô đỏ trong mọi danh sách
+4. **Cảnh báo cần bổ sung chứng từ** — tab riêng, dòng tô đỏ trong mọi danh sách
+
+## Luật cảnh báo chứng từ
+
+Luật đầu tiên là *"không đủ cả hoá đơn LẪN UNC = thiếu"*. Nó gắn cờ **68/162
+khoản**, trong đó **67 khoản kế toán đã kiểm và đóng sổ từ lâu**. Một cảnh báo
+réo sai 67 lần thì lần thứ 68 cũng không ai nhìn.
+
+Luật đúng, theo cách kế toán thật sự làm việc:
+
+- **Đã quyết toán thì thôi.** Có mã QTTU nghĩa là kế toán đã kiểm và chấp nhận.
+- **"Không cần chứng từ" là một câu trả lời hợp lệ**, không phải chỗ trống. Chi
+  nhỏ lẻ, hỗ trợ tiền ăn thường không có hoá đơn VAT — hoá đơn tay hoặc ảnh là
+  đủ và kế toán vẫn duyệt. Cột **Chứng từ** ghi nhận điều đó.
+- **Chỉ cần MỘT bằng chứng, không đòi cả hai.** Trả tiền mặt thì không bao giờ
+  có UNC; mua ở chỗ không xuất hoá đơn thì chỉ có UNC.
+
+Sau khi sửa: **1/162 khoản** cần bổ sung thật. Có bốn phép thử giữ cho luật cũ
+không lặng lẽ quay lại.
 
 ## Dữ liệu cũ
 

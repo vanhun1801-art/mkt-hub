@@ -54,6 +54,12 @@ module.exports = {
       ngayChi:     { id: 'fld1C4kkhS', name: 'Ngày thanh toán',       type: 'datetime' },
       nguoi:       { id: 'fldzDcQ1Jw', name: 'Người đề nghị',         type: 'user' },
       tinhTrang:   { id: 'fldKyr5FHI', name: 'Tình trạng',            type: 'select' },
+      /* Kế toán chấp nhận cái gì cho khoản này. Chi nhỏ lẻ, hỗ trợ tiền ăn
+       * thường KHÔNG có hoá đơn VAT — hoá đơn tay hoặc ảnh là đủ, và kế toán
+       * vẫn duyệt. Không có ô này thì app réo đòi hoá đơn của những khoản vốn
+       * dĩ không bao giờ có. */
+      chungTu:     { id: 'fldsIhY8cV', name: 'Chứng từ',                type: 'select' },
+      mst:         { id: 'fldY2pcsHA', name: 'Mã số thuế NCC',          type: 'text' },
       hoaDon:      { id: 'fldEqE0qRD', name: 'Hoá đơn',               type: 'attachment' },
       unc:         { id: 'fld0d01YS8', name: 'UNC',                   type: 'attachment' },
       soHoaDon:    { id: 'fldNQdS5QF', name: 'Số hoá đơn',            type: 'text' },
@@ -91,6 +97,7 @@ module.exports = {
   loaiChi: ['Tác nghiệp', 'Di chuyển', 'Công cụ & phần mềm', 'In ấn',
     'Quảng cáo', 'Tiếp khách', 'Khác'],
   tinhTrang: ['Chờ chi', 'Đã chi', 'Đã quyết toán'],
+  loaiChungTu: ['Hoá đơn VAT', 'Hoá đơn tay / ảnh', 'Không cần chứng từ'],
 
   /* Ô đính kèm được phép tải lên. Hai ô này là lý do chính bỏ Google Sheet:
    * chứng từ nằm ngay trong bảng, kế toán không phải xin quyền Drive. */

@@ -265,7 +265,7 @@ async function xuLy(req, res) {
       chuQuy: await laChuQuy(),
       quy: tinhQuy(chi, lan),
       chi, dot, nap: lan,
-      options: { loaiChi: cfg.loaiChi, tinhTrang: cfg.tinhTrang },
+      options: { loaiChi: cfg.loaiChi, tinhTrang: cfg.tinhTrang, chungTu: cfg.loaiChungTu },
       larkUrl: cfg.larkUrl,
     });
   }

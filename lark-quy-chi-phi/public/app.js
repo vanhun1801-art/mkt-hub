@@ -88,12 +88,32 @@ const LAN_CHUYEN_TIEP = 'Chuyển từ kỳ trước';
 const cacLanUng = () => S.nap.filter((n) => n.loai !== LAN_CHUYEN_TIEP)
   .sort((a, b) => String(b.ngay || '').localeCompare(String(a.ngay || '')));
 
-/** Khoản đã chi mà chưa có đủ chứng từ — cả tệp lẫn link cũ đều tính là có. */
+/**
+ * KHOẢN NÀO THẬT SỰ CẦN BỔ SUNG CHỨNG TỪ
+ *
+ * Luật đầu tiên tôi viết là "không đủ cả hoá đơn LẪN UNC = thiếu", và nó gắn cờ
+ * 68/162 khoản — trong đó 67 khoản kế toán đã nhận và đóng sổ từ lâu. Một cảnh
+ * báo réo sai 67 lần thì lần thứ 68 cũng không ai nhìn.
+ *
+ * Luật đúng theo cách kế toán thật sự làm việc:
+ *
+ *   · ĐÃ QUYẾT TOÁN thì thôi — có mã QTTU nghĩa là kế toán đã kiểm và chấp nhận.
+ *     Đòi thêm chứng từ của khoản đã đóng là vô nghĩa.
+ *   · "Không cần chứng từ" là một câu trả lời hợp lệ, không phải chỗ trống. Chi
+ *     nhỏ lẻ, hỗ trợ tiền ăn thường không có hoá đơn VAT; hoá đơn tay hoặc ảnh
+ *     là đủ và kế toán vẫn duyệt.
+ *   · Chỉ cần MỘT bằng chứng, không đòi cả hai. Trả tiền mặt thì không bao giờ
+ *     có UNC; mua ở chỗ không xuất hoá đơn thì chỉ có UNC. Đòi đủ cả hai là bịa
+ *     ra một chuẩn mà chính kế toán không đặt.
+ */
 function thieuChungTu(c) {
   if (c.tinhTrang === 'Chờ chi') return false;
+  if (String(c.maQuyetToan || '').trim()) return false;
+  if (c.tinhTrang === 'Đã quyết toán') return false;
+  if (c.chungTu === 'Không cần chứng từ') return false;
   const coHoaDon = (c.hoaDon || []).length || String(c.linkCu || '').trim();
   const coUnc = (c.unc || []).length || String(c.linkUncCu || '').trim();
-  return !coHoaDon || !coUnc;
+  return !coHoaDon && !coUnc;
 }
 
 function locChi() {
@@ -141,8 +161,8 @@ function veTong() {
     + '<div class="o"><div class="nhan">Chi tháng này</div><div class="so nho">' + tien(chiThang)
       + '<span class="d">đ</span></div></div>'
     + '<div class="o' + (soThieu ? ' canhbao' : '') + '" data-tab="thieu">'
-      + '<div class="nhan">Thiếu chứng từ</div><div class="so nho">' + soThieu + '</div>'
-      + '<div class="mo">' + (soThieu ? 'bấm để xem' : 'đủ cả') + '</div></div>'
+      + '<div class="nhan">Cần bổ sung chứng từ</div><div class="so nho">' + soThieu + '</div>'
+      + '<div class="mo">' + (soThieu ? 'bấm để xem' : 'không còn khoản nào') + '</div></div>'
     + '<div class="o"><div class="nhan">Chờ quyết toán</div><div class="so nho">' + chuaQuyetToan + '</div>'
       + '<div class="mo">đã chi, chưa gán mã</div></div>'
   + '</section>';
@@ -158,7 +178,7 @@ function veLoc() {
 
   return '<section class="thanh">'
     + '<div class="tabs">'
-      + ['so:Sổ quỹ', 'thieu:Thiếu chứng từ', 'ung:Các lần ứng tiền'].map((x) => {
+      + ['so:Sổ quỹ', 'thieu:Cần bổ sung chứng từ', 'ung:Các lần ứng tiền'].map((x) => {
         const [k, t] = x.split(':');
         return '<button class="tab' + (S.tab === k ? ' on' : '') + '" data-tab="' + k + '">' + t + '</button>';
       }).join('')
@@ -208,7 +228,12 @@ function veBang() {
       + '<td class="ngay">' + esc(ngayVN(c.ngayChi || c.ngayDeNghi)) + '</td>'
       + '<td class="ai">' + esc(((c.nguoi || [])[0] || {}).name || '') + '</td>'
       + '<td class="teps">' + tep(c.hoaDon, c.linkCu, 'Hoá đơn', 'hoaDon')
-        + tep(c.unc, c.linkUncCu, 'UNC', 'unc') + '</td>'
+        + tep(c.unc, c.linkUncCu, 'UNC', 'unc')
+        + (c.chungTu === 'Không cần chứng từ'
+          ? '<span class="the" title="Kế toán đã đồng ý không cần chứng từ">không cần</span>'
+          : c.chungTu === 'Hoá đơn tay / ảnh'
+            ? '<span class="the" title="Hoá đơn tay hoặc ảnh — kế toán chấp nhận">tay/ảnh</span>' : '')
+        + '</td>'
       + '<td class="tt"><span class="badge ' + (c.tinhTrang === 'Đã quyết toán' ? 'xanh'
         : c.tinhTrang === 'Đã chi' ? 'vang' : 'xam') + '">' + esc(c.tinhTrang || '—') + '</span></td>'
       + '<td class="tacvu">' + (S.chuQuy
@@ -301,7 +326,11 @@ function moKhaiChi(sua) {
         + (c && c.ngayChi ? new Date(c.ngayChi).toISOString().slice(0, 10) : homNay()) + '">')
     + o('Tình trạng', chon('fTT', S.options.tinhTrang, c ? c.tinhTrang : 'Đã chi'))
     + o('Mã điều hành', '<input id="fMaDH" value="' + esc(c ? c.maDieuHanh : '') + '" placeholder="SG…">')
+    + o('Chứng từ', '<select id="fChungTu"><option value="">— chưa xác định —</option>'
+        + (S.options.chungTu || []).map((x) => '<option' + (c && c.chungTu === x ? ' selected' : '')
+          + '>' + esc(x) + '</option>').join('') + '</select>')
     + o('Số hoá đơn', '<input id="fSoHD" value="' + esc(c ? c.soHoaDon : '') + '">')
+    + o('Mã số thuế NCC', '<input id="fMST" value="' + esc(c ? c.mst : '') + '" placeholder="kế toán kiểm MST">')
     + o('Nhà cung cấp trên TW', '<input id="fNCC" value="' + esc(c ? c.ncc : '') + '">')
     + o('Thông tin chuyển khoản', '<input id="fCK" value="' + esc(c ? c.chuyenKhoan : '') + '">')
     + o('Ghi chú', '<input id="fGhiChu" value="' + esc(c ? c.ghiChu : '') + '">', true)
@@ -382,6 +411,7 @@ function moKetQuaTourwell(tw, khoan) {
     'Tải <b>hoá đơn + UNC</b> vào ô Tệp đính kèm',
     'Vào <b>Mã điều hành</b> → <b>Nhận điều hành</b> → <b>Đồng ý</b>',
     'Bấm <b>Hoàn thành</b>',
+    'Chép mã <b>SG…</b> dán vào ô <i>Mã điều hành</i> của khoản — kế toán đối chiếu theo mã đó',
   ];
 
   moModal('Đã tạo đơn Tourwell',
@@ -493,7 +523,9 @@ document.addEventListener('click', async (e) => {
       ngayChi: $('#fNgay').value ? $('#fNgay').value + 'T00:00:00+07:00' : null,
       tinhTrang: $('#fTT').value,
       maDieuHanh: $('#fMaDH').value.trim(),
+      chungTu: $('#fChungTu').value || null,
       soHoaDon: $('#fSoHD').value.trim(),
+      mst: $('#fMST').value.trim(),
       ncc: $('#fNCC').value.trim(),
       chuyenKhoan: $('#fCK').value.trim(),
       ghiChu: $('#fGhiChu').value.trim(),

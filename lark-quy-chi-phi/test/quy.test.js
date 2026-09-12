@@ -90,6 +90,38 @@ const nhom = (t) => console.log('\n\x1b[1m' + t + '\x1b[0m');
   const khongLoai = m.chi.filter((c) => !c.loai);
   ok('mọi khoản đều có loại chi', khongLoai.length === 0, khongLoai.length + ' khoản trống loại');
 
+  nhom('Cảnh báo chứng từ phải đúng cách kế toán làm việc');
+  /* Luật đầu tiên là "không đủ cả hoá đơn LẪN UNC = thiếu" và nó réo 68/162
+   * khoản, trong đó 67 khoản kế toán đã kiểm và đóng sổ. Cảnh báo sai 67 lần
+   * thì lần thứ 68 cũng không ai nhìn. Ba phép thử dưới đây giữ cho nó không
+   * quay lại. */
+  const thieu = (c) => {
+    if (c.tinhTrang === 'Chờ chi') return false;
+    if (String(c.maQuyetToan || '').trim()) return false;
+    if (c.tinhTrang === 'Đã quyết toán') return false;
+    if (c.chungTu === 'Không cần chứng từ') return false;
+    const hd = (c.hoaDon || []).length || String(c.linkCu || '').trim();
+    const unc = (c.unc || []).length || String(c.linkUncCu || '').trim();
+    return !hd && !unc;
+  };
+  const canBoSung = m.chi.filter(thieu);
+
+  ok('khoản ĐÃ QUYẾT TOÁN không bao giờ bị đòi thêm chứng từ',
+    !canBoSung.some((c) => String(c.maQuyetToan || '').trim() || c.tinhTrang === 'Đã quyết toán'));
+  ok('khoản đánh dấu "Không cần chứng từ" không bị đòi',
+    !canBoSung.some((c) => c.chungTu === 'Không cần chứng từ'));
+  /* Chỉ cần MỘT bằng chứng: trả tiền mặt thì không bao giờ có UNC, mua chỗ
+   * không xuất hoá đơn thì chỉ có UNC. Đòi đủ cả hai là bịa ra một chuẩn mà
+   * chính kế toán không đặt. */
+  ok('có hoá đơn nhưng không UNC thì KHÔNG bị đòi',
+    !canBoSung.some((c) => (c.hoaDon || []).length || String(c.linkCu || '').trim()));
+  ok('cảnh báo không réo quá 10% sổ (đang ' + canBoSung.length + '/' + m.chi.length + ')',
+    canBoSung.length <= Math.ceil(m.chi.length * 0.1),
+    canBoSung.map((c) => c.noiDung).slice(0, 5).join(' · '));
+
+  ok('server gửi xuống danh sách loại chứng từ',
+    (m.options.chungTu || []).length === 3, JSON.stringify(m.options.chungTu));
+
   nhom('Chốt ghi');
   const r = await fetch(BASE + '/api/chi', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
