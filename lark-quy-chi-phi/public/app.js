@@ -411,7 +411,6 @@ function moKetQuaTourwell(tw, khoan) {
     'Tải <b>hoá đơn + UNC</b> vào ô Tệp đính kèm',
     'Vào <b>Mã điều hành</b> → <b>Nhận điều hành</b> → <b>Đồng ý</b>',
     'Bấm <b>Hoàn thành</b>',
-    'Chép mã <b>SG…</b> dán vào ô <i>Mã điều hành</i> của khoản — kế toán đối chiếu theo mã đó',
   ];
 
   moModal('Đã tạo đơn Tourwell',

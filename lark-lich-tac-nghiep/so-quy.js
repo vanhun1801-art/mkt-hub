@@ -140,9 +140,13 @@ async function ghiKhoanChi(lich, maDon) {
   return { id, dot: dot && dot.ma, tien, ...tep };
 }
 
-/* Chép nhiều nhất từng này tệp mỗi ô. Nhân sự đôi khi tải 5-6 ảnh hoá đơn; chép
- * hết thì nút "Đã thanh toán" treo cả phút. Ba tệp đủ để kế toán đối chiếu. */
-const TOI_DA_TEP = 3;
+/* Chép nhiều nhất từng này tệp mỗi ô.
+ *
+ * Đặt 3 là sai: buổi tác nghiệp ngày 11/09 nhân sự nộp ĐÚNG 4 hoá đơn, và cái
+ * ngưỡng đó lặng lẽ bỏ rơi một tờ — kế toán đối chiếu thiếu mà không ai biết
+ * vì sao. Sáu tệp mất chừng 20 giây, chấp nhận được cho một việc mỗi buổi một
+ * lần. Vượt sáu thì KHÔNG im lặng: nói ra còn mấy tệp chưa chép. */
+const TOI_DA_TEP = 6;
 
 /**
  * Chép hoá đơn và UNC từ bản ghi lịch tác nghiệp sang dòng chi trong sổ quỹ.
@@ -160,10 +164,13 @@ async function chepChungTu(cf, lich, chiId) {
     { tu: lich.unc, sang: 'UNC' },
   ];
   let chep = 0;
+  let boQua = 0;
   const loi = [];
 
   for (const v of viec) {
-    const ds = (v.tu || []).filter((f) => f && f.token).slice(0, TOI_DA_TEP);
+    const tatCa = (v.tu || []).filter((f) => f && f.token);
+    boQua += Math.max(0, tatCa.length - TOI_DA_TEP);
+    const ds = tatCa.slice(0, TOI_DA_TEP);
     for (const f of ds) {
       const ten = 'sq-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
       let thuMuc = null;
@@ -181,7 +188,11 @@ async function chepChungTu(cf, lich, chiId) {
       }
     }
   }
-  return { chep, loiTep: loi.length ? loi.join(' · ') : undefined };
+  return {
+    chep,
+    boQuaTep: boQua || undefined,
+    loiTep: loi.length ? loi.join(' · ') : undefined,
+  };
 }
 
 module.exports = { bat, docCauHinh, ngayBase, dotDangDung, ghiKhoanChi };

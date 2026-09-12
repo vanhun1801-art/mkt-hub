@@ -314,8 +314,8 @@ Cùng cú bấm đó còn ghi một khoản chi sang Base **Chi phí Marketing**
 phụ trách buổi đó** chứ không phải người bấm nút, gắn vào đợt tạm ứng đang dùng.
 Mã ghi vào cột **Sổ quỹ** (`fld7T1Lytr`) — cũng là chốt chống ghi trùng.
 
-Và **chép luôn hoá đơn + UNC** nhân sự đã nộp sang dòng chi bên sổ quỹ (tối đa 3
-tệp mỗi ô). Kế toán mở Base sổ quỹ chứ không mở Base lịch — không chép thì lại
+Và **chép luôn hoá đơn + UNC** nhân sự đã nộp sang dòng chi bên sổ quỹ (tối đa 6
+tệp mỗi ô — buổi 11/09 nhân sự nộp 4 hoá đơn, ngưỡng 3 cũ đã bỏ rơi một tờ). Kế toán mở Base sổ quỹ chứ không mở Base lịch — không chép thì lại
 phải tải xuống rồi tải lên tay, đúng cái việc app sinh ra để bỏ đi.
 
 Hai việc độc lập: Tourwell hỏng thì sổ quỹ vẫn có dòng chi, và ngược lại. Tắt

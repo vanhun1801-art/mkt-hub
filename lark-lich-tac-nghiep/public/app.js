@@ -2532,6 +2532,8 @@ function moKetQuaTourwell(tw, t, sq) {
     return '<div class="tw-xong">✔ Đã ghi vào sổ quỹ' +
       (sq.dot ? ' — đợt <b>' + esc(sq.dot) + '</b>' : '') +
       (sq.chep ? ', kèm <b>' + sq.chep + ' chứng từ</b> nhân sự đã nộp' : '') + '.' +
+      (sq.boQuaTep ? '<br><span class="mini">Còn <b>' + sq.boQuaTep + ' tệp</b> chưa chép (quá 6 tệp mỗi ô) — '
+        + 'kéo nốt trong Base sổ quỹ nếu kế toán cần.</span>' : '') +
       (sq.loiTep ? '<br><span class="mini">Có tệp chưa chép được: ' + esc(sq.loiTep) + '</span>' : '') +
       '</div>';
   };

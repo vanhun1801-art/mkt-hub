@@ -119,6 +119,11 @@ Bấm **Khai khoản chi** giờ làm ba việc: ghi vào sổ · tạo đơn *D
 Tourwell với dòng chi phí Quỹ Marketing (VAT 8% đã gồm) · ghi mã `RT…` ngược vào
 ô **Mã đơn Tourwell** — cũng là chốt chống tạo trùng.
 
+**Mã điều hành `SG…` không lấy được qua API** — đã soi ba đơn *Thành công* thật,
+payload không chứa mã đó lẫn id điều hành ở bất kỳ đâu, và `/api/v1/tours` trả
+rỗng. Anh Hùng chốt 12/09/2026: mã đơn hàng `RT…` là đủ cho kế toán, nên app
+không bắt dán `SG…` nữa; ô *Mã điều hành* vẫn còn đó cho ai muốn ghi.
+
 Đơn dừng ở **"Đang xử lý"**, còn 5 nút phải bấm tay (chuyển thành công · xác
 nhận · đính chứng từ · nhận điều hành · hoàn thành) vì Open API không mở mấy
 bước đó. Cửa sổ kết quả kê thẳng ra, không giấu.
