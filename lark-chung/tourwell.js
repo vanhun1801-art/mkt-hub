@@ -63,6 +63,29 @@ const CAC_TEP = [
 
 /* Đọc lại tệp mỗi lần gọi, không cache: đổi token thì không phải khởi động lại
  * máy chủ. Cùng lối với quyen.json. */
+/**
+ * Chuẩn hoá địa chỉ máy chủ về ĐÚNG phần gốc, bỏ mọi đường dẫn phía sau.
+ *
+ * Cắt tay bằng replace() là chưa đủ: biến trên Render có thể mang cả đường dẫn
+ * (`https://rootytrip.tourwell.net/admin`), và khi đó mọi lời gọi thành
+ * `/admin/api/v1/...` → Tourwell trả 404 "Resource not found". Đúng lỗi đã xảy
+ * ra trên bản web ngày 12/09/2026, trong khi cùng token chạy tốt ở máy vì ở máy
+ * đọc host từ tệp, không qua biến đó.
+ *
+ * Dùng URL() để lấy origin, hỏng thì lùi về cách cắt tay.
+ */
+function chuanHost(v) {
+  let s = String(v == null ? '' : v).trim();
+  if (!s) return 'https://' + MAC_DINH_HOST;
+  if (!/^https?:\/\//i.test(s)) s = 'https://' + s;
+  try {
+    return new URL(s).origin;
+  } catch (_) {
+    return 'https://' + String(v).trim()
+      .replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
+  }
+}
+
 function docCauHinh() {
   let tep = {};
   for (const t of CAC_TEP) {
@@ -71,14 +94,13 @@ function docCauHinh() {
   /* TOURWELL_BASE_URL là cái tên anh Hùng đã đặt sẵn trên Render cho app Ads
    * Manager, và Hub truyền cả process.env xuống app con — nên app này phải
    * nhận đúng cái tên đó, đừng bắt khai thêm một biến nữa cho cùng một máy chủ. */
-  const host = String(process.env.TOURWELL_HOST || process.env.TOURWELL_BASE_URL
-    || tep.host || MAC_DINH_HOST)
-    .trim().replace(/^https?:\/\//, '').replace(/\/+$/, '');
+  const host = chuanHost(process.env.TOURWELL_HOST || process.env.TOURWELL_BASE_URL
+    || tep.host || MAC_DINH_HOST);
   const token = String(process.env.TOURWELL_TOKEN || tep.token || '').trim();
   /* Tắt được bằng tay: "bật" chỉ khi có token VÀ không bị tắt hẳn. Người dùng
    * phải có cách dừng tính năng này mà không cần xoá token. */
   const tat = process.env.TOURWELL_TAT === '1' || tep.tat === true;
-  return { host: 'https://' + host, token, bat: !!token && !tat };
+  return { host, token, bat: !!token && !tat };
 }
 
 const bat = () => docCauHinh().bat;
@@ -149,9 +171,12 @@ async function goi(method, duong, than) {
     }
     if (!r.ok) {
       /* 422 là chuyện hay gặp nhất và luôn kèm lý do cụ thể (thiếu trường, id
-       * không tồn tại). Đưa nguyên văn ra cho người bấm nút đọc, đừng nuốt. */
+       * không tồn tại). Đưa nguyên văn ra cho người bấm nút đọc, đừng nuốt.
+       *
+       * Kèm cả HOST vào câu lỗi: một cái 404 mà không biết gọi vào địa chỉ nào
+       * thì mò rất lâu — đúng chuyện đã xảy ra trên bản web hôm 12/09/2026. */
       const ly = json ? JSON.stringify(json) : text;
-      throw new Error('Tourwell ' + duong + ': HTTP ' + r.status + ' — '
+      throw new Error('Tourwell ' + cf.host + duong + ': HTTP ' + r.status + ' — '
         + String(ly).split(cf.token).join('***').slice(0, 300));
     }
     if (!json) throw new Error('Tourwell trả về thứ không đọc được ở ' + duong);

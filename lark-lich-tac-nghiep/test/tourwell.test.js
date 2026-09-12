@@ -134,6 +134,21 @@ group('Chốt an toàn');
   process.env.TOURWELL_BASE_URL = 'https://abc.tourwell.net/';
   ok('đọc được TOURWELL_BASE_URL của Render, bỏ https:// và / cuối',
     tw.docCauHinh().host === 'https://abc.tourwell.net', tw.docCauHinh().host);
+
+  /* BIẾN CÓ KÈM ĐƯỜNG DẪN — lỗi thật trên bản web ngày 12/09/2026: mọi lời gọi
+   * thành /admin/api/v1/... và Tourwell trả 404 "Resource not found", trong khi
+   * cùng token chạy tốt ở máy vì ở máy host đọc từ tệp. Cắt tay bằng replace()
+   * không bắt được; phải lấy origin. */
+  [
+    ['https://abc.tourwell.net/admin', 'kèm /admin'],
+    ['https://abc.tourwell.net/api/v1', 'kèm /api/v1'],
+    ['abc.tourwell.net/admin/order', 'không có https, kèm đường dẫn'],
+    ['  https://abc.tourwell.net/  ', 'thừa khoảng trắng hai đầu'],
+  ].forEach(([v, mo]) => {
+    process.env.TOURWELL_BASE_URL = v;
+    ok('địa chỉ ' + mo + ' → chỉ lấy phần gốc',
+      tw.docCauHinh().host === 'https://abc.tourwell.net', tw.docCauHinh().host);
+  });
   delete process.env.TOURWELL_BASE_URL;
 
   /* Token còn là chữ mẫu có dấu: fetch sẽ ném "Cannot convert argument to a
