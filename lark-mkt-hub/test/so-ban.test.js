@@ -70,6 +70,20 @@ group('server.js — có thay BUILD bằng số bản thật');
     'không thay thì trình duyệt xin đúng file tên "?v=BUILD", số bản đứng im');
 }
 
+group('Cache-Control — trang chủ không được nằm trong cache');
+{
+  const sv = fs.readFileSync(path.join(GOC, 'server.js'), 'utf8');
+  const than = (sv.match(/function tinh\(res[\s\S]*?\n}/) || [''])[0];
+
+  ok('tinh() có đặt Cache-Control', /Cache-Control/.test(than),
+    'không đặt thì trình duyệt tự quyết — và nó quyết giữ bản cũ');
+  ok('trang chủ là no-store', /no-store/.test(than),
+    'index.html là nơi DUY NHẤT giữ số bản của mọi file khác; giữ lại bản HTML cũ ' +
+    'là xin lại đúng những file cũ, cả cơ chế ?v= thành vô nghĩa');
+  ok('cache lâu chỉ dành cho file có kèm số bản', /coSoBan/.test(than),
+    'cho cache lâu cả file xin trần (icon.svg chẳng hạn) là tự chôn mình');
+}
+
 group('verTinh() — quét cả thư mục, không chép tay danh sách');
 {
   const cfgSrc = fs.readFileSync(path.join(GOC, 'config.js'), 'utf8');

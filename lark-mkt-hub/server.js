@@ -366,7 +366,7 @@ const MIME = {
   '.json': 'application/json; charset=utf-8',
 };
 
-function tinh(res, duongDan) {
+function tinh(res, duongDan, truyVan) {
   const p = duongDan === '/' ? '/index.html' : duongDan;
   const f = path.join(PUBLIC, path.normalize(p).replace(/^([/\\])+/, ''));
   if (!f.startsWith(PUBLIC) || !fs.existsSync(f) || !fs.statSync(f).isFile()) {
@@ -375,10 +375,23 @@ function tinh(res, duongDan) {
   let body = fs.readFileSync(f);
   /* Trang chủ khai mọi file tĩnh với ?v=BUILD — thay bằng số bản thật để đổi bản
    * là trình duyệt nạp lại, không dính bản cũ trong cache. */
-  if (path.basename(f) === 'index.html') {
+  const laTrangChu = path.basename(f) === 'index.html';
+  if (laTrangChu) {
     body = Buffer.from(body.toString('utf8').split('v=BUILD').join('v=' + cfg.verChung), 'utf8');
   }
-  send(res, 200, body, { 'Content-Type': MIME[path.extname(f)] || 'application/octet-stream' });
+  /* Trang chủ KHÔNG được nằm trong cache: nó là nơi duy nhất giữ số bản của mọi
+   * file khác. Trình duyệt giữ lại bản HTML cũ thì nó xin đúng những file cũ, và
+   * cả cơ chế ?v= thành vô nghĩa. Các file kia thì cứ để cache thoải mái — đổi
+   * file là đổi số bản, tức là đổi luôn địa chỉ, nên không bao giờ lấy nhầm bản cũ. */
+  /* Chỉ file được xin KÈM số bản mới cho cache lâu: đổi file là đổi số bản,
+   * tức là đổi luôn địa chỉ, nên không bao giờ lấy nhầm bản cũ. File xin trần
+   * (icon.svg, hay ai đó gõ thẳng /caidat.js) thì không có gì bảo đảm, để cache
+   * là lặp lại đúng chuyện hôm nay. */
+  const coSoBan = /[?&]v=/.test(truyVan || '');
+  send(res, 200, body, {
+    'Content-Type': MIME[path.extname(f)] || 'application/octet-stream',
+    'Cache-Control': !laTrangChu && coSoBan ? 'public, max-age=31536000' : 'no-store',
+  });
 }
 
 /* ---------------- danh sách module ---------------- */
@@ -1432,7 +1445,7 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
-  return tinh(res, p);
+  return tinh(res, p, u.search);
 });
 
 /* ---------------- khởi động ---------------- */
