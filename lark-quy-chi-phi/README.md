@@ -146,9 +146,17 @@ chi phí tự rơi vào đây: loại *Tác nghiệp*, người đề nghị là
 ## Kiểm thử
 
 ```bash
+node test/giao-dien.test.js              # nạp app.js vào DOM giả rồi để nó tự vẽ
 node test/quy.test.js                    # chỉ đọc, cần app đang chạy ở 5182
 node test/tourwell.live.test.js --that   # khai một khoản 10.000đ THẬT rồi tự dọn
 ```
+
+`giao-dien.test.js` sinh ra sau một lỗi thật: tôi chèn hụt hàm `tachDon`, tệp
+vẫn hợp lệ nên `node --check` xanh, và chỉ vỡ khi anh Hùng mở bản web —
+*"Không đọc được sổ quỹ: tachDon is not defined"*, cả màn hình trắng. Phép thử
+nạp `app.js` vào một `document` giả rồi gọi từng hàm vẽ; hàm thiếu hay biến sai
+tên đều ném ReferenceError ngay. Đã kiểm chứng bằng cách đổi tên `tachDon` —
+sáu phép thử đỏ đúng câu lỗi đó.
 
 Hai phép thử đáng giá nhất ở đó không phải "API có trả về không":
 
@@ -157,7 +165,7 @@ Hai phép thử đáng giá nhất ở đó không phải "API có trả về kh
 - **chốt chặn dòng "Chuyển từ kỳ trước"** — nếu ai đó lỡ cộng cả chúng vào, tổng
   đã ứng vọt từ 65 lên 76,2 triệu và bài thử đỏ ngay
 
-Lần chạy gần nhất: **34 pass · 0 fail**.
+Lần chạy gần nhất: **16 + 34 pass · 0 fail**.
 
 ## Cấu trúc
 

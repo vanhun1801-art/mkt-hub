@@ -106,6 +106,19 @@ const cacLanUng = () => S.nap.filter((n) => n.loai !== LAN_CHUYEN_TIEP)
  *     có UNC; mua ở chỗ không xuất hoá đơn thì chỉ có UNC. Đòi đủ cả hai là bịa
  *     ra một chuẩn mà chính kế toán không đặt.
  */
+/**
+ * Ô "Mã đơn Tourwell" lưu "RT16409 · https://…" — tách lại thành mã và link.
+ *
+ * Trả về null khi trống, để chỗ gọi phân biệt được "chưa có đơn" với "có đơn
+ * mà không có link".
+ */
+function tachDon(v) {
+  const s = String(v || '').trim();
+  if (!s) return null;
+  const m = s.match(/(https?:\/\/\S+)/);
+  return { ma: s.split('·')[0].trim() || s, link: m ? m[1] : '' };
+}
+
 function thieuChungTu(c) {
   if (c.tinhTrang === 'Chờ chi') return false;
   if (String(c.maQuyetToan || '').trim()) return false;
