@@ -71,6 +71,7 @@ module.exports = {
       hanNop:      { id: 'fld6Z3hmfp', name: 'Hạn nộp',         type: 'datetime' },
       dungHan:     { id: 'fldVWuX78v', name: 'Đúng hạn',        type: 'select' },
       trePhut:     { id: 'fldSzBHUfy', name: 'Trễ (phút)',      type: 'number' },
+      canHoTro:    { id: 'fld7EQt4lV', name: 'Cần hỗ trợ',      type: 'text' },
       danhGiaAI:   { id: 'fldGz6B366', name: 'Đánh giá AI',     type: 'text' },
       diemAI:      { id: 'fldE7Dj8pp', name: 'Điểm AI',         type: 'number' },
     },
@@ -84,6 +85,12 @@ module.exports = {
       nhom:        { id: 'fldir5ctSP', name: 'Nhóm việc',       type: 'select' },
       phut:        { id: 'fldH0Ow26w', name: 'Số phút',         type: 'number' },
       tienDo:      { id: 'fldRa41V4n', name: 'Tiến độ',         type: 'text' },
+      /* Tiến độ đo bằng SỐ là mặc định (anh Hùng chốt 12/09) — cộng được, so
+       * được, vẽ được. Ô `tienDo` chữ ở trên còn lại vai mô tả thêm. */
+      tienDoPt:    { id: 'fldVwUZluK', name: 'Tiến độ %',       type: 'number' },
+      /* record_id bên Bảng công việc. Rỗng nghĩa là đầu việc này không có trong
+       * tracking — chỉ nhóm "Khác" mới được gõ tay tên việc. */
+      maViec:      { id: 'fldzmmM4X3', name: 'Mã việc tracking', type: 'text' },
       trangThai:   { id: 'fldZiU2VNb', name: 'Trạng thái việc', type: 'select' },
       ghiChu:      { id: 'fldHnljusq', name: 'Ghi chú',         type: 'text' },
     },

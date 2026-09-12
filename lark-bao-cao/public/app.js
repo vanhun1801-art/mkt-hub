@@ -2,10 +2,15 @@
 /**
  * Giao diện app Báo cáo công việc.
  *
- * Nguyên tắc dựng màn: giữ nguyên HÌNH DẠNG cái bảng cả phòng đang gõ trong
- * Excel rồi chụp màn hình — cùng thứ tự cột, cùng cách cộng tổng ở dòng cuối.
- * Không ai phải học lại cách làm; khác biệt duy nhất là dữ liệu chảy vào Base
- * chứ không đóng băng trong một tấm ảnh.
+ * Ba quyết định định hình cả file này:
+ *
+ * 1. Đầu việc CHỌN từ app Tracking, không gõ tay. Anh Hùng: "công việc các bạn
+ *    thực hiện đang cố gắng đưa về ứng dụng tracking… còn tùy chọn nhập tên
+ *    công việc thì chỉ nên là loại công việc khác". Nên ô Công việc là một
+ *    <select> nạp từ /api/viec-cua-toi; chọn "Khác" mới hiện ô gõ.
+ * 2. Tiến độ đo bằng %, mặc định. Thanh trượt + số, không phải ô chữ.
+ * 3. Hai vai tách hẳn: nhân sự có Ngày/Tuần/Tháng/Đã nộp; quản lý có thêm
+ *    Toàn phòng/Cần hỗ trợ/Theo dõi.
  */
 
 const $ = (s, g) => (g || document).querySelector(s);
@@ -15,9 +20,22 @@ const esc = (s) => String(s == null ? '' : s)
 
 let META = null;
 let MAN = 'ngay';
-let MOC = Date.now();          // mốc của kỳ đang mở
-let DU = null;                 // dữ liệu phiếu đang mở
-let BAN = false;               // có thay đổi chưa lưu
+let MOC = Date.now();
+let DU = null;      // phiếu đang mở
+let VIEC = null;    // { chay, ds } — đầu việc từ Tracking
+let BAN = false;    // có thay đổi chưa lưu
+
+const MAN_TOI = [
+  { ma: 'ngay', ten: 'Hôm nay' },
+  { ma: 'tuan', ten: 'Tuần' },
+  { ma: 'thang', ten: 'Tháng' },
+  { ma: 'da-nop', ten: 'Đã nộp' },
+];
+const MAN_QL = [
+  { ma: 'toan-phong', ten: 'Toàn phòng' },
+  { ma: 'can-ho-tro', ten: 'Cần hỗ trợ' },
+  { ma: 'theo-doi', ten: 'Theo dõi' },
+];
 
 /* ---------------- gọi API ---------------- */
 async function goi(duong, opts = {}) {
@@ -59,7 +77,6 @@ const p2 = (n) => String(n).padStart(2, '0');
 const veNgay = (ms) => { const p = phanRa(ms); return p2(p.ngay) + '/' + p2(p.thang) + '/' + p.nam; };
 const veNgayThu = (ms) => TEN_THU[phanRa(ms).thu] + ' ' + veNgay(ms);
 const veLuc = (ms) => { const p = phanRa(ms); return veNgay(ms) + ' ' + p2(p.gio) + ':' + p2(p.phut); };
-/* Cho <input type=date>: phải là ngày theo giờ VN, không phải theo giờ máy. */
 const veISO = (ms) => { const p = phanRa(ms); return p.nam + '-' + p2(p.thang) + '-' + p2(p.ngay); };
 const tuISO = (s) => {
   const [y, m, d] = String(s || '').split('-').map(Number);
@@ -71,34 +88,59 @@ function vePhut(p) {
   const g = Math.floor(n / 60), du = n % 60;
   return du ? g + ' giờ ' + du : g + ' giờ';
 }
+function kyThangNay() {
+  const p = phanRa(Date.now());
+  const tu = Date.UTC(p.nam, p.thang - 1, 1) - VN;
+  const sau = p.thang === 12 ? Date.UTC(p.nam + 1, 0, 1) : Date.UTC(p.nam, p.thang, 1);
+  return { tu, den: sau - VN - 1 };
+}
+function mocTuan(ms) {
+  const d = Math.floor((ms + VN) / NGAY_MS) * NGAY_MS - VN;
+  const lui = (phanRa(d).thu - 6 + 7) % 7;   // tuần bắt đầu Thứ 7 (ISO 6)
+  const tu = d - lui * NGAY_MS;
+  return { tu, den: tu + 7 * NGAY_MS - 1 };
+}
 
 /* ---------------- khởi động ---------------- */
 async function nap() {
   META = await goi('/api/meta');
   $('#phuDe').textContent = META.toi.ten;
-  $('#chipToi').textContent = META.toi.quanLy ? 'Quản lý' : 'Nhân sự';
-  $('#tabTheoDoi').hidden = !META.toi.quanLy;
-  if (META.larkUrl) {
+  const chip = $('#chipToi');
+  chip.classList.toggle('ql', META.toi.quanLy);
+  $('span:last-child', chip).textContent = META.toi.quanLy ? 'Quản lý' : 'Nhân sự';
+
+  veTab('#tabToi', MAN_TOI);
+  if (META.toi.quanLy) {
+    $('#tabQL').hidden = false;
+    veTab('#tabQL', MAN_QL);
+  }
+
+  $('#btnXuat').onclick = xuat;
+  if (META.larkUrl && META.toi.quanLy) {
     const b = $('#btnLark');
     b.hidden = false;
     b.onclick = () => window.open(META.larkUrl, '_blank', 'noopener');
   }
-  $('#btnXuat').onclick = xuat;
-  $$('.tab').forEach((t) => {
-    t.onclick = () => {
-      if (BAN && !confirm('Còn thay đổi chưa lưu. Rời đi?')) return;
-      BAN = false;
-      MAN = t.dataset.man;
-      MOC = Date.now();
-      $$('.tab').forEach((x) => x.classList.toggle('on', x === t));
-      ve();
-    };
-  });
   await ve();
 }
 
-/* Nhắc trước khi đóng tab nếu đang gõ dở — báo cáo gõ 10 phút mà mất thì không
- * ai gõ lại lần hai, họ quay về chụp ảnh Excel. */
+function veTab(o, ds) {
+  const el = $(o);
+  el.innerHTML = ds.map((m) =>
+    '<button class="pill' + (m.ma === MAN ? ' on' : '') + '" data-man="' + m.ma + '">' +
+    esc(m.ten) + '</button>').join('');
+  $$('.pill', el).forEach((b) => {
+    b.onclick = () => {
+      if (BAN && !confirm('Còn thay đổi chưa lưu. Rời đi?')) return;
+      BAN = false;
+      MAN = b.dataset.man;
+      MOC = Date.now();
+      $$('.pill').forEach((x) => x.classList.toggle('on', x.dataset.man === MAN));
+      ve();
+    };
+  });
+}
+
 window.addEventListener('beforeunload', (e) => {
   if (!BAN) return;
   e.preventDefault();
@@ -107,182 +149,267 @@ window.addEventListener('beforeunload', (e) => {
 
 async function ve() {
   const el = $('#man');
-  el.innerHTML = '<p class="phu">Đang tải…</p>';
+  el.innerHTML = '<div class="the"><div class="rong">Đang tải…</div></div>';
   try {
+    if (MAN === 'toan-phong') return await veToanPhong(el);
+    if (MAN === 'can-ho-tro') return await veCanHoTro(el);
     if (MAN === 'theo-doi') return await veTheoDoi(el);
-    if (MAN === 'lich-su') return await veLichSu(el);
-    return await vePhieu(el, MAN);
+    if (MAN === 'da-nop') return await veDaNop(el);
+    return await veManPhieu(el, MAN);
   } catch (e) {
-    el.innerHTML = '<div class="the"><div class="the-than"><b>Không tải được.</b>' +
-      '<p class="phu">' + esc(e.message) + '</p></div></div>';
+    el.innerHTML = '<div class="the"><div class="rong"><b>Không tải được</b>' +
+      esc(e.message) + '</div></div>';
   }
 }
 
-/* ---------------- màn nhập phiếu ---------------- */
+/* ==================================================================
+   MÀN NHẬP PHIẾU (nhân sự)
+   ================================================================== */
 
-async function vePhieu(el, loaiKy) {
+async function veManPhieu(el, loaiKy) {
   DU = await goi('/api/phieu?ky=' + loaiKy + '&moc=' + MOC + '&moi=1');
-  const p = DU.phieu;
-  const daNop = p && p.daNop;
+  if (loaiKy === 'ngay') {
+    VIEC = await goi('/api/viec-cua-toi?moc=' + DU.ky.tu).catch(() => ({ chay: false, ds: [] }));
+  }
 
   el.innerHTML =
-    theDau(loaiKy) +
-    (loaiKy === 'ngay' ? theBangNgay(DU) : theTongHop(DU)) +
-    theNhanDinh(DU, loaiKy) +
-    '<div class="the"><div class="the-than" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">' +
-      '<button class="btn chinh" id="btnNop">' + (daNop ? 'Cập nhật báo cáo' : 'Nộp báo cáo') + '</button>' +
-      '<button class="btn" id="btnNhap">Lưu nháp</button>' +
-      '<span class="phu" id="chuHan">' + esc(cauHan(DU)) + '</span>' +
-    '</div></div>';
+    theKy(loaiKy) +
+    (loaiKy === 'ngay' ? theBang(DU) : theTongHop(DU)) +
+    theVietTay(DU, loaiKy) +
+    '<div id="oNhanDinh"></div>' +
+    theLuu(DU);
 
   gan(loaiKy);
-  tinhLai();
+  if (loaiKy === 'ngay') tinhLai();
+  napNhanDinh(loaiKy);
 }
 
-function theDau(loaiKy) {
+function theKy(loaiKy) {
+  const p = DU.phieu;
   const nhan = loaiKy === 'ngay' ? veNgayThu(DU.ky.tu)
     : loaiKy === 'tuan' ? veNgay(DU.ky.tu) + ' – ' + veNgay(DU.ky.den)
       : 'Tháng ' + p2(phanRa(DU.ky.tu).thang) + '/' + phanRa(DU.ky.tu).nam;
-  const p = DU.phieu;
   const tt = !p ? '<span class="nhan-tt xam">Chưa có</span>'
     : p.daNop
-      ? '<span class="nhan-tt ' + (p.trangThaiHan === 'tre' ? 'vang' : 'xanh') + '">' +
+      ? '<span class="nhan-tt ' + (p.trangThaiHan === 'tre' ? 'cam' : 'xanh') + '">' +
         (p.trangThaiHan === 'tre' ? esc(p.veHan) : 'Đã nộp') + '</span>'
-      : '<span class="nhan-tt vang">Nháp</span>';
-
+      : '<span class="nhan-tt cam">Nháp</span>';
   const buoc = loaiKy === 'ngay' ? NGAY_MS : loaiKy === 'tuan' ? 7 * NGAY_MS : 0;
-  return '<div class="the"><div class="the-dau">' +
+
+  return '<div class="the"><div class="the-dau" data-buoc="' + buoc + '">' +
     '<h2>' + esc(nhan) + '</h2>' + tt +
     '<div class="lon"></div>' +
-    '<button class="btn nho" id="btnLui">‹ Trước</button>' +
+    '<button class="btn nho mo" id="btnLui">‹</button>' +
     (loaiKy === 'ngay'
-      ? '<input class="in" type="date" id="chonNgay" value="' + veISO(DU.ky.tu) + '">'
-      : '') +
-    '<button class="btn nho" id="btnToi" ' + (DU.ky.den >= Date.now() ? 'disabled' : '') + '>Sau ›</button>' +
+      ? '<input class="in" type="date" id="chonNgay" value="' + veISO(DU.ky.tu) + '">' : '') +
+    '<button class="btn nho mo" id="btnToi"' + (DU.ky.den >= Date.now() ? ' disabled' : '') + '>›</button>' +
     '<button class="btn nho" id="btnNay">Hiện tại</button>' +
-    '</div><div class="the-than phu" data-buoc="' + buoc + '">' +
-      (DU.cuaAi && DU.cuaAi.ten ? 'Của <b>' + esc(DU.cuaAi.ten) + '</b> · ' : '') +
-      'Hạn nộp <b>' + esc(veLuc(DU.han)) + '</b>' +
+    '</div>' +
+    '<div class="the-than phu" style="padding:10px 16px">' +
+      'Hạn nộp <b>' + esc(veLuc(DU.han)) + '</b> · ' + esc(cauHan(DU)) +
     '</div></div>';
 }
 
 function cauHan(d) {
   const p = d.phieu;
-  if (p && p.daNop) return 'Đã nộp lúc ' + veLuc(p.nopLuc) + ' — ' + p.veHan + '.';
+  if (p && p.daNop) return 'đã nộp ' + veLuc(p.nopLuc) + ', ' + p.veHan.toLowerCase();
   return Date.now() > d.han
-    ? 'Đã quá hạn. Nộp bây giờ vẫn ghi nhận, nhưng đánh dấu là trễ.'
-    : 'Còn hạn tới ' + veLuc(d.han) + '.';
+    ? 'đã quá hạn — nộp bây giờ vẫn ghi nhận nhưng đánh dấu là trễ'
+    : 'còn hạn';
 }
 
-/* ---- bảng dòng việc (chỉ có ở phiếu NGÀY) ---- */
-function theBangNgay(d) {
+/* ---- bảng đầu việc (phiếu NGÀY) ---- */
+function theBang(d) {
   const dong = d.dong.length ? d.dong : [dongTrong()];
   const ca = (d.phieu && d.phieu.ca) || 'Cả ngày';
+  const canhBao = VIEC && !VIEC.chay
+    ? '<div class="the-than" style="padding:10px 16px;border-bottom:1px solid var(--border)">' +
+      '<span class="nhan-tt cam">Không nối được Bảng công việc</span> ' +
+      '<span class="nho">nên danh sách đầu việc đang trống. Vẫn gõ tay được bằng nhóm "Khác".</span>' +
+      '</div>' : '';
+
   return '<div class="the">' +
     '<div class="the-dau"><h2>Đầu việc trong ngày</h2>' +
+      '<span class="nho">chọn từ Bảng công việc · gõ tay chỉ dành cho nhóm Khác</span>' +
       '<div class="lon"></div>' +
       '<span class="nho">Ca</span>' +
       '<select class="in" id="chonCa">' +
-        META.ca.map((c) => '<option value="' + c.ma + '"' +
-          (c.ten === ca ? ' selected' : '') + '>' + esc(c.ten) +
-          (c.phut ? ' · ' + c.phut + ' phút' : '') + '</option>').join('') +
+        META.ca.map((c) => '<option value="' + c.ma + '"' + (c.ten === ca ? ' selected' : '') +
+          '>' + esc(c.ten) + (c.phut ? ' · ' + c.phut + ' phút' : '') + '</option>').join('') +
       '</select>' +
-      '<input class="in" id="dmTay" type="number" min="0" step="15" placeholder="số phút" ' +
-        'style="width:110px" hidden>' +
-    '</div>' +
-    '<div class="the-than cuon">' +
+      '<input class="in" id="dmTay" type="number" min="0" step="15" placeholder="phút" ' +
+        'style="width:96px" hidden>' +
+    '</div>' + canhBao +
+    '<div class="the-than khit cuon">' +
       '<table class="bang"><thead><tr>' +
-        '<th style="min-width:190px">Công việc</th>' +
-        '<th style="width:140px">Nhóm</th>' +
-        '<th style="width:92px">Số phút</th>' +
-        '<th style="min-width:230px">Tiến độ công việc</th>' +
-        '<th style="width:130px">Trạng thái</th>' +
+        '<th style="min-width:230px">Công việc</th>' +
+        '<th style="width:132px">Nhóm</th>' +
+        '<th style="width:88px">Phút</th>' +
+        '<th style="width:190px">Tiến độ</th>' +
+        '<th style="min-width:180px">Ghi chú tiến độ</th>' +
+        '<th style="width:126px">Trạng thái</th>' +
         '<th class="o-nut"></th>' +
-      '</tr></thead><tbody id="thanBang">' +
-        dong.map(veHang).join('') +
-      '</tbody></table>' +
-      '<div style="display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap">' +
-        '<button class="btn nho" id="btnThem">+ Thêm dòng</button>' +
-        '<div class="lon"></div>' +
-        '<div class="so-hang" id="oTong"></div>' +
-      '</div>' +
+      '</tr></thead><tbody id="thanBang">' + dong.map(veHang).join('') + '</tbody></table>' +
+    '</div>' +
+    '<div class="the-than" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;' +
+      'border-top:1px solid var(--border)">' +
+      '<button class="btn nho" id="btnThem">+ Thêm dòng</button>' +
+      '<div class="lon"></div>' +
+      '<div class="dai-so" id="oTong"></div>' +
     '</div></div>';
 }
 
-const dongTrong = () => ({ congViec: '', nhom: 'Khác', phut: '', tienDo: '', trangThai: 'Hoàn thành', ghiChu: '' });
+const dongTrong = () => ({
+  congViec: '', maViec: '', nhom: 'Khác', phut: '',
+  tienDoPt: 0, tienDo: '', trangThai: 'Đang làm', ghiChu: '',
+});
+
+/**
+ * Menu đầu việc. Mỗi việc bên Tracking là một <option> mang theo mã; mục cuối
+ * là "Khác — tự nhập", và chỉ khi chọn nó ô gõ tay mới hiện ra.
+ *
+ * Việc đang khai mà KHÔNG còn trong danh sách (đã đóng lâu, hoặc bị chuyển cho
+ * người khác) vẫn phải giữ được: thêm một option riêng cho nó, kẻo mở lại phiếu
+ * cũ là mất tên việc.
+ */
+function menuViec(d) {
+  const ds = (VIEC && VIEC.ds) || [];
+  const coTrongDs = d.maViec && ds.some((v) => v.id === d.maViec);
+  const tuNhap = !d.maViec && !!d.congViec;
+  let o = '<option value=""' + (!d.maViec && !d.congViec ? ' selected' : '') + '>— chọn đầu việc —</option>';
+  if (d.maViec && !coTrongDs) {
+    o += '<option value="' + esc(d.maViec) + '" selected>' + esc(d.congViec) + ' (không còn trong danh sách)</option>';
+  }
+  o += ds.map((v) => '<option value="' + esc(v.id) + '" data-nhom="' + esc(v.nhom) + '"' +
+    (v.id === d.maViec ? ' selected' : '') + '>' +
+    (v.dong ? '✓ ' : '') + esc(v.ten) + (v.loai ? ' · ' + esc(v.loai) : '') + '</option>').join('');
+  o += '<option value="__khac"' + (tuNhap ? ' selected' : '') + '>Khác — tự nhập</option>';
+  return o;
+}
 
 function veHang(d) {
+  const tuNhap = !d.maViec && !!d.congViec;
+  const pt = Number(d.tienDoPt) || 0;
   return '<tr>' +
-    '<td data-nhan="Công việc"><input class="v-cv" value="' + esc(d.congViec) + '" placeholder="Tên đầu việc"></td>' +
+    '<td data-nhan="Công việc">' +
+      '<select class="v-viec">' + menuViec(d) + '</select>' +
+      '<input class="v-cv" value="' + esc(tuNhap ? d.congViec : '') +
+        '" placeholder="Tên công việc khác"' + (tuNhap ? '' : ' hidden') + '>' +
+    '</td>' +
     '<td data-nhan="Nhóm"><select class="v-nhom">' +
       META.nhomViec.map((n) => '<option' + (n === d.nhom ? ' selected' : '') + '>' + esc(n) + '</option>').join('') +
     '</select></td>' +
-    '<td data-nhan="Số phút" class="so-o"><input class="v-phut" type="number" min="0" step="5" value="' +
-      esc(d.phut === 0 ? '' : d.phut) + '" placeholder="0"></td>' +
-    '<td data-nhan="Tiến độ"><textarea class="v-td" rows="1" placeholder="Làm tới đâu rồi">' + esc(d.tienDo) + '</textarea></td>' +
+    '<td data-nhan="Phút" class="so-o"><input class="v-phut" type="number" min="0" step="5" value="' +
+      esc(d.phut === 0 || d.phut === '' ? '' : d.phut) + '" placeholder="0"></td>' +
+    '<td data-nhan="Tiến độ"><div class="td-o">' +
+      '<input class="v-pt" type="range" min="0" max="100" step="5" value="' + pt + '">' +
+      '<span class="pt' + (pt >= 100 ? ' du' : '') + '">' + pt + '%</span>' +
+    '</div></td>' +
+    '<td data-nhan="Ghi chú tiến độ"><textarea class="v-td" rows="1" placeholder="vướng ở đâu, làm được gì">' +
+      esc(d.tienDo) + '</textarea></td>' +
     '<td data-nhan="Trạng thái"><select class="v-tt">' +
       META.trangThaiViec.map((n) => '<option' + (n === d.trangThai ? ' selected' : '') + '>' + esc(n) + '</option>').join('') +
     '</select></td>' +
-    '<td class="o-nut"><button class="btn nho v-xoa" title="Xoá dòng">✕</button></td>' +
+    '<td class="o-nut"><button class="btn nho mo v-xoa" title="Xoá dòng">✕</button></td>' +
   '</tr>';
 }
 
-/* ---- phần máy tự cộng (tuần / tháng) ---- */
+/* ---- phần máy cộng (tuần / tháng) ---- */
 function theTongHop(d) {
   const t = d.tongHop;
   if (!t) return '';
-  const thieu = t.ngayThieu.length
-    ? '<p class="phu" style="margin:10px 0 0">Chưa có báo cáo ngày: ' +
-      t.ngayThieu.map((x) => '<span class="nhan-tt do" style="margin-right:4px">' +
-        esc(x.nhan) + '</span>').join('') + '</p>'
-    : '<p class="phu" style="margin:10px 0 0">Đủ báo cáo ngày trong kỳ.</p>';
+  const oSo = (so, nhan, duoi, mau) =>
+    '<div class="o-so ' + (mau || '') + '"><div class="so">' + esc(so) + '</div>' +
+    '<div class="nhan">' + esc(nhan) + '</div>' +
+    (duoi ? '<div class="duoi">' + esc(duoi) + '</div>' : '') + '</div>';
 
-  return '<div class="the">' +
-    '<div class="the-dau"><h2>Máy cộng từ báo cáo ngày</h2>' +
-      '<span class="nho">Anh/chị chỉ cần viết nhận định bên dưới</span></div>' +
+  const mauPt = t.phanTram == null ? '' : t.phanTram >= 100 ? 'xanh' : t.phanTram < 80 ? 'do' : 'cam';
+
+  return '<div class="luoi-so">' +
+      oSo(t.soPhieuNgay, 'phiếu ngày đã nộp', t.ngayThieu.length ? 'thiếu ' + t.ngayThieu.length + ' ngày' : 'đủ trong kỳ',
+        t.ngayThieu.length ? 'do' : '') +
+      oSo(vePhut(t.tongPhut), 'tổng thời lượng') +
+      oSo(t.phanTram == null ? '—' : t.phanTram + '%', 'so với định mức',
+        'định mức ' + vePhut(t.dinhMucPhut), mauPt) +
+      oSo(t.theoNhom.length, 'nhóm việc', t.theoNhom.length ? t.theoNhom[0].ten + ' nhiều nhất' : '') +
+    '</div>' +
+    '<div class="the"><div class="the-dau"><h2>Máy cộng từ báo cáo ngày</h2>' +
+      '<span class="nho">anh/chị chỉ cần viết nhận định bên dưới</span></div>' +
     '<div class="the-than">' +
-      '<div class="so-hang">' +
-        oSo(t.soPhieuNgay, 'phiếu ngày') +
-        oSo(vePhut(t.tongPhut), 'tổng thời lượng') +
-        oSo(t.phanTram == null ? '—' : t.phanTram + '%', 'so với định mức',
-          t.phanTram == null ? '' : (t.phanTram >= 100 ? 'xanh' : t.phanTram < 80 ? 'do' : '')) +
-      '</div>' +
       (t.theoNhom.length
-        ? '<div style="margin-top:14px">' + t.theoNhom.map((n) =>
-          '<div style="display:flex;gap:10px;align-items:center;margin-bottom:6px">' +
-            '<span style="width:130px" class="phu">' + esc(n.ten) + '</span>' +
+        ? t.theoNhom.map((n) =>
+          '<div style="display:flex;gap:10px;align-items:center;margin-bottom:7px">' +
+            '<span style="width:120px" class="phu">' + esc(n.ten) + '</span>' +
             '<div class="thanh" style="flex:1"><i style="width:' +
               Math.round((n.phut / Math.max(1, t.theoNhom[0].phut)) * 100) + '%"></i></div>' +
-            '<span class="nho" style="width:86px;text-align:right">' + esc(vePhut(n.phut)) + '</span>' +
-          '</div>').join('') + '</div>'
+            '<span class="nho" style="width:82px;text-align:right">' + esc(vePhut(n.phut)) + '</span>' +
+          '</div>').join('')
+        : '<p class="phu">Chưa có báo cáo ngày nào trong kỳ.</p>') +
+      (t.ngayThieu.length
+        ? '<p class="phu" style="margin:12px 0 0">Chưa có báo cáo ngày: ' +
+          t.ngayThieu.map((x) => '<span class="nhan-tt do" style="margin-right:4px">' +
+            esc(x.nhan) + '</span>').join('') + '</p>'
         : '') +
-      thieu +
     '</div></div>';
 }
 
-function oSo(so, nhan, mau) {
-  return '<div class="so-o"><div class="so ' + (mau || '') + '">' + esc(so) + '</div>' +
-    '<div class="nhan">' + esc(nhan) + '</div></div>';
-}
-
-function theNhanDinh(d, loaiKy) {
+/* ---- nhận định + kế hoạch + cần hỗ trợ ---- */
+function theVietTay(d, loaiKy) {
   const p = d.phieu || {};
-  return '<div class="the"><div class="the-dau"><h2>Nhận định</h2>' +
-    '<span class="nho">' + (loaiKy === 'ngay'
-      ? 'Không bắt buộc' : 'Phần này máy không viết thay được') + '</span></div>' +
-    '<div class="the-than">' +
+  return '<div class="the"><div class="the-dau"><h2>Anh/chị tự viết</h2>' +
+    '<span class="nho">' + (loaiKy === 'ngay' ? 'không bắt buộc' : 'phần máy không viết thay được') +
+    '</span></div><div class="the-than">' +
       '<label class="phu">Nhận định về kỳ này</label>' +
-      '<textarea class="in" id="txNhanDinh" placeholder="Việc chạy tốt ở đâu, vướng ở đâu, vì sao">' +
+      '<textarea class="in" id="txNhanDinh" placeholder="Chạy tốt ở đâu, vướng ở đâu, vì sao">' +
         esc(p.nhanDinh || '') + '</textarea>' +
-      '<label class="phu" style="display:block;margin-top:12px">Kế hoạch kỳ sau</label>' +
+      '<label class="phu" style="display:block;margin-top:14px">Kế hoạch kỳ sau</label>' +
       '<textarea class="in" id="txKeHoach" placeholder="Kỳ tới tập trung vào gì">' +
         esc(p.keHoach || '') + '</textarea>' +
+      '<label class="phu" style="display:block;margin-top:14px">Cần hỗ trợ gì không?</label>' +
+      '<textarea class="in" id="txHoTro" placeholder="Vướng mắc cần quản lý gỡ — để trống nếu không có">' +
+        esc(p.canHoTro || '') + '</textarea>' +
+      '<div class="nho" style="margin-top:5px">Ô này gom về một chỗ để quản lý xem cả phòng đang vướng gì.</div>' +
     '</div></div>';
 }
+
+function theLuu(d) {
+  const daNop = d.phieu && d.phieu.daNop;
+  return '<div class="the"><div class="the-than" ' +
+    'style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">' +
+    '<button class="btn chinh" id="btnNop">' + (daNop ? 'Cập nhật báo cáo' : 'Nộp báo cáo') + '</button>' +
+    '<button class="btn" id="btnNhap">Lưu nháp</button>' +
+    '</div></div>';
+}
+
+/* ---- nhận định tự động ---- */
+async function napNhanDinh(loaiKy) {
+  const o = $('#oNhanDinh');
+  if (!o || !DU.phieu) return;
+  let d;
+  try { d = await goi('/api/nhan-dinh?ky=' + loaiKy + '&moc=' + DU.ky.tu); } catch (_) { return; }
+  if (!d.co || !d.y.length) return;
+  o.innerHTML = theY('Nhận định tự động', d.y, d.diem);
+}
+
+function theY(tieuDe, y, diem) {
+  return '<div class="the"><div class="the-dau"><h2>' + esc(tieuDe) + '</h2>' +
+    '<span class="nho">máy đọc dữ liệu kỳ này, không phải lời khen chê</span>' +
+    '<div class="lon"></div>' +
+    (diem == null ? '' : '<span class="diem ' + mauDiem(diem) + '">' + diem + '</span>') +
+    '</div><div class="the-than"><div class="y-ds">' +
+    y.map((x) => '<div class="y ' + esc(x.muc) + '"><span class="cham"></span><div>' +
+      '<div class="chu">' + esc(x.chu) + '</div>' +
+      (x.vi ? '<div class="vi">' + esc(x.vi) + '</div>' : '') +
+    '</div></div>').join('') +
+    '</div></div></div>';
+}
+
+const mauDiem = (d) => (d >= 85 ? '' : d >= 60 ? 'cam' : 'do');
 
 /* ---------------- gắn sự kiện ---------------- */
 function gan(loaiKy) {
-  const buoc = Number($('[data-buoc]').dataset.buoc) || 0;
+  const dau = $('[data-buoc]');
+  const buoc = Number(dau && dau.dataset.buoc) || 0;
   $('#btnLui').onclick = () => doiMoc(-1, loaiKy, buoc);
   $('#btnToi').onclick = () => doiMoc(1, loaiKy, buoc);
   $('#btnNay').onclick = () => { MOC = Date.now(); ve(); };
@@ -291,13 +418,14 @@ function gan(loaiKy) {
 
   $('#btnNop').onclick = () => luu(true);
   $('#btnNhap').onclick = () => luu(false);
-
-  ['#txNhanDinh', '#txKeHoach'].forEach((s) => { const e = $(s); if (e) e.oninput = () => { BAN = true; }; });
+  ['#txNhanDinh', '#txKeHoach', '#txHoTro'].forEach((s) => {
+    const e = $(s);
+    if (e) e.oninput = () => { BAN = true; };
+  });
 
   if (loaiKy !== 'ngay') return;
 
-  const ca = $('#chonCa');
-  ca.onchange = () => { BAN = true; hienDmTay(); tinhLai(); };
+  $('#chonCa').onchange = () => { BAN = true; hienDmTay(); tinhLai(); };
   $('#dmTay').oninput = () => { BAN = true; tinhLai(); };
   hienDmTay();
 
@@ -305,35 +433,69 @@ function gan(loaiKy) {
     $('#thanBang').insertAdjacentHTML('beforeend', veHang(dongTrong()));
     ganHang();
     BAN = true;
-    const hang = $('#thanBang').lastElementChild;
-    const o = $('.v-cv', hang);
+    const o = $('#thanBang tr:last-child .v-viec');
     if (o) o.focus();
   };
   ganHang();
 }
 
 function hienDmTay() {
-  const ca = $('#chonCa');
-  const o = $('#dmTay');
+  const ca = $('#chonCa'), o = $('#dmTay');
   if (!ca || !o) return;
   o.hidden = ca.value !== 'khac';
-  if (!o.hidden && !o.value) {
-    o.value = (DU.phieu && DU.phieu.dinhMuc) || '';
-  }
+  if (!o.hidden && !o.value) o.value = (DU.phieu && DU.phieu.dinhMuc) || '';
 }
 
 function ganHang() {
   $$('#thanBang tr').forEach((tr) => {
+    const viec = $('.v-viec', tr);
+    const cv = $('.v-cv', tr);
+    const nhom = $('.v-nhom', tr);
+
+    if (viec) {
+      viec.onchange = () => {
+        BAN = true;
+        const khac = viec.value === '__khac';
+        cv.hidden = !khac;
+        if (khac) {
+          nhom.value = 'Khác';
+          cv.focus();
+        } else {
+          const op = viec.selectedOptions[0];
+          /* Nhóm đoán từ "Loại công việc" bên Tracking. Người sửa lại được —
+           * đoán trượt thì cùng lắm biểu đồ hơi lệch, không mất dữ liệu. */
+          const g = op && op.dataset.nhom;
+          if (g && [...nhom.options].some((x) => x.value === g)) nhom.value = g;
+        }
+        tinhLai();
+      };
+    }
+
+    const pt = $('.v-pt', tr);
+    if (pt) {
+      pt.oninput = () => {
+        BAN = true;
+        const o = $('.pt', tr);
+        o.textContent = pt.value + '%';
+        o.classList.toggle('du', Number(pt.value) >= 100);
+        /* 100% thì trạng thái tự nhảy sang Hoàn thành — không ai kéo hết thanh
+         * rồi còn muốn giữ nhãn "Đang làm". Người vẫn đổi tay lại được. */
+        const tt = $('.v-tt', tr);
+        if (tt && Number(pt.value) >= 100 && tt.value === 'Đang làm') tt.value = 'Hoàn thành';
+      };
+    }
+
     $$('input, select, textarea', tr).forEach((o) => {
-      o.oninput = () => { BAN = true; tinhLai(); };
-      o.onchange = () => { BAN = true; tinhLai(); };
+      const cu = o.oninput;
+      o.oninput = (e) => { if (cu) cu(e); BAN = true; tinhLai(); };
+      const cuC = o.onchange;
+      o.onchange = (e) => { if (cuC) cuC(e); BAN = true; tinhLai(); };
     });
+
     const x = $('.v-xoa', tr);
     if (x) {
       x.onclick = () => {
         if ($$('#thanBang tr').length === 1) {
-          /* Xoá dòng cuối cùng thì để lại một dòng trống, đừng để bảng rỗng
-           * không có chỗ gõ — người dùng sẽ tưởng app hỏng. */
           tr.replaceWith(...htmlRa(veHang(dongTrong())));
           ganHang();
         } else tr.remove();
@@ -351,13 +513,22 @@ const htmlRa = (h) => {
 };
 
 function docBang() {
-  return $$('#thanBang tr').map((tr) => ({
-    congViec: ($('.v-cv', tr) || {}).value || '',
-    nhom: ($('.v-nhom', tr) || {}).value || 'Khác',
-    phut: Number(($('.v-phut', tr) || {}).value || 0) || 0,
-    tienDo: ($('.v-td', tr) || {}).value || '',
-    trangThai: ($('.v-tt', tr) || {}).value || 'Hoàn thành',
-  })).filter((d) => d.congViec.trim() || d.phut > 0);
+  return $$('#thanBang tr').map((tr) => {
+    const viec = $('.v-viec', tr);
+    const khac = !viec || viec.value === '__khac' || !viec.value;
+    const op = viec && viec.selectedOptions[0];
+    return {
+      maViec: khac ? '' : viec.value,
+      congViec: khac
+        ? (($('.v-cv', tr) || {}).value || '').trim()
+        : (op ? op.textContent.replace(/^✓ /, '').split(' · ')[0] : ''),
+      nhom: ($('.v-nhom', tr) || {}).value || 'Khác',
+      phut: Number(($('.v-phut', tr) || {}).value || 0) || 0,
+      tienDoPt: Number(($('.v-pt', tr) || {}).value || 0) || 0,
+      tienDo: ($('.v-td', tr) || {}).value || '',
+      trangThai: ($('.v-tt', tr) || {}).value || 'Đang làm',
+    };
+  }).filter((d) => d.congViec.trim() || d.phut > 0);
 }
 
 function dinhMucHienTai() {
@@ -368,8 +539,10 @@ function dinhMucHienTai() {
   return (c && c.phut) || 0;
 }
 
-/** Cộng tổng ngay khi đang gõ — cùng công thức máy chủ dùng, để con số trên
- *  màn hình và con số ghi vào Base không bao giờ nói khác nhau. */
+/**
+ * Dải số dưới bảng. Anh Hùng: "chỗ thống kê các thông tin sau điền làm nhỏ lại"
+ * — nên đây là mấy con chip một dòng, không phải khối số 27px như đầu trang.
+ */
 function tinhLai() {
   const o = $('#oTong');
   if (!o) return;
@@ -377,23 +550,24 @@ function tinhLai() {
   const tong = dong.reduce((s, d) => s + d.phut, 0);
   const dm = dinhMucHienTai();
   const pt = dm > 0 ? Math.round((tong / dm) * 100) : null;
+  const xong = dong.filter((d) => d.trangThai === 'Hoàn thành').length;
+  const m = (nhan, gt, mau) => '<span class="m ' + (mau || '') + '">' +
+    esc(nhan) + ' <b>' + esc(gt) + '</b></span>';
+
   o.innerHTML =
-    oSo(dong.length, 'đầu việc') +
-    oSo(vePhut(tong), 'tổng') +
-    oSo(pt == null ? '—' : pt + '%', 'so với định mức',
-      pt == null ? '' : (pt >= 100 ? 'xanh' : pt < 80 ? 'do' : '')) +
-    (dm > 0 && tong < dm
-      ? '<div class="so-o"><div class="so">' + esc(vePhut(dm - tong)) + '</div>' +
-        '<div class="nhan">chưa khai vào đâu</div></div>'
-      : '');
+    m('Đầu việc', dong.length) +
+    m('Hoàn thành', xong + '/' + dong.length, xong === dong.length && dong.length ? 'xanh' : '') +
+    m('Tổng', vePhut(tong)) +
+    m('Định mức', pt == null ? '—' : pt + '%',
+      pt == null ? '' : pt >= 100 ? 'xanh' : pt < 80 ? 'cam' : '') +
+    (dm > 0 && tong < dm ? m('Chưa khai', vePhut(dm - tong), 'cam') : '');
 }
 
 function doiMoc(huong, loaiKy, buoc) {
   if (loaiKy === 'thang') {
     const p = phanRa(MOC);
     const th = p.thang + huong;
-    MOC = Date.UTC(p.nam + (th > 12 ? 1 : th < 1 ? -1 : 0),
-      ((th - 1 + 12) % 12), 1) - VN + 3600000;
+    MOC = Date.UTC(p.nam + (th > 12 ? 1 : th < 1 ? -1 : 0), (th - 1 + 12) % 12, 1) - VN + 3600000;
   } else {
     MOC = DU.ky.tu + huong * buoc + 3600000;
   }
@@ -408,14 +582,13 @@ async function luu(nop) {
     nop,
     nhanDinh: ($('#txNhanDinh') || {}).value || '',
     keHoach: ($('#txKeHoach') || {}).value || '',
+    canHoTro: ($('#txHoTro') || {}).value || '',
   };
   if (MAN === 'ngay') {
     than.dong = docBang();
     than.ca = ($('#chonCa') || {}).value || 'ngay';
     than.dinhMucTay = Number(($('#dmTay') || {}).value || 0) || 0;
-    if (nop && !than.dong.length) {
-      return toast('Chưa có đầu việc nào để nộp.', 'do');
-    }
+    if (nop && !than.dong.length) return toast('Chưa có đầu việc nào để nộp.', 'do');
   }
 
   const nut = [$('#btnNop'), $('#btnNhap')].filter(Boolean);
@@ -423,8 +596,8 @@ async function luu(nop) {
   try {
     const r = await goi('/api/phieu', { method: 'POST', body: JSON.stringify(than) });
     BAN = false;
-    toast(nop ? 'Đã nộp — ' + r.veHan : 'Đã lưu nháp', nop && r.cham &&
-      r.cham.trangThai === 'tre' ? '' : 'xanh');
+    toast(nop ? 'Đã nộp — ' + r.veHan : 'Đã lưu nháp',
+      nop && r.cham && r.cham.trangThai === 'tre' ? '' : 'xanh');
     await ve();
   } catch (e) {
     toast(e.message, 'do');
@@ -433,26 +606,32 @@ async function luu(nop) {
   }
 }
 
-/* ---------------- màn đã nộp ---------------- */
-async function veLichSu(el) {
-  const thang = kyThangHienTai();
-  const d = await goi('/api/danh-sach?tu=' + thang.tu + '&den=' + thang.den + '&moi=1');
-  el.innerHTML = '<div class="the"><div class="the-dau"><h2>Đã nộp trong tháng này</h2>' +
+/* ==================================================================
+   MÀN ĐÃ NỘP (nhân sự)
+   ================================================================== */
+async function veDaNop(el) {
+  const t = kyThangNay();
+  const d = await goi('/api/danh-sach?tu=' + t.tu + '&den=' + t.den + '&moi=1');
+  el.innerHTML = '<div class="the"><div class="the-dau"><h2>Báo cáo đã nộp</h2>' +
     '<span class="nho">' + veNgay(d.tu) + ' – ' + veNgay(d.den) + '</span></div>' +
-    '<div class="the-than cuon">' + (d.ds.length
-      ? '<table class="bang-xem"><thead><tr><th>Kỳ</th><th>Loại</th><th class="so-o">Thời lượng</th>' +
-        '<th class="so-o">%</th><th>Nộp lúc</th><th>Hạn</th></tr></thead><tbody>' +
+    '<div class="the-than khit cuon">' + (d.ds.length
+      ? '<table class="bang-xem"><thead><tr><th>Kỳ</th><th>Loại</th>' +
+        '<th class="so-o">Thời lượng</th><th class="so-o">Định mức</th>' +
+        '<th>Nộp lúc</th><th>Hạn</th></tr></thead><tbody>' +
         d.ds.map((p) => '<tr>' +
           '<td>' + esc(p.nhan) + '</td>' +
-          '<td>' + esc(p.loaiKy === 'ngay' ? 'Ngày' : p.loaiKy === 'tuan' ? 'Tuần' : 'Tháng') + '</td>' +
+          '<td><span class="nhan-tt xam">' +
+            esc(p.loaiKy === 'ngay' ? 'Ngày' : p.loaiKy === 'tuan' ? 'Tuần' : 'Tháng') + '</span></td>' +
           '<td class="so-o">' + esc(p.tongGio) + '</td>' +
           '<td class="so-o">' + (p.phanTram == null ? '—' : p.phanTram + '%') + '</td>' +
-          '<td>' + (p.daNop ? esc(veLuc(p.nopLuc)) : '<span class="nhan-tt vang">Nháp</span>') + '</td>' +
+          '<td>' + (p.daNop ? esc(veLuc(p.nopLuc)) : '<span class="nhan-tt cam">Nháp</span>') + '</td>' +
           '<td>' + nhanHan(p) + '</td>' +
         '</tr>').join('') + '</tbody></table>'
-      : '<p class="phu">Chưa có phiếu nào trong tháng này.</p>') +
+      : rong('Chưa có phiếu nào', 'Tháng này anh/chị chưa nộp báo cáo nào.')) +
     '</div></div>';
 }
+
+const rong = (a, b) => '<div class="rong"><b>' + esc(a) + '</b>' + esc(b || '') + '</div>';
 
 function nhanHan(p) {
   if (!p.daNop) return '<span class="nhan-tt xam">chưa nộp</span>';
@@ -460,53 +639,112 @@ function nhanHan(p) {
   return '<span class="nhan-tt xanh">đúng hạn</span>';
 }
 
-function kyThangHienTai() {
-  const p = phanRa(Date.now());
-  const tu = Date.UTC(p.nam, p.thang - 1, 1) - VN;
-  const sau = p.thang === 12 ? Date.UTC(p.nam + 1, 0, 1) : Date.UTC(p.nam, p.thang, 1);
-  return { tu, den: sau - VN - 1 };
+/* ==================================================================
+   MÀN QUẢN LÝ
+   ================================================================== */
+
+async function veToanPhong(el) {
+  const d = await goi('/api/toan-phong?ky=tuan&moc=' + MOC + '&moi=1');
+  const co = d.nguoi.length;
+  const yeu = d.nguoi.filter((n) => n.diem < 60).length;
+  const thieu = d.nguoi.reduce((s, n) => s + n.soThieu, 0);
+  const oSo = (so, nhan, duoi, mau) =>
+    '<div class="o-so ' + (mau || '') + '"><div class="so">' + esc(so) + '</div>' +
+    '<div class="nhan">' + esc(nhan) + '</div>' +
+    (duoi ? '<div class="duoi">' + esc(duoi) + '</div>' : '') + '</div>';
+
+  el.innerHTML =
+    '<div class="luoi-so">' +
+      oSo(co, 'người có báo cáo', d.nhan) +
+      oSo(yeu, 'người cần nhìn kỹ', 'điểm dưới 60', yeu ? 'do' : 'xanh') +
+      oSo(thieu, 'lượt ngày thiếu', 'trong kỳ', thieu ? 'cam' : 'xanh') +
+      oSo(vePhut(d.nguoi.reduce((s, n) => s + n.tongPhut, 0)), 'tổng thời lượng cả phòng') +
+    '</div>' +
+    '<div class="the"><div class="the-dau"><h2>Đánh giá toàn phòng</h2>' +
+      '<span class="nho">' + esc(d.nhan) + ' · bấm một dòng để mở đầy đủ</span>' +
+      '<div class="lon"></div>' +
+      '<button class="btn nho mo" id="btnLui">‹</button>' +
+      '<button class="btn nho mo" id="btnToi"' + (d.ky.den >= Date.now() ? ' disabled' : '') + '>›</button>' +
+      '</div><div class="the-than khit cuon">' + (co
+      ? '<table class="bang-xem"><thead><tr><th style="width:52px">Điểm</th><th>Người</th>' +
+        '<th class="so-o">Phiếu</th><th class="so-o">Thời lượng</th><th class="so-o">Định mức</th>' +
+        '<th>Đáng chú ý nhất</th></tr></thead><tbody>' +
+        d.nguoi.map((n, i) => '<tr class="mo-duoc" data-i="' + i + '">' +
+          '<td><span class="diem ' + mauDiem(n.diem) + '">' + n.diem + '</span></td>' +
+          '<td><b>' + esc(n.ten) + '</b>' +
+            (n.soThieu ? ' <span class="nhan-tt do">thiếu ' + n.soThieu + ' ngày</span>' : '') + '</td>' +
+          '<td class="so-o">' + n.soPhieu + '</td>' +
+          '<td class="so-o">' + esc(n.tongGio) + '</td>' +
+          '<td class="so-o">' + (n.phanTram == null ? '—' : n.phanTram + '%') + '</td>' +
+          '<td class="phu">' + esc(n.motCau) + '</td>' +
+        '</tr>').join('') + '</tbody></table>'
+      : rong('Chưa có báo cáo nào trong kỳ này',
+        'Khi nhân sự bắt đầu nộp, bảng này tự có người.')) +
+    '</div></div><div id="oChiTiet"></div>';
+
+  const buoc = 7 * NGAY_MS;
+  $('#btnLui').onclick = () => { MOC = d.ky.tu - buoc + 3600000; ve(); };
+  $('#btnToi').onclick = () => { MOC = d.ky.tu + buoc + 3600000; ve(); };
+  $$('tr.mo-duoc').forEach((tr) => {
+    tr.onclick = () => {
+      const n = d.nguoi[Number(tr.dataset.i)];
+      $('#oChiTiet').innerHTML = theY(n.ten + ' — ' + d.nhan, n.y, n.diem);
+      $('#oChiTiet').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    };
+  });
 }
 
-/* ---------------- màn theo dõi (quản lý) ---------------- */
+async function veCanHoTro(el) {
+  const t = mocTuan(Date.now());
+  /* Nhìn rộng hơn một tuần: vướng mắc nêu tuần trước mà chưa gỡ thì vẫn là
+   * vướng mắc, biến mất khỏi màn hình không làm nó tự hết. */
+  const tu = t.tu - 21 * NGAY_MS;
+  const d = await goi('/api/can-ho-tro?tu=' + tu + '&den=' + Date.now() + '&moi=1');
+  el.innerHTML = '<div class="the"><div class="the-dau"><h2>Vướng mắc cả phòng đang nêu</h2>' +
+    '<span class="nho">bốn tuần gần đây · ' + d.ds.length + ' mục</span></div>' +
+    '<div class="the-than">' + (d.ds.length
+      ? '<div class="y-ds">' + d.ds.map((x) =>
+        '<div class="y canh"><span class="cham"></span><div>' +
+          '<div class="chu">' + esc(x.ten) + ' — ' + esc(x.nhan) +
+            ' <span class="nhan-tt xam">' + esc(x.loaiKy) + '</span></div>' +
+          '<div class="vi">' + esc(x.noi) + '</div>' +
+        '</div></div>').join('') + '</div>'
+      : rong('Không ai nêu vướng mắc',
+        'Ô "Cần hỗ trợ" trong phiếu báo cáo đang trống ở mọi người.')) +
+    '</div></div>';
+}
+
 async function veTheoDoi(el) {
-  const tuan = mocTuan(Date.now());
-  const d = await goi('/api/theo-doi?tu=' + tuan.tu + '&den=' + tuan.den + '&moi=1');
+  const t = mocTuan(Date.now());
+  const d = await goi('/api/theo-doi?tu=' + t.tu + '&den=' + t.den + '&moi=1');
   el.innerHTML = '<div class="the"><div class="the-dau"><h2>Ai đã nộp, ai chưa</h2>' +
-    '<span class="nho">' + veNgay(d.tu) + ' – ' + veNgay(d.den) +
-    ' · ' + d.soNgayCong + ' ngày công</span></div>' +
-    '<div class="the-than cuon">' + (d.nguoi.length
+    '<span class="nho">' + veNgay(d.tu) + ' – ' + veNgay(d.den) + ' · ' +
+    d.soNgayCong + ' ngày công</span></div>' +
+    '<div class="the-than khit cuon">' + (d.nguoi.length
       ? '<table class="bang-xem"><thead><tr><th>Người</th><th class="so-o">Đã nộp</th>' +
         '<th class="so-o">Trễ</th><th class="so-o">Tổng</th><th>Ngày còn thiếu</th></tr></thead><tbody>' +
         d.nguoi.map((n) => '<tr>' +
           '<td><b>' + esc(n.ten) + '</b></td>' +
           '<td class="so-o">' + n.soNgayDaNop + '/' + d.soNgayCong + '</td>' +
-          '<td class="so-o">' + (n.soTre ? '<span class="nhan-tt vang">' + n.soTre + '</span>' : '0') + '</td>' +
+          '<td class="so-o">' + (n.soTre ? '<span class="nhan-tt cam">' + n.soTre + '</span>' : '0') + '</td>' +
           '<td class="so-o">' + esc(vePhut(n.tongPhut)) + '</td>' +
           '<td>' + (n.thieu.length
             ? n.thieu.map((x) => '<span class="nhan-tt do" style="margin-right:4px">' +
               esc(x.nhan) + '</span>').join('')
             : '<span class="nhan-tt xanh">đủ</span>') + '</td>' +
         '</tr>').join('') + '</tbody></table>'
-      : '<p class="phu">Chưa ai nộp phiếu nào trong tuần này.</p>') +
+      : rong('Chưa ai nộp phiếu nào trong tuần này')) +
     '</div></div>';
-}
-
-/** Tuần Thứ 7 → Thứ 6, đúng như bộ luật phía máy chủ. */
-function mocTuan(ms) {
-  const d = Math.floor((ms + VN) / NGAY_MS) * NGAY_MS - VN;
-  const lui = (phanRa(d).thu - 6 + 7) % 7;
-  const tu = d - lui * NGAY_MS;
-  return { tu, den: tu + 7 * NGAY_MS - 1 };
 }
 
 /* ---------------- xuất ---------------- */
 function xuat() {
-  const t = kyThangHienTai();
+  const t = kyThangNay();
   const caPhong = META.toi.quanLy ? '&ca-phong=1' : '';
   window.location.href = '/api/xuat?tu=' + t.tu + '&den=' + t.den + caPhong;
 }
 
 nap().catch((e) => {
-  $('#man').innerHTML = '<div class="the"><div class="the-than"><b>Không khởi động được.</b>' +
-    '<p class="phu">' + esc(e.message) + '</p></div></div>';
+  $('#man').innerHTML = '<div class="the"><div class="rong"><b>Không khởi động được</b>' +
+    esc(e.message) + '</div></div>';
 });

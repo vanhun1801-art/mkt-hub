@@ -9,20 +9,24 @@
 <body>
 
 <header class="topbar">
-  <div class="brand">Báo cáo công việc <span id="phuDe">đang tải…</span></div>
-  <div class="lon"></div>
-  <span class="chip" id="chipToi">…</span>
-  <button class="btn nho" id="btnLark" hidden>Mở Base</button>
-  <button class="btn nho" id="btnXuat">Xuất CSV</button>
-</header>
+  <div class="brand">
+    <div class="dau">BC</div>
+    <div>
+      <b>Báo cáo công việc</b>
+      <small id="phuDe">đang tải…</small>
+    </div>
+  </div>
 
-<nav class="tabs">
-  <button class="tab on" data-man="ngay">Hôm nay</button>
-  <button class="tab" data-man="tuan">Tuần</button>
-  <button class="tab" data-man="thang">Tháng</button>
-  <button class="tab" data-man="lich-su">Đã nộp</button>
-  <button class="tab" data-man="theo-doi" id="tabTheoDoi" hidden>Theo dõi</button>
-</nav>
+  <!-- Hai bộ tab tách hẳn nhau: nhân sự làm việc của mình, quản lý nhìn cả
+       phòng. Gộp một hàng thì nhân sự phải lướt qua mấy mục không bấm được. -->
+  <div class="pills" id="tabToi"></div>
+  <div class="pills" id="tabQL" hidden></div>
+
+  <div class="lon"></div>
+  <span class="chip" id="chipToi"><span class="cham"></span><span>…</span></span>
+  <button class="btn nho" id="btnXuat">Xuất CSV</button>
+  <button class="btn nho" id="btnLark" hidden>Mở Base</button>
+</header>
 
 <main id="man">Đang tải…</main>
 

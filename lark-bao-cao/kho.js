@@ -173,7 +173,7 @@ function oNguoi(map, nguoi) {
  * `nop=false` là lưu nháp — vẫn ghi xuống Base để người ta đóng máy giữa chừng
  * không mất, nhưng không đóng dấu giờ nộp và không chấm hạn.
  */
-async function luuNgay({ nguoi, ngayMs, ca, dinhMucTay, dong, nhanDinh, keHoach, nop }) {
+async function luuNgay({ nguoi, ngayMs, ca, dinhMucTay, dong, nhanDinh, keHoach, canHoTro, nop }) {
   const k = K.kyNgay(ngayMs);
   const ma = maPhieu('ngay', k.tu, nguoi.id);
   const dm = K.dinhMuc(ca, dinhMucTay);
@@ -183,7 +183,14 @@ async function luuNgay({ nguoi, ngayMs, ca, dinhMucTay, dong, nhanDinh, keHoach,
       congViec: String(d.congViec || '').trim(),
       nhom: C.nhomViec.includes(d.nhom) ? d.nhom : 'Khác',
       phut: Math.max(0, Math.round(asSo(d.phut))),
+      /* Tiến độ mặc định đo bằng %. Kẹp về 0–100 tại đây chứ không tin giao
+       * diện: ô number cho gõ 500 hay -3 thoải mái, mà một dòng 500% làm hỏng
+       * mọi phép trung bình phía sau. */
+      tienDoPt: Math.max(0, Math.min(100, Math.round(asSo(d.tienDoPt)))),
       tienDo: String(d.tienDo || '').trim(),
+      /* Rỗng = việc gõ tay, và chỉ nhóm "Khác" mới được gõ tay. Giữ mã lại là
+       * sau này ghép báo cáo với Bảng công việc không phải khớp theo tên. */
+      maViec: String(d.maViec || '').trim(),
       trangThai: C.trangThaiViec.includes(d.trangThai) ? d.trangThai : 'Hoàn thành',
       ghiChu: String(d.ghiChu || '').trim(),
     }));
@@ -204,6 +211,7 @@ async function luuNgay({ nguoi, ngayMs, ca, dinhMucTay, dong, nhanDinh, keHoach,
     [F.phieu.phanTram.id]: g.phanTram == null ? undefined : g.phanTram,
     [F.phieu.nhanDinh.id]: nhanDinh,
     [F.phieu.keHoach.id]: keHoach,
+    [F.phieu.canHoTro.id]: canHoTro,
     [F.phieu.trangThai.id]: nop ? C.trangThaiPhieu.daNop : C.trangThaiPhieu.nhap,
     [F.phieu.hanNop.id]: K.hanNop(k),
     ...(nop ? {
@@ -249,6 +257,10 @@ async function ghiDong(ma, ngayMs, nguoi, sach) {
     [F.dong.congViec.id]: d.congViec,
     [F.dong.nhom.id]: d.nhom,
     [F.dong.phut.id]: d.phut,
+    /* 0 là giá trị THẬT của tiến độ (chưa bắt đầu), không phải "bỏ trống" — nên
+     * không để locO() cắt mất nó. */
+    [F.dong.tienDoPt.id]: d.tienDoPt === 0 ? 0 : d.tienDoPt,
+    [F.dong.maViec.id]: d.maViec,
     [F.dong.tienDo.id]: d.tienDo,
     [F.dong.trangThai.id]: d.trangThai,
     [F.dong.ghiChu.id]: d.ghiChu,
@@ -295,7 +307,7 @@ async function tongHop(loaiKy, mocMs, nguoi, force) {
 }
 
 /** Lưu phiếu TUẦN hoặc THÁNG: số do máy cộng, chữ do người viết. */
-async function luuTongHop({ nguoi, loaiKy, mocMs, nhanDinh, keHoach, nop }) {
+async function luuTongHop({ nguoi, loaiKy, mocMs, nhanDinh, keHoach, canHoTro, nop }) {
   if (loaiKy !== 'tuan' && loaiKy !== 'thang') throw new Error('Chỉ tuần hoặc tháng');
   const t = await tongHop(loaiKy, mocMs, nguoi, true);
   const k = t.ky;
@@ -314,6 +326,7 @@ async function luuTongHop({ nguoi, loaiKy, mocMs, nhanDinh, keHoach, nop }) {
     [F.phieu.phanTram.id]: t.phanTram == null ? undefined : t.phanTram,
     [F.phieu.nhanDinh.id]: nhanDinh,
     [F.phieu.keHoach.id]: keHoach,
+    [F.phieu.canHoTro.id]: canHoTro,
     [F.phieu.trangThai.id]: nop ? C.trangThaiPhieu.daNop : C.trangThaiPhieu.nhap,
     [F.phieu.hanNop.id]: K.hanNop(k),
     ...(nop ? {

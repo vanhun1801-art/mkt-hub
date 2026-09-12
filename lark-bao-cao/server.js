@@ -15,6 +15,8 @@ const path = require('path');
 const cfg = require('./config');
 const K = require('./ky');
 const kho = require('./kho');
+const ND = require('./nhan-dinh');
+const VT = require('./viec-tracking');
 const lark = cfg.mode === 'api' ? require('./larkapi') : require('./lark');
 
 const BIND = process.env.BIND || '127.0.0.1';
@@ -185,6 +187,7 @@ function vePhieu(p) {
     phanTram: p.phanTram,
     nhanDinh: p.nhanDinh,
     keHoach: p.keHoach,
+    canHoTro: p.canHoTro,
     daNop,
     nopLuc: p.nopLuc || 0,
     hanNop: p.hanNop || K.hanNop(k),
@@ -196,6 +199,39 @@ function vePhieu(p) {
         : cham.trangThai === 'thieu' ? 'Chưa nộp, đã quá hạn' : 'Chưa tới hạn',
     danhGiaAI: p.danhGiaAI,
     diemAI: p.diemAI,
+  };
+}
+
+/** Gom dòng việc theo ngày — đầu vào của ND.timDungYen(). */
+function nhomTheoNgay(dong) {
+  const m = new Map();
+  for (const d of dong) {
+    const n = K.dauNgay(d.ngay);
+    if (!m.has(n)) m.set(n, []);
+    m.get(n).push(d);
+  }
+  return m;
+}
+
+/**
+ * Bối cảnh để nhận định: những thứ chỉ thấy được khi nhìn rộng hơn một phiếu.
+ * Với kỳ ngày thì nhìn lại 14 ngày, đủ để phát hiện đầu việc đứng yên mà không
+ * phải đọc cả tháng.
+ */
+async function boiCanhCho(loai, k, ai, phieu) {
+  const tu = loai === 'ngay' ? k.tu - 14 * K.NGAY : k.tu;
+  const den = k.den;
+  const dongRong = await kho.dsDong({ nguoi: ai, tu, den });
+  const dongKy = dongRong.filter((d) => d.ngay >= k.tu && d.ngay <= k.den);
+  const daNop = (await kho.dsPhieu({ loaiKy: 'ngay', nguoi: ai, tu: k.tu, den: k.den }))
+    .filter((x) => x.trangThai === cfg.chon.trangThaiPhieu.daNop)
+    .map((x) => x.tuNgay);
+  return {
+    dongKy,
+    dungYen: ND.timDungYen(nhomTheoNgay(dongRong)),
+    /* Kỳ ngày không có khái niệm "ngày thiếu" — chính nó là một ngày. */
+    ngayThieu: loai === 'ngay' ? []
+      : K.ngayThieu(k.tu, Math.min(k.den, Date.now()), daNop),
   };
 }
 
@@ -252,6 +288,7 @@ async function api(req, res, u) {
       phieu: vePhieu(d.phieu),
       dong: d.dong.map((x) => ({
         congViec: x.congViec, nhom: x.nhom, phut: x.phut,
+        tienDoPt: x.tienDoPt, maViec: x.maViec,
         tienDo: x.tienDo, trangThai: x.trangThai, ghiChu: x.ghiChu,
       })),
     };
@@ -296,11 +333,12 @@ async function api(req, res, u) {
       const r = loai === 'ngay'
         ? await kho.luuNgay({
           nguoi: toi, ngayMs: mocB, ca: b.ca || 'ngay', dinhMucTay: b.dinhMucTay,
-          dong: b.dong || [], nhanDinh: b.nhanDinh, keHoach: b.keHoach, nop,
+          dong: b.dong || [], nhanDinh: b.nhanDinh, keHoach: b.keHoach,
+          canHoTro: b.canHoTro, nop,
         })
         : await kho.luuTongHop({
           nguoi: toi, loaiKy: loai, mocMs: mocB,
-          nhanDinh: b.nhanDinh, keHoach: b.keHoach, nop,
+          nhanDinh: b.nhanDinh, keHoach: b.keHoach, canHoTro: b.canHoTro, nop,
         });
       return json(res, {
         ok: true,
@@ -368,6 +406,110 @@ async function api(req, res, u) {
     return json(res, {
       tu, den, soNgayCong: K.ngayThieu(tu, denThat, []).length, nguoi,
     });
+  }
+
+  /**
+   * Đầu việc đang giao cho người này bên app Bảng công việc.
+   *
+   * Trả về cả `chay: false` khi Tracking không trả lời, để màn nhập nói thật
+   * ("không nối được Tracking") thay vì hiện một menu rỗng — menu rỗng thì
+   * người dùng tưởng mình không có việc nào.
+   */
+  if (p === '/api/viec-cua-toi' && m === 'GET') {
+    const ai = nguoiXem(toi, q);
+    try {
+      const ds = await VT.vieCuaNguoi(ai, moc(), q.get('moi') === '1');
+      return json(res, {
+        chay: true,
+        ds: ds.map((v) => Object.assign({}, v, { nhom: VT.doanNhom(v.loai, v.ten) })),
+      });
+    } catch (e) {
+      return json(res, { chay: false, ly: e.message, ds: [] });
+    }
+  }
+
+  /** Nhận định cho một phiếu — của tôi, hoặc của người khác nếu là quản lý. */
+  if (p === '/api/nhan-dinh' && m === 'GET') {
+    const ai = nguoiXem(toi, q);
+    const loai = loaiKy();
+    const d = await kho.motPhieu(loai, moc(), ai, q.get('moi') === '1');
+    if (!d.phieu) return json(res, { co: false, y: [], diem: null });
+    const phieu = vePhieu(d.phieu);
+    const bc = await boiCanhCho(loai, d.ky, ai, phieu);
+    const y = ND.chiMotPhieu(phieu, loai === 'ngay' ? d.dong : bc.dongKy, bc);
+    return json(res, { co: true, y, diem: ND.chamDiem(y), motCau: ND.motCau(y) });
+  }
+
+  /**
+   * Bảng nhận định TOÀN PHÒNG — chỉ quản lý.
+   * Mỗi người một dòng: điểm, một câu đáng chú ý nhất, và các ý đầy đủ để mở ra.
+   */
+  if (p === '/api/toan-phong' && m === 'GET') {
+    if (!toi.quanLy) return loi(res, 403, 'Chỉ quản lý xem được bảng này.', 'CHI_QUAN_LY');
+    const loai = loaiKy() === 'ngay' ? 'tuan' : loaiKy();   // toàn phòng theo ngày thì quá vụn
+    const k = K.ky(loai, moc());
+    const moi = q.get('moi') === '1';
+    const phieuNgay = (await kho.dsPhieu({ loaiKy: 'ngay', tu: k.tu, den: k.den }, moi))
+      .filter((x) => x.trangThai === cfg.chon.trangThaiPhieu.daNop);
+    const dongKy = await kho.dsDong({ tu: k.tu, den: k.den }, false);
+
+    const theoNguoi = new Map();
+    for (const x of phieuNgay) {
+      const khoa = x.email || x.nguoi || '?';
+      if (!theoNguoi.has(khoa)) {
+        theoNguoi.set(khoa, { khoa, ten: x.tenNguoi || khoa, id: x.nguoi, email: x.email, ps: [] });
+      }
+      theoNguoi.get(khoa).ps.push(x);
+    }
+
+    const nguoi = [];
+    for (const n of theoNguoi.values()) {
+      const cuaHo = dongKy.filter((d) => kho.cungNguoi(d, n));
+      const dinhMuc = n.ps.reduce((s, x) => s + (x.dinhMuc || 0), 0);
+      const gop = K.gop(cuaHo.map((d) => ({ nhom: d.nhom, phut: d.phut })), dinhMuc);
+      const gia = {
+        loaiKy: loai, tu: k.tu, den: k.den,
+        daNop: true,
+        trangThaiHan: n.ps.some((x) => x.dungHan === cfg.chon.dungHan.tre) ? 'tre' : 'dung-han',
+        veHan: n.ps.filter((x) => x.dungHan === cfg.chon.dungHan.tre).length + ' lần nộp muộn',
+        tongPhut: gop.tongPhut, dinhMuc, phanTram: gop.phanTram,
+        canHoTro: n.ps.map((x) => x.canHoTro).filter(Boolean).join(' · '),
+      };
+      const bc = {
+        ngayThieu: K.ngayThieu(k.tu, Math.min(k.den, Date.now()), n.ps.map((x) => x.tuNgay)),
+        dungYen: ND.timDungYen(nhomTheoNgay(cuaHo)),
+      };
+      const y = ND.chiMotPhieu(gia, cuaHo, bc);
+      nguoi.push({
+        ten: n.ten, id: n.id, email: n.email,
+        soPhieu: n.ps.length, tongPhut: gop.tongPhut, tongGio: K.vePhut(gop.tongPhut),
+        phanTram: gop.phanTram, soThieu: bc.ngayThieu.length,
+        diem: ND.chamDiem(y), motCau: ND.motCau(y), y,
+      });
+    }
+    nguoi.sort((a, b) => a.diem - b.diem || a.ten.localeCompare(b.ten));
+    return json(res, { ky: k, loaiKy: loai, nhan: k.nhan, nguoi });
+  }
+
+  /**
+   * Vướng mắc cả phòng đang nêu, gom một chỗ — chỉ quản lý.
+   * Anh Hùng: "liệt kê tổng hợp lại cái vấn đề cần giúp đỡ của nhân viên".
+   */
+  if (p === '/api/can-ho-tro' && m === 'GET') {
+    if (!toi.quanLy) return loi(res, 403, 'Chỉ quản lý xem được bảng này.', 'CHI_QUAN_LY');
+    const tu = Number(q.get('tu')) || K.kyTuan(Date.now()).tu;
+    const den = Number(q.get('den')) || Date.now();
+    const ds = (await kho.dsPhieu({ tu, den }, q.get('moi') === '1'))
+      .filter((x) => String(x.canHoTro || '').trim())
+      .map((x) => ({
+        ten: x.tenNguoi || x.email || x.nguoi,
+        id: x.nguoi, email: x.email,
+        loaiKy: x.loaiKy, nhan: K.veNgay(x.tuNgay),
+        tu: x.tuNgay, noi: x.canHoTro,
+        daNop: x.trangThai === cfg.chon.trangThaiPhieu.daNop,
+      }))
+      .sort((a, b) => b.tu - a.tu);
+    return json(res, { tu, den, ds });
   }
 
   /** Xuất CSV — "trích xuất báo cáo nhanh hơn", đúng nguyên văn yêu cầu. */
