@@ -84,13 +84,25 @@ function docModulesTho() {
   return JSON.parse(fs.readFileSync(MODULES_FILE, 'utf8')).modules || [];
 }
 
-/* Số bản của hai file dùng chung (loc.js, i18n.js) — lấy theo thời điểm sửa file
- * thật, nên sửa từ điển là trình duyệt tự nạp lại, không phải nhớ đổi build. */
+/* Số bản của MỌI file trong public — lấy theo file sửa gần nhất, nên deploy xong
+ * là trình duyệt tự nạp lại, không phải nhớ đổi build bằng tay.
+ *
+ * Trước đây hàm này chỉ nhìn loc.js với i18n.js (mà i18n.js còn lọt vào danh sách
+ * hai lần), nên caidat.js đổi bao nhiêu số bản vẫn y nguyên. Hub không gửi
+ * Cache-Control nào cho file tĩnh, thành ra máy anh Hùng giữ bản caidat.js cũ và
+ * màn hình Cài đặt hiện giao diện của mấy commit trước. Quét cả thư mục thì không
+ * còn file nào lọt sổ, kể cả file thêm sau này. */
 function verTinh() {
   let t = 0;
-  for (const f of ['public/loc.js', 'public/i18n.js', 'public/i18n.js']) {
-    try { t = Math.max(t, fs.statSync(path.join(__dirname, f)).mtimeMs); } catch (_) {}
-  }
+  const d = path.join(__dirname, 'public');
+  try {
+    for (const f of fs.readdirSync(d)) {
+      try {
+        const st = fs.statSync(path.join(d, f));
+        if (st.isFile()) t = Math.max(t, st.mtimeMs);
+      } catch (_) {}
+    }
+  } catch (_) {}
   return String(Math.round(t / 1000) || 1);
 }
 

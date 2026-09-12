@@ -373,8 +373,8 @@ function tinh(res, duongDan) {
     return send(res, 404, 'Không có ' + p, { 'Content-Type': 'text/plain; charset=utf-8' });
   }
   let body = fs.readFileSync(f);
-  /* Trang chủ khai loc.js/i18n.js với ?v=BUILD — thay bằng số bản thật để đổi bản
-   * là trình duyệt nạp lại từ điển, không dính bản cũ trong cache. */
+  /* Trang chủ khai mọi file tĩnh với ?v=BUILD — thay bằng số bản thật để đổi bản
+   * là trình duyệt nạp lại, không dính bản cũ trong cache. */
   if (path.basename(f) === 'index.html') {
     body = Buffer.from(body.toString('utf8').split('v=BUILD').join('v=' + cfg.verChung), 'utf8');
   }
