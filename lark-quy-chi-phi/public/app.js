@@ -18,11 +18,26 @@
 const S = {
   chi: [], dot: [], nap: [], quy: { tongUng: 0, tongChi: 0, conLai: 0, soLanUng: 0 },
   options: { loaiChi: [], tinhTrang: [] },
-  me: null, chuQuy: false, larkUrl: '',
+  me: null, vai: 'xem', chuQuy: false, larkUrl: '',
   loc: { loai: '', tinhTrang: '', thang: '', tim: '' },
   chon: new Set(),
   tab: 'so',              // so | thieu | ung
 };
+
+/* ---------------------------------------------------------------------------
+ * BA VAI
+ * -------------------------------------------------------------------------
+ * Không phải "chủ quỹ" với "phần còn lại". Kế toán là một vai thật, có việc
+ * thật: kiểm chứng từ rồi ĐÓNG SỔ. Ba câu hỏi dưới đây là toàn bộ chỗ giao
+ * diện phân biệt vai — chỗ nào cần rẽ nhánh thì hỏi một trong ba, đừng so
+ * chuỗi 'keToan' rải rác khắp tệp.
+ *
+ * Server chốt lại y hệt. Giấu nút chỉ là phép lịch sự với mắt người dùng,
+ * không phải hàng rào.
+ */
+const laChuQuy = () => S.vai === 'chuQuy';
+const laKeToan = () => S.vai === 'keToan';
+const duocQuyetToan = () => laChuQuy() || laKeToan();
 
 const $ = (s, g = document) => g.querySelector(s);
 const $$ = (s, g = document) => [...g.querySelectorAll(s)];
@@ -77,7 +92,10 @@ async function taiLai(moi) {
   S.nap = d.nap || [];
   S.quy = d.quy || S.quy;
   S.options = d.options || S.options;
-  S.me = d.me; S.chuQuy = !!d.chuQuy; S.larkUrl = d.larkUrl || '';
+  S.me = d.me;
+  S.vai = d.vai || (d.chuQuy ? 'chuQuy' : 'xem');
+  S.chuQuy = S.vai === 'chuQuy';
+  S.larkUrl = d.larkUrl || '';
   S.chon.clear();
   ve();
 }
@@ -147,9 +165,27 @@ function locChi() {
 }
 
 /* ---------------- vẽ ---------------- */
+const TEN_VAI = { chuQuy: 'Người giữ quỹ', keToan: 'Kế toán', xem: 'Chỉ xem' };
+
 function ve() {
-  $('#phuDe').textContent = (S.chuQuy ? 'Sổ quỹ · ' : 'Chỉ xem · ')
+  $('#phuDe').textContent = (laChuQuy() ? 'Sổ quỹ · ' : laKeToan() ? 'Kiểm chứng từ · ' : 'Chỉ xem · ')
     + S.chi.length + ' khoản chi · ' + S.quy.soLanUng + ' lần ứng tiền';
+
+  /* Chip danh tính ở thanh trên — giống Quản lý quảng cáo và Báo cáo công việc.
+   * Mở app ra mà không biết mình đang là vai nào thì mọi nút thiếu đều thành
+   * một câu hỏi; nói thẳng ra thì không ai phải đoán. */
+  const chip = $('#chipVai');
+  if (chip) {
+    chip.textContent = TEN_VAI[S.vai] + (S.me && S.me.name ? ' · ' + S.me.name : '');
+    chip.className = 'chip ' + S.vai;
+  }
+
+  /* Vai không được phép thì GIẤU HẲN nút, đừng để nó nằm đó rồi bấm vào chỉ báo
+   * "bạn không có quyền". Một nút bấm được mà không làm gì là lời hứa suông. */
+  [['#btnNap', laChuQuy()], ['#btnChiMoi', laChuQuy()]].forEach(([sel, hien]) => {
+    const e = $(sel);
+    if (e) e.hidden = !hien;
+  });
 
   $('#man').innerHTML = veTong() + veLoc() + (S.tab === 'ung' ? veUng() : veBang());
   ganSuKien();
@@ -176,8 +212,11 @@ function veTong() {
     + '<div class="o' + (soThieu ? ' canhbao' : '') + '" data-tab="thieu">'
       + '<div class="nhan">Cần bổ sung chứng từ</div><div class="so nho">' + soThieu + '</div>'
       + '<div class="mo">' + (soThieu ? 'bấm để xem' : 'không còn khoản nào') + '</div></div>'
-    + '<div class="o"><div class="nhan">Chờ quyết toán</div><div class="so nho">' + chuaQuyetToan + '</div>'
-      + '<div class="mo">đã chi, chưa gán mã</div></div>'
+    /* Thẻ này là HÀNG ĐỢI CỦA KẾ TOÁN — bấm vào là lọc thẳng ra mấy khoản đã
+     * chi mà chưa gán mã, thay vì bắt người ta tự chỉnh ô lọc tình trạng. */
+    + '<div class="o" data-loctt="Đã chi"><div class="nhan">Chờ quyết toán</div>'
+      + '<div class="so nho">' + chuaQuyetToan + '</div>'
+      + '<div class="mo">' + (chuaQuyetToan ? 'bấm để lọc ra' : 'đã gán mã hết') + '</div></div>'
   + '</section>';
 }
 
@@ -235,12 +274,12 @@ function veBang() {
         return '<a class="tep cu" target="_blank" href="' + esc(linkCu) + '" title="Chứng từ cũ trên Google Drive">'
           + esc(nhan) + ' ↗</a>';
       }
-      return S.chuQuy
+      return laChuQuy()
         ? '<button class="tep thieu" data-taitep="' + c.id + '" data-o="' + key + '">+ ' + esc(nhan) + '</button>'
         : '<span class="tep thieu">— ' + esc(nhan) + '</span>';
     };
     return '<tr' + (thieu ? ' class="canhbao"' : '') + '>'
-      + '<td class="chon">' + (S.chuQuy
+      + '<td class="chon">' + (duocQuyetToan()
         ? '<input type="checkbox" data-chon="' + c.id + '"' + (S.chon.has(c.id) ? ' checked' : '') + '>' : '') + '</td>'
       + '<td class="nd"><b>' + esc(c.noiDung || '(không tên)') + '</b>'
         + '<div class="phu2">' + [
@@ -251,15 +290,23 @@ function veBang() {
             : '<span class="ma-don">' + esc(dv.ma) + '</span>') : '',
           c.maDieuHanh
             ? esc(c.maDieuHanh)
-            : (S.chuQuy ? '<button class="ma-them" data-gansg="' + c.id + '">+ mã điều hành</button>' : ''),
+            : (laChuQuy() ? '<button class="ma-them" data-gansg="' + c.id + '">+ mã điều hành</button>' : ''),
           c.maQuyetToan ? '<span class="qt">' + esc(c.maQuyetToan) + '</span>' : '',
+          /* Mã số thuế nhà cung cấp: thứ kế toán soi để biết hoá đơn có hợp lệ
+           * không. Chỉ hiện khi có, nên sổ không bị thêm một cột trống. */
+          c.mst ? '<span class="mst">MST ' + esc(c.mst) + '</span>' : '',
         ].filter(Boolean).join(' · ') + '</div></td>'
       + '<td class="loai"><span class="the">' + esc(c.loai || '—') + '</span></td>'
       + '<td class="num">' + tien(c.tien) + '</td>'
       + '<td class="ngay">' + esc(ngayVN(c.ngayChi || c.ngayDeNghi)) + '</td>'
       + '<td class="ai">' + esc(((c.nguoi || [])[0] || {}).name || '') + '</td>'
+      /* KẾ TOÁN CHỈ THẤY HOÁ ĐƠN.
+       * UNC là uỷ nhiệm chi — bằng chứng tiền đã rời tài khoản, việc đối chiếu
+       * ngân hàng của người giữ quỹ. Kế toán cần hoá đơn để ghi chi phí và soi
+       * mã số thuế; bày thêm một cột chứng từ không phải việc của họ chỉ làm
+       * dòng dài ra và mắt phải bỏ qua một nửa. Anh Hùng chốt 12/09/2026. */
       + '<td class="teps">' + tep(c.hoaDon, c.linkCu, 'Hoá đơn', 'hoaDon')
-        + tep(c.unc, c.linkUncCu, 'UNC', 'unc')
+        + (laKeToan() ? '' : tep(c.unc, c.linkUncCu, 'UNC', 'unc'))
         + (c.chungTu === 'Không cần chứng từ'
           ? '<span class="the" title="Kế toán đã đồng ý không cần chứng từ">không cần</span>'
           : c.chungTu === 'Hoá đơn tay / ảnh'
@@ -267,7 +314,7 @@ function veBang() {
         + '</td>'
       + '<td class="tt"><span class="badge ' + (c.tinhTrang === 'Đã quyết toán' ? 'xanh'
         : c.tinhTrang === 'Đã chi' ? 'vang' : 'xam') + '">' + esc(c.tinhTrang || '—') + '</span></td>'
-      + '<td class="tacvu">' + (S.chuQuy
+      + '<td class="tacvu">' + (laChuQuy()
         ? '<button class="btn sm" data-sua="' + c.id + '">Sửa</button>' : '') + '</td>'
       + '</tr>';
   };
@@ -275,7 +322,7 @@ function veBang() {
   return '<section class="bang">'
     + (S.chon.size ? veThanhChon() : '')
     + '<div class="cuon"><table><thead><tr>'
-      + '<th class="chon">' + (S.chuQuy ? '<input type="checkbox" id="chonHet">' : '') + '</th>'
+      + '<th class="chon">' + (duocQuyetToan() ? '<input type="checkbox" id="chonHet">' : '') + '</th>'
       + '<th>Nội dung</th><th>Loại</th><th class="num">Số tiền</th><th>Ngày chi</th>'
       + '<th>Người</th><th>Chứng từ</th><th>Tình trạng</th><th></th>'
     + '</tr></thead><tbody>' + ds.map(dong).join('') + '</tbody>'
@@ -327,7 +374,7 @@ function veUng() {
     + '<tfoot><tr><td>Công ty đã ứng ' + S.quy.soLanUng + ' lần</td>'
       + '<td class="num">' + tien(S.quy.tongUng) + '</td><td colspan="3"></td></tr></tfoot>'
     + '</table></div>'
-    + (S.chuQuy ? '<div class="duoi"><button class="btn" id="btnNap2">+ Ghi một lần ứng tiền</button></div>' : '')
+    + (laChuQuy() ? '<div class="duoi"><button class="btn" id="btnNap2">+ Ghi một lần ứng tiền</button></div>' : '')
   + '</section>';
 }
 
@@ -487,7 +534,7 @@ function moQuyetToan() {
         + 'Quyết toán vẫn chạy, nhưng kế toán sẽ hỏi lại đúng mấy khoản này: '
         + esc(thieu.slice(0, 3).map((c) => c.noiDung).join(' · '))
         + (thieu.length > 3 ? '…' : '') + '</div>'
-      : '<div class="nhac ok">Cả ' + ds.length + ' khoản đều đủ hoá đơn và UNC.</div>')
+      : '<div class="nhac ok">Cả ' + ds.length + ' khoản đều có chứng từ.</div>')
     + o('Mã quyết toán', '<input id="qMa" placeholder="QTTU31/LVH">', true)
     + '<div class="nhac">Mã này ghi vào cả ' + ds.length + ' khoản và chuyển tình trạng sang '
       + '<b>Đã quyết toán</b>. Sửa lại được bằng cách quyết toán lần nữa với mã khác.</div>'
@@ -611,14 +658,20 @@ document.addEventListener('click', async (e) => {
   if (T.closest('[data-close]') || T.id === 'modal') return dongModal();
   if (T.closest('#btnTaiLai')) { toast('Đang đọc lại…'); return taiLai(true).then(() => toast('Xong', 'ok')); }
   if (T.closest('#btnLark')) return window.open(S.larkUrl, '_blank');
-  if (T.closest('#btnChiMoi')) return S.chuQuy ? moKhaiChi() : toast('Bạn đang xem ở chế độ chỉ đọc.', 'err');
-  if (T.closest('#btnNap')) return S.chuQuy ? moNapQuy() : toast('Bạn đang xem ở chế độ chỉ đọc.', 'err');
+  if (T.closest('#btnChiMoi')) return laChuQuy() ? moKhaiChi() : toast('Chỉ người giữ quỹ mới khai khoản chi.', 'err');
+  if (T.closest('#btnNap')) return laChuQuy() ? moNapQuy() : toast('Chỉ người giữ quỹ mới ghi tiền ứng.', 'err');
 
   const tab = T.closest('[data-tab]');
   if (tab) { S.tab = tab.dataset.tab; S.chon.clear(); return ve(); }
 
+  const loctt = T.closest('[data-loctt]');
+  if (loctt) {
+    S.tab = 'so'; S.loc.tinhTrang = loctt.dataset.loctt; S.chon.clear();
+    return ve();
+  }
+
   const sua = T.closest('[data-sua]');
-  if (sua) return moKhaiChi(sua.dataset.sua);
+  if (sua) return laChuQuy() ? moKhaiChi(sua.dataset.sua) : toast('Chỉ người giữ quỹ mới sửa được khoản chi.', 'err');
 
   /* Gán mã điều hành SG… — Tourwell không đưa mã này qua API nên phải dán tay.
    * Đặt ngay trên dòng thay vì bắt mở cửa sổ sửa: việc này làm sau khi nhận

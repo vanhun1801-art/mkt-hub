@@ -34,8 +34,11 @@
 
   --bong: 0 1px 2px rgba(26,34,51,.05), 0 8px 24px -18px rgba(26,34,51,.35);
 }
+/* `:root:not([data-theme="sang"])` — đúng cửa thoát mà Quản lý quảng cáo, Lịch
+   tác nghiệp và Báo cáo công việc đang dùng, để ép chế độ sáng ở một app là ép
+   được ở mọi app bằng cùng một cách. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="sang"]) {
     --bg: #12161f; --surface: #1a1f2b; --surface-2: #1f2533; --hover: #232a38;
     --line: #2b3342; --line-soft: #232a37;
     --t1: #e6eaf2; --t2: #a4aebf; --t3: #7b8598;
@@ -68,6 +71,19 @@ body {
 .ten { font-weight: 700; letter-spacing: -.01em; }
 .phu { font-size: 12px; color: var(--t3); }
 .sp { flex: 1; }
+.top-right { display: flex; align-items: center; gap: 8px; }
+
+/* Chip vai — hình dáng lấy nguyên từ .chip của Quản lý quảng cáo. Ba vai ba
+   màu, và màu trùng với nghĩa dùng khắp app: xanh dương là tương tác/chủ động,
+   xanh lá là "đã kiểm, đã đóng", xám là đứng ngoài nhìn. */
+.chip {
+  padding: 5px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  white-space: nowrap; background: var(--surface-2); color: var(--t3);
+  border: 1px solid var(--line); max-width: 260px; overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chip.chuQuy { background: var(--primary-bg); color: var(--primary); border-color: var(--primary-border); }
+.chip.keToan { background: var(--green-bg); color: var(--green-t); border-color: var(--green-bg); }
 
 .btn {
   border: 1px solid var(--line); background: var(--surface); color: var(--t1);
@@ -75,6 +91,7 @@ body {
   cursor: pointer; white-space: nowrap;
 }
 .btn:hover { background: var(--hover); border-color: var(--primary-border); }
+.btn:active { transform: translateY(1px); }
 .btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
 .btn.primary:hover { background: var(--primary-hover); }
 .btn.sm { padding: 4px 9px; font-size: 12px; }
@@ -91,8 +108,8 @@ main { padding: 16px; max-width: 1400px; margin: 0 auto; }
   background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
   padding: 14px 16px; box-shadow: var(--bong);
 }
-.tong .o[data-tab] { cursor: pointer; }
-.tong .o[data-tab]:hover { border-color: var(--primary-border); }
+.tong .o[data-tab], .tong .o[data-loctt] { cursor: pointer; }
+.tong .o[data-tab]:hover, .tong .o[data-loctt]:hover { border-color: var(--primary-border); }
 .tong .o.canhbao { background: var(--red-bg); border-color: var(--red-vien); }
 .tong .o.canhbao .so { color: var(--red-t); }
 .tong .nhan { font-size: 12px; color: var(--t3); text-transform: uppercase; letter-spacing: .06em; }
@@ -109,9 +126,15 @@ main { padding: 16px; max-width: 1400px; margin: 0 auto; }
 .thanh { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
 .tabs { display: flex; gap: 4px; background: var(--surface); padding: 3px;
   border: 1px solid var(--line); border-radius: 10px; }
-.tab { border: 0; background: transparent; color: var(--t2); font-size: 13px; font-weight: 500;
-  padding: 6px 12px; border-radius: 7px; cursor: pointer; }
-.tab.on { background: var(--primary-bg); color: var(--primary); }
+.tab { position: relative; border: 0; background: transparent; color: var(--t2);
+  font-size: 13px; font-weight: 500; padding: 6px 14px; border-radius: 6px;
+  cursor: pointer; font-family: inherit; transition: color .12s, background .12s; }
+.tab:hover { color: var(--t1); }
+.tab.on { background: var(--primary-bg); color: var(--primary); font-weight: 600; }
+.tab.on::after {
+  content: ''; position: absolute; left: 12px; right: 12px; bottom: 2px;
+  height: 2px; border-radius: 2px; background: var(--primary);
+}
 .loc { display: flex; gap: 8px; flex: 1; flex-wrap: wrap; }
 .loc input, .loc select, .form input, .form select {
   border: 1px solid var(--line); background: var(--surface); color: var(--t1);
@@ -255,3 +278,7 @@ tr.mo .nd b { font-weight: 500; }
   border-radius: 5px; padding: 0 5px; font-size: 11px; font-family: inherit; cursor: pointer;
 }
 .ma-them:hover { color: var(--primary); border-color: var(--primary-border); }
+
+/* Mã số thuế NCC: kế toán soi ô này để biết hoá đơn có dùng được không. Chữ số
+   nên phải đều nhau, không thì đọc nhầm số 1 với 7 ở cỡ 11px. */
+.mst { font-variant-numeric: tabular-nums; letter-spacing: .01em; }

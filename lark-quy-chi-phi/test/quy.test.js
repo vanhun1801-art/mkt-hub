@@ -41,6 +41,13 @@ const nhom = (t) => console.log('\n\x1b[1m' + t + '\x1b[0m');
   ok('có đợt tạm ứng', Array.isArray(m.dot) && m.dot.length > 0, String((m.dot || []).length));
   ok('có lần nạp quỹ', Array.isArray(m.nap) && m.nap.length > 0, String((m.nap || []).length));
   ok('biết mình là ai', !!(m.me && m.me.id), JSON.stringify(m.me));
+  /* Giao diện rẽ nhánh theo `vai`, không theo cờ `chuQuy` nữa. Server quên gửi
+   * thì mọi người rơi về 'xem' và anh Hùng lại mở app ra thấy mình là khách —
+   * đúng lỗi đã gặp ngày 12/09/2026, lần đó vì open_id lệch giữa hai app Lark. */
+  ok('server nói rõ mình đang ở vai nào',
+    ['chuQuy', 'keToan', 'xem'].includes(m.vai), 'vai = ' + m.vai);
+  ok('cờ chuQuy cũ vẫn khớp với vai mới', m.chuQuy === (m.vai === 'chuQuy'),
+    m.vai + ' / ' + m.chuQuy);
   ok('có đủ lựa chọn loại chi', (m.options.loaiChi || []).length >= 5);
 
   nhom('Quỹ là MỘT cục');

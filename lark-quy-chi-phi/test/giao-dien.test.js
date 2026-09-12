@@ -19,6 +19,8 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
+const SAO = String.fromCharCode(10, 27) + '[1m';   /* xuống dòng + in đậm */
+const HET = String.fromCharCode(27) + '[0m';
 let pass = 0, fail = 0;
 const fails = [];
 function ok(ten, dieu, chiTiet) {
@@ -34,6 +36,7 @@ function ok(ten, dieu, chiTiet) {
  * và một dòng "Chuyển từ kỳ trước" không được tính vào tiền đã ứng. */
 const META = {
   me: { id: 'ou_x', name: 'Lê Văn Hùng' },
+  vai: 'chuQuy',
   chuQuy: true,
   larkUrl: 'https://example.larksuite.com/base/x',
   quy: { tongUng: 65559931, tongChi: 58587875, conLai: 6972056, soLanUng: 6 },
@@ -52,10 +55,11 @@ const META = {
       id: 'recC1', noiDung: 'Livestream ĐTH + Dinner SOTS (11/09)', loai: 'Tác nghiệp',
       tien: 406000, ngayChi: '2026-09-12', ngayDeNghi: '2026-09-11',
       nguoi: [{ id: 'ou_y', name: 'Nguyễn Long Khánh' }], tinhTrang: 'Đã chi',
-      hoaDon: [{ name: 'hd1.jpg', token: 'tk1' }], unc: [], soHoaDon: '', maDieuHanh: '',
+      hoaDon: [{ name: 'hd1.jpg', token: 'tk1' }],
+      unc: [{ name: 'unc1.jpg', token: 'tk9' }], soHoaDon: '', maDieuHanh: '',
       maDon: 'RT16438 · https://rootytrip.tourwell.net/admin/order/16438/show',
       ncc: '', chuyenKhoan: '', maQuyetToan: '', linkCu: '', linkUncCu: '',
-      chungTu: null, mst: '', ghiChu: '', dot: ['recD1'],
+      chungTu: null, mst: '0314567890', ghiChu: '', dot: ['recD1'],
     },
     {
       id: 'recC2', noiDung: 'Tác nghiệp Vinwonders (Live)', loai: 'Tác nghiệp',
@@ -172,6 +176,53 @@ function chay(meta) {
     ve('cửa sổ kết quả Tourwell', () => ctx.moKetQuaTourwell(
       { ma: 'RT1', link: 'https://x', tien: 1000, dayDu: true }, { noiDung: 'x' }));
   }
+
+  /* ========================================================================
+   * BA VAI — mỗi vai một màn hình khác, và khác đúng ở chỗ việc của họ khác
+   * ======================================================================
+   * Chủ quỹ giữ tiền nên thấy cả UNC (đối chiếu ngân hàng) và sửa được sổ.
+   * Kế toán kiểm chứng từ rồi đóng sổ: chỉ HOÁ ĐƠN, có ô tích để quyết toán,
+   * không có nút sửa. Vai xem thì không ghi được gì.
+   *
+   * Ba nhóm dưới đây bắt đúng loại lỗi hay xảy ra nhất khi thêm một vai: quên
+   * một chỗ rẽ nhánh, rồi vai này bỗng nhìn thấy nút của vai kia.
+   */
+  const veVoiVai = (vai) => chay(Object.assign({}, META, { vai, chuQuy: vai === 'chuQuy' }));
+
+  console.log(SAO + 'Vai kế toán' + HET);
+  const kt = veVoiVai('keToan');
+  await new Promise((r) => setTimeout(r, 40));
+  const bKt = String(kt.veBang());
+  ok('kế toán thấy hoá đơn', bKt.includes('Hoá đơn'), bKt.slice(0, 160));
+  ok('kế toán KHÔNG thấy cột UNC', !bKt.includes('UNC'),
+    (bKt.match(/.{0,60}UNC.{0,60}/) || [''])[0]);
+  ok('kế toán tick chọn được để quyết toán', bKt.includes('data-chon'));
+  ok('kế toán không có nút Sửa', !bKt.includes('data-sua'));
+  ok('kế toán không có nút gán mã điều hành', !bKt.includes('data-gansg'));
+  ok('kế toán không có nút đính tệp', !bKt.includes('data-taitep'));
+  kt.__goi('S.chon.add("recC1")');
+  let eQt = null;
+  try { kt.moQuyetToan(); } catch (err) { eQt = err; }
+  ok('kế toán mở được cửa sổ quyết toán', !eQt, eQt && eQt.message);
+  ok('thanh chọn có nút quyết toán cho kế toán',
+    String(kt.veThanhChon()).includes('data-quyettoan'));
+
+  console.log(SAO + 'Vai chỉ xem' + HET);
+  const xv = veVoiVai('xem');
+  await new Promise((r) => setTimeout(r, 40));
+  const bXv = String(xv.veBang());
+  ok('vai chỉ xem không tick chọn được', !bXv.includes('data-chon'));
+  ok('vai chỉ xem không có nút Sửa', !bXv.includes('data-sua'));
+  ok('vai chỉ xem vẫn đọc được số tiền', bXv.includes('406.000'));
+
+  console.log(SAO + 'Vai chủ quỹ vẫn đủ quyền' + HET);
+  const cq = veVoiVai('chuQuy');
+  await new Promise((r) => setTimeout(r, 40));
+  const bCq = String(cq.veBang());
+  ok('chủ quỹ thấy CẢ UNC', bCq.includes('UNC'));
+  ok('chủ quỹ có nút Sửa', bCq.includes('data-sua'));
+  ok('chủ quỹ đính được tệp còn thiếu', bCq.includes('data-taitep'));
+  ok('mã số thuế hiện lên cho kế toán soi', bCq.includes('0314567890'));
 
   console.log('\n' + (fail ? '\x1b[31m' : '\x1b[32m') + pass + ' pass, ' + fail + ' fail\x1b[0m');
   if (fail) { fails.forEach((f) => console.log('  - ' + f)); process.exit(1); }

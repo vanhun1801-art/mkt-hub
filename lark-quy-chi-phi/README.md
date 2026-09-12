@@ -53,10 +53,25 @@ Anh Hùng xác nhận 12/09/2026: **7.378.056 đ là đúng** — công ty đã 
 thêm một dòng ứng 559.931 đ ngày 16/04/2026 (ngày chi đầu tiên của PC16900), chứ
 không sửa số cho vừa khớp. Giờ `65.559.931 − 58.181.875 = 7.378.056`.
 
-## Một vai
+## Ba vai
 
-App này **chỉ anh Hùng nhập**. Người khác mở ra vẫn xem được nhưng mọi lệnh ghi
-bị chặn ở server, không chỉ ẩn nút.
+| Vai | Làm được | Cột chứng từ thấy gì |
+|---|---|---|
+| **chuQuy** — anh Hùng | khai chi · nạp quỹ · đính chứng từ · sửa · xoá · quyết toán | Hoá đơn **và** UNC |
+| **keToan** — chị kế toán | đọc · mở chứng từ · **quyết toán theo lô** | **chỉ Hoá đơn** |
+| **xem** — người còn lại | đọc | chỉ Hoá đơn tên xám, không mở được nút nào |
+
+Kế toán từng bị xếp chung với "xem". Sai: việc của họ là **đóng sổ**, không phải
+ngắm sổ. Bắt họ mở Base sửa mã QTTU từng dòng thì đúng cái việc app này sinh ra
+để bỏ. Nên `quyết toán` có chốt riêng (`doiQuyenQuyetToan`), rộng hơn chốt ghi sổ.
+
+**Vì sao kế toán không thấy UNC**: uỷ nhiệm chi là bằng chứng tiền đã rời tài
+khoản — việc đối chiếu ngân hàng của người giữ quỹ. Kế toán cần hoá đơn để ghi
+chi phí và soi mã số thuế. Bày cả hai ra chỉ làm dòng dài gấp đôi và mắt phải bỏ
+qua một nửa. Anh Hùng chốt 12/09/2026.
+
+Mọi lệnh ghi bị chặn **ở server**, không chỉ ẩn nút — ẩn nút chỉ là phép lịch sự
+với mắt người dùng.
 
 Ai là chủ quỹ được quyết theo thứ tự: **cờ `x-hub-user-manager` do Hub gửi
 xuống** trước, rồi mới tới danh sách `LARK_CHU_QUY`. Đừng đảo lại — `open_id`
@@ -64,8 +79,19 @@ xuống** trước, rồi mới tới danh sách `LARK_CHU_QUY`. Đừng đảo 
 không bao giờ khớp id Hub gửi (app riêng của Hub). Chính chỗ này làm anh Hùng mở
 bản web ra thấy mình bị coi là khách chỉ xem hôm 12/09/2026.
 
-**Kế toán không dùng app** — họ mở thẳng Base với quyền chỉ đọc. Ba view dựng
-sẵn cho họ:
+### Khai ai là kế toán
+
+```bash
+LARK_KE_TOAN="Nguyễn Thị Kế Toán"          # họ tên, hoặc
+LARK_KE_TOAN=ou_abc…,ou_def…               # open_id, hoặc trộn cả hai
+```
+
+Nhận **cả open_id lẫn họ tên** (bỏ dấu cách thừa, không phân biệt hoa thường).
+Tên là cái duy nhất gõ được ngay mà không phải đi đào id — mà đào thì cũng dễ
+đào nhầm, vì `open_id` khác nhau theo từng app Lark và Hub đăng nhập bằng app
+riêng của nó. Để trống thì không ai là kế toán, app quay về đúng hành vi cũ.
+
+Kế toán vẫn xem Base được nếu muốn. Ba view dựng sẵn cho họ:
 
 - `Kế toán · đã chi` — mọi khoản đã chi
 - `Kế toán · chờ quyết toán` — đã chi mà chưa có mã QTTU
@@ -165,7 +191,12 @@ Hai phép thử đáng giá nhất ở đó không phải "API có trả về kh
 - **chốt chặn dòng "Chuyển từ kỳ trước"** — nếu ai đó lỡ cộng cả chúng vào, tổng
   đã ứng vọt từ 65 lên 76,2 triệu và bài thử đỏ ngay
 
-Lần chạy gần nhất: **16 + 34 pass · 0 fail**.
+`giao-dien.test.js` dựng cả **ba vai** rồi soi đúng chỗ mỗi vai khác nhau: kế
+toán không được thấy chuỗi `UNC`, không có `data-sua`, nhưng phải có `data-chon`
+và nút quyết toán. Đã thử phá để chắc nó cắn — bỏ nhánh `laKeToan()` đi thì ba
+phép thử đỏ ngay.
+
+Lần chạy gần nhất: **31 + 36 pass · 0 fail**.
 
 ## Cấu trúc
 

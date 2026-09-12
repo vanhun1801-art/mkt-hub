@@ -103,8 +103,22 @@ module.exports = {
    * chứng từ nằm ngay trong bảng, kế toán không phải xin quyền Drive. */
   uploadable: ['hoaDon', 'unc'],
 
-  /* Chỉ một người dùng app này (anh Hùng chốt). Kế toán xem thẳng trên Base
-   * với quyền chỉ đọc, không cần tài khoản trong app. */
+  /* ---------------------------------------------------------------------
+   * BA VAI
+   * -------------------------------------------------------------------
+   *   chuQuy  — anh Hùng: giữ tiền, khai chi, nạp quỹ, đính chứng từ, quyết toán
+   *   keToan  — chị kế toán: ĐỌC + QUYẾT TOÁN. Không khai chi, không sửa, không
+   *             đính tệp. Cột chứng từ của họ chỉ hiện HOÁ ĐƠN — UNC là việc
+   *             đối chiếu ngân hàng của người giữ quỹ, bày ra chỉ thêm nhiễu.
+   *   xem     — người khác trong phòng: đọc, không ghi gì.
+   *
+   * Khai kế toán bằng `LARK_KE_TOAN`, ngăn cách bởi dấu phẩy. Nhận CẢ open_id
+   * LẪN họ tên: open_id khác nhau theo từng app Lark nên lấy đúng id của app
+   * Hub là việc không dễ, mà tên thì Hub gửi sẵn trong `x-hub-user-name`.
+   * So tên bỏ dấu cách thừa và không phân biệt hoa thường.
+   * ------------------------------------------------------------------- */
   chuQuy: (process.env.LARK_CHU_QUY || 'ou_f0d3514abf6b168bef076441f350c585')
+    .split(',').map((s) => s.trim()).filter(Boolean),
+  keToan: (process.env.LARK_KE_TOAN || '')
     .split(',').map((s) => s.trim()).filter(Boolean),
 };

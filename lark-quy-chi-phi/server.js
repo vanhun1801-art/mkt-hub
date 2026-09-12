@@ -7,10 +7,12 @@
  * Thay cho sheet "Quỹ công ty tạm ứng chi trước" (6 tab, 162 dòng). Ba bảng
  * trên Base "Chi phí Marketing": Đợt tạm ứng · Lần nạp quỹ · Chi phí.
  *
- * Khác app Lịch tác nghiệp ở một điểm lớn: app này CHỈ MỘT VAI. Anh Hùng giữ
- * quỹ và nhập; kế toán xem thẳng Base với quyền chỉ đọc, không có tài khoản
- * trong app. Nên không có tầng phân quyền hai chiều, chỉ có một chốt: người
- * đang đăng nhập có nằm trong `chuQuy` không.
+ * BA VAI, và ranh giới giữa chúng là ranh giới của việc thật:
+ *   chuQuy — anh Hùng giữ tiền: khai chi, nạp quỹ, đính chứng từ, sửa, xoá
+ *   keToan — chị kế toán: đọc và QUYẾT TOÁN. Không ghi gì khác vào sổ.
+ *   xem    — người còn lại trong phòng: đọc.
+ * Kế toán từng bị xếp chung với "xem", nhưng việc của họ là đóng sổ chứ không
+ * phải ngắm sổ — nên có chốt riêng `doiQuyenQuyetToan`.
  *
  * QUỸ LÀ MỘT CỤC. Sáu "đợt tạm ứng" chỉ là sáu lần ứng tiền khác nhau, không
  * phải sáu túi tiền riêng — tiêu thì tiêu từ một quỹ. Nên số dư là MỘT con số
@@ -215,8 +217,13 @@ async function toiLaAi() {
   return null;
 }
 
-/**
- * Một chốt duy nhất: có phải chủ quỹ không.
+/* ---------------------------------------------------------------------------
+ * BA VAI — chuQuy · keToan · xem
+ * -------------------------------------------------------------------------
+ * Trước đây app chỉ có một chốt "có phải chủ quỹ không", và ai không phải thì
+ * rơi hết vào ô chỉ đọc. Nhưng kế toán KHÔNG chỉ đọc: việc của họ là kiểm
+ * chứng từ rồi ĐÓNG SỔ — gán mã quyết toán. Bắt họ mở Base sửa từng dòng thì
+ * đúng cái việc app này sinh ra để bỏ.
  *
  * TIN CỜ QUẢN LÝ CỦA HUB trước, rồi mới tới danh sách open_id.
  *
@@ -225,19 +232,52 @@ async function toiLaAi() {
  * gửi xuống một open_id khác hẳn — so bằng id thì không bao giờ khớp, và anh
  * Hùng mở app trên web ra thấy mình bị coi là khách chỉ xem. Đúng lỗi ngày
  * 12/09/2026. App Lịch tác nghiệp không dính vì nó tin cờ này ngay từ đầu.
+ *
+ * Kế toán thì ngược lại: không có cờ nào của Hub nói "người này là kế toán",
+ * nên so cả open_id lẫn HỌ TÊN (Hub gửi sẵn trong x-hub-user-name). Tên là cái
+ * duy nhất anh Hùng gõ được mà không phải đi đào id.
  */
-async function laChuQuy() {
-  const me = await toiLaAi();
+const chuanTen = (s) => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+function laKeToan(me) {
   if (!me) return false;
-  if (me.quanLy) return true;
-  return cfg.chuQuy.includes(me.id);
+  const ten = chuanTen(me.name);
+  return cfg.keToan.some((k) => k === me.id || (ten && chuanTen(k) === ten));
+}
+
+async function vaiCua() {
+  const me = await toiLaAi();
+  if (!me) return 'xem';
+  if (me.quanLy || cfg.chuQuy.includes(me.id)) return 'chuQuy';
+  if (laKeToan(me)) return 'keToan';
+  return 'xem';
+}
+
+async function laChuQuy() {
+  return (await vaiCua()) === 'chuQuy';
 }
 
 async function doiChuQuy(res) {
-  if (await laChuQuy()) return true;
+  const vai = await vaiCua();
+  if (vai === 'chuQuy') return true;
+  /* Nói đúng vai của người đang đứng đó. Bảo kế toán rằng họ "đang xem ở chế
+   * độ chỉ đọc" là sai — họ quyết toán được, chỉ không ghi tiền vào sổ. */
   json(res, {
-    error: 'Chỉ người giữ quỹ mới ghi được vào sổ. Bạn đang xem ở chế độ chỉ đọc.',
+    error: vai === 'keToan'
+      ? 'Kế toán quyết toán được, nhưng khai chi và nạp quỹ là việc của người giữ quỹ.'
+      : 'Chỉ người giữ quỹ mới ghi được vào sổ. Bạn đang xem ở chế độ chỉ đọc.',
     code: 'NOT_FUND_OWNER',
+  }, 403);
+  return false;
+}
+
+/** Quyết toán là việc CHUNG của chủ quỹ và kế toán — chốt riêng, rộng hơn. */
+async function doiQuyenQuyetToan(res) {
+  const vai = await vaiCua();
+  if (vai === 'chuQuy' || vai === 'keToan') return true;
+  json(res, {
+    error: 'Chỉ người giữ quỹ hoặc kế toán mới quyết toán được.',
+    code: 'NOT_ALLOWED',
   }, 403);
   return false;
 }
@@ -275,6 +315,9 @@ async function xuLy(req, res) {
      * nơi cùng tính một con số thì sớm muộn lệch nhau. */
     return json(res, {
       me: await toiLaAi(),
+      /* `vai` là thứ giao diện đọc; `chuQuy` giữ lại cho khỏi vỡ chỗ nào còn
+       * đọc cờ cũ — chủ quỹ vẫn là chủ quỹ ở cả hai cách hỏi. */
+      vai: await vaiCua(),
       chuQuy: await laChuQuy(),
       quy: tinhQuy(chi, lan),
       chi, dot, nap: lan,
@@ -443,7 +486,7 @@ async function xuLy(req, res) {
    * Gán một mã QTTU cho nhiều khoản cùng lúc. Đây là việc hay làm nhất sau khi
    * nộp chứng từ, và là việc mà làm tay trên Base thì phải sửa từng dòng. */
   if (p === '/api/quyet-toan' && req.method === 'POST') {
-    if (!(await doiChuQuy(res))) return;
+    if (!(await doiQuyenQuyetToan(res))) return;
     const body = await docThan(req);
     const ids = (body.ids || []).filter((x) => /^rec[A-Za-z0-9]+$/.test(x));
     const ma = String(body.ma || '').trim();
