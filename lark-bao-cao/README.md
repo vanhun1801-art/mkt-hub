@@ -135,10 +135,33 @@ Anh Hùng đã báo trước ý định này (chưa làm). Cấu trúc hiện t�
 | `GET /api/theo-doi` | ai nộp ai chưa — **chỉ quản lý** |
 | `GET /api/xuat` | CSV (có BOM để Excel mở không vỡ dấu) |
 
+## Mô hình ngôn ngữ: CHƯA nối, và đó là quyết định có chủ ý
+
+Anh Hùng chốt 12/09/2026: **giữ nguyên nhận định theo luật**, chạy thực tế vài
+tuần rồi mới quyết có nối AI hay không. Đừng tự nối khi chưa được hỏi lại.
+
+Chi phí đã tính, để khỏi tính lại: phòng 7–8 người, chạy AI cho tuần + tháng là
+~40 lượt/tháng, mỗi lượt ~1.500 token vào / 400 ra. Haiku 4.5 ~$0,14/tháng ·
+Sonnet 5 ~$0,28 · Opus 5 ~$0,70. Chạy cho cả báo cáo ngày (~250 lượt) thì lần
+lượt ~$0,87 · $1,73 · $4,34. **Giá không phải yếu tố quyết định** — đừng chọn
+nhà cung cấp theo giá.
+
+Khi nào nối, ba ràng buộc đã chốt trước:
+
+1. **Phạm vi: tuần + tháng.** Báo cáo ngày giữ nhận định theo luật — một ngày
+   chưa đủ dữ liệu để mô hình nói được điều gì mới.
+2. **Ẩn danh trước khi gửi.** Gửi "Nhân sự A", không gửi tên thật; ghép tên lại
+   ở máy mình sau khi có kết quả. Đây là dữ liệu đánh giá con người, gắn với
+   lương, và người bị đánh giá không đọc được cái đang gửi đi.
+3. **AI KHÔNG chấm điểm.** Điểm vẫn do luật tính. Mô hình chỉ diễn đạt lại các
+   ý `nhan-dinh.js` đã sinh, và gợi ý câu hỏi nên hỏi. Lý do: AI chấm điểm
+   người thì sai một lần là mất sạch niềm tin, và không giải thích nổi vì sao
+   62 mà không phải 70 — luật thì giải thích được từng dòng.
+
+Khoá KHÔNG vào repo, chỉ đặt biến môi trường trên Render, giống
+`ADS_CONNECT_JSON`. Không đưa App Secret của app Lark cho bên thứ ba nào.
+
 ## Còn thiếu
 
-- **Mô hình ngôn ngữ** chưa nối — nhận định hiện do luật sinh. Cần chốt dùng
-  nhà cung cấp nào và cất khoá ở đâu (khoá KHÔNG vào repo, chỉ đặt biến môi
-  trường trên Render, giống `ADS_CONNECT_JSON`).
 - Mục tiêu từng người theo KPI: đã chừa đường, chưa dựng.
 - Chưa nhập lịch sử báo cáo cũ (đang nằm trong ảnh ở nhóm Lark).
