@@ -54,9 +54,15 @@ const nhom = (t) => console.log('\n\x1b[1m' + t + '\x1b[0m');
   ok('tổng đã chi khớp khi tính lại', m.quy.tongChi === chiHet, m.quy.tongChi + ' vs ' + chiHet);
   ok('còn lại = đã ứng − đã chi', m.quy.conLai === ungThat - chiHet, String(m.quy.conLai));
   /* Chốt chặn hồi quy: nếu ai đó lỡ đếm cả dòng chuyển tiếp, con số này vọt lên
-   * 76.194.600 và bài thử phải đỏ ngay. */
+   * 76.754.531 và bài thử phải đỏ ngay. */
   ok('KHÔNG cộng nhầm dòng chuyển từ kỳ trước', m.quy.tongUng < 70000000,
     'đang là ' + m.quy.tongUng.toLocaleString('vi'));
+
+  /* Con số anh Hùng chốt ngày 12/09/2026, đối chiếu với chứng từ thật. Mọi thay
+   * đổi cách tính quỹ phải đi qua đây: lệch là biết ngay, không phải đợi cuối
+   * tháng kế toán hỏi. */
+  ok('số dư khớp con số đã đối chiếu với kế toán (7.378.056)',
+    m.quy.conLai === 7378056, 'đang là ' + m.quy.conLai.toLocaleString('vi'));
 
   nhom('Số dư từng đợt — đối chiếu hai đường tính độc lập');
   let lech = 0;

@@ -42,12 +42,16 @@ quỹ phồng lên 11.194.600 đ không có thật — có một phép thử can
 Số dư cũng không cộng dồn theo dòng như sheet: chèn một dòng cũ vào giữa là phải
 tính lại cả cột. Cộng cả sổ mỗi lần đọc thì không bao giờ lệch.
 
-### Và một khoản 559.931 đ bị sheet bỏ rơi
+### Khoản 559.931 đ sheet đánh rơi giữa hai tab
 
-Cộng gộp thành một cục thì quỹ còn **6.818.125 đ**, không phải 7.378.056 đ như
-sheet ghi. Chênh đúng **559.931 đ**: đợt PC9955 tiêu âm chừng đó, nhưng khi mở
-tab PC16900 sheet bắt đầu lại từ 15.000.000 chẵn nên phần âm rơi mất giữa hai
-tab. Cần đối chiếu lại với kế toán xem khoản này đã được bù chưa.
+Cộng gộp thành một cục lần đầu thì quỹ ra **6.818.125 đ**, thiếu đúng 559.931 đ
+so với con số anh Hùng vẫn dùng. Nguyên do: đợt PC9955 tiêu âm chừng đó, nhưng
+khi mở tab PC16900 sheet bắt đầu lại từ 15.000.000 chẵn nên phần âm rơi mất giữa
+hai tab.
+
+Anh Hùng xác nhận 12/09/2026: **7.378.056 đ là đúng** — công ty đã bù. Nên sổ ghi
+thêm một dòng ứng 559.931 đ ngày 16/04/2026 (ngày chi đầu tiên của PC16900), chứ
+không sửa số cho vừa khớp. Giờ `65.559.931 − 58.181.875 = 7.378.056`.
 
 ## Một vai
 
