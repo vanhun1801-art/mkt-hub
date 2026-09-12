@@ -2530,7 +2530,10 @@ function moKetQuaTourwell(tw, t, sq) {
     if (sq.bo === 'da-co') return '<div class="tw-xong">✔ Khoản chi đã có sẵn trong sổ quỹ.</div>';
     if (sq.bo) return '';
     return '<div class="tw-xong">✔ Đã ghi vào sổ quỹ' +
-      (sq.dot ? ' — đợt <b>' + esc(sq.dot) + '</b>' : '') + '.</div>';
+      (sq.dot ? ' — đợt <b>' + esc(sq.dot) + '</b>' : '') +
+      (sq.chep ? ', kèm <b>' + sq.chep + ' chứng từ</b> nhân sự đã nộp' : '') + '.' +
+      (sq.loiTep ? '<br><span class="mini">Có tệp chưa chép được: ' + esc(sq.loiTep) + '</span>' : '') +
+      '</div>';
   };
 
   tw = tw || {};
@@ -2556,7 +2559,8 @@ function moKetQuaTourwell(tw, t, sq) {
     }
     return toast(sq.bo === 'da-co'
       ? 'Khoản chi đã có sẵn trong sổ quỹ'
-      : 'Đã ghi vào sổ quỹ' + (sq.dot ? ' — đợt ' + sq.dot : ''), 'ok');
+      : 'Đã ghi vào sổ quỹ' + (sq.dot ? ' — đợt ' + sq.dot : '')
+        + (sq.chep ? ', kèm ' + sq.chep + ' chứng từ' : ''), 'ok');
   }
 
   if (tw.bo === 'da-co' && !sq) return toast('Lịch này đã có đơn Tourwell: ' + tw.ma, 'ok');

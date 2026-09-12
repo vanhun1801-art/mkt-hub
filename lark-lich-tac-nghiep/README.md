@@ -314,6 +314,10 @@ Cùng cú bấm đó còn ghi một khoản chi sang Base **Chi phí Marketing**
 phụ trách buổi đó** chứ không phải người bấm nút, gắn vào đợt tạm ứng đang dùng.
 Mã ghi vào cột **Sổ quỹ** (`fld7T1Lytr`) — cũng là chốt chống ghi trùng.
 
+Và **chép luôn hoá đơn + UNC** nhân sự đã nộp sang dòng chi bên sổ quỹ (tối đa 3
+tệp mỗi ô). Kế toán mở Base sổ quỹ chứ không mở Base lịch — không chép thì lại
+phải tải xuống rồi tải lên tay, đúng cái việc app sinh ra để bỏ đi.
+
 Hai việc độc lập: Tourwell hỏng thì sổ quỹ vẫn có dòng chi, và ngược lại. Tắt
 riêng phần sổ quỹ bằng `QUY_TAT=1` hoặc `so-quy.json` với `"tat": true`.
 
@@ -326,6 +330,7 @@ node test/huy-muon.test.js     # thuần logic — không cần server, không c
 node test/cua-so.test.js       # thuần logic + soi nguồn
 node test/tourwell.test.js     # thuần logic — ngày, VAT, số danh mục
 node test/so-quy.test.js       # thuần logic — ngày sổ quỹ, chốt an toàn
+node test/so-quy.live.test.js --that   # ghi một dòng THẬT vào sổ quỹ + chép tệp, rồi tự xoá
 ```
 
 `test/tourwell.live.test.js --that` tạo một đơn THẬT trên Tourwell rồi tự huỷ —

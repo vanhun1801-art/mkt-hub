@@ -127,9 +127,61 @@ async function ghiKhoanChi(lich, maDon) {
   }
 
   const out = await lark.createRecord(cells, cf.chiTableId, cf.baseToken);
-  const id = (out && (out.record_id || (out.record && out.record.record_id)
-    || (out.records && out.records[0] && out.records[0].record_id))) || null;
-  return { id, dot: dot && dot.ma, tien };
+  /* lark-cli trả record_id_list, Open API trả records[] — đọc thiếu một dạng thì
+   * id ra null và mọi việc sau đó im lặng không chạy. */
+  const id = (out && (
+    (out.record_id_list && out.record_id_list[0])
+    || out.record_id
+    || (out.record && out.record.record_id)
+    || (out.records && out.records[0] && out.records[0].record_id)
+  )) || null;
+
+  const tep = id ? await chepChungTu(cf, lich, id) : { chep: 0 };
+  return { id, dot: dot && dot.ma, tien, ...tep };
+}
+
+/* Chép nhiều nhất từng này tệp mỗi ô. Nhân sự đôi khi tải 5-6 ảnh hoá đơn; chép
+ * hết thì nút "Đã thanh toán" treo cả phút. Ba tệp đủ để kế toán đối chiếu. */
+const TOI_DA_TEP = 3;
+
+/**
+ * Chép hoá đơn và UNC từ bản ghi lịch tác nghiệp sang dòng chi trong sổ quỹ.
+ *
+ * Vì sao phải chép chứ không trỏ link: kế toán mở Base sổ quỹ, không mở Base
+ * lịch — hai Base khác nhau, quyền khác nhau. Không chép thì anh Hùng lại phải
+ * tải xuống rồi tải lên tay, đúng cái việc app này sinh ra để bỏ đi.
+ *
+ * Hỏng ở đây KHÔNG được làm hỏng việc ghi sổ: dòng chi đã có rồi, thiếu tệp thì
+ * bổ sung sau được, còn mất dòng chi thì mất dấu cả khoản tiền.
+ */
+async function chepChungTu(cf, lich, chiId) {
+  const viec = [
+    { tu: lich.files, sang: 'Hoá đơn' },   // ô "Tệp đính kèm" của Base lịch = hoá đơn
+    { tu: lich.unc, sang: 'UNC' },
+  ];
+  let chep = 0;
+  const loi = [];
+
+  for (const v of viec) {
+    const ds = (v.tu || []).filter((f) => f && f.token).slice(0, TOI_DA_TEP);
+    for (const f of ds) {
+      const ten = 'sq-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+      let thuMuc = null;
+      try {
+        thuMuc = await lark.downloadAttachment(lich.id, f.token, ten, cfg.tableId);
+        const tepTrong = fs.readdirSync(thuMuc);
+        if (!tepTrong.length) throw new Error('tải về rỗng');
+        await lark.uploadAttachment(chiId, v.sang, './.tmp/' + ten + '/' + tepTrong[0],
+          cf.chiTableId, cf.baseToken);
+        chep++;
+      } catch (e) {
+        loi.push(v.sang + ': ' + e.message);
+      } finally {
+        if (thuMuc) { try { fs.rmSync(thuMuc, { recursive: true, force: true }); } catch (_) {} }
+      }
+    }
+  }
+  return { chep, loiTep: loi.length ? loi.join(' · ') : undefined };
 }
 
 module.exports = { bat, docCauHinh, ngayBase, dotDangDung, ghiKhoanChi };

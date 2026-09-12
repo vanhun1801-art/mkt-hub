@@ -169,12 +169,12 @@ async function createRecord(fields, tableId = cfg.tableId, base) {
  * trong cwd, nên tải vào .tmp/<id> ngay trong thư mục project.
  * Trả về đường dẫn tuyệt đối của thư mục chứa tệp.
  */
-async function downloadAttachment(recordId, fileToken, relDirName, tableId = cfg.tableId) {
+async function downloadAttachment(recordId, fileToken, relDirName, tableId = cfg.tableId, base) {
   const relDir = './.tmp/' + relDirName;
   const absDir = path.join(__dirname, '.tmp', relDirName);
   fs.mkdirSync(absDir, { recursive: true });
   await cli([
-    'base', '+record-download-attachment', ...baseArgs(),
+    'base', '+record-download-attachment', ...baseArgs(base),
     '--table-id', tableId,
     '--record-id', recordId,
     '--file-token', fileToken,
@@ -186,9 +186,9 @@ async function downloadAttachment(recordId, fileToken, relDirName, tableId = cfg
 }
 
 /** Upload tệp lên một ô attachment. lark-cli cần --file là đường dẫn tương đối trong cwd. */
-async function uploadAttachment(recordId, fieldName, relFilePath, tableId = cfg.tableId) {
+async function uploadAttachment(recordId, fieldName, relFilePath, tableId = cfg.tableId, base) {
   return cli([
-    'base', '+record-upload-attachment', ...baseArgs(),
+    'base', '+record-upload-attachment', ...baseArgs(base),
     '--table-id', tableId,
     '--record-id', recordId,
     '--field-id', fieldName,
@@ -197,9 +197,9 @@ async function uploadAttachment(recordId, fieldName, relFilePath, tableId = cfg.
   ], { timeout: 300000, cwd: __dirname });
 }
 
-async function deleteRecords(recordIds, tableId = cfg.tableId) {
+async function deleteRecords(recordIds, tableId = cfg.tableId, base) {
   return cli([
-    'base', '+record-delete', ...baseArgs(),
+    'base', '+record-delete', ...baseArgs(base),
     '--table-id', tableId,
     '--json', JSON.stringify({ record_id_list: recordIds }),
     '--yes',
