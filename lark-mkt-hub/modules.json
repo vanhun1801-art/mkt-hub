@@ -211,6 +211,27 @@
       "phuSelector": "#phuDe",
       "bat": true,
       "caPhong": false
+    },
+    {
+      "id": "bao-cao",
+      "ten": "Báo cáo công việc",
+      "mo_ta": "Báo cáo ngày · tuần · tháng của từng người",
+      "icon": "nguoi",
+      "mau": "#7c5cff",
+      "kieu": "local",
+      "thuMuc": "../lark-bao-cao",
+      "cong": 5183,
+      "lenh": [
+        "node",
+        "server.js"
+      ],
+      "larkUrl": "https://rootytrip2.sg.larksuite.com/base/IqK1b8mdSapQaIsYhavlMMxzgQf",
+      "an": [
+        "header.topbar > .brand",
+        "#btnLark"
+      ],
+      "bat": true,
+      "caPhong": false
     }
   ]
 }

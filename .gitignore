@@ -1,5 +1,5 @@
 # ============================================================
-# Repo này CHỈ chứa 7 app của phòng Marketing. Thư mục .agents còn nhiều thứ
+# Repo này CHỈ chứa 9 app của phòng Marketing. Thư mục .agents còn nhiều thứ
 # khác (skills của lark-cli, ảnh QR đăng nhập, thư mục tạm...) nên dùng cách
 # "chặn hết rồi mở đúng cái cần" — an toàn hơn liệt kê từng thứ phải chặn.
 # ============================================================
@@ -10,7 +10,7 @@
 !render.yaml
 !package.json
 
-# tám app
+# chín app
 !lark-mkt-hub/
 !lark-task-manager/
 !lark-lich-tac-nghiep/
@@ -20,6 +20,7 @@
 !lark-kpi/
 !lark-chinh-anh/
 !lark-quy-chi-phi/
+!lark-bao-cao/
 
 # mã dùng chung giữa các app (Tourwell…)
 !lark-chung/

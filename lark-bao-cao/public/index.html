@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Báo cáo công việc</title>
+<link rel="stylesheet" href="/styles.css?v=BUILD">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">Báo cáo công việc <span id="phuDe">đang tải…</span></div>
+  <div class="lon"></div>
+  <span class="chip" id="chipToi">…</span>
+  <button class="btn nho" id="btnLark" hidden>Mở Base</button>
+  <button class="btn nho" id="btnXuat">Xuất CSV</button>
+</header>
+
+<nav class="tabs">
+  <button class="tab on" data-man="ngay">Hôm nay</button>
+  <button class="tab" data-man="tuan">Tuần</button>
+  <button class="tab" data-man="thang">Tháng</button>
+  <button class="tab" data-man="lich-su">Đã nộp</button>
+  <button class="tab" data-man="theo-doi" id="tabTheoDoi" hidden>Theo dõi</button>
+</nav>
+
+<main id="man">Đang tải…</main>
+
+<script src="/app.js?v=BUILD"></script>
+</body>
+</html>

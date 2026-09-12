@@ -1,0 +1,11 @@
+{
+  "name": "lark-bao-cao",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Báo cáo công việc ngày/tuần/tháng vào Lark Base — app con thứ 9 của Marketing Hub",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/chay-het.js"
+  }
+}

@@ -269,11 +269,17 @@ function chuyenTiep(req, res, mod, duongDan, nguoi) {
    * Xoá header do client tự gửi trước khi ghi lại, kẻo có người tự mạo danh. */
   delete opts.headers['x-hub-user-id'];
   delete opts.headers['x-hub-user-name'];
+  delete opts.headers['x-hub-user-email'];
   ['x-hub-user-manager','x-hub-perm-toan-bo','x-hub-perm-khong-tao','x-hub-perm-chi-phi']
     .forEach((h) => { delete opts.headers[h]; });
   if (nguoi && nguoi.id) {
     opts.headers['x-hub-user-id'] = nguoi.id;
     opts.headers['x-hub-user-name'] = encodeURIComponent(nguoi.name || nguoi.id);
+    /* Email đi kèm vì open_id do TỪNG app Lark cấp riêng: cùng một người, bản
+     * chạy trên máy và bản trên Render ra hai id khác nhau. Module nào cất dữ
+     * liệu gắn với người (app Báo cáo) mà chỉ có id thì đổi app là đứt liên kết,
+     * người ta mở lên thấy trắng trơn. */
+    if (nguoi.email) opts.headers['x-hub-user-email'] = encodeURIComponent(nguoi.email);
     // hub đã quyết vai + tuỳ chọn (bảng "Phân quyền app") — module chỉ việc tin
     if (nguoi.quanLy) opts.headers['x-hub-user-manager'] = '1';
     if (nguoi.toanBo) opts.headers['x-hub-perm-toan-bo'] = '1';
@@ -362,6 +368,11 @@ function headerNguoi(nguoi) {
     'x-hub-user-id': nguoi.id,
     'x-hub-user-name': encodeURIComponent(nguoi.name || nguoi.id),
   };
+  /* Email là khoá NGƯỜI ổn định duy nhất giữa các app Lark: open_id do từng app
+   * cấp riêng nên cùng một người, bản chạy trên máy và bản trên Render ra hai id
+   * khác nhau. Module nào lưu dữ liệu gắn với người (app Báo cáo) mà chỉ có id
+   * thì đổi app là mất sạch liên kết. */
+  if (nguoi.email) h['x-hub-user-email'] = encodeURIComponent(nguoi.email);
   if (nguoi.quanLy) h['x-hub-user-manager'] = '1';
   if (nguoi.toanBo) h['x-hub-perm-toan-bo'] = '1';
   if (nguoi.taoMoi === false) h['x-hub-perm-khong-tao'] = '1';
