@@ -2580,6 +2580,10 @@ function openDrawer(task) {
     };
   }
   S.dirty = {};
+  /* Hàng đợi tệp của form "Tạo công việc mới". Xoá mỗi lần mở drawer: bỏ dở một
+   * lần đặt việc thì tệp cũ không được lẻn sang việc sau. */
+  (S.tepMoi || []).forEach((f) => { if (f.__xem) URL.revokeObjectURL(f.__xem); });
+  S.tepMoi = [];
   S.suaDayDu = false;     // mở ra là bản gọn, muốn sửa sâu thì bấm nút
   buildDrawer();
   $('#drawer').classList.add('open');
@@ -2741,6 +2745,7 @@ function buildCreateForm(b, t, o) {
   b.appendChild(r2);
 
   b.appendChild(field('Link brief / tư liệu', textInput(t.link, (v) => set('link', v), 'url')));
+  b.appendChild(oTepViecMoi());
 
   const note = el('textarea');
   note.value = t.note || '';
@@ -3130,6 +3135,127 @@ function oTaiLen(t, cot) {
   return hop;
 }
 
+/** 60 MB — đúng mức server chặn trong /api/tasks/:id/upload. Chặn sớm ở đây để
+ *  người dùng biết ngay, thay vì đợi tải hết tệp lên rồi mới bị trả về lỗi. */
+const TEP_TOI_DA = 60 * 1024 * 1024;
+
+const coTep = (n) => (n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.round(n / 1024) + ' KB');
+
+/**
+ * Ô chọn tệp cho việc CHƯA tồn tại (form "Tạo công việc mới").
+ *
+ * Khác ô oTaiLen ở drawer: Lark chỉ nhận tệp khi đã có record_id, mà lúc này
+ * bản ghi chưa được tạo. Nên tệp chỉ được XẾP HÀNG trong bộ nhớ; tạo việc xong
+ * saveDrawer mới đẩy lần lượt lên ô "Tệp đính kèm" — đúng ô tài liệu của người
+ * order (ô "File kết quả" để dành cho sản phẩm nhân sự nộp về).
+ */
+function oTepViecMoi() {
+  if (!S.tepMoi) S.tepMoi = [];
+  const hop = el('div', 'field');
+  hop.appendChild(el('label', '', 'Tệp đính kèm'));
+
+  const ds = el('div', 'attgrid');
+  const st = el('div', 'ro-note');
+
+  const row = el('div', 'uploadrow');
+  const input = el('input');
+  input.type = 'file';
+  input.multiple = true;
+  row.appendChild(input);
+
+  function ve() {
+    ds.innerHTML = '';
+    (S.tepMoi || []).forEach((f, i) => {
+      const o = el('div', 'attitem');
+
+      const xem = el('div', 'attthumb');
+      if (laAnh(f.name)) {
+        const img = el('img');
+        /* Xem trước ngay từ máy, chưa cần lên Lark. Thu hồi URL khi bỏ tệp để
+         * chọn nhầm vài chục ảnh rồi bỏ đi không giữ lại bộ nhớ. */
+        img.src = f.__xem || (f.__xem = URL.createObjectURL(f));
+        img.alt = '';
+        /* Đuôi .jpg mà trình duyệt không mở được thì thường là tệp hỏng hoặc
+         * đặt sai đuôi. Trả về ô "TỆP" cho gọn — vẫn đính lên được như thường. */
+        img.onerror = () => { xem.innerHTML = ''; xem.classList.add('ic'); xem.textContent = 'TỆP'; };
+        xem.appendChild(img);
+      } else {
+        xem.classList.add('ic');
+        xem.textContent = laPdf(f.name) ? 'PDF' : laVideo(f.name) ? '▶' : 'TỆP';
+      }
+      o.appendChild(xem);
+
+      const meta = el('div', 'attmeta');
+      meta.appendChild(el('div', 'attname', f.name));
+      meta.appendChild(el('div', 'attsize', coTep(f.size)));
+      const acts = el('div', 'attacts');
+      const bo = el('button', 'attbtn del', 'Bỏ ra');
+      bo.type = 'button';
+      bo.onclick = () => {
+        if (f.__xem) URL.revokeObjectURL(f.__xem);
+        S.tepMoi.splice(i, 1);
+        ve();
+      };
+      acts.appendChild(bo);
+      meta.appendChild(acts);
+      o.appendChild(meta);
+
+      ds.appendChild(o);
+    });
+    const n = (S.tepMoi || []).length;
+    st.textContent = n
+      ? n + ' tệp — sẽ tải lên ngay sau khi bấm "Tạo công việc".'
+      : 'Brief, ảnh mẫu, tài liệu kèm yêu cầu. Tệp lên khi bấm "Tạo công việc".';
+  }
+
+  input.onchange = () => {
+    for (const f of input.files) {
+      if (f.size > TEP_TOI_DA) {
+        toast('Tệp "' + f.name + '" nặng ' + coTep(f.size) + ' — tối đa 60 MB. Gửi bằng link Drive.', true);
+        continue;
+      }
+      // Bấm chọn hai lần cùng một tệp thì không đính hai bản lên Base
+      if ((S.tepMoi || []).some((x) => x.name === f.name && x.size === f.size)) continue;
+      S.tepMoi.push(f);
+    }
+    input.value = '';
+    ve();
+  };
+
+  hop.appendChild(row);
+  hop.appendChild(ds);
+  hop.appendChild(st);
+  ve();
+  return hop;
+}
+
+/**
+ * Đẩy hàng đợi tệp lên việc vừa tạo. Trả về mảng tên tệp KHÔNG lên được.
+ *
+ * Không ném lỗi: bản ghi đã nằm trong Base rồi, một tệp hỏng mà làm cả lần tạo
+ * việc báo đỏ thì người dùng tưởng chưa tạo được và bấm lại — thành hai việc.
+ */
+async function taiTepViecMoi(id) {
+  const files = S.tepMoi || [];
+  if (!files.length) return [];
+  if (!id) return files.map((f) => f.name);   // server không trả id thì đành chịu
+  const hong = [];
+  for (const f of files) {
+    try {
+      const r = await fetch('/api/tasks/' + id + '/upload', {
+        method: 'POST',
+        headers: { 'X-File-Name': encodeURIComponent(f.name) },
+        body: f,
+      });
+      const d = await docPhanHoi(r);
+      if (!r.ok || d.error || d.__loi) throw new Error(d.error || d.__loi || 'tải lên thất bại');
+    } catch (_) {
+      hong.push(f.name);
+    }
+  }
+  return hong;
+}
+
 /* ---- bình luận trong công việc ---- */
 function khoiBinhLuan(t) {
   const f = el('div', 'field');
@@ -3260,10 +3386,21 @@ async function saveDrawer() {
       if (!payload.workType) throw new Error('Cần chọn loại công việc');
       if (!payload.deadline1) throw new Error('Cần chọn deadline');
 
-      await req('/api/tasks', { method: 'POST', body: JSON.stringify(payload) });
+      const kq = await req('/api/tasks', { method: 'POST', body: JSON.stringify(payload) });
+
+      /* Tệp đi sau bản ghi, vì Lark cần record_id mới nhận tệp. */
+      const soTep = (S.tepMoi || []).length;
+      if (soTep) btn.textContent = 'Đang tải tệp…';
+      const hong = await taiTepViecMoi(kq && kq.id);
+      S.tepMoi = [];
+
       toast(S.isManager
-        ? 'Đã tạo công việc mới'
+        ? 'Đã tạo công việc mới' + (soTep ? ' · ' + (soTep - hong.length) + '/' + soTep + ' tệp' : '')
         : 'Đã gửi yêu cầu công việc. Quản lý sẽ phân công người phụ trách.');
+      if (hong.length) {
+        toast('Việc đã tạo nhưng chưa đính được: ' + hong.join(' · ') +
+          ' — mở việc ra đính lại ở ô Tệp đính kèm.', true);
+      }
       closeDrawer();
       await refresh(true);
     } else {

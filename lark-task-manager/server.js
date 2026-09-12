@@ -537,6 +537,13 @@ async function requireManager(res, req) {
 }
 
 /** Chặn thao tác trên task không thuộc phạm vi của mình. */
+/** Người đặt việc này. Không cho sửa việc, nhưng được đính tài liệu kèm yêu cầu. */
+async function laNguoiOrder(task, req) {
+  const me = await whoAmI(req);
+  if (!me) return false;
+  return (task.requester || []).some((u) => u && u.id === me.id);
+}
+
 async function requireOwnTask(res, task, req) {
   if (await isManager(req)) return true;
   const me = await whoAmI(req);
@@ -722,6 +729,12 @@ async function api(req, res, url) {
     const result = await lark.createRecord(cells);
     cache.at = 0;
 
+    /* Id bản ghi vừa tạo. Form đặt việc cho chọn tệp đính kèm TRƯỚC khi có bản
+     * ghi, nên tệp chỉ tải lên được sau khi biết id này. Hai backend (cli và
+     * Open API) cùng trả `record_id_list`; thiếu thì trả null để client nói
+     * thẳng là "việc đã tạo nhưng tệp chưa đính" thay vì im lặng nuốt tệp. */
+    const idMoi = (result && result.record_id_list || [])[0] || null;
+
     if (!manager) {
       // nhân sự đặt việc → báo quản lý vào phân công
       baoTin(cfg.loadManagerIds(),
@@ -732,7 +745,7 @@ async function api(req, res, url) {
       baoTin((body.owner || []).map((u) => (typeof u === 'string' ? u : u.id)),
         'Bạn được giao việc mới: "' + body.title + '"' + duoiTin());
     }
-    return json(res, { ok: true, result, role: manager ? 'manager' : 'staff' });
+    return json(res, { ok: true, id: idMoi, result, role: manager ? 'manager' : 'staff' });
   }
 
   if (p === '/api/tasks/bulk' && req.method === 'PATCH') {
@@ -772,11 +785,24 @@ async function api(req, res, url) {
   if (mAct && req.method === 'POST') {
     const id = mAct[1];
     const action = mAct[2];
-    const records = await getRecords();
-    const rec = records.find((r) => r.record_id === id);
+    let rec = (await getRecords()).find((r) => r.record_id === id);
+    /* Không thấy thì đọc lại một lần trước khi kết luận. Form đặt việc tải tệp
+     * lên NGAY sau khi tạo bản ghi, mà danh sách vừa đọc có thể là bản chụp
+     * trước đó — báo 404 lúc này là nuốt mất tệp của một việc có thật. */
+    if (!rec) rec = (await getRecords(true)).find((r) => r.record_id === id);
     if (!rec) return json(res, { error: 'Không tìm thấy công việc' }, 404);
     const task = toTask(rec);
-    if (!(await requireOwnTask(res, task, req))) return;
+
+    /* Ô "Tệp đính kèm" là tài liệu của NGƯỜI ORDER, không phải sản phẩm nhân sự
+     * nộp về (ô đó là "File kết quả", ?cot=ket-qua). Nên người order phải đính
+     * được tệp vào việc mình đặt: form "Tạo công việc mới" chọn tệp lúc chưa có
+     * bản ghi, tạo xong mới tải lên — không mở chỗ này thì chính server chặn
+     * người vừa đặt việc. Mọi thao tác khác (start/complete/giải quyết, và ô
+     * File kết quả) vẫn chỉ của quản lý và người phụ trách. */
+    const cotTep = url.searchParams.get('cot') === 'ket-qua' ? 'ket-qua' : 'dinh-kem';
+    const nguoiOrderDinhTep = action === 'upload' && cotTep === 'dinh-kem' &&
+      await laNguoiOrder(task, req);
+    if (!nguoiOrderDinhTep && !(await requireOwnTask(res, task, req))) return;
 
     if (action === 'upload') {
       const name = decodeURIComponent(req.headers['x-file-name'] || '') || 'file';
@@ -790,7 +816,7 @@ async function api(req, res, url) {
       fs.writeFileSync(abs, buf);
       /* ?cot=ket-qua -> vào ô "File kết quả" (sản phẩm nhân sự nộp).
        * Không khai thì vào ô "Tệp đính kèm" như cũ (tài liệu kèm yêu cầu). */
-      const cot = url.searchParams.get('cot') === 'ket-qua' ? F.fileKetQua.name : F.attachment.name;
+      const cot = cotTep === 'ket-qua' ? F.fileKetQua.name : F.attachment.name;
       try {
         await lark.uploadAttachment(id, cot, './.tmp/' + slug + '/' + safe);
       } finally {
