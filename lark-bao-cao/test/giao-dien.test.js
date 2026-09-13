@@ -239,7 +239,15 @@ function nap() {
       'ẩn đi thì người dùng không biết là gõ thẳng được');
     ok('không còn mục "Khác — tự nhập" giả', !bang.includes('__khac'),
       'mục đó thừa khi ô gõ tay đã đứng sẵn ngay dưới');
-    ok('mục đầu menu nói rõ là tự gõ', bang.includes('— tự gõ tên ở dưới —'));
+    /* Anh Hùng: "với công việc nhập bằng tay thì ở trên tự động nhảy thành
+     * Khác". Nên mục đầu chính là "Khác", và danh sách việc nằm trong một nhóm
+     * có tên — mở menu ra là biết đang chọn từ đâu, không tốn thêm dòng chữ. */
+    ok('mục đầu menu là "Khác"', /<option value="">Khác<\/option>/.test(bang));
+    ok('danh sách việc nằm trong nhóm có tên',
+      bang.includes('<optgroup label="Công việc đang tiến hành">'));
+    ok('ô gõ tay gợi ý đúng chữ anh Hùng đưa', bang.includes('placeholder="Công việc khác"'));
+    ok('cột Nhóm dời ra xa cột Công việc', bang.includes('class="tach"'),
+      'hai ô sát nhau thì trông như cùng một nhóm ô, mà chúng nói hai chuyện khác nhau');
     ok('việc chọn từ Tracking vẫn điền sẵn tên vào ô',
       bang.includes('value="Thiết kế logo"'),
       'mở lại phiếu cũ mà ô trống thì người ta tưởng mất tên việc');
@@ -255,6 +263,14 @@ function nap() {
     ok('có ô cần hỗ trợ', tay.includes('txHoTro'),
       'đây là nguồn của màn "Cần hỗ trợ" bên quản lý');
     ok('điền sẵn nội dung đã lưu', tay.includes('thiếu file gốc'));
+
+    /* "câu từ đơn giản lại, ít mang tính định hướng, ngắn gọn dễ hiểu ý hơn" */
+    ok('gợi ý ngắn, không đọc hộ người ta phải viết gì',
+      !tay.includes('Chạy tốt ở đâu, vướng ở đâu, vì sao') &&
+      !tay.includes('Vướng mắc cần quản lý gỡ'),
+      'gợi ý dài thì ai cũng viết đúng mấy ý được gợi rồi thôi');
+    ok('không còn dòng giải thích thừa dưới ô',
+      !tay.includes('Ô này gom về một chỗ'));
 
     ve('khối nút lưu', 'theLuu(DU)');
 
@@ -353,7 +369,12 @@ function nap() {
     const tayTuan = ve('khối tự viết của tuần', 'theVietTay(DU, "tuan")');
     ok('báo cáo TUẦN có ô link video', tayTuan.includes('txVideo'));
     ok('ô link video là kiểu url', /id="txVideo"[^>]*type="url"|type="url"[^>]*id="txVideo"/.test(tayTuan));
-    ok('nói rõ là không bắt buộc', tayTuan.includes('Không bắt buộc'));
+    /* Quay video báo cáo là QUY ĐỊNH của phòng. Ghi "không bắt buộc" ở đây là
+     * app nói ngược lại quy định — anh Hùng: "video hiện tại bắt buộc quay, nên
+     * em không cần note". */
+    ok('KHÔNG ghi "không bắt buộc"', !tayTuan.includes('Không bắt buộc'),
+      'app không được nói ngược quy định của phòng');
+    ok('cũng không gợi ý bỏ trống', !tayTuan.includes('để trống nếu không quay'));
     ok('điền sẵn link đã lưu', tayTuan.includes('https://minutes.example/abc'),
       'mở lại phiếu cũ mà link biến mất thì phải dán lại mỗi lần sửa');
     ctx.__goi('DU = ' + JSON.stringify(PHIEU_NGAY));

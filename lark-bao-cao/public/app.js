@@ -250,7 +250,7 @@ function theBang(d) {
   return '<div class="the">' +
     '<div class="the-dau"><h2>Đầu việc trong ngày</h2>' +
       '<div class="lon"></div>' +
-      '<span class="nho">Ca làm việc</span>' +
+      '<span class="nho">Ca</span>' +
       '<select class="in" id="chonCa">' +
         META.ca.map((c) => '<option value="' + c.ma + '"' + (c.ten === ca ? ' selected' : '') +
           '>' + esc(c.ten) + (c.phut ? ' · ' + c.phut + ' phút' : '') + '</option>').join('') +
@@ -261,7 +261,7 @@ function theBang(d) {
     '<div class="the-than khit cuon">' +
       '<table class="bang"><thead><tr>' +
         '<th style="min-width:250px">Công việc</th>' +
-        '<th style="width:130px">Nhóm</th>' +
+        '<th class="tach" style="width:130px">Nhóm</th>' +
         '<th style="width:82px">Phút</th>' +
         '<th style="width:172px">Tiến độ</th>' +
         '<th style="min-width:170px">Ghi chú tiến độ</th>' +
@@ -301,14 +301,21 @@ const dongTrong = () => ({
 function menuViec(d) {
   const ds = (VIEC && VIEC.ds) || [];
   const coTrongDs = d.maViec && ds.some((v) => v.id === d.maViec);
-  let o = '<option value="">— tự gõ tên ở dưới —</option>';
+  /* Mục đầu là "Khác" — gõ tay tên ở ô dưới thì ô này tự về đây. Danh sách việc
+   * nằm trong một nhóm có tên, nên mở menu ra là biết ngay đang chọn từ đâu mà
+   * không phải thêm một dòng chữ nào trong hàng. */
+  let o = '<option value="">Khác</option>';
   if (d.maViec && !coTrongDs) {
     o += '<option value="' + esc(d.maViec) + '" selected>' + esc(d.congViec) +
       ' (không còn trong danh sách)</option>';
   }
-  o += ds.map((v) => '<option value="' + esc(v.id) + '" data-nhom="' + esc(v.nhom) + '"' +
-    ' data-ten="' + esc(v.ten) + '"' + (v.id === d.maViec ? ' selected' : '') + '>' +
-    (v.dong ? '✓ ' : '') + esc(v.ten) + (v.loai ? ' · ' + esc(v.loai) : '') + '</option>').join('');
+  if (ds.length) {
+    o += '<optgroup label="Công việc đang tiến hành">' +
+      ds.map((v) => '<option value="' + esc(v.id) + '" data-nhom="' + esc(v.nhom) + '"' +
+        ' data-ten="' + esc(v.ten) + '"' + (v.id === d.maViec ? ' selected' : '') + '>' +
+        (v.dong ? '✓ ' : '') + esc(v.ten) + (v.loai ? ' · ' + esc(v.loai) : '') +
+        '</option>').join('') + '</optgroup>';
+  }
   return o;
 }
 
@@ -319,9 +326,9 @@ function veHang(d) {
     '<td data-nhan="Công việc" class="o-viec">' +
       '<select class="v-viec">' + menuViec(d) + '</select>' +
       '<input class="v-cv" value="' + esc(d.congViec) + '" ' +
-        'placeholder="hoặc gõ thẳng tên công việc">' +
+        'placeholder="Công việc khác">' +
     '</td>' +
-    '<td data-nhan="Nhóm"><select class="v-nhom">' +
+    '<td data-nhan="Nhóm" class="tach"><select class="v-nhom">' +
       META.nhomViec.map((n) => '<option' + (n === d.nhom ? ' selected' : '') + '>' +
         esc(n) + '</option>').join('') +
     '</select></td>' +
@@ -363,8 +370,7 @@ function theTongHop(d) {
         'định mức ' + vePhut(t.dinhMucPhut), mauPt) +
       oSo(t.theoNhom.length, 'nhóm việc', t.theoNhom.length ? t.theoNhom[0].ten + ' nhiều nhất' : '') +
     '</div>' +
-    '<div class="the"><div class="the-dau"><h2>Máy cộng từ báo cáo ngày</h2>' +
-      '<span class="nho">anh/chị chỉ cần viết nhận định bên dưới</span></div>' +
+    '<div class="the"><div class="the-dau"><h2>Máy cộng từ báo cáo ngày</h2></div>' +
     '<div class="the-than">' +
       (t.theoNhom.length
         ? t.theoNhom.map((n) =>
@@ -384,34 +390,34 @@ function theTongHop(d) {
 }
 
 /* ---- nhận định + kế hoạch + cần hỗ trợ ---- */
+/**
+ * Phần người tự viết.
+ *
+ * Câu chữ giữ ngắn và KHÔNG định hướng — anh Hùng: "câu từ đơn giản lại, ít
+ * mang tính định hướng, ngắn gọn dễ hiểu ý hơn". Gợi ý dài kiểu "chạy tốt ở
+ * đâu, vướng ở đâu, vì sao" thực ra là đang đọc hộ người ta phải viết gì, và ai
+ * cũng viết đúng ba ý đó rồi thôi.
+ */
 function theVietTay(d, loaiKy) {
   const p = d.phieu || {};
-  const o = (nhan, id, gt, goi, duoi) =>
+  const o = (nhan, id, gt, goi) =>
     '<div class="viec-o"><div class="o-nhan">' + esc(nhan) + '</div>' +
     '<textarea class="in" id="' + id + '" placeholder="' + esc(goi) + '">' + esc(gt || '') +
-    '</textarea>' + (duoi ? '<div class="nho">' + esc(duoi) + '</div>' : '') + '</div>';
+    '</textarea></div>';
 
-  /* Link video chỉ hỏi ở kỳ TUẦN và THÁNG. Nhân sự vốn đã gửi kèm link Minutes
-   * cho báo cáo tuần trong nhóm Lark (Thư và Pinky làm thế mỗi tuần) — không có
-   * ô này thì họ mất một thứ đang làm được, và quay lại dán vào nhóm chat. Báo
-   * cáo ngày thì chưa ai quay video bao giờ, hỏi thêm chỉ làm dài biểu mẫu. */
+  /* Link video chỉ hỏi ở kỳ TUẦN và THÁNG, và KHÔNG ghi "không bắt buộc": quay
+   * video báo cáo là quy định của phòng, viết thêm câu đó là nói ngược lại. */
   const video = loaiKy === 'ngay' ? ''
-    : '<div class="viec-o"><div class="o-nhan">Link video báo cáo</div>' +
+    : '<div class="viec-o"><div class="o-nhan">Link video</div>' +
       '<input class="in" id="txVideo" type="url" value="' + esc(p.linkVideo || '') + '" ' +
-      'placeholder="dán link Minutes / Drive — để trống nếu không quay">' +
-      '<div class="nho">Không bắt buộc. Dán link vào đây thì nó nằm cùng phiếu, ' +
-      'khỏi phải tìm lại trong nhóm chat.</div></div>';
+      'placeholder="dán link vào đây"></div>';
 
-  return '<div class="the"><div class="the-dau"><h2>Anh/chị tự viết</h2>' +
-    '<span class="nho">' + (loaiKy === 'ngay' ? 'không bắt buộc' : 'phần máy không viết thay được') +
-    '</span></div><div class="the-than viec-ds">' +
-      o('Nhận định về kỳ này', 'txNhanDinh', p.nhanDinh,
-        'Chạy tốt ở đâu, vướng ở đâu, vì sao') +
-      o('Kế hoạch kỳ sau', 'txKeHoach', p.keHoach, 'Kỳ tới tập trung vào gì') +
+  return '<div class="the"><div class="the-dau"><h2>Anh/chị tự viết</h2></div>' +
+    '<div class="the-than viec-ds">' +
+      o('Nhận định', 'txNhanDinh', p.nhanDinh, 'kỳ này thế nào') +
+      o('Kế hoạch kỳ sau', 'txKeHoach', p.keHoach, 'kỳ tới làm gì') +
       video +
-      o('Cần hỗ trợ gì không?', 'txHoTro', p.canHoTro,
-        'Vướng mắc cần quản lý gỡ — để trống nếu không có',
-        'Ô này gom về một chỗ để quản lý xem cả phòng đang vướng gì.') +
+      o('Cần hỗ trợ', 'txHoTro', p.canHoTro, 'vướng gì') +
     '</div></div>';
 }
 

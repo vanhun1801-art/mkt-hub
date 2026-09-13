@@ -215,6 +215,10 @@ textarea.in { width: 100%; min-height: 76px; resize: vertical; }
 .bang td.o-viec .v-viec:focus { border-radius: var(--r-sm); border-bottom-color: transparent; }
 .bang td.o-viec .v-cv { padding: 5px 10px; }
 
+/* Cột Nhóm dời ra xa cột Công việc một chút — hai ô sát nhau thì trông như
+   cùng một nhóm ô, mà chúng nói hai chuyện khác nhau. */
+.bang th.tach, .bang td.tach { padding-left: 16px; }
+
 /* Nhóm do máy đoán: viền trái mảnh màu xanh, đủ để mắt nhận ra mà không ồn. */
 .bang select.doan {
   box-shadow: inset 2px 0 0 var(--blue);
