@@ -20,13 +20,18 @@ khác là mỗi đầu việc thành một bản ghi.
 
 ## Quy định (anh Hùng chốt 12/09/2026)
 
-| Kỳ | Hạn nộp |
-|---|---|
-| Ngày | hết ngày làm việc đó |
-| Tuần | hết ngày cuối cùng của tuần |
-| Tháng | hết **ngày đầu tiên của tháng sau** |
+| Kỳ | Khoảng đo | Hạn nộp |
+|---|---|---|
+| Ngày | chính ngày đó | hết ngày đó |
+| Tuần | **Thứ 7 → Thứ 6** | hết **Thứ 7** tuần kế |
+| Tháng | mùng 1 → cuối tháng | hết **ngày 1** tháng sau |
 
-- Tuần của phòng chạy **Thứ 7 → Thứ 6**, đúng thẻ nhắc gửi trong nhóm mỗi tuần.
+Tuần và tháng cùng một luật dù nghe như hai quy định riêng: hạn là **ngày đầu
+tiên của kỳ kế tiếp**. Anh Hùng (13/09): *"làm báo cáo ngày thứ 7, còn hiệu quả
+đo lường từ thứ 7 tuần trước tới thứ 6 tuần này"*. Hạn phải nằm SAU khi kỳ đóng
+— đặt hạn trong kỳ là bắt tổng kết một khoảng chưa kết thúc.
+
+- Khoảng đo tuần khớp đúng thẻ nhắc gửi trong nhóm mỗi tuần.
 - Ca làm việc: **480 phút** (cả ngày) hoặc **240 phút** (nửa ngày); ca khác thì
   tự khai. Phần trăm tính trên **định mức của ca**, không phải trên tổng người
   đó tự khai — chia cho chính tổng của mình thì ai cũng ra 100%.

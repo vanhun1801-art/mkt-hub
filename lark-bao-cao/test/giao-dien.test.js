@@ -89,9 +89,9 @@ const VIEC = {
 
 const NHAN_DINH = {
   co: true, diem: 62, motCau: 'Mới khai 75% định mức.',
-  y: [{ muc: 'tot', chu: 'Nộp đúng hạn.', vi: '' },
-    { muc: 'luu-y', chu: 'Mới khai 75% định mức.', vi: 'còn 2 giờ chưa vào đâu' },
-    { muc: 'canh', chu: 'Có nêu vướng mắc cần hỗ trợ.', vi: 'thiếu file gốc' }],
+  y: [{ nhom: 'han', muc: 'tot', chu: 'Nộp đúng hạn.', vi: '' },
+    { nhom: 'thoi-luong', muc: 'luu-y', chu: 'Mới khai 75% định mức.', vi: 'còn 2 giờ chưa vào đâu' },
+    { nhom: 'ho-tro', muc: 'canh', chu: 'Có nêu vướng mắc cần hỗ trợ.', vi: 'thiếu file gốc' }],
 };
 
 const TOAN_PHONG = {
@@ -405,15 +405,33 @@ function nap() {
     ok('chỗ đặt note nằm TRONG khối đầu trang', ky.includes('id="ndNote"'),
       'để ở cuối trang thì người vừa gõ xong không thấy');
 
+    /* Ba chỗ, ba việc — bản trước cả ba cùng ghi "trễ 19 giờ 50 phút". */
+    ok('nhãn cạnh tiêu đề chỉ nói đã nộp hay chưa',
+      ky.includes('>Đã nộp<') && !/nhan-tt[^>]*>[^<]*trễ/.test(ky),
+      'đang ra: ' + (ky.match(/<span class="nhan-tt[^<]*<\/span>/) || [''])[0]);
+    ok('dòng dưới chỉ nói mốc giờ nộp',
+      ky.includes('đã nộp ') && !/đã nộp [^<]*trễ/.test(ky),
+      'nói kết luận ở cả hai chỗ thì người đọc phải kiểm xem hai câu có khớp không');
+
     const n = ve('dải note', 'noteY(' + JSON.stringify(NHAN_DINH.y) + ')');
-    ok('mỗi ý một note', (n.match(/class="nd nd-/g) || []).length === 3);
-    ok('cảnh báo đứng trước lưu ý và tốt',
-      n.indexOf('nd-canh') < n.indexOf('nd-luu-y') &&
-      n.indexOf('nd-luu-y') < n.indexOf('nd-tot'),
-      'mắt đọc từ trái sang — chuyện cần xử lý phải nằm đầu');
-    ok('bỏ dấu chấm cuối câu', !n.includes('hạn.<') && n.includes('Nộp đúng hạn<'),
+    /* Anh Hùng: "chỉ cần nêu ra là nộp muộn, hay nộp đúng. Còn phần đánh giá
+     * khác thì chưa cần." Mấy ý kia vẫn được tính và vẫn nằm ở màn Toàn phòng —
+     * chỉ là không đặt lên đầu phiếu của người vừa gõ. */
+    ok('chỉ còn MỘT note, về chuyện nộp', (n.match(/class="nd nd-/g) || []).length === 1,
+      'đang ra: ' + n.slice(0, 200));
+    ok('note đó nói về hạn nộp', n.includes('Nộp đúng hạn<'));
+    ok('không mang ý thời lượng lên phiếu', !n.includes('định mức'));
+    ok('không mang ý vướng mắc lên phiếu', !n.includes('vướng mắc'));
+    ok('bỏ dấu chấm cuối câu', !n.includes('hạn.<'),
       'đây là note, không phải câu văn');
-    ok('phần "vì" thành lời nhắc khi rê chuột', n.includes('title="còn 2 giờ chưa vào đâu"'),
+
+    const nhieu = ve('dải note khi nộp muộn', 'noteY(' + JSON.stringify([
+      { nhom: 'han', muc: 'canh', chu: 'Nộp muộn — trễ 3 giờ.', vi: 'lý do gì đó' },
+      { nhom: 'co-cau', muc: 'luu-y', chu: 'Edit video chiếm 80%.', vi: '' },
+    ]) + ')');
+    ok('nộp muộn vẫn hiện, và hiện một mình', (nhieu.match(/class="nd nd-/g) || []).length === 1 &&
+      nhieu.includes('Nộp muộn'));
+    ok('phần "vì" thành lời nhắc khi rê chuột', nhieu.includes('title="lý do gì đó"'),
       'nhét cả câu giải thích vào note thì nó hết nhỏ');
 
     ok('KHÔNG chấm điểm lên đầu phiếu của người vừa gõ', !/class="diem/.test(n),

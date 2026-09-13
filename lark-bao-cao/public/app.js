@@ -193,10 +193,11 @@ function theKy(loaiKy) {
   const nhan = loaiKy === 'ngay' ? veNgayThu(DU.ky.tu)
     : loaiKy === 'tuan' ? veNgay(DU.ky.tu) + ' – ' + veNgay(DU.ky.den)
       : 'Tháng ' + p2(phanRa(DU.ky.tu).thang) + '/' + phanRa(DU.ky.tu).nam;
+  /* Mỗi chỗ nói MỘT việc, không nhắc lại nhau: nhãn này chỉ nói đã nộp hay
+   * chưa, dòng dưới nói mốc giờ, còn kết luận đúng hạn hay muộn thì để note màu
+   * bên dưới lo. Bản trước cả ba đều ghi "trễ 19 giờ 50 phút". */
   const tt = !p ? '<span class="nhan-tt xam">Chưa có</span>'
-    : p.daNop
-      ? '<span class="nhan-tt ' + (p.trangThaiHan === 'tre' ? 'cam' : 'xanh') + '">' +
-        (p.trangThaiHan === 'tre' ? esc(p.veHan) : 'Đã nộp') + '</span>'
+    : p.daNop ? '<span class="nhan-tt xanh">Đã nộp</span>'
       : '<span class="nhan-tt cam">Nháp</span>';
   const buoc = loaiKy === 'ngay' ? NGAY_MS : loaiKy === 'tuan' ? 7 * NGAY_MS : 0;
 
@@ -218,7 +219,12 @@ function theKy(loaiKy) {
 
 function cauHan(d) {
   const p = d.phieu;
-  if (p && p.daNop) return 'đã nộp ' + veLuc(p.nopLuc) + ', ' + p.veHan.toLowerCase();
+  /* Chỉ mốc giờ. Kết luận đúng hạn hay muộn nằm ở note ngay bên dưới — nói ở cả
+   * hai chỗ thì người đọc phải kiểm xem hai câu có khớp nhau không. */
+  if (p && p.daNop) {
+    return 'đã nộp ' + veLuc(p.nopLuc) +
+      (p.soLanNop > 1 ? ' · sửa ' + (p.soLanNop - 1) + ' lần' : '');
+  }
   return Date.now() > d.han
     ? 'đã quá hạn — nộp bây giờ vẫn ghi nhận nhưng đánh dấu là trễ'
     : 'còn hạn';
@@ -460,12 +466,19 @@ async function napNhanDinh(loaiKy) {
   o.innerHTML = noteY(d.y);
 }
 
+/* Trên phiếu chỉ nói chuyện NỘP. Anh Hùng: "phần này anh nghĩ chỉ cần nêu ra là
+ * nộp muộn, hay nộp đúng. Còn phần đánh giá khác thì chưa cần". Mấy ý về thời
+ * lượng, cơ cấu việc, vướng mắc… vẫn được tính và vẫn nằm ở màn Toàn phòng của
+ * quản lý — chỉ là không đặt lên đầu phiếu của người vừa gõ. */
+const NHOM_TREN_PHIEU = ['han'];
+
 /* Cảnh báo đứng trước, rồi lưu ý, rồi tốt — mắt đọc từ trái sang. */
 const THU_TU_MUC = { canh: 0, 'luu-y': 1, tot: 2 };
 
 /** Dải note nhỏ. Phần "vì" thành lời nhắc khi rê chuột, để một dòng đủ chứa. */
 function noteY(y) {
   return [...y]
+    .filter((x) => NHOM_TREN_PHIEU.includes(x.nhom))
     .sort((a, b) => (THU_TU_MUC[a.muc] ?? 3) - (THU_TU_MUC[b.muc] ?? 3))
     .map((x) => '<span class="nd nd-' + esc(x.muc) + '"' +
       (x.vi ? ' title="' + esc(x.vi) + '"' : '') + '>' +

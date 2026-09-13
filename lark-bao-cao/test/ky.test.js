@@ -127,10 +127,24 @@ group('Hạn nộp — theo đúng quy định anh Hùng đặt ra');
   ok('hạn báo cáo ngày là hết ngày đó',
     K.veLuc(K.hanNop(kn)) === '12/09/2026 23:59', 'đang ra: ' + K.veLuc(K.hanNop(kn)));
 
-  /* "nếu báo cáo tuần thì gửi ngày cuối cùng" */
+  /* Anh Hùng nói rõ 13/09: "làm báo cáo ngày thứ 7, còn hiệu quả đo lường từ
+   * thứ 7 tuần trước tới thứ 6 tuần này". Nên kỳ đóng hết Thứ 6, còn HẠN là
+   * hết Thứ 7 — ngày đầu tiên của tuần kế tiếp.
+   *
+   * Bản trước để hạn đúng vào Thứ 6, tức đòi báo cáo tuần khi ngày cuối cùng
+   * của tuần còn chưa hết. */
   const kt = K.kyTuan(T6_1109);
-  ok('hạn báo cáo tuần là hết Thứ 6 cuối kỳ',
-    K.veLuc(K.hanNop(kt)) === '11/09/2026 23:59', 'đang ra: ' + K.veLuc(K.hanNop(kt)));
+  ok('kỳ tuần vẫn đóng hết Thứ 6', K.veNgayThu(kt.den) === 'Thứ 6 11/09/2026');
+  ok('hạn báo cáo tuần là hết THỨ 7 tuần kế',
+    K.veLuc(K.hanNop(kt)) === '12/09/2026 23:59', 'đang ra: ' + K.veLuc(K.hanNop(kt)));
+  ok('và ngày đó đúng là Thứ 7', K.veNgayThu(K.hanNop(kt)).startsWith('Thứ 7'));
+  ok('hạn tuần nằm SAU khi kỳ đóng', K.hanNop(kt) > kt.den,
+    'đặt hạn trong kỳ là bắt tổng kết một khoảng chưa kết thúc');
+
+  /* Tuần và tháng cùng một luật: hạn = hết ngày đầu tiên của kỳ kế tiếp. */
+  ok('hạn tuần và hạn tháng dùng chung một luật',
+    K.hanNop(kt) === K.cuoiNgay(kt.den + 1) &&
+    K.hanNop(K.kyThang(T7_1209)) === K.cuoiNgay(K.kyThang(T7_1209).den + 1));
 
   /* "báo cáo tháng thì gửi chậm nhất ngày đầu tiên của tháng tiếp theo" */
   const kth = K.kyThang(T7_1209);

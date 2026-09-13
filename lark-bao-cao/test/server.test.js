@@ -124,7 +124,11 @@ const QUAN_LY = Object.assign({}, NHAN_SU, { 'x-hub-user-manager': '1' });
     /* Hạn tháng phải nằm SAU khi tháng đóng. Sai chiều này thì cả phòng bị chấm
      * trễ oan mỗi tháng một lần. */
     ok('hạn tháng nằm sau ngày cuối tháng', d.han.thang > d.ky.thang.den);
-    ok('hạn tuần đúng bằng cuối kỳ tuần', d.han.tuan === d.ky.tuan.den);
+    /* Quy định của phòng: kỳ tuần đo Thứ 7 → Thứ 6, còn BÁO CÁO làm ngày Thứ 7.
+     * Nên hạn nằm sau khi kỳ đóng đúng một ngày, y như tháng. */
+    ok('hạn tuần nằm SAU khi kỳ tuần đóng', d.han.tuan > d.ky.tuan.den,
+      'để hạn đúng vào Thứ 6 là đòi báo cáo tuần khi ngày cuối tuần chưa hết');
+    ok('hạn tuần đúng một ngày sau kỳ', d.han.tuan === K.cuoiNgay(d.ky.tuan.den + 1));
   }
 
   group('vePhieu — dịch bản ghi Base sang thứ giao diện hiểu');

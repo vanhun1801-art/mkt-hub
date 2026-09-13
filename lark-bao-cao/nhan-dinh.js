@@ -45,31 +45,36 @@ const cauNhom = (ds) => ds.map((n) => n.ten + ' ' + K.vePhut(n.phut)).join(', ')
  */
 function chiMotPhieu(phieu, dong, boiCanh = {}) {
   const y = [];
-  const them = (muc, chu, vi) => y.push({ muc, chu, vi: vi || '' });
+  /* `nhom` để bên ngoài lọc được mà không phải đoán theo chữ. Phiếu của nhân sự
+   * chỉ hiện nhóm 'han' — anh Hùng: "phần này anh nghĩ chỉ cần nêu ra là nộp
+   * muộn, hay nộp đúng. Còn phần đánh giá khác thì chưa cần". Màn Toàn phòng
+   * của quản lý vẫn đọc hết. */
+  const them = (nhom, muc, chu, vi) => y.push({ nhom, muc, chu, vi: vi || '' });
 
   /* ---- 1. đúng hạn ---- */
   if (phieu.trangThaiHan === 'tre') {
-    them(MUC.canh, 'Nộp muộn — ' + phieu.veHan + '.',
+    them('han', MUC.canh, (phieu.nopBu ? 'Nộp bù — ' : 'Nộp muộn — ') + phieu.veHan
+      .replace(/^Nộp bù — /, '') + '.',
       'Quy định là nộp cuối kỳ; muộn thì số liệu tới tay quản lý sau khi đã cần dùng.');
   } else if (phieu.trangThaiHan === 'thieu') {
-    them(MUC.canh, 'Chưa nộp và đã quá hạn.');
+    them('han', MUC.canh, 'Chưa nộp và đã quá hạn.');
   } else if (phieu.daNop) {
-    them(MUC.tot, 'Nộp đúng hạn.');
+    them('han', MUC.tot, 'Nộp đúng hạn.');
   }
 
   /* ---- 2. thời lượng so với định mức ---- */
   if (phieu.phanTram == null) {
-    them(MUC.luu_y, 'Chưa khai định mức ca nên không đo được mức lấp đầy.');
+    them('thoi-luong', MUC.luu_y, 'Chưa khai định mức ca nên không đo được mức lấp đầy.');
   } else if (phieu.phanTram < NGUONG.thieuGio) {
     const thieu = Math.max(0, (phieu.dinhMuc || 0) - (phieu.tongPhut || 0));
-    them(MUC.luu_y,
+    them('thoi-luong', MUC.luu_y,
       'Mới khai ' + phieu.phanTram + '% định mức, còn ' + K.vePhut(thieu) + ' chưa vào đâu.',
       'Có thể là quên khai, cũng có thể là thật sự trống việc — hai chuyện đó cần trả lời khác nhau.');
   } else if (phieu.phanTram > 130) {
-    them(MUC.luu_y, 'Khai ' + phieu.phanTram + '% định mức — vượt khá xa một ca.',
+    them('thoi-luong', MUC.luu_y, 'Khai ' + phieu.phanTram + '% định mức — vượt khá xa một ca.',
       'Làm thêm giờ đều đặn là dấu hiệu việc dồn, không phải dấu hiệu chăm.');
   } else {
-    them(MUC.tot, 'Thời lượng khai ' + phieu.phanTram + '% định mức, cân với ca làm.');
+    them('thoi-luong', MUC.tot, 'Thời lượng khai ' + phieu.phanTram + '% định mức, cân với ca làm.');
   }
 
   /* ---- 3. cơ cấu việc ---- */
@@ -86,10 +91,10 @@ function chiMotPhieu(phieu, dong, boiCanh = {}) {
     const dau = xep[0];
     const pt = Math.round((dau.phut / tong) * 100);
     if (pt >= NGUONG.domNhom && xep.length > 1) {
-      them(MUC.luu_y, dau.ten + ' chiếm ' + pt + '% thời lượng kỳ này.',
+      them('co-cau', MUC.luu_y, dau.ten + ' chiếm ' + pt + '% thời lượng kỳ này.',
         'Còn lại: ' + cauNhom(xep.slice(1, 4)) + '.');
     } else if (xep.length >= 4) {
-      them(MUC.luu_y, 'Việc rải ra ' + xep.length + ' nhóm khác nhau.',
+      them('co-cau', MUC.luu_y, 'Việc rải ra ' + xep.length + ' nhóm khác nhau.',
         'Nhiều nhất: ' + cauNhom(xep.slice(0, 3)) + '.');
     }
   }
@@ -97,7 +102,7 @@ function chiMotPhieu(phieu, dong, boiCanh = {}) {
   /* ---- 4. đầu việc đứng yên ---- */
   const dungYen = (boiCanh.dungYen || []).filter((x) => x.soNgay >= NGUONG.ganLau);
   if (dungYen.length) {
-    them(MUC.canh,
+    them('dung-yen', MUC.canh,
       dungYen.length + ' đầu việc giữ nguyên tiến độ qua ' +
       Math.max(...dungYen.map((x) => x.soNgay)) + ' ngày báo cáo.',
       dungYen.slice(0, 3).map((x) => x.ten + ' (' + x.pt + '%)').join(' · '));
@@ -107,20 +112,20 @@ function chiMotPhieu(phieu, dong, boiCanh = {}) {
   const doDang = dong.filter((d) => d.trangThai && d.trangThai !== 'Hoàn thành');
   const khongLyDo = doDang.filter((d) => !String(d.tienDo || '').trim());
   if (khongLyDo.length) {
-    them(MUC.luu_y, khongLyDo.length + ' việc chưa hoàn thành mà không ghi tiến độ.',
+    them('do-dang', MUC.luu_y, khongLyDo.length + ' việc chưa hoàn thành mà không ghi tiến độ.',
       'Không có dòng tiến độ thì quản lý chỉ thấy việc đứng, không biết đứng vì đâu.');
   }
 
   /* ---- 6. ngày thiếu (chỉ có nghĩa với kỳ tuần/tháng) ---- */
   const thieu = boiCanh.ngayThieu || [];
   if (thieu.length) {
-    them(MUC.canh, 'Thiếu ' + thieu.length + ' ngày báo cáo trong kỳ.',
+    them('ngay-thieu', MUC.canh, 'Thiếu ' + thieu.length + ' ngày báo cáo trong kỳ.',
       thieu.slice(0, 5).map((x) => K.veNgay(x.ms || x)).join(', '));
   }
 
   /* ---- 7. cần hỗ trợ ---- */
   if (String(phieu.canHoTro || '').trim()) {
-    them(MUC.canh, 'Có nêu vướng mắc cần hỗ trợ.', phieu.canHoTro);
+    them('ho-tro', MUC.canh, 'Có nêu vướng mắc cần hỗ trợ.', phieu.canHoTro);
   }
 
   return y;

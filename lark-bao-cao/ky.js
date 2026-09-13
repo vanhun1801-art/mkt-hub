@@ -157,15 +157,22 @@ function ky(loai, ms, luat = LUAT) {
 /**
  * Hạn nộp của một kỳ.
  *
- * Ngày và tuần: hết ngày cuối cùng của kỳ — với tuần thì đó là Thứ 6, đúng câu
- * "báo cáo tuần thì gửi ngày cuối cùng".
- * Tháng: hết NGÀY ĐẦU TIÊN của tháng sau, không phải ngày cuối tháng. Kỳ tháng
- * đóng lúc 23:59 ngày cuối tháng, nên hạn phải nằm SAU khi kỳ đóng — đưa hạn về
- * trong kỳ là bắt người ta nộp báo cáo cho một ngày chưa xảy ra.
+ * Ngày: hết chính ngày đó.
+ *
+ * Tuần và tháng: hết NGÀY ĐẦU TIÊN của kỳ kế tiếp. Hai cái này cùng một luật,
+ * dù nghe như hai quy định riêng — anh Hùng nói tuần là "làm báo cáo ngày thứ
+ * 7, còn hiệu quả đo lường từ thứ 7 tuần trước tới thứ 6 tuần này", và tháng là
+ * "chậm nhất ngày đầu tiên của tháng tiếp theo". Kỳ tuần đóng hết Thứ 6, nên
+ * Thứ 7 chính là ngày đầu của tuần kế; kỳ tháng đóng hết ngày cuối tháng, nên
+ * mùng 1 là ngày đầu của tháng kế.
+ *
+ * Lý do sâu hơn: hạn phải nằm SAU khi kỳ đóng. Đặt hạn vào trong kỳ là bắt
+ * người ta tổng kết một khoảng chưa kết thúc — bản trước để hạn tuần đúng vào
+ * Thứ 6, tức là đòi báo cáo tuần khi ngày cuối cùng của tuần còn chưa hết.
  */
 function hanNop(k) {
-  if (k.loai === 'thang') return cuoiNgay(k.den + 1);
-  return k.den;
+  if (k.loai === 'ngay') return k.den;
+  return cuoiNgay(k.den + 1);
 }
 
 /**
