@@ -171,6 +171,50 @@ const TT_BASE = 'Mở bảng dữ liệu gốc trên Lark';
     }
   }
 
+  group('6. Mẫu regex chưa bị ăn mất backslash');
+  {
+    /* MƯỜI mẫu của màn Phân quyền từng chết theo đúng kiểu này: viết qua
+     * `node -e "..."` trong Git Bash, shell ăn một lớp backslash, `(\d+)`
+     * thành `(d+)`. Nó vẫn là biểu thức HỢP LỆ — khớp chữ "d" lặp lại — nên
+     * không nổ ở đâu cả, chỉ lặng lẽ không bao giờ khớp câu nào. Cả màn đó
+     * đứng nguyên tiếng Việt trong chế độ English suốt nhiều tháng.
+     *
+     * Không kiểm được "mẫu này có khớp câu thật không" nếu không có câu mẫu,
+     * nhưng kiểm được DẤU VẾT của lỗi: một nhóm bắt chỉ chứa `d+`/`w+`/`s+`
+     * thì gần như chắc chắn là backslash đã rơi mất — chẳng ai cố ý viết một
+     * biểu thức khớp "ddd" ở giữa câu tiếng Việt. */
+    const d = fs.readFileSync(path.join(GOC, 'lark-mkt-hub', 'public', 'i18n.js'), 'utf8');
+    const nghi = [...d.matchAll(/\[\/\^[^\n]*?\(([dws])\+\)/g)].map((m) => m[0].slice(0, 70));
+    ok('không mẫu nào còn (d+) / (w+) / (s+) — dấu vết backslash bị ăn mất',
+      !nghi.length, nghi.join('\n        '));
+
+    /* Cùng bệnh, chỗ khác: lớp ký tự Unicode trong hàm `dich()`. Bản hỏng
+     * `[^p{L}p{N}]` không phải "không khớp" mà khớp SAI — nó cắt "🟡 Trung
+     * bình" thành ["🟡 Trung bìn", "h"] rồi tra từ điển chữ "h". Cả đường lùi
+     * bóc emoji chết lặng, mà giá trị select trong Base thì BẮT BUỘC có emoji. */
+    /* Bỏ qua dòng chú thích: đoạn ghi chú ngay tại chỗ đó CỐ Ý in ra bản hỏng
+     * để đời sau biết nó trông thế nào. Quét cả file thì bộ kiểm tự báo động
+     * vì chính lời giải thích của mình. */
+    const dongMa = d.split('\n').filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l));
+    ok('lớp ký tự Unicode còn nguyên backslash (\\p{L}, \\p{N})',
+      !dongMa.some((l) => l.includes('[^p{')) && d.includes('\\p{L}'));
+
+    /* Và kiểm bằng chính hành vi, không chỉ bằng hình dạng chuỗi. */
+    const bocEmoji = /^([^\p{L}\p{N}]+)\s*(.+)$/u.exec('🟡 Trung bình');
+    ok('bóc được emoji dẫn đầu ra khỏi nhãn',
+      !!bocEmoji && bocEmoji[2] === 'Trung bình',
+      bocEmoji ? JSON.stringify([bocEmoji[1], bocEmoji[2]]) : 'không khớp');
+
+    /* Mọi mẫu phải dựng được thành RegExp thật. Cái này bắt loại hỏng ồn ào
+     * (ngoặc lệch), khác với loại im lặng ở trên. */
+    const mau = [...d.matchAll(/^\s*\[\/(\^.+?)\/,/gm)].map((m) => m[1]);
+    let hong = 0;
+    for (const m of mau) { try { new RegExp(m); } catch (_) { hong += 1; } }
+    ok('mọi mẫu đều dựng được thành RegExp', hong === 0, hong + ' mẫu hỏng');
+    ok('đọc được danh sách mẫu (bộ kiểm còn bám đúng file)', mau.length > 40,
+      'chỉ thấy ' + mau.length + ' mẫu');
+  }
+
   console.log('\n' + '─'.repeat(56));
   console.log('  ' + pass + ' pass · ' + fail + ' fail');
   if (fail) { console.log('\n  Không đạt:'); fails.forEach((f) => console.log('   - ' + f)); }

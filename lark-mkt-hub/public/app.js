@@ -1358,6 +1358,15 @@ async function modalLog(id) {
 }
 
 /* ---- Thêm base ---- */
+
+/* Biểu tượng cho base mới, theo đúng thứ tự bày ra trong bảng chọn.
+ *
+ * Chỉ những cái hợp nghĩa cho MỘT BASE — bỏ `tong-quan`, `them`, `cai-dat`,
+ * `sang`, `toi`, `auto`, `chuong`, `gap` vì chúng là icon của chính lớp vỏ,
+ * chọn nhầm là panel có hai mục trông y hệt nhau. */
+const ICON_CHON = ['base', 'cong-viec', 'lich', 'quang-cao', 'ota', 'social',
+  'chinh-anh', 'anh', 'nguoi', 'tien', 'may'];
+
 function modalThem() {
   moModal('Thêm base vào panel', `
     <div class="dong-form">
@@ -1368,8 +1377,14 @@ function modalThem() {
         <option value="lark">Mở thẳng Lark Base</option>
       </select>
       <label>Tên hiển thị</label><input type="text" id="fTen" placeholder="Theo dõi chiến dịch">
-      <label>Chữ viết tắt</label><input type="text" id="fIcon" value="BS" maxlength="3" style="width:80px">
-      <label>Màu</label><input type="text" id="fMau" value="#2b5cff" style="width:120px">
+      <label>Màu</label><input type="color" id="fMau" value="#2b5cff" style="width:64px;padding:2px">
+    </div>
+    <div class="dong-form">
+      <label>Biểu tượng</label>
+      <div class="chon-icon" id="fIconChon">${ICON_CHON.map((t, i) => (
+    '<button type="button" class="ic-o' + (i === 0 ? ' on' : '') + '" data-ic-ten="' + esc(t) +
+        '" title="' + esc(t) + '">' + icon(t) + '</button>'
+  )).join('')}</div>
     </div>
     <div class="dong-form" id="nhomLocal">
       <label>Thư mục app</label><input type="text" id="fThuMuc" placeholder="../lark-app-moi">
@@ -1409,12 +1424,20 @@ function modalThem() {
     $('#nhomUrl').hidden = k === 'local';
   };
 
+  /* Bảng chọn biểu tượng: bấm một ô là sáng ô đó, giá trị đọc lúc Lưu. */
+  $('#fIconChon').onclick = (e) => {
+    const o = e.target.closest('[data-ic-ten]');
+    if (!o) return;
+    $$('#fIconChon .ic-o').forEach((x) => x.classList.remove('on'));
+    o.classList.add('on');
+  };
+
   $('#btnLuuThem').onclick = async () => {
     const b = {
       kieu: $('#fKieu').value,
       ten: $('#fTen').value.trim(),
       mo_ta: '',
-      icon: $('#fIcon').value.trim() || '▦',
+      icon: (($('#fIconChon .ic-o.on') || {}).dataset || {}).icTen || 'base',
       mau: $('#fMau').value.trim(),
       larkUrl: $('#fLark').value.trim(),
       kpi: $('#fKpi').value,
@@ -1758,8 +1781,26 @@ window.addEventListener('message', (ev) => {
   veRail();
 });
 
-/* ---------------- khởi động ---------------- */
-(async function () {
+/* ---------------- khởi động ----------------
+ *
+ * Chạy sau DOMContentLoaded, KHÔNG chạy ngay lúc app.js được nạp.
+ *
+ * Lý do cụ thể, đã gặp thật: app.js là file thứ tư trong tám file của
+ * index.html, mà đoạn khởi động này gọi `napTbApp()` — hàm nằm trong tbapp.js,
+ * file CUỐI CÙNG. Nó chạy được suốt từ trước tới nay chỉ nhờ một may mắn: câu
+ * `await napHub()` ở giữa phải chờ một vòng mạng, và vòng đó xưa nay luôn lâu
+ * hơn thời gian trình duyệt đọc nốt bốn file còn lại.
+ *
+ * Cái may mắn đó vừa hết hạn. Sau khi /api/hub được nén và có đệm, nó trả lời
+ * trong khoảng 1 ms — nhanh hơn cả việc đọc nốt caidat.js. Kết quả là
+ * `ReferenceError: napTbApp is not defined` ngay trên màn hình đầu tiên, và
+ * lặng lẽ giết luôn thông báo chặn màn hình: quản lý gửi một câu bắt buộc đọc
+ * mà không máy nào hiện lên.
+ *
+ * DOMContentLoaded bảo đảm MỌI thẻ <script> thường trong trang đã chạy xong,
+ * nên thứ tự không còn phụ thuộc vào việc mạng nhanh hay chậm nữa.
+ */
+async function khoiDongVo() {
   try {
     if (localStorage.getItem('hub.rail.min') === '1') {
       $('#rail').classList.add('min');
@@ -1800,9 +1841,6 @@ window.addEventListener('message', (ev) => {
    *
    * Quay lại tab thì nạp NGAY, nên người dùng không thấy khác gì trước. */
   setInterval(() => { if (!document.hidden) napHub().catch(() => {}); }, 10000);
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) napHub().catch(() => {});
-  });
   setInterval(() => { if (!document.hidden) napTongQuan(); }, 60000);
   /* Thông báo tự nạp 2 phút/lần — đủ nhanh để không lỡ việc, đủ thưa để không
    * bắt từng Base đọc lại dữ liệu liên tục. */
@@ -1813,7 +1851,32 @@ window.addEventListener('message', (ev) => {
    * người đang mở app phải chờ hai phút mới thấy thì không còn là chặn. */
   napTbApp();
   setInterval(() => { if (!document.hidden) napTbApp(); }, 60000);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) napTbApp(); });
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) napThongBao(); });
-  document.addEventListener('visibilitychange', () => { if (!document.hidden && S.view === 'home') napTongQuan(); });
-})();
+
+  /* MỘT chỗ bắt "quay lại tab", không phải bốn.
+   *
+   * Trước đây mỗi thứ tự đăng ký một listener riêng, nên một lần bấm về tab là
+   * bốn lời gọi bắn ra cùng lúc — và người hay nhảy qua nhảy lại giữa hub với
+   * Lark thì bắn liên tục. Chỉ `napTongQuan` có khoá chống trùng, ba cái kia
+   * thì không.
+   *
+   * Chặn ở 3 giây: đủ để một lần quay lại thật luôn được nạp mới, đủ để chuyện
+   * nhảy qua nhảy lại không thành một trận mưa request lên Render. */
+  let quayLaiLuc = 0;
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) return;
+    if (Date.now() - quayLaiLuc < 3000) return;
+    quayLaiLuc = Date.now();
+    napHub().catch(() => {});
+    napTbApp();
+    napThongBao();
+    if (S.view === 'home') napTongQuan();
+  });
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => { khoiDongVo(); });
+} else {
+  /* Đã qua DOMContentLoaded (app.js bị nạp muộn vì lý do nào đó) thì chạy luôn —
+   * lúc này các file kia chắc chắn đã xong rồi. */
+  khoiDongVo();
+}

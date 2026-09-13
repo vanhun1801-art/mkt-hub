@@ -434,6 +434,38 @@ function tinh(res, duongDan, truyVan) {
   }, tep.nen);
 }
 
+/* Địa chỉ đưa vào href phải là http/https.
+ *
+ * `esc()` bên client chặn được việc thoát khỏi dấu nháy, nhưng `javascript:…`
+ * thì không cần thoát khỏi dấu nháy nào cả — nó nằm gọn trong href và chạy khi
+ * có người bấm. Chặn ở cửa vào là chắc nhất: dữ liệu sai không bao giờ vào tới
+ * file, nên không có chỗ nào phải nhớ lọc lúc hiển thị. */
+const laHttp = (s) => /^https?:\/\//i.test(String(s || ''));
+
+/**
+ * Kiểm một ô của module trước khi ghi vào modules.json. Dùng CHUNG cho cả thêm
+ * mới lẫn sửa — xem chú thích ở nhánh PATCH để biết vì sao phải chung.
+ * Trả { gt } nếu hợp lệ, { loi } nếu không.
+ */
+function kiemTruong(k, v) {
+  if (k === 'mau') {
+    return /^#[0-9a-f]{3,8}$/i.test(String(v || ''))
+      ? { gt: String(v) }
+      : { loi: 'Màu phải là mã dạng #2b5cff' };
+  }
+  if (k === 'larkUrl' || k === 'url') {
+    // để trống là bỏ đường dẫn, hợp lệ
+    if (!String(v || '').trim()) return { gt: '' };
+    return laHttp(v) ? { gt: String(v) } : { loi: 'Đường dẫn phải bắt đầu bằng http:// hoặc https://' };
+  }
+  if (k === 'bat') return { gt: v !== false };
+  if (k === 'icon') return { gt: String(v || '').slice(0, 24) };
+  if (k === 'kpi') {
+    return !v || kpi.BO_DOC[v] ? { gt: v ? String(v) : '' } : { loi: 'Không có bộ đọc chỉ số "' + v + '"' };
+  }
+  return { gt: typeof v === 'string' ? v.slice(0, 400) : v };
+}
+
 /* ---------------- danh sách module ---------------- */
 function danhSach() {
   try { return cfg.docModules(); } catch (e) {
@@ -677,9 +709,24 @@ async function api(req, res, u) {
       const tho = cfg.docModulesTho();
       const i = tho.findIndex((x) => x.id === mod.id);
       if (i < 0) return loi(res, 404, 'Không thấy trong modules.json');
-      ['ten', 'mo_ta', 'icon', 'mau', 'larkUrl', 'url', 'bat', 'kpi'].forEach((k) => {
-        if (k in body) tho[i][k] = body[k];
-      });
+      for (const k of ['ten', 'mo_ta', 'icon', 'mau', 'larkUrl', 'url', 'bat', 'kpi']) {
+        if (!(k in body)) continue;
+        /* Sửa phải qua đúng bộ kiểm mà lúc THÊM đã qua.
+         *
+         * Trước đây nhánh POST kiểm `mau` bằng biểu thức mã màu và bắt `url`
+         * phải là http/https, còn nhánh PATCH thì gán thẳng — cùng một ô, hai
+         * cửa, chỉ một cửa có người gác. Mà hai ô này đều chảy vào HTML:
+         * `mau` vào `style="background:…"`, `larkUrl` vào `href="…"`. Thoát ký
+         * tự (`esc`) chặn được chuyện phá vỡ dấu nháy, nhưng không chặn được
+         * `javascript:` trong href hay `url(http://…)` nhét thêm vào style.
+         *
+         * Chỉ quản lý mới gọi được đường này nên đây không phải lỗ hổng leo
+         * quyền — nhưng "chỉ người có quyền mới hỏng được" là lý do để bỏ qua
+         * rất tệ khi bộ kiểm đã viết sẵn cách đó ba chục dòng. */
+        const v = kiemTruong(k, body[k]);
+        if (v.loi) return loi(res, 400, v.loi);
+        tho[i][k] = v.gt;
+      }
       // mở/đóng cho cả phòng: chỉ nhận đúng true/false, đừng để chuỗi "false" lọt vào
       if ('caPhong' in body) tho[i].caPhong = body.caPhong === true;
       cfg.ghiModules(tho);
@@ -716,14 +763,24 @@ async function api(req, res, u) {
       return loi(res, 400, 'Thiếu URL (http/https)');
     }
 
+    /* Đường dẫn Lark cũng phải là http/https — nó chảy thẳng vào href của nút
+     * "Base" trên trang chủ. Cùng bộ kiểm với nhánh PATCH, xem `kiemTruong`. */
+    if (String(b.larkUrl || '').trim() && !laHttp(b.larkUrl)) {
+      return loi(res, 400, 'Link Lark Base phải bắt đầu bằng http:// hoặc https://');
+    }
     const moi = {
       id, ten,
       mo_ta: String(b.mo_ta || ''),
-      icon: String(b.icon || '▦').slice(0, 4),
+      /* Trước đây cắt còn 4 ký tự, từ thời icon là "chữ viết tắt" kiểu CV/LT/QC.
+       * Từ lúc đổi sang bộ icon 2D thì đây là TÊN icon ('cong-viec', 'quang-cao'),
+       * nên phép cắt đó biến 'quang-cao' thành 'quan' — base thêm mới hiện ra
+       * bốn chữ cái thay vì hình. Mọi base trong modules.json đều dùng tên icon;
+       * chỉ đường thêm mới là còn sót lại luật cũ. */
+      icon: String(b.icon || 'base').slice(0, 24),
       mau: /^#[0-9a-f]{3,8}$/i.test(String(b.mau || '')) ? b.mau : '#3370ff',
       kieu,
       kpi: b.kpi && kpi.BO_DOC[b.kpi] ? b.kpi : '',
-      larkUrl: String(b.larkUrl || ''),
+      larkUrl: String(b.larkUrl || '').trim(),
       bat: true,
       /* Base MỚI mặc định KÍN: chỉ quản lý và người được cấp tên mới thấy.
        * Trước đây thêm base là cả phòng thấy ngay trong panel — dựng thử một base

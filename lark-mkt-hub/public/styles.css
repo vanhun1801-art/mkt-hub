@@ -685,6 +685,22 @@ button { font: inherit; }
 .dong-form { display: grid; grid-template-columns: 152px 1fr; gap: 10px 14px; align-items: center; margin-bottom: 12px; }
 .dong-form > label { font-size: 13px; color: var(--chu-mo); }
 .dong-form .ghi-chu { grid-column: 2; font-size: 12px; color: var(--chu-nhat); margin-top: -6px; }
+
+/* Bảng chọn biểu tượng cho base mới. Bày cả bộ ra thành lưới thay vì bắt gõ
+ * tên: tên icon ('cong-viec', 'quang-cao') chỉ có trong icons.js, không ai
+ * ngoài người viết code biết mà gõ. */
+.chon-icon { display: flex; flex-wrap: wrap; gap: 6px; }
+.chon-icon .ic-o {
+  width: 38px; height: 38px; display: grid; place-items: center; cursor: pointer;
+  border: 1px solid var(--vien); border-radius: var(--r-nho);
+  background: var(--trang); color: var(--chu-mo); padding: 0;
+}
+.chon-icon .ic-o:hover { border-color: var(--vien-dam); color: var(--chu); }
+.chon-icon .ic-o.on {
+  border-color: var(--xanh); background: var(--xanh-nhat); color: var(--xanh);
+  box-shadow: inset 0 0 0 1px var(--xanh);
+}
+.chon-icon .ic-o svg { width: 20px; height: 20px; }
 input[type=text], input[type=number], input[type=url], select, textarea {
   width: 100%; padding: 7px 10px; border: 1px solid var(--vien); border-radius: var(--r-nho);
   font: inherit; color: var(--chu); background: var(--trang);

@@ -692,6 +692,64 @@
     'Nội dung': 'Content',
     'Khác': 'Other',
     'Operate': 'Operate',
+
+    /* --- LỖ HỔNG TÌM ĐƯỢC BẰNG CÁCH QUÉT DOM THẬT ---
+     *
+     * Cách tìm (dùng lại được): mở hub, đặt English, rồi duyệt mọi text node
+     * tìm chữ còn dấu tiếng Việt, bỏ qua các vùng dữ liệu khai trong BO_QUA.
+     * Cái gì còn sót lại mà không phải tên người / tên việc thì là nhãn thiếu.
+     * Đọc mắt thường không ra, vì trang lẫn lộn nhãn với dữ liệu thật.
+     *
+     * Hai base thêm sau cùng chưa bao giờ có khoá, nên panel bên trái hiện bảy
+     * dòng tiếng Anh và hai dòng tiếng Việt. */
+    'Quỹ chi phí': 'Expense fund',
+    'Báo cáo công việc': 'Work reports',
+    'Sổ quỹ tạm ứng · chứng từ · quyết toán': 'Advance ledger · receipts · settlement',
+    'Báo cáo ngày · tuần · tháng của từng người': 'Daily · weekly · monthly reports per person',
+
+    /* Nhãn thẻ số trên chính trang Tổng quan — màn hình đầu tiên ai cũng thấy */
+    'Doanh thu từ QC': 'Revenue from ads',
+    'Doanh thu thu về': 'Revenue received',
+    'Cần liên hệ khách': 'Guests to contact',
+    'Tour hôm nay': 'Tours today',
+    'Hoa hồng OTA': 'OTA commission',
+    'Booking về 24h qua': 'Bookings in the last 24h',
+    'Lượt xem': 'Views',
+    'Lượt tiếp cận': 'Reach',
+    'Follower tăng ròng': 'Net follower growth',
+    'Tương tác': 'Engagements',
+    'Tỷ lệ tương tác': 'Engagement rate',
+    'chốt ngày mới nhất': 'as of the latest day',
+    'chỉ tính phần từ quảng cáo': 'ads-attributed only',
+    'thiếu SĐT / điểm đón / chưa xác nhận': 'missing phone / pickup / not confirmed',
+    'chưa nhập giá OTA bán (Gross) nên chưa tính được':
+      'OTA gross price not entered yet — cannot compute',
+    'TikTok · chưa đăng bài hoặc chưa đồng bộ': 'TikTok · nothing posted, or not synced',
+    'vừa xong': 'just now',
+
+    /* Cửa sổ Thêm base */
+    'App Node trên máy này': 'Node app on this machine',
+    'App đã có URL riêng': 'App with its own URL',
+    'Mở thẳng Lark Base': 'Open Lark Base directly',
+    'Biểu tượng': 'Icon',
+    'Thư mục app': 'App folder',
+    'Cổng': 'Port',
+    'Bộ đọc chỉ số': 'Metrics reader',
+    '— chưa có —': '— none —',
+    'Theo dõi chiến dịch': 'Campaign tracker',
+
+    /* Tooltip — không thấy trên ảnh chụp nên rất dễ bị bỏ quên */
+    'Thu gọn / mở rộng panel': 'Collapse / expand the panel',
+    'Thêm một base vào panel': 'Add a base to the panel',
+    'Trạng thái module, log, phân quyền nhân sự': 'Module status, logs, staff permissions',
+    'Đọc lại chỉ số của mọi base, và nạp lại app đang mở':
+      "Re-read every base's metrics and reload the open app",
+    'Mở Lark Base trong tab mới': 'Open the Lark Base in a new tab',
+    'Bấm để xem và xử lý ngay': 'Click to view and handle it now',
+    'Mở app để xử lý': 'Open the app to handle it',
+    'Bấm để mở việc này trong app': 'Click to open this item in the app',
+    'số việc trong một ngày': 'tasks in a single day',
+    'việc gấp / quá hạn': 'urgent / overdue',
   };
 
   /* ---------------- từ điển: khớp theo mẫu ----------------
@@ -719,6 +777,17 @@
     [/^(\d+) \/ (\d+) việc · (.+)$/, '$1 / $2 tasks · $3'],
     [/^Tracking · (\d+) việc toàn phòng$/, 'Tracking · $1 tasks (whole team)'],
     [/^Tracking · (\d+) việc của bạn$/, 'Tracking · $1 tasks of yours'],
+    /* Ba mẫu cho cùng một dòng, và THỨ TỰ là tất cả: bộ dịch lấy mẫu KHỚP ĐẦU
+     * TIÊN rồi dừng, nên cái hẹp phải đứng trước cái rộng. Để mẫu rộng lên
+     * trước thì hai mẫu dưới thành đồ trang trí — đúng chuyện đã xảy ra: dòng
+     * đầu trang đọc là "9 bases · 46 need action · cập nhật vừa xong".
+     *
+     * Và vì bộ dịch chỉ khớp TRỌN một text node, phần đuôi không tự dịch lại
+     * được bằng khoá 'vừa xong' — nó phải nằm ngay trong mẫu. */
+    [/^(\d+) base · (\d+) việc cần xử lý · cập nhật vừa xong$/,
+      '$1 bases · $2 need action · updated just now'],
+    [/^(\d+) base · (\d+) việc cần xử lý · cập nhật (.+)$/,
+      '$1 bases · $2 need action · updated $3'],
     [/^(\d+) base · (\d+) việc cần xử lý · (.+)$/, '$1 bases · $2 need action · $3'],
     [/^(\d+) chiến dịch · (\d+) nhóm · (.+)$/, '$1 campaigns · $2 groups · $3'],
     [/^Số liệu (.+) → (.+) \((\d+) ngày\) · kỳ trước (.+) → (.+)$/,
@@ -740,23 +809,33 @@
     [/^Tài khoản Lark: (.+)$/, 'Lark account: $1'],
     [/^App Lark đang chạy: (.+)$/, 'Lark app in use: $1'],
     [/^Số bản: (.+)$/, 'Build: $1'],
-    [/^hub tự bật · cổng nội bộ (d+) (không ra internet)$/,
+    /* MƯỜI MẪU DƯỚI ĐÂY TỪNG CHẾT HẾT — cả màn Phân quyền đứng nguyên tiếng
+     * Việt khi chọn English, mà không có lỗi nào hiện ra.
+     *
+     * Nguyên nhân: chúng bị viết qua `node -e "..."` trong Git Bash, và shell
+     * ăn mất một lớp backslash — `(\d+)` thành `(d+)`, `\(…\)` thành `(…)`.
+     * `(d+)` vẫn là biểu thức HỢP LỆ (khớp chữ d lặp lại), nên không nổ; nó chỉ
+     * lặng lẽ không bao giờ khớp câu nào.
+     *
+     * Cách bắt loại lỗi này: xem `test/tu-vung.test.js` — mỗi mẫu phải có ít
+     * nhất một câu mẫu khớp được, mẫu nào không khớp gì là hỏng. */
+    [/^hub tự bật · cổng nội bộ (\d+) \(không ra internet\)$/,
       'started by the hub · internal port $1 (not exposed)'],
-    [/^(d+) người đã khai quyền riêng · (d+) người chưa khai (đang ở mặc định: thấy đủ (d+) base)$/,
+    [/^(\d+) người đã khai quyền riêng · (\d+) người chưa khai \(đang ở mặc định: thấy đủ (\d+) base\)$/,
       '$1 with custom permissions · $2 not configured (default: all $3 bases)'],
-    [/^(d+) dòng chưa khớp được với ai trong Lark — quyền đó chưa có tác dụng.$/,
+    [/^(\d+) dòng chưa khớp được với ai trong Lark — quyền đó chưa có tác dụng\.$/,
       '$1 row(s) match nobody in Lark — those permissions have no effect.'],
     [/^Sửa quyền · (.+)$/, 'Edit permissions · $1'],
     [/^Đã khớp: (.+)$/, 'Matched: $1'],
-    [/^(d+) người đã khai quyền riêng$/, '$1 people with custom permissions'],
-    [/^(d+) người chưa khai quyền$/, '$1 people not configured yet'],
-    [/^Đang ở mặc định: thấy đủ (d+) base với vai nhân sự. Bấm Khai quyền để đặt riêng.$/,
+    [/^(\d+) người đã khai quyền riêng$/, '$1 people with custom permissions'],
+    [/^(\d+) người chưa khai quyền$/, '$1 people not configured yet'],
+    [/^Đang ở mặc định: thấy đủ (\d+) base với vai nhân sự\. Bấm Khai quyền để đặt riêng\.$/,
       'Currently on the default: all $1 bases as staff. Click Set permissions to change.'],
-    [/^Người chưa khai thì thấy đủ (d+) base với vai nhân sự — xem danh sách ở cuối trang.$/,
+    [/^Người chưa khai thì thấy đủ (\d+) base với vai nhân sự — xem danh sách ở cuối trang\.$/,
       'People not configured see all $1 bases as staff — see the list at the bottom.'],
-    [/^(d+) người đã khai$/, '$1 people configured'],
-    [/^Tất cả (d+) base$/, 'All $1 bases'],
-    [/^Ai chưa có trong danh sách thì thấy đủ (d+) base với vai nhân sự.$/,
+    [/^(\d+) người đã khai$/, '$1 people configured'],
+    [/^Tất cả (\d+) base$/, 'All $1 bases'],
+    [/^Ai chưa có trong danh sách thì thấy đủ (\d+) base với vai nhân sự\.$/,
       'Anyone not listed sees all $1 bases as staff.'],
     [/^Tải của bạn · (\d+) lượt · đỉnh (\d+) việc\/ngày$/, 'Your load · $1 assignments · peak $2 tasks\/day'],
     [/^Tải của bạn · (\d+) lượt$/, 'Your load · $1 assignments'],
@@ -773,6 +852,28 @@
     [/^Chờ duyệt · (.+)$/, 'Awaiting approval · $1'],
     [/^Hôm nay · (.+)$/, 'Today · $1'],
     [/^phụ trách (.+)$/, 'owner $1'],
+
+    /* --- cùng đợt quét DOM với khối khoá mới ở trên --- */
+    [/^Mở app (.+)$/, 'Open $1'],
+    /* Dòng so sánh dưới mỗi thẻ số của Quảng cáo / Social. Trước đây chỉ dịch
+     * riêng chữ 'kỳ trước' nên cả cụm không bao giờ khớp — nó là MỘT text node. */
+    [/^(.+) vs kỳ trước$/, '$1 vs previous period'],
+    [/^(.+) của (.+) toàn công ty$/, '$1 of $2 company-wide'],
+    [/^(.+): (\d+) việc quá hạn từ trước khoảng lọc$/,
+      '$1: $2 overdue tasks from before this range'],
+    /* Đuôi "+N việc khác" phải nằm TRONG mẫu, không thể trông vào mẫu
+     * `^\+(\d+) việc khác$` ở trên: nó chỉ khớp khi đó là cả text node. */
+    [/^Sát ngày mà chưa có nhân sự · \+(\d+) việc khác$/,
+      'Trip is close and nobody assigned · +$1 more'],
+    [/^sát ngày mà chưa có nhân sự · \+(\d+) việc khác$/,
+      'trip is close and nobody assigned · +$1 more'],
+    [/^Sát ngày mà chưa có nhân sự · (.+)$/, 'Trip is close and nobody assigned · $1'],
+    [/^sát ngày mà chưa có nhân sự · (.+)$/, 'trip is close and nobody assigned · $1'],
+    [/^Yêu cầu FOC chưa được phản hồi · (.+)$/, 'FOC request still unanswered · $1'],
+    [/^Ngày kết thúc (.+) nhưng trạng thái vẫn "(.+)"$/,
+      'End date $1 but the status is still "$2"'],
+    [/^(\d+) booking · (\d+) khách$/, '$1 bookings · $2 guests'],
+    [/^(\d+) khách$/, '$1 guests'],
   ];
 
   /* Vùng chứa DỮ LIỆU — không dịch bên trong, kể cả có trùng nhãn. */
@@ -803,8 +904,16 @@
       if (re.test(t)) return t.replace(re, ra);
     }
     /* Select trong Base hay có emoji dẫn đầu ("🟡 Trung bình") — bóc emoji ra,
-     * dịch phần chữ rồi gắn emoji lại, khỏi phải khai từng biến thể. */
-    const m = /^([^p{L}p{N}]+)s*(.+)$/u.exec(t);
+     * dịch phần chữ rồi gắn emoji lại, khỏi phải khai từng biến thể.
+     *
+     * ĐÃ TỪNG CHẾT, cùng nguyên nhân với mười mẫu ở MAU_EN: backslash bị shell
+     * ăn mất, `[^\p{L}\p{N}]` thành `[^p{L}p{N}]` — một lớp ký tự loại trừ đúng
+     * năm chữ cái p { L } N. Hậu quả không phải "không khớp" mà tệ hơn: nó khớp
+     * SAI. Với "🟡 Trung bình" nó tách ra ["🟡 Trung bìn", "h"] rồi đi tra
+     * EN["h"], đời nào có. Nên toàn bộ đường lùi này im lặng không chạy, và mọi
+     * giá trị select có emoji dẫn đầu đứng nguyên tiếng Việt ở chế độ English.
+     * Mà những giá trị đó thì BẮT BUỘC giữ emoji — đó là chữ thật trong Base. */
+    const m = /^([^\p{L}\p{N}]+)\s*(.+)$/u.exec(t);
     if (m && EN[m[2]] != null) return m[1].trim() + ' ' + EN[m[2]];
 
     /* Có chỗ server hạ chữ đầu xuống ("sát ngày mà chưa có nhân sự") — thử lại
