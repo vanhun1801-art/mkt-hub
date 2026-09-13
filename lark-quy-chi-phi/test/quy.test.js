@@ -141,6 +141,106 @@ const nhom = (t) => console.log('\n\x1b[1m' + t + '\x1b[0m');
   ok('server gửi xuống danh sách loại chứng từ',
     (m.options.chungTu || []).length === 3, JSON.stringify(m.options.chungTu));
 
+  nhom('Vai nào ra vai nấy — theo đúng header Hub gửi xuống');
+  /* Phân quyền đọc từ header, nên phải thử bằng CHÍNH header đó. Ba cách khai
+   * một người: open_id, họ tên, email. Email là cách nên dùng và cũng là cách
+   * dễ hỏng lặng lẽ nhất nếu ai đó lỡ bỏ một mắt xích — hub quên chuyển tiếp,
+   * app quên đọc, hay so chuỗi phân biệt hoa thường. */
+  const nhuLa = async (h) => {
+    const r = await fetch(BASE + '/api/meta', { headers: h });
+    return r.json();
+  };
+  /* Phải trùng `keToan` trong config.js. Ghi thẳng ở đây chứ không hỏi server:
+   * hỏi server thì phép thử chỉ chứng minh "server nhất quán với chính nó", còn
+   * ghi ra thì nó canh đúng người mà anh Hùng đã chốt. */
+  const KT = 'tentt@rootytrip.com';
+
+  const kt1 = await nhuLa({
+    'x-hub-user-id': 'ou_thu_ke_toan', 'x-hub-user-name': 'Ke%20Toan',
+    'x-hub-user-email': KT,
+  });
+  ok('email công ty khớp thì ra vai kế toán', kt1.vai === 'keToan', 'vai = ' + kt1.vai);
+  ok('kế toán KHÔNG phải chủ quỹ', kt1.chuQuy === false);
+
+  /* Hub giữ hai email và chuyển tiếp cả hai. Bỏ rơi cái thứ hai là khớp được
+   * một nửa, mà nửa bị bỏ thường là nửa người ta hay gõ. */
+  const kt2 = await nhuLa({
+    'x-hub-user-id': 'ou_thu_ke_toan', 'x-hub-user-name': 'Ke%20Toan',
+    'x-hub-user-email-phu': KT,
+  });
+  ok('email đăng nhập Lark cũng khớp', kt2.vai === 'keToan', 'vai = ' + kt2.vai);
+
+  const kt3 = await nhuLa({
+    'x-hub-user-id': 'ou_thu_ke_toan', 'x-hub-user-name': 'Ke%20Toan',
+    'x-hub-user-email': KT.toUpperCase(),
+  });
+  ok('viết hoa viết thường không ảnh hưởng', kt3.vai === 'keToan', 'vai = ' + kt3.vai);
+
+  const la = await nhuLa({
+    'x-hub-user-id': 'ou_nguoi_la', 'x-hub-user-name': 'Nguoi%20La',
+    'x-hub-user-email': 'khong-phai-ai@rootytrip.com',
+  });
+  ok('người ngoài chỉ được xem', la.vai === 'xem', 'vai = ' + la.vai);
+
+  /* Cờ quản lý của Hub phải thắng mọi danh sách id: open_id khác nhau theo từng
+   * app Lark, nên id anh Hùng ghi trong config KHÔNG khớp id Hub gửi. Đúng lỗi
+   * 12/09/2026 — mở web ra thấy mình là khách. */
+  const ql = await nhuLa({
+    'x-hub-user-id': 'ou_id_la_hoac', 'x-hub-user-name': 'Le%20Van%20Hung',
+    'x-hub-user-manager': '1',
+  });
+  ok('cờ quản lý của Hub thắng, dù open_id không khớp config',
+    ql.vai === 'chuQuy', 'vai = ' + ql.vai);
+
+  nhom('Kế toán không ghi được vào sổ, nhưng quyết toán được');
+  const nhuKeToan = {
+    'Content-Type': 'application/json',
+    'x-hub-user-id': 'ou_thu_ke_toan', 'x-hub-user-name': 'Ke%20Toan',
+    'x-hub-user-email': KT,
+  };
+  const rKhai = await fetch(BASE + '/api/chi', {
+    method: 'POST', headers: nhuKeToan,
+    body: JSON.stringify({ noiDung: 'TEST kế toán không được khai', tien: 1000 }),
+  });
+  ok('kế toán khai khoản chi thì bị chặn ở SERVER', rKhai.status === 403, 'HTTP ' + rKhai.status);
+  const rNap = await fetch(BASE + '/api/nap', {
+    method: 'POST', headers: nhuKeToan, body: JSON.stringify({ tien: 1000 }),
+  });
+  ok('kế toán nạp quỹ cũng bị chặn', rNap.status === 403, 'HTTP ' + rNap.status);
+  const rQt = await fetch(BASE + '/api/quyet-toan', {
+    method: 'POST', headers: nhuKeToan, body: JSON.stringify({ ids: [], ma: 'QTTU99/TEST' }),
+  });
+  /* 400 "chưa chọn khoản nào" = đã QUA chốt quyền rồi mới dừng ở khâu kiểm dữ
+   * liệu. Đó mới là điều cần chứng minh; 403 ở đây là hỏng. */
+  ok('kế toán QUA được chốt quyền quyết toán', rQt.status === 400, 'HTTP ' + rQt.status);
+
+  nhom('Không xoá được lịch sử quyết toán bằng một lời gọi');
+  const daDongSo = m.chi.find((c) => String(c.maQuyetToan || '').trim());
+  if (daDongSo) {
+    const r = await fetch(BASE + '/api/quyet-toan', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: [daDongSo.id], ma: 'QTTU-KHONG-BAO-GIO' }),
+    });
+    const d = await r.json();
+    ok('ghi đè mã cũ mà không khai cờ thì bị chặn (409)',
+      r.status === 409 && d.code === 'GHI_DE_MA_CU', 'HTTP ' + r.status + ' ' + JSON.stringify(d));
+    ok('câu từ chối nêu đúng mã sắp mất',
+      String(d.error || '').includes(daDongSo.maQuyetToan), d.error);
+  } else {
+    ok('có khoản đã đóng sổ để thử ghi đè', false, 'sổ chưa có khoản nào mang mã QTTU');
+  }
+
+  nhom('Không tạo đơn Tourwell trùng cho khoản đã đi qua Tourwell');
+  const daQua = m.chi.find((c) => String(c.maDieuHanh || '').trim() && !String(c.maDon || '').trim());
+  if (daQua) {
+    const r = await fetch(BASE + '/api/chi/' + daQua.id + '/tourwell', { method: 'POST' });
+    const d = await r.json();
+    ok('khoản đã có mã điều hành SG thì bị chặn (409)',
+      r.status === 409 && d.code === 'DA_QUA_TOURWELL', 'HTTP ' + r.status + ' ' + JSON.stringify(d));
+  } else {
+    console.log('       (bỏ qua: sổ không còn khoản nào có SG mà thiếu mã đơn)');
+  }
+
   nhom('Chốt ghi');
   const r = await fetch(BASE + '/api/chi', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },

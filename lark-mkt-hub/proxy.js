@@ -270,6 +270,7 @@ function chuyenTiep(req, res, mod, duongDan, nguoi) {
   delete opts.headers['x-hub-user-id'];
   delete opts.headers['x-hub-user-name'];
   delete opts.headers['x-hub-user-email'];
+  delete opts.headers['x-hub-user-email-phu'];
   ['x-hub-user-manager','x-hub-perm-toan-bo','x-hub-perm-khong-tao','x-hub-perm-chi-phi']
     .forEach((h) => { delete opts.headers[h]; });
   if (nguoi && nguoi.id) {
@@ -280,6 +281,11 @@ function chuyenTiep(req, res, mod, duongDan, nguoi) {
      * liệu gắn với người (app Báo cáo) mà chỉ có id thì đổi app là đứt liên kết,
      * người ta mở lên thấy trắng trơn. */
     if (nguoi.email) opts.headers['x-hub-user-email'] = encodeURIComponent(nguoi.email);
+    /* Email thứ hai đi cùng vì hub GIỮ cả hai (enterprise_email và email đăng
+     * nhập) đúng để khớp được cả hai — người khai quyền không biết chắc mình
+     * đang điền cái nào. Bỏ rơi nó ở đây là module dưới chỉ khớp được một nửa,
+     * và cái nửa bị bỏ là nửa người ta hay gõ. */
+    if (nguoi.emailPhu) opts.headers['x-hub-user-email-phu'] = encodeURIComponent(nguoi.emailPhu);
     // hub đã quyết vai + tuỳ chọn (bảng "Phân quyền app") — module chỉ việc tin
     if (nguoi.quanLy) opts.headers['x-hub-user-manager'] = '1';
     if (nguoi.toanBo) opts.headers['x-hub-perm-toan-bo'] = '1';
@@ -373,6 +379,7 @@ function headerNguoi(nguoi) {
    * khác nhau. Module nào lưu dữ liệu gắn với người (app Báo cáo) mà chỉ có id
    * thì đổi app là mất sạch liên kết. */
   if (nguoi.email) h['x-hub-user-email'] = encodeURIComponent(nguoi.email);
+  if (nguoi.emailPhu) h['x-hub-user-email-phu'] = encodeURIComponent(nguoi.emailPhu);
   if (nguoi.quanLy) h['x-hub-user-manager'] = '1';
   if (nguoi.toanBo) h['x-hub-perm-toan-bo'] = '1';
   if (nguoi.taoMoi === false) h['x-hub-perm-khong-tao'] = '1';

@@ -58,7 +58,7 @@ không sửa số cho vừa khớp. Giờ `65.559.931 − 58.181.875 = 7.378.056
 | Vai | Làm được | Cột chứng từ thấy gì |
 |---|---|---|
 | **chuQuy** — anh Hùng | khai chi · nạp quỹ · đính chứng từ · sửa · xoá · quyết toán | Hoá đơn **và** UNC |
-| **keToan** — chị kế toán | đọc · mở chứng từ · **quyết toán theo lô** | **chỉ Hoá đơn** |
+| **keToan** — `tentt@rootytrip.com` | đọc · mở chứng từ · **quyết toán theo lô** | **chỉ Hoá đơn** |
 | **xem** — người còn lại | đọc | chỉ Hoá đơn tên xám, không mở được nút nào |
 
 Kế toán từng bị xếp chung với "xem". Sai: việc của họ là **đóng sổ**, không phải
@@ -81,15 +81,22 @@ bản web ra thấy mình bị coi là khách chỉ xem hôm 12/09/2026.
 
 ### Khai ai là kế toán
 
+Mặc định là **`tentt@rootytrip.com`**, khai sẵn trong `config.js` nên bản trên
+Render chạy được ngay, không phải đặt thêm biến môi trường. Thêm hoặc đổi người:
+
 ```bash
-LARK_KE_TOAN="Nguyễn Thị Kế Toán"          # họ tên, hoặc
-LARK_KE_TOAN=ou_abc…,ou_def…               # open_id, hoặc trộn cả hai
+LARK_KE_TOAN=tentt@rootytrip.com,ai-do@rootytrip.com
 ```
 
-Nhận **cả open_id lẫn họ tên** (bỏ dấu cách thừa, không phân biệt hoa thường).
-Tên là cái duy nhất gõ được ngay mà không phải đi đào id — mà đào thì cũng dễ
-đào nhầm, vì `open_id` khác nhau theo từng app Lark và Hub đăng nhập bằng app
-riêng của nó. Để trống thì không ai là kế toán, app quay về đúng hành vi cũ.
+Nhận **email · họ tên · open_id**, cái nào cũng khớp, không phân biệt hoa
+thường. **Nên dùng email**: `open_id` khác nhau theo từng app Lark — chính chỗ
+này làm anh Hùng mở web ra thấy mình là khách hôm 12/09/2026 — còn tên tiếng
+Việt thì dễ gõ sai dấu.
+
+Hub giữ **hai** email của mỗi người (`enterprise_email` công ty cấp và email
+đăng nhập Lark) đúng để khớp được cả hai, nhưng `proxy.js` trước đây chỉ chuyển
+tiếp một cái. Nay chuyển cả hai qua `x-hub-user-email` và
+`x-hub-user-email-phu`, nên khai kiểu nào cũng trúng.
 
 Kế toán vẫn xem Base được nếu muốn. Ba view dựng sẵn cho họ:
 
@@ -226,7 +233,12 @@ toán không được thấy chuỗi `UNC`, không có `data-sua`, nhưng phải
 và nút quyết toán. Đã thử phá để chắc nó cắn — bỏ nhánh `laKeToan()` đi thì ba
 phép thử đỏ ngay.
 
-Lần chạy gần nhất: **43 + 36 pass · 0 fail**.
+`quy.test.js` thử phân quyền bằng **chính header Hub gửi xuống**, không phải
+bằng cách gọi hàm nội bộ: kế toán khai chi phải ăn 403, mà quyết toán phải lọt
+qua chốt quyền rồi mới dừng ở khâu kiểm dữ liệu. Đã thử phá — bỏ khớp email đi
+thì bốn phép thử đỏ.
+
+Lần chạy gần nhất: **43 + 48 pass · 0 fail**.
 
 `node --check` xanh mà app vẫn vỡ — lần thứ hai. Ngày 13/09/2026 một dòng lạc
 rơi vào giữa `/* tiện */` và `function json(...)`, biến một khai báo hàm thành

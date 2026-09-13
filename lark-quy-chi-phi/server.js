@@ -210,14 +210,25 @@ async function taoDonTourwell(recId, khoan) {
 /* ---------------- danh tính ---------------- */
 const nguoiCuaRequest = new AsyncLocalStorage();
 
+const giaiMa = (v) => {
+  if (!v) return '';
+  try { return decodeURIComponent(v); } catch (_) { return String(v); }
+};
+
 function nguoiTuHeader(req) {
   const id = req.headers['x-hub-user-id'];
   if (!id) return null;
-  let ten = id;
-  try { ten = req.headers['x-hub-user-name'] ? decodeURIComponent(req.headers['x-hub-user-name']) : id; }
-  catch (_) { ten = req.headers['x-hub-user-name'] || id; }
-  /* Hub đã quyết ai là quản lý (theo open_id hoặc email) và gửi kèm cờ này. */
-  return { id: String(id), name: ten, quanLy: req.headers['x-hub-user-manager'] === '1' };
+  /* Hub gửi CẢ HAI email — enterprise_email công ty cấp và email đăng nhập
+   * Lark — vì người khai quyền không biết chắc mình đang điền cái nào. Nhận cả
+   * hai thì khai kiểu nào cũng trúng. */
+  return {
+    id: String(id),
+    name: giaiMa(req.headers['x-hub-user-name']) || String(id),
+    email: giaiMa(req.headers['x-hub-user-email']),
+    emailPhu: giaiMa(req.headers['x-hub-user-email-phu']),
+    /* Hub đã quyết ai là quản lý (theo open_id hoặc email) và gửi kèm cờ này. */
+    quanLy: req.headers['x-hub-user-manager'] === '1',
+  };
 }
 
 /* whoami ở chế độ cli sinh HẲN MỘT TIẾN TRÌNH node (`lark-cli auth status`).
@@ -263,10 +274,21 @@ async function toiLaAi() {
  */
 const chuanTen = (s) => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
 
+/**
+ * Khai kế toán bằng EMAIL, họ tên, hay open_id — cái nào cũng được.
+ *
+ * Email là cái nên dùng: nó không đổi theo app Lark như open_id, không gõ sai
+ * dấu như tên tiếng Việt, và là thứ duy nhất anh Hùng đọc ra ngay được từ danh
+ * bạ công ty. So bằng chuanTen luôn cho tiện — hạ chữ thường và bóp khoảng
+ * trắng thừa, đúng thứ email cũng cần.
+ */
 function laKeToan(me) {
   if (!me) return false;
-  const ten = chuanTen(me.name);
-  return cfg.keToan.some((k) => k === me.id || (ten && chuanTen(k) === ten));
+  const cua = [me.id, me.name, me.email, me.emailPhu].map(chuanTen).filter(Boolean);
+  return cfg.keToan.some((k) => {
+    const kk = chuanTen(k);
+    return kk && (k === me.id || cua.includes(kk));
+  });
 }
 
 async function vaiCua() {

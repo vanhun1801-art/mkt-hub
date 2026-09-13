@@ -112,13 +112,19 @@ module.exports = {
    *             đối chiếu ngân hàng của người giữ quỹ, bày ra chỉ thêm nhiễu.
    *   xem     — người khác trong phòng: đọc, không ghi gì.
    *
-   * Khai kế toán bằng `LARK_KE_TOAN`, ngăn cách bởi dấu phẩy. Nhận CẢ open_id
-   * LẪN họ tên: open_id khác nhau theo từng app Lark nên lấy đúng id của app
-   * Hub là việc không dễ, mà tên thì Hub gửi sẵn trong `x-hub-user-name`.
-   * So tên bỏ dấu cách thừa và không phân biệt hoa thường.
+   * Khai kế toán bằng `LARK_KE_TOAN`, ngăn cách bởi dấu phẩy. Nhận EMAIL, họ
+   * tên, hay open_id — cái nào cũng khớp, không phân biệt hoa thường.
+   *
+   * Nên dùng EMAIL: open_id khác nhau theo từng app Lark (chính chỗ này làm anh
+   * Hùng mở web ra thấy mình là khách hôm 12/09/2026), còn tên tiếng Việt thì
+   * dễ gõ sai dấu. Hub gửi xuống cả hai email của người đăng nhập — email công
+   * ty cấp và email đăng nhập Lark — nên khai kiểu nào cũng trúng.
    * ------------------------------------------------------------------- */
   chuQuy: (process.env.LARK_CHU_QUY || 'ou_f0d3514abf6b168bef076441f350c585')
     .split(',').map((s) => s.trim()).filter(Boolean),
-  keToan: (process.env.LARK_KE_TOAN || '')
+  /* Mặc định là chị kế toán của công ty, khai sẵn ở đây thay vì bắt đặt biến
+   * môi trường trên Render — cùng lối với `chuQuy` ngay trên. Thêm người thì
+   * đặt LARK_KE_TOAN, ngăn cách bởi dấu phẩy (đè hẳn lên mặc định này). */
+  keToan: (process.env.LARK_KE_TOAN || 'tentt@rootytrip.com')
     .split(',').map((s) => s.trim()).filter(Boolean),
 };
