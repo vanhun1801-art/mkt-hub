@@ -152,6 +152,21 @@ Màn **Theo dõi** (quản lý) đếm bốn mức đó theo tuần hoặc thán
 hạn tính trên **ngày công** chứ không trên số phiếu đã nộp — chia cho số phiếu
 thì người nộp đúng một ngày trong tuần vẫn ra 100%.
 
+## Dọn dữ liệu thử — KHÔNG BAO GIỜ xoá cả bảng
+
+Dùng `node thiet-lap/don-thu-nghiem.js` (thêm `--that` để xoá thật). Nó chỉ xoá
+bản ghi mang dấu thử (`THU`, `THỬ`, `TEST` ở đầu tên công việc), in ra từng
+dòng sắp xoá, và nói rõ giữ lại bao nhiêu của người thật.
+
+**Vì sao có hàng rào này:** ngày 13/09/2026 tôi dọn sau mỗi đợt thử bằng một
+dòng gọn — `listAllRecords()` rồi `deleteRecords()` toàn bộ. Tức là xoá sạch cả
+bảng, không phân biệt phiếu của tôi với phiếu anh Hùng vừa nộp thật. Anh nộp
+báo cáo, thấy dữ liệu biến mất, và tưởng do deploy. Không phải deploy.
+
+Quy tắc từ đây: **không có lệnh xoá hàng loạt nào chạy thẳng trên Base thật.**
+Muốn dọn thì qua script trên; muốn thử ghi nhiều thì dựng một Base riêng bằng
+`thiet-lap/tao-base.js` và trỏ `LARK_BASE_TOKEN` vào đó.
+
 ## Những chỗ đã sập một lần, đừng sập lại
 
 - **"Thứ 6" là ISO 5, không phải 6.** App Lịch tác nghiệp từng viết `moThu: 6` và
