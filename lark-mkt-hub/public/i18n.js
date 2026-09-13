@@ -750,6 +750,17 @@
     'Bấm để mở việc này trong app': 'Click to open this item in the app',
     'số việc trong một ngày': 'tasks in a single day',
     'việc gấp / quá hạn': 'urgent / overdue',
+
+    /* Sáu câu cuối còn sót của màn Cài đặt / Phân quyền — quét lại toàn bộ mười
+     * mục trong Cài đặt thì chỉ còn đúng bấy nhiêu, phần còn lại đều là TÊN
+     * NGƯỜI (dữ liệu thật, không được dịch). */
+    'Ai mở được app là do Lark quyết (Availability). Ai thấy base nào và ai duyệt được thì quyết ở đây.':
+      'Who can open the app is decided by Lark (Availability). Who sees which base, and who can approve, is decided here.',
+    'Ba thứ dưới đây nhớ riêng trong máy bạn — đổi xong người khác không bị ảnh hưởng.':
+      'The three settings below are remembered on your machine only — changing them affects nobody else.',
+    'Áp cho lớp vỏ và cả các app con.': 'Applies to the shell and every app inside it.',
+    'Chưa đọc được tài khoản.': 'Could not read the account.',
+    '(bạn — không tự bỏ quyền được)': '(you — cannot remove your own access)',
   };
 
   /* ---------------- từ điển: khớp theo mẫu ----------------
@@ -874,6 +885,8 @@
       'End date $1 but the status is still "$2"'],
     [/^(\d+) booking · (\d+) khách$/, '$1 bookings · $2 guests'],
     [/^(\d+) khách$/, '$1 guests'],
+    [/^(\d+) quản lý:$/, '$1 manager(s):'],
+    [/^(\d+) quản lý$/, '$1 manager(s)'],
   ];
 
   /* Vùng chứa DỮ LIỆU — không dịch bên trong, kể cả có trùng nhãn. */

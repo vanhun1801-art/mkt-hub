@@ -151,19 +151,30 @@ function guiNgonNguXuongModule() {
   });
 }
 
+/* Vẽ lại MỌI công tắc đang có trên màn hình, tìm theo CLASS chứ không theo id.
+ *
+ * Đúng cái bẫy mà `veThanhLoc()` đã dính một lần rồi: hai hàm này bám cứng
+ * `#segLang` / `#segTheme` — hai id của công tắc CŨ nằm trong index.html, mà
+ * công tắc đó đã bị gỡ từ lúc ngôn ngữ và sáng/tối dọn về Cài đặt. Không còn
+ * phần tử nào mang id ấy nên hàm `return` ngay dòng đầu, và bản dựng trong
+ * Cài đặt không bao giờ được vẽ lại.
+ *
+ * Triệu chứng: bấm VI thì nội dung đổi sang tiếng Việt thật, localStorage ghi
+ * 'vi' thật, nhưng nút EN vẫn là nút sáng. Người dùng nhìn vào tưởng chưa đổi
+ * được. Đo tận nơi: data-lang="vi", hub.lang="vi", mà class "on" nằm trên EN.
+ *
+ * Giữ cả id lẫn class trong bộ chọn: id có quay lại thì vẫn chạy. */
 function veSegNgonNgu() {
-  const host = $('#segLang');
-  if (!host) return;
-  host.innerHTML = NGON_NGU.map(([v, t]) =>
+  const html = NGON_NGU.map(([v, t]) =>
     '<button data-lang-set="' + v + '" class="' + (S.lang === v ? 'on' : '') + '">' + t + '</button>').join('');
+  $$('#segLang, .seg-lang').forEach((host) => { host.innerHTML = html; });
 }
 
 function veSegTheme() {
-  const host = $('#segTheme');
-  if (!host) return;
-  host.innerHTML = THEME.map(([v, t]) =>
+  const html = THEME.map(([v, t]) =>
     '<button data-theme-set="' + v + '" class="' + (S.theme === v ? 'on' : '') + '" title="' + t + '">' +
     icon(v) + '</button>').join('');
+  $$('#segTheme, .seg-theme').forEach((host) => { host.innerHTML = html; });
 }
 
 /* ---------------- tiện ích ---------------- */
