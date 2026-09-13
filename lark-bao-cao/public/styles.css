@@ -266,6 +266,26 @@ textarea.in { width: 100%; min-height: 76px; resize: vertical; }
 .thanh > i.du { background: var(--green); }
 .thanh > i.thieu { background: var(--orange); }
 
+/* ---------------- note nhận định ----------------
+   Mấy mẩu chữ nhỏ nằm ngay dưới dòng hạn nộp, trên đầu phiếu. Anh Hùng: "note
+   nhỏ đơn giản trên đầu là được, nhỏ nhỏ trên đó đủ hiểu". Nên chúng phải NHẸ
+   hơn mọi thứ khác trên màn — không viền đậm, không chấm tròn, không điểm số;
+   liếc qua là biết, không bắt dừng lại đọc.
+   ------------------------------------------------ */
+.nd-note { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+.nd-note:empty { display: none; margin: 0; }
+
+.nd {
+  padding: 2px 9px; border-radius: 999px;
+  font-size: 12px; line-height: 1.5;
+  background: var(--surface-3); color: var(--text-2);
+  border: 1px solid transparent;
+}
+.nd[title] { cursor: help; border-bottom-style: dotted; border-bottom-color: currentColor; }
+.nd-tot { background: var(--green-bg); color: var(--green-text); }
+.nd-luu-y { background: var(--orange-bg); color: var(--orange-text); }
+.nd-canh { background: var(--red-bg); color: var(--red-text); }
+
 /* ---------------- nhận định ---------------- */
 .y-ds { display: flex; flex-direction: column; gap: 9px; }
 .y {

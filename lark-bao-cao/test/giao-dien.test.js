@@ -394,7 +394,36 @@ function nap() {
     ctx.__goi('DU = ' + JSON.stringify(PHIEU_NGAY));
   }
 
-  group('Khối nhận định');
+  group('Nhận định trên phiếu — note nhỏ trên đầu, không phải thẻ to ở cuối');
+  {
+    /* Anh Hùng: "để thành các note nhỏ đơn giản trên đầu là được, nhỏ nhỏ trên
+     * đó đủ hiểu". Bản trước là một thẻ riêng ở CUỐI trang kèm điểm số to —
+     * người gõ xong phiếu phải cuộn xuống mới thấy, mà thấy rồi thì nó lại to
+     * hơn giá trị nó mang. */
+    ctx.__goi('DU = ' + JSON.stringify(PHIEU_NGAY));
+    const ky = ve('khối kỳ có chỗ cho note', 'theKy("ngay")');
+    ok('chỗ đặt note nằm TRONG khối đầu trang', ky.includes('id="ndNote"'),
+      'để ở cuối trang thì người vừa gõ xong không thấy');
+
+    const n = ve('dải note', 'noteY(' + JSON.stringify(NHAN_DINH.y) + ')');
+    ok('mỗi ý một note', (n.match(/class="nd nd-/g) || []).length === 3);
+    ok('cảnh báo đứng trước lưu ý và tốt',
+      n.indexOf('nd-canh') < n.indexOf('nd-luu-y') &&
+      n.indexOf('nd-luu-y') < n.indexOf('nd-tot'),
+      'mắt đọc từ trái sang — chuyện cần xử lý phải nằm đầu');
+    ok('bỏ dấu chấm cuối câu', !n.includes('hạn.<') && n.includes('Nộp đúng hạn<'),
+      'đây là note, không phải câu văn');
+    ok('phần "vì" thành lời nhắc khi rê chuột', n.includes('title="còn 2 giờ chưa vào đâu"'),
+      'nhét cả câu giải thích vào note thì nó hết nhỏ');
+
+    ok('KHÔNG chấm điểm lên đầu phiếu của người vừa gõ', !/class="diem/.test(n),
+      'điểm chỉ để xếp thứ tự bảng toàn phòng; đặt lên đây là đổi nghĩa nó từ ' +
+      '"máy đọc dữ liệu" thành "máy chấm điểm anh"');
+    ok('không còn thẻ nhận định riêng ở cuối phiếu',
+      !ctx.__goi('veManPhieu.toString()').includes('oNhanDinh'));
+  }
+
+  group('Khối nhận định đầy đủ — vẫn dùng ở màn Toàn phòng của quản lý');
   {
     const y = ve('nhận định', 'theY("Nhận định tự động", ' + JSON.stringify(NHAN_DINH.y) + ', 62)');
     ok('mỗi ý một dòng có mức riêng',

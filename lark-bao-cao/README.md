@@ -100,6 +100,13 @@ nhiêu phần, đầu việc **giữ nguyên tiến độ qua nhiều ngày**, v
 ghi lý do, ngày thiếu, vướng mắc đã nêu. Mỗi ý có mức (tốt / lưu ý / cảnh báo)
 và một điểm 0–100 chỉ để xếp thứ tự bảng — **không phải điểm KPI**.
 
+Trên phiếu của nhân sự, mấy ý này hiện thành **note nhỏ ngay dưới dòng hạn
+nộp** — liếc qua là biết, không bắt dừng lại đọc; phần giải thích thành lời
+nhắc khi rê chuột. **Không hiện điểm ở màn đó**: điểm chỉ để xếp thứ tự bảng
+toàn phòng của quản lý, chấm một con số lên đầu phiếu của chính người vừa gõ là
+đổi hẳn ý nghĩa nó, từ "máy đọc dữ liệu" thành "máy chấm điểm anh". Khối đầy đủ
+kèm điểm vẫn dùng ở màn Toàn phòng.
+
 Phần này chạy được ngay: không cần khoá, không phụ thuộc mạng, không bao giờ
 bịa ra một con số. Chỗ dành cho mô hình ngôn ngữ là viết lại mấy ý này thành
 lời — và khi nối, nó vẫn phải neo vào chính danh sách ý đó, không đọc thẳng dữ

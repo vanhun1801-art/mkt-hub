@@ -181,7 +181,6 @@ async function veManPhieu(el, loaiKy) {
     theKy(loaiKy) +
     (loaiKy === 'ngay' ? theBang(DU) : theTongHop(DU)) +
     theVietTay(DU, loaiKy) +
-    '<div id="oNhanDinh"></div>' +
     theLuu(DU);
 
   gan(loaiKy);
@@ -212,6 +211,8 @@ function theKy(loaiKy) {
     '</div>' +
     '<div class="the-than phu" style="padding:10px 16px">' +
       'Hạn nộp <b>' + esc(veLuc(DU.han)) + '</b> · ' + esc(cauHan(DU)) +
+      /* Nhận định nạp sau (một lượt gọi riêng) nên chừa sẵn chỗ ngay đây. */
+      '<div class="nd-note" id="ndNote"></div>' +
     '</div></div>';
 }
 
@@ -438,13 +439,38 @@ function theLuu(d) {
 }
 
 /* ---- nhận định tự động ---- */
+/**
+ * Nhận định tự động, dạng mấy note nhỏ ngay trên đầu phiếu.
+ *
+ * Anh Hùng: "phần nhận định trên báo cáo thì em để thành các note nhỏ đơn giản
+ * trên đầu là được, nhỏ nhỏ trên đó đủ hiểu". Bản trước là một thẻ riêng ở cuối
+ * trang với điểm số to — người gõ xong phiếu phải cuộn xuống mới thấy, mà thấy
+ * rồi thì nó lại to hơn giá trị nó mang.
+ *
+ * Không hiện điểm ở màn này. Điểm chỉ để XẾP THỨ TỰ bảng toàn phòng của quản
+ * lý; chấm một con số lên đầu phiếu của chính người vừa gõ là đổi hẳn ý nghĩa
+ * của nó, từ "máy đọc dữ liệu" thành "máy chấm điểm anh".
+ */
 async function napNhanDinh(loaiKy) {
-  const o = $('#oNhanDinh');
+  const o = $('#ndNote');
   if (!o || !DU.phieu) return;
   let d;
   try { d = await goi('/api/nhan-dinh?ky=' + loaiKy + '&moc=' + DU.ky.tu); } catch (_) { return; }
   if (!d.co || !d.y.length) return;
-  o.innerHTML = theY('Nhận định tự động', d.y, d.diem);
+  o.innerHTML = noteY(d.y);
+}
+
+/* Cảnh báo đứng trước, rồi lưu ý, rồi tốt — mắt đọc từ trái sang. */
+const THU_TU_MUC = { canh: 0, 'luu-y': 1, tot: 2 };
+
+/** Dải note nhỏ. Phần "vì" thành lời nhắc khi rê chuột, để một dòng đủ chứa. */
+function noteY(y) {
+  return [...y]
+    .sort((a, b) => (THU_TU_MUC[a.muc] ?? 3) - (THU_TU_MUC[b.muc] ?? 3))
+    .map((x) => '<span class="nd nd-' + esc(x.muc) + '"' +
+      (x.vi ? ' title="' + esc(x.vi) + '"' : '') + '>' +
+      /* Bỏ dấu chấm cuối câu: đây là note, không phải câu văn. */
+      esc(String(x.chu).replace(/\.$/, '')) + '</span>').join('');
 }
 
 function theY(tieuDe, y, diem) {
