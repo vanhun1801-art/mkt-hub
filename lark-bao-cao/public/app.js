@@ -248,7 +248,7 @@ function theBang(d) {
         : '';
 
   return '<div class="the">' +
-    '<div class="the-dau"><h2>Đầu việc trong ngày</h2>' +
+    '<div class="the-dau"><h2>Báo cáo công việc</h2>' +
       '<div class="lon"></div>' +
       '<span class="nho">Ca</span>' +
       '<select class="in" id="chonCa">' +
@@ -338,10 +338,10 @@ function veHang(d) {
       '<input class="v-pt" type="range" min="0" max="100" step="5" value="' + pt + '">' +
       '<span class="pt' + (pt >= 100 ? ' du' : '') + '">' + pt + '%</span>' +
     '</div></td>' +
-    /* Chữ gợi ý phải NGẮN: ô này cao một dòng, câu dài bị cắt làm đôi rồi chồng
-     * lên nhau, nhìn như lỗi hiển thị. */
-    '<td data-nhan="Ghi chú tiến độ"><textarea class="v-td" rows="1" ' +
-      'placeholder="vướng ở đâu…">' + esc(d.tienDo) + '</textarea></td>' +
+    /* Không chữ gợi ý: cột đã có tiêu đề "GHI CHÚ TIẾN ĐỘ" ngay trên đầu, và ô
+     * này chỉ cao một dòng nên câu gợi ý dài bị cắt làm đôi, nhìn như lỗi. */
+    '<td data-nhan="Ghi chú tiến độ"><textarea class="v-td" rows="1">' +
+      esc(d.tienDo) + '</textarea></td>' +
     '<td data-nhan="Trạng thái"><select class="v-tt">' +
       META.trangThaiViec.map((n) => '<option' + (n === d.trangThai ? ' selected' : '') + '>' +
         esc(n) + '</option>').join('') +
@@ -400,24 +400,26 @@ function theTongHop(d) {
  */
 function theVietTay(d, loaiKy) {
   const p = d.phieu || {};
-  const o = (nhan, id, gt, goi) =>
+  /* Ô để TRỐNG, không chữ gợi ý. Anh Hùng: "đổi thành ô trống không ghi nội
+   * dung". Mỗi ô đã có nhãn riêng ngay trên nó rồi; thêm một câu mờ bên trong
+   * vừa thừa vừa đang đọc hộ người ta phải viết gì. */
+  const o = (nhan, id, gt) =>
     '<div class="viec-o"><div class="o-nhan">' + esc(nhan) + '</div>' +
-    '<textarea class="in" id="' + id + '" placeholder="' + esc(goi) + '">' + esc(gt || '') +
-    '</textarea></div>';
+    '<textarea class="in" id="' + id + '">' + esc(gt || '') + '</textarea></div>';
 
   /* Link video chỉ hỏi ở kỳ TUẦN và THÁNG, và KHÔNG ghi "không bắt buộc": quay
    * video báo cáo là quy định của phòng, viết thêm câu đó là nói ngược lại. */
   const video = loaiKy === 'ngay' ? ''
     : '<div class="viec-o"><div class="o-nhan">Link video</div>' +
-      '<input class="in" id="txVideo" type="url" value="' + esc(p.linkVideo || '') + '" ' +
-      'placeholder="dán link vào đây"></div>';
+      '<input class="in" id="txVideo" type="url" value="' + esc(p.linkVideo || '') +
+      '"></div>';
 
-  return '<div class="the"><div class="the-dau"><h2>Anh/chị tự viết</h2></div>' +
+  return '<div class="the"><div class="the-dau"><h2>Đánh giá báo cáo</h2></div>' +
     '<div class="the-than viec-ds">' +
-      o('Nhận định', 'txNhanDinh', p.nhanDinh, 'kỳ này thế nào') +
-      o('Kế hoạch kỳ sau', 'txKeHoach', p.keHoach, 'kỳ tới làm gì') +
+      o('Nhận định', 'txNhanDinh', p.nhanDinh) +
+      o('Kế hoạch kỳ sau', 'txKeHoach', p.keHoach) +
       video +
-      o('Cần hỗ trợ', 'txHoTro', p.canHoTro, 'vướng gì') +
+      o('Cần hỗ trợ', 'txHoTro', p.canHoTro) +
     '</div></div>';
 }
 

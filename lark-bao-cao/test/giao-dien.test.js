@@ -224,6 +224,11 @@ function nap() {
     /* Anh Hùng xem bản dựng-mỗi-việc-một-khối rồi bảo "hiện tại anh thấy hơi
      * lớn… chỗ anh yêu cầu làm tinh tế gọn, thêm 1 hàng phía trên thôi". Nên
      * trở lại BẢNG, và ô Công việc có đúng hai hàng: chọn ở trên, gõ ở dưới. */
+    ok('khối đầu việc mang tên "Báo cáo công việc"',
+      bang.includes('<h2>Báo cáo công việc</h2>'),
+      'đang ra: ' + (bang.match(/<h2>[^<]*<\/h2>/) || [''])[0]);
+    ok('ô ghi chú tiến độ cũng để trống', !/class="v-td"[^>]*placeholder/.test(bang),
+      'cột đã có tiêu đề rồi, và ô cao một dòng thì câu gợi ý bị cắt làm đôi');
     ok('giữ dạng bảng cho gọn', bang.includes('<table class="bang"'),
       'mỗi đầu việc một khối thì năm việc là năm khối cao, phải cuộn mới hết');
     ok('một đầu việc là một hàng',
@@ -262,15 +267,23 @@ function nap() {
     ok('có ô kế hoạch kỳ sau', tay.includes('txKeHoach'));
     ok('có ô cần hỗ trợ', tay.includes('txHoTro'),
       'đây là nguồn của màn "Cần hỗ trợ" bên quản lý');
+    ok('khối tự viết mang tên "Đánh giá báo cáo"', tay.includes('<h2>Đánh giá báo cáo</h2>'),
+      'đang ra: ' + (tay.match(/<h2>[^<]*<\/h2>/) || [''])[0]);
     ok('điền sẵn nội dung đã lưu', tay.includes('thiếu file gốc'));
 
-    /* "câu từ đơn giản lại, ít mang tính định hướng, ngắn gọn dễ hiểu ý hơn" */
-    ok('gợi ý ngắn, không đọc hộ người ta phải viết gì',
-      !tay.includes('Chạy tốt ở đâu, vướng ở đâu, vì sao') &&
-      !tay.includes('Vướng mắc cần quản lý gỡ'),
-      'gợi ý dài thì ai cũng viết đúng mấy ý được gợi rồi thôi');
+    /* Anh Hùng: "đổi thành ô trống không ghi nội dung". Mỗi ô đã có nhãn riêng
+     * ngay trên nó; thêm câu mờ bên trong vừa thừa vừa đọc hộ người ta. */
+    ok('các ô tự viết để TRỐNG, không chữ gợi ý',
+      !/id="txNhanDinh"[^>]*placeholder/.test(tay) &&
+      !/id="txKeHoach"[^>]*placeholder/.test(tay) &&
+      !/id="txHoTro"[^>]*placeholder/.test(tay),
+      'đang còn: ' + (tay.match(/placeholder="[^"]*"/g) || []).join(', '));
     ok('không còn dòng giải thích thừa dưới ô',
       !tay.includes('Ô này gom về một chỗ'));
+    ok('nhãn vẫn còn để biết ô nào là ô nào',
+      tay.includes('Nhận định') && tay.includes('Kế hoạch kỳ sau') &&
+      tay.includes('Cần hỗ trợ'),
+      'bỏ cả nhãn thì thành ba ô trắng không biết điền gì');
 
     ve('khối nút lưu', 'theLuu(DU)');
 
@@ -369,6 +382,7 @@ function nap() {
     const tayTuan = ve('khối tự viết của tuần', 'theVietTay(DU, "tuan")');
     ok('báo cáo TUẦN có ô link video', tayTuan.includes('txVideo'));
     ok('ô link video là kiểu url', /id="txVideo"[^>]*type="url"|type="url"[^>]*id="txVideo"/.test(tayTuan));
+    ok('ô link video cũng để trống', !/id="txVideo"[^>]*placeholder/.test(tayTuan));
     /* Quay video báo cáo là QUY ĐỊNH của phòng. Ghi "không bắt buộc" ở đây là
      * app nói ngược lại quy định — anh Hùng: "video hiện tại bắt buộc quay, nên
      * em không cần note". */
