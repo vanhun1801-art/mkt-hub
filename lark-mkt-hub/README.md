@@ -73,6 +73,67 @@ Mỗi module vẫn là một app Node độc lập, chạy được riêng như 
 Iframe của module được **giữ lại trong DOM** sau khi mở, nên chuyển qua lại giữa các base
 không mất trạng thái (bộ lọc, tab đang xem, ô đang nhập).
 
+### Nén — đặt ở lớp vỏ, phủ cả chín app
+
+Proxy **xoá `accept-encoding`** khi gọi lên app con (bước 3 ở trên cần HTML thô để còn
+chèn shim vào). Hệ quả là app con luôn trả bản không nén, và trước đây không ai nén lại:
+mở Bảng công việc là tải 268 KB, Lịch tác nghiệp 286 KB, riêng lớp vỏ đã 315 KB.
+
+`nen.js` nén trên **đường ra** của hub, nên một chỗ phủ hết — không phải sửa dòng nào
+của chín app con, đúng nguyên tắc kiến trúc ở trên. Đo thật:
+
+| | Thô | Nén (brotli) |
+|---|---|---|
+| Lớp vỏ (10 tệp + trang chủ) | 315 KB | **98 KB** |
+| `/m/cong-viec/` đủ bộ | 860 KB | **161 KB** |
+| `/api/lich-chung` (mỗi lượt, không cache được) | 23,6 KB | **3,3 KB** |
+
+Ba chỗ **không** nén, mỗi chỗ có lý do cụ thể:
+
+- `text/event-stream` — luồng *Trực tiếp* của Booking OTA. zlib gom đệm chờ đủ khối mới
+  đẩy, nén vào là sự kiện đứng im hàng phút. Có phép thử canh riêng.
+- Ảnh / zip / xlsx / tệp đính kèm — đã nén sẵn, nén lại tốn CPU mà ra to hơn.
+- Thân dưới 1 KB — phần đầu gzip còn dài hơn phần tiết kiệm được.
+
+File tĩnh được nén **một lần ở mức brotli 11** rồi giữ trong RAM (khoá theo đường dẫn +
+`mtime`, sửa file là tự hết hiệu lực). Phản hồi động nén mức vừa, đủ nhanh để không thành
+nút cổ chai.
+
+### Số cũ trả ngay, đọc lại phía sau
+
+Đệm chỉ số sống 20 giây, mà trang tự nạp mỗi 60 giây — nên gần như **lượt nào cũng** rơi
+vào nhánh chậm: người dùng chờ 2,5 giây cho bộ số máy chủ vừa có cách đó vài chục giây.
+
+Nay hết hạn thì `kpi.doc()` **trả ngay số đang có** rồi đọc lại ở phía sau (2,5 giây →
+3 ms; số không bao giờ cũ quá một nhịp). Quá 10 phút thì mới bắt đứng chờ số mới.
+
+Hai chốt phải nhớ khi sửa chỗ này:
+
+- **Không gắn cờ `cu`** cho số hơi cũ. Cờ đó dành riêng cho *"lần đọc mới nhất LỖI"* và
+  giao diện treo băng cảnh báo đỏ cho nó — gắn nhầm là báo động giả mỗi phút một lần.
+  Tuổi thật đã nằm trong `luc`, trang chủ vốn in "cập nhật lúc …".
+- Lời gọi **đang bay** khởi hành trước lúc `xoaCache()` thì chở dữ liệu cũ. Cứ thế ghi
+  vào đệm là xử lý xong một việc mà thẻ số dựng lại như chưa làm. `kpi.js` đánh số **đời**
+  của đệm, kết quả lạc đời thì bỏ.
+
+### Gộp lượt đang bay
+
+Bảng Phân quyền bị hỏi ở đầu **gần như mọi request**, kể cả từng tệp tĩnh đi qua
+`/m/<id>/`. Mở một app con là trình duyệt xin 20–40 tệp một lúc; đúng lúc đệm hết hạn thì
+cả 40 cùng gọi Lark, và Lark chặn theo tần suất.
+
+Đệm 20 giây chống được **lần thứ hai trở đi**, không chống được **cơn ập cùng lúc** — hai
+chuyện khác nhau, và chỉ chuyện thứ hai mới gây sự cố. `quyen.js`, `kpi.js`, `lichchung.js`
+đều gộp lượt trùng khoá đang bay làm một.
+
+Ngoại lệ: `quyen.js` **không** gộp lượt "đọc lại" do người dùng bấm — lượt đó luôn đi ngay
+sau một lần ghi quyền, mà lời gọi đang bay đã khởi hành *trước* khi ghi.
+
+Hai bộ đệm chỉ số có **trần** (300 / 200 mục, dọn theo tuổi). Khoá gồm người xem + khoảng
+ngày + vai nên nó nở theo cách dùng và không bao giờ tự co, mỗi mục lại ôm cả `nhom` vài
+trăm bản ghi — chạy vài ngày là hết 512 MB của gói Free rồi bị giết, mà nhìn từ ngoài chỉ
+thấy "app tự nhiên chậm rồi đứng".
+
 ## Ngôn ngữ thiết kế
 
 Lớp vỏ dùng chung hệ thiết kế của app *Quản lý quảng cáo*:
@@ -538,10 +599,20 @@ node test/chay-het.js      # tất cả các bộ, cộng tổng
 node test/api.test.js      # chỉ bộ tích hợp
 ```
 
-64 phép thử, **chỉ đọc** — không ghi gì lên Lark Base. Kiểm tra: lớp vỏ, proxy từng
-module (chèn shim, viết lại đường dẫn, API xuyên proxy), hình dạng dữ liệu Tổng quan chung,
-bộ lọc thời gian (thu hẹp đúng, tham số sai không làm sập), lưới lịch chung (tổng ô khớp tổng lượt, thứ tự dồn việc, chặn khoảng quá rộng), log module, và vài chốt an toàn.
-Module chưa chạy thì phần của nó ghi "bỏ qua", không tính lỗi.
+**603 phép thử trên 16 bộ, chỉ đọc** — không ghi gì lên Lark Base. Kiểm tra: lớp vỏ, proxy
+từng module (chèn shim, viết lại đường dẫn, API xuyên proxy), hình dạng dữ liệu Tổng quan
+chung, bộ lọc thời gian (thu hẹp đúng, tham số sai không làm sập), lưới lịch chung (tổng ô
+khớp tổng lượt, thứ tự dồn việc, chặn khoảng quá rộng), nén, đệm chỉ số, log module, và
+vài chốt an toàn. Module chưa chạy thì phần của nó ghi "bỏ qua", không tính lỗi.
+
+Hai phép thử đáng nhắc riêng, vì chúng canh loại lỗi **không báo gì cả**:
+
+- `nen.test.js` — *"giải nén ra khớp TỪNG BYTE với bản thô"*. Nén sai một byte thì
+  `app.js` hỏng trên máy người dùng, mà máy chủ không hề báo lỗi.
+- `tu-vung.test.js` nhóm 6 — dấu vết **backslash bị shell ăn mất** trong regex.
+  `(\d+)` thành `(d+)` vẫn là biểu thức HỢP LỆ, chỉ là không bao giờ khớp; `[^\p{L}\p{N}]`
+  thành `[^p{L}p{N}]` thì tệ hơn — nó khớp SAI. Mười mẫu dịch và cả đường lùi bóc emoji
+  đã chết lặng theo đúng hai kiểu này. Xem mục *"Bẫy `node -e`"* ở cuối file.
 
 ## Đưa lên chạy chung (Lark admin)
 
@@ -572,6 +643,7 @@ trong Lark**, không liên quan tới vai quản lý/nhân sự bên trong từn
 | `modules.json` | **danh sách base** — sửa ở đây là thêm/bớt base |
 | `children.js` | bật/tắt/bật lại tiến trình module, log, health check 10s |
 | `proxy.js` | proxy ngược + chèn CSS/JS vào HTML module + `goiJson()` |
+| `nen.js` | nén gzip/brotli cho MỌI đường ra — kể cả phần proxy vào chín app con |
 | `kpi.js` | bộ đọc chỉ số cho Tổng quan chung (một hàm / một base) |
 | `lichchung.js` | gộp việc mọi base thành dải nhiệt nhân sự × ngày (khối Tải nhân sự) |
 | `bot.js` | nguồn số liệu chỉ-đọc cho trợ lý hỏi đáp (`/bot/*`) — xem `docs/tro-ly-bot.md` |
@@ -583,6 +655,8 @@ trong Lark**, không liên quan tới vai quản lý/nhân sự bên trong từn
 | `test/api.test.js` | kiểm thử chỉ đọc |
 | `test/bot.test.js` | kiểm thử lớp `/bot`: token, chỉ GET, và **không một đồng nào lọt ra** |
 | `test/tb-app.test.js` | thông báo chặn màn hình: ai bị chặn, chặn tới khi nào, và canh va chạm tên giữa các tệp `public/` |
+| `test/nen.test.js` | nén: thương lượng `Accept-Encoding`, SSE không bị nén, và **giải ra khớp từng byte** |
+| `test/dem-kpi.test.js` | đệm chỉ số: gộp lượt đang bay, trả số cũ rồi đọc lại, có trần, đời của đệm |
 
 ## Trợ lý hỏi đáp (bot)
 
@@ -608,3 +682,22 @@ curl -H "Authorization: Bearer <TOKEN>" "<URL>/bot/lich?tu=tuan-nay"
 | Số ở Tổng quan lệch với trong app | hub cache 20s (`HUB_KPI_MS`); bấm `⟳ Làm mới` để đọc lại ngay. Cũng kiểm tra hai bên đang cùng khoảng thời gian |
 | Trang chủ trông "sạch" bất thường | bộ lọc đang là tháng này — xem băng vàng "đang che N việc gấp", hoặc chọn `Toàn bộ` |
 | Hai app tranh nhau một cổng | mỗi module `local` phải một cổng riêng (test có kiểm tra việc này) |
+| Sửa `public/*.js` xong mà trình duyệt vẫn chạy bản cũ | số bản (`?v=`) tính **một lần lúc khởi động** — restart hub |
+| Chế độ English mà một mảng giao diện vẫn tiếng Việt | khoá dịch còn thiếu, hoặc một mẫu regex **rộng hơn** đứng trước đã nuốt mất câu đó. Xem *Bẫy `node -e`* ngay dưới |
+
+## Bẫy `node -e` — backslash bị ăn mất
+
+Viết code qua `node -e "..."` trong Git Bash làm **rơi mất một lớp backslash**. Đã trả
+giá ba lần cho đúng chuyện này, và hai lần thì không ai biết trong nhiều tháng:
+
+| Viết đúng | Sau khi shell ăn | Chuyện xảy ra |
+|---|---|---|
+| `(\d+)` | `(d+)` | Vẫn là regex **hợp lệ** (khớp chữ "d" lặp lại) → không nổ, chỉ không bao giờ khớp. Mười mẫu dịch của màn Phân quyền chết lặng. |
+| `[^\p{L}\p{N}]` | `[^p{L}p{N}]` | Tệ hơn: nó khớp **SAI**. `"🟡 Trung bình"` bị cắt thành `["🟡 Trung bìn", "h"]`. Cả đường lùi bóc emoji chết, mọi select có emoji dẫn đầu thôi dịch. |
+| `` `code` `` trong README | *(mất sạch)* | Backtick bị shell coi là command substitution. |
+
+**Luật:** file nào có regex, backtick hay `$$` thì sửa bằng công cụ ghi file, **không**
+dùng `node -e`. Nếu buộc phải, splice theo **số dòng** chứ đừng so khớp chuỗi dài.
+
+`test/tu-vung.test.js` nhóm 6 canh sẵn cả hai dấu vết trên, và kiểm bằng **hành vi**
+(bóc thử emoji ra khỏi một nhãn thật) chứ không chỉ bằng hình dạng chuỗi.
