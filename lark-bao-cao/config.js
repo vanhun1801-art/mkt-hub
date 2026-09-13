@@ -72,6 +72,9 @@ module.exports = {
       dungHan:     { id: 'fldVWuX78v', name: 'Đúng hạn',        type: 'select' },
       trePhut:     { id: 'fldSzBHUfy', name: 'Trễ (phút)',      type: 'number' },
       canHoTro:    { id: 'fld7EQt4lV', name: 'Cần hỗ trợ',      type: 'text' },
+      /* Nhân sự vốn đã gửi kèm link video báo cáo trong nhóm Lark (Thư và Pinky
+       * dùng Minutes). Không có ô này thì họ mất một thứ đang làm được. */
+      linkVideo:   { id: 'fldFYQix0N', name: 'Link video',      type: 'url' },
       danhGiaAI:   { id: 'fldGz6B366', name: 'Đánh giá AI',     type: 'text' },
       diemAI:      { id: 'fldE7Dj8pp', name: 'Điểm AI',         type: 'number' },
     },

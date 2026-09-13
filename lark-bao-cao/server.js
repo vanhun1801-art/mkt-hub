@@ -188,6 +188,7 @@ function vePhieu(p) {
     nhanDinh: p.nhanDinh,
     keHoach: p.keHoach,
     canHoTro: p.canHoTro,
+    linkVideo: p.linkVideo,
     daNop,
     nopLuc: p.nopLuc || 0,
     hanNop: p.hanNop || K.hanNop(k),
@@ -334,11 +335,12 @@ async function api(req, res, u) {
         ? await kho.luuNgay({
           nguoi: toi, ngayMs: mocB, ca: b.ca || 'ngay', dinhMucTay: b.dinhMucTay,
           dong: b.dong || [], nhanDinh: b.nhanDinh, keHoach: b.keHoach,
-          canHoTro: b.canHoTro, nop,
+          canHoTro: b.canHoTro, linkVideo: b.linkVideo, nop,
         })
         : await kho.luuTongHop({
           nguoi: toi, loaiKy: loai, mocMs: mocB,
-          nhanDinh: b.nhanDinh, keHoach: b.keHoach, canHoTro: b.canHoTro, nop,
+          nhanDinh: b.nhanDinh, keHoach: b.keHoach, canHoTro: b.canHoTro,
+          linkVideo: b.linkVideo, nop,
         });
       return json(res, {
         ok: true,

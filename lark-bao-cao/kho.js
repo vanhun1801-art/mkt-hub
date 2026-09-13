@@ -46,6 +46,19 @@ function asMs(v) {
   return Number.isFinite(t) ? t : 0;
 }
 
+/**
+ * Ô kiểu URL -> địa chỉ trần.
+ *
+ * Base trả ô URL về dưới dạng liên kết Markdown `[địa chỉ](địa chỉ)`. Ghi thẳng
+ * chuỗi đó vào ô nhập rồi lưu lần nữa thì nó tự bọc thêm một lớp, và cứ mỗi lần
+ * mở ra sửa lại dài gấp đôi. Gỡ ngay lúc đọc là chỗ duy nhất chặn được.
+ */
+function asLink(v) {
+  const s = asText(v).trim();
+  const m = s.match(/^\[[^\]]*\]\((.+)\)$/);
+  return m ? m[1].trim() : s;
+}
+
 const asSo = (v) => {
   if (v === 0) return 0;
   if (v == null || v === '') return 0;
@@ -63,6 +76,7 @@ function doiRa(rec, map) {
       case 'select': t[key] = asText(first(v)) || null; break;
       case 'datetime': t[key] = asMs(v); break;
       case 'number': t[key] = asSo(v); break;
+      case 'url': t[key] = asLink(v); break;
       default: t[key] = asText(v); break;
     }
   }
@@ -173,7 +187,7 @@ function oNguoi(map, nguoi) {
  * `nop=false` là lưu nháp — vẫn ghi xuống Base để người ta đóng máy giữa chừng
  * không mất, nhưng không đóng dấu giờ nộp và không chấm hạn.
  */
-async function luuNgay({ nguoi, ngayMs, ca, dinhMucTay, dong, nhanDinh, keHoach, canHoTro, nop }) {
+async function luuNgay({ nguoi, ngayMs, ca, dinhMucTay, dong, nhanDinh, keHoach, canHoTro, linkVideo, nop }) {
   const k = K.kyNgay(ngayMs);
   const ma = maPhieu('ngay', k.tu, nguoi.id);
   const dm = K.dinhMuc(ca, dinhMucTay);
@@ -212,6 +226,7 @@ async function luuNgay({ nguoi, ngayMs, ca, dinhMucTay, dong, nhanDinh, keHoach,
     [F.phieu.nhanDinh.id]: nhanDinh,
     [F.phieu.keHoach.id]: keHoach,
     [F.phieu.canHoTro.id]: canHoTro,
+    [F.phieu.linkVideo.id]: linkVideo,
     [F.phieu.trangThai.id]: nop ? C.trangThaiPhieu.daNop : C.trangThaiPhieu.nhap,
     [F.phieu.hanNop.id]: K.hanNop(k),
     ...(nop ? {
@@ -307,7 +322,7 @@ async function tongHop(loaiKy, mocMs, nguoi, force) {
 }
 
 /** Lưu phiếu TUẦN hoặc THÁNG: số do máy cộng, chữ do người viết. */
-async function luuTongHop({ nguoi, loaiKy, mocMs, nhanDinh, keHoach, canHoTro, nop }) {
+async function luuTongHop({ nguoi, loaiKy, mocMs, nhanDinh, keHoach, canHoTro, linkVideo, nop }) {
   if (loaiKy !== 'tuan' && loaiKy !== 'thang') throw new Error('Chỉ tuần hoặc tháng');
   const t = await tongHop(loaiKy, mocMs, nguoi, true);
   const k = t.ky;
@@ -327,6 +342,7 @@ async function luuTongHop({ nguoi, loaiKy, mocMs, nhanDinh, keHoach, canHoTro, n
     [F.phieu.nhanDinh.id]: nhanDinh,
     [F.phieu.keHoach.id]: keHoach,
     [F.phieu.canHoTro.id]: canHoTro,
+    [F.phieu.linkVideo.id]: linkVideo,
     [F.phieu.trangThai.id]: nop ? C.trangThaiPhieu.daNop : C.trangThaiPhieu.nhap,
     [F.phieu.hanNop.id]: K.hanNop(k),
     ...(nop ? {
@@ -351,7 +367,7 @@ async function motPhieu(loaiKy, mocMs, nguoi, force) {
 }
 
 module.exports = {
-  asText, asMs, asSo, doiRa, locO, cungNguoi,
+  asText, asMs, asSo, asLink, doiRa, locO, cungNguoi,
   maPhieu, dsPhieu, dsDong, motPhieu,
   luuNgay, luuTongHop, tongHop, xoaDem,
 };

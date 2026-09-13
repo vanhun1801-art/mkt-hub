@@ -34,6 +34,9 @@ khác là mỗi đầu việc thành một bản ghi.
   *kế hoạch kỳ sau* — hai thứ máy không viết thay được, và cũng là hai thứ AI sẽ
   đọc để đánh giá sau này.
 - Chủ nhật **không bắt buộc** báo cáo, nhưng vẫn nộp được (có người báo tăng ca).
+- Báo cáo **tuần và tháng** có ô **link video** (Minutes/Drive) — nhân sự vốn đã
+  gửi kèm link này trong nhóm Lark. Báo cáo ngày không hỏi, vì chưa ai quay
+  video cho một ngày.
 - Nộp báo cáo **không còn gửi vào nhóm Lark** nữa.
 
 ## Base
@@ -44,7 +47,7 @@ bấm tay 31 cột.
 
 | Bảng | id | Vai trò |
 |---|---|---|
-| Phiếu báo cáo | `tblMIviEWyBXNTFz` | một người × một kỳ, 21 cột |
+| Phiếu báo cáo | `tblMIviEWyBXNTFz` | một người × một kỳ, 22 cột |
 | Dòng việc | `tblo5FBTVuXzv0W0` | một đầu việc một bản ghi, 13 cột |
 
 Hai cột `Đánh giá AI` / `Điểm AI` còn trống — tạo sẵn vì thêm cột vào bảng đã có
@@ -67,6 +70,11 @@ trong 7 ngày. Gõ tay chỉ còn một đường: chọn "Khác — tự nhập
 
 Được cái gì: tên việc trong báo cáo khớp từng chữ với Tracking, và mỗi dòng
 mang theo `record_id` nên sau này ghép hai nguồn không phải đoán theo tên.
+
+Ô chọn và ô gõ tay **luôn đứng cạnh nhau**, không ẩn hiện: chọn một việc thì
+tên tự điền xuống ô dưới (vẫn sửa được), và sửa tay thì liên kết về Tracking tự
+bỏ — tên đã khác mà giữ mã cũ là báo cáo trỏ về một đầu việc không còn đúng.
+Nhóm việc tự đoán từ "Loại công việc" bên Tracking, có nhãn nói rõ là máy đoán.
 
 App **không đọc Base của Tracking** — nó gọi API của app đó, vì luật lọc và
 phân quyền nằm ở đó; chép lại là sớm muộn hai bên nói khác nhau. Tracking tắt
@@ -116,6 +124,13 @@ Anh Hùng đã báo trước ý định này (chưa làm). Cấu trúc hiện t�
 - **Giao diện không phải hàng rào.** Nộp phiếu rỗng bị chặn ở cả hai đầu, vì ai
   cũng gọi thẳng API được — mà phiếu rỗng vẫn được chấm "đúng hạn", tức là bảng
   theo dõi báo xanh cho người chưa làm gì.
+- **Ô kiểu URL của Base trả về dạng Markdown `[địa chỉ](địa chỉ)`.** Đổ thẳng
+  vào ô nhập rồi lưu lần nữa là nó bọc thêm một lớp, mỗi lần sửa lại dài gấp
+  đôi. Gỡ ngay lúc đọc bằng `kho.asLink()`; cột phải khai `type: 'url'` mới đi
+  qua đường gỡ đó.
+- **Lớp CSS `.rong` nghĩa là "không có gì" và nó CĂN GIỮA.** Đừng mượn từ đó để
+  nói "chiếm cả hàng" — đã có lần đặt `class="viec-o rong"` và nhãn của mọi ô
+  nhập nhảy vào giữa màn hình.
 - **`caPhong` KHÔNG được bật trong `modules.json`** — mỗi lần deploy sẽ tự mở
   lại và xoá lựa chọn của quản lý. Mở cho cả phòng bằng biến `HUB_CA_PHONG` trên
   Render.

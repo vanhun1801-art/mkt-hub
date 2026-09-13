@@ -54,6 +54,7 @@ const PHIEU_NGAY = {
     ma: 'ngay-x', loaiKy: 'ngay', tu: nay - NGAY, den: nay, nhan: 'Thứ 6 11/09/2026',
     ca: 'Cả ngày', dinhMuc: 480, tongPhut: 360, tongGio: '6 giờ', phanTram: 75,
     nhanDinh: 'ổn', keHoach: 'tiếp tục', canHoTro: 'thiếu file gốc',
+    linkVideo: 'https://minutes.example/abc',
     daNop: true, nopLuc: nay - 3600000, hanNop: nay,
     trangThaiHan: 'dung-han', veHan: 'Đúng hạn',
   },
@@ -220,12 +221,30 @@ function nap() {
     ok('menu nạp việc thật từ Tracking', bang.includes('Thiết kế logo'),
       'không có thì nhân sự không chọn được gì');
     ok('việc đã đóng đánh dấu ✓', bang.includes('✓ Edit clip'));
-    ok('có mục "Khác — tự nhập"', bang.includes('__khac'));
-    ok('dòng gõ tay hiện ô nhập chữ (không bị hidden)',
-      /class="v-cv" value="Việc tự nhập"(?![^>]*hidden)/.test(bang),
-      'mở lại phiếu cũ mà ô ẩn thì người ta tưởng mất tên việc');
-    ok('dòng chọn từ Tracking thì ô gõ tay ẩn',
-      /class="v-cv" value=""[^>]*hidden/.test(bang));
+    /* Anh Hùng: "dòng trên em để chọn việc, dòng dưới em cứ để sẵn 1 ô trống
+     * giống bản cũ để nhập thẳng". Hai ô LUÔN đứng cạnh nhau, không ẩn hiện —
+     * bản trước giấu ô gõ tay sau mục "Khác" nên nhìn vào không đoán ra là vẫn
+     * gõ tay được. */
+    ok('mọi đầu việc đều có ô gõ tay, không ẩn',
+      (bang.match(/class="in v-cv"/g) || []).length === 2 && !/v-cv[^>]*hidden/.test(bang),
+      'ô gõ tay bị ẩn thì người dùng không biết là gõ thẳng được');
+    ok('không còn mục "Khác — tự nhập" giả', !bang.includes('__khac'),
+      'mục đó thừa khi ô gõ tay đã đứng sẵn bên dưới');
+    ok('mục đầu menu nói rõ là tự gõ', bang.includes('— tự gõ tên bên dưới —'));
+    ok('việc chọn từ Tracking vẫn điền sẵn tên vào ô',
+      bang.includes('value="Thiết kế logo"'),
+      'mở lại phiếu cũ mà ô trống thì người ta tưởng mất tên việc');
+
+    /* Tách bạch: mỗi đầu việc một khối, mỗi ô một nhãn chữ nhỏ. */
+    ok('mỗi đầu việc là một khối riêng',
+      (bang.match(/class="viec"/g) || []).length === 2);
+    ok('khối có số thứ tự để mắt bám được', bang.includes('viec-ten'));
+    ok('mỗi ô có nhãn riêng, không phải dò lên hàng tiêu đề',
+      bang.includes('Tên công việc') && bang.includes('Nhóm việc') &&
+      bang.includes('Thời lượng') && bang.includes('Ghi chú tiến độ'));
+    ok('bốn ô nhỏ xếp thành lưới riêng', bang.includes('viec-luoi'));
+    ok('có chỗ báo nhóm là máy đoán', bang.includes('v-doan'),
+      'không nói thì người dùng tưởng nhóm đó do mình chọn');
     ok('tiến độ là thanh trượt %, không phải ô chữ',
       bang.includes('type="range"') && bang.includes('v-pt'));
     ok('tiến độ 100% được đánh dấu', bang.includes('pt du'));
@@ -239,6 +258,13 @@ function nap() {
     ok('điền sẵn nội dung đã lưu', tay.includes('thiếu file gốc'));
 
     ve('khối nút lưu', 'theLuu(DU)');
+
+    /* Link video: chỉ hỏi ở tuần/tháng. Nhân sự vốn đã gửi kèm link Minutes cho
+     * báo cáo tuần trong nhóm Lark — không có ô này thì họ mất một thứ đang làm
+     * được, và quay lại dán vào nhóm chat. */
+    const tayNgay = ctx.__goi('theVietTay(DU, "ngay")');
+    ok('báo cáo NGÀY không hỏi link video', !String(tayNgay).includes('txVideo'),
+      'chưa ai quay video cho báo cáo ngày — hỏi thêm chỉ làm dài biểu mẫu');
     ok('phiếu đã nộp thì nút là "Cập nhật"', ctx.__goi('theLuu(DU)').includes('Cập nhật báo cáo'));
   }
 
@@ -256,7 +282,7 @@ function nap() {
     ok('kèm nguyên văn lý do', hong.includes('Tracking không trả lời'),
       'không có lý do thì lần sau lại phải lần ngược từ code để đoán');
     ok('kèm cả cổng đang gọi', hong.includes('5173'));
-    ok('vẫn chỉ đường gõ tay', hong.includes('nhóm "Khác"'));
+    ok('vẫn chỉ đường gõ tay', hong.includes('gõ thẳng tên công việc'));
 
     ctx.__goi('VIEC = { chay: true, cuaAi: "Huỳnh Chí Khanh", ds: [] }');
     const trong = ve('bảng khi NỐI ĐƯỢC mà không có việc nào', 'theBang(DU)');
@@ -264,7 +290,7 @@ function nap() {
       'nối được mà báo không nối được thì người ta đi tìm lỗi mạng vô ích');
     ok('nói rõ là không có đầu việc nào', trong.includes('Không có đầu việc nào'));
     ok('gọi tên người đang xem', trong.includes('Huỳnh Chí Khanh'));
-    ok('chỉ đúng việc cần làm tiếp', trong.includes('nhờ quản lý giao việc'),
+    ok('chỉ đúng việc cần làm tiếp', trong.includes('nhờ quản lý giao việc trước'),
       'người dùng cần biết bước tiếp theo, không chỉ biết là trống');
 
     ctx.__goi('VIEC = ' + JSON.stringify(VIEC));
@@ -282,6 +308,12 @@ function nap() {
     ok('cảnh báo ngày còn thiếu', t.includes('Thứ 5 10/09/2026') && t.includes('thiếu 1 ngày'));
     ok('vẽ thanh theo nhóm việc', t.includes('class="thanh"'));
     ve('khối kỳ tuần', 'theKy("tuan")');
+    const tayTuan = ve('khối tự viết của tuần', 'theVietTay(DU, "tuan")');
+    ok('báo cáo TUẦN có ô link video', tayTuan.includes('txVideo'));
+    ok('ô link video là kiểu url', /id="txVideo"[^>]*type="url"|type="url"[^>]*id="txVideo"/.test(tayTuan));
+    ok('nói rõ là không bắt buộc', tayTuan.includes('Không bắt buộc'));
+    ok('điền sẵn link đã lưu', tayTuan.includes('https://minutes.example/abc'),
+      'mở lại phiếu cũ mà link biến mất thì phải dán lại mỗi lần sửa');
     ctx.__goi('DU = ' + JSON.stringify(PHIEU_NGAY));
   }
 

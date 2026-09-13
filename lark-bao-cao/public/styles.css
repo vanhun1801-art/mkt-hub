@@ -182,36 +182,72 @@ main { padding: 18px var(--le) 40px; }
 .in:focus { outline: 2px solid var(--blue-bg); outline-offset: -1px; border-color: var(--blue); }
 textarea.in { width: 100%; min-height: 76px; resize: vertical; }
 
-/* ---------------- bảng nhập ---------------- */
-.cuon { overflow-x: auto; }
-.bang { width: 100%; border-collapse: collapse; }
-.bang th, .bang td { border-bottom: 1px solid var(--border); padding: 0; vertical-align: middle; }
-.bang th {
-  background: var(--surface-2); color: var(--text-3); font-size: 11.5px; font-weight: 600;
-  text-transform: uppercase; letter-spacing: .04em; padding: 8px 10px; text-align: left;
-  position: sticky; top: 0;
-}
-.bang tbody tr:hover td { background: var(--surface-2); }
-.bang td.o-nut { text-align: center; width: 42px; }
-.bang input, .bang select, .bang textarea {
-  width: 100%; border: 0; background: none; color: inherit; font: inherit;
-  padding: 8px 10px; outline: none; resize: vertical;
-}
-.bang input:focus, .bang select:focus, .bang textarea:focus {
-  background: var(--blue-bg); border-radius: var(--r-sm);
-}
-.bang td.so-o input { text-align: right; font-variant-numeric: tabular-nums; }
+/* ---------------- khối đầu việc ----------------
+   Mỗi đầu việc một khối có viền riêng, thay cho hàng bảng bảy ô sát nhau.
+   Anh Hùng: "tách bạch các thành phần tí cho dễ nhìn". Mỗi ô có nhãn chữ nhỏ
+   nằm trên, nên nhìn là biết đang điền gì mà không phải dò lên hàng tiêu đề.
+   ------------------------------------------------ */
+.viec-ds { display: flex; flex-direction: column; gap: 12px; }
 
-/* ô tiến độ %: thanh trượt + số, đọc được ngay mức đang ở đâu */
-.td-o { display: flex; align-items: center; gap: 8px; padding: 6px 10px; }
-.td-o input[type=range] { flex: 1; min-width: 70px; padding: 0; accent-color: var(--blue); }
+.viec {
+  border: 1px solid var(--border); border-radius: var(--r-lg);
+  background: var(--surface-2); padding: 12px 13px;
+  display: flex; flex-direction: column; gap: 11px;
+}
+.viec:focus-within { border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-bg); }
+
+.viec-dau { display: flex; align-items: center; gap: 8px; }
+.viec-ten {
+  font-size: 11.5px; font-weight: 700; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--text-3);
+}
+
+/* một ô nhập = nhãn nhỏ ở trên + ô bên dưới */
+.viec-o { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.o-nhan {
+  font-size: 11.5px; color: var(--text-3); letter-spacing: .02em;
+}
+.viec-o .in { width: 100%; }
+.viec-o textarea.in { min-height: 52px; }
+
+/* hàng bốn ô nhỏ: nhóm · thời lượng · trạng thái · tiến độ */
+.viec-luoi {
+  display: grid; gap: 11px;
+  grid-template-columns: repeat(auto-fit, minmax(158px, 1fr));
+  padding-top: 11px; border-top: 1px dashed var(--border);
+}
+
+.o-kem { display: flex; align-items: center; gap: 7px; }
+.o-kem .in { flex: 1; min-width: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.don-vi { font-size: 12.5px; color: var(--text-3); flex: none; }
+
+/* tiến độ: thanh trượt + số phần trăm */
+.td-o { display: flex; align-items: center; gap: 9px; height: 34px; }
+.td-o input[type=range] { flex: 1; min-width: 60px; padding: 0; accent-color: var(--blue); }
 .td-o .pt {
-  width: 42px; text-align: right; font-variant-numeric: tabular-nums;
+  width: 40px; text-align: right; font-variant-numeric: tabular-nums;
   font-size: 12.5px; color: var(--text-2); flex: none;
 }
 .td-o .pt.du { color: var(--green-text); font-weight: 600; }
 
+.v-doan { color: var(--blue-text); }
+
+.them-viec { margin-top: 12px; }
+
+/* dải số gọn dưới cùng, tách khỏi phần nhập bằng một đường kẻ */
+.the-than.dai-day { border-top: 1px solid var(--border); }
+
+/* dải cảnh báo trong thẻ */
+.the-than.bao-do, .the-than.bao-cam {
+  padding: 10px 16px; border-bottom: 1px solid var(--border);
+}
+.the-than.bao-do { background: var(--red-bg); }
+.the-than.bao-cam { background: var(--orange-bg); }
+
+.cuon { overflow-x: auto; }
+
 /* ---------------- nhãn ---------------- */
+
 .nhan-tt {
   display: inline-block; padding: 2px 9px; border-radius: 999px;
   font-size: 12px; font-weight: 600; white-space: nowrap;
@@ -266,7 +302,12 @@ textarea.in { width: 100%; min-height: 76px; resize: vertical; }
 .diem.cam { background: var(--orange-bg); color: var(--orange-text); }
 .diem.do { background: var(--red-bg); color: var(--red-text); }
 
-/* ---------------- rỗng ---------------- */
+/* ---------------- rỗng ----------------
+   CẨN THẬN với tên lớp này: `.rong` nghĩa là "không có gì", và nó CĂN GIỮA mọi
+   thứ bên trong. Đã có lần đặt `class="viec-o rong"` với ý "chiếm cả hàng" —
+   nhãn của mọi ô nhập lập tức nhảy vào giữa màn hình. Muốn nói "chiếm cả hàng"
+   thì đừng mượn từ này.
+   -------------------------------------- */
 .rong { padding: 34px 16px; text-align: center; color: var(--text-3); }
 .rong b { display: block; color: var(--text-2); margin-bottom: 3px; font-weight: 600; }
 
@@ -283,14 +324,7 @@ textarea.in { width: 100%; min-height: 76px; resize: vertical; }
 @media (max-width: 780px) {
   main { padding: 12px 12px 32px; }
   .topbar { padding: 10px 12px; }
-  .bang thead { display: none; }
-  .bang, .bang tbody, .bang tr, .bang td { display: block; width: 100%; }
-  .bang tr { border: 1px solid var(--border); border-radius: var(--r-lg); margin-bottom: 10px; overflow: hidden; }
-  .bang td { border: 0; border-bottom: 1px solid var(--border); }
-  .bang td::before {
-    content: attr(data-nhan); display: block; padding: 7px 10px 0;
-    color: var(--text-4); font-size: 11px; text-transform: uppercase; letter-spacing: .04em;
-  }
-  .bang td.o-nut { width: auto; text-align: right; padding: 7px 10px; }
-  .bang td.o-nut::before { content: none; }
+  /* Khối đầu việc vốn đã xếp dọc nên không phải bẻ gì cả — đó là lý do bỏ bảng.
+     Chỉ cho lưới bốn ô nhỏ xuống một cột, kẻo mỗi ô hẹp còn 70px. */
+  .viec-luoi { grid-template-columns: 1fr; }
 }

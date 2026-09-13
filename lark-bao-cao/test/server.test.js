@@ -158,7 +158,27 @@ const QUAN_LY = Object.assign({}, NHAN_SU, { 'x-hub-user-manager': '1' });
     ok('không có phiếu thì trả null, không nổ', S.vePhieu(null) === null);
   }
 
-  group('Tệp tĩnh — cùng bài học vừa vá ở hub');
+  group('Ô kiểu URL — gỡ lớp Markdown ngay lúc đọc');
+{
+  const kho = require('../kho');
+  /* Base trả ô URL về dạng `[địa chỉ](địa chỉ)`. Đổ thẳng chuỗi đó vào ô nhập
+   * rồi lưu lần nữa thì nó tự bọc thêm một lớp — mỗi lần mở ra sửa lại dài gấp
+   * đôi, và sau vài lần thì link không bấm được nữa. */
+  ok('gỡ được liên kết Markdown trùng địa chỉ',
+    kho.asLink('[https://a.vn/x](https://a.vn/x)') === 'https://a.vn/x');
+  ok('gỡ được cả khi phần chữ khác địa chỉ',
+    kho.asLink('[Xem tại đây](https://c.vn/z)') === 'https://c.vn/z');
+  ok('địa chỉ trần thì giữ nguyên', kho.asLink('https://b.vn/y') === 'https://b.vn/y');
+  ok('rỗng vẫn là rỗng, không nổ', kho.asLink('') === '' && kho.asLink(null) === '');
+  ok('chuỗi có ngoặc nhưng không phải link thì để yên',
+    kho.asLink('ghi chú [quan trọng] gì đó') === 'ghi chú [quan trọng] gì đó');
+
+  const F = cfg.fields.phieu.linkVideo;
+  ok('cột Link video khai kiểu url để đi qua đường gỡ đó', F.type === 'url',
+    'khai là text thì doiRa() không gỡ, và lớp Markdown chui thẳng vào ô nhập');
+}
+
+group('Tệp tĩnh — cùng bài học vừa vá ở hub');
   {
     const t = await goi('/');
     ok('trang chủ trả về được', t.ma === 200);
