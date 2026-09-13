@@ -110,6 +110,36 @@ số thuế NCC.
 3. **Quyết toán theo lô** — chọn nhiều khoản, gán một mã QTTU, đổi tình trạng
 4. **Cảnh báo cần bổ sung chứng từ** — tab riêng, dòng tô đỏ trong mọi danh sách
 
+## Ba chốt chống mất tiền, mất dấu
+
+Rà lại toàn bộ ngày 13/09/2026, đây là ba chỗ đã hỏng hoặc sắp hỏng:
+
+**1. "Chọn hết" từng quét cả khoản đã đóng sổ.** Sổ có 163 khoản, **154 khoản
+mang mã QTTU riêng** từ những đợt quyết toán cũ. Một cú tích ở đầu bảng rồi một
+cú bấm *Quyết toán 163 khoản* là ghi đè sạch 154 mã đó — không hoàn lại được, và
+kế toán mất đường đối chiếu với phiếu chi cũ. Giờ ô tích chỉ quét khoản **chưa
+có mã và đã chi tiền**; tick từng dòng vẫn sửa được một mã gõ nhầm, nhưng cửa sổ
+sẽ đỏ lên và nói thẳng sắp xoá mã nào. Server chốt lại bằng mã `GHI_DE_MA_CU`
+(409) — cảnh báo trên màn hình không phải hàng rào, một tab mở từ hôm qua là đủ.
+
+**2. Bấm hai lần là hai khoản chi.** *Ghi vào sổ* gọi Tourwell nên mất 3–8 giây,
+mà nút không đổi gì trong lúc chờ. Bấm lại vì tưởng hụt là đẻ ra **một khoản chi
+thứ hai và một đơn Tourwell thứ hai** — quỹ bị trừ hai lần cho một lần tiêu.
+`chongBamHai()` khoá nút tới khi lời gọi xong.
+
+**3. Tourwell hỏng thì không có đường tạo bù.** Tài liệu cũ bảo *"xoá ô Mã đơn
+rồi khai lại"* — tức là đẻ thêm một dòng chi. Lời khuyên đó tệ hơn cả cái lỗi nó
+định chữa. Giờ dòng nào chưa từng qua Tourwell có nút **+ đơn Tourwell** ngay
+tại chỗ.
+
+Nút đó **không mọc trên 162 khoản cũ**, dù chúng đều trống ô Mã đơn: chúng đã đi
+qua Tourwell bằng tay, dấu vết là mã điều hành `SG…` và mã quyết toán. Mời tạo
+đơn cho chúng là bày sẵn 162 cái bẫy, bấm nhầm một cái là một đơn THẬT mọc lên
+cho khoản tiền đã đóng sổ từ tháng 4. Server chặn lại bằng `DA_QUA_TOURWELL`.
+
+Ngoài ra: xoá một khoản chi giờ nói rõ **đơn Tourwell không tự huỷ** và khoản do
+app Lịch tác nghiệp ghi sang thì xoá rồi không ghi lại được.
+
 ## Luật cảnh báo chứng từ
 
 Luật đầu tiên là *"không đủ cả hoá đơn LẪN UNC = thiếu"*. Nó gắn cờ **68/162
@@ -196,7 +226,13 @@ toán không được thấy chuỗi `UNC`, không có `data-sua`, nhưng phải
 và nút quyết toán. Đã thử phá để chắc nó cắn — bỏ nhánh `laKeToan()` đi thì ba
 phép thử đỏ ngay.
 
-Lần chạy gần nhất: **31 + 36 pass · 0 fail**.
+Lần chạy gần nhất: **43 + 36 pass · 0 fail**.
+
+`node --check` xanh mà app vẫn vỡ — lần thứ hai. Ngày 13/09/2026 một dòng lạc
+rơi vào giữa `/* tiện */` và `function json(...)`, biến một khai báo hàm thành
+biểu thức trong dấu phẩy: cú pháp hợp lệ, `json` không bao giờ được gán, và MỌI
+request ném `json is not defined`. `quy.test.js` bắt được ngay vì nó gọi thật —
+nên đừng bỏ bước chạy nó sau khi sửa server.js.
 
 ## Cấu trúc
 

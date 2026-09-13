@@ -39,6 +39,9 @@ const laChuQuy = () => S.vai === 'chuQuy';
 const laKeToan = () => S.vai === 'keToan';
 const duocQuyetToan = () => laChuQuy() || laKeToan();
 
+const XUONG_DONG = String.fromCharCode(10);
+const THEM_DONG = String.fromCharCode(10, 10);   /* hai dòng trống trong hộp hỏi lại */
+
 const $ = (s, g = document) => g.querySelector(s);
 const $$ = (s, g = document) => [...g.querySelectorAll(s)];
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g,
@@ -53,6 +56,32 @@ function toast(msg, kind) {
   $('#toasts').appendChild(t);
   setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 260); },
     kind === 'err' ? 5200 : 2600);
+}
+
+/**
+ * Chặn cú bấm thứ hai trong lúc cú thứ nhất còn đang bay.
+ *
+ * "Ghi vào sổ" gọi Tourwell nên mất 3–8 giây, mà nút thì không đổi gì trong
+ * lúc chờ. Bấm lại vì tưởng hụt là ĐẺ RA MỘT KHOẢN CHI THỨ HAI và một đơn
+ * Tourwell thứ hai — quỹ bị trừ hai lần cho một lần tiêu, và phát hiện ra thì
+ * đã phải đi xoá ở hai hệ thống.
+ *
+ * Khoá ngay ở phần tử nút chứ không giữ cờ toàn cục: hai cửa sổ khác nhau vẫn
+ * bấm được độc lập, và nút tự nhả kể cả khi lời gọi ném lỗi.
+ */
+async function chongBamHai(nut, viec) {
+  if (!nut || nut.disabled) return;
+  const chu = nut.textContent;
+  nut.disabled = true;
+  nut.textContent = 'Đang lưu…';
+  try {
+    await viec();
+  } catch (e) {
+    toast(e.message, 'err');
+  } finally {
+    nut.disabled = false;
+    nut.textContent = chu;
+  }
 }
 
 async function api(path, opts) {
@@ -146,6 +175,36 @@ function thieuChungTu(c) {
   const coUnc = (c.unc || []).length || String(c.linkUncCu || '').trim();
   return !coHoaDon && !coUnc;
 }
+
+/**
+ * Khoản nào "chọn hết" được phép quét vào.
+ *
+ * KHÔNG phải mọi dòng đang hiện. Trong 163 khoản của sổ có 154 khoản đã mang
+ * mã QTTU riêng từ những đợt quyết toán cũ; quét cả vào rồi gán một mã mới là
+ * xoá sạch 154 mã đó, không hoàn lại được. Ô tích ở đầu bảng vì thế chỉ lấy
+ * khoản CHƯA có mã và ĐÃ chi tiền — đúng nghĩa "những khoản còn phải đóng sổ".
+ *
+ * Tick từng dòng thì vẫn tick được khoản đã có mã: sửa một mã gõ nhầm là việc
+ * có thật. Nhưng lúc đó phải là một hành động có chủ ý trên đúng dòng đó, và
+ * cửa sổ quyết toán sẽ nói thẳng là sắp ghi đè lên cái gì.
+ */
+const quyetToanDuoc = (c) => !String(c.maQuyetToan || '').trim() && c.tinhTrang !== 'Chờ chi';
+
+/**
+ * Khoản nào được mời tạo bù đơn Tourwell.
+ *
+ * KHÔNG phải mọi khoản đang thiếu mã đơn. 162 dòng nhập từ sheet cũ đều trống
+ * ô "Mã đơn Tourwell", nhưng chúng ĐÃ đi qua Tourwell bằng tay từ lâu — dấu
+ * vết là mã điều hành SG… và mã quyết toán QTTU… nằm ngay trên dòng. Mời tạo
+ * đơn cho chúng là bày sẵn 162 cái bẫy: bấm nhầm một cái là một đơn THẬT mọc
+ * lên trên Tourwell cho khoản tiền đã đóng sổ từ tháng 4.
+ *
+ * Nên chỉ mời khi không còn dấu vết nào của một lần qua Tourwell trước đó.
+ */
+const canTaoDon = (c) => !String(c.maDon || '').trim()
+  && !String(c.maDieuHanh || '').trim()
+  && !String(c.maQuyetToan || '').trim()
+  && c.tinhTrang !== 'Đã quyết toán';
 
 function locChi() {
   const l = S.loc;
@@ -287,7 +346,11 @@ function veBang() {
            * này nên nó phải nổi hơn mấy thứ khác trong dòng phụ. */
           dv ? (dv.link
             ? '<a class="ma-don" target="_blank" href="' + esc(dv.link) + '">' + esc(dv.ma) + '</a>'
-            : '<span class="ma-don">' + esc(dv.ma) + '</span>') : '',
+            : '<span class="ma-don">' + esc(dv.ma) + '</span>')
+            /* Chưa có đơn: tạo BÙ ngay tại dòng. Trước đây cách duy nhất là
+             * khai lại khoản chi — tức là đẻ thêm một dòng, trừ quỹ hai lần. */
+            : (laChuQuy() && canTaoDon(c)
+              ? '<button class="ma-them" data-taodon="' + c.id + '">+ đơn Tourwell</button>' : ''),
           c.maDieuHanh
             ? esc(c.maDieuHanh)
             : (laChuQuy() ? '<button class="ma-them" data-gansg="' + c.id + '">+ mã điều hành</button>' : ''),
@@ -526,9 +589,25 @@ function moQuyetToan() {
   const ds = S.chi.filter((c) => S.chon.has(c.id));
   const tong = ds.reduce((a, c) => a + c.tien, 0);
   const thieu = ds.filter(thieuChungTu);
+  /* Hai thứ phải nói TRƯỚC khi bấm, vì bấm rồi là không lùi được:
+   *   · khoản ĐÃ có mã QTTU — gán mã mới là xoá mã cũ, mất đường đối chiếu
+   *   · khoản CHƯA chi tiền — đóng sổ một khoản tiền còn chưa rời quỹ */
+  const deGhiDe = ds.filter((c) => String(c.maQuyetToan || '').trim());
+  const chuaChi = ds.filter((c) => c.tinhTrang === 'Chờ chi');
   moModal('Quyết toán ' + ds.length + ' khoản',
     '<div class="form">'
     + '<div class="tomtat"><b>' + ds.length + ' khoản</b> · tổng <b>' + tien(tong) + ' đ</b></div>'
+    + (deGhiDe.length
+      ? '<div class="nhac canhbao"><b>' + deGhiDe.length + ' khoản đã có mã quyết toán.</b> '
+        + 'Gán mã mới là <b>xoá hẳn</b> mã cũ, không lấy lại được: '
+        + esc([...new Set(deGhiDe.map((c) => c.maQuyetToan))].slice(0, 4).join(', '))
+        + (deGhiDe.length > 4 ? '…' : '')
+        + '<br>Bỏ tick mấy khoản đó nếu chỉ định đóng sổ phần còn lại.</div>'
+      : '')
+    + (chuaChi.length
+      ? '<div class="nhac canhbao"><b>' + chuaChi.length + ' khoản còn ở "Chờ chi".</b> '
+        + 'Tiền chưa rời quỹ mà đóng sổ thì kế toán nhận một chứng từ chưa có thật.</div>'
+      : '')
     + (thieu.length
       ? '<div class="nhac canhbao"><b>' + thieu.length + ' khoản chưa đủ chứng từ.</b> '
         + 'Quyết toán vẫn chạy, nhưng kế toán sẽ hỏi lại đúng mấy khoản này: '
@@ -540,7 +619,10 @@ function moQuyetToan() {
       + '<b>Đã quyết toán</b>. Sửa lại được bằng cách quyết toán lần nữa với mã khác.</div>'
     + '</div>',
     '<div class="sp"></div><button class="btn" data-close="1">Đóng</button>'
-    + '<button class="btn primary" id="btnLuuQT">Gán mã cho ' + ds.length + ' khoản</button>');
+    + '<button class="btn ' + (deGhiDe.length ? 'nguyhiem' : 'primary') + '" id="btnLuuQT"'
+    + (deGhiDe.length ? ' data-ghide="' + deGhiDe.length + '"' : '') + '>'
+    + (deGhiDe.length ? 'Ghi đè ' + deGhiDe.length + ' mã cũ · gán cho ' + ds.length + ' khoản'
+      : 'Gán mã cho ' + ds.length + ' khoản') + '</button>');
   setTimeout(() => $('#qMa') && $('#qMa').focus(), 30);
 }
 
@@ -563,8 +645,9 @@ function moKetQuaTourwell(tw, khoan) {
       '<div class="tw-hop">'
       + '<p><b>Khoản chi đã ghi vào sổ quỹ</b> — phần đó không sao.</p>'
       + '<div class="nhac canhbao">' + esc(tw.loi) + '</div>'
-      + '<p class="nho">Tạo tay trên Tourwell như cũ, hoặc sửa xong thì xoá ô '
-      + '<b>Mã đơn Tourwell</b> của khoản này rồi khai lại.</p></div>',
+      + '<p class="nho">Khoản chi đã nằm trong sổ rồi nên <b>đừng khai lại</b> — '
+      + 'khai lại là đẻ thêm một dòng, quỹ bị trừ hai lần cho một lần tiêu. '
+      + 'Sửa xong thì bấm <b>+ đơn Tourwell</b> ngay trên dòng của khoản để tạo bù.</p></div>',
       '<div class="sp"></div><button class="btn" data-close="1">Đóng</button>');
     return;
   }
@@ -622,13 +705,28 @@ function taiTep(id, key) {
 function ganSuKien() {
   const g = (id, ev, fn) => { const e = $(id); if (e) e.addEventListener(ev, fn); };
   g('#lTim', 'input', (e) => { S.loc.tim = e.target.value; veLai(); });
-  g('#lThang', 'change', (e) => { S.loc.thang = e.target.value; ve(); });
-  g('#lLoai', 'change', (e) => { S.loc.loai = e.target.value; ve(); });
-  g('#lTT', 'change', (e) => { S.loc.tinhTrang = e.target.value; ve(); });
+  /* Đổi bộ lọc thì bỏ chọn những dòng vừa khuất khỏi màn hình. Giữ lại là mở
+   * đường cho tai nạn: chọn 163 khoản, lọc còn 3 dòng, rồi bấm quyết toán mà
+   * tưởng mình chỉ đụng vào 3 dòng đang nhìn thấy. */
+  const doiLoc = (fn) => (e) => {
+    fn(e.target.value);
+    const con = new Set(locChi().map((c) => c.id));
+    [...S.chon].forEach((id) => { if (!con.has(id)) S.chon.delete(id); });
+    ve();
+  };
+  g('#lThang', 'change', doiLoc((v) => { S.loc.thang = v; }));
+  g('#lLoai', 'change', doiLoc((v) => { S.loc.loai = v; }));
+  g('#lTT', 'change', doiLoc((v) => { S.loc.tinhTrang = v; }));
   g('#chonHet', 'change', (e) => {
     const ds = locChi();
-    if (e.target.checked) ds.forEach((c) => S.chon.add(c.id));
-    else ds.forEach((c) => S.chon.delete(c.id));
+    if (e.target.checked) {
+      const duoc = ds.filter(quyetToanDuoc);
+      duoc.forEach((c) => S.chon.add(c.id));
+      const bo = ds.length - duoc.length;
+      if (bo) toast('Chọn ' + duoc.length + ' khoản còn phải đóng sổ · bỏ qua ' + bo
+        + ' khoản đã có mã quyết toán');
+      else if (!duoc.length) toast('Không còn khoản nào chờ quyết toán.');
+    } else ds.forEach((c) => S.chon.delete(c.id));
     ve();
   });
   g('#btnNap2', 'click', () => moNapQuy());
@@ -692,6 +790,21 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
+  /* Tạo bù đơn Tourwell cho một khoản ĐÃ nằm trong sổ. Không đụng tới số tiền,
+   * không đẻ thêm dòng chi — chỉ lấp chỗ đơn còn thiếu. */
+  const taodon = T.closest('[data-taodon]');
+  if (taodon) {
+    const c = S.chi.find((x) => x.id === taodon.dataset.taodon);
+    if (!confirm('Tạo đơn Tourwell cho khoản "' + ((c && c.noiDung) || '') + '"?'
+      + THEM_DONG + tien(c && c.tien) + ' đ · Quỹ Marketing · VAT 8% đã gồm.')) return;
+    await chongBamHai(taodon, async () => {
+      const kq = await api('/api/chi/' + taodon.dataset.taodon + '/tourwell', { method: 'POST' });
+      await taiLai(true);
+      if (kq && kq.tourwell) moKetQuaTourwell(kq.tourwell, c || {});
+    });
+    return;
+  }
+
   const tep = T.closest('[data-taitep]');
   if (tep) return taiTep(tep.dataset.taitep, tep.dataset.o);
 
@@ -701,7 +814,16 @@ document.addEventListener('click', async (e) => {
   const xoa = T.closest('[data-xoa]');
   if (xoa) {
     const c = S.chi.find((x) => x.id === xoa.dataset.xoa);
-    if (!confirm('Xoá khoản "' + (c ? c.noiDung : '') + '"?\n\nSố dư của đợt sẽ tự tính lại.')) return;
+    /* Xoá dòng chi KHÔNG gỡ được đơn Tourwell đã tạo, và KHÔNG gỡ được dấu
+     * "đã ghi sổ quỹ" bên Base lịch tác nghiệp. Nói ra trước, vì cả hai chỗ đó
+     * phải dọn tay và người bấm xoá là người duy nhất còn nhớ khoản này. */
+    const nhac = ['Xoá khoản "' + (c ? c.noiDung : '') + '"?', '', 'Số dư quỹ tự tính lại.'];
+    const dv = c && tachDon(c.maDon);
+    if (dv) nhac.push('Đơn ' + dv.ma + ' bên Tourwell KHÔNG tự huỷ — phải vào huỷ tay, '
+      + 'nếu không lịch sử chi của Quỹ Marketing vẫn còn khoản này.');
+    if (c && c.buoiTacNghiep) nhac.push('Khoản này do app Lịch tác nghiệp ghi sang. '
+      + 'Xoá rồi thì bấm "Đã thanh toán" lần nữa cũng không ghi lại được.');
+    if (!confirm(nhac.join(XUONG_DONG))) return;
     try {
       await api('/api/chi/' + xoa.dataset.xoa, { method: 'DELETE' });
       dongModal(); toast('Đã xoá', 'ok'); await taiLai(true);
@@ -728,7 +850,7 @@ document.addEventListener('click', async (e) => {
     };
     if (!body.noiDung) return toast('Phải ghi nội dung chi.', 'err');
     if (!(body.tien > 0)) return toast('Số tiền phải lớn hơn 0.', 'err');
-    try {
+    await chongBamHai(T.closest('#btnLuuChi'), async () => {
       let kq = null;
       if (id) await api('/api/chi/' + id, { method: 'PATCH', body: JSON.stringify(body) });
       else kq = await api('/api/chi', { method: 'POST', body: JSON.stringify(body) });
@@ -736,7 +858,7 @@ document.addEventListener('click', async (e) => {
       toast(id ? 'Đã lưu' : 'Đã ghi vào sổ', 'ok');
       await taiLai(true);
       if (kq && kq.tourwell) moKetQuaTourwell(kq.tourwell, body);
-    } catch (err) { toast(err.message, 'err'); }
+    });
     return;
   }
 
@@ -749,24 +871,29 @@ document.addEventListener('click', async (e) => {
       loai: 'Nạp thêm',
     };
     if (!(body.tien > 0)) return toast('Số tiền nạp phải lớn hơn 0.', 'err');
-    try {
+    await chongBamHai(T.closest('#btnLuuNap'), async () => {
       await api('/api/nap', { method: 'POST', body: JSON.stringify(body) });
       dongModal(); toast('Đã ghi ' + tien(body.tien) + ' đ vào quỹ', 'ok'); await taiLai(true);
-    } catch (err) { toast(err.message, 'err'); }
+    });
     return;
   }
 
   /* ---- quyết toán lô ---- */
   if (T.closest('#btnLuuQT')) {
+    const nut = T.closest('#btnLuuQT');
     const ma = $('#qMa').value.trim();
     if (!ma) return toast('Phải nhập mã quyết toán.', 'err');
-    try {
+    const soGhiDe = Number(nut.dataset.ghide || 0);
+    if (soGhiDe && !confirm('Xoá hẳn mã quyết toán cũ của ' + soGhiDe + ' khoản, thay bằng "'
+      + ma + '"?' + THEM_DONG + 'Không lấy lại được.')) return;
+    await chongBamHai(nut, async () => {
       const r = await api('/api/quyet-toan', {
-        method: 'POST', body: JSON.stringify({ ids: [...S.chon], ma }),
+        method: 'POST',
+        body: JSON.stringify({ ids: [...S.chon], ma, deGhiDe: !!soGhiDe }),
       });
       dongModal(); toast('Đã quyết toán ' + r.so + ' khoản với mã ' + ma, 'ok');
       S.chon.clear(); await taiLai(true);
-    } catch (err) { toast(err.message, 'err'); }
+    });
     return;
   }
 });

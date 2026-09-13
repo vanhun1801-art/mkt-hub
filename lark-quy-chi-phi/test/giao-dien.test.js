@@ -74,6 +74,12 @@ const META = {
       hoaDon: [], unc: [], maDieuHanh: '', maDon: '', maQuyetToan: '',
       linkCu: '', linkUncCu: '', chungTu: null, dot: ['recD1'],
     },
+    {
+      id: 'recC4', noiDung: 'Khoản còn Chờ chi', loai: 'Khác',
+      tien: 250000, ngayChi: '', ngayDeNghi: '2026-09-12', nguoi: [],
+      tinhTrang: 'Chờ chi', hoaDon: [], unc: [], maDieuHanh: '', maDon: '',
+      maQuyetToan: '', linkCu: '', linkUncCu: '', chungTu: null, dot: ['recD1'],
+    },
   ],
 };
 
@@ -81,10 +87,16 @@ const META = {
  * Mọi phần tử DOM là một Proxy trả về chính nó cho mọi thuộc tính và mọi lời
  * gọi. Đủ để app gán innerHTML, textContent, addEventListener… mà không cần
  * dựng cả một trình duyệt. */
-function phanTuGia() {
+function phanTuGia(ten, ghi) {
   const p = new Proxy(function () {}, {
     get: (t, k) => (k === 'then' ? undefined : p),
-    set: () => true,
+    /* Ghi lại thứ app gán vào. Không có chỗ này thì innerHTML của cửa sổ rơi
+     * vào hư không và phép thử chỉ biết "hàm chạy xong không ném lỗi" — trong
+     * khi thứ đáng kiểm là NÓ VIẾT GÌ, ví dụ có cảnh báo ghi đè mã cũ không. */
+    set: (t, k, v) => {
+      if (ghi && ten) (ghi[ten] || (ghi[ten] = {}))[k] = String(v == null ? '' : v);
+      return true;
+    },
     apply: () => p,
     has: () => true,
   });
@@ -92,13 +104,15 @@ function phanTuGia() {
 }
 
 function chay(meta) {
-  const goc = phanTuGia();
+  const ghi = {};
+  const kho = {};
+  const layO = (sel) => (kho[sel] || (kho[sel] = phanTuGia(sel, ghi)));
   const ctx = {
     console: { log: () => {}, warn: () => {}, error: () => {} },
     document: {
-      querySelector: () => goc,
+      querySelector: (sel) => layO(sel),
       querySelectorAll: () => [],
-      createElement: () => goc,
+      createElement: () => layO('<tạo mới>'),
       addEventListener: () => {},
     },
     location: { pathname: '/m/quy-chi-phi/' },
@@ -120,6 +134,9 @@ function chay(meta) {
   const src = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
   vm.runInContext(src, ctx, { filename: 'app.js' });
   ctx.__goi = (code) => vm.runInContext(code, ctx);
+  ctx.__ghi = ghi;                                   // những gì app đã viết ra DOM
+  ctx.__than = () => (ghi['#mdBody'] || {}).innerHTML || '';
+  ctx.__chan = () => (ghi['#mdFoot'] || {}).innerHTML || '';
   return ctx;
 }
 
@@ -223,6 +240,62 @@ function chay(meta) {
   ok('chủ quỹ có nút Sửa', bCq.includes('data-sua'));
   ok('chủ quỹ đính được tệp còn thiếu', bCq.includes('data-taitep'));
   ok('mã số thuế hiện lên cho kế toán soi', bCq.includes('0314567890'));
+
+  /* ========================================================================
+   * CHỌN HẾT KHÔNG ĐƯỢC QUÉT VÀO KHOẢN ĐÃ ĐÓNG SỔ
+   * ======================================================================
+   * Sổ thật có 163 khoản, trong đó 154 khoản mang mã QTTU riêng từ những đợt
+   * quyết toán cũ. Một cú tích ở đầu bảng rồi một cú bấm "Quyết toán 163
+   * khoản" là ghi đè sạch 154 mã đó, không hoàn lại được. Đây là chỗ dễ mất
+   * dữ liệu nhất của cả app, nên phải có phép thử canh.
+   *
+   * `quyetToanDuoc` khai bằng const nên nằm ở tầng lexical của context, không
+   * ló ra thành thuộc tính — phải hỏi qua __goi.
+   */
+  console.log(SAO + 'Chống xoá sổ lịch sử quyết toán' + HET);
+  const q = veVoiVai('chuQuy');
+  await new Promise((r) => setTimeout(r, 40));
+  const duoc = (id) => q.__goi('quyetToanDuoc(S.chi.find(c=>c.id==="' + id + '"))');
+
+  ok('khoản đã có mã QTTU thì KHÔNG quét vào nữa', duoc('recC2') === false);
+  ok('khoản còn Chờ chi cũng không', duoc('recC4') === false);
+  ok('khoản đã chi mà chưa có mã thì quét vào được', duoc('recC1') === true);
+
+  /* Cửa sổ phải NÓI RA trước khi bấm, không chỉ âm thầm ghi đè. */
+  q.__goi('S.chon.clear(); S.chon.add("recC2"); moQuyetToan()');
+  const than = q.__than();
+  const chan = q.__chan();
+  ok('cửa sổ cảnh báo sắp xoá mã quyết toán cũ',
+    /đã có mã quyết toán/.test(than) && /xoá hẳn/.test(than), than.slice(0, 200));
+  ok('cảnh báo nêu đúng mã sắp mất', than.includes('QTTU52/LVH'), than.slice(0, 200));
+  ok('nút đổi thành nút nguy hiểm, mang cờ ghi đè',
+    /nguyhiem/.test(chan) && /data-ghide="1"/.test(chan), chan.slice(0, 200));
+
+  /* Khoản "Chờ chi": tiền chưa rời quỹ mà đóng sổ là chứng từ chưa có thật. */
+  q.__goi('S.chon.clear(); S.chon.add("recC4"); moQuyetToan()');
+  ok('cửa sổ cảnh báo khoản còn Chờ chi', /Chờ chi/.test(q.__than()), q.__than().slice(0, 200));
+
+  /* Không có gì đáng cảnh báo thì ĐỪNG cảnh báo — cảnh báo réo bừa là cảnh
+   * báo không ai đọc, đúng bài học của luật thiếu chứng từ hồi 12/09. */
+  q.__goi('S.chon.clear(); S.chon.add("recC1"); moQuyetToan()');
+  ok('khoản sạch thì không doạ ghi đè',
+    !/xoá hẳn/.test(q.__than()) && !/data-ghide/.test(q.__chan()));
+
+  console.log(SAO + 'Tạo bù đơn Tourwell thay vì khai lại' + HET);
+  const bQ = String(q.veBang());
+  /* Chỉ MỘT khoản trong sổ mẫu chưa từng qua Tourwell: recC3 (không mã đơn,
+   * không mã điều hành, không mã quyết toán). recC1 đã có đơn RT16438, recC2
+   * có SG21000 + QTTU52, recC4 còn Chờ chi nhưng cũng sạch dấu vết nên được
+   * mời — đúng, vì khai xong mà quên tạo đơn là chuyện hay xảy ra nhất. */
+  const soNut = (bQ.match(/data-taodon/g) || []).length;
+  ok('chỉ mời tạo đơn cho khoản chưa từng qua Tourwell', soNut === 2,
+    soNut + ' nút / ' + META.chi.length + ' khoản');
+  ok('khoản đã có mã điều hành SG thì KHÔNG mời tạo đơn',
+    !/data-taodon="recC2"/.test(bQ));
+  ok('khoản đã có đơn RT rồi cũng không', !/data-taodon="recC1"/.test(bQ));
+  const kt2 = veVoiVai('keToan');
+  await new Promise((r) => setTimeout(r, 40));
+  ok('kế toán không tạo đơn Tourwell được', !String(kt2.veBang()).includes('data-taodon'));
 
   console.log('\n' + (fail ? '\x1b[31m' : '\x1b[32m') + pass + ' pass, ' + fail + ' fail\x1b[0m');
   if (fail) { fails.forEach((f) => console.log('  - ' + f)); process.exit(1); }

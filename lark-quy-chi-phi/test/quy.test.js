@@ -32,7 +32,12 @@ const nhom = (t) => console.log('\n\x1b[1m' + t + '\x1b[0m');
     m = await r.json();
     if (!r.ok) throw new Error(m.error || ('HTTP ' + r.status));
   } catch (e) {
-    console.error('Không gọi được ' + BASE + ' — app chưa chạy?\n  ' + e.message);
+    /* "App chưa chạy" là phỏng đoán, không phải chẩn đoán. Ngày 13/09/2026 máy
+     * chủ CÓ chạy nhưng mọi request ném ReferenceError — câu đoán bừa chỉ tổ
+     * làm mất thêm mười phút. Chỉ thẳng vào bản ghi lỗi. */
+    const XD = String.fromCharCode(10);
+    console.error('Không gọi được ' + BASE + XD + '  ' + e.message + XD
+      + '  Máy chủ có thể đang chạy mà vỡ ở từng request — xem .tmp/log-*.txt');
     process.exit(1);
   }
 

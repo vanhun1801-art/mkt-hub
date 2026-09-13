@@ -172,10 +172,20 @@ async function dotMacDinh(dotRows) {
  *   2. Tourwell hỏng không chặn việc ghi sổ — tiền đã tiêu rồi
  *   3. nói rõ đơn mới ở "Đang xử lý", còn 5 nút phải bấm tay
  * ------------------------------------------------------------------------- */
+const dangTaoDon = new Set();
+
 async function taoDonTourwell(recId, khoan) {
   if (!tourwell.bat()) return { bo: 'chua-cau-hinh' };
   if (!recId) return { bo: 'khong-co-ban-ghi' };
   if (!(Number(khoan.tien) > 0)) return { bo: 'khong-co-chi-phi' };
+  /* Ô "Mã đơn Tourwell" là chốt chống trùng. Với khoản mới thì ô này luôn
+   * trống, nhưng hàm này còn được gọi lại từ nút "tạo lại đơn" — mà lúc đó
+   * khoản đã có thể có đơn rồi. Một khoản chi một đơn, không hơn. */
+  if (String(khoan.maDon || '').trim()) {
+    return { bo: 'da-co', ma: String(khoan.maDon).trim().split('·')[0].trim() };
+  }
+  if (dangTaoDon.has(recId)) return { bo: 'dang-tao' };
+  dangTaoDon.add(recId);
 
   try {
     const kq = await tourwell.taoDon({
@@ -192,6 +202,8 @@ async function taoDonTourwell(recId, khoan) {
     return kq;
   } catch (e) {
     return { loi: e.message };
+  } finally {
+    dangTaoDon.delete(recId);
   }
 }
 
@@ -208,11 +220,23 @@ function nguoiTuHeader(req) {
   return { id: String(id), name: ten, quanLy: req.headers['x-hub-user-manager'] === '1' };
 }
 
+/* whoami ở chế độ cli sinh HẲN MỘT TIẾN TRÌNH node (`lark-cli auth status`).
+ * Một lời gọi /api/meta hỏi danh tính ba lần — me, vai, chuQuy — nên trước khi
+ * có chỗ nhớ này là ba tiến trình cho mỗi lần mở trang, đủ để thấy giật. Người
+ * đăng nhập lark-cli thì cả phiên không đổi, nhớ 5 phút là quá đủ. */
+const nhoToi = { at: 0, ai: null };
+const NHO_MS = 5 * 60 * 1000;
+
 async function toiLaAi() {
   const tuHub = nguoiCuaRequest.getStore();
   if (tuHub) return tuHub;
+  if (nhoToi.ai && Date.now() - nhoToi.at < NHO_MS) return nhoToi.ai;
   if (typeof lark.whoami === 'function') {
-    try { return await lark.whoami(); } catch (_) { return null; }
+    try {
+      const ai = await lark.whoami();
+      if (ai) { nhoToi.ai = ai; nhoToi.at = Date.now(); }
+      return ai;
+    } catch (_) { return null; }
   }
   return null;
 }
@@ -387,6 +411,40 @@ async function xuLy(req, res) {
     }
   }
 
+  /* ---- tạo lại đơn Tourwell cho một khoản ĐÃ có trong sổ ----
+   * Tourwell hỏng lúc khai (hết token, sai host, mạng chập) thì khoản chi vẫn
+   * vào sổ — đúng thiết kế, tiền đã tiêu rồi. Nhưng trước đây không có đường
+   * nào tạo bù cái đơn ấy, và lời khuyên duy nhất là "khai lại khoản này" —
+   * tức là ĐẺ THÊM MỘT DÒNG CHI, trừ tiền quỹ hai lần cho một lần tiêu. Lời
+   * khuyên đó tệ hơn cả cái lỗi nó định chữa. */
+  const mTw = p.match(/^\/api\/chi\/(rec[A-Za-z0-9]+)\/tourwell$/);
+  if (mTw && req.method === 'POST') {
+    if (!(await doiChuQuy(res))) return;
+    const k = await nap();
+    const rec = k.chi.find((r) => r.record_id === mTw[1]);
+    if (!rec) return json(res, { error: 'Không thấy khoản chi này trong sổ.' }, 404);
+    const khoan = doiRa(rec, F.chi);
+    /* Cùng luật với giao diện, và cần ở đây vì cùng lý do: 162 khoản nhập từ
+     * sheet cũ trống ô "Mã đơn Tourwell" nhưng ĐÃ qua Tourwell bằng tay — dấu
+     * vết là mã điều hành SG… và mã quyết toán. Tạo đơn cho chúng là dựng một
+     * đơn THẬT cho khoản tiền đã đóng sổ từ tháng 4. */
+    const daQua = [khoan.maDieuHanh, khoan.maQuyetToan].some((x) => String(x || '').trim())
+      || khoan.tinhTrang === 'Đã quyết toán';
+    if (daQua) {
+      return json(res, {
+        error: 'Khoản này đã có dấu vết đi qua Tourwell ('
+          + [khoan.maDieuHanh && ('mã điều hành ' + khoan.maDieuHanh),
+            khoan.maQuyetToan && ('đã quyết toán ' + khoan.maQuyetToan)]
+            .filter(Boolean).join(' · ')
+          + '). Tạo đơn nữa là đơn trùng — xoá ô Mã điều hành trước nếu thật sự cần.',
+        code: 'DA_QUA_TOURWELL',
+      }, 409);
+    }
+    const tw = await taoDonTourwell(mTw[1], khoan);
+    if (tw && tw.loi && !tw.ma) return json(res, { error: tw.loi }, 502);
+    return json(res, { ok: true, tourwell: tw, khoan });
+  }
+
   /* ---- chứng từ ---- */
   const mUp = p.match(/^\/api\/chi\/(rec[A-Za-z0-9]+)\/tep\/([a-zA-Z]+)$/);
   if (mUp && req.method === 'POST') {
@@ -492,6 +550,36 @@ async function xuLy(req, res) {
     const ma = String(body.ma || '').trim();
     if (!ids.length) return json(res, { error: 'Chưa chọn khoản nào.' }, 400);
     if (!ma) return json(res, { error: 'Phải nhập mã quyết toán.' }, 400);
+
+    /* ---------------------------------------------------------------------
+     * CHỐT CHỐNG XOÁ SỔ LỊCH SỬ QUYẾT TOÁN
+     * -------------------------------------------------------------------
+     * Ô tích ở đầu bảng chọn cả trang. Trong 163 khoản của sổ thì 154 khoản
+     * ĐÃ có mã QTTU riêng của chúng, gán từ những đợt quyết toán cũ. Bấm
+     * "Quyết toán 163 khoản" với một mã mới là ghi đè sạch 154 mã đó — không
+     * hoàn lại được, và kế toán mất đường đối chiếu với phiếu chi cũ.
+     *
+     * Giao diện đã cảnh báo, nhưng cảnh báo không phải hàng rào: một tab mở
+     * từ hôm qua, một cú Enter nhầm, là xong. Nên chốt ở đây: đụng vào mã đã
+     * có thì phải nói thẳng `deGhiDe: true`.
+     * ------------------------------------------------------------------- */
+    const k = await nap();
+    const theoId = {};
+    k.chi.map((r) => doiRa(r, F.chi)).forEach((c) => { theoId[c.id] = c; });
+    const deGhiDe = ids
+      .map((id) => theoId[id])
+      .filter((c) => c && String(c.maQuyetToan || '').trim()
+        && String(c.maQuyetToan).trim() !== ma);
+    if (deGhiDe.length && !body.deGhiDe) {
+      return json(res, {
+        error: deGhiDe.length + ' khoản đã có mã quyết toán riêng ('
+          + deGhiDe.slice(0, 3).map((c) => c.maQuyetToan).join(', ')
+          + (deGhiDe.length > 3 ? '…' : '') + '). Gán mã mới là xoá hẳn mã cũ.',
+        code: 'GHI_DE_MA_CU',
+        so: deGhiDe.length,
+        vidu: deGhiDe.slice(0, 5).map((c) => ({ noiDung: c.noiDung, ma: c.maQuyetToan })),
+      }, 409);
+    }
 
     const cells = {
       [F.chi.maQuyetToan.name]: ma,
