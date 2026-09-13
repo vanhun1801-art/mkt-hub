@@ -203,6 +203,37 @@ function vePhieu(p) {
   };
 }
 
+/**
+ * Đổi lỗi của Lark thành câu người dùng làm được gì với nó.
+ *
+ * "Lark API 91403: you don't have permission" thì đúng nhưng vô dụng: người
+ * đọc không biết ai thiếu quyền gì, và càng không biết phải nhờ ai. Mã 91403
+ * ở app này gần như luôn là một chuyện duy nhất — Base do một người tạo, còn
+ * bản trên Render ghi bằng danh nghĩa APP Lark, và app đó chưa được mời vào
+ * Base. Nói thẳng ra thế thì người quản lý tự xử lý được trong hai phút.
+ */
+function dichLoiBase(e) {
+  const m = String((e && e.message) || '');
+  if (/91403|permission denied|you don't have permission/i.test(m)) {
+    return 'App Lark chưa được cấp quyền vào Base "Báo cáo công việc MKT". ' +
+      'Mở Base → Chia sẻ → thêm ứng dụng (App ID ' + (cfg.appId || 'của Marketing Hub') +
+      ') với quyền Chỉnh sửa. Báo cáo vừa gõ vẫn còn trên màn hình, nộp lại sau khi cấp.';
+  }
+  if (/1254291|1254036|99991400|rate/i.test(m)) {
+    return 'Base đang bận, thử lại sau vài giây. Nội dung vừa gõ vẫn còn trên màn hình.';
+  }
+  if (/timeout|timed out|ETIMEDOUT|ECONNRESET|EAI_AGAIN/i.test(m)) {
+    return 'Không nối được tới Lark. Nội dung vừa gõ vẫn còn trên màn hình, thử nộp lại.';
+  }
+  return 'Base không nhận: ' + m;
+}
+
+function maLoiBase(e) {
+  const m = String((e && e.message) || '');
+  if (/91403|permission denied|you don't have permission/i.test(m)) return 'THIEU_QUYEN_BASE';
+  return 'BASE_LOI';
+}
+
 /** Gom dòng việc theo ngày — đầu vào của ND.timDungYen(). */
 function nhomTheoNgay(dong) {
   const m = new Map();
@@ -355,7 +386,7 @@ async function api(req, res, u) {
           : 'Đã lưu nháp',
       });
     } catch (e) {
-      return loi(res, 502, 'Base không nhận: ' + e.message);
+      return loi(res, 502, dichLoiBase(e), maLoiBase(e));
     }
   }
 
@@ -569,4 +600,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { server, aiGoi, nguoiXem, vePhieu, VER };
+module.exports = { server, aiGoi, nguoiXem, vePhieu, dichLoiBase, maLoiBase, VER };

@@ -50,6 +50,11 @@ bấm tay 31 cột.
 | Phiếu báo cáo | `tblMIviEWyBXNTFz` | một người × một kỳ, 22 cột |
 | Dòng việc | `tblo5FBTVuXzv0W0` | một đầu việc một bản ghi, 13 cột |
 
+**App Lark phải được mời vào Base** (`cli_aa04305ecd385ed1`, quyền Quản lý —
+cấp ngày 13/09/2026). Base đứng tên người tạo; trên máy app đọc/ghi bằng phiên
+lark-cli của chính người đó nên chạy ngon, còn trên Render nó ghi bằng danh
+nghĩa APP Lark. Thiếu bước này thì mọi lần nộp báo cáo trả `91403`.
+
 Hai cột `Đánh giá AI` / `Điểm AI` còn trống — tạo sẵn vì thêm cột vào bảng đã có
 vài nghìn dòng phiền hơn nhiều so với để trống vài tháng.
 
@@ -131,6 +136,9 @@ Anh Hùng đã báo trước ý định này (chưa làm). Cấu trúc hiện t�
 - **Giao diện không phải hàng rào.** Nộp phiếu rỗng bị chặn ở cả hai đầu, vì ai
   cũng gọi thẳng API được — mà phiếu rỗng vẫn được chấm "đúng hạn", tức là bảng
   theo dõi báo xanh cho người chưa làm gì.
+- **Base mới tạo thì app Lark CHƯA có quyền vào.** Lỗi `91403` khi nộp báo cáo
+  trên Render gần như luôn là chuyện này — và nó không bao giờ lộ khi thử trên
+  máy. `thiet-lap/tao-base.js` in sẵn lệnh cấp quyền sau khi tạo xong.
 - **Ô kiểu URL của Base trả về dạng Markdown `[địa chỉ](địa chỉ)`.** Đổ thẳng
   vào ô nhập rồi lưu lần nữa là nó bọc thêm một lớp, mỗi lần sửa lại dài gấp
   đôi. Gỡ ngay lúc đọc bằng `kho.asLink()`; cột phải khai `type: 'url'` mới đi

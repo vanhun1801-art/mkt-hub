@@ -158,7 +158,35 @@ const QUAN_LY = Object.assign({}, NHAN_SU, { 'x-hub-user-manager': '1' });
     ok('không có phiếu thì trả null, không nổ', S.vePhieu(null) === null);
   }
 
-  group('Ô kiểu URL — gỡ lớp Markdown ngay lúc đọc');
+  group('Lỗi của Lark phải nói được người dùng làm gì tiếp');
+{
+  /* Anh Hùng nộp báo cáo trên Render và nhận đúng dòng này:
+   *     "Base không nhận: Lark API 91403: you don't have permission"
+   * Đúng, nhưng vô dụng — không biết AI thiếu quyền gì, càng không biết nhờ ai.
+   * Base do một người tạo, còn bản trên Render ghi bằng danh nghĩa APP Lark, mà
+   * app đó chưa được mời vào Base. */
+  const q = S.dichLoiBase(new Error("Lark API 91403: you don't have permission"));
+  ok('không ném mã số vào mặt người dùng', !/91403/.test(q), 'đang ra: ' + q);
+  ok('nói rõ ai thiếu quyền', /App Lark chưa được cấp quyền/.test(q));
+  ok('chỉ đúng chỗ bấm để sửa', /Chia sẻ/.test(q) && /thêm ứng dụng/.test(q));
+  ok('trấn an là chưa mất bài đang gõ', /vẫn còn trên màn hình/.test(q),
+    'gõ mười phút rồi thấy lỗi đỏ thì câu đầu tiên người ta cần nghe là "chưa mất"');
+  ok('kèm mã máy đọc được',
+    S.maLoiBase(new Error('Lark API 91403: ...')) === 'THIEU_QUYEN_BASE');
+
+  const b = S.dichLoiBase(new Error('1254291 ghi đồng thời'));
+  ok('lỗi bận thì bảo thử lại', /thử lại/.test(b) && !/quyền/.test(b));
+
+  const t = S.dichLoiBase(new Error('dial tcp: i/o timeout'));
+  ok('lỗi mạng thì nói là lỗi mạng', /Không nối được tới Lark/.test(t));
+
+  const la = S.dichLoiBase(new Error('chuyện gì đó rất lạ'));
+  ok('lỗi chưa biết thì giữ nguyên văn, không nuốt mất',
+    la.includes('chuyện gì đó rất lạ'),
+    'nuốt lỗi lạ là lần sau không ai lần ra được nguyên nhân');
+}
+
+group('Ô kiểu URL — gỡ lớp Markdown ngay lúc đọc');
 {
   const kho = require('../kho');
   /* Base trả ô URL về dạng `[địa chỉ](địa chỉ)`. Đổ thẳng chuỗi đó vào ô nhập

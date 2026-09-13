@@ -83,6 +83,9 @@ const PHIEU = [
   /* Vướng mắc nhân sự tự nêu. Quản lý xem gom một chỗ ở màn "Cần hỗ trợ" —
    * anh Hùng: "liệt kê tổng hợp lại cái vấn đề cần giúp đỡ của nhân viên". */
   { type: 'text', name: 'Cần hỗ trợ' },
+  /* Nhân sự vốn đã gửi kèm link Minutes cho báo cáo tuần trong nhóm Lark.
+   * Đọc về sẽ ra dạng Markdown [địa chỉ](địa chỉ) — xem kho.asLink(). */
+  { type: 'text', name: 'Link video', style: { type: 'url' } },
   /* Hai cột dưới còn trống ở giai đoạn này. Tạo sẵn vì thêm cột vào bảng đã có
    * vài nghìn dòng phiền hơn nhiều so với để trống vài tháng. */
   { type: 'text', name: 'Đánh giá AI' },
@@ -159,6 +162,33 @@ const DONG = [
     '--fields', JSON.stringify(DONG),
     '--format', 'json']);
   console.log('  table_id: ' + (t2.table_id || JSON.stringify(t2)));
+
+  /* ------------------------------------------------------------------ *
+   * BƯỚC KHÔNG ĐƯỢC QUÊN, và nó không tự lộ ra khi thử trên máy.
+   *
+   * Base vừa tạo đứng tên NGƯỜI chạy script này. Trên máy thì app đọc/ghi bằng
+   * phiên lark-cli của chính người đó nên chạy ngon; còn trên Render app ghi
+   * bằng danh nghĩa APP Lark, mà app đó chưa được mời vào Base — mọi lần nộp
+   * báo cáo trả về "Lark API 91403: you don't have permission".
+   *
+   * Đã dính đúng thế ngày 13/09/2026: app chạy cả ngày trên máy, deploy xong
+   * anh Hùng nộp báo cáo thật thì mới lộ.
+   * ------------------------------------------------------------------ */
+  console.log('');
+  console.log('='.repeat(64));
+  console.log('CÒN MỘT BƯỚC NỮA — làm ngay, kẻo bản trên Render báo 91403:');
+  console.log('  Mời app Lark vào Base với quyền Quản lý.');
+  console.log('');
+  console.log('  lark-cli drive permission.members create --as user');
+  console.log('    --token ' + token + ' --type bitable');
+  console.log('    --data ' + JSON.stringify(JSON.stringify({
+    member_type: 'appid', member_id: '<APP_ID>', perm: 'full_access',
+  })) + ' --yes');
+  console.log('');
+  console.log('  <APP_ID> lấy từ LARK_APP_ID trong render.yaml — app mà bản deploy');
+  console.log('  dùng, KHÁC với app của lark-cli trên máy này.');
+  console.log('='.repeat(64));
+  console.log('');
 
   console.log('\nLiệt kê lại để lấy id thật của từng cột…');
   const bang = await cli(['base', '+table-list', '--as', 'user',
