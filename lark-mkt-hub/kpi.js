@@ -657,6 +657,10 @@ const BO_DOC = {
 /* ---------------- cache + gom ---------------- */
 const cache = new Map(); // "id|tu|den" -> { at, data }
 
+/* "Đời" của đệm: tăng mỗi lần `xoaCache` chạy. Xem chú thích trong `lamMoi` —
+ * đây là thứ ngăn một lời gọi đang bay dựng lại đúng bộ số vừa bị cố ý xoá. */
+let doiDem = 0;
+
 /* Khoá cache mang cả khoảng lọc VÀ id người xem: chế độ chạy chung, mỗi người
  * thấy một phạm vi khác nhau — dùng chung cache là lộ dữ liệu của nhau. */
 const khoa = (mod, k, nguoi) => mod.id + '|' + ((k && k.tu) || '') + '|' + ((k && k.den) || '') +
@@ -670,6 +674,52 @@ const khoa = (mod, k, nguoi) => mod.id + '|' + ((k && k.tu) || '') + '|' + ((k &
  * base một lượt nên không thể dùng chung một danh tính. */
 const aiCua = (nguoi, mod) => (typeof nguoi === 'function' ? nguoi(mod) : nguoi);
 
+/* Lượt đọc ĐANG BAY theo từng khoá — xem `lamMoi` bên dưới. */
+const dangBay = new Map();
+
+/* Số cũ tới mức nào thì KHÔNG được đưa ra nữa mà phải đứng chờ số mới.
+ * 10 phút: đủ dài để một cơn chậm của Lark không bắt ai chờ, đủ ngắn để không
+ * ai nhìn số của phiên làm việc hôm qua mà tưởng là số hôm nay. */
+const HAN_CU_MS = 10 * 60000;
+
+/* Trần số mục giữ lại. Khoá gồm id base + khoảng lọc + NGƯỜI XEM + vai, nên
+ * trên bản chạy chung nó nở theo (số người × số khoảng ngày họ từng chọn) và
+ * KHÔNG BAO GIỜ tự co lại — mỗi mục còn ôm cả `nhom` vài trăm bản ghi. Chạy
+ * liên tục vài ngày là hết 512 MB của gói Free rồi bị khởi động lại, mà nhìn
+ * từ ngoài chỉ thấy "app tự nhiên chậm rồi đứng". */
+const TRAN_DEM = 300;
+
+function catBotDem() {
+  if (cache.size <= TRAN_DEM) return;
+  /* Xoá mục cũ nhất trước. Map giữ đúng thứ tự chèn, nhưng mục được ghi đè vẫn
+   * đứng nguyên chỗ cũ, nên sắp theo `at` mới đúng là "cũ nhất". */
+  const theoTuoi = [...cache.entries()].sort((a, b) => a[1].at - b[1].at);
+  for (const [k] of theoTuoi.slice(0, cache.size - TRAN_DEM)) cache.delete(k);
+}
+
+/**
+ * Đọc thật từ module rồi ghi vào đệm. Gộp các lượt gọi TRÙNG KHOÁ đang bay làm
+ * một: trang Tổng quan, cửa sổ xử lý nhanh và nhịp tự nạp 60 giây có thể rơi vào
+ * cùng một khoảnh khắc, mà mỗi lượt là một vòng hỏi Lark Base mất vài giây.
+ */
+function lamMoi(mod, khoang, nguoi, kh) {
+  const cu = dangBay.get(kh);
+  if (cu) return cu;
+  /* Chụp lại "đời" của đệm lúc khởi hành. Xử lý xong một việc là server gọi
+   * `xoaCache(mod.id)` để thẻ số đổi ngay — nhưng lời gọi đang bay đã đọc dữ
+   * liệu TRƯỚC đó, nên nếu cứ thế ghi vào đệm thì nó dựng lại đúng bộ số cũ và
+   * việc vừa làm xong lại hiện ra như chưa làm. Đời đổi thì kết quả này bỏ. */
+  const doi = doiDem;
+  const p = BO_DOC[mod.kpi](mod, khoang, nguoi)
+    .then((data) => {
+      if (doi === doiDem) { cache.set(kh, { at: Date.now(), data }); catBotDem(); }
+      return data;
+    })
+    .finally(() => { if (dangBay.get(kh) === p) dangBay.delete(kh); });
+  dangBay.set(kh, p);
+  return p;
+}
+
 async function doc(mod, khoang, nguoiHoacHam) {
   const fn = BO_DOC[mod.kpi];
   if (!fn) return { ok: false, loi: '', khongCo: true };
@@ -677,11 +727,26 @@ async function doc(mod, khoang, nguoiHoacHam) {
 
   const kh = khoa(mod, khoang, nguoi);
   const c = cache.get(kh);
-  if (c && c.data && Date.now() - c.at < cfg.kpiCacheMs) return { ...c.data, ok: true, luc: c.at };
+  const tuoi = c && c.data ? Date.now() - c.at : Infinity;
+  if (tuoi < cfg.kpiCacheMs) return { ...c.data, ok: true, luc: c.at };
+
+  /* Đệm hết hạn nhưng chưa quá cũ: TRẢ NGAY số đang có rồi đọc lại phía sau.
+   *
+   * Đo thật trên máy: đệm còn hạn thì /api/tongquan trả trong 1 ms, hết hạn là
+   * 2.5 giây. Đệm chỉ sống 20 giây mà trang tự nạp mỗi 60 giây, nên gần như
+   * LƯỢT NÀO CŨNG rơi vào nhánh chậm — người dùng thực tế luôn chờ 2.5 giây,
+   * đúng cái mà bộ đệm lẽ ra phải xoá bỏ.
+   *
+   * Không đặt cờ `cu`: cờ đó dành riêng cho "lần đọc mới nhất LỖI" và giao diện
+   * treo băng cảnh báo đỏ cho nó. Số vừa hơi cũ không phải là lỗi — tuổi thật
+   * đã nằm trong `luc`, và trang chủ vốn in "cập nhật lúc …". */
+  if (tuoi < HAN_CU_MS) {
+    lamMoi(mod, khoang, nguoi, kh).catch(() => { /* lượt sau sẽ báo lỗi tử tế */ });
+    return { ...c.data, ok: true, luc: c.at };
+  }
 
   try {
-    const data = await fn(mod, khoang, nguoi);
-    cache.set(kh, { at: Date.now(), data });
+    const data = await lamMoi(mod, khoang, nguoi, kh);
     return { ...data, ok: true, luc: Date.now() };
   } catch (e) {
     const cu = cache.get(kh);
@@ -743,8 +808,10 @@ async function tongQuan(mods, khoang, nguoi) {
 }
 
 function xoaCache(id) {
+  doiDem += 1;
   if (!id) return cache.clear();
   [...cache.keys()].filter((k) => k.split('|')[0] === id).forEach((k) => cache.delete(k));
+  return undefined;
 }
 
 module.exports = { doc, tongQuan, nhomCua, xoaCache, BO_DOC };

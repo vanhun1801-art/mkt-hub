@@ -109,10 +109,33 @@ function ghiXemTai(hang) {
   return hang && hang.moiXemTai ? '*' : ((hang && hang.xemTaiAi) || []).join(',');
 }
 
+/* Lượt đọc ĐANG BAY, để nhiều người hỏi cùng lúc chỉ tốn một lời gọi Base.
+ *
+ * VÌ SAO CẦN: bảng này được hỏi ở đầu GẦN NHƯ MỌI request — kể cả mỗi file tĩnh
+ * đi qua /m/<id>/ (aiDangXem -> quyenCua -> cuaNguoi). Mở một app con là trình
+ * duyệt xin 20-40 tệp một lúc; nếu đúng lúc đệm vừa hết hạn thì cả 40 cùng thấy
+ * "chưa có đệm" và cùng gọi Lark. Lark chặn theo tần suất, nên hậu quả không chỉ
+ * là chậm mà là 429 rồi cả trang trắng.
+ *
+ * Đệm 20 giây chống được lần thứ hai trở đi, KHÔNG chống được cơn ập cùng lúc —
+ * đó là hai chuyện khác nhau, và chỉ chuyện thứ hai mới gây sự cố. */
+let dangBay = null;
+
 async function docTatCa(boQuaCache) {
   if (!boQuaCache && cache.ds && Date.now() - cache.at < 20000) return cache.ds;
   if (FILE) return docTuFile();
+  /* Đang có người đọc dở thì xếp hàng sau họ — TRỪ khi đây là lượt "đọc lại" do
+   * người dùng bấm. Lượt đó thường đi ngay sau một lần ghi quyền, mà lời gọi
+   * đang bay đã khởi hành TRƯỚC khi ghi, nên nó chở dữ liệu cũ. Gắn vào nó là
+   * cấp quyền xong bấm Làm mới vẫn thấy y như cũ — đúng cái bẫy đã từng mất
+   * thời gian một lần. */
+  if (dangBay && !boQuaCache) return dangBay;
+  const lan = docThat().finally(() => { if (dangBay === lan) dangBay = null; });
+  dangBay = lan;
+  return lan;
+}
 
+async function docThat() {
   const out = await B.docHet();
 
   const ds = out.map((r) => {

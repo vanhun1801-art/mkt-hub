@@ -12,6 +12,7 @@
  * viết lại href/src, còn fetch/XHR lúc chạy do đoạn shim bên dưới vá lại.
  */
 const http = require('http');
+const nen = require('./nen');
 
 /* Những NHÓM đường hay phải gọi API bên ngoài rồi mới trả lời được. Cắt chúng ở
  * 30 giây thì người dùng nhận "Module không trả lời trong 30s" — đọc như thể
@@ -308,17 +309,46 @@ function chuyenTiep(req, res, mod, duongDan, nguoi) {
       r.on('data', (c) => buf.push(c));
       r.on('end', () => {
         const html = chenVaoHtml(Buffer.concat(buf).toString('utf8'), mod, nguoi);
-        const body = Buffer.from(html, 'utf8');
-        headers['content-length'] = String(body.length);
+        delete headers['content-length'];
         headers['cache-control'] = 'no-store';
-        res.writeHead(r.statusCode || 200, headers);
-        res.end(body);
+        nen.traLoi(res, r.statusCode || 200, Buffer.from(html, 'utf8'), headers);
       });
       r.on('error', () => { try { res.destroy(); } catch (_) {} });
       return;
     }
 
-    res.writeHead(r.statusCode || 200, headers);
+    /* Nén trên đường ra của app con.
+     *
+     * Đây là chỗ ĂN NHIỀU NHẤT của cả bản vá: proxy đã xoá `accept-encoding` khi
+     * gọi lên (để chèn được vào HTML), nên chín app con luôn trả bản THÔ — mỗi
+     * lần mở Bảng công việc là 268 KB, Lịch tác nghiệp 286 KB. Nén ở đây đưa
+     * tổng ~1.3 MB xuống ~355 KB mà không sửa một dòng nào của chúng.
+     *
+     * Dùng LUỒNG chứ không gom vào Buffer: đường này còn chở tệp đính kèm vài MB
+     * tải từ Lark về, gom hết vào RAM rồi mới gửi là vừa chậm vừa tốn.
+     *
+     * Bốn cửa chặn, thiếu một cái là hỏng thật:
+     *   - kiểu nội dung phải đáng nén (nenDuoc đã loại SSE và ảnh);
+     *   - app con đã tự nén rồi thì thôi (không nén hai lần);
+     *   - 204/304 không có thân — thêm Content-Encoding vào là sai chuẩn;
+     *   - 206 (tải tệp theo khúc) phải giữ nguyên byte, nén là hỏng khúc. */
+    const maNen = res.__nen || '';
+    const mã = r.statusCode || 200;
+    const nenDuocDay = maNen && nen.nenDuoc(loai) && !headers['content-encoding']
+      && mã !== 204 && mã !== 304 && mã !== 206;
+
+    if (nenDuocDay) {
+      delete headers['content-length'];   // độ dài sau khi nén chưa biết -> để chunked
+      headers['content-encoding'] = maNen;
+      headers.vary = headers.vary ? headers.vary + ', Accept-Encoding' : 'Accept-Encoding';
+      res.writeHead(mã, headers);
+      const z = nen.luong(maNen);
+      z.on('error', () => { try { res.destroy(); } catch (_) {} });
+      r.pipe(z).pipe(res);
+      return;
+    }
+
+    res.writeHead(mã, headers);
     r.pipe(res);
   });
 

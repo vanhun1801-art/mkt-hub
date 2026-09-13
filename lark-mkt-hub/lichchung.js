@@ -110,13 +110,39 @@ const BO_DOC = {
 };
 
 /* ---------------- gộp thành lưới người × ngày ---------------- */
-const cache = new Map(); // "tu|den" -> { at, data }
+const cache = new Map(); // "tu|den|nguoi" -> { at, data }
+
+/* Lượt đang bay, gộp các lời gọi trùng khoá. Trang Tổng quan gọi /api/tongquan
+ * và /api/lich-chung SONG SONG, mà cả hai đều bắt từng app con đọc lại Base —
+ * hai người cùng mở trang trong một khoảnh khắc là bốn vòng đọc cho hai bộ số
+ * giống hệt nhau. */
+const dangBay = new Map();
+
+/* Trần số mục. Khoá gồm khoảng ngày + người xem, người dùng lại đổi mốc lọc
+ * liên tục (Tháng này / Tháng trước / Tuỳ chọn…), nên đệm này nở ra mãi mà
+ * không có gì dọn — mỗi mục ôm cả lưới người × ngày. Xem chú thích cùng loại
+ * trong kpi.js. */
+const TRAN_DEM = 200;
+
+function catBotDem() {
+  if (cache.size <= TRAN_DEM) return;
+  const theoTuoi = [...cache.entries()].sort((a, b) => a[1].at - b[1].at);
+  for (const [k] of theoTuoi.slice(0, cache.size - TRAN_DEM)) cache.delete(k);
+}
 
 async function lichChung(mods, tu, den, boQuaCache, nguoi) {
   // khoá cache có id người xem: mỗi người thấy phạm vi khác nhau, không được lẫn
   const kh = tu + '|' + den + '|' + ((nguoi && nguoi.id) || '');
   const c = cache.get(kh);
   if (!boQuaCache && c && Date.now() - c.at < cfg.kpiCacheMs) return { ...c.data, luc: c.at };
+  if (!boQuaCache && dangBay.has(kh)) return dangBay.get(kh);
+  const lan = docThat(mods, tu, den, nguoi, kh)
+    .finally(() => { if (dangBay.get(kh) === lan) dangBay.delete(kh); });
+  dangBay.set(kh, lan);
+  return lan;
+}
+
+async function docThat(mods, tu, den, nguoi, kh) {
 
   /* ĐỌC RỘNG, CẮT HẸP — và đây là chỗ quyền "Xem tải người khác" từng chết.
    *
@@ -260,6 +286,7 @@ async function lichChung(mods, tu, den, boQuaCache, nguoi) {
     loi,
   };
   cache.set(kh, { at: Date.now(), data });
+  catBotDem();
   return { ...data, luc: Date.now() };
 }
 

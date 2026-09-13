@@ -493,6 +493,15 @@ function veRail() {
     })).join('');
   }
 
+  /* Chỉ ghi lại DOM khi có gì đổi thật.
+   *
+   * Panel được vẽ lại theo nhịp trạng thái module (10 giây/lần) mà 99% số lần
+   * cho ra đúng chuỗi HTML cũ. Ghi đè innerHTML thì trình duyệt vứt cả nhánh cũ
+   * dựng lại nhánh mới: mỗi lần là một lượt layout + paint, tooltip đang mở bị
+   * tắt, và :focus trên mục đang chọn bị mất — bàn phím đang lần theo panel là
+   * nhảy về đầu. So chuỗi rẻ hơn nhiều lần so với dựng lại DOM. */
+  if (nav.__html === html) return;
+  nav.__html = html;
   nav.innerHTML = html;
 }
 
@@ -1781,8 +1790,19 @@ window.addEventListener('message', (ev) => {
   dinhTuyen();
   napTongQuan();
 
-  // trạng thái module 10s/lần; chỉ số 60s/lần (và khi quay lại tab)
-  setInterval(() => napHub().catch(() => {}), 10000);
+  /* Trạng thái module 10s/lần; chỉ số 60s/lần (và khi quay lại tab).
+   *
+   * `document.hidden` cho nhịp này nữa — ba nhịp dưới đã có, riêng nó thì không,
+   * mà nó lại là nhịp DÀY NHẤT. Hệ quả đo được: một tab bỏ quên trong nền vẫn
+   * bắn 6 lượt/phút, mỗi lượt đọc modules.json, hỏi trạng thái chín app và (trên
+   * bản chạy chung) chạm vào bảng Phân quyền trên Lark. Cả phòng mở app cả ngày
+   * thì riêng những tab không ai nhìn đã là ~1 lượt/giây lên Render.
+   *
+   * Quay lại tab thì nạp NGAY, nên người dùng không thấy khác gì trước. */
+  setInterval(() => { if (!document.hidden) napHub().catch(() => {}); }, 10000);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) napHub().catch(() => {});
+  });
   setInterval(() => { if (!document.hidden) napTongQuan(); }, 60000);
   /* Thông báo tự nạp 2 phút/lần — đủ nhanh để không lỡ việc, đủ thưa để không
    * bắt từng Base đọc lại dữ liệu liên tục. */

@@ -24,6 +24,7 @@ const quyen = require('./quyen');
 const viTri = require('./vi-tri');
 const { chuyenTiep, goiJson } = require('./proxy');
 const tbApp = require('./thongbao-app');
+const nen = require('./nen');
 
 const PUBLIC = path.join(__dirname, 'public');
 
@@ -326,14 +327,16 @@ function headerBaoMat(res) {
 }
 
 /* ---------------- HTTP tiện ích ---------------- */
-function send(res, code, body, headers = {}) {
+function send(res, code, body, headers = {}, daNen) {
   const data = typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body);
-  res.writeHead(code, {
+  /* Nén + Content-Length nằm trong nen.traLoi, không rải ra từng chỗ gọi: `send`
+   * là cửa ra của GẦN NHƯ mọi phản hồi của hub (API, trang tĩnh, trang lỗi), nên
+   * vá một chỗ này là phủ hết. Chữ ký không đổi để 40 chỗ gọi giữ nguyên. */
+  nen.traLoi(res, code, data, {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
     ...headers,
-  });
-  res.end(data);
+  }, daNen);
 }
 const ok = (res, b) => send(res, 200, b);
 const loi = (res, code, msg) => send(res, code, { error: msg });
@@ -366,19 +369,56 @@ const MIME = {
   '.json': 'application/json; charset=utf-8',
 };
 
-function tinh(res, duongDan, truyVan) {
-  const p = duongDan === '/' ? '/index.html' : duongDan;
-  const f = path.join(PUBLIC, path.normalize(p).replace(/^([/\\])+/, ''));
-  if (!f.startsWith(PUBLIC) || !fs.existsSync(f) || !fs.statSync(f).isFile()) {
-    return send(res, 404, 'Không có ' + p, { 'Content-Type': 'text/plain; charset=utf-8' });
-  }
+/* Bộ nhớ đệm file tĩnh: nội dung + BẢN NÉN SẴN, khoá theo đường dẫn và mtime.
+ *
+ * Hai cái lợi, cái thứ hai mới là chính:
+ *   1. Không đọc đĩa lại cho mỗi lượt xin (readFileSync chặn vòng lặp sự kiện —
+ *      mà hub còn đang proxy cho chín app trên cùng một tiến trình).
+ *   2. Nén được MỘT LẦN ở mức cao nhất (brotli 11) thay vì mức vừa mỗi lượt:
+ *      app.js 80 KB xuống 21 KB thay vì 24 KB, và không tốn CPU lần thứ hai.
+ *
+ * Khoá có mtime nên sửa file là tự hết hiệu lực — không phải nhớ xoá đệm khi
+ * phát triển. Vẫn kiểm mtime mỗi lượt bằng statSync (rẻ, và đúng cả khi deploy
+ * ghi đè file trong lúc tiến trình đang chạy). */
+const demTinh = new Map();
+
+function docTinh(f, laTrangChu, mtimeMs) {
+  const kh = f + '|' + mtimeMs;
+  const cu = demTinh.get(kh);
+  if (cu) return cu;
   let body = fs.readFileSync(f);
   /* Trang chủ khai mọi file tĩnh với ?v=BUILD — thay bằng số bản thật để đổi bản
    * là trình duyệt nạp lại, không dính bản cũ trong cache. */
-  const laTrangChu = path.basename(f) === 'index.html';
   if (laTrangChu) {
     body = Buffer.from(body.toString('utf8').split('v=BUILD').join('v=' + cfg.verChung), 'utf8');
   }
+  const o = { body, nen: null };
+  /* Chỉ giữ một bộ file trong public (10 file, ~315 KB thô). Xoá mục cũ của
+   * cùng đường dẫn để sửa file nhiều lần không phình bộ nhớ. */
+  for (const k of demTinh.keys()) if (k.slice(0, k.lastIndexOf('|')) === f) demTinh.delete(k);
+  demTinh.set(kh, o);
+  /* Nén nền: lượt xin đầu tiên vẫn nhận bản thô (nén xong chưa kịp), các lượt
+   * sau lấy bản nén kỹ trong RAM. Không chặn ai chờ brotli mức 11. */
+  const loai = MIME[path.extname(f)] || '';
+  if (nen.nenDuoc(loai) && body.length >= nen.NGUONG) {
+    Promise.all([nen.nenBuf(body, 'br', true), nen.nenBuf(body, 'gzip', true)])
+      .then(([br, gz]) => { o.nen = { br, gzip: gz }; })
+      .catch(() => { /* nén hỏng thì cứ gửi bản thô, không ai chết vì chuyện này */ });
+  }
+  return o;
+}
+
+function tinh(res, duongDan, truyVan) {
+  const p = duongDan === '/' ? '/index.html' : duongDan;
+  const f = path.join(PUBLIC, path.normalize(p).replace(/^([/\\])+/, ''));
+  let st = null;
+  try { st = fs.statSync(f); } catch (_) { st = null; }
+  if (!f.startsWith(PUBLIC) || !st || !st.isFile()) {
+    return send(res, 404, 'Không có ' + p, { 'Content-Type': 'text/plain; charset=utf-8' });
+  }
+  const laTrangChu = path.basename(f) === 'index.html';
+  const tep = docTinh(f, laTrangChu, st.mtimeMs);
+  const body = tep.body;
   /* Trang chủ KHÔNG được nằm trong cache: nó là nơi duy nhất giữ số bản của mọi
    * file khác. Trình duyệt giữ lại bản HTML cũ thì nó xin đúng những file cũ, và
    * cả cơ chế ?v= thành vô nghĩa. Các file kia thì cứ để cache thoải mái — đổi
@@ -390,8 +430,8 @@ function tinh(res, duongDan, truyVan) {
   const coSoBan = /[?&]v=/.test(truyVan || '');
   send(res, 200, body, {
     'Content-Type': MIME[path.extname(f)] || 'application/octet-stream',
-    'Cache-Control': !laTrangChu && coSoBan ? 'public, max-age=31536000' : 'no-store',
-  });
+    'Cache-Control': !laTrangChu && coSoBan ? 'public, max-age=31536000, immutable' : 'no-store',
+  }, tep.nen);
 }
 
 /* ---------------- danh sách module ---------------- */
@@ -405,8 +445,7 @@ const timMod = (id) => danhSach().find((m) => m.id === id) || null;
 
 /* Danh bạ gom từ mọi Base — đổi rất chậm nên giữ lại 5 phút, khỏi bắt từng
  * module trả lời lại mỗi lần ai đó mở ô chọn người. */
-let demDanhBa = null;
-let demDanhBaLuc = 0;
+const demDanhBa = new Map();   // khoaNguoi -> { at, ds }
 
 /* ---- thông báo: chỉ lưu "ai đã đọc mã nào" ---- */
 const BAC_TB = { gap: 0, can: 1, tin: 2 };
@@ -498,15 +537,27 @@ async function api(req, res, u) {
   if (p === '/api/thong-bao' && m === 'GET') {
     const { nguoi: nguoiTB, q: qTB } = await aiDangXem(req);
     const mods = danhSach().filter((x) => x.bat && duocXem(qTB, x));
+    /* SONG SONG, không nối tiếp. Mỗi app phải đọc Base của nó mới trả lời được,
+     * nên nối tiếp thì chuông cộng dồn thời gian của cả chín app: đo thật 3.9
+     * giây, trong khi app chậm nhất chỉ mất khoảng 1 giây. Nhịp tự nạp 2 phút
+     * một lần của mọi người đang mở app đều đi qua đây.
+     *
+     * `danhBaMoiApp` ở ngay trên đã làm đúng cách này từ đầu — chỗ này chỉ là
+     * bản chép còn sót lại kiểu cũ.
+     *
+     * Một Base im lặng vẫn không làm hỏng cả chuông: mỗi lời gọi tự nuốt lỗi
+     * của mình, y như vòng lặp cũ. */
+    const goi = await Promise.all(mods.map((mod) =>
+      goiJson(mod, '/api/thong-bao', { nguoi: nguoiTB })
+        .then((d) => ({ mod, d }))
+        .catch(() => null)));
     const ra = [];
-    for (const mod of mods) {
-      try {
-        const d = await goiJson(mod, '/api/thong-bao', { nguoi: nguoiTB });
-        for (const it of (d.items || [])) {
-          if (!it || !it.id) continue;
-          ra.push(Object.assign({}, it, { mod: mod.id, modTen: mod.ten || mod.id }));
-        }
-      } catch (e) { /* một Base im lặng thì vẫn gom được từ các Base còn lại */ }
+    for (const g of goi) {
+      if (!g) continue;
+      for (const it of (g.d.items || [])) {
+        if (!it || !it.id) continue;
+        ra.push(Object.assign({}, it, { mod: g.mod.id, modTen: g.mod.ten || g.mod.id }));
+      }
     }
     const daDoc = new Set(docDaDoc()[khoaNguoi(nguoiTB)] || []);
     for (const it of ra) it.moi = !daDoc.has(it.id);
@@ -534,25 +585,34 @@ async function api(req, res, u) {
     return ok(res, { ok: true, da: kho[k].length });
   }
 
+  /* Ô chọn người của app Lịch tác nghiệp gọi ngược lên đây (xem `taiDanhBa`
+   * bên app đó). Dùng chung MỘT hàm `danhBaMoiApp` với màn Phân quyền và màn
+   * Thông báo — bản trước chép lại vòng lặp ở đây thành bản thứ ba, và bản chép
+   * đó vừa chạy NỐI TIẾP qua chín app (đo được ~2.1 giây cho một ô chọn tên)
+   * vừa thiếu email mà hai màn kia có.
+   *
+   * Đệm mang khoá NGƯỜI XEM. Bản trước dùng chung một biến cho mọi người: ai mở
+   * trước thì danh sách của người đó được phát lại cho cả phòng suốt 5 phút —
+   * nhân sự chỉ thấy một base sẽ "hâm" một danh bạ cụt, rồi quản lý mở lên cũng
+   * nhận đúng danh bạ cụt ấy. */
   if (p === '/api/danh-ba' && m === 'GET') {
-    const { nguoi: nguoiDB, q: qDB } = await aiDangXem(req);
+    const { nguoi: nguoiDB } = await aiDangXem(req);
     const moi = u.searchParams.get('refresh') === '1';
-    if (!moi && demDanhBa && Date.now() - demDanhBaLuc < 5 * 60000) {
-      return ok(res, { nguoi: demDanhBa, tuCache: true });
+    const khDB = khoaNguoi(nguoiDB);
+    const cu = demDanhBa.get(khDB);
+    if (!moi && cu && Date.now() - cu.at < 5 * 60000) {
+      return ok(res, { nguoi: cu.ds, tuCache: true });
     }
-    const gop = new Map();
-    for (const mod of danhSach().filter((x) => x.bat && duocXem(qDB, x))) {
-      try {
-        const meta = await goiJson(mod, '/api/meta', { nguoi: nguoiDB });
-        for (const x of [...(meta.people || []), ...(meta.scopePeople || [])]) {
-          if (!x || !x.id || gop.has(x.id)) continue;
-          gop.set(x.id, { id: x.id, name: x.name || x.id });
-        }
-      } catch (e) { /* một Base trục trặc thì vẫn gom được từ các Base còn lại */ }
+    const ds = (await danhBaMoiApp(nguoiDB))
+      .map((x) => ({ id: x.id, name: x.ten, email: x.email || '' }));
+    demDanhBa.set(khDB, { at: Date.now(), ds });
+    /* Trần nhỏ thôi: phòng có 35 người, giữ 50 khoá là thừa sức mà không thành
+     * chỗ rò bộ nhớ cho một tiến trình chạy hàng tuần. */
+    if (demDanhBa.size > 50) {
+      const cuNhat = [...demDanhBa.entries()].sort((a, b) => a[1].at - b[1].at);
+      for (const [k] of cuNhat.slice(0, demDanhBa.size - 50)) demDanhBa.delete(k);
     }
-    demDanhBa = [...gop.values()].sort((a, b) => String(a.name).localeCompare(String(b.name), 'vi'));
-    demDanhBaLuc = Date.now();
-    return ok(res, { nguoi: demDanhBa });
+    return ok(res, { nguoi: ds });
   }
 
   if (p === '/api/tongquan' && m === 'GET') {
@@ -1225,6 +1285,10 @@ function khongDau(s) {
 /* ---------------- server ---------------- */
 const server = http.createServer(async (req, res) => {
   headerBaoMat(res);
+  /* Chốt kiểu nén MỘT LẦN ở đây rồi gắn lên res, đúng cách headerBaoMat làm với
+   * header bảo mật: mọi đường ra (API, file tĩnh, proxy vào app con, trang lỗi)
+   * đọc chung một chỗ, không đường nào lọt. */
+  res.__nen = nen.chon(req);
   const u = new URL(req.url, 'http://' + (req.headers.host || 'localhost'));
   const p = u.pathname;
 
