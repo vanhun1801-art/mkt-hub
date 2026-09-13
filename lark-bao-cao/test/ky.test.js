@@ -170,6 +170,45 @@ group('Chấm hạn — bốn trạng thái, không được gộp');
   ok('trễ vài giây không nói "trễ 0"', K.veTre(3000) === 'trễ dưới một phút');
 }
 
+group('Nộp bù — một mức của trễ, không phải trạng thái thứ năm');
+{
+  /* Anh Hùng cần phân biệt ba thứ: đúng ngày · trễ · nộp bù. Quên gửi buổi tối
+   * rồi sáng hôm sau gửi khác hẳn dồn cả tuần vào cuối tháng. */
+  const kn = K.kyNgay(T7_1209);
+  const han = K.hanNop(kn);
+
+  ok('trễ 3 giờ thì chưa phải nộp bù', K.chamHan(kn, han + 3 * K.GIO).bu === false);
+  ok('trễ đúng 24 giờ vẫn chưa phải bù', K.chamHan(kn, han + 24 * K.GIO).bu === false,
+    'ngưỡng là QUÁ 24 giờ, không phải từ 24 giờ');
+  ok('trễ 25 giờ là nộp bù', K.chamHan(kn, han + 25 * K.GIO).bu === true);
+  ok('trễ 5 ngày là nộp bù', K.chamHan(kn, han + 5 * K.NGAY).bu === true);
+
+  /* Vẫn phải là trạng thái 'tre'. Tách thành trạng thái thứ năm thì mọi chỗ
+   * đang hỏi "có trễ không" phải sửa lại, và chỗ nào quên sẽ âm thầm coi người
+   * nộp bù là đúng hạn. */
+  ok('nộp bù vẫn mang trạng thái "tre"',
+    K.chamHan(kn, han + 5 * K.NGAY).trangThai === 'tre');
+  ok('đúng hạn thì cờ bù là false, không phải undefined',
+    K.chamHan(kn, han - K.GIO).bu === false,
+    'undefined lọt qua mọi phép so sánh lỏng, rồi một ngày nào đó thành truthy');
+}
+
+group('veLanNop — một câu duy nhất, dùng chung mọi màn');
+{
+  const kn = K.kyNgay(T7_1209);
+  const han = K.hanNop(kn);
+  ok('đúng hạn', K.veLanNop(K.chamHan(kn, han - K.GIO)) === 'Đúng hạn');
+  ok('trễ thì nói trễ bao lâu',
+    K.veLanNop(K.chamHan(kn, han + 3 * K.GIO)) === 'trễ 3 giờ');
+  ok('nộp bù thì gọi đúng tên',
+    /^Nộp bù — trễ 5 ngày/.test(K.veLanNop(K.chamHan(kn, han + 5 * K.NGAY))),
+    'đang ra: ' + K.veLanNop(K.chamHan(kn, han + 5 * K.NGAY)));
+  ok('chưa nộp mà còn hạn', K.veLanNop(K.chamHan(kn, null, han - K.GIO)) === 'Chưa tới hạn');
+  ok('chưa nộp và quá hạn',
+    K.veLanNop(K.chamHan(kn, null, han + K.GIO)) === 'Chưa nộp, đã quá hạn');
+  ok('không có gì thì trả chuỗi rỗng, không nổ', K.veLanNop(null) === '');
+}
+
 group('Định mức ca — 480 hoặc 240, và cho phép tự khai');
 {
   ok('ca cả ngày = 480 phút', K.dinhMuc('ngay') === 480);

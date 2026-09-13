@@ -38,6 +38,15 @@ const CA = {
 
 const TEN_THU = ['', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'];
 
+/* Trễ bao lâu thì gọi là NỘP BÙ.
+ *
+ * Quên gửi buổi tối rồi sáng hôm sau gửi là một chuyện; nộp cho một ngày đã
+ * trôi qua hẳn — hay dồn cả tuần vào cuối tháng — là chuyện khác. Gộp chung
+ * thành "trễ" thì quản lý không phân biệt được ai lỡ tay với ai bỏ bê.
+ *
+ * 24 giờ: qua hết một ngày làm việc nữa mà vẫn chưa nộp thì đó không còn là lỡ. */
+const NGUONG_BU = 24 * 3600000;
+
 /** Luật mặc định. Đưa ra ngoài được để sửa trong Cài đặt mà không phải sửa code. */
 const LUAT = {
   /* Tuần của phòng chạy Thứ 7 → Thứ 6, đúng như thẻ nhắc anh Hùng gửi mỗi tuần:
@@ -173,9 +182,20 @@ function chamHan(k, nopLuc, bayGio = Date.now()) {
       : { trangThai: 'thieu', han, treMs: bayGio - han };
   }
   const tre = Number(nopLuc) - han;
-  return tre <= 0
-    ? { trangThai: 'dung-han', han, treMs: 0 }
-    : { trangThai: 'tre', han, treMs: tre };
+  if (tre <= 0) return { trangThai: 'dung-han', han, treMs: 0, bu: false };
+  /* Vẫn là trạng thái 'tre' — nộp bù là một MỨC của trễ, không phải trạng thái
+   * thứ năm. Tách thành trạng thái riêng thì mọi chỗ đang hỏi "có trễ không"
+   * phải sửa lại, và chỗ nào quên sửa sẽ âm thầm coi người nộp bù là đúng hạn. */
+  return { trangThai: 'tre', han, treMs: tre, bu: tre > NGUONG_BU };
+}
+
+/** Câu mô tả một lần nộp — dùng chung ở mọi màn để không nơi nào nói khác nơi nào. */
+function veLanNop(cham) {
+  if (!cham) return '';
+  if (cham.trangThai === 'dung-han') return 'Đúng hạn';
+  if (cham.trangThai === 'chua-toi-han') return 'Chưa tới hạn';
+  if (cham.trangThai === 'thieu') return 'Chưa nộp, đã quá hạn';
+  return (cham.bu ? 'Nộp bù — ' : '') + veTre(cham.treMs);
 }
 
 /** "trễ 2 ngày 3 giờ" — nói bằng đơn vị người đọc hiểu ngay. */
@@ -260,9 +280,9 @@ function ngayThieu(tu, den, dsNgayDaNop, luat = LUAT) {
 }
 
 module.exports = {
-  PHUT, GIO, NGAY, VN, CA, TEN_THU, LUAT,
+  PHUT, GIO, NGAY, VN, CA, TEN_THU, LUAT, NGUONG_BU,
   phanRaVN, dauNgay, cuoiNgay, tuNgayVN,
-  veNgay, veNgayThu, veLuc, vePhut, veTre,
+  veNgay, veNgayThu, veLuc, vePhut, veTre, veLanNop,
   kyNgay, kyTuan, kyThang, ky,
   hanNop, chamHan,
   dinhMuc, gop, ngayThieu,

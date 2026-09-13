@@ -24,6 +24,11 @@ let MOC = Date.now();
 let DU = null;      // phiếu đang mở
 let VIEC = null;    // { chay, ds } — đầu việc từ Tracking
 let BAN = false;    // có thay đổi chưa lưu
+/* Màn Theo dõi có phạm vi riêng — quản lý hay lùi lại xem tuần trước, và chuyển
+ * sang cả tháng khi soát kỷ luật. Giữ ngoài MAN/MOC để đổi tab đi rồi quay lại
+ * vẫn ở đúng chỗ đang xem. */
+let TD_KY = 'tuan';
+let TD_MOC = Date.now();
 
 const MAN_TOI = [
   { ma: 'ngay', ten: 'Hôm nay' },
@@ -804,28 +809,94 @@ async function veCanHoTro(el) {
     '</div></div>';
 }
 
+/**
+ * Màn Theo dõi — kỷ luật nộp báo cáo của cả phòng.
+ *
+ * Anh Hùng: "anh muốn có thể kiểm soát được nhân sự báo cáo đúng ngày, hay nhân
+ * sự báo cáo trễ và báo cáo bù". Nên bảng này chia BỐN cột chứ không phải hai:
+ * đúng hạn · trễ · nộp bù · còn thiếu. Gộp ba cái sau thành "chưa đúng hạn" là
+ * mất đúng cái phân biệt anh cần — quên gửi buổi tối rồi sáng gửi khác hẳn dồn
+ * cả tuần vào cuối tháng, mà cũng khác hẳn không nộp gì.
+ */
 async function veTheoDoi(el) {
-  const t = mocTuan(Date.now());
-  const d = await goi('/api/theo-doi?tu=' + t.tu + '&den=' + t.den + '&moi=1');
-  el.innerHTML = '<div class="the"><div class="the-dau"><h2>Ai đã nộp, ai chưa</h2>' +
-    '<span class="nho">' + veNgay(d.tu) + ' – ' + veNgay(d.den) + ' · ' +
-    d.soNgayCong + ' ngày công</span></div>' +
-    '<div class="the-than khit cuon">' + (d.nguoi.length
-      ? '<table class="bang-xem"><thead><tr><th>Người</th><th class="so-o">Đã nộp</th>' +
-        '<th class="so-o">Trễ</th><th class="so-o">Tổng</th><th>Ngày còn thiếu</th></tr></thead><tbody>' +
+  const k = TD_KY === 'thang' ? kyThangNay() : mocTuan(TD_MOC);
+  const d = await goi('/api/theo-doi?tu=' + k.tu + '&den=' + k.den + '&moi=1');
+
+  const tong = (f) => d.nguoi.reduce((s, n) => s + f(n), 0);
+  const oSo = (so, nhan, duoi, mau) =>
+    '<div class="o-so ' + (mau || '') + '"><div class="so">' + esc(so) + '</div>' +
+    '<div class="nhan">' + esc(nhan) + '</div>' +
+    (duoi ? '<div class="duoi">' + esc(duoi) + '</div>' : '') + '</div>';
+
+  const soThieu = tong((n) => n.thieu.length);
+  const soBu = tong((n) => n.soBu);
+  const soTre = tong((n) => n.soTre);
+  const soDung = tong((n) => n.soDungHan);
+  const tongPhieu = soDung + soTre + soBu;
+
+  el.innerHTML =
+    '<div class="luoi-so">' +
+      oSo(tongPhieu ? Math.round((soDung / tongPhieu) * 100) + '%' : '—',
+        'nộp đúng hạn', soDung + '/' + tongPhieu + ' phiếu',
+        !tongPhieu ? '' : soDung === tongPhieu ? 'xanh' : soDung / tongPhieu < 0.8 ? 'do' : 'cam') +
+      oSo(soTre, 'lượt nộp trễ', 'trong ngày hôm sau', soTre ? 'cam' : '') +
+      oSo(soBu, 'lượt nộp bù', 'quá 24 giờ', soBu ? 'do' : '') +
+      oSo(soThieu, 'ngày chưa nộp', d.soNgayCong + ' ngày công × ' + d.nguoi.length + ' người',
+        soThieu ? 'do' : 'xanh') +
+    '</div>' +
+
+    '<div class="the"><div class="the-dau"><h2>Ai nộp thế nào</h2>' +
+      '<span class="nho">' + veNgay(d.tu) + ' – ' + veNgay(d.den) +
+      ' · ' + d.soNgayCong + ' ngày công</span>' +
+      '<div class="lon"></div>' +
+      '<div class="pills">' +
+        '<button class="pill' + (TD_KY === 'tuan' ? ' on' : '') + '" id="tdTuan">Tuần</button>' +
+        '<button class="pill' + (TD_KY === 'thang' ? ' on' : '') + '" id="tdThang">Tháng</button>' +
+      '</div>' +
+      (TD_KY === 'tuan'
+        ? '<button class="btn nho mo" id="tdLui">‹</button>' +
+          '<button class="btn nho mo" id="tdToi"' +
+          (k.den >= Date.now() ? ' disabled' : '') + '>›</button>'
+        : '') +
+    '</div><div class="the-than khit cuon">' + (d.nguoi.length
+      ? '<table class="bang-xem"><thead><tr>' +
+        '<th>Người</th>' +
+        '<th class="so-o">Đúng hạn</th>' +
+        '<th class="so-o">Trễ</th>' +
+        '<th class="so-o">Nộp bù</th>' +
+        '<th class="so-o">Thời lượng</th>' +
+        '<th>Ngày chưa nộp</th>' +
+        '</tr></thead><tbody>' +
         d.nguoi.map((n) => '<tr>' +
-          '<td><b>' + esc(n.ten) + '</b></td>' +
-          '<td class="so-o">' + n.soNgayDaNop + '/' + d.soNgayCong + '</td>' +
-          '<td class="so-o">' + (n.soTre ? '<span class="nhan-tt cam">' + n.soTre + '</span>' : '0') + '</td>' +
+          '<td><b>' + esc(n.ten) + '</b>' +
+            (n.soSua ? ' <span class="nho">· sửa ' + n.soSua + ' phiếu</span>' : '') + '</td>' +
+          '<td class="so-o">' + oDem(n.soDungHan, 'xanh') +
+            (n.tyLeDung == null ? '' : ' <span class="nho">' + n.tyLeDung + '%</span>') + '</td>' +
+          '<td class="so-o">' + oDem(n.soTre, 'cam') + '</td>' +
+          '<td class="so-o">' + oDem(n.soBu, 'do') + '</td>' +
           '<td class="so-o">' + esc(vePhut(n.tongPhut)) + '</td>' +
           '<td>' + (n.thieu.length
             ? n.thieu.map((x) => '<span class="nhan-tt do" style="margin-right:4px">' +
               esc(x.nhan) + '</span>').join('')
             : '<span class="nhan-tt xanh">đủ</span>') + '</td>' +
         '</tr>').join('') + '</tbody></table>'
-      : rong('Chưa ai nộp phiếu nào trong tuần này')) +
+      : rong('Chưa ai nộp phiếu nào trong kỳ này')) +
     '</div></div>';
+
+  $('#tdTuan').onclick = () => { TD_KY = 'tuan'; TD_MOC = Date.now(); ve(); };
+  $('#tdThang').onclick = () => { TD_KY = 'thang'; ve(); };
+  const lui = $('#tdLui');
+  if (lui) lui.onclick = () => { TD_MOC = k.tu - 7 * NGAY_MS + 3600000; ve(); };
+  const toi = $('#tdToi');
+  if (toi) toi.onclick = () => { TD_MOC = k.tu + 7 * NGAY_MS + 3600000; ve(); };
 }
+
+/** Số 0 để mờ, số khác 0 mới tô màu — mắt chỉ dừng ở chỗ có chuyện. */
+function oDem(n, mau) {
+  if (!n) return '<span class="nho">0</span>';
+  return '<span class="nhan-tt ' + mau + '">' + n + '</span>';
+}
+
 
 /* ---------------- xuất ---------------- */
 function xuat() {

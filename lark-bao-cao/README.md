@@ -47,7 +47,7 @@ bấm tay 31 cột.
 
 | Bảng | id | Vai trò |
 |---|---|---|
-| Phiếu báo cáo | `tblMIviEWyBXNTFz` | một người × một kỳ, 22 cột |
+| Phiếu báo cáo | `tblMIviEWyBXNTFz` | một người × một kỳ, 25 cột |
 | Dòng việc | `tblo5FBTVuXzv0W0` | một đầu việc một bản ghi, 13 cột |
 
 **App Lark phải được mời vào Base** (`cli_aa04305ecd385ed1`, quyền Quản lý —
@@ -118,6 +118,28 @@ Anh Hùng đã báo trước ý định này (chưa làm). Cấu trúc hiện t�
 - Số liệu theo người × theo kỳ đã chuẩn hoá, nên [[kpi-app]] chỉ cần đọc
   `/api/toan-phong` là có đủ, không phải tự cộng lại.
 
+## Kỷ luật nộp
+
+Bốn mức, và ba mức sau không được gộp lại:
+
+| Mức | Nghĩa |
+|---|---|
+| Đúng hạn | nộp trước 23:59 của hạn |
+| Trễ | nộp sau hạn, trong vòng 24 giờ |
+| Nộp bù | trễ quá 24 giờ — nộp cho kỳ đã trôi qua hẳn |
+| Chưa nộp | quá hạn mà không có phiếu |
+
+Quên gửi buổi tối rồi sáng hôm sau gửi khác hẳn dồn cả tuần vào cuối tháng.
+
+**Ô `Nộp lúc` giữ lần nộp ĐẦU TIÊN và không bao giờ bị ghi đè.** Lần sửa ghi
+riêng vào `Sửa lúc`, số lần vào `Số lần nộp`. Bản đầu ghi đè `Nộp lúc` mỗi lần
+bấm Nộp, nên người nộp đúng hạn hôm qua mà hôm nay mở ra sửa một chữ lập tức bị
+chấm "trễ 18 giờ" — hỏng đúng cái bảng kỷ luật mà nó sinh ra để phục vụ.
+
+Màn **Theo dõi** (quản lý) đếm bốn mức đó theo tuần hoặc tháng, kèm tỷ lệ đúng
+hạn tính trên **ngày công** chứ không trên số phiếu đã nộp — chia cho số phiếu
+thì người nộp đúng một ngày trong tuần vẫn ra 100%.
+
 ## Những chỗ đã sập một lần, đừng sập lại
 
 - **"Thứ 6" là ISO 5, không phải 6.** App Lịch tác nghiệp từng viết `moThu: 6` và
@@ -139,6 +161,18 @@ Anh Hùng đã báo trước ý định này (chưa làm). Cấu trúc hiện t�
 - **Base mới tạo thì app Lark CHƯA có quyền vào.** Lỗi `91403` khi nộp báo cáo
   trên Render gần như luôn là chuyện này — và nó không bao giờ lộ khi thử trên
   máy. `thiet-lap/tao-base.js` in sẵn lệnh cấp quyền sau khi tạo xong.
+- **Hai backend, và chỉ một cái được thử trên máy.** `lark.js` (lark-cli) chạy
+  khi làm local; `larkapi.js` (Open API) chạy trên Render. Một lỗi ở file thứ
+  hai đi thẳng lên bản thật — `createMany` từng viết theo dạng thân của
+  `bitable/v1` trong khi cả file dùng `base/v3`, và mọi lần nộp trên Render trả
+  `1254045 FieldNameNotFound`. `test/larkapi.test.js` chặn `fetch` rồi soi URL
+  và thân yêu cầu; nó cũng gác việc hai backend phải có cùng bộ hàm.
+- **Ô checkbox đọc về thành chuỗi `"false"`, mà chuỗi đó TRUTHY.** Không có
+  nhánh riêng thì mọi phiếu đều đếm là đã tick — phiếu trễ 18 giờ nhảy sang cột
+  "nộp bù". Dùng `kho.asTick()`.
+- **Gom người phải hợp nhất theo id VÀ email**, không phải một khoá chuỗi. Cùng
+  một người mở bản trên máy và bản trên Render ra hai open_id khác nhau, và họ
+  hiện thành hai dòng trong bảng Theo dõi, mỗi dòng một nửa số phiếu.
 - **Ô kiểu URL của Base trả về dạng Markdown `[địa chỉ](địa chỉ)`.** Đổ thẳng
   vào ô nhập rồi lưu lần nữa là nó bọc thêm một lớp, mỗi lần sửa lại dài gấp
   đôi. Gỡ ngay lúc đọc bằng `kho.asLink()`; cột phải khai `type: 'url'` mới đi

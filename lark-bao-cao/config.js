@@ -71,6 +71,12 @@ module.exports = {
       hanNop:      { id: 'fld6Z3hmfp', name: 'Hạn nộp',         type: 'datetime' },
       dungHan:     { id: 'fldVWuX78v', name: 'Đúng hạn',        type: 'select' },
       trePhut:     { id: 'fldSzBHUfy', name: 'Trễ (phút)',      type: 'number' },
+      /* "Nộp lúc" giữ lần nộp ĐẦU TIÊN và không bao giờ bị ghi đè — chấm đúng
+       * hạn phải theo lần đầu, chứ mở ra sửa một chữ mà thành trễ thì cả bảng
+       * kỷ luật thành vô nghĩa. Ba ô dưới ghi phần còn lại. */
+      suaLuc:      { id: 'fldjCo1qix', name: 'Sửa lúc',         type: 'datetime' },
+      soLanNop:    { id: 'fldiYe9fz6', name: 'Số lần nộp',      type: 'number' },
+      nopBu:       { id: 'fldN6kH4RD', name: 'Nộp bù',          type: 'checkbox' },
       canHoTro:    { id: 'fld7EQt4lV', name: 'Cần hỗ trợ',      type: 'text' },
       /* Nhân sự vốn đã gửi kèm link video báo cáo trong nhóm Lark (Thư và Pinky
        * dùng Minutes). Không có ô này thì họ mất một thứ đang làm được. */

@@ -158,7 +158,44 @@ const QUAN_LY = Object.assign({}, NHAN_SU, { 'x-hub-user-manager': '1' });
     ok('không có phiếu thì trả null, không nổ', S.vePhieu(null) === null);
   }
 
-  group('Lỗi của Lark phải nói được người dùng làm gì tiếp');
+  group('Ô checkbox — chuỗi "false" là TRUTHY, và nó vừa cắn một lần');
+{
+  const kho = require('../kho');
+  /* Không có nhánh riêng thì ô checkbox đi qua asText() và thành chuỗi
+   * "true"/"false". Chuỗi "false" là truthy, nên MỌI phiếu đều đếm là đã tick —
+   * phiếu trễ 18 giờ nhảy sang cột "nộp bù". Đúng cái bẫy đã ghi trong test
+   * xem-tai của hub, và nó tái diễn ở app này. */
+  ok('chuỗi "false" đọc ra false', kho.asTick('false') === false,
+    'đây là cả lý do hàm này tồn tại');
+  ok('chuỗi "true" đọc ra true', kho.asTick('true') === true);
+  ok('boolean thật thì giữ nguyên', kho.asTick(true) === true && kho.asTick(false) === false);
+  ok('số 1/0 cũng hiểu', kho.asTick(1) === true && kho.asTick(0) === false);
+  ok('rỗng là false', kho.asTick(null) === false && kho.asTick('') === false &&
+    kho.asTick(undefined) === false);
+
+  const F = cfg.fields.phieu.nopBu;
+  ok('cột Nộp bù khai kiểu checkbox để đi qua đường đó', F.type === 'checkbox');
+}
+
+group('Giữ lần nộp ĐẦU TIÊN — sửa phiếu không được biến thành trễ');
+{
+  const src = fs.readFileSync(path.join(__dirname, '..', 'kho.js'), 'utf8');
+  /* Bản trước ghi `[F.phieu.nopLuc.id]: luc` mỗi lần bấm Nộp, nên người nộp
+   * đúng hạn hôm qua mà hôm nay mở ra sửa một chữ lập tức bị chấm "trễ 18 giờ"
+   * — hỏng đúng cái bảng kỷ luật mà nó sinh ra để phục vụ. */
+  ok('có hàm gom các ô kỷ luật nộp', /function oKyLuat\(/.test(src));
+  ok('Nộp lúc lấy từ phiếu CŨ nếu đã có',
+    /const nopDau = \(cu && cu\.nopLuc\) \|\| luc;/.test(src),
+    'ghi đè bằng giờ hiện tại là biến người sửa chính tả thành người nộp trễ');
+  ok('chấm hạn theo lần nộp đầu, không theo lần sửa',
+    /K\.chamHan\(k, nopDau\)/.test(src));
+  ok('lần sửa ghi vào ô RIÊNG', /suaLuc\.id\]: luc/.test(src));
+  ok('không còn chỗ nào ghi nopLuc bằng giờ hiện tại',
+    !/nopLuc\.id\]: luc/.test(src),
+    'còn một chỗ là còn nguyên lỗi cũ');
+}
+
+group('Lỗi của Lark phải nói được người dùng làm gì tiếp');
 {
   /* Anh Hùng nộp báo cáo trên Render và nhận đúng dòng này:
    *     "Base không nhận: Lark API 91403: you don't have permission"

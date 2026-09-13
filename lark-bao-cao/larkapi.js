@@ -161,12 +161,26 @@ async function createRecord(fields, tableId = cfg.phieuTableId, base) {
   });
 }
 
-/** Tạo nhiều bản ghi một lượt — xem chú thích ở lark.js. */
+/**
+ * Tạo nhiều bản ghi một lượt — xem chú thích ở lark.js.
+ *
+ * Dạng thân yêu cầu phải GIỐNG createRecord ở trên: `{ fields: [tên cột],
+ * rows: [[giá trị]] }`. Bản đầu viết theo dạng `{ records: [{ fields }] }` của
+ * Bitable Open API và tự ghép một URL khác — trên máy không lộ vì chế độ `cli`
+ * đi đường hoàn toàn khác, còn trên Render thì mọi dòng việc mới đều trả
+ * "Lark API 1254045: FieldNameNotFound", tức là không ai nộp được báo cáo nào.
+ */
 async function createMany(rows, tableId = cfg.phieuTableId, base) {
   if (!rows || !rows.length) return { records: [] };
-  return call('POST', '/open-apis/bitable/v1/apps/' + (base || cfg.baseToken) +
-    '/tables/' + tableId + '/records/batch_create',
-    { body: { records: rows.map((r) => ({ fields: r })) } });
+  /* Hợp của mọi khoá, điền null cho ô thiếu — dòng không khai Ghi chú mà tin
+   * rằng dòng đầu đã đủ cột thì cả bảng lệch cột. */
+  const names = [...new Set(rows.flatMap((r) => Object.keys(r)))];
+  return call('POST', baseUrl(tableId, base) + '/records/batch_create', {
+    body: {
+      fields: names,
+      rows: rows.map((r) => names.map((n) => (n in r ? r[n] : null))),
+    },
+  });
 }
 
 async function deleteRecords(recordIds, tableId = cfg.phieuTableId, base) {

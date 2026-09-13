@@ -194,10 +194,12 @@ function vePhieu(p) {
     hanNop: p.hanNop || K.hanNop(k),
     dungHan: p.dungHan,
     trePhut: p.trePhut,
+    suaLuc: p.suaLuc || 0,
+    soLanNop: p.soLanNop || 0,
     trangThaiHan: cham.trangThai,
-    veHan: cham.trangThai === 'dung-han' ? 'Đúng hạn'
-      : cham.trangThai === 'tre' ? K.veTre(cham.treMs)
-        : cham.trangThai === 'thieu' ? 'Chưa nộp, đã quá hạn' : 'Chưa tới hạn',
+    /* Nộp bù là một MỨC của trễ, không phải trạng thái thứ năm — xem ky.js. */
+    nopBu: !!cham.bu,
+    veHan: K.veLanNop(cham),
     danhGiaAI: p.danhGiaAI,
     diemAI: p.diemAI,
   };
@@ -232,6 +234,42 @@ function maLoiBase(e) {
   const m = String((e && e.message) || '');
   if (/91403|permission denied|you don't have permission/i.test(m)) return 'THIEU_QUYEN_BASE';
   return 'BASE_LOI';
+}
+
+/**
+ * Gom phiếu về từng NGƯỜI.
+ *
+ * Không gom bằng một khoá chuỗi (`email || open_id`) như bản đầu: open_id do
+ * TỪNG app Lark cấp riêng, nên cùng một người mở bản trên máy và bản trên Render
+ * sẽ ra hai id khác nhau — anh Hùng hiện thành hai dòng trong bảng Theo dõi,
+ * mỗi dòng một nửa số phiếu. `kho.cungNguoi()` đã biết chuyện này từ đầu nhưng
+ * hai màn quản lý lại không dùng tới nó.
+ *
+ * Cách gom: mỗi nhóm giữ TẬP id và TẬP email đã gặp. Một phiếu nhập được vào
+ * nhóm nếu trùng bất kỳ khoá nào — nhờ đó chuỗi id1–email–id2 nối lại thành một
+ * người, dù id1 và id2 chẳng liên quan gì nhau.
+ */
+function gomNguoi(ds) {
+  const nhom = [];
+  for (const p of ds) {
+    const mail = String(p.email || '').trim().toLowerCase();
+    const id = String(p.nguoi || '').trim();
+    let n = nhom.find((x) => (mail && x.email.has(mail)) || (id && x.id.has(id)));
+    if (!n) {
+      n = { id: new Set(), email: new Set(), ten: '', phieu: [] };
+      nhom.push(n);
+    }
+    if (id) n.id.add(id);
+    if (mail) n.email.add(mail);
+    if (!n.ten && p.tenNguoi) n.ten = p.tenNguoi;
+    n.phieu.push(p);
+  }
+  return nhom.map((n) => ({
+    ten: n.ten || [...n.email][0] || [...n.id][0] || '?',
+    id: [...n.id][0] || '',
+    email: [...n.email][0] || '',
+    phieu: n.phieu,
+  }));
 }
 
 /** Gom dòng việc theo ngày — đầu vào của ND.timDungYen(). */
@@ -381,9 +419,12 @@ async function api(req, res, u) {
         tong: r.tong,
         han: K.hanNop(r.ky),
         cham: r.cham,
-        veHan: r.cham
-          ? (r.cham.trangThai === 'dung-han' ? 'Đúng hạn' : K.veTre(r.cham.treMs))
-          : 'Đã lưu nháp',
+        soLanNop: r.soLanNop,
+        nopBu: !!(r.cham && r.cham.bu),
+        /* Dùng đúng câu chung của ky.js — viết lại ở đây là sớm muộn hai chỗ
+         * nói khác nhau, mà chỗ này lại là câu người dùng đọc ngay sau khi bấm
+         * Nộp. Bản trước tự ghép nên mất luôn chữ "Nộp bù". */
+        veHan: r.cham ? K.veLanNop(r.cham) : 'Đã lưu nháp',
       });
     } catch (e) {
       return loi(res, 502, dichLoiBase(e), maLoiBase(e));
@@ -413,32 +454,44 @@ async function api(req, res, u) {
     const den = Number(q.get('den')) || Date.now();
     const ds = await kho.dsPhieu({ loaiKy: 'ngay', tu, den }, q.get('moi') === '1');
 
-    const theoNguoi = new Map();
-    for (const p0 of ds) {
-      const khoa = p0.email || p0.nguoi || '?';
-      if (!theoNguoi.has(khoa)) {
-        theoNguoi.set(khoa, { khoa, ten: p0.tenNguoi || khoa, email: p0.email, id: p0.nguoi, phieu: [] });
-      }
-      theoNguoi.get(khoa).phieu.push(p0);
-    }
 
     const denThat = Math.min(den, Date.now());
-    const nguoi = [...theoNguoi.values()].map((n) => {
+    const soNgayCong = K.ngayThieu(tu, denThat, []).length;
+
+    /**
+     * Bốn nhóm, không phải hai. Anh Hùng muốn "kiểm soát được nhân sự báo cáo
+     * đúng ngày, hay nhân sự báo cáo trễ và báo cáo bù" — ba thứ đó khác nhau
+     * về mức độ, gộp lại thành "chưa đúng hạn" là mất đúng cái phân biệt ấy.
+     */
+    const nguoi = gomNguoi(ds).map((n) => {
       const daNop = n.phieu.filter((x) => x.trangThai === cfg.chon.trangThaiPhieu.daNop);
-      const tre = daNop.filter((x) => x.dungHan === cfg.chon.dungHan.tre);
+      /* Đọc từ chính ô đã ghi lúc nộp, KHÔNG chấm lại bây giờ: chấm lại là lấy
+       * giờ hiện tại so với hạn cũ, và mọi phiếu quá hạn đều thành trễ kể cả
+       * phiếu nộp đúng giờ. Ô `Nộp lúc` giữ lần nộp đầu, ô `Nộp bù` giữ kết
+       * luận — cả hai đóng băng tại thời điểm nộp. */
+      const bu = daNop.filter((x) => x.nopBu);
+      const tre = daNop.filter((x) => x.dungHan === cfg.chon.dungHan.tre && !x.nopBu);
+      const dung = daNop.filter((x) => x.dungHan === cfg.chon.dungHan['dung-han']);
       const thieu = K.ngayThieu(tu, denThat, daNop.map((x) => x.tuNgay));
+      const sua = daNop.filter((x) => (x.soLanNop || 1) > 1);
       return {
         ten: n.ten, id: n.id, email: n.email,
         soNgayDaNop: daNop.length,
+        soDungHan: dung.length,
         soTre: tre.length,
+        soBu: bu.length,
+        soSua: sua.length,
+        /* Tỷ lệ tính trên NGÀY CÔNG, không trên số phiếu đã nộp — chia cho số
+         * phiếu thì người nộp đúng một ngày trong tuần vẫn ra 100%. */
+        tyLeDung: soNgayCong ? Math.round((dung.length / soNgayCong) * 100) : null,
         tongPhut: daNop.reduce((s, x) => s + (x.tongPhut || 0), 0),
+        treNhatPhut: daNop.reduce((m, x) => Math.max(m, x.trePhut || 0), 0),
         thieu: thieu.map((x) => ({ ms: x, nhan: K.veNgay(x) })),
       };
-    }).sort((a, b) => b.thieu.length - a.thieu.length || a.ten.localeCompare(b.ten));
+    }).sort((a, b) => (b.thieu.length + b.soBu) - (a.thieu.length + a.soBu)
+      || b.soTre - a.soTre || a.ten.localeCompare(b.ten));
 
-    return json(res, {
-      tu, den, soNgayCong: K.ngayThieu(tu, denThat, []).length, nguoi,
-    });
+    return json(res, { tu, den, soNgayCong, nguoi });
   }
 
   /**
@@ -491,17 +544,9 @@ async function api(req, res, u) {
       .filter((x) => x.trangThai === cfg.chon.trangThaiPhieu.daNop);
     const dongKy = await kho.dsDong({ tu: k.tu, den: k.den }, false);
 
-    const theoNguoi = new Map();
-    for (const x of phieuNgay) {
-      const khoa = x.email || x.nguoi || '?';
-      if (!theoNguoi.has(khoa)) {
-        theoNguoi.set(khoa, { khoa, ten: x.tenNguoi || khoa, id: x.nguoi, email: x.email, ps: [] });
-      }
-      theoNguoi.get(khoa).ps.push(x);
-    }
-
     const nguoi = [];
-    for (const n of theoNguoi.values()) {
+    for (const g of gomNguoi(phieuNgay)) {
+      const n = { ten: g.ten, id: g.id, email: g.email, ps: g.phieu };
       const cuaHo = dongKy.filter((d) => kho.cungNguoi(d, n));
       const dinhMuc = n.ps.reduce((s, x) => s + (x.dinhMuc || 0), 0);
       const gop = K.gop(cuaHo.map((d) => ({ nhom: d.nhom, phut: d.phut })), dinhMuc);

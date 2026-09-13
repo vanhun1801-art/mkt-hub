@@ -59,6 +59,21 @@ function asLink(v) {
   return m ? m[1].trim() : s;
 }
 
+/**
+ * Ô checkbox -> boolean thật.
+ *
+ * Không có nhánh riêng thì ô này đi qua asText() và thành CHUỖI "true"/"false"
+ * — mà chuỗi "false" là truthy, nên mọi phiếu đều đếm là đã tick. Đúng cái bẫy
+ * đã ghi trong test xem-tai của hub, và nó vừa tái diễn ở đây: phiếu trễ 18 giờ
+ * bị đếm sang cột "nộp bù".
+ */
+function asTick(v) {
+  if (v === true || v === 1) return true;
+  if (v === false || v == null || v === '' || v === 0) return false;
+  const s = asText(v).trim().toLowerCase();
+  return s === 'true' || s === '1' || s === 'yes';
+}
+
 const asSo = (v) => {
   if (v === 0) return 0;
   if (v == null || v === '') return 0;
@@ -77,6 +92,7 @@ function doiRa(rec, map) {
       case 'datetime': t[key] = asMs(v); break;
       case 'number': t[key] = asSo(v); break;
       case 'url': t[key] = asLink(v); break;
+      case 'checkbox': t[key] = asTick(v); break;
       default: t[key] = asText(v); break;
     }
   }
@@ -211,7 +227,9 @@ async function luuNgay({ nguoi, ngayMs, ca, dinhMucTay, dong, nhanDinh, keHoach,
   const g = K.gop(sach, dm);
 
   const luc = Date.now();
-  const cham = nop ? K.chamHan(k, luc) : null;
+  const cuPhieu = (await docTat('phieu', true)).find((x) => x.ma === ma) || null;
+  const kyLuat = nop ? oKyLuat(k, cuPhieu, luc) : null;
+  const cham = kyLuat && kyLuat.cham;
 
   const cells = locO({
     [F.phieu.ma.id]: ma,
@@ -229,17 +247,43 @@ async function luuNgay({ nguoi, ngayMs, ca, dinhMucTay, dong, nhanDinh, keHoach,
     [F.phieu.linkVideo.id]: linkVideo,
     [F.phieu.trangThai.id]: nop ? C.trangThaiPhieu.daNop : C.trangThaiPhieu.nhap,
     [F.phieu.hanNop.id]: K.hanNop(k),
-    ...(nop ? {
-      [F.phieu.nopLuc.id]: luc,
-      [F.phieu.dungHan.id]: C.dungHan[cham.trangThai] || C.dungHan.tre,
-      [F.phieu.trePhut.id]: Math.round(cham.treMs / K.PHUT),
-    } : {}),
+    ...(nop ? kyLuat.o : {}),
   });
 
   const phieu = await ghiPhieu(ma, cells);
   await ghiDong(ma, k.tu, nguoi, sach);
   xoaDem();
-  return { ma, phieu, tong: g, ky: k, cham };
+  return { ma, phieu, tong: g, ky: k, cham, soLanNop: kyLuat && kyLuat.o[F.phieu.soLanNop.id] };
+}
+
+/**
+ * Các ô kỷ luật nộp.
+ *
+ * `Nộp lúc` chỉ ghi LẦN ĐẦU và không bao giờ bị ghi đè. Bản trước ghi đè nó mỗi
+ * lần bấm Nộp, nên người nộp đúng hạn hôm qua mà hôm nay mở ra sửa một chữ lập
+ * tức bị chấm "trễ 18 giờ" — đúng cái làm hỏng toàn bộ bảng kỷ luật mà nó sinh
+ * ra để phục vụ. Lần sửa ghi riêng vào `Sửa lúc`.
+ *
+ * `cu` là phiếu đang có trên Base (null nếu chưa có).
+ */
+function oKyLuat(k, cu, luc) {
+  const nopDau = (cu && cu.nopLuc) || luc;
+  const cham = K.chamHan(k, nopDau);
+  /* Trả `o` và `cham` TÁCH nhau. Gộp chung rồi spread vào cells thì `cham` đi
+   * thẳng xuống Base thành một trường tên "cham" — Base không có cột đó, và
+   * kiểu lỗi này không nổ, nó chỉ âm thầm làm hỏng cả lượt ghi. */
+  const o = {
+    [F.phieu.nopLuc.id]: nopDau,
+    [F.phieu.suaLuc.id]: luc,
+    [F.phieu.soLanNop.id]: ((cu && cu.soLanNop) || 0) + 1,
+    [F.phieu.dungHan.id]: C.dungHan[cham.trangThai] || C.dungHan.tre,
+    [F.phieu.trePhut.id]: Math.round(cham.treMs / K.PHUT),
+    /* Base từ chối `false` ở ô checkbox qua locO() vì nó không phải giá trị
+     * rỗng — nhưng locO chỉ cắt undefined/null/'' nên false vẫn đi qua, và
+     * phải đi qua: bỏ tick lại khi sửa từ nộp-bù về đúng hạn là chuyện thật. */
+    [F.phieu.nopBu.id]: !!cham.bu,
+  };
+  return { o, cham };
 }
 
 /** Tạo mới hoặc cập nhật phiếu theo mã. */
@@ -328,7 +372,9 @@ async function luuTongHop({ nguoi, loaiKy, mocMs, nhanDinh, keHoach, canHoTro, l
   const k = t.ky;
   const ma = maPhieu(loaiKy, k.tu, nguoi.id);
   const luc = Date.now();
-  const cham = nop ? K.chamHan(k, luc) : null;
+  const cuPhieu = (await docTat('phieu', true)).find((x) => x.ma === ma) || null;
+  const kyLuat = nop ? oKyLuat(k, cuPhieu, luc) : null;
+  const cham = kyLuat && kyLuat.cham;
 
   const cells = locO({
     [F.phieu.ma.id]: ma,
@@ -345,16 +391,12 @@ async function luuTongHop({ nguoi, loaiKy, mocMs, nhanDinh, keHoach, canHoTro, l
     [F.phieu.linkVideo.id]: linkVideo,
     [F.phieu.trangThai.id]: nop ? C.trangThaiPhieu.daNop : C.trangThaiPhieu.nhap,
     [F.phieu.hanNop.id]: K.hanNop(k),
-    ...(nop ? {
-      [F.phieu.nopLuc.id]: luc,
-      [F.phieu.dungHan.id]: C.dungHan[cham.trangThai] || C.dungHan.tre,
-      [F.phieu.trePhut.id]: Math.round(cham.treMs / K.PHUT),
-    } : {}),
+    ...(nop ? kyLuat.o : {}),
   });
 
   const phieu = await ghiPhieu(ma, cells);
   xoaDem();
-  return { ma, phieu, tong: t, ky: k, cham };
+  return { ma, phieu, tong: t, ky: k, cham, soLanNop: kyLuat && kyLuat.o[F.phieu.soLanNop.id] };
 }
 
 /** Một phiếu kèm dòng việc — dùng khi mở lại phiếu để sửa. */
@@ -367,7 +409,7 @@ async function motPhieu(loaiKy, mocMs, nguoi, force) {
 }
 
 module.exports = {
-  asText, asMs, asSo, asLink, doiRa, locO, cungNguoi,
+  asText, asMs, asSo, asLink, asTick, doiRa, locO, cungNguoi,
   maPhieu, dsPhieu, dsDong, motPhieu,
   luuNgay, luuTongHop, tongHop, xoaDem,
 };
