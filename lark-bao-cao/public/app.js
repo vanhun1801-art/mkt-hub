@@ -218,17 +218,17 @@ function cauHan(d) {
     : 'còn hạn';
 }
 
-/* ---- khối đầu việc (phiếu NGÀY) ----
+/* ---- bảng đầu việc (phiếu NGÀY) ----
  *
- * Mỗi đầu việc là một KHỐI riêng chứ không phải một hàng trong bảng. Anh Hùng:
- * "giao diện hiện tại anh thấy hơi khó hình dung… phần thiết kế giao diện nên
- * tách bạch các thành phần tí cho dễ nhìn". Một hàng bảng bảy ô sát nhau thì mắt
- * không biết ô nào thuộc việc nào; một khối có tiêu đề riêng thì biết ngay.
+ * Trở lại dạng BẢNG. Bản dựng mỗi đầu việc thành một khối riêng thì rõ ràng
+ * thật, nhưng anh Hùng xem xong bảo "hiện tại anh thấy hơi lớn" — năm đầu việc
+ * là năm khối cao, phải cuộn mới nhìn hết một ngày làm việc. Bảng gọn hơn hẳn
+ * và vốn là hình dạng cả phòng đã quen từ file Excel.
  *
- * Và ô chọn việc với ô gõ tay LUÔN hiện cả hai — cũng lời anh: "dòng trên em để
- * chọn việc, dòng dưới em cứ để sẵn 1 ô trống giống bản cũ để nhập thẳng". Bản
- * trước giấu ô gõ tay sau mục "Khác — tự nhập", nên nhìn vào chỉ thấy một menu
- * và không đoán ra là vẫn gõ tay được.
+ * Chỗ anh yêu cầu thì làm đúng một việc: ô CÔNG VIỆC có THÊM MỘT HÀNG phía
+ * trên để chọn từ Bảng công việc, ô gõ tay giữ nguyên bên dưới. Hai thứ luôn
+ * hiện cả hai, không ẩn hiện — bản trước giấu ô gõ tay sau mục "Khác — tự nhập"
+ * nên nhìn vào không đoán ra là vẫn gõ thẳng được.
  */
 function theBang(d) {
   const dong = d.dong.length ? d.dong : [dongTrong()];
@@ -258,12 +258,23 @@ function theBang(d) {
       '<input class="in" id="dmTay" type="number" min="0" step="15" placeholder="phút" ' +
         'style="width:96px" hidden>' +
     '</div>' + canhBao +
-    '<div class="the-than">' +
-      '<div id="thanBang" class="viec-ds">' + dong.map(veHang).join('') + '</div>' +
-      '<button class="btn nho them-viec" id="btnThem">+ Thêm đầu việc</button>' +
+    '<div class="the-than khit cuon">' +
+      '<table class="bang"><thead><tr>' +
+        '<th style="min-width:250px">Công việc</th>' +
+        '<th style="width:130px">Nhóm</th>' +
+        '<th style="width:82px">Phút</th>' +
+        '<th style="width:172px">Tiến độ</th>' +
+        '<th style="min-width:170px">Ghi chú tiến độ</th>' +
+        '<th style="width:124px">Trạng thái</th>' +
+        '<th class="o-nut"></th>' +
+      '</tr></thead><tbody id="thanBang">' + dong.map(veHang).join('') + '</tbody></table>' +
     '</div>' +
-    '<div class="the-than dai-day"><div class="dai-so" id="oTong"></div></div>' +
-  '</div>';
+    '<div class="the-than" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;' +
+      'border-top:1px solid var(--border)">' +
+      '<button class="btn nho" id="btnThem">+ Thêm dòng</button>' +
+      '<div class="lon"></div>' +
+      '<div class="dai-so" id="oTong"></div>' +
+    '</div></div>';
 }
 
 function khoiBao(mau, tieuDe, chu) {
@@ -280,8 +291,8 @@ const dongTrong = () => ({
 /**
  * Menu đầu việc.
  *
- * Mục đầu để trống nghĩa là "tự gõ bên dưới" — không cần mục "Khác" riêng nữa,
- * vì ô gõ tay lúc nào cũng đứng sẵn ngay dưới.
+ * Mục đầu để trống nghĩa là "tự gõ ở hàng dưới" — không cần mục "Khác" riêng,
+ * vì ô gõ tay lúc nào cũng đứng ngay bên dưới.
  *
  * Việc đang khai mà KHÔNG còn trong danh sách (đã đóng lâu, hoặc chuyển cho
  * người khác) vẫn phải giữ được: thêm một mục riêng cho nó, kẻo mở lại phiếu cũ
@@ -290,7 +301,7 @@ const dongTrong = () => ({
 function menuViec(d) {
   const ds = (VIEC && VIEC.ds) || [];
   const coTrongDs = d.maViec && ds.some((v) => v.id === d.maViec);
-  let o = '<option value="">— tự gõ tên bên dưới —</option>';
+  let o = '<option value="">— tự gõ tên ở dưới —</option>';
   if (d.maViec && !coTrongDs) {
     o += '<option value="' + esc(d.maViec) + '" selected>' + esc(d.congViec) +
       ' (không còn trong danh sách)</option>';
@@ -303,57 +314,33 @@ function menuViec(d) {
 
 function veHang(d) {
   const pt = Number(d.tienDoPt) || 0;
-  const oNhan = (chu) => '<div class="o-nhan">' + esc(chu) + '</div>';
-  return '<div class="viec">' +
-    '<div class="viec-dau">' +
-      '<span class="viec-ten">Đầu việc</span>' +
-      '<div class="lon"></div>' +
-      '<button class="btn nho mo v-xoa" title="Bỏ đầu việc này">✕</button>' +
-    '</div>' +
-
-    '<div class="viec-o">' +
-      oNhan('Chọn từ Bảng công việc') +
-      '<select class="in v-viec">' + menuViec(d) + '</select>' +
-    '</div>' +
-    '<div class="viec-o">' +
-      oNhan('Tên công việc') +
-      '<input class="in v-cv" value="' + esc(d.congViec) + '" ' +
-        'placeholder="chọn ở trên, hoặc gõ thẳng vào đây">' +
-    '</div>' +
-
-    '<div class="viec-luoi">' +
-      '<div class="viec-o">' + oNhan('Nhóm việc') +
-        '<select class="in v-nhom">' +
-          META.nhomViec.map((n) => '<option' + (n === d.nhom ? ' selected' : '') + '>' +
-            esc(n) + '</option>').join('') +
-        '</select>' +
-        '<div class="nho v-doan" hidden>tự đoán từ Bảng công việc</div>' +
-      '</div>' +
-      '<div class="viec-o">' + oNhan('Thời lượng') +
-        '<div class="o-kem"><input class="in v-phut" type="number" min="0" step="5" value="' +
-          esc(d.phut === 0 || d.phut === '' ? '' : d.phut) + '" placeholder="0">' +
-          '<span class="don-vi">phút</span></div>' +
-      '</div>' +
-      '<div class="viec-o">' + oNhan('Trạng thái') +
-        '<select class="in v-tt">' +
-          META.trangThaiViec.map((n) => '<option' + (n === d.trangThai ? ' selected' : '') + '>' +
-            esc(n) + '</option>').join('') +
-        '</select>' +
-      '</div>' +
-      '<div class="viec-o">' + oNhan('Tiến độ') +
-        '<div class="td-o">' +
-          '<input class="v-pt" type="range" min="0" max="100" step="5" value="' + pt + '">' +
-          '<span class="pt' + (pt >= 100 ? ' du' : '') + '">' + pt + '%</span>' +
-        '</div>' +
-      '</div>' +
-    '</div>' +
-
-    '<div class="viec-o">' +
-      oNhan('Ghi chú tiến độ') +
-      '<textarea class="in v-td" rows="2" placeholder="làm được gì, vướng ở đâu">' +
-        esc(d.tienDo) + '</textarea>' +
-    '</div>' +
-  '</div>';
+  return '<tr>' +
+    /* Hai hàng trong CÙNG một ô: chọn ở trên, gõ ở dưới. */
+    '<td data-nhan="Công việc" class="o-viec">' +
+      '<select class="v-viec">' + menuViec(d) + '</select>' +
+      '<input class="v-cv" value="' + esc(d.congViec) + '" ' +
+        'placeholder="hoặc gõ thẳng tên công việc">' +
+    '</td>' +
+    '<td data-nhan="Nhóm"><select class="v-nhom">' +
+      META.nhomViec.map((n) => '<option' + (n === d.nhom ? ' selected' : '') + '>' +
+        esc(n) + '</option>').join('') +
+    '</select></td>' +
+    '<td data-nhan="Phút" class="so-o"><input class="v-phut" type="number" min="0" step="5" value="' +
+      esc(d.phut === 0 || d.phut === '' ? '' : d.phut) + '" placeholder="0"></td>' +
+    '<td data-nhan="Tiến độ"><div class="td-o">' +
+      '<input class="v-pt" type="range" min="0" max="100" step="5" value="' + pt + '">' +
+      '<span class="pt' + (pt >= 100 ? ' du' : '') + '">' + pt + '%</span>' +
+    '</div></td>' +
+    /* Chữ gợi ý phải NGẮN: ô này cao một dòng, câu dài bị cắt làm đôi rồi chồng
+     * lên nhau, nhìn như lỗi hiển thị. */
+    '<td data-nhan="Ghi chú tiến độ"><textarea class="v-td" rows="1" ' +
+      'placeholder="vướng ở đâu…">' + esc(d.tienDo) + '</textarea></td>' +
+    '<td data-nhan="Trạng thái"><select class="v-tt">' +
+      META.trangThaiViec.map((n) => '<option' + (n === d.trangThai ? ' selected' : '') + '>' +
+        esc(n) + '</option>').join('') +
+    '</select></td>' +
+    '<td class="o-nut"><button class="btn nho mo v-xoa" title="Xoá dòng">✕</button></td>' +
+  '</tr>';
 }
 
 
@@ -489,7 +476,7 @@ function gan(loaiKy) {
     $('#thanBang').insertAdjacentHTML('beforeend', veHang(dongTrong()));
     ganHang();
     BAN = true;
-    const ds = $$('#thanBang .viec');
+    const ds = $$('#thanBang tr');
     const o = ds.length && $('.v-viec', ds[ds.length - 1]);
     if (o) o.focus();
   };
@@ -504,20 +491,16 @@ function hienDmTay() {
 }
 
 function ganHang() {
-  $$('#thanBang .viec').forEach((tr, i) => {
-    const ten = $('.viec-ten', tr);
-    if (ten) ten.textContent = 'Đầu việc ' + (i + 1);
-
+  $$('#thanBang tr').forEach((tr) => {
     const viec = $('.v-viec', tr);
     const cv = $('.v-cv', tr);
     const nhom = $('.v-nhom', tr);
-    const doan = $('.v-doan', tr);
 
     /**
      * Chọn một việc từ Bảng công việc:
-     *   - điền tên xuống ô "Tên công việc" (vẫn sửa được),
+     *   - điền tên xuống ô gõ tay ngay dưới (vẫn sửa được),
      *   - đặt nhóm theo phỏng đoán từ "Loại công việc" bên Tracking,
-     *   - nói rõ là máy đoán, để người biết mà sửa nếu trượt.
+     *   - đánh dấu ô nhóm là "máy đoán", để người biết mà sửa nếu trượt.
      */
     if (viec) {
       viec.onchange = () => {
@@ -528,14 +511,18 @@ function ganHang() {
         const g = op && op.dataset.nhom;
         if (g && [...nhom.options].some((x) => x.value === g)) {
           nhom.value = g;
-          if (doan) doan.hidden = false;
-        } else if (doan) doan.hidden = true;
+          nhom.classList.add('doan');
+          nhom.title = 'Nhóm do máy đoán từ Bảng công việc — sửa được';
+        } else {
+          nhom.classList.remove('doan');
+          nhom.title = '';
+        }
         tinhLai();
       };
     }
 
-    /* Sửa tay tên công việc thì bỏ liên kết về Bảng công việc: tên đã khác thì
-     * giữ mã cũ là nói dối — báo cáo trỏ về một đầu việc không còn đúng nữa. */
+    /* Sửa tay tên công việc thì bỏ liên kết về Bảng công việc: tên đã khác mà
+     * giữ mã cũ là báo cáo trỏ về một đầu việc không còn đúng nữa. */
     if (cv && viec) {
       cv.oninput = () => {
         BAN = true;
@@ -543,8 +530,19 @@ function ganHang() {
         const tenViec = (op && op.dataset.ten) || '';
         if (viec.value && cv.value.trim() !== tenViec) {
           viec.value = '';
-          if (doan) doan.hidden = true;
+          nhom.classList.remove('doan');
+          nhom.title = '';
         }
+        tinhLai();
+      };
+    }
+
+    /* Người tự chọn nhóm thì thôi không còn là máy đoán nữa. */
+    if (nhom) {
+      nhom.onchange = () => {
+        BAN = true;
+        nhom.classList.remove('doan');
+        nhom.title = '';
         tinhLai();
       };
     }
@@ -577,8 +575,8 @@ function ganHang() {
     const x = $('.v-xoa', tr);
     if (x) {
       x.onclick = () => {
-        if ($$('#thanBang .viec').length === 1) {
-          /* Bỏ đầu việc cuối cùng thì để lại một khối trống, đừng để trắng
+        if ($$('#thanBang tr').length === 1) {
+          /* Xoá dòng cuối cùng thì để lại một dòng trống, đừng để bảng rỗng
            * không còn chỗ gõ — người dùng sẽ tưởng app hỏng. */
           tr.replaceWith(...htmlRa(veHang(dongTrong())));
         } else tr.remove();
@@ -591,13 +589,13 @@ function ganHang() {
 }
 
 const htmlRa = (h) => {
-  const t = document.createElement('div');
+  const t = document.createElement('tbody');
   t.innerHTML = h;
   return [...t.children];
 };
 
 function docBang() {
-  return $$('#thanBang .viec').map((tr) => {
+  return $$('#thanBang tr').map((tr) => {
     const viec = $('.v-viec', tr);
     return {
       /* Ô gõ tay là nguồn duy nhất của TÊN việc — chọn từ danh sách chỉ điền

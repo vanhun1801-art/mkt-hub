@@ -71,10 +71,17 @@ trong 7 ngày. Gõ tay chỉ còn một đường: chọn "Khác — tự nhập
 Được cái gì: tên việc trong báo cáo khớp từng chữ với Tracking, và mỗi dòng
 mang theo `record_id` nên sau này ghép hai nguồn không phải đoán theo tên.
 
-Ô chọn và ô gõ tay **luôn đứng cạnh nhau**, không ẩn hiện: chọn một việc thì
-tên tự điền xuống ô dưới (vẫn sửa được), và sửa tay thì liên kết về Tracking tự
-bỏ — tên đã khác mà giữ mã cũ là báo cáo trỏ về một đầu việc không còn đúng.
-Nhóm việc tự đoán từ "Loại công việc" bên Tracking, có nhãn nói rõ là máy đoán.
+Màn nhập giữ dạng **bảng** — mỗi đầu việc một hàng. Đã thử dựng mỗi đầu việc
+thành một khối riêng cho rõ, nhưng năm đầu việc thành năm khối cao, phải cuộn
+mới nhìn hết một ngày; anh Hùng bảo "hơi lớn". Bảng gọn hơn và vốn là hình dạng
+cả phòng đã quen từ file Excel.
+
+Ô Công việc có **hai hàng trong cùng một ô**: hàng trên chọn từ Bảng công việc
+(nhỏ và mờ hơn — nó là đường tắt), hàng dưới là tên công việc. Cả hai luôn hiện.
+Chọn một việc thì tên tự điền xuống hàng dưới (vẫn sửa được), và sửa tay thì
+liên kết về Tracking tự bỏ — tên đã khác mà giữ mã cũ là báo cáo trỏ về một đầu
+việc không còn đúng. Nhóm việc tự đoán từ "Loại công việc" bên Tracking, ô nhóm
+mang viền xanh mảnh khi giá trị là máy đoán.
 
 App **không đọc Base của Tracking** — nó gọi API của app đó, vì luật lọc và
 phân quyền nằm ở đó; chép lại là sớm muộn hai bên nói khác nhau. Tracking tắt
@@ -128,6 +135,10 @@ Anh Hùng đã báo trước ý định này (chưa làm). Cấu trúc hiện t�
   vào ô nhập rồi lưu lần nữa là nó bọc thêm một lớp, mỗi lần sửa lại dài gấp
   đôi. Gỡ ngay lúc đọc bằng `kho.asLink()`; cột phải khai `type: 'url'` mới đi
   qua đường gỡ đó.
+- **`node --check` không bắt được biến mồ côi trong hàm xử lý nút.** Đổi bố cục
+  xong, `const ds = …` bị xoá mà dòng dùng `ds` thì còn — tệp vẫn xanh, chỉ nổ
+  khi có người bấm "+ Thêm dòng". `test/giao-dien.test.js` nay gọi thật từng
+  `onclick`.
 - **Lớp CSS `.rong` nghĩa là "không có gì" và nó CĂN GIỮA.** Đừng mượn từ đó để
   nói "chiếm cả hàng" — đã có lần đặt `class="viec-o rong"` và nhãn của mọi ô
   nhập nhảy vào giữa màn hình.

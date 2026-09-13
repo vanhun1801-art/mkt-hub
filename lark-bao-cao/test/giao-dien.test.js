@@ -221,30 +221,29 @@ function nap() {
     ok('menu nạp việc thật từ Tracking', bang.includes('Thiết kế logo'),
       'không có thì nhân sự không chọn được gì');
     ok('việc đã đóng đánh dấu ✓', bang.includes('✓ Edit clip'));
-    /* Anh Hùng: "dòng trên em để chọn việc, dòng dưới em cứ để sẵn 1 ô trống
-     * giống bản cũ để nhập thẳng". Hai ô LUÔN đứng cạnh nhau, không ẩn hiện —
-     * bản trước giấu ô gõ tay sau mục "Khác" nên nhìn vào không đoán ra là vẫn
-     * gõ tay được. */
-    ok('mọi đầu việc đều có ô gõ tay, không ẩn',
-      (bang.match(/class="in v-cv"/g) || []).length === 2 && !/v-cv[^>]*hidden/.test(bang),
-      'ô gõ tay bị ẩn thì người dùng không biết là gõ thẳng được');
+    /* Anh Hùng xem bản dựng-mỗi-việc-một-khối rồi bảo "hiện tại anh thấy hơi
+     * lớn… chỗ anh yêu cầu làm tinh tế gọn, thêm 1 hàng phía trên thôi". Nên
+     * trở lại BẢNG, và ô Công việc có đúng hai hàng: chọn ở trên, gõ ở dưới. */
+    ok('giữ dạng bảng cho gọn', bang.includes('<table class="bang"'),
+      'mỗi đầu việc một khối thì năm việc là năm khối cao, phải cuộn mới hết');
+    ok('một đầu việc là một hàng',
+      (bang.match(/<tr>/g) || []).length === 3, '1 hàng tiêu đề + 2 đầu việc');
+
+    ok('ô Công việc có cả ô chọn lẫn ô gõ tay',
+      (bang.match(/class="v-viec"/g) || []).length === 2 &&
+      (bang.match(/class="v-cv"/g) || []).length === 2);
+    ok('hai thứ nằm CÙNG một ô, không phải hai cột',
+      (bang.match(/class="o-viec"/g) || []).length === 2,
+      'tách thành hai cột là bảng rộng thêm mà chẳng rõ hơn');
+    ok('ô gõ tay không bị ẩn', !/v-cv[^>]*hidden/.test(bang),
+      'ẩn đi thì người dùng không biết là gõ thẳng được');
     ok('không còn mục "Khác — tự nhập" giả', !bang.includes('__khac'),
-      'mục đó thừa khi ô gõ tay đã đứng sẵn bên dưới');
-    ok('mục đầu menu nói rõ là tự gõ', bang.includes('— tự gõ tên bên dưới —'));
+      'mục đó thừa khi ô gõ tay đã đứng sẵn ngay dưới');
+    ok('mục đầu menu nói rõ là tự gõ', bang.includes('— tự gõ tên ở dưới —'));
     ok('việc chọn từ Tracking vẫn điền sẵn tên vào ô',
       bang.includes('value="Thiết kế logo"'),
       'mở lại phiếu cũ mà ô trống thì người ta tưởng mất tên việc');
-
-    /* Tách bạch: mỗi đầu việc một khối, mỗi ô một nhãn chữ nhỏ. */
-    ok('mỗi đầu việc là một khối riêng',
-      (bang.match(/class="viec"/g) || []).length === 2);
-    ok('khối có số thứ tự để mắt bám được', bang.includes('viec-ten'));
-    ok('mỗi ô có nhãn riêng, không phải dò lên hàng tiêu đề',
-      bang.includes('Tên công việc') && bang.includes('Nhóm việc') &&
-      bang.includes('Thời lượng') && bang.includes('Ghi chú tiến độ'));
-    ok('bốn ô nhỏ xếp thành lưới riêng', bang.includes('viec-luoi'));
-    ok('có chỗ báo nhóm là máy đoán', bang.includes('v-doan'),
-      'không nói thì người dùng tưởng nhóm đó do mình chọn');
+    ok('mỗi ô vẫn mang nhãn cột cho màn hẹp', bang.includes('data-nhan="Công việc"'));
     ok('tiến độ là thanh trượt %, không phải ô chữ',
       bang.includes('type="range"') && bang.includes('v-pt'));
     ok('tiến độ 100% được đánh dấu', bang.includes('pt du'));
@@ -266,6 +265,49 @@ function nap() {
     ok('báo cáo NGÀY không hỏi link video', !String(tayNgay).includes('txVideo'),
       'chưa ai quay video cho báo cáo ngày — hỏi thêm chỉ làm dài biểu mẫu');
     ok('phiếu đã nộp thì nút là "Cập nhật"', ctx.__goi('theLuu(DU)').includes('Cập nhật báo cáo'));
+  }
+
+  group('Bấm thật vào các nút — chỗ node --check không soi tới');
+  {
+    /* Vừa để lọt một biến mồ côi ở đây: đổi bố cục xong, `const ds = ...` bị
+     * xoá nhưng dòng dùng `ds` thì còn. Tệp vẫn qua --check, và chỉ nổ khi có
+     * người bấm "+ Thêm dòng". Nên phải gọi thật mấy hàm xử lý nút. */
+    const els = new Map();
+    const tao = () => {
+      const el = {
+        _html: '', dataset: {}, value: '', hidden: false, disabled: false, title: '',
+        classList: { add() {}, remove() {}, toggle() {}, contains: () => false },
+        options: [], selectedOptions: [{ dataset: {} }], style: {},
+        focus() {}, remove() {}, click() {}, scrollIntoView() {},
+        insertAdjacentHTML(_, h) { this._html += h; },
+        replaceWith() {}, addEventListener() {}, dispatchEvent() {},
+        querySelector: () => tao(), querySelectorAll: () => [],
+      };
+      return el;
+    };
+    const goc = tao();
+    ctx.__goi('DU = ' + JSON.stringify(PHIEU_NGAY));
+    /* document giả trả về cùng một phần tử cho mọi truy vấn — đủ để các hàm
+     * xử lý chạy hết thân của chúng. */
+    ctx.document.querySelector = () => goc;
+    ctx.document.querySelectorAll = () => [goc];
+
+    let e = null;
+    try { ctx.__goi('gan("ngay")'); } catch (err) { e = err; }
+    ok('gắn được xử lý cho màn ngày', !e, e && e.message);
+
+    for (const nut of ['btnThem', 'btnLui', 'btnToi', 'btnNay']) {
+      let er = null;
+      try { ctx.__goi('($("#' + nut + '").onclick || (() => {}))()'); } catch (err) { er = err; }
+      ok('bấm ' + nut + ' không nổ', !er, er && er.message);
+    }
+
+    let e2 = null;
+    try { ctx.__goi('ganHang(); docBang(); tinhLai();'); } catch (err) { e2 = err; }
+    ok('ganHang / docBang / tinhLai chạy được', !e2, e2 && e2.message);
+
+    ctx.document.querySelector = () => tao();
+    ctx.document.querySelectorAll = () => [];
   }
 
   group('Ba trạng thái của danh sách đầu việc — gộp lại là người dùng hiểu sai');
