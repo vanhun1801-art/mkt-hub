@@ -364,6 +364,10 @@ function ngayThieu(tu, den, dsNgayDaNop, luat = LUAT) {
  */
 function mocSoSanh(kyNay, bayGio) {
   const nay = bayGio == null ? Date.now() : bayGio;
+  /* Kỳ CHƯA TỚI (bấm nút sang tháng sau) thì không so gì cả: kỳ này chắc chắn
+   * rỗng, đem đọ với tháng trước chỉ ra một câu "giảm 100%" chẳng của ai. Trả
+   * null để bên gọi bỏ hẳn dải so sánh thay vì vẽ một con số rỗng ruột. */
+  if (nay < kyNay.tu) return null;
   /* Lùi một mili giây khỏi đầu kỳ là rơi vào kỳ trước, không cần biết kỳ trước
    * dài 28, 30 hay 31 ngày. */
   const mocMs = kyNay.tu - 1;

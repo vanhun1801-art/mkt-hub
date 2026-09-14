@@ -345,6 +345,18 @@ group('So với kỳ trước — chỗ dễ đẻ ra con số vô nghĩa nhất
       K.veNgay(m.denToiDa) + ' vs hết tháng ' + K.veNgay(truoc.den));
   }
 
+  {
+    /* Nút "→" trên màn tháng KHÔNG chặn ở tháng hiện tại, bấm tiếp là xem được
+     * tháng chưa tới. Tháng đó chắc chắn rỗng, nên mọi phép so đều ra "giảm
+     * 100%" — một câu không của ai. Không so gì cả mới là đúng. */
+    const thang10 = K.kyThang(K.tuNgayVN(2026, 10, 20));
+    ok('tháng chưa tới thì không so gì cả', K.mocSoSanh(thang10, nay14) === null,
+      JSON.stringify(K.mocSoSanh(thang10, nay14)));
+    ok('đúng ngày đầu tháng thì đã so được',
+      K.mocSoSanh(thang10, K.tuNgayVN(2026, 10, 1)) !== null,
+      'mùng 1 là kỳ đã bắt đầu, không phải "chưa tới"');
+  }
+
   ok('chênh dương có dấu +', K.veChenhPhut(840) === '+14 giờ', K.veChenhPhut(840));
   ok('chênh âm có dấu -', K.veChenhPhut(-150) === '-2 giờ 30', K.veChenhPhut(-150));
   ok('bằng nhau thì nói không đổi', K.veChenhPhut(0) === 'không đổi');

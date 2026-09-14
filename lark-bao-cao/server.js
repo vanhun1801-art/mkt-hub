@@ -422,10 +422,19 @@ async function api(req, res, u) {
        * Cộng thêm một kỳ nữa nhưng KHÔNG tốn thêm lượt gọi Lark: docTat() đang
        * giữ đệm, hai lần cộng này ăn cùng một mẻ dữ liệu. */
       if (d.ky.loai === 'thang') {
-        const moc = K.mocSoSanh(d.ky, Date.now());
-        const tTruoc = await kho.tongHop('thang', moc.mocMs, ai, false, moc.denToiDa);
-        ra.tongHop.kyTruoc = K.soSanh(t, tTruoc,
-          { nhan: tTruoc.ky.nhan, dayDu: moc.dayDu, soNgay: moc.soNgay });
+        /* Tên là `mocTruoc`, KHÔNG phải `moc`: `moc()` đã là hàm đọc tham số
+         * ?moc= của chính đầu mối này. Đặt trùng thì khối này che mất hàm đó,
+         * và người sửa sau gọi moc() trong đây sẽ ăn lỗi khó hiểu. */
+        const mocTruoc = K.mocSoSanh(d.ky, Date.now());
+        /* null = tháng chưa tới (bấm nút xem tháng sau). Không gắn kyTruoc thì
+         * giao diện tự bỏ dải so sánh, khỏi cần biết luật này. */
+        if (mocTruoc) {
+          const tTruoc = await kho.tongHop('thang', mocTruoc.mocMs, ai, false,
+            mocTruoc.denToiDa);
+          ra.tongHop.kyTruoc = K.soSanh(t, tTruoc, {
+            nhan: tTruoc.ky.nhan, dayDu: mocTruoc.dayDu, soNgay: mocTruoc.soNgay,
+          });
+        }
       }
     }
     return json(res, ra);
