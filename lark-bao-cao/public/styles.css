@@ -71,13 +71,18 @@ body {
   margin: 0; background: var(--bg); color: var(--text);
   font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+  /* Khung dọc cố định: thanh trên luôn đứng yên, chỉ vùng nội dung cuộn. Cần
+     thế thì Sổ mới cuộn được độc lập với cột nội dung — hai cột cuộn chung một
+     thanh là vừa mở Sổ ra đã đẩy phần đang gõ đi mất. */
+  height: 100vh; display: flex; flex-direction: column; overflow: hidden;
 }
+.than-trang { flex: 1; display: flex; min-height: 0; }
 
 /* ---------------- thanh trên ---------------- */
 .topbar {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
   padding: 10px var(--le); background: var(--surface);
-  border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 30;
+  border-bottom: 1px solid var(--border); z-index: 30; flex: none;
 }
 .brand { display: flex; align-items: center; gap: 9px; }
 .brand .dau {
@@ -109,7 +114,7 @@ body {
 .chip .cham { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
 .chip.ql .cham { background: var(--purple); }
 
-main { padding: 18px var(--le) 40px; }
+main { padding: 18px var(--le) 40px; flex: 1 1 auto; min-width: 0; overflow-y: auto; }
 
 /* ---------------- thẻ ---------------- */
 .the {
@@ -352,31 +357,30 @@ textarea.in { width: 100%; min-height: 76px; resize: vertical; }
 .rong b { display: block; color: var(--text-2); margin-bottom: 3px; font-weight: 600; }
 
 /* ---------------- Sổ bên phải ----------------
-   Mọi thứ để TRA CỨU nằm trong này, bấm mới mở. Trang chính chỉ giữ thứ người
-   ta đang phải LÀM: điền và nộp. Anh Hùng muốn nó đứng bên phải như Sổ của
-   Claude hay Gemini — quen tay, và là chỗ đặt phần AI sau này mà không phải
-   xếp lại cả trang.
-   ---------------------------------------------- */
-#soNen {
-  position: fixed; inset: 0; z-index: 40;
-  background: rgba(20, 30, 60, .28);
-}
-@media (prefers-color-scheme: dark) { #soNen { background: rgba(0, 0, 0, .5); } }
+   Là CỘT THẬT trong trang, không phải lớp phủ. Anh Hùng: "dạng là một trang
+   cùng với giao diện từ bên phải trượt sang bên trái, cái thành phần khác sẽ tự
+   động co giãn để phù hợp". Mở Sổ thì cột nội dung hẹp lại và tự xếp lại — mọi
+   lưới trong app đều dùng auto-fit nên chúng co theo mà không cần biết tới Sổ.
 
+   Đóng/mở bằng chiều rộng chứ không bằng `hidden`: có thế mới trượt được.
+   ---------------------------------------------- */
 #so {
-  position: fixed; top: 0; right: 0; bottom: 0; z-index: 41;
-  width: min(560px, 92vw);
+  flex: 0 0 0; width: 0; overflow: hidden;
   display: flex; flex-direction: column;
-  background: var(--surface); border-left: 1px solid var(--border);
-  box-shadow: -8px 0 32px -12px rgba(20, 30, 60, .35);
+  background: var(--surface); border-left: 0 solid var(--border);
+  transition: flex-basis .22s ease, width .22s ease;
 }
-@media (prefers-color-scheme: dark) { #so { box-shadow: -8px 0 32px -12px rgba(0,0,0,.7); } }
+body.so-mo #so {
+  flex-basis: min(480px, 42vw); width: min(480px, 42vw);
+  border-left-width: 1px;
+}
+@media (prefers-reduced-motion: reduce) { #so { transition: none; } }
 
 .so-dau {
   display: flex; align-items: center; gap: 10px;
   padding: 13px 16px; border-bottom: 1px solid var(--border); flex: none;
 }
-.so-dau b { font-size: 14.5px; }
+.so-dau b { font-size: 14.5px; white-space: nowrap; }
 .so-than { overflow-y: auto; padding: 14px 16px 32px; flex: 1; }
 
 /* Mỗi mục trong sổ đóng/mở được. Mở sẵn hết thì lại thành cuộn dài, mà cuộn
@@ -417,6 +421,13 @@ textarea.in { width: 100%; min-height: 76px; resize: vertical; }
 #toast.xanh { background: var(--green); color: #fff; }
 
 /* ---------------- màn hẹp ---------------- */
+/* Màn hẹp không đủ chỗ cho hai cột: mở Sổ thì Sổ chiếm trọn, cột nội dung
+   nhường hẳn. Ép hai cột vào 400px thì cả hai đều không đọc được. */
+@media (max-width: 900px) {
+  body.so-mo main { display: none; }
+  body.so-mo #so { flex-basis: 100%; width: 100%; border-left-width: 0; }
+}
+
 @media (max-width: 780px) {
   main { padding: 12px 12px 32px; }
   .topbar { padding: 10px 12px; }

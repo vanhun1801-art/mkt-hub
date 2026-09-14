@@ -499,8 +499,16 @@ function nap() {
     ok('mỗi mục có số đếm để liếc là biết', so.includes('class="dem"'));
   }
 
-  group('Đóng mở Sổ');
+  group('Đóng mở Sổ — cột thật, không phải lớp phủ');
   {
+    /* Anh Hùng: "dạng là một trang cùng với giao diện từ bên phải trượt sang
+     * bên trái, cái thành phần khác sẽ tự động co giãn để phù hợp". Lớp phủ thì
+     * che mất phần đang gõ; cột thật thì cột nội dung hẹp lại và xếp lại. */
+    const lop = [];
+    ctx.document.body.classList = {
+      add: (c) => lop.push('+' + c), remove: (c) => lop.push('-' + c),
+      toggle() {}, contains: () => lop.length > 0 && lop[lop.length - 1][0] === '+',
+    };
     let e = null;
     try {
       ctx.__goi('ganSo()');
@@ -508,6 +516,28 @@ function nap() {
       ctx.__goi('dongSo()');
     } catch (err) { e = err; }
     ok('mở rồi đóng Sổ không nổ', !e, e && e.message);
+    ok('mở/đóng bằng lớp trên <body>, không phải hidden',
+      lop.includes('+so-mo') && lop.includes('-so-mo'),
+      'hidden thì nhảy cái một, không trượt được — đang ra: ' + lop.join(','));
+
+    const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'styles.css'), 'utf8');
+    ok('Sổ nằm trong luồng trang, không position fixed',
+      !/#so\s*\{[^}]*position:\s*fixed/.test(css),
+      'fixed là đè lên nội dung, đúng cái vừa bị chê');
+    ok('cột nội dung và Sổ là hai cột cạnh nhau',
+      /\.than-trang\s*\{[^}]*display:\s*flex/.test(css));
+    ok('cột nội dung co giãn được', /main\s*\{[^}]*flex:\s*1 1 auto/.test(css));
+    ok('Sổ trượt bằng chiều rộng', /#so\s*\{[^}]*transition:[^}]*width/.test(css));
+    ok('mở Sổ thì Sổ có bề ngang thật',
+      /body\.so-mo #so\s*\{[^}]*width:/.test(css));
+    ok('màn hẹp thì Sổ chiếm trọn, không ép hai cột',
+      /@media \(max-width: 900px\)[\s\S]{0,200}so-mo main\s*\{\s*display:\s*none/.test(css),
+      'ép hai cột vào 400px thì cả hai đều không đọc được');
+    ok('không còn lớp nền phủ', !css.includes('#soNen'),
+      'lớp phủ là thứ làm nó thành hộp thoại chứ không phải cột');
+
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    ok('Sổ nằm cùng khung với main', /than-trang[\s\S]*<main[\s\S]*<aside id="so"/.test(html));
     ve('khối kỳ tuần', 'theKy("tuan")');
     const tayTuan = ve('khối tự viết của tuần', 'theVietTay(DU, "tuan")');
     ok('báo cáo TUẦN có ô link video', tayTuan.includes('txVideo'));

@@ -133,9 +133,15 @@ Anh Hùng đã báo trước ý định này (chưa làm). Cấu trúc hiện t�
 ## Sổ bên phải
 
 Trang chính chỉ giữ thứ người ta đang phải LÀM: điền và nộp. Mọi thứ để TRA CỨU
-nằm trong Sổ trượt ra từ bên phải, bấm **"Chi tiết kỳ →"** mới mở (Esc hoặc bấm
-nền để đóng). Vị trí bên phải là chủ ý của anh Hùng — quen tay với Sổ của Claude
-hay Gemini, và là chỗ đặt phần AI sau này mà không phải xếp lại cả trang.
+nằm trong Sổ, bấm **"Chi tiết kỳ →"** mới mở (Esc hoặc nút ✕ để đóng).
+
+Sổ là **cột thật trong cùng một trang**, không phải lớp phủ: mở ra thì cột nội
+dung hẹp lại và tự xếp lại, chứ không bị che. Mọi lưới trong app đều dùng
+`auto-fit` nên chúng co theo bề ngang mới mà không cần biết tới Sổ. Dưới 900px
+thì không đủ chỗ cho hai cột — Sổ chiếm trọn, cột nội dung nhường hẳn.
+
+Vị trí bên phải là chủ ý của anh Hùng — quen tay với Sổ của Claude hay Gemini,
+và là chỗ đặt phần AI sau này mà không phải xếp lại cả trang.
 
 Trong Sổ, mỗi mục đóng/mở riêng; hai mục đầu mở sẵn vì đó là thứ người ta mở Sổ
 để xem:

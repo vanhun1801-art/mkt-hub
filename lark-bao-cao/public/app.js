@@ -157,6 +157,9 @@ async function ve() {
   const el = $('#man');
   el.innerHTML = '<div class="the"><div class="rong">Đang tải…</div></div>';
   try {
+    /* Sổ đang mở mà đổi kỳ thì nội dung của nó phải đi theo — bỏ quên thì nó
+     * ngồi đó hiển thị dữ liệu của kỳ vừa rời khỏi, mà nhìn thì không biết. */
+    if (SO_MO && MAN !== 'tuan' && MAN !== 'thang') dongSo();
     if (MAN === 'toan-phong') return await veToanPhong(el);
     if (MAN === 'can-ho-tro') return await veCanHoTro(el);
     if (MAN === 'theo-doi') return await veTheoDoi(el);
@@ -187,6 +190,7 @@ async function veManPhieu(el, loaiKy) {
   gan(loaiKy);
   if (loaiKy === 'ngay') tinhLai();
   napNhanDinh(loaiKy);
+  if (SO_MO && DU.tongHop) moSo('Chi tiết kỳ', DU.nhan || '', soKy(DU));
 }
 
 function theKy(loaiKy) {
@@ -437,27 +441,41 @@ function theTongHop(d) {
 
 let SO_MO = false;
 
+/**
+ * Mở Sổ.
+ *
+ * Đóng/mở bằng một lớp trên <body> chứ không bằng `hidden`: Sổ là CỘT THẬT nên
+ * nó cần co giãn được để trượt, mà `hidden` thì nhảy cái một. Cột nội dung tự
+ * hẹp lại nhờ flex — mọi lưới trong app đều dùng auto-fit nên chúng xếp lại
+ * theo bề ngang mới mà không cần biết tới Sổ.
+ */
 function moSo(tieuDe, phu, than) {
   $('#soTieuDe').textContent = tieuDe;
   $('#soPhu').textContent = phu || '';
   $('#soThan').innerHTML = than;
-  $('#so').hidden = false;
-  $('#soNen').hidden = false;
+  document.body.classList.add('so-mo');
   SO_MO = true;
   $('#soThan').scrollTop = 0;
+  capNhatNutSo();
 }
 
 function dongSo() {
-  $('#so').hidden = true;
-  $('#soNen').hidden = true;
+  document.body.classList.remove('so-mo');
   SO_MO = false;
+  capNhatNutSo();
+}
+
+/* Nút đổi chữ theo trạng thái: mở rồi mà nút vẫn ghi "Chi tiết kỳ →" thì bấm
+ * lần nữa người ta không đoán được chuyện gì sẽ xảy ra. */
+function capNhatNutSo() {
+  const b = $('#btnSo');
+  if (b) b.textContent = SO_MO ? 'Đóng chi tiết' : 'Chi tiết kỳ →';
 }
 
 /* Gắn một lần lúc khởi động, không gắn lại mỗi lần vẽ — gắn lại thì mỗi lần
  * chuyển tab lại chồng thêm một tay nghe phím. */
 function ganSo() {
   $('#soDong').onclick = dongSo;
-  $('#soNen').onclick = dongSo;
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && SO_MO) dongSo();
   });
@@ -681,7 +699,10 @@ function gan(loaiKy) {
   if (cn) cn.onchange = () => { MOC = tuISO(cn.value); ve(); };
 
   const bSo = $('#btnSo');
-  if (bSo) bSo.onclick = () => moSo('Chi tiết kỳ', DU.nhan || '', soKy(DU));
+  if (bSo) {
+    capNhatNutSo();
+    bSo.onclick = () => (SO_MO ? dongSo() : moSo('Chi tiết kỳ', DU.nhan || '', soKy(DU)));
+  }
 
   $('#btnNop').onclick = () => luu(true);
   $('#btnNhap').onclick = () => luu(false);
