@@ -396,36 +396,60 @@ function nap() {
   group('Màn tuần / tháng — phần máy cộng');
   {
     ctx.__goi('DU = ' + JSON.stringify(PHIEU_TUAN));
-    /* Anh Hùng: bốn thẻ số "chưa thiết thực… cần thể hiện được tổng các báo cáo
-     * đã nộp, các công việc; nội dung đánh giá công việc và nhận định". Ngồi
-     * trước bốn con số thì không viết nổi một câu nhận định nào. */
+    /* Anh Hùng xem bản đổ hết ra trang rồi bảo: "phía trên thì thông tin để như
+     * báo cáo ngày, để khi chuyển qua không quá ngộp… ấn mở ra thì mới mở ra,
+     * không cần hiện tràn ra. Vị trí thì em để bên phải, như Sổ của Claude hay
+     * Gemini." Nên trang chính của kỳ tuần nay GIỐNG kỳ ngày, còn ba bảng dữ
+     * liệu dời hết vào Sổ. */
     const t = ve('khối tổng hợp', 'theTongHop(DU)');
-    ok('số tổng thu lại thành dải chip, không còn bốn thẻ to',
-      t.includes('class="dai-so"') && !t.includes('class="o-so'),
-      'thẻ to chiếm chỗ mà ít thông tin — chỗ đó dành cho nội dung đọc được');
-    ok('vẫn nói đã nộp mấy ngày', t.includes('3 ngày'));
-    ok('vẫn nói tổng thời lượng', t.includes('18 giờ'));
-    ok('cảnh báo ngày còn thiếu', t.includes('Thứ 5 10/09/2026'));
+    ok('trang chính chỉ còn dải chip', t.includes('class="dai-so"'));
+    ok('có nút mở Sổ', t.includes('id="btnSo"'));
+    ok('KHÔNG đổ bảng ra trang chính',
+      !t.includes('Đầu việc trong kỳ') && !t.includes('đã viết gì'),
+      'đổ hết ra thì phải cuộn mãi mới tới ô cần điền');
+    ok('vẫn nói đã nộp mấy ngày và tổng giờ',
+      t.includes('3 ngày') && t.includes('18 giờ'));
 
-    ok('có bảng ĐẦU VIỆC gộp cả kỳ', t.includes('Đầu việc trong kỳ'),
-      'bảy dòng rời rạc của bảy ngày thì không rút ra được câu nào');
-    ok('gộp theo việc, không phải theo ngày',
-      t.includes('Thiết kế logo') && t.includes('12 giờ') && t.includes('>3<'));
+    const so = ve('nội dung Sổ', 'soKy(DU)');
+    ok('Sổ có chỗ dành sẵn cho AI', so.includes('class="cho-ai"'),
+      'chừa sẵn thì sau này nối AI không phải xếp lại cả trang');
+    ok('và nói thật là chưa nối', so.includes('chưa nối'));
+
+    ok('Sổ có mục đầu việc', so.includes('Đầu việc trong kỳ'));
+    ok('gộp theo việc, không theo ngày',
+      so.includes('Thiết kế logo') && so.includes('12 giờ'));
     ok('tiến độ hiện đường đi, không chỉ con số cuối',
-      t.includes('30% → ') && t.includes('<b>70%</b>'));
-    ok('việc đứng yên bị gọi tên', t.includes('40% · đứng yên'),
+      so.includes('30% → ') && so.includes('<b>70%</b>'));
+    ok('việc đứng yên bị gọi tên', so.includes('40% · đứng yên'),
       'đó là thứ người viết báo cáo tuần cần bị đập vào mắt');
 
-    ok('có bảng các báo cáo ngày đã nộp', t.includes('Các báo cáo ngày đã nộp'));
-    ok('mỗi ngày nói rõ nộp đúng hạn hay trễ',
-      t.includes('đúng hạn') && t.includes('trễ 2 giờ'));
-
-    ok('gom lại những gì đã viết trong kỳ', t.includes('Anh/chị đã viết gì trong kỳ'),
+    ok('Sổ có mục "đã viết gì"', so.includes('Anh/chị đã viết gì'),
       'muốn đọc lại bảy ngày mà phải mở bảy tấm ảnh thì không ai làm');
-    ok('kèm cả nhận định ngày', t.includes('chạy tốt'));
-    ok('kèm cả vướng mắc đã nêu', t.includes('thiếu file gốc'));
-    ok('kèm cả ghi chú tiến độ từng việc', t.includes('chờ sếp duyệt'));
-    ok('mỗi ghi chú có mốc ngày', t.includes('class="dv-ngay"'));
+    ok('gom cả nhận định ngày', so.includes('chạy tốt'));
+    ok('gom cả vướng mắc đã nêu', so.includes('thiếu file gốc'));
+    ok('gom cả ghi chú tiến độ từng việc', so.includes('chờ sếp duyệt'));
+    ok('mỗi ghi chú có mốc ngày', so.includes('class="dv-ngay"'));
+
+    ok('Sổ có mục các ngày đã nộp', so.includes('Các báo cáo ngày đã nộp'));
+    ok('mỗi ngày nói rõ đúng hạn hay trễ',
+      so.includes('đúng hạn') && so.includes('trễ 2 giờ'));
+
+    /* Hai mục đầu mở sẵn, phần còn lại đóng — mở hết thì lại thành cuộn dài,
+     * mà cuộn dài chính là thứ vừa dọn khỏi trang chính. */
+    ok('mở sẵn đúng hai mục', (so.match(/<details class="muc" open>/g) || []).length === 2,
+      'đang mở: ' + (so.match(/<details class="muc" open>/g) || []).length);
+    ok('mỗi mục có số đếm để liếc là biết', so.includes('class="dem"'));
+  }
+
+  group('Đóng mở Sổ');
+  {
+    let e = null;
+    try {
+      ctx.__goi('ganSo()');
+      ctx.__goi('moSo("Chi tiết kỳ", "12/09 – 18/09", soKy(DU))');
+      ctx.__goi('dongSo()');
+    } catch (err) { e = err; }
+    ok('mở rồi đóng Sổ không nổ', !e, e && e.message);
     ve('khối kỳ tuần', 'theKy("tuan")');
     const tayTuan = ve('khối tự viết của tuần', 'theVietTay(DU, "tuan")');
     ok('báo cáo TUẦN có ô link video', tayTuan.includes('txVideo'));

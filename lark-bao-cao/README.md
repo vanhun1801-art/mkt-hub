@@ -35,12 +35,7 @@ tiên của kỳ kế tiếp**. Anh Hùng (13/09): *"làm báo cáo ngày thứ 
 - Ca làm việc: **480 phút** (cả ngày) hoặc **240 phút** (nửa ngày); ca khác thì
   tự khai. Phần trăm tính trên **định mức của ca**, không phải trên tổng người
   đó tự khai — chia cho chính tổng của mình thì ai cũng ra 100%.
-- **Tuần và tháng do máy cộng** từ các phiếu ngày, và màn đó bày ra NGUYÊN LIỆU
-  để viết nhận định chứ không chỉ mấy con số tổng: bảng **đầu việc gộp cả kỳ**
-  (tổng giờ, số ngày, tiến độ đi từ đâu tới đâu, việc nào đứng yên), bảng **các
-  báo cáo ngày đã nộp**, và khối **"đã viết gì trong kỳ"** gom mọi nhận định,
-  vướng mắc và ghi chú tiến độ kèm mốc ngày. Ngồi trước bốn con số thì không
-  viết nổi một câu; ngồi trước ba khối này thì chỉ còn là đọc lại chính mình. Người chỉ viết *nhận định* và
+- **Tuần và tháng do máy cộng** từ các phiếu ngày. Người chỉ viết *nhận định* và
   *kế hoạch kỳ sau* — hai thứ máy không viết thay được, và cũng là hai thứ AI sẽ
   đọc để đánh giá sau này.
 - Chủ nhật **không bắt buộc** báo cáo, nhưng vẫn nộp được (có người báo tăng ca).
@@ -134,6 +129,28 @@ Anh Hùng đã báo trước ý định này (chưa làm). Cấu trúc hiện t�
 - Phiếu có sẵn `Điểm AI` / `Đánh giá AI` để chứa kết quả đối chiếu với mục tiêu.
 - Số liệu theo người × theo kỳ đã chuẩn hoá, nên [[kpi-app]] chỉ cần đọc
   `/api/toan-phong` là có đủ, không phải tự cộng lại.
+
+## Sổ bên phải
+
+Trang chính chỉ giữ thứ người ta đang phải LÀM: điền và nộp. Mọi thứ để TRA CỨU
+nằm trong Sổ trượt ra từ bên phải, bấm **"Chi tiết kỳ →"** mới mở (Esc hoặc bấm
+nền để đóng). Vị trí bên phải là chủ ý của anh Hùng — quen tay với Sổ của Claude
+hay Gemini, và là chỗ đặt phần AI sau này mà không phải xếp lại cả trang.
+
+Trong Sổ, mỗi mục đóng/mở riêng; hai mục đầu mở sẵn vì đó là thứ người ta mở Sổ
+để xem:
+
+| Mục | Có gì |
+|---|---|
+| *(chừa cho AI)* | hiện là một ô nói rõ chưa nối |
+| Đầu việc trong kỳ | gộp theo VIỆC: tổng giờ, số ngày, tiến độ `30% → 70%`, và gọi thẳng tên việc **đứng yên** |
+| Anh/chị đã viết gì | mọi nhận định, vướng mắc, ghi chú tiến độ trong kỳ, kèm mốc ngày |
+| Các báo cáo ngày đã nộp | ngày nào, mấy việc, bao lâu, đúng hạn hay trễ |
+| Thời lượng theo nhóm việc | thanh so sánh |
+
+Vì sao gom vào Sổ: bản trước đổ cả ba bảng ra trang chính, và phải cuộn rất lâu
+mới tới ô cần điền. Trang của kỳ tuần nay trông **giống hệt kỳ ngày** ở phần
+trên, nên chuyển tab không bị ngợp.
 
 ## Kỷ luật nộp
 

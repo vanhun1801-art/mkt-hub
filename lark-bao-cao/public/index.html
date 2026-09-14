@@ -30,6 +30,20 @@
 
 <main id="man">Đang tải…</main>
 
+<!-- Sổ bên phải: mọi thứ tra cứu nằm ở đây, bấm mới mở.
+     Anh Hùng muốn nó đứng bên phải "như Sổ của Claude hay Gemini" — vừa quen
+     tay, vừa là chỗ để sau này đặt phần AI vào mà không phải xếp lại cả trang. -->
+<div id="soNen" hidden></div>
+<aside id="so" hidden aria-label="Chi tiết kỳ">
+  <header class="so-dau">
+    <b id="soTieuDe">Chi tiết kỳ</b>
+    <span class="nho" id="soPhu"></span>
+    <div class="lon"></div>
+    <button class="btn nho mo" id="soDong" title="Đóng (Esc)">✕</button>
+  </header>
+  <div class="so-than" id="soThan"></div>
+</aside>
+
 <script src="/app.js?v=BUILD"></script>
 </body>
 </html>

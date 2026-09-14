@@ -351,6 +351,62 @@ textarea.in { width: 100%; min-height: 76px; resize: vertical; }
 .rong { padding: 34px 16px; text-align: center; color: var(--text-3); }
 .rong b { display: block; color: var(--text-2); margin-bottom: 3px; font-weight: 600; }
 
+/* ---------------- Sổ bên phải ----------------
+   Mọi thứ để TRA CỨU nằm trong này, bấm mới mở. Trang chính chỉ giữ thứ người
+   ta đang phải LÀM: điền và nộp. Anh Hùng muốn nó đứng bên phải như Sổ của
+   Claude hay Gemini — quen tay, và là chỗ đặt phần AI sau này mà không phải
+   xếp lại cả trang.
+   ---------------------------------------------- */
+#soNen {
+  position: fixed; inset: 0; z-index: 40;
+  background: rgba(20, 30, 60, .28);
+}
+@media (prefers-color-scheme: dark) { #soNen { background: rgba(0, 0, 0, .5); } }
+
+#so {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 41;
+  width: min(560px, 92vw);
+  display: flex; flex-direction: column;
+  background: var(--surface); border-left: 1px solid var(--border);
+  box-shadow: -8px 0 32px -12px rgba(20, 30, 60, .35);
+}
+@media (prefers-color-scheme: dark) { #so { box-shadow: -8px 0 32px -12px rgba(0,0,0,.7); } }
+
+.so-dau {
+  display: flex; align-items: center; gap: 10px;
+  padding: 13px 16px; border-bottom: 1px solid var(--border); flex: none;
+}
+.so-dau b { font-size: 14.5px; }
+.so-than { overflow-y: auto; padding: 14px 16px 32px; flex: 1; }
+
+/* Mỗi mục trong sổ đóng/mở được. Mở sẵn hết thì lại thành cuộn dài, mà cuộn
+   dài chính là thứ vừa dọn khỏi trang chính. */
+.muc { border: 1px solid var(--border); border-radius: var(--r-lg); margin-bottom: 10px; }
+.muc > summary {
+  padding: 10px 13px; cursor: pointer; list-style: none;
+  display: flex; align-items: center; gap: 9px;
+  font-weight: 600; font-size: 13.5px;
+}
+.muc > summary::-webkit-details-marker { display: none; }
+.muc > summary::before {
+  content: '▸'; color: var(--text-3); font-size: 11px; transition: transform .12s;
+}
+.muc[open] > summary::before { transform: rotate(90deg); }
+.muc > summary:hover { background: var(--surface-2); border-radius: var(--r-lg); }
+.muc > summary .dem {
+  margin-left: auto; font-weight: 500; font-size: 12px; color: var(--text-3);
+}
+.muc-than { padding: 0 13px 13px; }
+.muc-than .bang-xem th { background: none; padding-top: 4px; }
+.muc-than .bang-xem td, .muc-than .bang-xem th { padding-left: 0; padding-right: 8px; }
+
+/* Chỗ dành sẵn cho phần AI — hiện chưa nối, nên nói thật là chưa nối. */
+.cho-ai {
+  padding: 11px 13px; border-radius: var(--r-lg); margin-bottom: 10px;
+  background: var(--surface-2); border: 1px dashed var(--border-2); color: var(--text-3);
+  font-size: 12.5px;
+}
+
 /* ---------------- toast ---------------- */
 #toast {
   position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%);

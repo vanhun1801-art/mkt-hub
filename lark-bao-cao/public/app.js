@@ -121,6 +121,7 @@ async function nap() {
   }
 
   $('#btnXuat').onclick = xuat;
+  ganSo();
   if (META.larkUrl && META.toi.quanLy) {
     const b = $('#btnLark');
     b.hidden = false;
@@ -365,16 +366,12 @@ function veHang(d) {
 
 /* ---- phần máy cộng (tuần / tháng) ----
  *
- * Anh Hùng xem bản bốn-thẻ-số rồi bảo "chưa thiết thực, vì nó cần thể hiện được
- * tổng các báo cáo đã nộp, các công việc; nội dung đánh giá công việc và nhận
- * định… dựa vào các thông tin như thế thì họ sẽ có thể tổng hợp thành đánh giá
- * báo cáo tuần".
+ * Trang chính của kỳ tuần/tháng nay trông GIỐNG kỳ ngày: cùng thẻ kỳ ở trên,
+ * cùng dải chip số, rồi tới phần tự viết. Anh Hùng: "phía trên thì thông tin để
+ * như báo cáo ngày, để khi chuyển qua không quá ngộp về giao diện."
  *
- * Đúng: "3 phiếu · 24 giờ · 100% định mức · 2 nhóm việc" thì không sai, nhưng
- * ngồi trước nó không viết nổi một câu nhận định nào. Người viết báo cáo tuần
- * cần NGUYÊN LIỆU — đã làm những việc gì, việc nào chạy việc nào đứng, và mình
- * đã tự viết gì trong bảy ngày qua. Nên số tổng thu lại thành một dải chip, chỗ
- * còn lại dành cho ba khối đọc được.
+ * Ba bảng dữ liệu — đầu việc, các ngày đã nộp, những gì đã viết — dời hết vào
+ * Sổ bên phải, bấm mới mở: "ấn mở ra thì mới mở ra, không cần hiện tràn ra".
  */
 function theTongHop(d) {
   const t = d.tongHop;
@@ -382,50 +379,110 @@ function theTongHop(d) {
   const m = (nhan, gt, mau) => '<span class="m ' + (mau || '') + '">' +
     esc(nhan) + ' <b>' + esc(gt) + '</b></span>';
 
-  const dai =
-    m('Đã nộp', t.soPhieuNgay + ' ngày', t.ngayThieu.length ? 'cam' : 'xanh') +
-    m('Tổng', t.tongGio) +
-    m('Định mức', t.phanTram == null ? '—' : t.phanTram + '%',
-      t.phanTram == null ? '' : t.phanTram >= 100 ? 'xanh' : t.phanTram < 80 ? 'cam' : '') +
-    m('Đầu việc', t.viec.length) +
-    (t.ngayThieu.length ? m('Chưa nộp', t.ngayThieu.length + ' ngày', 'do') : '');
-
-  return '<div class="the"><div class="the-than dai-day" style="border:0">' +
-      '<div class="dai-so">' + dai + '</div>' +
-      (t.ngayThieu.length
-        ? '<div class="nho" style="margin-top:8px">Chưa có báo cáo ngày: ' +
-          t.ngayThieu.map((x) => '<span class="nhan-tt do" style="margin-right:4px">' +
-            esc(x.nhan) + '</span>').join('') + '</div>'
-        : '') +
-    '</div></div>' +
-    theViecKy(t) + theNgayKy(t) + theDaViet(t);
+  return '<div class="the"><div class="the-than" ' +
+    'style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">' +
+      '<div class="dai-so">' +
+        m('Đã nộp', t.soPhieuNgay + ' ngày', t.ngayThieu.length ? 'cam' : 'xanh') +
+        m('Tổng', t.tongGio) +
+        m('Định mức', t.phanTram == null ? '—' : t.phanTram + '%',
+          t.phanTram == null ? '' : t.phanTram >= 100 ? 'xanh' : t.phanTram < 80 ? 'cam' : '') +
+        m('Đầu việc', t.viec.length) +
+        (t.ngayThieu.length ? m('Chưa nộp', t.ngayThieu.length + ' ngày', 'do') : '') +
+      '</div>' +
+      '<div class="lon"></div>' +
+      '<button class="btn nho chinh" id="btnSo">Chi tiết kỳ →</button>' +
+    '</div></div>';
 }
 
-/** Đầu việc trong kỳ — gộp lại, không phải bảy dòng rời rạc của bảy ngày. */
-function theViecKy(t) {
+/* ==================================================================
+   SỔ BÊN PHẢI
+   ================================================================== */
+
+let SO_MO = false;
+
+function moSo(tieuDe, phu, than) {
+  $('#soTieuDe').textContent = tieuDe;
+  $('#soPhu').textContent = phu || '';
+  $('#soThan').innerHTML = than;
+  $('#so').hidden = false;
+  $('#soNen').hidden = false;
+  SO_MO = true;
+  $('#soThan').scrollTop = 0;
+}
+
+function dongSo() {
+  $('#so').hidden = true;
+  $('#soNen').hidden = true;
+  SO_MO = false;
+}
+
+/* Gắn một lần lúc khởi động, không gắn lại mỗi lần vẽ — gắn lại thì mỗi lần
+ * chuyển tab lại chồng thêm một tay nghe phím. */
+function ganSo() {
+  $('#soDong').onclick = dongSo;
+  $('#soNen').onclick = dongSo;
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && SO_MO) dongSo();
+  });
+}
+
+/** Một mục đóng/mở được trong sổ. `mo` = mở sẵn khi vừa bật sổ. */
+function muc(ten, dem, than, mo) {
+  return '<details class="muc"' + (mo ? ' open' : '') + '>' +
+    '<summary>' + esc(ten) +
+      (dem == null ? '' : '<span class="dem">' + esc(dem) + '</span>') +
+    '</summary>' +
+    '<div class="muc-than">' + than + '</div></details>';
+}
+
+/**
+ * Nội dung sổ cho kỳ tuần/tháng.
+ *
+ * Thứ tự theo việc người ta thật sự làm khi ngồi viết nhận định tuần: nhìn đầu
+ * việc trước (làm gì, việc nào đứng), rồi đọc lại chính mình đã viết gì, cuối
+ * cùng mới soi từng ngày. Nên hai mục đầu mở sẵn, mục cuối để đóng.
+ */
+function soKy(d) {
+  const t = d.tongHop;
+  if (!t) return '<p class="phu">Chưa có dữ liệu cho kỳ này.</p>';
+
+  const choAI = '<div class="cho-ai">Phần nhận xét bằng AI sẽ nằm ở đây. ' +
+    'Hiện chưa nối — nhận định tự động bên dưới do luật sinh, đọc từ chính số ' +
+    'liệu của kỳ.</div>';
+
+  const nhomViec = t.theoNhom.length
+    ? t.theoNhom.map((n) =>
+      '<div style="display:flex;gap:10px;align-items:center;margin-bottom:6px">' +
+        '<span style="width:104px" class="nho">' + esc(n.ten) + '</span>' +
+        '<div class="thanh" style="flex:1"><i style="width:' +
+          Math.round((n.phut / Math.max(1, t.theoNhom[0].phut)) * 100) + '%"></i></div>' +
+        '<span class="nho" style="width:70px;text-align:right">' + esc(n.gio) + '</span>' +
+      '</div>').join('')
+    : '<p class="phu">Chưa có dữ liệu.</p>';
+
+  return choAI +
+    muc('Đầu việc trong kỳ', t.viec.length + ' việc', bangViec(t), true) +
+    muc('Anh/chị đã viết gì', t.daViet.length + ' ghi chú', bangDaViet(t), true) +
+    muc('Các báo cáo ngày đã nộp', t.soPhieuNgay + ' ngày', bangNgay(t)) +
+    muc('Thời lượng theo nhóm việc', t.theoNhom.length + ' nhóm', nhomViec);
+}
+
+function bangViec(t) {
   if (!t.viec.length) {
-    return '<div class="the"><div class="the-dau"><h2>Đầu việc trong kỳ</h2></div>' +
-      rong('Chưa có báo cáo ngày nào trong kỳ',
-        'Nộp báo cáo từng ngày trước, phần này tự cộng lại.') + '</div>';
+    return '<p class="phu">Chưa có báo cáo ngày nào trong kỳ — nộp báo cáo từng ' +
+      'ngày trước, phần này tự cộng lại.</p>';
   }
-  return '<div class="the"><div class="the-dau"><h2>Đầu việc trong kỳ</h2>' +
-    '<span class="nho">' + t.viec.length + ' việc · gộp từ ' + t.soPhieuNgay + ' báo cáo ngày</span>' +
-    '</div><div class="the-than khit cuon">' +
-    '<table class="bang-xem"><thead><tr>' +
-      '<th>Công việc</th><th>Nhóm</th><th class="so-o">Thời lượng</th>' +
-      '<th class="so-o">Số ngày</th><th>Tiến độ</th><th>Trạng thái</th>' +
+  return '<div class="cuon"><table class="bang-xem"><thead><tr>' +
+      '<th>Công việc</th><th class="so-o">Giờ</th><th class="so-o">Ngày</th>' +
+      '<th>Tiến độ</th>' +
     '</tr></thead><tbody>' +
     t.viec.map((v) => '<tr>' +
-      '<td><b>' + esc(v.ten) + '</b></td>' +
-      '<td><span class="nhan-tt xam">' + esc(v.nhom) + '</span></td>' +
+      '<td><b>' + esc(v.ten) + '</b><div class="nho">' + esc(v.nhom) +
+        (v.trangThai === 'Hoàn thành' ? ' · xong' : '') + '</div></td>' +
       '<td class="so-o">' + esc(v.gio) + '</td>' +
       '<td class="so-o">' + v.soNgay + '</td>' +
       '<td>' + veTienDo(v) + '</td>' +
-      '<td>' + (v.trangThai === 'Hoàn thành'
-        ? '<span class="nhan-tt xanh">Hoàn thành</span>'
-        : '<span class="nhan-tt xam">' + esc(v.trangThai || '—') + '</span>') + '</td>' +
-    '</tr>').join('') +
-    '</tbody></table></div></div>';
+    '</tr>').join('') + '</tbody></table></div>';
 }
 
 /** "30% → 70%" khi có nhích, "70%" khi đứng một chỗ — và nói thẳng nếu đứng yên. */
@@ -437,25 +494,24 @@ function veTienDo(v) {
   return '<span class="nho">' + v.ptDau + '% → </span><b>' + v.ptCuoi + '%</b>';
 }
 
-/** Từng ngày đã nộp — để biết tuần này rơi vào những ngày nào. */
-function theNgayKy(t) {
-  if (!t.theoNgay.length) return '';
-  return '<div class="the"><div class="the-dau"><h2>Các báo cáo ngày đã nộp</h2></div>' +
-    '<div class="the-than khit cuon">' +
-    '<table class="bang-xem"><thead><tr>' +
-      '<th>Ngày</th><th class="so-o">Đầu việc</th><th class="so-o">Thời lượng</th>' +
-      '<th class="so-o">Định mức</th><th>Nộp</th>' +
+function bangNgay(t) {
+  if (!t.theoNgay.length) return '<p class="phu">Chưa có ngày nào.</p>';
+  return '<div class="cuon"><table class="bang-xem"><thead><tr>' +
+      '<th>Ngày</th><th class="so-o">Việc</th><th class="so-o">Giờ</th><th>Nộp</th>' +
     '</tr></thead><tbody>' +
     t.theoNgay.map((n) => '<tr>' +
       '<td>' + esc(n.nhan) + '</td>' +
       '<td class="so-o">' + n.soViec + '</td>' +
       '<td class="so-o">' + esc(n.tongGio) + '</td>' +
-      '<td class="so-o">' + (n.phanTram == null ? '—' : n.phanTram + '%') + '</td>' +
       '<td>' + (n.trangThaiHan === 'tre'
         ? '<span class="nhan-tt cam">' + esc(n.veHan) + '</span>'
         : '<span class="nhan-tt xanh">đúng hạn</span>') + '</td>' +
-    '</tr>').join('') +
-    '</tbody></table></div></div>';
+    '</tr>').join('') + '</tbody></table></div>' +
+    (t.ngayThieu.length
+      ? '<p class="nho" style="margin:10px 0 0">Chưa nộp: ' +
+        t.ngayThieu.map((x) => '<span class="nhan-tt do" style="margin-right:4px">' +
+          esc(x.nhan) + '</span>').join('') + '</p>'
+      : '');
 }
 
 /**
@@ -465,17 +521,16 @@ function theNgayKy(t) {
  * thì phải mở bảy tấm ảnh. Có nó thì viết nhận định tuần chỉ còn là đọc lại
  * chính mình rồi rút gọn.
  */
-function theDaViet(t) {
-  if (!t.daViet.length) return '';
-  return '<div class="the"><div class="the-dau"><h2>Anh/chị đã viết gì trong kỳ</h2>' +
-    '<span class="nho">' + t.daViet.length + ' ghi chú · đọc lại để rút thành nhận định tuần</span>' +
-    '</div><div class="the-than"><div class="da-viet">' +
-    t.daViet.map((g) => '<div class="dv">' +
-      '<div class="dv-dau"><span class="dv-ngay">' + esc(g.ngay) + '</span>' +
-      '<span class="dv-loai">' + esc(g.loai) + '</span></div>' +
-      '<div class="dv-chu">' + esc(g.chu) + '</div>' +
-    '</div>').join('') +
-    '</div></div></div>';
+function bangDaViet(t) {
+  if (!t.daViet.length) {
+    return '<p class="phu">Chưa viết ghi chú nào trong kỳ. Mấy dòng ghi chú tiến ' +
+      'độ mỗi ngày chính là nguyên liệu để viết nhận định tuần.</p>';
+  }
+  return '<div class="da-viet">' + t.daViet.map((g) => '<div class="dv">' +
+    '<div class="dv-dau"><span class="dv-ngay">' + esc(g.ngay) + '</span>' +
+    '<span class="dv-loai">' + esc(g.loai) + '</span></div>' +
+    '<div class="dv-chu">' + esc(g.chu) + '</div>' +
+  '</div>').join('') + '</div>';
 }
 
 
@@ -587,6 +642,9 @@ function gan(loaiKy) {
   $('#btnNay').onclick = () => { MOC = Date.now(); ve(); };
   const cn = $('#chonNgay');
   if (cn) cn.onchange = () => { MOC = tuISO(cn.value); ve(); };
+
+  const bSo = $('#btnSo');
+  if (bSo) bSo.onclick = () => moSo('Chi tiết kỳ', DU.nhan || '', soKy(DU));
 
   $('#btnNop').onclick = () => luu(true);
   $('#btnNhap').onclick = () => luu(false);
