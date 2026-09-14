@@ -344,6 +344,87 @@ function ngayThieu(tu, den, dsNgayDaNop, luat = LUAT) {
   return ra;
 }
 
+
+/* ---------------- so với kỳ trước ---------------- */
+
+/**
+ * Mốc của kỳ LIỀN TRƯỚC, và cắt kỳ đó tới đâu cho công bằng.
+ *
+ * Bẫy ở đây không phải chuyện tính ngày, mà là chuyện so lệch: tháng mới tới
+ * ngày 14 mà đem đọ với trọn 31 ngày tháng trước thì tháng nào cũng "tụt 60%",
+ * và con số đó không nói lên điều gì ngoài việc tháng chưa hết. Nên khi kỳ này
+ * CHƯA xong thì cắt kỳ trước lại đúng số ngày đã trôi — 14 ngày so với 14 ngày.
+ *
+ * Trả:
+ *   mocMs    — một mốc nằm trong kỳ trước, đưa thẳng cho ky() / kho.tongHop()
+ *   denToiDa — chỉ tính kỳ trước tới đây; null là lấy trọn kỳ
+ *   dayDu    — kỳ này đã kết thúc chưa (màn hình phải nói rõ đang so kiểu nào,
+ *              không thì người đọc tưởng đang so hai kỳ trọn vẹn)
+ *   soNgay   — số ngày của kỳ này được tính vào phép so
+ */
+function mocSoSanh(kyNay, bayGio) {
+  const nay = bayGio == null ? Date.now() : bayGio;
+  /* Lùi một mili giây khỏi đầu kỳ là rơi vào kỳ trước, không cần biết kỳ trước
+   * dài 28, 30 hay 31 ngày. */
+  const mocMs = kyNay.tu - 1;
+  const truoc = ky(kyNay.loai, mocMs);
+  if (nay > kyNay.den) {
+    return {
+      mocMs, denToiDa: null, dayDu: true,
+      soNgay: Math.round((kyNay.den + 1 - kyNay.tu) / NGAY),
+    };
+  }
+  const soNgay = Math.max(1, Math.round((dauNgay(nay) - kyNay.tu) / NGAY) + 1);
+  /* Kỳ trước ngắn hơn (tháng 2 chẳng hạn) thì lấy hết kỳ đó, không đòi thêm
+   * ngày không tồn tại. */
+  return {
+    mocMs,
+    denToiDa: Math.min(truoc.tu + soNgay * NGAY - 1, truoc.den),
+    dayDu: false,
+    soNgay,
+  };
+}
+
+/** "+14 giờ" · "-2 giờ 30" · "không đổi" */
+function veChenhPhut(phut) {
+  const n = Math.round(Number(phut) || 0);
+  if (n === 0) return 'không đổi';
+  return (n > 0 ? '+' : '-') + vePhut(Math.abs(n));
+}
+
+/**
+ * Gói phần "so với kỳ trước" để màn hình vẽ thẳng, không phải tự tính.
+ *
+ * `nay` và `truoc` là kết quả gop()/tongHop(): cần tongPhut, phanTram,
+ * soPhieuNgay. `tin` là thứ mocSoSanh() trả về, cộng thêm nhãn kỳ trước.
+ *
+ * `coDuLieu` là ô quan trọng nhất: tháng trước không ai nộp phiếu nào thì mọi
+ * phép so đều vô nghĩa — "giảm 100%" nghe như cả phòng bỏ việc, trong khi sự
+ * thật chỉ là hồi đó chưa dùng app. Màn hình phải nói "chưa có gì để so" chứ
+ * không được vẽ ra một con số.
+ */
+function soSanh(nay, truoc, tin = {}) {
+  const coDuLieu = (truoc && truoc.soPhieuNgay > 0);
+  const chenhPhut = coDuLieu ? (nay.tongPhut || 0) - (truoc.tongPhut || 0) : null;
+  /* Phần trăm định mức so được cả khi số ngày lệch (nó đã chia cho định mức của
+   * chính những ngày đã nộp) — nhưng chỉ khi CẢ HAI kỳ đo được. */
+  const chenhPhanTram = (coDuLieu && nay.phanTram != null && truoc.phanTram != null)
+    ? nay.phanTram - truoc.phanTram : null;
+  return {
+    nhan: tin.nhan || '',
+    dayDu: !!tin.dayDu,
+    soNgay: tin.soNgay || 0,
+    coDuLieu,
+    soPhieuNgay: coDuLieu ? truoc.soPhieuNgay : 0,
+    tongPhut: coDuLieu ? truoc.tongPhut : 0,
+    tongGio: coDuLieu ? vePhut(truoc.tongPhut) : '',
+    phanTram: coDuLieu ? truoc.phanTram : null,
+    chenhPhut,
+    chenhGio: chenhPhut == null ? '' : veChenhPhut(chenhPhut),
+    chenhPhanTram,
+  };
+}
+
 module.exports = {
   PHUT, GIO, NGAY, VN, CA, TEN_THU, LUAT, NGUONG_BU,
   phanRaVN, dauNgay, cuoiNgay, tuNgayVN,
@@ -351,4 +432,5 @@ module.exports = {
   kyNgay, kyTuan, kyThang, ky,
   hanNop, chamHan, gopTheoViec,
   dinhMuc, gop, ngayThieu,
+  mocSoSanh, veChenhPhut, soSanh,
 };

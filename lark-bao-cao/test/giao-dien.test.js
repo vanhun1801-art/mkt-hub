@@ -410,6 +410,64 @@ function nap() {
     ok('vẫn nói đã nộp mấy ngày và tổng giờ',
       t.includes('3 ngày') && t.includes('18 giờ'));
 
+    /* Tuần KHÔNG có dải so sánh — anh Hùng chốt chỉ làm cho tháng (14/09). */
+    ok('kỳ tuần không kèm phần so với kỳ trước', !t.includes('So với'),
+      'máy chủ không gửi kyTruoc cho tuần, giao diện cũng đừng tự vẽ ra');
+  }
+
+  group('Tháng: so với tháng trước');
+  {
+    const kem = (kyTruoc) => {
+      const p = JSON.parse(JSON.stringify(PHIEU_TUAN));
+      p.ky = { loai: 'thang', tu: nay - 13 * NGAY, den: nay + 16 * NGAY };
+      p.tongHop.kyTruoc = kyTruoc;
+      return p;
+    };
+
+    ctx.__goi('DU = ' + JSON.stringify(kem({
+      nhan: 'Tháng 08/2026', dayDu: false, soNgay: 14, coDuLieu: true,
+      soPhieuNgay: 11, tongPhut: 480, tongGio: '8 giờ', phanTram: 67,
+      chenhPhut: 600, chenhGio: '+10 giờ', chenhPhanTram: 8,
+    })));
+    const t = ve('thẻ tháng có so sánh', 'theTongHop(DU)');
+    ok('hiện tên tháng đem ra so', t.includes('Tháng 08/2026'));
+    /* Thiếu câu này thì người đọc mặc định đang so hai tháng trọn vẹn, và mọi
+     * kết luận rút ra từ đó đều lệch. */
+    ok('nói rõ chỉ so mấy ngày đầu khi tháng chưa hết', t.includes('14 ngày đầu'),
+      'tháng đang chạy dở mà không nói ra là con số đánh lừa người đọc');
+    ok('hiện chênh giờ', t.includes('+10 giờ'));
+    ok('hiện chênh điểm định mức kèm số cũ', t.includes('+8 điểm') && t.includes('67%'));
+    /* Neo vào ĐÚNG con số chênh, không chỉ vào chữ "m xanh" ở đâu đó trong
+     * thẻ: thẻ này còn mấy chip khác cũng tô màu, nên neo lỏng là phép thử
+     * luôn xanh kể cả khi dải so sánh vẽ sai. */
+    ok('tăng thì tô xanh', t.includes('m xanh">Định mức <b>+8 điểm'),
+      'nhìn một cái là biết hơn hay kém');
+    ok('tổng giờ KHÔNG tô màu — nhiều giờ chưa chắc tốt hơn',
+      t.includes('<span class="m ">Tổng giờ <b>+10 giờ'),
+      'tháng nhiều ngày công hơn thì nhiều giờ hơn là chuyện thường, không phải thành tích');
+
+    ctx.__goi('DU = ' + JSON.stringify(kem({
+      nhan: 'Tháng 08/2026', dayDu: true, soNgay: 31, coDuLieu: true,
+      soPhieuNgay: 20, tongPhut: 9600, tongGio: '160 giờ', phanTram: 98,
+      chenhPhut: -480, chenhGio: '-8 giờ', chenhPhanTram: -6,
+    })));
+    const g = ve('thẻ tháng đã kết thúc', 'theTongHop(DU)');
+    ok('tháng trọn vẹn thì nói "cả tháng"', g.includes('cả tháng'));
+    ok('giảm thì tô cam', g.includes('m cam">Định mức <b>-6 điểm'),
+      'kém đi thì phải thấy ngay');
+
+    /* Cảnh THẬT của tháng 9 đầu tiên: tháng 8 chưa ai dùng app. */
+    ctx.__goi('DU = ' + JSON.stringify(kem({
+      nhan: 'Tháng 08/2026', dayDu: false, soNgay: 14, coDuLieu: false,
+      soPhieuNgay: 0, tongPhut: 0, tongGio: '', phanTram: null,
+      chenhPhut: null, chenhGio: '', chenhPhanTram: null,
+    })));
+    const r = ve('thẻ tháng khi tháng trước trống', 'theTongHop(DU)');
+    ok('nói thẳng là chưa so được', r.includes('chưa so được'));
+    ok('và không vẽ ra con số chênh nào',
+      !r.includes('+') && !r.includes('điểm'),
+      'bịa "-100%" ở đây là vu cho cả phòng nghỉ việc');
+
     const so = ve('nội dung Sổ', 'soKy(DU)');
     ok('Sổ có chỗ dành sẵn cho AI', so.includes('class="cho-ai"'),
       'chừa sẵn thì sau này nối AI không phải xếp lại cả trang');

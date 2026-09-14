@@ -408,6 +408,25 @@ async function api(req, res, u) {
           }))),
         ],
       };
+
+      /* ---- so với THÁNG TRƯỚC ----
+       *
+       * Chỉ tháng, không làm cho tuần: anh Hùng chốt vậy (14/09).
+       *
+       * Một con số đứng một mình không trả lời được gì — 152 giờ là nhiều hay
+       * ít? Phải có tháng trước đứng cạnh mới thành câu trả lời.
+       *
+       * Tháng đang chạy dở thì tháng trước cũng chỉ tính bằng ngần ấy ngày
+       * (xem K.mocSoSanh), không thì mùng 3 tháng nào cũng báo tụt 90%.
+       *
+       * Cộng thêm một kỳ nữa nhưng KHÔNG tốn thêm lượt gọi Lark: docTat() đang
+       * giữ đệm, hai lần cộng này ăn cùng một mẻ dữ liệu. */
+      if (d.ky.loai === 'thang') {
+        const moc = K.mocSoSanh(d.ky, Date.now());
+        const tTruoc = await kho.tongHop('thang', moc.mocMs, ai, false, moc.denToiDa);
+        ra.tongHop.kyTruoc = K.soSanh(t, tTruoc,
+          { nhan: tTruoc.ky.nhan, dayDu: moc.dayDu, soNgay: moc.soNgay });
+      }
     }
     return json(res, ra);
   }

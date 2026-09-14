@@ -373,6 +373,42 @@ function veHang(d) {
  * Ba bảng dữ liệu — đầu việc, các ngày đã nộp, những gì đã viết — dời hết vào
  * Sổ bên phải, bấm mới mở: "ấn mở ra thì mới mở ra, không cần hiện tràn ra".
  */
+/**
+ * Dải "so với tháng trước" — chỉ hiện ở báo cáo THÁNG.
+ *
+ * Hai con số anh Hùng chọn: tổng giờ và % định mức. Không tô màu cho giờ —
+ * nhiều giờ hơn chưa chắc là tốt hơn (có thể chỉ là tháng đó nhiều ngày làm
+ * hơn), nên để số trần, ai đọc tự hiểu. Chỉ % định mức mới tô, vì nó đã chia
+ * cho định mức của chính những ngày đã nộp nên so được thẳng.
+ *
+ * Tháng trước trống trơn thì NÓI THẲNG là chưa có gì để so. Vẽ "-100%" ở đó là
+ * bịa: hồi tháng 8 phòng chưa dùng app, không phải cả phòng nghỉ việc.
+ */
+function daiSoSanh(t) {
+  const s = t && t.kyTruoc;
+  if (!s) return '';
+  const vach = 'style="width:100%;border-top:1px solid var(--border);' +
+    'padding-top:9px;margin-top:3px"';
+  if (!s.coDuLieu) {
+    return '<div class="nho phu" ' + vach + '>' + esc(s.nhan) +
+      ' chưa có báo cáo nào — chưa so được.</div>';
+  }
+  const m = (nhan, gt, mau) => '<span class="m ' + (mau || '') + '">' +
+    esc(nhan) + ' <b>' + esc(gt) + '</b></span>';
+  /* Nói rõ đang so bao nhiêu ngày với bao nhiêu ngày. Thiếu câu này thì người
+   * đọc mặc định là hai tháng trọn vẹn, và mọi kết luận rút ra đều lệch. */
+  const pham = s.dayDu ? 'cả tháng' : s.soNgay + ' ngày đầu';
+  return '<div class="dai-so" ' + vach + '>' +
+    '<span class="nho phu">So với ' + esc(s.nhan) + ' (' + esc(pham) + '):</span>' +
+    m('Tổng giờ', s.chenhGio + ' · ' + s.tongGio) +
+    (s.chenhPhanTram == null
+      ? m('Định mức', 'chưa đo được')
+      : m('Định mức', (s.chenhPhanTram > 0 ? '+' : '') + s.chenhPhanTram +
+        ' điểm · ' + s.phanTram + '%',
+      s.chenhPhanTram > 0 ? 'xanh' : s.chenhPhanTram < 0 ? 'cam' : '')) +
+  '</div>';
+}
+
 function theTongHop(d) {
   const t = d.tongHop;
   if (!t) return '';
@@ -391,6 +427,7 @@ function theTongHop(d) {
       '</div>' +
       '<div class="lon"></div>' +
       '<button class="btn nho chinh" id="btnSo">Chi tiết kỳ →</button>' +
+      daiSoSanh(t) +
     '</div></div>';
 }
 

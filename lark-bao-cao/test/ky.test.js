@@ -310,6 +310,78 @@ group('Ai chưa nộp — câu anh Hùng hỏi mỗi chiều');
     'tuần có 7 ngày, trừ Chủ nhật còn 6');
 }
 
+group('So với kỳ trước — chỗ dễ đẻ ra con số vô nghĩa nhất');
+{
+  const thang9 = K.kyThang(K.tuNgayVN(2026, 9, 14));
+  const nay14 = K.tuNgayVN(2026, 9, 14) + 10 * K.GIO;
+
+  {
+    const m = K.mocSoSanh(thang9, nay14);
+    ok('lùi về đúng tháng liền trước', K.ky('thang', m.mocMs).nhan === 'Tháng 08/2026',
+      K.ky('thang', m.mocMs).nhan);
+    /* Bài chính. Tháng mới đi được 14 ngày mà đem đọ với trọn 31 ngày tháng 8
+     * thì tháng nào cũng "tụt" — con số đó chỉ nói lên rằng tháng chưa hết,
+     * không nói gì về người làm. */
+    ok('tháng đang chạy dở thì cắt tháng trước bằng đúng số ngày đã trôi',
+      m.soNgay === 14 && K.veNgay(m.denToiDa) === '14/08/2026',
+      m.soNgay + ' ngày · cắt tới ' + K.veNgay(m.denToiDa));
+    ok('và đánh dấu là chưa trọn kỳ để màn hình nói rõ', m.dayDu === false);
+  }
+
+  {
+    const m = K.mocSoSanh(thang9, K.tuNgayVN(2026, 10, 5));
+    ok('tháng đã xong thì lấy trọn tháng trước', m.denToiDa === null && m.dayDu === true);
+    ok('nói đúng tháng 9 có 30 ngày', m.soNgay === 30, String(m.soNgay));
+  }
+
+  {
+    /* Tháng trước NGẮN hơn: đứng ở 30/03 mà cắt 30 ngày thì tháng 2 không có
+     * đủ. Không được đòi ngày không tồn tại. */
+    const thang3 = K.kyThang(K.tuNgayVN(2026, 3, 30));
+    const m = K.mocSoSanh(thang3, K.tuNgayVN(2026, 3, 30) + 10 * K.GIO);
+    const truoc = K.ky('thang', m.mocMs);
+    ok('tháng trước ngắn hơn thì lấy hết tháng đó, không đòi thêm ngày',
+      m.denToiDa === truoc.den,
+      K.veNgay(m.denToiDa) + ' vs hết tháng ' + K.veNgay(truoc.den));
+  }
+
+  ok('chênh dương có dấu +', K.veChenhPhut(840) === '+14 giờ', K.veChenhPhut(840));
+  ok('chênh âm có dấu -', K.veChenhPhut(-150) === '-2 giờ 30', K.veChenhPhut(-150));
+  ok('bằng nhau thì nói không đổi', K.veChenhPhut(0) === 'không đổi');
+
+  {
+    const s = K.soSanh(
+      { tongPhut: 9120, phanTram: 94, soPhieuNgay: 12 },
+      { tongPhut: 8280, phanTram: 86, soPhieuNgay: 11 },
+      { nhan: 'Tháng 08/2026', dayDu: false, soNgay: 14 });
+    ok('tính đúng chênh giờ', s.chenhGio === '+14 giờ', s.chenhGio);
+    ok('tính đúng chênh điểm định mức', s.chenhPhanTram === 8, String(s.chenhPhanTram));
+    ok('kèm luôn số của tháng trước để hiện cạnh bên',
+      s.tongGio === '138 giờ' && s.phanTram === 86, s.tongGio + ' · ' + s.phanTram);
+  }
+
+  {
+    /* Chỗ nguy hiểm nhất, và đang là cảnh THẬT: app dựng 12/09 nên tháng 8
+     * không có phiếu nào. Vẽ ra "-100%" ở đó là bịa — hồi đó phòng chưa dùng
+     * app, không phải cả phòng nghỉ việc. */
+    const s = K.soSanh({ tongPhut: 9120, phanTram: 94, soPhieuNgay: 12 },
+      { tongPhut: 0, phanTram: null, soPhieuNgay: 0 }, { nhan: 'Tháng 08/2026' });
+    ok('tháng trước trống thì báo là chưa so được', s.coDuLieu === false);
+    ok('và KHÔNG đẻ ra con số chênh nào',
+      s.chenhPhut === null && s.chenhPhanTram === null,
+      JSON.stringify([s.chenhPhut, s.chenhPhanTram]));
+  }
+
+  {
+    /* Có phiếu nhưng không ai khai định mức: phần trăm là null. So giờ vẫn
+     * được, còn phần trăm phải chịu — null chứ không phải 0. */
+    const s = K.soSanh({ tongPhut: 600, phanTram: null, soPhieuNgay: 2 },
+      { tongPhut: 480, phanTram: null, soPhieuNgay: 2 }, { nhan: 'Tháng 08/2026' });
+    ok('thiếu định mức thì vẫn so được giờ', s.chenhGio === '+2 giờ', s.chenhGio);
+    ok('còn phần trăm để trống, không bịa số 0', s.chenhPhanTram === null);
+  }
+}
+
 console.log('\n' + '─'.repeat(56));
 console.log('  ' + pass + ' pass · ' + fail + ' fail');
 if (fail) { console.log('\n  Không đạt:'); fails.forEach((f) => console.log('   - ' + f)); }

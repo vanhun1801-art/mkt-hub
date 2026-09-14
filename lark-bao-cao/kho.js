@@ -346,9 +346,13 @@ async function ghiDong(ma, ngayMs, nguoi, sach) {
  * không phải số ngày công nhân 480, vì người nghỉ phép nửa tuần mà vẫn bị chia
  * cho cả tuần thì phần trăm nào cũng thành thảm hoạ.
  */
-async function tongHop(loaiKy, mocMs, nguoi, force) {
+async function tongHop(loaiKy, mocMs, nguoi, force, denToiDa) {
   const k = K.ky(loaiKy, mocMs);
-  const phieuNgay = (await dsPhieu({ loaiKy: 'ngay', nguoi, tu: k.tu, den: k.den }, force))
+  /* `denToiDa` chỉ dùng khi đem kỳ này ra LÀM NỀN so sánh: tháng này mới tới
+   * ngày 14 thì tháng trước cũng chỉ tính 14 ngày đầu — không thì kỳ nào đang
+   * chạy dở cũng trông như tụt dốc. Để trống là lấy trọn kỳ, y như cũ. */
+  const den = denToiDa == null ? k.den : Math.min(k.den, denToiDa);
+  const phieuNgay = (await dsPhieu({ loaiKy: 'ngay', nguoi, tu: k.tu, den }, force))
     .filter((p) => p.trangThai === C.trangThaiPhieu.daNop);
   const dong = await dsDong({ maPhieu: phieuNgay.map((p) => p.ma) }, force);
 
@@ -359,7 +363,7 @@ async function tongHop(loaiKy, mocMs, nguoi, force) {
   return {
     ky: k,
     soPhieuNgay: phieuNgay.length,
-    ngayThieu: K.ngayThieu(k.tu, Math.min(k.den, Date.now()), daNop),
+    ngayThieu: K.ngayThieu(k.tu, Math.min(den, Date.now()), daNop),
     ...g,
     phieuNgay,
     /* Trả cả dòng việc thô. Báo cáo tuần cần đọc lại từng đầu việc và từng
