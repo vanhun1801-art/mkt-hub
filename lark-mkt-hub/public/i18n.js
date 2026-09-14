@@ -751,6 +751,14 @@
     'số việc trong một ngày': 'tasks in a single day',
     'việc gấp / quá hạn': 'urgent / overdue',
 
+    /* Thêm chiến dịch ngay trong form giao việc (app Bảng công việc) */
+    '+ Thêm chiến dịch mới…': '+ Add a new campaign…',
+    'Tên chiến dịch mới…': 'New campaign name…',
+    'Đang thêm vào Base…': 'Adding it to the Base…',
+    'Chưa nhập tên chiến dịch.': 'No campaign name entered.',
+    'Chiến dịch này đã có sẵn — đã chọn sẵn.': 'That campaign already exists — selected it for you.',
+    'Tên chiến dịch dài quá 80 ký tự.': 'Campaign name is longer than 80 characters.',
+
     /* Sáu câu cuối còn sót của màn Cài đặt / Phân quyền — quét lại toàn bộ mười
      * mục trong Cài đặt thì chỉ còn đúng bấy nhiêu, phần còn lại đều là TÊN
      * NGƯỜI (dữ liệu thật, không được dịch). */
@@ -887,6 +895,7 @@
     [/^(\d+) khách$/, '$1 guests'],
     [/^(\d+) quản lý:$/, '$1 manager(s):'],
     [/^(\d+) quản lý$/, '$1 manager(s)'],
+    [/^Đã thêm chiến dịch "(.+)"$/, 'Added the campaign "$1"'],
   ];
 
   /* Vùng chứa DỮ LIỆU — không dịch bên trong, kể cả có trùng nhãn. */

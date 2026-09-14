@@ -1851,7 +1851,14 @@ function openAssign(t) {
   hopHan.appendChild(ngayInput(S.assignDl, (v) => { S.assignDl = v; }));
   fillNativeSelect($('#assignPriority'), o.priority, t.priority, '— Ưu tiên —');
   fillNativeSelect($('#assignType'), o.workType, t.workType, '— Loại việc —');
-  fillNativeSelect($('#assignCampaign'), o.campaign, t.campaign, '— Campain —');
+  /* Campain ở đây cũng phải thêm mới được, y như trong drawer — cùng một việc
+   * mà chỗ làm được chỗ không thì người dùng chỉ nhớ được "lúc được lúc không".
+   * Giữ giá trị trong S như hai ô kia của modal này (S.assignPick, S.assignDl),
+   * vì ô này không còn là <select> để đọc `.value`. */
+  S.assignCampaign = t.campaign || null;
+  const hopCd = $('#assignCampaign');
+  hopCd.innerHTML = '';
+  hopCd.appendChild(campaignInput(t.campaign, o.campaign, (v) => { S.assignCampaign = v; }));
   $('#assignMsg').textContent = '';
   openModal('mAssign');
 }
@@ -1882,7 +1889,7 @@ async function submitAssign() {
   if (pri) patch.priority = pri;
   const wt = $('#assignType').value;
   if (wt) patch.workType = wt;
-  const cp = $('#assignCampaign').value;
+  const cp = S.assignCampaign;
   if (cp) patch.campaign = cp;
 
   if (!Object.keys(patch).length) { msg.textContent = 'Chưa thay đổi gì.'; return; }
@@ -2379,7 +2386,17 @@ function textInput(value, onChange, type) {
 
 function selectInput(value, options, onChange, disabledSet) {
   const s = el('select');
-  s.appendChild(el('option', '', '—'));
+  /* Dòng "—" nghĩa là BỎ TRỐNG, nên value phải là chuỗi rỗng.
+   *
+   * `el('option', '', '—')` chỉ đặt textContent; option không có thuộc tính
+   * value thì trình duyệt lấy chính phần chữ làm giá trị. Nên `s.value` ra
+   * "—" — một chuỗi TRUTHY — và `onChange(s.value || null)` ở cuối hàm gửi đi
+   * đúng ký tự gạch ngang thay vì null. Quản lý muốn xoá Campain / Loại việc /
+   * Luồng của một việc thì lại ghi chữ "—" xuống cột select trong Base.
+   * `fillSelect` và `fillNativeSelect` đều đặt `value=''` — chỉ hàm này quên. */
+  const op0 = el('option', '', '—');
+  op0.value = '';
+  s.appendChild(op0);
   for (const o of options || []) {
     const op = el('option', '', o + (disabledSet && disabledSet.includes(o) ? '  (admin)' : ''));
     op.value = o;
@@ -2389,6 +2406,125 @@ function selectInput(value, options, onChange, disabledSet) {
   }
   s.onchange = () => onChange(s.value || null);
   return s;
+}
+
+/**
+ * Ô chọn Campain, có thêm lối tạo chiến dịch MỚI ngay tại chỗ.
+ *
+ * Vì sao phải làm: chiến dịch là thứ đời thật sinh ra liên tục, mà cột này là
+ * select của Base — trước đây muốn thêm một cái là phải rời app, mở Lark Base,
+ * sửa cột, rồi quay lại nạp lại trang. Quản lý đang đứng ở form giao việc thì
+ * chiến dịch mới phải tạo được ngay tại đó.
+ *
+ * Thiết kế: KHÔNG dùng prompt() — nó bị chặn trong iframe của Marketing Hub ở
+ * một số cấu hình, và trông không giống phần còn lại của app. Chọn dòng
+ * "+ Thêm chiến dịch mới…" thì ô select nhường chỗ cho một hàng nhập gọn.
+ */
+function campaignInput(value, options, onChange) {
+  const box = el('div', 'cd-box');
+  let dang = value || null;
+
+  function veChon() {
+    box.innerHTML = '';
+    const s = el('select');
+    /* Dòng trống phải có value="" HẲN HOI. `el('option','','—')` không đặt
+     * value, nên trình duyệt lấy chính chữ "—" làm giá trị — chọn "bỏ trống"
+     * là ghi ký tự gạch ngang vào Base. */
+    const op0 = el('option', '', '—');
+    op0.value = '';
+    s.appendChild(op0);
+    for (const o of options || []) {
+      const op = el('option', '', o);
+      op.value = o;
+      if (dang === o) op.selected = true;
+      s.appendChild(op);
+    }
+    /* Đánh dấu dòng "thêm mới" bằng data-, KHÔNG bằng một giá trị đặc biệt:
+     * tên chiến dịch là chữ người dùng tự gõ, nên mọi chuỗi "chắc không ai
+     * trùng" đều là một vụ cá cược không cần thiết. */
+    const opMoi = el('option', '', '+ Thêm chiến dịch mới…');
+    opMoi.value = '';
+    opMoi.dataset.moi = '1';
+    s.appendChild(opMoi);
+    s.onchange = () => {
+      const chon = s.options[s.selectedIndex];
+      if (chon && chon.dataset.moi === '1') {
+        /* Trả select về giá trị cũ TRƯỚC khi đổi sang hàng nhập: bỏ dở việc
+         * thêm mới thì phải quay về đúng cái đang chọn, không phải về "—". */
+        s.value = dang || '';
+        veNhap();
+        return;
+      }
+      dang = s.value || null;
+      onChange(dang);
+    };
+    box.appendChild(s);
+  }
+
+  function veNhap() {
+    box.innerHTML = '';
+    const hang = el('div', 'cd-them');
+    const i = el('input');
+    i.type = 'text';
+    i.placeholder = 'Tên chiến dịch mới…';
+    const nutThem = el('button', 'btn btn-primary btn-sm', 'Thêm');
+    const nutHuy = el('button', 'btn btn-ghost btn-sm', 'Huỷ');
+    const bao = el('div', 'ro-note', '');
+
+    const huy = () => veChon();
+    const them = async () => {
+      const ten = i.value.trim().replace(/\s+/g, ' ');
+      if (!ten) { i.focus(); return; }
+      nutThem.disabled = true; nutHuy.disabled = true;
+      bao.textContent = 'Đang thêm vào Base…';
+      bao.className = 'ro-note';
+      try {
+        const d = await req('/api/options/campaign', {
+          method: 'POST', body: JSON.stringify({ ten }),
+        });
+        /* Cập nhật danh sách dùng chung để mọi ô Campain khác (ô lọc, drawer
+         * đang mở) thấy ngay, khỏi phải F5. */
+        if (S.meta && S.meta.options) S.meta.options.campaign = d.options || [];
+        options = (S.meta && S.meta.options && S.meta.options.campaign) || options;
+        dang = d.ten;
+        onChange(dang);
+        toast(d.daCo ? 'Chiến dịch này đã có sẵn — đã chọn sẵn.' : 'Đã thêm chiến dịch "' + d.ten + '"');
+        veChon();
+        napLaiBoLocCampaign();
+      } catch (e) {
+        nutThem.disabled = false; nutHuy.disabled = false;
+        bao.textContent = e.message;
+        bao.className = 'ro-note loi';
+      }
+    };
+
+    nutThem.onclick = them;
+    nutHuy.onclick = huy;
+    i.onkeydown = (ev) => {
+      if (ev.key === 'Enter') { ev.preventDefault(); them(); }
+      if (ev.key === 'Escape') { ev.preventDefault(); huy(); }
+    };
+
+    hang.appendChild(i);
+    hang.appendChild(nutThem);
+    hang.appendChild(nutHuy);
+    box.appendChild(hang);
+    box.appendChild(bao);
+    i.focus();
+  }
+
+  veChon();
+  return box;
+}
+
+/* Ô lọc Campain trên thanh công cụ cũng phải có chiến dịch vừa thêm, không thì
+ * tạo xong lại không lọc ra được chính việc mình vừa tạo. */
+function napLaiBoLocCampaign() {
+  const sel = $('#fCampaign');
+  if (!sel || !S.meta || !S.meta.options) return;
+  const giu = sel.value;
+  fillSelect(sel, S.meta.options.campaign, 'Campain: tất cả');
+  sel.value = giu;
 }
 
 function onePersonInput(selected, onChange) {
@@ -2678,7 +2814,7 @@ function buildDrawer() {
 
   const r2 = el('div', 'row2');
   r2.appendChild(field('Loại công việc', selectInput(t.workType, o.workType, (v) => set('workType', v))));
-  r2.appendChild(field('Campain', selectInput(t.campaign, o.campaign, (v) => set('campaign', v))));
+  r2.appendChild(field('Campain', campaignInput(t.campaign, o.campaign, (v) => set('campaign', v))));
   b.appendChild(r2);
 
   const r3 = el('div', 'row2');
@@ -2769,7 +2905,7 @@ function buildCreateForm(b, t, o) {
     peopleDropdown(t.helper, (v) => set('helper', v), 'Chọn người hỗ trợ…')));
 
   const r3 = el('div', 'row2');
-  r3.appendChild(field('Campain', selectInput(t.campaign, o.campaign, (v) => set('campaign', v))));
+  r3.appendChild(field('Campain', campaignInput(t.campaign, o.campaign, (v) => set('campaign', v))));
   r3.appendChild(field('Người order', onePersonInput(t.requester, (v) => set('requester', v))));
   b.appendChild(r3);
 

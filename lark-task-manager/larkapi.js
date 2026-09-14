@@ -129,6 +129,17 @@ async function listFields(tableId = cfg.tableId) {
   return d.fields || d.items || [];
 }
 
+/**
+ * Sửa ĐỊNH NGHĨA một cột — cùng chữ ký với `lark.js` để server.js không phải
+ * biết đang chạy backend nào.
+ *
+ * PUT là toàn phần: thiếu ô nào trong `def` là ô đó mất. Nơi gọi dựng `def` từ
+ * chính bản đọc về của cột (xem `themLuaChon` trong server.js).
+ */
+async function updateField(fieldId, def, tableId = cfg.tableId) {
+  return call('PUT', baseUrl(tableId) + '/fields/' + fieldId, { body: def });
+}
+
 async function updateRecord(recordId, fields, tableId = cfg.tableId) {
   return call('POST', baseUrl(tableId) + '/records/batch_update', {
     body: { update_records: { [recordId]: fields } },
@@ -356,7 +367,7 @@ async function scopeUsers() {
 
 module.exports = {
   tenantToken, call, isTransient, whoami, scopeUsers, removeAttachment, sendMessage,
-  listAllRecords, listFields,
+  listAllRecords, listFields, updateField,
   updateRecord, updateMany, createRecord, deleteRecords,
   downloadAttachment, downloadAttachmentBuffer, uploadAttachment,
 };

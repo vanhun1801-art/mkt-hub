@@ -131,6 +131,24 @@ async function listFields(tableId = cfg.tableId) {
   return data.fields || [];
 }
 
+/**
+ * Sửa ĐỊNH NGHĨA một cột (dùng để thêm lựa chọn mới cho cột select).
+ *
+ * `+field-update` là PUT TOÀN PHẦN: thiếu ô nào trong `def` là ô đó mất. Nên
+ * nơi gọi phải dựng `def` từ chính bản đọc về của cột rồi chỉ thay đúng phần
+ * cần đổi — đừng bao giờ tự gõ lại từ đầu (xem `themLuaChon` trong server.js).
+ * `--yes` là bắt buộc: lark-cli coi đây là thao tác rủi ro cao.
+ */
+async function updateField(fieldId, def, tableId = cfg.tableId) {
+  return cli([
+    'base', '+field-update', ...baseArgs(),
+    '--table-id', tableId,
+    '--field-id', fieldId,
+    '--json', JSON.stringify(def),
+    '--yes',
+  ]);
+}
+
 async function updateRecord(recordId, fields, tableId = cfg.tableId) {
   return cli([
     'base', '+record-batch-update', ...baseArgs(),
@@ -228,6 +246,6 @@ async function scopeUsers() { return []; }
  * để không phải sửa từng chỗ gọi (store.js, quyen.js, sync/*.js...). */
 module.exports = cfg.mode === 'api' ? require('./larkapi') : {
   cli, isTransient, whoami, scopeUsers, removeAttachment, sendMessage, listAllRecords, listFields,
-  updateRecord, updateMany, createRecord, deleteRecords,
+  updateField, updateRecord, updateMany, createRecord, deleteRecords,
   downloadAttachment, uploadAttachment,
 };

@@ -10,6 +10,7 @@ const ppdoc = require('./ppdoc');
 const lark = cfg.mode === 'api' ? require('./larkapi') : require('./lark');
 const auth = require('./auth');
 const { dungBaoCao } = require('./baocao');
+const { themLuaChon } = require('./campaign');
 
 const F = cfg.fields;
 const BY_KEY = Object.entries(F);
@@ -1187,6 +1188,57 @@ async function api(req, res, url) {
       return json(res, { ok: true, managers: saved });
     } catch (e) {
       return json(res, { error: e.message }, 400);
+    }
+  }
+
+  /* ---------------- thêm một lựa chọn cho cột select ----------------
+   *
+   * Hiện chỉ mở cho cột Campain. Chiến dịch là thứ ĐỜI THẬT sinh ra liên tục
+   * ("Quốc Khánh [10/08 - 02/09/2026]", "CT 7-8-9 …"), mà trước đây muốn thêm
+   * một cái là phải rời app, mở Lark Base, sửa cột. Quản lý đang đứng ở form
+   * giao việc thì chiến dịch mới phải tạo được ngay tại đó.
+   *
+   * VÌ SAO KHÔNG MỞ CHO MỌI CỘT SELECT: Trạng thái / Độ ưu tiên / Luồng là
+   * LUẬT của app — `cfg.statusOrder`, `cfg.staffStatuses`, `cfg.proofRequiredFor`
+   * đều kê tên từng giá trị. Thêm một trạng thái lạ từ giao diện là sinh ra một
+   * giá trị không luật nào biết tới, và nó sẽ rơi ra ngoài mọi bộ lọc mà không
+   * báo gì. Chiến dịch thì ngược lại: app không suy luận gì từ tên nó cả.
+   */
+  if (p === '/api/options/campaign' && req.method === 'POST') {
+    if (!(await requireManager(res, req))) return;
+    const body = await readBody(req);
+    /* Gộp khoảng trắng thừa: "Quốc  Khánh" và "Quốc Khánh" mà thành hai chiến
+     * dịch khác nhau thì báo cáo tách đôi, và không ai nhìn ra vì sao. */
+    const ten = String(body.ten || '').trim().replace(/\s+/g, ' ');
+    if (!ten) return json(res, { error: 'Chưa nhập tên chiến dịch.' }, 400);
+    if (ten.length > 80) return json(res, { error: 'Tên chiến dịch dài quá 80 ký tự.' }, 400);
+
+    try {
+      // đọc LẠI từ Base, không dùng đệm: người khác có thể vừa thêm cái trùng
+      const fields = await getFields(true);
+      const raw = fields.find((x) => x.id === F.campaign.id);
+      if (!raw) return json(res, { error: 'Không tìm thấy cột "' + F.campaign.name + '" trong Base.' }, 500);
+
+      const kq = themLuaChon(raw, ten);
+      if (kq.daCo) {
+        return json(res, { ok: true, ten: kq.ten, daCo: true, options: kq.options });
+      }
+      await lark.updateField(F.campaign.id, kq.def);
+
+      const moi = await getFields(true);
+      const sau = (moi.find((x) => x.id === F.campaign.id) || {}).options || def.options;
+      return json(res, { ok: true, ten, options: sau.map((o) => o.name) });
+    } catch (e) {
+      /* Thiếu scope sửa cột là lỗi hay gặp nhất ở đây, và câu Lark trả về
+       * ("Access denied … scopes are required") không nói phải làm gì. */
+      const thieu = /Access denied|permission|scope|99991672|91403/i.test(String(e.message || ''));
+      return json(res, {
+        error: thieu
+          ? 'App chưa được cấp quyền sửa cột của Base. Mở Lark Developer Console → ' +
+            'app này → Quyền hạn, thêm quyền sửa cấu trúc Base rồi phát hành lại. ' +
+            'Tạm thời thêm chiến dịch trực tiếp trong Lark Base.'
+          : e.message,
+      }, 400);
     }
   }
 

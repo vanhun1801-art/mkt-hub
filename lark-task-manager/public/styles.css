@@ -880,6 +880,15 @@ td.c-check { width: 34px; }
 .ro-grid dt { color: var(--text-2); font-size: 11.5px; }
 .ro-grid dd { margin: 0; word-break: break-word; }
 .ro-note { font-size: 11.5px; color: var(--text-2); margin-top: 6px; line-height: 1.55; }
+.ro-note.loi { color: var(--red-text); }
+
+/* Ô Campain có lối thêm chiến dịch mới ngay tại chỗ: bình thường là một ô
+ * chọn, bấm "+ Thêm chiến dịch mới…" thì đổi thành hàng nhập này. Cùng chiều
+ * cao với ô chọn nên khung không nhảy lúc đổi qua lại. */
+.cd-box > select { width: 100%; }
+.cd-them { display: flex; gap: 6px; align-items: center; }
+.cd-them input { flex: 1; min-width: 0; }
+.btn-sm { padding: 5px 10px; font-size: 12.5px; }
 .section-title {
   font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
   color: var(--text-2); margin: 4px 0 -4px;
