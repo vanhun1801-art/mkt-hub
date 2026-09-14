@@ -34,14 +34,45 @@ const APP = [
     mau: '#00b96b', url: process.env.KPI_URL_LICH || 'http://localhost:5174' },
 ];
 
-function goi(url, giay = 30) {
+/**
+ * Hỏi một app con.
+ *
+ * PHẢI GỬI KÈM DANH TÍNH. App Tracking có lớp đăng nhập riêng (auth.js) và ở chế
+ * độ api nó chặn mọi /api/ khi không biết người gọi là ai — gọi trần thì nhận
+ * HTTP 401 và ô "Bảng công việc" trong báo cáo trống trơn. Anh Hùng gặp đúng
+ * cảnh này 14/09/2026. Bốn app kia không có lớp đó nên lâu nay không lộ.
+ *
+ * Danh tính gửi đi là CHÍNH người đang xem báo cáo, không phải một tài khoản
+ * dịch vụ: đường /api/bao-cao vốn đã chặn ai không phải trưởng phòng, nên đây
+ * chỉ là chuyển tiếp cái hub đã chốt, không tự phong quyền cho ai.
+ *
+ * Header y hệt bộ hub đặt khi proxy (xem lark-mkt-hub/proxy.js) — app con không
+ * phải học thêm cách nhận danh tính thứ hai.
+ */
+function goi(app, duong, giay = 30) {
+  const url = app.url + duong;
+  const nguoi = app.nguoi || null;
+  const headers = { Accept: 'application/json' };
+  if (nguoi && nguoi.id) {
+    headers['x-hub-user-id'] = nguoi.id;
+    headers['x-hub-user-name'] = encodeURIComponent(nguoi.ten || nguoi.id);
+    if (nguoi.quanLy) headers['x-hub-user-manager'] = '1';
+  }
   return new Promise((giai, tu) => {
     const mod = url.startsWith('https') ? https : http;
-    const req = mod.get(url, { headers: { Accept: 'application/json' } }, (res) => {
+    const req = mod.get(url, { headers }, (res) => {
       let s = '';
       res.on('data', (c) => { s += c; });
       res.on('end', () => {
-        if (res.statusCode >= 400) return tu(new Error('HTTP ' + res.statusCode));
+        /* Kèm câu app con viết ra, đừng chỉ trả con số. "HTTP 401" một mình
+         * không nói được là chưa đăng nhập hay hết quyền — mà đó lại đúng là
+         * thứ người đọc cần biết để đi sửa. */
+        if (res.statusCode >= 400) {
+          let vi = '';
+          try { const d = JSON.parse(s); vi = d && d.error ? ' — ' + d.error : ''; }
+          catch (_) { vi = s ? ' — ' + s.slice(0, 120) : ''; }
+          return tu(new Error('HTTP ' + res.statusCode + vi));
+        }
         try { giai(JSON.parse(s)); } catch (_) { tu(new Error('trả về không phải JSON')); }
       });
     });
@@ -50,7 +81,27 @@ function goi(url, giay = 30) {
   });
 }
 
-const so = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+/**
+ * Ép về số để cộng.
+ *
+ * NHẬN CẢ CHUỖI SỐ. Năm app trả JSON theo năm cách, và ô công thức của Lark Base
+ * hay về dạng chuỗi ("9.416666667") — bản trước chỉ nhận `typeof v === 'number'`
+ * nên những ô đó cộng ra đúng 0 mãi mà vẫn báo "đọc được". Im lặng sai, đúng thứ
+ * đầu file này dặn là không được làm. Chuỗi không phải số (VD "9 giờ") vẫn ra 0.
+ *
+ * Nhưng nhận được không có nghĩa là cộng được: ô công thức của Base còn trả số
+ * rác khi thiếu đầu vào (xem docLich — cột `hours` ra -1.110.497 cho buổi chưa
+ * có giờ kết thúc). Chỉ số nào có luật riêng thì tính theo luật của app sở hữu
+ * nó, đừng cộng thẳng cả cột.
+ */
+const so = (v) => {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
+  if (typeof v === 'string' && v.trim() !== '') {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
+};
 const q = (tu, den) => '?from=' + encodeURIComponent(tu) + '&to=' + encodeURIComponent(den);
 const msOf = (v) => (v == null || v === '' ? 0 : typeof v === 'number' ? v : Date.parse(v) || 0);
 const nhanOf = (v) => (v && typeof v === 'object' ? (v.text || v.name || '') : (v || ''));
@@ -103,7 +154,7 @@ function kyTruoc(tu, den) {
 
 /* ================= SOCIAL ================= */
 async function docSocial(app, tu, den) {
-  const d = await goi(app.url + '/api/tong-quan' + q(tu, den));
+  const d = await goi(app, '/api/tong-quan' + q(tu, den));
   const t = d.tong || {};
   const l = d.doi || {};
   const nt = d.nenTang || [];
@@ -175,7 +226,7 @@ async function docSocial(app, tu, den) {
 
 /* ================= QUẢNG CÁO ================= */
 async function docQuangCao(app, tu, den) {
-  const d = await goi(app.url + '/api/overview' + q(tu, den));
+  const d = await goi(app, '/api/overview' + q(tu, den));
   const k = d.kpi || {};
   const l = d.delta || {};
   const canh = d.alerts || [];
@@ -241,7 +292,7 @@ async function docOta(app, tu, den) {
   /* Lọc theo NGÀY ĐI như hub, không phải ngày đặt: báo cáo vận hành quan tâm
    * tour chạy trong kỳ. */
   const qq = '?moc=ngayDi&from=' + encodeURIComponent(tu) + '&to=' + encodeURIComponent(den);
-  const d = await goi(app.url + '/api/thongke' + qq);
+  const d = await goi(app, '/api/thongke' + qq);
   const t = d.tong || {};
   /* OTA không có "nền tảng" mà có SÀN — cùng ý nghĩa: sàn nào góp vào con số này. */
   const n = (khoa) => gopNen(d.kenh || [], khoa, 'kenh');
@@ -295,7 +346,7 @@ async function docOta(app, tu, den) {
 
 /* ================= BẢNG CÔNG VIỆC ================= */
 async function docCongViec(app, tu, den) {
-  const d = await goi(app.url + '/api/tasks');
+  const d = await goi(app, '/api/tasks');
   const ds = d.tasks || [];
   const a = new Date(tu + 'T00:00:00Z').getTime();
   const b = new Date(den + 'T23:59:59Z').getTime();
@@ -360,7 +411,7 @@ async function docLich(app, tu, den) {
    * from/to, nên lọc theo `start` ở đây. Bản đầu đoán các khoá `tong`/`choDuyet`
    * không tồn tại nên ô nào cũng ra 0 mà vẫn báo "đọc được" — im lặng sai còn
    * tệ hơn báo lỗi. */
-  const d = await goi(app.url + '/api/meta');
+  const d = await goi(app, '/api/meta');
   const it = (d.items || []).filter((x) => {
     const ng = String(x.start || '').slice(0, 10);
     return ng && ng >= tu && ng <= den;
@@ -368,6 +419,24 @@ async function docLich(app, tu, den) {
   const dem = (...tt) => it.filter((x) => tt.includes(nhanOf(x.status))).length;
   const huy = dem('Hủy lịch', 'Từ chối', 'Từ chối/Cần điều chỉnh');
   const cong = (f) => it.reduce((s, x) => s + so(x[f]), 0);
+
+  /* GIỜ TÁC NGHIỆP TỰ TÍNH TỪ start/end, KHÔNG lấy cột `hours`.
+   *
+   * `hours` là ô công thức của Base: (kết thúc − bắt đầu). Buổi nào chưa nộp báo
+   * cáo thì chưa có giờ kết thúc, và công thức lấy 0 trừ đi mốc bắt đầu, ra
+   * -1.110.497 "giờ". Cộng cả cột lên là con số vô nghĩa.
+   *
+   * Dùng đúng luật của app sở hữu chỉ số này (realHours trong Lịch tác nghiệp):
+   * chỉ tính buổi có ĐỦ hai đầu và kết thúc sau bắt đầu. Buổi chưa xong thì
+   * không góp giờ — và ô ghi rõ bao nhiêu trên bao nhiêu buổi đã góp, để không
+   * ai đọc con số này như giờ của cả kỳ. */
+  let soBuoiCoGio = 0;
+  const gioThuc = it.reduce((s, x) => {
+    const a = Date.parse(x.start), b = Date.parse(x.end);
+    if (!Number.isFinite(a) || !Number.isFinite(b) || b <= a) return s;
+    soBuoiCoGio += 1;
+    return s + (b - a) / 36e5;
+  }, 0);
   const tt = gomTheo(it, (x) => nhanOf(x.status) || '(trống)', []);
   return {
     o: [
@@ -377,7 +446,10 @@ async function docLich(app, tu, den) {
       { nhan: 'Duyệt / chờ tác nghiệp', so: dem('Duyệt/Chờ tác nghiệp'), dinhDang: 'so' },
       { nhan: 'Chờ duyệt', so: dem('Chờ duyệt/Xử lý', 'Đang lên kế hoạch'), dinhDang: 'so', muc: 'vua' },
       { nhan: 'Huỷ / từ chối', so: huy, dinhDang: 'so', dao: true, muc: huy ? 'vua' : 'ok' },
-      { nhan: 'Giờ tác nghiệp', so: cong('hours'), dinhDang: 'so2', ghi: 'giờ' },
+      { nhan: 'Giờ tác nghiệp', so: Math.round(gioThuc * 10) / 10, dinhDang: 'so2',
+        ghi: soBuoiCoGio === it.length
+          ? 'giờ'
+          : 'giờ · ' + soBuoiCoGio + '/' + it.length + ' buổi đã có giờ kết thúc' },
       { nhan: 'Chi phí thực tế', so: cong('costActual'), dinhDang: 'vnd', dao: true },
       { nhan: 'Dự toán', so: cong('costPlan'), dinhDang: 'vnd' },
       { nhan: 'Chênh dự toán', so: cong('costActual') - cong('costPlan'), dinhDang: 'vnd', dao: true },
@@ -408,12 +480,13 @@ const BO_DOC = {
   'lich-tac-nghiep': docLich,
 };
 
-async function gom(tu, den) {
+/** @param {{id,ten,quanLy}} nguoi Người đang xem — gửi kèm cho app con biết ai hỏi. */
+async function gom(tu, den, nguoi) {
   const truoc = kyTruoc(tu, den);
   const base = await Promise.all(APP.map(async (app) => {
     const nen = { id: app.id, ten: app.ten, mo: app.mo, mau: app.mau };
     try {
-      const r = await BO_DOC[app.id](app, tu, den);
+      const r = await BO_DOC[app.id]({ ...app, nguoi }, tu, den);
       return { ...nen, chay: true, bang: [], chuoi: null, tron: null, luuY: [], ...r };
     } catch (e) {
       return { ...nen, chay: false, loi: e.message, o: [], bang: [], chuoi: null, tron: null, luuY: [] };
@@ -436,9 +509,9 @@ async function gom(tu, den) {
  * trả `lech`, ba app kia thì không — chỉ hiện lệch cho hai app thì báo cáo khập
  * khiễng, chỗ có chỗ không.
  */
-async function gomSoSanh(tu, den) {
+async function gomSoSanh(tu, den, nguoi) {
   const kt = kyTruoc(tu, den);
-  const [nay, truoc] = await Promise.all([gom(tu, den), gom(kt.tu, kt.den)]);
+  const [nay, truoc] = await Promise.all([gom(tu, den, nguoi), gom(kt.tu, kt.den, nguoi)]);
   nay.base.forEach((b) => {
     const bt = truoc.base.find((x) => x.id === b.id);
     (b.o || []).forEach((o) => {
