@@ -24,6 +24,7 @@ const quyen = require('./quyen');
 const viTri = require('./vi-tri');
 const { chuyenTiep, goiJson } = require('./proxy');
 const tbApp = require('./thongbao-app');
+const nhomLark = require('./nhom-lark');
 const nen = require('./nen');
 
 const PUBLIC = path.join(__dirname, 'public');
@@ -1129,11 +1130,30 @@ async function api(req, res, u) {
        * được "ai đọc lúc nào" mà không phải đọc lại Base lần nữa. */
       const danhBa = await danhBaMoiApp(nguoiQL).catch(() => []);
       const ten = new Map(danhBa.map((x) => [x.id, x.ten]));
+
+      /* Ai thuộc phòng MKT — để form soạn tick sẵn đúng những người đó.
+       *
+       * Khớp Ở ĐÂY chứ không đẩy hai danh sách xuống trình duyệt rồi so bên đó:
+       * luật khớp (theo id, lùi về tên, xử trùng tên) là chỗ dễ sai và phải
+       * thử được bằng `node test/nhom-mkt.test.js`. Trình duyệt chỉ nhận một
+       * mảng id đã chốt. */
+      const nhom = await nhomLark.thanhVien(u.searchParams.get('refresh') === '1')
+        .catch((e) => ({ nhom: 'Phòng MKT', nguoi: [], nguon: '', luc: 0, loi: e.message }));
+      const khop = nhomLark.khopDanhBa(danhBa, nhom.nguoi);
+
       return ok(res, {
         ds: ds.map((tb) => Object.assign({}, tb, {
           daDoc: [...tb.daDoc.entries()].map(([id, luc]) => ({ id, ten: ten.get(id) || id, luc })),
         })),
         danhBa,
+        /* Người trong nhóm chat "Phòng MKT". `ids` là để tick sẵn; `thieu` là
+         * người ở trong nhóm mà hub chưa thấy trong app nào — họ KHÔNG có ô để
+         * tick, nên phải nói ra thay vì lặng lẽ bỏ sót. */
+        nhomMkt: {
+          ten: nhom.nhom, nguon: nhom.nguon, luc: nhom.luc, loi: nhom.loi,
+          soNguoi: nhom.nguoi.length,
+          ids: khop.ids, thieu: khop.thieu, trungTen: khop.trungTen,
+        },
         loiBang,
         coBang: tbApp.coBang(),
         thieuCot: await tbApp.cotThieu(),

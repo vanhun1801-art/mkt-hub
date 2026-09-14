@@ -463,6 +463,44 @@ riêng ba thứ:
 | **Khoảng hiển thị** | Từ ngày – đến ngày. Ngoài khoảng thì không hiện, khỏi phải nhớ vào tắt. "Đến ngày" tính **hết** ngày đó. |
 | **Gửi cho** | Cả phòng (`*`), hoặc tick từng người — cùng quy ước với ô "Base được xem". |
 
+### "Gửi cho" mở ra là đã tick sẵn nhóm Phòng MKT
+
+Danh bạ hub gom người từ **mọi app**, nên trong đó có cả Điều hành, kế toán, các
+phòng khác — 37 người, trong khi phòng Marketing có 10. Soạn thông báo nội bộ mà
+phải tự dò 10 cái tên trong 37 dòng thì lần nào cũng sót một người.
+
+Nên thông báo **mới** mở ra đã tick sẵn đúng những người trong nhóm chat
+**Phòng MKT**, và ô "Cả phòng" **tắt** (bật nó thì máy chủ ghi người nhận là `*`,
+mọi ô tick bên dưới bị bỏ qua — tick sẵn sẽ thành vô nghĩa). Muốn gửi thêm ai
+ngoài phòng thì gõ tên vào ô lọc rồi tick; nút **Tick lại đúng nhóm Phòng MKT**
+trả về đúng nhóm nếu lỡ tay.
+
+**Sửa** một thông báo cũ thì không đụng vào danh sách đã lưu — đó là quyết định
+của lần soạn đó, tự ý tick thêm là gửi cho người không định gửi.
+
+Nguồn danh sách là **nhóm chat**, không khai tay trong mã: nhóm chat mới là nơi
+người vào/người nghỉ được cập nhật thật. `nhom-lark.js` đi ba đường, theo thứ tự:
+
+1. Hỏi Lark — máy cá nhân qua phiên `lark-cli`, bản deploy qua token app.
+2. Hỏng thì lấy **bản lưu** `du-lieu/nhom-mkt.json` (chỉ tên, có trong kho nên
+   bản deploy dùng được ngay ngày đầu). Panel nói rõ đang dùng bản lưu ngày nào.
+3. Hỏng cả hai thì quay về mặc định cũ "Cả phòng", **kèm lý do** hiện trên form.
+
+Đường 1 có thể hỏng ở bản deploy: `im:chat.members:read` và **người gọi phải ở
+trong nhóm** — app Marketing Hub chưa được thêm vào nhóm thì Lark từ chối. Đó là
+lý do có đường 2, và là việc phải làm nếu muốn danh sách luôn tươi trên Render.
+
+Khớp theo `open_id` trước, **lùi về tên** khi id lệch — id cấp theo từng app nên
+id đọc ở máy cá nhân khác id của bản deploy cho cùng một người. Trùng tên thì
+**không tick bừa**, mà báo ra để tự tick. Người ở trong nhóm mà hub chưa thấy ở
+app nào (chưa dùng app nào bao giờ) thì **không có ô để tick** — form nói thẳng
+tên họ ra, vì im lặng bỏ sót một người là lỗi không ai phát hiện được.
+
+| Biến môi trường | Mặc định | Nghĩa |
+|---|---|---|
+| `HUB_NHOM_MKT` | `oc_246eff4a…0465` | nhóm chat dùng làm "phòng MKT" |
+| `HUB_NHOM_MKT_TEN` | `Phòng MKT` | tên hiện trên form |
+
 Một lúc chỉ hiện **một** thông báo, Gấp trước. Dồn năm cái vào một màn hình thì
 người ta cuộn qua rồi bấm cho xong, đúng cái cần tránh.
 
@@ -651,10 +689,12 @@ trong Lark**, không liên quan tới vai quản lý/nhân sự bên trong từn
 | `base-lark.js` | **lớp gọi Lark Base dùng chung** — `bang(baseToken, tableId)` cho api/cli; mọi bảng của hub đi qua đây |
 | `quyen.js` | bảng Phân quyền: ai thấy base nào, ai quản trị base nào |
 | `thongbao-app.js` | bảng Thông báo chặn màn hình: ai nhận, còn hiệu lực không, ai đã đọc |
+| `nhom-lark.js` | thành viên nhóm chat Phòng MKT — để form soạn thông báo tick sẵn đúng phòng |
 | `public/index.html` · `styles.css` · `app.js` · `icons.js` | panel base, sân khấu iframe, trang Tổng quan chung, modal Cài đặt / Thêm base / Log |
 | `test/api.test.js` | kiểm thử chỉ đọc |
 | `test/bot.test.js` | kiểm thử lớp `/bot`: token, chỉ GET, và **không một đồng nào lọt ra** |
 | `test/tb-app.test.js` | thông báo chặn màn hình: ai bị chặn, chặn tới khi nào, và canh va chạm tên giữa các tệp `public/` |
+| `test/nhom-mkt.test.js` | khớp nhóm chat vào danh bạ: tick thiếu và tick thừa đều im lặng nên phải thử |
 | `test/nen.test.js` | nén: thương lượng `Accept-Encoding`, SSE không bị nén, và **giải ra khớp từng byte** |
 | `test/dem-kpi.test.js` | đệm chỉ số: gộp lượt đang bay, trả số cũ rồi đọc lại, có trần, đời của đệm |
 

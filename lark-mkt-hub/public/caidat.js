@@ -734,9 +734,66 @@ function moAiDaXem(tb) {
   $('#tbAiQuay').onclick = () => { modalCaiDat('thong-bao'); };
 }
 
+/**
+ * Dòng chú thích dưới danh sách người nhận: nói rõ vì sao mấy ô kia đã tick sẵn,
+ * và nói ra những người trong nhóm mà hub KHÔNG có ô để tick.
+ *
+ * Người thứ 11 vào nhóm hôm qua mà chưa dùng app nào thì hub chưa biết họ —
+ * không có ô, không ai nhận ra, và họ không nhận được thông báo nào. Đây là
+ * chỗ duy nhất chuyện đó lộ ra.
+ */
+function tbGhiNhom(nhom, san, moi) {
+  const ten = esc(nhom.ten || 'Phòng MKT');
+  let h = '';
+  if (san.length) {
+    h += '<div class="q-ghi-nho">' +
+      (moi ? '<b>Đã tick sẵn ' + san.length + ' người trong nhóm ' + ten + '.</b> ' : '') +
+      'Cần gửi thêm ai ngoài nhóm thì gõ tên vào ô lọc rồi tick. ' +
+      '<button class="btn nho ghost" id="tbNhom" style="margin-top:5px">Tick lại đúng nhóm ' +
+      ten + '</button></div>';
+  } else {
+    h += '<div class="q-ghi-nho" style="color:var(--do)">Chưa đọc được nhóm ' + ten +
+      ' nên không tick sẵn được ai — đang để mặc định "Cả phòng".' +
+      (nhom.loi ? ' ' + esc(nhom.loi) : '') + '</div>';
+  }
+  if (nhom.nguon === 'luu') {
+    h += '<div class="q-ghi-nho" style="color:var(--vang)">Danh sách nhóm là <b>bản lưu</b>' +
+      (nhom.luc ? ' ngày ' + esc(ngayO(nhom.luc).split('-').reverse().join('/')) : '') +
+      ', không phải bản vừa đọc từ Lark' + (nhom.loi ? ': ' + esc(nhom.loi) : '') +
+      '. Ai mới vào nhóm sau mốc đó sẽ không được tick.</div>';
+  }
+  if ((nhom.thieu || []).length) {
+    h += '<div class="q-ghi-nho" style="color:var(--vang)">Trong nhóm nhưng hub chưa thấy ' +
+      'ở app nào nên <b>không có ô để tick</b>: ' + nhom.thieu.map(esc).join(', ') +
+      '. Họ sẽ không nhận được thông báo này.</div>';
+  }
+  if ((nhom.trungTen || []).length) {
+    h += '<div class="q-ghi-nho" style="color:var(--vang)">Trùng tên nên không dám tick hộ: ' +
+      nhom.trungTen.map(esc).join(', ') + ' — tự tick đúng người giúp anh.</div>';
+  }
+  return h;
+}
+
 function moFormTb(tb) {
   const d = TBQL || {};
-  TBSUA = tb || { mucDo: 'Tin', moiAi: true, ai: [], bat: true };
+  const nhom = d.nhomMkt || {};
+  /* Anh Hùng: "nên để các thành viên chọn sẵn là những người có trong nhóm
+   * phòng MKT, còn muốn tìm kiếm thêm anh sẽ tự search".
+   *
+   * Nên thông báo MỚI mở ra là đã tick sẵn nhóm phòng — và "Cả phòng" phải BỎ
+   * tick, vì tick nó thì máy chủ ghi người nhận là `*` và mọi ô tick bên dưới
+   * bị bỏ qua; tick sẵn mà vẫn gửi cho tất cả thì còn tệ hơn không tick.
+   *
+   * Đọc nhóm hỏng (app chưa ở trong nhóm, mà cũng không có bản lưu) thì QUAY
+   * VỀ mặc định cũ "Cả phòng": mở form ra không ai được tick thì lưu sẽ bị chặn
+   * vì "chưa chọn người nhận", và quản lý không hiểu vì sao.
+   *
+   * SỬA một thông báo cũ thì không đụng vào: danh sách người nhận đã lưu là
+   * quyết định của lần soạn đó, tự ý tick thêm là gửi cho người không định gửi. */
+  const sanNhom = (nhom.ids || []).slice();
+  TBSUA = tb || (sanNhom.length
+    ? { mucDo: 'Tin', moiAi: false, ai: sanNhom, bat: true }
+    : { mucDo: 'Tin', moiAi: true, ai: [], bat: true });
   const t = TBSUA;
   const db = d.danhBa || [];
   const hang = (nhan, noi, ghi) =>
@@ -780,10 +837,12 @@ function moFormTb(tb) {
       '<span>Cả phòng</span><small class="q-nhat">— kể cả người vào sau này</small></label>' +
     '<input class="q-in q-loc" id="tbLoc" type="text" placeholder="Lọc theo tên…">' +
     '<div class="q-nhom q-nhom-cuon" id="tbAi">' + db.map((x) =>
-      '<label class="q-ck" data-ten="' + esc(String(x.ten).toLowerCase()) + '">' +
+      '<label class="q-ck' + (sanNhom.includes(x.id) ? ' q-ck-nhom' : '') + '"' +
+      ' data-ten="' + esc(String(x.ten).toLowerCase()) + '">' +
       '<input type="checkbox" data-ai="' + esc(x.id) + '"' +
         ((t.ai || []).includes(x.id) ? ' checked' : '') + '>' +
-      '<span>' + esc(x.ten) + '</span></label>').join('') + '</div>');
+      '<span>' + esc(x.ten) + '</span></label>').join('') + '</div>' +
+    tbGhiNhom(nhom, sanNhom, !tb));
 
   html += hang('Bật',
     '<label class="q-ck q-ck-manh"><input type="checkbox" id="tbBat"' +
@@ -801,6 +860,17 @@ function moFormTb(tb) {
   const dongBo = () => { $('#tbAi').classList.toggle('q-mo-het', ckMoi.checked); };
   ckMoi.onchange = dongBo;
   dongBo();
+  /* Tick lại đúng nhóm: bỏ hết rồi tick lại theo nhóm, KHÔNG cộng thêm. Cộng
+   * thêm thì bấm xong vẫn còn người đã bỏ ra — nút không làm đúng điều nó nói. */
+  const nutNhom = $('#tbNhom');
+  if (nutNhom) {
+    nutNhom.onclick = () => {
+      ckMoi.checked = false;
+      dongBo();
+      $$('#tbAi [data-ai]').forEach((x) => { x.checked = sanNhom.includes(x.dataset.ai); });
+      toast('Đã tick ' + sanNhom.length + ' người trong nhóm ' + (nhom.ten || 'Phòng MKT'), 'luc');
+    };
+  }
   const oLoc = $('#tbLoc');
   oLoc.oninput = () => {
     const q = oLoc.value.trim().toLowerCase();

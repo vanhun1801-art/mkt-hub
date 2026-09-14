@@ -962,6 +962,11 @@ code { background: var(--trang-2); border: 1px solid var(--vien-mem); border-rad
 .q-ck-manh { color: var(--chu); font-weight: 600; margin-bottom: 6px; }
 .q-nhom.q-mo-het { opacity: .42; pointer-events: none; }
 
+/* Người trong nhóm chat "Phòng MKT" — đậm hơn một chút để phân biệt với người
+   ngoài phòng cũng có mặt trong danh bạ (Điều hành, kế toán, các phòng khác).
+   Chỉ đậm chữ, KHÔNG đổi màu: màu ở đây đang mang nghĩa "cảnh báo". */
+.q-ck-nhom { color: var(--chu); font-weight: 600; }
+
 /* Danh sách người cho "Xem tải của ai": ~36 người thì không thể đổ hết ra
    form, nên cuộn trong khối và có ô lọc ngay trên. */
 .q-nhom-cuon { max-height: 200px; overflow-y: auto; padding-right: 4px; }
