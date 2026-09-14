@@ -72,10 +72,33 @@ const PHIEU_TUAN = Object.assign({}, PHIEU_NGAY, {
   dong: [],
   tongHop: {
     soPhieuNgay: 3, tongPhut: 1080, tongGio: '18 giờ',
-    dinhMucPhut: 1440, phanTram: 75,
-    theoNhom: [{ ten: 'Thiết kế', phut: 720 }, { ten: 'Edit video', phut: 360 }],
+    dinhMucPhut: 1440, dinhMucGio: '24 giờ', phanTram: 75,
+    theoNhom: [{ ten: 'Thiết kế', phut: 720, gio: '12 giờ' },
+      { ten: 'Edit video', phut: 360, gio: '6 giờ' }],
     ngayThieu: [{ ms: nay - 2 * NGAY, nhan: 'Thứ 5 10/09/2026' }],
     phieuNgay: [],
+    viec: [
+      { ten: 'Thiết kế logo', maViec: 'r1', nhom: 'Thiết kế', tongPhut: 720,
+        gio: '12 giờ', soNgay: 3, ptDau: 30, ptCuoi: 70, trangThai: 'Đang làm',
+        dungYen: false, ghiChu: [] },
+      /* Việc đứng yên — thứ người viết báo cáo tuần cần bị đập vào mắt. */
+      { ten: 'Kịch bản Rạch Vẹm', maViec: '', nhom: 'Kịch bản', tongPhut: 360,
+        gio: '6 giờ', soNgay: 2, ptDau: 40, ptCuoi: 40, trangThai: 'Đang làm',
+        dungYen: true, ghiChu: [] },
+    ],
+    theoNgay: [
+      { tu: nay - 3 * NGAY, nhan: 'Thứ 4 09/09/2026', tongGio: '8 giờ', phanTram: 100,
+        trangThaiHan: 'dung-han', veHan: 'Đúng hạn', nhanDinh: 'chạy tốt',
+        keHoach: '', canHoTro: '', soViec: 2 },
+      { tu: nay - NGAY, nhan: 'Thứ 6 11/09/2026', tongGio: '6 giờ', phanTram: 75,
+        trangThaiHan: 'tre', veHan: 'trễ 2 giờ', nhanDinh: '', keHoach: '',
+        canHoTro: 'thiếu file gốc', soViec: 1 },
+    ],
+    daViet: [
+      { ngay: 'Thứ 4 09/09/2026', loai: 'Nhận định', chu: 'chạy tốt' },
+      { ngay: 'Thứ 6 11/09/2026', loai: 'Cần hỗ trợ', chu: 'thiếu file gốc' },
+      { ngay: 'Thứ 5 10/09/2026', loai: 'Thiết kế logo', chu: 'chờ sếp duyệt' },
+    ],
   },
 });
 
@@ -373,11 +396,36 @@ function nap() {
   group('Màn tuần / tháng — phần máy cộng');
   {
     ctx.__goi('DU = ' + JSON.stringify(PHIEU_TUAN));
+    /* Anh Hùng: bốn thẻ số "chưa thiết thực… cần thể hiện được tổng các báo cáo
+     * đã nộp, các công việc; nội dung đánh giá công việc và nhận định". Ngồi
+     * trước bốn con số thì không viết nổi một câu nhận định nào. */
     const t = ve('khối tổng hợp', 'theTongHop(DU)');
-    ok('hiện số phiếu ngày đã nộp', t.includes('phiếu ngày đã nộp'));
-    ok('hiện tổng thời lượng', t.includes('18 giờ'));
-    ok('cảnh báo ngày còn thiếu', t.includes('Thứ 5 10/09/2026') && t.includes('thiếu 1 ngày'));
-    ok('vẽ thanh theo nhóm việc', t.includes('class="thanh"'));
+    ok('số tổng thu lại thành dải chip, không còn bốn thẻ to',
+      t.includes('class="dai-so"') && !t.includes('class="o-so'),
+      'thẻ to chiếm chỗ mà ít thông tin — chỗ đó dành cho nội dung đọc được');
+    ok('vẫn nói đã nộp mấy ngày', t.includes('3 ngày'));
+    ok('vẫn nói tổng thời lượng', t.includes('18 giờ'));
+    ok('cảnh báo ngày còn thiếu', t.includes('Thứ 5 10/09/2026'));
+
+    ok('có bảng ĐẦU VIỆC gộp cả kỳ', t.includes('Đầu việc trong kỳ'),
+      'bảy dòng rời rạc của bảy ngày thì không rút ra được câu nào');
+    ok('gộp theo việc, không phải theo ngày',
+      t.includes('Thiết kế logo') && t.includes('12 giờ') && t.includes('>3<'));
+    ok('tiến độ hiện đường đi, không chỉ con số cuối',
+      t.includes('30% → ') && t.includes('<b>70%</b>'));
+    ok('việc đứng yên bị gọi tên', t.includes('40% · đứng yên'),
+      'đó là thứ người viết báo cáo tuần cần bị đập vào mắt');
+
+    ok('có bảng các báo cáo ngày đã nộp', t.includes('Các báo cáo ngày đã nộp'));
+    ok('mỗi ngày nói rõ nộp đúng hạn hay trễ',
+      t.includes('đúng hạn') && t.includes('trễ 2 giờ'));
+
+    ok('gom lại những gì đã viết trong kỳ', t.includes('Anh/chị đã viết gì trong kỳ'),
+      'muốn đọc lại bảy ngày mà phải mở bảy tấm ảnh thì không ai làm');
+    ok('kèm cả nhận định ngày', t.includes('chạy tốt'));
+    ok('kèm cả vướng mắc đã nêu', t.includes('thiếu file gốc'));
+    ok('kèm cả ghi chú tiến độ từng việc', t.includes('chờ sếp duyệt'));
+    ok('mỗi ghi chú có mốc ngày', t.includes('class="dv-ngay"'));
     ve('khối kỳ tuần', 'theKy("tuan")');
     const tayTuan = ve('khối tự viết của tuần', 'theVietTay(DU, "tuan")');
     ok('báo cáo TUẦN có ô link video', tayTuan.includes('txVideo'));

@@ -266,6 +266,24 @@ textarea.in { width: 100%; min-height: 76px; resize: vertical; }
 .thanh > i.du { background: var(--green); }
 .thanh > i.thieu { background: var(--orange); }
 
+/* ---------------- những gì đã viết trong kỳ ----------------
+   Đọc lại chính mình rồi rút thành nhận định tuần. Nên chúng phải dễ QUÉT: mốc
+   ngày và nhãn loại nằm trên một hàng nhỏ, câu chữ nằm dưới, cách nhau rõ ràng.
+   ------------------------------------------------------------ */
+.da-viet { display: flex; flex-direction: column; gap: 10px; }
+.dv {
+  padding: 9px 12px; border-radius: var(--r-lg);
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-left: 3px solid var(--border-2);
+}
+.dv-dau { display: flex; gap: 8px; align-items: baseline; margin-bottom: 3px; }
+.dv-ngay { font-size: 11.5px; color: var(--text-3); }
+.dv-loai {
+  font-size: 11px; padding: 1px 7px; border-radius: 999px;
+  background: var(--surface-3); color: var(--text-2);
+}
+.dv-chu { white-space: pre-wrap; }
+
 /* ---------------- note nhận định ----------------
    Mấy mẩu chữ nhỏ nằm ngay dưới dòng hạn nộp, trên đầu phiếu. Anh Hùng: "note
    nhỏ đơn giản trên đầu là được, nhỏ nhỏ trên đó đủ hiểu". Nên chúng phải NHẸ

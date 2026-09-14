@@ -35,7 +35,12 @@ tiên của kỳ kế tiếp**. Anh Hùng (13/09): *"làm báo cáo ngày thứ 
 - Ca làm việc: **480 phút** (cả ngày) hoặc **240 phút** (nửa ngày); ca khác thì
   tự khai. Phần trăm tính trên **định mức của ca**, không phải trên tổng người
   đó tự khai — chia cho chính tổng của mình thì ai cũng ra 100%.
-- **Tuần và tháng do máy cộng** từ các phiếu ngày. Người chỉ viết *nhận định* và
+- **Tuần và tháng do máy cộng** từ các phiếu ngày, và màn đó bày ra NGUYÊN LIỆU
+  để viết nhận định chứ không chỉ mấy con số tổng: bảng **đầu việc gộp cả kỳ**
+  (tổng giờ, số ngày, tiến độ đi từ đâu tới đâu, việc nào đứng yên), bảng **các
+  báo cáo ngày đã nộp**, và khối **"đã viết gì trong kỳ"** gom mọi nhận định,
+  vướng mắc và ghi chú tiến độ kèm mốc ngày. Ngồi trước bốn con số thì không
+  viết nổi một câu; ngồi trước ba khối này thì chỉ còn là đọc lại chính mình. Người chỉ viết *nhận định* và
   *kế hoạch kỳ sau* — hai thứ máy không viết thay được, và cũng là hai thứ AI sẽ
   đọc để đánh giá sau này.
 - Chủ nhật **không bắt buộc** báo cáo, nhưng vẫn nộp được (có người báo tăng ca).

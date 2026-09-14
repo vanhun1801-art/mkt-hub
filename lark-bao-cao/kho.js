@@ -362,6 +362,10 @@ async function tongHop(loaiKy, mocMs, nguoi, force) {
     ngayThieu: K.ngayThieu(k.tu, Math.min(k.den, Date.now()), daNop),
     ...g,
     phieuNgay,
+    /* Trả cả dòng việc thô. Báo cáo tuần cần đọc lại từng đầu việc và từng
+     * dòng ghi chú người đã viết trong tuần — mấy con số tổng không viết ra
+     * được câu nào. */
+    dong,
   };
 }
 

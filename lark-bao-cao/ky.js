@@ -272,6 +272,64 @@ function vePhut(p) {
 }
 
 /**
+ * Gộp các dòng việc trong một kỳ THEO ĐẦU VIỆC.
+ *
+ * Báo cáo tuần không phải là bảy báo cáo ngày dán cạnh nhau — người viết cần
+ * thấy "việc A tôi làm 3 ngày, tổng 6 tiếng, tiến độ đi từ 30% lên 70%", chứ
+ * không phải bảy dòng rời rạc. Bốn con số tổng (số phiếu, tổng giờ, % định mức,
+ * số nhóm việc) thì đúng nhưng không viết ra được câu nào.
+ *
+ * Khoá gộp là mã việc bên Tracking, lùi về tên khi gõ tay — cùng cách
+ * `timDungYen()` dùng, để hai chỗ không bao giờ gộp khác nhau.
+ */
+function gopTheoViec(dong) {
+  const m = new Map();
+  for (const d of (dong || [])) {
+    const ten = String(d.congViec || '').trim();
+    if (!ten) continue;
+    const khoa = String(d.maViec || '').trim() || ('ten:' + ten.toLowerCase());
+    if (!m.has(khoa)) {
+      m.set(khoa, {
+        khoa, ten, maViec: d.maViec || '', nhom: d.nhom || 'Khác',
+        tongPhut: 0, ngay: [], ghiChu: [],
+      });
+    }
+    const v = m.get(khoa);
+    v.tongPhut += Math.max(0, Math.round(Number(d.phut) || 0));
+    v.ngay.push({
+      ms: dauNgay(d.ngay),
+      pt: Math.max(0, Math.min(100, Math.round(Number(d.tienDoPt) || 0))),
+      trangThai: d.trangThai || '',
+    });
+    const gc = String(d.tienDo || '').trim();
+    if (gc) v.ghiChu.push({ ms: dauNgay(d.ngay), chu: gc });
+  }
+
+  return [...m.values()].map((v) => {
+    v.ngay.sort((a, b) => a.ms - b.ms);
+    v.ghiChu.sort((a, b) => a.ms - b.ms);
+    const dau = v.ngay[0];
+    const cuoi = v.ngay[v.ngay.length - 1];
+    return {
+      ten: v.ten,
+      maViec: v.maViec,
+      nhom: v.nhom,
+      tongPhut: v.tongPhut,
+      soNgay: v.ngay.length,
+      ptDau: dau ? dau.pt : 0,
+      ptCuoi: cuoi ? cuoi.pt : 0,
+      trangThai: cuoi ? cuoi.trangThai : '',
+      /* Đứng yên = làm từ 2 ngày trở lên mà con số không nhúc nhích và chưa
+       * xong. Ngưỡng ở đây thấp hơn timDungYen() (3 ngày) vì trong phạm vi một
+       * tuần thì hai ngày đã đáng để người viết nhắc tới. */
+      dungYen: v.ngay.length >= 2 && dau.pt === cuoi.pt && cuoi.pt < 100
+        && cuoi.trangThai !== 'Hoàn thành',
+      ghiChu: v.ghiChu,
+    };
+  }).sort((a, b) => b.tongPhut - a.tongPhut || a.ten.localeCompare(b.ten));
+}
+
+/**
  * Những ngày làm việc trong khoảng mà người này KHÔNG có phiếu nào.
  * Đây là câu hỏi anh Hùng thật sự hỏi mỗi chiều — "ai chưa nộp" — nên nó phải
  * là một hàm, không phải việc mắt người dò trong nhóm chat.
@@ -291,6 +349,6 @@ module.exports = {
   phanRaVN, dauNgay, cuoiNgay, tuNgayVN,
   veNgay, veNgayThu, veLuc, vePhut, veTre, veLanNop,
   kyNgay, kyTuan, kyThang, ky,
-  hanNop, chamHan,
+  hanNop, chamHan, gopTheoViec,
   dinhMuc, gop, ngayThieu,
 };

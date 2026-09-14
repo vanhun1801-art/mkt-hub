@@ -363,45 +363,122 @@ function veHang(d) {
 }
 
 
-/* ---- phần máy cộng (tuần / tháng) ---- */
+/* ---- phần máy cộng (tuần / tháng) ----
+ *
+ * Anh Hùng xem bản bốn-thẻ-số rồi bảo "chưa thiết thực, vì nó cần thể hiện được
+ * tổng các báo cáo đã nộp, các công việc; nội dung đánh giá công việc và nhận
+ * định… dựa vào các thông tin như thế thì họ sẽ có thể tổng hợp thành đánh giá
+ * báo cáo tuần".
+ *
+ * Đúng: "3 phiếu · 24 giờ · 100% định mức · 2 nhóm việc" thì không sai, nhưng
+ * ngồi trước nó không viết nổi một câu nhận định nào. Người viết báo cáo tuần
+ * cần NGUYÊN LIỆU — đã làm những việc gì, việc nào chạy việc nào đứng, và mình
+ * đã tự viết gì trong bảy ngày qua. Nên số tổng thu lại thành một dải chip, chỗ
+ * còn lại dành cho ba khối đọc được.
+ */
 function theTongHop(d) {
   const t = d.tongHop;
   if (!t) return '';
-  const oSo = (so, nhan, duoi, mau) =>
-    '<div class="o-so ' + (mau || '') + '"><div class="so">' + esc(so) + '</div>' +
-    '<div class="nhan">' + esc(nhan) + '</div>' +
-    (duoi ? '<div class="duoi">' + esc(duoi) + '</div>' : '') + '</div>';
+  const m = (nhan, gt, mau) => '<span class="m ' + (mau || '') + '">' +
+    esc(nhan) + ' <b>' + esc(gt) + '</b></span>';
 
-  const mauPt = t.phanTram == null ? '' : t.phanTram >= 100 ? 'xanh' : t.phanTram < 80 ? 'do' : 'cam';
+  const dai =
+    m('Đã nộp', t.soPhieuNgay + ' ngày', t.ngayThieu.length ? 'cam' : 'xanh') +
+    m('Tổng', t.tongGio) +
+    m('Định mức', t.phanTram == null ? '—' : t.phanTram + '%',
+      t.phanTram == null ? '' : t.phanTram >= 100 ? 'xanh' : t.phanTram < 80 ? 'cam' : '') +
+    m('Đầu việc', t.viec.length) +
+    (t.ngayThieu.length ? m('Chưa nộp', t.ngayThieu.length + ' ngày', 'do') : '');
 
-  return '<div class="luoi-so">' +
-      oSo(t.soPhieuNgay, 'phiếu ngày đã nộp', t.ngayThieu.length ? 'thiếu ' + t.ngayThieu.length + ' ngày' : 'đủ trong kỳ',
-        t.ngayThieu.length ? 'do' : '') +
-      oSo(vePhut(t.tongPhut), 'tổng thời lượng') +
-      oSo(t.phanTram == null ? '—' : t.phanTram + '%', 'so với định mức',
-        'định mức ' + vePhut(t.dinhMucPhut), mauPt) +
-      oSo(t.theoNhom.length, 'nhóm việc', t.theoNhom.length ? t.theoNhom[0].ten + ' nhiều nhất' : '') +
-    '</div>' +
-    '<div class="the"><div class="the-dau"><h2>Máy cộng từ báo cáo ngày</h2></div>' +
-    '<div class="the-than">' +
-      (t.theoNhom.length
-        ? t.theoNhom.map((n) =>
-          '<div style="display:flex;gap:10px;align-items:center;margin-bottom:7px">' +
-            '<span style="width:120px" class="phu">' + esc(n.ten) + '</span>' +
-            '<div class="thanh" style="flex:1"><i style="width:' +
-              Math.round((n.phut / Math.max(1, t.theoNhom[0].phut)) * 100) + '%"></i></div>' +
-            '<span class="nho" style="width:82px;text-align:right">' + esc(vePhut(n.phut)) + '</span>' +
-          '</div>').join('')
-        : '<p class="phu">Chưa có báo cáo ngày nào trong kỳ.</p>') +
+  return '<div class="the"><div class="the-than dai-day" style="border:0">' +
+      '<div class="dai-so">' + dai + '</div>' +
       (t.ngayThieu.length
-        ? '<p class="phu" style="margin:12px 0 0">Chưa có báo cáo ngày: ' +
+        ? '<div class="nho" style="margin-top:8px">Chưa có báo cáo ngày: ' +
           t.ngayThieu.map((x) => '<span class="nhan-tt do" style="margin-right:4px">' +
-            esc(x.nhan) + '</span>').join('') + '</p>'
+            esc(x.nhan) + '</span>').join('') + '</div>'
         : '') +
-    '</div></div>';
+    '</div></div>' +
+    theViecKy(t) + theNgayKy(t) + theDaViet(t);
 }
 
-/* ---- nhận định + kế hoạch + cần hỗ trợ ---- */
+/** Đầu việc trong kỳ — gộp lại, không phải bảy dòng rời rạc của bảy ngày. */
+function theViecKy(t) {
+  if (!t.viec.length) {
+    return '<div class="the"><div class="the-dau"><h2>Đầu việc trong kỳ</h2></div>' +
+      rong('Chưa có báo cáo ngày nào trong kỳ',
+        'Nộp báo cáo từng ngày trước, phần này tự cộng lại.') + '</div>';
+  }
+  return '<div class="the"><div class="the-dau"><h2>Đầu việc trong kỳ</h2>' +
+    '<span class="nho">' + t.viec.length + ' việc · gộp từ ' + t.soPhieuNgay + ' báo cáo ngày</span>' +
+    '</div><div class="the-than khit cuon">' +
+    '<table class="bang-xem"><thead><tr>' +
+      '<th>Công việc</th><th>Nhóm</th><th class="so-o">Thời lượng</th>' +
+      '<th class="so-o">Số ngày</th><th>Tiến độ</th><th>Trạng thái</th>' +
+    '</tr></thead><tbody>' +
+    t.viec.map((v) => '<tr>' +
+      '<td><b>' + esc(v.ten) + '</b></td>' +
+      '<td><span class="nhan-tt xam">' + esc(v.nhom) + '</span></td>' +
+      '<td class="so-o">' + esc(v.gio) + '</td>' +
+      '<td class="so-o">' + v.soNgay + '</td>' +
+      '<td>' + veTienDo(v) + '</td>' +
+      '<td>' + (v.trangThai === 'Hoàn thành'
+        ? '<span class="nhan-tt xanh">Hoàn thành</span>'
+        : '<span class="nhan-tt xam">' + esc(v.trangThai || '—') + '</span>') + '</td>' +
+    '</tr>').join('') +
+    '</tbody></table></div></div>';
+}
+
+/** "30% → 70%" khi có nhích, "70%" khi đứng một chỗ — và nói thẳng nếu đứng yên. */
+function veTienDo(v) {
+  if (v.ptDau === v.ptCuoi) {
+    return '<span class="' + (v.dungYen ? 'nhan-tt cam' : 'nho') + '">' + v.ptCuoi + '%' +
+      (v.dungYen ? ' · đứng yên' : '') + '</span>';
+  }
+  return '<span class="nho">' + v.ptDau + '% → </span><b>' + v.ptCuoi + '%</b>';
+}
+
+/** Từng ngày đã nộp — để biết tuần này rơi vào những ngày nào. */
+function theNgayKy(t) {
+  if (!t.theoNgay.length) return '';
+  return '<div class="the"><div class="the-dau"><h2>Các báo cáo ngày đã nộp</h2></div>' +
+    '<div class="the-than khit cuon">' +
+    '<table class="bang-xem"><thead><tr>' +
+      '<th>Ngày</th><th class="so-o">Đầu việc</th><th class="so-o">Thời lượng</th>' +
+      '<th class="so-o">Định mức</th><th>Nộp</th>' +
+    '</tr></thead><tbody>' +
+    t.theoNgay.map((n) => '<tr>' +
+      '<td>' + esc(n.nhan) + '</td>' +
+      '<td class="so-o">' + n.soViec + '</td>' +
+      '<td class="so-o">' + esc(n.tongGio) + '</td>' +
+      '<td class="so-o">' + (n.phanTram == null ? '—' : n.phanTram + '%') + '</td>' +
+      '<td>' + (n.trangThaiHan === 'tre'
+        ? '<span class="nhan-tt cam">' + esc(n.veHan) + '</span>'
+        : '<span class="nhan-tt xanh">đúng hạn</span>') + '</td>' +
+    '</tr>').join('') +
+    '</tbody></table></div></div>';
+}
+
+/**
+ * Mọi câu người đã tự viết trong kỳ, gom một chỗ kèm ngày.
+ *
+ * Đây là thứ ảnh chụp màn hình không bao giờ cho được: muốn đọc lại bảy ngày
+ * thì phải mở bảy tấm ảnh. Có nó thì viết nhận định tuần chỉ còn là đọc lại
+ * chính mình rồi rút gọn.
+ */
+function theDaViet(t) {
+  if (!t.daViet.length) return '';
+  return '<div class="the"><div class="the-dau"><h2>Anh/chị đã viết gì trong kỳ</h2>' +
+    '<span class="nho">' + t.daViet.length + ' ghi chú · đọc lại để rút thành nhận định tuần</span>' +
+    '</div><div class="the-than"><div class="da-viet">' +
+    t.daViet.map((g) => '<div class="dv">' +
+      '<div class="dv-dau"><span class="dv-ngay">' + esc(g.ngay) + '</span>' +
+      '<span class="dv-loai">' + esc(g.loai) + '</span></div>' +
+      '<div class="dv-chu">' + esc(g.chu) + '</div>' +
+    '</div>').join('') +
+    '</div></div></div>';
+}
+
+
 /**
  * Phần người tự viết.
  *

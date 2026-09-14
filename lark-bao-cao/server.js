@@ -365,15 +365,48 @@ async function api(req, res, u) {
     /* Tuần/tháng: số do máy cộng, gửi kèm luôn để màn hình không phải gọi lần hai. */
     if (d.ky.loai !== 'ngay') {
       const t = await kho.tongHop(d.ky.loai, d.ky.tu, ai);
+      /* Nguyên liệu để người viết tổng hợp thành đánh giá tuần — anh Hùng:
+       * "nó cần thể hiện được tổng các báo cáo đã nộp, các công việc; nội dung
+       * đánh giá công việc và nhận định". Bốn con số tổng thì đúng nhưng không
+       * viết ra được câu nào. */
+      const viec = K.gopTheoViec(t.dong);
+      const theoNgay = t.phieuNgay.map(vePhieu).map((p) => ({
+        tu: p.tu,
+        nhan: K.veNgayThu(p.tu),
+        tongGio: p.tongGio,
+        phanTram: p.phanTram,
+        trangThaiHan: p.trangThaiHan,
+        veHan: p.veHan,
+        nhanDinh: p.nhanDinh,
+        keHoach: p.keHoach,
+        canHoTro: p.canHoTro,
+        soViec: t.dong.filter((d) => K.dauNgay(d.ngay) === p.tu).length,
+      })).sort((a, b) => a.tu - b.tu);
+
       ra.tongHop = {
         soPhieuNgay: t.soPhieuNgay,
         tongPhut: t.tongPhut,
         tongGio: K.vePhut(t.tongPhut),
         dinhMucPhut: t.dinhMucPhut,
+        dinhMucGio: K.vePhut(t.dinhMucPhut),
         phanTram: t.phanTram,
-        theoNhom: t.theoNhom,
+        theoNhom: t.theoNhom.map((n) => ({ ...n, gio: K.vePhut(n.phut) })),
         ngayThieu: t.ngayThieu.map((x) => ({ ms: x, nhan: K.veNgayThu(x) })),
         phieuNgay: t.phieuNgay.map(vePhieu),
+        viec: viec.map((v) => ({ ...v, gio: K.vePhut(v.tongPhut) })),
+        theoNgay,
+        /* Gom mọi câu người đã tự viết trong kỳ về một chỗ, kèm ngày, để đọc
+         * lại mà tổng hợp. Đây là thứ ảnh chụp màn hình không bao giờ cho
+         * được: muốn đọc lại bảy ngày thì phải mở bảy tấm ảnh. */
+        daViet: [
+          ...theoNgay.filter((n) => String(n.nhanDinh || '').trim())
+            .map((n) => ({ ngay: n.nhan, loai: 'Nhận định', chu: n.nhanDinh })),
+          ...theoNgay.filter((n) => String(n.canHoTro || '').trim())
+            .map((n) => ({ ngay: n.nhan, loai: 'Cần hỗ trợ', chu: n.canHoTro })),
+          ...viec.flatMap((v) => v.ghiChu.map((g) => ({
+            ngay: K.veNgayThu(g.ms), loai: v.ten, chu: g.chu,
+          }))),
+        ],
       };
     }
     return json(res, ra);
