@@ -592,7 +592,7 @@ function adMiniTable(id, rows) {
     { key: 'spend', label: 'Chi tiêu', num: true, render: (r) => vnd(r.spend) },
     { key: 'conversions', label: 'CĐ', num: true, render: (r) => int(r.conversions) },
     { key: 'cpa', label: 'CPA', num: true, render: (r) => cpaCell(r) },
-    { key: 'action', label: 'Khuyến nghị', render: (r) => `<span class="tag ${ACTION_CLASS[r.actionLevel]}" title="${esc(r.reason)}">${esc(r.action)}</span>` },
+    { key: 'action', label: 'Khuyến nghị', render: (r) => nutKhuyenNghi(r) },
   ], rows, { empty: 'Chưa đủ dữ liệu để xếp hạng' });
 }
 
@@ -709,7 +709,7 @@ VIEW['quang-cao'] = async (view) => {
     { key: 'creative', label: 'Creative', render: (r) => `${esc(r.creative || '—')}${r.url ? ` <a href="${esc(r.url)}" target="_blank" rel="noreferrer" title="Mở creative">↗</a>` : ''}` },
     { key: 'approval', label: 'Duyệt', render: (r) => statusTag(r.approval) },
     ...metricCols(),
-    { key: 'action', label: 'Khuyến nghị', render: (r) => `<span class="tag ${ACTION_CLASS[r.actionLevel]}" title="${esc(r.reason)}">${esc(r.action)}</span><span class="sub-line">${esc(r.reason)}</span>` },
+    { key: 'action', label: 'Khuyến nghị', render: (r) => nutKhuyenNghi(r) + `<span class="sub-line">${esc(r.reason)}</span>` },
     { key: 'lastDate', label: 'Số liệu mới nhất', render: (r) => r.lastDate ? `${dmy(r.lastDate)}<span class="sub-line">${r.activeDays} ngày có số</span>` : '<span class="tag warn">chưa có</span>' },
   ];
   view.innerHTML = `
@@ -747,6 +747,10 @@ VIEW['canh-bao'] = async (view) => {
   const KIND = {
     budget: 'Ngân sách', 'budget-day': 'Ngân sách ngày', schedule: 'Lịch chạy',
     data: 'Dữ liệu', perf: 'Hiệu suất', meta: 'Cấu hình', spike: 'Biến động',
+    /* Nhóm riêng, và tên phải nói rõ việc nằm ở đâu: mấy dòng này là Base khai
+     * một đằng nền tảng chạy một nẻo — việc phải làm là sửa ô trong Base, không
+     * phải đụng vào quảng cáo. */
+    lech: 'Base lệch thực tế',
   };
   const groups = {};
   d.rows.forEach((a) => { (groups[a.kind] = groups[a.kind] || []).push(a); });
@@ -755,9 +759,9 @@ VIEW['canh-bao'] = async (view) => {
 
   view.innerHTML = `
   <div class="kpis" style="grid-template-columns:repeat(3,minmax(0,1fr))">
-    <div class="kpi"><div class="k-label">Nghiêm trọng</div><div class="k-value" style="color:var(--bad)">${counts.high}</div><div class="k-foot">vượt ngân sách · đốt tiền không ra chuyển đổi</div></div>
-    <div class="kpi"><div class="k-label">Cần theo dõi</div><div class="k-value" style="color:var(--warn)">${counts.mid}</div><div class="k-foot">CPA cao · thiếu số liệu · sắp hết ngân sách</div></div>
-    <div class="kpi"><div class="k-label">Ghi nhận</div><div class="k-value">${counts.low}</div><div class="k-foot">CTR thấp · lệch cấu hình</div></div>
+    <div class="kpi"><div class="k-label">Nghiêm trọng</div><div class="k-value" style="color:var(--bad)">${counts.high}</div><div class="k-foot">đốt tiền không ra chuyển đổi · vượt ngân sách DỰ KIẾN khai trong Base</div></div>
+    <div class="kpi"><div class="k-label">Cần theo dõi</div><div class="k-value" style="color:var(--warn)">${counts.mid}</div><div class="k-foot">CPA cao · thiếu số liệu · sắp hết ngân sách dự kiến</div></div>
+    <div class="kpi"><div class="k-label">Ghi nhận</div><div class="k-value">${counts.low}</div><div class="k-foot">CTR thấp · Base khai lệch với thực tế trên nền tảng</div></div>
   </div>
   ${Object.keys(groups).map((k) => `
     <div class="card" style="margin-top:14px">
@@ -766,12 +770,39 @@ VIEW['canh-bao'] = async (view) => {
     </div>`).join('') || '<div class="card"><div class="empty">Không có cảnh báo nào</div></div>'}`;
 };
 
+/**
+ * Nhãn khuyến nghị, nhưng BẤM ĐƯỢC.
+ *
+ * Bấm là mở hộp chi tiết quảng cáo và cuộn thẳng tới khối điều khiển — tức từ
+ * chỗ ĐỌC "nên tắt" tới chỗ BẤM "Tắt" là một cú bấm, không phải: nhớ tên, bấm
+ * vào tên, cuộn xuống tìm.
+ *
+ * Khuyến nghị "Chưa đủ dữ liệu" / "Không chi tiêu" thì để nguyên nhãn chết: chưa
+ * có gì để quyết thì đừng mời người ta bấm.
+ */
+function nutKhuyenNghi(r) {
+  const nhan = `<span class="tag ${ACTION_CLASS[r.actionLevel]}">${esc(r.action)}</span>`;
+  if (r.actionLevel === 'idle') return nhan;
+  return `<button class="tag-btn" title="${esc(r.reason)} — bấm để bật/tắt hoặc đổi ngân sách"
+    onclick="window.__adDetail('${r.id}', true)">${nhan}</button>`;
+}
+
 function alertsHtml(rows) {
   if (!rows.length) return '<div class="empty">Không có cảnh báo</div>';
   return rows.map((a) => {
     let act = '';
     if (a.ref && a.ref.type === 'campaign') act = `<button class="btn small ghost" onclick="window.__campDetail('${a.ref.id}')">Mở chiến dịch</button>`;
-    if (a.ref && a.ref.type === 'ad') act = `<button class="btn small ghost" onclick="window.__adDetail('${a.ref.id}')">Mở quảng cáo</button>`;
+    if (a.ref && a.ref.type === 'ad') {
+      /* Cảnh báo HIỆU SUẤT là loại bấm được ngay: CPA cao, không ra chuyển đổi,
+       * CTR thấp — đọc xong là biết phải tắt hay giảm ngân sách. Đưa thẳng tới
+       * khối điều khiển thay vì thả người ta vào đầu hộp rồi tự cuộn.
+       *
+       * Các loại khác (dữ liệu thiếu, Base lệch) thì việc phải làm nằm ở Base
+       * chứ không ở nền tảng — mời bấm nút bật/tắt ở đó là chỉ sai việc. */
+      act = a.kind === 'perf'
+        ? `<button class="btn small primary" onclick="window.__adDetail('${a.ref.id}', true)">Xử lý ngay</button>`
+        : `<button class="btn small ghost" onclick="window.__adDetail('${a.ref.id}')">Mở quảng cáo</button>`;
+    }
     return `<div class="alert ${a.level}">
       <span class="dot"></span>
       <div style="flex:1">
@@ -1240,7 +1271,16 @@ window.__groupDetail = async (id) => {
 };
 
 /* ---- chi tiết quảng cáo ---- */
-window.__adDetail = async (id) => {
+/**
+ * Hộp chi tiết một quảng cáo.
+ *
+ * @param {string} id
+ * @param {boolean} toiDieuKhien mở xong thì cuộn thẳng tới khối "Điều khiển trên
+ *   nền tảng". Dùng khi người ta bấm từ một KHUYẾN NGHỊ hoặc một CẢNH BÁO — lúc
+ *   đó họ đã đọc xong lý do rồi, thứ họ cần là cái nút, không phải đọc lại bảng
+ *   hiệu suất từ đầu.
+ */
+window.__adDetail = async (id, toiDieuKhien = false) => {
   const [ads, daily] = await Promise.all([
     api('/api/ads?' + qs()),
     api('/api/daily?' + qs() + '&ad=' + id),
@@ -1285,6 +1325,29 @@ window.__adDetail = async (id) => {
   /* Nạp RIÊNG: khối này gọi thẳng nền tảng nên mất vài giây, cả hộp không nên
    * đứng chờ. Và nếu nền tảng lỗi thì chỉ khối này báo lỗi, phần còn lại vẫn dùng. */
   veDieuKhien(a);
+
+  /* Cuộn NGAY, không đợi khối nạp xong: chỗ trống "Đang hỏi nền tảng…" đã nằm
+   * đúng vị trí rồi. Đợi nạp xong mới cuộn thì người ta thấy hộp đứng im vài
+   * giây, tưởng bấm hụt.
+   *
+   * Nhưng phải đợi trình duyệt DỰNG XONG hộp đã. Gọi thẳng ngay sau khi gán
+   * innerHTML thì chiều cao còn bằng 0 và cú cuộn rơi vào hư không — đo được
+   * scrollTop=0 trong khi scrollHeight=3910. Một khung hình là đủ.
+   *
+   * Và cuộn vùng cuộn CỦA HỘP, không cuộn cả trang: hộp thoại có thanh cuộn
+   * riêng, scrollIntoView nhắm vào trang thì trang không nhúc nhích. */
+  if (toiDieuKhien) {
+    requestAnimationFrame(() => {
+      const el = $('#dkKhoi');
+      if (!el) return;
+      const boc = el.closest('.modal');
+      if (boc && boc.scrollHeight > boc.clientHeight) {
+        boc.scrollTo({ top: Math.max(0, el.offsetTop - 80), behavior: 'smooth' });
+      } else {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+  }
 };
 
 /* ================= ĐIỀU KHIỂN TRÊN NỀN TẢNG =================

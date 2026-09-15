@@ -440,3 +440,15 @@ table.tbl tfoot td { font-weight: 700; background: var(--panel-2); border-top: 2
 }
 .lui[open] > summary::before { transform: rotate(90deg); }
 .lui > summary:hover { color: var(--ink-2); text-decoration: underline; }
+
+/* ---------- nhãn khuyến nghị bấm được ----------
+   Giữ nguyên dáng cái nhãn, chỉ thêm dấu hiệu bấm được: viền mờ khi rê chuột.
+   Làm nó trông như một cái nút đầy đủ thì bảng đầy nút, mà đây vẫn là cột để
+   ĐỌC trước đã. */
+.tag-btn {
+  background: none; border: 0; padding: 0; cursor: pointer; font: inherit;
+  border-radius: 999px; outline-offset: 2px;
+}
+.tag-btn .tag { transition: box-shadow .12s; }
+.tag-btn:hover .tag { box-shadow: 0 0 0 2px var(--line); }
+.tag-btn:focus-visible .tag { box-shadow: 0 0 0 2px var(--brand); }

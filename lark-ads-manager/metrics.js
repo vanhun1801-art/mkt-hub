@@ -395,6 +395,9 @@ function alerts(data, t = readTargets()) {
   const today = store.todayKey();
   const push = (level, kind, title, detail, ref) => out.push({ level, kind, title, detail, ref });
 
+  /* Gom theo nguyên nhân, không đẩy từng dòng: xem chỗ dùng phía dưới. */
+  const quaHan = []; const chuaToi = [];
+
   const lifetime = groupBy(data.daily, (r) => r.campaignId);
   const todayByCampaign = groupBy(data.daily.filter((d) => d.date === today), (r) => r.campaignId);
 
@@ -402,33 +405,59 @@ function alerts(data, t = readTargets()) {
     const life = agg(lifetime.get(c.id) || []);
     const tod = agg(todayByCampaign.get(c.id) || []);
 
+    /* NÓI RÕ NGUỒN. `c.budget` là ô "Ngân sách dự kiến" gõ tay trong Base — một
+     * con số KẾ HOẠCH, không phải giới hạn trên nền tảng. Đo thật: Base khai
+     * 6.000.000đ trong khi ngân sách ngày thật trên Facebook là 400.000đ, và
+     * Facebook không hề dừng ở 6 triệu. Bản trước ghi "Vượt ngân sách" trống
+     * không, đọc lên tưởng nền tảng đã chặn hoặc sắp chặn. */
     if (c.budget > 0) {
       const pct = (life.spend / c.budget) * 100;
+      const soSanh = `Đã chi ${fmtVnd(life.spend)} (toàn thời gian) / ${fmtVnd(c.budget)} `
+        + `khai trong Base (${r2(pct)}%). Đây là ô KẾ HOẠCH, không phải giới hạn trên nền tảng `
+        + '— nền tảng vẫn chạy bình thường.';
       if (pct >= 100) {
-        push('high', 'budget', `Vượt ngân sách: ${c.name}`,
-          `Đã chi ${fmtVnd(life.spend)} / ${fmtVnd(c.budget)} (${r2(pct)}%)`, { type: 'campaign', id: c.id });
+        push('high', 'budget', `Vượt ngân sách dự kiến: ${c.name}`, soSanh, { type: 'campaign', id: c.id });
       } else if (pct >= t.budgetWarnPct) {
-        push('mid', 'budget', `Sắp hết ngân sách: ${c.name}`,
-          `Đã chi ${fmtVnd(life.spend)} / ${fmtVnd(c.budget)} (${r2(pct)}%)`, { type: 'campaign', id: c.id });
+        push('mid', 'budget', `Sắp hết ngân sách dự kiến: ${c.name}`, soSanh, { type: 'campaign', id: c.id });
       }
     } else if (c.status === 'Đang chạy') {
-      push('low', 'budget', `Chưa đặt ngân sách: ${c.name}`, 'Chiến dịch đang chạy nhưng không có ngân sách dự kiến', { type: 'campaign', id: c.id });
+      push('low', 'budget', `Chưa khai ngân sách dự kiến: ${c.name}`,
+        'Chiến dịch đang chạy nhưng ô "Ngân sách dự kiến" trong Base để trống — không có gì để đối chiếu kế hoạch',
+        { type: 'campaign', id: c.id });
     }
 
     if (c.dailyBudget > 0 && tod.spend > c.dailyBudget) {
-      push('high', 'budget-day', `Vượt ngân sách ngày: ${c.name}`,
-        `Hôm nay đã chi ${fmtVnd(tod.spend)} / ${fmtVnd(c.dailyBudget)}`, { type: 'campaign', id: c.id });
+      push('high', 'budget-day', `Vượt ngân sách ngày dự kiến: ${c.name}`,
+        `Hôm nay đã chi ${fmtVnd(tod.spend)} / ${fmtVnd(c.dailyBudget)} khai trong Base`,
+        { type: 'campaign', id: c.id });
     }
 
-    if (c.status === 'Đang chạy' && c.end && c.end < today) {
-      push('mid', 'schedule', `Quá ngày kết thúc: ${c.name}`,
-        `Ngày kết thúc ${c.end} nhưng trạng thái vẫn "Đang chạy"`, { type: 'campaign', id: c.id });
-    }
-    if (c.status === 'Đang chạy' && c.start && c.start > today) {
-      push('low', 'schedule', `Chưa tới ngày bắt đầu: ${c.name}`,
-        `Bắt đầu ${c.start} nhưng đã ở trạng thái "Đang chạy"`, { type: 'campaign', id: c.id });
-    }
+    /* Lịch chạy: GOM lại, xem dưới. Sáu dòng riêng lẻ đều là MỘT chuyện — ô Ngày
+     * kết thúc trong Base không khớp thực tế — và mỗi dòng lại gợi ý sai việc
+     * phải làm (tắt quảng cáo, trong khi việc thật là sửa ô trong Base). */
+    if (c.status === 'Đang chạy' && c.end && c.end < today) quaHan.push(c);
+    if (c.status === 'Đang chạy' && c.start && c.start > today) chuaToi.push(c);
   });
+
+  /* Một dòng cho cả nhóm, và nói đúng việc phải làm.
+   *
+   * Vì sao không bỏ hẳn: ô ngày kết thúc lệch thực tế VẪN là một vấn đề — nó làm
+   * mọi phép so lịch trong app vô nghĩa. Chỉ là nó thuộc loại "dọn Base", không
+   * phải "quảng cáo đang hỏng", nên hạ xuống mức ghi nhận và gom một dòng.
+   *
+   * Đo trên nền tảng thật: cả hai chiến dịch Facebook đều KHÔNG đặt ngày kết
+   * thúc, trong khi Base khai 31/08. */
+  if (quaHan.length) {
+    push('low', 'lech', `${quaHan.length} chiến dịch quá ngày kết thúc khai trong Base`,
+      `${quaHan.map((c) => `${c.name} (${c.end})`).join(' · ')} — vẫn đang chạy và vẫn phát sinh chi tiêu. `
+      + 'Nếu thực tế không đặt ngày kết thúc trên nền tảng thì ô "Ngày kết thúc" trong Base đang sai: '
+      + 'sửa ô đó, đừng tắt quảng cáo.', { type: 'campaign', id: quaHan[0].id });
+  }
+  if (chuaToi.length) {
+    push('low', 'lech', `${chuaToi.length} chiến dịch chưa tới ngày bắt đầu khai trong Base`,
+      `${chuaToi.map((c) => `${c.name} (${c.start})`).join(' · ')} — nhưng trạng thái trong Base là "Đang chạy".`,
+      { type: 'campaign', id: chuaToi[0].id });
+  }
 
   // thiếu dữ liệu: quảng cáo đang chạy nhưng chưa nhập số cho hôm qua
   const deadline = store.addDays(today, -t.dataLagDays);
@@ -493,8 +522,14 @@ function alerts(data, t = readTargets()) {
   data.ads.forEach((a) => {
     const m = agg((byAd.get(a.id) || []));
     if (m.spend > 0 && (a.approval === 'Chờ duyệt' || a.approval === 'Bị từ chối' || a.approval === 'Tạm dừng')) {
-      push('low', 'meta', `Trạng thái duyệt lệch: ${a.name}`,
-        `Trạng thái "${a.approval}" nhưng vẫn phát sinh chi tiêu ${fmtVnd(m.spend)} trong 7 ngày`, { type: 'ad', id: a.id });
+      /* `a.approval` là ô trong Base, không phải trạng thái trên nền tảng. Quảng
+       * cáo vẫn chi tiêu nghĩa là trên nền tảng nó ĐANG CHẠY — tức ô trong Base
+       * đã cũ. Bản trước ghi "Trạng thái duyệt lệch" trống không, đọc lên tưởng
+       * nền tảng đang trục trặc. */
+      push('low', 'lech', `Base ghi "${a.approval}" nhưng quảng cáo vẫn chạy: ${a.name}`,
+        `Ô trạng thái trong Base là "${a.approval}", trong khi 7 ngày qua vẫn phát sinh `
+        + `${fmtVnd(m.spend)} — tức trên nền tảng nó đang chạy. Sửa ô trong Base cho khớp.`,
+        { type: 'ad', id: a.id });
     }
   });
 
