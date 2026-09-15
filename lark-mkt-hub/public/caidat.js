@@ -190,8 +190,16 @@ function veCdThuongHieu(el) {
   el.innerHTML = cdTieuDe('Nhận diện thương hiệu') +
     '<div id="cdLogo" class="cd-hang"><div class="cd-hang-tx"><b>Đang đọc…</b></div></div>' +
     cdHang('Định dạng nhận vào','',
-      '<span class="cd-nhan">≤ 2 MB</span>');
+      '<span class="cd-nhan">≤ 2 MB</span>') +
+    /* Video giới thiệu — phát ở trang Tổng quan, cột trái.
+     *
+     * Anh Hùng: "anh có một video thế này, em có thể cho anh tuỳ chỉnh ở ô Nhận
+     * diện thương hiệu". Đặt ở đây chứ không đẻ ra một mục mới: nó cùng một
+     * loại việc với logo — bộ mặt của hub, quản lý đặt một lần cho cả phòng. */
+    '<div class="cd-muc-nho">Video giới thiệu</div>' +
+    '<div id="cdPhim"><div class="cd-hang"><div class="cd-hang-tx"><b>Đang đọc…</b></div></div></div>';
   napCdLogo();
+  napCdPhim();
 }
 
 function napCdLogo() {
@@ -287,6 +295,59 @@ function veCdToi(el) {
       (t.id ? cdHang('Mã Lark (open_id)', '<code>' + esc(t.id) + '</code>',
         '<button class="btn nho ghost" data-copy-id="' + esc(t.id) + '">Copy</button>') : '');
   }).catch(() => {});
+}
+
+/* ---------------- Video giới thiệu ---------------- */
+async function napCdPhim() {
+  const o = $('#cdPhim');
+  if (!o) return;
+  let t = { co: false };
+  try { t = await goi('/api/video-gt-tin'); } catch (_) {}
+  o.innerHTML =
+    (t.co
+      ? '<div class="cd-hang"><div class="cd-hang-tx"><b>Video hiện dùng</b>' +
+        '<p>' + esc(t.ten) + ' · ' + t.mb + ' MB · tải lên ' +
+          esc(new Date(t.luc).toLocaleString('vi-VN')) + '</p>' +
+        '<video class="cd-phim-xem" src="/api/video-gt?v=' + t.luc + '" controls preload="metadata"></video>' +
+        '</div><div class="cd-hang-dk"><div class="cd-doc">' +
+        '<button class="btn nho chinh" id="cdPhimChon">Đổi video</button>' +
+        '<button class="btn nho ghost" id="cdPhimXoa">Gỡ</button></div></div></div>'
+      : '<div class="cd-hang"><div class="cd-hang-tx"><b>Chưa có video</b>' +
+        '<p>Chưa đặt video nào — trang Tổng quan chỉ hiện bảng tin.</p></div>' +
+        '<div class="cd-hang-dk"><button class="btn nho chinh" id="cdPhimChon">Tải video lên</button></div></div>') +
+    cdHang('Định dạng nhận vào','', '<span class="cd-nhan">MP4 · WEBM · MOV ≤ 60 MB</span>') +
+    '<input type="file" id="cdPhimTep" accept="video/mp4,video/webm,video/quicktime" hidden>';
+
+  const chon = $('#cdPhimChon');
+  const oTep = $('#cdPhimTep');
+  if (chon) chon.onclick = () => oTep.click();
+  if (oTep) {
+    oTep.onchange = async () => {
+      const f = oTep.files[0];
+      oTep.value = '';
+      if (!f) return;
+      if (f.size > 60 * 1024 * 1024) {
+        return toast('Video nặng ' + Math.round(f.size / 1048576) + ' MB — quá 60 MB. Cắt ngắn clip rồi tải lại.', 'do');
+      }
+      if (chon) { chon.disabled = true; chon.textContent = 'Đang tải lên…'; }
+      try {
+        await goi('/api/video-gt', { method: 'POST', headers: { 'Content-Type': f.type }, body: f });
+        toast('Đã đặt video giới thiệu', 'luc');
+        napCdPhim();
+      } catch (e) {
+        toast(e.message, 'do');
+        if (chon) { chon.disabled = false; chon.textContent = 'Tải video lên'; }
+      }
+    };
+  }
+  const xoa = $('#cdPhimXoa');
+  if (xoa) {
+    xoa.onclick = async () => {
+      xoa.disabled = true;
+      try { await goi('/api/video-gt', { method: 'DELETE' }); napCdPhim(); }
+      catch (e) { xoa.disabled = false; toast(e.message, 'do'); }
+    };
+  }
 }
 
 /* ---------------- Phân quyền (MỘT mục duy nhất) ----------------

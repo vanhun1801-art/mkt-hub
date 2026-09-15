@@ -966,6 +966,97 @@ function dongViecHtml(v, tenModule) {
     '</div>';
 }
 
+/* ============================================================
+   VIDEO GIỚI THIỆU + BẢNG TIN
+   Anh Hùng: "bên trái sẽ là video anh phát, còn phần bên phải sẽ là những tin
+   tức mà anh đã thêm trong phần thông báo cho nhân sự".
+
+   Hai nguồn có sẵn, không đẻ thêm chỗ nhập liệu nào: video đặt ở Cài đặt →
+   Nhận diện thương hiệu, tin lấy thẳng từ bảng Thông báo. Quản lý soạn một lần,
+   nó vừa chặn màn hình lúc cần, vừa nằm lại đây để xem lại.
+
+   Khác popup chặn màn hình ở một điểm quan trọng: ở đây tin ĐÃ ĐỌC vẫn còn,
+   chỉ nhạt đi. Popup là để bắt đọc, bảng tin là để tra lại.
+
+   Không có video lẫn không có tin thì KHÔNG vẽ gì — một cái khung rỗng nằm
+   giữa trang chủ còn tệ hơn là không có.
+   ============================================================ */
+let TIN = { phim: null, ds: null };
+
+async function veKhoiTin() {
+  const o = document.getElementById('khoiTin');
+  if (!o) return;
+  /* Đọc một lần rồi giữ: trang chủ tự vẽ lại theo nhịp số liệu (20 giây), mà
+   * hai đường này gần như không đổi. Vẽ lại mà hỏi lại là video đang phát bị
+   * dựng lại từ đầu — mất chỗ đang xem. */
+  if (TIN.ds === null) {
+    const [phim, tin] = await Promise.all([
+      goi('/api/video-gt-tin').catch(() => ({ co: false })),
+      goi('/api/tb-app/tin').catch(() => ({ ds: [] })),
+    ]);
+    TIN = { phim, ds: tin.ds || [] };
+  }
+  const coPhim = TIN.phim && TIN.phim.co;
+  if (!coPhim && !TIN.ds.length) { o.innerHTML = ''; return; }
+
+  /* Vẽ MỘT LẦN rồi thôi: lần vẽ lại sau của trang chủ không được đụng vào thẻ
+   * video đang chạy. */
+  if (o.dataset.xong === '1') return;
+  o.dataset.xong = '1';
+
+  const mucLop = { 'Gấp': 'do', 'Quan trọng': 'vang' };
+  const tin = (t) => {
+    const anh = (t.tep || []).find((x) => /^image\//.test(x.kieu || '') ||
+      /\.(png|jpe?g|gif|webp)$/i.test(x.ten || ''));
+    return '<article class="tin-mot' + (t.daDoc ? ' da-doc' : '') + '" data-tin="' + esc(t.recordId) + '">' +
+      (anh ? '<img class="tin-anh" src="/api/tb-app/tep/' + encodeURIComponent(t.recordId) + '/' +
+        encodeURIComponent(anh.token) + '" alt="">' : '') +
+      '<div class="tin-chu">' +
+        '<div class="tin-dau">' +
+          '<span class="tin-muc ' + (mucLop[t.mucDo] || '') + '">' + esc(t.mucDo || 'Tin') + '</span>' +
+          (t.daDoc ? '' : '<span class="tin-moi">mới</span>') +
+          (t.tuNgay ? '<span class="tin-ngay">' + esc(ngayGonTin(t.tuNgay)) + '</span>' : '') +
+        '</div>' +
+        '<b>' + esc(t.tieuDe || '(không tiêu đề)') + '</b>' +
+        (t.noiDung ? '<p>' + esc(String(t.noiDung).replace(/\s+/g, ' ').slice(0, 140)) +
+          (String(t.noiDung).length > 140 ? '…' : '') + '</p>' : '') +
+      '</div></article>';
+  };
+
+  o.innerHTML = '<section class="khoi khoi-tin">' +
+    '<div class="tin-luoi' + (coPhim ? '' : ' khong-phim') + '">' +
+      (coPhim
+        ? '<div class="tin-phim"><video src="/api/video-gt?v=' + TIN.phim.luc +
+          '" controls preload="metadata" playsinline></video></div>'
+        : '') +
+      '<div class="tin-cot">' +
+        '<div class="tin-cot-dau"><h2>Tin của phòng</h2>' +
+          '<span class="kh-sub">' + TIN.ds.length + ' thông báo đang hiệu lực</span></div>' +
+        '<div class="tin-ds">' +
+          (TIN.ds.length ? TIN.ds.map(tin).join('')
+            : '<div class="trong">Chưa có thông báo nào.</div>') +
+        '</div>' +
+      '</div>' +
+    '</div></section>';
+
+  /* Bấm một tin là mở đúng popup của tin đó để đọc trọn — kể cả đã đọc rồi.
+   * Đây là đường xem lại, nên không ghi lại xác nhận của ai. */
+  o.querySelectorAll('[data-tin]').forEach((el) => {
+    el.onclick = () => {
+      const t = (TIN.ds || []).find((x) => x.recordId === el.dataset.tin);
+      if (t && typeof xemThuTb === 'function') xemThuTb(t);
+    };
+  });
+}
+
+/** 15/09 — đủ để biết tin cũ hay mới, không chiếm chỗ. */
+function ngayGonTin(ms) {
+  if (!ms) return '';
+  const d = new Date(Number(ms) + 7 * 3600000);
+  const p = (n) => String(n).padStart(2, '0');
+  return p(d.getUTCDate()) + '/' + p(d.getUTCMonth() + 1);
+}
+
 function veHome() {
   const body = $('#homeBody');
   const tq = S.tq;
@@ -986,6 +1077,9 @@ function veHome() {
       '<button class="btn nho ghost" data-log="' + esc(m.id) + '">Xem log</button>' +
       '</div>').join('');
   }
+
+  /* --- video giới thiệu + bảng tin, đứng trước mọi con số --- */
+  html += '<div id="khoiTin"></div>';
 
   /* --- từng base một khối: số liệu lên trước --- */
   let khoiBase = '';
@@ -1068,6 +1162,7 @@ function veHome() {
     '</div></div></section>';
 
   body.innerHTML = html;
+  veKhoiTin();
 
   $('#homeSub').textContent = dsBat.length + ' base · ' + tong + ' việc cần xử lý · cập nhật ' + gio(tq.luc);
   const ai = (tq.modules || []).map((m) => m.nguoi).find(Boolean);

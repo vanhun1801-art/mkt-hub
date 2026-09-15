@@ -476,6 +476,36 @@ Còn hai đường luôn thắng theo hướng mở, cố ý để không ai t�
 Kiểm tra nhanh mình đã cấp đúng chưa: màn Phân quyền → **Xem như** một người, cả app
 chuyển sang đúng con mắt của họ (mọi thao tác ghi bị chặn trong lúc xem hộ).
 
+## Video giới thiệu + bảng tin trên trang Tổng quan
+
+Anh Hùng: *"bên trái sẽ là video anh phát, còn phần bên phải sẽ là những tin tức
+mà anh đã thêm trong phần thông báo cho nhân sự"*.
+
+Khối này đứng **trên mọi con số** của trang Tổng quan: video bên trái, tin bên
+phải, màn hẹp hơn 900px thì xếp dọc. Không đẻ thêm chỗ nhập liệu nào — video đặt
+ở *Cài đặt → Nhận diện thương hiệu*, tin lấy thẳng từ bảng Thông báo. Không có
+video lẫn không có tin thì **không vẽ gì**: một cái khung rỗng giữa trang chủ
+còn tệ hơn là không có.
+
+Bảng tin khác popup chặn màn hình ở một điểm: **tin đã đọc vẫn còn**, chỉ nhạt
+đi và mất nhãn "mới". Popup là để *bắt đọc*, bảng tin là để *tra lại* — bấm một
+tin là mở lại đúng popup đó, và không ghi thêm xác nhận của ai.
+
+Khối chỉ vẽ **một lần** (`dataset.xong`): trang chủ tự vẽ lại mỗi 20 giây theo
+nhịp số liệu, vẽ lại mà đụng vào thẻ `<video>` là video đang xem bị dựng lại từ
+đầu.
+
+| | Video giới thiệu | Tệp đính kèm của thông báo |
+|---|---|---|
+| Chỗ lưu | ổ đĩa của hub (`du-lieu/video-tong-quan.*`) | ô Đính kèm trên Base |
+| Trần | 60 MB | 20 MB |
+| Sống qua deploy? | **không** — ổ Render là ổ tạm, phải tải lên lại | có |
+
+`du-lieu/video-tong-quan.*` **không đưa vào kho**: mỗi lần đổi video là một khối
+nhị phân hàng chục MB nằm lại trong lịch sử git mãi mãi. Muốn video sống qua
+deploy thì hoặc cắt clip xuống dưới 20 MB rồi để trên Base như tệp đính kèm,
+hoặc chấp nhận đưa hẳn tệp vào kho.
+
 ## Thông báo gửi kèm ảnh / tệp
 
 Cột **Đính kèm** (`fldEwBAr6N`, kiểu attachment) trên bảng `Thông báo app`, tạo

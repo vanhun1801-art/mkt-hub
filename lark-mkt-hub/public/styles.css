@@ -1016,6 +1016,66 @@ code { background: var(--trang-2); border: 1px solid var(--vien-mem); border-rad
   display: block; width: 100%; height: auto;
   border-top: 1px solid var(--vien); border-bottom: 1px solid var(--vien);
 }
+/* ---------------- Video giới thiệu + bảng tin (trang Tổng quan) ----------------
+   Hai cột: phim bên trái, tin bên phải. Phim chiếm phần lớn vì nó là thứ người
+   ta dừng lại xem; cột tin hẹp hơn và tự cuộn, cao bằng đúng cột phim để hai
+   bên không so le. Màn hẹp thì xếp dọc, phim lên trên. */
+.khoi-tin { padding: 0; overflow: hidden; }
+.tin-luoi { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(300px, 1fr); }
+.tin-luoi.khong-phim { grid-template-columns: 1fr; }
+.tin-phim { background: #000; display: flex; }
+.tin-phim video { width: 100%; height: 100%; max-height: 420px; object-fit: contain; display: block; }
+
+.tin-cot { display: flex; flex-direction: column; min-width: 0; border-left: 1px solid var(--vien); }
+.tin-luoi.khong-phim .tin-cot { border-left: 0; }
+.tin-cot-dau { padding: 14px 16px 10px; border-bottom: 1px solid var(--vien-mem); }
+.tin-cot-dau h2 { margin: 0; font-size: 15px; }
+.tin-ds { flex: 1 1 auto; overflow-y: auto; max-height: 420px; }
+.tin-ds::-webkit-scrollbar { width: 0; }
+.tin-ds { scrollbar-width: none; }
+
+.tin-mot {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 11px 16px; border-bottom: 1px solid var(--vien-mem);
+  cursor: pointer;
+}
+.tin-mot:hover { background: var(--trang-2); }
+.tin-mot:last-child { border-bottom: 0; }
+/* Đã đọc thì nhạt đi, KHÔNG giấu: bảng tin là chỗ tra lại, khác popup chặn
+   màn hình vốn đọc xong là biến mất. */
+.tin-mot.da-doc { opacity: .62; }
+.tin-anh { width: 52px; height: 52px; object-fit: cover; border-radius: 8px; flex: 0 0 auto; }
+.tin-chu { min-width: 0; }
+.tin-chu b { display: block; font-size: 13px; line-height: 1.4; }
+.tin-chu p {
+  margin: 3px 0 0; font-size: 12px; color: var(--chu-nhat); line-height: 1.5;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.tin-dau { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+.tin-muc {
+  font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  padding: 1px 6px; border-radius: 999px;
+  background: var(--xanh-nhat); color: var(--xanh);
+}
+.tin-muc.vang { background: var(--vang-nhat); color: var(--vang); }
+.tin-muc.do { background: var(--do-nhat); color: var(--do); }
+.tin-moi {
+  font-size: 10px; font-weight: 700; color: var(--luc);
+  background: var(--luc-nhat); padding: 1px 6px; border-radius: 999px;
+}
+.tin-ngay { font-size: 11px; color: var(--chu-nhat); margin-left: auto; }
+
+@media (max-width: 900px) {
+  .tin-luoi { grid-template-columns: 1fr; }
+  .tin-cot { border-left: 0; border-top: 1px solid var(--vien); }
+}
+
+/* Ô xem trước video trong Cài đặt */
+.cd-phim-xem {
+  display: block; width: 100%; max-width: 320px; margin-top: 8px;
+  border-radius: var(--r-nho); background: #000;
+}
+
 /* Video: tràn viền y như ảnh, và cũng hiện trọn khung hình, không cắt. */
 .bb-tep-phim {
   display: block; width: 100%; height: auto; max-height: 70vh;

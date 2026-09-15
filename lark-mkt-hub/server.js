@@ -615,6 +615,32 @@ function tepLogo() {
   return null;
 }
 
+/* ---------------- video giới thiệu ----------------
+ * Cùng lối với logo: giữ ĐÚNG MỘT tệp trong du-lieu/, tải lên bản mới là xoá
+ * bản cũ. Không bao giờ có hai video cùng tồn tại rồi trang Tổng quan phát
+ * nhầm cái nào.
+ *
+ * Ổ đĩa Render là ổ TẠM — video tải lên qua Cài đặt sẽ mất sau lần deploy kế
+ * tiếp, y như logo. Muốn nó sống lâu thì đưa tệp vào kho (xem README).
+ */
+const DUOI_PHIM = { 'video/mp4': '.mp4', 'video/quicktime': '.mov', 'video/webm': '.webm' };
+const MIME_PHIM = { '.mp4': 'video/mp4', '.mov': 'video/quicktime', '.webm': 'video/webm' };
+
+function tepPhim() {
+  for (const d of ['.mp4', '.webm', '.mov']) {
+    const duong = path.join(THU_MUC_DL, 'video-tong-quan' + d);
+    if (fs.existsSync(duong)) return { duong, mime: MIME_PHIM[d], duoi: d };
+  }
+  return null;
+}
+
+function xoaPhim() {
+  for (const d of ['.mp4', '.webm', '.mov']) {
+    const duong = path.join(THU_MUC_DL, 'video-tong-quan' + d);
+    try { if (fs.existsSync(duong)) fs.unlinkSync(duong); } catch (_) { /* khoá tệp thì thôi */ }
+  }
+}
+
 function xoaLogo() {
   for (const d of ['.svg', '.png', '.jpg', '.jpeg', '.webp']) {
     const duong = path.join(THU_MUC_DL, 'logo' + d);
@@ -948,6 +974,95 @@ async function api(req, res, u) {
     if (await chiQuanLy(req, res)) return;
     xoaLogo();
     return ok(res, { ok: true });
+  }
+
+  /* Video giới thiệu: phát trên trang Tổng quan, ai đăng nhập cũng xem được;
+   * chỉ quản lý được thay. Trả TỪNG ĐOẠN qua traTep() để tua được. */
+  if (p === '/api/video-gt' && (m === 'GET' || m === 'HEAD')) {
+    const t = tepPhim();
+    if (!t) return loi(res, 404, 'Chưa có video giới thiệu.');
+    if (m === 'HEAD') {
+      return send(res, 200, '', { 'Content-Type': t.mime, 'Accept-Ranges': 'bytes' });
+    }
+    return traTep(req, res, fs.readFileSync(t.duong), t.mime);
+  }
+
+  if (p === '/api/video-gt-tin' && m === 'GET') {
+    const t = tepPhim();
+    if (!t) return ok(res, { co: false });
+    const st = fs.statSync(t.duong);
+    return ok(res, { co: true, ten: path.basename(t.duong), mb: Math.round(st.size / 104857.6) / 10,
+      luc: st.mtimeMs, kieu: t.mime });
+  }
+
+  if (p === '/api/video-gt' && m === 'POST') {
+    if (await chiQuanLy(req, res)) return;
+    const kieu = String(req.headers['content-type'] || '').split(';')[0];
+    if (!DUOI_PHIM[kieu]) return loi(res, 400, 'Chỉ nhận MP4 · WEBM · MOV.');
+    const buf = await new Promise((giai, hong) => {
+      const phan = [];
+      let n = 0;
+      req.on('data', (c) => {
+        n += c.length;
+        /* 60 MB: video này phát ngay trên trang chủ nên nặng hơn tệp đính kèm
+         * được — nó nằm trên ổ đĩa của chính hub, không đi qua Lark. Vẫn phải
+         * có trần, và chặn NGAY trong lúc nhận. */
+        if (n > 60 * 1024 * 1024) { hong(new Error('Video quá 60 MB.')); req.destroy(); return; }
+        phan.push(c);
+      });
+      req.on('end', () => giai(Buffer.concat(phan)));
+      req.on('error', hong);
+    }).catch((e) => e);
+    if (buf instanceof Error) return loi(res, 400, buf.message);
+    if (!buf.length) return loi(res, 400, 'Tệp rỗng.');
+    xoaPhim();
+    if (!fs.existsSync(THU_MUC_DL)) fs.mkdirSync(THU_MUC_DL, { recursive: true });
+    fs.writeFileSync(path.join(THU_MUC_DL, 'video-tong-quan' + DUOI_PHIM[kieu]), buf);
+    return ok(res, { ok: true, mb: Math.round(buf.length / 104857.6) / 10 });
+  }
+
+  if (p === '/api/video-gt' && m === 'DELETE') {
+    if (await chiQuanLy(req, res)) return;
+    xoaPhim();
+    return ok(res, { ok: true });
+  }
+
+  /* Bảng tin trên trang Tổng quan: những thông báo CÒN HIỆU LỰC của người đang
+   * xem — kể cả cái họ đã bấm "Tôi đã đọc".
+   *
+   * Khác hẳn /api/tb-app: đường kia trả những cái CÒN PHẢI ĐỌC để chặn màn
+   * hình, đọc xong là biến mất. Bảng tin thì để xem lại, nên đọc rồi vẫn còn —
+   * chỉ đánh dấu "đã đọc" để phân biệt cái mới. */
+  if (p === '/api/tb-app/tin' && m === 'GET') {
+    const { nguoi: nguoiTin, xemNhu: nhuTin } = await aiDangXem(req);
+    const id = (nguoiTin && nguoiTin.id) || '';
+    let ds = [];
+    let loiBang = '';
+    try {
+      const het = await tbApp.docTatCa();
+      /* Máy cá nhân KHÔNG có danh tính phiên (xem aiDangXem), nên lọc theo người
+       * nhận sẽ ra rỗng. Bảng tin thì chỉ ĐỌC — không chặn màn hình, không ghi
+       * xác nhận của ai — nên ở chế độ cli cứ hiện mọi thông báo còn hiệu lực:
+       * người ngồi máy đó chính là người soạn chúng. (Popup chặn màn hình vẫn
+       * tắt ở chế độ cli, lý do ở /api/tb-app.) */
+      ds = cfg.mode === 'api'
+        ? het.filter((tb) => tbApp.dangHieuLuc(tb, id))
+        : het.filter((tb) => tbApp.dangHieuLuc(Object.assign({}, tb, { moiAi: true }), id));
+    } catch (e) { loiBang = e.message; }
+    const bac = { 'Gấp': 0, 'Quan trọng': 1, 'Tin': 2 };
+    return ok(res, {
+      xemNhu: !!nhuTin,
+      loiBang,
+      ds: ds
+        .sort((a, b) => (bac[a.mucDo] - bac[b.mucDo]) || (b.tuNgay - a.tuNgay))
+        .slice(0, 20)
+        .map((tb) => ({
+          recordId: tb.recordId, tieuDe: tb.tieuDe, noiDung: tb.noiDung, mucDo: tb.mucDo,
+          nhanNut: tb.nhanNut, lienKet: tb.lienKet, tuNgay: tb.tuNgay, denNgay: tb.denNgay,
+          tep: tb.tep || [],
+          daDoc: tbApp.daXacNhan(tb, id),
+        })),
+    });
   }
 
   if (p === '/api/toi' && m === 'GET') {
