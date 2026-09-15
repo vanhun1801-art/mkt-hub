@@ -129,7 +129,7 @@ function duongTuongDoi(p) {
  * sẽ nhận danh sách cột của bảng thứ nhất, rồi mọi ô ghi đều bị lọc sạch vì
  * "cột không tồn tại" — im lặng và rất khó lần ra.
  */
-function bang(baseToken, tableId) {
+function bang(baseToken, tableId, tenCotTep) {
   const cliArgs = () => ['--base-token', baseToken, '--table-id', tableId,
     '--as', process.env.LARK_AS || 'user', '--format', 'json'];
 
@@ -384,51 +384,99 @@ function bang(baseToken, tableId) {
    * Hỏng cả hai thì ném lỗi KÈM cả hai lý do — bản deploy mà chỉ nói "không tải
    * được" thì không lần ra được đang thiếu quyền gì.
    */
+  /**
+   * Tải một tệp đính kèm về bộ nhớ.
+   *
+   * Chế độ api thử BỐN đường, dừng ở đường đầu tiên trả về byte thật. Không
+   * phải thừa: đường nào chạy được thì chỉ bản deploy mới biết — máy cá nhân
+   * không có khoá app để thử, nên đây là chỗ bó tay nhất của cả app.
+   *
+   *   1. medias/{token}/download
+   *   2. medias/{token}/download + `extra` bitablePerm — ĐÚNG cách Lark đòi cho
+   *      tệp nằm trong Base (không có `extra` thì token bị coi là của Drive
+   *      thường và bị từ chối). Đây là nghi can số một của lần hỏng vừa rồi.
+   *   3. batch_get_tmp_download_url (kèm `extra`) rồi tải theo đường dẫn tạm
+   *   4. chính ô trên Base: bản ghi trả kèm `url` / `tmp_url` đã ký sẵn
+   *
+   * Hỏng cả bốn thì ném lỗi KÈM lý do của TỪNG đường — bản deploy mà chỉ nói
+   * "không tải được" thì không lần ra được đang thiếu quyền gì.
+   */
   async function taiTep(recordId, token) {
     if (laApi()) {
       const tk = await tenantToken();
-      let loi1 = '';
-      try {
-        const r = await fetch(cfg.apiHost + '/open-apis/drive/v1/medias/' +
-          encodeURIComponent(token) + '/download', { headers: { Authorization: 'Bearer ' + tk } });
-        if (r.ok) {
-          const buf = Buffer.from(await r.arrayBuffer());
-          /* Lark trả JSON khi lỗi mà vẫn để 200 ở vài đường — nhận ra bằng
-           * content-type chứ không tin mỗi mã HTTP. */
-          const ct = r.headers.get('content-type') || '';
-          if (!/application\/json/.test(ct) || buf.length > 4096) {
-            return { buf, kieu: /application\/json/.test(ct) ? '' : ct };
-          }
-          loi1 = buf.toString('utf8').slice(0, 200);
-        } else {
-          loi1 = 'HTTP ' + r.status;
-          try { const j = await r.json(); loi1 = 'Lark ' + j.code + ': ' + (j.msg || ''); } catch (_) {}
-        }
-      } catch (e) { loi1 = String(e.message || e); }
+      const dau = { Authorization: 'Bearer ' + tk };
+      const extra = encodeURIComponent(JSON.stringify({ bitablePerm: { tableId, rev: 0 } }));
+      const loi = [];
 
-      let loi2 = '';
-      try {
-        const r2 = await fetch(cfg.apiHost +
-          '/open-apis/drive/v1/medias/batch_get_tmp_download_url?file_tokens=' +
-          encodeURIComponent(token), { headers: { Authorization: 'Bearer ' + tk } });
-        const d2 = await r2.json();
-        const url = ((d2.data || {}).tmp_download_urls || [])[0];
-        if (d2.code === 0 && url && url.tmp_download_url) {
-          const r3 = await fetch(url.tmp_download_url);
-          if (r3.ok) {
-            return { buf: Buffer.from(await r3.arrayBuffer()),
-              kieu: r3.headers.get('content-type') || '' };
-          }
-          loi2 = 'tải theo đường tạm: HTTP ' + r3.status;
-        } else {
-          loi2 = 'Lark ' + d2.code + ': ' + (d2.msg || 'không trả đường dẫn tạm');
+      /** Đọc một đáp: trả byte nếu là tệp thật, trả null kèm lý do nếu không. */
+      const doc = async (nhan, r) => {
+        if (!r.ok) {
+          let m = 'HTTP ' + r.status;
+          try { const j = await r.json(); m = 'Lark ' + j.code + ': ' + (j.msg || ''); } catch (_) {}
+          loi.push(nhan + ' → ' + m);
+          return null;
         }
-      } catch (e) { loi2 = String(e.message || e); }
+        const ct = r.headers.get('content-type') || '';
+        const buf = Buffer.from(await r.arrayBuffer());
+        /* Lark có đường trả JSON lỗi mà vẫn để mã 200 — nhận ra bằng
+         * content-type chứ không tin mỗi mã HTTP. */
+        if (/application\/json/.test(ct)) {
+          loi.push(nhan + ' → ' + buf.toString('utf8').slice(0, 160));
+          return null;
+        }
+        if (!buf.length) { loi.push(nhan + ' → tệp rỗng'); return null; }
+        return { buf, kieu: ct };
+      };
 
-      const e = new Error('Không tải được tệp đính kèm. Đường tải thẳng: ' + loi1 +
-        ' · Đường dẫn tạm: ' + loi2);
-      if (/99991672/.test(loi1 + loi2)) e.code = 99991672;
-      if (/91403/.test(loi1 + loi2)) e.code = 91403;
+      const goiThu = async (nhan, url, headers) => {
+        try { return await doc(nhan, await fetch(url, headers ? { headers } : undefined)); }
+        catch (e) { loi.push(nhan + ' → ' + String(e.message || e)); return null; }
+      };
+
+      const M = cfg.apiHost + '/open-apis/drive/v1/medias/';
+      let kq = await goiThu('tải thẳng', M + encodeURIComponent(token) + '/download', dau);
+      if (kq) return kq;
+
+      kq = await goiThu('tải thẳng + bitablePerm',
+        M + encodeURIComponent(token) + '/download?extra=' + extra, dau);
+      if (kq) return kq;
+
+      for (const [nhan, q] of [['đường tạm + bitablePerm', '&extra=' + extra], ['đường tạm', '']]) {
+        try {
+          const r = await fetch(M + 'batch_get_tmp_download_url?file_tokens=' +
+            encodeURIComponent(token) + q, { headers: dau });
+          const d = await r.json();
+          const mot = ((d.data || {}).tmp_download_urls || [])[0];
+          if (d.code === 0 && mot && mot.tmp_download_url) {
+            kq = await goiThu(nhan, mot.tmp_download_url);
+            if (kq) return kq;
+          } else {
+            loi.push(nhan + ' → Lark ' + d.code + ': ' + (d.msg || 'không trả đường dẫn tạm'));
+          }
+        } catch (e) { loi.push(nhan + ' → ' + String(e.message || e)); }
+      }
+
+      /* Đường cuối: chính ô trên Base. Bản ghi đọc qua API thường kèm sẵn một
+       * đường dẫn đã ký — không cần thêm quyền nào. */
+      try {
+        const dong = (await docHet()).find((x) => x.recordId === recordId);
+        const o = (dong && Array.isArray(dong[tenCotTep]) ? dong[tenCotTep] : [])
+          .find((x) => (x.file_token || x.token) === token) || {};
+        const url = o.tmp_url || o.url || '';
+        if (url) {
+          kq = await goiThu('đường dẫn sẵn trong ô', url, dau);
+          if (kq) return kq;
+          kq = await goiThu('đường dẫn sẵn trong ô (không kèm khoá)', url);
+          if (kq) return kq;
+        } else {
+          loi.push('đường dẫn sẵn trong ô → ô không kèm url');
+        }
+      } catch (e) { loi.push('đường dẫn sẵn trong ô → ' + String(e.message || e)); }
+
+      const e = new Error('Không tải được tệp đính kèm. ' + loi.join(' · '));
+      const het = loi.join(' ');
+      if (/99991672/.test(het)) e.code = 99991672;
+      if (/91403/.test(het)) e.code = 91403;
       throw dichLoiTep(e);
     }
     const thuMuc = fsn.mkdtempSync(pathn.join(thuMucTam(), 'tai-'));

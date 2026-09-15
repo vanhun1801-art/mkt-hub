@@ -59,7 +59,9 @@ const FILE = process.env.HUB_TB_FILE || '';
 
 /* Chỉ dựng bộ gọi khi thật sự có table id: `bang()` không gọi mạng lúc dựng,
  * nhưng để null thì mọi chỗ dùng phải tự kiểm tra, dễ sót. */
-const B = TABLE ? baseLark.bang(BASE, TABLE) : null;
+/* Truyền cả TÊN CỘT ĐÍNH KÈM: đường tải tệp cuối cùng đọc lại chính ô đó để lấy
+ * đường dẫn đã ký sẵn — xem base-lark.taiTep(). */
+const B = TABLE ? baseLark.bang(BASE, TABLE, 'Đính kèm') : null;
 
 /** Tên cột trên Base. Đổi tên cột thì sửa đúng một chỗ này. */
 const F = {

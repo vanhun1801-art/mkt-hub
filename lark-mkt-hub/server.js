@@ -503,6 +503,37 @@ const timMod = (id) => danhSach().find((m) => m.id === id) || null;
  * module trả lời lại mỗi lần ai đó mở ô chọn người. */
 const demDanhBa = new Map();   // khoaNguoi -> { at, ds }
 
+/* ---------------- byte của tệp đính kèm ----------------
+ * Tệp vừa tải lên thì lớp vỏ ĐANG CẦM byte trong tay. Giữ lại một bản, và mọi
+ * lượt xem ảnh sau đó lấy thẳng ở đây thay vì xin lại Lark.
+ *
+ * Hai cái lợi, cái thứ hai mới là lý do thật:
+ *   1. Nhanh — không mất một vòng gọi ra Lark cho mỗi lần popup hiện ra.
+ *   2. Ảnh HIỆN ĐƯỢC kể cả khi đường tải về của Lark từ chối (đúng chuyện đang
+ *      xảy ra trên bản deploy: tải lên thì được, tải về thì không).
+ *
+ * Bộ đệm nằm trong RAM nên mất sau mỗi lần deploy hay ngủ dậy; lúc đó lại đi
+ * đường Lark như cũ. Nó là đường tắt, không phải nơi lưu trữ — chỗ lưu thật vẫn
+ * là ô đính kèm trên Base.
+ */
+const demTep = new Map();            // file_token -> { buf, kieu, at }
+const DEM_TEP_TRAN = 24 * 1024 * 1024;   // ~24 MB, đủ vài chục ảnh đã nén
+
+function nhoTep(token, buf, kieu) {
+  if (!token || !buf || buf.length > 8 * 1024 * 1024) return;
+  demTep.set(token, { buf, kieu, at: Date.now() });
+  let tong = 0;
+  for (const v of demTep.values()) tong += v.buf.length;
+  if (tong <= DEM_TEP_TRAN) return;
+  /* Quá trần thì bỏ cái cũ nhất trước — ảnh của thông báo đang hiện bao giờ
+   * cũng là ảnh vừa được xem, nên nó ở lại. */
+  for (const [k] of [...demTep.entries()].sort((a, b) => a[1].at - b[1].at)) {
+    tong -= demTep.get(k).buf.length;
+    demTep.delete(k);
+    if (tong <= DEM_TEP_TRAN) break;
+  }
+}
+
 /* ---- thông báo: chỉ lưu "ai đã đọc mã nào" ---- */
 const BAC_TB = { gap: 0, can: 1, tin: 2 };
 const FILE_DA_DOC = path.join(__dirname, 'thong-bao.json');
@@ -1161,6 +1192,7 @@ async function api(req, res, u) {
 
     try {
       const token = await tbApp.dinhTep(recordId, { ten, kieu, buf });
+      nhoTep(token, buf, kieu);
       return ok(res, { token, ten, kieu, co: buf.length });
     } catch (e) {
       return loi(res, 400, e.message);
@@ -1181,6 +1213,18 @@ async function api(req, res, u) {
     const recordId = decodeURIComponent(phan[0] || '');
     const token = decodeURIComponent(phan[1] || '');
     if (!recordId || !token) return loi(res, 400, 'Thiếu recordId hoặc token.');
+
+    /* Có sẵn trong bộ đệm thì phát luôn — nhanh hơn, và không phụ thuộc đường
+     * tải về của Lark. */
+    const sanCo = demTep.get(token);
+    if (sanCo) {
+      sanCo.at = Date.now();
+      return send(res, 200, sanCo.buf, {
+        'Content-Type': sanCo.kieu || 'application/octet-stream',
+        'Cache-Control': 'private, max-age=3600',
+      });
+    }
+
     try {
       const t = await tbApp.taiTep(recordId, token);
       /* Kiểu tệp: đường cli không báo kiểu, mà ô trên Base cũng hay để trống.
@@ -1195,6 +1239,7 @@ async function api(req, res, u) {
         kieu = ((dong && (dong.tep || []).find((x) => x.token === token)) || {}).kieu ||
           MIME[duoi] || kieu || 'application/octet-stream';
       }
+      nhoTep(token, t.buf, kieu);
       return send(res, 200, t.buf, {
         'Content-Type': kieu,
         /* Tệp đính kèm không đổi nội dung theo token, nhưng là thứ riêng của

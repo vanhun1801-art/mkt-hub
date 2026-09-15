@@ -487,7 +487,7 @@ token, rồi gắn token vào ô. Hai chế độ đi hai đường hẳn nhau (
 | | cli — máy cá nhân | api — bản deploy |
 |---|---|---|
 | Đẩy lên | `base +record-upload-attachment` | `drive/v1/medias/upload_all` (`parent_type` `bitable_file`) rồi ghi ô `[{file_token}]` |
-| Tải về | `base +record-download-attachment` | `drive/v1/medias/{token}/download`, hỏng thì lùi về `batch_get_tmp_download_url` |
+| Tải về | `base +record-download-attachment` | bốn đường, dừng ở đường đầu tiên ra byte thật: `medias/{token}/download` → thêm `extra` bitablePerm → `batch_get_tmp_download_url` (± `extra`) → `url`/`tmp_url` có sẵn trong ô |
 | Thử được ở máy cá nhân? | **có** | **không** — cần khoá app, mà khoá chỉ nằm trên Render |
 
 Vì đường `api` không thử được ở máy cá nhân nên mọi lỗi ở đó được **dịch ra
@@ -522,9 +522,18 @@ suốt — logo PNG nền trong ép sang JPEG là nền đen. Không đụng và
 phải ảnh, SVG (vector), GIF (nén thành ảnh tĩnh là mất cái người ta muốn gửi),
 và ảnh vốn đã dưới 1 MB.
 
-**Ảnh tải hỏng thì đổi thành dòng bấm-để-tải**, không để lại khung ảnh vỡ: khung
-vỡ là thứ tệ nhất ở đây — người nhận không biết mình thiếu gì, người gửi tưởng
-đã gửi được.
+**Byte của tệp vừa tải lên được giữ lại trong RAM** (`demTep`, trần ~24 MB, bỏ
+cái cũ nhất trước). Lúc tải lên thì lớp vỏ đang cầm byte trong tay, nên mọi lượt
+xem ảnh sau đó lấy thẳng ở đó: nhanh hơn (đo được **12 ms** thay vì một vòng gọi
+ra Lark), và **ảnh hiện được kể cả khi đường tải về của Lark từ chối** — đúng
+chuyện đã xảy ra trên bản deploy: tải lên thì được, tải về thì không. Bộ đệm mất
+sau mỗi lần deploy; lúc đó lại đi đường Lark. Nó là đường tắt, chỗ lưu thật vẫn
+là ô đính kèm trên Base.
+
+**Ảnh vẫn hỏng thì hiện THẲNG lý do**, không để lại khung ảnh vỡ cũng không bắt
+bấm vào mới biết: thẻ `<img>` không nói được vì sao nó hỏng, nên lúc lỗi thì
+giao diện hỏi lại chính đường dẫn đó để lấy câu lỗi của máy chủ và in ra đỏ ngay
+tại dòng tệp.
 
 Trong popup: ảnh hiện thẳng (cao tối đa 320px — thông báo là thứ *chặn* màn
 hình, một tấm ảnh dài đẩy nút "Tôi đã đọc" xuống ngoài tầm nhìn là biến nó thành

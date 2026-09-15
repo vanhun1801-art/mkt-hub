@@ -261,12 +261,25 @@ function veTepTb(tb) {
  */
 function vaAnhHong(el) {
   el.querySelectorAll('.bb-tep-anh img').forEach((img) => {
-    img.onerror = () => {
+    img.onerror = async () => {
       const a = img.closest('.bb-tep-anh');
       if (!a) return;
+      /* Hỏi lại chính đường dẫn đó để LẤY CÂU LỖI. Thẻ <img> không nói được vì
+       * sao nó hỏng, mà "bấm để mở" thì bắt người ta đi tìm hộ mình. Máy chủ đã
+       * ghi sẵn lý do của từng đường đã thử — hiện thẳng ra đây. */
+      let vi = '';
+      try {
+        const r = await fetch(a.getAttribute('href'));
+        if (!r.ok) {
+          const d = await r.json().catch(() => ({}));
+          vi = d.error || ('HTTP ' + r.status);
+        }
+      } catch (e) { vi = String(e.message || e); }
       a.className = 'bb-tep-mot';
       a.innerHTML = '<span class="bb-tep-ic">TỆP</span><span>' +
-        esc(a.dataset.ten || 'tệp') + ' — không hiện được ảnh, bấm để mở</span>';
+        esc(a.dataset.ten || 'tệp') +
+        (vi ? ' — <b style="color:var(--do)">' + esc(vi.slice(0, 220)) + '</b>'
+            : ' — không hiện được ảnh, bấm để mở') + '</span>';
     };
   });
 }
