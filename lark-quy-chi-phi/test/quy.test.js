@@ -341,6 +341,34 @@ const nhom = (t) => console.log('\n\x1b[1m' + t + '\x1b[0m');
     { method: 'POST', headers: nhuNguoiLa });
   ok('người ngoài không bỏ quyết toán được', rBoLa.status === 403, 'HTTP ' + rBoLa.status);
 
+  /* Bỏ quyết toán THEO LÔ. Ba đường trả lỗi, không đường nào ghi gì. */
+  const rLoRong = await fetch(BASE + '/api/bo-quyet-toan', {
+    method: 'POST', headers: nhuKeToan, body: JSON.stringify({ ids: [] }),
+  });
+  ok('bỏ quyết toán lô mà chưa chọn gì thì bị chặn', rLoRong.status === 400,
+    'HTTP ' + rLoRong.status);
+
+  if (chuaDongSo) {
+    /* Chọn toàn khoản CHƯA quyết toán: phải từ chối hẳn, tuyệt đối không được
+     * lẳng lặng đổi tình trạng của chúng sang "Đã chi" — đó là sửa dữ liệu
+     * người dùng không hề định sửa. */
+    const r = await fetch(BASE + '/api/bo-quyet-toan', {
+      method: 'POST', headers: nhuKeToan, body: JSON.stringify({ ids: [chuaDongSo.id] }),
+    });
+    const d = await r.json();
+    ok('lô toàn khoản chưa quyết toán thì bị chặn, không đụng gì',
+      r.status === 400 && /trạng thái quyết toán/i.test(d.error || ''), JSON.stringify(d));
+    const lai = await (await fetch(BASE + '/api/meta?moi=1')).json();
+    const sau = lai.chi.find((c) => c.id === chuaDongSo.id);
+    ok('và khoản đó giữ nguyên tình trạng cũ', sau.tinhTrang === chuaDongSo.tinhTrang,
+      chuaDongSo.tinhTrang + ' -> ' + sau.tinhTrang);
+  }
+
+  const rLoLa = await fetch(BASE + '/api/bo-quyet-toan', {
+    method: 'POST', headers: nhuNguoiLa, body: JSON.stringify({ ids: [mot.id] }),
+  });
+  ok('người ngoài không bỏ quyết toán lô được', rLoLa.status === 403, 'HTTP ' + rLoLa.status);
+
   const rKhong = await fetch(BASE + '/api/chi/recKHONGCOTHAT/duyet', {
     method: 'POST', headers: nhuKeToan, body: JSON.stringify({ ma: 'X' }),
   });

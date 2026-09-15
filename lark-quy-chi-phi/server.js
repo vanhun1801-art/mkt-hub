@@ -702,6 +702,46 @@ async function xuLy(req, res) {
     return json(res, { ok: true, maCu: truoc.maQuyetToan || '' });
   }
 
+  /* ---------------------------------------------------------------------
+   * BỎ QUYẾT TOÁN THEO LÔ
+   * -------------------------------------------------------------------
+   * Gán nhầm một mã cho ba chục khoản thì gỡ từng cái là ba chục lần bấm, và
+   * đúng lúc đang sốt ruột nhất. Cùng hình dạng với /api/quyet-toan: nhận một
+   * mảng id, làm một lượt.
+   *
+   * CHỈ ĐỤNG KHOẢN ĐANG CÓ MÃ. Chọn cả trang rồi bấm thì khoản chưa quyết toán
+   * bị bỏ qua chứ không bị đổi tình trạng lây — đổi lây là sửa dữ liệu người
+   * dùng không hề định sửa.
+   * ------------------------------------------------------------------- */
+  if (p === '/api/bo-quyet-toan' && req.method === 'POST') {
+    if (!(await doiQuyenQuyetToan(res))) return;
+    const body = await docThan(req);
+    const ids = (body.ids || []).filter((x) => /^rec[A-Za-z0-9]+$/.test(x));
+    if (!ids.length) return json(res, { error: 'Chưa chọn khoản nào.' }, 400);
+
+    const k = await nap();
+    const theoId = {};
+    k.chi.map((r) => doiRa(r, F.chi)).forEach((c) => { theoId[c.id] = c; });
+    const dungLa = ids.filter((id) => {
+      const c = theoId[id];
+      return c && (String(c.maQuyetToan || '').trim() || c.tinhTrang === 'Đã quyết toán');
+    });
+    if (!dungLa.length) {
+      return json(res, { error: 'Không khoản nào trong số đã chọn đang ở trạng thái quyết toán.' }, 400);
+    }
+
+    const cells = {
+      [F.chi.maQuyetToan.name]: '',
+      [F.chi.tinhTrang.name]: 'Đã chi',
+    };
+    const map = {};
+    dungLa.forEach((id) => { map[id] = cells; });
+    if (typeof lark.updateMany === 'function') await lark.updateMany(map, cfg.tableId);
+    else for (const id of dungLa) await lark.updateRecord(id, cells, cfg.tableId);
+    kho.at = 0;
+    return json(res, { ok: true, so: dungLa.length, boQua: ids.length - dungLa.length });
+  }
+
   /* ---- tệp tĩnh ---- */
   if (req.method === 'GET') {
     const ten = p === '/' ? '/index.html' : p;

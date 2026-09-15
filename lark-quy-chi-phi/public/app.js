@@ -548,14 +548,30 @@ function veTacVu(c) {
     + '<button class="btn sm nguyhiem" data-tuchoi="' + c.id + '">Yêu cầu điều chỉnh</button>';
 }
 
+/**
+ * Thanh chọn: MỖI NÚT NÓI ĐÚNG SỐ KHOẢN NÓ ĐỤNG TỚI, không nói số khoản đang
+ * được tích.
+ *
+ * Chọn 20 khoản trong đó 15 đã đóng sổ thì nút "Quyết toán 20 khoản" là một lời
+ * nói dối: gán mã cho 15 khoản kia là xoá 15 mã cũ. Nên tách hẳn hai việc, và
+ * mỗi nút chỉ đếm phần nó thật sự làm.
+ */
 function veThanhChon() {
   const ds = S.chi.filter((c) => S.chon.has(c.id));
   const tong = ds.reduce((a, c) => a + c.tien, 0);
+  const daDongSo = ds.filter((c) => String(c.maQuyetToan || '').trim()
+    || c.tinhTrang === 'Đã quyết toán');
+  const chuaDongSo = ds.filter((c) => !daDongSo.includes(c));
   return '<div class="thanhchon">'
     + '<b>' + ds.length + ' khoản</b> · ' + tien(tong) + ' đ'
     + '<div class="sp"></div>'
     + '<button class="btn" data-bochon="1">Bỏ chọn</button>'
-    + '<button class="btn primary" data-quyettoan="1">Quyết toán ' + ds.length + ' khoản</button>'
+    + (daDongSo.length
+      ? '<button class="btn nguyhiem" data-boqt="1">Bỏ quyết toán '
+        + daDongSo.length + ' khoản</button>' : '')
+    + (chuaDongSo.length
+      ? '<button class="btn primary" data-quyettoan="1">Quyết toán '
+        + chuaDongSo.length + ' khoản</button>' : '')
   + '</div>';
 }
 
@@ -746,14 +762,16 @@ function moNapQuy() {
 }
 
 function moQuyetToan() {
-  const ds = S.chi.filter((c) => S.chon.has(c.id));
+  /* Chỉ đóng sổ khoản CHƯA có mã. Khoản đã có mã muốn gán lại thì bỏ quyết toán
+   * trước — một đường rõ ràng, thay vì một cú bấm vừa gán vừa xoá. */
+  const chon = S.chi.filter((c) => S.chon.has(c.id));
+  const boQua = chon.filter((c) => String(c.maQuyetToan || '').trim());
+  const ds = chon.filter((c) => !boQua.includes(c));
   const tong = ds.reduce((a, c) => a + c.tien, 0);
   const thieu = ds.filter(thieuChungTu);
-  /* Hai thứ phải nói TRƯỚC khi bấm, vì bấm rồi là không lùi được:
-   *   · khoản ĐÃ có mã QTTU — gán mã mới là xoá mã cũ, mất đường đối chiếu
-   *   · khoản CHƯA chi tiền — đóng sổ một khoản tiền còn chưa rời quỹ */
-  const deGhiDe = ds.filter((c) => String(c.maQuyetToan || '').trim());
+  const deGhiDe = [];
   const chuaChi = ds.filter((c) => c.tinhTrang === 'Chờ chi');
+  if (!ds.length) return toast('Cả ' + chon.length + ' khoản đã có mã quyết toán rồi.', 'err');
   moModal('Quyết toán ' + ds.length + ' khoản',
     '<div class="form">'
     + '<div class="tomtat"><b>' + ds.length + ' khoản</b> · tổng <b>' + tien(tong) + ' đ</b></div>'
@@ -764,6 +782,9 @@ function moQuyetToan() {
         + (deGhiDe.length > 4 ? '…' : '')
         + '<br>Bỏ tick mấy khoản đó nếu chỉ định đóng sổ phần còn lại.</div>'
       : '')
+    + (boQua.length
+      ? '<div class="nhac"><b>' + boQua.length + ' khoản đã có mã quyết toán nên không đụng tới.</b> '
+        + 'Muốn gán mã khác thì bấm <b>Bỏ quyết toán</b> trước.</div>' : '')
     + (chuaChi.length
       ? '<div class="nhac canhbao"><b>' + chuaChi.length + ' khoản còn ở "Chờ chi".</b> '
         + 'Tiền chưa rời quỹ mà đóng sổ thì kế toán nhận một chứng từ chưa có thật.</div>'
@@ -780,6 +801,7 @@ function moQuyetToan() {
     + '</div>',
     '<div class="sp"></div><button class="btn" data-close="1">Đóng</button>'
     + '<button class="btn ' + (deGhiDe.length ? 'nguyhiem' : 'primary') + '" id="btnLuuQT" data-chinh="1"'
+    + ' data-ids="' + ds.map((c) => c.id).join(',') + '"'
     + (deGhiDe.length ? ' data-ghide="' + deGhiDe.length + '"' : '') + '>'
     + (deGhiDe.length ? 'Ghi đè ' + deGhiDe.length + ' mã cũ · gán cho ' + ds.length + ' khoản'
       : 'Gán mã cho ' + ds.length + ' khoản') + '</button>');
@@ -1059,11 +1081,25 @@ function chonHetTrongBang(bat) {
   const ds = locChi();
   if (!bat) { ds.forEach((c) => S.chon.delete(c.id)); return ve(); }
   const duoc = ds.filter(quyetToanDuoc);
-  duoc.forEach((c) => S.chon.add(c.id));
-  const bo = ds.length - duoc.length;
-  if (!duoc.length) toast('Không còn khoản nào chờ quyết toán.');
-  else if (bo) toast('Chọn ' + duoc.length + ' khoản còn phải đóng sổ · bỏ qua ' + bo
-    + ' khoản đã có mã quyết toán');
+  if (duoc.length) {
+    duoc.forEach((c) => S.chon.add(c.id));
+    const bo = ds.length - duoc.length;
+    if (bo) toast('Chọn ' + duoc.length + ' khoản còn phải đóng sổ · bỏ qua ' + bo
+      + ' khoản đã có mã quyết toán');
+    return ve();
+  }
+  /* Không còn gì để đóng sổ, mà cả trang đang là khoản ĐÃ đóng sổ — người dùng
+   * vừa lọc đúng vào chúng, gần như chắc chắn là để gỡ cả lô. Chọn giúp, và
+   * nói rõ vừa chọn cái gì. Chỉ làm khi không lẫn: nếu còn khoản đóng sổ được
+   * thì nhánh trên đã chạy rồi. */
+  const daXong = ds.filter((c) => String(c.maQuyetToan || '').trim()
+    || c.tinhTrang === 'Đã quyết toán');
+  if (daXong.length && daXong.length === ds.length) {
+    daXong.forEach((c) => S.chon.add(c.id));
+    toast('Chọn ' + daXong.length + ' khoản đã quyết toán');
+  } else {
+    toast('Không còn khoản nào chờ quyết toán.');
+  }
   ve();
 }
 
@@ -1216,6 +1252,29 @@ document.addEventListener('click', async (e) => {
   if (T.closest('[data-bochon]')) { S.chon.clear(); return ve(); }
   if (T.closest('[data-quyettoan]')) return moQuyetToan();
 
+  /* Bỏ quyết toán theo lô. Hỏi lại và KỂ TÊN mã sắp mất: mã quyết toán không
+   * dựng lại được từ app, gỡ xong là phải đi tra sổ kế toán mới biết khoản nào
+   * từng mang mã nào. */
+  const boqt = T.closest('[data-boqt]');
+  if (boqt) {
+    const ds = S.chi.filter((c) => S.chon.has(c.id)
+      && (String(c.maQuyetToan || '').trim() || c.tinhTrang === 'Đã quyết toán'));
+    if (!ds.length) return toast('Không khoản nào đang ở trạng thái quyết toán.', 'err');
+    const ma = [...new Set(ds.map((c) => String(c.maQuyetToan || '').trim()).filter(Boolean))];
+    if (!confirm('Bỏ quyết toán ' + ds.length + ' khoản?' + THEM_DONG
+      + (ma.length ? 'Xoá ' + ma.length + ' mã: ' + ma.slice(0, 5).join(', ')
+        + (ma.length > 5 ? '…' : '') + XUONG_DONG : '')
+      + 'Các khoản quay về "Đã chi". Mã đã xoá không dựng lại được.')) return;
+    await chongBamHai(boqt, async () => {
+      const r = await api('/api/bo-quyet-toan', {
+        method: 'POST', body: JSON.stringify({ ids: ds.map((c) => c.id) }),
+      });
+      toast('Đã bỏ quyết toán ' + r.so + ' khoản', 'ok');
+      S.chon.clear(); await taiLai(true);
+    }, 'Đang gỡ…');
+    return;
+  }
+
   const xoa = T.closest('[data-xoa]');
   if (xoa) {
     const c = S.chi.find((x) => x.id === xoa.dataset.xoa);
@@ -1294,7 +1353,7 @@ document.addEventListener('click', async (e) => {
     await chongBamHai(nut, async () => {
       const r = await api('/api/quyet-toan', {
         method: 'POST',
-        body: JSON.stringify({ ids: [...S.chon], ma, deGhiDe: !!soGhiDe }),
+        body: JSON.stringify({ ids: nut.dataset.ids.split(','), ma, deGhiDe: !!soGhiDe }),
       });
       S.maCuoi = ma;
       dongModal(); toast('Đã quyết toán ' + r.so + ' khoản với mã ' + ma, 'ok');

@@ -226,6 +226,29 @@ mình làm gì.
 Ô đếm **Chờ điều chỉnh** chỉ mọc khi có khoản đang chờ. Một ô số 0 đứng thường
 trực là ô người ta học cách không nhìn, rồi đúng lúc nó khác 0 cũng trôi qua mắt.
 
+### Thanh chọn: mỗi nút đếm đúng phần nó làm
+
+Chọn 20 khoản trong đó 15 đã đóng sổ, mà nút ghi *"Quyết toán 20 khoản"*, là một
+lời nói dối — gán mã cho 15 khoản kia là **xoá 15 mã cũ**. Nên thanh chọn tách
+hẳn hai việc:
+
+```
+5 khoản · 2.181.054 đ     [Bỏ chọn]  [Bỏ quyết toán 3 khoản]  [Quyết toán 2 khoản]
+```
+
+Nút nào không có việc thì không mọc. Và **quyết toán hàng loạt không còn đụng
+vào khoản đã có mã**: muốn gán mã khác thì bỏ quyết toán trước — một đường rõ
+ràng, thay vì một cú bấm vừa gán vừa xoá. Cửa sổ nói thẳng bao nhiêu khoản bị bỏ
+qua và phải làm gì để gán lại.
+
+**Bỏ quyết toán hàng loạt** cũng qua một lời hỏi lại kể tên các mã sắp mất — mã
+quyết toán không dựng lại được từ app, gỡ xong là phải đi tra sổ kế toán mới biết
+khoản nào từng mang mã nào.
+
+Ô tích đầu bảng chọn khoản **còn phải đóng sổ**. Nếu cả trang đã đóng sổ hết —
+tức là người dùng vừa lọc đúng vào chúng, gần như chắc chắn để gỡ cả lô — thì nó
+chọn chúng và nói rõ vừa chọn cái gì. Không bao giờ chọn lẫn hai loại.
+
 **Đóng sổ không phải đường một chiều.** Khoản đã quyết toán mang nút **Sửa** —
 cùng dáng nút bên vai người giữ quỹ — mở ra cửa sổ vừa đổi được mã vừa **Bỏ
 quyết toán** để đưa khoản về lại *Đã chi*. Bấm nhầm mã, bấm nhầm dòng, hay soi
@@ -446,7 +469,7 @@ Phép thử số liệu theo kỳ không ghim con số nào: nó kiểm **đầu
 cuối kỳ**, và **cuối kỳ tháng trước = đầu kỳ tháng sau**. Bất biến thì đúng mãi,
 còn con số thì sai ngay khoản chi kế tiếp.
 
-Lần chạy gần nhất: **92 + 66 pass · 0 fail**.
+Lần chạy gần nhất: **98 + 70 pass · 0 fail**.
 
 `node --check` xanh mà app vẫn vỡ — lần thứ hai. Ngày 13/09/2026 một dòng lạc
 rơi vào giữa `/* tiện */` và `function json(...)`, biến một khai báo hàm thành

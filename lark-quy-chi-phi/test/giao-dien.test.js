@@ -308,15 +308,42 @@ function chay(meta) {
   ok('khoản còn Chờ chi cũng không', duoc('recC4') === false);
   ok('khoản đã chi mà chưa có mã thì quét vào được', duoc('recC1') === true);
 
-  /* Cửa sổ phải NÓI RA trước khi bấm, không chỉ âm thầm ghi đè. */
-  q.__goi('S.chon.clear(); S.chon.add("recC2"); moQuyetToan()');
+  /* ĐÓNG SỔ HÀNG LOẠT KHÔNG CÒN ĐỤNG VÀO KHOẢN ĐÃ CÓ MÃ.
+   * Trước đây nó ghi đè kèm cảnh báo; giờ tách hẳn hai việc — muốn gán mã khác
+   * thì bỏ quyết toán trước. Một cú bấm vừa gán vừa xoá là chỗ dễ mất dữ liệu
+   * nhất, mà cảnh báo thì đọc một lần rồi lần sau bấm qua. */
+  q.__goi('S.chon.clear(); S.chon.add("recC2"); S.chon.add("recC1"); moQuyetToan()');
   const than = q.__than();
   const chan = q.__chan();
-  ok('cửa sổ cảnh báo sắp xoá mã quyết toán cũ',
-    /đã có mã quyết toán/.test(than) && /xoá hẳn/.test(than), than.slice(0, 200));
-  ok('cảnh báo nêu đúng mã sắp mất', than.includes('QTTU52/LVH'), than.slice(0, 200));
-  ok('nút đổi thành nút nguy hiểm, mang cờ ghi đè',
-    /nguyhiem/.test(chan) && /data-ghide="1"/.test(chan), chan.slice(0, 200));
+  ok('cửa sổ nói rõ khoản đã có mã bị bỏ qua',
+    /1 khoản đã có mã quyết toán nên không đụng tới/.test(than), than.slice(0, 260));
+  ok('và chỉ đường: muốn gán lại thì bỏ quyết toán trước',
+    /Bỏ quyết toán<\/b> trước/.test(than));
+  ok('chỉ gửi đi id của khoản chưa có mã',
+    /data-ids="recC1"/.test(chan), (chan.match(/data-ids="[^"]*"/) || [''])[0]);
+  ok('không còn cờ ghi đè trong đường hàng loạt', !/data-ghide/.test(chan));
+
+  /* Chọn toàn khoản đã đóng sổ rồi bấm Quyết toán: không mở cửa sổ trống. */
+  q.__goi('S.chon.clear(); S.chon.add("recC2"); $("#mdBody").innerHTML = ""; moQuyetToan()');
+  ok('chọn toàn khoản đã có mã thì không mở cửa sổ nào', q.__than() === '',
+    q.__than().slice(0, 120));
+
+  console.log(SAO + 'Bỏ quyết toán hàng loạt' + HET);
+  q.__goi('S.chon.clear(); S.chon.add("recC2")');
+  const thanh1 = String(q.veThanhChon());
+  ok('chọn khoản đã đóng sổ thì hiện nút bỏ quyết toán',
+    /data-boqt/.test(thanh1) && /Bỏ quyết toán 1 khoản/.test(thanh1), thanh1);
+  ok('và KHÔNG hiện nút quyết toán cho khoản đó', !/data-quyettoan/.test(thanh1));
+
+  q.__goi('S.chon.clear(); S.chon.add("recC1")');
+  const thanh2 = String(q.veThanhChon());
+  ok('chọn khoản chưa đóng sổ thì ngược lại',
+    /data-quyettoan/.test(thanh2) && !/data-boqt/.test(thanh2), thanh2);
+
+  q.__goi('S.chon.clear(); S.chon.add("recC1"); S.chon.add("recC2")');
+  const thanh3 = String(q.veThanhChon());
+  ok('chọn lẫn thì hiện cả hai, mỗi nút đếm đúng phần nó làm',
+    /Bỏ quyết toán 1 khoản/.test(thanh3) && /Quyết toán 1 khoản/.test(thanh3), thanh3);
 
   /* Khoản "Chờ chi": tiền chưa rời quỹ mà đóng sổ là chứng từ chưa có thật. */
   q.__goi('S.chon.clear(); S.chon.add("recC4"); moQuyetToan()');
@@ -476,8 +503,8 @@ function chay(meta) {
   ok('Enter nhắm nút xác nhận, không nhắm nút Bỏ quyết toán',
     nutChinh(k3.__chan()) === 'btnDuyetMot', String(nutChinh(k3.__chan())));
 
-  kq2.__goi('S.chon.clear(); S.chon.add("recC2"); moQuyetToan()');
-  ok('cửa sổ ghi đè mã cũ vẫn có nút chính dù nó màu đỏ',
+  kq2.__goi('S.chon.clear(); S.chon.add("recC1"); moQuyetToan()');
+  ok('cửa sổ quyết toán lô có nút chính cho Enter',
     nutChinh(kq2.__chan()) === 'btnLuuQT', String(nutChinh(kq2.__chan())));
 
   /* Cửa sổ chỉ để xem thì Enter không được làm gì — ở đó không có việc nào
