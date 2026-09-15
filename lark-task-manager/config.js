@@ -187,6 +187,19 @@ module.exports = {
   // Thứ tự cột Kanban
   statusOrder: ['Chờ tiếp nhận', 'Đang tiến hành', 'Làm lại', 'Tạm dừng', 'Trễ deadline', 'Hoàn thành', 'Hủy'],
 
+  /* Trạng thái NHÁP — việc đang soạn dở, chưa giao cho ai.
+   *
+   * CỐ Ý không nằm trong statusOrder: nháp không phải một giai đoạn của công việc,
+   * nó là việc CHƯA TỒN TẠI với phòng. Nhờ vậy nó không có cột Kanban, không vào
+   * ô chọn trạng thái, và không lọt vào bất cứ chỗ đếm nào.
+   *
+   * Chốt chặn thật nằm ở `getRecords()` trong server.js: mặc định loại hết bản ghi
+   * mang trạng thái này, nên MỌI endpoint — kể cả endpoint viết sau này — đều sạch
+   * mà không phải nhớ. Bốn app khác (hub, KPI, Báo cáo, bot) đều đọc qua
+   * `/api/tasks` của app này nên cũng sạch theo.
+   */
+  trangThaiNhap: 'Nháp',
+
   /* ---- Quy tắc từ tài liệu "Base Tracking - Training" ---- */
 
   // Trạng thái người phụ trách chính được tự đặt

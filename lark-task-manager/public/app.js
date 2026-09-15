@@ -692,6 +692,50 @@ function renderLanes(list) {
     if (groups[k]) groups[k].push(t);
   }
 
+  /* Làn NHÁP nằm trên cùng. Nháp không đi qua laneOf() vì nó không nằm trong
+   * S.tasks — /api/tasks cố ý không trả nháp, để không app nào đếm phải nó. Nên
+   * vẽ riêng ở đây từ S.nhapDs.
+   *
+   * Chỉ hiện khi đang xem việc của CHÍNH MÌNH: quản lý bấm xem việc người khác mà
+   * lại thấy nháp của mình chen vào thì rất khó hiểu. */
+  const xemViecMinh = !S.viewAs;
+  if (xemViecMinh && (S.nhapDs || []).length && !S.wf.lane) {
+    const lane = el('div', 'lane lane-l-nhap');
+    const head = el('div', 'lane-head');
+    head.appendChild(el('strong', '', 'Nháp — chưa gửi đi'));
+    head.appendChild(el('span', 'lh-n', String(S.nhapDs.length)));
+    head.appendChild(el('span', 'lh-hint',
+      'Việc anh soạn dở, chưa ai trong phòng thấy. Bấm vào để soạn tiếp rồi bấm "Tạo công việc".'));
+    lane.appendChild(head);
+
+    const body = el('div', 'lane-items');
+    for (const n of S.nhapDs) {
+      const c = el('div', 'wcard wcard-nhap');
+      const main = el('div', 'wcard-main');
+      main.appendChild(el('div', 'wcard-title', n.title || '(chưa đặt tên)'));
+      if (n.detail) {
+        main.appendChild(el('div', 'wcard-sub', n.detail.replace(/\s+/g, ' ').slice(0, 150)));
+      }
+      const meta = el('div', 'wcard-meta');
+      meta.appendChild(el('span', 'tag tag-nhap', 'Nháp'));
+      if (n.workType) meta.appendChild(el('span', 'tag', n.workType));
+      if (n.startAt) meta.appendChild(el('span', 'tag', 'soạn ' + nhanLucNhap(n.startAt)));
+      // Nói thẳng còn thiếu gì thì mới thành việc thật được
+      const thieu = [];
+      if (!n.detail) thieu.push('chi tiết');
+      if (!n.workType) thieu.push('loại việc');
+      if (!n.deadline1) thieu.push('deadline');
+      if (thieu.length) meta.appendChild(el('span', 'tag tag-thieu', 'còn thiếu: ' + thieu.join(', ')));
+      main.appendChild(meta);
+      c.appendChild(main);
+      c.title = 'Soạn tiếp bản nháp này';
+      c.onclick = () => openDrawer(null, n);
+      body.appendChild(c);
+    }
+    lane.appendChild(body);
+    box.appendChild(lane);
+  }
+
   for (const def of LANES) {
     const items = laneSort(groups[def.key]);
     // Làn rỗng: giữ "Công việc mới" và "Đang tiến hành" để nhân sự biết mình đang trống,
@@ -2700,9 +2744,105 @@ function optionsDropdown(options, selected, onChange, placeholder) {
   return multiDropdown(items, selected || [], (ids) => onChange(ids), placeholder || 'Chọn…', { avatar: false });
 }
 
-function openDrawer(task) {
+/* ---------------- nháp việc mới ----------------
+ * Nháp là bản ghi THẬT trong Base, mang trạng thái "Nháp". Chọn vậy để nháp đi
+ * theo người chứ không theo máy: mở máy nào cũng thấy, và giữ được cả tệp đính kèm
+ * (tệp cần record_id mới tải lên được — có bản ghi nháp là có sẵn id).
+ *
+ * Ba điều làm nó an toàn, cả ba nằm ở server:
+ *   1. getRecords() mặc định loại nháp -> không app nào (hub · KPI · Báo cáo · bot)
+ *      đếm phải nó, vì tất cả đều đọc qua /api/tasks của app này.
+ *   2. Nháp chỉ chủ của nó đọc được.
+ *   3. Bấm "Tạo công việc" thì ĐÈ LÊN chính bản ghi nháp, không đẻ bản mới.
+ *
+ * Điều duy nhất không giấu được: mở thẳng Lark Base thì vẫn thấy dòng nháp, vì nó
+ * là bản ghi thật. Trong app thì không chỗ nào thấy.
+ */
+
+/** Có gì đáng giữ không — đừng tạo bản ghi cho một cái form trống. */
+function nhapCoGi(t) {
+  if (!t) return false;
+  return !!(t.title || t.detail);
+}
+
+/** Nhãn thời điểm: "14:32" nếu của hôm nay, "14:32 · 13/09" nếu để qua hôm khác. */
+function nhanLucNhap(v) {
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return '';
+  const n = new Date();
+  const p = (x) => String(x).padStart(2, '0');
+  const gio = p(d.getHours()) + ':' + p(d.getMinutes());
+  const cungNgay = d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth()
+    && d.getDate() === n.getDate();
+  return cungNgay ? gio : gio + ' · ' + p(d.getDate()) + '/' + p(d.getMonth() + 1);
+}
+
+/** Bấm "Lưu nháp": cất bản đang soạn lên Base rồi đóng form. */
+async function luuNhap() {
+  const t = S.editing;
+  if (!t || !t.isNew) return;
+  if (!nhapCoGi(t)) { toast('Nháp cần ít nhất tên việc hoặc chi tiết yêu cầu'); return; }
+
+  const btn = $('#dNhap');
+  btn.disabled = true;
+  const chuCu = btn.textContent;
+  btn.textContent = 'Đang lưu…';
+  try {
+    // gửi đúng bộ trường vai trò hiện tại được phép, như lúc tạo việc thật
+    const allowed = S.isManager
+      ? S.meta.rules.staffCreatable.concat(S.meta.rules.managerOnlyFields)
+      : S.meta.rules.staffCreatable;
+    const payload = {};
+    for (const k of allowed) {
+      const v = t[k];
+      if (v == null || v === '' || (Array.isArray(v) && !v.length)) continue;
+      payload[k] = v;
+    }
+    if (S.nhapId) payload.id = S.nhapId;
+
+    const kq = await req('/api/nhap', { method: 'POST', body: JSON.stringify(payload) });
+    S.nhapId = kq.id || S.nhapId;
+
+    /* Có bản ghi rồi thì tệp đang chờ tải lên được luôn — đây là cái mà nháp để
+     * trong trình duyệt không làm được. */
+    const soTep = (S.tepMoi || []).length;
+    let hong = [];
+    if (soTep && S.nhapId) {
+      btn.textContent = 'Đang tải tệp…';
+      hong = await taiTepViecMoi(S.nhapId);
+      S.tepMoi = [];
+    }
+
+    toast('Đã lưu nháp' + (soTep ? ' · ' + (soTep - hong.length) + '/' + soTep + ' tệp' : '') +
+      ' — mở "+ Công việc" là soạn tiếp');
+    if (hong.length) toast('Chưa đính được: ' + hong.join(' · '), true);
+    closeDrawer();
+    // để bản nháp vừa lưu hiện ngay trong làn "Nháp" của Việc của tôi
+    await napNhap();
+    render();
+  } catch (e) {
+    toast('Không lưu được nháp: ' + e.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = chuCu;
+  }
+}
+
+/** Xoá hẳn một bản nháp khỏi Base. */
+async function boNhap(id) {
+  await req('/api/nhap/' + encodeURIComponent(id), { method: 'DELETE' });
+}
+
+/**
+ * Mở ô chi tiết.
+ *   openDrawer(task)          — xem/sửa một việc đã có
+ *   openDrawer(null)          — form tạo việc mới, trắng
+ *   openDrawer(null, nhap)    — soạn tiếp một bản nháp
+ */
+function openDrawer(task, nhap) {
   if (task) {
     S.editing = Object.assign({}, task);
+    S.nhapId = null;           // mở việc có sẵn thì không dính gì tới nháp
   } else {
     // Việc mới: ngày bắt đầu mặc định là lúc tạo, người order là chính mình
     S.editing = {
@@ -2714,6 +2854,16 @@ function openDrawer(task) {
       campaign: S.isManager ? 'Operate' : null,
       owner: [], helper: [], channel: [],
     };
+    if (nhap) {
+      /* Soạn tiếp nháp: giữ nguyên mọi thứ đã điền, nhưng trạng thái phải quay về
+       * mặc định — "Nháp" là chỗ cất, không phải trạng thái việc sẽ mang khi ra đời. */
+      Object.assign(S.editing, nhap, {
+        isNew: true, id: undefined, status: 'Chờ tiếp nhận',
+      });
+      S.nhapId = nhap.id;
+    } else {
+      S.nhapId = null;
+    }
   }
   S.dirty = {};
   /* Hàng đợi tệp của form "Tạo công việc mới". Xoá mỗi lần mở drawer: bỏ dở một
@@ -2771,6 +2921,8 @@ function buildDrawer() {
     ? 'Mở form sửa mọi trường (deadline, người phụ trách, chiến dịch…)'
     : 'Về bản gọn — đúng những gì nhân sự nhìn thấy';
   $('#dSave').textContent = isNew ? 'Tạo công việc' : 'Lưu thay đổi';
+  // Nháp chỉ có nghĩa với việc chưa tồn tại; việc đã có thì "Lưu thay đổi" ghi thẳng
+  $('#dNhap').classList.toggle('hidden', !isNew);
 
   /* Đầu ô chi tiết nhuốm màu theo giai đoạn, và mang luôn cái quan trọng nhất
    * là HẠN — vì dưới kia chỉ còn bốn viên trạng thái/ưu tiên/order/loại việc. */
@@ -2860,6 +3012,54 @@ function buildDrawer() {
  */
 function buildCreateForm(b, t, o) {
   const isMgr = !!S.isManager;
+
+  /* Đang mở lại bản nháp: phải nói rõ đây không phải form trắng, và cho đường ra
+   * ngay cạnh — nếu không người dùng tưởng app tự điền bừa. */
+  if (S.nhapId) {
+    // Đang soạn tiếp một bản nháp đã có
+    const bang = el('div', 'nhap-bang');
+    bang.appendChild(el('span', 'nhap-chu',
+      'Đang soạn tiếp một bản nháp — chưa ai trong phòng thấy việc này. ' +
+      'Bấm "Tạo công việc" là bản nháp này thành việc thật.'));
+    const bo = el('button', 'btn btn-ghost nhap-bo', 'Bỏ nháp');
+    bo.type = 'button';
+    bo.title = 'Xoá hẳn bản nháp này khỏi Base';
+    bo.onclick = async () => {
+      if (!confirm('Xoá hẳn bản nháp "' + (t.title || 'chưa đặt tên') + '"?')) return;
+      try {
+        await boNhap(S.nhapId);
+        toast('Đã xoá bản nháp');
+        S.nhapId = null;
+        await napNhap();
+        closeDrawer();
+        render();
+      } catch (e) { toast('Không xoá được: ' + e.message, true); }
+    };
+    bang.appendChild(bo);
+    b.appendChild(bang);
+  } else {
+    /* Form trắng: nếu đang còn nháp thì phải cho thấy, không thì người dùng soạn
+     * lại từ đầu một việc mình đã soạn dở hôm qua. Nạp sau để form hiện ra ngay. */
+    const cho = el('div', 'nhap-bang hidden');
+    b.appendChild(cho);
+    req('/api/nhap').then((d) => {
+      const ds = (d && d.nhap) || [];
+      if (!ds.length || S.nhapId) return;
+      cho.classList.remove('hidden');
+      cho.appendChild(el('span', 'nhap-chu',
+        ds.length === 1 ? 'Anh còn 1 bản nháp chưa xong:' : 'Anh còn ' + ds.length + ' bản nháp chưa xong:'));
+      const oChip = el('div', 'nhap-ds');
+      ds.forEach((n) => {
+        const chip = el('button', 'nhap-chip',
+          (n.title || '(chưa đặt tên)') + (n.startAt ? ' · ' + nhanLucNhap(n.startAt) : ''));
+        chip.type = 'button';
+        chip.title = 'Soạn tiếp bản nháp này';
+        chip.onclick = () => openDrawer(null, n);
+        oChip.appendChild(chip);
+      });
+      cho.appendChild(oChip);
+    }).catch(() => {});
+  }
 
   b.appendChild(field('Tên công việc *', textInput(t.title, (v) => set('title', v))));
 
@@ -3524,12 +3724,21 @@ async function saveDrawer() {
       }
       if (S.isManager && t.status) payload.status = t.status;
 
+      /* Lớn lên từ nháp thì ĐÈ LÊN chính bản ghi đó — tệp đã đính lúc nháp đi
+       * thẳng sang việc thật, và Base không còn lại một bản nháp mồ côi. */
+      if (S.nhapId) payload.tuNhap = S.nhapId;
+
       if (!payload.title) throw new Error('Cần nhập tên công việc');
       if (!payload.detail) throw new Error('Cần nhập chi tiết yêu cầu');
       if (!payload.workType) throw new Error('Cần chọn loại công việc');
       if (!payload.deadline1) throw new Error('Cần chọn deadline');
 
       const kq = await req('/api/tasks', { method: 'POST', body: JSON.stringify(payload) });
+
+      /* Việc đã lên Base thì nháp hết vai trò. Xoá NGAY sau khi tạo xong, trước cả
+       * bước tải tệp: tệp hỏng thì việc vẫn còn đó, giữ nháp lại chỉ khiến lần sau
+       * mở form ra thấy bản cũ và đặt trùng việc. */
+      S.nhapId = null;    // nháp đã hoá thành việc thật
 
       /* Tệp đi sau bản ghi, vì Lark cần record_id mới nhận tệp. */
       const soTep = (S.tepMoi || []).length;
@@ -3815,8 +4024,18 @@ function nhanPhamVi() {
   return S.perm && S.perm.toanBo ? ' việc toàn phòng (chỉ xem)' : ' việc của bạn';
 }
 
+/** Nạp nháp của chính mình để hiện thành một làn trong "Việc của tôi". */
+async function napNhap() {
+  try {
+    const d = await req('/api/nhap');
+    S.nhapDs = (d && d.nhap) || [];
+  } catch (_) {
+    S.nhapDs = [];      // không đọc được nháp thì thôi, đừng chặn cả màn hình
+  }
+}
+
 async function refresh(force) {
-  await loadAll(force);
+  await Promise.all([loadAll(force), napNhap()]);
 
   S.isManager = S.meta.role === 'manager';
   // Tùy chọn quản lý cấp riêng cho nhân sự này (bảng Phân quyền app của hub)
@@ -4244,6 +4463,7 @@ function setupChrome() {
   $('#dCancel').onclick = closeDrawer;
   $('#scrim').onclick = () => luuRoiDong();
   $('#dSave').onclick = saveDrawer;
+  $('#dNhap').onclick = luuNhap;
   $('#dDelete').onclick = deleteCurrent;
 
   $('#doneSubmit').onclick = submitDone;

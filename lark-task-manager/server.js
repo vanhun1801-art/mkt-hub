@@ -11,6 +11,7 @@ const lark = cfg.mode === 'api' ? require('./larkapi') : require('./lark');
 const auth = require('./auth');
 const { dungBaoCao } = require('./baocao');
 const { themLuaChon } = require('./campaign');
+const nhapMod = require('./nhap');
 
 const F = cfg.fields;
 const BY_KEY = Object.entries(F);
@@ -28,10 +29,46 @@ async function getFields(force = false) {
 
 let inflight = null;
 
-async function getRecords(force = false) {
-  if (!force && cache.records && Date.now() - cache.at < cfg.cacheTtlMs) return cache.records;
+/* ---------------- chốt chặn việc nháp ----------------
+ * Việc nháp là bản ghi THẬT trong Base (nhờ vậy giữ được tệp đính kèm và mở máy
+ * nào cũng thấy), nhưng với phòng thì nó CHƯA TỒN TẠI. Nên chặn ngay ở đây —
+ * cửa duy nhất mà mọi endpoint đi qua — thay vì lọc lại ở từng chỗ đếm.
+ *
+ * Vì sao đặt ở đây chứ không ở /api/tasks: có 16 chỗ gọi getRecords(), và mai mốt
+ * còn thêm. Lọc ở cổng thì endpoint viết sau này tự sạch, không phải nhớ.
+ * Bốn app khác (hub · KPI · Báo cáo · bot) đều đọc qua /api/tasks nên sạch theo.
+ *
+ * Chỉ những chỗ CỐ Ý làm việc với nháp mới gọi getRecords(force, true).
+ */
+const laNhap = (rec) => nhapMod.laNhap(rec, F.status.id, cfg.trangThaiNhap);
+
+/** Nháp là của riêng người order nó — quản lý cũng không xem nháp người khác. */
+const laChuNhap = (rec, me) =>
+  nhapMod.laChuNhap(rec, me && me.id, F.requester.id);
+
+/* Cột Trạng thái phải CÓ lựa chọn "Nháp" thì mới ghi được. Thêm một lần, lúc ai
+ * đó lưu nháp đầu tiên — đỡ phải nhớ vào Lark sửa cột bằng tay khi dựng lại Base.
+ *
+ * Đi qua themLuaChon() vì `+field-update` là PUT TOÀN PHẦN: gõ lại định nghĩa cột
+ * bằng tay là mất `default_value` và mất màu của mọi lựa chọn cũ. Hàm đó dựng def
+ * từ chính bản đọc về và chỉ thay `options` — và đã có campaign.test.js canh.
+ */
+let daCoNhap = false;
+async function baoDamCoTrangThaiNhap() {
+  if (daCoNhap) return;
+  const fields = await getFields(true);          // đọc lại, người khác có thể vừa thêm
+  const raw = fields.find((x) => x.id === F.status.id);
+  if (!raw) throw new Error('Không tìm thấy cột "' + F.status.name + '" trong Base.');
+  const kq = themLuaChon(raw, cfg.trangThaiNhap);
+  if (!kq.daCo) await lark.updateField(F.status.id, kq.def);
+  daCoNhap = true;
+}
+
+async function getRecords(force = false, keCaNhap = false) {
+  const loc = (ds) => (keCaNhap ? ds : ds.filter((r) => !laNhap(r)));
+  if (!force && cache.records && Date.now() - cache.at < cfg.cacheTtlMs) return loc(cache.records);
   // Gộp các yêu cầu tải đồng thời vào một lần gọi CLI
-  if (inflight) return inflight;
+  if (inflight) return inflight.then(loc);
   inflight = (async () => {
     try {
       cache.records = await lark.listAllRecords();
@@ -41,7 +78,7 @@ async function getRecords(force = false) {
       inflight = null;
     }
   })();
-  return inflight;
+  return inflight.then(loc);
 }
 
 /* ---------------- mapping: Base -> UI ---------------- */
@@ -250,6 +287,11 @@ function collectOptions(fields) {
     const raw = fields.find((x) => x.id === f.id);
     if (raw && raw.options) {
       opts[key] = raw.options.map((o) => o.name).filter((v, i, a) => a.indexOf(v) === i);
+      /* "Nháp" tồn tại trong Base nhưng KHÔNG phải một trạng thái để người dùng
+       * chọn tay — chỉ nút "Lưu nháp" mới đặt được. Để lọt vào đây là ô Trạng thái
+       * mọc thêm lựa chọn, rồi có người kéo một việc thật về Nháp và nó biến mất
+       * khỏi mọi màn hình mà không ai hiểu vì sao. */
+      if (key === 'status') opts[key] = opts[key].filter((v) => v !== cfg.trangThaiNhap);
     }
   }
   return opts;
@@ -709,6 +751,12 @@ async function api(req, res, url) {
       }, 403);
     }
 
+    /* Việc này lớn lên từ một bản nháp: ĐÈ LÊN chính bản ghi đó thay vì tạo mới.
+     * Quan trọng vì tệp đính kèm đã nằm sẵn trên bản ghi nháp — tạo bản mới là bỏ
+     * lại toàn bộ tệp, và để lại một bản nháp mồ côi trong Base. */
+    const idNhap = String(body.tuNhap || '').trim();
+    delete body.tuNhap;
+
     if (!manager) {
       // Nhân sự đặt việc: chỉ điền được bộ trường của Form "Yêu cầu công việc"
       const bad = Object.keys(body).filter((k) => !cfg.staffCreatable.includes(k));
@@ -726,15 +774,31 @@ async function api(req, res, url) {
     if (!body.title) return json(res, { error: 'Thiếu tên công việc' }, 400);
     if (!body.startAt) body.startAt = new Date().toISOString();
 
+    /* Trạng thái đích: nháp không được mang trạng thái nháp sang việc thật. Quản lý
+     * có thể đã chọn sẵn trạng thái khác trong form, nên chỉ đặt mặc định khi trống
+     * hoặc khi nó vẫn còn là "Nháp". */
+    if (!body.status || body.status === cfg.trangThaiNhap) body.status = 'Chờ tiếp nhận';
+
     const cells = toCells(body);
-    const result = await lark.createRecord(cells);
+    let result;
+    let idMoiTuNhap = null;
+
+    if (idNhap) {
+      const cu = (await getRecords(false, true)).find((r) => r.record_id === idNhap);
+      if (!cu || !laNhap(cu)) return json(res, { error: 'Bản nháp này không còn nữa.' }, 404);
+      if (!laChuNhap(cu, me)) return json(res, { error: 'Đây không phải nháp của bạn.' }, 403);
+      result = await lark.updateRecord(idNhap, cells);
+      idMoiTuNhap = idNhap;
+    } else {
+      result = await lark.createRecord(cells);
+    }
     cache.at = 0;
 
     /* Id bản ghi vừa tạo. Form đặt việc cho chọn tệp đính kèm TRƯỚC khi có bản
      * ghi, nên tệp chỉ tải lên được sau khi biết id này. Hai backend (cli và
      * Open API) cùng trả `record_id_list`; thiếu thì trả null để client nói
      * thẳng là "việc đã tạo nhưng tệp chưa đính" thay vì im lặng nuốt tệp. */
-    const idMoi = (result && result.record_id_list || [])[0] || null;
+    const idMoi = idMoiTuNhap || (result && result.record_id_list || [])[0] || null;
 
     if (!manager) {
       // nhân sự đặt việc → báo quản lý vào phân công
@@ -747,6 +811,78 @@ async function api(req, res, url) {
         'Bạn được giao việc mới: "' + body.title + '"' + duoiTin());
     }
     return json(res, { ok: true, id: idMoi, result, role: manager ? 'manager' : 'staff' });
+  }
+
+  /* ---------------- NHÁP ----------------
+   * Việc đang soạn dở, giữ trong Base dưới trạng thái cfg.trangThaiNhap. Ba điều
+   * làm nên toàn bộ tính năng này:
+   *   1. getRecords() mặc định loại nháp -> không app nào đếm phải nó.
+   *   2. Nháp CHỈ chủ của nó đọc được (lọc theo người order).
+   *   3. Bấm "Tạo công việc" thì ĐÈ LÊN chính bản ghi nháp đó, không tạo bản mới —
+   *      nhờ vậy tệp đã đính lúc nháp đi thẳng sang việc thật.
+   */
+  if (p === '/api/nhap' && req.method === 'GET') {
+    const me = await whoAmI(req);
+    if (!me) return json(res, { nhap: [] });
+    const ds = (await getRecords(false, true)).filter(laNhap).map(toTask)
+      .filter((t) => (t.requester || []).some((u) => u.id === me.id))
+      .sort((a, b) => String(b.startAt || '').localeCompare(String(a.startAt || '')));
+    return json(res, { nhap: ds });
+  }
+
+  if (p === '/api/nhap' && req.method === 'POST') {
+    const body = await readBody(req);
+    const me = await whoAmI(req);
+    const manager = await isManager(req);
+
+    if (!manager && khongDuocTao(req)) {
+      return json(res, { error: 'Quản lý chưa mở quyền tạo việc mới cho bạn.', code: 'CREATE_BLOCKED' }, 403);
+    }
+    if (!manager) {
+      const bad = Object.keys(body).filter((k) => k !== 'id' && !cfg.staffCreatable.includes(k));
+      if (bad.length) {
+        return json(res, { error: 'Trường "' + bad.join(', ') + '" do quản lý phân công.', code: 'FIELD_LOCKED' }, 403);
+      }
+    }
+
+    /* Nháp CỐ Ý không kiểm trường bắt buộc — cần cất đi đúng lúc chưa đủ thông tin
+     * thì mới gọi là nháp. Chỉ cần có một thứ để nhận ra nó là bản nào. */
+    if (!body.title && !body.detail) {
+      return json(res, { error: 'Nháp cần ít nhất tên việc hoặc chi tiết yêu cầu.' }, 400);
+    }
+
+    await baoDamCoTrangThaiNhap();
+
+    const id = String(body.id || '').trim();
+    delete body.id;
+    body.status = cfg.trangThaiNhap;
+    if (me) body.requester = [{ id: me.id }];       // chủ nháp, không nhận từ client
+    if (!body.startAt) body.startAt = new Date().toISOString();
+
+    if (id) {
+      // sửa nháp đã có — phải đúng nháp của mình
+      const cu = (await getRecords(false, true)).find((r) => r.record_id === id);
+      if (!cu || !laNhap(cu)) return json(res, { error: 'Không tìm thấy bản nháp này.' }, 404);
+      if (!laChuNhap(cu, me)) return json(res, { error: 'Đây không phải nháp của bạn.' }, 403);
+      await lark.updateRecord(id, toCells(body));
+      cache.at = 0;
+      return json(res, { ok: true, id });
+    }
+
+    const kq = await lark.createRecord(toCells(body));
+    cache.at = 0;
+    return json(res, { ok: true, id: ((kq && kq.record_id_list) || [])[0] || null });
+  }
+
+  if (p.startsWith('/api/nhap/') && req.method === 'DELETE') {
+    const id = decodeURIComponent(p.slice('/api/nhap/'.length));
+    const me = await whoAmI(req);
+    const cu = (await getRecords(false, true)).find((r) => r.record_id === id);
+    if (!cu || !laNhap(cu)) return json(res, { error: 'Không tìm thấy bản nháp này.' }, 404);
+    if (!laChuNhap(cu, me)) return json(res, { error: 'Đây không phải nháp của bạn.' }, 403);
+    await lark.deleteRecords([id]);
+    cache.at = 0;
+    return json(res, { ok: true, xoa: id });
   }
 
   if (p === '/api/tasks/bulk' && req.method === 'PATCH') {
