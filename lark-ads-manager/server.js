@@ -13,6 +13,7 @@ const lark = cfg.mode === 'api' ? require('./larkapi') : require('./lark');
 const store = require('./store');
 const M = require('./metrics');
 const ketnoi = require('./sync/ketnoi');
+const quyen = require('./quyen');
 const sync = require('./sync');
 const live = require('./sync/live');
 const giamSat = require('./giam-sat');
@@ -104,7 +105,17 @@ function serveStatic(req, res, urlPath) {
 }
 
 /* ---------------- tham số truy vấn ---------------- */
-function queryOpts(u) {
+/**
+ * Đọc bộ lọc từ URL, và ÉP phép phân quyền kênh ngay tại đây.
+ *
+ * Đây là chỗ duy nhất mọi đường có dữ liệu đều đi qua, nên chốt đặt ở đây thì
+ * đường viết sau này cũng được canh mà không phải nhớ. Giấu nút lọc trên màn
+ * hình không ngăn được ai gõ thẳng ?platform=Facebook vào thanh địa chỉ.
+ *
+ * `req` là bắt buộc: thiếu nó thì không biết người đang hỏi là ai, và một chốt
+ * không biết người hỏi là chốt không canh gì cả.
+ */
+function queryOpts(u, req) {
   const list = (k) => {
     const v = u.searchParams.get(k);
     return v ? v.split(',').map((s) => s.trim()).filter(Boolean) : [];
@@ -113,7 +124,7 @@ function queryOpts(u) {
     from: u.searchParams.get('from') || undefined,
     to: u.searchParams.get('to') || undefined,
     days: u.searchParams.get('days') || undefined,
-    platforms: list('platform'),
+    platforms: quyen.locKenh(list('platform'), quyen.kenhDuocXem(req, cfg)),
     campaignIds: list('campaign'),
     groupIds: list('group'),
     adIds: list('ad'),
@@ -213,15 +224,24 @@ function docSucKhoe() {
   } catch (_) { return null; }
 }
 
-async function dataFor(u) {
+/**
+ * Bộ dữ liệu cho người ĐANG hỏi — đã cắt xuống đúng kênh họ được xem.
+ *
+ * `req` bắt buộc, cùng lý do với queryOpts: một chốt không biết người hỏi là ai
+ * thì không canh được gì. Cắt ở đây thì mọi đường đọc dữ liệu đều được canh, kể
+ * cả đường viết sau này — thay vì phải nhớ vá /api/meta, /api/alerts, /api/sales
+ * từng cái một rồi quên mất cái thứ tư.
+ */
+async function dataFor(u, req) {
+  const cat = (d) => quyen.locDuLieuTheoKenh(d, quyen.kenhDuocXem(req, cfg));
   const xin = u.searchParams.get('nguon');
   const muonLive = xin ? xin === 'live' : live.kenhDangBat().length > 0;
   if (!muonLive) {
     const d = await store.get();
-    return { ...d, live: { bat: false, nenTang: [], loi: [], layLuc: null } };
+    return cat({ ...d, live: { bat: false, nenTang: [], loi: [], layLuc: null } });
   }
   try {
-    return await live.duLieu({ soNgay: Number(u.searchParams.get('liveNgay') || 14) });
+    return cat(await live.duLieu({ soNgay: Number(u.searchParams.get('liveNgay') || 14) }));
   } catch (e) {
     // nền tảng hỏng thì vẫn phải xem được số cũ, không để trắng màn hình
     console.error('[live]', e.message);
@@ -249,7 +269,7 @@ async function api(req, res, u) {
 
   if (p === '/api/meta' && method === 'GET') {
     // chế độ api: danh tính do lớp vỏ (Marketing Hub) đăng nhập rồi gửi kèm header
-    const [data, me] = await Promise.all([dataFor(u), nguoiDung(req)]);
+    const [data, me] = await Promise.all([dataFor(u, req), nguoiDung(req)]);
     return ok(res, {
       me,
       baseUrl: cfg.baseUrl,
@@ -258,7 +278,14 @@ async function api(req, res, u) {
       maxDate: data.maxDate,
       today: store.todayKey(),
       live: data.live || { bat: false },
-      kenhTrucTiep: live.kenhDangBat(),
+      /* Cắt theo kênh được xem: chip nguồn ở đầu trang in thẳng danh sách này.
+       * Không cắt thì chip ghi "Facebook, TikTok, Google Ads" trong khi mọi con
+       * số bên dưới chỉ là một kênh — số đúng mà nhãn nói dối. */
+      kenhTrucTiep: data.kenhDuocXem
+        ? live.kenhDangBat().filter((k) => data.kenhDuocXem.includes(k))
+        : live.kenhDangBat(),
+      biGioiHanKenh: !!data.biGioiHan,
+      kenhDuocXem: data.kenhDuocXem || null,
       counts: {
         campaigns: data.campaigns.length, groups: data.groups.length,
         ads: data.ads.length, daily: data.daily.length, sales: data.sales.length,
@@ -296,14 +323,18 @@ async function api(req, res, u) {
    */
   if (p === '/api/hanh-dong' && method === 'GET') {
     const c = ketnoi.read();
-    const q = queryOpts(u);
-    const data = await dataFor(u);
+    const q = queryOpts(u, req);
+    const data = await dataFor(u, req);
     const { from, to } = M.normRange(data, q);
     const ra = [];
+    /* Hỏi thẳng nền tảng nên phép cắt ở dataFor() không với tới đây — phải canh
+     * riêng, kẻo bảng hành động vẫn hiện số của kênh người khác. */
+    const chiKenh = quyen.kenhDuocXem(req, cfg);
     for (const [ten, mod, conf] of [
       ['Facebook', metaAds, c.meta],
       ['Google Ads', gads, c.googleAds],
     ]) {
+      if (chiKenh && !chiKenh.includes(ten)) continue;
       if (!conf || !conf.enabled) continue;
       try {
         const r = await mod.hanhDongChuyenDoi(conf, from, to, () => {});
@@ -329,13 +360,13 @@ async function api(req, res, u) {
   }
 
   if (p === '/api/overview' && method === 'GET') {
-    const data = await dataFor(u);
-    return ok(res, M.overview(data, queryOpts(u)));
+    const data = await dataFor(u, req);
+    return ok(res, M.overview(data, queryOpts(u, req)));
   }
 
   if (p === '/api/campaigns' && method === 'GET') {
-    const data = await dataFor(u);
-    const q = queryOpts(u);
+    const data = await dataFor(u, req);
+    const q = queryOpts(u, req);
     const { from, to, rows } = M.filterDaily(data, q);
     const span = store.daysBetween(from, to) + 1;
     const prev = M.filterDaily(data, { ...q, from: store.addDays(from, -span), to: store.addDays(from, -1) }).rows;
@@ -343,8 +374,8 @@ async function api(req, res, u) {
   }
 
   if (p === '/api/ads' && method === 'GET') {
-    const data = await dataFor(u);
-    const q = queryOpts(u);
+    const data = await dataFor(u, req);
+    const q = queryOpts(u, req);
     const { from, to, rows } = M.filterDaily(data, q);
     const span = store.daysBetween(from, to) + 1;
     const prev = M.filterDaily(data, { ...q, from: store.addDays(from, -span), to: store.addDays(from, -1) }).rows;
@@ -352,8 +383,8 @@ async function api(req, res, u) {
   }
 
   if (p === '/api/groups' && method === 'GET') {
-    const data = await dataFor(u);
-    const q = queryOpts(u);
+    const data = await dataFor(u, req);
+    const q = queryOpts(u, req);
     const { from, to, rows } = M.filterDaily(data, q);
     const byGroup = M.groupBy(rows, (r) => r.groupId);
     const t = M.readTargets();
@@ -378,8 +409,8 @@ async function api(req, res, u) {
   }
 
   if (p === '/api/daily' && method === 'GET') {
-    const data = await dataFor(u);
-    return ok(res, M.dailyTable(data, queryOpts(u)));
+    const data = await dataFor(u, req);
+    return ok(res, M.dailyTable(data, queryOpts(u, req)));
   }
 
   /* Tab "Nhập số hằng ngày" đã bỏ (API lấy đủ số của cả ba nền tảng), nhưng
@@ -397,13 +428,18 @@ async function api(req, res, u) {
   }
 
   if (p === '/api/alerts' && method === 'GET') {
-    const data = await dataFor(u);
+    const data = await dataFor(u, req);
     return ok(res, { rows: M.alerts(data) });
   }
 
   if (p === '/api/sales' && method === 'GET') {
-    const data = await dataFor(u);
-    const q = queryOpts(u);
+    const data = await dataFor(u, req);
+    const q = queryOpts(u, req);
+    /* Bị giới hạn kênh thì bảng doanh thu đã bị cắt mất phần kênh "Khác" (lữ
+     * hành, khách cũ, gọi trực tiếp — 1.579/1.660 dòng). Con số "doanh thu toàn
+     * công ty" lúc đó vẫn tính đúng phép nhưng SAI Ý NGHĨA, nên báo ra để giao
+     * diện giấu ô đó thay vì hiện một con số nói dối. */
+    const biGioiHan = !!data.biGioiHan;
     const { from, to } = M.normRange(data, q);
     const rows = data.sales.filter((s) => s.date >= from && s.date <= to);
     const byChannel = [...M.groupBy(rows.filter((s) => s.status === 'Đã chốt'), (s) => s.channel)]
@@ -429,6 +465,11 @@ async function api(req, res, u) {
     return ok(res, {
       from, to,
       total: rows.length,
+      /* Giao diện dùng hai cờ này để GIẤU ô "Doanh thu toàn công ty" và tỷ lệ
+       * "% đến từ quảng cáo": với người bị giới hạn kênh, hai con số đó tính đúng
+       * phép nhưng sai ý nghĩa — chúng chỉ còn là doanh thu của kênh họ. */
+      biGioiHan,
+      kenhDuocXem: data.kenhDuocXem || null,
       rows: rows.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 300),
       /* Bốn con số cho bốn ô ở đầu tab. Tính ở đây, một chỗ duy nhất, để giao diện
        * không thể tự cộng sai như bản trước. */
@@ -765,16 +806,19 @@ async function api(req, res, u) {
    */
   if (p === '/api/dieu-khien/kha-nang' && method === 'GET') {
     const c = ketnoi.read();
-    const meta = await dieuKhien.metaKhaNang(c.meta);
-    const tt = await dieuKhien.ttKhaNang(c.tiktok);
+    /* Chỉ dò kênh người này được xem. Vừa đúng phép, vừa nhanh hơn: mỗi lượt dò
+     * là một lời gọi thật ra Meta và TikTok. */
+    const chiKenh = quyen.kenhDuocXem(req, cfg);
+    const duocXem = (ten) => !chiKenh || chiKenh.includes(ten);
+    const nenTang = {};
+    if (duocXem('Facebook')) nenTang.Facebook = await dieuKhien.metaKhaNang(c.meta);
+    if (duocXem('TikTok')) nenTang.TikTok = await dieuKhien.ttKhaNang(c.tiktok);
+    if (duocXem('Google Ads')) nenTang['Google Ads'] = dieuKhien.gaKhaNang(c.googleAds);
     return ok(res, {
       laQuanLy: laQuanLy(req),
       oDiaTam: !!process.env.RENDER,
-      nenTang: {
-        Facebook: meta,
-        TikTok: tt,
-        'Google Ads': dieuKhien.gaKhaNang(c.googleAds),
-      },
+      kenhDuocXem: chiKenh,
+      nenTang,
     });
   }
 
@@ -797,9 +841,15 @@ async function api(req, res, u) {
     const viec = String(body.viec || '').trim();          // 'bat' | 'tat' | 'ngan-sach'
     if (!['bat', 'tat', 'ngan-sach'].includes(viec)) return fail(res, 400, 'Việc không hợp lệ');
 
-    const data = await store.get();
+    /* dataFor() chứ KHÔNG phải store.get(): bộ dữ liệu đã cắt theo kênh được xem,
+     * nên quảng cáo ngoài kênh của mình thì không tìm ra — và không tắt được.
+     * Đọc thẳng store ở đây là chị Hân tắt được quảng cáo Facebook của anh Hùng,
+     * chỉ cần biết id bản ghi. */
+    const data = await dataFor(u, req);
     const qc = (data.ads || []).find((a) => a.id === String(body.adId || ''));
-    if (!qc) return fail(res, 404, 'Không tìm thấy quảng cáo trong Base');
+    if (!qc) {
+      return fail(res, 404, 'Không tìm thấy quảng cáo này trong những kênh anh/chị được xem');
+    }
     if (!qc.extId) {
       return fail(res, 400, `Quảng cáo "${qc.name}" chưa ghép ID nền tảng trong Base, `
         + 'nên app không biết phải điều khiển cái nào. Ghép ở tab Kết nối & Đồng bộ, '
@@ -1482,7 +1532,7 @@ async function api(req, res, u) {
   /* ---- xuất CSV ---- */
   if (p === '/api/export.csv' && method === 'GET') {
     const data = await store.get();
-    const { rows } = M.dailyTable(data, queryOpts(u));
+    const { rows } = M.dailyTable(data, queryOpts(u, req));
     const head = ['Ngày', 'Nền tảng', 'Chiến dịch', 'Nhóm', 'Quảng cáo', 'Chi tiêu', 'Hiển thị', 'Click', 'Chuyển đổi', 'CTR %', 'CPC', 'CPM', 'CPA'];
     const esc = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
     const csv = [head.join(',')].concat(rows.map((r) => [
@@ -1510,7 +1560,7 @@ async function api(req, res, u) {
  * tự gửi trước khi ghi lại, và app chỉ nghe trên 127.0.0.1 — xem khối "cổng nghe"
  * ở cuối file.
  */
-const laQuanLy = (req) => require('./quyen').laQuanLy(req, cfg);
+const laQuanLy = (req) => quyen.laQuanLy(req, cfg);
 
 async function nguoiDung(req) {
   if (cfg.mode !== 'api') return lark.whoami();

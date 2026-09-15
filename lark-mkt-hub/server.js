@@ -67,17 +67,29 @@ async function quyenCua(nguoi) {
   const envQL = laQuanLy(nguoi);
   const mac = {
     quanLy: envQL, base: null, moiBase: false, quanLyBase: [],
-    toanBo: false, xemTaiAi: [], moiXemTai: false, taoMoi: true, chiPhi: envQL, tuBang: false,
+    toanBo: false, xemTaiAi: [], moiXemTai: false, taoMoi: true, chiPhi: envQL,
+    /* null = hub không nói gì về kênh quảng cáo. KHÔNG phải "cấm hết" — xem
+     * quyen.kenhQuangCaoCua(). */
+    kenhQC: null, tuBang: false,
   };
   if (!nguoi || cfg.mode !== 'api') return Object.assign(mac, { moiBase: true });
   let hang = null;
+  let bang = [];
   // Base lỗi/hết hạn token: mở hết còn hơn khoá cả phòng ra ngoài, nhưng phải
   // là ĐÚNG nhánh lỗi — chưa khai dòng nào là chuyện khác, xem dưới.
-  try { hang = await quyen.cuaNguoi(nguoi); } catch (e) { return Object.assign(mac, { moiBase: true, loiBang: true }); }
-  if (!hang) return mac;
+  try {
+    hang = await quyen.cuaNguoi(nguoi);
+    bang = await quyen.docTatCa();
+  } catch (e) { return Object.assign(mac, { moiBase: true, loiBang: true }); }
+  const kenhQC = quyen.kenhQuangCaoCua(hang, bang);
+  if (!hang) return Object.assign(mac, { kenhQC });
   return Object.assign(tuHang(hang), {
     quanLy: envQL || hang.vai === 'Quản lý',
     chiPhi: hang.chiPhi || envQL || hang.vai === 'Quản lý',
+    /* Giới hạn kênh KHÔNG nới cho quản lý. Vai quản lý nói về việc được sửa cấu
+     * hình, không phải về việc theo dõi kênh của ai — anh Hùng vẫn là quản lý mà
+     * chỉ muốn nhìn Facebook với TikTok. Muốn xem hết thì khai `*` cho mình. */
+    kenhQC,
   });
 }
 
@@ -93,6 +105,7 @@ function tuHang(hang) {
     moiXemTai: !!hang.moiXemTai,
     taoMoi: hang.taoMoi,
     chiPhi: hang.chiPhi,
+    kenhQC: null,          // người gọi tự đặt lại; xem quyenCua()
     tuBang: true,
   };
 }

@@ -24,6 +24,11 @@ const QUYEN_CO = [
 
 const chuanTenQ = (s) => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
 
+/* Ba kênh của app Quản lý quảng cáo. Khai ở đây để người dùng TICK chứ không GÕ:
+ * cột trong Base là văn bản, gõ sai một chữ ("facebook" thường, "Google Ad"
+ * thiếu s) là người đó mất kênh mà chẳng có lỗi nào hiện ra. */
+const KENH_QC = ['Facebook', 'TikTok', 'Google Ads'];
+
 /* ---------------- nạp & điều phối ---------------- */
 async function modalPhanQuyen() {
   moModal('Phân quyền',
@@ -97,8 +102,20 @@ function veDanhSachQuyen() {
       : '<span class="q-chip q-nd-do">Không base nào</span>';
   };
 
+  /* Chip kênh quảng cáo. Hiện KỂ CẢ với quản lý, vì giới hạn kênh áp cho cả
+   * quản lý — nhánh "toàn quyền" ở dưới thoát sớm nên phải chèn riêng, nếu không
+   * thì bảng soát quyền giấu mất đúng cái vừa đặt ra. */
+  const chipKenh = (h) => {
+    if (h.moiKenhQC) return '<span class="q-chip q-chip-mo">Mọi kênh QC</span>';
+    const ds = h.kenhQC || [];
+    if (ds.length) return ds.map((k) => '<span class="q-chip">' + esc(k) + '</span>').join('');
+    return '';
+  };
+
   const oQuyen = (h) => {
-    if (h.vai === 'Quản lý') return '<span class="q-chip q-chip-mo">toàn quyền</span>';
+    if (h.vai === 'Quản lý') {
+      return '<span class="q-chip q-chip-mo">toàn quyền</span>' + chipKenh(h);
+    }
     // "Quản trị <base>" đứng trước, vì nó nặng hơn mấy tùy chọn lẻ
     const ra = (h.quanLyBase || []).map((id) =>
       '<span class="q-chip q-chip-ql">Quản trị ' + esc(tenBase(id)) + '</span>');
@@ -113,8 +130,9 @@ function veDanhSachQuyen() {
         ra.push('<span class="q-chip">Xem tải ' + (h.xemTaiAi || []).length + ' người</span>');
       }
     }
-    if (!ra.length) return '<span class="q-nhat">mặc định</span>';
-    return ra.join('');
+    const kenh = chipKenh(h);
+    if (!ra.length && !kenh) return '<span class="q-nhat">mặc định</span>';
+    return ra.join('') + kenh;
   };
 
   const dong = (h, i) => {
@@ -242,6 +260,7 @@ function moFormQuyen(i, nguoiSan) {
     ? { recordId: '', nguoi: (nguoiSan && nguoiSan.ten) || '', email: (nguoiSan && nguoiSan.email) || '',
         openId: (nguoiSan && nguoiSan.id) || '', vai: 'Nhân sự', viTri: '',
         base: [], quanLyBase: [], toanBo: false, xemTaiAi: [], moiXemTai: false,
+        kenhQC: [], moiKenhQC: false,
         taoMoi: true, chiPhi: false, ghiChu: '',
         khop: nguoiSan ? { id: nguoiSan.id, ten: nguoiSan.ten, cach: 'open_id' } : null }
     : S.quyenHang[i];
@@ -348,6 +367,20 @@ function moFormQuyen(i, nguoiSan) {
     'Chỉ mở <b>bảng nhiệt ở Tổng quan</b>: thấy đúng những người đã tick đang bận gì, ' +
     'bấm vào ô thì thấy tên việc. Mở Bảng công việc thì vẫn chỉ thấy việc của mình. ' +
     'Không tick ai thì chỉ thấy tải của chính mình.');
+
+  html += hang('Kênh quảng cáo được xem',
+    '<label class="q-ck q-ck-manh"><input type="checkbox" id="fMoiKenhQC"' +
+      (h.moiKenhQC ? ' checked' : '') + '>' +
+      '<span>Mọi kênh</span><small class="q-nhat">— kể cả kênh nối thêm sau này</small></label>' +
+    '<div class="q-nhom" id="fKenhQC">' + KENH_QC.map((k) =>
+      '<label class="q-ck"><input type="checkbox" data-kqc="' + esc(k) + '"' +
+        ((h.kenhQC || []).includes(k) ? ' checked' : '') + '><span>' + esc(k) + '</span></label>').join('') +
+    '</div>',
+    'Chỉ áp cho app <b>Quản lý quảng cáo</b>: tick kênh nào thì thấy chi tiêu, quảng cáo, ' +
+    'cảnh báo và doanh thu của đúng kênh đó — và cũng chỉ bật/tắt được quảng cáo của kênh đó. ' +
+    '<b>Không tick gì thì không thấy kênh nào.</b> ' +
+    'Giới hạn này áp cho cả quản lý: vai quản lý nói về việc được sửa cấu hình, ' +
+    'không phải về việc theo dõi kênh của ai.');
 
   html += hang('Base được xem',
     '<label class="q-ck q-ck-manh"><input type="checkbox" id="fMoiBase"' + (h.moiBase ? ' checked' : '') + '>' +
@@ -482,6 +515,8 @@ async function luuFormQuyen() {
     moiXemTai: !!($('#fMoiXemTai') || {}).checked,
     taoMoi: bat('taoMoi'),
     chiPhi: bat('chiPhi'),
+    kenhQC: $$('#fKenhQC [data-kqc]').filter((x) => x.checked).map((x) => x.dataset.kqc),
+    moiKenhQC: !!($('#fMoiKenhQC') || {}).checked,
     ghiChu: $('#fGhiChu').value.trim(),
   };
   if (!hang.nguoi && !hang.email) { toast('Cần ít nhất họ tên hoặc email', 'do'); return; }

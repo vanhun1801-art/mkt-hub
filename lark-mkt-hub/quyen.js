@@ -60,6 +60,14 @@ const F = {
   xemTai: 'Xem tải người khác',
   taoMoi: 'Được tạo mới',
   chiPhi: 'Xem chi phí',
+  /* Kênh quảng cáo người này được xem trong app Quản lý quảng cáo.
+   *
+   * Kiểu cột: VĂN BẢN, cùng quy ước với "Base được xem" — tên kênh cách nhau
+   * bằng dấu phẩy (Facebook, TikTok, Google Ads), `*` là tất cả, để trống là
+   * KHÔNG kênh nào.
+   *
+   * Nhưng "để trống" chỉ có nghĩa đó khi luật đã BẬT — xem luatKenhDaBat(). */
+  kenhQC: 'Kênh quảng cáo',
   ghiChu: 'Ghi chú',
 };
 
@@ -82,6 +90,48 @@ function docOBase(raw) {
   const phan = String(raw == null ? '' : raw).split(',').map((x) => x.trim()).filter(Boolean);
   const laMoi = (x) => x === '*' || /^(tất cả|tat ca|all)$/i.test(x);
   return { base: phan.filter((x) => !laMoi(x)), moiBase: phan.some(laMoi) };
+}
+
+/** Tên kênh hợp lệ. Gõ sai một chữ là người đó mất kênh mà không hiểu vì sao. */
+const KENH_QC = ['Facebook', 'TikTok', 'Google Ads'];
+
+/**
+ * Ô "Kênh quảng cáo" -> { kenhQC: [...tên], moiKenhQC: true/false }.
+ *
+ * Cùng quy ước với "Base được xem": cách nhau dấu phẩy, `*` là tất cả, để trống
+ * là KHÔNG kênh nào.
+ *
+ * Chuẩn hoá tên theo KENH_QC, không lấy nguyên chuỗi người ta gõ: "facebook",
+ * "FaceBook", "google ads" đều phải ra đúng tên mà app quảng cáo dùng, nếu không
+ * thì phép so tên ở dưới trượt và người đó mất kênh mà chẳng có lỗi nào hiện ra.
+ */
+function docKenhQC(raw) {
+  if (raw === true) return { kenhQC: [], moiKenhQC: true };
+  const phan = asText(raw).split(',').map((x) => x.trim()).filter(Boolean);
+  const laMoi = (x) => x === '*' || /^(tất cả|tat ca|all)$/i.test(x);
+  const chuan = (x) => {
+    const k = x.toLowerCase().replace(/\s+/g, ' ');
+    return KENH_QC.find((t) => t.toLowerCase() === k) || x;
+  };
+  return {
+    kenhQC: phan.filter((x) => !laMoi(x)).map(chuan),
+    moiKenhQC: phan.some(laMoi),
+  };
+}
+
+/**
+ * Luật giới hạn kênh đã BẬT chưa?
+ *
+ * Bật khi có ÍT NHẤT MỘT người được khai kênh. Vì sao phải có điều kiện này:
+ * lúc cột chưa tồn tại trong bảng, mọi ô đọc ra rỗng — mà "ô trống" nghĩa là
+ * không thấy kênh nào. Không phân biệt hai chuyện đó thì cả phòng mở app lên
+ * thấy trắng trơn ngay giây deploy, và chẳng ai làm gì sai.
+ *
+ * Tự bật khi có người đầu tiên được khai: không có nút bật/tắt nào để quên, và
+ * không có khoảng thời gian nào mà bảng khai một nửa còn luật thì chưa chạy.
+ */
+function luatKenhDaBat(ds) {
+  return (ds || []).some((r) => r.moiKenhQC || (r.kenhQC || []).length);
 }
 
 /**
@@ -157,6 +207,7 @@ async function docThat() {
       moiXemTai: oX.moiAi,
       taoMoi: r[F.taoMoi] === true,
       chiPhi: r[F.chiPhi] === true,
+      ...docKenhQC(r[F.kenhQC]),
       ghiChu: asText(r[F.ghiChu]),
     };
   }).filter((r) => r.email || r.openId || r.nguoi);
@@ -231,6 +282,8 @@ async function ghi(hang) {
     [F.xemTai]: ghiXemTai(hang),
     [F.taoMoi]: !!hang.taoMoi,
     [F.chiPhi]: !!hang.chiPhi,
+    // '*' = mọi kênh; trống = KHÔNG kênh nào (cùng quy ước với "Base được xem")
+    [F.kenhQC]: hang.moiKenhQC ? '*' : (hang.kenhQC || []).join(','),
     [F.ghiChu]: hang.ghiChu || '',
   };
 
@@ -326,8 +379,32 @@ function ghiVaoFile(hang) {
   return id;
 }
 
+/**
+ * Chuỗi kênh quảng cáo gửi xuống app con, theo đúng giao ước với nó:
+ *   '*'   mọi kênh              (app hiểu: không giới hạn)
+ *   '-'   không kênh nào
+ *   'Facebook,TikTok'           đúng những kênh này
+ *   null  KHÔNG gửi header      (app hiểu: hub chưa nói gì -> không giới hạn)
+ *
+ * `null` và `'-'` khác nhau, và lẫn hai cái là hỏng to. `'-'` là một LỜI KHAI:
+ * người này không được xem kênh nào. `null` là CHƯA CÓ AI KHAI GÌ — lúc cột còn
+ * chưa tồn tại trong bảng. Hiểu im lặng thành cấm là cả phòng mất số ngay giây
+ * deploy mà chẳng ai làm gì sai.
+ *
+ * @param {object|null} hang dòng phân quyền của người đó, null nếu chưa khai
+ * @param {Array} ds toàn bộ bảng — cần để biết luật đã bật chưa
+ */
+function kenhQuangCaoCua(hang, ds) {
+  if (!luatKenhDaBat(ds)) return null;          // chưa ai khai -> chưa bật luật
+  if (!hang) return '-';                         // luật đã bật mà người này chưa có dòng
+  if (hang.moiKenhQC) return '*';
+  const ds2 = hang.kenhQC || [];
+  return ds2.length ? ds2.join(',') : '-';
+}
+
 module.exports = {
-  BASE, TABLE, F,
+  BASE, TABLE, F, KENH_QC,
   docTatCa, cuaNguoi, ghi, xoa, xoaCache, cotThieu, docOBase, docXemTai, ghiXemTai,
+  docKenhQC, luatKenhDaBat, kenhQuangCaoCua,
   larkUrl: 'https://rootytrip2.sg.larksuite.com/base/' + BASE + '?table=' + TABLE,
 };

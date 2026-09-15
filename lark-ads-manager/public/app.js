@@ -314,6 +314,7 @@ function renderFilters() {
     if (S.filter.from && S.filter.to) { renderFilters(); render(); baoKhoangLenHub(); }
   };
 
+  veBangGioiHanKenh(m);
   $('#fPlatform').innerHTML = m.platforms.map((p) =>
     `<button class="pill ${PLAT_CLASS[p] || ''} ${S.filter.platforms.includes(p) ? 'on' : ''}" data-p="${esc(p)}">${esc(p)}</button>`).join('');
   $$('#fPlatform .pill').forEach((b) => b.onclick = () => {
@@ -595,6 +596,32 @@ function adMiniTable(id, rows) {
   ], rows, { empty: 'Chưa đủ dữ liệu để xếp hạng' });
 }
 
+/**
+ * Băng "anh đang xem kênh nào".
+ *
+ * Lọc im lặng là loại lỗi tệ nhất trong app này: mở lên thấy "Chi tiêu
+ * 24.803.881đ" và tưởng đó là cả công ty, trong khi nó chỉ là một kênh. Số đúng,
+ * nhãn sai — cùng loại với ROAS 174,93× và "61% chi tiêu không đo được".
+ *
+ * Không hiện gì khi không bị giới hạn: thêm một dòng vào chỗ đang ổn chỉ làm
+ * màn hình dài ra.
+ */
+function veBangGioiHanKenh(m) {
+  const el = $('#bangGioiHanKenh');
+  if (!el) return;
+  if (!m || !m.biGioiHanKenh) { el.hidden = true; el.innerHTML = ''; return; }
+  const ds = m.kenhDuocXem || [];
+  el.hidden = false;
+  el.innerHTML = ds.length
+    ? `<div class="help"><b>Anh/chị đang xem ${ds.length} kênh:</b> ${ds.map(esc).join(' · ')}.
+       Mọi con số trên màn hình — chi tiêu, chuyển đổi, doanh thu, cảnh báo — chỉ tính phần
+       của những kênh này, không phải cả công ty.
+       <span class="sub">Muốn đổi thì nhờ quản lý sửa ở Cài đặt → Phân quyền → Kênh quảng cáo.</span></div>`
+    : `<div class="help" style="border-color:var(--warn);color:var(--warn)">
+       <b>Anh/chị chưa được cấp kênh quảng cáo nào</b> nên màn hình này không có số để hiện.
+       Nhờ quản lý mở ở Cài đặt → Phân quyền → <b>Kênh quảng cáo được xem</b>.</div>`;
+}
+
 /* ================= TAB: NỀN TẢNG ================= */
 VIEW['nen-tang'] = async (view) => {
   const d = await api('/api/overview?' + qs());
@@ -776,7 +803,7 @@ VIEW['doanh-thu'] = async (view) => {
       : `<span class="tag ${r.roas >= 3 ? 'good' : r.roas >= 1 ? 'warn' : 'bad'}">${r.roas}×</span>`) },
   ];
   view.innerHTML = `
-  <div class="kpis" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+  <div class="kpis" style="grid-template-columns:repeat(${d.biGioiHan ? 3 : 4},minmax(0,1fr))">
     <div class="kpi"><div class="k-label">Doanh thu từ quảng cáo</div>
       <div class="k-value">${vnd(T.dtTuQuangCao || 0)}</div>
       <div class="k-foot">${int(T.donTuQuangCao || 0)} đơn ghi công được</div></div>
@@ -786,9 +813,9 @@ VIEW['doanh-thu'] = async (view) => {
     <div class="kpi"><div class="k-label">ROAS</div>
       <div class="k-value">${T.roas == null ? '—' : T.roas + '×'}</div>
       <div class="k-foot">chỉ tính phần từ quảng cáo</div></div>
-    <div class="kpi"><div class="k-label">Doanh thu toàn công ty</div>
+    ${d.biGioiHan ? '' : `<div class="kpi"><div class="k-label">Doanh thu toàn công ty</div>
       <div class="k-value">${vnd(T.dtCongTy || 0)}</div>
-      <div class="k-foot">${T.tyLeTuQuangCao == null ? '' : (T.tyLeTuQuangCao * 100).toFixed(1) + '% đến từ quảng cáo'}</div></div>
+      <div class="k-foot">${T.tyLeTuQuangCao == null ? '' : (T.tyLeTuQuangCao * 100).toFixed(1) + '% đến từ quảng cáo'}</div></div>`}
   </div>
   ${!d.rows.length ? `<div class="help" style="margin-top:12px;border-color:var(--warn);color:var(--warn)">
     <b>Bốn ô số trên đọc bảng <i>Báo cáo Sales (theo ngày)</i> của Base, và bảng đó đang rỗng —

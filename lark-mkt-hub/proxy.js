@@ -272,7 +272,8 @@ function chuyenTiep(req, res, mod, duongDan, nguoi) {
   delete opts.headers['x-hub-user-name'];
   delete opts.headers['x-hub-user-email'];
   delete opts.headers['x-hub-user-email-phu'];
-  ['x-hub-user-manager','x-hub-perm-toan-bo','x-hub-perm-khong-tao','x-hub-perm-chi-phi']
+  ['x-hub-user-manager','x-hub-perm-toan-bo','x-hub-perm-khong-tao','x-hub-perm-chi-phi',
+    'x-hub-perm-kenh']
     .forEach((h) => { delete opts.headers[h]; });
   if (nguoi && nguoi.id) {
     opts.headers['x-hub-user-id'] = nguoi.id;
@@ -292,6 +293,10 @@ function chuyenTiep(req, res, mod, duongDan, nguoi) {
     if (nguoi.toanBo) opts.headers['x-hub-perm-toan-bo'] = '1';
     if (nguoi.taoMoi === false) opts.headers['x-hub-perm-khong-tao'] = '1';
     if (nguoi.chiPhi) opts.headers['x-hub-perm-chi-phi'] = '1';
+    /* Chỉ gửi khi hub THẬT SỰ có gì để nói. Không gửi = app con hiểu "chưa ai
+     * khai gì" và không giới hạn; gửi '-' = khai rõ "không kênh nào". Hai chuyện
+     * khác hẳn nhau. */
+    if (nguoi.kenhQC) opts.headers['x-hub-perm-kenh'] = nguoi.kenhQC;
   }
 
   const upstream = http.request(opts, (r) => {
@@ -414,6 +419,7 @@ function headerNguoi(nguoi) {
   if (nguoi.toanBo) h['x-hub-perm-toan-bo'] = '1';
   if (nguoi.taoMoi === false) h['x-hub-perm-khong-tao'] = '1';
   if (nguoi.chiPhi) h['x-hub-perm-chi-phi'] = '1';
+  if (nguoi.kenhQC) h['x-hub-perm-kenh'] = nguoi.kenhQC;
   return h;
 }
 
