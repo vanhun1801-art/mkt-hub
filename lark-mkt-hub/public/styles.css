@@ -1056,42 +1056,68 @@ code { background: var(--trang-2); border: 1px solid var(--vien-mem); border-rad
 .tin-cot { display: flex; flex-direction: column; min-width: 0; min-height: 0;
   border-left: 1px solid var(--vien); }
 .tin-luoi.khong-phim .tin-cot { border-left: 0; }
-.tin-cot-dau { padding: 14px 16px 10px; border-bottom: 1px solid var(--vien-mem); }
+.tin-cot-dau { padding: 12px 16px; border-bottom: 1px solid var(--vien-mem); }
 .tin-cot-dau h2 { margin: 0; font-size: 15px; }
 .tin-ds { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 .tin-ds::-webkit-scrollbar { width: 0; }
 .tin-ds { scrollbar-width: none; }
 
+/* MỘT dòng tin = một lưới cố định, không phải một hàng flex co theo nội dung.
+   Chữ luôn bắt đầu ở cùng một chỗ, ngày luôn kết thúc ở cùng một chỗ, ảnh luôn
+   ở cột ngoài cùng — đọc dọc xuống là mọi thành phần thẳng hàng.
+   Dòng nào không có ảnh vẫn chừa ô trống đúng bằng ô ảnh (.tin-anh-trong), nếu
+   không thì mép phải của chữ dòng này lệch dòng kia. */
 .tin-mot {
-  display: flex; gap: 10px; align-items: flex-start;
-  padding: 11px 16px; border-bottom: 1px solid var(--vien-mem);
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; align-items: center;
+  padding: 10px 16px; border-bottom: 1px solid var(--vien-mem);
   cursor: pointer;
 }
+.tin-ds.co-anh .tin-mot { grid-template-columns: minmax(0, 1fr) 46px; }
 .tin-mot:hover { background: var(--trang-2); }
 .tin-mot:last-child { border-bottom: 0; }
 /* Đã đọc thì nhạt đi, KHÔNG giấu: bảng tin là chỗ tra lại, khác popup chặn
    màn hình vốn đọc xong là biến mất. */
 .tin-mot.da-doc { opacity: .62; }
-.tin-anh { width: 52px; height: 52px; object-fit: cover; border-radius: 8px; flex: 0 0 auto; }
-.tin-chu { min-width: 0; }
-.tin-chu b { display: block; font-size: 13px; line-height: 1.4; }
-.tin-chu p {
-  margin: 3px 0 0; font-size: 12px; color: var(--chu-nhat); line-height: 1.5;
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+.tin-anh {
+  width: 46px; height: 46px; object-fit: cover; border-radius: 8px;
+  background: var(--trang-2); display: block;
 }
-.tin-dau { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+.tin-anh-trong { background: transparent; }
+.tin-chu { min-width: 0; }
+/* Tiêu đề và trích đều CẮT Ở MỘT DÒNG: mọi dòng cao bằng nhau thì cả cột mới
+   thành một khối có nhịp, đó chính là "trật tự" cần ở đây. Đọc trọn thì bấm vào
+   dòng, popup hiện đủ. */
+.tin-chu b {
+  display: block; font-size: 13px; line-height: 1.45;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tin-chu p {
+  margin: 2px 0 0; font-size: 12px; color: var(--chu-nhat); line-height: 1.5;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  min-height: 18px;    /* tin không có nội dung vẫn cao bằng tin có */
+}
+.tin-dau { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; }
+.tin-dau .grow { flex: 1; }
+/* Hai nhãn cùng một khuôn: cùng cỡ chữ, cùng bo, cùng chiều cao — khác nhau
+   đúng một thứ là màu. */
+.tin-muc, .tin-moi {
+  font-size: 10px; font-weight: 700; line-height: 16px; height: 16px;
+  padding: 0 7px; border-radius: 999px; white-space: nowrap;
+}
 .tin-muc {
-  font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
-  padding: 1px 6px; border-radius: 999px;
+  letter-spacing: .04em; text-transform: uppercase;
+  min-width: 46px; text-align: center;    /* TIN / GẤP / QUAN TRỌNG không xô nhau */
   background: var(--xanh-nhat); color: var(--xanh);
 }
 .tin-muc.vang { background: var(--vang-nhat); color: var(--vang); }
 .tin-muc.do { background: var(--do-nhat); color: var(--do); }
-.tin-moi {
-  font-size: 10px; font-weight: 700; color: var(--luc);
-  background: var(--luc-nhat); padding: 1px 6px; border-radius: 999px;
+.tin-moi { color: var(--luc); background: var(--luc-nhat); }
+/* Ngày: chữ số đều bề ngang (tabular-nums) và ô rộng cố định, nên ngày của mọi
+   dòng xếp thành một cột thẳng chứ không so le theo độ dài chữ. */
+.tin-ngay {
+  font-size: 11px; color: var(--chu-nhat);
+  font-variant-numeric: tabular-nums; width: 38px; text-align: right; flex: 0 0 auto;
 }
-.tin-ngay { font-size: 11px; color: var(--chu-nhat); margin-left: auto; }
 
 @media (min-width: 1700px) {
   .tin-luoi { grid-template-columns: 560px minmax(0, 1fr); }

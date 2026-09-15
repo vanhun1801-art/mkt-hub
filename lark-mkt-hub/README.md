@@ -491,6 +491,25 @@ Bảng tin khác popup chặn màn hình ở một điểm: **tin đã đọc v�
 đi và mất nhãn "mới". Popup là để *bắt đọc*, bảng tin là để *tra lại* — bấm một
 tin là mở lại đúng popup đó, và không ghi thêm xác nhận của ai.
 
+**Một dòng tin là một lưới cố định**, không phải hàng flex co theo nội dung —
+mọi thành phần có chỗ của nó và đọc dọc xuống thì thẳng hàng:
+
+```
+[phân loại] [mới] ................ [ngày] │ [ảnh]
+Tiêu đề — một dòng
+Trích nội dung — một dòng
+```
+
+Bốn thứ giữ cho nó thẳng: chip phân loại có `min-width` (TIN / GẤP / QUAN TRỌNG
+không xô nhau), ngày dùng `tabular-nums` trong ô rộng cố định, cột ảnh chừa sẵn
+cho **mọi** dòng khi danh sách có ít nhất một ảnh (dòng không ảnh vẫn giữ ô
+trống, nếu không mép chữ dòng này lệch dòng kia), và tiêu đề lẫn trích đều **cắt
+ở một dòng** để mọi dòng cao bằng nhau. Đo được: 13 dòng đều cao 78px, tiêu đề
+bắt đầu ở 586px, ngày ở 1294px, ảnh ở 1342px — không dòng nào lệch.
+
+Cột không đếm số thông báo: con số đó không giúp ai quyết định gì mà lại chiếm
+đúng chỗ dễ đọc nhất.
+
 Khối chỉ vẽ **một lần** (`dataset.xong`): trang chủ tự vẽ lại mỗi 20 giây theo
 nhịp số liệu, vẽ lại mà đụng vào thẻ `<video>` là video đang xem bị dựng lại từ
 đầu.

@@ -1005,22 +1005,41 @@ async function veKhoiTin() {
   o.dataset.xong = '1';
 
   const mucLop = { 'Gấp': 'do', 'Quan trọng': 'vang' };
+  const anhCua = (t) => (t.tep || []).find((x) => /^image\//.test(x.kieu || '') ||
+    /\.(png|jpe?g|gif|webp)$/i.test(x.ten || ''));
+  /* Có ít nhất một tin kèm ảnh thì MỌI dòng chừa sẵn cột ảnh, kể cả dòng không
+   * có ảnh. Không chừa thì chữ của dòng này thụt vào, dòng kia không — mắt đọc
+   * theo mép trái nên hai mép lệch nhau là thấy lộn xộn ngay. Cả danh sách
+   * không tin nào có ảnh thì bỏ hẳn cột đó, khỏi thừa một khoảng trắng. */
+  const coAnh = TIN.ds.some(anhCua);
+
+  /* Bốn thành phần, bốn chỗ cố định:
+   *     [phân loại] [mới] ............ [ngày] | [ảnh]
+   *     Tiêu đề — một dòng
+   *     Trích nội dung — một dòng
+   * Ngày luôn nằm sát mép phải của cột chữ, ảnh luôn ở cột riêng ngoài cùng,
+   * nên đọc dọc xuống là thẳng hàng. Tiêu đề và trích đều cắt ở MỘT dòng để
+   * mọi dòng cao bằng nhau — bấm vào là mở popup đọc trọn, không mất gì. */
   const tin = (t) => {
-    const anh = (t.tep || []).find((x) => /^image\//.test(x.kieu || '') ||
-      /\.(png|jpe?g|gif|webp)$/i.test(x.ten || ''));
+    const anh = anhCua(t);
     return '<article class="tin-mot' + (t.daDoc ? ' da-doc' : '') + '" data-tin="' + esc(t.recordId) + '">' +
-      (anh ? '<img class="tin-anh" src="/api/tb-app/tep/' + encodeURIComponent(t.recordId) + '/' +
-        encodeURIComponent(anh.token) + '" alt="">' : '') +
       '<div class="tin-chu">' +
         '<div class="tin-dau">' +
           '<span class="tin-muc ' + (mucLop[t.mucDo] || '') + '">' + esc(t.mucDo || 'Tin') + '</span>' +
           (t.daDoc ? '' : '<span class="tin-moi">mới</span>') +
-          (t.tuNgay ? '<span class="tin-ngay">' + esc(ngayGonTin(t.tuNgay)) + '</span>' : '') +
+          '<span class="grow"></span>' +
+          '<span class="tin-ngay">' + (t.tuNgay ? esc(ngayGonTin(t.tuNgay)) : '') + '</span>' +
         '</div>' +
         '<b>' + esc(t.tieuDe || '(không tiêu đề)') + '</b>' +
-        (t.noiDung ? '<p>' + esc(String(t.noiDung).replace(/\s+/g, ' ').slice(0, 140)) +
-          (String(t.noiDung).length > 140 ? '…' : '') + '</p>' : '') +
-      '</div></article>';
+        '<p>' + esc(String(t.noiDung || '').replace(/\s+/g, ' ').slice(0, 160)) + '</p>' +
+      '</div>' +
+      (coAnh
+        ? (anh
+          ? '<img class="tin-anh" src="/api/tb-app/tep/' + encodeURIComponent(t.recordId) + '/' +
+            encodeURIComponent(anh.token) + '" alt="">'
+          : '<span class="tin-anh tin-anh-trong"></span>')
+        : '') +
+      '</article>';
   };
 
   o.innerHTML = '<section class="khoi khoi-tin">' +
@@ -1041,9 +1060,10 @@ async function veKhoiTin() {
           '</div>'
         : '') +
       '<div class="tin-cot">' +
-        '<div class="tin-cot-dau"><h2>Tin của phòng</h2>' +
-          '<span class="kh-sub">' + TIN.ds.length + ' thông báo đang hiệu lực</span></div>' +
-        '<div class="tin-ds">' +
+        /* Không đếm số thông báo nữa: con số đó không giúp ai quyết định gì,
+         * mà lại chiếm đúng chỗ dễ đọc nhất của cột. */
+        '<div class="tin-cot-dau"><h2>Tin của phòng</h2></div>' +
+        '<div class="tin-ds' + (coAnh ? ' co-anh' : '') + '">' +
           (TIN.ds.length ? TIN.ds.map(tin).join('')
             : '<div class="trong">Chưa có thông báo nào.</div>') +
         '</div>' +
