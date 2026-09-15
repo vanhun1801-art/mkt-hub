@@ -742,7 +742,7 @@ function moAiDaXem(tb) {
  * không có ô, không ai nhận ra, và họ không nhận được thông báo nào. Đây là
  * chỗ duy nhất chuyện đó lộ ra.
  */
-function tbGhiNhom(nhom, san, moi) {
+function tbGhiNhom(nhom, san, moi, cuLaSao) {
   const ten = esc(nhom.ten || 'Phòng MKT');
   /* Dòng đếm do locDs() viết vào — nó đổi theo mỗi lần gõ, nên để rỗng ở đây. */
   let h = '<div class="q-ghi-nho" id="tbDem"></div>';
@@ -752,6 +752,13 @@ function tbGhiNhom(nhom, san, moi) {
       'Người ngoài phòng không hiện trong danh sách — gõ tên vào ô trên để tìm rồi tick. ' +
       '<button class="btn nho ghost" id="tbNhom" style="margin-top:5px">Tick lại đúng nhóm ' +
       ten + '</button></div>';
+    /* Thông báo cũ lưu `*`: đừng đổi nghĩa sau lưng quản lý. Nói ra trước khi
+     * bấm Lưu, vì sau khi lưu thì không nhìn ra được nó đã đổi. */
+    if (cuLaSao) {
+      h += '<div class="q-ghi-nho" style="color:var(--vang)">Thông báo này đang lưu kiểu cũ: ' +
+        '<b>mọi người trong danh bạ</b> (cả người ngoài phòng). Bấm Lưu là nó thành ' +
+        'đúng những người đang tick ở trên.</div>';
+    }
   } else {
     h += '<div class="q-ghi-nho" style="color:var(--do)">Chưa đọc được nhóm ' + ten +
       ' nên không tick sẵn được ai — đang để mặc định "Cả phòng".' +
@@ -792,6 +799,9 @@ function moFormTb(tb) {
    * SỬA một thông báo cũ thì không đụng vào: danh sách người nhận đã lưu là
    * quyết định của lần soạn đó, tự ý tick thêm là gửi cho người không định gửi. */
   const sanNhom = (nhom.ids || []).slice();
+  /* Đọc được nhóm thì form chạy luật mới; đọc hỏng thì giữ nguyên luật cũ —
+   * một lần Lark không trả lời không được phép làm quản lý mất đường gửi. */
+  const chiNhom = sanNhom.length > 0;
   TBSUA = tb || (sanNhom.length
     ? { mucDo: 'Tin', moiAi: false, ai: sanNhom, bat: true }
     : { mucDo: 'Tin', moiAi: true, ai: [], bat: true });
@@ -834,17 +844,38 @@ function moFormTb(tb) {
       ? '<div class="q-ghi-nho" style="color:var(--do)">Máy cá nhân: danh sách dưới đây ' +
         'cho open_id KHÁC bản deploy — chọn ở đây thì người nhận không khớp.</div>'
       : '') +
-    '<label class="q-ck q-ck-manh"><input type="checkbox" id="tbMoiAi"' + (t.moiAi ? ' checked' : '') + '>' +
-      '<span>Cả phòng</span><small class="q-nhat">— kể cả người vào sau này</small></label>' +
+    /* "Cả phòng" NGHĨA LÀ danh sách bên dưới.
+     *
+     * Anh Hùng: "nếu tích cả phòng, có nghĩa là những người thuộc danh sách
+     * hiện bên dưới. Còn nếu bỏ tích thì anh sẽ chọn thủ công".
+     *
+     * Trước đây ô này lưu người nhận là `*` = MỌI người trong danh bạ, mà danh
+     * bạ gom từ chín app nên có cả Điều hành, kế toán, phòng khác. Tick "cả
+     * phòng" là thông báo nội bộ của phòng bay sang người ngoài phòng — và
+     * không có màn hình nào cho thấy chuyện đó.
+     *
+     * Giờ nó là cái công tắc tick hết / bỏ hết đúng nhóm phòng, và lưu ra DANH
+     * SÁCH TÊN cụ thể. Ai nhận được thì nhìn thấy trên màn hình, không phải suy
+     * ra từ một dấu sao. */
+    '<label class="q-ck q-ck-manh"><input type="checkbox" id="tbMoiAi"' +
+      (chiNhom ? ' data-chi-nhom="1"' : '') +
+      ((chiNhom ? sanNhom.every((id) => (t.ai || []).includes(id)) || t.moiAi : t.moiAi)
+        ? ' checked' : '') + '>' +
+      '<span>Cả phòng</span><small class="q-nhat">— ' +
+      (chiNhom ? sanNhom.length + ' người trong nhóm ' + esc(nhom.ten || 'Phòng MKT')
+        : 'kể cả người vào sau này') + '</small></label>' +
     '<input class="q-in q-loc" id="tbLoc" type="text" placeholder="Gõ tên để tìm người ngoài phòng…">' +
     '<div class="q-nhom q-nhom-cuon" id="tbAi">' + db.map((x) =>
       '<label class="q-ck' + (sanNhom.includes(x.id) ? ' q-ck-nhom' : '') + '"' +
       ' data-nhom="' + (sanNhom.includes(x.id) ? '1' : '') + '"' +
       ' data-ten="' + esc(String(x.ten).toLowerCase()) + '">' +
       '<input type="checkbox" data-ai="' + esc(x.id) + '"' +
-        ((t.ai || []).includes(x.id) ? ' checked' : '') + '>' +
+        /* Thông báo cũ lưu `*` (cả danh bạ) thì mở ra tick sẵn nhóm phòng —
+         * lưu lại là nó thành danh sách tên, có cảnh báo ngay bên dưới. */
+        (((t.ai || []).includes(x.id) || (chiNhom && t.moiAi && sanNhom.includes(x.id)))
+          ? ' checked' : '') + '>' +
       '<span>' + esc(x.ten) + '</span></label>').join('') + '</div>' +
-    tbGhiNhom(nhom, sanNhom, !tb));
+    tbGhiNhom(nhom, sanNhom, !tb, !!(tb && t.moiAi)));
 
   html += hang('Bật',
     '<label class="q-ck q-ck-manh"><input type="checkbox" id="tbBat"' +
@@ -859,8 +890,30 @@ function moFormTb(tb) {
     '<button class="btn ghost" data-close="1">Đóng</button>');
 
   const ckMoi = $('#tbMoiAi');
-  const dongBo = () => { $('#tbAi').classList.toggle('q-mo-het', ckMoi.checked); };
-  ckMoi.onchange = dongBo;
+  const oNhom = () => $$('#tbAi [data-ai]').filter((x) => sanNhom.includes(x.dataset.ai));
+  /* Luật mới: ô "Cả phòng" phản chiếu danh sách — tick hết nhóm thì nó sáng, bỏ
+   * một người thì nó tắt. Không còn làm mờ danh sách nữa: mờ là dấu hiệu "mấy ô
+   * này vô nghĩa", mà giờ chính chúng là thứ được lưu.
+   *
+   * Luật cũ (không đọc được nhóm): giữ nguyên `*` và vẫn làm mờ, vì lúc đó ô
+   * tick thật sự bị bỏ qua. */
+  const dongBo = () => {
+    if (chiNhom) {
+      const ds = oNhom();
+      ckMoi.checked = ds.length > 0 && ds.every((x) => x.checked);
+      return;
+    }
+    $('#tbAi').classList.toggle('q-mo-het', ckMoi.checked);
+  };
+  ckMoi.onchange = () => {
+    if (!chiNhom) return dongBo();
+    const bat = ckMoi.checked;
+    oNhom().forEach((x) => { x.checked = bat; });
+    locDs();
+  };
+  /* Tick tay từng người thì ô "Cả phòng" phải tự theo. Bắt ở khối cha, không
+   * gắn từng dòng: 37 dòng là 37 listener, mà mỗi lần mở form lại gắn lại. */
+  $('#tbAi').onchange = dongBo;
   dongBo();
   const oLoc = $('#tbLoc');
   /* Mặc định chỉ hiện người trong nhóm phòng.
@@ -878,7 +931,6 @@ function moFormTb(tb) {
    *
    * Không đọc được nhóm (sanNhom rỗng) thì hiện hết như cũ — giấu sạch danh
    * sách vì một lần đọc hỏng còn tệ hơn danh sách dài. */
-  const chiNhom = sanNhom.length > 0;
   const locDs = () => {
     const q = oLoc.value.trim().toLowerCase();
     let hien = 0;
@@ -943,7 +995,10 @@ async function luuFormTb() {
     buocBam: !!$('#tbBuocBam').checked,
     tuNgay: msTuO($('#tbTu').value),
     denNgay: msTuO($('#tbDen').value),
-    moiAi: !!$('#tbMoiAi').checked,
+    /* Đọc được nhóm phòng thì KHÔNG bao giờ lưu `*` nữa: "cả phòng" giờ nghĩa
+     * là danh sách tên đang tick bên dưới, và người nhận phải nhìn thấy được
+     * trên màn hình chứ không suy ra từ một dấu sao. */
+    moiAi: $('#tbMoiAi').dataset.chiNhom ? false : !!$('#tbMoiAi').checked,
     ai: $$('#tbAi [data-ai]').filter((x) => x.checked).map((x) => x.dataset.ai),
     bat: !!$('#tbBat').checked,
   };

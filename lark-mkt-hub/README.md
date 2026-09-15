@@ -470,8 +470,15 @@ phòng khác — 37 người, trong khi phòng Marketing có 10. Soạn thông b
 phải tự dò 10 cái tên trong 37 dòng thì lần nào cũng sót một người.
 
 Nên thông báo **mới** mở ra đã tick sẵn đúng những người trong nhóm chat
-**Phòng MKT**, và ô "Cả phòng" **tắt** (bật nó thì máy chủ ghi người nhận là `*`,
-mọi ô tick bên dưới bị bỏ qua — tick sẵn sẽ thành vô nghĩa).
+**Phòng MKT**.
+
+Và **"Cả phòng" nghĩa là danh sách bên dưới**, không còn là dấu sao. Trước đây
+tick ô đó lưu người nhận là `*` = *mọi người trong danh bạ*, tức là thông báo
+nội bộ của phòng bay sang Điều hành, kế toán, phòng khác — mà không màn hình nào
+cho thấy chuyện đó. Giờ nó là công tắc **tick hết / bỏ hết** đúng nhóm phòng, và
+lưu ra **danh sách tên cụ thể**: ai nhận được thì nhìn thấy trên màn hình. Bỏ
+tick một người thì ô "Cả phòng" tự tắt theo. Sửa một thông báo cũ còn lưu `*`
+thì form nói trước: bấm Lưu là nó đổi thành đúng những người đang tick.
 
 Và danh sách **chỉ hiện nhóm phòng**, không đổ cả 37 người ra. Tick sẵn thôi
 chưa đủ: 27 dòng ngoài phòng vẫn che mất 10 dòng cần nhìn, vẫn phải cuộn hết mới

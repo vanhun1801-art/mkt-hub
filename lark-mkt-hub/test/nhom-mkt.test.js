@@ -166,6 +166,24 @@ group('Form soạn tick sẵn nhóm');
   ok('có gõ thì tìm trong cả danh bạ', /q\s*\?\s*\(!l\.dataset\.ten\.includes\(q\) && !daTick\)/.test(src));
   ok('đã tick thì luôn hiện', /const daTick = l\.querySelector\('input'\)\.checked/.test(src));
   ok('đọc nhóm hỏng thì hiện hết như cũ', /const chiNhom = sanNhom\.length > 0/.test(src));
+
+  /* "Cả phòng" đổi nghĩa: nó LÀ danh sách bên dưới, không còn là dấu sao.
+   *
+   * Anh Hùng: "nếu tích cả phòng, có nghĩa là những người thuộc danh sách hiện
+   * bên dưới. Còn nếu bỏ tích thì anh sẽ chọn thủ công". Dấu sao cũ nghĩa là
+   * MỌI người trong danh bạ — gồm cả Điều hành, kế toán, phòng khác — nên tick
+   * "cả phòng" là thông báo nội bộ bay ra ngoài phòng mà không màn hình nào nói.
+   *
+   * (Đã chạy thật trên trình duyệt: mở form → Cả phòng sáng · 9 tick; bỏ tick
+   * một người → Cả phòng tự tắt; tick lại Cả phòng → 9 tick; bấm Lưu thì thân
+   * yêu cầu là moiAi:false kèm đúng 9 tên, không có `*`.) */
+  ok('lưu ra danh sách tên, không lưu dấu sao',
+    /moiAi: \$\('#tbMoiAi'\)\.dataset\.chiNhom \? false : !!\$\('#tbMoiAi'\)\.checked/.test(src));
+  ok('ô Cả phòng tick/bỏ hết đúng nhóm', /oNhom\(\)\.forEach\(\(x\) => \{ x\.checked = bat; \}\)/.test(src));
+  ok('tick tay thì ô Cả phòng tự theo', /\$\('#tbAi'\)\.onchange = dongBo/.test(src));
+  ok('không làm mờ danh sách nữa khi đọc được nhóm',
+    /if \(chiNhom\) \{[\s\S]{0,200}return;\s*\}\s*\$\('#tbAi'\)\.classList\.toggle\('q-mo-het'/.test(src));
+  ok('sửa thông báo kiểu cũ thì cảnh báo trước khi lưu', /đang lưu kiểu cũ/.test(src));
 }
 
 console.log('\n' + (fail ? '\x1b[31m' : '\x1b[32m') + pass + ' pass · ' + fail + ' fail\x1b[0m');
