@@ -16,7 +16,7 @@
  * ========================================================================== */
 
 const S = {
-  chi: [], dot: [], nap: [], quy: { tongUng: 0, tongChi: 0, conLai: 0, soLanUng: 0 },
+  chi: [], nap: [], quy: { tongUng: 0, tongChi: 0, conLai: 0, soLanUng: 0 },
   options: { loaiChi: [], tinhTrang: [] },
   me: null, vai: 'xem', chuQuy: false,
   /* Mã quyết toán gần nhất, để chị kế toán duyệt cả xâu khoản cùng một mã mà
@@ -46,7 +46,6 @@ const XUONG_DONG = String.fromCharCode(10);
 const THEM_DONG = String.fromCharCode(10, 10);   /* hai dòng trống trong hộp hỏi lại */
 
 const $ = (s, g = document) => g.querySelector(s);
-const $$ = (s, g = document) => [...g.querySelectorAll(s)];
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g,
   (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tien = (n) => (Number(n) || 0).toLocaleString('vi-VN');
@@ -72,11 +71,13 @@ function toast(msg, kind) {
  * Khoá ngay ở phần tử nút chứ không giữ cờ toàn cục: hai cửa sổ khác nhau vẫn
  * bấm được độc lập, và nút tự nhả kể cả khi lời gọi ném lỗi.
  */
-async function chongBamHai(nut, viec) {
+async function chongBamHai(nut, viec, dangLam) {
   if (!nut || nut.disabled) return;
   const chu = nut.textContent;
   nut.disabled = true;
-  nut.textContent = 'Đang lưu…';
+  /* Nói đúng việc đang chạy. "Đang lưu…" trên nút Từ chối là sai — người bấm
+   * không lưu gì cả, họ đang trả một khoản về cho người giữ quỹ. */
+  nut.textContent = dangLam || 'Đang lưu…';
   try {
     await viec();
   } catch (e) {
@@ -120,7 +121,6 @@ const homNay = () => new Date().toISOString().slice(0, 10);
 async function taiLai(moi) {
   const d = await api('/api/meta' + (moi ? '?moi=1' : ''));
   S.chi = d.chi || [];
-  S.dot = d.dot || [];
   S.nap = d.nap || [];
   S.quy = d.quy || S.quy;
   S.options = d.options || S.options;
@@ -135,8 +135,6 @@ async function taiLai(moi) {
  * ty đưa thêm — nó là tồn của kỳ trước, đếm vào là tính trùng. */
 const LAN_CHUYEN_TIEP = 'Chuyển từ kỳ trước';
 const TRA_LAI = 'Kế toán trả lại';
-const cacLanUng = () => S.nap.filter((n) => n.loai !== LAN_CHUYEN_TIEP)
-  .sort((a, b) => String(b.ngay || '').localeCompare(String(a.ngay || '')));
 
 /**
  * KHOẢN NÀO THẬT SỰ CẦN BỔ SUNG CHỨNG TỪ
@@ -218,8 +216,12 @@ function locChi() {
     if (l.thang && thangCua(c.ngayChi || c.ngayDeNghi) !== l.thang) return false;
     if (S.tab === 'thieu' && !thieuChungTu(c)) return false;
     if (tim) {
-      const kho = [c.noiDung, c.maDieuHanh, c.maQuyetToan, c.ncc, c.soHoaDon, c.ghiChu]
-        .join(' ').toLowerCase();
+      /* Gồm cả MÃ ĐƠN RT: đó là mã kế toán đối chiếu nhiều nhất, mà trước đây
+       * dán RT16438 vào ô tìm thì ra rỗng — ô tìm chỉ soi mã điều hành SG.
+       * Thêm mã số thuế và lý do trả lại vì cả hai đều là thứ người ta nhớ
+       * loáng thoáng rồi đi tìm lại. */
+      const kho = [c.noiDung, c.maDon, c.maDieuHanh, c.maQuyetToan, c.ncc,
+        c.soHoaDon, c.mst, c.lyDoTuChoi, c.ghiChu].join(' ').toLowerCase();
       if (!kho.includes(tim)) return false;
     }
     return true;
@@ -295,6 +297,7 @@ function veTong() {
   const soThieu = S.chi.filter(thieuChungTu).length;
   const chuaQuyetToan = S.chi.filter((c) => c.tinhTrang === 'Đã chi').length;
   const traLai = S.chi.filter((c) => c.tinhTrang === TRA_LAI).length;
+  const soKhoanKy = S.chi.filter((c) => thangCua(c.ngayChi || c.ngayDeNghi) === ky).length;
 
   const oSo = (nhan, so, mo, phu) => '<div class="o' + (phu && phu.lop ? ' ' + phu.lop : '')
     + '"' + (phu && phu.bam ? ' ' + phu.bam : '') + '>'
@@ -322,8 +325,10 @@ function veTong() {
      * kiểm chéo được với nhau. */
     + oSo('Số dư đầu ' + tenKy(ky), k.dauKy,
         k.nap ? 'nạp thêm trong kỳ + ' + tien(k.nap) : 'chưa nạp thêm trong kỳ')
-    + oSo('Chi trong ' + tenKy(ky), k.chi,
-        dangLocThang ? '' : 'bấm một tháng ở bộ lọc để xem kỳ khác')
+    /* Dòng mờ nói SỐ KHOẢN chứ không nói "bấm chỗ kia để xem kỳ khác". Một câu
+     * chỉ dẫn đứng thường trực thì đọc một lần là thừa mãi mãi; số khoản thì
+     * lần nào cũng là tin mới. */
+    + oSo('Chi trong ' + tenKy(ky), k.chi, soKhoanKy + ' khoản')
     + oSo('Cần bổ sung chứng từ', soThieu,
         soThieu ? 'bấm để xem' : 'không còn khoản nào',
         { thoTien: false, lop: soThieu ? 'canhbao' : '', bam: 'data-tab="thieu"' })
@@ -355,7 +360,8 @@ function veLoc() {
     + '</div>'
     + (S.tab === 'ung' ? '' :
       '<div class="loc">'
-      + '<input id="lTim" placeholder="Tìm nội dung, mã điều hành, mã quyết toán…" value="' + esc(S.loc.tim) + '">'
+      + '<input id="lTim" placeholder="Tìm nội dung, mã đơn RT, mã điều hành SG, mã quyết toán…" value="'
+        + esc(S.loc.tim) + '">'
       + '<select id="lThang">' + opt(thangs.map((m) => ({ v: m, t: 'Tháng ' + m.slice(5) + '/' + m.slice(0, 4) })), S.loc.thang, 'Mọi tháng') + '</select>'
       + '<select id="lLoai">' + opt(S.options.loaiChi, S.loc.loai, 'Mọi loại') + '</select>'
       + '<select id="lTT">' + opt(S.options.tinhTrang, S.loc.tinhTrang, 'Mọi tình trạng') + '</select>'
@@ -470,8 +476,12 @@ function veTacVu(c) {
   if (!laKeToan()) return '';
   /* Khoản đã đóng sổ chỉ còn một việc: đổi mã nếu gõ nhầm. Bày lại nút "Từ
    * chối" ở đó là mời gọi lùi một bước đã xong. */
+  /* Khoản đã đóng sổ chiếm gần hết bảng (164/164 lúc này). Để nút "Đổi mã" ở
+   * dáng nút đầy đủ là dựng một hàng nút chạy suốt trang, tranh chỗ với hai nút
+   * thật sự cần bấm ở mấy dòng đầu. Hạ xuống dáng chữ mờ: vẫn bấm được, nhưng
+   * thôi gọi mắt. */
   if (c.tinhTrang === 'Đã quyết toán') {
-    return '<button class="btn sm" data-duyet="' + c.id + '">Đổi mã</button>';
+    return '<button class="ma-them" data-duyet="' + c.id + '">đổi mã</button>';
   }
   return '<button class="btn sm duyet" data-duyet="' + c.id + '">Quyết toán</button>'
     + '<button class="btn sm nguyhiem" data-tuchoi="' + c.id + '">Từ chối</button>';
@@ -734,6 +744,12 @@ function moDuyetMot(id) {
     + tomTatKhoan(c)
     + (cu ? '<div class="nhac canhbao">Khoản này đang mang mã <b>' + esc(cu)
         + '</b>. Gán mã mới là xoá hẳn mã cũ.</div>' : '')
+    /* Cùng cảnh báo với cửa sổ quyết toán theo lô. Thiếu ở đây thì đóng sổ
+     * từng dòng lại là con đường lách được lời nhắc — mà đóng sổ từng dòng
+     * chính là cách kế toán làm nhiều nhất. */
+    + (c.tinhTrang === 'Chờ chi'
+      ? '<div class="nhac canhbao">Khoản này còn ở <b>"Chờ chi"</b> — tiền chưa rời quỹ. '
+        + 'Đóng sổ bây giờ là kế toán nhận một chứng từ chưa có thật.</div>' : '')
     + (thieu ? '<div class="nhac canhbao">Khoản này chưa có hoá đơn lẫn UNC.</div>' : '')
     + o('Mã quyết toán', '<input id="dMa" value="' + esc(cu || S.maCuoi || '')
         + '" placeholder="QTTU31/LVH">', true)
@@ -868,19 +884,27 @@ function ganSuKien() {
   g('#lThang', 'change', doiLoc((v) => { S.loc.thang = v; }));
   g('#lLoai', 'change', doiLoc((v) => { S.loc.loai = v; }));
   g('#lTT', 'change', doiLoc((v) => { S.loc.tinhTrang = v; }));
-  g('#chonHet', 'change', (e) => {
-    const ds = locChi();
-    if (e.target.checked) {
-      const duoc = ds.filter(quyetToanDuoc);
-      duoc.forEach((c) => S.chon.add(c.id));
-      const bo = ds.length - duoc.length;
-      if (bo) toast('Chọn ' + duoc.length + ' khoản còn phải đóng sổ · bỏ qua ' + bo
-        + ' khoản đã có mã quyết toán');
-      else if (!duoc.length) toast('Không còn khoản nào chờ quyết toán.');
-    } else ds.forEach((c) => S.chon.delete(c.id));
-    ve();
-  });
-  g('#btnNap2', 'click', () => moNapQuy());
+}
+
+/**
+ * Ô tích "chọn hết" và nút ghi ở cuối bảng đi theo UỶ QUYỀN, không gắn trực
+ * tiếp.
+ *
+ * Vì sao: gõ vào ô tìm kiếm chỉ vẽ lại phần `.bang` (để con trỏ khỏi nhảy khỏi
+ * ô tìm), mà vẽ lại là đẻ ra một `#chonHet` MỚI — cái cũ mang listener đã bị
+ * vứt đi cùng bảng. Hậu quả: tìm xong thì ô tích đầu bảng bấm không ăn gì, im
+ * lặng, không lỗi. Uỷ quyền ở document thì bảng vẽ lại bao nhiêu lần cũng vậy.
+ */
+function chonHetTrongBang(bat) {
+  const ds = locChi();
+  if (!bat) { ds.forEach((c) => S.chon.delete(c.id)); return ve(); }
+  const duoc = ds.filter(quyetToanDuoc);
+  duoc.forEach((c) => S.chon.add(c.id));
+  const bo = ds.length - duoc.length;
+  if (!duoc.length) toast('Không còn khoản nào chờ quyết toán.');
+  else if (bo) toast('Chọn ' + duoc.length + ' khoản còn phải đóng sổ · bỏ qua ' + bo
+    + ' khoản đã có mã quyết toán');
+  ve();
 }
 
 /* Gõ tìm kiếm thì chỉ vẽ lại phần bảng, giữ nguyên con trỏ trong ô tìm. */
@@ -906,8 +930,12 @@ document.addEventListener('click', async (e) => {
 
   if (T.closest('[data-close]') || T.id === 'modal') return dongModal();
   if (T.closest('#btnRefresh')) { toast('Đang đọc lại…'); return taiLai(true).then(() => toast('Xong', 'ok')); }
-  if (T.closest('#btnChiMoi')) return laChuQuy() ? moKhaiChi() : toast('Chỉ người giữ quỹ mới khai khoản chi.', 'err');
-  if (T.closest('#btnNap')) return laChuQuy() ? moNapQuy() : toast('Chỉ người giữ quỹ mới ghi tiền ứng.', 'err');
+  if (T.closest('#btnChiMoi')) {
+    return laChuQuy() ? moKhaiChi() : toast('Chỉ người giữ quỹ mới khai khoản chi.', 'err');
+  }
+  if (T.closest('#btnNap') || T.closest('#btnNap2')) {
+    return laChuQuy() ? moNapQuy() : toast('Chỉ người giữ quỹ mới ghi tiền ứng.', 'err');
+  }
 
   const tab = T.closest('[data-tab]');
   if (tab) { S.tab = tab.dataset.tab; S.chon.clear(); return ve(); }
@@ -951,7 +979,7 @@ document.addEventListener('click', async (e) => {
       const kq = await api('/api/chi/' + taodon.dataset.taodon + '/tourwell', { method: 'POST' });
       await taiLai(true);
       if (kq && kq.tourwell) moKetQuaTourwell(kq.tourwell, c || {});
-    });
+    }, 'Đang tạo đơn…');
     return;
   }
 
@@ -980,7 +1008,7 @@ document.addEventListener('click', async (e) => {
       });
       S.maCuoi = ma;
       dongModal(); toast('Đã quyết toán · ' + ma, 'ok'); await taiLai(true);
-    });
+    }, 'Đang quyết toán…');
     return;
   }
 
@@ -993,7 +1021,7 @@ document.addEventListener('click', async (e) => {
         method: 'POST', body: JSON.stringify({ lyDo }),
       });
       dongModal(); toast('Đã trả lại kèm lý do', 'ok'); await taiLai(true);
-    });
+    }, 'Đang trả lại…');
     return;
   }
 
@@ -1086,18 +1114,52 @@ document.addEventListener('click', async (e) => {
       S.maCuoi = ma;
       dongModal(); toast('Đã quyết toán ' + r.so + ' khoản với mã ' + ma, 'ok');
       S.chon.clear(); await taiLai(true);
-    });
+    }, 'Đang quyết toán…');
     return;
   }
 });
 
 document.addEventListener('change', (e) => {
+  if (e.target.id === 'chonHet') return chonHetTrongBang(e.target.checked);
   const c = e.target.closest('[data-chon]');
   if (!c) return;
   if (c.checked) S.chon.add(c.dataset.chon); else S.chon.delete(c.dataset.chon);
   const t = $('.thanhchon');
   if (S.chon.size && t) t.outerHTML = veThanhChon();
   else ve();
+});
+
+/**
+ * ENTER LÀ BẤM NÚT CHÍNH CỦA CỬA SỔ ĐANG MỞ.
+ *
+ * Chị kế toán duyệt hàng chục dòng liên tiếp: bấm Quyết toán → gõ mã → phải
+ * rời tay khỏi bàn phím đi tìm con chuột để bấm nút. Nhân lên ba chục lần thì
+ * đó là ba chục lần đổi tay không có lý do gì.
+ *
+ * Ô nhiều dòng (lý do trả lại) thì Enter phải là xuống dòng — chỉ Ctrl+Enter
+ * mới gửi, đúng nếp mọi ô soạn thảo khác.
+ */
+function nutChinhCuaModal() {
+  const chan = $('#mdFoot');
+  if (!chan || !$('#modal').classList.contains('on')) return null;
+  /* ƯU TIÊN .primary, KHÔNG dùng một querySelector gộp hai lớp: gộp thì nó trả
+   * về phần tử ĐỨNG TRƯỚC trong DOM, mà cửa sổ "Sửa khoản chi" đặt nút "Xoá
+   * khoản này" (.nguyhiem) trước nút Lưu. Gõ xong bấm Enter là xoá mất bản ghi
+   * trong khi người ta tưởng mình vừa lưu. */
+  return chan.querySelector('button.primary') || chan.querySelector('button.nguyhiem');
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter') return;
+  const o = e.target;
+  const trongModal = o && o.closest && o.closest('#mdBody');
+  if (!trongModal) return;
+  const nhieuDong = o.tagName === 'TEXTAREA';
+  if (nhieuDong && !(e.ctrlKey || e.metaKey)) return;
+  const nut = nutChinhCuaModal();
+  if (!nut || nut.disabled) return;
+  e.preventDefault();
+  nut.click();
 });
 
 document.addEventListener('keydown', (e) => {

@@ -235,6 +235,41 @@ cho khoản tiền đã đóng sổ từ tháng 4. Server chặn lại bằng `D
 Ngoài ra: xoá một khoản chi giờ nói rõ **đơn Tourwell không tự huỷ** và khoản do
 app Lịch tác nghiệp ghi sang thì xoá rồi không ghi lại được.
 
+## Soát lại toàn app · 15/09/2026
+
+**Một lỗi thật, im lặng hoàn toàn**: gõ vào ô tìm kiếm rồi bấm ô tích "chọn hết"
+thì không chọn được gì. Gõ tìm chỉ vẽ lại phần `.bang` (để con trỏ khỏi nhảy
+khỏi ô tìm), mà vẽ lại là đẻ ra một `#chonHet` MỚI — cái cũ mang listener đã bị
+vứt đi cùng bảng. Chuyển `#chonHet` và `#btnNap2` sang **uỷ quyền ở document**:
+bảng vẽ lại bao nhiêu lần cũng không đứt.
+
+**Một bẫy suýt làm mất bản ghi**: khi thêm phím Enter để bấm nút chính của cửa
+sổ, `querySelector('button.primary, button.nguyhiem')` trả về phần tử **đứng
+trước trong DOM** — mà cửa sổ *Sửa khoản chi* đặt nút **Xoá khoản này** trước
+nút Lưu. Gõ xong bấm Enter là xoá mất bản ghi trong khi người ta tưởng vừa lưu.
+Đổi thành hai lần tìm, `.primary` trước. Có bốn phép thử canh đúng chỗ này.
+
+**Ô tìm bỏ sót mã đơn RT** — đúng mã kế toán đối chiếu nhiều nhất. Dán
+`RT16438` vào ô tìm ra rỗng vì nó chỉ soi mã điều hành `SG…`. Nay tìm được cả
+mã đơn, mã số thuế và lý do trả lại.
+
+**Thao tác**: Enter trong cửa sổ = bấm nút chính (ô nhiều dòng thì Ctrl+Enter),
+vì chị kế toán duyệt hàng chục dòng liên tiếp và mỗi lần lại phải rời bàn phím
+đi tìm chuột. Cửa sổ duyệt từng khoản nay cũng cảnh báo khoản còn **"Chờ chi"**
+— trước chỉ cửa sổ theo lô mới cảnh báo, tức là đóng sổ từng dòng là con đường
+lách được lời nhắc, mà đó lại là cách kế toán làm nhiều nhất.
+
+**Câu chữ**: nút lúc đang chạy nói đúng việc — *Đang quyết toán… · Đang trả
+lại… · Đang tạo đơn…* thay vì "Đang lưu…" cho tất cả. Ô *Chi trong kỳ* thay câu
+chỉ dẫn "bấm một tháng ở bộ lọc…" bằng **số khoản** của kỳ: câu chỉ dẫn đứng
+thường trực thì đọc một lần là thừa mãi mãi.
+
+**Độ ồn**: nút *Đổi mã* của kế toán mọc trên 162/164 dòng đã đóng sổ, dựng một
+hàng nút chạy suốt trang tranh chỗ với hai nút thật sự cần bấm. Hạ xuống dáng
+chữ mờ — vẫn bấm được, thôi gọi mắt. Giờ cả bảng chỉ còn 4 nút nổi.
+
+Dọn ba thứ chết: `cacLanUng()`, `$$()`, `S.dot` — khai ra rồi không ai đọc.
+
 ## Luật cảnh báo chứng từ
 
 Luật đầu tiên là *"không đủ cả hoá đơn LẪN UNC = thiếu"*. Nó gắn cờ **68/162
@@ -330,7 +365,7 @@ Phép thử số liệu theo kỳ không ghim con số nào: nó kiểm **đầu
 cuối kỳ**, và **cuối kỳ tháng trước = đầu kỳ tháng sau**. Bất biến thì đúng mãi,
 còn con số thì sai ngay khoản chi kế tiếp.
 
-Lần chạy gần nhất: **64 + 59 pass · 0 fail**.
+Lần chạy gần nhất: **68 + 59 pass · 0 fail**.
 
 `node --check` xanh mà app vẫn vỡ — lần thứ hai. Ngày 13/09/2026 một dòng lạc
 rơi vào giữa `/* tiện */` và `function json(...)`, biến một khai báo hàm thành

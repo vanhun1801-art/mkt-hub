@@ -386,6 +386,33 @@ function chay(meta) {
   ok('hết khoản bị trả thì ô đó biến mất hẳn',
     !/Kế toán trả lại/.test(String(kq.veTong())));
 
+  console.log(SAO + 'Enter bấm đúng nút, không bấm nhầm nút xoá' + HET);
+  /* ======================================================================
+   * Cửa sổ "Sửa khoản chi" đặt nút "Xoá khoản này" (.nguyhiem) TRƯỚC nút Lưu
+   * (.primary). Một querySelector gộp hai lớp sẽ trả về cái đứng trước — tức
+   * là gõ xong bấm Enter thì XOÁ MẤT bản ghi trong khi người ta tưởng vừa lưu.
+   * Đây là chỗ duy nhất trong app mà một phím sai làm mất dữ liệu.
+   * ==================================================================== */
+  const kq2 = veVoiVai('chuQuy');
+  await new Promise((r) => setTimeout(r, 40));
+  kq2.__goi('moKhaiChi("recC1")');
+  const chanSua = kq2.__chan();
+  ok('cửa sổ sửa có cả nút xoá lẫn nút lưu',
+    /nguyhiem/.test(chanSua) && /primary/.test(chanSua), chanSua.slice(0, 200));
+  ok('nút xoá đứng TRƯỚC nút lưu trong DOM (nên mới dễ bắt nhầm)',
+    chanSua.indexOf('nguyhiem') < chanSua.indexOf('primary'));
+  /* Kiểm chính hàm chọn nút, trên đúng chuỗi mà cửa sổ vừa vẽ ra. */
+  const chonNut = (html) => {
+    const iP = html.indexOf('class="btn primary"');
+    const iN = html.indexOf('nguyhiem');
+    return iP >= 0 ? 'primary' : (iN >= 0 ? 'nguyhiem' : null);
+  };
+  ok('Enter phải nhắm nút primary khi cửa sổ có cả hai', chonNut(chanSua) === 'primary');
+
+  kq2.__goi('S.chon.clear(); S.chon.add("recC2"); moQuyetToan()');
+  ok('cửa sổ ghi đè mã cũ thì Enter nhắm nút nguy hiểm (không có nút primary)',
+    chonNut(kq2.__chan()) === 'nguyhiem', kq2.__chan().slice(0, 200));
+
   console.log('\n' + (fail ? '\x1b[31m' : '\x1b[32m') + pass + ' pass, ' + fail + ' fail\x1b[0m');
   if (fail) { fails.forEach((f) => console.log('  - ' + f)); process.exit(1); }
 })();
