@@ -509,14 +509,25 @@ ai muốn nghe thì lần sau vào là có tiếng luôn. Không dùng `controls
 
 | | Video giới thiệu | Tệp đính kèm của thông báo |
 |---|---|---|
-| Chỗ lưu | ổ đĩa của hub (`du-lieu/video-tong-quan.*`) | ô Đính kèm trên Base |
+| Chỗ lưu | ổ đĩa của hub (`du-lieu/video-tong-quan.*`), **và trong kho** | ô Đính kèm trên Base |
 | Trần | 60 MB | 20 MB |
-| Sống qua deploy? | **không** — ổ Render là ổ tạm, phải tải lên lại | có |
+| Sống qua deploy? | có — vì tệp nằm trong kho | có |
 
-`du-lieu/video-tong-quan.*` **không đưa vào kho**: mỗi lần đổi video là một khối
-nhị phân hàng chục MB nằm lại trong lịch sử git mãi mãi. Muốn video sống qua
-deploy thì hoặc cắt clip xuống dưới 20 MB rồi để trên Base như tệp đính kèm,
-hoặc chấp nhận đưa hẳn tệp vào kho.
+### Vì sao video nằm trong kho
+
+Cùng lý do với logo: **ổ đĩa Render là ổ tạm**, tệp tải lên qua Cài đặt mất sau
+lần deploy kế tiếp. Ba đường đã cân, anh Hùng chọn đường thứ hai (15/09/2026):
+
+| Đường | Được | Mất |
+|---|---|---|
+| Cắt clip < 20 MB rồi để trên Lark | sống mãi, không đụng kho | phải cắt/nén, và mỗi lượt xem phải kéo tệp từ Lark về |
+| **Để trong kho** | sống qua mọi lần deploy, phát nhanh nhất (đọc thẳng ổ đĩa) | mỗi bản là một khối ~24 MB nằm lại trong lịch sử git **vĩnh viễn** |
+| Tải lên lại sau mỗi deploy | không phải làm gì thêm | mỗi lần deploy là mất |
+
+**Đổi video thì nhớ:** tải lên qua *Cài đặt → Nhận diện thương hiệu* chỉ đổi bản
+đang chạy trên máy đó. Muốn bản mới sống qua deploy thì phải **commit tệp mới**
+vào `du-lieu/`. Đổi vài lần là kho nặng thêm vài chục MB — đổi thường xuyên thì
+nên chuyển sang đường Lark.
 
 ## Thông báo gửi kèm ảnh / tệp
 

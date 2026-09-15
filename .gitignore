@@ -55,9 +55,15 @@ lark-kpi/du-lieu/
 # chung sẽ in bản chữ thay logo. Để trong repo là cách duy nhất nó sống được.
 !lark-mkt-hub/du-lieu/logo.*
 
-# Video giới thiệu trên trang Tổng quan: tệp hàng chục MB, quản lý tự tải lên
-# qua Cài đặt. KHÔNG đưa vào kho — mỗi lần đổi video là một khối nhị phân nữa
-# nằm lại trong lịch sử git mãi mãi. Cái giá: ổ Render là ổ tạm nên video mất
-# sau mỗi lần deploy, phải tải lên lại (xem lark-mkt-hub/README.md).
-lark-mkt-hub/du-lieu/video-tong-quan.*
+
+# Video giới thiệu trên trang Tổng quan: ĐỂ TRONG KHO, cùng lý do với logo — ổ
+# đĩa Render là ổ tạm nên tệp tải lên qua Cài đặt sẽ mất sau lần deploy kế tiếp.
+# Anh Hùng chọn đường này (15/09/2026) sau khi cân với hai đường kia: cắt clip
+# xuống dưới 20 MB để đẩy lên Lark, hoặc tải lên lại sau mỗi lần deploy.
+#
+# CÁI GIÁ, nhớ trước khi đổi video: mỗi bản là một khối nhị phân ~24 MB nằm lại
+# trong lịch sử git VĨNH VIỄN, kể cả sau khi xoá tệp. Đổi vài lần là kho nặng
+# thêm vài chục MB. Đổi thường xuyên thì nên chuyển sang đường Lark.
+!lark-mkt-hub/du-lieu/video-tong-quan.mp4
+!lark-mkt-hub/du-lieu/video-tong-quan.webm
 .git-cu/
