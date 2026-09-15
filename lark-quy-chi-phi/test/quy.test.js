@@ -214,6 +214,51 @@ const nhom = (t) => console.log('\n\x1b[1m' + t + '\x1b[0m');
    * liệu. Đó mới là điều cần chứng minh; 403 ở đây là hỏng. */
   ok('kế toán QUA được chốt quyền quyết toán', rQt.status === 400, 'HTTP ' + rQt.status);
 
+  nhom('Kế toán duyệt / trả lại từng khoản');
+  /* Chỉ chạm vào đường TRẢ LỖI — thiếu lý do, thiếu mã, sai vai. Ba trường hợp
+   * đó dừng trước khi ghi, nên phép thử vẫn chỉ đọc đúng như tên tệp hứa. */
+  const mot = m.chi.find((c) => c.tinhTrang === 'Đã chi') || m.chi[0];
+
+  const rNoLyDo = await fetch(BASE + '/api/chi/' + mot.id + '/tu-choi', {
+    method: 'POST', headers: nhuKeToan, body: JSON.stringify({}),
+  });
+  const dNoLyDo = await rNoLyDo.json();
+  ok('trả lại mà không ghi lý do thì bị chặn',
+    rNoLyDo.status === 400 && /lý do/i.test(dNoLyDo.error || ''), JSON.stringify(dNoLyDo));
+
+  const rNoMa = await fetch(BASE + '/api/chi/' + mot.id + '/duyet', {
+    method: 'POST', headers: nhuKeToan, body: JSON.stringify({}),
+  });
+  ok('duyệt mà không nhập mã thì bị chặn', rNoMa.status === 400, 'HTTP ' + rNoMa.status);
+
+  /* Vai chỉ xem KHÔNG được đụng vào hai đường này. Giấu nút chỉ là phép lịch
+   * sự với mắt người dùng, chốt thật nằm ở đây. */
+  const nhuNguoiLa = {
+    'Content-Type': 'application/json',
+    'x-hub-user-id': 'ou_nguoi_la', 'x-hub-user-name': 'Nguoi%20La',
+    'x-hub-user-email': 'khong-phai-ai@rootytrip.com',
+  };
+  const rLa = await fetch(BASE + '/api/chi/' + mot.id + '/tu-choi', {
+    method: 'POST', headers: nhuNguoiLa, body: JSON.stringify({ lyDo: 'phá thử' }),
+  });
+  ok('người ngoài không trả lại được khoản nào', rLa.status === 403, 'HTTP ' + rLa.status);
+  const rLa2 = await fetch(BASE + '/api/chi/' + mot.id + '/duyet', {
+    method: 'POST', headers: nhuNguoiLa, body: JSON.stringify({ ma: 'QTTU-PHA' }),
+  });
+  ok('người ngoài không duyệt được khoản nào', rLa2.status === 403, 'HTTP ' + rLa2.status);
+
+  const rKhong = await fetch(BASE + '/api/chi/recKHONGCOTHAT/duyet', {
+    method: 'POST', headers: nhuKeToan, body: JSON.stringify({ ma: 'X' }),
+  });
+  ok('khoản không tồn tại thì trả 404, không phải 500', rKhong.status === 404,
+    'HTTP ' + rKhong.status);
+
+  nhom('Sổ có chỗ chứa lời từ chối');
+  ok('server gửi xuống ô Lý do từ chối', m.chi.every((c) => 'lyDoTuChoi' in c));
+  ok('"Kế toán trả lại" là một tình trạng hợp lệ',
+    (m.options.tinhTrang || []).includes('Kế toán trả lại'),
+    JSON.stringify(m.options.tinhTrang));
+
   nhom('Không xoá được lịch sử quyết toán bằng một lời gọi');
   const daDongSo = m.chi.find((c) => String(c.maQuyetToan || '').trim());
   if (daDongSo) {

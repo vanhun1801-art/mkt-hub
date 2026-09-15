@@ -103,7 +103,12 @@ main { padding: 16px; max-width: 1400px; margin: 0 auto; }
 .dangTai.err { color: var(--red-t); }
 
 /* ---- dải tổng quan ---- */
-.tong { display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+/* Số ô thay đổi theo tình hình — ô "Kế toán trả lại" chỉ mọc khi có khoản bị
+   trả — nên đừng ghim số cột. Ô đầu rộng hơn vì nó mang con số to nhất trang. */
+.tong { display: grid; grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+  gap: 12px; margin-bottom: 14px; }
+.tong .o.chinh { grid-column: span 2; }
+@media (max-width: 900px) { .tong .o.chinh { grid-column: span 1; } }
 .tong .o {
   background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
   padding: 14px 16px; box-shadow: var(--bong);
@@ -117,10 +122,10 @@ main { padding: 16px; max-width: 1400px; margin: 0 auto; }
   font-size: 30px; font-weight: 700; letter-spacing: -.02em; margin-top: 4px;
   font-variant-numeric: tabular-nums;
 }
-.tong .so.nho { font-size: 22px; }
+.tong .so.nho { font-size: 21px; }
 .tong .so.am { color: var(--red-t); }
 .tong .so .d { font-size: 14px; font-weight: 500; color: var(--t3); margin-left: 3px; }
-.tong .mo { font-size: 12px; color: var(--t3); margin-top: 2px; }
+.tong .mo { font-size: 12px; color: var(--t3); margin-top: 2px; line-height: 1.4; }
 
 /* ---- thanh lọc ---- */
 .thanh { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
@@ -278,6 +283,32 @@ tr.mo .nd b { font-weight: 500; }
   border-radius: 5px; padding: 0 5px; font-size: 11px; font-family: inherit; cursor: pointer;
 }
 .ma-them:hover { color: var(--primary); border-color: var(--primary-border); }
+
+/* ---- kế toán trả lại ----
+   Câu của kế toán nhắn cho người giữ quỹ. Nó là lý do cả dòng đỏ lên, nên phải
+   đọc được ngay trong bảng chứ không nằm sau một cú bấm. */
+.tra-lai {
+  margin-top: 3px; font-size: 12px; color: var(--red-t); font-weight: 500;
+  border-left: 2px solid var(--red-vien); padding-left: 7px; line-height: 1.4;
+}
+.badge.do { background: var(--red-bg); color: var(--red-t); }
+
+/* Hai nút của kế toán đứng cạnh nhau; nút nhận màu xanh lá vì nó ĐÓNG SỔ, khác
+   hẳn nút xanh dương "hành động chính" dùng khắp app. */
+td.tacvu { white-space: nowrap; }
+td.tacvu .btn + .btn { margin-left: 5px; }
+.btn.sm.duyet { color: var(--green-t); border-color: var(--green-bg); background: var(--green-bg); }
+.btn.sm.duyet:hover { filter: brightness(.96); }
+
+/* Lý do soạn sẵn: bấm là điền, không phải một cái nhãn trưng bày. */
+.lydo-san { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; }
+.the.bam { cursor: pointer; font-family: inherit; }
+.the.bam:hover { background: var(--primary-bg); color: var(--primary); border-color: var(--primary-border); }
+.form textarea {
+  border: 1px solid var(--line); background: var(--surface); color: var(--t1);
+  border-radius: 8px; padding: 8px 10px; font-size: 13px; font-family: inherit;
+  width: 100%; resize: vertical;
+}
 
 /* Mã số thuế NCC: kế toán soi ô này để biết hoá đơn có dùng được không. Chữ số
    nên phải đều nhau, không thì đọc nhầm số 1 với 7 ở cỡ 11px. */

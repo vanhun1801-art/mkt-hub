@@ -606,6 +606,7 @@ async function xuLy(req, res) {
     const cells = {
       [F.chi.maQuyetToan.name]: ma,
       [F.chi.tinhTrang.name]: 'Đã quyết toán',
+      [F.chi.lyDoTuChoi.name]: '',   // đã nhận rồi thì lời từ chối cũ hết hiệu lực
     };
     const map = {};
     ids.forEach((id) => { map[id] = cells; });
@@ -616,6 +617,61 @@ async function xuLy(req, res) {
     }
     kho.at = 0;
     return json(res, { ok: true, so: ids.length });
+  }
+
+  /* ---------------------------------------------------------------------
+   * KẾ TOÁN DUYỆT HOẶC TRẢ LẠI TỪNG KHOẢN
+   * -------------------------------------------------------------------
+   * Quyết toán theo lô hợp với anh Hùng: đóng sổ một đợt hàng chục khoản.
+   * Kế toán thì làm ngược lại — soi TỪNG dòng, khoản nào đủ chứng từ thì
+   * nhận, khoản nào thiếu thì trả về. Bắt họ tích chọn rồi mở cửa sổ cho một
+   * dòng là bắt đi đường vòng cho việc hay làm nhất của họ.
+   *
+   * Trả lại PHẢI có lý do. Một dòng đỏ không kèm chữ thì anh Hùng nhận về một
+   * câu đố, và câu đố đó sẽ quay lại thành một tin nhắn hỏi "sao trả?".
+   * ------------------------------------------------------------------- */
+  const mDuyet = p.match(/^\/api\/chi\/(rec[A-Za-z0-9]+)\/(duyet|tu-choi)$/);
+  if (mDuyet && req.method === 'POST') {
+    if (!(await doiQuyenQuyetToan(res))) return;
+    const [, id, viec] = mDuyet;
+    const body = await docThan(req);
+    const k = await nap();
+    const rec = k.chi.find((r) => r.record_id === id);
+    if (!rec) return json(res, { error: 'Không thấy khoản chi này trong sổ.' }, 404);
+    const truoc = doiRa(rec, F.chi);
+
+    if (viec === 'tu-choi') {
+      const lyDo = String(body.lyDo || '').trim();
+      if (!lyDo) return json(res, { error: 'Phải ghi lý do trả lại.' }, 400);
+      await lark.updateRecord(id, {
+        [F.chi.tinhTrang.name]: cfg.TRA_LAI,
+        [F.chi.lyDoTuChoi.name]: lyDo,
+      }, cfg.tableId);
+      kho.at = 0;
+      return json(res, { ok: true, tinhTrang: cfg.TRA_LAI, lyDo });
+    }
+
+    /* Duyệt = gán mã quyết toán. Dùng ĐÚNG ô "Mã quyết toán" sẵn có chứ không
+     * đẻ ô thứ hai: một khoản một mã, nếu không kế toán và người giữ quỹ mỗi
+     * bên nhìn một con số rồi cãi nhau xem cái nào thật. */
+    const ma = String(body.ma || '').trim();
+    if (!ma) return json(res, { error: 'Phải nhập mã quyết toán.' }, 400);
+    const cu = String(truoc.maQuyetToan || '').trim();
+    if (cu && cu !== ma && !body.deGhiDe) {
+      return json(res, {
+        error: 'Khoản này đã mang mã ' + cu + '. Gán mã mới là xoá hẳn mã cũ.',
+        code: 'GHI_DE_MA_CU', so: 1, vidu: [{ noiDung: truoc.noiDung, ma: cu }],
+      }, 409);
+    }
+    /* Duyệt là xoá lời từ chối cũ: khoản đã qua rồi mà còn treo câu "thiếu hoá
+     * đơn" thì lần sau đọc lại không biết còn đúng nữa không. */
+    await lark.updateRecord(id, {
+      [F.chi.maQuyetToan.name]: ma,
+      [F.chi.tinhTrang.name]: 'Đã quyết toán',
+      [F.chi.lyDoTuChoi.name]: '',
+    }, cfg.tableId);
+    kho.at = 0;
+    return json(res, { ok: true, ma });
   }
 
   /* ---- tệp tĩnh ---- */

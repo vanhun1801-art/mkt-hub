@@ -28,6 +28,9 @@ Lần nạp quỹ    mỗi lần công ty đưa tiền — đây là cái app g�
 Chi phí        từng khoản chi — thứ kế toán đọc
 ```
 
+Cột **Lý do từ chối** (`fldNJ2yJUW`) và lựa chọn **Kế toán trả lại** trong cột
+Tình trạng thêm ngày 15/09/2026, khi kế toán bắt đầu dùng app.
+
 ## Quỹ là MỘT cục
 
 Sáu mã phiếu chi chỉ là sáu lần công ty ứng tiền, **không phải sáu túi tiền
@@ -58,7 +61,7 @@ không sửa số cho vừa khớp. Giờ `65.559.931 − 58.181.875 = 7.378.056
 | Vai | Làm được | Cột chứng từ thấy gì |
 |---|---|---|
 | **chuQuy** — anh Hùng | khai chi · nạp quỹ · đính chứng từ · sửa · xoá · quyết toán | Hoá đơn **và** UNC |
-| **keToan** — `tentt@rootytrip.com` | đọc · mở chứng từ · **quyết toán theo lô** | **chỉ Hoá đơn** |
+| **keToan** — `tentt@rootytrip.com` | đọc · mở chứng từ · **duyệt / trả lại từng khoản** · quyết toán theo lô | **chỉ Hoá đơn** |
 | **xem** — người còn lại | đọc | chỉ Hoá đơn tên xám, không mở được nút nào |
 
 Kế toán từng bị xếp chung với "xem". Sai: việc của họ là **đóng sổ**, không phải
@@ -108,6 +111,50 @@ Kế toán vẫn xem Base được nếu muốn. Ba view dựng sẵn cho họ:
 Cả ba view sắp theo **ngày thanh toán mới nhất trước**, và mang sẵn những cột kế
 toán cần đọc: thời gian · mã đơn hàng · tên người chi · số tiền · chứng từ · mã
 số thuế NCC.
+
+## Một kỳ là một tháng
+
+Anh Hùng và kế toán chốt sổ theo tháng, nên dải số trên đầu trang là **số của
+một kỳ**, và chúng phải cộng khớp nhau:
+
+```
+số dư đầu kỳ  +  nạp trong kỳ  −  chi trong kỳ  =  tồn cuối kỳ
+```
+
+Trước đây màn hình chỉ có *Còn trong quỹ* (một con số sống, không thuộc kỳ nào)
+và *Chi tháng này*. Kế toán nhìn vào **không dựng lại được phép tính trên**, nên
+vẫn phải mở sheet ra cộng tay — đúng việc app này sinh ra để bỏ.
+
+Lọc sang tháng nào thì cả dải số nhảy theo tháng đó, và ô đầu đổi tên từ *Còn
+trong quỹ* thành *Tồn cuối tháng MM/YYYY*: cùng một phép tính, khác cái tên vì
+khác câu hỏi người ta đang hỏi.
+
+Bản ghi **không có ngày** tính vào "trước kỳ" — chúng là dữ liệu cũ nhập từ
+sheet. Xếp vào kỳ hiện tại thì tháng này tự dưng phình ra một khoản không ai
+tiêu.
+
+## Kế toán duyệt hoặc trả lại từng khoản
+
+Quyết toán theo lô hợp với anh Hùng: đóng sổ một đợt hàng chục khoản. Kế toán
+làm ngược lại — soi **từng dòng**. Nên mỗi dòng có hai nút:
+
+- **Quyết toán** — nhập mã, ghi thẳng vào cột *Mã quyết toán* sẵn có (một khoản
+  **một** mã; đẻ ô thứ hai là hai bên mỗi người nhìn một con số rồi cãi nhau xem
+  cái nào thật). Mã gõ lần trước được điền sẵn cho lần sau, vì một xâu khoản
+  thường chung một mã. Khoản đã đóng sổ chỉ còn nút **Đổi mã**.
+- **Từ chối** — bắt buộc ghi lý do, kèm năm câu soạn sẵn bấm là điền.
+
+Trả lại thì khoản chuyển sang tình trạng **Kế toán trả lại** (đỏ), và câu của
+kế toán hiện **ngay dưới nội dung** trong sổ của anh Hùng, không giấu trong ô
+Ghi chú. Đây là đường duy nhất thông tin đi ngược từ kế toán về người giữ quỹ;
+một dòng đỏ không kèm chữ thì chỉ đẻ ra một tin nhắn hỏi *"sao trả?"* — đúng
+cái vòng app này định cắt.
+
+Ô đếm **Kế toán trả lại** chỉ mọc khi có khoản bị trả. Một ô số 0 đứng thường
+trực là ô người ta học cách không nhìn, rồi đúng lúc nó khác 0 cũng trôi qua mắt.
+
+Duyệt một khoản là **xoá lời từ chối cũ**: khoản đã qua rồi mà còn treo câu
+"thiếu hoá đơn" thì lần sau đọc lại không biết còn đúng nữa không.
 
 ## Bốn việc app làm
 
@@ -238,7 +285,11 @@ bằng cách gọi hàm nội bộ: kế toán khai chi phải ăn 403, mà quy�
 qua chốt quyền rồi mới dừng ở khâu kiểm dữ liệu. Đã thử phá — bỏ khớp email đi
 thì bốn phép thử đỏ.
 
-Lần chạy gần nhất: **43 + 48 pass · 0 fail**.
+Phép thử số liệu theo kỳ không ghim con số nào: nó kiểm **đầu kỳ + nạp − chi =
+cuối kỳ**, và **cuối kỳ tháng trước = đầu kỳ tháng sau**. Bất biến thì đúng mãi,
+còn con số thì sai ngay khoản chi kế tiếp.
+
+Lần chạy gần nhất: **64 + 55 pass · 0 fail**.
 
 `node --check` xanh mà app vẫn vỡ — lần thứ hai. Ngày 13/09/2026 một dòng lạc
 rơi vào giữa `/* tiện */` và `function json(...)`, biến một khai báo hàm thành

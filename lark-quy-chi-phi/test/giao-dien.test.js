@@ -75,6 +75,13 @@ const META = {
       linkCu: '', linkUncCu: '', chungTu: null, dot: ['recD1'],
     },
     {
+      id: 'recC5', noiDung: 'Khoản kế toán trả lại', loai: 'Tác nghiệp',
+      tien: 180000, ngayChi: '2026-09-10', nguoi: [], tinhTrang: 'Kế toán trả lại',
+      hoaDon: [{ name: 'hd5.jpg', token: 'tk5' }], unc: [], maDieuHanh: '', maDon: '',
+      maQuyetToan: '', linkCu: '', linkUncCu: '', chungTu: null,
+      lyDoTuChoi: 'Hoá đơn mờ, không đọc được mã số thuế', dot: ['recD1'],
+    },
+    {
       id: 'recC4', noiDung: 'Khoản còn Chờ chi', loai: 'Khác',
       tien: 250000, ngayChi: '', ngayDeNghi: '2026-09-12', nguoi: [],
       tinhTrang: 'Chờ chi', hoaDon: [], unc: [], maDieuHanh: '', maDon: '',
@@ -288,7 +295,9 @@ function chay(meta) {
    * có SG21000 + QTTU52, recC4 còn Chờ chi nhưng cũng sạch dấu vết nên được
    * mời — đúng, vì khai xong mà quên tạo đơn là chuyện hay xảy ra nhất. */
   const soNut = (bQ.match(/data-taodon/g) || []).length;
-  ok('chỉ mời tạo đơn cho khoản chưa từng qua Tourwell', soNut === 2,
+  /* Ba khoản sạch dấu vết: recC3, recC4 (Chờ chi) và recC5 (kế toán trả lại).
+   * recC5 được mời là ĐÚNG — trả lại xong sửa chứng từ thì vẫn cần cái đơn. */
+  ok('chỉ mời tạo đơn cho khoản chưa từng qua Tourwell', soNut === 3,
     soNut + ' nút / ' + META.chi.length + ' khoản');
   ok('khoản đã có mã điều hành SG thì KHÔNG mời tạo đơn',
     !/data-taodon="recC2"/.test(bQ));
@@ -296,6 +305,86 @@ function chay(meta) {
   const kt2 = veVoiVai('keToan');
   await new Promise((r) => setTimeout(r, 40));
   ok('kế toán không tạo đơn Tourwell được', !String(kt2.veBang()).includes('data-taodon'));
+
+  /* ========================================================================
+   * MỘT KỲ LÀ MỘT THÁNG — bốn con số phải cộng khớp
+   * ======================================================================
+   * Kế toán chốt sổ theo tháng, nên thứ họ cần là:
+   *     số dư đầu kỳ + nạp trong kỳ − chi trong kỳ = tồn cuối kỳ
+   * Bốn con số đó đến từ bốn phép lọc khác nhau trên cùng dữ liệu, nên lệch
+   * một đồng là biết ngay có chỗ lọc sai — y hệt cách quy.test.js đối chiếu
+   * hai đường tính số dư.
+   */
+  console.log(SAO + 'Số liệu theo kỳ tháng' + HET);
+  const kq = veVoiVai('chuQuy');
+  await new Promise((r) => setTimeout(r, 40));
+  const ky = (t) => kq.__goi('JSON.stringify(tinhKy("' + t + '"))');
+  const k9 = JSON.parse(ky('2026-09'));
+
+  ok('đầu kỳ + nạp − chi = cuối kỳ', k9.dauKy + k9.nap - k9.chi === k9.cuoiKy,
+    JSON.stringify(k9));
+  /* Đếm theo NGÀY CHI, thiếu thì lùi về ngày đề nghị. recC4 còn "Chờ chi" nhưng
+   * vẫn tính vào kỳ — cùng luật với số dư quỹ, vốn cũng trừ khoản Chờ chi. Hai
+   * chỗ mà tính khác nhau thì dải số trên đầu không cộng khớp nữa. */
+  const chiT9 = kq.__goi('S.chi.filter(c => (c.ngayChi || c.ngayDeNghi || "").slice(0,7) === "2026-09")'
+    + '.reduce((a,c) => a + c.tien, 0)');
+  ok('chi trong kỳ khớp khi cộng tay lại', k9.chi === chiT9, k9.chi + ' vs ' + chiT9);
+  ok('khoản Chờ chi vẫn nằm trong kỳ, cùng luật với số dư quỹ',
+    k9.chi === 406000 + 362000 + 180000 + 250000, String(k9.chi));
+
+  /* Bản ghi KHÔNG CÓ NGÀY là dữ liệu cũ nhập từ sheet. Xếp vào kỳ hiện tại thì
+   * tháng này tự dưng phình ra một khoản không ai tiêu. */
+  const k8 = JSON.parse(ky('2026-08'));
+  ok('khoản tháng 8 không lọt sang kỳ tháng 9', k8.chi === 367200, String(k8.chi));
+  ok('cuối kỳ tháng 8 chính là đầu kỳ tháng 9', k8.cuoiKy === k9.dauKy,
+    k8.cuoiKy + ' vs ' + k9.dauKy);
+
+  /* Không lọc tháng nào thì ô đầu là số dư sống của quỹ; lọc một tháng thì nó
+   * đổi thành tồn cuối kỳ của đúng tháng đó. */
+  const tongMacDinh = String(kq.veTong());
+  ok('không lọc thì ô đầu là "Còn trong quỹ"', /Còn trong quỹ/.test(tongMacDinh));
+  ok('luôn có ô số dư đầu kỳ', /Số dư đầu tháng/.test(tongMacDinh), tongMacDinh.slice(0, 200));
+  kq.__goi('S.loc.thang = "2026-08"');
+  const tongThang8 = String(kq.veTong());
+  ok('lọc tháng 8 thì ô đầu thành tồn cuối kỳ', /Tồn cuối tháng 08\/2026/.test(tongThang8));
+  ok('và cả dải số nhảy theo tháng 8', /Số dư đầu tháng 08\/2026/.test(tongThang8));
+  kq.__goi('S.loc.thang = ""');
+
+  console.log(SAO + 'Kế toán duyệt hoặc trả lại từng khoản' + HET);
+  const k = veVoiVai('keToan');
+  await new Promise((r) => setTimeout(r, 40));
+  const bK = String(k.veBang());
+  ok('khoản chưa đóng sổ có cả hai nút', /data-duyet="recC1"/.test(bK) && /data-tuchoi="recC1"/.test(bK));
+  ok('khoản đã đóng sổ chỉ còn nút đổi mã',
+    /data-duyet="recC2"/.test(bK) && !/data-tuchoi="recC2"/.test(bK));
+  ok('kế toán không có nút Sửa', !/data-sua/.test(bK));
+
+  k.__goi('moDuyetMot("recC1")');
+  ok('cửa sổ duyệt kê lại đúng khoản đang đụng tới',
+    k.__than().includes('Livestream ĐTH'), k.__than().slice(0, 160));
+  ok('cửa sổ duyệt hỏi mã quyết toán', /id="dMa"/.test(k.__than()));
+  k.__goi('moDuyetMot("recC2")');
+  ok('đổi mã khoản đã có thì cảnh báo ghi đè',
+    /xoá hẳn mã cũ/.test(k.__than()) && /data-ghide="1"/.test(k.__chan()),
+    k.__than().slice(0, 200));
+
+  k.__goi('moTuChoi("recC1")');
+  ok('cửa sổ trả lại có ô ghi lý do', /id="tLyDo"/.test(k.__than()));
+  ok('có sẵn mấy lý do hay dùng để bấm', /data-lydo="Thiếu hoá đơn"/.test(k.__than()));
+
+  console.log(SAO + 'Lời từ chối phải đi ngược về người giữ quỹ' + HET);
+  const bQ2 = String(kq.veBang());
+  ok('sổ của anh Hùng hiện nguyên câu kế toán viết',
+    bQ2.includes('Hoá đơn mờ, không đọc được mã số thuế'), '');
+  ok('dòng bị trả lại tô đỏ như dòng thiếu chứng từ',
+    /class="canhbao"/.test(bQ2));
+  ok('có ô đếm "Kế toán trả lại" trên dải tổng quan',
+    /Kế toán trả lại/.test(String(kq.veTong())));
+
+  /* Ô số 0 đứng thường trực là ô người ta học cách không nhìn. */
+  kq.__goi('S.chi = S.chi.filter(c => c.tinhTrang !== "Kế toán trả lại")');
+  ok('hết khoản bị trả thì ô đó biến mất hẳn',
+    !/Kế toán trả lại/.test(String(kq.veTong())));
 
   console.log('\n' + (fail ? '\x1b[31m' : '\x1b[32m') + pass + ' pass, ' + fail + ' fail\x1b[0m');
   if (fail) { fails.forEach((f) => console.log('  - ' + f)); process.exit(1); }

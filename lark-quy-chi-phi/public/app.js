@@ -19,6 +19,9 @@ const S = {
   chi: [], dot: [], nap: [], quy: { tongUng: 0, tongChi: 0, conLai: 0, soLanUng: 0 },
   options: { loaiChi: [], tinhTrang: [] },
   me: null, vai: 'xem', chuQuy: false, larkUrl: '',
+  /* Mã quyết toán gần nhất, để chị kế toán duyệt cả xâu khoản cùng một mã mà
+   * không phải gõ lại mười lần. */
+  maCuoi: '',
   loc: { loai: '', tinhTrang: '', thang: '', tim: '' },
   chon: new Set(),
   tab: 'so',              // so | thieu | ung
@@ -132,6 +135,7 @@ async function taiLai(moi) {
 /* Các lần ứng tiền, mới nhất trước. "Chuyển từ kỳ trước" không phải tiền công
  * ty đưa thêm — nó là tồn của kỳ trước, đếm vào là tính trùng. */
 const LAN_CHUYEN_TIEP = 'Chuyển từ kỳ trước';
+const TRA_LAI = 'Kế toán trả lại';
 const cacLanUng = () => S.nap.filter((n) => n.loai !== LAN_CHUYEN_TIEP)
   .sort((a, b) => String(b.ngay || '').localeCompare(String(a.ngay || '')));
 
@@ -223,6 +227,41 @@ function locChi() {
   }).sort((a, b) => String(b.ngayChi || b.ngayDeNghi || '').localeCompare(String(a.ngayChi || a.ngayDeNghi || '')));
 }
 
+/* ---------------------------------------------------------------------------
+ * MỘT KỲ LÀ MỘT THÁNG
+ * -------------------------------------------------------------------------
+ * Anh Hùng và kế toán chốt sổ theo tháng, nên bốn con số kế toán cần là bốn
+ * con số của MỘT kỳ, và chúng phải cộng khớp nhau:
+ *
+ *     số dư đầu kỳ  +  nạp trong kỳ  −  chi trong kỳ  =  tồn cuối kỳ
+ *
+ * Trước đây màn hình chỉ có "còn trong quỹ" (một con số sống, không thuộc kỳ
+ * nào) và "chi tháng này". Kế toán nhìn vào không dựng lại được phép tính trên,
+ * nên vẫn phải mở sheet ra cộng tay — đúng việc app này sinh ra để bỏ.
+ *
+ * Bản ghi KHÔNG CÓ NGÀY được tính vào "trước kỳ": chúng là dữ liệu cũ nhập từ
+ * sheet. Xếp vào kỳ hiện tại thì tháng này tự dưng phình ra một khoản không ai
+ * tiêu.
+ */
+function tinhKy(thang) {
+  const truocKy = (v) => { const t = thangCua(v); return !t || t < thang; };
+  const trongKy = (v) => thangCua(v) === thang;
+  const lanNap = S.nap.filter((n) => n.loai !== LAN_CHUYEN_TIEP);
+  const cong = (ds) => ds.reduce((a, x) => a + (Number(x.tien) || 0), 0);
+
+  const dauKy = cong(lanNap.filter((n) => truocKy(n.ngay)))
+    - cong(S.chi.filter((c) => truocKy(c.ngayChi || c.ngayDeNghi)));
+  const nap = cong(lanNap.filter((n) => trongKy(n.ngay)));
+  const chi = cong(S.chi.filter((c) => trongKy(c.ngayChi || c.ngayDeNghi)));
+  return { dauKy, nap, chi, cuoiKy: dauKy + nap - chi };
+}
+
+/* Kỳ đang xem = tháng người dùng chọn ở bộ lọc, không chọn thì là tháng này.
+ * Nhờ vậy chị kế toán lọc sang tháng 8 là cả dải số trên đầu nhảy theo — chốt
+ * sổ tháng nào thì nhìn đúng tháng đó. */
+const kyDangXem = () => S.loc.thang || thangCua(new Date().toISOString());
+const tenKy = (t) => 'tháng ' + t.slice(5) + '/' + t.slice(0, 4);
+
 /* ---------------- vẽ ---------------- */
 const TEN_VAI = { chuQuy: 'Người giữ quỹ', keToan: 'Kế toán', xem: 'Chỉ xem' };
 
@@ -251,31 +290,52 @@ function ve() {
 }
 
 function veTong() {
-  const thangNay = thangCua(new Date().toISOString());
-  const chiThang = S.chi.filter((c) => thangCua(c.ngayChi || c.ngayDeNghi) === thangNay)
-    .reduce((a, c) => a + c.tien, 0);
+  const ky = kyDangXem();
+  const k = tinhKy(ky);
+  const dangLocThang = !!S.loc.thang;
   const soThieu = S.chi.filter(thieuChungTu).length;
   const chuaQuyetToan = S.chi.filter((c) => c.tinhTrang === 'Đã chi').length;
+  const traLai = S.chi.filter((c) => c.tinhTrang === TRA_LAI).length;
 
-  /* MỘT con số cho cả quỹ. Các lần ứng chỉ là mốc nhận tiền, không phải sáu
-   * túi riêng — nên không chia số dư theo đợt nữa. */
+  const oSo = (nhan, so, mo, phu) => '<div class="o' + (phu && phu.lop ? ' ' + phu.lop : '')
+    + '"' + (phu && phu.bam ? ' ' + phu.bam : '') + '>'
+    + '<div class="nhan">' + nhan + '</div>'
+    + '<div class="so' + (phu && phu.coNho ? '' : ' nho') + (Number(so) < 0 ? ' am' : '') + '">'
+    + (phu && phu.thoTien === false ? so : tien(so) + '<span class="d">đ</span>') + '</div>'
+    + (mo ? '<div class="mo">' + mo + '</div>' : '')
+  + '</div>';
+
+  /* Tồn cuối kỳ khi đang lọc một tháng cụ thể; không lọc thì đó chính là số dư
+   * sống của quỹ — cùng một phép tính, khác cái tên vì khác câu hỏi người ta
+   * đang hỏi. */
+  const oChinh = dangLocThang
+    ? oSo('Tồn cuối ' + tenKy(ky), k.cuoiKy,
+        'đầu kỳ ' + tien(k.dauKy) + ' + nạp ' + tien(k.nap) + ' − chi ' + tien(k.chi),
+        { lop: 'chinh', coNho: true })
+    : oSo('Còn trong quỹ', S.quy.conLai,
+        'đã ứng ' + tien(S.quy.tongUng) + ' · đã chi ' + tien(S.quy.tongChi),
+        { lop: 'chinh', coNho: true });
+
   return '<section class="tong">'
-    + '<div class="o chinh">'
-      + '<div class="nhan">Còn trong quỹ</div>'
-      + '<div class="so ' + (S.quy.conLai < 0 ? 'am' : '') + '">'
-        + tien(S.quy.conLai) + '<span class="d">đ</span></div>'
-      + '<div class="mo">đã ứng ' + tien(S.quy.tongUng) + ' · đã chi ' + tien(S.quy.tongChi) + '</div>'
-    + '</div>'
-    + '<div class="o"><div class="nhan">Chi tháng này</div><div class="so nho">' + tien(chiThang)
-      + '<span class="d">đ</span></div></div>'
-    + '<div class="o' + (soThieu ? ' canhbao' : '') + '" data-tab="thieu">'
-      + '<div class="nhan">Cần bổ sung chứng từ</div><div class="so nho">' + soThieu + '</div>'
-      + '<div class="mo">' + (soThieu ? 'bấm để xem' : 'không còn khoản nào') + '</div></div>'
-    /* Thẻ này là HÀNG ĐỢI CỦA KẾ TOÁN — bấm vào là lọc thẳng ra mấy khoản đã
-     * chi mà chưa gán mã, thay vì bắt người ta tự chỉnh ô lọc tình trạng. */
-    + '<div class="o" data-loctt="Đã chi"><div class="nhan">Chờ quyết toán</div>'
-      + '<div class="so nho">' + chuaQuyetToan + '</div>'
-      + '<div class="mo">' + (chuaQuyetToan ? 'bấm để lọc ra' : 'đã gán mã hết') + '</div></div>'
+    + oChinh
+    /* Số dư đầu kỳ: con số kế toán cần để mở sổ tháng mới, và là vế trái của
+     * phép tính đầu kỳ + nạp − chi = cuối kỳ. Thiếu nó thì ba con số kia không
+     * kiểm chéo được với nhau. */
+    + oSo('Số dư đầu ' + tenKy(ky), k.dauKy,
+        k.nap ? 'nạp thêm trong kỳ + ' + tien(k.nap) : 'chưa nạp thêm trong kỳ')
+    + oSo('Chi trong ' + tenKy(ky), k.chi,
+        dangLocThang ? '' : 'bấm một tháng ở bộ lọc để xem kỳ khác')
+    + oSo('Cần bổ sung chứng từ', soThieu,
+        soThieu ? 'bấm để xem' : 'không còn khoản nào',
+        { thoTien: false, lop: soThieu ? 'canhbao' : '', bam: 'data-tab="thieu"' })
+    + oSo('Chờ quyết toán', chuaQuyetToan, chuaQuyetToan ? 'bấm để lọc ra' : 'đã gán mã hết',
+        { thoTien: false, bam: 'data-loctt="Đã chi"' })
+    /* Chỉ hiện khi CÓ khoản bị trả lại. Một ô số 0 đứng thường trực là một ô
+     * người ta học cách không nhìn; đúng lúc nó khác 0 thì cũng trôi qua mắt. */
+    + (traLai
+      ? oSo('Kế toán trả lại', traLai, 'bấm để xem phải sửa gì',
+          { thoTien: false, lop: 'canhbao', bam: 'data-loctt="' + TRA_LAI + '"' })
+      : '')
   + '</section>';
 }
 
@@ -314,7 +374,10 @@ function veBang() {
   }
 
   const dong = (c) => {
-    const thieu = thieuChungTu(c);
+    /* Dòng đỏ có hai nguồn: thiếu chứng từ, và kế toán trả lại. Cả hai đều là
+     * "có việc phải làm ở dòng này", nên dùng chung một màu — thêm màu thứ ba
+     * chỉ làm loãng cái đang có nghĩa. */
+    const thieu = thieuChungTu(c) || c.tinhTrang === TRA_LAI;
     const dv = tachDon(c.maDon);
     const tep = (arr, linkCu, nhan, key) => {
       /* Chip chứng từ mở XEM tại chỗ, kèm một chip ⇩ để tải về. Trước đây nó chỉ
@@ -358,7 +421,13 @@ function veBang() {
           /* Mã số thuế nhà cung cấp: thứ kế toán soi để biết hoá đơn có hợp lệ
            * không. Chỉ hiện khi có, nên sổ không bị thêm một cột trống. */
           c.mst ? '<span class="mst">MST ' + esc(c.mst) + '</span>' : '',
-        ].filter(Boolean).join(' · ') + '</div></td>'
+        ].filter(Boolean).join(' · ') + '</div>'
+        /* Lý do trả lại nằm NGAY DƯỚI nội dung, không giấu trong ô Ghi chú:
+         * đây là câu kế toán nhắn cho người giữ quỹ, và nó chỉ có tác dụng nếu
+         * đọc được mà không phải bấm vào đâu cả. */
+        + (c.tinhTrang === TRA_LAI && c.lyDoTuChoi
+          ? '<div class="tra-lai">Kế toán trả lại: ' + esc(c.lyDoTuChoi) + '</div>' : '')
+        + '</td>'
       + '<td class="loai"><span class="the">' + esc(c.loai || '—') + '</span></td>'
       + '<td class="num">' + tien(c.tien) + '</td>'
       + '<td class="ngay">' + esc(ngayVN(c.ngayChi || c.ngayDeNghi)) + '</td>'
@@ -376,9 +445,12 @@ function veBang() {
             ? '<span class="the" title="Hoá đơn tay hoặc ảnh — kế toán chấp nhận">tay/ảnh</span>' : '')
         + '</td>'
       + '<td class="tt"><span class="badge ' + (c.tinhTrang === 'Đã quyết toán' ? 'xanh'
+        : c.tinhTrang === TRA_LAI ? 'do'
         : c.tinhTrang === 'Đã chi' ? 'vang' : 'xam') + '">' + esc(c.tinhTrang || '—') + '</span></td>'
-      + '<td class="tacvu">' + (laChuQuy()
-        ? '<button class="btn sm" data-sua="' + c.id + '">Sửa</button>' : '') + '</td>'
+      /* Cột tác vụ nói đúng việc của từng vai. Kế toán soi TỪNG dòng rồi nhận
+       * hoặc trả — bắt họ tích chọn rồi mở cửa sổ cho một dòng là bắt đi đường
+       * vòng cho việc họ làm nhiều nhất. */
+      + '<td class="tacvu">' + veTacVu(c) + '</td>'
       + '</tr>';
   };
 
@@ -392,6 +464,18 @@ function veBang() {
     + '<tfoot><tr><td colspan="3">' + ds.length + ' khoản</td>'
       + '<td class="num">' + tien(tong) + '</td><td colspan="5"></td></tr></tfoot>'
     + '</table></div></section>';
+}
+
+function veTacVu(c) {
+  if (laChuQuy()) return '<button class="btn sm" data-sua="' + c.id + '">Sửa</button>';
+  if (!laKeToan()) return '';
+  /* Khoản đã đóng sổ chỉ còn một việc: đổi mã nếu gõ nhầm. Bày lại nút "Từ
+   * chối" ở đó là mời gọi lùi một bước đã xong. */
+  if (c.tinhTrang === 'Đã quyết toán') {
+    return '<button class="btn sm" data-duyet="' + c.id + '">Đổi mã</button>';
+  }
+  return '<button class="btn sm duyet" data-duyet="' + c.id + '">Quyết toán</button>'
+    + '<button class="btn sm nguyhiem" data-tuchoi="' + c.id + '">Từ chối</button>';
 }
 
 function veThanhChon() {
@@ -626,6 +710,74 @@ function moQuyetToan() {
   setTimeout(() => $('#qMa') && $('#qMa').focus(), 30);
 }
 
+/* ---------------------------------------------------------------------------
+ * KẾ TOÁN DUYỆT / TRẢ LẠI MỘT KHOẢN
+ * -------------------------------------------------------------------------
+ * Hai cửa sổ nhỏ, cùng một khuôn: kê lại khoản đang đụng tới rồi hỏi đúng MỘT
+ * thứ. Kê lại là cần — chị kế toán bấm hàng chục dòng liên tiếp, bấm nhầm dòng
+ * là gán mã cho khoản của tháng khác.
+ * ------------------------------------------------------------------------- */
+function tomTatKhoan(c) {
+  const dv = tachDon(c.maDon);
+  return '<div class="tomtat"><b>' + esc(c.noiDung || '(không tên)') + '</b>'
+    + '<div class="nho">' + tien(c.tien) + ' đ · ' + esc(ngayVN(c.ngayChi || c.ngayDeNghi))
+    + (dv ? ' · ' + esc(dv.ma) : '')
+    + (c.mst ? ' · MST ' + esc(c.mst) : '') + '</div></div>';
+}
+
+function moDuyetMot(id) {
+  const c = S.chi.find((x) => x.id === id);
+  if (!c) return;
+  const cu = String(c.maQuyetToan || '').trim();
+  const thieu = thieuChungTu(c);
+  moModal(cu ? 'Đổi mã quyết toán' : 'Quyết toán khoản này',
+    '<div class="form">'
+    + tomTatKhoan(c)
+    + (cu ? '<div class="nhac canhbao">Khoản này đang mang mã <b>' + esc(cu)
+        + '</b>. Gán mã mới là xoá hẳn mã cũ.</div>' : '')
+    + (thieu ? '<div class="nhac canhbao">Khoản này chưa có hoá đơn lẫn UNC.</div>' : '')
+    + o('Mã quyết toán', '<input id="dMa" value="' + esc(cu || S.maCuoi || '')
+        + '" placeholder="QTTU31/LVH">', true)
+    + '<div class="nhac">Mã ghi thẳng vào cột <b>Mã quyết toán</b> của sổ và chuyển '
+      + 'tình trạng sang <b>Đã quyết toán</b>.</div>'
+    + '</div>',
+    '<div class="sp"></div><button class="btn" data-close="1">Đóng</button>'
+    + '<button class="btn ' + (cu ? 'nguyhiem' : 'primary') + '" id="btnDuyetMot" '
+    + 'data-id="' + id + '"' + (cu ? ' data-ghide="1"' : '') + '>'
+    + (cu ? 'Ghi đè mã cũ' : 'Quyết toán') + '</button>');
+  setTimeout(() => $('#dMa') && $('#dMa').focus(), 30);
+}
+
+/* Lý do trả lại là thứ DUY NHẤT đi ngược từ kế toán về người giữ quỹ. Bỏ trống
+ * thì anh Hùng nhận một dòng đỏ không biết sửa gì, và câu hỏi "sao trả?" quay
+ * lại thành một tin nhắn — đúng cái vòng app này định cắt. */
+const LY_DO_SAN = [
+  'Thiếu hoá đơn',
+  'Thiếu UNC / chứng từ chuyển tiền',
+  'Hoá đơn sai mã số thuế',
+  'Hoá đơn mờ, không đọc được',
+  'Sai số tiền so với chứng từ',
+];
+
+function moTuChoi(id) {
+  const c = S.chi.find((x) => x.id === id);
+  if (!c) return;
+  moModal('Trả lại khoản này',
+    '<div class="form">'
+    + tomTatKhoan(c)
+    + o('Lý do trả lại', '<textarea id="tLyDo" rows="3" '
+        + 'placeholder="Anh Hùng sẽ đọc đúng câu này để biết phải sửa gì"></textarea>', true)
+    + '<div class="lydo-san">' + LY_DO_SAN.map((x) =>
+        '<button class="the bam" data-lydo="' + esc(x) + '">' + esc(x) + '</button>').join('')
+      + '</div>'
+    + '<div class="nhac">Khoản chuyển sang <b>Kế toán trả lại</b> và hiện đỏ trong sổ '
+      + 'của người giữ quỹ, kèm nguyên câu này.</div>'
+    + '</div>',
+    '<div class="sp"></div><button class="btn" data-close="1">Đóng</button>'
+    + '<button class="btn nguyhiem" id="btnTuChoi" data-id="' + id + '">Trả lại</button>');
+  setTimeout(() => $('#tLyDo') && $('#tLyDo').focus(), 30);
+}
+
 /**
  * KẾT QUẢ TẠO ĐƠN TOURWELL
  *
@@ -805,6 +957,48 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
+  const duyet = T.closest('[data-duyet]');
+  if (duyet) return moDuyetMot(duyet.dataset.duyet);
+  const tuchoi = T.closest('[data-tuchoi]');
+  if (tuchoi) return moTuChoi(tuchoi.dataset.tuchoi);
+
+  /* Lý do soạn sẵn: bấm là điền vào ô, vẫn sửa tiếp được. Năm câu này chiếm
+   * gần hết số lần trả lại, mà gõ tay thì mỗi lần một kiểu chữ. */
+  const lydo = T.closest('[data-lydo]');
+  if (lydo) {
+    const o = $('#tLyDo');
+    if (o) { o.value = lydo.dataset.lydo; o.focus(); }
+    return;
+  }
+
+  if (T.closest('#btnDuyetMot')) {
+    const nut = T.closest('#btnDuyetMot');
+    const ma = $('#dMa').value.trim();
+    if (!ma) return toast('Phải nhập mã quyết toán.', 'err');
+    await chongBamHai(nut, async () => {
+      await api('/api/chi/' + nut.dataset.id + '/duyet', {
+        method: 'POST',
+        body: JSON.stringify({ ma, deGhiDe: nut.dataset.ghide === '1' }),
+      });
+      S.maCuoi = ma;
+      dongModal(); toast('Đã quyết toán · ' + ma, 'ok'); await taiLai(true);
+    });
+    return;
+  }
+
+  if (T.closest('#btnTuChoi')) {
+    const nut = T.closest('#btnTuChoi');
+    const lyDo = $('#tLyDo').value.trim();
+    if (!lyDo) return toast('Phải ghi lý do trả lại.', 'err');
+    await chongBamHai(nut, async () => {
+      await api('/api/chi/' + nut.dataset.id + '/tu-choi', {
+        method: 'POST', body: JSON.stringify({ lyDo }),
+      });
+      dongModal(); toast('Đã trả lại kèm lý do', 'ok'); await taiLai(true);
+    });
+    return;
+  }
+
   const tep = T.closest('[data-taitep]');
   if (tep) return taiTep(tep.dataset.taitep, tep.dataset.o);
 
@@ -891,6 +1085,7 @@ document.addEventListener('click', async (e) => {
         method: 'POST',
         body: JSON.stringify({ ids: [...S.chon], ma, deGhiDe: !!soGhiDe }),
       });
+      S.maCuoi = ma;
       dongModal(); toast('Đã quyết toán ' + r.so + ' khoản với mã ' + ma, 'ok');
       S.chon.clear(); await taiLai(true);
     });
