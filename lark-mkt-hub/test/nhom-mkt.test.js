@@ -154,6 +154,18 @@ group('Form soạn tick sẵn nhóm');
   ok('đọc nhóm hỏng ⇒ quay về mặc định Cả phòng',
     /moiAi:\s*true,\s*ai:\s*\[\]/.test(src));
   ok('sửa thông báo cũ thì giữ nguyên người nhận', /TBSUA = tb \|\| \(sanNhom\.length/.test(src));
+
+  /* Tick sẵn thôi chưa đủ: anh Hùng vẫn thấy "rất đông thành viên" vì 27 người
+   * ngoài phòng vẫn nằm trong danh sách. Không gõ gì thì chỉ hiện nhóm phòng;
+   * gõ tên mới tìm trong cả danh bạ. Ai ĐÃ TICK thì luôn hiện — giấu một người
+   * đã chọn đi là để họ nhận thông báo mà mình không thấy tên trên màn hình.
+   *
+   * (Đã chạy thật trên trình duyệt: 37 dòng · hiện 9 · tick 9; gõ "thương" ra
+   * thêm Thương Vũ; bấm "Tick lại đúng nhóm" về lại đúng 9.) */
+  ok('mặc định chỉ hiện người trong nhóm', /chiNhom && !l\.dataset\.nhom && !daTick/.test(src));
+  ok('có gõ thì tìm trong cả danh bạ', /q\s*\?\s*\(!l\.dataset\.ten\.includes\(q\) && !daTick\)/.test(src));
+  ok('đã tick thì luôn hiện', /const daTick = l\.querySelector\('input'\)\.checked/.test(src));
+  ok('đọc nhóm hỏng thì hiện hết như cũ', /const chiNhom = sanNhom\.length > 0/.test(src));
 }
 
 console.log('\n' + (fail ? '\x1b[31m' : '\x1b[32m') + pass + ' pass · ' + fail + ' fail\x1b[0m');

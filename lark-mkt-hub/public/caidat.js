@@ -744,11 +744,12 @@ function moAiDaXem(tb) {
  */
 function tbGhiNhom(nhom, san, moi) {
   const ten = esc(nhom.ten || 'Phòng MKT');
-  let h = '';
+  /* Dòng đếm do locDs() viết vào — nó đổi theo mỗi lần gõ, nên để rỗng ở đây. */
+  let h = '<div class="q-ghi-nho" id="tbDem"></div>';
   if (san.length) {
     h += '<div class="q-ghi-nho">' +
       (moi ? '<b>Đã tick sẵn ' + san.length + ' người trong nhóm ' + ten + '.</b> ' : '') +
-      'Cần gửi thêm ai ngoài nhóm thì gõ tên vào ô lọc rồi tick. ' +
+      'Người ngoài phòng không hiện trong danh sách — gõ tên vào ô trên để tìm rồi tick. ' +
       '<button class="btn nho ghost" id="tbNhom" style="margin-top:5px">Tick lại đúng nhóm ' +
       ten + '</button></div>';
   } else {
@@ -835,9 +836,10 @@ function moFormTb(tb) {
       : '') +
     '<label class="q-ck q-ck-manh"><input type="checkbox" id="tbMoiAi"' + (t.moiAi ? ' checked' : '') + '>' +
       '<span>Cả phòng</span><small class="q-nhat">— kể cả người vào sau này</small></label>' +
-    '<input class="q-in q-loc" id="tbLoc" type="text" placeholder="Lọc theo tên…">' +
+    '<input class="q-in q-loc" id="tbLoc" type="text" placeholder="Gõ tên để tìm người ngoài phòng…">' +
     '<div class="q-nhom q-nhom-cuon" id="tbAi">' + db.map((x) =>
       '<label class="q-ck' + (sanNhom.includes(x.id) ? ' q-ck-nhom' : '') + '"' +
+      ' data-nhom="' + (sanNhom.includes(x.id) ? '1' : '') + '"' +
       ' data-ten="' + esc(String(x.ten).toLowerCase()) + '">' +
       '<input type="checkbox" data-ai="' + esc(x.id) + '"' +
         ((t.ai || []).includes(x.id) ? ' checked' : '') + '>' +
@@ -860,6 +862,44 @@ function moFormTb(tb) {
   const dongBo = () => { $('#tbAi').classList.toggle('q-mo-het', ckMoi.checked); };
   ckMoi.onchange = dongBo;
   dongBo();
+  const oLoc = $('#tbLoc');
+  /* Mặc định chỉ hiện người trong nhóm phòng.
+   *
+   * Anh Hùng: "danh sách này vẫn có rất đông thành viên, không chỉ có những
+   * người trong nhóm MKT". Danh bạ hub gom từ MỌI app nên có cả Điều hành, kế
+   * toán, các phòng khác — 37 dòng cho một phòng 10 người. Tick sẵn thôi chưa
+   * đủ: 27 dòng còn lại vẫn che mất 10 dòng cần nhìn, và vẫn phải cuộn qua hết
+   * để kiểm tra xem mình gửi cho ai.
+   *
+   * Nên: không gõ gì thì chỉ hiện nhóm phòng; gõ tên thì tìm trong TOÀN BỘ danh
+   * bạ — đúng câu "muốn tìm kiếm thêm anh sẽ tự search". Ai đã tick thì luôn
+   * hiện, kể cả người ngoài phòng: đã chọn mà bị giấu đi thì lúc lưu mới ngã
+   * ngửa là gửi cho người mình không thấy.
+   *
+   * Không đọc được nhóm (sanNhom rỗng) thì hiện hết như cũ — giấu sạch danh
+   * sách vì một lần đọc hỏng còn tệ hơn danh sách dài. */
+  const chiNhom = sanNhom.length > 0;
+  const locDs = () => {
+    const q = oLoc.value.trim().toLowerCase();
+    let hien = 0;
+    $$('#tbAi .q-ck').forEach((l) => {
+      const daTick = l.querySelector('input').checked;
+      const an = q
+        ? (!l.dataset.ten.includes(q) && !daTick)
+        : (chiNhom && !l.dataset.nhom && !daTick);
+      l.hidden = an;
+      if (!an) hien++;
+    });
+    const dem = $('#tbDem');
+    if (dem) {
+      dem.textContent = q
+        ? 'Đang tìm trong cả ' + db.length + ' người · hiện ' + hien
+        : (chiNhom ? 'Đang hiện ' + hien + ' người trong nhóm ' + (nhom.ten || 'Phòng MKT') +
+          ' · gõ tên để tìm thêm người ngoài phòng' : '');
+    }
+  };
+  oLoc.oninput = locDs;
+  locDs();
   /* Tick lại đúng nhóm: bỏ hết rồi tick lại theo nhóm, KHÔNG cộng thêm. Cộng
    * thêm thì bấm xong vẫn còn người đã bỏ ra — nút không làm đúng điều nó nói. */
   const nutNhom = $('#tbNhom');
@@ -868,17 +908,11 @@ function moFormTb(tb) {
       ckMoi.checked = false;
       dongBo();
       $$('#tbAi [data-ai]').forEach((x) => { x.checked = sanNhom.includes(x.dataset.ai); });
+      oLoc.value = '';
+      locDs();
       toast('Đã tick ' + sanNhom.length + ' người trong nhóm ' + (nhom.ten || 'Phòng MKT'), 'luc');
     };
   }
-  const oLoc = $('#tbLoc');
-  oLoc.oninput = () => {
-    const q = oLoc.value.trim().toLowerCase();
-    // đã tick thì luôn hiện, không thì lọc xong tưởng mình bỏ tick mất
-    $$('#tbAi .q-ck').forEach((l) => {
-      l.hidden = !!q && !l.dataset.ten.includes(q) && !l.querySelector('input').checked;
-    });
-  };
   $('#tbQuay').onclick = () => { modalCaiDat('thong-bao'); };
   $('#tbLuu').onclick = luuFormTb;
   /* Xem thử ngay từ form, đọc nội dung ĐANG GÕ chứ không phải bản đã lưu — xem

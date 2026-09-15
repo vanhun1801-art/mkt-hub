@@ -471,9 +471,15 @@ phải tự dò 10 cái tên trong 37 dòng thì lần nào cũng sót một ng�
 
 Nên thông báo **mới** mở ra đã tick sẵn đúng những người trong nhóm chat
 **Phòng MKT**, và ô "Cả phòng" **tắt** (bật nó thì máy chủ ghi người nhận là `*`,
-mọi ô tick bên dưới bị bỏ qua — tick sẵn sẽ thành vô nghĩa). Muốn gửi thêm ai
-ngoài phòng thì gõ tên vào ô lọc rồi tick; nút **Tick lại đúng nhóm Phòng MKT**
-trả về đúng nhóm nếu lỡ tay.
+mọi ô tick bên dưới bị bỏ qua — tick sẵn sẽ thành vô nghĩa).
+
+Và danh sách **chỉ hiện nhóm phòng**, không đổ cả 37 người ra. Tick sẵn thôi
+chưa đủ: 27 dòng ngoài phòng vẫn che mất 10 dòng cần nhìn, vẫn phải cuộn hết mới
+biết mình đang gửi cho ai. Gõ tên vào ô trên thì tìm trong **toàn bộ** danh bạ —
+đúng câu "muốn tìm kiếm thêm anh sẽ tự search". Ai **đã tick** thì luôn hiện, kể
+cả người ngoài phòng: giấu một người đã chọn đi là để họ nhận thông báo mà mình
+không thấy tên trên màn hình. Nút **Tick lại đúng nhóm Phòng MKT** trả về đúng
+nhóm nếu lỡ tay.
 
 **Sửa** một thông báo cũ thì không đụng vào danh sách đã lưu — đó là quyết định
 của lần soạn đó, tự ý tick thêm là gửi cho người không định gửi.
