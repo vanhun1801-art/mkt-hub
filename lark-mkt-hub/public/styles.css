@@ -996,12 +996,25 @@ code { background: var(--trang-2); border: 1px solid var(--vien-mem); border-rad
 /* Trong popup: ảnh hiện thẳng, tệp khác thành một dòng bấm được.
    Giới hạn chiều cao ảnh — thông báo là thứ CHẶN màn hình, một tấm ảnh dài đẩy
    nút "Tôi đã đọc" xuống dưới tầm nhìn là biến nó thành cái bẫy. */
-.bb-tep { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 2px; }
+/* Ảnh tràn hết bề ngang hộp.
+   Anh Hùng: "các ảnh về sau cho nó tràn ra nha, vậy mới đẹp". Ảnh vuông bị chặn
+   theo CHIỀU CAO thì để thừa một mảng trắng bên phải — nhìn như hỏng chứ không
+   như thiết kế. Nên kéo âm đúng bằng padding của hộp (24px hai bên) để ảnh chạm
+   mép, và chặn cao bằng tỉ lệ chứ không bằng pixel.
+
+   Vẫn phải có trần: thông báo này CHẶN màn hình, ảnh quá cao đẩy nút "Tôi đã
+   đọc" xuống ngoài tầm nhìn là biến nó thành cái bẫy. 62vh còn chừa chỗ cho
+   tiêu đề và hàng nút trên màn laptop 768px. */
+.bb-tep { display: flex; flex-direction: column; gap: 8px; margin: 10px -24px 2px; }
 .bb-tep-anh { display: block; }
 .bb-tep-anh img {
-  display: block; max-width: 100%; max-height: 320px;
-  border-radius: var(--r-nho); border: 1px solid var(--vien);
+  display: block; width: 100%; max-height: 62vh;
+  object-fit: cover; object-position: center;
+  border-top: 1px solid var(--vien); border-bottom: 1px solid var(--vien);
 }
+/* Tệp không phải ảnh thì vẫn thụt vào như chữ — nó là một dòng để bấm, không
+   phải một mảng hình. */
+.bb-tep .bb-tep-mot { margin: 0 24px; }
 .bb-tep-mot {
   display: flex; align-items: center; gap: 8px; text-decoration: none;
   padding: 7px 10px; border: 1px solid var(--vien); border-radius: var(--r-nho);
