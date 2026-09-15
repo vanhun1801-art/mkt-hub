@@ -413,27 +413,6 @@ function veBang() {
      * chỉ làm loãng cái đang có nghĩa. */
     const thieu = thieuChungTu(c) || c.tinhTrang === TRA_LAI;
     const dv = tachDon(c.maDon);
-    const tep = (arr, linkCu, nhan, key) => {
-      /* Chip chứng từ mở XEM tại chỗ, kèm một chip ⇩ để tải về. Trước đây nó chỉ
-       * là liên kết bắn sang tab mới, mà tab mới hoặc bị chặn hoặc lạc khỏi app
-       * — anh Hùng báo 12/09/2026 "ấn vào xem không được". */
-      const co = (arr || []).map((f, i) => {
-        const ten = f.name || (nhan + (arr.length > 1 ? ' ' + (i + 1) : ''));
-        return '<span class="tep" data-xem="' + esc(f.token) + '" data-rec="' + esc(c.id) +
-          '" data-ten="' + esc(ten) + '" title="' + esc(ten) + '">' + esc(nhan) +
-          (arr.length > 1 ? ' ' + (i + 1) : '') + '</span>' +
-          '<a class="tep tai" title="Tải ' + esc(ten) + ' về máy" data-tai="1" data-rec="'
-          + esc(c.id) + '" data-token="' + esc(f.token) + '" data-ten="' + esc(ten) + '">⇩</a>';
-      }).join('');
-      if (co) return co;
-      if (String(linkCu || '').trim()) {
-        return '<a class="tep cu" target="_blank" href="' + esc(linkCu) + '" title="Chứng từ cũ trên Google Drive">'
-          + esc(nhan) + ' ↗</a>';
-      }
-      return laChuQuy()
-        ? '<button class="tep thieu" data-taitep="' + c.id + '" data-o="' + key + '">+ ' + esc(nhan) + '</button>'
-        : '<span class="tep thieu">— ' + esc(nhan) + '</span>';
-    };
     return '<tr' + (thieu ? ' class="canhbao"' : '') + '>'
       + '<td class="chon">' + (duocQuyetToan()
         ? '<input type="checkbox" data-chon="' + c.id + '"' + (S.chon.has(c.id) ? ' checked' : '') + '>' : '') + '</td>'
@@ -451,7 +430,6 @@ function veBang() {
           c.maDieuHanh
             ? esc(c.maDieuHanh)
             : (laChuQuy() ? '<button class="ma-them" data-gansg="' + c.id + '">+ mã điều hành</button>' : ''),
-          c.maQuyetToan ? '<span class="qt">' + esc(c.maQuyetToan) + '</span>' : '',
           /* Mã số thuế nhà cung cấp: thứ kế toán soi để biết hoá đơn có hợp lệ
            * không. Chỉ hiện khi có, nên sổ không bị thêm một cột trống. */
           c.mst ? '<span class="mst">MST ' + esc(c.mst) + '</span>' : '',
@@ -466,18 +444,13 @@ function veBang() {
       + '<td class="num">' + tien(c.tien) + '</td>'
       + '<td class="ngay">' + esc(ngayVN(c.ngayChi || c.ngayDeNghi)) + '</td>'
       + '<td class="ai">' + esc(((c.nguoi || [])[0] || {}).name || '') + '</td>'
-      /* KẾ TOÁN CHỈ THẤY HOÁ ĐƠN.
-       * UNC là uỷ nhiệm chi — bằng chứng tiền đã rời tài khoản, việc đối chiếu
-       * ngân hàng của người giữ quỹ. Kế toán cần hoá đơn để ghi chi phí và soi
-       * mã số thuế; bày thêm một cột chứng từ không phải việc của họ chỉ làm
-       * dòng dài ra và mắt phải bỏ qua một nửa. Anh Hùng chốt 12/09/2026. */
-      + '<td class="teps">' + tep(c.hoaDon, c.linkCu, 'Hoá đơn', 'hoaDon')
-        + (laKeToan() ? '' : tep(c.unc, c.linkUncCu, 'UNC', 'unc'))
-        + (c.chungTu === 'Không cần chứng từ'
-          ? '<span class="the" title="Kế toán đã đồng ý không cần chứng từ">không cần</span>'
-          : c.chungTu === 'Hoá đơn tay / ảnh'
-            ? '<span class="the" title="Hoá đơn tay hoặc ảnh — kế toán chấp nhận">tay/ảnh</span>' : '')
-        + '</td>'
+      /* Kế toán chỉ thấy hoá đơn — luật nằm trong taiLieuCua(). */
+      + '<td class="teps">' + veChungTu(c) + '</td>'
+      /* Mã quyết toán đứng thành CỘT RIÊNG, không nhét vào dòng phụ dưới nội
+       * dung nữa. Đó là ô kế toán dò dọc theo trang để biết khoản nào đã đóng
+       * sổ; nằm lẫn trong một dòng chữ xám thì phải đọc từng dòng mới thấy. */
+      + '<td class="maqt">' + (c.maQuyetToan
+        ? '<span class="qt">' + esc(c.maQuyetToan) + '</span>' : '<span class="mo">—</span>') + '</td>'
       + '<td class="tt"><span class="badge ' + (c.tinhTrang === 'Đã quyết toán' ? 'xanh'
         : c.tinhTrang === TRA_LAI ? 'do'
         : c.tinhTrang === 'Đã chi' ? 'vang' : 'xam') + '">' + esc(c.tinhTrang || '—') + '</span></td>'
@@ -493,11 +466,65 @@ function veBang() {
     + '<div class="cuon"><table><thead><tr>'
       + '<th class="chon">' + (duocQuyetToan() ? '<input type="checkbox" id="chonHet">' : '') + '</th>'
       + '<th>Nội dung</th><th>Loại</th><th class="num">Số tiền</th><th>Ngày chi</th>'
-      + '<th>Người</th><th>Chứng từ</th><th>Tình trạng</th><th></th>'
+      + '<th>Người</th><th>Chứng từ</th><th>Mã quyết toán</th><th>Tình trạng</th><th></th>'
     + '</tr></thead><tbody>' + ds.map(dong).join('') + '</tbody>'
     + '<tfoot><tr><td colspan="3">' + ds.length + ' khoản</td>'
-      + '<td class="num">' + tien(tong) + '</td><td colspan="5"></td></tr></tfoot>'
+      + '<td class="num">' + tien(tong) + '</td><td colspan="6"></td></tr></tfoot>'
     + '</table></div></section>';
+}
+
+/* ---------------------------------------------------------------------------
+ * CHỨNG TỪ: MỘT NÚT, MỘT CỬA SỔ
+ * -------------------------------------------------------------------------
+ * Trước đây mỗi tệp là một con chip, kèm một chip ⇩ đi cạnh. Khoản 13/09 có
+ * sáu hoá đơn nên ô chứng từ nở thành mười hai con chip xuống ba hàng, đẩy
+ * chiều cao dòng lên gấp ba và làm mọi dòng khác lệch nhịp. Mắt phải đọc mười
+ * hai thứ để biết một chuyện duy nhất: khoản này có chứng từ hay chưa.
+ *
+ * Giờ một nút. Có chứng từ thì nó sáng, bấm vào mở cửa sổ bày cả bộ.
+ * ------------------------------------------------------------------------- */
+function taiLieuCua(c) {
+  const ra = [];
+  const them = (arr, linkCu, nhan) => {
+    (arr || []).forEach((f, i) => {
+      if (!f || !f.token) return;
+      ra.push({ nhan, ten: f.name || (nhan + ' ' + (i + 1)), token: f.token, recId: c.id });
+    });
+    /* Chứng từ cũ vẫn là link Google Drive. Chỉ hiện khi KHÔNG có tệp thật —
+     * có tệp rồi mà còn bày link cũ là mời người ta đi nhầm đường. */
+    if (!(arr || []).some((f) => f && f.token) && String(linkCu || '').trim()) {
+      ra.push({ nhan, ten: nhan + ' (Drive cũ)', linkCu: String(linkCu).trim() });
+    }
+  };
+  them(c.hoaDon, c.linkCu, 'Hoá đơn');
+  /* Kế toán chỉ thấy hoá đơn — cùng luật với bảng, và vì cùng một lý do. */
+  if (!laKeToan()) them(c.unc, c.linkUncCu, 'UNC');
+  return ra;
+}
+
+/** Nhãn ngắn cho cột Chứng từ khi kế toán đã chấp nhận một dạng khác hoá đơn. */
+function theChungTu(c) {
+  if (c.chungTu === 'Không cần chứng từ') {
+    return '<span class="the" title="Kế toán đã đồng ý không cần chứng từ">không cần</span>';
+  }
+  if (c.chungTu === 'Hoá đơn tay / ảnh') {
+    return '<span class="the" title="Hoá đơn tay hoặc ảnh — kế toán chấp nhận">tay/ảnh</span>';
+  }
+  return '';
+}
+
+function veChungTu(c) {
+  const ds = taiLieuCua(c);
+  const the = theChungTu(c);
+  if (ds.length) {
+    return '<button class="ct-nut co" data-chungtu="' + c.id + '">Chứng từ <b>'
+      + ds.length + '</b></button>' + the;
+  }
+  /* Chưa có gì: chủ quỹ vẫn bấm được để đính vào, người khác thì nút tắt hẳn.
+   * Một nút sáng mà bấm vào không làm gì là lời hứa suông. */
+  return (laChuQuy()
+    ? '<button class="ct-nut them" data-chungtu="' + c.id + '">+ Chứng từ</button>'
+    : '<span class="ct-nut trong">chưa có</span>') + the;
 }
 
 function veTacVu(c) {
@@ -564,13 +591,19 @@ function veUng() {
 }
 
 /* ---------------- cửa sổ ---------------- */
-function moModal(tieuDe, than, chan) {
+function moModal(tieuDe, than, chan, lop) {
   $('#mdTitle').textContent = tieuDe;
   $('#mdBody').innerHTML = than;
   $('#mdFoot').innerHTML = chan;
+  /* Cửa sổ chứng từ cần rộng gấp rưỡi cửa sổ form: nó bày ảnh, mà ảnh hoá đơn
+   * hẹp quá thì lại phải mở từng cái ra xem — đúng việc nó sinh ra để bỏ. */
+  $('.hop').className = 'hop' + (lop ? ' ' + lop : '');
   $('#modal').classList.add('on');
 }
-const dongModal = () => $('#modal').classList.remove('on');
+function dongModal() {
+  $('#modal').classList.remove('on');
+  thuHoiAnhChungTu();
+}
 
 /* ============ xem chứng từ ============
  * Hoá đơn và UNC là thứ người ta phải NHÌN mới đối chiếu được. Trước đây mỗi
@@ -763,6 +796,93 @@ function tomTatKhoan(c) {
     + (c.mst ? ' · MST ' + esc(c.mst) : '') + '</div></div>';
 }
 
+/* ---------------------------------------------------------------------------
+ * CỬA SỔ CHỨNG TỪ
+ * -------------------------------------------------------------------------
+ * Bày ẢNH chứ không bày tên tệp. Kế toán nhìn hoá đơn để đọc mã số thuế và số
+ * tiền — một danh sách "hd1.jpg · hd2.jpg" bắt họ mở từng cái ra mới biết cái
+ * nào là cái cần, tức là vẫn đúng số lần bấm như cũ.
+ *
+ * Ảnh nạp SAU khi cửa sổ đã hiện: dựng khung trước, rồi từng ô tự thay ảnh vào
+ * khi tải xong. Chờ đủ sáu ảnh rồi mới vẽ là sáu giây nhìn màn hình trắng.
+ */
+let anhChungTu = [];              // object URL đang mở, phải thu hồi khi đóng
+
+function thuHoiAnhChungTu() {
+  anhChungTu.forEach((u) => { try { URL.revokeObjectURL(u); } catch (_) {} });
+  anhChungTu = [];
+}
+
+function moChungTu(id) {
+  const c = S.chi.find((x) => x.id === id);
+  if (!c) return;
+  const ds = taiLieuCua(c);
+  thuHoiAnhChungTu();
+
+  const o = (t, i) => {
+    const xem = t.linkCu
+      ? '<a class="ct-xem" target="_blank" href="' + esc(t.linkCu) + '">Mở trên Drive ↗</a>'
+      : '<span class="ct-xem" data-xem="' + esc(t.token) + '" data-rec="' + esc(t.recId)
+        + '" data-ten="' + esc(t.ten) + '">Xem</span>'
+        + '<span class="ct-tai" data-tai="1" data-rec="' + esc(t.recId) + '" data-token="'
+        + esc(t.token) + '" data-ten="' + esc(t.ten) + '" title="Tải về máy">⇩</span>';
+    return '<figure class="ct-the" data-ct="' + i + '">'
+      + '<div class="ct-anh" id="ctAnh' + i + '"'
+        + (t.linkCu ? '' : ' data-xem="' + esc(t.token) + '" data-rec="' + esc(t.recId)
+          + '" data-ten="' + esc(t.ten) + '"')
+        + '><span class="ct-cho">' + (t.linkCu ? 'DRIVE' : 'đang mở…') + '</span></div>'
+      + '<figcaption><span class="ct-nhan">' + esc(t.nhan) + '</span>'
+      + '<span class="ct-ten" title="' + esc(t.ten) + '">' + esc(t.ten) + '</span>'
+      + '<span class="ct-viec">' + xem + '</span></figcaption></figure>';
+  };
+
+  const nhom = (nhan) => {
+    const phan = ds.map((t, i) => ({ t, i })).filter((x) => x.t.nhan === nhan);
+    const themDuoc = laChuQuy() && (nhan === 'Hoá đơn' || nhan === 'UNC');
+    if (!phan.length && !themDuoc) return '';
+    return '<div class="ct-nhom"><div class="ct-dau">' + esc(nhan)
+      + (phan.length ? ' <b>' + phan.length + '</b>' : ' <span class="nho">chưa có</span>')
+      + (themDuoc ? '<button class="btn sm" data-themtep="' + (nhan === 'UNC' ? 'unc' : 'hoaDon')
+        + '" data-rec="' + esc(c.id) + '">+ Thêm</button>' : '')
+      + '</div>'
+      + (phan.length ? '<div class="ct-luoi">' + phan.map((x) => o(x.t, x.i)).join('') + '</div>' : '')
+      + '</div>';
+  };
+
+  moModal('Chứng từ',
+    tomTatKhoan(c)
+    + (ds.length ? '' : '<div class="nhac">Khoản này chưa có chứng từ nào.</div>')
+    + nhom('Hoá đơn')
+    + (laKeToan() ? '' : nhom('UNC')),
+    '<div class="sp"></div><button class="btn" data-close="1">Đóng</button>',
+    'rong');
+
+  napAnhChungTu(ds);
+}
+
+/* Nạp từng ảnh một, không bắn song song sáu lời gọi: máy chủ phải tải tệp về từ
+ * Lark rồi mới trả, bắn cùng lúc là xếp hàng ở đó chứ không nhanh hơn. */
+async function napAnhChungTu(ds) {
+  for (let i = 0; i < ds.length; i++) {
+    const t = ds[i];
+    const o = $('#ctAnh' + i);
+    if (!o || t.linkCu) continue;
+    if (!laAnh(t.ten)) {
+      o.innerHTML = '<span class="ct-cho">' + (laPdf(t.ten) ? 'PDF' : 'TỆP') + '</span>';
+      continue;
+    }
+    try {
+      const blob = await layTep(t.recId, t.token);
+      if (!$('#ctAnh' + i)) return;            // cửa sổ đã đóng giữa chừng
+      const u = URL.createObjectURL(blob);
+      anhChungTu.push(u);
+      o.innerHTML = '<img src="' + u + '" alt="' + esc(t.ten) + '">';
+    } catch (e) {
+      o.innerHTML = '<span class="ct-cho loi">' + esc(e.message) + '</span>';
+    }
+  }
+}
+
 function moDuyetMot(id) {
   const c = S.chi.find((x) => x.id === id);
   if (!c) return;
@@ -879,7 +999,7 @@ function moKetQuaTourwell(tw, khoan) {
 }
 
 /* ---------------- tải tệp ---------------- */
-function taiTep(id, key) {
+function taiTep(id, key, xong) {
   const inp = document.createElement('input');
   inp.type = 'file';
   inp.accept = 'image/*,application/pdf';
@@ -892,6 +1012,7 @@ function taiTep(id, key) {
         { method: 'POST', headers: {}, body: f });
       toast('Đã đính ' + (key === 'unc' ? 'UNC' : 'hoá đơn'), 'ok');
       await taiLai(true);
+      if (xong) xong();
     } catch (e) { toast(e.message, 'err'); }
   };
   inp.click();
@@ -1052,6 +1173,17 @@ document.addEventListener('click', async (e) => {
       dongModal(); toast('Đã trả lại kèm lý do', 'ok'); await taiLai(true);
     }, 'Đang trả lại…');
     return;
+  }
+
+  const ct = T.closest('[data-chungtu]');
+  if (ct) return moChungTu(ct.dataset.chungtu);
+
+  /* Thêm tệp ngay trong cửa sổ chứng từ, rồi MỞ LẠI cửa sổ để thấy cái vừa
+   * đính. Không mở lại thì người ta phải đóng đi bấm vào lại mới tin là xong. */
+  const themTep = T.closest('[data-themtep]');
+  if (themTep) {
+    const rec = themTep.dataset.rec;
+    return taiTep(rec, themTep.dataset.themtep, () => moChungTu(rec));
   }
 
   const tep = T.closest('[data-taitep]');

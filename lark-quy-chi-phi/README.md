@@ -296,6 +296,34 @@ chữ mờ — vẫn bấm được, thôi gọi mắt. Giờ cả bảng chỉ 
 
 Dọn ba thứ chết: `cacLanUng()`, `$$()`, `S.dot` — khai ra rồi không ai đọc.
 
+## Cột chứng từ: một nút, một cửa sổ
+
+Trước đây mỗi tệp là một con chip kèm một chip `⇩` đi cạnh. Khoản 13/09 có **sáu
+hoá đơn**, nên ô chứng từ nở thành mười hai con chip xuống ba hàng, đẩy chiều
+cao dòng lên gấp ba và làm mọi dòng khác lệch nhịp. Mắt phải đọc mười hai thứ để
+biết một chuyện duy nhất: *khoản này có chứng từ hay chưa*.
+
+Giờ là **một nút**. Có chứng từ thì sáng, kèm số lượng; chưa có thì chủ quỹ thấy
+nút viền đứt để đính vào, người khác thấy chữ xám không bấm được.
+
+Bấm vào mở cửa sổ rộng (1040px) bày cả bộ, **dưới dạng ảnh chứ không phải tên
+tệp**: kế toán nhìn hoá đơn để đọc mã số thuế và số tiền, một danh sách
+`hd1.jpg · hd2.jpg` bắt họ mở từng cái mới biết cái nào là cái cần — tức là vẫn
+đúng số lần bấm như cũ. Mỗi ô có nút **Xem** (mở to tại chỗ) và **⇩** (tải
+ngay). PDF hiện ô "PDF", chứng từ cũ hiện ô "DRIVE" kèm link.
+
+Ảnh nạp **sau** khi cửa sổ đã hiện, từng cái một: chờ đủ sáu ảnh rồi mới vẽ là
+sáu giây nhìn màn hình trắng. Đính thêm tệp làm ngay trong cửa sổ, xong thì cửa
+sổ tự mở lại để thấy cái vừa đính.
+
+Kế toán vẫn **chỉ thấy Hoá đơn** — luật đó giờ nằm gọn trong `taiLieuCua()`.
+
+## Mã quyết toán đứng thành cột riêng
+
+Trước nó nằm lẫn trong dòng chữ xám dưới nội dung, cạnh mã điều hành và mã số
+thuế. Đó là ô kế toán **dò dọc theo trang** để biết khoản nào đã đóng sổ; nằm
+lẫn thì phải đọc từng dòng mới thấy. Khoản chưa có mã để dấu gạch ngang.
+
 ## Luật cảnh báo chứng từ
 
 Luật đầu tiên là *"không đủ cả hoá đơn LẪN UNC = thiếu"*. Nó gắn cờ **68/162
@@ -391,7 +419,7 @@ Phép thử số liệu theo kỳ không ghim con số nào: nó kiểm **đầu
 cuối kỳ**, và **cuối kỳ tháng trước = đầu kỳ tháng sau**. Bất biến thì đúng mãi,
 còn con số thì sai ngay khoản chi kế tiếp.
 
-Lần chạy gần nhất: **73 + 62 pass · 0 fail**.
+Lần chạy gần nhất: **84 + 62 pass · 0 fail**.
 
 `node --check` xanh mà app vẫn vỡ — lần thứ hai. Ngày 13/09/2026 một dòng lạc
 rơi vào giữa `/* tiện */` và `function json(...)`, biến một khai báo hàm thành

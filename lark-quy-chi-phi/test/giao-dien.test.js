@@ -221,9 +221,18 @@ function chay(meta) {
   const kt = veVoiVai('keToan');
   await new Promise((r) => setTimeout(r, 40));
   const bKt = String(kt.veBang());
-  ok('kế toán thấy hoá đơn', bKt.includes('Hoá đơn'), bKt.slice(0, 160));
-  ok('kế toán KHÔNG thấy cột UNC', !bKt.includes('UNC'),
-    (bKt.match(/.{0,60}UNC.{0,60}/) || [''])[0]);
+  /* Cột chứng từ giờ là MỘT nút; chuyện "thấy gì" chuyển vào taiLieuCua() và
+   * cửa sổ chứng từ, nên phải soi ở đó chứ không soi chuỗi trong bảng — soi
+   * bảng thì phép thử xanh vì bảng chẳng còn chữ UNC nào cho ai cả. */
+  ok('bảng chỉ còn một nút chứng từ mỗi dòng', /data-chungtu/.test(bKt) && !/data-taitep/.test(bKt));
+  const ktCo = (id) => JSON.parse(kt.__goi(
+    'JSON.stringify(taiLieuCua(S.chi.find(c=>c.id==="' + id + '")).map(t=>t.nhan))'));
+  ok('kế toán mở chứng từ chỉ thấy hoá đơn', JSON.stringify(ktCo('recC1')) === '["Hoá đơn"]',
+    JSON.stringify(ktCo('recC1')));
+  kt.__goi('moChungTu("recC1")');
+  ok('cửa sổ chứng từ của kế toán không có mục UNC', !/UNC/.test(kt.__than()),
+    kt.__than().slice(0, 200));
+  ok('kế toán không đính thêm tệp được', !/data-themtep/.test(kt.__than()));
   ok('kế toán tick chọn được để quyết toán', bKt.includes('data-chon'));
   ok('kế toán không có nút Sửa', !bKt.includes('data-sua'));
   ok('kế toán không có nút gán mã điều hành', !bKt.includes('data-gansg'));
@@ -247,9 +256,36 @@ function chay(meta) {
   const cq = veVoiVai('chuQuy');
   await new Promise((r) => setTimeout(r, 40));
   const bCq = String(cq.veBang());
-  ok('chủ quỹ thấy CẢ UNC', bCq.includes('UNC'));
+  const cqCo = JSON.parse(cq.__goi(
+    'JSON.stringify(taiLieuCua(S.chi.find(c=>c.id==="recC1")).map(t=>t.nhan))'));
+  ok('chủ quỹ thấy CẢ hoá đơn lẫn UNC',
+    cqCo.includes('Hoá đơn') && cqCo.includes('UNC'), JSON.stringify(cqCo));
   ok('chủ quỹ có nút Sửa', bCq.includes('data-sua'));
-  ok('chủ quỹ đính được tệp còn thiếu', bCq.includes('data-taitep'));
+  cq.__goi('moChungTu("recC1")');
+  ok('cửa sổ chứng từ của chủ quỹ có chỗ đính thêm', /data-themtep/.test(cq.__than()));
+  ok('cửa sổ bày ô ảnh cho từng tệp', (cq.__than().match(/ct-the/g) || []).length === 2,
+    (cq.__than().match(/ct-the/g) || []).length + ' ô');
+  ok('mỗi tệp có cả nút Xem lẫn nút tải',
+    /data-xem=/.test(cq.__than()) && /data-tai="1"/.test(cq.__than()));
+
+  /* Khoản TRỐNG chứng từ: chủ quỹ vẫn bấm được để đính vào, vai khác thì nút
+   * tắt hẳn. Nhưng khoản CÓ chứng từ thì ai cũng mở xem được — kể cả vai chỉ
+   * xem; chặn đọc chứng từ là chặn đúng việc người ta mở app ra để làm. */
+  ok('khoản chưa có gì thì chủ quỹ vẫn có nút đính',
+    /data-chungtu="recC3"/.test(bCq));
+  ok('vai chỉ xem vẫn mở được chứng từ của khoản CÓ tệp',
+    /data-chungtu="recC1"/.test(bXv));
+  ok('nhưng khoản trống thì nút tắt hẳn với vai chỉ xem',
+    /ct-nut trong/.test(bXv) && !/data-chungtu="recC3"/.test(bXv),
+    (bXv.match(/.{0,60}recC3.{0,80}/) || [''])[0]);
+
+  console.log(SAO + 'Mã quyết toán đứng thành cột riêng' + HET);
+  ok('bảng có cột Mã quyết toán', /<th>Mã quyết toán<\/th>/.test(bCq));
+  ok('mã hiện trong ô của cột đó', /<td class="maqt"><span class="qt">QTTU52\/LVH/.test(bCq),
+    (bCq.match(/.{0,40}maqt.{0,60}/) || [''])[0]);
+  ok('khoản chưa có mã thì ô để gạch ngang', /<td class="maqt"><span class="mo">—/.test(bCq));
+  ok('mã KHÔNG còn nằm lẫn trong dòng phụ dưới nội dung',
+    !/class="phu2"[^>]*>[^<]*<span class="qt"/.test(bCq));
   ok('mã số thuế hiện lên cho kế toán soi', bCq.includes('0314567890'));
 
   /* ========================================================================

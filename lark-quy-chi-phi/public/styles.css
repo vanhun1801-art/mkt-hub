@@ -176,7 +176,9 @@ td.num.duong { color: var(--green-t); }
 .chon { width: 34px; }
 .nd b { font-weight: 600; }
 .phu2 { font-size: 11.5px; color: var(--t3); margin-top: 1px; }
-.qt { color: var(--green-t); font-weight: 600; }
+.qt { color: var(--green-t); font-weight: 600; font-size: 12.5px; white-space: nowrap; }
+td.maqt { white-space: nowrap; }
+td.maqt .mo { color: var(--t4, var(--t3)); }
 .ngay, .ai { white-space: nowrap; color: var(--t2); font-size: 13px; }
 tfoot td { background: var(--surface-2); font-weight: 600; border-bottom: 0; }
 .trong { padding: 44px; text-align: center; color: var(--t3); }
@@ -189,16 +191,26 @@ tfoot td { background: var(--surface-2); font-weight: 600; border-bottom: 0; }
 .badge.vang { background: var(--vang-bg); color: var(--vang-t); }
 .badge.xam { background: var(--surface-2); color: var(--t3); }
 
-/* Chứng từ: có thì là link mở ra, thiếu thì là nút đính vào — cùng một chỗ,
-   nên mắt không phải đi tìm chỗ khác để bổ sung. */
-.teps { display: flex; gap: 5px; flex-wrap: wrap; }
-.tep { font-size: 11.5px; text-decoration: none; border-radius: 6px; padding: 2px 8px;
+/* Chứng từ: MỘT nút cho cả khoản. Trước đây mỗi tệp một con chip kèm một chip
+   ⇩ đi cạnh, nên khoản có sáu hoá đơn nở thành mười hai chip xuống ba hàng —
+   đẩy chiều cao dòng lên gấp ba để nói một chuyện duy nhất: có chứng từ chưa. */
+.ct-nut {
+  font-family: inherit; font-size: 12px; font-weight: 500; white-space: nowrap;
+  border-radius: 7px; padding: 4px 10px; cursor: pointer;
   background: var(--primary-bg); color: var(--primary); border: 1px solid var(--primary-border);
-  white-space: nowrap; }
-.tep.cu { background: var(--surface-2); color: var(--t2); border-color: var(--line); }
-.tep.thieu { background: transparent; color: var(--red-t); border: 1px dashed var(--red-vien);
-  cursor: pointer; font-family: inherit; }
-button.tep.thieu:hover { background: var(--red-bg); }
+}
+.ct-nut b { font-weight: 700; margin-left: 2px; }
+.ct-nut.co:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
+/* Chưa có gì: chủ quỹ thấy nút viền đứt để đính vào, người khác thấy chữ xám
+   không bấm được — nút sáng mà bấm không làm gì là lời hứa suông. */
+.ct-nut.them { background: transparent; color: var(--red-t); border: 1px dashed var(--red-vien); }
+.ct-nut.them:hover { background: var(--red-bg); }
+.ct-nut.trong {
+  background: transparent; border: 1px solid transparent; color: var(--t3);
+  cursor: default; padding-left: 0;
+}
+
+.teps { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 
 /* ---- thanh chọn nhiều ---- */
 .thanhchon {
@@ -211,6 +223,7 @@ button.tep.thieu:hover { background: var(--red-bg); }
 .modal { position: fixed; inset: 0; background: rgba(16,22,34,.5); display: none;
   align-items: center; justify-content: center; padding: 20px; z-index: 50; }
 .modal.on { display: flex; }
+.hop.rong { width: min(1040px, 100%); }
 .hop { background: var(--surface); border-radius: 14px; width: min(720px, 100%);
   max-height: 88vh; display: flex; flex-direction: column; box-shadow: 0 24px 60px -20px rgba(0,0,0,.5); }
 .hop-dau { display: flex; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--line);
@@ -230,6 +243,46 @@ button.tep.thieu:hover { background: var(--red-bg); }
 .nhac.canhbao { background: var(--red-bg); border-color: var(--red-vien); color: var(--red-t); }
 .nhac.ok { background: var(--green-bg); border-color: var(--green-bg); color: var(--green-t); }
 .tomtat { font-size: 15px; }
+
+/* ---- cửa sổ chứng từ ----
+   Bày ẢNH chứ không bày tên tệp: kế toán nhìn hoá đơn để đọc mã số thuế và số
+   tiền, một danh sách "hd1.jpg · hd2.jpg" bắt họ mở từng cái mới biết cái nào
+   là cái cần — tức là vẫn đúng số lần bấm như cũ. */
+.ct-nhom { margin-top: 16px; }
+.ct-dau {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+  font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--t3);
+}
+.ct-dau b { color: var(--t1); font-size: 13px; letter-spacing: 0; }
+.ct-dau .nho { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.ct-dau .btn { margin-left: auto; text-transform: none; letter-spacing: 0; }
+
+.ct-luoi { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 12px; }
+.ct-the {
+  margin: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+  background: var(--surface-2); display: flex; flex-direction: column;
+}
+.ct-anh {
+  height: 150px; display: grid; place-items: center; overflow: hidden;
+  background: var(--hover); cursor: pointer;
+}
+.ct-anh img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ct-cho { font-size: 11px; font-weight: 700; letter-spacing: .08em; color: var(--t3); }
+.ct-cho.loi { color: var(--red-t); font-weight: 500; letter-spacing: 0; padding: 0 10px;
+  text-align: center; line-height: 1.4; }
+.ct-the figcaption { padding: 8px 10px; display: flex; flex-direction: column; gap: 3px; }
+.ct-nhan { font-size: 10.5px; font-weight: 600; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--t3); }
+.ct-ten { font-size: 12px; color: var(--t1); overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.ct-viec { display: flex; gap: 6px; align-items: center; margin-top: 3px; }
+.ct-xem, .ct-tai {
+  font-size: 12px; font-weight: 500; color: var(--primary); cursor: pointer;
+  text-decoration: none; border-radius: 6px; padding: 1px 7px;
+  background: var(--primary-bg); border: 1px solid var(--primary-border);
+}
+.ct-xem:hover, .ct-tai:hover { background: var(--primary); color: #fff; }
 
 /* ---- toast ---- */
 #toasts { position: fixed; right: 16px; bottom: 16px; display: flex; flex-direction: column;
@@ -280,10 +333,6 @@ tr.mo .nd b { font-weight: 500; }
 .xt-khong { display: grid; gap: 12px; justify-items: center; padding: 40px 24px;
   color: var(--t2); font-size: 13px; text-align: center; }
 .xt-khong .ic { font-size: 12px; font-weight: 700; letter-spacing: .05em; color: var(--t3); }
-
-/* chip chứng từ: bấm vào là XEM, nên phải trông bấm được */
-.tep[data-xem] { cursor: pointer; }
-.tep.tai { padding: 2px 6px; cursor: pointer; }
 
 /* Mã đơn Tourwell trong dòng phụ: kế toán đối chiếu theo mã này nên cho nó nổi
    hơn phần chữ xám còn lại, và bấm được để mở thẳng đơn. */
