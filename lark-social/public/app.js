@@ -193,6 +193,7 @@
     ['kenh', 'Theo kênh'],
     ['bai', 'Bài đăng'],
     ['noi-dung', 'Nội dung'],
+    ['binh-luan', 'Khách hỏi'],
     ['live', 'LIVE'],
     ['nhap-tay', 'Nhập tay'],
     ['nhat-ky', 'Nhật ký'],
@@ -1214,6 +1215,68 @@
     };
   }
 
+  /* ---------------- tab: khách hỏi ---------------- */
+  let blNgay = 7;
+  let blTatCa = false;
+
+  async function veBinhLuan() {
+    $('#view').innerHTML = '<div class="loading">Đang đọc bình luận từ Facebook và Instagram — '
+      + 'việc này gọi thẳng API nên hơi lâu…</div>';
+    let d;
+    try {
+      d = await goi('/api/binh-luan?ngay=' + blNgay + (blTatCa ? '&tatCa=1' : ''));
+    } catch (e) {
+      $('#view').innerHTML = '<div class="empty">Không đọc được bình luận: ' + esc(e.message) + '</div>';
+      return;
+    }
+
+    const dong = (x) => '<div class="bl-item">'
+      + '<div class="bl-top"><span class="bl-diem" title="điểm dấu hiệu">' + x.diem + '</span>'
+      + theTag(x.platform)
+      + '<span class="bl-kenh">' + esc(x.kenh) + '</span>'
+      + '<span class="bl-luc">' + esc(String(x.luc).slice(0, 16).replace('T', ' ')) + '</span>'
+      + (x.soTraLoi
+        ? '<span class="bl-da">đã có ' + x.soTraLoi + ' trả lời</span>'
+        : '<span class="bl-chua">chưa ai trả lời</span>')
+      + '</div>'
+      + '<div class="bl-noi">' + esc(x.noiDung.slice(0, 400)) + '</div>'
+      + '<div class="bl-chan">' + x.dauHieu.map((h) => '<span class="bl-dh">' + esc(h) + '</span>').join('')
+      + (x.baiUrl ? '<a href="' + esc(x.baiUrl) + '" target="_blank" rel="noreferrer">Mở bài để trả lời →</a>' : '')
+      + '</div></div>';
+
+    const chuaTraLoi = d.ds.filter((x) => !x.soTraLoi).length;
+
+    $('#view').innerHTML = ''
+      + '<div class="card"><div class="card-head"><h3>Khách hỏi trong bình luận</h3>'
+      + '<div class="seg" id="segBL">'
+      + [[3, '3 ngày'], [7, '7 ngày'], [14, '14 ngày']].map(([k, t]) =>
+        '<button data-k="' + k + '"' + (blNgay === k ? ' class="on"' : '') + '>' + t + '</button>').join('')
+      + '</div></div><div class="card-body">'
+      + '<div class="help" style="margin-bottom:10px">Quét <b>' + n0(d.daQuet) + '</b> bình luận '
+      + 'từ ' + esc(d.tu) + ', lọc ra <b>' + d.ds.length + '</b> câu có dấu hiệu hỏi mua'
+      + (chuaTraLoi ? ', trong đó <b>' + chuaTraLoi + '</b> chưa ai trả lời' : '') + '. '
+      + 'App chỉ ĐỌC được bình luận — muốn bấm trả lời ngay tại đây thì token cần thêm quyền '
+      + '<code>pages_manage_engagement</code> và <code>instagram_manage_comments</code>.'
+      + ' <label style="margin-left:6px"><input type="checkbox" id="blTatCa"'
+      + (blTatCa ? ' checked' : '') + '> xem cả bình luận thường</label></div>'
+      + (d.ds.length
+        ? '<div class="bl-list">' + d.ds.slice(0, 200).map(dong).join('') + '</div>'
+        : '<div class="empty">Không có câu nào có dấu hiệu hỏi mua trong khoảng này.</div>')
+      + '</div></div>'
+      + ((d.canhBao || []).length
+        ? '<div class="notes" style="margin-top:12px">' + d.canhBao.map((x) =>
+          '<div class="note"><span class="ico">!</span><span>' + esc(x) + '</span></div>').join('') + '</div>'
+        : '');
+
+    $('#segBL').onclick = (e) => {
+      const b = e.target.closest('button');
+      if (!b) return;
+      blNgay = Number(b.dataset.k);
+      veBinhLuan();
+    };
+    $('#blTatCa').onchange = (e) => { blTatCa = e.target.checked; veBinhLuan(); };
+  }
+
   /* ---------------- vẽ ---------------- */
   function ve() {
     if (!S.du) return;
@@ -1222,6 +1285,7 @@
       if (S.tab === 'kenh') return veKenh();
       if (S.tab === 'bai') return veBai();
       if (S.tab === 'noi-dung') return veNoiDung();
+      if (S.tab === 'binh-luan') return veBinhLuan();
       if (S.tab === 'live') return veLive();
       if (S.tab === 'nhap-tay') return veNhapTay();
       if (S.tab === 'nhat-ky') return veNhatKy();

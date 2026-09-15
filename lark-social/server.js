@@ -18,6 +18,7 @@ const vault = require('./vault');
 const sync = require('./sync');
 const canhBao = require('./canh-bao');
 const noiDung = require('./noi-dung');
+const binhLuan = require('./binh-luan');
 const facebook = require('./sync/facebook');
 const zalo = require('./sync/zalo');
 const tiktok = require('./sync/tiktok');
@@ -320,6 +321,18 @@ async function api(req, res, u) {
      * khác nhau cho cùng một khoảng ngày. */
     const bai = M.topBai(d.posts, { ...t, theo: 'views', n: 100000 });
     return ok(res, noiDung.tongHop(bai, { tz: cfg.tzOffsetHours }));
+  }
+
+  if (p === '/api/binh-luan' && method === 'GET') {
+    const loi = chanNeuKhongPhaiQuanLy(req); if (loi) throw loi;
+    const c = await ketnoi.doc();
+    const r = await binhLuan.quet(c, {
+      soNgay: Number(u.searchParams.get('ngay')) || 7,
+      soBaiMoiKenh: Number(u.searchParams.get('bai')) || 15,
+      soBinhLuanMoiBai: Number(u.searchParams.get('moiBai')) || 50,
+      chiKhachHoi: u.searchParams.get('tatCa') !== '1',
+    });
+    return ok(res, r);
   }
 
   if (p === '/api/live' && method === 'GET') {
