@@ -702,7 +702,8 @@ function moFormTb(tb) {
    * chính tệp trên máy), không phải chờ vòng mạng nào. */
   html += hang('Tệp đính kèm',
     '<div class="q-tep" id="tbTepDs"></div>' +
-    '<input type="file" id="tbTepChon" multiple hidden accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.zip">' +
+    '<input type="file" id="tbTepChon" multiple hidden ' +
+      'accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.zip">' +
     '<button class="btn nho" id="tbTepThem" style="margin-top:6px">Thêm tệp…</button>');
 
   html += hang('Nút hành động',
@@ -884,14 +885,19 @@ function veTbTep() {
   o.innerHTML =
     da.map((x) =>
       '<div class="q-tep-mot">' +
-        (laAnh(x) ? oAnh(duongTep(TBSUA.recordId, x.token)) : '<span class="q-tep-ic">TỆP</span>') +
+        (laAnh(x) ? oAnh(duongTep(TBSUA.recordId, x.token))
+          : laPhim(x) ? '<video class="q-tep-phim" src="' +
+              esc(duongTep(TBSUA.recordId, x.token)) + '" muted preload="metadata"></video>'
+          : '<span class="q-tep-ic">TỆP</span>') +
         '<span class="q-tep-ten">' + esc(x.ten) + '</span>' +
         (x.co ? '<span class="q-nhat">' + coTep(x.co) + '</span>' : '') +
         '<button class="btn nho ghost" data-go-tep="' + esc(x.token) + '">Gỡ</button>' +
       '</div>').join('') +
     moi.map((x, i) =>
       '<div class="q-tep-mot">' +
-        (x.laAnh ? oAnh(x.xem) : '<span class="q-tep-ic">TỆP</span>') +
+        (x.laAnh ? oAnh(x.xem)
+          : x.laPhim ? '<video class="q-tep-phim" src="' + esc(x.xem) + '" muted preload="metadata"></video>'
+          : '<span class="q-tep-ic">TỆP</span>') +
         '<span class="q-tep-ten">' + esc(x.ten) + '</span>' +
         '<span class="q-nhat">' + coTep(x.tep.size) +
           (x.goc && x.goc > x.tep.size ? ' · đã nén từ ' + coTep(x.goc) : '') + '</span>' +
@@ -938,14 +944,21 @@ async function themTep(ds) {
     let tep = f;
     let goc = f.size;
     try { tep = await nenAnh(f); } catch (_) { tep = f; }
-    if (tep.size > 10 * 1024 * 1024) {
-      toast('"' + f.name + '" vẫn quá 10 MB sau khi nén — chọn tệp nhỏ hơn.', 'do');
+    if (tep.size > 20 * 1024 * 1024) {
+      /* Video không nén được ở trình duyệt (phải có bộ mã hoá, nặng gấp mấy lần
+       * cả app này), nên nói thẳng đường vòng: cắt ngắn clip, hoặc để clip trên
+       * Lark Drive / YouTube rồi gắn link bằng nút hành động. */
+      toast('"' + f.name + '" nặng ' + coTep(tep.size) + ' — quá 20 MB. ' +
+        (/^video\//.test(f.type || '')
+          ? 'Cắt ngắn clip, hoặc để clip trên Drive rồi gắn link ở "Nút hành động".'
+          : 'Chọn tệp nhỏ hơn.'), 'do');
       continue;
     }
     const laA = /^image\//.test(tep.type || '');
+    const laV = /^video\//.test(tep.type || '');
     TBSUA.tepMoi.push({
-      ten: tep.name || f.name, tep, goc, laAnh: laA,
-      xem: laA ? URL.createObjectURL(tep) : '',
+      ten: tep.name || f.name, tep, goc, laAnh: laA, laPhim: laV,
+      xem: (laA || laV) ? URL.createObjectURL(tep) : '',
     });
     veTbTep();
   }
@@ -1033,6 +1046,7 @@ async function dayTepLen(recordId, ds, bao) {
 }
 
 const laAnh = (x) => /^image\//.test(x.kieu || '') || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(x.ten || '');
+const laPhim = (x) => /^video\//.test(x.kieu || '') || /\.(mp4|mov|webm|m4v)$/i.test(x.ten || '');
 const duongTep = (rec, token) =>
   '/api/tb-app/tep/' + encodeURIComponent(rec) + '/' + encodeURIComponent(token);
 const coTep = (n) => (n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB');

@@ -244,11 +244,25 @@ function veTepTb(tb) {
   if (!ds.length) return '';
   const duong = (x) => '/api/tb-app/tep/' + encodeURIComponent(tb.recordId) + '/' + encodeURIComponent(x.token);
   const laAnh = (x) => /^image\//.test(x.kieu || '') || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(x.ten || '');
-  return '<div class="bb-tep">' + ds.map((x) => (laAnh(x)
-    ? '<a class="bb-tep-anh" href="' + duong(x) + '" target="_blank" rel="noopener"' +
-      ' data-ten="' + esc(x.ten) + '"><img src="' + duong(x) + '" alt="' + esc(x.ten) + '"></a>'
-    : '<a class="bb-tep-mot" href="' + duong(x) + '" target="_blank" rel="noopener" download>' +
-      '<span class="bb-tep-ic">TỆP</span><span>' + esc(x.ten) + '</span></a>')).join('') + '</div>';
+  const laPhim = (x) => /^video\//.test(x.kieu || '') || /\.(mp4|mov|webm|m4v)$/i.test(x.ten || '');
+  return '<div class="bb-tep">' + ds.map((x) => {
+    if (laAnh(x)) {
+      return '<a class="bb-tep-anh" href="' + duong(x) + '" target="_blank" rel="noopener"' +
+        ' data-ten="' + esc(x.ten) + '"><img src="' + duong(x) + '" alt="' + esc(x.ten) + '"></a>';
+    }
+    /* Video phát ngay tại chỗ, tràn viền như ảnh.
+     *
+     * KHÔNG tự chạy: thông báo này bật lên giữa lúc người ta đang làm việc, một
+     * đoạn phim tự kêu là chuyện khó chịu nhất có thể làm với người dùng. Có
+     * `preload="metadata"` nên trình duyệt chỉ tải phần đầu để biết dài bao
+     * nhiêu — chưa bấm thì chưa tốn mạng. */
+    if (laPhim(x)) {
+      return '<video class="bb-tep-phim" controls preload="metadata" playsinline ' +
+        'src="' + duong(x) + '"></video>';
+    }
+    return '<a class="bb-tep-mot" href="' + duong(x) + '" target="_blank" rel="noopener" download>' +
+      '<span class="bb-tep-ic">TỆP</span><span>' + esc(x.ten) + '</span></a>';
+  }).join('') + '</div>';
 }
 
 /**

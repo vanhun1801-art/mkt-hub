@@ -1016,9 +1016,21 @@ code { background: var(--trang-2); border: 1px solid var(--vien-mem); border-rad
   display: block; width: 100%; height: auto;
   border-top: 1px solid var(--vien); border-bottom: 1px solid var(--vien);
 }
+/* Video: tràn viền y như ảnh, và cũng hiện trọn khung hình, không cắt. */
+.bb-tep-phim {
+  display: block; width: 100%; height: auto; max-height: 70vh;
+  background: #000;
+  border-top: 1px solid var(--vien); border-bottom: 1px solid var(--vien);
+}
 /* Tệp không phải ảnh thì vẫn thụt vào như chữ — nó là một dòng để bấm, không
    phải một mảng hình. */
 .bb-tep .bb-tep-mot { margin: 0 24px; }
+
+/* Ô xem trước trong form soạn: cùng khuôn với ô ảnh. */
+.q-tep-phim {
+  width: 34px; height: 34px; object-fit: cover; border-radius: 6px;
+  flex: 0 0 auto; background: #000;
+}
 .bb-tep-mot {
   display: flex; align-items: center; gap: 8px; text-decoration: none;
   padding: 7px 10px; border: 1px solid var(--vien); border-radius: var(--r-nho);

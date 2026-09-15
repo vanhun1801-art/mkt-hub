@@ -388,6 +388,10 @@ const MIME = {
   '.gif': 'image/gif',
   '.webp': 'image/webp',
   '.bmp': 'image/bmp',
+  '.mp4': 'video/mp4',
+  '.m4v': 'video/mp4',
+  '.mov': 'video/quicktime',
+  '.webm': 'video/webm',
   '.pdf': 'application/pdf',
   '.txt': 'text/plain; charset=utf-8',
   '.csv': 'text/csv; charset=utf-8',
@@ -519,8 +523,44 @@ const demDanhBa = new Map();   // khoaNguoi -> { at, ds }
 const demTep = new Map();            // file_token -> { buf, kieu, at }
 const DEM_TEP_TRAN = 24 * 1024 * 1024;   // ~24 MB, đủ vài chục ảnh đã nén
 
+/**
+ * Trả một tệp cho trình duyệt, có hỗ trợ xin TỪNG ĐOẠN (HTTP Range).
+ *
+ * Ảnh thì tải một phát là xong, nhưng VIDEO thì không: thẻ <video> tua được là
+ * nhờ xin đúng đoạn byte quanh chỗ người ta kéo tới. Máy chủ không biết trả
+ * từng đoạn thì Chrome vẫn phát được từ đầu, còn kéo thanh thời gian thì đứng
+ * im — trông y như hỏng.
+ *
+ * `Accept-Ranges` phải nói ra, nếu không trình duyệt còn chẳng buồn hỏi.
+ */
+function traTep(req, res, buf, kieu) {
+  const chung = {
+    'Content-Type': kieu || 'application/octet-stream',
+    /* Tệp đính kèm không đổi nội dung theo token, nhưng là thứ riêng của phòng
+     * — để `private` để proxy dọc đường không giữ lại bản sao. */
+    'Cache-Control': 'private, max-age=3600',
+    'Accept-Ranges': 'bytes',
+  };
+  const xin = String(req.headers.range || '');
+  const khop = /^bytes=(\d*)-(\d*)$/.exec(xin);
+  if (!khop) return send(res, 200, buf, chung);
+
+  let dau = khop[1] === '' ? null : Number(khop[1]);
+  let cuoi = khop[2] === '' ? null : Number(khop[2]);
+  if (dau === null && cuoi === null) return send(res, 200, buf, chung);
+  if (dau === null) { dau = Math.max(0, buf.length - cuoi); cuoi = buf.length - 1; }
+  if (cuoi === null || cuoi >= buf.length) cuoi = buf.length - 1;
+  if (dau > cuoi || dau >= buf.length) {
+    return send(res, 416, '', Object.assign({}, chung,
+      { 'Content-Range': 'bytes */' + buf.length }));
+  }
+  return send(res, 206, buf.subarray(dau, cuoi + 1), Object.assign({}, chung, {
+    'Content-Range': 'bytes ' + dau + '-' + cuoi + '/' + buf.length,
+  }));
+}
+
 function nhoTep(token, buf, kieu) {
-  if (!token || !buf || buf.length > 8 * 1024 * 1024) return;
+  if (!token || !buf || buf.length > 20 * 1024 * 1024) return;
   demTep.set(token, { buf, kieu, at: Date.now() });
   let tong = 0;
   for (const v of demTep.values()) tong += v.buf.length;
@@ -1178,10 +1218,11 @@ async function api(req, res, u) {
       let n = 0;
       req.on('data', (c) => {
         n += c.length;
-        /* 10 MB: ảnh chụp màn hình và tệp PDF nội bộ đều lọt, mà một tệp lỡ tay
-         * cũng không kéo sập tiến trình. Chặn NGAY trong lúc nhận, không đợi
-         * nhận hết rồi mới đo. */
-        if (n > 10 * 1024 * 1024) { hong(new Error('Tệp quá 10 MB.')); req.destroy(); return; }
+        /* 20 MB: vừa đủ một clip ngắn, và cũng là trần của một lượt tải lên
+         * Lark (tệp to hơn phải cắt khúc — một việc khác hẳn, chưa làm).
+         * Chặn NGAY trong lúc nhận, không đợi nhận hết rồi mới đo: tệp lỡ tay
+         * không được phép kéo sập tiến trình. */
+        if (n > 20 * 1024 * 1024) { hong(new Error('Tệp quá 20 MB.')); req.destroy(); return; }
         phan.push(c);
       });
       req.on('end', () => giai(Buffer.concat(phan)));
@@ -1219,10 +1260,7 @@ async function api(req, res, u) {
     const sanCo = demTep.get(token);
     if (sanCo) {
       sanCo.at = Date.now();
-      return send(res, 200, sanCo.buf, {
-        'Content-Type': sanCo.kieu || 'application/octet-stream',
-        'Cache-Control': 'private, max-age=3600',
-      });
+      return traTep(req, res, sanCo.buf, sanCo.kieu);
     }
 
     try {
@@ -1240,12 +1278,7 @@ async function api(req, res, u) {
           MIME[duoi] || kieu || 'application/octet-stream';
       }
       nhoTep(token, t.buf, kieu);
-      return send(res, 200, t.buf, {
-        'Content-Type': kieu,
-        /* Tệp đính kèm không đổi nội dung theo token, nhưng là thứ riêng của
-         * phòng — để `private` để proxy dọc đường không giữ lại bản sao. */
-        'Cache-Control': 'private, max-age=3600',
-      });
+      return traTep(req, res, t.buf, kieu);
     } catch (e) {
       return loi(res, 400, e.message);
     }

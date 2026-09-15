@@ -547,6 +547,22 @@ chừng, không hiểu vì sao. Đo trên trình duyệt 1280×860 với poster 
 ảnh ra 543×1360 (đúng tỉ lệ 2.5, không cắt), hộp cao 791px và cuộn được, hàng
 nút vẫn nằm trong tầm nhìn.
 
+**Video phát ngay trong popup**, tràn viền như ảnh, có thanh điều khiển. Không
+tự chạy (`preload="metadata"`): thông báo bật lên giữa lúc người ta đang làm
+việc, một đoạn phim tự kêu là chuyện khó chịu nhất có thể làm với người dùng —
+chưa bấm thì chưa tốn mạng.
+
+Muốn **tua** được thì máy chủ phải trả TỪNG ĐOẠN (HTTP Range) — không có thì
+Chrome vẫn phát từ đầu nhưng kéo thanh thời gian là đứng im, trông y như hỏng.
+`traTep()` trả `206` + `Content-Range` và nói rõ `Accept-Ranges: bytes`, nếu
+không trình duyệt còn chẳng buồn hỏi.
+
+Trần **20 MB** một tệp: vừa một clip ngắn, và cũng là trần của một lượt tải lên
+Lark (tệp to hơn phải cắt khúc — việc khác hẳn, chưa làm). Video **không nén
+được ở trình duyệt** (phải có bộ mã hoá, nặng gấp mấy lần cả app này) nên quá
+trần thì app nói thẳng đường vòng: cắt ngắn clip, hoặc để clip trên Drive rồi
+gắn link ở *Nút hành động*.
+
 Tệp khác thành một dòng bấm để tải.
 
 ## Chữ trong Cài đặt — chỉ giữ chữ báo tình trạng
