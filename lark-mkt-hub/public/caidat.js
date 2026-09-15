@@ -65,15 +65,14 @@ function cdNhom() {
         tu: 'popup thông báo bắt buộc đọc gấp phổ biến nhắc cả phòng', ql: true },
     { k: 'thuong-hieu', ten: 'Nhận diện thương hiệu', ic: 'anh',
       mo: 'Logo đóng lên tệp xuất ra', ql: true },
-      { k: 'he-thong', ten: 'Hệ thống', ic: 'may',
-        mo: 'Địa chỉ công khai, app Lark, bản đang chạy',
-        tu: 'url link app id build commit chế độ chạy render', ql: true },
     ] },
     { nhom: 'Từng app', ds: APP_CD.map((a) => ({
       k: 'app:' + a.id, ten: a.ten, ic: a.ic, mo: a.mo, tu: a.tu, ql: true,
     })) },
     { nhom: 'Nâng cao', ds: [
-      { k: 'kiem-tra', ten: 'Kiểm tra hệ thống', ic: 'may', mo: 'Hỏi từng base xem đọc được gì', ql: true },
+      { k: 'kiem-tra', ten: 'Kiểm tra hệ thống', ic: 'may',
+        mo: 'Hỏi từng base xem đọc được gì · địa chỉ công khai, app Lark, bản đang chạy',
+        tu: 'url link app id build commit chế độ chạy render hệ thống', ql: true },
       { k: 'log', ten: 'Log app con', ic: 'may', mo: 'Xem stderr thật của app con', ql: true },
     ] },
   ];
@@ -172,7 +171,6 @@ function veCdNoi() {
     if (a) return veCdApp(el, a);
   }
   if (S.cdMuc === 'toi') return veCdToi(el);
-  if (S.cdMuc === 'he-thong') return veCdHeThong(el);
   if (S.cdMuc === 'quyen') return veCdQuyen(el);
   if (S.cdMuc === 'thong-bao') return veCdThongBao(el);
   if (S.cdMuc === 'base') return veCdBase(el);
@@ -180,106 +178,6 @@ function veCdNoi() {
   if (S.cdMuc === 'kiem-tra') return veCdKiemTra(el);
   if (S.cdMuc === 'log') return veCdLog(el);
 }
-
-
-/* ---------------- Quản lý của từng app ----------------
- * Khác mục "Nhân sự & phân quyền": mục kia quyết ai THẤY base nào (luật của
- * lớp vỏ, lưu ở lớp vỏ). Mục này quyết ai là QUẢN LÝ trong một app — luật của
- * chính app đó, lưu ở app đó, nên phải gọi xuyên proxy sang app mà đọc/ghi.
- *
- * Hai app hai hình dạng endpoint khác nhau (đã đọc thật, không đoán), nên khai
- * thành bảng: thêm app thứ ba chỉ là thêm một dòng.
- */
-const QL_APP = [
-  { id: 'cong-viec', ten: 'Bảng công việc', doc: '/api/managers',
-    than: (ids) => ({ ids }) },
-  /* Lịch không trả danh bạ trong /api/quyen — phải lấy thêm ở /api/meta. */
-  { id: 'lich-tac-nghiep', ten: 'Lịch tác nghiệp', doc: '/api/quyen',
-    dsNguoi: '/api/meta', than: (ids) => ({ managers: ids }) },
-];
-
-async function napCdQl(a, y) {
-  const hop = $('#cdQl-' + a.id);
-  if (!hop) return;
-  try {
-    const d = await goi('/m/' + a.id + a.doc);
-    let nguoi = d.people || [];
-    if (!nguoi.length && a.dsNguoi) {
-      const m = await goi('/m/' + a.id + a.dsNguoi);
-      nguoi = m.people || [];
-    }
-    S.cdQl = S.cdQl || {};
-    S.cdQl[a.id] = { chon: new Set(d.managers || []), me: d.me || null, nguoi };
-    veCdQlApp(a, y);
-  } catch (e) {
-    if (!hop) return;
-    hop.innerHTML = cdHang(a.ten,
-      'Không đọc được: ' + esc(e.message || '') +
-      '. App này có đang chạy không?', '');
-  }
-}
-
-function veCdQlApp(a, y) {
-  const hop = $('#cdQl-' + a.id);
-  const t = S.cdQl[a.id];
-  if (!hop || !t) return;
-  const moDs = !!(y && y.moDs);
-
-  const meId = t.me && t.me.id;
-  const ds = t.nguoi.slice().sort((x, y) => String(x.name).localeCompare(String(y.name), 'vi'));
-  const dangChon = ds.filter((n) => t.chon.has(n.id));
-
-  hop.innerHTML = cdHang(a.ten,
-    (dangChon.length
-      ? '<b>' + dangChon.length + ' quản lý:</b> ' + esc(dangChon.map((n) => n.name).join(', '))
-      : 'Chưa có ai — app sẽ không có người duyệt.'),
-    '<button class="btn nho" data-ql-mo="' + esc(a.id) + '">Sửa</button>') +
-    '<div class="cd-ql-ds" id="cdQlDs-' + esc(a.id) + '"' + (moDs ? '' : ' hidden') + '>' +
-      ds.map((n) => {
-        const laToi = n.id === meId;
-        return '<label class="cd-ql-o' + (laToi ? ' la-toi' : '') + '">' +
-          '<input type="checkbox" data-ql-tick="' + esc(a.id) + '" value="' + esc(n.id) + '"' +
-          (t.chon.has(n.id) ? ' checked' : '') + (laToi ? ' disabled' : '') + '>' +
-          '<span>' + esc(n.name) + (laToi ? ' <i>(bạn — không tự bỏ quyền được)</i>' : '') + '</span>' +
-          '</label>';
-      }).join('') +
-      '<div class="cd-ql-luu">' +
-        '<button class="btn nho chinh" data-ql-luu="' + esc(a.id) + '">Lưu</button>' +
-        '<span class="cd-ql-tin" id="cdQlTin-' + esc(a.id) + '"></span>' +
-      '</div>' +
-    '</div>';
-
-  hop.querySelector('[data-ql-mo]').onclick = () => {
-    const o = $('#cdQlDs-' + a.id);
-    o.hidden = !o.hidden;
-  };
-  hop.querySelectorAll('[data-ql-tick]').forEach((i) => {
-    i.onchange = () => { if (i.checked) t.chon.add(i.value); else t.chon.delete(i.value); };
-  });
-  hop.querySelector('[data-ql-luu]').onclick = () => luuCdQl(a);
-  if (y && y.tin) $('#cdQlTin-' + a.id).textContent = y.tin;
-}
-
-async function luuCdQl(a) {
-  const t = S.cdQl[a.id];
-  const tin = $('#cdQlTin-' + a.id);
-  const ids = [...t.chon];
-  /* Chặn ngay ở đây cho người dùng biết liền, chứ không đợi server trả 400:
-   * app không còn quản lý nào là không ai duyệt được gì nữa. */
-  if (!ids.length) { tin.textContent = 'Phải còn ít nhất một quản lý.'; return; }
-  tin.textContent = 'Đang lưu…';
-  try {
-    await goi('/m/' + a.id + a.doc, {
-      method: 'POST', body: JSON.stringify(a.than(ids)),
-    });
-    /* Giữ danh sách mở và mang câu báo sang bản vẽ mới — xem chú thích ở
-     * napCdQl(). */
-    await napCdQl(a, { moDs: true, tin: 'Đã lưu.' });
-  } catch (e) {
-    tin.textContent = e.message || 'Không lưu được.';
-  }
-}
-
 
 
 /* ---------------- Nhận diện thương hiệu ----------------
@@ -352,59 +250,42 @@ function veCdToi(el) {
     '<button data-theme-set="' + val + '" class="' + (S.theme === val ? 'on' : '') + '" title="' + t + '">' +
     icon(val) + '</button>').join('') + '</div>';
 
+  /* Người trước, máy sau.
+   *
+   * Anh Hùng: "ở trang của tôi, anh muốn nó thể hiện một số thông tin của cá
+   * nhân; xong thì là một số thiết lập chung của hệ thống như ngôn ngữ, giao
+   * diện". Bản trước mở ra là hai cái nút chọn ngôn ngữ / sáng tối, còn "mình
+   * đang đăng nhập bằng ai" thì nằm cuối và đang tải dở. */
   el.innerHTML = cdTieuDe('Của tôi') +
+    '<div class="cd-muc-nho">Tài khoản</div>' +
+    '<div id="cdToiTk"><div class="cd-hang"><div class="cd-hang-tx"><b>Đang đọc…</b></div></div></div>' +
+    '<div class="cd-muc-nho">Thiết lập chung</div>' +
     cdHang('Ngôn ngữ','', segNgonNgu) +
-    cdHang('Sáng / tối','', segTheme) +
-    '<div id="cdToiTk" class="cd-hang"><div class="cd-hang-tx"><b>Đang đọc…</b></div></div>';
+    cdHang('Sáng / tối','', segTheme);
 
   goi('/api/toi').then((t) => {
     const o = $('#cdToiTk');
     if (!o) return;
-    const khoa = t.email || t.id || '';
-    o.outerHTML = cdHang('Tài khoản Lark',
-      khoa ? '<code>' + esc(khoa) + '</code>' : 'Chưa đọc được tài khoản.',
-      '<span class="cd-nhan ' + (t.la_quan_ly ? 'luc' : 'do') + '">' +
-      (t.la_quan_ly ? 'Quản lý' : 'Nhân sự') + '</span>');
-  }).catch(() => {});
-}
-
-/* ---------------- Hệ thống ----------------
- * Phần đọc-để-biết của cả hệ: một link ra internet, app Lark nào đang chạy,
- * bản nào đang chạy. Không sửa được ở đây — mấy thứ này đặt bằng biến môi
- * trường trên Render; nói ra để đối chiếu khi có sự cố.
- */
-function veCdHeThong(el) {
-  el.innerHTML = cdTieuDe('Hệ thống') +
-    cdHang('Địa chỉ công khai','',
-      '<code>' + esc(location.origin) + '</code>') +
-    '<div id="cdHtApp" class="cd-hang"><div class="cd-hang-tx"><b>Đang đọc…</b></div></div>' +
-    '<div id="cdBanChay"></div>';
-
-  goi('/api/toi').then((t) => {
-    const o = $('#cdHtApp');
-    if (!o) return;
-    const nut = (val) => '<button class="btn nho" data-copy-id="' + esc(val) + '">Copy</button>';
-    if (t.che_do !== 'api') {
-      o.outerHTML = cdHang('Chế độ chạy','',
-        '<span class="cd-nhan">cli · máy cá nhân</span>');
+    /* Máy cá nhân không có phiên đăng nhập (chế độ cli dùng thẳng phiên
+     * lark-cli), nên nói ra chứ đừng hiện một ô trống. */
+    if (!t.ten && !t.email) {
+      o.innerHTML = cdHang('Tài khoản', t.che_do === 'api'
+        ? 'Chưa đọc được tài khoản.'
+        : 'Máy cá nhân — dùng thẳng phiên lark-cli, không đăng nhập vào hub.', '');
       return;
     }
-    o.outerHTML = cdHang('App Lark đang chạy',
-      (t.app_id ? '<code>' + esc(t.app_id) + '</code>' : 'Chưa khai LARK_APP_ID.'),
-      (t.app_id
-        ? '<div class="cd-doc"><a class="btn nho ghost" target="_blank" rel="noreferrer" ' +
-          'href="https://open.larksuite.com/app/' + esc(t.app_id) + '/version/create">Trang phát hành</a>' +
-          nut(t.app_id) + '</div>'
-        : ''));
-  }).catch(() => {});
-
-  goi('/healthz').then((h) => {
-    const o = $('#cdBanChay');
-    if (!o) return;
-    o.innerHTML = cdHang('Bản đang chạy',
-      'Số bản: <code>' + esc(h.build || '') + '</code>' +
-      (h.commit ? ' · commit <code>' + esc(h.commit) + '</code>' : ''),
-      '<span class="cd-nhan">' + esc(h.che_do || '') + '</span>');
+    o.innerHTML =
+      cdHang('Tên', esc(t.ten || '—'),
+        '<span class="cd-nhan ' + (t.la_quan_ly ? 'luc' : '') + '">' +
+        (t.la_quan_ly ? 'Quản lý' : 'Nhân sự') + '</span>') +
+      cdHang('Email', t.email ? '<code>' + esc(t.email) + '</code>' : '—',
+        t.email ? '<button class="btn nho ghost" data-copy-id="' + esc(t.email) + '">Copy</button>' : '') +
+      (t.email_phu ? cdHang('Email phụ', '<code>' + esc(t.email_phu) + '</code>', '') : '') +
+      /* open_id đổi theo TỪNG app Lark, mà nó là thứ duy nhất khai được vào
+       * LARK_MANAGER_IDS trên Render. Để sẵn nút Copy ở đây thì lúc cần cấp
+       * quyền quản lý cho ai, người đó tự mở mục này copy gửi sang. */
+      (t.id ? cdHang('Mã Lark (open_id)', '<code>' + esc(t.id) + '</code>',
+        '<button class="btn nho ghost" data-copy-id="' + esc(t.id) + '">Copy</button>') : '');
   }).catch(() => {});
 }
 
@@ -423,12 +304,9 @@ function veCdQuyen(el) {
     '<div id="cdQuyenTom" class="cd-hang"><div class="cd-hang-tx"><b>Đang đọc bảng phân quyền…</b></div></div>' +
     cdHang('Mở màn quản lý','',
       '<button class="btn primary" id="cdMoQuyen">Mở phân quyền</button>') +
-    '<div class="cd-muc-nho">Ai là quản lý bên trong từng app</div>' +
-    QL_APP.map((a) => '<div id="cdQl-' + esc(a.id) + '">' +
-      cdHang(a.ten, 'đang đọc…', '') + '</div>').join('');
+    '';
 
   $('#cdMoQuyen').onclick = () => modalPhanQuyen();
-  QL_APP.forEach((a) => napCdQl(a));
 
   goi('/api/quyen').then((d) => {
     const o = $('#cdQuyenTom');
@@ -466,8 +344,10 @@ function veCdApp(el, a) {
       ? cdHang('Phân phối việc mới','',
         '<button class="btn nho chinh" id="cdMoPhanPhoi">Mở</button>')
       : '') +
-    cdHang('Quản lý của app này','',
-      '<button class="btn nho" data-cd="quyen">Mở Phân quyền</button>');
+    /* Không lặp lại "quản lý của app này" ở đây nữa: mục Từng app chỉ chứa
+     * tính năng RIÊNG của app đó (phân phối việc, khung giờ đăng ký…). Mọi câu
+     * hỏi "ai được làm gì" nằm chung một chỗ là Phân quyền. */
+    '';
 
   if (a.cuaSo) napCdCuaSo(a);
   const n = $('#cdMoPhanPhoi');
@@ -1152,13 +1032,15 @@ function veCdBase(el) {
           : '<button class="btn nho ghost" data-caphong="' + esc(m.id) + '"'
             + ' data-moi="' + (m.caPhong ? '0' : '1') + '">'
             + (m.caPhong ? 'Đóng lại' : 'Mở cả phòng') + '</button>') +
+        /* Anh Hùng: "chừa lại bật tắt, điều chỉnh thứ tự, bỏ tùy chọn log,
+         * xoá". Log vẫn còn nguyên ở Nâng cao → Log app con; xoá base là việc
+         * một năm một lần, làm thẳng trong modules.json, không đáng để một nút
+         * đỏ đứng cạnh nút Ẩn suốt ngày. */
         (m.kieu === 'local'
           ? '<button class="btn nho" data-batlai="' + esc(m.id) + '">Bật lại</button>' +
-            '<button class="btn nho ghost" data-tat="' + esc(m.id) + '">Tắt</button>' +
-            '<button class="btn nho ghost" data-cdlog="' + esc(m.id) + '">Log</button>'
+            '<button class="btn nho ghost" data-tat="' + esc(m.id) + '">Tắt</button>'
           : '') +
         '<button class="btn nho ghost" data-an="' + esc(m.id) + '">' + (m.bat ? 'Ẩn' : 'Hiện lại') + '</button>' +
-        '<button class="btn nho do" data-xoa="' + esc(m.id) + '">Xoá</button>' +
       '</div></div>';
   };
 
@@ -1194,6 +1076,7 @@ async function veCdKiemTra(el) {
 
   let html = cdTieuDe('Kiểm tra hệ thống') +
     hang('Chế độ', h.che_do === 'api' ? 'api · server chung' : 'cli · máy cá nhân') +
+    hang('Địa chỉ công khai', location.origin) +
     hang('App Lark đang chạy', h.app_id || '(không dùng app)', h.che_do !== 'api' ? null : !!h.app_id) +
     (h.commit ? hang('Bản đang chạy', h.commit) : '') +
     (h.che_do === 'api'
@@ -1209,12 +1092,19 @@ async function veCdKiemTra(el) {
       : /91403/.test(loi) ? 'App chưa được chia sẻ Base này'
       : /Cannot find module|lark-cli/.test(loi) ? 'Đang gọi lark-cli — sai chế độ chạy'
       : '';
+    /* Ba trạng thái, không phải hai: ĐỎ là app trả lời nhưng hỏng · THƯỜNG là
+     * đọc được số · XÁM là app đang chạy nhưng không khai /api/meta để mà hỏi.
+     * Gộp trạng thái thứ ba vào đỏ (bản trước làm thế) là báo động giả cho sáu
+     * app đang chạy tốt — rồi lần sau đỏ thật cũng không ai buồn nhìn. */
     return '<div class="the ' + (loi ? 'cao' : 'ok') + '">' +
       '<div class="nhan">' + esc(m.ten) + '</div>' +
       (loi
         ? '<div class="ghi" style="color:var(--do)"><b>' + esc(ma || 'Lỗi') + '</b><br>' + esc(loi.slice(0, 160)) + '</div>'
-        : '<div class="so">' + (m.tong == null ? '—' : so(m.tong)) + '</div>' +
-          '<div class="ghi">bản ghi đọc được' + (m.vai ? ' · vai ' + esc(m.vai) : '') + '</div>') +
+        : m.ghi
+          ? '<div class="so" style="color:var(--chu-nhat)">đang chạy</div>' +
+            '<div class="ghi">' + esc(m.ghi) + '</div>'
+          : '<div class="so">' + (m.tong == null ? '—' : so(m.tong)) + '</div>' +
+            '<div class="ghi">bản ghi đọc được' + (m.vai ? ' · vai ' + esc(m.vai) : '') + '</div>') +
       '</div>';
   }).join('') + '</div>';
 

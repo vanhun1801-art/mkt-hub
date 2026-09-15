@@ -65,7 +65,7 @@ function veTbApp() {
 
   const conLai = TB.ds.length - 1;
   const noiDung = String(tb.noiDung || '').split('\n')
-    .map((d) => (d.trim() ? '<p>' + esc(d) + '</p>' : '')).join('');
+    .map((d) => (d.trim() ? '<p>' + noiCoLink(d) + '</p>' : '')).join('');
 
   /* Nút hành động: link ra ngoài thì mở tab mới; đường trong hub (bắt đầu bằng
      #) thì nhớ lại, xác nhận xong mới đi tới — đi ngay thì lớp phủ vẫn chắn,
@@ -157,24 +157,74 @@ const ngayTb = (ms) => {
   return p(d.getUTCDate()) + '/' + p(d.getUTCMonth() + 1) + '/' + d.getUTCFullYear();
 };
 
+/**
+ * Bấm "Tôi đã đọc" là ĐÓNG NGAY, ghi vào Base chạy nền.
+ *
+ * Anh Hùng: "khi người ta ấn 'Tôi đã đọc' anh nghĩ em nên cho ẩn thông báo
+ * liền, còn việc ghi vào base thì em chạy nền".
+ *
+ * Đúng: lượt ghi đó đi qua lớp vỏ rồi sang Lark Base, đo được 0,8–2,5 giây —
+ * mà đây là popup CHẶN toàn màn hình. Bắt người ta nhìn "Đang ghi…" hai giây
+ * rưỡi sau khi đã làm đúng việc mình được yêu cầu là phạt người ngoan.
+ *
+ * Ghi hỏng thì KHÔNG dựng popup lại. Dựng lại giữa lúc người ta đã đi làm việc
+ * khác thì vừa giật màn hình vừa không nói được vì sao. Thay vào đó: báo một
+ * dòng, và thử lại một lần sau 4 giây — gần như mọi lần hỏng ở đây là mạng chớp
+ * một cái. Lần thử lại cũng hỏng thì mới nói thẳng ra, và thông báo sẽ hiện lại
+ * ở lần mở app sau (Base chưa ghi nhận), đúng như bản chất sự việc.
+ */
 async function xacNhanTb(tb) {
-  const nut = document.getElementById('tbDoc');
-  if (nut) { nut.disabled = true; nut.textContent = 'Đang ghi…'; }
+  // 1. Đóng trước — không chờ gì cả.
+  TB.ds = TB.ds.filter((x) => x.recordId !== tb.recordId);
+  TB.daBam = false;
+  if (TB.i >= TB.ds.length) TB.i = 0;
+  const di = TB.diToi;
+  TB.diToi = null;
+  veTbApp();
+  /* Đi tới mục được chỉ SAU khi hết thông báo — còn cái nữa thì đọc cho xong
+     đã, không thì vừa nhảy trang vừa bị chặn tiếp, rối. */
+  if (di && !TB.ds.length) location.hash = di;
+
+  // 2. Rồi mới ghi, ở phía sau lưng.
+  ghiDaDoc(tb, 1);
+}
+
+async function ghiDaDoc(tb, lan) {
   try {
     await goi('/api/tb-app', { method: 'POST', body: JSON.stringify({ recordId: tb.recordId }) });
-    TB.ds = TB.ds.filter((x) => x.recordId !== tb.recordId);
-    TB.daBam = false;
-    if (TB.i >= TB.ds.length) TB.i = 0;
-    const di = TB.diToi;
-    TB.diToi = null;
-    veTbApp();
-    /* Đi tới mục được chỉ SAU khi hết thông báo — còn cái nữa thì đọc cho xong
-       đã, không thì vừa nhảy trang vừa bị chặn tiếp, rối. */
-    if (di && !TB.ds.length) location.hash = di;
   } catch (e) {
-    if (nut) { nut.disabled = false; nut.textContent = 'Tôi đã đọc'; }
-    toast(e.message, 'do');
+    if (lan < 2) return setTimeout(() => ghiDaDoc(tb, lan + 1), 4000);
+    toast('Chưa ghi được "đã đọc" lên Base (' + e.message + ') — thông báo này sẽ hiện lại lần sau.', 'do');
   }
+}
+
+/**
+ * Một dòng nội dung -> HTML, có link bấm được.
+ *
+ * Anh Hùng: "anh nghĩ nên có chức năng gắn Hyper link". Nút hành động chỉ mang
+ * được MỘT đường dẫn, mà thông báo thật hay có mấy cái: quy định ở đây, biểu
+ * mẫu ở kia.
+ *
+ * Hai dạng, đều là thứ người ta vốn gõ sẵn khi nhắn trong Lark:
+ *   [Đọc quy định](https://...)  chữ hiện thay cho đường dẫn dài
+ *   https://...                  dán thẳng, tự thành link
+ *
+ * ESCAPE TRƯỚC, GẮN LINK SAU. Làm ngược lại là mở cửa cho người soạn chèn thẻ
+ * HTML vào màn hình cả phòng. Và chỉ nhận http/https: `javascript:` trong href
+ * là chạy mã ngay lúc bấm, mà đây là chữ người khác gõ, không phải mã mình sinh.
+ */
+function noiCoLink(dong) {
+  const the = (url, chu) => {
+    const that = String(url).replace(/&amp;/g, '&');   // esc() đã đổi & thành &amp;
+    if (!/^https?:\/\//i.test(that)) return chu;       // chặn javascript:, data:...
+    return '<a href="' + esc(that) + '" target="_blank" rel="noopener noreferrer">' + chu + '</a>';
+  };
+  const ganGon = (u) => (u.length > 60 ? u.slice(0, 57) + '…' : u);
+  return esc(dong)
+    .replace(/\[([^\]\n]+)\]\(([^\s)]+)\)/g, (_, chu, url) => the(url, chu))
+    /* Ký tự đứng trước phải là đầu dòng, khoảng trắng hay dấu mở ngoặc — nhờ
+     * vậy đường dẫn đã nằm trong href="..." của bước trên không bị bọc lần hai. */
+    .replace(/(^|[\s(])(https?:\/\/[^\s<]+)/gi, (_, dau, url) => dau + the(url, ganGon(url)));
 }
 
 /* Escape KHÔNG đóng được lớp phủ này. Bắt ở chế độ capture để chặn trước cái

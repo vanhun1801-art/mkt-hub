@@ -900,35 +900,64 @@ async function api(req, res, u) {
     let hostKhai = '';
     try { hostKhai = new URL(cfg.publicUrl).host; } catch (_) {}
 
+    /* Hỏi app CÁI NÓ CÓ.
+     *
+     * Bản trước bắt mọi app phải có cả `/api/meta` lẫn `/api/tasks` — hình dạng
+     * của app đầu tiên (Bảng công việc). Sáu app viết sau không có `/api/tasks`
+     * (Social còn không có `/api/meta`), nên màn này báo ĐỎ "Lỗi · Không có
+     * đường /api/tasks" cho sáu app đang chạy hoàn toàn bình thường.
+     *
+     * Đó là lỗi nặng hơn nó trông: màn tự kiểm tra mà báo sai thì lần sau có
+     * app hỏng thật, không ai tin màu đỏ nữa.
+     *
+     * Giờ: cổng sống là ĐẠT. `/api/meta` chỉ là phần cộng thêm — app nào có thì
+     * đọc được tên người, vai, số bản ghi; app nào không khai thì ghi "app
+     * không khai /api/meta", KHÔNG phải lỗi. Chỉ app nào TRẢ LỖI THẬT (không
+     * phải 404) mới đỏ. */
     const mods = danhSach().filter((x) => x.bat && x.kieu === 'local');
     const ket = await Promise.all(mods.map(async (mod) => {
       const o = { id: mod.id, ten: mod.ten, trangThai: kids.tinhTrang(mod).trangThai };
-      try {
-        if (mod.kpi === 'quang-cao') {
-          const meta = await goiJson(mod, '/api/meta', { nguoi });
-          o.nguoi = meta.me ? meta.me.name : null;
-          o.dem = meta.counts || null;
-          o.tong = meta.counts ? meta.counts.daily : null;
-        } else if (mod.kpi === 'lich-tac-nghiep') {
-          const meta = await goiJson(mod, '/api/meta', { nguoi });
-          o.nguoi = meta.me ? meta.me.name : null;
-          o.vai = meta.manager ? 'quản lý' : 'nhân sự';
-          o.tong = (meta.items || []).length;
-          o.danhBa = (meta.people || []).length;
-        } else {
-          const [meta, ds] = await Promise.all([
-            goiJson(mod, '/api/meta', { nguoi }),
-            goiJson(mod, '/api/tasks', { nguoi }),
-          ]);
-          o.nguoi = meta.me ? meta.me.name : null;
-          o.vai = meta.role === 'manager' ? 'quản lý' : 'nhân sự';
-          o.tong = (ds.tasks || []).length;
-          o.danhBa = (meta.people || []).length;
-          o.phamVi = (meta.scopePeople || []).length;
-        }
-      } catch (e) {
-        o.loi = e.message;
+      o.song = await kids.songKhong(mod.cong, 2500);
+      if (!o.song) {
+        o.loi = 'Cổng ' + mod.cong + ' không trả lời — app đang tắt hay chết lúc khởi động? Xem Log app con.';
+        return o;
       }
+
+      /* 404 = app không khai đường này. Mọi mã khác = app trả lời nhưng hỏng,
+       * và cái đó mới đáng báo đỏ. */
+      const thu = async (duong) => {
+        try { return { co: true, d: await goiJson(mod, duong, { nguoi }) }; }
+        catch (e) { return { co: false, thieu: e.http === 404, loi: e.message }; }
+      };
+
+      const m = await thu('/api/meta');
+      if (!m.co) {
+        if (m.thieu) o.ghi = 'app không khai /api/meta — chỉ kiểm tra được cổng';
+        else o.loi = m.loi;
+        return o;
+      }
+      const meta = m.d || {};
+      o.nguoi = meta.me ? meta.me.name : null;
+      o.vai = (meta.role === 'manager' || meta.manager) ? 'quản lý' : 'nhân sự';
+      if ((meta.people || []).length) o.danhBa = meta.people.length;
+      if ((meta.scopePeople || []).length) o.phamVi = meta.scopePeople.length;
+      if (meta.counts) { o.dem = meta.counts; o.tong = meta.counts.daily; }
+      /* Mỗi app đặt tên cho "số bản ghi của mình" một kiểu — đọc thật từng app
+       * rồi kê ra đây, chứ không ép chín app phải giống nhau chỉ để màn này đếm
+       * được. App nào không có khoá nào trong danh sách thì màn hình ghi "đang
+       * chạy", đúng bằng thứ biết chắc. */
+      for (const k of ['items', 'tours', 'records', 'rows', 'soBooking']) {
+        const v = meta[k];
+        const n = Array.isArray(v) ? v.length : (typeof v === 'number' ? v : null);
+        if (n != null) { o.tong = n; break; }
+      }
+
+      /* Chỉ app nào thật sự có mới hỏi — hỏi rồi bỏ qua 404 cũng được, nhưng
+       * mỗi lần hỏi là một vòng mạng, mà màn này hỏi chín app một lúc. */
+      const t = await thu('/api/tasks');
+      if (t.co) o.tong = (t.d.tasks || []).length;
+      else if (!t.thieu) o.loi = t.loi;
+      if (o.tong == null && !o.loi) o.ghi = 'đọc được /api/meta · app không báo số bản ghi';
       return o;
     }));
 
