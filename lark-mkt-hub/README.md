@@ -535,9 +535,19 @@ bấm vào mới biết: thẻ `<img>` không nói được vì sao nó hỏng, 
 giao diện hỏi lại chính đường dẫn đó để lấy câu lỗi của máy chủ và in ra đỏ ngay
 tại dòng tệp.
 
-Trong popup: ảnh hiện thẳng (cao tối đa 320px — thông báo là thứ *chặn* màn
-hình, một tấm ảnh dài đẩy nút "Tôi đã đọc" xuống ngoài tầm nhìn là biến nó thành
-cái bẫy), tệp khác thành một dòng bấm để tải.
+Trong popup: **ảnh tràn hết bề ngang hộp và hiện trọn vẹn, không cắt** — kéo âm
+đúng bằng padding của hộp (24px mỗi bên) để chạm mép, `width:100%; height:auto`.
+Cắt ảnh thông báo không bao giờ là cái người gửi muốn: poster dọc 3:5 mà cắt
+trên dưới là mất đúng phần nội dung.
+
+Ảnh cao hơn màn hình thì **hộp tự cuộn trong nó** (`max-height: 92vh`), và hàng
+nút **dính đáy** (`position: sticky`). Đây là popup *chặn* màn hình: nút "Tôi đã
+đọc" mà trôi khỏi tầm nhìn vì một tấm ảnh dài thì người ta bị khoá lại giữa
+chừng, không hiểu vì sao. Đo trên trình duyệt 1280×860 với poster 1000×2500:
+ảnh ra 543×1360 (đúng tỉ lệ 2.5, không cắt), hộp cao 791px và cuộn được, hàng
+nút vẫn nằm trong tầm nhìn.
+
+Tệp khác thành một dòng bấm để tải.
 
 ## Chữ trong Cài đặt — chỉ giữ chữ báo tình trạng
 
