@@ -185,10 +185,14 @@
   }
 
   /* ---------------- tabs ---------------- */
+  let ndTheo = 'xem';
+  const TEN_THU = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+
   const TABS = [
     ['tong-quan', 'Tổng quan'],
     ['kenh', 'Theo kênh'],
     ['bai', 'Bài đăng'],
+    ['noi-dung', 'Nội dung'],
     ['live', 'LIVE'],
     ['nhap-tay', 'Nhập tay'],
     ['nhat-ky', 'Nhật ký'],
@@ -1112,6 +1116,104 @@
       + '</div>';
   }
 
+  /* ---------------- tab: nội dung ---------------- */
+  async function veNoiDung() {
+    $('#view').innerHTML = '<div class="loading">Đang tính…</div>';
+    const q = new URLSearchParams({ from: S.from, to: S.to });
+    if (S.platforms.length) q.set('platform', S.platforms.join(','));
+    const d = await goi('/api/noi-dung?' + q);
+
+    if (!d.soBai) {
+      $('#view').innerHTML = '<div class="empty">Khoảng này chưa có bài nào.</div>';
+      return;
+    }
+
+    /* Lưới thứ × khung giờ. Đậm nhạt theo trung vị so với ô cao nhất — nhìn một
+     * cái là thấy vệt giờ nào ăn, thay vì đọc 84 con số. */
+    const o = d.gioVang.o;
+    const theoKhoa = new Map(o.map((x) => [x.thu + '|' + x.khung, x]));
+    const dung = ndTheo === 'xem' ? (x) => x.xem : (x) => x.tuongTac;
+    const dinh = Math.max(1, ...o.filter((x) => x.du).map((x) => dung(x) || 0));
+    const oLuoi = (thu, khung) => {
+      const x = theoKhoa.get(thu + '|' + khung);
+      if (!x || !x.du) {
+        return '<td class="gv-mo" title="' + (x ? x.soBai + ' bài — chưa đủ để kết luận'
+          : 'chưa từng đăng') + '">·</td>';
+      }
+      const v = dung(x) || 0;
+      const d0 = Math.min(1, v / dinh);
+      return '<td style="background:rgba(43,92,255,' + (0.06 + d0 * 0.72).toFixed(2) + ');'
+        + 'color:' + (d0 > 0.55 ? '#fff' : 'inherit') + '" title="'
+        + esc(x.tenThu + ' ' + x.tenKhung + 'h · ' + x.soBai + ' bài') + '">'
+        + (v ? gon(v) : '—') + '</td>';
+    };
+
+    const hang = [];
+    for (let t = 1; t <= 7; t++) {
+      const thu = t % 7;   // bắt đầu từ Thứ 2, Chủ nhật xuống cuối
+      let tr = '<tr><th class="gv-thu">' + esc(TEN_THU[thu]) + '</th>';
+      for (let k = 0; k < 12; k++) tr += oLuoi(thu, k);
+      hang.push(tr + '</tr>');
+    }
+
+    const tot = o.filter((x) => x.du && dung(x)).sort((a, b) => dung(b) - dung(a)).slice(0, 3);
+
+    $('#view').innerHTML = ''
+      + '<div class="card"><div class="card-head"><h3>Đăng giờ nào ăn</h3>'
+      + '<div class="seg" id="segND">'
+      + [['xem', 'Lượt xem'], ['tuongTac', 'Tương tác']].map(([k, t]) =>
+        '<button data-k="' + k + '"' + (ndTheo === k ? ' class="on"' : '') + '>' + t + '</button>').join('')
+      + '</div></div><div class="card-body">'
+      + '<div class="help" style="margin-bottom:10px">Số trong ô là <b>trung vị</b> của các bài '
+      + 'đăng vào khung đó — không phải trung bình. Một bài lên xu hướng không được phép '
+      + 'kéo cả khung giờ lên. Ô chấm là chưa đủ ' + d.gioVang.toiThieu + ' bài để kết luận.'
+      + (tot.length ? ' Ăn nhất: <b>' + tot.map((x) => x.tenThu + ' ' + x.tenKhung + 'h').join('</b>, <b>') + '</b>.' : '')
+      + '</div>'
+      + '<div style="overflow-x:auto"><table class="gv"><thead><tr><th></th>'
+      + Array.from({ length: 12 }, (_, k) => '<th>' + (k * 2) + '</th>').join('')
+      + '</tr></thead><tbody>' + hang.join('') + '</tbody></table></div>'
+      + '</div></div>'
+
+      + '<div class="grid g2" style="margin-top:14px">'
+      + '<div class="card"><div class="card-head"><h3>Dạng bài nào ăn</h3></div>'
+      + '<div class="card-body tight">'
+      + bangGon([
+        { t: 'Dạng', name: 1, v: (x) => esc(x.ten) },
+        { t: 'Bài', num: 1, v: (x) => n0(x.soBai) },
+        { t: 'Xem (trung vị)', num: 1, v: (x) => (x.xem == null ? '<span style="color:var(--ink-3)">không đo được</span>' : n0(x.xem)) },
+        { t: 'Tương tác', num: 1, v: (x) => n0(x.tuongTac) },
+        { t: 'Tỷ lệ TT', num: 1, v: (x) => pct(x.tyLeTuongTac) },
+      ], d.theoLoai.filter((x) => x.du))
+      + '</div></div>'
+      + '<div class="card"><div class="card-head"><h3>Hashtag kéo người xem</h3>'
+      + '<span class="sub">từ 5 bài trở lên</span></div><div class="card-body tight">'
+      + bangGon([
+        { t: 'Thẻ', name: 1, v: (x) => esc(x.the) },
+        { t: 'Bài', num: 1, v: (x) => n0(x.soBai) },
+        { t: 'Xem (trung vị)', num: 1, v: (x) => (x.xem == null ? '—' : n0(x.xem)) },
+        { t: 'Tương tác', num: 1, v: (x) => n0(x.tuongTac) },
+      ], d.hashtag.slice(0, 15))
+      + '</div></div></div>'
+
+      + '<div class="card" style="margin-top:14px"><div class="card-head"><h3>Kênh nào nội dung khoẻ</h3>'
+      + '<span class="sub">trung vị mỗi bài, không phải tổng</span></div><div class="card-body tight">'
+      + bangGon([
+        { t: 'Kênh', name: 1, v: (x) => esc(x.ten) },
+        { t: 'Bài', num: 1, v: (x) => n0(x.soBai) },
+        { t: 'Xem (trung vị)', num: 1, v: (x) => (x.xem == null ? '—' : n0(x.xem)) },
+        { t: 'Tương tác', num: 1, v: (x) => n0(x.tuongTac) },
+        { t: 'Tỷ lệ TT', num: 1, v: (x) => pct(x.tyLeTuongTac) },
+      ], d.theoKenh.filter((x) => x.du))
+      + '</div></div>';
+
+    $('#segND').onclick = (e) => {
+      const b = e.target.closest('button');
+      if (!b) return;
+      ndTheo = b.dataset.k;
+      veNoiDung();
+    };
+  }
+
   /* ---------------- vẽ ---------------- */
   function ve() {
     if (!S.du) return;
@@ -1119,6 +1221,7 @@
       if (S.tab === 'tong-quan') return veTongQuan();
       if (S.tab === 'kenh') return veKenh();
       if (S.tab === 'bai') return veBai();
+      if (S.tab === 'noi-dung') return veNoiDung();
       if (S.tab === 'live') return veLive();
       if (S.tab === 'nhap-tay') return veNhapTay();
       if (S.tab === 'nhat-ky') return veNhatKy();

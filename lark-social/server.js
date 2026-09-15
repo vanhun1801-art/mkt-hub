@@ -17,6 +17,7 @@ const ketnoi = require('./ketnoi');
 const vault = require('./vault');
 const sync = require('./sync');
 const canhBao = require('./canh-bao');
+const noiDung = require('./noi-dung');
 const facebook = require('./sync/facebook');
 const zalo = require('./sync/zalo');
 const tiktok = require('./sync/tiktok');
@@ -310,6 +311,15 @@ async function api(req, res, u) {
         n: Number(u.searchParams.get('n') || 50),
       }),
     });
+  }
+
+  if (p === '/api/noi-dung') {
+    const t = thamSo(u);
+    const d = await store.tai();
+    /* Lọc đúng như tab Bài đăng để hai màn hình không bao giờ nói hai con số
+     * khác nhau cho cùng một khoảng ngày. */
+    const bai = M.topBai(d.posts, { ...t, theo: 'views', n: 100000 });
+    return ok(res, noiDung.tongHop(bai, { tz: cfg.tzOffsetHours }));
   }
 
   if (p === '/api/live' && method === 'GET') {
