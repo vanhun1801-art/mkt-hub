@@ -67,23 +67,36 @@ function videoGia({ chanTieng = false } = {}) {
 }
 
 function chay(luaChon, tuyChon) {
+  const daBam = !!(tuyChon && tuyChon.daBam);
   const kho = new Map();
   if (luaChon != null) kho.set('hub.tinTieng', luaChon);
   const nut = { textContent: '', title: '', onclick: null, setAttribute() {} };
   const phim = videoGia(tuyChon);
   const hen = [];
+  const cuChi = {};          // sự kiện window -> danh sách hàm, để bắn cử chỉ giả
   const ctx = {
     localStorage: { getItem: (k) => (kho.has(k) ? kho.get(k) : null), setItem: (k, v) => kho.set(k, v) },
     document: { hidden: false, addEventListener() {} },
-    window: { addEventListener() {}, removeEventListener() {} },
-    setTimeout: (f, ms) => hen.push([f, ms]),
+    window: {
+      addEventListener(t, f) { (cuChi[t] = cuChi[t] || []).push(f); },
+      removeEventListener(t, f) { cuChi[t] = (cuChi[t] || []).filter((x) => x !== f); },
+    },
+    S: { view: 'home' },
+    /* Trang đã có cú bấm nào chưa — app.js giữ cờ này ở ngoài hàm. Mặc định
+     * FALSE để bài thử đúng cảnh "vừa mở app, chưa bấm gì". */
+    DA_CO_CU_CHI: daBam,
+    /* setTimeout 0 phải CHẠY THẬT: nhánh "đã có cử chỉ" mở tiếng qua nó. Hẹn
+     * dài hơn thì chỉ ghi lại để xem có đặt hay không. */
+    setTimeout: (f, ms) => { if (!ms) return setImmediate(f); hen.push([f, ms]); },
     setInterval: (f, ms) => hen.push([f, ms]),
     Promise,
   };
   vm.createContext(ctx);
   vm.runInContext(KHOI, ctx);
   ctx.ganPhimTin(phim, nut);
-  return { phim, nut, kho, hen };
+  /* Một cú bấm bất kỳ trên trang — đúng thứ trình duyệt đòi trước khi cho tiếng. */
+  const bam = () => (cuChi.pointerdown || []).slice().forEach((f) => f());
+  return { phim, nut, kho, hen, bam };
 }
 
 /* Đợi hết microtask: `play()` trả Promise nên nhánh .catch chạy sau một nhịp. */
@@ -104,37 +117,59 @@ const doi = () => new Promise((r) => setImmediate(r));
     ok('đã chọn "bật tiếng" từ trước thì VẪN tự chạy', phim.paused === false);
   }
 
-  group('Mặc định CÓ tiếng');
+  group('Câm cho tới khi có cử chỉ, rồi mới mở tiếng');
   {
-    const { phim } = chay(null);
+    /* Đây là ràng buộc của TRÌNH DUYỆT, không phải lựa chọn thẩm mỹ: gán
+     * muted = false trước khi có cử chỉ thì Chrome DỪNG luôn video, và vì
+     * play() sau đó cũng bị từ chối nên video nằm im — mở app lên thấy đứng
+     * hình mà nút lại báo có tiếng. Đúng lỗi anh Hùng gặp. */
+    const { phim, nut } = chay(null);
     await doi();
-    ok('chưa chọn gì ⇒ mở tiếng', phim.muted === false);
+    ok('lúc mới vào: CÂM', phim.muted === true);
+    ok('lúc mới vào: vẫn chạy', phim.paused === false);
+    ok('nút hiện đúng trạng thái thật (tắt tiếng)', nut.textContent === '🔇', nut.textContent);
   }
   {
-    const { phim } = chay('1');
+    const { phim, nut, bam } = chay(null);
     await doi();
-    ok('đã chọn bật tiếng ⇒ có tiếng', phim.muted === false);
+    bam();
+    await doi();
+    ok('một cú bấm bất kỳ ⇒ có tiếng', phim.muted === false);
+    ok('và vẫn chạy', phim.paused === false);
+    ok('nút đổi theo', nut.textContent === '🔊', nut.textContent);
   }
   {
-    const { phim } = chay('0');
+    const { phim, bam } = chay('0');
     await doi();
-    ok('tự tắt tiếng thì tôn trọng', phim.muted === true);
+    bam();
+    await doi();
+    ok('ai tự tắt tiếng thì bấm mấy cũng vẫn im', phim.muted === true);
+    ok('và vẫn chạy', phim.paused === false);
+  }
+
+  {
+    /* Quay về trang Tổng quan lần thứ hai: trang đã có cử chỉ từ trước, không
+     * được bắt bấm lại lần nữa mới có tiếng. */
+    const { phim } = chay(null, { daBam: true });
+    await doi(); await doi();
+    ok('trang đã từng được bấm ⇒ có tiếng ngay', phim.muted === false);
     ok('và vẫn chạy', phim.paused === false);
   }
 
   group('Trình duyệt chặn tiếng thì KHÔNG được đứng hình');
   {
-    const { phim } = chay('1', { chanTieng: true });
+    const { phim, bam } = chay('1', { chanTieng: true });
+    await doi();
+    bam();
     await doi(); await doi();
-    ok('lùi về câm', phim.muted === true);
-    ok('nhưng vẫn chạy', phim.paused === false);
+    ok('vẫn chạy', phim.paused === false);
   }
 
   group('Chạy liên tục');
   {
     const { phim, hen } = chay(null);
     ok('có canh nhịp gọi lại', hen.some(([, ms]) => ms === 5000), JSON.stringify(hen.map((h) => h[1])));
-    ['ended', 'stalled', 'suspend', 'error'].forEach((t) => {
+    ['ended', 'stalled', 'error', 'volumechange'].forEach((t) => {
       ok('bắt sự kiện ' + t, Array.isArray(phim.nghe[t]) && phim.nghe[t].length > 0);
     });
     /* Hết bài mà `loop` hụt thì tự tua về đầu — video đứng ở khung cuối trông

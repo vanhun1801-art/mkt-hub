@@ -79,8 +79,10 @@ function veTbApp() {
 
   el.innerHTML =
     '<div class="bb-hop bb-' + esc(mucTb(tb.mucDo)) + '" role="alertdialog" aria-modal="true">' +
-      (TB.thu ? '<div class="bb-thu">Đang <b>xem thử</b> — nhân sự sẽ thấy đúng thế này. ' +
-        'Bấm gì ở đây cũng không ghi xác nhận của ai.</div>' : '') +
+      (TB.thu && !TB.chiDoc
+        ? '<div class="bb-thu">Đang <b>xem thử</b> — nhân sự sẽ thấy đúng thế này. ' +
+          'Bấm gì ở đây cũng không ghi xác nhận của ai.</div>'
+        : '') +
       '<div class="bb-dau">' +
         '<span class="bb-nhan">' + esc(tb.mucDo || 'Tin') + '</span>' +
         (conLai > 0 && !TB.thu ? '<span class="bb-dem">còn ' + conLai + ' thông báo nữa</span>' : '') +
@@ -99,8 +101,13 @@ function veTbApp() {
         /* Xem thử: vẫn vẽ đúng nút đó, kèm trạng thái khoá/mở như thật, nhưng
            bấm là đóng chứ không ghi gì. Thêm một nút thoát riêng vì bản thật
            cố ý không có đường nào khác. */
-        '<button class="btn primary" id="tbDoc"' + (khoa ? ' disabled' : '') + '>Tôi đã đọc</button>' +
-        (TB.thu ? '<button class="btn ghost" id="tbThuDong">Đóng xem thử</button>' : '') +
+        /* Chế độ ĐỌC LẠI (mở từ bảng tin): chỉ một nút Đóng. Không "Tôi đã đọc"
+         * — người ta đã bị popup chặn màn hình bắt đọc một lần rồi, bắt xác
+         * nhận lần nữa là phiền vô ích. */
+        (TB.chiDoc
+          ? '<button class="btn primary" id="tbThuDong">Đóng</button>'
+          : '<button class="btn primary" id="tbDoc"' + (khoa ? ' disabled' : '') + '>Tôi đã đọc</button>' +
+            (TB.thu ? '<button class="btn ghost" id="tbThuDong">Đóng xem thử</button>' : '')) +
       '</div>' +
     '</div>';
 
@@ -134,6 +141,12 @@ function veTbApp() {
  * thì quản lý chỉ thấy thông báo gửi cho chính mình. Không có nút này thì cách
  * duy nhất để biết nó trông ra sao là gửi thật cho cả phòng.
  */
+/** Mở một tin để ĐỌC LẠI: không băng xem thử, không nút xác nhận, Escape đóng. */
+function xemTinTb(tb) {
+  TB.chiDoc = true;
+  xemThuTb(tb);
+}
+
 function xemThuTb(tb) {
   TB.thu = true;
   TB.daBam = false;
@@ -145,6 +158,7 @@ function xemThuTb(tb) {
 
 function dongXemThu() {
   TB.thu = false;
+  TB.chiDoc = false;
   TB.daBam = false;
   TB.ds = TB.dsCu || [];
   TB.dsCu = null;

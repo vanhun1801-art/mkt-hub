@@ -64,6 +64,12 @@
       <!-- Bộ lọc thời gian dùng chung cho cả trang Tổng quan và Lịch chung -->
       <section class="loc-bar"></section>
 
+      <!-- Video + bảng tin nằm NGOÀI #homeBody: trang Tổng quan vẽ lại theo nhịp
+           số liệu (20 giây/lần) và mỗi lần vẽ là thay sạch #homeBody. Để khối
+           này bên trong thì thẻ <video> bị dựng lại, video quay về giây 0, tải
+           lại từ đầu, và mất luôn trạng thái có tiếng. -->
+      <div id="khoiTin"></div>
+
       <div class="home-body" id="homeBody">
         <div class="loading"><span class="spin"></span> Đang nạp…</div>
       </div>

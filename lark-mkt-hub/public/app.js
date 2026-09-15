@@ -983,6 +983,15 @@ function dongViecHtml(v, tenModule) {
    ============================================================ */
 let TIN = { phim: null, ds: null };
 
+/* Trang đã từng có cú bấm nào chưa.
+ *
+ * Trình duyệt chỉ đòi MỘT cử chỉ cho cả trang, không phải mỗi thẻ video một
+ * lần. Nhớ lại thì những lần vẽ sau (quay về Tổng quan, đổi bộ lọc) video có
+ * tiếng ngay, không bắt bấm lại. */
+let DA_CO_CU_CHI = false;
+['pointerdown', 'keydown', 'touchstart'].forEach((e) =>
+  window.addEventListener(e, () => { DA_CO_CU_CHI = true; }, { capture: true, passive: true }));
+
 async function veKhoiTin() {
   const o = document.getElementById('khoiTin');
   if (!o) return;
@@ -1079,10 +1088,13 @@ async function veKhoiTin() {
 
   /* Bấm một tin là mở đúng popup của tin đó để đọc trọn — kể cả đã đọc rồi.
    * Đây là đường xem lại, nên không ghi lại xác nhận của ai. */
+  /* Bấm một tin là MỞ RA ĐỌC rồi thoát — không phải "xem thử", cũng không có
+   * nút "Tôi đã đọc". Anh Hùng: "mình có bắt buộc họ xem rồi" — popup chặn màn
+   * hình đã làm việc đó, còn đây chỉ là chỗ đọc lại. */
   o.querySelectorAll('[data-tin]').forEach((el) => {
     el.onclick = () => {
       const t = (TIN.ds || []).find((x) => x.recordId === el.dataset.tin);
-      if (t && typeof xemThuTb === 'function') xemThuTb(t);
+      if (t && typeof xemTinTb === 'function') xemTinTb(t);
     };
   });
 }
@@ -1122,6 +1134,12 @@ function ganPhimTin(phim, nut) {
   let muonTieng = true;                       // mặc định CÓ tiếng
   try { if (localStorage.getItem('hub.tinTieng') === '0') muonTieng = false; } catch (_) {}
 
+  /* Nút LUÔN vẽ theo trạng thái THẬT của thẻ video, không vẽ theo ý định.
+   *
+   * Bản trước vẽ ngay sau khi gán `muted = false`, trước khi trình duyệt kịp
+   * từ chối — nên nút hiện 🔊 mà không có tiếng, bấm một cái thì thành 🔇, bấm
+   * cái nữa mới nghe được. Đúng chuỗi anh Hùng mô tả. Nghe thêm `volumechange`
+   * để trình duyệt tự đổi thì nút cũng đổi theo. */
   const veNut = () => {
     if (!nut) return;
     const co = !phim.muted;
@@ -1129,61 +1147,82 @@ function ganPhimTin(phim, nut) {
     nut.title = co ? 'Tắt tiếng' : 'Bật tiếng';
     nut.setAttribute('aria-label', nut.title);
   };
+  phim.addEventListener('volumechange', veNut);
 
   const chay = () => { const p = phim.play(); if (p && p.catch) p.catch(() => {}); };
 
-  /* 1. câm + chạy: lượt tự chạy duy nhất trình duyệt không chặn */
+  /* Mở ra là CÂM rồi chạy — đây là lượt tự chạy duy nhất trình duyệt cho phép. */
   phim.muted = true;
   veNut();
   chay();
 
-  /* 2 + 3. mở tiếng ngay nếu được, không thì chờ cú bấm đầu tiên */
-  const SU_KIEN = ['pointerdown', 'keydown', 'touchstart', 'wheel'];
+  /* Bỏ câm CHỈ KHI ĐÃ CÓ CỬ CHỈ NGƯỜI DÙNG.
+   *
+   * Không thử bỏ câm sớm nữa: gán `muted = false` mà chưa có cử chỉ thì Chrome
+   * DỪNG luôn video (chứ không chỉ từ chối tiếng), và vì `play()` sau đó cũng
+   * bị từ chối nên video nằm im — mở app lên thấy đứng hình, nút thì báo có
+   * tiếng. Chờ đúng một cú bấm bất kỳ trên trang thì vừa chắc vừa nhanh: anh
+   * bấm gì cũng được, không cần bấm đúng cái loa. */
+  const SU_KIEN = ['pointerdown', 'keydown', 'touchstart'];
   const moTieng = () => {
-    if (!muonTieng || !phim.muted) return;
+    SU_KIEN.forEach((e) => window.removeEventListener(e, moTieng, true));
+    if (!muonTieng) return;
     phim.muted = false;
+    chay();
     veNut();
-    const p = phim.play();
-    if (p && p.catch) {
-      p.catch(() => {
-        /* Vẫn bị chặn: lùi về câm và CHẠY TIẾP. Thà không tiếng còn hơn đứng
-         * hình — video đứng là người ta tưởng app hỏng. */
-        phim.muted = true;
-        veNut();
-        chay();
-      });
-    }
-    if (!phim.muted) SU_KIEN.forEach((e) => window.removeEventListener(e, moTieng));
   };
-  moTieng();
-  SU_KIEN.forEach((e) => window.addEventListener(e, moTieng, { passive: true }));
+  /* Trang đã có cử chỉ từ trước (quay về Tổng quan, đổi bộ lọc…) thì mở tiếng
+   * NGAY — bắt bấm lại lần nữa là phiền vô ích. */
+  if (DA_CO_CU_CHI) setTimeout(moTieng, 0);
+  else SU_KIEN.forEach((e) => window.addEventListener(e, moTieng, true));
 
   if (nut) {
     nut.onclick = (e) => {
       e.stopPropagation();
-      muonTieng = phim.muted;                 // đang câm thì bấm là muốn nghe
+      /* Lấy theo Ý ĐỊNH đang lưu, không lấy theo `phim.muted`: hai thứ đó có
+       * thể lệch nhau đúng lúc trình duyệt vừa chặn. */
+      muonTieng = !muonTieng;
       try { localStorage.setItem('hub.tinTieng', muonTieng ? '1' : '0'); } catch (_) {}
       phim.muted = !muonTieng;
-      veNut();
       chay();
+      veNut();
     };
   }
 
+  /* Rời trang Tổng quan (mở một app con) thì CÂM và DỪNG.
+   *
+   * Anh Hùng: "khi người dùng ấn vào tab ứng dụng khác thì tắt âm thanh". Video
+   * lúc đó nằm sau khung app con, không ai thấy — mà tiếng thì vẫn vang lên
+   * giữa lúc người ta đang làm việc khác. Dừng hẳn còn đỡ tốn mạng.
+   *
+   * Quay lại Tổng quan thì chạy tiếp, và giữ nguyên lựa chọn tiếng. */
+  const theoMan = () => {
+    const oTrang = !document.hidden && S.view === 'home' && document.body.contains(phim);
+    if (!oTrang) { if (!phim.paused) phim.pause(); return; }
+    phim.muted = !muonTieng;
+    chay();
+    veNut();
+  };
+  document.addEventListener('visibilitychange', theoMan);
+  /* Chờ một nhịp rồi mới xét: `hashchange` bắn TRƯỚC khi bộ định tuyến kịp đặt
+   * S.view, nên xét ngay thì lúc quay về Tổng quan vẫn thấy view cũ và video
+   * nằm im thêm mấy giây (lưới cuối 5 giây mới vớt lên). */
+  window.addEventListener('hashchange', () => setTimeout(theoMan, 250));
+
   /* Ba đường hỏng thật của video phát qua mạng, mỗi đường một lối gọi lại. */
   phim.addEventListener('ended', () => { phim.currentTime = 0; chay(); });  // phòng khi loop hụt
-  phim.addEventListener('stalled', chay);
-  phim.addEventListener('suspend', () => { if (phim.paused) chay(); });
+  phim.addEventListener('stalled', () => { if (S.view === 'home') chay(); });
   phim.addEventListener('error', () => {
     /* Tải hỏng giữa chừng (mạng chớp, Render ngủ dậy): nạp lại một lần sau 10
-     * giây. Không thử lại ngay — hỏng ngay lần đầu thì thử lại ngay cũng hỏng,
-     * chỉ tổ quay vòng. */
+     * giây. Không thử lại ngay — hỏng ngay lần đầu thì thử lại ngay cũng hỏng. */
     setTimeout(() => { try { phim.load(); chay(); } catch (_) {} }, 10000);
   });
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) chay(); });
-  /* Lưới cuối: 5 giây một nhịp, thấy đứng mà tab đang hiện thì gọi chạy lại. */
-  setInterval(() => { if (!document.hidden && phim.paused) chay(); }, 5000);
+  /* Lưới cuối: 5 giây một nhịp. CHỈ gọi lại khi đang ở trang Tổng quan và tab
+   * đang hiện — nếu không thì nó chính là thứ bật lại video mình vừa dừng. */
+  setInterval(() => {
+    if (!document.hidden && S.view === 'home' && phim.paused) chay();
+  }, 5000);
 }
-
 function veHome() {
   const body = $('#homeBody');
   const tq = S.tq;
@@ -1204,9 +1243,6 @@ function veHome() {
       '<button class="btn nho ghost" data-log="' + esc(m.id) + '">Xem log</button>' +
       '</div>').join('');
   }
-
-  /* --- video giới thiệu + bảng tin, đứng trước mọi con số --- */
-  html += '<div id="khoiTin"></div>';
 
   /* --- từng base một khối: số liệu lên trước --- */
   let khoiBase = '';

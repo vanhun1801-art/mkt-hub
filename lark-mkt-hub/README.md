@@ -489,7 +489,10 @@ còn tệ hơn là không có.
 
 Bảng tin khác popup chặn màn hình ở một điểm: **tin đã đọc vẫn còn**, chỉ nhạt
 đi và mất nhãn "mới". Popup là để *bắt đọc*, bảng tin là để *tra lại* — bấm một
-tin là mở lại đúng popup đó, và không ghi thêm xác nhận của ai.
+tin là mở ra **chỉ để đọc**: không băng "xem thử", không nút "Tôi đã đọc", chỉ
+một nút Đóng. Họ đã bị popup bắt đọc một lần rồi, bắt xác nhận lần nữa là phiền
+vô ích. Đường *Xem thử* của quản lý (từ Cài đặt) vẫn giữ nguyên băng cảnh báo và
+nút xác nhận.
 
 **Một dòng tin là một lưới cố định**, không phải hàng flex co theo nội dung —
 mọi thành phần có chỗ của nó và đọc dọc xuống thì thẳng hàng:
@@ -534,11 +537,25 @@ video không bao giờ tự chạy nữa** — `play()` bị từ chối, video 
 Trình tự bắt buộc (`ganPhimTin`):
 
 1. luôn mở ở trạng thái **câm** rồi `play()` — lượt này luôn được cho phép;
-2. thử **bỏ câm ngay** (máy đã tương tác với trang từ trước thì ăn);
-3. chưa được thì chờ **cú bấm đầu tiên** ở bất kỳ đâu trên trang rồi bỏ câm —
-   một cú bấm là đủ để trình duyệt cho phép;
-4. vẫn bị chặn thì **lùi về câm mà vẫn chạy**: video đứng hình là người ta tưởng
-   app hỏng, mất tiếng thì không.
+2. chờ **cú bấm đầu tiên** ở bất kỳ đâu trên trang rồi mới bỏ câm. Đừng thử bỏ
+   câm sớm: gán `muted = false` khi chưa có cử chỉ thì Chrome **dừng luôn**
+   video, và `play()` sau đó cũng bị từ chối — mở app lên thấy đứng hình mà nút
+   lại báo có tiếng;
+3. trang đã từng được bấm (quay về Tổng quan, đổi bộ lọc) thì mở tiếng **ngay**,
+   không bắt bấm lại — cờ `DA_CO_CU_CHI` nhớ hộ;
+4. nút loa **vẽ theo trạng thái thật** của thẻ video (kể cả nghe `volumechange`),
+   không vẽ theo ý định. Vẽ theo ý định là ra đúng cái bẫy cũ: nút hiện 🔊 mà
+   không có tiếng, bấm một cái thành 🔇, bấm cái nữa mới nghe được.
+
+**Rời trang Tổng quan là câm và dừng** (mở một app con, hoặc chuyển tab trình
+duyệt): video lúc đó nằm sau khung app con, không ai thấy, mà tiếng thì vẫn vang
+lên giữa lúc người ta đang làm việc khác. Quay lại thì chạy tiếp, giữ nguyên
+lựa chọn tiếng.
+
+Khối này nằm **ngoài `#homeBody`**: trang Tổng quan vẽ lại theo nhịp số liệu
+(20 giây/lần) và mỗi lần vẽ là thay sạch `#homeBody`. Để bên trong thì thẻ
+`<video>` bị dựng lại, video quay về giây 0, tải lại từ đầu và mất luôn trạng
+thái có tiếng.
 
 "Chạy liên tục không dừng": `loop` lo phần lặp, còn ba đường hỏng thật của video
 phát qua mạng thì mỗi đường một lối gọi lại — `stalled` (nghẽn luồng), `error`
