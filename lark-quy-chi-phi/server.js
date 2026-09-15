@@ -368,7 +368,6 @@ async function xuLy(req, res) {
       quy: tinhQuy(chi, lan),
       chi, dot, nap: lan,
       options: { loaiChi: cfg.loaiChi, tinhTrang: cfg.tinhTrang, chungTu: cfg.loaiChungTu },
-      larkUrl: cfg.larkUrl,
     });
   }
 

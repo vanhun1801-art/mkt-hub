@@ -18,7 +18,7 @@
 const S = {
   chi: [], dot: [], nap: [], quy: { tongUng: 0, tongChi: 0, conLai: 0, soLanUng: 0 },
   options: { loaiChi: [], tinhTrang: [] },
-  me: null, vai: 'xem', chuQuy: false, larkUrl: '',
+  me: null, vai: 'xem', chuQuy: false,
   /* Mã quyết toán gần nhất, để chị kế toán duyệt cả xâu khoản cùng một mã mà
    * không phải gõ lại mười lần. */
   maCuoi: '',
@@ -127,7 +127,6 @@ async function taiLai(moi) {
   S.me = d.me;
   S.vai = d.vai || (d.chuQuy ? 'chuQuy' : 'xem');
   S.chuQuy = S.vai === 'chuQuy';
-  S.larkUrl = d.larkUrl || '';
   S.chon.clear();
   ve();
 }
@@ -906,8 +905,7 @@ document.addEventListener('click', async (e) => {
   if (xtTai) { e.preventDefault(); return taiTepVe(xtTai.dataset.rec, xtTai.dataset.token, xtTai.dataset.ten); }
 
   if (T.closest('[data-close]') || T.id === 'modal') return dongModal();
-  if (T.closest('#btnTaiLai')) { toast('Đang đọc lại…'); return taiLai(true).then(() => toast('Xong', 'ok')); }
-  if (T.closest('#btnLark')) return window.open(S.larkUrl, '_blank');
+  if (T.closest('#btnRefresh')) { toast('Đang đọc lại…'); return taiLai(true).then(() => toast('Xong', 'ok')); }
   if (T.closest('#btnChiMoi')) return laChuQuy() ? moKhaiChi() : toast('Chỉ người giữ quỹ mới khai khoản chi.', 'err');
   if (T.closest('#btnNap')) return laChuQuy() ? moNapQuy() : toast('Chỉ người giữ quỹ mới ghi tiền ứng.', 'err');
 

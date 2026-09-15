@@ -108,6 +108,11 @@ Kế toán vẫn xem Base được nếu muốn. Ba view dựng sẵn cho họ:
 - `Cần bổ sung chứng từ` — chưa quyết toán, chưa được miễn, và không có mảnh
   giấy nào
 
+App **không còn nút "Base"** — vào thẳng sổ trên Lark thì mở từ Hub, còn trong
+app thì mọi thứ cần đọc đã có sẵn. Nút đọc lại dùng đúng chữ **"Làm mới"**, đúng
+`id="btnRefresh"` và đúng câu tooltip như bảy app còn lại của phòng: một app gọi
+khác đi là người dùng phải học lại một nút vốn đã biết.
+
 Cả ba view sắp theo **ngày thanh toán mới nhất trước**, và mang sẵn những cột kế
 toán cần đọc: thời gian · mã đơn hàng · tên người chi · số tiền · chứng từ · mã
 số thuế NCC.

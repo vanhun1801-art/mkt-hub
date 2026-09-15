@@ -92,6 +92,9 @@ body {
 }
 .btn:hover { background: var(--hover); border-color: var(--primary-border); }
 .btn:active { transform: translateY(1px); }
+/* `.ghost` là nút phụ ở các app khác; ở đây .btn vốn đã là dáng đó. Khai tường
+   minh để lớp này không phải một cái tên treo lơ lửng không làm gì. */
+.btn.ghost { background: var(--surface); }
 .btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
 .btn.primary:hover { background: var(--primary-hover); }
 .btn.sm { padding: 4px 9px; font-size: 12px; }

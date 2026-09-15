@@ -21,8 +21,10 @@
        quyết định nửa số nút trên thanh này, nên phải nói thẳng ra vai là gì. -->
   <span class="chip" id="chipVai">…</span>
   <div class="top-right">
-    <button class="btn" id="btnLark" title="Mở Base trên Lark">Base</button>
-    <button class="btn" id="btnTaiLai" title="Đọc lại từ Base">Tải lại</button>
+    <!-- "Làm mới" chứ không phải "Tải lại": bảy app còn lại của phòng đều dùng
+         đúng chữ đó, đúng id đó, đúng câu tooltip đó. Một app gọi khác đi là
+         người dùng phải học lại một nút vốn đã biết. -->
+    <button class="btn ghost" id="btnRefresh" title="Đọc lại số mới nhất từ Base">Làm mới</button>
     <button class="btn" id="btnNap">Nạp quỹ</button>
     <button class="btn primary" id="btnChiMoi">Khai khoản chi</button>
   </div>
