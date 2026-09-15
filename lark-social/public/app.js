@@ -837,6 +837,27 @@
         + esc(o.name || o.oaId) + '<span class="muted"> · ' + esc(o.oaId) + '</span></span></div>').join('')
       + '</div></div></div>'
 
+      /* --- cảnh báo --- */
+      + '<div class="kn-block"><header><strong>Cảnh báo vào nhóm Lark</strong>'
+      + '<label><input type="checkbox" id="cbOn"' + (c.canhBao.bat ? ' checked' : '')
+      + '> bật</label></header><div class="body">'
+      + '<div class="help" style="margin-bottom:8px">App tự nhắn vào nhóm khi một kênh '
+      + 'ngừng đăng, khi lượt xem tụt hẳn, hoặc khi một nền tảng ngừng về số. '
+      + 'Mỗi việc chỉ nhắc lại sau 7 ngày, nên nhóm không bị dội tin.</div>'
+      + '<div class="kn-row"><label>Nhóm nhận</label>'
+      + '<input id="cbChat" placeholder="oc_…" value="' + esc(c.canhBao.chatId || '') + '">'
+      + '<span class="help">Mở nhóm trên Lark → Cài đặt → sao chép Chat ID. '
+      + 'Nhớ mời bot <b>Marketing Hub</b> vào nhóm, không thì Lark từ chối.</span></div>'
+      + '<div class="kn-row"><label>Im mấy ngày thì báo</label>'
+      + '<input type="number" id="cbIm" min="2" max="30" value="' + (c.canhBao.ngayImLang || 5) + '"></div>'
+      + '<div class="kn-row"><label>Tụt bao nhiêu % thì báo</label>'
+      + '<input type="number" id="cbTut" min="10" max="90" value="' + (c.canhBao.tutPhanTram || 35) + '"></div>'
+      + '<div style="margin-top:8px">'
+      + '<button class="btn ghost small" id="cbXem">Xem thử — không gửi</button> '
+      + '<button class="btn ghost small" id="cbGui">Gửi thử vào nhóm</button></div>'
+      + '<div id="cbHop" style="margin-top:8px"></div>'
+      + '</div></div>'
+
       /* --- lịch --- */
       + '<div class="kn-block"><header><strong>Chạy tự động</strong></header><div class="body">'
       + '<div class="kn-row"><label>Mỗi mấy giờ</label>'
@@ -897,6 +918,35 @@
         };
       } catch (e) { toast(e.message, 'err'); }
     };
+    const cbLuat = () => ({
+      bat: $('#cbOn').checked,
+      chatId: $('#cbChat').value.trim(),
+      ngayImLang: Number($('#cbIm').value) || 5,
+      tutPhanTram: Number($('#cbTut').value) || 35,
+    });
+
+    $('#cbXem').onclick = async () => {
+      try {
+        const r = await goiJSON('/api/canh-bao/thu', { chiXem: true, luat: cbLuat() });
+        $('#cbHop').innerHTML = r.ds.length
+          ? '<div class="note info"><span class="ico">→</span><span>Đang có <b>'
+            + r.ds.length + '</b> việc đáng báo. Nhóm sẽ nhận đúng thế này:'
+            + '<div class="log-box" style="margin-top:6px;white-space:pre-wrap">'
+            + esc(r.tin) + '</div></span></div>'
+          : '<div class="note"><span class="ico">✓</span><span>Không có gì đáng báo lúc này.</span></div>';
+      } catch (e) { toast(e.message, 'err'); }
+    };
+
+    $('#cbGui').onclick = async () => {
+      if (!$('#cbChat').value.trim()) return toast('Điền Chat ID của nhóm đã', 'err');
+      try {
+        const r = await goiJSON('/api/canh-bao/thu', { luat: cbLuat() });
+        if (r.loi) toast('Không gửi được: ' + r.loi, 'err');
+        else if (!r.gui) toast('Không có gì đáng báo — chưa gửi gì cả.');
+        else toast('Đã gửi ' + r.gui + ' mục vào nhóm.');
+      } catch (e) { toast(e.message, 'err'); }
+    };
+
     $('#zaLink').onclick = async () => {
       try {
         const r = await goiJSON('/api/ket-noi/zalo/link', {
@@ -1028,6 +1078,7 @@
             redirectUri: $('#zaRedirect').value.trim(),
           },
         });
+        await goiJSON('/api/ket-noi', { khoi: 'canhBao', giaTri: cbLuat() });
         await goiJSON('/api/ket-noi', {
           khoi: 'dongBo',
           giaTri: { moiSoGio: Number($('#dbGio').value) || 0, soNgayLui: Number($('#dbLui').value) || 7 },

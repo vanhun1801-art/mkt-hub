@@ -65,6 +65,15 @@ const MAC_DINH = {
     layLive: true,       // có kéo phiên LIVE không
     soBaiToiDa: 200,     // trần số bài mỗi kênh mỗi lượt, để không treo cả buổi
   },
+  /* Cảnh báo chủ động — xem canh-bao.js. Mặc định TẮT: một app tự nhắn vào nhóm
+   * cả phòng thì phải do người bật, không phải bật sẵn rồi mới báo. */
+  canhBao: {
+    bat: false,
+    chatId: '',
+    ngayImLang: 5,
+    tutPhanTram: 35,
+    tutToiThieu: 5000,
+  },
 };
 
 /* ---------------- đọc file thô ---------------- */

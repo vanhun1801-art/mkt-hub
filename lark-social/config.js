@@ -43,6 +43,14 @@ module.exports = {
    * ket-noi.json / SOCIAL_CONNECT_JSON như cũ. Xem vault.js để hiểu vì sao cần. */
   vaultKey: process.env.SOCIAL_VAULT_KEY || '',
 
+  /* App đứng tên gửi cảnh báo vào nhóm Lark. Dùng chung khoá với app Chỉnh ảnh
+   * (ANH_TIN_APP_*) vì anh Hùng đã chốt nhóm chỉ thấy một bot "Marketing Hub",
+   * và khoá đó đã khai sẵn trên Render — khai lại một bộ nữa là thêm một chỗ
+   * quên cập nhật khi đổi secret. SOCIAL_TIN_APP_* để đè khi cần tách riêng. */
+  tinAppId: process.env.SOCIAL_TIN_APP_ID || process.env.ANH_TIN_APP_ID || '',
+  tinAppSecret: process.env.SOCIAL_TIN_APP_SECRET || process.env.ANH_TIN_APP_SECRET || '',
+  tinAppTen: process.env.SOCIAL_TIN_APP_TEN || 'Marketing Hub',
+
   cacheTtlMs: Number(process.env.SOCIAL_CACHE_TTL || 60000),
 
   tables: {
@@ -141,6 +149,21 @@ module.exports = {
         url: 'fldg4iX4he',
         source: 'fldXG5H6TJ',
         updated: 'fldNN6cfPe',
+      },
+    },
+    alert: {
+      id: 'tblIBfXZ8OeJ3RXR',
+      name: 'Cảnh báo',
+      f: {
+        key: 'fldyeO0Rgp',        // ⚙️ Khoá chống gửi trùng — primary
+        type: 'fldmIUex8P',       // Loại (select)
+        level: 'fldFqdQjuP',      // Mức (select)
+        platform: 'fldprn60Ee',
+        channel: 'fldJZsPMkV',
+        content: 'fldLXO3nwC',
+        at: 'fld4HJRcWf',         // Phát hiện lúc (datetime)
+        sent: 'fld1dm3Jin',       // Đã gửi (checkbox)
+        sentAt: 'fldSeQoXhl',
       },
     },
     log: {

@@ -16,6 +16,7 @@ const M = require('./metrics');
 const ketnoi = require('./ketnoi');
 const vault = require('./vault');
 const sync = require('./sync');
+const canhBao = require('./canh-bao');
 const facebook = require('./sync/facebook');
 const zalo = require('./sync/zalo');
 const tiktok = require('./sync/tiktok');
@@ -138,6 +139,29 @@ function ghiLog(d) {
   console.log('[dong-bo] ' + d);
 }
 
+/** Cấu hình app đứng tên gửi tin — gom một chỗ để chỉ có một nguồn sự thật. */
+const guiCfg = () => ({
+  appId: cfg.tinAppId, appSecret: cfg.tinAppSecret,
+  apiHost: cfg.apiHost, tenApp: cfg.tinAppTen,
+});
+
+/**
+ * Soát cảnh báo sau một lượt đồng bộ. Nuốt mọi lỗi: đồng bộ đã xong và số đã vào
+ * Base rồi, không được để một cái tin nhắn làm hỏng kết quả đó.
+ */
+async function soatCanhBao(nhan) {
+  try {
+    const c = await ketnoi.doc();
+    const r = await canhBao.chay(c.canhBao, guiCfg());
+    if (r.gui) ghiLog('Cảnh báo: gửi ' + r.gui + ' mục vào nhóm Lark.');
+    else if (r.loi) ghiLog('Cảnh báo: KHÔNG gửi được — ' + r.loi);
+    return r;
+  } catch (e) {
+    console.warn('[' + (nhan || 'cảnh báo') + '] ' + e.message);
+    return { loi: e.message };
+  }
+}
+
 async function chayDongBo(opts) {
   if (TT.dangChay) {
     const e = new Error('Đang có một lượt đồng bộ chạy dở — đợi nó xong đã.');
@@ -148,6 +172,7 @@ async function chayDongBo(opts) {
   try {
     const r = await sync.dongBo({ ...opts, log: ghiLog });
     TT.ketQua = r;
+    await soatCanhBao('sau đồng bộ');
     return r;
   } catch (e) {
     TT.loi = e.message;
@@ -361,7 +386,7 @@ async function api(req, res, u) {
     const loi = chanNeuKhongPhaiQuanLy(req); if (loi) throw loi;
     const b = await readBody(req);
     if (!b.khoi || !b.giaTri) return fail(res, 400, 'Thiếu khối cấu hình');
-    if (!['facebook', 'instagram', 'tiktok', 'zalo', 'dongBo'].includes(b.khoi)) {
+    if (!['facebook', 'instagram', 'tiktok', 'zalo', 'dongBo', 'canhBao'].includes(b.khoi)) {
       return fail(res, 400, 'Khối cấu hình không hợp lệ');
     }
     /* Giá trị "abcd••••wxyz" là bản đã che mà giao diện gửi trả — nghĩa là người
@@ -540,6 +565,23 @@ async function api(req, res, u) {
       openId: tok.openId, name: hs.name || '', handle: hs.handle || '',
       followers: hs.followers || 0, scope: tok.scope, soKenh: chs.length, canhBao,
     });
+  }
+
+  /* Soát thử: KHÔNG lọc trùng, KHÔNG cần cờ bật — để người dùng bấm xem nhóm sẽ
+   * nhận đúng cái gì trước khi bật thật. */
+  if (p === '/api/canh-bao/thu' && method === 'POST') {
+    const loi = chanNeuKhongPhaiQuanLy(req); if (loi) throw loi;
+    const b = await readBody(req);
+    const c = await ketnoi.doc();
+    const luat = { ...c.canhBao, ...(b.luat || {}) };
+    if (b.chiXem) {
+      const d = await store.tai();
+      const ds = canhBao.doTim(d, luat, store.homNay());
+      return ok(res, { ds, tin: ds.length ? canhBao.soanTin(ds, store.homNay()) : '' });
+    }
+    if (!luat.chatId) return fail(res, 400, 'Chưa khai nhóm nhận cảnh báo');
+    const r = await canhBao.chay(luat, guiCfg(), { batBuoc: true });
+    return ok(res, r);
   }
 
   if (p === '/api/ket-noi/zalo/link' && method === 'POST') {
