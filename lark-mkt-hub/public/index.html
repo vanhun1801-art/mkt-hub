@@ -11,6 +11,19 @@
 </head>
 <body>
 
+<!-- Thanh trên cùng CHỈ hiện trên điện thoại (xem @media 640px trong
+     styles.css). Ở đó panel base không còn đứng cạnh nội dung nữa mà trượt ra
+     như ngăn kéo, nên cần một chỗ cố định để mở nó ra và để biết đang đứng ở
+     app nào — khung app con nằm trong iframe, lớp vỏ không mượn được tiêu đề
+     của nó. -->
+<header class="mob-bar">
+  <button class="mob-nut" id="btnMenu" aria-label="Danh sách ứng dụng" aria-expanded="false">
+    <span class="mob-gach"></span>
+  </button>
+  <b class="mob-ten" id="mobTen">Tổng quan chung</b>
+</header>
+<div class="rail-nen" id="railNen" hidden></div>
+
 <div class="app" id="app">
 
   <!-- ============ PANEL BASE (đỏ) ============ -->

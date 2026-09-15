@@ -779,11 +779,18 @@ code { background: var(--trang-2); border: 1px solid var(--vien-mem); border-rad
 .toast.luc { background: var(--chip-luc-chu); }
 @keyframes len { from { transform: translateY(8px); opacity: 0; } }
 
-/* hẹp: panel thu về icon */
-@media (max-width: 900px) {
+/* Máy tính bảng: panel thu về dải icon, vẫn đứng cạnh nội dung.
+   Chặn dưới ở 641px — từ 640px trở xuống panel thành ngăn kéo (khối
+   "ĐIỆN THOẠI" ở cuối tệp) và phải hiện ĐỦ chữ, nên hai luật này không được
+   với xuống đó. */
+@media (min-width: 641px) and (max-width: 900px) {
   .rail { width: var(--rail-w-min); flex-basis: var(--rail-w-min); }
   .rail .logo-text, .rail .ri-tx, .rail .rail-group { display: none; }
   .rail .rail-item { justify-content: center; }
+}
+
+/* hẹp: nội dung một cột, lề mỏng lại */
+@media (max-width: 900px) {
   .luoi-base { grid-template-columns: 1fr; }
   .home-body, .loc-bar, .page-head, #khoiTin { padding-left: 14px; padding-right: 14px; }
   :root { --le: 14px; }
@@ -1745,3 +1752,87 @@ body.bb-chan { overflow: hidden; }
 .cd-in:focus { outline: none; border-color: var(--xanh); }
 .cd-in-nho { width: auto; min-width: 84px; }
 input.cd-in-nho { width: 72px; }
+
+/* ==========================================================================
+   ĐIỆN THOẠI (≤ 640px)
+
+   Trên màn 390px, panel base dạng dải icon vẫn ăn 68px — 17% bề ngang, mà
+   icon không tên thì chẳng ai đoán được base nào. Nên ở đây panel rời khỏi
+   dòng chảy: nó là NGĂN KÉO trượt từ trái, mở bằng nút ☰ trên thanh trên
+   cùng, và khi đóng thì nội dung được trọn màn hình.
+
+   Ngăn kéo hiện ĐỦ chữ (không phải dải icon): đã phải bấm một cú để mở thì
+   nó cần trả lời được ngay "vào base nào", chứ không bắt đoán icon.
+   ========================================================================== */
+.mob-bar { display: none; }
+.rail-nen { display: none; }
+
+@media (max-width: 640px) {
+  /* Thanh trên cùng nằm NGOÀI .app, nên body thành cột và .app nhận phần còn
+     lại. Không dùng calc(100vh - 52px): thanh địa chỉ của trình duyệt di động
+     co giãn nên 100vh không phải chiều cao thật. */
+  body { display: flex; flex-direction: column; }
+  .app { height: auto; flex: 1; min-height: 0; }
+
+  .mob-bar {
+    display: flex; align-items: center; gap: 10px;
+    flex: 0 0 auto; min-height: 52px; padding: 8px 12px;
+    background: var(--rail-nen); color: var(--rail-chu);
+    border-bottom: 1px solid var(--rail-vien);
+  }
+  .mob-nut {
+    width: 40px; height: 40px; flex: 0 0 auto;   /* 40px: cỡ tối thiểu cho ngón tay */
+    display: grid; place-items: center;
+    border: 1px solid var(--rail-vien); border-radius: 10px;
+    background: var(--rail-o); color: inherit; cursor: pointer;
+  }
+  .mob-nut:active { background: var(--rail-hover); }
+  /* Ba gạch vẽ bằng border, không dùng ký tự ☰: ký tự đó rơi vào font dự phòng
+     trên nhiều máy Android và ra cỡ chữ lung tung. */
+  .mob-gach, .mob-gach::before, .mob-gach::after {
+    display: block; width: 17px; height: 2px; border-radius: 2px;
+    background: currentColor; content: '';
+  }
+  .mob-gach { position: relative; }
+  .mob-gach::before { position: absolute; top: -6px; }
+  .mob-gach::after { position: absolute; top: 6px; }
+
+  .mob-ten {
+    font-size: 15px; font-weight: 650; min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* ---- panel base = ngăn kéo ---- */
+  /* Kể cả khi người dùng đã ghim panel ở dạng thu gọn (.min) trên máy tính:
+     lựa chọn đó không có nghĩa gì với ngăn kéo. */
+  .rail, .rail.min {
+    position: fixed; top: 0; bottom: 0; left: 0; z-index: 40;
+    width: min(84vw, 300px); flex-basis: auto;
+    transform: translateX(-100%);
+    transition: transform .2s ease;
+    box-shadow: var(--bong-cao);
+  }
+  body.rail-mo .rail { transform: none; }
+  .rail .logo-text { display: flex; }
+  .rail .ri-tx { display: flex; }
+  .rail .rail-group { display: block; }
+  .rail .rail-item, .rail.min .rail-item {
+    justify-content: flex-start; padding: 11px 10px;
+  }
+  .rail-pin { display: none; }            /* thu gọn/mở rộng vô nghĩa ở đây */
+
+  .rail-nen { display: block; position: fixed; inset: 0; z-index: 39; background: rgba(10, 16, 32, .45); }
+
+  /* ---- chạm cho ra chạm ---- */
+  .btn { min-height: 40px; padding: 8px 12px; }
+  .btn.nho { min-height: 36px; padding: 7px 10px; }
+  .seg button { padding: 9px 12px; }
+  /* Thanh trên cùng đã nói đang ở màn nào rồi — in lại y hệt ngay bên dưới
+     chỉ tổ ăn mất một dòng của màn hình vốn đã hẹp. Dòng phụ (số base, số việc
+     chờ) thì giữ, nó mang tin chứ không phải nhãn. */
+  .page-head h1 { display: none; }
+  .page-head .sub { margin: 0; }
+  .page-head { flex-wrap: wrap; row-gap: 8px; padding-top: 12px; padding-bottom: 10px; }
+  .head-actions { margin-left: 0; width: 100%; }
+  .head-actions #homeUser { margin-right: auto; }
+}

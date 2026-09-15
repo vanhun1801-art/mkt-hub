@@ -688,6 +688,27 @@ function khungCuaModule(mod, rec, mo) {
   return o;
 }
 
+/* ============================================================
+ * NGĂN KÉO PANEL BASE — chỉ có tác dụng trên điện thoại
+ *
+ * Dưới 640px panel base rời khỏi dòng chảy (xem @media trong styles.css) và
+ * trượt ra khi body có lớp `rail-mo`. Trên máy tính panel luôn đứng đó nên
+ * lớp này thừa nhưng vô hại — không cần đo bề rộng ở đây, cứ để CSS quyết.
+ * ============================================================ */
+function moNganKeo(mo) {
+  document.body.classList.toggle('rail-mo', mo);
+  const nen = $('#railNen');
+  if (nen) nen.hidden = !mo;
+  const nut = $('#btnMenu');
+  if (nut) nut.setAttribute('aria-expanded', mo ? 'true' : 'false');
+}
+
+/** Tên app đang mở, cho thanh trên cùng của điện thoại. */
+function datTenMan(ten) {
+  const o = $('#mobTen');
+  if (o) o.textContent = ten;
+}
+
 function moModule(id, rec, mo) {
   const mod = S.modules.find((m) => m.id === id);
   if (!mod) { location.hash = '#/tong-quan'; return; }
@@ -711,6 +732,7 @@ function moModule(id, rec, mo) {
   S.frames.forEach((x, k) => { x.wrap.hidden = k !== id; });
   o.wrap.hidden = false;
   document.title = mod.ten + ' · Marketing Hub';
+  datTenMan(mod.ten);
   veRail();
 }
 
@@ -719,6 +741,7 @@ function moHome() {
   $('#pageHome').hidden = false;
   S.frames.forEach((x) => { x.wrap.hidden = true; });
   document.title = 'Marketing Hub · Rooty Trip';
+  datTenMan('Tổng quan chung');
   veRail();
   veThanhLoc();
   napTongQuan();
@@ -2105,10 +2128,19 @@ $('#btnPin').onclick = () => {
   $('#btnPin').textContent = r.classList.contains('min') ? '›' : '‹';
   try { localStorage.setItem('hub.rail.min', r.classList.contains('min') ? '1' : '0'); } catch (_) {}
 };
-$('#btnAdd').onclick = modalThem;
+/* Mở/đóng ngăn kéo. Đóng lại ngay khi đã chọn xong một base — hashchange bắt
+ * cả lối bấm vào panel lẫn lối bấm nút Lùi của trình duyệt. */
+$('#btnMenu').onclick = () => moNganKeo(!document.body.classList.contains('rail-mo'));
+$('#railNen').onclick = () => moNganKeo(false);
+window.addEventListener('hashchange', () => moNganKeo(false));
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && document.body.classList.contains('rail-mo')) moNganKeo(false);
+});
+
+$('#btnAdd').onclick = () => { moNganKeo(false); modalThem(); };
 /* Gọi qua hàm bọc, không gán thẳng: bản Cài đặt mới nằm ở caidat.js (nạp sau file
  * này) và ghi đè modalCaiDat — gán thẳng là giữ mãi bản cũ đã bắt được lúc nạp. */
-$('#btnSettings').onclick = () => modalCaiDat();
+$('#btnSettings').onclick = () => { moNganKeo(false); modalCaiDat(); };
 /**
  * MỘT nút Làm mới cho cả ứng dụng.
  *
