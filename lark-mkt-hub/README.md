@@ -838,6 +838,26 @@ gửi — không có lý gì chặn họ bằng câu họ vừa viết.
   `test/tb-app.test.js` canh luôn cả chuyện đó. Tiền tố class cũng vậy: `tb-*`
   đã thuộc về bảng chuông thông báo, lớp phủ này dùng `bb-*`.
 
+## Thẻ base trên trang Tổng quan — tách bằng khoảng trắng, không kẻ ô
+
+Anh Hùng (15/09/2026): *"phần bên dưới, nói thật đến hiện tại anh vẫn chưa thể
+hài lòng được, anh muốn đẹp hơn"*. Ba thứ đổi, và chúng đi cùng nhau:
+
+- **Bỏ kẻ ô.** Bản trước vẽ đường kẻ bằng một vòng 1px quanh từng ô. Hàng cuối
+  thiếu ô thì vòng của mấy ô xung quanh quây lấy chỗ trống thành một **hộp rỗng
+  có viền** — nhìn như thẻ dựng dở (thấy rõ ở Lịch tác nghiệp và Chỉnh ảnh). Giờ
+  tách bằng khoảng trắng: chỗ trống thì trống hẳn.
+- **Nền màu chỉ dành cho ô cần chú ý.** Trước đây ô nào cũng có khung nên màu
+  chìm đi; giờ mọi ô trong suốt, liếc một cái là thấy chỗ đang có chuyện.
+- **Thẻ cùng hàng cao bằng nhau** (`align-items: stretch`) để mép dưới thành một
+  đường thẳng, và dòng *"Không có…"* bị đẩy xuống đáy (`margin-top: auto`) làm
+  chân thẻ. **Phải đi cùng nhau** — chỉ lấy vế đầu thì thẻ ngắn hở một mảng
+  trắng rỗng, đúng cái xấu mà bản cũ tránh.
+
+Ô chính to hơn (30px) và có đường kẻ chân, nên "base này đang thế nào" đọc được
+trước khi mắt chạm tới mấy con số phụ. `test/phan-cap-o.test.js` chốt cả ba luật
+mới này; luật cũ vẫn còn trong lịch sử git kèm lý do vì sao đổi.
+
 ## Thẻ chỉ số cho base mới
 
 Thêm một hàm trong `kpi.js` rồi khai tên hàm vào `kpi` của module:

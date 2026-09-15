@@ -403,7 +403,12 @@ button { font: inherit; }
    chỉ thấy khoảng trống, giờ thẻ có nền thì nó thành một mảng trắng rỗng to. */
 .luoi-base {
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px; align-items: start;
+  gap: 16px;
+  /* `stretch` chứ không `start`: thẻ trong cùng một hàng cao bằng nhau nên mép
+     dưới thành một đường thẳng. Để `start` thì mỗi thẻ một chiều cao và cả hàng
+     trông như xếp dở — đúng cảm giác "chưa đẹp" của trang này. Chỗ thừa bên
+     trong thẻ ngắn được dòng "Không có" đẩy xuống đáy, nên không lộ ra. */
+  align-items: stretch;
 }
 /* Đo ra chứ không chọn bừa: đầu thẻ cần ~330px để tiêu đề nằm một dòng cạnh hai
    nút. Ở 1150px với 3 cột thì mỗi thẻ chỉ ~305px và tiêu đề vỡ thành ba dòng
@@ -427,7 +432,12 @@ button { font: inherit; }
   display: flex; flex-direction: column;
   background: var(--trang); border: 1px solid var(--vien);
   border-radius: var(--r); box-shadow: var(--bong); overflow: hidden;
+  transition: box-shadow .15s, border-color .15s;
 }
+/* Nhấc nhẹ khi rê chuột — thẻ nào cũng bấm được (mở app, mở ô số), nên nó phải
+   có phản hồi. Chỉ đổi bóng và viền, không dịch chuyển: sáu thẻ nhảy lên nhảy
+   xuống khi lướt chuột qua là rối mắt. */
+.nhom-base:hover { box-shadow: var(--bong-cao); border-color: var(--vien-dam); }
 .nhom-base > .khoi-head { border-bottom: 1px solid var(--vien); padding: 10px 13px; }
 /* Số cột CỐ ĐỊNH, không `auto-fit`: auto-fit làm hàng cuối thiếu ô thì mấy ô
    còn lại giãn ra chiếm chỗ, nên cùng một base mà ô hàng trên nhỏ, ô hàng dưới
@@ -457,12 +467,17 @@ button { font: inherit; }
    chỉ cần panel bên trái rộng thêm chút là rơi xuống 1 cột. Ghim rồi thì không
    rơi được nữa. */
 .nhom-base > .the-luoi {
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  grid-auto-rows: 1fr;
-  /* Đường kẻ giữa các ô vẽ bằng VÒNG 1px trên từng ô (xem .the), không phải bằng
-     nền của lưới. Dùng nền lưới thì ô nào không có nội dung vẫn để lộ cả ô màu
-     xám — đã thấy đúng vậy ở thẻ "Bảng công việc", cạnh ô "Quá hạn". */
-  gap: 1px; background: transparent; margin: 0;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  grid-auto-rows: auto;
+  /* KHÔNG kẻ ô nữa.
+     Bản trước vẽ đường kẻ bằng một vòng 1px quanh từng ô. Ô nào có số thì ổn,
+     nhưng hàng cuối thiếu ô thì vòng của mấy ô xung quanh quây lấy chỗ trống,
+     thành ra một cái hộp rỗng có viền — nhìn như thẻ dựng dở. Thấy rõ ở Lịch
+     tác nghiệp (hai hộp rỗng cạnh "Chi phí dự kiến") và Chỉnh ảnh.
+     Giờ phân tách bằng KHOẢNG TRẮNG: chỗ trống thì trống hẳn, và ô nào cần chú
+     ý mới có nền màu — nền màu vì thế mới còn nghĩa. */
+  gap: 12px 14px; background: transparent; margin: 0;
+  padding: 12px 14px;
 }
 @media (max-width: 1340px) {
   .nhom-base > .the-luoi { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -476,15 +491,16 @@ button { font: inherit; }
    đầu tiên mắt chạm tới, và để con số dài (tiền tỷ) không bị bó lại. */
 .nhom-base > .the-luoi > .the.chinh { grid-column: 1 / -1; }
 .the.chinh {
-  padding: 11px 13px 12px;
+  padding: 0 0 12px;
+  border-bottom: 1px solid var(--vien-mem);
   /* Xếp ngang: nhãn chiếm cả hàng trên, số bên trái, dòng so sánh dồn sang phải.
      Không xếp thì lúc thiếu dòng so sánh nửa bên phải trống trơn. */
   display: grid; grid-template-columns: auto 1fr; column-gap: 14px;
   align-items: end;
 }
 .the.chinh .nhan { font-size: 10px; grid-column: 1 / -1; }
-.the.chinh .so { font-size: 26px; margin-top: 2px; grid-column: 1; }
-.the.chinh .so.dai { font-size: 22px; }
+.the.chinh .so { font-size: 30px; margin-top: 3px; grid-column: 1; line-height: 1.1; }
+.the.chinh .so.dai { font-size: 25px; }
 .the.chinh .ben-phai {
   grid-column: 2; justify-self: end; text-align: right;
   display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
@@ -493,18 +509,26 @@ button { font: inherit; }
 .the.chinh .ben-phai .lech, .the.chinh .ben-phai .ghi { margin-top: 0; }
 
 /* Tầng 3 — ô phụ: vẫn đọc rõ, nhưng nhường chỗ cho hai tầng trên. */
-.the.phu { padding: 8px 12px 9px; }
 .the.phu .so { font-size: 16px; }
 .the.phu .so.dai { font-size: 14px; }
+/* Ô CẦN CHÚ Ý là ô DUY NHẤT có nền. Mọi ô khác trong suốt, nên chỉ cần liếc là
+   thấy chỗ nào đang có chuyện — trước đây ô nào cũng có khung nên màu chìm đi. */
+.the.cao, .the.vua {
+  padding: 8px 10px; margin: -8px -10px;
+  border-radius: 10px;
+}
+.the.cao { background: var(--do-nhat); }
+.the.vua { background: var(--vang-nhat); }
 
 /* Tầng 4 — những ô bằng 0 gộp lại thành MỘT dòng chữ.
    Bảy ô trống trải khắp năm thẻ, mỗi ô chiếm đúng bằng ô có số thật — đó là phần
    lớn cảm giác rối. Ở đây vẫn bấm được từng cái, chỉ là không giành sự chú ý. */
 .the-khong {
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
-  /* Nằm TRONG thẻ nên có đệm của thẻ và một đường kẻ trên, thay vì lơ lửng dưới
-     đáy như khi các ô còn là thẻ rời. */
-  padding: 7px 13px 8px; font-size: 11.5px; color: var(--chu-nhat);
+  /* `margin-top: auto` đẩy dòng này xuống ĐÁY thẻ. Nhờ vậy thẻ ngắn trong một
+     hàng thẻ cao bằng nhau vẫn có chân, không hở một mảng trắng giữa chừng. */
+  margin-top: auto;
+  padding: 8px 14px 10px; font-size: 11.5px; color: var(--chu-nhat);
   border-top: 1px solid var(--vien-mem);
 }
 .the-khong .tkn-nhan { font-weight: 650; opacity: .75; }
@@ -558,12 +582,8 @@ button { font: inherit; }
    không cần hộp cao 95px — đo trên ảnh thật, ô "Việc đang mở 13" là 490×95 cho
    hai chữ số. */
 .the {
-  background: var(--trang); border: 0; border-radius: 0;
-  padding: 9px 12px 10px;
-  /* Vòng 1px lấp đúng khe 1px của lưới: hai ô cạnh nhau cho ra MỘT đường liền,
-     ô trống thì không có vòng nên vẫn trắng. Vòng ở rìa ngoài bị overflow:hidden
-     của thẻ cắt đi nên không đè lên viền thẻ. */
-  box-shadow: 0 0 0 1px var(--vien-mem);
+  background: transparent; border: 0; border-radius: 10px;
+  padding: 0;
   display: flex; flex-direction: column;
 }
 .the .nhan {

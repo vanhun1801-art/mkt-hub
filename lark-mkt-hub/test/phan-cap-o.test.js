@@ -177,21 +177,36 @@ console.log('— hình khối: nhóm LÀ thẻ, ô LÀ ô bảng (không thẻ n
   /* Và ô thì KHÔNG còn là thẻ — đó là cách giải lo ngại "thẻ trong thẻ". */
   const the = khoi('.the');
   t('ô KHÔNG có viền riêng', /border:\s*0/.test(the), the.slice(0, 120));
-  t('ô KHÔNG bo góc riêng', /border-radius:\s*0/.test(the));
-  t('ô KHÔNG dùng bóng thẻ (chỉ có vòng kẻ 1px)',
-    !/box-shadow:\s*var\(--bong\)/.test(the) && /box-shadow:\s*0 0 0 1px/.test(the), the);
+  t('ô KHÔNG dùng bóng thẻ', !/box-shadow/.test(the), the);
 
-  /* Đường kẻ vẽ bằng vòng trên TỪNG ô, không bằng nền của lưới: dùng nền lưới thì
-   * ô nào không có nội dung vẫn để lộ cả ô màu xám. */
+  /* ĐỔI LUẬT ngày 15/09/2026 — anh Hùng: "phần bên dưới, nói thật đến hiện tại
+   * anh vẫn chưa thể hài lòng được, anh muốn đẹp hơn".
+   *
+   * Luật cũ: kẻ ô bằng một vòng 1px quanh từng ô, lưới để khe 1px cho vòng lấp
+   * vào. Nó gom được các ô, nhưng hàng cuối thiếu ô thì vòng của mấy ô xung
+   * quanh quây lấy chỗ trống thành một HỘP RỖNG CÓ VIỀN — nhìn như thẻ dựng dở.
+   * Thấy rõ ở Lịch tác nghiệp (hai hộp rỗng cạnh "Chi phí dự kiến") và Chỉnh ảnh.
+   *
+   * Luật mới: phân tách bằng KHOẢNG TRẮNG. Chỗ trống thì trống hẳn, và nền màu
+   * để dành riêng cho ô cần chú ý — nhờ thế nền màu mới còn nghĩa. */
   const luoi = khoi('.nhom-base > .the-luoi');
-  t('lưới ô để khe 1px cho vòng kẻ lấp vào', /gap:\s*1px/.test(luoi), luoi.slice(0, 120));
+  t('lưới ô tách nhau bằng khoảng trắng, không phải khe 1px kẻ vòng',
+    /gap:\s*1[0-9]px/.test(luoi) && !/gap:\s*1px/.test(luoi), luoi.slice(0, 160));
   t('lưới ô KHÔNG lấy nền viền (kẻo ô trống thành mảng xám)',
     /background:\s*transparent/.test(luoi), luoi);
+  t('chỉ ô CẦN CHÚ Ý mới có nền màu',
+    /\.the\.cao\s*\{[^}]*background:\s*var\(--do-nhat\)/.test(css) &&
+    /\.the\.vua\s*\{[^}]*background:\s*var\(--vang-nhat\)/.test(css));
 
-  /* Thẻ chỉ cao bằng nội dung. Thiếu dòng này thì thẻ ngắn bị kéo cao bằng thẻ cao
-   * nhất trong hàng, và từ khi thẻ có nền thì nó thành mảng trắng rỗng to. */
-  t('.luoi-base để thẻ cao theo nội dung',
-    /align-items:\s*start/.test(khoi('.luoi-base')), khoi('.luoi-base'));
+  /* ĐỔI LUẬT cùng đợt. Cũ: thẻ cao theo nội dung, vì lúc đó thẻ ngắn bị kéo cao
+   * sẽ hở một mảng trắng rỗng. Mới: thẻ trong cùng hàng cao bằng nhau cho mép
+   * dưới thành một đường thẳng, còn mảng hở thì đã có dòng "Không có" đẩy xuống
+   * đáy (margin-top: auto) làm chân thẻ. Hai điều này phải đi CÙNG NHAU — bỏ
+   * một trong hai là quay lại đúng cái xấu của bản cũ. */
+  t('.luoi-base cho thẻ cùng hàng cao bằng nhau',
+    /align-items:\s*stretch/.test(khoi('.luoi-base')), khoi('.luoi-base'));
+  t('dòng "Không có" bị đẩy xuống đáy thẻ',
+    /margin-top:\s*auto/.test(khoi('.the-khong')), khoi('.the-khong'));
 
   /* Ba cột chỉ khi đủ rộng: ở 1150px mỗi thẻ ~305px và tiêu đề vỡ thành ba dòng. */
   t('3 cột chỉ dùng từ ~1400px trở lên', /max-width:\s*1400px\)\s*\{\s*\.luoi-base/.test(css));
