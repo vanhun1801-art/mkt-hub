@@ -145,8 +145,16 @@ function veCdNav() {
   ganCdTim();
 }
 
-const cdTieuDe = (ten, mo) =>
-  '<div class="cd-dau"><h3>' + esc(ten) + '</h3>' + (mo ? '<p>' + esc(mo) + '</p>' : '') + '</div>';
+/* Chỉ còn cái tên.
+ *
+ * Anh Hùng: "các cái note nhỏ nhỏ trong cài đặt anh thấy không cần nữa". Mỗi
+ * mục trước đây có một câu giải thích dưới tiêu đề; đọc lần đầu thì hiểu ra,
+ * đọc lần thứ hai mươi thì chỉ là chữ chắn đường tới cái nút.
+ *
+ * Bỏ chữ GIẢI THÍCH, KHÔNG bỏ chữ báo tình trạng: cảnh báo đỏ/vàng, câu lỗi,
+ * dòng trạng thái của từng base đều giữ nguyên — chúng chỉ hiện khi có chuyện,
+ * và lúc có chuyện mà không có chúng thì mù. */
+const cdTieuDe = (ten) => '<div class="cd-dau"><h3>' + esc(ten) + '</h3></div>';
 
 /** Một hàng cài đặt: chữ bên trái, thứ điều khiển bên phải. */
 const cdHang = (ten, mo, dieuKhien) =>
@@ -281,12 +289,9 @@ async function luuCdQl(a) {
  * biết app nào đang đóng bản nào lên tệp gửi Sếp.
  */
 function veCdThuongHieu(el) {
-  el.innerHTML = cdTieuDe('Nhận diện thương hiệu',
-    'Logo này được nhúng thẳng vào mọi tệp báo cáo các app xuất ra, nên tệp gửi đi đâu cũng thấy.') +
+  el.innerHTML = cdTieuDe('Nhận diện thương hiệu') +
     '<div id="cdLogo" class="cd-hang"><div class="cd-hang-tx"><b>Đang đọc…</b></div></div>' +
-    cdHang('Định dạng nhận vào',
-      'PNG · JPG · SVG · WEBP, tối đa 2 MB. Nên dùng bản nền trong suốt (PNG hoặc SVG) ' +
-      'vì báo cáo in ra nền trắng. Chỉ giữ MỘT tệp — tải bản mới là bản cũ bị thay.',
+    cdHang('Định dạng nhận vào','',
       '<span class="cd-nhan">≤ 2 MB</span>');
   napCdLogo();
 }
@@ -300,7 +305,7 @@ function napCdLogo() {
       : '<div class="cd-logo-xem trong">chưa có logo</div>';
     const mo = t.co
       ? esc(t.ten) + ' · ' + t.kb + ' KB · tải lên ' + new Date(t.luc).toLocaleString('vi-VN')
-      : 'Chưa có tệp nào. Báo cáo đang in tạm bằng chữ theo màu thương hiệu.';
+      : 'Chưa có tệp nào.';
     o.outerHTML = '<div id="cdLogo" class="cd-hang"><div class="cd-hang-tx">' +
       '<b>Logo hiện dùng</b><p>' + mo + '</p>' + xem + '</div>' +
       '<div class="cd-hang-dk"><div class="cd-doc">' +
@@ -347,10 +352,9 @@ function veCdToi(el) {
     '<button data-theme-set="' + val + '" class="' + (S.theme === val ? 'on' : '') + '" title="' + t + '">' +
     icon(val) + '</button>').join('') + '</div>';
 
-  el.innerHTML = cdTieuDe('Của tôi',
-    'Ba thứ dưới đây nhớ riêng trong máy bạn — đổi xong người khác không bị ảnh hưởng.') +
-    cdHang('Ngôn ngữ', 'Áp cho lớp vỏ và cả các app con.', segNgonNgu) +
-    cdHang('Sáng / tối', 'Theo hệ thống là ăn theo cài đặt của máy.', segTheme) +
+  el.innerHTML = cdTieuDe('Của tôi') +
+    cdHang('Ngôn ngữ','', segNgonNgu) +
+    cdHang('Sáng / tối','', segTheme) +
     '<div id="cdToiTk" class="cd-hang"><div class="cd-hang-tx"><b>Đang đọc…</b></div></div>';
 
   goi('/api/toi').then((t) => {
@@ -370,11 +374,8 @@ function veCdToi(el) {
  * trường trên Render; nói ra để đối chiếu khi có sự cố.
  */
 function veCdHeThong(el) {
-  el.innerHTML = cdTieuDe('Hệ thống',
-    'Thông tin phiên đang chạy. Đặt bằng biến môi trường, không sửa ở đây.') +
-    cdHang('Địa chỉ công khai',
-      'Chỉ lớp vỏ này ra internet. Các app con chạy trên cổng nội bộ trong cùng máy chủ, ' +
-      'chỉ lớp vỏ gọi được — nên cả hệ chỉ có MỘT link và MỘT lần đăng nhập.',
+  el.innerHTML = cdTieuDe('Hệ thống') +
+    cdHang('Địa chỉ công khai','',
       '<code>' + esc(location.origin) + '</code>') +
     '<div id="cdHtApp" class="cd-hang"><div class="cd-hang-tx"><b>Đang đọc…</b></div></div>' +
     '<div id="cdBanChay"></div>';
@@ -384,17 +385,12 @@ function veCdHeThong(el) {
     if (!o) return;
     const nut = (val) => '<button class="btn nho" data-copy-id="' + esc(val) + '">Copy</button>';
     if (t.che_do !== 'api') {
-      o.outerHTML = cdHang('Chế độ chạy',
-        'Đang dùng phiên <code>lark-cli</code> của máy này. Không qua app Lark, nên phạm vi ' +
-        'khả dụng (Availability) không ảnh hưởng gì ở đây.',
+      o.outerHTML = cdHang('Chế độ chạy','',
         '<span class="cd-nhan">cli · máy cá nhân</span>');
       return;
     }
     o.outerHTML = cdHang('App Lark đang chạy',
-      (t.app_id
-        ? '<code>' + esc(t.app_id) + '</code> — so với app anh phát hành bên Developer Console. ' +
-          'Khác nhau thì mọi thay đổi Availability không có tác dụng.'
-        : 'Chưa khai LARK_APP_ID.'),
+      (t.app_id ? '<code>' + esc(t.app_id) + '</code>' : 'Chưa khai LARK_APP_ID.'),
       (t.app_id
         ? '<div class="cd-doc"><a class="btn nho ghost" target="_blank" rel="noreferrer" ' +
           'href="https://open.larksuite.com/app/' + esc(t.app_id) + '/version/create">Trang phát hành</a>' +
@@ -422,12 +418,10 @@ function veCdHeThong(el) {
  * TRONG trang (hai khối, hai lời giải thích), chỉ bỏ chuyện phải đoán.
  */
 function veCdQuyen(el) {
-  el.innerHTML = cdTieuDe('Phân quyền',
-    'Ai mở được app là do Lark quyết (Availability). Ai thấy base nào và ai duyệt được thì quyết ở đây.') +
+  el.innerHTML = cdTieuDe('Phân quyền') +
     '<div class="cd-muc-nho">Thấy base nào · quyền từng người</div>' +
     '<div id="cdQuyenTom" class="cd-hang"><div class="cd-hang-tx"><b>Đang đọc bảng phân quyền…</b></div></div>' +
-    cdHang('Mở màn quản lý',
-      'Danh sách từng người: vị trí, vai, base được xem, và app có nhận ra họ chưa.',
+    cdHang('Mở màn quản lý','',
       '<button class="btn primary" id="cdMoQuyen">Mở phân quyền</button>') +
     '<div class="cd-muc-nho">Ai là quản lý bên trong từng app</div>' +
     QL_APP.map((a) => '<div id="cdQl-' + esc(a.id) + '">' +
@@ -465,18 +459,14 @@ function veCdQuyen(el) {
  * Quảng cáo, Kết nối của Social, Cấu hình thông báo của Lịch.
  */
 function veCdApp(el, a) {
-  el.innerHTML = cdTieuDe(a.ten, 'Thiết lập riêng của app này.') +
+  el.innerHTML = cdTieuDe(a.ten) +
     (a.cuaSo ? '<div id="cdCuaSo"><div class="cd-hang"><div class="cd-hang-tx">' +
       '<b>Đang đọc khung giờ đăng ký…</b></div></div></div>' : '') +
     (a.phanPhoi
-      ? cdHang('Phân phối việc mới',
-        'Việc mới không ai nhận sau một khoảng chờ thì hệ tự giao, theo loại việc và tỷ lệ ' +
-        'của từng nhân sự. Bật/tắt từng loại, đặt mốc chờ, đặt tỷ lệ.',
+      ? cdHang('Phân phối việc mới','',
         '<button class="btn nho chinh" id="cdMoPhanPhoi">Mở</button>')
       : '') +
-    cdHang('Quản lý của app này',
-      'Ai duyệt được bên trong app — sửa ở mục <b>Phân quyền</b>, để mọi câu hỏi ' +
-      '"ai được làm gì" nằm chung một chỗ.',
+    cdHang('Quản lý của app này','',
       '<button class="btn nho" data-cd="quyen">Mở Phân quyền</button>');
 
   if (a.cuaSo) napCdCuaSo(a);
@@ -503,8 +493,7 @@ let TBQL = null;      // dữ liệu đang hiện
 let TBSUA = null;     // thông báo đang soạn / sửa
 
 function veCdThongBao(el) {
-  el.innerHTML = cdTieuDe('Thông báo tới nhân sự',
-    'Popup che toàn bộ app, người nhận buộc bấm "Tôi đã đọc" mới dùng tiếp được.') +
+  el.innerHTML = cdTieuDe('Thông báo tới nhân sự') +
     '<div id="tbqlNoi"><div class="cd-hang"><div class="cd-hang-tx"><b>Đang đọc…</b></div></div></div>';
   napCdTb();
 }
@@ -709,8 +698,7 @@ function moAiDaXem(tb) {
     '<div class="bb-ai-noi">' +
       '<div class="q-ghi-nho">Gửi cho <b>' +
         (tb.moiAi ? 'cả phòng — tính theo danh bạ ' + db.length + ' người' : nhan.length + ' người') +
-        '</b>. ' +
-        (tb.moiAi ? 'Người mới vào sau cũng nhận, nên con số có thể nhích lên.' : '') +
+        '</b>.' +
       '</div>' +
       '<div class="bb-hai-cot">' +
         khoi('Chưa xem', chua.map((id) =>
@@ -748,10 +736,7 @@ function tbGhiNhom(nhom, san, moi, cuLaSao) {
   let h = '<div class="q-ghi-nho" id="tbDem"></div>';
   if (san.length) {
     h += '<div class="q-ghi-nho">' +
-      (moi ? '<b>Đã tick sẵn ' + san.length + ' người trong nhóm ' + ten + '.</b> ' : '') +
-      'Người ngoài phòng không hiện trong danh sách — gõ tên vào ô trên để tìm rồi tick. ' +
-      '<button class="btn nho ghost" id="tbNhom" style="margin-top:5px">Tick lại đúng nhóm ' +
-      ten + '</button></div>';
+      '<button class="btn nho ghost" id="tbNhom">Tick lại đúng nhóm ' + ten + '</button></div>';
     /* Thông báo cũ lưu `*`: đừng đổi nghĩa sau lưng quản lý. Nói ra trước khi
      * bấm Lưu, vì sau khi lưu thì không nhìn ra được nó đã đổi. */
     if (cuLaSao) {
@@ -807,15 +792,14 @@ function moFormTb(tb) {
     : { mucDo: 'Tin', moiAi: true, ai: [], bat: true });
   const t = TBSUA;
   const db = d.danhBa || [];
-  const hang = (nhan, noi, ghi) =>
-    '<div class="q-hang"><label>' + nhan + '</label><div class="q-o">' + noi +
-    (ghi ? '<div class="q-ghi-nho">' + ghi + '</div>' : '') + '</div></div>';
+  const hang = (nhan, noi) =>
+    '<div class="q-hang"><label>' + nhan + '</label><div class="q-o">' + noi + '</div></div>';
 
   let html = '<div class="q-form">';
   html += hang('Mức độ',
     '<select class="q-in" id="tbMucDo">' + (d.mucDo || ['Tin']).map((x) =>
       '<option value="' + esc(x) + '"' + (t.mucDo === x ? ' selected' : '') + '>' + esc(x) + '</option>').join('') +
-    '</select>', 'Chỉ đổi màu và thứ tự hiện — không đổi mức chặn. Cái nào cũng chặn màn hình.');
+    '</select>');
   html += hang('Tiêu đề',
     '<input class="q-in" id="tbTieuDe" type="text" value="' + esc(t.tieuDe || '') +
     '" placeholder="Câu người ta đọc đầu tiên">');
@@ -830,14 +814,11 @@ function moFormTb(tb) {
       '" placeholder="https://... hoặc #/m/cong-viec (một base trong hub)" style="margin-top:6px">' +
     '<label class="q-ck" style="margin-top:6px"><input type="checkbox" id="tbBuocBam"' +
       (t.buocBam ? ' checked' : '') + '>' +
-      '<span>Buộc bấm nút này trước khi xác nhận</span></label>',
-    'Bỏ trống cả hai ô là thông báo <b>chỉ cần đọc</b>. Điền vào là có thêm chỗ để ấn. ' +
-    'Link bắt đầu bằng <code>#</code> thì mở trong hub sau khi xác nhận; còn lại mở tab mới.');
+      '<span>Buộc bấm nút này trước khi xác nhận</span></label>');
 
   html += hang('Khoảng hiển thị',
     '<div class="cd-doc"><input class="q-in" id="tbTu" type="date" value="' + esc(ngayO(t.tuNgay)) + '">' +
-    '<input class="q-in" id="tbDen" type="date" value="' + esc(ngayO(t.denNgay)) + '"></div>',
-    'Bỏ trống là hiện ngay và hiện mãi tới khi tắt. "Đến ngày" tính <b>hết</b> ngày đó.');
+    '<input class="q-in" id="tbDen" type="date" value="' + esc(ngayO(t.denNgay)) + '"></div>');
 
   html += hang('Gửi cho',
     ((TBQL && TBQL.cheDo && TBQL.cheDo !== 'api')
@@ -880,7 +861,7 @@ function moFormTb(tb) {
   html += hang('Bật',
     '<label class="q-ck q-ck-manh"><input type="checkbox" id="tbBat"' +
       (t.bat !== false ? ' checked' : '') + '>' +
-      '<span>Đang gửi</span><small class="q-nhat">— bỏ tick là giữ lại nhưng không hiện nữa</small></label>');
+      '<span>Đang gửi</span></label>');
   html += '</div>';
 
   moModal(tb ? 'Sửa thông báo' : 'Soạn thông báo', html,
@@ -946,8 +927,7 @@ function moFormTb(tb) {
     if (dem) {
       dem.textContent = q
         ? 'Đang tìm trong cả ' + db.length + ' người · hiện ' + hien
-        : (chiNhom ? 'Đang hiện ' + hien + ' người trong nhóm ' + (nhom.ten || 'Phòng MKT') +
-          ' · gõ tên để tìm thêm người ngoài phòng' : '');
+        : (chiNhom ? 'Đang hiện ' + hien + ' người trong nhóm ' + (nhom.ten || 'Phòng MKT') : '');
     }
   };
   oLoc.oninput = locDs;
@@ -1056,8 +1036,7 @@ async function napCdCuaSo(a) {
       '<span class="cd-nhan ' + (d.mo ? 'luc' : 'do') + '">' + (d.mo ? 'mở' : 'đóng') + '</span>') +
 
     cdHang('Mở / đóng ngay',
-      'Bấm là áp ngay, hết một giờ tự trở về khung giờ hằng tuần.' +
-      (tay ? '<br>Đang <b>' + (tay === 'mo' ? 'mở tay' : 'đóng tay') + '</b> tới <b>' +
+      (tay ? 'Đang <b>' + (tay === 'mo' ? 'mở tay' : 'đóng tay') + '</b> tới <b>' +
         esc(cdMocCuaSo(tay === 'mo' ? L.moTayToi : L.dongTayToi)) + '</b>.' : ''),
       '<div class="cd-doc">' +
         '<button class="btn nho chinh" data-cs-viec="mo">Mở khoá 1 giờ</button>' +
@@ -1068,7 +1047,7 @@ async function napCdCuaSo(a) {
     cdHang('Khung giờ hằng tuần',
       '<label class="q-ck q-ck-manh" style="margin:2px 0 8px">' +
         '<input type="checkbox" id="cdCsBat"' + (L.bat === false ? '' : ' checked') + '>' +
-        '<span>Áp khung giờ</span><small class="q-nhat">— bỏ tick là nút đăng ký mở liên tục</small>' +
+        '<span>Áp khung giờ</span>' +
       '</label>' +
       '<div class="cd-doc" style="margin-bottom:4px">' +
         /* data-no-i18n: "Đóng" là một khoá trong từ điển (nút Đóng của hộp thoại)
@@ -1183,22 +1162,13 @@ function veCdBase(el) {
       '</div></div>';
   };
 
-  el.innerHTML = cdTieuDe('Base trong panel',
-    'Mỗi base là một app riêng. Tắt hay ẩn ở đây không ảnh hưởng dữ liệu trong Lark. ' +
-    'Base "Kín" chỉ quản lý và người được cấp tên trong Phân quyền mới thấy — base mới ' +
-    'luôn bắt đầu ở Kín.') +
+  el.innerHTML = cdTieuDe('Base trong panel') +
     '<div class="cd-ds-base">' + S.modules.map(dong).join('') + '</div>' +
     /* Thứ tự là của RIÊNG máy này — nói thẳng ra, không để quản lý tưởng mình
      * vừa xếp lại panel cho cả phòng. */
-    '<div class="cd-hang"><div class="cd-hang-tx"><b>Thứ tự trong panel</b>' +
-      /* Một câu liền, không chèn <b>: i18n dịch theo TRỌN text node, chèn thẻ
-       * vào giữa là câu vỡ làm ba mảnh và không mảnh nào khớp từ điển. */
-      '<p>Kéo thả thẳng trên panel bên trái, hoặc bấm ↑ ↓ ở từng dòng trên. ' +
-      'Thứ tự này lưu ở trình duyệt này — mỗi người tự xếp theo việc của mình, ' +
-      'không ai đổi panel của ai.</p></div>' +
+    '<div class="cd-hang"><div class="cd-hang-tx"><b>Thứ tự trong panel</b></div>' +
       '<div class="cd-hang-dk"><button class="btn nho ghost" id="cdThuTuGoc">Về thứ tự gốc</button></div></div>' +
-    '<div class="cd-hang"><div class="cd-hang-tx"><b>Thêm base</b>' +
-      '<p>Khai thêm một app hoặc một Lark Base vào panel.</p></div>' +
+    '<div class="cd-hang"><div class="cd-hang-tx"><b>Thêm base</b></div>' +
       '<div class="cd-hang-dk"><button class="btn primary" id="cdThem">Thêm base</button></div></div>';
   $('#cdThem').onclick = modalThem;
   $('#cdThuTuGoc').onclick = () => {
@@ -1210,11 +1180,11 @@ function veCdBase(el) {
 /* ---------------- Người dùng & phân quyền ---------------- */
 /* ---------------- Kiểm tra hệ thống ---------------- */
 async function veCdKiemTra(el) {
-  el.innerHTML = cdTieuDe('Kiểm tra hệ thống', 'Hỏi thẳng từng base xem đang đọc được gì.') +
+  el.innerHTML = cdTieuDe('Kiểm tra hệ thống') +
     '<div class="trong"><span class="spin"></span> Đang hỏi từng base…</div>';
   let d;
   try { d = await goi('/api/kiem-tra'); } catch (e) {
-    el.innerHTML = cdTieuDe('Kiểm tra hệ thống', '') +
+    el.innerHTML = cdTieuDe('Kiểm tra hệ thống') +
       '<div class="canh-bao do"><span class="grow">' + esc(e.message) + '</span></div>';
     return;
   }
@@ -1222,7 +1192,7 @@ async function veCdKiemTra(el) {
   const hang = (ten, gt, tot) => cdHang(ten, '', '<span class="cd-nhan ' +
     (tot === false ? 'do' : tot === true ? 'luc' : '') + '">' + esc(gt) + '</span>');
 
-  let html = cdTieuDe('Kiểm tra hệ thống', 'Hỏi thẳng từng base xem đang đọc được gì.') +
+  let html = cdTieuDe('Kiểm tra hệ thống') +
     hang('Chế độ', h.che_do === 'api' ? 'api · server chung' : 'cli · máy cá nhân') +
     hang('App Lark đang chạy', h.app_id || '(không dùng app)', h.che_do !== 'api' ? null : !!h.app_id) +
     (h.commit ? hang('Bản đang chạy', h.commit) : '') +
@@ -1249,7 +1219,7 @@ async function veCdKiemTra(el) {
   }).join('') + '</div>';
 
   html += '<div class="cd-hang"><div class="cd-hang-tx"><b>Chạy lại</b>' +
-    '<p>Đọc lại từ đầu, không dùng số đã nhớ.</p></div>' +
+    '</div>' +
     '<div class="cd-hang-dk"><button class="btn ghost" id="cdKtLai">Chạy lại</button></div></div>';
 
   el.innerHTML = html;
@@ -1262,7 +1232,7 @@ async function veCdLog(el, id) {
   const chon = id || S.cdLog || (ds[0] && ds[0].id);
   S.cdLog = chon;
 
-  el.innerHTML = cdTieuDe('Log app con', 'Dòng lệnh thật của app con — chỗ đầu tiên cần xem khi một base báo lỗi.') +
+  el.innerHTML = cdTieuDe('Log app con') +
     '<div class="cd-hang"><div class="cd-hang-tx"><b>Chọn base</b></div>' +
       '<div class="cd-hang-dk"><select class="q-in" id="cdLogChon">' +
       ds.map((m) => '<option value="' + esc(m.id) + '"' + (m.id === chon ? ' selected' : '') + '>' +

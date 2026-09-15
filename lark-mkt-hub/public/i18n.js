@@ -406,8 +406,6 @@
     'Nâng cao': 'Advanced',
     'Base trong panel': 'Bases in the panel',
     'Thứ tự trong panel': 'Order in the panel',
-    'Kéo thả thẳng trên panel bên trái, hoặc bấm ↑ ↓ ở từng dòng trên. Thứ tự này lưu ở trình duyệt này — mỗi người tự xếp theo việc của mình, không ai đổi panel của ai.':
-      'Drag them straight on the panel at the left, or use the ↑ ↓ buttons on each row above. This order is stored in THIS browser — everyone arranges their own, and nobody changes anyone else’s panel.',
     'Về thứ tự gốc': 'Reset order',
     'Đã về thứ tự gốc': 'Order reset',
     'Lên một bậc': 'Move up',

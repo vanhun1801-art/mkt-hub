@@ -332,7 +332,8 @@ app nào hay dùng: app khai sau nằm cuối, kể cả khi ngày nào cũng m�
 
 Đổi chỗ bằng **kéo thả thẳng trên panel**, hoặc nút **↑ ↓** ở từng dòng trong
 *Cài đặt → Base trong panel* (màn cảm ứng kéo rất khó, mà kéo thì không ai đoán
-ra là kéo được nếu không thử). *Về thứ tự gốc* trả lại thứ tự tệp.
+ra là kéo được nếu không thử). *Về thứ tự gốc* trả lại thứ tự tệp. Màn Cài đặt
+không giải thích mấy câu này nữa — xem mục *Chữ trong Cài đặt* bên dưới.
 
 Lưu ở **localStorage của từng trình duyệt**, không lưu lên máy chủ. Hai lý do:
 
@@ -474,6 +475,26 @@ Còn hai đường luôn thắng theo hướng mở, cố ý để không ai t�
 
 Kiểm tra nhanh mình đã cấp đúng chưa: màn Phân quyền → **Xem như** một người, cả app
 chuyển sang đúng con mắt của họ (mọi thao tác ghi bị chặn trong lúc xem hộ).
+
+## Chữ trong Cài đặt — chỉ giữ chữ báo tình trạng
+
+Anh Hùng: *"các cái note nhỏ nhỏ trong cài đặt anh thấy không cần nữa"*. Mỗi mục
+trước đây có một câu giải thích dưới tiêu đề, mỗi hàng thiết lập có một câu dưới
+nhãn. Đọc lần đầu thì hiểu ra; đọc lần thứ hai mươi thì chỉ là chữ chắn đường
+tới cái nút.
+
+Luật giữ lại, viết ra đây vì lần sau thêm màn mới rất dễ quên:
+
+| Bỏ | Giữ |
+|---|---|
+| Câu mô tả dưới tiêu đề mỗi mục (`cdTieuDe` giờ chỉ nhận **tên**) | Cảnh báo đỏ / vàng: thiếu cột, chưa có bảng, chưa khớp được người, đang dùng bản lưu |
+| Câu giải thích dưới nhãn từng hàng thiết lập | Câu báo lỗi: "Không đọc được: …" |
+| Ghi chú dưới từng ô của form soạn thông báo | Dòng trạng thái: `hub tự bật · cổng nội bộ 5173`, `9 người trong nhóm Phòng MKT`, tên tệp logo, số bản đang chạy |
+| Đuôi `— bỏ tick là…` trên ô tick | Đuôi mang **con số**, ví dụ `— 9 người trong nhóm Phòng MKT` |
+
+Ranh giới là: **chữ chỉ hiện khi có chuyện thì giữ**, chữ nào lúc nào cũng hiện
+và chỉ để dạy cách dùng thì bỏ. Cửa sổ *Thêm base* không nằm trong đợt dọn này —
+nó là form khai báo hiếm dùng, chỗ duy nhất mà hướng dẫn còn đáng tiền.
 
 ## Thông báo chặn màn hình
 
