@@ -141,6 +141,60 @@ const nhom = (t) => console.log('\n\x1b[1m' + t + '\x1b[0m');
   ok('server gửi xuống danh sách loại chứng từ',
     (m.options.chungTu || []).length === 3, JSON.stringify(m.options.chungTu));
 
+  nhom('Không bản ghi nào được thiếu ngày');
+  /* ---------------------------------------------------------------------
+   * Ngày 15/09/2026: một dòng nạp 10.000.000 nằm trong sổ mà KHÔNG CÓ NGÀY.
+   * App xếp "không ngày" vào trước mọi kỳ — đúng cho 162 dòng cũ nhập từ
+   * sheet, nhưng dòng nạp này thì không: nó làm số dư ĐẦU KỲ của tháng 7,
+   * tháng 8 và tháng 9 đều phồng lên đúng 10 triệu. Không lỗi nào bật ra,
+   * tổng quỹ vẫn đúng, chỉ có phần chia theo kỳ là sai — thứ kế toán đọc.
+   *
+   * Dòng "Chuyển từ kỳ trước" thì được phép trống ngày: chúng là tồn mang
+   * sang, và tinhQuy() đã loại chúng ra khỏi mọi phép cộng.
+   * ------------------------------------------------------------------- */
+  const napThieuNgay = m.nap.filter((n) => n.loai !== 'Chuyển từ kỳ trước'
+    && !String(n.ngay || '').trim());
+  ok('mọi lần nạp tiền đều có ngày', napThieuNgay.length === 0,
+    napThieuNgay.map((n) => (n.noiDung || '?') + ' ' + n.tien.toLocaleString('vi')).join(' · '));
+
+  const chiThieuNgay = m.chi.filter((c) => !String(c.ngayChi || c.ngayDeNghi || '').trim());
+  ok('mọi khoản chi đều có ngày', chiThieuNgay.length === 0,
+    chiThieuNgay.map((c) => c.noiDung).slice(0, 5).join(' · '));
+
+  nhom('Các kỳ tháng nối liền nhau');
+  /* Tồn cuối tháng trước PHẢI bằng số dư đầu tháng sau, và tháng cuối cùng phải
+   * bằng số dư sống của quỹ. Đây là thứ kế toán dùng để mở sổ tháng mới; đứt
+   * một mắt là họ phải quay về cộng tay trong sheet. */
+  const thangCua = (v) => (/^\d{4}-\d{2}/.test(String(v || '')) ? String(v).slice(0, 7) : '');
+  const napThat = m.nap.filter((n) => n.loai !== 'Chuyển từ kỳ trước');
+  const cong = (ds) => ds.reduce((a, x) => a + (Number(x.tien) || 0), 0);
+  const tinhKy = (t) => {
+    const truoc = (v) => { const k = thangCua(v); return !k || k < t; };
+    const trong = (v) => thangCua(v) === t;
+    const dauKy = cong(napThat.filter((n) => truoc(n.ngay)))
+      - cong(m.chi.filter((c) => truoc(c.ngayChi || c.ngayDeNghi)));
+    const nap2 = cong(napThat.filter((n) => trong(n.ngay)));
+    const chi2 = cong(m.chi.filter((c) => trong(c.ngayChi || c.ngayDeNghi)));
+    return { dauKy, nap: nap2, chi: chi2, cuoiKy: dauKy + nap2 - chi2 };
+  };
+  const cacThang = [...new Set(m.chi.map((c) => thangCua(c.ngayChi || c.ngayDeNghi))
+    .filter(Boolean))].sort();
+  let dut = 0;
+  for (let i2 = 1; i2 < cacThang.length; i2++) {
+    const truoc2 = tinhKy(cacThang[i2 - 1]);
+    const sau = tinhKy(cacThang[i2]);
+    if (truoc2.cuoiKy !== sau.dauKy) {
+      dut++;
+      console.log('       đứt ở ' + cacThang[i2 - 1] + ' → ' + cacThang[i2]
+        + ': ' + truoc2.cuoiKy.toLocaleString('vi') + ' vs ' + sau.dauKy.toLocaleString('vi'));
+    }
+  }
+  ok('cuối kỳ tháng trước = đầu kỳ tháng sau, suốt ' + cacThang.length + ' kỳ', dut === 0,
+    dut + ' chỗ đứt');
+  const chot = tinhKy(cacThang[cacThang.length - 1]);
+  ok('tồn cuối kỳ tháng chót = số dư quỹ', chot.cuoiKy === m.quy.conLai,
+    chot.cuoiKy + ' vs ' + m.quy.conLai);
+
   nhom('Vai nào ra vai nấy — theo đúng header Hub gửi xuống');
   /* Phân quyền đọc từ header, nên phải thử bằng CHÍNH header đó. Ba cách khai
    * một người: open_id, họ tên, email. Email là cách nên dùng và cũng là cách

@@ -133,6 +133,42 @@ Bản ghi **không có ngày** tính vào "trước kỳ" — chúng là dữ li
 sheet. Xếp vào kỳ hiện tại thì tháng này tự dưng phình ra một khoản không ai
 tiêu.
 
+### Một dòng nạp không có ngày làm lệch mọi kỳ
+
+Ngày 15/09/2026 kế toán đối chiếu app với sheet và ba tháng đều lệch. Nguyên do
+không nằm ở phép tính mà ở **bốn bản ghi**:
+
+- **một dòng nạp 10.000.000 KHÔNG CÓ NGÀY.** App xếp "không ngày" vào trước mọi
+  kỳ — đúng cho 162 dòng cũ nhập từ sheet, sai cho dòng này. Hậu quả: số dư
+  **đầu kỳ** của tháng 7, 8 và 9 đều phồng lên đúng 10 triệu. Không lỗi nào bật
+  ra, tổng quỹ vẫn đúng; chỉ phần chia theo kỳ sai — đúng thứ kế toán đọc.
+- **ba khoản chi làm tháng 8, thanh toán chậm sang tháng 9.** Trong sheet chúng
+  nằm ở tab THÁNG 09; Base đọc ngày thanh toán 27–30/08 nên xếp vào tháng 8.
+
+Sửa: đặt **Ngày thanh toán** = 01/09/2026 cho ba khoản đó và cho dòng nạp, giữ
+nguyên **Ngày đề nghị**. Đó không phải mẹo cho khớp số — khoản phát sinh tháng 8
+mà trả tiền tháng 9 thì hai cột phải ghi hai tháng khác nhau, đúng nghĩa của
+chúng. Nhân tiện lấp mã điều hành `SG21049` mà Base bỏ trống còn sheet có.
+
+Hai dòng ứng gốc (20.000.000 PC9955 và 15.000.000 PC16900) cũng thiếu ngày; đặt
+bằng ngày chi đầu tiên của chính đợt đó, cùng cách đã dùng cho dòng bù 559.931.
+
+Sau khi sửa, **cả ba kỳ khớp tuyệt đối với sheet**, kể cả tháng 7 và tháng 8 anh
+Hùng đã chốt — tức là sửa để khớp với sổ đã chốt, không phải sửa sổ đã chốt:
+
+| Kỳ | Đầu kỳ | Nạp | Chi | Cuối kỳ |
+|---|---:|---:|---:|---:|
+| THÁNG 07 | 2.009.200 | 10.000.000 | 9.079.000 | 2.930.200 |
+| THÁNG 08 | 2.930.200 | 10.000.000 | 11.960.200 | 970.000 |
+| THÁNG 09 | 970.000 | 10.000.000 | 4.490.944 | 6.479.056 |
+
+**Không cần thêm cột "Kỳ".** Bản ghi mới đã tự đúng: khai khoản chi thì *Ngày
+thanh toán* mặc định là hôm nay, và app Lịch tác nghiệp cũng ghi ngày bấm nút.
+Lệch chỉ xảy ra với dữ liệu nhập từ sheet, nơi một ngày bị chép vào cả hai cột.
+
+Hai phép thử canh chỗ này: **không bản ghi nào được thiếu ngày**, và **cuối kỳ
+tháng trước = đầu kỳ tháng sau** suốt cả chín kỳ.
+
 ## Kế toán duyệt hoặc trả lại từng khoản
 
 Quyết toán theo lô hợp với anh Hùng: đóng sổ một đợt hàng chục khoản. Kế toán
@@ -289,7 +325,7 @@ Phép thử số liệu theo kỳ không ghim con số nào: nó kiểm **đầu
 cuối kỳ**, và **cuối kỳ tháng trước = đầu kỳ tháng sau**. Bất biến thì đúng mãi,
 còn con số thì sai ngay khoản chi kế tiếp.
 
-Lần chạy gần nhất: **64 + 55 pass · 0 fail**.
+Lần chạy gần nhất: **64 + 59 pass · 0 fail**.
 
 `node --check` xanh mà app vẫn vỡ — lần thứ hai. Ngày 13/09/2026 một dòng lạc
 rơi vào giữa `/* tiện */` và `function json(...)`, biến một khai báo hàm thành
