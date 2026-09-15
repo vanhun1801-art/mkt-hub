@@ -257,6 +257,25 @@ function tinhKy(thang) {
   return { dauKy, nap, chi, cuoiKy: dauKy + nap - chi };
 }
 
+/**
+ * KỲ NÀO ĐÓNG SỔ ÂM LÀ CÓ CHUYỆN.
+ *
+ * Quỹ tạm ứng không âm được: tiêu là tiêu tiền đã ứng. Một kỳ ra số âm nghĩa là
+ * có khoản chi bị xếp nhầm kỳ — ngày thanh toán gõ lệch một hai ngày là đủ đẩy
+ * cả cục tiền sang tháng trước.
+ *
+ * Ngày 15/09/2026 ba khoản (1.465.200) mang ngày 31/08 thay vì 01/09, và tháng
+ * 8 đóng ở −495.200 trong khi anh Hùng cùng kế toán đã chốt tháng đó ở 970.000.
+ * Tổng quỹ vẫn đúng nên không có gì bật ra — phải ngồi dò tay mới thấy.
+ *
+ * Chuông này biến chuyện đó thành một vệt đỏ ngay đầu trang.
+ */
+function kyAm() {
+  const thangs = [...new Set(S.chi.map((c) => thangCua(c.ngayChi || c.ngayDeNghi))
+    .filter(Boolean))].sort();
+  return thangs.filter((t) => tinhKy(t).cuoiKy < 0);
+}
+
 /* Kỳ đang xem = tháng người dùng chọn ở bộ lọc, không chọn thì là tháng này.
  * Nhờ vậy chị kế toán lọc sang tháng 8 là cả dải số trên đầu nhảy theo — chốt
  * sổ tháng nào thì nhìn đúng tháng đó. */
@@ -318,7 +337,17 @@ function veTong() {
         'đã ứng ' + tien(S.quy.tongUng) + ' · đã chi ' + tien(S.quy.tongChi),
         { lop: 'chinh', coNho: true });
 
-  return '<section class="tong">'
+  /* Vệt đỏ đứng TRƯỚC dải số: nếu có kỳ âm thì mọi con số bên dưới đều đang kể
+   * một câu chuyện sai, nói ra trước khi người ta kịp tin chúng. */
+  const am = kyAm();
+  const bao = am.length
+    ? '<div class="bao-am"><b>Có ' + am.length + ' kỳ đóng sổ âm: '
+      + am.map(tenKy).join(' · ') + '.</b> Quỹ tạm ứng không âm được — gần như '
+      + 'chắc chắn có khoản chi bị gõ nhầm ngày thanh toán nên rơi sang tháng khác. '
+      + 'Bấm vào tháng đó ở bộ lọc để soi.</div>'
+    : '';
+
+  return bao + '<section class="tong">'
     + oChinh
     /* Số dư đầu kỳ: con số kế toán cần để mở sổ tháng mới, và là vế trái của
      * phép tính đầu kỳ + nạp − chi = cuối kỳ. Thiếu nó thì ba con số kia không

@@ -174,6 +174,32 @@ Lệch chỉ xảy ra với dữ liệu nhập từ sheet, nơi một ngày bị
 Hai phép thử canh chỗ này: **không bản ghi nào được thiếu ngày**, và **cuối kỳ
 tháng trước = đầu kỳ tháng sau** suốt cả chín kỳ.
 
+### Chuông báo kỳ đóng sổ âm
+
+Ngày 15/09/2026 anh Hùng sửa lại tình trạng một loạt khoản, và nhân đó ba khoản
+(1.465.200 đ) quay về ngày **31/08** thay vì 01/09. Tháng 8 lập tức đóng ở
+**−495.200 đ**, trong khi chính anh và kế toán đã chốt tháng đó ở 970.000.
+
+Không gì bật ra. Tổng quỹ vẫn đúng 6.479.056, mọi dòng vẫn xanh — phải ngồi dò
+tay từng tháng mới thấy.
+
+**Quỹ tạm ứng không âm được**: tiêu là tiêu tiền đã ứng. Nên một kỳ ra số âm
+luôn là lỗi dữ liệu, gần như chắc chắn do gõ nhầm ngày thanh toán làm một khoản
+rơi sang tháng khác. Giờ có một vệt đỏ đứng **trên** cả dải số — vì nếu có kỳ
+âm thì mọi con số bên dưới đều đang kể một câu chuyện sai.
+
+Hai phép thử canh: `giao-dien.test.js` đẩy một khoản to sang tháng trước rồi đòi
+thấy vệt đỏ; `quy.test.js` quét sổ thật, không kỳ nào được âm. Bài đầu tiên đỏ
+ngay khi viết xong — nó bắt được chính **dữ liệu mẫu** của phép thử: sổ mẫu chỉ
+có một lần nạp và đặt ở tháng 9 nên tháng 8 âm, một quyển sổ không tồn tại được
+ngoài đời.
+
+Kèm một chốt nữa: **mã quyết toán và tình trạng phải nói cùng một chuyện.** Hôm
+đó có một dòng đeo mã `TEST` trong khi tình trạng là *Đã chi* — dấu vết bấm thử.
+Nó không chỉ xấu: `quyetToanDuoc()` coi khoản có mã là đã đóng sổ, nên dòng đó
+bị ô tích "chọn hết" bỏ qua và kế toán thấy nút *Đổi mã* thay vì *Quyết toán /
+Từ chối*.
+
 ## Kế toán duyệt hoặc trả lại từng khoản
 
 Quyết toán theo lô hợp với anh Hùng: đóng sổ một đợt hàng chục khoản. Kế toán
@@ -365,7 +391,7 @@ Phép thử số liệu theo kỳ không ghim con số nào: nó kiểm **đầu
 cuối kỳ**, và **cuối kỳ tháng trước = đầu kỳ tháng sau**. Bất biến thì đúng mãi,
 còn con số thì sai ngay khoản chi kế tiếp.
 
-Lần chạy gần nhất: **68 + 59 pass · 0 fail**.
+Lần chạy gần nhất: **73 + 62 pass · 0 fail**.
 
 `node --check` xanh mà app vẫn vỡ — lần thứ hai. Ngày 13/09/2026 một dòng lạc
 rơi vào giữa `/* tiện */` và `function json(...)`, biến một khai báo hàm thành

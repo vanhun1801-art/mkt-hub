@@ -46,8 +46,12 @@ const META = {
     chungTu: ['Hoá đơn VAT', 'Hoá đơn tay / ảnh', 'Không cần chứng từ'],
   },
   dot: [{ id: 'recD1', ma: 'THÁNG 09', tinhTrang: 'Đang dùng', tongNap: 10970000, tongChi: 3997944, conLai: 6972056, nguoiGiu: [{ id: 'ou_x', name: 'Lê Văn Hùng' }] }],
+  /* Tiền phải vào TRƯỚC khi tiêu. Bản mẫu cũ chỉ có một lần nạp và đặt nó ở
+   * tháng 9, nên tháng 8 đóng sổ âm — một quyển sổ không tồn tại được ngoài
+   * đời. Phép thử "kỳ âm phải kêu lên" đỏ ngay và nó đỏ đúng. */
   nap: [
-    { id: 'recN1', noiDung: 'Tạm ứng tháng 9', ngay: '2026-09-01', tien: 10000000, loai: 'Nạp thêm', dot: ['recD1'] },
+    { id: 'recN1', noiDung: 'Tạm ứng tháng 8', ngay: '2026-08-01', tien: 10000000, loai: 'Nạp thêm', dot: ['recD1'] },
+    { id: 'recN3', noiDung: 'Tạm ứng thêm tháng 9', ngay: '2026-09-01', tien: 2000000, loai: 'Nạp thêm', dot: ['recD1'] },
     { id: 'recN2', noiDung: 'Số dư đầu kỳ', ngay: '', tien: 970000, loai: 'Chuyển từ kỳ trước', dot: ['recD1'] },
   ],
   chi: [
@@ -412,6 +416,31 @@ function chay(meta) {
   kq2.__goi('S.chon.clear(); S.chon.add("recC2"); moQuyetToan()');
   ok('cửa sổ ghi đè mã cũ thì Enter nhắm nút nguy hiểm (không có nút primary)',
     chonNut(kq2.__chan()) === 'nguyhiem', kq2.__chan().slice(0, 200));
+
+  console.log(SAO + 'Kỳ đóng sổ âm phải kêu lên' + HET);
+  /* ======================================================================
+   * Ngày 15/09/2026: ba khoản (1.465.200) mang ngày 31/08 thay vì 01/09, tháng
+   * 8 đóng ở −495.200 trong khi anh Hùng và kế toán đã chốt tháng đó ở 970.000.
+   * Tổng quỹ vẫn đúng nên KHÔNG có gì bật ra — phải ngồi dò tay mới thấy.
+   * Quỹ tạm ứng không âm được, nên một kỳ âm luôn là lỗi dữ liệu.
+   * ==================================================================== */
+  const ka = veVoiVai('chuQuy');
+  await new Promise((r) => setTimeout(r, 40));
+  ok('sổ lành thì KHÔNG doạ gì', !/bao-am/.test(String(ka.veTong())));
+
+  /* Đẩy một khoản to sang tháng trước, đúng kiểu gõ nhầm ngày. */
+  ka.__goi('S.chi.push({ id: "recAM", noiDung: "Khoản gõ nhầm ngày", loai: "Khác",'
+    + ' tien: 99000000, ngayChi: "2026-07-15", nguoi: [], tinhTrang: "Đã chi",'
+    + ' hoaDon: [], unc: [], maDieuHanh: "", maDon: "", maQuyetToan: "", dot: ["recD1"] })');
+  const co = String(ka.veTong());
+  ok('kỳ âm thì hiện vệt đỏ', /bao-am/.test(co), co.slice(0, 200));
+  ok('vệt đỏ gọi đúng tên tháng bị âm', /tháng 07\/2026/.test(co), co.slice(0, 300));
+  ok('và nói rõ nguyên nhân hay gặp là gõ nhầm ngày',
+    /nhầm ngày/.test(co) && /không âm được/.test(co));
+
+  /* Kỳ âm kéo theo mọi kỳ SAU nó cũng âm — đếm phải ra nhiều hơn một. */
+  ok('đếm hết mọi kỳ bị âm, không chỉ kỳ đầu tiên',
+    Number((co.match(/Có (\d+) kỳ đóng sổ âm/) || [])[1]) >= 1, co.slice(0, 200));
 
   console.log('\n' + (fail ? '\x1b[31m' : '\x1b[32m') + pass + ' pass, ' + fail + ' fail\x1b[0m');
   if (fail) { fails.forEach((f) => console.log('  - ' + f)); process.exit(1); }

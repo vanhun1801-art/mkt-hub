@@ -195,6 +195,30 @@ const nhom = (t) => console.log('\n\x1b[1m' + t + '\x1b[0m');
   ok('tồn cuối kỳ tháng chót = số dư quỹ', chot.cuoiKy === m.quy.conLai,
     chot.cuoiKy + ' vs ' + m.quy.conLai);
 
+  /* Quỹ tạm ứng KHÔNG ÂM ĐƯỢC: tiêu là tiêu tiền đã ứng. Một kỳ ra số âm nghĩa
+   * là có khoản chi bị xếp nhầm kỳ — ngày thanh toán lệch một hai ngày là đủ
+   * đẩy cả cục tiền sang tháng trước. Ngày 15/09/2026 ba khoản mang ngày 31/08
+   * thay vì 01/09 và tháng 8 đóng ở −495.200, trong khi anh Hùng cùng kế toán
+   * đã chốt tháng đó ở 970.000. Tổng quỹ vẫn đúng nên không có gì bật ra. */
+  const am = cacThang.filter((t) => tinhKy(t).cuoiKy < 0);
+  ok('không kỳ nào đóng sổ âm', am.length === 0,
+    am.map((t) => t + ' = ' + tinhKy(t).cuoiKy.toLocaleString('vi')).join(' · '));
+
+  nhom('Mã quyết toán và tình trạng phải nói cùng một chuyện');
+  /* Dòng mang mã mà tình trạng chưa phải "Đã quyết toán" là dấu vết bấm thử —
+   * ngày 15/09 có một dòng đeo mã "TEST". Nó không chỉ xấu: quyetToanDuoc()
+   * coi khoản CÓ MÃ là đã đóng sổ, nên dòng đó bị ô tích "chọn hết" bỏ qua và
+   * kế toán thấy nút "Đổi mã" thay vì "Quyết toán / Từ chối". */
+  const lechMa = m.chi.filter((c) => String(c.maQuyetToan || '').trim()
+    && c.tinhTrang !== 'Đã quyết toán');
+  ok('không khoản nào đeo mã quyết toán mà tình trạng lại khác', lechMa.length === 0,
+    lechMa.map((c) => c.maQuyetToan + ' / ' + c.tinhTrang + ' · ' + c.noiDung).slice(0, 4).join(' | '));
+
+  const thieuMa = m.chi.filter((c) => !String(c.maQuyetToan || '').trim()
+    && c.tinhTrang === 'Đã quyết toán');
+  ok('không khoản nào mang tình trạng Đã quyết toán mà trống mã', thieuMa.length === 0,
+    thieuMa.map((c) => c.noiDung).slice(0, 4).join(' · '));
+
   nhom('Vai nào ra vai nấy — theo đúng header Hub gửi xuống');
   /* Phân quyền đọc từ header, nên phải thử bằng CHÍNH header đó. Ba cách khai
    * một người: open_id, họ tên, email. Email là cách nên dùng và cũng là cách
