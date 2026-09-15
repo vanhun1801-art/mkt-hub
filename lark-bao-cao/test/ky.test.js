@@ -394,6 +394,29 @@ group('So với kỳ trước — chỗ dễ đẻ ra con số vô nghĩa nhất
   }
 }
 
+group('"Không" không phải là lời cầu cứu');
+{
+  /* Nhân sự điền ô "Cần hỗ trợ" mỗi ngày, và phần lớn ngày họ gõ "Không" — trả
+   * lời câu hỏi chứ không phải xin giúp. Đếm cả những chữ đó thì trang Tổng
+   * quan báo "Cần hỗ trợ 4" trong khi thật ra có 2, rồi người ta quen với con
+   * số đỏ và thôi không nhìn nữa. */
+  const c = K.canHoTroThat;
+  ok('ô trống', c('') === false && c(null) === false && c(undefined) === false);
+  ok('"Không" các kiểu viết',
+    !c('Không') && !c('không') && !c('KHÔNG') && !c('Khong') && !c('  Không  '));
+  ok('viết tắt', !c('ko') && !c('k') && !c('kg'));
+  ok('dấu câu đứng một mình', !c('-') && !c('--') && !c('***'));
+  ok('có chấm câu ở cuối', !c('Không.') && !c('không!'));
+  ok('tiếng Anh', !c('no') && !c('none') && !c('n/a'));
+
+  /* Nghi ngờ thì coi là CÓ cầu cứu: bỏ sót một người đang mắc tệ hơn nhiều so
+   * với đếm thừa một chữ "Không". */
+  ok('câu thật thì giữ', c('Cần thêm người dựng video'));
+  ok('câu thật BẮT ĐẦU bằng "Không" vẫn giữ',
+    c('Không có người hỗ trợ vào cổng') && c('không đủ thời gian làm kịp deadline'));
+  ok('câu dài có chữ "không" ở giữa', c('Chờ duyệt ngân sách, chưa biết có được không'));
+}
+
 console.log('\n' + '─'.repeat(56));
 console.log('  ' + pass + ' pass · ' + fail + ' fail');
 if (fail) { console.log('\n  Không đạt:'); fails.forEach((f) => console.log('   - ' + f)); }

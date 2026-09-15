@@ -401,7 +401,7 @@ async function api(req, res, u) {
         daViet: [
           ...theoNgay.filter((n) => String(n.nhanDinh || '').trim())
             .map((n) => ({ ngay: n.nhan, loai: 'Nhận định', chu: n.nhanDinh })),
-          ...theoNgay.filter((n) => String(n.canHoTro || '').trim())
+          ...theoNgay.filter((n) => K.canHoTroThat(n.canHoTro))
             .map((n) => ({ ngay: n.nhan, loai: 'Cần hỗ trợ', chu: n.canHoTro })),
           ...viec.flatMap((v) => v.ghiChu.map((g) => ({
             ngay: K.veNgayThu(g.ms), loai: v.ten, chu: g.chu,
@@ -529,7 +529,8 @@ async function api(req, res, u) {
     const daNop = ds.filter((x) => x.trangThai === cfg.chon.trangThaiPhieu.daNop);
     const bu = daNop.filter((x) => x.nopBu);
     const tre = daNop.filter((x) => x.dungHan === cfg.chon.dungHan.tre && !x.nopBu);
-    const hoTro = ds.filter((x) => String(x.canHoTro || '').trim());
+    /* "Không" không phải lời cầu cứu — xem K.canHoTroThat(). */
+    const hoTro = ds.filter((x) => K.canHoTroThat(x.canHoTro));
 
     const the = [
       { chinh: true, nhan: 'Phiếu đã nộp', so: daNop.length, dinhDang: 'so',
@@ -692,7 +693,7 @@ async function api(req, res, u) {
     const tu = Number(q.get('tu')) || K.kyTuan(Date.now()).tu;
     const den = Number(q.get('den')) || Date.now();
     const ds = (await kho.dsPhieu({ tu, den }, q.get('moi') === '1'))
-      .filter((x) => String(x.canHoTro || '').trim())
+      .filter((x) => K.canHoTroThat(x.canHoTro))
       .map((x) => ({
         ten: x.tenNguoi || x.email || x.nguoi,
         id: x.nguoi, email: x.email,

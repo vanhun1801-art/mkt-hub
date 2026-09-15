@@ -405,6 +405,32 @@
     'Chung': 'General',
     'Nâng cao': 'Advanced',
     'Base trong panel': 'Bases in the panel',
+
+    /* --- bảng tin trên trang Tổng quan --- */
+    'Tin của phòng': 'Team news',
+    'mới': 'new',
+
+    /* --- thẻ Báo cáo & KPI --- */
+    'Đạt mục tiêu': 'Target attainment',
+    'Chưa chấm xong': 'Scoring incomplete',
+    'Cảnh báo số liệu': 'Data warnings',
+    'Đã chốt': 'Closed',
+
+    /* --- thẻ Quỹ chi phí --- */
+    'Còn trong quỹ': 'Fund balance',
+    'Chờ chi': 'Awaiting payout',
+    'Chờ quyết toán': 'Awaiting settlement',
+    'Chi trong kỳ': 'Spent in period',
+    'Đã chi từ đầu quỹ': 'Spent since fund opened',
+
+    /* --- thẻ Báo cáo công việc --- */
+    'Phiếu đã nộp': 'Reports submitted',
+    'Nộp trễ': 'Late',
+    'Nộp bù': 'Make-up',
+    'Cần hỗ trợ': 'Needs help',
+    'cả phòng, trong kỳ lọc': 'whole team, in the selected period',
+    'của bạn, trong kỳ lọc': 'yours, in the selected period',
+    'nhân sự đang mắc, cần người gỡ': 'people are stuck and need unblocking',
     'Thứ tự trong panel': 'Order in the panel',
     'Về thứ tự gốc': 'Reset order',
     'Đã về thứ tự gốc': 'Order reset',
@@ -782,6 +808,15 @@
   const MAU_EN = [
     /* --- app Chỉnh ảnh & Edit video: nhãn mang con số hoặc tên nhóm --- */
     [/^Gửi tin về nhóm (.+)$/, 'Post to $1'],
+    [/^nhóm (.+)$/, 'group $1'],
+
+    /* --- ghi chú của ba thẻ mới: mang con số hoặc tháng nên phải đi bằng mẫu --- */
+    [/^đã ứng (\d+) lần$/, '$1 top-ups so far'],
+    [/^(\d+) khoản$/, '$1 items'],
+    [/^tháng (\S+) · (\d+) người đã chấm đủ$/, '$1 · $2 people fully scored'],
+    [/^tháng (\S+)$/, '$1'],
+    [/^chưa chốt tháng (\S+)$/, '$1 not closed yet'],
+    [/^tháng (\S+) đã chốt$/, '$1 closed'],
     [/^Báo cáo (\d+) mục$/, 'Report $1 item(s)'],
     [/^(\d+) mục$/, '$1 item(s)'],
     [/^(\d+) mục · (.+)$/, '$1 item(s) · $2'],

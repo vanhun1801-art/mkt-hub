@@ -8,6 +8,23 @@ node server.js        →  http://localhost:5183
 node test/chay-het.js →  toàn bộ test
 ```
 
+## "Không" không phải là lời cầu cứu
+
+Nhân sự điền ô **Cần hỗ trợ** mỗi ngày, và phần lớn ngày họ gõ *"Không"* — trả
+lời câu hỏi chứ không phải xin giúp. App từng coi mọi ô có chữ là một vướng mắc,
+nên trang Tổng quan của hub báo **"Cần hỗ trợ 4"** trong khi thật ra chỉ có **1**
+— ba cái kia là chữ "Không". Đếm sai kiểu này nguy ở chỗ nó làm người ta quen
+với con số đỏ rồi thôi không nhìn nữa.
+
+`K.canHoTroThat()` lọc những câu mang nghĩa "không có gì": *không · ko · k · kg ·
+không có · không cần · no · none · n/a · dấu câu đứng một mình*. Dùng ở cả ba
+chỗ đọc ô đó — thẻ Tổng quan, màn *Cần hỗ trợ*, và nhận định tự động.
+
+Cố tình giữ danh sách **hẹp**: nghi ngờ thì coi là CÓ cầu cứu. Bỏ sót một người
+đang mắc tệ hơn nhiều so với đếm thừa một chữ "Không". Vì thế câu *"Không có
+người hỗ trợ vào cổng"* vẫn được giữ — nó bắt đầu bằng "Không" nhưng là một
+vướng mắc thật.
+
 ## Vì sao có app này
 
 Cả phòng đang gõ báo cáo vào một bảng Excel, chụp màn hình, rồi dán vào nhóm

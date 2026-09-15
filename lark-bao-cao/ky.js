@@ -429,7 +429,39 @@ function soSanh(nay, truoc, tin = {}) {
   };
 }
 
+/**
+ * Ô "Cần hỗ trợ" này có thật sự là một lời cầu cứu không.
+ *
+ * Nhân sự điền ô đó mỗi ngày, và phần lớn ngày thì họ gõ "Không" — trả lời câu
+ * hỏi chứ không phải xin giúp. Coi mọi ô có chữ là một vướng mắc thì trang Tổng
+ * quan báo "Cần hỗ trợ 4" trong khi thật ra chỉ có 2, mà hai cái kia là chữ
+ * "Không". Đếm sai kiểu này nguy ở chỗ nó làm người ta quen với con số đỏ rồi
+ * thôi không nhìn nữa.
+ *
+ * Danh sách dưới đây là những câu ĐÃ GẶP trong Base thật, cộng mấy biến thể
+ * gần nhất. Cố tình giữ hẹp: nghi ngờ thì coi là CÓ cầu cứu — bỏ sót một người
+ * đang mắc tệ hơn là đếm thừa một chữ "Không".
+ */
+const KHONG_CAN = new Set([
+  'không', 'ko', 'k', 'kg', 'khong',
+  'không có', 'khong co', 'không cần', 'khong can', 'không có gì', 'khong co gi',
+  'không cần hỗ trợ', 'khong can ho tro', 'không vướng', 'không có vướng mắc',
+  'no', 'none', 'n/a', 'na', '-', '--', 'x', '0',
+]);
+
+function canHoTroThat(chu) {
+  const s = String(chu == null ? '' : chu).trim();
+  if (!s) return false;
+  /* Bỏ dấu câu ở hai đầu ("Không.", "- không -") rồi mới so. */
+  const goc = s.replace(/^[\s.,;:!?()\-–—*"']+|[\s.,;:!?()\-–—*"']+$/g, '').toLowerCase();
+  /* Gạch ngang hay dấu sao đứng một mình: gọt dấu câu xong còn chuỗi rỗng —
+   * cũng là "không có gì", không phải lời cầu cứu. */
+  if (!goc) return false;
+  return !KHONG_CAN.has(goc);
+}
+
 module.exports = {
+  canHoTroThat,
   PHUT, GIO, NGAY, VN, CA, TEN_THU, LUAT, NGUONG_BU,
   phanRaVN, dauNgay, cuoiNgay, tuNgayVN,
   veNgay, veNgayThu, veLuc, vePhut, veTre, veLanNop,

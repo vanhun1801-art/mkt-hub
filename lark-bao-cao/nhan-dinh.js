@@ -124,7 +124,7 @@ function chiMotPhieu(phieu, dong, boiCanh = {}) {
   }
 
   /* ---- 7. cần hỗ trợ ---- */
-  if (String(phieu.canHoTro || '').trim()) {
+  if (K.canHoTroThat(phieu.canHoTro)) {
     them('ho-tro', MUC.canh, 'Có nêu vướng mắc cần hỗ trợ.', phieu.canHoTro);
   }
 
