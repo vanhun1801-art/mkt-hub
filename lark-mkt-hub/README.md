@@ -495,9 +495,14 @@ Khối chỉ vẽ **một lần** (`dataset.xong`): trang chủ tự vẽ lại 
 nhịp số liệu, vẽ lại mà đụng vào thẻ `<video>` là video đang xem bị dựng lại từ
 đầu.
 
-Kích thước theo đúng ô anh Hùng kẻ: video **một phần ba**, cột tin **hai phần
-ba**, cả khối cao **290px** — một khoảnh trên đầu trang, không đẩy thẻ số liệu
-xuống ngoài tầm nhìn.
+Kích thước: cột video hẹp hơn cột tin, cả khối cao một khoảnh trên đầu trang,
+không đẩy thẻ số liệu xuống ngoài tầm nhìn. Bề ngang cột video và chiều cao khối
+là **một cặp 16:9** — `480/270`, `400/225` (≤1200px), `560/315` (≥1700px). Đổi
+một số thì phải đổi số kia, nếu không video 16:9 lại bị cắt hai đầu.
+
+`.tin-cot` và `.tin-ds` phải có `min-height: 0`: thiếu nó thì danh sách tin tự
+nở theo nội dung thay vì cuộn, và mấy tin phía dưới bị cắt mà **không cuộn tới
+được**.
 
 **Video tự chạy, lặp mãi, mặc định im tiếng.** `autoplay loop muted playsinline`
 là đúng bốn thuộc tính trình duyệt đòi để được tự chạy — thiếu `muted` là Chrome
