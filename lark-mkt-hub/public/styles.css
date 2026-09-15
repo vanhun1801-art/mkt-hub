@@ -1439,11 +1439,19 @@ body.bb-chan { overflow: hidden; }
      gấp rưỡi màn hình là chuyện thường. Trần 92vh chừa lại một viền nền mờ để
      vẫn thấy rõ đây là lớp phủ. */
   max-height: 92vh; overflow-y: auto;
+  /* Giấu thanh cuộn: thanh cuộn xám của Windows cắt dọc ngay cạnh tấm ảnh tràn
+     viền trông rất cũ, mà nó còn ăn mất 16px nên ảnh không chạm được mép phải.
+     Vẫn cuộn được bằng lăn chuột, phím và vuốt — chỉ là không vẽ cái thanh.
+     Biết là còn nội dung phía dưới nhờ ảnh bị cắt ngang ở mép hộp. */
+  scrollbar-width: none;        /* Firefox */
+  -ms-overflow-style: none;     /* Edge cũ */
   /* Căn trái rõ ràng: hộp này nằm giữa màn hình nên rất dễ thừa hưởng
      text-align:center của khối cha, mà một đoạn thông báo nhiều dòng căn giữa
      thì đọc rất mệt (đã thấy lúc chụp thử). */
   text-align: left;
 }
+.bb-hop::-webkit-scrollbar { width: 0; height: 0; }   /* Chrome, Edge, Safari */
+
 /* Vạch màu trên đỉnh hộp theo mức độ — đọc được trước cả khi đọc chữ. */
 .bb-hop { border-top: 4px solid var(--xanh); }
 .bb-quan { border-top-color: var(--vang); }
