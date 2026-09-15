@@ -476,6 +476,47 @@ Còn hai đường luôn thắng theo hướng mở, cố ý để không ai t�
 Kiểm tra nhanh mình đã cấp đúng chưa: màn Phân quyền → **Xem như** một người, cả app
 chuyển sang đúng con mắt của họ (mọi thao tác ghi bị chặn trong lúc xem hộ).
 
+## Thông báo gửi kèm ảnh / tệp
+
+Cột **Đính kèm** (`fldEwBAr6N`, kiểu attachment) trên bảng `Thông báo app`, tạo
+ngày 15/09/2026.
+
+Ô đính kèm của Base **không ghi được như ô thường** — phải đẩy tệp lên trước, lấy
+token, rồi gắn token vào ô. Hai chế độ đi hai đường hẳn nhau (`base-lark.js`):
+
+| | cli — máy cá nhân | api — bản deploy |
+|---|---|---|
+| Đẩy lên | `base +record-upload-attachment` | `drive/v1/medias/upload_all` (`parent_type` `bitable_file`) rồi ghi ô `[{file_token}]` |
+| Tải về | `base +record-download-attachment` | `drive/v1/medias/{token}/download` |
+| Thử được ở máy cá nhân? | **có** | **không** — cần khoá app, mà khoá chỉ nằm trên Render |
+
+Vì đường `api` không thử được ở máy cá nhân nên mọi lỗi ở đó được **dịch ra
+việc phải làm**: `99991672` → "app chưa có scope `drive:drive`, thêm rồi phát
+hành lại version"; `91403` → "app chưa được chia sẻ Base này".
+
+Ba điều đã vấp và đã vá:
+
+- **lark-cli chỉ nhận `--file` là đường dẫn tương đối nằm trong thư mục làm
+  việc** ("unsafe file path" nếu trỏ ra ngoài), nên tệp tạm phải nằm dưới
+  `.tmp/` của chính thư mục app, không dùng được `os.tmpdir()`.
+- **Tên tệp đi qua header phải mã hoá base64**: tên tiếng Việt có dấu nhét thẳng
+  vào header là Node ném `Invalid character in header`.
+- **Ô trên Base hay để trống `type`**, nên lúc phát lại phải đoán kiểu theo đuôi
+  tên — trả `application/octet-stream` cho một tấm PNG thì thẻ `<img>` của popup
+  tuỳ trình duyệt mà hiện hay không.
+
+Tệp **không** đi thẳng từ trình duyệt sang Lark mà đi qua lớp vỏ: khoá app không
+ra khỏi máy chủ, chặn được cỡ tệp (10 MB) và ai được tải lên (chỉ quản lý), còn
+người **nhận** thông báo xem được ảnh mà không cần quyền gì trên Base.
+
+Đính kèm được **sau khi đã lưu** thông báo: ô đính kèm gắn vào một dòng cụ thể,
+chưa có dòng thì chưa có chỗ mà gắn. Form soạn nói thẳng điều đó thay vì bày ra
+một nút bấm vào báo lỗi.
+
+Trong popup: ảnh hiện thẳng (cao tối đa 320px — thông báo là thứ *chặn* màn
+hình, một tấm ảnh dài đẩy nút "Tôi đã đọc" xuống ngoài tầm nhìn là biến nó thành
+cái bẫy), tệp khác thành một dòng bấm để tải.
+
 ## Chữ trong Cài đặt — chỉ giữ chữ báo tình trạng
 
 Anh Hùng: *"các cái note nhỏ nhỏ trong cài đặt anh thấy không cần nữa"*. Mỗi mục
@@ -758,6 +799,7 @@ trong Lark**, không liên quan tới vai quản lý/nhân sự bên trong từn
 | `test/bot.test.js` | kiểm thử lớp `/bot`: token, chỉ GET, và **không một đồng nào lọt ra** |
 | `test/tb-app.test.js` | thông báo chặn màn hình: ai bị chặn, chặn tới khi nào, và canh va chạm tên giữa các tệp `public/` |
 | `test/nhom-mkt.test.js` | khớp nhóm chat vào danh bạ: tick thiếu và tick thừa đều im lặng nên phải thử |
+| `test/tep-dinh-kem.test.js` | đọc ô đính kèm của Base, tên tệp tiếng Việt qua header, và ba cửa tệp đều sau tường đăng nhập |
 | `test/thu-tu-app.test.js` | thứ tự app do người dùng xếp: chạy chính khối mã của app.js trong vm |
 | `test/nen.test.js` | nén: thương lượng `Accept-Encoding`, SSE không bị nén, và **giải ra khớp từng byte** |
 | `test/dem-kpi.test.js` | đệm chỉ số: gộp lượt đang bay, trả số cũ rồi đọc lại, có trần, đời của đệm |

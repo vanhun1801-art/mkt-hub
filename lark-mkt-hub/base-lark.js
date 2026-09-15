@@ -89,6 +89,37 @@ function cli(args) {
   });
 }
 
+/**
+ * Ô đính kèm của Base -> [{token, ten, kieu, co}].
+ *
+ * Base trả mảng object; tên khoá khác nhau giữa các đường đọc (file_token hay
+ * token, name hay file_name), nên nhận hết. Ô trống trả mảng rỗng.
+ */
+function docOTep(v) {
+  if (!Array.isArray(v)) return [];
+  return v.map((x) => ({
+    token: (x && (x.file_token || x.token || x.attachmentToken)) || '',
+    ten: (x && (x.name || x.file_name)) || 'tệp',
+    kieu: (x && (x.type || x.mime_type)) || '',
+    co: Number((x && x.size) || 0),
+  })).filter((x) => x.token);
+}
+
+/* Thư mục tạm cho lark-cli: PHẢI nằm dưới thư mục làm việc hiện tại — lark-cli
+ * từ chối mọi đường dẫn trỏ ra ngoài ("unsafe file path"). `.tmp/` đã có trong
+ * .gitignore nên không lo lọt lên kho. */
+function thuMucTam() {
+  const d = pathn.join(process.cwd(), '.tmp');
+  fsn.mkdirSync(d, { recursive: true });
+  return d;
+}
+
+/** Đường dẫn tương đối kiểu ./x/y — dạng duy nhất lark-cli nhận. */
+function duongTuongDoi(p) {
+  const r = pathn.relative(process.cwd(), p).split(pathn.sep).join('/');
+  return r.startsWith('.') ? r : './' + r;
+}
+
 /* ---------------- một bảng cụ thể ---------------- */
 
 /**
@@ -212,9 +243,164 @@ function bang(baseToken, tableId) {
       '--json', JSON.stringify(body), '--yes']);
   }
 
+  /* ---------------- ô đính kèm ----------------
+   * Ô đính kèm KHÔNG ghi được như một ô bình thường: phải đẩy tệp lên trước,
+   * lấy token, rồi mới gắn token vào ô. Hai chế độ đi hai đường khác hẳn:
+   *
+   *   cli — lark-cli có sẵn `base +record-upload-attachment`, nhận đường dẫn
+   *         tệp trên đĩa. Máy cá nhân chạy đường này, nên thử được tại chỗ.
+   *   api — REST: đẩy tệp vào `drive/v1/medias/upload_all` (parent_type
+   *         `bitable_file`, parent_node là token của Base) để lấy file_token,
+   *         rồi ghi ô bằng `[{file_token}]`.
+   *
+   * Đường api KHÔNG thử được ở máy cá nhân: nó cần token của app, mà khoá app
+   * chỉ nằm trên Render. Nên mọi lỗi ở đây phải dịch ra việc-phải-làm, đừng ném
+   * mã số — lần chạy thật đầu tiên là trên bản deploy.
+   */
+
+  /** tên cột -> id cột (cli cần id, không nhận tên). */
+  async function idCot() {
+    const theoId = await tenCot();
+    const nguoc = {};
+    Object.keys(theoId).forEach((id) => { nguoc[theoId[id]] = id; });
+    return nguoc;
+  }
+
+  function dichLoiTep(e) {
+    const ma = (e && e.code) || 0;
+    const m = String((e && e.message) || e);
+    if (ma === 99991672 || /99991672/.test(m)) {
+      return new Error('App Marketing Hub chưa có quyền tải tệp lên (scope drive:drive). ' +
+        'Thêm scope trong Developer Console rồi phát hành lại một version.');
+    }
+    if (ma === 91403 || /91403/.test(m)) {
+      return new Error('App chưa được chia sẻ Base này nên không đính kèm được.');
+    }
+    return e instanceof Error ? e : new Error(m);
+  }
+
+  /** Đẩy tệp lên Lark, trả về file_token (chỉ chế độ api). */
+  async function upMedia(ten, kieu, buf) {
+    const token = await tenantToken();
+    const bien = '----hub' + Math.random().toString(16).slice(2);
+    const o = (n, v) => Buffer.from('--' + bien + '\r\nContent-Disposition: form-data; name="' +
+      n + '"\r\n\r\n' + v + '\r\n', 'utf8');
+    const than = Buffer.concat([
+      o('file_name', ten),
+      o('parent_type', 'bitable_file'),
+      o('parent_node', baseToken),
+      o('size', String(buf.length)),
+      Buffer.from('--' + bien + '\r\nContent-Disposition: form-data; name="file"; filename="' +
+        ten.replace(/["\\]/g, '_') + '"\r\nContent-Type: ' + (kieu || 'application/octet-stream') +
+        '\r\n\r\n', 'utf8'),
+      buf,
+      Buffer.from('\r\n--' + bien + '--\r\n', 'utf8'),
+    ]);
+    const r = await fetch(cfg.apiHost + '/open-apis/drive/v1/medias/upload_all', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'multipart/form-data; boundary=' + bien },
+      body: than,
+    });
+    const d = await r.json();
+    if (d.code !== 0) {
+      const e = new Error('Lark API ' + d.code + ': ' + (d.msg || 'lỗi không rõ'));
+      e.code = d.code;
+      throw dichLoiTep(e);
+    }
+    return (d.data || {}).file_token || '';
+  }
+
+  /**
+   * Đính một tệp vào ô đính kèm của một dòng. Trả về danh sách token sau khi gắn.
+   * @param {string} recordId
+   * @param {string} cot   tên cột đính kèm
+   * @param {{ten:string, kieu:string, buf:Buffer}} tep
+   */
+  async function dinhTep(recordId, cot, tep) {
+    if (!recordId) throw new Error('Chưa có dòng để đính kèm — lưu thông báo trước đã.');
+    if (laApi()) {
+      const token = await upMedia(tep.ten, tep.kieu, tep.buf);
+      if (!token) throw new Error('Lark nhận tệp nhưng không trả token.');
+      /* Đọc lại ô hiện tại rồi ghi CẢ danh sách: ghi một phần tử là xoá sạch
+       * mấy tệp đã đính trước đó. */
+      const cu = await docTepCua(recordId, cot);
+      const moi = cu.map((x) => ({ file_token: x.token })).concat([{ file_token: token }]);
+      await ghi(recordId, { [cot]: moi });
+      return token;
+    }
+    /* cli: cần id cột và một tệp thật trên đĩa. */
+    const ids = await idCot();
+    const fid = ids[cot];
+    if (!fid) throw new Error('Bảng chưa có cột "' + cot + '".');
+    /* lark-cli CHỈ nhận --file là đường dẫn TƯƠNG ĐỐI nằm trong thư mục làm
+     * việc hiện tại ("unsafe file path" nếu trỏ ra ngoài). Nên tệp tạm phải nằm
+     * dưới cwd của tiến trình, không dùng được os.tmpdir(). */
+    const thuMuc = fsn.mkdtempSync(pathn.join(thuMucTam(), 'tep-'));
+    const duong = pathn.join(thuMuc, tep.ten.replace(/[\\/:*?"<>|]/g, '_'));
+    fsn.writeFileSync(duong, tep.buf);
+    try {
+      await cli(['base', '+record-upload-attachment', ...cliArgs(),
+        '--record-id', recordId, '--field-id', fid, '--file', duongTuongDoi(duong)]);
+    } finally {
+      try { fsn.rmSync(thuMuc, { recursive: true, force: true }); } catch (_) {}
+    }
+    const sau = await docTepCua(recordId, cot);
+    return (sau[sau.length - 1] || {}).token || '';
+  }
+
+  /** Danh sách tệp đang đính ở một dòng: [{token, ten, kieu, co}] */
+  async function docTepCua(recordId, cot) {
+    const dong = (await docHet()).find((x) => x.recordId === recordId);
+    return docOTep(dong ? dong[cot] : null);
+  }
+
+  /** Gỡ một tệp khỏi ô. */
+  async function goTep(recordId, cot, token) {
+    const con = (await docTepCua(recordId, cot)).filter((x) => x.token !== token);
+    if (laApi()) {
+      await ghi(recordId, { [cot]: con.map((x) => ({ file_token: x.token })) });
+      return con;
+    }
+    const ids = await idCot();
+    const fid = ids[cot];
+    if (!fid) throw new Error('Bảng chưa có cột "' + cot + '".');
+    await cli(['base', '+record-remove-attachment', ...cliArgs(),
+      '--record-id', recordId, '--field-id', fid, '--file-token', token, '--yes']);
+    return con;
+  }
+
+  /** Tải một tệp đính kèm về bộ nhớ: { buf, kieu, ten }. */
+  async function taiTep(recordId, token) {
+    if (laApi()) {
+      const tk = await tenantToken();
+      const r = await fetch(cfg.apiHost + '/open-apis/drive/v1/medias/' +
+        encodeURIComponent(token) + '/download', { headers: { Authorization: 'Bearer ' + tk } });
+      if (!r.ok) {
+        let msg = 'HTTP ' + r.status;
+        try { const j = await r.json(); msg = 'Lark API ' + j.code + ': ' + (j.msg || ''); } catch (_) {}
+        const e = new Error(msg);
+        e.code = r.status;
+        throw dichLoiTep(e);
+      }
+      const buf = Buffer.from(await r.arrayBuffer());
+      return { buf, kieu: r.headers.get('content-type') || 'application/octet-stream' };
+    }
+    const thuMuc = fsn.mkdtempSync(pathn.join(thuMucTam(), 'tai-'));
+    try {
+      await cli(['base', '+record-download-attachment', ...cliArgs(),
+        '--record-id', recordId, '--file-token', token, '--output', duongTuongDoi(thuMuc)]);
+      const ten = fsn.readdirSync(thuMuc)[0];
+      if (!ten) throw new Error('lark-cli không tải về tệp nào.');
+      return { buf: fsn.readFileSync(pathn.join(thuMuc, ten)), kieu: '', ten };
+    } finally {
+      try { fsn.rmSync(thuMuc, { recursive: true, force: true }); } catch (_) {}
+    }
+  }
+
   const larkUrl = 'https://rootytrip2.sg.larksuite.com/base/' + baseToken + '?table=' + tableId;
 
-  return { goi, cli, cliArgs, tenCot, docHet, locCotThat, ghi, tao, xoa, larkUrl };
+  return { goi, cli, cliArgs, tenCot, idCot, docHet, locCotThat, ghi, tao, xoa,
+    dinhTep, goTep, taiTep, docTepCua, larkUrl };
 }
 
-module.exports = { laApi, tenantToken, timLarkCli, cli, bang };
+module.exports = { laApi, tenantToken, timLarkCli, cli, bang, docOTep };

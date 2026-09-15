@@ -977,6 +977,38 @@ code { background: var(--trang-2); border: 1px solid var(--vien-mem); border-rad
    Chỉ đậm chữ, KHÔNG đổi màu: màu ở đây đang mang nghĩa "cảnh báo". */
 .q-ck-nhom { color: var(--chu); font-weight: 600; }
 
+/* ---------------- tệp đính kèm của thông báo ---------------- */
+.q-tep { display: flex; flex-direction: column; gap: 6px; }
+.q-tep-mot {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 8px; border: 1px solid var(--vien); border-radius: var(--r-nho);
+  background: var(--trang); font-size: 12.5px;
+}
+.q-tep-mot img { width: 34px; height: 34px; object-fit: cover; border-radius: 6px; flex: 0 0 auto; }
+.q-tep-ic, .bb-tep-ic {
+  flex: 0 0 auto; display: grid; place-items: center;
+  width: 34px; height: 34px; border-radius: 6px;
+  background: var(--xanh-nhat); color: var(--xanh);
+  font-size: 9.5px; font-weight: 700; letter-spacing: .04em;
+}
+.q-tep-ten { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Trong popup: ảnh hiện thẳng, tệp khác thành một dòng bấm được.
+   Giới hạn chiều cao ảnh — thông báo là thứ CHẶN màn hình, một tấm ảnh dài đẩy
+   nút "Tôi đã đọc" xuống dưới tầm nhìn là biến nó thành cái bẫy. */
+.bb-tep { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 2px; }
+.bb-tep-anh { display: block; }
+.bb-tep-anh img {
+  display: block; max-width: 100%; max-height: 320px;
+  border-radius: var(--r-nho); border: 1px solid var(--vien);
+}
+.bb-tep-mot {
+  display: flex; align-items: center; gap: 8px; text-decoration: none;
+  padding: 7px 10px; border: 1px solid var(--vien); border-radius: var(--r-nho);
+  color: var(--chu); font-size: 13px;
+}
+.bb-tep-mot:hover { background: var(--trang-2); border-color: var(--vien-dam); }
+
 /* Danh sách người cho "Xem tải của ai": ~36 người thì không thể đổ hết ra
    form, nên cuộn trong khối và có ô lọc ngay trên. */
 .q-nhom-cuon { max-height: 200px; overflow-y: auto; padding-right: 4px; }

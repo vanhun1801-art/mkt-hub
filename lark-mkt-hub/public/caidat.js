@@ -687,6 +687,19 @@ function moFormTb(tb) {
     '<textarea class="q-in" id="tbNoiDung" rows="5" placeholder="Xuống dòng được — mỗi dòng một đoạn">' +
     esc(t.noiDung || '') + '</textarea>');
 
+  /* Tệp đính kèm.
+   *
+   * Đính được chỉ khi thông báo ĐÃ CÓ trên bảng: ô đính kèm của Base gắn vào
+   * một dòng cụ thể, chưa lưu thì chưa có dòng nào để gắn. Nên thông báo mới
+   * thì ô này nói thẳng "lưu trước đã" thay vì bày ra một nút bấm vào báo lỗi.
+   */
+  html += hang('Tệp đính kèm',
+    (t.recordId
+      ? '<div class="q-tep" id="tbTepDs"></div>' +
+        '<input type="file" id="tbTepChon" multiple hidden>' +
+        '<button class="btn nho" id="tbTepThem" style="margin-top:6px">Thêm tệp…</button>'
+      : '<div class="q-ghi-nho">Lưu thông báo trước, rồi mở lại để đính kèm.</div>'));
+
   html += hang('Nút hành động',
     '<input class="q-in" id="tbNhanNut" type="text" value="' + esc(t.nhanNut || '') +
       '" placeholder="Nhãn nút, ví dụ: Đọc quy định mới">' +
@@ -825,6 +838,14 @@ function moFormTb(tb) {
       toast('Đã tick ' + sanNhom.length + ' người trong nhóm ' + (nhom.ten || 'Phòng MKT'), 'luc');
     };
   }
+  veTbTep();
+  const nutTep = $('#tbTepThem');
+  if (nutTep) {
+    const oTep = $('#tbTepChon');
+    nutTep.onclick = () => oTep.click();
+    oTep.onchange = () => { taiTepLen([...oTep.files]); oTep.value = ''; };
+  }
+
   $('#tbQuay').onclick = () => { modalCaiDat('thong-bao'); };
   $('#tbLuu').onclick = luuFormTb;
   /* Xem thử ngay từ form, đọc nội dung ĐANG GÕ chứ không phải bản đã lưu — xem
@@ -843,6 +864,67 @@ function moFormTb(tb) {
     });
   };
 }
+
+/** Vẽ lại danh sách tệp đang đính của thông báo đang soạn. */
+function veTbTep() {
+  const o = $('#tbTepDs');
+  if (!o) return;
+  const ds = (TBSUA && TBSUA.tep) || [];
+  if (!ds.length) { o.innerHTML = '<div class="q-ghi-nho">Chưa có tệp nào.</div>'; return; }
+  o.innerHTML = ds.map((x) =>
+    '<div class="q-tep-mot">' +
+      (laAnh(x) ? '<img src="' + esc(duongTep(TBSUA.recordId, x.token)) + '" alt="">' : '<span class="q-tep-ic">TỆP</span>') +
+      '<span class="q-tep-ten">' + esc(x.ten) + '</span>' +
+      (x.co ? '<span class="q-nhat">' + coTep(x.co) + '</span>' : '') +
+      '<button class="btn nho ghost" data-go-tep="' + esc(x.token) + '">Gỡ</button>' +
+    '</div>').join('');
+  $$('#tbTepDs [data-go-tep]').forEach((b) => {
+    b.onclick = async () => {
+      b.disabled = true;
+      try {
+        const d = await goi('/api/tb-app/go-tep', { method: 'POST',
+          body: JSON.stringify({ recordId: TBSUA.recordId, token: b.dataset.goTep }) });
+        TBSUA.tep = d.tep || [];
+        veTbTep();
+      } catch (e) { b.disabled = false; toast(e.message, 'do'); }
+    };
+  });
+}
+
+/**
+ * Đẩy từng tệp lên, xong cái nào vẽ lại cái đó.
+ *
+ * Gửi thẳng byte của tệp trong thân yêu cầu, không dựng multipart: bên nhận chỉ
+ * cần đúng MỘT tệp mỗi lượt, mà multipart tự dựng tay là chỗ rất dễ sai lặng lẽ.
+ * Tên tệp đi qua header nên phải mã hoá base64 — tên tiếng Việt có dấu nhét
+ * thẳng vào header là Node ném "Invalid character in header".
+ */
+async function taiTepLen(ds) {
+  const o = $('#tbTepDs');
+  for (const f of ds) {
+    if (f.size > 10 * 1024 * 1024) { toast('"' + f.name + '" quá 10 MB.', 'do'); continue; }
+    if (o) o.innerHTML += '<div class="q-ghi-nho">Đang tải lên ' + esc(f.name) + '…</div>';
+    try {
+      const d = await goi('/api/tb-app/tep?recordId=' + encodeURIComponent(TBSUA.recordId), {
+        method: 'POST',
+        headers: {
+          'Content-Type': f.type || 'application/octet-stream',
+          'x-ten-tep': btoa(String.fromCharCode(...new TextEncoder().encode(f.name))),
+        },
+        body: f,
+      });
+      TBSUA.tep = (TBSUA.tep || []).concat([{ token: d.token, ten: d.ten, kieu: d.kieu, co: d.co }]);
+    } catch (e) {
+      toast('Không tải lên được "' + f.name + '": ' + e.message, 'do');
+    }
+    veTbTep();
+  }
+}
+
+const laAnh = (x) => /^image\//.test(x.kieu || '') || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(x.ten || '');
+const duongTep = (rec, token) =>
+  '/api/tb-app/tep/' + encodeURIComponent(rec) + '/' + encodeURIComponent(token);
+const coTep = (n) => (n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB');
 
 async function luuFormTb() {
   const than = {

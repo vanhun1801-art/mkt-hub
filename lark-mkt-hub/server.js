@@ -381,6 +381,16 @@ const MIME = {
   '.png': 'image/png',
   '.ico': 'image/x-icon',
   '.json': 'application/json; charset=utf-8',
+  /* Mấy đuôi dưới đây KHÔNG phục vụ file tĩnh — chúng để đoán kiểu cho tệp đính
+   * kèm của thông báo, thứ người ta tải lên chứ không phải thứ mình viết ra. */
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.bmp': 'image/bmp',
+  '.pdf': 'application/pdf',
+  '.txt': 'text/plain; charset=utf-8',
+  '.csv': 'text/csv; charset=utf-8',
 };
 
 /* Bộ nhớ đệm file tĩnh: nội dung + BẢN NÉN SẴN, khoá theo đường dẫn và mtime.
@@ -1114,6 +1124,88 @@ async function api(req, res, u) {
    * Quản lý gửi một câu, người nhận buộc phải đọc mới dùng app tiếp được.
    * Luật "ai thấy cái gì, còn hiệu lực không" nằm ở thongbao-app.js.
    */
+  /* ---------------- tệp đính kèm của thông báo ----------------
+   * Tệp KHÔNG đi thẳng từ trình duyệt sang Lark: đi qua đây. Ba lý do, mỗi lý
+   * do một mình đã đủ:
+   *   · khoá app chỉ có ở máy chủ, không được lộ ra trình duyệt;
+   *   · chặn được cỡ tệp và ai được tải lên (chỉ quản lý);
+   *   · người NHẬN thông báo xem được ảnh mà không cần quyền gì trên Base.
+   */
+  if (p === '/api/tb-app/tep' && m === 'POST') {
+    if (await chiQuanLy(req, res)) return;
+    const recordId = u.searchParams.get('recordId') || '';
+    /* Tên tệp đi qua header nên phải mã hoá: tên tiếng Việt có dấu mà nhét
+     * thẳng vào header là Node ném lỗi "Invalid character in header". */
+    let ten = 'tep';
+    try { ten = Buffer.from(String(req.headers['x-ten-tep'] || ''), 'base64').toString('utf8') || 'tep'; }
+    catch (_) {}
+    const kieu = String(req.headers['content-type'] || 'application/octet-stream').split(';')[0];
+    if (!recordId) return loi(res, 400, 'Thiếu recordId — lưu thông báo trước rồi mới đính kèm.');
+
+    const buf = await new Promise((giai, hong) => {
+      const phan = [];
+      let n = 0;
+      req.on('data', (c) => {
+        n += c.length;
+        /* 10 MB: ảnh chụp màn hình và tệp PDF nội bộ đều lọt, mà một tệp lỡ tay
+         * cũng không kéo sập tiến trình. Chặn NGAY trong lúc nhận, không đợi
+         * nhận hết rồi mới đo. */
+        if (n > 10 * 1024 * 1024) { hong(new Error('Tệp quá 10 MB.')); req.destroy(); return; }
+        phan.push(c);
+      });
+      req.on('end', () => giai(Buffer.concat(phan)));
+      req.on('error', hong);
+    }).catch((e) => e);
+    if (buf instanceof Error) return loi(res, 400, buf.message);
+    if (!buf.length) return loi(res, 400, 'Tệp rỗng.');
+
+    try {
+      const token = await tbApp.dinhTep(recordId, { ten, kieu, buf });
+      return ok(res, { token, ten, kieu, co: buf.length });
+    } catch (e) {
+      return loi(res, 400, e.message);
+    }
+  }
+
+  if (p === '/api/tb-app/go-tep' && m === 'POST') {
+    if (await chiQuanLy(req, res)) return;
+    const b = await docBody(req);
+    try { return ok(res, { tep: await tbApp.goTep(b.recordId, b.token) }); }
+    catch (e) { return loi(res, 400, e.message); }
+  }
+
+  /* Phát lại tệp cho trình duyệt. AI CŨNG xem được — nhưng phải biết đúng cặp
+   * (recordId, token), mà cặp đó chỉ đi xuống máy người NHẬN thông báo đó. */
+  if (p.startsWith('/api/tb-app/tep/') && m === 'GET') {
+    const phan = p.slice('/api/tb-app/tep/'.length).split('/');
+    const recordId = decodeURIComponent(phan[0] || '');
+    const token = decodeURIComponent(phan[1] || '');
+    if (!recordId || !token) return loi(res, 400, 'Thiếu recordId hoặc token.');
+    try {
+      const t = await tbApp.taiTep(recordId, token);
+      /* Kiểu tệp: đường cli không báo kiểu, mà ô trên Base cũng hay để trống.
+       * Đoán theo ĐUÔI TÊN là đủ và đúng ở đây — trả octet-stream cho một tấm
+       * PNG thì thẻ <img> của popup tuỳ trình duyệt mà hiện hay không. */
+      let kieu = t.kieu || '';
+      if (!kieu || kieu === 'application/octet-stream') {
+        const ds = await tbApp.docTatCa().catch(() => []);
+        const dong = ds.find((x) => x.recordId === recordId);
+        const ten = ((dong && (dong.tep || []).find((x) => x.token === token)) || {}).ten || t.ten || '';
+        const duoi = String(ten).toLowerCase().replace(/^.*(\.[a-z0-9]+)$/, '$1');
+        kieu = ((dong && (dong.tep || []).find((x) => x.token === token)) || {}).kieu ||
+          MIME[duoi] || kieu || 'application/octet-stream';
+      }
+      return send(res, 200, t.buf, {
+        'Content-Type': kieu,
+        /* Tệp đính kèm không đổi nội dung theo token, nhưng là thứ riêng của
+         * phòng — để `private` để proxy dọc đường không giữ lại bản sao. */
+        'Cache-Control': 'private, max-age=3600',
+      });
+    } catch (e) {
+      return loi(res, 400, e.message);
+    }
+  }
+
   if (p === '/api/tb-app') {
     /* Danh sách CÒN PHẢI ĐỌC của chính người đang xem.
      *

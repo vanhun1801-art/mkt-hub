@@ -74,6 +74,9 @@ const F = {
   nguoiNhan: 'Người nhận',
   bat: 'Bật',
   daDoc: 'Đã đọc',
+  /* Cột đính kèm, tạo ngày 15/09/2026 (fldEwBAr6N). Ô đính kèm KHÔNG ghi được
+   * như ô thường — xem base-lark.dinhTep(). */
+  dinhKem: 'Đính kèm',
 };
 
 const MUC_DO = ['Tin', 'Quan trọng', 'Gấp'];
@@ -147,6 +150,7 @@ function chuanHoa(r) {
     moiAi: oN.moiBase,
     bat: lay('bat') !== false,
     daDoc: docDaDoc(asText(lay('daDoc'))),
+    tep: baseLark.docOTep(lay('dinhKem')),
   };
 }
 
@@ -206,6 +210,9 @@ async function cuaNguoi(nguoi, boQuaCache) {
       lienKet: tb.lienKet,
       buocBam: tb.buocBam,
       denNgay: tb.denNgay,
+      /* Chỉ gửi token + tên + kiểu, KHÔNG gửi nội dung tệp: popup hiện ảnh
+       * bằng một đường dẫn của lớp vỏ, tải bao nhiêu là do trình duyệt quyết. */
+      tep: tb.tep || [],
     }));
 }
 
@@ -254,6 +261,35 @@ async function ghiCoDocLai(doc, ghi, nguoiId, soLan) {
   if (cuoi && cuoi.has(nguoiId)) return { ok: true, lanGhi: lan };
   throw new Error('Lark nhận lượt xác nhận rồi lại làm mất — có người bấm cùng nhịp. ' +
     'Bấm "Tôi đã đọc" thêm lần nữa giúp em.');
+}
+
+/**
+ * Đính một tệp vào thông báo đã lưu.
+ *
+ * Phải LƯU TRƯỚC rồi mới đính: ô đính kèm gắn vào một dòng cụ thể, chưa có dòng
+ * thì chưa có chỗ mà gắn. Panel soạn thông báo vì thế lưu xong mới đẩy tệp lên.
+ */
+async function dinhTep(recordId, tep) {
+  if (FILE) throw new Error('Bản chạy này giữ thông báo trong file, không đính kèm được.');
+  if (!B) throw new Error('Chưa khai HUB_TB_TABLE — xem README.');
+  const token = await B.dinhTep(recordId, F.dinhKem, tep);
+  xoaCache();
+  return token;
+}
+
+/** Gỡ một tệp khỏi thông báo. */
+async function goTep(recordId, token) {
+  if (FILE) throw new Error('Bản chạy này giữ thông báo trong file, không đính kèm được.');
+  if (!B) throw new Error('Chưa khai HUB_TB_TABLE — xem README.');
+  const con = await B.goTep(recordId, F.dinhKem, token);
+  xoaCache();
+  return con;
+}
+
+/** Tải một tệp đính kèm về bộ nhớ để lớp vỏ phát lại cho trình duyệt. */
+async function taiTep(recordId, token) {
+  if (!B) throw new Error('Chưa khai HUB_TB_TABLE — xem README.');
+  return B.taiTep(recordId, token);
 }
 
 /** Ghi lại cả tệp với ô "Đã đọc" của một dòng đã đổi. Chỉ dùng cho kiểm thử. */
@@ -367,6 +403,7 @@ const larkUrl = () => (B ? B.larkUrl : '');
 
 module.exports = {
   F, MUC_DO, docTatCa, cuaNguoi, xacNhan, luu, xoa, xoaCache, cotThieu, coBang, larkUrl,
+  dinhTep, goTep, taiTep,
   // để kiểm thử gọi trực tiếp
   dangHieuLuc, daXacNhan, docDaDoc, ghiDaDoc, chuanHoa, ghiCoDocLai,
 };

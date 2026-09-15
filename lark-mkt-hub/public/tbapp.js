@@ -87,6 +87,7 @@ function veTbApp() {
       '</div>' +
       '<h2 class="bb-ten">' + esc(tb.tieuDe || 'Thông báo') + '</h2>' +
       '<div class="bb-noi">' + (noiDung || '<p class="bb-trong">(không có nội dung)</p>') + '</div>' +
+      veTepTb(tb) +
       (nut ? '<div class="bb-viec">' + nut +
         (tb.buocBam ? '<span class="bb-ghi">' +
           (TB.daBam ? 'Đã mở — giờ xác nhận được rồi'
@@ -225,6 +226,27 @@ function noiCoLink(dong) {
     /* Ký tự đứng trước phải là đầu dòng, khoảng trắng hay dấu mở ngoặc — nhờ
      * vậy đường dẫn đã nằm trong href="..." của bước trên không bị bọc lần hai. */
     .replace(/(^|[\s(])(https?:\/\/[^\s<]+)/gi, (_, dau, url) => dau + the(url, ganGon(url)));
+}
+
+/**
+ * Tệp đính kèm trong popup.
+ *
+ * Ảnh hiện thẳng ra — thông báo kèm ảnh chụp màn hình mà phải bấm tải về rồi mở
+ * bằng app khác thì chẳng ai xem. Tệp khác thành một nút tải về.
+ *
+ * Đường dẫn đi qua lớp vỏ (`/api/tb-app/tep/...`), không phải link Lark: người
+ * nhận không cần quyền gì trên Base, và khoá app không ra khỏi máy chủ.
+ */
+function veTepTb(tb) {
+  const ds = tb.tep || [];
+  if (!ds.length) return '';
+  const duong = (x) => '/api/tb-app/tep/' + encodeURIComponent(tb.recordId) + '/' + encodeURIComponent(x.token);
+  const laAnh = (x) => /^image\//.test(x.kieu || '') || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(x.ten || '');
+  return '<div class="bb-tep">' + ds.map((x) => (laAnh(x)
+    ? '<a class="bb-tep-anh" href="' + duong(x) + '" target="_blank" rel="noopener">' +
+      '<img src="' + duong(x) + '" alt="' + esc(x.ten) + '"></a>'
+    : '<a class="bb-tep-mot" href="' + duong(x) + '" target="_blank" rel="noopener" download>' +
+      '<span class="bb-tep-ic">TỆP</span><span>' + esc(x.ten) + '</span></a>')).join('') + '</div>';
 }
 
 /* Escape KHÔNG đóng được lớp phủ này. Bắt ở chế độ capture để chặn trước cái
