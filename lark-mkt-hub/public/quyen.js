@@ -116,37 +116,41 @@ function veDanhSachQuyen() {
     if (h.vai === 'Quản lý') {
       return '<span class="q-chip q-chip-mo">toàn quyền</span>' + chipKenh(h);
     }
-    // "Quản trị <base>" đứng trước, vì nó nặng hơn mấy tùy chọn lẻ
+    /* Chỉ những thứ NẶNG mới đứng ngoài bảng: quản trị một base, và giới hạn
+     * kênh quảng cáo. Mấy quyền lẻ (xem toàn bộ, tạo mới, xem chi phí, xem tải)
+     * gộp thành một chip đếm ở cột này — mở Sửa là thấy từng cái. */
     const ra = (h.quanLyBase || []).map((id) =>
       '<span class="q-chip q-chip-ql">Quản trị ' + esc(tenBase(id)) + '</span>');
-    const bat = QUYEN_CO.filter((q) => h[q.k] && !(h.quanLyBase || []).length);
-    ra.push(...bat.map((q) => '<span class="q-chip">' + esc(q.ten) + '</span>'));
-    /* Nói rõ MẤY người, vì "xem tải 2 người" và "xem tải cả phòng" khác nhau
-     * hẳn về mức độ — một cái chip chung chung thì đọc bảng không phân biệt
-     * được, mà bảng này là chỗ duy nhất soát lại quyền của cả phòng. */
-    if (!(h.quanLyBase || []).length && h.vai !== 'Quản lý') {
-      if (h.moiXemTai) ra.push('<span class="q-chip">Xem tải cả phòng</span>');
-      else if ((h.xemTaiAi || []).length) {
-        ra.push('<span class="q-chip">Xem tải ' + (h.xemTaiAi || []).length + ' người</span>');
-      }
-    }
-    const kenh = chipKenh(h);
-    if (!ra.length && !kenh) return '<span class="q-nhat">mặc định</span>';
-    return ra.join('') + kenh;
+    return ra.join('') + chipKenh(h);
   };
 
+  /* Bảng ngoài trả lời đúng ba câu: AI · VAI GÌ · THẤY ĐƯỢC GÌ.
+   *
+   * Anh Hùng: "anh thấy lôi các thiết lập sâu cho từng người ra bên ngoài,
+   * giao diện điều chỉnh lại thông minh hơn". Bản trước là tám cột — email, vị
+   * trí, nhận diện và sáu loại quyền lẻ đều đứng ngang hàng với nhau, nên đọc
+   * một dòng phải quét ngang cả màn hình mới biết người đó thấy gì.
+   *
+   * Giờ: email và tình trạng nhận diện nằm NGAY DƯỚI cái tên (chúng nói về cùng
+   * một thứ — "dòng này là ai"); vị trí và mấy quyền lẻ gộp thành chip đếm, bấm
+   * Sửa là thấy đủ. Không giấu mất gì: cái gì đang bật vẫn có chip của nó. */
   const dong = (h, i) => {
     const nd = nhanDien(h);
+    const themQuyen = QUYEN_CO.filter((q) => h[q.k]).length +
+      ((h.xemTaiAi || []).length || h.moiXemTai ? 1 : 0);
     return '<tr>' +
       '<td><div class="q-ten-o"><b>' + esc(h.nguoi || '(chưa đặt tên)') + '</b>' +
-        (toiLa(h) ? '<span class="q-chip q-chip-toi">Bạn</span>' : '') + '</div></td>' +
-      '<td>' + (h.email ? esc(h.email) : '<span class="q-nhat">chưa có</span>') + '</td>' +
-      '<td>' + (h.viTri ? '<span class="q-chip">' + esc(h.viTri) + '</span>' : '<span class="q-nhat">—</span>') + '</td>' +
+        (toiLa(h) ? '<span class="q-chip q-chip-toi">Bạn</span>' : '') + '</div>' +
+        '<div class="q-ten-phu">' +
+          (h.email ? esc(h.email) : '<span class="q-nhat">chưa có email</span>') +
+          ' · <span class="q-nd-' + nd.loai + '" title="' + esc(nd.mo) + '">' + esc(nd.chu) + '</span>' +
+        '</div></td>' +
       '<td><span class="q-vai-o ' + (h.vai === 'Quản lý' ? 'ql' : 'ns') + '">' +
-        (h.vai === 'Quản lý' ? 'Quản lý' : 'Nhân sự') + '</span></td>' +
-      '<td><div class="q-chips">' + oBase(h) + '</div></td>' +
-      '<td><div class="q-chips">' + oQuyen(h) + '</div></td>' +
-      '<td><span class="q-chip q-nd-' + nd.loai + '" title="' + esc(nd.mo) + '">' + esc(nd.chu) + '</span></td>' +
+        (h.vai === 'Quản lý' ? 'Quản lý' : 'Nhân sự') + '</span>' +
+        (h.viTri ? '<div class="q-ten-phu">' + esc(h.viTri) + '</div>' : '') + '</td>' +
+      '<td><div class="q-chips">' + oBase(h) + oQuyen(h) +
+        (themQuyen ? '<span class="q-chip q-nhat">+' + themQuyen + ' quyền lẻ</span>' : '') +
+        '</div></td>' +
       '<td><div class="thao-tac">' +
         (h.khop ? '' : '<button class="btn nho primary" data-sua="' + i + '">Gán người</button>') +
         '<button class="btn nho ghost" data-sua="' + i + '">Sửa</button>' +
@@ -182,11 +186,10 @@ function veDanhSachQuyen() {
     '</div>';
 
   html += '<div class="q-cuon"><table class="bang bang-nguoi"><thead><tr>' +
-    '<th>Họ tên</th><th>Email</th><th>Vị trí</th><th>Vai trò</th>' +
-    '<th>Base được xem</th><th>Quyền thêm</th><th>Nhận diện</th><th></th>' +
+    '<th>Người</th><th>Vai</th><th>Thấy được gì</th><th></th>' +
     '</tr></thead><tbody>' +
     (ds.length ? ds.map(dong).join('')
-      : '<tr><td colspan="8" class="trong">Chưa khai ai. Bấm Thêm nhân sự để bắt đầu.</td></tr>') +
+      : '<tr><td colspan="4" class="trong">Chưa khai ai. Bấm Thêm nhân sự để bắt đầu.</td></tr>') +
     '</tbody></table></div>';
 
   const chuaKhop = ds.filter((h) => !h.khop);
@@ -305,11 +308,20 @@ function moFormQuyen(i, nguoiSan) {
       '>' + esc(v.ten) + '</option>').join('') + '</select>',
     'Chọn vị trí là các ô bên dưới tự tick theo mẫu — sửa tay lại được.');
 
-  html += hang('Vai trò',
-    '<select class="q-in" id="fVai">' +
-    '<option value="Nhân sự"' + (h.vai === 'Quản lý' ? '' : ' selected') + '>Nhân sự — chỉ việc của mình</option>' +
-    '<option value="Quản lý"' + (h.vai === 'Quản lý' ? ' selected' : '') + '>Quản lý — toàn quyền</option>' +
-    '</select>');
+  /* Vai quản lý KHÔNG đặt ở đây nữa.
+   *
+   * Anh Hùng: "chỉ có anh là quản lý, nếu sau này anh muốn phân ai làm quản lý
+   * thì anh thêm ID trên Render". Một cái ô chọn trong app làm được việc đó là
+   * hai nguồn sự thật cho cùng một câu hỏi, mà đây lại là câu hỏi nặng nhất
+   * trong cả hệ — toàn quyền mọi base, thấy mọi con số tiền.
+   *
+   * Dòng nào trong bảng Base đang để "Quản lý" thì vẫn giữ nguyên giá trị đó
+   * khi lưu (không tự ý hạ quyền ai sau lưng), chỉ là không đặt mới từ đây. */
+  html += hang('Vai',
+    '<span class="q-vai-o ' + (h.vai === 'Quản lý' ? 'ql' : 'ns') + '">' +
+    (h.vai === 'Quản lý' ? 'Quản lý' : 'Nhân sự') + '</span>',
+    'Cấp vai quản lý bằng biến <code>LARK_MANAGER_IDS</code> trên Render ' +
+    '(mã Lark của từng người lấy ở Cài đặt → Của tôi).');
 
   /* Ô này từng có một cái bẫy: dòng để trống thì mọi hộp hiện ra ĐÃ TICK, mà bỏ
    * tick sạch lại lưu thành "xem tất cả". Giờ tick nào là đúng base đó, muốn mở
@@ -441,16 +453,11 @@ function moFormQuyen(i, nguoiSan) {
   }
 
   /* Vai = Quản lý là toàn quyền mọi base rồi, hiện thêm nhóm "Quản trị base"
-   * chỉ gây tưởng là phải tick mới có. */
-  const selVai = $('#fVai');
-  if (selVai) {
-    const dongBoVai = () => {
-      const laQL = selVai.value === 'Quản lý';
-      const o = $('#fQLBase');
-      if (o) o.closest('.q-hang').hidden = laQL;
-    };
-    selVai.addEventListener('change', dongBoVai);
-    dongBoVai();
+   * chỉ gây tưởng là phải tick mới có. Vai giờ cố định theo dòng nên xét một
+   * lần, không còn ô chọn để mà nghe ngóng. */
+  if (S.quyenSua.vai === 'Quản lý') {
+    const o = $('#fQLBase');
+    if (o) o.closest('.q-hang').hidden = true;
   }
 
   const ckMoi = $('#fMoiBase');
@@ -493,7 +500,6 @@ function moFormQuyen(i, nguoiSan) {
         const ck = $('#fQuyen [data-q="' + q.k + '"]');
         if (ck) ck.checked = !!mau[q.k];
       });
-      $('#fVai').value = mau.vai === 'Quản lý' ? 'Quản lý' : 'Nhân sự';
       toast('Đã áp mẫu vị trí ' + mau.ten + (mau.mo ? ' — ' + mau.mo : ''), '');
     };
   }
@@ -508,7 +514,9 @@ async function luuFormQuyen() {
     nguoi: $('#fTen').value.trim(),
     email: $('#fMail').value.trim(),
     openId: S.quyenSua.openId || '',
-    vai: $('#fVai').value,
+    /* Giữ nguyên vai của dòng: form không đặt vai nữa (xem chú thích ở trên),
+     * nhưng cũng không được lặng lẽ hạ "Quản lý" cũ xuống "Nhân sự" khi lưu. */
+    vai: S.quyenSua.vai === 'Quản lý' ? 'Quản lý' : 'Nhân sự',
     viTri: $('#fViTri').value,
     /* Lưu ĐÚNG những gì đã tick. Trước đây "tick đủ" được lưu thành ô trống với
      * ý "không giới hạn" — mà ô trống cũng là kết quả của "bỏ tick hết", nên hai

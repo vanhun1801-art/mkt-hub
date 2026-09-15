@@ -1033,10 +1033,17 @@ body.dang-xem-ho .app { height: calc(100vh - 34px); margin-top: 34px; }
   background: var(--trang-2); border: 1px solid var(--vien); border-radius: 10px;
 }
 .q-dau b { font-size: 13.5px; }
-.bang-nguoi { min-width: 1000px; }
+/* Bốn cột thay vì tám — bảng hết phải cuộn ngang trên màn thường. */
+.bang-nguoi { min-width: 720px; }
 .bang-nguoi td { vertical-align: middle; font-size: 13px; }
 .bang-nguoi tbody tr:hover { background: var(--trang-2); }
 .q-ten-o { display: flex; align-items: center; gap: 7px; }
+/* Email và tình trạng nhận diện đứng dưới tên: chúng cùng trả lời "dòng này là
+   ai", nên đứng thành một khối chứ không phải ba cột rời. */
+.q-ten-phu { font-size: 11.5px; color: var(--chu-nhat); margin-top: 2px; }
+.q-ten-phu .q-nd-do { color: var(--do); font-weight: 600; }
+.q-ten-phu .q-nd-vang { color: var(--vang); font-weight: 600; }
+.q-ten-phu .q-nd-luc { color: var(--luc); }
 .q-chips { display: flex; flex-wrap: wrap; gap: 4px; }
 .q-chip {
   display: inline-block; padding: 2px 8px; border-radius: 999px;
