@@ -1045,14 +1045,13 @@ async function veKhoiTin() {
   o.innerHTML = '<section class="khoi khoi-tin">' +
     '<div class="tin-luoi' + (coPhim ? '' : ' khong-phim') + '">' +
       (coPhim
-        /* Anh Hùng: "video sẽ luôn chạy mãi, có tuỳ chọn phát âm thanh hoặc
-         * không". `autoplay loop muted playsinline` là ĐÚNG BỐN thuộc tính mà
-         * trình duyệt đòi để tự chạy — thiếu `muted` là Chrome chặn thẳng, và
-         * chặn im lặng: video đứng ở khung hình đầu mà không báo gì.
+        /* `autoplay loop muted playsinline` là ĐÚNG BỐN thuộc tính trình duyệt
+         * đòi để được tự chạy — thiếu `muted` là Chrome chặn thẳng và chặn im
+         * lặng. Phần bật tiếng nằm ở ganPhimTin(): câm trước cho chạy được, rồi
+         * bỏ câm ngay khi trình duyệt cho phép.
          *
-         * Nên mặc định là im tiếng, rồi có nút loa để bật. Không để `controls`:
-         * thanh điều khiển đen kịt nằm dưới một video chạy nền trông rất nặng,
-         * mà thứ người ta cần ở đây chỉ có đúng một cái — tiếng. */
+         * Không để `controls`: thanh điều khiển đen kịt dưới một video chạy nền
+         * trông rất nặng, mà thứ người ta cần ở đây chỉ có đúng một cái — tiếng. */
         ? '<div class="tin-phim">' +
           '<video src="/api/video-gt?v=' + TIN.phim.luc +
           '" autoplay loop muted playsinline preload="auto"></video>' +
@@ -1076,24 +1075,7 @@ async function veKhoiTin() {
    * chừng có trình duyệt dừng video lại. */
   const oAm = document.getElementById('tinAm');
   const oPhim = o.querySelector('.tin-phim video');
-  if (oAm && oPhim) {
-    let co = false;
-    try { co = localStorage.getItem('hub.tinTieng') === '1'; } catch (_) {}
-    const ap = () => {
-      oPhim.muted = !co;
-      oAm.textContent = co ? '🔊' : '🔇';
-      oAm.title = co ? 'Tắt tiếng' : 'Bật tiếng';
-      oAm.setAttribute('aria-label', oAm.title);
-    };
-    ap();
-    if (co) oPhim.play().catch(() => { /* trình duyệt chặn thì cứ để im */ });
-    oAm.onclick = () => {
-      co = !co;
-      try { localStorage.setItem('hub.tinTieng', co ? '1' : '0'); } catch (_) {}
-      ap();
-      oPhim.play().catch(() => {});
-    };
-  }
+  if (oPhim) ganPhimTin(oPhim, oAm);
 
   /* Bấm một tin là mở đúng popup của tin đó để đọc trọn — kể cả đã đọc rồi.
    * Đây là đường xem lại, nên không ghi lại xác nhận của ai. */
@@ -1111,6 +1093,95 @@ function ngayGonTin(ms) {
   const d = new Date(Number(ms) + 7 * 3600000);
   const p = (n) => String(n).padStart(2, '0');
   return p(d.getUTCDate()) + '/' + p(d.getUTCMonth() + 1);
+}
+
+/**
+ * Cho video trang Tổng quan CHẠY, chạy mãi, và có tiếng sớm nhất có thể.
+ *
+ * ĐIỀU DUY NHẤT trình duyệt cho tự chạy là video ĐANG CÂM. Chrome/Safari chặn
+ * thẳng mọi lượt tự chạy có tiếng, và chặn IM LẶNG: `play()` bị từ chối, video
+ * đứng ở khung hình đầu, không báo gì. Bản trước đọc lựa chọn "bật tiếng" rồi
+ * bỏ câm NGAY từ đầu — nên ai đã từng bật tiếng một lần thì từ đó video không
+ * bao giờ tự chạy nữa. Đúng cái anh Hùng gặp.
+ *
+ * Nên trình tự bắt buộc là:
+ *   1. luôn mở ở trạng thái CÂM rồi play() — lượt này luôn được cho phép;
+ *   2. thử bỏ câm ngay (máy đã tương tác với trang từ trước thì ăn);
+ *   3. chưa được thì chờ CÚ BẤM ĐẦU TIÊN ở bất kỳ đâu trên trang rồi bỏ câm.
+ *      Một cú bấm là đủ để trình duyệt cho phép — anh bấm gì cũng được.
+ *
+ * Mặc định là CÓ TIẾNG (anh Hùng: "mặc định mở âm thanh"); tắt tiếng thì nhớ
+ * lại cho lần sau.
+ *
+ * "Chạy liên tục không dừng": `loop` lo phần lặp, còn lại là ba đường hỏng thật
+ * đã gặp với video phát qua mạng — tab ẩn đi rồi hiện lại, luồng bị nghẽn
+ * (`stalled`), và tải hỏng giữa chừng (`error`). Mỗi đường một lối gọi lại;
+ * thêm một nhịp canh 5 giây làm lưới cuối.
+ */
+function ganPhimTin(phim, nut) {
+  let muonTieng = true;                       // mặc định CÓ tiếng
+  try { if (localStorage.getItem('hub.tinTieng') === '0') muonTieng = false; } catch (_) {}
+
+  const veNut = () => {
+    if (!nut) return;
+    const co = !phim.muted;
+    nut.textContent = co ? '🔊' : '🔇';
+    nut.title = co ? 'Tắt tiếng' : 'Bật tiếng';
+    nut.setAttribute('aria-label', nut.title);
+  };
+
+  const chay = () => { const p = phim.play(); if (p && p.catch) p.catch(() => {}); };
+
+  /* 1. câm + chạy: lượt tự chạy duy nhất trình duyệt không chặn */
+  phim.muted = true;
+  veNut();
+  chay();
+
+  /* 2 + 3. mở tiếng ngay nếu được, không thì chờ cú bấm đầu tiên */
+  const SU_KIEN = ['pointerdown', 'keydown', 'touchstart', 'wheel'];
+  const moTieng = () => {
+    if (!muonTieng || !phim.muted) return;
+    phim.muted = false;
+    veNut();
+    const p = phim.play();
+    if (p && p.catch) {
+      p.catch(() => {
+        /* Vẫn bị chặn: lùi về câm và CHẠY TIẾP. Thà không tiếng còn hơn đứng
+         * hình — video đứng là người ta tưởng app hỏng. */
+        phim.muted = true;
+        veNut();
+        chay();
+      });
+    }
+    if (!phim.muted) SU_KIEN.forEach((e) => window.removeEventListener(e, moTieng));
+  };
+  moTieng();
+  SU_KIEN.forEach((e) => window.addEventListener(e, moTieng, { passive: true }));
+
+  if (nut) {
+    nut.onclick = (e) => {
+      e.stopPropagation();
+      muonTieng = phim.muted;                 // đang câm thì bấm là muốn nghe
+      try { localStorage.setItem('hub.tinTieng', muonTieng ? '1' : '0'); } catch (_) {}
+      phim.muted = !muonTieng;
+      veNut();
+      chay();
+    };
+  }
+
+  /* Ba đường hỏng thật của video phát qua mạng, mỗi đường một lối gọi lại. */
+  phim.addEventListener('ended', () => { phim.currentTime = 0; chay(); });  // phòng khi loop hụt
+  phim.addEventListener('stalled', chay);
+  phim.addEventListener('suspend', () => { if (phim.paused) chay(); });
+  phim.addEventListener('error', () => {
+    /* Tải hỏng giữa chừng (mạng chớp, Render ngủ dậy): nạp lại một lần sau 10
+     * giây. Không thử lại ngay — hỏng ngay lần đầu thì thử lại ngay cũng hỏng,
+     * chỉ tổ quay vòng. */
+    setTimeout(() => { try { phim.load(); chay(); } catch (_) {} }, 10000);
+  });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) chay(); });
+  /* Lưới cuối: 5 giây một nhịp, thấy đứng mà tab đang hiện thì gọi chạy lại. */
+  setInterval(() => { if (!document.hidden && phim.paused) chay(); }, 5000);
 }
 
 function veHome() {

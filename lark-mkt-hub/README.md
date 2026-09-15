@@ -523,13 +523,34 @@ một số thì phải đổi số kia, nếu không video 16:9 lại bị cắt
 nở theo nội dung thay vì cuộn, và mấy tin phía dưới bị cắt mà **không cuộn tới
 được**.
 
-**Video tự chạy, lặp mãi, mặc định im tiếng.** `autoplay loop muted playsinline`
-là đúng bốn thuộc tính trình duyệt đòi để được tự chạy — thiếu `muted` là Chrome
-chặn, và chặn *im lặng*: video đứng ở khung hình đầu mà không báo gì. Nên có nút
-loa ở góc để bật tiếng, và lựa chọn đó **nhớ theo từng người** (`localStorage`):
-ai muốn nghe thì lần sau vào là có tiếng luôn. Không dùng `controls` — thanh
-điều khiển đen kịt dưới một video chạy nền trông rất nặng, mà thứ người ta cần ở
-đây chỉ có đúng một cái: tiếng.
+**Video tự chạy, lặp mãi, mặc định CÓ tiếng** — nhưng thứ tự làm việc đó rất dễ
+làm sai, và sai thì hỏng im lặng.
+
+Trình duyệt **chỉ cho tự chạy khi video đang CÂM**. Bản đầu đọc lựa chọn "bật
+tiếng" rồi bỏ câm ngay từ đầu, nên **máy nào đã từng bấm bật tiếng thì từ đó
+video không bao giờ tự chạy nữa** — `play()` bị từ chối, video đứng ở khung hình
+đầu, không báo gì. Đúng lỗi anh Hùng gặp.
+
+Trình tự bắt buộc (`ganPhimTin`):
+
+1. luôn mở ở trạng thái **câm** rồi `play()` — lượt này luôn được cho phép;
+2. thử **bỏ câm ngay** (máy đã tương tác với trang từ trước thì ăn);
+3. chưa được thì chờ **cú bấm đầu tiên** ở bất kỳ đâu trên trang rồi bỏ câm —
+   một cú bấm là đủ để trình duyệt cho phép;
+4. vẫn bị chặn thì **lùi về câm mà vẫn chạy**: video đứng hình là người ta tưởng
+   app hỏng, mất tiếng thì không.
+
+"Chạy liên tục không dừng": `loop` lo phần lặp, còn ba đường hỏng thật của video
+phát qua mạng thì mỗi đường một lối gọi lại — `stalled` (nghẽn luồng), `error`
+(tải hỏng giữa chừng, nạp lại sau 10 giây), `visibilitychange` (tab ẩn rồi hiện
+lại) — cộng một nhịp canh 5 giây làm lưới cuối, và `ended` tua về đầu phòng khi
+`loop` hụt.
+
+Không dùng `controls` — thanh điều khiển đen kịt dưới một video chạy nền trông
+rất nặng, mà thứ người ta cần ở đây chỉ có đúng một cái: tiếng.
+
+`test/video-tin.test.js` chạy chính hàm đó trong `vm` với một thẻ video giả, kể
+cả cảnh **trình duyệt từ chối phát có tiếng**.
 
 | | Video giới thiệu | Tệp đính kèm của thông báo |
 |---|---|---|
