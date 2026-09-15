@@ -1475,13 +1475,18 @@ body.bb-chan { overflow: hidden; }
 
 .bb-chan-hop {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  padding-top: 12px; border-top: 1px solid var(--vien);
+  border-top: 1px solid var(--vien);
   /* Dính đáy hộp khi cuộn. Đây là popup CHẶN màn hình: nút "Tôi đã đọc" mà trôi
      khỏi tầm nhìn vì một tấm ảnh dài thì người ta bị khoá lại giữa chừng, không
      hiểu vì sao. Nền trắng + đổ bóng nhẹ để chữ cuộn phía dưới không lòi ra. */
   position: sticky; bottom: -18px; z-index: 2;
   background: var(--trang);
-  padding-bottom: 18px; margin-bottom: -18px;
+  /* Nền phải phủ HẾT bề ngang hộp, không chỉ phần chữ.
+     Ảnh tràn viền rộng hơn vùng chữ đúng 24px mỗi bên (xem .bb-tep), nên hàng
+     nút chỉ rộng bằng vùng chữ thì ảnh vẫn lòi ra hai bên mép dưới — thành hai
+     vệt lạ ở góc, đúng chỗ anh Hùng khoanh đỏ. Kéo âm rồi bù lại bằng padding
+     để chữ vẫn thẳng hàng với phần trên. */
+  margin: 0 -24px -18px; padding: 12px 24px 18px;
   box-shadow: 0 -10px 18px -14px rgba(20, 30, 60, .5);
 }
 .bb-chan-hop .grow { flex: 1; }
