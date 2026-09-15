@@ -476,8 +476,15 @@ button { font: inherit; }
      tác nghiệp (hai hộp rỗng cạnh "Chi phí dự kiến") và Chỉnh ảnh.
      Giờ phân tách bằng KHOẢNG TRẮNG: chỗ trống thì trống hẳn, và ô nào cần chú
      ý mới có nền màu — nền màu vì thế mới còn nghĩa. */
-  gap: 12px 14px; background: transparent; margin: 0;
-  padding: 12px 14px;
+  /* Đệm chia làm hai: lưới giữ 4px, mỗi ô giữ 10px — cộng lại đúng 14px như mọi
+     khối khác. Chia thế để Ô CẦN CHÚ Ý tô nền được RỘNG RA quanh chữ mà không
+     phải kéo lề âm. Kéo lề âm chính là lỗi vừa rồi: ô có nền bị nhấc lên 8px so
+     với ô thường bên cạnh, nên nhãn của hai ô cùng hàng không nằm trên một
+     đường — mắt bắt được ngay dù chỉ lệch 8px. */
+  /* Khe dọc 6px, khe ngang 8px: hai ô có nền nằm cạnh nhau mà khe quá hẹp thì
+     hai mảng màu dính thành một, không đọc ra là hai chỉ số. */
+  gap: 6px 8px; background: transparent; margin: 0;
+  padding: 6px 2px 10px;
 }
 @media (max-width: 1340px) {
   .nhom-base > .the-luoi { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -491,7 +498,7 @@ button { font: inherit; }
    đầu tiên mắt chạm tới, và để con số dài (tiền tỷ) không bị bó lại. */
 .nhom-base > .the-luoi > .the.chinh { grid-column: 1 / -1; }
 .the.chinh {
-  padding: 0 0 12px;
+  padding: 8px 10px 12px;
   border-bottom: 1px solid var(--vien-mem);
   /* Xếp ngang: nhãn chiếm cả hàng trên, số bên trái, dòng so sánh dồn sang phải.
      Không xếp thì lúc thiếu dòng so sánh nửa bên phải trống trơn. */
@@ -513,10 +520,9 @@ button { font: inherit; }
 .the.phu .so.dai { font-size: 14px; }
 /* Ô CẦN CHÚ Ý là ô DUY NHẤT có nền. Mọi ô khác trong suốt, nên chỉ cần liếc là
    thấy chỗ nào đang có chuyện — trước đây ô nào cũng có khung nên màu chìm đi. */
-.the.cao, .the.vua {
-  padding: 8px 10px; margin: -8px -10px;
-  border-radius: 10px;
-}
+/* Ô cần chú ý: chỉ THÊM NỀN, không đổi đệm và không kéo lề — giữ nguyên khuôn
+   của mọi ô khác thì cả hàng mới thẳng. */
+.the.cao, .the.vua { border-radius: 10px; }
 .the.cao { background: var(--do-nhat); }
 .the.vua { background: var(--vang-nhat); }
 
@@ -583,7 +589,9 @@ button { font: inherit; }
    hai chữ số. */
 .the {
   background: transparent; border: 0; border-radius: 10px;
-  padding: 0;
+  /* MỌI ô cùng một đệm — ô có nền hay không cũng vậy — nên nhãn của cả hàng nằm
+     trên một đường ngang. */
+  padding: 8px 10px;
   display: flex; flex-direction: column;
 }
 .the .nhan {

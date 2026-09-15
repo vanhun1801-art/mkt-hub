@@ -854,6 +854,13 @@ hài lòng được, anh muốn đẹp hơn"*. Ba thứ đổi, và chúng đi c
   chân thẻ. **Phải đi cùng nhau** — chỉ lấy vế đầu thì thẻ ngắn hở một mảng
   trắng rỗng, đúng cái xấu mà bản cũ tránh.
 
+**Mọi ô cùng một đệm, kể cả ô có nền.** Đệm chia hai: lưới giữ 2px, mỗi ô giữ
+10px — cộng lại đúng 14px như mọi khối khác. Chia thế để ô cần chú ý tô nền rộng
+ra quanh chữ mà **không phải kéo lề âm**. Kéo lề âm là cái bẫy vừa vấp: ô có nền
+bị nhấc lên 8px so với ô thường bên cạnh, nhãn của cả hàng không nằm trên một
+đường — lệch 8px thôi mà mắt bắt được ngay. Khe ngang 8px, đủ để hai mảng màu
+cạnh nhau không dính thành một.
+
 Ô chính to hơn (30px) và có đường kẻ chân, nên "base này đang thế nào" đọc được
 trước khi mắt chạm tới mấy con số phụ. `test/phan-cap-o.test.js` chốt cả ba luật
 mới này; luật cũ vẫn còn trong lịch sử git kèm lý do vì sao đổi.
