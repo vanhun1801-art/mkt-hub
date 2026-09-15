@@ -220,6 +220,11 @@ function dongDaily(row, kenhId) {
     [f.followUp]: num(row.followUp),
     [f.followDown]: num(row.followDown),
     [f.views]: num(row.views),
+    /* Hai cột này CHỈ có ở bảng "Số liệu theo ngày". Thêm chúng vào dòng bài hay
+     * dòng LIVE là ghi một field id `undefined`, và Lark trả "not_found" cho CẢ
+     * lượt ghi — mất trắng bài, mất luôn dòng nhật ký vì lỗi ném ra trước đó.
+     * Đã xảy ra thật: bài kẹt ở 08/09 suốt một tuần, dòng ngày vẫn về đều nên
+     * nhìn màn hình không thấy gì bất thường. */
     [f.viewsOrganic]: num(row.viewsOrganic),
     [f.watchTime]: num(row.watchTime),
     [f.reach]: num(row.reach),
@@ -251,8 +256,6 @@ function dongPost(row, kenhId) {
     [f.type]: row.type || 'Bài viết',
     [f.url]: row.url || '',
     [f.views]: num(row.views),
-    [f.viewsOrganic]: num(row.viewsOrganic),
-    [f.watchTime]: num(row.watchTime),
     [f.reach]: num(row.reach),
     [f.impressions]: num(row.impressions),
     [f.likes]: num(row.likes),
@@ -283,8 +286,6 @@ function dongLive(row, kenhId) {
     [f.extId]: String(row.liveId),
     [f.minutes]: num(row.minutes),
     [f.views]: num(row.views),
-    [f.viewsOrganic]: num(row.viewsOrganic),
-    [f.watchTime]: num(row.watchTime),
     [f.peak]: num(row.peak),
     [f.comments]: num(row.comments),
     [f.likes]: num(row.likes),

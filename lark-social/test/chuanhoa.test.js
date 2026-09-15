@@ -325,6 +325,38 @@ t('tiếp cận và hiển thị là hai cột khác nhau', () => {
     fb.COT.page_posts_impressions_organic_unique);
 });
 
+t('không ghi field id undefined xuống Base', () => {
+  /* Lỗi thật, mất một tuần dữ liệu bài mà không ai thấy. Khi thêm hai cột
+     viewsOrganic/watchTime vào bảng NGÀY, phép thay thế đụng cả ba chỗ dựng dòng
+     — ngày, bài và LIVE. Hai bảng sau không có hai cột đó, nên f.viewsOrganic là
+     undefined; Lark nhận khoá "undefined" và trả not_found cho CẢ lượt ghi. Bài
+     kẹt ở 08/09 suốt một tuần, mà dòng ngày vẫn về đều nên màn hình trông vẫn
+     bình thường.
+
+     Phép thử này quét mọi field id mà sync/index.js ghi, đối chiếu với bảng
+     tương ứng trong config. */
+  const fs = require('fs');
+  const cfg = require('../config');
+  const src = fs.readFileSync(require.resolve('../sync/index'), 'utf8');
+  /* Mỗi hàm dựng dòng khai `const f = store.T.<bảng>.f` rồi dùng [f.x] bên dưới. */
+  const khoi = src.split(/const f = store\.T\./).slice(1);
+  let daSoat = 0;
+  khoi.forEach((k) => {
+    const bang = (/^(\w+)\.f/.exec(k) || [])[1];
+    if (!bang || !cfg.tables[bang]) return;
+    const het = k.indexOf('\n}');
+    const than = het > 0 ? k.slice(0, het) : k;
+    (than.match(/\[f\.(\w+)\]/g) || []).forEach((m) => {
+      const ten = m.slice(3, -1);
+      daSoat++;
+      assert.ok(cfg.tables[bang].f[ten],
+        'sync/index.js ghi [f.' + ten + '] vào bảng "' + bang + '" nhưng config không khai — '
+        + 'Lark sẽ nhận field id undefined và từ chối cả lượt ghi');
+    });
+  });
+  assert.ok(daSoat > 30, 'phải soát được kha khá field, mới soát ' + daSoat);
+});
+
 t('mọi adapter dựng dòng trống đủ khoá, không để cột mới thành NaN', () => {
   /* row[cot] += so trên một khoá chưa khai là undefined + số = NaN, và NaN ghi
      xuống Base thì ô trống — nhìn y như "hôm đó không có số". Thêm cột mà quên
