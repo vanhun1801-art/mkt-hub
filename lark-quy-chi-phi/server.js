@@ -641,13 +641,13 @@ async function xuLy(req, res) {
 
     if (viec === 'tu-choi') {
       const lyDo = String(body.lyDo || '').trim();
-      if (!lyDo) return json(res, { error: 'Phải ghi lý do trả lại.' }, 400);
+      if (!lyDo) return json(res, { error: 'Phải ghi nội dung cần điều chỉnh.' }, 400);
       await lark.updateRecord(id, {
-        [F.chi.tinhTrang.name]: cfg.TRA_LAI,
+        [F.chi.tinhTrang.name]: cfg.CHO_CHINH,
         [F.chi.lyDoTuChoi.name]: lyDo,
       }, cfg.tableId);
       kho.at = 0;
-      return json(res, { ok: true, tinhTrang: cfg.TRA_LAI, lyDo });
+      return json(res, { ok: true, tinhTrang: cfg.CHO_CHINH, lyDo });
     }
 
     /* Duyệt = gán mã quyết toán. Dùng ĐÚNG ô "Mã quyết toán" sẵn có chứ không
@@ -671,6 +671,35 @@ async function xuLy(req, res) {
     }, cfg.tableId);
     kho.at = 0;
     return json(res, { ok: true, ma });
+  }
+
+  /* ---------------------------------------------------------------------
+   * BỎ QUYẾT TOÁN — đưa khoản về lại trạng thái trước khi đóng sổ
+   * -------------------------------------------------------------------
+   * Quyết toán trước đây là đường một chiều: bấm nhầm mã, bấm nhầm dòng, hay
+   * đơn giản là đổi ý sau khi soi kỹ hơn — đều không lùi được từ trong app,
+   * phải mở Base sửa tay. Mà mở Base sửa tay chính là việc app này sinh ra để
+   * bỏ đi.
+   *
+   * Trạng thái trước luôn là "Đã chi": tiền đã rời quỹ rồi mới có chuyện đóng
+   * sổ. Không cần cột nhớ trạng thái cũ cho một đường lùi chỉ có một đích.
+   * ------------------------------------------------------------------- */
+  const mBo = p.match(/^\/api\/chi\/(rec[A-Za-z0-9]+)\/bo-quyet-toan$/);
+  if (mBo && req.method === 'POST') {
+    if (!(await doiQuyenQuyetToan(res))) return;
+    const k = await nap();
+    const rec = k.chi.find((r) => r.record_id === mBo[1]);
+    if (!rec) return json(res, { error: 'Không thấy khoản chi này trong sổ.' }, 404);
+    const truoc = doiRa(rec, F.chi);
+    if (truoc.tinhTrang !== 'Đã quyết toán' && !String(truoc.maQuyetToan || '').trim()) {
+      return json(res, { error: 'Khoản này chưa quyết toán, không có gì để bỏ.' }, 400);
+    }
+    await lark.updateRecord(mBo[1], {
+      [F.chi.maQuyetToan.name]: '',
+      [F.chi.tinhTrang.name]: 'Đã chi',
+    }, cfg.tableId);
+    kho.at = 0;
+    return json(res, { ok: true, maCu: truoc.maQuyetToan || '' });
   }
 
   /* ---- tệp tĩnh ---- */

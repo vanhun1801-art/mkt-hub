@@ -68,10 +68,10 @@ module.exports = {
       ncc:         { id: 'fld8TVDc9t', name: 'Nhà cung cấp trên TW',  type: 'text' },
       chuyenKhoan: { id: 'fldhQAijCk', name: 'Thông tin chuyển khoản', type: 'text' },
       maQuyetToan: { id: 'fldZqsDCDg', name: 'Mã quyết toán',         type: 'text' },
-      /* Kế toán bấm "Từ chối" thì phải nói VÌ SAO, nếu không anh Hùng nhận về
-       * một dòng đỏ mà không biết sửa gì. Đây là đường duy nhất thông tin đi
-       * ngược từ kế toán về người giữ quỹ. */
-      lyDoTuChoi:  { id: 'fldNJ2yJUW', name: 'Lý do từ chối',          type: 'text' },
+      /* Kế toán yêu cầu điều chỉnh thì phải nói CẦN CHỈNH GÌ, nếu không người
+       * giữ quỹ nhận về một dòng đỏ mà không biết sửa gì. Đây là đường duy nhất
+       * thông tin đi ngược từ kế toán về người giữ quỹ. */
+      lyDoTuChoi:  { id: 'fldNJ2yJUW', name: 'Lý do điều chỉnh',       type: 'text' },
       linkCu:      { id: 'fldwCcDfg7', name: 'Link chứng từ cũ',      type: 'text' },
       linkUncCu:   { id: 'fldTFNtK0m', name: 'Link UNC cũ',           type: 'text' },
       buoiTacNghiep: { id: 'fldFKIFMah', name: 'Buổi tác nghiệp',     type: 'text' },
@@ -100,12 +100,14 @@ module.exports = {
 
   loaiChi: ['Tác nghiệp', 'Di chuyển', 'Công cụ & phần mềm', 'In ấn',
     'Quảng cáo', 'Tiếp khách', 'Khác'],
-  /* "Kế toán trả lại" là tình trạng có thật trong quy trình, không phải một
-   * kiểu của "Đã chi": tiền đã đi rồi nhưng chứng từ chưa qua được kế toán, và
-   * bóng đang ở chân anh Hùng. Không có ô này thì lời từ chối chỉ nằm trong
-   * đầu chị kế toán. */
-  tinhTrang: ['Chờ chi', 'Đã chi', 'Đã quyết toán', 'Kế toán trả lại'],
-  TRA_LAI: 'Kế toán trả lại',
+  /* "Chờ điều chỉnh" là tình trạng có thật trong quy trình, không phải một kiểu
+   * của "Đã chi": tiền đã đi rồi nhưng chứng từ chưa qua được kế toán, và bóng
+   * đang ở chân người giữ quỹ.
+   *
+   * Tên cột tình trạng trả lời câu "KHOẢN ĐANG Ở ĐÂU", không phải "AI làm gì" —
+   * nên là "Chờ điều chỉnh" chứ không phải "Kế toán trả lại". */
+  tinhTrang: ['Chờ chi', 'Đã chi', 'Đã quyết toán', 'Chờ điều chỉnh'],
+  CHO_CHINH: 'Chờ điều chỉnh',
   loaiChungTu: ['Hoá đơn VAT', 'Hoá đơn tay / ảnh', 'Không cần chứng từ'],
 
   /* Ô đính kèm được phép tải lên. Hai ô này là lý do chính bỏ Google Sheet:

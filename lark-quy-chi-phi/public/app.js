@@ -134,7 +134,10 @@ async function taiLai(moi) {
 /* Các lần ứng tiền, mới nhất trước. "Chuyển từ kỳ trước" không phải tiền công
  * ty đưa thêm — nó là tồn của kỳ trước, đếm vào là tính trùng. */
 const LAN_CHUYEN_TIEP = 'Chuyển từ kỳ trước';
-const TRA_LAI = 'Kế toán trả lại';
+/* Cột tình trạng trả lời câu "KHOẢN ĐANG Ở ĐÂU", không phải "AI làm gì" — nên
+ * là "Chờ điều chỉnh" chứ không phải "Kế toán trả lại". Ai yêu cầu thì đã rõ
+ * qua vai; điều người giữ quỹ cần biết là khoản đang chờ mình làm gì. */
+const CHO_CHINH = 'Chờ điều chỉnh';
 
 /**
  * KHOẢN NÀO THẬT SỰ CẦN BỔ SUNG CHỨNG TỪ
@@ -315,7 +318,7 @@ function veTong() {
   const dangLocThang = !!S.loc.thang;
   const soThieu = S.chi.filter(thieuChungTu).length;
   const chuaQuyetToan = S.chi.filter((c) => c.tinhTrang === 'Đã chi').length;
-  const traLai = S.chi.filter((c) => c.tinhTrang === TRA_LAI).length;
+  const traLai = S.chi.filter((c) => c.tinhTrang === CHO_CHINH).length;
   const soKhoanKy = S.chi.filter((c) => thangCua(c.ngayChi || c.ngayDeNghi) === ky).length;
 
   const oSo = (nhan, so, mo, phu) => '<div class="o' + (phu && phu.lop ? ' ' + phu.lop : '')
@@ -366,8 +369,8 @@ function veTong() {
     /* Chỉ hiện khi CÓ khoản bị trả lại. Một ô số 0 đứng thường trực là một ô
      * người ta học cách không nhìn; đúng lúc nó khác 0 thì cũng trôi qua mắt. */
     + (traLai
-      ? oSo('Kế toán trả lại', traLai, 'bấm để xem phải sửa gì',
-          { thoTien: false, lop: 'canhbao', bam: 'data-loctt="' + TRA_LAI + '"' })
+      ? oSo('Chờ điều chỉnh', traLai, 'bấm để xem phải sửa gì',
+          { thoTien: false, lop: 'canhbao', bam: 'data-loctt="' + CHO_CHINH + '"' })
       : '')
   + '</section>';
 }
@@ -411,7 +414,7 @@ function veBang() {
     /* Dòng đỏ có hai nguồn: thiếu chứng từ, và kế toán trả lại. Cả hai đều là
      * "có việc phải làm ở dòng này", nên dùng chung một màu — thêm màu thứ ba
      * chỉ làm loãng cái đang có nghĩa. */
-    const thieu = thieuChungTu(c) || c.tinhTrang === TRA_LAI;
+    const thieu = thieuChungTu(c) || c.tinhTrang === CHO_CHINH;
     const dv = tachDon(c.maDon);
     return '<tr' + (thieu ? ' class="canhbao"' : '') + '>'
       + '<td class="chon">' + (duocQuyetToan()
@@ -437,8 +440,8 @@ function veBang() {
         /* Lý do trả lại nằm NGAY DƯỚI nội dung, không giấu trong ô Ghi chú:
          * đây là câu kế toán nhắn cho người giữ quỹ, và nó chỉ có tác dụng nếu
          * đọc được mà không phải bấm vào đâu cả. */
-        + (c.tinhTrang === TRA_LAI && c.lyDoTuChoi
-          ? '<div class="tra-lai">Kế toán trả lại: ' + esc(c.lyDoTuChoi) + '</div>' : '')
+        + (c.tinhTrang === CHO_CHINH && c.lyDoTuChoi
+          ? '<div class="tra-lai">Cần điều chỉnh: ' + esc(c.lyDoTuChoi) + '</div>' : '')
         + '</td>'
       + '<td class="loai"><span class="the">' + esc(c.loai || '—') + '</span></td>'
       + '<td class="num">' + tien(c.tien) + '</td>'
@@ -452,7 +455,7 @@ function veBang() {
       + '<td class="maqt">' + (c.maQuyetToan
         ? '<span class="qt">' + esc(c.maQuyetToan) + '</span>' : '<span class="mo">—</span>') + '</td>'
       + '<td class="tt"><span class="badge ' + (c.tinhTrang === 'Đã quyết toán' ? 'xanh'
-        : c.tinhTrang === TRA_LAI ? 'do'
+        : c.tinhTrang === CHO_CHINH ? 'do'
         : c.tinhTrang === 'Đã chi' ? 'vang' : 'xam') + '">' + esc(c.tinhTrang || '—') + '</span></td>'
       /* Cột tác vụ nói đúng việc của từng vai. Kế toán soi TỪNG dòng rồi nhận
        * hoặc trả — bắt họ tích chọn rồi mở cửa sổ cho một dòng là bắt đi đường
@@ -532,15 +535,17 @@ function veTacVu(c) {
   if (!laKeToan()) return '';
   /* Khoản đã đóng sổ chỉ còn một việc: đổi mã nếu gõ nhầm. Bày lại nút "Từ
    * chối" ở đó là mời gọi lùi một bước đã xong. */
-  /* Khoản đã đóng sổ chiếm gần hết bảng (164/164 lúc này). Để nút "Đổi mã" ở
-   * dáng nút đầy đủ là dựng một hàng nút chạy suốt trang, tranh chỗ với hai nút
-   * thật sự cần bấm ở mấy dòng đầu. Hạ xuống dáng chữ mờ: vẫn bấm được, nhưng
-   * thôi gọi mắt. */
+  /* Khoản đã đóng sổ: một nút "Sửa" y như bên vai người giữ quỹ. Nó mở cùng
+   * một cửa sổ, nơi vừa đổi được mã vừa BỎ quyết toán để đưa khoản về lại
+   * trạng thái trước. */
   if (c.tinhTrang === 'Đã quyết toán') {
-    return '<button class="ma-them" data-duyet="' + c.id + '">đổi mã</button>';
+    return '<button class="btn sm" data-duyet="' + c.id + '">Sửa</button>';
   }
+  /* "Yêu cầu điều chỉnh" chứ không phải "Từ chối": kế toán không bác khoản chi,
+   * họ nhờ bổ sung rồi sẽ nhận. Chữ "từ chối" làm người nhận tưởng khoản tiền
+   * bị bác bỏ. */
   return '<button class="btn sm duyet" data-duyet="' + c.id + '">Quyết toán</button>'
-    + '<button class="btn sm nguyhiem" data-tuchoi="' + c.id + '">Từ chối</button>';
+    + '<button class="btn sm nguyhiem" data-tuchoi="' + c.id + '">Yêu cầu điều chỉnh</button>';
 }
 
 function veThanhChon() {
@@ -721,7 +726,7 @@ function moKhaiChi(sua) {
     + '</div>',
     (c ? '<button class="btn nguyhiem" data-xoa="' + c.id + '">Xoá khoản này</button>' : '')
     + '<div class="sp"></div><button class="btn" data-close="1">Đóng</button>'
-    + '<button class="btn primary" id="btnLuuChi" data-id="' + (c ? c.id : '') + '">'
+    + '<button class="btn primary" id="btnLuuChi" data-chinh="1" data-id="' + (c ? c.id : '') + '">'
     + (c ? 'Lưu' : 'Ghi vào sổ') + '</button>');
   setTimeout(() => $('#fNoiDung') && $('#fNoiDung').focus(), 30);
 }
@@ -736,7 +741,7 @@ function moNapQuy() {
       + 'Mã phiếu chi ghi vào ô Nội dung để đối chiếu với kế toán, không phải để chia tiền thành nhiều túi.</div>'
     + '</div>',
     '<div class="sp"></div><button class="btn" data-close="1">Đóng</button>'
-    + '<button class="btn primary" id="btnLuuNap">Ghi vào quỹ</button>');
+    + '<button class="btn primary" id="btnLuuNap" data-chinh="1">Ghi vào quỹ</button>');
   setTimeout(() => $('#nTien') && $('#nTien').focus(), 30);
 }
 
@@ -774,7 +779,7 @@ function moQuyetToan() {
       + '<b>Đã quyết toán</b>. Sửa lại được bằng cách quyết toán lần nữa với mã khác.</div>'
     + '</div>',
     '<div class="sp"></div><button class="btn" data-close="1">Đóng</button>'
-    + '<button class="btn ' + (deGhiDe.length ? 'nguyhiem' : 'primary') + '" id="btnLuuQT"'
+    + '<button class="btn ' + (deGhiDe.length ? 'nguyhiem' : 'primary') + '" id="btnLuuQT" data-chinh="1"'
     + (deGhiDe.length ? ' data-ghide="' + deGhiDe.length + '"' : '') + '>'
     + (deGhiDe.length ? 'Ghi đè ' + deGhiDe.length + ' mã cũ · gán cho ' + ds.length + ' khoản'
       : 'Gán mã cho ' + ds.length + ' khoản') + '</button>');
@@ -888,7 +893,7 @@ function moDuyetMot(id) {
   if (!c) return;
   const cu = String(c.maQuyetToan || '').trim();
   const thieu = thieuChungTu(c);
-  moModal(cu ? 'Đổi mã quyết toán' : 'Quyết toán khoản này',
+  moModal(cu ? 'Sửa quyết toán' : 'Quyết toán khoản này',
     '<div class="form">'
     + tomTatKhoan(c)
     + (cu ? '<div class="nhac canhbao">Khoản này đang mang mã <b>' + esc(cu)
@@ -905,16 +910,21 @@ function moDuyetMot(id) {
     + '<div class="nhac">Mã ghi thẳng vào cột <b>Mã quyết toán</b> của sổ và chuyển '
       + 'tình trạng sang <b>Đã quyết toán</b>.</div>'
     + '</div>',
-    '<div class="sp"></div><button class="btn" data-close="1">Đóng</button>'
-    + '<button class="btn ' + (cu ? 'nguyhiem' : 'primary') + '" id="btnDuyetMot" '
+    /* Đóng sổ không còn là đường một chiều. Bấm nhầm mã, bấm nhầm dòng, hay
+     * soi kỹ lại rồi đổi ý — trước đây đều phải mở Base sửa tay, đúng cái việc
+     * app này sinh ra để bỏ. Nút gỡ đứng bên TRÁI, tách khỏi nút xác nhận. */
+    (cu ? '<button class="btn nguyhiem" id="btnBoQuyetToan" data-id="' + id + '">'
+      + 'Bỏ quyết toán</button>' : '')
+    + '<div class="sp"></div><button class="btn" data-close="1">Đóng</button>'
+    + '<button class="btn ' + (cu ? 'nguyhiem' : 'primary') + '" id="btnDuyetMot" data-chinh="1" '
     + 'data-id="' + id + '"' + (cu ? ' data-ghide="1"' : '') + '>'
     + (cu ? 'Ghi đè mã cũ' : 'Quyết toán') + '</button>');
   setTimeout(() => $('#dMa') && $('#dMa').focus(), 30);
 }
 
-/* Lý do trả lại là thứ DUY NHẤT đi ngược từ kế toán về người giữ quỹ. Bỏ trống
- * thì anh Hùng nhận một dòng đỏ không biết sửa gì, và câu hỏi "sao trả?" quay
- * lại thành một tin nhắn — đúng cái vòng app này định cắt. */
+/* Nội dung cần điều chỉnh là thứ DUY NHẤT đi ngược từ kế toán về người giữ quỹ.
+ * Bỏ trống thì người nhận thấy một dòng đỏ không biết sửa gì, và câu hỏi "sao
+ * trả?" quay lại thành một tin nhắn — đúng cái vòng app này định cắt. */
 const LY_DO_SAN = [
   'Thiếu hoá đơn',
   'Thiếu UNC / chứng từ chuyển tiền',
@@ -926,19 +936,19 @@ const LY_DO_SAN = [
 function moTuChoi(id) {
   const c = S.chi.find((x) => x.id === id);
   if (!c) return;
-  moModal('Trả lại khoản này',
+  moModal('Yêu cầu điều chỉnh',
     '<div class="form">'
     + tomTatKhoan(c)
-    + o('Lý do trả lại', '<textarea id="tLyDo" rows="3" '
-        + 'placeholder="Anh Hùng sẽ đọc đúng câu này để biết phải sửa gì"></textarea>', true)
+    + o('Cần điều chỉnh gì', '<textarea id="tLyDo" rows="3" '
+        + 'placeholder="Người giữ quỹ sẽ đọc đúng câu này để biết phải sửa gì"></textarea>', true)
     + '<div class="lydo-san">' + LY_DO_SAN.map((x) =>
         '<button class="the bam" data-lydo="' + esc(x) + '">' + esc(x) + '</button>').join('')
       + '</div>'
-    + '<div class="nhac">Khoản chuyển sang <b>Kế toán trả lại</b> và hiện đỏ trong sổ '
+    + '<div class="nhac">Khoản chuyển sang <b>Chờ điều chỉnh</b> và hiện đỏ trong sổ '
       + 'của người giữ quỹ, kèm nguyên câu này.</div>'
     + '</div>',
     '<div class="sp"></div><button class="btn" data-close="1">Đóng</button>'
-    + '<button class="btn nguyhiem" id="btnTuChoi" data-id="' + id + '">Trả lại</button>');
+    + '<button class="btn nguyhiem" id="btnTuChoi" data-chinh="1" data-id="' + id + '">Gửi yêu cầu</button>');
   setTimeout(() => $('#tLyDo') && $('#tLyDo').focus(), 30);
 }
 
@@ -1162,16 +1172,30 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
+  if (T.closest('#btnBoQuyetToan')) {
+    const nut = T.closest('#btnBoQuyetToan');
+    const c = S.chi.find((x) => x.id === nut.dataset.id);
+    if (!confirm('Bỏ quyết toán khoản "' + ((c && c.noiDung) || '') + '"?'
+      + THEM_DONG + 'Mã ' + ((c && c.maQuyetToan) || '') + ' bị xoá và khoản quay về '
+      + '"Đã chi" để xử lý lại.')) return;
+    await chongBamHai(nut, async () => {
+      await api('/api/chi/' + nut.dataset.id + '/bo-quyet-toan', { method: 'POST' });
+      dongModal(); toast('Đã bỏ quyết toán · khoản quay về "Đã chi"', 'ok');
+      await taiLai(true);
+    }, 'Đang gỡ…');
+    return;
+  }
+
   if (T.closest('#btnTuChoi')) {
     const nut = T.closest('#btnTuChoi');
     const lyDo = $('#tLyDo').value.trim();
-    if (!lyDo) return toast('Phải ghi lý do trả lại.', 'err');
+    if (!lyDo) return toast('Phải ghi nội dung cần điều chỉnh.', 'err');
     await chongBamHai(nut, async () => {
       await api('/api/chi/' + nut.dataset.id + '/tu-choi', {
         method: 'POST', body: JSON.stringify({ lyDo }),
       });
-      dongModal(); toast('Đã trả lại kèm lý do', 'ok'); await taiLai(true);
-    }, 'Đang trả lại…');
+      dongModal(); toast('Đã gửi yêu cầu điều chỉnh', 'ok'); await taiLai(true);
+    }, 'Đang gửi…');
     return;
   }
 
@@ -1303,11 +1327,17 @@ document.addEventListener('change', (e) => {
 function nutChinhCuaModal() {
   const chan = $('#mdFoot');
   if (!chan || !$('#modal').classList.contains('on')) return null;
-  /* ƯU TIÊN .primary, KHÔNG dùng một querySelector gộp hai lớp: gộp thì nó trả
-   * về phần tử ĐỨNG TRƯỚC trong DOM, mà cửa sổ "Sửa khoản chi" đặt nút "Xoá
-   * khoản này" (.nguyhiem) trước nút Lưu. Gõ xong bấm Enter là xoá mất bản ghi
-   * trong khi người ta tưởng mình vừa lưu. */
-  return chan.querySelector('button.primary') || chan.querySelector('button.nguyhiem');
+  /* Nút chính được ĐÁNH DẤU TƯỜNG MINH bằng data-chinh, không suy ra từ màu.
+   *
+   * Suy từ màu đã suýt sập hai lần: cửa sổ "Sửa khoản chi" đặt nút "Xoá khoản
+   * này" trước nút Lưu, còn cửa sổ "Sửa quyết toán" đặt nút "Bỏ quyết toán"
+   * trước nút xác nhận — cả hai đều đỏ, cả hai đều đứng trước, và cả hai đều
+   * là thứ không lùi lại được. Mỗi lần thêm một nút đỏ lại phải nhớ luật chọn
+   * nút; đánh dấu thì không phải nhớ gì.
+   *
+   * Cửa sổ không có nút nào mang dấu (kết quả Tourwell, xem chứng từ) thì Enter
+   * không làm gì — đúng, vì ở đó không có việc nào để xác nhận. */
+  return chan.querySelector('[data-chinh]');
 }
 
 document.addEventListener('keydown', (e) => {

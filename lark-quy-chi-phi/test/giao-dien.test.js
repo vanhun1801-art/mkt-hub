@@ -42,7 +42,7 @@ const META = {
   quy: { tongUng: 65559931, tongChi: 58587875, conLai: 6972056, soLanUng: 6 },
   options: {
     loaiChi: ['Tác nghiệp', 'Di chuyển', 'Khác'],
-    tinhTrang: ['Chờ chi', 'Đã chi', 'Đã quyết toán'],
+    tinhTrang: ['Chờ chi', 'Đã chi', 'Đã quyết toán', 'Chờ điều chỉnh'],
     chungTu: ['Hoá đơn VAT', 'Hoá đơn tay / ảnh', 'Không cần chứng từ'],
   },
   dot: [{ id: 'recD1', ma: 'THÁNG 09', tinhTrang: 'Đang dùng', tongNap: 10970000, tongChi: 3997944, conLai: 6972056, nguoiGiu: [{ id: 'ou_x', name: 'Lê Văn Hùng' }] }],
@@ -79,8 +79,8 @@ const META = {
       linkCu: '', linkUncCu: '', chungTu: null, dot: ['recD1'],
     },
     {
-      id: 'recC5', noiDung: 'Khoản kế toán trả lại', loai: 'Tác nghiệp',
-      tien: 180000, ngayChi: '2026-09-10', nguoi: [], tinhTrang: 'Kế toán trả lại',
+      id: 'recC5', noiDung: 'Khoản chờ điều chỉnh', loai: 'Tác nghiệp',
+      tien: 180000, ngayChi: '2026-09-10', nguoi: [], tinhTrang: 'Chờ điều chỉnh',
       hoaDon: [{ name: 'hd5.jpg', token: 'tk5' }], unc: [], maDieuHanh: '', maDon: '',
       maQuyetToan: '', linkCu: '', linkUncCu: '', chungTu: null,
       lyDoTuChoi: 'Hoá đơn mờ, không đọc được mã số thuế', dot: ['recD1'],
@@ -395,8 +395,11 @@ function chay(meta) {
   await new Promise((r) => setTimeout(r, 40));
   const bK = String(k.veBang());
   ok('khoản chưa đóng sổ có cả hai nút', /data-duyet="recC1"/.test(bK) && /data-tuchoi="recC1"/.test(bK));
-  ok('khoản đã đóng sổ chỉ còn nút đổi mã',
-    /data-duyet="recC2"/.test(bK) && !/data-tuchoi="recC2"/.test(bK));
+  ok('khoản đã đóng sổ chỉ còn nút Sửa',
+    /data-duyet="recC2"[^>]*>Sửa</.test(bK) && !/data-tuchoi="recC2"/.test(bK),
+    (bK.match(/.{0,60}data-duyet="recC2".{0,30}/) || [''])[0]);
+  ok('nút trả khoản về nói "Yêu cầu điều chỉnh", không nói "Từ chối"',
+    /Yêu cầu điều chỉnh<\/button>/.test(bK) && !/>Từ chối</.test(bK));
   ok('kế toán không có nút Sửa', !/data-sua/.test(bK));
 
   k.__goi('moDuyetMot("recC1")');
@@ -407,51 +410,81 @@ function chay(meta) {
   ok('đổi mã khoản đã có thì cảnh báo ghi đè',
     /xoá hẳn mã cũ/.test(k.__than()) && /data-ghide="1"/.test(k.__chan()),
     k.__than().slice(0, 200));
+  /* Đóng sổ không còn là đường một chiều: bấm nhầm mã hay đổi ý thì gỡ được
+   * ngay trong app, không phải mở Base sửa tay. */
+  ok('cửa sổ khoản đã đóng sổ có nút bỏ quyết toán',
+    /id="btnBoQuyetToan"/.test(k.__chan()), k.__chan().slice(0, 240));
+  k.__goi('moDuyetMot("recC1")');
+  ok('khoản chưa đóng sổ thì KHÔNG có nút bỏ quyết toán',
+    !/btnBoQuyetToan/.test(k.__chan()));
 
   k.__goi('moTuChoi("recC1")');
-  ok('cửa sổ trả lại có ô ghi lý do', /id="tLyDo"/.test(k.__than()));
+  ok('cửa sổ yêu cầu điều chỉnh có ô ghi nội dung', /id="tLyDo"/.test(k.__than()));
   ok('có sẵn mấy lý do hay dùng để bấm', /data-lydo="Thiếu hoá đơn"/.test(k.__than()));
+  /* Câu chữ trong app KHÔNG gọi tên ai. Người đọc câu này có thể đổi, mà chữ
+   * trong app thì không đổi theo. */
+  ok('không nhắc tên người nào trong câu chữ',
+    !/Hùng/.test(k.__than()) && !/Hùng/.test(k.__chan()),
+    (k.__than().match(/.{0,50}Hùng.{0,50}/) || [''])[0]);
 
   console.log(SAO + 'Lời từ chối phải đi ngược về người giữ quỹ' + HET);
   const bQ2 = String(kq.veBang());
-  ok('sổ của anh Hùng hiện nguyên câu kế toán viết',
+  ok('sổ của người giữ quỹ hiện nguyên câu kế toán viết',
     bQ2.includes('Hoá đơn mờ, không đọc được mã số thuế'), '');
+  ok('nhãn nói KHOẢN đang ở đâu, không nói ai làm',
+    /Cần điều chỉnh:/.test(bQ2) && !/trả lại/i.test(bQ2),
+    (bQ2.match(/.{0,40}điều chỉnh.{0,40}/) || [''])[0]);
   ok('dòng bị trả lại tô đỏ như dòng thiếu chứng từ',
     /class="canhbao"/.test(bQ2));
-  ok('có ô đếm "Kế toán trả lại" trên dải tổng quan',
-    /Kế toán trả lại/.test(String(kq.veTong())));
+  ok('có ô đếm "Chờ điều chỉnh" trên dải tổng quan',
+    /Chờ điều chỉnh/.test(String(kq.veTong())));
 
   /* Ô số 0 đứng thường trực là ô người ta học cách không nhìn. */
-  kq.__goi('S.chi = S.chi.filter(c => c.tinhTrang !== "Kế toán trả lại")');
-  ok('hết khoản bị trả thì ô đó biến mất hẳn',
-    !/Kế toán trả lại/.test(String(kq.veTong())));
+  kq.__goi('S.chi = S.chi.filter(c => c.tinhTrang !== "Chờ điều chỉnh")');
+  ok('hết khoản chờ điều chỉnh thì ô đó biến mất hẳn',
+    !/Chờ điều chỉnh/.test(String(kq.veTong())));
 
-  console.log(SAO + 'Enter bấm đúng nút, không bấm nhầm nút xoá' + HET);
+  console.log(SAO + 'Enter bấm đúng nút, không bấm nhầm nút đỏ' + HET);
   /* ======================================================================
-   * Cửa sổ "Sửa khoản chi" đặt nút "Xoá khoản này" (.nguyhiem) TRƯỚC nút Lưu
-   * (.primary). Một querySelector gộp hai lớp sẽ trả về cái đứng trước — tức
-   * là gõ xong bấm Enter thì XOÁ MẤT bản ghi trong khi người ta tưởng vừa lưu.
-   * Đây là chỗ duy nhất trong app mà một phím sai làm mất dữ liệu.
+   * Hai cửa sổ đặt một nút ĐỎ KHÔNG LÙI ĐƯỢC đứng TRƯỚC nút xác nhận:
+   *   · "Sửa khoản chi"    → Xoá khoản này  |  Lưu
+   *   · "Sửa quyết toán"   → Bỏ quyết toán  |  Ghi đè mã cũ
+   * Chọn nút theo màu là gõ xong bấm Enter thì trúng nút đỏ, trong khi người
+   * ta tưởng mình vừa lưu. Nên nút chính mang dấu data-chinh tường minh, và
+   * phép thử này canh đúng chỗ đó — mỗi lần thêm một nút đỏ nữa vẫn an toàn.
    * ==================================================================== */
   const kq2 = veVoiVai('chuQuy');
   await new Promise((r) => setTimeout(r, 40));
-  kq2.__goi('moKhaiChi("recC1")');
-  const chanSua = kq2.__chan();
-  ok('cửa sổ sửa có cả nút xoá lẫn nút lưu',
-    /nguyhiem/.test(chanSua) && /primary/.test(chanSua), chanSua.slice(0, 200));
-  ok('nút xoá đứng TRƯỚC nút lưu trong DOM (nên mới dễ bắt nhầm)',
-    chanSua.indexOf('nguyhiem') < chanSua.indexOf('primary'));
-  /* Kiểm chính hàm chọn nút, trên đúng chuỗi mà cửa sổ vừa vẽ ra. */
-  const chonNut = (html) => {
-    const iP = html.indexOf('class="btn primary"');
-    const iN = html.indexOf('nguyhiem');
-    return iP >= 0 ? 'primary' : (iN >= 0 ? 'nguyhiem' : null);
+  const nutChinh = (html) => {
+    const m2 = html.match(/id="(bt[^"]+)"[^>]*data-chinh|data-chinh="1"[^>]*id="(bt[^"]+)"/);
+    return m2 ? (m2[1] || m2[2]) : null;
   };
-  ok('Enter phải nhắm nút primary khi cửa sổ có cả hai', chonNut(chanSua) === 'primary');
+
+  kq2.__goi('moKhaiChi("recC1")');
+  ok('cửa sổ sửa có cả nút xoá lẫn nút lưu',
+    /data-xoa/.test(kq2.__chan()) && /btnLuuChi/.test(kq2.__chan()), kq2.__chan().slice(0, 200));
+  ok('nút xoá đứng TRƯỚC nút lưu (nên mới dễ bắt nhầm)',
+    kq2.__chan().indexOf('data-xoa') < kq2.__chan().indexOf('btnLuuChi'));
+  ok('Enter nhắm nút Lưu, không nhắm nút Xoá', nutChinh(kq2.__chan()) === 'btnLuuChi',
+    String(nutChinh(kq2.__chan())));
+
+  const k3 = veVoiVai('keToan');
+  await new Promise((r) => setTimeout(r, 40));
+  k3.__goi('moDuyetMot("recC2")');
+  ok('cửa sổ sửa quyết toán đặt nút gỡ trước nút xác nhận',
+    k3.__chan().indexOf('btnBoQuyetToan') < k3.__chan().indexOf('btnDuyetMot'));
+  ok('Enter nhắm nút xác nhận, không nhắm nút Bỏ quyết toán',
+    nutChinh(k3.__chan()) === 'btnDuyetMot', String(nutChinh(k3.__chan())));
 
   kq2.__goi('S.chon.clear(); S.chon.add("recC2"); moQuyetToan()');
-  ok('cửa sổ ghi đè mã cũ thì Enter nhắm nút nguy hiểm (không có nút primary)',
-    chonNut(kq2.__chan()) === 'nguyhiem', kq2.__chan().slice(0, 200));
+  ok('cửa sổ ghi đè mã cũ vẫn có nút chính dù nó màu đỏ',
+    nutChinh(kq2.__chan()) === 'btnLuuQT', String(nutChinh(kq2.__chan())));
+
+  /* Cửa sổ chỉ để xem thì Enter không được làm gì — ở đó không có việc nào
+   * để xác nhận, mà bấm nhầm thì mở đơn Tourwell hay tải tệp. */
+  kq2.__goi('moChungTu("recC1")');
+  ok('cửa sổ chứng từ không có nút chính nào cho Enter', nutChinh(kq2.__chan()) === null,
+    kq2.__chan().slice(0, 160));
 
   console.log(SAO + 'Kỳ đóng sổ âm phải kêu lên' + HET);
   /* ======================================================================

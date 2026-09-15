@@ -301,8 +301,8 @@ const nhom = (t) => console.log('\n\x1b[1m' + t + '\x1b[0m');
     method: 'POST', headers: nhuKeToan, body: JSON.stringify({}),
   });
   const dNoLyDo = await rNoLyDo.json();
-  ok('trả lại mà không ghi lý do thì bị chặn',
-    rNoLyDo.status === 400 && /lý do/i.test(dNoLyDo.error || ''), JSON.stringify(dNoLyDo));
+  ok('yêu cầu điều chỉnh mà không ghi nội dung thì bị chặn',
+    rNoLyDo.status === 400 && /điều chỉnh/i.test(dNoLyDo.error || ''), JSON.stringify(dNoLyDo));
 
   const rNoMa = await fetch(BASE + '/api/chi/' + mot.id + '/duyet', {
     method: 'POST', headers: nhuKeToan, body: JSON.stringify({}),
@@ -325,6 +325,22 @@ const nhom = (t) => console.log('\n\x1b[1m' + t + '\x1b[0m');
   });
   ok('người ngoài không duyệt được khoản nào', rLa2.status === 403, 'HTTP ' + rLa2.status);
 
+  /* Bỏ quyết toán: đóng sổ không còn là đường một chiều. Chỉ chạm đường TRẢ
+   * LỖI ở đây — khoản chưa quyết toán thì không có gì để bỏ, nên dừng trước
+   * khi ghi và phép thử vẫn chỉ đọc đúng như tên tệp hứa. */
+  const chuaDongSo = m.chi.find((c) => !String(c.maQuyetToan || '').trim()
+    && c.tinhTrang !== 'Đã quyết toán');
+  if (chuaDongSo) {
+    const r = await fetch(BASE + '/api/chi/' + chuaDongSo.id + '/bo-quyet-toan',
+      { method: 'POST', headers: nhuKeToan });
+    const d = await r.json();
+    ok('bỏ quyết toán khoản chưa đóng sổ thì bị chặn',
+      r.status === 400 && /chưa quyết toán/i.test(d.error || ''), JSON.stringify(d));
+  }
+  const rBoLa = await fetch(BASE + '/api/chi/' + mot.id + '/bo-quyet-toan',
+    { method: 'POST', headers: nhuNguoiLa });
+  ok('người ngoài không bỏ quyết toán được', rBoLa.status === 403, 'HTTP ' + rBoLa.status);
+
   const rKhong = await fetch(BASE + '/api/chi/recKHONGCOTHAT/duyet', {
     method: 'POST', headers: nhuKeToan, body: JSON.stringify({ ma: 'X' }),
   });
@@ -333,9 +349,18 @@ const nhom = (t) => console.log('\n\x1b[1m' + t + '\x1b[0m');
 
   nhom('Sổ có chỗ chứa lời từ chối');
   ok('server gửi xuống ô Lý do từ chối', m.chi.every((c) => 'lyDoTuChoi' in c));
-  ok('"Kế toán trả lại" là một tình trạng hợp lệ',
-    (m.options.tinhTrang || []).includes('Kế toán trả lại'),
+  ok('"Chờ điều chỉnh" là một tình trạng hợp lệ',
+    (m.options.tinhTrang || []).includes('Chờ điều chỉnh'),
     JSON.stringify(m.options.tinhTrang));
+  ok('không còn tình trạng "Kế toán trả lại" cũ',
+    !(m.options.tinhTrang || []).includes('Kế toán trả lại'));
+  /* Lý do điều chỉnh chỉ có nghĩa khi khoản ĐANG chờ điều chỉnh. Treo lại trên
+   * một khoản đã quay về "Đã chi" thì không ai đọc, mà vẫn nằm đó gây hiểu
+   * nhầm cho người mở Base — đã gặp đúng một dòng như vậy ngày 15/09. */
+  const lyDoTreo = m.chi.filter((c) => String(c.lyDoTuChoi || '').trim()
+    && c.tinhTrang !== 'Chờ điều chỉnh');
+  ok('không lý do điều chỉnh nào treo trên khoản đã xong', lyDoTreo.length === 0,
+    lyDoTreo.map((c) => c.tinhTrang + ' · ' + c.noiDung).slice(0, 3).join(' | '));
 
   nhom('Không xoá được lịch sử quyết toán bằng một lời gọi');
   const daDongSo = m.chi.find((c) => String(c.maQuyetToan || '').trim());

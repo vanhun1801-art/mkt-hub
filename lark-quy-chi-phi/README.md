@@ -28,7 +28,7 @@ Lần nạp quỹ    mỗi lần công ty đưa tiền — đây là cái app g�
 Chi phí        từng khoản chi — thứ kế toán đọc
 ```
 
-Cột **Lý do từ chối** (`fldNJ2yJUW`) và lựa chọn **Kế toán trả lại** trong cột
+Cột **Lý do điều chỉnh** (`fldNJ2yJUW`) và lựa chọn **Chờ điều chỉnh** trong cột
 Tình trạng thêm ngày 15/09/2026, khi kế toán bắt đầu dùng app.
 
 ## Quỹ là MỘT cục
@@ -61,7 +61,7 @@ không sửa số cho vừa khớp. Giờ `65.559.931 − 58.181.875 = 7.378.056
 | Vai | Làm được | Cột chứng từ thấy gì |
 |---|---|---|
 | **chuQuy** — anh Hùng | khai chi · nạp quỹ · đính chứng từ · sửa · xoá · quyết toán | Hoá đơn **và** UNC |
-| **keToan** — `tentt@rootytrip.com` | đọc · mở chứng từ · **duyệt / trả lại từng khoản** · quyết toán theo lô | **chỉ Hoá đơn** |
+| **keToan** — `tentt@rootytrip.com` | đọc · mở chứng từ · **quyết toán / yêu cầu điều chỉnh / bỏ quyết toán từng khoản** · quyết toán theo lô | **chỉ Hoá đơn** |
 | **xem** — người còn lại | đọc | chỉ Hoá đơn tên xám, không mở được nút nào |
 
 Kế toán từng bị xếp chung với "xem". Sai: việc của họ là **đóng sổ**, không phải
@@ -211,14 +211,36 @@ làm ngược lại — soi **từng dòng**. Nên mỗi dòng có hai nút:
   thường chung một mã. Khoản đã đóng sổ chỉ còn nút **Đổi mã**.
 - **Từ chối** — bắt buộc ghi lý do, kèm năm câu soạn sẵn bấm là điền.
 
-Trả lại thì khoản chuyển sang tình trạng **Kế toán trả lại** (đỏ), và câu của
-kế toán hiện **ngay dưới nội dung** trong sổ của anh Hùng, không giấu trong ô
-Ghi chú. Đây là đường duy nhất thông tin đi ngược từ kế toán về người giữ quỹ;
-một dòng đỏ không kèm chữ thì chỉ đẻ ra một tin nhắn hỏi *"sao trả?"* — đúng
-cái vòng app này định cắt.
+Yêu cầu điều chỉnh thì khoản chuyển sang tình trạng **Chờ điều chỉnh** (đỏ), và
+câu của kế toán hiện **ngay dưới nội dung** trong sổ người giữ quỹ, không giấu
+trong ô Ghi chú. Đây là đường duy nhất thông tin đi ngược từ kế toán về người
+giữ quỹ; một dòng đỏ không kèm chữ thì chỉ đẻ ra một tin nhắn hỏi *"sao trả?"* —
+đúng cái vòng app này định cắt.
 
-Ô đếm **Kế toán trả lại** chỉ mọc khi có khoản bị trả. Một ô số 0 đứng thường
+**Vì sao không gọi là "Từ chối" hay "Kế toán trả lại".** Kế toán không bác khoản
+chi — họ nhờ bổ sung rồi sẽ nhận; chữ "từ chối" làm người nhận tưởng khoản tiền
+bị bác bỏ. Và cột tình trạng trả lời câu *khoản đang ở đâu*, không phải *ai làm
+gì*: ai yêu cầu thì đã rõ qua vai, điều người giữ quỹ cần biết là khoản đang chờ
+mình làm gì.
+
+Ô đếm **Chờ điều chỉnh** chỉ mọc khi có khoản đang chờ. Một ô số 0 đứng thường
 trực là ô người ta học cách không nhìn, rồi đúng lúc nó khác 0 cũng trôi qua mắt.
+
+**Đóng sổ không phải đường một chiều.** Khoản đã quyết toán mang nút **Sửa** —
+cùng dáng nút bên vai người giữ quỹ — mở ra cửa sổ vừa đổi được mã vừa **Bỏ
+quyết toán** để đưa khoản về lại *Đã chi*. Bấm nhầm mã, bấm nhầm dòng, hay soi
+kỹ lại rồi đổi ý: trước đây đều phải mở Base sửa tay, đúng cái việc app này sinh
+ra để bỏ đi. Trạng thái lùi về luôn là *Đã chi* — tiền đã rời quỹ rồi mới có
+chuyện đóng sổ, nên không cần cột nhớ trạng thái cũ cho một đường lùi chỉ có một
+đích.
+
+### Câu chữ trong app không gọi tên ai
+
+Ô nhập lý do từng ghi *"Anh Hùng sẽ đọc đúng câu này…"*. Người đọc câu đó có thể
+đổi, mà chữ trong app thì không đổi theo — nên mọi câu giờ gọi theo **vai**:
+*người giữ quỹ*, *kế toán*. Chip danh tính ở thanh trên vẫn hiện tên người đang
+đăng nhập, nhưng đó là tên đọc từ phiên chứ không phải tên viết cứng trong mã.
+Có một phép thử canh: không chuỗi nào trong cửa sổ được chứa tên người.
 
 Duyệt một khoản là **xoá lời từ chối cũ**: khoản đã qua rồi mà còn treo câu
 "thiếu hoá đơn" thì lần sau đọc lại không biết còn đúng nữa không.
@@ -273,7 +295,12 @@ bảng vẽ lại bao nhiêu lần cũng không đứt.
 sổ, `querySelector('button.primary, button.nguyhiem')` trả về phần tử **đứng
 trước trong DOM** — mà cửa sổ *Sửa khoản chi* đặt nút **Xoá khoản này** trước
 nút Lưu. Gõ xong bấm Enter là xoá mất bản ghi trong khi người ta tưởng vừa lưu.
-Đổi thành hai lần tìm, `.primary` trước. Có bốn phép thử canh đúng chỗ này.
+
+Chữa lần đầu bằng "ưu tiên `.primary`" — rồi cửa sổ *Sửa quyết toán* mọc thêm
+nút **Bỏ quyết toán** (cũng đỏ, cũng đứng trước, cũng không lùi được) và cái luật
+đó lại sắp sập. Nên giờ nút chính **mang dấu `data-chinh` tường minh**, không suy
+ra từ màu: thêm bao nhiêu nút đỏ nữa cũng không phải nhớ lại luật. Bảy phép thử
+canh chỗ này, kể cả trường hợp cửa sổ chỉ để xem thì Enter không được làm gì.
 
 **Ô tìm bỏ sót mã đơn RT** — đúng mã kế toán đối chiếu nhiều nhất. Dán
 `RT16438` vào ô tìm ra rỗng vì nó chỉ soi mã điều hành `SG…`. Nay tìm được cả
@@ -419,7 +446,7 @@ Phép thử số liệu theo kỳ không ghim con số nào: nó kiểm **đầu
 cuối kỳ**, và **cuối kỳ tháng trước = đầu kỳ tháng sau**. Bất biến thì đúng mãi,
 còn con số thì sai ngay khoản chi kế tiếp.
 
-Lần chạy gần nhất: **84 + 62 pass · 0 fail**.
+Lần chạy gần nhất: **92 + 66 pass · 0 fail**.
 
 `node --check` xanh mà app vẫn vỡ — lần thứ hai. Ngày 13/09/2026 một dòng lạc
 rơi vào giữa `/* tiện */` và `function json(...)`, biến một khai báo hàm thành
