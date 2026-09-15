@@ -386,6 +386,11 @@ button { font: inherit; }
 
 /* ---- thân trang ---- */
 .home-body { padding: 18px var(--le) 60px; display: flex; flex-direction: column; gap: 14px; }
+/* Khối video + bảng tin nằm NGOÀI .home-body (để không bị dựng lại mỗi nhịp vẽ),
+   nên phải tự mang đúng lề của thân trang. Thiếu dòng này là khối tràn rộng hơn
+   mấy thẻ base bên dưới — hai mép không thẳng nhau, thấy ngay. */
+#khoiTin { padding: 18px var(--le) 0; }
+#khoiTin:empty { padding: 0; }
 /* Hai cột cố định: bốn base thành 2x2 kín, thay vì 3 + 1 bỏ trống hai phần ba
    hàng dưới. Cột rộng hơn cũng cho các ô số thở hơn. */
 /* Ba base một hàng, ba khối RỘNG BẰNG NHAU.
@@ -780,7 +785,7 @@ code { background: var(--trang-2); border: 1px solid var(--vien-mem); border-rad
   .rail .logo-text, .rail .ri-tx, .rail .rail-group { display: none; }
   .rail .rail-item { justify-content: center; }
   .luoi-base { grid-template-columns: 1fr; }
-  .home-body, .loc-bar, .page-head { padding-left: 14px; padding-right: 14px; }
+  .home-body, .loc-bar, .page-head, #khoiTin { padding-left: 14px; padding-right: 14px; }
   :root { --le: 14px; }
 }
 
