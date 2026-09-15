@@ -991,6 +991,8 @@ async function api(req, res, u) {
         hang, danhBa, loiBang,
         // cột thiếu -> panel cảnh báo; xem chú thích ở quyen.cotThieu()
         thieuCot: await quyen.cotThieu(),
+        // kiểu cột đi kèm: panel phải chỉ ĐÚNG kiểu, xem quyen.KIEU_COT
+        kieuCot: quyen.KIEU_COT,
         larkUrl: quyen.larkUrl,
         env_quan_ly: dsQuanLyEmail().concat(dsQuanLyId()),
       });

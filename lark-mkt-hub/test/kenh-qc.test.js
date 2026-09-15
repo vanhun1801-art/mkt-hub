@@ -116,5 +116,26 @@ console.log('— ghi xuống Base đúng quy ước');
   t('vẫn đi qua bộ lọc cột thật', /locCotThat\(cells, 'phân quyền'\)/.test(q));
 }
 
+console.log('— panel phải chỉ ĐÚNG kiểu cột khi bảng còn thiếu');
+{
+  const fs = require('fs');
+  const path = require('path');
+  /* "Kênh quảng cáo" là cột VĂN BẢN. Panel bản trước ghi cứng "thêm cột kiểu
+   * Checkbox" cho mọi cột thiếu — và tạo nhầm Checkbox ở đúng cột này thì tick
+   * vào lại đọc ra `true`, tức MỌI KÊNH: ngược hẳn ý người khai, mà không báo
+   * gì. Chỉ sai đường ở đúng chỗ người ta đang cần được chỉ đường. */
+  t('có bảng kiểu cột', !!quyen.KIEU_COT);
+  t('Kênh quảng cáo là Văn bản', quyen.KIEU_COT[quyen.F.kenhQC] === 'Văn bản',
+    quyen.KIEU_COT[quyen.F.kenhQC]);
+  t('Xem chi phí vẫn là Checkbox', quyen.KIEU_COT[quyen.F.chiPhi] === 'Checkbox');
+  t('Base được xem là Văn bản', quyen.KIEU_COT[quyen.F.base] === 'Văn bản');
+  t('mọi cột đều khai kiểu', Object.values(quyen.F).every((c) => !!quyen.KIEU_COT[c]),
+    Object.values(quyen.F).filter((c) => !quyen.KIEU_COT[c]).join(', '));
+
+  const pq = fs.readFileSync(path.join(__dirname, '..', 'public', 'quyen.js'), 'utf8');
+  t('panel không còn ghi cứng Checkbox', !/thêm cột kiểu Checkbox/.test(pq));
+  t('panel in kiểu kèm tên cột', /kieu\[c\]/.test(pq));
+}
+
 console.log(`\n${pass} pass · ${fail} fail`);
 process.exitCode = fail ? 1 : 0;

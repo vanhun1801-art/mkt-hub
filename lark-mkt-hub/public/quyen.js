@@ -160,11 +160,17 @@ function veDanhSachQuyen() {
  * bỏ ô đó (xem quyen.js phía máy chủ) — quyền hiện là "đã bật" trên giao diện
  * mà thực tế KHÔNG có tác dụng. Nói thẳng ra, kèm tên cột cần thêm. */
   const thieu = d.thieuCot || [];
+  const kieu = d.kieuCot || {};
   let html = (thieu.length
     ? '<div class="canh-bao do"><span class="grow"><b>Bảng phân quyền trên Base thiếu ' +
-      thieu.length + ' cột:</b> ' + thieu.map(esc).join(', ') +
-      '. Quyền tương ứng bật ở đây sẽ KHÔNG có tác dụng — thêm cột kiểu Checkbox ' +
-      'đúng tên đó trên Base rồi bấm Làm mới.</span></div>'
+      thieu.length + ' cột:</b> ' +
+      /* Chỉ ĐÚNG kiểu từng cột. Bản trước ghi cứng "Checkbox" cho mọi cột — sai
+       * với bốn cột vốn là văn bản, và riêng "Kênh quảng cáo" mà tạo nhầm
+       * Checkbox thì tick vào lại thành MỌI KÊNH, ngược hẳn ý người khai. */
+      thieu.map((c) => '<b>' + esc(c) + '</b>' +
+        (kieu[c] ? ' <i>(' + esc(kieu[c]) + ')</i>' : '')).join(', ') +
+      '. Quyền tương ứng bật ở đây sẽ KHÔNG có tác dụng — thêm cột đúng tên và ' +
+      'đúng kiểu trên Base rồi bấm Làm mới.</span></div>'
     : '') +
     '<div class="q-dau">' +
     '<div><b>' + ds.length + ' người đã khai quyền riêng</b>' +

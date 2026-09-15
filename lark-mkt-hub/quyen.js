@@ -71,6 +71,23 @@ const F = {
   ghiChu: 'Ghi chú',
 };
 
+/* Kiểu cột của từng ô, để khi bảng THIẾU cột thì panel chỉ đúng kiểu cần tạo.
+ *
+ * Bản trước panel ghi cứng "thêm cột kiểu Checkbox" cho MỌI cột thiếu — sai với
+ * bốn cột vốn là văn bản. Và sai kiểu ở đây không phải lỗi nhỏ: cột "Kênh quảng
+ * cáo" mà tạo nhầm Checkbox thì tick vào là docKenhQC đọc ra `true`, tức MỌI
+ * KÊNH — đúng ngược lại cái người ta định làm, mà không báo gì. */
+const KIEU_COT = {
+  [F.nguoi]: 'Văn bản', [F.email]: 'Văn bản', [F.openId]: 'Văn bản',
+  [F.vai]: 'Lựa chọn (Quản lý / Nhân sự)', [F.viTri]: 'Văn bản',
+  [F.base]: 'Văn bản', [F.quanLyBase]: 'Văn bản',
+  [F.toanBo]: 'Checkbox',
+  [F.xemTai]: 'Văn bản',
+  [F.taoMoi]: 'Checkbox', [F.chiPhi]: 'Checkbox',
+  [F.kenhQC]: 'Văn bản',
+  [F.ghiChu]: 'Văn bản',
+};
+
 /* Bộ hàm gọi đúng bảng này. Chế độ api / cli nằm trong base-lark.js. */
 const B = baseLark.bang(BASE, TABLE);
 
@@ -403,7 +420,7 @@ function kenhQuangCaoCua(hang, ds) {
 }
 
 module.exports = {
-  BASE, TABLE, F, KENH_QC,
+  BASE, TABLE, F, KENH_QC, KIEU_COT,
   docTatCa, cuaNguoi, ghi, xoa, xoaCache, cotThieu, docOBase, docXemTai, ghiXemTai,
   docKenhQC, luatKenhDaBat, kenhQuangCaoCua,
   larkUrl: 'https://rootytrip2.sg.larksuite.com/base/' + BASE + '?table=' + TABLE,
