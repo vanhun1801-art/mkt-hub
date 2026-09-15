@@ -865,6 +865,37 @@ cạnh nhau không dính thành một.
 trước khi mắt chạm tới mấy con số phụ. `test/phan-cap-o.test.js` chốt cả ba luật
 mới này; luật cũ vẫn còn trong lịch sử git kèm lý do vì sao đổi.
 
+## Ba base cuối cùng cũng có số
+
+Tới 15/09/2026 vẫn còn ba base — **Báo cáo & KPI**, **Quỹ chi phí**, **Báo cáo
+công việc** — hiện đúng một câu trên trang Tổng quan: *"Base này chưa có bộ đọc
+chỉ số… khai `kpi` trong modules.json"*. Một câu viết cho người sửa mã, nằm giữa
+màn hình của người dùng.
+
+Mỗi app tự mở `/api/tong-quan` trả sẵn mảng `the`, hub chỉ bày ra (`tuAppTuCong`
+trong `kpi.js`) — định nghĩa chỉ số nằm **trong app**, vì app mới biết "chờ
+quyết toán" hay "nộp bù" nghĩa là gì.
+
+| Base | Ô chính | Ô cảnh báo |
+|---|---|---|
+| Báo cáo & KPI | Đạt mục tiêu (%) tháng gần nhất **có số** | chưa chấm xong · cảnh báo số liệu · chưa chốt |
+| Quỹ chi phí | Còn trong quỹ | chờ chi · chờ quyết toán |
+| Báo cáo công việc | Phiếu đã nộp | nộp trễ · nộp bù · cần hỗ trợ |
+
+Ba điều đã cân nhắc, ghi lại kẻo lần sau làm ngược:
+
+- **KPI lấy tháng gần nhất CÓ SỐ, không lấy tháng mới nhất.** Tháng mới thường
+  mới dựng khung, chưa dán số liệu — thẻ sẽ toàn số 0 và người đọc tưởng app hỏng.
+- **`tong` của KPI là TỈ LỆ so với mục tiêu** (0,91 = đạt 91%), không phải điểm
+  trên thang 10. Đưa thẳng 0,91 lên thẻ là người đọc tưởng điểm kém.
+- **Không chặn theo vai ở `/api/tong-quan`.** Nhân sự cũng thấy thẻ trên trang
+  Tổng quan — chỉ là thấy số của chính mình (app lọc sẵn). Trả 403 thì thẻ của
+  nhân sự chỉ còn câu báo lỗi.
+
+Đo thật qua hub (đổi cổng bằng `HUB_MODULES_FILE` để trỏ vào ba bản vừa sửa):
+"Chi trong kỳ" lọc đúng tháng 9 ra 3.025.744đ / 7 khoản trong khi tổng từ đầu
+quỹ là 59.080.875đ.
+
 ## Thẻ chỉ số cho base mới
 
 Thêm một hàm trong `kpi.js` rồi khai tên hàm vào `kpi` của module:

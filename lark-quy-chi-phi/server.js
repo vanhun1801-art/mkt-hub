@@ -371,6 +371,48 @@ async function xuLy(req, res) {
     });
   }
 
+  /* ---- thẻ chỉ số cho trang Tổng quan của hub ----
+   * Hub KHÔNG đọc Base của app này; nó hỏi đúng đường dưới đây. Định nghĩa
+   * "còn bao nhiêu tiền", "bao nhiêu khoản chờ quyết toán" nằm ở app — đổi cách
+   * tính thì sửa một chỗ, thẻ trên hub đổi theo. */
+  if (p === '/api/tong-quan' && req.method === 'GET') {
+    const k = await nap(false);
+    const chi = k.chi.map((r) => doiRa(r, F.chi));
+    const lan = k.nap.map((r) => doiRa(r, F.nap));
+    const quy = tinhQuy(chi, lan);
+
+    const tu = url.searchParams.get('tu') || '';
+    const den = url.searchParams.get('den') || '';
+    /* Lọc theo NGÀY ĐỀ NGHỊ: đó là ngày khoản chi phát sinh. Ngày chi có thể
+     * trống (chưa chi) nên lọc theo nó là khoản mới nhất biến mất khỏi thẻ. */
+    const trongKy = (r) => {
+      if (!tu || !den) return true;
+      const d = String(r.ngayDeNghi || '').slice(0, 10);
+      return d && d >= tu && d <= den;
+    };
+    const kyChi = chi.filter(trongKy);
+    const choChi = chi.filter((r) => r.tinhTrang === 'Chờ chi');
+    /* "Đã chi" mà chưa "Đã quyết toán" = tiền đã ra khỏi quỹ nhưng chưa khoá
+     * sổ. Đây là việc còn phải làm, nên nó là con số đáng cảnh báo nhất ở đây. */
+    const choQt = chi.filter((r) => r.tinhTrang === 'Đã chi');
+
+    return json(res, {
+      the: [
+        { chinh: true, nhan: 'Còn trong quỹ', so: quy.conLai || 0, dinhDang: 'vnd',
+          ghi: 'đã ứng ' + (quy.soLanUng || 0) + ' lần' },
+        { nhan: 'Chờ chi', so: choChi.length, dinhDang: 'so',
+          muc: choChi.length ? 'vua' : 'ok', tab: 'chi' },
+        { nhan: 'Chờ quyết toán', so: choQt.length, dinhDang: 'so',
+          muc: choQt.length ? 'vua' : 'ok', tab: 'chi' },
+        { nhan: 'Chi trong kỳ', so: kyChi.reduce((a, r) => a + (Number(r.tien) || 0), 0),
+          dinhDang: 'vnd', ghi: kyChi.length + ' khoản' },
+        { nhan: 'Đã chi từ đầu quỹ', so: quy.tongChi || 0, dinhDang: 'vnd' },
+      ],
+      tong: chi.length,
+      khoang: tu && den ? tu + ' → ' + den : '',
+    });
+  }
+
   /* ---- khoản chi ---- */
   if (p === '/api/chi' && req.method === 'POST') {
     if (!(await doiChuQuy(res))) return;

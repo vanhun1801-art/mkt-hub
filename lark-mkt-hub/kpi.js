@@ -645,6 +645,36 @@ async function chinhAnh(mod, khoang, nguoi) {
   };
 }
 
+/**
+ * Ba app dưới đây đều trả sẵn mảng `the` theo đúng khuôn của trang Tổng quan,
+ * nên bộ đọc ở hub chỉ còn là một lời gọi. Cố ý như vậy: định nghĩa chỉ số nằm
+ * TRONG app (app biết "chờ quyết toán" nghĩa là gì), hub chỉ bày ra.
+ *
+ * Trước đây ba base này không có bộ đọc nên trang Tổng quan hiện đúng một câu:
+ * "Base này chưa có bộ đọc chỉ số… khai `kpi` trong modules.json" — một câu
+ * dành cho người viết mã, nằm chình ình giữa màn hình của người dùng.
+ */
+async function tuAppTuCong(mod, khoang, nguoi, duong) {
+  const q = khoang && khoang.tu && khoang.den
+    ? '?tu=' + encodeURIComponent(khoang.tu) + '&den=' + encodeURIComponent(khoang.den)
+    : '';
+  const ov = await goiJson(mod, (duong || '/api/tong-quan') + q, { nguoi });
+  const cxl = ov.canXuLy || [];
+  return {
+    the: ov.the || [],
+    canXuLy: cxl.slice(0, 8),
+    canXuLyTong: ov.canXuLyTong != null ? ov.canXuLyTong : cxl.length,
+    ngoaiKhoang: ov.ngoaiKhoang || 0,
+    tong: ov.tong || 0,
+    khoang: ov.khoang || '',
+    nguoi: '',
+  };
+}
+
+const kpiThang = (mod, khoang, nguoi) => tuAppTuCong(mod, null, nguoi);
+const quyChiPhi = (mod, khoang, nguoi) => tuAppTuCong(mod, khoang, nguoi);
+const baoCaoViec = (mod, khoang, nguoi) => tuAppTuCong(mod, khoang, nguoi);
+
 const BO_DOC = {
   'cong-viec': congViec,
   'lich-tac-nghiep': lichTacNghiep,
@@ -652,6 +682,11 @@ const BO_DOC = {
   'ota': ota,
   'social': social,
   'chinh-anh': chinhAnh,
+  /* Ba base nạp sau. Chúng dùng chung một bộ đọc mỏng vì cùng nói một thứ
+     tiếng — xem tuAppTuCong. */
+  'kpi': kpiThang,
+  'quy-chi-phi': quyChiPhi,
+  'bao-cao': baoCaoViec,
 };
 
 /* ---------------- cache + gom ---------------- */

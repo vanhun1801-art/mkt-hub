@@ -186,7 +186,8 @@
       "phuSelector": "#brandSub",
       "bat": true,
       "css": ".topbar-right { margin-left: auto; }",
-      "caPhong": false
+      "caPhong": false,
+      "kpi": "kpi"
     },
     {
       "id": "quy-chi-phi",
@@ -210,7 +211,8 @@
       ],
       "phuSelector": "#phuDe",
       "bat": true,
-      "caPhong": false
+      "caPhong": false,
+      "kpi": "quy-chi-phi"
     },
     {
       "id": "bao-cao",
@@ -231,7 +233,8 @@
         "#btnLark"
       ],
       "bat": true,
-      "caPhong": false
+      "caPhong": false,
+      "kpi": "bao-cao"
     }
   ]
 }

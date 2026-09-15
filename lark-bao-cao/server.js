@@ -509,6 +509,54 @@ async function api(req, res, u) {
    * Bảng theo dõi: ai đã nộp, ai chưa, ai trễ — trong một khoảng.
    * Đây là câu anh Hùng đang phải trả lời bằng cách cuộn nhóm chat mỗi chiều.
    */
+  /* ---- thẻ chỉ số cho trang Tổng quan của hub ----
+   * Hub không đọc Base của app này; nó hỏi đúng đường dưới đây, và định nghĩa
+   * "nộp đúng hạn / trễ / bù" chỉ có MỘT bản, nằm ở app.
+   *
+   * KHÔNG chặn theo vai: nhân sự cũng thấy thẻ này trên trang Tổng quan, nhưng
+   * thấy số của CHÍNH MÌNH. Quản lý thấy số cả phòng. Cùng một đường, hai phạm
+   * vi — chặn 403 thì thẻ của nhân sự chỉ còn câu báo lỗi.
+   */
+  if (p === '/api/tong-quan' && m === 'GET') {
+    const tuQ = Number(q.get('tu'));
+    const denQ = Number(q.get('den'));
+    const ky = { loaiKy: 'ngay', tu: tuQ || K.kyTuan(Date.now()).tu, den: denQ || Date.now() };
+    const het = await kho.dsPhieu(ky, q.get('moi') === '1');
+    /* Nhân sự chỉ đếm phiếu của mình: thẻ trên trang chủ không được là cửa sau
+     * để xem số của người khác. */
+    const ds = toi.quanLy ? het : het.filter((x) => kho.cungNguoi(x, toi));
+
+    const daNop = ds.filter((x) => x.trangThai === cfg.chon.trangThaiPhieu.daNop);
+    const bu = daNop.filter((x) => x.nopBu);
+    const tre = daNop.filter((x) => x.dungHan === cfg.chon.dungHan.tre && !x.nopBu);
+    const hoTro = ds.filter((x) => String(x.canHoTro || '').trim());
+
+    const the = [
+      { chinh: true, nhan: 'Phiếu đã nộp', so: daNop.length, dinhDang: 'so',
+        ghi: toi.quanLy ? 'cả phòng, trong kỳ lọc' : 'của bạn, trong kỳ lọc' },
+      { nhan: 'Nộp trễ', so: tre.length, dinhDang: 'so', muc: tre.length ? 'vua' : 'ok' },
+      { nhan: 'Nộp bù', so: bu.length, dinhDang: 'so', muc: bu.length ? 'vua' : 'ok' },
+      { nhan: 'Cần hỗ trợ', so: hoTro.length, dinhDang: 'so',
+        muc: hoTro.length ? 'cao' : 'ok',
+        ghi: hoTro.length ? 'nhân sự đang mắc, cần người gỡ' : '' },
+    ];
+
+    return json(res, {
+      the,
+      /* Việc cần xử lý: mỗi lời "cần hỗ trợ" là một việc thật có người đang
+       * chờ. Đưa lên danh sách chung của trang Tổng quan. */
+      canXuLy: hoTro.slice(0, 8).map((x) => ({
+        id: x.recordId,
+        ten: (x.tenNguoi || x.email || '') + ': ' + String(x.canHoTro).slice(0, 90),
+        muc: 'vua',
+        nhan: 'Cần hỗ trợ',
+      })),
+      canXuLyTong: hoTro.length,
+      tong: daNop.length,
+      khoang: '',
+    });
+  }
+
   if (p === '/api/theo-doi' && m === 'GET') {
     if (!toi.quanLy) return loi(res, 403, 'Chỉ quản lý xem được bảng này.', 'CHI_QUAN_LY');
     const tu = Number(q.get('tu')) || K.kyTuan(Date.now()).tu;

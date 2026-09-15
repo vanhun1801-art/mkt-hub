@@ -230,6 +230,61 @@ async function api(req, res, u) {
     return ok(res, loc(kq, nx));
   }
 
+  /* ---- thẻ chỉ số cho trang Tổng quan của hub ----
+   * Hub hỏi đúng đường này, không tự tính điểm. Lấy THÁNG GẦN NHẤT CÓ SỐ, không
+   * lấy tháng mới nhất: tháng mới thường mới dựng khung, chưa dán số liệu, nên
+   * thẻ sẽ toàn số 0 và người đọc tưởng app hỏng.
+   *
+   * Không chặn theo vai — `loc()` đã cắt đúng phạm vi: quản lý thấy cả phòng,
+   * nhân sự thấy mình. Thiếu nó thì thẻ của nhân sự chỉ còn câu báo lỗi. */
+  if (p === '/api/tong-quan') {
+    const ths = store.danhSachThang();
+    const coSo = (th) => {
+      const t = store.thang(th);
+      return !!t && Object.values(t.soLieu)
+        .some((v) => typeof v === 'number' && Number.isFinite(v) && v !== 0);
+    };
+    const th = u.searchParams.get('thang') || ths.find(coSo) || ths[0] || '';
+    const kq = th ? tinhThang(th) : null;
+    if (!kq) {
+      return ok(res, {
+        the: [{ chinh: true, nhan: 'Tháng đã chấm', so: 0, dinhDang: 'so',
+          ghi: 'chưa có tháng nào có số liệu' }],
+        tong: 0, khoang: '',
+      });
+    }
+    const q = loc(kq, nx);
+    const nguoi = q.nguoi || [];
+    /* Chỉ tính trung bình trên người ĐÃ CHẤM ĐỦ. Gộp cả người chấm dở vào thì
+     * điểm trung bình tụt xuống vì thiếu dữ liệu chứ không phải vì làm kém —
+     * đúng loại số làm người ta kết luận sai. */
+    const duDu = nguoi.filter((n) => n.dayDu);
+    /* `tong` của một người là TỈ LỆ so với mục tiêu (0,91 = đạt 91%), không phải
+     * điểm trên thang 10. Đưa thẳng số 0,91 lên thẻ thì người đọc tưởng điểm
+     * kém; nhân 100 và ghi "%" mới đúng thứ nó nói. */
+    const tb = duDu.length
+      ? Math.round((duDu.reduce((a, n) => a + (Number(n.tong) || 0), 0) / duDu.length) * 1000) / 10
+      : 0;
+    const thieu = nguoi.filter((n) => !n.dayDu);
+
+    return ok(res, {
+      the: [
+        { chinh: true, nhan: 'Đạt mục tiêu', so: tb, dinhDang: 'pt',
+          ghi: 'tháng ' + th + (duDu.length ? ' · ' + duDu.length + ' người đã chấm đủ' : '') },
+        { nhan: 'Chưa chấm xong', so: thieu.length, dinhDang: 'so',
+          muc: thieu.length ? 'vua' : 'ok',
+          ghi: thieu.length ? thieu.slice(0, 3).map((n) => n.ten).join(', ') : '' },
+        { nhan: 'Cảnh báo số liệu', so: (q.canhBao || []).length, dinhDang: 'so',
+          muc: (q.canhBao || []).length ? 'vua' : 'ok' },
+        { nhan: 'Đã chốt', so: q.chot ? 1 : 0, dinhDang: 'so',
+          muc: q.chot ? 'ok' : 'vua',
+          ghi: q.chot ? 'tháng ' + th + ' đã chốt' : 'chưa chốt tháng ' + th },
+      ],
+      tong: nguoi.length,
+      khoang: th,
+    });
+  }
+
   if (p === '/api/luat') {
     const th = u.searchParams.get('thang') || store.danhSachThang()[0];
     const t = store.thang(th);
