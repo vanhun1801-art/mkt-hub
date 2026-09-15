@@ -1026,8 +1026,19 @@ async function veKhoiTin() {
   o.innerHTML = '<section class="khoi khoi-tin">' +
     '<div class="tin-luoi' + (coPhim ? '' : ' khong-phim') + '">' +
       (coPhim
-        ? '<div class="tin-phim"><video src="/api/video-gt?v=' + TIN.phim.luc +
-          '" controls preload="metadata" playsinline></video></div>'
+        /* Anh Hùng: "video sẽ luôn chạy mãi, có tuỳ chọn phát âm thanh hoặc
+         * không". `autoplay loop muted playsinline` là ĐÚNG BỐN thuộc tính mà
+         * trình duyệt đòi để tự chạy — thiếu `muted` là Chrome chặn thẳng, và
+         * chặn im lặng: video đứng ở khung hình đầu mà không báo gì.
+         *
+         * Nên mặc định là im tiếng, rồi có nút loa để bật. Không để `controls`:
+         * thanh điều khiển đen kịt nằm dưới một video chạy nền trông rất nặng,
+         * mà thứ người ta cần ở đây chỉ có đúng một cái — tiếng. */
+        ? '<div class="tin-phim">' +
+          '<video src="/api/video-gt?v=' + TIN.phim.luc +
+          '" autoplay loop muted playsinline preload="auto"></video>' +
+          '<button class="tin-am" id="tinAm" title="Bật tiếng" aria-label="Bật tiếng">🔇</button>' +
+          '</div>'
         : '') +
       '<div class="tin-cot">' +
         '<div class="tin-cot-dau"><h2>Tin của phòng</h2>' +
@@ -1038,6 +1049,31 @@ async function veKhoiTin() {
         '</div>' +
       '</div>' +
     '</div></section>';
+
+  /* Nút loa. Nhớ lựa chọn trong trình duyệt của từng người: ai muốn nghe thì
+   * lần sau vào là có tiếng luôn, ai không thì mãi mãi im — không phải bấm lại
+   * mỗi lần mở trang. Bật tiếng xong phải gọi play() lần nữa: đổi muted giữa
+   * chừng có trình duyệt dừng video lại. */
+  const oAm = document.getElementById('tinAm');
+  const oPhim = o.querySelector('.tin-phim video');
+  if (oAm && oPhim) {
+    let co = false;
+    try { co = localStorage.getItem('hub.tinTieng') === '1'; } catch (_) {}
+    const ap = () => {
+      oPhim.muted = !co;
+      oAm.textContent = co ? '🔊' : '🔇';
+      oAm.title = co ? 'Tắt tiếng' : 'Bật tiếng';
+      oAm.setAttribute('aria-label', oAm.title);
+    };
+    ap();
+    if (co) oPhim.play().catch(() => { /* trình duyệt chặn thì cứ để im */ });
+    oAm.onclick = () => {
+      co = !co;
+      try { localStorage.setItem('hub.tinTieng', co ? '1' : '0'); } catch (_) {}
+      ap();
+      oPhim.play().catch(() => {});
+    };
+  }
 
   /* Bấm một tin là mở đúng popup của tin đó để đọc trọn — kể cả đã đọc rồi.
    * Đây là đường xem lại, nên không ghi lại xác nhận của ai. */

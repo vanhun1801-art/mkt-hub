@@ -1021,16 +1021,38 @@ code { background: var(--trang-2); border: 1px solid var(--vien-mem); border-rad
    ta dừng lại xem; cột tin hẹp hơn và tự cuộn, cao bằng đúng cột phim để hai
    bên không so le. Màn hẹp thì xếp dọc, phim lên trên. */
 .khoi-tin { padding: 0; overflow: hidden; }
-.tin-luoi { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(300px, 1fr); }
+.khoi-tin .tin-luoi { height: 290px; }
+@media (max-width: 900px) { .khoi-tin .tin-luoi { height: auto; } .tin-phim { height: 200px; } }
+/* Kích thước theo đúng ô anh Hùng kẻ trên ảnh: video hẹp hơn cột tin (một
+   phần ba / hai phần ba), và cả khối cao khoảng 290px — vừa một khoảnh trên
+   đầu trang, không đẩy mấy thẻ số liệu xuống dưới tầm nhìn. */
+.tin-luoi { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); }
 .tin-luoi.khong-phim { grid-template-columns: 1fr; }
-.tin-phim { background: #000; display: flex; }
-.tin-phim video { width: 100%; height: 100%; max-height: 420px; object-fit: contain; display: block; }
+.tin-phim { background: #000; position: relative; overflow: hidden; }
+.tin-phim video {
+  width: 100%; height: 100%; display: block;
+  /* `cover` để lấp đầy khoảnh đó, không để hai vệt đen hai bên. Video chạy nền
+     nên cắt rìa không mất thông tin như ảnh poster trong thông báo. */
+  object-fit: cover;
+}
+/* Nút bật/tắt tiếng — chồng lên góc video, chỉ đậm lên khi rê chuột tới.
+   Trình duyệt CHỈ cho tự chạy khi đang tắt tiếng, nên video mở ra là im; bấm
+   nút này là chỗ duy nhất để có tiếng, và đó cũng là "tuỳ chọn" anh Hùng cần. */
+.tin-am {
+  position: absolute; right: 10px; bottom: 10px; z-index: 2;
+  width: 34px; height: 34px; border-radius: 50%;
+  display: grid; place-items: center; cursor: pointer;
+  border: 0; color: #fff; font-size: 15px; line-height: 1;
+  background: rgba(15, 20, 30, .55); backdrop-filter: blur(4px);
+  opacity: .8; transition: opacity .15s, background .15s;
+}
+.tin-am:hover { opacity: 1; background: rgba(15, 20, 30, .8); }
 
 .tin-cot { display: flex; flex-direction: column; min-width: 0; border-left: 1px solid var(--vien); }
 .tin-luoi.khong-phim .tin-cot { border-left: 0; }
 .tin-cot-dau { padding: 14px 16px 10px; border-bottom: 1px solid var(--vien-mem); }
 .tin-cot-dau h2 { margin: 0; font-size: 15px; }
-.tin-ds { flex: 1 1 auto; overflow-y: auto; max-height: 420px; }
+.tin-ds { flex: 1 1 auto; overflow-y: auto; }
 .tin-ds::-webkit-scrollbar { width: 0; }
 .tin-ds { scrollbar-width: none; }
 

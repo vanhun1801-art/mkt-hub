@@ -495,6 +495,18 @@ Khối chỉ vẽ **một lần** (`dataset.xong`): trang chủ tự vẽ lại 
 nhịp số liệu, vẽ lại mà đụng vào thẻ `<video>` là video đang xem bị dựng lại từ
 đầu.
 
+Kích thước theo đúng ô anh Hùng kẻ: video **một phần ba**, cột tin **hai phần
+ba**, cả khối cao **290px** — một khoảnh trên đầu trang, không đẩy thẻ số liệu
+xuống ngoài tầm nhìn.
+
+**Video tự chạy, lặp mãi, mặc định im tiếng.** `autoplay loop muted playsinline`
+là đúng bốn thuộc tính trình duyệt đòi để được tự chạy — thiếu `muted` là Chrome
+chặn, và chặn *im lặng*: video đứng ở khung hình đầu mà không báo gì. Nên có nút
+loa ở góc để bật tiếng, và lựa chọn đó **nhớ theo từng người** (`localStorage`):
+ai muốn nghe thì lần sau vào là có tiếng luôn. Không dùng `controls` — thanh
+điều khiển đen kịt dưới một video chạy nền trông rất nặng, mà thứ người ta cần ở
+đây chỉ có đúng một cái: tiếng.
+
 | | Video giới thiệu | Tệp đính kèm của thông báo |
 |---|---|---|
 | Chỗ lưu | ổ đĩa của hub (`du-lieu/video-tong-quan.*`) | ô Đính kèm trên Base |
