@@ -325,6 +325,35 @@ Không emoji, không thư viện ngoài. Icon có sẵn: `tong-quan` · `cong-vi
 Khai tên icon ở `"icon"` trong `modules.json`; tên lạ thì hub in ra chính chuỗi đó,
 nên vẫn dùng được kiểu chữ viết tắt cho base mới chưa có icon.
 
+## Thứ tự app trong panel — mỗi người tự xếp
+
+Thứ tự trong `modules.json` là thứ tự **lúc khai báo**, không liên quan gì tới
+app nào hay dùng: app khai sau nằm cuối, kể cả khi ngày nào cũng mở nó.
+
+Đổi chỗ bằng **kéo thả thẳng trên panel**, hoặc nút **↑ ↓** ở từng dòng trong
+*Cài đặt → Base trong panel* (màn cảm ứng kéo rất khó, mà kéo thì không ai đoán
+ra là kéo được nếu không thử). *Về thứ tự gốc* trả lại thứ tự tệp.
+
+Lưu ở **localStorage của từng trình duyệt**, không lưu lên máy chủ. Hai lý do:
+
+- ổ đĩa Render là ổ **tạm** — ghi vào tệp thì deploy lần sau mất sạch (đã vấp
+  đúng chuyện này với nút "mở cả phòng");
+- thứ tự là **thói quen của từng người**. Người chạy quảng cáo muốn Quản lý
+  quảng cáo lên đầu, người làm content muốn Bảng công việc lên đầu — ép chung
+  một thứ tự là lấy đi của một trong hai.
+
+Ba cái bẫy, đều im lặng, nên `test/thu-tu-app.test.js` chạy **chính đoạn mã của
+`app.js`** (cắt khối thứ tự nạp vào `vm`) chứ không chép lại logic:
+
+| Bẫy | Cách chặn |
+|---|---|
+| Khai app thứ mười, ai đã từng xếp panel thì **không bao giờ thấy nó** | thứ tự là danh sách **sắp xếp**, không phải bộ lọc — id lạ xuống cuối, id đã xoá rơi ra |
+| Ẩn một app ở giữa rồi bấm ↓ thì app **nhảy hai bậc** | `doiChoApp` chỉ tính trên nhóm đang hiện; app ẩn vẫn giữ trong thứ tự lưu để bật lại là về đúng chỗ |
+| Panel tự vẽ lại mỗi 10 giây → **đứt cú kéo** giữa chừng | `S.dangKeo` chặn `veRail()` trong lúc kéo |
+
+Xếp một lần là mọi màn cùng theo: panel, trang Tổng quan và màn Cài đặt đều đọc
+`S.modules`, mà mảng đó được xếp ngay tại cửa nhận dữ liệu (`napHub`).
+
 ## Thêm một base
 
 **Cách 1 — trong app:** panel → `＋ Thêm base`. Ba kiểu:
@@ -708,6 +737,7 @@ trong Lark**, không liên quan tới vai quản lý/nhân sự bên trong từn
 | `test/bot.test.js` | kiểm thử lớp `/bot`: token, chỉ GET, và **không một đồng nào lọt ra** |
 | `test/tb-app.test.js` | thông báo chặn màn hình: ai bị chặn, chặn tới khi nào, và canh va chạm tên giữa các tệp `public/` |
 | `test/nhom-mkt.test.js` | khớp nhóm chat vào danh bạ: tick thiếu và tick thừa đều im lặng nên phải thử |
+| `test/thu-tu-app.test.js` | thứ tự app do người dùng xếp: chạy chính khối mã của app.js trong vm |
 | `test/nen.test.js` | nén: thương lượng `Accept-Encoding`, SSE không bị nén, và **giải ra khớp từng byte** |
 | `test/dem-kpi.test.js` | đệm chỉ số: gộp lượt đang bay, trả số cũ rồi đọc lại, có trần, đời của đệm |
 

@@ -278,6 +278,16 @@ button { font: inherit; }
 }
 .rail-item.ghost { color: var(--rail-chu-mo); }
 
+/* Kéo để đổi chỗ app.
+   Không đặt `cursor: grab` cho cả mục: mục này trước hết là một cái LINK, đổi
+   con trỏ mặc định thành bàn tay thì người ta ngại bấm. Chỉ đổi khi đang giữ. */
+.rail-item.keo:active { cursor: grabbing; }
+.rail-item.dang-keo {
+  opacity: .45;
+  outline: 1px dashed var(--rail-cuon);
+  outline-offset: -1px;
+}
+
 /* Ô chữ viết tắt thay cho icon — anh Hùng không dùng emoji trong giao diện */
 .ri-ic {
   flex: 0 0 auto; width: 28px; height: 28px; border-radius: 8px;

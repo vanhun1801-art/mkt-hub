@@ -28,6 +28,8 @@ const S = {
   lichLoi: '',
   xem: 'luoi',         // cách xem lịch chung: 'luoi' | 'ngay'
   theme: 'auto',       // 'sang' | 'toi' | 'auto'
+  thuTu: [],           // thứ tự app do người này tự kéo, lưu ở trình duyệt
+  dangKeo: '',         // id app đang kéo — chặn vẽ lại panel giữa chừng
 };
 
 /* ---------------- bộ lọc thời gian ----------------
@@ -79,6 +81,68 @@ function khoangDangLoc() {
   const den = new Date(now); den.setHours(0, 0, 0, 0);
   const tu = new Date(den); tu.setDate(den.getDate() - (soNgay - 1));
   return { tu: d2s(tu), den: d2s(den) };
+}
+
+/* ============================================================
+   THỨ TỰ APP TRONG PANEL
+   Anh Hùng: "anh muốn có thể thay đổi được vị trí của các ứng dụng thay vì
+   theo thứ tự hiện tại". Thứ tự trong modules.json là thứ tự LÚC KHAI BÁO —
+   app khai sau nằm cuối, không liên quan gì tới app nào hay dùng.
+
+   Lưu ở TRÌNH DUYỆT TỪNG NGƯỜI, không lưu lên máy chủ. Hai lý do:
+     · ổ đĩa Render là ổ TẠM — ghi vào tệp thì deploy lần sau là mất sạch (đã
+       vấp đúng chuyện này với nút "mở cả phòng", xem README);
+     · thứ tự là thói quen của từng người. Người chạy quảng cáo muốn Quản lý
+       quảng cáo lên đầu, người làm content muốn Bảng công việc lên đầu — ép
+       chung một thứ tự là lấy đi của một trong hai.
+
+   App khai thêm sau này mà chưa có trong danh sách đã lưu thì xuống CUỐI chứ
+   không biến mất: thứ tự lưu là danh sách id, không phải bộ lọc.
+   ============================================================ */
+const KHOA_THU_TU = 'hub.thuTuApp';
+
+function docThuTu() {
+  try {
+    const v = JSON.parse(localStorage.getItem(KHOA_THU_TU) || '[]');
+    return Array.isArray(v) ? v.filter((x) => typeof x === 'string') : [];
+  } catch (_) { return []; }
+}
+
+function luuThuTu(ds) {
+  S.thuTu = ds.slice();
+  try { localStorage.setItem(KHOA_THU_TU, JSON.stringify(S.thuTu)); } catch (_) {}
+}
+
+/**
+ * Xếp modules theo thứ tự người dùng đã đặt.
+ *
+ * Không đụng tới mảng gốc và không lọc bỏ gì — chỉ đổi chỗ. Id lạ (app vừa
+ * khai, hoặc thứ tự cũ còn giữ id đã xoá) không làm hỏng gì: id chưa biết thì
+ * xuống cuối theo đúng thứ tự tệp, id đã xoá thì không khớp ai nên rơi ra.
+ */
+function sapXepModules(ds) {
+  const thu = S.thuTu || [];
+  if (!thu.length) return ds.slice();
+  const viTri = new Map(thu.map((id, i) => [id, i]));
+  const LON = thu.length + ds.length;
+  return ds
+    .map((m, i) => ({ m, i, v: viTri.has(m.id) ? viTri.get(m.id) : LON + i }))
+    .sort((a, b) => a.v - b.v || a.i - b.i)
+    .map((x) => x.m);
+}
+
+/** Đưa một app lên trên / xuống dưới một bậc, trong nhóm app đang hiện. */
+function doiChoApp(id, buoc) {
+  const dsBat = S.modules.filter((m) => m.bat).map((m) => m.id);
+  const i = dsBat.indexOf(id);
+  const j = i + buoc;
+  if (i < 0 || j < 0 || j >= dsBat.length) return false;
+  dsBat.splice(j, 0, dsBat.splice(i, 1)[0]);
+  /* Lưu cả app đang ẩn ở cuối: bật lại một app ẩn thì nó về đúng chỗ cũ chứ
+   * không nhảy lên đầu. */
+  luuThuTu(dsBat.concat(S.modules.filter((m) => !m.bat).map((m) => m.id)));
+  S.modules = sapXepModules(S.modules);
+  return true;
 }
 
 /* ============================================================
@@ -463,7 +527,8 @@ function veRail() {
   const hienTai = S.view;
 
   const item = (o) => `
-    <a class="rail-item ${o.on ? 'on' : ''}" href="${o.href}" title="${esc(o.title || o.ten)}" data-id="${esc(o.id || '')}">
+    <a class="rail-item ${o.on ? 'on' : ''}${o.keo ? ' keo' : ''}" href="${o.href}"
+       title="${esc(o.title || o.ten)}" data-id="${esc(o.id || '')}"${o.keo ? ' draggable="true" data-keo="1"' : ''}>
       <span class="ri-ic" style="${o.mau ? 'background:' + esc(o.mau) + '22;color:' + esc(o.mau) : ''}">${icon(o.icon)}</span>
       <span class="ri-tx"><b>${esc(o.ten)}</b>${o.phu ? '<small>' + esc(o.phu) + '</small>' : ''}</span>
       ${o.badge ? '<span class="ri-badge">' + (o.badge > 99 ? '99+' : o.badge) + '</span>' : ''}
@@ -483,6 +548,7 @@ function veRail() {
     const nhan = NHAN_TT[tt.trangThai] || ['', ''];
     return item({
       id: m.id,
+      keo: true,
       href: m.kieu === 'lark' ? '#/lark/' + m.id : '#/m/' + m.id,
       icon: m.icon, ten: m.ten,
       // chỉ hiện dòng phụ khi module tự báo số liệu thật (VD "384 việc · vừa xong")
@@ -511,9 +577,67 @@ function veRail() {
    * dựng lại nhánh mới: mỗi lần là một lượt layout + paint, tooltip đang mở bị
    * tắt, và :focus trên mục đang chọn bị mất — bàn phím đang lần theo panel là
    * nhảy về đầu. So chuỗi rẻ hơn nhiều lần so với dựng lại DOM. */
+  /* Đang kéo thì ĐỪNG vẽ lại. Panel tự vẽ theo nhịp trạng thái module (10
+   * giây/lần); vẽ lại giữa lúc kéo là thay hết thẻ DOM dưới tay, con trỏ mất
+   * mục đang kéo và cú kéo đứt ngang. */
+  if (S.dangKeo) return;
   if (nav.__html === html) return;
   nav.__html = html;
   nav.innerHTML = html;
+  ganKeoRail(nav);
+}
+
+/* ---------------- kéo để đổi chỗ app ----------------
+ * Kéo bằng chuột ngay trên panel — chỗ người ta đang nhìn, không phải đi vào
+ * Cài đặt. Trong Cài đặt vẫn có nút ↑ ↓ cho màn cảm ứng và cho ai không kéo
+ * được chuột.
+ *
+ * Chỉ nhóm "Base đang quản lý" mới kéo được: nhóm "Đang ẩn" không có vị trí
+ * nào để mà đổi, thả vào đó là một thao tác không có nghĩa.
+ */
+function ganKeoRail(nav) {
+  const dsKeo = () => [...nav.querySelectorAll('[data-keo]')];
+
+  nav.ondragstart = (e) => {
+    const a = e.target.closest('[data-keo]');
+    if (!a) return;
+    S.dangKeo = a.dataset.id;
+    a.classList.add('dang-keo');
+    /* setData bắt buộc, nếu không Firefox không bắt đầu kéo. Dùng text/plain
+     * cho mọi trình duyệt cùng hiểu. */
+    try { e.dataTransfer.setData('text/plain', a.dataset.id); } catch (_) {}
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  nav.ondragover = (e) => {
+    if (!S.dangKeo) return;
+    e.preventDefault();                 // không chặn thì trình duyệt từ chối cú thả
+    e.dataTransfer.dropEffect = 'move';
+    const keo = nav.querySelector('.dang-keo');
+    const tren = e.target.closest('[data-keo]');
+    if (!keo || !tren || tren === keo) return;
+    /* Đổi chỗ NGAY trong DOM để thấy được mình đang thả vào đâu. Mốc so là giữa
+     * mục kia: qua khỏi giữa thì chèn xuống dưới, chưa tới thì chèn lên trên. */
+    const o = tren.getBoundingClientRect();
+    const duoi = e.clientY > o.top + o.height / 2;
+    tren.parentNode.insertBefore(keo, duoi ? tren.nextSibling : tren);
+  };
+
+  const xong = () => {
+    const keo = nav.querySelector('.dang-keo');
+    if (keo) keo.classList.remove('dang-keo');
+    if (!S.dangKeo) return;
+    S.dangKeo = '';
+    const moi = dsKeo().map((a) => a.dataset.id);
+    /* App đang ẩn vẫn giữ trong thứ tự, ở cuối: bật lại một app ẩn thì nó về
+     * đúng chỗ cũ chứ không nhảy lên đầu. */
+    luuThuTu(moi.concat(S.modules.filter((m) => !m.bat).map((m) => m.id)));
+    S.modules = sapXepModules(S.modules);
+    nav.__html = '';    // buộc vẽ lại: DOM đang là bản kéo tay, chưa qua item()
+    veRail();
+  };
+  nav.ondrop = (e) => { e.preventDefault(); xong(); };
+  nav.ondragend = xong;
 }
 
 /* ---------------- sân khấu: iframe từng module ---------------- */
@@ -1182,7 +1306,10 @@ function veBangXemNhu() {
 async function napHub() {
   const d = await goi('/api/hub');
   S.hub = d;
-  S.modules = d.modules || [];
+  /* Xếp NGAY tại cửa nhận dữ liệu, không xếp riêng ở từng màn: panel, trang
+   * Tổng quan và màn Cài đặt phải cùng một thứ tự, nếu không thì kéo ở panel
+   * xong mở Cài đặt thấy thứ tự khác là tưởng mình kéo hụt. */
+  S.modules = sapXepModules(d.modules || []);
   $('#hubTen').textContent = d.ten;
   $('#hubPhu').textContent = d.phu;
   /* Thêm base / Cài đặt / Phân quyền là việc của quản lý. Nhân sự không thấy các
@@ -1685,8 +1812,22 @@ document.addEventListener('click', (e) => {
     return;
   }
 
-  const t = e.target.closest('[data-close],[data-batlai],[data-tat],[data-an],[data-xoa],[data-log],[data-lograeload],[data-caphong]');
+  const t = e.target.closest('[data-close],[data-batlai],[data-tat],[data-an],[data-xoa],[data-log],[data-lograeload],[data-caphong],[data-len],[data-xuong]');
   if (!t) return;
+  /* ↑ ↓ trong Cài đặt — cùng một việc với kéo thả trên panel. Vẽ lại CẢ panel
+   * lẫn danh sách trong Cài đặt: hai chỗ cùng đọc S.modules nên phải cùng nhịp,
+   * lệch một nhịp là tưởng nút không ăn. */
+  for (const [thuoc, buoc] of [['data-len', -1], ['data-xuong', 1]]) {
+    if (t.hasAttribute(thuoc)) {
+      e.preventDefault();
+      if (doiChoApp(t.getAttribute(thuoc), buoc)) {
+        veRail();
+        const o = document.querySelector('#cdNoi');
+        if (o && typeof veCdBase === 'function') veCdBase(o);
+      }
+      return;
+    }
+  }
   if (t.hasAttribute('data-close')) { dongModal(); return; }
   if (t.hasAttribute('data-log')) { e.preventDefault(); modalLog(t.getAttribute('data-log')); return; }
   if (t.hasAttribute('data-lograeload')) { e.preventDefault(); modalLog(t.getAttribute('data-lograeload')); return; }
@@ -1820,6 +1961,7 @@ async function khoiDongVo() {
   } catch (_) {}
 
   docLoc();
+  S.thuTu = docThuTu();   // phải đọc TRƯỚC napHub(), nếu không lần vẽ đầu sai thứ tự
   veThanhLoc();
   // icon cho hai nút cuối panel (khai bằng data-ic trong index.html)
   $$('[data-ic]').forEach((el) => { el.innerHTML = icon(el.getAttribute('data-ic')); });

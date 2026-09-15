@@ -1155,6 +1155,14 @@ function veCdBase(el) {
         : 'Chỉ quản lý và người được cấp tên') + '">' +
         (m.caPhong ? 'Cả phòng' : 'Kín') + (m.caPhongTuEnv ? ' · env' : '') + '</span>' +
       '<div class="thao-tac">' +
+        /* Đổi chỗ bằng nút, song song với kéo thả trên panel: màn cảm ứng kéo
+         * rất khó, và kéo thì không ai đoán ra là kéo được nếu không thử. Chỉ
+         * app đang hiện mới có — app đang ẩn không có chỗ nào trên panel để mà
+         * xếp trước xếp sau. */
+        (m.bat
+          ? '<button class="btn nho ghost" data-len="' + esc(m.id) + '" title="Lên một bậc">↑</button>' +
+            '<button class="btn nho ghost" data-xuong="' + esc(m.id) + '" title="Xuống một bậc">↓</button>'
+          : '') +
         /* Mở bằng biến môi trường thì nút này bấm cũng vô ích: nó chỉ sửa
          * modules.json, còn biến vẫn mở base ra. Khoá nút và nói rõ phải sửa ở đâu,
          * đừng để người dùng bấm rồi tưởng app không nghe. */
@@ -1180,10 +1188,23 @@ function veCdBase(el) {
     'Base "Kín" chỉ quản lý và người được cấp tên trong Phân quyền mới thấy — base mới ' +
     'luôn bắt đầu ở Kín.') +
     '<div class="cd-ds-base">' + S.modules.map(dong).join('') + '</div>' +
+    /* Thứ tự là của RIÊNG máy này — nói thẳng ra, không để quản lý tưởng mình
+     * vừa xếp lại panel cho cả phòng. */
+    '<div class="cd-hang"><div class="cd-hang-tx"><b>Thứ tự trong panel</b>' +
+      /* Một câu liền, không chèn <b>: i18n dịch theo TRỌN text node, chèn thẻ
+       * vào giữa là câu vỡ làm ba mảnh và không mảnh nào khớp từ điển. */
+      '<p>Kéo thả thẳng trên panel bên trái, hoặc bấm ↑ ↓ ở từng dòng trên. ' +
+      'Thứ tự này lưu ở trình duyệt này — mỗi người tự xếp theo việc của mình, ' +
+      'không ai đổi panel của ai.</p></div>' +
+      '<div class="cd-hang-dk"><button class="btn nho ghost" id="cdThuTuGoc">Về thứ tự gốc</button></div></div>' +
     '<div class="cd-hang"><div class="cd-hang-tx"><b>Thêm base</b>' +
       '<p>Khai thêm một app hoặc một Lark Base vào panel.</p></div>' +
       '<div class="cd-hang-dk"><button class="btn primary" id="cdThem">Thêm base</button></div></div>';
   $('#cdThem').onclick = modalThem;
+  $('#cdThuTuGoc').onclick = () => {
+    luuThuTu([]);
+    napHub().then(() => { veCdBase(el); toast('Đã về thứ tự gốc', 'luc'); });
+  };
 }
 
 /* ---------------- Người dùng & phân quyền ---------------- */
