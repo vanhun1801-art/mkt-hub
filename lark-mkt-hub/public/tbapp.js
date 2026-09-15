@@ -104,6 +104,8 @@ function veTbApp() {
       '</div>' +
     '</div>';
 
+  vaAnhHong(el);
+
   const oMo = document.getElementById('tbMo');
   if (oMo) {
     oMo.onclick = () => {
@@ -243,10 +245,30 @@ function veTepTb(tb) {
   const duong = (x) => '/api/tb-app/tep/' + encodeURIComponent(tb.recordId) + '/' + encodeURIComponent(x.token);
   const laAnh = (x) => /^image\//.test(x.kieu || '') || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(x.ten || '');
   return '<div class="bb-tep">' + ds.map((x) => (laAnh(x)
-    ? '<a class="bb-tep-anh" href="' + duong(x) + '" target="_blank" rel="noopener">' +
-      '<img src="' + duong(x) + '" alt="' + esc(x.ten) + '"></a>'
+    ? '<a class="bb-tep-anh" href="' + duong(x) + '" target="_blank" rel="noopener"' +
+      ' data-ten="' + esc(x.ten) + '"><img src="' + duong(x) + '" alt="' + esc(x.ten) + '"></a>'
     : '<a class="bb-tep-mot" href="' + duong(x) + '" target="_blank" rel="noopener" download>' +
       '<span class="bb-tep-ic">TỆP</span><span>' + esc(x.ten) + '</span></a>')).join('') + '</div>';
+}
+
+/**
+ * Ảnh tải hỏng thì đổi thành một dòng bấm-để-tải, đừng để lại khung ảnh vỡ.
+ *
+ * Khung vỡ là thứ tệ nhất có thể hiện ở đây: người nhận không biết mình đang
+ * thiếu cái gì, người gửi tưởng đã gửi được. Một dòng "không hiện được ảnh —
+ * bấm để mở" thì vừa nói ra sự thật, vừa còn một đường để lấy tệp về, và bấm
+ * vào là thấy đúng câu lỗi của máy chủ.
+ */
+function vaAnhHong(el) {
+  el.querySelectorAll('.bb-tep-anh img').forEach((img) => {
+    img.onerror = () => {
+      const a = img.closest('.bb-tep-anh');
+      if (!a) return;
+      a.className = 'bb-tep-mot';
+      a.innerHTML = '<span class="bb-tep-ic">TỆP</span><span>' +
+        esc(a.dataset.ten || 'tệp') + ' — không hiện được ảnh, bấm để mở</span>';
+    };
+  });
 }
 
 /* Escape KHÔNG đóng được lớp phủ này. Bắt ở chế độ capture để chặn trước cái

@@ -671,6 +671,8 @@ function moFormTb(tb) {
     ? { mucDo: 'Tin', moiAi: false, ai: sanNhom, bat: true }
     : { mucDo: 'Tin', moiAi: true, ai: [], bat: true });
   const t = TBSUA;
+  /* Tệp đã chọn nhưng CHƯA đẩy lên. Sống trong bộ nhớ trình duyệt tới lúc Lưu. */
+  TBSUA.tepMoi = [];
   const db = d.danhBa || [];
   const hang = (nhan, noi) =>
     '<div class="q-hang"><label>' + nhan + '</label><div class="q-o">' + noi + '</div></div>';
@@ -687,18 +689,21 @@ function moFormTb(tb) {
     '<textarea class="q-in" id="tbNoiDung" rows="5" placeholder="Xuống dòng được — mỗi dòng một đoạn">' +
     esc(t.noiDung || '') + '</textarea>');
 
-  /* Tệp đính kèm.
+  /* Tệp đính kèm — chọn NGAY LÚC SOẠN.
    *
-   * Đính được chỉ khi thông báo ĐÃ CÓ trên bảng: ô đính kèm của Base gắn vào
-   * một dòng cụ thể, chưa lưu thì chưa có dòng nào để gắn. Nên thông báo mới
-   * thì ô này nói thẳng "lưu trước đã" thay vì bày ra một nút bấm vào báo lỗi.
-   */
+   * Anh Hùng: "anh nghĩ nên tải file tại thời điểm anh soạn luôn".
+   *
+   * Ô đính kèm của Base vẫn phải gắn vào một dòng đã có, nên bản trước bắt lưu
+   * xong mới mở lại được để đính — đúng về kỹ thuật, sai về cách người ta làm
+   * việc: soạn một thông báo là soạn cả chữ lẫn ảnh trong một lượt.
+   *
+   * Giờ tệp nằm trong trình duyệt tới lúc bấm Lưu; lưu xong có dòng thì đẩy
+   * lên ngay sau đó. Người soạn thấy ảnh mình vừa chọn ngay lập tức (xem bằng
+   * chính tệp trên máy), không phải chờ vòng mạng nào. */
   html += hang('Tệp đính kèm',
-    (t.recordId
-      ? '<div class="q-tep" id="tbTepDs"></div>' +
-        '<input type="file" id="tbTepChon" multiple hidden>' +
-        '<button class="btn nho" id="tbTepThem" style="margin-top:6px">Thêm tệp…</button>'
-      : '<div class="q-ghi-nho">Lưu thông báo trước, rồi mở lại để đính kèm.</div>'));
+    '<div class="q-tep" id="tbTepDs"></div>' +
+    '<input type="file" id="tbTepChon" multiple hidden accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.zip">' +
+    '<button class="btn nho" id="tbTepThem" style="margin-top:6px">Thêm tệp…</button>');
 
   html += hang('Nút hành động',
     '<input class="q-in" id="tbNhanNut" type="text" value="' + esc(t.nhanNut || '') +
@@ -843,7 +848,7 @@ function moFormTb(tb) {
   if (nutTep) {
     const oTep = $('#tbTepChon');
     nutTep.onclick = () => oTep.click();
-    oTep.onchange = () => { taiTepLen([...oTep.files]); oTep.value = ''; };
+    oTep.onchange = () => { themTep([...oTep.files]); oTep.value = ''; };
   }
 
   $('#tbQuay').onclick = () => { modalCaiDat('thong-bao'); };
@@ -865,19 +870,46 @@ function moFormTb(tb) {
   };
 }
 
-/** Vẽ lại danh sách tệp đang đính của thông báo đang soạn. */
+/** Vẽ danh sách tệp: cái đã ở trên Base, và cái vừa chọn còn chờ Lưu. */
 function veTbTep() {
   const o = $('#tbTepDs');
   if (!o) return;
-  const ds = (TBSUA && TBSUA.tep) || [];
-  if (!ds.length) { o.innerHTML = '<div class="q-ghi-nho">Chưa có tệp nào.</div>'; return; }
-  o.innerHTML = ds.map((x) =>
-    '<div class="q-tep-mot">' +
-      (laAnh(x) ? '<img src="' + esc(duongTep(TBSUA.recordId, x.token)) + '" alt="">' : '<span class="q-tep-ic">TỆP</span>') +
-      '<span class="q-tep-ten">' + esc(x.ten) + '</span>' +
-      (x.co ? '<span class="q-nhat">' + coTep(x.co) + '</span>' : '') +
-      '<button class="btn nho ghost" data-go-tep="' + esc(x.token) + '">Gỡ</button>' +
-    '</div>').join('');
+  const da = (TBSUA && TBSUA.tep) || [];
+  const moi = (TBSUA && TBSUA.tepMoi) || [];
+  if (!da.length && !moi.length) {
+    o.innerHTML = '<div class="q-ghi-nho">Chưa có tệp nào.</div>';
+    return;
+  }
+  const oAnh = (src) => '<img src="' + esc(src) + '" alt="">';
+  o.innerHTML =
+    da.map((x) =>
+      '<div class="q-tep-mot">' +
+        (laAnh(x) ? oAnh(duongTep(TBSUA.recordId, x.token)) : '<span class="q-tep-ic">TỆP</span>') +
+        '<span class="q-tep-ten">' + esc(x.ten) + '</span>' +
+        (x.co ? '<span class="q-nhat">' + coTep(x.co) + '</span>' : '') +
+        '<button class="btn nho ghost" data-go-tep="' + esc(x.token) + '">Gỡ</button>' +
+      '</div>').join('') +
+    moi.map((x, i) =>
+      '<div class="q-tep-mot">' +
+        (x.laAnh ? oAnh(x.xem) : '<span class="q-tep-ic">TỆP</span>') +
+        '<span class="q-tep-ten">' + esc(x.ten) + '</span>' +
+        '<span class="q-nhat">' + coTep(x.tep.size) +
+          (x.goc && x.goc > x.tep.size ? ' · đã nén từ ' + coTep(x.goc) : '') + '</span>' +
+        '<span class="q-chip q-nhat">chờ Lưu</span>' +
+        '<button class="btn nho ghost" data-bo-tep="' + i + '">Bỏ</button>' +
+      '</div>').join('');
+
+  /* Ảnh đã nằm trên Base mà tải hỏng: đổi thành ô chữ, đừng để khung vỡ. */
+  $$('#tbTepDs img').forEach((img) => {
+    img.onerror = () => {
+      const o = document.createElement('span');
+      o.className = 'q-tep-ic';
+      o.textContent = '!';
+      o.title = 'Không tải được ảnh từ Lark';
+      img.replaceWith(o);
+    };
+  });
+
   $$('#tbTepDs [data-go-tep]').forEach((b) => {
     b.onclick = async () => {
       b.disabled = true;
@@ -889,36 +921,115 @@ function veTbTep() {
       } catch (e) { b.disabled = false; toast(e.message, 'do'); }
     };
   });
+  $$('#tbTepDs [data-bo-tep]').forEach((b) => {
+    b.onclick = () => {
+      const i = Number(b.dataset.boTep);
+      const x = TBSUA.tepMoi[i];
+      if (x && x.xem) URL.revokeObjectURL(x.xem);
+      TBSUA.tepMoi.splice(i, 1);
+      veTbTep();
+    };
+  });
+}
+
+/** Chọn tệp: nén ảnh nặng rồi xếp vào hàng đợi, chưa gọi mạng lần nào. */
+async function themTep(ds) {
+  for (const f of ds) {
+    let tep = f;
+    let goc = f.size;
+    try { tep = await nenAnh(f); } catch (_) { tep = f; }
+    if (tep.size > 10 * 1024 * 1024) {
+      toast('"' + f.name + '" vẫn quá 10 MB sau khi nén — chọn tệp nhỏ hơn.', 'do');
+      continue;
+    }
+    const laA = /^image\//.test(tep.type || '');
+    TBSUA.tepMoi.push({
+      ten: tep.name || f.name, tep, goc, laAnh: laA,
+      xem: laA ? URL.createObjectURL(tep) : '',
+    });
+    veTbTep();
+  }
 }
 
 /**
- * Đẩy từng tệp lên, xong cái nào vẽ lại cái đó.
+ * Nén ảnh xuống quanh 1 MB trước khi gửi đi.
  *
- * Gửi thẳng byte của tệp trong thân yêu cầu, không dựng multipart: bên nhận chỉ
- * cần đúng MỘT tệp mỗi lượt, mà multipart tự dựng tay là chỗ rất dễ sai lặng lẽ.
+ * Anh Hùng: "nếu ảnh nặng thì dùng tool nén lại để hiển thị nhanh phù hợp,
+ * khoảng 1MB". Ảnh chụp màn hình 4K nặng 6–8 MB mà hiện trong một popup rộng
+ * ~560px thì vừa chờ lâu vừa chẳng nét hơn tí nào.
+ *
+ * Nén ở TRÌNH DUYỆT, không nén ở máy chủ: byte nặng không bao giờ rời máy người
+ * soạn, nên mạng yếu vẫn gửi được. Hạ cạnh dài về tối đa 1600px rồi giảm dần
+ * chất lượng cho tới khi lọt 1 MB.
+ *
+ * KHÔNG đụng vào: tệp không phải ảnh, ảnh SVG (vector, nén lại là mất nét), GIF
+ * (nén thành ảnh tĩnh là mất cả cái người ta muốn gửi), và ảnh vốn đã nhẹ.
+ *
+ * Xuất ra WEBP chứ không JPEG: WEBP giữ được nền trong suốt — logo PNG nền
+ * trong mà ép sang JPEG là nền đen. Trình duyệt nào không mã hoá được WEBP thì
+ * lùi về JPEG.
+ */
+async function nenAnh(f, gioiHan) {
+  const MUC = gioiHan || 1024 * 1024;
+  const kieu = f.type || '';
+  if (!/^image\//.test(kieu) || /svg|gif/.test(kieu)) return f;
+  if (f.size <= MUC) return f;
+  if (!window.createImageBitmap || !document.createElement('canvas').toBlob) return f;
+
+  const anh = await createImageBitmap(f);
+  const CANH = 1600;
+  const ti = Math.min(1, CANH / Math.max(anh.width, anh.height));
+  const w = Math.max(1, Math.round(anh.width * ti));
+  const h = Math.max(1, Math.round(anh.height * ti));
+  const khung = document.createElement('canvas');
+  khung.width = w; khung.height = h;
+  khung.getContext('2d').drawImage(anh, 0, 0, w, h);
+  if (anh.close) anh.close();
+
+  const veRa = (mime, q) => new Promise((giai) => khung.toBlob(giai, mime, q));
+  for (const mime of ['image/webp', 'image/jpeg']) {
+    for (const q of [0.85, 0.7, 0.55, 0.4]) {
+      const b = await veRa(mime, q);
+      if (!b || !b.size) break;                 // trình duyệt không mã hoá được kiểu này
+      if (b.size <= MUC || q === 0.4) {
+        if (b.size >= f.size) return f;         // nén xong còn nặng hơn thì thôi
+        const duoi = mime === 'image/webp' ? '.webp' : '.jpg';
+        return new File([b], String(f.name).replace(/\.[^.]+$/, '') + duoi, { type: mime });
+      }
+    }
+  }
+  return f;
+}
+
+/**
+ * Đẩy hàng đợi lên sau khi thông báo đã có dòng trên Base.
+ *
+ * Gửi thẳng byte trong thân yêu cầu, không dựng multipart: bên nhận chỉ cần
+ * đúng MỘT tệp mỗi lượt, mà multipart tự dựng tay là chỗ rất dễ sai lặng lẽ.
  * Tên tệp đi qua header nên phải mã hoá base64 — tên tiếng Việt có dấu nhét
  * thẳng vào header là Node ném "Invalid character in header".
  */
-async function taiTepLen(ds) {
-  const o = $('#tbTepDs');
-  for (const f of ds) {
-    if (f.size > 10 * 1024 * 1024) { toast('"' + f.name + '" quá 10 MB.', 'do'); continue; }
-    if (o) o.innerHTML += '<div class="q-ghi-nho">Đang tải lên ' + esc(f.name) + '…</div>';
+async function dayTepLen(recordId, ds, bao) {
+  let hong = 0;
+  for (let i = 0; i < ds.length; i++) {
+    const x = ds[i];
+    if (bao) bao('Đang gửi tệp ' + (i + 1) + '/' + ds.length + '…');
     try {
-      const d = await goi('/api/tb-app/tep?recordId=' + encodeURIComponent(TBSUA.recordId), {
+      await goi('/api/tb-app/tep?recordId=' + encodeURIComponent(recordId), {
         method: 'POST',
         headers: {
-          'Content-Type': f.type || 'application/octet-stream',
-          'x-ten-tep': btoa(String.fromCharCode(...new TextEncoder().encode(f.name))),
+          'Content-Type': x.tep.type || 'application/octet-stream',
+          'x-ten-tep': btoa(String.fromCharCode(...new TextEncoder().encode(x.ten))),
         },
-        body: f,
+        body: x.tep,
       });
-      TBSUA.tep = (TBSUA.tep || []).concat([{ token: d.token, ten: d.ten, kieu: d.kieu, co: d.co }]);
     } catch (e) {
-      toast('Không tải lên được "' + f.name + '": ' + e.message, 'do');
+      hong++;
+      toast('Không gửi được "' + x.ten + '": ' + e.message, 'do');
     }
-    veTbTep();
+    if (x.xem) URL.revokeObjectURL(x.xem);
   }
+  return hong;
 }
 
 const laAnh = (x) => /^image\//.test(x.kieu || '') || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(x.ten || '');
@@ -954,8 +1065,19 @@ async function luuFormTb() {
   nut.disabled = true;
   nut.textContent = 'Đang lưu…';
   try {
-    await goi('/api/tb-app/quan-ly', { method: 'POST', body: JSON.stringify(than) });
-    toast('Đã lưu thông báo', 'luc');
+    const kq = await goi('/api/tb-app/quan-ly', { method: 'POST', body: JSON.stringify(than) });
+    /* Tệp đi SAU khi có dòng: ô đính kèm của Base gắn vào một dòng cụ thể.
+     * Lưu chữ hỏng thì không gửi tệp; lưu chữ xong mà tệp hỏng thì thông báo
+     * vẫn còn đó — nói rõ tệp nào hỏng chứ không nuốt mất. */
+    const cho = (TBSUA && TBSUA.tepMoi) || [];
+    let hong = 0;
+    if (cho.length) {
+      hong = await dayTepLen(kq.recordId || than.recordId, cho,
+        (tin) => { nut.textContent = tin; });
+      TBSUA.tepMoi = [];
+    }
+    toast(hong ? 'Đã lưu, nhưng ' + hong + ' tệp chưa gửi được.' : 'Đã lưu thông báo',
+      hong ? 'do' : 'luc');
     modalCaiDat('thong-bao');
   } catch (e) {
     nut.disabled = false;

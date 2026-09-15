@@ -487,7 +487,7 @@ token, rồi gắn token vào ô. Hai chế độ đi hai đường hẳn nhau (
 | | cli — máy cá nhân | api — bản deploy |
 |---|---|---|
 | Đẩy lên | `base +record-upload-attachment` | `drive/v1/medias/upload_all` (`parent_type` `bitable_file`) rồi ghi ô `[{file_token}]` |
-| Tải về | `base +record-download-attachment` | `drive/v1/medias/{token}/download` |
+| Tải về | `base +record-download-attachment` | `drive/v1/medias/{token}/download`, hỏng thì lùi về `batch_get_tmp_download_url` |
 | Thử được ở máy cá nhân? | **có** | **không** — cần khoá app, mà khoá chỉ nằm trên Render |
 
 Vì đường `api` không thử được ở máy cá nhân nên mọi lỗi ở đó được **dịch ra
@@ -509,9 +509,22 @@ Tệp **không** đi thẳng từ trình duyệt sang Lark mà đi qua lớp v�
 ra khỏi máy chủ, chặn được cỡ tệp (10 MB) và ai được tải lên (chỉ quản lý), còn
 người **nhận** thông báo xem được ảnh mà không cần quyền gì trên Base.
 
-Đính kèm được **sau khi đã lưu** thông báo: ô đính kèm gắn vào một dòng cụ thể,
-chưa có dòng thì chưa có chỗ mà gắn. Form soạn nói thẳng điều đó thay vì bày ra
-một nút bấm vào báo lỗi.
+**Chọn tệp ngay lúc soạn.** Ô đính kèm của Base vẫn phải gắn vào một dòng đã
+có, nên tệp nằm trong trình duyệt tới lúc bấm **Lưu**, rồi mới đẩy lên. Người
+soạn thấy ảnh mình vừa chọn ngay lập tức (xem bằng chính tệp trên máy), không
+chờ vòng mạng nào; bản trước bắt lưu xong mới mở lại được để đính — đúng về kỹ
+thuật, sai về cách người ta làm việc.
+
+**Ảnh nặng được nén ở trình duyệt** xuống quanh 1 MB trước khi gửi: hạ cạnh dài
+về tối đa 1600px rồi giảm dần chất lượng. Đo thật: PNG 3000×2000 nặng **5,07 MB
+→ 168 KB WEBP trong 264 ms**. Xuất WEBP chứ không JPEG vì WEBP giữ nền trong
+suốt — logo PNG nền trong ép sang JPEG là nền đen. Không đụng vào: tệp không
+phải ảnh, SVG (vector), GIF (nén thành ảnh tĩnh là mất cái người ta muốn gửi),
+và ảnh vốn đã dưới 1 MB.
+
+**Ảnh tải hỏng thì đổi thành dòng bấm-để-tải**, không để lại khung ảnh vỡ: khung
+vỡ là thứ tệ nhất ở đây — người nhận không biết mình thiếu gì, người gửi tưởng
+đã gửi được.
 
 Trong popup: ảnh hiện thẳng (cao tối đa 320px — thông báo là thứ *chặn* màn
 hình, một tấm ảnh dài đẩy nút "Tôi đã đọc" xuống ngoài tầm nhìn là biến nó thành
