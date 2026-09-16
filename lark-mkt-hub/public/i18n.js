@@ -364,6 +364,15 @@
     'Tải ảnh lên': 'Upload image',
     'Đổi ảnh': 'Replace image',
     'Gỡ': 'Remove',
+    /* --- Của tôi: tài khoản + thiết lập chung --- */
+    'Tài khoản': 'Account',
+    'Tên': 'Name',
+    'Thiết lập chung': 'General settings',
+    'Máy cá nhân — dùng thẳng phiên lark-cli, không đăng nhập vào hub.':
+      'Personal machine — uses the lark-cli session directly, no hub sign-in.',
+    'Chưa đọc được tài khoản.': 'Could not read the account.',
+    'Email phụ': 'Secondary email',
+    'Mã Lark (open_id)': 'Lark ID (open_id)',
     /* --- video giới thiệu: nhiều video, phát luân phiên --- */
     'Video giới thiệu': 'Intro video',
     'Chưa có video': 'No video yet',
@@ -819,6 +828,10 @@
    * Cho những câu ghép số/tên vào giữa. $1, $2… là nhóm bắt được.
    */
   const MAU_EN = [
+    /* Dòng mô tả tệp của logo và của từng video: "<tên> · <cỡ> · tải lên <giờ>".
+     * Tên tệp và giờ là chữ THẬT, giữ nguyên — chỉ dịch phần khung. */
+    [/^(.+ · .+) · tải lên (.+)$/, '$1 · uploaded $2'],
+
     /* --- video giới thiệu: nhãn mang số thứ tự ô --- */
     [/^Video (\d+) · phát đầu tiên$/, 'Video $1 · plays first'],
     [/^Video (\d+)$/, 'Video $1'],

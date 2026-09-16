@@ -1407,6 +1407,9 @@ body.dang-xem-ho .app { height: calc(100vh - 34px); margin-top: 34px; }
 @media (max-width: 760px) {
   .cd { grid-template-columns: 1fr; }
   .cd-nav { flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--vien); }
+  /* Cuộn ngang được rồi thì đừng xuống dòng nữa: "Base trong panel" gãy làm
+     ba dòng đẩy cả thanh cao gấp ba, ăn mất chỗ của nội dung. */
+  .cd-nav button, .cd-nav .cd-muc { white-space: nowrap; flex: 0 0 auto; }
   .cd-nhom { display: none; }
 }
 
@@ -1489,8 +1492,14 @@ body.dang-xem-ho .app { height: calc(100vh - 34px); margin-top: 34px; }
   background: var(--surface-2, #fbfcfe);
 }
 
-/* Chuông trên panel: nút, không phải link — cho giống hệt các mục còn lại */
-#btnTB { width: 100%; text-align: left; font: inherit; cursor: pointer; border: 1px solid transparent; }
+/* KHÔNG đặt luật theo #btnTB nữa.
+ *
+ * Ở đây từng có `#btnTB { width: 100% }` từ hồi chuông nằm trong panel bên
+ * trái. Chuông đã dời lên đầu trang từ lâu, luật thì ở lại — và vì nó tính
+ * theo id nên nó ĐÈ cả `.btn.chuong { width: 34px }`. Trên máy tính khung co
+ * theo nội dung nên chưa lộ; đến khi thanh nút được cho rộng hết dòng trên
+ * điện thoại thì chuông phình thành 96px, huy hiệu số bị đẩy ra tít mép,
+ * trông như rơi khỏi nút. */
 
 /* Chuông ở đầu trang, cạnh tên người dùng */
 .btn.chuong { position: relative; padding: 0; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; }
@@ -1842,7 +1851,13 @@ input.cd-in-nho { width: 72px; }
   /* ---- chạm cho ra chạm ---- */
   .btn { min-height: 40px; padding: 8px 12px; }
   .btn.nho { min-height: 36px; padding: 7px 10px; }
+  /* Nút chỉ có icon thì giữ nguyên hình vuông của nó — cho `min-height` thôi,
+     đừng cho `padding` kéo bề ngang ra. */
+  .btn.chuong, .btn.icon { padding: 0; }
   .seg button { padding: 9px 12px; }
+  /* `.seg-nho` mạnh hơn `.seg` nên phải gọi đích danh, nếu không hai nút
+     Bản đồ nhiệt / Theo ngày vẫn cao 27px — ngón tay bấm trượt. */
+  .seg.seg-nho button { padding: 8px 11px; }
   /* Thanh trên cùng đã nói đang ở màn nào rồi — in lại y hệt ngay bên dưới
      chỉ tổ ăn mất một dòng của màn hình vốn đã hẹp. Dòng phụ (số base, số việc
      chờ) thì giữ, nó mang tin chứ không phải nhãn. */

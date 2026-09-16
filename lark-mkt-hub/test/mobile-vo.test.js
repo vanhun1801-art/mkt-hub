@@ -42,6 +42,11 @@ const HTML = doc('public/index.html');
 const CSS = doc('public/styles.css');
 const JS = doc('public/app.js');
 
+/* Bản CSS đã bỏ chú thích. Có câu kiểm soi xem một selector còn tồn tại không,
+ * mà chính lời giải thích "đừng dùng selector đó nữa" lại chứa nó — soi trên
+ * bản còn chú thích là báo lỗi oan. */
+const CSS_SACH = CSS.replace(/\/\*[\s\S]*?\*\//g, '');
+
 /** Lấy nguyên khối `@media (…) { … }` theo điều kiện, đếm ngoặc cho cân. */
 function khoiMedia(css, dieu) {
   const i = css.indexOf('@media ' + dieu);
@@ -70,6 +75,18 @@ group('Thanh trên cùng chỉ thuộc về điện thoại');
    * thanh tiêu đề thừa — mà trên máy tính thì không ai chạy test. */
   ok('.mob-bar mặc định display: none', /\.mob-bar\s*\{\s*display:\s*none/.test(CSS));
   ok('.rail-nen mặc định display: none', /\.rail-nen\s*\{\s*display:\s*none/.test(CSS));
+}
+
+group('Không đặt kích thước theo id');
+{
+  /* Ở đây từng có `#btnTB { width: 100% }` từ hồi chuông nằm trong panel bên
+   * trái. Chuông dời lên đầu trang, luật ở lại — và vì tính theo id nên nó ĐÈ
+   * cả `.btn.chuong { width: 34px }`. Trên máy tính khung co theo nội dung nên
+   * chưa lộ; đến khi thanh nút rộng hết dòng trên điện thoại thì chuông phình
+   * thành 96px, huy hiệu số trôi ra tít mép. Luật theo id rất khó gỡ vì nó
+   * thắng mọi luật theo lớp — đừng để mọc lại. */
+  ok('không có luật CSS nào nhắm vào #btnTB', !/#btnTB\s*[,{]/.test(CSS_SACH));
+  ok('chuông vẫn có kích thước theo lớp', /\.btn\.chuong\s*\{[^}]*width:\s*34px/.test(CSS));
 }
 
 group('Luật của máy tính bảng không được với xuống điện thoại');
@@ -103,6 +120,13 @@ group('Panel base = ngăn kéo dưới 640px');
     ok('nền mờ bật lên', /\.rail-nen\s*\{[^}]*display:\s*block/.test(dt));
     /* Ngón tay không bấm trúng nút cao 31px. 40px là mức tối thiểu quen dùng. */
     ok('nút bấm cao tối thiểu 40px', /\.btn\s*\{[^}]*min-height:\s*40px/.test(dt));
+    /* Nút chỉ có icon (chuông) phải giữ hình vuông: cho nó `padding` của nút
+     * chữ là bề ngang phình ra, huy hiệu số trôi khỏi icon. */
+    ok('nút chỉ-icon không bị padding kéo ngang', /\.btn\.chuong,\s*\.btn\.icon\s*\{[^}]*padding:\s*0/.test(dt));
+    /* `.seg-nho` mạnh hơn `.seg` nên phải gọi đích danh, nếu không hai nút
+     * Bản đồ nhiệt / Theo ngày vẫn cao 27px. */
+    ok('nút đoạn nhỏ cũng đủ to để chạm', /\.seg\.seg-nho button\s*\{[^}]*padding/.test(dt));
+    ok('nhãn tab Cài đặt không xuống dòng', /\.cd-nav button[^{]*\{[^}]*white-space:\s*nowrap/.test(CSS));
     ok('nút ☰ vuông 40px', /\.mob-nut\s*\{[^}]*width:\s*40px[^}]*height:\s*40px/.test(dt));
     /* Tên màn đã nằm trên thanh trên cùng — in lại ngay dưới là phí một dòng. */
     ok('không lặp lại tiêu đề trang', /\.page-head h1\s*\{\s*display:\s*none/.test(dt));
