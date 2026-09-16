@@ -20,7 +20,14 @@ service, một URL, một lần đăng nhập** — không phải trả tiền/ 
 
 ## PHẦN A — Lark Developer Console
 
-App đang dùng: <https://open.larksuite.com/app/cli_aa04305ecd385ed1>
+App đang dùng: **Marketing Hub** — <https://open.larksuite.com/app/cli_aa1a8ae21a78ded2>
+
+> Kiểm lại ngày 16/09/2026 trên chính bản đang chạy: `/auth/login` của Render đẩy sang
+> Lark với `app_id=cli_aa1a8ae21a78ded2`. Tài liệu này trước đây ghi app **Tracking**
+> (`cli_aa04305ecd385ed1`) — **sai**, và sai theo kiểu tốn thời gian: mở nhầm app rồi
+> sửa scope hay Availability ở đó thì bản deploy không đổi gì cả.
+> **Đừng suy App ID từ tên app.** Muốn chắc: `curl -s -o /dev/null -w "%{redirect_url}"
+> https://mkt-hub-w6hi.onrender.com/auth/login` rồi đọc `app_id` trong URL trả về.
 
 ### A1. Quyền (Permissions & Scopes)
 
@@ -75,10 +82,11 @@ Base mở bằng biến thì trong Cài đặt hiện chip **"Cả phòng · env
 
 ### A2b. App gửi tin nhóm là app KHÁC — "Marketing Hub"
 
-Phòng có **5 app Lark** trong Console. App nền tảng của Hub là **Tracking**
-(`cli_aa04305ecd385ed1`, chính là `LARK_APP_ID` ở trên), nhưng app **đứng tên gửi tin
-báo cáo ảnh vào nhóm** là **Marketing Hub** (`cli_aa1a8ae21a78ded2`) — anh Hùng chọn
-vậy để nhóm chỉ thấy một cái tên quen.
+Phòng có **5 app Lark** trong Console. Bản deploy hiện chạy bằng app **Marketing Hub**
+(`cli_aa1a8ae21a78ded2`, chính là `LARK_APP_ID` ở trên) — cũng là app **đứng tên gửi tin
+báo cáo ảnh vào nhóm**, nên nhóm chỉ thấy một cái tên quen.
+
+App **Tracking** (`cli_aa04305ecd385ed1`) là app cũ, KHÔNG còn gác cửa bản deploy nữa.
 
 Với app **Marketing Hub** cần:
 
@@ -86,9 +94,11 @@ Với app **Marketing Hub** cần:
 2. **mời bot vào nhóm** nhận báo cáo (thiếu thì `230002` / `230013`)
 3. App Secret của nó dán vào biến `ANH_TIN_APP_SECRET` trong dashboard Render
 
-Đừng lẫn hai App ID với nhau: `ANH_TIN_APP_ID` phải là Marketing Hub, `LARK_APP_ID` là
-Tracking. Trỏ sai thì Lark trả `10014 app secret invalid`. Tab **Cài đặt** của app luôn
-in ra đang gửi bằng bot nào **kèm App ID** để kiểm nhanh.
+Từ khi `LARK_APP_ID` cũng là Marketing Hub thì hai biến trỏ về **cùng một app**, nên
+`ANH_TIN_APP_ID` / `ANH_TIN_APP_SECRET` chỉ còn cần khi muốn tách danh tính gửi tin sang
+một app khác. Trỏ sai app thì Lark trả `10014 app secret invalid`. Tab **Cài đặt** của
+app luôn in ra đang gửi bằng bot nào **kèm App ID** để kiểm nhanh — lấy số đó làm chuẩn,
+đừng tin tài liệu (kể cả tài liệu này).
 
 ### A3. Phát hành
 
@@ -145,7 +155,7 @@ Repo đã có `render.yaml` ở gốc, nên có thể dùng **New → Blueprint*
 
 | Key | Value |
 |---|---|
-| `LARK_APP_ID` | `cli_aa04305ecd385ed1` |
+| `LARK_APP_ID` | `cli_aa1a8ae21a78ded2` (app **Marketing Hub** — xem cảnh báo ở PHẦN A) |
 | `LARK_APP_SECRET` | *(App Secret — dán trực tiếp vào Render)* |
 | `PUBLIC_URL` | điền sau ở bước C3 |
 | `SESSION_SECRET` | chuỗi ngẫu nhiên (lệnh dưới) |
