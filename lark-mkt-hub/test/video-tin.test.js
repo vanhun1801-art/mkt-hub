@@ -55,9 +55,19 @@ const KHOI = SRC.slice(dau, cuoi);
  * cách Chrome xử một lượt tự chạy có tiếng.
  */
 function videoGia({ chanTieng = false } = {}) {
-  return {
+  const lop = new Set();
+  const v = {
     muted: false, paused: true, loop: true, currentTime: 0,
-    src: '', soLanLoad: 0, soLanPlay: 0, nghe: {},
+    soLanLoad: 0, soLanPlay: 0, nghe: {}, dataset: {},
+    /* Mọi lần gán src đều ghi lại: "chớp đen" chính là lúc gán src cho thẻ
+     * ĐANG HIỆN, nên đếm được thì chốt được. */
+    ganSrc: [],
+    classList: {
+      add: (c) => lop.add(c),
+      remove: (c) => lop.delete(c),
+      contains: (c) => lop.has(c),
+    },
+    hien() { return lop.has('hien'); },
     addEventListener(t, f) { (this.nghe[t] = this.nghe[t] || []).push(f); },
     play() {
       this.soLanPlay++;
@@ -65,11 +75,30 @@ function videoGia({ chanTieng = false } = {}) {
       this.paused = false;
       return Promise.resolve();
     },
-    load() { this.soLanLoad++; },
+    soLanPause: 0,
+    pause() { this.soLanPause++; this.paused = true; },
+    thuocTinhDaBo: [],
+    removeAttribute(t) { this.thuocTinhDaBo.push(t); },
+    /* `load()` trên thẻ CÒN thuộc tính `autoplay` là trình duyệt tự chạy lại
+     * nó — mô phỏng đúng như vậy, nếu không bài thử không thấy được lỗi hai
+     * thẻ cùng chạy. */
+    load() {
+      this.soLanLoad++;
+      this.currentTime = 0;
+      if (!this.thuocTinhDaBo.includes('autoplay')) { this.paused = false; this.soLanPlay++; }
+      else this.paused = true;
+    },
     /** Giả lập trình duyệt bắn `ended` khi hết bài. */
     hetBai() { this.paused = true; (this.nghe.ended || []).forEach((f) => f()); },
     hong() { (this.nghe.error || []).forEach((f) => f()); },
+    dangPhat() { (this.nghe.playing || []).forEach((f) => f()); },
   };
+  let nguon = '';
+  Object.defineProperty(v, 'src', {
+    get: () => nguon,
+    set: (x) => { nguon = x; v.ganSrc.push(x); },
+  });
+  return v;
 }
 
 function chay(luaChon, tuyChon) {
@@ -107,6 +136,41 @@ function chay(luaChon, tuyChon) {
   /* Một cú bấm bất kỳ trên trang — đúng thứ trình duyệt đòi trước khi cho tiếng. */
   const bam = () => (cuChi.pointerdown || []).slice().forEach((f) => f());
   return { phim, nut, kho, hen, bam };
+}
+
+/**
+ * Dựng ĐÚNG cảnh thật của trang Tổng quan khi có nhiều video: hai thẻ chồng
+ * nhau, thẻ đầu đã có src và đang hiện, thẻ sau để trống.
+ */
+function chayHaiThe(ds, luaChon) {
+  const kho = new Map();
+  if (luaChon != null) kho.set('hub.tinTieng', luaChon);
+  const nut = { textContent: '', title: '', onclick: null, setAttribute() {} };
+  const a = videoGia(); const b = videoGia();
+  a.src = '/api/video-gt?i=' + ds[0].i + '&v=' + ds[0].luc;
+  a.ganSrc.length = 0;                        // gán lúc dựng markup, không tính
+  a.classList.add('hien');
+  const hen = [];
+  const cuChi = {};
+  const ctx = {
+    localStorage: { getItem: (k) => (kho.has(k) ? kho.get(k) : null), setItem: (k, v) => kho.set(k, v) },
+    document: { hidden: false, addEventListener() {}, body: { contains: () => true } },
+    window: {
+      addEventListener(t, f) { (cuChi[t] = cuChi[t] || []).push(f); },
+      removeEventListener(t, f) { cuChi[t] = (cuChi[t] || []).filter((x) => x !== f); },
+    },
+    S: { view: 'home' },
+    DA_CO_CU_CHI: false,
+    nguonPhim: (x) => (x ? '/api/video-gt?i=' + (x.i || 1) + '&v=' + (x.luc || 0) : ''),
+    setTimeout: (f, ms) => { if (!ms) return setImmediate(f); hen.push([f, ms]); },
+    setInterval: (f, ms) => hen.push([f, ms]),
+    Promise,
+  };
+  vm.createContext(ctx);
+  vm.runInContext(KHOI, ctx);
+  ctx.ganPhimTin([a, b], nut, ds);
+  const bam = () => (cuChi.pointerdown || []).slice().forEach((f) => f());
+  return { a, b, nut, hen, bam };
 }
 
 /* Đợi hết microtask: `play()` trả Promise nên nhánh .catch chạy sau một nhịp. */
@@ -241,6 +305,99 @@ const doi = () => new Promise((r) => setImmediate(r));
     phim.hetBai(); await doi();
     ok('một video thì chỉ tua về đầu', phim.currentTime === 0 && phim.src === '');
     ok('và chạy tiếp', phim.paused === false);
+  }
+
+  group('Chuyển bài KHÔNG được chớp đen');
+  {
+    /* Anh Hùng: "đang có 1 khoảng chớp đen khi chuyển giữa các video, anh muốn
+     * không có 1 khoảng đen chuyển nào cả".
+     *
+     * Nguồn cơn của khoảng đen là gán src cho chính thẻ đang hiện: trình duyệt
+     * vứt khung hình cũ rồi mới đi tải bài mới, ở giữa là nền đen. Cách chữa
+     * duy nhất không phụ thuộc tốc độ mạng: bài kế nằm SẴN trong thẻ thứ hai,
+     * chuyển bài chỉ là đổi thẻ nào hiện. */
+    const ds = [{ i: 1, luc: 11 }, { i: 2, luc: 22 }, { i: 3, luc: 33 }];
+    const { a, b, hen } = chayHaiThe(ds);
+    await doi();
+    a.dangPhat();                              // bài đầu đã chạy được
+    await doi();
+    ok('thẻ thứ hai đã nạp SẴN bài kế', /i=2&v=22/.test(b.src), b.src);
+    ok('… và đã gọi load()', b.soLanLoad >= 1, String(b.soLanLoad));
+    ok('thẻ đang hiện KHÔNG bị gán lại src', a.ganSrc.length === 0, JSON.stringify(a.ganSrc));
+
+    a.hetBai(); await doi();
+    ok('hết bài: thẻ hai lên hình', b.hien() === true);
+    ok('… thẻ một thôi hiện', a.hien() === false);
+    ok('… thẻ hai đang chạy', b.paused === false);
+    /* Dừng thẻ cũ NGAY là hở ra đúng khoảng đen cần tránh: khung hình cuối
+     * của nó phải còn đó suốt lượt mờ dần. `ended` đã tự đặt paused = true
+     * (đúng như trình duyệt), nên thứ phải chốt là mã KHÔNG tự gọi pause() —
+     * mà hẹn lại sau khi mờ xong. */
+    ok('… mã không tự dừng thẻ cũ ngay', a.soLanPause === 0, String(a.soLanPause));
+    /* Lưới đỡ 1500ms. Lọc đúng con số chứ không lọc theo khoảng: trong `hen`
+     * còn nhịp canh 5 giây và hẹn nạp trước 2 giây, lọc rộng là dính nhầm. */
+    const henMo = hen.filter(([, ms]) => ms === 1500);
+    ok('… mà có lưới đỡ dọn dẹp', henMo.length === 1, JSON.stringify(hen.map((h) => h[1])));
+    /* Mốc thật là lúc thẻ cũ mờ HẲN. Hẹn cứng theo giây thì tab ẩn hoặc máy
+     * chậm là lượt mờ kéo dài hơn mà đến giờ vẫn dọn — đo trên máy thật vẫn
+     * bắt được khung đen vì đúng chuyện này. */
+    ok('… và bám vào transitionend chứ không chỉ đếm giây',
+      Array.isArray(a.nghe.transitionend) && a.nghe.transitionend.length === 1);
+    ok('… và suốt lượt đó không thẻ nào bị gán src khi đang hiện',
+      b.ganSrc.length === 1, JSON.stringify(b.ganSrc));
+
+    /* ĐÂY là khung đen còn sót lại sau lần sửa đầu, đo được trên máy thật:
+     * suốt lượt mờ dần thẻ cũ VẪN nhìn thấy (nó mới bắt đầu mờ, thẻ mới thì
+     * chưa rõ), nên gán src cho nó là xoá luôn khung hình nó đang giữ — thành
+     * một ô đen nằm chồng lên video mới. Trong lúc mờ, thẻ cũ phải được để
+     * yên. */
+    await doi();
+    ok('trong lúc mờ dần, thẻ cũ KHÔNG bị nạp bài khác', a.ganSrc.length === 0,
+      JSON.stringify(a.ganSrc));
+
+    a.nghe.transitionend[0]();                  // thẻ cũ đã mờ hẳn
+    await doi();
+    ok('mờ xong mới dừng thẻ cũ', a.soLanPause === 1, String(a.soLanPause));
+    /* Lưới đỡ nổ sau đó không được dọn lần thứ hai — dọn hai lần là tua thẻ
+     * đang nạp về đầu lần nữa, phí một lượt tải. */
+    henMo.forEach(([f]) => f());
+    ok('… lưới đỡ nổ sau cũng không dọn lại lần hai', a.soLanPause === 1, String(a.soLanPause));
+    ok('… và lúc đó mới giao bài tiếp theo cho nó', /i=3&v=33/.test(a.src), a.src);
+    /* Nạp bài kế phải gọi load(), mà load() trên thẻ CÒN `autoplay` là trình
+     * duyệt tự chạy lại nó: thẻ đang ẩn chạy ngầm song song với thẻ đang hiện,
+     * và đến lượt nó lên hình thì đang ở giữa bài. Đo trên máy thật thấy cả
+     * hai thẻ cùng chạy ở giây 20. */
+    ok('… thẻ ẩn KHÔNG chạy ngầm sau khi nạp bài mới', a.paused === true,
+      'paused=' + a.paused);
+    ok('bỏ autoplay của cả hai thẻ khi nhận quyền điều khiển',
+      a.thuocTinhDaBo.includes('autoplay') && b.thuocTinhDaBo.includes('autoplay'),
+      JSON.stringify([a.thuocTinhDaBo, b.thuocTinhDaBo]));
+  }
+  {
+    /* Hết vòng phải quay lại bài 1 — vẫn bằng cách đổi thẻ, không phải reload. */
+    const ds = [{ i: 1, luc: 11 }, { i: 2, luc: 22 }];
+    const { a, b, hen } = chayHaiThe(ds);
+    await doi(); a.dangPhat(); await doi();
+    a.hetBai(); await doi(); await doi();
+    ok('bài 2 đang hiện', b.hien() === true && /i=2/.test(b.src));
+    a.nghe.transitionend[0]();
+    await doi();
+    ok('thẻ rảnh nạp lại bài 1 để quay vòng', /i=1&v=11/.test(a.src), a.src);
+    b.hetBai(); await doi();
+    ok('hết vòng: thẻ một lên lại', a.hien() === true && b.hien() === false);
+    ok('… và vẫn chạy', a.paused === false);
+  }
+  {
+    /* Tiếng phải theo sang thẻ kia, kể cả thẻ đang nằm chờ — thẻ chờ còn tiếng
+     * thì lúc lên hình nó kêu trái với nút. */
+    const ds = [{ i: 1, luc: 11 }, { i: 2, luc: 22 }];
+    const { a, b, bam, nut } = chayHaiThe(ds, '1');
+    await doi(); bam(); await doi();
+    ok('bấm một cái là có tiếng', a.muted === false);
+    ok('thẻ đang chờ cũng mở tiếng sẵn', b.muted === false);
+    a.hetBai(); await doi();
+    ok('sang bài sau vẫn có tiếng', b.muted === false);
+    ok('nút vẫn báo có tiếng', nut.textContent === '🔊', nut.textContent);
   }
 
   group('Chạy liên tục');

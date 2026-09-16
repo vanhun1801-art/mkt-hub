@@ -1103,13 +1103,19 @@ async function veKhoiTin() {
          * Không để `controls`: thanh điều khiển đen kịt dưới một video chạy nền
          * trông rất nặng, mà thứ người ta cần ở đây chỉ có đúng một cái — tiếng. */
         /* `loop` CHỈ khi có đúng một video. Nhiều video thì việc lặp do
-         * ganPhimTin lo: hết cái này nó đổi src sang cái kế. Để `loop` trong
+         * ganPhimTin lo: hết cái này nó cho thẻ kia lên. Để `loop` trong
          * trường hợp đó là sự kiện `ended` không bao giờ bắn, và vòng luân
-         * phiên đứng lại ở video đầu tiên. */
+         * phiên đứng lại ở video đầu tiên.
+         *
+         * Nhiều video thì dựng HAI thẻ: một thẻ đang chiếu, một thẻ nằm sẵn đã
+         * nạp bài kế. Đổi src trên cùng một thẻ là có khoảng đen ở giữa. Thẻ
+         * thứ hai để TRỐNG src ở đây — ganPhimTin nạp sau khi bài đầu chạy
+         * được, khỏi tranh đường mạng ngay lúc mở trang. */
         ? '<div class="tin-phim">' +
-          '<video src="' + esc(nguonPhim(dsPhimTin()[0])) + '"' +
+          '<video class="hien" src="' + esc(nguonPhim(dsPhimTin()[0])) + '"' +
           (dsPhimTin().length > 1 ? '' : ' loop') +
           ' autoplay muted playsinline preload="auto"></video>' +
+          (dsPhimTin().length > 1 ? '<video muted playsinline preload="auto"></video>' : '') +
           '<button class="tin-am" id="tinAm" title="Bật tiếng" aria-label="Bật tiếng">🔇</button>' +
           '</div>'
         : '') +
@@ -1129,8 +1135,8 @@ async function veKhoiTin() {
    * mỗi lần mở trang. Bật tiếng xong phải gọi play() lần nữa: đổi muted giữa
    * chừng có trình duyệt dừng video lại. */
   const oAm = document.getElementById('tinAm');
-  const oPhim = o.querySelector('.tin-phim video');
-  if (oPhim) ganPhimTin(oPhim, oAm, dsPhimTin());
+  const oPhim = [...o.querySelectorAll('.tin-phim video')];
+  if (oPhim.length) ganPhimTin(oPhim, oAm, dsPhimTin());
 
   /* Bấm một tin là mở đúng popup của tin đó để đọc trọn — kể cả đã đọc rồi.
    * Đây là đường xem lại, nên không ghi lại xác nhận của ai. */
@@ -1154,87 +1160,169 @@ function ngayGonTin(ms) {
 }
 
 /**
- * Cho video trang Tổng quan CHẠY, chạy mãi — và MẶC ĐỊNH KHÔNG TIẾNG.
+ * Cho video trang Tổng quan CHẠY, chạy mãi, KHÔNG chớp đen — và mặc định
+ * không tiếng.
  *
  * ĐIỀU DUY NHẤT trình duyệt cho tự chạy là video ĐANG CÂM. Chrome/Safari chặn
  * thẳng mọi lượt tự chạy có tiếng, và chặn IM LẶNG: `play()` bị từ chối, video
- * đứng ở khung hình đầu, không báo gì. Bản trước đọc lựa chọn "bật tiếng" rồi
- * bỏ câm NGAY từ đầu — nên ai đã từng bật tiếng một lần thì từ đó video không
- * bao giờ tự chạy nữa. Đúng cái anh Hùng gặp.
- *
- * Nên trình tự bắt buộc là:
+ * đứng ở khung hình đầu, không báo gì. Nên trình tự bắt buộc là:
  *   1. luôn mở ở trạng thái CÂM rồi play() — lượt này luôn được cho phép;
- *   2. thử bỏ câm ngay (máy đã tương tác với trang từ trước thì ăn);
- *   3. chưa được thì chờ CÚ BẤM ĐẦU TIÊN ở bất kỳ đâu trên trang rồi bỏ câm.
- *      Một cú bấm là đủ để trình duyệt cho phép — anh bấm gì cũng được.
+ *   2. ai đã tự bấm nút loa thì chờ CÚ BẤM ĐẦU TIÊN ở bất kỳ đâu trên trang
+ *      rồi mới bỏ câm. Một cú bấm là đủ — bấm gì cũng được.
  *
  * Mặc định là TẮT TIẾNG (anh Hùng: "mặc định là video tắt âm thanh").
- * Trang Tổng quan là chỗ người ta mở ra để xem số, không phải để xem phim —
- * tự nhiên phát tiếng giữa phòng làm việc là phiền. Ai muốn nghe thì bấm nút
- * loa, và lựa chọn đó được nhớ cho những lần sau; chỉ khi đã bấm '1' thì bước
- * 2-3 dưới đây mới chạy.
  *
- * "Chạy liên tục không dừng": `loop` lo phần lặp, còn lại là ba đường hỏng thật
- * đã gặp với video phát qua mạng — tab ẩn đi rồi hiện lại, luồng bị nghẽn
- * (`stalled`), và tải hỏng giữa chừng (`error`). Mỗi đường một lối gọi lại;
- * thêm một nhịp canh 5 giây làm lưới cuối.
+ * NHIỀU VIDEO thì nhận HAI thẻ <video> chồng nhau, không phải một thẻ đổi src.
+ * Đổi `src` là trình duyệt vứt khung hình đang có rồi mới đi tải bài mới, và
+ * giữa hai bài hở ra một khoảng đen (anh Hùng: "không có 1 khoảng đen chuyển
+ * nào cả"). Ở đây bài kế nằm sẵn trong thẻ kia, đã giải mã xong khung đầu;
+ * lúc chuyển chỉ đổi thẻ nào hiện, rồi thẻ vừa rảnh đi nạp bài tiếp theo.
+ *
+ * Vẫn nhận MỘT thẻ (bài kiểm thử, và trang chỉ có một video): khi đó hết bài
+ * thì tua về đầu, không đụng tới src.
+ *
+ * "Chạy liên tục không dừng": `loop` lo phần lặp khi chỉ có một video, còn lại
+ * là ba đường hỏng thật đã gặp với video phát qua mạng — tab ẩn rồi hiện lại,
+ * luồng nghẽn (`stalled`), tải hỏng giữa chừng (`error`). Mỗi đường một lối
+ * gọi lại; thêm một nhịp canh 5 giây làm lưới cuối.
  */
-function ganPhimTin(phim, nut, ds) {
+function ganPhimTin(phims, nut, ds) {
+  const doi = (Array.isArray(phims) ? phims : [phims]).filter(Boolean);
+  if (!doi.length) return;
+  const vong = Array.isArray(ds) && ds.length ? ds : [];
+  /* Chỉ chuyển bằng hai thẻ khi CÓ đủ hai thẻ và CÓ nhiều hơn một bài. */
+  const keDoi = doi.length > 1 && vong.length > 1;
+
+  let cu = 0;                                 // thẻ đang chiếu
+  let k = 0;                                  // bài đang chiếu
+  const dang = () => doi[cu];
+  const kia = () => doi[(cu + 1) % doi.length];
+
   let muonTieng = false;                      // mặc định TẮT tiếng
   try { if (localStorage.getItem('hub.tinTieng') === '1') muonTieng = true; } catch (_) {}
 
-  /* Vòng video. Rỗng thì coi như một video ở ô 1 — thẻ <video> đã có sẵn src,
-   * không đụng vào. */
-  const vong = Array.isArray(ds) && ds.length ? ds : [];
-  let k = 0;
-
-  /* Sang video kế, quay về đầu khi hết vòng.
-   *
-   * Giữ nguyên `muted`: đổi `src` KHÔNG làm mất thuộc tính đó, nhưng đây là
-   * lượt phát mới nên trình duyệt xét lại quyền tự chạy. Ai đã bấm mở tiếng
-   * thì cử chỉ ấy còn hiệu lực cho cả trang, nên vẫn qua được. */
-  const sang = (j) => {
-    if (vong.length < 2) return;
-    k = (j + vong.length) % vong.length;
-    phim.src = nguonPhim(vong[k]);
-    try { phim.load(); } catch (_) {}
-    chay();
-  };
-
-  /* Nút LUÔN vẽ theo trạng thái THẬT của thẻ video, không vẽ theo ý định.
-   *
-   * Bản trước vẽ ngay sau khi gán `muted = false`, trước khi trình duyệt kịp
-   * từ chối — nên nút hiện 🔊 mà không có tiếng, bấm một cái thì thành 🔇, bấm
-   * cái nữa mới nghe được. Đúng chuỗi anh Hùng mô tả. Nghe thêm `volumechange`
-   * để trình duyệt tự đổi thì nút cũng đổi theo. */
+  /* Nút LUÔN vẽ theo trạng thái THẬT của thẻ đang chiếu, không vẽ theo ý định.
+   * Vẽ theo ý định thì lúc trình duyệt vừa chặn, nút báo 🔊 mà không có tiếng.
+   * Nghe thêm `volumechange` để trình duyệt tự đổi thì nút cũng đổi theo. */
   const veNut = () => {
     if (!nut) return;
-    const co = !phim.muted;
+    const co = !dang().muted;
     nut.textContent = co ? '🔊' : '🔇';
     nut.title = co ? 'Tắt tiếng' : 'Bật tiếng';
     nut.setAttribute('aria-label', nut.title);
   };
-  phim.addEventListener('volumechange', veNut);
 
-  const chay = () => { const p = phim.play(); if (p && p.catch) p.catch(() => {}); };
+  /* Câm/mở cho CẢ HAI thẻ: thẻ đang nằm chờ mà còn tiếng thì lúc nó lên hình
+   * sẽ kêu trái với nút. */
+  const datCam = (cam) => doi.forEach((v) => { v.muted = cam; });
+
+  const chay = () => { const p = dang().play(); if (p && p.catch) p.catch(() => {}); };
+
+  /** Nạp sẵn bài kế vào thẻ đang rảnh — đây chính là thứ xoá khoảng đen. */
+  const napTruoc = () => {
+    if (!keDoi) return;
+    const sau = vong[(k + 1) % vong.length];
+    const v = kia();
+    if (v.dataset.bai === String(sau.i)) return;   // đã đúng bài rồi
+    v.dataset.bai = String(sau.i);
+    v.src = nguonPhim(sau);
+    v.muted = dang().muted;
+    try { v.load(); } catch (_) {}
+  };
+
+  /**
+   * Sang bài kế. `lan` đếm số bài đã thử bỏ qua vì hỏng — một tệp lỗi không
+   * được phép làm cả vòng đứng lại.
+   */
+  const sang = (j, lan) => {
+    if (vong.length < 2) return;
+    const k2 = ((j % vong.length) + vong.length) % vong.length;
+
+    if (!keDoi) {
+      /* Chỉ có một thẻ (bài kiểm thử, hoặc trang dựng bằng bản cũ): đành đổi
+       * src trên chính nó — có chớp, nhưng còn hơn đứng im. */
+      k = k2;
+      const v = dang();
+      v.src = nguonPhim(vong[k]);
+      try { v.load(); } catch (_) {}
+      chay();
+      return;
+    }
+
+    const moi = kia();
+    const bai = vong[k2];
+    if (moi.dataset.bai !== String(bai.i)) {
+      moi.dataset.bai = String(bai.i);
+      moi.src = nguonPhim(bai);
+      try { moi.load(); } catch (_) {}
+    }
+    moi.muted = dang().muted;
+    try { moi.currentTime = 0; } catch (_) {}
+
+    /* Thẻ kế hỏng thì bỏ qua nó, thử bài sau — tối đa một vòng. */
+    if (moi.error && (lan || 0) < vong.length) { napTruoc(); return sang(k2 + 1, (lan || 0) + 1); }
+
+    const hien = () => {
+      /* Đổi thẻ nào hiện. Thẻ cũ chỉ DỪNG sau khi thẻ mới đã lên — dừng trước
+       * là hở ra đúng cái khoảng đen cần tránh. */
+      const cuEl = dang();
+      moi.classList.add('hien');
+      cuEl.classList.remove('hien');
+      cu = (cu + 1) % doi.length;
+      k = k2;
+      veNut();
+      /* Chờ HẾT lượt mờ dần (.28s ở styles.css) rồi mới dừng thẻ cũ và giao
+       * bài kế cho nó.
+       *
+       * Nạp sớm là hỏng đúng thứ đang muốn chữa: suốt lượt mờ dần thẻ cũ VẪN
+       * còn nhìn thấy (nó mới bắt đầu mờ, thẻ mới thì chưa rõ), mà gán src cho
+       * nó là trình duyệt xoá luôn khung hình đang giữ — thành một ô ĐEN nằm
+       * chồng lên video mới. Đo trên máy thật thấy đúng một khung đen ở ngay
+       * nhịp chuyển, và đây là chỗ đẻ ra nó. */
+      let daDon = false;
+      const don = () => {
+        if (daDon) return;
+        daDon = true;
+        try { cuEl.pause(); } catch (_) {}
+        napTruoc();
+      };
+      /* Mốc THẬT là lúc thẻ cũ mờ hẳn, không phải một con số đếm sẵn: tab ẩn
+       * hay máy chậm thì lượt mờ kéo dài hơn .28s, mà hẹn cứng thì cứ đến giờ
+       * là dọn — đo trên máy thật vẫn bắt được một khung đen vì đúng chuyện
+       * này. Hẹn giờ chỉ còn là lưới đỡ, phòng khi `transitionend` không bắn
+       * (máy tắt chuyển động, hoặc tab ẩn suốt lượt). */
+      cuEl.addEventListener('transitionend', don, { once: true });
+      setTimeout(don, 1500);
+    };
+    const p = moi.play();
+    if (p && p.then) p.then(hien, hien);
+    else hien();
+  };
+
+  /* Bỏ `autoplay` ngay khi vào đây: từ giờ việc chạy do hàm này quyết.
+   *
+   * Giữ lại là hỏng đúng lúc chuyển bài: nạp bài kế cho thẻ vừa rảnh phải gọi
+   * `load()`, mà `load()` trên một thẻ còn thuộc tính `autoplay` là trình duyệt
+   * TỰ CHẠY nó lại — thẻ đang ẩn chạy ngầm song song với thẻ đang hiện, tốn
+   * mạng, tốn máy, và đến lượt nó lên hình thì đang ở giữa bài chứ không phải
+   * đầu bài. Đo trên máy thật thấy cả hai thẻ cùng chạy ở giây 20. */
+  doi.forEach((v) => { try { v.removeAttribute('autoplay'); } catch (_) {} });
 
   /* Mở ra là CÂM rồi chạy — đây là lượt tự chạy duy nhất trình duyệt cho phép. */
-  phim.muted = true;
+  datCam(true);
   veNut();
   chay();
 
   /* Bỏ câm CHỈ KHI ĐÃ CÓ CỬ CHỈ NGƯỜI DÙNG.
    *
-   * Không thử bỏ câm sớm nữa: gán `muted = false` mà chưa có cử chỉ thì Chrome
-   * DỪNG luôn video (chứ không chỉ từ chối tiếng), và vì `play()` sau đó cũng
-   * bị từ chối nên video nằm im — mở app lên thấy đứng hình, nút thì báo có
-   * tiếng. Chờ đúng một cú bấm bất kỳ trên trang thì vừa chắc vừa nhanh: anh
-   * bấm gì cũng được, không cần bấm đúng cái loa. */
+   * Không thử bỏ câm sớm: gán `muted = false` mà chưa có cử chỉ thì Chrome
+   * DỪNG luôn video (chứ không chỉ từ chối tiếng), và `play()` sau đó cũng bị
+   * từ chối — mở app lên thấy đứng hình, nút thì báo có tiếng. */
   const SU_KIEN = ['pointerdown', 'keydown', 'touchstart'];
   const moTieng = () => {
     SU_KIEN.forEach((e) => window.removeEventListener(e, moTieng, true));
     if (!muonTieng) return;
-    phim.muted = false;
+    datCam(false);
     chay();
     veNut();
   };
@@ -1246,11 +1334,11 @@ function ganPhimTin(phim, nut, ds) {
   if (nut) {
     nut.onclick = (e) => {
       e.stopPropagation();
-      /* Lấy theo Ý ĐỊNH đang lưu, không lấy theo `phim.muted`: hai thứ đó có
-       * thể lệch nhau đúng lúc trình duyệt vừa chặn. */
+      /* Lấy theo Ý ĐỊNH đang lưu, không lấy theo `muted` của thẻ: hai thứ đó
+       * có thể lệch nhau đúng lúc trình duyệt vừa chặn. */
       muonTieng = !muonTieng;
       try { localStorage.setItem('hub.tinTieng', muonTieng ? '1' : '0'); } catch (_) {}
-      phim.muted = !muonTieng;
+      datCam(!muonTieng);
       chay();
       veNut();
     };
@@ -1264,9 +1352,9 @@ function ganPhimTin(phim, nut, ds) {
    *
    * Quay lại Tổng quan thì chạy tiếp, và giữ nguyên lựa chọn tiếng. */
   const theoMan = () => {
-    const oTrang = !document.hidden && S.view === 'home' && document.body.contains(phim);
-    if (!oTrang) { if (!phim.paused) phim.pause(); return; }
-    phim.muted = !muonTieng;
+    const oTrang = !document.hidden && S.view === 'home' && document.body.contains(doi[0]);
+    if (!oTrang) { doi.forEach((v) => { if (!v.paused) v.pause(); }); return; }
+    datCam(!muonTieng);
     chay();
     veNut();
   };
@@ -1276,28 +1364,40 @@ function ganPhimTin(phim, nut, ds) {
    * nằm im thêm mấy giây (lưới cuối 5 giây mới vớt lên). */
   window.addEventListener('hashchange', () => setTimeout(theoMan, 250));
 
-  /* Ba đường hỏng thật của video phát qua mạng, mỗi đường một lối gọi lại. */
-  /* Hết một video: nhiều video thì sang cái kế, một video thì tua về đầu
-   * (phòng khi `loop` hụt — có máy bắn `ended` rồi mới lặp). */
-  phim.addEventListener('ended', () => {
-    if (vong.length > 1) { sang(k + 1); return; }
-    phim.currentTime = 0;
-    chay();
+  /* Ba đường hỏng thật của video phát qua mạng, mỗi đường một lối gọi lại.
+   * Gắn cho CẢ HAI thẻ, nhưng chỉ thẻ đang chiếu mới được kéo cả vòng đi. */
+  doi.forEach((v) => {
+    v.addEventListener('volumechange', () => { if (v === dang()) veNut(); });
+    v.addEventListener('ended', () => {
+      if (v !== dang()) return;
+      /* Nhiều bài thì sang bài kế; một bài thì tua về đầu (phòng khi `loop`
+       * hụt — có máy bắn `ended` rồi mới lặp). */
+      if (vong.length > 1) { sang(k + 1, 0); return; }
+      v.currentTime = 0;
+      chay();
+    });
+    v.addEventListener('stalled', () => { if (v === dang() && S.view === 'home') chay(); });
+    v.addEventListener('error', () => {
+      if (v !== dang()) { napTruoc(); return; }
+      /* Bài đang chiếu hỏng (tệp lỗi, ô vừa bị gỡ) mà cả vòng đứng theo thì cái
+       * hỏng ăn mất cả bộ. Còn bài khác thì bỏ qua nó, chạy tiếp ngay. */
+      if (vong.length > 1) { sang(k + 1, 0); return; }
+      /* Chỉ có một bài: nạp lại một lần sau 10 giây. Không thử lại ngay —
+       * hỏng ngay lần đầu thì thử lại ngay cũng hỏng. */
+      setTimeout(() => { try { v.load(); chay(); } catch (_) {} }, 10000);
+    });
   });
-  phim.addEventListener('stalled', () => { if (S.view === 'home') chay(); });
-  phim.addEventListener('error', () => {
-    /* Một video hỏng (tệp lỗi, ô vừa bị gỡ) mà cả vòng đứng lại theo thì cái
-     * hỏng ăn mất cả bộ. Còn cái khác thì bỏ qua nó, chạy tiếp ngay. */
-    if (vong.length > 1) { sang(k + 1); return; }
-    /* Chỉ có một video: tải hỏng giữa chừng (mạng chớp, Render ngủ dậy) thì
-     * nạp lại một lần sau 10 giây. Không thử lại ngay — hỏng ngay lần đầu thì
-     * thử lại ngay cũng hỏng. */
-    setTimeout(() => { try { phim.load(); chay(); } catch (_) {} }, 10000);
-  });
+
+  /* Nạp sẵn bài kế. Chờ bài đầu chạy được rồi mới nạp: nạp cả hai cùng lúc là
+   * hai luồng tranh đường mạng đúng lúc người ta vừa mở trang. Có cả hẹn giờ
+   * đỡ: `playing` có thể không bắn nếu tab đang ẩn. */
+  doi[0].addEventListener('playing', napTruoc);
+  setTimeout(napTruoc, 2000);
+
   /* Lưới cuối: 5 giây một nhịp. CHỈ gọi lại khi đang ở trang Tổng quan và tab
    * đang hiện — nếu không thì nó chính là thứ bật lại video mình vừa dừng. */
   setInterval(() => {
-    if (!document.hidden && S.view === 'home' && phim.paused) chay();
+    if (!document.hidden && S.view === 'home' && dang().paused) chay();
   }, 5000);
 }
 function veHome() {

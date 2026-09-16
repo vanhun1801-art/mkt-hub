@@ -1076,7 +1076,23 @@ code { background: var(--trang-2); border: 1px solid var(--vien-mem); border-rad
    `contain` chứ không `cover`: clip nào không phải 16:9 thì thà để viền đen còn
    hơn cắt mất khung hình. */
 .tin-phim { background: #000; position: relative; overflow: hidden; aspect-ratio: 16 / 9; }
-.tin-phim video { width: 100%; height: 100%; display: block; object-fit: contain; }
+/* HAI thẻ video chồng lên nhau, không phải một thẻ đổi src.
+ *
+ * Đổi `src` trên một thẻ là trình duyệt VỨT khung hình đang có rồi mới đi tải
+ * bài mới — giữa hai bài luôn hở ra một khoảng thấy nền đen của .tin-phim.
+ * Anh Hùng: "anh muốn không có 1 khoảng đen chuyển nào cả".
+ *
+ * Nên bài kế được nạp sẵn vào thẻ CÒN LẠI từ trước, giải mã xong khung đầu;
+ * lúc chuyển chỉ là đổi xem thẻ nào hiện. Không lúc nào cả hai cùng trống. */
+.tin-phim video {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%; display: block; object-fit: contain;
+  opacity: 0; transition: opacity .28s ease;
+}
+.tin-phim video.hien { opacity: 1; }
+/* Máy xin đỡ chuyển động thì cắt luôn phần mờ dần — đổi thẳng vẫn không đen,
+   vì thẻ kia đã có sẵn khung hình. */
+@media (prefers-reduced-motion: reduce) { .tin-phim video { transition: none; } }
 /* Nút bật/tắt tiếng — chồng lên góc video, chỉ đậm lên khi rê chuột tới.
    Trình duyệt CHỈ cho tự chạy khi đang tắt tiếng, nên video mở ra là im; bấm
    nút này là chỗ duy nhất để có tiếng, và đó cũng là "tuỳ chọn" anh Hùng cần. */
