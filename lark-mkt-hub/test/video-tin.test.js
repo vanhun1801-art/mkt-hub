@@ -57,7 +57,7 @@ const KHOI = SRC.slice(dau, cuoi);
 function videoGia({ chanTieng = false } = {}) {
   return {
     muted: false, paused: true, loop: true, currentTime: 0,
-    soLanPlay: 0, nghe: {},
+    src: '', soLanLoad: 0, soLanPlay: 0, nghe: {},
     addEventListener(t, f) { (this.nghe[t] = this.nghe[t] || []).push(f); },
     play() {
       this.soLanPlay++;
@@ -65,12 +65,16 @@ function videoGia({ chanTieng = false } = {}) {
       this.paused = false;
       return Promise.resolve();
     },
-    load() {},
+    load() { this.soLanLoad++; },
+    /** Giả lập trình duyệt bắn `ended` khi hết bài. */
+    hetBai() { this.paused = true; (this.nghe.ended || []).forEach((f) => f()); },
+    hong() { (this.nghe.error || []).forEach((f) => f()); },
   };
 }
 
 function chay(luaChon, tuyChon) {
   const daBam = !!(tuyChon && tuyChon.daBam);
+  const vong = (tuyChon && tuyChon.ds) || null;
   const kho = new Map();
   if (luaChon != null) kho.set('hub.tinTieng', luaChon);
   const nut = { textContent: '', title: '', onclick: null, setAttribute() {} };
@@ -85,6 +89,9 @@ function chay(luaChon, tuyChon) {
       removeEventListener(t, f) { cuChi[t] = (cuChi[t] || []).filter((x) => x !== f); },
     },
     S: { view: 'home' },
+    /* app.js dựng đường phát bằng hàm này; nạp riêng khối ganPhimTin nên phải
+     * đưa vào đây, và giữ đúng một dạng với bản thật. */
+    nguonPhim: (x) => (x ? '/api/video-gt?i=' + (x.i || 1) + '&v=' + (x.luc || 0) : ''),
     /* Trang đã có cú bấm nào chưa — app.js giữ cờ này ở ngoài hàm. Mặc định
      * FALSE để bài thử đúng cảnh "vừa mở app, chưa bấm gì". */
     DA_CO_CU_CHI: daBam,
@@ -96,7 +103,7 @@ function chay(luaChon, tuyChon) {
   };
   vm.createContext(ctx);
   vm.runInContext(KHOI, ctx);
-  ctx.ganPhimTin(phim, nut);
+  ctx.ganPhimTin(phim, nut, vong);
   /* Một cú bấm bất kỳ trên trang — đúng thứ trình duyệt đòi trước khi cho tiếng. */
   const bam = () => (cuChi.pointerdown || []).slice().forEach((f) => f());
   return { phim, nut, kho, hen, bam };
@@ -183,6 +190,57 @@ const doi = () => new Promise((r) => setImmediate(r));
     bam();
     await doi(); await doi();
     ok('vẫn chạy', phim.paused === false);
+  }
+
+  group('Nhiều video: phát luân phiên');
+  {
+    /* Anh Hùng: "trường hợp anh muốn gắn video nữa thì được không, các video
+     * luân phiên chạy". Thứ tự: 1 -> 2 -> 3 -> quay lại 1. */
+    const ds = [{ i: 1, luc: 11 }, { i: 2, luc: 22 }, { i: 3, luc: 33 }];
+    const { phim } = chay(null, { ds });
+    await doi();
+    phim.hetBai(); await doi();
+    ok('hết video 1 thì sang video 2', /i=2&v=22/.test(phim.src), phim.src);
+    ok('và chạy luôn, không đợi ai bấm', phim.paused === false);
+    ok('có gọi load() cho lượt mới', phim.soLanLoad >= 1, String(phim.soLanLoad));
+    phim.hetBai(); await doi();
+    ok('rồi sang video 3', /i=3&v=33/.test(phim.src), phim.src);
+    phim.hetBai(); await doi();
+    /* Hết vòng phải QUAY LẠI đầu, không đứng lại ở cái cuối — đứng lại thì
+     * sáng hôm sau ai đến cũng chỉ thấy đúng một video. */
+    ok('hết vòng thì quay lại video 1', /i=1&v=11/.test(phim.src), phim.src);
+    ok('vẫn chạy', phim.paused === false);
+  }
+  {
+    /* Đổi bài KHÔNG được làm mất lựa chọn tiếng: nghe dở chừng mà sang bài sau
+     * lại câm thì coi như nút loa hỏng. */
+    const ds = [{ i: 1, luc: 11 }, { i: 2, luc: 22 }];
+    const { phim, bam } = chay('1', { ds });
+    await doi(); bam(); await doi();
+    ok('đang có tiếng', phim.muted === false);
+    phim.hetBai(); await doi();
+    ok('sang bài sau vẫn có tiếng', phim.muted === false);
+    ok('và vẫn chạy', phim.paused === false);
+  }
+  {
+    /* Một tệp hỏng (vừa bị gỡ, tải lỗi) mà cả vòng đứng theo thì cái hỏng ăn
+     * mất cả bộ. Phải bỏ qua nó ngay, không đợi 10 giây như khi chỉ có một. */
+    const ds = [{ i: 1, luc: 11 }, { i: 2, luc: 22 }];
+    const { phim } = chay(null, { ds });
+    await doi();
+    phim.hong(); await doi();
+    ok('một video hỏng thì nhảy ngay sang cái kế', /i=2&v=22/.test(phim.src), phim.src);
+    ok('và vẫn chạy', phim.paused === false);
+  }
+  {
+    /* Chỉ một video: giữ nguyên lối cũ — tua về đầu, KHÔNG đụng tới src (đổi
+     * src là tải lại cả tệp qua mạng, mỗi vòng một lần, vô ích). */
+    const { phim } = chay(null, { ds: [{ i: 1, luc: 11 }] });
+    await doi();
+    phim.currentTime = 99;
+    phim.hetBai(); await doi();
+    ok('một video thì chỉ tua về đầu', phim.currentTime === 0 && phim.src === '');
+    ok('và chạy tiếp', phim.paused === false);
   }
 
   group('Chạy liên tục');

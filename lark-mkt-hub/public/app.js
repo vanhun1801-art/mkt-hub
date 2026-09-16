@@ -1015,6 +1015,24 @@ let DA_CO_CU_CHI = false;
 ['pointerdown', 'keydown', 'touchstart'].forEach((e) =>
   window.addEventListener(e, () => { DA_CO_CU_CHI = true; }, { capture: true, passive: true }));
 
+/* Danh sách video của trang Tổng quan, theo đúng thứ tự phát.
+ *
+ * Máy chủ trả `ds`; bản cũ chỉ trả một video ở gốc. Gộp về một dạng ở đây để
+ * chỗ nào cũng chỉ phải biết một dạng — trình duyệt của người chưa tải lại
+ * trang vẫn còn giữ mã cũ một lúc sau khi deploy. */
+function dsPhimTin() {
+  const t = TIN.phim;
+  if (!t || !t.co) return [];
+  if (Array.isArray(t.ds) && t.ds.length) return t.ds;
+  return [{ i: 1, luc: t.luc }];
+}
+
+/** Đường phát của một video. `v=` là mốc sửa tệp — đổi video là đổi đường. */
+function nguonPhim(x) {
+  if (!x) return '';
+  return '/api/video-gt?i=' + (x.i || 1) + '&v=' + (x.luc || 0);
+}
+
 async function veKhoiTin() {
   const o = document.getElementById('khoiTin');
   if (!o) return;
@@ -1084,9 +1102,14 @@ async function veKhoiTin() {
          *
          * Không để `controls`: thanh điều khiển đen kịt dưới một video chạy nền
          * trông rất nặng, mà thứ người ta cần ở đây chỉ có đúng một cái — tiếng. */
+        /* `loop` CHỈ khi có đúng một video. Nhiều video thì việc lặp do
+         * ganPhimTin lo: hết cái này nó đổi src sang cái kế. Để `loop` trong
+         * trường hợp đó là sự kiện `ended` không bao giờ bắn, và vòng luân
+         * phiên đứng lại ở video đầu tiên. */
         ? '<div class="tin-phim">' +
-          '<video src="/api/video-gt?v=' + TIN.phim.luc +
-          '" autoplay loop muted playsinline preload="auto"></video>' +
+          '<video src="' + esc(nguonPhim(dsPhimTin()[0])) + '"' +
+          (dsPhimTin().length > 1 ? '' : ' loop') +
+          ' autoplay muted playsinline preload="auto"></video>' +
           '<button class="tin-am" id="tinAm" title="Bật tiếng" aria-label="Bật tiếng">🔇</button>' +
           '</div>'
         : '') +
@@ -1107,7 +1130,7 @@ async function veKhoiTin() {
    * chừng có trình duyệt dừng video lại. */
   const oAm = document.getElementById('tinAm');
   const oPhim = o.querySelector('.tin-phim video');
-  if (oPhim) ganPhimTin(oPhim, oAm);
+  if (oPhim) ganPhimTin(oPhim, oAm, dsPhimTin());
 
   /* Bấm một tin là mở đúng popup của tin đó để đọc trọn — kể cả đã đọc rồi.
    * Đây là đường xem lại, nên không ghi lại xác nhận của ai. */
@@ -1156,9 +1179,27 @@ function ngayGonTin(ms) {
  * (`stalled`), và tải hỏng giữa chừng (`error`). Mỗi đường một lối gọi lại;
  * thêm một nhịp canh 5 giây làm lưới cuối.
  */
-function ganPhimTin(phim, nut) {
+function ganPhimTin(phim, nut, ds) {
   let muonTieng = false;                      // mặc định TẮT tiếng
   try { if (localStorage.getItem('hub.tinTieng') === '1') muonTieng = true; } catch (_) {}
+
+  /* Vòng video. Rỗng thì coi như một video ở ô 1 — thẻ <video> đã có sẵn src,
+   * không đụng vào. */
+  const vong = Array.isArray(ds) && ds.length ? ds : [];
+  let k = 0;
+
+  /* Sang video kế, quay về đầu khi hết vòng.
+   *
+   * Giữ nguyên `muted`: đổi `src` KHÔNG làm mất thuộc tính đó, nhưng đây là
+   * lượt phát mới nên trình duyệt xét lại quyền tự chạy. Ai đã bấm mở tiếng
+   * thì cử chỉ ấy còn hiệu lực cho cả trang, nên vẫn qua được. */
+  const sang = (j) => {
+    if (vong.length < 2) return;
+    k = (j + vong.length) % vong.length;
+    phim.src = nguonPhim(vong[k]);
+    try { phim.load(); } catch (_) {}
+    chay();
+  };
 
   /* Nút LUÔN vẽ theo trạng thái THẬT của thẻ video, không vẽ theo ý định.
    *
@@ -1236,11 +1277,21 @@ function ganPhimTin(phim, nut) {
   window.addEventListener('hashchange', () => setTimeout(theoMan, 250));
 
   /* Ba đường hỏng thật của video phát qua mạng, mỗi đường một lối gọi lại. */
-  phim.addEventListener('ended', () => { phim.currentTime = 0; chay(); });  // phòng khi loop hụt
+  /* Hết một video: nhiều video thì sang cái kế, một video thì tua về đầu
+   * (phòng khi `loop` hụt — có máy bắn `ended` rồi mới lặp). */
+  phim.addEventListener('ended', () => {
+    if (vong.length > 1) { sang(k + 1); return; }
+    phim.currentTime = 0;
+    chay();
+  });
   phim.addEventListener('stalled', () => { if (S.view === 'home') chay(); });
   phim.addEventListener('error', () => {
-    /* Tải hỏng giữa chừng (mạng chớp, Render ngủ dậy): nạp lại một lần sau 10
-     * giây. Không thử lại ngay — hỏng ngay lần đầu thì thử lại ngay cũng hỏng. */
+    /* Một video hỏng (tệp lỗi, ô vừa bị gỡ) mà cả vòng đứng lại theo thì cái
+     * hỏng ăn mất cả bộ. Còn cái khác thì bỏ qua nó, chạy tiếp ngay. */
+    if (vong.length > 1) { sang(k + 1); return; }
+    /* Chỉ có một video: tải hỏng giữa chừng (mạng chớp, Render ngủ dậy) thì
+     * nạp lại một lần sau 10 giây. Không thử lại ngay — hỏng ngay lần đầu thì
+     * thử lại ngay cũng hỏng. */
     setTimeout(() => { try { phim.load(); chay(); } catch (_) {} }, 10000);
   });
   /* Lưới cuối: 5 giây một nhịp. CHỈ gọi lại khi đang ở trang Tổng quan và tab

@@ -603,7 +603,13 @@ function congKhai(m) {
 /* Logo dùng chung cho mọi tệp xuất của các app con. Chỉ giữ MỘT tệp: tải lên
  * bản mới là xoá bản cũ, nên không bao giờ có hai logo cùng tồn tại rồi app này
  * lấy .png còn app kia lấy .svg. */
-const THU_MUC_DL = path.join(__dirname, 'du-lieu');
+/* Thư mục dữ liệu. HUB_DU_LIEU để bài kiểm thử trỏ sang thư mục tạm — bài
+ * thử video có GHI và XOÁ tệp thật, chạy thẳng vào du-lieu/ là có ngày nó đè
+ * mất video của phòng. Đã xảy ra đúng một lần, cứu được nhờ tệp nằm trong kho
+ * git. Ngoài kiểm thử thì không ai đặt biến này. */
+const THU_MUC_DL = process.env.HUB_DU_LIEU
+  ? path.resolve(process.env.HUB_DU_LIEU)
+  : path.join(__dirname, 'du-lieu');
 const DUOI_LOGO = { 'image/png': '.png', 'image/jpeg': '.jpg', 'image/svg+xml': '.svg', 'image/webp': '.webp' };
 const MIME_LOGO = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.svg': 'image/svg+xml', '.webp': 'image/webp' };
 
@@ -616,27 +622,64 @@ function tepLogo() {
 }
 
 /* ---------------- video giới thiệu ----------------
- * Cùng lối với logo: giữ ĐÚNG MỘT tệp trong du-lieu/, tải lên bản mới là xoá
- * bản cũ. Không bao giờ có hai video cùng tồn tại rồi trang Tổng quan phát
- * nhầm cái nào.
+ * NHIỀU video, phát luân phiên. Mỗi video nằm ở một Ô đánh số 1..5 trong
+ * du-lieu/; trang Tổng quan phát hết ô này sang ô kia rồi quay lại ô đầu.
+ *
+ * Ô 1 giữ NGUYÊN tên cũ `video-tong-quan.mp4` — video đang nằm trong kho mang
+ * đúng tên đó và đã được .gitignore mở đường riêng. Đổi tên nó chỉ để cho đều
+ * là tự tay tạo ra một khối 24 MB nữa trong lịch sử git mà chẳng được gì.
+ * Từ ô 2 trở đi là `video-tong-quan-2.mp4`, `-3`…
+ *
+ * Số ô đang dùng có thể ĐỨT QUÃNG (gỡ ô 2 mà còn ô 3): dsPhim() bỏ qua ô
+ * trống và trả về số ô THẬT của từng video, nên không phải dồn tệp lại — dồn
+ * tệp là chép qua chép lại vài chục MB cho một việc không ai thấy.
  *
  * Ổ đĩa Render là ổ TẠM — video tải lên qua Cài đặt sẽ mất sau lần deploy kế
  * tiếp, y như logo. Muốn nó sống lâu thì đưa tệp vào kho (xem README).
  */
 const DUOI_PHIM = { 'video/mp4': '.mp4', 'video/quicktime': '.mov', 'video/webm': '.webm' };
 const MIME_PHIM = { '.mp4': 'video/mp4', '.mov': 'video/quicktime', '.webm': 'video/webm' };
+/* 5 ô: đủ cho một vòng banner, mà vẫn chặn được chuyện kho phình ra vô hạn —
+ * mỗi video là một khối nhị phân nằm lại trong lịch sử git vĩnh viễn. */
+const SO_PHIM_TOI_DA = 5;
 
-function tepPhim() {
+/** Tên tệp của ô thứ i. Ô 1 không có hậu tố, để giữ nguyên tệp đang có. */
+function tenPhim(i, duoi) {
+  return 'video-tong-quan' + (i > 1 ? '-' + i : '') + duoi;
+}
+
+/** Video ở ô i (mặc định ô 1), hoặc null nếu ô trống. */
+function tepPhim(i) {
+  const o = Number(i) || 1;
+  if (!(o >= 1 && o <= SO_PHIM_TOI_DA)) return null;
   for (const d of ['.mp4', '.webm', '.mov']) {
-    const duong = path.join(THU_MUC_DL, 'video-tong-quan' + d);
-    if (fs.existsSync(duong)) return { duong, mime: MIME_PHIM[d], duoi: d };
+    const duong = path.join(THU_MUC_DL, tenPhim(o, d));
+    if (fs.existsSync(duong)) return { duong, mime: MIME_PHIM[d], duoi: d, i: o };
   }
   return null;
 }
 
-function xoaPhim() {
+/** Mọi video đang có, theo đúng thứ tự phát. */
+function dsPhim() {
+  const ra = [];
+  for (let i = 1; i <= SO_PHIM_TOI_DA; i++) {
+    const t = tepPhim(i);
+    if (t) ra.push(t);
+  }
+  return ra;
+}
+
+/** Ô trống đầu tiên, hoặc 0 nếu đã đầy. */
+function oTrong() {
+  for (let i = 1; i <= SO_PHIM_TOI_DA; i++) if (!tepPhim(i)) return i;
+  return 0;
+}
+
+/** Xoá sạch ô i — cả ba đuôi, phòng khi ô từng đổi định dạng. */
+function xoaPhim(i) {
+  const o = Number(i) || 1;
   for (const d of ['.mp4', '.webm', '.mov']) {
-    const duong = path.join(THU_MUC_DL, 'video-tong-quan' + d);
+    const duong = path.join(THU_MUC_DL, tenPhim(o, d));
     try { if (fs.existsSync(duong)) fs.unlinkSync(duong); } catch (_) { /* khoá tệp thì thôi */ }
   }
 }
@@ -977,9 +1020,10 @@ async function api(req, res, u) {
   }
 
   /* Video giới thiệu: phát trên trang Tổng quan, ai đăng nhập cũng xem được;
-   * chỉ quản lý được thay. Trả TỪNG ĐOẠN qua traTep() để tua được. */
+   * chỉ quản lý được thay. Trả TỪNG ĐOẠN qua traTep() để tua được.
+   * `?i=` chọn ô; không có thì ô 1, để đường dẫn cũ vẫn chạy. */
   if (p === '/api/video-gt' && (m === 'GET' || m === 'HEAD')) {
-    const t = tepPhim();
+    const t = tepPhim(u.searchParams.get('i'));
     if (!t) return loi(res, 404, 'Chưa có video giới thiệu.');
     if (m === 'HEAD') {
       return send(res, 200, '', { 'Content-Type': t.mime, 'Accept-Ranges': 'bytes' });
@@ -988,17 +1032,31 @@ async function api(req, res, u) {
   }
 
   if (p === '/api/video-gt-tin' && m === 'GET') {
-    const t = tepPhim();
-    if (!t) return ok(res, { co: false });
-    const st = fs.statSync(t.duong);
-    return ok(res, { co: true, ten: path.basename(t.duong), mb: Math.round(st.size / 104857.6) / 10,
-      luc: st.mtimeMs, kieu: t.mime });
+    const ds = dsPhim().map((t) => {
+      const st = fs.statSync(t.duong);
+      return { i: t.i, ten: path.basename(t.duong), mb: Math.round(st.size / 104857.6) / 10,
+        luc: st.mtimeMs, kieu: t.mime };
+    });
+    /* `co` và các trường của video ĐẦU nằm luôn ở gốc: bản cũ của trang Tổng
+     * quan đọc thẳng `t.luc` để chống đệm, và nó có thể còn nằm trong trình
+     * duyệt của ai đó chưa tải lại trang. */
+    return ok(res, Object.assign({ co: ds.length > 0, tong: ds.length, toiDa: SO_PHIM_TOI_DA, ds },
+      ds[0] || {}));
   }
 
   if (p === '/api/video-gt' && m === 'POST') {
     if (await chiQuanLy(req, res)) return;
     const kieu = String(req.headers['content-type'] || '').split(';')[0];
     if (!DUOI_PHIM[kieu]) return loi(res, 400, 'Chỉ nhận MP4 · WEBM · MOV.');
+    /* Có `?i=` là THAY đúng ô đó; không có là THÊM vào ô trống đầu tiên. Hai
+     * việc khác hẳn nhau nên không để chung một đường đoán mò. */
+    let o = Number(u.searchParams.get('i')) || 0;
+    if (o) {
+      if (!(o >= 1 && o <= SO_PHIM_TOI_DA)) return loi(res, 400, 'Ô video không hợp lệ.');
+    } else {
+      o = oTrong();
+      if (!o) return loi(res, 409, 'Đã đủ ' + SO_PHIM_TOI_DA + ' video. Gỡ bớt một cái rồi thêm.');
+    }
     const buf = await new Promise((giai, hong) => {
       const phan = [];
       let n = 0;
@@ -1015,16 +1073,23 @@ async function api(req, res, u) {
     }).catch((e) => e);
     if (buf instanceof Error) return loi(res, 400, buf.message);
     if (!buf.length) return loi(res, 400, 'Tệp rỗng.');
-    xoaPhim();
+    /* Xoá ô trước khi ghi: ô cũ có thể đang giữ đuôi khác (.webm) — không xoá
+     * thì hai tệp cùng ô cùng tồn tại và tepPhim() trả về cái cũ. */
+    xoaPhim(o);
     if (!fs.existsSync(THU_MUC_DL)) fs.mkdirSync(THU_MUC_DL, { recursive: true });
-    fs.writeFileSync(path.join(THU_MUC_DL, 'video-tong-quan' + DUOI_PHIM[kieu]), buf);
-    return ok(res, { ok: true, mb: Math.round(buf.length / 104857.6) / 10 });
+    fs.writeFileSync(path.join(THU_MUC_DL, tenPhim(o, DUOI_PHIM[kieu])), buf);
+    return ok(res, { ok: true, i: o, mb: Math.round(buf.length / 104857.6) / 10 });
   }
 
   if (p === '/api/video-gt' && m === 'DELETE') {
     if (await chiQuanLy(req, res)) return;
-    xoaPhim();
-    return ok(res, { ok: true });
+    /* Bắt buộc nói rõ ô nào. Trước đây DELETE trống nghĩa là "gỡ video" vì chỉ
+     * có một cái; giờ có nhiều thì nghĩa đó thành "xoá sạch" — một cú bấm nhầm
+     * là mất cả bộ. Thà báo lỗi. */
+    const o = Number(u.searchParams.get('i')) || 0;
+    if (!(o >= 1 && o <= SO_PHIM_TOI_DA)) return loi(res, 400, 'Thiếu ?i= — cần nói rõ gỡ video nào.');
+    xoaPhim(o);
+    return ok(res, { ok: true, i: o });
   }
 
   /* Bảng tin trên trang Tổng quan: những thông báo CÒN HIỆU LỰC của người đang

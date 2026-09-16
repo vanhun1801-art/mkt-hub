@@ -64,6 +64,11 @@ lark-kpi/du-lieu/
 # CÁI GIÁ, nhớ trước khi đổi video: mỗi bản là một khối nhị phân ~24 MB nằm lại
 # trong lịch sử git VĨNH VIỄN, kể cả sau khi xoá tệp. Đổi vài lần là kho nặng
 # thêm vài chục MB. Đổi thường xuyên thì nên chuyển sang đường Lark.
+# Nhiều video phát luân phiên: ô 1 giữ tên cũ, ô 2..5 có hậu tố số.
 !lark-mkt-hub/du-lieu/video-tong-quan.mp4
 !lark-mkt-hub/du-lieu/video-tong-quan.webm
+!lark-mkt-hub/du-lieu/video-tong-quan.mov
+!lark-mkt-hub/du-lieu/video-tong-quan-[2-5].mp4
+!lark-mkt-hub/du-lieu/video-tong-quan-[2-5].webm
+!lark-mkt-hub/du-lieu/video-tong-quan-[2-5].mov
 .git-cu/

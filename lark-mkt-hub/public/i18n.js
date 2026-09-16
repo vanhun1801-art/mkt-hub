@@ -364,6 +364,19 @@
     'Tải ảnh lên': 'Upload image',
     'Đổi ảnh': 'Replace image',
     'Gỡ': 'Remove',
+    /* --- video giới thiệu: nhiều video, phát luân phiên --- */
+    'Video giới thiệu': 'Intro video',
+    'Chưa có video': 'No video yet',
+    'Chưa đặt video nào — trang Tổng quan chỉ hiện bảng tin.':
+      'No video set — the Overview shows only the news column.',
+    'Tải video lên': 'Upload video',
+    'Thêm video': 'Add video',
+    'Thay': 'Replace',
+    'Thứ tự phát': 'Play order',
+    'Chỉ có một video nên nó lặp lại mãi. Thêm cái nữa là hai cái chạy luân phiên.':
+      'Just one video, so it loops forever. Add another and they alternate.',
+    'Đang tải video lên…': 'Uploading video…',
+    'Đã thêm video': 'Video added',
     'Thêm nhân sự': 'Add staff',
     'Sửa': 'Edit',
     'Theo email': 'By email',
@@ -806,6 +819,16 @@
    * Cho những câu ghép số/tên vào giữa. $1, $2… là nhóm bắt được.
    */
   const MAU_EN = [
+    /* --- video giới thiệu: nhãn mang số thứ tự ô --- */
+    [/^Video (\d+) · phát đầu tiên$/, 'Video $1 · plays first'],
+    [/^Video (\d+)$/, 'Video $1'],
+    [/^Chạy hết video 1 sang video 2… rồi quay lại video 1\.$/,
+      'Plays video 1, then video 2… then back to video 1.'],
+    [/^MP4 · WEBM · MOV ≤ 60 MB · tối đa (\d+) video$/, 'MP4 · WEBM · MOV, up to 60 MB · max $1 videos'],
+    [/^Đã đủ (\d+) video$/, 'All $1 slots used'],
+    [/^Đã thay video (\d+)$/, 'Video $1 replaced'],
+    [/^Đã đủ (\d+) video\. Gỡ bớt một cái rồi thêm\.$/, 'All $1 slots used. Remove one first.'],
+
     /* --- app Chỉnh ảnh & Edit video: nhãn mang con số hoặc tên nhóm --- */
     [/^Gửi tin về nhóm (.+)$/, 'Post to $1'],
     [/^nhóm (.+)$/, 'group $1'],

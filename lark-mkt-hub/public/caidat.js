@@ -297,30 +297,64 @@ function veCdToi(el) {
   }).catch(() => {});
 }
 
-/* ---------------- Video giới thiệu ---------------- */
+/* ---------------- Video giới thiệu ----------------
+ * Nhiều video, phát luân phiên trên trang Tổng quan: hết cái này sang cái kia
+ * rồi quay lại cái đầu. Thứ tự phát = thứ tự ô, và ô hiện ngay trên từng dòng
+ * để khỏi phải đoán.
+ *
+ * Mỗi dòng có "Thay" riêng chứ không chỉ có Gỡ + Thêm: thay một video giữa bộ
+ * mà phải gỡ rồi thêm thì nó rơi xuống cuối vòng, đổi mất thứ tự đang có.
+ */
 async function napCdPhim() {
   const o = $('#cdPhim');
   if (!o) return;
-  let t = { co: false };
+  let t = { co: false, ds: [], toiDa: 5 };
   try { t = await goi('/api/video-gt-tin'); } catch (_) {}
+  const ds = Array.isArray(t.ds) ? t.ds : [];
+  const toiDa = t.toiDa || 5;
+
+  const dong = (x, n) =>
+    '<div class="cd-hang"><div class="cd-hang-tx">' +
+      '<b>Video ' + n + (ds.length > 1 && n === 1 ? ' · phát đầu tiên' : '') + '</b>' +
+      '<p>' + esc(x.ten) + ' · ' + x.mb + ' MB · tải lên ' +
+        esc(new Date(x.luc).toLocaleString('vi-VN')) + '</p>' +
+      '<video class="cd-phim-xem" src="/api/video-gt?i=' + x.i + '&v=' + x.luc +
+        '" controls preload="metadata"></video>' +
+    '</div><div class="cd-hang-dk"><div class="cd-doc">' +
+      '<button class="btn nho ghost" data-phim-thay="' + x.i + '">Thay</button>' +
+      '<button class="btn nho ghost" data-phim-xoa="' + x.i + '">Gỡ</button>' +
+    '</div></div></div>';
+
   o.innerHTML =
-    (t.co
-      ? '<div class="cd-hang"><div class="cd-hang-tx"><b>Video hiện dùng</b>' +
-        '<p>' + esc(t.ten) + ' · ' + t.mb + ' MB · tải lên ' +
-          esc(new Date(t.luc).toLocaleString('vi-VN')) + '</p>' +
-        '<video class="cd-phim-xem" src="/api/video-gt?v=' + t.luc + '" controls preload="metadata"></video>' +
-        '</div><div class="cd-hang-dk"><div class="cd-doc">' +
-        '<button class="btn nho chinh" id="cdPhimChon">Đổi video</button>' +
-        '<button class="btn nho ghost" id="cdPhimXoa">Gỡ</button></div></div></div>'
+    (ds.length
+      ? ds.map((x, n) => dong(x, n + 1)).join('')
       : '<div class="cd-hang"><div class="cd-hang-tx"><b>Chưa có video</b>' +
         '<p>Chưa đặt video nào — trang Tổng quan chỉ hiện bảng tin.</p></div>' +
-        '<div class="cd-hang-dk"><button class="btn nho chinh" id="cdPhimChon">Tải video lên</button></div></div>') +
-    cdHang('Định dạng nhận vào','', '<span class="cd-nhan">MP4 · WEBM · MOV ≤ 60 MB</span>') +
+        '<div class="cd-hang-dk"><button class="btn nho chinh" id="cdPhimThem">Tải video lên</button></div></div>') +
+    (ds.length
+      ? cdHang('Thứ tự phát',
+          ds.length > 1
+            ? 'Chạy hết video 1 sang video 2… rồi quay lại video 1.'
+            : 'Chỉ có một video nên nó lặp lại mãi. Thêm cái nữa là hai cái chạy luân phiên.',
+          ds.length < toiDa
+            ? '<button class="btn nho chinh" id="cdPhimThem">Thêm video</button>'
+            : '<span class="cd-nhan">Đã đủ ' + toiDa + ' video</span>')
+      : '') +
+    cdHang('Định dạng nhận vào', '', '<span class="cd-nhan">MP4 · WEBM · MOV ≤ 60 MB · tối đa ' + toiDa + ' video</span>') +
     '<input type="file" id="cdPhimTep" accept="video/mp4,video/webm,video/quicktime" hidden>';
 
-  const chon = $('#cdPhimChon');
+  /* Một ô chọn tệp dùng chung cho cả Thêm lẫn Thay. `oDich` nhớ đang làm gì:
+   * rỗng = thêm vào ô trống kế, có số = thay đúng ô đó. */
   const oTep = $('#cdPhimTep');
-  if (chon) chon.onclick = () => oTep.click();
+  let oDich = 0;
+  const moChon = (i) => { oDich = i || 0; oTep.click(); };
+
+  const nutThem = $('#cdPhimThem');
+  if (nutThem) nutThem.onclick = () => moChon(0);
+  o.querySelectorAll('[data-phim-thay]').forEach((b) => {
+    b.onclick = () => moChon(Number(b.dataset.phimThay));
+  });
+
   if (oTep) {
     oTep.onchange = async () => {
       const f = oTep.files[0];
@@ -329,25 +363,25 @@ async function napCdPhim() {
       if (f.size > 60 * 1024 * 1024) {
         return toast('Video nặng ' + Math.round(f.size / 1048576) + ' MB — quá 60 MB. Cắt ngắn clip rồi tải lại.', 'do');
       }
-      if (chon) { chon.disabled = true; chon.textContent = 'Đang tải lên…'; }
+      toast('Đang tải video lên…');
       try {
-        await goi('/api/video-gt', { method: 'POST', headers: { 'Content-Type': f.type }, body: f });
-        toast('Đã đặt video giới thiệu', 'luc');
+        await goi('/api/video-gt' + (oDich ? '?i=' + oDich : ''),
+          { method: 'POST', headers: { 'Content-Type': f.type }, body: f });
+        toast(oDich ? 'Đã thay video ' + oDich : 'Đã thêm video', 'luc');
         napCdPhim();
       } catch (e) {
         toast(e.message, 'do');
-        if (chon) { chon.disabled = false; chon.textContent = 'Tải video lên'; }
       }
     };
   }
-  const xoa = $('#cdPhimXoa');
-  if (xoa) {
-    xoa.onclick = async () => {
-      xoa.disabled = true;
-      try { await goi('/api/video-gt', { method: 'DELETE' }); napCdPhim(); }
-      catch (e) { xoa.disabled = false; toast(e.message, 'do'); }
+
+  o.querySelectorAll('[data-phim-xoa]').forEach((b) => {
+    b.onclick = async () => {
+      b.disabled = true;
+      try { await goi('/api/video-gt?i=' + Number(b.dataset.phimXoa), { method: 'DELETE' }); napCdPhim(); }
+      catch (e) { b.disabled = false; toast(e.message, 'do'); }
     };
-  }
+  });
 }
 
 /* ---------------- Phân quyền (MỘT mục duy nhất) ----------------
