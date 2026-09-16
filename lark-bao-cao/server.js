@@ -548,7 +548,15 @@ async function api(req, res, u) {
        * chờ. Đưa lên danh sách chung của trang Tổng quan. */
       canXuLy: hoTro.slice(0, 8).map((x) => ({
         id: x.recordId,
-        ten: (x.tenNguoi || x.email || '') + ': ' + String(x.canHoTro).slice(0, 90),
+        /* `tieuDe`, KHÔNG phải `ten`: trang Tổng quan của lớp vỏ đọc đúng khoá
+         * này (app.js — `esc(v.tieuDe)`). Đặt sai tên thì việc vẫn được đếm mà
+         * thẻ hiện ra trống trơn — lỗi im lặng, chỉ lộ khi có người thật viết
+         * lời cần hỗ trợ. */
+        tieuDe: (x.tenNguoi || x.email || '') + ': ' +
+          /* Gộp mọi khoảng trắng về một dấu cách TRƯỚC khi cắt: nhân sự hay
+           * viết lời cần hỗ trợ thành nhiều dòng gạch đầu dòng, để nguyên thì
+           * thẻ một dòng nhận một khối chữ có xuống dòng. */
+          String(x.canHoTro || '').replace(/\s+/g, ' ').trim().slice(0, 90),
         muc: 'vua',
         nhan: 'Cần hỗ trợ',
       })),

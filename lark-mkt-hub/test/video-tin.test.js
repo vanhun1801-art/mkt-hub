@@ -4,7 +4,9 @@
  * VIDEO TRÊN TRANG TỔNG QUAN — phải CHẠY, chạy mãi, và có tiếng
  * ============================================================================
  * Anh Hùng: "khi anh vào mở ứng dụng thì nó không tự động chạy… xem thêm cho
- * video chạy liên tục không dừng không lỗi, mặc định mở âm thanh".
+ * video chạy liên tục không dừng không lỗi" — và sau đó đổi ý về âm thanh:
+ * "mặc định là video tắt âm thanh nha". Trang Tổng quan là chỗ mở ra xem số
+ * giữa phòng làm việc, tự phát tiếng là phiền.
  *
  * Lỗi cũ, và là loại lỗi chỉ lộ ra ở MÁY ĐÃ TỪNG BẤM: mã đọc lựa chọn "bật
  * tiếng" rồi bỏ câm NGAY từ đầu. Trình duyệt chỉ cho tự chạy khi video ĐANG
@@ -17,7 +19,8 @@
  *   1. mở ra là CÂM rồi chạy, kể cả khi người dùng đã chọn "bật tiếng";
  *   2. bỏ câm ngay khi trình duyệt cho phép, và nếu bị chặn thì lùi về câm mà
  *      VẪN CHẠY (video đứng hình là người ta tưởng app hỏng);
- *   3. mặc định là CÓ tiếng; chỉ khi người dùng tự tắt mới im.
+ *   3. mặc định là TẮT tiếng; chỉ khi người dùng tự bấm loa mới có, và lựa
+ *      chọn đó phải được nhớ cho lần sau.
  *
  * Chạy: node test/video-tin.test.js
  */
@@ -130,11 +133,24 @@ const doi = () => new Promise((r) => setImmediate(r));
     ok('nút hiện đúng trạng thái thật (tắt tiếng)', nut.textContent === '🔇', nut.textContent);
   }
   {
+    /* Mặc định: bấm cả ngày cũng vẫn im. Đây là luật anh Hùng chốt sau cùng —
+     * cửa sổ nào cũng có thể là cửa sổ đang mở giữa cuộc họp. */
     const { phim, nut, bam } = chay(null);
     await doi();
     bam();
     await doi();
-    ok('một cú bấm bất kỳ ⇒ có tiếng', phim.muted === false);
+    ok('CHƯA chọn gì ⇒ vẫn câm dù đã bấm', phim.muted === true);
+    ok('và vẫn chạy', phim.paused === false);
+    ok('nút báo đúng là đang tắt tiếng', nut.textContent === '🔇', nut.textContent);
+  }
+  {
+    /* Đã tự bấm loa từ lần trước: một cú bấm bất kỳ là có tiếng ngay, không
+     * phải đi tìm cái loa bấm lại. */
+    const { phim, nut, bam } = chay('1');
+    await doi();
+    bam();
+    await doi();
+    ok('đã bật tiếng từ trước + một cú bấm ⇒ có tiếng', phim.muted === false);
     ok('và vẫn chạy', phim.paused === false);
     ok('nút đổi theo', nut.textContent === '🔊', nut.textContent);
   }
@@ -150,10 +166,14 @@ const doi = () => new Promise((r) => setImmediate(r));
   {
     /* Quay về trang Tổng quan lần thứ hai: trang đã có cử chỉ từ trước, không
      * được bắt bấm lại lần nữa mới có tiếng. */
-    const { phim } = chay(null, { daBam: true });
+    const { phim } = chay('1', { daBam: true });
     await doi(); await doi();
-    ok('trang đã từng được bấm ⇒ có tiếng ngay', phim.muted === false);
+    ok('đã bật tiếng + trang đã từng được bấm ⇒ có tiếng ngay', phim.muted === false);
     ok('và vẫn chạy', phim.paused === false);
+    const b = chay(null, { daBam: true });
+    await doi(); await doi();
+    ok('mặc định thì quay lại bao nhiêu lần cũng vẫn câm', b.phim.muted === true);
+    ok('và vẫn chạy', b.phim.paused === false);
   }
 
   group('Trình duyệt chặn tiếng thì KHÔNG được đứng hình');

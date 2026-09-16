@@ -1131,7 +1131,7 @@ function ngayGonTin(ms) {
 }
 
 /**
- * Cho video trang Tổng quan CHẠY, chạy mãi, và có tiếng sớm nhất có thể.
+ * Cho video trang Tổng quan CHẠY, chạy mãi — và MẶC ĐỊNH KHÔNG TIẾNG.
  *
  * ĐIỀU DUY NHẤT trình duyệt cho tự chạy là video ĐANG CÂM. Chrome/Safari chặn
  * thẳng mọi lượt tự chạy có tiếng, và chặn IM LẶNG: `play()` bị từ chối, video
@@ -1145,8 +1145,11 @@ function ngayGonTin(ms) {
  *   3. chưa được thì chờ CÚ BẤM ĐẦU TIÊN ở bất kỳ đâu trên trang rồi bỏ câm.
  *      Một cú bấm là đủ để trình duyệt cho phép — anh bấm gì cũng được.
  *
- * Mặc định là CÓ TIẾNG (anh Hùng: "mặc định mở âm thanh"); tắt tiếng thì nhớ
- * lại cho lần sau.
+ * Mặc định là TẮT TIẾNG (anh Hùng: "mặc định là video tắt âm thanh").
+ * Trang Tổng quan là chỗ người ta mở ra để xem số, không phải để xem phim —
+ * tự nhiên phát tiếng giữa phòng làm việc là phiền. Ai muốn nghe thì bấm nút
+ * loa, và lựa chọn đó được nhớ cho những lần sau; chỉ khi đã bấm '1' thì bước
+ * 2-3 dưới đây mới chạy.
  *
  * "Chạy liên tục không dừng": `loop` lo phần lặp, còn lại là ba đường hỏng thật
  * đã gặp với video phát qua mạng — tab ẩn đi rồi hiện lại, luồng bị nghẽn
@@ -1154,8 +1157,8 @@ function ngayGonTin(ms) {
  * thêm một nhịp canh 5 giây làm lưới cuối.
  */
 function ganPhimTin(phim, nut) {
-  let muonTieng = true;                       // mặc định CÓ tiếng
-  try { if (localStorage.getItem('hub.tinTieng') === '0') muonTieng = false; } catch (_) {}
+  let muonTieng = false;                      // mặc định TẮT tiếng
+  try { if (localStorage.getItem('hub.tinTieng') === '1') muonTieng = true; } catch (_) {}
 
   /* Nút LUÔN vẽ theo trạng thái THẬT của thẻ video, không vẽ theo ý định.
    *
