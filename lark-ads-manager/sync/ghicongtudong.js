@@ -99,11 +99,20 @@ async function chay({ kho, from = '', to = '', ghi = () => {} }) {
   if (to) donRows = donRows.filter((r) => !r.ngay || r.ngay <= to);
 
   // Những dòng đã có trên Base, để SỬA chứ không tạo trùng.
+  //
+  // BẪY ĐÃ CẮN THẬT (17/09/2026): bản trước đọc `r.fields[...]` — cả lark.js lẫn
+  // larkapi.js đều trả record dạng { id, c }, KHÔNG có `.fields`. Nên `ma` luôn
+  // rỗng, `daCo` luôn RỖNG, và mọi lượt chạy đều tưởng "chưa từng ghi" rồi tạo
+  // dòng MỚI cho toàn bộ đơn — 12.000 dòng cho 1.463 mã đơn thật trước khi bắt
+  // được (một mã lặp tới 16 lần). Lỗi có từ trước, nhưng ghi công giờ chạy tự
+  // động (hẹn giờ + mỗi lần kéo API) nên nhân dòng nhanh hơn hẳn so với lúc còn
+  // phải bấm tay. Test không bắt được vì test không đọc thật từ Lark — nhớ khi
+  // viết test mới cho khối này.
   const daCo = new Map();
   const cu = await lark.listAll(T.sales.id);
   cu.forEach((r) => {
-    const ma = String((r.fields && (r.fields[F.orderCode] || r.fields['⚙️ Mã đơn Tourwell'])) || '').trim();
-    if (ma) daCo.set(ma, r.record_id || r.id);
+    const ma = String((r.c && r.c[F.orderCode]) || '').trim();
+    if (ma) daCo.set(ma, r.id);
   });
 
   ghi('đang xác định kênh của từng đơn từ phép ghi công…');

@@ -1139,12 +1139,14 @@ async function api(req, res, u) {
       let donRows = kho.don.rows;
       if (from) donRows = donRows.filter((r) => !r.ngay || r.ngay >= from);
       if (to) donRows = donRows.filter((r) => !r.ngay || r.ngay <= to);
+      // Cùng cách đọc với sync/ghicongtudong.js (xem ghi chú ở đó) — record của
+      // lark.listAll() là { id, c }, không phải { fields }.
       const daCo = new Map();
       try {
         const cu = await lark.listAll(T.sales.id);
         cu.forEach((r) => {
-          const ma = String((r.fields && (r.fields[F.orderCode] || r.fields['⚙️ Mã đơn Tourwell'])) || '').trim();
-          if (ma) daCo.set(ma, r.record_id || r.id);
+          const ma = String((r.c && r.c[F.orderCode]) || '').trim();
+          if (ma) daCo.set(ma, r.id);
         });
       } catch (e) { return fail(res, 400, 'Không đọc được bảng Báo cáo Sales: ' + e.message); }
       const khNhanh = ghiDT.lenKeHoach({ donRows, ghiCongTheoDon: new Map(), daCo, F });
