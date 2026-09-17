@@ -1176,6 +1176,62 @@ async function api(req, res, u) {
   }
 
   /**
+   * Phân loại lead từ hội thoại quảng cáo (Chuyển đổi / Có tiềm năng / Rác) —
+   * xem sync/roas.js, khối "phân loại hội thoại". Chỉ trả TỔNG SỐ, không tên
+   * khách/SĐT, nên mở cho mọi người xem — giống các ô ROAS khác ở Tổng quan.
+   */
+  if (p === '/api/hoi-thoai/tong' && method === 'GET') {
+    const c = roasCache.doc();
+    const ds = (c && c.kq && c.kq.hoiThoaiPhanLoai) || [];
+    const dem = { 'chuyen-doi': 0, 'tiem-nang': 0, rac: 0 };
+    ds.forEach((h) => { dem[h.nhom] = (dem[h.nhom] || 0) + 1; });
+    return ok(res, {
+      luc: c ? c.luc : null,
+      tongCong: ds.length,
+      chuyenDoi: dem['chuyen-doi'],
+      tiemNang: dem['tiem-nang'],
+      rac: dem.rac,
+    });
+  }
+
+  /**
+   * Danh sách hội thoại đã phân loại, kèm tên khách — CHỈ quản lý xem. Khác
+   * với /tong ở trên: đây là dữ liệu từng khách cụ thể, không phải con số gộp.
+   */
+  if (p === '/api/hoi-thoai' && method === 'GET') {
+    if (!laQuanLy(req)) return fail(res, 403, 'Chỉ vai quản lý mới xem được danh sách hội thoại');
+    const c = roasCache.doc();
+    const ds = (c && c.kq && c.kq.hoiThoaiPhanLoai) || [];
+    const nhom = u.searchParams.get('nhom');
+    return ok(res, {
+      luc: c ? c.luc : null,
+      rows: (nhom ? ds.filter((h) => h.nhom === nhom) : ds)
+        .slice().sort((a, b) => (a.ngay < b.ngay ? 1 : -1)),
+    });
+  }
+
+  /**
+   * Đọc nội dung tin nhắn một hội thoại — gọi Pancake NGAY LÚC BẤM, không cache
+   * (nội dung chat không nên nằm sẵn trên đĩa lâu hơn cần). CHỈ quản lý — và
+   * dùng access_token CẤP TÀI KHOẢN (phiên đăng nhập cá nhân), không phải
+   * page_access_token — xem ghi chú ở đầu sync/pancake.js.
+   */
+  if (p === '/api/hoi-thoai/tin-nhan' && method === 'GET') {
+    if (!laQuanLy(req)) return fail(res, 403, 'Chỉ vai quản lý mới xem được nội dung hội thoại');
+    const id = u.searchParams.get('id');
+    const customerId = u.searchParams.get('customerId');
+    const pageId = u.searchParams.get('pageId');
+    if (!id || !customerId || !pageId) return fail(res, 400, 'Thiếu id, customerId hoặc pageId');
+    const conf = ketnoi.read();
+    const page = (conf.pancake.pages || []).find((x) => x.pageId === pageId);
+    if (!page) return fail(res, 400, 'Không tìm thấy trang Pancake này trong cấu hình');
+    try {
+      const rows = await pancake.fetchMessages(page, conf.pancake.userToken, id, customerId);
+      return ok(res, { rows });
+    } catch (e) { return fail(res, 400, e.message); }
+  }
+
+  /**
    * Tính ROAS. Đọc đơn POS và hội thoại Pancake tại chỗ (chúng luôn tươi), ghép với
    * hai bản xuất trong kho.
    */

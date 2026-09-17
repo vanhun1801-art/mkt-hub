@@ -513,13 +513,50 @@ function roasO(salesD) {
   </div>`;
 }
 
+/**
+ * Khối "Lead từ quảng cáo" trên Tổng quan — phân loại hội thoại Pancake gắn
+ * ad_ids thành Chuyển đổi / Có tiềm năng / Rác. Ước lượng dựa trên có để lại
+ * số điện thoại và có ra đơn hay không (KHÔNG dùng tag CSKH — team chưa gắn
+ * tag nào cho việc này) — phải nói rõ đây là ước lượng, không phải số tuyệt
+ * đối, đúng nguyên tắc không đoán bừa của cả hệ thống.
+ */
+function leadO(hoiThoaiD) {
+  if (!hoiThoaiD || !hoiThoaiD.tongCong) return '';
+  const T = hoiThoaiD;
+  const ty = (n) => (T.tongCong ? Math.round((n / T.tongCong) * 100) : 0);
+  const the = (nhom, nhan, n, cls) => `<div class="kpi" style="cursor:pointer" data-nhom="${nhom}" onclick="window.__moHoiThoai('${nhom}')">
+    <div class="k-label">${nhan}</div>
+    <div class="k-value"><span class="tag ${cls}">${int(n)}</span></div>
+    <div class="k-foot">${ty(n)}% · bấm để xem danh sách</div>
+  </div>`;
+  return `<div class="card" style="margin-bottom:12px">
+    <div class="card-head"><h3>Lead từ quảng cáo (hội thoại Pancake)</h3>
+      <span class="sub">${T.luc ? 'ước lượng lúc ' + new Date(T.luc).toLocaleString('vi-VN') : ''}</span></div>
+    <div class="card-body">
+      <div class="help">
+        <b>Đây là ước lượng</b>, dựa trên có để lại số điện thoại và có ra đơn hay không —
+        không phải team tự gắn nhãn nên không tuyệt đối chính xác. ${int(T.tongCong)} hội thoại
+        có gắn quảng cáo trong lần ghi công gần nhất.
+      </div>
+      <div class="kpis" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-top:10px">
+        ${the('chuyen-doi', 'Chuyển đổi', T.chuyenDoi, 'good')}
+        ${the('tiem-nang', 'Có tiềm năng, chưa chốt', T.tiemNang, 'warn')}
+        ${the('rac', 'Rác / chưa rõ ý định', T.rac, '')}
+      </div>
+    </div>
+  </div>`;
+}
+
 VIEW['tong-quan'] = async (view) => {
-  const [d, salesD] = await Promise.all([
+  const [d, salesD, hoiThoaiD] = await Promise.all([
     api('/api/overview?' + qs()),
     // ROAS đọc từ bảng Sales trên Base (ghi công quảng cáo), không phải chỉ số
     // của riêng nền tảng — anh Hùng muốn thấy ngay ở Tổng quan, không phải lục
     // xuống tab Doanh thu & ROAS. Base lỗi/rỗng thì bỏ qua, không phá cả trang.
     api('/api/sales?' + qs()).catch(() => null),
+    // Phân loại lead từ hội thoại quảng cáo — số gộp, không tên khách, nên gọi
+    // được ngay ở đây không cần quyền quản lý.
+    api('/api/hoi-thoai/tong').catch(() => null),
   ]);
   S.alertCount = d.alerts.length;
   renderShell();
@@ -536,6 +573,7 @@ VIEW['tong-quan'] = async (view) => {
   view.innerHTML = `
   <div class="help">Số liệu ${dmy(d.range.from)} → ${dmy(d.range.to)} (${d.range.days} ngày) · kỳ trước ${dmy(d.range.prevFrom)} → ${dmy(d.range.prevTo)}</div>
   ${roasO(salesD)}
+  ${leadO(hoiThoaiD)}
   <div class="kpis">${K.map((k) => `
     <div class="kpi">
       <div class="k-label">${k.label}</div>
@@ -1751,6 +1789,58 @@ async function saveModal(path, keys) {
 
 window.closeModalGlobal = closeModal;
 window.__goTab = (id) => { S.tab = id; renderShell(); render(); };
+
+/* ---- hội thoại: danh sách theo nhóm + xem lịch sử tin nhắn ---- */
+const NHAN_NHOM_HOI_THOAI = {
+  'chuyen-doi': 'Chuyển đổi', 'tiem-nang': 'Có tiềm năng, chưa chốt', rac: 'Rác / chưa rõ ý định',
+};
+
+/** Bấm vào một ô số ở khối "Lead từ quảng cáo" → danh sách hội thoại của nhóm đó.
+ * Chỉ quản lý xem được (server chặn 403) — vì đây là dữ liệu khách cụ thể. */
+window.__moHoiThoai = async (nhom) => {
+  modal(esc(NHAN_NHOM_HOI_THOAI[nhom] || nhom), '<div class="empty">Đang tải…</div>');
+  try {
+    const d = await api('/api/hoi-thoai?nhom=' + encodeURIComponent(nhom));
+    const rows = d.rows || [];
+    modal(`${esc(NHAN_NHOM_HOI_THOAI[nhom] || nhom)} <span class="sub">(${int(rows.length)} hội thoại)</span>`,
+      table('hoiThoaiDs', [
+        { key: 'ngay', label: 'Ngày', render: (r) => dmy(r.ngay) },
+        { key: 'tenKhach', label: 'Khách', render: (r) => esc(r.tenKhach || '(không rõ tên)') },
+        { key: 'platform', label: 'Kênh', render: (r) => platTag(r.platform) },
+        { key: 'soTinNhan', label: 'Số tin', num: true, render: (r) => int(r.soTinNhan) },
+        { key: 'lyDo', label: 'Vì sao', render: (r) => `<span class="sub">${esc(r.lyDo)}</span>` },
+        {
+          key: 'act',
+          label: '',
+          noSort: true,
+          render: (r) => `<button class="btn small ghost" onclick="window.__xemHoiThoai('${esc(r.id)}','${esc(r.khachId)}','${esc(r.pageId)}')">Xem hội thoại</button>`,
+        },
+      ], rows, { sort: { key: 'ngay', dir: 'desc' }, empty: 'Không có hội thoại nào trong nhóm này' }));
+  } catch (e) {
+    modal(esc(NHAN_NHOM_HOI_THOAI[nhom] || nhom), `<div class="empty">${esc(e.message)}</div>`);
+  }
+};
+
+/** Xem lại tin nhắn thật của một hội thoại — gọi Pancake ngay lúc bấm, không cache. */
+window.__xemHoiThoai = async (id, khachId, pageId) => {
+  modal('Lịch sử hội thoại', '<div class="empty">Đang tải…</div>');
+  try {
+    const q = new URLSearchParams({ id, customerId: khachId, pageId }).toString();
+    const d = await api('/api/hoi-thoai/tin-nhan?' + q);
+    const rows = d.rows || [];
+    const chat = rows.map((m) => `
+      <div class="chat-dong ${m.laAdmin ? 'ta' : 'khach'}">
+        <div class="chat-ten">${esc(m.tenNguoiGui)}</div>
+        <div class="chat-bong">${esc(m.noiDung).replace(/\n/g, '<br>')}
+          ${(m.dinhKem || []).map((a) => `<div class="chat-dinh-kem"><a href="${esc(a.url)}" target="_blank" rel="noopener">[đính kèm]</a></div>`).join('')}
+        </div>
+        <div class="chat-luc">${m.luc ? new Date(m.luc).toLocaleString('vi-VN') : ''}</div>
+      </div>`).join('');
+    modal('Lịch sử hội thoại', `<div class="chat-khung">${chat || '<div class="empty">Không có tin nhắn nào</div>'}</div>`);
+  } catch (e) {
+    modal('Lịch sử hội thoại', `<div class="empty">${esc(e.message)}</div>`);
+  }
+};
 
 /* ---------------- khởi động ---------------- */
 $('#btnRefresh').onclick = async () => {

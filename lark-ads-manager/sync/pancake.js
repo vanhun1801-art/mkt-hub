@@ -5,9 +5,19 @@
  *
  * Hai loại token, đừng lẫn:
  *   - access_token       (cấp tài khoản)  https://pages.fm/api/v1/...
- *                        Hết hạn tối đa 90 ngày. Chỉ dùng để liệt kê page.
+ *                        Hết hạn tối đa 90 ngày (JWT có claim `exp`, giải mã ra
+ *                        thấy ngay). Dùng để liệt kê page, VÀ để đọc nội dung
+ *                        tin nhắn (fetchMessages) — endpoint đó không nằm ở v2,
+ *                        đã dò bằng tay: /api/v1/pages/{id}/conversations/{id}
+ *                        /messages?customer_id=...&access_token=... (thiếu
+ *                        customer_id thì Pancake báo "Thiếu mã khách hàng").
+ *                        Vì token này gắn với phiên đăng nhập cá nhân nên
+ *                        fetchMessages() PHẢI gọi theo yêu cầu bấm tay của
+ *                        quản lý, không được đưa vào việc chạy tự động — hết
+ *                        hạn giữa chừng một việc nền không ai giám sát là dở.
  *   - page_access_token  (cấp page)       https://pages.fm/api/public_api/v2/...
- *                        KHÔNG hết hạn. Đây là thứ app dùng để chạy lâu dài.
+ *                        KHÔNG hết hạn. Đây là thứ app dùng để chạy lâu dài
+ *                        (đọc danh sách hội thoại, chạy tự động không cần ai).
  * Cả hai truyền bằng query param, không có Authorization header.
  *
  * Giới hạn: 5 request/giây cho MỖI page (tính riêng từng page_id).
@@ -198,6 +208,85 @@ async function fetchConversations(page, from, to, log = () => {}) {
 }
 
 function nghi(ms) { return new Promise((r) => setTimeout(r, ms)); }
+
+/**
+ * Đọc TOÀN BỘ tin nhắn của một hội thoại — dùng khi quản lý bấm "Xem hội
+ * thoại", KHÔNG dùng cho việc chạy hàng loạt (mỗi cuộc gọi một lần, và
+ * access_token là phiên đăng nhập cá nhân, không nên gọi nhiều vô tội vạ).
+ *
+ * @param page        { pageId }
+ * @param accessToken access_token CẤP TÀI KHOẢN (ketnoi.read().pancake.userToken)
+ * @param conversationId  id hội thoại — đúng field `id` từ fetchConversations()
+ * @param customerId      mã khách hàng — đúng field `khachId` từ fetchConversations()
+ */
+async function fetchMessages(page, accessToken, conversationId, customerId) {
+  if (!page || !page.pageId) throw new Error('Thiếu pageId');
+  if (!accessToken) {
+    throw new Error('Chưa có access_token cấp tài khoản (Pancake → Ảnh đại diện → Cài đặt cá nhân → '
+      + 'API Access Token) — token này khác page_access_token, cần để đọc NỘI DUNG tin nhắn.');
+  }
+  if (!conversationId) throw new Error('Thiếu conversationId');
+  if (!customerId) throw new Error('Thiếu customerId (Pancake gọi là "mã khách hàng")');
+  hideSecret(accessToken);
+  const url = `${BASE_USER}/pages/${encodeURIComponent(page.pageId)}/conversations/`
+    + `${encodeURIComponent(conversationId)}/messages?`
+    + qs({ customer_id: customerId, access_token: accessToken });
+  const res = await getJson(url, { label: `Pancake tin nhắn ${page.pageId}`, retries: 1 });
+  if (res && res.success === false) throw new Error(scrub(res.message || 'Pancake trả về success=false'));
+  const list = (res && res.messages) || [];
+  /* Pancake chèn thêm "tin nhắn" giả cho mốc quảng cáo (khách bấm quảng cáo
+   * nào, đến từ TikTok Ads nào) — id bắt đầu bằng `ttads_`, nội dung rỗng hoặc
+   * chỉ ghi "Tiktok Ads", không phải khách/nhân viên thật sự nói gì. Lẫn vào
+   * khung chat là gây khó hiểu, nên lọc bỏ TRƯỚC khi trả ra ngoài. */
+  const thatSu = list.filter((m) => !String(m.id || '').startsWith('ttads_'));
+  return thatSu.map(chuanHoaTinNhan)
+    // Tin không có chữ, không có đính kèm xem được (ảnh) — thường là loại
+    // Pancake tự nhận "Unsupported message type" (sticker/thoại video TikTok
+    // không đọc được nội dung) — không có gì để hiện thì bỏ, đỡ rối khung chat.
+    .filter((m) => m.noiDung || m.dinhKem.length)
+    .sort((a, b) => (a.luc < b.luc ? -1 : a.luc > b.luc ? 1 : 0));
+}
+
+/**
+ * HTML tin nhắn Pancake trả về dạng `<div>...<br key='n_0' />...</div>` — bỏ
+ * hết thẻ, giữ lại xuống dòng, KHÔNG giữ nguyên HTML (nội dung là chữ khách
+ * gõ, không kiểm soát được — giữ HTML là mở cửa XSS khi giao diện render ra).
+ * Client vẫn phải `esc()` chuỗi trả về ở đây trước khi chèn vào DOM.
+ */
+function rutGonHtml(html) {
+  return String(html == null ? '' : html)
+    .replace(/<br\s*[^>]*>/gi, '\n')
+    .replace(/<\/(p|div)>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+/** Rút gọn một tin nhắn thô của Pancake. `laAdmin` phân biệt tin của page (có
+ * `from.admin_name`) với tin của khách (không có, chỉ có `from.name`). */
+function chuanHoaTinNhan(m) {
+  const laAdmin = !!(m.from && m.from.admin_name);
+  const dinhKem = (m.attachments || []).filter(Boolean).map((a) => ({
+    loai: a.type || (a.url ? 'anh' : 'khac'),
+    url: a.url || (a.payload && a.payload.url) || '',
+  })).filter((a) => a.url);
+  return {
+    id: m.id,
+    laAdmin,
+    tenNguoiGui: laAdmin ? (m.from.admin_name || '') : ((m.from && m.from.name) || 'Khách'),
+    noiDung: rutGonHtml(m.message),
+    luc: m.inserted_at || '',
+    dinhKem,
+  };
+}
+
+
 
 /** Rút gọn hội thoại về đúng những gì cần cho việc đo. */
 function chuanHoa(c, page) {
@@ -552,7 +641,7 @@ function ghepVoiChiTieu(gomTheoAd, data, { from, to } = {}) {
 }
 
 module.exports = {
-  danhSachPage, danhSachTag, fetchConversations, test,
+  danhSachPage, danhSachTag, fetchConversations, fetchMessages, test,
   theoAdVaNgay, phanLoaiId, ghepVoiChiTieu, laKeyPOS,
   chuanSdt, chuanNenTang, doanNenTang, ngayVN, dauNgay, cuoiNgay,
 };

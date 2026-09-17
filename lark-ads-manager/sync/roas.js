@@ -171,6 +171,51 @@ function tinh({ posRows = [], hoiThoaiRows = [], leadRows = [], donRows = [], da
     ghi(o, lead);
   });
 
+  /* ---------- phân loại hội thoại (chất lượng lead từ quảng cáo) ----------
+   * Ba nhóm theo ĐÚNG yêu cầu: dựa vào có để lại số điện thoại và có ra đơn
+   * hay không — KHÔNG dùng tag CSKH (team chưa gắn tag nào cho việc này, gắn
+   * tay thì cảm tính và dễ sai). Chỉ xét hội thoại INBOX có gắn ad_ids: hội
+   * thoại không đến từ quảng cáo không thuộc câu hỏi "lead quảng cáo".
+   *
+   * ĐỘC LẬP với phần ghi công doanh thu ở trên (không dùng chung `daDungDon`):
+   * ghi công doanh thu không được đếm một đơn hai lần, nhưng "khách này từng
+   * mua chưa" thì hai hội thoại của cùng một khách được phép cùng trả lời
+   * "có" — đó là hai câu hỏi khác nhau, không phải cùng một phép tính.
+   *
+   * `nguonPhanLoai: 'heuristic'` cố tình để riêng một trường — chỗ cắm sau
+   * này nếu có AI đọc hội thoại đánh giá lại, không phải sửa lại hình dạng dữ
+   * liệu ở nơi khác đang dùng nó. */
+  const coDonTrongCuaSo = (sdtList) => sdtList.some((p) => {
+    const leads = leadTheoSdt.get(p) || [];
+    return leads.some((lead) => (donTheoKH.get(lead.kh) || []).some((d) => {
+      if (!d.ngay || !lead.ngay) return false;
+      const tre = cachNgay(lead.ngay, d.ngay);
+      return tre >= 0 && tre <= cuaSo;
+    }));
+  });
+  const hoiThoaiPhanLoai = hoiThoaiRows
+    .filter((h) => h.type === 'INBOX' && (h.adIds || []).length)
+    .map((h) => {
+      const sdt = (h.sdt || []).filter(Boolean);
+      const coLienHe = !!h.coSdt || sdt.length > 0;
+      let nhom = 'rac';
+      let lyDo = 'Không để lại số điện thoại';
+      if (coLienHe) {
+        nhom = 'tiem-nang';
+        lyDo = 'Có để lại số điện thoại, chưa thấy ra đơn';
+        if (sdt.length && coDonTrongCuaSo(sdt)) {
+          nhom = 'chuyen-doi';
+          lyDo = 'Số điện thoại đã ghép được với đơn hàng';
+        }
+      }
+      return {
+        id: h.id, pageId: h.pageId || '', khachId: h.khachId || '', ngay: h.ngay,
+        adIds: h.adIds || [], platform: h.platform || '',
+        soTinNhan: h.soTinNhan || 0, tenKhach: h.tenKhach || '',
+        nhom, lyDo, nguonPhanLoai: 'heuristic',
+      };
+    });
+
   /* ---------- lý do "Khác" cho từng đơn chưa ghép được ----------
    * Chỉ để GIẢI THÍCH cho người đọc, không ảnh hưởng tới số tiền/ROAS ở trên.
    * Ba nhóm theo thứ tự kiểm: không có lead nào của khách → có lead nhưng đơn
@@ -272,6 +317,8 @@ function tinh({ posRows = [], hoiThoaiRows = [], leadRows = [], donRows = [], da
     },
     /* Lý do "Khác" cho từng đơn — xem giải thích ở khối tính phía trên. */
     lyDoTheoDon: [...lyDoTheoDon.entries()].map(([ma, lyDo]) => ({ ma, lyDo, lyDoText: NHAN_LY_DO[lyDo] })),
+    /* Phân loại lead từ hội thoại quảng cáo — xem giải thích ở khối tính phía trên. */
+    hoiThoaiPhanLoai,
   };
 }
 

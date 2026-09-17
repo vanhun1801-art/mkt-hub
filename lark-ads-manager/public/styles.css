@@ -260,6 +260,19 @@ table.tbl tfoot td { font-weight: 700; background: var(--panel-2); border-top: 2
 .modal-head h3 { margin: 0; font-size: 16px; }
 .modal-body { padding: 18px; }
 .modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 18px; border-top: 1px solid var(--line); position: sticky; bottom: 0; background: var(--panel); }
+
+/* ---------- lịch sử hội thoại (chat) ---------- */
+.chat-khung { display: flex; flex-direction: column; gap: 10px; max-height: 60vh; overflow-y: auto; }
+.chat-dong { max-width: 78%; }
+.chat-dong.ta { align-self: flex-end; text-align: right; }
+.chat-dong.khach { align-self: flex-start; }
+.chat-ten { font-size: 11px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; margin-bottom: 3px; }
+.chat-bong { display: inline-block; padding: 8px 12px; border-radius: 12px; font-size: 13.5px; line-height: 1.45; white-space: pre-wrap; text-align: left; }
+.chat-dong.ta .chat-bong { background: var(--brand); color: #fff; border-bottom-right-radius: 3px; }
+.chat-dong.khach .chat-bong { background: var(--panel-2); border: 1px solid var(--line); color: var(--ink); border-bottom-left-radius: 3px; }
+.chat-luc { font-size: 10.5px; color: var(--ink-3); margin-top: 3px; }
+.chat-dinh-kem { margin-top: 4px; font-size: 12px; }
+.chat-dinh-kem a { text-decoration: underline; }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 @media (max-width: 620px) { .form-grid { grid-template-columns: 1fr; } }
 .field { display: flex; flex-direction: column; gap: 5px; }
