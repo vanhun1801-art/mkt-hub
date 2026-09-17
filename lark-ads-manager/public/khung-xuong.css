@@ -89,7 +89,8 @@
 .kx-chu.to  { height: 15px; }
 .kx-chu.nho { height: 10px; }
 .kx-so   { height: 20px; width: 56px; border-radius: 6px; margin-top: 3px; }
-.kx-so.to { height: 30px; width: 84px; }
+.kx-so.to  { height: 30px; width: 84px; }
+.kx-so.nho { height: 16px; width: 42px; }
 .kx-nut  { height: 28px; width: 76px; border-radius: 9px; }
 .kx-anh  { width: 100%; height: 100%; border-radius: 10px; }
 
@@ -145,3 +146,34 @@
 }
 .kx-lich-luoi > .kx { height: 82px; border-radius: 10px; }
 .kx-lich-thu > .kx { height: 11px; }
+
+/* ---- thêm mấy hình dạng mà chín app con thật sự đang dùng ----
+   Đo trên màn đầu của từng app chứ không bịa: Bảng công việc là ba cột danh
+   sách việc, KPI là một lưới ô số nhỏ dày đặc, Chỉnh ảnh là form lớn bên trái +
+   danh sách bên phải, Báo cáo là hai khối form chồng nhau. Vẽ "bốn thẻ + một
+   bảng" cho tất cả thì khung xương lại là một giao diện KHÁC — đúng chỗ anh
+   Hùng nói không khớp.
+
+   Tên `kx-nhieu-cot` chứ không phải `kx-cot`: `.kx-cot` đã là một cột dọc đơn
+   giản ở trên rồi, trùng tên là hai luật đè nhau. */
+.kx-nhieu-cot {
+  display: grid; grid-template-columns: repeat(var(--kx-n, 3), minmax(0, 1fr)); gap: 12px;
+}
+.kx-nhieu-cot > div { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.kx-2cot { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; align-items: start; }
+@media (max-width: 900px) {
+  .kx-nhieu-cot, .kx-2cot { grid-template-columns: 1fr; }
+}
+
+/* Lưới ô số nhỏ, dày (màn KPI: mười mấy ô trên một khối) */
+.kx-luoi-nho {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 10px;
+}
+
+/* Khối lớn liền: form, biểu đồ, lịch — chỗ mà nội dung thật là một mảng liền */
+.kx-khoi {
+  background: var(--kx-mat); border: 1px solid var(--kx-vien);
+  border-radius: 12px; padding: 14px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.kx-khoi > .kx { flex: 0 0 auto; }

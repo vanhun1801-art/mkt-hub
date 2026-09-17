@@ -59,12 +59,64 @@
         '<div style="padding:5px 0">' + KX.chu(rong(i), 'nho') + '</div>') + '</div>';
     },
 
-    /* ---- ô số trong một base (.the-luoi > .the) — RIÊNG LỚP VỎ ---- */
+    /** n cột, mỗi cột một tiêu đề + m thẻ (màn "Cần xử lý" của Bảng công việc). */
+    cot(n, m) {
+      return '<div class="kx-nhieu-cot" style="--kx-n:' + (n || 3) + '">' +
+        lap(n || 3, (c) => '<div>' + KX.chu(rong(c), 'to') +
+          lap(m || 3, (i) => '<div class="kx-khoi">' + KX.chu(rong(i + c)) +
+            '<div class="kx-hang" style="gap:6px">' + el('kx-nut', 'width:52px;height:18px') +
+            el('kx-nut', 'width:66px;height:18px') + '</div></div>') +
+          '</div>') + '</div>';
+    },
+
+    /** Lưới ô số nhỏ và dày — màn KPI có mười mấy ô như vậy trên một khối. */
+    luoiNho(n) {
+      return '<div class="kx-luoi-nho">' + lap(n || 12, (i) =>
+        '<div class="kx-the">' + KX.chu(rong(i), 'nho') + KX.so() +
+        '<div style="margin-top:6px">' + KX.chu('52%', 'nho') + '</div></div>') + '</div>';
+    },
+
+    /** Một khối liền: form, biểu đồ, lịch. `cao` là chiều cao của mảng liền đó. */
+    khoi(cao, dong) {
+      return '<div class="kx-khoi">' + KX.chu('32%', 'to') +
+        lap(dong || 0, (i) => KX.chu(rong(i))) +
+        (cao ? el('', 'height:' + cao + 'px;border-radius:10px') : '') + '</div>';
+    },
+
+    /** Hai cột 2:1 — form bên trái, danh sách bên phải (màn Chỉnh ảnh). */
+    hai(trai, phai) {
+      return '<div class="kx-2cot"><div>' + trai + '</div><div>' + phai + '</div></div>';
+    },
+
+    /* ---- ô số trong một base (.the-luoi > .the) — RIÊNG LỚP VỎ ----
+       Thẻ base THẬT không phải một lưới ô đều nhau: nó có MỘT ô chính rộng hết
+       hàng với con số 30px, rồi mới tới mấy ô phụ nhỏ, và dưới cùng thường là
+       dòng "Không có: …". Vẽ đều nhau là khung xương không khớp giao diện thật —
+       lúc số về, cả thẻ nhảy một nhịp.
+
+       `h` là HÌNH của base đó ở lần mở trước (lớp vỏ nhớ ở localStorage):
+         { o: số ô, chinh: có ô chính không, khong: có dòng "Không có" không } */
+    theTheo(h) {
+      const hinh = h || {};
+      const soO = Math.max(1, Math.min(12, hinh.o || 5));
+      const coChinh = hinh.chinh !== false;
+      const soPhu = Math.max(0, soO - (coChinh ? 1 : 0));
+      /* Dùng CHÍNH lớp .nhan/.so của ô thật: hai lớp đó mới là thứ đặt ô chính
+         vào đúng ô lưới (xem `.the.chinh .nhan` trong styles.css). */
+      const oChinh = '<div class="the chinh">' +
+        el('nhan kx-chu nho', 'width:44%') +
+        el('so kx-so to') + '</div>';
+      const oPhu = (i) => '<div class="the phu kx-the">' +
+        el('nhan kx-chu nho', 'width:' + rong(i)) +
+        el('so kx-so nho') + '</div>';
+      return '<div class="the-luoi">' + (coChinh ? oChinh : '') +
+        lap(soPhu, (i) => oPhu(i)) + '</div>' +
+        (hinh.khong ? '<div class="the-khong">' + KX.chu('38%', 'nho') + '</div>' : '');
+    },
+
+    /** Bản không có trí nhớ: hình trung bình của một thẻ base. */
     the(n) {
-      return '<div class="the-luoi">' +
-        lap(n || 6, (i) => '<div class="the kx-the">' +
-          KX.chu(rong(i) , 'nho') + KX.so() + '</div>') +
-        '</div>';
+      return KX.theTheo({ o: n || 5, chinh: true, khong: true });
     },
 
     /* ---- đầu khối: ô icon + tên + dòng phụ ----
@@ -168,4 +220,57 @@
   };
 
   global.KX = KX;
+
+  /* ============================================================
+     TRÍ NHỚ CHIỀU CAO — cho app con, không phải viết thêm dòng JS nào
+
+     Hình dạng thì đoán được (mấy thẻ, mấy dòng), nhưng CHIỀU CAO thật thì
+     không: dòng bảng có dòng hai tầng, thẻ có ghi chú, có cái không. Nên phần
+     tử nào gắn `data-kx-cao="<tên>"` sẽ được:
+       1. chừa sẵn đúng chiều cao của lần mở trước;
+       2. đo lại chiều cao THẬT ngay khi nội dung thật thay vào chỗ đó.
+
+     Nhờ vậy khung xương của app con cũng không làm trang nhảy, mà mỗi app chỉ
+     phải thêm đúng một thuộc tính trong HTML.
+     ============================================================ */
+  const KHOA = (t) => 'kx.cao.' + t;
+
+  function docCao(ten) {
+    try { return JSON.parse(localStorage.getItem(KHOA(ten)) || 'null'); } catch (_) { return null; }
+  }
+  function ghiCao(ten, v) {
+    try { localStorage.setItem(KHOA(ten), JSON.stringify(v)); } catch (_) {}
+  }
+
+  function ganCao() {
+    document.querySelectorAll('[data-kx-cao]').forEach((el) => {
+      const ten = el.getAttribute('data-kx-cao');
+      const cu = docCao(ten);
+      /* Số cột đổi theo bề ngang cửa sổ, nên chiều cao đo ở màn rộng đem áp cho
+         màn hẹp còn sai hơn là không áp. */
+      if (cu && cu.cao && Math.abs((cu.w || 0) - window.innerWidth) < 140) {
+        el.style.minHeight = cu.cao + 'px';
+      }
+      let hen = 0;
+      const mo = new MutationObserver(() => {
+        if (el.querySelector('.kx')) return;      // vẫn đang là khung xương
+        clearTimeout(hen);
+        /* Chờ một nhịp rồi mới đo: nội dung thật hay vẽ làm nhiều lượt (bảng
+           xong rồi mới tới biểu đồ), đo ở lượt đầu là nhớ một chiều cao hụt. */
+        hen = setTimeout(() => {
+          el.style.minHeight = '';
+          const cao = Math.round(el.getBoundingClientRect().height);
+          if (cao > 80) ghiCao(ten, { cao, w: window.innerWidth });
+          mo.disconnect();
+        }, 400);
+      });
+      mo.observe(el, { childList: true, subtree: true });
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', ganCao);
+  } else {
+    ganCao();
+  }
 })(window);

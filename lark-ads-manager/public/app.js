@@ -972,6 +972,7 @@ VIEW['doanh-thu'] = async (view) => {
     <div class="card-head"><h3>Hiệu quả theo kênh</h3><span class="sub">${dmy(d.from)} → ${dmy(d.to)}</span></div>
     <div class="card-body tight">${table('salesTbl', cols, d.byChannel, { footer: true, empty: 'Bảng Báo cáo Sales chưa có dữ liệu trong khoảng này' })}</div>
   </div>
+  <div id="donTrungKhoi" style="margin-top:14px"></div>
   ${d.rows.length ? `<div class="card" style="margin-top:14px">
     <div class="card-head"><h3>Đơn gần nhất</h3>
       <span class="sub">${S.chiXemQC ? d.rows.filter((r) => r.laQuangCao).length + '/' : ''}${d.rows.length} bản ghi</span></div>
@@ -998,7 +999,61 @@ VIEW['doanh-thu'] = async (view) => {
   if (chk) chk.onchange = (e) => { S.chiXemQC = e.target.checked; render(); };
 
   await roasVe();
+  await donTrungVe();
 };
+
+/**
+ * Khối "Dọn đơn trùng" — vá hậu quả của bẫy ghi trùng đã sửa 17/09/2026 (server
+ * đọc sai field nên mọi lượt ghi công đều tạo dòng mới thay vì sửa dòng cũ).
+ * Chỉ quản lý mới thấy/xoá được — đọc cả bảng Sales là việc nặng và đây là thao
+ * tác xoá dữ liệu thật, không phải thứ hiện ra cho ai cũng bấm được.
+ */
+async function donTrungVe() {
+  const khoi = $('#donTrungKhoi');
+  if (!khoi) return;
+  let tt;
+  try { tt = await api('/api/roas/don-trung', { method: 'POST', body: JSON.stringify({ xemTruoc: true }) }); }
+  catch (e) { khoi.innerHTML = ''; return; } // không phải quản lý → server trả 403, im lặng ẩn khối này
+  if (!tt.soDongSeXoa) { khoi.innerHTML = ''; return; } // sạch, không có gì để dọn
+
+  khoi.innerHTML = `<div class="card">
+    <div class="card-head"><h3>Đơn ghi trùng trên Base</h3>
+      <span class="sub" style="color:var(--bad)">cần dọn</span></div>
+    <div class="card-body">
+      <div class="help" style="border-color:var(--bad);color:var(--bad)">
+        Bảng "Báo cáo Sales" có <b>${int(tt.tongDong)}</b> dòng nhưng chỉ <b>${int(tt.soMaDuyNhat)}</b> mã đơn
+        thật — <b>${int(tt.soMaBiTrung)}</b> mã bị ghi trùng, dư ra <b>${int(tt.soDongSeXoa)}</b> dòng
+        (hậu quả của lỗi đọc sai field vừa vá — mỗi lượt ghi công tự động trước đây tạo dòng mới thay vì
+        sửa dòng cũ). Trùng nhiều nhất:
+        ${tt.mauTrungNhieuNhat.map((x) => `<code>${esc(x.ma)}</code> ×${x.soDong}`).join(', ')}.
+      </div>
+      <div class="help">
+        Dọn sẽ giữ đúng <b>1 dòng cho mỗi mã đơn</b>, xoá phần dư — không đoán "dòng nào đúng hơn":
+        dòng giữ lại tự được cập nhật đúng ở lượt ghi công kế tiếp (đã vá lỗi). Không đơn nào bị mất,
+        chỉ mất bản sao thừa.
+      </div>
+      <button class="btn primary" id="btnDonTrung">Dọn ${int(tt.soDongSeXoa)} dòng trùng</button>
+      <div id="donTrungKq" style="margin-top:10px"></div>
+    </div>
+  </div>`;
+
+  $('#btnDonTrung').onclick = async (e) => {
+    const cauHoi = `Sẽ XOÁ ${tt.soDongSeXoa} dòng trùng trên bảng "Báo cáo Sales", giữ lại đúng 1 dòng`
+      + ` cho mỗi ${tt.soMaDuyNhat} mã đơn. Không xoá đơn nào có mã duy nhất. Không thể hoàn tác.\n\nTiếp tục?`;
+    if (!confirm(cauHoi)) return;
+    const b = e.currentTarget; const cu = b.textContent;
+    b.disabled = true; b.textContent = 'Đang xoá…';
+    try {
+      const r = await api('/api/roas/don-trung', { method: 'POST', body: JSON.stringify({ xemTruoc: false }) });
+      $('#donTrungKq').innerHTML = `<div class="help" style="border-color:var(--good);color:var(--good)">
+        Đã xoá <b>${int(r.daXoa)}</b> dòng trùng. Bấm <b>Làm mới</b> ở đầu trang để thấy số đúng.</div>`;
+      toast(`Đã xoá ${r.daXoa} dòng trùng`, 'ok');
+    } catch (err) {
+      toast(err.message, 'err');
+      b.disabled = false; b.textContent = cu;
+    }
+  };
+}
 
 /**
  * Câu nhỏ trên bảng "Đơn gần nhất": ghi công quảng cáo lên Base là việc TAY

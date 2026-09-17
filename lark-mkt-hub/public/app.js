@@ -1435,6 +1435,128 @@ function ganPhimTin(phims, nut, ds) {
     if (!document.hidden && S.view === 'home' && dang().paused) chay();
   }, 5000);
 }
+/* ============================================================
+   TRÍ NHỚ HÌNH DẠNG TRANG TỔNG QUAN
+
+   Khung xương vẽ "hình trung bình" thì vẫn không khớp giao diện thật: base này
+   có ô chính + 5 ô phụ + dòng "Không có", base kia chỉ 3 ô; mà số base thì tuỳ
+   người đăng nhập. Nên lớp vỏ GHI LẠI hình của lần mở trước (chỉ hình: tên,
+   icon, màu, số ô — KHÔNG có con số nào) rồi dựng đúng hình đó trong lúc chờ.
+
+   Người trong phòng mở app mỗi ngày, nên từ lần thứ hai trở đi khung xương
+   trùng khít trang thật: dữ liệu về chỉ việc điền số vào, không ô nào xê dịch.
+   ============================================================ */
+const KHOA_HINH = 'hub.hinh.v2';
+const KHOA_VIEC = 'hub.soviec';
+
+/** Số dòng của khối "Cần xử lý ngay" ở lần mở trước (mặc định 5). */
+function soViecCu() {
+  try {
+    const n = Number(localStorage.getItem(KHOA_VIEC));
+    return n >= 1 && n <= 12 ? n : 5;
+  } catch (_) { return 5; }
+}
+
+/** { the: [...thẻ base...], canhBao: px, cxl: px } — null nếu chưa nhớ gì. */
+function docHinh() {
+  try {
+    const d = JSON.parse(localStorage.getItem(KHOA_HINH) || 'null');
+    return d && Array.isArray(d.the) && d.the.length ? d : null;
+  } catch (_) { return null; }
+}
+
+function luuHinh(ds) {
+  try { localStorage.setItem(KHOA_HINH, JSON.stringify(ds)); } catch (_) {}
+}
+
+/* Chiều cao thẻ là thứ DUY NHẤT không đoán được từ số ô: ô cảnh báo có thêm
+ * dòng ghi chú, ô tiền có dòng "thực tế…", ô nào không có thì không. Nên đo
+ * thẳng chiều cao thật sau khi vẽ rồi dựng lại đúng bấy nhiêu.
+ *
+ * Kèm bề ngang cửa sổ lúc đo: số cột đổi theo bề ngang, nên chiều cao đo ở màn
+ * rộng mà đem áp cho màn hẹp là sai hơn cả không áp. */
+function caoNho(h) {
+  return h && h.cao && Math.abs((h.w || 0) - window.innerWidth) < 140
+    ? ' style="min-height:' + h.cao + 'px"' : '';
+}
+
+/** Đo chiều cao thật của từng thẻ base, NGAY sau khi vừa vẽ xong.
+ *
+ * Đo thẳng chứ không chờ requestAnimationFrame: rAF KHÔNG chạy khi tab đang ở
+ * nền, mà tab nền lại đúng là lúc trang tự vẽ lại theo nhịp 60 giây. Đã đo được:
+ * mở app rồi chuyển sang tab khác thì trí nhớ mãi mãi không có chiều cao.
+ * `getBoundingClientRect` ép trình duyệt tính bố cục ngay — nó vẫn phải tính
+ * trước khi sơn, nên chỉ là làm sớm hơn vài mili giây, mỗi 60 giây một lần. */
+function doCaoThe(body, the) {
+  const cao = (e) => (e ? Math.round(e.getBoundingClientRect().height) : 0);
+  const o = body.querySelectorAll('.luoi-base > .nhom-base');
+  the.forEach((h, i) => {
+    if (o[i]) { h.cao = cao(o[i]); h.w = window.innerWidth; }
+  });
+  luuHinh({
+    the,
+    /* Hai khối còn lại cũng phải chừa chỗ, nếu không trang vẫn nhảy ~250px lúc
+     * số về: băng "bộ lọc đang che N việc gấp" (có hay không tuỳ bộ lọc) và
+     * khối "Cần xử lý ngay" (cao theo số dòng, mà dòng thì cao thấp khác nhau
+     * — nhớ chiều cao thật vẫn đúng hơn là nhân số dòng với chiều cao đoán). */
+    canhBao: cao(body.querySelector(':scope > .canh-bao')),
+    tai: cao(body.querySelector(':scope > .khoi-tai.co-so')),
+    cxl: cao(body.querySelector(':scope > .khoi:not(.khoi-tai)')),
+  });
+}
+
+/** Panel base dựng theo trí nhớ: đúng số base, đúng tên, đúng icon.
+ *
+ * Hiện TÊN THẬT chứ không phải mấy vạch xám: tên base là thứ lớp vỏ chắc chắn
+ * nhất (nó không đổi hàng ngày), nên bắt người ta nhìn vạch xám ở đây là giấu đi
+ * một thông tin đã có sẵn. Mục chưa bấm được — veRail() gắn link khi /api/hub
+ * về, chừng 100ms sau. */
+function veRailXuong() {
+  const H = docHinh();
+  const hinh = H && H.the;
+  const nav = $('#railNav');
+  if (!nav || !hinh || !window.KX) return false;
+  nav.innerHTML =
+    '<div class="rail-item"><span class="ri-ic" style="background:#2b5cff22;color:#2b5cff">' +
+      icon('tong-quan') + '</span><span class="ri-tx"><b>Tổng quan chung</b></span></div>' +
+    '<div class="rail-group">Base đang quản lý</div>' +
+    hinh.map((h) => '<div class="rail-item">' +
+      '<span class="ri-ic" style="background:' + esc(h.mau || '#8b95a7') + '22;color:' +
+        esc(h.mau || '#8b95a7') + '">' + icon(h.icon) + '</span>' +
+      '<span class="ri-tx"><b>' + esc(h.ten || '') + '</b></span></div>').join('');
+  return true;
+}
+
+/** Khung xương trang Tổng quan dựng theo trí nhớ — dùng trước khi có /api/hub. */
+function veHomeXuong() {
+  const H = docHinh();
+  const body = $('#homeBody');
+  if (!body || !H || !window.KX) return false;
+  body.setAttribute('aria-busy', 'true');
+  body.innerHTML = '<div class="luoi-base">' + H.the.map((h) =>
+    '<section class="nhom-base kx-vung"' + caoNho(h) + '>' +
+    '<div class="khoi-head">' +
+    '<span class="kh-ic" style="background:' + esc(h.mau || '#8b95a7') + '22;color:' +
+      esc(h.mau || '#8b95a7') + '">' + icon(h.icon) + '</span>' +
+    '<div><h2>' + esc(h.ten || '') + '</h2></div>' +
+    '<span class="grow"></span>' + KX.nut('46px') + KX.nut('66px') + '</div>' +
+    KX.theTheo(h) + '</section>').join('') + '</div>' + xuongDuoi(H);
+  return true;
+}
+
+/** Hai khối dưới lưới base: băng cảnh báo (nếu lần trước có) và "Cần xử lý ngay". */
+function xuongDuoi(H) {
+  if (!window.KX) return '';
+  return (H.canhBao ? '<div class="canh-bao kx-vung" style="min-height:' + H.canhBao + 'px">' +
+      KX.chu('46%') + '</div>' : '') +
+    khoiTaiNhanSu() +
+    '<section class="khoi kx-vung"' + (H.cxl ? ' style="min-height:' + H.cxl + 'px"' : '') + '>' +
+    '<div class="khoi-head">' +
+    '<span class="kh-ic" style="background:#fdeaec;color:#dc2b3d">' + icon('gap') + '</span>' +
+    '<div><h2>Cần xử lý ngay</h2></div><span class="grow"></span></div>' +
+    '<div class="khoi-body"><div class="viec">' + KX.viec(soViecCu()) + '</div></div></section>';
+}
+
 function veHome() {
   const body = $('#homeBody');
   /* Trang này có HAI tầng dữ liệu về hai nhịp khác nhau: danh sách base
@@ -1450,6 +1572,9 @@ function veHome() {
 
   const byId = new Map((tq.modules || []).map((m) => [m.id, m]));
   const dsBat = S.modules.filter((m) => m.bat);
+  const HCu = docHinh();
+  const hinhCu = new Map(((HCu && HCu.the) || []).map((h) => [h.id, h]));
+  const hinhMoi = [];
 
   /* --- băng cảnh báo module lỗi --- */
   let html = '';
@@ -1472,7 +1597,8 @@ function veHome() {
     const nhan = NHAN_TT[tt.trangThai] || ['', ''];
     let noi;
     if (choSo) {
-      noi = window.KX ? KX.the(6) : '';
+      // hình của CHÍNH base này ở lần mở trước, không phải hình trung bình
+      noi = window.KX ? KX.theTheo(hinhCu.get(m.id)) : '';
     } else if (!r) {
       noi = '<div class="trong">Base này chưa có bộ đọc chỉ số. Mở app để xem chi tiết, hoặc khai <code>kpi</code> trong <code>modules.json</code>.</div>';
     } else if (!r.ok) {
@@ -1484,7 +1610,18 @@ function veHome() {
           gio(r.luc) + ') — lần đọc mới nhất lỗi: ' + esc(r.loi || '') + '</span></div>' : '');
     }
 
-    khoiBase += '<section class="nhom-base">' +
+    /* Đếm trên CHÍNH chuỗi HTML vừa dựng, không tính lại bằng tay: bộ xếp tầng
+     * (xepTheoTang) đổi luật lúc nào thì trí nhớ đổi theo lúc đó. */
+    if (!choSo) {
+      hinhMoi.push({
+        id: m.id, ten: m.ten, icon: m.icon, mau: m.mau,
+        o: (noi.match(/<div class="the /g) || []).length,
+        chinh: /<div class="the [^"]*chinh/.test(noi),
+        khong: /the-khong/.test(noi) ? 1 : 0,
+      });
+    }
+
+    khoiBase += '<section class="nhom-base"' + (choSo ? caoNho(hinhCu.get(m.id)) : '') + '>' +
       '<div class="khoi-head">' +
       '<span class="kh-ic" style="background:' + esc(m.mau) + '22;color:' + esc(m.mau) + '">' + icon(m.icon) + '</span>' +
       // dòng phụ chỉ mang số liệu module tự báo, không mô tả suông
@@ -1503,7 +1640,10 @@ function veHome() {
   html += '<div class="luoi-base">' + khoiBase + '</div>';
 
   /* --- việc gấp bị bộ lọc thời gian che đi --- */
-  if (tq.ngoaiKhoang) {
+  if (choSo && HCu && HCu.canhBao && window.KX) {
+    html += '<div class="canh-bao kx-vung" style="min-height:' + HCu.canhBao + 'px">' +
+      KX.chu('46%') + '</div>';
+  } else if (tq.ngoaiKhoang) {
     const chiTiet = (tq.modules || []).filter((r) => r.ngoaiKhoangNhan)
       .map((r) => {
         const mm = S.modules.find((x) => x.id === r.id);
@@ -1522,10 +1662,12 @@ function veHome() {
 
   /* --- cần xử lý ngay (gộp mọi base), cuộn trong khối --- */
   const cxl = tq.canXuLy || [];
+  if (!choSo) { try { localStorage.setItem(KHOA_VIEC, String(cxl.length || 1)); } catch (_) {} }
   // tổng thật (server cộng trước khi cắt); bản cũ không có trường này thì lấy tạm độ dài
   const tong = tq.canXuLyTong != null ? tq.canXuLyTong : cxl.length;
   const con = Math.max(0, tong - cxl.length);
-  html += '<section class="khoi">' +
+  html += '<section class="khoi"' +
+    (choSo && HCu && HCu.cxl ? ' style="min-height:' + HCu.cxl + 'px"' : '') + '>' +
     '<div class="khoi-head">' +
     '<span class="kh-ic" style="background:#fdeaec;color:#dc2b3d">' + icon('gap') + '</span>' +
     /* Con số phải là TỔNG THẬT, không phải độ dài danh sách đã cắt. Từng bộ đọc
@@ -1536,7 +1678,7 @@ function veHome() {
       (con ? ' · đang hiện ' + cxl.length + ' việc gấp nhất' : '') + '</div>' : '') + '</div>' +
     '<span class="grow"></span></div>' +
     '<div class="khoi-body"><div class="viec viec-cuon">' +
-    (choSo && window.KX ? KX.viec(5)
+    (choSo && window.KX ? KX.viec(soViecCu())
       : cxl.length ? cxl.map((v) => {
       const m = S.modules.find((x) => x.id === v.module);
         return dongViecHtml(v, m ? m.ten : v.module);
@@ -1548,6 +1690,7 @@ function veHome() {
     '</div></div></section>';
 
   body.innerHTML = html;
+  if (hinhMoi.length) doCaoThe(body, hinhMoi);
   /* Cờ cho trình đọc màn hình: còn khung xương thì vùng này vẫn là "đang bận". */
   if (choSo) body.setAttribute('aria-busy', 'true');
   else body.removeAttribute('aria-busy');
@@ -1615,7 +1758,10 @@ function khoiTaiNhanSu() {
       Math.round((new Date(k.den) - new Date(k.tu)) / 86400000) + 1));
     let hang = 6;
     try { hang = Math.max(3, Math.min(14, Number(localStorage.getItem('hub.tai.hang')) || 6)); } catch (_) {}
-    return '<section class="khoi"><div class="khoi-head">' +
+    const H = docHinh();
+    return '<section class="khoi khoi-tai kx-vung"' +
+      (H && H.tai ? ' style="min-height:' + H.tai + 'px"' : '') + '>' +
+      '<div class="khoi-head">' +
       '<span class="kh-ic" style="background:#eaf0ff;color:#2b5cff">' + icon('nguoi') + '</span>' +
       '<div><h2>Tải nhân sự</h2></div></div>' +
       '<div class="khoi-body">' +
@@ -1651,7 +1797,9 @@ function khoiTaiNhanSu() {
     '</span>' +
     '<span class="chu-thich"><i class="tn-diem tn-diem-tho"></i>tác nghiệp</span></div>';
 
-  return '<section class="khoi khoi-tai">' + head + '<div class="khoi-body">' +
+  /* `co-so` = bản CÓ số liệu. Phép đo chiều cao chỉ được nhìn vào bản này, chứ
+   * đo trúng bản đang chờ thì lần sau nó chừa chỗ theo chính nó — sai dần. */
+  return '<section class="khoi khoi-tai co-so">' + head + '<div class="khoi-body">' +
     (S.xem === 'ngay' ? lichTheoNgay(d) : daiNhiet(d, dinhCao)) +
     '</div></section>';
 }
@@ -2473,6 +2621,11 @@ async function khoiDongVo() {
   } catch (_) {}
 
   docLoc();
+  /* Khung xương theo trí nhớ, đặt TRƯỚC mọi lời gọi mạng: bản trong index.html
+   * chỉ là hình chung cho lần mở đầu tiên đời máy; từ lần thứ hai thì dựng đúng
+   * số base, đúng tên, đúng số ô của chính người này. */
+  veHomeXuong();
+  veRailXuong();
   S.thuTu = docThuTu();   // phải đọc TRƯỚC napHub(), nếu không lần vẽ đầu sai thứ tự
   veThanhLoc();
   // icon cho hai nút cuối panel (khai bằng data-ic trong index.html)

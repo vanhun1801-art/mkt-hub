@@ -171,12 +171,57 @@ nhấp nháy, rồi thay dữ liệu thật vào đúng chỗ đó.
 
 `KX.*` có **hai nhóm, đừng lẫn**:
 
-- **nhóm chung** — `o` `chu` `so` `nut` `oSo` `dong` `log` `bang` `man`: chỉ dùng lớp `kx-*`
+- **nhóm chung** — `o` `chu` `so` `nut` `oSo` `dong` `log` `cot` `luoiNho` `khoi` `hai` `bang`
+  `man`: chỉ dùng lớp `kx-*`
   của riêng khung xương nên **app nào cũng gọi được**;
 - **nhóm riêng của lớp vỏ** — `the` `khoiBase` `luoiBase` `viec` `tai` `rail` `tin`: mượn lớp
   bố cục của trang Tổng quan (`.the-luoi`, `.tn-hang`, `.viec-dong`…). **App con đừng gọi**:
   `.the` bên Báo cáo là thẻ báo cáo, bên lớp vỏ là ô số — gọi nhầm là ăn nhầm CSS của chính
   app đó. `test/khung-xuong.test.js` quét mọi tệp JS của chín app để canh chuyện này.
+
+### Trí nhớ hình dạng — thứ làm nó KHỚP giao diện thật
+
+Anh Hùng nhìn bản đầu và nói đúng một câu: *"nó không khớp với giao diện thật"*. Gốc của
+chuyện đó là vẽ **hình trung bình**: bốn ô đều nhau cho mọi base, bốn thẻ + một bảng cho cả
+chín app. Mà thật thì thẻ base có **một ô chính số 30px rộng hết hàng** rồi mới tới ô phụ,
+mỗi base một số ô khác nhau, và số base thì tuỳ người đăng nhập.
+
+Cách chữa: **nhớ hình của lần mở trước rồi dựng lại đúng hình đó.**
+
+- Lớp vỏ ghi `hub.hinh.v2` vào localStorage sau mỗi lần vẽ thật: mỗi base một mục
+  `{id, tên, icon, màu, số ô, có ô chính, có dòng "Không có", CHIỀU CAO thật, bề ngang cửa
+  sổ lúc đo}`, cộng chiều cao của băng cảnh báo và khối "Cần xử lý ngay".
+  **Chỉ hình, không có con số nào** — không có gì phải giấu trong localStorage.
+- Mở lại app: `veHomeXuong()` + `veRailXuong()` chạy **trước cả lời gọi mạng đầu tiên**,
+  dựng đúng số base, đúng tên, đúng icon, đúng số ô, và `min-height` đúng chiều cao cũ.
+  Đo thật: trang khung xương và trang có số liệu **cao bằng nhau từng pixel** (2520px),
+  từng khối một.
+- Số ô đếm thẳng trên chuỗi HTML vừa dựng, không tính lại bằng tay — `xepTheoTang()` đổi
+  luật lúc nào thì trí nhớ đổi theo lúc đó.
+- Chiều cao đo **ngay sau khi vẽ**, không chờ `requestAnimationFrame`: rAF không chạy khi
+  tab ở nền, mà tab nền đúng là lúc trang tự vẽ lại theo nhịp 60 giây.
+- Bề ngang cửa sổ đi kèm chiều cao: số cột đổi theo bề ngang, nên chiều cao đo ở màn rộng
+  đem áp cho màn hẹp còn sai hơn là không áp (lệch quá 140px thì bỏ).
+
+App con dùng cùng cơ chế mà **không phải viết thêm dòng JS nào**: gắn `data-kx-cao="<tên>"`
+lên thẻ bọc khung xương, `khung-xuong.js` tự chừa chiều cao cũ và tự đo lại khi nội dung
+thật thay vào (MutationObserver + chờ 400ms cho nội dung vẽ xong nhiều lượt).
+
+### Chín app con, chín hình khác nhau
+
+Hình của từng app **đo trên màn thật của nó**, không bịa:
+
+| App | Màn đầu thật | Khung xương |
+|---|---|---|
+| Bảng công việc | 6 thẻ số → 3 cột danh sách việc | `oSo(6)` + `cot(3, 3)` |
+| Lịch tác nghiệp | lưới lịch 7 cột | `kx-lich` |
+| Quảng cáo | 3 thẻ số lớn → hàng thẻ phụ → bảng | `oSo(3)` + `oSo(6)` + `dong(6)` |
+| Social | hàng thẻ số → biểu đồ → bảng | `oSo(6)` + `khoi(210)` + `dong(6)` |
+| Booking OTA | băng chú ý → 4 thẻ → bảng dài | `khoi()` + `oSo(4)` + `dong(8)` |
+| Báo cáo & KPI | băng chú ý → lưới ô số nhỏ dày | `khoi()` + `luoiNho(14)` |
+| Quỹ chi phí | 4 thẻ số → bảng dài | `oSo(4)` + `dong(10)` |
+| Chỉnh ảnh | form lớn trái + danh sách phải | `hai(khoi, khoi)` |
+| Báo cáo công việc | thẻ ngày → thẻ form lớn | ba `khoi()` chồng nhau |
 
 Ba quy ước, phá cái nào cũng mất đúng thứ vừa làm được:
 

@@ -120,7 +120,8 @@ group('Trang Tổng quan vẽ ngay khi biết danh sách base');
   ok('có cờ chờ số liệu', /const choSo = !S\.tq;/.test(APPJS));
   ok('napHub vẽ trang chủ khi chưa có số',
     /if \(!S\.tq && S\.view === 'home'\) veHome\(\)/.test(APPJS));
-  ok('ô số để khung xương khi đang chờ', /if \(choSo\) \{[\s\S]{0,80}KX\.the\(6\)/.test(APPJS));
+  ok('ô số để khung xương theo hình đã nhớ của CHÍNH base đó',
+    /KX\.theTheo\(hinhCu\.get\(m\.id\)\)/.test(APPJS));
   ok('dải nhiệt có khung xương', /KX\.tai\(hang, ngay\)/.test(APPJS));
   ok('mở app con hiện khung xương của một màn app', /KX\.man\(esc\(mod\.ten\)\)/.test(APPJS));
 
@@ -135,7 +136,8 @@ group('Trang Tổng quan vẽ ngay khi biết danh sách base');
 group('Bộ dựng khung xương mượn đúng lớp bố cục thật');
 {
   ok('lưới base dùng .luoi-base', /class="luoi-base"/.test(KXJS));
-  ok('ô số dùng .the-luoi > .the', /class="the-luoi"/.test(KXJS) && /class="the kx-the"/.test(KXJS));
+  ok('ô số dùng .the-luoi > .the',
+    /class="the-luoi"/.test(KXJS) && /class="the phu kx-the"/.test(KXJS));
   ok('dòng việc dùng .viec-dong', /class="viec-dong/.test(KXJS));
   ok('dải nhiệt dùng .tn-hang/.tn-o', /class="tn-hang"/.test(KXJS) && /'tn-o'/.test(KXJS));
   /* Bề rộng lấy theo vòng số cố định: random thì mỗi nhịp vẽ một hình khác,
@@ -149,6 +151,59 @@ group('Bộ dựng khung xương mượn đúng lớp bố cục thật');
   const chung = KXJS.slice(KXJS.indexOf('oSo(n)'), KXJS.indexOf('---- ô số trong một base'));
   ok('nhóm chung không mượn lớp bố cục của lớp vỏ',
     !/(the-luoi|tn-hang|viec-dong|luoi-base|nhom-base)/.test(chung));
+}
+
+group('Khung xương phải khớp GIAO DIỆN THẬT, không phải hình chung chung');
+{
+  /* Anh Hùng: "nó không khớp với giao diện thật". Gốc của chuyện đó là vẽ hình
+   * trung bình cho mọi chỗ. Cách chữa: NHỚ hình thật của lần mở trước rồi dựng
+   * lại đúng hình đó — nên mấy mảnh dưới đây là thứ không được mất. */
+  ok('lớp vỏ có trí nhớ hình dạng', /const KHOA_HINH = 'hub\.hinh/.test(APPJS));
+  ok('đọc/ghi trí nhớ', /function docHinh\(/.test(APPJS) && /function luuHinh\(/.test(APPJS));
+  ok('đo CHIỀU CAO thật của thẻ base', /function doCaoThe\(/.test(APPJS));
+  ok('đo thẳng, KHÔNG chờ requestAnimationFrame (tab nền không chạy rAF)',
+    !/requestAnimationFrame/.test(APPJS.slice(APPJS.indexOf('function doCaoThe('),
+      APPJS.indexOf('function doCaoThe(') + 700)));
+  ok('nhớ cả băng cảnh báo và khối Cần xử lý',
+    /canhBao: cao\(/.test(APPJS) && /cxl: cao\(/.test(APPJS));
+  ok('chừa đúng chiều cao đã nhớ', /min-height:' \+ /.test(APPJS));
+  ok('dựng khung theo trí nhớ NGAY khi mở trang',
+    APPJS.includes('veHomeXuong();') && APPJS.includes('veRailXuong();'));
+  ok('panel base hiện TÊN THẬT khi đã nhớ', /function veRailXuong\(/.test(APPJS));
+
+  /* Thẻ base thật có ô chính rộng hết hàng + ô phụ nhỏ + dòng "Không có" —
+   * không phải một lưới ô đều nhau. */
+  ok('thẻ base dựng theo hình đã nhớ', /theTheo\(h\)/.test(KXJS) || /theTheo\(hinh/.test(KXJS));
+  ok('có ô chính rộng hết hàng', /class="the chinh"/.test(KXJS));
+  ok('có dòng "Không có" khi lần trước có', /the-khong/.test(KXJS));
+
+  /* App con: mỗi app một hình riêng, và chiều cao thì nhớ bằng data-kx-cao. */
+  ok('có trí nhớ chiều cao dùng chung cho app con', /data-kx-cao/.test(KXJS));
+  ok('trí nhớ chiều cao tôn trọng bề ngang cửa sổ',
+    /Math\.abs\(\(cu\.w \|\| 0\) - window\.innerWidth\)/.test(KXJS));
+  const thieuCao = APP.filter((x) => x !== 'lark-task-manager' &&
+    !/data-kx-cao=/.test(fs.readFileSync(path.join(CHA, x, 'public', 'index.html'), 'utf8')));
+  ok('app con nào cũng nhớ chiều cao màn đầu', thieuCao.length === 0, thieuCao.join(', '));
+
+  /* Lỗi suýt gây ra: đặt tên lớp trùng. `.kx-cot` đã là "một cột dọc", mà hình
+   * nhiều cột của Bảng công việc suýt dùng lại đúng tên đó. */
+  ok('lưới nhiều cột KHÔNG trùng tên với .kx-cot',
+    /class="kx-nhieu-cot"/.test(KXJS) && /\.kx-nhieu-cot\s*\{/.test(CSS_SACH));
+
+  /* Chín app con không được dùng CHUNG một hình: đo trên màn thật thì Bảng công
+   * việc là ba cột, KPI là lưới ô nhỏ, Chỉnh ảnh là hai cột. */
+  const hinh = {};
+  for (const ten of APP) {
+    const h = fs.readFileSync(path.join(CHA, ten, 'public', 'index.html'), 'utf8');
+    const i = h.search(/<div class="kx-(man|lich) kx-vung"/);
+    hinh[ten] = i < 0 ? '' : h.slice(i, i + 4000).replace(/\s+/g, '');
+  }
+  ok('Bảng công việc dựng ba cột việc', /kx-nhieu-cot/.test(hinh['lark-task-manager']));
+  ok('KPI dựng lưới ô số nhỏ', /kx-luoi-nho/.test(hinh['lark-kpi']));
+  ok('Chỉnh ảnh dựng hai cột', /kx-2cot/.test(hinh['lark-chinh-anh']));
+  ok('Lịch tác nghiệp dựng lưới lịch', /kx-lich-luoi/.test(hinh['lark-lich-tac-nghiep']));
+  const soKhac = new Set(Object.values(hinh)).size;
+  ok('chín app KHÔNG dùng chung một hình', soKhac >= 7, soKhac + ' hình khác nhau');
 }
 
 group('Chín app con dùng đúng MỘT bản khung xương');
