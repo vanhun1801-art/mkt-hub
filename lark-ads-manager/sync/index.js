@@ -10,6 +10,7 @@ const store = require('../store');
 const ketnoi = require('./ketnoi');
 const tourwellApi = require('./tourwellapi');
 const khoRoas = require('./khoroas');
+const ghiCongTuDong = require('./ghicongtudong');
 const reconcile = require('./reconcile');
 const csv = require('./csv');
 const live = require('./live');
@@ -248,6 +249,17 @@ function startScheduler(logFn = console.log) {
             const k = await tourwellApi.keoVeKho(tw, ngayVN(NGAY_LUI_TW), ngayVN(0), () => {});
             logFn(`  [hẹn giờ] Tourwell: ${k.lead ? k.lead.dong : 0} lead, `
               + `${k.don ? k.don.dong : 0} đơn (${(k.khoang || []).join(' → ')})`);
+
+            /* Kéo xong thì tự ghi công + ghi doanh thu lên Base ngay — không đợi
+             * ai bấm tay. Bọc try riêng: Tourwell về kho là chắc chắn dù bước
+             * này lỗi, và lỗi ở đây không thuộc "đồng bộ chi tiêu" nên không kích
+             * cơ chế thử lại sau 60 giây của r.tong.loi. */
+            try {
+              const gcq = await ghiCongTuDong.chay({ kho: khoRoas.doc(), from: '', to: '', ghi: logFn });
+              logFn(`  [hẹn giờ] ghi công + ghi Base xong: tạo ${gcq.taoMoi}, sửa ${gcq.capNhat}`);
+            } catch (e) {
+              logFn('  [hẹn giờ] ghi công LỖI  ' + e.message);
+            }
           }
         }
       } catch (e) {

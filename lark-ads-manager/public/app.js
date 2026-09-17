@@ -483,8 +483,44 @@ async function veHanhDong() {
   }).join('');
 }
 
+/**
+ * Khối ROAS trên đầu trang Tổng quan — anh Hùng muốn thấy ngay, không phải lục
+ * xuống tab Doanh thu & ROAS. Lấy từ bảng Sales trên Base (ghi công quảng cáo
+ * thật), giờ tự cập nhật sau mỗi lượt kéo Tourwell — không cần bấm gì.
+ */
+function roasO(salesD) {
+  if (!salesD || !salesD.tong) return '';
+  const T = salesD.tong;
+  const roas = T.roas == null ? '—' : T.roas.toFixed(2) + '×';
+  const cot3 = !salesD.biGioiHan;
+  return `<div class="kpis" style="grid-template-columns:repeat(${cot3 ? 3 : 2},minmax(0,1fr));margin-bottom:12px">
+    <div class="kpi">
+      <div class="k-label">ROAS</div>
+      <div class="k-value">${roas}</div>
+      <div class="k-foot">${vnd(T.chiQuangCao || 0)} chi tiêu ads cả kỳ</div>
+    </div>
+    <div class="kpi">
+      <div class="k-label">Doanh thu từ quảng cáo</div>
+      <div class="k-value">${vnd(T.dtTuQuangCao || 0)}</div>
+      <div class="k-foot">${int(T.donTuQuangCao || 0)} đơn ghi công được
+        <button class="link-btn" onclick="window.__goTab('doanh-thu')" style="margin-left:6px">Xem chi tiết →</button></div>
+    </div>
+    ${cot3 ? `<div class="kpi">
+      <div class="k-label">Tỉ lệ đến từ quảng cáo</div>
+      <div class="k-value">${T.tyLeTuQuangCao == null ? '—' : (T.tyLeTuQuangCao * 100).toFixed(1) + '%'}</div>
+      <div class="k-foot">trên tổng doanh thu công ty</div>
+    </div>` : ''}
+  </div>`;
+}
+
 VIEW['tong-quan'] = async (view) => {
-  const d = await api('/api/overview?' + qs());
+  const [d, salesD] = await Promise.all([
+    api('/api/overview?' + qs()),
+    // ROAS đọc từ bảng Sales trên Base (ghi công quảng cáo), không phải chỉ số
+    // của riêng nền tảng — anh Hùng muốn thấy ngay ở Tổng quan, không phải lục
+    // xuống tab Doanh thu & ROAS. Base lỗi/rỗng thì bỏ qua, không phá cả trang.
+    api('/api/sales?' + qs()).catch(() => null),
+  ]);
   S.alertCount = d.alerts.length;
   renderShell();
 
@@ -499,6 +535,7 @@ VIEW['tong-quan'] = async (view) => {
 
   view.innerHTML = `
   <div class="help">Số liệu ${dmy(d.range.from)} → ${dmy(d.range.to)} (${d.range.days} ngày) · kỳ trước ${dmy(d.range.prevFrom)} → ${dmy(d.range.prevTo)}</div>
+  ${roasO(salesD)}
   <div class="kpis">${K.map((k) => `
     <div class="kpi">
       <div class="k-label">${k.label}</div>
@@ -952,7 +989,9 @@ const RS = { kq: null, dangChay: false };
  */
 function nguonSo(tt) {
   const nhip = `App tự kéo <b>${tt.tuDongSoNgay} ngày</b> gần nhất mỗi khi kho cũ hơn `
-    + `<b>${tt.tuDongMoiGio} giờ</b>`;
+    + `<b>${tt.tuDongMoiGio} giờ</b>, và tự ghi công + ghi doanh thu lên Base ngay sau đó — `
+    + `không phải bấm <b>Tính ROAS</b> hay <b>Ghi doanh thu lên Base</b> nữa, hai nút đó giờ chỉ để `
+    + `xem lại theo một khoảng ngày khác hoặc ép chạy ngay`;
 
   if (!tt.tourwellBat) {
     return `<div class="help" style="border-color:var(--warn);color:var(--warn)">
@@ -992,6 +1031,12 @@ async function roasVe() {
   try { tt = await api('/api/roas/trang-thai'); }
   catch (e) { khoi.innerHTML = ''; return; }
 
+  // Đã có bản tự tính (hẹn giờ/kéo API/nhập file) mà trang này chưa có thì nạp
+  // về — khỏi bắt bấm "Tính ROAS" chỉ để xem lại số đã có sẵn.
+  if (tt.roasCacheLuc && !RS.kq) {
+    try { RS.kq = await api('/api/roas/cache'); } catch (_) { /* vẫn còn nút Tính ROAS để thử tay */ }
+  }
+
   const banXuat = (nhan, o) => (o
     ? `<b>${esc(nhan)}</b> ${int(o.dong)} dòng · ${dmy(o.tu)} → ${dmy(o.den)}`
       + (o.tongTien != null ? ` · ${vnd(o.tongTien)}` : '')
@@ -1008,9 +1053,9 @@ async function roasVe() {
         ${tt.coDuLieu && tt.oDiaTam && !tt.tourwellBat ? '<br><b style="color:var(--warn)">Kho nằm trên ổ đĩa tạm — mất sau lần deploy kế tiếp, nhập lại là xong.</b>' : ''}
       </div>
       <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-        <button class="btn primary" id="rsTinh" ${tt.coDuLieu ? '' : 'disabled'}>Tính ROAS</button>
+        <button class="btn primary" id="rsTinh" ${tt.coDuLieu ? '' : 'disabled'}>${RS.kq ? 'Tính lại ROAS' : 'Tính ROAS'}</button>
         ${tt.tourwellBat ? '<button class="btn ghost" id="rsKeo">Kéo lại từ Tourwell ngay</button>' : ''}
-        ${tt.coDuLieu ? '<button class="btn ghost" id="rsGhiBase">Ghi doanh thu lên Base</button>' : ''}
+        ${tt.coDuLieu ? `<button class="btn ghost" id="rsGhiBase">${tt.ghiBaseLuc && tt.ghiBaseLuc.luc ? 'Ghi lại doanh thu lên Base' : 'Ghi doanh thu lên Base'}</button>` : ''}
         ${tt.coDuLieu ? '<button class="btn ghost" id="rsXoa">Xoá dữ liệu đã nhập</button>' : ''}
       </div>
       <details class="lui" style="margin-top:12px">
@@ -1050,6 +1095,23 @@ async function roasVe() {
       const r = await api('/api/roas/nhap', { method: 'POST', body: JSON.stringify({ files }) });
       toast('Đã nhập: ' + (r.nhanXet || []).map((x) => `${x.loai} ${x.dong} dòng`).join(' · '), 'ok');
       await roasVe();
+      // Nhập xong tự chạy ghi công + ghi Base ở nền (server.js /api/roas/nhap) —
+      // hỏi tiến độ luôn, không bắt bấm thêm "Ghi doanh thu lên Base".
+      if (r.dangGhiCong) {
+        const hoiNhap = async () => {
+          try {
+            const tt2 = await api('/api/roas/keo-api/trang-thai');
+            const kq2 = $('#rsKetQua');
+            if (kq2) {
+              kq2.innerHTML = `<div class="help">${tt2.dangChay ? '<b>Đang ghi công + ghi doanh thu lên Base…</b>'
+                : tt2.loi ? `<b style="color:var(--bad)">Lỗi:</b> ${esc(tt2.loi)}` : '<b>Đã ghi công + ghi doanh thu lên Base xong.</b>'}</div>`;
+            }
+            if (tt2.dangChay) { setTimeout(hoiNhap, 3000); return; }
+            await roasVe();
+          } catch (_) { /* im lặng — banner ghi công lần cuối sẽ tự cập nhật ở lượt mở tab sau */ }
+        };
+        hoiNhap();
+      }
     } catch (err) { toast(err.message, 'err'); b.disabled = false; b.textContent = cu; }
   };
 
@@ -1179,10 +1241,12 @@ function roasBang() {
   const ty = (v) => (v == null ? '—' : v.toFixed(2) + '×');
   const mauRoas = (v) => (v == null ? '' : v >= 3 ? 'good' : v >= 1 ? 'warn' : 'bad');
 
+  const ng = r.nguon || {};
   el.innerHTML = `
+    ${r.luc ? `<div class="help">Tính lúc <b>${new Date(r.luc).toLocaleString('vi-VN')}</b></div>` : ''}
     <div class="help">${dmy(r.from)} → ${dmy(r.to)} · cửa sổ ghi công ${r.cuaSo} ngày ·
-      đọc ${int(r.nguon.posDon)} đơn POS, ${int(r.nguon.hoiThoai)} hội thoại,
-      ${int(r.nguon.lead)} lead, ${int(r.nguon.don)} đơn Tourwell</div>
+      đọc ${int(ng.posDon)} đơn POS, ${int(ng.hoiThoai)} hội thoại,
+      ${int(ng.lead)} lead, ${int(ng.don)} đơn Tourwell</div>
     ${(r.loi || []).length ? `<div class="help" style="border-color:var(--warn);color:var(--warn)">
       ${r.loi.map(esc).join('<br>')}</div>` : ''}
 
