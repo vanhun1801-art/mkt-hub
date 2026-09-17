@@ -521,7 +521,22 @@ function roasO(salesD) {
  * đối, đúng nguyên tắc không đoán bừa của cả hệ thống.
  */
 function leadO(hoiThoaiD) {
-  if (!hoiThoaiD) return '';
+  // KHÔNG được trả '' ở đây nữa dù bất kỳ lý do gì — bản trước từng làm vậy khi
+  // gọi API lỗi, và trên máy chủ đang tràn RAM (hay bị Render tự khởi động lại
+  // giữa chừng) thì lỗi đó xảy ra thật, khối này biến mất trông như chưa từng
+  // được thêm vào. Luôn hiện MỘT card, đổi nội dung theo từng tình huống.
+  if (!hoiThoaiD || hoiThoaiD.loi) {
+    return `<div class="card" style="margin-bottom:12px">
+      <div class="card-head"><h3>Lead từ quảng cáo (hội thoại Pancake)</h3></div>
+      <div class="card-body">
+        <div class="help" style="border-color:var(--bad);color:var(--bad)">
+          <b>Không tải được số liệu.</b> ${hoiThoaiD && hoiThoaiD.loi ? esc(hoiThoaiD.loi) + ' — ' : ''}
+          Bấm <b>Làm mới</b> ở đầu trang để thử lại; nếu vẫn vậy có thể server đang quá tải
+          (xem lại việc nâng gói Render).
+        </div>
+      </div>
+    </div>`;
+  }
   // Chưa có bản ghi công nào (roas-cache.json chưa từng tạo — vừa deploy xong,
   // hoặc kho tạm mất sau deploy trên Render) — nói rõ thay vì im lặng biến mất,
   // không thì trông như tính năng không có ở đó.
@@ -571,7 +586,7 @@ VIEW['tong-quan'] = async (view) => {
     api('/api/sales?' + qs()).catch(() => null),
     // Phân loại lead từ hội thoại quảng cáo — số gộp, không tên khách, nên gọi
     // được ngay ở đây không cần quyền quản lý.
-    api('/api/hoi-thoai/tong').catch(() => null),
+    api('/api/hoi-thoai/tong').catch((e) => ({ loi: e.message || 'lỗi không rõ' })),
   ]);
   S.alertCount = d.alerts.length;
   renderShell();
