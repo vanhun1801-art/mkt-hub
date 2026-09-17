@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="vi" data-ma-ket="loi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ma-Két đang khắc phục sự cố</title>
+<meta name="theme-color" content="#f4f6fa">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<!--
+  TRANG BÁO HỎNG DÙNG CHUNG — một bản duy nhất cho ba đường khác nhau:
+
+    1. proxy.js  — app con không trả lời (đọc file này, chèn <script> chi tiết);
+    2. sw.js     — chính hub không trả lời, Render thay bằng trang "502 Bad
+                   Gateway" của họ; service worker chặn lại và trả bản trong bộ
+                   nhớ đệm này;
+    3. app.js    — lớp vỏ thấy khung app con đã dính trang lỗi của Render.
+
+  Vì sao không để nguyên trang 502 của Render: nó nói "This service is currently
+  unavailable" bằng tiếng Anh giữa nền đen, không ai trong phòng hiểu là chuyện
+  gì và tưởng mình làm hỏng. Trang này nói đúng một điều cần biết — chờ một lát
+  — và tự vào lại khi hub sống, nên không ai phải ngồi bấm F5.
+
+  KHÔNG dùng file .css/.js ngoài: lúc trang này hiện ra thì thường server đang
+  chết, xin thêm file là xin thêm một lần hỏng nữa. Chỉ có một ảnh, và ảnh đó
+  service worker đã giữ sẵn trong đệm.
+-->
+<style>
+  :root {
+    --nen: #f4f6fa; --trang: #fff; --vien: #e3e8f0;
+    --chu: #1a2233; --chu-mo: #5b6779; --chu-nhat: #8b95a7;
+    --xanh: #2b5cff;
+  }
+  :root[data-theme="toi"] {
+    --nen: #12161f; --trang: #1a1f2b; --vien: #2c3444;
+    --chu: #e4e8f1; --chu-mo: #a9b3c4; --chu-nhat: #7d8798;
+    --xanh: #5b86ff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="sang"]) {
+      --nen: #12161f; --trang: #1a1f2b; --vien: #2c3444;
+      --chu: #e4e8f1; --chu-mo: #a9b3c4; --chu-nhat: #7d8798;
+      --xanh: #5b86ff;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; padding: 24px 16px;
+    display: grid; place-items: center;
+    background: var(--nen); color: var(--chu);
+    font: 15px/1.6 "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  }
+  .hop { width: 100%; max-width: 520px; text-align: center; }
+  /* Ảnh Ma-Két có nền trắng sẵn, nên ở chế độ tối phải đặt nó trên một tấm
+     trắng bo tròn — thả thẳng lên nền đen thì thấy rõ một ô vuông trắng. */
+  .anh {
+    background: #fff; border-radius: 20px; padding: 6px;
+    display: inline-block; line-height: 0;
+    box-shadow: 0 6px 24px rgba(20, 30, 60, .10);
+  }
+  .anh img { width: min(300px, 62vw); height: auto; border-radius: 14px; }
+  h1 { margin: 20px 0 6px; font-size: clamp(17px, 2.4vw, 21px); letter-spacing: -.01em; }
+  p { margin: 6px 0; color: var(--chu-mo); font-size: 14.5px; }
+  .nho { color: var(--chu-nhat); font-size: 13px; }
+  .hang { margin-top: 18px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  button {
+    font: inherit; border: 0; border-radius: 9px; padding: 9px 18px; cursor: pointer;
+    background: var(--xanh); color: #fff;
+  }
+  button.phu { background: transparent; color: var(--chu-mo); border: 1px solid var(--vien); }
+  button:disabled { opacity: .6; cursor: default; }
+  details {
+    margin: 20px auto 0; max-width: 520px; text-align: left;
+    background: var(--trang); border: 1px solid var(--vien); border-radius: 12px;
+  }
+  summary { cursor: pointer; padding: 10px 14px; font-size: 13px; color: var(--chu-nhat); }
+  .ct { padding: 0 14px 14px; font: 12.5px/1.7 ui-monospace, Consolas, monospace; color: var(--chu-mo); }
+  .ct div { word-break: break-all; }
+</style>
+</head>
+<body>
+
+<div class="hop">
+  <div class="anh">
+    <img src="/ma-ket-sua-loi.jpg" width="300" height="300"
+         alt="Ma-Két đội mũ MKT Hub, tay cầm cờ lê, đang ngồi sửa trước máy tính">
+  </div>
+
+  <h1 id="tieuDe">Ma-Két đang cố gắng khắc phục sự cố</h1>
+  <p id="phuDe">Ứng dụng tạm thời chưa mở được. Bạn chờ một chút nhé — xong là trang tự vào lại, không cần tải lại tay.</p>
+  <p class="nho" id="dem">Đang thử lại…</p>
+
+  <div class="hang">
+    <button id="btnThu">Thử lại ngay</button>
+    <button class="phu" id="btnVe">Về trang chủ</button>
+  </div>
+
+  <details id="khoiCT" hidden>
+    <summary>Chi tiết kỹ thuật (dành cho người quản trị)</summary>
+    <div class="ct" id="ct"></div>
+  </details>
+</div>
+
+<!--LOI-->
+<script>
+(function () {
+  var L = window.__LOI__ || {};
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* Tông sáng/tối: lớp vỏ ghi lựa chọn của người dùng vào localStorage. Trang
+     này không nạp app.js nên tự đọc lấy, nếu không thì mở app đang để nền tối
+     lại loé lên một trang trắng. */
+  try {
+    var th = localStorage.getItem('hub.theme');
+    if (th === 'toi' || th === 'sang') document.documentElement.setAttribute('data-theme', th);
+  } catch (_) {}
+
+  /* Chi tiết chỉ mở cho người quản trị xem khi cần — người dùng thường không
+     cần biết "ECONNREFUSED cổng 5174" là gì. */
+  var d = [];
+  if (L.ten) d.push('Ứng dụng: ' + L.ten);
+  if (L.thongBao) d.push(L.thongBao);
+  if (L.lenh) d.push('Lệnh chạy: ' + L.lenh + (L.thuMuc ? '  (' + L.thuMuc + ')' : ''));
+  d.push('Đường dẫn: ' + location.pathname);
+  d.push('Lúc: ' + new Date().toLocaleString('vi-VN'));
+  if (d.length) {
+    $('ct').innerHTML = d.map(function (x) {
+      return '<div>' + String(x).replace(/[&<>]/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c];
+      }) + '</div>';
+    }).join('');
+    $('khoiCT').hidden = false;
+  }
+
+  /* ---- tự vào lại ----
+   * Gõ cửa CHÍNH ĐỊA CHỈ ĐANG HỎNG chứ không phải /healthz: hai kiểu hỏng khác
+   * nhau mà /healthz chỉ biết một. Hub sống nhưng app con chết thì /healthz trả
+   * 200 ngay, trang này reload, lại thấy đúng trang này — quay vòng vô tận.
+   * Xin lại đúng đường đang hỏng thì bao giờ nó trả 200 mới là thật sự xong.
+   *
+   * Giãn dần 6s -> 60s: hub khởi động lại mất ~20s, còn deploy mất vài phút;
+   * cứ 6 giây gõ một lần suốt mười phút là tự mình đánh mình. */
+  var cho = 6000;
+  var hen = 0, demNguoc = 0;
+
+  function ve() { location.href = '/'; }
+
+  function thu(tuTay) {
+    clearTimeout(hen); clearInterval(demNguoc);
+    $('dem').textContent = 'Đang thử lại…';
+    $('btnThu').disabled = true;
+    fetch(location.href, { cache: 'no-store', credentials: 'same-origin' })
+      .then(function (r) {
+        /* 502/503/504 = vẫn chưa dậy. Còn 200 (hay cả 401/403 — tức là server
+           đã trả lời được rồi) thì nạp lại để đi tiếp bằng đường bình thường. */
+        if (r.status >= 500) throw new Error('chưa dậy');
+        location.reload();
+      })
+      .catch(function () {
+        $('btnThu').disabled = false;
+        if (!tuTay) cho = Math.min(Math.round(cho * 1.5), 60000);
+        hen = setTimeout(thu, cho);
+        var conLai = Math.round(cho / 1000);
+        $('dem').textContent = 'Tự thử lại sau ' + conLai + ' giây';
+        demNguoc = setInterval(function () {
+          conLai--;
+          $('dem').textContent = conLai > 0 ? 'Tự thử lại sau ' + conLai + ' giây' : 'Đang thử lại…';
+          if (conLai <= 0) clearInterval(demNguoc);
+        }, 1000);
+      });
+  }
+
+  $('btnThu').onclick = function () { cho = 6000; thu(true); };
+  /* Trong khung app con thì "Về trang chủ" phải lái CẢ cửa sổ, không phải mình
+     cái khung — nếu không người dùng được một trang chủ lồng trong trang chủ. */
+  $('btnVe').onclick = function () {
+    try { (window.top || window).location.href = '/'; } catch (_) { ve(); }
+  };
+
+  setTimeout(thu, 3000);
+})();
+</script>
+</body>
+</html>

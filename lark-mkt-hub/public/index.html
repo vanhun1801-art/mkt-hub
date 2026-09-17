@@ -135,6 +135,20 @@
 
 <div class="toast-wrap" id="toasts"></div>
 
+<!-- Người gác trang 502: khi chính hub nằm (deploy, khởi động lại, Render ngủ
+     dậy chậm) thì không dòng code nào của mình chạy nữa và Render trả trang đen
+     "502 Bad Gateway". Service worker sống trong trình duyệt nên vẫn đứng đó,
+     và đổi trang ấy thành Ma-Két đang sửa. Xem public/sw.js — nó KHÔNG đệm app,
+     chỉ đệm trang báo hỏng và ảnh. -->
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('/sw.js?v=BUILD', { updateViaCache: 'none' })
+      .catch(function () { /* trình duyệt cũ hay chặn SW thì thôi — app.js còn một lớp nữa */ });
+  });
+}
+</script>
+
 <script src="/khung-xuong.js?v=BUILD"></script>
 <script src="/loc.js?v=BUILD"></script>
 <script src="/i18n.js?v=BUILD"></script>

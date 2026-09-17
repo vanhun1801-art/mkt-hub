@@ -663,6 +663,81 @@ function srcCuaModule(mod, rec, mo) {
   return '/m/' + mod.id + '/?' + q.toString();
 }
 
+/* ---------------- khung app con dính trang lỗi của Render ----------------
+ *
+ * Lớp chắn THỨ BA, sau service worker (public/sw.js) và trang loi.html của
+ * proxy. Nó tồn tại cho đúng một hoàn cảnh: trình duyệt không chạy service
+ * worker (bản cũ, chế độ ẩn danh, người dùng tắt) mà hub vừa nằm — lúc đó
+ * Render trả trang đen "502 Bad Gateway" và nó rơi thẳng vào khung app con.
+ *
+ * Chỗ này KHÔNG đi xin /loi.html về thay: hub đang chết thì xin cũng hỏng, và
+ * hỏng thì khung lại hiện đúng trang 502 vừa muốn giấu — quay vòng. Lớp vỏ đã
+ * nằm sẵn trong máy rồi, nên nó tự phủ lên bằng vật liệu của chính mình.
+ */
+function dinhTrangLoi(f) {
+  try {
+    const d = f.contentDocument;
+    if (!d || !d.body) return false;                    // khác origin -> không phải trang lỗi của mình
+    /* loi.html tự cắm dấu này. Trang Ma-Két của proxy thì đã đẹp sẵn và còn
+     * biết app nào chết — phủ thêm một lớp nữa lên nó là làm hỏng chỗ tốt. */
+    if (d.documentElement.getAttribute('data-ma-ket') === 'loi') return false;
+    const chu = (d.title + ' ' + d.body.innerText).slice(0, 600);
+    return /bad gateway|service is currently unavailable|powered by render|^\s*50[234]\b/i.test(chu);
+  } catch (_) {
+    return false;   // iframe khác origin (module kiểu 'ngoai') — không đọc được, cũng không phải việc của mình
+  }
+}
+
+function phuLoi(o, mod) {
+  if (o.wrap.querySelector('.frame-loi')) return;
+  o.iframe.style.visibility = 'hidden';
+
+  const p = document.createElement('div');
+  p.className = 'frame-loi';
+  p.innerHTML =
+    '<img src="/ma-ket-sua-loi.jpg" width="240" height="240" alt="Ma-Két đang ngồi sửa">' +
+    '<h2>Ma-Két đang cố gắng khắc phục sự cố</h2>' +
+    '<p>' + esc(mod.ten) + ' tạm thời chưa mở được. Bạn chờ một chút nhé — xong là tự vào lại.</p>' +
+    '<p class="fl-dem">Đang thử lại…</p>' +
+    '<button class="btn">Thử lại ngay</button>';
+  o.wrap.appendChild(p);
+
+  const dem = p.querySelector('.fl-dem');
+  let cho = 6000, hen = 0, nhip = 0;
+
+  const dong = () => {
+    clearTimeout(hen); clearInterval(nhip);
+    p.remove();
+    o.iframe.style.visibility = '';
+  };
+
+  /* Gõ cửa đúng địa chỉ của khung chứ không phải /healthz: hub sống mà app con
+   * chết thì /healthz vẫn 200, nạp lại là gặp đúng trang lỗi này lần nữa. */
+  const thu = (tuTay) => {
+    clearTimeout(hen); clearInterval(nhip);
+    dem.textContent = 'Đang thử lại…';
+    fetch(o.iframe.src, { cache: 'no-store', credentials: 'same-origin' })
+      .then((r) => {
+        if (r.status >= 500) throw new Error('chưa dậy');
+        dong();
+        o.iframe.src = o.iframe.src;   // nạp lại app con bằng đúng địa chỉ cũ
+      })
+      .catch(() => {
+        if (!tuTay) cho = Math.min(Math.round(cho * 1.5), 60000);
+        hen = setTimeout(thu, cho);
+        let conLai = Math.round(cho / 1000);
+        const ve = () => {
+          dem.textContent = conLai > 0 ? 'Tự thử lại sau ' + conLai + ' giây' : 'Đang thử lại…';
+        };
+        ve();
+        nhip = setInterval(() => { conLai--; ve(); if (conLai <= 0) clearInterval(nhip); }, 1000);
+      });
+  };
+
+  p.querySelector('button').onclick = () => { cho = 6000; thu(true); };
+  hen = setTimeout(thu, 3000);
+}
+
 function khungCuaModule(mod, rec, mo) {
   if (S.frames.has(mod.id)) return S.frames.get(mod.id);
 
@@ -683,6 +758,7 @@ function khungCuaModule(mod, rec, mo) {
   f.addEventListener('load', () => {
     const l = wrap.querySelector('.frame-loading');
     if (l) l.remove();
+    if (dinhTrangLoi(f)) return phuLoi(o, mod);
     // module vừa nạp -> đẩy theme hiện tại xuống ngay cho khỏi nháy sai tone
     try { f.contentWindow.postMessage({ hub: 'theme', v: themeThuc() }, location.origin); } catch (_) {}
   });

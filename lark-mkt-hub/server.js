@@ -381,8 +381,9 @@ const MIME = {
   '.png': 'image/png',
   '.ico': 'image/x-icon',
   '.json': 'application/json; charset=utf-8',
-  /* Mấy đuôi dưới đây KHÔNG phục vụ file tĩnh — chúng để đoán kiểu cho tệp đính
-   * kèm của thông báo, thứ người ta tải lên chứ không phải thứ mình viết ra. */
+  /* Mấy đuôi dưới đây chủ yếu để đoán kiểu cho tệp đính kèm của thông báo, thứ
+   * người ta tải lên chứ không phải thứ mình viết ra. Trừ .jpg: ảnh Ma-Két của
+   * trang báo hỏng (public/ma-ket-sua-loi.jpg) là file tĩnh thật. */
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
   '.gif': 'image/gif',

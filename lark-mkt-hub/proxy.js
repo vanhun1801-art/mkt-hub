@@ -12,6 +12,8 @@
  * viết lại href/src, còn fetch/XHR lúc chạy do đoạn shim bên dưới vá lại.
  */
 const http = require('http');
+const fs = require('fs');
+const path = require('path');
 const nen = require('./nen');
 
 /* Những NHÓM đường hay phải gọi API bên ngoài rồi mới trả lời được. Cắt chúng ở
@@ -371,7 +373,14 @@ function chuyenTiep(req, res, mod, duongDan, nguoi) {
       res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
       res.end(JSON.stringify({ error: thongBao }));
     } else {
-      res.writeHead(502, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      /* Cờ cho service worker: trang này ĐÃ là trang Ma-Két, lại còn biết app
+       * nào chết và vì sao. Không có cờ, sw.js thấy 502 sẽ thay bằng bản chung
+       * trong đệm và phần "chi tiết kỹ thuật" mất sạch. */
+      res.writeHead(502, {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-store',
+        'X-Ma-Ket': 'loi',
+      });
       res.end(trangLoi(mod, thongBao));
     }
   });
@@ -379,27 +388,58 @@ function chuyenTiep(req, res, mod, duongDan, nguoi) {
   req.pipe(upstream);
 }
 
+/* ---------------- trang báo hỏng ----------------
+ *
+ * Một khuôn duy nhất cho mọi kiểu hỏng: public/loi.html (Ma-Két đội mũ ngồi
+ * sửa). Trước đây chỗ này tự dựng lấy một trang chữ riêng, nên người dùng gặp
+ * ba khuôn mặt khác nhau tuỳ thứ gì chết — trang của Render khi hub nằm, trang
+ * chữ này khi app con nằm — mà cả ba đều nói cùng một chuyện.
+ *
+ * Phần dành cho người quản trị (lệnh chạy, thư mục, lời báo lỗi thật) không mất
+ * đi đâu: nó đi xuống trang dưới dạng `window.__LOI__` và nằm trong mục "Chi
+ * tiết kỹ thuật" gập lại.
+ */
+const FILE_LOI = path.join(__dirname, 'public', 'loi.html');
+let demLoi = { mtime: -1, html: '' };
+
+/** Đọc khuôn trang lỗi, nhớ theo mtime để sửa file là có hiệu lực ngay. */
+function khuonLoi() {
+  try {
+    const st = fs.statSync(FILE_LOI);
+    if (st.mtimeMs !== demLoi.mtime) {
+      demLoi = { mtime: st.mtimeMs, html: fs.readFileSync(FILE_LOI, 'utf8') };
+    }
+  } catch (_) {
+    demLoi = { mtime: -1, html: '' };
+  }
+  return demLoi.html;
+}
+
 function trangLoi(mod, thongBao) {
   const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
-  return `<!doctype html><html lang="vi"><head><meta charset="utf-8">
-<title>${esc(mod.ten)} — chưa sẵn sàng</title>
-<style>
-  body{margin:0;font:14px/1.6 -apple-system,"Segoe UI",Roboto,sans-serif;color:#1f2329;background:#f5f6f7;
-       display:grid;place-items:center;height:100vh}
-  .box{max-width:520px;background:#fff;border:1px solid #e5e6eb;border-radius:12px;padding:28px 30px;
-       box-shadow:0 4px 20px rgba(31,35,41,.06)}
-  h1{margin:0 0 6px;font-size:17px}
-  p{margin:8px 0;color:#646a73}
-  code{background:#f2f3f5;padding:2px 6px;border-radius:4px}
-  button{margin-top:14px;border:0;background:#3370ff;color:#fff;padding:9px 16px;border-radius:6px;
-         font-size:14px;cursor:pointer}
-</style></head><body><div class="box">
-<h1>${esc(mod.icon)} ${esc(mod.ten)} chưa sẵn sàng</h1>
-<p>${esc(thongBao)}</p>
-<p>Module này chạy bằng <code>${esc((mod.lenh || []).join(' '))}</code> trong <code>${esc(mod.thuMuc || '')}</code>.
-Xem log và bấm <b>Bật lại</b> ở mục <b>Cài đặt</b> của lớp vỏ.</p>
-<button onclick="location.reload()">Thử lại</button>
-</div></body></html>`;
+  const du = {
+    ten: mod.ten,
+    thongBao,
+    lenh: (mod.lenh || []).join(' '),
+    thuMuc: mod.thuMuc || '',
+  };
+  /* `</script>` nằm trong dữ liệu sẽ đóng sớm thẻ script — thoát dấu < là đủ,
+   * JSON.parse phía trình duyệt vẫn đọc < như dấu < bình thường. */
+  const nhung = '<script>window.__LOI__=' + JSON.stringify(du).replace(/</g, '\\u003c') + ';</' + 'script>';
+
+  const khuon = khuonLoi();
+  if (khuon) return khuon.replace('<!--LOI-->', nhung);
+
+  /* Thiếu file (deploy hụt) thì vẫn phải nói được một câu tử tế. */
+  return '<!doctype html><html lang="vi"><head><meta charset="utf-8">'
+    + '<title>Ma-Két đang khắc phục sự cố</title></head><body style="margin:0;'
+    + 'font:15px/1.6 system-ui,sans-serif;display:grid;place-items:center;height:100vh">'
+    + '<div style="max-width:460px;text-align:center;padding:0 16px">'
+    + '<h1 style="font-size:18px">Ma-Két đang cố gắng khắc phục sự cố</h1>'
+    + '<p style="color:#646a73">' + esc(thongBao) + '</p>'
+    + '<button onclick="location.reload()" style="border:0;background:#2b5cff;color:#fff;'
+    + 'padding:9px 18px;border-radius:9px;font:inherit;cursor:pointer">Thử lại</button>'
+    + '</div></body></html>';
 }
 
 /** Header danh tính + quyền gửi kèm khi hub tự gọi API của module. */
@@ -474,4 +514,4 @@ function goiJson(mod, duongDan, opts = {}) {
   });
 }
 
-module.exports = { chuyenTiep, goiJson, tienTo };
+module.exports = { chuyenTiep, goiJson, tienTo, trangLoi };

@@ -349,6 +349,27 @@ button { font: inherit; }
   place-items: normal;
 }
 
+/* ---- khung app con dính trang lỗi (xem phuLoi trong app.js) ----
+   Lớp phủ này chỉ hiện khi trình duyệt không chạy service worker mà hub lại
+   vừa nằm; bình thường sw.js đã chặn trang 502 của Render từ trước. */
+.frame-loi {
+  position: absolute; inset: 0; z-index: 3;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px; padding: 24px 16px; text-align: center;
+  background: var(--nen); color: var(--chu);
+}
+/* Ảnh Ma-Két có sẵn nền trắng nên ở tone tối phải có tấm trắng đỡ phía dưới,
+   nếu không nó là một ô vuông trắng dán giữa màn đen. */
+.frame-loi img {
+  width: min(240px, 42vh); height: auto;
+  background: #fff; border-radius: 18px; padding: 6px;
+  box-shadow: 0 6px 24px rgba(20, 30, 60, .10);
+}
+.frame-loi h2 { margin: 16px 0 2px; font-size: 18px; letter-spacing: -.01em; }
+.frame-loi p { margin: 2px 0; max-width: 460px; color: var(--chu-mo); font-size: 14px; }
+.frame-loi .fl-dem { color: var(--chu-nhat); font-size: 13px; }
+.frame-loi button { margin-top: 14px; }
+
 /* ---- đầu trang Tổng quan chung ---- */
 .page-head {
   display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px 16px;

@@ -24,6 +24,13 @@
     'Rooty Trip Phú Quốc': 'Rooty Trip Phu Quoc',
     'Tổng quan chung': 'Overview',
 
+    /* --- lớp phủ khi khung app con dính trang lỗi (phuLoi trong app.js) ---
+     * Trang loi.html đứng một mình, KHÔNG nạp file này (lúc nó hiện ra thì
+     * server thường đã chết), nên bản tiếng Anh chỉ có ở lớp phủ này. */
+    'Ma-Két đang cố gắng khắc phục sự cố': 'Ma-Két is working on the fix',
+    'Đang thử lại…': 'Retrying…',
+    'Thử lại ngay': 'Retry now',
+
     /* --- thông báo --- */
     'Thông báo': 'Notifications',
     'Chưa đọc': 'Unread',
@@ -830,6 +837,11 @@
   const MAU_EN = [
     /* --- lớp vỏ: phụ đề trang Tổng quan trong lúc chờ số liệu về --- */
     [/^Đang đọc số liệu từ (\d+) base…$/, 'Reading data from $1 bases…'],
+
+    /* --- lớp phủ khi app con chưa mở được --- */
+    [/^(.+) tạm thời chưa mở được\. Bạn chờ một chút nhé — xong là tự vào lại\.$/,
+      '$1 is not available right now. Hang on — it opens itself once it is back.'],
+    [/^Tự thử lại sau (\d+) giây$/, 'Retrying in $1s'],
 
     /* Dòng mô tả tệp của logo và của từng video: "<tên> · <cỡ> · tải lên <giờ>".
      * Tên tệp và giờ là chữ THẬT, giữ nguyên — chỉ dịch phần khung. */
