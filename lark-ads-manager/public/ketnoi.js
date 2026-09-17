@@ -326,6 +326,23 @@
       </div>`;
     })()}
 
+    <div class="card" style="margin-top:14px">
+      <div class="card-head"><h3>Sao lưu cấu hình vào ADS_CONNECT_JSON</h3>
+        <span class="sub">phòng khi ổ đĩa Render mất — đã từng mất token ba lần</span></div>
+      <div class="card-body">
+        <div class="help">
+          Token dán qua các thẻ bên dưới nằm trên ổ đĩa TẠM của Render, không phải chỗ
+          giữ lâu dài — dù có lần không mất qua vài lượt deploy, đó không phải điều
+          được đảm bảo, và đã từng mất thật ba lần trước đây. Bấm nút dưới để lấy đúng
+          nội dung dán vào biến môi trường <code>ADS_CONNECT_JSON</code> trên Render
+          (service này → <b>Environment</b>) — giữ được chắc chắn qua mọi lần deploy
+          hay đổi gói máy chủ sau này.
+        </div>
+        <button class="btn primary" id="btnXuatEnv">Lấy nội dung ADS_CONNECT_JSON</button>
+        <div id="xuatEnvKq" style="margin-top:12px"></div>
+      </div>
+    </div>
+
     ${thePancake(c)}
 
     ${thePancakePos(c)}
@@ -1436,8 +1453,50 @@
     });
   }
 
+  /**
+   * Nút "Lấy nội dung ADS_CONNECT_JSON" — xem ketnoi.js server phía sau (xuatEnv):
+   * đây là NGOẠI LỆ DUY NHẤT cho ra token thật, khoá bằng vai quản lý. Không tự
+   * gọi lúc mở trang — chỉ khi bấm, và không lưu lại chuỗi trả về ở đâu khác
+   * ngoài khung xem trên màn hình.
+   */
+  function wireXuatEnv() {
+    const b = $('#btnXuatEnv');
+    if (!b) return;
+    b.onclick = async () => {
+      const cu = b.textContent;
+      b.disabled = true; b.textContent = 'Đang lấy…';
+      try {
+        const r = await api('/api/connect/xuat-env', { method: 'POST', body: '{}' });
+        const rongHtml = (r.rong || []).length
+          ? `<div class="help" style="border-color:var(--warn);color:var(--warn)">
+               Kênh CHƯA có token trong chuỗi này: <b>${r.rong.map(esc).join(', ')}</b>.
+               Nếu Render đang có token riêng cho kênh đó mà không nằm trong danh sách
+               này, dán chuỗi bên dưới lên sẽ XOÁ MẤT token đó — kiểm lại trước khi dán.
+             </div>` : '';
+        $('#xuatEnvKq').innerHTML = `
+          ${rongHtml}
+          <div class="help">Dán TOÀN BỘ chuỗi dưới đây vào biến <code>ADS_CONNECT_JSON</code>
+            trên Render (service này → Environment → sửa giá trị → Save) —
+            ${int(r.kenh.filter((x) => x.coToken).length)} kênh đang có thông tin.</div>
+          <textarea readonly style="width:100%;height:140px;font-family:monospace;font-size:12px" id="xuatEnvTa">${esc(r.noiDung)}</textarea>
+          <button class="btn ghost" id="btnSaoChepEnv" style="margin-top:8px">Sao chép</button>
+        `;
+        $('#btnSaoChepEnv').onclick = async () => {
+          try { await navigator.clipboard.writeText(r.noiDung); toast('Đã sao chép', 'ok'); }
+          catch (_) {
+            $('#xuatEnvTa').select();
+            document.execCommand('copy');
+            toast('Đã sao chép', 'ok');
+          }
+        };
+      } catch (e) { toast(e.message, 'err'); }
+      b.disabled = false; b.textContent = cu;
+    };
+  }
+
   function wire(c) {
     wireGiuBen(c);
+    wireXuatEnv();
     wirePancake(c);
     wirePancakePos(c);
     wireTourwell(c);
