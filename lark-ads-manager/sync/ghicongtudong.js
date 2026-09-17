@@ -30,47 +30,58 @@ const T = cfg.tables;
  * mã đơn -> {platform, tenQC, maLead} | {lyDo} cho ghiDT.dongBase(), kèm kq đầy
  * đủ của roasTinh.tinh() để cache lại cho màn "ROAS từng quảng cáo" hiển thị mà
  * không phải bấm "Tính ROAS" mỗi lần.
+ *
+ * Phép ghi công là phần DỄ VỠ NHẤT trong cả lượt (gọi mạng ra Pancake/POS —
+ * token hết hạn, mất mạng, Pancake sập). Bọc try/catch RIÊNG quanh nó: hỏng ở
+ * đây thì trả `kq: null` và map rỗng (mọi đơn thành 'Khác'), để chay() vẫn ghi
+ * được doanh thu — mất cột Kênh còn hơn mất cả bản sao lưu doanh thu.
  */
-async function tinhGhiCong({ kho, from, to }) {
+async function tinhGhiCong({ kho, from, to, ghi = () => {} }) {
   const m = new Map();
-  const c = ketnoi.read();
   const tu = from || kho.don.tomTat.tu;
   const den = to || kho.don.tomTat.den;
-  let posRows = [];
-  let htRows = [];
-  if (c.pancakePos.enabled && pancakePos.danhSachGian(c.pancakePos).some((x) => x.apiKey)) {
-    posRows = (await pancakePos.fetchOrders(c.pancakePos, tu, den, () => {})).rows;
+  let kq = null;
+  try {
+    const c = ketnoi.read();
+    let posRows = [];
+    let htRows = [];
+    if (c.pancakePos.enabled && pancakePos.danhSachGian(c.pancakePos).some((x) => x.apiKey)) {
+      posRows = (await pancakePos.fetchOrders(c.pancakePos, tu, den, () => {})).rows;
+    }
+    for (const pg of (c.pancake.pages || []).filter((x) => x.pageId && x.token)) {
+      const r = await pancake.fetchConversations(pg, tu, den, () => {});
+      htRows = htRows.concat(r.rows);
+    }
+    kq = roasTinh.tinh({
+      posRows, hoiThoaiRows: htRows,
+      leadRows: (kho.lead && kho.lead.rows) || [], donRows: kho.don.rows,
+      data: await store.get(), from: tu, to: den,
+    });
+    // Cùng hình dạng với /api/roas/tinh (log/loi/nguon) — để cache ra được thì
+    // client hiển thị y hệt dù số đến từ đâu (tay hay tự động).
+    kq.log = [];
+    kq.loi = [];
+    kq.nguon = {
+      posDon: posRows.length,
+      hoiThoai: htRows.length,
+      lead: (kho.lead && kho.lead.rows.length) || 0,
+      don: kho.don.rows.length,
+      nhapLuc: kho.luc,
+      khoangXuatDon: [kho.don.tomTat.tu, kho.don.tomTat.den],
+      khoangXuatLead: kho.lead ? [kho.lead.tomTat.tu, kho.lead.tomTat.den] : [null, null],
+    };
+    (kq.ghiCongDon || []).forEach((gc) => {
+      m.set(String(gc.ma), { platform: gc.nenTang, tenQC: gc.ten, maLead: gc.maLead });
+    });
+    // Đơn không ghép được QC: vẫn ghi vào map để dongBase() biết VÌ SAO mà gắn
+    // 'Khác', không chỉ gắn 'Khác' trơ.
+    (kq.lyDoTheoDon || []).forEach((x) => {
+      if (!m.has(String(x.ma))) m.set(String(x.ma), { lyDo: x.lyDo });
+    });
+  } catch (e) {
+    ghi('  ! không tính được ghi công (Pancake/POS lỗi) — vẫn ghi doanh thu, Kênh sẽ là "Khác": ' + e.message);
+    console.error('  ghi công: không tính được — ' + e.message);
   }
-  for (const pg of (c.pancake.pages || []).filter((x) => x.pageId && x.token)) {
-    const r = await pancake.fetchConversations(pg, tu, den, () => {});
-    htRows = htRows.concat(r.rows);
-  }
-  const kq = roasTinh.tinh({
-    posRows, hoiThoaiRows: htRows,
-    leadRows: (kho.lead && kho.lead.rows) || [], donRows: kho.don.rows,
-    data: await store.get(), from: tu, to: den,
-  });
-  // Cùng hình dạng với /api/roas/tinh (log/loi/nguon) — để cache ra được thì
-  // client hiển thị y hệt dù số đến từ đâu (tay hay tự động).
-  kq.log = [];
-  kq.loi = [];
-  kq.nguon = {
-    posDon: posRows.length,
-    hoiThoai: htRows.length,
-    lead: (kho.lead && kho.lead.rows.length) || 0,
-    don: kho.don.rows.length,
-    nhapLuc: kho.luc,
-    khoangXuatDon: [kho.don.tomTat.tu, kho.don.tomTat.den],
-    khoangXuatLead: kho.lead ? [kho.lead.tomTat.tu, kho.lead.tomTat.den] : [null, null],
-  };
-  (kq.ghiCongDon || []).forEach((gc) => {
-    m.set(String(gc.ma), { platform: gc.nenTang, tenQC: gc.ten, maLead: gc.maLead });
-  });
-  // Đơn không ghép được QC: vẫn ghi vào map để dongBase() biết VÌ SAO mà gắn
-  // 'Khác', không chỉ gắn 'Khác' trơ.
-  (kq.lyDoTheoDon || []).forEach((x) => {
-    if (!m.has(String(x.ma))) m.set(String(x.ma), { lyDo: x.lyDo });
-  });
   return { m, kq };
 }
 
@@ -96,11 +107,12 @@ async function chay({ kho, from = '', to = '', ghi = () => {} }) {
   });
 
   ghi('đang xác định kênh của từng đơn từ phép ghi công…');
-  const { m: ghiCongTheoDon, kq } = await tinhGhiCong({ kho, from, to });
+  const { m: ghiCongTheoDon, kq } = await tinhGhiCong({ kho, from, to, ghi });
   ghi(`  ${ghiCongTheoDon.size} đơn xác định được kênh từ quảng cáo`);
   // Cache lại NGAY cả khi phần ghi Base bên dưới lỗi — số ROAS để xem vẫn đáng
-  // có, tách bạch với việc ghi vào Base thật.
-  roasCache.ghi(kq);
+  // có, tách bạch với việc ghi vào Base thật. kq null (Pancake/POS lỗi) thì bỏ
+  // qua, giữ cache cũ thay vì xoá số đang có bằng một lượt hỏng.
+  if (kq) roasCache.ghi(kq);
 
   const kh = ghiDT.lenKeHoach({ donRows, ghiCongTheoDon, daCo, F });
   const tt = ghiDT.tomTat(kh);
