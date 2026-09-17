@@ -521,7 +521,22 @@ function roasO(salesD) {
  * đối, đúng nguyên tắc không đoán bừa của cả hệ thống.
  */
 function leadO(hoiThoaiD) {
-  if (!hoiThoaiD || !hoiThoaiD.tongCong) return '';
+  if (!hoiThoaiD) return '';
+  // Chưa có bản ghi công nào (roas-cache.json chưa từng tạo — vừa deploy xong,
+  // hoặc kho tạm mất sau deploy trên Render) — nói rõ thay vì im lặng biến mất,
+  // không thì trông như tính năng không có ở đó.
+  if (!hoiThoaiD.luc) {
+    return `<div class="card" style="margin-bottom:12px">
+      <div class="card-head"><h3>Lead từ quảng cáo (hội thoại Pancake)</h3></div>
+      <div class="card-body">
+        <div class="help" style="border-color:var(--warn);color:var(--warn)">
+          <b>Chưa có dữ liệu.</b> Số này tính chung một lượt với ghi công doanh thu —
+          vào tab <b>Doanh thu & ROAS</b> → khối ROAS từng quảng cáo → bấm
+          <b>Kéo lại từ Tourwell ngay</b> (hoặc đợi lượt hẹn giờ tự chạy) là có số.
+        </div>
+      </div>
+    </div>`;
+  }
   const T = hoiThoaiD;
   const ty = (n) => (T.tongCong ? Math.round((n / T.tongCong) * 100) : 0);
   const the = (nhom, nhan, n, cls) => `<div class="kpi" style="cursor:pointer" data-nhom="${nhom}" onclick="window.__moHoiThoai('${nhom}')">
