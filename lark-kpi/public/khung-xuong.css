@@ -177,3 +177,17 @@
   display: flex; flex-direction: column; gap: 10px;
 }
 .kx-khoi > .kx { flex: 0 0 auto; }
+
+/* ---- bản chụp từ màn thật ----
+   Mọi thứ bên trong là hình giả: không bấm được, không bôi đen được, và không
+   một chữ nào lọt ra (chữ đã bị thay bằng thanh xám lúc chụp, dòng dưới chỉ là
+   lớp chắn cuối). */
+.kx-chup { pointer-events: none; user-select: none; }
+.kx-chup * { color: transparent !important; }
+/* Bản chụp giữ nguyên lớp CSS của app, nên nó cũng giữ luôn viền/nền/bóng thật.
+   Riêng ẢNH NỀN thì phải chặn: ảnh nền không phải bố cục, để lại là khung xương
+   thành bản sao loè loẹt của màn thật. */
+/* `*:not(.kx)` chứ không phải `*`: chính khối xương cũng vẽ bằng background-image
+   (vệt sáng lướt qua). Quét sạch cả nó thì bản chụp đứng im như ảnh chết — nhìn
+   không ra là đang tải. */
+.kx-chup *:not(.kx) { background-image: none !important; }

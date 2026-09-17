@@ -177,13 +177,58 @@ group('Khung xương phải khớp GIAO DIỆN THẬT, không phải hình chung
   ok('có ô chính rộng hết hàng', /class="the chinh"/.test(KXJS));
   ok('có dòng "Không có" khi lần trước có', /the-khong/.test(KXJS));
 
-  /* App con: mỗi app một hình riêng, và chiều cao thì nhớ bằng data-kx-cao. */
-  ok('có trí nhớ chiều cao dùng chung cho app con', /data-kx-cao/.test(KXJS));
-  ok('trí nhớ chiều cao tôn trọng bề ngang cửa sổ',
-    /Math\.abs\(\(cu\.w \|\| 0\) - window\.innerWidth\)/.test(KXJS));
-  const thieuCao = APP.filter((x) => x !== 'lark-task-manager' &&
-    !/data-kx-cao=/.test(fs.readFileSync(path.join(CHA, x, 'public', 'index.html'), 'utf8')));
-  ok('app con nào cũng nhớ chiều cao màn đầu', thieuCao.length === 0, thieuCao.join(', '));
+  /* App con không khai hình bằng tay được (mỗi app mấy chục màn) — nên chúng
+   * CHỤP khung xương từ chính màn thật rồi nạp lại ở lần mở sau. */
+  ok('có bộ chụp khung xương từ màn thật', /function chup\(/.test(KXJS));
+  ok('chụp giữ nguyên thẻ và lớp CSS', /THE_GIU/.test(KXJS) && /getAttribute\('class'\)/.test(KXJS));
+  ok('bản chụp tôn trọng bề ngang cửa sổ',
+    /Math\.abs\(\(v\.w \|\| 0\) - window\.innerWidth\)/.test(KXJS));
+
+  /* Bản chụp nằm trong localStorage của máy người dùng, nên nó TUYỆT ĐỐI không
+   * được mang chữ: mọi text node phải bị thay bằng thanh xám. */
+  ok('mọi text node bị thay bằng thanh xám', /nodeType !== 3/.test(KXJS) && /thanhChu\(/.test(KXJS));
+  ok('bỏ id và mọi thuộc tính khác, chỉ giữ class + style bố cục',
+    /STYLE_GIU/.test(KXJS) && !/getAttribute\('id'\)/.test(KXJS));
+  ok('chặn script/style lọt vào bản chụp', /THE_BO/.test(KXJS) && /SCRIPT/.test(KXJS));
+  ok('có trần cho bản chụp', /TRAN_NUT/.test(KXJS) && /TRAN_BYTE/.test(KXJS) && /TRAN_CON/.test(KXJS));
+  ok('KHÔNG chừa chỗ quá tay ở màn dài', /tuNhien \* 1\.15/.test(KXJS));
+  ok('không chụp trong lúc lớp phủ còn che', /dangCho\(\)/.test(KXJS));
+
+  /* Ba vai của thuộc tính — đặt nhầm là hỏng theo kiểu im lặng: `data-kx-nho`
+   * lên chỗ app dựng sẵn khung trong HTML thì khung xương xoá mất mấy thẻ mà JS
+   * của app đang giữ tham chiếu. */
+  const vai = {};
+  for (const ten of APP) {
+    const h = fs.readFileSync(path.join(CHA, ten, 'public', 'index.html'), 'utf8');
+    vai[ten] = (h.match(/data-kx-(nho|xem|chup)="[a-z-]+"/g) || []).join(' ');
+  }
+  const thieuNho = APP.filter((x) => !vai[x]);
+  ok('app con nào cũng có trí nhớ khung xương', thieuNho.length === 0, thieuNho.join(', '));
+  ok('Bảng công việc: lớp phủ chỉ XEM, màn dashboard chỉ CHỤP',
+    /data-kx-xem="cong-viec"/.test(vai['lark-task-manager']) &&
+    /data-kx-chup="cong-viec"/.test(vai['lark-task-manager']) &&
+    !/data-kx-nho/.test(vai['lark-task-manager']));
+
+  /* Thuộc tính phải nằm trên CHÍNH khung mà app thay nội dung. Đặt lên thẻ khung
+   * xương thì app thay innerHTML là thẻ đó biến mất cùng bộ theo dõi — đã dính
+   * đúng lỗi này: chụp mãi không ra bản nào. */
+  const saiCho = APP.filter((x) => x !== 'lark-task-manager' &&
+    !/<main[^>]+data-kx-nho=/.test(fs.readFileSync(path.join(CHA, x, 'public', 'index.html'), 'utf8')));
+  ok('trí nhớ gắn trên <main>, không phải trên thẻ khung xương',
+    saiCho.length === 0, saiCho.join(', '));
+
+  /* Tên trùng id module bên lớp vỏ — để sau này tra chéo được. */
+  const ID = { 'lark-ads-manager': 'quang-cao', 'lark-social': 'social', 'lark-ota-manager': 'ota',
+    'lark-kpi': 'kpi', 'lark-quy-chi-phi': 'quy-chi-phi', 'lark-chinh-anh': 'chinh-anh',
+    'lark-bao-cao': 'bao-cao', 'lark-lich-tac-nghiep': 'lich-tac-nghiep',
+    'lark-task-manager': 'cong-viec' };
+  const saiTen = APP.filter((x) => !vai[x].includes('"' + ID[x] + '"'));
+  ok('tên trí nhớ trùng id module của lớp vỏ', saiTen.length === 0, saiTen.join(', '));
+
+  /* Lớp vỏ bỏ lớp phủ ngay khi app con dựng xong DOM — app con đã có khung
+   * xương của chính nó, giữ thêm lớp phủ là hai lớp khung xương chồng nhau. */
+  ok('lớp vỏ bỏ lớp phủ ngay khi app con sẵn sàng',
+    /hub === 'xin-loc'[\s\S]{0,400}frame-loading[\s\S]{0,80}remove\(\)/.test(APPJS));
 
   /* Lỗi suýt gây ra: đặt tên lớp trùng. `.kx-cot` đã là "một cột dọc", mà hình
    * nhiều cột của Bảng công việc suýt dùng lại đúng tên đó. */

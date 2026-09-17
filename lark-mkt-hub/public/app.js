@@ -2582,8 +2582,22 @@ window.addEventListener('message', (ev) => {
     if (r) r.style.filter = mo ? 'brightness(.6) saturate(.9)' : '';
     return;
   }
-  // app con vừa mở xong -> gửi ngay khoảng lọc đang áp
-  if (d && d.hub === 'xin-loc') { guiKhoangXuongModule(); return; }
+  /* App con vừa dựng xong DOM (shim bắn 'xin-loc' ngay ở DOMContentLoaded).
+   *
+   * Bỏ lớp phủ của lớp vỏ NGAY tại đây, đừng đợi sự kiện `load` của iframe:
+   * app con giờ đã tự dựng khung xương của CHÍNH nó (chụp từ màn thật lần
+   * trước), mà lớp phủ của lớp vỏ thì chỉ là hình chung. Đợi `load` nghĩa là
+   * bắt người ta nhìn hình chung thêm vài trăm mili giây rồi mới đổi sang hình
+   * đúng — đúng kiểu nhấp nháy hai lớp khung xương chồng nhau. */
+  if (d && d.hub === 'xin-loc') {
+    if (d.id) {
+      const o = S.frames.get(d.id);
+      const l = o && o.wrap.querySelector('.frame-loading');
+      if (l) l.remove();
+    }
+    guiKhoangXuongModule();
+    return;
+  }
   // người dùng đổi khoảng bên trong app con -> kéo cả nhà theo
   if (d && d.hub === 'loc-doi' && d.id) { nhanKhoangTuModule(d.id, d.tu, d.den); return; }
   if (!d || d.hub !== 'phu' || !d.id) return;

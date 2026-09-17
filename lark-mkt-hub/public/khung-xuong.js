@@ -222,55 +222,243 @@
   global.KX = KX;
 
   /* ============================================================
-     TRÍ NHỚ CHIỀU CAO — cho app con, không phải viết thêm dòng JS nào
+     CHỤP KHUNG XƯƠNG TỪ CHÍNH MÀN THẬT
 
-     Hình dạng thì đoán được (mấy thẻ, mấy dòng), nhưng CHIỀU CAO thật thì
-     không: dòng bảng có dòng hai tầng, thẻ có ghi chú, có cái không. Nên phần
-     tử nào gắn `data-kx-cao="<tên>"` sẽ được:
-       1. chừa sẵn đúng chiều cao của lần mở trước;
-       2. đo lại chiều cao THẬT ngay khi nội dung thật thay vào chỗ đó.
+     Trang Tổng quan khớp được là nhờ NHỚ hình thật của lần trước. Chín app con
+     không làm cùng cách đó bằng tay được: mỗi app mấy chục màn, mỗi màn một bố
+     cục, khai tay thì vừa không xuể vừa lệch ngay lần sửa giao diện kế tiếp.
 
-     Nhờ vậy khung xương của app con cũng không làm trang nhảy, mà mỗi app chỉ
-     phải thêm đúng một thuộc tính trong HTML.
+     Nên ở đây làm thẳng: sau khi màn thật vẽ xong, đi một vòng qua DOM của nó
+     và đúc ra khung xương — GIỮ NGUYÊN thẻ và lớp CSS (nên thẻ vẫn là thẻ, bảng
+     vẫn là bảng, cột vẫn đúng cột), chỉ THAY chữ bằng thanh xám và ảnh/ô nhập
+     bằng khối xám. Lần mở sau nạp lại đúng khung đó.
+
+     Ba thứ được bảo đảm:
+       - khung xương KHÔNG mang chữ nào: mọi text node bị thay bằng thanh xám,
+         nên trong localStorage không có tên khách, không có con số nào;
+       - không id, không on*, không script — chỉ còn thẻ + lớp + vài thuộc tính
+         bố cục, nên nhét lại bằng innerHTML là an toàn;
+       - có trần: 900 nút, 25 con lặp cho một khối, 40 KB một màn. Quá trần thì
+         cắt bớt, phần thiếu đã có `min-height` của chiều cao thật bù vào.
+
+     Hai thuộc tính trong HTML:
+       data-kx-nho="<tên>"  chỗ này vừa HIỆN khung xương vừa được CHỤP lại
+       data-kx-xem="<tên>"  chỉ hiện (lớp phủ của Bảng công việc, khung iframe
+                            của lớp vỏ) — chụp là việc của chỗ kia
      ============================================================ */
-  const KHOA = (t) => 'kx.cao.' + t;
+  const KHOA = (t) => 'kx.xuong.' + t;
+  const TRAN_NUT = 900;      // số nút tối đa một lần chụp
+  const TRAN_CON = 30;       // số con giữ lại trong một khối lặp (bảng, danh sách)
+  const TRAN_BYTE = 40000;   // cỡ tối đa một màn
+  const SAU = 14;            // độ sâu tối đa
 
-  function docCao(ten) {
+  /* Thẻ giữ nguyên được. Thẻ khác đổi thành div cho khỏi lôi theo hành vi (a
+     bấm được, button bấm được, form gửi được…). Bảng thì phải giữ đúng thẻ,
+     nếu không cả bảng vỡ thành một cột. */
+  const THE_GIU = new Set(['DIV', 'SECTION', 'ARTICLE', 'HEADER', 'FOOTER', 'ASIDE', 'MAIN',
+    'NAV', 'UL', 'OL', 'LI', 'TABLE', 'THEAD', 'TBODY', 'TFOOT', 'TR', 'TD', 'TH',
+    'P', 'SPAN', 'B', 'STRONG', 'EM', 'SMALL', 'LABEL',
+    'H1', 'H2', 'H3', 'H4', 'H5', 'H6']);
+  const THE_BO = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE', 'LINK', 'META', 'BR', 'HR']);
+  const THE_KHOI = new Set(['IMG', 'SVG', 'CANVAS', 'VIDEO', 'IFRAME', 'PICTURE', 'OBJECT',
+    'INPUT', 'SELECT', 'TEXTAREA', 'BUTTON', 'PROGRESS', 'METER']);
+
+  /* Chỉ giữ thuộc tính style nào ẢNH HƯỞNG BỐ CỤC. Giữ cả `style` thì lôi theo
+     màu nền, màu chữ, ảnh nền — khung xương thành bản sao loè loẹt của màn
+     thật. Bỏ sạch thì mất mấy thứ app tự tính bằng JS (bề rộng cột, chiều cao
+     biểu đồ) và bố cục lệch hẳn. */
+  const STYLE_GIU = /^(width|min-width|max-width|height|min-height|max-height|flex|flex-basis|grid-template-columns|grid-template-rows|grid-column|grid-row|aspect-ratio|order)$/;
+
+  function locStyle(el) {
+    const st = el.getAttribute('style');
+    if (!st) return '';
+    return st.split(';').map((x) => x.trim()).filter((x) => {
+      const k = (x.split(':')[0] || '').trim().toLowerCase();
+      return k && STYLE_GIU.test(k);
+    }).join(';');
+  }
+
+  const escAttr = (v) => String(v).replace(/[&<>"]/g,
+    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  /** Một thanh xám thay cho chữ: dài theo chữ thật, cao theo cỡ chữ thật. */
+  function thanhChu(el, chuDai, rongToiDa) {
+    let cao = 12;
+    try { cao = Math.round(parseFloat(getComputedStyle(el).fontSize) * 0.72) || 12; } catch (_) {}
+    cao = Math.max(8, Math.min(30, cao));
+    const rong = Math.max(24, Math.min(rongToiDa || 240, Math.round(chuDai * cao * 0.58)));
+    return '<span class="kx" style="display:inline-block;width:' + rong +
+      'px;height:' + cao + 'px;border-radius:5px"></span>';
+  }
+
+  function chupEl(el, sau, dem) {
+    if (dem.n > TRAN_NUT || dem.byte > TRAN_BYTE) return '';
+    const tag = el.tagName;
+    if (THE_BO.has(tag) || el.hidden) return '';
+    let hien = '';
+    try { hien = getComputedStyle(el).display; } catch (_) {}
+    if (hien === 'none') return '';
+
+    const r = el.getBoundingClientRect();
+    if (r.width < 1 && r.height < 1) return '';
+    dem.n++;
+
+    const lop = (el.getAttribute('class') || '').trim();
+    const st = locStyle(el);
+
+    /* Ảnh, biểu đồ, ô nhập: một khối xám ĐÚNG CỠ. Giữ đúng cỡ mới là phần quan
+       trọng — biểu đồ cao 210px mà vẽ thành một dòng chữ thì cả trang tụt lên. */
+    if (THE_KHOI.has(tag)) {
+      const h = '<span class="kx" style="display:block;width:' + Math.round(r.width) +
+        'px;height:' + Math.round(r.height) + 'px;border-radius:8px' +
+        (st ? ';' + st : '') + '"></span>';
+      dem.byte += h.length;
+      return h;
+    }
+
+    const con = [];
+    for (const c of el.children) {
+      if (con.length >= TRAN_CON) break;
+      con.push(c);
+    }
+
+    let trong = '';
+    if (!con.length) {
+      const t = (el.textContent || '').replace(/\s+/g, ' ').trim();
+      if (t) trong = thanhChu(el, t.length, r.width);
+    } else if (sau <= 0) {
+      /* Quá sâu thì gộp cả nhánh thành MỘT khối đúng chiều cao: vẫn giữ được
+         chỗ, chỉ mất chi tiết bên trong. */
+      trong = '<span class="kx" style="display:block;height:' + Math.round(r.height) +
+        'px;border-radius:8px"></span>';
+    } else {
+      for (const c of con) trong += chupEl(c, sau - 1, dem);
+      /* Chữ nằm lẫn giữa các thẻ con (VD "<b>5</b> việc") cũng phải có chỗ. */
+      for (const nut of el.childNodes) {
+        if (nut.nodeType !== 3) continue;
+        const t = (nut.nodeValue || '').replace(/\s+/g, ' ').trim();
+        if (t) trong += thanhChu(el, t.length, r.width);
+      }
+    }
+
+    const the = THE_GIU.has(tag) ? tag.toLowerCase() : 'div';
+    const h = '<' + the + (lop ? ' class="' + escAttr(lop) + '"' : '') +
+      (st ? ' style="' + escAttr(st) + '"' : '') + '>' + trong + '</' + the + '>';
+    dem.byte += h.length;
+    return h;
+  }
+
+  /** Chụp khung xương của một phần tử đã vẽ xong. '' nếu không chụp được gì. */
+  function chup(el) {
+    const dem = { n: 0, byte: 0 };
+    let h = '';
+    for (const c of el.children) h += chupEl(c, SAU, dem);
+    return h.length > 120 ? h : '';
+  }
+
+  function docXuong(ten) {
     try { return JSON.parse(localStorage.getItem(KHOA(ten)) || 'null'); } catch (_) { return null; }
   }
-  function ghiCao(ten, v) {
-    try { localStorage.setItem(KHOA(ten), JSON.stringify(v)); } catch (_) {}
+  function ghiXuong(ten, v) {
+    try { localStorage.setItem(KHOA(ten), JSON.stringify(v)); } catch (_) {
+      /* Hết chỗ (localStorage ~5MB): bỏ bản của chính màn này rồi thôi. Không
+         để app vỡ chỉ vì một cái khung xương. */
+      try { localStorage.removeItem(KHOA(ten)); } catch (_2) {}
+    }
   }
 
-  function ganCao() {
-    document.querySelectorAll('[data-kx-cao]').forEach((el) => {
-      const ten = el.getAttribute('data-kx-cao');
-      const cu = docCao(ten);
-      /* Số cột đổi theo bề ngang cửa sổ, nên chiều cao đo ở màn rộng đem áp cho
-         màn hẹp còn sai hơn là không áp. */
-      if (cu && cu.cao && Math.abs((cu.w || 0) - window.innerWidth) < 140) {
-        el.style.minHeight = cu.cao + 'px';
-      }
-      let hen = 0;
-      const mo = new MutationObserver(() => {
-        if (el.querySelector('.kx')) return;      // vẫn đang là khung xương
-        clearTimeout(hen);
-        /* Chờ một nhịp rồi mới đo: nội dung thật hay vẽ làm nhiều lượt (bảng
-           xong rồi mới tới biểu đồ), đo ở lượt đầu là nhớ một chiều cao hụt. */
-        hen = setTimeout(() => {
-          el.style.minHeight = '';
-          const cao = Math.round(el.getBoundingClientRect().height);
-          if (cao > 80) ghiCao(ten, { cao, w: window.innerWidth });
-          mo.disconnect();
-        }, 400);
-      });
-      mo.observe(el, { childList: true, subtree: true });
+  /** Bản đã nhớ còn dùng được không — cửa sổ đổi bề ngang nhiều thì bố cục khác. */
+  function conDung(v) {
+    return !!(v && v.html && Math.abs((v.w || 0) - window.innerWidth) < 140);
+  }
+
+  /** Đổ khung xương đã nhớ vào một chỗ. */
+  function hien(el, ten) {
+    const v = docXuong(ten);
+    if (!conDung(v)) return false;
+    el.innerHTML = '<div class="kx-chup kx-vung">' + v.html + '</div>';
+    if (!v.cao) return true;
+    /* Chừa chỗ, nhưng ĐỪNG chừa quá tay. Bảng quỹ chi phí cao 10.155px trong
+     * khi khung xương chỉ dựng 30 dòng đầu — đặt thẳng min-height 10.155px là
+     * dưới khung xương hở ra tám nghìn pixel trắng trơn, còn tệ hơn cái đang đi
+     * sửa. Lấy số nhỏ hơn giữa "chiều cao thật" và "chiều cao khung xương +
+     * 15%": màn ngắn thì chừa đúng, màn dài thì chỉ chừa tới chỗ mắt nhìn tới. */
+    const tuNhien = el.getBoundingClientRect().height;
+    el.style.minHeight = Math.min(v.cao, Math.round(tuNhien * 1.15)) + 'px';
+    return true;
+  }
+
+  const hienRo = (e) => {
+    if (!e || e.hidden) return false;
+    try { return getComputedStyle(e).display !== 'none'; } catch (_) { return true; }
+  };
+
+  /* Còn lớp phủ nào đang che thì màn bên dưới CHƯA phải màn thật — Bảng công
+   * việc dựng sẵn khung bảng trong HTML rồi mới đổ dữ liệu vào, chụp lúc đó là
+   * nhớ một cái bảng rỗng. */
+  const dangCho = () => [...document.querySelectorAll('[data-kx-xem]')].some(hienRo);
+
+  const hangCho = [];   // các hàm chụp đang chờ lớp phủ biến đi
+
+  /** Chụp lại mỗi khi màn thật vừa vẽ xong. */
+  function theoDoi(el, ten) {
+    let hen = 0;
+    const chupLai = () => {
+      if (el.querySelector('.kx')) return;      // vẫn đang là khung xương
+      if (dangCho()) return;                    // còn lớp phủ -> chưa xong
+      clearTimeout(hen);
+      /* Chờ một nhịp: màn thật hay vẽ làm nhiều lượt (bảng xong rồi mới tới
+         biểu đồ), chụp ở lượt đầu là nhớ một cái màn dựng dở. */
+      hen = setTimeout(() => {
+        el.style.minHeight = '';
+        const cao = Math.round(el.getBoundingClientRect().height);
+        if (cao < 80) return;
+        const html = chup(el);
+        if (html) ghiXuong(ten, { html, cao, w: window.innerWidth });
+      }, 500);
+    };
+    new MutationObserver(chupLai).observe(el, { childList: true, subtree: true });
+    hangCho.push(chupLai);
+    chupLai();
+  }
+
+  function gan() {
+    /* Ba vai, cố ý tách ra:
+         data-kx-xem  chỉ HIỆN — lớp phủ toàn màn (Bảng công việc). KHÔNG chụp,
+                      vì thứ nó che mới là màn thật.
+         data-kx-nho  vừa hiện vừa chụp — chỗ app tự thay sạch nội dung.
+         data-kx-chup chỉ CHỤP — chỗ app dựng sẵn khung trong HTML rồi đổ dữ
+                      liệu vào từng mảnh; đổ khung xương vào đó là xoá mất mấy
+                      thẻ mà JS của app đang giữ tham chiếu. */
+    document.querySelectorAll('[data-kx-xem]').forEach((el) => {
+      hien(el, el.getAttribute('data-kx-xem'));
+      /* Lớp phủ tắt bằng cách đổi lớp CSS, không phải bằng đổi nội dung — nên
+         phải rình thuộc tính, nếu không chẳng bao giờ tới lượt chụp. */
+      new MutationObserver(() => {
+        if (!dangCho()) hangCho.forEach((f) => f());
+      }).observe(el, { attributes: true, attributeFilter: ['class', 'style', 'hidden'] });
+    });
+    document.querySelectorAll('[data-kx-nho]').forEach((el) => {
+      const ten = el.getAttribute('data-kx-nho');
+      hien(el, ten);
+      theoDoi(el, ten);
+    });
+    document.querySelectorAll('[data-kx-chup]').forEach((el) => {
+      theoDoi(el, el.getAttribute('data-kx-chup'));
     });
   }
 
+  /* Cho lớp vỏ dùng lại: khung iframe của nó hiện khung xương của chính app sắp
+     mở. Lớp vỏ và chín app con chạy chung MỘT origin (app con đi qua proxy
+     /m/<id>/), nên localStorage là chung — lớp vỏ đọc được bản mà app con chụp. */
+  KX.lay = docXuong;
+  KX.conDung = conDung;
+  KX.chup = chup;
+  KX.hien = hien;
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', ganCao);
+    document.addEventListener('DOMContentLoaded', gan);
   } else {
-    ganCao();
+    gan();
   }
 })(window);

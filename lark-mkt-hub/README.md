@@ -203,9 +203,45 @@ Cách chữa: **nhớ hình của lần mở trước rồi dựng lại đúng 
 - Bề ngang cửa sổ đi kèm chiều cao: số cột đổi theo bề ngang, nên chiều cao đo ở màn rộng
   đem áp cho màn hẹp còn sai hơn là không áp (lệch quá 140px thì bỏ).
 
-App con dùng cùng cơ chế mà **không phải viết thêm dòng JS nào**: gắn `data-kx-cao="<tên>"`
-lên thẻ bọc khung xương, `khung-xuong.js` tự chừa chiều cao cũ và tự đo lại khi nội dung
-thật thay vào (MutationObserver + chờ 400ms cho nội dung vẽ xong nhiều lượt).
+### App con: CHỤP khung xương từ chính màn thật
+
+Lớp vỏ khai hình bằng tay được vì nó chỉ có một trang. Chín app con thì không: mỗi app mấy
+chục màn, khai tay vừa không xuể vừa lệch ngay lần sửa giao diện kế tiếp. Nên ở đó làm
+thẳng — **sau khi màn thật vẽ xong, đi một vòng qua DOM và đúc ra khung xương**:
+
+- **giữ nguyên thẻ và lớp CSS** → thẻ vẫn là thẻ, bảng vẫn là bảng, cột vẫn đúng cột, viền
+  và bo góc vẫn y như thật;
+- **thay chữ bằng thanh xám** dài theo độ dài chữ thật, cao theo cỡ chữ thật;
+- **thay ảnh / biểu đồ / ô nhập bằng khối xám đúng cỡ** — biểu đồ cao 210px mà vẽ thành một
+  dòng chữ thì cả trang tụt lên;
+- chỉ giữ lại thuộc tính `style` **ảnh hưởng bố cục** (`width`, `grid-template-columns`,
+  `aspect-ratio`…). Giữ cả `style` thì lôi theo màu nền, màu chữ, ảnh nền — khung xương
+  thành bản sao loè loẹt của màn thật.
+
+**Trong bản chụp không còn một chữ nào** — mọi text node đã bị thay bằng thanh xám, nên
+localStorage không giữ tên khách, không giữ con số nào. Cũng không còn `id`, không `on*`,
+không `<script>`, nên nhét lại bằng `innerHTML` là an toàn. Có trần: 900 nút, 30 con lặp cho
+một khối, 40 KB một màn — đo thật thì mỗi app 5–15 KB.
+
+Ba thuộc tính, đặt nhầm là hỏng im lặng:
+
+| Thuộc tính | Nghĩa | Dùng ở đâu |
+|---|---|---|
+| `data-kx-nho="<tên>"` | vừa **hiện** khung xương vừa **chụp** lại | `<main>` của tám app — chỗ app thay sạch nội dung |
+| `data-kx-chup="<tên>"` | **chỉ chụp** | `#dashboard` của Bảng công việc: khung dựng sẵn trong HTML, JS giữ tham chiếu từng thẻ con — đổ khung xương vào là app mất chỗ đổ dữ liệu |
+| `data-kx-xem="<tên>"` | **chỉ hiện** | lớp phủ `#loader` của Bảng công việc |
+
+Hai cái bẫy đã dính thật khi làm:
+
+1. **Đặt thuộc tính lên thẻ khung xương thay vì lên `<main>`.** App thay `innerHTML` là thẻ
+   đó biến mất cùng bộ theo dõi gắn trên nó — chụp mãi không ra bản nào, mà không có lỗi nào
+   hiện ra.
+2. **Chừa chỗ quá tay.** Bảng quỹ chi phí cao 10.155px trong khi khung xương chỉ dựng 30
+   dòng đầu; đặt thẳng `min-height` 10.155px là dưới khung xương hở ra tám nghìn pixel trắng.
+   Giờ lấy số nhỏ hơn giữa *chiều cao thật* và *chiều cao khung xương + 15%*.
+
+Lớp vỏ cũng bỏ lớp phủ iframe **ngay khi app con dựng xong DOM** (không đợi `load`): app con
+đã có khung xương của chính nó, giữ thêm lớp phủ là hai lớp khung xương chồng nhau.
 
 ### Chín app con, chín hình khác nhau
 
