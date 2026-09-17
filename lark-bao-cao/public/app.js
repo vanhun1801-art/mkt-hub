@@ -155,7 +155,10 @@ window.addEventListener('beforeunload', (e) => {
 
 async function ve() {
   const el = $('#man');
-  el.innerHTML = '<div class="the"><div class="rong">Đang tải…</div></div>';
+  /* Khung xương thay cho chữ: đổi kỳ / đổi màn là cả cột nội dung trắng ra
+   * trong lúc chờ Base, mà mấy màn này đọc khá lâu. */
+  el.innerHTML = window.KX ? KX.man('', { dau: false, the: 3, dong: 7 })
+    : '<div class="the"><div class="rong">Đang tải…</div></div>';
   try {
     /* Sổ đang mở mà đổi kỳ thì nội dung của nó phải đi theo — bỏ quên thì nó
      * ngồi đó hiển thị dữ liệu của kỳ vừa rời khỏi, mà nhìn thì không biết. */

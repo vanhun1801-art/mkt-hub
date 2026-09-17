@@ -378,7 +378,8 @@
   /* ---------------- tab: bài đăng ---------------- */
   let baiTheo = 'views';
   async function veBai() {
-    $('#view').innerHTML = '<div class="loading">Đang nạp bài đăng…</div>';
+    $('#view').innerHTML = window.KX ? KX.man('', { dau: false, the: 4, dong: 8 })
+      : '<div class="loading">Đang nạp bài đăng…</div>';
     const q = new URLSearchParams({ from: S.from, to: S.to, theo: baiTheo, n: 100 });
     if (S.platforms.length) q.set('platform', S.platforms.join(','));
     const r = await goi('/api/bai?' + q);
@@ -415,7 +416,8 @@
 
   /* ---------------- tab: LIVE ---------------- */
   async function veLive() {
-    $('#view').innerHTML = '<div class="loading">Đang nạp phiên LIVE…</div>';
+    $('#view').innerHTML = window.KX ? KX.man('', { dau: false, the: 3, dong: 5 })
+      : '<div class="loading">Đang nạp phiên LIVE…</div>';
     const r = await goi('/api/live?' + truyVan());
     const ds = r.live || [];
     $('#view').innerHTML = ''
@@ -608,7 +610,8 @@
 
   /* ---------------- tab: nhật ký ---------------- */
   async function veNhatKy() {
-    $('#view').innerHTML = '<div class="loading">Đang nạp nhật ký…</div>';
+    $('#view').innerHTML = window.KX ? KX.man('', { dau: false, the: 0, dong: 8 })
+      : '<div class="loading">Đang nạp nhật ký…</div>';
     const r = await goi('/api/nhat-ky');
     $('#view').innerHTML = '<div class="card"><div class="card-head"><h3>Nhật ký đồng bộ</h3>'
       + '<span class="sub">100 lượt gần nhất</span></div><div class="card-body tight">'
@@ -723,7 +726,9 @@
   /* ---------------- kết nối ---------------- */
   async function moKetNoi() {
     moModal('<div class="modal-head"><h3>Kết nối nền tảng</h3></div>'
-      + '<div class="modal-body"><div class="loading">Đang đọc cấu hình…</div></div>');
+      + '<div class="modal-body">'
+      + (window.KX ? KX.dong(4) : '<div class="loading">Đang đọc cấu hình…</div>')
+      + '</div>');
     let d;
     try { d = await goi('/api/ket-noi'); } catch (e) {
       $('#modal .modal-body').innerHTML = '<div class="empty">' + esc(e.message) + '</div>';
@@ -1119,7 +1124,8 @@
 
   /* ---------------- tab: nội dung ---------------- */
   async function veNoiDung() {
-    $('#view').innerHTML = '<div class="loading">Đang tính…</div>';
+    $('#view').innerHTML = window.KX ? KX.man('', { dau: false, the: 4, dong: 6 })
+      : '<div class="loading">Đang tính…</div>';
     const q = new URLSearchParams({ from: S.from, to: S.to });
     if (S.platforms.length) q.set('platform', S.platforms.join(','));
     const d = await goi('/api/noi-dung?' + q);
@@ -1220,8 +1226,11 @@
   let blTatCa = false;
 
   async function veBinhLuan() {
-    $('#view').innerHTML = '<div class="loading">Đang đọc bình luận từ Facebook và Instagram — '
-      + 'việc này gọi thẳng API nên hơi lâu…</div>';
+    $('#view').innerHTML = window.KX
+      ? '<div class="notes" style="margin-bottom:12px">Đang đọc bình luận từ Facebook và '
+        + 'Instagram — việc này gọi thẳng API nên hơi lâu…</div>' + KX.dong(6)
+      : '<div class="loading">Đang đọc bình luận từ Facebook và Instagram — '
+        + 'việc này gọi thẳng API nên hơi lâu…</div>';
     let d;
     try {
       d = await goi('/api/binh-luan?ngay=' + blNgay + (blTatCa ? '&tatCa=1' : ''));

@@ -151,6 +151,65 @@ Ba app module cũng đã dọn theo hai quy ước cuối: bỏ emoji ở tab / 
 giải thích trong bảng điều khiển. Riêng giá trị select của Base (`🟡 Trung bình`) vẫn ghi
 nguyên như Base đang lưu, chỉ **bỏ emoji khi hiển thị** (`nhan()` trong `kpi.js`).
 
+## Khung xương — khoảng chờ có hình dạng
+
+Anh Hùng: *"YouTube cho hiện ra các ô trước rồi mới nạp dữ liệu vào, tạo cảm giác hệ thống
+không bị lỗi và không trống trơn."* Trước đây mỗi màn chờ một kiểu: lớp vỏ ghi "Đang nạp…",
+Bảng công việc quay một vòng tròn, Quảng cáo ghi "Đang nạp dữ liệu từ Lark Base…" — và ở
+đâu cũng là **một dòng chữ giữa vùng trắng**. Trên Render gói Free, `/api/tongquan` mất 2-5
+giây vì phải hỏi chín Base, nên vùng trắng đó là thứ người ta nhìn nhiều nhất trong ngày.
+
+Giờ cả hệ dùng **một bộ khuôn**: vẽ sẵn đúng hình dạng của nội dung sắp tới bằng khối xám
+nhấp nháy, rồi thay dữ liệu thật vào đúng chỗ đó.
+
+| File | Việc |
+|---|---|
+| `public/khung-xuong.css` | **bản gốc** — token màu (sáng/tối), hiệu ứng lướt, các hình dạng chuẩn |
+| `public/khung-xuong.js` | **bản gốc** — bộ dựng `KX.*` |
+| `dong-bo-khung.js` | chép CẢ HAI bản gốc sang `public/` của chín app con |
+| `test/khung-xuong.test.js` | canh cho không bản nào lệch và không chỗ nào rơi lại về vùng trắng |
+
+`KX.*` có **hai nhóm, đừng lẫn**:
+
+- **nhóm chung** — `o` `chu` `so` `nut` `oSo` `dong` `log` `bang` `man`: chỉ dùng lớp `kx-*`
+  của riêng khung xương nên **app nào cũng gọi được**;
+- **nhóm riêng của lớp vỏ** — `the` `khoiBase` `luoiBase` `viec` `tai` `rail` `tin`: mượn lớp
+  bố cục của trang Tổng quan (`.the-luoi`, `.tn-hang`, `.viec-dong`…). **App con đừng gọi**:
+  `.the` bên Báo cáo là thẻ báo cáo, bên lớp vỏ là ô số — gọi nhầm là ăn nhầm CSS của chính
+  app đó. `test/khung-xuong.test.js` quét mọi tệp JS của chín app để canh chuyện này.
+
+Ba quy ước, phá cái nào cũng mất đúng thứ vừa làm được:
+
+1. **Mượn lớp bố cục THẬT** (`.luoi-base`, `.the-luoi`, `.viec-dong`, `.tn-hang`) rồi đặt
+   `.kx` vào trong. Dựng bố cục riêng cho khung xương thì hai bố cục lệch nhau, và lúc dữ
+   liệu về trang nhảy một nhịp — đúng cái đang muốn tránh.
+2. **Khung xương của nhịp sơn đầu tiên nằm thẳng trong `index.html`**, không dựng bằng JS:
+   `app.js` nằm cuối trang và còn chờ `DOMContentLoaded`, nên dựng bằng JS thì người dùng
+   vẫn thấy panel trắng trước đã.
+3. **Hứa đúng thứ sắp hiện ra.** Trang Tổng quan biết danh sách base (`/api/hub`, ~100ms)
+   trước khi biết số liệu (`/api/tongquan`, 2-5s), nên nó vẽ ngay tên base thật và chỉ để
+   khung xương ở chỗ những con số. Khối video + bảng tin thì dựng theo trí nhớ
+   (`localStorage['hub.tin.hinh']`): lần trước không có gì thì lần này không vẽ gì — khối
+   xám hiện lên rồi biến mất còn tệ hơn là không hứa gì.
+
+Sửa bản gốc xong **phải chạy `node dong-bo-khung.js`** (mỗi app con chạy độc lập được nên
+chỉ phục vụ được file trong thư mục của chính nó — phải có một bản cho mỗi app).
+
+### Chỗ nào có khung xương, chỗ nào vẫn là chữ
+
+Có, ở mọi chỗ **một khối nội dung đang chờ dữ liệu**: trang Tổng quan (lưới base, dải nhiệt,
+việc cần xử lý, bảng tin), màn Cài đặt (logo, video, tài khoản, phân quyền, thông báo, hộp
+log), ba hộp thoại của lớp vỏ, màn khởi động của cả chín app con, và các màn nạp lại bên
+trong chúng — đổi tab Social, đổi kỳ Báo cáo, tính lại KPI, Booking mới / Thống kê / Dữ liệu
+Lark của OTA, danh sách hội thoại và điều khiển nền tảng của Quảng cáo, khung giờ + cấu hình
+thông báo của Lịch, bình luận công việc và hộp Phân phối của Bảng công việc.
+
+Không, và cố ý: **nhãn nút đang chạy** ("Đang ghi…", "Đang đồng bộ…"), **tiến trình tải tệp**
+("Đang tải 2/5 — anh.png"), **ô gợi ý đang gõ** ("đang tìm…"). Mấy chỗ đó người dùng vừa bấm
+xong nên đang nhìn đúng vào nó, và cái họ cần là *tiến độ*, không phải hình dạng của kết quả.
+Riêng khối Bình luận của Social thì giữ **cả hai**: một câu nói rõ "gọi thẳng API nên hơi
+lâu" đặt trên khung xương — vì nó lâu bất thường, im lặng ở đó là bị hiểu thành treo.
+
 ## Trang Tổng quan bấm được — một cú bấm tới đúng việc
 
 Trang Tổng quan không chỉ để xem:
@@ -1015,6 +1074,9 @@ trong Lark**, không liên quan tới vai quản lý/nhân sự bên trong từn
 | `quyen.js` | bảng Phân quyền: ai thấy base nào, ai quản trị base nào |
 | `thongbao-app.js` | bảng Thông báo chặn màn hình: ai nhận, còn hiệu lực không, ai đã đọc |
 | `nhom-lark.js` | thành viên nhóm chat Phòng MKT — để form soạn thông báo tick sẵn đúng phòng |
+| `public/khung-xuong.css` · `khung-xuong.js` | **khung xương** dùng chung: hình dạng chờ dữ liệu cho lớp vỏ và chín app con |
+| `dong-bo-khung.js` | chép `khung-xuong.css` sang chín app con — chạy sau mỗi lần sửa bản gốc |
+| `test/khung-xuong.test.js` | canh khung xương: đúng thứ tự nạp, đúng bản, và không màn nào rơi lại về vùng trắng |
 | `public/index.html` · `styles.css` · `app.js` · `icons.js` | panel base, sân khấu iframe, trang Tổng quan chung, modal Cài đặt / Thêm base / Log |
 | `test/api.test.js` | kiểm thử chỉ đọc |
 | `test/bot.test.js` | kiểm thử lớp `/bot`: token, chỉ GET, và **không một đồng nào lọt ra** |

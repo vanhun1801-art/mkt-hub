@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Báo cáo công việc</title>
 <link rel="stylesheet" href="/styles.css?v=BUILD">
+<link rel="stylesheet" href="/khung-xuong.css?v=BUILD">
 </head>
 <body>
 
@@ -33,7 +34,12 @@
      trái, cái thành phần khác sẽ tự động co giãn để phù hợp". Nên Sổ là cột
      thật: nó mở ra thì cột nội dung hẹp lại, chứ không bị che. -->
 <div class="than-trang">
-  <main id="man">Đang tải…</main>
+  <main id="man">
+  <!-- Khung xương thay cho dòng chữ "đang tải": vẽ sẵn hình dạng của màn
+     sắp hiện ra (xem public/khung-xuong.css — bản gốc ở lark-mkt-hub,
+     đồng bộ bằng `node dong-bo-khung.js`). -->
+  <div class="kx-man kx-vung" aria-busy="true" aria-label="Đang nạp báo cáo"><div class="kx-man-the"><div class="kx-the"><span class="kx kx-chu nho" style="width:74%"></span><span class="kx kx-so to"></span></div><div class="kx-the"><span class="kx kx-chu nho" style="width:56%"></span><span class="kx kx-so to"></span></div><div class="kx-the"><span class="kx kx-chu nho" style="width:88%"></span><span class="kx kx-so to"></span></div><div class="kx-the"><span class="kx kx-chu nho" style="width:62%"></span><span class="kx kx-so to"></span></div></div><div class="kx-man-bang"><div class="kx-hang"><span class="kx kx-o" style="width:22px;height:22px"></span><span style="flex:2;min-width:0"><span class="kx kx-chu " style="width:74%"></span></span><span style="flex:1;min-width:0"><span class="kx kx-chu nho" style="width:88%"></span></span><span class="kx kx-nut" style="width:60px"></span></div><div class="kx-hang"><span class="kx kx-o" style="width:22px;height:22px"></span><span style="flex:2;min-width:0"><span class="kx kx-chu " style="width:56%"></span></span><span style="flex:1;min-width:0"><span class="kx kx-chu nho" style="width:62%"></span></span><span class="kx kx-nut" style="width:60px"></span></div><div class="kx-hang"><span class="kx kx-o" style="width:22px;height:22px"></span><span style="flex:2;min-width:0"><span class="kx kx-chu " style="width:88%"></span></span><span style="flex:1;min-width:0"><span class="kx kx-chu nho" style="width:80%"></span></span><span class="kx kx-nut" style="width:60px"></span></div><div class="kx-hang"><span class="kx kx-o" style="width:22px;height:22px"></span><span style="flex:2;min-width:0"><span class="kx kx-chu " style="width:62%"></span></span><span style="flex:1;min-width:0"><span class="kx kx-chu nho" style="width:50%"></span></span><span class="kx kx-nut" style="width:60px"></span></div><div class="kx-hang"><span class="kx kx-o" style="width:22px;height:22px"></span><span style="flex:2;min-width:0"><span class="kx kx-chu " style="width:80%"></span></span><span style="flex:1;min-width:0"><span class="kx kx-chu nho" style="width:70%"></span></span><span class="kx kx-nut" style="width:60px"></span></div><div class="kx-hang"><span class="kx kx-o" style="width:22px;height:22px"></span><span style="flex:2;min-width:0"><span class="kx kx-chu " style="width:50%"></span></span><span style="flex:1;min-width:0"><span class="kx kx-chu nho" style="width:64%"></span></span><span class="kx kx-nut" style="width:60px"></span></div></div></div>
+  </main>
 
   <aside id="so" aria-label="Chi tiết kỳ">
     <header class="so-dau">
@@ -46,6 +52,7 @@
   </aside>
 </div>
 
+<script src="/khung-xuong.js?v=BUILD"></script>
 <script src="/app.js?v=BUILD"></script>
 </body>
 </html>

@@ -3605,7 +3605,10 @@ function khoiBinhLuan(t) {
   f.appendChild(el('label', '', 'Trao đổi'));
 
   const list = el('div', 'cmt-list');
-  list.appendChild(el('div', 'cmt-load', 'Đang tải…'));
+  /* Khung xương: ba dòng trao đổi giả. Ô này nằm giữa form nên một dòng chữ
+     "Đang tải…" làm cả form co lại rồi giãn ra khi bình luận về. */
+  if (window.KX) list.innerHTML = KX.log(3);
+  else list.appendChild(el('div', 'cmt-load', 'Đang tải…'));
   f.appendChild(list);
 
   const soan = el('div', 'cmt-new');
@@ -4710,7 +4713,8 @@ const escPP = (v) => String(v == null ? '' : v)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 async function openPhanPhoi() {
-  $('#ppBody').innerHTML = '<div class="muted" style="padding:20px 0">Đang tải…</div>';
+  $('#ppBody').innerHTML = window.KX ? KX.dong(5)
+    : '<div class="muted" style="padding:20px 0">Đang tải…</div>';
   openModal('mPhanPhoi');
   await napPhanPhoi();
 }

@@ -274,7 +274,8 @@ function veBangBooking(rows) {
 /* --------------------------------------------------- màn Booking mới ----- */
 function veBookingMoi() {
   const d = S.data;
-  if (!d) return `<div class="loading">Đang nạp booking…</div>`;
+  if (!d) return window.KX ? KX.man('', { dau: false, the: 4, dong: 6 })
+    : `<div class="loading">Đang nạp booking…</div>`;
 
   const vh = d.vanHanh;
   const nhomDS = S.nhom && vh.nhom[S.nhom] ? vh.nhom[S.nhom] : null;
@@ -346,7 +347,8 @@ const tienOtaGop = (g, v) => (g.bookingVnd === 0 && g.ngoaiTe
 
 function veThongKe() {
   const tk = S.tk;
-  if (!tk) return `<div class="loading">Đang tính thống kê…</div>`;
+  if (!tk) return window.KX ? KX.man('', { dau: false, the: 6, dong: 5 })
+    : `<div class="loading">Đang tính thống kê…</div>`;
   const t = tk.tong;
 
   const the = [
@@ -519,7 +521,8 @@ function veThongKe() {
 /* -------------------------------------------------- màn Dữ liệu Lark ----- */
 function veDuLieuLark() {
   const m = S.meta;
-  if (!m) return `<div class="loading">Đang đọc cấu hình Lark…</div>`;
+  if (!m) return window.KX ? KX.man('', { dau: false, the: 3, dong: 5 })
+    : `<div class="loading">Đang đọc cấu hình Lark…</div>`;
 
   const L = m.luocDo || {};
   const hd = L.huongDan || { tenBang: 'Bookings', cot: [], canThem: [], danhMuc: [] };

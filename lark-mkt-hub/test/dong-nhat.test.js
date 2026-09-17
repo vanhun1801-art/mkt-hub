@@ -41,7 +41,12 @@ const group = (t) => console.log('\n\x1b[1m' + t + '\x1b[0m');
 /** Đọc CSS của một app. */
 function css(app) {
   const dir = path.join(GOC, app, 'public');
-  const f = fs.readdirSync(dir).find((x) => x.endsWith('.css'));
+  /* Lấy ĐÍCH DANH styles.css, không lấy "file .css đầu tiên": từ khi mỗi app có
+   * thêm khung-xuong.css thì tên đó đứng TRƯỚC styles.css theo thứ tự chữ cái,
+   * và cả bộ này quay ra đo nhầm tệp khung xương — 15 câu kiểm đỏ cùng lúc
+   * trong khi CSS của app không đổi một dòng nào. */
+  const ds = fs.readdirSync(dir);
+  const f = ds.includes('styles.css') ? 'styles.css' : ds.find((x) => x.endsWith('.css'));
   return fs.readFileSync(path.join(dir, f), 'utf8');
 }
 

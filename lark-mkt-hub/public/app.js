@@ -584,6 +584,7 @@ function veRail() {
   if (nav.__html === html) return;
   nav.__html = html;
   nav.innerHTML = html;
+  nav.removeAttribute('aria-busy');   // khung xương trong index.html vừa bị thay
   ganKeoRail(nav);
 }
 
@@ -668,7 +669,12 @@ function khungCuaModule(mod, rec, mo) {
   const wrap = document.createElement('div');
   wrap.className = 'page';
   wrap.style.padding = '0';
-  wrap.innerHTML = '<div class="frame-loading"><span class="spin"></span> Đang mở ' + esc(mod.ten) + '…</div>';
+  /* Khung xương của MỘT màn app (tiêu đề - hàng thẻ số - bảng), không phải vòng
+   * xoay giữa nền trắng: app con nào cũng mở ra đúng ba tầng đó, nên mắt dựng
+   * sẵn bố cục trong lúc iframe còn đang nạp. */
+  wrap.innerHTML = '<div class="frame-loading' + (window.KX ? ' xuong' : '') + '">' +
+    (window.KX ? KX.man(esc(mod.ten))
+      : '<span class="spin"></span> Đang mở ' + esc(mod.ten) + '…') + '</div>';
 
   const f = document.createElement('iframe');
   f.src = srcCuaModule(mod, rec, mo);
@@ -1040,6 +1046,16 @@ async function veKhoiTin() {
    * hai đường này gần như không đổi. Vẽ lại mà hỏi lại là video đang phát bị
    * dựng lại từ đầu — mất chỗ đang xem. */
   if (TIN.ds === null) {
+    /* Khung xương của khối này dựng theo TRÍ NHỚ: lần mở trước có video thì
+     * chừa ô video, chỉ có tin thì chừa cột tin, chưa có gì thì không vẽ gì cả.
+     * Hứa đúng thứ sắp hiện ra — chứ khối xám hiện lên rồi biến mất thì đọc
+     * như trang bị lỗi. */
+    let hinhCu = '';
+    try { hinhCu = localStorage.getItem('hub.tin.hinh') || ''; } catch (_) {}
+    if (hinhCu && window.KX && o.dataset.xuong !== '1') {
+      o.dataset.xuong = '1';
+      o.innerHTML = KX.tin(hinhCu === 'phim');
+    }
     const [phim, tin] = await Promise.all([
       goi('/api/video-gt-tin').catch(() => ({ co: false })),
       goi('/api/tb-app/tin').catch(() => ({ ds: [] })),
@@ -1047,7 +1063,10 @@ async function veKhoiTin() {
     TIN = { phim, ds: tin.ds || [] };
   }
   const coPhim = TIN.phim && TIN.phim.co;
-  if (!coPhim && !TIN.ds.length) { o.innerHTML = ''; return; }
+  try {
+    localStorage.setItem('hub.tin.hinh', coPhim ? 'phim' : TIN.ds.length ? 'tin' : '');
+  } catch (_) {}
+  if (!coPhim && !TIN.ds.length) { o.innerHTML = ''; o.dataset.xuong = ''; return; }
 
   /* Vẽ MỘT LẦN rồi thôi: lần vẽ lại sau của trang chủ không được đụng vào thẻ
    * video đang chạy. */
@@ -1418,8 +1437,16 @@ function ganPhimTin(phims, nut, ds) {
 }
 function veHome() {
   const body = $('#homeBody');
-  const tq = S.tq;
-  if (!tq) return;
+  /* Trang này có HAI tầng dữ liệu về hai nhịp khác nhau: danh sách base
+   * (/api/hub, ~100ms) rồi mới tới số liệu từng base (/api/tongquan, 2-5s trên
+   * Render vì phải hỏi Lark). Trước đây tầng một về rồi vẫn `return` — người
+   * dùng nhìn một dòng "Đang nạp…" suốt mấy giây trong khi lớp vỏ ĐÃ BIẾT có
+   * những base nào, tên gì.
+   *
+   * Giờ vẽ ngay khung thật với tên base thật, chỗ số liệu để khung xương; số
+   * về thì thay đúng vào chỗ đó nên không ô nào xê dịch. */
+  const tq = S.tq || { modules: [], canXuLy: [] };
+  const choSo = !S.tq;
 
   const byId = new Map((tq.modules || []).map((m) => [m.id, m]));
   const dsBat = S.modules.filter((m) => m.bat);
@@ -1444,7 +1471,9 @@ function veHome() {
     const tt = m.tinhTrang || {};
     const nhan = NHAN_TT[tt.trangThai] || ['', ''];
     let noi;
-    if (!r) {
+    if (choSo) {
+      noi = window.KX ? KX.the(6) : '';
+    } else if (!r) {
       noi = '<div class="trong">Base này chưa có bộ đọc chỉ số. Mở app để xem chi tiết, hoặc khai <code>kpi</code> trong <code>modules.json</code>.</div>';
     } else if (!r.ok) {
       noi = '<div class="canh-bao do"><span class="grow">Không đọc được chỉ số: ' + esc(r.loi || '') + '</span>' +
@@ -1503,14 +1532,15 @@ function veHome() {
      * chỉ đẩy lên 6 việc quá hạn, 4 việc chưa phân công… nên trước đây trang chủ
      * báo "35 việc" trong khi riêng quá hạn đã 24. */
     '<div><h2>Cần xử lý ngay</h2>' +
-    (tong ? '<div class="kh-sub">' + tong + ' việc' +
+    (choSo ? '' : tong ? '<div class="kh-sub">' + tong + ' việc' +
       (con ? ' · đang hiện ' + cxl.length + ' việc gấp nhất' : '') + '</div>' : '') + '</div>' +
     '<span class="grow"></span></div>' +
     '<div class="khoi-body"><div class="viec viec-cuon">' +
-    (cxl.length ? cxl.map((v) => {
+    (choSo && window.KX ? KX.viec(5)
+      : cxl.length ? cxl.map((v) => {
       const m = S.modules.find((x) => x.id === v.module);
-      return dongViecHtml(v, m ? m.ten : v.module);
-    }).join('') : '<div class="trong">Không còn việc nào.</div>') +
+        return dongViecHtml(v, m ? m.ten : v.module);
+      }).join('') : '<div class="trong">Không còn việc nào.</div>') +
     /* Nói ra phần bị cắt và chỉ chỗ xem hết — trước đây nó im lặng, mà im lặng ở
      * đây nghĩa là quản lý tưởng đã xử lý xong tồn đọng. */
     (con ? '<div class="viec-con">Còn <b>' + con + ' việc</b> nữa không hiện ở đây. ' +
@@ -1518,9 +1548,13 @@ function veHome() {
     '</div></div></section>';
 
   body.innerHTML = html;
+  /* Cờ cho trình đọc màn hình: còn khung xương thì vùng này vẫn là "đang bận". */
+  if (choSo) body.setAttribute('aria-busy', 'true');
+  else body.removeAttribute('aria-busy');
   veKhoiTin();
 
-  $('#homeSub').textContent = dsBat.length + ' base · ' + tong + ' việc cần xử lý · cập nhật ' + gio(tq.luc);
+  $('#homeSub').textContent = choSo ? 'Đang đọc số liệu từ ' + dsBat.length + ' base…'
+    : dsBat.length + ' base · ' + tong + ' việc cần xử lý · cập nhật ' + gio(tq.luc);
   const ai = (tq.modules || []).map((m) => m.nguoi).find(Boolean);
   $('#homeUser').textContent = ai ? 'Tài khoản Lark: ' + ai : '';
   $('#homeUser').hidden = !ai;
@@ -1573,9 +1607,22 @@ function khoiTaiNhanSu() {
       '<div class="khoi-body"><div class="canh-bao do"><span class="grow">' + esc(S.lichLoi) + '</span></div></div></section>';
   }
   if (!d) {
-    return '<section class="khoi"><div class="khoi-head"><div><h2>Tải nhân sự</h2></div></div>' +
-      '<div class="khoi-body"><div class="trong"><span class="spin"></span> Đang nạp…</div></div></section>';
+    /* Số cột = số ngày của khoảng đang lọc, số hàng = số người của lần nạp
+     * trước (nhớ ở trình duyệt). Đoán đúng hai con số này thì lúc dữ liệu về
+     * dải nhiệt không co giãn — cái giật khó chịu nhất của trang này. */
+    const k = khoangLich();
+    const ngay = Math.max(7, Math.min(62,
+      Math.round((new Date(k.den) - new Date(k.tu)) / 86400000) + 1));
+    let hang = 6;
+    try { hang = Math.max(3, Math.min(14, Number(localStorage.getItem('hub.tai.hang')) || 6)); } catch (_) {}
+    return '<section class="khoi"><div class="khoi-head">' +
+      '<span class="kh-ic" style="background:#eaf0ff;color:#2b5cff">' + icon('nguoi') + '</span>' +
+      '<div><h2>Tải nhân sự</h2></div></div>' +
+      '<div class="khoi-body">' +
+      (window.KX ? KX.tai(hang, ngay) : '<div class="trong"><span class="spin"></span> Đang nạp…</div>') +
+      '</div></section>';
   }
+  try { localStorage.setItem('hub.tai.hang', String(d.hang.length || 6)); } catch (_) {}
 
   const nguoi = d.hang.filter((r) => r.id);
   const quaTai = nguoi.filter((r) => r.dinh >= NGUONG_QUA_TAI);
@@ -1777,6 +1824,10 @@ async function napHub() {
   S.xemNhu = d.xemNhu || null;
   veBangXemNhu();
   veRail();
+  /* Vẽ trang chủ NGAY khi biết có những base nào — số liệu còn đang trên đường.
+   * Chỉ làm khi chưa có số (S.tq rỗng): nhịp 10 giây của napHub mà cũng vẽ lại
+   * thì danh sách "Cần xử lý ngay" bị cuộn về đầu mỗi 10 giây. */
+  if (!S.tq && S.view === 'home') veHome();
 }
 
 let dangNapTQ = false;
@@ -1883,7 +1934,8 @@ function modalCaiDat() {
 
 /** Tự kiểm tra hệ thống: nói rõ đang thiếu quyền gì, ở đâu. */
 async function modalKiemTra() {
-  moModal('Kiểm tra hệ thống', '<div class="trong"><span class="spin"></span> Đang hỏi từng base…</div>',
+  moModal('Kiểm tra hệ thống',
+    window.KX ? KX.bang(7, 2) : '<div class="trong"><span class="spin"></span> Đang hỏi từng base…</div>',
     '<button class="btn ghost" data-close="1">Đóng</button>');
   let d;
   try { d = await goi('/api/kiem-tra'); } catch (e) {

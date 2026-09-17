@@ -983,6 +983,12 @@ td.c-check { width: 34px; }
   justify-items: center; gap: 14px; background: var(--bg); color: var(--text-2); font-size: 13px;
 }
 .loader.hidden { display: none; }
+/* Bản khung xương: lớp phủ phải trở lại bố cục KHỐI. Để nguyên
+   `place-content: center` thì khung xương bị bóp còn bề rộng nội dung rồi canh
+   giữa màn hình — nhìn như một cột hẹp lạc lõng, không giống trang sắp hiện. */
+.loader.xuong {
+  display: block; place-content: normal; justify-items: normal; overflow: hidden;
+}
 .spinner {
   width: 30px; height: 30px; border-radius: 50%;
   border: 3px solid var(--border); border-top-color: var(--blue);

@@ -8,6 +8,9 @@
 <meta name="theme-color" content="#3370ff">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/styles.css?v=BUILD">
+<!-- Khung xương (skeleton): phải nằm SAU styles.css để đè được nền/viền của
+     thành phần thật mà nó đang giả dạng. -->
+<link rel="stylesheet" href="/khung-xuong.css?v=BUILD">
 </head>
 <body>
 
@@ -39,7 +42,22 @@
       <button class="rail-pin" id="btnPin" title="Thu gọn / mở rộng panel">‹</button>
     </div>
 
-    <nav class="rail-nav" id="railNav"></nav>
+    <!-- Khung xương viết thẳng vào HTML, không dựng bằng JS: nó phải có mặt ở
+         NHỊP SƠN ĐẦU TIÊN, mà app.js thì nằm cuối trang và còn chờ DOMContentLoaded.
+         Dựng bằng JS thì người dùng vẫn thấy một panel trắng trơn trước đã —
+         đúng cái đang muốn bỏ. veRail() ghi đè chỗ này khi /api/hub trả về. -->
+    <nav class="rail-nav" id="railNav" aria-busy="true">
+      <div class="kx-vung" aria-label="Đang nạp danh sách base">
+        <div class="rail-item"><span class="kx kx-o"></span><span class="ri-tx"><span class="kx kx-chu" style="width:74%"></span></span></div>
+        <div class="rail-group"><span class="kx kx-chu nho" style="width:56%"></span></div>
+        <div class="rail-item"><span class="kx kx-o"></span><span class="ri-tx"><span class="kx kx-chu" style="width:66%"></span></span></div>
+        <div class="rail-item"><span class="kx kx-o"></span><span class="ri-tx"><span class="kx kx-chu" style="width:82%"></span></span></div>
+        <div class="rail-item"><span class="kx kx-o"></span><span class="ri-tx"><span class="kx kx-chu" style="width:58%"></span></span></div>
+        <div class="rail-item"><span class="kx kx-o"></span><span class="ri-tx"><span class="kx kx-chu" style="width:76%"></span></span></div>
+        <div class="rail-item"><span class="kx kx-o"></span><span class="ri-tx"><span class="kx kx-chu" style="width:62%"></span></span></div>
+        <div class="rail-item"><span class="kx kx-o"></span><span class="ri-tx"><span class="kx kx-chu" style="width:70%"></span></span></div>
+      </div>
+    </nav>
 
     <div class="rail-foot">
       <button class="rail-item ghost" id="btnAdd" title="Thêm một base vào panel">
@@ -83,8 +101,17 @@
            lại từ đầu, và mất luôn trạng thái có tiếng. -->
       <div id="khoiTin"></div>
 
-      <div class="home-body" id="homeBody">
-        <div class="loading"><span class="spin"></span> Đang nạp…</div>
+      <!-- Cùng lý do với panel: ba khối dưới đây là hình dạng THẬT của trang
+           Tổng quan (lưới base -> tải nhân sự -> cần xử lý ngay). veHome() thay
+           dần từng khối khi dữ liệu về, nên khung trang không nhảy. -->
+      <div class="home-body" id="homeBody" aria-busy="true">
+        <div class="kx-vung" id="homeXuong" aria-label="Đang nạp tổng quan">
+          <div class="luoi-base">
+            <section class="nhom-base"><div class="khoi-head"><span class="kx kx-o"></span><div style="flex:1 1 auto;min-width:0"><span class="kx kx-chu to" style="width:42%"></span><div style="margin-top:5px"><span class="kx kx-chu nho" style="width:26%"></span></div></div><span class="grow"></span><span class="kx kx-nut" style="width:64px"></span></div><div class="the-luoi"><div class="the kx-the"><span class="kx kx-chu nho" style="width:74%"></span><span class="kx kx-so"></span></div><div class="the kx-the"><span class="kx kx-chu nho" style="width:56%"></span><span class="kx kx-so"></span></div><div class="the kx-the"><span class="kx kx-chu nho" style="width:88%"></span><span class="kx kx-so"></span></div><div class="the kx-the"><span class="kx kx-chu nho" style="width:62%"></span><span class="kx kx-so"></span></div><div class="the kx-the"><span class="kx kx-chu nho" style="width:80%"></span><span class="kx kx-so"></span></div><div class="the kx-the"><span class="kx kx-chu nho" style="width:50%"></span><span class="kx kx-so"></span></div></div></section>
+            <section class="nhom-base"><div class="khoi-head"><span class="kx kx-o"></span><div style="flex:1 1 auto;min-width:0"><span class="kx kx-chu to" style="width:42%"></span><div style="margin-top:5px"><span class="kx kx-chu nho" style="width:26%"></span></div></div><span class="grow"></span><span class="kx kx-nut" style="width:64px"></span></div><div class="the-luoi"><div class="the kx-the"><span class="kx kx-chu nho" style="width:56%"></span><span class="kx kx-so"></span></div><div class="the kx-the"><span class="kx kx-chu nho" style="width:88%"></span><span class="kx kx-so"></span></div><div class="the kx-the"><span class="kx kx-chu nho" style="width:62%"></span><span class="kx kx-so"></span></div><div class="the kx-the"><span class="kx kx-chu nho" style="width:80%"></span><span class="kx kx-so"></span></div><div class="the kx-the"><span class="kx kx-chu nho" style="width:50%"></span><span class="kx kx-so"></span></div><div class="the kx-the"><span class="kx kx-chu nho" style="width:70%"></span><span class="kx kx-so"></span></div></div></section>
+            <section class="nhom-base"><div class="khoi-head"><span class="kx kx-o"></span><div style="flex:1 1 auto;min-width:0"><span class="kx kx-chu to" style="width:42%"></span><div style="margin-top:5px"><span class="kx kx-chu nho" style="width:26%"></span></div></div><span class="grow"></span><span class="kx kx-nut" style="width:64px"></span></div><div class="the-luoi"><div class="the kx-the"><span class="kx kx-chu nho" style="width:88%"></span><span class="kx kx-so"></span></div><div class="the kx-the"><span class="kx kx-chu nho" style="width:62%"></span><span class="kx kx-so"></span></div><div class="the kx-the"><span class="kx kx-chu nho" style="width:80%"></span><span class="kx kx-so"></span></div><div class="the kx-the"><span class="kx kx-chu nho" style="width:50%"></span><span class="kx kx-so"></span></div><div class="the kx-the"><span class="kx kx-chu nho" style="width:70%"></span><span class="kx kx-so"></span></div><div class="the kx-the"><span class="kx kx-chu nho" style="width:64%"></span><span class="kx kx-so"></span></div></div></section>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -106,6 +133,7 @@
 
 <div class="toast-wrap" id="toasts"></div>
 
+<script src="/khung-xuong.js?v=BUILD"></script>
 <script src="/loc.js?v=BUILD"></script>
 <script src="/i18n.js?v=BUILD"></script>
 <script src="/icons.js?v=BUILD"></script>

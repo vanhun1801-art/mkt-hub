@@ -159,7 +159,8 @@ function veKhoRong() {
 }
 
 async function napThang() {
-  $('#noiDung').innerHTML = '<div class="rong">đang tính…</div>';
+  $('#noiDung').innerHTML = window.KX ? KX.man('', { dau: false, the: 4, dong: 8 })
+    : '<div class="rong">đang tính…</div>';
   try {
     DATA = await goi('thang?thang=' + encodeURIComponent(THANG));
   } catch (e) { $('#noiDung').innerHTML = '<div class="rong">' + esc(e.message) + '</div>'; return; }
@@ -225,7 +226,8 @@ const NG_CACH = {
 };
 
 async function veNguon() {
-  $('#noiDung').innerHTML = '<div class="rong">đang dò nguồn…</div>';
+  $('#noiDung').innerHTML = window.KX ? KX.man('', { dau: false, the: 0, dong: 6 })
+    : '<div class="rong">đang dò nguồn…</div>';
   let r;
   try { r = await goi('nguon?thang=' + encodeURIComponent(THANG)); }
   catch (e) { $('#noiDung').innerHTML = '<div class="rong">' + esc(e.message) + '</div>'; return; }
@@ -864,7 +866,7 @@ async function veGoiY(hop, trai) {
 
   let ds = [];
   async function nap() {
-    bang.innerHTML = '<div class="mo">đang tính…</div>';
+    bang.innerHTML = window.KX ? KX.log(5) : '<div class="mo">đang tính…</div>';
     try {
       const n = Number($('#gyN').value) || 3;
       const tang = (Number($('#gyTang').value) || 0) / 100;
@@ -922,7 +924,10 @@ function veKetQuaThu(hop, r) {
   hop.innerHTML = '';
   const the = el('div', 'the');
   the.appendChild(el('header', '', '<h3>Điểm trước → sau</h3>'));
-  if (!r) { the.appendChild(el('div', 'than mo', 'đang tính…')); hop.appendChild(the); return; }
+  if (!r) {
+    the.appendChild(el('div', 'than', window.KX ? KX.log(4) : '<span class="mo">đang tính…</span>'));
+    hop.appendChild(the); return;
+  }
 
   const t = el('table');
   t.innerHTML = '<thead><tr><th>Người</th><th class="so">Trước</th><th class="so">Sau</th><th class="so">Lệch</th></tr></thead>';
@@ -1014,7 +1019,7 @@ async function veSoat() {
   const the2 = el('div', 'the');
   the2.appendChild(el('header', '', '<h3>Đã trả lương → app tính lại</h3>'
     + '<span class="phu">điểm lịch sử chỉ để tham chiếu, không dùng tính lại lương đã trả</span>'));
-  the2.appendChild(el('div', 'than mo', 'đang tính…'));
+  the2.appendChild(el('div', 'than', window.KX ? KX.log(4) : '<span class="mo">đang tính…</span>'));
   g.appendChild(the2);
 
   $('#noiDung').innerHTML = '';

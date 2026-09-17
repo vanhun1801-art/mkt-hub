@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Quỹ chi phí Marketing</title>
 <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="khung-xuong.css">
 </head>
 <body>
 
@@ -31,7 +32,10 @@
 </header>
 
 <main id="man">
-  <div class="dangTai">Đang đọc sổ quỹ…</div>
+  <!-- Khung xương thay cho dòng chữ "đang tải": vẽ sẵn hình dạng của màn
+     sắp hiện ra (xem public/khung-xuong.css — bản gốc ở lark-mkt-hub,
+     đồng bộ bằng `node dong-bo-khung.js`). -->
+  <div class="kx-man kx-vung" aria-busy="true" aria-label="Đang đọc sổ quỹ"><div class="kx-man-the"><div class="kx-the"><span class="kx kx-chu nho" style="width:74%"></span><span class="kx kx-so to"></span></div><div class="kx-the"><span class="kx kx-chu nho" style="width:56%"></span><span class="kx kx-so to"></span></div><div class="kx-the"><span class="kx kx-chu nho" style="width:88%"></span><span class="kx kx-so to"></span></div><div class="kx-the"><span class="kx kx-chu nho" style="width:62%"></span><span class="kx kx-so to"></span></div></div><div class="kx-man-bang"><div class="kx-hang"><span class="kx kx-o" style="width:22px;height:22px"></span><span style="flex:2;min-width:0"><span class="kx kx-chu " style="width:74%"></span></span><span style="flex:1;min-width:0"><span class="kx kx-chu nho" style="width:88%"></span></span><span class="kx kx-nut" style="width:60px"></span></div><div class="kx-hang"><span class="kx kx-o" style="width:22px;height:22px"></span><span style="flex:2;min-width:0"><span class="kx kx-chu " style="width:56%"></span></span><span style="flex:1;min-width:0"><span class="kx kx-chu nho" style="width:62%"></span></span><span class="kx kx-nut" style="width:60px"></span></div><div class="kx-hang"><span class="kx kx-o" style="width:22px;height:22px"></span><span style="flex:2;min-width:0"><span class="kx kx-chu " style="width:88%"></span></span><span style="flex:1;min-width:0"><span class="kx kx-chu nho" style="width:80%"></span></span><span class="kx kx-nut" style="width:60px"></span></div><div class="kx-hang"><span class="kx kx-o" style="width:22px;height:22px"></span><span style="flex:2;min-width:0"><span class="kx kx-chu " style="width:62%"></span></span><span style="flex:1;min-width:0"><span class="kx kx-chu nho" style="width:50%"></span></span><span class="kx kx-nut" style="width:60px"></span></div><div class="kx-hang"><span class="kx kx-o" style="width:22px;height:22px"></span><span style="flex:2;min-width:0"><span class="kx kx-chu " style="width:80%"></span></span><span style="flex:1;min-width:0"><span class="kx kx-chu nho" style="width:70%"></span></span><span class="kx kx-nut" style="width:60px"></span></div><div class="kx-hang"><span class="kx kx-o" style="width:22px;height:22px"></span><span style="flex:2;min-width:0"><span class="kx kx-chu " style="width:50%"></span></span><span style="flex:1;min-width:0"><span class="kx kx-chu nho" style="width:64%"></span></span><span class="kx kx-nut" style="width:60px"></span></div></div></div>
 </main>
 
 <div id="modal" class="modal">
@@ -60,6 +64,7 @@
 
 <div id="toasts"></div>
 
+<script src="khung-xuong.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

@@ -32,7 +32,8 @@ const KENH_QC = ['Facebook', 'TikTok', 'Google Ads'];
 /* ---------------- nạp & điều phối ---------------- */
 async function modalPhanQuyen() {
   moModal('Phân quyền',
-    '<div class="trong"><span class="spin"></span> Đang đọc bảng phân quyền…</div>',
+    window.KX ? KX.bang(7, 4)
+      : '<div class="trong"><span class="spin"></span> Đang đọc bảng phân quyền…</div>',
     chanDanhSach(), true);
   $('#qVeCaiDat').onclick = () => modalCaiDat('quyen');
   try {

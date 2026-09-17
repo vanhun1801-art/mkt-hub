@@ -3082,7 +3082,7 @@ function tayHienTai(L) {
 
 async function moManCuaSo() {
   $('#mdTitle').textContent = 'Khung giờ đăng ký lịch';
-  $('#mdBody').innerHTML = '<div class="mini muted">Đang đọc…</div>';
+  $('#mdBody').innerHTML = window.KX ? KX.log(5) : '<div class="mini muted">Đang đọc…</div>';
   $('#mdFoot').innerHTML = '<button class="btn" data-close="1">Đóng</button>';
   $('#modal').classList.add('on');
   try {
@@ -3229,7 +3229,8 @@ async function luuCuaSo() {
    ========================================================================== */
 async function moCauHinhBao() {
   $('#mdTitle').textContent = 'Cấu hình thông báo Lark';
-  $('#mdBody').innerHTML = '<div class="mini muted">Đang đọc cấu hình…</div>';
+  $('#mdBody').innerHTML = window.KX ? KX.log(5)
+    : '<div class="mini muted">Đang đọc cấu hình…</div>';
   $('#mdFoot').innerHTML = '<button class="btn" data-close="1">Đóng</button>';
   $('#modal').classList.add('on');
   try {

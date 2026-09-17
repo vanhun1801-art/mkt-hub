@@ -125,7 +125,8 @@ async function moCuaSo(modId, khoa, tieuDe) {
   const mod = S.modules.find((m) => m.id === modId);
   S.cuaSo = { modId, khoa, tieuDe: tieuDe || '' };
   moModal(tieuDe || 'Xử lý nhanh',
-    '<div class="trong"><span class="spin"></span> Đang lấy danh sách…</div>',
+    window.KX ? KX.bang(6, 3)
+      : '<div class="trong"><span class="spin"></span> Đang lấy danh sách…</div>',
     '<button class="btn ghost" data-close="1">Đóng</button>', true);
   await napCuaSo();
   if (mod) $('#mdTitle').textContent = (tieuDe ? tieuDe + ' · ' : '') + mod.ten;

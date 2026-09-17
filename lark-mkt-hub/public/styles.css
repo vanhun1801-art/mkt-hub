@@ -336,6 +336,18 @@ button { font: inherit; }
   position: absolute; inset: 0; display: grid; place-items: center;
   background: var(--nen); z-index: 2; color: var(--chu-mo);
 }
+/* Bản khung xương KHÔNG canh giữa: nó giả dạng cả một màn app, phải bám mép
+   trên như trang thật, nếu không thì lúc iframe hiện ra mọi thứ nhảy lên một
+   đoạn. `overflow: hidden` để phần thừa bị cắt gọn thay vì đẻ ra thanh cuộn
+   thứ hai cạnh thanh cuộn của app con. */
+.frame-loading.xuong {
+  display: block; overflow: hidden;
+  /* Phải trả `place-items` về mặc định, không phải chỉ đổi `display`: Chromium
+     đã áp `justify-items` cho cả hộp khối, nên bỏ quên dòng này thì khung xương
+     bị bóp lại còn bề rộng nội dung rồi canh giữa — nhìn như một cột hẹp lạc
+     giữa màn hình, dù `display` đã là block. */
+  place-items: normal;
+}
 
 /* ---- đầu trang Tổng quan chung ---- */
 .page-head {

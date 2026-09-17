@@ -652,7 +652,7 @@ VIEW['tong-quan'] = async (view) => {
   <div class="card" style="margin-top:14px" id="theHanhDong">
     <div class="card-head"><h3>Chi tiết hành động chuyển đổi</h3>
       <span class="sub">form, hotline, Zalo, WhatsApp và các chuyển đổi khác</span></div>
-    <div class="card-body tight"><div class="trong">Đang hỏi nền tảng…</div></div>
+    <div class="card-body tight">${window.KX ? KX.dong(4) : '<div class="trong">Đang hỏi nền tảng…</div>'}</div>
   </div>
 
   <div class="card" style="margin-top:14px">
@@ -1482,7 +1482,7 @@ window.__adDetail = async (id, toiDieuKhien = false) => {
       <div class="field full"><label>Nội dung / Caption</label><textarea data-k="caption">${esc(a.caption || '')}</textarea></div>
     </div>
     <h4 style="margin:18px 0 8px">Điều khiển trên nền tảng</h4>
-    <div id="dkKhoi"><div class="help">Đang hỏi nền tảng…</div></div>
+    <div id="dkKhoi">${window.KX ? KX.log(3) : '<div class="help">Đang hỏi nền tảng…</div>'}</div>
 
     <h4 style="margin:18px 0 8px">Hiệu suất từng ngày</h4>
     ${table('adDaily', [
@@ -1828,7 +1828,8 @@ const NHAN_NHOM_HOI_THOAI = {
 /** Bấm vào một ô số ở khối "Lead từ quảng cáo" → danh sách hội thoại của nhóm đó.
  * Chỉ quản lý xem được (server chặn 403) — vì đây là dữ liệu khách cụ thể. */
 window.__moHoiThoai = async (nhom) => {
-  modal(esc(NHAN_NHOM_HOI_THOAI[nhom] || nhom), '<div class="empty">Đang tải…</div>');
+  modal(esc(NHAN_NHOM_HOI_THOAI[nhom] || nhom),
+    window.KX ? KX.dong(6) : '<div class="empty">Đang tải…</div>');
   try {
     const d = await api('/api/hoi-thoai?nhom=' + encodeURIComponent(nhom));
     const rows = d.rows || [];
@@ -1853,7 +1854,7 @@ window.__moHoiThoai = async (nhom) => {
 
 /** Xem lại tin nhắn thật của một hội thoại — gọi Pancake ngay lúc bấm, không cache. */
 window.__xemHoiThoai = async (id, khachId, pageId) => {
-  modal('Lịch sử hội thoại', '<div class="empty">Đang tải…</div>');
+  modal('Lịch sử hội thoại', window.KX ? KX.log(6) : '<div class="empty">Đang tải…</div>');
   try {
     const q = new URLSearchParams({ id, customerId: khachId, pageId }).toString();
     const d = await api('/api/hoi-thoai/tin-nhan?' + q);

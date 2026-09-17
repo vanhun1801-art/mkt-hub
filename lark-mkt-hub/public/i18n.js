@@ -828,6 +828,9 @@
    * Cho những câu ghép số/tên vào giữa. $1, $2… là nhóm bắt được.
    */
   const MAU_EN = [
+    /* --- lớp vỏ: phụ đề trang Tổng quan trong lúc chờ số liệu về --- */
+    [/^Đang đọc số liệu từ (\d+) base…$/, 'Reading data from $1 bases…'],
+
     /* Dòng mô tả tệp của logo và của từng video: "<tên> · <cỡ> · tải lên <giờ>".
      * Tên tệp và giờ là chữ THẬT, giữ nguyên — chỉ dịch phần khung. */
     [/^(.+ · .+) · tải lên (.+)$/, '$1 · uploaded $2'],

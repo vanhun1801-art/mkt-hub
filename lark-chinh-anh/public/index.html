@@ -6,6 +6,7 @@
 <title>Chỉnh ảnh & Edit video · Rooty Trip</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%2300a6b8'/><circle cx='16' cy='17' r='6' fill='none' stroke='white' stroke-width='2.2'/><path d='M6 11h20' stroke='white' stroke-width='2.2' stroke-linecap='round'/></svg>">
 <link rel="stylesheet" href="styles.css?v=__V__">
+<link rel="stylesheet" href="khung-xuong.css?v=__V__">
 </head>
 <body>
 
@@ -26,7 +27,12 @@
 
 <div class="tabsbar"><nav class="tabs" id="tabs"></nav></div>
 
-<main id="view"><div class="loading">Đang nạp dữ liệu từ Lark Base…</div></main>
+<main id="view">
+<!-- Khung xương thay cho dòng chữ "đang tải": vẽ sẵn hình dạng của màn
+     sắp hiện ra (xem public/khung-xuong.css — bản gốc ở lark-mkt-hub,
+     đồng bộ bằng `node dong-bo-khung.js`). -->
+<div class="kx-man kx-vung" aria-busy="true" aria-label="Đang nạp dữ liệu từ Lark Base"><div class="kx-man-the"><div class="kx-the"><span class="kx kx-chu nho" style="width:74%"></span><span class="kx kx-so to"></span></div><div class="kx-the"><span class="kx kx-chu nho" style="width:56%"></span><span class="kx kx-so to"></span></div><div class="kx-the"><span class="kx kx-chu nho" style="width:88%"></span><span class="kx kx-so to"></span></div><div class="kx-the"><span class="kx kx-chu nho" style="width:62%"></span><span class="kx kx-so to"></span></div></div><div class="kx-man-bang"><div class="kx-hang"><span class="kx kx-o" style="width:22px;height:22px"></span><span style="flex:2;min-width:0"><span class="kx kx-chu " style="width:74%"></span></span><span style="flex:1;min-width:0"><span class="kx kx-chu nho" style="width:88%"></span></span><span class="kx kx-nut" style="width:60px"></span></div><div class="kx-hang"><span class="kx kx-o" style="width:22px;height:22px"></span><span style="flex:2;min-width:0"><span class="kx kx-chu " style="width:56%"></span></span><span style="flex:1;min-width:0"><span class="kx kx-chu nho" style="width:62%"></span></span><span class="kx kx-nut" style="width:60px"></span></div><div class="kx-hang"><span class="kx kx-o" style="width:22px;height:22px"></span><span style="flex:2;min-width:0"><span class="kx kx-chu " style="width:88%"></span></span><span style="flex:1;min-width:0"><span class="kx kx-chu nho" style="width:80%"></span></span><span class="kx kx-nut" style="width:60px"></span></div><div class="kx-hang"><span class="kx kx-o" style="width:22px;height:22px"></span><span style="flex:2;min-width:0"><span class="kx kx-chu " style="width:62%"></span></span><span style="flex:1;min-width:0"><span class="kx kx-chu nho" style="width:50%"></span></span><span class="kx kx-nut" style="width:60px"></span></div><div class="kx-hang"><span class="kx kx-o" style="width:22px;height:22px"></span><span style="flex:2;min-width:0"><span class="kx kx-chu " style="width:80%"></span></span><span style="flex:1;min-width:0"><span class="kx kx-chu nho" style="width:70%"></span></span><span class="kx kx-nut" style="width:60px"></span></div><div class="kx-hang"><span class="kx kx-o" style="width:22px;height:22px"></span><span style="flex:2;min-width:0"><span class="kx kx-chu " style="width:50%"></span></span><span style="flex:1;min-width:0"><span class="kx kx-chu nho" style="width:64%"></span></span><span class="kx kx-nut" style="width:60px"></span></div></div></div>
+</main>
 
 <div class="modal-wrap" id="modalWrap" hidden>
   <div class="modal" id="modal"></div>
@@ -34,6 +40,7 @@
 
 <div class="toast-wrap" id="toasts"></div>
 
+<script src="khung-xuong.js?v=__V__"></script>
 <script src="app.js?v=__V__"></script>
 </body>
 </html>

@@ -161,6 +161,14 @@ const cdHang = (ten, mo, dieuKhien) =>
   (mo ? '<p>' + mo + '</p>' : '') + '</div>' +
   '<div class="cd-hang-dk">' + (dieuKhien || '') + '</div></div>';
 
+/** Một hàng cài đặt ĐANG CHỜ dữ liệu: khung xương thay cho chữ "Đang đọc…".
+ *
+ * Màn Cài đặt mở ra là bắn năm sáu lượt hỏi Base cùng lúc (logo, video, tài
+ * khoản, phân quyền, thông báo…), nên trước đây nó hiện ra thành một cột chữ
+ * "Đang đọc…" xếp dọc — đọc như trang hỏng chứ không như trang đang tải. */
+const cdCho = (rong) => '<div class="cd-hang"><div class="cd-hang-tx">' +
+  (window.KX ? KX.chu(rong || '180px') : '<b>Đang đọc…</b>') + '</div></div>';
+
 function veCdNoi() {
   const el = $('#cdNoi');
   const chan = $('#cdChanGhi');
@@ -188,7 +196,7 @@ function veCdNoi() {
  */
 function veCdThuongHieu(el) {
   el.innerHTML = cdTieuDe('Nhận diện thương hiệu') +
-    '<div id="cdLogo" class="cd-hang"><div class="cd-hang-tx"><b>Đang đọc…</b></div></div>' +
+    '<div id="cdLogo">' + cdCho('150px') + '</div>' +
     cdHang('Định dạng nhận vào','',
       '<span class="cd-nhan">≤ 2 MB</span>') +
     /* Video giới thiệu — phát ở trang Tổng quan, cột trái.
@@ -197,7 +205,7 @@ function veCdThuongHieu(el) {
      * diện thương hiệu". Đặt ở đây chứ không đẻ ra một mục mới: nó cùng một
      * loại việc với logo — bộ mặt của hub, quản lý đặt một lần cho cả phòng. */
     '<div class="cd-muc-nho">Video giới thiệu</div>' +
-    '<div id="cdPhim"><div class="cd-hang"><div class="cd-hang-tx"><b>Đang đọc…</b></div></div></div>';
+    '<div id="cdPhim">' + cdCho('200px') + '</div>';
   napCdLogo();
   napCdPhim();
 }
@@ -266,7 +274,7 @@ function veCdToi(el) {
    * đang đăng nhập bằng ai" thì nằm cuối và đang tải dở. */
   el.innerHTML = cdTieuDe('Của tôi') +
     '<div class="cd-muc-nho">Tài khoản</div>' +
-    '<div id="cdToiTk"><div class="cd-hang"><div class="cd-hang-tx"><b>Đang đọc…</b></div></div></div>' +
+    '<div id="cdToiTk">' + cdCho('220px') + '</div>' +
     '<div class="cd-muc-nho">Thiết lập chung</div>' +
     cdHang('Ngôn ngữ','', segNgonNgu) +
     cdHang('Sáng / tối','', segTheme);
@@ -396,7 +404,7 @@ async function napCdPhim() {
 function veCdQuyen(el) {
   el.innerHTML = cdTieuDe('Phân quyền') +
     '<div class="cd-muc-nho">Thấy base nào · quyền từng người</div>' +
-    '<div id="cdQuyenTom" class="cd-hang"><div class="cd-hang-tx"><b>Đang đọc bảng phân quyền…</b></div></div>' +
+    '<div id="cdQuyenTom">' + cdCho('240px') + '</div>' +
     cdHang('Mở màn quản lý','',
       '<button class="btn primary" id="cdMoQuyen">Mở phân quyền</button>') +
     '';
@@ -433,8 +441,7 @@ function veCdQuyen(el) {
  */
 function veCdApp(el, a) {
   el.innerHTML = cdTieuDe(a.ten) +
-    (a.cuaSo ? '<div id="cdCuaSo"><div class="cd-hang"><div class="cd-hang-tx">' +
-      '<b>Đang đọc khung giờ đăng ký…</b></div></div></div>' : '') +
+    (a.cuaSo ? '<div id="cdCuaSo">' + cdCho('210px') + '</div>' : '') +
     (a.phanPhoi
       ? cdHang('Phân phối việc mới','',
         '<button class="btn nho chinh" id="cdMoPhanPhoi">Mở</button>')
@@ -469,7 +476,7 @@ let TBSUA = null;     // thông báo đang soạn / sửa
 
 function veCdThongBao(el) {
   el.innerHTML = cdTieuDe('Thông báo tới nhân sự') +
-    '<div id="tbqlNoi"><div class="cd-hang"><div class="cd-hang-tx"><b>Đang đọc…</b></div></div></div>';
+    '<div id="tbqlNoi">' + cdCho('190px') + '</div>';
   napCdTb();
 }
 
@@ -1376,7 +1383,8 @@ function veCdBase(el) {
 /* ---------------- Kiểm tra hệ thống ---------------- */
 async function veCdKiemTra(el) {
   el.innerHTML = cdTieuDe('Kiểm tra hệ thống') +
-    '<div class="trong"><span class="spin"></span> Đang hỏi từng base…</div>';
+    (window.KX ? KX.bang(8, 2)
+      : '<div class="trong"><span class="spin"></span> Đang hỏi từng base…</div>');
   let d;
   try { d = await goi('/api/kiem-tra'); } catch (e) {
     el.innerHTML = cdTieuDe('Kiểm tra hệ thống') +
@@ -1442,7 +1450,7 @@ async function veCdLog(el, id) {
         esc(m.ten) + '</option>').join('') + '</select>' +
       '<button class="btn ghost nho" id="cdLogTai">Tải lại</button>' +
       '<button class="btn nho" data-batlai="' + esc(chon || '') + '">Bật lại base</button></div></div>' +
-    '<div class="log" id="cdLogHop">Đang đọc…</div>';
+    '<div class="log" id="cdLogHop">' + (window.KX ? KX.log(8) : 'Đang đọc…') + '</div>';
 
   $('#cdLogChon').onchange = () => veCdLog(el, $('#cdLogChon').value);
   $('#cdLogTai').onclick = () => veCdLog(el, chon);
