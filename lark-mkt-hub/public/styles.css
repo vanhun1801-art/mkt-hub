@@ -1076,23 +1076,34 @@ code { background: var(--trang-2); border: 1px solid var(--vien-mem); border-rad
    `contain` chứ không `cover`: clip nào không phải 16:9 thì thà để viền đen còn
    hơn cắt mất khung hình. */
 .tin-phim { background: #000; position: relative; overflow: hidden; aspect-ratio: 16 / 9; }
-/* HAI thẻ video chồng lên nhau, không phải một thẻ đổi src.
+/* HAI thẻ video chồng lên nhau, và CẮT THẲNG giữa chúng.
  *
- * Đổi `src` trên một thẻ là trình duyệt VỨT khung hình đang có rồi mới đi tải
- * bài mới — giữa hai bài luôn hở ra một khoảng thấy nền đen của .tin-phim.
- * Anh Hùng: "anh muốn không có 1 khoảng đen chuyển nào cả".
+ * Ba lần vá mới ra được chỗ này, ghi lại để đừng ai "cải tiến" ngược lại:
  *
- * Nên bài kế được nạp sẵn vào thẻ CÒN LẠI từ trước, giải mã xong khung đầu;
- * lúc chuyển chỉ là đổi xem thẻ nào hiện. Không lúc nào cả hai cùng trống. */
+ *  1. Một thẻ đổi `src`: trình duyệt vứt khung hình đang có rồi mới đi tải bài
+ *     mới — giữa hai bài hở ra nền đen. Nên phải có hai thẻ, bài kế nạp sẵn.
+ *  2. Hai thẻ mờ CHÉO (cũ 1→0, mới 0→1): nền dưới màu đen, lúc cả hai cùng
+ *     ~0.5 thì mắt chỉ nhận được chừng ba phần tư độ sáng — tối sầm đúng nhịp
+ *     chuyển.
+ *  3. Thẻ cũ giữ đục, chỉ thẻ mới mờ dần lên trên: đúng về màu, NHƯNG cả guồng
+ *     lúc đó phụ thuộc vào việc `transitionend` có bắn hay không. Đo thật thì
+ *     có môi trường chuyển động không chạy một nhịp nào (tab nền, máy yếu,
+ *     trình duyệt nhúng) — thẻ mới đứng ở 0, thẻ cũ đến giờ vẫn bị tắt, và màn
+ *     hình đen hẳn mấy giây. Tệ hơn cả lỗi ban đầu.
+ *
+ * Nên: KHÔNG hiệu ứng. Cả hai thẻ đều đã giải mã xong khung hình, đổi thẻ nào
+ * hiện là đổi tức thì, không có nhịp nào cả hai cùng nhạt. Cắt thẳng giữa hai
+ * khung hình có sẵn thì mắt không kịp thấy gì — y như đổi kênh. */
 .tin-phim video {
   position: absolute; inset: 0;
   width: 100%; height: 100%; display: block; object-fit: contain;
-  opacity: 0; transition: opacity .28s ease;
+  opacity: 0; z-index: 1;
 }
 .tin-phim video.hien { opacity: 1; }
-/* Máy xin đỡ chuyển động thì cắt luôn phần mờ dần — đổi thẳng vẫn không đen,
-   vì thẻ kia đã có sẵn khung hình. */
-@media (prefers-reduced-motion: reduce) { .tin-phim video { transition: none; } }
+/* Thẻ sắp lên nằm TRÊN, để lúc bật nó lên nó che kín thẻ cũ ngay lập tức —
+   thẻ cũ chỉ tắt sau đó, khi đã không ai nhìn thấy nữa. */
+.tin-phim video.tren { z-index: 2; }
+
 /* Nút bật/tắt tiếng — chồng lên góc video, chỉ đậm lên khi rê chuột tới.
    Trình duyệt CHỈ cho tự chạy khi đang tắt tiếng, nên video mở ra là im; bấm
    nút này là chỗ duy nhất để có tiếng, và đó cũng là "tuỳ chọn" anh Hùng cần. */

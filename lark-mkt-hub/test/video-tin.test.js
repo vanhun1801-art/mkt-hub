@@ -68,6 +68,12 @@ function videoGia({ chanTieng = false } = {}) {
       contains: (c) => lop.has(c),
     },
     hien() { return lop.has('hien'); },
+    tren() { return lop.has('tren'); },
+    /* Thẻ đã nạp sẵn thì có khung hình để vẽ. Mã chỉ cho một thẻ lên hình khi
+     * `readyState >= 2`; để 0 là nó đứng chờ, và đó cũng là một bài thử riêng
+     * bên dưới. */
+    readyState: 4,
+    offsetWidth: 0,
     addEventListener(t, f) { (this.nghe[t] = this.nghe[t] || []).push(f); },
     play() {
       this.soLanPlay++;
@@ -327,40 +333,45 @@ const doi = () => new Promise((r) => setImmediate(r));
 
     a.hetBai(); await doi();
     ok('hết bài: thẻ hai lên hình', b.hien() === true);
-    ok('… thẻ một thôi hiện', a.hien() === false);
+    /* ĐÂY là chỗ hỏng lần thứ ba, và là lỗi anh Hùng vẫn còn thấy: mờ CHÉO —
+     * thẻ cũ 1→0 cùng lúc thẻ mới 0→1. Nền dưới hai thẻ màu ĐEN, nên lúc cả
+     * hai cùng khoảng 0.5 thì mắt chỉ nhận được chừng ba phần tư độ sáng: tối
+     * sầm đúng nhịp chuyển. Thẻ cũ phải GIỮ NGUYÊN độ đục cho tới khi thẻ mới
+     * đã che kín. */
+    ok('… thẻ một VẪN đục, không mờ theo', a.hien() === true);
+    ok('… thẻ hai nằm TRÊN', b.tren() === true);
+    ok('… thẻ một xuống dưới', a.tren() === false);
     ok('… thẻ hai đang chạy', b.paused === false);
     /* Dừng thẻ cũ NGAY là hở ra đúng khoảng đen cần tránh: khung hình cuối
      * của nó phải còn đó suốt lượt mờ dần. `ended` đã tự đặt paused = true
      * (đúng như trình duyệt), nên thứ phải chốt là mã KHÔNG tự gọi pause() —
      * mà hẹn lại sau khi mờ xong. */
     ok('… mã không tự dừng thẻ cũ ngay', a.soLanPause === 0, String(a.soLanPause));
-    /* Lưới đỡ 1500ms. Lọc đúng con số chứ không lọc theo khoảng: trong `hen`
-     * còn nhịp canh 5 giây và hẹn nạp trước 2 giây, lọc rộng là dính nhầm. */
-    const henMo = hen.filter(([, ms]) => ms === 1500);
-    ok('… mà có lưới đỡ dọn dẹp', henMo.length === 1, JSON.stringify(hen.map((h) => h[1])));
-    /* Mốc thật là lúc thẻ cũ mờ HẲN. Hẹn cứng theo giây thì tab ẩn hoặc máy
-     * chậm là lượt mờ kéo dài hơn mà đến giờ vẫn dọn — đo trên máy thật vẫn
-     * bắt được khung đen vì đúng chuyện này. */
-    ok('… và bám vào transitionend chứ không chỉ đếm giây',
-      Array.isArray(a.nghe.transitionend) && a.nghe.transitionend.length === 1);
+    /* KHÔNG chờ `transitionend`, và cũng không được có hiệu ứng nào để mà chờ:
+     * đo thật thấy có môi trường chuyển động không chạy một nhịp nào, thẻ mới
+     * đứng ở trong suốt, thẻ cũ đến giờ vẫn bị tắt — màn hình đen hẳn mấy
+     * giây, tệ hơn cả lỗi ban đầu. Giờ chỉ còn một nhịp ngắn để chắc đã qua
+     * một lượt vẽ. */
+    ok('… không trông vào transitionend nữa', b.nghe.transitionend === undefined);
+    const henDon = hen.filter(([, ms]) => ms > 0 && ms <= 400);
+    ok('… chỉ chờ một nhịp vẽ rồi dọn', henDon.length === 1,
+      JSON.stringify(hen.map((h) => h[1])));
     ok('… và suốt lượt đó không thẻ nào bị gán src khi đang hiện',
       b.ganSrc.length === 1, JSON.stringify(b.ganSrc));
 
-    /* ĐÂY là khung đen còn sót lại sau lần sửa đầu, đo được trên máy thật:
-     * suốt lượt mờ dần thẻ cũ VẪN nhìn thấy (nó mới bắt đầu mờ, thẻ mới thì
-     * chưa rõ), nên gán src cho nó là xoá luôn khung hình nó đang giữ — thành
-     * một ô đen nằm chồng lên video mới. Trong lúc mờ, thẻ cũ phải được để
-     * yên. */
+    /* Trước khi dọn, thẻ cũ là thứ đang che nền đen — gán src cho nó là xoá
+     * luôn khung hình nó đang giữ. Phải để yên. */
     await doi();
-    ok('trong lúc mờ dần, thẻ cũ KHÔNG bị nạp bài khác', a.ganSrc.length === 0,
+    ok('chưa dọn thì thẻ cũ KHÔNG bị nạp bài khác', a.ganSrc.length === 0,
       JSON.stringify(a.ganSrc));
 
-    a.nghe.transitionend[0]();                  // thẻ cũ đã mờ hẳn
+    henDon.forEach(([f]) => f());               // qua một lượt vẽ
     await doi();
-    ok('mờ xong mới dừng thẻ cũ', a.soLanPause === 1, String(a.soLanPause));
+    ok('qua một lượt vẽ mới tắt thẻ cũ', a.hien() === false);
+    ok('… rồi mới dừng thẻ cũ', a.soLanPause === 1, String(a.soLanPause));
     /* Lưới đỡ nổ sau đó không được dọn lần thứ hai — dọn hai lần là tua thẻ
      * đang nạp về đầu lần nữa, phí một lượt tải. */
-    henMo.forEach(([f]) => f());
+    henDon.forEach(([f]) => f());
     ok('… lưới đỡ nổ sau cũng không dọn lại lần hai', a.soLanPause === 1, String(a.soLanPause));
     ok('… và lúc đó mới giao bài tiếp theo cho nó', /i=3&v=33/.test(a.src), a.src);
     /* Nạp bài kế phải gọi load(), mà load() trên thẻ CÒN `autoplay` là trình
@@ -380,12 +391,34 @@ const doi = () => new Promise((r) => setImmediate(r));
     await doi(); a.dangPhat(); await doi();
     a.hetBai(); await doi(); await doi();
     ok('bài 2 đang hiện', b.hien() === true && /i=2/.test(b.src));
-    a.nghe.transitionend[0]();
-    await doi();
+    const nhip = () => hen.filter(([, ms]) => ms > 0 && ms <= 400).forEach(([f]) => f());
+    nhip(); await doi();                        // qua một lượt vẽ
     ok('thẻ rảnh nạp lại bài 1 để quay vòng', /i=1&v=11/.test(a.src), a.src);
     b.hetBai(); await doi();
-    ok('hết vòng: thẻ một lên lại', a.hien() === true && b.hien() === false);
+    ok('hết vòng: thẻ một lên lại', a.hien() === true && a.tren() === true);
+    ok('… bài 2 vẫn đục cho tới khi bài 1 che kín', b.hien() === true);
     ok('… và vẫn chạy', a.paused === false);
+    nhip(); await doi();
+    ok('… che kín rồi mới tắt bài 2', b.hien() === false);
+  }
+  {
+    /* Thẻ mới chưa có khung hình mà đã cho lên là CHÍNH NÓ vẽ ra màu đen: nó
+     * nằm trên, mờ dần tới đục, mà trong tay không có gì để vẽ. `play()` trả
+     * về xong không có nghĩa là đã có khung — sau một lần tua hay lúc mạng
+     * chớp thì readyState vẫn < 2. */
+    const ds = [{ i: 1, luc: 11 }, { i: 2, luc: 22 }];
+    const { a, b, hen } = chayHaiThe(ds);
+    await doi(); a.dangPhat(); await doi();
+    b.readyState = 0;                           // thẻ kế chưa có gì để vẽ
+    a.hetBai(); await doi(); await doi();
+    ok('thẻ chưa có khung hình thì CHƯA cho lên', b.hien() === false);
+    ok('… thẻ cũ vẫn đang che nền', a.hien() === true);
+    ok('… có lưới đỡ để không chờ mãi', hen.some(([, ms]) => ms === 700),
+      JSON.stringify(hen.map((h) => h[1])));
+    b.readyState = 4;
+    (b.nghe.loadeddata || []).forEach((f) => f());   // khung hình về tới
+    await doi();
+    ok('có khung hình rồi mới lên', b.hien() === true && b.tren() === true);
   }
   {
     /* Tiếng phải theo sang thẻ kia, kể cả thẻ đang nằm chờ — thẻ chờ còn tiếng

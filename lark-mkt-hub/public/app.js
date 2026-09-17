@@ -1257,46 +1257,62 @@ function ganPhimTin(phims, nut, ds) {
       try { moi.load(); } catch (_) {}
     }
     moi.muted = dang().muted;
-    try { moi.currentTime = 0; } catch (_) {}
+    /* CHỈ tua khi nó chưa ở đầu. Tua một thẻ đang ở giây 0 là thừa, mà mỗi lần
+     * tua là một nhịp thẻ chưa có khung hình để vẽ. */
+    if (moi.currentTime > 0.05) { try { moi.currentTime = 0; } catch (_) {} }
 
     /* Thẻ kế hỏng thì bỏ qua nó, thử bài sau — tối đa một vòng. */
     if (moi.error && (lan || 0) < vong.length) { napTruoc(); return sang(k2 + 1, (lan || 0) + 1); }
 
     const hien = () => {
-      /* Đổi thẻ nào hiện. Thẻ cũ chỉ DỪNG sau khi thẻ mới đã lên — dừng trước
-       * là hở ra đúng cái khoảng đen cần tránh. */
+      /* Thẻ mới lên TRÊN rồi bật đục NGAY. Không mờ dần.
+       *
+       * Cả hai thẻ đều đã có khung hình giải mã sẵn, nên cắt thẳng là mắt
+       * không thấy gì — còn mọi kiểu mờ đều đẻ ra đen: mờ chéo thì tụt độ sáng
+       * ở giữa, mờ một chiều thì phải trông vào `transitionend`, mà có môi
+       * trường chuyển động không chạy một nhịp nào và màn hình đen hẳn mấy
+       * giây. Đen là thứ anh Hùng bảo không được có; mượt chỉ là mong muốn. */
       const cuEl = dang();
+      cuEl.classList.remove('tren');
+      moi.classList.add('tren');
       moi.classList.add('hien');
-      cuEl.classList.remove('hien');
       cu = (cu + 1) % doi.length;
       k = k2;
       veNut();
-      /* Chờ HẾT lượt mờ dần (.28s ở styles.css) rồi mới dừng thẻ cũ và giao
-       * bài kế cho nó.
+
+      /* Thẻ cũ vẫn đục thêm một nhịp nữa rồi mới tắt. Lúc này nó đã nằm DƯỚI
+       * một thẻ đục kín nên không ai thấy — nhưng chờ qua một lượt vẽ thì chắc
+       * chắn không có khe nào lọt nền đen ra, kể cả trên máy vẽ chậm.
        *
-       * Nạp sớm là hỏng đúng thứ đang muốn chữa: suốt lượt mờ dần thẻ cũ VẪN
-       * còn nhìn thấy (nó mới bắt đầu mờ, thẻ mới thì chưa rõ), mà gán src cho
-       * nó là trình duyệt xoá luôn khung hình đang giữ — thành một ô ĐEN nằm
-       * chồng lên video mới. Đo trên máy thật thấy đúng một khung đen ở ngay
-       * nhịp chuyển, và đây là chỗ đẻ ra nó. */
+       * Rồi mới dừng nó và giao bài kế. Đảo thứ tự là gán src cho một thẻ còn
+       * đang nhìn thấy — trình duyệt xoá khung hình nó đang giữ, thành ô đen. */
       let daDon = false;
       const don = () => {
         if (daDon) return;
         daDon = true;
+        cuEl.classList.remove('hien');
         try { cuEl.pause(); } catch (_) {}
         napTruoc();
       };
-      /* Mốc THẬT là lúc thẻ cũ mờ hẳn, không phải một con số đếm sẵn: tab ẩn
-       * hay máy chậm thì lượt mờ kéo dài hơn .28s, mà hẹn cứng thì cứ đến giờ
-       * là dọn — đo trên máy thật vẫn bắt được một khung đen vì đúng chuyện
-       * này. Hẹn giờ chỉ còn là lưới đỡ, phòng khi `transitionend` không bắn
-       * (máy tắt chuyển động, hoặc tab ẩn suốt lượt). */
-      cuEl.addEventListener('transitionend', don, { once: true });
-      setTimeout(don, 1500);
+      setTimeout(don, 120);
+    };
+    /* CHỜ thẻ mới thật sự có khung hình rồi mới cho nó lên.
+     *
+     * `play()` trả về xong KHÔNG có nghĩa là đã có gì để vẽ — sau một lần tua
+     * hay lúc mạng chớp, thẻ có thể còn trắng tay (readyState < 2). Cho một
+     * thẻ trắng tay mờ dần lên trên là chính nó vẽ ra màu đen, đúng thứ cả
+     * đoạn mã này sinh ra để tránh. Hẹn 700ms làm lưới đỡ: thà chuyển hơi
+     * cứng còn hơn đứng lại chờ mãi. */
+    const choKhung = () => {
+      if (moi.readyState >= 2) { hien(); return; }
+      let xong = false;
+      const san = () => { if (xong) return; xong = true; hien(); };
+      ['loadeddata', 'canplay', 'seeked'].forEach((e) => moi.addEventListener(e, san, { once: true }));
+      setTimeout(san, 700);
     };
     const p = moi.play();
-    if (p && p.then) p.then(hien, hien);
-    else hien();
+    if (p && p.then) p.then(choKhung, choKhung);
+    else choKhung();
   };
 
   /* Bỏ `autoplay` ngay khi vào đây: từ giờ việc chạy do hàm này quyết.
