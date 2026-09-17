@@ -1167,6 +1167,57 @@ async function api(req, res, u) {
   }
 
   /**
+   * Dọn đơn ghi trùng trên bảng "Báo cáo Sales (theo ngày)" — vá hậu quả của bẫy
+   * đã sửa 17/09/2026 (server.js/ghicongtudong.js đọc sai `r.fields` thay vì
+   * `r.c`, khiến mọi lượt ghi công đều tưởng đơn chưa từng có và tạo dòng mới).
+   * Gom theo `⚙️ Mã đơn Tourwell`, mỗi mã GIỮ ĐÚNG 1 dòng (dòng đầu tiên gặp),
+   * xoá phần dư. Không đoán "dòng nào đúng hơn" — dòng giữ lại sẽ tự được cập
+   * nhật đúng ở lượt ghi công kế tiếp (đã vá), nên giữ dòng nào cũng như nhau.
+   *
+   * `xemTruoc: true` chỉ đếm, không xoá gì — xoá hàng nghìn dòng trên Base thật
+   * thì phải cho xem trước, giống hệt quy tắc của /api/roas/ghi-base.
+   */
+  if (p === '/api/roas/don-trung' && method === 'POST') {
+    if (!laQuanLy(req)) return fail(res, 403, 'Chỉ vai quản lý mới dọn được đơn trùng');
+    const body = await readBody(req);
+    const F = T.sales.f;
+    let rows;
+    try { rows = await lark.listAll(T.sales.id); }
+    catch (e) { return fail(res, 400, 'Không đọc được bảng Báo cáo Sales: ' + e.message); }
+    const theoMa = new Map();
+    rows.forEach((r) => {
+      const ma = String((r.c && r.c[F.orderCode]) || '').trim();
+      if (!ma) return;
+      if (!theoMa.has(ma)) theoMa.set(ma, []);
+      theoMa.get(ma).push(r);
+    });
+    const trung = [...theoMa.entries()].filter(([, arr]) => arr.length > 1);
+    const idsXoa = trung.flatMap(([, arr]) => arr.slice(1).map((r) => r.id));
+
+    if (body.xemTruoc || !idsXoa.length) {
+      return ok(res, {
+        xemTruoc: true,
+        tongDong: rows.length,
+        soMaDuyNhat: theoMa.size,
+        soMaBiTrung: trung.length,
+        soDongSeXoa: idsXoa.length,
+        mauTrungNhieuNhat: trung.sort((a, b) => b[1].length - a[1].length).slice(0, 5)
+          .map(([ma, arr]) => ({ ma, soDong: arr.length })),
+      });
+    }
+
+    let daXoa = 0;
+    for (let i = 0; i < idsXoa.length; i += 200) {
+      const lo = idsXoa.slice(i, i + 200);
+      await lark.deleteRecords(T.sales.id, lo);
+      daXoa += lo.length;
+    }
+    store.invalidate();
+    console.log('[don-trung] ' + ((await nguoiDung(req)) || {}).name + ' đã xoá ' + daXoa + ' dòng trùng');
+    return ok(res, { xemTruoc: false, daXoa });
+  }
+
+  /**
    * Kết quả ROAS của lượt ghi công GẦN NHẤT (tự động hoặc tay) — để mở tab là
    * có số ngay, không bắt bấm "Tính ROAS" trước. Tách khỏi /api/roas/trang-thai
    * vì kq có thể nặng (một dòng cho mỗi quảng cáo), không nên tải mỗi lần hỏi
