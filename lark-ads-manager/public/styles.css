@@ -298,6 +298,8 @@ table.tbl tfoot td { font-weight: 700; background: var(--panel-2); border-top: 2
 .empty { padding: 34px; text-align: center; color: var(--ink-3); }
 .help { font-size: 12.5px; color: var(--ink-2); background: var(--panel-2); border: 1px dashed var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; }
 .mono { font-variant-numeric: tabular-nums; }
+.chk-loc { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--ink-2); margin-bottom: 10px; cursor: pointer; user-select: none; }
+.chk-loc input { cursor: pointer; }
 
 /* ---------- huy hiệu nguồn số ---------- */
 .btn.src { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; }

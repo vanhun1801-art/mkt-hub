@@ -19,6 +19,8 @@
  *   người đọc tự quyết, chứ không tự tay dọn.
  */
 
+const { NHAN_LY_DO } = require('./roas');
+
 const CHUAN_KENH = ['Facebook', 'TikTok', 'Google Ads', 'Khác'];
 const CHUAN_TRANG_THAI = ['Đã chốt', 'Đang tư vấn', 'Hủy'];
 
@@ -69,6 +71,10 @@ function dongBase(don, ghiCong, F) {
     don.ma ? `Đơn ${don.ma}` : '',
     gc.maLead ? `lead ${gc.maLead}` : '',
     gc.tenQC ? `QC: ${gc.tenQC}` : '',
+    // Không ghép được QC thì ghi rõ VÌ SAO — để 'Khác' đọc được, không phải một
+    // nhãn trơ. Chỉ có khi phép ghi công tính ra lý do (không phải mọi lượt ghi
+    // đều đi qua đường có tính lý do, xem tinhGhiCong() ở server.js).
+    (!gc.platform && gc.lyDo) ? `Khác: ${NHAN_LY_DO[gc.lyDo] || gc.lyDo}` : '',
     don.ban ? `sales: ${don.ban}` : '',
     don.nguon ? `nguồn Tourwell: ${don.nguon}` : '',
   ].filter(Boolean).join(' · ');

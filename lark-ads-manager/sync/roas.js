@@ -27,6 +27,17 @@
 
 const cachNgay = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
 
+/* Lý do một đơn KHÔNG ghép được quảng cáo — ba nhóm, dùng chung nhãn ở mọi nơi
+ * hiển thị (bảng Đơn gần nhất, ghi chú trên Base) để khỏi lệch chữ. Cố tình
+ * KHÔNG cố đoán chi tiết hơn (vd. lead nào, tại sao nhập nhằng) — bảng Đơn gần
+ * nhất chỉ cần đủ để người đọc tin "Khác" là thật, không cần dựng lại cả phép
+ * ghép cho từng dòng. */
+const NHAN_LY_DO = {
+  'khong-co-lead': 'Không có lead Tourwell nào của khách này',
+  'ngoai-cua-so': 'Có lead nhưng đơn nằm ngoài cửa sổ quy đổi (đơn tạo trước lead, hoặc quá xa ngày lead)',
+  'lead-chua-ghep-qc': 'Có lead trong cửa sổ nhưng lead đó chưa ghép được với đúng một quảng cáo (chưa thấy trong Pancake/POS, hoặc khớp nhiều quảng cáo)',
+};
+
 /**
  * @param {object} p
  * @param {Array}  p.posRows      đơn POS đã chuẩn hoá (sync/pancakepos)
@@ -53,6 +64,14 @@ function tinh({ posRows = [], hoiThoaiRows = [], leadRows = [], donRows = [], da
     if (!r.kh) return;
     if (!donTheoKH.has(r.kh)) donTheoKH.set(r.kh, []);
     donTheoKH.get(r.kh).push(r);
+  });
+  // Chiều ngược: khách hàng → các lead của khách đó. Chỉ dùng để GIẢI THÍCH vì
+  // sao một đơn không ghép được quảng cáo, không dùng để ghi công.
+  const leadTheoKh = new Map();
+  leadRows.forEach((r) => {
+    if (!r.kh) return;
+    if (!leadTheoKh.has(r.kh)) leadTheoKh.set(r.kh, []);
+    leadTheoKh.get(r.kh).push(r);
   });
 
   const adTheoExt = new Map();
@@ -152,6 +171,26 @@ function tinh({ posRows = [], hoiThoaiRows = [], leadRows = [], donRows = [], da
     ghi(o, lead);
   });
 
+  /* ---------- lý do "Khác" cho từng đơn chưa ghép được ----------
+   * Chỉ để GIẢI THÍCH cho người đọc, không ảnh hưởng tới số tiền/ROAS ở trên.
+   * Ba nhóm theo thứ tự kiểm: không có lead nào của khách → có lead nhưng đơn
+   * ngoài cửa sổ ngày → có lead trong cửa sổ nhưng bản thân lead đó chưa ghép
+   * được với đúng một quảng cáo (khoá cứng POS/hội thoại không thấy hoặc nhập
+   * nhằng). Không cố suy chi tiết hơn — bấy nhiêu là đủ để "Khác" đáng tin. */
+  const lyDoTheoDon = new Map();
+  donRows.forEach((d) => {
+    if (!d.ma || daDungDon.has(d.ma)) return;
+    const cands = leadTheoKh.get(d.kh) || [];
+    if (!cands.length) { lyDoTheoDon.set(String(d.ma), 'khong-co-lead'); return; }
+    const trongCuaSo = cands.some((l) => {
+      if (!l.ngay || !d.ngay) return false;
+      const tre = cachNgay(l.ngay, d.ngay);
+      return tre >= 0 && tre <= cuaSo;
+    });
+    if (!trongCuaSo) { lyDoTheoDon.set(String(d.ma), 'ngoai-cua-so'); return; }
+    lyDoTheoDon.set(String(d.ma), 'lead-chua-ghep-qc');
+  });
+
   /* ---------- bảng ---------- */
   const rows = [...theoAd.values()].map((o) => {
     const a = adTheoExt.get(String(o.adId)) || {};
@@ -231,7 +270,9 @@ function tinh({ posRows = [], hoiThoaiRows = [], leadRows = [], donRows = [], da
       so: donRows.length - daDungDon.size,
       tien: donRows.filter((d) => !daDungDon.has(d.ma)).reduce((a, d) => a + d.tien, 0),
     },
+    /* Lý do "Khác" cho từng đơn — xem giải thích ở khối tính phía trên. */
+    lyDoTheoDon: [...lyDoTheoDon.entries()].map(([ma, lyDo]) => ({ ma, lyDo, lyDoText: NHAN_LY_DO[lyDo] })),
   };
 }
 
-module.exports = { tinh };
+module.exports = { tinh, NHAN_LY_DO };

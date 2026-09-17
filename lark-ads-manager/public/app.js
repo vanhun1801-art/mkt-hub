@@ -10,6 +10,7 @@ const S = {
   sort: {},
   nguon: localStorage.getItem('nguon-so') || '',   // '' = tự chọn, 'live', 'base'
   alertCount: 0,
+  chiXemQC: false,   // bảng "Đơn gần nhất": chỉ hiện đơn có gắn quảng cáo thật
 };
 
 const TABS = [
@@ -867,22 +868,65 @@ VIEW['doanh-thu'] = async (view) => {
     <div class="card-body tight">${table('salesTbl', cols, d.byChannel, { footer: true, empty: 'Bảng Báo cáo Sales chưa có dữ liệu trong khoảng này' })}</div>
   </div>
   ${d.rows.length ? `<div class="card" style="margin-top:14px">
-    <div class="card-head"><h3>Đơn gần nhất</h3><span class="sub">${d.rows.length} bản ghi</span></div>
-    <div class="card-body tight">${table('salesRaw', [
-      { key: 'date', label: 'Ngày', render: (r) => dmy(r.date) },
-      { key: 'channel', label: 'Kênh', render: (r) => platTag(r.channel) },
-      { key: 'customer', label: 'Khách', cls: 'name' },
-      { key: 'service', label: 'Dịch vụ', cls: 'name' },
-      { key: 'status', label: 'Trạng thái', render: (r) => statusTag(r.status === 'Đã chốt' ? 'Đã duyệt' : r.status).replace('Đã duyệt', esc(r.status)) },
-      { key: 'revenue', label: 'Doanh thu', num: true, render: (r) => vnd(r.revenue) },
-      { key: 'staff', label: 'Sales', render: (r) => esc((r.staff || []).map((s) => s.name).join(', ')) },
-    ], d.rows, { sort: { key: 'date', dir: 'desc' } })}</div>
+    <div class="card-head"><h3>Đơn gần nhất</h3>
+      <span class="sub">${S.chiXemQC ? d.rows.filter((r) => r.laQuangCao).length + '/' : ''}${d.rows.length} bản ghi</span></div>
+    <div class="card-body tight">
+      ${ghiCongLucHtml(d.ghiBaseLuc)}
+      <label class="chk-loc"><input type="checkbox" id="chkChiQC"${S.chiXemQC ? ' checked' : ''}>
+        Chỉ xem đơn có gắn quảng cáo thật (Facebook/TikTok/Google Ads)</label>
+      ${table('salesRaw', [
+        { key: 'date', label: 'Ngày', render: (r) => dmy(r.date) },
+        { key: 'channel', label: 'Kênh', render: (r) => platTag(r.channel) },
+        { key: 'lyDo', label: 'Vì sao', noSort: true, render: (r) => lyDoGhiCong(r) },
+        { key: 'customer', label: 'Khách', cls: 'name' },
+        { key: 'service', label: 'Dịch vụ', cls: 'name' },
+        { key: 'status', label: 'Trạng thái', render: (r) => statusTag(r.status === 'Đã chốt' ? 'Đã duyệt' : r.status).replace('Đã duyệt', esc(r.status)) },
+        { key: 'revenue', label: 'Doanh thu', num: true, render: (r) => vnd(r.revenue) },
+        { key: 'staff', label: 'Sales', render: (r) => esc((r.staff || []).map((s) => s.name).join(', ')) },
+      ], S.chiXemQC ? d.rows.filter((r) => r.laQuangCao) : d.rows, { sort: { key: 'date', dir: 'desc' } })}
+    </div>
   </div>` : ''}
 
   <div id="roasKhoi" style="margin-top:14px"></div>`;
 
+  const chk = $('#chkChiQC');
+  if (chk) chk.onchange = (e) => { S.chiXemQC = e.target.checked; render(); };
+
   await roasVe();
 };
+
+/**
+ * Câu nhỏ trên bảng "Đơn gần nhất": ghi công quảng cáo lên Base là việc TAY
+ * (bấm nút "Ghi doanh thu lên Base" ở khối ROAS bên dưới), không theo hẹn giờ.
+ * Không nói rõ mốc này thì người đọc dễ tưởng cột Kênh của đơn hôm nay đã được
+ * xác minh, trong khi lần ghi công gần nhất có khi từ nhiều ngày trước.
+ */
+function ghiCongLucHtml(tt) {
+  if (!tt || !tt.luc) {
+    return `<div class="help" style="border-color:var(--warn);color:var(--warn);margin-bottom:10px">
+      <b>Chưa từng ghi công quảng cáo lên Base.</b> Cột Kênh dưới đây đang là giá trị mặc định,
+      không phải kết quả ghép với Pancake/POS. Cuộn xuống khối <b>ROAS từng quảng cáo</b> và bấm
+      <b>Ghi doanh thu lên Base</b> để có số thật.
+    </div>`;
+  }
+  const luc = new Date(tt.luc).toLocaleString('vi-VN');
+  return `<div class="help" style="margin-bottom:10px">
+    Ghi công quảng cáo lần cuối lúc <b>${luc}</b> (việc tay, không theo hẹn giờ) —
+    đơn phát sinh sau mốc này chưa chắc đã được xác minh Kênh.
+  </div>`;
+}
+
+/**
+ * Cột "Vì sao" của bảng Đơn gần nhất: đơn đã ghép quảng cáo thì nói ngắn gọn;
+ * đơn 'Khác' thì lấy đúng lý do đã tính lúc ghi công (embedded trong Ghi chú
+ * của Base bởi sync/ghidoanhthu.js) — không đoán lại ở đây.
+ */
+function lyDoGhiCong(r) {
+  if (r.laQuangCao) return '<span class="sub">đã ghép quảng cáo</span>';
+  const m = /Khác: ([^·]+)/.exec(r.note || '');
+  if (m) return `<span class="sub">${esc(m[1].trim())}</span>`;
+  return '<span class="sub">chưa rõ — đơn này chưa được ghi công lại từ khi có lý do chi tiết</span>';
+}
 
 /* ================= ROAS TỪNG QUẢNG CÁO =================
  *

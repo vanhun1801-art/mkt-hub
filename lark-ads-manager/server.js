@@ -25,6 +25,7 @@ const pancakePos = require('./sync/pancakepos');
 const tourwell = require('./sync/tourwell');
 const tourwellApi = require('./sync/tourwellapi');
 const khoRoas = require('./sync/khoroas');
+const ghiBaseLuc = require('./sync/ghibaseluc');
 const keoNen = require('./sync/keonen');
 const dieuKhien = require('./sync/dieukhien');
 const nhatKyGhi = require('./sync/nhatkyghi');
@@ -470,7 +471,13 @@ async function api(req, res, u) {
        * phép nhưng sai ý nghĩa — chúng chỉ còn là doanh thu của kênh họ. */
       biGioiHan,
       kenhDuocXem: data.kenhDuocXem || null,
-      rows: rows.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 300),
+      // Ghi công (cột Kênh) là việc tay, không theo hẹn giờ — kèm mốc lần cuối
+      // để giao diện không ngộ nhận đơn mới nhất đã được xác minh.
+      ghiBaseLuc: ghiBaseLuc.doc(),
+      // laQuangCao gắn thẳng vào từng dòng: bảng "Đơn gần nhất" cần lọc/tô theo
+      // đúng MỘT định nghĩa này, không tự đoán lại bằng danh sách kênh riêng.
+      rows: rows.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 300)
+        .map((r) => ({ ...r, laQuangCao: laQuangCao(r.channel) })),
       /* Bốn con số cho bốn ô ở đầu tab. Tính ở đây, một chỗ duy nhất, để giao diện
        * không thể tự cộng sai như bản trước. */
       tong: {
@@ -704,6 +711,9 @@ async function api(req, res, u) {
       tuDongMoiGio: sync.TUOI_KHO_GIO,
       tuDongSoNgay: sync.NGAY_LUI_TW,
       conTuoi: khoRoas.conTuoi(sync.TUOI_KHO_GIO),
+      // Ghi công lên Base là việc TAY, không theo hẹn giờ — giao diện cần mốc
+      // này để không tưởng cột Kênh của đơn mới nhất đã được xác minh.
+      ghiBaseLuc: ghiBaseLuc.doc(),
     });
   }
 
@@ -1123,6 +1133,11 @@ async function api(req, res, u) {
         (kq.ghiCongDon || []).forEach((gc) => {
           m.set(String(gc.ma), { platform: gc.nenTang, tenQC: gc.ten, maLead: gc.maLead });
         });
+        // Đơn không ghép được QC: vẫn ghi vào map để dongBase() biết VÌ SAO mà
+        // gắn 'Khác', không chỉ gắn 'Khác' trơ như trước.
+        (kq.lyDoTheoDon || []).forEach((x) => {
+          if (!m.has(String(x.ma))) m.set(String(x.ma), { lyDo: x.lyDo });
+        });
       } catch (e) {
         /* Không ghi công được thì VẪN ghi doanh thu, chỉ là cột Kênh để 'Khác'.
          * Mất cột kênh còn hơn mất cả bản sao lưu. */
@@ -1174,6 +1189,7 @@ async function api(req, res, u) {
           ghi(`  đã sửa ${Object.keys(mapSua).length} dòng`);
         }
         store.invalidate();
+        ghiBaseLuc.ghi({ from, to, taoMoi: kh.taoMoi.length, capNhat: kh.capNhat.length });
         if (kh.khongConNguon.length) {
           ghi(`  ! ${kh.khongConNguon.length} dòng trên Base không còn trong nguồn — KHÔNG xoá, tự xem lại`);
         }

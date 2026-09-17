@@ -164,6 +164,9 @@ async function load() {
     staff: users(r.c[SF.staff]),
     customer: txt(r.c[SF.customer]),
     province: txt(r.c[SF.province]),
+    // Ghi chú do sync/ghidoanhthu.js viết: tên QC nếu ghép được, hoặc lý do
+    // "Khác" nếu không — bảng Đơn gần nhất cần nó để 'Khác' đọc được.
+    note: txt(r.c[SF.note]),
   }));
 
   /* ---- index & liên kết hai chiều ---- */
