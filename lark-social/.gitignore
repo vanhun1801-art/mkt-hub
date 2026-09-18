@@ -3,3 +3,9 @@ ket-noi.json
 *.log
 .tmp/
 trang-thai.json
+
+# cache logo xin từ hub, không thuộc mã nguồn
+du-lieu/
+# tệp thử sinh ra khi chạy tay
+thu.xlsx
+*.xlsx
