@@ -150,8 +150,13 @@ function goiYThe(nhanNay, tatCaThe, daThuocNhanKhac, tongBai) {
     const g = khongDau(t).replace(/^#/, '');
     if (g.length >= 4 && !QUA_CHUNG.has(g)) manhMoi.push(g);
   });
+  /* Token từ TÊN nhãn phải dài từ 6 ký tự.
+   *
+   * Ngưỡng 5 kéo "world" ra khỏi "Grand World Phú Quốc", và "world" nằm trong
+   * "#sunworld" — thế là app gợi ý thẻ của Sun Group cho một nhãn Vinpearl.
+   * Tên nhãn là chữ cho người đọc, nên mảnh của nó dễ trùng nhau hơn hashtag. */
   khongDau(nhanNay.nhan || '').split(/[^a-z0-9]+/).forEach((w) => {
-    if (w.length >= 5 && !QUA_CHUNG.has(w)) manhMoi.push(w);
+    if (w.length >= 6 && !QUA_CHUNG.has(w)) manhMoi.push(w);
   });
   if (!manhMoi.length) return [];
 
@@ -163,7 +168,14 @@ function goiYThe(nhanNay, tatCaThe, daThuocNhanKhac, tongBai) {
   const tranPhu = num(tongBai) ? num(tongBai) * 0.25 : Infinity;
   return (tatCaThe || [])
     .filter((x) => !daCo.has(x.the) && !daThuocNhanKhac.has(x.the))
-    .filter((x) => !QUA_CHUNG.has(khongDau(x.the).replace(/^#/, '')))
+    .filter((x) => {
+      /* Loại cả thẻ CỤT của một thẻ kênh chung: "#phuquo", "#phuqu" là #phuquoc
+       * gõ thiếu, vẫn là thẻ kênh chứ không phải thẻ chủ đề. Chỉ so tiền tố nên
+       * "#vinwonde" (cụt của #vinwonders, một thẻ chủ đề thật) vẫn được giữ. */
+      const g = khongDau(x.the).replace(/^#/, '');
+      if (QUA_CHUNG.has(g)) return false;
+      return ![...QUA_CHUNG].some((c) => c.length > g.length && c.startsWith(g));
+    })
     .filter((x) => num(x.soBai) <= tranPhu)
     .filter((x) => {
       const g = khongDau(x.the).replace(/^#/, '');
@@ -171,7 +183,13 @@ function goiYThe(nhanNay, tatCaThe, daThuocNhanKhac, tongBai) {
        * trong mọi chuỗi, nên `m.includes(g)` cho chúng khớp với tất cả. Gợi ý
        * "#h" cho nhãn Hòn Thơm thì người dùng mất tin vào cả danh sách. */
       if (g.length < 4) return false;
-      return manhMoi.some((m) => g.includes(m) || m.includes(g) || goiChung(g, m) >= 6);
+      return manhMoi.some((m) => {
+        /* g NẰM TRONG m chỉ tính khi g đủ dài. "#phuqu" (gõ thiếu #phuquoc) nằm
+         * trong "vinpearlgrandworldphuquoc", nên thẻ cụt của một thẻ kênh chung
+         * lại được gợi ý cho đối tác. */
+        if (m.includes(g)) return g.length >= 6;
+        return g.includes(m) || goiChung(g, m) >= 6;
+      });
     })
     .sort((a, b) => b.soBai - a.soBai)
     .slice(0, 12);
@@ -202,7 +220,7 @@ function nhanHopVoiThe(the, dsNhan) {
     n.the.forEach((t) => {
       const m = khongDau(t).replace(/^#/, '');
       if (!m || m === g || QUA_CHUNG.has(m)) return;
-      if (g.includes(m) || m.includes(g)) {
+      if (g.includes(m) || (m.includes(g) && g.length >= 6)) {
         if (diem < 3) { diem = 3; viSao = 'gần với ' + t; }
       } else if (goiChung(g, m) >= 6) {
         if (diem < 2) { diem = 2; viSao = 'chung gốc với ' + t; }
@@ -211,7 +229,7 @@ function nhanHopVoiThe(the, dsNhan) {
 
     if (!diem) {
       khongDau(n.nhan || '').split(/[^a-z0-9]+/).forEach((w) => {
-        if (w.length < 5 || QUA_CHUNG.has(w)) return;
+        if (w.length < 6 || QUA_CHUNG.has(w)) return;
         if (g.includes(w) || w.includes(g) || goiChung(g, w) >= 6) {
           if (diem < 1) { diem = 1; viSao = 'trùng chữ trong tên nhãn'; }
         }

@@ -73,6 +73,20 @@ async function logoHtml() {
 
 /* ---------------- Excel ---------------- */
 
+/**
+ * Bài này có ĐO ĐƯỢC lượt xem không.
+ *
+ * Facebook chỉ trả lượt xem cho video; bài chữ và ảnh không có chỉ số đó. Ghi 0
+ * vào báo cáo gửi đối tác là nói sai — đối tác đọc "0 lượt xem, 300 tương tác"
+ * rồi hỏi lại, và mình không có câu trả lời nào nghe xuôi. Để trống rồi chú
+ * thích một dòng thì đúng sự thật: không đo được, khác hẳn không ai xem.
+ *
+ * TikTok, Instagram và Zalo đo được mọi dạng bài, nên 0 ở đó là 0 thật.
+ */
+const KHONG_DO_XEM = new Set(['Bài viết', 'Ảnh', 'Album']);
+const doDuocXem = (p) => !(p.platform === 'Facebook' && KHONG_DO_XEM.has(p.type));
+const oXem = (p) => (doDuocXem(p) ? num(p.views) : null);
+
 const COT_BAI = ['Ngày đăng', 'Nền tảng', 'Kênh', 'Nhãn', 'Dạng', 'Nội dung', 'Link',
   'Lượt xem', 'Tiếp cận', 'Thích', 'Bình luận', 'Chia sẻ', 'Tương tác'];
 const RONG_BAI = [12, 11, 24, 22, 10, 60, 40, 12, 12, 10, 11, 11, 12];
@@ -110,6 +124,10 @@ function excelDoiTac({ doiTac, nhan, tongHop, tu, den }) {
     o: ['Ghi chú: một bài nhắc nhiều địa điểm của cùng đối tác sẽ nằm ở nhiều sheet chi tiết, '
       + 'nhưng dòng TỔNG chỉ đếm một lần.'],
   });
+  tongHang.push({
+    o: ['Ô "Lượt xem" để trống nghĩa là Facebook không đo lượt xem cho dạng bài đó '
+      + '(bài chữ, ảnh) — không phải không có ai xem. Video và Reels thì luôn có số.'],
+  });
 
   const sheets = [{ ten: 'Tổng hợp', rong: [30, 10, 14, 14, 10, 12, 11, 12], hang: tongHang }];
 
@@ -119,7 +137,7 @@ function excelDoiTac({ doiTac, nhan, tongHop, tu, den }) {
       o: [
         String(p.date || '').slice(0, 10), p.platform || '', p.channel || '', o.nhan, p.type || '',
         String(p.title || '').replace(/\s+/g, ' ').slice(0, 500), p.url || '',
-        num(p.views), num(p.reach), num(p.likes), num(p.comments), num(p.shares), num(p.engagement),
+        oXem(p), num(p.reach), num(p.likes), num(p.comments), num(p.shares), num(p.engagement),
       ],
     }));
     sheets.push({ ten: o.nhan, rong: RONG_BAI, hang });
@@ -159,7 +177,7 @@ function trangIn({ doiTac, nhan, tongHop, tu, den, logo, soBaiMoiNhan = 40 }) {
         + '<td>' + hEsc(p.platform || '') + '</td>'
         + '<td class="nd">' + hEsc(String(p.title || '(không tiêu đề)').replace(/\s+/g, ' ').slice(0, 150))
         + '</td>'
-        + '<td class="s">' + n0(p.views) + '</td>'
+        + '<td class="s">' + (doDuocXem(p) ? n0(p.views) : '<span class="kdd">—</span>') + '</td>'
         + '<td class="s">' + n0(p.engagement) + '</td></tr>').join('')
       + '</tbody></table>';
   };
@@ -197,6 +215,7 @@ function trangIn({ doiTac, nhan, tongHop, tu, den, logo, soBaiMoiNhan = 40 }) {
     + 'td.nd { color: #3d4d59; }'
     + 'th.s, td.s { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }'
     + 'tr { break-inside: avoid; }'
+    + '.kdd { color: #9aa8b2; }'
     + '.chan { margin-top: 26px; padding-top: 12px; border-top: 1px solid #dde4ea;'
     + ' font-size: 10.5px; color: #78868f; }'
     + '.nut { position: sticky; top: 0; background: #15212b; padding: 10px 16px; display: flex;'
@@ -234,8 +253,10 @@ function trangIn({ doiTac, nhan, tongHop, tu, den, logo, soBaiMoiNhan = 40 }) {
     + ' tổng hợp trong hệ thống Marketing Hub của Rooty Trip Phú Quốc.'
     + ' Bài được gắn cho đối tác theo hashtag trong nội dung bài đăng.'
     + ' Một bài nhắc nhiều địa điểm của cùng đối tác chỉ được đếm một lần trong phần tổng.'
+    + ' Dấu — ở cột Lượt xem nghĩa là Facebook không đo lượt xem cho dạng bài đó (bài chữ, ảnh),'
+    + ' không phải không có ai xem; video và Reels thì luôn có số.'
     + '<br>Xuất lúc ' + hEsc(new Date().toLocaleString('vi-VN')) + '.</div>'
     + '</div></body></html>';
 }
 
-module.exports = { excelDoiTac, trangIn, logoHtml, COT_BAI };
+module.exports = { excelDoiTac, trangIn, logoHtml, doDuocXem, oXem, COT_BAI };

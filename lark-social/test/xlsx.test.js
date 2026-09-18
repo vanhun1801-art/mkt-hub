@@ -84,4 +84,34 @@ t('ô rỗng vẫn có thẻ, để cột không bị lệch', () => {
   assert.ok(/<c r="B1"\/>/.test(b));
 });
 
+console.log('\nbáo cáo đối tác — lượt xem không đo được');
+
+const xuat = require('../xuat-doi-tac');
+
+t('bài chữ và ảnh của Facebook thì để TRỐNG, không ghi 0', () => {
+  /* Đối tác đọc "0 lượt xem, 300 tương tác" rồi hỏi lại, và mình không có câu
+     trả lời nào nghe xuôi. Facebook chỉ đo lượt xem cho video. */
+  assert.strictEqual(xuat.doDuocXem({ platform: 'Facebook', type: 'Bài viết' }), false);
+  assert.strictEqual(xuat.doDuocXem({ platform: 'Facebook', type: 'Ảnh' }), false);
+  assert.strictEqual(xuat.oXem({ platform: 'Facebook', type: 'Bài viết', views: 0 }), null);
+});
+
+t('video Facebook thì vẫn ghi số, kể cả số 0', () => {
+  assert.strictEqual(xuat.doDuocXem({ platform: 'Facebook', type: 'Video' }), true);
+  assert.strictEqual(xuat.oXem({ platform: 'Facebook', type: 'Video', views: 0 }), 0);
+});
+
+t('nền tảng khác đo được mọi dạng bài, nên 0 ở đó là 0 thật', () => {
+  ['Instagram', 'TikTok', 'Zalo OA'].forEach((nt) => {
+    assert.strictEqual(xuat.doDuocXem({ platform: nt, type: 'Bài viết' }), true, nt);
+    assert.strictEqual(xuat.oXem({ platform: nt, type: 'Reels', views: 0 }), 0, nt);
+  });
+});
+
+t('ô để trống sinh ra thẻ rỗng, không phải số 0', () => {
+  const b = taoXlsx([{ ten: 'S', hang: [{ o: ['x', null, 5] }] }]).toString('utf8');
+  assert.ok(b.includes('<c r=\"B1\"/>'), 'ô null phải là thẻ rỗng');
+  assert.ok(b.includes('<c r=\"C1\"><v>5</v>'));
+});
+
 console.log('\n' + so + ' phép thử đạt' + (process.exitCode ? ' — CÓ LỖI' : '') + '\n');
