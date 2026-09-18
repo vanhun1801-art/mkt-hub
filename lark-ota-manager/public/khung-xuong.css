@@ -71,13 +71,18 @@
 }
 
 /* Ai tắt hiệu ứng chuyển động trong hệ điều hành thì đổi sang nhịp mờ dần —
-   vẫn nói được "đang chạy" mà không có gì trượt ngang màn hình. */
+   vẫn nói được "đang chạy" mà không có gì trượt ngang màn hình.
+
+   Đáy nhịp là .72, KHÔNG phải .45 như bản đầu: xuống 45% thì cả khối xương
+   nhạt đi gần một nửa, và trên ảnh chụp của anh Hùng nó không còn giống "đang
+   nạp" mà giống trang bị hỏng, chữ mất hết. Khoảng chờ phải nói "đang chạy",
+   không được nói "có chuyện gì rồi". */
 @media (prefers-reduced-motion: reduce) {
   .kx {
     background-image: none;
     animation: kx-tho 1.8s ease-in-out infinite alternate;
   }
-  @keyframes kx-tho { from { opacity: 1; } to { opacity: .45; } }
+  @keyframes kx-tho { from { opacity: 1; } to { opacity: .72; } }
 }
 
 /* ---- các hình dạng hay gặp ----

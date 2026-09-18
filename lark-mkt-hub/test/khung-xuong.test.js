@@ -123,7 +123,7 @@ group('Trang Tổng quan vẽ ngay khi biết danh sách base');
   ok('ô số để khung xương theo hình đã nhớ của CHÍNH base đó',
     /KX\.theTheo\(hinhCu\.get\(m\.id\)\)/.test(APPJS));
   ok('dải nhiệt có khung xương', /KX\.tai\(hang, ngay\)/.test(APPJS));
-  ok('mở app con hiện khung xương của một màn app', /KX\.man\(esc\(mod\.ten\)\)/.test(APPJS));
+  ok('mở app con vẫn có lớp phủ của lớp vỏ', /KX\.man\(esc\(mod\.ten\),/.test(APPJS));
 
   /* Mọi lời gọi KX đều phải có đường lùi: file khung xương lỡ không nạp được
    * thì trang vẫn chạy, chỉ là quay về dòng chữ như cũ. */
@@ -249,6 +249,37 @@ group('Khung xương phải khớp GIAO DIỆN THẬT, không phải hình chung
   ok('Lịch tác nghiệp dựng lưới lịch', /kx-lich-luoi/.test(hinh['lark-lich-tac-nghiep']));
   const soKhac = new Set(Object.values(hinh)).size;
   ok('chín app KHÔNG dùng chung một hình', soKhac >= 7, soKhac + ' hình khác nhau');
+}
+
+group('Không vẽ HÌNH CHUNG khi app con đã có hình thật của nó');
+{
+  /* Anh Hùng, kèm hai ảnh chụp bản chạy thật: "khung chung cũ vẫn còn, bỏ nó
+   * đi, chừa lại khung đúng với thực tế".
+   *
+   * KX.man() mặc định là bốn thẻ số + sáu dòng bảng — một hình ĐOÁN, và app
+   * con nào mở ra cũng không phải hình đó. Trình tự cũ: lớp vỏ vẽ hình đoán →
+   * mấy trăm mili giây sau app con thay bằng bản CHỤP TỪ MÀN THẬT của nó. Hai
+   * bố cục khác nhau nối tiếp, thành ra nhấp nháy, và người dùng phải chờ hai
+   * lượt chứ không phải một.
+   *
+   * Giờ: đã có bản chụp thì lớp phủ chỉ còn THANH ĐẦU TRANG — thứ duy nhất
+   * app nào cũng có ở đúng chỗ đó, nên lúc bản chụp lên thay không gì xê dịch.
+   * Chỉ lần mở đầu tiên trong đời máy mới dùng hình chung. */
+  ok('lớp vỏ biết hỏi app con đã chụp được chưa', /function coBanChupXuong\(/.test(APPJS));
+  ok('… đọc đúng kho dùng chung của app con', /getItem\('kx\.xuong\.' \+ id\)/.test(APPJS));
+  ok('đã có bản chụp thì KHÔNG vẽ thẻ số và bảng đoán mò',
+    /daChup \? \{ the: 0, dong: 0 \} : null/.test(APPJS));
+  /* Cái bẫy đã dính thật: `lap(n || 4, …)` biến số 0 thành 4, nên xin "đừng vẽ
+   * thẻ nào" vẫn ra bốn thẻ — sửa xong mà màn hình không đổi gì. */
+  ok('số 0 nghĩa là KHÔNG vẽ, không phải "vẽ mặc định"',
+    /oSo\(n\) \{[\s\S]{0,400}?if \(n === 0\) return '';/.test(KXJS) &&
+    /dong\(n\) \{[\s\S]{0,200}?if \(n === 0\) return '';/.test(KXJS));
+  ok('… mà gọi không tham số thì vẫn đủ hình mặc định',
+    /n == null \? 4 : n/.test(KXJS) && /n == null \? 6 : n/.test(KXJS));
+  /* Nhịp mờ dần cho máy tắt chuyển động: xuống 45% thì khối xương nhạt gần một
+   * nửa và trông như trang hỏng chứ không như đang nạp. */
+  ok('nhịp mờ dần không tụt quá sâu',
+    /kx-tho \{ from \{ opacity: 1; \} to \{ opacity: \.(7|8)\d?; \} \}/.test(CSS));
 }
 
 group('Chiều cao đã nhớ phải khớp BẢN ĐÃ DỊCH, không phải bản vừa vẽ');

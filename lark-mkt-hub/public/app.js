@@ -743,17 +743,36 @@ function phuLoi(o, mod) {
   hen = setTimeout(thu, 3000);
 }
 
+/** App con này đã chụp được khung xương của màn thật chưa?
+ *
+ * Đọc được vì lớp vỏ và chín app con CÙNG MỘT ORIGIN: app con đi qua proxy
+ * `/m/<id>/` của chính hub, nên localStorage là chung một kho. Đã đo: mở trang
+ * Tổng quan rồi đọc `kx.xuong.social` ra đúng bản app con vừa cất. */
+function coBanChupXuong(id) {
+  try { return !!localStorage.getItem('kx.xuong.' + id); } catch (_) { return false; }
+}
+
 function khungCuaModule(mod, rec, mo) {
   if (S.frames.has(mod.id)) return S.frames.get(mod.id);
 
   const wrap = document.createElement('div');
   wrap.className = 'page';
   wrap.style.padding = '0';
-  /* Khung xương của MỘT màn app (tiêu đề - hàng thẻ số - bảng), không phải vòng
-   * xoay giữa nền trắng: app con nào cũng mở ra đúng ba tầng đó, nên mắt dựng
-   * sẵn bố cục trong lúc iframe còn đang nạp. */
+  /* Lớp phủ của lớp vỏ chỉ được vẽ HÌNH CHUNG khi thật sự không có gì tốt hơn.
+   *
+   * Anh Hùng: "khung chung cũ vẫn còn, bỏ nó đi, chừa lại khung đúng với thực
+   * tế". Đúng: KX.man() là bốn thẻ số + sáu dòng bảng — một hình đoán, và app
+   * con nào mở ra cũng không phải hình đó. Người dùng thấy hình đoán trước,
+   * mấy trăm mili giây sau app con thay bằng khung xương CHỤP TỪ MÀN THẬT của
+   * nó, thành ra nhấp nháy hai bố cục khác nhau. Hai lần chờ, không phải một.
+   *
+   * App con đã chụp được màn của nó thì chỉ vẽ THANH ĐẦU TRANG — thứ duy nhất
+   * app nào cũng có ở đúng chỗ đó, nên lúc bản chụp lên thay không có gì xê
+   * dịch. Chỉ lần mở đầu tiên trong đời máy (chưa có bản chụp nào) mới dùng
+   * hình chung, vì lúc đó thật sự không biết app đó trông thế nào. */
+  const daChup = coBanChupXuong(mod.id);
   wrap.innerHTML = '<div class="frame-loading' + (window.KX ? ' xuong' : '') + '">' +
-    (window.KX ? KX.man(esc(mod.ten))
+    (window.KX ? KX.man(esc(mod.ten), daChup ? { the: 0, dong: 0 } : null)
       : '<span class="spin"></span> Đang mở ' + esc(mod.ten) + '…') + '</div>';
 
   const f = document.createElement('iframe');

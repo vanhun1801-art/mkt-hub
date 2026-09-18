@@ -40,13 +40,18 @@
 
     /** Hàng thẻ số (lưới tự xuống dòng). */
     oSo(n) {
-      return '<div class="kx-man-the">' + lap(n || 4, (i) =>
+      /* `n === 0` nghĩa là KHÔNG vẽ hàng thẻ nào, không phải "vẽ mặc định".
+       * `n || 4` biến số 0 thành 4 — đúng cái bẫy làm lớp phủ của lớp vỏ vẫn
+       * hiện bốn thẻ số đoán mò dù đã xin nó đừng vẽ. */
+      if (n === 0) return '';
+      return '<div class="kx-man-the">' + lap(n == null ? 4 : n, (i) =>
         '<div class="kx-the">' + KX.chu(rong(i), 'nho') + KX.so('to') + '</div>') + '</div>';
     },
 
     /** Bảng: mỗi dòng một ô vuông + hai cột chữ + một nút. */
     dong(n) {
-      return '<div class="kx-man-bang">' + lap(n || 6, (i) => '<div class="kx-hang">' +
+      if (n === 0) return '';                  // xem ghi chú ở oSo()
+      return '<div class="kx-man-bang">' + lap(n == null ? 6 : n, (i) => '<div class="kx-hang">' +
         el('kx-o', 'width:22px;height:22px') +
         '<span style="flex:2;min-width:0">' + KX.chu(rong(i)) + '</span>' +
         '<span style="flex:1;min-width:0">' + KX.chu(rong(i + 2), 'nho') + '</span>' +
