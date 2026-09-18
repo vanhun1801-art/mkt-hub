@@ -534,3 +534,14 @@ table.tbl tfoot td { font-weight: 700; background: var(--panel-2); border-top: 2
 .pq-in { flex: 1 1 260px; min-width: 0; }
 .pq-in.pq-ok { border-color: var(--good); background: var(--good-soft); }
 .pq-in.pq-loi { border-color: var(--bad); background: var(--bad-soft); }
+
+/* --- chọn nhãn cho một hashtag --- */
+.gt-list { display: flex; flex-wrap: wrap; gap: 7px; }
+.gt-nhan { display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
+  border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+  border-radius: 8px; padding: 7px 12px; cursor: pointer; font: inherit; text-align: left; }
+.gt-nhan:hover { border-color: var(--brand); }
+.gt-nhan b { font-size: 13.5px; font-weight: 600; }
+.gt-nhan .dt { font-size: 11px; color: var(--ink-3); }
+.gt-nhan .vs { font-size: 11px; color: var(--brand); }
+.gt-nhan.gy { border-color: var(--brand); background: var(--brand-soft); }

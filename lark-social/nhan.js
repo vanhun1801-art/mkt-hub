@@ -177,6 +177,53 @@ function goiYThe(nhanNay, tatCaThe, daThuocNhanKhac, tongBai) {
     .slice(0, 12);
 }
 
+/**
+ * Hỏi ngược lại goiYThe: một THẺ chưa có chủ thì hợp với những NHÃN nào đã có?
+ *
+ * Vì sao cần: bấm một thẻ trong danh sách "chưa thuộc nhãn nào" mà lúc nào cũng
+ * mở hộp tạo nhãn mới thì sớm muộn có hai nhãn cùng nói về một chỗ — "Hòn Thơm"
+ * và "Cáp treo Hòn Thơm" — rồi báo cáo Sun Group tách làm hai dòng không ai gộp
+ * lại được. Gắn vào nhãn sẵn có mới là việc thường gặp; tạo mới là ngoại lệ.
+ *
+ * Điểm: khớp với hashtag đã khai của nhãn ăn điểm cao hơn khớp với tên nhãn,
+ * vì hashtag là thứ đội nội dung gõ thật, còn tên nhãn là chữ cho người đọc.
+ *
+ * @returns [{ nhan, diem, viSao }] — chỉ những nhãn thật sự liên quan
+ */
+function nhanHopVoiThe(the, dsNhan) {
+  const g = khongDau(the).replace(/^#/, '');
+  if (g.length < 3) return [];
+
+  const ra = [];
+  (dsNhan || []).forEach((n) => {
+    let diem = 0;
+    let viSao = '';
+
+    n.the.forEach((t) => {
+      const m = khongDau(t).replace(/^#/, '');
+      if (!m || m === g || QUA_CHUNG.has(m)) return;
+      if (g.includes(m) || m.includes(g)) {
+        if (diem < 3) { diem = 3; viSao = 'gần với ' + t; }
+      } else if (goiChung(g, m) >= 6) {
+        if (diem < 2) { diem = 2; viSao = 'chung gốc với ' + t; }
+      }
+    });
+
+    if (!diem) {
+      khongDau(n.nhan || '').split(/[^a-z0-9]+/).forEach((w) => {
+        if (w.length < 5 || QUA_CHUNG.has(w)) return;
+        if (g.includes(w) || w.includes(g) || goiChung(g, w) >= 6) {
+          if (diem < 1) { diem = 1; viSao = 'trùng chữ trong tên nhãn'; }
+        }
+      });
+    }
+
+    if (diem) ra.push({ nhan: n.nhan, nhom: n.nhom, doiTac: n.doiTac, diem, viSao });
+  });
+
+  return ra.sort((a, b) => b.diem - a.diem || a.nhan.localeCompare(b.nhan));
+}
+
 /** Mọi hashtag xuất hiện trong bài, kèm số bài và nhãn đang giữ nó (nếu có). */
 function thongKeThe(posts, dsNhan) {
   const chu = new Map();
@@ -319,7 +366,7 @@ function csvChoNhan(o, khoang) {
 
 module.exports = {
   tachThe, theCuaBai, khongDau, goiYThe, thongKeThe, QUA_CHUNG,
-  chuanHoaNhan, nhanCuaBai, nguonNhan, doiTenTrongNhanBu,
+  chuanHoaNhan, nhanCuaBai, nguonNhan, doiTenTrongNhanBu, nhanHopVoiThe,
   gopTheoNhan, gopTheoDoiTac, baiKhongNhan,
   dongCsv, csvChoNhan, BOM, CONG,
 };

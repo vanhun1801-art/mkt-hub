@@ -1352,6 +1352,63 @@
     });
   }
 
+  /**
+   * Bấm một thẻ chưa có chủ: hỏi gắn vào nhãn nào ĐÃ CÓ trước, tạo nhãn mới là
+   * lối cuối.
+   *
+   * Bản trước mở thẳng hộp tạo nhãn, nên bấm "#captreo" là đẻ thêm một nhãn nói
+   * về đúng chỗ mà "Hòn Thơm" đã nói — rồi báo cáo Sun Group tách làm hai dòng
+   * không ai gộp lại được.
+   */
+  async function moGanThe(the, dsNhom, dsDoiTac) {
+    const r = await goi('/api/the/nhan-hop?the=' + encodeURIComponent(the));
+    const goiY = r.goiY || [];
+    const tatCa = r.tatCa || [];
+
+    const nut = (x, gy) => '<button class="gt-nhan' + (gy ? ' gy' : '') + '" data-nhan="'
+      + esc(x.nhan) + '"><b>' + esc(x.nhan) + '</b>'
+      + (x.doiTac ? '<span class="dt">' + esc(x.doiTac) + '</span>' : '')
+      + (gy && x.viSao ? '<span class="vs">' + esc(x.viSao) + '</span>' : '')
+      + '</button>';
+
+    moModal('<div class="modal-head"><h3>Gắn ' + esc(the) + ' vào nhãn nào?</h3></div>'
+      + '<div class="modal-body">'
+      + (goiY.length
+        ? '<div class="help" style="margin-bottom:8px">Nhãn <b>có vẻ hợp</b> — bấm để gắn ngay:</div>'
+          + '<div class="gt-list">' + goiY.map((x) => nut(x, true)).join('') + '</div>'
+        : '<div class="help" style="margin-bottom:8px">Không nhãn nào trông giống thẻ này. '
+          + 'Chọn tay bên dưới, hoặc tạo nhãn mới.</div>')
+      + '<div class="help" style="margin:14px 0 8px">Hoặc chọn trong ' + tatCa.length
+      + ' nhãn đã có:</div>'
+      + '<input id="gtTim" placeholder="gõ để lọc nhanh" style="width:100%;margin-bottom:8px">'
+      + '<div class="gt-list" id="gtTatCa">'
+      + tatCa.map((x) => nut(x, false)).join('') + '</div>'
+      + '</div>'
+      + '<div class="modal-foot">'
+      + '<button class="btn ghost small" id="gtMoi">Tạo nhãn mới với thẻ này</button>'
+      + '<span class="grow"></span>'
+      + '<button class="btn ghost" id="gtDong">Đóng</button></div>');
+
+    $('#gtDong').onclick = dongModal;
+    $('#gtMoi').onclick = () => moSuaNhan({ hashtag: the, bat: true }, dsNhom, dsDoiTac);
+    $('#gtTim').oninput = (e) => {
+      const q = e.target.value.trim().toLowerCase();
+      $('#gtTatCa').querySelectorAll('[data-nhan]').forEach((b2) => {
+        b2.hidden = q && !b2.dataset.nhan.toLowerCase().includes(q);
+      });
+    };
+    $('#modal').querySelectorAll('[data-nhan]').forEach((b2) => {
+      b2.onclick = async () => {
+        try {
+          await goiJSON('/api/the/gan', { the, nhan: b2.dataset.nhan });
+          dongModal();
+          toast('Đã gắn ' + the + ' vào "' + b2.dataset.nhan + '"');
+          veNhan();
+        } catch (e) { toast(e.message, 'err'); }
+      };
+    });
+  }
+
   /* ---------------- thiết lập nhãn ---------------- */
 
   /**
@@ -1566,7 +1623,8 @@
           + '<div class="help" style="margin-bottom:10px">Thẻ đội nội dung đang gõ mà chưa nhãn '
           + 'nào nhận. Thẻ kênh chung (#phuquoc, #xuhuong…) thì bỏ qua là đúng — cái đáng tìm '
           + 'là thẻ chỉ một địa điểm hay sản phẩm cụ thể.'
-          + (S.quanLy ? ' Bấm một thẻ để mở hộp thêm nhãn với thẻ đó điền sẵn.' : '') + '</div>'
+          + (S.quanLy ? ' Bấm một thẻ để gắn nó vào một nhãn đã có — hoặc tạo nhãn mới nếu '
+            + 'chưa nhãn nào hợp.' : '') + '</div>'
           + '<div class="bl-chan">'
           + chuaCoChu.slice(0, 60).map((t) => (S.quanLy
             ? '<button class="bl-dh" data-the="' + esc(t.the) + '" style="border:0;cursor:pointer">'
@@ -1593,7 +1651,8 @@
     /* Bấm một thẻ chưa có chủ → mở hộp thêm nhãn với thẻ đó điền sẵn, và gợi ý
      * tự chạy để kéo theo cả họ hàng của nó. */
     $('#view').querySelectorAll('[data-the]').forEach((b) => {
-      b.onclick = () => moSuaNhan({ hashtag: b.dataset.the, bat: true }, dsNhom, dsDoiTac);
+      b.onclick = () => moGanThe(b.dataset.the, dsNhom, dsDoiTac)
+        .catch((e) => toast(e.message, 'err'));
     });
   }
 

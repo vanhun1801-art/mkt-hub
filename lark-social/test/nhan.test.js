@@ -264,6 +264,55 @@ t('đổi tên nhãn phải kéo theo cột Nhãn gắn bù', () => {
   assert.strictEqual(nhan.doiTenTrongNhanBu('', 'A', 'B'), null);
 });
 
+console.log('\nnhãn — thẻ chưa có chủ hợp với nhãn nào');
+
+const BO = () => nhan.chuanHoaNhan([
+  { nhan: 'Hòn Thơm', hashtag: '#honthom #captreohonthom', doiTac: 'Sun Group' },
+  { nhan: 'Sunset Town', hashtag: '#sunsettown', doiTac: 'Sun Group' },
+  { nhan: 'VinWonders Phú Quốc', hashtag: '#vinwonders', doiTac: 'Vinpearl' },
+]);
+
+t('thẻ là một phần của thẻ đã khai thì gợi ý đúng nhãn đó', () => {
+  /* Bấm #captreo mà mở thẳng hộp tạo nhãn mới thì sớm muộn có hai nhãn cùng nói
+     về một chỗ, rồi báo cáo Sun Group tách làm hai dòng không ai gộp lại được. */
+  const r = nhan.nhanHopVoiThe('#captreo', BO());
+  assert.strictEqual(r.length, 1);
+  assert.strictEqual(r[0].nhan, 'Hòn Thơm');
+});
+
+t('thẻ gõ thiếu chữ vẫn tìm ra nhãn gốc', () => {
+  assert.strictEqual(nhan.nhanHopVoiThe('#vinwonde', BO())[0].nhan, 'VinWonders Phú Quốc');
+  assert.strictEqual(nhan.nhanHopVoiThe('#sunsettow', BO())[0].nhan, 'Sunset Town');
+});
+
+t('thẻ không liên quan thì KHÔNG gợi ý bừa', () => {
+  /* Gợi ý đại một nhãn cho #thuycung là dụ người dùng gắn sai, còn tệ hơn bắt
+     họ tạo nhãn mới. */
+  assert.deepStrictEqual(nhan.nhanHopVoiThe('#thuycung', BO()), []);
+  assert.deepStrictEqual(nhan.nhanHopVoiThe('#phuquoc', BO()), []);
+});
+
+t('thẻ quá ngắn thì bỏ qua', () => {
+  assert.deepStrictEqual(nhan.nhanHopVoiThe('#h', BO()), []);
+  assert.deepStrictEqual(nhan.nhanHopVoiThe('', BO()), []);
+});
+
+t('khớp hashtag ăn điểm cao hơn khớp tên nhãn', () => {
+  /* Hashtag là thứ đội nội dung gõ thật; tên nhãn chỉ là chữ cho người đọc. */
+  const ds = nhan.chuanHoaNhan([
+    { nhan: 'Hòn Thơm', hashtag: '#captreohonthom' },
+    { nhan: 'Chuyện honthom kể', hashtag: '#chuyenke' },
+  ]);
+  const r = nhan.nhanHopVoiThe('#honthom', ds);
+  assert.strictEqual(r[0].nhan, 'Hòn Thơm');
+  assert.ok(r[0].diem > (r[1] ? r[1].diem : 0));
+});
+
+t('nói rõ vì sao gợi ý, để người dùng tự phán đoán', () => {
+  const r = nhan.nhanHopVoiThe('#captreo', BO());
+  assert.ok(/captreohonthom/.test(r[0].viSao), r[0].viSao);
+});
+
 console.log('\nnhãn — xuất CSV');
 
 t('dấu chấm phẩy và BOM, để Excel tiếng Việt mở đúng', () => {

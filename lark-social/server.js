@@ -445,6 +445,45 @@ async function api(req, res, u) {
     });
   }
 
+  /* Một thẻ chưa có chủ thì hợp với nhãn nào đã có. Trả kèm TOÀN BỘ nhãn để hộp
+   * chọn không phải gọi thêm lần nữa — danh sách nhãn vốn ngắn. */
+  if (p === '/api/the/nhan-hop' && method === 'GET') {
+    const loi = chanNeuKhongPhaiQuanLy(req); if (loi) throw loi;
+    const the = (u.searchParams.get('the') || '').trim();
+    if (!the) return fail(res, 400, 'Thiếu hashtag');
+    const ds = nhan.chuanHoaNhan(await store.taiNhan());
+    return ok(res, {
+      goiY: nhan.nhanHopVoiThe(the, ds),
+      tatCa: ds.map((x) => ({ nhan: x.nhan, nhom: x.nhom, doiTac: x.doiTac, the: x.the })),
+    });
+  }
+
+  /* Gắn thêm một thẻ vào nhãn đã có — nối vào cuối, không đụng thẻ cũ. */
+  if (p === '/api/the/gan' && method === 'POST') {
+    const loi = chanNeuKhongPhaiQuanLy(req); if (loi) throw loi;
+    const b = await readBody(req);
+    const the = nhan.tachThe(b.the)[0];
+    const ten = String(b.nhan || '').trim();
+    if (!the || !ten) return fail(res, 400, 'Thiếu hashtag hoặc nhãn');
+
+    const tho = await store.taiNhan();
+    const dong = tho.find((x) => x.nhan === ten);
+    if (!dong) return fail(res, 404, 'Không có nhãn "' + ten + '"');
+
+    /* Thẻ đã thuộc nhãn khác thì dừng: hai nhãn cùng giữ một thẻ là hai đối tác
+     * cùng đếm một bài, và tổng của họ lớn hơn số bài thật. */
+    const chu = tho.find((x) => x.nhan !== ten && nhan.tachThe(x.hashtag).includes(the));
+    if (chu) return fail(res, 400, 'Thẻ ' + the + ' đang thuộc nhãn "' + chu.nhan + '"');
+
+    const daCo = nhan.tachThe(dong.hashtag);
+    if (daCo.includes(the)) return ok(res, { ok: true, daCo: true });
+    await lark.updateRecord(cfg.tables.label.id, dong.id, {
+      [cfg.tables.label.f.hashtag]: (String(dong.hashtag || '').trim() + ' ' + the).trim(),
+    });
+    store.xoaCache();
+    return ok(res, { ok: true, nhan: ten, the });
+  }
+
   if (p === '/api/nhan/luu' && method === 'POST') {
     const loi = chanNeuKhongPhaiQuanLy(req); if (loi) throw loi;
     const b = await readBody(req);
