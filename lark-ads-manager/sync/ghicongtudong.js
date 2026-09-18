@@ -108,12 +108,7 @@ async function chay({ kho, from = '', to = '', ghi = () => {} }) {
   // động (hẹn giờ + mỗi lần kéo API) nên nhân dòng nhanh hơn hẳn so với lúc còn
   // phải bấm tay. Test không bắt được vì test không đọc thật từ Lark — nhớ khi
   // viết test mới cho khối này.
-  const daCo = new Map();
-  const cu = await lark.listAll(T.sales.id);
-  cu.forEach((r) => {
-    const ma = String((r.c && r.c[F.orderCode]) || '').trim();
-    if (ma) daCo.set(ma, r.id);
-  });
+  const daCo = banDoMaDon(await lark.listAll(T.sales.id), F);
 
   ghi('đang xác định kênh của từng đơn từ phép ghi công…');
   const { m: ghiCongTheoDon, kq } = await tinhGhiCong({ kho, from, to, ghi });
@@ -147,4 +142,25 @@ async function chay({ kho, from = '', to = '', ghi = () => {} }) {
   return { ...tt, taoXong, kq };
 }
 
-module.exports = { chay, tinhGhiCong };
+/**
+ * Bản ghi Base -> Map(mã đơn -> record_id), để SỬA dòng cũ chứ không tạo trùng.
+ *
+ * Tách thành hàm thuần vì đây đúng là chỗ đã cắn: đọc sai TÊN TRƯỜNG của bản ghi
+ * thì map rỗng, và app lặng lẽ tạo dòng mới cho mọi đơn ở mọi lượt chạy. Không
+ * có lỗi nào hiện ra — chỉ có bảng Base phình lên và doanh thu thổi theo.
+ *
+ * Hình dạng bản ghi là `{ id, c }`, KHÔNG phải `{ id, fields }`. Cả lark.js
+ * (lark-cli) lẫn larkapi.js (tenant token) đều trả về `c`. Đây là giao ước giữa
+ * hai lớp, và giao ước không có test là giao ước sẽ gãy.
+ */
+function banDoMaDon(rows, F) {
+  const m = new Map();
+  (rows || []).forEach((r) => {
+    const o = (r && r.c) || {};
+    const ma = String(o[F.orderCode] || '').trim();
+    if (ma) m.set(ma, r.id);
+  });
+  return m;
+}
+
+module.exports = { chay, tinhGhiCong, banDoMaDon };

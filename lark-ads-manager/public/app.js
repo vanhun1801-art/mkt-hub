@@ -1009,9 +1009,37 @@ VIEW['doanh-thu'] = async (view) => {
   const chk = $('#chkChiQC');
   if (chk) chk.onchange = (e) => { S.chiXemQC = e.target.checked; render(); };
 
-  await roasVe();
-  await donTrungVe();
+  /* Bọc RIÊNG từng khối. Trước đây hai lời gọi này trần trụi, nên roasVe() ném
+   * lỗi là kéo sập cả tab — kể cả donTrungVe() đứng sau, vốn là khối DUY NHẤT có
+   * nút dọn dòng trùng. Một lỗi ở khối trên giấu mất cái nút sửa ở khối dưới, và
+   * người dùng vừa không xem được số vừa không sửa được số.
+   *
+   * Báo lỗi TẠI CHỖ của khối đó, không nuốt: nuốt đi thì khối biến mất im lặng,
+   * đúng loại lỗi khó tìm nhất. */
+  await chayKhoi('#roasKhoi', 'ROAS từng quảng cáo', roasVe);
+  await chayKhoi('#donTrungKhoi', 'Đơn ghi trùng trên Base', donTrungVe);
 };
+
+/**
+ * Chạy một khối nạp riêng, lỗi thì báo ngay tại ô của nó.
+ *
+ * @param oId  id ô chứa khối — chỗ để in lỗi ra nếu có
+ * @param ten  tên khối, để câu báo lỗi nói rõ CÁI GÌ hỏng
+ * @param fn   hàm vẽ khối
+ */
+async function chayKhoi(oId, ten, fn) {
+  try {
+    await fn();
+  } catch (e) {
+    const o = $(oId);
+    if (!o) return;
+    o.innerHTML = `<div class="card"><div class="card-body">
+      <div class="help" style="border-color:var(--bad);color:var(--bad)">
+        <b>Khối "${esc(ten)}" lỗi:</b> ${esc(e.message)}
+        <br><span class="sub">Các phần khác của tab vẫn dùng được. Báo lại câu lỗi này để sửa.</span>
+      </div></div></div>`;
+  }
+}
 
 /**
  * Khối "Dọn đơn trùng" — vá hậu quả của bẫy ghi trùng đã sửa 17/09/2026 (server
@@ -1158,6 +1186,24 @@ function nguonSo(tt) {
   </div>`;
 }
 
+/**
+ * Gán xử lý bấm cho một nút CÓ THỂ không tồn tại.
+ *
+ * Trong khối ROAS gần như mọi nút đều có điều kiện — "Kéo lại từ Tourwell" chỉ
+ * hiện khi đã nối API, "Ghi doanh thu lên Base" chỉ hiện khi có dữ liệu. Nút
+ * vắng mặt là chuyện BÌNH THƯỜNG ở đây, nên gán thẳng $('#x').onclick là tự đặt
+ * một quả mìn: thiếu một điều kiện là cả tab trắng với câu
+ * "Cannot set properties of null (setting 'onclick')" — đúng cái anh Hùng gặp.
+ *
+ * @returns {boolean} có gán được không, để bên gọi biết mà bỏ qua phần còn lại.
+ */
+function ganBam(id, fn) {
+  const el = $(id);
+  if (!el) return false;
+  el.onclick = fn;
+  return true;
+}
+
 async function roasVe() {
   const khoi = $('#roasKhoi');
   if (!khoi) return;
@@ -1211,10 +1257,12 @@ async function roasVe() {
     </div>
   </div>`;
 
+  /* Ô chọn file nằm trong khối gấp lại nên vẫn luôn có, nhưng kiểm cho chắc:
+   * khối đó đã đổi chỗ một lần rồi. */
   const fi = $('#rsFile');
-  fi.onchange = () => { $('#rsNhap').disabled = !fi.files.length; };
+  if (fi) fi.onchange = () => { const n = $('#rsNhap'); if (n) n.disabled = !fi.files.length; };
 
-  $('#rsNhap').onclick = async (e) => {
+  ganBam('#rsNhap', async (e) => {
     const b = e.currentTarget; const cu = b.textContent;
     b.disabled = true; b.textContent = 'Đang đọc…';
     try {
@@ -1247,7 +1295,7 @@ async function roasVe() {
         hoiNhap();
       }
     } catch (err) { toast(err.message, 'err'); b.disabled = false; b.textContent = cu; }
-  };
+  });
 
   if ($('#rsXoa')) {
     $('#rsXoa').onclick = async () => {
@@ -1308,7 +1356,7 @@ async function roasVe() {
     };
   }
 
-  $('#rsTinh').onclick = async (e) => {
+  ganBam('#rsTinh', async (e) => {
     const b = e.currentTarget; const cu = b.textContent;
     b.disabled = true; b.textContent = 'Đang tính…';
     try {
@@ -1316,7 +1364,7 @@ async function roasVe() {
       roasBang();
     } catch (err) { toast(err.message, 'err'); }
     b.disabled = false; b.textContent = cu;
-  };
+  });
 
   /* Ghi lên Base: XEM TRƯỚC rồi mới ghi. Đây là ghi hàng nghìn dòng vào Base thật
    * của công ty — không được để một cú bấm nhầm là xong. */
