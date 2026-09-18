@@ -45,6 +45,9 @@ const VIEC_LAU_NHOM = [
    * giây thì lệnh bật/tắt hiện "Module không trả lời" trong khi nó có thể ĐÃ GỬI
    * lên nền tảng — người dùng bấm lại lần nữa là tắt rồi bật. */
   'dieu-khien',
+  /* Đối chiếu Base với nền tảng: mỗi chiến dịch một lời gọi ra Meta/TikTok/Google,
+   * bảy chiến dịch là bảy lượt nối tiếp. Cắt ở 30 giây thì khối này luôn trắng. */
+  'doi-chieu',
 ];
 const VIEC_LAU = new RegExp('^/api/(' + VIEC_LAU_NHOM.join('|') + ')(-[a-z-]+)?(/|$|\\?)');
 const cfg = require('./config');

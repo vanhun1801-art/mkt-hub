@@ -52,44 +52,38 @@ console.log('— ngân sách: phải nói rõ đó là ô KẾ HOẠCH trong Bas
   const v = ns[0] || {};
   /* Bản trước ghi "Vượt ngân sách: <tên>" trống không — đọc lên tưởng nền tảng
    * đã chặn hoặc sắp chặn. Đo thật: Facebook vẫn chạy bình thường. */
-  t('tiêu đề nói rõ là ngân sách DỰ KIẾN', /dự kiến/i.test(v.title || ''), v.title);
+  /* Anh Hùng chốt 18/09/2026: ô "Ngân sách dự kiến" là cho MỖI THÁNG. Nên mốc so
+   * là tháng đang chạy, và tiêu đề phải nói đúng chữ "tháng" — bản trước so toàn
+   * thời gian, ra 397%/475%, mà với một ô nghĩa là mỗi tháng thì mấy con số đó
+   * chẳng nói lên điều gì. */
+  t('tiêu đề nói rõ là ngân sách THÁNG', /ngân sách tháng/i.test(v.title || ''), v.title);
   t('chi tiết nói rõ con số lấy từ Base', /Base/.test(v.detail || ''), v.detail);
   t('và nói rõ đây KHÔNG phải giới hạn nền tảng',
     /không phải giới hạn trên nền tảng/i.test(v.detail || ''), v.detail);
-  /* So chi tiêu TOÀN THỜI GIAN với một ô không ghi kỳ hạn — phải nói ra, không
-   * thì người đọc tưởng đang so trong tháng. */
-  t('nói rõ chi tiêu là toàn thời gian', /toàn thời gian/.test(v.detail || ''), v.detail);
+  t('nói rõ đang so trong THÁNG nào', /trong tháng \d{2}\/\d{4}/.test(v.detail || ''), v.detail);
 }
 
-console.log('— lịch chạy: GOM một dòng, và chỉ đúng việc phải làm');
+console.log('— lịch chạy: KHÔNG kết luận gì từ ô trong Base nữa');
 {
+  /* Anh Hùng, 18/09/2026: "Ngày kết thúc anh nghĩ dựa vào tình trạng thực tế
+   * quảng cáo của anh chứ không phải dựa vào cái anh ghi, vì nó không thực tế,
+   * không cập nhật theo thời gian thực."
+   *
+   * Đo đúng vậy: cả hai chiến dịch Facebook đều KHÔNG đặt ngày kết thúc, trong
+   * khi Base khai 31/08. Nên app không còn suy ra điều gì từ ô đó — việc đối
+   * chiếu lịch chạy chuyển sang hỏi thẳng nền tảng (sync/doichieu.js). */
   const d = duLieu({ end: '2026-08-31' });
-  /* Ba chiến dịch cùng một ô ngày kết thúc tượng trưng — đúng như dữ liệu thật. */
   d.campaigns = ['c1', 'c2', 'c3'].map((id, i) => ({
     id, name: 'CD ' + i, platform: 'Facebook', status: 'Đang chạy',
     end: '2026-08-31', start: null, budget: 0, dailyBudget: 0,
   }));
   const a = M.alerts(d, NGUONG);
 
-  /* Không còn nhóm 'schedule' riêng lẻ: ba dòng cùng một nguyên nhân thì một
-   * dòng nói được, và ba dòng chỉ làm loãng trang. */
-  t('không còn cảnh báo lịch chạy rời rạc', timKind(a, 'schedule').length === 0,
-    String(timKind(a, 'schedule').length));
-
-  const lech = timKind(a, 'lech');
-  t('gom thành đúng MỘT dòng', lech.length === 1, String(lech.length));
-  const v = lech[0] || {};
-  t('đếm đúng số chiến dịch', /3 chiến dịch/.test(v.title || ''), v.title);
-  t('nói rõ ngày đó là ô khai trong Base', /khai trong Base/.test(v.title || ''), v.title);
-
-  /* Đây là chỗ quan trọng nhất: bản cũ gợi ý SAI việc. Ô ngày kết thúc lệch thì
-   * việc phải làm là sửa ô trong Base, không phải tắt quảng cáo. */
-  t('chỉ đúng việc: sửa ô trong Base', /sửa ô đó/.test(v.detail || ''), v.detail);
-  t('và nói thẳng: đừng tắt quảng cáo', /đừng tắt quảng cáo/.test(v.detail || ''), v.detail);
-
-  /* Hạ xuống mức ghi nhận: đây là việc dọn Base, không phải quảng cáo đang hỏng.
-   * Để ở mức "cần theo dõi" là nó chiếm chỗ của những cái thật sự cần theo dõi. */
-  t('ở mức ghi nhận, không phải cần theo dõi', v.level === 'low', v.level);
+  t('không còn cảnh báo lịch chạy nào', timKind(a, 'schedule').length === 0);
+  t('và không gom thành dòng "quá ngày kết thúc" nữa',
+    !a.some((x) => /quá ngày kết thúc/i.test(x.title)), JSON.stringify(a.map((x) => x.title)));
+  t('ô "chưa tới ngày bắt đầu" cũng thôi',
+    !a.some((x) => /chưa tới ngày bắt đầu/i.test(x.title)));
 }
 
 console.log('— trạng thái trong Base cũ thì nói là Base cũ');

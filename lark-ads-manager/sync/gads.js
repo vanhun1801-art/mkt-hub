@@ -414,6 +414,47 @@ async function nganSachChienDich(conf, customerId, campaignId) {
   };
 }
 
+/**
+ * Trạng thái và LỊCH CHẠY THẬT của một chiến dịch.
+ *
+ * Dùng để đối chiếu với ô "Ngày kết thúc" trong Base — ô đó là kế hoạch gõ tay,
+ * không cập nhật theo thời gian thực, nên không dùng để kết luận được.
+ *
+ * Google luôn có end_date; khi không đặt thì nó là 2037-12-30 (mốc "vô hạn" của
+ * Google). Trả về chuỗi rỗng cho trường hợp đó, để bên gọi hiểu là "không đặt
+ * ngày kết thúc" — cùng quy ước với Meta, vốn đơn giản là không trả stop_time.
+ */
+async function trangThaiChienDich(conf, extId) {
+  const token = await accessToken(conf);
+  const q = `
+    SELECT campaign.id, campaign.name, campaign.status,
+           campaign.start_date, campaign.end_date
+    FROM campaign WHERE campaign.id = ${cid(extId)}
+  `.replace(/\s+/g, ' ').trim();
+
+  for (const acc of (conf.customerIds || []).map(cid).filter(Boolean)) {
+    const res = await postJson(`${base(conf)}/customers/${acc}/googleAds:search`,
+      { query: q, pageSize: 1 },
+      { headers: headers(conf, token), label: `Google Ads đọc chiến dịch ${acc}` });
+    if (res && res.error) continue;      // tài khoản này không có, hỏi tài khoản sau
+    const r = ((res && res.results) || [])[0];
+    if (!r || !r.campaign) continue;
+    const c = r.campaign;
+    /* 2037-12-30 là mốc "không đặt ngày kết thúc" của Google. Để nguyên thì app
+     * sẽ đi so một ngày năm 2037 với hôm nay rồi kết luận nhảm. */
+    const het = String(c.endDate || '');
+    return {
+      doc: true,
+      ten: c.name || '',
+      trangThai: c.status || '',
+      trangThaiThat: c.status || '',
+      batDau: String(c.startDate || ''),
+      ketThuc: (!het || het >= '2037-01-01') ? '' : het,
+    };
+  }
+  return { doc: false, vi: `Không tìm thấy chiến dịch ${extId} trong các tài khoản Google Ads đã khai` };
+}
+
 /** Bật/tắt một quảng cáo. Tìm trước, ghi sau — không dựng resource name bằng tay. */
 async function datTrangThai(conf, adExtId, bat) {
   const muc = await timQuangCao(conf, adExtId);
@@ -455,5 +496,5 @@ async function datNganSach(conf, customerId, budgetResource, soTienDong) {
 module.exports = {
   hanhDongChuyenDoi,
   PLATFORM, fetchRange, test, tokenInfo, accessToken, danhSachTaiKhoan, GAQL, API_VER_MAC,
-  timQuangCao, nganSachChienDich, datTrangThai, datNganSach,
+  timQuangCao, nganSachChienDich, trangThaiChienDich, datTrangThai, datNganSach,
 };

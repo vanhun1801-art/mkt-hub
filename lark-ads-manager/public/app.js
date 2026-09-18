@@ -899,12 +899,67 @@ VIEW['canh-bao'] = async (view) => {
     <div class="kpi"><div class="k-label">Cần theo dõi</div><div class="k-value" style="color:var(--warn)">${counts.mid}</div><div class="k-foot">CPA cao · thiếu số liệu · sắp hết ngân sách dự kiến</div></div>
     <div class="kpi"><div class="k-label">Ghi nhận</div><div class="k-value">${counts.low}</div><div class="k-foot">CTR thấp · Base khai lệch với thực tế trên nền tảng</div></div>
   </div>
+  <div id="doiChieuKhoi"></div>
   ${Object.keys(groups).map((k) => `
     <div class="card" style="margin-top:14px">
       <div class="card-head"><h3>${esc(KIND[k] || k)}</h3><span class="sub">${groups[k].length} cảnh báo</span></div>
       <div class="card-body tight"><div class="alert-list">${alertsHtml(groups[k])}</div></div>
     </div>`).join('') || '<div class="card"><div class="empty">Không có cảnh báo nào</div></div>'}`;
+
+  /* Nạp RIÊNG và bọc lỗi riêng: mỗi chiến dịch là một lời gọi ra nền tảng nên cả
+   * tab không nên đứng chờ — và khối này hỏng thì các cảnh báo khác vẫn phải
+   * hiện ra. */
+  await chayKhoi('#doiChieuKhoi', 'Đối chiếu với nền tảng', veDoiChieu);
 };
+
+/**
+ * Khối "Đối chiếu với nền tảng" — thay cho sáu dòng "quá ngày kết thúc" cũ.
+ *
+ * Anh Hùng, 18/09/2026: "Ngày kết thúc anh nghĩ dựa vào tình trạng thực tế quảng
+ * cáo của anh chứ không phải dựa vào cái anh ghi, vì nó không thực tế, không cập
+ * nhật theo thời gian thực."
+ *
+ * Nên khối này KHÔNG kết luận gì từ ô trong Base. Nó hỏi nền tảng, rồi đặt hai
+ * cột cạnh nhau: Base khai gì, thực tế thế nào. Chỗ nào không hỏi được thì nói
+ * "chưa đối chiếu được" — đoán ở đây là quay lại đúng cái sai vừa bỏ.
+ */
+async function veDoiChieu() {
+  const el = $('#doiChieuKhoi');
+  if (!el) return;
+  el.innerHTML = '<div class="card" style="margin-top:14px"><div class="card-body">'
+    + '<div class="trong">Đang hỏi nền tảng…</div></div></div>';
+
+  const d = await api('/api/doi-chieu?' + qs());
+  const rows = d.rows || [];
+  const coLech = rows.filter((r) => (r.lech || []).length);
+  const loi = rows.filter((r) => r.loi);
+
+  const oLech = (r) => `<tr>
+    <td class="name"><b>${esc(r.ten)}</b><span class="sub-line">${esc(r.nenTang)}</span></td>
+    <td>${(r.lech || []).map((x) => `<div style="margin-bottom:4px">
+      <b>${esc(x.o)}</b> · Base: <code>${esc(String(x.base))}</code>
+      → thực tế: <code>${esc(String(x.that))}</code>
+      <span class="sub-line">${esc(x.y)}</span></div>`).join('')}</td>
+  </tr>`;
+
+  el.innerHTML = `<div class="card" style="margin-top:14px">
+    <div class="card-head"><h3>Đối chiếu với nền tảng</h3>
+      <span class="sub">${int(rows.length - loi.length)}/${int(rows.length)} chiến dịch hỏi được ·
+        ${coLech.length ? int(coLech.length) + ' chỗ lệch' : 'không lệch chỗ nào'}</span></div>
+    <div class="card-body tight">
+      <div class="help">Cột <b>thực tế</b> hỏi thẳng nền tảng lúc này, không lấy từ Base.
+        Ô trong Base là kế hoạch — nó không tự cập nhật theo quảng cáo.</div>
+      ${coLech.length ? `<table class="tbl"><thead><tr>
+          <th>Chiến dịch</th><th>Chỗ lệch</th></tr></thead>
+        <tbody>${coLech.map(oLech).join('')}</tbody></table>`
+    : '<div class="empty">Base và nền tảng đang khớp nhau.</div>'}
+      ${loi.length ? `<div class="help" style="border-color:var(--warn);color:var(--warn);margin-top:10px">
+        <b>${int(loi.length)} chiến dịch chưa đối chiếu được:</b>
+        ${loi.map((r) => `<div>${esc(r.ten)} — ${esc(r.loi)}</div>`).join('')}
+      </div>` : ''}
+    </div>
+  </div>`;
+}
 
 /**
  * Nhãn khuyến nghị, nhưng BẤM ĐƯỢC.

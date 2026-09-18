@@ -398,20 +398,46 @@ const fmtVnd = (n) => Math.round(n).toLocaleString('vi-VN') + 'đ';
 const fmtSo = (n, le = 2) => (n == null || !Number.isFinite(Number(n)) ? '—'
   : Number(n).toLocaleString('vi-VN', { minimumFractionDigits: le, maximumFractionDigits: le }));
 
+/**
+ * Nhịp tiêu ngân sách tháng: đã tiêu bao nhiêu phần so với phần tháng đã trôi.
+ *
+ * Hàm THUẦN vì đây là một quyết định nghiệp vụ, và vì nhánh "tiêu nhanh" chỉ chạy
+ * ở đầu tháng — để trong alerts() thì bộ test chỉ kiểm được nó vào vài ngày nhất
+ * định trong tháng, mà một phép kiểm chỉ chạy được nửa tháng thì coi như không có.
+ *
+ * `vuotNhip` là tỉ số: 1 là đúng nhịp đều, 2 là tiêu nhanh gấp đôi. Đây mới là
+ * câu đáng đọc — "đã tiêu 80%" chưa nói được gì, vì 80% vào ngày 3 khác hẳn 80%
+ * vào ngày 28.
+ */
+function nhipNganSach(chiTrongThang, nganSachThang, ngayDaQua, soNgayTrongThang) {
+  const ns = Number(nganSachThang) || 0;
+  const tong = Number(soNgayTrongThang) || 0;
+  if (ns <= 0 || tong <= 0) return { pct: 0, tyLeThangDaQua: 0, vuotNhip: 0 };
+  const pct = ((Number(chiTrongThang) || 0) / ns) * 100;
+  const tyLeThangDaQua = ((Number(ngayDaQua) || 0) / tong) * 100;
+  return { pct, tyLeThangDaQua, vuotNhip: tyLeThangDaQua > 0 ? pct / tyLeThangDaQua : 0 };
+}
+
 /* ---------------- cảnh báo ---------------- */
 function alerts(data, t = readTargets()) {
   const out = [];
   const today = store.todayKey();
   const push = (level, kind, title, detail, ref) => out.push({ level, kind, title, detail, ref });
 
-  /* Gom theo nguyên nhân, không đẩy từng dòng: xem chỗ dùng phía dưới. */
-  const quaHan = []; const chuaToi = [];
+  /* Ngân sách dự kiến là cho MỖI THÁNG (anh Hùng chốt 18/09/2026), nên mốc so
+   * là tháng đang chạy — lấy theo HÔM NAY, không theo bộ lọc đang xem. Ô ngân
+   * sách nói về tháng, nên đổi bộ lọc sang "tuần trước" không được làm đổi kết
+   * luận về tháng. */
+  const dauThang = today.slice(0, 8) + '01';
+  const soNgayTrongThang = new Date(Number(today.slice(0, 4)), Number(today.slice(5, 7)), 0).getDate();
+  const ngayDaQua = Number(today.slice(8, 10));
 
-  const lifetime = groupBy(data.daily, (r) => r.campaignId);
+  const thangNay = groupBy(data.daily.filter((d) => d.date >= dauThang && d.date <= today),
+    (r) => r.campaignId);
   const todayByCampaign = groupBy(data.daily.filter((d) => d.date === today), (r) => r.campaignId);
 
   data.campaigns.forEach((c) => {
-    const life = agg(lifetime.get(c.id) || []);
+    const thang = agg(thangNay.get(c.id) || []);
     const tod = agg(todayByCampaign.get(c.id) || []);
 
     /* NÓI RÕ NGUỒN. `c.budget` là ô "Ngân sách dự kiến" gõ tay trong Base — một
@@ -420,14 +446,25 @@ function alerts(data, t = readTargets()) {
      * Facebook không hề dừng ở 6 triệu. Bản trước ghi "Vượt ngân sách" trống
      * không, đọc lên tưởng nền tảng đã chặn hoặc sắp chặn. */
     if (c.budget > 0) {
-      const pct = (life.spend / c.budget) * 100;
-      const soSanh = `Đã chi ${fmtVnd(life.spend)} (toàn thời gian) / ${fmtVnd(c.budget)} `
-        + `khai trong Base (${fmtSo(pct)}%). Đây là ô KẾ HOẠCH, không phải giới hạn trên nền tảng `
-        + '— nền tảng vẫn chạy bình thường.';
+      const { pct, vuotNhip } = nhipNganSach(thang.spend, c.budget, ngayDaQua, soNgayTrongThang);
+      const nhip = `Tháng này mới qua ${ngayDaQua}/${soNgayTrongThang} ngày `
+        + `(${fmtSo((ngayDaQua / soNgayTrongThang) * 100, 0)}%) mà đã tiêu ${fmtSo(pct, 0)}% ngân sách — `
+        + `nhanh gấp ${fmtSo(vuotNhip, 1)} lần nhịp đều.`;
+      const soSanh = `Đã chi ${fmtVnd(thang.spend)} trong tháng ${today.slice(5, 7)}/${today.slice(0, 4)} `
+        + `/ ${fmtVnd(c.budget)} ngân sách tháng khai trong Base (${fmtSo(pct)}%). `
+        + 'Đây là ô KẾ HOẠCH, không phải giới hạn trên nền tảng — nền tảng vẫn chạy bình thường.';
       if (pct >= 100) {
-        push('high', 'budget', `Vượt ngân sách dự kiến: ${c.name}`, soSanh, { type: 'campaign', id: c.id });
+        push('high', 'budget', `Vượt ngân sách tháng: ${c.name}`, soSanh, { type: 'campaign', id: c.id });
       } else if (pct >= t.budgetWarnPct) {
-        push('mid', 'budget', `Sắp hết ngân sách dự kiến: ${c.name}`, soSanh, { type: 'campaign', id: c.id });
+        push('mid', 'budget', `Sắp hết ngân sách tháng: ${c.name}`, `${soSanh} ${nhip}`, { type: 'campaign', id: c.id });
+      } else if (vuotNhip >= 1.5 && ngayDaQua >= 3) {
+        /* Chưa chạm ngưỡng nhưng đang tiêu quá nhanh so với nhịp. Báo SỚM mới
+         * kịp làm gì; đợi tới 80% thì tháng đã trôi quá nửa.
+         *
+         * Từ ngày 3 trở đi: hai ngày đầu tháng mẫu quá nhỏ, một ngày tiêu mạnh
+         * là tỉ lệ vọt lên và cảnh báo kêu oan. */
+        push('low', 'budget', `Tiêu nhanh hơn nhịp tháng: ${c.name}`,
+          `${nhip} Theo đà này hết tháng sẽ vượt ngân sách dự kiến.`, { type: 'campaign', id: c.id });
       }
     } else if (c.status === 'Đang chạy') {
       push('low', 'budget', `Chưa khai ngân sách dự kiến: ${c.name}`,
@@ -441,32 +478,17 @@ function alerts(data, t = readTargets()) {
         { type: 'campaign', id: c.id });
     }
 
-    /* Lịch chạy: GOM lại, xem dưới. Sáu dòng riêng lẻ đều là MỘT chuyện — ô Ngày
-     * kết thúc trong Base không khớp thực tế — và mỗi dòng lại gợi ý sai việc
-     * phải làm (tắt quảng cáo, trong khi việc thật là sửa ô trong Base). */
-    if (c.status === 'Đang chạy' && c.end && c.end < today) quaHan.push(c);
-    if (c.status === 'Đang chạy' && c.start && c.start > today) chuaToi.push(c);
+    /* KHÔNG còn cảnh báo lịch chạy dựa trên ô trong Base.
+     *
+     * Anh Hùng, 18/09/2026: "Ngày kết thúc anh nghĩ dựa vào tình trạng thực tế
+     * quảng cáo của anh chứ không phải dựa vào cái anh ghi, vì nó không thực tế,
+     * không cập nhật theo thời gian thực."
+     *
+     * Đo đúng vậy: cả hai chiến dịch Facebook đều KHÔNG đặt ngày kết thúc, trong
+     * khi Base khai 31/08. Việc đối chiếu lịch chạy chuyển sang hỏi thẳng nền
+     * tảng — xem sync/doichieu.js và khối "Đối chiếu với nền tảng" ở tab Cảnh
+     * báo. Ở đây không đoán gì từ một ô kế hoạch nữa. */
   });
-
-  /* Một dòng cho cả nhóm, và nói đúng việc phải làm.
-   *
-   * Vì sao không bỏ hẳn: ô ngày kết thúc lệch thực tế VẪN là một vấn đề — nó làm
-   * mọi phép so lịch trong app vô nghĩa. Chỉ là nó thuộc loại "dọn Base", không
-   * phải "quảng cáo đang hỏng", nên hạ xuống mức ghi nhận và gom một dòng.
-   *
-   * Đo trên nền tảng thật: cả hai chiến dịch Facebook đều KHÔNG đặt ngày kết
-   * thúc, trong khi Base khai 31/08. */
-  if (quaHan.length) {
-    push('low', 'lech', `${quaHan.length} chiến dịch quá ngày kết thúc khai trong Base`,
-      `${quaHan.map((c) => `${c.name} (${c.end})`).join(' · ')} — vẫn đang chạy và vẫn phát sinh chi tiêu. `
-      + 'Nếu thực tế không đặt ngày kết thúc trên nền tảng thì ô "Ngày kết thúc" trong Base đang sai: '
-      + 'sửa ô đó, đừng tắt quảng cáo.', { type: 'campaign', id: quaHan[0].id });
-  }
-  if (chuaToi.length) {
-    push('low', 'lech', `${chuaToi.length} chiến dịch chưa tới ngày bắt đầu khai trong Base`,
-      `${chuaToi.map((c) => `${c.name} (${c.start})`).join(' · ')} — nhưng trạng thái trong Base là "Đang chạy".`,
-      { type: 'campaign', id: chuaToi[0].id });
-  }
 
   // thiếu dữ liệu: quảng cáo đang chạy nhưng chưa nhập số cho hôm qua
   const deadline = store.addDays(today, -t.dataLagDays);
@@ -610,6 +632,6 @@ function entryMatrix(data, dateKey) {
 module.exports = {
   agg, EMPTY, delta, filterDaily, normRange, dailySeries, groupBy,
   overview, campaignRows, adRows, alerts, dailyTable, entryMatrix,
-  readTargets, writeTargets, cpaTarget, verdict, health, fmtVnd, fmtSo,
+  readTargets, writeTargets, cpaTarget, verdict, health, fmtVnd, fmtSo, nhipNganSach,
   chonHieuQua, chonCanXuLy, SO_DONG_BANG,
 };

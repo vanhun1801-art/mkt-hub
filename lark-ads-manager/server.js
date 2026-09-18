@@ -30,6 +30,7 @@ const roasCache = require('./sync/roascache');
 const ghiCongTuDong = require('./sync/ghicongtudong');
 const keoNen = require('./sync/keonen');
 const dieuKhien = require('./sync/dieukhien');
+const doiChieu = require('./sync/doichieu');
 const nhatKyGhi = require('./sync/nhatkyghi');
 const ghiDT = require('./sync/ghidoanhthu');
 const roasTinh = require('./sync/roas');
@@ -815,6 +816,31 @@ async function api(req, res, u) {
    * lên 4 phút mà vẫn quá. Giữ một kết nối treo vài phút thì người dùng ngồi nhìn
    * màn hình trắng, và bấm lại là chạy hai lượt song song — chính thứ đã gây 429.
    */
+  /**
+   * Đối chiếu Base với TÌNH TRẠNG THẬT trên nền tảng.
+   *
+   * Nặng (mỗi chiến dịch một lời gọi ra nền tảng) nên để RIÊNG một đường, giao
+   * diện nạp sau — không nhét vào /api/alerts vốn chạy mỗi lần mở tab.
+   *
+   * Tôn trọng phân quyền kênh: dataFor đã cắt danh sách chiến dịch theo kênh
+   * người này được xem, nên không lọt số của kênh người khác.
+   */
+  if (p === '/api/doi-chieu' && method === 'GET') {
+    const data = await dataFor(u, req);
+    const c = ketnoi.read();
+    try {
+      const rows = await doiChieu.doiChieu({
+        campaigns: data.campaigns || [],
+        conf: { meta: c.meta, tiktok: c.tiktok, googleAds: c.googleAds },
+        gads,
+        homNay: store.todayKey(),
+      });
+      return ok(res, { rows, homNay: store.todayKey() });
+    } catch (e) {
+      return fail(res, 502, e.message);
+    }
+  }
+
   /* ================= ĐIỀU KHIỂN NỀN TẢNG =================
    *
    * Đây là những đường DUY NHẤT trong app ghi ra ngoài Lark Base — chúng bật/tắt

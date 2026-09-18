@@ -61,6 +61,9 @@ console.log('— những đường vốn dĩ lâu phải được nới giờ');
   ['/api/dieu-khien/xem-truoc', 'đọc trạng thái + ngân sách thật, 2-3 lời gọi nối tiếp'],
   ['/api/dieu-khien/lam', 'ghi thật lên nền tảng rồi đọc lại để đối chiếu'],
   ['/api/dieu-khien/nhat-ky', 'cùng nhóm — mốc là TRẦN nên nới không sao'],
+  /* Đối chiếu Base với nền tảng: bảy chiến dịch là bảy lượt gọi nối tiếp ra
+   * Meta/TikTok/Google. Cắt ở 30 giây thì khối này luôn trắng. */
+  ['/api/doi-chieu', 'hỏi lịch chạy thật của từng chiến dịch'],
 ].forEach(([p, vi]) => t(`${p} — ${vi}`, VIEC_LAU.test(p)));
 
 /* Điểm cốt lõi của cách làm mới: một đường CHƯA TỒN TẠI trong nhóm cũng phải khớp,
