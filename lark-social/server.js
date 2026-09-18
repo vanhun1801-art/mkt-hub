@@ -353,6 +353,10 @@ async function api(req, res, u) {
         doiTac: x.doiTac, ghiChu: x.ghiChu, bat: x.bat,
       })),
       theoDoiTac: [...theoDoiTac.values()].sort((a, b) => b.views - a.views),
+      /* Mọi hashtag đang dùng trong khoảng lọc, kèm nhãn đang giữ nó. Giao diện
+       * dùng bảng này cho hai việc: liệt kê thẻ chưa có chủ, và gợi ý thẻ khi
+       * khai nhãn. Gửi một lần thay vì mỗi lần gõ lại hỏi máy chủ. */
+      the: nhan.thongKeThe(bai, ds),
       khongNhan: nhan.baiKhongNhan(bai, ds).length,
       tongBai: bai.length,
       soNhan: ds.length,
@@ -363,6 +367,26 @@ async function api(req, res, u) {
    *
    * Vẫn ghi thẳng xuống bảng "Nhãn bài" chứ không giữ một bản sao ở đâu khác —
    * một nguồn sự thật, ai quen Base hơn thì sửa trong Base vẫn được. */
+  /* Gợi ý thẻ cho một nhãn. Để máy chủ tính thay vì chép luật sang trình duyệt:
+   * hai bản sao của cùng một luật sớm muộn cũng lệch nhau, và lúc đó không ai
+   * biết bản nào đúng. */
+  if (p === '/api/nhan/goi-y' && method === 'GET') {
+    const t = thamSo(u);
+    const d = await store.tai();
+    const ds = nhan.chuanHoaNhan(await store.taiNhan());
+    const bai = M.topBai(d.posts, { ...t, theo: 'views', n: 100000 });
+    const tk = nhan.thongKeThe(bai, ds);
+    const ten = (u.searchParams.get('nhan') || '').trim();
+    /* Thẻ đã thuộc nhãn KHÁC thì không gợi ý — hai nhãn cùng giữ một thẻ là hai
+     * đối tác cùng đếm một bài. Thẻ của chính nhãn đang sửa thì không tính. */
+    const cuaNguoiKhac = new Set(tk.filter((x) => x.thuocNhan && x.thuocNhan !== ten).map((x) => x.the));
+    return ok(res, {
+      ds: nhan.goiYThe(
+        { nhan: ten, hashtag: u.searchParams.get('hashtag') || '' },
+        tk, cuaNguoiKhac, bai.length),
+    });
+  }
+
   if (p === '/api/nhan/luu' && method === 'POST') {
     const loi = chanNeuKhongPhaiQuanLy(req); if (loi) throw loi;
     const b = await readBody(req);

@@ -88,6 +88,95 @@ function nguonNhan(bai, dsNhan) {
   return coThe ? 'hashtag' : (bai.nhanBu ? 'gắn bù' : '');
 }
 
+/**
+ * Bỏ dấu tiếng Việt, để "#hònthơm" và "#honthom" coi như một khi đi tìm thẻ
+ * gần giống. Đội nội dung gõ cả hai kiểu, tuỳ bàn phím và tuỳ người.
+ */
+function khongDau(s) {
+  return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
+}
+
+/* Những mảnh chữ xuất hiện trong gần như mọi caption của Rooty Trip. Lấy chúng
+ * làm manh mối tìm thẻ gần giống thì thẻ nào cũng "gần giống" — gợi ý ra bốn
+ * trăm thẻ là không còn là gợi ý nữa. */
+const QUA_CHUNG = new Set(['phu', 'quoc', 'phuquoc', 'dulich', 'du', 'lich', 'tour',
+  'rooty', 'trip', 'rootytrip', 'viral', 'xuhuong', 'fyp', 'reels', 'reelsfb', 'combo',
+  'island', 'travel', 'video', 'tiktok', 'shorts']);
+
+/**
+ * Độ dài tiền tố chung của hai chuỗi.
+ *
+ * Cần vì đội nội dung viết cả "#vinwonders" lẫn "#vinwonderphuquoc" — không
+ * chuỗi nào chứa chuỗi nào, nhưng chung gốc "vinwonder". Ngưỡng 6 đủ chặt để
+ * "combophuquoc" và "combodulich" (chung "combo", 5) không kéo nhau vào.
+ */
+function goiChung(a, b) {
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  return i;
+}
+
+/**
+ * Gợi ý hashtag có thể thuộc về một nhãn, để đỡ bỏ sót.
+ *
+ * Manh mối lấy từ hai chỗ: các hashtag ĐÃ khai cho nhãn đó, và tên nhãn. Một thẻ
+ * được gợi ý khi nó chứa (hoặc nằm trong) một manh mối đủ dài — "#honthom" kéo
+ * theo "#captreohonthom", "#honthomphuquoc".
+ *
+ * Chỉ gợi ý thẻ CHƯA thuộc nhãn nào khác: thẻ đã có chủ mà còn đem gợi ý cho
+ * nhãn thứ hai thì hai nhãn cùng đếm một bài, và tổng của hai đối tác cộng lại
+ * lớn hơn số bài thật.
+ */
+function goiYThe(nhanNay, tatCaThe, daThuocNhanKhac, tongBai) {
+  const manhMoi = [];
+  tachThe(nhanNay.hashtag || (nhanNay.the || []).join(' ')).forEach((t) => {
+    const g = khongDau(t).replace(/^#/, '');
+    if (g.length >= 4 && !QUA_CHUNG.has(g)) manhMoi.push(g);
+  });
+  khongDau(nhanNay.nhan || '').split(/[^a-z0-9]+/).forEach((w) => {
+    if (w.length >= 5 && !QUA_CHUNG.has(w)) manhMoi.push(w);
+  });
+  if (!manhMoi.length) return [];
+
+  const daCo = new Set(tachThe(nhanNay.hashtag || (nhanNay.the || []).join(' ')));
+  /* Thẻ phủ hơn một phần tư số bài là thẻ kênh chứ không phải thẻ chủ đề —
+   * #phuquoc, #dulichphuquoc, #rootytrip. Gán chúng cho một đối tác là đối tác
+   * đó bỗng "có" gần hết số bài của công ty. Danh sách QUA_CHUNG không bao giờ
+   * kể hết được, nên chặn thêm bằng độ phủ. */
+  const tranPhu = num(tongBai) ? num(tongBai) * 0.25 : Infinity;
+  return (tatCaThe || [])
+    .filter((x) => !daCo.has(x.the) && !daThuocNhanKhac.has(x.the))
+    .filter((x) => !QUA_CHUNG.has(khongDau(x.the).replace(/^#/, '')))
+    .filter((x) => num(x.soBai) <= tranPhu)
+    .filter((x) => {
+      const g = khongDau(x.the).replace(/^#/, '');
+      /* Thẻ một hai ký tự (#h, #1, #ho — đội nội dung gõ nhầm hoặc cắt dở) nằm
+       * trong mọi chuỗi, nên `m.includes(g)` cho chúng khớp với tất cả. Gợi ý
+       * "#h" cho nhãn Hòn Thơm thì người dùng mất tin vào cả danh sách. */
+      if (g.length < 4) return false;
+      return manhMoi.some((m) => g.includes(m) || m.includes(g) || goiChung(g, m) >= 6);
+    })
+    .sort((a, b) => b.soBai - a.soBai)
+    .slice(0, 12);
+}
+
+/** Mọi hashtag xuất hiện trong bài, kèm số bài và nhãn đang giữ nó (nếu có). */
+function thongKeThe(posts, dsNhan) {
+  const chu = new Map();
+  (dsNhan || []).forEach((n) => n.the.forEach((t) => chu.set(t, n.nhan)));
+  const m = new Map();
+  (posts || []).forEach((p) => {
+    theCuaBai(p.title).forEach((t) => {
+      if (!m.has(t)) m.set(t, { the: t, soBai: 0, views: 0, thuocNhan: chu.get(t) || '' });
+      const o = m.get(t);
+      o.soBai++;
+      o.views += num(p.views);
+    });
+  });
+  return [...m.values()].sort((a, b) => b.soBai - a.soBai);
+}
+
 const CONG = ['views', 'reach', 'impressions', 'likes', 'comments', 'shares', 'saves', 'engagement'];
 
 /**
@@ -172,6 +261,7 @@ function csvChoNhan(o, khoang) {
 }
 
 module.exports = {
-  tachThe, theCuaBai, chuanHoaNhan, nhanCuaBai, nguonNhan, gopTheoNhan, baiKhongNhan,
+  tachThe, theCuaBai, khongDau, goiYThe, thongKeThe, QUA_CHUNG,
+  chuanHoaNhan, nhanCuaBai, nguonNhan, gopTheoNhan, baiKhongNhan,
   dongCsv, csvChoNhan, BOM, CONG,
 };

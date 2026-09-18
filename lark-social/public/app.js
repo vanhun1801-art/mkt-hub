@@ -1301,7 +1301,11 @@
       + [...new Set(ds.filter(Boolean))].map((t) => '<option value="' + esc(t) + '">').join('')
       + '</datalist>';
 
-    moModal('<div class="modal-head"><h3>' + (x ? 'Sửa nhãn' : 'Thêm nhãn') + '</h3></div>'
+    /* `x` có thể là một dòng có thật (sửa) HOẶC chỉ là giá trị điền sẵn khi bấm
+     * từ danh sách thẻ chưa có chủ. Phân biệt bằng id, không bằng `x` có hay
+     * không — nếu không thì nút Xoá hiện ra cho một dòng chưa tồn tại. */
+    const laSua = Boolean(x && x.id);
+    moModal('<div class="modal-head"><h3>' + (laSua ? 'Sửa nhãn' : 'Thêm nhãn') + '</h3></div>'
       + '<div class="modal-body"><div class="kn-form">'
       + '<div class="kn-row"><label>Tên nhãn</label>'
       + '<input id="nlTen" value="' + esc(v.nhan) + '" placeholder="VinWonders Phú Quốc">'
@@ -1309,7 +1313,8 @@
       + '<div class="kn-row"><label>Hashtag</label>'
       + '<input id="nlTag" value="' + esc(v.hashtag) + '" placeholder="#VinpearlVinwondersPhuQuoc #vinwonders">'
       + '<span class="help">Cách nhau bằng dấu cách hoặc dấu phẩy. Bài nào có <b>một trong số</b> '
-      + 'các thẻ này là mang nhãn. Không phân biệt hoa thường.</span></div>'
+      + 'các thẻ này là mang nhãn. Không phân biệt hoa thường.</span>'
+      + '<div id="nlGoiY" class="goi-y"></div></div>'
       + '<div class="kn-row"><label>Nhóm</label>'
       + '<input id="nlNhom" list="dlNhom" value="' + esc(v.nhom) + '" placeholder="Địa điểm">'
       + goiY('dlNhom', dsNhom)
@@ -1326,10 +1331,44 @@
       + '> tắt thì nhãn không tính vào báo cáo, nhưng vẫn giữ lại để bật lại sau</label></div>'
       + '</div></div>'
       + '<div class="modal-foot">'
-      + (x ? '<button class="btn ghost small" id="nlXoa">Xoá nhãn</button>' : '')
+      + (laSua ? '<button class="btn ghost small" id="nlXoa">Xoá nhãn</button>' : '')
       + '<span class="grow"></span>'
       + '<button class="btn ghost" id="nlHuy">Huỷ</button> '
       + '<button class="btn" id="nlLuu">Lưu</button></div>');
+
+    /* Gợi ý cập nhật ngay khi gõ: đội nội dung viết cùng một địa điểm bằng mấy
+     * kiểu thẻ khác nhau, không ai nhớ hết. Bấm một cái là thêm vào ô. */
+    let henGoiY = null;
+    const veGoiY = async () => {
+      const hop = $('#nlGoiY');
+      if (!hop) return;
+      let ds = [];
+      try {
+        const r = await goi('/api/nhan/goi-y?' + new URLSearchParams({
+          from: S.from, to: S.to,
+          nhan: $('#nlTen').value.trim(), hashtag: $('#nlTag').value.trim(),
+        }));
+        ds = r.ds || [];
+      } catch (_) { return; }
+      hop.innerHTML = ds.length
+        ? '<div class="goi-y-nhan">Thẻ đang dùng trong bài, có thể thuộc nhãn này — bấm để thêm:</div>'
+          + ds.map((t) => '<button type="button" class="goi-y-the" data-the="' + esc(t.the) + '">'
+            + esc(t.the) + ' <span>' + n0(t.soBai) + '</span></button>').join('')
+        : '';
+      hop.querySelectorAll('[data-the]').forEach((b) => {
+        b.onclick = () => {
+          const o = $('#nlTag');
+          o.value = (o.value.trim() + ' ' + b.dataset.the).trim();
+          veGoiY();
+        };
+      });
+    };
+    /* Chờ 350ms sau phím cuối rồi mới hỏi — gõ "VinWonders Phú Quốc" mà mỗi ký
+     * tự một lần gọi là 19 lượt quét toàn bộ bài đăng. */
+    const hoanGoiY = () => { clearTimeout(henGoiY); henGoiY = setTimeout(veGoiY, 350); };
+    $('#nlTen').oninput = hoanGoiY;
+    $('#nlTag').oninput = hoanGoiY;
+    veGoiY();
 
     $('#nlHuy').onclick = dongModal;
     $('#nlLuu').onclick = async () => {
@@ -1345,7 +1384,7 @@
         veNhan();
       } catch (e) { toast(e.message, 'err'); }
     };
-    if (x) {
+    if (laSua) {
       $('#nlXoa').onclick = async () => {
         /* Xoá nhãn không xoá bài — chỉ là bài thôi không mang nhãn đó nữa. Nói rõ
          * để không ai sợ mất dữ liệu mà giữ lại một đống nhãn rác. */
@@ -1375,6 +1414,7 @@
 
     const coBai = d.nhan.filter((x) => x.soBai);
     const chuaDung = d.nhan.filter((x) => !x.soBai);
+    const chuaCoChu = (d.the || []).filter((t) => !t.thuocNhan);
     const phuSong = d.tongBai ? (d.tongBai - d.khongNhan) / d.tongBai : 0;
 
     $('#view').innerHTML = ''
@@ -1438,6 +1478,26 @@
             + esc(x.nhan) + ' · ' + esc(x.the.join(' '))
             + (S.quanLy ? '</button>' : '</span>')).join('')
           + '</div></div></div>'
+        : '')
+
+      /* Thẻ đang được dùng thật mà chưa nhãn nào nhận. Đây là chỗ nhìn ra thẻ bỏ
+       * sót — #diatrunghai 78 bài đáng lẽ thuộc Sunset Town, #thuycung 60 bài
+       * đáng lẽ thuộc VinWonders. Không có bảng này thì không ai biết mà tìm. */
+      + (chuaCoChu.length
+        ? '<div class="card" style="margin-top:14px"><div class="card-head">'
+          + '<h3>Hashtag chưa thuộc nhãn nào</h3><span class="sub">'
+          + n0(chuaCoChu.length) + ' thẻ · xếp theo số bài</span></div><div class="card-body">'
+          + '<div class="help" style="margin-bottom:10px">Thẻ đội nội dung đang gõ mà chưa nhãn '
+          + 'nào nhận. Thẻ kênh chung (#phuquoc, #xuhuong…) thì bỏ qua là đúng — cái đáng tìm '
+          + 'là thẻ chỉ một địa điểm hay sản phẩm cụ thể.'
+          + (S.quanLy ? ' Bấm một thẻ để mở hộp thêm nhãn với thẻ đó điền sẵn.' : '') + '</div>'
+          + '<div class="bl-chan">'
+          + chuaCoChu.slice(0, 60).map((t) => (S.quanLy
+            ? '<button class="bl-dh" data-the="' + esc(t.the) + '" style="border:0;cursor:pointer">'
+            : '<span class="bl-dh">')
+            + esc(t.the) + ' <b>' + n0(t.soBai) + '</b>'
+            + (S.quanLy ? '</button>' : '</span>')).join('')
+          + '</div></div></div>'
         : '');
 
     /* Chỉ quản lý mới sửa được nhãn — máy chủ cũng chặn, đây chỉ là bớt bày ra
@@ -1453,6 +1513,11 @@
         const x = timTho(b.dataset.sua);
         if (x) moSuaNhan(x, dsNhom, dsDoiTac);
       };
+    });
+    /* Bấm một thẻ chưa có chủ → mở hộp thêm nhãn với thẻ đó điền sẵn, và gợi ý
+     * tự chạy để kéo theo cả họ hàng của nó. */
+    $('#view').querySelectorAll('[data-the]').forEach((b) => {
+      b.onclick = () => moSuaNhan({ hashtag: b.dataset.the, bat: true }, dsNhom, dsDoiTac);
     });
   }
 

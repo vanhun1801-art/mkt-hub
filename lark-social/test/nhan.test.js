@@ -166,6 +166,56 @@ t('nhiều nhãn cùng đối tác thì gộp được về một mối', () => 
   assert.strictEqual(vin.reduce((a, b) => a + b.views, 0), 15);
 });
 
+console.log('\nnhãn — gợi ý thẻ, đỡ bỏ sót');
+
+const the = (t, n) => ({ the: t, soBai: n, views: 0, thuocNhan: '' });
+const KHO = [the('#captreohonthom', 35), the('#honthomphuquoc', 8), the('#phuquoc', 682),
+  the('#dulichphuquoc', 575), the('#thuycung', 60), the('#vinwonderphuquoc', 12),
+  the('#combodulich', 68), the('#combophuquoc', 229)];
+const TONG = 1329;
+
+t('kéo theo họ hàng của thẻ đã khai', () => {
+  const r = nhan.goiYThe({ nhan: 'Hòn Thơm', hashtag: '#honthom' }, KHO, new Set(), TONG);
+  assert.deepStrictEqual(r.map((x) => x.the), ['#captreohonthom', '#honthomphuquoc']);
+});
+
+t('khớp cả khi khác nhau cái đuôi', () => {
+  /* Đội nội dung viết cả #vinwonders lẫn #vinwonderphuquoc — không chuỗi nào
+     chứa chuỗi nào, nhưng chung gốc. */
+  const r = nhan.goiYThe({ nhan: 'VinWonders', hashtag: '#vinwonders' }, KHO, new Set(), TONG);
+  assert.deepStrictEqual(r.map((x) => x.the), ['#vinwonderphuquoc']);
+});
+
+t('KHÔNG gợi ý thẻ kênh phủ quá rộng', () => {
+  /* #phuquoc có ở 682/1329 bài. Gán cho một đối tác là đối tác đó bỗng "có"
+     hơn nửa số bài của cả công ty. */
+  const r = nhan.goiYThe({ nhan: 'Combo Phú Quốc', hashtag: '#combophuquoc' }, KHO, new Set(), TONG);
+  assert.deepStrictEqual(r.map((x) => x.the), []);
+});
+
+t('KHÔNG gợi ý thẻ đã thuộc nhãn khác', () => {
+  /* Hai nhãn cùng giữ một thẻ là hai đối tác cùng đếm một bài, và tổng của họ
+     lớn hơn số bài thật. */
+  const r = nhan.goiYThe({ nhan: 'Hòn Thơm', hashtag: '#honthom' }, KHO,
+    new Set(['#captreohonthom']), TONG);
+  assert.deepStrictEqual(r.map((x) => x.the), ['#honthomphuquoc']);
+});
+
+t('chưa khai gì thì không gợi ý bừa', () => {
+  assert.deepStrictEqual(nhan.goiYThe({ nhan: '', hashtag: '' }, KHO, new Set(), TONG), []);
+  assert.deepStrictEqual(nhan.goiYThe({ nhan: 'Tour', hashtag: '' }, KHO, new Set(), TONG), [],
+    'tên toàn chữ quá chung thì cũng không');
+});
+
+t('thống kê thẻ biết thẻ nào đã có chủ', () => {
+  const ds = nhan.chuanHoaNhan([{ nhan: 'Hòn Thơm', hashtag: '#honthom' }]);
+  const r = nhan.thongKeThe([bai('#honthom #phuquoc'), bai('#phuquoc')], ds);
+  const m = new Map(r.map((x) => [x.the, x]));
+  assert.strictEqual(m.get('#honthom').thuocNhan, 'Hòn Thơm');
+  assert.strictEqual(m.get('#phuquoc').thuocNhan, '');
+  assert.strictEqual(m.get('#phuquoc').soBai, 2);
+});
+
 console.log('\nnhãn — xuất CSV');
 
 t('dấu chấm phẩy và BOM, để Excel tiếng Việt mở đúng', () => {

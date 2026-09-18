@@ -517,3 +517,12 @@ table.tbl tfoot td { font-weight: 700; background: var(--panel-2); border-top: 2
   .acc .muted { font-size: 13px; }                               /* 11.5 */
   .bl-chan { font-size: 13px; }                                  /* 11.5 */
 }
+
+/* --- gợi ý hashtag khi khai nhãn --- */
+.goi-y { margin-top: 8px; }
+.goi-y-nhan { font-size: 11.5px; color: var(--ink-3); margin-bottom: 6px; }
+.goi-y-the { border: 1px solid var(--line); background: var(--panel-2); color: var(--ink);
+  border-radius: 99px; padding: 3px 10px; font-size: 12px; cursor: pointer; margin: 0 5px 5px 0; }
+.goi-y-the:hover { border-color: var(--brand); color: var(--brand); }
+.goi-y-the span { color: var(--ink-3); font-size: 11px; }
+.bl-dh b { color: var(--ink); font-weight: 600; }
