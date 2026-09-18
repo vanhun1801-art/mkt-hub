@@ -75,6 +75,7 @@ function videoGia({ chanTieng = false } = {}) {
     readyState: 4,
     offsetWidth: 0,
     addEventListener(t, f) { (this.nghe[t] = this.nghe[t] || []).push(f); },
+    getAttribute(k) { return k === 'src' ? v.src : null; },
     play() {
       this.soLanPlay++;
       if (chanTieng && !this.muted) return Promise.reject(new Error('NotAllowedError'));
@@ -107,14 +108,68 @@ function videoGia({ chanTieng = false } = {}) {
   return v;
 }
 
+/** Thẻ <img> giả. `hong` = tải ảnh hỏng (complete nhưng không có kích thước). */
+function anhGia() {
+  const a = {
+    complete: false, naturalWidth: 0, nghe: {}, ganSrc: [],
+    addEventListener(t, f) { (this.nghe[t] = this.nghe[t] || []).push(f); },
+    getAttribute(k) { return k === 'src' ? a.src : null; },
+    /** Ảnh về tới nơi. */
+    xong() { this.complete = true; this.naturalWidth = 640; (this.nghe.load || []).forEach((f) => f()); },
+  };
+  let nguon = '';
+  Object.defineProperty(a, 'src', {
+    get: () => nguon,
+    set: (x) => { nguon = x; a.ganSrc.push(x); a.complete = false; a.naturalWidth = 0; },
+  });
+  return a;
+}
+
+/**
+ * Một LỚP của ô phát: có sẵn cả <video> lẫn <img>, đúng như markup thật.
+ *
+ * Mấy chục câu kiểm cũ đọc thẳng `a.src`, `a.paused`, `a.nghe`… nên lớp giả
+ * chuyển tiếp những khoá đó xuống thẻ video của nó — khỏi phải sửa lại từng
+ * câu, mà vẫn thử đúng cấu trúc mới. `hien`/`tren`/`la-anh` thì thuộc về CHÍNH
+ * lớp, không phải thẻ bên trong.
+ */
+function lopGia(tuyChon) {
+  const v = videoGia(tuyChon);
+  const im = anhGia();
+  const lop = new Set();
+  const L = {
+    video: v,
+    img: im,
+    dataset: {},
+    querySelector: (sel) => (sel === 'video' ? v : im),
+    classList: {
+      add: (c) => lop.add(c),
+      remove: (c) => lop.delete(c),
+      contains: (c) => lop.has(c),
+    },
+    hien: () => lop.has('hien'),
+    tren: () => lop.has('tren'),
+    laAnh: () => lop.has('la-anh'),
+    laPhim: () => lop.has('la-phim'),
+  };
+  ['src', 'paused', 'muted', 'currentTime', 'readyState', 'error',
+    'soLanPlay', 'soLanLoad', 'soLanPause', 'ganSrc', 'nghe', 'thuocTinhDaBo'].forEach((k) =>
+    Object.defineProperty(L, k, {
+      get: () => v[k], set: (x) => { v[k] = x; }, enumerable: true,
+    }));
+  ['hetBai', 'hong', 'dangPhat'].forEach((k) => { L[k] = (...x) => v[k](...x); });
+  return L;
+}
+
 function chay(luaChon, tuyChon) {
   const daBam = !!(tuyChon && tuyChon.daBam);
   const vong = (tuyChon && tuyChon.ds) || null;
   const kho = new Map();
   if (luaChon != null) kho.set('hub.tinTieng', luaChon);
   const nut = { textContent: '', title: '', onclick: null, setAttribute() {} };
-  const phim = videoGia(tuyChon);
+  const phim = lopGia(tuyChon);
   const hen = [];
+  let soHen = 0;
   const cuChi = {};          // sự kiện window -> danh sách hàm, để bắn cử chỉ giả
   const ctx = {
     localStorage: { getItem: (k) => (kho.has(k) ? kho.get(k) : null), setItem: (k, v) => kho.set(k, v) },
@@ -132,8 +187,9 @@ function chay(luaChon, tuyChon) {
     DA_CO_CU_CHI: daBam,
     /* setTimeout 0 phải CHẠY THẬT: nhánh "đã có cử chỉ" mở tiếng qua nó. Hẹn
      * dài hơn thì chỉ ghi lại để xem có đặt hay không. */
-    setTimeout: (f, ms) => { if (!ms) return setImmediate(f); hen.push([f, ms]); },
+    setTimeout: (f, ms) => { if (!ms) return setImmediate(f); hen.push([f, ms, ++soHen]); return soHen; },
     setInterval: (f, ms) => hen.push([f, ms]),
+    clearTimeout: (id) => { const i = hen.findIndex((x) => x[2] === id); if (i >= 0) hen.splice(i, 1); },
     Promise,
   };
   vm.createContext(ctx);
@@ -152,11 +208,9 @@ function chayHaiThe(ds, luaChon) {
   const kho = new Map();
   if (luaChon != null) kho.set('hub.tinTieng', luaChon);
   const nut = { textContent: '', title: '', onclick: null, setAttribute() {} };
-  const a = videoGia(); const b = videoGia();
-  a.src = '/api/video-gt?i=' + ds[0].i + '&v=' + ds[0].luc;
-  a.ganSrc.length = 0;                        // gán lúc dựng markup, không tính
-  a.classList.add('hien');
+  const a = lopGia(); const b = lopGia();
   const hen = [];
+  let soHen = 0;
   const cuChi = {};
   const ctx = {
     localStorage: { getItem: (k) => (kho.has(k) ? kho.get(k) : null), setItem: (k, v) => kho.set(k, v) },
@@ -168,13 +222,17 @@ function chayHaiThe(ds, luaChon) {
     S: { view: 'home' },
     DA_CO_CU_CHI: false,
     nguonPhim: (x) => (x ? '/api/video-gt?i=' + (x.i || 1) + '&v=' + (x.luc || 0) : ''),
-    setTimeout: (f, ms) => { if (!ms) return setImmediate(f); hen.push([f, ms]); },
+    setTimeout: (f, ms) => { if (!ms) return setImmediate(f); hen.push([f, ms, ++soHen]); return soHen; },
     setInterval: (f, ms) => hen.push([f, ms]),
+    clearTimeout: (id) => { const i = hen.findIndex((x) => x[2] === id); if (i >= 0) hen.splice(i, 1); },
     Promise,
   };
   vm.createContext(ctx);
   vm.runInContext(KHOI, ctx);
   ctx.ganPhimTin([a, b], nut, ds);
+  /* ganPhimTin() tự gắn bài đầu vào lớp 1 — lượt gán đó là dựng ban đầu, không
+   * phải "gán lại src cho thẻ đang hiện" mà mấy câu dưới đi soi. */
+  a.ganSrc.length = 0;
   const bam = () => (cuChi.pointerdown || []).slice().forEach((f) => f());
   return { a, b, nut, hen, bam };
 }
@@ -307,9 +365,11 @@ const doi = () => new Promise((r) => setImmediate(r));
      * src là tải lại cả tệp qua mạng, mỗi vòng một lần, vô ích). */
     const { phim } = chay(null, { ds: [{ i: 1, luc: 11 }] });
     await doi();
+    phim.ganSrc.length = 0;          // bỏ lượt gán lúc dựng, chỉ đếm lượt SAU đó
     phim.currentTime = 99;
     phim.hetBai(); await doi();
-    ok('một video thì chỉ tua về đầu', phim.currentTime === 0 && phim.src === '');
+    ok('một video thì chỉ tua về đầu, không gán lại src',
+      phim.currentTime === 0 && phim.ganSrc.length === 0, JSON.stringify(phim.ganSrc));
     ok('và chạy tiếp', phim.paused === false);
   }
 
@@ -431,6 +491,61 @@ const doi = () => new Promise((r) => setImmediate(r));
     a.hetBai(); await doi();
     ok('sang bài sau vẫn có tiếng', b.muted === false);
     ok('nút vẫn báo có tiếng', nut.textContent === '🔊', nut.textContent);
+  }
+
+  group('Ô phát nhận cả ẢNH, không chỉ video');
+  {
+    /* Anh Hùng: "chỗ video phát anh muốn thêm định dạng ảnh nữa thay vì chỉ có
+     * định dạng video". Ảnh không có sự kiện "hết bài" nên phải tự hẹn giờ. */
+    const ds = [{ i: 1, luc: 11 }, { i: 2, luc: 22, anh: true }];
+    const { a, b, nut, hen } = chayHaiThe(ds);
+    await doi();
+    ok('bài đầu là video ⇒ lớp 1 bật thẻ video', a.laPhim() === true && a.laAnh() === false);
+    ok('… và nút loa vẫn hiện', nut.hidden !== true);
+    a.dangPhat(); await doi();
+    ok('ảnh được nạp sẵn vào thẻ <img> của lớp kia', /i=2&v=22/.test(b.img.src), b.img.src);
+    ok('… KHÔNG nạp vào thẻ video của lớp đó', b.ganSrc.length === 0, JSON.stringify(b.ganSrc));
+    ok('… và lớp kia đã đổi sang kiểu ảnh', b.laAnh() === true && b.laPhim() === false);
+
+    a.hetBai(); await doi();
+    ok('hết video ⇒ ảnh chưa giải mã xong thì CHƯA lên', b.hien() === false);
+    b.img.xong(); await doi();
+    ok('ảnh giải mã xong mới lên hình', b.hien() === true && b.tren() === true);
+    /* Ảnh làm gì có tiếng — bày nút loa ở đó là mời người ta bấm một cái nút
+     * không làm gì. */
+    ok('đang chiếu ảnh thì GIẤU nút loa', nut.hidden === true);
+    ok('không gọi play() cho ảnh', b.soLanPlay === 0, String(b.soLanPlay));
+  }
+  {
+    /* Ảnh phải tự sang bài kế: không có `ended` thì chỉ còn hẹn giờ. */
+    const ds = [{ i: 1, luc: 11, anh: true }, { i: 2, luc: 22 }];
+    const { a, b, hen, nut } = chayHaiThe(ds);
+    await doi();
+    ok('bài đầu là ảnh ⇒ lớp 1 bật thẻ ảnh', a.laAnh() === true);
+    ok('… nút loa bị giấu ngay từ đầu', nut.hidden === true);
+    ok('… và KHÔNG gọi play()', a.soLanPlay === 0, String(a.soLanPlay));
+    const henAnh = hen.filter(([, ms]) => ms === 8000);
+    ok('có hẹn giờ cho ảnh đứng rồi sang bài kế', henAnh.length === 1,
+      JSON.stringify(hen.map((h) => h[1])));
+    /* Bài đầu là ảnh thì thẻ video không bao giờ bắn `playing`, nên lượt nạp
+     * trước phải đi bằng đường hẹn giờ — nếu không bài kế mãi không được nạp. */
+    hen.filter(([, ms]) => ms === 2000).forEach(([f]) => f());
+    await doi();
+    ok('vẫn nạp sẵn được bài kế dù ảnh không bắn playing', /i=2&v=22/.test(b.src), b.src);
+    henAnh.forEach(([f]) => f());
+    await doi();
+    ok('hết giờ thì sang video', b.hien() === true && b.laPhim() === true);
+    ok('… và nút loa hiện lại', nut.hidden === false);
+  }
+  {
+    /* Ảnh hỏng cũng không được làm cả vòng đứng lại. */
+    const ds = [{ i: 1, luc: 11 }, { i: 2, luc: 22, anh: true }, { i: 3, luc: 33 }];
+    const { a, b } = chayHaiThe(ds);
+    await doi(); a.dangPhat(); await doi();
+    b.img.complete = true; b.img.naturalWidth = 0;   // tải về hỏng
+    a.hetBai(); await doi(); await doi();
+    ok('ảnh hỏng thì bỏ qua, nhảy sang bài kế', /i=3&v=33/.test(b.src), b.src);
+    ok('… và bài kế là video nên lớp đó về kiểu video', b.laPhim() === true);
   }
 
   group('Chạy liên tục');

@@ -638,8 +638,25 @@ function tepLogo() {
  * Ổ đĩa Render là ổ TẠM — video tải lên qua Cài đặt sẽ mất sau lần deploy kế
  * tiếp, y như logo. Muốn nó sống lâu thì đưa tệp vào kho (xem README).
  */
-const DUOI_PHIM = { 'video/mp4': '.mp4', 'video/quicktime': '.mov', 'video/webm': '.webm' };
-const MIME_PHIM = { '.mp4': 'video/mp4', '.mov': 'video/quicktime', '.webm': 'video/webm' };
+/* Anh Hùng: "chỗ video phát anh muốn thêm định dạng ảnh nữa thay vì chỉ có
+ * định dạng video". Nên mỗi ô giờ giữ được MỘT TẤM ẢNH hoặc MỘT VIDEO; trang
+ * Tổng quan chạy lẫn lộn cả hai trong cùng một vòng.
+ *
+ * Tên biến vẫn là *_PHIM và đường vẫn là /api/video-gt: đổi tên là phải sờ vào
+ * chín chỗ ở ba tệp, mà cái tên đó có sai đâu — nó là "ô phát" của trang chủ.
+ * GIF nằm trong danh sách vì nó đúng là thứ người ta hay dán vào chỗ này. */
+const DUOI_PHIM = {
+  'video/mp4': '.mp4', 'video/quicktime': '.mov', 'video/webm': '.webm',
+  'image/png': '.png', 'image/jpeg': '.jpg', 'image/webp': '.webp', 'image/gif': '.gif',
+};
+const MIME_PHIM = {
+  '.mp4': 'video/mp4', '.mov': 'video/quicktime', '.webm': 'video/webm',
+  '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif',
+};
+/* Thứ tự dò KHÔNG được đổi tuỳ tiện: một ô chỉ có đúng một tệp, nhưng nếu ai
+ * đó tải đè mà lượt xoá hụt thì ô có hai tệp — lúc đó dò theo thứ tự này để
+ * hai lần đọc cho cùng một kết quả, không hên xui. */
+const DUOI_DS = ['.mp4', '.webm', '.mov', '.png', '.jpg', '.webp', '.gif'];
 /* 5 ô: đủ cho một vòng banner, mà vẫn chặn được chuyện kho phình ra vô hạn —
  * mỗi video là một khối nhị phân nằm lại trong lịch sử git vĩnh viễn. */
 const SO_PHIM_TOI_DA = 5;
@@ -653,9 +670,11 @@ function tenPhim(i, duoi) {
 function tepPhim(i) {
   const o = Number(i) || 1;
   if (!(o >= 1 && o <= SO_PHIM_TOI_DA)) return null;
-  for (const d of ['.mp4', '.webm', '.mov']) {
+  for (const d of DUOI_DS) {
     const duong = path.join(THU_MUC_DL, tenPhim(o, d));
-    if (fs.existsSync(duong)) return { duong, mime: MIME_PHIM[d], duoi: d, i: o };
+    if (fs.existsSync(duong)) {
+      return { duong, mime: MIME_PHIM[d], duoi: d, i: o, anh: /^image\//.test(MIME_PHIM[d]) };
+    }
   }
   return null;
 }
@@ -676,10 +695,10 @@ function oTrong() {
   return 0;
 }
 
-/** Xoá sạch ô i — cả ba đuôi, phòng khi ô từng đổi định dạng. */
+/** Xoá sạch ô i — MỌI đuôi, phòng khi ô từng đổi định dạng (video sang ảnh). */
 function xoaPhim(i) {
   const o = Number(i) || 1;
-  for (const d of ['.mp4', '.webm', '.mov']) {
+  for (const d of DUOI_DS) {
     const duong = path.join(THU_MUC_DL, tenPhim(o, d));
     try { if (fs.existsSync(duong)) fs.unlinkSync(duong); } catch (_) { /* khoá tệp thì thôi */ }
   }
@@ -1036,7 +1055,7 @@ async function api(req, res, u) {
     const ds = dsPhim().map((t) => {
       const st = fs.statSync(t.duong);
       return { i: t.i, ten: path.basename(t.duong), mb: Math.round(st.size / 104857.6) / 10,
-        luc: st.mtimeMs, kieu: t.mime };
+        luc: st.mtimeMs, kieu: t.mime, anh: !!t.anh };
     });
     /* `co` và các trường của video ĐẦU nằm luôn ở gốc: bản cũ của trang Tổng
      * quan đọc thẳng `t.luc` để chống đệm, và nó có thể còn nằm trong trình
@@ -1048,7 +1067,7 @@ async function api(req, res, u) {
   if (p === '/api/video-gt' && m === 'POST') {
     if (await chiQuanLy(req, res)) return;
     const kieu = String(req.headers['content-type'] || '').split(';')[0];
-    if (!DUOI_PHIM[kieu]) return loi(res, 400, 'Chỉ nhận MP4 · WEBM · MOV.');
+    if (!DUOI_PHIM[kieu]) return loi(res, 400, 'Chỉ nhận MP4 · WEBM · MOV · PNG · JPG · WEBP · GIF.');
     /* Có `?i=` là THAY đúng ô đó; không có là THÊM vào ô trống đầu tiên. Hai
      * việc khác hẳn nhau nên không để chung một đường đoán mò. */
     let o = Number(u.searchParams.get('i')) || 0;

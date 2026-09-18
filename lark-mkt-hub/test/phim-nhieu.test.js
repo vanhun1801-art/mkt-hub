@@ -54,6 +54,11 @@ const MP4 = Buffer.concat([
   Buffer.from([0, 0, 2, 0]), Buffer.from('isomiso2', 'ascii'),
 ]);
 
+/* Một PNG 1x1 hợp lệ — đủ để máy chủ nhận, nhận diện và trả lại đúng kiểu. */
+const PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+  'base64');
+
 /* Hai hub: một chế độ cli (thử cơ chế ô), một chế độ api (thử cửa quyền).
  * Cổng 5298/5297 — tránh 517x/518x đang có app con của phòng ngồi sẵn. */
 function dungHub(port, env) {
@@ -203,6 +208,49 @@ function donDuLieu() {
       ok('… các video khác còn nguyên',
         daCo.every((i) => cuoi.ds.some((x) => x.i === i)), JSON.stringify(cuoi.ds.map((x) => x.i)));
       oThu = 0;
+    }
+
+    group('Ô phát nhận cả ẢNH');
+    {
+      /* Anh Hùng: "chỗ video phát anh muốn thêm định dạng ảnh nữa thay vì chỉ
+       * có định dạng video". Một ô giữ được MỘT ảnh y như giữ một video. */
+      const oAnh = [1, 2, 3, 4, 5].find((i) => !daCo.includes(i) && i !== oThu) || 4;
+      const them = await fetch(G1 + '/api/video-gt?i=' + oAnh, {
+        method: 'POST', headers: { 'Content-Type': 'image/png' }, body: PNG,
+      });
+      ok('nhận ảnh PNG', them.status === 200, 'HTTP ' + them.status);
+      const tin2 = await (await fetch(G1 + '/api/video-gt-tin')).json();
+      const x = tin2.ds.find((y) => y.i === oAnh);
+      ok('… ô đó vào danh sách', !!x);
+      if (x) {
+        ok('… cất đúng đuôi .png', /\.png$/.test(x.ten), x.ten);
+        /* Giao diện dựa CHÍNH vào cờ này để bật <img> thay cho <video>. */
+        ok('… và gắn cờ anh = true', x.anh === true, JSON.stringify(x.anh));
+        ok('… kiểu là image/png', x.kieu === 'image/png', x.kieu);
+      }
+      const phat = await fetch(G1 + '/api/video-gt?i=' + oAnh);
+      ok('… phát ra được', phat.status === 200, 'HTTP ' + phat.status);
+      ok('… đúng Content-Type ảnh',
+        (phat.headers.get('content-type') || '').startsWith('image/png'),
+        phat.headers.get('content-type'));
+
+      /* Đổi một ô từ ảnh SANG video thì tệp ảnh cũ phải biến mất — không xoá
+       * thì ô có hai tệp và tepPhim() trả về cái nào là tuỳ thứ tự dò. */
+      const doiLai = await fetch(G1 + '/api/video-gt?i=' + oAnh, {
+        method: 'POST', headers: { 'Content-Type': 'video/mp4' }, body: MP4,
+      });
+      ok('thay ảnh bằng video ở cùng ô', doiLai.status === 200, 'HTTP ' + doiLai.status);
+      const tin3 = await (await fetch(G1 + '/api/video-gt-tin')).json();
+      const y = tin3.ds.find((z) => z.i === oAnh);
+      ok('… giờ là video, không còn cờ ảnh', !!y && y.anh === false && /\.mp4$/.test(y.ten),
+        JSON.stringify(y));
+      ok('… và ô vẫn chỉ đếm MỘT lần', tin3.ds.filter((z) => z.i === oAnh).length === 1);
+      await fetch(G1 + '/api/video-gt?i=' + oAnh, { method: 'DELETE' });
+
+      const la = await fetch(G1 + '/api/video-gt', {
+        method: 'POST', headers: { 'Content-Type': 'image/tiff' }, body: PNG,
+      });
+      ok('định dạng ảnh lạ vẫn bị chặn', la.status === 400, 'HTTP ' + la.status);
     }
 
     group('Chỉ quản lý được thay video');

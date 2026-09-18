@@ -1240,11 +1240,21 @@ async function veKhoiTin() {
          * nạp bài kế. Đổi src trên cùng một thẻ là có khoảng đen ở giữa. Thẻ
          * thứ hai để TRỐNG src ở đây — ganPhimTin nạp sau khi bài đầu chạy
          * được, khỏi tranh đường mạng ngay lúc mở trang. */
+        /* HAI LỚP chồng nhau, mỗi lớp có sẵn một <video> và một <img>: một ô
+         * có thể là video hoặc ảnh, và ganPhimTin() bật đúng cái cần. Dựng sẵn
+         * cả hai thẻ chứ không tạo lúc cần — tạo thẻ giữa nhịp chuyển là mất
+         * đúng cái "đã giải mã sẵn" mà cả cơ chế này dựa vào.
+         *
+         * `loop` chỉ khi có đúng một bài: nhiều bài thì việc lặp do ganPhimTin
+         * lo, để `loop` là sự kiện `ended` không bao giờ bắn và vòng đứng lại.
+         * Không đặt src ở đây — ganPhimTin() gắn bài đầu, vì nó mới biết bài
+         * đó là ảnh hay video. */
         ? '<div class="tin-phim">' +
-          '<video class="hien" src="' + esc(nguonPhim(dsPhimTin()[0])) + '"' +
-          (dsPhimTin().length > 1 ? '' : ' loop') +
-          ' autoplay muted playsinline preload="auto"></video>' +
-          (dsPhimTin().length > 1 ? '<video muted playsinline preload="auto"></video>' : '') +
+          '<div class="tin-lop"><video muted playsinline preload="auto"' +
+          (dsPhimTin().length > 1 ? '' : ' loop') + '></video><img alt=""></div>' +
+          (dsPhimTin().length > 1
+            ? '<div class="tin-lop"><video muted playsinline preload="auto"></video><img alt=""></div>'
+            : '') +
           '<button class="tin-am" id="tinAm" title="Bật tiếng" aria-label="Bật tiếng">🔇</button>' +
           '</div>'
         : '') +
@@ -1264,7 +1274,7 @@ async function veKhoiTin() {
    * mỗi lần mở trang. Bật tiếng xong phải gọi play() lần nữa: đổi muted giữa
    * chừng có trình duyệt dừng video lại. */
   const oAm = document.getElementById('tinAm');
-  const oPhim = [...o.querySelectorAll('.tin-phim video')];
+  const oPhim = [...o.querySelectorAll('.tin-phim .tin-lop')];
   if (oPhim.length) ganPhimTin(oPhim, oAm, dsPhimTin());
 
   /* Bấm một tin là mở đúng popup của tin đó để đọc trọn — kể cả đã đọc rồi.
@@ -1289,8 +1299,12 @@ function ngayGonTin(ms) {
 }
 
 /**
- * Cho video trang Tổng quan CHẠY, chạy mãi, KHÔNG chớp đen — và mặc định
+ * Cho ô phát của trang Tổng quan CHẠY, chạy mãi, KHÔNG chớp đen — và mặc định
  * không tiếng.
+ *
+ * Mỗi "bài" là MỘT VIDEO hoặc MỘT TẤM ẢNH (anh Hùng: "chỗ video phát anh muốn
+ * thêm định dạng ảnh nữa"). Video hết thì sang bài kế; ảnh không có sự kiện
+ * "hết" nên đứng đúng ANH_MS rồi sang.
  *
  * ĐIỀU DUY NHẤT trình duyệt cho tự chạy là video ĐANG CÂM. Chrome/Safari chặn
  * thẳng mọi lượt tự chạy có tiếng, và chặn IM LẶNG: `play()` bị từ chối, video
@@ -1301,62 +1315,106 @@ function ngayGonTin(ms) {
  *
  * Mặc định là TẮT TIẾNG (anh Hùng: "mặc định là video tắt âm thanh").
  *
- * NHIỀU VIDEO thì nhận HAI thẻ <video> chồng nhau, không phải một thẻ đổi src.
- * Đổi `src` là trình duyệt vứt khung hình đang có rồi mới đi tải bài mới, và
- * giữa hai bài hở ra một khoảng đen (anh Hùng: "không có 1 khoảng đen chuyển
- * nào cả"). Ở đây bài kế nằm sẵn trong thẻ kia, đã giải mã xong khung đầu;
- * lúc chuyển chỉ đổi thẻ nào hiện, rồi thẻ vừa rảnh đi nạp bài tiếp theo.
+ * NHIỀU BÀI thì nhận HAI LỚP chồng nhau, mỗi lớp có sẵn một <video> và một
+ * <img>, và CẮT THẲNG giữa chúng. Ba lần vá mới ra chỗ này, đừng "cải tiến"
+ * ngược lại:
+ *   1. một thẻ đổi `src` — trình duyệt vứt khung hình đang có rồi mới đi tải
+ *      bài mới, giữa hai bài hở ra nền đen;
+ *   2. hai lớp mờ CHÉO — nền dưới màu đen, lúc cả hai cùng ~0.5 thì mắt chỉ
+ *      nhận được chừng ba phần tư độ sáng, tối sầm đúng nhịp chuyển;
+ *   3. chỉ lớp mới mờ lên — đúng về màu, nhưng cả guồng phụ thuộc vào việc
+ *      `transitionend` có bắn hay không, mà có môi trường chuyển động không
+ *      chạy một nhịp nào và màn hình đen hẳn mấy giây.
+ * Nên: KHÔNG hiệu ứng. Bài kế đã giải mã sẵn ở lớp kia, đổi lớp nào hiện là
+ * đổi tức thì.
  *
- * Vẫn nhận MỘT thẻ (bài kiểm thử, và trang chỉ có một video): khi đó hết bài
- * thì tua về đầu, không đụng tới src.
- *
- * "Chạy liên tục không dừng": `loop` lo phần lặp khi chỉ có một video, còn lại
- * là ba đường hỏng thật đã gặp với video phát qua mạng — tab ẩn rồi hiện lại,
- * luồng nghẽn (`stalled`), tải hỏng giữa chừng (`error`). Mỗi đường một lối
- * gọi lại; thêm một nhịp canh 5 giây làm lưới cuối.
+ * Vẫn nhận MỘT lớp (trang chỉ có một bài): khi đó video hết thì tua về đầu,
+ * không đụng tới src; ảnh thì cứ đứng yên.
  */
-function ganPhimTin(phims, nut, ds) {
-  const doi = (Array.isArray(phims) ? phims : [phims]).filter(Boolean);
+function ganPhimTin(lops, nut, ds) {
+  const doi = (Array.isArray(lops) ? lops : [lops]).filter(Boolean).map((x) => ({
+    el: x,
+    video: x.querySelector('video'),
+    img: x.querySelector('img'),
+  })).filter((l) => l.video && l.img);
   if (!doi.length) return;
   const vong = Array.isArray(ds) && ds.length ? ds : [];
-  /* Chỉ chuyển bằng hai thẻ khi CÓ đủ hai thẻ và CÓ nhiều hơn một bài. */
+  /* Chỉ chuyển bằng hai lớp khi CÓ đủ hai lớp và CÓ nhiều hơn một bài. */
   const keDoi = doi.length > 1 && vong.length > 1;
 
-  let cu = 0;                                 // thẻ đang chiếu
+  /* Ảnh đứng bao lâu rồi sang bài kế. 8 giây: đủ đọc một tấm banner có chữ mà
+   * không thành ra đứng hình. Video thì tự nó quyết bằng độ dài của nó. */
+  const ANH_MS = 8000;
+
+  let cu = 0;                                 // lớp đang chiếu
   let k = 0;                                  // bài đang chiếu
   const dang = () => doi[cu];
   const kia = () => doi[(cu + 1) % doi.length];
+  const laAnh = (bai) => !!(bai && bai.anh);
+  /* Bài đang chiếu là ảnh thì mọi chuyện tiếng/chạy đều vô nghĩa. */
+  const anhDang = () => laAnh(vong[k]);
 
   let muonTieng = false;                      // mặc định TẮT tiếng
   try { if (localStorage.getItem('hub.tinTieng') === '1') muonTieng = true; } catch (_) {}
 
   /* Nút LUÔN vẽ theo trạng thái THẬT của thẻ đang chiếu, không vẽ theo ý định.
    * Vẽ theo ý định thì lúc trình duyệt vừa chặn, nút báo 🔊 mà không có tiếng.
-   * Nghe thêm `volumechange` để trình duyệt tự đổi thì nút cũng đổi theo. */
+   * Bài đang chiếu là ảnh thì GIẤU hẳn nút — ảnh làm gì có tiếng mà bật. */
   const veNut = () => {
     if (!nut) return;
-    const co = !dang().muted;
+    if (anhDang()) { nut.hidden = true; return; }
+    nut.hidden = false;
+    const co = !dang().video.muted;
     nut.textContent = co ? '🔊' : '🔇';
     nut.title = co ? 'Tắt tiếng' : 'Bật tiếng';
     nut.setAttribute('aria-label', nut.title);
   };
 
-  /* Câm/mở cho CẢ HAI thẻ: thẻ đang nằm chờ mà còn tiếng thì lúc nó lên hình
+  /* Câm/mở cho CẢ HAI lớp: lớp đang nằm chờ mà còn tiếng thì lúc nó lên hình
    * sẽ kêu trái với nút. */
-  const datCam = (cam) => doi.forEach((v) => { v.muted = cam; });
+  const datCam = (cam) => doi.forEach((l) => { l.video.muted = cam; });
 
-  const chay = () => { const p = dang().play(); if (p && p.catch) p.catch(() => {}); };
+  const chay = () => {
+    if (anhDang()) return;                    // ảnh thì không có gì để chạy
+    const p = dang().video.play();
+    if (p && p.catch) p.catch(() => {});
+  };
 
-  /** Nạp sẵn bài kế vào thẻ đang rảnh — đây chính là thứ xoá khoảng đen. */
+  /** Gắn một bài vào một lớp: ảnh thì đặt <img>, video thì đặt <video>. */
+  const datBai = (lop, bai) => {
+    if (!bai) return;
+    lop.el.dataset.bai = String(bai.i);
+    if (laAnh(bai)) {
+      lop.el.classList.add('la-anh');
+      lop.el.classList.remove('la-phim');
+      if (lop.img.getAttribute('src') !== nguonPhim(bai)) lop.img.src = nguonPhim(bai);
+    } else {
+      lop.el.classList.add('la-phim');
+      lop.el.classList.remove('la-anh');
+      if (lop.video.getAttribute('src') !== nguonPhim(bai)) {
+        lop.video.src = nguonPhim(bai);
+        try { lop.video.load(); } catch (_) {}
+      }
+    }
+  };
+
+  /** Nạp sẵn bài kế vào lớp đang rảnh — đây chính là thứ xoá khoảng đen. */
   const napTruoc = () => {
     if (!keDoi) return;
     const sau = vong[(k + 1) % vong.length];
-    const v = kia();
-    if (v.dataset.bai === String(sau.i)) return;   // đã đúng bài rồi
-    v.dataset.bai = String(sau.i);
-    v.src = nguonPhim(sau);
-    v.muted = dang().muted;
-    try { v.load(); } catch (_) {}
+    const l = kia();
+    if (l.el.dataset.bai === String(sau.i)) return;   // đã đúng bài rồi
+    datBai(l, sau);
+    l.video.muted = dang().video.muted;
+  };
+
+  /* Ảnh hết giờ thì sang bài kế. Hẹn lại từ đầu mỗi lần đổi bài, và huỷ khi
+   * bài đang chiếu là video (video tự báo `ended`). */
+  let henAnh = 0;
+  const canhAnh = () => {
+    clearTimeout(henAnh);
+    if (!anhDang() || vong.length < 2) return;
+    henAnh = setTimeout(() => sang(k + 1, 0), ANH_MS);
   };
 
   /**
@@ -1368,95 +1426,109 @@ function ganPhimTin(phims, nut, ds) {
     const k2 = ((j % vong.length) + vong.length) % vong.length;
 
     if (!keDoi) {
-      /* Chỉ có một thẻ (bài kiểm thử, hoặc trang dựng bằng bản cũ): đành đổi
-       * src trên chính nó — có chớp, nhưng còn hơn đứng im. */
+      /* Chỉ có một lớp: đành đổi ngay trên nó — có chớp, nhưng còn hơn đứng im. */
       k = k2;
-      const v = dang();
-      v.src = nguonPhim(vong[k]);
-      try { v.load(); } catch (_) {}
+      datBai(dang(), vong[k]);
       chay();
+      canhAnh();
+      veNut();
       return;
     }
 
     const moi = kia();
     const bai = vong[k2];
-    if (moi.dataset.bai !== String(bai.i)) {
-      moi.dataset.bai = String(bai.i);
-      moi.src = nguonPhim(bai);
-      try { moi.load(); } catch (_) {}
+    datBai(moi, bai);
+    if (!laAnh(bai)) {
+      moi.video.muted = dang().video.muted;
+      /* CHỈ tua khi nó chưa ở đầu. Tua một thẻ đang ở giây 0 là thừa, mà mỗi
+       * lần tua là một nhịp thẻ chưa có khung hình để vẽ. */
+      if (moi.video.currentTime > 0.05) { try { moi.video.currentTime = 0; } catch (_) {} }
     }
-    moi.muted = dang().muted;
-    /* CHỈ tua khi nó chưa ở đầu. Tua một thẻ đang ở giây 0 là thừa, mà mỗi lần
-     * tua là một nhịp thẻ chưa có khung hình để vẽ. */
-    if (moi.currentTime > 0.05) { try { moi.currentTime = 0; } catch (_) {} }
 
-    /* Thẻ kế hỏng thì bỏ qua nó, thử bài sau — tối đa một vòng. */
-    if (moi.error && (lan || 0) < vong.length) { napTruoc(); return sang(k2 + 1, (lan || 0) + 1); }
+    /* Bài kế hỏng thì bỏ qua nó, thử bài sau — tối đa một vòng. */
+    const hong = laAnh(bai)
+      ? (moi.img.complete && moi.img.naturalWidth === 0)
+      : !!moi.video.error;
+    if (hong && (lan || 0) < vong.length) { napTruoc(); return sang(k2 + 1, (lan || 0) + 1); }
 
     const hien = () => {
-      /* Thẻ mới lên TRÊN rồi bật đục NGAY. Không mờ dần.
-       *
-       * Cả hai thẻ đều đã có khung hình giải mã sẵn, nên cắt thẳng là mắt
-       * không thấy gì — còn mọi kiểu mờ đều đẻ ra đen: mờ chéo thì tụt độ sáng
-       * ở giữa, mờ một chiều thì phải trông vào `transitionend`, mà có môi
-       * trường chuyển động không chạy một nhịp nào và màn hình đen hẳn mấy
-       * giây. Đen là thứ anh Hùng bảo không được có; mượt chỉ là mong muốn. */
-      const cuEl = dang();
-      cuEl.classList.remove('tren');
-      moi.classList.add('tren');
-      moi.classList.add('hien');
+      /* Lớp mới lên TRÊN rồi bật đục NGAY. Không mờ dần — xem ghi chú đầu hàm. */
+      const cuL = dang();
+      cuL.el.classList.remove('tren');
+      moi.el.classList.add('tren');
+      moi.el.classList.add('hien');
       cu = (cu + 1) % doi.length;
       k = k2;
       veNut();
+      canhAnh();
 
-      /* Thẻ cũ vẫn đục thêm một nhịp nữa rồi mới tắt. Lúc này nó đã nằm DƯỚI
-       * một thẻ đục kín nên không ai thấy — nhưng chờ qua một lượt vẽ thì chắc
+      /* Lớp cũ vẫn đục thêm một nhịp nữa rồi mới tắt. Lúc này nó đã nằm DƯỚI
+       * một lớp đục kín nên không ai thấy — nhưng chờ qua một lượt vẽ thì chắc
        * chắn không có khe nào lọt nền đen ra, kể cả trên máy vẽ chậm.
        *
-       * Rồi mới dừng nó và giao bài kế. Đảo thứ tự là gán src cho một thẻ còn
+       * Rồi mới dừng nó và giao bài kế. Đảo thứ tự là gán src cho một lớp còn
        * đang nhìn thấy — trình duyệt xoá khung hình nó đang giữ, thành ô đen. */
       let daDon = false;
       const don = () => {
         if (daDon) return;
         daDon = true;
-        cuEl.classList.remove('hien');
-        try { cuEl.pause(); } catch (_) {}
+        cuL.el.classList.remove('hien');
+        try { cuL.video.pause(); } catch (_) {}
         napTruoc();
       };
       setTimeout(don, 120);
     };
+
+    if (laAnh(bai)) {
+      /* CHỜ ảnh giải mã xong rồi mới cho lên, y như chờ khung hình của video:
+       * cho một tấm ảnh trắng tay lên trên là chính nó vẽ ra ô trống. */
+      if (moi.img.complete && moi.img.naturalWidth > 0) hien();
+      else {
+        let xong = false;
+        const san = () => { if (xong) return; xong = true; hien(); };
+        ['load', 'error'].forEach((e) => moi.img.addEventListener(e, san, { once: true }));
+        setTimeout(san, 700);
+      }
+      return;
+    }
+
     /* CHỜ thẻ mới thật sự có khung hình rồi mới cho nó lên.
      *
      * `play()` trả về xong KHÔNG có nghĩa là đã có gì để vẽ — sau một lần tua
      * hay lúc mạng chớp, thẻ có thể còn trắng tay (readyState < 2). Cho một
-     * thẻ trắng tay mờ dần lên trên là chính nó vẽ ra màu đen, đúng thứ cả
-     * đoạn mã này sinh ra để tránh. Hẹn 700ms làm lưới đỡ: thà chuyển hơi
-     * cứng còn hơn đứng lại chờ mãi. */
+     * thẻ trắng tay lên trên là chính nó vẽ ra màu đen, đúng thứ cả đoạn mã
+     * này sinh ra để tránh. Hẹn 700ms làm lưới đỡ: thà chuyển hơi cứng còn hơn
+     * đứng lại chờ mãi. */
     const choKhung = () => {
-      if (moi.readyState >= 2) { hien(); return; }
+      if (moi.video.readyState >= 2) { hien(); return; }
       let xong = false;
       const san = () => { if (xong) return; xong = true; hien(); };
-      ['loadeddata', 'canplay', 'seeked'].forEach((e) => moi.addEventListener(e, san, { once: true }));
+      ['loadeddata', 'canplay', 'seeked'].forEach((e) =>
+        moi.video.addEventListener(e, san, { once: true }));
       setTimeout(san, 700);
     };
-    const p = moi.play();
+    const p = moi.video.play();
     if (p && p.then) p.then(choKhung, choKhung);
     else choKhung();
   };
 
   /* Bỏ `autoplay` ngay khi vào đây: từ giờ việc chạy do hàm này quyết.
    *
-   * Giữ lại là hỏng đúng lúc chuyển bài: nạp bài kế cho thẻ vừa rảnh phải gọi
+   * Giữ lại là hỏng đúng lúc chuyển bài: nạp bài kế cho lớp vừa rảnh phải gọi
    * `load()`, mà `load()` trên một thẻ còn thuộc tính `autoplay` là trình duyệt
-   * TỰ CHẠY nó lại — thẻ đang ẩn chạy ngầm song song với thẻ đang hiện, tốn
-   * mạng, tốn máy, và đến lượt nó lên hình thì đang ở giữa bài chứ không phải
-   * đầu bài. Đo trên máy thật thấy cả hai thẻ cùng chạy ở giây 20. */
-  doi.forEach((v) => { try { v.removeAttribute('autoplay'); } catch (_) {} });
+   * TỰ CHẠY nó lại — lớp đang ẩn chạy ngầm song song với lớp đang hiện, tốn
+   * mạng, tốn máy, và đến lượt nó lên hình thì đang ở giữa bài. Đo trên máy
+   * thật thấy cả hai thẻ cùng chạy ở giây 20. */
+  doi.forEach((l) => { try { l.video.removeAttribute('autoplay'); } catch (_) {} });
 
-  /* Mở ra là CÂM rồi chạy — đây là lượt tự chạy duy nhất trình duyệt cho phép. */
+  /* Bài đầu: gắn vào lớp đầu rồi mở ra ở trạng thái CÂM và chạy — đây là lượt
+   * tự chạy duy nhất trình duyệt cho phép. */
+  if (vong.length) datBai(doi[0], vong[0]);
+  doi[0].el.classList.add('hien');
   datCam(true);
   veNut();
   chay();
+  canhAnh();
 
   /* Bỏ câm CHỈ KHI ĐÃ CÓ CỬ CHỈ NGƯỜI DÙNG.
    *
@@ -1493,14 +1565,20 @@ function ganPhimTin(phims, nut, ds) {
    *
    * Anh Hùng: "khi người dùng ấn vào tab ứng dụng khác thì tắt âm thanh". Video
    * lúc đó nằm sau khung app con, không ai thấy — mà tiếng thì vẫn vang lên
-   * giữa lúc người ta đang làm việc khác. Dừng hẳn còn đỡ tốn mạng.
+   * giữa lúc người ta đang làm việc khác. Dừng hẳn còn đỡ tốn mạng. Vòng ảnh
+   * cũng dừng luôn, khỏi chạy không cho ai xem.
    *
    * Quay lại Tổng quan thì chạy tiếp, và giữ nguyên lựa chọn tiếng. */
   const theoMan = () => {
-    const oTrang = !document.hidden && S.view === 'home' && document.body.contains(doi[0]);
-    if (!oTrang) { doi.forEach((v) => { if (!v.paused) v.pause(); }); return; }
+    const oTrang = !document.hidden && S.view === 'home' && document.body.contains(doi[0].el);
+    if (!oTrang) {
+      clearTimeout(henAnh);
+      doi.forEach((l) => { if (!l.video.paused) l.video.pause(); });
+      return;
+    }
     datCam(!muonTieng);
     chay();
+    canhAnh();
     veNut();
   };
   document.addEventListener('visibilitychange', theoMan);
@@ -1510,39 +1588,47 @@ function ganPhimTin(phims, nut, ds) {
   window.addEventListener('hashchange', () => setTimeout(theoMan, 250));
 
   /* Ba đường hỏng thật của video phát qua mạng, mỗi đường một lối gọi lại.
-   * Gắn cho CẢ HAI thẻ, nhưng chỉ thẻ đang chiếu mới được kéo cả vòng đi. */
-  doi.forEach((v) => {
-    v.addEventListener('volumechange', () => { if (v === dang()) veNut(); });
-    v.addEventListener('ended', () => {
-      if (v !== dang()) return;
+   * Gắn cho CẢ HAI lớp, nhưng chỉ lớp đang chiếu mới được kéo cả vòng đi. */
+  doi.forEach((l) => {
+    l.video.addEventListener('volumechange', () => { if (l === dang()) veNut(); });
+    l.video.addEventListener('ended', () => {
+      if (l !== dang() || anhDang()) return;
       /* Nhiều bài thì sang bài kế; một bài thì tua về đầu (phòng khi `loop`
        * hụt — có máy bắn `ended` rồi mới lặp). */
       if (vong.length > 1) { sang(k + 1, 0); return; }
-      v.currentTime = 0;
+      l.video.currentTime = 0;
       chay();
     });
-    v.addEventListener('stalled', () => { if (v === dang() && S.view === 'home') chay(); });
-    v.addEventListener('error', () => {
-      if (v !== dang()) { napTruoc(); return; }
+    l.video.addEventListener('stalled', () => {
+      if (l === dang() && !anhDang() && S.view === 'home') chay();
+    });
+    l.video.addEventListener('error', () => {
+      if (l !== dang()) { napTruoc(); return; }
       /* Bài đang chiếu hỏng (tệp lỗi, ô vừa bị gỡ) mà cả vòng đứng theo thì cái
        * hỏng ăn mất cả bộ. Còn bài khác thì bỏ qua nó, chạy tiếp ngay. */
       if (vong.length > 1) { sang(k + 1, 0); return; }
       /* Chỉ có một bài: nạp lại một lần sau 10 giây. Không thử lại ngay —
        * hỏng ngay lần đầu thì thử lại ngay cũng hỏng. */
-      setTimeout(() => { try { v.load(); chay(); } catch (_) {} }, 10000);
+      setTimeout(() => { try { l.video.load(); chay(); } catch (_) {} }, 10000);
+    });
+    /* Ảnh hỏng cũng không được đứng cả vòng. */
+    l.img.addEventListener('error', () => {
+      if (l === dang() && vong.length > 1) sang(k + 1, 0);
     });
   });
 
   /* Nạp sẵn bài kế. Chờ bài đầu chạy được rồi mới nạp: nạp cả hai cùng lúc là
    * hai luồng tranh đường mạng đúng lúc người ta vừa mở trang. Có cả hẹn giờ
-   * đỡ: `playing` có thể không bắn nếu tab đang ẩn. */
-  doi[0].addEventListener('playing', napTruoc);
+   * đỡ — `playing` có thể không bắn nếu tab đang ẩn, và bài đầu là ảnh thì nó
+   * không bao giờ bắn. */
+  doi[0].video.addEventListener('playing', napTruoc);
   setTimeout(napTruoc, 2000);
 
   /* Lưới cuối: 5 giây một nhịp. CHỈ gọi lại khi đang ở trang Tổng quan và tab
    * đang hiện — nếu không thì nó chính là thứ bật lại video mình vừa dừng. */
   setInterval(() => {
-    if (!document.hidden && S.view === 'home' && dang().paused) chay();
+    if (document.hidden || S.view !== 'home' || anhDang()) return;
+    if (dang().video.paused) chay();
   }, 5000);
 }
 /* ============================================================

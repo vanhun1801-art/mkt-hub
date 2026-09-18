@@ -1127,15 +1127,27 @@ code { background: var(--trang-2); border: 1px solid var(--vien-mem); border-rad
  * Nên: KHÔNG hiệu ứng. Cả hai thẻ đều đã giải mã xong khung hình, đổi thẻ nào
  * hiện là đổi tức thì, không có nhịp nào cả hai cùng nhạt. Cắt thẳng giữa hai
  * khung hình có sẵn thì mắt không kịp thấy gì — y như đổi kênh. */
-.tin-phim video {
+.tin-lop {
   position: absolute; inset: 0;
-  width: 100%; height: 100%; display: block; object-fit: contain;
   opacity: 0; z-index: 1;
 }
-.tin-phim video.hien { opacity: 1; }
-/* Thẻ sắp lên nằm TRÊN, để lúc bật nó lên nó che kín thẻ cũ ngay lập tức —
-   thẻ cũ chỉ tắt sau đó, khi đã không ai nhìn thấy nữa. */
-.tin-phim video.tren { z-index: 2; }
+.tin-lop.hien { opacity: 1; }
+/* Lớp sắp lên nằm TRÊN, để lúc bật nó lên nó che kín lớp cũ ngay lập tức —
+   lớp cũ chỉ tắt sau đó, khi đã không ai nhìn thấy nữa. */
+.tin-lop.tren { z-index: 2; }
+
+/* Mỗi lớp có SẴN cả <video> lẫn <img>; ô là ảnh hay video thì bật đúng một
+   cái. Dựng sẵn cả hai chứ không tạo lúc cần: tạo thẻ giữa nhịp chuyển là mất
+   đúng cái "đã giải mã sẵn" mà cả cơ chế chuyển-không-đen dựa vào.
+   `object-fit: contain` cho cả hai — ảnh dọc hay video 16:9 đều hiện trọn,
+   không bị cắt. */
+.tin-lop video, .tin-lop img {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%; object-fit: contain;
+  display: none;
+}
+.tin-lop.la-phim video { display: block; }
+.tin-lop.la-anh img { display: block; }
 
 /* Nút bật/tắt tiếng — chồng lên góc video, chỉ đậm lên khi rê chuột tới.
    Trình duyệt CHỈ cho tự chạy khi đang tắt tiếng, nên video mở ra là im; bấm
@@ -1234,9 +1246,11 @@ code { background: var(--trang-2); border: 1px solid var(--vien-mem); border-rad
   .tin-cot { border-left: 0; border-top: 1px solid var(--vien); max-height: 280px; }
 }
 
-/* Ô xem trước video trong Cài đặt */
+/* Ô xem trước trong Cài đặt — dùng chung cho cả <video> lẫn <img>, vì mỗi ô
+   phát có thể là video hoặc ảnh. `height: auto` để ảnh giữ đúng tỉ lệ của nó
+   thay vì bị ép theo khung. */
 .cd-phim-xem {
-  display: block; width: 100%; max-width: 320px; margin-top: 8px;
+  display: block; width: 100%; height: auto; max-width: 320px; margin-top: 8px;
   border-radius: var(--r-nho); background: #000;
 }
 

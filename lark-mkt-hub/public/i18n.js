@@ -387,6 +387,13 @@
     /* --- video giới thiệu: nhiều video, phát luân phiên --- */
     'Video giới thiệu': 'Intro video',
     'Chưa có video': 'No video yet',
+    'Chưa có gì để phát': 'Nothing to play yet',
+    'Chưa đặt video hay ảnh nào — trang Tổng quan chỉ hiện bảng tin.':
+      'No video or image set — the Overview shows only the news column.',
+    'Tải lên': 'Upload',
+    'Thêm video hoặc ảnh': 'Add video or image',
+    'Đang tải lên…': 'Uploading…',
+    'Đã thêm vào ô phát': 'Added to the rotation',
     'Chưa đặt video nào — trang Tổng quan chỉ hiện bảng tin.':
       'No video set — the Overview shows only the news column.',
     'Tải video lên': 'Upload video',
@@ -851,15 +858,24 @@
      * Tên tệp và giờ là chữ THẬT, giữ nguyên — chỉ dịch phần khung. */
     [/^(.+ · .+) · tải lên (.+)$/, '$1 · uploaded $2'],
 
-    /* --- video giới thiệu: nhãn mang số thứ tự ô --- */
+    /* --- ô phát của trang Tổng quan: mỗi ô là video HOẶC ảnh --- */
     [/^Video (\d+) · phát đầu tiên$/, 'Video $1 · plays first'],
+    [/^Ảnh (\d+) · phát đầu tiên$/, 'Image $1 · plays first'],
     [/^Video (\d+)$/, 'Video $1'],
-    [/^Chạy hết video 1 sang video 2… rồi quay lại video 1\.$/,
-      'Plays video 1, then video 2… then back to video 1.'],
-    [/^MP4 · WEBM · MOV ≤ 60 MB · tối đa (\d+) video$/, 'MP4 · WEBM · MOV, up to 60 MB · max $1 videos'],
-    [/^Đã đủ (\d+) video$/, 'All $1 slots used'],
-    [/^Đã thay video (\d+)$/, 'Video $1 replaced'],
+    [/^Ảnh (\d+)$/, 'Image $1'],
+    [/^Chạy hết ô 1 sang ô 2… rồi quay lại ô 1\. Video chạy hết bài, ảnh đứng 8 giây\.$/,
+      'Plays slot 1, then slot 2… then back to slot 1. Videos play through; images hold for 8 seconds.'],
+    [/^Chỉ có một ô nên nó lặp lại mãi\. Thêm cái nữa là hai cái chạy luân phiên\.$/,
+      'Only one slot, so it loops forever. Add another and they alternate.'],
+    [/^MP4 · WEBM · MOV · PNG · JPG · WEBP · GIF ≤ 60 MB · tối đa (\d+) ô$/,
+      'MP4 · WEBM · MOV · PNG · JPG · WEBP · GIF, up to 60 MB · max $1 slots'],
+    [/^Đã đủ (\d+) ô$/, 'All $1 slots used'],
+    [/^Đã thay ô (\d+)$/, 'Slot $1 replaced'],
     [/^Đã đủ (\d+) video\. Gỡ bớt một cái rồi thêm\.$/, 'All $1 slots used. Remove one first.'],
+    [/^Tệp nặng (\d+) MB — quá 60 MB\. Nén lại rồi tải lên\.$/,
+      'File is $1 MB — over the 60 MB limit. Compress it and upload again.'],
+    [/^Chỉ nhận MP4 · WEBM · MOV · PNG · JPG · WEBP · GIF\.$/,
+      'Only MP4 · WEBM · MOV · PNG · JPG · WEBP · GIF are accepted.'],
 
     /* --- app Chỉnh ảnh & Edit video: nhãn mang con số hoặc tên nhóm --- */
     [/^Gửi tin về nhóm (.+)$/, 'Post to $1'],
