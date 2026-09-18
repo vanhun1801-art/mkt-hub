@@ -6,6 +6,6 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node test/chuanhoa.test.js && node test/vault.test.js && node test/canh-bao.test.js && node test/noi-dung.test.js && node test/binh-luan.test.js"
+    "test": "node test/chuanhoa.test.js && node test/vault.test.js && node test/canh-bao.test.js && node test/noi-dung.test.js && node test/binh-luan.test.js && node test/nhan.test.js"
   }
 }

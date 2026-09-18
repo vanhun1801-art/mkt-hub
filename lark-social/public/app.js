@@ -194,6 +194,7 @@
     ['bai', 'Bài đăng'],
     ['noi-dung', 'Nội dung'],
     ['binh-luan', 'Khách hỏi'],
+    ['nhan', 'Nhãn & đối tác'],
     ['live', 'LIVE'],
     ['nhap-tay', 'Nhập tay'],
     ['nhat-ky', 'Nhật ký'],
@@ -1286,6 +1287,74 @@
     $('#blTatCa').onchange = (e) => { blTatCa = e.target.checked; veBinhLuan(); };
   }
 
+  /* ---------------- tab: nhãn & đối tác ---------------- */
+  async function veNhan() {
+    $('#view').innerHTML = '<div class="loading">Đang gắn nhãn…</div>';
+    const q = new URLSearchParams({ from: S.from, to: S.to });
+    if (S.platforms.length) q.set('platform', S.platforms.join(','));
+    const d = await goi('/api/nhan?' + q);
+
+    const linkCsv = (ten) => '/api/nhan/csv?' + new URLSearchParams({
+      nhan: ten, from: S.from, to: S.to,
+      ...(S.platforms.length ? { platform: S.platforms.join(',') } : {}),
+    });
+
+    const coBai = d.nhan.filter((x) => x.soBai);
+    const chuaDung = d.nhan.filter((x) => !x.soBai);
+    const phuSong = d.tongBai ? (d.tongBai - d.khongNhan) / d.tongBai : 0;
+
+    $('#view').innerHTML = ''
+      + (d.theoDoiTac.length
+        ? '<div class="card"><div class="card-head"><h3>Theo đối tác</h3>'
+          + '<span class="sub">gộp mọi nhãn của cùng một đối tác</span></div>'
+          + '<div class="card-body tight">'
+          + bangGon([
+            { t: 'Đối tác', name: 1, v: (x) => esc(x.doiTac)
+              + '<span class="sub-line">' + esc(x.nhan.join(' · ')) + '</span>' },
+            { t: 'Bài', num: 1, v: (x) => n0(x.soBai) },
+            { t: 'Lượt xem', num: 1, k: 'views', v: (x) => n0(x.views) },
+            { t: 'Tương tác', num: 1, k: 'engagement', v: (x) => n0(x.engagement) },
+          ], d.theoDoiTac)
+          + '</div></div>'
+        : '')
+
+      + '<div class="card" style="margin-top:14px"><div class="card-head"><h3>Theo nhãn</h3>'
+      + '<span class="sub">' + esc(S.from) + ' → ' + esc(S.den || S.to) + '</span></div>'
+      + '<div class="card-body">'
+      + '<div class="help" style="margin-bottom:10px">Nhãn gắn theo <b>hashtag trong caption</b>. '
+      + '<b>' + n0(d.tongBai - d.khongNhan) + '/' + n0(d.tongBai) + '</b> bài trong khoảng này '
+      + 'đã mang ít nhất một nhãn (' + pct(phuSong) + ')'
+      + (d.khongNhan ? ' — <b>' + n0(d.khongNhan) + '</b> bài chưa gắn hashtag nào nên không vào '
+        + 'báo cáo đối tác nào cả.' : '.')
+      + ' Sửa danh sách hashtag của từng nhãn trong bảng <b>Nhãn bài</b> trên Base.</div>'
+      + '<div class="tight">'
+      + bangGon([
+        { t: 'Nhãn', name: 1, v: (x) => esc(x.nhan)
+          + '<span class="sub-line">' + esc(x.the.join(' ')) + '</span>' },
+        { t: 'Nhóm', v: (x) => esc(x.nhom || '') },
+        { t: 'Đối tác', v: (x) => esc(x.doiTac || '') },
+        { t: 'Bài', num: 1, v: (x) => n0(x.soBai) },
+        { t: 'Lượt xem', num: 1, k: 'views', v: (x) => n0(x.views) },
+        { t: 'Tương tác', num: 1, k: 'engagement', v: (x) => n0(x.engagement) },
+        { t: 'Tỷ lệ TT', num: 1, v: (x) => pct(x.tyLeTuongTac) },
+        { t: '', v: (x) => '<a class="btn ghost small" href="' + esc(linkCsv(x.nhan))
+          + '" download>Tải CSV</a>' },
+      ], coBai)
+      + '</div></div></div>'
+
+      + (chuaDung.length
+        ? '<div class="card" style="margin-top:14px"><div class="card-head">'
+          + '<h3>Nhãn chưa có bài nào</h3><span class="sub">'
+          + chuaDung.length + ' nhãn</span></div><div class="card-body">'
+          + '<div class="help">Khoảng này chưa bài nào dùng những hashtag sau. Hoặc đội nội dung '
+          + 'chưa gắn, hoặc hashtag khai trong Base khác với hashtag đang gõ thật.</div>'
+          + '<div class="bl-chan" style="margin-top:8px">'
+          + chuaDung.map((x) => '<span class="bl-dh">' + esc(x.nhan) + ' · '
+            + esc(x.the.join(' ')) + '</span>').join('')
+          + '</div></div></div>'
+        : '');
+  }
+
   /* ---------------- vẽ ---------------- */
   function ve() {
     if (!S.du) return;
@@ -1295,6 +1364,7 @@
       if (S.tab === 'bai') return veBai();
       if (S.tab === 'noi-dung') return veNoiDung();
       if (S.tab === 'binh-luan') return veBinhLuan();
+      if (S.tab === 'nhan') return veNhan();
       if (S.tab === 'live') return veLive();
       if (S.tab === 'nhap-tay') return veNhapTay();
       if (S.tab === 'nhat-ky') return veNhatKy();

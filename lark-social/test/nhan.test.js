@@ -1,0 +1,118 @@
+'use strict';
+/* Test thuần Node: `node test/nhan.test.js`. */
+const assert = require('assert');
+const nhan = require('../nhan');
+
+let so = 0;
+const t = (ten, fn) => {
+  try { fn(); so++; console.log('  ✓ ' + ten); }
+  catch (e) { console.error('  ✗ ' + ten + '\n    ' + e.message); process.exitCode = 1; }
+};
+
+const bai = (title, o) => ({ title, views: 0, engagement: 0, ...o });
+
+console.log('\nnhãn — đọc hashtag');
+
+t('hashtag khai trong Base chịu mọi kiểu gõ', () => {
+  /* Người khai trong Base sẽ gõ mỗi lúc một kiểu. Bắt họ gõ đúng một khuôn là
+     sớm muộn cũng có dòng lặng lẽ không khớp gì cả. */
+  assert.deepStrictEqual(nhan.tachThe('#SunsetTown'), ['#sunsettown']);
+  assert.deepStrictEqual(nhan.tachThe('SunsetTown'), ['#sunsettown'], 'thiếu dấu # vẫn hiểu');
+  assert.deepStrictEqual(nhan.tachThe('#A, #B; #C | #D'), ['#a', '#b', '#c', '#d']);
+  assert.deepStrictEqual(nhan.tachThe('  '), []);
+});
+
+t('hashtag trong caption đọc được cả chữ có dấu', () => {
+  const ds = nhan.theCuaBai('Đi #PhúQuốc với #RootyTrip #phuquoc');
+  assert.ok(ds.includes('#phúquốc'));
+  assert.ok(ds.includes('#rootytrip'));
+  assert.strictEqual(ds.length, 3);
+});
+
+t('cùng một thẻ lặp trong caption chỉ tính một lần', () => {
+  assert.deepStrictEqual(nhan.theCuaBai('#a #A #a'), ['#a']);
+});
+
+console.log('\nnhãn — gắn nhãn');
+
+t('khớp hashtag thì gắn, không khớp thì thôi', () => {
+  const ds = nhan.chuanHoaNhan([
+    { nhan: 'Sunset Town', hashtag: '#SunsetTown' },
+    { nhan: 'Hòn Thơm', hashtag: '#HonThom #captreohonthom' },
+  ]);
+  assert.deepStrictEqual(nhan.nhanCuaBai(bai('chơi ở #sunsettown'), ds), ['Sunset Town']);
+  assert.deepStrictEqual(nhan.nhanCuaBai(bai('#captreohonthom đẹp'), ds), ['Hòn Thơm']);
+  assert.deepStrictEqual(nhan.nhanCuaBai(bai('không có thẻ nào'), ds), []);
+});
+
+t('CHỈ đọc hashtag, không đoán theo chữ trong caption', () => {
+  /* Anh Hùng chốt đo bằng hashtag và sẽ siết quy định. Nếu ở đây lén khớp thêm
+     theo từ khoá thì số trong báo cáo sẽ không khớp với thứ đội nội dung gắn,
+     và không ai giải thích nổi vì sao. */
+  const ds = nhan.chuanHoaNhan([{ nhan: 'VinWonders', hashtag: '#vinwonders' }]);
+  assert.deepStrictEqual(nhan.nhanCuaBai(bai('hôm nay đi VinWonders chơi'), ds), [],
+    'nhắc tên mà không gắn thẻ thì KHÔNG được tự gắn nhãn');
+});
+
+t('một bài mang được nhiều nhãn cùng lúc', () => {
+  const ds = nhan.chuanHoaNhan([
+    { nhan: 'Sunset Town', hashtag: '#sunsettown' },
+    { nhan: 'Tour CB01', hashtag: '#cb01' },
+  ]);
+  assert.deepStrictEqual(nhan.nhanCuaBai(bai('#sunsettown #cb01'), ds).sort(),
+    ['Sunset Town', 'Tour CB01']);
+});
+
+t('nhãn tắt hoặc không khai hashtag thì bị bỏ qua', () => {
+  const ds = nhan.chuanHoaNhan([
+    { nhan: 'Tắt', hashtag: '#x', bat: false },
+    { nhan: 'Rỗng', hashtag: '' },
+    { nhan: 'Chạy', hashtag: '#y' },
+  ]);
+  assert.deepStrictEqual(ds.map((x) => x.nhan), ['Chạy']);
+});
+
+console.log('\nnhãn — gộp số');
+
+t('cộng đúng và tính tỷ lệ tương tác theo từng bài', () => {
+  /* Cùng luật với metrics.agg(): mẫu số chọn theo từng dòng rồi mới cộng. Cộng
+     trước rồi chọn thì một nhãn có bài Instagram (có tiếp cận) lẫn bài Facebook
+     (không có) sẽ ra tỷ lệ hàng nghìn phần trăm. */
+  const ds = nhan.chuanHoaNhan([{ nhan: 'N', hashtag: '#n' }]);
+  const r = nhan.gopTheoNhan([
+    bai('#n', { views: 1000, engagement: 50 }),
+    bai('#n', { views: 3000, reach: 2000, engagement: 100 }),
+    bai('khác', { views: 9999, engagement: 9999 }),
+  ], ds);
+  assert.strictEqual(r[0].soBai, 2);
+  assert.strictEqual(r[0].views, 4000);
+  assert.strictEqual(r[0].engagement, 150);
+  assert.strictEqual(r[0].tyLeTuongTac, 150 / 3000, 'mẫu số = 1000 (views) + 2000 (reach)');
+});
+
+t('bài không mang nhãn nào đếm được, để biết quy định theo tới đâu', () => {
+  const ds = nhan.chuanHoaNhan([{ nhan: 'N', hashtag: '#n' }]);
+  const p = [bai('#n'), bai('không thẻ'), bai('#khac')];
+  assert.strictEqual(nhan.baiKhongNhan(p, ds).length, 2);
+});
+
+console.log('\nnhãn — xuất CSV');
+
+t('dấu chấm phẩy và BOM, để Excel tiếng Việt mở đúng', () => {
+  /* Dấu phẩy + không BOM là mở ra thấy chữ hỏng và mọi cột dồn vào một ô — file
+     gửi đối tác mà thế thì hỏng việc. */
+  const csv = nhan.csvChoNhan({
+    nhan: 'N', doiTac: 'Sun Group', the: ['#n'], soBai: 1,
+    views: 10, reach: 0, likes: 1, comments: 0, shares: 0, engagement: 1,
+    bai: [{ date: '2026-09-01', platform: 'Facebook', title: 'xin chào', views: 10 }],
+  }, { tu: '2026-09-01', den: '2026-09-30' });
+  assert.strictEqual(csv.charCodeAt(0), 0xFEFF, 'phải có BOM');
+  assert.ok(csv.includes('Ngày đăng;Nền tảng'), 'phải phân tách bằng dấu chấm phẩy');
+  assert.ok(csv.includes('\r\n'), 'xuống dòng kiểu Windows');
+});
+
+t('ô chứa dấu chấm phẩy hoặc nháy được bọc đúng', () => {
+  assert.strictEqual(nhan.dongCsv(['a;b', 'c"d', 'e']), '"a;b";"c""d";e');
+});
+
+console.log('\n' + so + ' phép thử đạt' + (process.exitCode ? ' — CÓ LỖI' : '') + '\n');

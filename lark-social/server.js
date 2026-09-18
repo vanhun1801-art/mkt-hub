@@ -19,6 +19,7 @@ const sync = require('./sync');
 const canhBao = require('./canh-bao');
 const noiDung = require('./noi-dung');
 const binhLuan = require('./binh-luan');
+const nhan = require('./nhan');
 const facebook = require('./sync/facebook');
 const zalo = require('./sync/zalo');
 const tiktok = require('./sync/tiktok');
@@ -321,6 +322,55 @@ async function api(req, res, u) {
      * khác nhau cho cùng một khoảng ngày. */
     const bai = M.topBai(d.posts, { ...t, theo: 'views', n: 100000 });
     return ok(res, noiDung.tongHop(bai, { tz: cfg.tzOffsetHours }));
+  }
+
+  if (p === '/api/nhan' && method === 'GET') {
+    const t = thamSo(u);
+    const d = await store.tai();
+    const ds = nhan.chuanHoaNhan(await store.taiNhan());
+    const bai = M.topBai(d.posts, { ...t, theo: 'views', n: 100000 });
+    const gop = nhan.gopTheoNhan(bai, ds);
+    /* Gộp tiếp theo đối tác: báo cáo Vinpearl phải là một con số, không phải ba
+     * dòng Safari / VinWonders / Grand World rời nhau. */
+    const theoDoiTac = new Map();
+    gop.forEach((o) => {
+      if (!o.doiTac) return;
+      if (!theoDoiTac.has(o.doiTac)) {
+        theoDoiTac.set(o.doiTac, { doiTac: o.doiTac, nhan: [], soBai: 0, views: 0, engagement: 0 });
+      }
+      const x = theoDoiTac.get(o.doiTac);
+      x.nhan.push(o.nhan); x.soBai += o.soBai; x.views += o.views; x.engagement += o.engagement;
+    });
+    return ok(res, {
+      /* Bỏ mảng bài ra khỏi phản hồi — 1.300 bài nhân nhiều nhãn là payload vài
+       * megabyte mà bảng không dùng tới. Muốn xem bài thì tải CSV. */
+      nhan: gop.map(({ bai: _b, ...o }) => o),
+      theoDoiTac: [...theoDoiTac.values()].sort((a, b) => b.views - a.views),
+      khongNhan: nhan.baiKhongNhan(bai, ds).length,
+      tongBai: bai.length,
+      soNhan: ds.length,
+    });
+  }
+
+  if (p === '/api/nhan/csv' && method === 'GET') {
+    const t = thamSo(u);
+    const ten = u.searchParams.get('nhan') || '';
+    const d = await store.tai();
+    const ds = nhan.chuanHoaNhan(await store.taiNhan());
+    const bai = M.topBai(d.posts, { ...t, theo: 'views', n: 100000 });
+    const o = nhan.gopTheoNhan(bai, ds).find((x) => x.nhan === ten);
+    if (!o) return fail(res, 404, 'Không có nhãn "' + ten + '"');
+    const csv = nhan.csvChoNhan(o, { tu: t.from, den: t.to });
+    /* Tên tệp có dấu tiếng Việt: phải dùng filename* RFC 5987, không thì trình
+     * duyệt lưu thành một xâu ký tự hỏng. */
+    const tep = 'social-' + ten.replace(/[^\p{L}\p{N}]+/gu, '-').toLowerCase()
+      + '-' + t.from + '-' + t.to + '.csv';
+    res.writeHead(200, {
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': "attachment; filename=\"bao-cao.csv\"; filename*=UTF-8''"
+        + encodeURIComponent(tep),
+    });
+    return res.end(csv);
   }
 
   if (p === '/api/binh-luan' && method === 'GET') {

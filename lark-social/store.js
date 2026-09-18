@@ -335,6 +335,23 @@ async function xoaDong(tenBang, ids) {
   return ids.length;
 }
 
+/** Bảng Nhãn bài — quy định hashtag nào thuộc nhãn nào. */
+async function taiNhan() {
+  const f = T.label.f;
+  const rows = await lark.listAll(T.label.id);
+  return rows.map((r) => ({
+    id: r.id,
+    nhan: clean(r.c[f.name]),
+    nhom: sel(r.c[f.group]),
+    hashtag: clean(r.c[f.hashtag]),
+    doiTac: clean(r.c[f.partner]),
+    /* Ô checkbox chưa ai tích trả về undefined, không phải false. Coi undefined
+     * là BẬT: dòng mới thêm mà im lặng không tính thì rất khó đoán vì sao. */
+    bat: r.c[f.on] === undefined ? true : Boolean(r.c[f.on]),
+    ghiChu: clean(r.c[f.note]),
+  })).filter((x) => x.nhan);
+}
+
 /** Một dòng nhật ký đồng bộ. Lỗi ở đây không được làm hỏng lượt đồng bộ. */
 async function ghiNhatKy(ban) {
   const f = T.log.f;
@@ -358,7 +375,7 @@ async function ghiNhatKy(ban) {
 }
 
 module.exports = {
-  T, tai, xoaCache, baoDamKenh, ghiTheoKhoa, xoaDong, ghiNhatKy,
+  T, tai, taiNhan, xoaCache, baoDamKenh, ghiTheoKhoa, xoaDong, ghiNhatKy,
   toKey, ngayVeBase, gioVeBase, homNay, themNgay,
   num, txt, clean, sel, links, users, url,
 };

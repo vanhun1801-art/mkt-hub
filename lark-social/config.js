@@ -151,6 +151,18 @@ module.exports = {
         updated: 'fldNN6cfPe',
       },
     },
+    label: {
+      id: 'tbl7hTSAe9vTikii',
+      name: 'Nhãn bài',
+      f: {
+        name: 'fld7xYrezp',       // ⚙️ Nhãn — primary
+        group: 'fldCc4xueb',      // Nhóm (select)
+        hashtag: 'fldcmUAbJn',    // Hashtag, cách nhau bằng dấu cách hoặc phẩy
+        partner: 'fldh2ekOfo',    // Đối tác
+        on: 'fldwEQKFnN',         // Bật (checkbox)
+        note: 'fldjE997q5',
+      },
+    },
     alert: {
       id: 'tblIBfXZ8OeJ3RXR',
       name: 'Cảnh báo',
