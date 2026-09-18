@@ -120,8 +120,18 @@ console.log('— nhập Excel còn, nhưng là đường lùi');
    * dùng nhập một file cũ rồi không hiểu vì sao số lùi lại. */
   t('cảnh báo file sẽ thay kho đang có', /THAY kho đang có/.test(app));
   t('có nút kéo lại ngay trên tab Doanh thu', app.includes('id="rsKeo"'));
-  t('nút kéo dùng cửa sổ của lượt tự động, không phải 60 ngày',
-    /tuDongSoNgay \|\| 21/.test(app));
+  /* Phép kéo giờ nằm trong MỘT hàm dùng chung (keoTourwell), vì khối "Lead từ
+   * quảng cáo" ở Tổng quan cũng cần nó — trước đây chỗ đó chỉ biết in ra ba bước
+   * đi tìm nút ở tab khác. Điều phải giữ vẫn y nguyên: cửa sổ kéo là của lượt tự
+   * động, KHÔNG phải 60 ngày (đo được một lượt 60 ngày mất 1.077 giây). */
+  t('nút kéo gọi hàm kéo dùng chung', /ganBam\('#rsKeo', \(\) => keoTourwell\(/.test(app));
+  t('và truyền đúng cửa sổ của lượt tự động', /keoTourwell\('#rsKetQua', tt\.tuDongSoNgay/.test(app));
+  t('hàm kéo lùi về 21 ngày, không phải 60', /soNgay \|\| 21/.test(app) && !/soNgay \|\| 60/.test(app));
+
+  /* Và đây là cái mới: nút phải có mặt NGAY tại khối Lead, không phải một câu
+   * hướng dẫn đi tìm nút ở tab khác. */
+  t('khối Lead có nút kéo tại chỗ', /__keoTourwell\('#leadKeoKq'\)/.test(app));
+  t('không còn câu bảo đi sang tab khác bấm nút', !/vào tab <b>Doanh thu &amp; ROAS<\/b> → khối/.test(app));
   t('khối gấp lại có CSS riêng, không phải chữ trần', css.includes('.lui > summary'));
 }
 

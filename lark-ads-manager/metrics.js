@@ -389,6 +389,15 @@ function health(m, target, t) {
 
 const fmtVnd = (n) => Math.round(n).toLocaleString('vi-VN') + 'đ';
 
+/* Số lẻ theo quy ước TIẾNG VIỆT: phẩy là dấu thập phân.
+ *
+ * Chuỗi cảnh báo dựng bằng template literal, mà template literal đổi số sang
+ * chuỗi kiểu JavaScript — luôn ra dấu chấm. Nên cùng một dòng cảnh báo có
+ * "Đã chi 27.149.101đ" (chấm = phân nghìn) đứng cạnh "(475.47%)" (chấm = thập
+ * phân). Đo thật trên màn hình: 397.77%, 333.52%, 117.79%, 475.47%. */
+const fmtSo = (n, le = 2) => (n == null || !Number.isFinite(Number(n)) ? '—'
+  : Number(n).toLocaleString('vi-VN', { minimumFractionDigits: le, maximumFractionDigits: le }));
+
 /* ---------------- cảnh báo ---------------- */
 function alerts(data, t = readTargets()) {
   const out = [];
@@ -413,7 +422,7 @@ function alerts(data, t = readTargets()) {
     if (c.budget > 0) {
       const pct = (life.spend / c.budget) * 100;
       const soSanh = `Đã chi ${fmtVnd(life.spend)} (toàn thời gian) / ${fmtVnd(c.budget)} `
-        + `khai trong Base (${r2(pct)}%). Đây là ô KẾ HOẠCH, không phải giới hạn trên nền tảng `
+        + `khai trong Base (${fmtSo(pct)}%). Đây là ô KẾ HOẠCH, không phải giới hạn trên nền tảng `
         + '— nền tảng vẫn chạy bình thường.';
       if (pct >= 100) {
         push('high', 'budget', `Vượt ngân sách dự kiến: ${c.name}`, soSanh, { type: 'campaign', id: c.id });
@@ -514,7 +523,7 @@ function alerts(data, t = readTargets()) {
     }
     if (m.ctr < t.ctrMin && m.impressions > 1000) {
       push('low', 'perf', `CTR thấp: ${a.name}`,
-        `CTR ${m.ctr}% < ngưỡng ${t.ctrMin}% (${m.impressions.toLocaleString('vi-VN')} hiển thị)`, { type: 'ad', id: a.id });
+        `CTR ${fmtSo(m.ctr)}% < ngưỡng ${fmtSo(t.ctrMin)}% (${m.impressions.toLocaleString('vi-VN')} hiển thị)`, { type: 'ad', id: a.id });
     }
   });
 
@@ -601,6 +610,6 @@ function entryMatrix(data, dateKey) {
 module.exports = {
   agg, EMPTY, delta, filterDaily, normRange, dailySeries, groupBy,
   overview, campaignRows, adRows, alerts, dailyTable, entryMatrix,
-  readTargets, writeTargets, cpaTarget, verdict, health, fmtVnd,
+  readTargets, writeTargets, cpaTarget, verdict, health, fmtVnd, fmtSo,
   chonHieuQua, chonCanXuLy, SO_DONG_BANG,
 };

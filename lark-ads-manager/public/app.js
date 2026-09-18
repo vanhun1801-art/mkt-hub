@@ -33,6 +33,22 @@ const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&':
 const vnd = (n) => (Math.round(Number(n) || 0)).toLocaleString('vi-VN') + 'đ';
 const int = (n) => (Math.round(Number(n) || 0)).toLocaleString('vi-VN');
 const pct = (n) => (n == null ? '—' : (Math.round(Number(n) * 100) / 100).toLocaleString('vi-VN') + '%');
+
+/* Số lẻ theo quy ước TIẾNG VIỆT: phẩy là dấu thập phân, chấm là dấu phân nghìn.
+ *
+ * Năm chỗ trong app từng gọi thẳng .toFixed() — mà .toFixed() luôn cho dấu chấm.
+ * Hậu quả là cùng một màn hình có "31.377.340đ" (chấm = nghìn) đứng cạnh "2.65×"
+ * và "1.9%" (chấm = thập phân). Ba quy ước một màn hình, và "49.2×" thì đọc đúng
+ * theo quy ước app tự dạy sẽ ra "49 nghìn 2". */
+const soLe = (n, le = 2) => (n == null || !Number.isFinite(Number(n)) ? '—'
+  : Number(n).toLocaleString('vi-VN', { minimumFractionDigits: le, maximumFractionDigits: le }));
+
+/** Tỉ lệ 0–1 -> phần trăm. Nhận PHẦN, không nhận phần trăm — tên nói rõ để khỏi nhân hai lần. */
+const phanTram = (phan, le = 1) => (phan == null ? '—' : soLe(Number(phan) * 100, le) + '%');
+
+/* ROAS in ra MỘT kiểu duy nhất. Trước đây ba dòng khác nhau in ba kiểu: .toFixed(2),
+ * số trần, và .toFixed(2) lần nữa — nên cùng một chỉ số hiện ra mỗi chỗ một dáng. */
+const roasText = (v) => (v == null ? '—' : soLe(v, 2) + '×');
 const dmy = (d) => (d ? d.slice(8, 10) + '/' + d.slice(5, 7) + '/' + d.slice(0, 4) : '—');
 
 const PLAT_CLASS = { Facebook: 'fb', TikTok: 'tt', 'Google Ads': 'gg' };
@@ -502,7 +518,7 @@ async function veHanhDong() {
 function roasO(salesD) {
   if (!salesD || !salesD.tong) return '';
   const T = salesD.tong;
-  const roas = T.roas == null ? '—' : T.roas.toFixed(2) + '×';
+  const roas = roasText(T.roas);
   const cot3 = !salesD.biGioiHan;
   return `<div class="kpis" style="grid-template-columns:repeat(${cot3 ? 3 : 2},minmax(0,1fr));margin-bottom:12px">
     <div class="kpi">
@@ -518,7 +534,7 @@ function roasO(salesD) {
     </div>
     ${cot3 ? `<div class="kpi">
       <div class="k-label">Tỉ lệ đến từ quảng cáo</div>
-      <div class="k-value">${T.tyLeTuQuangCao == null ? '—' : (T.tyLeTuQuangCao * 100).toFixed(1) + '%'}</div>
+      <div class="k-value">${phanTram(T.tyLeTuQuangCao)}</div>
       <div class="k-foot">trên tổng doanh thu công ty</div>
     </div>` : ''}
   </div>`;
@@ -556,10 +572,13 @@ function leadO(hoiThoaiD) {
       <div class="card-head"><h3>Lead từ quảng cáo (hội thoại Pancake)</h3></div>
       <div class="card-body">
         <div class="help" style="border-color:var(--warn);color:var(--warn)">
-          <b>Chưa có dữ liệu.</b> Số này tính chung một lượt với ghi công doanh thu —
-          vào tab <b>Doanh thu & ROAS</b> → khối ROAS từng quảng cáo → bấm
-          <b>Kéo lại từ Tourwell ngay</b> (hoặc đợi lượt hẹn giờ tự chạy) là có số.
+          <b>Chưa có dữ liệu.</b> Số này tính chung một lượt với ghi công doanh thu.
+          Bấm nút dưới là chạy luôn, hoặc đợi lượt hẹn giờ tự chạy.
         </div>
+        <!-- Nút NGAY TẠI ĐÂY. Trước đây chỗ này in ba bước đi tìm nút ở tab khác —
+             bắt người ta làm phần việc mà app làm được. -->
+        <button class="btn primary" onclick="window.__keoTourwell('#leadKeoKq')">Kéo từ Tourwell ngay</button>
+        <div id="leadKeoKq" style="margin-top:10px"></div>
       </div>
     </div>`;
   }
@@ -948,7 +967,7 @@ VIEW['doanh-thu'] = async (view) => {
      * không có chi tiêu quảng cáo nào để mà chia. */
     { key: 'roas', label: 'ROAS', num: true, render: (r) => (r.roas == null
       ? '<span class="sub">không từ quảng cáo</span>'
-      : `<span class="tag ${r.roas >= 3 ? 'good' : r.roas >= 1 ? 'warn' : 'bad'}">${r.roas}×</span>`) },
+      : `<span class="tag ${r.roas >= 3 ? 'good' : r.roas >= 1 ? 'warn' : 'bad'}">${roasText(r.roas)}</span>`) },
   ];
   view.innerHTML = `
   <div class="kpis" style="grid-template-columns:repeat(${d.biGioiHan ? 3 : 4},minmax(0,1fr))">
@@ -959,11 +978,11 @@ VIEW['doanh-thu'] = async (view) => {
       <div class="k-value">${vnd(T.chiQuangCao || 0)}</div>
       <div class="k-foot">cả kỳ, đủ mọi kênh</div></div>
     <div class="kpi"><div class="k-label">ROAS</div>
-      <div class="k-value">${T.roas == null ? '—' : T.roas + '×'}</div>
+      <div class="k-value">${roasText(T.roas)}</div>
       <div class="k-foot">chỉ tính phần từ quảng cáo</div></div>
     ${d.biGioiHan ? '' : `<div class="kpi"><div class="k-label">Doanh thu toàn công ty</div>
       <div class="k-value">${vnd(T.dtCongTy || 0)}</div>
-      <div class="k-foot">${T.tyLeTuQuangCao == null ? '' : (T.tyLeTuQuangCao * 100).toFixed(1) + '% đến từ quảng cáo'}</div></div>`}
+      <div class="k-foot">${T.tyLeTuQuangCao == null ? '' : phanTram(T.tyLeTuQuangCao) + ' đến từ quảng cáo'}</div></div>`}
   </div>
   ${!d.rows.length ? `<div class="help" style="margin-top:12px;border-color:var(--warn);color:var(--warn)">
     <b>Bốn ô số trên đọc bảng <i>Báo cáo Sales (theo ngày)</i> của Base, và bảng đó đang rỗng —
@@ -1187,6 +1206,72 @@ function nguonSo(tt) {
 }
 
 /**
+ * Kéo lead + đơn từ Tourwell, báo tiến độ vào một ô bất kỳ.
+ *
+ * Một hàm cho MỌI chỗ có nút kéo. Trước đây phần này nằm gọn trong khối ROAS ở
+ * tab Doanh thu, nên khối "Lead từ quảng cáo" ở Tổng quan chỉ còn cách in ra ba
+ * bước điều hướng: "vào tab Doanh thu & ROAS → khối ROAS từng quảng cáo → bấm
+ * Kéo lại từ Tourwell ngay". Bắt người ta đi tìm một cái nút là bắt họ làm phần
+ * việc mà app làm được.
+ *
+ * Viết hai bản thì hai bản sẽ trôi xa nhau, và cái trôi ở đây là "nút này kéo 21
+ * ngày, nút kia kéo 60 ngày" — rồi không ai hiểu vì sao hai lần bấm ra hai số.
+ *
+ * @param {string} oId   id ô để in tiến độ
+ * @param {number} soNgay  cửa sổ kéo; mặc định bằng lượt tự động
+ * @param {function} khiXong  gọi khi kéo xong không lỗi (vẽ lại màn chẳng hạn)
+ */
+async function keoTourwell(oId, soNgay, khiXong) {
+  const o = () => $(oId);
+  const dat = (h) => { const e = o(); if (e) e.innerHTML = `<div class="help">${h}</div>`; };
+
+  const veKeo = (r) => {
+    const dong = (r.log || []).map(esc).join('<br>');
+    if (r.dangChay) {
+      return `<b>Đang kéo từ Tourwell…</b> ${r.giay || 0} giây`
+        + '<br><span class="sub">Chạy ở nền — đóng tab cũng không sao.</span>'
+        + (dong ? `<div style="margin-top:6px;font-size:12px">${dong}</div>` : '');
+    }
+    if (r.loi) return `<b style="color:var(--bad)">Lỗi:</b> ${esc(r.loi)}`
+      + (dong ? `<div style="margin-top:6px;font-size:12px">${dong}</div>` : '');
+    const k = r.kq || {};
+    return `<b>Đã kéo xong</b> ${esc((r.khoang || []).join(' → '))} — ${r.giay || 0} giây.`
+      + `<br>Lead <b>${int((k.lead && k.lead.dong) || 0)}</b> dòng · `
+      + `đơn <b>${int((k.don && k.don.dong) || 0)}</b> dòng`
+      + (k.don && k.don.tongTien != null ? ` · ${vnd(k.don.tongTien)}` : '');
+  };
+
+  const hoi = async () => {
+    /* Ô biến mất (người dùng đã sang tab khác) thì NGỪNG hỏi. Cứ hỏi mãi là một
+     * vòng lặp chạy ngầm suốt phiên, mỗi lần đổi tab lại thêm một vòng nữa. */
+    if (!o()) return;
+    try {
+      const r = await api('/api/roas/keo-api/trang-thai');
+      dat(veKeo(r));
+      if (r.dangChay) { setTimeout(hoi, 3000); return; }
+      if (!r.loi && khiXong) await khiXong();
+    } catch (_) { setTimeout(hoi, 5000); }
+  };
+
+  const den = S.meta.today;
+  const t0 = new Date(den + 'T00:00:00Z');
+  t0.setUTCDate(t0.getUTCDate() - (soNgay || 21));
+  const tu = t0.toISOString().slice(0, 10);
+  dat('Đang đặt việc…');
+  try {
+    const r = await api('/api/roas/keo-api', { method: 'POST', body: JSON.stringify({ from: tu, to: den }) });
+    dat((r.daChay ? 'Đã có một lượt đang chạy — hiện tiến độ của lượt đó.<br>' : '') + veKeo(r));
+    if (r.dangChay) setTimeout(hoi, 2000);
+  } catch (e) {
+    const el = o();
+    if (el) el.innerHTML = `<div class="help" style="border-color:var(--bad);color:var(--bad)">${esc(e.message)}</div>`;
+  }
+}
+
+/* Cho phép gọi từ thuộc tính onclick trong HTML. */
+window.__keoTourwell = (oId, soNgay) => keoTourwell(oId, soNgay, async () => { await render(); });
+
+/**
  * Gán xử lý bấm cho một nút CÓ THỂ không tồn tại.
  *
  * Trong khối ROAS gần như mọi nút đều có điều kiện — "Kéo lại từ Tourwell" chỉ
@@ -1312,49 +1397,10 @@ async function roasVe() {
    * Kéo đúng bằng cửa sổ của lượt tự động, KHÔNG phải 60 ngày như nút ở tab Kết
    * nối: đo được một lượt 60 ngày mất 1.077 giây. Ở đây anh Hùng đang đứng đợi
    * để xem số, nên lấy đúng khoảng mà lượt tự động vẫn lấy. */
-  if ($('#rsKeo')) {
-    let hoiKeo = null;
-    const veKeo = (r) => {
-      const dong = (r.log || []).map(esc).join('<br>');
-      if (r.dangChay) {
-        return `<b>Đang kéo từ Tourwell…</b> ${r.giay || 0} giây`
-          + '<br><span class="sub">Chạy ở nền — đóng tab cũng không sao.</span>'
-          + (dong ? `<div style="margin-top:6px;font-size:12px">${dong}</div>` : '');
-      }
-      if (r.loi) return `<b style="color:var(--bad)">Lỗi:</b> ${esc(r.loi)}`
-        + (dong ? `<div style="margin-top:6px;font-size:12px">${dong}</div>` : '');
-      const k = r.kq || {};
-      return `<b>Đã kéo xong</b> ${esc((r.khoang || []).join(' → '))} — ${r.giay || 0} giây.`
-        + `<br>Lead <b>${int((k.lead && k.lead.dong) || 0)}</b> dòng · `
-        + `đơn <b>${int((k.don && k.don.dong) || 0)}</b> dòng`
-        + (k.don && k.don.tongTien != null ? ` · ${vnd(k.don.tongTien)}` : '')
-        + '<br>Bấm <b>Tính ROAS</b> để xem số mới.';
-    };
-    const hoi = async () => {
-      try {
-        const r = await api('/api/roas/keo-api/trang-thai');
-        $('#rsKetQua').innerHTML = `<div class="help">${veKeo(r)}</div>`;
-        if (r.dangChay) { hoiKeo = setTimeout(hoi, 3000); return; }
-        hoiKeo = null;
-        /* Xong thì vẽ lại cả thẻ: câu "số tự về từ API… lần kéo gần nhất" phải
-         * đổi theo, nếu không nó nói giờ cũ. */
-        if (!r.loi) await roasVe();
-      } catch (_) { hoiKeo = setTimeout(hoi, 5000); }
-    };
-    $('#rsKeo').onclick = async () => {
-      if (hoiKeo) { clearTimeout(hoiKeo); hoiKeo = null; }
-      const den = S.meta.today;
-      const t0 = new Date(den + 'T00:00:00Z');
-      t0.setUTCDate(t0.getUTCDate() - (tt.tuDongSoNgay || 21));
-      const tu = t0.toISOString().slice(0, 10);
-      $('#rsKetQua').innerHTML = '<div class="help">Đang đặt việc…</div>';
-      try {
-        const r = await api('/api/roas/keo-api', { method: 'POST', body: JSON.stringify({ from: tu, to: den }) });
-        $('#rsKetQua').innerHTML = `<div class="help">${r.daChay ? 'Đã có một lượt đang chạy — hiện tiến độ của lượt đó.<br>' : ''}${veKeo(r)}</div>`;
-        if (r.dangChay) hoiKeo = setTimeout(hoi, 2000);
-      } catch (e) { $('#rsKetQua').innerHTML = `<div class="help" style="color:var(--bad)">${esc(e.message)}</div>`; }
-    };
-  }
+  /* Kéo đúng bằng cửa sổ của lượt tự động, KHÔNG phải 60 ngày như nút ở tab Kết
+   * nối: đo được một lượt 60 ngày mất 1.077 giây. Ở đây anh Hùng đang đứng đợi
+   * để xem số, nên lấy đúng khoảng mà lượt tự động vẫn lấy. */
+  ganBam('#rsKeo', () => keoTourwell('#rsKetQua', tt.tuDongSoNgay, roasVe));
 
   ganBam('#rsTinh', async (e) => {
     const b = e.currentTarget; const cu = b.textContent;
@@ -1420,7 +1466,7 @@ function roasBang() {
   const r = RS.kq;
   const el = $('#rsKetQua');
   if (!el || !r) return;
-  const ty = (v) => (v == null ? '—' : v.toFixed(2) + '×');
+  const ty = roasText;
   const mauRoas = (v) => (v == null ? '' : v >= 3 ? 'good' : v >= 1 ? 'warn' : 'bad');
 
   const ng = r.nguon || {};
@@ -1443,7 +1489,7 @@ function roasBang() {
     <div style="overflow-x:auto">${table('rsKenh', [
       { key: 'nenTang', label: 'Kênh', render: (x) => platTag(x.nenTang) },
       { key: 'spendKy', label: 'Chi tiêu cả kỳ', num: true, render: (x) => vnd(x.spendKy) },
-      { key: 'phu', label: 'Phủ', num: true, render: (x) => (x.phu == null ? '—' : (x.phu * 100).toFixed(0) + '%') },
+      { key: 'phu', label: 'Phủ', num: true, render: (x) => phanTram(x.phu, 0) },
       { key: 'tien', label: 'Doanh thu', num: true, render: (x) => `<b>${vnd(x.tien)}</b>` },
       { key: 'thu', label: 'Đã thu', num: true, render: (x) => vnd(x.thu) },
       { key: 'don', label: 'Đơn', num: true, render: (x) => int(x.don) },

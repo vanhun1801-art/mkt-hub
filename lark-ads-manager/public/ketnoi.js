@@ -179,7 +179,29 @@
     // Băng cảnh báo sức khoẻ — tác vụ nền chạy mỗi 3 giờ và khi hỏng thì hỏng lặng lẽ,
     // nên kết quả chấm điểm gần nhất phải đập vào mắt ngay khi mở tab.
     const sk = c.sucKhoe;
-    const bangSucKhoe = !sk ? '' : (sk.khoe
+    /* Tác vụ chấm điểm chạy mỗi 3 giờ. Quá 8 tiếng mà chưa có lượt nào thì bản
+     * thân việc KIỂM đã ngừng, và một kết quả cũ không nói được gì về hiện tại.
+     *
+     * 8 chứ không phải 3: Render ngủ khi không ai vào, deploy cũng làm lỡ một
+     * nhịp. Báo động ở 3 tiếng là kêu oan gần như mỗi ngày, mà băng kêu oan thì
+     * vài hôm là không ai đọc nữa. */
+    const GIO_COI_LA_CU = 8;
+    const gioCu = sk && sk.luc ? (Date.now() - Date.parse(sk.luc)) / 3600000 : null;
+    const quaCu = gioCu != null && gioCu > GIO_COI_LA_CU;
+    const noiLau = (g) => (g >= 48 ? Math.round(g / 24) + ' ngày' : Math.round(g) + ' tiếng');
+
+    const bangSucKhoe = !sk ? '' : (quaCu
+      /* Không tô xanh, cũng không tô đỏ chuyện đồng bộ: mình KHÔNG BIẾT đồng bộ
+       * thế nào. Cái biết chắc là việc kiểm đã ngừng. */
+      ? `<div class="help" style="border-color:var(--warn);color:var(--warn)">
+           <b>Chưa biết đồng bộ có khoẻ không</b> — lần chấm gần nhất cách đây
+           ${esc(noiLau(gioCu))} (${esc(new Date(sk.luc).toLocaleString('vi-VN'))}),
+           mà tác vụ này lẽ ra chạy mỗi 3 giờ. Tức là chính việc kiểm đã ngừng.
+           <div style="margin-top:6px">Kết quả CŨ lúc đó: ${sk.khoe ? 'khoẻ' : 'có vấn đề'} ·
+           số mới nhất ${esc(Object.entries(sk.moiNhat || {}).map(([k, v]) => k + ' ' + v).join(' · '))}
+           — đừng dựa vào mấy số này để kết luận hôm nay.</div>
+         </div>`
+      : sk.khoe
       ? `<div class="help" style="border-color:var(--good);color:var(--good)">
            <b>Đồng bộ đang khoẻ</b> — kiểm lúc ${esc(new Date(sk.luc).toLocaleString('vi-VN'))}.
            Số mới nhất: ${esc(Object.entries(sk.moiNhat || {}).map(([k, v]) => k + ' ' + v).join(' · '))}</div>`
@@ -976,7 +998,7 @@
             <div class="help">${dmy(r.from)} → ${dmy(r.to)}</div>
             <div class="help" style="${tyLead > 0.8 ? 'border-color:var(--good);color:var(--good)' : 'border-color:var(--warn);color:var(--warn)'}">
               <b>${int(t.don)}</b> đơn POS · <b>${int(t.coAdId)}</b> có <code>ad_id</code> ·
-              <b>${int(t.coMaLead)}</b> có mã lead Tourwell (${(tyLead * 100).toFixed(0)}%) ·
+              <b>${int(t.coMaLead)}</b> có mã lead Tourwell (${phanTram(tyLead, 0)}) ·
               <b>${int(r.theoAd.soLeadDuyNhat)}</b> lead khác nhau.
               ${t.coTien
                 ? `<br><b>${int(t.coTien)} đơn POS có tiền</b> — tổng ${vnd(t.tienPOS)}. Trước đây POS luôn 0đ, nên chỗ này đã đổi.`
@@ -1072,8 +1094,8 @@
         ${capLanLon
           ? '<br><b>Chưa nên tin bảng dưới.</b> Cấp lẫn lộn thì chi tiêu bị gán sang bản ghi khác — sai, chứ không phải thiếu.'
           : tyKhongKhop > 0.15
-            ? `<br><b>Dùng bảng dưới có dè dặt.</b> Các ID không khớp mang ${(tyKhongKhop * 100).toFixed(1)}% hội thoại — phần đó không có giá.`
-            : `<br><b>Bảng dưới dùng được.</b> Cấp rõ ràng, và các ID không khớp chỉ mang ${(tyKhongKhop * 100).toFixed(1)}% hội thoại.`}
+            ? `<br><b>Dùng bảng dưới có dè dặt.</b> Các ID không khớp mang ${phanTram(tyKhongKhop)} hội thoại — phần đó không có giá.`
+            : `<br><b>Bảng dưới dùng được.</b> Cấp rõ ràng, và các ID không khớp chỉ mang ${phanTram(tyKhongKhop)} hội thoại.`}
       </div>
 
       ${(() => {
@@ -1085,7 +1107,7 @@
         const ty = dl.tyLeHoiThoai || 0;
         return `<div class="help" style="${ty > 0.15
           ? 'border-color:var(--warn);color:var(--warn)' : 'border-color:var(--rule)'}">
-          <b>Các ID không khớp mang ${int(dl.hoiThoai)} hội thoại</b> — ${(ty * 100).toFixed(1)}% tổng số,
+          <b>Các ID không khớp mang ${int(dl.hoiThoai)} hội thoại</b> — ${phanTram(ty)} tổng số,
           trong đó ${int(dl.coSdt)} có số điện thoại${dl.soDon ? ` và ${int(dl.soDon)} đơn POS` : ''}.
           ${ty > 0.15
             ? '<br>Đủ lớn để đáng truy: chi tiêu của những quảng cáo này không nằm trong Base, nên phần chuyển đổi đó hiện không có giá.'
@@ -1098,7 +1120,7 @@
       <div class="help" style="${tyChiMu > 0.3 ? 'border-color:var(--warn);color:var(--warn)' : ''}">
         Chi tiêu trong khoảng: <b>${vnd(g.chiTongKhoang)}</b>.
         Không ghép được với hội thoại nào: <b>${vnd(g.chiKhongGhep)}</b>
-        (${(tyChiMu * 100).toFixed(0)}%) — phần tiền này đang chạy mà không đo được.
+        (${phanTram(tyChiMu, 0)}) — phần tiền này đang chạy mà không đo được.
       </div>
 
       ${(() => {
@@ -1580,7 +1602,7 @@
       rd.onload = () => {
         KS.csvText = String(rd.result || '');
         KS.csvName = f.name;
-        $('#cInfo').textContent = `${f.name} · ${(f.size / 1024).toFixed(1)} KB · ${KS.csvText.split('\n').length} dòng`;
+        $('#cInfo').textContent = `${f.name} · ${soLe(f.size / 1024, 1)} KB · ${int(KS.csvText.split('\n').length)} dòng`;
         $('#cPreview').disabled = false;
         $('#cImport').disabled = false;
       };
