@@ -72,6 +72,43 @@ t('nhãn tắt hoặc không khai hashtag thì bị bỏ qua', () => {
   assert.deepStrictEqual(ds.map((x) => x.nhan), ['Chạy']);
 });
 
+console.log('\nnhãn — gắn bù cho bài cũ');
+
+t('nhãn gắn bù được tính, nhưng chỉ khi tên có thật trong bảng Nhãn', () => {
+  /* Gõ sai một chữ trong Base thì thà không tính còn hơn đẻ ra một nhãn ma chỉ
+     tồn tại ở đúng một bài — nó sẽ không bao giờ lên bảng, mà bài thì coi như đã
+     có nhãn nên không ai đi gắn lại. */
+  const ds = nhan.chuanHoaNhan([{ nhan: 'Sunset Town', hashtag: '#sunsettown' }]);
+  assert.deepStrictEqual(nhan.nhanCuaBai(bai('không thẻ', { nhanBu: 'Sunset Town' }), ds),
+    ['Sunset Town']);
+  assert.deepStrictEqual(nhan.nhanCuaBai(bai('không thẻ', { nhanBu: 'Sunset Twon' }), ds), []);
+});
+
+t('gắn bù nhiều nhãn, không trùng với nhãn đã có từ hashtag', () => {
+  const ds = nhan.chuanHoaNhan([
+    { nhan: 'A', hashtag: '#a' }, { nhan: 'B', hashtag: '#b' }, { nhan: 'C', hashtag: '#c' },
+  ]);
+  const r = nhan.nhanCuaBai(bai('#a', { nhanBu: 'A, B' }), ds).sort();
+  assert.deepStrictEqual(r, ['A', 'B'], 'A chỉ được tính một lần');
+});
+
+t('phân biệt bài nhận nhãn nhờ hashtag với bài gắn bù', () => {
+  const ds = nhan.chuanHoaNhan([{ nhan: 'A', hashtag: '#a' }]);
+  assert.strictEqual(nhan.nguonNhan(bai('#a'), ds), 'hashtag');
+  assert.strictEqual(nhan.nguonNhan(bai('không thẻ', { nhanBu: 'A' }), ds), 'gắn bù');
+  assert.strictEqual(nhan.nguonNhan(bai('chẳng có gì'), ds), '');
+});
+
+t('đếm riêng số bài gắn bù trong mỗi nhãn', () => {
+  const ds = nhan.chuanHoaNhan([{ nhan: 'A', hashtag: '#a' }]);
+  const r = nhan.gopTheoNhan([
+    bai('#a', { views: 10 }), bai('#a', { views: 10 }),
+    bai('không thẻ', { views: 10, nhanBu: 'A' }),
+  ], ds);
+  assert.strictEqual(r[0].soBai, 3);
+  assert.strictEqual(r[0].soGanBu, 1);
+});
+
 console.log('\nnhãn — gộp số');
 
 t('cộng đúng và tính tỷ lệ tương tác theo từng bài', () => {

@@ -164,6 +164,7 @@ function docBai(r) {
     engagement: num(r.c[f.engagement]),
     avgWatch: num(r.c[f.avgWatch]),
     fullWatchRate: num(r.c[f.fullWatchRate]),
+    nhanBu: clean(r.c[f.labels]),
     source: sel(r.c[f.source]),
   };
 }
@@ -345,6 +346,7 @@ async function taiNhan() {
     nhom: sel(r.c[f.group]),
     hashtag: clean(r.c[f.hashtag]),
     doiTac: clean(r.c[f.partner]),
+    tuKhoa: clean(r.c[f.keywords]),
     /* Ô checkbox chưa ai tích trả về undefined, không phải false. Coi undefined
      * là BẬT: dòng mới thêm mà im lặng không tính thì rất khó đoán vì sao. */
     bat: r.c[f.on] === undefined ? true : Boolean(r.c[f.on]),

@@ -1326,14 +1326,18 @@
       + 'đã mang ít nhất một nhãn (' + pct(phuSong) + ')'
       + (d.khongNhan ? ' — <b>' + n0(d.khongNhan) + '</b> bài chưa gắn hashtag nào nên không vào '
         + 'báo cáo đối tác nào cả.' : '.')
-      + ' Sửa danh sách hashtag của từng nhãn trong bảng <b>Nhãn bài</b> trên Base.</div>'
+      + ' Sửa danh sách hashtag của từng nhãn trong bảng <b>Nhãn bài</b> trên Base.'
+      + ' Bài cũ đăng trước khi có quy định được <b>gắn bù</b> một lần bằng từ khoá —'
+      + ' cột Bài ghi rõ bao nhiêu bài thuộc diện đó, và sửa được ở cột'
+      + ' <b>Nhãn gắn bù</b> trong bảng Bài đăng.</div>'
       + '<div class="tight">'
       + bangGon([
         { t: 'Nhãn', name: 1, v: (x) => esc(x.nhan)
           + '<span class="sub-line">' + esc(x.the.join(' ')) + '</span>' },
         { t: 'Nhóm', v: (x) => esc(x.nhom || '') },
         { t: 'Đối tác', v: (x) => esc(x.doiTac || '') },
-        { t: 'Bài', num: 1, v: (x) => n0(x.soBai) },
+        { t: 'Bài', num: 1, v: (x) => n0(x.soBai)
+          + (x.soGanBu ? '<span class="sub-line">trong đó ' + n0(x.soGanBu) + ' gắn bù</span>' : '') },
         { t: 'Lượt xem', num: 1, k: 'views', v: (x) => n0(x.views) },
         { t: 'Tương tác', num: 1, k: 'engagement', v: (x) => n0(x.engagement) },
         { t: 'Tỷ lệ TT', num: 1, v: (x) => pct(x.tyLeTuongTac) },

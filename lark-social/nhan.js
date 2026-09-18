@@ -63,9 +63,29 @@ function chuanHoaNhan(rows) {
  * chuyện bình thường, không phải lỗi.
  */
 function nhanCuaBai(bai, dsNhan) {
+  const ra = new Set();
   const the = new Set(theCuaBai(bai.title));
-  if (!the.size) return [];
-  return dsNhan.filter((n) => n.the.some((t) => the.has(t))).map((n) => n.nhan);
+  if (the.size) {
+    dsNhan.forEach((n) => { if (n.the.some((t) => the.has(t))) ra.add(n.nhan); });
+  }
+  /* Nhãn gắn bù cho bài cũ, hoặc người phụ trách gắn tay trong Base. Chỉ nhận
+   * những tên có thật trong bảng Nhãn — gõ sai một chữ thì thà không tính còn
+   * hơn đẻ ra một nhãn ma chỉ tồn tại ở đúng một bài. */
+  if (bai.nhanBu) {
+    const hopLe = new Set(dsNhan.map((n) => n.nhan));
+    String(bai.nhanBu).split(/\s*[,;|]\s*/).forEach((x) => {
+      const t = x.trim();
+      if (t && hopLe.has(t)) ra.add(t);
+    });
+  }
+  return [...ra];
+}
+
+/** Bài này nhận nhãn nhờ hashtag hay nhờ gắn bù — để màn hình nói rõ. */
+function nguonNhan(bai, dsNhan) {
+  const the = new Set(theCuaBai(bai.title));
+  const coThe = dsNhan.some((n) => n.the.some((t) => the.has(t)));
+  return coThe ? 'hashtag' : (bai.nhanBu ? 'gắn bù' : '');
 }
 
 const CONG = ['views', 'reach', 'impressions', 'likes', 'comments', 'shares', 'saves', 'engagement'];
@@ -81,7 +101,7 @@ function gopTheoNhan(posts, dsNhan) {
   const m = new Map();
   dsNhan.forEach((n) => m.set(n.nhan, {
     nhan: n.nhan, nhom: n.nhom, doiTac: n.doiTac, the: n.the,
-    soBai: 0, soCoXem: 0, bai: [],
+    soBai: 0, soCoXem: 0, soGanBu: 0, bai: [],
     ...CONG.reduce((o, k) => (o[k] = 0, o), {}),
   }));
 
@@ -90,6 +110,7 @@ function gopTheoNhan(posts, dsNhan) {
       const o = m.get(ten);
       if (!o) return;
       o.soBai++;
+      if (nguonNhan(p, dsNhan) === 'gắn bù') o.soGanBu++;
       if (num(p.views) > 0) o.soCoXem++;
       CONG.forEach((k) => { o[k] += num(p[k]); });
       o.bai.push(p);
@@ -151,6 +172,6 @@ function csvChoNhan(o, khoang) {
 }
 
 module.exports = {
-  tachThe, theCuaBai, chuanHoaNhan, nhanCuaBai, gopTheoNhan, baiKhongNhan,
+  tachThe, theCuaBai, chuanHoaNhan, nhanCuaBai, nguonNhan, gopTheoNhan, baiKhongNhan,
   dongCsv, csvChoNhan, BOM, CONG,
 };

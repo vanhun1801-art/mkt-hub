@@ -123,7 +123,12 @@ module.exports = {
         engagement: 'fldObq3u9I',
         avgWatch: 'fldxmGtwAX',   // Thời gian xem TB (giây)
         fullWatchRate: 'fld9JMP8OL', // Tỷ lệ xem hết (0..1)
-        engRate: 'fld1XhQdGE',    // Tỷ lệ tương tác (0..1)
+        engRate: 'fld1XhQdGE',
+        /* Nhãn gắn TAY hoặc gắn BÙ cho bài cũ chưa có hashtag. Đồng bộ không bao
+         * giờ ghi cột này (nó không nằm trong dòng mà sync dựng), và "Nạp lại từ
+         * đầu" chỉ xoá bảng Ngày chứ không xoá bảng Bài — nên gắn một lần là giữ
+         * được mãi. */
+        labels: 'fld5AZLSH9',    // Tỷ lệ tương tác (0..1)
         source: 'fldbcgFFf0',
         updated: 'fldG6bq0Fk',
       },
@@ -161,6 +166,9 @@ module.exports = {
         partner: 'fldh2ekOfo',    // Đối tác
         on: 'fldwEQKFnN',         // Bật (checkbox)
         note: 'fldjE997q5',
+        /* CHỈ dùng cho lần gắn bù bài cũ. Bài từ nay trở đi nhận nhãn bằng
+         * hashtag, đúng như quy định anh Hùng ra cho đội nội dung. */
+        keywords: 'fldXW92ZaV',
       },
     },
     alert: {
