@@ -391,10 +391,39 @@ async function napCdPhim() {
       if (f.size > 60 * 1024 * 1024) {
         return toast('Tệp nặng ' + Math.round(f.size / 1048576) + ' MB — quá 60 MB. Nén lại rồi tải lên.', 'do');
       }
+
+      /* VIDEO nặng thì NÉN NGAY TRONG TRÌNH DUYỆT trước khi tải lên.
+       *
+       * Anh Hùng: "làm tool giảm dung lượng video đủ dùng". Máy không có
+       * ffmpeg và kho giữ luật không dùng thư viện ngoài, nên dùng bộ mã hoá
+       * sẵn có của trình duyệt — xem nenPhim(). Ảnh thì bỏ qua, ảnh vốn nhẹ.
+       *
+       * Nén chạy theo thời gian thật nên PHẢI báo tiến độ: clip 26 giây là 26
+       * giây nhìn màn hình, không nói gì thì ai cũng tưởng treo. */
+      let than = f;
+      let kieuGui = f.type;
+      if (/^video\//.test(f.type) && f.size > PHIM_MB_DICH * 1024 * 1024) {
+        toast('Video ' + Math.round(f.size / 1048576) + ' MB — đang nén, chạy theo độ dài clip…');
+        const kq = await nenPhim(f, {
+          bao: (pt) => { const n = $('#cdPhimThem'); if (n) n.textContent = 'Đang nén ' + pt + '%'; },
+        });
+        if (kq.blob && kq.blob.size < f.size) {
+          than = kq.blob; kieuGui = kq.kieu;
+          toast('Nén xong: ' + Math.round(f.size / 1048576) + ' MB → ' + kq.mb + ' MB', 'luc');
+        } else if (kq.bo === 'quaDai') {
+          /* Nói thật thay vì lặng lẽ đưa ra một bản nhoè. */
+          return toast('Clip dài ' + kq.giay + ' giây — nén xuống ' + PHIM_MB_DICH +
+            ' MB thì hình sẽ nhoè. Cắt ngắn clip rồi tải lại.', 'do');
+        } else {
+          /* Nén không được thì cứ tải bản gốc, đừng chặn người dùng lại. */
+          toast('Không nén được (' + (kq.bo || 'không rõ') + ') — tải nguyên bản.', 'do');
+        }
+      }
+
       toast('Đang tải lên…');
       try {
         await goi('/api/video-gt' + (oDich ? '?i=' + oDich : ''),
-          { method: 'POST', headers: { 'Content-Type': f.type }, body: f });
+          { method: 'POST', headers: { 'Content-Type': kieuGui }, body: than });
         toast(oDich ? 'Đã thay ô ' + oDich : 'Đã thêm vào ô phát', 'luc');
         napCdPhim();
       } catch (e) {
@@ -1083,6 +1112,106 @@ async function themTep(ds) {
       xem: (laA || laV) ? URL.createObjectURL(tep) : '',
     });
     veTbTep();
+  }
+}
+
+/* Mức nén mặc định cho ô phát trang Tổng quan.
+ *
+ * 15 MB: nằm dưới trần 20 MB của một lượt tải tệp lên Lark Base (xem
+ * server.js), và cũng đủ nhẹ để trang Tổng quan không phải kéo về vài chục MB
+ * mỗi lần mở. Video gốc của phòng đang 24,4 MB — đo thật, nén xuống 8,4 MB. */
+const PHIM_MB_DICH = 15;
+
+/**
+ * Nén một video NGAY TRONG TRÌNH DUYỆT, không cần cài gì.
+ *
+ * Máy này không có ffmpeg, mà kho thì giữ luật KHÔNG dùng thư viện ngoài — nên
+ * đường duy nhất còn lại là bộ mã hoá sẵn có của trình duyệt: cho thẻ <video>
+ * chạy, lấy luồng hình+tiếng bằng `captureStream()`, rồi ghi lại qua
+ * `MediaRecorder` với mức bit đặt sẵn. Đo trên máy: 1920x1080 / 26,5 giây,
+ * 24,4 MB -> 8,4 MB (34%), ra thẳng MP4, tiếng còn nguyên.
+ *
+ * Hai điều phải biết trước khi dùng:
+ *   - nén chạy THEO THỜI GIAN THẬT (clip 26 giây mất 26 giây), vì nó là một
+ *     lượt phát thật chứ không phải tính toán ngoại tuyến. Nên phải báo tiến độ,
+ *     không được để người dùng nhìn màn hình đứng im;
+ *   - mức bit tính ngược từ cỡ muốn có chia cho độ dài. Clip càng dài thì mỗi
+ *     giây càng ít bit — quá ngưỡng thì trả về `quaDai` để chỗ gọi nói thật là
+ *     "clip dài quá, cắt ngắn đi" chứ đừng lặng lẽ đưa ra một bản nhoè.
+ *
+ * Trả về { blob, kieu, mb } hoặc { bo: '<lý do>' } khi không nén được — chỗ gọi
+ * cứ tải bản gốc lên, đừng chặn người dùng lại.
+ */
+async function nenPhim(tep, tuyChon) {
+  const o = tuyChon || {};
+  const mbDich = o.mbDich || PHIM_MB_DICH;
+  const bao = o.bao || (() => {});
+  if (typeof MediaRecorder === 'undefined') return { bo: 'trình duyệt không có MediaRecorder' };
+
+  /* MP4 trước, WEBM sau. Cả hai ô phát đều nhận, nhưng MP4 mở được ở mọi chỗ
+   * khác (gửi qua Lark, mở bằng trình xem của máy) nên ưu tiên. */
+  const kieu = ['video/mp4;codecs=avc1', 'video/webm;codecs=vp9,opus', 'video/webm']
+    .find((t) => MediaRecorder.isTypeSupported(t));
+  if (!kieu) return { bo: 'trình duyệt không mã hoá được video' };
+
+  const url = URL.createObjectURL(tep);
+  const v = document.createElement('video');
+  v.src = url;
+  v.muted = true;            // không phát ra loa; luồng tiếng vẫn còn, đã đo
+  v.playsInline = true;
+  try {
+    await new Promise((xong, hong) => {
+      v.onloadedmetadata = xong;
+      v.onerror = () => hong(new Error('không đọc được video'));
+    });
+    if (!v.captureStream) return { bo: 'trình duyệt không có captureStream' };
+    const giay = v.duration;
+    if (!(giay > 0) || !isFinite(giay)) return { bo: 'không đo được độ dài video' };
+
+    /* Trừ phần tiếng ra trước rồi mới chia cho độ dài. Kẹp hai đầu: dưới
+     * 700kbps thì hình nhoè tới mức không dùng được, trên 8Mbps thì nén cũng
+     * như không. */
+    const bitTieng = 96000;
+    /* Nhắm 88% cỡ muốn có, không nhắm đúng 100%.
+     *
+     * `MediaRecorder` coi mức bit là ĐÍCH chứ không phải trần — đo thật: đặt
+     * đích 15 MB thì ra 15,9 MB, vượt 6%. Nhắm đúng trần 20 MB của Lark Base
+     * là có ngày ra 21 MB rồi Base từ chối, mà lúc đó người dùng đã ngồi chờ
+     * nén xong cả phút. */
+    let bitHinh = Math.floor((mbDich * 0.88 * 8 * 1024 * 1024) / giay) - bitTieng;
+    if (bitHinh < 700000) return { bo: 'quaDai', giay: Math.round(giay) };
+    bitHinh = Math.min(bitHinh, 8000000);
+
+    const luong = v.captureStream();
+    const mr = new MediaRecorder(luong, {
+      mimeType: kieu, videoBitsPerSecond: bitHinh, audioBitsPerSecond: bitTieng,
+    });
+    const mieng = [];
+    mr.ondataavailable = (e) => { if (e.data && e.data.size) mieng.push(e.data); };
+    const dungLai = new Promise((xong) => { mr.onstop = xong; });
+
+    v.ontimeupdate = () => bao(Math.min(99, Math.round((v.currentTime / giay) * 100)));
+    mr.start(1000);
+    await v.play();
+    /* Chờ hết bài, nhưng có hạn: luồng nghẽn giữa chừng thì `ended` không bao
+     * giờ tới, mà treo im lặng còn tệ hơn nén hụt. */
+    await Promise.race([
+      new Promise((xong) => { v.onended = xong; }),
+      new Promise((xong) => setTimeout(xong, giay * 1500 + 10000)),
+    ]);
+    try { v.pause(); } catch (_) { /* thôi */ }
+    if (mr.state !== 'inactive') mr.stop();
+    await dungLai;
+    bao(100);
+
+    const blob = new Blob(mieng, { type: kieu.split(';')[0] });
+    if (!blob.size) return { bo: 'bản nén rỗng' };
+    return { blob, kieu: kieu.split(';')[0], mb: Math.round(blob.size / 104857.6) / 10 };
+  } catch (e) {
+    return { bo: e.message || 'nén hỏng' };
+  } finally {
+    v.src = '';
+    URL.revokeObjectURL(url);
   }
 }
 

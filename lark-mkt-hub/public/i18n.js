@@ -862,6 +862,17 @@
      * Tên tệp và giờ là chữ THẬT, giữ nguyên — chỉ dịch phần khung. */
     [/^(.+ · .+) · tải lên (.+)$/, '$1 · uploaded $2'],
 
+    /* --- nén video ngay trong trình duyệt trước khi tải lên --- */
+    [/^Video (\d+) MB — đang nén, chạy theo độ dài clip…$/,
+      'Video is $1 MB — compressing, takes as long as the clip'],
+    [/^Đang nén (\d+)%$/, 'Compressing $1%'],
+    [/^Nén xong: (\d+) MB → ([\d,.]+) MB$/, 'Compressed: $1 MB to $2 MB'],
+    [/^Clip dài (\d+) giây — nén xuống (\d+) MB thì hình sẽ nhoè\. Cắt ngắn clip rồi tải lại\.$/,
+      'The clip runs $1 seconds — squeezing it to $2 MB would look blurry. Trim it and upload again.'],
+    [/^Không nén được \((.+)\) — tải nguyên bản\.$/, 'Could not compress ($1) — uploading the original.'],
+    [/^Tệp nặng (\d+) MB — quá 60 MB\. Nén lại rồi tải lên\.$/,
+      'File is $1 MB — over the 60 MB limit. Compress it and upload again.'],
+
     /* --- ô phát của trang Tổng quan: mỗi ô là video HOẶC ảnh --- */
     [/^Video (\d+) · phát đầu tiên$/, 'Video $1 · plays first'],
     [/^Ảnh (\d+) · phát đầu tiên$/, 'Image $1 · plays first'],

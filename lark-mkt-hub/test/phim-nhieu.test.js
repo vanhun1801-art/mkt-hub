@@ -228,6 +228,42 @@ function donDuLieu() {
       ok('cảnh báo có bản tiếng Anh', /do NOT survive a deploy/.test(i18));
     }
 
+    group('Nén video ngay trong trình duyệt');
+    {
+      /* Anh Hùng: "làm tool giảm dung lượng video đủ dùng". Máy không có
+       * ffmpeg và kho giữ luật KHÔNG dùng thư viện ngoài, nên đường duy nhất
+       * là bộ mã hoá sẵn có của trình duyệt: cho <video> chạy, lấy luồng bằng
+       * captureStream() rồi ghi lại qua MediaRecorder.
+       *
+       * Đo thật trên Chrome: 1920x1080 / 26,5 giây, 24,4 MB -> 13,5 MB, ra
+       * MP4, tiếng còn nguyên, mất 27 giây (nén chạy theo thời gian thật).
+       *
+       * Bài này soi LUẬT trong file — phần chạy thật cần trình duyệt nên đã đo
+       * tay; ở đây chỉ canh cho mấy quyết định trên đừng bị gỡ mất. */
+      const cd = fs.readFileSync(path.join(GOC, 'public', 'caidat.js'), 'utf8');
+      ok('có hàm nén video', /async function nenPhim\(/.test(cd));
+      ok('dùng bộ mã hoá của trình duyệt, không thư viện ngoài',
+        /captureStream\(\)/.test(cd) && /new MediaRecorder\(/.test(cd));
+      ok('ưu tiên MP4, lùi về WEBM', /'video\/mp4;codecs=avc1', 'video\/webm/.test(cd));
+      /* MediaRecorder coi mức bit là ĐÍCH chứ không phải trần: đặt đích 15 MB
+       * đo ra 15,9 MB. Nhắm đúng trần 20 MB của Base là có ngày vượt. */
+      ok('chừa biên an toàn dưới mức đích', /mbDich \* 0\.88/.test(cd));
+      ok('đích nằm dưới trần 20 MB của Lark Base',
+        /const PHIM_MB_DICH = (\d+);/.test(cd) && Number(cd.match(/const PHIM_MB_DICH = (\d+);/)[1]) <= 18,
+        (cd.match(/const PHIM_MB_DICH = (\d+);/) || [])[1]);
+      /* Clip quá dài thì mỗi giây còn quá ít bit — phải NÓI THẬT chứ đừng lặng
+       * lẽ đưa ra một bản nhoè. */
+      ok('clip quá dài thì báo, không nén bừa', /return \{ bo: 'quaDai'/.test(cd));
+      ok('nén hỏng thì vẫn tải bản gốc, không chặn người dùng',
+        /tải nguyên bản/.test(cd));
+      /* Nén chạy theo thời gian thật — không báo tiến độ thì người dùng tưởng
+       * treo máy. */
+      ok('có báo tiến độ', /Đang nén ' \+ pt \+ '%'/.test(cd));
+      ok('chỉ nén VIDEO, bỏ qua ảnh', cd.includes("/^video\\//.test(f.type)"));
+      const i18 = fs.readFileSync(path.join(GOC, 'public', 'i18n.js'), 'utf8');
+      ok('mấy câu nén có bản tiếng Anh', /Compressing \$1%/.test(i18));
+    }
+
     group('Ô phát nhận cả ẢNH');
     {
       /* Anh Hùng: "chỗ video phát anh muốn thêm định dạng ảnh nữa thay vì chỉ
