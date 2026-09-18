@@ -373,3 +373,72 @@ td.tacvu .btn + .btn { margin-left: 5px; }
 /* Mã số thuế NCC: kế toán soi ô này để biết hoá đơn có dùng được không. Chữ số
    nên phải đều nhau, không thì đọc nhầm số 1 với 7 ở cỡ 11px. */
 .mst { font-variant-numeric: tabular-nums; letter-spacing: .01em; }
+
+/* ============================================================
+   SÁNG / TỐI
+   Marketing Hub đặt data-theme lên <html> của app này (postMessage trong
+   proxy.js) nên app luôn cùng tone với lớp vỏ; chạy độc lập thì theo cài đặt
+   của máy. Trước ngày 18/09/2026 app này KHÔNG có bảng màu tối: lớp vỏ chuyển
+   sang nền tối còn khung app vẫn trắng toát giữa màn — chói và trông như app
+   chết.
+   HAI KHỐI DƯỚI CÙNG MỘT DANH SÁCH — sửa thì sửa cả hai.
+   ============================================================ */
+:root[data-theme="toi"] {
+  --primary: #6f9bff;
+  --primary-hover: #5b86ff;
+  --primary-bg: #1b2643;
+  --primary-border: #33477a;
+  --bg: #12161f;
+  --surface: #1a1f2b;
+  --surface-2: #202634;
+  --hover: #232a38;
+  --line: #2c3444;
+  --line-soft: #242b38;
+  --t1: #e4e8f1;
+  --t2: #a3adbf;
+  --t3: #7f8899;
+  --green: #34d399;
+  --green-bg: #122b21;
+  --green-t: #6ee7b7;
+  --red: #ff6b78;
+  --red-bg: #2f1a1e;
+  --red-t: #ff9ba4;
+  --red-vien: #5c2b31;
+  --vang-bg: #2e2517;
+  --vang-t: #ffc87d;
+  --bong: 0 1px 2px rgba(0, 0, 0, .35), 0 8px 24px -16px rgba(0, 0, 0, .6);
+  color-scheme: dark;
+}
+:root[data-theme="toi"] /* Hộp báo nhanh nền xanh lá / đỏ NHẠT ở tone tối, chữ trắng đọc không ra */
+:root[data-theme="toi"] .toast.ok, .toast.err { color: #12161f; }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="sang"]) {
+    --primary: #6f9bff;
+    --primary-hover: #5b86ff;
+    --primary-bg: #1b2643;
+    --primary-border: #33477a;
+    --bg: #12161f;
+    --surface: #1a1f2b;
+    --surface-2: #202634;
+    --hover: #232a38;
+    --line: #2c3444;
+    --line-soft: #242b38;
+    --t1: #e4e8f1;
+    --t2: #a3adbf;
+    --t3: #7f8899;
+    --green: #34d399;
+    --green-bg: #122b21;
+    --green-t: #6ee7b7;
+    --red: #ff6b78;
+    --red-bg: #2f1a1e;
+    --red-t: #ff9ba4;
+    --red-vien: #5c2b31;
+    --vang-bg: #2e2517;
+    --vang-t: #ffc87d;
+    --bong: 0 1px 2px rgba(0, 0, 0, .35), 0 8px 24px -16px rgba(0, 0, 0, .6);
+    color-scheme: dark;
+  }
+  :root:not([data-theme="sang"]) /* Hộp báo nhanh nền xanh lá / đỏ NHẠT ở tone tối, chữ trắng đọc không ra */
+  :root:not([data-theme="sang"]) .toast.ok, .toast.err { color: #12161f; }
+}

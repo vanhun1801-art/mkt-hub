@@ -415,3 +415,86 @@ input.ghi-cham::placeholder { color: var(--chu-nhat); font-style: italic; }
 @media (max-width: 900px) { .bieu-do-doi { grid-template-columns: 1fr; } }
 .chu-thich { display: flex; gap: 14px; flex-wrap: wrap; padding: 0 13px 10px; font-size: 12px; color: var(--chu-mo); }
 .chu-thich i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; margin-right: 5px; }
+
+/* ============================================================
+   SÁNG / TỐI
+   Marketing Hub đặt data-theme lên <html> của app này (postMessage trong
+   proxy.js) nên app luôn cùng tone với lớp vỏ; chạy độc lập thì theo cài đặt
+   của máy. Trước ngày 18/09/2026 app này KHÔNG có bảng màu tối: lớp vỏ chuyển
+   sang nền tối còn khung app vẫn trắng toát giữa màn — chói và trông như app
+   chết.
+   HAI KHỐI DƯỚI CÙNG MỘT DANH SÁCH — sửa thì sửa cả hai.
+   ============================================================ */
+:root[data-theme="toi"] {
+  --nen: #12161f;
+  --trang: #1a1f2b;
+  --trang-2: #202634;
+  --vien: #2c3444;
+  --vien-mem: #242b38;
+  --vien-dam: #3c4658;
+  --chu: #e4e8f1;
+  --chu-mo: #a3adbf;
+  --chu-nhat: #7f8899;
+  --xanh: #6f9bff;
+  --xanh-nhat: #1b2643;
+  --luc: #34d399;
+  --luc-nhat: #122b21;
+  --vang: #ffb457;
+  --vang-nhat: #2e2517;
+  --do: #ff6b78;
+  --do-nhat: #2f1a1e;
+  --bong: 0 1px 2px rgba(0, 0, 0, .35), 0 8px 22px -10px rgba(0, 0, 0, .5);
+  /* bộ tên thứ hai của chính bảng màu trên (khối :root số 2 ở đầu file) */
+  --line-soft: #242b38;
+  --ink: #e4e8f1;
+  --ink-2: #a3adbf;
+  --ink-3: #7f8899;
+  --panel-2: #202634;
+  --bad: #ff6b78;
+  /* TikTok vốn là màu đen (#111827) — trên nền tối thì mất hút */
+  --tt: #cbd5e1;
+  --fb: #4a90f7;
+  --gg: #f0b45a;
+  color-scheme: dark;
+}
+:root[data-theme="toi"] /* Hộp báo nhanh cố ý lật màu: nền là màu CHỮ. Ở tone tối nền hoá sáng nên
+:root[data-theme="toi"]    chữ trắng biến mất — trả chữ về màu nền. */
+:root[data-theme="toi"] .doc { color: #12161f; }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="sang"]) {
+    --nen: #12161f;
+    --trang: #1a1f2b;
+    --trang-2: #202634;
+    --vien: #2c3444;
+    --vien-mem: #242b38;
+    --vien-dam: #3c4658;
+    --chu: #e4e8f1;
+    --chu-mo: #a3adbf;
+    --chu-nhat: #7f8899;
+    --xanh: #6f9bff;
+    --xanh-nhat: #1b2643;
+    --luc: #34d399;
+    --luc-nhat: #122b21;
+    --vang: #ffb457;
+    --vang-nhat: #2e2517;
+    --do: #ff6b78;
+    --do-nhat: #2f1a1e;
+    --bong: 0 1px 2px rgba(0, 0, 0, .35), 0 8px 22px -10px rgba(0, 0, 0, .5);
+    /* bộ tên thứ hai của chính bảng màu trên (khối :root số 2 ở đầu file) */
+    --line-soft: #242b38;
+    --ink: #e4e8f1;
+    --ink-2: #a3adbf;
+    --ink-3: #7f8899;
+    --panel-2: #202634;
+    --bad: #ff6b78;
+    /* TikTok vốn là màu đen (#111827) — trên nền tối thì mất hút */
+    --tt: #cbd5e1;
+    --fb: #4a90f7;
+    --gg: #f0b45a;
+    color-scheme: dark;
+  }
+  :root:not([data-theme="sang"]) /* Hộp báo nhanh cố ý lật màu: nền là màu CHỮ. Ở tone tối nền hoá sáng nên
+  :root:not([data-theme="sang"])    chữ trắng biến mất — trả chữ về màu nền. */
+  :root:not([data-theme="sang"]) .doc { color: #12161f; }
+}

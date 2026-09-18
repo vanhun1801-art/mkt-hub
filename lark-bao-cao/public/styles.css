@@ -443,3 +443,84 @@ body.so-mo #so {
   .bang td.o-nut { width: auto; text-align: right; padding: 7px 10px; }
   .bang td.o-nut::before { content: none; }
 }
+
+/* ============================================================
+   SÁNG / TỐI
+   Marketing Hub đặt data-theme lên <html> của app này (postMessage trong
+   proxy.js) nên app luôn cùng tone với lớp vỏ; chạy độc lập thì theo cài đặt
+   của máy. Trước ngày 18/09/2026 app này KHÔNG có bảng màu tối: lớp vỏ chuyển
+   sang nền tối còn khung app vẫn trắng toát giữa màn — chói và trông như app
+   chết.
+   HAI KHỐI DƯỚI CÙNG MỘT DANH SÁCH — sửa thì sửa cả hai.
+   ============================================================ */
+:root[data-theme="toi"] {
+  --bg: #12161f;
+  --surface: #1a1f2b;
+  --surface-2: #202634;
+  --surface-3: #232a38;
+  --border: #2c3444;
+  --border-2: #3c4658;
+  --text: #e4e8f1;
+  --text-2: #a3adbf;
+  --text-3: #7f8899;
+  --text-4: #6b7486;
+  --blue: #6f9bff;
+  --blue-dark: #5b86ff;
+  --blue-text: #8fb2ff;
+  --blue-bg: #1b2643;
+  --red: #ff6b78;
+  --red-text: #ff9ba4;
+  --red-bg: #2f1a1e;
+  --orange: #ffb457;
+  --orange-text: #ffc87d;
+  --orange-bg: #2e2517;
+  --green: #34d399;
+  --green-text: #6ee7b7;
+  --green-bg: #122b21;
+  --purple: #b48cff;
+  --purple-text: #c7abff;
+  --purple-bg: #241a3d;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, .35), 0 8px 22px -12px rgba(0, 0, 0, .55);
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, .5);
+  color-scheme: dark;
+}
+:root[data-theme="toi"] /* Hộp báo nhanh đảo màu: nền là màu chữ, nên chữ phải là màu nền */
+:root[data-theme="toi"] #toast.do, #toast.xanh { color: #12161f; }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="sang"]) {
+    --bg: #12161f;
+    --surface: #1a1f2b;
+    --surface-2: #202634;
+    --surface-3: #232a38;
+    --border: #2c3444;
+    --border-2: #3c4658;
+    --text: #e4e8f1;
+    --text-2: #a3adbf;
+    --text-3: #7f8899;
+    --text-4: #6b7486;
+    --blue: #6f9bff;
+    --blue-dark: #5b86ff;
+    --blue-text: #8fb2ff;
+    --blue-bg: #1b2643;
+    --red: #ff6b78;
+    --red-text: #ff9ba4;
+    --red-bg: #2f1a1e;
+    --orange: #ffb457;
+    --orange-text: #ffc87d;
+    --orange-bg: #2e2517;
+    --green: #34d399;
+    --green-text: #6ee7b7;
+    --green-bg: #122b21;
+    --purple: #b48cff;
+    --purple-text: #c7abff;
+    --purple-bg: #241a3d;
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, .35), 0 8px 22px -12px rgba(0, 0, 0, .55);
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4);
+    --shadow-md: 0 2px 8px rgba(0, 0, 0, .5);
+    color-scheme: dark;
+  }
+  :root:not([data-theme="sang"]) /* Hộp báo nhanh đảo màu: nền là màu chữ, nên chữ phải là màu nền */
+  :root:not([data-theme="sang"]) #toast.do, #toast.xanh { color: #12161f; }
+}

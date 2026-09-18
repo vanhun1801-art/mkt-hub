@@ -95,20 +95,20 @@ group('Mọi app con đều theo được tông tối của lớp vỏ');
 {
   /* Lớp vỏ đặt data-theme lên <html> của app con (shim trong proxy.js). App nào
    * không khai bảng màu tối thì giữa nền tối của vỏ hiện ra một mảng TRẮNG
-   * TOÁT — đo ngày 18/09/2026: ba app dưới đây đang như vậy. Danh sách chờ là
-   * cố ý: nó phải NGẮN DẦN, và thêm app mới vào danh sách thì phải cố ý thêm. */
-  const CHUA_CO = ['lark-kpi', 'lark-quy-chi-phi', 'lark-bao-cao'];
+   * TOÁT — chói mắt và trông như app chết. Đo ngày 18/09/2026: ba app Báo cáo &
+   * KPI, Quỹ chi phí, Báo cáo công việc đang như vậy, đã bổ sung bảng màu cho
+   * cả ba trong cùng ngày. Phép kiểm này giữ cho con số không tụt lại. */
   const apps = fs.readdirSync(CHA).filter((d) => d.startsWith('lark-') && d !== 'lark-mkt-hub'
     && d !== 'lark-chung' && fs.existsSync(path.join(CHA, d, 'public', 'styles.css')));
+  ok('quét được cả chín app con', apps.length >= 9, String(apps.length));
   const thieu = apps.filter((d) => !doc(d, 'public', 'styles.css').includes('data-theme="toi"'));
-  ok('không app nào TỤT khỏi danh sách (nghĩa là có app vừa mất bảng màu tối)',
-    thieu.every((d) => CHUA_CO.includes(d)), thieu.filter((d) => !CHUA_CO.includes(d)).join(', '));
-  const daLam = CHUA_CO.filter((d) => !thieu.includes(d));
-  if (daLam.length) {
-    console.log('  … ' + daLam.join(', ') + ' đã có bảng màu tối — bỏ khỏi CHUA_CO trong file này.');
-  }
-  ok('sáu app còn lại vẫn theo tông tối', apps.length - thieu.length >= 6,
-    (apps.length - thieu.length) + '/' + apps.length);
+  ok('app nào cũng có bảng màu tối', thieu.length === 0, thieu.join(', '));
+
+  /* Hai khối phải đi cùng nhau: [data-theme="toi"] cho lúc chạy trong lớp vỏ,
+   * và @media (prefers-color-scheme: dark) cho lúc mở app một mình. */
+  const thieuHe = apps.filter((d) =>
+    !doc(d, 'public', 'styles.css').includes('@media (prefers-color-scheme: dark)'));
+  ok('và app nào cũng theo cài đặt tối của máy khi chạy riêng', thieuHe.length === 0, thieuHe.join(', '));
 }
 
 console.log('\n' + (fail ? '\x1b[31m' : '\x1b[32m') + pass + ' pass · ' + fail + ' fail\x1b[0m');
