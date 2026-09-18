@@ -1556,9 +1556,20 @@ function luuHinh(ds) {
  *
  * Kèm bề ngang cửa sổ lúc đo: số cột đổi theo bề ngang, nên chiều cao đo ở màn
  * rộng mà đem áp cho màn hẹp là sai hơn cả không áp. */
+/** Ngôn ngữ đang hiển thị — chiều cao thẻ phụ thuộc vào nó, xem doCaoThe(). */
+function ngonNguNay() {
+  try { return (window.__I18N__ && window.__I18N__.hienTai()) || 'vi'; } catch (_) { return 'vi'; }
+}
+
 function caoNho(h) {
-  return h && h.cao && Math.abs((h.w || 0) - window.innerWidth) < 140
-    ? ' style="min-height:' + h.cao + 'px"' : '';
+  if (!h || !h.cao) return '';
+  if (Math.abs((h.w || 0) - window.innerWidth) >= 140) return '';
+  /* Chiều cao đo ở ngôn ngữ khác thì KHÔNG dùng. Đo thật: ô "Cảnh báo" cao
+   * 96px, dịch thành "Alerts" thì thành 112px — chữ ngắn hơn mà lại cao hơn vì
+   * cụm bên dưới gãy dòng khác. Áp chiều cao tiếng Việt cho màn tiếng Anh là
+   * chừa thiếu 16px mỗi ô, đúng kiểu nhảy mà khung xương sinh ra để tránh. */
+  if ((h.ng || 'vi') !== ngonNguNay()) return '';
+  return ' style="min-height:' + h.cao + 'px"';
 }
 
 /** Đo chiều cao thật của từng thẻ base, NGAY sau khi vừa vẽ xong.
@@ -1570,11 +1581,16 @@ function caoNho(h) {
  * trước khi sơn, nên chỉ là làm sớm hơn vài mili giây, mỗi 60 giây một lần. */
 function doCaoThe(body, the) {
   const cao = (e) => (e ? Math.round(e.getBoundingClientRect().height) : 0);
-  const o = body.querySelectorAll('.luoi-base > .nhom-base');
-  the.forEach((h, i) => {
-    if (o[i]) { h.cao = cao(o[i]); h.w = window.innerWidth; }
-  });
-  luuHinh({
+  const do1 = () => {
+    const o = body.querySelectorAll('.luoi-base > .nhom-base');
+    if (o.length !== the.length) return false;      // trang đã vẽ lại, bỏ lượt này
+    the.forEach((h, i) => {
+      if (o[i]) { h.cao = cao(o[i]); h.w = window.innerWidth; h.ng = ngonNguNay(); }
+    });
+    ghi();
+    return true;
+  };
+  const ghi = () => luuHinh({
     the,
     /* Hai khối còn lại cũng phải chừa chỗ, nếu không trang vẫn nhảy ~250px lúc
      * số về: băng "bộ lọc đang che N việc gấp" (có hay không tuỳ bộ lọc) và
@@ -1584,6 +1600,23 @@ function doCaoThe(body, the) {
     tai: cao(body.querySelector(':scope > .khoi-tai.co-so')),
     cxl: cao(body.querySelector(':scope > .khoi:not(.khoi-tai)')),
   });
+
+  do1();
+
+  /* ĐO LẠI sau một nhịp, và đây không phải cho chắc — là bắt buộc.
+   *
+   * Bộ dịch (i18n.js) chạy bằng MutationObserver, tức là NGAY SAU lượt vẽ chứ
+   * không cùng lượt. Đo thẳng như trên là đo bản tiếng Việt, rồi người dùng
+   * tiếng Anh nhìn một bố cục khác: ô "Cảnh báo" 96px thành "Alerts" 112px.
+   * Đo trên máy thật: trí nhớ ghi 429px trong khi màn hình là 445px, và vì
+   * lượt đo nào cũng sớm như nhau nên nó KHÔNG BAO GIỜ tự khớp lại — hàng đầu
+   * lệch 16px mãi mãi.
+   *
+   * Dùng setTimeout, KHÔNG dùng requestAnimationFrame: rAF không chạy khi tab
+   * ở nền, mà tab nền đúng là lúc trang tự vẽ lại theo nhịp 60 giây. setTimeout
+   * ở tab nền bị giãn ra chứ vẫn chạy. Lượt đo ngay ở trên là để tab nền có
+   * ngay một con số; lượt này mới là con số đúng. */
+  if (body.isConnected !== false) setTimeout(do1, 400);
 }
 
 /** Panel base dựng theo trí nhớ: đúng số base, đúng tên, đúng icon.

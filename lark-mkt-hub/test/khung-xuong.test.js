@@ -251,6 +251,43 @@ group('Khung xương phải khớp GIAO DIỆN THẬT, không phải hình chung
   ok('chín app KHÔNG dùng chung một hình', soKhac >= 7, soKhac + ' hình khác nhau');
 }
 
+group('Chiều cao đã nhớ phải khớp BẢN ĐÃ DỊCH, không phải bản vừa vẽ');
+{
+  /* Lỗi đo được trên máy thật, và là loại không bao giờ tự khỏi:
+   *
+   * Bộ dịch (i18n.js) chạy bằng MutationObserver — NGAY SAU lượt vẽ, không
+   * cùng lượt. doCaoThe() đo thẳng sau `body.innerHTML = …` nên nó đo bản
+   * tiếng Việt, rồi người dùng tiếng Anh nhìn một bố cục khác: ô "Cảnh báo"
+   * cao 96px, dịch thành "Alerts" thì thành 112px vì cụm bên dưới gãy dòng
+   * khác. Đo thật ở 1440px: trí nhớ ghi 429px trong khi màn hình là 445px,
+   * hàng thẻ đầu lệch 16px — và vì lượt đo nào cũng sớm như nhau nên con số
+   * sai được ghi lại y nguyên mỗi lần, KHÔNG BAO GIỜ khớp lại.
+   *
+   * Hai mảnh chữa, thiếu mảnh nào cũng quay về lệch:
+   *   - đo LẠI sau một nhịp (setTimeout, không phải rAF — tab nền không chạy
+   *     rAF mà tab nền đúng là lúc trang tự vẽ lại theo nhịp 60 giây);
+   *   - ghi kèm NGÔN NGỮ lúc đo, và chỉ dùng lại khi ngôn ngữ còn khớp.
+   */
+  /* Cắt đúng thân hàm, không cắt theo số ký tự: cắt theo số thì tràn sang hàm
+   * kế và câu "không dùng rAF" đỏ oan vì hàm bên cạnh có dùng. */
+  const dauDCT = APPJS.indexOf('function doCaoThe(');
+  const than = APPJS.slice(dauDCT, APPJS.indexOf('\nfunction ', dauDCT + 10));
+  /* Bỏ chú thích trước khi soi: chính lời giải thích "đừng dùng
+   * requestAnimationFrame" lại chứa chữ đó, soi trên bản còn chú thích là đỏ
+   * oan. Đã đỏ oan một lượt vì đúng chuyện này. */
+  const ma = than.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+  ok('đo lại sau một nhịp, không chỉ đo một lần', /setTimeout\(\s*do1/.test(ma));
+  ok('… và vẫn KHÔNG dùng requestAnimationFrame', !/requestAnimationFrame/.test(ma));
+  ok('ghi kèm ngôn ngữ lúc đo', /\.ng = ngonNguNay\(\)/.test(than));
+  ok('có hàm đọc ngôn ngữ đang hiển thị', /function ngonNguNay\(/.test(APPJS));
+  ok('… lấy từ i18n chứ không tự đoán', /__I18N__[\s\S]{0,40}hienTai\(\)/.test(APPJS));
+  const cn = APPJS.slice(APPJS.indexOf('function caoNho('),
+    APPJS.indexOf('function caoNho(') + 900);
+  ok('bỏ chiều cao đo ở ngôn ngữ khác', /h\.ng \|\| 'vi'\)\s*!==\s*ngonNguNay\(\)/.test(cn));
+  /* Bề ngang vẫn phải canh như cũ — số cột đổi theo bề ngang. */
+  ok('vẫn canh cả bề ngang cửa sổ', /h\.w \|\| 0\) - window\.innerWidth/.test(cn));
+}
+
 group('Chín app con dùng đúng MỘT bản khung xương');
 {
   const TEP = ['khung-xuong.css', 'khung-xuong.js'];
