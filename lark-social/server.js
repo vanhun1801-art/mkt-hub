@@ -20,6 +20,7 @@ const canhBao = require('./canh-bao');
 const noiDung = require('./noi-dung');
 const binhLuan = require('./binh-luan');
 const nhan = require('./nhan');
+const phamVi = require('./pham-vi');
 const facebook = require('./sync/facebook');
 const zalo = require('./sync/zalo');
 const tiktok = require('./sync/tiktok');
@@ -97,7 +98,7 @@ function serveStatic(req, res, urlPath) {
 }
 
 /* ---------------- tham số ---------------- */
-function thamSo(u) {
+function thamSo(u, hanMuc) {
   const list = (k) => {
     const v = u.searchParams.get(k);
     return v ? v.split(',').map((s) => s.trim()).filter(Boolean) : [];
@@ -106,7 +107,14 @@ function thamSo(u) {
   let to = u.searchParams.get('to') || store.homNay();
   let from = u.searchParams.get('from') || '';
   if (!from) from = store.themNgay(to, -((days > 0 ? days : 30) - 1));
-  return { from, to, platforms: list('platform'), channels: list('channel') };
+  return {
+    from, to,
+    platforms: list('platform'),
+    /* Chốt phân quyền nằm ở đây, phía máy chủ. Giao diện có lọc sẵn theo phần
+     * của mình, nhưng giao diện là thứ sửa được — gọi thẳng API với tên kênh
+     * ngoài phần mình vẫn phải ra rỗng. */
+    channels: phamVi.ganLoc(list('channel'), hanMuc),
+  };
 }
 
 /* ---------------- danh tính ---------------- */
@@ -120,7 +128,31 @@ async function nguoiDung(req) {
   const ten = req.headers['x-hub-user-name'];
   let deco = id;
   try { deco = ten ? decodeURIComponent(ten) : id; } catch (_) { deco = ten || id; }
-  return { id: String(id), name: String(deco) };
+  /* Email là khoá khớp của phân quyền xem kênh — xem pham-vi.js. Hub gửi nó đã
+   * mã hoá URL vì email có thể chứa ký tự cần thoát. */
+  const giaiMa = (v) => {
+    if (!v) return '';
+    try { return decodeURIComponent(String(v)); } catch (_) { return String(v); }
+  };
+  return {
+    id: String(id),
+    name: String(deco),
+    email: giaiMa(req.headers['x-hub-user-email']),
+    emailPhu: giaiMa(req.headers['x-hub-user-email-phu']),
+  };
+}
+
+/**
+ * Giới hạn kênh của người đang gọi. Trả null nghĩa là không giới hạn.
+ *
+ * Đọc bảng Kênh mỗi lần thay vì cất sẵn: quản lý vừa khai xong một dòng thì
+ * người kia mở lại app là thấy ngay, không phải đợi hết vòng cache.
+ */
+async function hanMucKenh(req) {
+  if (laQuanLy(req)) return null;
+  const nguoi = await nguoiDung(req);
+  const d = await store.tai();
+  return phamVi.gioiHan(d.channels, nguoi, false);
 }
 
 function chanNeuKhongPhaiQuanLy(req) {
@@ -267,18 +299,33 @@ async function api(req, res, u) {
 
   if (p === '/api/me') {
     const nd = await nguoiDung(req);
+    const quanLy = laQuanLy(req);
+    const d = await store.tai();
+    const han = phamVi.gioiHan(d.channels, nd, quanLy);
     return ok(res, {
-      user: nd, quanLy: laQuanLy(req), mode: cfg.mode,
+      user: nd, quanLy, mode: cfg.mode,
       baseUrl: cfg.baseUrl, nguonCauHinh: ketnoi.nguon(),
       khoBat: vault.bat(),
+      /* Để giao diện nói được "anh đang xem 3/11 kênh được giao" thay vì âm thầm
+       * hiện số nhỏ hơn thực tế và người dùng tưởng số liệu hụt. */
+      phamVi: han ? { soKenh: han.length, tongKenh: d.channels.length } : null,
     });
   }
 
-  if (p === '/api/tong-quan') return ok(res, await M.tongQuan(thamSo(u)));
+  if (p === '/api/tong-quan') return ok(res, await M.tongQuan(thamSo(u, await hanMucKenh(req))));
 
   if (p === '/api/kenh' && method === 'GET') {
     const d = await store.tai(u.searchParams.get('moi') === '1');
-    return ok(res, { kenh: d.channels, capNhat: d.luc });
+    const quanLy = laQuanLy(req);
+    const nguoi = await nguoiDung(req);
+    /* Nhân sự chỉ nhận danh sách kênh của mình — cả ô lọc kênh trên thanh công
+     * cụ cũng chỉ liệt kê bấy nhiêu, thay vì bày ra tên mười một kênh rồi chọn
+     * cái nào cũng trả rỗng. */
+    return ok(res, {
+      kenh: phamVi.kenhCuaNguoi(d.channels, nguoi, quanLy),
+      tongSoKenh: d.channels.length,
+      capNhat: d.luc,
+    });
   }
 
   if (p === '/api/kenh' && method === 'POST') {
@@ -304,7 +351,7 @@ async function api(req, res, u) {
   }
 
   if (p === '/api/bai') {
-    const t = thamSo(u);
+    const t = thamSo(u, await hanMucKenh(req));
     const d = await store.tai();
     return ok(res, {
       bai: M.topBai(d.posts, {
@@ -316,7 +363,7 @@ async function api(req, res, u) {
   }
 
   if (p === '/api/noi-dung') {
-    const t = thamSo(u);
+    const t = thamSo(u, await hanMucKenh(req));
     const d = await store.tai();
     /* Lọc đúng như tab Bài đăng để hai màn hình không bao giờ nói hai con số
      * khác nhau cho cùng một khoảng ngày. */
@@ -325,7 +372,7 @@ async function api(req, res, u) {
   }
 
   if (p === '/api/nhan' && method === 'GET') {
-    const t = thamSo(u);
+    const t = thamSo(u, await hanMucKenh(req));
     const d = await store.tai();
     const ds = nhan.chuanHoaNhan(await store.taiNhan());
     const bai = M.topBai(d.posts, { ...t, theo: 'views', n: 100000 });
@@ -362,8 +409,26 @@ async function api(req, res, u) {
   /* Gợi ý thẻ cho một nhãn. Để máy chủ tính thay vì chép luật sang trình duyệt:
    * hai bản sao của cùng một luật sớm muộn cũng lệch nhau, và lúc đó không ai
    * biết bản nào đúng. */
+  /* Gán email người xem cho một kênh. Chỉ quản lý. */
+  if (p === '/api/kenh/nguoi-xem' && method === 'POST') {
+    const loi = chanNeuKhongPhaiQuanLy(req); if (loi) throw loi;
+    const b = await readBody(req);
+    if (!b.id) return fail(res, 400, 'Thiếu kênh');
+    const ds = phamVi.tachEmail(b.emails);
+    /* Gõ một chuỗi không phải email thì lọc sẽ im lặng không khớp ai — nói ngay
+     * còn hơn để người dùng tưởng đã gán xong. */
+    const tho = String(b.emails || '').split(/[\s,;|]+/).map((x) => x.trim()).filter(Boolean);
+    const hong = tho.filter((x) => !x.includes('@'));
+    if (hong.length) return fail(res, 400, 'Không phải email: ' + hong.join(', '));
+    await lark.updateRecord(cfg.tables.channel.id, b.id, {
+      [cfg.tables.channel.f.viewers]: ds.join(', '),
+    });
+    store.xoaCache();
+    return ok(res, { ok: true, so: ds.length });
+  }
+
   if (p === '/api/nhan/goi-y' && method === 'GET') {
-    const t = thamSo(u);
+    const t = thamSo(u, await hanMucKenh(req));
     const d = await store.tai();
     const ds = nhan.chuanHoaNhan(await store.taiNhan());
     const bai = M.topBai(d.posts, { ...t, theo: 'views', n: 100000 });
@@ -441,7 +506,7 @@ async function api(req, res, u) {
   }
 
   if (p === '/api/nhan/csv' && method === 'GET') {
-    const t = thamSo(u);
+    const t = thamSo(u, await hanMucKenh(req));
     const ten = u.searchParams.get('nhan') || '';
     const d = await store.tai();
     const ds = nhan.chuanHoaNhan(await store.taiNhan());
@@ -474,7 +539,7 @@ async function api(req, res, u) {
   }
 
   if (p === '/api/live' && method === 'GET') {
-    const t = thamSo(u);
+    const t = thamSo(u, await hanMucKenh(req));
     const d = await store.tai();
     const pset = t.platforms.length ? new Set(t.platforms) : null;
     return ok(res, {

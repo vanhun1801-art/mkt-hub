@@ -64,6 +64,12 @@ module.exports = {
         handle: 'fld8IkFJyP',     // Handle (text)
         url: 'fldxkljlKM',        // Link kênh (url)
         owner: 'fldfUF0Itc',      // Người phụ trách (user)
+        /* Ai được XEM kênh này, khai bằng EMAIL công ty chứ không dùng ô người
+         * dùng của Lark. Lý do: open_id là RIÊNG THEO TỪNG APP — cùng một con
+         * người, app lark-cli trên máy thấy một id, app nền của hub trên Render
+         * thấy id khác. Khai bằng ô người dùng thì lọc chạy đúng ở một nơi và
+         * sai ở nơi kia, mà không có gì báo. Email chung cho cả tenant. */
+        viewers: 'fldmSpLgfF',    // Email người xem (nhiều email, cách bằng dấu phẩy)
         status: 'flddCsgSHt',     // Trạng thái (select)
         source: 'fldegfGnpg',     // Nguồn số liệu (select)
         note: 'flduiXVTKR',       // Ghi chú (text)

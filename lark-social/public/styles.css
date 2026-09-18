@@ -526,3 +526,11 @@ table.tbl tfoot td { font-weight: 700; background: var(--panel-2); border-top: 2
 .goi-y-the:hover { border-color: var(--brand); color: var(--brand); }
 .goi-y-the span { color: var(--ink-3); font-size: 11px; }
 .bl-dh b { color: var(--ink); font-weight: 600; }
+
+/* --- phân quyền xem kênh --- */
+.pq-list { display: grid; gap: 8px; }
+.pq-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.pq-ten { flex: 0 0 210px; font-size: 13.5px; font-weight: 500; }
+.pq-in { flex: 1 1 260px; min-width: 0; }
+.pq-in.pq-ok { border-color: var(--good); background: var(--good-soft); }
+.pq-in.pq-loi { border-color: var(--bad); background: var(--bad-soft); }

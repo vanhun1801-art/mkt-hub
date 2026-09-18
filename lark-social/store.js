@@ -104,6 +104,7 @@ function docKenh(r) {
     handle: clean(r.c[f.handle]),
     url: url(r.c[f.url]),
     owner: users(r.c[f.owner]),
+    viewers: clean(r.c[f.viewers]),
     status: sel(r.c[f.status]),
     source: sel(r.c[f.source]),
     note: clean(r.c[f.note]),

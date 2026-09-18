@@ -62,6 +62,7 @@
     kenh: [],
     me: null,
     quanLy: false,
+    phamVi: null,      // { soKenh, tongKenh } khi người xem chỉ được giao vài kênh
     dangTai: false,
   };
 
@@ -275,6 +276,7 @@
     const d = S.du;
     const t = d.tong;
     const html = ''
+      + veChiBaoPhamVi()
       + '<div class="kpis">'
       + theKpi('Lượt xem', gon(t.views), d.doi.views)
       + theKpi('Lượt tiếp cận', gon(t.reach), d.doi.reach,
@@ -347,8 +349,12 @@
   /* ---------------- tab: theo kênh ---------------- */
   function veKenh() {
     const d = S.du;
-    $('#view').innerHTML = '<div class="card"><div class="card-head"><h3>Số liệu theo kênh</h3>'
-      + '<span class="sub">' + esc(d.tu) + ' → ' + esc(d.den) + '</span></div>'
+    $('#view').innerHTML = veChiBaoPhamVi()
+      + '<div class="card"><div class="card-head"><h3>Số liệu theo kênh</h3>'
+      + '<span class="sub">' + esc(d.tu) + ' → ' + esc(d.den) + '</span>'
+      + (S.quanLy ? '<button class="btn small" id="pqMo" style="margin-left:auto">'
+        + 'Phân quyền xem kênh</button>' : '')
+      + '</div>'
       + '<div class="card-body tight">'
       + bangGon([
         { t: 'Kênh', name: 1, v: (r) => (r.url ? '<a href="' + esc(r.url) + '" target="_blank" rel="noreferrer">' : '<span>')
@@ -368,6 +374,9 @@
       + '</div></div>'
       + '<div class="card" style="margin-top:14px"><div class="card-head"><h3>Lượt xem theo kênh</h3></div>'
       + '<div class="card-body"><div id="chKenh"></div></div></div>';
+
+    const nutPq = $('#pqMo');
+    if (nutPq) nutPq.onclick = () => moPhanQuyen().catch((e) => toast(e.message, 'err'));
 
     if (window.Charts) {
       Charts.hbars($('#chKenh'), d.kenh.slice(0, 15).map((k) => ({
@@ -1287,6 +1296,62 @@
     $('#blTatCa').onchange = (e) => { blTatCa = e.target.checked; veBinhLuan(); };
   }
 
+  /* ---------------- phân quyền xem kênh ---------------- */
+
+  /**
+   * Nói thẳng người đang xem chỉ thấy một phần.
+   *
+   * Không có dòng này thì nhân sự mở app ra thấy 3 kênh, tưởng công ty có 3 kênh,
+   * hoặc tệ hơn là tưởng số liệu bị hụt và đi báo lỗi.
+   */
+  function veChiBaoPhamVi() {
+    if (!S.phamVi) return '';
+    return '<div class="notes" style="margin-bottom:12px"><div class="note">'
+      + '<span class="ico">i</span><span>Anh/chị đang xem <b>' + S.phamVi.soKenh + '/'
+      + S.phamVi.tongKenh + '</b> kênh được giao. Mọi con số trên màn hình chỉ tính '
+      + 'trên các kênh này. Cần xem thêm kênh khác thì báo phụ trách marketing.'
+      + '</span></div></div>';
+  }
+
+  async function moPhanQuyen() {
+    const r = await goi('/api/kenh?moi=1');
+    const ds = r.kenh || [];
+    moModal('<div class="modal-head"><h3>Ai xem được kênh nào</h3></div>'
+      + '<div class="modal-body">'
+      + '<div class="help" style="margin-bottom:12px">Khai <b>email công ty</b> của người được xem '
+      + 'kênh, nhiều người thì cách nhau dấu phẩy. Kênh <b>để trống là ai cũng xem được</b> — '
+      + 'siết dần từng kênh, đừng khoá sạch một lượt. Quản lý luôn thấy tất cả.</div>'
+      + '<div class="pq-list">'
+      + ds.map((c) => '<div class="pq-row">'
+        + '<div class="pq-ten">' + esc(c.name || c.extId)
+        + '<span class="sub-line">' + esc(c.platform || '') + '</span></div>'
+        + '<input class="pq-in" data-id="' + esc(c.id) + '" value="' + esc(c.viewers || '')
+        + '" placeholder="ai cũng xem được">'
+        + '</div>').join('')
+      + '</div></div>'
+      + '<div class="modal-foot"><button class="btn ghost" id="pqDong">Đóng</button></div>');
+
+    $('#pqDong').onclick = dongModal;
+    /* Lưu ngay khi rời ô, không cần nút Lưu riêng: bảng có mười một dòng, bắt
+     * bấm lưu từng dòng thì ai cũng quên một dòng. */
+    $('#modal').querySelectorAll('.pq-in').forEach((o) => {
+      const goc = o.value;
+      o.onblur = async () => {
+        if (o.value === goc) return;
+        try {
+          const kq = await goiJSON('/api/kenh/nguoi-xem', { id: o.dataset.id, emails: o.value });
+          o.classList.add('pq-ok');
+          setTimeout(() => o.classList.remove('pq-ok'), 1200);
+          toast(kq.so ? 'Đã giao cho ' + kq.so + ' người' : 'Kênh này giờ ai cũng xem được');
+        } catch (e) {
+          o.classList.add('pq-loi');
+          setTimeout(() => o.classList.remove('pq-loi'), 2500);
+          toast(e.message, 'err');
+        }
+      };
+    });
+  }
+
   /* ---------------- thiết lập nhãn ---------------- */
 
   /**
@@ -1555,7 +1620,7 @@
 
     try {
       const me = await goi('/api/me');
-      S.me = me.user; S.quanLy = me.quanLy;
+      S.me = me.user; S.quanLy = me.quanLy; S.phamVi = me.phamVi;
       $('#meChip').textContent = (me.user && me.user.name) || (me.quanLy ? 'Quản lý' : 'Khách');
       $('#linkBase').href = me.baseUrl;
       if (!me.quanLy) {
