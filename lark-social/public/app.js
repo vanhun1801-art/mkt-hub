@@ -1287,6 +1287,80 @@
     $('#blTatCa').onchange = (e) => { blTatCa = e.target.checked; veBinhLuan(); };
   }
 
+  /* ---------------- thiết lập nhãn ---------------- */
+
+  /**
+   * Sửa nhãn ngay trong app thay vì bắt mở Base.
+   *
+   * Vẫn ghi thẳng xuống bảng "Nhãn bài" — một nguồn sự thật. Ai quen Base hơn
+   * thì sửa trong Base vẫn được, hai đường không bao giờ lệch nhau.
+   */
+  function moSuaNhan(x, dsNhom, dsDoiTac) {
+    const v = x || { nhan: '', nhom: '', hashtag: '', doiTac: '', ghiChu: '', bat: true };
+    const goiY = (id, ds) => '<datalist id="' + id + '">'
+      + [...new Set(ds.filter(Boolean))].map((t) => '<option value="' + esc(t) + '">').join('')
+      + '</datalist>';
+
+    moModal('<div class="modal-head"><h3>' + (x ? 'Sửa nhãn' : 'Thêm nhãn') + '</h3></div>'
+      + '<div class="modal-body"><div class="kn-form">'
+      + '<div class="kn-row"><label>Tên nhãn</label>'
+      + '<input id="nlTen" value="' + esc(v.nhan) + '" placeholder="VinWonders Phú Quốc">'
+      + '<span class="help">Tên này hiện trong báo cáo gửi đối tác, nên viết cho người đọc.</span></div>'
+      + '<div class="kn-row"><label>Hashtag</label>'
+      + '<input id="nlTag" value="' + esc(v.hashtag) + '" placeholder="#VinpearlVinwondersPhuQuoc #vinwonders">'
+      + '<span class="help">Cách nhau bằng dấu cách hoặc dấu phẩy. Bài nào có <b>một trong số</b> '
+      + 'các thẻ này là mang nhãn. Không phân biệt hoa thường.</span></div>'
+      + '<div class="kn-row"><label>Nhóm</label>'
+      + '<input id="nlNhom" list="dlNhom" value="' + esc(v.nhom) + '" placeholder="Địa điểm">'
+      + goiY('dlNhom', dsNhom)
+      + '<span class="help">Gõ gì cũng được — Địa điểm, Mã tour, Sản phẩm, Chiến dịch…</span></div>'
+      + '<div class="kn-row"><label>Đối tác</label>'
+      + '<input id="nlDT" list="dlDT" value="' + esc(v.doiTac) + '" placeholder="Vinpearl">'
+      + goiY('dlDT', dsDoiTac)
+      + '<span class="help">Nhiều nhãn cùng đối tác sẽ được cộng chung ở bảng Theo đối tác. '
+      + 'Để trống nếu nhãn này không thuộc đối tác nào.</span></div>'
+      + '<div class="kn-row"><label>Ghi chú</label>'
+      + '<input id="nlGC" value="' + esc(v.ghiChu || '') + '"></div>'
+      + '<div class="kn-row"><label>Bật</label>'
+      + '<label class="help"><input type="checkbox" id="nlBat"' + (v.bat !== false ? ' checked' : '')
+      + '> tắt thì nhãn không tính vào báo cáo, nhưng vẫn giữ lại để bật lại sau</label></div>'
+      + '</div></div>'
+      + '<div class="modal-foot">'
+      + (x ? '<button class="btn ghost small" id="nlXoa">Xoá nhãn</button>' : '')
+      + '<span class="grow"></span>'
+      + '<button class="btn ghost" id="nlHuy">Huỷ</button> '
+      + '<button class="btn" id="nlLuu">Lưu</button></div>');
+
+    $('#nlHuy').onclick = dongModal;
+    $('#nlLuu').onclick = async () => {
+      try {
+        await goiJSON('/api/nhan/luu', {
+          id: x && x.id,
+          nhan: $('#nlTen').value, hashtag: $('#nlTag').value,
+          nhom: $('#nlNhom').value, doiTac: $('#nlDT').value,
+          ghiChu: $('#nlGC').value, bat: $('#nlBat').checked,
+        });
+        dongModal();
+        toast('Đã lưu nhãn');
+        veNhan();
+      } catch (e) { toast(e.message, 'err'); }
+    };
+    if (x) {
+      $('#nlXoa').onclick = async () => {
+        /* Xoá nhãn không xoá bài — chỉ là bài thôi không mang nhãn đó nữa. Nói rõ
+         * để không ai sợ mất dữ liệu mà giữ lại một đống nhãn rác. */
+        if (!confirm('Xoá nhãn "' + v.nhan + '"?\n\nBài đăng KHÔNG bị xoá — chúng chỉ '
+          + 'thôi mang nhãn này trong báo cáo.')) return;
+        try {
+          await goiJSON('/api/nhan/xoa', { id: x.id });
+          dongModal();
+          toast('Đã xoá nhãn');
+          veNhan();
+        } catch (e) { toast(e.message, 'err'); }
+      };
+    }
+  }
+
   /* ---------------- tab: nhãn & đối tác ---------------- */
   async function veNhan() {
     $('#view').innerHTML = '<div class="loading">Đang gắn nhãn…</div>';
@@ -1319,7 +1393,10 @@
         : '')
 
       + '<div class="card" style="margin-top:14px"><div class="card-head"><h3>Theo nhãn</h3>'
-      + '<span class="sub">' + esc(S.from) + ' → ' + esc(S.den || S.to) + '</span></div>'
+      + '<span class="sub">' + esc(S.from) + ' → ' + esc(S.to) + '</span>'
+      + (S.quanLy ? '<button class="btn small" id="nlThem" style="margin-left:auto">'
+        + '＋ Thêm nhãn</button>' : '')
+      + '</div>'
       + '<div class="card-body">'
       + '<div class="help" style="margin-bottom:10px">Nhãn gắn theo <b>hashtag trong caption</b>. '
       + '<b>' + n0(d.tongBai - d.khongNhan) + '/' + n0(d.tongBai) + '</b> bài trong khoảng này '
@@ -1342,7 +1419,9 @@
         { t: 'Tương tác', num: 1, k: 'engagement', v: (x) => n0(x.engagement) },
         { t: 'Tỷ lệ TT', num: 1, v: (x) => pct(x.tyLeTuongTac) },
         { t: '', v: (x) => '<a class="btn ghost small" href="' + esc(linkCsv(x.nhan))
-          + '" download>Tải CSV</a>' },
+          + '" download>Tải CSV</a>'
+          + (S.quanLy ? ' <button class="btn ghost small" data-sua="' + esc(x.nhan)
+            + '">Sửa</button>' : '') },
       ], coBai)
       + '</div></div></div>'
 
@@ -1353,10 +1432,28 @@
           + '<div class="help">Khoảng này chưa bài nào dùng những hashtag sau. Hoặc đội nội dung '
           + 'chưa gắn, hoặc hashtag khai trong Base khác với hashtag đang gõ thật.</div>'
           + '<div class="bl-chan" style="margin-top:8px">'
-          + chuaDung.map((x) => '<span class="bl-dh">' + esc(x.nhan) + ' · '
-            + esc(x.the.join(' ')) + '</span>').join('')
+          + chuaDung.map((x) => (S.quanLy
+            ? '<button class="bl-dh" data-sua="' + esc(x.nhan) + '" style="border:0;cursor:pointer">'
+            : '<span class="bl-dh">')
+            + esc(x.nhan) + ' · ' + esc(x.the.join(' '))
+            + (S.quanLy ? '</button>' : '</span>')).join('')
           + '</div></div></div>'
         : '');
+
+    /* Chỉ quản lý mới sửa được nhãn — máy chủ cũng chặn, đây chỉ là bớt bày ra
+     * những nút bấm vào sẽ báo lỗi. */
+    if (!S.quanLy) return;
+    const dsNhom = (d.thoNhan || []).map((x) => x.nhom);
+    const dsDoiTac = (d.thoNhan || []).map((x) => x.doiTac);
+    const timTho = (ten) => (d.thoNhan || []).find((x) => x.nhan === ten);
+    const nutThem = $('#nlThem');
+    if (nutThem) nutThem.onclick = () => moSuaNhan(null, dsNhom, dsDoiTac);
+    $('#view').querySelectorAll('[data-sua]').forEach((b) => {
+      b.onclick = () => {
+        const x = timTho(b.dataset.sua);
+        if (x) moSuaNhan(x, dsNhom, dsDoiTac);
+      };
+    });
   }
 
   /* ---------------- vẽ ---------------- */

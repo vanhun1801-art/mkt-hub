@@ -345,11 +345,60 @@ async function api(req, res, u) {
       /* Bỏ mảng bài ra khỏi phản hồi — 1.300 bài nhân nhiều nhãn là payload vài
        * megabyte mà bảng không dùng tới. Muốn xem bài thì tải CSV. */
       nhan: gop.map(({ bai: _b, ...o }) => o),
+      /* Bản THÔ của bảng Nhãn bài, kể cả nhãn đang tắt hoặc chưa khai hashtag —
+       * màn hình thiết lập phải sửa được cả những dòng đó, chứ không chỉ những
+       * dòng đủ điều kiện tính số. */
+      thoNhan: (await store.taiNhan()).map((x) => ({
+        id: x.id, nhan: x.nhan, nhom: x.nhom, hashtag: x.hashtag,
+        doiTac: x.doiTac, ghiChu: x.ghiChu, bat: x.bat,
+      })),
       theoDoiTac: [...theoDoiTac.values()].sort((a, b) => b.views - a.views),
       khongNhan: nhan.baiKhongNhan(bai, ds).length,
       tongBai: bai.length,
       soNhan: ds.length,
     });
+  }
+
+  /* Thêm / sửa / xoá nhãn ngay trong app, khỏi phải mở Base.
+   *
+   * Vẫn ghi thẳng xuống bảng "Nhãn bài" chứ không giữ một bản sao ở đâu khác —
+   * một nguồn sự thật, ai quen Base hơn thì sửa trong Base vẫn được. */
+  if (p === '/api/nhan/luu' && method === 'POST') {
+    const loi = chanNeuKhongPhaiQuanLy(req); if (loi) throw loi;
+    const b = await readBody(req);
+    const ten = String(b.nhan || '').trim();
+    if (!ten) return fail(res, 400, 'Chưa đặt tên nhãn');
+    if (!String(b.hashtag || '').trim()) {
+      return fail(res, 400, 'Nhãn phải có ít nhất một hashtag, nếu không nó không bao giờ khớp bài nào');
+    }
+    const f = cfg.tables.label.f;
+    const o = {
+      [f.name]: ten,
+      [f.group]: String(b.nhom || '').trim(),
+      [f.hashtag]: String(b.hashtag || '').trim(),
+      [f.partner]: String(b.doiTac || '').trim(),
+      [f.on]: b.bat !== false,
+      [f.note]: String(b.ghiChu || '').trim(),
+    };
+    /* Trùng tên là hỏng thầm: hai dòng cùng tên thì bảng gộp số về một chỗ còn
+     * dòng kia biến mất, mà nhìn Base vẫn thấy đủ hai. */
+    const dsCu = await store.taiNhan();
+    const trung = dsCu.find((x) => x.nhan === ten && x.id !== b.id);
+    if (trung) return fail(res, 400, 'Đã có nhãn tên "' + ten + '" rồi');
+
+    if (b.id) await lark.updateRecord(cfg.tables.label.id, b.id, o);
+    else await lark.createRecord(cfg.tables.label.id, o);
+    store.xoaCache();
+    return ok(res, { ok: true });
+  }
+
+  if (p === '/api/nhan/xoa' && method === 'POST') {
+    const loi = chanNeuKhongPhaiQuanLy(req); if (loi) throw loi;
+    const b = await readBody(req);
+    if (!b.id) return fail(res, 400, 'Thiếu id');
+    await lark.deleteRecords(cfg.tables.label.id, [b.id]);
+    store.xoaCache();
+    return ok(res, { ok: true });
   }
 
   if (p === '/api/nhan/csv' && method === 'GET') {

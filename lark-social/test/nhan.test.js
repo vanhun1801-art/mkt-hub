@@ -133,6 +133,39 @@ t('bài không mang nhãn nào đếm được, để biết quy định theo t�
   assert.strictEqual(nhan.baiKhongNhan(p, ds).length, 2);
 });
 
+console.log('\nnhãn — thiết lập trong app');
+
+t('nhãn không khai hashtag thì không bao giờ vào bảng', () => {
+  /* Máy chủ chặn từ lúc lưu, nhưng dòng cũ trong Base có thể trống. Không lọc ở
+     đây thì nó đứng trong bảng với 0 bài mãi mãi, và người dùng tưởng đội nội
+     dung chưa gắn thẻ chứ không phải mình quên khai. */
+  const ds = nhan.chuanHoaNhan([
+    { nhan: 'Chưa khai', hashtag: '' },
+    { nhan: 'Đã khai', hashtag: '#x' },
+  ]);
+  assert.deepStrictEqual(ds.map((x) => x.nhan), ['Đã khai']);
+});
+
+t('nhóm là chữ tự do, không bó trong danh sách cố định', () => {
+  /* Anh Hùng sẽ còn thêm nhóm mới — Sản phẩm, Sự kiện… Bó cứng vào một danh
+     sách là mỗi lần thêm nhóm lại phải nhờ sửa code. */
+  const ds = nhan.chuanHoaNhan([{ nhan: 'A', hashtag: '#a', nhom: 'Sản phẩm mùa hè' }]);
+  assert.strictEqual(ds[0].nhom, 'Sản phẩm mùa hè');
+});
+
+t('nhiều nhãn cùng đối tác thì gộp được về một mối', () => {
+  const ds = nhan.chuanHoaNhan([
+    { nhan: 'VinWonders', hashtag: '#vw', doiTac: 'Vinpearl' },
+    { nhan: 'Safari', hashtag: '#sf', doiTac: 'Vinpearl' },
+    { nhan: 'Sunset', hashtag: '#st', doiTac: 'Sun Group' },
+  ]);
+  const r = nhan.gopTheoNhan([bai('#vw', { views: 10 }), bai('#sf', { views: 5 }),
+    bai('#st', { views: 3 })], ds);
+  const vin = r.filter((x) => x.doiTac === 'Vinpearl');
+  assert.strictEqual(vin.length, 2);
+  assert.strictEqual(vin.reduce((a, b) => a + b.views, 0), 15);
+});
+
 console.log('\nnhãn — xuất CSV');
 
 t('dấu chấm phẩy và BOM, để Excel tiếng Việt mở đúng', () => {
