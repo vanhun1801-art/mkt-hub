@@ -306,6 +306,50 @@ t('follower chốt vẫn tôn trọng bộ lọc nền tảng', () => {
   assert.strictEqual(chot[0].followers, 10);
 });
 
+t('lấy bản lifetime khi Meta trả một metric hai lần', () => {
+  /* Lỗi thật, làm mất gần hết lượt xem bài Facebook. Khi xin nhiều metric một
+     lượt, Meta trả CÙNG một metric hai lần — period `lifetime` rồi period `day`.
+     Gán thẳng theo tên thì bản `day` đè bản `lifetime`, nên một bài 1.948.242
+     lượt xem trọn đời vào Base thành 1. Tổng lượt xem bài Facebook từ 30.515.492
+     tụt xuống 26.942, mà bảng vẫn đầy tương tác — nhìn là thấy vô lý nhưng phải
+     mở phản hồi thô mới biết vì sao.
+
+     Mô phỏng đúng vòng gom trong baiCuaPage(). */
+  const goi = (ds) => {
+    const ins = {};
+    ds.forEach((m) => {
+      const v = Number((m.values[0] || {}).value) || 0;
+      if (m.period === 'lifetime' || !(m.name in ins)) ins[m.name] = v;
+    });
+    return ins;
+  };
+  const traVe = [
+    { name: 'post_video_views_organic', period: 'lifetime', values: [{ value: 1948242 }] },
+    { name: 'post_clicks', period: 'lifetime', values: [{ value: 42269 }] },
+    { name: 'post_video_views_organic', period: 'day', values: [{ value: 1 }] },
+  ];
+  assert.strictEqual(goi(traVe).post_video_views_organic, 1948242,
+    'bản day KHÔNG được đè bản lifetime');
+  assert.strictEqual(goi(traVe).post_clicks, 42269);
+
+  /* Thứ tự ngược lại cũng phải ra đúng — không được dựa vào việc lifetime đến trước. */
+  assert.strictEqual(goi(traVe.slice().reverse()).post_video_views_organic, 1948242);
+
+  /* Metric chỉ có bản day thì vẫn lấy, thà có số còn hơn bỏ trống. */
+  assert.strictEqual(goi([{ name: 'x', period: 'day', values: [{ value: 7 }] }]).x, 7);
+});
+
+t('phân loại bài theo status_type THẬT của Graph', () => {
+  /* Graph trả `added_video`, `added_photos` — không phải `video`, `photo`. Bảng
+     cũ tra bằng tên rút gọn nên không khớp gì, và 563 bài của trang (trong đó có
+     bài 1,9 triệu lượt xem) đều bị xếp là "Bài viết". */
+  const src = require('fs').readFileSync(require.resolve('../sync/facebook'), 'utf8');
+  const m = /const LOAI_BAI = {([^}]*)}/.exec(src);
+  assert.ok(m, 'không tìm thấy LOAI_BAI');
+  ['added_video', 'added_photos'].forEach((k) => assert.ok(m[1].includes(k),
+    'thiếu status_type ' + k));
+});
+
 t('Facebook có ánh xạ tiếp cận, dưới CẢ HAI tên Meta dùng', () => {
   /* Xin bằng tên có _v2 nhưng Meta trả về dưới tên không có _v2. Thiếu một
      trong hai dòng ánh xạ thì request vẫn thành công, số vẫn về, mà cột tiếp cận

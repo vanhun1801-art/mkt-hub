@@ -105,12 +105,47 @@ async function createRecord(tableId, fields) {
   return (data.record_id_list || [])[0] || null;
 }
 
+/**
+ * Chia lô theo ĐỘ DÀI JSON, không phải theo số dòng.
+ *
+ * Chế độ cli truyền dữ liệu cho lark-cli qua tham số dòng lệnh, mà Windows chặn
+ * dòng lệnh ở khoảng 32 nghìn ký tự. Chia 200 dòng một lô là đủ cho bảng số
+ * liệu ngày (mỗi dòng vài chục ký tự), nhưng bảng Bài đăng có caption dài — 200
+ * bài là hơn 100 nghìn ký tự và Node ném `spawn ENAMETOOLONG`. Gặp thật khi
+ * chạy lại cả năm: lấy về đủ 525 bài rồi hỏng ở đúng bước ghi.
+ *
+ * Để ngưỡng 24.000 cho rộng chỗ: phần còn lại của dòng lệnh (đường dẫn script,
+ * base token, tên bảng) cũng tính vào giới hạn đó.
+ */
+const TRAN_JSON = 24000;
+/* Lark chặn ở 200 bản ghi mỗi lượt ghi. Phải chặn CẢ HAI: chỉ chặn độ dài thì
+ * bảng số liệu ngày (dòng ngắn) gom tới hàng nghìn dòng một lô và Lark từ chối;
+ * chỉ chặn số dòng thì bảng Bài đăng (caption dài) làm vỡ dòng lệnh Windows. */
+const TRAN_DONG = 200;
+
+function chiaLo(items, doDai) {
+  const lo = [];
+  let hienTai = [];
+  let co = 0;
+  items.forEach((x) => {
+    const n = doDai(x);
+    /* Một phần tử tự nó đã quá dài thì vẫn phải gửi riêng — thà để Lark từ chối
+     * một dòng còn hơn im lặng bỏ nó lại. */
+    const day = hienTai.length >= TRAN_DONG || (hienTai.length && co + n > TRAN_JSON);
+    if (day) { lo.push(hienTai); hienTai = []; co = 0; }
+    hienTai.push(x);
+    co += n;
+  });
+  if (hienTai.length) lo.push(hienTai);
+  return lo;
+}
+
 async function createMany(tableId, rowsObj) {
   if (!rowsObj.length) return [];
   const names = [...new Set(rowsObj.flatMap((r) => Object.keys(r)))];
   const out = [];
-  for (let i = 0; i < rowsObj.length; i += 200) {
-    const chunk = rowsObj.slice(i, i + 200);
+  const lo = chiaLo(rowsObj, (r) => JSON.stringify(r).length);
+  for (const chunk of lo) {
     const data = await cli(['base', '+record-batch-create', ...baseArgs(),
       '--table-id', tableId, '--format', 'json',
       '--json', JSON.stringify({ fields: names, rows: chunk.map((r) => names.map((n) => (n in r ? r[n] : null))) })]);
@@ -125,12 +160,11 @@ async function updateRecord(tableId, recordId, fields) {
     '--json', JSON.stringify({ update_records: { [recordId]: fields } })]);
 }
 
-/** map: { recordId: { fieldId: value } } — chia lô 200 bản ghi mỗi lần gọi. */
+/** map: { recordId: { fieldId: value } } — chia lô theo độ dài JSON, xem chiaLo(). */
 async function updateMany(tableId, map) {
   const ids = Object.keys(map);
   let done = 0;
-  for (let i = 0; i < ids.length; i += 200) {
-    const chunk = ids.slice(i, i + 200);
+  for (const chunk of chiaLo(ids, (id) => JSON.stringify(map[id]).length + id.length + 4)) {
     const update_records = {};
     chunk.forEach((id) => { update_records[id] = map[id]; });
     await cli(['base', '+record-batch-update', ...baseArgs(),
@@ -152,4 +186,4 @@ async function deleteRecords(tableId, recordIds) {
  * để không phải sửa từng chỗ gọi (store.js, quyen.js, sync/*.js...). */
 module.exports = cfg.mode === 'api'
   ? require('./larkapi')
-  : { cli, whoami, listAll, getRecord, createRecord, createMany, updateRecord, updateMany, deleteRecords };
+  : { cli, whoami, listAll, getRecord, createRecord, createMany, updateRecord, updateMany, deleteRecords, chiaLo, TRAN_JSON, TRAN_DONG };

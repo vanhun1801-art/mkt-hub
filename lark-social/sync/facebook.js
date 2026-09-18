@@ -310,9 +310,22 @@ const TRUONG_BAI_GON = [
   'likes.summary(true).limit(0)',
 ].join(',');
 
+/**
+ * `status_type` của Facebook, không phải tên loại người ta hay nói.
+ *
+ * Giá trị thật Graph trả về là `added_video`, `added_photos`… chứ không phải
+ * `video`, `photo`. Bảng cũ tra bằng tên rút gọn nên KHÔNG khớp gì cả, và 563
+ * bài của trang — trong đó có bài 1,9 triệu lượt xem — đều bị xếp là "Bài viết".
+ * Màn hình Nội dung vì thế báo "Bài viết" là dạng đông nhất, trong khi thật ra
+ * trang chạy chủ yếu bằng video.
+ */
 const LOAI_BAI = {
-  video: 'Video', photo: 'Ảnh', album: 'Album', link: 'Bài viết',
-  status: 'Bài viết', reel: 'Reels', share: 'Bài viết',
+  added_video: 'Video', video: 'Video',
+  added_photos: 'Ảnh', photo: 'Ảnh',
+  album: 'Album', shared_story: 'Bài viết', share: 'Bài viết',
+  mobile_status_update: 'Bài viết', status: 'Bài viết',
+  published_story: 'Bài viết', link: 'Bài viết',
+  reel: 'Reels', created_note: 'Bài viết',
 };
 
 async function baiCuaPage(conf, page, from, to, tran, canhBao) {
@@ -328,13 +341,23 @@ async function baiCuaPage(conf, page, from, to, tran, canhBao) {
   ].join(',');
 
   const out = [];
-  const dungUrl = (f) => g(conf) + '/' + page.id + '/posts?limit=50'
-    + '&since=' + from + '&until=' + to
+  /* Hai mươi lăm bài một trang, không phải năm mươi.
+   *
+   * Mỗi bài kéo theo năm metric insight, nên xin nhiều bài một lượt là Meta trả
+   * "Please reduce the amount of data you're asking for" và mất TRẮNG trang đó.
+   * Gặp thật khi chạy lại cả năm: hai trong ba Page trả 0 bài, còn Page thứ ba
+   * (ít bài hơn) thì chạy ngon — nên nhìn nhật ký rất dễ tưởng là lỗi quyền. */
+  const dungUrl = (f, tu, den) => g(conf) + '/' + page.id + '/posts?limit=25'
+    + '&since=' + tu + '&until=' + den
     + '&fields=' + encodeURIComponent(f)
     + '&access_token=' + encodeURIComponent(token);
 
   let truong = fields;
-  let url = dungUrl(truong);
+
+  /* Chia theo tháng. Kéo cả năm một lượt thì dù có phân trang, chính lời gọi đầu
+   * tiên đã quá nặng với Meta. */
+  for (const [tuKy, denKy] of chiaKhoang(from, to, 31)) {
+  let url = dungUrl(truong, tuKy, denKy);
 
   for (let trang = 0; url && trang < 40 && out.length < tran; trang++) {
     let res = await getJson(url, { label: 'Facebook posts ' + (page.name || page.id), retries: 2 });
@@ -348,7 +371,7 @@ async function baiCuaPage(conf, page, from, to, tran, canhBao) {
         + 'mức bài, nên bỏ phần insight từng bài — vẫn lấy được bài, thích, bình luận, '
         + 'chia sẻ; riêng lượt hiển thị và thời gian xem của từng bài để trống.');
       truong = TRUONG_BAI_GON;
-      url = dungUrl(truong);
+      url = dungUrl(truong, tuKy, denKy);
       res = await getJson(url, { label: 'Facebook posts (gọn) ' + (page.name || page.id), retries: 2 });
     }
 
@@ -364,9 +387,19 @@ async function baiCuaPage(conf, page, from, to, tran, canhBao) {
       break;
     }
     (res.data || []).forEach((p) => {
+      /* META TRẢ CÙNG MỘT METRIC HAI LẦN, hai chu kỳ khác nhau — `lifetime` rồi
+       * `day` — và chỉ khi xin nhiều metric một lượt. Gán thẳng theo tên thì bản
+       * `day` đè bản `lifetime`, nên một bài 1.948.242 lượt xem trọn đời vào Base
+       * thành 1 (số của riêng hôm đó). Cả bảng Bài đăng Facebook vì thế gần như
+       * trống lượt xem, mà vẫn đầy tương tác — nhìn là thấy vô lý, nhưng phải mở
+       * đúng phản hồi thô mới biết vì sao.
+       *
+       * Ở đây cần số TRỌN ĐỜI của bài, nên ưu tiên `lifetime`; không có thì mới
+       * lấy cái đầu tiên gặp. */
       const ins = {};
       ((p.insights && p.insights.data) || []).forEach((m) => {
-        ins[m.name] = num(((m.values || [])[0] || {}).value);
+        const v = num(((m.values || [])[0] || {}).value);
+        if (m.period === 'lifetime' || !(m.name in ins)) ins[m.name] = v;
       });
       const likes = num(p.likes && p.likes.summary && p.likes.summary.total_count);
       const cmts = num(p.comments && p.comments.summary && p.comments.summary.total_count);
@@ -396,6 +429,7 @@ async function baiCuaPage(conf, page, from, to, tran, canhBao) {
       });
     });
     url = (res.paging && res.paging.next) || null;
+  }
   }
   return out.slice(0, tran);
 }

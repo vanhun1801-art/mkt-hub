@@ -123,8 +123,19 @@ const mgr = (p, o) => call(MGR, p, o);
 
   /* ---------- 4. trường khoá trên lịch của mình ---------- */
   group('4. Trường và trạng thái do quản lý giữ');
-  const mine = s.items[0];
-  ok('có lịch của mình để thử', !!mine, mine && mine.title);
+  /* Phải là lịch nhân sự này PHỤ TRÁCH, không phải lịch bất kỳ.
+   *
+   * Bản trước lấy thẳng `s.items[0]`. Gặp hôm bản ghi đầu danh sách là lịch
+   * nhân sự chỉ CÙNG tác nghiệp thì máy chủ chặn sớm hơn một tầng — trả
+   * NOT_OWNER ("chỉ người phụ trách mới sửa được") thay vì STATUS_LOCKED
+   * ("trạng thái này do quản lý giữ"). Cả hai đều đúng, nhưng bài này đang đi
+   * soi tầng thứ hai, nên phải chọn đúng bản ghi cho nó tới được tầng đó. */
+  const mine = s.items.find((x) => (x.owner || []).some((o) => o && o.id === s.me.id))
+    || s.items[0];
+  ok('có lịch MÌNH PHỤ TRÁCH để thử',
+    !!mine && (mine.owner || []).some((o) => o && o.id === s.me.id),
+    mine ? mine.title + ' — phụ trách: ' +
+      JSON.stringify((mine.owner || []).map((o) => o && o.name)) : 'không có lịch nào');
 
   const locked = {
     owner: 'Phụ trách',

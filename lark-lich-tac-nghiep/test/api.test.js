@@ -41,7 +41,14 @@ async function call(path, opts) {
   ok('nhận diện được người dùng lark-cli', !!(D.me && D.me.id), JSON.stringify(D.me));
   ok('xác định vai trò', typeof D.manager === 'boolean');
   ok('có danh sách lịch', Array.isArray(D.items) && D.items.length > 0, 'items=' + (D.items || []).length);
-  ok('đã lọc dòng trống của Base', D.blankRows > 0, 'blankRows=' + D.blankRows);
+  /* Đếm được số dòng trống đã lọc, KHÔNG đòi phải có dòng trống.
+   *
+   * Bản trước viết `D.blankRows > 0`, tức là bắt Base phải bẩn thì test mới
+   * xanh — dọn sạch Base là cả bộ đỏ, mà dọn sạch mới là điều đáng mừng. Thứ
+   * cần chốt là HÀNH VI: bộ lọc có chạy và báo lại con số, còn dòng rỗng có
+   * lọt vào items hay không thì câu ngay dưới đã canh. */
+  ok('có đếm số dòng trống đã lọc', Number.isFinite(D.blankRows) && D.blankRows >= 0,
+    'blankRows=' + D.blankRows);
   ok('không còn bản ghi rỗng lọt lưới',
     !(D.items || []).some((t) => !t.title && !t.purpose && !t.start && !t.status &&
       !(t.owner || []).length && !(t.staff || []).length));

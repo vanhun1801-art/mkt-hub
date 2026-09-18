@@ -545,3 +545,23 @@ table.tbl tfoot td { font-weight: 700; background: var(--panel-2); border-top: 2
 .gt-nhan .dt { font-size: 11px; color: var(--ink-3); }
 .gt-nhan .vs { font-size: 11px; color: var(--brand); }
 .gt-nhan.gy { border-color: var(--brand); background: var(--brand-soft); }
+
+/* ---------------------------------------------------------------------
+   ĐIỆN THOẠI: sàn cỡ chữ cho mấy khối THÊM SAU
+
+   Khối "sàn cỡ chữ" ở trên không với tới bốn luật dưới đây, vì chúng được
+   viết SAU nó trong file — mà `@media` không cộng thêm độ ưu tiên, nên luật
+   đứng sau thắng và cỡ 11px vẫn giữ nguyên. Đúng cái bẫy đã ghi ở đầu khối
+   `.topbar`, lần này dính ở chỗ khác.
+
+   Nên khối này phải nằm CUỐI FILE. Thêm luật cỡ chữ mới ở dưới nữa thì lại
+   phải kéo khối này xuống theo — hoặc viết cỡ đủ lớn ngay từ đầu.
+
+   Sàn giữ đúng thang cũ: ≤11px lên 12.5px, 11.5px lên 13px.
+   --------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  .goi-y-nhan { font-size: 13px; }                               /* 11.5 */
+  .goi-y-the span { font-size: 12.5px; }                         /* 11 */
+  .gt-nhan .dt { font-size: 12.5px; }                            /* 11 */
+  .gt-nhan .vs { font-size: 12.5px; }                            /* 11 */
+}
