@@ -25,13 +25,20 @@
 
 const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 
-/** Tách chuỗi hashtag người dùng gõ trong Base thành mảng đã chuẩn hoá. */
+/**
+ * Tách chuỗi hashtag người dùng gõ trong Base thành mảng đã chuẩn hoá.
+ *
+ * LOẠI TRÙNG. Gắn thẻ nhiều lần qua giao diện, hoặc gõ tay rồi quên, là ô hashtag
+ * thành "#rootytripphuquoc #rooty #rootytripphuquoc #rootytrip". Không lọc thì
+ * phép soát báo "thẻ bị hai nhãn cùng giữ" trong khi thật ra chỉ một nhãn khai
+ * lặp — mất công đi tìm nhãn thứ hai không tồn tại.
+ */
 function tachThe(s) {
-  return String(s || '')
+  return [...new Set(String(s || '')
     .split(/[\s,;|]+/)
     .map((x) => x.trim().toLowerCase())
     .filter(Boolean)
-    .map((x) => (x.startsWith('#') ? x : '#' + x));
+    .map((x) => (x.startsWith('#') ? x : '#' + x)))];
 }
 
 /** Mọi hashtag trong một caption, viết thường, không trùng. */

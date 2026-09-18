@@ -103,7 +103,28 @@ async function doInsights(url0, metrics, nhan) {
       { label: nhan, retries: 2 });
     if (!res.error) return { data: res.data || [], bo };
     const msg = String(res.error.message || '');
-    const thuPham = conLai.find((m) => msg.includes(m));
+
+    /* META NÓI RÕ VỊ TRÍ METRIC HỎNG — phải dùng nó.
+     *
+     * Thông báo có dạng: "(#100) metric[5] must be one of the following values:
+     * impressions, reach, replies, saved, likes, comments, shares…". Phần sau
+     * dấu hai chấm là danh sách metric HỢP LỆ, không phải thủ phạm.
+     *
+     * Bản trước dò thủ phạm bằng msg.includes(tên) nên khớp ngay `views` — một
+     * metric hoàn toàn hợp lệ, chỉ vì nó có mặt trong danh sách gợi ý. Vòng lặp
+     * lần lượt vứt views, reach, likes… còn thủ phạm thật (`saves`, tên đúng ở
+     * mức bài là `saved`) thì không bao giờ bị nhận ra vì nó KHÔNG nằm trong
+     * danh sách hợp lệ. Kết quả: 101/105 bài Instagram vào Base với 0 lượt xem,
+     * trong khi API vẫn trả 13.945. */
+    const viTri = /metric\[(\d+)\]/.exec(msg);
+    let thuPham = viTri ? conLai[Number(viTri[1])] : null;
+
+    /* Không có chỉ số thì mới đoán theo tên, và chỉ xét phần TRƯỚC dấu hai chấm
+     * để khỏi đọc nhầm danh sách gợi ý. */
+    if (!thuPham) {
+      const truoc = msg.split(':')[0];
+      thuPham = conLai.find((m) => truoc.includes(m));
+    }
     if (!thuPham) throw new Error(scrub(nhan + ' — IG báo lỗi (' + res.error.code + '): ' + msg));
     bo.push(thuPham);
     conLai = conLai.filter((m) => m !== thuPham);

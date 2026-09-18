@@ -306,6 +306,43 @@ t('follower chốt vẫn tôn trọng bộ lọc nền tảng', () => {
   assert.strictEqual(chot[0].followers, 10);
 });
 
+t('đọc ĐÚNG metric hỏng từ thông báo lỗi của Instagram', () => {
+  /* Lỗi thật, làm 101/105 bài Instagram vào Base với 0 lượt xem.
+     Thông báo của Meta có dạng:
+       "(#100) metric[5] must be one of the following values: impressions, reach,
+        replies, saved, likes, comments, shares, total_interactions…"
+     Phần sau dấu hai chấm là danh sách metric HỢP LỆ. Bản trước dò thủ phạm bằng
+     msg.includes(tên) nên khớp ngay `views` — hợp lệ hoàn toàn, chỉ vì nó có mặt
+     trong danh sách gợi ý. Vòng lặp lần lượt vứt views, reach, likes… còn thủ
+     phạm thật (`saves`) thì không bao giờ bị nhận ra vì nó KHÔNG nằm trong danh
+     sách hợp lệ. */
+  const msg = '(#100) metric[5] must be one of the following values: impressions, reach, '
+    + 'replies, saved, likes, comments, shares, total_interactions, follows';
+  const conLai = ['views', 'reach', 'likes', 'comments', 'shares', 'saves', 'total_interactions'];
+
+  const cachCu = conLai.find((m) => msg.includes(m));
+  assert.notStrictEqual(cachCu, 'saves', 'cách cũ đúng là bỏ nhầm metric — đây là cái bẫy');
+  assert.ok(conLai.includes(cachCu), 'và nó bỏ một metric hoàn toàn hợp lệ (' + cachCu + ')');
+
+  /* Cách mới: dùng chỉ số Meta nói. */
+  const viTri = /metric\[(\d+)\]/.exec(msg);
+  assert.ok(viTri);
+  assert.strictEqual(conLai[Number(viTri[1])], 'saves', 'phải bỏ đúng saves');
+
+  /* Không có chỉ số thì chỉ đoán trên phần TRƯỚC dấu hai chấm. */
+  const truoc = msg.split(':')[0];
+  assert.strictEqual(conLai.find((m) => truoc.includes(m)), undefined,
+    'không được đoán bừa từ danh sách gợi ý');
+});
+
+t('instagram.js dùng chỉ số metric, không dò cả thông báo', () => {
+  const src = require('fs').readFileSync(require.resolve('../sync/instagram'), 'utf8');
+  assert.ok(src.includes('metric') && src.includes('.exec(msg)'),
+    'phải đọc chỉ số metric[N] từ thông báo lỗi');
+  assert.ok(src.includes("msg.split(':')[0]"),
+    'khi đoán theo tên thì chỉ xét phần trước dấu hai chấm');
+});
+
 t('lấy bản lifetime khi Meta trả một metric hai lần', () => {
   /* Lỗi thật, làm mất gần hết lượt xem bài Facebook. Khi xin nhiều metric một
      lượt, Meta trả CÙNG một metric hai lần — period `lifetime` rồi period `day`.
