@@ -21,6 +21,7 @@ const noiDung = require('./noi-dung');
 const binhLuan = require('./binh-luan');
 const nhan = require('./nhan');
 const phamVi = require('./pham-vi');
+const xuatDT = require('./xuat-doi-tac');
 const facebook = require('./sync/facebook');
 const zalo = require('./sync/zalo');
 const tiktok = require('./sync/tiktok');
@@ -503,6 +504,44 @@ async function api(req, res, u) {
     await lark.deleteRecords(cfg.tables.label.id, [b.id]);
     store.xoaCache();
     return ok(res, { ok: true });
+  }
+
+  /* Xuất báo cáo cho MỘT đối tác: Excel hoặc trang in.
+   * Gom một chỗ vì hai định dạng dùng chung y hệt bộ số — tách ra là sớm muộn
+   * hai tệp gửi cùng một đối tác lại nói hai con số khác nhau. */
+  if (p === '/api/doi-tac/xuat' && method === 'GET') {
+    const t = thamSo(u, await hanMucKenh(req));
+    const ten = (u.searchParams.get('doiTac') || '').trim();
+    if (!ten) return fail(res, 400, 'Chưa chọn đối tác');
+    const kieu = u.searchParams.get('kieu') === 'in' ? 'in' : 'excel';
+
+    const d = await store.tai();
+    const ds = nhan.chuanHoaNhan(await store.taiNhan());
+    const bai = M.topBai(d.posts, { ...t, theo: 'views', n: 100000 });
+    const cuaDT = ds.filter((x) => x.doiTac === ten);
+    if (!cuaDT.length) return fail(res, 404, 'Không có nhãn nào thuộc đối tác "' + ten + '"');
+
+    const theoNhan = nhan.gopTheoNhan(bai, ds).filter((o) => o.doiTac === ten);
+    const tongHop = nhan.gopTheoDoiTac(bai, ds).find((o) => o.doiTac === ten)
+      || { soBai: 0, views: 0, reach: 0, likes: 0, comments: 0, shares: 0, engagement: 0, tyLeTuongTac: 0 };
+    const ban = { doiTac: ten, nhan: theoNhan, tongHop, tu: t.from, den: t.to };
+
+    if (kieu === 'in') {
+      const html = xuatDT.trangIn({ ...ban, logo: await xuatDT.logoHtml() });
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      return res.end(html);
+    }
+
+    const buf = xuatDT.excelDoiTac(ban);
+    const tep = 'bao-cao-' + ten.normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/[^A-Za-z0-9]+/g, '-').toLowerCase() + '-' + t.from + '-' + t.to + '.xlsx';
+    res.writeHead(200, {
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Length': buf.length,
+      'Content-Disposition': "attachment; filename=\"bao-cao.xlsx\"; filename*=UTF-8''"
+        + encodeURIComponent(tep),
+    });
+    return res.end(buf);
   }
 
   if (p === '/api/nhan/csv' && method === 'GET') {

@@ -1472,6 +1472,13 @@
     if (S.platforms.length) q.set('platform', S.platforms.join(','));
     const d = await goi('/api/nhan?' + q);
 
+    /* Trang in mở tab mới rồi người dùng bấm Lưu PDF ở đó — trình duyệt lo phần
+     * font tiếng Việt, thứ mà tự dựng PDF trong Node làm rất dễ hỏng. */
+    const linkXuat = (dt, kieu) => '/api/doi-tac/xuat?' + new URLSearchParams({
+      doiTac: dt, kieu, from: S.from, to: S.to,
+      ...(S.platforms.length ? { platform: S.platforms.join(',') } : {}),
+    });
+
     const linkCsv = (ten) => '/api/nhan/csv?' + new URLSearchParams({
       nhan: ten, from: S.from, to: S.to,
       ...(S.platforms.length ? { platform: S.platforms.join(',') } : {}),
@@ -1485,7 +1492,7 @@
     $('#view').innerHTML = ''
       + (d.theoDoiTac.length
         ? '<div class="card"><div class="card-head"><h3>Theo đối tác</h3>'
-          + '<span class="sub">gộp mọi nhãn của cùng một đối tác</span></div>'
+          + '<span class="sub">gộp mọi nhãn của cùng một đối tác · mỗi bài đếm một lần</span></div>'
           + '<div class="card-body tight">'
           + bangGon([
             { t: 'Đối tác', name: 1, v: (x) => esc(x.doiTac)
@@ -1493,6 +1500,10 @@
             { t: 'Bài', num: 1, v: (x) => n0(x.soBai) },
             { t: 'Lượt xem', num: 1, k: 'views', v: (x) => n0(x.views) },
             { t: 'Tương tác', num: 1, k: 'engagement', v: (x) => n0(x.engagement) },
+            { t: 'Gửi đối tác', v: (x) => '<a class="btn ghost small" href="'
+              + esc(linkXuat(x.doiTac, 'excel')) + '" download>Excel</a> '
+              + '<a class="btn ghost small" href="' + esc(linkXuat(x.doiTac, 'in'))
+              + '" target="_blank" rel="noreferrer">PDF</a>' },
           ], d.theoDoiTac)
           + '</div></div>'
         : '')
