@@ -124,10 +124,16 @@ button, select, input, textarea { font: inherit; color: inherit; }
   background: var(--trang); border-bottom: 1px solid var(--vien);
   padding: 0 var(--le); position: sticky; top: 55px; z-index: 19;
 }
-.tabs { display: flex; gap: 2px; }
+/* Cuộn ngang chứ không đẩy trang: tám tab cộng lại 480px, trên điện thoại
+   375px thì ba tab cuối (Phân công kênh · Mục tiêu & thử luật · Soát & chốt)
+   nằm ngoài mép và CẢ TRANG trượt ngang. Khay tab dính ở đỉnh nên cho xuống
+   dòng là được một khay cao ba tầng — app quảng cáo và Chỉnh ảnh cũng cho khay
+   tab cuộn ngang, giữ cho giống. */
+.tabs { display: flex; gap: 2px; overflow-x: auto; }
 .tab {
   padding: 11px 14px; border: 0; background: none; cursor: pointer; color: var(--chu-mo);
   border-bottom: 2px solid transparent; font-weight: 550; font-size: 13.5px;
+  white-space: nowrap; flex: none;
   transition: color .12s, background .12s;
 }
 .tab:hover { color: var(--chu); background: var(--trang-2); }
@@ -136,7 +142,17 @@ button, select, input, textarea { font: inherit; color: inherit; }
 
 main { padding: 18px var(--le) 60px; }
 /* Màn hẹp thu lề lại — 20px hai bên trên điện thoại là mất gần 1/6 bề ngang. */
-@media (max-width: 720px) { :root { --le: 14px; } }
+@media (max-width: 720px) {
+  :root { --le: 14px; }
+  /* Dãy sáu mốc thời gian (Tháng này … Năm nay) dài 516px và không cho xuống
+     dòng, nên trên máy 375px nó đẩy CẢ TRANG rộng thành 494px: trang trượt
+     ngang, hai mốc cuối nằm ngoài mép. Xuống dòng chứ không cuộn ngang — lớp vỏ
+     cũng cho dãy mốc của nó xuống dòng, và ở đây mọi mốc phải nhìn thấy được
+     ngay chứ không phải kéo mới biết là có. */
+  .loc-nhom { min-width: 0; max-width: 100%; }
+  .seg { flex-wrap: wrap; }
+  .seg-nut { flex: 1 1 auto; }
+}
 .rong { padding: 44px; text-align: center; color: var(--chu-nhat); }
 
 /* ---- KHỐI: thẻ trắng ---- */

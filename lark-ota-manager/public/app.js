@@ -289,7 +289,13 @@ function veBookingMoi() {
       <p>Lark Base vẫn đọc được bình thường — đây là lựa chọn của bạn để soi booking nào
       chưa đẩy lên Base được. <a href="#" id="veBase">Quay lại xem Base</a></p>
     </div></div>`;
-  } else if (d.nguon === 'base' && (S.meta.chuaDay || 0) > 0) {
+  /* `S.meta &&` không thừa: mọi chỗ khác trong file đều có, riêng chỗ này quên.
+   * Mở app TRONG lớp vỏ thì lớp vỏ đẩy khoảng thời gian chung xuống ngay khi
+   * DOM vừa dựng (hubApKhoang -> nap()), tức là có thể vẽ danh sách TRƯỚC khi
+   * /api/meta trả về — lúc đó S.meta vẫn là null và cả màn đổ, người dùng nhận
+   * một hộp đỏ "Cannot read properties of null (reading 'chuaDay')" ở góc.
+   * Mở thẳng /m/ota/ thì không thấy, vì không ai đẩy bộ lọc xuống. */
+  } else if (d.nguon === 'base' && ((S.meta && S.meta.chuaDay) || 0) > 0) {
     html += `<div class="canhbao"><div class="noi">
       <b>${soVn(S.meta.chuaDay)} booking chưa đẩy được lên Base</b>
       <p>Chúng vẫn nằm an toàn trong hàng đợi cục bộ, nhưng ổ đĩa Render là tạm nên sẽ mất

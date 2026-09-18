@@ -53,6 +53,24 @@ button { font: inherit; }
 .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
 @media (max-width: 900px) {
   .topbar { flex-wrap: wrap; }
+  /* .topbar xuống dòng được rồi nhưng DÃY BÊN PHẢI thì chưa — và cái bẫy y hệt
+     lại sập ở đó: riêng ô "Trực tiếp · Facebook, TikTok · Google Ads LỖI 08:49"
+     đã 335px, cả dãy 521px, nên trên máy 375px trang rộng thành 541px và trượt
+     ngang. Cho dãy chiếm trọn một dòng, tự xuống hàng, và cho chữ trong ô trạng
+     thái ngắt dòng (.btn đang khai white-space: nowrap cho mọi nút). */
+  /* `.topbar > .topbar-right` chứ không phải `.topbar-right`: luật gốc
+     `.topbar-right { flex: none }` nằm DƯỚI khối @media này trong file, mà
+     @media không cộng thêm độ ưu tiên nào — viết bằng độ ưu tiên ngang nhau
+     thì luật đứng sau thắng và cả khối này vô tác dụng (đã mất một vòng đo mới
+     phát hiện: flex-wrap ăn, còn flex thì không). */
+  .topbar > .topbar-right { flex: 1 1 100%; flex-wrap: wrap; min-width: 0; }
+  .topbar-right > * { max-width: 100%; }
+  .btn.src { white-space: normal; text-align: left; }
+  /* Dãy sáu mốc thời gian thừa 10px so với bề ngang máy, mà .seg lại
+     overflow: hidden — nên chữ "Năm nay" bị xén dọc và không cuộn tới được.
+     Cho xuống dòng, các nút giãn đều cho hai hàng thẳng mép. */
+  .seg { flex-wrap: wrap; }
+  .seg button { flex: 1 1 auto; }
   .brand-title { font-size: 13px; }
   .brand-sub { display: none; }
   main { padding: 14px 12px 60px; }
