@@ -319,6 +319,33 @@ group('Chiều cao đã nhớ phải khớp BẢN ĐÃ DỊCH, không phải b�
   ok('vẫn canh cả bề ngang cửa sổ', /h\.w \|\| 0\) - window\.innerWidth/.test(cn));
 }
 
+group('Chỉ chụp màn app TỰ MỞ, không chụp tab người dùng bấm sang');
+{
+  /* Anh Hùng: "khi anh chuyển tab ở các ứng dụng như ads, social thì đôi khi
+   * không đúng".
+   *
+   * Bộ rình DOM bắn mỗi lần nội dung đổi, mà chuyển tab trong app cũng là đổi
+   * nội dung — nên bản chụp bị ghi đè bằng hình của TAB ĐANG XEM. Lần mở sau
+   * app luôn mở ở tab MẶC ĐỊNH, thành ra khung xương mang hình một tab khác
+   * hẳn, và trông như app vẽ sai.
+   *
+   * Mốc chặn là CÚ BẤM ĐẦU TIÊN: trước đó mọi thứ vẽ ra đều là màn app tự mở,
+   * đúng thứ cần nhớ; sau đó là do người dùng đi lại. Không dùng hẹn giờ cứng
+   * (kiểu "chỉ chụp trong 10 giây đầu") — app nạp Base nhanh chậm tuỳ ngày,
+   * mà người ta cũng có thể bấm sớm hơn thế. */
+  ok('có cờ nhớ đã bấm chưa', /let daBam = false;/.test(KXJS));
+  ok('bắt cử chỉ ở tầng document của CHÍNH app con',
+    /document\.addEventListener\(e, \(\) => \{ daBam = true; \}/.test(KXJS));
+  ok('bắt cả ba lối: chuột, phím, chạm',
+    /\['pointerdown', 'keydown', 'touchstart'\][\s\S]{0,200}daBam = true/.test(KXJS));
+  /* Phải chặn NGAY ĐẦU chupLai, trước cả mấy cửa khác — chặn sau thì vẫn tốn
+   * một lượt đi bộ qua DOM cho mỗi lần đổi tab. */
+  const than = KXJS.slice(KXJS.indexOf('const chupLai = () => {'),
+    KXJS.indexOf('const chupLai = () => {') + 260);
+  ok('và chặn ngay dòng đầu của chupLai',
+    /const chupLai = \(\) => \{\s+if \(daBam\) return;/.test(than), than.slice(0, 90));
+}
+
 group('Chín app con dùng đúng MỘT bản khung xương');
 {
   const TEP = ['khung-xuong.css', 'khung-xuong.js'];

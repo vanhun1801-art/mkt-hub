@@ -1149,6 +1149,32 @@ function nguonPhim(x) {
   return '/api/video-gt?i=' + (x.i || 1) + '&v=' + (x.luc || 0);
 }
 
+/**
+ * Khung xương của khối video + bảng tin, dựng theo TRÍ NHỚ của lần mở trước.
+ *
+ * Tách riêng vì phải gọi được từ HAI chỗ. Trước đây chỉ veKhoiTin() gọi, mà
+ * veKhoiTin() nằm trong veHome() — tức là phải chờ /api/hub xong. Đo trên máy:
+ * khối này cao 335px lúc có nội dung, nhưng ở nhịp sơn đầu tiên nó là 0px, nên
+ * KHI SỐ VỀ cả trang bên dưới tụt xuống 335px. Đó chính là chỗ anh Hùng nói
+ * "vẫn chưa khớp" — mấy thẻ base thì khớp từng pixel rồi, còn khối này thì
+ * chưa ai chừa chỗ cho.
+ *
+ * Giờ veHomeXuong() gọi nó TRƯỚC mọi lời gọi mạng. Cờ `xuong` bảo đảm chỉ dựng
+ * một lần, và veKhoiTin() vẽ đè nội dung thật lên đúng chỗ đó.
+ */
+function veTinXuong() {
+  const o = document.getElementById('khoiTin');
+  if (!o || !window.KX || o.dataset.xuong === '1' || o.dataset.xong === '1') return false;
+  let hinhCu = '';
+  try { hinhCu = localStorage.getItem('hub.tin.hinh') || ''; } catch (_) {}
+  /* Chưa nhớ gì thì KHÔNG vẽ: lần mở đầu đời máy mà bày một khối xám rồi nó
+   * biến mất (vì phòng chưa đặt video, chưa có tin) thì đọc như trang bị lỗi. */
+  if (!hinhCu) return false;
+  o.dataset.xuong = '1';
+  o.innerHTML = KX.tin(hinhCu === 'phim');
+  return true;
+}
+
 async function veKhoiTin() {
   const o = document.getElementById('khoiTin');
   if (!o) return;
@@ -1160,12 +1186,7 @@ async function veKhoiTin() {
      * chừa ô video, chỉ có tin thì chừa cột tin, chưa có gì thì không vẽ gì cả.
      * Hứa đúng thứ sắp hiện ra — chứ khối xám hiện lên rồi biến mất thì đọc
      * như trang bị lỗi. */
-    let hinhCu = '';
-    try { hinhCu = localStorage.getItem('hub.tin.hinh') || ''; } catch (_) {}
-    if (hinhCu && window.KX && o.dataset.xuong !== '1') {
-      o.dataset.xuong = '1';
-      o.innerHTML = KX.tin(hinhCu === 'phim');
-    }
+    veTinXuong();
     const [phim, tin] = await Promise.all([
       goi('/api/video-gt-tin').catch(() => ({ co: false })),
       goi('/api/tb-app/tin').catch(() => ({ ds: [] })),
@@ -1759,6 +1780,10 @@ function veRailXuong() {
 
 /** Khung xương trang Tổng quan dựng theo trí nhớ — dùng trước khi có /api/hub. */
 function veHomeXuong() {
+  /* Khối video + bảng tin nằm TRÊN thân trang, nên nó mà thiếu là mọi thứ bên
+   * dưới xê dịch. Dựng trước cả thân trang, và dựng kể cả khi chưa nhớ hình
+   * của các thẻ base. */
+  veTinXuong();
   const H = docHinh();
   const body = $('#homeBody');
   if (!body || !H || !window.KX) return false;

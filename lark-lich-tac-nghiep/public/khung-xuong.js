@@ -406,9 +406,24 @@
   const hangCho = [];   // các hàm chụp đang chờ lớp phủ biến đi
 
   /** Chụp lại mỗi khi màn thật vừa vẽ xong. */
+  /* Đã có cú bấm nào trong app này chưa.
+   *
+   * Chụp phải DỪNG ở cú bấm đầu tiên. Bộ rình DOM bắn mỗi lần nội dung đổi, mà
+   * chuyển tab trong app cũng là đổi nội dung — nên bản chụp bị ghi đè bằng
+   * hình của tab đang xem. Lần mở sau app luôn mở ở tab MẶC ĐỊNH, thành ra
+   * khung xương mang hình một tab khác hẳn: anh Hùng gặp đúng cảnh đó ở Quản
+   * lý quảng cáo và Social.
+   *
+   * Trước cú bấm đầu tiên thì mọi thứ vẽ ra đều là màn app TỰ MỞ — đúng thứ
+   * cần nhớ. Sau đó là do người dùng đi lại, không chụp nữa. */
+  let daBam = false;
+  ['pointerdown', 'keydown', 'touchstart'].forEach((e) =>
+    document.addEventListener(e, () => { daBam = true; }, { capture: true, passive: true }));
+
   function theoDoi(el, ten) {
     let hen = 0;
     const chupLai = () => {
+      if (daBam) return;                        // người dùng đã đi chỗ khác
       if (el.querySelector('.kx')) return;      // vẫn đang là khung xương
       if (dangCho()) return;                    // còn lớp phủ -> chưa xong
       clearTimeout(hen);

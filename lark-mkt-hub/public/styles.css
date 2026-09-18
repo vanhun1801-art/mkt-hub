@@ -1108,7 +1108,15 @@ code { background: var(--trang-2); border: 1px solid var(--vien-mem); border-rad
    16:9 bị cắt mất hai đầu: đúng chỗ anh Hùng chỉ ra.
    `contain` chứ không `cover`: clip nào không phải 16:9 thì thà để viền đen còn
    hơn cắt mất khung hình. */
-.tin-phim { background: #000; position: relative; overflow: hidden; aspect-ratio: 16 / 9; }
+/* Nền khung là MÀU THẺ, không phải đen.
+ *
+ * Khung cố định 16:9 (560x315) còn ảnh/video người ta gắn vào thì đủ tỉ lệ.
+ * `object-fit: contain` giữ trọn khung hình — đúng ý anh Hùng "hiển thị trọn
+ * vẹn" — nên phần thừa hai bên là chuyện bắt buộc. Đo thật: ảnh 1600x1000 đặt
+ * vào khung 560x315 chỉ vẽ ra 504x315, thừa 28px MỖI BÊN. Nền đen biến 28px
+ * đó thành hai vệt đen rõ mồn một giữa một cái thẻ trắng — anh Hùng khoanh đỏ
+ * đúng chỗ này. Để nền trùng màu thẻ thì phần thừa đọc như lề, không ai thấy. */
+.tin-phim { background: var(--trang); position: relative; overflow: hidden; aspect-ratio: 16 / 9; }
 /* HAI thẻ video chồng lên nhau, và CẮT THẲNG giữa chúng.
  *
  * Ba lần vá mới ra được chỗ này, ghi lại để đừng ai "cải tiến" ngược lại:
