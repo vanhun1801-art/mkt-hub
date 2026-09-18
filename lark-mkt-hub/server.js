@@ -1730,11 +1730,20 @@ async function api(req, res, u) {
   if (p === '/api/bo-doc-kpi' && m === 'GET') return ok(res, { ds: Object.keys(kpi.BO_DOC) });
 
   if (p === '/healthz') {
-    /* Đây là endpoint DUY NHẤT mở công khai (Render gọi để biết app còn sống), nên
-     * chỉ trả đúng thứ Render cần. Commit, chế độ chạy và danh sách base là thông
-     * tin nội bộ — chỉ hiện cho quản lý đã đăng nhập. */
+    /* Đây là endpoint DUY NHẤT mở công khai (Render gọi để biết app còn sống).
+     *
+     * Trả thêm ĐÚNG MỘT thứ cho người chưa đăng nhập: `build`. Mọi đường khác
+     * của bản chạy thật đều 302 về đăng nhập Lark, kể cả tệp tĩnh, nên không
+     * ai — kể cả người trong phòng — kiểm được "bản mới lên chưa" mà không mở
+     * trình duyệt và đăng nhập. Đã mất ba lượt hỏi qua hỏi lại vì đúng chuyện
+     * này, nên anh Hùng chốt đưa số bản ra ngoài.
+     *
+     * Chỉ `build` thôi: nó là chuỗi ngày + bảy ký tự đầu của commit, trên một
+     * kho RIÊNG TƯ nên không nói lên điều gì dùng được. Chế độ chạy và danh
+     * sách base VẪN là thông tin nội bộ — chúng nói ra phòng này có những base
+     * nào và base nào đang chết, giữ sau tường đăng nhập. */
     const nguoiH = cfg.mode === 'api' ? auth.sessionUser(req) : null;
-    if (cfg.mode === 'api' && !laQuanLy(nguoiH)) return ok(res, { ok: true });
+    if (cfg.mode === 'api' && !laQuanLy(nguoiH)) return ok(res, { ok: true, build: cfg.build });
     return ok(res, {
       ok: true, build: cfg.build,
       che_do: cfg.mode,

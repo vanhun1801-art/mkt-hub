@@ -151,6 +151,12 @@ module.exports = {
   khoiDongTimeoutMs: Number(process.env.HUB_BOOT_MS || 60000),
   // Cache chỉ số của trang Tổng quan chung
   kpiCacheMs: Number(process.env.HUB_KPI_MS || 20000),
+  /* Hạn chờ một module ở lượt đọc NGUỘI (đệm rỗng hẳn). Quá hạn thì trang Tổng
+   * quan trả về ngay với những base đã có số, base còn lại giữ khung xương và
+   * được xin lại sau vài giây. Đo trên máy: lượt đầu sau khi hub khởi động mất
+   * 11,6 giây vì chờ app con còn đang nạp Base; 5 giây là đủ rộng để lượt đọc
+   * bình thường (1,9 giây cho cả chín app) không bao giờ chạm tới. */
+  kpiHanMs: Number(process.env.HUB_KPI_HAN_MS || 5000),
   // Timeout khi hub gọi API của module
   goiTimeoutMs: Number(process.env.HUB_FETCH_MS || 30000),
   // Việc lâu (ROAS, ghép POS, đồng bộ): 30 giây là thiếu, xem VIEC_LAU ở proxy.js

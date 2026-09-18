@@ -123,5 +123,66 @@ t('nhánh việc lâu dùng cfg.goiLauMs', src.includes('cfg.goiLauMs'));
 t('mọi nhóm đều khớp được', VIEC_LAU_NHOM.every((x) => VIEC_LAU.test('/api/' + x + '/gi-do')));
 t('nhánh còn lại vẫn dùng cfg.goiTimeoutMs', src.includes('cfg.goiTimeoutMs'));
 
+console.log('\n— hạn chờ một base ở lượt đọc NGUỘI (trang Tổng quan)');
+{
+  /* Đo trên máy: lượt /api/tongquan ĐẦU TIÊN sau khi hub khởi động mất 11,6
+   * giây, còn khi chín app con đã sẵn sàng thì đọc lại toàn bộ chỉ 2,1 giây.
+   * Chênh gần mười giây là lúc app con còn đang nạp Base của nó — tongQuan()
+   * dùng Promise.all nên app CHẬM NHẤT quyết định cả trang. Trên Render service
+   * còn ngủ, nên lượt mở đầu nào cũng rơi vào cảnh đó.
+   *
+   * Chữa bằng hạn giờ cho riêng lượt đọc nguội: quá hạn thì base đó trả cờ
+   * `dangNap`, trang hiện ngay 8/9 base có số, base còn lại giữ khung xương và
+   * được xin lại sau 2,5 giây. Đo sau khi sửa: 11,6s xuống 5,0s; lúc đã sẵn
+   * sàng vẫn 0,001s và không base nào chạm hạn. */
+  const kpiSrc = fs.readFileSync(path.join(__dirname, '..', 'kpi.js'), 'utf8');
+  const appSrc = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  t('có hạn giờ khai trong config', typeof cfg.kpiHanMs === 'number' && cfg.kpiHanMs > 0,
+    String(cfg.kpiHanMs));
+  t('hạn đủ rộng để lượt đọc bình thường (2,1s) không chạm', cfg.kpiHanMs >= 4000,
+    String(cfg.kpiHanMs));
+  t('nhưng không vô hạn', cfg.kpiHanMs <= 20000, String(cfg.kpiHanMs));
+  t('kpi.js có hàm hanGio', /function hanGio\(/.test(kpiSrc));
+  t('lượt đọc nguội đi qua hanGio',
+    /hanGio\(lamMoi\(mod, khoang, nguoi, kh\), cfg\.kpiHanMs\)/.test(kpiSrc));
+  /* KHÔNG huỷ lượt đọc khi quá hạn: nó phải chạy tiếp và ghi vào đệm, nếu không
+   * lượt xin lại cũng quá hạn và base đó không bao giờ có số. */
+  t('quá hạn nhưng không huỷ lượt đọc đang bay', /p\.catch\(\(\) => \{\}\);/.test(kpiSrc));
+  t('quá hạn trả cờ dangNap, không phải lỗi',
+    /e\.quaGio\) return \{ ok: false, dangNap: true \}/.test(kpiSrc));
+  /* Cờ này KHÔNG được rơi vào nhánh vẽ băng đỏ "Không đọc được chỉ số" kèm nút
+   * Bật lại module — lúc đó base đang khoẻ, mời người ta bật lại là sai hẳn. */
+  const iNap = appSrc.indexOf('r.dangNap');
+  const iLoi = appSrc.indexOf('} else if (!r.ok) {');
+  t('giao diện xét dangNap TRƯỚC nhánh lỗi', iNap > 0 && iLoi > 0 && iNap < iLoi);
+  t('dangNap vẽ khung xương của chính base đó',
+    /r\.dangNap\) \{[\s\S]{0,400}?KX\.theTheo\(hinhCu\.get\(m\.id\)\)/.test(appSrc));
+  t('thấy dangNap thì xin lại sớm, không đợi hết nhịp 60 giây',
+    /some\(\(m\) => m\.dangNap\)/.test(appSrc) && /napTongQuan\(\);[\s\S]{0,40}\}, 2500\)/.test(appSrc));
+  /* Thẻ đang là khung xương thì chiều cao của nó KHÔNG được ghi vào trí nhớ —
+   * ghi vào là tự dạy mình hình sai cho lần mở sau. */
+  t('không ghi nhớ chiều cao của thẻ đang dở', /if \(h\.boQua\) return;/.test(appSrc));
+  t('… mà vẫn push để chỉ số khớp với thẻ trên trang',
+    /boQua: !!\(r && r\.dangNap\)/.test(appSrc));
+}
+
+console.log('\n— /healthz cho người CHƯA đăng nhập');
+{
+  /* Mọi đường của bản chạy thật đều 302 về đăng nhập Lark, kể cả tệp tĩnh, nên
+   * không ai kiểm được "bản mới lên chưa" mà không mở trình duyệt và đăng nhập.
+   * Anh Hùng chốt đưa số bản ra ngoài — nhưng CHỈ số bản. */
+  const svSrc = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+  t('người chưa đăng nhập nhận được build',
+    /!laQuanLy\(nguoiH\)\) return ok\(res, \{ ok: true, build: cfg\.build \}\)/.test(svSrc));
+  /* Chế độ chạy và danh sách base nói ra phòng này có base nào, base nào đang
+   * chết — giữ sau tường đăng nhập. */
+  const i = svSrc.indexOf("if (p === '/healthz')");
+  const than = svSrc.slice(i, i + 1800);
+  const congKhai = than.slice(0, than.indexOf('return ok(res, {'));
+  t('không lộ chế độ chạy cho người ngoài', !/che_do/.test(congKhai));
+  t('không lộ danh sách base cho người ngoài', !/modules:/.test(congKhai));
+  t('không lộ commit cho người ngoài', !/RENDER_GIT_COMMIT/.test(congKhai));
+}
+
 console.log(`\n${pass} pass · ${fail} fail`);
 process.exitCode = fail ? 1 : 0;

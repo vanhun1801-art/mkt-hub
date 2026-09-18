@@ -1614,6 +1614,7 @@ function doCaoThe(body, the) {
     const o = body.querySelectorAll('.luoi-base > .nhom-base');
     if (o.length !== the.length) return false;      // trang đã vẽ lại, bỏ lượt này
     the.forEach((h, i) => {
+      if (h.boQua) return;          // thẻ đang là khung xương, xem veHome()
       if (o[i]) { h.cao = cao(o[i]); h.w = window.innerWidth; h.ng = ngonNguNay(); }
     });
     ghi();
@@ -1744,6 +1745,12 @@ function veHome() {
       noi = window.KX ? KX.theTheo(hinhCu.get(m.id)) : '';
     } else if (!r) {
       noi = '<div class="trong">Base này chưa có bộ đọc chỉ số. Mở app để xem chi tiết, hoặc khai <code>kpi</code> trong <code>modules.json</code>.</div>';
+    } else if (r.dangNap) {
+      /* Máy chủ hết hạn chờ base này ở lượt đọc nguội, VẪN đang đọc phía sau.
+       * Đây KHÔNG phải lỗi — giữ khung xương như lúc chưa có số, tuyệt đối
+       * không vẽ băng đỏ "Không đọc được chỉ số" kèm nút Bật lại module: lúc
+       * đó base đang khoẻ, mà người dùng lại được mời đi bật lại nó. */
+      noi = window.KX ? KX.theTheo(hinhCu.get(m.id)) : '';
     } else if (!r.ok) {
       noi = '<div class="canh-bao do"><span class="grow">Không đọc được chỉ số: ' + esc(r.loi || '') + '</span>' +
         '<button class="btn nho" data-batlai="' + esc(m.id) + '">Bật lại module</button></div>';
@@ -1756,11 +1763,17 @@ function veHome() {
     /* Đếm trên CHÍNH chuỗi HTML vừa dựng, không tính lại bằng tay: bộ xếp tầng
      * (xepTheoTang) đổi luật lúc nào thì trí nhớ đổi theo lúc đó. */
     if (!choSo) {
-      hinhMoi.push({
+      /* Base đang dở thì thẻ này CHÍNH LÀ khung xương — đo nó rồi ghi vào trí
+       * nhớ là tự dạy mình hình sai cho lần mở sau. Vẫn phải PUSH để số thứ tự
+       * khớp với các thẻ trên trang (doCaoThe đi theo chỉ số), nhưng mang cờ
+       * `boQua` và giữ nguyên số đo cũ. */
+      const cu = (r && r.dangNap && hinhCu.get(m.id)) || null;
+      hinhMoi.push(cu ? Object.assign({}, cu, { boQua: true }) : {
         id: m.id, ten: m.ten, icon: m.icon, mau: m.mau,
         o: (noi.match(/<div class="the /g) || []).length,
         chinh: /<div class="the [^"]*chinh/.test(noi),
         khong: /the-khong/.test(noi) ? 1 : 0,
+        boQua: !!(r && r.dangNap),
       });
     }
 
@@ -2122,6 +2135,8 @@ async function napHub() {
 }
 
 let dangNapTQ = false;
+let henXinLai = 0;   // hẹn xin lại khi có base còn dở (xem cuối hàm)
+
 async function napTongQuan(refresh) {
   if (dangNapTQ) return;
   dangNapTQ = true;
@@ -2137,6 +2152,17 @@ async function napTongQuan(refresh) {
     S.tq = tq;
     if (S.view === 'home') veHome();
     veRail();
+    /* Base nào chưa kịp trả số trong hạn giờ của máy chủ thì nó gắn cờ
+     * `dangNap` và VẪN đọc tiếp phía sau. Xin lại sau 2,5 giây thay vì đợi hết
+     * nhịp 60 giây — nếu không, base đó đứng ở khung xương gần một phút dù số
+     * đã nằm trong đệm từ lâu. Chỉ hẹn MỘT lượt cho mỗi lần thấy cờ, và chỉ
+     * khi còn ở trang Tổng quan. */
+    if ((tq.modules || []).some((m) => m.dangNap)) {
+      clearTimeout(henXinLai);
+      henXinLai = setTimeout(() => {
+        if (S.view === 'home') napTongQuan();
+      }, 2500);
+    }
   } catch (e) {
     if (S.view === 'home') $('#homeBody').innerHTML =
       '<div class="canh-bao do"><span class="grow">Không đọc được tổng quan: ' + esc(e.message) + '</span></div>';

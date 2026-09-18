@@ -755,6 +755,23 @@ function lamMoi(mod, khoang, nguoi, kh) {
   return p;
 }
 
+/**
+ * Chờ `p` tối đa `ms`. Quá giờ thì ném lỗi mang cờ `quaGio` — nhưng KHÔNG huỷ
+ * `p`: nó cứ đọc tiếp và ghi vào đệm khi xong, nên lượt hỏi sau có số ngay.
+ *
+ * Gắn sẵn `.catch` rỗng lên `p` để lúc nó hỏng sau khi mình đã bỏ chờ thì
+ * Node không kêu "unhandled rejection" — vẫn đua trên chính `p` nên nhánh lỗi
+ * của lượt còn chờ không bị mất.
+ */
+function hanGio(p, ms) {
+  p.catch(() => {});
+  let h;
+  const dongHo = new Promise((_, hong) => {
+    h = setTimeout(() => { const e = new Error('quá giờ'); e.quaGio = true; hong(e); }, ms);
+  });
+  return Promise.race([p, dongHo]).finally(() => clearTimeout(h));
+}
+
 async function doc(mod, khoang, nguoiHoacHam) {
   const fn = BO_DOC[mod.kpi];
   if (!fn) return { ok: false, loi: '', khongCo: true };
@@ -780,12 +797,25 @@ async function doc(mod, khoang, nguoiHoacHam) {
     return { ...c.data, ok: true, luc: c.at };
   }
 
+  /* Đệm RỖNG HẲN — không có gì để trả tạm, đành đọc thật. Nhưng có HẠN GIỜ.
+   *
+   * Đo trên máy: lượt /api/tongquan đầu tiên sau khi hub khởi động mất 11,6
+   * giây, trong khi đọc lại toàn bộ lúc chín app con đã sẵn sàng chỉ 1,9 giây.
+   * Chênh gần mười giây đó là thời gian app con còn đang nạp Base của nó —
+   * `Promise.all` ở tongQuan() nên app CHẬM NHẤT quyết định cả trang. Mà trên
+   * Render service còn ngủ, nên lượt mở đầu tiên nào cũng rơi vào cảnh này.
+   *
+   * Quá hạn thì trả `dangNap` cho riêng module đó: trang hiện ngay những base
+   * đã có số, base còn lại giữ khung xương. Lượt đọc vẫn chạy tiếp phía sau và
+   * ghi vào đệm, nên lượt hỏi kế tiếp có số thật — giao diện tự xin lại sớm
+   * khi thấy cờ này (xem napTongQuan trong public/app.js). */
   try {
-    const data = await lamMoi(mod, khoang, nguoi, kh);
+    const data = await hanGio(lamMoi(mod, khoang, nguoi, kh), cfg.kpiHanMs);
     return { ...data, ok: true, luc: Date.now() };
   } catch (e) {
     const cu = cache.get(kh);
     if (cu && cu.data) return { ...cu.data, ok: true, cu: true, loi: e.message, luc: cu.at };
+    if (e && e.quaGio) return { ok: false, dangNap: true };
     return { ok: false, loi: e.message };
   }
 }
