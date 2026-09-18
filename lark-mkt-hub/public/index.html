@@ -2,7 +2,9 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- viewport-fit=cover: mở env(safe-area-inset-*) ra cho dienthoai.css.
+     Không có nó thì mọi env() trả về 0 và thanh trên cùng nằm dưới tai thỏ. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Marketing Hub · Rooty Trip</title>
 <meta name="description" content="Một cửa vào cho toàn bộ Lark Base của phòng Marketing Rooty Trip.">
 <meta name="theme-color" content="#3370ff">
@@ -11,6 +13,11 @@
 <!-- Khung xương (skeleton): phải nằm SAU styles.css để đè được nền/viền của
      thành phần thật mà nó đang giả dạng. -->
 <link rel="stylesheet" href="/khung-xuong.css?v=BUILD">
+<!-- Lớp điện thoại dùng chung: cỡ chữ, sàn chạm, lề an toàn. Nằm CUỐI để đè
+     được cỡ của cả styles.css và khung-xuong.css; app con cũng nạp đúng file
+     này (proxy.js chèn vào <head> của chúng) nên lớp vỏ và chín app con dùng
+     chung một bộ cỡ. -->
+<link rel="stylesheet" href="/dienthoai.css?v=BUILD">
 </head>
 <body>
 
@@ -93,7 +100,10 @@
       </header>
 
       <!-- Bộ lọc thời gian dùng chung cho cả trang Tổng quan và Lịch chung -->
-      <section class="loc-bar"></section>
+      <!-- data-thu-gon: thugon.js tìm khối lọc qua thuộc tính này để thu nó lại
+           trên điện thoại (app con thì khai bằng locSelector trong modules.json).
+           Khối này chiếm 163px trên khổ 375px — gần một phần năm màn hình. -->
+      <section class="loc-bar" data-thu-gon></section>
 
       <!-- Video + bảng tin nằm NGOÀI #homeBody: trang Tổng quan vẽ lại theo nhịp
            số liệu (20 giây/lần) và mỗi lần vẽ là thay sạch #homeBody. Để khối
@@ -152,6 +162,7 @@ if ('serviceWorker' in navigator) {
 <script src="/khung-xuong.js?v=BUILD"></script>
 <script src="/loc.js?v=BUILD"></script>
 <script src="/i18n.js?v=BUILD"></script>
+<script src="/thugon.js?v=BUILD"></script>
 <script src="/icons.js?v=BUILD"></script>
 <script src="/app.js?v=BUILD"></script>
 <script src="/caidat.js?v=BUILD"></script>

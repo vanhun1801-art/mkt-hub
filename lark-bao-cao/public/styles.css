@@ -524,3 +524,30 @@ body.so-mo #so {
   :root:not([data-theme="sang"]) /* Hộp báo nhanh đảo màu: nền là màu chữ, nên chữ phải là màu nền */
   :root:not([data-theme="sang"]) #toast.do, #toast.xanh { color: #12161f; }
 }
+
+/* ---------------------------------------------------------------------
+   ĐIỆN THOẠI: sàn cỡ chữ
+
+   Đo ở khổ 375px thấy 7 luật trong file này đang đặt cỡ chữ
+   11px / 11.5px. Trên màn máy tính, cỡ đó đọc được vì mắt cách
+   màn 50-60cm và chữ nằm trong một bố cục thoáng; trên điện thoại cầm tay
+   thì đó là cỡ phải nheo mắt, mà đúng những dòng ấy lại là dòng MANG TIN:
+   nhãn cột, mốc thời gian, tên người, số đếm trên tab.
+
+   Nâng lên sàn 12.5px (chữ đang ≤11px) và 13px (chữ 11.5px) — giữ đúng
+   thứ tự to/nhỏ cũ để tôn ti bố cục không đảo, chỉ dịch cả thang lên.
+
+   KHÔNG nâng những chỗ font-size đang dùng để chỉnh cỡ một ký hiệu trong
+   hộp vuông (ảnh đại diện, icon, mũi nháy, logo) — ở file này là:
+     .muc > summary::before.
+   Nới cỡ ở đó là làm méo hộp chứ không giúp ai đọc được gì.
+   --------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  .dv-loai { font-size: 12.5px; }                                /* 11 */
+  .bang td::before { font-size: 12.5px; }                        /* 11 */
+  .o-so .duoi { font-size: 13px; }                               /* 11.5 */
+  .bang th { font-size: 13px; }                                  /* 11.5 */
+  .o-nhan { font-size: 13px; }                                   /* 11.5 */
+  .dv-ngay { font-size: 13px; }                                  /* 11.5 */
+  .bang-xem th { font-size: 13px; }                              /* 11.5 */
+}

@@ -524,3 +524,31 @@ tfoot th { text-transform: none; letter-spacing: 0; font-size: 13px; color: var(
 .gia-form-grid input,.gia-form-grid textarea{width:100%;box-sizing:border-box;border:1px solid #d8deea;border-radius:9px;padding:10px 11px;font:inherit;background:#fff;color:#1d2635}
 .gia-form-grid textarea{resize:vertical;min-height:92px}.gia-form-grid .gia-luat{grid-column:1/-1}.gia-form-grid .gia-check{grid-column:1/-1;display:flex;flex-direction:row;align-items:center;gap:9px}.gia-form-grid .gia-check input{width:auto}
 @media(max-width:720px){.gia-form-grid{grid-template-columns:1fr}.gia-form-grid .gia-luat,.gia-form-grid .gia-check{grid-column:auto}.bang-gia-toolbar .btn{width:100%}}
+
+/* ---------------------------------------------------------------------
+   ĐIỆN THOẠI: sàn cỡ chữ
+
+   Đo ở khổ 375px thấy 8 luật trong file này đang đặt cỡ chữ
+   10px / 11px / 11.5px. Trên màn máy tính, cỡ đó đọc được vì mắt cách
+   màn 50-60cm và chữ nằm trong một bố cục thoáng; trên điện thoại cầm tay
+   thì đó là cỡ phải nheo mắt, mà đúng những dòng ấy lại là dòng MANG TIN:
+   nhãn cột, mốc thời gian, tên người, số đếm trên tab.
+
+   Nâng lên sàn 12.5px (chữ đang ≤11px) và 13px (chữ 11.5px) — giữ đúng
+   thứ tự to/nhỏ cũ để tôn ti bố cục không đảo, chỉ dịch cả thang lên.
+
+   KHÔNG nâng những chỗ font-size đang dùng để chỉnh cỡ một ký hiệu trong
+   hộp vuông (ảnh đại diện, icon, mũi nháy, logo) — ở file này là:
+     .ota-api-logo.
+   Nới cỡ ở đó là làm méo hộp chứ không giúp ai đọc được gì.
+   --------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  .fgroup > label { font-size: 12.5px; }                         /* 11 */
+  th { font-size: 12.5px; }                                      /* 11 */
+  .khoi-thanh .nhan-sap { font-size: 12.5px; }                   /* 11 */
+  .nhap-kicker { font-size: 12.5px; }                            /* 10 */
+  .suc-khoe-card > span { font-size: 12.5px; }                   /* 11 */
+  .auto-list small { font-size: 12.5px; }                        /* 11 */
+  .api-cho-status { font-size: 12.5px; }                         /* 11 */
+  .api-cho-card p { font-size: 13px; }                           /* 11.5 */
+}

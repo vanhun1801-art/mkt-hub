@@ -100,9 +100,12 @@ const json = async (p, opts) => {
     ok(html.code === 200 && /<html/i.test(html.raw), 'GET /m/' + m.id + '/ trả HTML');
     ok(/class="trong-hub"/.test(html.raw), '  ' + m.id + ': HTML được đánh dấu trong-hub');
     ok(/data-hub="1"/.test(html.raw), '  ' + m.id + ': đã chèn style + shim của hub');
-    /* Hai file của LỚP VỎ (loc.js, i18n.js) cố tình giữ đường dẫn gốc: chúng nằm ở
-     * gốc origin và dùng chung cho cả bốn app. Mọi đường dẫn khác phải mang tiền tố. */
-    const conTuyetDoi = html.raw.replace(/\s(?:href|src)="\/(?:loc|i18n)\.js[^"]*"/g, ' ');
+    /* Bốn file của LỚP VỎ (loc.js, i18n.js, thugon.js, dienthoai.css) cố tình
+     * giữ đường dẫn gốc: chúng nằm ở gốc origin và dùng chung cho mọi app con —
+     * gắn tiền tố /m/<id>/ vào là trỏ sang server của module, nơi không có file
+     * đó. Mọi đường dẫn khác phải mang tiền tố. */
+    const conTuyetDoi = html.raw.replace(
+      /\s(?:href|src)="\/(?:loc\.js|i18n\.js|thugon\.js|dienthoai\.css)[^"]*"/g, ' ');
     ok(!/(\s(?:href|src)=")\/(?!\/|m\/)/.test(conTuyetDoi),
       '  ' + m.id + ': không còn đường dẫn tuyệt đối chưa gắn tiền tố');
     // app.js/styles.css có thể được khai bằng đường dẫn tương đối (như app quảng cáo)

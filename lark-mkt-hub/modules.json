@@ -9,7 +9,8 @@
     "  ngoai  = app đã có URL riêng (Render, server nội bộ...), hub nhúng thẳng iframe",
     "  lark   = mở thẳng Lark Base trong tab mới (Lark chặn nhúng iframe)",
     "",
-    "icon: tên icon 2D trong public/icons.js (cong-viec | lich | quang-cao | base | may | tien | nguoi). Tên lạ thì in ra dạng chữ.\nkpi: tên bộ đọc chỉ số cho trang Tổng quan chung (xem kpi.js). Để trống nếu chưa có.\ncaPhong: true = base dùng chung, ai đăng nhập cũng thấy. false (mặc định) = chỉ quản lý và người được cấp tên trong bảng Phân quyền app. Base thêm mới luôn bắt đầu ở false."
+    "icon: tên icon 2D trong public/icons.js (cong-viec | lich | quang-cao | base | may | tien | nguoi). Tên lạ thì in ra dạng chữ.\nkpi: tên bộ đọc chỉ số cho trang Tổng quan chung (xem kpi.js). Để trống nếu chưa có.\ncaPhong: true = base dùng chung, ai đăng nhập cũng thấy. false (mặc định) = chỉ quản lý và người được cấp tên trong bảng Phân quyền app. Base thêm mới luôn bắt đầu ở false.",
+    "locSelector: khối lọc được THU GỌN trên điện thoại (xem public/thugon.js) — mặc định đóng, chỉ hiện một dòng tóm tắt, bấm mới mở ra. Để trống = không thu gọn; Chỉnh ảnh và Báo cáo không khai vì chúng không có khối lọc riêng."
   ],
   "modules": [
     {
@@ -37,7 +38,8 @@
       ],
       "phuSelector": "#subtitle",
       "bat": true,
-      "caPhong": false
+      "caPhong": false,
+      "locSelector": ".filters"
     },
     {
       "id": "lich-tac-nghiep",
@@ -61,7 +63,8 @@
         "#btnQuyen"
       ],
       "bat": true,
-      "caPhong": false
+      "caPhong": false,
+      "locSelector": ".filters"
     },
     {
       "id": "quang-cao",
@@ -86,7 +89,8 @@
       "phuSelector": "#brandSub",
       "bat": true,
       "css": ".topbar-right { margin-left: auto; }",
-      "caPhong": false
+      "caPhong": false,
+      "locSelector": ".filters"
     },
     {
       "id": "ota",
@@ -110,7 +114,8 @@
       "phuSelector": "#brandSub",
       "bat": true,
       "css": ".topbar-right { margin-left: auto; }",
-      "caPhong": false
+      "caPhong": false,
+      "locSelector": ".filters"
     },
     {
       "id": "social",
@@ -137,7 +142,8 @@
       "phuSelector": "#brandSub",
       "bat": true,
       "css": ".topbar-right { margin-left: auto; }",
-      "caPhong": false
+      "caPhong": false,
+      "locSelector": ".filters"
     },
     {
       "id": "chinh-anh",
@@ -187,7 +193,8 @@
       "bat": true,
       "css": ".topbar-right { margin-left: auto; }",
       "caPhong": false,
-      "kpi": "kpi"
+      "kpi": "kpi",
+      "locSelector": ".loc-hang"
     },
     {
       "id": "quy-chi-phi",
@@ -212,7 +219,8 @@
       "phuSelector": "#phuDe",
       "bat": true,
       "caPhong": false,
-      "kpi": "quy-chi-phi"
+      "kpi": "quy-chi-phi",
+      "locSelector": ".loc"
     },
     {
       "id": "bao-cao",

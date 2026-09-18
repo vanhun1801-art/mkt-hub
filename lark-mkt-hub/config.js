@@ -58,6 +58,11 @@ function docModules() {
     an: Array.isArray(m.an) ? m.an : [],
     css: typeof m.css === 'string' ? m.css : '',
     phuSelector: m.phuSelector || '',
+    /* Khối lọc được thu gọn trên điện thoại — proxy truyền xuống __HUB__ cho
+     * public/thugon.js đọc. Phải khai ở đây: hàm này là DANH SÁCH TRẮNG, field
+     * nào không gọi tên thì rơi mất, và rơi im lặng (module vẫn chạy, chỉ là
+     * khối lọc không bao giờ thu lại). */
+    locSelector: m.locSelector || '',
     bat: m.bat !== false,
     /* Ai thấy base này khi CHƯA được cấp riêng:
      *   true  = cả phòng (base dùng chung, ai đăng nhập cũng thấy)

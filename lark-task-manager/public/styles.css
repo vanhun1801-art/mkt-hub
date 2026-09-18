@@ -2002,3 +2002,100 @@ td.c-check { width: 34px; }
 /* Hành động ngay trong danh sách nhanh — không bắt mở drawer rồi mới làm được. */
 .xn-nut { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
 .xn-o:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+/* ---------------------------------------------------------------------
+   ĐIỆN THOẠI: sàn cỡ chữ
+
+   Đo ở khổ 375px thấy 53 luật trong file này đang đặt cỡ chữ
+   10.5px / 11px / 11.5px. Trên màn máy tính, cỡ đó đọc được vì mắt cách
+   màn 50-60cm và chữ nằm trong một bố cục thoáng; trên điện thoại cầm tay
+   thì đó là cỡ phải nheo mắt, mà đúng những dòng ấy lại là dòng MANG TIN:
+   nhãn cột, mốc thời gian, tên người, số đếm trên tab.
+
+   Nâng lên sàn 12.5px (chữ đang ≤11px) và 13px (chữ 11.5px) — giữ đúng
+   thứ tự to/nhỏ cũ để tôn ti bố cục không đảo, chỉ dịch cả thang lên.
+
+   KHÔNG nâng những chỗ font-size đang dùng để chỉnh cỡ một ký hiệu trong
+   hộp vuông (ảnh đại diện, icon, mũi nháy, logo) — ở file này là:
+     .av, .av-sm, .dd-caret, .attthumb.ic, .attthumb.ic.loi, .av-xs, .pk-ava.
+   Nới cỡ ở đó là làm méo hộp chứ không giúp ai đọc được gì.
+   --------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  .mono { font-size: 12.5px; }                                   /* 11 */
+  .brand small { font-size: 12.5px; }                            /* 11 */
+  .as-late { font-size: 12.5px; }                                /* 11 */
+  .as-sep { font-size: 12.5px; }                                 /* 10.5 */
+  .filters-work::before { font-size: 12.5px; }                   /* 11 */
+  .col-head .n { font-size: 12.5px; }                            /* 11 */
+  .filters-dash::before { font-size: 12.5px; }                   /* 11 */
+  .wl-cnt { font-size: 12.5px; }                                 /* 11 */
+  .quyen-sub { font-size: 12.5px; }                              /* 11 */
+  .quyen-tag { font-size: 12.5px; }                              /* 11 */
+  .section-title { font-size: 12.5px; }                          /* 11 */
+  .dcol-late { font-size: 12.5px; }                              /* 11 */
+  .dcard-meta .tag, .dcard-meta .proofdot { font-size: 12.5px; } /* 10.5 */
+  .md-eyebrow { font-size: 12.5px; }                             /* 10.5 */
+  .md-file { font-size: 12.5px; }                                /* 11 */
+  .cal-more { font-size: 12.5px; }                               /* 11 */
+  .tl-n { font-size: 12.5px; }                                   /* 11 */
+  .tl-col { font-size: 12.5px; }                                 /* 10.5 */
+  .tl-bar { font-size: 12.5px; }                                 /* 11 */
+  .attsize { font-size: 12.5px; }                                /* 11 */
+  .d-chip .k { font-size: 12.5px; }                              /* 10.5 */
+  .cmt-at { font-size: 12.5px; }                                 /* 11 */
+  .ng-thu span { font-size: 12.5px; }                            /* 10.5 */
+  .ng-24 { font-size: 12.5px; }                                  /* 10.5 */
+  .pp-tb th { font-size: 12.5px; }                               /* 11 */
+  .as-sub { font-size: 13px; }                                   /* 11.5 */
+  .tag { font-size: 13px; }                                      /* 11.5 */
+  .proofdot { font-size: 13px; }                                 /* 11.5 */
+  .stat span { font-size: 13px; }                                /* 11.5 */
+  thead th { font-size: 13px; }                                  /* 11.5 */
+  .stagebadge { font-size: 13px; }                               /* 11.5 */
+  .field label { font-size: 13px; }                              /* 11.5 */
+  .kpi-sub { font-size: 13px; }                                  /* 11.5 */
+  .queue-hint { font-size: 13px; }                               /* 11.5 */
+  .wl-table th { font-size: 13px; }                              /* 11.5 */
+  .ro-grid dt { font-size: 13px; }                               /* 11.5 */
+  .ro-note { font-size: 13px; }                                  /* 11.5 */
+  #drawer .section-title { font-size: 13px; }                    /* 11.5 */
+  .dcol-n { font-size: 13px; }                                   /* 11.5 */
+  .md-lab { font-size: 13px; }                                   /* 11.5 */
+  .tag, .proofdot { font-size: 13px; }                           /* 11.5 */
+  .dcard-meta .tag, .dcard-meta .proofdot { font-size: 13px; }   /* 11.5 */
+  .queue-meta .tag, .queue-meta .proofdot { font-size: 13px; }   /* 11.5 */
+  .cal-dow { font-size: 13px; }                                  /* 11.5 */
+  .cal-chip { font-size: 13px; }                                 /* 11.5 */
+  .tl-head .tl-name { font-size: 13px; }                         /* 11.5 */
+  .d-chip { font-size: 13px; }                                   /* 11.5 */
+  .kh-ten { font-size: 13px; }                                   /* 11.5 */
+  #dStage .sb-lan { font-size: 13px; }                           /* 11.5 */
+  #dStage .sb-han { font-size: 13px; }                           /* 11.5 */
+  .attbtn { font-size: 13px; }                                   /* 11.5 */
+  .pk-them { font-size: 13px; }                                  /* 11.5 */
+  .ng-nhan { font-size: 13px; }                                  /* 11.5 */
+}
+
+/* ---------------------------------------------------------------------
+   ĐIỆN THOẠI: nâng chiều cao chuẩn của nút và ô nhập
+
+   File này đã gom chiều cao mọi thứ bấm được vào hai biến (--h-ctl 32px,
+   --h-ctl-sm 28px, khai ở :root quanh dòng 1251) — nên chỗ sửa đúng là
+   hai biến đó, không phải đi liệt kê lại .btn / .sel / .search / .mechip
+   / .dateinput ở dưới này một lần nữa. Đổi một chỗ, cả hệ đi theo.
+
+   32px và 28px là cỡ hợp lý cho con trỏ chuột; với ngón tay thì 40px là
+   sàn bấm trúng, và 36px cho nút nhỏ nằm trong danh sách dày (cho cả
+   hàng cao thêm 12px thì danh sách 200 dòng dài thêm cả màn hình).
+
+   Biến đặt trên :root nên lớp điện thoại dùng chung (dienthoai.css) với
+   selector phần tử trơn `select`, `summary` không với tới được: luật
+   `.sel { min-height: var(--h-ctl) }` là 0,1,0, thắng `select` 0,0,1.
+   Đây là chỗ duy nhất sửa được cho đúng.
+   --------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  :root {
+    --h-ctl: 40px;
+    --h-ctl-sm: 36px;
+  }
+}

@@ -578,3 +578,48 @@ td .phu { font-size: 11.5px; color: var(--ink-3); white-space: normal; margin-to
   .nt-lam { flex-wrap: wrap; }
   .nt-lam input { flex-basis: 100%; }
 }
+
+/* ---------------------------------------------------------------------
+   ĐIỆN THOẠI: dãy nút bên phải thanh đầu phải chịu xuống dòng
+
+   App này ở khổ 375px hiện chưa trượt ngang, nhưng `.topbar-right` khai
+   flex: none y như Social và Quản lý quảng cáo — tức là cùng cái bẫy,
+   chỉ chưa sập vì đang ít nút hơn hai app kia. Thêm một nút nữa vào
+   thanh đầu là trang trượt ngang. Vá trước.
+   --------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  .topbar { flex-wrap: wrap; }
+  .topbar > .topbar-right { flex: 1 1 100%; flex-wrap: wrap; min-width: 0; }
+  .topbar-right > * { max-width: 100%; }
+}
+
+/* ---------------------------------------------------------------------
+   ĐIỆN THOẠI: sàn cỡ chữ
+
+   Đo ở khổ 375px thấy 12 luật trong file này đang đặt cỡ chữ
+   11px / 11.5px. Trên màn máy tính, cỡ đó đọc được vì mắt cách
+   màn 50-60cm và chữ nằm trong một bố cục thoáng; trên điện thoại cầm tay
+   thì đó là cỡ phải nheo mắt, mà đúng những dòng ấy lại là dòng MANG TIN:
+   nhãn cột, mốc thời gian, tên người, số đếm trên tab.
+
+   Nâng lên sàn 12.5px (chữ đang ≤11px) và 13px (chữ 11.5px) — giữ đúng
+   thứ tự to/nhỏ cũ để tôn ti bố cục không đảo, chỉ dịch cả thang lên.
+
+   KHÔNG nâng những chỗ font-size đang dùng để chỉnh cỡ một ký hiệu trong
+   hộp vuông (ảnh đại diện, icon, mũi nháy, logo).
+   Nới cỡ ở đó là làm méo hộp chứ không giúp ai đọc được gì.
+   --------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  .tab .badge { font-size: 12.5px; }                             /* 11 */
+  .fgroup > label { font-size: 12.5px; }                         /* 11 */
+  .alert .a-kind { font-size: 12.5px; }                          /* 11 */
+  .kpi .k-label { font-size: 13px; }                             /* 11.5 */
+  table.tbl th { font-size: 13px; }                              /* 11.5 */
+  .sub-line { font-size: 13px; }                                 /* 11.5 */
+  .tag { font-size: 13px; }                                      /* 11.5 */
+  .field .hint { font-size: 13px; }                              /* 11.5 */
+  .stat-row .s-label { font-size: 13px; }                        /* 11.5 */
+  .nhap-grid label { font-size: 13px; }                          /* 11.5 */
+  .acc .muted { font-size: 13px; }                               /* 11.5 */
+  td .phu { font-size: 13px; }                                   /* 11.5 */
+}

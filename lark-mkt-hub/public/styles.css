@@ -1911,3 +1911,64 @@ input.cd-in-nho { width: 72px; }
   .head-actions { margin-left: 0; width: 100%; }
   .head-actions #homeUser { margin-right: auto; }
 }
+
+/* ---------------------------------------------------------------------
+   ĐIỆN THOẠI: sàn cỡ chữ
+
+   Đo ở khổ 375px thấy 41 luật trong file này đang đặt cỡ chữ
+   9.5px / 10px / 10.5px / 11px / 11.5px. Trên màn máy tính, cỡ đó đọc được vì mắt cách
+   màn 50-60cm và chữ nằm trong một bố cục thoáng; trên điện thoại cầm tay
+   thì đó là cỡ phải nheo mắt, mà đúng những dòng ấy lại là dòng MANG TIN:
+   nhãn cột, mốc thời gian, tên người, số đếm trên tab.
+
+   Nâng lên sàn 12.5px (chữ đang ≤11px) và 13px (chữ 11.5px) — giữ đúng
+   thứ tự to/nhỏ cũ để tôn ti bố cục không đảo, chỉ dịch cả thang lên.
+
+   KHÔNG nâng những chỗ font-size đang dùng để chỉnh cỡ một ký hiệu trong
+   hộp vuông (ảnh đại diện, icon, mũi nháy, logo) — ở file này là:
+     .ri-ic, .rail.min .ri-badge, .khoi-head .kh-ic, .q-tep-ic, .bb-tep-ic.
+   Nới cỡ ở đó là làm méo hộp chứ không giúp ai đọc được gì.
+   --------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  .rail-group { font-size: 12.5px; }                             /* 10.5 */
+  .ri-tx small { font-size: 12.5px; }                            /* 11 */
+  .ri-badge { font-size: 12.5px; }                               /* 11 */
+  .the.chinh .nhan { font-size: 12.5px; }                        /* 10 */
+  .the .nhan { font-size: 12.5px; }                              /* 10 */
+  .the-nho { font-size: 12.5px; }                                /* 11 */
+  .ng-n { font-size: 12.5px; }                                   /* 11 */
+  .tn-gap { font-size: 12.5px; }                                 /* 10.5 */
+  .tn-o { font-size: 12.5px; }                                   /* 10.5 */
+  .tn-moc { font-size: 12.5px; }                                 /* 10 */
+  .thang-do b { font-size: 12.5px; }                             /* 10.5 */
+  .chu-thich { font-size: 12.5px; }                              /* 10.5 */
+  .tin-muc, .tin-moi { font-size: 12.5px; }                      /* 10 */
+  .tin-ngay { font-size: 12.5px; }                               /* 11 */
+  .cd-nhom { font-size: 12.5px; }                                /* 11 */
+  .tb-nhom { font-size: 12.5px; }                                /* 10.5 */
+  .tb-n { font-size: 12.5px; }                                   /* 10.5 */
+  .tb-mod { font-size: 12.5px; }                                 /* 10.5 */
+  .tb-chan { font-size: 12.5px; }                                /* 11 */
+  .chuong-so { font-size: 12.5px; }                              /* 10.5 */
+  .tb-khi { font-size: 12.5px; }                                 /* 10.5 */
+  .tb-moi { font-size: 12.5px; }                                 /* 9.5 */
+  .tb-phan { font-size: 12.5px; }                                /* 11 */
+  .tb-n2 { font-size: 12.5px; }                                  /* 10.5 */
+  .tb-xemhet { font-size: 12.5px; }                              /* 11 */
+  .bb-la { font-size: 12.5px; }                                  /* 11 */
+  .logo-text small { font-size: 13px; }                          /* 11.5 */
+  .loc-nhan { font-size: 13px; }                                 /* 11.5 */
+  .the-khong { font-size: 13px; }                                /* 11.5 */
+  .viec-dong .mod { font-size: 13px; }                           /* 11.5 */
+  .bang th { font-size: 13px; }                                  /* 11.5 */
+  .seg-lang button { font-size: 13px; }                          /* 11.5 */
+  .q-ten-phu { font-size: 13px; }                                /* 11.5 */
+  .q-chip { font-size: 13px; }                                   /* 11.5 */
+  .q-ck small { font-size: 13px; }                               /* 11.5 */
+  .tb-phu { font-size: 13px; }                                   /* 11.5 */
+  .tb-chip { font-size: 13px; }                                  /* 11.5 */
+  .cd-muc-nho { font-size: 13px; }                               /* 11.5 */
+  .bb-nhan { font-size: 13px; }                                  /* 11.5 */
+  .bb-ai { font-size: 13px; }                                    /* 11.5 */
+  .bb-luc { font-size: 13px; }                                   /* 11.5 */
+}

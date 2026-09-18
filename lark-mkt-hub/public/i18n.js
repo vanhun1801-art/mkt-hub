@@ -95,6 +95,10 @@
     'Cài đặt': 'Settings',
     'Làm mới': 'Refresh',
     'Thời gian': 'Period',
+    /* Nhãn trên thanh thu gọn khối lọc của điện thoại (thugon.js). Câu tóm tắt
+     * đứng cạnh nó thì KHÔNG cần khoá ở đây: nó được chép ra từ chính các nút
+     * và <option> đang hiển thị, tức là đã qua tay bộ dịch này rồi. */
+    'Lọc': 'Filters',
     'Tháng này': 'This month',
     'Tháng trước': 'Last month',
     'Tuần này': 'This week',

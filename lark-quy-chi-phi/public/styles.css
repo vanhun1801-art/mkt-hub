@@ -442,3 +442,44 @@ td.tacvu .btn + .btn { margin-left: 5px; }
   :root:not([data-theme="sang"]) /* Hộp báo nhanh nền xanh lá / đỏ NHẠT ở tone tối, chữ trắng đọc không ra */
   :root:not([data-theme="sang"]) .toast.ok, .toast.err { color: #12161f; }
 }
+
+/* ---------------------------------------------------------------------
+   ĐIỆN THOẠI: dãy nút bên phải thanh đầu phải chịu xuống dòng
+
+   `.top-right` không khai flex-wrap, nên ba nút cộng chip vai nằm trên
+   một dòng cứng rộng 279px; ở khổ 375px trang trượt ngang 76px.
+   `.sp` (khoảng đệm giãn) cũng phải thôi giãn, nếu không nó vẫn cố đẩy
+   chip vai sang mép phải của một dòng đã hết chỗ.
+   --------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  .topbar { flex-wrap: wrap; }
+  .topbar > .top-right { flex: 1 1 100%; flex-wrap: wrap; min-width: 0; }
+  .top-right > * { max-width: 100%; }
+  .topbar > .sp { flex: 0 0 0; }
+}
+
+/* ---------------------------------------------------------------------
+   ĐIỆN THOẠI: sàn cỡ chữ
+
+   Đo ở khổ 375px thấy 7 luật trong file này đang đặt cỡ chữ
+   10.5px / 11px / 11.5px. Trên màn máy tính, cỡ đó đọc được vì mắt cách
+   màn 50-60cm và chữ nằm trong một bố cục thoáng; trên điện thoại cầm tay
+   thì đó là cỡ phải nheo mắt, mà đúng những dòng ấy lại là dòng MANG TIN:
+   nhãn cột, mốc thời gian, tên người, số đếm trên tab.
+
+   Nâng lên sàn 12.5px (chữ đang ≤11px) và 13px (chữ 11.5px) — giữ đúng
+   thứ tự to/nhỏ cũ để tôn ti bố cục không đảo, chỉ dịch cả thang lên.
+
+   KHÔNG nâng những chỗ font-size đang dùng để chỉnh cỡ một ký hiệu trong
+   hộp vuông (ảnh đại diện, icon, mũi nháy, logo).
+   Nới cỡ ở đó là làm méo hộp chứ không giúp ai đọc được gì.
+   --------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  th { font-size: 12.5px; }                                      /* 11 */
+  .ct-cho { font-size: 12.5px; }                                 /* 11 */
+  .ct-nhan { font-size: 12.5px; }                                /* 10.5 */
+  .ma-them { font-size: 12.5px; }                                /* 11 */
+  .phu2 { font-size: 13px; }                                     /* 11.5 */
+  .the { font-size: 13px; }                                      /* 11.5 */
+  .badge { font-size: 13px; }                                    /* 11.5 */
+}

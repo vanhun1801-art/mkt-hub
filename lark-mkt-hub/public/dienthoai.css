@@ -1,0 +1,317 @@
+/* =====================================================================
+   LỚP ĐIỆN THOẠI DÙNG CHUNG — một file cho lớp vỏ và cả chín app con.
+
+   Vì sao MỘT file chứ không phải một đường riêng cho mobile:
+   app con nằm trong iframe của lớp vỏ, nên "một đường cho mobile" có
+   nghĩa là chín bản mobile nữa phải nuôi song song với chín bản máy
+   tính — mỗi lần sửa một khối là sửa hai nơi, và nơi thứ hai là nơi
+   quên. Đo lại cả chín app ở khổ 375px thì layout đã tự co đúng rồi
+   (chỉ ba app trượt ngang, đã vá riêng); phần còn thiếu không phải
+   layout mà là CỠ: chữ 10-11px, nút cao 17-32px, ô nhập dưới 16px.
+   Đó đúng là thứ một lớp dùng chung sửa được gọn nhất.
+
+   Đường đi của file này:
+     · lớp vỏ   — <link> trong public/index.html
+     · app con  — proxy.js chèn <link> vào <head> lúc chuyển tiếp HTML
+   Cùng origin nên app con nạp được /dienthoai.css của lớp vỏ.
+
+   Vì sao bám BỀ NGANG (max-width) chứ không bám (pointer: coarse):
+   Lark bản máy tính chạy trên laptop cảm ứng cũng là "pointer: coarse",
+   mà ở đó người dùng vẫn đang ngồi trước màn 1440px — lấy cỡ ngón tay
+   áp vào đó thì phá layout máy tính. Còn Lark trên điện thoại thì luôn
+   đưa xuống một khung hẹp. Bề ngang là tín hiệu chắc chắn.
+
+   640px để khớp với mốc @media đã có sẵn của lớp vỏ (styles.css).
+   ===================================================================== */
+
+@media (max-width: 640px) {
+
+  /* ---------------------------------------------------------------
+     1. NỀN
+     --------------------------------------------------------------- */
+
+  /* Xoay ngang điện thoại rồi xoay lại, WebKit tự nới cỡ chữ lên cho
+     "vừa mắt" — nới không đều nên bảng vừa khít thành tràn. Khoá lại. */
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  /* Android vẽ một khối xám kín quanh mọi thứ bấm được, to hơn cả nút
+     và chậm hơn hiệu ứng :active của app — nhìn như app bị treo một
+     nhịp. Để lại một vệt rất nhạt cho biết ngón tay đã ăn. */
+  a, button, [role="button"], summary, label, select {
+    -webkit-tap-highlight-color: rgba(0, 0, 0, .06);
+  }
+
+  /* ---------------------------------------------------------------
+     2. Ô NHẬP — 16px, KHÔNG phải cho đẹp
+     --------------------------------------------------------------- */
+
+  /* iOS tự PHÓNG TO cả trang khi con trỏ nhảy vào một ô nhập có cỡ chữ
+     dưới 16px, và không tự thu lại — người dùng gõ xong thì đang đứng
+     ở một trang bị phóng, phải tự chụm hai ngón mới về được. Không có
+     cách nào chặn bằng JS; đủ 16px là cách duy nhất.
+     Trừ checkbox/radio/range/color: cỡ chữ không có nghĩa gì với chúng,
+     mà đặt vào thì hộp bị kéo méo. */
+  /* !important — và đây là chỗ nó thật sự có lý:
+     15 luật trong 5 app đang đặt cỡ chữ ô nhập bằng SELECTOR LỚP
+     (.search, .cmt-input, .field input, .loc input, .kn-form textarea...).
+     Lớp thắng phần tử về độ ưu tiên, nên nếu không !important thì luật
+     16px này thua và cái bẫy phóng-to vẫn còn nguyên ở đúng những ô mà
+     người dùng gõ vào nhiều nhất. Cách còn lại là liệt kê cả 15
+     selector ở đây rồi nuôi danh sách đó mỗi lần một app thêm ô nhập
+     mới — tức là nuôi một danh sách chắc chắn sẽ lạc hậu. */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  /* Checkbox mặc định là 13x13 — sổ quỹ chi phí có 166 ô như thế, mỗi
+     dòng một ô, bấm bằng ngón tay là trượt sang dòng bên cạnh. Nới hộp
+     ra 22px (vẫn vừa một dòng bảng) rồi nới thêm vùng ăn tay bằng
+     outline trong suốt, không chiếm chỗ trong luồng layout. */
+  input[type="checkbox"],
+  input[type="radio"] {
+    width: 22px; height: 22px;
+    outline: 7px solid transparent;   /* vùng ăn tay ~36px, không đẩy layout */
+  }
+
+  /* ---------------------------------------------------------------
+     3. SÀN CHẠM 40px
+     --------------------------------------------------------------- */
+
+  /* 40px là cỡ nhỏ nhất còn bấm trúng bằng ngón tay. Đo ở khổ 375px
+     thấy nút đang cao 17-37px tuỳ app: chip lọc 17px, tab 27-32px,
+     nút thanh đầu 31-37px.
+
+     Chỉ đặt min-height, KHÔNG đặt padding: <button> và <select> tự căn
+     giữa nội dung theo chiều dọc, nên min-height là đủ và không làm
+     nút chỉ-có-icon méo sang hình chữ nhật. */
+  button,
+  select,
+  summary,
+  [role="button"],
+  input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]) {
+    min-height: 40px;
+  }
+
+  /* <a class="btn"> thì KHÔNG tự căn giữa như <button> — min-height chỉ
+     làm hộp cao lên còn chữ nằm dính mép trên. Phải nói thẳng.
+
+     Viết .btn.btn (lặp lớp) chứ không phải .btn, để nâng độ ưu tiên từ 0,1,0
+     lên 0,2,0. Lý do đo được: Bảng công việc khai
+        .wcard-actions .btn, .queue-row .btn { min-height: var(--h-ctl-sm) }
+     với độ ưu tiên 0,2,0 — luật .btn trơn của file này thua, và sáu cái nút
+     trong thẻ việc vẫn cao 28px sau khi tưởng đã vá xong. Lặp lớp là cách
+     nâng ưu tiên duy nhất không phải bịa thêm một cấp cha không có thật.
+
+     .btn là lớp nút DUY NHẤT có mặt ở cả 10 app (đã đếm); những lớp riêng của
+     từng app (.tab, .sel, .seg-nut...) vá trong styles.css của chính app đó. */
+  a.btn.btn,
+  .btn.btn {
+    min-height: 40px;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+
+  /* Nút CHỈ CÓ ICON phải vuông. Sàn 40px ở trên chỉ nói chiều cao, nên nút
+     chuông của lớp vỏ đang từ 34x34 thành 34x40 — đứng cạnh mấy nút chữ tròn
+     trịa thì nó là một viên thuốc dựng đứng, nhìn ra ngay là hỏng.
+     min-width chứ không phải width: `.btn.chuong` khai sẵn `width: 34px` và
+     min-width luôn thắng width, nên không cần đấu độ ưu tiên với nó.
+     Bốn tên lớp này là toàn bộ vốn từ nút-icon của mười app (đã đếm). */
+  .btn.icon,
+  .btn.chuong,
+  .btn-icon,
+  .tin-am {
+    min-width: 40px;
+    padding-left: 0; padding-right: 0;
+  }
+
+  /* Trong BẢNG thì hạ sàn xuống 32px: mỗi dòng một nút "Sửa", một ô
+     "Chứng từ" — bắt chúng cao 40px thì bảng 165 dòng dài thêm hơn
+     2600px, cuộn mãi không tới đáy. 32px vẫn hơn 24px hiện tại.
+     Luật này đứng SAU và đặc trưng hơn nên thắng luật trên. */
+  table button,
+  table .btn.btn,
+  table a.btn.btn,
+  table select,
+  table input:not([type="checkbox"]):not([type="radio"]) {
+    min-height: 32px;
+  }
+
+  /* ---------------------------------------------------------------
+     4. DÃY NÚT BÊN PHẢI THANH ĐẦU — nguồn gốc của mọi lần trượt ngang
+     --------------------------------------------------------------- */
+
+  /* Cùng một lỗi lặp ở bốn app: dãy nút bên phải khai flex: none hoặc
+     flex-shrink: 0, nên nó KHÔNG chịu co, và bề ngang thật của nó
+     (279-460px) đẩy cả trang rộng ra — trang trượt ngang, mà thanh
+     cuộn ngang trên điện thoại thì gần như vô hình, người dùng chỉ
+     thấy "app bị lệch".
+
+     Đã vá trong styles.css của từng app (để mở trực tiếp không qua lớp
+     vỏ cũng đúng); giữ lại đây làm lưới chắn cho app thêm sau này. */
+  .topbar > .topbar-right,
+  .topbar > .top-right,
+  .top > .top-right,
+  header > .top-right {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+  .topbar-right > *,
+  .top-right > * {
+    max-width: 100%;
+  }
+
+  /* ---------------------------------------------------------------
+     5. DÃY TAB — cuộn ngang cho ra cuộn ngang
+     --------------------------------------------------------------- */
+
+  /* Dãy tab của app quảng cáo rộng 900px+ ở khổ 375px. Nó đã nằm trong
+     hộp overflow-x: auto nên KHÔNG đẩy trang (đo rồi, không phải lỗi),
+     nhưng trên iOS thiếu momentum thì kéo một cái nó đứng luôn tại
+     chỗ — cảm giác như tab bị kẹt chứ không phải cuộn được. */
+  /* Chỉ hai tên lớp này: .tabsbar (5 app) và .tabs (7 app). Đã đếm trong mã —
+     đừng thêm tên "cho chắc", luật nhắm vào lớp không tồn tại thì không ai gỡ
+     ra nữa vì không ai dám chắc nó có đang đỡ chỗ nào không. */
+  .tabsbar,
+  .tabs {
+    -webkit-overflow-scrolling: touch;
+    scroll-padding-inline: 12px;
+  }
+
+  /* Dải nút chọn khoảng thời gian: MỘT DÒNG, cuộn ngang.
+
+     Lượt trước ở đây viết ngược lại — cho xuống dòng rồi giãn đều cho thẳng
+     mép. Nhìn gọn gàng thật, nhưng đo trên máy anh Hùng thì bảy nút cao 82px,
+     và cộng với sàn chạm 40px thì cả khung lọc ăn 40% màn Tổng quan, còn Bảng
+     công việc phải cuộn hơn một màn rưỡi mới thấy việc đầu tiên. Thẳng mép mà
+     chiếm mất chỗ của nội dung thì không đáng.
+
+     Một dòng cuộn ngang còn 44px. Đây đúng là cách Lark Workplace và Traveloka
+     làm dải danh mục của họ: thà để người ta vuốt tìm mốc ít dùng, còn hơn lấy
+     hai dòng cố định của mọi người để bày sẵn mốc mà phần lớn thời gian không
+     ai bấm.
+
+     HAI tên lớp, vì có hai dải khác nhau:
+       .seg     — dải riêng của từng app (có ở 7/10 app);
+       .hub-seg — dải DÙNG CHUNG do loc.js của lớp vỏ dựng vào mọi app con. */
+  .seg,
+  .hub-seg,
+  .tabs,
+  .tabsbar,
+  .pills {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;                  /* Firefox */
+  }
+  .seg::-webkit-scrollbar,
+  .hub-seg::-webkit-scrollbar,
+  .tabs::-webkit-scrollbar,
+  .tabsbar::-webkit-scrollbar,
+  .pills::-webkit-scrollbar { display: none; }
+
+  /* Không co, không giãn: nút giữ đúng bề ngang chữ của nó rồi tràn ra ngoài
+     cho cuộn. Để `1 1 auto` như lượt trước thì flexbox bóp hết cho vừa một
+     dòng và chữ bị xén. */
+  .seg > *,
+  .hub-seg > *,
+  .tabs > *,
+  .tabsbar > *,
+  .pills > * {
+    flex: 0 0 auto;
+  }
+
+  /* Bảng rộng cũng vậy: hộp cuộn đã đúng, chỉ thiếu momentum.
+     .tbl-wrap do JS dựng lúc chạy nên không thấy trong index.html, nhưng có
+     thật trong 8 file css/js. .workload là hộp bảng của Bảng công việc. */
+  .tbl-wrap,
+  .workload {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* ---------------------------------------------------------------
+     6. KHỐI LỌC THU GỌN  (xem thugon.js)
+     --------------------------------------------------------------- */
+
+  /* Khối lọc đang đóng. `display: none` chứ không phải max-height 0: mấy khối
+     này là flex/grid với chiều cao rất khác nhau giữa các app (163-379px), mà
+     đóng bằng max-height thì phải đoán một con số cho tất cả — đoán thiếu là
+     xén mất một hàng lọc, đoán thừa là còn một khoảng trắng. */
+  .tg-dong { display: none !important; }
+
+  .tg-thanh {
+    display: flex; align-items: center; gap: 8px;
+    width: 100%; min-height: 44px; padding: 8px 12px;
+    margin: 0 0 10px;
+    border: 1px solid var(--vien, rgba(128, 128, 128, .28));
+    border-radius: 10px;
+    background: transparent; color: inherit;
+    font: inherit; text-align: left; cursor: pointer;
+  }
+
+  /* Kính lúp vẽ bằng border, không dùng ký tự 🔎: emoji rơi vào font dự phòng
+     trên nhiều máy Android và ra cỡ lung tung — đúng bài học của .mob-gach. */
+  .tg-ic {
+    flex: 0 0 auto; position: relative;
+    width: 13px; height: 13px; border-radius: 50%;
+    border: 1.6px solid currentColor; opacity: .75;
+  }
+  .tg-ic::after {
+    content: ''; position: absolute; right: -4px; bottom: -3px;
+    width: 6px; height: 1.6px; border-radius: 2px;
+    background: currentColor; transform: rotate(45deg);
+  }
+
+  .tg-nhan { flex: 0 0 auto; font-weight: 650; }
+
+  /* Câu tóm tắt: nhạt hơn nhãn, và cắt bằng ba chấm chứ không xuống dòng —
+     cả thanh này tồn tại để tiết kiệm chiều cao, cho nó gãy dòng là hỏng. */
+  .tg-tt {
+    flex: 1 1 auto; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    opacity: .72;
+  }
+  /* Chưa lọc gì thì không in dấu chấm giữa lơ lửng. */
+  .tg-thanh:not(.tg-co) .tg-tt { display: none; }
+  .tg-thanh:not(.tg-co) .tg-nhan { margin-right: auto; }
+
+  .tg-mui {
+    flex: 0 0 auto; width: 8px; height: 8px;
+    border-right: 1.8px solid currentColor;
+    border-bottom: 1.8px solid currentColor;
+    transform: translateY(-2px) rotate(45deg);
+    opacity: .6; transition: transform .18s ease;
+  }
+  .tg-thanh.tg-mo .tg-mui { transform: translateY(2px) rotate(-135deg); }
+
+  /* ---------------------------------------------------------------
+     7. LỀ AN TOÀN — tai thỏ và vạch home
+     --------------------------------------------------------------- */
+
+  /* Cần viewport-fit=cover trong <meta viewport> mới có env() khác 0.
+     Thanh trên cùng của lớp vỏ là position: fixed nên nếu không chừa
+     thì nó nằm dưới tai thỏ; còn dòng cuối của trang thì nằm dưới vạch
+     home, bấm vào là iOS hiểu thành cử chỉ về màn hình chính. */
+  body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  main {
+    padding-bottom: calc(24px + env(safe-area-inset-bottom));
+  }
+
+  /* Ngăn kéo/modal trượt từ mép thì phải tự chừa lề an toàn của nó,
+     vì nó là fixed, nằm ngoài padding của body. */
+  .drawer,
+  .rail,
+  .modal-box,
+  .xt-box {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}

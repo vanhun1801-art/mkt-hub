@@ -75,6 +75,10 @@ function shimJs(mod, nguoi) {
     prefix: P,
     id: ${JSON.stringify(mod.id)},
     quanLy: ${nguoi && nguoi.quanLy ? 'true' : 'false'},
+    /* Khối lọc được thu gọn trên điện thoại — thugon.js đọc trường này.
+     * Khai trong modules.json vì mỗi app gọi khối lọc một tên khác nhau
+     * (.filters, .loc, .loc-hang), và hai app không có khối lọc nào cả. */
+    locSelector: ${JSON.stringify(mod.locSelector || '')},
     /* App con mở cửa sổ / ô chi tiết thì gọi __HUB__.che(true) — lớp vỏ tự tối
      * panel và thanh đầu lại, để cửa sổ nổi trên CẢ giao diện chứ không chỉ
      * trong khung nhúng. Chạy trực tiếp ngoài Hub thì hàm này không tồn tại,
@@ -163,16 +167,20 @@ function shimJs(mod, nguoi) {
     if (ev.data.hub === 'loc') apKhoang(ev.data.tu, ev.data.den);
   });
 
-  /* Hai file dùng chung của lớp vỏ (cùng origin nên app con nạp được):
-   *   loc.js  - danh sách mốc thời gian cho nhân sự
-   *   i18n.js - từ điển Tiếng Việt / English, tự đọc data-lang của trang cha
+  /* Ba file dùng chung của lớp vỏ (cùng origin nên app con nạp được):
+   *   loc.js    - danh sách mốc thời gian cho nhân sự
+   *   i18n.js   - từ điển Tiếng Việt / English, tự đọc data-lang của trang cha
+   *   thugon.js - thu gọn khối lọc trên điện thoại (chỉ chạy ở ≤640px)
    */
   /* document.write chứ không appendChild: script chèn động KHÔNG chặn parser, nên
    * app.js của module chạy trước và lúc đó chưa có HUB_LOC -> bộ lọc dựng sai một
-   * nhịp. Viết thẳng vào lúc đang parse thì hai file này chắc chắn nạp xong trước. */
+   * nhịp. Viết thẳng vào lúc đang parse thì hai file này chắc chắn nạp xong trước.
+   * thugon.js thì không kén nhịp (nó tự đợi DOMContentLoaded rồi quan sát tiếp),
+   * nhưng viết cùng một lối cho ba file dễ đọc hơn là mỗi file một kiểu. */
   var V = ${JSON.stringify('?v=' + (cfg.verChung || '1'))};
   document.write('<scr' + 'ipt src="/loc.js' + V + '"></scr' + 'ipt>');
   document.write('<scr' + 'ipt src="/i18n.js' + V + '"></scr' + 'ipt>');
+  document.write('<scr' + 'ipt src="/thugon.js' + V + '"></scr' + 'ipt>');
 
   // Cho lớp vỏ biết trang con đã sẵn sàng + gửi dòng phụ đề để rail hiển thị
   var SEL = ${JSON.stringify(mod.phuSelector || '')};
@@ -220,6 +228,25 @@ function chenVaoHtml(html, mod, nguoi) {
   const chen = '<style data-hub="1">' + shimCss(mod) + '</style>\n<script data-hub="1">' + shimJs(mod, nguoi) + '</script>\n';
   if (/<head[^>]*>/i.test(out)) out = out.replace(/<head([^>]*)>/i, (m) => m + '\n' + chen);
   else out = chen + out;
+
+  /* Lớp điện thoại dùng chung — chèn CUỐI <head>, không chèn cùng chỗ với
+   * `chen` ở trên.
+   *
+   * Vì sao phải cuối: `chen` nằm ngay sau <head>, tức là TRƯỚC styles.css của
+   * module. @media không cộng thêm độ ưu tiên nào, nên với hai luật cùng độ ưu
+   * tiên (VD `.btn { min-height }` của lớp điện thoại và `.btn { min-height:
+   * var(--h-ctl) }` của Bảng công việc) thì luật đứng SAU thắng — chèn trước là
+   * cả file vô tác dụng đúng ở những chỗ cần nó nhất. Đây là cùng cái bẫy mà app
+   * quảng cáo đã sập một lần (xem ghi chú `.topbar > .topbar-right` trong
+   * styles.css của nó).
+   *
+   * href để NGUYÊN "/dienthoai.css": đoạn này chạy SAU lượt thêm tiền tố ở trên
+   * nên nó không bị đổi thành /m/<id>/..., và file này do chính lớp vỏ phục vụ. */
+  const linkDt = '<link rel="stylesheet" href="/dienthoai.css?v='
+    + (cfg.verChung || '1') + '" data-hub="1">\n';
+  if (/<\/head>/i.test(out)) out = out.replace(/<\/head>/i, (m) => linkDt + m);
+  else out = out.replace('<style data-hub="1">', (m) => linkDt + m);
+
   return out;
 }
 

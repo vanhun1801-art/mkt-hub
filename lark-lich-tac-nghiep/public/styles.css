@@ -1452,3 +1452,79 @@ a.phieu-f:hover { border-color: var(--primary); background: var(--blue-bg); }
 .file .nm.co-the-xem { cursor: pointer; }
 .file .nm.co-the-xem:hover { color: var(--primary); text-decoration: underline; }
 .file .btn { flex: none; }
+
+/* ---------------------------------------------------------------------
+   ĐIỆN THOẠI: dãy nút bên phải thanh đầu phải chịu xuống dòng
+
+   `.top-right` khai flex-shrink: 0 nên nó không chịu co: đo ở khổ 375px
+   thấy dãy này rộng 440px, và nó đẩy cả trang rộng thành 460px — trang
+   trượt ngang 85px. Thanh cuộn ngang trên điện thoại gần như vô hình,
+   nên người dùng không thấy "cuộn được", chỉ thấy app bị lệch và nội
+   dung mép phải bị cắt.
+
+   Viết `.topbar > .top-right` chứ không phải `.top-right`: luật gốc
+   (dòng 129) khai flex-shrink: 0 với độ ưu tiên 0,1,0, mà @media không
+   cộng thêm độ ưu tiên nào — viết ngang nhau thì phải trông vào thứ tự,
+   mong manh. Thêm một cấp cha là thắng chắc.
+   --------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  .topbar { flex-wrap: wrap; }
+  .topbar > .top-right { flex: 1 1 100%; flex-wrap: wrap; min-width: 0; }
+  .top-right > * { max-width: 100%; }
+}
+
+/* ---------------------------------------------------------------------
+   ĐIỆN THOẠI: sàn cỡ chữ
+
+   Đo ở khổ 375px thấy 36 luật trong file này đang đặt cỡ chữ
+   10px / 10.5px / 11px / 11.5px. Trên màn máy tính, cỡ đó đọc được vì mắt cách
+   màn 50-60cm và chữ nằm trong một bố cục thoáng; trên điện thoại cầm tay
+   thì đó là cỡ phải nheo mắt, mà đúng những dòng ấy lại là dòng MANG TIN:
+   nhãn cột, mốc thời gian, tên người, số đếm trên tab.
+
+   Nâng lên sàn 12.5px (chữ đang ≤11px) và 13px (chữ 11.5px) — giữ đúng
+   thứ tự to/nhỏ cũ để tôn ti bố cục không đảo, chỉ dịch cả thang lên.
+
+   KHÔNG nâng những chỗ font-size đang dùng để chỉnh cỡ một ký hiệu trong
+   hộp vuông (ảnh đại diện, icon, mũi nháy, logo) — ở file này là:
+     .av, .pk-caret.
+   Nới cỡ ở đó là làm méo hộp chứ không giúp ai đọc được gì.
+   --------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  .tab .cnt { font-size: 12.5px; }                               /* 11 */
+  .chip-user .role { font-size: 12.5px; }                        /* 11 */
+  .people .more { font-size: 12.5px; }                           /* 11 */
+  .ev-more { font-size: 12.5px; }                                /* 11 */
+  .spark .lb { font-size: 12.5px; }                              /* 10.5 */
+  .steps .s { font-size: 12.5px; }                               /* 11 */
+  .the-phu { font-size: 12.5px; }                                /* 10.5 */
+  .ct-co { font-size: 12.5px; }                                  /* 10.5 */
+  .phieu-nhan { font-size: 12.5px; }                             /* 10.5 */
+  .phieu-ai { font-size: 12.5px; }                               /* 10 */
+  .ng-thu span { font-size: 12.5px; }                            /* 10.5 */
+  .ng-24 { font-size: 12.5px; }                                  /* 10.5 */
+  .kh-ten { font-size: 12.5px; }                                 /* 11 */
+  .ch-nhan { font-size: 12.5px; }                                /* 10.5 */
+  .ch-lb { font-size: 12.5px; }                                  /* 10.5 */
+  .ch-tag { font-size: 12.5px; }                                 /* 10.5 */
+  .xem-thu { font-size: 12.5px; }                                /* 11 */
+  .tw-link { font-size: 12.5px; }                                /* 11 */
+  .tag { font-size: 13px; }                                      /* 11.5 */
+  .ev { font-size: 13px; }                                       /* 11.5 */
+  .frm-row .hint { font-size: 13px; }                            /* 11.5 */
+  .file .sz { font-size: 13px; }                                 /* 11.5 */
+  .pk-them { font-size: 13px; }                                  /* 11.5 */
+  .frm .sec-title { font-size: 13px; }                           /* 11.5 */
+  .ct-luc { font-size: 13px; }                                   /* 11.5 */
+  .ct-mon, .ct-ve { font-size: 13px; }                           /* 11.5 */
+  .nhac-gio { font-size: 13px; }                                 /* 11.5 */
+  .phieu-mon { font-size: 13px; }                                /* 11.5 */
+  .phieu-chan { font-size: 13px; }                               /* 11.5 */
+  .ng-nhan { font-size: 13px; }                                  /* 11.5 */
+  .bc-f { font-size: 13px; }                                     /* 11.5 */
+  .bc-chan { font-size: 13px; }                                  /* 11.5 */
+  .luu-tt { font-size: 13px; }                                   /* 11.5 */
+  .ch-ai { font-size: 13px; }                                    /* 11.5 */
+  .ch-mo-nut { font-size: 13px; }                                /* 11.5 */
+  .ch-k { font-size: 13px; }                                     /* 11.5 */
+}
