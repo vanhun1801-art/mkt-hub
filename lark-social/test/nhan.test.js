@@ -216,6 +216,54 @@ t('thống kê thẻ biết thẻ nào đã có chủ', () => {
   assert.strictEqual(m.get('#phuquoc').soBai, 2);
 });
 
+console.log('\nnhãn — hai cái bẫy về sau');
+
+t('đối tác đếm mỗi bài một lần, không cộng dồn các nhãn con', () => {
+  /* Lỗi thật, tìm ra ngày 18/09: một bài gắn cả #vinwonders lẫn #safari mang hai
+     nhãn — đúng, vì nó nói về cả hai chỗ — nhưng vẫn chỉ là MỘT bài của
+     Vinpearl. Cộng dồn nhãn thì Vinpearl thành 312 bài / 3.508.124 lượt xem
+     trong khi sự thật là 276 bài / 3.360.667. Đây là con số gửi cho đối tác. */
+  const ds = nhan.chuanHoaNhan([
+    { nhan: 'VinWonders', hashtag: '#vw', doiTac: 'Vinpearl' },
+    { nhan: 'Safari', hashtag: '#sf', doiTac: 'Vinpearl' },
+  ]);
+  const posts = [
+    bai('#vw #sf', { views: 100, engagement: 10 }),
+    bai('#vw', { views: 50, engagement: 5 }),
+  ];
+  const congDon = nhan.gopTheoNhan(posts, ds)
+    .reduce((a, o) => ({ bai: a.bai + o.soBai, views: a.views + o.views }), { bai: 0, views: 0 });
+  assert.strictEqual(congDon.bai, 3, 'cộng dồn nhãn ra 3 — đó chính là cái sai');
+
+  const r = nhan.gopTheoDoiTac(posts, ds);
+  assert.strictEqual(r.length, 1);
+  assert.strictEqual(r[0].soBai, 2, 'chỉ có 2 bài thật');
+  assert.strictEqual(r[0].views, 150);
+});
+
+t('một bài thuộc hai đối tác KHÁC nhau thì cả hai đều được tính', () => {
+  const ds = nhan.chuanHoaNhan([
+    { nhan: 'A', hashtag: '#a', doiTac: 'Vinpearl' },
+    { nhan: 'B', hashtag: '#b', doiTac: 'Sun Group' },
+  ]);
+  const r = nhan.gopTheoDoiTac([bai('#a #b', { views: 10 })], ds);
+  assert.strictEqual(r.length, 2);
+  assert.ok(r.every((o) => o.soBai === 1));
+});
+
+t('đổi tên nhãn phải kéo theo cột Nhãn gắn bù', () => {
+  /* Cột đó lưu TÊN chứ không lưu id. Đổi tên mà không sửa theo là 105 bài gắn
+     bù trỏ vào cái tên không còn tồn tại, bị lọc ra như nhãn ma, và mất nhãn
+     mà không có gì báo. */
+  assert.strictEqual(nhan.doiTenTrongNhanBu('Hòn Thơm, Sunset Town', 'Hòn Thơm', 'Hòn Thơm PQ'),
+    'Hòn Thơm PQ, Sunset Town');
+  assert.strictEqual(nhan.doiTenTrongNhanBu('Sunset Town', 'Hòn Thơm', 'X'), null,
+    'bài không liên quan thì đừng đụng vào');
+  assert.strictEqual(nhan.doiTenTrongNhanBu('A, B', 'A', 'B'), 'B',
+    'đổi thành tên đã có sẵn thì không được để trùng hai lần');
+  assert.strictEqual(nhan.doiTenTrongNhanBu('', 'A', 'B'), null);
+});
+
 console.log('\nnhãn — xuất CSV');
 
 t('dấu chấm phẩy và BOM, để Excel tiếng Việt mở đúng', () => {

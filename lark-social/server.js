@@ -330,17 +330,9 @@ async function api(req, res, u) {
     const ds = nhan.chuanHoaNhan(await store.taiNhan());
     const bai = M.topBai(d.posts, { ...t, theo: 'views', n: 100000 });
     const gop = nhan.gopTheoNhan(bai, ds);
-    /* Gộp tiếp theo đối tác: báo cáo Vinpearl phải là một con số, không phải ba
-     * dòng Safari / VinWonders / Grand World rời nhau. */
-    const theoDoiTac = new Map();
-    gop.forEach((o) => {
-      if (!o.doiTac) return;
-      if (!theoDoiTac.has(o.doiTac)) {
-        theoDoiTac.set(o.doiTac, { doiTac: o.doiTac, nhan: [], soBai: 0, views: 0, engagement: 0 });
-      }
-      const x = theoDoiTac.get(o.doiTac);
-      x.nhan.push(o.nhan); x.soBai += o.soBai; x.views += o.views; x.engagement += o.engagement;
-    });
+    /* Gộp theo đối tác: KHÔNG cộng dồn số của các nhãn con, vì một bài mang hai
+     * nhãn của cùng đối tác vẫn chỉ là một bài. Xem nhan.gopTheoDoiTac(). */
+    const theoDoiTac = nhan.gopTheoDoiTac(bai, ds);
     return ok(res, {
       /* Bỏ mảng bài ra khỏi phản hồi — 1.300 bài nhân nhiều nhãn là payload vài
        * megabyte mà bảng không dùng tới. Muốn xem bài thì tải CSV. */
@@ -352,7 +344,7 @@ async function api(req, res, u) {
         id: x.id, nhan: x.nhan, nhom: x.nhom, hashtag: x.hashtag,
         doiTac: x.doiTac, ghiChu: x.ghiChu, bat: x.bat,
       })),
-      theoDoiTac: [...theoDoiTac.values()].sort((a, b) => b.views - a.views),
+      theoDoiTac,
       /* Mọi hashtag đang dùng trong khoảng lọc, kèm nhãn đang giữ nó. Giao diện
        * dùng bảng này cho hai việc: liệt kê thẻ chưa có chủ, và gợi ý thẻ khi
        * khai nhãn. Gửi một lần thay vì mỗi lần gõ lại hỏi máy chủ. */
@@ -410,10 +402,33 @@ async function api(req, res, u) {
     const trung = dsCu.find((x) => x.nhan === ten && x.id !== b.id);
     if (trung) return fail(res, 400, 'Đã có nhãn tên "' + ten + '" rồi');
 
-    if (b.id) await lark.updateRecord(cfg.tables.label.id, b.id, o);
-    else await lark.createRecord(cfg.tables.label.id, o);
+    let doiBai = 0;
+    if (b.id) {
+      /* Đổi tên nhãn phải kéo theo cột "Nhãn gắn bù" của bài, vì cột đó lưu TÊN
+       * chứ không lưu id. Không làm thì 105 bài gắn bù trỏ vào cái tên cũ, bị
+       * lọc ra như nhãn ma, và mất nhãn mà không có gì báo. */
+      const cu = dsCu.find((x) => x.id === b.id);
+      await lark.updateRecord(cfg.tables.label.id, b.id, o);
+      if (cu && cu.nhan && cu.nhan !== ten) {
+        const d = await store.tai();
+        const sua = {};
+        d.posts.forEach((x) => {
+          const moi = nhan.doiTenTrongNhanBu(x.nhanBu, cu.nhan, ten);
+          if (moi != null) sua[x.id] = { [cfg.tables.post.f.labels]: moi };
+        });
+        const ids = Object.keys(sua);
+        for (let i = 0; i < ids.length; i += 200) {
+          const lo = {};
+          ids.slice(i, i + 200).forEach((id) => { lo[id] = sua[id]; });
+          await lark.updateMany(cfg.tables.post.id, lo);
+        }
+        doiBai = ids.length;
+      }
+    } else {
+      await lark.createRecord(cfg.tables.label.id, o);
+    }
     store.xoaCache();
-    return ok(res, { ok: true });
+    return ok(res, { ok: true, doiBai });
   }
 
   if (p === '/api/nhan/xoa' && method === 'POST') {

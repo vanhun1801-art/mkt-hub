@@ -81,6 +81,22 @@ function nhanCuaBai(bai, dsNhan) {
   return [...ra];
 }
 
+/**
+ * Đổi tên một nhãn trong chuỗi "Nhãn gắn bù" của một bài.
+ *
+ * Cột đó lưu TÊN nhãn, không lưu id. Đổi tên nhãn mà không sửa theo là mọi bài
+ * gắn bù trỏ vào một cái tên không còn tồn tại — nhanCuaBai() lọc chúng ra
+ * (đúng, để tránh nhãn ma), nên 105 bài lặng lẽ mất nhãn và không có gì báo.
+ *
+ * @returns chuỗi mới, hoặc null nếu bài này không liên quan
+ */
+function doiTenTrongNhanBu(nhanBu, tenCu, tenMoi) {
+  const ds = String(nhanBu || '').split(/\s*[,;|]\s*/).map((x) => x.trim()).filter(Boolean);
+  if (!ds.includes(tenCu)) return null;
+  const moi = [...new Set(ds.map((x) => (x === tenCu ? tenMoi : x)))];
+  return moi.join(', ');
+}
+
 /** Bài này nhận nhãn nhờ hashtag hay nhờ gắn bù — để màn hình nói rõ. */
 function nguonNhan(bai, dsNhan) {
   const the = new Set(theCuaBai(bai.title));
@@ -217,6 +233,47 @@ function gopTheoNhan(posts, dsNhan) {
   })).sort((a, b) => b.views - a.views || b.soBai - a.soBai);
 }
 
+/**
+ * Gộp theo ĐỐI TÁC, đếm mỗi bài đúng một lần.
+ *
+ * KHÔNG được cộng dồn số của các nhãn con. Một bài gắn cả #vinwonders lẫn
+ * #safari mang hai nhãn — đúng, vì nó nói về cả hai chỗ — nhưng nó vẫn chỉ là
+ * MỘT bài của Vinpearl. Cộng dồn nhãn thì đo trên dữ liệu thật ngày 18/09:
+ * Vinpearl thành 312 bài / 3.508.124 lượt xem trong khi sự thật là 276 bài /
+ * 3.360.667 — thừa 36 bài và 147.457 lượt xem. Đây là con số gửi cho đối tác.
+ */
+function gopTheoDoiTac(posts, dsNhan) {
+  const theoTen = new Map(dsNhan.map((n) => [n.nhan, n]));
+  const m = new Map();
+  (posts || []).forEach((p) => {
+    const dts = new Set();
+    nhanCuaBai(p, dsNhan).forEach((ten) => {
+      const n = theoTen.get(ten);
+      if (n && n.doiTac) dts.add(n.doiTac);
+    });
+    dts.forEach((dt) => {
+      if (!m.has(dt)) {
+        m.set(dt, {
+          doiTac: dt, nhan: [], soBai: 0, mauSo: 0,
+          ...CONG.reduce((o, k) => (o[k] = 0, o), {}),
+        });
+      }
+      const o = m.get(dt);
+      o.soBai++;
+      o.mauSo += num(p.reach) || num(p.views);
+      CONG.forEach((k) => { o[k] += num(p[k]); });
+    });
+  });
+  /* Danh sách nhãn của đối tác lấy từ bảng Nhãn, không lấy từ bài — để đối tác
+   * chưa có bài nào trong kỳ vẫn hiện đủ tên nhãn. */
+  dsNhan.forEach((n) => {
+    if (n.doiTac && m.has(n.doiTac)) m.get(n.doiTac).nhan.push(n.nhan);
+  });
+  return [...m.values()]
+    .map((o) => ({ ...o, tyLeTuongTac: o.mauSo ? o.engagement / o.mauSo : 0 }))
+    .sort((a, b) => b.views - a.views);
+}
+
 /** Bài không mang nhãn nào — để biết quy định đang được theo tới đâu. */
 function baiKhongNhan(posts, dsNhan) {
   return (posts || []).filter((p) => !nhanCuaBai(p, dsNhan).length);
@@ -262,6 +319,7 @@ function csvChoNhan(o, khoang) {
 
 module.exports = {
   tachThe, theCuaBai, khongDau, goiYThe, thongKeThe, QUA_CHUNG,
-  chuanHoaNhan, nhanCuaBai, nguonNhan, gopTheoNhan, baiKhongNhan,
+  chuanHoaNhan, nhanCuaBai, nguonNhan, doiTenTrongNhanBu,
+  gopTheoNhan, gopTheoDoiTac, baiKhongNhan,
   dongCsv, csvChoNhan, BOM, CONG,
 };
