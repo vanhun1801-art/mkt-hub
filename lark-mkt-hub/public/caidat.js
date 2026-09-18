@@ -353,6 +353,19 @@ async function napCdPhim() {
             ? '<button class="btn nho chinh" id="cdPhimThem">Thêm video hoặc ảnh</button>'
             : '<span class="cd-nhan">Đã đủ ' + toiDa + ' ô</span>')
       : '') +
+    /* Nói thẳng chuyện ổ đĩa tạm ngay tại chỗ tải lên.
+     *
+     * Anh Hùng: "những lần anh deploy lại thì mất đi video phát". Trước nay
+     * chuyện đó xảy ra im lặng — tải lên thấy chạy ngon, vài hôm sau deploy
+     * xong mở ra thì trống. Cảnh báo ở đây để không ai bị bất ngờ, và nói rõ
+     * đường giữ lâu. */
+    (t.tamThoi
+      ? cdHang('Lưu ý: tệp ở đây KHÔNG sống qua lần deploy',
+          'Ổ đĩa của máy chủ là ổ tạm — mỗi lần deploy là dựng lại từ kho, nên ' +
+          'video/ảnh tải lên qua đây sẽ mất. Muốn giữ lâu thì gắn đĩa lưu cho ' +
+          'service, hoặc nhờ đưa tệp thẳng vào kho mã nguồn.',
+          '<span class="cd-nhan do">ổ tạm</span>')
+      : '') +
     cdHang('Định dạng nhận vào', '',
       '<span class="cd-nhan">MP4 · WEBM · MOV · PNG · JPG · WEBP · GIF ≤ 60 MB · tối đa ' + toiDa + ' ô</span>') +
     '<input type="file" id="cdPhimTep" accept="video/mp4,video/webm,video/quicktime,' +

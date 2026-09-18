@@ -388,6 +388,10 @@
     'Video giới thiệu': 'Intro video',
     'Chưa có video': 'No video yet',
     'Chưa có gì để phát': 'Nothing to play yet',
+    'Lưu ý: tệp ở đây KHÔNG sống qua lần deploy': 'Heads-up: files here do NOT survive a deploy',
+    'Ổ đĩa của máy chủ là ổ tạm — mỗi lần deploy là dựng lại từ kho, nên video/ảnh tải lên qua đây sẽ mất. Muốn giữ lâu thì gắn đĩa lưu cho service, hoặc nhờ đưa tệp thẳng vào kho mã nguồn.':
+      'The server disk is ephemeral — every deploy rebuilds it from the repo, so video/images uploaded here are lost. To keep them, attach a persistent disk to the service, or have the file committed to the repo.',
+    'ổ tạm': 'ephemeral disk',
     'Chưa đặt video hay ảnh nào — trang Tổng quan chỉ hiện bảng tin.':
       'No video or image set — the Overview shows only the news column.',
     'Tải lên': 'Upload',

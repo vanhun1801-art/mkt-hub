@@ -210,6 +210,24 @@ function donDuLieu() {
       oThu = 0;
     }
 
+    group('Nói thẳng chuyện ổ đĩa tạm');
+    {
+      /* Anh Hùng: "những lần anh deploy lại thì mất đi video phát hoặc cái anh
+       * đã thiết lập". Đúng — ổ đĩa Render là ổ TẠM, mỗi lần deploy dựng lại
+       * từ kho. Không sửa được bằng mã (phải gắn đĩa lưu, hoặc đưa tệp vào
+       * kho), nhưng KHÔNG ĐƯỢC để nó xảy ra im lặng: tải lên thấy chạy ngon,
+       * vài hôm sau deploy xong mở ra thì trống. */
+      ok('máy cá nhân thì KHÔNG báo ổ tạm', tin.tamThoi === false,
+        JSON.stringify(tin.tamThoi));
+      const sv = fs.readFileSync(path.join(GOC, 'server.js'), 'utf8');
+      ok('chỉ báo khi chạy server chung VÀ chưa gắn đĩa lưu',
+        /tamThoi: cfg\.mode === 'api' && !process\.env\.HUB_DU_LIEU/.test(sv));
+      const cd = fs.readFileSync(path.join(GOC, 'public', 'caidat.js'), 'utf8');
+      ok('Cài đặt có hàng cảnh báo khi cờ bật', /t\.tamThoi[\s\S]{0,120}KHÔNG sống qua lần deploy/.test(cd));
+      const i18 = fs.readFileSync(path.join(GOC, 'public', 'i18n.js'), 'utf8');
+      ok('cảnh báo có bản tiếng Anh', /do NOT survive a deploy/.test(i18));
+    }
+
     group('Ô phát nhận cả ẢNH');
     {
       /* Anh Hùng: "chỗ video phát anh muốn thêm định dạng ảnh nữa thay vì chỉ

@@ -1060,8 +1060,17 @@ async function api(req, res, u) {
     /* `co` và các trường của video ĐẦU nằm luôn ở gốc: bản cũ của trang Tổng
      * quan đọc thẳng `t.luc` để chống đệm, và nó có thể còn nằm trong trình
      * duyệt của ai đó chưa tải lại trang. */
-    return ok(res, Object.assign({ co: ds.length > 0, tong: ds.length, toiDa: SO_PHIM_TOI_DA, ds },
-      ds[0] || {}));
+    /* `tamThoi`: ổ đĩa đang dùng là ổ TẠM, tệp tải lên sẽ mất sau lần deploy
+     * kế tiếp. Anh Hùng: "những lần anh deploy lại thì mất đi video phát hoặc
+     * cái anh đã thiết lập" — trước nay chuyện đó xảy ra im lặng, mở lại mới
+     * biết. Nói thẳng trong Cài đặt thì không ai bị bất ngờ nữa.
+     *
+     * Chỉ đúng khi chạy trên server chung (mode api) VÀ chưa gắn đĩa lưu lâu
+     * (HUB_DU_LIEU trỏ vào một đĩa gắn thêm). Máy cá nhân thì tệp nằm yên. */
+    return ok(res, Object.assign({
+      co: ds.length > 0, tong: ds.length, toiDa: SO_PHIM_TOI_DA, ds,
+      tamThoi: cfg.mode === 'api' && !process.env.HUB_DU_LIEU,
+    }, ds[0] || {}));
   }
 
   if (p === '/api/video-gt' && m === 'POST') {
