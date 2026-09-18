@@ -343,6 +343,51 @@ t('instagram.js dùng chỉ số metric, không dò cả thông báo', () => {
     'khi đoán theo tên thì chỉ xét phần trước dấu hai chấm');
 });
 
+t('trần số bài phải lên tiếng, không được cắt âm thầm', () => {
+  /* Lỗi thật: trần 200 bài mỗi Page, vòng ngoài đi từ tháng cũ đến tháng mới,
+     nên 200 bài đầu găm hết vào đầu năm rồi dừng. Chạy lại cả năm chỉ làm mới
+     525/933 bài, mà nhật ký vẫn báo "Thành công" — không chỗ nào nói rằng
+     những tháng gần đây chưa được đọc lại. */
+  const src = require('fs').readFileSync(require.resolve('../sync/facebook'), 'utf8');
+  assert.ok(src.includes('chamTran'), 'phải có cờ đánh dấu dừng vì trần');
+  assert.ok(/chamTran[\s\S]{0,400}canhBao\.push/.test(src),
+    'chạm trần thì phải đẩy cảnh báo cho người dùng thấy');
+  assert.ok(/soBaiToiDa \|\| (\d{4,})/.test(src), 'trần dự phòng phải đủ rộng cho cả năm');
+  /* Trần thật nằm trong cấu hình, không phải ở toán tử `||` — nâng mỗi chỗ kia
+     thì chạy lại vẫn dừng ở 200, đúng như lần thử đầu. */
+  const cfg = require('fs').readFileSync(require.resolve('../ketnoi'), 'utf8');
+  const m = /soBaiToiDa: (\d+)/.exec(cfg);
+  assert.ok(m && Number(m[1]) >= 1000, 'cấu hình mặc định cũng phải đủ rộng, hiện là ' + (m && m[1]));
+});
+
+t('until của Meta loại trừ, nên phải cộng thêm một ngày', () => {
+  /* Lỗi thật, kín đáo nhất trong cả loạt. chiaKhoang() trả các cửa sổ liền nhau
+     và bao cả hai đầu: [01-01, 01-31], [02-01, 03-03]… Nhưng `until` của Meta hiểu
+     là 0h00 ngày đó, tức LOẠI TRỪ. Truyền thẳng `den` vào là mất trắng ngày cuối
+     của mỗi cửa sổ — tám ngày mỗi trang mỗi năm, không lỗi nào báo. Kiểm chứng
+     bằng API thật: until=2026-09-05 trả về các ngày 01, 03, 04; until=2026-09-06
+     mới có ngày 05. */
+  const { chiaKhoang, ngayKe } = require('../sync/ngay');
+  assert.strictEqual(ngayKe('2026-09-05'), '2026-09-06');
+  assert.strictEqual(ngayKe('2026-12-31'), '2027-01-01');
+  assert.strictEqual(ngayKe('2026-02-28'), '2026-03-01');
+
+  /* Không cửa sổ nào được vượt trần sau khi đã cộng thêm ngày. */
+  const ngay = (a, b) => (Date.parse(b) - Date.parse(a)) / 86400000;
+  chiaKhoang('2026-01-01', '2026-12-31', 29).forEach(([t, d]) => {
+    assert.ok(ngay(t, ngayKe(d)) <= 30, 'cửa sổ Instagram vượt 30 ngày: ' + t + '→' + d);
+  });
+  chiaKhoang('2026-01-01', '2026-12-31', 89).forEach(([t, d]) => {
+    assert.ok(ngay(t, ngayKe(d)) <= 93, 'cửa sổ Facebook vượt trần: ' + t + '→' + d);
+  });
+
+  /* Và mọi nơi gọi Meta phải dùng ngayKe, không truyền thẳng den. */
+  ['../sync/facebook', '../sync/instagram'].forEach((m) => {
+    const src = require('fs').readFileSync(require.resolve(m), 'utf8');
+    assert.ok(!/'&until=' \+ den/.test(src), m + ' còn truyền thẳng den vào until');
+  });
+});
+
 t('lấy bản lifetime khi Meta trả một metric hai lần', () => {
   /* Lỗi thật, làm mất gần hết lượt xem bài Facebook. Khi xin nhiều metric một
      lượt, Meta trả CÙNG một metric hai lần — period `lifetime` rồi period `day`.

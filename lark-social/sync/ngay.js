@@ -34,4 +34,16 @@ function chiaKhoang(tu, den, soNgayToiDa) {
   return out;
 }
 
-module.exports = { chiaKhoang };
+/**
+ * Ngày kế tiếp, dạng ISO.
+ *
+ * `until` của Meta LÀ MỐC LOẠI TRỪ, hiểu là 0h00 của ngày đó, nên bài đăng
+ * ĐÚNG ngày `until` không nằm trong kết quả. Chia cả năm thành từng tháng rồi
+ * truyền thẳng hai đầu cửa sổ vào since/until là mất trắng NGÀY CUỐI của mỗi
+ * cửa sổ — tám ngày mỗi trang mỗi năm, rơi vào khoảng trống giữa hai cửa sổ
+ * mà không có lỗi nào báo. Thấy được vì bài ngày 05/09 không bao giờ được
+ * đọc lại, trong khi hỏi từng ngày thì API trả bình thường.
+ */
+const ngayKe = (d) => iso(Date.parse(d + 'T00:00:00Z') + NGAY);
+
+module.exports = { chiaKhoang, ngayKe };

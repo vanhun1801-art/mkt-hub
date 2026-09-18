@@ -17,7 +17,7 @@
  * xem chú thích dài ở chỗ khai báo bên dưới.
  */
 const { getJson, scrub, hideSecret } = require('./http');
-const { chiaKhoang } = require('./ngay');
+const { chiaKhoang, ngayKe } = require('./ngay');
 
 const PLATFORM = 'Instagram';
 const NGUON = 'Instagram API';
@@ -175,9 +175,11 @@ async function ngayCuaIg(fb, token, acc, from, to, canhBao) {
     const gioiHan = new Date(Date.now() - (SO_NGAY_FOLLOWER - 1) * 86400000)
       .toISOString().slice(0, 10);
     let boFollower = false;
-    for (const [tu, den] of chiaKhoang(from, to, 30)) {
+    /* 29 chứ không phải 30: until đã cộng thêm một ngày để không rớt ngày cuối,
+     * nên cửa sổ 30 ngày sẽ thành 31 và Instagram từ chối cả request. */
+    for (const [tu, den] of chiaKhoang(from, to, 29)) {
       const url0 = g(fb) + '/' + igId + '/insights?period=day'
-        + '&since=' + tu + '&until=' + den
+        + '&since=' + tu + '&until=' + ngayKe(den)
         + '&access_token=' + encodeURIComponent(token);
       const xin = den >= gioiHan ? CHUOI_TG.concat(CHUOI_TG_GAN) : CHUOI_TG;
       if (den < gioiHan) boFollower = true;
@@ -385,7 +387,7 @@ async function fetchRange(conf, confFb, layToken, from, to, opts = {}, log = () 
 
     if (opts.layBai !== false) {
       try {
-        const p = await baiCuaIg(confFb, token, { ...a, ...hs }, from, to, opts.soBaiToiDa || 200, canhBao);
+        const p = await baiCuaIg(confFb, token, { ...a, ...hs }, from, to, opts.soBaiToiDa || 2000, canhBao);
         posts.push(...p);
         log('Instagram · ' + (hs.username || a.id) + ': ' + p.length + ' bài');
       } catch (e) { canhBao.push('Instagram bài · ' + (a.name || a.id) + ': ' + e.message); }

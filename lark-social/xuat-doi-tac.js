@@ -85,7 +85,26 @@ async function logoHtml() {
  */
 const KHONG_DO_XEM = new Set(['Bài viết', 'Ảnh', 'Album']);
 const doDuocXem = (p) => !(p.platform === 'Facebook' && KHONG_DO_XEM.has(p.type));
-const oXem = (p) => (doDuocXem(p) ? num(p.views) : null);
+
+/**
+ * Ô lượt xem: để trống khi nền tảng KHÔNG ĐO, ghi số khi đã có số.
+ *
+ * KHÔNG được giấu một con số có thật chỉ vì cột "Dạng" ghi sai. Facebook trả
+ * `status_type` cho reels là `added_video`, nhưng những dòng vào Base từ trước lần
+ * sửa bảng tra vẫn đang mang dạng "Bài viết". Lọc theo dạng đơn thuần làm 48 bài
+ * có tổng 32.852 lượt xem bị xuất ra ô trống — đối tác mở link ra thấy video có
+ * người xem mà báo cáo ghi không có gì.
+ *
+ * Có số thì ghi số. Trống chỉ dành cho trường hợp thật sự không đo được.
+ */
+const oXem = (p) => (num(p.views) > 0 || doDuocXem(p) ? num(p.views) : null);
+
+/**
+ * Ô tiếp cận: Facebook đã gỡ mọi chỉ số đếm NGƯỜI ở mức bài, nên cột này luôn
+ * bằng 0 với bài Facebook và TikTok. Ghi số 0 là nói "bài này không ai thấy", sai
+ * hẳn; để trống là nói "không đo được", đúng.
+ */
+const oTiepCan = (p) => (num(p.reach) > 0 ? num(p.reach) : null);
 
 const COT_BAI = ['Ngày đăng', 'Nền tảng', 'Kênh', 'Nhãn', 'Dạng', 'Nội dung', 'Link',
   'Lượt xem', 'Tiếp cận', 'Thích', 'Bình luận', 'Chia sẻ', 'Tương tác'];
@@ -110,13 +129,13 @@ function excelDoiTac({ doiTac, nhan, tongHop, tu, den }) {
     { dam: true, o: ['Nhãn', 'Số bài', 'Lượt xem', 'Tiếp cận', 'Thích', 'Bình luận', 'Chia sẻ', 'Tương tác'] },
   ];
   nhan.forEach((o) => tongHang.push({
-    o: [o.nhan, num(o.soBai), num(o.views), num(o.reach), num(o.likes),
+    o: [o.nhan, num(o.soBai), num(o.views), num(o.reach) || null, num(o.likes),
       num(o.comments), num(o.shares), num(o.engagement)],
   }));
   tongHang.push({ o: [] });
   tongHang.push({
     dam: true,
-    o: ['TỔNG (mỗi bài đếm một lần)', num(tongHop.soBai), num(tongHop.views), num(tongHop.reach),
+    o: ['TỔNG (mỗi bài đếm một lần)', num(tongHop.soBai), num(tongHop.views), num(tongHop.reach) || null,
       num(tongHop.likes), num(tongHop.comments), num(tongHop.shares), num(tongHop.engagement)],
   });
   tongHang.push({ o: [] });
@@ -137,7 +156,7 @@ function excelDoiTac({ doiTac, nhan, tongHop, tu, den }) {
       o: [
         String(p.date || '').slice(0, 10), p.platform || '', p.channel || '', o.nhan, p.type || '',
         String(p.title || '').replace(/\s+/g, ' ').slice(0, 500), p.url || '',
-        oXem(p), num(p.reach), num(p.likes), num(p.comments), num(p.shares), num(p.engagement),
+        oXem(p), oTiepCan(p), num(p.likes), num(p.comments), num(p.shares), num(p.engagement),
       ],
     }));
     sheets.push({ ten: o.nhan, rong: RONG_BAI, hang });
@@ -259,4 +278,4 @@ function trangIn({ doiTac, nhan, tongHop, tu, den, logo, soBaiMoiNhan = 40 }) {
     + '</div></body></html>';
 }
 
-module.exports = { excelDoiTac, trangIn, logoHtml, doDuocXem, oXem, COT_BAI };
+module.exports = { excelDoiTac, trangIn, logoHtml, doDuocXem, oXem, oTiepCan, COT_BAI };

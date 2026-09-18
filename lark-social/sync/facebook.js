@@ -27,7 +27,7 @@
  * từng metric một rồi nhớ lại. Trang mất một chỉ số chứ không mất cả ngày dữ liệu.
  */
 const { getJson, scrub, hideSecret } = require('./http');
-const { chiaKhoang } = require('./ngay');
+const { chiaKhoang, ngayKe } = require('./ngay');
 
 const PLATFORM = 'Facebook';
 const NGUON = 'Facebook API';
@@ -245,9 +245,10 @@ async function ngayCuaPage(conf, page, from, to, canhBao) {
    * "Nạp lại từ đầu" cho cả năm — và khi đó Facebook mất trắng số liệu. */
   const data = [];
   const boTatCa = new Set();
-  for (const [tu, den] of chiaKhoang(from, to, 90)) {
+  /* 89 chứ không phải 90, cùng lý do với Instagram: until cộng thêm một ngày. */
+  for (const [tu, den] of chiaKhoang(from, to, 89)) {
     const url0 = g(conf) + '/' + page.id + '/insights'
-      + '?period=day&since=' + tu + '&until=' + den
+      + '?period=day&since=' + tu + '&until=' + ngayKe(den)
       + '&access_token=' + encodeURIComponent(token);
     const r = await doInsights(url0, METRIC_NGAY, 'Facebook insights ' + ten);
     data.push(...r.data);
@@ -308,6 +309,11 @@ const TRUONG_BAI_GON = [
   'shares',
   'comments.summary(true).limit(0)',
   'likes.summary(true).limit(0)',
+  /* Con số Facebook hiện dưới bài là TỔNG CẢM XÚC, không phải riêng "Thích".
+   * `likes.summary` chỉ đếm cảm xúc Thích; bài có 80 cảm xúc trên màn hình thì
+   * nó trả 74. Đối tác mở bài ra đếm tay là thấy lệch ngay, nên lấy `reactions`
+   * và giữ `likes` làm phương án dự phòng. */
+  'reactions.summary(true).limit(0)',
 ].join(',');
 
 /**
@@ -348,7 +354,7 @@ async function baiCuaPage(conf, page, from, to, tran, canhBao) {
    * Gặp thật khi chạy lại cả năm: hai trong ba Page trả 0 bài, còn Page thứ ba
    * (ít bài hơn) thì chạy ngon — nên nhìn nhật ký rất dễ tưởng là lỗi quyền. */
   const dungUrl = (f, tu, den) => g(conf) + '/' + page.id + '/posts?limit=25'
-    + '&since=' + tu + '&until=' + den
+    + '&since=' + tu + '&until=' + ngayKe(den)
     + '&fields=' + encodeURIComponent(f)
     + '&access_token=' + encodeURIComponent(token);
 
@@ -356,10 +362,13 @@ async function baiCuaPage(conf, page, from, to, tran, canhBao) {
 
   /* Chia theo tháng. Kéo cả năm một lượt thì dù có phân trang, chính lời gọi đầu
    * tiên đã quá nặng với Meta. */
+  let chamTran = false;
+  theoKy:
   for (const [tuKy, denKy] of chiaKhoang(from, to, 31)) {
   let url = dungUrl(truong, tuKy, denKy);
 
-  for (let trang = 0; url && trang < 40 && out.length < tran; trang++) {
+  for (let trang = 0; url && trang < 40; trang++) {
+    if (out.length >= tran) { chamTran = true; break theoKy; }
     let res = await getJson(url, { label: 'Facebook posts ' + (page.name || page.id), retries: 2 });
 
     /* Insight từng bài nhúng ngay trong lời gọi danh sách — tiện, nhưng Meta gỡ
@@ -401,7 +410,9 @@ async function baiCuaPage(conf, page, from, to, tran, canhBao) {
         const v = num(((m.values || [])[0] || {}).value);
         if (m.period === 'lifetime' || !(m.name in ins)) ins[m.name] = v;
       });
-      const likes = num(p.likes && p.likes.summary && p.likes.summary.total_count);
+      const camXuc = num(p.reactions && p.reactions.summary && p.reactions.summary.total_count);
+      const chiThich = num(p.likes && p.likes.summary && p.likes.summary.total_count);
+      const likes = camXuc || chiThich;
       const cmts = num(p.comments && p.comments.summary && p.comments.summary.total_count);
       const shares = num(p.shares && p.shares.count);
       /* Mức bài không còn chỉ số đếm người — tiếp cận chỉ có ở mức trang. */
@@ -431,7 +442,23 @@ async function baiCuaPage(conf, page, from, to, tran, canhBao) {
     url = (res.paging && res.paging.next) || null;
   }
   }
-  return out.slice(0, tran);
+  /* CHẶN Ở ĐÂY LÀ CẮT MẤT THÁNG GẦN NHẤT, không phải cắt bớt cho nhẹ.
+   *
+   * Vòng ngoài đi từ tháng cũ đến tháng mới, nên 200 bài đầu tiên găm hết vào
+   * tháng đầu năm rồi dừng — những tháng gần đây không bao giờ được đọc lại.
+   * Chạy lại cả năm chỉ làm mới 525/933 bài, nhưng nhật ký vẫn báo "Thành
+   * công" — nên 319 reel từ tháng 5 trở đi vẫn mang dạng "Bài viết" sai từ
+   * trước lần sửa bảng tra, và báo cáo đối tác giấu luôn lượt xem của chúng.
+   *
+   * Giờ nói thẳng ra khi chạm trần. Trần vẫn cần để khỏi kéo vô tận, nhưng im
+   * lặng cắt thì không. */
+  if (chamTran) {
+    canhBao.push('Facebook · ' + (page.name || page.id) + ': chạm trần ' + tran
+      + ' bài nên DỪNG GIỮA CHẪNG — những tháng gần đây nhất trong khoảng chọn'
+      + ' chưa được đọc lại. Chia nhỏ khoảng ngày rồi chạy lại, hoặc nâng soBaiToiDa.');
+    return out.slice(0, tran);
+  }
+  return out;
 }
 
 /* ---------------- phiên LIVE ---------------- */
@@ -548,7 +575,7 @@ async function fetchRange(conf, from, to, opts = {}, log = () => {}) {
     }
     if (opts.layBai !== false) {
       try {
-        const p = await baiCuaPage(conf, page, from, to, opts.soBaiToiDa || 200, canhBao);
+        const p = await baiCuaPage(conf, page, from, to, opts.soBaiToiDa || 2000, canhBao);
         posts.push(...p);
         log('Facebook · ' + (page.name || page.id) + ': ' + p.length + ' bài');
       } catch (e) { canhBao.push('Facebook bài · ' + (page.name || page.id) + ': ' + e.message); }

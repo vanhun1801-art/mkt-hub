@@ -63,7 +63,10 @@ const MAC_DINH = {
     khiKhoiDong: false,
     layBai: true,        // có kéo từng bài đăng về không
     layLive: true,       // có kéo phiên LIVE không
-    soBaiToiDa: 200,     // trần số bài mỗi kênh mỗi lượt, để không treo cả buổi
+    /* Trần số bài mỗi kênh mỗi lượt. Để 200 thì một lần "Nạp lại từ đầu" cả năm
+     * chỉ đọc đến tháng 4 rồi dừng, mà vẫn báo Thành công — 408/933 bài Facebook
+     * đứng yên với số cũ. Chạm trần giờ có cảnh báo, nhưng trần cũng phải đủ rộng. */
+    soBaiToiDa: 2000,
   },
   /* Cảnh báo chủ động — xem canh-bao.js. Mặc định TẮT: một app tự nhắn vào nhóm
    * cả phòng thì phải do người bật, không phải bật sẵn rồi mới báo. */

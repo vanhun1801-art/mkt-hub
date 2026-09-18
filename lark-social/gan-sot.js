@@ -8,14 +8,17 @@ const post = async (d, b) => {
 /* Thẻ gõ sai hoặc cụt của chính thương hiệu/địa điểm đó — gom về đúng nhãn. */
 const GAN = [
   ['Rooty Trip Phú Quốc', ['#rootyttipphuquoc', '#rootytriphuquoc', '#rootytripphuqu',
-    '#rootytripphuq', '#rootytripmice']],
+    '#rootytripphuq', '#rootytripmice', '#rootytripph', '#rootytripphuquo']],
   ['Sunset Town', ['#symphonyoftheseas', '#symphonyofthesea', '#sunsettow', '#symphopny',
     '#sympho', '#symphonyof', '#symphonyofthes', '#kissofthe', '#sunbav', '#bavaria',
     '#phaohoadiatrunghai', '#diatrunghaiphuquoc']],
   ['VinWonders Phú Quốc', ['#vinpearl']],
   ['Rạch Vẹm', ['#rachve', '#vuongquocsaobien']],
   ['Tàu gỗ', ['#tourtaugo']],
-  ['Du lịch Phú Quốc', ['#dulichvietnam', '#dulichbien', '#dulichbie', '#dulichp',
+  ['Tour đảo', ['#tourcano', '#tour3đảo', '#tourdaocaptreo']],
+  ['Combo trọn gói', ['#combophuq', '#combophuqu', '#combophu', '#trongoi']],
+  ['Du lịch Phú Quốc', ['#phuquocis', '#phuquocto', '#combodul', '#comboduli',
+    '#dulichvietnam', '#dulichbien', '#dulichbie', '#dulichp',
     '#dulichph', '#dulichphu', '#dulichtrongoi', '#dulichtutuc', '#phuquocbeach',
     '#phuquoctrip', '#phuquocvietnam', '#phuquoctattantat']],
 ];

@@ -101,6 +101,38 @@ t('video Facebook thì vẫn ghi số, kể cả số 0', () => {
   assert.strictEqual(xuat.oXem({ platform: 'Facebook', type: 'Video', views: 0 }), 0);
 });
 
+t('có số thì KHÔNG được giấu, dù cột dạng ghi sai', () => {
+  /* Lỗi thật anh Hùng bắt được khi mở link trong file Excel ra đối chiếu. Reel
+     https://www.facebook.com/reel/1963492604329755/ có 3.733 lượt xem trong Base
+     nhưng ô Excel trống, vì cột Dạng của nó ghi "Bài viết" — dòng cũ, vào Base
+     từ trước lần sửa bảng tra status_type. Toàn bộ 48 bài như vậy, cộng 32.852
+     lượt xem, bị xuất ra ô trống.
+
+     Quy tắc: để trống là để nói "không đo được", không phải để che một con số
+     đang nằm sẵn đó. */
+  assert.strictEqual(xuat.oXem({ platform: 'Facebook', type: 'Bài viết', views: 3733 }), 3733);
+  assert.strictEqual(xuat.oXem({ platform: 'Facebook', type: 'Ảnh', views: 12 }), 12);
+  /* Không có số thì vẫn trống như cũ. */
+  assert.strictEqual(xuat.oXem({ platform: 'Facebook', type: 'Bài viết', views: 0 }), null);
+});
+
+t('tiếp cận 0 ở mức bài là để trống, không phải số không', () => {
+  /* Facebook đã gỡ mọi chỉ số đếm NGƯỜI ở mức bài, nên cột Tiếp cận trước đây
+     toàn số 0 — đọc ra thành "bài này không ai thấy", trong khi sự thật là
+     "Facebook không cho biết". */
+  assert.strictEqual(xuat.oTiepCan({ platform: 'Facebook', reach: 0 }), null);
+  assert.strictEqual(xuat.oTiepCan({ platform: 'Instagram', reach: 3365 }), 3365);
+});
+
+t('lấy TỔNG CẢM XÚC, không phải riêng lượt Thích', () => {
+  /* Con số Facebook hiển thị dưới bài gồm cả Yêu thích, Haha, Wow… Bản trước lấy
+     likes.summary nên bài 80 cảm xúc vào báo cáo thành 74. Đối tác mở bài ra đếm
+     tay là thấy lệch. */
+  const src = require('fs').readFileSync(require.resolve('../sync/facebook'), 'utf8');
+  assert.ok(src.includes('reactions.summary(true).limit(0)'), 'phải xin reactions');
+  assert.ok(/const likes = camXuc \|\| chiThich/.test(src), 'cảm xúc đứng trước, Thích là dự phòng');
+});
+
 t('nền tảng khác đo được mọi dạng bài, nên 0 ở đó là 0 thật', () => {
   ['Instagram', 'TikTok', 'Zalo OA'].forEach((nt) => {
     assert.strictEqual(xuat.doDuocXem({ platform: nt, type: 'Bài viết' }), true, nt);

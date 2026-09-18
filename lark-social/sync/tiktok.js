@@ -409,10 +409,17 @@ async function fetchRange(conf, from, to, opts = {}, log = () => {}, onMoi = nul
     /* --- video --- */
     if (opts.layBai !== false) {
       try {
-        const tran = opts.soBaiToiDa || 200;
+        /* Trần 200 là đủ cho một tháng nhưng không đủ cho cả năm: kênh đông bài
+         * nhất đã có 218 video, tức 18 video không bao giờ được đọc lại lượt xem.
+         * Cùng một kiểu lỗi đã làm Facebook bỏ qua 408 bài. */
+        const tran = opts.soBaiToiDa || 2000;
         const ds = business
           ? await videoBiz(token, ch.businessId || ch.openId, tran, from, to)
           : await videoDisplay(token, tran, from);
+        if (ds.length >= tran) {
+          canhBao.push('TikTok · ' + ten + ': chạm trần ' + tran + ' video nên dừng giữa'
+            + ' chừng — có video trong kỳ chưa được đọc lại. Chia nhỏ khoảng ngày rồi chạy lại.');
+        }
         ds.forEach((v) => {
           const id = String(v.item_id || v.id || '');
           if (!id) return;
