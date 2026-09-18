@@ -8,7 +8,13 @@
 <title>Marketing Hub · Rooty Trip</title>
 <meta name="description" content="Một cửa vào cho toàn bộ Lark Base của phòng Marketing Rooty Trip.">
 <meta name="theme-color" content="#3370ff">
-<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<!-- Logo THẬT của app (Ma-Két), không phải bốn ô vuông xanh của bản dựng tạm.
+     Hai cỡ: 32px cho tab trình duyệt, 180px cho màn hình lớn và cho lối "thêm
+     vào màn hình chính" của điện thoại. Khai `sizes` rõ ràng để Chrome chọn
+     đúng cỡ chứ không phóng bản 32px lên cho mờ. -->
+<link rel="icon" type="image/png" sizes="32x32" href="/logo-app-32.png?v=BUILD">
+<link rel="icon" type="image/png" sizes="180x180" href="/logo-app-180.png?v=BUILD">
+<link rel="apple-touch-icon" href="/logo-app-180.png?v=BUILD">
 <link rel="stylesheet" href="/styles.css?v=BUILD">
 <!-- Khung xương (skeleton): phải nằm SAU styles.css để đè được nền/viền của
      thành phần thật mà nó đang giả dạng. -->
@@ -40,7 +46,7 @@
   <aside class="rail" id="rail">
     <div class="rail-head">
       <a class="logo" href="#/tong-quan" title="Marketing Hub · Rooty Trip">
-        <img src="/icon.svg" width="30" height="30" alt="">
+        <img src="/logo-app-180.png?v=BUILD" width="30" height="30" alt="" decoding="async">
         <span class="logo-text">
           <strong id="hubTen">Marketing Hub</strong>
           <small id="hubPhu">Rooty Trip</small>
@@ -84,10 +90,15 @@
       <header class="page-head">
         <div>
           <h1>Tổng quan chung</h1>
-          <p class="sub" id="homeSub"></p>
+          <!-- Khung xương viết thẳng vào HTML, cùng lý do với panel base bên
+               trên: hai chỗ này được điền trong veHome(), mà veHome() phải chờ
+               /api/hub. Để trống thì nhịp sơn đầu tiên thiếu hẳn hai dòng, số
+               về mới mọc ra — anh Hùng: "khung thanh thông tin và lọc thì vẫn
+               hiển thị sau". -->
+          <p class="sub" id="homeSub" aria-busy="true"><span class="kx kx-chu nho" style="width:248px"></span></p>
         </div>
         <div class="head-actions">
-          <span class="chip" id="homeUser"></span>
+          <span class="chip" id="homeUser" aria-busy="true"><span class="kx kx-chu nho" style="width:128px"></span></span>
           <!-- Chuông thông báo: cạnh tên người dùng cho dễ với.
                Ngôn ngữ và sáng/tối đã nằm trong Cài đặt > Chung nên bỏ khỏi đây,
                khỏi bày hai đường vào cho cùng một thứ. -->
@@ -99,11 +110,32 @@
         </div>
       </header>
 
-      <!-- Bộ lọc thời gian dùng chung cho cả trang Tổng quan và Lịch chung -->
+      <!-- Bộ lọc thời gian dùng chung cho cả trang Tổng quan và Lịch chung.
+           Khung xương dựng bằng CHÍNH lớp bố cục thật (.loc-nhan / .seg /
+           .loc-mo) nên xếp hàng y như bản thật, veThanhLoc() ghi đè khi app.js
+           chạy. Bảy nút vì nhân sự thấy bảy mốc; quản lý có thêm "Tuỳ chỉnh"
+           thì thành tám — lệch một nút vẫn đỡ hơn một thanh trống trơn.
+
+           Nhãn "Thời gian" để CHỮ THẬT, không phải vạch xám: nó là chữ tĩnh,
+           lớp vỏ biết chắc từ đầu. Bắt người ta nhìn vạch xám ở chỗ đã biết là
+           tự giấu đi một thông tin có sẵn — cùng lẽ với tên base ở panel. -->
       <!-- data-thu-gon: thugon.js tìm khối lọc qua thuộc tính này để thu nó lại
            trên điện thoại (app con thì khai bằng locSelector trong modules.json).
            Khối này chiếm 163px trên khổ 375px — gần một phần năm màn hình. -->
-      <section class="loc-bar" data-thu-gon></section>
+      <section class="loc-bar" data-thu-gon aria-busy="true">
+        <span class="loc-nhan">Thời gian</span>
+        <div class="seg">
+          <button type="button" disabled><span class="kx kx-chu" style="width:58px"></span></button>
+          <button type="button" disabled><span class="kx kx-chu" style="width:64px"></span></button>
+          <button type="button" disabled><span class="kx kx-chu" style="width:70px"></span></button>
+          <button type="button" disabled><span class="kx kx-chu" style="width:50px"></span></button>
+          <button type="button" disabled><span class="kx kx-chu" style="width:58px"></span></button>
+          <button type="button" disabled><span class="kx kx-chu" style="width:46px"></span></button>
+          <button type="button" disabled><span class="kx kx-chu" style="width:54px"></span></button>
+        </div>
+        <span class="loc-mo"><span class="kx kx-chu nho" style="width:132px"></span></span>
+        <span class="grow"></span>
+      </section>
 
       <!-- Video + bảng tin nằm NGOÀI #homeBody: trang Tổng quan vẽ lại theo nhịp
            số liệu (20 giây/lần) và mỗi lần vẽ là thay sạch #homeBody. Để khối
