@@ -20,18 +20,19 @@
  */
 
 /* Số bản lấy từ ?v= lúc đăng ký (index.html thay BUILD bằng mtime của public).
- * Mỗi lần deploy là một tên kho mới -> trang báo hỏng và ảnh được nạp lại, kho
- * cũ bị xoá ở bước activate. */
+ * Mỗi lần deploy là một tên kho mới -> trang báo hỏng được nạp lại, kho cũ bị
+ * xoá ở bước activate. */
 const PHIEN = new URL(self.location.href).searchParams.get('v') || '0';
 const KHO = 'maket-loi-' + PHIEN;
+/* ĐÚNG MỘT file trong đệm. Ảnh Ma-Két nằm ngay trong trang dưới dạng data:,
+ * nên không có lời xin thứ hai nào để mà hụt — bản trước đệm ảnh riêng và
+ * người dùng nhận khung ảnh vỡ ngay lần chạy thật đầu tiên. */
 const TRANG = '/loi.html';
-const ANH = '/ma-ket-sua-loi.jpg';
 
-/** Nạp một file vào kho, KHÔNG để ?v= dính vào khoá (trang xin bản trần). */
+/** Nạp trang báo hỏng vào kho, KHÔNG để ?v= dính vào khoá (trang xin bản trần). */
 async function giu(kho, duong) {
-  /* Nuốt lỗi chứ không để nó dội ra: một file hụt mà làm cả bước cài đổ thì
-   * service worker không cài được, và lúc hub nằm thật thì chẳng có lớp chắn
-   * nào cả. Thà có trang mà thiếu ảnh còn hơn không có gì. */
+  /* Nuốt lỗi chứ không để nó dội ra: hụt mà làm cả bước cài đổ thì service
+   * worker không cài được, và lúc hub nằm thật thì chẳng có lớp chắn nào. */
   try {
     const r = await fetch(duong + '?v=' + PHIEN, { cache: 'reload', credentials: 'same-origin' });
     /* Chưa đăng nhập thì hub trả 302 sang Lark — đệm cái đó lại thì lần hỏng thật
@@ -43,7 +44,7 @@ async function giu(kho, duong) {
 self.addEventListener('install', (e) => {
   e.waitUntil((async () => {
     const kho = await caches.open(KHO);
-    await Promise.all([giu(kho, TRANG), giu(kho, ANH)]);
+    await giu(kho, TRANG);
     /* Không chờ tab cũ đóng hết: bản mới chỉ đổi trang báo hỏng, không đổi cách
      * app chạy, nên thay ngay là an toàn và đỡ phải giải thích. */
     await self.skipWaiting();
@@ -87,14 +88,6 @@ async function trangBaoHong() {
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
-
-  const laAnh = new URL(req.url).pathname === ANH;
-  if (laAnh) {
-    // ảnh của chính trang báo hỏng: mạng trước, hỏng thì lấy trong kho
-    e.respondWith(fetch(req).catch(() => caches.match(ANH, { ignoreSearch: true })
-      .then((x) => x || Response.error()).catch(() => Response.error())));
-    return;
-  }
 
   if (req.mode !== 'navigate') return;
 

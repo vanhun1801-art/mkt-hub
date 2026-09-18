@@ -29,6 +29,8 @@ function ok(ten, dieuKien, chiTiet) {
 /* ============ 0. vật liệu ============ */
 console.log('\nVật liệu');
 {
+  /* Ảnh rời vẫn cần: lớp phủ của lớp vỏ (lớp 3) dùng nó, và nó là bản gốc để
+   * nhúng vào loi.html. */
   const anh = path.join(PUB, 'ma-ket-sua-loi.jpg');
   ok('có ảnh Ma-Két', fs.existsSync(anh));
   const kb = fs.existsSync(anh) ? fs.statSync(anh).size / 1024 : 0;
@@ -36,14 +38,25 @@ console.log('\nVật liệu');
    * bắt tải 1,3 MB lúc đó là đổ thêm dầu; bản 720px đủ nét mà chỉ 42 KB. */
   ok('ảnh nhẹ (dưới 200 KB)', kb > 0 && kb < 200, Math.round(kb) + ' KB');
 
-  const h = doc('loi.html');
+  const hGoc = doc('loi.html');
+  /* Bỏ chú thích HTML rồi mới soi: chú thích trong file có NHẮC tới đường dẫn
+   * ảnh (để kể vì sao không dùng nó nữa), mà đó không phải một lời xin. */
+  const h = hGoc.replace(/<!--[\s\S]*?-->/g, '');
   ok('trang lỗi có dấu nhận mặt data-ma-ket', /<html[^>]+data-ma-ket="loi"/.test(h));
-  ok('có chỗ chèn chi tiết <!--LOI-->', h.includes('<!--LOI-->'));
+  ok('có chỗ chèn chi tiết <!--LOI-->', hGoc.includes('<!--LOI-->'));
   ok('nói đúng câu cần nói', h.includes('Ma-Két đang cố gắng khắc phục sự cố'));
-  ok('dùng ảnh Ma-Két', h.includes('/ma-ket-sua-loi.jpg'));
+
+  /* ĐÃ HỎNG THẬT 18/09/2026: bản đầu để ảnh ở đường dẫn riêng, trang hiện ra
+   * đúng lúc server không với tới được nên lời xin ảnh trượt nốt — người dùng
+   * nhận khung ảnh vỡ kèm chữ alt giữa trang. Trang này phải TỰ ĐỦ: đọc được
+   * chữ thì chắc chắn thấy được ảnh. */
+  ok('ảnh nhúng thẳng trong trang', /<img[^>]+src="data:image\/jpeg;base64,/.test(h));
+  ok('KHÔNG xin ảnh qua đường dẫn riêng', !h.includes('/ma-ket-sua-loi.jpg'));
   /* Lúc trang này hiện ra thì server thường đang chết: xin thêm một file .css
    * hay .js nữa là thêm một lần hỏng, và trang hiện ra trần trụi không kiểu. */
   ok('không nạp css/js ngoài', !/<link[^>]+stylesheet/i.test(h) && !/<script[^>]+src=/i.test(h));
+  const kbTrang = fs.statSync(path.join(PUB, 'loi.html')).size / 1024;
+  ok('trang vẫn gọn (dưới 120 KB dù ôm cả ảnh)', kbTrang < 120, Math.round(kbTrang) + ' KB');
   /* Gõ cửa /healthz thì hub sống mà app con chết vẫn trả 200 -> nạp lại -> gặp
    * đúng trang này -> quay vòng vô tận. Phải gõ đúng địa chỉ đang hỏng. */
   ok('tự thử lại bằng chính địa chỉ đang hỏng', h.includes('fetch(location.href'));
@@ -97,7 +110,8 @@ console.log('\nLớp 1 — service worker (public/sw.js)');
     ok('có bắt cả ba sự kiện', !!(tay.install && tay.activate && tay.fetch));
     await cai(tay);
     ok('lúc cài có giữ sẵn trang lỗi', kho.has('/loi.html'));
-    ok('lúc cài có giữ sẵn ảnh', kho.has('/ma-ket-sua-loi.jpg'));
+    /* Đúng MỘT file: ảnh đã nằm trong trang, đệm thêm là thêm chỗ để hụt. */
+    ok('không đệm gì ngoài trang lỗi', kho.size === 1, [...kho.keys()].join(', '));
 
     /** Bắn một sự kiện fetch, trả về câu trả lời service worker chọn (null = không đụng). */
     const ban = async (req, traLoi) => {
@@ -177,7 +191,8 @@ function ket() {
     const { trangLoi } = require(path.join(GOC, 'proxy.js'));
     const mod = { ten: 'Lịch tác nghiệp', lenh: ['node', 'server.js'], thuMuc: '../lark-lich-tac-nghiep' };
     const html = trangLoi(mod, 'connect ECONNREFUSED 127.0.0.1:5174');
-    ok('dựng từ loi.html (có ảnh Ma-Két)', html.includes('/ma-ket-sua-loi.jpg'));
+    ok('dựng từ loi.html (ảnh Ma-Két đi kèm luôn trong trang)',
+      html.includes('data:image/jpeg;base64,'));
     ok('chèn được chi tiết cho người quản trị', html.includes('window.__LOI__')
       && html.includes('Lịch tác nghiệp') && html.includes('ECONNREFUSED'));
     ok('giữ lệnh chạy và thư mục', html.includes('node server.js') && html.includes('lark-lich-tac-nghiep'));
@@ -196,6 +211,9 @@ function ket() {
     const js = fs.readFileSync(path.join(PUB, 'app.js'), 'utf8');
     ok('khung app con có soi trang lỗi lúc nạp xong', /dinhTrangLoi\(f\)/.test(js));
     ok('có lớp phủ Ma-Két', /function phuLoi\(/.test(js) && js.includes('ma-ket-sua-loi.jpg'));
+    /* Lớp phủ chạy khi server không với tới được, nên ảnh cũng có thể trượt —
+     * ẩn hẳn còn hơn để Chrome vẽ khung vỡ kèm chữ alt. */
+    ok('ảnh của lớp phủ hỏng thì ẩn đi', /onerror="this\.remove\(\)"/.test(js));
     ok('lớp phủ có kiểu trong styles.css', doc('styles.css').includes('.frame-loi'));
 
     /* Cắt đúng hàm nhận mặt ra chạy thử: đây là chỗ dễ sai nhất của lớp 3 —

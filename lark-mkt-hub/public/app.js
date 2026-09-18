@@ -694,8 +694,13 @@ function phuLoi(o, mod) {
 
   const p = document.createElement('div');
   p.className = 'frame-loi';
+  /* onerror ẩn hẳn ảnh: lớp phủ này chạy đúng lúc server không với tới được,
+   * nên lời xin ảnh cũng có thể trượt. Để mặc thì Chrome vẽ một khung vỡ kèm
+   * dòng chữ alt nằm chềnh ềnh giữa trang — xấu hơn cả trang 502 đang thay.
+   * (Trang loi.html không cần chỗ này: ảnh của nó nhúng thẳng bằng data:.) */
   p.innerHTML =
-    '<img src="/ma-ket-sua-loi.jpg" width="240" height="240" alt="Ma-Két đang ngồi sửa">' +
+    '<img src="/ma-ket-sua-loi.jpg" width="240" height="240" alt="Ma-Két đang ngồi sửa"' +
+    ' onerror="this.remove()">' +
     '<h2>Ma-Két đang cố gắng khắc phục sự cố</h2>' +
     '<p>' + esc(mod.ten) + ' tạm thời chưa mở được. Bạn chờ một chút nhé — xong là tự vào lại.</p>' +
     '<p class="fl-dem">Đang thử lại…</p>' +
