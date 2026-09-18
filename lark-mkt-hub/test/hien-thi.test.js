@@ -59,6 +59,45 @@ const ok = (ten, dieu, vi) => {
 };
 const group = (t) => console.log('\n' + t);
 
+group('Không đắp thân phản hồi ra làm thông báo lỗi');
+{
+  /* Anh Hùng gửi ảnh chụp app Quản lý quảng cáo trên bản chạy thật: giữa màn
+   * hình là một hộp đỏ ghi
+   *
+   *     Lỗi: <!DOCTYPE html> <html lang="en"> <head> <meta charset="utf-8">
+   *     <title>502</title> <style>@font-face { font-family: "Roobert"…
+   *
+   * Đó là trang 502 của Render lúc tiến trình con đang bật lại. Bộ gọi API đọc
+   * thân về, JSON.parse ném, rồi nhánh catch lấy 300 ký tự đầu của thân làm
+   * thông báo. Không ai đọc được câu đó, mà nó còn làm người dùng tưởng app
+   * hỏng nặng chứ không phải "chờ vài giây".
+   *
+   * Luật chung cho cả hệ: thân KHÔNG phải JSON thì nói ngắn theo mã HTTP,
+   * KHÔNG được đem thân ra. Quét mọi tệp JS mặt trước của lớp vỏ và chín app. */
+  const APP_JS = ['lark-mkt-hub', 'lark-task-manager', 'lark-lich-tac-nghiep', 'lark-ads-manager',
+    'lark-ota-manager', 'lark-social', 'lark-chinh-anh', 'lark-kpi', 'lark-quy-chi-phi',
+    'lark-bao-cao'];
+  const xau = [];
+  for (const ten of APP_JS) {
+    const d = path.join(CHA, ten, 'public');
+    if (!fs.existsSync(d)) continue;
+    for (const f of fs.readdirSync(d).filter((x) => x.endsWith('.js'))) {
+      const ma = fs.readFileSync(path.join(d, f), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+      /* Mẫu: trong một nhánh catch, đem `txt/t/raw/body/s` cắt N ký tự rồi
+       * nhét vào Error(...) hoặc { error: ... }. */
+      const re = /catch[^{]*\{[^}]{0,200}?\b(?:txt|t|raw|body|s)\s*\.slice\(\s*0\s*,\s*\d+\s*\)/g;
+      if (re.test(ma)) xau.push(ten + '/' + f);
+    }
+  }
+  ok('không app nào lấy thân phản hồi làm thông báo lỗi', xau.length === 0, xau.join(', '));
+
+  /* Và bốn chỗ đã sửa phải nói đúng việc: 502/503/504 là "đang bật lại". */
+  const canCo = ['lark-ads-manager/public/app.js', 'lark-kpi/public/app.js',
+    'lark-mkt-hub/public/app.js', 'lark-lich-tac-nghiep/public/app.js'];
+  const thieu = canCo.filter((p) => !/\[502, 503, 504\]\.includes\(/.test(doc(...p.split('/'))));
+  ok('bốn bộ gọi API nói rõ "máy chủ đang bật lại"', thieu.length === 0, thieu.join(', '));
+}
+
 group('Quản lý quảng cáo — thanh trên cùng trên máy hẹp');
 {
   const css = doc('lark-ads-manager', 'public', 'styles.css');

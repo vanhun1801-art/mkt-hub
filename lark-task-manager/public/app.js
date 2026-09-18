@@ -139,7 +139,13 @@ async function docPhanHoi(r) {
       : 'Máy chủ báo lỗi HTTP ' + r.status + ' và không kèm nội dung.' };
   }
   try { return JSON.parse(raw); } catch (_) {
-    return { __loi: 'Máy chủ trả về nội dung không đọc được: ' + raw.slice(0, 120) };
+    /* KHÔNG đắp thân phản hồi vào câu báo lỗi. Thân không phải JSON thì gần
+     * như luôn là trang lỗi HTML của hạ tầng (Render trả trang 502 khi tiến
+     * trình đang bật lại) — anh Hùng đã gặp đúng cảnh đó ở app Quảng cáo:
+     * giữa màn hình là `<!DOCTYPE html> <html lang="en">…`. */
+    return { __loi: [502, 503, 504].includes(r.status)
+      ? 'Máy chủ đang bật lại. Thử lại sau vài giây.'
+      : 'Máy chủ trả về dữ liệu không đọc được (HTTP ' + r.status + ').' };
   }
 }
 

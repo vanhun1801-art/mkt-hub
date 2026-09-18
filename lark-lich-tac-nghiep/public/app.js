@@ -4074,7 +4074,15 @@ async function taiNhieuTep(input, recId, cot) {
          * JSON input" — câu đó chẳng nói được điều gì cho người dùng. */
         const raw = await r.text().catch(() => '');
         let d = {};
-        if (raw.trim()) { try { d = JSON.parse(raw); } catch (_) { d = { error: raw.slice(0, 120) }; } }
+        if (raw.trim()) {
+          try { d = JSON.parse(raw); } catch (_) {
+            /* Xem ghi chú cùng kiểu ở ba app khác: thân không phải JSON thì
+             * gần như luôn là trang lỗi HTML của hạ tầng, đừng đắp ra màn. */
+            d = { error: [502, 503, 504].includes(r.status)
+              ? 'Máy chủ đang bật lại. Thử lại sau vài giây.'
+              : 'Máy chủ trả về dữ liệu không đọc được (HTTP ' + r.status + ').' };
+          }
+        }
         else if (!r.ok) d = { error: 'Máy chủ báo lỗi HTTP ' + r.status };
         else d = { error: 'Máy chủ không trả lời — thử lại hoặc dùng tệp nhỏ hơn' };
         if (!r.ok || d.error) throw new Error(d.error || 'Tải lên thất bại');

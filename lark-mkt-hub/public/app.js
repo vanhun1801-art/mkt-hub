@@ -277,7 +277,17 @@ async function goi(duongDan, opts) {
   const r = await fetch(duongDan, Object.assign({ headers: { 'Content-Type': 'application/json' } }, opts || {}));
   const raw = await r.text();
   let d = {};
-  try { d = raw ? JSON.parse(raw) : {}; } catch (e) { throw new Error(raw.slice(0, 200)); }
+  try { d = raw ? JSON.parse(raw) : {}; } catch (e) {
+    /* Thân trả về KHÔNG phải JSON — gần như luôn là trang lỗi của hạ tầng:
+     * Render trả trang 502 dạng HTML khi tiến trình đang bật lại. Bản trước
+     * lấy mấy trăm ký tự đầu của thân làm thông báo, nên người dùng nhận
+     * nguyên `<!DOCTYPE html> <html lang="en"> <head> <meta charset=…` đắp
+     * giữa màn hình — anh Hùng gửi ảnh chụp đúng cảnh đó. Nói ngắn và nói
+     * được việc phải làm thì hơn. */
+    throw new Error([502, 503, 504].includes(r.status)
+      ? 'Máy chủ đang bật lại. Thử lại sau vài giây.'
+      : 'Máy chủ trả về dữ liệu không đọc được (HTTP ' + r.status + ').');
+  }
   if (!r.ok) {
     // module hay kèm mã lỗi + câu chỉ cách sửa — giữ lại để nói đúng lý do
     const e = new Error(d.error || 'HTTP ' + r.status);

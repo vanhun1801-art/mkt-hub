@@ -46,7 +46,18 @@ let THU = null;            // kết quả thử luật
 async function goi(duong, opts) {
   const r = await fetch('api/' + duong, Object.assign({ headers: { 'Content-Type': 'application/json' } }, opts));
   const t = await r.text();
-  let j; try { j = JSON.parse(t); } catch (_) { throw new Error(t.slice(0, 200)); }
+  let j;
+  try { j = JSON.parse(t); } catch (_) {
+    /* Thân trả về KHÔNG phải JSON — gần như luôn là trang lỗi của hạ tầng:
+     * Render trả trang 502 dạng HTML khi tiến trình đang bật lại. Bản trước
+     * lấy mấy trăm ký tự đầu của thân làm thông báo, nên người dùng nhận
+     * nguyên `<!DOCTYPE html> <html lang="en"> <head> <meta charset=…` đắp
+     * giữa màn hình — anh Hùng gửi ảnh chụp đúng cảnh đó. Nói ngắn và nói
+     * được việc phải làm thì hơn. */
+    throw new Error([502, 503, 504].includes(r.status)
+      ? 'Máy chủ đang bật lại. Thử lại sau vài giây.'
+      : 'Máy chủ trả về dữ liệu không đọc được (HTTP ' + r.status + ').');
+  }
   if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
   /* Máy chủ ghi được vào RAM nhưng KHÔNG đẩy lên Lark Base được. Không ném lỗi
    * — việc người dùng vừa làm đã xong ở phía họ — nhưng phải kêu to, vì trên

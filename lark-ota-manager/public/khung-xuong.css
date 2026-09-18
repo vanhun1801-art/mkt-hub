@@ -85,6 +85,13 @@
   @keyframes kx-tho { from { opacity: 1; } to { opacity: .72; } }
 }
 
+/* ---- thanh lọc thời gian lúc đang chờ (chỉ lớp vỏ có) ----
+   Thanh xám bên trong để MẢNH cho nhẹ mắt, nhưng cái NÚT phải cao đúng bằng
+   nút thật: .seg button có `padding: 6px 11px` và dòng chữ 13px cao 19.5px,
+   tổng 32px. Không ép thì nút khung xương chỉ 24px, cả thanh lọc thấp hơn bản
+   thật 8px — và trang nhảy đúng vào lúc bộ lọc lên. Đã đo cả hai trên máy. */
+.loc-bar[aria-busy="true"] .seg button { min-height: 32px; }
+
 /* ---- các hình dạng hay gặp ----
    Kích thước bám theo thành phần thật tương ứng trong styles.css, nên đặt cạnh
    nhau là khớp: .kx-o = .ri-ic/.kh-ic (28px), .kx-so = .the .so (19px)… */

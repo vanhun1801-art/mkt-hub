@@ -70,7 +70,18 @@ async function api(path, opts = {}) {
   });
   const txt = await res.text();
   let json = null;
-  try { json = txt ? JSON.parse(txt) : {}; } catch (_) { json = { error: txt.slice(0, 300) }; }
+  try { json = txt ? JSON.parse(txt) : {}; } catch (_) { json = null; }
+  if (json === null) {
+    /* Thân trả về KHÔNG phải JSON — gần như luôn là trang lỗi của hạ tầng:
+     * Render trả trang 502 dạng HTML khi tiến trình đang bật lại. Bản trước
+     * lấy mấy trăm ký tự đầu của thân làm thông báo, nên người dùng nhận
+     * nguyên `<!DOCTYPE html> <html lang="en"> <head> <meta charset=…` đắp
+     * giữa màn hình — anh Hùng gửi ảnh chụp đúng cảnh đó. Nói ngắn và nói
+     * được việc phải làm thì hơn. */
+    throw new Error([502, 503, 504].includes(res.status)
+      ? 'Máy chủ đang bật lại. Thử lại sau vài giây.'
+      : 'Máy chủ trả về dữ liệu không đọc được (HTTP ' + res.status + ').');
+  }
   if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
   return json;
 }

@@ -55,6 +55,12 @@ lark-kpi/du-lieu/
 # chung sẽ in bản chữ thay logo. Để trong repo là cách duy nhất nó sống được.
 !lark-mkt-hub/du-lieu/logo.*
 
+# Logo THẬT của app (Ma-Két) dùng làm favicon và logo góc panel. Đây là nhận
+# diện, không phải dữ liệu — phải nằm trong kho, nếu không ổ đĩa tạm của Render
+# xoá là app quay về bốn ô vuông của bản dựng tạm.
+!lark-mkt-hub/public/logo-app-32.png
+!lark-mkt-hub/public/logo-app-180.png
+
 
 # Video giới thiệu trên trang Tổng quan: ĐỂ TRONG KHO, cùng lý do với logo — ổ
 # đĩa Render là ổ tạm nên tệp tải lên qua Cài đặt sẽ mất sau lần deploy kế tiếp.
