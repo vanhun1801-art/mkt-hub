@@ -823,6 +823,15 @@ async function api(req, res, u) {
    * Tức là lọt khoá thì kẻ gọi cũng chỉ đổi được tên người đăng, không chạm
    * được vào số liệu hay token.
    */
+  /* Danh sách tên cho ô "Tôi là" trong tiện ích. Để tiện ích hỏi thay vì chép cứng:
+   * đổi người thì chỉ sửa biến môi trường, không phải cài lại tiện ích cho từng máy. */
+  if (p === '/api/nguoi-dang/nap' && method === 'GET') {
+    const khoa = process.env.NGUOI_DANG_KEY || '';
+    if (!khoa) return fail(res, 404, 'Chưa bật tính năng này');
+    if (String(req.headers['x-nd-key'] || '') !== khoa) return fail(res, 401, 'Sai khoá');
+    return ok(res, { nguoi: nguoiDang.NGUOI_DANG });
+  }
+
   if (p === '/api/nguoi-dang/nap' && method === 'POST') {
     const khoa = process.env.NGUOI_DANG_KEY || '';
     if (!khoa) return fail(res, 404, 'Chưa bật tính năng này');

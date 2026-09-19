@@ -14,8 +14,17 @@
  * hai bài đăng cách nhau một phút là ghép sai, còn ID thì không nhầm được.
  */
 
-/** Tên người được phép ghi — Base để cột này dạng chọn, tên lạ sẽ bị từ chối. */
-const NGUOI_DANG = ['Võ Hằng', 'Lý Thư Bạch', 'Phương Ái'];
+/**
+ * Tên người được phép ghi. Base để cột này dạng chọn, nên tên ngoài danh sách
+ * vừa bị Lark từ chối, vừa có nguy cơ sinh thêm lựa chọn rác rồi KPI đếm nhầm thành
+ * người mới.
+ *
+ * ĐẶT QUA BIẾN MÔI TRƯỜNG để đổi người không phải sửa code: NGUOI_DANG_TEN,
+ * ngăn cách bằng dấu phẩy. Thêm người thì phải làm ĐỦ HAI việc — thêm lựa chọn
+ * vào cột Người đăng trên Base, và thêm tên vào biến này — thiếu một là ghi hỏng.
+ */
+const NGUOI_DANG = String(process.env.NGUOI_DANG_TEN || 'Võ Hằng,Lý Thư Bạch,Phương Ái')
+  .split(',').map((x) => x.trim()).filter(Boolean);
 
 /**
  * Rút ID bài từ link Facebook, bất kể dạng nào.

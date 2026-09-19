@@ -1915,8 +1915,9 @@ const server = http.createServer(async (req, res) => {
         'Access-Control-Max-Age': '86400',
       });
     }
-    if (req.method !== 'POST') {
-      return send(res, 405, 'Chỉ nhận POST', { 'Content-Type': 'text/plain; charset=utf-8' });
+    /* GET để tiện ích hỏi danh sách tên, POST để gửi dữ liệu. */
+    if (req.method !== 'POST' && req.method !== 'GET') {
+      return send(res, 405, 'Chỉ nhận GET hoặc POST', { 'Content-Type': 'text/plain; charset=utf-8' });
     }
     const modSocial = timMod('social');
     if (!modSocial) return send(res, 404, 'Chưa bật app Social', { 'Content-Type': 'text/plain; charset=utf-8' });

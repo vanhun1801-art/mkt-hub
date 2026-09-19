@@ -59,6 +59,22 @@ Nút **Quét lại** chỉ dùng khi muốn ép đếm lại ngay.
 Kết quả báo rõ ba nhóm: đã ghi, bài chưa có trong Base, và tên lạ (tên ngoài
 danh sách ba người thì **không** ghi, để khỏi sinh lựa chọn rác trong Base).
 
+## Đổi người / thêm người
+
+Danh sách tên trong ô "Tôi là" do máy chủ cấp, không chép cứng trong tiện ích — đổi
+người thì không phải cài lại cho từng máy.
+
+Thêm một người phải làm **đủ hai việc**, thiếu một là ghi hỏng:
+
+1. **Trên Base** — bảng Bài đăng, cột **Người đăng**, thêm lựa chọn mới đúng tên đó.
+2. **Trên Render** — biến môi trường `NGUOI_DANG_TEN`, liệt kê đủ tên, ngăn bằng dấu
+   phẩy. Ví dụ: `Võ Hằng,Lý Thư Bạch,Phương Ái,Tên Mới`.
+
+Chưa khai biến này thì mặc định là ba tên ban đầu.
+
+Người nghỉ việc thì bỏ tên khỏi biến; **đừng xoá lựa chọn trên Base**, không thì
+những bài cũ của họ mất tên và KPI kỳ trước tính lại sai.
+
 ## Khi nào hỏng
 
 Facebook đổi giao diện là bộ chọn DOM trượt — không phải *nếu* mà là *khi nào*.
