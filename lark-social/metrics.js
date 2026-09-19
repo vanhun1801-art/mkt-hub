@@ -96,6 +96,9 @@ function luuYNenTang(rows) {
   if (co.has('TikTok')) {
     ra.push('TikTok: API chỉ trả tổng lượt xem trọn đời của mỗi video, không có số theo ngày. '
       + 'Cột của một ngày là tổng đời của các video ĐĂNG ngày đó, không phải lượt xem phát sinh trong ngày.');
+    ra.push('TikTok: cột Hiển thị và Tiếp cận luôn trống vì kênh đang nối bằng Display API — '
+      + 'nó chỉ cho lượt xem, thích, bình luận, chia sẻ và follower hiện tại. Muốn có hai cột đó '
+      + 'phải nối bằng TikTok Business API.');
   }
   if (co.has('Facebook')) {
     ra.push('Facebook: "Tiếp cận" đếm người, "Hiển thị" đếm lần — một người xem ba lần '
@@ -282,4 +285,4 @@ async function tongQuan({ from, to, platforms, channels } = {}) {
 }
 
 module.exports = { agg, loc, followerChot, theoNgay, theoKenh, theoNenTang, topBai,
-  soKyTruoc, tongQuan, chia };
+  soKyTruoc, tongQuan, chia, luuYNenTang };

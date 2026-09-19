@@ -26,6 +26,7 @@
  * ghi cảnh báo; số LIVE phải nhập tay hoặc nhập từ file xuất của LIVE Center.
  */
 const { getJson, postJson, request, scrub, hideSecret } = require('./http');
+const store = require('../store');
 
 const PLATFORM = 'TikTok';
 const NGUON = 'TikTok API';
@@ -388,11 +389,20 @@ async function fetchRange(conf, from, to, opts = {}, log = () => {}, onMoi = nul
         hs = await hoSoDisplay(token);
         coDisplay = true;
         /* Display API không có lịch sử — chỉ chốt được follower của HÔM NAY.
-         * Ghi đúng một dòng cho ngày cuối kỳ, không bịa các ngày trước. */
-        const row = dongTrong(ch.openId || hs.openId, to);
+         *
+         * KHÔNG được đóng dấu ngày `to`. Chọn khoảng "Tháng này" là to = ngày
+         * cuối tháng, tức một ngày CHƯA TỚI: dòng follower rơi vào 30/9 trong
+         * khi hôm nay 19/9. Mọi báo cáo kết thúc trước 30/9 không thấy dòng đó
+         * nên cột Follower của TikTok về 0, dù API vẫn trả 300.415. Và đến
+         * 30/9 thật thì ô đó đang giữ con số của 19/9.
+         *
+         * Số là của hôm nay thì ghi vào hôm nay; `to` chỉ giới hạn trên. */
+        const homNay = store.homNay();
+        const ngayChot = to && to < homNay ? to : homNay;
+        const row = dongTrong(ch.openId || hs.openId, ngayChot);
         row.followers = hs.followers;
         daily.push(row);
-        log('TikTok · ' + ten + ' (display): follower ' + hs.followers);
+        log('TikTok · ' + ten + ' (display): follower ' + hs.followers + ' · chốt ' + ngayChot);
       }
     } catch (e) {
       canhBao.push('TikTok · ' + ten + ': ' + e.message);

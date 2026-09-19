@@ -441,6 +441,36 @@ t('cửa sổ quét lại mặc định phải phủ được cả tháng', () =
   assert.ok(!/soNgayLui \|\| 7\b/.test(ui), 'ô Cài đặt còn hiện 7 ngày');
 });
 
+t('follower TikTok phải chốt vào HÔM NAY, không phải ngày cuối kỳ', () => {
+  /* Lỗi thật anh Hùng bắt: cột Follower của mọi kênh TikTok về 0 trên màn hình
+     Theo kênh, dù API vẫn trả 300.415. Display API không có lịch sử nên chỉ
+     chốt được follower của hôm nay, nhưng dòng đó bị đóng dấu ngày `to`. Chọn
+     khoảng "Tháng này" là to = 30/9 — một ngày CHƯA TỚI. Mọi báo cáo kết thúc
+     trước 30/9 không thấy dòng đó, nên follower về 0; còn đến 30/9 thật thì ô
+     đó đang giữ con số của 19/9. */
+  const src = require('fs').readFileSync(require.resolve('../sync/tiktok'), 'utf8');
+  assert.ok(/ngayChot/.test(src), 'phải có biến chốt ngày riêng');
+  assert.ok(/to && to < homNay \? to : homNay/.test(src),
+    'ngày chốt phải là min(to, hôm nay) — không bao giờ vượt hôm nay');
+  assert.ok(!/dongTrong\(ch\.openId \|\| hs\.openId, to\)/.test(src),
+    'còn đóng dấu thẳng ngày `to` vào dòng follower');
+
+  /* Công thức chốt, kiểm trực tiếp. */
+  const chot = (to, homNay) => (to && to < homNay ? to : homNay);
+  assert.strictEqual(chot('2026-09-30', '2026-09-19'), '2026-09-19', 'kỳ tương lai → hôm nay');
+  assert.strictEqual(chot('2026-08-31', '2026-09-19'), '2026-08-31', 'kỳ đã qua → giữ ngày cuối kỳ');
+  assert.strictEqual(chot('', '2026-09-19'), '2026-09-19', 'không có `to` → hôm nay');
+});
+
+t('nói rõ vì sao TikTok không có Hiển thị và Tiếp cận', () => {
+  /* Hai cột đó trống không phải vì hỏng, mà vì Display API không có. Người đọc
+     thấy ô trống mà không có lời giải thích thì kết luận là app lỗi. */
+  const M = require('../metrics');
+  const luu = M.luuYNenTang([{ platform: 'TikTok' }]).join(' | ');
+  assert.ok(/Display API/.test(luu), 'phải nêu đúng nguyên nhân là Display API');
+  assert.ok(/Business API/.test(luu), 'phải nói cách lấy được hai cột đó');
+});
+
 t('lấy bản lifetime khi Meta trả một metric hai lần', () => {
   /* Lỗi thật, làm mất gần hết lượt xem bài Facebook. Khi xin nhiều metric một
      lượt, Meta trả CÙNG một metric hai lần — period `lifetime` rồi period `day`.
