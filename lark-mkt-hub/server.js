@@ -21,6 +21,7 @@ const gioVN = require('./gio-vn');
 const lich = require('./lichchung');
 const auth = require('./auth');
 const quyen = require('./quyen');
+const phimKho = require('./phim-kho');
 const viTri = require('./vi-tri');
 const { chuyenTiep, goiJson } = require('./proxy');
 const tbApp = require('./thongbao-app');
@@ -695,6 +696,22 @@ function oTrong() {
   return 0;
 }
 
+/** Cỡ tệp đang nằm ở bộ đệm của ô i — để biết có phải kéo lại từ Base không. */
+function coTepPhim(i) {
+  const t = tepPhim(i);
+  if (!t) return null;
+  try { return { co: fs.statSync(t.duong).size }; } catch (_) { return null; }
+}
+
+/** Ghi một tệp kéo từ Base xuống bộ đệm của ô i. */
+function ghiDiaPhim(i, ten, buf) {
+  const duoi = (String(ten).match(/[.][a-z0-9]+$/i) || ['.mp4'])[0].toLowerCase();
+  if (!MIME_PHIM[duoi]) return;
+  xoaPhim(i);
+  if (!fs.existsSync(THU_MUC_DL)) fs.mkdirSync(THU_MUC_DL, { recursive: true });
+  fs.writeFileSync(path.join(THU_MUC_DL, tenPhim(i, duoi)), buf);
+}
+
 /** Xoá sạch ô i — MỌI đuôi, phòng khi ô từng đổi định dạng (video sang ảnh). */
 function xoaPhim(i) {
   const o = Number(i) || 1;
@@ -1067,9 +1084,17 @@ async function api(req, res, u) {
      *
      * Chỉ đúng khi chạy trên server chung (mode api) VÀ chưa gắn đĩa lưu lâu
      * (HUB_DU_LIEU trỏ vào một đĩa gắn thêm). Máy cá nhân thì tệp nằm yên. */
+    /* `kho` nói THẬT chỗ tệp đang được giữ:
+     *   'base' — cất trên Lark Base, deploy bao nhiêu lần cũng còn;
+     *   'tam'  — chỉ nằm trên ổ đĩa máy chủ, mất sau lần deploy kế tiếp.
+     * `khoLoi` mang mã lỗi Lark của lần chạm Base gần nhất. Chuyện này từng
+     * hỏng im lặng nhiều lần nên phải bày ra tận Cài đặt. */
+    const khoOk = phimKho.co() && !phimKho.loi();
     return ok(res, Object.assign({
       co: ds.length > 0, tong: ds.length, toiDa: SO_PHIM_TOI_DA, ds,
-      tamThoi: cfg.mode === 'api' && !process.env.HUB_DU_LIEU,
+      kho: khoOk ? 'base' : 'tam',
+      khoLoi: phimKho.loi(),
+      tamThoi: !khoOk && cfg.mode === 'api' && !process.env.HUB_DU_LIEU,
     }, ds[0] || {}));
   }
 
@@ -1107,7 +1132,14 @@ async function api(req, res, u) {
     xoaPhim(o);
     if (!fs.existsSync(THU_MUC_DL)) fs.mkdirSync(THU_MUC_DL, { recursive: true });
     fs.writeFileSync(path.join(THU_MUC_DL, tenPhim(o, DUOI_PHIM[kieu])), buf);
-    return ok(res, { ok: true, i: o, mb: Math.round(buf.length / 104857.6) / 10 });
+    /* Ghi đệm TRƯỚC rồi mới cất lên Base: người dùng thấy kết quả ngay, còn
+     * Base lo chuyện sống lâu. Base hỏng thì ô vẫn chạy tới lần deploy sau, và
+     * `khoLoi` nói ra lý do trong Cài đặt — không im lặng. */
+    const len = await phimKho.ghiKho(o, { ten: tenPhim(o, DUOI_PHIM[kieu]), kieu, buf });
+    return ok(res, {
+      ok: true, i: o, mb: Math.round(buf.length / 104857.6) / 10,
+      len, khoLoi: len ? '' : phimKho.loi(),
+    });
   }
 
   if (p === '/api/video-gt' && m === 'DELETE') {
@@ -1118,7 +1150,8 @@ async function api(req, res, u) {
     const o = Number(u.searchParams.get('i')) || 0;
     if (!(o >= 1 && o <= SO_PHIM_TOI_DA)) return loi(res, 400, 'Thiếu ?i= — cần nói rõ gỡ video nào.');
     xoaPhim(o);
-    return ok(res, { ok: true, i: o });
+    await phimKho.xoaKho(o);
+    return ok(res, { ok: true, i: o, khoLoi: phimKho.loi() });
   }
 
   /* Bảng tin trên trang Tổng quan: những thông báo CÒN HIỆU LỰC của người đang
@@ -2041,6 +2074,20 @@ server.listen(cfg.port, () => {
   } else {
     console.log('  HUB_AUTOSTART=0 — không tự bật module, mở trong Cài đặt.');
   }
+
+  /* Kéo ô phát từ Base về bộ đệm trên đĩa.
+   *
+   * Đây là thứ làm cho video/ảnh sống qua deploy: ổ đĩa Render là ổ tạm, mỗi
+   * lần deploy dựng lại từ kho mã nguồn, nên tệp tải lên qua Cài đặt bay sạch.
+   * Base giữ bản thật, còn đây chỉ là đệm để phát cho nhanh.
+   *
+   * KHÔNG chờ: hub phải nhận request ngay, kéo tệp là việc nền. Tệp chưa về
+   * kịp thì trang Tổng quan tạm chưa có ô phát, lát sau vào lại là có. */
+  phimKho.veDia(coTepPhim, ghiDiaPhim).then((kq) => {
+    if (!kq.ok) return console.log('  Ô phát: chưa kéo được từ Base — ' + (kq.lyDo || ''));
+    if (kq.keo) console.log('  Ô phát: kéo ' + kq.keo + ' tệp từ Base về bộ đệm.');
+    if (kq.loi) console.log('  Ô phát: có lỗi khi kéo — ' + kq.loi);
+  }).catch(() => {});
 
   setInterval(() => { kids.ktSucKhoe(danhSach()).catch(() => {}); }, 10000);
   console.log('  Ctrl+C để dừng (tắt luôn các module do hub bật).');

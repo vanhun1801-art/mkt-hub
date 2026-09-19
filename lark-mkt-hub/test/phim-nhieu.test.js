@@ -220,12 +220,49 @@ function donDuLieu() {
       ok('máy cá nhân thì KHÔNG báo ổ tạm', tin.tamThoi === false,
         JSON.stringify(tin.tamThoi));
       const sv = fs.readFileSync(path.join(GOC, 'server.js'), 'utf8');
-      ok('chỉ báo khi chạy server chung VÀ chưa gắn đĩa lưu',
-        /tamThoi: cfg\.mode === 'api' && !process\.env\.HUB_DU_LIEU/.test(sv));
+      /* Kho lưu là Base thì tệp sống qua deploy, KHÔNG được doạ người dùng
+       * nữa. Chỉ còn cảnh báo khi Base hỏng và tệp thật sự chỉ nằm trên ổ tạm. */
+      ok('chỉ báo ổ tạm khi Base KHÔNG dùng được',
+        /tamThoi: !khoOk && cfg\.mode === 'api' && !process\.env\.HUB_DU_LIEU/.test(sv));
       const cd = fs.readFileSync(path.join(GOC, 'public', 'caidat.js'), 'utf8');
-      ok('Cài đặt có hàng cảnh báo khi cờ bật', /t\.tamThoi[\s\S]{0,120}KHÔNG sống qua lần deploy/.test(cd));
+      ok('Cài đặt có hàng cảnh báo cho trường hợp ổ tạm',
+        /KHÔNG sống qua lần deploy/.test(cd));
       const i18 = fs.readFileSync(path.join(GOC, 'public', 'i18n.js'), 'utf8');
       ok('cảnh báo có bản tiếng Anh', /do NOT survive a deploy/.test(i18));
+    }
+
+    group('Kho lưu: Base giữ thật, ổ đĩa chỉ là bộ đệm');
+    {
+      /* Anh Hùng: "những lần anh deploy lại thì mất đi video phát" rồi chốt
+       * "hay là lưu trên base".
+       *
+       * Vòng thật đã chạy tay trên máy: tải lên -> tệp nằm trên Base -> xoá bộ
+       * đệm (giả lập deploy) -> khởi động lại -> log "kéo 1 tệp từ Base về bộ
+       * đệm" và tệp có lại. Bài này canh mấy quyết định của vòng đó. */
+      const kho = fs.readFileSync(path.join(GOC, 'phim-kho.js'), 'utf8');
+      const sv = fs.readFileSync(path.join(GOC, 'server.js'), 'utf8');
+      ok('có module kho lưu', /module\.exports = \{ co, loi, docKho, ghiKho, xoaKho, veDia/.test(kho));
+      ok('dùng chung Base với Phân quyền và Thông báo',
+        /HUB_TB_BASE \|\| 'JhZtbxv0gamk5ys3Fr0luHnsgwG'/.test(kho));
+      /* Ô đính kèm CỘNG DỒN: không gỡ tệp cũ thì mỗi lần thay là Base phình
+       * thêm một bản, và ô có hai tệp thì đọc ra cái nào là hên xui. */
+      ok('thay tệp thì GỠ bản cũ trước', /goTep\(rec, COT_TEP, cu\.tep\.token\)/.test(kho));
+      /* Mỗi lần deploy là một ổ đĩa mới nên thời gian sửa tệp vô nghĩa. */
+      ok('so bộ đệm với Base bằng CỠ TỆP', /dang\.co === o\.tep\.co/.test(kho));
+      ok('tải lên thì ghi đệm TRƯỚC rồi mới cất lên Base',
+        sv.indexOf('fs.writeFileSync(path.join(THU_MUC_DL, tenPhim(o, DUOI_PHIM[kieu])), buf);') <
+        sv.indexOf('await phimKho.ghiKho(o,'));
+      ok('gỡ ô thì gỡ cả trên Base', /await phimKho\.xoaKho\(o\)/.test(sv));
+      ok('khởi động là kéo từ Base về đệm', /phimKho\.veDia\(coTepPhim, ghiDiaPhim\)/.test(sv));
+      /* Không được CHỜ: hub phải nhận request ngay, kéo tệp là việc nền. */
+      ok('… nhưng KHÔNG chờ nó xong mới chạy', /veDia\(coTepPhim, ghiDiaPhim\)\.then\(/.test(sv));
+      /* Chuyện này từng hỏng im lặng nhiều lần — Base chưa chia sẻ cho app,
+       * thiếu scope, mạng chớp. Hỏng thì ô vẫn chạy bằng đệm, nhưng phải NÓI. */
+      ok('nói rõ đang lưu ở đâu', /kho: khoOk \? 'base' : 'tam'/.test(sv));
+      ok('và mang theo mã lỗi của Lark', /khoLoi: phimKho\.loi\(\)/.test(sv));
+      const cd = fs.readFileSync(path.join(GOC, 'public', 'caidat.js'), 'utf8');
+      ok('Cài đặt hiện nơi lưu', /t\.kho === 'base'/.test(cd) && /Lark Base/.test(cd));
+      ok('… và hiện mã lỗi khi ghi Base hỏng', /Không ghi lên Lark Base được/.test(cd));
     }
 
     group('Nén video ngay trong trình duyệt');

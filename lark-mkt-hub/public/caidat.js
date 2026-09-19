@@ -359,13 +359,24 @@ async function napCdPhim() {
      * chuyện đó xảy ra im lặng — tải lên thấy chạy ngon, vài hôm sau deploy
      * xong mở ra thì trống. Cảnh báo ở đây để không ai bị bất ngờ, và nói rõ
      * đường giữ lâu. */
-    (t.tamThoi
-      ? cdHang('Lưu ý: tệp ở đây KHÔNG sống qua lần deploy',
+    /* Nói THẬT chỗ tệp đang được giữ.
+     *
+     * Anh Hùng: "những lần anh deploy lại thì mất đi video phát". Giờ tệp cất
+     * trên Lark Base nên sống qua deploy — nhưng đường ghi lên Base có thể
+     * hỏng (Base chưa chia sẻ cho app, thiếu scope, mạng). Hỏng thì ô phát vẫn
+     * chạy bằng bộ đệm trên đĩa, và phải nói ra ngay tại đây kèm mã lỗi của
+     * Lark, chứ không lặng lẽ quay về ổ tạm rồi vài hôm sau mất tệp. */
+    (t.kho === 'base'
+      ? cdHang('Nơi lưu', 'Cất trên Lark Base — deploy bao nhiêu lần cũng còn. ' +
+          'Máy chủ chỉ giữ một bản đệm để phát cho nhanh.',
+          '<span class="cd-nhan luc">Lark Base</span>')
+      : cdHang('Lưu ý: tệp ở đây KHÔNG sống qua lần deploy',
+          (t.khoLoi
+            ? 'Không ghi lên Lark Base được: ' + esc(t.khoLoi) + '. '
+            : '') +
           'Ổ đĩa của máy chủ là ổ tạm — mỗi lần deploy là dựng lại từ kho, nên ' +
-          'video/ảnh tải lên qua đây sẽ mất. Muốn giữ lâu thì gắn đĩa lưu cho ' +
-          'service, hoặc nhờ đưa tệp thẳng vào kho mã nguồn.',
-          '<span class="cd-nhan do">ổ tạm</span>')
-      : '') +
+          'video/ảnh tải lên qua đây sẽ mất.',
+          '<span class="cd-nhan do">ổ tạm</span>')) +
     cdHang('Định dạng nhận vào', '',
       '<span class="cd-nhan">MP4 · WEBM · MOV · PNG · JPG · WEBP · GIF ≤ 60 MB · tối đa ' + toiDa + ' ô</span>') +
     '<input type="file" id="cdPhimTep" accept="video/mp4,video/webm,video/quicktime,' +
