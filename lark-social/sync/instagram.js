@@ -281,7 +281,12 @@ async function baiCuaIg(fb, token, acc, from, to, tran, canhBao) {
   const out = [];
   const fields = 'id,caption,media_type,media_product_type,permalink,timestamp,like_count,comments_count';
   let url = g(fb) + '/' + igId + '/media?limit=50&fields=' + encodeURIComponent(fields)
-    + '&since=' + from + '&until=' + to
+    /* until PHẢI LỚN HƠN since, và nó cũng loại trừ như mọi endpoint khác của
+     * Meta. Truyền thẳng `to` thì vừa rớt bài đăng đúng ngày cuối, vừa dính lỗi
+     * "(#100) since should be less than until" khi khoảng chỉ có một ngày — lỗi này
+     * đã gặp thật trong nhật ký, bốn lần liền, và hậu quả là MẤT TRẮng danh sách
+     * bài Instagram của lượt đó. */
+    + '&since=' + from + '&until=' + ngayKe(to)
     + '&access_token=' + encodeURIComponent(token);
 
   const dsMedia = [];
