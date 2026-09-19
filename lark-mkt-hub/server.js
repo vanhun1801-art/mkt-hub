@@ -1885,6 +1885,46 @@ const server = http.createServer(async (req, res) => {
    *
    * Mở đúng hai đường, khớp biểu thức chặt, không đọc tệp theo đường dẫn người
    * gọi đưa vào — nếu không thì đây thành lỗ đọc trộm tệp của máy chủ. */
+  /* --- webhook Facebook, cũng đặt TRƯỚC cổng đăng nhập ---
+   *
+   * Đây là hướng cuối còn có thể cho biết AI ĐĂNG BÀI một cách tự động. Mọi
+   * đường đọc đều đã chết: admin_creator tồn tại nhưng luôn rỗng — thử trên bài
+   * mới lẫn bài từ 2023, trên /posts, /feed và /published_posts, bằng mã Trang
+   * lẫn mã người thật có business_management, trên v12 tới v23. /roles trả 0
+   * người vì cả ba Trang đã chuyển sang Trang kiểu mới.
+   *
+   * Webhook thì khác: Facebook tự ĐẨY dữ liệu sang mỗi khi có bài mới, và tài
+   * liệu không nói rõ trường `from` trong đó là Trang hay là người bấm đăng.
+   * Không tra được thì phải đo. Chỗ này ghi nguyên văn gói tin đầu tiên nhận
+   * được vào nhật ký để xem tận mắt.
+   *
+   * Không xác thực chữ ký X-Hub-Signature ở đây vì nó chỉ dùng để THỬ: không
+   * ghi vào Base, không tin gói tin, chỉ in ra. Dùng thật thì phải ký. */
+  if (p === '/fb-webhook') {
+    if (req.method === 'GET') {
+      /* Bước bắt tay: Facebook gọi vào với hub.challenge, phải trả lại nguyên
+       * văn thì nó mới chịu đăng ký. */
+      const mode = u.searchParams.get('hub.mode');
+      const ma = u.searchParams.get('hub.verify_token');
+      const thach = u.searchParams.get('hub.challenge') || '';
+      const mong = process.env.FB_WEBHOOK_TOKEN || '';
+      if (mode === 'subscribe' && mong && ma === mong) {
+        console.log('[fb-webhook] Facebook bắt tay thành công');
+        return send(res, 200, thach, { 'Content-Type': 'text/plain; charset=utf-8' });
+      }
+      console.log('[fb-webhook] bắt tay HỎNG — mã không khớp hoặc chưa khai FB_WEBHOOK_TOKEN');
+      return send(res, 403, 'sai mã', { 'Content-Type': 'text/plain; charset=utf-8' });
+    }
+    if (req.method === 'POST') {
+      /* Chuyển thẳng sang app Social để nó ghi nguyên văn vào Nhật ký trên Base.
+       * Ghi ra console thì mất sau mỗi lần deploy, mà gói tin này cần để đọc lại. */
+      const modSocial = timMod('social');
+      if (!modSocial) return send(res, 200, 'ok', { 'Content-Type': 'text/plain; charset=utf-8' });
+      kids.khoiDong(modSocial);
+      return chuyenTiep(req, res, modSocial, '/api/fb-webhook', null);
+    }
+  }
+
   const zaloVerify = /^\/zalo-callback\/(zalo_verifier[A-Za-z0-9_-]{1,120})\.html$/.exec(p);
   if (zaloVerify) {
     /* Tệp Zalo cho tải về là một trang HTML đủ bộ, mã nằm trong thẻ meta

@@ -137,6 +137,11 @@ module.exports = {
          * đầu" chỉ xoá bảng Ngày chứ không xoá bảng Bài — nên gắn một lần là giữ
          * được mãi. */
         labels: 'fld5AZLSH9',    // Tỷ lệ tương tác (0..1)
+        /* Người đăng — gán TAY, và chỉ gán tay được. Facebook không cho biết ai
+         * đăng bài nào: trường admin_creator còn trong tài liệu nhưng luôn rỗng với
+         * Trang kiểu mới, kể cả khi hỏi bằng mã của người thật có business_management.
+         * Đồng bộ KHÔNG BAO GIỜ ghi cột này — cùng lý do với cột Nhãn ở trên. */
+        poster: 'fld8RB5agE',
         source: 'fldbcgFFf0',
         updated: 'fldG6bq0Fk',
       },

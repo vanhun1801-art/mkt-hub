@@ -797,6 +797,27 @@ async function api(req, res, u) {
    * Nên phải thử bằng mã sinh từ tài khoản người thật. Mã đó chỉ sống trong một
    * lời gọi này rồi biến mất: không ghi ra đĩa, không vào kho, không trả ngược về
    * trình duyệt. Đang chạy được thì mới bàn tới chuyện lưu. */
+  /* Nhận gói tin webhook Facebook mà hub chuyển sang, ghi nguyên văn vào Nhật ký.
+   *
+   * Đây là phép đo, không phải tính năng. Mọi đường ĐỌC người đăng đều đã chết:
+   * admin_creator tồn tại nhưng luôn rỗng — thử trên bài mới lẫn bài 2023, trên
+   * /posts, /feed, /published_posts, bằng mã Trang lẫn mã người thật có
+   * business_management, trên v12 tới v23; /roles trả 0 người vì cả ba Trang đã
+   * sang Trang kiểu mới. Webhook là hướng duy nhất còn lại, và tài liệu Meta
+   * không nói rõ trường `from` trong gói tin là Trang hay người bấm đăng.
+   *
+   * Ghi vào Nhật ký thay vì console để còn đọc được từ Base — nhật ký của Render
+   * mất sau mỗi lần deploy. Đo xong thì gỡ cả lối này lẫn lối bên hub. */
+  if (p === '/api/fb-webhook' && method === 'POST') {
+    const b = await readBody(req);
+    await store.ghiNhatKy({
+      platform: 'Facebook',
+      result: 'Một phần',
+      message: 'THỬ WEBHOOK · ' + JSON.stringify(b).slice(0, 900),
+    });
+    return ok(res, { nhan: true });
+  }
+
   if (p === '/api/ket-noi/facebook/thu-nguoi-dang' && method === 'POST') {
     const loi = chanNeuKhongPhaiQuanLy(req); if (loi) throw loi;
     const b = await readBody(req);

@@ -166,6 +166,7 @@ function docBai(r) {
     avgWatch: num(r.c[f.avgWatch]),
     fullWatchRate: num(r.c[f.fullWatchRate]),
     nhanBu: clean(r.c[f.labels]),
+    poster: sel(r.c[f.poster]),
     source: sel(r.c[f.source]),
   };
 }
