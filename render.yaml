@@ -21,6 +21,11 @@
 # Bốn biến khác Render tự sinh. Mọi biến còn lại đã comment vì KHÔNG cần cho lần
 # đầu — app nào thiếu token thì chỉ app đó không đồng bộ, Hub vẫn chạy.
 # ============================================================
+# Service trên Render tên **mkt-hub-tam** (không phải mkt-hub), URL
+# https://mkt-hub-w6hi.onrender.com — và chỉ có MỘT service. Nó KHÔNG dựng từ
+# blueprint này, nên sửa file này không tự đổi biến nào trên Render: phải vào
+# dashboard sửa tay. File này là bản ghi "đáng lẽ phải có gì", không phải bản
+# đang chạy.
 services:
   - type: web
     name: mkt-hub

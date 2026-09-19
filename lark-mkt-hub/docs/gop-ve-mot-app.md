@@ -89,18 +89,36 @@ thái "hai app" lặng lẽ quay lại.
 - `render.yaml` bỏ `value:` của `LARK_APP_ID`, bỏ hẳn hai biến `ANH_TIN_APP_*`.
 - Log khởi động của hub in cảnh báo nếu app gửi tin **khác** app nền tảng.
 
-Deploy bản này trước, rồi mới làm 3.2 — thứ tự ngược lại thì có một quãng
-`tin-app.js` tự tắt.
+Đã deploy: commit `02779bd`, kiểm lại `/healthz` và `app_id` trên bản live.
 
-### 3.2 Trên Render — sau khi bản trên đã chạy
+### 3.2 Trên Render — kiểm ngày 19/09/2026: KHÔNG CÓ GÌ PHẢI LÀM
 
-Trong dashboard service `mkt-hub` → Environment, **xoá hai biến**:
+`ANH_TIN_APP_ID` và `ANH_TIN_APP_SECRET` **chưa từng được khai trên Render**.
+`render.yaml` có khai, nhưng service không dựng từ blueprint nên file đó không
+tạo ra biến nào cả.
 
-- `ANH_TIN_APP_ID`
-- `ANH_TIN_APP_SECRET`
+Nghĩa là từ trước tới giờ tin nhóm vẫn gửi bằng `LARK_APP_ID` — đúng cái mình
+muốn, nhưng là do tình cờ chứ không phải do mã nguồn bảo thế. Bản sửa này biến
+nó thành luật: `cfg.tinApp*` lùi về `LARK_APP_*` một cách có chủ ý, và có phép
+thử canh.
 
-Không phải thêm gì. Xong thì log khởi động không được có dòng
+> **Service trên Render tên `mkt-hub-tam`, không phải `mkt-hub`.** URL của nó là
+> `https://mkt-hub-w6hi.onrender.com` — và chỉ có MỘT service, kiểm ngày
+> 19/09/2026. Tìm theo tên `mkt-hub` trong dashboard sẽ không ra.
+
+Nếu sau này ai đó khai lại hai biến đó, log khởi động của hub sẽ in
 `⚠ Đang chạy HAI app Lark`.
+
+### 3.2b Một biến nên dọn: `LARK_MANAGER_IDS`
+
+Vẫn còn trên Render, bên cạnh `LARK_MANAGER_EMAILS`. Nó khai quản lý bằng
+**open_id**, mà open_id đổi theo từng app Lark — giá trị trong đó gần như chắc
+là open_id cũ của anh Hùng từ phiên lark-cli, giờ không khớp với ai.
+
+Không gây hại (hai biến cộng dồn), nhưng là bẫy: người sau đọc thấy sẽ tưởng nó
+đang có tác dụng, thêm người vào đó rồi không hiểu vì sao người ta vẫn vào với
+vai nhân sự. Xác nhận `LARK_MANAGER_EMAILS` đã có email thật rồi thì xoá hẳn
+`LARK_MANAGER_IDS`.
 
 ### 3.3 Trong Lark Developer Console — sau cùng
 
