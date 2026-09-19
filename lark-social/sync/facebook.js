@@ -461,7 +461,87 @@ async function baiCuaPage(conf, page, from, to, tran, canhBao) {
   return out;
 }
 
+/* ---------------- số thật của video ---------------- */
+
+/**
+ * MỨC BÀI KHÔNG CÒN ĐỦ SỐ CHO VIDEO — PHẢI HỎI RIÊNG NODE VIDEO.
+ *
+ * `post_video_views` ở mức bài là lượt xem TỪ 3 GIÂY, còn con số "Lượt xem"
+ * Meta hiện trong Business Suite là TỔNG LƯỢT PHÁT, kể cả xem lại. Reel
+ * 1408945757797599: mức bài trả 722.194, Meta hiện 1,3 triệu — không phải mình
+ * mất số, mà là hỏi nhầm chỉ số. Đúng phải là fb_reels_total_plays = 1.250.933
+ * (895.523 lượt phát + 355.410 lượt xem lại).
+ *
+ * Đòi lại được hai thứ nữa mà mức bài đã gỡ:
+ *   post_impressions_unique   — TIẾP CẬN thật (901.534, Meta hiện 924,6K)
+ *   post_video_social_actions — bình luận KỂ CẢ TRẢ LỜI (486, trong khi
+ *                               comments.summary chỉ đếm bình luận gốc: 288)
+ *
+ * Đổi lại là mỗi video một lời gọi. Đặt số đúng lên trước tốc độ: báo cáo gửi
+ * đối tác mà thấp hơn sự thật 40% thì chạy nhanh để làm gì.
+ */
+const ID_VIDEO = /\/(?:reel|videos)\/(\d+)/;
+const LUONG_VIDEO = 4;
+
+function soTu(ds, ten) {
+  const m = (ds || []).find((x) => x.name === ten);
+  return m ? ((m.values || [])[0] || {}).value : undefined;
+}
+
+async function soThatChoVideo(conf, token, ds, ten, canhBao) {
+  const canDoi = ds.filter((p) => ID_VIDEO.test(p.url || ''));
+  if (!canDoi.length) return;
+  let hong = 0;
+
+  const lam = async (p) => {
+    const vid = ID_VIDEO.exec(p.url)[1];
+    const r = await getJson(g(conf) + '/' + vid + '/video_insights'
+      + '?access_token=' + encodeURIComponent(token),
+    { label: 'Facebook video_insights ' + vid, retries: 1 });
+    if (!r || r.error || !r.data) { hong++; return; }
+    const d = r.data;
+
+    /* Reels đếm bằng fb_reels_total_plays; video thường bằng total_video_views. */
+    const xem = num(soTu(d, 'fb_reels_total_plays')) || num(soTu(d, 'total_video_views'));
+    if (xem) p.views = xem;
+
+    const tiepCan = num(soTu(d, 'post_impressions_unique'))
+      || num(soTu(d, 'total_video_impressions_unique'));
+    if (tiepCan) p.reach = tiepCan;
+
+    const hienThi = num(soTu(d, 'total_video_impressions'));
+    if (hienThi) p.impressions = hienThi;
+
+    const xh = soTu(d, 'post_video_social_actions');
+    if (xh && typeof xh === 'object') {
+      p.comments = Math.max(num(p.comments), num(xh.COMMENT));
+      p.shares = Math.max(num(p.shares), num(xh.SHARE));
+    }
+    const cx = soTu(d, 'post_video_likes_by_reaction_type');
+    if (cx && typeof cx === 'object') {
+      p.likes = Math.max(num(p.likes), Object.values(cx).reduce((a, b) => a + num(b), 0));
+    }
+    const tb = num(soTu(d, 'post_video_avg_time_watched'))
+      || num(soTu(d, 'total_video_avg_time_watched'));
+    if (tb) p.avgWatch = tb / 1000;
+
+    p.engagement = num(p.likes) + num(p.comments) + num(p.shares);
+    const hetBai = num(soTu(d, 'total_video_complete_views'));
+    if (p.views) p.fullWatchRate = hetBai / p.views;
+  };
+
+  for (let i = 0; i < canDoi.length; i += LUONG_VIDEO) {
+    await Promise.all(canDoi.slice(i, i + LUONG_VIDEO).map((p) => lam(p).catch(() => { hong++; })));
+  }
+  if (hong) {
+    canhBao.push('Facebook · ' + ten + ': ' + hong + '/' + canDoi.length + ' video không đọc'
+      + ' được số chi tiết — những bài đó giữ số ở mức bài, tức lượt xem từ 3 giây'
+      + ' chứ không phải tổng lượt phát.');
+  }
+}
+
 /* ---------------- phiên LIVE ---------------- */
+
 
 async function liveCuaPage(conf, page, from, to, canhBao, ghiChu = []) {
   const token = await tokenPage(conf, page);
@@ -576,6 +656,17 @@ async function fetchRange(conf, from, to, opts = {}, log = () => {}) {
     if (opts.layBai !== false) {
       try {
         const p = await baiCuaPage(conf, page, from, to, opts.soBaiToiDa || 2000, canhBao);
+        /* Đổi lại lượt xem / tiếp cận / bình luận thật cho từng video — xem
+         * soThatChoVideo(). Làm ở đây chứ không trong baiCuaPage để phần lấy danh
+         * sách bài vẫn chạy được dù bước này hỏng. */
+        try {
+          await soThatChoVideo(conf, await tokenPage(conf, page), p,
+            page.name || page.id, canhBao);
+        } catch (e) {
+          canhBao.push('Facebook · ' + (page.name || page.id) + ': không đọc được số chi'
+            + ' tiết của video — ' + e.message + '. Bài vẫn vào đủ, nhưng lượt xem là loại'
+            + ' từ 3 giây chứ không phải tổng lượt phát, và tiếp cận để trống.');
+        }
         posts.push(...p);
         log('Facebook · ' + (page.name || page.id) + ': ' + p.length + ' bài');
       } catch (e) { canhBao.push('Facebook bài · ' + (page.name || page.id) + ': ' + e.message); }

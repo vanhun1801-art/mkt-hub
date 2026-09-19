@@ -388,6 +388,41 @@ t('until của Meta loại trừ, nên phải cộng thêm một ngày', () => {
   });
 });
 
+t('lượt xem video phải là TỔNG LƯỢT PHÁT, không phải lượt xem từ 3 giây', () => {
+  /* Anh Hùng mở Meta Business đối chiếu: reel 1408945757797599 hiện "1,3 triệu
+     lượt xem", app ghi 722.178 — thấp hơn 42%. Không phải mất số, mà hỏi nhầm
+     chỉ số. Mức bài trả post_video_views = lượt xem TỪ 3 GIÂY (722.194); con số
+     Meta hiện là tổng lượt phát, chỉ có ở node video:
+       fb_reels_play_count   =   895.523
+       fb_reels_replay_count =   355.410
+       fb_reels_total_plays  = 1.250.933  ← đúng cái Meta hiện
+     Node video còn trả lại hai thứ mức bài đã gỡ: post_impressions_unique
+     (tiếp cận thật, 901.534) và post_video_social_actions (bình luận kể cả trả
+     lời: 486, trong khi comments.summary chỉ đếm bình luận gốc: 288). */
+  const src = require('fs').readFileSync(require.resolve('../sync/facebook'), 'utf8');
+  assert.ok(src.includes('video_insights'), 'phải hỏi node video');
+  assert.ok(src.includes('fb_reels_total_plays'), 'reels phải lấy tổng lượt phát');
+  assert.ok(src.includes('post_impressions_unique'), 'phải đòi lại tiếp cận mức bài');
+  assert.ok(src.includes('post_video_social_actions'), 'phải lấy bình luận kể cả trả lời');
+  /* Thứ tự ưu tiên: reels trước, video thường sau — không được đảo. */
+  const i = src.indexOf('fb_reels_total_plays');
+  const j = src.indexOf('total_video_views', i);
+  assert.ok(i > 0 && j > i, 'fb_reels_total_plays phải đứng trước total_video_views');
+});
+
+t('ảnh và bài chữ Facebook thì KHÔNG đòi được gì thêm', () => {
+  /* Kiểm chứng bằng API thật trên một bài ảnh: post_impressions,
+     post_impressions_unique, post_impressions_organic, post_engaged_users đều
+     trả "(#100) The value must be a valid insights metric". Chỉ còn post_clicks
+     và post_reactions_by_type_total. Nên ô Lượt xem và Tiếp cận của bài ảnh để
+     trống là ĐÚNG, không phải thiếu sót — và không được ghi 0. */
+  const xuat = require('../xuat-doi-tac');
+  assert.strictEqual(xuat.oXem({ platform: 'Facebook', type: 'Ảnh', views: 0 }), null);
+  assert.strictEqual(xuat.oTiepCan({ platform: 'Facebook', reach: 0 }), null);
+  /* Còn video thì giờ PHẢI có tiếp cận. */
+  assert.strictEqual(xuat.oTiepCan({ platform: 'Facebook', reach: 901534 }), 901534);
+});
+
 t('lấy bản lifetime khi Meta trả một metric hai lần', () => {
   /* Lỗi thật, làm mất gần hết lượt xem bài Facebook. Khi xin nhiều metric một
      lượt, Meta trả CÙNG một metric hai lần — period `lifetime` rồi period `day`.
