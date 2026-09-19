@@ -838,6 +838,23 @@ async function api(req, res, u) {
       r.capNhat.forEach((x) => { map[x.id] = { [f.poster]: x.nguoi }; });
       await lark.updateMany(store.T.post.id, map);
     }
+    /* GHI NHẬT KÝ MỌI LƯỢT, kể cả lượt không ghi được bài nào.
+     *
+     * Không có dòng này thì khi máy của một bạn gửi lên mà chưa khớp được
+     * (bài hẹn giờ ngày mai chưa có trong Base), không ai biết là nó đã tới hay
+     * tiện ích chết im. Đúng kiểu lỗi im lặng đã gặp đủ mấy hôm nay. */
+    const tenGui = [...new Set((b.items || []).map((x) => String((x && x.nguoi) || '?')))];
+    await store.ghiNhatKy({
+      platform: 'Facebook',
+      result: r.capNhat.length ? 'Thành công' : 'Một phần',
+      rowsPost: r.capNhat.length,
+      message: 'NGƯỜI ĐĂNG · nhận ' + (b.items || []).length
+        + ' · ghi ' + r.capNhat.length
+        + ' · chưa khớp ' + r.khongKhop.length
+        + ' · từ: ' + tenGui.join(', ')
+        + (r.tenLa.length ? ' · tên lạ: ' + r.tenLa.map((x) => x.nguoi).join(', ') : ''),
+    });
+
     return ok(res, {
       nhan: (b.items || []).length,
       daGhi: r.capNhat.length,
