@@ -87,7 +87,24 @@
 
   /* --- bảng nhỏ ở góc --- */
   let hop;
+  let toiLa = '';
+  let soCho = 0;
+
+  async function docTrangThai() {
+    const c = await chrome.storage.sync.get(['toiLa']);
+    toiLa = c.toiLa || '';
+    const kho = await chrome.storage.local.get(['cho']);
+    soCho = (kho.cho || []).length;
+    ve();
+  }
+
   function ve() {
+    /* Không có gì để nói thì đừng hiện: trên Business Suite phần đọc feed luôn
+     * ra 0, bày một ô "0 bài" chỉ tổ làm người ta tưởng hỏng. */
+    if (!thay.size && !soCho && !toiLa) {
+      if (hop) { hop.remove(); hop = null; }
+      return;
+    }
     if (!hop) {
       hop = document.createElement('div');
       hop.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:2147483647;'
@@ -98,7 +115,9 @@
     }
     const n = thay.size;
     hop.innerHTML = '<div style="font-weight:600;margin-bottom:6px">Rooty · Người đăng</div>'
-      + '<div>Đã thấy <b>' + n + '</b> bài trên màn hình</div>'
+      + (toiLa ? '<div>Máy của <b>' + toiLa + '</b></div>' : '')
+      + (soCho ? '<div>Đang chờ khớp: <b>' + soCho + '</b> bài</div>' : '')
+      + (n || !toiLa ? '<div>Đã thấy <b>' + n + '</b> bài trên màn hình</div>' : '')
       + (soHut ? '<div style="color:#f0a">' + soHut + '/' + soDong
         + ' dòng "Người đăng" chưa lấy được</div>' : '')
       + '<div style="margin-top:8px;display:flex;gap:6px">'
@@ -157,4 +176,79 @@
     henQuet();
   }).observe(document.body, { childList: true, subtree: true });
   setTimeout(quet, 1500);
+
+  /* ================= BẮT LÚC ĐĂNG (máy của người đăng) =================
+   *
+   * Đây là đường chính xác nhất, vì nó không phụ thuộc Facebook có vẽ dòng
+   * "Người đăng" hay không: người đăng là người đang ngồi trước máy, đã khai
+   * trong Tuỳ chọn; còn bài nào thì lấy chính đoạn chữ họ vừa soạn.
+   *
+   * Caption là dấu vân tay tốt hơn cả link, vì lúc bấm Đăng thì bài chưa tồn
+   * tại, chưa có link nào để lấy.
+   */
+  const NUT_DANG = /^(đăng|đăng ngay|đăng bài|chia sẻ ngay|lên lịch|lên lịch đăng|publish|post|schedule)$/i;
+
+  function chuSoanBai() {
+    /* Ô soạn bài là contenteditable. Lấy ô nhiều chữ nhất đang hiện, vì trong
+     * Business Suite còn có ô tìm kiếm và ô bình luận cũng cùng dạng. */
+    let tot = '';
+    document.querySelectorAll('[contenteditable="true"],[role="textbox"]').forEach((el) => {
+      if (!el.offsetParent) return;
+      const t = (el.innerText || el.textContent || '').trim();
+      if (t.length > tot.length) tot = t;
+    });
+    return tot;
+  }
+
+  async function ghiNho(van) {
+    const c = await chrome.storage.sync.get(['toiLa']);
+    if (!c.toiLa || van.length < 40) return;
+    const kho = await chrome.storage.local.get(['cho']);
+    const cho = kho.cho || [];
+    /* Bấm Đăng hai lần, hoặc bấm nhầm rồi bấm lại — đừng ghi thành hai bài. */
+    if (cho.some((x) => x.van.slice(0, 80) === van.slice(0, 80))) return;
+    cho.push({ van: van.slice(0, 400), nguoi: c.toiLa, luc: Date.now() });
+    await chrome.storage.local.set({ cho });
+    soCho = cho.length;
+    ve();
+    guiCho();
+  }
+
+  /* Gửi hàng chờ. Bài vừa đăng CHƯA có trong Base — đồng bộ 6 tiếng một lượt
+   * mới kéo về — nên mục nào chưa khớp thì giữ lại, lần mở Facebook sau gửi
+   * tiếp. Tự lành, không cần ai nhớ. */
+  async function guiCho() {
+    const kho = await chrome.storage.local.get(['cho']);
+    let cho = kho.cho || [];
+    if (!cho.length) return;
+    /* Quá một tháng chưa khớp thì bỏ: bài đó không bao giờ vào Base nữa. */
+    const han = Date.now() - 31 * 86400000;
+    cho = cho.filter((x) => x.luc > han);
+
+    chrome.runtime.sendMessage(
+      { viec: 'gui', items: cho.map((x) => ({ nguoi: x.nguoi, van: x.van })) },
+      async (r) => {
+        if (!r || !r.ok) return;                       // mạng hỏng thì để lần sau
+        const giu = new Set(r.kq && r.kq.chuaKhop ? r.kq.chuaKhop : []);
+        const conLai = cho.filter((_x, i) => giu.has(i));
+        await chrome.storage.local.set({ cho: conLai });
+        soCho = conLai.length;
+        ve();
+      },
+    );
+  }
+
+  addEventListener('click', (e) => {
+    const el = e.target && e.target.closest ? e.target.closest('div[role="button"],button,span') : null;
+    if (!el) return;
+    const chu = (el.innerText || el.textContent || '').trim();
+    if (!NUT_DANG.test(chu)) return;
+    /* Chụp NGAY, trước khi Facebook xoá ô soạn bài. */
+    const van = chuSoanBai();
+    if (van) ghiNho(van);
+  }, true);
+
+  /* Mở Facebook là thử gửi lại hàng chờ. */
+  docTrangThai();
+  setTimeout(guiCho, 3000);
 })();

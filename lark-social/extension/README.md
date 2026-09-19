@@ -31,6 +31,17 @@ Nó chỉ đọc phần đã hiện trên màn hình. Đây là ranh giới gi�
 thao tác của người* và *bot cào dữ liệu* — vượt qua là vừa vi phạm điều khoản
 của Meta, vừa có nguy cơ bị khoá tài khoản đang giữ quyền trên cả ba Trang.
 
+## Hai cách dùng
+
+**Trên máy người đăng (chính).** Khai tên mình ở Tuỳ chọn → mỗi lần bấm Đăng
+trong Business Suite, tiện ích chụp lại đoạn chữ vừa soạn và ghi tên người đó.
+Không phụ thuộc Facebook có vẽ dòng "Người đăng" hay không. Bài vừa đăng chưa
+có trong Base (đồng bộ 6 tiếng một lượt), nên tiện ích giữ trong máy rồi tự gửi
+lại mỗi lần mở Facebook cho tới khi khớp được — không cần ai nhớ.
+
+**Trên máy quản lý (rà bài cũ).** Để trống ô "Tôi là", mở Trang rồi cuộn; tiện
+ích đọc dòng "Người đăng" đã hiện trên màn hình, xong bấm **Gửi**.
+
 ## Cài
 
 1. Máy chủ: khai biến môi trường `NGUOI_DANG_KEY` trên Render (chuỗi bất kỳ).

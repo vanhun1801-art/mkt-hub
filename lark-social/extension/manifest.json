@@ -1,18 +1,21 @@
 {
   "manifest_version": 3,
   "name": "Rooty · Người đăng",
-  "version": "1.0.0",
-  "description": "Đọc dòng \"Người đăng\" trên Trang Facebook đang mở và gửi về Marketing Hub. Chỉ đọc phần đã hiện trên màn hình, chỉ gửi khi bấm nút.",
+  "version": "1.1.0",
+  "description": "Ghi lại ai đăng bài nào. Trên máy người đăng: bắt lúc bấm Đăng trong Business Suite. Trên máy quản lý: đọc dòng \"Người đăng\" đã hiện trên màn hình. Chỉ gửi khi bấm nút hoặc khi chính mình vừa đăng.",
   "permissions": ["storage"],
   "host_permissions": ["https://mkt-hub-w6hi.onrender.com/*"],
   "content_scripts": [
     {
-      "matches": ["https://www.facebook.com/*"],
+      "matches": [
+        "https://www.facebook.com/*",
+        "https://business.facebook.com/*"
+      ],
       "js": ["content.js"],
       "run_at": "document_idle"
     }
   ],
   "background": { "service_worker": "background.js" },
   "options_page": "options.html",
-  "action": { "default_title": "Rooty · Người đăng — mở Tuỳ chọn để khai địa chỉ và khoá" }
+  "action": { "default_title": "Rooty · Người đăng — mở Tuỳ chọn để khai tên và khoá" }
 }

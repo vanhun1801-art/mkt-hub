@@ -842,6 +842,9 @@ async function api(req, res, u) {
       nhan: (b.items || []).length,
       daGhi: r.capNhat.length,
       khongKhop: r.khongKhop.length,
+      /* Vị trí các mục chưa khớp — tiện ích giữ lại những mục này rồi gửi lại
+       * sau, vì bài vừa đăng phải chờ lượt đồng bộ kế tiếp mới có trong Base. */
+      chuaKhop: r.khongKhop.map((x) => x.viTri),
       tenLa: r.tenLa.map((x) => x.nguoi).slice(0, 5),
     });
   }

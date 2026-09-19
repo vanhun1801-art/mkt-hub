@@ -90,15 +90,17 @@ function ghep(items, posts) {
   const tenLa = [];
   const daThay = new Set();
 
-  (Array.isArray(items) ? items : []).forEach((x) => {
+  (Array.isArray(items) ? items : []).forEach((x, viTri) => {
     const nguoi = gonTen(x && x.nguoi);
     if (!nguoi) return;
-    if (!hopLe.has(nguoi)) { tenLa.push({ link: x && x.link, nguoi }); return; }
+    if (!hopLe.has(nguoi)) { tenLa.push({ viTri, link: x && x.link, nguoi }); return; }
     const id = idTuLink(x && x.link);
     /* Link trước, caption sau. Link chính xác tuyệt đối khi có ID số; còn dạng
      * pfbid thì phải nhờ caption. */
     const p = (id && tra.get(id)) || ghepTheoVan(x && x.van, posts);
-    if (!p) { khongKhop.push({ link: x && x.link, nguoi }); return; }
+    /* Trả kèm vị trí để tiện ích biết mục nào chưa ăn mà giữ lại gửi sau. Bài
+     * vừa đăng chưa có trong Base — đồng bộ 6 tiếng một lượt mới kéo về. */
+    if (!p) { khongKhop.push({ viTri, link: x && x.link, nguoi }); return; }
     if (daThay.has(p.id)) return;
     daThay.add(p.id);
     /* Đã có người và trùng khớp thì bỏ qua, khác thì vẫn ghi đè: màn hình
