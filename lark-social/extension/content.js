@@ -15,31 +15,56 @@
  * cho tài khoản khỏi bị Facebook khoá, vừa là điều kiện để việc này còn tử tế.
  */
 (() => {
+  const RE_CO = /Người\s*đăng/;
   const RE_TEN = /Người\s*đăng\s*[:：]\s*([^\n·|]+)/;
   const CHON_LINK = 'a[href*="/reel/"],a[href*="/posts/"],a[href*="/videos/"],a[href*="story_fbid"]';
-  const thay = new Map();          // link -> tên
+  const thay = new Map();          // khoá -> { ten, link, van }
+
+  /* TÊN NẰM Ở NÚT KHÁC VỚI CHỮ "Người đăng".
+   *
+   * Facebook dựng dòng đó thành nhiều mảnh: "Người đăng:" một nút, tên người
+   * một nút (thường là link tới trang cá nhân). Đọc từng nút chữ một thì nút
+   * đầu khớp "Người đăng:" nhưng phần tên rỗng — đó là lý do bản trước báo
+   * "đã thấy 0 bài" trong khi màn hình rõ ràng có tên. Phải leo lên cha để lấy
+   * textContent đã ghép lại. */
+  function tenQuanhNode(n) {
+    let el = n.parentElement;
+    for (let i = 0; el && i < 4; i++, el = el.parentElement) {
+      const m = RE_TEN.exec(el.textContent || '');
+      if (!m) continue;
+      /* Ghép lại thì ngày giờ dính ngay sau tên, không có dấu phân cách:
+       * "Phương Ái10 Tháng 9 lúc 16:06". Tên người không có chữ số nên cắt ở
+       * chữ số đầu tiên là sạch. */
+      const ten = m[1].split(/[0-9]/)[0].replace(/\s+/g, ' ').trim();
+      if (ten && ten.length <= 60) return ten;
+    }
+    return '';
+  }
 
   /* Leo ngược từ chỗ có chữ "Người đăng" lên tới khối bài, rồi lấy link bài
    * trong khối đó. Leo quá cao thì vớ phải bài kế bên, nên chặn ở 12 tầng. */
-  function linkCuaKhoi(node) {
+  function khoiCuaNode(node) {
     let el = node.parentElement;
     for (let i = 0; el && i < 12; i++, el = el.parentElement) {
       const a = el.querySelector(CHON_LINK);
-      if (a && a.href) return a.href.split('?')[0];
+      if (a && a.href) return { el, link: a.href.split('?')[0] };
     }
-    return '';
+    return null;
   }
 
   function quet() {
     const di = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     let n;
     while ((n = di.nextNode())) {
-      const m = RE_TEN.exec(n.data || '');
-      if (!m) continue;
-      const ten = m[1].replace(/\s+/g, ' ').trim();
-      if (!ten || ten.length > 60) continue;
-      const link = linkCuaKhoi(n);
-      if (link) thay.set(link, ten);
+      if (!RE_CO.test(n.data || '')) continue;
+      const ten = tenQuanhNode(n);
+      if (!ten) continue;
+      const k = khoiCuaNode(n);
+      if (!k) continue;
+      /* Gửi kèm đoạn chữ của khối để máy chủ khớp bằng caption khi link ở dạng
+       * pfbid — dạng mã mờ, không có ID số để đối chiếu với Base. */
+      const van = (k.el.innerText || '').slice(0, 400);
+      thay.set(k.link, { ten, link: k.link, van });
     }
     ve();
   }
@@ -57,7 +82,7 @@
     }
     const n = thay.size;
     hop.innerHTML = '<div style="font-weight:600;margin-bottom:6px">Rooty · Người đăng</div>'
-      + '<div id="rt-so">Đã thấy <b>' + n + '</b> bài trên màn hình</div>'
+      + '<div>Đã thấy <b>' + n + '</b> bài trên màn hình</div>'
       + '<div style="margin-top:8px;display:flex;gap:6px">'
       + '<button id="rt-quet" style="flex:1;padding:5px 8px;border-radius:6px;border:1px solid #555;'
       + 'background:#3a3b3c;color:#e4e6eb;cursor:pointer">Quét lại</button>'
@@ -70,7 +95,7 @@
 
   function gui() {
     const bao = hop.querySelector('#rt-bao');
-    const items = [...thay.entries()].map(([link, nguoi]) => ({ link, nguoi }));
+    const items = [...thay.values()].map((x) => ({ link: x.link, nguoi: x.ten, van: x.van }));
     if (!items.length) return;
     bao.textContent = 'Đang gửi…';
     chrome.runtime.sendMessage({ viec: 'gui', items }, (r) => {
@@ -79,7 +104,7 @@
       /* Nói cả phần KHÔNG ghi được. Giấu đi thì người dùng tưởng xong hết, mà
        * KPI thì thiếu người. */
       bao.innerHTML = 'Đã ghi <b>' + (k.daGhi || 0) + '</b>/' + (k.nhan || 0) + ' bài'
-        + (k.khongKhop ? '<br>' + k.khongKhop + ' bài chưa có trong Base' : '')
+        + (k.khongKhop ? '<br>' + k.khongKhop + ' bài chưa khớp được' : '')
         + (k.tenLa && k.tenLa.length ? '<br>tên lạ: ' + k.tenLa.join(', ') : '');
       thay.clear();
     });

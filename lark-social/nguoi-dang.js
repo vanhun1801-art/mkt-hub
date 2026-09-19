@@ -44,6 +44,39 @@ function banhTra(posts) {
 const gonTen = (s) => String(s || '').replace(/\s+/g, ' ').trim();
 
 /**
+ * Chuẩn hoá văn bản để so khớp: bỏ dấu câu, gộp khoảng trắng, về chữ thường.
+ * Facebook nối các khối chữ lại không có khoảng trắng giữa, còn Base thì lưu caption
+ * nguyên văn — so thô là trượt.
+ */
+const gonVan = (s) => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
+
+/**
+ * KHỚP THEO CAPTION khi link không dùng được.
+ *
+ * Link trong feed của Facebook nhiều khi ở dạng `pfbid0…` — mã mờ, không phải
+ * số, không đối chiếu được với ID trong Base. Nhưng khối bài trên màn hình luôn
+ * chứa caption, mà caption thì Base cũng có. Lấy 40 ký tự đầu của caption làm dấu
+ * vân tay: đủ dài để không đụng nhau, đủ ngắn để không phụ thuộc phần bị cắt đuôi.
+ */
+const DAI_VAN = 40;
+
+function ghepTheoVan(van, posts) {
+  const v = gonVan(van);
+  if (v.length < DAI_VAN) return null;
+  let trung = null;
+  for (const p of posts) {
+    if (p.platform !== 'Facebook') continue;
+    const t = gonVan(p.title).slice(0, DAI_VAN);
+    if (t.length < DAI_VAN || !v.includes(t)) continue;
+    /* Hai bài cùng mở đầu giống hệt thì không dám chọn bừa — thà bỏ qua còn hơn
+     * gán sai rồi KPI đếm cho người khác. */
+    if (trung) return null;
+    trung = p;
+  }
+  return trung;
+}
+
+/**
  * Ghép danh sách {link, nguoi} extension gửi về với bài trong Base.
  *
  * Trả về ba nhóm, và ba nhóm này đều phải hiện ra cho người dùng thấy: giấu
@@ -58,12 +91,14 @@ function ghep(items, posts) {
   const daThay = new Set();
 
   (Array.isArray(items) ? items : []).forEach((x) => {
-    const id = idTuLink(x && x.link);
     const nguoi = gonTen(x && x.nguoi);
-    if (!id || !nguoi) return;
-    if (!hopLe.has(nguoi)) { tenLa.push({ link: x.link, nguoi }); return; }
-    const p = tra.get(id);
-    if (!p) { khongKhop.push({ link: x.link, nguoi }); return; }
+    if (!nguoi) return;
+    if (!hopLe.has(nguoi)) { tenLa.push({ link: x && x.link, nguoi }); return; }
+    const id = idTuLink(x && x.link);
+    /* Link trước, caption sau. Link chính xác tuyệt đối khi có ID số; còn dạng
+     * pfbid thì phải nhờ caption. */
+    const p = (id && tra.get(id)) || ghepTheoVan(x && x.van, posts);
+    if (!p) { khongKhop.push({ link: x && x.link, nguoi }); return; }
     if (daThay.has(p.id)) return;
     daThay.add(p.id);
     /* Đã có người và trùng khớp thì bỏ qua, khác thì vẫn ghi đè: màn hình
@@ -75,4 +110,4 @@ function ghep(items, posts) {
   return { capNhat, khongKhop, tenLa };
 }
 
-module.exports = { NGUOI_DANG, idTuLink, banhTra, ghep };
+module.exports = { NGUOI_DANG, idTuLink, banhTra, ghep, ghepTheoVan, gonVan };

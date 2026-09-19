@@ -96,5 +96,51 @@ t('bảng tra bỏ qua bài không phải Facebook', () => {
   assert.strictEqual(N.banhTra(BAI).has('333333333333'), false);
 });
 
+console.log('\nnguoi-dang — khớp theo caption khi link là pfbid');
+
+const BAI2 = [
+  { id: 'p1', key: 'Facebook#a_9', platform: 'Facebook',
+    url: 'https://www.facebook.com/reel/1113010908066256/', poster: '',
+    title: 'Trúng kế VinWonders rồi... 💔🥹 #VinWonders #thuycung #RootyTrip #tienca' },
+  { id: 'p2', key: 'Facebook#a_8', platform: 'Facebook',
+    url: 'https://www.facebook.com/reel/222222222222/', poster: '',
+    title: 'Một ngày Lễ Quốc khánh cực kỳ trọn vẹn tại VinWonders Phú Quốc' },
+];
+
+t('link pfbid không có ID số thì khớp bằng caption', () => {
+  /* Link trong feed hay ở dạng pfbid0… — mã mờ, không đối chiếu được với Base.
+     Nhưng khối bài trên màn hình luôn chứa caption. */
+  const van = 'Rooty Trip Phú QuốcNgười đăng: Phương Ái10 Tháng 9 lúc 16:06'
+    + 'Trúng kế VinWonders rồi... 💔🥹 #VinWonders #thuycung #RootyTrip';
+  const r = N.ghep([{ link: 'https://www.facebook.com/RootyTrip/posts/pfbid0abcXYZ', nguoi: 'Phương Ái', van }], BAI2);
+  assert.strictEqual(r.capNhat.length, 1);
+  assert.strictEqual(r.capNhat[0].id, 'p1');
+});
+
+t('caption quá ngắn thì KHÔNG đoán', () => {
+  const r = N.ghep([{ link: 'https://www.facebook.com/x/posts/pfbid0zz', nguoi: 'Võ Hằng', van: 'ngắn quá' }], BAI2);
+  assert.strictEqual(r.capNhat.length, 0);
+  assert.strictEqual(r.khongKhop.length, 1);
+});
+
+t('hai bài mở đầu giống hệt nhau thì bỏ qua, không chọn bừa', () => {
+  /* Thà để trống còn hơn gán sai rồi KPI đếm cho người khác. */
+  const doi = [
+    { id: 'x1', platform: 'Facebook', url: '', poster: '', title: 'Show Tiên Cá Vinwonders Phú Quốc mỗi ngày hai suất nha' },
+    { id: 'x2', platform: 'Facebook', url: '', poster: '', title: 'Show Tiên Cá Vinwonders Phú Quốc mỗi ngày hai suất nha' },
+  ];
+  assert.strictEqual(N.ghepTheoVan('abc Show Tiên Cá Vinwonders Phú Quốc mỗi ngày hai suất nha xyz', doi), null);
+});
+
+t('link có ID số vẫn được ưu tiên hơn caption', () => {
+  const r = N.ghep([{
+    link: 'https://www.facebook.com/reel/222222222222/',
+    nguoi: 'Lý Thư Bạch',
+    van: 'Trúng kế VinWonders rồi... 💔🥹 #VinWonders #thuycung #RootyTrip',
+  }], BAI2);
+  assert.strictEqual(r.capNhat.length, 1);
+  assert.strictEqual(r.capNhat[0].id, 'p2', 'phải theo link, không theo caption');
+});
+
 console.log('\n' + dat + ' phép thử đạt' + (hong ? ' — CÓ LỖI' : ''));
 if (hong) process.exit(1);
