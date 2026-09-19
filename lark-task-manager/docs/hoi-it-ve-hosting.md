@@ -31,7 +31,7 @@ Gửi nguyên 3 câu này:
 
 ## Còn cần chuẩn bị thêm
 
-1. **`app_secret`** của app `cli_aa04305ecd385ed1` — lấy tại
+1. **`app_secret`** của app `cli_aa1a8ae21a78ded2` — lấy tại
    Developer Console → Credentials & Basic Info → App Secret.
    Đây là chìa khoá đọc/ghi toàn bộ Base, **không gửi qua chat công khai**.
 2. **Bản ghi DNS** cho `mkt.rootytrip.com` → trỏ về IP server

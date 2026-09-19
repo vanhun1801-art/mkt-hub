@@ -136,18 +136,21 @@ async function chay() {
 
   console.log('\nchế độ api (bản online) — server gửi bằng bot NÀO');
 
-  await ta('trên server, tin vẫn đi qua Marketing Hub chứ không phải app nền tảng', async () => {
-    /* Đây là rủi ro lớn nhất của bản deploy: chế độ api có sẵn tenant token của
-     * LARK_APP_ID (app "Tracking"), nên rất dễ vô tình gửi bằng bot đó. Nhóm sẽ
-     * thấy hai người gửi khác nhau tuỳ app chạy ở máy hay trên server, và phải mời
-     * hai bot vào nhóm. Chốt lại: tinAppId khác appId thì PHẢI đi qua tin-app. */
+  await ta('trên server, tin vẫn đi qua app đứng tên gửi chứ không phải app nền tảng', async () => {
+    /* Bình thường hai cái này là MỘT (tinAppId lùi về LARK_APP_ID), nên đường
+     * này không chạm tới. Phép thử dựng đúng tình huống hiếm: ai đó khai
+     * ANH_TIN_APP_* để một app khác đứng tên gửi.
+     *
+     * Rủi ro ở đây là chế độ api sẵn có tenant token của app nền tảng, nên rất dễ
+     * vô tình gửi bằng bot đó — nhóm thấy hai người gửi khác nhau tuỳ code chạy ở
+     * máy hay trên server. Chốt lại: tinAppId khác appId thì PHẢI đi qua tin-app. */
     const modeCu = cfg.mode;
     const appIdCu = cfg.appId;
     const idCu2 = cfg.tinAppId;
     const secretCu2 = cfg.tinAppSecret;
     try {
       cfg.mode = 'api';
-      cfg.appId = 'cli_aa04305ecd385ed1';          // Tracking — app nền tảng khi deploy
+      cfg.appId = 'cli_nentang';                   // app nền tảng khi deploy
       cfg.tinAppId = 'cli_aa1a8ae21a78ded2';       // Marketing Hub — app đứng tên gửi
       cfg.tinAppSecret = 'secret-gia';
 

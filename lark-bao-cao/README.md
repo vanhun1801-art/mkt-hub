@@ -72,8 +72,9 @@ bấm tay 31 cột.
 | Phiếu báo cáo | `tblMIviEWyBXNTFz` | một người × một kỳ, 25 cột |
 | Dòng việc | `tblo5FBTVuXzv0W0` | một đầu việc một bản ghi, 13 cột |
 
-**App Lark phải được mời vào Base** (`cli_aa04305ecd385ed1`, quyền Quản lý —
-cấp ngày 13/09/2026). Base đứng tên người tạo; trên máy app đọc/ghi bằng phiên
+**App Lark phải được mời vào Base** (`cli_aa1a8ae21a78ded2` — "Marketing Hub",
+app nền tảng duy nhất của cả hệ từ 16/09/2026 — quyền Quản lý). Base đứng tên
+người tạo; trên máy app đọc/ghi bằng phiên
 lark-cli của chính người đó nên chạy ngon, còn trên Render nó ghi bằng danh
 nghĩa APP Lark. Thiếu bước này thì mọi lần nộp báo cáo trả `91403`.
 

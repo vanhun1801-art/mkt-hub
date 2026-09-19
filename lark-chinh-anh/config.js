@@ -88,26 +88,27 @@ module.exports = {
    */
   identityTin: process.env.ANH_IDENTITY_TIN || 'bot',
 
-  /* App Lark đứng tên gửi tin. Phòng có NĂM app trong Developer Console:
-   *   Marketing Hub                (anh Hùng chọn app này đứng tên gửi)
-   *   Tracking      cli_aa04305ecd385ed1   ← doc deploy cũ ghi làm LARK_APP_ID
-   *   Adsverting  ·  ShootFlow
-   *   Lê Văn Hùng's Lark CLI  cli_aaeafc646039ded1  (lark-cli buộc trên máy)
+  /* App Lark đứng tên gửi tin.
    *
-   * CỐ Ý KHÔNG cắm sẵn App ID nào. Đã có lần cắm sẵn 'cli_aa04305ecd385ed1' vì
-   * tưởng đó là Marketing Hub — thật ra đó là app "Tracking". Nếu để mặc định sai
-   * mà anh Hùng chỉ dán SECRET của app khác thì id và secret lệch nhau, Lark trả
-   * lỗi token mà nhìn thì không hiểu vì sao. Bắt khai cả hai là hết bẫy.
+   * MẶC ĐỊNH LÀ CHÍNH APP NỀN TẢNG (LARK_APP_ID / LARK_APP_SECRET). Cả hệ giờ
+   * chỉ còn một app Lark — "Marketing Hub" cli_aa1a8ae21a78ded2 — nên nhóm chỉ
+   * thấy một người gửi mà không phải khai bản sao thứ hai của cùng cặp khoá.
+   * Trước đây hai thứ này là hai app khác nhau; hệ quả là hai bot phải cùng ở
+   * trong nhóm, và open_id của cùng một người khác nhau giữa hai bên. Xem
+   * lark-mkt-hub/docs/gop-ve-mot-app.md.
    *
-   * Khai ANH_TIN_APP_ID + ANH_TIN_APP_SECRET (trong .env, đừng để trong git) là
-   * mọi tin đi qua tin-app.js ở MỌI chế độ, và chỉ phải mời MỘT bot vào nhóm.
-   * Chưa khai thì lùi về bot của lark-cli và giao diện nói rõ đang gửi bằng ai.
+   * ANH_TIN_APP_* chỉ còn là đường ĐÈ, cho trường hợp muốn một app khác đứng tên
+   * gửi. Đè thì phải khai CẢ HAI: id lấy của app này mà secret lấy của app kia
+   * thì Lark trả lỗi token, nhìn vào không đoán ra vì sao.
+   *
+   * Ở máy cá nhân (chế độ cli) không có LARK_APP_* nên chuỗi này ra rỗng, và
+   * lark.js lùi về bot của lark-cli đúng như cũ.
    *
    * tinAppTen chỉ để HIỂN THỊ cho khớp tên trong Console — anh Hùng tìm bot theo
    * tên lúc mời vào nhóm. Thứ định danh chắc chắn là App ID, nên giao diện luôn
    * in kèm App ID. */
-  tinAppId: process.env.ANH_TIN_APP_ID || '',
-  tinAppSecret: process.env.ANH_TIN_APP_SECRET || '',
+  tinAppId: process.env.ANH_TIN_APP_ID || process.env.LARK_APP_ID || '',
+  tinAppSecret: process.env.ANH_TIN_APP_SECRET || process.env.LARK_APP_SECRET || '',
   tinAppTen: process.env.ANH_TIN_APP_TEN || 'Marketing Hub',
 
   /* Tiêu đề thẻ gửi vào nhóm.

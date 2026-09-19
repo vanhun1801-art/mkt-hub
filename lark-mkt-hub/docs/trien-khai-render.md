@@ -22,10 +22,13 @@ service, một URL, một lần đăng nhập** — không phải trả tiền/ 
 
 App đang dùng: **Marketing Hub** — <https://open.larksuite.com/app/cli_aa1a8ae21a78ded2>
 
-> Kiểm lại ngày 16/09/2026 trên chính bản đang chạy: `/auth/login` của Render đẩy sang
-> Lark với `app_id=cli_aa1a8ae21a78ded2`. Tài liệu này trước đây ghi app **Tracking**
-> (`cli_aa04305ecd385ed1`) — **sai**, và sai theo kiểu tốn thời gian: mở nhầm app rồi
-> sửa scope hay Availability ở đó thì bản deploy không đổi gì cả.
+> Kiểm lại ngày 16/09 và 19/09/2026 trên chính bản đang chạy: `/auth/login` của Render
+> đẩy sang Lark với `app_id=cli_aa1a8ae21a78ded2`. Tài liệu này — và `render.yaml` —
+> trước đây ghi một app thử nghiệm cũ (`cli_aa04305ecd385ed1`) là **sai**, và sai theo
+> kiểu tốn thời gian: mở nhầm app rồi sửa scope hay Availability ở đó thì bản deploy
+> không đổi gì cả. Ngày 19/09 lại có người đọc `render.yaml` rồi báo cáo nhầm y như
+> vậy một lần nữa — nên `LARK_APP_ID` giờ để `sync: false`, trong kho mã không còn
+> con số nào để tin nhầm.
 > **Đừng suy App ID từ tên app.** Muốn chắc: `curl -s -o /dev/null -w "%{redirect_url}"
 > https://mkt-hub-w6hi.onrender.com/auth/login` rồi đọc `app_id` trong URL trả về.
 
@@ -82,17 +85,16 @@ Base mở bằng biến thì trong Cài đặt hiện chip **"Cả phòng · env
 
 ### A2b. App gửi tin nhóm là app KHÁC — "Marketing Hub"
 
-Phòng có **5 app Lark** trong Console. Bản deploy hiện chạy bằng app **Marketing Hub**
-(`cli_aa1a8ae21a78ded2`, chính là `LARK_APP_ID` ở trên) — cũng là app **đứng tên gửi tin
-báo cáo ảnh vào nhóm**, nên nhóm chỉ thấy một cái tên quen.
+Cả hệ chỉ còn **một app Lark**: **Marketing Hub** (`cli_aa1a8ae21a78ded2`, chính là
+`LARK_APP_ID` ở trên). Nó vừa là app nền tảng vừa **đứng tên gửi tin báo cáo ảnh vào
+nhóm**, nên nhóm chỉ thấy một cái tên quen. Xem `gop-ve-mot-app.md`.
 
-App **Tracking** (`cli_aa04305ecd385ed1`) là app cũ, KHÔNG còn gác cửa bản deploy nữa.
-
-Với app **Marketing Hub** cần:
+Với app đó còn cần:
 
 1. scope **`im:message`** → rồi **Create Version → Publish** (cấp mà không phát hành thì `99991672`)
 2. **mời bot vào nhóm** nhận báo cáo (thiếu thì `230002` / `230013`)
-3. App Secret của nó dán vào biến `ANH_TIN_APP_SECRET` trong dashboard Render
+3. **Không phải khai thêm biến nào.** `ANH_TIN_APP_ID`/`ANH_TIN_APP_SECRET` tự lùi về
+   `LARK_APP_ID`/`LARK_APP_SECRET`; chỉ khai khi muốn một app KHÁC đứng tên gửi.
 
 Từ khi `LARK_APP_ID` cũng là Marketing Hub thì hai biến trỏ về **cùng một app**, nên
 `ANH_TIN_APP_ID` / `ANH_TIN_APP_SECRET` chỉ còn cần khi muốn tách danh tính gửi tin sang

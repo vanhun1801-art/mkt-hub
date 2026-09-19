@@ -2067,6 +2067,23 @@ server.listen(cfg.port, () => {
     '  [' + m.kieu + (m.kieu === 'local' ? ' :' + m.cong : '') + ']' + (m.bat ? '' : '  (đang tắt)')));
   console.log('');
 
+  /* CẢNH BÁO NỬA CHỪNG: cả hệ chỉ nên còn MỘT app Lark.
+   *
+   * Trước 19/09/2026 nền tảng chạy bằng một app, tin nhóm gửi bằng app khác.
+   * Hậu quả không kêu một tiếng nào: open_id của cùng một người khác nhau giữa
+   * hai app, hai bot đều phải ở trong nhóm, và mỗi Base phải chia sẻ hai lần.
+   * Dọn xong rồi thì trạng thái này KHÔNG được quay lại lặng lẽ — nên nói ra
+   * ngay lúc khởi động, là chỗ duy nhất chắc chắn có người đọc khi deploy.
+   * Xem docs/gop-ve-mot-app.md. */
+  const appGuiTin = process.env.ANH_TIN_APP_ID || '';
+  if (cfg.appId && appGuiTin && appGuiTin !== cfg.appId) {
+    console.log('  ⚠ Đang chạy HAI app Lark:');
+    console.log('     nền tảng (LARK_APP_ID)   ' + cfg.appId);
+    console.log('     gửi tin (ANH_TIN_APP_ID) ' + appGuiTin);
+    console.log('     Bỏ ANH_TIN_APP_ID/SECRET trên Render là gộp về một app.');
+    console.log('');
+  }
+
   if (cfg.tuKhoiDong) {
     mods.filter((m) => m.bat && m.kieu === 'local').forEach((m, i) => {
       setTimeout(() => kids.khoiDong(m), i * 600);

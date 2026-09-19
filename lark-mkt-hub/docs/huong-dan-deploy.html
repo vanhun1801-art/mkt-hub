@@ -268,7 +268,7 @@
       <ul class="check">
         <li>Tài khoản GitHub (anh đã có: <code>vanhun1801-art</code>).</li>
         <li>Tài khoản Render — sẽ đăng nhập bằng chính GitHub ở chặng 2, chưa cần tạo trước.</li>
-        <li><b>App Secret</b> của app Lark <code>cli_aa04305ecd385ed1</code>. Lấy ở Developer Console → App → <b>Credentials &amp; Basic Info</b> → ô <b>App Secret</b> → Copy. Dán tạm vào Notepad, chặng 2 cần.</li>
+        <li><b>App Secret</b> của app Lark <code>cli_aa1a8ae21a78ded2</code>. Lấy ở Developer Console → App → <b>Credentials &amp; Basic Info</b> → ô <b>App Secret</b> → Copy. Dán tạm vào Notepad, chặng 2 cần.</li>
         <li>Quyền admin trên Lark để phát hành version của app.</li>
       </ul>
       <p class="caution" style="margin-top:16px">
@@ -350,10 +350,10 @@ git push -u origin main</pre>
           <table>
             <thead><tr><th>Tên biến</th><th>Điền gì</th></tr></thead>
             <tbody>
-              <tr><td><code>LARK_APP_ID</code></td><td><code>cli_aa04305ecd385ed1</code></td></tr>
+              <tr><td><code>LARK_APP_ID</code></td><td><code>cli_aa1a8ae21a78ded2</code></td></tr>
               <tr><td><code>LARK_APP_SECRET</code></td><td>App Secret đã copy ở phần chuẩn bị</td></tr>
               <tr><td><code>PUBLIC_URL</code></td><td><code>https://mkt-hub-w6hi.onrender.com</code> — <b>phải đúng tên miền Render cấp</b>, xem bước 5</td></tr>
-              <tr><td><code>LARK_MANAGER_IDS</code></td><td><code>ou_f0d3514abf6b168bef076441f350c585</code> (chính anh). Thêm quản lý khác thì viết tiếp, cách nhau bằng dấu phẩy</td></tr>
+              <tr><td><code>LARK_MANAGER_EMAILS</code></td><td>email Lark của anh. Thêm quản lý khác thì viết tiếp, cách nhau bằng dấu phẩy. <b>Dùng email, đừng dùng open_id</b> — open_id khác nhau giữa các app Lark nên đổi app là quản lý tụt xuống vai nhân sự mà không hiểu vì sao; email thì không đổi</td></tr>
             </tbody>
           </table>
         </div>
@@ -414,7 +414,7 @@ git push -u origin main</pre>
             <tbody>
               <tr>
                 <td>Tracking<br><span style="color:var(--ink-3)">Bảng công việc</span></td>
-                <td>Base này nằm trong <b>wiki</b> nên chia sẻ ở cấp Base là chưa đủ: mở <b>knowledge space</b> chứa nó → <b>Members</b> → thêm app <code>cli_aa04305ecd385ed1</code> với quyền <b>Full access</b></td>
+                <td>Base này nằm trong <b>wiki</b> nên chia sẻ ở cấp Base là chưa đủ: mở <b>knowledge space</b> chứa nó → <b>Members</b> → thêm app <code>cli_aa1a8ae21a78ded2</code> với quyền <b>Full access</b></td>
               </tr>
               <tr><td>Lịch tác nghiệp</td><td>Mở Base → <b>Share</b> → thêm app, quyền <b>Can edit</b></td></tr>
               <tr><td>Quản lý quảng cáo</td><td>Mở Base → <b>Share</b> → thêm app, quyền <b>Can edit</b></td></tr>
@@ -442,7 +442,7 @@ git push -u origin main</pre>
       <li>
         <h3>Chọn ai được vào app</h3>
         <p><b>Availability</b> (Phạm vi khả dụng) → chọn <b>phòng Marketing</b>, hoặc tích từng người.</p>
-        <p>Đây là lớp quyền thứ nhất: <b>ai mở được app</b>. Lớp thứ hai — <b>ai là quản lý</b> — nằm ở biến <code>LARK_MANAGER_IDS</code> bên Render. Người không có trong biến đó vào với vai nhân sự: chỉ thấy việc của mình, không có tab quản lý.</p>
+        <p>Đây là lớp quyền thứ nhất: <b>ai mở được app</b>. Lớp thứ hai — <b>ai là quản lý</b> — nằm ở biến <code>LARK_MANAGER_EMAILS</code> bên Render. Người không có trong biến đó vào với vai nhân sự: chỉ thấy việc của mình, không có tab quản lý.</p>
       </li>
 
       <li>
@@ -504,7 +504,7 @@ git push -u origin main</pre>
     <ol>
       <li>Gửi đường link Render vào nhóm Lark, kèm một câu: "Lần đầu mở sẽ hỏi đăng nhập Lark, bấm đồng ý là xong."</li>
       <li>Ai báo "không thấy dữ liệu của tôi" — kiểm <b>Availability</b> đã có tên họ chưa.</li>
-      <li>Cần thêm một người làm quản lý: Render → <b>Environment</b> → thêm <code>open_id</code> của họ vào <code>LARK_MANAGER_IDS</code>, cách nhau bằng dấu phẩy → Save. Lấy <code>open_id</code> ở app Bảng công việc, nút <b>Quyền</b>.</li>
+      <li>Cần thêm một người làm quản lý: Render → <b>Environment</b> → thêm email Lark của họ vào <code>LARK_MANAGER_EMAILS</code>, cách nhau bằng dấu phẩy → Save.</li>
       <li>Sau này sửa code: chỉ cần <code>git add -A</code>, <code>git commit -m "..."</code>, <code>git push</code> — Render tự deploy lại trong 1–2 phút.</li>
     </ol>
   </div>

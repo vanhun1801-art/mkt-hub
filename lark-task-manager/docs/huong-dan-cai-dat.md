@@ -89,7 +89,7 @@ Cần đặt việc cho người khác: bấm `+ Đặt việc`.
 ## Gắn vào Lark cho tiện
 
 Để mở app ngay trong Lark thay vì trình duyệt: Developer Console → app
-**abc** (`cli_aa04305ecd385ed1`) → **Web app** → Desktop homepage điền
+**Marketing Hub** (`cli_aa1a8ae21a78ded2`) → **Web app** → Desktop homepage điền
 `http://localhost:5173`, chọn **New tab in Lark**.
 
 Cách này chỉ chạy khi `start.bat` đang mở trên chính máy bạn.

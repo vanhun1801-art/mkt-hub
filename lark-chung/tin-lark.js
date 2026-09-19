@@ -8,13 +8,14 @@
  * scope phải phát hành version mới) thì chép được, còn bản vá sau này thì không:
  * sửa một bên, bên kia vẫn sai. Nên tách ra đây, nhận cấu hình qua tham số.
  *
- * VÌ SAO PHẢI CHỈ ĐÍCH DANH APP — phòng có năm app Lark trong Developer Console.
- * Không ghim thì tin gửi từ máy cá nhân mang danh tính app của lark-cli, còn tin
- * gửi từ Render mang danh tính app nền của hub. Nhóm thấy hai người gửi khác
- * nhau tuỳ code chạy ở đâu, và phải mời cả hai bot vào nhóm — mời thiếu một cái
- * là "gửi được ở máy, deploy lên thì im", kiểu lỗi mất cả buổi để tìm.
+ * VÌ SAO PHẢI CHỈ ĐÍCH DANH APP — không ghim thì tin gửi từ máy cá nhân mang
+ * danh tính app của lark-cli, còn tin gửi từ Render mang danh tính app nền của
+ * hub. Nhóm thấy hai người gửi khác nhau tuỳ code chạy ở đâu, và phải mời cả hai
+ * bot vào nhóm — mời thiếu một cái là "gửi được ở máy, deploy lên thì im", kiểu
+ * lỗi mất cả buổi để tìm.
  *
- * Anh Hùng đã chốt: nhóm chỉ thấy app "Marketing Hub" (cli_aa1a8ae21a78ded2).
+ * Anh Hùng đã chốt: nhóm chỉ thấy app "Marketing Hub" (cli_aa1a8ae21a78ded2), và
+ * từ 19/09/2026 đó cũng là app nền tảng duy nhất của cả hệ.
  */
 
 const HOST_MAC_DINH = 'https://open.larksuite.com';

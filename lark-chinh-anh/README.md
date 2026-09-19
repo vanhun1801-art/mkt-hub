@@ -129,15 +129,17 @@ màn quản lý và có nút **Gửi nhóm** để gửi lại. Mọi lượt g�
 - **Việc bị trả về sửa nằm ngoài khoảng lọc vẫn phải đếm** — `/api/tong-quan` trả
   `ngoaiKhoang` để hub hiện băng *"Bộ lọc đang che N việc gấp"*. Bài học từ 44 việc quá
   hạn tháng 5 biến mất khỏi màn quản lý khi lọc theo tháng.
-- **PHÒNG CÓ HAI APP LARK — đừng mời sai bot.**
-  `cli_aa04305ecd385ed1` là app của Hub; **tên nó trong Developer Console là "Tracking"**,
-  không phải "Marketing Hub" (đặt từ hồi chỉ có base Bảng công việc, giờ nó chạy cả bảy
-  app). `cli_aaeafc646039ded1` là app mà lark-cli đang buộc trên máy anh Hùng.
-  Không khai `ANH_TIN_APP_SECRET` thì tin gửi từ máy mang danh tính app thứ hai, còn tin
-  gửi từ server mang danh tính app Hub → nhóm thấy hai người gửi khác nhau, và phải mời
-  cả hai bot. Khai secret của app Hub vào `.env` là mọi tin đi qua `tin-app.js` ở **mọi
-  chế độ**, chỉ phải mời một bot. Tab Cài đặt luôn in ra đang gửi bằng bot nào **kèm App
-  ID** — App ID mới là thứ định danh chắc, tên thì đổi được.
+- **CHỈ CÒN MỘT APP LARK — nhưng vẫn có hai danh tính, đừng mời sai bot.**
+  `cli_aa1a8ae21a78ded2` (**"Marketing Hub"**) là app nền tảng của bản deploy: Base,
+  đăng nhập, và tin nhóm đều bằng nó. `cli_aaeafc646039ded1` là app mà lark-cli đang
+  buộc trên máy anh Hùng — chỉ dùng ở chế độ `cli`.
+  Không khai `ANH_TIN_APP_SECRET` trong `.env` thì tin gửi **từ máy** mang danh tính
+  app lark-cli, còn tin gửi từ server mang danh tính Marketing Hub → nhóm thấy hai
+  người gửi khác nhau, và phải mời cả hai bot. Khai secret của Marketing Hub vào
+  `.env` là mọi tin đi qua `tin-app.js` ở **mọi chế độ**, chỉ phải mời một bot. Trên
+  Render không phải khai gì: `cfg.tinApp*` tự lùi về `LARK_APP_ID`/`LARK_APP_SECRET`.
+  Tab Cài đặt luôn in ra đang gửi bằng bot nào **kèm App ID** — App ID mới là thứ định
+  danh chắc, tên thì đổi được. Xem `lark-mkt-hub/docs/gop-ve-mot-app.md`.
 - **Tin gửi bằng danh tính BOT, không phải danh tính người dùng.** Gửi bằng danh tính
   người cần scope `im:message.send_as_user` mà phiên lark-cli của máy không có — mỗi
   nhân sự lại phải tự đăng nhập Lark thêm một lần. Và khi deploy chung thì chỉ có bot.
@@ -155,7 +157,7 @@ màn quản lý và có nút **Gửi nhóm** để gửi lại. Mọi lượt g�
 | `store.js` | đọc/ghi Base bằng field ID, cache 45s |
 | `tin.js` | soạn thẻ + tin chữ gửi nhóm (không gửi, chỉ soạn) |
 | `gui-thu.js` | gửi một tin thử để xem hình thù thẻ, không ghi gì lên Base |
-| `tin-app.js` | gửi tin bằng danh tính app của Hub (`cli_aa04305ecd385ed1`) ở mọi chế độ |
+| `tin-app.js` | gửi tin bằng danh tính app Marketing Hub (`cli_aa1a8ae21a78ded2`) ở mọi chế độ |
 | `lark.js` / `larkapi.js` | hai backend cùng chữ ký: lark-cli (máy cá nhân) / Open API (server chung) |
 | `quyen.js` | chốt vai quản lý |
 | `server.js` | HTTP thuần Node, `/api/*` cho nhân sự và `/api/quan-ly/*` cho quản lý |
@@ -186,9 +188,10 @@ gì**. Vài tuần là bảng Báo cáo có một tập lý do thật để đú
 copy .env.mau .env        # rồi mở .env, dán App Secret của Marketing Hub
 ```
 
-`ANH_TIN_APP_SECRET` lấy ở <https://open.larksuite.com/app/cli_aa04305ecd385ed1> →
-*Credentials & Basic Info* (app tên **"Tracking"**). `.env` đã bị `.gitignore` của repo
-chặn. Khi deploy thì khai bằng biến môi trường của Render, không dùng file.
+`ANH_TIN_APP_SECRET` lấy ở <https://open.larksuite.com/app/cli_aa1a8ae21a78ded2> →
+*Credentials & Basic Info* (app tên **"Marketing Hub"**). `.env` đã bị `.gitignore` của
+repo chặn. **Khi deploy thì không phải khai gì** — `cfg.tinApp*` tự lùi về
+`LARK_APP_ID`/`LARK_APP_SECRET`, mà trên Render hai biến đó chính là app này.
 
 App đó còn phải có **scope `im:message`** và **đã phát hành version mới** — bộ 8 scope
 khai trong `lark-mkt-hub/docs/trien-khai-render.md` mục A1 **không có** `im:message`,

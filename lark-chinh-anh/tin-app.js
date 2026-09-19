@@ -4,20 +4,18 @@
  * (`cli_aa1a8ae21a78ded2`), chứ không phải app mà lark-cli đang buộc vào máy, cũng
  * không phải app nền tảng của Hub khi deploy.
  *
- * VÌ SAO PHẢI CÓ FILE NÀY — phòng có NĂM app Lark trong Developer Console, ba cái
- * dính vào luồng này:
+ * VÌ SAO PHẢI CÓ FILE NÀY — hai danh tính vẫn còn dính vào luồng này:
  *
- *   cli_aa1a8ae21a78ded2  "Marketing Hub"  → app anh Hùng chọn đứng tên gửi tin
- *   cli_aa04305ecd385ed1  "Tracking"       → LARK_APP_ID của Hub khi deploy (chế độ api)
+ *   cli_aa1a8ae21a78ded2  "Marketing Hub"          → app DUY NHẤT của hệ, đứng tên gửi
  *   cli_aaeafc646039ded1  "Lê Văn Hùng's Lark CLI" → app lark-cli buộc trên máy (chế độ cli)
  *
- * Không có file này thì tin gửi từ MÁY CÁ NHÂN mang danh tính app thứ ba, còn tin gửi
- * từ SERVER mang danh tính app thứ hai. Nhóm SỬA ẢNH thấy hai người gửi khác nhau tuỳ
- * app chạy ở đâu, và phải mời CẢ HAI bot vào nhóm — mời thiếu một cái là "gửi được ở
- * máy, deploy lên thì im", kiểu lỗi mất cả buổi để tìm.
+ * Không có file này thì tin gửi từ MÁY CÁ NHÂN mang danh tính app lark-cli, còn tin
+ * gửi từ SERVER mang danh tính app nền tảng. Nhóm SỬA ẢNH thấy hai người gửi khác
+ * nhau tuỳ app chạy ở đâu, và phải mời CẢ HAI bot vào nhóm — mời thiếu một cái là
+ * "gửi được ở máy, deploy lên thì im", kiểu lỗi mất cả buổi để tìm.
  *
- * Anh Hùng chốt: nhóm chỉ thấy Marketing Hub. Nên khai ANH_TIN_APP_ID +
- * ANH_TIN_APP_SECRET là mọi tin đều đi qua đường này ở MỌI chế độ, chỉ phải mời một bot.
+ * Anh Hùng chốt: nhóm chỉ thấy Marketing Hub. Trên Render, cfg.tinApp* lấy thẳng
+ * LARK_APP_ID / LARK_APP_SECRET nên mọi tin đều đi qua đường này, chỉ một bot.
  *
  * Chưa khai khoá thì file này tự tắt (`co()` trả false) và lark.js lùi về lark-cli —
  * app vẫn chạy, chỉ là người gửi khác. Giao diện Cài đặt nói rõ đang gửi bằng ai để

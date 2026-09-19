@@ -1,5 +1,10 @@
 # Triển khai lên server — `mkt.rootytrip.com`
 
+> **Tài liệu cũ.** App Bảng công việc giờ chạy như một app con trong Marketing Hub,
+> deploy chung một service. Cách triển khai đang dùng thật nằm ở
+> `lark-mkt-hub/docs/trien-khai-render.md`. Giữ file này cho trường hợp cần tách
+> app này ra chạy riêng.
+
 Đưa app từ chạy local sang web app thực thụ: một địa chỉ cho cả phòng, mỗi
 người đăng nhập bằng tài khoản Lark của mình.
 
@@ -17,7 +22,7 @@ Không cần sửa code. Giao diện, quy tắc, `quyen.json` giữ nguyên.
 
 ## Bước 1 — Cấu hình app trên Developer Console
 
-App `cli_aa04305ecd385ed1`, tại <https://open.larksuite.com/app/cli_aa04305ecd385ed1>
+App `cli_aa1a8ae21a78ded2`, tại <https://open.larksuite.com/app/cli_aa1a8ae21a78ded2>
 
 **Credentials & Basic Info** → copy **App Secret**, cất kỹ.
 
@@ -53,7 +58,7 @@ Cuối cùng **Create Version** và phát hành.
 chưa đủ.
 
 1. Mở knowledge space chứa Base `Tracking`
-2. Thêm app `abc` (`cli_aa04305ecd385ed1`) làm **thành viên**, quyền **chỉnh sửa**
+2. Thêm app `Marketing Hub` (`cli_aa1a8ae21a78ded2`) làm **thành viên**, quyền **chỉnh sửa**
 3. Kiểm: sau khi chạy server, mở `/api/tasks` — trả 200 kèm danh sách là được.
    Báo lỗi `91403` hoặc `NOTEXIST` nghĩa là app chưa được chia sẻ.
 
@@ -88,7 +93,7 @@ Không cần `npm install` — app không có dependency.
 Tạo `/opt/lark-task-manager/.env`:
 
 ```bash
-LARK_APP_ID=cli_aa04305ecd385ed1
+LARK_APP_ID=cli_aa1a8ae21a78ded2
 LARK_APP_SECRET=<app secret lấy ở Bước 1>
 PUBLIC_URL=https://mkt.rootytrip.com
 SESSION_SECRET=<chuỗi ngẫu nhiên, xem lệnh dưới>

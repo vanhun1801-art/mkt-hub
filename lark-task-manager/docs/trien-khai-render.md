@@ -1,12 +1,17 @@
 # Triển khai lên Render.com (miễn phí)
 
+> **Tài liệu cũ.** App Bảng công việc giờ chạy như một app con trong Marketing Hub,
+> deploy chung một service. Cách triển khai đang dùng thật nằm ở
+> `lark-mkt-hub/docs/trien-khai-render.md`. Giữ file này cho trường hợp cần tách
+> app này ra chạy riêng.
+
 Dùng cho giai đoạn thử nghiệm. Chuyển sang VPS sau này không phải sửa code.
 
 ---
 
 ## PHẦN A — Anh làm trên Lark Developer Console
 
-<https://open.larksuite.com/app/cli_aa04305ecd385ed1>
+<https://open.larksuite.com/app/cli_aa1a8ae21a78ded2>
 
 ### A1. Cấp quyền (Permissions & Scopes)
 
@@ -38,7 +43,7 @@ Chưa có URL Render thì để trống, làm sau ở bước C3.
 Base nằm trong **wiki**, nên chia sẻ ở cấp Base là chưa đủ:
 
 1. Mở knowledge space chứa Base `Tracking`
-2. Thêm app **abc** (`cli_aa04305ecd385ed1`) làm thành viên, quyền **chỉnh sửa** (Full access)
+2. Thêm app **Marketing Hub** (`cli_aa1a8ae21a78ded2`) làm thành viên, quyền **chỉnh sửa** (Full access)
 
 Thiếu bước này sẽ báo `91403` dù đã cấp scope.
 
@@ -85,7 +90,7 @@ Mục **Environment** → thêm:
 
 | Key | Value |
 |---|---|
-| `LARK_APP_ID` | `cli_aa04305ecd385ed1` |
+| `LARK_APP_ID` | `cli_aa1a8ae21a78ded2` |
 | `LARK_APP_SECRET` | *(App Secret — dán trực tiếp vào Render, đừng để trong code)* |
 | `PUBLIC_URL` | điền sau ở bước C3 |
 | `SESSION_SECRET` | chuỗi ngẫu nhiên, sinh bằng lệnh dưới |

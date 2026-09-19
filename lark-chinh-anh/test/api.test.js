@@ -158,13 +158,48 @@ t('tin gửi bằng danh tính bot, còn Base đọc/ghi bằng danh tính ngư�
   assert.strictEqual(cfg.identity, 'user');
 });
 
-t('KHÔNG cắm sẵn App ID gửi tin — phải khai trong .env', () => {
-  /* Đã có lần cắm sẵn cli_aa04305ecd385ed1 vì tưởng đó là "Marketing Hub"; thật ra
-   * đó là app "Tracking". Phòng có 5 app trong Console. Cắm mặc định sai mà người
-   * dùng chỉ dán SECRET của app khác thì id/secret lệch nhau → lỗi token khó hiểu.
-   * Nên mặc định là RỖNG, và bắt khai cả hai. */
-  assert.strictEqual(cfg.tinAppId, process.env.ANH_TIN_APP_ID || '');
-  assert.notStrictEqual(cfg.tinAppId, 'cli_aaeafc646039ded1', 'không được là app của lark-cli');
+t('App gửi tin lùi về app nền tảng — id và secret luôn CÙNG MỘT app', () => {
+  /* Cả hệ chỉ còn một app Lark. Trước đây phải khai riêng ANH_TIN_APP_* và hai
+   * bên lệch nhau là chuyện đã xảy ra thật: khai id của app này, secret của app
+   * kia, Lark trả lỗi token mà nhìn vào không đoán ra vì sao.
+   *
+   * Luật bây giờ: thiếu ANH_TIN_APP_* thì lấy CẢ CẶP của app nền tảng. Phép thử
+   * nạp lại config với env dựng sẵn.
+   *
+   * Đặt chuỗi RỖNG chứ đừng `delete`: máy anh Hùng có .env cạnh app, mà bộ nạp
+   * .env chỉ bỏ qua khi biến `!== undefined`. Xoá hẳn là .env điền lại và phép
+   * thử đo nhầm cấu hình thật của máy thay vì tình huống đang dựng. */
+  const nap = (env) => {
+    const cu = {};
+    for (const k of Object.keys(env)) { cu[k] = process.env[k]; process.env[k] = env[k]; }
+    delete require.cache[require.resolve('../config')];
+    try { return require('../config'); }
+    finally {
+      for (const k of Object.keys(cu)) {
+        if (cu[k] === undefined) delete process.env[k]; else process.env[k] = cu[k];
+      }
+      delete require.cache[require.resolve('../config')];
+      require('../config');
+    }
+  };
+
+  const nen = nap({ LARK_APP_ID: 'cli_nentang', LARK_APP_SECRET: 'bimat-nentang',
+    ANH_TIN_APP_ID: '', ANH_TIN_APP_SECRET: '' });
+  assert.strictEqual(nen.tinAppId, 'cli_nentang', 'phải lùi về LARK_APP_ID');
+  assert.strictEqual(nen.tinAppSecret, 'bimat-nentang', 'phải lùi về LARK_APP_SECRET');
+
+  /* Đè được, nhưng đè thì đè cả cặp — không lấy id của app đè rồi ghép với
+   * secret của app nền tảng. */
+  const de = nap({ LARK_APP_ID: 'cli_nentang', LARK_APP_SECRET: 'bimat-nentang',
+    ANH_TIN_APP_ID: 'cli_khac', ANH_TIN_APP_SECRET: 'bimat-khac' });
+  assert.strictEqual(de.tinAppId, 'cli_khac');
+  assert.strictEqual(de.tinAppSecret, 'bimat-khac');
+
+  /* Máy cá nhân (chế độ cli): không có biến nào -> rỗng, lark.js lùi về lark-cli. */
+  const cli = nap({ LARK_APP_ID: '', LARK_APP_SECRET: '',
+    ANH_TIN_APP_ID: '', ANH_TIN_APP_SECRET: '' });
+  assert.strictEqual(cli.tinAppId, '');
+  assert.notStrictEqual(cli.tinAppId, 'cli_aaeafc646039ded1', 'không được là app của lark-cli');
 });
 
 t('khai NỬA VỜI (có secret, thiếu App ID) cũng phải tự tắt và nói ra', () => {

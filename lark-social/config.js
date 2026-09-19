@@ -43,12 +43,14 @@ module.exports = {
    * ket-noi.json / SOCIAL_CONNECT_JSON như cũ. Xem vault.js để hiểu vì sao cần. */
   vaultKey: process.env.SOCIAL_VAULT_KEY || '',
 
-  /* App đứng tên gửi cảnh báo vào nhóm Lark. Dùng chung khoá với app Chỉnh ảnh
-   * (ANH_TIN_APP_*) vì anh Hùng đã chốt nhóm chỉ thấy một bot "Marketing Hub",
-   * và khoá đó đã khai sẵn trên Render — khai lại một bộ nữa là thêm một chỗ
-   * quên cập nhật khi đổi secret. SOCIAL_TIN_APP_* để đè khi cần tách riêng. */
-  tinAppId: process.env.SOCIAL_TIN_APP_ID || process.env.ANH_TIN_APP_ID || '',
-  tinAppSecret: process.env.SOCIAL_TIN_APP_SECRET || process.env.ANH_TIN_APP_SECRET || '',
+  /* App đứng tên gửi cảnh báo vào nhóm Lark. Mặc định là chính app nền tảng —
+   * cả hệ chỉ còn một app Lark ("Marketing Hub"), nên nhóm chỉ thấy một bot mà
+   * không phải khai thêm bộ khoá nào. ANH_TIN_APP_* / SOCIAL_TIN_APP_* chỉ còn
+   * là đường đè khi muốn tách riêng người gửi cho app này. */
+  tinAppId: process.env.SOCIAL_TIN_APP_ID || process.env.ANH_TIN_APP_ID
+    || process.env.LARK_APP_ID || '',
+  tinAppSecret: process.env.SOCIAL_TIN_APP_SECRET || process.env.ANH_TIN_APP_SECRET
+    || process.env.LARK_APP_SECRET || '',
   tinAppTen: process.env.SOCIAL_TIN_APP_TEN || 'Marketing Hub',
 
   cacheTtlMs: Number(process.env.SOCIAL_CACHE_TTL || 60000),

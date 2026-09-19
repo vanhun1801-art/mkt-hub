@@ -9,8 +9,8 @@
 #
 # LẦN DEPLOY ĐẦU Render chỉ hỏi 4 giá trị — cố ý gom lại ít nhất có thể:
 #
-#   LARK_APP_SECRET      App Secret của app "Tracking" (cli_aa04305ecd385ed1)
-#   ANH_TIN_APP_SECRET   App Secret của app "Marketing Hub" (cli_aa1a8ae21a78ded2)
+#   LARK_APP_ID          cli_aa1a8ae21a78ded2  (app "Marketing Hub" — app DUY NHẤT)
+#   LARK_APP_SECRET      App Secret của chính app đó
 #   LARK_MANAGER_EMAILS  email Lark của quản lý, VD hunglv@rootytrip.com
 #   PUBLIC_URL           để TRỐNG lần đầu; điền URL Render cấp rồi deploy lại
 #
@@ -35,13 +35,23 @@ services:
       - key: NODE_VERSION
         value: "22"
 
-      # ---- Lark app nền tảng: đọc/ghi Base + đăng nhập Lark ----
-      # App "Tracking" trong Developer Console. App ID không phải bí mật nên cắm sẵn
-      # để Render bớt một câu hỏi; chỉ Secret là phải dán tay.
-      # LƯU Ý: app gửi tin nhóm là app KHÁC ("Marketing Hub") — xem ANH_TIN_APP_ID
-      # ở phần dưới. Đừng lẫn hai App ID với nhau.
+      # ---- Lark app DUY NHẤT: đọc/ghi Base + đăng nhập Lark + gửi tin nhóm ----
+      #
+      #   App ID: cli_aa1a8ae21a78ded2   (app "Marketing Hub")
+      #   https://open.larksuite.com/app/cli_aa1a8ae21a78ded2
+      #
+      # Cả hệ chỉ còn MỘT app. Trước đây nền tảng chạy bằng một app thử nghiệm cũ
+      # còn tin nhóm gửi bằng Marketing Hub — hai App ID, hai Secret, hai bot phải
+      # mời vào nhóm, và open_id của cùng một người thì khác nhau giữa hai bên.
+      # Xem lark-mkt-hub/docs/gop-ve-mot-app.md.
+      #
+      # VÌ SAO `sync: false` CHỨ KHÔNG CẮM SẴN `value:` — id và secret phải khớp
+      # nhau. Cắm id trong repo thì lúc chuyển app, một lần `git push` đổi id trước
+      # còn secret vẫn của app cũ: Lark trả lỗi token và cả hub chết cho tới khi
+      # kịp dán secret. Để cả hai cùng ở dashboard thì đổi một lần, lưu một lần,
+      # khởi động lại một lần — không có khe hở nào ở giữa.
       - key: LARK_APP_ID
-        value: cli_aa04305ecd385ed1
+        sync: false
       - key: LARK_APP_SECRET
         sync: false
 
@@ -176,18 +186,17 @@ services:
       # - key: ANH_BASE_TOKEN
       #   sync: false
 
-      # ---- BẮT BUỘC: app Lark đứng tên gửi tin vào nhóm ----
-      # Anh Hùng chốt nhóm SỬA ẢNH chỉ thấy MỘT người gửi, là app "Marketing Hub".
-      # Đó là app KHÁC với LARK_APP_ID ở trên (app "Tracking") — phòng có 5 app Lark,
-      # xem lark-chinh-anh/README.md. Không khai hai biến này thì app gửi bằng bot của
-      # app nền tảng, và phải mời thêm một bot nữa vào nhóm.
+      # ---- app đứng tên gửi tin vào nhóm: KHÔNG PHẢI KHAI NỮA ----
+      # Mặc định lấy thẳng LARK_APP_ID / LARK_APP_SECRET ở trên, nên nhóm chỉ thấy
+      # một người gửi là app "Marketing Hub" — đúng cái anh Hùng chốt — mà không
+      # phải giữ bản sao thứ hai của cùng một cặp khoá.
       #
-      # App ID lấy ở https://open.larksuite.com/app/cli_aa1a8ae21a78ded2
-      # Secret dán tay trong dashboard Render (sync: false) — KHÔNG để trong repo.
-      - key: ANH_TIN_APP_ID
-        value: cli_aa1a8ae21a78ded2
-      - key: ANH_TIN_APP_SECRET
-        sync: false
+      # Hai biến dưới chỉ mở lại khi nào muốn một app KHÁC đứng tên gửi. Lúc đó
+      # nhớ mời bot của app đó vào nhóm, vì nó là một bot khác.
+      # - key: ANH_TIN_APP_ID
+      #   sync: false
+      # - key: ANH_TIN_APP_SECRET
+      #   sync: false
 
       # Tiêu đề thẻ gửi vào nhóm. Người đọc là Media và CSKH, không phải người chỉnh
       # ảnh — đổi câu chữ ở đây, không phải sửa code.
