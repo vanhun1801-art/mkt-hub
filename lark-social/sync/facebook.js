@@ -337,13 +337,17 @@ const LOAI_BAI = {
 async function baiCuaPage(conf, page, from, to, tran, canhBao) {
   const token = await tokenPage(conf, page);
   const fields = [TRUONG_BAI_GON,
-    /* Chỉ những metric mức bài đã thử tay và thấy còn sống trên v23.0. Bản trước
-     * xin post_impressions, post_impressions_unique và post_video_views — cả ba
-     * đều đã bị gỡ, mà chỉ cần một cái hỏng là Meta trả lỗi cho CẢ request. Hậu
-     * quả: mọi lần chạy đều rơi xuống nhánh dự phòng, ba trang cùng ghi một dòng
-     * cảnh báo, và bảng Bài đăng trống các cột chi tiết suốt mấy tháng. */
-    'insights.metric(post_clicks,post_video_views_organic,post_video_avg_time_watched,'
-      + 'post_video_complete_views_organic,post_video_view_time)',
+    /* CHỈ XIN NHỮNG METRIC MỌI DẠNG BÀI ĐỀU CÓ.
+     *
+     * Trước đây xin kèm post_video_views_organic và post_video_view_time. Video
+     * có, ảnh không — mà Meta chỉ cần một metric không hợp lệ là trả lỗi cho CẢ
+     * request, rồi app rơi xuống nhánh dự phòng bỏ sạch khối insights. Hậu quả:
+     * 533 bài ảnh vào Base với lượt bấm bằng 0, trong khi hỏi riêng post_clicks
+     * cho đúng bài đó thì API trả 1.007.
+     *
+     * Số của video giờ lấy ở node video (xem soThatChoVideo), nên ở đây chỉ giữ
+     * ba metric sống với mọi dạng bài. */
+    'insights.metric(post_clicks,post_clicks_by_type,post_activity_by_action_type)',
   ].join(',');
 
   const out = [];
@@ -417,8 +421,12 @@ async function baiCuaPage(conf, page, from, to, tran, canhBao) {
       const shares = num(p.shares && p.shares.count);
       /* Mức bài không còn chỉ số đếm người — tiếp cận chỉ có ở mức trang. */
       const reach = 0;
-      const views = ins.post_video_views_organic || 0;
-      const xemHet = ins.post_video_complete_views_organic || 0;
+      /* Lượt xem của video được điền sau, ở soThatChoVideo() — mức bài chỉ có
+       * lượt xem từ 3 giây, thấp hơn con số Meta hiển thị tới 42%. Ảnh và bài
+       * chữ thì không có lượt xem ở bất kỳ đường nào — đã thử từng chỉ số một,
+       * trên cả sáu phiên bản API từ v18 đến v23. */
+      const views = 0;
+      const xemHet = 0;
       out.push({
         platform: PLATFORM,
         extId: String(page.id),
@@ -434,7 +442,7 @@ async function baiCuaPage(conf, page, from, to, tran, canhBao) {
         engagement: likes + cmts + shares,
         clicks: ins.post_clicks || 0,
         /* Meta trả mili giây, bảng ghi giây. */
-        avgWatch: ins.post_video_avg_time_watched ? ins.post_video_avg_time_watched / 1000 : 0,
+        avgWatch: 0,
         fullWatchRate: views ? xemHet / views : 0,
         source: NGUON,
       });
@@ -493,12 +501,25 @@ async function soThatChoVideo(conf, token, ds, ten, canhBao) {
   if (!canDoi.length) return;
   let hong = 0;
 
+  /* Node video hỏng thì về lại số mức bài — lượt xem từ 3 giây, thấp hơn sự thật
+   * nhưng còn hơn để trống. Không xin chung trong danh sách bài được, vì metric này
+   * không hợp lệ với ảnh và chỉ một metric hỏng là Meta trả lỗi cho cả request. */
+  const duPhong = async (p) => {
+    try {
+      const r = await getJson(g(conf) + '/' + String(p.postId) + '/insights'
+        + '?metric=post_video_views_organic&access_token=' + encodeURIComponent(token),
+      { label: 'Facebook post_video_views_organic', retries: 0 });
+      const v = num(soTu((r && r.data) || [], 'post_video_views_organic'));
+      if (v && !num(p.views)) p.views = v;
+    } catch (_) { /* hết cách thì thôi, đã có cảnh báo ở dưới */ }
+  };
+
   const lam = async (p) => {
     const vid = ID_VIDEO.exec(p.url)[1];
     const r = await getJson(g(conf) + '/' + vid + '/video_insights'
       + '?access_token=' + encodeURIComponent(token),
     { label: 'Facebook video_insights ' + vid, retries: 1 });
-    if (!r || r.error || !r.data) { hong++; return; }
+    if (!r || r.error || !r.data) { hong++; await duPhong(p); return; }
     const d = r.data;
 
     /* Reels đếm bằng fb_reels_total_plays; video thường bằng total_video_views. */
@@ -531,7 +552,8 @@ async function soThatChoVideo(conf, token, ds, ten, canhBao) {
   };
 
   for (let i = 0; i < canDoi.length; i += LUONG_VIDEO) {
-    await Promise.all(canDoi.slice(i, i + LUONG_VIDEO).map((p) => lam(p).catch(() => { hong++; })));
+    await Promise.all(canDoi.slice(i, i + LUONG_VIDEO)
+      .map((p) => lam(p).catch(() => { hong++; return duPhong(p); })));
   }
   if (hong) {
     canhBao.push('Facebook · ' + ten + ': ' + hong + '/' + canDoi.length + ' video không đọc'

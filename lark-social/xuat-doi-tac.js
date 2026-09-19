@@ -272,8 +272,11 @@ function trangIn({ doiTac, nhan, tongHop, tu, den, logo, soBaiMoiNhan = 40 }) {
     + ' tổng hợp trong hệ thống Marketing Hub của Rooty Trip Phú Quốc.'
     + ' Bài được gắn cho đối tác theo hashtag trong nội dung bài đăng.'
     + ' Một bài nhắc nhiều địa điểm của cùng đối tác chỉ được đếm một lần trong phần tổng.'
-    + ' Dấu — ở cột Lượt xem nghĩa là Facebook không đo lượt xem cho dạng bài đó (bài chữ, ảnh),'
-    + ' không phải không có ai xem; video và Reels thì luôn có số.'
+    + ' Dấu — nghĩa là Facebook KHÔNG CUNG CẤP số đó qua API cho dạng bài đó,'
+    + ' không phải không có ai xem: bài chữ và ảnh không có lượt xem lẫn tiếp cận'
+    + ' (đã thử từng chỉ số một, trên mọi phiên bản API từ v18 đến v23).'
+    + ' Video và Reels thì luôn có đủ cả hai, và lượt xem là tổng lượt phát —'
+    + ' đúng con số Meta hiển thị.'
     + '<br>Xuất lúc ' + hEsc(new Date().toLocaleString('vi-VN')) + '.</div>'
     + '</div></body></html>';
 }
