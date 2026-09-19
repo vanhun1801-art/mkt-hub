@@ -35,8 +35,8 @@
       /* Ghép lại thì ngày giờ dính ngay sau tên, không có dấu phân cách:
        * "Phương Ái10 Tháng 9 lúc 16:06". Tên người không có chữ số nên cắt ở
        * chữ số đầu tiên là sạch. */
-      const ten = m[1].split(/[0-9]/)[0].replace(/\s+/g, ' ').trim();
-      if (ten && ten.length <= 60) return ten;
+      const ten = RT_LOC.tachTen(el.textContent || '');
+      if (ten) return ten;
     }
     return '';
   }
@@ -270,8 +270,6 @@
     return tot;
   }
 
-  const dauVan = (s) => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
-
   async function ghiNho(van) {
     const c = await chrome.storage.sync.get(['toiLa']);
     if (!c.toiLa || van.length < 40) return;
@@ -285,10 +283,10 @@
      *
      * Giờ so theo BAO HÀM: đoạn này nằm trong đoạn kia, hoặc ngược lại, thì là cùng
      * một bài. Bản dài hơn được giữ vì khớp caption cần càng nhiều chữ càng chắc. */
-    const moi = dauVan(van);
+    const moi = RT_LOC.dauVan(van);
     for (let i = 0; i < cho.length; i++) {
-      const cu2 = dauVan(cho[i].van);
-      if (moi.includes(cu2) || cu2.includes(moi)) {
+      const cu2 = RT_LOC.dauVan(cho[i].van);
+      if (RT_LOC.trungNhau(van, cho[i].van)) {
         if (moi.length > cu2.length) {
           cho[i] = { ...cho[i], van: van.slice(0, 400) };
           await chrome.storage.local.set({ cho });
@@ -310,9 +308,14 @@
     const kho = await chrome.storage.local.get(['cho']);
     let cho = kho.cho || [];
     if (!cho.length) return;
-    /* Quá một tháng chưa khớp thì bỏ: bài đó không bao giờ vào Base nữa. */
+    /* Quá một tháng chưa khớp thì bỏ: bài đó không bao giờ vào Base nữa. Ghi
+     * xuống luôn, không đợi lượt gửi thành công — không thì mục quá hạn nằm lại
+     * mãi và lần nào cũng được lọc ra rồi bỏ đi, tốn một lượt gọi vô ích. */
     const han = Date.now() - 31 * 86400000;
+    const truoc = cho.length;
     cho = cho.filter((x) => x.luc > han);
+    if (cho.length !== truoc) await chrome.storage.local.set({ cho });
+    if (!cho.length) { soCho = 0; ve(); return; }
 
     chrome.runtime.sendMessage(
       { viec: 'gui', items: cho.map((x) => ({ nguoi: x.nguoi, van: x.van })) },

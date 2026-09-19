@@ -876,9 +876,14 @@ async function api(req, res, u) {
       nhan: (b.items || []).length,
       daGhi: r.capNhat.length,
       khongKhop: r.khongKhop.length,
-      /* Vị trí các mục chưa khớp — tiện ích giữ lại những mục này rồi gửi lại
-       * sau, vì bài vừa đăng phải chờ lượt đồng bộ kế tiếp mới có trong Base. */
-      chuaKhop: r.khongKhop.map((x) => x.viTri),
+      /* Vị trí các mục tiện ích PHẢI GIỮ LẠI để gửi lại sau.
+       *
+       * Gồm cả mục tên lạ, không chỉ mục chưa tìm thấy bài. Bản trước chỉ trả vị
+       * trí của nhóm chưa tìm thấy bài, nên một người mới chưa kịp khai vào Base là
+       * bài của họ BỊ XOÁ KHỎI HÀNG CHỜ luôn — mất trắng, không dấu vết ngoài một
+       * dòng nhật ký. Giữ lại thì khai xong tên là lượt gửi sau tự ghi được. */
+      chuaKhop: [...r.khongKhop.map((x) => x.viTri), ...r.tenLa.map((x) => x.viTri)]
+        .sort((a, b) => a - b),
       tenLa: r.tenLa.map((x) => x.nguoi).slice(0, 5),
     });
   }

@@ -142,5 +142,32 @@ t('link có ID số vẫn được ưu tiên hơn caption', () => {
   assert.strictEqual(r.capNhat[0].id, 'p2', 'phải theo link, không theo caption');
 });
 
+t('mục TÊN LẠ cũng phải mang vị trí, để tiện ích giữ lại gửi sau', () => {
+  /* Lỗi mất dữ liệu: máy chủ chỉ trả vị trí của nhóm "chưa tìm thấy bài", nên
+     một người mới chưa kịp khai vào Base là bài của họ bị tiện ích xoá khỏi
+     hàng chờ luôn — mất trắng, không dấu vết ngoài một dòng nhật ký. Giữ lại
+     thì khai xong tên là lượt gửi sau tự ghi được. */
+  const bai = [{
+    id: 'z1', platform: 'Facebook', url: '', poster: '',
+    title: 'Một tiêu đề đủ dài để khớp được bằng caption nhé bạn ơi',
+  }];
+  const r = N.ghep([
+    { nguoi: 'Người Chưa Khai', van: 'Một tiêu đề đủ dài để khớp được bằng caption nhé bạn ơi' },
+    { nguoi: 'Võ Hằng', van: 'Đoạn chữ này chắc chắn không trùng bài nào trong Base cả đâu' },
+  ], bai);
+  assert.strictEqual(r.capNhat.length, 0);
+  assert.deepStrictEqual(r.tenLa.map((x) => x.viTri), [0], 'tên lạ phải kèm vị trí');
+  assert.deepStrictEqual(r.khongKhop.map((x) => x.viTri), [1]);
+  /* Máy chủ gộp hai nhóm này thành chuaKhop — cả hai đều phải được giữ lại. */
+  const chuaKhop = [...r.khongKhop.map((x) => x.viTri), ...r.tenLa.map((x) => x.viTri)].sort();
+  assert.deepStrictEqual(chuaKhop, [0, 1]);
+});
+
+t('server.js gộp cả tên lạ vào chuaKhop', () => {
+  const src = require('fs').readFileSync(require.resolve('../server'), 'utf8');
+  assert.ok(/chuaKhop:\s*\[\.\.\.r\.khongKhop[\s\S]{0,120}r\.tenLa/.test(src),
+    'chuaKhop phải gồm cả r.tenLa, nếu không là mất bài của người chưa khai tên');
+});
+
 console.log('\n' + dat + ' phép thử đạt' + (hong ? ' — CÓ LỖI' : ''));
 if (hong) process.exit(1);
