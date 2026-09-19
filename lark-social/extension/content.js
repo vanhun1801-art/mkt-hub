@@ -125,9 +125,23 @@
       + 'background:#3a3b3c;color:#e4e6eb;cursor:pointer">Quét lại</button>'
       + '<button id="rt-gui" style="flex:1;padding:5px 8px;border-radius:6px;border:0;'
       + 'background:#2374e1;color:#fff;cursor:pointer"' + (n ? '' : ' disabled') + '>Gửi</button>'
-      + '</div><div id="rt-bao" style="margin-top:6px;color:#b0b3b8"></div>';
+      + '</div>'
+      + (soCho ? '<div style="margin-top:6px"><a href="#" id="rt-xoa" '
+        + 'style="color:#b0b3b8;font-size:12px">xoá hàng chờ</a></div>' : '')
+      + '<div id="rt-bao" style="margin-top:6px;color:#b0b3b8"></div>';
     hop.querySelector('#rt-quet').onclick = quet;
     hop.querySelector('#rt-gui').onclick = gui;
+    const xoa = hop.querySelector('#rt-xoa');
+    /* Có lúc hàng chờ dính mục rác từ bản cũ — phải có cách dọn, không thì nó
+     * treo ở đó cả tháng rồi gửi lại mỗi lần mở Facebook. */
+    if (xoa) {
+      xoa.onclick = async (ev) => {
+        ev.preventDefault();
+        await chrome.storage.local.set({ cho: [] });
+        soCho = 0;
+        ve();
+      };
+    }
   }
 
   function gui() {
@@ -200,13 +214,32 @@
     return tot;
   }
 
+  const dauVan = (s) => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
+
   async function ghiNho(van) {
     const c = await chrome.storage.sync.get(['toiLa']);
     if (!c.toiLa || van.length < 40) return;
     const kho = await chrome.storage.local.get(['cho']);
     const cho = kho.cho || [];
-    /* Bấm Đăng hai lần, hoặc bấm nhầm rồi bấm lại — đừng ghi thành hai bài. */
-    if (cho.some((x) => x.van.slice(0, 80) === van.slice(0, 80))) return;
+
+    /* MỘT BÀI ĐĂNG ra BỐN MỤC — lỗi thật, lần đầu chạy trên máy bạn Lý Thư
+     * Bạch. Luồng hẹn giờ trong Business Suite bấm nhiều bước (Đăng → Lên lịch →
+     * xác nhận), mỗi bước chụp được một đoạn chữ hơi khác nhau, nên so 80 ký tự đầu
+     * là trượt.
+     *
+     * Giờ so theo BAO HÀM: đoạn này nằm trong đoạn kia, hoặc ngược lại, thì là cùng
+     * một bài. Bản dài hơn được giữ vì khớp caption cần càng nhiều chữ càng chắc. */
+    const moi = dauVan(van);
+    for (let i = 0; i < cho.length; i++) {
+      const cu2 = dauVan(cho[i].van);
+      if (moi.includes(cu2) || cu2.includes(moi)) {
+        if (moi.length > cu2.length) {
+          cho[i] = { ...cho[i], van: van.slice(0, 400) };
+          await chrome.storage.local.set({ cho });
+        }
+        return;
+      }
+    }
     cho.push({ van: van.slice(0, 400), nguoi: c.toiLa, luc: Date.now() });
     await chrome.storage.local.set({ cho });
     soCho = cho.length;
@@ -243,6 +276,9 @@
     if (!el) return;
     const chu = (el.innerText || el.textContent || '').trim();
     if (!NUT_DANG.test(chu)) return;
+    /* Chỉ bắt khi nút nằm trong khung soạn bài. Ngoài khung cũng có chỗ mang chữ
+     * "Đăng" — menu, nút điều hướng — bắt hết là sinh mục rác. */
+    if (!el.closest('[role="dialog"],form,[aria-label*="đăng" i],[aria-label*="post" i]')) return;
     /* Chụp NGAY, trước khi Facebook xoá ô soạn bài. */
     const van = chuSoanBai();
     if (van) ghiNho(van);

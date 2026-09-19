@@ -852,7 +852,15 @@ async function api(req, res, u) {
         + ' · ghi ' + r.capNhat.length
         + ' · chưa khớp ' + r.khongKhop.length
         + ' · từ: ' + tenGui.join(', ')
-        + (r.tenLa.length ? ' · tên lạ: ' + r.tenLa.map((x) => x.nguoi).join(', ') : ''),
+        + (r.tenLa.length ? ' · tên lạ: ' + r.tenLa.map((x) => x.nguoi).join(', ') : '')
+        /* Kèm vài dòng đầu của những mục chưa khớp. Không có nó thì chỉ thấy con số
+         * "chưa khớp 4" mà không biết bốn cái đó là bốn bài thật hay một bài bị bắt
+         * bốn lần — đúng câu hỏi đang phải trả lời. */
+        + (r.khongKhop.length
+          ? ' · chưa khớp: ' + r.khongKhop.slice(0, 4)
+            .map((x) => '«' + String(((b.items || [])[x.viTri] || {}).van || '').slice(0, 44) + '»')
+            .join(' ')
+          : ''),
     });
 
     return ok(res, {
