@@ -775,6 +775,13 @@
       + '<input id="fbVer" value="' + esc(c.facebook.apiVersion || 'v23.0') + '"></div>'
       + '<div><button class="btn ghost small" id="fbLietKe">Liệt kê Page từ token</button>'
       + ' <span class="help">Chọn trang xong app tự lấy page token và tự cắm Instagram gắn với trang đó.</span></div>'
+      + '<div class="kn-row"><label>Thử mã đọc người đăng</label>'
+      + '<input id="fbThuNd" placeholder="Dán mã sinh từ tài khoản Facebook của người thật — chỉ để thử, KHÔNG lưu"></div>'
+      + '<div><button class="btn ghost small" id="fbThuNdBtn">Thử xem có đọc được người đăng không</button>'
+      + ' <span class="help">Facebook hiện "Người đăng: …" dưới tên Trang, nhưng mã Người dùng hệ thống '
+      + 'không đọc được — Meta chỉ trả trường đó cho mã sinh từ một CON NGƯỜI có vai trò trên Trang. '
+      + 'Mã dán ở đây chỉ sống trong một lời gọi rồi mất: không ghi ra đĩa, không vào kho.</span></div>'
+      + '<div id="fbThuNdKq"></div>'
       + '<div class="acc-list" id="fbPages">'
       + (c.facebook.pages || []).map((p) => '<div class="acc"><span class="grow">'
         + esc(p.name || p.id) + '<span class="muted"> · ' + esc(p.id) + '</span></span></div>').join('')
@@ -922,6 +929,22 @@
         hang.remove();
       }
     };
+    $('#fbThuNdBtn').onclick = async () => {
+      const el = $('#fbThuNdKq');
+      el.innerHTML = '<span class="help">Đang thử…</span>';
+      try {
+        const r = await goiJSON('/api/ket-noi/facebook/thu-nguoi-dang', { token: $('#fbThuNd').value });
+        el.innerHTML = '<div class="help"><b>' + esc(r.ketLuan) + '</b></div>'
+          + (r.ketQua || []).map((x) => '<div class="help">· ' + esc(x.trang) + ': '
+            + (x.loi ? 'lỗi — ' + esc(x.loi)
+              : esc(x.coNguoiDang + '/' + x.soBai + ' bài có người đăng')
+                + (x.ten && x.ten.length ? ' — ' + esc(x.ten.join(', ')) : ''))
+            + '</div>').join('');
+        /* Xoá mã khỏi ô ngay: không để nó nằm trong DOM sau khi đã dùng xong. */
+        $('#fbThuNd').value = '';
+      } catch (e) { el.innerHTML = '<div class="help">Lỗi: ' + esc(e.message) + '</div>'; }
+    };
+
     $('#fbLietKe').onclick = async () => {
       try {
         const r = await goiJSON('/api/ket-noi/facebook/pages', { userToken: $('#fbToken').value });

@@ -20,6 +20,8 @@ const canhBao = require('./canh-bao');
 const noiDung = require('./noi-dung');
 const binhLuan = require('./binh-luan');
 const nhan = require('./nhan');
+/* Lọc mã ra khỏi mọi thông báo lỗi trước khi trả về trình duyệt. */
+const { scrub } = require('./sync/http');
 const phamVi = require('./pham-vi');
 const xuatDT = require('./xuat-doi-tac');
 const facebook = require('./sync/facebook');
@@ -780,6 +782,66 @@ async function api(req, res, u) {
         id: p2.id, name: p2.name, handle: p2.handle, url: p2.url,
         followers: p2.followers, instagram: p2.instagram,
       })),
+    });
+  }
+
+  /* Thử một mã BẤT KỲ xem nó có đọc được người đăng không — KHÔNG lưu lại.
+   *
+   * Facebook hiện "Người đăng: Phương Ái" ngay dưới tên Trang, nên dữ liệu có
+   * thật. Trường tương ứng là `admin_creator`: nó TỒN TẠI (hỏi tên khác thì Graph
+   * báo "nonexisting field", hỏi nó thì không báo) nhưng trả rỗng với mã của
+   * Người dùng hệ thống. Tài liệu Meta ghi trường này thấy được "khi dùng Page
+   * access token, hoặc user access token của người CÓ VAI TRÒ trên Trang" — mà
+   * Người dùng hệ thống thì không phải một con người có vai trò.
+   *
+   * Nên phải thử bằng mã sinh từ tài khoản người thật. Mã đó chỉ sống trong một
+   * lời gọi này rồi biến mất: không ghi ra đĩa, không vào kho, không trả ngược về
+   * trình duyệt. Đang chạy được thì mới bàn tới chuyện lưu. */
+  if (p === '/api/ket-noi/facebook/thu-nguoi-dang' && method === 'POST') {
+    const loi = chanNeuKhongPhaiQuanLy(req); if (loi) throw loi;
+    const b = await readBody(req);
+    const token = tho(b.token);
+    if (!token) return fail(res, 400, 'Chưa dán mã');
+    const g = 'https://graph.facebook.com/v23.0/';
+    const lay = async (u) => (await fetch(u + (u.includes('?') ? '&' : '?')
+      + 'access_token=' + encodeURIComponent(token))).json();
+
+    /* Mã người dùng thì đi qua /me/accounts để lấy mã từng Trang; mã Trang thì
+     * dùng thẳng. Không biết trước là loại nào nên thử cả hai. */
+    const dsTrang = [];
+    const acc = await lay(g + 'me/accounts?limit=25&fields=id,name,access_token');
+    if (acc && acc.data) {
+      (acc.data || []).forEach((x) => dsTrang.push({ id: x.id, name: x.name, tk: x.access_token }));
+    }
+    if (!dsTrang.length) {
+      const me = await lay(g + 'me?fields=id,name');
+      if (me && me.id) dsTrang.push({ id: me.id, name: me.name || me.id, tk: token });
+    }
+    if (!dsTrang.length) {
+      return fail(res, 400, 'Mã không dùng được: ' + scrub(String(((acc || {}).error || {}).message || 'không rõ')));
+    }
+
+    const ra = [];
+    for (const t of dsTrang.slice(0, 5)) {
+      const r = await (await fetch(g + t.id + '/posts?limit=8&fields=id,created_time,admin_creator'
+        + '&access_token=' + encodeURIComponent(t.tk))).json();
+      if (r.error) { ra.push({ trang: t.name, loi: scrub(String(r.error.message || '')) }); continue; }
+      const ds = r.data || [];
+      const co = ds.filter((x) => x.admin_creator && (x.admin_creator.name || x.admin_creator.id));
+      ra.push({
+        trang: t.name,
+        soBai: ds.length,
+        coNguoiDang: co.length,
+        ten: [...new Set(co.map((x) => x.admin_creator.name || x.admin_creator.id))].slice(0, 5),
+      });
+    }
+    const duoc = ra.some((x) => x.coNguoiDang > 0);
+    return ok(res, {
+      duoc,
+      ketQua: ra,
+      ketLuan: duoc
+        ? 'Mã này ĐỌC ĐƯỢC người đăng. Dán vào ô mã Facebook để dùng thật.'
+        : 'Mã này vẫn không đọc được người đăng — Meta trả rỗng cho mọi bài.',
     });
   }
 
