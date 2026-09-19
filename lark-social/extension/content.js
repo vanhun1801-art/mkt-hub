@@ -29,7 +29,7 @@
    * textContent đã ghép lại. */
   function tenQuanhNode(n) {
     let el = n.parentElement;
-    for (let i = 0; el && i < 4; i++, el = el.parentElement) {
+    for (let i = 0; el && i < 8; i++, el = el.parentElement) {
       const m = RE_TEN.exec(el.textContent || '');
       if (!m) continue;
       /* Ghép lại thì ngày giờ dính ngay sau tên, không có dấu phân cách:
@@ -45,27 +45,43 @@
    * trong khối đó. Leo quá cao thì vớ phải bài kế bên, nên chặn ở 12 tầng. */
   function khoiCuaNode(node) {
     let el = node.parentElement;
+    let to = null;
     for (let i = 0; el && i < 12; i++, el = el.parentElement) {
       const a = el.querySelector(CHON_LINK);
       if (a && a.href) return { el, link: a.href.split('?')[0] };
+      /* Nhớ lại khối đủ to để còn dùng khi cả 12 tầng đều không có link. */
+      if (!to && (el.innerText || '').length > 120) to = el;
     }
-    return null;
+    /* KHÔNG CÓ LINK VẪN GIỮ. Nhiều bài trong feed không kèm thẻ link nào bắt
+     * được — bản trước bỏ luôn những bài đó, nên anh Hùng thấy "cái được cái
+     * không". Máy chủ khớp được bằng caption, nên thiếu link vẫn dùng được. */
+    return to ? { el: to, link: '' } : null;
   }
+
+  /* Đếm để biết mất ở đâu, thay vì chỉ thấy con số cuối rồi đoán. */
+  let soDong = 0;
+  let soHut = 0;
 
   function quet() {
     const di = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    let dong = 0;
+    let hut = 0;
     let n;
     while ((n = di.nextNode())) {
       if (!RE_CO.test(n.data || '')) continue;
+      dong++;
       const ten = tenQuanhNode(n);
-      if (!ten) continue;
+      if (!ten) { hut++; continue; }
       const k = khoiCuaNode(n);
-      if (!k) continue;
-      /* Gửi kèm đoạn chữ của khối để máy chủ khớp bằng caption khi link ở dạng
-       * pfbid — dạng mã mờ, không có ID số để đối chiếu với Base. */
+      if (!k) { hut++; continue; }
       const van = (k.el.innerText || '').slice(0, 400);
-      thay.set(k.link, { ten, link: k.link, van });
+      /* Không có link thì lấy chính đoạn chữ làm khoá, để cùng một bài quét
+       * nhiều lượt không thành nhiều mục. */
+      const khoa = k.link || ('van:' + van.slice(0, 120));
+      thay.set(khoa, { ten, link: k.link, van });
     }
+    soDong = dong;
+    soHut = hut;
     ve();
   }
 
@@ -83,6 +99,8 @@
     const n = thay.size;
     hop.innerHTML = '<div style="font-weight:600;margin-bottom:6px">Rooty · Người đăng</div>'
       + '<div>Đã thấy <b>' + n + '</b> bài trên màn hình</div>'
+      + (soHut ? '<div style="color:#f0a">' + soHut + '/' + soDong
+        + ' dòng "Người đăng" chưa lấy được</div>' : '')
       + '<div style="margin-top:8px;display:flex;gap:6px">'
       + '<button id="rt-quet" style="flex:1;padding:5px 8px;border-radius:6px;border:1px solid #555;'
       + 'background:#3a3b3c;color:#e4e6eb;cursor:pointer">Quét lại</button>'
