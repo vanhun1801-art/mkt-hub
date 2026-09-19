@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "Rooty · Người đăng",
+  "version": "1.0.0",
+  "description": "Đọc dòng \"Người đăng\" trên Trang Facebook đang mở và gửi về Marketing Hub. Chỉ đọc phần đã hiện trên màn hình, chỉ gửi khi bấm nút.",
+  "permissions": ["storage"],
+  "host_permissions": ["https://mkt-hub-w6hi.onrender.com/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://www.facebook.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": { "service_worker": "background.js" },
+  "options_page": "options.html",
+  "action": { "default_title": "Rooty · Người đăng — mở Tuỳ chọn để khai địa chỉ và khoá" }
+}

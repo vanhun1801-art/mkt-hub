@@ -1900,6 +1900,30 @@ const server = http.createServer(async (req, res) => {
    *
    * Không xác thực chữ ký X-Hub-Signature ở đây vì nó chỉ dùng để THỬ: không
    * ghi vào Base, không tin gói tin, chỉ in ra. Dùng thật thì phải ký. */
+  /* --- lối công khai cho extension "Người đăng", TRƯỚC cổng đăng nhập ---
+   * Extension chạy ở origin facebook.com nên không mang theo phiên Lark. Bó hẹp
+   * giống webhook OTA: chỉ POST, chỉ đúng một đường, chuyển thẳng sang Social,
+   * KHÔNG gửi header danh tính. Việc kiểm khoá do Social làm (NGUOI_DANG_KEY);
+   * chưa khai khoá thì Social trả 404 như không có tính năng. */
+  if (p === '/nguoi-dang/nap') {
+    if (req.method === 'OPTIONS') {
+      /* Trình duyệt hỏi trước khi cho gọi chéo nguồn. */
+      return send(res, 204, '', {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, x-nd-key',
+        'Access-Control-Max-Age': '86400',
+      });
+    }
+    if (req.method !== 'POST') {
+      return send(res, 405, 'Chỉ nhận POST', { 'Content-Type': 'text/plain; charset=utf-8' });
+    }
+    const modSocial = timMod('social');
+    if (!modSocial) return send(res, 404, 'Chưa bật app Social', { 'Content-Type': 'text/plain; charset=utf-8' });
+    kids.khoiDong(modSocial);
+    return chuyenTiep(req, res, modSocial, '/api/nguoi-dang/nap', null);
+  }
+
   if (p === '/fb-webhook') {
     if (req.method === 'GET') {
       /* Bước bắt tay: Facebook gọi vào với hub.challenge, phải trả lại nguyên

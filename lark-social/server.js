@@ -20,6 +20,7 @@ const canhBao = require('./canh-bao');
 const noiDung = require('./noi-dung');
 const binhLuan = require('./binh-luan');
 const nhan = require('./nhan');
+const nguoiDang = require('./nguoi-dang');
 /* Lọc mã ra khỏi mọi thông báo lỗi trước khi trả về trình duyệt. */
 const { scrub } = require('./sync/http');
 const phamVi = require('./pham-vi');
@@ -808,6 +809,43 @@ async function api(req, res, u) {
    *
    * Ghi vào Nhật ký thay vì console để còn đọc được từ Base — nhật ký của Render
    * mất sau mỗi lần deploy. Đo xong thì gỡ cả lối này lẫn lối bên hub. */
+  /* Nhận "ai đăng bài nào" từ extension Chrome.
+   *
+   * Facebook hiện dòng "Người đăng: …" dưới mỗi bài nhưng không phát qua API —
+   * đã truy đến cùng, xem đầu nguoi-dang.js. Nên dữ liệu này do trình duyệt của
+   * chính người dùng đọc từ màn hình họ đang xem rồi gửi sang.
+   *
+   * Đường này nằm NGOÀI cổng đăng nhập (extension chạy ở origin facebook.com,
+   * không mang theo phiên Lark), nên phải tự chặn:
+   *   - chưa khai NGUOI_DANG_KEY thì trả 404 như không tồn tại;
+   *   - sai khoá thì 401, không nói gì thêm;
+   *   - chỉ ghi được ĐÚNG MỘT cột, và chỉ nhận ba tên đã khai sẵn.
+   * Tức là lọt khoá thì kẻ gọi cũng chỉ đổi được tên người đăng, không chạm
+   * được vào số liệu hay token.
+   */
+  if (p === '/api/nguoi-dang/nap' && method === 'POST') {
+    const khoa = process.env.NGUOI_DANG_KEY || '';
+    if (!khoa) return fail(res, 404, 'Chưa bật tính năng này');
+    const b = await readBody(req);
+    if (String(b.khoa || req.headers['x-nd-key'] || '') !== khoa) {
+      return fail(res, 401, 'Sai khoá');
+    }
+    const d = await store.tai();
+    const r = nguoiDang.ghep(b.items, d.posts);
+    if (r.capNhat.length) {
+      const f = store.T.post.f;
+      const map = {};
+      r.capNhat.forEach((x) => { map[x.id] = { [f.poster]: x.nguoi }; });
+      await lark.updateMany(store.T.post.id, map);
+    }
+    return ok(res, {
+      nhan: (b.items || []).length,
+      daGhi: r.capNhat.length,
+      khongKhop: r.khongKhop.length,
+      tenLa: r.tenLa.map((x) => x.nguoi).slice(0, 5),
+    });
+  }
+
   if (p === '/api/fb-webhook' && method === 'POST') {
     const b = await readBody(req);
     await store.ghiNhatKy({
