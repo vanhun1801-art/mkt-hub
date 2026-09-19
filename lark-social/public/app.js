@@ -883,9 +883,11 @@
       + '<div class="kn-row"><label>Mỗi mấy giờ</label>'
       + '<input type="number" id="dbGio" value="' + (c.dongBo.moiSoGio || 0) + '" min="0" max="24"></div>'
       + '<div class="kn-row"><label>Quét lại mấy ngày</label>'
-      + '<input type="number" id="dbLui" value="' + (c.dongBo.soNgayLui || 7) + '" min="1" max="90"></div>'
-      + '<div class="help">Số liệu social còn chạy tiếp vài ngày sau khi đăng, nên mỗi lượt '
-      + 'quét lại vài ngày gần đây là cần — không phải chạy thừa.</div>'
+      + '<input type="number" id="dbLui" value="' + (c.dongBo.soNgayLui || 30) + '" min="1" max="90"></div>'
+      + '<div class="help">Lượt xem của một bài còn chạy tiếp hàng tháng sau khi đăng, '
+      + 'nên quét lại quá ngắn là số cũ đứng yên: một bài đăng 05/09 chỉ sau mười ngày '
+      + 'đã thấp hơn thực tế 34%. Để 30 ngày thì bài trong tháng luôn đúng số. '
+      + 'Bài cũ hơn thế chỉ cập nhật khi bấm <b>Nạp lại từ đầu</b>.</div>'
       + '</div></div>';
 
     $('#modal').innerHTML = '<div class="modal-head"><h3>Kết nối nền tảng</h3></div>'
@@ -1101,7 +1103,7 @@
         await goiJSON('/api/ket-noi', { khoi: 'canhBao', giaTri: cbLuat() });
         await goiJSON('/api/ket-noi', {
           khoi: 'dongBo',
-          giaTri: { moiSoGio: Number($('#dbGio').value) || 0, soNgayLui: Number($('#dbLui').value) || 7 },
+          giaTri: { moiSoGio: Number($('#dbGio').value) || 0, soNgayLui: Number($('#dbLui').value) || 30 },
         });
         dongModal();
         toast('Đã lưu cấu hình kết nối');

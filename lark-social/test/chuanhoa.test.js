@@ -423,6 +423,24 @@ t('ảnh và bài chữ Facebook thì KHÔNG đòi được gì thêm', () => {
   assert.strictEqual(xuat.oTiepCan({ platform: 'Facebook', reach: 901534 }), 901534);
 });
 
+t('cửa sổ quét lại mặc định phải phủ được cả tháng', () => {
+  /* Lượt xem còn chạy tiếp hàng tháng sau khi đăng, nên quét lại 7 ngày là số
+     của bài cũ đứng yên ở con số lúc đồng bộ lần cuối: bài 05/09 sau mười ngày
+     đã lệch 34% so với thực tế. Báo cáo đối tác làm theo tháng, nên cửa sổ phải
+     phủ được cả tháng. Ba chỗ cùng giữ con số này — cấu hình, giá trị dự phòng
+     trong sync, và ô nhập ở Cài đặt — lệch một chỗ là lệch hành vi. */
+  const fs = require('fs');
+  const cfg = fs.readFileSync(require.resolve('../ketnoi'), 'utf8');
+  const m = /soNgayLui: (\d+)/.exec(cfg);
+  assert.ok(m && Number(m[1]) >= 30, 'cấu hình mặc định: ' + (m && m[1]));
+
+  const sync = fs.readFileSync(require.resolve('../sync/index'), 'utf8');
+  assert.ok(/soNgayLui\) \|\| 30/.test(sync), 'sync/index.js còn dự phòng 7 ngày');
+
+  const ui = fs.readFileSync(require.resolve('../public/app.js'), 'utf8');
+  assert.ok(!/soNgayLui \|\| 7\b/.test(ui), 'ô Cài đặt còn hiện 7 ngày');
+});
+
 t('lấy bản lifetime khi Meta trả một metric hai lần', () => {
   /* Lỗi thật, làm mất gần hết lượt xem bài Facebook. Khi xin nhiều metric một
      lượt, Meta trả CÙNG một metric hai lần — period `lifetime` rồi period `day`.

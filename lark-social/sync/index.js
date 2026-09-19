@@ -311,7 +311,7 @@ async function dongBo({ from, to, chi = '', napLai = false, log = () => {} } = {
   const opts = conf.dongBo || {};
 
   const den = to || store.homNay();
-  const tu = from || store.themNgay(den, -(num(opts.soNgayLui) || 7) + 1);
+  const tu = from || store.themNgay(den, -(num(opts.soNgayLui) || 30) + 1);
 
   log('Đồng bộ ' + tu + ' → ' + den + (chi ? ' (chỉ ' + chi + ')' : ''));
 

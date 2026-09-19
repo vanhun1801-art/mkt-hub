@@ -58,7 +58,11 @@ const MAC_DINH = {
     oas: [],         // [{ oaId, name, accessToken, refreshToken, expiresAt }]
   },
   dongBo: {
-    soNgayLui: 7,        // mỗi lượt chạy quét lại bao nhiêu ngày gần đây
+    /* Mỗi lượt chạy quét lại bao nhiêu ngày gần đây. Để 7 thì lượt xem của bài
+     * cũ hơn một tuần đứng yên ở con số lúc đồng bộ lần cuối, trong khi thực tế
+     * vẫn tăng — bài 05/09 chỉ sau mười ngày đã lệch 34%. Báo cáo đối tác làm theo
+     * tháng, nên cửa sổ phải phủ được cả tháng. */
+    soNgayLui: 30,
     moiSoGio: 6,         // tự chạy mỗi mấy giờ (0 = tắt)
     khiKhoiDong: false,
     layBai: true,        // có kéo từng bài đăng về không
