@@ -41,8 +41,9 @@ của Meta, vừa có nguy cơ bị khoá tài khoản đang giữ quyền trên
 
 ## Dùng
 
-Mở Trang trên Facebook, cuộn tới đâu tiện ích thấy tới đó. Bảng nhỏ góc dưới
-phải hiện số bài đã thấy; cuộn thêm thì bấm **Quét lại**; xong bấm **Gửi**.
+Mở Trang trên Facebook rồi cuộn bình thường. Bảng nhỏ góc dưới phải tự đếm
+thêm khi anh cuộn tới bài mới — không phải bấm gì. Xem đủ rồi thì bấm **Gửi**.
+Nút **Quét lại** chỉ dùng khi muốn ép đếm lại ngay.
 
 Kết quả báo rõ ba nhóm: đã ghi, bài chưa có trong Base, và tên lạ (tên ngoài
 danh sách ba người thì **không** ghi, để khỏi sinh lựa chọn rác trong Base).

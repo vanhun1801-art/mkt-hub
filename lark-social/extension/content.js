@@ -110,8 +110,33 @@
     });
   }
 
-  /* Quét một lần khi trang đã đứng yên. Không theo dõi liên tục: Facebook dựng
-   * lại DOM suốt, nghe hết thì vừa tốn máy vừa giống bot. Cuộn thêm thì bấm
-   * "Quét lại". */
+  /* TỰ QUÉT KHI CUỘN — anh Hùng không phải bấm "Quét lại" từng lượt.
+   *
+   * Vẫn đúng ranh giới đã đặt: tiện ích KHÔNG tự cuộn, không tự mở bài, không
+   * tự gửi. Nó chỉ đọc lại phần màn hình mà người dùng vừa cuộn tới — cùng một
+   * dữ liệu, chỉ bỏ cái nút thừa đi.
+   *
+   * Hai cái chốt cho khỏi ngốn máy: Facebook dựng lại DOM liên tục nên phải
+   * chờ lắng 900ms rồi mới quét, và hai lượt quét cách nhau tối thiểu 1,5 giây.
+   */
+  let hen = null;
+  let lanCuoi = 0;
+  function henQuet() {
+    clearTimeout(hen);
+    hen = setTimeout(() => {
+      const gio = Date.now();
+      if (gio - lanCuoi < 1500) { henQuet(); return; }
+      lanCuoi = gio;
+      quet();
+    }, 900);
+  }
+
+  addEventListener('scroll', henQuet, { passive: true });
+  /* Bỏ qua thay đổi do CHÍNH bảng này gây ra. Không chặn thì mỗi lần vẽ lại số
+   * đếm là một thay đổi DOM, lại kích hoạt quét, lại vẽ — chạy vòng mãi. */
+  new MutationObserver((ds) => {
+    if (hop && ds.every((m) => hop.contains(m.target))) return;
+    henQuet();
+  }).observe(document.body, { childList: true, subtree: true });
   setTimeout(quet, 1500);
 })();
