@@ -34,7 +34,11 @@ của Meta, vừa có nguy cơ bị khoá tài khoản đang giữ quyền trên
 ## Hai cách dùng
 
 **Trên máy người đăng (chính).** Khai tên mình ở Tuỳ chọn → mỗi lần bấm Đăng
-trong Business Suite, tiện ích chụp lại đoạn chữ vừa soạn và ghi tên người đó.
+trong Business Suite, tiện ích chụp lại đoạn chữ vừa soạn, ghi tên người đó và **gửi
+ngay** — không ai phải bấm gì. Bảng góc màn hình **im lặng**, chỉ hiện khi:
+chưa khai địa chỉ/khoá, gửi hỏng vì sai khoá, hoặc có bài treo quá một ngày chưa
+ghi được. Vừa bắt được một bài thì báo một câu rồi tự tắt sau năm giây. Hàng chờ
+cũng tự gửi lại mỗi năm phút khi tab còn mở.
 Không phụ thuộc Facebook có vẽ dòng "Người đăng" hay không. Bài vừa đăng chưa
 có trong Base (đồng bộ 6 tiếng một lượt), nên tiện ích giữ trong máy rồi tự gửi
 lại mỗi lần mở Facebook cho tới khi khớp được — không cần ai nhớ.

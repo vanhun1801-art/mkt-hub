@@ -63,6 +63,9 @@
   let soHut = 0;
 
   function quet() {
+    /* Máy người đăng thì khỏi quét feed: họ đã được ghi nhận ngay lúc bấm Đăng,
+     * quét thêm chỉ tốn máy mỗi lần cuộn. */
+    if (toiLa) return;
     const di = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     let dong = 0;
     let hut = 0;
@@ -89,30 +92,70 @@
   let hop;
   let toiLa = '';
   let soCho = 0;
+  let choCu = false;          // có mục treo quá một ngày chưa khớp
+  let henTat = null;
 
   async function docTrangThai() {
     const c = await chrome.storage.sync.get(['toiLa']);
     toiLa = c.toiLa || '';
     const kho = await chrome.storage.local.get(['cho']);
-    soCho = (kho.cho || []).length;
+    const cho = kho.cho || [];
+    soCho = cho.length;
+    /* Vài tiếng là chuyện thường (chờ lượt đồng bộ, chờ bài hẹn giờ lên sóng).
+     * Quá một ngày mà chưa ghi được thì có gì đó hỏng, phải nói ra. */
+    choCu = cho.some((x) => Date.now() - (x.luc || 0) > 86400000);
+    /* Chưa khai thì có bắt được cũng không gửi đi đâu — đây là lỗi im lặng
+     * kinh điển, nên phải hiện ngay chứ không đợi ai hỏi. */
+    const c2 = await chrome.storage.sync.get(['diaChi', 'khoa']);
+    if (toiLa && (!c2.diaChi || !c2.khoa)) loi = 'Chưa khai địa chỉ hoặc khoá — mở Tuỳ chọn của tiện ích';
     ve();
   }
 
+  /* Báo một câu rồi tự tắt, để người đăng biết là đã ghi nhận mà không phải
+   * nhìn một cái bảng nằm lì góc màn hình cả ngày. */
+  function noiNhanh(chu) {
+    khoe = chu;
+    ve();
+    clearTimeout(henTat);
+    henTat = setTimeout(() => { khoe = ''; ve(); }, 5000);
+  }
+
+  /* MÁY NGƯỜI ĐĂNG THÌ IM LẶNG.
+   *
+   * Bắt phải bấm Gửi là sớm muộn cũng quên, mà quên thì KPI thiếu bài. Nên bài
+   * vừa đăng được gửi ngay, và bảng chỉ hiện khi có chuyện cần người biết:
+   *   - chưa khai địa chỉ / khoá — chưa khai thì không gửi đi đâu được;
+   *   - gửi hỏng — mạng hoặc khoá sai;
+   *   - có bài treo quá một ngày chưa khớp — bình thường chỉ vài tiếng là xong;
+   *   - vừa bắt được một bài — báo một câu rồi tự tắt sau vài giây.
+   * Máy quản lý (không khai "Tôi là") thì giữ nguyên bảng có nút, vì đó là việc
+   * rà tay, cố ý để người quyết định lúc nào gửi. */
+  let loi = '';
+  let khoe = '';
+
   function ve() {
-    /* Không có gì để nói thì đừng hiện: trên Business Suite phần đọc feed luôn
-     * ra 0, bày một ô "0 bài" chỉ tổ làm người ta tưởng hỏng. */
-    if (!thay.size && !soCho && !toiLa) {
+    if (toiLa) {
+      const treo = soCho && choCu;
+      if (!loi && !khoe && !treo) {
+        if (hop) { hop.remove(); hop = null; }
+        return;
+      }
+      if (!hop) taoHop();
+      hop.innerHTML = '<div style="font-weight:600;margin-bottom:6px">Rooty · Người đăng</div>'
+        + (loi ? '<div style="color:#ff8a8a">' + loi + '</div>' : '')
+        + (khoe ? '<div>' + khoe + '</div>' : '')
+        + (treo ? '<div style="color:#f0b45f">' + soCho + ' bài chưa ghi được sau hơn một ngày — báo anh Hùng</div>'
+          + '<div style="margin-top:6px"><a href="#" id="rt-xoa" style="color:#b0b3b8;font-size:12px">xoá hàng chờ</a></div>' : '');
+      nutXoa();
+      return;
+    }
+
+    /* Không có gì để nói thì đừng hiện. */
+    if (!thay.size && !soCho) {
       if (hop) { hop.remove(); hop = null; }
       return;
     }
-    if (!hop) {
-      hop = document.createElement('div');
-      hop.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:2147483647;'
-        + 'background:#1c1e21;color:#e4e6eb;font:13px/1.5 system-ui,sans-serif;'
-        + 'border:1px solid #3e4042;border-radius:10px;padding:10px 12px;min-width:210px;'
-        + 'box-shadow:0 6px 20px rgba(0,0,0,.35)';
-      document.body.appendChild(hop);
-    }
+    if (!hop) taoHop();
     const n = thay.size;
     hop.innerHTML = '<div style="font-weight:600;margin-bottom:6px">Rooty · Người đăng</div>'
       + (toiLa ? '<div>Máy của <b>' + toiLa + '</b></div>' : '')
@@ -131,17 +174,30 @@
       + '<div id="rt-bao" style="margin-top:6px;color:#b0b3b8"></div>';
     hop.querySelector('#rt-quet').onclick = quet;
     hop.querySelector('#rt-gui').onclick = gui;
-    const xoa = hop.querySelector('#rt-xoa');
-    /* Có lúc hàng chờ dính mục rác từ bản cũ — phải có cách dọn, không thì nó
-     * treo ở đó cả tháng rồi gửi lại mỗi lần mở Facebook. */
-    if (xoa) {
-      xoa.onclick = async (ev) => {
-        ev.preventDefault();
-        await chrome.storage.local.set({ cho: [] });
-        soCho = 0;
-        ve();
-      };
-    }
+    nutXoa();
+  }
+
+  function taoHop() {
+    hop = document.createElement('div');
+    hop.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:2147483647;'
+      + 'background:#1c1e21;color:#e4e6eb;font:13px/1.5 system-ui,sans-serif;'
+      + 'border:1px solid #3e4042;border-radius:10px;padding:10px 12px;min-width:210px;'
+      + 'max-width:280px;box-shadow:0 6px 20px rgba(0,0,0,.35)';
+    document.body.appendChild(hop);
+  }
+
+  /* Hàng chờ có lúc dính mục rác — phải có cách dọn, không thì nó treo cả tháng
+   * rồi gửi lại mỗi lần mở Facebook. */
+  function nutXoa() {
+    const xoa = hop && hop.querySelector('#rt-xoa');
+    if (!xoa) return;
+    xoa.onclick = async (ev) => {
+      ev.preventDefault();
+      await chrome.storage.local.set({ cho: [] });
+      soCho = 0;
+      choCu = false;
+      ve();
+    };
   }
 
   function gui() {
@@ -243,7 +299,7 @@
     cho.push({ van: van.slice(0, 400), nguoi: c.toiLa, luc: Date.now() });
     await chrome.storage.local.set({ cho });
     soCho = cho.length;
-    ve();
+    noiNhanh('Đã ghi nhận bài của <b>' + c.toiLa + '</b>');
     guiCho();
   }
 
@@ -261,11 +317,19 @@
     chrome.runtime.sendMessage(
       { viec: 'gui', items: cho.map((x) => ({ nguoi: x.nguoi, van: x.van })) },
       async (r) => {
-        if (!r || !r.ok) return;                       // mạng hỏng thì để lần sau
+        if (!r || !r.ok) {
+          /* Mạng chập thì im, để lần sau. Sai khoá hoặc chưa khai thì phải nói
+           * — cái đó không tự khỏi, và im lặng là mất bài. */
+          const m = String((r && r.loi) || '');
+          if (/kho|khoá|401|Chưa khai/i.test(m)) { loi = 'Không gửi được: ' + m; ve(); }
+          return;
+        }
+        loi = '';
         const giu = new Set(r.kq && r.kq.chuaKhop ? r.kq.chuaKhop : []);
         const conLai = cho.filter((_x, i) => giu.has(i));
         await chrome.storage.local.set({ cho: conLai });
         soCho = conLai.length;
+        choCu = conLai.some((x) => Date.now() - (x.luc || 0) > 86400000);
         ve();
       },
     );
@@ -287,4 +351,7 @@
   /* Mở Facebook là thử gửi lại hàng chờ. */
   docTrangThai();
   setTimeout(guiCho, 3000);
+  /* Thử lại mỗi năm phút khi tab còn mở: bài hẹn giờ lên sóng lúc nào không
+   * biết, đợi người ta đóng mở Facebook thì có khi vài ngày sau mới ghi được. */
+  setInterval(guiCho, 5 * 60 * 1000);
 })();
