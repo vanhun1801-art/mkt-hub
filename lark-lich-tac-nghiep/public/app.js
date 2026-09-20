@@ -856,8 +856,8 @@ async function demXuat() {
   try {
     const r = await fetch(urlXuat('json'));
     const d = await r.json();
-    XU.so = d.so; XU.moTa = d.moTa;
-  } catch (e) { XU.so = null; }
+    XU.so = d.so; XU.moTa = d.moTa; XU.dem = d.dem || null; XU.loiThoat = d.loiThoat || [];
+  } catch (e) { XU.so = null; XU.dem = null; XU.loiThoat = []; }
   XU.dangDem = false;
   veXuat();
 }
@@ -867,15 +867,34 @@ function veXuat() {
    * dùng thẳng ở đây thì cửa sổ mở ra trắng trơn, mà chỉ trắng phần thân nên
    * nhìn như "chưa tải xong" chứ không như lỗi. */
   const O = S.options || {};
-  const oChon = (id, gt, ds, rong) => '<select class="fld" data-xu="' + id + '">'
-    + '<option value="">' + esc(rong) + '</option>'
-    + ds.map((x) => '<option value="' + esc(x) + '"' + (gt === x ? ' selected' : '') + '>'
-      + esc(x) + '</option>').join('') + '</select>';
+
+  /* Mỗi lựa chọn mang theo SỐ BUỔI của nó, tính với các ô lọc còn lại giữ
+   * nguyên. "Chờ duyệt/Xử lý" và "Duyệt/Chờ tác nghiệp" dùng cùng bộ chữ đảo
+   * thứ tự — nhìn lướt không phân biệt được, nên phải để con số nói hộ. */
+  const oChon = (id, gt, ds, rong) => {
+    const dem = (XU.dem && XU.dem[id]) || null;
+    const tong = dem ? Object.values(dem).reduce((a, b) => a + b, 0) : null;
+    const nhan = (x) => esc(x) + (dem ? '  (' + (dem[x] || 0) + ')' : '');
+    return '<select class="fld" data-xu="' + id + '">'
+      + '<option value="">' + esc(rong) + (tong == null ? '' : '  (' + tong + ')') + '</option>'
+      + ds.map((x) => '<option value="' + esc(x) + '"' + (gt === x ? ' selected' : '')
+        + (dem && !dem[x] && gt !== x ? ' class="xu-khong"' : '') + '>'
+        + nhan(x) + '</option>').join('') + '</select>';
+  };
 
   const tt = [...(S.config.statusOrder || [])];
+  /* Ra 0 thì phải nói VÌ SAO và chỉ đường ra, không để người ta đứng trước một
+   * con số 0 rồi đoán là app hỏng. */
+  const thoat = (XU.loiThoat || []).map((x) =>
+    '<button class="the bam" data-xubo="' + x.bo + '">Bỏ lọc ' + esc(x.nhan)
+    + ' → ' + x.so + ' buổi</button>').join('');
   const dem = XU.dangDem ? '<span class="xu-dem">đang đếm…</span>'
     : XU.so == null ? '<span class="xu-dem">—</span>'
-    : '<span class="xu-so">' + XU.so + '</span> buổi sẽ được xuất';
+    : XU.so === 0
+      ? '<span class="xu-so xu-0">0</span> buổi khớp bộ lọc này'
+        + (thoat ? '<div class="xu-thoat">' + thoat + '</div>'
+          : '<div class="xu-mota">Không còn ô lọc nào để bỏ — kỳ này thật sự chưa có buổi nào.</div>')
+      : '<span class="xu-so">' + XU.so + '</span> buổi sẽ được xuất';
 
   $('#mdTitle').textContent = 'Xuất danh sách tác nghiệp';
   $('#mdBody').innerHTML = '<div class="frm">' +
@@ -3964,6 +3983,14 @@ document.addEventListener('click', async (e) => {
     const v = xuKy.dataset.xuky;
     if (v === 'ca') { XU.tu = ''; XU.den = ''; }
     else { const k = thangNay(Number(v)); XU.tu = k.tu; XU.den = k.den; }
+    veXuat(); demXuat();
+    return;
+  }
+
+  const xuBo = T.closest('[data-xubo]');
+  if (xuBo && XU) {
+    const k = xuBo.dataset.xubo;
+    if (k === 'ngay') { XU.tu = ''; XU.den = ''; } else { XU[k] = ''; }
     veXuat(); demXuat();
     return;
   }

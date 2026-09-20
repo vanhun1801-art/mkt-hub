@@ -494,6 +494,25 @@ và refresh token; repo mới chỉ có OAuth cho Google Ads, và `gsheet.js` ch
 CSV đã xuất bản. Đường vòng chạy ngay: tải CSV rồi nhập vào Sheet, mất thêm một
 cú bấm.
 
+### Ra 0 buổi thì phải nói vì sao
+
+Ngày 20/09/2026 anh Hùng lọc *Vinwonders · tháng 9 · **Chờ duyệt/Xử lý*** và ra
+**0 buổi**, tưởng hỏng. Không hỏng: bốn buổi Vinwonders tháng đó nằm ở *Đã hoàn
+tất* (3) và *Duyệt/Chờ tác nghiệp* (1).
+
+Hai cái tên ấy dùng **cùng bộ chữ đảo thứ tự** — nhìn lướt không phân biệt được,
+mà ô chọn thì bày cả hai như nhau. Hai chỗ sửa:
+
+**Mỗi lựa chọn mang theo số buổi của nó**, tính với các ô lọc còn lại giữ
+nguyên: *Đã hoàn tất (3) · Duyệt/Chờ tác nghiệp (1) · Chờ duyệt/Xử lý (0)*.
+Thấy `(0)` thì không ai chọn vào nữa — chặn ngõ cụt thay vì giải thích sau khi
+đã lạc vào. Đếm cho một ô thì **bỏ chính ô đó** ra khỏi bộ lọc, nếu không mọi
+lựa chọn khác đều ra 0 và ô chọn thành vô dụng đúng lúc cần nó nhất.
+
+**Ra 0 thì chỉ đường ra**: bỏ thử từng ô lọc một, hiện nút cho ô nào thật sự
+đang chặn — *"Bỏ lọc trạng thái → 4 buổi"*. Không bao giờ đề nghị bỏ một ô mà bỏ
+xong vẫn 0; đó là chỉ đường vào ngõ cụt thứ hai.
+
 ### Phép thử
 
 `test/xuat.test.js` canh hai chuyện mà hỏng thì không ai thấy:

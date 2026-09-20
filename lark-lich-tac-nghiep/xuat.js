@@ -121,6 +121,54 @@ function dungBang(ds, keTien) {
   return { cot, hang };
 }
 
+/**
+ * ĐẾM SẴN cho từng lựa chọn của ba ô lọc.
+ *
+ * Ngày 20/09/2026 anh Hùng lọc Vinwonders · tháng 9 · "Chờ duyệt/Xử lý" và ra
+ * 0 buổi, tưởng hỏng. Không hỏng: bốn buổi Vinwonders tháng đó nằm ở "Đã hoàn
+ * tất" và "Duyệt/Chờ tác nghiệp". Hai cái tên ấy dùng CÙNG BỘ CHỮ đảo thứ tự —
+ * nhìn lướt không phân biệt được, và ô chọn thì bày cả hai như nhau.
+ *
+ * Nên mỗi lựa chọn mang theo số buổi của nó, tính với các ô lọc CÒN LẠI giữ
+ * nguyên. Thấy "(0)" thì không ai chọn vào đó nữa — chặn được ngõ cụt thay vì
+ * giải thích sau khi đã lạc vào.
+ */
+function demTheo(items, dk) {
+  const mot = (khoa, lay) => {
+    /* Bỏ đúng ô đang đếm ra khỏi bộ lọc: đếm "Đã hoàn tất" mà vẫn lọc theo
+     * trạng thái hiện tại thì mọi lựa chọn khác đều ra 0. */
+    const conLai = { ...dk, [khoa]: '' };
+    const ds = loc(items, conLai);
+    const d = {};
+    ds.forEach((t) => { const v = chu(lay(t)); if (v) d[v] = (d[v] || 0) + 1; });
+    return d;
+  };
+  return {
+    trangThai: mot('trangThai', (t) => t.status),
+    diaDiem: mot('diaDiem', (t) => t.diaDiem),
+    loaiHinh: mot('loaiHinh', (t) => t.loaiHinh),
+  };
+}
+
+/**
+ * Khi không ra buổi nào: bỏ THỬ từng ô lọc một, xem ô nào đang chặn.
+ * Trả về các lối thoát có thật, nhiều buổi nhất đứng trước.
+ */
+function loiThoat(items, dk) {
+  const ten = { trangThai: 'trạng thái', diaDiem: 'địa điểm', loaiHinh: 'loại hình', ngay: 'khoảng ngày' };
+  const thu = [];
+  for (const k of ['trangThai', 'diaDiem', 'loaiHinh']) {
+    if (!chu(dk[k])) continue;
+    const so = loc(items, { ...dk, [k]: '' }).length;
+    if (so > 0) thu.push({ bo: k, nhan: ten[k], so });
+  }
+  if (chu(dk.tu) || chu(dk.den)) {
+    const so = loc(items, { ...dk, tu: '', den: '' }).length;
+    if (so > 0) thu.push({ bo: 'ngay', nhan: ten.ngay, so });
+  }
+  return thu.sort((a, b) => b.so - a.so);
+}
+
 /** Dòng phụ đề: nói rõ bảng này lọc theo cái gì, để người nhận khỏi phải hỏi. */
 function moTaLoc(dk, so) {
   const p = [];
@@ -163,4 +211,7 @@ function xuatCsv(ds, dk, keTien) {
   return { tep: tenTep(dk, 'csv'), kieu: 'text/csv; charset=utf-8', than: ghiCsv(cot, hang) };
 }
 
-module.exports = { loc, dungBang, moTaLoc, tenTep, xuatXlsx, xuatCsv, ngayVN, gioVN, ngayISO, TIEU_DE };
+module.exports = {
+  loc, dungBang, demTheo, loiThoat, moTaLoc, tenTep,
+  xuatXlsx, xuatCsv, ngayVN, gioVN, ngayISO, TIEU_DE,
+};

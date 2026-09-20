@@ -829,7 +829,16 @@ async function api(req, res, url) {
     if (kieu === 'json') {
       /* Bản in tự dựng trang trong trình duyệt, nên chỉ cần dòng và mô tả. */
       const { cot, hang } = xuat.dungBang(ds, keTien);
-      return json(res, { cot, hang, so: ds.length, moTa: xuat.moTaLoc(dk, ds.length), tieuDe: xuat.TIEU_DE });
+      const nguon = keTien ? scoped : scoped.map((t) => boChiPhi(t, me && me.id));
+      return json(res, {
+        cot, hang, so: ds.length,
+        moTa: xuat.moTaLoc(dk, ds.length), tieuDe: xuat.TIEU_DE,
+        /* Số buổi của từng lựa chọn, để ô chọn bày ra luôn — thấy "(0)" thì
+         * không ai chọn vào đó nữa. Và khi đã lỡ ra 0 thì nói luôn bỏ ô nào
+         * sẽ có lại. */
+        dem: xuat.demTheo(nguon, dk),
+        loiThoat: ds.length ? [] : xuat.loiThoat(nguon, dk),
+      });
     }
 
     const ra = kieu === 'csv' ? xuat.xuatCsv(ds, dk, keTien) : xuat.xuatXlsx(ds, dk, keTien);

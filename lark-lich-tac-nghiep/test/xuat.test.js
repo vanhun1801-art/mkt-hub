@@ -132,14 +132,19 @@ ok('đủ số dòng: 3 dòng đầu + tên cột + 2 buổi', rows.length === 6
 
 /* Ký tự XML và ký tự điều khiển: dữ liệu gõ tay có cả hai, và cả hai đều làm
  * Excel báo "file hỏng" nếu ghi thẳng. */
+/* Ký tự chuông dựng bằng fromCharCode, KHÔNG gõ thẳng vào tệp: ký tự điều
+ * khiển nằm trong mã nguồn thì trình soạn thảo hay một lần dán qua lại đều
+ * nuốt được, và phép thử im lặng ngừng kiểm đúng thứ nó sinh ra để kiểm. */
+const CHUONG = String.fromCharCode(7);
 const banBan = ghiXlsx({
   ten: 'Thử', cot: [{ ten: 'A' }],
-  hang: [['dấu & ngoặc "kép" <thẻ>  chuông'], ['dòng\nxuống']],
+  hang: [['dấu & ngoặc "kép" <thẻ> ' + CHUONG + ' chuông'], ['dòng\nxuống']],
 });
 const rows2 = docXlsx.doc(banBan).sheets[0].rows;
 ok('ký tự &, ngoặc kép và dấu nhọn vẫn nguyên',
   rows2[1][0] === 'dấu & ngoặc "kép" <thẻ>  chuông', JSON.stringify(rows2[1][0]));
-ok('ký tự điều khiển bị bỏ, không làm hỏng tệp', !//.test(rows2[1][0]));
+ok('ký tự điều khiển bị bỏ, không làm hỏng tệp',
+  !rows2[1][0].includes(CHUONG), JSON.stringify(rows2[1][0]));
 ok('xuống dòng trong ô vẫn giữ', rows2[2][0].includes('\n'), JSON.stringify(rows2[2][0]));
 
 nhom('CSV là đường vào Google Sheet');
@@ -151,6 +156,39 @@ ok('ô có dấu phẩy được bọc ngoặc kép',
 const csvTrong = ghiCsv([{ ten: 'A' }], [['có "kép" và, phẩy']]).toString('utf8');
 ok('ngoặc kép trong ô được nhân đôi đúng chuẩn',
   csvTrong.includes('"có ""kép"" và, phẩy"'), csvTrong);
+
+nhom('Mỗi lựa chọn mang theo số buổi của nó');
+/* Ngày 20/09/2026 anh Hùng lọc Vinwonders · tháng 9 · "Chờ duyệt/Xử lý" và ra
+ * 0 buổi, tưởng hỏng. Không hỏng: bốn buổi tháng đó nằm ở "Đã hoàn tất" và
+ * "Duyệt/Chờ tác nghiệp". Hai cái tên ấy dùng CÙNG BỘ CHỮ đảo thứ tự — nhìn
+ * lướt không phân biệt được. Con số bên cạnh chặn được ngõ cụt đó. */
+const demT9 = xuat.demTheo(DS, { tu: '2026-09-01', den: '2026-09-30' });
+ok('đếm theo trạng thái đúng',
+  demT9.trangThai['Đã hoàn tất'] === 2 && demT9.trangThai['Hủy lịch'] === 1,
+  JSON.stringify(demT9.trangThai));
+ok('đếm theo địa điểm đúng',
+  demT9.diaDiem.Vinwonders === 2 && demT9.diaDiem['Grand World'] === 1,
+  JSON.stringify(demT9.diaDiem));
+
+/* Đếm cho MỘT ô thì phải BỎ chính ô đó ra khỏi bộ lọc. Không bỏ thì mọi lựa
+ * chọn khác đều ra 0, và ô chọn thành vô dụng đúng lúc cần nó nhất. */
+const demKhiDaChon = xuat.demTheo(DS, { diaDiem: 'Vinwonders' });
+ok('đếm địa điểm KHÔNG bị chính bộ lọc địa điểm cắt',
+  demKhiDaChon.diaDiem['Grand World'] === 1, JSON.stringify(demKhiDaChon.diaDiem));
+ok('nhưng ô khác vẫn bị bộ lọc địa điểm cắt',
+  demKhiDaChon.trangThai['Hủy lịch'] === undefined, JSON.stringify(demKhiDaChon.trangThai));
+
+nhom('Ra 0 thì phải chỉ được đường ra');
+const bkX = { tu: '2026-09-01', den: '2026-09-30', diaDiem: 'Vinwonders', trangThai: 'Hủy lịch' };
+ok('bộ lọc này thật sự ra 0', xuat.loc(DS, bkX).length === 0);
+const lt = xuat.loiThoat(DS, bkX);
+ok('có lối thoát, xếp nhiều buổi trước',
+  lt.length >= 2 && lt[0].so >= lt[1].so, JSON.stringify(lt));
+ok('chỉ đúng ô đang chặn: bỏ trạng thái thì có lại 2 buổi',
+  lt.some((x) => x.bo === 'trangThai' && x.so === 2), JSON.stringify(lt));
+/* Không đề nghị bỏ ô mà bỏ xong vẫn 0 — đó là chỉ đường vào ngõ cụt thứ hai. */
+ok('không đề nghị lối thoát nào ra 0 buổi', lt.every((x) => x.so > 0), JSON.stringify(lt));
+ok('sổ trống thật thì không bịa ra lối thoát', xuat.loiThoat([], bkX).length === 0);
 
 console.log('\n' + (fail ? '\x1b[31m' : '\x1b[32m') + pass + ' pass, ' + fail + ' fail\x1b[0m');
 if (fail) { fails.forEach((f) => console.log('  - ' + f)); process.exit(1); }
