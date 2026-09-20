@@ -1554,3 +1554,20 @@ a.phieu-f:hover { border-color: var(--primary); background: var(--blue-bg); }
   border: 1px solid var(--primary-border);
 }
 .gy-nut:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+/* ---- cửa sổ Xuất danh sách ---- */
+.xu-nhanh { display: flex; gap: 6px; flex-wrap: wrap; grid-column: 1 / -1; margin-top: -4px; }
+.xu-tien {
+  grid-column: 1 / -1; display: flex; align-items: center; gap: 8px;
+  font-size: 13px; cursor: pointer;
+}
+/* Cột tiền là thứ KHÔNG được lỡ tay bật khi bảng đem cho đối tác. */
+.xu-canh { color: var(--orange-t, #96591b); font-size: 12px; }
+.xu-dong {
+  grid-column: 1 / -1; margin-top: 4px; padding: 10px 12px; border-radius: 9px;
+  background: var(--surface-2); border: 1px solid var(--line); font-size: 13px;
+}
+.xu-so { font-size: 18px; font-weight: 700; color: var(--t1); margin-right: 3px; }
+.xu-dem { color: var(--t3); }
+.xu-mota { color: var(--t3); font-size: 12px; margin-top: 2px; }
+.xu-nhac { font-size: 11.5px; color: var(--t3); }

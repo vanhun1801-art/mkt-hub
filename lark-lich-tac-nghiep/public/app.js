@@ -558,6 +558,10 @@ function filterBar(opts) {
       S.people.map((p) => '<option value="' + esc(p.id) + '"' + (S.f.person === p.id ? ' selected' : '') + '>' +
         esc(p.name) + '</option>').join('') + '</select>' : '') +
     '<div class="sp"></div>' +
+    /* Nút Xuất chỉ mọc ở tab Danh sách: đó là chỗ người ta đang nhìn cả bảng và
+     * nghĩ "gửi cái này cho đối tác". Ở tab Tổng quan hay Lịch thì nó là một nút
+     * lạc chỗ. */
+    (o.coXuat ? '<button class="btn sm" id="fXuat">Xuất</button>' : '') +
     '<button class="btn sm ghost" id="fReset">Xoá lọc</button>' +
     '</div>';
 }
@@ -804,10 +808,206 @@ function viewApprove() {
   return h;
 }
 
+/* ---------------------------------------------------------------------------
+ * XUẤT DANH SÁCH — để TRÌNH ĐỐI TÁC
+ * -------------------------------------------------------------------------
+ * Không phải nút "tải về" thường. Bảng này đem ngồi với Vinwonders hay Grand
+ * World, nên ba thứ phải đúng ngay từ mặc định:
+ *
+ *   · KHÔNG CÓ CỘT TIỀN. Phải tự tick mới ra, và chỉ ai có quyền xem chi phí
+ *     mới thấy ô tick. Đưa nhầm bảng có cột tiền cho đối tác là hỏng chuyện
+ *     lớn hơn mọi lỗi kỹ thuật trong app này.
+ *   · CHỈ BUỔI ĐÃ CHẠY THẬT. Mặc định "Đã hoàn tất" — nháp, chờ duyệt, bị huỷ
+ *     đều không phải thứ đối tác cần thấy.
+ *   · ĐẾM TRƯỚC KHI XUẤT. Nói luôn "sẽ xuất N buổi" để người ta biết bộ lọc có
+ *     đúng ý không, thay vì tải về rồi mở ra mới biết trống.
+ * ------------------------------------------------------------------------- */
+let XU = null;   // điều kiện đang chọn trong cửa sổ xuất
+
+function thangNay(lui) {
+  const d = new Date();
+  d.setDate(1);
+  d.setMonth(d.getMonth() - (lui || 0));
+  const p = (n) => String(n).padStart(2, '0');
+  const dau = d.getFullYear() + '-' + p(d.getMonth() + 1) + '-01';
+  const c = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  return { tu: dau, den: c.getFullYear() + '-' + p(c.getMonth() + 1) + '-' + p(c.getDate()) };
+}
+
+function moXuat() {
+  const k = thangNay(0);
+  XU = {
+    tu: k.tu, den: k.den, diaDiem: '', loaiHinh: '',
+    trangThai: 'Đã hoàn tất', tien: false, so: null, dangDem: false,
+  };
+  veXuat();
+  demXuat();
+}
+
+function urlXuat(kieu) {
+  const q = new URLSearchParams({ kieu });
+  ['tu', 'den', 'diaDiem', 'loaiHinh', 'trangThai'].forEach((k) => { if (XU[k]) q.set(k, XU[k]); });
+  if (XU.tien) q.set('tien', '1');
+  return '/api/xuat?' + q.toString();
+}
+
+async function demXuat() {
+  XU.dangDem = true; veXuat();
+  try {
+    const r = await fetch(urlXuat('json'));
+    const d = await r.json();
+    XU.so = d.so; XU.moTa = d.moTa;
+  } catch (e) { XU.so = null; }
+  XU.dangDem = false;
+  veXuat();
+}
+
+function veXuat() {
+  /* `O` là biến cục bộ trong mấy hàm vẽ form khác, không phải biến toàn cục —
+   * dùng thẳng ở đây thì cửa sổ mở ra trắng trơn, mà chỉ trắng phần thân nên
+   * nhìn như "chưa tải xong" chứ không như lỗi. */
+  const O = S.options || {};
+  const oChon = (id, gt, ds, rong) => '<select class="fld" data-xu="' + id + '">'
+    + '<option value="">' + esc(rong) + '</option>'
+    + ds.map((x) => '<option value="' + esc(x) + '"' + (gt === x ? ' selected' : '') + '>'
+      + esc(x) + '</option>').join('') + '</select>';
+
+  const tt = [...(S.config.statusOrder || [])];
+  const dem = XU.dangDem ? '<span class="xu-dem">đang đếm…</span>'
+    : XU.so == null ? '<span class="xu-dem">—</span>'
+    : '<span class="xu-so">' + XU.so + '</span> buổi sẽ được xuất';
+
+  $('#mdTitle').textContent = 'Xuất danh sách tác nghiệp';
+  $('#mdBody').innerHTML = '<div class="frm">' +
+    '<div class="frm-2">' +
+      '<div class="frm-row"><label>Từ ngày</label>' +
+        '<input type="date" class="fld" data-xu="tu" value="' + esc(XU.tu) + '"></div>' +
+      '<div class="frm-row"><label>Đến ngày</label>' +
+        '<input type="date" class="fld" data-xu="den" value="' + esc(XU.den) + '"></div>' +
+    '</div>' +
+    '<div class="xu-nhanh">' +
+      '<button class="the bam" data-xuky="0">Tháng này</button>' +
+      '<button class="the bam" data-xuky="1">Tháng trước</button>' +
+      '<button class="the bam" data-xuky="ca">Toàn bộ</button>' +
+    '</div>' +
+
+    '<div class="frm-2">' +
+      '<div class="frm-row"><label>Địa điểm</label>' +
+        oChon('diaDiem', XU.diaDiem, O.diaDiem || [], 'Tất cả địa điểm') + '</div>' +
+      '<div class="frm-row"><label>Loại hình</label>' +
+        oChon('loaiHinh', XU.loaiHinh, O.loaiHinh || [], 'Tất cả loại hình') + '</div>' +
+    '</div>' +
+    '<div class="frm-row"><label>Trạng thái</label>' +
+      oChon('trangThai', XU.trangThai, tt, 'Mọi trạng thái') +
+      '<div class="hint">Để <b>Đã hoàn tất</b> khi gửi đối tác — nháp, chờ duyệt và lịch huỷ '
+      + 'không phải thứ họ cần thấy.</div></div>' +
+
+    (CHIPHI() ? '<label class="xu-tien"><input type="checkbox" data-xu="tien"' +
+      (XU.tien ? ' checked' : '') + '> Kèm cột chi phí ' +
+      '<span class="xu-canh">chỉ tick khi bảng này dùng nội bộ</span></label>' : '') +
+
+    '<div class="xu-dong">' + dem + (XU.moTa ? '<div class="xu-mota">' + esc(XU.moTa) + '</div>' : '') + '</div>' +
+    '</div>';
+
+  $('#mdFoot').innerHTML =
+    '<span class="xu-nhac">Excel để lưu và gửi · CSV để nhập vào Google Sheet · Bản in để ra PDF</span>' +
+    '<div class="sp"></div>' +
+    '<button class="btn" data-close="1">Đóng</button>' +
+    '<button class="btn" data-xuattep="csv">CSV</button>' +
+    '<button class="btn" data-xuatin="1">Bản in / PDF</button>' +
+    '<button class="btn primary" data-xuattep="xlsx">Tải Excel</button>';
+  $('#modal').classList.add('on');
+}
+
+/**
+ * BẢN IN → PDF.
+ *
+ * Không tự dựng tệp PDF: trình duyệt nào cũng có sẵn "In → Lưu thành PDF", và
+ * nó cho xem trước, chọn khổ giấy, bỏ bớt trang. Tự sinh PDF trong máy chủ là
+ * thêm cả một bộ dựng chữ và phông tiếng Việt, để đổi lấy một tệp xấu hơn.
+ *
+ * Mở ở CỬA SỔ RIÊNG chứ không in thẳng trang app: in trang app là ra cả thanh
+ * điều hướng, thẻ lọc và bảng đang cuộn dở.
+ */
+async function moBanIn() {
+  const w = window.open('', '_blank');
+  if (!w) return toast('Trình duyệt chặn cửa sổ mới — cho phép rồi bấm lại.', 'err');
+  w.document.write('<!doctype html><meta charset="utf-8"><title>Đang dựng bản in…</title>'
+    + '<p style="font:14px system-ui;padding:24px;color:#555">Đang lấy dữ liệu…</p>');
+
+  let d;
+  try {
+    d = await (await fetch(urlXuat('json'))).json();
+  } catch (e) {
+    w.document.body.innerHTML = '<p style="font:14px system-ui;padding:24px;color:#b00">'
+      + 'Không lấy được dữ liệu: ' + esc(e.message) + '</p>';
+    return;
+  }
+  if (!d.hang.length) {
+    w.document.body.innerHTML = '<p style="font:14px system-ui;padding:24px">'
+      + 'Bộ lọc này không ra buổi nào.</p>';
+    return;
+  }
+
+  /* Cột Link in ra dạng chữ thì dài loằng ngoằng và không bấm được trên giấy.
+   * Trên bản PDF thì bấm được, nên để làm liên kết và rút gọn chữ hiển thị. */
+  const iLink = d.cot.findIndex((c) => /Link/i.test(c.ten));
+  const o = (v, i) => {
+    if (i === iLink && String(v).startsWith('http')) {
+      return '<a href="' + esc(v) + '">xem</a>';
+    }
+    return esc(v);
+  };
+
+  const html = '<!doctype html><html lang="vi"><head><meta charset="utf-8">'
+    + '<title>' + esc(d.tieuDe) + '</title><style>'
+    + '@page{size:A4 landscape;margin:12mm}'
+    + '*{box-sizing:border-box}'
+    /* NỀN TRẮNG khai tường minh. Không khai thì máy đang để chế độ tối vẽ nền
+     * đen sau trang, chữ đen nằm trên nền đen — lúc in ra giấy thì vẫn đúng,
+     * nhưng màn hình xem trước không đọc được gì và người ta tưởng hỏng. */
+    + 'html{background:#fff}'
+    + 'body{font:11px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;'
+      + 'color:#1a2233;background:#fff;margin:0;padding:18px}'
+    /* Ép trình duyệt in cả màu nền của hàng tiêu đề, nếu không bảng ra giấy
+     * trắng trơn không còn đường phân mảng. */
+    + 'th{-webkit-print-color-adjust:exact;print-color-adjust:exact}'
+    + 'h1{font-size:17px;letter-spacing:-.01em;margin:0}'
+    + '.phu{color:#5b6779;font-size:12px;margin:3px 0 14px}'
+    + 'table{border-collapse:collapse;width:100%}'
+    + 'th{background:#2b5cff;color:#fff;font-size:10px;text-transform:uppercase;'
+      + 'letter-spacing:.05em;text-align:left;padding:7px 8px}'
+    + 'td{padding:6px 8px;border-bottom:1px solid #e3e8f0;vertical-align:top}'
+    + 'tr{break-inside:avoid}'
+    + 'thead{display:table-header-group}'   /* tiêu đề lặp lại ở mỗi trang giấy */
+    + 'a{color:#2b5cff}'
+    + '.chan{margin-top:14px;color:#8b95a7;font-size:10px;'
+      + 'display:flex;justify-content:space-between}'
+    + '@media print{.khong-in{display:none}}'
+    + '.khong-in{position:fixed;right:18px;top:14px}'
+    + '.khong-in button{font:600 13px system-ui;padding:8px 16px;border-radius:8px;'
+      + 'border:0;background:#2b5cff;color:#fff;cursor:pointer}'
+    + '</style></head><body>'
+    + '<div class="khong-in"><button onclick="window.print()">In / Lưu PDF</button></div>'
+    + '<h1>' + esc(d.tieuDe) + '</h1>'
+    + '<div class="phu">' + esc(d.moTa) + '</div>'
+    + '<table><thead><tr>' + d.cot.map((c) => '<th>' + esc(c.ten) + '</th>').join('')
+    + '</tr></thead><tbody>'
+    + d.hang.map((h) => '<tr>' + h.map((v, i) => '<td>' + o(v, i) + '</td>').join('') + '</tr>').join('')
+    + '</tbody></table>'
+    + '<div class="chan"><span>Rooty Trip · Phòng Marketing</span><span>In ngày '
+    + esc(new Date().toLocaleDateString('vi-VN')) + '</span></div>'
+    + '</body></html>';
+
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+}
+
 /* ============ DANH SÁCH ============ */
 function viewList() {
   const list = filtered().sort(byStartDesc);
-  let h = filterBar();
+  let h = filterBar({ coXuat: true });
   if (!list.length) return h + emptyBox('Không có lịch nào khớp bộ lọc', 'Thử đổi khoảng thời gian hoặc xoá bộ lọc.');
 
   /* Cột Thao tác chỉ dựng cho quản lý, và không dựng khi đang xem hộ người
@@ -3757,6 +3957,31 @@ document.addEventListener('click', async (e) => {
   if (T.closest('#bcGui')) { await guiBaoCao(); return; }
   if (T.closest('#xhGui')) { await guiXinHuy(); return; }
   if (T.closest('#hmGui')) { await guiXinHuyMuon(); return; }
+  if (T.closest('#fXuat')) { moXuat(); return; }
+
+  const xuKy = T.closest('[data-xuky]');
+  if (xuKy && XU) {
+    const v = xuKy.dataset.xuky;
+    if (v === 'ca') { XU.tu = ''; XU.den = ''; }
+    else { const k = thangNay(Number(v)); XU.tu = k.tu; XU.den = k.den; }
+    veXuat(); demXuat();
+    return;
+  }
+
+  const xuTep = T.closest('[data-xuattep]');
+  if (xuTep && XU) {
+    /* Tải về bằng thẻ <a download> chứ không đổi location: đổi location thì
+     * trình duyệt rời trang, và cửa sổ xuất đóng mất — người ta phải mở lại từ
+     * đầu để lấy thêm một định dạng nữa. */
+    const a = document.createElement('a');
+    a.href = urlXuat(xuTep.dataset.xuattep);
+    a.download = '';
+    document.body.appendChild(a); a.click(); a.remove();
+    return;
+  }
+
+  if (T.closest('[data-xuatin]') && XU) { moBanIn(); return; }
+
   if (T.closest('#fReset')) { S.f = { period: 'month', person: 'all', status: 'all', q: '', the: '' }; render(); return; }
 
   // multi-select trong drawer
@@ -4054,6 +4279,16 @@ document.addEventListener('input', (e) => {
     else setDraft(k, T.value);
     return;
   }
+  const xu = T.dataset && T.dataset.xu;
+  if (xu && XU) {
+    XU[xu] = T.type === 'checkbox' ? T.checked : T.value;
+    /* Đếm lại sau mỗi lần đổi, nhưng chờ một nhịp: gõ ngày bằng bàn phím bắn
+     * 'input' theo từng ký tự, mỗi ký tự một lời gọi là thừa. */
+    clearTimeout(window.__xuHen);
+    window.__xuHen = setTimeout(demXuat, 250);
+    return;
+  }
+
   const n = T.dataset && T.dataset.n;
   if (n) {
     if (T.dataset.kieu === 'ngay') return;
@@ -4111,6 +4346,13 @@ document.addEventListener('change', async (e) => {
   const k = T.dataset && T.dataset.k;
   if (k && S.sel && T.tagName === 'SELECT') { setDraft(k, T.value || null); return; }
   if (T.dataset && T.dataset.bc && BC && T.tagName === 'SELECT') { BC[T.dataset.bc] = T.value; return; }
+
+  const xuC = T.dataset && T.dataset.xu;
+  if (xuC && XU) {
+    XU[xuC] = T.type === 'checkbox' ? T.checked : T.value;
+    veXuat(); demXuat();
+    return;
+  }
 
   const n = T.dataset && T.dataset.n;
   if (n && T.tagName === 'SELECT') {

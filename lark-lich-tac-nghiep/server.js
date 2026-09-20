@@ -642,6 +642,7 @@ async function taoDonTourwell(recId, item) {
  * ------------------------------------------------------------------------- */
 const soQuy = require('./so-quy');
 const { doanDiaDiem, doanLoaiHinh } = require('./public/phan-loai');
+const xuat = require('./xuat');
 const dangGhiQuy = new Set();
 
 async function ghiSoQuy(recId, item, maDon) {
@@ -790,6 +791,57 @@ async function api(req, res, url) {
       error: 'Đang xem giao diện của người khác — hãy quay lại vai quản lý trước khi thao tác.',
       code: 'PREVIEW_READONLY',
     }, 403);
+  }
+
+  /* ---------------------------------------------------------------------
+   * XUẤT DANH SÁCH — để trình đối tác
+   * -------------------------------------------------------------------
+   *   /api/xuat?kieu=xlsx|csv|json&tu=&den=&diaDiem=&loaiHinh=&trangThai=&tien=1
+   *
+   * Dùng ĐÚNG luật phạm vi của /api/meta: nhân sự thường chỉ xuất được lịch
+   * của mình, ai có quyền "xem toàn bộ" thì xuất cả phòng. Nếu chỉ chặn ở giao
+   * diện thì gõ thẳng địa chỉ này là xuất được sổ của cả phòng.
+   *
+   * CHI PHÍ phải xin riêng bằng tien=1, VÀ phải có quyền xem chi phí. Bảng này
+   * đem cho đối tác — lộ cột tiền ở đây hỏng chuyện lớn hơn mọi lỗi kỹ thuật.
+   * ------------------------------------------------------------------- */
+  if (p === '/api/xuat' && req.method === 'GET') {
+    const q = url.searchParams;
+    const records = await getRecords(q.get('refresh') === '1');
+    const all = records.map(toItem).filter((t) => !isBlank(t));
+    const me = await whoAmI();
+    const manager = await isManager();
+
+    const scoped = anLichHuy(
+      manager ? all : (me ? (qToanBo() ? all : all.filter((t) => ownedBy(t, me.id))) : []),
+      manager,
+    );
+
+    const keTien = q.get('tien') === '1' && (manager || qChiPhi());
+    const dk = {
+      tu: q.get('tu') || '', den: q.get('den') || '',
+      diaDiem: q.get('diaDiem') || '', loaiHinh: q.get('loaiHinh') || '',
+      trangThai: q.get('trangThai') || '',
+    };
+    const ds = xuat.loc(keTien ? scoped : scoped.map((t) => boChiPhi(t, me && me.id)), dk);
+
+    const kieu = q.get('kieu') || 'xlsx';
+    if (kieu === 'json') {
+      /* Bản in tự dựng trang trong trình duyệt, nên chỉ cần dòng và mô tả. */
+      const { cot, hang } = xuat.dungBang(ds, keTien);
+      return json(res, { cot, hang, so: ds.length, moTa: xuat.moTaLoc(dk, ds.length), tieuDe: xuat.TIEU_DE });
+    }
+
+    const ra = kieu === 'csv' ? xuat.xuatCsv(ds, dk, keTien) : xuat.xuatXlsx(ds, dk, keTien);
+    res.writeHead(200, {
+      'Content-Type': ra.kieu,
+      'Content-Length': ra.than.length,
+      /* filename* cho tên có dấu; filename thường cho trình duyệt cũ. */
+      'Content-Disposition': "attachment; filename=\"" + ra.tep + "\"; filename*=UTF-8''"
+        + encodeURIComponent(ra.tep),
+      'Cache-Control': 'no-store',
+    });
+    return res.end(ra.than);
   }
 
   if (p === '/api/meta' && req.method === 'GET') {

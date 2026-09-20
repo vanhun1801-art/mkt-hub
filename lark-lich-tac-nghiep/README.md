@@ -449,6 +449,64 @@ phát hiện, người dùng chỉ thấy app *"đoán linh tinh"*.
 bốn chỗ thứ tự dễ đảo nhầm, ba chốt bắt buộc, và cả đường dây gợi ý.
 95 phép thử.
 
+## Xuất danh sách — để TRÌNH ĐỐI TÁC
+
+Nút **Xuất** ở tab *Danh sách*. Đây không phải nút "tải về" thường: bảng này đem
+ngồi với Vinwonders hay Grand World, nên ba thứ phải đúng ngay từ mặc định.
+
+**Chi phí mặc định KHÔNG ra.** Phải tự tick, và chỉ ai có quyền xem chi phí mới
+thấy ô tick. Đưa nhầm bảng có cột tiền cho đối tác hỏng chuyện lớn hơn mọi lỗi
+kỹ thuật trong app này. Server chốt lại: `tien=1` mà không có quyền thì vẫn
+không ra cột.
+
+**Mặc định chỉ "Đã hoàn tất".** Nháp, chờ duyệt, bị huỷ, bị từ chối — không phải
+thứ đối tác cần thấy. Đổi được nếu cần.
+
+**Đếm trước khi xuất.** Màn hình nói luôn *"N buổi sẽ được xuất"* kèm mô tả bộ
+lọc, thay vì tải về rồi mở ra mới biết trống.
+
+Cột theo thứ tự đối tác đọc: ngày → giờ → nội dung → địa điểm → loại hình →
+thời lượng → nhân sự → link sản phẩm → trạng thái. Mục đích, kế hoạch, phản hồi
+quản lý, lý do huỷ đều **không** ra.
+
+### Ba lối ra, một bộ dòng
+
+| | Dùng khi |
+|---|---|
+| **Excel** `.xlsx` | lưu và gửi thẳng cho đối tác |
+| **CSV** | nhập vào Google Sheet (Tệp → Nhập, hoặc kéo vào Drive) |
+| **Bản in / PDF** | mở cửa sổ đã dàn sẵn khổ A4 ngang → *In → Lưu thành PDF* |
+
+Cả ba dựng từ **cùng một** `dungBang()`. Tách ra ba chỗ riêng là ba chỗ lệch
+nhau sau vài lần sửa.
+
+`.xlsx` ghi bằng `../lark-chung/xlsx-ghi.js` — **không thêm thư viện nào**, tự
+dựng ZIP + XML. Vì sao không xuất CSV rồi đổi đuôi: CSV mở bằng Excel thì tiếng
+Việt vỡ dấu nếu thiếu BOM, cột số bị đoán sai kiểu, không có tiêu đề in đậm hay
+độ rộng cột — trông như dữ liệu thô chứ không như một bản báo cáo.
+
+Không tự sinh PDF ở máy chủ: trình duyệt nào cũng có sẵn *In → Lưu thành PDF*,
+lại cho xem trước và chọn khổ giấy. Tự dựng PDF là thêm cả một bộ dựng chữ và
+phông tiếng Việt để đổi lấy một tệp xấu hơn.
+
+**Google Sheet đẩy thẳng thì chưa.** Cần một app Google có scope `spreadsheets`
+và refresh token; repo mới chỉ có OAuth cho Google Ads, và `gsheet.js` chỉ ĐỌC
+CSV đã xuất bản. Đường vòng chạy ngay: tải CSV rồi nhập vào Sheet, mất thêm một
+cú bấm.
+
+### Phép thử
+
+`test/xuat.test.js` canh hai chuyện mà hỏng thì không ai thấy:
+
+- **Cột tiền không được lọt ra** khi chưa xin.
+- **Tệp .xlsx phải mở được.** Ghi sai một offset trong ZIP là Excel báo *"file
+  hỏng"* mà không nói vì sao — nên ghi xong đọc lại bằng **bộ đọc độc lập**
+  (`lark-ads-manager/sync/xlsx.js`, viết từ trước cho bản xuất của Tourwell) và
+  so từng ô. Có cả ca ký tự `&`, ngoặc kép, dấu nhọn và ký tự điều khiển.
+
+Container ZIP còn được kiểm chéo lần nữa bằng `System.IO.Compression` của .NET —
+một cài đặt hoàn toàn khác.
+
 ## Kiểm thử
 
 ```bash
