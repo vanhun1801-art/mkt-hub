@@ -321,7 +321,7 @@ phải tải xuống rồi tải lên tay, đúng cái việc app sinh ra để 
 Hai việc độc lập: Tourwell hỏng thì sổ quỹ vẫn có dòng chi, và ngược lại. Tắt
 riêng phần sổ quỹ bằng `QUY_TAT=1` hoặc `so-quy.json` với `"tat": true`.
 
-## Cột "Địa điểm" — suy từ tên hoạt động
+## Hai cột "Địa điểm" và "Loại hình" — suy từ tên hoạt động
 
 Cột *Tên hoạt động* gõ tay, nên **129 dòng đầu tiên đẻ ra 62 tên khác nhau** —
 mà khác nhau phần lớn do gõ lệch: `Live/stre/am` · `Lives/tream` · `Liv/e/tream`
@@ -332,39 +332,68 @@ Lọc theo cột đó thì phải nhớ hết các cách gõ.
 không cho cột chính mang kiểu chọn, và app ghi thẳng vào ô này mỗi lần đăng ký
 lịch. Mà 62 lựa chọn cũng chỉ là dọn cái bừa sang một chỗ mới.
 
-Nên có cột **Địa điểm** riêng (`fldz2r9RDG`), 12 lựa chọn, suy từ tên bằng
-`dia-diem.js`. Kết quả trên 129 dòng cũ:
+Nên tách ra **hai** cột, mỗi cột một câu hỏi, luật nằm ở `phan-loai.js`:
 
-| | |
-|---|---|
-| Địa Trung Hải – Sunset Town | 45 |
-| VinWonders | 19 |
-| Grand World | 17 |
-| Cáp treo Hòn Thơm | 14 |
-| Safari | 7 |
-| Tour đảo · cano | 5 |
-| Khách sạn · resort · nhà hàng · bãi biển… | 11 |
-| *(để trống)* | 11 |
+| Cột | Trả lời | Lựa chọn |
+|---|---|---|
+| **Địa điểm** (`fldz2r9RDG`) | đi ĐÂU | 20 |
+| **Loại hình** (`fld95sumMx`) | làm GÌ ở đó | 7 |
 
-Hai quyết định trong luật đoán:
+Hai chiều độc lập: *"Live/stream Grand World"* và *"Khảo sát nhà hàng Cường Kua
+- Grand World"* cùng một chỗ nhưng khác hẳn việc.
 
-- **Tên show = tên chỗ.** Phần lớn dòng chỉ viết tên show (*Kiss of the Sea*,
-  *SOTS*, *Dinner Show*, *Chill Show*, *Awaken Sea*) chứ không viết chỗ. Chúng
-  đều diễn ở thị trấn Địa Trung Hải – Sunset Town.
-- **Không đoán được thì ĐỂ TRỐNG, không nhét vào "Khác".** Ô trống nhìn ra ngay
-  là còn phải xếp tay; "Khác" thì trông như đã xếp xong. Mười một dòng rơi vào
-  đây đều là việc không gắn với địa điểm — media đoàn khách, quay tư liệu, media
-  đội xe.
+Kết quả trên 129 dòng cũ — **118/129** có địa điểm, **128/129** có loại hình:
 
-**Và phải suy tự động cho lịch mới.** Điền 118 dòng cũ rồi bỏ đó thì từ hôm sau
-mọi lịch mới đều trống ô này, một tháng nữa bộ lọc vô dụng. Server gọi
-`doanDiaDiem()` lúc **tạo lịch** và lúc **sửa tên** — nhưng **chỉ khi ô đang
-trống**: người xếp tay bao giờ cũng đúng hơn luật đoán, ghi đè lựa chọn của họ
-mỗi lần sửa tên là lấy mất quyền sửa.
+```
+Sunset Town 44 · Vinwonders 19 · Grand World 18 · Hòn Thơm 14 · Safari 7
+Tour Đảo 5 · Khách sạn-Resort 4 · Nhà hàng 3 · Bãi Sao/Khem/Đất Đỏ/Dương Đông 1
+Livestream 86 · Quay-chụp 20 · Tư liệu-source 11 · Media đoàn khách 6
+```
 
-`test/dia-diem.test.js` chạy luật trên **tên thật lấy từ sổ**, kể cả mấy cách gõ
-lệch, và canh cả thứ tự luật: *"Khảo sát nhà hàng Cường Kua - Grand World"* phải
-ra Grand World chứ không ra Nhà hàng. Đảo thứ tự trong `LUAT` là đỏ ngay.
+### Bốn quyết định trong luật đoán
+
+**Tên show = tên chỗ.** Phần lớn dòng chỉ viết tên show (*Kiss of the Sea*,
+*SOTS*, *Dinner Show*, *Chill Show*, *Awaken Sea*) chứ không viết chỗ. Chúng đều
+diễn ở Sunset Town.
+
+**Loại hình đọc cả Mục đích, không chỉ tên.** Gần một nửa số dòng đặt tên chỉ
+bằng địa điểm — *"Vinwonder Phú Quốc"*, *"Safari"* — nên tên không nói được làm
+gì. Ô *Mục đích* thì nói rất rõ: *"Li/v/e/stre/a/m bán hàng/ tư vấn tour"*,
+*"Quay source flycam show…"*. Bỏ qua ô đó là tự để trống 45/129 dòng trong khi
+câu trả lời nằm ngay cột bên cạnh. Tên đi trước vì nó cụ thể hơn.
+
+**Dấu gạch cắt giữa chữ.** Người ta gõ `Liv/e/tream` để né bộ lọc của nền tảng.
+Dò `/live/` trên chuỗi thường thì trượt hết — mà trượt *lặng lẽ*, ô chỉ trống
+chứ không báo gì. Nên có thêm dạng **nén** (bỏ mọi ký tự không phải chữ số) chỉ
+dùng cho đúng mấy chữ đó.
+
+**Không đoán được thì ĐỂ TRỐNG, không nhét vào "Khác".** Ô trống nhìn ra ngay là
+còn phải xếp tay; "Khác" thì trông như đã xếp xong.
+
+### Hai thứ tự, cố ý khác nhau
+
+- **Thứ tự luật** xếp theo độ đặc trưng. *Bãi Khem* phải đứng trước *Sunset
+  Town* (nó nằm trong khu đó); hai luật rộng nhất — *Khách sạn* và *Nhà hàng* —
+  phải đứng **cuối**, vì `"đón khách sân bay"` bỏ dấu thành `don khach san bay`,
+  chứa nguyên chữ `khach san`.
+- **Thứ tự bày ra** trong ô chọn xếp theo **số lần dùng**: chỗ hay đi để trên
+  cùng, khỏi cuộn.
+
+Trộn hai thứ tự vào một danh sách là hỏng một trong hai, và hỏng lặng lẽ.
+
+### Lịch mới cũng phải có
+
+Điền dòng cũ rồi bỏ đó thì từ hôm sau mọi lịch mới đều trống, một tháng nữa bộ
+lọc vô dụng. Ba đường:
+
+1. **Form đăng ký** có hai ô chọn, mặc định *"— để hệ thống tự đoán —"*.
+2. **Cửa sổ chi tiết** sửa lại được sau, vì luật đoán không bao giờ đúng hết.
+3. **Server tự suy** lúc tạo lịch và lúc sửa tên/mục đích — **chỉ khi ô đang
+   trống**. Người xếp tay bao giờ cũng đúng hơn luật đoán; ghi đè lựa chọn của
+   họ mỗi lần sửa tên là lấy mất quyền sửa.
+
+`test/phan-loai.test.js` chạy luật trên **dữ liệu thật lấy từ sổ**, và canh cả
+bốn chỗ thứ tự dễ đảo nhầm. 71 phép thử.
 
 ## Kiểm thử
 

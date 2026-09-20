@@ -191,7 +191,7 @@ console.log('— hình khối: nhóm LÀ thẻ, ô LÀ ô bảng (không thẻ n
    * để dành riêng cho ô cần chú ý — nhờ thế nền màu mới còn nghĩa. */
   const luoi = khoi('.nhom-base > .the-luoi');
   t('lưới ô tách nhau bằng khoảng trắng, không phải khe 1px kẻ vòng',
-    /gap:\s*(?:[4-9]|[1-9][0-9])px/.test(luoi) && !/gap:\s*1px/.test(luoi), luoi.slice(0, 200));
+    /gap:\s*(?:[4-9]|[1-9][0-9])px/.test(luoi) && !/gap:\s*1px\b/.test(luoi), luoi.slice(0, 200));
   /* Mọi ô cùng một đệm: ô có nền mà kéo lề âm thì nhãn của nó nhấc lên 8px so
    * với ô thường bên cạnh — cả hàng lệch nhau, mắt bắt được ngay. */
   t('ô có nền KHÔNG kéo lề âm', !/\.the\.cao,\s*\.the\.vua\s*\{[^}]*margin:\s*-/.test(css));

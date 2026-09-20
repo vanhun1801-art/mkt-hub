@@ -2092,7 +2092,11 @@ function renderDrawer() {
     '<div class="frm-2">' + fieldDate('start', 'Thời gian bắt đầu') +
       fieldSelect('duration', 'Thời lượng (giờ)', O.duration) + '</div>' +
     fieldDate('end', 'Thời gian kết thúc', 'Chỉ cập nhật sau khi đã hoàn tất tác nghiệp') +
-    fieldText('plan', 'Kế hoạch chi tiết', 'Các mốc giờ trong buổi, từ lúc xuất phát tới lúc kết thúc', true),
+    fieldText('plan', 'Kế hoạch chi tiết', 'Các mốc giờ trong buổi, từ lúc xuất phát tới lúc kết thúc', true) +
+    /* Sửa được sau, vì luật đoán không bao giờ đúng hết — và vì chỗ đi có thể
+     * đổi sau khi đăng ký. */
+    '<div class="frm-2">' + fieldSelect('diaDiem', 'Địa điểm', O.diaDiem) +
+      fieldSelect('loaiHinh', 'Loại hình', O.loaiHinh) + '</div>',
     'chuyen');
 
   h += khoi('Nhân sự & di chuyển',
@@ -2756,6 +2760,7 @@ function openCreate(preDate) {
   NEW = {
     title: '', purpose: '', plan: '', start: preDate || '', end: '', duration: '',
     staff: [], owner: S.me ? [S.me.id] : [], transport: ['Tự túc phương tiện'],
+    diaDiem: '', loaiHinh: '',
     costPlan: '', foc: [], report: '',
     status: 'Chờ duyệt/Xử lý',
   };
@@ -2938,6 +2943,28 @@ function renderCreate() {
     '<div class="frm-row"><label>Mục đích' + req + '</label>' +
       '<textarea class="fld" data-n="purpose" placeholder="Vì sao cần đi chuyến này — mỗi việc một dòng">' + esc(NEW.purpose) + '</textarea></div>' +
 
+    /* Địa điểm và Loại hình: hai câu hỏi ĐI ĐÂU và LÀM GÌ, tách khỏi tên hoạt
+     * động để về sau lọc được. Tên gõ tay nên 129 dòng đầu đẻ ra 62 cách viết
+     * cho chừng một tá chỗ; lọc theo tên là phải nhớ hết các cách gõ.
+     *
+     * Để trống cũng không sao — máy chủ tự suy từ tên và mục đích. Nói thẳng
+     * điều đó ra, vì một ô bắt buộc-mà-không-bắt-buộc thì người ta chọn bừa
+     * cho xong, và chọn bừa còn tệ hơn để máy đoán. */
+    '<div class="frm-2">' +
+      '<div class="frm-row"><label>Địa điểm</label>' +
+        '<select class="fld" data-n="diaDiem"><option value="">— để hệ thống tự đoán —</option>' +
+        (O.diaDiem || []).map((o) => '<option value="' + esc(o) + '"' +
+          (NEW.diaDiem === o ? ' selected' : '') + '>' + esc(o) + '</option>').join('') +
+        '</select></div>' +
+      '<div class="frm-row"><label>Loại hình</label>' +
+        '<select class="fld" data-n="loaiHinh"><option value="">— để hệ thống tự đoán —</option>' +
+        (O.loaiHinh || []).map((o) => '<option value="' + esc(o) + '"' +
+          (NEW.loaiHinh === o ? ' selected' : '') + '>' + esc(o) + '</option>').join('') +
+        '</select></div>' +
+    '</div>' +
+    '<div class="hint">Bỏ trống thì máy suy từ tên và mục đích. Chọn tay thì máy '
+      + 'không đụng vào nữa — kể cả lần sau sửa tên.</div>' +
+
     '<div class="frm-2">' +
       '<div class="frm-row"><label>Thời gian bắt đầu' + req + '</label>' +
         oNgay('n', 'start', NEW.start) + '</div>' +
@@ -3009,6 +3036,8 @@ async function submitCreate(mode) {
     duration: NEW.duration || null,
     staff: NEW.staff,
     transport: NEW.transport,
+    diaDiem: NEW.diaDiem,
+    loaiHinh: NEW.loaiHinh,
     costPlan: NEW.costPlan === '' ? null : Number(NEW.costPlan),
     foc: NEW.foc,
     report: NEW.report.trim(),

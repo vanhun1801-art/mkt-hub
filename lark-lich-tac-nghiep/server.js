@@ -641,7 +641,7 @@ async function taoDonTourwell(recId, item) {
  * cùng tên cùng tiền sẽ bị coi là một.
  * ------------------------------------------------------------------------- */
 const soQuy = require('./so-quy');
-const { doanDiaDiem } = require('./dia-diem');
+const { doanDiaDiem, doanLoaiHinh, DS_DIA_DIEM, DS_LOAI_HINH } = require('./phan-loai');
 const dangGhiQuy = new Set();
 
 async function ghiSoQuy(recId, item, maDon) {
@@ -1264,12 +1264,16 @@ async function api(req, res, url) {
       patch.status = 'Chờ duyệt/Xử lý';
     }
 
-    /* Địa điểm suy từ tên, CHỈ KHI người đăng ký chưa tự chọn. Không suy tự
-     * động thì cột này chết ngay hôm sau: 118 dòng cũ có, mọi dòng mới trống,
-     * và một tháng nữa bộ lọc vô dụng. */
+    /* Địa điểm và loại hình suy từ tên (+ mục đích), CHỈ KHI người đăng ký chưa
+     * tự chọn. Không suy tự động thì hai cột này chết ngay hôm sau: 129 dòng cũ
+     * có, mọi dòng mới trống, một tháng nữa bộ lọc vô dụng. */
     if (!patch.diaDiem) {
       const dd = doanDiaDiem(patch.title);
       if (dd) patch.diaDiem = dd;
+    }
+    if (!patch.loaiHinh) {
+      const lh = doanLoaiHinh(patch.title, patch.purpose);
+      if (lh) patch.loaiHinh = lh;
     }
 
     const cells = toCells(patch);
@@ -1487,12 +1491,19 @@ async function api(req, res, url) {
         body.editedAfter = new Date().toISOString();
       }
 
-      /* Sửa tên mà ô Địa điểm đang trống thì suy lại. CHỈ KHI TRỐNG: người xếp
-       * tay bao giờ cũng đúng hơn luật đoán, ghi đè lựa chọn của họ mỗi lần sửa
-       * tên là lấy mất quyền sửa. Và chỉ khi họ không tự gửi diaDiem lên. */
-      if (body.title !== undefined && body.diaDiem === undefined && !item.diaDiem) {
-        const dd = doanDiaDiem(body.title);
+      /* Sửa tên hay mục đích mà hai ô kia đang trống thì suy lại. CHỈ KHI TRỐNG:
+       * người xếp tay bao giờ cũng đúng hơn luật đoán, ghi đè lựa chọn của họ
+       * mỗi lần sửa tên là lấy mất quyền sửa. */
+      const doiTen = body.title !== undefined || body.purpose !== undefined;
+      if (doiTen && body.diaDiem === undefined && !item.diaDiem) {
+        const dd = doanDiaDiem(body.title !== undefined ? body.title : item.title);
         if (dd) body.diaDiem = dd;
+      }
+      if (doiTen && body.loaiHinh === undefined && !item.loaiHinh) {
+        const lh = doanLoaiHinh(
+          body.title !== undefined ? body.title : item.title,
+          body.purpose !== undefined ? body.purpose : item.purpose);
+        if (lh) body.loaiHinh = lh;
       }
 
       const cells = toCells(body);

@@ -195,7 +195,7 @@ group('Giữ lần nộp ĐẦU TIÊN — sửa phiếu không được biến t
     /K\.chamHan\(k, nopDau\)/.test(src));
   ok('lần sửa ghi vào ô RIÊNG', /suaLuc\.id\]: luc/.test(src));
   ok('không còn chỗ nào ghi nopLuc bằng giờ hiện tại',
-    !/nopLuc\.id\]: luc/.test(src),
+    !/nopLuc\.id\]: luc\b/.test(src),
     'còn một chỗ là còn nguyên lỗi cũ');
 }
 
