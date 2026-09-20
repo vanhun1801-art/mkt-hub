@@ -12,7 +12,7 @@
  */
 const {
   doanDiaDiem, doanLoaiHinh, DS_DIA_DIEM, DS_LOAI_HINH, DIA_DIEM, LOAI_HINH,
-} = require('../phan-loai');
+} = require('../public/phan-loai');
 
 let pass = 0, fail = 0;
 const fails = [];
@@ -216,6 +216,42 @@ ok('đường TẠO không còn nhánh đoán', !khoiTao.includes('doanDiaDiem')
 const iSua = srvSrc.indexOf('const cells = toCells(body);');
 ok('đường SỬA vẫn giữ nhánh đoán cho lịch cũ còn trống',
   srvSrc.slice(Math.max(0, iSua - 1400), iSua).includes('doanDiaDiem'));
+
+nhom('Gợi ý trên form dùng CHÍNH bộ luật của máy chủ');
+/* Bộ luật này đã sửa năm lần trong một ngày — gộp nhóm, đảo thứ tự, thêm "src",
+ * hạ hai luật rộng xuống cuối, bỏ ba nhóm. Chép đôi sang giao diện thì sửa một
+ * bên là gợi ý một đằng, ghi xuống Base một nẻo — mà lệch kiểu đó không ai phát
+ * hiện, người dùng chỉ thấy app "đoán linh tinh". */
+ok('tệp luật nằm trong public/ để trình duyệt với tới',
+  fs2.existsSync(__dirname + '/../public/phan-loai.js'));
+ok('máy chủ nạp ĐÚNG tệp đó, không nạp bản chép',
+  srvSrc.includes("require('./public/phan-loai')"), '');
+const htmlSrc = fs2.readFileSync(__dirname + '/../public/index.html', 'utf8');
+ok('trang nạp phan-loai.js TRƯỚC app.js',
+  htmlSrc.indexOf('/phan-loai.js') > 0
+  && htmlSrc.indexOf('/phan-loai.js') < htmlSrc.indexOf('/app.js'));
+const plSrc = fs2.readFileSync(__dirname + '/../public/phan-loai.js', 'utf8');
+ok('tệp luật chạy được cả hai phía', plSrc.includes('window.PhanLoai'));
+ok('không còn bản chép nào ở thư mục gốc',
+  !fs2.existsSync(__dirname + '/../phan-loai.js'));
+
+nhom('Gợi ý nói khi có gì đáng nói, im lúc khác');
+ok('form có chỗ để vẽ gợi ý', formSrc.includes('id="goiYPL"'));
+ok('gõ tên hay mục đích thì tính lại',
+  formSrc.includes("if (n === 'title' || n === 'purpose') veGoiYPhanLoai()"));
+ok('đổi ô chọn cũng tính lại',
+  formSrc.includes("if (n === 'diaDiem' || n === 'loaiHinh') veGoiYPhanLoai()"));
+ok('bấm chip là điền vào ô chọn', formSrc.includes("T.closest('[data-goiy]')"));
+/* Chọn TRÙNG luật thì phải IM. Khen "bạn chọn đúng rồi" là thêm một dòng chữ
+ * người ta học cách không đọc, rồi đúng lúc nó đổi thành cảnh báo cũng trôi. */
+ok('chọn trùng luật thì không nói gì',
+  formSrc.includes('if (!doan || doan === dangChon) return '));
+/* Và KHÔNG BAO GIỜ tự sửa lựa chọn của người dùng — người đăng ký biết mình đi
+ * đâu, luật chỉ đọc chữ mà chữ thì hay thiếu. */
+const iVe = formSrc.indexOf('function veGoiYPhanLoai');
+const thanVe = formSrc.slice(iVe, formSrc.indexOf('async function submitCreate', iVe));
+ok('hàm vẽ gợi ý KHÔNG ghi vào NEW', !/NEW\.(diaDiem|loaiHinh)\s*=/.test(thanVe),
+  (thanVe.match(/NEW\.\w+\s*=.{0,30}/) || [''])[0]);
 
 console.log('\n' + (fail ? '\x1b[31m' : '\x1b[32m') + pass + ' pass, ' + fail + ' fail\x1b[0m');
 if (fail) { fails.forEach((f) => console.log('  - ' + f)); process.exit(1); }

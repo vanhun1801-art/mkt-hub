@@ -414,8 +414,40 @@ người xếp tay bao giờ cũng đúng hơn luật đoán.
 
 **Cửa sổ chi tiết** sửa lại được cả hai ô, vì chỗ đi có thể đổi sau khi đăng ký.
 
+### Chọn sai thì gợi ý chọn lại
+
+Bắt chọn thôi chưa đủ: chọn xong mà chọn **sai** thì vẫn lọt, và sai lặng lẽ.
+Luật đọc được tên và mục đích, nên nó biết *"Live/stream Grand World"* mà chọn
+Vinwonders là có chuyện. Khối gợi ý dưới hai ô chọn có **ba trạng thái, và chỉ
+ba**:
+
+| Tình huống | Hiện ra |
+|---|---|
+| Chưa chọn, luật đoán được | *Địa điểm: có vẻ là* **[Sunset Town]** — bấm là điền |
+| Đã chọn **khác** luật | *Tên và mục đích nghe như* **Sunset Town***, đang chọn* **Safari**. **[Đổi sang Sunset Town]** |
+| Đã chọn **trùng** luật | im |
+
+Khen *"bạn chọn đúng rồi"* là thêm một dòng chữ người ta học cách không đọc, rồi
+đúng lúc nó đổi thành cảnh báo cũng trôi qua mắt. Nền vàng chứ **không đỏ**:
+người ta chưa làm gì sai, chỉ là luật nghĩ khác.
+
+**Không bao giờ tự sửa lựa chọn của người dùng** — người đăng ký biết mình đi
+đâu, luật chỉ đọc chữ mà chữ thì hay thiếu. Có phép thử đọc thân hàm vẽ gợi ý và
+đòi nó **không ghi vào `NEW`**.
+
+### Một tệp luật, hai phía
+
+`phan-loai.js` nằm trong **`public/`** — máy chủ nạp bằng `require()`, trình
+duyệt nạp bằng thẻ `<script>` rồi đọc qua `window.PhanLoai`. Cùng một tệp.
+
+Vì sao không chép đôi: bộ luật này đã sửa **năm lần trong một ngày** (gộp nhóm,
+đảo thứ tự, thêm `src`, hạ hai luật rộng xuống cuối, bỏ ba nhóm). Chép đôi thì
+sửa một bên là gợi ý một đằng, ghi xuống Base một nẻo — mà lệch kiểu đó không ai
+phát hiện, người dùng chỉ thấy app *"đoán linh tinh"*.
+
 `test/phan-loai.test.js` chạy luật trên **dữ liệu thật lấy từ sổ**, và canh cả
-bốn chỗ thứ tự dễ đảo nhầm, cộng ba chốt bắt buộc. 84 phép thử.
+bốn chỗ thứ tự dễ đảo nhầm, ba chốt bắt buộc, và cả đường dây gợi ý.
+95 phép thử.
 
 ## Kiểm thử
 

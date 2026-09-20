@@ -221,8 +221,19 @@ const DS_LOAI_HINH = [
   'Khảo sát',           // 1
 ];
 
-module.exports = {
-  doanDiaDiem, doanLoaiHinh,
-  DS_DIA_DIEM, DS_LOAI_HINH,
-  DIA_DIEM, LOAI_HINH,
-};
+/* ---------------------------------------------------------------------------
+ * MỘT TỆP, HAI PHÍA
+ * -------------------------------------------------------------------------
+ * Máy chủ nạp bằng require(); trình duyệt nạp bằng thẻ <script> rồi đọc qua
+ * window.PhanLoai. Nên tệp nằm trong public/ — đó là chỗ duy nhất trình duyệt
+ * với tới được.
+ *
+ * Vì sao không chép đôi luật sang giao diện: bộ luật này đã sửa bốn lần trong
+ * một ngày (gộp nhóm, đảo thứ tự, thêm "src", hạ hai luật rộng xuống cuối).
+ * Chép đôi thì sửa một bên là bên kia gợi ý một đằng, chấm một nẻo — mà lệch
+ * kiểu đó không ai phát hiện ra, người dùng chỉ thấy app "đoán linh tinh".
+ * ------------------------------------------------------------------------- */
+const XUAT = { doanDiaDiem, doanLoaiHinh, DS_DIA_DIEM, DS_LOAI_HINH, DIA_DIEM, LOAI_HINH };
+
+if (typeof module !== 'undefined' && module.exports) module.exports = XUAT;
+else if (typeof window !== 'undefined') window.PhanLoai = XUAT;

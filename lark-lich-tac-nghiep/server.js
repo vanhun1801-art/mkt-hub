@@ -641,7 +641,7 @@ async function taoDonTourwell(recId, item) {
  * cùng tên cùng tiền sẽ bị coi là một.
  * ------------------------------------------------------------------------- */
 const soQuy = require('./so-quy');
-const { doanDiaDiem, doanLoaiHinh } = require('./phan-loai');
+const { doanDiaDiem, doanLoaiHinh } = require('./public/phan-loai');
 const dangGhiQuy = new Set();
 
 async function ghiSoQuy(recId, item, maDon) {

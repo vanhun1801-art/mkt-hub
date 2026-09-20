@@ -2962,6 +2962,7 @@ function renderCreate() {
           (NEW.loaiHinh === o ? ' selected' : '') + '>' + esc(o) + '</option>').join('') +
         '</select></div>' +
     '</div>' +
+    '<div id="goiYPL"></div>' +
 
     '<div class="frm-2">' +
       '<div class="frm-row"><label>Thời gian bắt đầu' + req + '</label>' +
@@ -3019,6 +3020,53 @@ function renderCreate() {
     'Xong rồi thì <b>Gửi duyệt</b> — lịch chuyển sang <b>Chờ duyệt/Xử lý</b> và khoá lại.</span>' +
     '<button class="btn nhap" data-nsave="draft">Lưu nháp</button>' +
     '<button class="btn primary" data-nsave="send">Gửi duyệt</button>';
+
+  /* Mở form ra đã có gợi ý sẵn nếu đang sửa một bản nháp có tên rồi. */
+  veGoiYPhanLoai();
+}
+
+/* ---------------------------------------------------------------------------
+ * GỢI Ý PHÂN LOẠI — nói khi CÓ GÌ ĐÁNG NÓI, im lúc khác
+ * -------------------------------------------------------------------------
+ * Bắt chọn thôi chưa đủ: chọn xong mà chọn sai thì vẫn lọt, và sai lặng lẽ.
+ * Luật trong phan-loai.js đọc được tên và mục đích, nên nó biết "Live/stream
+ * Grand World" mà chọn Vinwonders là có chuyện.
+ *
+ * Ba trạng thái, và chỉ ba:
+ *   · chưa chọn, luật đoán được  → mời chọn, bấm một cái là xong
+ *   · đã chọn KHÁC luật          → nói ra, đưa nút đổi, KHÔNG tự đổi
+ *   · đã chọn trùng luật         → IM. Khen "bạn chọn đúng rồi" là thêm một
+ *                                  dòng chữ người ta học cách không đọc.
+ *
+ * Không bao giờ tự sửa lựa chọn của người dùng. Người đăng ký biết mình đi đâu;
+ * luật chỉ đọc chữ, và chữ thì hay thiếu.
+ *
+ * Dùng CHÍNH tệp luật máy chủ dùng (window.PhanLoai, nạp từ /phan-loai.js) —
+ * chép đôi thì sửa một bên là gợi ý một đằng, ghi xuống Base một nẻo.
+ * ------------------------------------------------------------------------- */
+function veGoiYPhanLoai() {
+  const o = document.getElementById('goiYPL');
+  if (!o) return;
+  const PL = window.PhanLoai;
+  if (!PL) { o.innerHTML = ''; return; }
+
+  const dd = PL.doanDiaDiem(NEW.title);
+  const lh = PL.doanLoaiHinh(NEW.title, NEW.purpose);
+
+  const dong = (nhan, doan, dangChon, key) => {
+    if (!doan || doan === dangChon) return '';
+    return dangChon
+      ? '<div class="gy-dong gy-lech"><b>' + esc(nhan) + ':</b> tên và mục đích nghe như '
+        + '<b>' + esc(doan) + '</b>, đang chọn <b>' + esc(dangChon) + '</b>.'
+        + '<button class="gy-nut" data-goiy="' + key + '" data-gt="' + esc(doan) + '">'
+        + 'Đổi sang ' + esc(doan) + '</button></div>'
+      : '<div class="gy-dong"><b>' + esc(nhan) + ':</b> có vẻ là '
+        + '<button class="gy-nut" data-goiy="' + key + '" data-gt="' + esc(doan) + '">'
+        + esc(doan) + '</button></div>';
+  };
+
+  o.innerHTML = dong('Địa điểm', dd, NEW.diaDiem, 'diaDiem')
+    + dong('Loại hình', lh, NEW.loaiHinh, 'loaiHinh');
 }
 
 async function submitCreate(mode) {
@@ -3455,6 +3503,19 @@ async function refresh(force) {
 /* ============ sự kiện ============ */
 document.addEventListener('click', async (e) => {
   const T = e.target;
+
+  /* Bấm chip gợi ý thì điền vào ô chọn — người dùng vẫn là người quyết, chỉ đỡ
+   * phải cuộn tìm trong danh sách 20 chỗ. Đứng đầu vì nút nằm trong form đăng
+   * ký, nơi đầy nút data-close phía dưới. */
+  const gy = T.closest('[data-goiy]');
+  if (gy) {
+    const k = gy.dataset.goiy;
+    NEW[k] = gy.dataset.gt;
+    const oChon = document.querySelector('[data-n="' + k + '"]');
+    if (oChon) oChon.value = NEW[k];
+    veGoiYPhanLoai();
+    return;
+  }
 
   /* Xem tệp phải đứng TRƯỚC data-close: hàng tệp nằm trong phiếu / form báo cáo,
    * mà mấy cửa sổ đó đầy nút data-close — bắt sau là mở tệp xong đóng luôn cả
@@ -3997,6 +4058,9 @@ document.addEventListener('input', (e) => {
   if (n) {
     if (T.dataset.kieu === 'ngay') return;
     NEW[n] = T.type === 'checkbox' ? T.checked : T.value;
+    /* Gõ tới đâu gợi ý theo tới đó. Chỉ vẽ lại ĐÚNG khối gợi ý, không vẽ lại cả
+     * form — vẽ lại cả form là con trỏ nhảy về đầu ô sau mỗi ký tự. */
+    if (n === 'title' || n === 'purpose') veGoiYPhanLoai();
   }
 });
 
@@ -4049,7 +4113,11 @@ document.addEventListener('change', async (e) => {
   if (T.dataset && T.dataset.bc && BC && T.tagName === 'SELECT') { BC[T.dataset.bc] = T.value; return; }
 
   const n = T.dataset && T.dataset.n;
-  if (n && T.tagName === 'SELECT') { NEW[n] = T.value; return; }
+  if (n && T.tagName === 'SELECT') {
+    NEW[n] = T.value;
+    if (n === 'diaDiem' || n === 'loaiHinh') veGoiYPhanLoai();
+    return;
+  }
 
   /* Hoá đơn tải thẳng từ cửa sổ báo cáo — không mượn đường của ô chi tiết, vì ô
    * đó đang đóng và sẽ vẽ lại nhầm chỗ. */

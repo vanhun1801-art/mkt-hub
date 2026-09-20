@@ -1528,3 +1528,29 @@ a.phieu-f:hover { border-color: var(--primary); background: var(--blue-bg); }
   .ch-mo-nut { font-size: 13px; }                                /* 11.5 */
   .ch-k { font-size: 13px; }                                     /* 11.5 */
 }
+
+/* ---------------------------------------------------------------------------
+   GỢI Ý PHÂN LOẠI trong form đăng ký
+   Nói khi có gì đáng nói, im lúc khác. Nền vàng khi lệch — cùng màu "để ý một
+   chút" dùng khắp app, KHÔNG dùng đỏ: người ta chưa làm gì sai, chỉ là luật
+   nghĩ khác. Đỏ ở đây là doạ nhầm chỗ.
+   ------------------------------------------------------------------------- */
+.gy-dong {
+  margin-top: 8px; padding: 8px 11px; border-radius: 8px; line-height: 1.5;
+  font-size: 12.5px; color: var(--t2);
+  background: var(--surface-2); border: 1px solid var(--line);
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.gy-dong b { color: var(--t1); font-weight: 600; }
+.gy-dong.gy-lech {
+  background: var(--orange-bg, #fff4e0); border-color: var(--orange-bg, #fff4e0);
+  color: var(--orange-t, #96591b);
+}
+.gy-dong.gy-lech b { color: var(--orange-t, #96591b); }
+.gy-nut {
+  font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+  padding: 3px 10px; border-radius: 7px; white-space: nowrap;
+  background: var(--primary-bg); color: var(--primary);
+  border: 1px solid var(--primary-border);
+}
+.gy-nut:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
