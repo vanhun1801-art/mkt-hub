@@ -187,5 +187,35 @@ ok('loại hình giữ đúng thứ tự anh Hùng chốt',
   DS_LOAI_HINH.join(' | '));
 ok('chỉ còn bốn loại hình', DS_LOAI_HINH.length === 4, String(DS_LOAI_HINH.length));
 
+nhom('Hai ô là BẮT BUỘC khi đăng ký');
+/* Từ 20/09/2026 người đăng ký phải tự chọn — họ biết rõ mình đi đâu làm gì,
+ * còn luật đoán chỉ suy từ chữ. BA chốt phải cùng nói một chuyện, lệch một chỗ
+ * là có đường lọt: config (máy chủ chặn), form (dấu sao), submitCreate (chặn
+ * trước khi gửi). */
+const fs2 = require('fs');
+const cfg2 = require('../config');
+const formSrc = fs2.readFileSync(__dirname + '/../public/app.js', 'utf8');
+const srvSrc = fs2.readFileSync(__dirname + '/../server.js', 'utf8');
+
+ok('config khai cả hai là bắt buộc',
+  cfg2.requiredOnCreate.includes('diaDiem') && cfg2.requiredOnCreate.includes('loaiHinh'),
+  cfg2.requiredOnCreate.join(' · '));
+ok('form đánh dấu sao cho cả hai',
+  formSrc.includes(">Địa điểm' + req") && formSrc.includes(">Loại hình' + req"));
+ok('giao diện chặn trước khi gửi',
+  formSrc.includes('Chưa chọn Địa điểm') && formSrc.includes('Chưa chọn Loại hình'));
+ok('ô chọn KHÔNG còn mời "để hệ thống tự đoán"',
+  !formSrc.includes('để hệ thống tự đoán'));
+
+/* Bắt buộc rồi thì nhánh đoán ở đường TẠO không bao giờ chạy — mã chết trông
+ * như mã sống là thứ người sau đọc rồi tin nhầm. Nhưng đường SỬA vẫn cần nó,
+ * để điền cho những lịch cũ còn trống ô. */
+const iTao = srvSrc.indexOf("p === '/api/items' && req.method === 'POST'");
+const khoiTao = srvSrc.slice(iTao, srvSrc.indexOf('lark.createRecord', iTao));
+ok('đường TẠO không còn nhánh đoán', !khoiTao.includes('doanDiaDiem'), '');
+const iSua = srvSrc.indexOf('const cells = toCells(body);');
+ok('đường SỬA vẫn giữ nhánh đoán cho lịch cũ còn trống',
+  srvSrc.slice(Math.max(0, iSua - 1400), iSua).includes('doanDiaDiem'));
+
 console.log('\n' + (fail ? '\x1b[31m' : '\x1b[32m') + pass + ' pass, ' + fail + ' fail\x1b[0m');
 if (fail) { fails.forEach((f) => console.log('  - ' + f)); process.exit(1); }

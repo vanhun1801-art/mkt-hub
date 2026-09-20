@@ -235,8 +235,16 @@ module.exports = {
   // nên để nhân sự điền trong cửa sổ Báo cáo, không phải quyền riêng của quản lý.
   managerOnlyFields: ['owner', 'payment', 'focStatus', 'mediaStatus', 'mediaSent', 'mgrNote', 'editedAfter'],
 
-  // Trường bắt buộc khi đăng ký lịch mới
-  requiredOnCreate: ['title', 'purpose', 'start'],
+  /* Trường bắt buộc khi đăng ký lịch mới.
+   *
+   * diaDiem và loaiHinh vào đây ngày 20/09/2026: người đăng ký biết rõ mình đi
+   * đâu làm gì, còn phan-loai.js chỉ ĐOÁN từ chữ. Để máy đoán thì 11/129 dòng
+   * cũ trống địa điểm, và mỗi lần đoán sai lại phải có người vào sửa tay. Bắt
+   * chọn một lần lúc đăng ký rẻ hơn mọi cách chữa sau đó.
+   *
+   * Luật đoán vẫn giữ — nó lo hai việc khác: điền cho 129 dòng cũ, và điền cho
+   * lịch nào lọt vào Base bằng đường khác. */
+  requiredOnCreate: ['title', 'purpose', 'start', 'diaDiem', 'loaiHinh'],
 
   // Chuyển sang trạng thái này bắt buộc có Báo cáo hoặc Liên kết
   proofRequiredFor: 'Đang báo cáo',

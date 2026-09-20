@@ -390,19 +390,32 @@ còn phải xếp tay; "Khác" thì trông như đã xếp xong.
 
 Trộn hai thứ tự vào một danh sách là hỏng một trong hai, và hỏng lặng lẽ.
 
-### Lịch mới cũng phải có
+### Lịch mới: BẮT BUỘC chọn
 
-Điền dòng cũ rồi bỏ đó thì từ hôm sau mọi lịch mới đều trống, một tháng nữa bộ
-lọc vô dụng. Ba đường:
+Từ 20/09/2026 cả hai ô nằm trong `requiredOnCreate`. Người đăng ký biết rõ mình
+đi đâu làm gì, còn luật đoán chỉ suy từ chữ — 11/129 dòng cũ nó chịu, và mỗi lần
+đoán sai lại phải có người vào sửa tay. Bắt chọn một lần lúc đăng ký rẻ hơn mọi
+cách chữa sau đó.
 
-1. **Form đăng ký** có hai ô chọn, mặc định *"— để hệ thống tự đoán —"*.
-2. **Cửa sổ chi tiết** sửa lại được sau, vì luật đoán không bao giờ đúng hết.
-3. **Server tự suy** lúc tạo lịch và lúc sửa tên/mục đích — **chỉ khi ô đang
-   trống**. Người xếp tay bao giờ cũng đúng hơn luật đoán; ghi đè lựa chọn của
-   họ mỗi lần sửa tên là lấy mất quyền sửa.
+Ba chốt phải cùng nói một chuyện, lệch một chỗ là có đường lọt:
+
+1. **`config.requiredOnCreate`** — máy chủ trả 400 `MISSING_FIELD`.
+2. **Form đăng ký** — dấu sao đỏ, ô chọn mở đầu bằng *"— chọn nơi đến —"* /
+   *"— chọn việc làm —"*, không còn mời "để hệ thống tự đoán".
+3. **`submitCreate()`** — chặn trước khi gửi, báo đúng ô nào còn thiếu.
+
+Có phép thử đọc thẳng ba tệp đó và đòi cả ba khớp nhau.
+
+**Luật đoán vẫn còn, nhưng đổi việc.** Nó không chạy ở đường TẠO nữa — bắt buộc
+rồi thì nhánh đó không bao giờ tới, mà mã chết trông như mã sống là thứ người
+sau đọc rồi tin nhầm. Giờ nó chỉ còn ở đường **SỬA**: ai mở một lịch cũ ra chỉnh
+tên hay mục đích thì hai ô trống được điền giúp — **chỉ khi đang trống**, vì
+người xếp tay bao giờ cũng đúng hơn luật đoán.
+
+**Cửa sổ chi tiết** sửa lại được cả hai ô, vì chỗ đi có thể đổi sau khi đăng ký.
 
 `test/phan-loai.test.js` chạy luật trên **dữ liệu thật lấy từ sổ**, và canh cả
-bốn chỗ thứ tự dễ đảo nhầm. 78 phép thử.
+bốn chỗ thứ tự dễ đảo nhầm, cộng ba chốt bắt buộc. 84 phép thử.
 
 ## Kiểm thử
 

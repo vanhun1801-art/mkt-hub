@@ -2947,23 +2947,21 @@ function renderCreate() {
      * động để về sau lọc được. Tên gõ tay nên 129 dòng đầu đẻ ra 62 cách viết
      * cho chừng một tá chỗ; lọc theo tên là phải nhớ hết các cách gõ.
      *
-     * Để trống cũng không sao — máy chủ tự suy từ tên và mục đích. Nói thẳng
-     * điều đó ra, vì một ô bắt buộc-mà-không-bắt-buộc thì người ta chọn bừa
-     * cho xong, và chọn bừa còn tệ hơn để máy đoán. */
+     * BẮT BUỘC CHỌN. Người đăng ký biết rõ mình đi đâu làm gì, còn luật đoán
+     * chỉ suy từ chữ — 11/129 dòng cũ nó chịu, và mỗi lần đoán sai lại phải có
+     * người vào sửa tay. Bắt chọn một lần lúc đăng ký rẻ hơn mọi cách chữa sau. */
     '<div class="frm-2">' +
-      '<div class="frm-row"><label>Địa điểm</label>' +
-        '<select class="fld" data-n="diaDiem"><option value="">— để hệ thống tự đoán —</option>' +
+      '<div class="frm-row"><label>Địa điểm' + req + '</label>' +
+        '<select class="fld" data-n="diaDiem"><option value="">— chọn nơi đến —</option>' +
         (O.diaDiem || []).map((o) => '<option value="' + esc(o) + '"' +
           (NEW.diaDiem === o ? ' selected' : '') + '>' + esc(o) + '</option>').join('') +
         '</select></div>' +
-      '<div class="frm-row"><label>Loại hình</label>' +
-        '<select class="fld" data-n="loaiHinh"><option value="">— để hệ thống tự đoán —</option>' +
+      '<div class="frm-row"><label>Loại hình' + req + '</label>' +
+        '<select class="fld" data-n="loaiHinh"><option value="">— chọn việc làm —</option>' +
         (O.loaiHinh || []).map((o) => '<option value="' + esc(o) + '"' +
           (NEW.loaiHinh === o ? ' selected' : '') + '>' + esc(o) + '</option>').join('') +
         '</select></div>' +
     '</div>' +
-    '<div class="hint">Bỏ trống thì máy suy từ tên và mục đích. Chọn tay thì máy '
-      + 'không đụng vào nữa — kể cả lần sau sửa tên.</div>' +
 
     '<div class="frm-2">' +
       '<div class="frm-row"><label>Thời gian bắt đầu' + req + '</label>' +
@@ -3027,6 +3025,8 @@ async function submitCreate(mode) {
   if (!NEW.title.trim()) return toast('Chưa nhập Tên hoạt động', 'err');
   if (!NEW.purpose.trim()) return toast('Chưa nhập Mục đích', 'err');
   if (!NEW.start) return toast('Chưa chọn Thời gian bắt đầu', 'err');
+  if (!NEW.diaDiem) return toast('Chưa chọn Địa điểm', 'err');
+  if (!NEW.loaiHinh) return toast('Chưa chọn Loại hình', 'err');
 
   const body = {
     title: NEW.title.trim(),

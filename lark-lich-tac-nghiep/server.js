@@ -641,7 +641,7 @@ async function taoDonTourwell(recId, item) {
  * cùng tên cùng tiền sẽ bị coi là một.
  * ------------------------------------------------------------------------- */
 const soQuy = require('./so-quy');
-const { doanDiaDiem, doanLoaiHinh, DS_DIA_DIEM, DS_LOAI_HINH } = require('./phan-loai');
+const { doanDiaDiem, doanLoaiHinh } = require('./phan-loai');
 const dangGhiQuy = new Set();
 
 async function ghiSoQuy(recId, item, maDon) {
@@ -1264,17 +1264,13 @@ async function api(req, res, url) {
       patch.status = 'Chờ duyệt/Xử lý';
     }
 
-    /* Địa điểm và loại hình suy từ tên (+ mục đích), CHỈ KHI người đăng ký chưa
-     * tự chọn. Không suy tự động thì hai cột này chết ngay hôm sau: 129 dòng cũ
-     * có, mọi dòng mới trống, một tháng nữa bộ lọc vô dụng. */
-    if (!patch.diaDiem) {
-      const dd = doanDiaDiem(patch.title);
-      if (dd) patch.diaDiem = dd;
-    }
-    if (!patch.loaiHinh) {
-      const lh = doanLoaiHinh(patch.title, patch.purpose);
-      if (lh) patch.loaiHinh = lh;
-    }
+    /* KHÔNG đoán địa điểm / loại hình ở đây nữa. Từ 20/09/2026 hai ô đó nằm
+     * trong `requiredOnCreate`, nên vòng kiểm phía trên đã chặn mọi lịch thiếu
+     * chúng — nhánh đoán đặt ở đây sẽ không bao giờ chạy, mà mã chết trông như
+     * mã sống là thứ người sau đọc rồi tin nhầm.
+     *
+     * Luật đoán vẫn còn và vẫn có việc: xem đường PATCH bên dưới, nơi nó điền
+     * cho những lịch cũ còn trống ô. */
 
     const cells = toCells(patch);
     const out = await lark.createRecord(cells);
