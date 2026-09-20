@@ -337,7 +337,7 @@ Nên tách ra **hai** cột, mỗi cột một câu hỏi, luật nằm ở `pha
 | Cột | Trả lời | Lựa chọn |
 |---|---|---|
 | **Địa điểm** (`fldz2r9RDG`) | đi ĐÂU | 20 |
-| **Loại hình** (`fld95sumMx`) | làm GÌ ở đó | 7 |
+| **Loại hình** (`fld95sumMx`) | làm GÌ ở đó | 4 |
 
 Hai chiều độc lập: *"Live/stream Grand World"* và *"Khảo sát nhà hàng Cường Kua
 - Grand World"* cùng một chỗ nhưng khác hẳn việc.
@@ -347,8 +347,15 @@ Kết quả trên 129 dòng cũ — **118/129** có địa điểm, **128/129** 
 ```
 Sunset Town 44 · Vinwonders 19 · Grand World 18 · Hòn Thơm 14 · Safari 7
 Tour Đảo 5 · Khách sạn-Resort 4 · Nhà hàng 3 · Bãi Sao/Khem/Đất Đỏ/Dương Đông 1
-Livestream 86 · Quay-chụp 20 · Tư liệu-source 11 · Media đoàn khách 6
+Livestream 86 · Quay-chụp 35 · Media đoàn khách 6 · Khảo sát 1
 ```
+
+**Loại hình chỉ có bốn.** Bản đầu có bảy; ba nhóm *Tư liệu - cập nhật source*
+(11 buổi), *Khai trương - sự kiện* (3) và *Review* (1) gộp hết vào **Quay -
+chụp**. Soi lại cả 15 dòng thì mục đích đều là đi quay, đi chụp: *"Quay tư liệu
+src 2/9"*, *"Cập nhật src trải nghiệm"*, *"Review chụp ảnh photobooth"*,
+*"Content cập nhật về sự kiện khai trương"*. Chia nhỏ nữa là chia theo **chủ
+đề** của buổi, không phải theo **việc làm** — mà cột này hỏi việc làm.
 
 ### Bốn quyết định trong luật đoán
 
@@ -376,8 +383,10 @@ còn phải xếp tay; "Khác" thì trông như đã xếp xong.
   Town* (nó nằm trong khu đó); hai luật rộng nhất — *Khách sạn* và *Nhà hàng* —
   phải đứng **cuối**, vì `"đón khách sân bay"` bỏ dấu thành `don khach san bay`,
   chứa nguyên chữ `khach san`.
-- **Thứ tự bày ra** trong ô chọn xếp theo **số lần dùng**: chỗ hay đi để trên
-  cùng, khỏi cuộn.
+- **Thứ tự bày ra** trong ô chọn: cột *Địa điểm* xếp theo **số lần dùng** (chỗ
+  hay đi để trên cùng, khỏi cuộn); cột *Loại hình* thì anh Hùng **xếp tay** —
+  Livestream 86 buổi nhưng vẫn đứng thứ hai sau Quay - chụp. Hai cột khác nhau
+  ở chỗ này là cố ý, không phải quên.
 
 Trộn hai thứ tự vào một danh sách là hỏng một trong hai, và hỏng lặng lẽ.
 
@@ -393,7 +402,7 @@ lọc vô dụng. Ba đường:
    họ mỗi lần sửa tên là lấy mất quyền sửa.
 
 `test/phan-loai.test.js` chạy luật trên **dữ liệu thật lấy từ sổ**, và canh cả
-bốn chỗ thứ tự dễ đảo nhầm. 71 phép thử.
+bốn chỗ thứ tự dễ đảo nhầm. 78 phép thử.
 
 ## Kiểm thử
 

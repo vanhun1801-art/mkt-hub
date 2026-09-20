@@ -100,28 +100,39 @@ const DIA_DIEM = [
 /* ---------------------------------------------------------------------------
  * LOẠI HÌNH — làm gì ở đó
  * -------------------------------------------------------------------------
- * Cũng theo thứ tự đặc trưng → rộng:
+ * BỐN nhóm, anh Hùng chốt 20/09/2026. Bản đầu có bảy; ba nhóm "Tư liệu - cập
+ * nhật source" (11 buổi), "Khai trương - sự kiện" (3) và "Review" (1) gộp hết
+ * vào QUAY - CHỤP — soi lại cả 15 dòng thì mục đích đều là đi quay, đi chụp:
+ * "Quay tư liệu src 2/9", "Cập nhật src trải nghiệm", "Review chụp ảnh
+ * photobooth", "Content cập nhật về sự kiện khai trương". Chia nhỏ nữa là chia
+ * theo CHỦ ĐỀ của buổi, không phải theo việc làm — mà cột này hỏi việc làm.
+ *
+ * Thứ tự ở đây là thứ tự KHỚP: đặc trưng → rộng.
  *
  *   · "Đoàn" thắng mọi thứ. "Live Đoàn Intercontinental" và "[Quay + Chụp]
  *     Đoàn CÔNG TY…" là đi phục vụ một đoàn khách cụ thể — việc đó khác hẳn
  *     livestream bán tour, dù cách quay giống nhau.
- *   · Khảo sát và khai trương đứng trước Livestream vì chúng là mục đích của
- *     buổi đi, còn "live" có thể chỉ là một phần.
+ *   · Khảo sát đứng trước Livestream vì nó là mục đích của cả buổi đi, còn
+ *     "live" có thể chỉ là một phần.
  *   · "QUAY + LIVESTREAM VINWONDERS" ra Livestream: livestream là cái bán hàng,
- *     quay chỉ là việc kèm theo.
+ *     quay chỉ là việc kèm theo. Nên Quay - chụp đứng CUỐI, nhận phần còn lại.
+ *
+ * Thứ tự BÀY RA trong ô chọn khác hẳn — xem DS_LOAI_HINH ở cuối tệp.
  * ------------------------------------------------------------------------- */
 const LOAI_HINH = [
   ['Media đoàn khách', [/\bdoan\b/]],
   ['Khảo sát', [/khao sat/]],
-  ['Khai trương - sự kiện', [/khai truong/, /su kien/, /quoc khanh/, /\bgame\b/]],
   /* Dò trên dạng NÉN (xem `nen`): "Liv/e/tream" và "Liv/es/tre/am" chỉ thành
    * chữ liền khi bỏ hết dấu gạch. */
   ['Livestream', [], [/live/]],
-  ['Review', [/review/]],
-  ['Quay - chụp', [/quay/, /chup/, /\bmedia\b/, /\bclip\b/]],
-  /* "src" là cách phòng viết tắt "source" — bỏ sót thì mấy dòng "Src cho
-   * Content…" rơi hết vào ô trống trong khi câu trả lời nằm ngay đó. */
-  ['Tư liệu - cập nhật source', [/tu lieu/, /source/, /\bsrc\b/, /cap nhat/]],
+  /* Nhóm rộng nhất, đứng cuối, ôm luôn ba nhóm cũ. "src" là cách phòng viết tắt
+   * "source" — bỏ sót thì mấy dòng "Src cho Content…" rơi hết vào ô trống
+   * trong khi câu trả lời nằm ngay đó. */
+  ['Quay - chụp', [
+    /quay/, /chup/, /\bmedia\b/, /\bclip\b/, /review/, /hinh anh/,
+    /tu lieu/, /source/, /\bsrc\b/, /cap nhat/,
+    /khai truong/, /su kien/, /quoc khanh/,
+  ]],
 ];
 
 /**
@@ -200,14 +211,14 @@ const DS_DIA_DIEM = [
   'Vịnh Đầm',
 ];
 
+/* Thứ tự này anh Hùng xếp tay, KHÔNG theo số lần dùng như bên địa điểm —
+ * Livestream 86 buổi nhưng vẫn đứng thứ hai. Giữ đúng ý anh: chỗ khác nhau giữa
+ * hai cột là cố ý, không phải quên. */
 const DS_LOAI_HINH = [
-  'Livestream',                 // 86
-  'Quay - chụp',                // 20
-  'Tư liệu - cập nhật source',  // 11
-  'Media đoàn khách',           // 6
-  'Khai trương - sự kiện',      // 3
-  'Khảo sát',                   // 1
-  'Review',                     // 1
+  'Quay - chụp',        // 35
+  'Livestream',         // 86
+  'Media đoàn khách',   // 6
+  'Khảo sát',           // 1
 ];
 
 module.exports = {

@@ -125,13 +125,29 @@ nhom('Loại hình — tên không nói gì thì đọc Mục đích');
 [
   ['Vinwonder Phú Quốc', '- Li/v/e/stre/a/m bán hàng/ tư vấn tour\n- Công viên nước', 'Livestream'],
   ['Safari', '- Quay source trải nghiệm nhân vật Safari cho kênh vệ tinh.', 'Quay - chụp'],
-  ['Tour đảo Cáp treo', '- Src cho Content Snokerling', 'Tư liệu - cập nhật source'],
+  ['Tour đảo Cáp treo', '- Src cho Content Snokerling', 'Quay - chụp'],
   ['Bãi Sao', '- Làm clip hướng dẫn đường vào Bãi Sao không mất phí', 'Quay - chụp'],
-  ['Wyndham Garden', '- Tư liệu cho tour bán hàng + truyền thông khách sạn',
-    'Tư liệu - cập nhật source'],
+  ['Wyndham Garden', '- Tư liệu cho tour bán hàng + truyền thông khách sạn', 'Quay - chụp'],
 ].forEach(([ten, md, mong]) => {
   const ra = doanLoaiHinh(ten, md);
   ok(ten + ' + mục đích', ra === mong, 'ra "' + ra + '", mong "' + mong + '"');
+});
+
+nhom('Loại hình — ba nhóm cũ gộp vào Quay - chụp');
+/* Bản đầu có bảy nhóm; "Tư liệu - cập nhật source", "Khai trương - sự kiện" và
+ * "Review" gộp hết vào Quay - chụp. Soi lại cả 15 dòng thì mục đích đều là đi
+ * quay, đi chụp — chia nhỏ nữa là chia theo CHỦ ĐỀ của buổi, không phải theo
+ * việc làm, mà cột này hỏi việc làm. */
+[
+  ['Tư liệu 2/9 - khu vực Dương đông', 'Quay tư liệu src 2/9 tại các địa điểm du lịch'],
+  ['VINWONDERS', 'Cập nhật source VinWonders cho Lễ 2/09'],
+  ['KHAI TRƯƠNG STARBUCKS', 'Content cập nhật về sự kiện khai trương Starbucks'],
+  ['Tư liệu Quốc khánh 2/9', '- Src và hình ảnh: Tại các địa điểm mang không khí Việt Nam'],
+  ['Sunday Game', 'Content cho kênh Phú Quốc không phanh: Review chụp ảnh photobooth'],
+  ['Review quán 6 Củi + Kiss of the sea', '- Quay content review cho kênh Phú Quốc không phanh'],
+].forEach(([ten, md]) => {
+  const ra = doanLoaiHinh(ten, md);
+  ok(ten.slice(0, 40), ra === 'Quay - chụp', 'ra "' + ra + '"');
 });
 
 nhom('Loại hình — thứ tự luật');
@@ -164,7 +180,12 @@ ok('địa điểm: không nhãn nào trùng', new Set(DS_DIA_DIEM).size === DS_
 ok('hai thứ tự cố ý KHÁC nhau',
   DS_DIA_DIEM.join('|') !== DIA_DIEM.map(([n]) => n).join('|'));
 ok('chỗ hay đi nhất đứng đầu ô chọn', DS_DIA_DIEM[0] === 'Sunset Town');
-ok('việc hay làm nhất đứng đầu ô chọn', DS_LOAI_HINH[0] === 'Livestream');
+/* Cột loại hình KHÔNG xếp theo tần suất như cột địa điểm — anh Hùng xếp tay,
+ * Livestream 86 buổi vẫn đứng thứ hai. Chỗ khác nhau giữa hai cột là cố ý. */
+ok('loại hình giữ đúng thứ tự anh Hùng chốt',
+  DS_LOAI_HINH.join(' | ') === 'Quay - chụp | Livestream | Media đoàn khách | Khảo sát',
+  DS_LOAI_HINH.join(' | '));
+ok('chỉ còn bốn loại hình', DS_LOAI_HINH.length === 4, String(DS_LOAI_HINH.length));
 
 console.log('\n' + (fail ? '\x1b[31m' : '\x1b[32m') + pass + ' pass, ' + fail + ' fail\x1b[0m');
 if (fail) { fails.forEach((f) => console.log('  - ' + f)); process.exit(1); }
