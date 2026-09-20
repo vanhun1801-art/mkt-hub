@@ -140,6 +140,10 @@ module.exports = {
   // Field ID -> khoá dùng trong UI. Lấy từ +field-list, không đoán.
   fields: {
     title:        { id: 'fldMvjlOhk', name: 'Tên hoạt động',            type: 'text' },
+    /* Suy từ tên hoạt động, xem dia-diem.js. Tên gõ tay nên 129 dòng đầu đẻ ra
+     * 62 cách viết cho chừng một tá chỗ — lọc theo tên là phải nhớ hết các cách
+     * gõ, lọc theo cột này thì không. */
+    diaDiem:      { id: 'fldz2r9RDG', name: 'Địa điểm',                 type: 'select' },
     purpose:      { id: 'fld9nKrKzm', name: 'Mục đích',                 type: 'text' },
     plan:         { id: 'flddvSstS2', name: 'Kế hoạch',                 type: 'text' },
     start:        { id: 'fldj5zK7xA', name: 'Thời gian bắt đầu',        type: 'datetime' },
@@ -214,7 +218,7 @@ module.exports = {
 
   // Trường nhân sự được sửa
   staffEditable: [
-    'title', 'purpose', 'plan', 'start', 'end', 'duration', 'staff',
+    'title', 'purpose', 'plan', 'start', 'end', 'duration', 'staff', 'diaDiem',
     'transport', 'costPlan', 'foc', 'focRequest', 'mediaRequest',
     // 'cancelWant'/'cancelReason': nhân sự chỉ được XIN huỷ, việc huỷ thật do quản
     // lý quyết định qua trạng thái — mà 'Hủy lịch' nằm trong managerStatuses.

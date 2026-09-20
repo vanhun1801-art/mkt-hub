@@ -321,6 +321,51 @@ phải tải xuống rồi tải lên tay, đúng cái việc app sinh ra để 
 Hai việc độc lập: Tourwell hỏng thì sổ quỹ vẫn có dòng chi, và ngược lại. Tắt
 riêng phần sổ quỹ bằng `QUY_TAT=1` hoặc `so-quy.json` với `"tat": true`.
 
+## Cột "Địa điểm" — suy từ tên hoạt động
+
+Cột *Tên hoạt động* gõ tay, nên **129 dòng đầu tiên đẻ ra 62 tên khác nhau** —
+mà khác nhau phần lớn do gõ lệch: `Live/stre/am` · `Lives/tream` · `Liv/e/tream`
+· `Livestream`, rồi `ĐTH` với `Địa Trung Hải`, `Vinwonder` với `VINWONDERS`.
+Lọc theo cột đó thì phải nhớ hết các cách gõ.
+
+**Không biến chính cột đó thành lựa chọn.** Nó là cột CHÍNH của bảng — Lark Base
+không cho cột chính mang kiểu chọn, và app ghi thẳng vào ô này mỗi lần đăng ký
+lịch. Mà 62 lựa chọn cũng chỉ là dọn cái bừa sang một chỗ mới.
+
+Nên có cột **Địa điểm** riêng (`fldz2r9RDG`), 12 lựa chọn, suy từ tên bằng
+`dia-diem.js`. Kết quả trên 129 dòng cũ:
+
+| | |
+|---|---|
+| Địa Trung Hải – Sunset Town | 45 |
+| VinWonders | 19 |
+| Grand World | 17 |
+| Cáp treo Hòn Thơm | 14 |
+| Safari | 7 |
+| Tour đảo · cano | 5 |
+| Khách sạn · resort · nhà hàng · bãi biển… | 11 |
+| *(để trống)* | 11 |
+
+Hai quyết định trong luật đoán:
+
+- **Tên show = tên chỗ.** Phần lớn dòng chỉ viết tên show (*Kiss of the Sea*,
+  *SOTS*, *Dinner Show*, *Chill Show*, *Awaken Sea*) chứ không viết chỗ. Chúng
+  đều diễn ở thị trấn Địa Trung Hải – Sunset Town.
+- **Không đoán được thì ĐỂ TRỐNG, không nhét vào "Khác".** Ô trống nhìn ra ngay
+  là còn phải xếp tay; "Khác" thì trông như đã xếp xong. Mười một dòng rơi vào
+  đây đều là việc không gắn với địa điểm — media đoàn khách, quay tư liệu, media
+  đội xe.
+
+**Và phải suy tự động cho lịch mới.** Điền 118 dòng cũ rồi bỏ đó thì từ hôm sau
+mọi lịch mới đều trống ô này, một tháng nữa bộ lọc vô dụng. Server gọi
+`doanDiaDiem()` lúc **tạo lịch** và lúc **sửa tên** — nhưng **chỉ khi ô đang
+trống**: người xếp tay bao giờ cũng đúng hơn luật đoán, ghi đè lựa chọn của họ
+mỗi lần sửa tên là lấy mất quyền sửa.
+
+`test/dia-diem.test.js` chạy luật trên **tên thật lấy từ sổ**, kể cả mấy cách gõ
+lệch, và canh cả thứ tự luật: *"Khảo sát nhà hàng Cường Kua - Grand World"* phải
+ra Grand World chứ không ra Nhà hàng. Đảo thứ tự trong `LUAT` là đỏ ngay.
+
 ## Kiểm thử
 
 ```bash

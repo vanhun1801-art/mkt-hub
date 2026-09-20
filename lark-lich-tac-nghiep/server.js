@@ -641,6 +641,7 @@ async function taoDonTourwell(recId, item) {
  * cùng tên cùng tiền sẽ bị coi là một.
  * ------------------------------------------------------------------------- */
 const soQuy = require('./so-quy');
+const { doanDiaDiem } = require('./dia-diem');
 const dangGhiQuy = new Set();
 
 async function ghiSoQuy(recId, item, maDon) {
@@ -1263,6 +1264,14 @@ async function api(req, res, url) {
       patch.status = 'Chờ duyệt/Xử lý';
     }
 
+    /* Địa điểm suy từ tên, CHỈ KHI người đăng ký chưa tự chọn. Không suy tự
+     * động thì cột này chết ngay hôm sau: 118 dòng cũ có, mọi dòng mới trống,
+     * và một tháng nữa bộ lọc vô dụng. */
+    if (!patch.diaDiem) {
+      const dd = doanDiaDiem(patch.title);
+      if (dd) patch.diaDiem = dd;
+    }
+
     const cells = toCells(patch);
     const out = await lark.createRecord(cells);
     cache.at = 0; // buộc tải lại lần sau
@@ -1476,6 +1485,14 @@ async function api(req, res, url) {
       if (manager && item.status === 'Duyệt/Chờ tác nghiệp' &&
           Object.keys(body).some((k) => ANH_HUONG.includes(k))) {
         body.editedAfter = new Date().toISOString();
+      }
+
+      /* Sửa tên mà ô Địa điểm đang trống thì suy lại. CHỈ KHI TRỐNG: người xếp
+       * tay bao giờ cũng đúng hơn luật đoán, ghi đè lựa chọn của họ mỗi lần sửa
+       * tên là lấy mất quyền sửa. Và chỉ khi họ không tự gửi diaDiem lên. */
+      if (body.title !== undefined && body.diaDiem === undefined && !item.diaDiem) {
+        const dd = doanDiaDiem(body.title);
+        if (dd) body.diaDiem = dd;
       }
 
       const cells = toCells(body);
