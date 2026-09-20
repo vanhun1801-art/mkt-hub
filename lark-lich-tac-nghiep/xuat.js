@@ -50,20 +50,34 @@ const dsTen = (arr) => (arr || []).map(ten).filter(Boolean);
  * Lọc theo đúng những gì người dùng chọn trên màn hình xuất.
  * Ô nào để trống nghĩa là "không lọc theo nó".
  */
+/**
+ * Ba ô lọc đều nhận NHIỀU giá trị, ngăn bằng dấu phẩy. Rỗng = không lọc theo ô
+ * đó. Anh Hùng cần gộp mấy địa điểm vào một bảng: Vinwonders + Grand World +
+ * Sunset Town là ba khu của cùng một đối tác, xuất ba lần rồi dán tay lại là
+ * việc app phải làm hộ.
+ *
+ * Dấu phẩy làm dấu ngăn được vì KHÔNG nhãn nào trong ba danh sách có dấu phẩy —
+ * địa điểm, loại hình và trạng thái đều dùng gạch nối hoặc gạch chéo. Thêm nhãn
+ * có dấu phẩy thì phải đổi chỗ này; `coDauPhay()` canh đúng điều đó.
+ */
+const tach = (v) => (chu(v) ? chu(v).split(',').map(chu).filter(Boolean) : null);
+
+/** Nhãn nào lọt dấu phẩy vào là bộ lọc gãy âm thầm — dùng trong phép thử. */
+const coDauPhay = (ds) => (ds || []).filter((x) => String(x).includes(','));
+
 function loc(items, dk) {
   const tu = chu(dk.tu);
   const den = chu(dk.den);
-  const dd = chu(dk.diaDiem);
-  const lh = chu(dk.loaiHinh);
-  /* trangThai rỗng = mọi trạng thái. Nhiều trạng thái ngăn bằng dấu phẩy. */
-  const tt = chu(dk.trangThai) ? chu(dk.trangThai).split(',').map(chu).filter(Boolean) : null;
+  const dd = tach(dk.diaDiem);
+  const lh = tach(dk.loaiHinh);
+  const tt = tach(dk.trangThai);
 
   return items.filter((t) => {
     const n = ngayISO(t.start);
     if (tu && (!n || n < tu)) return false;
     if (den && (!n || n > den)) return false;
-    if (dd && chu(t.diaDiem) !== dd) return false;
-    if (lh && chu(t.loaiHinh) !== lh) return false;
+    if (dd && !dd.includes(chu(t.diaDiem))) return false;
+    if (lh && !lh.includes(chu(t.loaiHinh))) return false;
     if (tt && !tt.includes(chu(t.status))) return false;
     return true;
   }).sort((a, b) => String(a.start || '').localeCompare(String(b.start || '')));
@@ -172,8 +186,11 @@ function loiThoat(items, dk) {
 /** Dòng phụ đề: nói rõ bảng này lọc theo cái gì, để người nhận khỏi phải hỏi. */
 function moTaLoc(dk, so) {
   const p = [];
-  if (chu(dk.diaDiem)) p.push(chu(dk.diaDiem));
-  if (chu(dk.loaiHinh)) p.push(chu(dk.loaiHinh));
+  /* Nhiều địa điểm thì nối bằng " + " chứ không để nguyên dấu phẩy: dòng này
+   * in lên đầu bảng đưa đối tác, "Vinwonders + Grand World" đọc ra một nhóm,
+   * còn "Vinwonders,Grand World" đọc ra một chuỗi máy. */
+  if (chu(dk.diaDiem)) p.push(tach(dk.diaDiem).join(' + '));
+  if (chu(dk.loaiHinh)) p.push(tach(dk.loaiHinh).join(' + '));
   const tu = chu(dk.tu) ? ngayVN(chu(dk.tu) + 'T00:00:00') : '';
   const den = chu(dk.den) ? ngayVN(chu(dk.den) + 'T00:00:00') : '';
   if (tu || den) p.push((tu || '…') + ' – ' + (den || '…'));
@@ -186,7 +203,12 @@ function tenTep(dk, duoi) {
   const sach = (s) => chu(s).normalize('NFD').replace(/[̀-ͯ]/g, '')
     .replace(/đ/gi, 'd').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '');
   const p = ['tac-nghiep'];
-  if (chu(dk.diaDiem)) p.push(sach(dk.diaDiem));
+  /* Ba địa điểm trở lên thì tên tệp dài loằng ngoằng mà vẫn không nói đủ — ghi
+   * số lượng gọn hơn, chi tiết đã nằm ở dòng phụ đề trong tệp. */
+  if (chu(dk.diaDiem)) {
+    const ds = tach(dk.diaDiem);
+    p.push(ds.length > 2 ? ds.length + '-dia-diem' : ds.map(sach).join('-'));
+  }
   if (chu(dk.tu)) p.push(chu(dk.tu));
   if (chu(dk.den)) p.push(chu(dk.den));
   return p.join('_').toLowerCase() + '.' + duoi;
@@ -212,6 +234,6 @@ function xuatCsv(ds, dk, keTien) {
 }
 
 module.exports = {
-  loc, dungBang, demTheo, loiThoat, moTaLoc, tenTep,
+  loc, tach, coDauPhay, dungBang, demTheo, loiThoat, moTaLoc, tenTep,
   xuatXlsx, xuatCsv, ngayVN, gioVN, ngayISO, TIEU_DE,
 };

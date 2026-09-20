@@ -190,5 +190,48 @@ ok('chỉ đúng ô đang chặn: bỏ trạng thái thì có lại 2 buổi',
 ok('không đề nghị lối thoát nào ra 0 buổi', lt.every((x) => x.so > 0), JSON.stringify(lt));
 ok('sổ trống thật thì không bịa ra lối thoát', xuat.loiThoat([], bkX).length === 0);
 
+nhom('Ba ô lọc nhận NHIỀU giá trị');
+/* Một bảng gửi đối tác thường gộp mấy khu của cùng một bên — Vinwonders +
+ * Grand World + Sunset Town. Xuất ba lần rồi dán tay lại là việc app phải làm
+ * hộ. */
+ok('hai địa điểm thì cộng cả hai',
+  so({ diaDiem: 'Vinwonders,Grand World' }) === 3, String(so({ diaDiem: 'Vinwonders,Grand World' })));
+ok('một địa điểm vẫn như cũ', so({ diaDiem: 'Vinwonders' }) === 2);
+ok('rỗng vẫn là không lọc', so({ diaDiem: '' }) === 4);
+ok('nhiều loại hình', so({ loaiHinh: 'Livestream,Quay - chụp' }) === 4);
+ok('lọc nhiều chiều chồng nhau',
+  so({ diaDiem: 'Vinwonders,Grand World', trangThai: 'Đã hoàn tất' }) === 2);
+/* Khoảng trắng thừa quanh dấu phẩy là chuyện thường khi người ta gõ tay URL. */
+ok('bỏ qua khoảng trắng quanh dấu phẩy',
+  so({ diaDiem: ' Vinwonders , Grand World ' }) === 3);
+ok('tên không có trong danh sách thì ra 0, không ra hết',
+  so({ diaDiem: 'Chỗ Không Có' }) === 0);
+
+/* Dấu phẩy làm dấu ngăn CHỈ an toàn khi không nhãn nào chứa dấu phẩy. Thêm một
+ * nhãn kiểu "Nhà hàng, quán" là bộ lọc gãy âm thầm — lọc ra 0 mà không báo gì. */
+const { DS_DIA_DIEM, DS_LOAI_HINH } = require('../public/phan-loai');
+const cfgL = require('../config');
+ok('không nhãn địa điểm nào chứa dấu phẩy',
+  xuat.coDauPhay(DS_DIA_DIEM).length === 0, JSON.stringify(xuat.coDauPhay(DS_DIA_DIEM)));
+ok('không nhãn loại hình nào chứa dấu phẩy',
+  xuat.coDauPhay(DS_LOAI_HINH).length === 0, JSON.stringify(xuat.coDauPhay(DS_LOAI_HINH)));
+const tt = [...(cfgL.staffStatuses || []), ...(cfgL.managerStatuses || [])];
+ok('không tên trạng thái nào chứa dấu phẩy',
+  xuat.coDauPhay(tt).length === 0, JSON.stringify(xuat.coDauPhay(tt)));
+
+nhom('Phụ đề và tên tệp khi chọn nhiều chỗ');
+ok('phụ đề nối bằng dấu cộng, không để nguyên dấu phẩy',
+  xuat.moTaLoc({ diaDiem: 'Vinwonders,Grand World' }, 3) === 'Vinwonders + Grand World  ·  3 buổi',
+  xuat.moTaLoc({ diaDiem: 'Vinwonders,Grand World' }, 3));
+ok('hai chỗ thì tên tệp ghi cả hai',
+  xuat.tenTep({ diaDiem: 'Vinwonders,Grand World' }, 'xlsx')
+    === 'tac-nghiep_vinwonders-grand-world.xlsx',
+  xuat.tenTep({ diaDiem: 'Vinwonders,Grand World' }, 'xlsx'));
+/* Ba chỗ trở lên thì tên tệp dài loằng ngoằng mà vẫn không nói đủ. */
+ok('ba chỗ trở lên thì ghi số lượng cho gọn',
+  xuat.tenTep({ diaDiem: 'Vinwonders,Grand World,Safari' }, 'xlsx')
+    === 'tac-nghiep_3-dia-diem.xlsx',
+  xuat.tenTep({ diaDiem: 'Vinwonders,Grand World,Safari' }, 'xlsx'));
+
 console.log('\n' + (fail ? '\x1b[31m' : '\x1b[32m') + pass + ' pass, ' + fail + ' fail\x1b[0m');
 if (fail) { fails.forEach((f) => console.log('  - ' + f)); process.exit(1); }

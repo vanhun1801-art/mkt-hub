@@ -836,9 +836,12 @@ function thangNay(lui) {
 
 function moXuat() {
   const k = thangNay(0);
+  /* Ba ô lọc là MẢNG: một bảng gửi đối tác thường gộp mấy khu của cùng một bên
+   * — Vinwonders + Grand World + Sunset Town. Xuất ba lần rồi dán tay lại là
+   * việc app phải làm hộ. */
   XU = {
-    tu: k.tu, den: k.den, diaDiem: '', loaiHinh: '',
-    trangThai: 'Đã hoàn tất', tien: false, so: null, dangDem: false,
+    tu: k.tu, den: k.den, diaDiem: [], loaiHinh: [],
+    trangThai: ['Đã hoàn tất'], tien: false, so: null, dangDem: false,
   };
   veXuat();
   demXuat();
@@ -846,7 +849,10 @@ function moXuat() {
 
 function urlXuat(kieu) {
   const q = new URLSearchParams({ kieu });
-  ['tu', 'den', 'diaDiem', 'loaiHinh', 'trangThai'].forEach((k) => { if (XU[k]) q.set(k, XU[k]); });
+  ['tu', 'den'].forEach((k) => { if (XU[k]) q.set(k, XU[k]); });
+  ['diaDiem', 'loaiHinh', 'trangThai'].forEach((k) => {
+    if ((XU[k] || []).length) q.set(k, XU[k].join(','));
+  });
   if (XU.tien) q.set('tien', '1');
   return '/api/xuat?' + q.toString();
 }
@@ -868,18 +874,27 @@ function veXuat() {
    * nhìn như "chưa tải xong" chứ không như lỗi. */
   const O = S.options || {};
 
-  /* Mỗi lựa chọn mang theo SỐ BUỔI của nó, tính với các ô lọc còn lại giữ
-   * nguyên. "Chờ duyệt/Xử lý" và "Duyệt/Chờ tác nghiệp" dùng cùng bộ chữ đảo
-   * thứ tự — nhìn lướt không phân biệt được, nên phải để con số nói hộ. */
-  const oChon = (id, gt, ds, rong) => {
+  /* CHIP BẤM CHỌN NHIỀU, không phải ô chọn một.
+   *
+   * Hai lý do bỏ <select>: chọn nhiều trong nó phải Ctrl+bấm — không ai đoán ra,
+   * và trên máy bảng thì chịu. Còn chip thì nhìn là biết cái nào đang bật.
+   *
+   * Mỗi chip mang theo SỐ BUỔI của nó, tính với các ô lọc còn lại giữ nguyên.
+   * "Chờ duyệt/Xử lý" và "Duyệt/Chờ tác nghiệp" dùng cùng bộ chữ đảo thứ tự —
+   * nhìn lướt không phân biệt được, nên phải để con số nói hộ. */
+  const oChip = (id, dang, ds, rong) => {
     const dem = (XU.dem && XU.dem[id]) || null;
     const tong = dem ? Object.values(dem).reduce((a, b) => a + b, 0) : null;
-    const nhan = (x) => esc(x) + (dem ? '  (' + (dem[x] || 0) + ')' : '');
-    return '<select class="fld" data-xu="' + id + '">'
-      + '<option value="">' + esc(rong) + (tong == null ? '' : '  (' + tong + ')') + '</option>'
-      + ds.map((x) => '<option value="' + esc(x) + '"' + (gt === x ? ' selected' : '')
-        + (dem && !dem[x] && gt !== x ? ' class="xu-khong"' : '') + '>'
-        + nhan(x) + '</option>').join('') + '</select>';
+    const chon = dang || [];
+    const mot = (x) => '<button class="xu-chip' + (chon.includes(x) ? ' on' : '')
+      + (dem && !dem[x] && !chon.includes(x) ? ' trong' : '') + '"'
+      + ' data-xuchip="' + id + '" data-gt="' + esc(x) + '">' + esc(x)
+      + (dem ? '<b>' + (dem[x] || 0) + '</b>' : '') + '</button>';
+    return '<div class="xu-chips">'
+      + '<button class="xu-chip' + (chon.length ? '' : ' on') + '"'
+        + ' data-xuchip="' + id + '" data-gt="">' + esc(rong)
+        + (tong == null ? '' : '<b>' + tong + '</b>') + '</button>'
+      + ds.map(mot).join('') + '</div>';
   };
 
   const tt = [...(S.config.statusOrder || [])];
@@ -910,14 +925,12 @@ function veXuat() {
       '<button class="the bam" data-xuky="ca">Toàn bộ</button>' +
     '</div>' +
 
-    '<div class="frm-2">' +
-      '<div class="frm-row"><label>Địa điểm</label>' +
-        oChon('diaDiem', XU.diaDiem, O.diaDiem || [], 'Tất cả địa điểm') + '</div>' +
-      '<div class="frm-row"><label>Loại hình</label>' +
-        oChon('loaiHinh', XU.loaiHinh, O.loaiHinh || [], 'Tất cả loại hình') + '</div>' +
-    '</div>' +
+    '<div class="frm-row"><label>Địa điểm <span class="xu-phu">bấm chọn nhiều</span></label>' +
+      oChip('diaDiem', XU.diaDiem, O.diaDiem || [], 'Tất cả') + '</div>' +
+    '<div class="frm-row"><label>Loại hình</label>' +
+      oChip('loaiHinh', XU.loaiHinh, O.loaiHinh || [], 'Tất cả') + '</div>' +
     '<div class="frm-row"><label>Trạng thái</label>' +
-      oChon('trangThai', XU.trangThai, tt, 'Mọi trạng thái') +
+      oChip('trangThai', XU.trangThai, tt, 'Tất cả') +
       '<div class="hint">Để <b>Đã hoàn tất</b> khi gửi đối tác — nháp, chờ duyệt và lịch huỷ '
       + 'không phải thứ họ cần thấy.</div></div>' +
 
@@ -3987,10 +4000,24 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
+  /* Bấm chip: "Tất cả" xoá sạch lựa chọn, chip thường thì bật/tắt. Bỏ hết chip
+   * cũng quay về "Tất cả" — không để người dùng rơi vào trạng thái không chọn
+   * gì mà cũng không phải tất cả. */
+  const xuChip = T.closest('[data-xuchip]');
+  if (xuChip && XU) {
+    const k = xuChip.dataset.xuchip;
+    const v = xuChip.dataset.gt;
+    if (!v) XU[k] = [];
+    else if (XU[k].includes(v)) XU[k] = XU[k].filter((x) => x !== v);
+    else XU[k] = [...XU[k], v];
+    veXuat(); demXuat();
+    return;
+  }
+
   const xuBo = T.closest('[data-xubo]');
   if (xuBo && XU) {
     const k = xuBo.dataset.xubo;
-    if (k === 'ngay') { XU.tu = ''; XU.den = ''; } else { XU[k] = ''; }
+    if (k === 'ngay') { XU.tu = ''; XU.den = ''; } else { XU[k] = []; }
     veXuat(); demXuat();
     return;
   }

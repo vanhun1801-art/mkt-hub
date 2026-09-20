@@ -1577,3 +1577,28 @@ a.phieu-f:hover { border-color: var(--primary); background: var(--blue-bg); }
 /* Lựa chọn 0 buổi vẫn chọn được — có khi người ta muốn thấy đúng cái trống đó.
    Chỉ làm mờ để mắt khỏi rơi vào. */
 option.xu-khong { color: var(--t3); }
+
+/* ---- chip lọc trong cửa sổ Xuất ----
+   Chọn nhiều bằng <select multiple> thì phải Ctrl+bấm — không ai đoán ra, và
+   trên máy bảng thì chịu. Chip thì nhìn là biết cái nào đang bật. */
+.xu-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.xu-chip {
+  font-family: inherit; font-size: 12.5px; cursor: pointer; white-space: nowrap;
+  padding: 5px 10px; border-radius: 8px;
+  background: var(--surface); color: var(--t2); border: 1px solid var(--line);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.xu-chip:hover { border-color: var(--primary-border); color: var(--t1); }
+.xu-chip b {
+  font-size: 11px; font-weight: 700; color: var(--t3);
+  background: var(--surface-2); border-radius: 5px; padding: 0 5px;
+}
+.xu-chip.on {
+  background: var(--primary-bg); color: var(--primary); border-color: var(--primary-border);
+  font-weight: 600;
+}
+.xu-chip.on b { background: var(--primary); color: #fff; }
+/* 0 buổi thì làm mờ, nhưng VẪN bấm được — có khi người ta muốn thấy đúng cái
+   trống đó để chắc là trống. */
+.xu-chip.trong { opacity: .45; }
+.xu-phu { font-weight: 400; color: var(--t3); font-size: 11.5px; margin-left: 4px; }

@@ -494,6 +494,29 @@ và refresh token; repo mới chỉ có OAuth cho Google Ads, và `gsheet.js` ch
 CSV đã xuất bản. Đường vòng chạy ngay: tải CSV rồi nhập vào Sheet, mất thêm một
 cú bấm.
 
+### Ba ô lọc đều chọn được NHIỀU
+
+Một bảng gửi đối tác thường gộp mấy khu của cùng một bên — *Vinwonders + Grand
+World + Sunset Town*. Xuất ba lần rồi dán tay lại là việc app phải làm hộ.
+
+Cả ba ô là **chip bấm chọn**, không phải ô chọn một. Bỏ `<select multiple>` vì
+hai lý do: chọn nhiều trong nó phải **Ctrl+bấm** — không ai đoán ra, và trên máy
+bảng thì chịu. Chip thì nhìn là biết cái nào đang bật.
+
+Chip **Tất cả** xoá sạch lựa chọn; bỏ hết chip cũng tự quay về *Tất cả*, không
+để ai rơi vào trạng thái "không chọn gì mà cũng không phải tất cả".
+
+Dấu phẩy làm dấu ngăn trong URL. An toàn vì **không nhãn nào** trong ba danh
+sách có dấu phẩy — địa điểm, loại hình và trạng thái đều dùng gạch nối hoặc gạch
+chéo. Thêm một nhãn kiểu *"Nhà hàng, quán"* là bộ lọc gãy âm thầm, nên có phép
+thử quét cả ba danh sách và đỏ ngay nếu lọt dấu phẩy.
+
+Phụ đề nối bằng `+` chứ không để nguyên dấu phẩy: dòng đó in lên đầu bảng đưa
+đối tác, *"Vinwonders + Grand World"* đọc ra một nhóm, còn dấu phẩy đọc ra một
+chuỗi máy. Tên tệp ghi đủ khi chọn hai chỗ, từ ba chỗ trở lên thì ghi số lượng
+(`tac-nghiep_3-dia-diem.xlsx`) — dài hơn nữa cũng không nói đủ, mà chi tiết đã
+nằm trong phụ đề của tệp.
+
 ### Ra 0 buổi thì phải nói vì sao
 
 Ngày 20/09/2026 anh Hùng lọc *Vinwonders · tháng 9 · **Chờ duyệt/Xử lý*** và ra
