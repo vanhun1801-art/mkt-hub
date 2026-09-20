@@ -471,6 +471,34 @@ t('nói rõ vì sao TikTok không có Hiển thị và Tiếp cận', () => {
   assert.ok(/Business API/.test(luu), 'phải nói cách lấy được hai cột đó');
 });
 
+t('không bao giờ ghi dòng ngày cho ngày chưa tới', () => {
+  /* Lỗi thật: Base có 37 dòng cho các ngày 21/9–30/9 trong khi hôm nay 20/9,
+     follower bê nguyên sang còn lượt xem bằng 0. Chọn khoảng "Tháng này" là
+     `den` thành ngày cuối tháng, mà nền tảng vẫn trả chỉ số trọn đời cho từng
+     ngày tới hết khoảng. Biểu đồ đọc ra thành "từ mai trở đi không ai xem gì",
+     và ô follower chốt thì vớ phải dòng tương lai.
+
+     Cùng họ với lỗi dòng follower TikTok đóng dấu ngày 30/9 — chặn ở chỗ gộp
+     dòng ngày là chặn được cho cả bốn nền tảng, thay vì vá từng chỗ. */
+  const src = require('fs').readFileSync(require.resolve('../sync/index'), 'utf8');
+  assert.ok(/const homNay = store\.homNay\(\)/.test(src), 'phải lấy mốc hôm nay');
+  assert.ok(/row\.date\)\.slice\(0, 10\) > homNay/.test(src),
+    'phải bỏ dòng có ngày lớn hơn hôm nay');
+  assert.ok(/soTuongLai/.test(src), 'và phải đếm để nói ra, không bỏ im lặng');
+});
+
+t('lịch chạy đếm theo LẦN CHẠY CUỐI, không theo lúc khởi động', () => {
+  /* Lỗi thật: setInterval 6 tiếng đặt từ lúc process lên, nên mỗi lần deploy là
+     đồng hồ về 0. Hôm deploy hơn chục lần thì lịch không bao giờ tới hạn — 24
+     tiếng liền không có lượt đồng bộ nào, mà nhìn app vẫn thấy mọi thứ xanh.
+     Render ngủ giữa chừng cũng cho ra đúng triệu chứng ấy. */
+  const src = require('fs').readFileSync(require.resolve('../server'), 'utf8');
+  assert.ok(/async function lanDongBoCuoi/.test(src),
+    'phải đọc được lần đồng bộ cuối từ Nhật ký');
+  assert.ok(/Date\.now\(\) - LICH\.lanCuoi < ms/.test(src),
+    'mỗi nhịp phải so với lần chạy cuối, không phải đếm ngược từ khởi động');
+});
+
 t('lấy bản lifetime khi Meta trả một metric hai lần', () => {
   /* Lỗi thật, làm mất gần hết lượt xem bài Facebook. Khi xin nhiều metric một
      lượt, Meta trả CÙNG một metric hai lần — period `lifetime` rồi period `day`.

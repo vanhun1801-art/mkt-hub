@@ -334,9 +334,22 @@ async function dongBo({ from, to, chi = '', napLai = false, log = () => {} } = {
     : [];
 
   // Gộp mọi dòng ngày theo (kênh, ngày)
+  /* KHÔNG GHI DÒNG NGÀY CHO NGÀY CHƯA TỚI.
+   *
+   * Chọn khoảng "Tháng này" là `den` thành ngày cuối tháng, và Meta vẫn trả về
+   * chỉ số trọn đời (như số follower) cho từng ngày tới hết khoảng — thành ra
+   * Base có 37 dòng cho các ngày chưa xảy ra, follower bê nguyên sang còn lượt xem
+   * bằng 0. Biểu đồ đọc ra thành "từ mai trở đi không ai xem gì", và ô follower
+   * chốt thì vớ phải dòng tương lai.
+   *
+   * Đây là cùng họ với lỗi dòng follower TikTok đóng dấu ngày 30/9 — sửa ở đây
+   * là chặn được cho cả bốn nền tảng, thay vì vá từng chỗ. */
+  const homNay = store.homNay();
+  let soTuongLai = 0;
   const gop = new Map();
   [...r.daily, ...buChenh].forEach((row) => {
     if (!row.extId || !row.date) return;
+    if (String(row.date).slice(0, 10) > homNay) { soTuongLai++; return; }
     const k = row.extId + '#' + row.date;
     gop.set(k, gop.has(k) ? gopDong(gop.get(k), row) : row);
   });
@@ -394,6 +407,11 @@ async function dongBo({ from, to, chi = '', napLai = false, log = () => {} } = {
       await store.xoaDong('daily', boDi);
       log('Nạp lại: đã dọn ' + boDi.length + ' dòng ngày cũ do máy ghi (giữ nguyên dòng nhập tay).');
     }
+  }
+
+  if (soTuongLai) {
+    log('Bỏ ' + soTuongLai + ' dòng ngày rơi vào ngày chưa tới — nền tảng trả số trọn đời '
+      + 'cho cả khoảng, nhưng ghi vào là biểu đồ có ngày mai với 0 lượt xem.');
   }
 
   // Kênh phải có trước, vì ba bảng kia đều link sang nó

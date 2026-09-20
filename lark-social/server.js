@@ -1113,6 +1113,36 @@ async function api(req, res, u) {
 /* ---------------- chạy tự động ---------------- */
 const LICH = { moiSoGio: 0, lanToi: 0, lanCuoi: 0 };
 
+/** Lượt đồng bộ gần nhất đã chạy lúc nào, đọc từ bảng Nhật ký trên Base. */
+async function lanDongBoCuoi() {
+  try {
+    const f = store.T.log.f;
+    const rows = await lark.listAll(store.T.log.id);
+    let moi = 0;
+    rows.forEach((r) => {
+      /* Bỏ qua dòng của tiện ích Người đăng — nó không phải lượt đồng bộ. */
+      if (/NGƯỜI ĐĂNG/.test(String(r.c[f.message] || ''))) return;
+      const t = Date.parse(r.c[f.at] || '');
+      if (Number.isFinite(t) && t > moi) moi = t;
+    });
+    return moi;
+  } catch (e) {
+    console.warn('  Không đọc được lần đồng bộ cuối: ' + e.message);
+    return 0;
+  }
+}
+
+/**
+ * Hẹn giờ theo LẦN CHẠY CUỐI, không theo lúc khởi động tiến trình.
+ *
+ * Bản trước đặt setInterval 6 tiếng từ lúc process lên. Mỗi lần deploy là đồng
+ * hồ đặt lại từ đầu, nên hôm nào deploy vài lần là lịch KHÔNG BAO GIỜ tới hạn —
+ * gặp thật: 24 tiếng liền không có lượt nào, mà nhìn app thì mọi thứ vẫn xanh.
+ * Render ngủ giữa chừng cũng cho ra đúng triệu chứng ấy.
+ *
+ * Giờ cứ 15 phút ngó một lần: lần cuối cách đây quá hạn thì chạy. Deploy hay
+ * ngủ dậy đều tự bắt kịp, và chạy chồng thì đã có TT.dangChay chặn.
+ */
 function batLich() {
   const conf = ketnoi.docTho();
   const gio = Number((conf.dongBo || {}).moiSoGio || 0);
@@ -1126,16 +1156,26 @@ function batLich() {
     return;
   }
   const ms = gio * 3600 * 1000;
-  LICH.lanToi = Date.now() + ms;
+  const NGO = 15 * 60 * 1000;
+
+  lanDongBoCuoi().then((t) => {
+    LICH.lanCuoi = t;
+    LICH.lanToi = (t || Date.now()) + ms;
+    const treQua = t && Date.now() - t > ms;
+    console.log('  Tự đồng bộ mỗi ' + gio + ' giờ'
+      + (t ? ' · lần cuối ' + new Date(t).toISOString().slice(0, 16) : ' · chưa có lượt nào')
+      + (treQua ? ' · ĐÃ QUÁ HẠN, chạy bù' : ''));
+  });
+
   setInterval(async () => {
     if (TT.dangChay) return;
+    if (LICH.lanCuoi && Date.now() - LICH.lanCuoi < ms) return;
     try {
       await chayDongBo({});
       LICH.lanCuoi = Date.now();
     } catch (e) { console.error('[lịch] ' + e.message); }
     LICH.lanToi = Date.now() + ms;
-  }, ms);
-  console.log('  Tự đồng bộ mỗi ' + gio + ' giờ');
+  }, NGO);
 }
 
 /* ---------------- khởi động ---------------- */
