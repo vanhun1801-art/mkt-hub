@@ -119,9 +119,11 @@ t('chỉ còn Nhập tay là tab đóng với nhân sự', () => {
   assert.ok(/\['nhat-ky', 'Nhật ký'\]/.test(ui), 'Nhật ký KHÔNG còn cờ đó');
   assert.ok(/\['binh-luan', 'Khách hỏi'\]/.test(ui), 'Khách hỏi KHÔNG còn cờ đó');
   /* Phần nhật ký đồng bộ trong tab đó vẫn phải bọc sau cổng quản lý. */
-  const k = ui.indexOf('if (S.quanLy) {');
-  assert.ok(k > 0 && ui.slice(k, k + 120).includes("/api/nhat-ky"),
-    'chỉ quản lý mới gọi /api/nhat-ky');
+  /* Nhân sự KHÔNG được gọi /api/nhat-ky — cổng nằm ngay chỗ gọi, không phải
+     chỗ vẽ, để họ đỡ tốn một lượt gọi vô ích và máy chủ đỡ đọc cả bảng. */
+  assert.ok(ui.includes("S.quanLy ? goi('/api/nhat-ky')"),
+    'lượt gọi /api/nhat-ky phải nằm sau điều kiện S.quanLy');
+  assert.ok(ui.includes('if (S.quanLy && r) {'), 'và chỉ vẽ khi thật sự có dữ liệu');
 });
 
 t('màn hình "Đã đăng gì" lấy từ bảng Bài đăng, không phải bảng Nhật ký', () => {
