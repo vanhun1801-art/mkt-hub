@@ -73,5 +73,36 @@ t('đoạn rỗng thì không bao giờ coi là trùng', () => {
   assert.strictEqual(L.trungNhau('', ''), false);
 });
 
+console.log('\ntiện ích — bắt lúc bấm Đăng');
+
+t('không đòi nút phải nằm trong hộp thoại', () => {
+  /* Siết như vậy là quá tay: Công cụ lập kế hoạch của Business Suite soạn bài
+     trên cả trang, không phải trong hộp thoại. Bài hẹn giờ 10:30 của bạn Lý Thư
+     Bạch mất trắng vì cú bấm Lên lịch bị bỏ qua — không để lại dấu vết nào. */
+  const src = require('fs').readFileSync(
+    require('path').join(__dirname, '..', 'extension', 'content.js'), 'utf8');
+  assert.ok(!/role="dialog"\],form/.test(src), 'không còn điều kiện phải ở trong dialog');
+});
+
+t('nhớ đoạn chữ đang soạn, vì tới bước xác nhận thì ô soạn bài đã biến mất', () => {
+  /* Luồng hẹn giờ đi nhiều bước: soạn bài → Lên lịch → chọn ngày giờ → xác
+     nhận. Đến bước cuối ô soạn bài không còn trên màn hình, nên đi tìm lúc đó
+     là tìm hụt. */
+  const src = require('fs').readFileSync(
+    require('path').join(__dirname, '..', 'extension', 'content.js'), 'utf8');
+  assert.ok(/let vanCuoi = ''/.test(src), 'phải có biến nhớ');
+  assert.ok(/addEventListener\('input'/.test(src), 'cập nhật liên tục khi người ta gõ');
+  assert.ok(/chuSoanBai\(\) \|\| vanCuoi/.test(src), 'tìm hụt thì lấy bản nhớ');
+  assert.ok(/vanCuoi = '';/.test(src), 'ghi xong phải xoá, không xài lại cho bài sau');
+});
+
+t('bấm Đăng mà không moi được chữ thì phải nói ra', () => {
+  /* Im lặng bỏ qua là cách một bài biến mất mà không ai hay — một tháng sau
+     chấm KPI mới phát hiện thiếu. */
+  const src = require('fs').readFileSync(
+    require('path').join(__dirname, '..', 'extension', 'content.js'), 'utf8');
+  assert.ok(/không đọc được nội dung/.test(src), 'phải báo cho người đăng biết');
+});
+
 console.log('\n' + dat + ' phép thử đạt' + (hong ? ' — CÓ LỖI' : ''));
 if (hong) process.exit(1);

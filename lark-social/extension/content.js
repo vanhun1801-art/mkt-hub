@@ -258,6 +258,20 @@
    */
   const NUT_DANG = /^(đăng|đăng ngay|đăng bài|chia sẻ ngay|lên lịch|lên lịch đăng|publish|post|schedule)$/i;
 
+  /* NHỜ ĐOẠN CHỮ ĐANG SOẠN, không đợi tới lúc bấm mới đi tìm.
+   *
+   * Luồng hẹn giờ trong Business Suite đi nhiều bước: soạn bài → bấm Lên lịch →
+   * chọn ngày giờ → xác nhận. Đến bước cuối thì ô soạn bài không còn trên màn
+   * hình nữa, nên đi tìm lúc đó là tìm hụt — bài hẹn giờ 10:30 của bạn Lý Thư
+   * Bạch mất trắng vì lý do này, không lại dấu vết nào trong nhật ký. */
+  let vanCuoi = '';
+  addEventListener('input', (e) => {
+    const t = e.target;
+    if (!t || !t.isContentEditable && t.getAttribute && t.getAttribute('role') !== 'textbox') return;
+    const v = (t.innerText || t.value || '').trim();
+    if (v.length >= 40) vanCuoi = v;
+  }, true);
+
   function chuSoanBai() {
     /* Ô soạn bài là contenteditable. Lấy ô nhiều chữ nhất đang hiện, vì trong
      * Business Suite còn có ô tìm kiếm và ô bình luận cũng cùng dạng. */
@@ -343,12 +357,21 @@
     if (!el) return;
     const chu = (el.innerText || el.textContent || '').trim();
     if (!NUT_DANG.test(chu)) return;
-    /* Chỉ bắt khi nút nằm trong khung soạn bài. Ngoài khung cũng có chỗ mang chữ
-     * "Đăng" — menu, nút điều hướng — bắt hết là sinh mục rác. */
-    if (!el.closest('[role="dialog"],form,[aria-label*="đăng" i],[aria-label*="post" i]')) return;
-    /* Chụp NGAY, trước khi Facebook xoá ô soạn bài. */
-    const van = chuSoanBai();
-    if (van) ghiNho(van);
+    /* BỎ ĐIỀU KIỆN PHẢI NẰM TRONG DIALOG.
+     *
+     * Siết như vậy là quá tay: Công cụ lập kế hoạch của Business Suite soạn bài
+     * trên cả trang, không phải trong hộp thoại, nên cú bấm Lên lịch bị bỏ qua.
+     * Chốt thật nằm ở đoạn chữ: không có bài đang soạn thì không ghi gì. */
+    const van = chuSoanBai() || vanCuoi;
+    if (van) {
+      ghiNho(van);
+      vanCuoi = '';   // bài sau phải tự gõ lại, không xài lại chữ của bài trước
+    } else if (toiLa) {
+      /* Bấm Đăng mà không moi được chữ nào thì phải nói. Im lặng bỏ qua là cách
+       * bài hẹn giờ 10:30 biến mất mà không ai hay — một tháng sau chấm KPI mới
+       * phát hiện thiếu. */
+      noiNhanh('<span style="color:#f0b45f">Bấm Đăng nhưng không đọc được nội dung — báo anh Hùng</span>');
+    }
   }, true);
 
   /* Mở Facebook là thử gửi lại hàng chờ. */
