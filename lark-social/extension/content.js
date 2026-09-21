@@ -341,7 +341,7 @@
   setInterval(() => {
     const v = chuSoanBai();
     if (v.length >= DAI_TOI_THIEU && v !== vanCuoi) nhoNhap(v);
-  }, 2000);
+  }, 1000);
 
   function nhapTuKho() {
     return new Promise((xong) => {
@@ -423,6 +423,17 @@
   }
 
   addEventListener('click', async (e) => {
+    /* CHỤP TRƯỚC KHI XÉT NÚT.
+     *
+     * Nhịp chụp hai giây một lần làm việc bắt bài thành chập chờn: bấm nhanh ngay sau
+     * khi dán caption thì nhịp chưa kịp chạy, mà tới lúc bấm thì Facebook đã thay
+     * khung soạn bài — hai bài giống hệt nhau mà bài ăn bài trượt.
+     *
+     * Mọi cú bấm đều chụp một cái, kể cả cú bấm sang bước kế. Rẻ, và bắt được
+     * đúng khoảnh khắc caption còn trên màn hình. */
+    const vNgay = chuSoanBai();
+    if (vNgay.length >= DAI_TOI_THIEU && vNgay !== vanCuoi) nhoNhap(vNgay);
+
     const el = e.target && e.target.closest ? e.target.closest('div[role="button"],button,span') : null;
     if (!el) return;
     const chu = (el.innerText || el.textContent || '').trim();

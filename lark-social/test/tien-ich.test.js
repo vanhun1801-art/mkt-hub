@@ -179,5 +179,20 @@ t('bắt được rồi thì đừng kêu nữa — một lượt hẹn giờ b�
     'chỉ kêu khi hai phút qua không bắt được gì');
 });
 
+t('mọi cú bấm đều chụp bản nháp trước khi xét nút', () => {
+  /* Nhịp chụp định kỳ làm việc bắt bài thành chập chờn: bấm nhanh ngay sau khi
+     dán caption thì nhịp chưa kịp chạy, mà tới lúc bấm thì Facebook đã thay
+     khung soạn bài. Anh Hùng thử ba bài cùng kiểu, hai bài ăn một bài trượt. */
+  const src = require('fs').readFileSync(
+    require('path').join(__dirname, '..', 'extension', 'content.js'), 'utf8');
+  const i = src.indexOf("addEventListener('click'");
+  const j = src.indexOf('closest(', i);
+  const dau = src.slice(i, j);
+  assert.ok(/const vNgay = chuSoanBai\(\)/.test(dau),
+    'phải chụp NGAY đầu handler, trước cả khi biết bấm vào nút nào');
+  assert.ok(/vNgay\.length >= DAI_TOI_THIEU && vNgay !== vanCuoi/.test(dau),
+    'và chỉ ghi khi đủ dài, khác bản đang có');
+});
+
 console.log('\n' + dat + ' phép thử đạt' + (hong ? ' — CÓ LỖI' : ''));
 if (hong) process.exit(1);
