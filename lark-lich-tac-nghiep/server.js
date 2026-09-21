@@ -643,6 +643,10 @@ async function taoDonTourwell(recId, item) {
 const soQuy = require('./so-quy');
 const { doanDiaDiem, doanLoaiHinh } = require('./public/phan-loai');
 const xuat = require('./xuat');
+const { layLogo } = require('../lark-chung/logo');
+/* Nơi giữ bản logo tải về lần trước. Nằm ngoài kho mã (xem .gitignore): đây là
+ * bản tạm của một tệp mà hub mới là chủ. */
+const THU_MUC_DU_LIEU = require('path').join(__dirname, 'du-lieu');
 const dangGhiQuy = new Set();
 
 async function ghiSoQuy(recId, item, maDon) {
@@ -805,6 +809,27 @@ async function api(req, res, url) {
    * CHI PHÍ phải xin riêng bằng tien=1, VÀ phải có quyền xem chi phí. Bảng này
    * đem cho đối tác — lộ cột tiền ở đây hỏng chuyện lớn hơn mọi lỗi kỹ thuật.
    * ------------------------------------------------------------------- */
+  /* -------------------------------------------------------------------
+   * GET /api/logo — logo thương hiệu, cho BẢN IN
+   *
+   * Bản in mở ở cửa sổ trắng (about:blank) nên không có đường dẫn tương đối
+   * nào dùng được, mà lớp vỏ thì gắn tiền tố /m/<id> vào mọi lời gọi của
+   * trang. Nên giao diện tải ảnh qua đây rồi nhúng thẳng vào trang in.
+   *
+   * Không đòi đăng nhập, cùng lý do như bên hub: đây là nhãn hiệu in lên báo
+   * cáo chứ không phải dữ liệu.
+   * ------------------------------------------------------------------- */
+  if (p === '/api/logo' && req.method === 'GET') {
+    const logo = await layLogo(THU_MUC_DU_LIEU);
+    if (!logo) return json(res, { error: 'Chưa có logo' }, 404);
+    res.writeHead(200, {
+      'Content-Type': logo.mime,
+      'Content-Length': logo.buf.length,
+      'Cache-Control': 'no-cache',
+    });
+    return res.end(logo.buf);
+  }
+
   if (p === '/api/xuat' && req.method === 'GET') {
     const q = url.searchParams;
     const records = await getRecords(q.get('refresh') === '1');
@@ -841,7 +866,14 @@ async function api(req, res, url) {
       });
     }
 
-    const ra = kieu === 'csv' ? xuat.xuatCsv(ds, dk, keTien) : xuat.xuatXlsx(ds, dk, keTien);
+    /* Logo xin từ lớp vỏ, không giữ bản riêng ở app này (xem lark-chung/logo.js).
+     * Hub ngủ thì layLogo trả về null và tệp vẫn ra bình thường, chỉ thiếu ảnh —
+     * một cái logo không lấy được không được phép làm hỏng bản xuất.
+     * CSV thì không có chỗ cho ảnh, nên không hỏi. */
+    const logo = kieu === 'csv' ? null : await layLogo(THU_MUC_DU_LIEU);
+    const ra = kieu === 'csv'
+      ? xuat.xuatCsv(ds, dk, keTien)
+      : xuat.xuatXlsx(ds, dk, keTien, logo);
     res.writeHead(200, {
       'Content-Type': ra.kieu,
       'Content-Length': ra.than.length,

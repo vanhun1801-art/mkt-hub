@@ -19,6 +19,7 @@
  * dựng dòng riêng là ba chỗ lệch nhau sau vài lần sửa.
  */
 const { ghiXlsx, ghiCsv } = require('../lark-chung/xlsx-ghi');
+const { coAnh } = require('../lark-chung/logo');
 
 const chu = (v) => String(v == null ? '' : v).trim();
 
@@ -86,19 +87,34 @@ function loc(items, dk) {
 /**
  * Dựng cột + dòng. Một chỗ duy nhất, ba lối ra dùng lại.
  *
+ * BỘ CỘT LÀ CỦA NGƯỜI NHẬN, KHÔNG PHẢI CỦA BASE. Bảng này đi ra ngoài phòng —
+ * đối tác cầm nó để BỐ TRÍ: xin phép bay flycam, giữ chỗ ăn, cử người đón. Nên
+ * cột nào không giúp họ bố trí được thì không có mặt:
+ *
+ *   · Trạng thái — chuyện nội bộ của phòng (chờ duyệt, đã hoàn tất). Đối tác
+ *     đọc "Chờ duyệt/Xử lý" rồi tưởng buổi đó chưa chắc chạy.
+ *   · Tên hoạt động — gõ tay, và cố tình chẻ chữ để né bộ lọc nền tảng:
+ *     "Li/v/e/stre/a/m", "Liv/e/tream". Đóng mấy cái đó lên văn bản gửi đối tác
+ *     thì khó coi. Địa điểm + Loại hình nói đúng chuyện đó mà sạch sẽ, và đó
+ *     chính là lý do hai cột ấy ra đời.
+ *   · Thời lượng, Link sản phẩm — số của phòng, không phải việc của họ.
+ *
+ * Đổi lại, ba thứ họ thật sự cần thì đưa vào: KẾ HOẠCH CHI TIẾT (lịch giờ từng
+ * buổi), GHI CHÚ TRƯỚC TÁC NGHIỆP (chỗ ghi yêu cầu gửi họ: cấp phép flycam, vé
+ * FOC, thiết bị), và tách nhân sự thành phụ trách / đi cùng để họ biết hỏi ai.
+ *
  * @param {boolean} keTien có kèm cột chi phí không (đã kiểm quyền ở chỗ gọi)
  */
 function dungBang(ds, keTien) {
   const cot = [
     { ten: 'Ngày', rong: 11 },
-    { ten: 'Giờ', rong: 12 },
-    { ten: 'Nội dung tác nghiệp', rong: 42 },
-    { ten: 'Địa điểm', rong: 20 },
+    { ten: 'Thời gian bắt đầu', rong: 14 },
+    { ten: 'Kế hoạch chi tiết', rong: 52 },
+    { ten: 'Địa điểm', rong: 19 },
     { ten: 'Loại hình', rong: 18 },
-    { ten: 'Thời lượng', rong: 11 },
-    { ten: 'Nhân sự', rong: 30 },
-    { ten: 'Link sản phẩm', rong: 34 },
-    { ten: 'Trạng thái', rong: 18 },
+    { ten: 'Nhân sự phụ trách', rong: 22 },
+    { ten: 'Nhân sự đi cùng', rong: 24 },
+    { ten: 'Ghi chú trước tác nghiệp', rong: 38 },
   ];
   if (keTien) {
     cot.push({ ten: 'Chi phí dự kiến', rong: 15 }, { ten: 'Chi phí thực tế', rong: 15 });
@@ -107,24 +123,27 @@ function dungBang(ds, keTien) {
   const hang = ds.map((t) => {
     /* Buổi nhập từ sổ cũ không có giờ, nên start rơi về 00:00. In "00:00" lên
      * bảng đưa đối tác là một con số không nói gì — để trống thì người đọc hiểu
-     * ngay là "không ghi giờ". Có giờ kết thúc thì vẫn hiện cả hai, vì lúc đó
-     * 00:00 là giờ thật. */
+     * ngay là "không ghi giờ". Có giờ kết thúc thì 00:00 là giờ thật, vẫn in. */
     const g1 = gioVN(t.start);
-    const g2 = gioVN(t.end);
-    const gio = (!g2 && g1 === '00:00') ? '' : [g1, g2].filter(Boolean).join(' – ');
-    /* Phụ trách đứng đầu rồi tới người đi cùng, không trùng tên. Đối tác đọc
-     * cột này để biết bên mình cử mấy người. */
-    const nguoi = [...new Set([...dsTen(t.owner), ...dsTen(t.staff)])].join(', ');
+    const gio = (!gioVN(t.end) && g1 === '00:00') ? '' : g1;
+
+    /* Phụ trách và người đi cùng tách làm HAI cột. Gộp một cột thì đối tác đọc
+     * ra một đám tên ngang hàng, không biết hỏi ai. Và người đã đứng ở cột phụ
+     * trách thì không lặp lại ở cột đi cùng — trong sổ, người đăng ký thường
+     * khai chính mình ở cả hai ô, in ra thành hai người đi. */
+    const dsPT = dsTen(t.owner);
+    const pt = new Set(dsPT);
+    const diCung = dsTen(t.staff).filter((x) => !pt.has(x));
+
     const h = [
       ngayVN(t.start),
       gio,
-      chu(t.title),
+      chu(t.plan),
       chu(t.diaDiem),
       chu(t.loaiHinh),
-      chu(t.duration),
-      nguoi,
-      chu(t.link),
-      chu(t.status),
+      dsPT.join(', '),
+      diCung.join(', '),
+      chu(t.report),
     ];
     if (keTien) {
       h.push(Number(t.costPlan) || 0, Number(t.costActual) || 0);
@@ -216,7 +235,18 @@ function tenTep(dk, duoi) {
 
 const TIEU_DE = 'ROOTY TRIP · BÁO CÁO TÁC NGHIỆP';
 
-function xuatXlsx(ds, dk, keTien) {
+/* Logo đóng lên tệp cao 46px. Giữ nguyên tỉ lệ ảnh gốc: logo Rooty Trip là
+ * chữ nằm ngang rất dài (3994×1385), ép vào một ô vuông là bẹp dí. Không đọc
+ * được khổ ảnh thì lấy một khổ ngang mặc định còn hơn là bỏ logo. */
+const LOGO_CAO = 46;
+function khoLogo(logo) {
+  if (!logo || !logo.buf || !logo.buf.length) return null;
+  const co = coAnh(logo.buf);
+  const rong = co && co.cao ? Math.round((co.rong / co.cao) * LOGO_CAO) : 133;
+  return { buf: logo.buf, mime: logo.mime, rong, cao: LOGO_CAO };
+}
+
+function xuatXlsx(ds, dk, keTien, logo) {
   const { cot, hang } = dungBang(ds, keTien);
   return {
     tep: tenTep(dk, 'xlsx'),
@@ -224,6 +254,7 @@ function xuatXlsx(ds, dk, keTien) {
     than: ghiXlsx({
       ten: 'Tác nghiệp', cot, hang,
       tieuDe: TIEU_DE, phuDe: moTaLoc(dk, ds.length),
+      logo: khoLogo(logo),
     }),
   };
 }
@@ -235,5 +266,5 @@ function xuatCsv(ds, dk, keTien) {
 
 module.exports = {
   loc, tach, coDauPhay, dungBang, demTheo, loiThoat, moTaLoc, tenTep,
-  xuatXlsx, xuatCsv, ngayVN, gioVN, ngayISO, TIEU_DE,
+  xuatXlsx, xuatCsv, khoLogo, ngayVN, gioVN, ngayISO, TIEU_DE, LOGO_CAO,
 };

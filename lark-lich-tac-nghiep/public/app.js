@@ -954,8 +954,12 @@ function veXuat() {
       oChip('loaiHinh', XU.loaiHinh, O.loaiHinh || [], 'Tất cả', 'loại') + '</div>' +
     '<div class="frm-row"><label>Trạng thái</label>' +
       oChip('trangThai', XU.trangThai, tt, 'Tất cả', 'trạng thái') +
-      '<div class="hint">Để <b>Đã hoàn tất</b> khi gửi đối tác — nháp, chờ duyệt và lịch huỷ '
-      + 'không phải thứ họ cần thấy.</div></div>' +
+      /* Trạng thái KHÔNG còn là một cột trong tệp — nó chỉ chọn buổi nào được
+       * lấy. Phải nói ra, vì cùng một ô này phục vụ hai việc ngược nhau: gửi kế
+       * hoạch SẮP tới, và gửi báo cáo ĐÃ chạy. */
+      '<div class="hint">Trạng thái không in ra tệp, nó chỉ chọn buổi nào được lấy. '
+      + 'Gửi <b>kế hoạch sắp tới</b> thì lấy Duyệt/Chờ tác nghiệp; gửi <b>báo cáo đã chạy</b> '
+      + 'thì lấy Đã hoàn tất.</div></div>' +
 
     (CHIPHI() ? '<label class="xu-tien"><input type="checkbox" data-xu="tien"' +
       (XU.tien ? ' checked' : '') + '> Kèm cột chi phí ' +
@@ -1004,6 +1008,30 @@ async function moBanIn() {
     return;
   }
 
+  /* LOGO NHÚNG THẲNG, không để <img src="/api/logo">.
+   *
+   * Cửa sổ in mở từ about:blank nên mọi đường dẫn tương đối trong đó trỏ vào
+   * hư không. Mà đường tuyệt đối cũng không xong: lớp vỏ Marketing Hub gắn
+   * tiền tố /m/<id> vào lời gọi của TRANG NÀY bằng một lớp vá fetch — cửa sổ
+   * mới không có lớp vá đó.
+   *
+   * Nên tải ở đây, nơi lớp vá còn hiệu lực, rồi nhúng base64 vào trang in.
+   * Tiện thể trang in thành tự chứa: lưu lại thành HTML hay gửi đi vẫn còn
+   * logo. Không lấy được thì in không logo, không phải in một ô ảnh vỡ. */
+  let logo = '';
+  try {
+    const r = await fetch(apiUrl('/api/logo'));
+    if (r.ok) {
+      const b = await r.blob();
+      logo = await new Promise((xong) => {
+        const fr = new FileReader();
+        fr.onload = () => xong(String(fr.result));
+        fr.onerror = () => xong('');
+        fr.readAsDataURL(b);
+      });
+    }
+  } catch (_) { /* không có logo thì thôi, bảng vẫn là bảng */ }
+
   /* Cột Link in ra dạng chữ thì dài loằng ngoằng và không bấm được trên giấy.
    * Trên bản PDF thì bấm được, nên để làm liên kết và rút gọn chữ hiển thị. */
   const iLink = d.cot.findIndex((c) => /Link/i.test(c.ten));
@@ -1032,7 +1060,16 @@ async function moBanIn() {
     + 'table{border-collapse:collapse;width:100%}'
     + 'th{background:#2b5cff;color:#fff;font-size:10px;text-transform:uppercase;'
       + 'letter-spacing:.05em;text-align:left;padding:7px 8px}'
-    + 'td{padding:6px 8px;border-bottom:1px solid #e3e8f0;vertical-align:top}'
+    /* pre-wrap: "Kế hoạch chi tiết" và "Ghi chú trước tác nghiệp" là văn bản
+     * nhiều dòng gõ tay — mỗi gạch đầu dòng một mốc giờ. HTML nuốt xuống dòng
+     * thì cả kế hoạch dồn thành một khối chữ liền, đọc không ra mốc nào. */
+    + 'td{padding:6px 8px;border-bottom:1px solid #e3e8f0;vertical-align:top;'
+      + 'white-space:pre-wrap;overflow-wrap:break-word}'
+    + 'td:first-child,td:nth-child(2){white-space:nowrap}'
+    /* Đầu trang: logo trái, kỳ báo cáo phải. Chỉ lặp ở trang đầu — logo trên
+     * mỗi trang giấy là quảng cáo, không phải thông tin. */
+    + '.dau{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:12px}'
+    + '.dau img{height:44px;width:auto;display:block;margin-bottom:8px}'
     + 'tr{break-inside:avoid}'
     + 'thead{display:table-header-group}'   /* tiêu đề lặp lại ở mỗi trang giấy */
     + 'a{color:#2b5cff}'
@@ -1044,9 +1081,18 @@ async function moBanIn() {
       + 'border:0;background:#2b5cff;color:#fff;cursor:pointer}'
     + '</style></head><body>'
     + '<div class="khong-in"><button onclick="window.print()">In / Lưu PDF</button></div>'
+    + '<div class="dau"><div>'
+    + (logo ? '<img src="' + logo + '" alt="Rooty Trip">' : '')
     + '<h1>' + esc(d.tieuDe) + '</h1>'
-    + '<div class="phu">' + esc(d.moTa) + '</div>'
-    + '<table><thead><tr>' + d.cot.map((c) => '<th>' + esc(c.ten) + '</th>').join('')
+    + '<div class="phu">' + esc(d.moTa) + '</div></div></div>'
+    /* Chia bề ngang theo đúng tỉ lệ `rong` mà dungBang khai, nếu không trình
+     * duyệt tự chia theo nội dung: cột "Kế hoạch chi tiết" dài gấp mười lần
+     * cột "Ngày" sẽ nuốt gần hết bề ngang và đẩy mọi cột khác thành một chữ
+     * một dòng. */
+    + '<table><colgroup>'
+    + d.cot.map((c) => '<col style="width:' + (100 * (c.rong || 16)
+      / d.cot.reduce((a, x) => a + (x.rong || 16), 0)).toFixed(2) + '%">').join('')
+    + '</colgroup><thead><tr>' + d.cot.map((c) => '<th>' + esc(c.ten) + '</th>').join('')
     + '</tr></thead><tbody>'
     + d.hang.map((h) => '<tr>' + h.map((v, i) => '<td>' + o(v, i) + '</td>').join('') + '</tr>').join('')
     + '</tbody></table>'

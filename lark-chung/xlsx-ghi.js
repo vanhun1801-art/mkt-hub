@@ -189,6 +189,70 @@ const STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 </cellXfs>
 </styleSheet>`;
 
+/* ---------------------------------------------------------------------------
+ * ẢNH NỔI (logo)
+ * -------------------------------------------------------------------------
+ * Excel không đặt ảnh VÀO ô. Ảnh là một đối tượng NỔI bên trên lưới, neo vào
+ * một ô, và mô tả ở một phần riêng (xl/drawings/). Nên đóng logo lên tệp không
+ * phải là ghi thêm một ô — là thêm bốn phần vào gói ZIP rồi khai chúng ở ba
+ * chỗ khác nhau. Thiếu một khai báo là Excel báo "file hỏng" mà không nói vì
+ * sao, nên bốn phần đó dựng chung một chỗ ở đây thay vì rải trong ghiXlsx.
+ *
+ * EMU là đơn vị đo của OOXML: 914400 EMU = 1 inch = 96 px, nên 1 px = 9525.
+ * ------------------------------------------------------------------------- */
+const EMU = 9525;
+
+const DUOI_ANH = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/gif': 'gif' };
+
+/** Bốn phần của một ảnh nổi neo ở ô A1. */
+function phanAnh(logo) {
+  const duoi = DUOI_ANH[String(logo.mime || '').toLowerCase()] || 'png';
+  const cx = Math.round((logo.rong || 150) * EMU);
+  const cy = Math.round((logo.cao || 52) * EMU);
+  const R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+
+  /* oneCellAnchor: neo góc trên-trái vào A1 rồi giữ NGUYÊN khổ ảnh. Dùng
+   * twoCellAnchor thì ảnh co giãn theo độ rộng cột — mà độ rộng cột ở đây do
+   * nội dung quyết định, nên logo sẽ méo mỗi bảng một kiểu. */
+  const drawing = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    + '<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing"'
+    + ' xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'
+    + '<xdr:oneCellAnchor>'
+    + '<xdr:from><xdr:col>0</xdr:col><xdr:colOff>' + (4 * EMU) + '</xdr:colOff>'
+    + '<xdr:row>0</xdr:row><xdr:rowOff>' + (3 * EMU) + '</xdr:rowOff></xdr:from>'
+    + '<xdr:ext cx="' + cx + '" cy="' + cy + '"/>'
+    + '<xdr:pic>'
+    + '<xdr:nvPicPr><xdr:cNvPr id="1" name="Logo"/>'
+    + '<xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr>'
+    + '<xdr:blipFill><a:blip xmlns:r="' + R + '" r:embed="rId1"/>'
+    + '<a:stretch><a:fillRect/></a:stretch></xdr:blipFill>'
+    + '<xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="' + cx + '" cy="' + cy + '"/></a:xfrm>'
+    + '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr>'
+    + '</xdr:pic><xdr:clientData/></xdr:oneCellAnchor></xdr:wsDr>';
+
+  return {
+    duoi,
+    muc: [
+      { ten: 'xl/media/image1.' + duoi, noiDung: logo.buf },
+      { ten: 'xl/drawings/drawing1.xml', noiDung: drawing },
+      {
+        ten: 'xl/drawings/_rels/drawing1.xml.rels',
+        noiDung: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+          + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+          + '<Relationship Id="rId1" Type="' + R + '/image" Target="../media/image1.' + duoi + '"/>'
+          + '</Relationships>',
+      },
+      {
+        ten: 'xl/worksheets/_rels/sheet1.xml.rels',
+        noiDung: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+          + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+          + '<Relationship Id="rId1" Type="' + R + '/drawing" Target="../drawings/drawing1.xml"/>'
+          + '</Relationships>',
+      },
+    ],
+  };
+}
+
 /**
  * @param {object} o
  * @param {string} o.ten     tên sheet
@@ -196,9 +260,11 @@ const STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
  * @param {Array}  o.hang    mảng các mảng ô
  * @param {string} [o.tieuDe]
  * @param {string} [o.phuDe]
+ * @param {object} [o.logo]  { buf, mime, rong, cao } — ảnh nổi ở góc trên-trái
  * @returns {Buffer} nội dung file .xlsx
  */
-function ghiXlsx({ ten = 'Sheet1', cot = [], hang = [], tieuDe = '', phuDe = '' }) {
+function ghiXlsx({ ten = 'Sheet1', cot = [], hang = [], tieuDe = '', phuDe = '', logo = null }) {
+  const anh = (logo && logo.buf && logo.buf.length) ? phanAnh(logo) : null;
   const soCot = Math.max(cot.length, ...hang.map((h) => h.length), 1);
   const dong = [];
   let r = 0;
@@ -206,6 +272,14 @@ function ghiXlsx({ ten = 'Sheet1', cot = [], hang = [], tieuDe = '', phuDe = '' 
   /* Tiêu đề và phụ đề nằm TRONG sheet, không nằm ở tên file: người nhận mở ra
    * là biết ngay đây là bảng gì của kỳ nào, kể cả khi tệp đã bị đổi tên hay
    * chuyển tiếp qua mấy lần. */
+  /* Ảnh NỔI nên không tự đẩy nội dung xuống: phải chừa sẵn một hàng cao đúng
+   * bằng nó, nếu không logo nằm đè lên dòng tiêu đề. Chiều cao hàng đo bằng
+   * point (1px = 0,75pt), cộng thêm chút cho thoáng. */
+  if (anh) {
+    r++;
+    dong.push('<row r="' + r + '" ht="' + (Math.round((logo.cao || 52) * 0.75) + 6)
+      + '" customHeight="1"/>');
+  }
   if (tieuDe) { r++; dong.push('<row r="' + r + '" ht="22" customHeight="1">' + veO(r, 1, tieuDe, 1) + '</row>'); }
   if (phuDe) { r++; dong.push('<row r="' + r + '">' + veO(r, 1, phuDe, 2) + '</row>'); }
   if (tieuDe || phuDe) { r++; dong.push('<row r="' + r + '"/>'); }
@@ -235,9 +309,13 @@ function ghiXlsx({ ten = 'Sheet1', cot = [], hang = [], tieuDe = '', phuDe = '' 
     ? '<autoFilter ref="A' + hangDauCot + ':' + chuCot(soCot) + Math.max(r, hangDauCot) + '"/>'
     : '';
 
+  /* <drawing> phải đứng SAU <autoFilter>: lược đồ của Excel quy định thứ tự các
+   * thẻ con, sai thứ tự là tệp hỏng dù từng thẻ đều đúng. */
   const sheet = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-    + '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
-    + dongBang + cols + '<sheetData>' + dong.join('') + '</sheetData>' + loc + '</worksheet>';
+    + '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"'
+    + ' xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+    + dongBang + cols + '<sheetData>' + dong.join('') + '</sheetData>' + loc
+    + (anh ? '<drawing r:id="rId1"/>' : '') + '</worksheet>';
 
   return taoZip([
     {
@@ -249,6 +327,10 @@ function ghiXlsx({ ten = 'Sheet1', cot = [], hang = [], tieuDe = '', phuDe = '' 
         + '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
         + '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
         + '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+        + (anh ? '<Default Extension="' + anh.duoi + '" ContentType="image/'
+          + (anh.duoi === 'jpg' ? 'jpeg' : anh.duoi) + '"/>'
+          + '<Override PartName="/xl/drawings/drawing1.xml"'
+          + ' ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>' : '')
         + '</Types>',
     },
     {
@@ -276,6 +358,7 @@ function ghiXlsx({ ten = 'Sheet1', cot = [], hang = [], tieuDe = '', phuDe = '' 
     },
     { ten: 'xl/styles.xml', noiDung: STYLES },
     { ten: 'xl/worksheets/sheet1.xml', noiDung: sheet },
+    ...(anh ? anh.muc : []),
   ]);
 }
 
