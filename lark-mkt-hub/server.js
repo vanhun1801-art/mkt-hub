@@ -1773,20 +1773,30 @@ async function api(req, res, u) {
    * Chỉ quản lý, và chặn luôn khi đang xem hộ người khác — xem hộ là để nhìn,
    * không phải để sửa. */
   if (p === '/api/social-kenh') {
-    const { q, xemNhu } = await aiDangXem(req);
+    const { nguoi, q, xemNhu } = await aiDangXem(req);
     if (!q.quanLy) return loi(res, 403, 'Chỉ quản lý sửa được phân quyền.');
     if (chanGhiKhiXemHo(res, xemNhu, m)) return undefined;
     const mod = timMod('social');
     if (!mod) return loi(res, 404, 'Chưa bật app Social.');
     kids.khoiDong(mod);
+    /* Gửi kèm danh tính quản lý. headerNguoi() bỏ qua khi không có id, nên
+     * truyền null là app Social nhận request vô danh rồi chặn — đúng như nó
+     * phải chặn, và đó là lý do mục này báo "App Social không trả lời". */
+    const nhuQuanLy = {
+      id: (nguoi && nguoi.id) || 'hub',
+      name: (nguoi && nguoi.name) || 'Quản lý',
+      email: (nguoi && nguoi.email) || '',
+      quanLy: true,
+    };
     try {
       if (m === 'GET') {
-        const r = await goiJson(mod, '/api/kenh/quyen', { nguoi: null });
+        const r = await goiJson(mod, '/api/kenh/quyen', { nguoi: nhuQuanLy });
         return ok(res, r);
       }
       if (m === 'POST') {
         const b = await docBody(req);
-        const r = await goiJson(mod, '/api/kenh/nguoi-xem-cua', { method: 'POST', body: b, nguoi: null });
+        const r = await goiJson(mod, '/api/kenh/nguoi-xem-cua',
+          { method: 'POST', body: b, nguoi: nhuQuanLy });
         return ok(res, r);
       }
     } catch (e) {
