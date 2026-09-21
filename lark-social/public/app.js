@@ -1431,43 +1431,36 @@
       + '</span></div></div>';
   }
 
+  /* CHỈ ĐỂ XEM. Chỗ khai đã chuyển sang màn hình Phân quyền của Marketing Hub.
+   *
+   * Ở đó khai theo NGƯỜI — mở một người, tick những kênh họ được xem — đúng cách
+   * người ta nghĩ, và không phải gõ email. Bảng này lưu theo KÊNH nên hộp thoại cũ
+   * bắt gõ email vào từng dòng — gõ sai một ký tự là kênh đó thành "chỉ người không
+   * tồn tại xem được", mà nhìn ô vẫn thấy có chữ nên tưởng đã khai đúng.
+   *
+   * Giữ lại phần XEM vì đứng ở tab Theo kênh mà muốn biết "kênh này ai đang xem"
+   * thì tiện hơn là mở sang Hub rồi dò từng người. */
   async function moPhanQuyen() {
     const r = await goi('/api/kenh?moi=1');
     const ds = r.kenh || [];
+    const soAi = (v) => String(v || '').split(/[s,;|]+/).filter(Boolean).length;
     moModal('<div class="modal-head"><h3>Ai xem được kênh nào</h3></div>'
       + '<div class="modal-body">'
-      + '<div class="help" style="margin-bottom:12px">Khai <b>email công ty</b> của người được xem '
-      + 'kênh, nhiều người thì cách nhau dấu phẩy. Kênh <b>để trống là ai cũng xem được</b> — '
-      + 'siết dần từng kênh, đừng khoá sạch một lượt. Quản lý luôn thấy tất cả.</div>'
+      + '<div class="help" style="margin-bottom:12px">Khai ở <b>Marketing Hub → Phân quyền</b>: '
+      + 'mở một người rồi tick những kênh họ được xem. Ở đây chỉ để xem lại cho nhanh. '
+      + 'Kênh <b>không ai khai là cả phòng xem được</b>.</div>'
       + '<div class="pq-list">'
       + ds.map((c) => '<div class="pq-row">'
         + '<div class="pq-ten">' + esc(c.name || c.extId)
         + '<span class="sub-line">' + esc(c.platform || '') + '</span></div>'
-        + '<input class="pq-in" data-id="' + esc(c.id) + '" value="' + esc(c.viewers || '')
-        + '" placeholder="ai cũng xem được">'
+        + '<div class="pq-ai">' + (soAi(c.viewers)
+          ? esc(c.viewers)
+          : '<span class="muted">cả phòng xem được</span>') + '</div>'
         + '</div>').join('')
       + '</div></div>'
       + '<div class="modal-foot"><button class="btn ghost" id="pqDong">Đóng</button></div>');
 
     $('#pqDong').onclick = dongModal;
-    /* Lưu ngay khi rời ô, không cần nút Lưu riêng: bảng có mười một dòng, bắt
-     * bấm lưu từng dòng thì ai cũng quên một dòng. */
-    $('#modal').querySelectorAll('.pq-in').forEach((o) => {
-      const goc = o.value;
-      o.onblur = async () => {
-        if (o.value === goc) return;
-        try {
-          const kq = await goiJSON('/api/kenh/nguoi-xem', { id: o.dataset.id, emails: o.value });
-          o.classList.add('pq-ok');
-          setTimeout(() => o.classList.remove('pq-ok'), 1200);
-          toast(kq.so ? 'Đã giao cho ' + kq.so + ' người' : 'Kênh này giờ ai cũng xem được');
-        } catch (e) {
-          o.classList.add('pq-loi');
-          setTimeout(() => o.classList.remove('pq-loi'), 2500);
-          toast(e.message, 'err');
-        }
-      };
-    });
   }
 
   /**

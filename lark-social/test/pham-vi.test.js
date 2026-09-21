@@ -159,4 +159,18 @@ t('khai theo NGƯỜI: chuyển trục ở máy chủ, không bắt giao diện 
   assert.ok(/store\.xoaCache\(\)/.test(khuc), 'phải xoá đệm, không thì màn hình còn số cũ');
 });
 
+t('hộp thoại trong app Social chỉ để XEM, không khai nữa', () => {
+  /* Giữ cả hai chỗ khai là quay lại đúng vấn đề ban đầu: hai màn hình cùng sửa
+     một thứ, và người dùng không biết mở cái nào. Chỗ khai chuyển hẳn sang
+     Phân quyền của Hub — ở đó khai theo NGƯỜI và tick bằng ô vuông, không phải
+     gõ email vào từng dòng kênh. Gõ sai một ký tự là kênh đó thành "chỉ người
+     không tồn tại xem được", mà nhìn ô vẫn thấy có chữ nên tưởng đã khai đúng. */
+  const ui = require('fs').readFileSync(require.resolve('../public/app.js'), 'utf8');
+  const i = ui.indexOf('async function moPhanQuyen()');
+  const khuc = ui.slice(i, i + 2000);
+  assert.ok(!/pq-in/.test(khuc), 'không còn ô nhập email');
+  assert.ok(!/nguoi-xem/.test(khuc), 'không còn gọi API ghi');
+  assert.ok(/Marketing Hub/.test(khuc), 'phải chỉ đường sang chỗ khai thật');
+});
+
 console.log('\n' + so + ' phép thử đạt' + (process.exitCode ? ' — CÓ LỖI' : '') + '\n');
