@@ -169,5 +169,38 @@ t('server.js gộp cả tên lạ vào chuaKhop', () => {
     'chuaKhop phải gồm cả r.tenLa, nếu không là mất bài của người chưa khai tên');
 });
 
+console.log('\nnguoi-dang — bảng chấm KPI theo người');
+
+t('gộp đúng và xếp theo lượt xem', () => {
+  const r = N.gopTheoNguoi([
+    { poster: 'Võ Hằng', views: 100, reach: 50, engagement: 10 },
+    { poster: 'Võ Hằng', views: 200, reach: 60, engagement: 20 },
+    { poster: 'Lý Thư Bạch', views: 500, reach: 90, engagement: 5 },
+  ]);
+  assert.strictEqual(r.length, 2);
+  assert.strictEqual(r[0].nguoi, 'Lý Thư Bạch');
+  assert.strictEqual(r[1].soBai, 2);
+  assert.strictEqual(r[1].views, 300);
+});
+
+t('bài chưa rõ người phải hiện thành một dòng, và luôn xuống CUỐI', () => {
+  /* Nhìn "Võ Hằng 20 bài, Lý Thư Bạch 18 bài" mà không biết còn 40 bài không ai
+     nhận thì con số đẹp một cách giả tạo. Và để dòng đó lẫn vào bảng xếp hạng
+     theo lượt xem là đọc nhầm nó thành một người. */
+  const r = N.gopTheoNguoi([
+    { poster: '', views: 9000 },
+    { poster: '   ', views: 1000 },
+    { poster: 'Võ Hằng', views: 10 },
+  ]);
+  assert.strictEqual(r.length, 2);
+  assert.strictEqual(r[r.length - 1].nguoi, '(chưa rõ)', 'phải nằm cuối dù nhiều lượt xem nhất');
+  assert.strictEqual(r[r.length - 1].soBai, 2, 'chuỗi rỗng và chuỗi toàn khoảng trắng là một nhóm');
+});
+
+t('danh sách rỗng thì trả mảng rỗng, không vỡ', () => {
+  assert.deepStrictEqual(N.gopTheoNguoi([]), []);
+  assert.deepStrictEqual(N.gopTheoNguoi(null), []);
+});
+
 console.log('\n' + dat + ' phép thử đạt' + (hong ? ' — CÓ LỖI' : ''));
 if (hong) process.exit(1);

@@ -189,20 +189,31 @@
   let ndTheo = 'xem';
   const TEN_THU = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
 
+  /* Cột thứ ba: chỉ quản lý mới thấy.
+   *
+   * Trước đây bày đủ chín tab cho mọi người, mà ba tab trong đó máy chủ chặn —
+   * nhân sự bấm vào chỉ nhận một dòng báo lỗi. Bày ra rồi chặn là vừa khó chịu,
+   * vừa nói cho người ta biết có những màn hình họ không được xem. */
   const TABS = [
     ['tong-quan', 'Tổng quan'],
     ['kenh', 'Theo kênh'],
     ['bai', 'Bài đăng'],
     ['noi-dung', 'Nội dung'],
-    ['binh-luan', 'Khách hỏi'],
+    ['binh-luan', 'Khách hỏi', true],
     ['nhan', 'Nhãn & đối tác'],
     ['live', 'LIVE'],
-    ['nhap-tay', 'Nhập tay'],
-    ['nhat-ky', 'Nhật ký'],
+    ['nhap-tay', 'Nhập tay', true],
+    ['nhat-ky', 'Nhật ký', true],
   ];
 
+  const tabDuocXem = () => TABS.filter(([, , chiQuanLy]) => !chiQuanLy || S.quanLy);
+
   function dungTabs() {
-    $('#tabs').innerHTML = TABS.map(([id, t]) =>
+    /* Đang ở một tab không được xem (bấm từ trước, hoặc vừa bị hạ quyền) thì
+     * đưa về Tổng quan, chứ không để trắng màn hình. */
+    const duoc = tabDuocXem();
+    if (!duoc.some(([id]) => id === S.tab)) S.tab = 'tong-quan';
+    $('#tabs').innerHTML = duoc.map(([id, t]) =>
       '<button class="tab' + (S.tab === id ? ' on' : '') + '" data-tab="' + id + '">'
       + t + '</button>').join('');
     $('#tabs').onclick = (e) => {
@@ -413,7 +424,24 @@
     const q = new URLSearchParams({ from: S.from, to: S.to, theo: baiTheo, n: 100 });
     if (S.platforms.length) q.set('platform', S.platforms.join(','));
     const r = await goi('/api/bai?' + q);
-    $('#view').innerHTML = '<div class="card"><div class="card-head">'
+    $('#view').innerHTML = ''
+      + ((r.theoNguoi && r.theoNguoi.length > 1)
+        ? '<div class="card" style="margin-bottom:12px"><div class="card-head">'
+          + '<h3>Theo người đăng</h3>'
+          + '<span class="muted" style="margin-left:auto;font-size:12.5px">'
+          + 'tính trên toàn bộ bài trong kỳ</span></div><div class="card-body tight">'
+          + bangGon([
+            { t: 'Người đăng', name: 1, v: (x) => (x.nguoi === '(chưa rõ)'
+              ? '<span class="muted">' + esc(x.nguoi) + '</span>' : esc(x.nguoi)) },
+            { t: 'Bài', num: 1, v: (x) => n0(x.soBai) },
+            { t: 'Lượt xem', num: 1, v: (x) => n0(x.views) },
+            { t: 'Tiếp cận', num: 1, v: (x) => (x.reach ? n0(x.reach) : '—') },
+            { t: 'Tương tác', num: 1, v: (x) => n0(x.engagement) },
+            { t: 'Xem/bài', num: 1, v: (x) => n0(x.soBai ? x.views / x.soBai : 0) },
+          ], r.theoNguoi)
+          + '</div></div>'
+        : '')
+      + '<div class="card"><div class="card-head">'
       + '<h3>Bài đăng</h3>'
       + '<div class="seg" id="segTheo">'
       + [['views', 'Lượt xem'], ['engagement', 'Tương tác'], ['comments', 'Bình luận'],

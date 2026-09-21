@@ -121,4 +121,34 @@ function ghep(items, posts) {
   return { capNhat, khongKhop, tenLa };
 }
 
-module.exports = { NGUOI_DANG, idTuLink, banhTra, ghep, ghepTheoVan, gonVan };
+
+/**
+ * Gộp theo người đăng — bảng để chấm KPI.
+ *
+ * Bài chưa rõ người cũng phải hiện ra thành một dòng riêng, không được lặng lẽ
+ * bỏ: nhìn "Võ Hằng 20 bài, Lý Thư Bạch 18 bài" mà không biết còn 40 bài không
+ * ai nhận thì con số đẹp một cách giả tạo.
+ */
+function gopTheoNguoi(bai) {
+  const m = new Map();
+  const cong = (ten, p) => {
+    if (!m.has(ten)) m.set(ten, { nguoi: ten, soBai: 0, views: 0, reach: 0, engagement: 0 });
+    const o = m.get(ten);
+    o.soBai++;
+    o.views += Number(p.views) || 0;
+    o.reach += Number(p.reach) || 0;
+    o.engagement += Number(p.engagement) || 0;
+  };
+  (bai || []).forEach((p) => cong(String(p.poster || '').trim() || '(chưa rõ)', p));
+  const ra = [...m.values()];
+  /* Dòng "chưa rõ" luôn xuống cuối, dù nhiều bài tới đâu — nó không phải một
+   * người, để lẫn vào bảng xếp hạng là đọc nhầm. */
+  ra.sort((a, b) => {
+    if (a.nguoi === '(chưa rõ)') return 1;
+    if (b.nguoi === '(chưa rõ)') return -1;
+    return b.views - a.views;
+  });
+  return ra;
+}
+
+module.exports = { NGUOI_DANG, idTuLink, banhTra, ghep, ghepTheoVan, gonVan, gopTheoNguoi };

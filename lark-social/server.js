@@ -366,6 +366,12 @@ async function api(req, res, u) {
         theo: u.searchParams.get('theo') || 'views',
         n: Number(u.searchParams.get('n') || 50),
       }),
+      /* Bảng chấm KPI theo người đăng — chỉ quản lý. Tính trên TOÀN BỘ bài
+       * trong kỳ chứ không phải năm mươi bài đang bày: bảng xếp hạng dựa trên một
+       * phần danh sách là sai theo kiểu nhìn không ra. */
+      theoNguoi: laQuanLy(req)
+        ? nguoiDang.gopTheoNguoi(M.topBai(d.posts, { ...t, theo: 'views', n: 100000 }))
+        : null,
     });
   }
 
@@ -662,6 +668,11 @@ async function api(req, res, u) {
   }
 
   if (p === '/api/nhat-ky') {
+    /* Nhật ký là việc vận hành, không phải số liệu. Và từ khi tiện ích Người
+     * đăng ghi vào đây thì nó còn kèm tên người đăng và vài chữ đầu của caption —
+     * không có lý do để nhân sự đọc được của nhau. Đây là lỗ duy nhất còn sót:
+     * hai tab quản lý kia đã chặn, riêng cái này quên. */
+    const loi = chanNeuKhongPhaiQuanLy(req); if (loi) throw loi;
     const rows = await lark.listAll(T.log.id);
     const f = T.log.f;
     return ok(res, {
