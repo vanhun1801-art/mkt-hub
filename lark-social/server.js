@@ -21,6 +21,7 @@ const noiDung = require('./noi-dung');
 const binhLuan = require('./binh-luan');
 const nhan = require('./nhan');
 const nguoiDang = require('./nguoi-dang');
+const choKhop = require('./cho-khop');
 /* Lọc mã ra khỏi mọi thông báo lỗi trước khi trả về trình duyệt. */
 const { scrub } = require('./sync/http');
 const phamVi = require('./pham-vi');
@@ -201,6 +202,30 @@ async function soatCanhBao(nhan) {
   }
 }
 
+/**
+ * Thử ghép lại hàng chờ người đăng với bài vừa kéo về.
+ *
+ * Bắt buộc store.tai(true): cache còn giữ danh sách bài TRƯỚC lúc đồng bộ, mà
+ * đúng cái bài vừa về mới là cái cần khớp — dùng cache là lần nào cũng trượt.
+ */
+async function khopLaiNguoiDang() {
+  const d = await store.tai(true);
+  const k = await choKhop.khopLai(d.posts);
+  if (k.ghi) {
+    store.xoaCache();
+    await store.ghiNhatKy({
+      platform: 'Facebook',
+      result: 'Thành công',
+      rowsPost: k.ghi,
+      message: 'NGƯỜI ĐĂNG (hàng chờ) · ghi ' + k.ghi + ' bài'
+        + (k.ten.length ? ' · ' + k.ten.join(', ') : '')
+        + ' · còn chờ ' + k.conCho
+        + (k.quaHan ? ' · quá hạn ' + k.quaHan : ''),
+    });
+  }
+  return k;
+}
+
 async function chayDongBo(opts) {
   if (TT.dangChay) {
     const e = new Error('Đang có một lượt đồng bộ chạy dở — đợi nó xong đã.');
@@ -211,6 +236,17 @@ async function chayDongBo(opts) {
   try {
     const r = await sync.dongBo({ ...opts, log: ghiLog });
     TT.ketQua = r;
+    /* Đồng bộ vừa kéo bài mới về — đây đúng là lúc hàng chờ người đăng có cơ
+     * khớp được. Chạy ở đây chứ không nhờ trình duyệt ai cả. Hỏng thì ghi log
+     * rồi thôi: không để nó làm hỏng một lượt đồng bộ đã xong. */
+    try {
+      const k = await khopLaiNguoiDang();
+      if (k.ghi || k.quaHan) {
+        ghiLog('Người đăng: ghi ' + k.ghi + ' bài'
+          + (k.ten.length ? ' (' + k.ten.join(', ') + ')' : '')
+          + ' · còn chờ ' + k.conCho + (k.quaHan ? ' · quá hạn ' + k.quaHan : ''));
+      }
+    } catch (e) { ghiLog('Người đăng: khớp lại hỏng — ' + e.message); }
     await soatCanhBao('sau đồng bộ');
     return r;
   } catch (e) {
@@ -933,7 +969,25 @@ async function api(req, res, u) {
       const map = {};
       r.capNhat.forEach((x) => { map[x.id] = { [f.poster]: x.nguoi }; });
       await lark.updateMany(store.T.post.id, map);
+      store.xoaCache();
     }
+
+    /* GIỮ LẠI mục chưa khớp ở MÁY CHỦ.
+     *
+     * Trước đây chỗ này chỉ ghi một dòng nhật ký rồi thôi, và hàng chờ nằm
+     * nguyên trong trình duyệt người đăng — mà tiện ích chỉ thử lại khi tab
+     * Facebook còn mở. Bài hẹn giờ lên sóng sau khi người ta tắt máy là không
+     * còn ai thử nữa: đã mất thật một bài như thế. Xem cho-khop.js.
+     *
+     * Hỏng riêng phần này thì đừng làm hỏng cả lượt gửi — bài vừa ghi được ở
+     * trên vẫn phải tính là ghi được. */
+    let choMoi = null;
+    try {
+      const chua = [...r.khongKhop, ...r.tenLa]
+        .map((x) => (b.items || [])[x.viTri])
+        .filter((x) => x && x.van);
+      choMoi = await choKhop.luu(chua);
+    } catch (e) { choMoi = { loi: e.message }; }
     /* GHI NHẬT KÝ MỌI LƯỢT, kể cả lượt không ghi được bài nào.
      *
      * Không có dòng này thì khi máy của một bạn gửi lên mà chưa khớp được
@@ -949,6 +1003,8 @@ async function api(req, res, u) {
         + ' · chưa khớp ' + r.khongKhop.length
         + ' · từ: ' + tenGui.join(', ')
         + (r.tenLa.length ? ' · tên lạ: ' + r.tenLa.map((x) => x.nguoi).join(', ') : '')
+        + (choMoi && choMoi.loi ? ' · KHÔNG GIỮ ĐƯỢC HÀNG CHỜ: ' + choMoi.loi
+          : choMoi && choMoi.them ? ' · vào hàng chờ: ' + choMoi.them : '')
         /* Kèm vài dòng đầu của những mục chưa khớp. Không có nó thì chỉ thấy con số
          * "chưa khớp 4" mà không biết bốn cái đó là bốn bài thật hay một bài bị bắt
          * bốn lần — đúng câu hỏi đang phải trả lời. */

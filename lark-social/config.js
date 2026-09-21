@@ -199,6 +199,29 @@ module.exports = {
         sentAt: 'fldSeQoXhl',
       },
     },
+    /* Người đăng CHƯA khớp được bài — hàng chờ nằm ở MÁY CHỦ.
+     *
+     * Trước đây hàng chờ chỉ nằm trong trình duyệt người đăng, và tiện ích chỉ
+     * thử lại khi tab Facebook còn mở. Bài hẹn giờ thì gần như luôn lên sóng
+     * SAU khi người ta đã tắt máy: lúc còn thử thì chưa có bài để khớp, lúc có
+     * bài thì không còn ai thử. Đã mất thật một bài như thế (bắt 10:24, thử lần
+     * cuối 11:05, bài lên sóng 12:01).
+     *
+     * Giữ ở đây thì sau mỗi lần đồng bộ máy chủ tự khớp lại, không phụ thuộc
+     * vào việc ai có mở Facebook hay không. */
+    pending: {
+      id: 'tblNWDKia355rJ0e',
+      name: 'Người đăng chờ khớp',
+      f: {
+        van: 'fld2dDfPSL',        // Vân nội dung (40 ký tự đầu, đã chuẩn hoá) — primary
+        nguoi: 'fldZSDaL58',      // Người đăng
+        batLuc: 'fldTNTLhR1',     // Bắt lúc (text ISO)
+        thuCuoi: 'fldqJxu5bc',    // Thử lần cuối (text ISO)
+        soLan: 'fldhP9mVX9',      // Số lần thử
+        trangThai: 'fldfFB8nQB',  // Trạng thái (select): Đang chờ | Quá hạn
+        ghiChu: 'fld7jx66sC',
+      },
+    },
     log: {
       id: 'tblwHw0DuyA1bW8t',
       name: 'Nhật ký đồng bộ',

@@ -6,6 +6,6 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node test/chuanhoa.test.js && node test/vault.test.js && node test/canh-bao.test.js && node test/noi-dung.test.js && node test/binh-luan.test.js && node test/nhan.test.js && node test/pham-vi.test.js && node test/xlsx.test.js && node test/nguoi-dang.test.js && node test/tien-ich.test.js && node test/store-cache.test.js"
+    "test": "node test/chuanhoa.test.js && node test/vault.test.js && node test/canh-bao.test.js && node test/noi-dung.test.js && node test/binh-luan.test.js && node test/nhan.test.js && node test/pham-vi.test.js && node test/xlsx.test.js && node test/nguoi-dang.test.js && node test/tien-ich.test.js && node test/store-cache.test.js && node test/cho-khop.test.js"
   }
 }
