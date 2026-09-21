@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Rooty · Người đăng",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "description": "Ghi lại ai đăng bài nào. Trên máy người đăng: bắt và gửi tự động lúc bấm Đăng trong Business Suite, chỉ hiện bảng khi có lỗi. Trên máy quản lý: đọc dòng \"Người đăng\" trên màn hình rồi bấm gửi.",
   "permissions": ["storage"],
   "host_permissions": ["https://mkt-hub-w6hi.onrender.com/*"],

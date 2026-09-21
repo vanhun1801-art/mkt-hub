@@ -318,6 +318,20 @@
 
   /* Bản nháp một khung khác vừa ghi. Quá nửa tiếng thì bỏ: đó là bài cũ, xài lại
    * là gán nhầm nội dung cho bài mới. */
+  /* CHỤP BẢN NHÁP ĐỀU ĐẶN, không chỉ dựa vào sự kiện gõ phím.
+   *
+   * Luồng “Tạo thước phim” đi ba bước Tạo → Chỉnh sửa → Chia sẻ, caption ở trên
+   * còn nút hẹn giờ ở dưới, và Facebook dựng lại DOM sau mỗi bước. Chỉ nghe sự
+   * kiện gõ thì trượt khi người ta dán chuột phải, khi caption được điền sẵn, hoặc
+   * khi tiện ích nạp sau lúc họ gõ xong.
+   *
+   * Hai giây một lần quét các ô soạn đang hiện — rẻ, và bắt được bất kể chữ vào
+   * bằng đường nào. */
+  setInterval(() => {
+    const v = chuSoanBai();
+    if (v.length >= DAI_TOI_THIEU && v !== vanCuoi) nhoNhap(v);
+  }, 2000);
+
   function nhapTuKho() {
     return new Promise((xong) => {
       try {

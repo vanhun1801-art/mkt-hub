@@ -132,5 +132,18 @@ t('chạy mọi khung nhưng chỉ vẽ bảng ở khung ngoài cùng', () => {
     'vẽ bảng phải chặn ở khung con');
 });
 
+t('chụp bản nháp đều đặn, không chỉ dựa vào sự kiện gõ phím', () => {
+  /* Luồng "Tạo thước phim" đi ba bước Tạo → Chỉnh sửa → Chia sẻ, caption ở
+     trên còn nút hẹn giờ ở dưới, và Facebook dựng lại DOM sau mỗi bước. Chỉ
+     nghe sự kiện gõ thì trượt khi người ta dán bằng chuột phải, khi caption
+     được điền sẵn, hoặc khi tiện ích nạp sau lúc họ gõ xong. */
+  const src = require('fs').readFileSync(
+    require('path').join(__dirname, '..', 'extension', 'content.js'), 'utf8');
+  assert.ok(/setInterval\(\(\) => \{\r?\n\s*const v = chuSoanBai\(\);/.test(src),
+    'phải có nhịp chụp định kỳ');
+  assert.ok(/v !== vanCuoi\) nhoNhap\(v\)/.test(src),
+    'chữ không đổi thì đừng ghi lại kho — mỗi hai giây ghi một lần là phí');
+});
+
 console.log('\n' + dat + ' phép thử đạt' + (hong ? ' — CÓ LỖI' : ''));
 if (hong) process.exit(1);
