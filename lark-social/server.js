@@ -673,6 +673,28 @@ async function api(req, res, u) {
     return ok(res, { doc: ds.length, ghi: xong, hong });
   }
 
+  /* Hoạt động đăng bài — ai vừa đăng gì, cho MỌI NGƯỜI xem.
+   *
+   * Khác hẳn nhật ký đồng bộ bên dưới: cái kia là việc vận hành của máy (kéo
+   * được bao nhiêu dòng, lỗi gì), còn đây là việc của người. Dữ liệu lấy từ bảng
+   * Bài đăng chứ không từ bảng Nhật ký, nên tự động bó theo kênh của từng người
+   * và không lòi ra caption của kênh họ không được xem. */
+  if (p === '/api/hoat-dong' && method === 'GET') {
+    const t = thamSo(u, await hanMucKenh(req));
+    const d = await store.tai();
+    const bai = M.topBai(d.posts, { ...t, theo: 'views', n: 100000 })
+      .filter((x) => x.publishedAt)
+      .sort((a, b) => String(b.publishedAt).localeCompare(String(a.publishedAt)))
+      .slice(0, Number(u.searchParams.get('n') || 120));
+    return ok(res, {
+      hoatDong: bai.map((x) => ({
+        date: x.date, publishedAt: x.publishedAt, platform: x.platform,
+        channel: x.channel, poster: x.poster || '', title: x.title,
+        url: x.url, views: x.views, engagement: x.engagement,
+      })),
+    });
+  }
+
   if (p === '/api/nhat-ky') {
     /* Nhật ký là việc vận hành, không phải số liệu. Và từ khi tiện ích Người
      * đăng ghi vào đây thì nó còn kèm tên người đăng và vài chữ đầu của caption —

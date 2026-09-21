@@ -203,7 +203,7 @@
     ['nhan', 'Nhãn & đối tác'],
     ['live', 'LIVE'],
     ['nhap-tay', 'Nhập tay', true],
-    ['nhat-ky', 'Nhật ký', true],
+    ['nhat-ky', 'Nhật ký'],
   ];
 
   const tabDuocXem = () => TABS.filter(([, , chiQuanLy]) => !chiQuanLy || S.quanLy);
@@ -669,23 +669,57 @@
   /* ---------------- tab: nhật ký ---------------- */
   async function veNhatKy() {
     $('#view').innerHTML = window.KX ? KX.man('', { dau: false, the: 0, dong: 8 })
-      : '<div class="loading">Đang nạp nhật ký…</div>';
-    const r = await goi('/api/nhat-ky');
-    $('#view').innerHTML = '<div class="card"><div class="card-head"><h3>Nhật ký đồng bộ</h3>'
-      + '<span class="sub">100 lượt gần nhất</span></div><div class="card-body tight">'
+      : '<div class="loading">Đang nạp…</div>';
+
+    /* Hai màn hình trong một tab.
+     *
+     * Nhân sự cần biết "ai vừa đăng gì" — việc của người. Quản lý cần thêm
+     * "máy kéo được bao nhiêu dòng, lỗi gì" — việc của máy. Gộp một tab nhưng
+     * nhân sự chỉ nhận phần đầu, và phần đầu lấy từ bảng Bài đăng nên tự bó
+     * theo kênh của họ, không lòi caption của kênh họ không được xem. */
+    const hd = await goi('/api/hoat-dong?' + new URLSearchParams({
+      from: S.from, to: S.to, n: 120,
+      ...(S.platforms.length ? { platform: S.platforms.join(',') } : {}),
+      ...(S.channels.length ? { channel: S.channels.join(',') } : {}),
+    }));
+
+    let html = '<div class="card"><div class="card-head"><h3>Đã đăng gì</h3>'
+      + '<span class="sub">' + (hd.hoatDong || []).length + ' bài gần nhất trong kỳ</span>'
+      + '</div><div class="card-body tight">'
       + bangGon([
-        { t: 'Lúc', v: (x) => esc(String(x.at).replace('T', ' ').slice(0, 19)) },
-        { t: 'Nền tảng', v: (x) => esc(x.platform || '') },
-        { t: 'Kỳ', v: (x) => esc(x.from + ' → ' + x.to) },
-        { t: 'Kết quả', v: (x) => '<span class="tag ' + (x.result === 'Thành công' ? 'good'
-          : (x.result === 'Lỗi' ? 'bad' : 'warn')) + '">' + esc(x.result) + '</span>' },
-        { t: 'Ngày', num: 1, v: (x) => n0(x.rowsDaily) },
-        { t: 'Bài', num: 1, v: (x) => n0(x.rowsPost) },
-        { t: 'LIVE', num: 1, v: (x) => n0(x.rowsLive) },
-        { t: 'Giây', num: 1, v: (x) => n0(x.seconds) },
-        { t: 'Ghi chú', name: 1, v: (x) => esc((x.message || '').slice(0, 300)) },
-      ], r.nhatKy)
+        { t: 'Lúc đăng', v: (x) => esc(String(x.publishedAt || x.date).replace('T', ' ').slice(0, 16)) },
+        { t: 'Người đăng', v: (x) => (x.poster
+          ? '<span class="tag good">' + esc(x.poster) + '</span>'
+          : '<span class="muted">—</span>') },
+        { t: 'Kênh', v: (x) => esc(x.channel || '') + '<span class="sub-line">' + esc(x.platform || '') + '</span>' },
+        { t: 'Bài', name: 1, v: (x) => (x.url ? '<a href="' + esc(x.url) + '" target="_blank" rel="noreferrer">' : '<span>')
+          + esc((x.title || '(không tiêu đề)').slice(0, 80)) + (x.url ? '</a>' : '</span>') },
+        { t: 'Lượt xem', num: 1, v: (x) => n0(x.views) },
+        { t: 'Tương tác', num: 1, v: (x) => n0(x.engagement) },
+      ], hd.hoatDong)
       + '</div></div>';
+
+    if (S.quanLy) {
+      const r = await goi('/api/nhat-ky');
+      html += '<div class="card" style="margin-top:14px"><div class="card-head">'
+        + '<h3>Nhật ký đồng bộ</h3>'
+        + '<span class="sub">100 lượt gần nhất · chỉ quản lý</span></div><div class="card-body tight">'
+        + bangGon([
+          { t: 'Lúc', v: (x) => esc(String(x.at).replace('T', ' ').slice(0, 19)) },
+          { t: 'Nền tảng', v: (x) => esc(x.platform || '') },
+          { t: 'Kỳ', v: (x) => esc(x.from + ' → ' + x.to) },
+          { t: 'Kết quả', v: (x) => '<span class="tag ' + (x.result === 'Thành công' ? 'good'
+            : (x.result === 'Lỗi' ? 'bad' : 'warn')) + '">' + esc(x.result) + '</span>' },
+          { t: 'Ngày', num: 1, v: (x) => n0(x.rowsDaily) },
+          { t: 'Bài', num: 1, v: (x) => n0(x.rowsPost) },
+          { t: 'LIVE', num: 1, v: (x) => n0(x.rowsLive) },
+          { t: 'Giây', num: 1, v: (x) => n0(x.seconds) },
+          { t: 'Ghi chú', name: 1, v: (x) => esc((x.message || '').slice(0, 300)) },
+        ], r.nhatKy)
+        + '</div></div>';
+    }
+
+    $('#view').innerHTML = html;
   }
 
   /* ---------------- đồng bộ ---------------- */

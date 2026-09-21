@@ -110,11 +110,36 @@ t('Khách hỏi mở cho nhân sự, nhưng bó theo kênh của họ', () => {
     'bỏ trống thì không giới hạn — quản lý, hoặc chưa kênh nào khai người xem');
 });
 
-t('Nhập tay và Nhật ký vẫn chỉ quản lý', () => {
+t('chỉ còn Nhập tay là tab đóng với nhân sự', () => {
+  /* Nhập tay đóng vì nó ghi thẳng vào bảng số liệu — quyền SỬA, không phải quyền
+     XEM. Khách hỏi và Nhật ký đều mở, nhưng mở kèm giới hạn chứ không mở suông:
+     Khách hỏi bó theo Trang, Nhật ký thì nhân sự chỉ thấy phần "Đã đăng gì". */
   const ui = require('fs').readFileSync(require.resolve('../public/app.js'), 'utf8');
   assert.ok(/\['nhap-tay', 'Nhập tay', true\]/.test(ui), 'Nhập tay phải còn cờ chỉ quản lý');
-  assert.ok(/\['nhat-ky', 'Nhật ký', true\]/.test(ui), 'Nhật ký phải còn cờ chỉ quản lý');
+  assert.ok(/\['nhat-ky', 'Nhật ký'\]/.test(ui), 'Nhật ký KHÔNG còn cờ đó');
   assert.ok(/\['binh-luan', 'Khách hỏi'\]/.test(ui), 'Khách hỏi KHÔNG còn cờ đó');
+  /* Phần nhật ký đồng bộ trong tab đó vẫn phải bọc sau cổng quản lý. */
+  const k = ui.indexOf('if (S.quanLy) {');
+  assert.ok(k > 0 && ui.slice(k, k + 120).includes("/api/nhat-ky"),
+    'chỉ quản lý mới gọi /api/nhat-ky');
+});
+
+t('màn hình "Đã đăng gì" lấy từ bảng Bài đăng, không phải bảng Nhật ký', () => {
+  /* Mở nhật ký cho nhân sự nhưng CHỈ phần "ai đăng gì", không phải phần vận
+     hành của máy. Lấy từ bảng Bài đăng là tự bó theo kênh của từng người —
+     nếu đọc bảng Nhật ký rồi lọc sau thì phải nhớ lọc, mà quên một chỗ là lòi
+     caption của kênh họ không được xem. */
+  const src = require('fs').readFileSync(require.resolve('../server'), 'utf8');
+  const i = src.indexOf("p === '/api/hoat-dong'");
+  assert.ok(i > 0, 'phải có endpoint riêng');
+  const khuc = src.slice(i, i + 800);
+  assert.ok(/hanMucKenh\(req\)/.test(khuc), 'phải bó theo phạm vi kênh');
+  assert.ok(/M\.topBai\(d\.posts/.test(khuc), 'nguồn là bảng Bài đăng');
+  assert.ok(!/T\.log\.id/.test(khuc), 'không được đụng vào bảng Nhật ký');
+
+  /* Còn bảng Nhật ký thật thì vẫn chỉ quản lý. */
+  const j = src.indexOf("p === '/api/nhat-ky'");
+  assert.ok(/chanNeuKhongPhaiQuanLy/.test(src.slice(j, j + 600)), 'nhật ký đồng bộ vẫn đóng');
 });
 
 console.log('\n' + so + ' phép thử đạt' + (process.exitCode ? ' — CÓ LỖI' : '') + '\n');
