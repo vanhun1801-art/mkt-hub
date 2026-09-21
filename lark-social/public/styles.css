@@ -414,7 +414,7 @@ table.tbl tfoot td { font-weight: 700; background: var(--panel-2); border-top: 2
   padding: 9px 12px; font-size: 12.5px; color: var(--ink-2); list-style: none;
 }
 .notes-box > summary::-webkit-details-marker { display: none; }
-.notes-box > summary::after { content: 'be'; margin-left: auto; transition: transform .15s; }
+.notes-box > summary::after { content: '▾'; margin-left: auto; transition: transform .15s; }
 .notes-box[open] > summary::after { transform: rotate(180deg); }
 .notes-box > summary:hover { color: var(--ink); }
 .notes-box > summary .ico {
