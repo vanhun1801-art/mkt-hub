@@ -487,6 +487,24 @@ t('không bao giờ ghi dòng ngày cho ngày chưa tới', () => {
   assert.ok(/soTuongLai/.test(src), 'và phải đếm để nói ra, không bỏ im lặng');
 });
 
+t('quá hạn thì BẤT KỲ lượt gọi nào cũng chạy bù', () => {
+  /* Render gói miễn phí ngủ sau mười lăm phút không ai dùng, mà đã ngủ thì mọi
+     đồng hồ hẹn giờ đứng hết. Sửa phần đếm theo lần chạy cuối vẫn chưa đủ: thực
+     tế 20/9 sang 21/9 không có lượt đồng bộ nào.
+
+     Nên bám vào thứ duy nhất đánh thức được nó — có người gọi tới. Ai mở app,
+     hay tiện ích của một bạn gửi bài lên, là tiện thể ngó lịch luôn. */
+  const src = require('fs').readFileSync(require.resolve('../server'), 'utf8');
+  assert.ok(/function ngoLich\(\)/.test(src), 'phải tách thành hàm gọi được');
+  const iApi = src.indexOf('async function api(');
+  const iGoi = src.indexOf('ngoLich();', iApi);
+  assert.ok(iGoi > iApi && iGoi - iApi < 400, 'phải gọi ngay đầu mỗi lượt API');
+  assert.ok(/LICH\.lanCuoi = Date\.now\(\);\s*\/\/ ghi tr/.test(src),
+    'phải ghi mốc TRƯỚC khi chạy, không thì hai lượt gọi cùng lúc là chạy chồng');
+  assert.ok(!/await chayDongBo\({}\);\s*\n\s*LICH\.lanCuoi/.test(src),
+    'không được chặn lượt gọi lại để đợi đồng bộ xong');
+});
+
 t('lịch chạy đếm theo LẦN CHẠY CUỐI, không theo lúc khởi động', () => {
   /* Lỗi thật: setInterval 6 tiếng đặt từ lúc process lên, nên mỗi lần deploy là
      đồng hồ về 0. Hôm deploy hơn chục lần thì lịch không bao giờ tới hạn — 24

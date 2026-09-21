@@ -301,6 +301,9 @@ async function api(req, res, u) {
   const p = u.pathname;
   const method = req.method;
 
+  /* Ai gọi tới cũng tiện thể ngó lịch — xem ngoLich(). Không chặn lượt gọi này. */
+  ngoLich();
+
   if (p === '/api/me') {
     const nd = await nguoiDung(req);
     const quanLy = laQuanLy(req);
@@ -1111,7 +1114,7 @@ async function api(req, res, u) {
 }
 
 /* ---------------- chạy tự động ---------------- */
-const LICH = { moiSoGio: 0, lanToi: 0, lanCuoi: 0 };
+const LICH = { moiSoGio: 0, lanToi: 0, lanCuoi: 0, han: 0 };
 
 /** Lượt đồng bộ gần nhất đã chạy lúc nào, đọc từ bảng Nhật ký trên Base. */
 async function lanDongBoCuoi() {
@@ -1167,15 +1170,28 @@ function batLich() {
       + (treQua ? ' · ĐÃ QUÁ HẠN, chạy bù' : ''));
   });
 
-  setInterval(async () => {
-    if (TT.dangChay) return;
-    if (LICH.lanCuoi && Date.now() - LICH.lanCuoi < ms) return;
-    try {
-      await chayDongBo({});
-      LICH.lanCuoi = Date.now();
-    } catch (e) { console.error('[lịch] ' + e.message); }
-    LICH.lanToi = Date.now() + ms;
-  }, NGO);
+  LICH.han = ms;
+  setInterval(ngoLich, NGO);
+}
+
+/**
+ * Quá hạn thì chạy bù — gọi được từ nhịp hẹn giờ, và từ BẤT KỲ lượt gọi nào.
+ *
+ * Render ở gói miễn phí thì ngủ sau mười lăm phút không ai dùng, mà đã ngủ thì
+ * mọi đồng hồ hẹn giờ đứng hết. Đồng hồ của mình có đúng cách mấy cũng vô ích —
+ * thực tế: 20/9 tới 21/9 không có lượt nào dù đã sửa phần đếm theo lần chạy cuối.
+ *
+ * Nên bám vào thứ duy nhất đánh thức được nó: có người gọi tới. Ai mở app, hay
+ * tiện ích của một bạn gửi bài lên, là tiện thể ngó lịch luôn. Không chặn lượt
+ * gọi đó lại đợi đồng bộ xong — chạy nền, trả lời ngay. */
+function ngoLich() {
+  if (!LICH.moiSoGio || !LICH.han) return;
+  if (TT.dangChay) return;
+  if (LICH.lanCuoi && Date.now() - LICH.lanCuoi < LICH.han) return;
+  LICH.lanCuoi = Date.now();          // ghi trước để không ai gọi chồng lên
+  chayDongBo({})
+    .then(() => { LICH.lanToi = Date.now() + LICH.han; })
+    .catch((e) => console.error('[lịch] ' + e.message));
 }
 
 /* ---------------- khởi động ---------------- */
