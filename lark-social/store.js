@@ -190,6 +190,10 @@ function docLive(r) {
     likes: num(r.c[f.likes]),
     shares: num(r.c[f.shares]),
     newFollows: num(r.c[f.newFollows]),
+    /* Ba cột tiền do tien-live.js gắn từ Tourwell, không nền tảng nào cho. */
+    leads: num(r.c[f.leads]),
+    orders: num(r.c[f.orders]),
+    revenue: num(r.c[f.revenue]),
     url: url(r.c[f.url]),
     source: sel(r.c[f.source]),
   };

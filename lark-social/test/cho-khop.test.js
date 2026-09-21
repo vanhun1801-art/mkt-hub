@@ -54,15 +54,18 @@ let so = 0;
 const cases = [];
 const t = (ten, fn) => cases.push([ten, fn]);
 
-t('giờ ghi vào bảng là giờ Base, không phải UTC', async () => {
+t('giờ ghi vào bảng là giờ Việt Nam, không phải UTC cũng không phải giờ Base', async () => {
   bang = {};
   await cho.luu([{ nguoi: AI, van: 'Một nội dung đủ dài để không bị bỏ qua' }]);
   const luc = bang[TP.id][0].c[f.batLuc];
-  /* Bảng này người ta mở thẳng Lark ra đọc, không qua giao diện nào. */
-  assert.match(luc, /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/, 'dạng "YYYY-MM-DD HH:mm:ss"');
-  const lech = Math.abs(Date.parse(luc.replace(' ', 'T') + 'Z')
-    - (Date.now() + require('../config').tzOffsetHours * 3600000));
-  assert.ok(lech < 60000, 'lệch múi giờ: ' + luc);
+  /* Ba cột giờ ở bảng này là ô VĂN BẢN — Lark không vẽ lại theo múi giờ nào cả,
+     ghi sao hiện vậy. Mà người đọc bảng này ngồi ở Việt Nam. */
+  assert.ok(/^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$/.test(luc),
+    'dạng "YYYY-MM-DD HH:mm:ss", không có T và không có Z: ' + luc);
+  const lech = Date.parse(luc.replace(' ', 'T') + 'Z') - Date.now();
+  assert.ok(Math.abs(lech - 7 * 3600000) < 60000,
+    'phải là +07:00 — lệch đang là ' + (lech / 3600000).toFixed(2) + ' giờ');
+  assert.strictEqual(bang[TP.id][0].c[f.thuCuoi], luc, 'hai cột giờ phải cùng một dạng');
 });
 
 t('bài hẹn giờ: bắt tên lúc chưa có bài, đồng bộ xong thì tự ghi', async () => {
@@ -119,9 +122,9 @@ t('quá hạn thì ngừng thử nhưng vẫn nhìn thấy được', async () =
   await cho.luu([{ nguoi: AI, van: 'Bài này không bao giờ vào Base cả' }]);
   /* Ghi đúng dạng mà luu() ghi: giờ của Base, không có hậu tố múi giờ. Dùng ISO
    * thô ở đây là phép thử tự cho mình một dạng dữ liệu không bao giờ có thật. */
-  const store = require('../store');
   bang[TP.id][0].c[f.batLuc] =
-    store.gioVeBase(new Date(Date.now() - (cho.HAN_NGAY + 1) * 86400000).toISOString());
+    new Date(Date.now() - (cho.HAN_NGAY + 1) * 86400000 + 7 * 3600000)
+      .toISOString().slice(0, 19).replace('T', ' ');
   const k = await cho.khopLai([]);
   assert.strictEqual(k.quaHan, 1);
   assert.strictEqual(dsCho().length, 1, 'không xoá — xoá là mất dấu vết đúng loại lỗi cần thấy');

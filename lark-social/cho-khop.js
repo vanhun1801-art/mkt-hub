@@ -28,7 +28,17 @@ const f = T.f;
 /* Quá hạn thì thôi, nhưng KHÔNG xoá — để còn nhìn ra cái gì chưa bao giờ khớp.
  * Xoá đi là mất luôn dấu vết của đúng loại lỗi cần thấy. */
 const HAN_NGAY = 31;
-const TZ_MS = (cfg.tzOffsetHours || 0) * 3600000;
+
+/* GIỜ VIỆT NAM, không phải giờ Base.
+ *
+ * Bản trước ghi theo tzOffsetHours của Base (+8) vì nghĩ là cho nhất quán với
+ * các cột ngày khác. Sai: mấy cột đó là ô NGÀY, Lark tự vẽ theo múi giờ Base.
+ * Ba cột ở đây là ô VĂN BẢN — Lark không vẽ lại gì cả, chuỗi ghi sao thì hiện
+ * vậy. Nên người đọc thấy 17:06 cho việc xảy ra lúc 16:06 theo đồng hồ của
+ * chính họ. Bảng này chỉ có một người đọc, ngồi ở Việt Nam. */
+const TZ_MS = 7 * 3600000;
+const gioVN = (t) => new Date((t || Date.now()) + TZ_MS)
+  .toISOString().slice(0, 19).replace('T', ' ');
 
 const gonTen = (s) => String(s || '').replace(/\s+/g, ' ').trim();
 
@@ -71,7 +81,7 @@ async function luu(items, dsCho) {
   /* Giờ theo múi giờ của Base, không phải UTC. Bảng này không có giao diện nào
    * — người ta mở thẳng Lark ra đọc, mà đọc "06:57" cho một việc xảy ra lúc
    * 13:57 thì lệch bảy tiếng đủ để kết luận sai xem bài nào tới trước. */
-  const luc = store.gioVeBase(new Date().toISOString());
+  const luc = gioVN();
 
   const moi = [];
   const sua = {};
@@ -131,8 +141,8 @@ async function khopLai(posts, kenhDS) {
       { nenTang: x.nenTang, kenh: x.kenh, kenhDS });
     if (!p) {
       /* Quá hạn thì dừng thử, nhưng giữ dòng lại. */
-      /* batLuc ghi theo giờ Base (+8) và không mang hậu tố múi giờ, nên phải
-       * trừ lại trước khi so — không thì hạn lệch đúng tám tiếng. */
+      /* batLuc ghi theo giờ Việt Nam và không mang hậu tố múi giờ, nên phải
+       * trừ lại trước khi so — không thì hạn lệch đúng bảy tiếng. */
       const luc = Date.parse(String(x.batLuc || '').replace(' ', 'T') + 'Z') - TZ_MS;
       if (Number.isFinite(luc) && luc < han) heo[x.id] = { [f.trangThai]: 'Quá hạn' };
       return;

@@ -164,6 +164,11 @@ module.exports = {
         likes: 'fldSU0jxYc',
         shares: 'fld1UxPhCI',
         newFollows: 'fld2la7bx0',
+        /* Ba cột TIỀN — không nền tảng nào cho, app tự gắn từ Tourwell theo
+         * khung giờ phiên. Xem tien-live.js để biết phép gắn và chỗ nó yếu. */
+        leads: 'fldHn9Ed6q',      // Lead Tourwell rơi vào khung giờ phiên
+        orders: 'fldUS8LQkT',     // Đơn của những lead ấy
+        revenue: 'fld3cusEuH',    // Doanh thu của những đơn ấy
         url: 'fldg4iX4he',
         source: 'fldXG5H6TJ',
         updated: 'fldNN6cfPe',

@@ -484,9 +484,17 @@
       + '<b>TikTok và Instagram không mở API cho LIVE.</b> Số của Facebook LIVE tự về; '
       + 'còn TikTok/Instagram phải nhập tay hoặc dán bảng xuất từ LIVE Center — nút '
       + '<b>Dán bảng LIVE</b> bên dưới nhận cả CSV lẫn bảng copy từ Excel.'
+      + '</span></div>'
+      + '<div class="note"><span class="ico">!</span><span>'
+      + '<b>Ba cột Lead · Đơn · Doanh thu do app tự gắn từ Tourwell</b> — lead rơi vào '
+      + 'khung giờ phiên (cộng thêm 2 tiếng sau khi tắt) và đúng nền tảng, rồi cộng tiền '
+      + 'các đơn của chính những lead ấy. Đây là <b>trùng khung giờ, không phải nhân quả</b>: '
+      + 'khách đến lúc đang LIVE vẫn có thể là do quảng cáo. Doanh thu còn chạy nhiều ngày '
+      + 'sau khi phiên tắt nên mỗi lượt gắn là tính lại từ đầu.'
       + '</span></div></div>'
       + '<div class="card"><div class="card-head"><h3>Phiên LIVE</h3>'
       + '<div style="display:flex;gap:8px">'
+      + '<button class="btn ghost small" id="btnLiveTien">Gắn doanh thu</button>'
       + '<button class="btn ghost small" id="btnLiveTay">Thêm một phiên</button>'
       + '<button class="btn ghost small" id="btnLiveDan">Dán bảng LIVE</button>'
       + '</div></div><div class="card-body tight">'
@@ -499,11 +507,15 @@
         { t: 'Đỉnh', num: 1, v: (x) => n0(x.peak) },
         { t: 'B.luận', num: 1, v: (x) => n0(x.comments) },
         { t: 'Follow mới', num: 1, v: (x) => n0(x.newFollows) },
+        { t: 'Lead', num: 1, v: (x) => n0(x.leads) },
+        { t: 'Đơn', num: 1, v: (x) => n0(x.orders) },
+        { t: 'Doanh thu', num: 1, v: (x) => n0(x.revenue) + 'đ' },
         { t: 'Nguồn', v: (x) => '<span class="tag">' + esc(x.source || '') + '</span>' },
       ], ds)
       + '</div></div>';
     $('#btnLiveTay').onclick = moLiveTay;
     $('#btnLiveDan').onclick = moLiveDan;
+    $('#btnLiveTien').onclick = ganTienLive;
   }
 
   function chonKenhHtml(id) {

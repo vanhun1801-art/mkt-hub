@@ -16,6 +16,7 @@ const M = require('./metrics');
 const ketnoi = require('./ketnoi');
 const vault = require('./vault');
 const sync = require('./sync');
+const tienLive = require('./tien-live');
 const canhBao = require('./canh-bao');
 const noiDung = require('./noi-dung');
 const binhLuan = require('./binh-luan');
@@ -247,6 +248,21 @@ async function chayDongBo(opts) {
           + ' · còn chờ ' + k.conCho + (k.quaHan ? ' · quá hạn ' + k.quaHan : ''));
       }
     } catch (e) { ghiLog('Người đăng: khớp lại hỏng — ' + e.message); }
+
+    /* Gắn tiền cho phiên LIVE. Chạy SAU khi bảng Phiên LIVE đã được ghi, và
+     * chạy lại cả khoảng chứ không chỉ phiên mới — doanh thu của một buổi LIVE
+     * còn chạy tiếp nhiều ngày sau khi nó tắt. Hỏng thì ghi log rồi thôi: một
+     * lượt đồng bộ đã kéo được số về không đáng bị coi là thất bại chỉ vì
+     * Tourwell chặn nhịp. */
+    try {
+      const g = await tienLive.ganTien({ from: r.tu, to: r.den, log: ghiLog });
+      if (g.bo) ghiLog('Tiền LIVE: ' + g.lyDo);
+      else {
+        ghiLog('Tiền LIVE: ' + g.soPhien + ' phiên · ' + g.ganLead + ' lead · '
+          + Number(g.doanhThu || 0).toLocaleString('vi-VN') + 'đ');
+      }
+    } catch (e) { ghiLog('Tiền LIVE: gắn hỏng — ' + e.message); }
+
     await soatCanhBao('sau đồng bộ');
     return r;
   } catch (e) {
@@ -737,6 +753,15 @@ async function api(req, res, u) {
   if (p === '/api/live/nhap-tay' && method === 'POST') {
     const loi = chanNeuKhongPhaiQuanLy(req); if (loi) throw loi;
     return ok(res, await nhapTayLive(await readBody(req)));
+  }
+
+  /* Gắn lại tiền cho khoảng đang xem, không cần đợi lượt đồng bộ.
+   * Chỉ quản lý: mỗi lượt là vài chục lời gọi Tourwell, mà Tourwell chặn nhịp
+   * chung cho cả phòng — không để ai bấm cũng được. */
+  if (p === '/api/live/gan-tien' && method === 'POST') {
+    const loi = chanNeuKhongPhaiQuanLy(req); if (loi) throw loi;
+    const t = thamSo(u, await hanMucKenh(req));
+    return ok(res, await tienLive.ganTien({ from: t.from, to: t.to, log: ghiLog }));
   }
 
   if (p === '/api/live/dan-bang' && method === 'POST') {
