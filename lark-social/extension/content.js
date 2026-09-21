@@ -270,6 +270,9 @@
    * hình nữa, nên đi tìm lúc đó là tìm hụt — bài hẹn giờ 10:30 của bạn Lý Thư
    * Bạch mất trắng vì lý do này, không lại dấu vết nào trong nhật ký. */
   const DAI_TOI_THIEU = 40;
+  /* Đếm để khi trượt còn biết trượt ở đâu: không thấy ô nào, hay thấy ô mà rỗng. */
+  let soO = 0;
+  let daiNhat = 0;
 
   /* KHUNG SOẠN BÀI CÓ THỂ KHÔNG PHẢI CONTENTEDITABLE, VÀ CÓ THỂ Ở KHUNG KHÁC.
    *
@@ -306,13 +309,20 @@
     /* Lấy ô nhiều chữ nhất đang hiện, vì Business Suite còn có ô tìm kiếm và ô
      * bình luận cũng cùng dạng. */
     let tot = '';
+    soO = 0;
     document.querySelectorAll(
       '[contenteditable="true"],[role="textbox"],textarea',
     ).forEach((el) => {
-      if (!el.offsetParent) return;
+      /* offsetParent LÀ NULL VỚI MỌI THỨ NẰM TRONG position:fixed — không phải
+       * chỉ với thứ bị ẩn. Khung soạn bài của Facebook nằm trong lớp phủ cố định,
+       * nên phép thử cũ loại bỏ ĐÚNG cái ô cần tìm. Đây là lý do bốn lần thử đều
+       * “bắt được nút nhưng không đọc được chữ”. getClientRects() đúng cho cả hai. */
+      if (!el.getClientRects().length) return;
+      soO++;
       const t = (el.value || el.innerText || el.textContent || '').trim();
       if (t.length > tot.length) tot = t;
     });
+    daiNhat = tot.length;
     return tot;
   }
 
@@ -430,7 +440,8 @@
       /* Bấm Đăng mà không moi được chữ nào thì phải nói. Im lặng bỏ qua là cách
        * bài hẹn giờ 10:30 biến mất mà không ai hay — một tháng sau chấm KPI mới
        * phát hiện thiếu. */
-      noiNhanh('<span style="color:#f0b45f">Bấm Đăng nhưng không đọc được nội dung — báo anh Hùng</span>');
+      noiNhanh('<span style="color:#f0b45f">Bấm Đăng nhưng không đọc được nội dung'
+        + '<br>thấy ' + soO + ' ô soạn, dài nhất ' + daiNhat + ' ký tự — báo anh Hùng</span>');
     }
   }, true);
 

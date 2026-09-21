@@ -145,5 +145,26 @@ t('chụp bản nháp đều đặn, không chỉ dựa vào sự kiện gõ ph�
     'chữ không đổi thì đừng ghi lại kho — mỗi hai giây ghi một lần là phí');
 });
 
+t('phép thử "đang hiện" không được dùng offsetParent', () => {
+  /* offsetParent LÀ NULL với mọi thứ nằm trong position:fixed — không phải chỉ
+     với thứ bị ẩn. Khung soạn bài của Facebook nằm trong lớp phủ cố định, nên
+     phép thử cũ loại bỏ ĐÚNG cái ô cần tìm. Đây là lý do bốn lần thử đều "bắt
+     được nút nhưng không đọc được chữ". */
+  const src = require('fs').readFileSync(
+    require('path').join(__dirname, '..', 'extension', 'content.js'), 'utf8');
+  assert.ok(!/if (!el.offsetParent)/.test(src), 'không còn dùng offsetParent làm phép thử');
+  assert.ok(/getClientRects\(\)\.length/.test(src), 'dùng getClientRects — đúng cho cả fixed');
+});
+
+t('trượt thì phải nói trượt ở đâu', () => {
+  /* "Không đọc được nội dung" thôi thì vòng sau lại đoán tiếp. Kèm số ô thấy
+     được và độ dài lớn nhất là biết ngay: không thấy ô nào (sai bộ chọn) hay
+     thấy ô mà rỗng (sai thời điểm). */
+  const src = require('fs').readFileSync(
+    require('path').join(__dirname, '..', 'extension', 'content.js'), 'utf8');
+  assert.ok(/soO \+ ' ô soạn, dài nhất ' \+ daiNhat/.test(src),
+    'cảnh báo phải kèm số ô và độ dài');
+});
+
 console.log('\n' + dat + ' phép thử đạt' + (hong ? ' — CÓ LỖI' : ''));
 if (hong) process.exit(1);
