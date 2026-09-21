@@ -74,7 +74,7 @@ const gonVan = (s) => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
  * bài cùng mở đầu giống nhau. Dưới 20 thì thôi: ngắn quá là đụng nhau quá dễ.
  */
 const DAI_VAN = 40;
-const DAI_TOI_THIEU = 20;
+const DAI_TOI_THIEU = 5;
 
 function ghepTheoVan(van, posts) {
   const v = gonVan(van);

@@ -209,7 +209,12 @@ t('caption ngắn vẫn khớp được, nhưng quá ngắn thì thôi', () => {
      Dưới 20 thì thôi: ngắn quá là đụng nhau quá dễ. */
   const bai = [{ id: 's1', platform: 'Facebook', title: 'Show Tiên Cá Vinwonders Phú Quốc' }];
   assert.ok(N.ghepTheoVan('Rooty Trip Show Tiên Cá Vinwonders Phú Quốc Lên lịch', bai));
-  assert.strictEqual(N.ghepTheoVan('Thử nghiệm', bai), null, 'mười ký tự thì không đoán');
+  /* Ngưỡng hạ xuống 5 theo yêu cầu: caption ngắn vẫn khớp được, miễn là DUY NHẤT. */
+  assert.strictEqual(N.ghepTheoVan('Thử nghiệm', bai), null,
+    'không có bài nào tên Thử nghiệm trong mẫu này');
+  assert.ok(N.ghepTheoVan('Thử nghiệm',
+    [{ id: 'z', platform: 'Facebook', title: 'Thử nghiệm' }]), 'có bài trùng thì khớp được');
+  assert.ok(N.DAI_TOI_THIEU <= 5, 'ngưỡng tối thiểu phải đủ thấp cho bài thử');
 
   const doi = [
     { id: 'a', platform: 'Facebook', title: 'Show Tiên Cá Vinwonders Phú Quốc' },
