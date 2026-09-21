@@ -202,5 +202,32 @@ t('danh sách rỗng thì trả mảng rỗng, không vỡ', () => {
   assert.deepStrictEqual(N.gopTheoNguoi(null), []);
 });
 
+t('caption ngắn vẫn khớp được, nhưng quá ngắn thì thôi', () => {
+  /* Để cứng 40 ký tự là bỏ luôn 38 bài thật có caption ngắn — kiểu "Show Tiên
+     Cá Vinwonders Phú Quốc". Lấy trọn caption khi nó ngắn hơn 40 thì khớp được,
+     mà vẫn an toàn vì phép khớp đã bỏ qua khi hai bài cùng mở đầu giống nhau.
+     Dưới 20 thì thôi: ngắn quá là đụng nhau quá dễ. */
+  const bai = [{ id: 's1', platform: 'Facebook', title: 'Show Tiên Cá Vinwonders Phú Quốc' }];
+  assert.ok(N.ghepTheoVan('Rooty Trip Show Tiên Cá Vinwonders Phú Quốc Lên lịch', bai));
+  assert.strictEqual(N.ghepTheoVan('Thử nghiệm', bai), null, 'mười ký tự thì không đoán');
+
+  const doi = [
+    { id: 'a', platform: 'Facebook', title: 'Show Tiên Cá Vinwonders Phú Quốc' },
+    { id: 'b', platform: 'Facebook', title: 'Show Tiên Cá Vinwonders Phú Quốc' },
+  ];
+  assert.strictEqual(N.ghepTheoVan('x Show Tiên Cá Vinwonders Phú Quốc y', doi), null,
+    'hai bài trùng caption thì vẫn phải bỏ qua, không vì ngắn mà nới');
+});
+
+t('ngưỡng của tiện ích khớp với ngưỡng của máy chủ', () => {
+  /* Lệch nhau là tiện ích bắt về rồi máy chủ vứt đi — mục nằm trong hàng chờ
+     tới lúc hết hạn, không ai hiểu vì sao. */
+  const src = require('fs').readFileSync(
+    require('path').join(__dirname, '..', 'extension', 'content.js'), 'utf8');
+  const m = /const DAI_TOI_THIEU = (\d+)/.exec(src);
+  assert.ok(m, 'tiện ích phải khai ngưỡng');
+  assert.strictEqual(Number(m[1]), N.DAI_TOI_THIEU, 'hai bên phải bằng nhau');
+});
+
 console.log('\n' + dat + ' phép thử đạt' + (hong ? ' — CÓ LỖI' : ''));
 if (hong) process.exit(1);

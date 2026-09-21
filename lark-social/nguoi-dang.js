@@ -67,16 +67,23 @@ const gonVan = (s) => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
  * chứa caption, mà caption thì Base cũng có. Lấy 40 ký tự đầu của caption làm dấu
  * vân tay: đủ dài để không đụng nhau, đủ ngắn để không phụ thuộc phần bị cắt đuôi.
  */
+/* Dấu vân tay lấy 40 ký tự đầu, nhưng caption ngắn hơn thì lấy trọn.
+ *
+ * Để cứng 40 là bỏ luôn 38 bài thật có caption ngắn — kiểu “Show Tiên Cá Vinwonders
+ * Phú Quốc”. Lấy trọn thì khớp được, mà vẫn an toàn vì phép khớp đã bỏ qua khi hai
+ * bài cùng mở đầu giống nhau. Dưới 20 thì thôi: ngắn quá là đụng nhau quá dễ.
+ */
 const DAI_VAN = 40;
+const DAI_TOI_THIEU = 20;
 
 function ghepTheoVan(van, posts) {
   const v = gonVan(van);
-  if (v.length < DAI_VAN) return null;
+  if (v.length < DAI_TOI_THIEU) return null;
   let trung = null;
   for (const p of posts) {
     if (p.platform !== 'Facebook') continue;
     const t = gonVan(p.title).slice(0, DAI_VAN);
-    if (t.length < DAI_VAN || !v.includes(t)) continue;
+    if (t.length < DAI_TOI_THIEU || !v.includes(t)) continue;
     /* Hai bài cùng mở đầu giống hệt thì không dám chọn bừa — thà bỏ qua còn hơn
      * gán sai rồi KPI đếm cho người khác. */
     if (trung) return null;
@@ -151,4 +158,4 @@ function gopTheoNguoi(bai) {
   return ra;
 }
 
-module.exports = { NGUOI_DANG, idTuLink, banhTra, ghep, ghepTheoVan, gonVan, gopTheoNguoi };
+module.exports = { NGUOI_DANG, idTuLink, banhTra, ghep, ghepTheoVan, gonVan, gopTheoNguoi, DAI_TOI_THIEU };

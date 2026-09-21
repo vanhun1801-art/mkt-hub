@@ -269,7 +269,7 @@
    * chọn ngày giờ → xác nhận. Đến bước cuối thì ô soạn bài không còn trên màn
    * hình nữa, nên đi tìm lúc đó là tìm hụt — bài hẹn giờ 10:30 của bạn Lý Thư
    * Bạch mất trắng vì lý do này, không lại dấu vết nào trong nhật ký. */
-  const DAI_TOI_THIEU = 40;
+  const DAI_TOI_THIEU = 20;   // khớp với ngưỡng bên máy chủ
   /* Đếm để khi trượt còn biết trượt ở đâu: không thấy ô nào, hay thấy ô mà rỗng. */
   let soO = 0;
   let daiNhat = 0;
@@ -356,7 +356,7 @@
 
   async function ghiNho(van) {
     const c = await chrome.storage.sync.get(['toiLa']);
-    if (!c.toiLa || van.length < 40) return;
+    if (!c.toiLa || van.length < DAI_TOI_THIEU) return;
     const kho = await chrome.storage.local.get(['cho']);
     const cho = kho.cho || [];
 
