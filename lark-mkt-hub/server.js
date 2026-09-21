@@ -1764,6 +1764,37 @@ async function api(req, res, u) {
 
   /* Bật/tắt chế độ "Xem như". Cookie chứ không phải tham số URL: proxy vào module
    * không thêm được tham số, mà app con vẫn phải thấy đúng danh tính đang xem. */
+  /* Kênh Social của một người — gom hai tầng phân quyền về một màn hình.
+   *
+   * Tầng 1 (base nào được xem) ở Base quyền của Hub; tầng 2 (kênh nào được xem)
+   * ở bảng Kênh của app Social. Hai kho khác nhau nên không gộp dữ liệu được,
+   * nhưng gộp được CHỖ KHAI: Hub hỏi và ghi hộ qua app Social.
+   *
+   * Chỉ quản lý, và chặn luôn khi đang xem hộ người khác — xem hộ là để nhìn,
+   * không phải để sửa. */
+  if (p === '/api/social-kenh') {
+    const { q, xemNhu } = await aiDangXem(req);
+    if (!q.quanLy) return loi(res, 403, 'Chỉ quản lý sửa được phân quyền.');
+    if (chanGhiKhiXemHo(res, xemNhu, m)) return undefined;
+    const mod = timMod('social');
+    if (!mod) return loi(res, 404, 'Chưa bật app Social.');
+    kids.khoiDong(mod);
+    try {
+      if (m === 'GET') {
+        const r = await goiJson(mod, '/api/kenh/quyen', { nguoi: null });
+        return ok(res, r);
+      }
+      if (m === 'POST') {
+        const b = await docBody(req);
+        const r = await goiJson(mod, '/api/kenh/nguoi-xem-cua', { method: 'POST', body: b, nguoi: null });
+        return ok(res, r);
+      }
+    } catch (e) {
+      return loi(res, 502, 'App Social không trả lời: ' + e.message);
+    }
+    return loi(res, 405, 'Chỉ GET hoặc POST');
+  }
+
   if (p === '/api/xem-nhu') {
     const nguoiX = cfg.mode === 'api' ? auth.sessionUser(req) : null;
     const qX = await quyenCua(nguoiX);

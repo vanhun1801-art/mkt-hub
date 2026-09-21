@@ -423,6 +423,51 @@ async function api(req, res, u) {
    * hai bản sao của cùng một luật sớm muộn cũng lệch nhau, và lúc đó không ai
    * biết bản nào đúng. */
   /* Gán email người xem cho một kênh. Chỉ quản lý. */
+  /* Khai theo NGƯỜI thay vì theo kênh — để màn hình phân quyền của Hub gom được
+   * cả hai tầng vào một chỗ.
+   *
+   * Bảng trong Base lưu theo kênh (mỗi kênh một danh sách email), còn người
+   * dùng nghĩ theo người ("Ngọc xem những kênh nào"). Chuyển trục ở đây chứ
+   * không bắt giao diện tự cộng trừ từng kênh: làm ở giao diện thì mỗi lần lưu
+   * phải đọc lại 11 kênh, quên một kênh là âm thầm gán sai.
+   */
+  if (p === '/api/kenh/nguoi-xem-cua' && method === 'POST') {
+    const loi = chanNeuKhongPhaiQuanLy(req); if (loi) throw loi;
+    const b = await readBody(req);
+    const email = String(b.email || '').trim().toLowerCase();
+    if (!email || !email.includes('@')) return fail(res, 400, 'Thiếu email công ty');
+    const chon = new Set((Array.isArray(b.ids) ? b.ids : []).map(String));
+
+    const d = await store.tai(true);
+    const f = cfg.tables.channel.f;
+    const doi = {};
+    (d.channels || []).forEach((c) => {
+      const cu = phamVi.tachEmail(c.viewers);
+      const co = cu.includes(email);
+      const can = chon.has(String(c.id));
+      if (co === can) return;                 // không đổi thì đừng ghi
+      const moi = can ? [...cu, email] : cu.filter((x) => x !== email);
+      doi[c.id] = { [f.viewers]: moi.join(', ') };
+    });
+    if (Object.keys(doi).length) {
+      await lark.updateMany(cfg.tables.channel.id, doi);
+      store.xoaCache();
+    }
+    return ok(res, { ok: true, doi: Object.keys(doi).length, soKenh: chon.size });
+  }
+
+  /* Danh sách kênh kèm người được xem — cho màn hình phân quyền của Hub. */
+  if (p === '/api/kenh/quyen' && method === 'GET') {
+    const loi = chanNeuKhongPhaiQuanLy(req); if (loi) throw loi;
+    const d = await store.tai();
+    return ok(res, {
+      kenh: (d.channels || []).map((c) => ({
+        id: c.id, name: c.name, platform: c.platform,
+        viewers: phamVi.tachEmail(c.viewers),
+      })),
+    });
+  }
+
   if (p === '/api/kenh/nguoi-xem' && method === 'POST') {
     const loi = chanNeuKhongPhaiQuanLy(req); if (loi) throw loi;
     const b = await readBody(req);

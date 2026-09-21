@@ -387,6 +387,17 @@ function moFormQuyen(i, nguoiSan) {
     'bấm vào ô thì thấy tên việc. Mở Bảng công việc thì vẫn chỉ thấy việc của mình. ' +
     'Không tick ai thì chỉ thấy tải của chính mình.');
 
+  /* Kênh Social — hai tầng phân quyền gom về một màn hình.
+   *
+   * Dữ liệu nằm ở bảng Kênh của app Social chứ không ở Base quyền này, nên không
+   * lưu chung được — lưu riêng ngay sau khi lưu quyền. Bù lại người dùng chỉ phải
+   * mở một chỗ. Danh sách kênh nạp sau khi form hiện, xem napKenhSocial(). */
+  html += hang('Kênh Social được xem',
+    '<div class="q-nhom" id="fKenhSocial">'
+      + '<small class="q-nhat">Đang nạp danh sách kênh…</small></div>',
+    'Chỉ áp cho app <b>Social</b>: tick kênh nào thì thấy số liệu, bài đăng và bình luận '
+    + 'của đúng kênh đó. <b>Kênh không ai tick thì cả phòng đều xem được</b> — khác với '
+    + 'kênh quảng cáo ở trên. Siết dần từng kênh, đừng khoá sạch một lượt.');
   html += hang('Kênh quảng cáo được xem',
     '<label class="q-ck q-ck-manh"><input type="checkbox" id="fMoiKenhQC"' +
       (h.moiKenhQC ? ' checked' : '') + '>' +
@@ -437,6 +448,10 @@ function moFormQuyen(i, nguoiSan) {
 
   $('#fQuayLai').onclick = veDanhSachQuyen;
   $('#fLuu').onclick = luuFormQuyen;
+  /* Nạp sau, không await: hộp thoại mở ngay, danh sách kênh điền vào sau —
+   * app Social có thể đang ngủ, đánh thức mất vài giây. */
+  napKenhSocial($('#fMail').value);
+  $('#fMail').addEventListener('blur', () => napKenhSocial($('#fMail').value));
 
   const selMoi = $('#fNguoiMoi');
   if (selMoi) {
@@ -506,6 +521,28 @@ function moFormQuyen(i, nguoiSan) {
   }
 }
 
+/* Nạp danh sách kênh Social vào form, tick sẵn những kênh người này đang được xem.
+ * Gọi SAU khi form đã hiện để không chặn việc mở hộp thoại: app Social có thể đang
+ * ngủ, đánh thức mất vài giây. */
+async function napKenhSocial(email) {
+  const o = $('#fKenhSocial');
+  if (!o) return;
+  try {
+    const r = await goi('/api/social-kenh');
+    const ds = (r && r.kenh) || [];
+    if (!ds.length) {
+      o.innerHTML = '<small class="q-nhat">Chưa có kênh nào trong app Social.</small>';
+      return;
+    }
+    const mail = String(email || '').trim().toLowerCase();
+    o.innerHTML = ds.map((k) => '<label class="q-ck"><input type="checkbox" data-ksocial="'
+      + esc(k.id) + '"' + ((k.viewers || []).includes(mail) ? ' checked' : '') + '>'
+      + '<span>' + esc(k.name || k.id) + '</span>'
+      + '<small class="q-nhat">— ' + esc(k.platform || '') + '</small></label>').join('');
+  } catch (e) {
+    o.innerHTML = '<small class="q-nhat">Không nạp được danh sách kênh: ' + esc(e.message) + '</small>';
+  }
+}
 async function luuFormQuyen() {
   const oBase = $$('#fBase [data-base]');
   const chon = oBase.filter((x) => x.checked).map((x) => x.dataset.base);
@@ -547,6 +584,20 @@ async function luuFormQuyen() {
   nut.textContent = 'Đang lưu…';
   try {
     await goi('/api/quyen', { method: 'POST', body: JSON.stringify(hang) });
+    /* Kênh Social lưu riêng vì nằm ở Base khác. Hỏng riêng phần này thì báo riêng,
+     * đừng để người ta tưởng mất cả phần quyền vừa lưu được. */
+    const oKS = $('#fKenhSocial [data-ksocial]');
+    if (oKS.length && hang.email) {
+      try {
+        await goi('/api/social-kenh', {
+          method: 'POST',
+          body: JSON.stringify({
+            email: hang.email,
+            ids: oKS.filter((x) => x.checked).map((x) => x.dataset.ksocial),
+          }),
+        });
+      } catch (e) { toast('Quyền đã lưu, nhưng kênh Social thì chưa: ' + e.message, 'do'); }
+    }
     toast('Đã lưu quyền của ' + (hang.nguoi || hang.email), 'luc');
     await modalPhanQuyen();
     napHub();

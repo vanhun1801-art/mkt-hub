@@ -144,4 +144,19 @@ t('màn hình "Đã đăng gì" lấy từ bảng Bài đăng, không phải b�
   assert.ok(/chanNeuKhongPhaiQuanLy/.test(src.slice(j, j + 600)), 'nhật ký đồng bộ vẫn đóng');
 });
 
+t('khai theo NGƯỜI: chuyển trục ở máy chủ, không bắt giao diện tự cộng trừ', () => {
+  /* Bảng trong Base lưu theo kênh (mỗi kênh một danh sách email), còn người
+     dùng nghĩ theo người ("Ngọc xem những kênh nào"). Làm ở giao diện thì mỗi
+     lần lưu phải đọc lại 11 kênh rồi cộng trừ email — quên một kênh là âm thầm
+     gán sai, mà không ai thấy. */
+  const src = require('fs').readFileSync(require.resolve('../server'), 'utf8');
+  const i = src.indexOf("p === '/api/kenh/nguoi-xem-cua'");
+  assert.ok(i > 0, 'phải có endpoint khai theo người');
+  const khuc = src.slice(i, i + 1200);
+  assert.ok(/chanNeuKhongPhaiQuanLy/.test(khuc), 'chỉ quản lý');
+  assert.ok(/if \(co === can\) return;/.test(khuc), 'không đổi thì đừng ghi lại kênh đó');
+  assert.ok(/lark\.updateMany/.test(khuc), 'ghi một lượt, không từng kênh một');
+  assert.ok(/store\.xoaCache\(\)/.test(khuc), 'phải xoá đệm, không thì màn hình còn số cũ');
+});
+
 console.log('\n' + so + ' phép thử đạt' + (process.exitCode ? ' — CÓ LỖI' : '') + '\n');
