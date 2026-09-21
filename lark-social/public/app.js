@@ -677,11 +677,23 @@
      * "máy kéo được bao nhiêu dòng, lỗi gì" — việc của máy. Gộp một tab nhưng
      * nhân sự chỉ nhận phần đầu, và phần đầu lấy từ bảng Bài đăng nên tự bó
      * theo kênh của họ, không lòi caption của kênh họ không được xem. */
-    const hd = await goi('/api/hoat-dong?' + new URLSearchParams({
-      from: S.from, to: S.to, n: 120,
-      ...(S.platforms.length ? { platform: S.platforms.join(',') } : {}),
-      ...(S.channels.length ? { channel: S.channels.join(',') } : {}),
-    }));
+    /* Gọi SONG SONG. Bảng Nhật ký đọc cả bảng trên Base, mà nó dài thêm sau
+     * mỗi lượt đồng bộ và mỗi lượt tiện ích gửi bài — nối đuôi nhau thì người
+     * dùng ngồi nhìn bộ khung xương lâu gấp đôi mà chẳng được gì. */
+    const q = new URLSearchParams({ from: S.from, to: S.to, n: 120 });
+    if (S.platforms.length) q.set('platform', S.platforms.join(','));
+    let hd; let r = null;
+    try {
+      [hd, r] = await Promise.all([
+        goi('/api/hoat-dong?' + q),
+        S.quanLy ? goi('/api/nhat-ky') : Promise.resolve(null),
+      ]);
+    } catch (e) {
+      /* Hỏng thì nói ra. Bản trước để nguyên bộ khung xương chạy mãi, nhìn
+       * như đang tải chứ không ai biết là đã chết. */
+      $('#view').innerHTML = '<div class="empty">Không nạp được: ' + esc(e.message) + '</div>';
+      return;
+    }
 
     let html = '<div class="card"><div class="card-head"><h3>Đã đăng gì</h3>'
       + '<span class="sub">' + (hd.hoatDong || []).length + ' bài gần nhất trong kỳ</span>'
@@ -699,8 +711,7 @@
       ], hd.hoatDong)
       + '</div></div>';
 
-    if (S.quanLy) {
-      const r = await goi('/api/nhat-ky');
+    if (S.quanLy && r) {
       html += '<div class="card" style="margin-top:14px"><div class="card-head">'
         + '<h3>Nhật ký đồng bộ</h3>'
         + '<span class="sub">100 lượt gần nhất · chỉ quản lý</span></div><div class="card-body tight">'
