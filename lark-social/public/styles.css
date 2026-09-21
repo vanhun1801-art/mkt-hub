@@ -577,12 +577,14 @@ table.tbl tfoot td { font-weight: 700; background: var(--panel-2); border-top: 2
 
    Sàn giữ đúng thang cũ: ≤11px lên 12.5px, 11.5px lên 13px.
    --------------------------------------------------------------------- */
+
+/* cột "ai đang xem" trong bảng tóm tắt phân quyền kênh — chỉ để đọc */
+.pq-ai { flex: 1; min-width: 160px; font-size: 13px; color: var(--ink-2); text-align: right; word-break: break-word; }
+
 @media (max-width: 640px) {
   .goi-y-nhan { font-size: 13px; }                               /* 11.5 */
   .goi-y-the span { font-size: 12.5px; }                         /* 11 */
   .gt-nhan .dt { font-size: 12.5px; }                            /* 11 */
   .gt-nhan .vs { font-size: 12.5px; }                            /* 11 */
+  .notes-box > summary .ico { font-size: 12.5px; }               /* 11 */
 }
-
-/* cột "ai đang xem" trong bảng tóm tắt phân quyền kênh — chỉ để đọc */
-.pq-ai { flex: 1; min-width: 160px; font-size: 13px; color: var(--ink-2); text-align: right; word-break: break-word; }

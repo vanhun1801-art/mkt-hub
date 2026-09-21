@@ -1490,44 +1490,7 @@ a.phieu-f:hover { border-color: var(--primary); background: var(--blue-bg); }
      .av, .pk-caret.
    Nới cỡ ở đó là làm méo hộp chứ không giúp ai đọc được gì.
    --------------------------------------------------------------------- */
-@media (max-width: 640px) {
-  .tab .cnt { font-size: 12.5px; }                               /* 11 */
-  .chip-user .role { font-size: 12.5px; }                        /* 11 */
-  .people .more { font-size: 12.5px; }                           /* 11 */
-  .ev-more { font-size: 12.5px; }                                /* 11 */
-  .spark .lb { font-size: 12.5px; }                              /* 10.5 */
-  .steps .s { font-size: 12.5px; }                               /* 11 */
-  .the-phu { font-size: 12.5px; }                                /* 10.5 */
-  .ct-co { font-size: 12.5px; }                                  /* 10.5 */
-  .phieu-nhan { font-size: 12.5px; }                             /* 10.5 */
-  .phieu-ai { font-size: 12.5px; }                               /* 10 */
-  .ng-thu span { font-size: 12.5px; }                            /* 10.5 */
-  .ng-24 { font-size: 12.5px; }                                  /* 10.5 */
-  .kh-ten { font-size: 12.5px; }                                 /* 11 */
-  .ch-nhan { font-size: 12.5px; }                                /* 10.5 */
-  .ch-lb { font-size: 12.5px; }                                  /* 10.5 */
-  .ch-tag { font-size: 12.5px; }                                 /* 10.5 */
-  .xem-thu { font-size: 12.5px; }                                /* 11 */
-  .tw-link { font-size: 12.5px; }                                /* 11 */
-  .tag { font-size: 13px; }                                      /* 11.5 */
-  .ev { font-size: 13px; }                                       /* 11.5 */
-  .frm-row .hint { font-size: 13px; }                            /* 11.5 */
-  .file .sz { font-size: 13px; }                                 /* 11.5 */
-  .pk-them { font-size: 13px; }                                  /* 11.5 */
-  .frm .sec-title { font-size: 13px; }                           /* 11.5 */
-  .ct-luc { font-size: 13px; }                                   /* 11.5 */
-  .ct-mon, .ct-ve { font-size: 13px; }                           /* 11.5 */
-  .nhac-gio { font-size: 13px; }                                 /* 11.5 */
-  .phieu-mon { font-size: 13px; }                                /* 11.5 */
-  .phieu-chan { font-size: 13px; }                               /* 11.5 */
-  .ng-nhan { font-size: 13px; }                                  /* 11.5 */
-  .bc-f { font-size: 13px; }                                     /* 11.5 */
-  .bc-chan { font-size: 13px; }                                  /* 11.5 */
-  .luu-tt { font-size: 13px; }                                   /* 11.5 */
-  .ch-ai { font-size: 13px; }                                    /* 11.5 */
-  .ch-mo-nut { font-size: 13px; }                                /* 11.5 */
-  .ch-k { font-size: 13px; }                                     /* 11.5 */
-}
+
 
 /* ---------------------------------------------------------------------------
    GỢI Ý PHÂN LOẠI trong form đăng ký
@@ -1608,3 +1571,45 @@ option.xu-khong { color: var(--t3); }
   border-style: dashed; color: var(--t3); background: transparent;
 }
 .xu-chip.xu-them:hover { color: var(--primary); border-color: var(--primary-border); }
+
+@media (max-width: 640px) {
+  .tab .cnt { font-size: 12.5px; }                               /* 11 */
+  .chip-user .role { font-size: 12.5px; }                        /* 11 */
+  .people .more { font-size: 12.5px; }                           /* 11 */
+  .ev-more { font-size: 12.5px; }                                /* 11 */
+  .spark .lb { font-size: 12.5px; }                              /* 10.5 */
+  .steps .s { font-size: 12.5px; }                               /* 11 */
+  .the-phu { font-size: 12.5px; }                                /* 10.5 */
+  .ct-co { font-size: 12.5px; }                                  /* 10.5 */
+  .phieu-nhan { font-size: 12.5px; }                             /* 10.5 */
+  .phieu-ai { font-size: 12.5px; }                               /* 10 */
+  .ng-thu span { font-size: 12.5px; }                            /* 10.5 */
+  .ng-24 { font-size: 12.5px; }                                  /* 10.5 */
+  .kh-ten { font-size: 12.5px; }                                 /* 11 */
+  .ch-nhan { font-size: 12.5px; }                                /* 10.5 */
+  .ch-lb { font-size: 12.5px; }                                  /* 10.5 */
+  .ch-tag { font-size: 12.5px; }                                 /* 10.5 */
+  .xem-thu { font-size: 12.5px; }                                /* 11 */
+  .tw-link { font-size: 12.5px; }                                /* 11 */
+  .tag { font-size: 13px; }                                      /* 11.5 */
+  .ev { font-size: 13px; }                                       /* 11.5 */
+  .frm-row .hint { font-size: 13px; }                            /* 11.5 */
+  .file .sz { font-size: 13px; }                                 /* 11.5 */
+  .pk-them { font-size: 13px; }                                  /* 11.5 */
+  .frm .sec-title { font-size: 13px; }                           /* 11.5 */
+  .ct-luc { font-size: 13px; }                                   /* 11.5 */
+  .ct-mon, .ct-ve { font-size: 13px; }                           /* 11.5 */
+  .nhac-gio { font-size: 13px; }                                 /* 11.5 */
+  .phieu-mon { font-size: 13px; }                                /* 11.5 */
+  .phieu-chan { font-size: 13px; }                               /* 11.5 */
+  .ng-nhan { font-size: 13px; }                                  /* 11.5 */
+  .bc-f { font-size: 13px; }                                     /* 11.5 */
+  .bc-chan { font-size: 13px; }                                  /* 11.5 */
+  .luu-tt { font-size: 13px; }                                   /* 11.5 */
+  .ch-ai { font-size: 13px; }                                    /* 11.5 */
+  .ch-mo-nut { font-size: 13px; }                                /* 11.5 */
+  .ch-k { font-size: 13px; }                                     /* 11.5 */
+  .xu-nhac { font-size: 13px; }                                  /* 11.5 */
+  .xu-chip b { font-size: 12.5px; }                              /* 11 */
+  .xu-phu { font-size: 13px; }                                   /* 11.5 */
+}

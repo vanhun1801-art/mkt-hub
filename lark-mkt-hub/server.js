@@ -1773,9 +1773,13 @@ async function api(req, res, u) {
    * Chỉ quản lý, và chặn luôn khi đang xem hộ người khác — xem hộ là để nhìn,
    * không phải để sửa. */
   if (p === '/api/social-kenh') {
-    const { nguoi, q, xemNhu } = await aiDangXem(req);
-    if (!q.quanLy) return loi(res, 403, 'Chỉ quản lý sửa được phân quyền.');
-    if (chanGhiKhiXemHo(res, xemNhu, m)) return undefined;
+    /* chiQuanLy chứ không phải q.quanLy của aiDangXem: ở chế độ cli, aiDangXem
+     * trả về quyền của "không ai" nên q.quanLy là false, và mục kênh Social trên
+     * máy cá nhân lúc nào cũng báo "Chỉ quản lý sửa được phân quyền". Mọi route
+     * chỉ-quản-lý khác trong tệp này đều đi qua chiQuanLy — nó biết máy cá nhân
+     * thì người ngồi máy là quản lý, và tự chặn luôn lúc đang xem hộ. */
+    if (await chiQuanLy(req, res)) return undefined;
+    const { nguoi } = await aiDangXem(req);
     const mod = timMod('social');
     if (!mod) return loi(res, 404, 'Chưa bật app Social.');
     kids.khoiDong(mod);

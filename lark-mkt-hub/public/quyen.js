@@ -524,9 +524,18 @@ function moFormQuyen(i, nguoiSan) {
 /* Nạp danh sách kênh Social vào form, tick sẵn những kênh người này đang được xem.
  * Gọi SAU khi form đã hiện để không chặn việc mở hộp thoại: app Social có thể đang
  * ngủ, đánh thức mất vài giây. */
-async function napKenhSocial(email) {
+function napKenhSocial(email) {
+  /* Giữ lại lời hứa để lúc Lưu còn CHỜ nó xong. App Social ngủ dậy có khi mất
+   * gần chục giây; bấm Lưu trong lúc đó thì chưa có ô tick nào, phần kênh bị bỏ
+   * qua lặng lẽ và quản lý vẫn thấy báo "Đã lưu" — đúng kiểu hỏng khó tin nhất. */
+  S.napKenhSocial = napKenhSocialThat(email);
+  return S.napKenhSocial;
+}
+async function napKenhSocialThat(email) {
   const o = $('#fKenhSocial');
   if (!o) return;
+  o.dataset.hong = '';
+  o.dataset.dangNap = '1';
   try {
     const r = await goi('/api/social-kenh');
     const ds = (r && r.kenh) || [];
@@ -540,7 +549,13 @@ async function napKenhSocial(email) {
       + '<span>' + esc(k.name || k.id) + '</span>'
       + '<small class="q-nhat">— ' + esc(k.platform || '') + '</small></label>').join('');
   } catch (e) {
+    /* Nhớ là đã hỏng. Không có ô tick nào thì lúc Lưu sẽ trông y hệt "người này
+     * không được xem kênh nào" — im lặng bỏ qua là đúng, nhưng phải nói ra, kẻo
+     * quản lý tưởng đã gỡ hết kênh của người ta. */
+    o.dataset.hong = '1';
     o.innerHTML = '<small class="q-nhat">Không nạp được danh sách kênh: ' + esc(e.message) + '</small>';
+  } finally {
+    o.dataset.dangNap = '';
   }
 }
 async function luuFormQuyen() {
@@ -586,8 +601,16 @@ async function luuFormQuyen() {
     await goi('/api/quyen', { method: 'POST', body: JSON.stringify(hang) });
     /* Kênh Social lưu riêng vì nằm ở Base khác. Hỏng riêng phần này thì báo riêng,
      * đừng để người ta tưởng mất cả phần quyền vừa lưu được. */
-    const oKS = $('#fKenhSocial [data-ksocial]');
-    if (oKS.length && hang.email) {
+    /* $$ chứ không phải $: đây là DANH SÁCH ô tick. Dùng $ thì lấy đúng một
+     * thẻ input, .length là undefined nên phần kênh bị bỏ qua không một tiếng
+     * động — và khi danh sách kênh nạp hỏng thì $ trả null, null.length ném lỗi
+     * ra tận catch ngoài, người dùng thấy "không lưu được" dù quyền đã lưu xong. */
+    if (S.napKenhSocial) { try { await S.napKenhSocial; } catch (_) { /* nói ở dưới */ } }
+    const hopKS = $('#fKenhSocial');
+    const oKS = $$('#fKenhSocial [data-ksocial]');
+    if (hopKS && hopKS.dataset.hong === '1' && hang.email) {
+      toast('Quyền đã lưu. Kênh Social thì chưa đọc được nên giữ nguyên như cũ.', 'vang');
+    } else if (oKS.length && hang.email) {
       try {
         await goi('/api/social-kenh', {
           method: 'POST',

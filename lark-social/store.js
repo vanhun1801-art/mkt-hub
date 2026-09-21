@@ -229,15 +229,37 @@ async function taiThat() {
   };
 }
 
+/* Số hiệu lần ghi. xoaCache() tăng nó lên; mỗi lần nạp nhớ mình bắt đầu ở số
+ * hiệu nào. Không có nó thì một lần nạp đang chạy dở sẽ được dùng chung cho
+ * người gọi SAU khi ghi — ghi xong đọc lại thấy y như chưa ghi, rồi bản cũ ấy
+ * còn nằm lại trong cache thêm cả phút. */
+let nhip = 0;
+let nhipCuaTai = -1;
+
 async function tai(moi = false) {
   if (!moi && cache && Date.now() - cache.luc < cfg.cacheTtlMs) return cache;
-  if (dangTai) return dangTai;
-  dangTai = taiThat().then((d) => { cache = d; dangTai = null; return d; })
-    .catch((e) => { dangTai = null; throw e; });
-  return dangTai;
+  if (dangTai && nhipCuaTai === nhip) return dangTai;
+  const cua = nhip;
+  const p = taiThat().then((d) => {
+    if (nhip === cua) cache = d;          // ghi xen vào giữa thì đừng cache bản cũ
+    if (dangTai === p) dangTai = null;
+    return d;
+  }).catch((e) => { if (dangTai === p) dangTai = null; throw e; });
+  nhipCuaTai = cua;
+  dangTai = p;
+  return p;
 }
 
-const xoaCache = () => { cache = null; };
+const xoaCache = () => { cache = null; nhip++; };
+
+/* Chỉ đọc bảng Kênh (11 dòng), không đụng tới bài đăng và số liệu ngày.
+ * Màn hình phân quyền cần dữ liệu MỚI để khỏi ghi đè người mà quản lý khác
+ * vừa thêm, nhưng tai(true) nạp lại cả bốn bảng mất gần mười giây — chờ chừng
+ * đó cho một danh sách mười một dòng thì người ta tưởng nút Lưu bị treo. */
+async function taiKenh() {
+  const rows = await lark.listAll(T.channel.id);
+  return rows.map(docKenh);
+}
 
 /* ---------------- ghi ---------------- */
 
@@ -379,7 +401,7 @@ async function ghiNhatKy(ban) {
 }
 
 module.exports = {
-  T, tai, taiNhan, xoaCache, baoDamKenh, ghiTheoKhoa, xoaDong, ghiNhatKy,
+  T, tai, taiKenh, taiNhan, xoaCache, baoDamKenh, ghiTheoKhoa, xoaDong, ghiNhatKy,
   toKey, ngayVeBase, gioVeBase, homNay, themNgay,
   num, txt, clean, sel, links, users, url,
 };

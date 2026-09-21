@@ -61,6 +61,9 @@ const goi = async (p, o = {}) => {
   await thu('nhân sự mở Kiểm tra HT',  '/api/kiem-tra', {}, nhanSu, 403);
   await thu('nhân sự mở Phân quyền',   '/api/quyen', {}, nhanSu, 403);
   await thu('nhân sự bật Xem như',     '/api/xem-nhu', { method: 'POST', body: '{"id":"ou_x"}' }, nhanSu, 403);
+  await thu('nhân sự xem kênh Social', '/api/social-kenh', {}, nhanSu, 403);
+  await thu('nhân sự sửa kênh Social', '/api/social-kenh',
+    { method: 'POST', body: '{"email":"x@y.com","ids":[]}' }, nhanSu, 403);
   /* Tải nhân sự: nhân sự chỉ thấy dòng của mình, quản lý thấy cả lưới. */
   const lich = async (ai) => {
     const r = await fetch(G + '/api/lich-chung', { headers: H(ai) });
@@ -76,6 +79,12 @@ const goi = async (p, o = {}) => {
 
   await thu('quản lý xem log module',  '/api/modules/cong-viec/log', {}, ql, 200);
   await thu('quản lý mở Phân quyền',   '/api/quyen', {}, ql, 200);
+  /* Không mong 200: bản chạy thử này không bật app Social nên hub trả 404 "Chưa
+   * bật app Social". Điều cần chốt là quản lý KHÔNG bị 403 — cửa chặn phải đọc
+   * đúng ai là quản lý, chứ không phải chặn nhầm cả quản lý như bản trước. */
+  const qlKenh = await goi('/api/social-kenh', { headers: H(ql) });
+  bang.push((qlKenh.code !== 403 ? 'OK   ' : 'FAIL ') +
+    'quản lý không bị chặn ở kênh Social -> ' + qlKenh.code);
 
   console.log(bang.join('\n'));
   con.kill();

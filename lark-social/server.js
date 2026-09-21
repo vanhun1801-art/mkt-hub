@@ -438,10 +438,10 @@ async function api(req, res, u) {
     if (!email || !email.includes('@')) return fail(res, 400, 'Thiếu email công ty');
     const chon = new Set((Array.isArray(b.ids) ? b.ids : []).map(String));
 
-    const d = await store.tai(true);
+    const ds = await store.taiKenh();
     const f = cfg.tables.channel.f;
     const doi = {};
-    (d.channels || []).forEach((c) => {
+    ds.forEach((c) => {
       const cu = phamVi.tachEmail(c.viewers);
       const co = cu.includes(email);
       const can = chon.has(String(c.id));
