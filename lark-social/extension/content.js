@@ -133,7 +133,12 @@
   let loi = '';
   let khoe = '';
 
+  /* Chạy trong mọi khung để bắt được ô soạn bài nằm trong iframe, nhưng BẢNG thì
+   * chỉ vẽ ở khung ngoài cùng — không thì mỗi iframe một bảng, chồng lên nhau. */
+  const laKhungChinh = (() => { try { return window.top === window; } catch (_) { return false; } })();
+
   function ve() {
+    if (!laKhungChinh) return;
     if (toiLa) {
       const treo = soCho && choCu;
       if (!loi && !khoe && !treo) {
@@ -245,7 +250,7 @@
     if (hop && ds.every((m) => hop.contains(m.target))) return;
     henQuet();
   }).observe(document.body, { childList: true, subtree: true });
-  setTimeout(quet, 1500);
+  if (laKhungChinh) setTimeout(quet, 1500);
 
   /* ================= BẮT LÚC ĐĂNG (máy của người đăng) =================
    *
@@ -264,24 +269,64 @@
    * chọn ngày giờ → xác nhận. Đến bước cuối thì ô soạn bài không còn trên màn
    * hình nữa, nên đi tìm lúc đó là tìm hụt — bài hẹn giờ 10:30 của bạn Lý Thư
    * Bạch mất trắng vì lý do này, không lại dấu vết nào trong nhật ký. */
+  const DAI_TOI_THIEU = 40;
+
+  /* KHUNG SOẠN BÀI CÓ THỂ KHÔNG PHẢI CONTENTEDITABLE, VÀ CÓ THỂ Ở KHUNG KHÁC.
+   *
+   * Bản trước chỉ dò contenteditable và role=textbox, nên gõ vào một <textarea>
+   * thường là không thấy gì. Và Business Suite dựng khung soạn bài trong iframe,
+   * nên kể có dò đúng kiểu thì script ở trang ngoài cũng không với tới — đúng
+   * triệu chứng: bắt được cú bấm nhưng không moi được chữ nào.
+   *
+   * Giờ chạy trong MỌI khung (all_frames), và bản nháp cất vào kho chung thay vì
+   * biến cục bộ: khung có ô soạn bài ghi vào, khung có nút Đăng đọc ra. */
   let vanCuoi = '';
+  let henNhap = null;
+
+  function nhoNhap(v) {
+    vanCuoi = v;
+    clearTimeout(henNhap);
+    henNhap = setTimeout(() => {
+      try { chrome.storage.local.set({ nhap: { van: v.slice(0, 400), luc: Date.now() } }); }
+      catch (_) { /* kho hỏng thì vẫn còn biến cục bộ */ }
+    }, 800);
+  }
+
   addEventListener('input', (e) => {
     const t = e.target;
-    if (!t || !t.isContentEditable && t.getAttribute && t.getAttribute('role') !== 'textbox') return;
-    const v = (t.innerText || t.value || '').trim();
-    if (v.length >= 40) vanCuoi = v;
+    if (!t) return;
+    const laO = t.isContentEditable || t.tagName === 'TEXTAREA'
+      || (t.getAttribute && t.getAttribute('role') === 'textbox');
+    if (!laO) return;
+    const v = (t.value || t.innerText || t.textContent || '').trim();
+    if (v.length >= DAI_TOI_THIEU) nhoNhap(v);
   }, true);
 
   function chuSoanBai() {
-    /* Ô soạn bài là contenteditable. Lấy ô nhiều chữ nhất đang hiện, vì trong
-     * Business Suite còn có ô tìm kiếm và ô bình luận cũng cùng dạng. */
+    /* Lấy ô nhiều chữ nhất đang hiện, vì Business Suite còn có ô tìm kiếm và ô
+     * bình luận cũng cùng dạng. */
     let tot = '';
-    document.querySelectorAll('[contenteditable="true"],[role="textbox"]').forEach((el) => {
+    document.querySelectorAll(
+      '[contenteditable="true"],[role="textbox"],textarea',
+    ).forEach((el) => {
       if (!el.offsetParent) return;
-      const t = (el.innerText || el.textContent || '').trim();
+      const t = (el.value || el.innerText || el.textContent || '').trim();
       if (t.length > tot.length) tot = t;
     });
     return tot;
+  }
+
+  /* Bản nháp một khung khác vừa ghi. Quá nửa tiếng thì bỏ: đó là bài cũ, xài lại
+   * là gán nhầm nội dung cho bài mới. */
+  function nhapTuKho() {
+    return new Promise((xong) => {
+      try {
+        chrome.storage.local.get(['nhap'], (c) => {
+          const n = c && c.nhap;
+          xong(n && Date.now() - (n.luc || 0) < 1800000 ? (n.van || '') : '');
+        });
+      } catch (_) { xong(''); }
+    });
   }
 
   async function ghiNho(van) {
@@ -352,7 +397,7 @@
     );
   }
 
-  addEventListener('click', (e) => {
+  addEventListener('click', async (e) => {
     const el = e.target && e.target.closest ? e.target.closest('div[role="button"],button,span') : null;
     if (!el) return;
     const chu = (el.innerText || el.textContent || '').trim();
@@ -362,10 +407,11 @@
      * Siết như vậy là quá tay: Công cụ lập kế hoạch của Business Suite soạn bài
      * trên cả trang, không phải trong hộp thoại, nên cú bấm Lên lịch bị bỏ qua.
      * Chốt thật nằm ở đoạn chữ: không có bài đang soạn thì không ghi gì. */
-    const van = chuSoanBai() || vanCuoi;
+    const van = chuSoanBai() || vanCuoi || await nhapTuKho();
     if (van) {
       ghiNho(van);
       vanCuoi = '';   // bài sau phải tự gõ lại, không xài lại chữ của bài trước
+      try { chrome.storage.local.remove(['nhap']); } catch (_) { /* thôi */ }
     } else if (toiLa) {
       /* Bấm Đăng mà không moi được chữ nào thì phải nói. Im lặng bỏ qua là cách
        * bài hẹn giờ 10:30 biến mất mà không ai hay — một tháng sau chấm KPI mới
@@ -379,5 +425,5 @@
   setTimeout(guiCho, 3000);
   /* Thử lại mỗi năm phút khi tab còn mở: bài hẹn giờ lên sóng lúc nào không
    * biết, đợi người ta đóng mở Facebook thì có khi vài ngày sau mới ghi được. */
-  setInterval(guiCho, 5 * 60 * 1000);
+  if (laKhungChinh) setInterval(guiCho, 5 * 60 * 1000);
 })();

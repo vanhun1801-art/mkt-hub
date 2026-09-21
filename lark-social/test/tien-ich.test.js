@@ -104,5 +104,33 @@ t('bấm Đăng mà không moi được chữ thì phải nói ra', () => {
   assert.ok(/không đọc được nội dung/.test(src), 'phải báo cho người đăng biết');
 });
 
+t('ô soạn bài có thể là textarea, và có thể nằm trong iframe', () => {
+  /* Bắt được cú bấm nhưng "không đọc được nội dung" — đúng triệu chứng bạn Lý
+     Thư Bạch gặp. Hai nguyên nhân: bản trước chỉ dò contenteditable và
+     role=textbox nên gõ vào một <textarea> thường là không thấy gì; và
+     Business Suite dựng khung soạn bài trong iframe, script ở trang ngoài
+     không với tới. */
+  const goc = require('path').join(__dirname, '..', 'extension');
+  const src = require('fs').readFileSync(require('path').join(goc, 'content.js'), 'utf8');
+  const mf = JSON.parse(require('fs').readFileSync(require('path').join(goc, 'manifest.json'), 'utf8'));
+
+  assert.strictEqual(mf.content_scripts[0].all_frames, true, 'phải chạy trong mọi khung');
+  assert.ok(/textarea/.test(src), 'phải dò cả textarea');
+  assert.ok(/chrome\.storage\.local\.set\(\{ nhap:/.test(src),
+    'bản nháp phải cất vào kho chung — khung có ô soạn bài ghi, khung có nút đọc');
+  assert.ok(/await nhapTuKho\(\)/.test(src), 'lúc bấm phải đọc được bản nháp của khung khác');
+  assert.ok(/Date\.now\(\) - \(n\.luc \|\| 0\) < 1800000/.test(src),
+    'bản nháp quá nửa tiếng thì bỏ, không gán nhầm nội dung cũ cho bài mới');
+});
+
+t('chạy mọi khung nhưng chỉ vẽ bảng ở khung ngoài cùng', () => {
+  /* Không chặn thì mỗi iframe một bảng, chồng lên nhau giữa màn hình. */
+  const src = require('fs').readFileSync(
+    require('path').join(__dirname, '..', 'extension', 'content.js'), 'utf8');
+  assert.ok(/window\.top === window/.test(src), 'phải biết mình có phải khung chính không');
+  assert.ok(/function ve\(\) \{\r?\n\s*if \(!laKhungChinh\) return;/.test(src),
+    'vẽ bảng phải chặn ở khung con');
+});
+
 console.log('\n' + dat + ' phép thử đạt' + (hong ? ' — CÓ LỖI' : ''));
 if (hong) process.exit(1);
