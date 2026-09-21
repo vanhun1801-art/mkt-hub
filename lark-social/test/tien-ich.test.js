@@ -166,5 +166,18 @@ t('trượt thì phải nói trượt ở đâu', () => {
     'cảnh báo phải kèm số ô và độ dài');
 });
 
+t('bắt được rồi thì đừng kêu nữa — một lượt hẹn giờ bấm nhiều nút', () => {
+  /* Nhật ký chứng minh tiện ích BẮT ĐƯỢC bài (có caption thật, gửi lên đúng
+     tên). Nhưng người dùng vẫn thấy cảnh báo vàng, vì một lượt hẹn giờ bấm qua
+     nhiều nút mang chữ giống nhau: chọn "Lên lịch" ở phần lựa chọn, rồi nút xác
+     nhận cuối. Cú đầu bắt được caption, cú sau không — và cú sau là cái người
+     ta nhìn thấy. */
+  const src = require('fs').readFileSync(
+    require('path').join(__dirname, '..', 'extension', 'content.js'), 'utf8');
+  assert.ok(/lanBat = Date\.now\(\)/.test(src), 'phải nhớ lúc bắt được gần nhất');
+  assert.ok(/toiLa && Date\.now\(\) - lanBat > 120000/.test(src),
+    'chỉ kêu khi hai phút qua không bắt được gì');
+});
+
 console.log('\n' + dat + ' phép thử đạt' + (hong ? ' — CÓ LỖI' : ''));
 if (hong) process.exit(1);

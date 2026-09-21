@@ -273,6 +273,7 @@
   /* Đếm để khi trượt còn biết trượt ở đâu: không thấy ô nào, hay thấy ô mà rỗng. */
   let soO = 0;
   let daiNhat = 0;
+  let lanBat = 0;   // lúc bắt được bài gần nhất
 
   /* KHUNG SOẠN BÀI CÓ THỂ KHÔNG PHẢI CONTENTEDITABLE, VÀ CÓ THỂ Ở KHUNG KHÁC.
    *
@@ -435,8 +436,15 @@
     if (van) {
       ghiNho(van);
       vanCuoi = '';   // bài sau phải tự gõ lại, không xài lại chữ của bài trước
+      lanBat = Date.now();
       try { chrome.storage.local.remove(['nhap']); } catch (_) { /* thôi */ }
-    } else if (toiLa) {
+    } else if (toiLa && Date.now() - lanBat > 120000) {
+      /* CHỈ KÊU KHI THẬT SỰ HỤT.
+       *
+       * Một lượt hẹn giờ bấm nhiều nút mang chữ giống nhau: chọn “Lên lịch” ở
+       * phần lựa chọn, rồi nút xác nhận cuối. Cú đầu bắt được caption, cú sau
+       * không — và cú sau là cái người ta nhìn thấy. Kêu lên là báo động giả:
+       * bài đã nằm trong hàng chờ từ trước đó vài giây rồi. */
       /* Bấm Đăng mà không moi được chữ nào thì phải nói. Im lặng bỏ qua là cách
        * bài hẹn giờ 10:30 biến mất mà không ai hay — một tháng sau chấm KPI mới
        * phát hiện thiếu. */
