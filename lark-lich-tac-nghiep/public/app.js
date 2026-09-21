@@ -842,6 +842,7 @@ function moXuat() {
   XU = {
     tu: k.tu, den: k.den, diaDiem: [], loaiHinh: [],
     trangThai: ['Đã hoàn tất'], tien: false, so: null, dangDem: false,
+    mo: {},
   };
   veXuat();
   demXuat();
@@ -882,19 +883,41 @@ function veXuat() {
    * Mỗi chip mang theo SỐ BUỔI của nó, tính với các ô lọc còn lại giữ nguyên.
    * "Chờ duyệt/Xử lý" và "Duyệt/Chờ tác nghiệp" dùng cùng bộ chữ đảo thứ tự —
    * nhìn lướt không phân biệt được, nên phải để con số nói hộ. */
-  const oChip = (id, dang, ds, rong) => {
+  const oChip = (id, dang, ds, rong, danhTu) => {
     const dem = (XU.dem && XU.dem[id]) || null;
     const tong = dem ? Object.values(dem).reduce((a, b) => a + b, 0) : null;
     const chon = dang || [];
+    const mo = !!(XU.mo && XU.mo[id]);
+
+    /* GIẤU LỰA CHỌN KHÔNG CÓ BUỔI NÀO.
+     *
+     * Danh sách địa điểm có 20 nơi, nhưng một tháng thường chỉ chạy năm sáu
+     * chỗ. Bày đủ 20 là năm hàng chip, mười mấy cái mang số 0 — bấm vào chỉ ra
+     * bảng rỗng, mà chúng đẩy nút Tải Excel xuống dưới mép cửa sổ và bắt người
+     * ta cuộn trong hộp thoại để tìm. Cái đang CHỌN thì luôn hiện dù 0, không
+     * thì bỏ chọn bằng đường nào.
+     *
+     * Chưa đếm xong thì chưa biết cái nào 0, nên tạm lấy 8 cái đầu — danh sách
+     * vốn xếp theo mức hay dùng. Cốt để cửa sổ đừng cao vọt lên rồi sụp xuống
+     * ngay sau đó. */
+    const an = (dem
+      ? ds.filter((x) => !dem[x])
+      : ds.slice(8)).filter((x) => !chon.includes(x));
+    const hien = mo ? ds : ds.filter((x) => !an.includes(x));
+
     const mot = (x) => '<button class="xu-chip' + (chon.includes(x) ? ' on' : '')
       + (dem && !dem[x] && !chon.includes(x) ? ' trong' : '') + '"'
       + ' data-xuchip="' + id + '" data-gt="' + esc(x) + '">' + esc(x)
       + (dem ? '<b>' + (dem[x] || 0) + '</b>' : '') + '</button>';
+    const them = !an.length ? ''
+      : '<button class="xu-chip xu-them" data-xumo="' + id + '">'
+        + (mo ? 'Thu gọn' : '+ ' + an.length + ' ' + danhTu + ' khác') + '</button>';
+
     return '<div class="xu-chips">'
       + '<button class="xu-chip' + (chon.length ? '' : ' on') + '"'
         + ' data-xuchip="' + id + '" data-gt="">' + esc(rong)
         + (tong == null ? '' : '<b>' + tong + '</b>') + '</button>'
-      + ds.map(mot).join('') + '</div>';
+      + hien.map(mot).join('') + them + '</div>';
   };
 
   const tt = [...(S.config.statusOrder || [])];
@@ -926,11 +949,11 @@ function veXuat() {
     '</div>' +
 
     '<div class="frm-row"><label>Địa điểm <span class="xu-phu">bấm chọn nhiều</span></label>' +
-      oChip('diaDiem', XU.diaDiem, O.diaDiem || [], 'Tất cả') + '</div>' +
+      oChip('diaDiem', XU.diaDiem, O.diaDiem || [], 'Tất cả', 'nơi') + '</div>' +
     '<div class="frm-row"><label>Loại hình</label>' +
-      oChip('loaiHinh', XU.loaiHinh, O.loaiHinh || [], 'Tất cả') + '</div>' +
+      oChip('loaiHinh', XU.loaiHinh, O.loaiHinh || [], 'Tất cả', 'loại') + '</div>' +
     '<div class="frm-row"><label>Trạng thái</label>' +
-      oChip('trangThai', XU.trangThai, tt, 'Tất cả') +
+      oChip('trangThai', XU.trangThai, tt, 'Tất cả', 'trạng thái') +
       '<div class="hint">Để <b>Đã hoàn tất</b> khi gửi đối tác — nháp, chờ duyệt và lịch huỷ '
       + 'không phải thứ họ cần thấy.</div></div>' +
 
@@ -4003,6 +4026,16 @@ document.addEventListener('click', async (e) => {
   /* Bấm chip: "Tất cả" xoá sạch lựa chọn, chip thường thì bật/tắt. Bỏ hết chip
    * cũng quay về "Tất cả" — không để người dùng rơi vào trạng thái không chọn
    * gì mà cũng không phải tất cả. */
+  /* Mở rộng / thu gọn nhóm chip. Chỉ vẽ lại — bộ lọc không đổi nên số đếm
+   * cũng không đổi, gọi lại /api/xuat ở đây là một vòng mạng thừa. */
+  const xuMo = T.closest('[data-xumo]');
+  if (xuMo && XU) {
+    const k = xuMo.dataset.xumo;
+    XU.mo[k] = !XU.mo[k];
+    veXuat();
+    return;
+  }
+
   const xuChip = T.closest('[data-xuchip]');
   if (xuChip && XU) {
     const k = xuChip.dataset.xuchip;
