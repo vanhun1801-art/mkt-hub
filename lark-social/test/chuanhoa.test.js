@@ -513,7 +513,7 @@ t('lịch chạy đếm theo LẦN CHẠY CUỐI, không theo lúc khởi độn
   const src = require('fs').readFileSync(require.resolve('../server'), 'utf8');
   assert.ok(/async function lanDongBoCuoi/.test(src),
     'phải đọc được lần đồng bộ cuối từ Nhật ký');
-  assert.ok(/Date\.now\(\) - LICH\.lanCuoi < ms/.test(src),
+  assert.ok(/Date\.now\(\) - LICH\.lanCuoi < LICH\.han/.test(src),
     'mỗi nhịp phải so với lần chạy cuối, không phải đếm ngược từ khởi động');
 });
 
