@@ -272,6 +272,15 @@
   const theTag = (p) => '<span class="tag ' + lop(p) + '">' + esc(p) + '</span>';
 
   /* ---------------- tab: tổng quan ---------------- */
+  /* Nhớ người này thích mở hay gấp dải lưu ý. Chỉ là tiện nghi cá nhân nên để
+   * trong máy họ; đọc hay ghi hỏng thì cứ coi như đang gấp, không làm vỡ trang. */
+  const moLuuY = () => {
+    try { return localStorage.getItem('social.luuY') === 'mo'; } catch (_) { return false; }
+  };
+  const nhoLuuY = (mo) => {
+    try { localStorage.setItem('social.luuY', mo ? 'mo' : 'gap'); } catch (_) { /* bỏ qua */ }
+  };
+
   function veTongQuan() {
     const d = S.du;
     const t = d.tong;
@@ -292,11 +301,20 @@
 
       /* Đặt ngay dưới hàng số, trên biểu đồ — chứ không nhét vào nhật ký đồng bộ.
        * Người đọc biểu đồ không mở nhật ký. */
+      /* GẬP LẠI, nhưng không giấu.
+       *
+       * Bốn dải này giải thích vì sao vài cột trống hay vì sao con số đọc khác với
+       * người ta tưởng — cần, nhưng không cần mỗi lần mở màn hình đều đập vào mắt.
+       * Để bật sẵn thì người ta quen mắt rồi thôi không đọc nữa, lúc cần lại bỏ qua.
+       * Gấp vào một dòng, nhớ lựa chọn của từng người trong máy họ. */
       + ((d.luuY || []).length
-        ? '<div class="notes" style="margin-top:14px">'
+        ? '<details class="notes-box"' + (moLuuY() ? ' open' : '') + ' id="luuYHop">'
+          + '<summary><span class="ico">!</span>' + d.luuY.length
+          + ' lưu ý về cách đọc số</summary>'
+          + '<div class="notes">'
           + d.luuY.map((x) => '<div class="note"><span class="ico">!</span><span>'
             + esc(x) + '</span></div>').join('')
-          + '</div>'
+          + '</div></details>'
         : '')
 
       + '<div class="grid g-2-1" style="margin-top:14px">'
@@ -336,6 +354,8 @@
       + '</div>';
 
     $('#view').innerHTML = html;
+    const hopLuuY = $('#luuYHop');
+    if (hopLuuY) hopLuuY.ontoggle = () => nhoLuuY(hopLuuY.open);
     if (window.Charts) {
       Charts.lines($('#chNgay'), d.ngay, [
         { key: 'views', color: '#2b5cff', label: 'Lượt xem' },

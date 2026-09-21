@@ -404,7 +404,25 @@ table.tbl tfoot td { font-weight: 700; background: var(--panel-2); border-top: 2
 .tag.dy { background: #f0e9ff; color: var(--dy); }
 .tag.xhs { background: #ffe8eb; color: var(--xhs); }
 
-/* dải cảnh báo "chỉ số này API không cho" — phải nhìn thấy chứ không giấu */
+/* dải cảnh báo "chỉ số này API không cho" — gập lại một dòng, không giấu hẳn */
+.notes-box {
+  margin-top: 14px; border: 1px solid var(--line);
+  border-radius: 10px; background: var(--panel); overflow: hidden;
+}
+.notes-box > summary {
+  display: flex; align-items: center; gap: 8px; cursor: pointer;
+  padding: 9px 12px; font-size: 12.5px; color: var(--ink-2); list-style: none;
+}
+.notes-box > summary::-webkit-details-marker { display: none; }
+.notes-box > summary::after { content: 'be'; margin-left: auto; transition: transform .15s; }
+.notes-box[open] > summary::after { transform: rotate(180deg); }
+.notes-box > summary:hover { color: var(--ink); }
+.notes-box > summary .ico {
+  flex: none; width: 17px; height: 17px; border-radius: 50%;
+  display: grid; place-items: center; font-weight: 700; font-size: 11px;
+  background: var(--warn-soft); color: #7a4a00;
+}
+.notes-box .notes { padding: 0 12px 12px; }
 .notes { display: grid; gap: 8px; }
 .note {
   display: flex; gap: 9px; align-items: flex-start;
