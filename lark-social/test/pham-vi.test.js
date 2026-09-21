@@ -93,4 +93,28 @@ t('không có giới hạn thì giữ nguyên lựa chọn', () => {
   assert.deepStrictEqual(pv.ganLoc([], null), []);
 });
 
+t('Khách hỏi mở cho nhân sự, nhưng bó theo kênh của họ', () => {
+  /* Người trực kênh mới là người cần biết khách hỏi gì — bắt họ đi hỏi quản lý
+     thì lỡ mất khách. Nhưng màn hình này gọi thẳng API Facebook, nên không bó
+     lại là nhân sự quét được cả Trang không thuộc phần mình. */
+  const src = require('fs').readFileSync(require.resolve('../server'), 'utf8');
+  const i = src.indexOf("p === '/api/binh-luan'");
+  const khuc = src.slice(i, i + 700);
+  assert.ok(!/chanNeuKhongPhaiQuanLy/.test(khuc), 'không còn chặn hẳn nhân sự');
+  assert.ok(/chiTrang: gh/.test(khuc), 'phải truyền phạm vi kênh xuống bộ quét');
+
+  const bl = require('fs').readFileSync(require.resolve('../binh-luan'), 'utf8');
+  assert.ok(/chiTrang && !chiTrang\.has\(String\(page\.id\)\)/.test(bl),
+    'bộ quét phải bỏ qua Trang ngoài phạm vi');
+  assert.ok(/opts\.chiTrang\) && opts\.chiTrang\.length/.test(bl),
+    'bỏ trống thì không giới hạn — quản lý, hoặc chưa kênh nào khai người xem');
+});
+
+t('Nhập tay và Nhật ký vẫn chỉ quản lý', () => {
+  const ui = require('fs').readFileSync(require.resolve('../public/app.js'), 'utf8');
+  assert.ok(/\['nhap-tay', 'Nhập tay', true\]/.test(ui), 'Nhập tay phải còn cờ chỉ quản lý');
+  assert.ok(/\['nhat-ky', 'Nhật ký', true\]/.test(ui), 'Nhật ký phải còn cờ chỉ quản lý');
+  assert.ok(/\['binh-luan', 'Khách hỏi'\]/.test(ui), 'Khách hỏi KHÔNG còn cờ đó');
+});
+
 console.log('\n' + so + ' phép thử đạt' + (process.exitCode ? ' — CÓ LỖI' : '') + '\n');

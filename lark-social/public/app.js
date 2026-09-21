@@ -199,7 +199,7 @@
     ['kenh', 'Theo kênh'],
     ['bai', 'Bài đăng'],
     ['noi-dung', 'Nội dung'],
-    ['binh-luan', 'Khách hỏi', true],
+    ['binh-luan', 'Khách hỏi'],
     ['nhan', 'Nhãn & đối tác'],
     ['live', 'LIVE'],
     ['nhap-tay', 'Nhập tay', true],

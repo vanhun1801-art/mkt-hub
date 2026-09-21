@@ -157,8 +157,14 @@ async function quet(conf, opts = {}, log = () => {}) {
   const canhBao = [];
   let daQuet = 0;
 
+  /* Nhân sự chỉ được quét Trang thuộc phạm vi của họ. Bỏ trống là không giới
+   * hạn — quản lý, hoặc chưa kênh nào khai người xem. */
+  const chiTrang = Array.isArray(opts.chiTrang) && opts.chiTrang.length
+    ? new Set(opts.chiTrang.map(String)) : null;
+
   for (const page of (fb.pages || [])) {
     if (!page.token) continue;
+    if (chiTrang && !chiTrang.has(String(page.id))) continue;
     hideSecret(page.token);
     try {
       const ds = await baiGanDay(fb, page, tu, soBai);

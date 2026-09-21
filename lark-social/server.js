@@ -617,9 +617,15 @@ async function api(req, res, u) {
   }
 
   if (p === '/api/binh-luan' && method === 'GET') {
-    const loi = chanNeuKhongPhaiQuanLy(req); if (loi) throw loi;
+    /* MỞ CHO NHÂN SỰ, nhưng bó theo kênh của họ.
+     *
+     * Trước đây chặn hẳn vì màn hình này gọi thẳng API Facebook. Nhưng người
+     * trực kênh mới là người cần biết khách hỏi gì — bắt họ đi hỏi quản lý thì
+     * lỡ mất khách. Bó theo phạm vi là đủ: họ chỉ quét được Trang của mình. */
+    const gh = await hanMucKenh(req);
     const c = await ketnoi.doc();
     const r = await binhLuan.quet(c, {
+      chiTrang: gh,
       soNgay: Number(u.searchParams.get('ngay')) || 7,
       soBaiMoiKenh: Number(u.searchParams.get('bai')) || 15,
       soBinhLuanMoiBai: Number(u.searchParams.get('moiBai')) || 50,
