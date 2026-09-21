@@ -35,8 +35,8 @@ const gonTen = (s) => String(s || '').replace(/\s+/g, ' ').trim();
 /* Một mục là DUY NHẤT theo (vân nội dung, người đăng). Tiện ích gửi lại cùng
  * một bài mỗi năm phút, nên không có khoá này thì bảng đầy bản sao trong một
  * buổi sáng. */
-const khoa = (van, nguoi) =>
-  JSON.stringify([nguoiDang.gonVan(van).slice(0, 40), gonTen(nguoi)]);
+const khoa = (van, nguoi, nenTang) =>
+  JSON.stringify([nguoiDang.gonVan(van).slice(0, 40), gonTen(nguoi), nenTang || 'Facebook']);
 
 /** Đọc cả bảng, dạng đã bóc field. */
 async function nap() {
@@ -49,6 +49,10 @@ async function nap() {
     thuCuoi: store.clean(r.c[f.thuCuoi]),
     soLan: store.num(r.c[f.soLan]) || 0,
     trangThai: store.sel(r.c[f.trangThai]) || 'Đang chờ',
+    /* Dòng ghi từ trước khi có TikTok thì ô Nền tảng trống — hiểu là Facebook,
+     * đúng như lúc nó được ghi. */
+    nenTang: store.sel(r.c[f.nenTang]) || 'Facebook',
+    kenh: store.clean(r.c[f.kenh]),
   }));
 }
 
@@ -63,7 +67,7 @@ async function luu(items, dsCho) {
   if (!ds.length) return { them: 0, capNhat: 0 };
 
   const dang = dsCho || await nap();
-  const co = new Map(dang.map((x) => [khoa(x.van, x.nguoi), x]));
+  const co = new Map(dang.map((x) => [khoa(x.van, x.nguoi, x.nenTang), x]));
   /* Giờ theo múi giờ của Base, không phải UTC. Bảng này không có giao diện nào
    * — người ta mở thẳng Lark ra đọc, mà đọc "06:57" cho một việc xảy ra lúc
    * 13:57 thì lệch bảy tiếng đủ để kết luận sai xem bài nào tới trước. */
@@ -73,7 +77,7 @@ async function luu(items, dsCho) {
   const sua = {};
   const daXet = new Set();
   ds.forEach((x) => {
-    const k = khoa(x.van, x.nguoi);
+    const k = khoa(x.van, x.nguoi, x.nenTang);
     if (daXet.has(k)) return;              // cùng một lượt gửi lặp lại chính nó
     daXet.add(k);
     const cu = co.get(k);
@@ -84,6 +88,8 @@ async function luu(items, dsCho) {
     moi.push({
       [f.van]: String(x.van).slice(0, 200),
       [f.nguoi]: gonTen(x.nguoi),
+      [f.nenTang]: x.nenTang || 'Facebook',
+      [f.kenh]: String(x.kenh || ''),
       [f.batLuc]: luc,
       [f.thuCuoi]: luc,
       [f.soLan]: 1,
@@ -102,7 +108,7 @@ async function luu(items, dsCho) {
  * Trả về { ghi, conCho, quaHan, ten } — `ten` là danh sách người vừa được ghi,
  * để nhật ký nói được ai chứ không chỉ một con số.
  */
-async function khopLai(posts) {
+async function khopLai(posts, kenhDS) {
   const dang = (await nap()).filter((x) => x.trangThai !== 'Quá hạn');
   if (!dang.length) return { ghi: 0, conCho: 0, quaHan: 0, ten: [], tenLa: [] };
 
@@ -121,7 +127,8 @@ async function khopLai(posts) {
 
   dang.forEach((x) => {
     if (!hopLe.has(gonTen(x.nguoi))) return;
-    const p = nguoiDang.ghepTheoVan(x.van, posts);
+    const p = nguoiDang.ghepTheoVan(x.van, posts,
+      { nenTang: x.nenTang, kenh: x.kenh, kenhDS });
     if (!p) {
       /* Quá hạn thì dừng thử, nhưng giữ dòng lại. */
       /* batLuc ghi theo giờ Base (+8) và không mang hậu tố múi giờ, nên phải

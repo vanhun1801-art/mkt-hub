@@ -215,6 +215,11 @@ module.exports = {
       f: {
         van: 'fld2dDfPSL',        // Vân nội dung (40 ký tự đầu, đã chuẩn hoá) — primary
         nguoi: 'fldZSDaL58',      // Người đăng
+        nenTang: 'fld1lh4BK0',    // Nền tảng (select): Facebook | TikTok
+        /* Kênh mà người đăng đang chọn lúc bấm Đăng. Chỉ TikTok mới cần: một
+         * clip hay được đăng lên nhiều trong sáu kênh, caption giống hệt nhau,
+         * không có gợi ý kênh thì phép khớp bỏ qua cả hai cho an toàn. */
+        kenh: 'fldY2xNCri',
         batLuc: 'fldTNTLhR1',     // Bắt lúc (text ISO)
         thuCuoi: 'fldqJxu5bc',    // Thử lần cuối (text ISO)
         soLan: 'fldhP9mVX9',      // Số lần thử

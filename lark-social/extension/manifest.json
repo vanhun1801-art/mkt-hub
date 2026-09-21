@@ -1,22 +1,35 @@
 {
   "manifest_version": 3,
   "name": "Rooty · Người đăng",
-  "version": "1.13.0",
-  "description": "Ghi lại ai đăng bài nào. Trên máy người đăng: bắt và gửi tự động lúc bấm Đăng trong Business Suite, chỉ hiện bảng khi có lỗi. Trên máy quản lý: đọc dòng \"Người đăng\" trên màn hình rồi bấm gửi.",
-  "permissions": ["storage"],
-  "host_permissions": ["https://mkt-hub-w6hi.onrender.com/*"],
+  "version": "1.14.0",
+  "description": "Ghi lại ai đăng bài nào trên Facebook Business Suite và TikTok Studio. Trên máy người đăng: bắt và gửi tự động lúc bấm Đăng, chỉ hiện bảng khi có lỗi. Trên máy quản lý: đọc dòng \"Người đăng\" trên màn hình rồi bấm gửi.",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://mkt-hub-w6hi.onrender.com/*"
+  ],
   "content_scripts": [
     {
       "matches": [
         "https://www.facebook.com/*",
-        "https://business.facebook.com/*"
+        "https://business.facebook.com/*",
+        "https://www.tiktok.com/*",
+        "https://tiktok.com/*"
       ],
-      "js": ["loc.js", "content.js"],
+      "js": [
+        "loc.js",
+        "content.js"
+      ],
       "run_at": "document_idle",
       "all_frames": true
     }
   ],
-  "background": { "service_worker": "background.js" },
+  "background": {
+    "service_worker": "background.js"
+  },
   "options_page": "options.html",
-  "action": { "default_title": "Rooty · Người đăng — mở Tuỳ chọn để khai tên và khoá" }
+  "action": {
+    "default_title": "Rooty · Người đăng — mở Tuỳ chọn để khai tên và khoá"
+  }
 }

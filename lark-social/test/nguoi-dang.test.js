@@ -234,5 +234,62 @@ t('ngưỡng của tiện ích khớp với ngưỡng của máy chủ', () => {
   assert.strictEqual(Number(m[1]), N.DAI_TOI_THIEU, 'hai bên phải bằng nhau');
 });
 
+
+t('bài TikTok và bài Facebook cùng caption thì không lẫn vào nhau', () => {
+  const van = 'Vị thế thật sự của Phú Quốc trên bản đồ du lịch quốc tế';
+  const bai = [
+    { id: 'fb', platform: 'Facebook', title: van },
+    { id: 'tt', platform: 'TikTok', title: van },
+  ];
+  /* Không khai nền tảng thì hiểu là Facebook — giữ nguyên cách hiểu của các bản
+     tiện ích cũ vẫn đang chạy trên máy các bạn. */
+  assert.strictEqual(N.ghepTheoVan(van, bai).id, 'fb');
+  assert.strictEqual(N.ghepTheoVan(van, bai, { nenTang: 'TikTok' }).id, 'tt');
+  assert.strictEqual(N.ghepTheoVan(van, bai, { nenTang: 'Instagram' }), null,
+    'không có bài Instagram nào thì đừng vơ bài của nền tảng khác');
+});
+
+t('gợi ý kênh tách được hai bài TikTok giống hệt caption', () => {
+  const van = 'Một clip đăng lên hai kênh, caption giống hệt nhau luôn';
+  const bai = [
+    { id: 'a', platform: 'TikTok', title: van, channel: 'Rooty Trip Phú Quốc', channelExtId: 'k1' },
+    { id: 'b', platform: 'TikTok', title: van, channel: 'Vi Vu Phú Quốc', channelExtId: 'k2' },
+  ];
+  const kenhDS = [
+    { name: 'Rooty Trip Phú Quốc', handle: 'rootytrip', extId: 'k1' },
+    { name: 'Vi Vu Phú Quốc', handle: 'vivupq', extId: 'k2' },
+  ];
+  assert.strictEqual(N.ghepTheoVan(van, bai, { nenTang: 'TikTok' }), null,
+    'không có gợi ý thì phải bỏ qua, không đoán');
+  assert.strictEqual(
+    N.ghepTheoVan(van, bai, { nenTang: 'TikTok', kenh: '@vivupq', kenhDS }).id, 'b');
+  assert.strictEqual(
+    N.ghepTheoVan(van, bai, { nenTang: 'TikTok', kenh: 'Rooty Trip Phú Quốc', kenhDS }).id, 'a',
+    'gợi ý bằng TÊN kênh cũng phải nhận');
+  assert.strictEqual(
+    N.ghepTheoVan(van, bai, { nenTang: 'TikTok', kenh: '@chua-khai-bao-gio', kenhDS }), null,
+    'gợi ý lạ thì coi như không có — quay về trạng thái hai bài, vẫn bỏ qua');
+});
+
+t('tiện ích gắn nền tảng theo tên miền', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'extension', 'content.js'), 'utf8');
+  assert.ok(src.includes('tiktok'), 'phải nhận ra tiktok.com');
+  assert.ok(src.includes('nenTang: NEN_TANG'), 'mục bắt được phải mang theo nền tảng');
+  /* Mục cũ trong kho chưa có nenTang: gán nền tảng của TAB HIỆN TẠI vào đó là
+     bài Facebook cũ bị đổi thành TikTok rồi không bao giờ khớp nữa. */
+  assert.ok(src.includes("x.nenTang || 'Facebook'"),
+    'lúc gửi phải giữ nền tảng CỦA TỪNG MỤC, không lấy của tab');
+  /* TikTok không có dòng "Người đăng" nào để đọc — quét ở đó chỉ đẻ bảng rỗng. */
+  assert.ok(src.includes("NEN_TANG !== 'Facebook'"), 'không quét màn hình trên TikTok');
+
+  const mf = JSON.parse(fs.readFileSync(
+    path.join(__dirname, '..', 'extension', 'manifest.json'), 'utf8'));
+  const m = mf.content_scripts[0].matches.join(' ');
+  assert.ok(m.includes('tiktok.com'), 'manifest phải cho chạy trên tiktok.com');
+  assert.ok(m.includes('facebook.com'), 'và vẫn phải chạy trên facebook.com');
+});
+
 console.log('\n' + dat + ' phép thử đạt' + (hong ? ' — CÓ LỖI' : ''));
 if (hong) process.exit(1);

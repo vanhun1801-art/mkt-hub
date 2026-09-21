@@ -39,7 +39,8 @@ function idTuLink(u) {
   return m ? m[1] : '';
 }
 
-/** Gom bài trong Base thành bảng tra theo ID link. */
+/** Gom bài trong Base thành bảng tra theo ID link. Chỉ Facebook dùng được:
+ * link TikTok không mang ID số đối chiếu được với Base. */
 function banhTra(posts) {
   const m = new Map();
   (posts || []).forEach((p) => {
@@ -48,6 +49,28 @@ function banhTra(posts) {
     if (id && !m.has(id)) m.set(id, p);
   });
   return m;
+}
+
+/**
+ * Bài này có nằm trong kênh mà người đăng đang chọn không.
+ *
+ * Gợi ý kênh có thể là tên kênh, handle, hay @handle — tiện ích đọc được cái
+ * nào thì gửi cái đó. Gợi ý KHÔNG khớp kênh nào đã biết thì coi như không có:
+ * thà khớp rộng còn hơn loại sạch vì một chuỗi lạ.
+ */
+const gonKenh = (s) => String(s || '').replace(/^@/, '').replace(/\s+/g, ' ').trim().toLowerCase();
+
+function locTheoKenh(posts, kenh, kenhDS) {
+  const k = gonKenh(kenh);
+  if (!k) return posts;
+  /* Gợi ý có thể là handle (@rootytrip) hay ID nền tảng, mà bài chỉ mang TÊN
+   * kênh — nên tra qua bảng Kênh trước để biết gợi ý ấy là kênh nào. */
+  const c = (kenhDS || []).find((x) => gonKenh(x.name) === k
+    || gonKenh(x.handle) === k || gonKenh(x.extId) === k);
+  const hop = posts.filter((p) => (c
+    ? (p.channelExtId === c.extId || gonKenh(p.channel) === gonKenh(c.name))
+    : gonKenh(p.channel) === k));
+  return hop.length ? hop : posts;
 }
 
 const gonTen = (s) => String(s || '').replace(/\s+/g, ' ').trim();
@@ -76,12 +99,14 @@ const gonVan = (s) => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
 const DAI_VAN = 40;
 const DAI_TOI_THIEU = 5;
 
-function ghepTheoVan(van, posts) {
+function ghepTheoVan(van, posts, tuyChon = {}) {
+  const nenTang = tuyChon.nenTang || 'Facebook';
   const v = gonVan(van);
   if (v.length < DAI_TOI_THIEU) return null;
+  const ung = locTheoKenh(
+    (posts || []).filter((p) => p.platform === nenTang), tuyChon.kenh, tuyChon.kenhDS);
   let trung = null;
-  for (const p of posts) {
-    if (p.platform !== 'Facebook') continue;
+  for (const p of ung) {
     const t = gonVan(p.title).slice(0, DAI_VAN);
     if (t.length < DAI_TOI_THIEU || !v.includes(t)) continue;
     /* Hai bài cùng mở đầu giống hệt thì không dám chọn bừa — thà bỏ qua còn hơn
@@ -98,7 +123,7 @@ function ghepTheoVan(van, posts) {
  * Trả về ba nhóm, và ba nhóm này đều phải hiện ra cho người dùng thấy: giấu
  * phần không khớp đi thì họ tưởng đã gán xong hết, trong khi KPI thiếu người.
  */
-function ghep(items, posts) {
+function ghep(items, posts, kenhDS) {
   const tra = banhTra(posts);
   const hopLe = new Set(NGUOI_DANG.map(gonTen));
   const capNhat = [];
@@ -110,13 +135,19 @@ function ghep(items, posts) {
     const nguoi = gonTen(x && x.nguoi);
     if (!nguoi) return;
     if (!hopLe.has(nguoi)) { tenLa.push({ viTri, link: x && x.link, nguoi }); return; }
-    const id = idTuLink(x && x.link);
+
+    /* Nền tảng đi theo TỪNG MỤC, không phải theo cả lượt gửi: một người có thể
+     * mở Business Suite và TikTok Studio cùng lúc, hàng chờ gộp chung. Không
+     * khai thì là Facebook — giữ nguyên cách hiểu của các bản tiện ích cũ. */
+    const nenTang = (x && x.nenTang) || 'Facebook';
     /* Link trước, caption sau. Link chính xác tuyệt đối khi có ID số; còn dạng
-     * pfbid thì phải nhờ caption. */
-    const p = (id && tra.get(id)) || ghepTheoVan(x && x.van, posts);
+     * pfbid thì phải nhờ caption. Link TikTok không có ID số nên chỉ còn caption. */
+    const id = nenTang === 'Facebook' ? idTuLink(x && x.link) : '';
+    const p = (id && tra.get(id))
+      || ghepTheoVan(x && x.van, posts, { nenTang, kenh: x && x.kenh, kenhDS });
     /* Trả kèm vị trí để tiện ích biết mục nào chưa ăn mà giữ lại gửi sau. Bài
      * vừa đăng chưa có trong Base — đồng bộ 6 tiếng một lượt mới kéo về. */
-    if (!p) { khongKhop.push({ viTri, link: x && x.link, nguoi }); return; }
+    if (!p) { khongKhop.push({ viTri, link: x && x.link, nguoi, nenTang }); return; }
     if (daThay.has(p.id)) return;
     daThay.add(p.id);
     /* Đã có người và trùng khớp thì bỏ qua, khác thì vẫn ghi đè: màn hình
@@ -158,4 +189,7 @@ function gopTheoNguoi(bai) {
   return ra;
 }
 
-module.exports = { NGUOI_DANG, idTuLink, banhTra, ghep, ghepTheoVan, gonVan, gopTheoNguoi, DAI_TOI_THIEU };
+module.exports = {
+  NGUOI_DANG, idTuLink, banhTra, ghep, ghepTheoVan, locTheoKenh,
+  gonVan, gonKenh, gopTheoNguoi, DAI_TOI_THIEU,
+};

@@ -18,6 +18,16 @@
   const RE_CO = /Người\s*đăng/;
   const RE_TEN = /Người\s*đăng\s*[:：]\s*([^\n·|]+)/;
   const CHON_LINK = 'a[href*="/reel/"],a[href*="/posts/"],a[href*="/videos/"],a[href*="story_fbid"]';
+  /* NỀN TẢNG THEO TÊN MIỀN.
+   *
+   * Cùng một bộ máy chạy cho cả hai: Business Suite và TikTok Studio đều là ứng
+   * dụng một trang, đều có ô soạn contenteditable và một nút mang chữ "Đăng".
+   * Viết hai script riêng là hai chỗ để hỏng, mà cái hỏng hôm trước (offsetParent
+   * null trong position:fixed) thì nơi nào cũng dính. Khác nhau chỉ đúng một
+   * điều: bài gửi lên phải nói rõ mình thuộc nền tảng nào, không thì máy chủ đi
+   * tìm trong nhầm kho bài. */
+  const NEN_TANG = /(^|\.)tiktok\.com$/i.test(location.hostname) ? 'TikTok' : 'Facebook';
+
   const thay = new Map();          // khoá -> { ten, link, van }
 
   /* TÊN NẰM Ở NÚT KHÁC VỚI CHỮ "Người đăng".
@@ -66,6 +76,10 @@
     /* Máy người đăng thì khỏi quét feed: họ đã được ghi nhận ngay lúc bấm Đăng,
      * quét thêm chỉ tốn máy mỗi lần cuộn. */
     if (toiLa) return;
+    /* TikTok KHÔNG có dòng "Người đăng" để đọc — tài khoản là một danh tính duy
+     * nhất, ai đăng cũng là đăng bằng tài khoản đó. Quét ở đây chỉ đẻ ra một
+     * bảng báo "thấy 0 bài" nằm chình ình trên màn hình quản lý. */
+    if (NEN_TANG !== 'Facebook') return;
     const di = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     let dong = 0;
     let hut = 0;
@@ -261,7 +275,39 @@
    * Caption là dấu vân tay tốt hơn cả link, vì lúc bấm Đăng thì bài chưa tồn
    * tại, chưa có link nào để lấy.
    */
-  const NUT_DANG = /^(đăng|đăng ngay|đăng bài|chia sẻ ngay|lên lịch|lên lịch đăng|publish|post|schedule)$/i;
+  const NUT_DANG = /^(đăng|đăng ngay|đăng bài|chia sẻ ngay|lên lịch|lên lịch đăng|publish|post|post now|schedule|upload)$/i;
+
+
+  /* TÀI KHOẢN ĐANG CHỌN — chỉ TikTok mới cần.
+   *
+   * Sáu kênh TikTok hay đăng lại cùng một clip, caption giống hệt nhau; không
+   * có gợi ý kênh thì máy chủ thấy hai bài như nhau và bỏ qua cả hai cho an
+   * toàn. Đọc được handle thì gỡ được thế bí đó.
+   *
+   * Đọc HỤT cũng không sao: máy chủ coi gợi ý không tra ra kênh nào là không
+   * có, rồi khớp rộng như cũ. Nên ở đây cứ thử vài đường rẻ tiền, không cố bám
+   * vào tên lớp CSS của TikTok — thứ họ đổi hàng tháng. */
+  function kenhDangChon() {
+    if (NEN_TANG !== 'TikTok') return '';
+    const soi = (el) => {
+      const t = (el.innerText || el.textContent || '').trim();
+      const m = /@[A-Za-z0-9._]{2,24}/.exec(t);
+      return m ? m[0] : '';
+    };
+    const uv = document.querySelectorAll(
+      '[data-e2e*="profile"],[class*="account"],[class*="Account"],header,[class*="avatar"]');
+    for (const el of uv) {
+      if (!el.getClientRects().length) continue;
+      const h = soi(el);
+      if (h) return h;
+    }
+    /* Đường cuối: link tới trang hồ sơ trên chính trang đang mở. */
+    for (const a of document.querySelectorAll('a[href*="/@"]')) {
+      const m = /\/(@[A-Za-z0-9._]{2,24})(\/|$|\?)/.exec(a.getAttribute('href') || '');
+      if (m) return m[1];
+    }
+    return '';
+  }
 
   /* NHỜ ĐOẠN CHỮ ĐANG SOẠN, không đợi tới lúc bấm mới đi tìm.
    *
@@ -378,10 +424,13 @@
         return;
       }
     }
-    cho.push({ van: van.slice(0, 400), nguoi: c.toiLa, luc: Date.now() });
+    cho.push({
+      van: van.slice(0, 400), nguoi: c.toiLa, luc: Date.now(),
+      nenTang: NEN_TANG, kenh: kenhDangChon(),
+    });
     await chrome.storage.local.set({ cho });
     soCho = cho.length;
-    noiNhanh('Đã ghi nhận bài của <b>' + c.toiLa + '</b>');
+    noiNhanh('Đã ghi nhận bài ' + NEN_TANG + ' của <b>' + c.toiLa + '</b>');
     guiCho();
   }
 
@@ -402,7 +451,13 @@
     if (!cho.length) { soCho = 0; ve(); return; }
 
     chrome.runtime.sendMessage(
-      { viec: 'gui', items: cho.map((x) => ({ nguoi: x.nguoi, van: x.van })) },
+      /* Mục cũ trong kho chưa có nenTang — để nguyên undefined là máy chủ hiểu
+       * Facebook, đúng như lúc nó được ghi. Đừng gán NEN_TANG của tab hiện tại
+       * vào đó: mở TikTok Studio một cái là bài Facebook cũ trong hàng chờ bị
+       * đổi nền tảng rồi không bao giờ khớp nữa. */
+      { viec: 'gui', items: cho.map((x) => ({
+        nguoi: x.nguoi, van: x.van, nenTang: x.nenTang || 'Facebook', kenh: x.kenh || '',
+      })) },
       async (r) => {
         if (!r || !r.ok) {
           /* Mạng chập thì im, để lần sau. Sai khoá hoặc chưa khai thì phải nói

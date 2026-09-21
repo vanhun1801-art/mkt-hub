@@ -1,7 +1,23 @@
 # Rooty · Người đăng — tiện ích Chrome
 
-Đọc dòng **"Người đăng: …"** mà Facebook hiện dưới mỗi bài trên Trang, rồi gửi
-về Marketing Hub để điền cột **Người đăng** trong bảng Bài đăng.
+Ghi lại **ai đăng bài nào**, rồi gửi về Marketing Hub để điền cột **Người đăng**
+trong bảng Bài đăng. Chạy trên **Facebook Business Suite** và **TikTok Studio**.
+
+## TikTok — điều kiện bắt buộc
+
+Tiện ích chỉ sống trong Chrome trên máy tính. **Bài TikTok đăng từ app điện thoại
+là vô hình.** Đã chốt với phòng: TikTok chỉ đăng từ
+`tiktok.com/tiktokstudio/upload`. Ai đăng bằng điện thoại thì bài đó sẽ trống tên
+mãi mãi, và nhìn vào Base không phân biệt được với trường hợp tiện ích hỏng.
+
+Ngược lại, khớp trên TikTok **chắc hơn Facebook**: đo trên 790 bài đang có,
+caption ngắn nhất là 41 ký tự (dấu vân tay chỉ cần 40), và chỉ 2 bài trùng 40 ký
+tự đầu — 0,3% phải bỏ qua cho an toàn, so với ~1% bên Facebook.
+
+Sáu kênh TikTok hay đăng lại cùng một clip với caption giống hệt nhau. Để máy chủ
+không phải bỏ qua cả hai, tiện ích đọc thêm **handle tài khoản đang chọn** gửi
+kèm. Đọc hụt cũng không sao — máy chủ coi gợi ý không tra ra kênh nào là không
+có, rồi khớp rộng như cũ.
 
 ## Vì sao phải làm kiểu này
 
@@ -25,7 +41,8 @@ là Trang, không có `admin_creator`.
 
 - Không tự cuộn trang, không tự bấm, không tự mở bài.
 - Không chạy ngầm khi không có ai ngồi đó.
-- Không tự gửi — phải bấm nút.
+- Không quét màn hình trên TikTok: tài khoản TikTok là một danh tính duy nhất,
+  không có dòng "Người đăng" nào để đọc.
 
 Nó chỉ đọc phần đã hiện trên màn hình. Đây là ranh giới giữa *công cụ hỗ trợ
 thao tác của người* và *bot cào dữ liệu* — vượt qua là vừa vi phạm điều khoản

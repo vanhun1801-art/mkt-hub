@@ -210,7 +210,7 @@ async function soatCanhBao(nhan) {
  */
 async function khopLaiNguoiDang() {
   const d = await store.tai(true);
-  const k = await choKhop.khopLai(d.posts);
+  const k = await choKhop.khopLai(d.posts, d.channels);
   if (k.ghi) {
     store.xoaCache();
     await store.ghiNhatKy({
@@ -963,7 +963,7 @@ async function api(req, res, u) {
       return fail(res, 401, 'Sai khoá');
     }
     const d = await store.tai();
-    const r = nguoiDang.ghep(b.items, d.posts);
+    const r = nguoiDang.ghep(b.items, d.posts, d.channels);
     if (r.capNhat.length) {
       const f = store.T.post.f;
       const map = {};
@@ -985,7 +985,8 @@ async function api(req, res, u) {
     try {
       const chua = [...r.khongKhop, ...r.tenLa]
         .map((x) => (b.items || [])[x.viTri])
-        .filter((x) => x && x.van);
+        .filter((x) => x && x.van)
+        .map((x) => ({ nguoi: x.nguoi, van: x.van, nenTang: x.nenTang || 'Facebook', kenh: x.kenh }));
       choMoi = await choKhop.luu(chua);
     } catch (e) { choMoi = { loi: e.message }; }
     /* GHI NHẬT KÝ MỌI LƯỢT, kể cả lượt không ghi được bài nào.
@@ -994,8 +995,11 @@ async function api(req, res, u) {
      * (bài hẹn giờ ngày mai chưa có trong Base), không ai biết là nó đã tới hay
      * tiện ích chết im. Đúng kiểu lỗi im lặng đã gặp đủ mấy hôm nay. */
     const tenGui = [...new Set((b.items || []).map((x) => String((x && x.nguoi) || '?')))];
+    /* Một lượt gửi có thể lẫn cả hai nền tảng — ghi 'Tất cả' thay vì nói dối
+     * rằng đó là Facebook. */
+    const nts = [...new Set((b.items || []).map((x) => (x && x.nenTang) || 'Facebook'))];
     await store.ghiNhatKy({
-      platform: 'Facebook',
+      platform: nts.length === 1 ? nts[0] : 'Tất cả',
       result: r.capNhat.length ? 'Thành công' : 'Một phần',
       rowsPost: r.capNhat.length,
       message: 'NGƯỜI ĐĂNG · nhận ' + (b.items || []).length

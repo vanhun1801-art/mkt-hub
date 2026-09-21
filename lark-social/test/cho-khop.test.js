@@ -40,11 +40,14 @@ const cho = require('../cho-khop');
 const nguoiDang = require('../nguoi-dang');
 const AI = nguoiDang.NGUOI_DANG[1] || 'Lý Thư Bạch';
 
-const bai = (id, title, poster) => ({
-  id, platform: 'Facebook', title, url: '', poster: poster || '',
+const bai = (id, title, poster, nenTang, kenh) => ({
+  id, platform: nenTang || 'Facebook', title, url: '', poster: poster || '',
+  channel: kenh || '', channelExtId: kenh || '',
 });
+const baiTT = (id, title, kenh, poster) => bai(id, title, poster, 'TikTok', kenh);
 const dsCho = () => (bang[TP.id] || []).map((r) => ({
   van: r.c[f.van], nguoi: r.c[f.nguoi], soLan: r.c[f.soLan], trangThai: r.c[f.trangThai],
+  nenTang: r.c[f.nenTang], kenh: r.c[f.kenh],
 }));
 
 let so = 0;
@@ -140,6 +143,68 @@ t('mục rỗng thì bỏ qua, không đẻ dòng trắng', async () => {
   bang = {};
   await cho.luu([{ nguoi: AI, van: '' }, { nguoi: '', van: 'abc' }, null, undefined]);
   assert.strictEqual(dsCho().length, 0);
+});
+
+
+t('TikTok: bắt ở TikTok Studio rồi đồng bộ xong thì tự ghi', async () => {
+  bang = {};
+  const van = 'Vị thế thật sự của Phú Quốc trên bản đồ du lịch quốc tế #1';
+  await cho.luu([{ nguoi: AI, van, nenTang: 'TikTok', kenh: 'rootytrip' }]);
+  assert.strictEqual(dsCho()[0].nenTang, 'TikTok');
+  const k = await cho.khopLai([baiTT('recTT', van, 'rootytrip')],
+    [{ name: 'Rooty Trip Phú Quốc', handle: 'rootytrip', extId: 'rootytrip' }]);
+  assert.strictEqual(k.ghi, 1);
+  assert.strictEqual(bang[cfg.tables.post.id][0].c[fp.poster], AI);
+});
+
+t('không lẫn nền tảng: mục TikTok không ăn vào bài Facebook cùng caption', async () => {
+  bang = {};
+  const van = 'Cùng một nội dung đăng lên cả hai nền tảng một lúc';
+  await cho.luu([{ nguoi: AI, van, nenTang: 'TikTok' }]);
+  const k = await cho.khopLai([bai('recFB', van)]);       // chỉ có bài Facebook
+  assert.strictEqual(k.ghi, 0, 'bài Facebook không phải của mục TikTok');
+  assert.strictEqual(dsCho().length, 1, 'vẫn nằm chờ bài TikTok của nó');
+});
+
+t('cùng một clip lên nhiều kênh: gợi ý kênh gỡ được thế bí', async () => {
+  const van = 'Một clip đăng lên hai kênh, caption giống hệt nhau luôn';
+  const kenhDS = [
+    { name: 'Rooty Trip Phú Quốc', handle: 'rootytrip', extId: 'k1' },
+    { name: 'Vi Vu Phú Quốc', handle: 'vivupq', extId: 'k2' },
+  ];
+  const posts = () => [baiTT('recA', van, 'k1'), baiTT('recB', van, 'k2')];
+
+  /* Không có gợi ý kênh thì hai bài giống hệt nhau — phải bỏ qua, không đoán. */
+  bang = {};
+  await cho.luu([{ nguoi: AI, van, nenTang: 'TikTok' }]);
+  assert.strictEqual((await cho.khopLai(posts(), kenhDS)).ghi, 0);
+
+  /* Có gợi ý thì chỉ còn một ứng viên. */
+  bang = {};
+  await cho.luu([{ nguoi: AI, van, nenTang: 'TikTok', kenh: '@vivupq' }]);
+  const k = await cho.khopLai(posts(), kenhDS);
+  assert.strictEqual(k.ghi, 1);
+  const ghi = bang[cfg.tables.post.id];
+  assert.strictEqual(ghi.length, 1);
+  assert.strictEqual(ghi[0].id, 'recB', 'phải là bài của kênh vivupq');
+});
+
+t('gợi ý kênh lạ thì coi như không có, đừng loại sạch', async () => {
+  bang = {};
+  const van = 'Kênh này chưa từng khai trong bảng Kênh bao giờ cả';
+  await cho.luu([{ nguoi: AI, van, nenTang: 'TikTok', kenh: '@kenh-la-hoac-vua-doi-ten' }]);
+  const k = await cho.khopLai([baiTT('recC', van, 'k1')],
+    [{ name: 'Rooty Trip Phú Quốc', handle: 'rootytrip', extId: 'k1' }]);
+  assert.strictEqual(k.ghi, 1, 'thà khớp rộng còn hơn trượt vì một chuỗi lạ');
+});
+
+t('dòng cũ chưa có ô Nền tảng thì hiểu là Facebook', async () => {
+  bang = {};
+  const van = 'Dòng này ghi từ trước khi có TikTok nên ô nền tảng trống';
+  await cho.luu([{ nguoi: AI, van }]);
+  delete bang[TP.id][0].c[f.nenTang];                     // đúng dạng dòng cũ
+  const k = await cho.khopLai([bai('recD', van)]);
+  assert.strictEqual(k.ghi, 1);
 });
 
 (async () => {
