@@ -166,6 +166,7 @@ module.exports = {
         newFollows: 'fld2la7bx0',
         /* Ba cột TIỀN — không nền tảng nào cho, app tự gắn từ Tourwell theo
          * khung giờ phiên. Xem tien-live.js để biết phép gắn và chỗ nó yếu. */
+        messages: 'fldX9s9F89',   // Hội thoại MỚI trên Pancake trong khung giờ phiên
         leads: 'fldHn9Ed6q',      // Lead Tourwell rơi vào khung giờ phiên
         orders: 'fldUS8LQkT',     // Đơn của những lead ấy
         revenue: 'fld3cusEuH',    // Doanh thu của những đơn ấy
