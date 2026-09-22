@@ -192,6 +192,9 @@ module.exports = {
         /* CHỈ dùng cho lần gắn bù bài cũ. Bài từ nay trở đi nhận nhãn bằng
          * hashtag, đúng như quy định anh Hùng ra cho đội nội dung. */
         keywords: 'fldXW92ZaV',
+        /* Bài mang nhãn này thì coi là Bán hàng hay Tương tác khi chấm KPI.
+         * Bỏ trống = nhãn này không nói lên mục đích (tên địa điểm, chủ đề). */
+        mucDich: 'fldz3loqW5',
       },
     },
     alert: {

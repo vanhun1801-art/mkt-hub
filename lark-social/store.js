@@ -380,6 +380,7 @@ async function taiNhan() {
     hashtag: clean(r.c[f.hashtag]),
     doiTac: clean(r.c[f.partner]),
     tuKhoa: clean(r.c[f.keywords]),
+    mucDich: sel(r.c[f.mucDich]),
     /* Ô checkbox chưa ai tích trả về undefined, không phải false. Coi undefined
      * là BẬT: dòng mới thêm mà im lặng không tính thì rất khó đoán vì sao. */
     bat: r.c[f.on] === undefined ? true : Boolean(r.c[f.on]),
