@@ -300,6 +300,44 @@ t('link rác trong một mục không kéo cả tin gộp xuống', () => {
   assert.ok(JSON.stringify(card).includes(BC2.linkAnh), 'mục lành phải còn nguyên link');
 });
 
+/* Nhận xét ảnh: bắt buộc từ 22/09/2026 và phải vào tin ở CẢ hai kiểu thẻ.
+ * Đây là điểm khác hẳn "Ghi chú" — cái đó cố ý không vào tin, và mấy phép thử
+ * ngay trên canh đúng chuyện đó. Lẫn hai cái là hoặc nhóm không thấy nhận xét,
+ * hoặc ghi chú nội bộ bị đẩy ra cho cả nhóm đọc. */
+const NX = 'Góc toàn cảnh đủ, đã kéo sáng vùng bóng.\nThiếu góc cận mặt khách ở bãi 2.';
+
+t('một mục: nhận xét vào cả thẻ lẫn chữ, ghi chú thì không', () => {
+  const r = tin.soan({ ...BC, nhanXetAnh: NX }, { nguoiTen: 'Hùng' });
+  assert.ok(JSON.stringify(r.card).includes('Nhận xét'), 'thẻ thiếu nhãn Nhận xét');
+  assert.ok(JSON.stringify(r.card).includes('kéo sáng vùng bóng'), 'thẻ thiếu nội dung nhận xét');
+  assert.ok(r.text.includes('Nhận xét: '), 'bản chữ thiếu nhận xét');
+  assert.ok(r.text.includes('bãi 2'), r.text);
+  assert.ok(!r.text.includes(BC.ghiChu), 'ghi chú nội bộ lọt vào tin');
+  assert.ok(!JSON.stringify(r.card).includes(BC.ghiChu), 'ghi chú nội bộ lọt vào thẻ');
+});
+
+t('nhiều mục: mỗi mục mang nhận xét của chính nó', () => {
+  const r = tin.soan([{ ...BC, nhanXetAnh: 'màu đã cân theo mẫu' },
+    { ...BC2, nhanXetAnh: 'ngược sáng đoạn cầu, cứu được 6 tấm' }], {});
+  const chu = JSON.stringify(r.card);
+  assert.ok(chu.includes('màu đã cân theo mẫu'), 'mất nhận xét mục 1');
+  assert.ok(chu.includes('cứu được 6 tấm'), 'mất nhận xét mục 2');
+  assert.ok(r.text.includes('màu đã cân theo mẫu') && r.text.includes('cứu được 6 tấm'), r.text);
+});
+
+t('không có nhận xét thì không in nhãn rỗng', () => {
+  /* Dòng cũ trong Base (trước ngày bắt buộc) vẫn gửi lại được — không được ra
+   * một dòng "Nhận xét:" trống trơ. */
+  const r = tin.soan({ ...BC, nhanXetAnh: '' }, {});
+  assert.ok(!r.text.includes('Nhận xét'), r.text);
+  assert.ok(!JSON.stringify(r.card).includes('Nhận xét'));
+});
+
+t('nhận xét chỉ có khoảng trắng cũng coi như không có', () => {
+  const r = tin.soan({ ...BC, nhanXetAnh: '   \n\n  ' }, {});
+  assert.ok(!r.text.includes('Nhận xét'), r.text);
+});
+
 t('nghiệm thu cũng nêu người chỉnh — người đọc cần biết nhắc ai', () => {
   const r = tin.soanNghiemThu({ ...BC, trangThai: 'Cần sửa lại', nhanXet: 'ảnh tối' },
     { nguoiTen: 'Hùng' });

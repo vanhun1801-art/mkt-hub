@@ -152,7 +152,11 @@ module.exports = {
         nPhoto: 'fld4FvLZzo',    // Số ảnh
         nVideo: 'fldf2Ub8NS',    // Số video
         doer: 'fldXjGGZeg',      // Người thực hiện (user, nhiều)
-        note: 'fldgbIgk4Z',      // Ghi chú
+        /* Nhận xét của NGƯỜI CHỈNH về ảnh/góc máy — bắt buộc, và đi thẳng vào tin
+         * nhắn nhóm cho Media + CSKH đọc. Đừng lẫn với `judgeNote` bên dưới: cái
+         * kia là nhận xét của người NGHIỆM THU, viết sau, và đi bằng tin khác. */
+        photoNote: 'flddR2dLan',  // Nhận xét ảnh
+        note: 'fldgbIgk4Z',      // Ghi chú (nội bộ, không gửi nhóm)
         status: 'fldgeKX3kW',    // Trạng thái (select)
         judge: 'fld4vWyheI',     // Người nghiệm thu (user, một)
         judgedAt: 'fld0JoiYyu',  // Nghiệm thu lúc (datetime)

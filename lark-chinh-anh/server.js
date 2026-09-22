@@ -294,6 +294,18 @@ async function api(req, res, u) {
         return fail(res, 400, o('chọn ít nhất một hạng mục: Chỉnh ảnh hoặc Edit video.'));
       }
 
+      /* NHẬN XÉT ẢNH LÀ BẮT BUỘC. Tin nhắn gửi vào nhóm là để Media kiểm và CSKH
+       * gửi khách — một loạt link trần không nói được ảnh này chụp góc nào, đã sửa
+       * gì, chỗ nào cần lưu ý. Anh Hùng chốt phần này bắt buộc (22/09/2026), nên
+       * chặn ở server chứ không chỉ ở form: bỏ trống là không lưu, không gửi. */
+      const nhanXetAnh = String(m.nhanXetAnh == null ? '' : m.nhanXetAnh).trim();
+      if (!nhanXetAnh) {
+        return fail(res, 400, o('chưa viết nhận xét ảnh — phần này bắt buộc, nhóm đọc để biết ảnh có gì.'));
+      }
+      if (nhanXetAnh.length > 2000) {
+        return fail(res, 400, o('nhận xét ảnh dài quá 2000 ký tự.'));
+      }
+
       const linkAnh = tin.linkSach(m.linkAnh);
       const linkVideo = tin.linkSach(m.linkVideo);
       if (hangMuc.includes('Chỉnh ảnh') && !linkAnh) {
@@ -333,6 +345,7 @@ async function api(req, res, u) {
         soAnh: coAnh ? (m.soAnh === '' || m.soAnh == null ? 0 : m.soAnh) : 0,
         soVideo: coVideo ? (m.soVideo === '' || m.soVideo == null ? 0 : m.soVideo) : 0,
         nguoiLamIds: [...nguoi],
+        nhanXetAnh,
         ghiChu: m.ghiChu || b.ghiChu || '',
         /* Báo cáo lại một lô đã bị trả về "Cần sửa lại" thì phải quay về hàng đợi,
          * không thì người kiểm không biết là bạn ấy đã sửa xong. */

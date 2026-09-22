@@ -90,7 +90,7 @@
       ngay: t.ngay || (S.meta ? S.meta.homNay : ''),
       hangMuc: (t.hangMuc || ['Chỉnh ảnh']).slice(),
       nguoiIds: (t.nguoiIds || []).slice(),
-      linkAnh: '', linkVideo: '', soAnh: '', soVideo: '', ghiChu: '',
+      linkAnh: '', linkVideo: '', soAnh: '', soVideo: '', nhanXetAnh: '', ghiChu: '',
     };
   }
 
@@ -404,8 +404,16 @@
         </div>
 
         <div class="field full">
+          <label>Nhận xét ảnh <b class="buoc">*</b></label>
+          <textarea data-f="nhanXetAnh" rows="3"
+            placeholder="Góc máy, màu, chỗ đã sửa, chỗ cần lưu ý…">${esc(m.nhanXetAnh)}</textarea>
+          <div class="hint">Gửi kèm vào nhóm để Media kiểm và CSKH gửi khách — bắt buộc.</div>
+        </div>
+
+        <div class="field full">
           <label>Ghi chú</label>
           <input data-f="ghiChu" value="${esc(m.ghiChu)}" placeholder="">
+          <div class="hint">Ghi riêng cho mình, không gửi vào nhóm.</div>
         </div>
       </div>
 
@@ -643,6 +651,11 @@
       if (m.hangMuc.includes('Edit video') && !/^https?:\/\//i.test(String(m.linkVideo).trim())) {
         return toast(o + 'thiếu link thư mục video.', 'err');
       }
+      /* Nhận xét ảnh bắt buộc — server cũng chặn, đây chỉ để báo sớm cho đỡ mất
+       * công gõ xong rồi mới biết. */
+      if (!String(m.nhanXetAnh || '').trim()) {
+        return toast(o + 'viết nhận xét ảnh đã — nhóm đọc phần này để biết ảnh có gì.', 'err');
+      }
     }
 
     S.dangGui = true; veForm();
@@ -652,7 +665,8 @@
         muc: f.muc.map((m) => ({
           tourId: m.tourId, loai: m.loai, ngay: m.ngay, hangMuc: m.hangMuc,
           linkAnh: String(m.linkAnh).trim(), linkVideo: String(m.linkVideo).trim(),
-          soAnh: m.soAnh, soVideo: m.soVideo, ghiChu: m.ghiChu,
+          soAnh: m.soAnh, soVideo: m.soVideo,
+          nhanXetAnh: String(m.nhanXetAnh || '').trim(), ghiChu: m.ghiChu,
           nguoiLamIds: m.nguoiIds, thuMuc: tenThuMuc(m),
         })),
       });
@@ -753,7 +767,8 @@
       <tbody>${S.ds.map((b) => `<tr>
         <td class="mono">${esc(ngayGon(b.ngay))}</td>
         <td class="name">${esc(b.thuMuc)}${b.daGui ? '' : ' <span class="tag warn">chưa gửi</span>'}
-          ${b.nhanXet ? '<div class="phu">' + esc(b.nhanXet) + '</div>' : ''}</td>
+          ${b.nhanXetAnh ? '<div class="phu">' + esc(b.nhanXetAnh) + '</div>' : ''}
+          ${b.nhanXet ? '<div class="phu">Nghiệm thu: ' + esc(b.nhanXet) + '</div>' : ''}</td>
         <td>${esc(b.hangMuc.join(' · ') || '—')}</td>
         <td class="num">${b.soAnh ? n0(b.soAnh) : '—'}</td>
         <td class="num">${b.soVideo ? n0(b.soVideo) : '—'}</td>
@@ -847,8 +862,12 @@
               <button data-v="Cần sửa lại">Cần sửa lại</button>
             </div>
           </div>
+          ${b.nhanXetAnh ? `<div class="field full">
+            <label>Người chỉnh nhận xét</label>
+            <div class="doc-nx">${esc(b.nhanXetAnh)}</div>
+          </div>` : ''}
           <div class="field full">
-            <label>Nhận xét</label>
+            <label>Nhận xét nghiệm thu</label>
             <textarea id="mNx" placeholder="Trả về sửa thì phải ghi rõ sửa gì"></textarea>
           </div>
         </div>

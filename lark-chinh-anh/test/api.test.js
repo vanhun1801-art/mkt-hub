@@ -411,8 +411,8 @@ async function goiThat() {
       const r = await post(port, '/api/bao-cao', {
         gui: false,
         muc: [
-          { tourId: tour.id, loai: 'Ghép', ngay: '2026-01-02', hangMuc: ['Chỉnh ảnh'], linkAnh: 'https://vi.du/1' },
-          { tourId: tour.id, loai: 'Ghép', ngay: '2026-01-02', hangMuc: ['Chỉnh ảnh'], linkAnh: 'https://vi.du/2' },
+          { tourId: tour.id, loai: 'Ghép', ngay: '2026-01-02', hangMuc: ['Chỉnh ảnh'], linkAnh: 'https://vi.du/1', nhanXetAnh: 'đủ góc' },
+          { tourId: tour.id, loai: 'Ghép', ngay: '2026-01-02', hangMuc: ['Chỉnh ảnh'], linkAnh: 'https://vi.du/2', nhanXetAnh: 'đủ góc' },
         ],
       });
       assert.strictEqual(r.code, 400, 'phải bị chặn, nếu không mục 2 đè mục 1 trên Base');
@@ -425,8 +425,8 @@ async function goiThat() {
       const r = await post(port, '/api/bao-cao', {
         gui: false,
         muc: [
-          { tourId: tour.id, loai: 'Ghép', ngay: '2026-01-03', hangMuc: ['Chỉnh ảnh'], linkAnh: 'https://vi.du/1' },
-          { tourId: tour.id, loai: 'VIP', ngay: '2026-01-03', hangMuc: ['Edit video'] },
+          { tourId: tour.id, loai: 'Ghép', ngay: '2026-01-03', hangMuc: ['Chỉnh ảnh'], linkAnh: 'https://vi.du/1', nhanXetAnh: 'đủ góc' },
+          { tourId: tour.id, loai: 'VIP', ngay: '2026-01-03', hangMuc: ['Edit video'], nhanXetAnh: 'đủ góc' },
         ],
       });
       assert.strictEqual(r.code, 400);
@@ -435,11 +435,40 @@ async function goiThat() {
       assert.strictEqual(sau, truoc, 'mục 1 hợp lệ nhưng mục 2 lỗi → KHÔNG được ghi nửa vời');
     });
 
+    await ta('POST: thiếu nhận xét ảnh thì bị chặn, KHÔNG ghi gì', async () => {
+      /* Anh Hùng chốt 22/09/2026: nhận xét ảnh là bắt buộc. Nhóm này là nơi Media
+       * kiểm và CSKH gửi khách — một loạt link trần không nói được ảnh chụp góc
+       * nào, đã sửa gì. Chặn ở SERVER chứ không chỉ ở form, vì form thì ai gọi
+       * thẳng API cũng bỏ qua được. */
+      const tour = meta.j.toursAll[0];
+      const truoc = (await get(port, '/api/bao-cao?tu=2026-03-01&den=2026-03-31')).j.baoCao.length;
+      const r = await post(port, '/api/bao-cao', {
+        gui: false,
+        muc: [{ tourId: tour.id, loai: 'Ghép', ngay: '2026-03-04', hangMuc: ['Chỉnh ảnh'],
+          linkAnh: 'https://vi.du/9' }],
+      });
+      assert.strictEqual(r.code, 400);
+      assert.ok(/nhận xét ảnh/.test(r.j.error), r.j.error);
+      const sau = (await get(port, '/api/bao-cao?tu=2026-03-01&den=2026-03-31&moi=1')).j.baoCao.length;
+      assert.strictEqual(sau, truoc, 'bị chặn mà vẫn ghi thì chốt này vô nghĩa');
+    });
+
+    await ta('POST: nhận xét toàn khoảng trắng cũng bị chặn', async () => {
+      const tour = meta.j.toursAll[0];
+      const r = await post(port, '/api/bao-cao', {
+        gui: false,
+        muc: [{ tourId: tour.id, loai: 'Ghép', ngay: '2026-03-05', hangMuc: ['Chỉnh ảnh'],
+          linkAnh: 'https://vi.du/9', nhanXetAnh: '   \n\t ' }],
+      });
+      assert.strictEqual(r.code, 400, 'gõ mấy dấu cách cho xong là lách được cả luật');
+      assert.ok(/nhận xét ảnh/.test(r.j.error), r.j.error);
+    });
+
     await ta('POST quá 20 mục thì từ chối', async () => {
       const tour = meta.j.toursAll[0];
       const muc = Array.from({ length: 21 }, (_, k) => ({
         tourId: tour.id, loai: 'Ghép', ngay: '2026-02-' + String((k % 28) + 1).padStart(2, '0'),
-        hangMuc: ['Chỉnh ảnh'], linkAnh: 'https://vi.du/' + k,
+        hangMuc: ['Chỉnh ảnh'], linkAnh: 'https://vi.du/' + k, nhanXetAnh: 'đủ góc',
       }));
       const r = await post(port, '/api/bao-cao', { gui: false, muc });
       assert.strictEqual(r.code, 400);

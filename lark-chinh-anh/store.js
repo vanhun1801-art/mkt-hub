@@ -121,6 +121,7 @@ function docBaoCao(r) {
     soAnh: num(r.c[f.nPhoto]),
     soVideo: num(r.c[f.nVideo]),
     nguoiLam: users(r.c[f.doer]),
+    nhanXetAnh: clean(r.c[f.photoNote]),
     ghiChu: clean(r.c[f.note]),
     trangThai: sel(r.c[f.status]) || 'Chờ nghiệm thu',
     nguoiNghiemThu: users(r.c[f.judge])[0] || null,
@@ -190,6 +191,7 @@ async function ghiBaoCao(ban) {
   if (ban.soAnh != null && ban.soAnh !== '') dat(f.nPhoto, num(ban.soAnh));
   if (ban.soVideo != null && ban.soVideo !== '') dat(f.nVideo, num(ban.soVideo));
   if (ban.nguoiLamIds) dat(f.doer, ban.nguoiLamIds.map((id) => ({ id })));
+  dat(f.photoNote, ban.nhanXetAnh);
   dat(f.note, ban.ghiChu);
   if (ban.trangThai) dat(f.status, ban.trangThai);
 

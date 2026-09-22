@@ -111,7 +111,9 @@ const baoCaoFields = (tourTableId) => [
   { name: 'Số ảnh', type: 'number', style: { type: 'plain', precision: 0 } },
   { name: 'Số video', type: 'number', style: { type: 'plain', precision: 0 } },
   { name: 'Người thực hiện', type: 'user', multiple: true },
-  { name: 'Ghi chú', type: 'text' },
+  { name: 'Nhận xét ảnh', type: 'text',
+    description: 'Người chỉnh viết nhận xét về ảnh/góc máy. BẮT BUỘC, và được gửi kèm vào nhóm cho Media + CSKH đọc.' },
+  { name: 'Ghi chú', type: 'text', description: 'Ghi chú nội bộ — KHÔNG gửi vào nhóm.' },
   { name: 'Trạng thái', type: 'select', multiple: false, default_value: ['Chờ nghiệm thu'], options: [
     { name: 'Chờ nghiệm thu', hue: 'Yellow' },
     { name: 'Đạt', hue: 'Green' },

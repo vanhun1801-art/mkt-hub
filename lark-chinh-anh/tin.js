@@ -52,6 +52,21 @@ function dem(bc) {
 }
 
 /** Link thư mục dạng markdown — bấm được trong thẻ Lark, không cần nút. */
+/**
+ * Nhận xét của người chỉnh về ảnh / góc máy.
+ *
+ * Bắt buộc từ 22/09/2026 và LUÔN in vào tin: nhóm này là nơi Media kiểm ảnh và
+ * CSKH gửi khách, mà một loạt link trần không nói được ảnh chụp góc nào, đã sửa
+ * gì, chỗ nào cần lưu ý. Khác hẳn ô "Ghi chú" — cái đó ghi nội bộ và cố ý KHÔNG
+ * vào tin (anh Hùng chốt 10/09/2026).
+ *
+ * Gộp dòng trống thừa: người ta hay xuống dòng lung tung, để nguyên thì khối mục
+ * trong thẻ giãn ra đầy khoảng trắng.
+ */
+function nhanXet(bc) {
+  return String(bc.nhanXetAnh || '').trim().replace(/\n{3,}/g, '\n\n');
+}
+
 function link(bc) {
   const anh = linkSach(bc.linkAnh);
   const video = linkSach(bc.linkVideo);
@@ -107,8 +122,12 @@ function theMotMuc(bc, { nguoiTen, capNhat }) {
 
   const l = link(bc);
   if (l) elements.push({ tag: 'div', text: md(l) });
+
+  const nx = nhanXet(bc);
+  if (nx) elements.push({ tag: 'div', text: md('**Nhận xét**\n' + nx) });
   /* Ghi chú KHÔNG vào tin — xem lý do ở theNhieuMuc(). Giữ cùng một quy tắc cho cả
-   * hai kiểu thẻ, không thì báo 1 lô thấy ghi chú mà báo 2 lô lại không. */
+   * hai kiểu thẻ, không thì báo 1 lô thấy ghi chú mà báo 2 lô lại không.
+   * Nhận xét ảnh thì ngược lại: có ở CẢ HAI kiểu thẻ, vì đó là thứ nhóm cần đọc. */
 
   return {
     elements,
@@ -131,6 +150,8 @@ function chuMotMuc(bc, { nguoiTen, capNhat }) {
   ];
   if (anh) dong.push('Ảnh: ' + anh);
   if (video) dong.push('Video: ' + video);
+  const nx = nhanXet(bc);
+  if (nx) dong.push('Nhận xét: ' + nx);
   dong.push('Trạng thái: ' + (bc.trangThai || 'Chờ nghiệm thu'));
   return dong.join('\n');
 }
@@ -182,6 +203,9 @@ function theNhieuMuc(ds, { nguoiTen, ngayChung }) {
 
     const l = link(bc);
     if (l) dong.push(l);
+
+    const nx = nhanXet(bc);
+    if (nx) dong.push('Nhận xét: ' + nx);
     /* KHÔNG in ghi chú vào tin (anh Hùng chốt 10/09/2026): hai dòng trên đã đủ cho
      * Media và CSKH, thêm dòng chữ nghiêng chỉ làm khối mục dài và rối. Ghi chú vẫn
      * nằm nguyên trên Base và trong app — không mất gì, chỉ là không đẩy vào nhóm. */
@@ -216,6 +240,8 @@ function chuNhieuMuc(ds, { nguoiTen, ngayChung }) {
     const video = linkSach(bc.linkVideo);
     if (anh) dong.push('   Ảnh: ' + anh);
     if (video) dong.push('   Video: ' + video);
+    const nx = nhanXet(bc);
+    if (nx) dong.push('   Nhận xét: ' + nx.split('\n').join('\n   '));
   });
   return dong.join('\n');
 }
