@@ -230,13 +230,32 @@ t('gợi ý kênh lạ thì coi như không có, đừng loại sạch', async (
   assert.strictEqual(k.ghi, 1, 'thà khớp rộng còn hơn trượt vì một chuỗi lạ');
 });
 
-t('dòng cũ chưa có ô Nền tảng thì hiểu là Facebook', async () => {
+t('dòng cũ chưa có ô Nền tảng thì thử CẢ HAI, không đóng đinh là Facebook', async () => {
+  /* Đã làm hỏng một bài thật: bản máy chủ chạy trước khi có TikTok ghi mọi mục
+     với ô Nền tảng trống. Bài "Lại bảo không hời đi..." Phương Ái đăng lên
+     TikTok lúc 16:40, mục của nó bị hiểu là Facebook nên đi tìm trong kho bài
+     Facebook — thử 39 lần, không lần nào ra. */
+  const van = 'Lại bảo không hời đi... Hệ đổi chỗ ngủ thì vẫn vậy thôi';
+
   bang = {};
-  const van = 'Dòng này ghi từ trước khi có TikTok nên ô nền tảng trống';
+  await cho.luu([{ nguoi: AI, van }]);                  // không khai nền tảng
+  assert.strictEqual(bang[TP.id][0].c[f.nenTang], '', 'không biết thì để trống');
+  let k = await cho.khopLai([baiTT('recTT', van, 'k1')]);
+  assert.strictEqual(k.ghi, 1, 'bài nằm ở TikTok thì vẫn phải tìm ra');
+
+  /* Và vẫn khớp được bài Facebook như cũ. */
+  bang = {};
   await cho.luu([{ nguoi: AI, van }]);
-  delete bang[TP.id][0].c[f.nenTang];                     // đúng dạng dòng cũ
-  const k = await cho.khopLai([bai('recD', van)]);
+  k = await cho.khopLai([bai('recFB', van)]);
   assert.strictEqual(k.ghi, 1);
+
+  /* Hai nền tảng cùng có bài giống hệt: không biết mục này của bài nào — thà
+     để chờ còn hơn gán bừa cho một bên. */
+  bang = {};
+  await cho.luu([{ nguoi: AI, van }]);
+  k = await cho.khopLai([bai('recFB', van), baiTT('recTT', van, 'k1')]);
+  assert.strictEqual(k.ghi, 0, 'hai bên cùng ra thì không đoán');
+  assert.strictEqual(dsCho().length, 1, 'và phải nằm lại chờ');
 });
 
 (async () => {

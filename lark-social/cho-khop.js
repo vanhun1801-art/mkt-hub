@@ -46,7 +46,7 @@ const gonTen = (s) => String(s || '').replace(/\s+/g, ' ').trim();
  * một bài mỗi năm phút, nên không có khoá này thì bảng đầy bản sao trong một
  * buổi sáng. */
 const khoa = (van, nguoi, nenTang) =>
-  JSON.stringify([nguoiDang.gonVan(van).slice(0, 40), gonTen(nguoi), nenTang || 'Facebook']);
+  JSON.stringify([nguoiDang.gonVan(van).slice(0, 40), gonTen(nguoi), nenTang || '']);
 
 /** Đọc cả bảng, dạng đã bóc field. */
 async function nap() {
@@ -59,9 +59,14 @@ async function nap() {
     thuCuoi: store.clean(r.c[f.thuCuoi]),
     soLan: store.num(r.c[f.soLan]) || 0,
     trangThai: store.sel(r.c[f.trangThai]) || 'Đang chờ',
-    /* Dòng ghi từ trước khi có TikTok thì ô Nền tảng trống — hiểu là Facebook,
-     * đúng như lúc nó được ghi. */
-    nenTang: store.sel(r.c[f.nenTang]) || 'Facebook',
+    /* Ô trống nghĩa là CHƯA RÕ, không phải Facebook.
+     *
+     * Hiểu trống là Facebook đã làm hỏng một bài thật: bản máy chủ chạy trước
+     * khi có TikTok ghi mọi mục với ô này trống, trong đó có bài "Lại bảo không
+     * hời đi..." mà Phương Ái đăng lên TikTok lúc 16:40. Đóng đinh nó là
+     * Facebook thì nó đi tìm trong kho bài Facebook mãi mãi — đã thử 39 lần.
+     * Chưa rõ thì thử cả hai nền tảng, xem khopLai(). */
+    nenTang: store.sel(r.c[f.nenTang]) || '',
     kenh: store.clean(r.c[f.kenh]),
   }));
 }
@@ -98,7 +103,10 @@ async function luu(items, dsCho) {
     moi.push({
       [f.van]: String(x.van).slice(0, 200),
       [f.nguoi]: gonTen(x.nguoi),
-      [f.nenTang]: x.nenTang || 'Facebook',
+      /* Không biết thì để TRỐNG, đừng đoán là Facebook — ô trống có nghĩa riêng
+       * ("thử cả hai nền tảng"), xem nap(). Mặc định ở đây phải khớp với mặc
+       * định của khoa(), không thì gửi lại một bài là đẻ thêm dòng mới. */
+      [f.nenTang]: x.nenTang || '',
       [f.kenh]: String(x.kenh || ''),
       [f.batLuc]: luc,
       [f.thuCuoi]: luc,
@@ -137,8 +145,17 @@ async function khopLai(posts, kenhDS) {
 
   dang.forEach((x) => {
     if (!hopLe.has(gonTen(x.nguoi))) return;
-    const p = nguoiDang.ghepTheoVan(x.van, posts,
-      { nenTang: x.nenTang, kenh: x.kenh, kenhDS });
+    /* Chưa rõ nền tảng thì thử cả hai, và chỉ nhận khi ĐÚNG MỘT bên ra kết quả.
+     * Hai bên cùng ra là bài được đăng lên cả hai nơi với cùng caption — không
+     * biết mục này thuộc bài nào, thà để chờ còn hơn gán bừa. */
+    const p = x.nenTang
+      ? nguoiDang.ghepTheoVan(x.van, posts, { nenTang: x.nenTang, kenh: x.kenh, kenhDS })
+      : (() => {
+        const ra = ['Facebook', 'TikTok']
+          .map((nt) => nguoiDang.ghepTheoVan(x.van, posts, { nenTang: nt, kenh: x.kenh, kenhDS }))
+          .filter(Boolean);
+        return ra.length === 1 ? ra[0] : null;
+      })();
     if (!p) {
       /* Quá hạn thì dừng thử, nhưng giữ dòng lại. */
       /* batLuc ghi theo giờ Việt Nam và không mang hậu tố múi giờ, nên phải
