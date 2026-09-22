@@ -236,46 +236,98 @@ const esc = (s) => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
+/* Bảng màu lấy từ chính con Ma-Két trên logo app: nền xanh ngọc chuyển sang lam,
+ * linh vật trắng. Nên trang đăng nhập — thứ đầu tiên người lạ nhìn thấy — trông
+ * cùng một nhà với app, thay vì một cái hộp xám trôi giữa nền đen.
+ *
+ * Nút Lark giữ đúng màu lam của Lark: đó là hành động mang thương hiệu của họ,
+ * người dùng nhận ra nút đó trước khi đọc chữ. Xanh ngọc của mình chỉ làm nền và
+ * viền sáng, không tranh chỗ. */
 const KIEU_TRANG = `
-:root{--muc:#1f2329;--mo:#646a73;--vien:#dee0e3;--xanh:#3370ff;--nen:#f5f6f7;--do:#d83931}
+:root{
+  --muc:#111826;--mo:#5f6b7a;--vien:#e3e8ee;--the:#ffffff;--nen:#eef4f8;
+  --lam:#3370ff;--ngoc:#22c3d6;--do:#c8342c;--luc:#237a3d;
+  --do-nen:#fdf1f0;--do-vien:#f3c9c6;--luc-nen:#edf7ef;--luc-vien:#bfe3c6;
+  --bong:0 1px 2px rgba(16,32,56,.05),0 12px 32px -12px rgba(16,32,56,.18);
+}
 *{box-sizing:border-box}
-body{font:15px/1.55 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--nen);
-  color:var(--muc);margin:0;min-height:100vh;display:grid;place-items:center;padding:24px 16px}
-.hop{background:#fff;border:1px solid var(--vien);border-radius:14px;padding:32px;width:100%;max-width:380px}
-h1{font-size:20px;margin:0 0 4px}
-.phu{color:var(--mo);font-size:13.5px;margin:0 0 24px}
-label{display:block;font-size:13px;color:var(--mo);margin:14px 0 5px}
-input{width:100%;padding:10px 12px;border:1px solid var(--vien);border-radius:8px;font-size:15px;
-  font-family:inherit;background:#fff;color:var(--muc)}
-input:focus{outline:2px solid var(--xanh);outline-offset:-1px;border-color:var(--xanh)}
-button{width:100%;padding:11px;border:0;border-radius:8px;background:var(--xanh);color:#fff;
-  font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;margin-top:20px}
-button:hover{filter:brightness(1.07)}
-button.phu-nut{background:#fff;color:var(--muc);border:1px solid var(--vien);font-weight:500}
-.lark{display:flex;align-items:center;justify-content:center;gap:9px;text-decoration:none;
-  padding:11px;border-radius:8px;background:var(--xanh);color:#fff;font-weight:600;margin-bottom:18px}
-.lark:hover{filter:brightness(1.07)}
-.vach{display:flex;align-items:center;gap:12px;color:var(--mo);font-size:12.5px;margin:18px 0}
+body{
+  font:15px/1.55 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  color:var(--muc);margin:0;min-height:100vh;padding:32px 16px;
+  display:grid;place-items:center;background:var(--nen);
+  background-image:
+    radial-gradient(62rem 32rem at 50% -14%, color-mix(in srgb, var(--ngoc) 26%, transparent), transparent 70%),
+    radial-gradient(48rem 30rem at 92% 104%, color-mix(in srgb, var(--lam) 16%, transparent), transparent 72%);
+  background-attachment:fixed;
+}
+.hop{
+  background:var(--the);border:1px solid var(--vien);border-radius:18px;
+  padding:34px 32px 28px;width:100%;max-width:372px;box-shadow:var(--bong);
+  animation:len .32s cubic-bezier(.2,.7,.3,1) both;
+}
+@keyframes len{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.hop{animation:none}}
+.dau{display:flex;flex-direction:column;align-items:center;text-align:center;margin-bottom:26px}
+.dau img{width:56px;height:56px;border-radius:14px;box-shadow:var(--bong);margin-bottom:14px}
+h1{font-size:21px;line-height:1.25;margin:0;letter-spacing:-.01em;font-weight:650}
+.phu{color:var(--mo);font-size:13px;margin:5px 0 0;letter-spacing:.01em}
+label{display:block;font-size:12.5px;font-weight:550;color:var(--mo);margin:16px 0 6px}
+input{
+  width:100%;padding:11px 13px;border:1px solid var(--vien);border-radius:10px;
+  font-size:15px;font-family:inherit;background:var(--the);color:var(--muc);
+  transition:border-color .15s,box-shadow .15s;
+}
+input:focus{outline:0;border-color:var(--lam);box-shadow:0 0 0 3px color-mix(in srgb, var(--lam) 18%, transparent)}
+button,.lark{
+  display:flex;align-items:center;justify-content:center;width:100%;padding:12px;
+  border:0;border-radius:10px;font-size:15px;font-weight:600;font-family:inherit;
+  cursor:pointer;text-decoration:none;
+  /* CHỈ chuyển filter, đừng chuyển background: đổi nền sáng/tối của máy là
+   * mọi nút chạy hoạt ảnh đổi màu, bắt đúng lúc đó thì nút phụ đang nửa đen nửa
+   * trắng và chữ không đọc được — đã chụp được cảnh đó lúc thử. */
+  transition:filter .15s;
+}
+button{margin-top:22px;background:var(--lam);color:#fff}
+button:hover,.lark:hover{filter:brightness(1.06)}
+button:focus-visible,.lark:focus-visible{outline:2px solid var(--lam);outline-offset:2px}
+button.phu-nut{background:var(--the);color:var(--muc);border:1px solid var(--vien);font-weight:550;margin-top:0}
+button.phu-nut:hover{filter:none;background:var(--nen)}
+.lark{background:var(--lam);color:#fff}
+.vach{display:flex;align-items:center;gap:14px;color:var(--mo);font-size:12px;margin:16px 0}
 .vach::before,.vach::after{content:"";flex:1;height:1px;background:var(--vien)}
-.loi{background:#fdf0ef;border:1px solid #f5c6c4;color:var(--do);border-radius:8px;
-  padding:10px 12px;font-size:13.5px;margin-bottom:16px;text-align:left}
-.xong{background:#eaf5ea;border:1px solid #b7dfb9;color:#2e7d32;border-radius:8px;
-  padding:12px;font-size:13.5px;margin-bottom:16px;text-align:left}
-.duoi{text-align:center;margin:18px 0 0;font-size:13.5px;color:var(--mo)}
-.duoi a{color:var(--xanh);text-decoration:none}
-.goi-y{font-size:12.5px;color:var(--mo);margin-top:6px}
+.loi,.xong{border-radius:10px;padding:11px 13px;font-size:13.5px;margin-bottom:18px;text-align:left}
+.loi{background:var(--do-nen);border:1px solid var(--do-vien);color:var(--do)}
+.xong{background:var(--luc-nen);border:1px solid var(--luc-vien);color:var(--luc)}
+.duoi{text-align:center;margin:22px 0 0;font-size:13px;color:var(--mo);line-height:1.7}
+.duoi a{color:var(--lam);text-decoration:none;font-weight:550}
+.duoi a:hover{text-decoration:underline}
+.goi-y{font-size:12.5px;color:var(--mo);margin:7px 0 0}
 @media (prefers-color-scheme:dark){
-  :root{--muc:#e7e8ea;--mo:#9aa0a6;--vien:#3a3d41;--nen:#17181a}
-  .hop{background:#202225}
-  input{background:#17181a;color:var(--muc)}
-  button.phu-nut{background:#202225}
-  .loi{background:#3a2422;border-color:#5c322f}
-  .xong{background:#1e2e20;border-color:#2f5233;color:#8fd694}
+  :root:not([data-theme="light"]){
+    --muc:#e8ecf1;--mo:#98a2b0;--vien:#2c333c;--the:#1a1f26;--nen:#0f1319;
+    --lam:#4d84ff;--ngoc:#2dd4e8;--do:#ff8a80;--luc:#8fd694;
+    --do-nen:#2a1d1c;--do-vien:#4d2f2c;--luc-nen:#16281a;--luc-vien:#2b4a30;
+    --bong:0 1px 2px rgba(0,0,0,.4),0 16px 40px -16px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --muc:#e8ecf1;--mo:#98a2b0;--vien:#2c333c;--the:#1a1f26;--nen:#0f1319;
+  --lam:#4d84ff;--ngoc:#2dd4e8;--do:#ff8a80;--luc:#8fd694;
+  --do-nen:#2a1d1c;--do-vien:#4d2f2c;--luc-nen:#16281a;--luc-vien:#2b4a30;
+  --bong:0 1px 2px rgba(0,0,0,.4),0 16px 40px -16px rgba(0,0,0,.7);
 }`;
+
+/* Logo app trên đầu mỗi trang. Ảnh này mở công khai (xem `moCong` trong
+ * server.js) vì trang đăng nhập nằm TRƯỚC cổng — chặn nó thì ô ảnh vỡ. */
+const dauTrang = (tieu, phu) =>
+  '<div class="dau"><img src="/logo-app-180.png" alt="" width="56" height="56">' +
+  '<h1>' + esc(tieu) + '</h1>' +
+  (phu ? '<p class="phu">' + esc(phu) + '</p>' : '') + '</div>';
 
 function trang(res, tieuDe, than, code = 200) {
   const html = '<!doctype html><html lang="vi"><meta charset="utf-8">' +
     '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<link rel="icon" href="/logo-app-32.png">' +
     '<title>' + esc(tieuDe) + '</title><style>' + KIEU_TRANG + '</style>' +
     '<div class="hop">' + than + '</div>';
   res.writeHead(code, {
@@ -332,8 +384,7 @@ async function handle(req, res, url) {
   if (p === '/auth/login' && taiKhoan.co()) {
     const next = duongDanNoiBo(url.searchParams.get('next'));
     return trang(res, 'Đăng nhập · ' + cfg.ten,
-      '<h1>' + esc(cfg.ten) + '</h1>' +
-      '<p class="phu">' + esc(cfg.phu) + '</p>' +
+      dauTrang(cfg.ten, cfg.phu) +
       '<a class="lark" href="/auth/lark?next=' + encodeURIComponent(next) + '">Đăng nhập bằng Lark</a>' +
       '<div class="vach">hoặc</div>' +
       '<form method="get" action="/auth/mat-khau">' +
@@ -394,8 +445,7 @@ async function handle(req, res, url) {
     const next = duongDanNoiBo(url.searchParams.get('next'));
 
     const veTrang = (loiCau, mail) => trang(res, 'Đăng nhập · ' + cfg.ten,
-      '<h1>Đăng nhập</h1>' +
-      '<p class="phu">Tài khoản dành cho người không dùng Lark.</p>' +
+      dauTrang('Đăng nhập', 'Tài khoản dành cho người không dùng Lark') +
       (loiCau ? '<div class="loi">' + esc(loiCau) + '</div>' : '') +
       '<form method="post" action="/auth/mat-khau?next=' + encodeURIComponent(next) + '">' +
       '<label for="e">Email</label>' +
@@ -454,8 +504,7 @@ async function handle(req, res, url) {
     if (!taiKhoan.co()) return redirect(res, '/auth/login');
 
     const veTrang = (loiCau, cu) => trang(res, 'Đăng ký · ' + cfg.ten,
-      '<h1>Đăng ký</h1>' +
-      '<p class="phu">Đăng ký xong phải chờ quản lý duyệt mới vào được.</p>' +
+      dauTrang('Đăng ký', 'Gửi xong phải chờ quản lý duyệt mới vào được') +
       (loiCau ? '<div class="loi">' + esc(loiCau) + '</div>' : '') +
       '<form method="post" action="/auth/dang-ky">' +
       '<label for="t">Họ tên</label>' +
@@ -495,7 +544,7 @@ async function handle(req, res, url) {
     /* Email đã có tài khoản cũng trả về ĐÚNG câu này — không nói ra ai đang có
      * tài khoản trong hệ thống. */
     return trang(res, 'Đã gửi · ' + cfg.ten,
-      '<h1>Đã gửi đăng ký</h1>' +
+      dauTrang('Đã gửi đăng ký', '') +
       '<div class="xong">Quản lý sẽ xem và duyệt. Được duyệt rồi thì đăng nhập ' +
       'bằng email và mật khẩu vừa đặt.</div>' +
       '<p class="duoi"><a href="/auth/login">Về trang đăng nhập</a></p>');

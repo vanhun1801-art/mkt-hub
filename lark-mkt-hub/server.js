@@ -2147,8 +2147,14 @@ const server = http.createServer(async (req, res) => {
      * theo phiên đăng nhập nào. Chặn ở đây thì mọi tệp xuất trên server chung
      * đều in bản chữ thay logo, mà không có gì báo là vì sao. Ghi logo vẫn chỉ
      * quản lý (POST/DELETE đi qua chiQuanLy trong api()). */
+    /* Logo app mở như /healthz: trang đăng nhập nằm TRƯỚC cổng này, mà nó có
+     * đặt ảnh logo lên đầu. Chặn thì người chưa đăng nhập thấy một ô ảnh vỡ —
+     * ấn tượng đầu tiên của người lạ với hệ thống. Đây là nhãn hiệu, không phải
+     * dữ liệu: không có gì để lộ. */
+    const anhCong = ['/logo-app-180.png', '/logo-app-32.png', '/icon.svg'];
     const moCong = p === '/healthz'
-      || (p === '/api/logo' && (req.method === 'GET' || req.method === 'HEAD'));
+      || (p === '/api/logo' && (req.method === 'GET' || req.method === 'HEAD'))
+      || (anhCong.includes(p) && (req.method === 'GET' || req.method === 'HEAD'));
     if (!moCong) {
       const nguoiCong = auth.sessionUser(req);
       if (!nguoiCong) return auth.requireLogin(res, u);
