@@ -840,6 +840,14 @@
 
     /* Lịch đổi thông tin (22/09/2026) */
     'Lịch đổi thông tin': 'Scheduled changes',
+    'Tour riêng (VIP)': 'Private tour (VIP)',
+    'Giá theo số khách': 'Price by group size',
+    'Số khách': 'Group size',
+    'Tour riêng tính giá trên đầu người, đoàn càng đông càng rẻ. Báo giá phải kèm số khách.':
+      'Private tours are priced per person and get cheaper as the group grows. Always quote the group size.',
+    'Sắp đổi': 'Changing soon',
+    'Chưa gán sản phẩm': 'No product assigned',
+    '(đặt và huỷ ở tab Quản lý)': '(schedule and cancel on the Manage tab)',
     'Đặt trước — tới ngày app tự ghi vào sản phẩm, có lưu bản cũ.':
       'Set it ahead — on the date the app writes it to the product and keeps the old value.',
     '+ Đặt lịch đổi': '+ Schedule a change',
@@ -1018,6 +1026,12 @@
     /* --- Thông tin sản phẩm: câu có con số nên không khớp khoá nguyên câu --- */
     [/^(\d+) dòng trong Base$/, '$1 rows in the Base'],
     [/^(\d+) sản phẩm$/, '$1 products'],
+    [/^(\d+) mục$/, '$1 items'],
+    [/^từ (\d{2}\/\d{2}\/\d{4})$/, 'from $1'],
+    [/^(\d+) khách$/, '$1 guests'],
+    [/^⏳ đổi (\d{2}\/\d{2}\/\d{4})$/, '⏳ changes $1'],
+    [/^⏳ đổi (\d{2}\/\d{2}\/\d{4}) · (\d+) mục$/, '⏳ changes $1 · $2 items'],
+    [/^\/khách · đoàn từ (\d+)$/, '\/guest · groups of $1+'],
     [/^áp lúc (\d{2}\/\d{2}\/\d{4})$/, 'applied $1'],
     [/^Chọn cả (\d+) dòng đang hiện$/, 'Select all $1 rows shown'],
     [/^Đã chọn (\d+)$/, '$1 selected'],

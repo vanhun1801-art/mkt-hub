@@ -40,6 +40,7 @@ module.exports = {
   chinhSachTableId: 'tblOfu9c38xmFJ1c',
   mediaTableId: 'tblUgaFAj0VZ4Chj',
   lichTableId: 'tblSjAgrKdYI1eLy',
+  giaPaxTableId: 'tblgB57gdBQqplrU',
 
   /* View "🛠 Cần bổ sung thông tin" — chỉ dùng để mở thẳng sang Base, app tự
      tính lại danh sách này từ cột công thức nên không phụ thuộc vào view. */
@@ -116,6 +117,14 @@ module.exports = {
       truyenThong: 'flddqLyZbg',
       nguon: 'fldX9qVTVH',
     },
+    giaPax: {
+      ten: 'fldrv57bNe',
+      sanPham: 'fldnffEWru',
+      soKhach: 'fld7QOrjk3',
+      giaNL: 'fldbMvsvnm',
+      giaTE: 'fldK9Ij1qK',
+      nguon: 'fldPl78BD1',
+    },
     lich: {
       ten: 'fldAR43dY8',
       sanPham: 'fldJjUurit',
@@ -148,7 +157,8 @@ module.exports = {
    * cục màn đầu tiên người dùng nhìn thấy.
    */
   chon: {
-    nhom: ['Tour ghép hằng ngày', 'Tour trọn gói', 'Combo tự túc', 'Dịch vụ lẻ'],
+    nhom: ['Tour ghép hằng ngày', 'Tour riêng (VIP)', 'Tour trọn gói',
+      'Combo tự túc', 'Dịch vụ lẻ'],
     uuTien: ['🔥 Ưu tiên đẩy', '🟢 Chạy hằng ngày', '🔵 Duy trì',
       '🌤 Theo mùa / theo yêu cầu', '⏸ Tạm dừng đẩy'],
     trangThai: ['🆕 Sắp ra mắt', 'Đang kinh doanh', 'Rất ít bán', 'Tạm ngưng', 'Ngừng bán'],

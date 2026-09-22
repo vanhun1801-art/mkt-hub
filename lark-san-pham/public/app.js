@@ -158,6 +158,12 @@ function nhanHtml(p) {
     ds.push('<span class="nhan canh">ưu đãi hết ' + esc(veNgay(ud[0].den)) + '</span>');
   }
   if (p.thieu) ds.push('<span class="nhan thieu">thiếu: ' + esc(p.thieu) + '</span>');
+  /* Sắp đổi nội dung: đứng CUỐI nhưng màu tím riêng, không lẫn với cảnh báo hạn.
+     Đây là thứ sắp tới chứ không phải việc đang sai. */
+  if (p.lichCho && p.lichCho.length) {
+    ds.push('<span class="nhan doi">⏳ đổi ' + esc(veNgay(p.lichCho[0].ngayApDung)) +
+      (p.lichCho.length > 1 ? ' · ' + p.lichCho.length + ' mục' : '') + '</span>');
+  }
   return ds.join('');
 }
 
@@ -184,6 +190,20 @@ function giaHtml(p) {
     }
     return '<span class="gia">' + tien(p.giaNL) + 'đ</span>' +
       (p.giaTE != null ? '<span class="giaTe">trẻ em ' + tien(p.giaTE) + 'đ</span>' : '');
+  }
+  /* Tour riêng không có một giá công bố: giá đổi theo số khách. In mức RẺ NHẤT
+     kèm số khách đi cùng nó — "từ 850.000đ" đứng một mình là hứa hão, vì đoàn 2
+     khách trả gấp năm. */
+  if (p.giaPax && p.giaPax.length) {
+    const min = Math.min(...p.giaPax.filter((x) => x.giaNL != null).map((x) => x.giaNL));
+    /* Mức rẻ nhất thường trải trên NHIỀU bậc (22 và 23 khách cùng 850.000đ) —
+       lấy bậc THẤP NHẤT đạt mức đó, và nói "đoàn từ", vì đó mới là điều kiện
+       thật để được giá này. */
+    const bac = p.giaPax.filter((x) => x.giaNL === min).map((x) => x.soKhach);
+    if (Number.isFinite(min) && bac.length) {
+      return '<span class="gia">từ ' + tien(min) + 'đ</span>' +
+        '<span class="giaTe">/khách · đoàn từ ' + Math.min(...bac) + '</span>';
+    }
   }
   if (p.ghiChuGia) return '<span class="giaChu">' + esc(p.ghiChuGia) + '</span>';
   return '<span class="giaChu">chưa có giá công bố</span>';
@@ -607,30 +627,54 @@ function lichHtml() {
       '</form>';
   }
 
-  if (!ds) h += '<div class="trong">Đang đọc…</div>';
-  else if (!ds.length) h += '<div class="trong">Chưa đặt lịch đổi nào.</div>';
-  else {
-    h += '<div class="banggCuon"><table class="bangQL bangLich">' +
-      '<thead><tr><th>Ngày áp dụng</th><th>Sản phẩm</th><th>Cột</th><th>Giá trị mới</th>' +
-      '<th>Trạng thái</th><th></th></tr></thead><tbody>' +
-      ds.map((r) => {
-        const cho = r.trangThai === 'Chờ áp dụng';
-        return '<tr>' +
-          '<td><b>' + esc(veNgay(r.ngayApDung) || '—') + '</b></td>' +
-          '<td data-no-i18n>' + esc(r.sanPhamTen || '(chưa gán)') + '</td>' +
-          '<td>' + esc(r.cot || '—') + '</td>' +
-          '<td class="klGt" data-no-i18n>' + esc((r.giaTriMoi || '').slice(0, 160)) +
-            ((r.giaTriMoi || '').length > 160 ? '…' : '') + '</td>' +
-          '<td><span class="ttLich tt-' + (LOP_TT[r.trangThai] || 'cho') + '">' +
-            esc(r.trangThai || '—') + '</span>' +
-            (r.ghiChu ? '<div class="phu" data-no-i18n>' + esc(r.ghiChu) + '</div>' : '') +
-            (r.apDungLuc ? '<div class="phu">áp lúc ' + esc(veNgay(r.apDungLuc)) + '</div>' : '') +
-          '</td>' +
-          '<td>' + (cho ? '<button class="btn sm" data-huy-lich="' + esc(r.id) + '">Huỷ</button>' : '') + '</td>' +
-          '</tr>';
-      }).join('') + '</tbody></table></div>';
+  if (!ds) return h + '<div class="trong">Đang đọc…</div></section>';
+  if (!ds.length) return h + '<div class="trong">Chưa đặt lịch đổi nào.</div></section>';
+
+  /* Gom THEO SẢN PHẨM, không phải một danh sách phẳng.
+     Một đợt như 01/10 sinh ra 2 dòng cho mỗi tour (lịch trình + dịch vụ bao
+     gồm); bày phẳng thì 16 dòng na ná nhau, phải dò mã mới biết cái nào của ai.
+     Gom lại thì câu hỏi thật — "tour nào sắp đổi, đổi cái gì" — trả lời được
+     bằng một cái liếc. */
+  const nhom = new Map();
+  for (const r of ds) {
+    const khoa = r.sanPhamTen || '';
+    if (!nhom.has(khoa)) nhom.set(khoa, []);
+    nhom.get(khoa).push(r);
   }
-  return h + '</section>';
+  /* Dòng chưa gán sản phẩm lên ĐẦU: chúng sẽ thành Lỗi vào đúng ngày áp dụng
+     nếu không ai gán, nên phải đập vào mắt trước. */
+  const khoa = [...nhom.keys()].sort((a, b) => (a ? 1 : 0) - (b ? 1 : 0) || a.localeCompare(b, 'vi'));
+
+  h += '<div class="klNhom">';
+  for (const k of khoa) {
+    const rs = nhom.get(k);
+    const chuaGan = !k;
+    const cho = rs.filter((r) => r.trangThai === 'Chờ áp dụng');
+    const somNhat = cho.length ? Math.min(...cho.map((r) => r.ngayApDung || Infinity)) : 0;
+    h += '<article class="klSP' + (chuaGan ? ' chuaGan' : '') + '">' +
+      '<header class="klSPDau">' +
+        '<b data-no-i18n>' + esc(k || 'Chưa gán sản phẩm') + '</b>' +
+        '<span class="klDem">' + rs.length + ' mục</span>' +
+        (somNhat && Number.isFinite(somNhat)
+          ? '<span class="klNgay">từ ' + esc(veNgay(somNhat)) + '</span>' : '') +
+      '</header>' +
+      rs.map((r) => {
+        const choR = r.trangThai === 'Chờ áp dụng';
+        return '<div class="klDong">' +
+          '<span class="klCot">' + esc(r.cot || '—') + '</span>' +
+          '<span class="ttLich tt-' + (LOP_TT[r.trangThai] || 'cho') + '">' +
+            esc(r.trangThai || '—') + '</span>' +
+          '<span class="klNgay2">' + esc(veNgay(r.ngayApDung) || '—') + '</span>' +
+          (choR ? '<button class="btn sm" data-huy-lich="' + esc(r.id) + '">Huỷ</button>'
+            : '<span></span>') +
+          '<div class="klGt" data-no-i18n>' + esc(r.giaTriMoi || '') + '</div>' +
+          (r.ghiChu ? '<div class="klGhi" data-no-i18n>' + esc(r.ghiChu) + '</div>' : '') +
+          (r.apDungLuc ? '<div class="klGhi">áp lúc ' + esc(veNgay(r.apDungLuc)) + '</div>' : '') +
+          '</div>';
+      }).join('') +
+      '</article>';
+  }
+  return h + '</div></section>';
 }
 
 async function napLich() {
@@ -788,6 +832,21 @@ function veSo(p) {
       '</div></section>';
   }
 
+  if (p.giaPax && p.giaPax.length) {
+    const coTE = p.giaPax.some((x) => x.giaTE != null);
+    h += '<section class="muc"><h4>Giá theo số khách' +
+      '<button class="btn sm" data-chep="paxBang">Chép</button></h4>' +
+      '<p class="dan" style="margin:0 0 6px">Tour riêng tính giá trên đầu người, ' +
+      'đoàn càng đông càng rẻ. Báo giá phải kèm số khách.</p>' +
+      '<table class="bang bangGia" id="paxBang"><tr><th>Số khách</th>' +
+      '<th class="cSo">Người lớn</th>' + (coTE ? '<th class="cSo">Trẻ em</th>' : '') + '</tr>' +
+      p.giaPax.map((x) => '<tr><td>' + x.soKhach + ' khách</td>' +
+        '<td class="cSo manh">' + (x.giaNL != null ? tien(x.giaNL) + 'đ' : '—') + '</td>' +
+        (coTE ? '<td class="cSo">' + (x.giaTE != null ? tien(x.giaTE) + 'đ' : '—') + '</td>' : '') +
+        '</tr>').join('') +
+      '</table></section>';
+  }
+
   if (p.gia.length) {
     h += '<section class="muc"><h4>Giá theo giai đoạn</h4><table class="bang">' +
       '<tr><th>Giai đoạn</th><th>Người lớn</th><th>Trẻ em</th><th>Áp dụng</th></tr>' +
@@ -860,6 +919,15 @@ function veSo(p) {
   if (p.video && !/^https?:/.test(p.video)) {
     h += '<section class="muc"><h4>Video tổng quan</h4><div class="noi" data-no-i18n>' +
       esc(p.video) + '</div></section>';
+  }
+
+  /* --- lịch đổi đang chờ của chính sản phẩm này --- */
+  if (p.lichCho && p.lichCho.length) {
+    h += '<section class="muc"><h4>Sắp đổi</h4><div class="noi canh">' +
+      p.lichCho.map((x) => '· ' + esc(x.cot) + ' — từ ' + esc(veNgay(x.ngayApDung)))
+        .join(XUONG) +
+      (laQuanLy() ? XUONG + '(đặt và huỷ ở tab Quản lý)' : '') +
+      '</div></section>';
   }
 
   /* --- gốc dữ liệu --- */

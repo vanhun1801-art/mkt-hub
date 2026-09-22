@@ -126,6 +126,12 @@ function veSanPham(r) {
     media: [],
     /* Điền ở docTatCa() sau khi nối xong chính sách — xem tinhGiaSauGiam(). */
     giaSauGiam: null,
+    /* Thang giá theo số khách — chỉ tour riêng mới có. Sản phẩm bán một giá thì
+       mảng này rỗng và giao diện không vẽ gì thêm. */
+    giaPax: [],
+    /* Các dòng Lịch đổi thông tin còn CHỜ của sản phẩm này. Giao diện dựa vào
+       đây để gắn nhãn "sắp đổi" — nhìn danh mục là biết cái nào sắp khác đi. */
+    lichCho: [],
   };
 }
 
@@ -168,6 +174,20 @@ function veChinhSach(r) {
     giamPhanTram: so(c[g.giamPhanTram]),
     apGia: !!c[g.apGia],
     ghiGiam: chu(c[g.ghiGiam]),
+  };
+}
+
+/** Một bậc trong thang giá tour riêng: đoàn càng đông, giá đầu người càng rẻ. */
+function veGiaPax(r) {
+  const c = r.cells || {};
+  const g = F.giaPax;
+  return {
+    id: r.record_id,
+    spIds: idLink(c[g.sanPham]),
+    soKhach: so(c[g.soKhach]),
+    giaNL: so(c[g.giaNL]),
+    giaTE: so(c[g.giaTE]),
+    nguon: chu(c[g.nguon]),
   };
 }
 
@@ -263,12 +283,13 @@ function tinhGiaSauGiam(p) {
 const thuTu = (ds, v) => { const i = ds.indexOf(v); return i < 0 ? ds.length : i; };
 
 async function docTatCa() {
-  const [sp, gia, cs, media, lichRaw] = await Promise.all([
+  const [sp, gia, cs, media, lichRaw, paxRaw] = await Promise.all([
     lark.listAllRecords(cfg.spTableId),
     lark.listAllRecords(cfg.giaTableId),
     lark.listAllRecords(cfg.chinhSachTableId),
     lark.listAllRecords(cfg.mediaTableId),
     lark.listAllRecords(cfg.lichTableId),
+    lark.listAllRecords(cfg.giaPaxTableId),
   ]);
 
   const ds = sp.map(veSanPham).filter((p) => p.ma || p.ten);
@@ -322,6 +343,23 @@ async function docTatCa() {
   for (const r of daAp) {
     console.log('[LỊCH]', r.ok ? 'đã áp' : 'LỖI', r.ma || '', r.cot || '', r.ten, r.loi || '');
   }
+
+  for (const r of paxRaw.map(veGiaPax)) {
+    if (r.soKhach == null) continue;
+    for (const id of r.spIds) { const p = theoId.get(id); if (p) p.giaPax.push(r); }
+  }
+  for (const p of ds) p.giaPax.sort((a, b) => a.soKhach - b.soKhach);
+
+  /* Gắn lịch còn chờ vào sản phẩm, SAU khi đã áp các dòng tới hạn — dòng vừa áp
+     xong không còn là "sắp đổi" nữa. */
+  for (const r of dsLich) {
+    if (r.trangThai !== 'Chờ áp dụng') continue;
+    for (const id of r.spIds) {
+      const p = theoId.get(id);
+      if (p) p.lichCho.push({ id: r.id, cot: r.cot, ngayApDung: r.ngayApDung });
+    }
+  }
+  for (const p of ds) p.lichCho.sort((a, b) => (a.ngayApDung || 0) - (b.ngayApDung || 0));
 
   /* Tính sau khi đã nối xong chính sách — trước đó `p.chinhSach` còn rỗng. */
   for (const p of ds) p.giaSauGiam = tinhGiaSauGiam(p);
@@ -382,5 +420,5 @@ module.exports = {
   tinhGiaSauGiam, trongGiaHienThi, laChinhSachChung,
   sapHetHan, canBoSung, uuDaiSapHet,
   chu, nhieu, mot, so, ms, linkSach, idLink,
-  veSanPham, veGia, veChinhSach, veMedia, veLich,
+  veSanPham, veGia, veChinhSach, veMedia, veLich, veGiaPax,
 };

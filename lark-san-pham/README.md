@@ -27,6 +27,9 @@ Trước đó thông tin sản phẩm nằm rải ở ba file Google Sheet và m
 
 Base “Sản phẩm” gom cả bốn nguồn lại; app này là cửa vào cho phòng Marketing.
 
+**Năm nhóm:** Tour ghép hằng ngày · **Tour riêng (VIP)** · Tour trọn gói · Combo tự
+túc · Dịch vụ lẻ.
+
 ---
 
 ## Hai vai
@@ -171,6 +174,24 @@ qua luôn là “ai đổi, từ đâu”.
 
 ---
 
+## Tour riêng: giá theo số khách
+
+Tour riêng **không có một giá công bố duy nhất** — giá tính trên đầu người và rẻ
+dần khi đoàn đông (V4: 2 khách 4.400.000đ/khách → 22 khách 850.000đ/khách). Nhét
+một con số vào cột `Giá công bố NL` là nói dối với 20 bậc còn lại.
+
+Nên có bảng riêng **“Giá tour riêng theo số khách”** (sản phẩm · số khách · giá
+NL · giá TE · nguồn). Trên thẻ app in mức rẻ nhất kèm điều kiện — *“từ 850.000đ
+/khách · đoàn từ 22”* — và ngăn chi tiết có cả thang, kèm nút Chép.
+
+Mức rẻ nhất thường trải trên nhiều bậc (22 và 23 khách cùng 850.000đ); app lấy
+bậc **thấp nhất** đạt mức đó, vì đó mới là điều kiện thật để được giá này.
+
+**Hai mã chưa có bảng giá**: `V2CHONTHOM` và `VLAND_VIN` — không tìm được tab
+tương ứng trong file gửi đối tác. Ô `Ghi chú giá` nói rõ, không bịa số.
+
+---
+
 ## Lịch đổi thông tin
 
 Kinh doanh gửi đợt đổi lịch trình cho 8 tour, hẹn ngày 01/10. Trước đây phòng
@@ -180,6 +201,14 @@ tour chạy một nẻo.
 Bảng **Lịch đổi thông tin** trên Base giữ từng thay đổi: sản phẩm, cột cần đổi,
 giá trị mới, ngày áp dụng, trạng thái, giá trị cũ. Đặt và huỷ ngay trong tab
 **Quản lý**.
+
+Khu này **gom theo sản phẩm**, không phải một danh sách phẳng: một đợt sinh 2
+dòng cho mỗi tour (lịch trình + dịch vụ bao gồm), bày phẳng thì 16 dòng na ná
+nhau và phải dò mã mới biết cái nào của ai. Nhóm **chưa gán sản phẩm** lên đầu
+và viền đỏ — chúng sẽ thành Lỗi đúng ngày áp dụng nếu không ai gán.
+
+Sản phẩm nào có thay đổi đang chờ thì mang nhãn tím **⏳ đổi 01/10** ở mọi chỗ
+nó xuất hiện, và ngăn chi tiết có mục *Sắp đổi*.
 
 ### Chạy bằng cách đọc-thì-áp, không có cron
 
