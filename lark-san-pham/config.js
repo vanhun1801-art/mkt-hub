@@ -100,6 +100,11 @@ module.exports = {
     },
     cs: {
       ten: 'fldZpcEw87',
+      giamNL: 'fld6XN2zPG',
+      giamTE: 'fldsQsw3Tt',
+      giamPhanTram: 'fldhdLeHNX',
+      apGia: 'fldHpAQZyd',
+      ghiGiam: 'fldhMKbW5e',
       loai: 'fldFLzwGaL',
       phamVi: 'fldpkMjWJh',
       apDungCho: 'fldHWmrGTl',

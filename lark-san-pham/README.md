@@ -89,6 +89,43 @@ Hai quyết định ở đây:
 
 ---
 
+## Hai mức giá
+
+Giá trong bảng **Sản phẩm** là **giá công bố thô** — Kinh doanh nhập sao để vậy,
+chưa trừ khuyến mãi nào. Mức giảm khai ở bảng **Chính sách & Khuyến mãi**, năm cột:
+
+| Cột | Nghĩa |
+|---|---|
+| `Giảm tiền NL` · `Giảm tiền TE` | số tiền giảm cho một vé. Tour ghép giảm theo vé không phân biệt lớn nhỏ → điền bằng nhau |
+| `Giảm %` | nhập `20` nghĩa là 20% |
+| `Áp vào giá hiển thị` | **công tắc của con người** — bật thì app mới trừ |
+| `Ghi chú mức giảm` | phần không diễn đạt được bằng một con số (bậc thang theo số vé, điều kiện kèm theo) |
+
+App chỉ trừ khi **đủ ba điều kiện** (`kho.js → trongGiaHienThi`):
+
+1. `Áp vào giá hiển thị` đang bật. App **không tự suy** từ chữ trong nội dung
+   chính sách — ưu đãi có điều kiện (khách cũ, mua từ vé thứ 5, tự túc ăn trưa)
+   mà chui vào giá công bố là hứa với khách thứ một người mua lẻ không nhận được.
+2. Chính sách chưa hết hiệu lực (đọc cột công thức `Tình trạng` của Base).
+   “Sắp hết hạn” vẫn còn trừ — nếu không thì trước ngày hết hạn giá tự nhảy lên
+   mà không ai đổi gì.
+3. Không phải chính sách `🔒 Chỉ nội bộ`.
+
+Thứ tự tính: **trừ tiền trước, rồi mới lấy phần trăm trên phần còn lại**. Nhiều
+chính sách cùng bật thì cộng dồn. Kết quả không bao giờ âm.
+
+Giao diện in **số khách thực trả** to nhất, giá gốc gạch ngang bên cạnh, chip
+`−100.000đ`; ngăn chi tiết có bảng ba cột *Giá công bố · Giảm · Khách trả* kèm
+tên chính sách đã trừ. In mỗi giá sau giảm thì người viết content không biết mình
+được phép nói “giảm bao nhiêu”; in mỗi giá gốc thì đăng lên sai giá.
+
+Hiện chỉ **hai** chính sách được bật: ưu đãi tour cáp treo (G2, G2CHONTHOM —
+100.000đ/vé) và ưu đãi các tour land (50.000đ/vé). **G4 không có mức giảm nào**
+vì CSBH 15/02/2026 viết phần giảm ngay dưới dòng G2, chưa rõ có áp cho G4 không —
+xem ô *Lưu ý cho marketing* của G4.
+
+---
+
 ## Quản lý sửa được gì
 
 Chín cột, khai ở `config.suaDuoc`, kiểm giá trị ở `server.js → doiTruong()`:
@@ -96,6 +133,9 @@ Chín cột, khai ở `config.suaDuoc`, kiểm giá trị ở `server.js → doi
 `Ưu tiên marketing` · `Trạng thái kinh doanh` · `Giá công bố NL` · `Giá công bố TE`
 · `Ghi chú giá` · `Hiệu lực từ` · `Hiệu lực đến` · `Ưu đãi đang chạy` ·
 `Lưu ý cho marketing`
+
+Hai ô giá là **giá công bố thô**, không phải giá sau giảm — nhãn trong app nói rõ
+điều đó. Mức giảm sửa ở bảng Chính sách trên Base, không sửa từ đây.
 
 Sửa được ở hai chỗ: bảng tab Quản lý (kèm tick nhiều dòng để **đặt hàng loạt**),
 và ngay trong ngăn chi tiết của từng sản phẩm.
@@ -121,6 +161,7 @@ qua luôn là “ai đổi, từ đâu”.
 
 | Bẫy | Hậu quả | Chỗ vá |
 |---|---|---|
+| Trừ khuyến mãi vào giá công bố mà **tự suy từ nội dung** chính sách | Ưu đãi có điều kiện (khách cũ, từ vé thứ 5) lọt vào giá công khai — hứa với khách thứ họ không được hưởng | phải bật tay ô `Áp vào giá hiển thị`; `🔒 Chỉ nội bộ` bị chặn cứng |
 | Sự kiện `change` do **script** bắn ra | App chạy cùng mã hub chèn vào (i18n dịch nhãn, `thugon.js`, `loc.js` khoác dãy nút cho `<select>` rồi `dispatchEvent(new Event('change'))`). Bất kỳ đoạn nào chạm vào ô của app là một dòng lặng lẽ đổi giá trên Base cả phòng đang đọc | `ghiO` bỏ qua sự kiện có `isTrusted === false` |
 | `Number('')` ra **0** | Cột `Còn lại (ngày)` trả chuỗi rỗng cho dòng chưa đặt hạn ⇒ 0 ngày = “hết hạn hôm nay” ⇒ 50 sản phẩm không có hạn nhảy lên đầu cảnh báo | `kho.so()` trả `null`, có test |
 | Ghi chuỗi rỗng vào cột số/ngày | Base hiểu đó là một **giá trị**, không phải “xoá” | `doiTruong()` luôn quy về `null`, có test |

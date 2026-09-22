@@ -834,6 +834,15 @@
     'sửa được': 'editable',
     'Trạng thái kinh doanh': 'Business status',
     'Ghi chú giá — dùng khi giá không cố định': 'Price note — for when the price is not fixed',
+
+    /* hai mức giá (22/09/2026) */
+    'Giá khách thực trả': 'What the guest pays',
+    'Đã trừ:': 'Already deducted:',
+    'Giảm': 'Discount',
+    'Khách trả': 'Guest pays',
+    'đã trừ vào giá hiển thị': 'already taken off the shown price',
+    'Giá Kinh doanh công bố, CHƯA trừ khuyến mãi. Mức giảm khai ở bảng Chính sách & Khuyến mãi trên Base.':
+      'The list price from Sales, BEFORE any offer. Discounts are entered in the Policies & Offers table on the Base.',
     'Giai đoạn áp dụng hoặc ưu đãi sắp kết thúc. Rà lại với Kinh doanh trước khi chạy tiếp.':
       'The applicable period or the offer is ending. Check with Sales before running it again.',
     'Làm mới': 'Refresh',

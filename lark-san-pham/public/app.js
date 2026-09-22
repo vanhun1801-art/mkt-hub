@@ -118,6 +118,20 @@ function lopUuTien(v) {
 const lopTinhTrang = (v) => (/Đã hết hạn/.test(v) ? 'het' : /Sắp hết hạn/.test(v) ? 'canh' : '');
 const laSapRaMat = (p) => /Sắp ra mắt/.test(p.trangThai);
 
+/** Mức giảm của một chính sách, viết gọn thành một nhãn. Rỗng nếu không giảm tiền. */
+function mucGiam(c) {
+  const ds = [];
+  /* Tour ghép giảm theo VÉ, không phân biệt lớn nhỏ — hai cột bằng nhau thì gộp
+     thành một nhãn, đừng in "−50.000đ/NL · −50.000đ/TE". */
+  if (c.giamNL && c.giamNL === c.giamTE) ds.push('−' + tien(c.giamNL) + 'đ/vé');
+  else {
+    if (c.giamNL) ds.push('−' + tien(c.giamNL) + 'đ/NL');
+    if (c.giamTE) ds.push('−' + tien(c.giamTE) + 'đ/TE');
+  }
+  if (c.giamPhanTram) ds.push('−' + c.giamPhanTram + '%');
+  return ds.join(' · ');
+}
+
 /** Ưu đãi của sản phẩm này sắp hết hạn trong 30 ngày tới. */
 function uuDaiSapHet(p) {
   const nay = Date.now();
@@ -144,14 +158,44 @@ function nhanHtml(p) {
   return ds.join('');
 }
 
-/** Giá hiển thị: có số thì in số, không thì in ghi chú giá, không nữa thì nói rõ. */
+/**
+ * Giá trên thẻ và trên dòng.
+ *
+ * Giá trong bảng Sản phẩm là GIÁ CÔNG BỐ THÔ — Kinh doanh nhập sao để vậy, chưa
+ * trừ khuyến mãi nào. Mức giảm nằm ở bảng Chính sách, và chỉ những dòng được bật
+ * "Áp vào giá hiển thị" mới được trừ (xem kho.js → trongGiaHienThi).
+ *
+ * Khi có giảm thì in SỐ KHÁCH THỰC TRẢ to nhất, giá gốc gạch ngang bên cạnh, kèm
+ * chip "-100.000đ". In mỗi giá sau giảm thì người viết content không biết mình
+ * đang được phép nói "giảm bao nhiêu"; in mỗi giá gốc thì đăng lên sai giá.
+ */
 function giaHtml(p) {
+  const g = p.giaSauGiam;
   if (p.giaNL != null) {
+    if (g && g.nl != null && g.truNL > 0) {
+      return '<span class="gia">' + tien(g.nl) + 'đ</span>' +
+        '<span class="giaGoc">' + tien(p.giaNL) + 'đ</span>' +
+        '<span class="chipGiam">−' + tien(g.truNL) + 'đ</span>' +
+        (g.te != null && p.giaTE != null
+          ? '<span class="giaTe">trẻ em ' + tien(g.te) + 'đ</span>' : '');
+    }
     return '<span class="gia">' + tien(p.giaNL) + 'đ</span>' +
       (p.giaTE != null ? '<span class="giaTe">trẻ em ' + tien(p.giaTE) + 'đ</span>' : '');
   }
   if (p.ghiChuGia) return '<span class="giaChu">' + esc(p.ghiChuGia) + '</span>';
   return '<span class="giaChu">chưa có giá công bố</span>';
+}
+
+/** Giá gọn cho một dòng Bảng đẩy. */
+function giaDongHtml(p) {
+  const g = p.giaSauGiam;
+  if (p.giaNL == null) {
+    return '<i class="giaChu">' + esc(p.ghiChuGia ? 'theo báo giá' : 'chưa có giá') + '</i>';
+  }
+  if (g && g.nl != null && g.truNL > 0) {
+    return tien(g.nl) + 'đ<span class="giaGoc">' + tien(p.giaNL) + 'đ</span>';
+  }
+  return tien(p.giaNL) + 'đ';
 }
 
 /* ---------------------------------------------------------------------------
@@ -338,8 +382,7 @@ function dongHtml(p) {
   return '<div class="dong' + (S.moId === p.id ? ' chon' : '') + '" data-id="' + esc(p.id) + '">' +
     (p.ma ? '<span class="ma">' + esc(p.ma) + '</span>' : '<span class="ma trong">—</span>') +
     '<span class="dTen" data-no-i18n>' + esc(p.ten) + '</span>' +
-    '<span class="dGia">' + (p.giaNL != null ? tien(p.giaNL) + 'đ'
-      : '<i class="giaChu">' + esc(p.ghiChuGia ? 'theo báo giá' : 'chưa có giá') + '</i>') + '</span>' +
+    '<span class="dGia">' + giaDongHtml(p) + '</span>' +
     '<span class="dNhan">' + nhanHtml(p) + '</span>' +
     '</div>';
 }
@@ -550,7 +593,9 @@ function veSo(p) {
   h += '</section>';
 
   /* --- giá --- */
-  h += '<section class="muc"><h4>Giá công bố' + (ql ? '<span class="suaDuoc">sửa được</span>' : '') + '</h4>';
+  h += '<section class="muc"><h4>Giá công bố' + (ql ? '<span class="suaDuoc">sửa được</span>' : '') +
+    '</h4><p class="dan" style="margin:0 0 8px">Giá Kinh doanh công bố, CHƯA trừ khuyến mãi. ' +
+    'Mức giảm khai ở bảng Chính sách &amp; Khuyến mãi trên Base.</p>';
   if (ql) {
     const oSo = (k, nhan, v) => '<div class="oNho"><div class="k">' + esc(nhan) + '</div>' +
       '<input class="oSua oSo" type="number" min="0" step="1000" data-sua="' + k + '"' +
@@ -575,6 +620,31 @@ function veSo(p) {
         esc(p.ghiChuGia) + '</div>' : '');
   }
   h += '</section>';
+
+  /* Bảng đối chiếu hai mức giá. Chỉ vẽ khi thật sự có giảm — không thì nó là một
+     khối rỗng nói "giảm 0đ", tệ hơn là không có. */
+  const gg = p.giaSauGiam;
+  if (gg && (gg.truNL > 0 || gg.truTE > 0)) {
+    const dong = (nhan, goc, tru, sau) => (goc == null ? '' :
+      '<tr><td>' + esc(nhan) + '</td>' +
+      '<td class="cSo">' + tien(goc) + 'đ</td>' +
+      '<td class="cSo doGiam">−' + tien(tru || 0) + 'đ</td>' +
+      '<td class="cSo manh">' + tien(sau) + 'đ</td></tr>');
+    h += '<section class="muc"><h4>Giá khách thực trả</h4>' +
+      '<table class="bang bangGia">' +
+      '<tr><th></th><th class="cSo">Giá công bố</th><th class="cSo">Giảm</th>' +
+      '<th class="cSo">Khách trả</th></tr>' +
+      dong('Người lớn', p.giaNL, gg.truNL, gg.nl) +
+      dong('Trẻ em', p.giaTE, gg.truTE, gg.te) +
+      '</table>' +
+      '<div class="dan" style="margin:8px 0 0"><span>Đã trừ:</span> ' +
+      gg.ds.map((c) => '<b data-no-i18n>' + esc(c.ten) + '</b>').join(' · ') +
+      (gg.ds.some((c) => c.ghiGiam)
+        ? '<div class="noi" style="margin-top:6px" data-no-i18n>' +
+          esc(gg.ds.map((c) => c.ghiGiam).filter(Boolean).join(XUONG)) + '</div>'
+        : '') +
+      '</div></section>';
+  }
 
   if (p.gia.length) {
     h += '<section class="muc"><h4>Giá theo giai đoạn</h4><table class="bang">' +
@@ -620,6 +690,8 @@ function veSo(p) {
           (c.loai ? '<span class="nhan">' + esc(c.loai) + '</span>' : '') +
           (c.truyenThong ? '<span class="nhan' + (noiBo ? ' het' : '') + '">' + esc(c.truyenThong) + '</span>' : '') +
           (c.den ? '<span class="nhan' + (/hết hạn/i.test(c.tinhTrang) ? ' canh' : '') + '">đến ' + veNgay(c.den) + '</span>' : '') +
+          (mucGiam(c) ? '<span class="nhan giam">' + esc(mucGiam(c)) + '</span>' : '') +
+          (c.apGia ? '<span class="nhan ngay">đã trừ vào giá hiển thị</span>' : '') +
           '</div>' +
           '<div class="csNoi" data-no-i18n>' + esc(c.noiDung) + '</div>' +
           (c.nguon ? '<div class="lk" style="margin-top:6px"><a href="' + esc(c.nguon) +

@@ -122,6 +122,8 @@ function veSanPham(r) {
     gia: [],
     chinhSach: [],
     media: [],
+    /* Điền ở docTatCa() sau khi nối xong chính sách — xem tinhGiaSauGiam(). */
+    giaSauGiam: null,
   };
 }
 
@@ -159,6 +161,11 @@ function veChinhSach(r) {
     tinhTrang: chu(c[g.tinhTrang]),
     truyenThong: mot(c[g.truyenThong]),
     nguon: linkSach(c[g.nguon]),
+    giamNL: so(c[g.giamNL]),
+    giamTE: so(c[g.giamTE]),
+    giamPhanTram: so(c[g.giamPhanTram]),
+    apGia: !!c[g.apGia],
+    ghiGiam: chu(c[g.ghiGiam]),
   };
 }
 
@@ -173,6 +180,59 @@ function veMedia(r) {
     ngonNgu: mot(c[g.ngonNgu]),
     link: linkSach(c[g.link]),
     ghiChu: chu(c[g.ghiChu]),
+  };
+}
+
+/* ---------------- giá sau giảm ---------------- */
+
+/**
+ * Chính sách này có được trừ vào GIÁ HIỂN THỊ của sản phẩm không.
+ *
+ * Ba điều kiện, thiếu một là không trừ:
+ *  1. Quản lý đã bật ô "Áp vào giá hiển thị". Đây là công tắc của con người —
+ *     app không tự suy ra từ chữ trong nội dung chính sách.
+ *  2. Chưa hết hiệu lực (đọc cột công thức `Tình trạng` của Base).
+ *  3. Không phải chính sách "Chỉ nội bộ". Một mức giảm nội bộ mà chui vào giá
+ *     công bố là hứa với khách thứ công ty chưa công bố.
+ */
+const trongGiaHienThi = (c) =>
+  c.apGia === true &&
+  !/hết hiệu lực/i.test(c.tinhTrang || '') &&
+  !/Chỉ nội bộ/i.test(c.truyenThong || '');
+
+/**
+ * Trừ các ưu đãi đang chạy vào giá công bố của một sản phẩm.
+ *
+ * Thứ tự: trừ TIỀN trước, rồi mới lấy PHẦN TRĂM trên phần còn lại. Bình thường
+ * một chính sách chỉ có một trong hai, nên thứ tự không đổi kết quả; khai rõ ở
+ * đây để lúc có cả hai thì app và người đọc Base hiểu giống nhau.
+ *
+ * Trả về `null` khi không có gì để trừ — giao diện lúc đó chỉ in một mức giá,
+ * không vẽ giá gạch ngang cho có.
+ */
+function tinhGiaSauGiam(p) {
+  const ds = (p.chinhSach || []).filter(trongGiaHienThi)
+    .filter((c) => c.giamNL || c.giamTE || c.giamPhanTram);
+  if (!ds.length) return null;
+
+  const tru = (goc, khoa) => {
+    if (goc == null) return null;
+    let v = goc;
+    for (const c of ds) v -= (c[khoa] || 0);
+    for (const c of ds) if (c.giamPhanTram) v -= v * (c.giamPhanTram / 100);
+    return Math.max(0, Math.round(v));
+  };
+
+  const nl = tru(p.giaNL, 'giamNL');
+  const te = tru(p.giaTE, 'giamTE');
+  /* Không có giá gốc thì không có giá sau giảm — đừng bịa ra số 0. */
+  if (nl == null && te == null) return null;
+
+  return {
+    nl, te,
+    truNL: p.giaNL != null && nl != null ? p.giaNL - nl : null,
+    truTE: p.giaTE != null && te != null ? p.giaTE - te : null,
+    ds: ds.map((c) => ({ id: c.id, ten: c.ten, ghiGiam: c.ghiGiam, den: c.den })),
   };
 }
 
@@ -218,6 +278,9 @@ async function docTatCa() {
     if (!r.spIds.length) { mediaChung.push(r); continue; }
     for (const id of r.spIds) { const p = theoId.get(id); if (p) p.media.push(r); }
   }
+
+  /* Tính sau khi đã nối xong chính sách — trước đó `p.chinhSach` còn rỗng. */
+  for (const p of ds) p.giaSauGiam = tinhGiaSauGiam(p);
 
   ds.sort((a, b) =>
     thuTu(cfg.chon.nhom, a.nhom) - thuTu(cfg.chon.nhom, b.nhom) ||
@@ -272,6 +335,7 @@ function uuDaiSapHet(ds, ngay = cfg.ngaySapHetHan) {
 
 module.exports = {
   tatCa, xoaDem, docTatCa,
+  tinhGiaSauGiam, trongGiaHienThi,
   sapHetHan, canBoSung, uuDaiSapHet,
   chu, nhieu, mot, so, ms, linkSach, idLink,
   veSanPham, veGia, veChinhSach, veMedia,

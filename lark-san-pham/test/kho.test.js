@@ -156,5 +156,83 @@ group('veSanPham(): cắt dấu · thừa ở cuối cột Thiếu thông tin');
   ok('mảng con luôn có sẵn', Array.isArray(p.gia) && Array.isArray(p.chinhSach) && Array.isArray(p.media));
 }
 
+/* ------------------------------------------------------------------ */
+group('tinhGiaSauGiam(): chỉ trừ ưu đãi ĐƯỢC PHÉP trừ');
+{
+  const cs = (o) => Object.assign({
+    id: 'c' + Math.random(), ten: 'CS', tinhTrang: '✅ Đang áp dụng',
+    truyenThong: '✅ Dùng tự do', apGia: true,
+    giamNL: null, giamTE: null, giamPhanTram: null, ghiGiam: '',
+  }, o);
+  const sp = (gia, ds) => ({ giaNL: gia[0], giaTE: gia[1], chinhSach: ds });
+
+  const a = kho.tinhGiaSauGiam(sp([1550000, 995000], [cs({ giamNL: 100000, giamTE: 100000 })]));
+  ok('trừ tiền cho cả hai loại vé', a.nl === 1450000 && a.te === 895000,
+    JSON.stringify(a && { nl: a.nl, te: a.te }));
+  ok('nói rõ đã trừ bao nhiêu', a.truNL === 100000 && a.truTE === 100000);
+  ok('kèm danh sách chính sách đã trừ', a.ds.length === 1);
+
+  /* Công tắc của con người. App KHÔNG tự suy "đây là khuyến mãi nên chắc là trừ" —
+   * ưu đãi có điều kiện (khách cũ, mua từ 5 vé) mà chui vào giá công bố là hứa với
+   * khách thứ một người mua lẻ không nhận được. */
+  ok('ô "Áp vào giá hiển thị" tắt thì KHÔNG trừ',
+    kho.tinhGiaSauGiam(sp([800000, 400000], [cs({ giamNL: 50000, apGia: false })])) === null);
+
+  /* Mức giảm nội bộ mà lọt ra giá công bố là lộ chính sách nội bộ cho khách. */
+  ok('chính sách "Chỉ nội bộ" thì KHÔNG trừ dù có bật ô',
+    kho.tinhGiaSauGiam(sp([800000, 400000],
+      [cs({ giamNL: 50000, truyenThong: '🔒 Chỉ nội bộ' })])) === null);
+
+  ok('chính sách hết hiệu lực thì KHÔNG trừ',
+    kho.tinhGiaSauGiam(sp([800000, 400000],
+      [cs({ giamNL: 50000, tinhTrang: '❌ Hết hiệu lực' })])) === null);
+
+  ok('không có mức giảm nào thì trả null',
+    kho.tinhGiaSauGiam(sp([800000, 400000], [cs({})])) === null);
+
+  /* Chưa có giá gốc thì không có giá sau giảm — đừng bịa ra số 0. */
+  ok('sản phẩm chưa có giá thì trả null',
+    kho.tinhGiaSauGiam(sp([null, null], [cs({ giamNL: 50000 })])) === null);
+
+  const b = kho.tinhGiaSauGiam(sp([1000000, null], [cs({ giamNL: 100000 })]));
+  ok('chỉ có giá NL thì TE để null, không thành 0', b.nl === 900000 && b.te === null,
+    JSON.stringify(b && { nl: b.nl, te: b.te }));
+
+  const c = kho.tinhGiaSauGiam(sp([1000000, 500000], [cs({ giamPhanTram: 20 })]));
+  ok('giảm phần trăm', c.nl === 800000 && c.te === 400000,
+    JSON.stringify(c && { nl: c.nl, te: c.te }));
+
+  /* Thứ tự đã chốt: trừ TIỀN trước, rồi mới lấy PHẦN TRĂM trên phần còn lại.
+   * Bình thường một chính sách chỉ có một trong hai; khai rõ để lúc có cả hai
+   * thì app và người đọc Base hiểu giống nhau. */
+  const d = kho.tinhGiaSauGiam(sp([1000000, null], [cs({ giamNL: 100000, giamPhanTram: 10 })]));
+  ok('có cả tiền lẫn %: trừ tiền trước rồi mới lấy % trên phần còn lại',
+    d.nl === 810000, String(d && d.nl));
+
+  const e = kho.tinhGiaSauGiam(sp([1000000, null],
+    [cs({ giamNL: 100000 }), cs({ giamNL: 50000 })]));
+  ok('hai chính sách cùng bật thì cộng dồn', e.nl === 850000, String(e && e.nl));
+
+  /* Giảm quá tay thì về 0, không âm — một giá âm lọt lên bài đăng thì hết đường chữa. */
+  const f = kho.tinhGiaSauGiam(sp([100000, null], [cs({ giamNL: 500000 })]));
+  ok('không bao giờ ra giá âm', f.nl === 0, String(f && f.nl));
+}
+
+/* ------------------------------------------------------------------ */
+group('trongGiaHienThi(): ba điều kiện, thiếu một là không trừ');
+{
+  const c = (o) => Object.assign({
+    apGia: true, tinhTrang: '✅ Đang áp dụng', truyenThong: '✅ Dùng tự do',
+  }, o);
+  ok('đủ ba điều kiện', kho.trongGiaHienThi(c({})) === true);
+  ok('thiếu công tắc', kho.trongGiaHienThi(c({ apGia: false })) === false);
+  ok('hết hiệu lực', kho.trongGiaHienThi(c({ tinhTrang: '❌ Hết hiệu lực' })) === false);
+  ok('chỉ nội bộ', kho.trongGiaHienThi(c({ truyenThong: '🔒 Chỉ nội bộ' })) === false);
+  /* "Sắp hết hạn" vẫn còn hiệu lực — vẫn phải trừ, nếu không thì trước ngày hết
+   * hạn giá tự nhiên nhảy lên mà không ai đổi gì. */
+  ok('sắp hết hạn thì vẫn còn trừ',
+    kho.trongGiaHienThi(c({ tinhTrang: '⚠️ Sắp hết hạn' })) === true);
+}
+
 console.log('\n' + (fail ? '\x1b[31m' : '\x1b[32m') + pass + ' pass · ' + fail + ' fail\x1b[0m');
 if (fail) { console.log(fails.map((f) => ' - ' + f).join('\n')); process.exit(1); }

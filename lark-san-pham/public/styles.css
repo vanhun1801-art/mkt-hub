@@ -489,3 +489,30 @@ main { padding: 16px; max-width: 1460px; margin: 0 auto; }
 }
 .tang[open] > summary::before { transform: rotate(90deg); }
 .tangDau:hover { background: var(--hover); }
+
+/* ==========================================================================
+   HAI MỨC GIÁ
+   Giá trong bảng Sản phẩm là giá công bố THÔ (Kinh doanh nhập sao để vậy). Mức
+   giảm nằm ở bảng Chính sách. Thẻ và dòng in số KHÁCH THỰC TRẢ to nhất, giá gốc
+   gạch ngang nhạt bên cạnh — in mỗi giá sau giảm thì người viết content không
+   biết được phép nói "giảm bao nhiêu"; in mỗi giá gốc thì đăng lên sai giá.
+   ========================================================================== */
+.giaGoc {
+  font-size: 12.5px; font-weight: 500; color: var(--t3);
+  text-decoration: line-through; margin-left: 6px;
+}
+.chipGiam {
+  font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px;
+  background: var(--red-bg); color: var(--red-t); border: 1px solid var(--red-vien);
+  white-space: nowrap;
+}
+.nhan.giam { background: var(--red-bg); color: var(--red-t); border-color: var(--red-vien); }
+
+.bangGia .cSo { text-align: right; font-variant-numeric: tabular-nums; }
+.bangGia .doGiam { color: var(--red-t); }
+.bangGia .manh { font-weight: 700; }
+
+@media (max-width: 640px) {
+  .giaGoc { font-size: 12.5px; }
+  .chipGiam { font-size: 12.5px; }
+}
