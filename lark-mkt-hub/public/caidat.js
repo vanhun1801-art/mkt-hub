@@ -63,6 +63,11 @@ function cdNhom() {
       { k: 'thong-bao', ten: 'Thông báo tới nhân sự', ic: 'chuong',
         mo: 'Popup chặn màn hình, buộc đọc mới dùng app tiếp',
         tu: 'popup thông báo bắt buộc đọc gấp phổ biến nhắc cả phòng', ql: true },
+      /* Cửa vào cho người KHÔNG có Lark. Đặt ngay dưới Phân quyền vì duyệt xong
+       * là phải sang đó cấp base cho họ — duyệt không tự cho quyền gì cả. */
+      { k: 'tai-khoan', ten: 'Tài khoản ngoài Lark', ic: 'nguoi',
+        mo: 'Duyệt người đăng ký bằng email và mật khẩu',
+        tu: 'đăng ký duyệt mật khẩu cộng tác viên đối tác khoá tài khoản', ql: true },
     { k: 'thuong-hieu', ten: 'Nhận diện thương hiệu', ic: 'anh',
       mo: 'Logo đóng lên tệp xuất ra', ql: true },
     ] },
@@ -180,6 +185,7 @@ function veCdNoi() {
   }
   if (S.cdMuc === 'toi') return veCdToi(el);
   if (S.cdMuc === 'quyen') return veCdQuyen(el);
+  if (S.cdMuc === 'tai-khoan') return veCdTaiKhoan(el);
   if (S.cdMuc === 'thong-bao') return veCdThongBao(el);
   if (S.cdMuc === 'base') return veCdBase(el);
   if (S.cdMuc === 'thuong-hieu') return veCdThuongHieu(el);
@@ -533,6 +539,78 @@ function veCdApp(el, a) {
  */
 let TBQL = null;      // dữ liệu đang hiện
 let TBSUA = null;     // thông báo đang soạn / sửa
+
+/* ---------------- Tài khoản ngoài Lark ----------------
+ * Người không có Lark (cộng tác viên, thực tập, đối tác) tự đăng ký ở
+ * /auth/dang-ky, rồi nằm ở đây chờ quản lý duyệt. Anh Hùng chốt 22/09/2026.
+ *
+ * HAI ĐIỀU MÀN NÀY PHẢI NÓI RÕ, vì đoán sai là cấp nhầm quyền cho người ngoài:
+ *   1. Duyệt KHÔNG cấp quyền gì cả. Duyệt xong họ đăng nhập được, nhưng chỉ
+ *      thấy base mở cho cả phòng. Muốn họ thấy gì thì sang Phân quyền khai.
+ *   2. Tài khoản kiểu này KHÔNG BAO GIỜ làm quản lý được — chốt ở server
+ *      (laQuanLy), không phải chỉ ẩn nút ở đây.
+ */
+function veCdTaiKhoan(el) {
+  el.innerHTML = cdTieuDe('Tài khoản ngoài Lark') +
+    '<div class="cd-muc-nho">Người không dùng Lark · tự đăng ký, anh duyệt</div>' +
+    '<div id="cdTkDs">' + cdCho('240px') + '</div>';
+  napCdTaiKhoan();
+}
+
+async function napCdTaiKhoan() {
+  const o = $('#cdTkDs');
+  if (!o) return;
+  let d;
+  try { d = await goi('/api/tai-khoan'); }
+  catch (e) { o.innerHTML = '<div class="canh-bao do"><span class="grow">' + esc(e.message) + '</span></div>'; return; }
+
+  if (!d.co) {
+    o.innerHTML = '<div class="canh-bao vang"><span class="grow">' +
+      '<b>Chưa bật.</b> Đăng nhập bằng mật khẩu đang tắt, trang đăng nhập chỉ hiện nút Lark.<br>' +
+      esc(d.huongDan || '') + '</span></div>';
+    return;
+  }
+
+  const ds = d.ds || [];
+  const cho = ds.filter((x) => x.trangThai === 'Chờ duyệt');
+  const con = ds.filter((x) => x.trangThai !== 'Chờ duyệt');
+
+  const the = (x) => {
+    const mau = x.trangThai === 'Hoạt động' ? 'luc' : x.trangThai === 'Chờ duyệt' ? 'vang' : 'do';
+    const nut = x.trangThai === 'Chờ duyệt'
+      ? '<button class="btn primary nho" data-viec="duyet" data-id="' + esc(x.id) + '">Duyệt</button>' +
+        '<button class="btn ghost nho" data-viec="tuChoi" data-id="' + esc(x.id) + '">Từ chối</button>'
+      : x.trangThai === 'Hoạt động'
+        ? '<button class="btn ghost nho" data-viec="khoa" data-id="' + esc(x.id) + '">Khoá</button>'
+        : '<button class="btn ghost nho" data-viec="moLai" data-id="' + esc(x.id) + '">Mở lại</button>';
+    return '<div class="cd-hang">' +
+      '<div class="cd-hang-tx"><b>' + esc(x.ten || x.email) + '</b>' +
+      '<span class="chip ' + mau + '">' + esc(x.trangThai) + '</span>' +
+      '<div class="mo">' + esc(x.email) + (x.taoLuc ? ' · đăng ký ' + esc(String(x.taoLuc).slice(0, 10)) : '') + '</div></div>' +
+      '<div class="cd-hang-dk">' + nut +
+      '<button class="btn ghost nho" data-viec="xoa" data-id="' + esc(x.id) + '">Xoá</button></div></div>';
+  };
+
+  o.innerHTML =
+    (cho.length
+      ? '<div class="canh-bao vang"><span class="grow"><b>' + cho.length + ' người đang chờ duyệt.</b> ' +
+        'Duyệt xong họ đăng nhập được, nhưng <b>chưa thấy base nào</b> — sang Phân quyền khai tiếp.</span></div>' +
+        cho.map(the).join('')
+      : '<div class="canh-bao luc"><span class="grow">Không có ai chờ duyệt.</span></div>') +
+    (con.length ? '<div class="cd-muc-nho">Đã xử lý</div>' + con.map(the).join('') : '');
+
+  o.querySelectorAll('button[data-viec]').forEach((b) => {
+    b.onclick = async () => {
+      const viec = b.dataset.viec;
+      if (viec === 'xoa' && !confirm('Xoá hẳn tài khoản này khỏi Base?')) return;
+      b.disabled = true;
+      try {
+        await goi('/api/tai-khoan', { method: 'POST', body: JSON.stringify({ id: b.dataset.id, viec }) });
+        napCdTaiKhoan();
+      } catch (e) { alert(e.message); b.disabled = false; }
+    };
+  });
+}
 
 function veCdThongBao(el) {
   el.innerHTML = cdTieuDe('Thông báo tới nhân sự') +

@@ -45,7 +45,7 @@ const ok = (ten, dk) => {
 /** Mọi tệp văn bản trong kho, bỏ .git và node_modules. */
 function quet(thuMuc, ra) {
   for (const t of fs.readdirSync(thuMuc, { withFileTypes: true })) {
-    if (t.name === '.git' || t.name === 'node_modules' || t.name === 'du-lieu') continue;
+    if (['.git', '.claude', 'node_modules', 'du-lieu'].includes(t.name)) continue;
     const p = path.join(thuMuc, t.name);
     if (t.isDirectory()) { quet(p, ra); continue; }
     if (!/\.(js|json|ya?ml|md|html|css|env\.mau)$/.test(t.name)) continue;

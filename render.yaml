@@ -82,6 +82,24 @@ services:
       # - key: LARK_MANAGER_IDS
       #   sync: false
 
+      # ---- đăng nhập bằng TÀI KHOẢN + MẬT KHẨU (người không có Lark) ----
+      # Bảng "Tài khoản" trong Base của hub. Tạo bằng:
+      #     node thiet-lap/tao-bang-tai-khoan.js --that
+      # rồi dán table_id nó in ra vào đây.
+      #
+      # KHÔNG khai biến này = tính năng TẮT HẲN: trang đăng nhập chỉ hiện nút
+      # Lark, không có ô mật khẩu, không có trang đăng ký. Cố ý fail closed —
+      # đây là cửa duy nhất của hệ mở ra internet cho người ngoài công ty, nên
+      # nó phải được bật bằng một hành động rõ ràng, không phải bật theo mặc định.
+      # - key: HUB_TK_TABLE
+      #   sync: false
+      #
+      # Trần số tài khoản ĐANG CHỜ DUYỆT. Chạm trần thì đăng ký tạm đóng cho tới
+      # khi quản lý dọn — chặn một con bot đẩy vài nghìn dòng rác vào Base qua
+      # một đêm. Mặc định 50.
+      # - key: HUB_TK_CHO_TOI_DA
+      #   value: "50"
+
       # ---- base nào mở cho CẢ PHÒNG ----
       # Phải khai ở ĐÂY, không phải bằng nút trong app.
       #

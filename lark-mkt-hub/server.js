@@ -27,6 +27,7 @@ const { chuyenTiep, goiJson } = require('./proxy');
 const tbApp = require('./thongbao-app');
 const nhomLark = require('./nhom-lark');
 const nen = require('./nen');
+const taiKhoan = require('./tai-khoan');
 
 const PUBLIC = path.join(__dirname, 'public');
 
@@ -45,6 +46,16 @@ function dsQuanLyEmail() {
 }
 function laQuanLy(nguoi) {
   if (!nguoi) return false;
+  /* TÀI KHOẢN MẬT KHẨU KHÔNG BAO GIỜ LÀM QUẢN LÝ.
+   *
+   * Ai cũng tự đăng ký được (anh Hùng chốt 22/09/2026 "để anh duyệt"), và người
+   * đăng ký tự chọn email. Không chặn ở đây thì chỉ cần đăng ký bằng đúng email
+   * đang nằm trong LARK_MANAGER_EMAILS là có toàn quyền — quản lý còn phải bấm
+   * duyệt, nhưng nhìn danh sách chờ thì chỉ thấy một cái tên bình thường.
+   *
+   * Quản lý luôn là người của công ty, mà người của công ty thì có Lark. Nên
+   * luật này không lấy mất của ai cái gì. */
+  if (nguoi.kieu === 'mk') return false;
   if (nguoi.id && dsQuanLyId().includes(nguoi.id)) return true;
   const mail = String(nguoi.email || '').toLowerCase();
   return !!(mail && dsQuanLyEmail().includes(mail));
@@ -1345,6 +1356,54 @@ async function api(req, res, u) {
   }
 
   /* ---------------- phân quyền thành viên (chỉ quản lý) ---------------- */
+  /* ---------------- tài khoản mật khẩu (người ngoài Lark) ----------------
+   * Chỉ quản lý. `chiQuanLy` chặn ở backend, không phải chỉ ẩn nút — ai gõ tay
+   * đường dẫn này cũng bị chặn, kể cả người đã đăng nhập bằng mật khẩu.
+   *
+   * KHÔNG endpoint nào trả về chuỗi băm. Xem `dsChoPanel` trong tai-khoan.js. */
+  if (p === '/api/tai-khoan') {
+    if (await chiQuanLy(req, res)) return;
+    if (!taiKhoan.co()) {
+      return ok(res, { co: false, ds: [], huongDan: 'Chạy node thiet-lap/tao-bang-tai-khoan.js --that '
+        + 'rồi khai HUB_TK_TABLE trên Render.' });
+    }
+
+    if (m === 'GET') {
+      try { return ok(res, { co: true, ds: await taiKhoan.dsChoPanel(), loi: taiKhoan.loi() }); }
+      catch (e) { return loi(res, 502, 'Không đọc được bảng Tài khoản: ' + e.message); }
+    }
+
+    if (m === 'POST') {
+      const b = await docBody(req);
+      const id = String(b.id || '').trim();
+      const viec = String(b.viec || '').trim();
+      if (!id) return loi(res, 400, 'Thiếu id tài khoản.');
+
+      /* Duyệt / khoá / mở lại / từ chối — tất cả đi qua một hàm, và hàm đó tự
+       * đá mọi phiên đang mở khi trạng thái không còn là Hoạt động. */
+      const doi = { duyet: taiKhoan.TT.hoatDong, khoa: taiKhoan.TT.khoa,
+        tuChoi: taiKhoan.TT.tuChoi, moLai: taiKhoan.TT.hoatDong };
+      if (doi[viec]) {
+        const r = await taiKhoan.doiTrangThai(id, doi[viec]);
+        return r.ok ? ok(res, { ok: true }) : loi(res, 502, r.loi);
+      }
+
+      if (viec === 'datLaiMk') {
+        const r = await taiKhoan.datLaiMk(id, String(b.mk || ''));
+        return r.ok ? ok(res, { ok: true }) : loi(res, 400, r.loi);
+      }
+
+      if (viec === 'xoa') {
+        const r = await taiKhoan.xoaTk(id);
+        return r.ok ? ok(res, { ok: true }) : loi(res, 502, r.loi);
+      }
+
+      return loi(res, 400, 'Việc không hợp lệ.');
+    }
+
+    return loi(res, 405, 'Chỉ nhận GET hoặc POST.');
+  }
+
   if (p === '/api/quyen') {
     const nguoi = cfg.mode === 'api' ? auth.sessionUser(req) : null;
     const q = await quyenCua(nguoi);
@@ -2090,7 +2149,18 @@ const server = http.createServer(async (req, res) => {
      * quản lý (POST/DELETE đi qua chiQuanLy trong api()). */
     const moCong = p === '/healthz'
       || (p === '/api/logo' && (req.method === 'GET' || req.method === 'HEAD'));
-    if (!moCong && !auth.sessionUser(req)) return auth.requireLogin(res, u);
+    if (!moCong) {
+      const nguoiCong = auth.sessionUser(req);
+      if (!nguoiCong) return auth.requireLogin(res, u);
+      /* Tài khoản mật khẩu còn phải hỏi Base: bị khoá, bị xoá, hay vừa đăng
+       * xuất ở máy khác thì cookie này chết ngay, không đợi tới ngày hết hạn.
+       * Một chỗ duy nhất cho cả hệ — đặt sau cổng đăng nhập nên mọi đường đi
+       * vào app đều qua đây. */
+      if (!(await auth.conHanPhien(nguoiCong))) {
+        auth.clearSession(res);
+        return auth.requireLogin(res, u);
+      }
+    }
   }
 
   // proxy vào module: /m/<id>/...
