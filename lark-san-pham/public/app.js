@@ -213,31 +213,53 @@ const TANG = [
      dưới chỉ để tra nên gập lại — tầng Duy trì một mình đã 44 dòng, để mở hết
      thì phải cuộn ba màn mới thấy được bức tranh chung, tức là mất đúng cái
      làm nên "bảng thông tin nhanh". */
-  { id: 'sap-ra-mat', ten: '🆕 Sắp ra mắt', mau: 'tim', mo: true,
+  /* `the: true` = bày dạng THẺ. Bốn tầng đầu là việc phải làm nên đáng chỗ trên
+     màn hình; bốn tầng dưới chỉ để tra nên bày dòng gọn và gập sẵn.
+     `mau` là mã màu CSS thật, dùng chung cho vạch tầng, chấm ở thanh phân bổ và
+     viền thẻ — một tầng một màu, nhìn đâu cũng nhận ra. */
+  { id: 'sap-ra-mat', ten: 'Sắp ra mắt', icon: '🆕', mau: '#8b5cf6', the: true, mo: true,
     ghi: 'Chuẩn bị nội dung trước ngày mở bán',
     hop: (p) => laSapRaMat(p) },
-  { id: 'uu-tien', ten: '🔥 Ưu tiên đẩy', mau: 'do', mo: true,
+  { id: 'uu-tien', ten: 'Ưu tiên đẩy', icon: '🔥', mau: '#e5484d', the: true, mo: true,
     ghi: 'Dồn ngân sách và nội dung vào nhóm này',
     hop: (p) => /Ưu tiên đẩy/.test(p.uuTien) },
-  { id: 'hang-ngay', ten: '🟢 Chạy hằng ngày', mau: 'xanh', mo: true,
-    ghi: 'Có bài đều, giữ nhịp',
+  { id: 'hang-ngay', ten: 'Chạy hằng ngày', icon: '🟢', mau: '#12a150', the: true, mo: true,
+    ghi: 'Có bài đều mỗi ngày, giữ nhịp',
     hop: (p) => /Chạy hằng ngày/.test(p.uuTien) },
-  { id: 'chua-xep', ten: 'Chưa xếp mức', mau: 'xam', mo: true,
+  { id: 'chua-xep', ten: 'Chưa xếp mức', icon: '⬜', mau: '#8b95a7', the: true, mo: true,
     ghi: 'Cần quản lý xếp mức ưu tiên',
     hop: (p) => !p.uuTien },
-  { id: 'duy-tri', ten: '🔵 Duy trì', mau: 'lam', mo: false,
+  { id: 'duy-tri', ten: 'Duy trì', icon: '🔵', mau: '#2b5cff', the: false, mo: false,
     ghi: 'Giữ hồ sơ đủ, chạy khi có nhu cầu',
     hop: (p) => /Duy trì/.test(p.uuTien) },
-  { id: 'theo-mua', ten: '🌤 Theo mùa / theo yêu cầu', mau: 'vang', mo: false,
+  { id: 'theo-mua', ten: 'Theo mùa / theo yêu cầu', icon: '🌤', mau: '#eab308', the: false, mo: false,
     ghi: 'Chỉ đẩy khi Kinh doanh yêu cầu hoặc vào mùa',
     hop: (p) => /Theo mùa/.test(p.uuTien) },
-  { id: 'tam-dung', ten: '⏸ Tạm dừng đẩy', mau: 'xam', mo: false,
+  { id: 'tam-dung', ten: 'Tạm dừng đẩy', icon: '⏸', mau: '#8b95a7', the: false, mo: false,
     ghi: 'Không chạy truyền thông lúc này',
     hop: (p) => /Tạm dừng/.test(p.uuTien) },
-  { id: 'khac', ten: 'Mức khác', mau: 'xam', mo: false,
+  { id: 'khac', ten: 'Mức khác', icon: '·', mau: '#8b95a7', the: false, mo: false,
     ghi: 'Mức ưu tiên không nằm trong bộ chuẩn',
     hop: () => true },
 ];
+
+/**
+ * Việc cần làm với MỘT sản phẩm, rút thành một câu.
+ *
+ * Đây là thứ anh Hùng hỏi: nhìn vào biết chỗ nào cần làm. Thứ tự xét là thứ tự
+ * gấp — hồ sơ thiếu thì chưa chạy được bài nào, nên nó đứng trước cả hạn.
+ */
+function vieCanLam(p) {
+  if (p.thieu) return { muc: 'gap', chu: 'Thiếu ' + p.thieu.toLowerCase() };
+  if (/Đã hết hạn/.test(p.tinhTrang)) return { muc: 'gap', chu: 'Đã hết hạn — rà với Kinh doanh' };
+  if (/Sắp hết hạn/.test(p.tinhTrang)) {
+    return { muc: 'vua', chu: 'Còn ' + (p.conLai != null ? p.conLai + ' ngày' : 'ít ngày') + ' hiệu lực' };
+  }
+  const ud = uuDaiSapHet(p);
+  if (ud.length) return { muc: 'vua', chu: 'Ưu đãi hết ' + veNgay(ud[0].den) };
+  if (!p.uuTien) return { muc: 'vua', chu: 'Chưa xếp mức ưu tiên' };
+  return { muc: 'ok', chu: 'Hồ sơ đủ, chạy được' };
+}
 
 /* Lần đầu vẽ Bảng đẩy thì lấy mặc định từ TANG. Gọi mỗi lần vẽ cũng không sao:
    sau lần đầu `tangMo` đã có phần tử nên nó không ghi đè lựa chọn của người dùng. */
@@ -387,10 +409,49 @@ function dongHtml(p) {
     '</div>';
 }
 
+/**
+ * Thanh phân bổ — một vạch ngang chia theo tỉ lệ số sản phẩm mỗi tầng.
+ *
+ * Con số thì phải đọc rồi so; một vạch màu thì liếc là thấy ngay "gần như cả kho
+ * đang nằm ở Duy trì, chỉ 2 cái chạy hằng ngày". Bấm một khúc là nhảy tới tầng đó.
+ */
+function phanBoHtml(nhom) {
+  const tong = nhom.reduce((n, x) => n + x.ds.length, 0);
+  if (!tong) return '';
+  const co = nhom.filter((x) => x.ds.length);
+  return '<div class="phanBo">' +
+    '<div class="pbVach">' + co.map(({ tang, ds }) =>
+      '<button class="pbKhuc" data-toi-tang="' + tang.id + '"' +
+      ' style="flex:' + ds.length + ';background:' + tang.mau + '"' +
+      ' title="' + esc(tang.ten + ' — ' + ds.length + ' sản phẩm') + '">' +
+      (ds.length / tong > 0.08 ? ds.length : '') + '</button>').join('') + '</div>' +
+    '<div class="pbChu">' + co.map(({ tang, ds }) =>
+      '<button class="pbMuc" data-toi-tang="' + tang.id + '">' +
+      '<span class="pbCham" style="background:' + tang.mau + '"></span>' +
+      esc(tang.ten) + ' <b>' + ds.length + '</b></button>').join('') + '</div>' +
+    '</div>';
+}
+
+/** Thẻ lớn cho các tầng cần hành động — kèm một dòng "việc cần làm". */
+function theDayHtml(p, tang) {
+  const v = vieCanLam(p);
+  return '<article class="theDay' + (S.moId === p.id ? ' chon' : '') + '" data-id="' + esc(p.id) + '"' +
+    ' style="--tang:' + tang.mau + '">' +
+    '<div class="tdDau">' +
+      (p.ma ? '<span class="ma">' + esc(p.ma) + '</span>' : '') +
+      '<span class="tdTen" data-no-i18n>' + esc(p.ten) + '</span>' +
+    '</div>' +
+    '<div class="giaHang">' + giaHtml(p) + '</div>' +
+    '<div class="nhanHang">' + nhanHtml(p) + '</div>' +
+    '<div class="tdViec muc-' + v.muc + '">' + esc(v.chu) + '</div>' +
+    '</article>';
+}
+
 function bangDayHtml() {
   motTangMacDinh();
   const nhom = chiaTang(S.ds);
-  let html = '<p class="dan">Mỗi sản phẩm nằm ở đúng một tầng. “Sắp ra mắt” đứng trên cùng vì ' +
+  let html = phanBoHtml(nhom);
+  html += '<p class="dan">Mỗi sản phẩm nằm ở đúng một tầng. “Sắp ra mắt” đứng trên cùng vì ' +
     'việc phải làm là kịp nội dung cho ngày mở bán.' +
     (laQuanLy() ? ' Đổi tầng của một sản phẩm ở tab Quản lý hoặc trong ngăn chi tiết.' : '') +
     '</p>';
@@ -399,14 +460,17 @@ function bangDayHtml() {
     /* <details> chứ không phải nút tự viết: gập/mở là hành vi sẵn có của trình
        duyệt, đọc được bằng bàn phím và trình đọc màn hình mà không cần thêm mã. */
     const dangMo = S.tangMo.has(tang.id);
-    html += '<details class="tang tang-' + tang.mau + '" data-tang="' + tang.id + '"' +
-      (dangMo ? ' open' : '') + '>' +
+    html += '<details class="tang" id="tang-' + tang.id + '" data-tang="' + tang.id + '"' +
+      ' style="--tang:' + tang.mau + '"' + (dangMo ? ' open' : '') + '>' +
       '<summary class="tangDau">' +
+        '<span class="tangIcon">' + esc(tang.icon) + '</span>' +
         '<b>' + esc(tang.ten) + '</b>' +
         '<span class="dem">' + ds.length + '</span>' +
         '<span class="tangMo">' + esc(tang.ghi) + '</span>' +
       '</summary>' +
-      '<div class="tangThan">' + ds.map(dongHtml).join('') + '</div>' +
+      (tang.the
+        ? '<div class="tangLuoi">' + ds.map((p) => theDayHtml(p, tang)).join('') + '</div>'
+        : '<div class="tangThan">' + ds.map(dongHtml).join('') + '</div>') +
       '</details>';
   }
   const ngung = S.ds.filter((p) => p.trangThai === 'Ngừng bán').length;
@@ -854,6 +918,17 @@ document.addEventListener('click', async (ev) => {
     return;
   }
 
+  const toi = ev.target.closest('[data-toi-tang]');
+  if (toi) {
+    const id = toi.dataset.toiTang;
+    S.tangMo.add(id);
+    if (S.tab !== 'bang-day') { S.tab = 'bang-day'; }
+    ve();
+    const el = document.getElementById('tang-' + id);
+    if (el) { el.open = true; el.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
+    return;
+  }
+
   const mo = ev.target.closest('[data-mo]');
   if (mo) {
     const p = S.ds.find((x) => x.id === mo.dataset.mo);
@@ -865,7 +940,7 @@ document.addEventListener('click', async (ev) => {
      chỉnh giá là ngăn lại bật ra che mất bảng. */
   if (ev.target.closest('.oSua, .tick, .hangLoat')) return;
 
-  const card = ev.target.closest('.the[data-id], .dong[data-id]');
+  const card = ev.target.closest('.the[data-id], .dong[data-id], .theDay[data-id]');
   if (card) {
     const p = S.ds.find((x) => x.id === card.dataset.id);
     veSo(p && p.id === S.moId ? null : p);

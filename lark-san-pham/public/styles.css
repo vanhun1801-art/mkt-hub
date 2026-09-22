@@ -516,3 +516,76 @@ main { padding: 16px; max-width: 1460px; margin: 0 auto; }
   .giaGoc { font-size: 12.5px; }
   .chipGiam { font-size: 12.5px; }
 }
+
+/* ==========================================================================
+   BẢNG ĐẨY — bản trực quan (22/09/2026)
+   Anh Hùng: "nhìn vào có thể biết sản phẩm nào cần ưu tiên, cái nào đang chạy
+   liên tục, chỗ nào cần làm". Ba thứ làm được điều đó:
+     1. Thanh phân bổ — liếc một cái thấy tỉ lệ cả kho, không phải đọc rồi so số.
+     2. Bốn tầng cần hành động bày dạng THẺ (chiếm chỗ, bắt mắt); bốn tầng chỉ để
+        tra thì bày dòng gọn và gập sẵn.
+     3. Mỗi thẻ có một dòng "việc cần làm" tô màu theo mức gấp.
+   Một tầng một màu, dùng lại ở vạch tầng · chấm chú giải · viền thẻ (biến --tang).
+   ========================================================================== */
+.phanBo {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 12px 14px; margin-bottom: 14px; box-shadow: var(--bong);
+}
+.pbVach {
+  display: flex; height: 22px; border-radius: 6px; overflow: hidden; gap: 2px;
+}
+.pbKhuc {
+  border: 0; padding: 0; min-width: 6px; cursor: pointer; color: #fff;
+  font: 700 11px/22px inherit; text-align: center;
+}
+.pbKhuc:hover { filter: brightness(1.12); }
+.pbChu { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 9px; }
+.pbMuc {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 0; background: none; padding: 2px 0; cursor: pointer;
+  font: 500 12.5px/1.4 inherit; color: var(--t2);
+}
+.pbMuc:hover { color: var(--t1); }
+.pbMuc b { color: var(--t1); }
+.pbCham { width: 9px; height: 9px; border-radius: 3px; display: inline-block; }
+
+/* vạch tầng và đầu tầng lấy màu từ chính tầng đó */
+.tang { border-left-color: var(--tang, var(--line)); }
+.tangIcon { font-size: 15px; line-height: 1; }
+.tangDau .dem {
+  background: var(--tang, var(--line-soft)); color: #fff; min-width: 24px; text-align: center;
+}
+
+.tangLuoi {
+  display: grid; gap: 10px; padding: 12px 14px;
+  grid-template-columns: repeat(auto-fill, minmax(268px, 1fr));
+}
+.theDay {
+  background: var(--surface-2); border: 1px solid var(--line-soft);
+  border-left: 3px solid var(--tang); border-radius: 10px;
+  padding: 10px 12px; cursor: pointer; display: flex; flex-direction: column; gap: 7px;
+}
+.theDay:hover { background: var(--hover); border-color: var(--primary-border); border-left-color: var(--tang); }
+.theDay.chon { box-shadow: 0 0 0 2px var(--primary-bg); border-color: var(--primary); }
+.tdDau { display: flex; align-items: baseline; gap: 7px; }
+.tdTen { font-weight: 700; font-size: 13.5px; line-height: 1.35; }
+.theDay .giaHang { display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; }
+.theDay .gia { font-size: 17px; font-weight: 700; letter-spacing: -.02em; }
+.theDay .nhanHang { display: flex; gap: 5px; flex-wrap: wrap; }
+
+/* Dòng "việc cần làm": ba mức, ba màu. Xanh nghĩa là không phải làm gì — cố ý
+   vẫn in ra, vì một thẻ trống chỗ đó trông như đang thiếu dữ liệu. */
+.tdViec {
+  font-size: 12px; font-weight: 600; border-radius: 7px; padding: 4px 8px;
+  border: 1px solid transparent;
+}
+.tdViec.muc-gap { background: var(--red-bg); color: var(--red-t); border-color: var(--red-vien); }
+.tdViec.muc-vua { background: var(--vang-bg); color: var(--vang-t); }
+.tdViec.muc-ok { background: var(--green-bg); color: var(--green-t); }
+
+@media (max-width: 640px) {
+  .tangLuoi { grid-template-columns: 1fr; }
+  .pbMuc { font-size: 12.5px; }
+  .tdViec { font-size: 12.5px; }
+  .pbKhuc { font-size: 12.5px; }
+}

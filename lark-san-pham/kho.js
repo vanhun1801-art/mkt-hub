@@ -183,6 +183,9 @@ function veMedia(r) {
   };
 }
 
+/** Chính sách áp cho MỌI sản phẩm — đọc ô Phạm vi, xem chú thích ở docTatCa. */
+const laChinhSachChung = (c) => /Toàn bộ/i.test(c.phamVi || '');
+
 /* ---------------- giá sau giảm ---------------- */
 
 /**
@@ -251,13 +254,18 @@ async function docTatCa() {
   const ds = sp.map(veSanPham).filter((p) => p.ma || p.ten);
   const theoId = new Map(ds.map((p) => [p.id, p]));
 
-  /* Chính sách phạm vi "Toàn bộ sản phẩm" thường KHÔNG nối tới dòng nào —
-     nối 59 dòng bằng tay thì lần thêm sản phẩm thứ 60 là quên. Nên ở đây suy
-     ra: không có ô "Áp dụng cho" nghĩa là áp cho mọi sản phẩm. */
+  /* Chính sách áp cho MỌI sản phẩm thì không nối tay tới từng dòng — nối 59 dòng
+     bằng tay thì lần thêm sản phẩm thứ 60 là quên. Nhận biết bằng ô **Phạm vi**,
+     KHÔNG bằng "ô Áp dụng cho đang trống".
+     
+     Bản đầu coi mọi dòng chưa nối là áp cho tất cả. Nó đúng với ba dòng lúc ấy,
+     nhưng sập ngay khi thêm một chính sách cho nhóm sản phẩm CHƯA CÓ trong Base
+     (ưu đãi tour riêng, thêm 22/09/2026): dòng đó chưa nối được tới đâu, và thế
+     là mức giảm 10% của tour riêng dán lên cả 59 sản phẩm. */
   const csAll = [];
   for (const r of cs.map(veChinhSach)) {
     if (!r.ten) continue;
-    if (!r.spIds.length) { csAll.push(r); continue; }
+    if (laChinhSachChung(r)) { csAll.push(r); continue; }
     for (const id of r.spIds) { const p = theoId.get(id); if (p) p.chinhSach.push(r); }
   }
   for (const p of ds) p.chinhSach = csAll.concat(p.chinhSach);
@@ -335,7 +343,7 @@ function uuDaiSapHet(ds, ngay = cfg.ngaySapHetHan) {
 
 module.exports = {
   tatCa, xoaDem, docTatCa,
-  tinhGiaSauGiam, trongGiaHienThi,
+  tinhGiaSauGiam, trongGiaHienThi, laChinhSachChung,
   sapHetHan, canBoSung, uuDaiSapHet,
   chu, nhieu, mot, so, ms, linkSach, idLink,
   veSanPham, veGia, veChinhSach, veMedia,

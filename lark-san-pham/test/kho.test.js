@@ -234,5 +234,21 @@ group('trongGiaHienThi(): ba điều kiện, thiếu một là không trừ');
     kho.trongGiaHienThi(c({ tinhTrang: '⚠️ Sắp hết hạn' })) === true);
 }
 
+/* ------------------------------------------------------------------ */
+group('laChinhSachChung(): "áp cho tất cả" đọc ô Phạm vi, KHÔNG đọc ô liên kết trống');
+{
+  /* Bản đầu coi mọi dòng chưa nối sản phẩm là áp cho tất cả. Đúng với ba dòng
+   * lúc ấy, nhưng sập ngay khi thêm chính sách cho nhóm sản phẩm CHƯA CÓ trong
+   * Base (ưu đãi tour riêng, 22/09/2026): dòng đó chưa nối được tới đâu, và mức
+   * giảm 10% của tour riêng dán lên cả 59 sản phẩm đang bán.
+   *
+   * Chuỗi trong test phải là chuỗi THẬT trên Base, đủ dấu — bỏ dấu cho dễ gõ là
+   * test xanh trong khi app đỏ. */
+  ok('Toàn bộ sản phẩm -> chung', kho.laChinhSachChung({ phamVi: 'Toàn bộ sản phẩm' }) === true);
+  ok('Nhóm sản phẩm -> KHÔNG chung', kho.laChinhSachChung({ phamVi: 'Nhóm sản phẩm' }) === false);
+  ok('Sản phẩm cụ thể -> KHÔNG chung', kho.laChinhSachChung({ phamVi: 'Sản phẩm cụ thể' }) === false);
+  ok('bỏ trống Phạm vi -> KHÔNG chung', kho.laChinhSachChung({ phamVi: '' }) === false);
+}
+
 console.log('\n' + (fail ? '\x1b[31m' : '\x1b[32m') + pass + ' pass · ' + fail + ' fail\x1b[0m');
 if (fail) { console.log(fails.map((f) => ' - ' + f).join('\n')); process.exit(1); }

@@ -75,6 +75,11 @@ Mỗi sản phẩm rơi vào **đúng một** tầng, tầng đầu tiên nó kh
 | Chưa xếp mức | ✓ | cần quản lý xếp mức |
 | 🔵 Duy trì · 🌤 Theo mùa · ⏸ Tạm dừng · Mức khác | gập | chỉ để tra |
 
+Bốn tầng trên bày dạng **thẻ** (chiếm chỗ, bắt mắt, mỗi thẻ có một dòng *việc cần
+làm* tô theo mức gấp); bốn tầng dưới bày **dòng gọn**. Trên cùng là **thanh phân bổ**
+— một vạch ngang chia theo tỉ lệ, bấm một khúc là nhảy tới tầng đó. Con số thì phải
+đọc rồi so; một vạch màu thì liếc là thấy “gần như cả kho nằm ở Duy trì”.
+
 Hai quyết định ở đây:
 
 - **“Sắp ra mắt” giành quyền trước mọi mức ưu tiên.** Một sản phẩm chưa mở bán thì
@@ -118,6 +123,11 @@ Giao diện in **số khách thực trả** to nhất, giá gốc gạch ngang b
 `−100.000đ`; ngăn chi tiết có bảng ba cột *Giá công bố · Giảm · Khách trả* kèm
 tên chính sách đã trừ. In mỗi giá sau giảm thì người viết content không biết mình
 được phép nói “giảm bao nhiêu”; in mỗi giá gốc thì đăng lên sai giá.
+
+Chính sách có `Phạm vi = Toàn bộ sản phẩm` thì áp cho mọi dòng mà không cần nối
+tay. **Nhận biết bằng ô Phạm vi, không phải bằng “ô Áp dụng cho đang trống”** —
+bản đầu làm thế và sập ngay khi thêm chính sách cho nhóm sản phẩm chưa có trong
+Base (ưu đãi tour riêng): mức giảm 10% của tour riêng dán lên cả 59 sản phẩm.
 
 Hiện chỉ **hai** chính sách được bật: ưu đãi tour cáp treo (G2, G2CHONTHOM —
 100.000đ/vé) và ưu đãi các tour land (50.000đ/vé). **G4 không có mức giảm nào**
