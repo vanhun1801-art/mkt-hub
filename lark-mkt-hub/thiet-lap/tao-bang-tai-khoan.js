@@ -75,12 +75,36 @@ const COT = [
   { type: 'text', name: 'Ghi chú', description: 'Quản lý ghi tay: ai giới thiệu, làm việc gì, tới bao giờ.' },
 ];
 
+/** Bảng "Tài khoản" đã có chưa — trả về table_id, hoặc '' nếu chưa. */
+async function timBang() {
+  const d = await cli(['base', '+table-list', '--as', 'user',
+    '--base-token', BASE, '--format', 'json']);
+  const ds = d.tables || d.items || [];
+  const t = ds.find((x) => String(x.name || '').trim() === 'Tài khoản');
+  return t ? (t.table_id || t.id || '') : '';
+}
+
 async function chay() {
   console.log('');
   console.log('Base: ' + BASE);
   console.log('Bảng: "Tài khoản" — ' + COT.length + ' cột');
   COT.forEach((c) => console.log('   · ' + c.name + '  [' + c.type + ']'));
   console.log('');
+
+  /* Hỏi trước khi tạo. Chạy lại lần hai mà không hỏi là Base có HAI bảng cùng
+   * tên, hub đọc một bảng còn người đăng ký rơi vào bảng kia — hỏng kiểu không
+   * ai nhìn ra, vì cả hai bảng đều trông đúng. */
+  const daCo = await timBang().catch(() => '');
+  if (daCo) {
+    console.log('='.repeat(66));
+    console.log('  Bảng "Tài khoản" ĐÃ CÓ rồi: ' + daCo);
+    console.log('  Không tạo lại (hai bảng cùng tên là hỏng kiểu khó tìm).');
+    console.log('');
+    console.log('  Việc cần làm: Render → Environment → HUB_TK_TABLE = ' + daCo);
+    console.log('='.repeat(66));
+    console.log('');
+    return;
+  }
 
   if (!THAT) {
     console.log('Đây mới là bản xem trước, CHƯA ghi gì.');
@@ -90,13 +114,24 @@ async function chay() {
   }
 
   console.log('Đang tạo…');
-  const t = await cli(['base', '+table-create', '--as', 'user',
+  await cli(['base', '+table-create', '--as', 'user',
     '--base-token', BASE,
     '--name', 'Tài khoản',
     '--fields', JSON.stringify(COT),
     '--format', 'json']);
-  const tid = t.table_id || t.id || '';
-  if (!tid) throw new Error('Không lấy được table_id từ: ' + JSON.stringify(t).slice(0, 400));
+
+  /* HỎI LẠI Base thay vì đọc table_id từ phản hồi của lệnh tạo.
+   *
+   * Ngày 22/09/2026 lệnh này chạy THÀNH CÔNG — bảng nằm sẵn trong Base — nhưng
+   * phản hồi trả về danh sách `fields` chứ không có `table_id`, nên script báo
+   * "Không lấy được table_id" và nhìn y như tạo hỏng. Anh Hùng suýt chạy lại
+   * lần nữa, mà chạy lại là có hai bảng cùng tên.
+   *
+   * Hình dạng phản hồi của lark-cli không khớp tài liệu và đã đổi vài lần (xem
+   * chú thích tương tự trong lark-bao-cao/thiet-lap/tao-base.js). Hỏi lại danh
+   * sách bảng thì không phụ thuộc vào hình dạng đó nữa. */
+  const tid = await timBang();
+  if (!tid) throw new Error('Tạo xong nhưng không thấy bảng "Tài khoản" trong Base. Mở Base kiểm tay.');
 
   console.log('');
   console.log('='.repeat(66));
