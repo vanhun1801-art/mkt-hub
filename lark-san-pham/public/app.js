@@ -29,6 +29,9 @@ const S = {
   me: null,
   chon: { nhom: [], uuTien: [], trangThai: [], tepKhach: [], traiNghiem: [] },
   suaDuoc: {},
+  cotDatLich: [],
+  lich: null,          // null = chưa nạp; mảng = danh sách lịch đổi
+  lichMoForm: false,
   baseUrl: '',
   baseUrlBoSung: '',
   capNhat: 0,
@@ -562,11 +565,86 @@ function quanLyHtml() {
   return html;
 }
 
+/* ---------------------------------------------------------------------------
+ * LỊCH ĐỔI THÔNG TIN
+ *
+ * Đặt trước một thay đổi, tới ngày app tự ghi xuống Base. Kinh doanh gửi đợt
+ * đổi lịch trình cho 8 tour hẹn 01/10 — trước đây phòng phải nhớ rồi hôm đó
+ * ngồi sửa tay từng dòng.
+ * ------------------------------------------------------------------------- */
+
+const LOP_TT = {
+  'Chờ áp dụng': 'cho', 'Đã áp dụng': 'xong', 'Đã huỷ': 'huy', 'Lỗi': 'loi',
+};
+
+function lichHtml() {
+  const ds = S.lich;
+  let h = '<section class="khoiLich"><header class="klDau">' +
+    '<b>Lịch đổi thông tin</b>' +
+    '<span class="phu">Đặt trước — tới ngày app tự ghi vào sản phẩm, có lưu bản cũ.</span>' +
+    '<span class="sp"></span>' +
+    '<button class="btn sm primary" id="lichThem">' +
+    (S.lichMoForm ? 'Đóng' : '+ Đặt lịch đổi') + '</button>' +
+    '</header>';
+
+  if (S.lichMoForm) {
+    const sp = S.ds.slice().sort((a, b) => (a.ma || '').localeCompare(b.ma || ''));
+    h += '<form class="klForm" id="lichForm">' +
+      '<label>Sản phẩm<select name="sanPham" required>' +
+      '<option value="">— chọn —</option>' +
+      sp.map((p) => '<option value="' + esc(p.id) + '" data-no-i18n>' +
+        esc((p.ma ? p.ma + ' — ' : '') + p.ten) + '</option>').join('') +
+      '</select></label>' +
+      '<label>Cột cần đổi<select name="cot" required>' +
+      '<option value="">— chọn —</option>' +
+      S.cotDatLich.map((c) => '<option>' + esc(c) + '</option>').join('') +
+      '</select></label>' +
+      '<label>Ngày áp dụng<input type="date" name="ngay" required></label>' +
+      '<label class="rong">Giá trị mới' +
+      '<textarea name="giaTri" rows="3" placeholder="Số thì gõ số trần (900000). Ngày thì YYYY-MM-DD. Chọn thì gõ đúng tên lựa chọn."></textarea></label>' +
+      '<label class="rong">Ghi chú<input name="ghiChu" placeholder="Nguồn, lý do đổi…"></label>' +
+      '<div class="klNut"><button class="btn primary" type="submit">Đặt lịch</button></div>' +
+      '</form>';
+  }
+
+  if (!ds) h += '<div class="trong">Đang đọc…</div>';
+  else if (!ds.length) h += '<div class="trong">Chưa đặt lịch đổi nào.</div>';
+  else {
+    h += '<div class="banggCuon"><table class="bangQL bangLich">' +
+      '<thead><tr><th>Ngày áp dụng</th><th>Sản phẩm</th><th>Cột</th><th>Giá trị mới</th>' +
+      '<th>Trạng thái</th><th></th></tr></thead><tbody>' +
+      ds.map((r) => {
+        const cho = r.trangThai === 'Chờ áp dụng';
+        return '<tr>' +
+          '<td><b>' + esc(veNgay(r.ngayApDung) || '—') + '</b></td>' +
+          '<td data-no-i18n>' + esc(r.sanPhamTen || '(chưa gán)') + '</td>' +
+          '<td>' + esc(r.cot || '—') + '</td>' +
+          '<td class="klGt" data-no-i18n>' + esc((r.giaTriMoi || '').slice(0, 160)) +
+            ((r.giaTriMoi || '').length > 160 ? '…' : '') + '</td>' +
+          '<td><span class="ttLich tt-' + (LOP_TT[r.trangThai] || 'cho') + '">' +
+            esc(r.trangThai || '—') + '</span>' +
+            (r.ghiChu ? '<div class="phu" data-no-i18n>' + esc(r.ghiChu) + '</div>' : '') +
+            (r.apDungLuc ? '<div class="phu">áp lúc ' + esc(veNgay(r.apDungLuc)) + '</div>' : '') +
+          '</td>' +
+          '<td>' + (cho ? '<button class="btn sm" data-huy-lich="' + esc(r.id) + '">Huỷ</button>' : '') + '</td>' +
+          '</tr>';
+      }).join('') + '</tbody></table></div>';
+  }
+  return h + '</section>';
+}
+
+async function napLich() {
+  try { S.lich = (await api('/api/lich')).ds || []; }
+  catch (e) { S.lich = []; toast(e.message, 'err'); }
+  ve();
+}
+
 function ve() {
   veTabs();
   const man = $('#man');
   if (S.tab === 'quan-ly' && laQuanLy()) {
-    man.innerHTML = veDai() + quanLyHtml();
+    man.innerHTML = veDai() + lichHtml() + quanLyHtml();
+    if (S.lich === null) napLich();
   } else if (S.tab === 'bang-day') {
     man.innerHTML = veDai() + bangDayHtml();
   } else {
@@ -890,6 +968,7 @@ async function khoiTao() {
     S.me = kt.me;
     S.chon = kt.chon;
     S.suaDuoc = kt.suaDuoc || {};
+    S.cotDatLich = kt.cotDatLich || [];
     S.baseUrl = kt.baseUrl;
     S.baseUrlBoSung = kt.baseUrlBoSung;
     ve();
@@ -950,6 +1029,19 @@ document.addEventListener('click', async (ev) => {
   if (ev.target.id === 'soDong') { veSo(null); return; }
 
   if (ev.target.id === 'btnXoaLoc') { xoaLoc(); ve(); return; }
+
+  if (ev.target.id === 'lichThem') { S.lichMoForm = !S.lichMoForm; ve(); return; }
+
+  const huy = ev.target.closest('[data-huy-lich]');
+  if (huy) {
+    if (!window.confirm('Huỷ dòng lịch này?')) return;
+    try {
+      await guiJson('/api/lich/' + huy.dataset.huyLich + '/huy', {});
+      await napLich();
+      toast('Đã huỷ.', 'ok');
+    } catch (e) { toast(e.message, 'err'); }
+    return;
+  }
   if (ev.target.id === 'boChon') { S.chonHangLoat.clear(); ve(); return; }
 
   if (ev.target.id === 'btnBase') {
@@ -1063,6 +1155,31 @@ document.addEventListener('toggle', (ev) => {
   if (t.open) S.tangMo.add(t.dataset.tang);
   else S.tangMo.delete(t.dataset.tang);
 }, true);
+
+document.addEventListener('submit', async (ev) => {
+  if (ev.target.id !== 'lichForm') return;
+  ev.preventDefault();
+  const f = ev.target;
+  const nut = f.querySelector('button[type=submit]');
+  if (nut.disabled) return;
+  nut.disabled = true;
+  try {
+    await guiJson('/api/lich/them', {
+      sanPham: f.sanPham.value,
+      cot: f.cot.value,
+      ngay: f.ngay.value,
+      giaTri: f.giaTri.value,
+      ghiChu: f.ghiChu.value,
+    });
+    S.lichMoForm = false;
+    await napLich();
+    toast('Đã đặt lịch.', 'ok');
+  } catch (e) {
+    toast(e.message, 'err');
+  } finally {
+    nut.disabled = false;
+  }
+});
 
 document.addEventListener('keydown', (ev) => {
   if (ev.key === 'Escape' && S.moId) veSo(null);

@@ -39,6 +39,7 @@ module.exports = {
   giaTableId: 'tblb0i6N8CkbU4WD',
   chinhSachTableId: 'tblOfu9c38xmFJ1c',
   mediaTableId: 'tblUgaFAj0VZ4Chj',
+  lichTableId: 'tblSjAgrKdYI1eLy',
 
   /* View "🛠 Cần bổ sung thông tin" — chỉ dùng để mở thẳng sang Base, app tự
      tính lại danh sách này từ cột công thức nên không phụ thuộc vào view. */
@@ -115,6 +116,17 @@ module.exports = {
       truyenThong: 'flddqLyZbg',
       nguon: 'fldX9qVTVH',
     },
+    lich: {
+      ten: 'fldAR43dY8',
+      sanPham: 'fldJjUurit',
+      cot: 'fldQSoQh7n',
+      giaTriMoi: 'fld6Gq5b3g',
+      ngayApDung: 'fldruYGnGp',
+      trangThai: 'fld2zzXNAm',
+      giaTriCu: 'fldN6LwqfR',
+      apDungLuc: 'fldIn1IgVh',
+      ghiChu: 'fldY7Hh1gA',
+    },
     media: {
       ten: 'fldl3QiDyx',
       sanPham: 'fldupjAUtJ',
@@ -162,7 +174,17 @@ module.exports = {
     hieuLucDen: { field: 'hieuLucDen', kieu: 'ngay', nhan: 'Hiệu lực đến' },
     luuY: { field: 'luuY', kieu: 'chu', nhan: 'Lưu ý cho marketing' },
     uuDai: { field: 'uuDai', kieu: 'chu', nhan: 'Ưu đãi đang chạy' },
+    /* Hai cột này ban đầu CỐ Ý không cho sửa từ app. Mở ra ngày 22/09/2026 vì
+       Kinh doanh gửi đợt đổi lịch trình + dịch vụ bao gồm cho 8 tour, hẹn ngày
+       01/10 — mà Lịch đổi thông tin chỉ ghi được vào cột nằm trong danh sách này.
+       USP, chính sách, dịch vụ CHƯA bao gồm vẫn đóng: chúng không nằm trong đợt
+       đổi nào, và mỗi cột mở thêm là một cột nữa có hai nơi sửa được. */
+    lichTrinh: { field: 'lichTrinh', kieu: 'chu', nhan: 'Lịch trình tóm tắt' },
+    baoGom: { field: 'baoGom', kieu: 'chu', nhan: 'Dịch vụ bao gồm' },
   },
+
+  /** Lựa chọn của cột "Trạng thái" trong bảng Lịch đổi thông tin. */
+  trangThaiLich: ['Chờ áp dụng', 'Đã áp dụng', 'Đã huỷ', 'Lỗi'],
 
   /* Ngưỡng cảnh báo "sắp hết hạn", tính bằng ngày. Cùng con số với công thức
      `Tình trạng hiệu lực` trên Base — để app và Base không nói hai chuyện khác

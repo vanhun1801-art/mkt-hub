@@ -27,6 +27,8 @@ const fs = require('fs');
 const path = require('path');
 const cfg = require('./config');
 const kho = require('./kho');
+const lich = require('./lich');
+const { doiTruong } = require('./kiem');
 const lark = cfg.mode === 'api' ? require('./larkapi') : require('./lark');
 
 const BIND = process.env.BIND || '127.0.0.1';
@@ -252,52 +254,6 @@ function nhatKyGhi(toi, req, kieu, id, truong, giaTri) {
     '| từ:', req.headers.referer || '-');
 }
 
-/* ---------------- kiểm giá trị trước khi ghi ---------------- */
-
-/**
- * Đổi `{truong, giaTri}` từ client thành ô hợp lệ của Base, hoặc ném lỗi.
- *
- * Cả hai đường ghi (một dòng và hàng loạt) đều đi qua đây. Gom về một chỗ vì
- * đây là nơi duy nhất chặn được ba thứ: cột không cho sửa, lựa chọn lạ làm Base
- * tự đẻ option rác, và ngày/số viết sai kiểu.
- *
- * Ô trống luôn ghi `null` chứ không phải chuỗi rỗng — Base hiểu chuỗi rỗng ở
- * cột số/ngày là một giá trị, không phải "xoá".
- */
-function doiTruong(truong, giaTri) {
-  const kh = cfg.suaDuoc[truong];
-  if (!kh) throw new Error('Cột này không sửa được từ app: ' + truong + '. Sửa trong Lark Base.');
-
-  if (kh.kieu === 'select') {
-    const v = String(giaTri == null ? '' : giaTri).trim();
-    if (v && !cfg.chon[kh.chon].includes(v)) {
-      throw new Error(kh.nhan + ' không hợp lệ: ' + v);
-    }
-    return { field: kh.field, giaTri: v || null };
-  }
-
-  if (kh.kieu === 'so') {
-    if (giaTri === '' || giaTri == null) return { field: kh.field, giaTri: null };
-    const n = Number(giaTri);
-    if (!Number.isFinite(n) || n < 0) throw new Error(kh.nhan + ' phải là số không âm.');
-    return { field: kh.field, giaTri: n };
-  }
-
-  if (kh.kieu === 'ngay') {
-    const v = String(giaTri == null ? '' : giaTri).trim();
-    if (!v) return { field: kh.field, giaTri: null };
-    /* Ô date của trình duyệt trả YYYY-MM-DD. Ghi kèm 00:00:00 và để Base tự
-       hiểu theo múi giờ của nó (Asia/Saigon) — đừng tự đổi sang epoch, đó là
-       chỗ đã làm lệch ngày ở mấy app trước. */
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) throw new Error(kh.nhan + ' phải dạng YYYY-MM-DD.');
-    return { field: kh.field, giaTri: v + ' 00:00:00' };
-  }
-
-  const v = String(giaTri == null ? '' : giaTri);
-  if (v.length > 5000) throw new Error(kh.nhan + ' quá dài (trên 5000 ký tự).');
-  return { field: kh.field, giaTri: v.trim() || null };
-}
-
 /* ---------------- API ---------------- */
 
 async function api(req, res, u) {
@@ -326,6 +282,7 @@ async function api(req, res, u) {
       /* Giao diện hỏi server "cột nào sửa được" thay vì tự giữ một danh sách
          riêng — hai danh sách lệch nhau thì nút hiện ra mà bấm vào báo 400. */
       suaDuoc: cfg.suaDuoc,
+      cotDatLich: lich.COT_DAT_DUOC,
     });
   }
 
@@ -373,6 +330,65 @@ async function api(req, res, u) {
     await lark.updateMany(map, cfg.spTableId);
     kho.xoaDem();
     return json(res, { ok: true, so: ids.length, truong: than.truong, giaTri: o.giaTri });
+  }
+
+  /* ---- Lịch đổi thông tin ---- */
+
+  if (p === '/lich') {
+    /* Chỉ quản lý: đây là màn điều phối, nhân sự xem vào chỉ thêm rối. Và nó
+       lộ trước cả những thay đổi chưa tới ngày công bố. */
+    if (!toi.quanLy) return loi(res, 403, 'Chỉ quản lý xem được lịch đổi thông tin.');
+    const { ds, dsLich } = await kho.tatCa();
+    const ten = new Map(ds.map((x) => [x.id, (x.ma ? x.ma + ' — ' : '') + x.ten]));
+    return json(res, {
+      ds: dsLich.map((r) => Object.assign({}, r, {
+        sanPhamTen: r.spIds.map((id) => ten.get(id)).filter(Boolean).join(', '),
+      })).sort((a, b) => (a.ngayApDung || 0) - (b.ngayApDung || 0)),
+      cot: lich.COT_DAT_DUOC,
+    });
+  }
+
+
+  if (p === '/lich/them' && req.method === 'POST') {
+    if (!toi.quanLy) return loi(res, 403, 'Chỉ quản lý đặt được lịch đổi.');
+    const than = await docThan(req);
+    const spId = String(than.sanPham || '').trim();
+    const cot = String(than.cot || '').trim();
+    const ngay = String(than.ngay || '').trim();
+    if (!/^rec[\w]+$/.test(spId)) return loi(res, 400, 'Chưa chọn sản phẩm.');
+    if (!lich.THEO_NHAN.has(cot)) return loi(res, 400, 'Cột không đặt lịch được: ' + cot);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(ngay)) return loi(res, 400, 'Ngày áp dụng phải dạng YYYY-MM-DD.');
+    /* Kiểm giá trị NGAY LÚC ĐẶT, bằng đúng cửa kiểm lúc áp. Để tới ngày mới
+       biết sai thì đã trễ — và lúc đó không còn ai ngồi đó để sửa. */
+    try { doiTruong(lich.THEO_NHAN.get(cot), than.giaTri); }
+    catch (e) { return loi(res, 400, e.message); }
+
+    const { ds } = await kho.tatCa();
+    const sp = ds.find((x) => x.id === spId);
+    if (!sp) return loi(res, 400, 'Không thấy sản phẩm này.');
+
+    await lark.createRecord({
+      [cfg.f.lich.ten]: (sp.ma || sp.ten) + ' · ' + cot + ' từ ' + veNgay(
+        Date.parse(ngay + 'T00:00:00+07:00')),
+      [cfg.f.lich.sanPham]: [{ id: spId }],
+      [cfg.f.lich.cot]: cot,
+      [cfg.f.lich.giaTriMoi]: String(than.giaTri == null ? '' : than.giaTri),
+      [cfg.f.lich.ngayApDung]: ngay + ' 00:00:00',
+      [cfg.f.lich.trangThai]: 'Chờ áp dụng',
+      [cfg.f.lich.ghiChu]: String(than.ghiChu || '').trim() || null,
+    }, cfg.lichTableId);
+    nhatKyGhi(toi, req, 'dat-lich', spId, cot, 'từ ' + ngay);
+    kho.xoaDem();
+    return json(res, { ok: true });
+  }
+
+  const mHuy = /^\/lich\/(rec[\w]+)\/huy$/.exec(p);
+  if (mHuy && req.method === 'POST') {
+    if (!toi.quanLy) return loi(res, 403, 'Chỉ quản lý huỷ được lịch đổi.');
+    await lark.updateRecord(mHuy[1], { [cfg.f.lich.trangThai]: 'Đã huỷ' }, cfg.lichTableId);
+    nhatKyGhi(toi, req, 'huy-lich', mHuy[1], 'Trạng thái', 'Đã huỷ');
+    kho.xoaDem();
+    return json(res, { ok: true });
   }
 
   if (p === '/lam-moi' && req.method === 'POST') {

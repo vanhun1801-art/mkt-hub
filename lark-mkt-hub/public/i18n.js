@@ -837,6 +837,33 @@
 
     /* hai mức giá (22/09/2026) */
     'Giá khách thực trả': 'What the guest pays',
+
+    /* Lịch đổi thông tin (22/09/2026) */
+    'Lịch đổi thông tin': 'Scheduled changes',
+    'Đặt trước — tới ngày app tự ghi vào sản phẩm, có lưu bản cũ.':
+      'Set it ahead — on the date the app writes it to the product and keeps the old value.',
+    '+ Đặt lịch đổi': '+ Schedule a change',
+    'Đóng': 'Close',
+    'Cột cần đổi': 'Column to change',
+    'Ngày áp dụng': 'Applies on',
+    'Giá trị mới': 'New value',
+    'Giá trị cũ': 'Old value',
+    'Đặt lịch': 'Schedule it',
+    'Huỷ': 'Cancel',
+    'Cột': 'Column',
+    'Chưa đặt lịch đổi nào.': 'No scheduled change yet.',
+    '(chưa gán)': '(not assigned)',
+    'Chờ áp dụng': 'Pending',
+    'Đã áp dụng': 'Applied',
+    'Đã huỷ': 'Cancelled',
+    'Lỗi': 'Error',
+    'Đã đặt lịch.': 'Scheduled.',
+    'Đã huỷ.': 'Cancelled.',
+    'Huỷ dòng lịch này?': 'Cancel this scheduled change?',
+    'Số thì gõ số trần (900000). Ngày thì YYYY-MM-DD. Chọn thì gõ đúng tên lựa chọn.':
+      'Numbers plain (900000). Dates as YYYY-MM-DD. For a choice, type the option name exactly.',
+    'Nguồn, lý do đổi…': 'Source, reason for the change…',
+    'Lịch trình tóm tắt': 'Itinerary summary',
     'Đã trừ:': 'Already deducted:',
     'Giảm': 'Discount',
     'Khách trả': 'Guest pays',
@@ -991,6 +1018,7 @@
     /* --- Thông tin sản phẩm: câu có con số nên không khớp khoá nguyên câu --- */
     [/^(\d+) dòng trong Base$/, '$1 rows in the Base'],
     [/^(\d+) sản phẩm$/, '$1 products'],
+    [/^áp lúc (\d{2}\/\d{2}\/\d{4})$/, 'applied $1'],
     [/^Chọn cả (\d+) dòng đang hiện$/, 'Select all $1 rows shown'],
     [/^Đã chọn (\d+)$/, '$1 selected'],
     [/^Đã đặt cho (\d+) sản phẩm\.$/, 'Applied to $1 products.'],

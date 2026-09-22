@@ -9,6 +9,8 @@
  */
 const cfg = require('./config');
 const lark = cfg.mode === 'api' ? require('./larkapi') : require('./lark');
+const lich = require('./lich');
+const { doiTruong } = require('./kiem');
 
 const F = cfg.f;
 const NGAY = 86400000;
@@ -169,6 +171,23 @@ function veChinhSach(r) {
   };
 }
 
+function veLich(r) {
+  const c = r.cells || {};
+  const g = F.lich;
+  return {
+    id: r.record_id,
+    ten: chu(c[g.ten]),
+    spIds: idLink(c[g.sanPham]),
+    cot: mot(c[g.cot]),
+    giaTriMoi: chu(c[g.giaTriMoi]),
+    ngayApDung: ms(c[g.ngayApDung]),
+    trangThai: mot(c[g.trangThai]),
+    giaTriCu: chu(c[g.giaTriCu]),
+    apDungLuc: ms(c[g.apDungLuc]),
+    ghiChu: chu(c[g.ghiChu]),
+  };
+}
+
 function veMedia(r) {
   const c = r.cells || {};
   const g = F.media;
@@ -244,11 +263,12 @@ function tinhGiaSauGiam(p) {
 const thuTu = (ds, v) => { const i = ds.indexOf(v); return i < 0 ? ds.length : i; };
 
 async function docTatCa() {
-  const [sp, gia, cs, media] = await Promise.all([
+  const [sp, gia, cs, media, lichRaw] = await Promise.all([
     lark.listAllRecords(cfg.spTableId),
     lark.listAllRecords(cfg.giaTableId),
     lark.listAllRecords(cfg.chinhSachTableId),
     lark.listAllRecords(cfg.mediaTableId),
+    lark.listAllRecords(cfg.lichTableId),
   ]);
 
   const ds = sp.map(veSanPham).filter((p) => p.ma || p.ten);
@@ -287,6 +307,22 @@ async function docTatCa() {
     for (const id of r.spIds) { const p = theoId.get(id); if (p) p.media.push(r); }
   }
 
+  /* Lịch đặt trước: tới ngày thì ghi xuống Base ngay tại lần đọc này, và vá
+     luôn bản trong bộ nhớ. Phải chạy TRƯỚC khi tính giá sau giảm — một dòng lịch
+     đổi giá công bố mà áp sau thì màn hình còn hiện giá cũ thêm một nhịp. */
+  const dsLich = lichRaw.map(veLich).filter((r) => r.ten || r.spIds.length);
+  let daAp = [];
+  try {
+    daAp = await lich.apDungDenHan(ds, dsLich, lark, doiTruong);
+  } catch (e) {
+    /* Lịch hỏng KHÔNG được làm chết cả app: người ta mở app để tra sản phẩm,
+       không phải để chạy lịch. In ra rồi đi tiếp. */
+    console.error('[LỊCH] không áp được:', e.message);
+  }
+  for (const r of daAp) {
+    console.log('[LỊCH]', r.ok ? 'đã áp' : 'LỖI', r.ma || '', r.cot || '', r.ten, r.loi || '');
+  }
+
   /* Tính sau khi đã nối xong chính sách — trước đó `p.chinhSach` còn rỗng. */
   for (const p of ds) p.giaSauGiam = tinhGiaSauGiam(p);
 
@@ -295,7 +331,7 @@ async function docTatCa() {
     thuTu(cfg.chon.uuTien, a.uuTien) - thuTu(cfg.chon.uuTien, b.uuTien) ||
     a.ten.localeCompare(b.ten, 'vi'));
 
-  return { ds, mediaChung, luc: Date.now() };
+  return { ds, mediaChung, dsLich, luc: Date.now() };
 }
 
 /* ---------------- đệm ---------------- */
@@ -346,5 +382,5 @@ module.exports = {
   tinhGiaSauGiam, trongGiaHienThi, laChinhSachChung,
   sapHetHan, canBoSung, uuDaiSapHet,
   chu, nhieu, mot, so, ms, linkSach, idLink,
-  veSanPham, veGia, veChinhSach, veMedia,
+  veSanPham, veGia, veChinhSach, veMedia, veLich,
 };

@@ -52,7 +52,7 @@ chạy-một-mình rồi tự cấp quyền quản lý — có test canh.
 | **Danh mục** | lưới thẻ, chia nhóm sản phẩm, bộ lọc + ô tìm (bỏ dấu — gõ “cap treo” ra “cáp treo”) |
 | **Sắp hết hạn** | giai đoạn áp dụng **hoặc** ưu đãi sắp/đã kết thúc |
 | **Cần bổ sung** | hồ sơ chưa đủ để làm truyền thông, kèm link sang đúng view trên Base |
-| **Quản lý** *(chỉ quản lý)* | bảng sửa tại chỗ + đặt hàng loạt |
+| **Quản lý** *(chỉ quản lý)* | lịch đổi thông tin + bảng sửa tại chỗ + đặt hàng loạt |
 
 Bộ lọc **chỉ áp cho tab Danh mục và Quản lý**. Hai tab cảnh báo là danh sách việc
 phải làm — lọc chúng đi thì đúng thứ đang cần chú ý lại biến mất khỏi màn hình.
@@ -138,11 +138,15 @@ xem ô *Lưu ý cho marketing* của G4.
 
 ## Quản lý sửa được gì
 
-Chín cột, khai ở `config.suaDuoc`, kiểm giá trị ở `server.js → doiTruong()`:
+Mười một cột, khai ở `config.suaDuoc`, kiểm giá trị ở `kiem.js → doiTruong()`:
 
 `Ưu tiên marketing` · `Trạng thái kinh doanh` · `Giá công bố NL` · `Giá công bố TE`
 · `Ghi chú giá` · `Hiệu lực từ` · `Hiệu lực đến` · `Ưu đãi đang chạy` ·
-`Lưu ý cho marketing`
+`Lưu ý cho marketing` · `Lịch trình tóm tắt` · `Dịch vụ bao gồm`
+
+Hai cột cuối ban đầu **cố ý đóng**; mở ra 22/09/2026 vì Lịch đổi thông tin chỉ
+ghi được vào cột nằm trong danh sách này, mà đợt 01/10 đổi đúng hai cột đó. USP,
+chính sách và dịch vụ *chưa* bao gồm vẫn đóng.
 
 Hai ô giá là **giá công bố thô**, không phải giá sau giảm — nhãn trong app nói rõ
 điều đó. Mức giảm sửa ở bảng Chính sách trên Base, không sửa từ đây.
@@ -164,6 +168,55 @@ Base một nẻo.
 Mỗi lần ghi in một dòng `[GHI]` kèm người và `referer`. Không phải log tạm: app
 sửa một Base cả phòng dùng chung, và câu hỏi đầu tiên khi thấy số liệu khác hôm
 qua luôn là “ai đổi, từ đâu”.
+
+---
+
+## Lịch đổi thông tin
+
+Kinh doanh gửi đợt đổi lịch trình cho 8 tour, hẹn ngày 01/10. Trước đây phòng
+phải nhớ rồi hôm đó ngồi sửa tay từng dòng — nhớ sót thì bài đăng nói một đằng,
+tour chạy một nẻo.
+
+Bảng **Lịch đổi thông tin** trên Base giữ từng thay đổi: sản phẩm, cột cần đổi,
+giá trị mới, ngày áp dụng, trạng thái, giá trị cũ. Đặt và huỷ ngay trong tab
+**Quản lý**.
+
+### Chạy bằng cách đọc-thì-áp, không có cron
+
+Mỗi lần app đọc dữ liệu (`kho.tatCa`) nó kiểm luôn bảng lịch; dòng nào tới hạn
+thì ghi xuống Base ngay lúc đó. Ba lý do:
+
+- App chạy như tiến trình con trong lớp vỏ và trên Render **có thể bị ngủ**. Một
+  cron trong tiến trình sẽ im lặng không chạy đúng lúc ngủ, mà không ai biết.
+- Đọc-thì-áp **tự lành**: ngủ qua ngày 01/10 thì sáng 02/10 có người mở là nó áp
+  ngay. Chậm tối đa bằng lần mở app kế tiếp — mà app này mở để xem thông tin sản
+  phẩm, nên không ai đọc thì cũng chẳng ai thấy bản cũ.
+- Lớp vỏ còn gọi `/api/tong-quan` cho trang Tổng quan nên thực tế nó chạy vài
+  phút một lần trong giờ làm.
+
+`kho.tatCa` gom mọi lời gọi song song vào một promise, nên hai tab mở cùng lúc
+không áp hai lần.
+
+### Bốn điều đã chốt trong bộ máy
+
+| | Vì sao |
+|---|---|
+| Ghi **sản phẩm trước**, đánh dấu lịch sau | Ngược lại thì mạng đứt giữa chừng sẽ để lại dòng ghi “Đã áp dụng” trong khi sản phẩm chưa đổi gì — và không ai đi tìm lại nữa. Thứ tự này thì lần đọc sau tự thử lại |
+| Dùng **chung `kiem.doiTruong`** với đường bấm tay | Nếu lịch đi cửa kiểm khác, nó thành đường vòng để ghi giá trị mà bấm tay bị chặn |
+| Áp không được thì đánh dấu **Lỗi kèm lý do**, không thử lại | Một dòng chờ vĩnh viễn trông y hệt một dòng chưa tới hạn |
+| Lưu **giá trị cũ** | Đây là thay đổi tự động; câu hỏi tiếp theo luôn là “trước đó nó là gì” |
+
+`kiem.js` nằm riêng vì cả `server.js` (người bấm) lẫn `lich.js` (lịch, gọi từ
+`kho.js`) đều cần — để trong `server.js` thì `kho.js` phải require ngược lên, thành
+vòng tròn.
+
+### Đợt đang chờ
+
+16 dòng hẹn 01/10/2026 (7 tour) và 15/10/2026 (Rạch Vẹm). **4 dòng chưa gán sản
+phẩm**: “Tour Safari – Vinwonders” và “Tour Vinwonders” trong file Kinh doanh
+không khớp mã nào đang có (`GLAND_VIN` là VinWonders **+ Grand World**). Không
+đoán — đoán sai ở đây là ghi đè lịch trình của một tour đang bán. Quản lý gán
+sản phẩm trước ngày áp dụng, nếu không app sẽ đánh dấu Lỗi.
 
 ---
 
@@ -193,7 +246,9 @@ qua luôn là “ai đổi, từ đâu”.
 | `config.js` | cổng, chế độ (`cli`/`api`), base token, table ID, **field ID**, `chon` (danh sách trắng), `suaDuoc` |
 | `lark.js` / `larkapi.js` | hai backend cùng chữ ký — lark-cli trên máy, Open API khi deploy |
 | `kho.js` | đọc bốn bảng một lượt, ghép thành hồ sơ sản phẩm, đệm 90 giây |
-| `server.js` | tệp tĩnh + `/api/khoi-tao`, `/api/san-pham`, `/api/tong-quan`, `POST /api/san-pham/:id`, `POST /api/san-pham/hang-loat` |
+| `kiem.js` | `doiTruong()` — cửa kiểm giá trị duy nhất, dùng chung cho người bấm và cho lịch |
+| `lich.js` | bộ máy áp lịch tới hạn |
+| `server.js` | tệp tĩnh + `/api/khoi-tao`, `/api/san-pham`, `/api/tong-quan`, `POST /api/san-pham/:id`, `/hang-loat`, `/api/lich`, `/api/lich/them`, `/api/lich/:id/huy` |
 | `public/` | giao diện. `khung-xuong.*` là bản chép từ hub — sửa ở hub rồi chạy `node dong-bo-khung.js` |
 
 ## Khai trong Hub
