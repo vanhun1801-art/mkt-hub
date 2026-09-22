@@ -32,6 +32,8 @@ const APP = [
     mau: '#3370ff', url: process.env.KPI_URL_VIEC || 'http://localhost:5173' },
   { id: 'lich-tac-nghiep', ten: 'Lịch tác nghiệp', mo: 'Đăng ký · duyệt · báo cáo',
     mau: '#00b96b', url: process.env.KPI_URL_LICH || 'http://localhost:5174' },
+  { id: 'quy-chi-phi', ten: 'Quỹ chi phí', mo: 'Sổ quỹ tạm ứng · quyết toán',
+    mau: '#d4a017', url: process.env.KPI_URL_QUY || 'http://localhost:5182' },
 ];
 
 /**
@@ -450,7 +452,7 @@ async function docLich(app, tu, den) {
         ghi: soBuoiCoGio === it.length
           ? 'giờ'
           : 'giờ · ' + soBuoiCoGio + '/' + it.length + ' buổi đã có giờ kết thúc' },
-      { nhan: 'Chi phí thực tế', so: cong('costActual'), dinhDang: 'vnd', dao: true },
+      { nhan: 'Chi phí thực tế', so: cong('costActual'), dinhDang: 'vnd', trungTinh: true },
       { nhan: 'Dự toán', so: cong('costPlan'), dinhDang: 'vnd' },
       { nhan: 'Chênh dự toán', so: cong('costActual') - cong('costPlan'), dinhDang: 'vnd', dao: true },
       { nhan: 'Có báo cáo sau buổi', so: it.filter((x) => x.reportAfter || x.report).length, dinhDang: 'so' },
@@ -472,12 +474,91 @@ async function docLich(app, tu, den) {
   };
 }
 
+/* ================= QUỸ CHI PHÍ =================
+ * App Quỹ không có đường lọc theo kỳ cho TỪNG khoản — `/api/tong-quan` của nó
+ * chỉ trả mấy con số gộp. Nhưng `/api/meta` trả nguyên 169 dòng chi kèm loại,
+ * người và ngày, nên lọc kỳ ngay tại đây là đủ, không phải sửa app của họ.
+ *
+ * Lọc theo NGÀY ĐỀ NGHỊ chứ không phải ngày chi — đó là ngày khoản chi phát
+ * sinh. Ngày chi có thể còn trống (chưa chi), lọc theo nó thì khoản mới nhất
+ * biến mất khỏi báo cáo.
+ */
+async function docQuyChiPhi(app, tu, den) {
+  const d = await goi(app, '/api/meta');
+  const tatCa = d.chi || [];
+  const q = d.quy || {};
+  const trongKy = tatCa.filter((r) => {
+    const ng = String(r.ngayDeNghi || '').slice(0, 10);
+    return ng && ng >= tu && ng <= den;
+  });
+  const tien = (ds) => ds.reduce((s, r) => s + so(r.tien), 0);
+  const tongKy = tien(trongKy);
+  const dem = (tt) => tatCa.filter((r) => r.tinhTrang === tt).length;
+
+  const theoLoai = gomTheo(trongKy, (r) => nhanOf(r.loai) || '(chưa phân loại)', ['tien']);
+  const theoNguoi = gomTheo(trongKy, (r) => nhanOf(r.nguoi) || '(chưa rõ)', ['tien']);
+  /* Chi theo ngày để vẽ đường — gom sẵn ở đây vì `chuoi` cần mảng đã theo ngày. */
+  const theoNgay = gomTheo(trongKy, (r) => String(r.ngayDeNghi || '').slice(0, 10), ['tien'])
+    .sort((a, b) => a._k.localeCompare(b._k));
+
+  return {
+    o: [
+      { nhan: 'Chi trong kỳ', so: tongKy, dinhDang: 'vnd', chinh: true, trungTinh: true,
+        ghi: trongKy.length + ' khoản' },
+      { nhan: 'Còn trong quỹ', so: so(q.conLai), dinhDang: 'vnd',
+        ghi: 'đã ứng ' + so(q.soLanUng) + ' lần' },
+      { nhan: 'Chi trung bình một khoản', so: trongKy.length ? tongKy / trongKy.length : 0,
+        dinhDang: 'vnd', trungTinh: true },
+      { nhan: 'Khoản lớn nhất', so: Math.max(0, ...trongKy.map((r) => so(r.tien))), dinhDang: 'vnd', trungTinh: true },
+      { nhan: 'Số loại chi', so: theoLoai.length, dinhDang: 'so' },
+      { nhan: 'Người đề nghị', so: theoNguoi.length, dinhDang: 'so' },
+      { nhan: 'Chờ chi', so: dem('Chờ chi'), dinhDang: 'so', dao: true,
+        muc: dem('Chờ chi') ? 'vua' : 'ok' },
+      { nhan: 'Chờ quyết toán', so: dem('Đã chi'), dinhDang: 'so', dao: true,
+        muc: dem('Đã chi') ? 'vua' : 'ok', ghi: 'tiền đã ra, chưa khoá sổ' },
+      { nhan: 'Thiếu chứng từ', so: trongKy.filter((r) => !(r.chungTu || []).length).length,
+        dinhDang: 'so', dao: true },
+      { nhan: 'Đã chi từ đầu quỹ', so: so(q.tongChi), dinhDang: 'vnd', trungTinh: true },
+    ],
+    chuoi: {
+      nhan: 'Chi theo ngày đề nghị',
+      diem: theoNgay.map((x) => ({ x: x._k, tien: x.tien, soKhoan: x._n })),
+      duong: [{ key: 'tien', label: 'Số tiền', mau: '#7a3cff' },
+        { key: 'soKhoan', label: 'Số khoản', mau: '#d98300', truc: 2 }],
+    },
+    tron: {
+      nhan: 'Cơ cấu chi theo loại',
+      giua: 'Chi',
+      phan: theoLoai.map((x) => ({ nhan: x._k, so: x.tien })).filter((x) => x.so),
+    },
+    bang: [
+      { tieuDe: 'Theo loại chi',
+        cot: ['Loại', 'Số khoản', 'Số tiền', '% chi kỳ'],
+        soCot: [1, 2, 3],
+        dong: theoLoai.sort((a, b) => b.tien - a.tien)
+          .map((x) => [x._k, x._n, x.tien, tongKy ? Math.round((x.tien / tongKy) * 1000) / 10 : 0]) },
+      { tieuDe: 'Theo người đề nghị',
+        cot: ['Người', 'Số khoản', 'Số tiền'],
+        soCot: [1, 2],
+        dong: theoNguoi.sort((a, b) => b.tien - a.tien).map((x) => [x._k, x._n, x.tien]) },
+      { tieuDe: 'Khoản chi lớn nhất',
+        cot: ['Nội dung', 'Loại', 'Người', 'Ngày đề nghị', 'Số tiền', 'Tình trạng'],
+        soCot: [4],
+        dong: trongKy.slice().sort((a, b) => so(b.tien) - so(a.tien)).slice(0, 20)
+          .map((r) => [String(r.noiDung || '(không ghi)').slice(0, 80), nhanOf(r.loai),
+            nhanOf(r.nguoi), String(r.ngayDeNghi || '').slice(0, 10), so(r.tien),
+            nhanOf(r.tinhTrang)]) },
+    ].filter((b) => b.dong.length),
+  };
+}
+
 const BO_DOC = {
   social: docSocial,
   'quang-cao': docQuangCao,
   ota: docOta,
   'cong-viec': docCongViec,
   'lich-tac-nghiep': docLich,
+  'quy-chi-phi': docQuyChiPhi,
 };
 
 /** @param {{id,ten,quanLy}} nguoi Người đang xem — gửi kèm cho app con biết ai hỏi. */
@@ -495,8 +576,66 @@ async function gom(tu, den, nguoi) {
   return {
     tu, den, kyTruoc: truoc, soNgay: truoc.soNgay,
     base, luc: Date.now(),
+    chiPhi: gomChiPhi(base),
     soChay: base.filter((b) => b.chay).length, soApp: base.length,
     soO: base.reduce((s, b) => s + (b.o || []).length, 0),
+  };
+}
+
+/**
+ * CHI PHÍ TOÀN PHÒNG — gộp hai ví tiền vốn nằm ở hai app khác nhau.
+ *
+ * Tiền của phòng đi ra hai đường: mua quảng cáo (app Quảng cáo) và quỹ chi phí
+ * (app Quỹ). Trước nay muốn biết tháng này phòng tiêu bao nhiêu thì phải mở hai
+ * app rồi tự cộng — mà hai app đó dùng hai cách gọi kỳ khác nhau, nên cộng nhầm
+ * là chuyện thường.
+ *
+ * Trả `null` khi KHÔNG đọc được đủ cả hai. Cộng một nửa rồi gọi là "tổng chi phí
+ * phòng" là con số sai nguy hiểm hơn hẳn việc không có con số nào — người đọc
+ * không có cách nào biết nó thiếu.
+ */
+function gomChiPhi(base) {
+  const lay = (id, nhan) => {
+    const b = base.find((x) => x.id === id);
+    if (!b || !b.chay) return null;
+    const o = (b.o || []).find((x) => x.nhan === nhan);
+    return o ? { so: so(o.so), lech: o.lech } : null;
+  };
+  const qc = lay('quang-cao', 'Chi tiêu');
+  const quy = lay('quy-chi-phi', 'Chi trong kỳ');
+  const dt = lay('quang-cao', 'Doanh thu từ QC');
+
+  const thieu = [];
+  if (!qc) thieu.push('Quảng cáo');
+  if (!quy) thieu.push('Quỹ chi phí');
+  if (thieu.length) return { doc: false, thieu };
+
+  const tong = qc.so + quy.so;
+  return {
+    doc: true,
+    tong,
+    o: [
+      /* KHÔNG `dao`: tổng tiền đã chi không phải chỉ số "thấp là tốt". Chi ít đi
+       * có thể là tiết kiệm, cũng có thể là ngừng chạy quảng cáo và doanh thu
+       * tụt theo — tô xanh ở đây là đọc hộ người ta một kết luận sai. */
+      { nhan: 'Tổng chi phí phòng', so: tong, dinhDang: 'vnd', chinh: true, trungTinh: true,
+        ghi: 'quảng cáo + quỹ chi phí' },
+      { nhan: 'Chi quảng cáo', so: qc.so, dinhDang: 'vnd', lech: qc.lech, trungTinh: true,
+        ghi: tong ? Math.round((qc.so / tong) * 100) + '% tổng chi' : '' },
+      { nhan: 'Chi từ quỹ', so: quy.so, dinhDang: 'vnd', lech: quy.lech, trungTinh: true,
+        ghi: tong ? Math.round((quy.so / tong) * 100) + '% tổng chi' : '' },
+      /* Doanh thu ghi công được cho quảng cáo, KHÔNG phải doanh thu cả phòng —
+       * nên chỉ đặt cạnh chi quảng cáo, không chia cho tổng chi. */
+      { nhan: 'Doanh thu ghi công cho QC', so: dt ? dt.so : 0, dinhDang: 'vnd',
+        lech: dt ? dt.lech : null,
+        ghi: dt && dt.so ? '' : 'chưa ghi công được đơn nào' },
+    ],
+    tron: {
+      nhan: 'Tiền phòng đi về đâu',
+      giua: 'Tổng chi',
+      phan: [{ nhan: 'Quảng cáo', so: qc.so }, { nhan: 'Quỹ chi phí', so: quy.so }]
+        .filter((x) => x.so > 0),
+    },
   };
 }
 
@@ -515,17 +654,75 @@ async function gomSoSanh(tu, den, nguoi) {
   nay.base.forEach((b) => {
     const bt = truoc.base.find((x) => x.id === b.id);
     (b.o || []).forEach((o) => {
-      if (o.lech != null || !bt || !bt.chay) return;
+      if (!bt || !bt.chay) return;
       const ot = (bt.o || []).find((x) => x.nhan === o.nhan);
       if (!ot) return;
+      /* Luôn ghi `soTruoc`, kể cả khi app nguồn đã tự trả `lech`. Bản trước
+       * `return` sớm ở đây nên hai base tự tính lệch (Social, Quảng cáo) không
+       * bao giờ có số kỳ trước — và biểu đồ so sánh của chúng rỗng trơn. */
       o.soTruoc = ot.so;
+      if (o.lech != null) return;
       /* Kỳ trước bằng 0 thì không phần trăm nào có nghĩa (chia cho 0) — để trống
        * và cho giao diện hiện ghi chú thay vì "∞%". */
       o.lech = ot.so ? ((o.so - ot.so) / Math.abs(ot.so)) * 100 : null;
     });
   });
+  /* Tính LẠI khối chi phí sau khi đã điền mức lệch: `gom()` dựng nó từ các ô
+   * lúc chưa có `lech`, nên bản dựng trong đó luôn thiếu phần so sánh. */
+  nay.chiPhi = gomChiPhi(nay.base);
+  if (nay.chiPhi && nay.chiPhi.doc && truoc.chiPhi && truoc.chiPhi.doc) {
+    nay.chiPhi.tongTruoc = truoc.chiPhi.tong;
+    nay.chiPhi.o.forEach((o) => {
+      const ot = truoc.chiPhi.o.find((x) => x.nhan === o.nhan);
+      if (!ot) return;
+      o.soTruoc = ot.so;
+      if (o.lech == null) o.lech = ot.so ? ((o.so - ot.so) / Math.abs(ot.so)) * 100 : null;
+    });
+    nay.chiPhi.soSanh = dungSoSanh(nay.chiPhi.o);
+  }
+
+  /* Dữ liệu cho biểu đồ so sánh kỳ trước của từng base. */
+  nay.base.forEach((b) => { if (b.chay) b.soSanh = dungSoSanh(b.o || []); });
+
   nay.kyTruocDoc = truoc.base.filter((x) => x.chay).length;
   return nay;
+}
+
+/**
+ * Dữ liệu cho biểu đồ SO SÁNH KỲ TRƯỚC.
+ *
+ * Vì sao là biểu đồ PHẦN TRĂM ĐỔI chứ không phải cột kỳ này cạnh cột kỳ trước:
+ * các chỉ số trong một base lệch nhau mấy bậc độ lớn — lượt xem 1,99 triệu đứng
+ * cạnh bình luận 40. Vẽ chung một thang thì cột bình luận dẹp thành đường kẻ và
+ * biểu đồ chỉ nói được đúng một chuyện là "view nhiều hơn comment", thứ ai cũng
+ * biết. Đổi sang % thay đổi thì mọi chỉ số về chung một thang và biểu đồ trả lời
+ * đúng câu cần hỏi: **tháng này cái gì lên, cái gì xuống, bao nhiêu**.
+ *
+ * Bỏ qua chỉ số kỳ trước bằng 0 (không có phần trăm nào có nghĩa) và chỉ số
+ * không đổi quá 0,5% (chỉ làm rối, không mang tin gì).
+ */
+function dungSoSanh(oList) {
+  const ds = (oList || [])
+    .filter((o) => o.soTruoc != null && o.soTruoc !== 0
+      && o.lech != null && Number.isFinite(o.lech) && Math.abs(o.lech) >= 0.5)
+    .map((o) => ({
+      nhan: o.nhan,
+      nay: so(o.so),
+      truoc: so(o.soTruoc),
+      lech: o.lech,
+      dinhDang: o.dinhDang || 'so',
+      /* `dao` = chỉ số thấp là tốt (CPA, chi phí, huỷ, quá hạn). Biểu đồ phải
+       * biết để tô màu: "chi phí giảm 20%" là tin TỐT, tô đỏ là đọc ngược. */
+      dao: !!o.dao,
+      trungTinh: !!o.trungTinh,
+      /* `tot` chỉ có nghĩa khi chỉ số có chiều tốt/xấu. Trung tính thì để null
+       * và giao diện tô xám — in ra mức đổi, không phán xét. */
+      tot: o.trungTinh ? null : (o.dao ? o.lech < 0 : o.lech > 0),
+    }))
+    .sort((a, b) => Math.abs(b.lech) - Math.abs(a.lech));
+  /* Cắt 12 dòng: biểu đồ 22 thanh không ai đọc hết, mà 12 cái đổi mạnh nhất đã
+   * kể đủ câu chuyện của kỳ. Số đầy đủ vẫn nằm ở các ô phía trên. */
+  return ds.slice(0, 12);
 }
 
 module.exports = { gom, gomSoSanh, kyTruoc, APP };

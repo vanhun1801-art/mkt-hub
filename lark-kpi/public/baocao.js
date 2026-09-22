@@ -75,6 +75,9 @@ async function veBaoCao() {
     + '<b>' + BC.soChay + '/' + BC.soApp + '</b> base đọc được. '
     + 'Số đọc trực tiếp từ các base tại thời điểm mở.</div>'));
 
+  /* Chi phí đứng TRƯỚC các base: tiền của phòng đi ra hai app khác nhau, và
+   * câu "tháng này phòng tiêu bao nhiêu" là câu Sếp hỏi đầu tiên. */
+  if (BC.chiPhi) hop.appendChild(bcChiPhi(BC.chiPhi));
   BC.base.forEach((b) => hop.appendChild(bcKhoi(b)));
 }
 
@@ -160,6 +163,109 @@ function bcNen(nen) {
   return '<div class="o-nen">' + co + thieu + '</div>';
 }
 
+/**
+ * KHỐI CHI PHÍ TOÀN PHÒNG — gộp hai ví tiền nằm ở hai app khác nhau.
+ * Đọc không đủ cả hai thì nói thẳng là chưa đủ, KHÔNG cộng một nửa rồi gọi là
+ * tổng: con số sai kiểu đó nguy hiểm hơn hẳn việc không có con số nào.
+ */
+function bcChiPhi(c) {
+  const t = el('div', 'the the-chinh');
+  t.appendChild(el('header', '',
+    '<span class="cham-tron" style="background:#d4a017"></span>'
+    + '<h3>Chi phí toàn phòng</h3>'
+    + '<span class="phu">quảng cáo + quỹ chi phí</span>'));
+
+  if (!c.doc) {
+    t.appendChild(el('div', 'than', '<div class="canhbao chan"><div>'
+      + '<b>Chưa cộng được tổng chi phí</b> — không đọc được ' + esc((c.thieu || []).join(' và '))
+      + '. Cộng một nửa rồi gọi là tổng chi phí phòng thì sai còn tệ hơn là để trống.'
+      + '</div></div>'));
+    return t;
+  }
+
+  const luoi = el('div', 'o-luoi');
+  (c.o || []).forEach((o) => luoi.appendChild(bcO(o)));
+  t.appendChild(luoi);
+
+  if (c.tron && c.tron.phan.length && window.Charts) {
+    const khung = el('div', 'bieu-do bieu-do-doi');
+    const oTron = el('div');
+    const oSs = el('div');
+    khung.appendChild(oSs); khung.appendChild(oTron);
+    t.appendChild(khung);
+    if ((c.soSanh || []).length) oSs.appendChild(bcSoSanh(c.soSanh, 'Chi phí so kỳ trước'));
+    Charts.donut(oTron, c.tron.phan.map((x) => ({ label: x.nhan, value: x.so })),
+      { centerLabel: c.tron.giua, size: 180 });
+  }
+  return t;
+}
+
+/**
+ * BIỂU ĐỒ SO SÁNH KỲ TRƯỚC — thanh phần trăm đổi, toả hai bên vạch 0.
+ *
+ * Vì sao không vẽ cột kỳ này cạnh cột kỳ trước: các chỉ số trong một base lệch
+ * nhau mấy bậc độ lớn (lượt xem 1,99 triệu đứng cạnh bình luận 40). Chung một
+ * thang thì cột nhỏ dẹp thành đường kẻ. Đổi sang % thay đổi thì mọi chỉ số về
+ * chung thang, và biểu đồ trả lời đúng câu cần hỏi: cái gì lên, cái gì xuống.
+ *
+ * Màu theo TỐT/XẤU chứ không theo dấu: "chi phí giảm 27%" là tin tốt nên xanh,
+ * dù thanh đổ về bên trái.
+ */
+function bcSoSanh(ds, tieuDe) {
+  const g = el('div', 'ss');
+  g.appendChild(el('h4', 'ss-tieu', esc(tieuDe || 'So với kỳ trước')));
+  /* Chặn thang ở 150%: một chỉ số nhảy 900% sẽ ép mọi thanh còn lại thành vạch
+   * mờ. Thanh chạm biên thì có mũi nhọn, và số thật vẫn in nguyên bên cạnh. */
+  const TRAN = 150;
+  const max = Math.min(TRAN, Math.max(20, ...ds.map((x) => Math.abs(x.lech))));
+  const hang = el('div', 'ss-ds');
+  ds.forEach((x) => {
+    const v = Math.abs(x.lech);
+    const w = Math.min(100, (Math.min(v, max) / max) * 100);
+    const tran = v > max;
+    /* Ba trạng thái, không phải hai: tốt · xấu · TRUNG TÍNH. Tổng tiền đã chi
+     * không có chiều tốt xấu — tô xám, chỉ nói mức đổi. */
+    const mau = x.tot == null ? 'im' : x.tot ? 'tot' : 'xau';
+    const r = el('div', 'ss-hang');
+    r.innerHTML = '<div class="ss-ten">' + esc(x.nhan) + '</div>'
+      + '<div class="ss-ray">'
+      + '<div class="ss-nua trai">' + (x.lech < 0
+        ? '<i class="' + mau + (tran ? ' tran' : '') + '" style="width:' + w + '%"></i>' : '')
+      + '</div><div class="ss-vach"></div><div class="ss-nua phai">' + (x.lech > 0
+        ? '<i class="' + mau + (tran ? ' tran' : '') + '" style="width:' + w + '%"></i>' : '')
+      + '</div></div>'
+      + '<div class="ss-so ' + mau + '">'
+      + (x.lech > 0 ? '+' : '') + (Math.round(x.lech * 10) / 10).toString().replace('.', ',') + '%</div>';
+    r.title = x.nhan + ': ' + gon(x.truoc) + ' → ' + gon(x.nay);
+    hang.appendChild(r);
+  });
+  g.appendChild(hang);
+  g.appendChild(el('div', 'ss-chan',
+    'Thang ±' + Math.round(max) + '% · thanh có mũi nhọn là vượt thang · '
+    + 'xanh = tốt lên · đỏ = xấu đi · <b>xám = không có chiều tốt xấu</b> '
+    + '(tổng tiền đã chi: giảm có thể là tiết kiệm, cũng có thể là ngừng chạy) · '
+    + 'rê chuột để xem số kỳ trước'));
+  return g;
+}
+
+/** Một ô số. Tách ra vì cả khối base lẫn khối chi phí đều dùng. */
+function bcO(o) {
+  const l = o.lech;
+  /* CPA thấp là tốt nên đảo chiều màu — không đảo thì "CPA giảm 20%" bị tô đỏ
+   * như tin xấu. */
+  const tot = (l == null || o.trungTinh) ? null : (o.dao ? l < 0 : l > 0);
+  const dLech = (l != null && Number.isFinite(l))
+    ? '<div class="ghi ' + (tot == null ? 'im' : tot ? 'tot' : 'xau') + '">'
+      + (l > 0 ? '▲ ' : '▼ ') + Math.abs(Math.round(l * 10) / 10).toString().replace('.', ',')
+      + '% so kỳ trước</div>'
+    : '';
+  const dGhi = o.ghi ? '<div class="ghi">' + esc(o.ghi) + '</div>' : '';
+  return el('div', 'o' + (o.muc === 'cao' ? ' xau' : '') + (o.chinh ? ' chinh' : ''),
+    '<div class="nhan">' + esc(o.nhan) + '</div>'
+    + '<div class="so">' + bcSo(o.so, o.dinhDang) + '</div>'
+    + dLech + dGhi + bcNen(o.nen));
+}
+
 function bcKhoi(b) {
   const t = el('div', 'the');
   t.appendChild(el('header', '',
@@ -187,25 +293,17 @@ function bcKhoi(b) {
   }
 
   const luoi = el('div', 'o-luoi');
-  (b.o || []).forEach((o) => {
-    const l = o.lech;
-    /* CPA thấp là tốt nên đảo chiều màu — không đảo thì "CPA giảm 20%" bị tô đỏ
-     * như tin xấu. */
-    const tot = l == null ? null : (o.dao ? l < 0 : l > 0);
-    const dLech = (l != null && Number.isFinite(l))
-      ? '<div class="ghi ' + (tot ? 'tot' : 'xau') + '">'
-        + (l > 0 ? '▲ ' : '▼ ') + Math.abs(Math.round(l * 10) / 10).toString().replace('.', ',')
-        + '% so kỳ trước</div>'
-      : '';
-    /* Ghi chú và mức lệch giờ hiện CÙNG LÚC. Bản trước chỉ hiện một trong hai,
-     * nên ô nào có lệch là mất luôn lời giải thích của nó. */
-    const dGhi = o.ghi ? '<div class="ghi">' + esc(o.ghi) + '</div>' : '';
-    luoi.appendChild(el('div', 'o' + (o.muc === 'cao' ? ' xau' : '') + (o.chinh ? ' chinh' : ''),
-      '<div class="nhan">' + esc(o.nhan) + '</div>'
-      + '<div class="so">' + bcSo(o.so, o.dinhDang) + '</div>'
-      + dLech + dGhi + bcNen(o.nen)));
-  });
+  (b.o || []).forEach((o) => luoi.appendChild(bcO(o)));
   t.appendChild(luoi);
+
+  /* Biểu đồ so sánh kỳ trước — đặt ngay dưới dãy ô, trước biểu đồ theo ngày:
+   * "tháng này khác tháng trước chỗ nào" là câu hỏi đến trước "diễn biến trong
+   * tháng ra sao". */
+  if ((b.soSanh || []).length) {
+    const kh = el('div', 'bieu-do');
+    kh.appendChild(bcSoSanh(b.soSanh, 'Thay đổi so với kỳ trước'));
+    t.appendChild(kh);
+  }
 
   /* --- biểu đồ: đường theo ngày + vành khuyên cơ cấu, xếp cạnh nhau --- */
   if ((b.chuoi && b.chuoi.diem.length) || (b.tron && b.tron.phan.length)) {

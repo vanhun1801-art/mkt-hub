@@ -427,7 +427,7 @@ let TQ = null;
 async function veTongQuan() {
   if (!TQ) {
     $('#noiDung').innerHTML = '<div class="rong">đang dựng tổng quan…</div>';
-    try { TQ = await goi('tong-quan'); }
+    try { TQ = await goi('tong-quan-kpi'); }
     catch (e) { $('#noiDung').innerHTML = '<div class="rong">' + esc(e.message) + '</div>'; return; }
   }
   const g = el('div');
@@ -672,24 +672,55 @@ function bangChamTay() {
     + 'vì phiếu KPI xuất ra có in kèm.';
   the.appendChild(than);
 
-  const t = el('table');
-  t.innerHTML = '<thead><tr><th>Người</th><th>Tiêu chí</th><th class="so">Điểm</th>'
+  /* GOM THEO NGƯỜI, không phải một danh sách phẳng.
+   *
+   * Bản trước lặp tên người ở mọi dòng — THƯ ba dòng, HẰNG ba dòng… — nên mắt
+   * phải tự gom lại mới biết một bạn còn thiếu mục nào. Chấm điểm là việc làm
+   * theo TỪNG NGƯỜI: mở phiếu của một bạn, chấm hết ba mục, ghi lý do, sang bạn
+   * tiếp. Bảng phải xếp theo đúng nhịp đó.
+   *
+   * Người nào còn mục chưa chấm thì đẩy lên đầu — đó là việc còn phải làm. */
+  const theoNguoi = [];
+  hang.forEach(({ ng, tc }) => {
+    let o = theoNguoi.find((x) => x.ng.ma === ng.ma);
+    if (!o) { o = { ng, ds: [] }; theoNguoi.push(o); }
+    o.ds.push(tc);
+  });
+  theoNguoi.forEach((o) => {
+    o.thieu = o.ds.filter((x) => x.chuaCo).length;
+    o.xong = o.ds.length - o.thieu;
+  });
+  theoNguoi.sort((a, b) => (b.thieu ? 1 : 0) - (a.thieu ? 1 : 0));
+
+  const t = el('table', 'bang-cham');
+  t.innerHTML = '<thead><tr><th>Tiêu chí</th><th class="so">Điểm</th>'
     + '<th>Ghi chú — vì sao chấm mức này</th><th>Người chấm</th></tr></thead>';
   const tb = el('tbody');
-  hang.forEach(({ ng, tc }) => {
-    const tr = el('tr');
-    tr.innerHTML = '<td><b>' + esc(ng.ten) + '</b></td>'
-      + '<td class="dai">' + esc(tc.ten) + '</td>'
-      + '<td class="so"><input class="cham' + (tc.chuaCo ? ' thieu' : '') + '" type="number"'
-        + ' step="0.1" min="0" max="2" placeholder="—"'
-        + ' value="' + (tc.chuaCo ? '' : tc.diem) + '"'
-        + ' data-ng="' + esc(ng.ma) + '" data-tc="' + esc(tc.ma) + '"></td>'
-      + '<td><input class="ghi-cham" type="text" maxlength="500"'
-        + ' placeholder="' + (tc.chuaCo ? 'chấm điểm rồi ghi lý do' : 'chưa có ghi chú') + '"'
-        + ' value="' + esc(tc.ghiChu || '') + '"'
-        + ' data-ng="' + esc(ng.ma) + '" data-tc="' + esc(tc.ma) + '"></td>'
-      + '<td class="nhat nho">' + esc(tc.boi || 'người phụ trách') + '</td>';
+  theoNguoi.forEach((o) => {
+    const tr = el('tr', 'hang-nguoi');
+    tr.innerHTML = '<td colspan="4"><span class="ten-nguoi">' + esc(o.ng.ten) + '</span>'
+      + (o.ng.viTri ? '<span class="nhat nho"> · ' + esc(o.ng.viTri) + '</span>' : '')
+      + (o.thieu
+        ? '<span class="nhan-o chan">còn ' + o.thieu + '/' + o.ds.length + ' mục chưa chấm</span>'
+        : '<span class="nhan-o ok">đã chấm đủ ' + o.ds.length + ' mục</span>') + '</td>';
     tb.appendChild(tr);
+
+    o.ds.forEach((tc) => {
+      const r = el('tr', 'hang-cham');
+      r.innerHTML = '<td class="dai">' + esc(tc.ten) + '</td>'
+        + '<td class="so"><input class="cham' + (tc.chuaCo ? ' thieu' : '') + '" type="number"'
+          + ' step="0.1" min="0" max="2" placeholder="—"'
+          + ' value="' + (tc.chuaCo ? '' : tc.diem) + '"'
+          + ' data-ng="' + esc(o.ng.ma) + '" data-tc="' + esc(tc.ma) + '"'
+          + ' aria-label="' + esc(o.ng.ten + ' — ' + tc.ten) + '"></td>'
+        + '<td><input class="ghi-cham" type="text" maxlength="500"'
+          + ' placeholder="' + (tc.chuaCo ? 'chấm điểm rồi ghi lý do' : 'chưa có ghi chú') + '"'
+          + ' value="' + esc(tc.ghiChu || '') + '"'
+          + ' data-ng="' + esc(o.ng.ma) + '" data-tc="' + esc(tc.ma) + '"'
+          + ' aria-label="' + esc('Ghi chú ' + o.ng.ten + ' — ' + tc.ten) + '"></td>'
+        + '<td class="nhat nho">' + esc(tc.boi || 'người phụ trách') + '</td>';
+      tb.appendChild(r);
+    });
   });
   t.appendChild(tb);
   the.appendChild(el('div', 'bang-cuon')).appendChild(t);
@@ -797,9 +828,22 @@ function dongNhom(khoa) {
 /* ---------------- tab 2: thử luật ---------------- */
 async function veThu() {
   const g = el('div');
-  g.appendChild(el('p', 'mo',
-    'Đổi mục tiêu hoặc tỷ trọng rồi xem điểm cả phòng nhúc nhích ngay. Không có gì bị ghi xuống '
-    + 'cho tới khi bấm “Lưu bộ luật”.'));
+  /* Tên tab là thuật ngữ của người viết code, không phải của người dùng app.
+   * Mở ra mà không biết mình đang nhìn cái gì thì màn hình có đẹp cũng vô ích. */
+  g.appendChild(el('div', 'canhbao tin', '<div>'
+    + '<b>Tab này để làm gì:</b> đặt <b>mục tiêu tháng</b> cho từng kênh, và '
+    + '<b>thử trước</b> xem đổi mục tiêu thì điểm của ai đổi bao nhiêu — trước khi chốt.'
+    + '<ul class="luu-y">'
+    + '<li><b>Mục tiêu</b> là con số kênh phải đạt (ví dụ 5.000.000 lượt xem). '
+    + 'Đạt đủ mục tiêu = 100%.</li>'
+    + '<li><b>Tỷ trọng</b> là chỉ số đó nặng bao nhiêu trong kênh. View 40% · '
+    + 'follow 30% · lead 30% nghĩa là view quan trọng nhất.</li>'
+    + '<li><b>Thử luật</b> = sửa thử rồi nhìn cột bên phải: điểm cả phòng '
+    + '<b>trước → sau</b>. Sửa xong thấy ai bị tụt quá thì chỉnh lại.</li>'
+    + '</ul>'
+    + '<b>KHÔNG có gì bị ghi xuống cho tới khi bấm “Lưu bộ luật”.</b> '
+    + 'Cứ sửa thoải mái để xem thử, đóng tab đi là mất hết thay đổi.'
+    + '</div>'));
   const oGoiY = el('div');
   g.appendChild(oGoiY);
 
@@ -989,6 +1033,22 @@ function veKetQuaThu(hop, r) {
 /* ---------------- tab 3: soát & đối chiếu ---------------- */
 async function veSoat() {
   const g = el('div');
+
+  g.appendChild(el('div', 'canhbao tin', '<div>'
+    + '<b>Tab này để làm gì:</b> bước CUỐI CÙNG của một tháng. Soát xem còn gì thiếu, '
+    + 'rồi <b>chốt</b> — sau khi chốt thì điểm tháng đó đóng băng.'
+    + '<ul class="luu-y">'
+    + '<li><b>Mục chặn</b> (đỏ) là thứ bắt buộc phải xong mới chốt được — thường là '
+    + 'còn người chưa được chấm tay.</li>'
+    + '<li><b>Cảnh báo</b> (vàng) thì vẫn chốt được, nhưng nên xem: ví dụ hai người '
+    + 'cùng phụ trách một kênh.</li>'
+    + '<li><b>Chốt</b> = chụp lại toàn bộ điểm của tháng và khoá lại. Sau đó có ai sửa '
+    + 'mục tiêu hay đổ lại số thì <b>điểm đã chốt vẫn không đổi</b>.</li>'
+    + '</ul>'
+    + '<b>Vì sao cần chốt:</b> file Excel cũ không có bước này, nên một tháng đã trả lương '
+    + 'rồi vẫn âm thầm đổi số khi ai đó sửa công thức phía trên — và không ai biết. '
+    + 'Chốt nhầm thì bấm “Bỏ chốt” được, nhưng phải cố ý bấm.'
+    + '</div>'));
 
   /* --- cảnh báo tháng đang xem --- */
   const the1 = el('div', 'the');

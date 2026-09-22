@@ -271,6 +271,55 @@ tr.phu td { background: var(--trang-2); }
 .canhbao.canhBao { border-color: var(--vang); background: var(--vang-nhat); }
 .canhbao.tin { border-color: var(--vien); background: var(--trang-2); color: var(--chu-mo); }
 
+/* ---- biểu đồ so sánh kỳ trước: thanh toả hai bên vạch 0 ----
+   Màu theo TỐT/XẤU chứ không theo dấu — "chi phí giảm 27%" đổ về trái nhưng là
+   tin tốt nên vẫn xanh. */
+.ss { padding: 2px 0 0; }
+.ss-tieu {
+  margin: 0 0 12px; font-size: 11px; font-weight: 700; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--chu-nhat);
+}
+.ss-ds { display: grid; gap: 6px; }
+.ss-hang {
+  display: grid; grid-template-columns: minmax(96px, 170px) 1fr 64px;
+  gap: 10px; align-items: center; font-size: 12.5px;
+}
+.ss-ten { color: var(--chu-mo); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ss-ray { display: grid; grid-template-columns: 1fr 1px 1fr; align-items: center; height: 15px; }
+.ss-nua { height: 15px; display: flex; }
+.ss-nua.trai { justify-content: flex-end; }
+.ss-nua > i { display: block; height: 100%; }
+.ss-nua.trai > i { border-radius: 3px 0 0 3px; }
+.ss-nua.phai > i { border-radius: 0 3px 3px 0; }
+.ss-nua > i.tot { background: var(--luc); }
+.ss-nua > i.xau { background: var(--do); }
+.ss-nua > i.im  { background: var(--vien-dam); }
+/* Mũi nhọn = thanh vượt thang; số thật vẫn in nguyên bên phải nên không giấu gì. */
+.ss-nua.trai > i.tran { clip-path: polygon(6px 0, 100% 0, 100% 100%, 6px 100%, 0 50%); border-radius: 0 3px 3px 0; }
+.ss-nua.phai > i.tran { clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 50%, calc(100% - 6px) 100%, 0 100%); border-radius: 3px 0 0 3px; }
+.ss-vach { width: 1px; height: 21px; background: var(--vien-dam); }
+.ss-so { text-align: right; font-variant-numeric: tabular-nums; font-weight: 650; }
+.ss-so.tot { color: var(--luc); } .ss-so.xau { color: var(--do); }
+.ss-so.im { color: var(--chu-mo); }
+.o .ghi.im { color: var(--chu-mo); font-weight: 600; }
+.ss-chan { margin-top: 10px; font-size: 11px; color: var(--chu-nhat); line-height: 1.5; }
+
+/* Thẻ chi phí đứng đầu báo cáo — viền đậm hơn để tách khỏi dãy thẻ base. */
+.the.the-chinh { border-color: var(--vien-dam); }
+
+/* ---- bảng chấm tay: gom theo người ----
+   Hàng tên người là một dải ngăn, không phải một dòng dữ liệu — nền đậm hơn và
+   dính đỉnh khi cuộn, để chấm tới dòng thứ ba vẫn biết đang chấm cho ai. */
+.bang-cham .hang-nguoi > td {
+  background: var(--trang-2); border-top: 2px solid var(--vien-dam);
+  padding-top: 11px; padding-bottom: 10px;
+  position: sticky; top: 30px; z-index: 2;
+}
+.bang-cham tbody tr.hang-nguoi:first-child > td { border-top: 0; }
+.bang-cham .ten-nguoi { font-weight: 750; font-size: 14px; letter-spacing: -.01em; }
+.bang-cham .hang-nguoi .nhan-o { margin-left: 10px; }
+.bang-cham .hang-cham > td:first-child { padding-left: 26px; }
+
 /* ---- lưới phân công: kênh × nhân sự ----
    Ô nhập nhỏ và sát nhau, vì cả bảng là một lưới số chứ không phải một biểu
    mẫu. Hai màu hàng cảnh báo dùng nền RẤT nhạt: hàng lỗi phải nổi lên khi lướt
@@ -524,4 +573,6 @@ input.ghi-cham::placeholder { color: var(--chu-nhat); font-style: italic; }
   .cot-phu { font-size: 12.5px; }                                /* 11 */
   .loc-nhom > label { font-size: 12.5px; }                       /* 10 */
   .pt-phu { font-size: 13px; }                                   /* 11.5 */
+  .ss-tieu { font-size: 12.5px; }                                /* 11 */
+  .ss-chan { font-size: 12.5px; }                                /* 11 */
 }

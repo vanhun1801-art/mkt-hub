@@ -602,7 +602,12 @@ async function api(req, res, u) {
    * dựng sẵn chờ dán dữ liệu, đưa vào đường xu hướng là kéo mọi thứ về 0 và vẽ
    * ra một cú sụp không có thật.
    */
-  if (p === '/api/tong-quan') {
+  /* ĐỔI TÊN, không phải thêm mới. `/api/tong-quan` đã bị một quy ước chung của
+   * Hub chiếm mất: mọi app con giờ trả thẻ tổng quan ở đường đó cho trang chủ
+   * Hub. Hai đường trùng tên trong cùng một tệp thì cái khai TRƯỚC thắng, cái
+   * sau thành mã chết — và tab "Tổng quan KPI" lặng lẽ trắng trơn vì nhận về
+   * đúng payload của thẻ Hub. Không có lỗi nào hiện ra. */
+  if (p === '/api/tong-quan-kpi') {
     const ths = store.danhSachThang().slice().sort()
       .filter((th) => {
         const t = store.thang(th);
