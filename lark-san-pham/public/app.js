@@ -459,10 +459,11 @@ function phanBoHtml(nhom) {
 }
 
 /** Thẻ lớn cho các tầng cần hành động — kèm một dòng "việc cần làm". */
-function theDayHtml(p, tang) {
+function theDayHtml(p) {
   const v = vieCanLam(p);
-  return '<article class="theDay' + (S.moId === p.id ? ' chon' : '') + '" data-id="' + esc(p.id) + '"' +
-    ' style="--tang:' + tang.mau + '">' +
+  /* Thẻ KHÔNG mang màu tầng nữa (bỏ 22/09/2026 — vạch màu dọc bị rối mắt); nó
+     đã nằm trong khối tầng có tiêu đề rồi, tô thêm là thừa. */
+  return '<article class="theDay' + (S.moId === p.id ? ' chon' : '') + '" data-id="' + esc(p.id) + '">' +
     '<div class="tdDau">' +
       (p.ma ? '<span class="ma">' + esc(p.ma) + '</span>' : '') +
       '<span class="tdTen" data-no-i18n>' + esc(p.ten) + '</span>' +
@@ -495,7 +496,7 @@ function bangDayHtml() {
         '<span class="tangMo">' + esc(tang.ghi) + '</span>' +
       '</summary>' +
       (tang.the
-        ? '<div class="tangLuoi">' + ds.map((p) => theDayHtml(p, tang)).join('') + '</div>'
+        ? '<div class="tangLuoi">' + ds.map(theDayHtml).join('') + '</div>'
         : '<div class="tangThan">' + ds.map(dongHtml).join('') + '</div>') +
       '</details>';
   }

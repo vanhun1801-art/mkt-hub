@@ -357,15 +357,9 @@ main { padding: 16px; max-width: 1460px; margin: 0 auto; }
   background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
   box-shadow: var(--bong); margin-bottom: 12px; overflow: hidden;
 }
-/* Vạch màu bên trái là thứ phân biệt tầng khi liếc nhanh — không dựa vào emoji,
-   vì emoji ở cỡ 13px trên màn hình nhỏ gần như không đọc ra. */
-.tang { border-left: 4px solid var(--line); }
-.tang-do { border-left-color: var(--red); }
-.tang-tim { border-left-color: #8b5cf6; }
-.tang-xanh { border-left-color: var(--green); }
-.tang-lam { border-left-color: var(--primary); }
-.tang-vang { border-left-color: #eab308; }
-.tang-xam { border-left-color: var(--t3); }
+/* KHÔNG có vạch màu dọc bên trái tầng hay thẻ (bỏ 22/09/2026 — anh Hùng: "rối
+   mắt"). Màu của tầng đã nói đủ ở hai chỗ nhẹ hơn: chấm trên thanh phân bổ và
+   huy hiệu số ở đầu tầng. Ba lần tô cùng một thông tin là hai lần thừa. */
 
 .tangDau {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
@@ -549,8 +543,7 @@ main { padding: 16px; max-width: 1460px; margin: 0 auto; }
 .pbMuc b { color: var(--t1); }
 .pbCham { width: 9px; height: 9px; border-radius: 3px; display: inline-block; }
 
-/* vạch tầng và đầu tầng lấy màu từ chính tầng đó */
-.tang { border-left-color: var(--tang, var(--line)); }
+/* Đầu tầng lấy màu từ chính tầng đó — chỉ ở huy hiệu số, không kẻ vạch. */
 .tangIcon { font-size: 15px; line-height: 1; }
 .tangDau .dem {
   background: var(--tang, var(--line-soft)); color: #fff; min-width: 24px; text-align: center;
@@ -561,11 +554,10 @@ main { padding: 16px; max-width: 1460px; margin: 0 auto; }
   grid-template-columns: repeat(auto-fill, minmax(268px, 1fr));
 }
 .theDay {
-  background: var(--surface-2); border: 1px solid var(--line-soft);
-  border-left: 3px solid var(--tang); border-radius: 10px;
+  background: var(--surface-2); border: 1px solid var(--line-soft); border-radius: 10px;
   padding: 10px 12px; cursor: pointer; display: flex; flex-direction: column; gap: 7px;
 }
-.theDay:hover { background: var(--hover); border-color: var(--primary-border); border-left-color: var(--tang); }
+.theDay:hover { background: var(--hover); border-color: var(--primary-border); }
 .theDay.chon { box-shadow: 0 0 0 2px var(--primary-bg); border-color: var(--primary); }
 .tdDau { display: flex; align-items: baseline; gap: 7px; }
 .tdTen { font-weight: 700; font-size: 13.5px; line-height: 1.35; }

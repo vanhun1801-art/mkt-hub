@@ -79,7 +79,10 @@ Mỗi sản phẩm rơi vào **đúng một** tầng, tầng đầu tiên nó kh
 | 🔵 Duy trì · 🌤 Theo mùa · ⏸ Tạm dừng · Mức khác | gập | chỉ để tra |
 
 Bốn tầng trên bày dạng **thẻ** (chiếm chỗ, bắt mắt, mỗi thẻ có một dòng *việc cần
-làm* tô theo mức gấp); bốn tầng dưới bày **dòng gọn**. Trên cùng là **thanh phân bổ**
+làm* tô theo mức gấp); bốn tầng dưới bày **dòng gọn**. Màu của tầng chỉ xuất hiện
+ở **hai** chỗ — chấm trên thanh phân bổ và huy hiệu số ở đầu tầng. Bản đầu còn kẻ
+thêm vạch màu dọc bên trái tầng và bên trái từng thẻ; bỏ ngày 22/09/2026 vì tô
+cùng một thông tin ba lần là hai lần thừa, và nhìn rối. Trên cùng là **thanh phân bổ**
 — một vạch ngang chia theo tỉ lệ, bấm một khúc là nhảy tới tầng đó. Con số thì phải
 đọc rồi so; một vạch màu thì liếc là thấy “gần như cả kho nằm ở Duy trì”.
 
