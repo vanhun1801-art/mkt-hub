@@ -7,3 +7,10 @@ hub.log
 
 # Ai da doc thong bao nao — trang thai cua tung may, khong dua len kho
 thong-bao.json
+
+# Video giới thiệu: kho THẬT là Lark Base (xem phim-kho.js), du-lieu/ chỉ là bản
+# nằm trên đĩa máy chủ. Đừng đưa lên kho mã — mỗi video là một khối nhị phân
+# nằm lại trong lịch sử git vĩnh viễn, mà bản trên Base mới là bản đang chạy.
+du-lieu/*.mp4
+du-lieu/*.webm
+du-lieu/*.mov
