@@ -840,6 +840,11 @@
 
     /* Lịch đổi thông tin (22/09/2026) */
     'Lịch đổi thông tin': 'Scheduled changes',
+    'Sửa dòng lịch': 'Edit scheduled change',
+    'Sửa': 'Edit',
+    'Lưu': 'Save',
+    'Thôi': 'Never mind',
+    'Đã lưu.': 'Saved.',
     'Tour riêng (VIP)': 'Private tour (VIP)',
     'Giá theo số khách': 'Price by group size',
     'Số khách': 'Group size',

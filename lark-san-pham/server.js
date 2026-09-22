@@ -382,6 +382,48 @@ async function api(req, res, u) {
     return json(res, { ok: true });
   }
 
+  /* Sửa một dòng lịch đang chờ.
+   *
+   * Thiếu cửa này thì 4 dòng "chưa gán sản phẩm" không gán được từ app — mà đó
+   * đúng là việc phải làm trước ngày áp dụng. Chỉ sửa được dòng còn CHỜ: dòng
+   * đã áp là lịch sử, sửa nó là viết lại quá khứ. */
+  const mSuaLich = /^\/lich\/(rec[\w]+)$/.exec(p);
+  if (mSuaLich && req.method === 'POST') {
+    if (!toi.quanLy) return loi(res, 403, 'Chỉ quản lý sửa được lịch đổi.');
+    const than = await docThan(req);
+    const { dsLich, ds } = await kho.tatCa();
+    const dong = dsLich.find((r) => r.id === mSuaLich[1]);
+    if (!dong) return loi(res, 404, 'Không thấy dòng lịch này.');
+    if (dong.trangThai !== 'Chờ áp dụng') {
+      return loi(res, 400, 'Chỉ sửa được dòng đang chờ áp dụng. Dòng này: ' + dong.trangThai);
+    }
+
+    const spId = String(than.sanPham || '').trim();
+    const cot = String(than.cot || '').trim();
+    const ngay = String(than.ngay || '').trim();
+    if (!/^rec[\w]+$/.test(spId)) return loi(res, 400, 'Chưa chọn sản phẩm.');
+    if (!lich.THEO_NHAN.has(cot)) return loi(res, 400, 'Cột không đặt lịch được: ' + cot);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(ngay)) return loi(res, 400, 'Ngày áp dụng phải dạng YYYY-MM-DD.');
+    try { doiTruong(lich.THEO_NHAN.get(cot), than.giaTri); }
+    catch (e) { return loi(res, 400, e.message); }
+
+    const sp = ds.find((x) => x.id === spId);
+    if (!sp) return loi(res, 400, 'Không thấy sản phẩm này.');
+
+    await lark.updateRecord(mSuaLich[1], {
+      [cfg.f.lich.ten]: (sp.ma || sp.ten) + ' · ' + cot + ' từ ' +
+        veNgay(Date.parse(ngay + 'T00:00:00+07:00')),
+      [cfg.f.lich.sanPham]: [{ id: spId }],
+      [cfg.f.lich.cot]: cot,
+      [cfg.f.lich.giaTriMoi]: String(than.giaTri == null ? '' : than.giaTri),
+      [cfg.f.lich.ngayApDung]: ngay + ' 00:00:00',
+      [cfg.f.lich.ghiChu]: String(than.ghiChu || '').trim() || null,
+    }, cfg.lichTableId);
+    nhatKyGhi(toi, req, 'sua-lich', mSuaLich[1], cot, 'từ ' + ngay);
+    kho.xoaDem();
+    return json(res, { ok: true });
+  }
+
   const mHuy = /^\/lich\/(rec[\w]+)\/huy$/.exec(p);
   if (mHuy && req.method === 'POST') {
     if (!toi.quanLy) return loi(res, 403, 'Chỉ quản lý huỷ được lịch đổi.');

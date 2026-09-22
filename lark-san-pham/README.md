@@ -220,6 +220,15 @@ Khu này **gom theo sản phẩm và gập ba tầng**, không phải một danh
    đổi. Biết sản phẩm nào đổi *cái gì* mà chưa cần mở.
 3. **Bấm một mục mới ra nội dung mới.**
 
+Mỗi mục đang chờ có nút **Sửa** và **Huỷ**. Sửa mở lại chính form đặt lịch, điền
+sẵn — đây là đường duy nhất để **gán sản phẩm** cho những dòng nhập từ file mà
+tên không khớp mã nào. Dòng **đã áp dụng thì không sửa được**: nó là lịch sử, và
+bản cũ đã ghi đè rồi thì không lần ngược lại được nữa.
+
+Màu trong khu này để rất tiết kiệm: “Chờ áp dụng” là trạng thái bình thường của
+gần như mọi dòng nên để chữ xám, màu chỉ dành cho *đã áp · đã huỷ · lỗi*. Nhóm
+chưa gán sản phẩm chỉ có một vạch đỏ mảnh, không tô nền.
+
 Bản đầu phơi hết nội dung mới ra màn hình: 16 mục chiếm mấy màn, và mất luôn thứ
 duy nhất cần nhìn trước. Nhóm **chưa gán sản phẩm** lên đầu, viền đỏ và **mở
 sẵn** — chúng sẽ thành Lỗi đúng ngày áp dụng nếu không ai gán, nên không được

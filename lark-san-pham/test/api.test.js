@@ -59,10 +59,23 @@ const SP = [
   },
 ];
 
+/* Hai dòng lịch: một đang chờ (sửa được), một đã áp (không được sửa nữa). */
+const LICH = [
+  { id: 'recL1', ten: 'G4 · Lịch trình', spIds: ['rec1'], cot: 'Lịch trình tóm tắt',
+    giaTriMoi: 'lịch mới', ngayApDung: nay + 9 * NGAY, trangThai: 'Chờ áp dụng', ghiChu: '' },
+  { id: 'recL2', ten: 'G4 · Giá', spIds: ['rec1'], cot: 'Giá công bố NL',
+    giaTriMoi: '900000', ngayApDung: nay - NGAY, trangThai: 'Đã áp dụng', ghiChu: '' },
+];
+
 let ghiCuoi = null;
 let ghiNhieu = null;
 const khoGia = {
-  tatCa: async () => ({ ds: SP, mediaChung: [{ id: 'm1', ten: 'Bảng giá đối tác', spIds: [] }], luc: nay }),
+  tatCa: async () => ({
+    ds: SP,
+    mediaChung: [{ id: 'm1', ten: 'Bảng giá đối tác', spIds: [] }],
+    dsLich: LICH,
+    luc: nay,
+  }),
   xoaDem: () => {},
   sapHetHan: (ds) => ds.filter((p) => /hết hạn/i.test(p.tinhTrang)),
   canBoSung: (ds) => ds.filter((p) => p.thieu),
@@ -245,6 +258,55 @@ const sua = (id, truong, giaTri, headers) =>
     const d = await hl(['rec1'], 'uuTien', 'Đẩy mạnh', QUAN_LY);
     ok('hàng loạt cũng kiểm giá trị', d.ma === 400, String(d.ma));
     ok('và không ghi gì', ghiNhieu === null);
+  }
+
+  /* ---------------------------------------------------------------- */
+  group('Sửa một dòng lịch');
+  {
+    const sua = (id, than, headers) =>
+      goi('/api/lich/' + id, { method: 'POST', headers, body: than });
+    const du = { sanPham: 'rec1', cot: 'Lịch trình tóm tắt', ngay: '2026-10-01', giaTri: 'lịch mới hơn' };
+
+    ghiCuoi = null;
+    const a = await sua('recL1', du, NHAN_SU);
+    ok('nhân sự bị chặn 403', a.ma === 403, String(a.ma));
+    ok('và không ghi gì', ghiCuoi === null);
+
+    ghiCuoi = null;
+    const b = await sua('recL1', du, QUAN_LY);
+    ok('quản lý sửa được', b.ma === 200 && b.d.ok === true, JSON.stringify(b.d));
+    ok('ghi vào bảng Lịch, không phải bảng Sản phẩm',
+      ghiCuoi && ghiCuoi.tableId === cfg.lichTableId, JSON.stringify(ghiCuoi && ghiCuoi.tableId));
+    ok('gán lại sản phẩm', ghiCuoi.fields[cfg.f.lich.sanPham][0].id === 'rec1');
+    ok('cập nhật luôn tên dòng cho khớp', /Lịch trình tóm tắt từ 01\/10\/2026/
+      .test(ghiCuoi.fields[cfg.f.lich.ten]), ghiCuoi.fields[cfg.f.lich.ten]);
+
+    /* Dòng đã áp là lịch sử — sửa nó là viết lại quá khứ, và bản cũ đã ghi rồi
+     * thì không còn lần ngược được nữa. */
+    ghiCuoi = null;
+    const c = await sua('recL2', du, QUAN_LY);
+    ok('dòng đã áp dụng thì KHÔNG sửa được', c.ma === 400, String(c.ma));
+    ok('  và nói rõ vì sao', /đang chờ áp dụng/.test((c.d || {}).error || ''), JSON.stringify(c.d));
+    ok('  không ghi gì', ghiCuoi === null);
+
+    const d = await sua('recKhongCo', du, QUAN_LY);
+    ok('id lạ trả 404', d.ma === 404, String(d.ma));
+
+    /* Cùng cửa kiểm với đường bấm tay và đường lịch tự áp — nếu form sửa đi cửa
+     * khác thì nó thành đường vòng để nhét giá trị sai vào chờ sẵn tới ngày. */
+    ghiCuoi = null;
+    const e = await sua('recL1', Object.assign({}, du, { cot: 'USP' }), QUAN_LY);
+    ok('cột ngoài danh sách bị chặn', e.ma === 400, String(e.ma));
+
+    const f = await sua('recL1',
+      Object.assign({}, du, { cot: 'Giá công bố NL', giaTri: '-1' }), QUAN_LY);
+    ok('giá âm bị chặn ngay lúc đặt, không đợi tới ngày', f.ma === 400, String(f.ma));
+
+    const g = await sua('recL1', Object.assign({}, du, { ngay: '01/10/2026' }), QUAN_LY);
+    ok('ngày sai dạng bị chặn', g.ma === 400, String(g.ma));
+
+    const h = await sua('recL1', Object.assign({}, du, { sanPham: '' }), QUAN_LY);
+    ok('chưa chọn sản phẩm thì chặn', h.ma === 400, String(h.ma));
   }
 
   /* ---------------------------------------------------------------- */

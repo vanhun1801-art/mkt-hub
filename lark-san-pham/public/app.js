@@ -35,6 +35,8 @@ const S = {
   /* Nhóm sản phẩm nào đang mở trong khu Lịch đổi. Vẽ lại sau mỗi thao tác
      mà không nhớ thì nó đóng sập đúng chỗ người ta vừa mở ra xem. */
   lichMo: new Set(),
+  /* id dòng lịch đang sửa; rỗng = form đang ở chế độ thêm mới. */
+  lichSua: '',
   baseUrl: '',
   baseUrlBoSung: '',
   capNhat: 0,
@@ -644,24 +646,35 @@ function lichHtml() {
     (S.lichMoForm ? 'Đóng' : '+ Đặt lịch đổi') + '</button>' +
     '</header>';
 
-  if (S.lichMoForm) {
+  /* MỘT form cho cả thêm mới lẫn sửa. Hai form riêng thì hai bộ kiểm, hai chỗ
+     quên cập nhật khi thêm cột mới. */
+  if (S.lichMoForm || S.lichSua) {
+    const cu = S.lichSua ? (S.lich || []).find((r) => r.id === S.lichSua) : null;
     const sp = S.ds.slice().sort((a, b) => (a.ma || '').localeCompare(b.ma || ''));
+    const spCu = cu && cu.spIds && cu.spIds.length ? cu.spIds[0] : '';
     h += '<form class="klForm" id="lichForm">' +
+      (cu ? '<div class="klFormDau">Sửa dòng lịch</div>' : '') +
       '<label>Sản phẩm<select name="sanPham" required>' +
       '<option value="">— chọn —</option>' +
-      sp.map((p) => '<option value="' + esc(p.id) + '" data-no-i18n>' +
-        esc((p.ma ? p.ma + ' — ' : '') + p.ten) + '</option>').join('') +
+      sp.map((p) => '<option value="' + esc(p.id) + '"' + (spCu === p.id ? ' selected' : '') +
+        ' data-no-i18n>' + esc((p.ma ? p.ma + ' — ' : '') + p.ten) + '</option>').join('') +
       '</select></label>' +
       '<label>Cột cần đổi<select name="cot" required>' +
       '<option value="">— chọn —</option>' +
-      S.cotDatLich.map((c) => '<option>' + esc(c) + '</option>').join('') +
+      S.cotDatLich.map((c) => '<option' + (cu && cu.cot === c ? ' selected' : '') + '>' +
+        esc(c) + '</option>').join('') +
       '</select></label>' +
-      '<label>Ngày áp dụng<input type="date" name="ngay" required></label>' +
+      '<label>Ngày áp dụng<input type="date" name="ngay" required value="' +
+        (cu ? veNgayO(cu.ngayApDung) : '') + '"></label>' +
       '<label class="rong">Giá trị mới' +
-      '<textarea name="giaTri" rows="3" placeholder="Số thì gõ số trần (900000). Ngày thì YYYY-MM-DD. Chọn thì gõ đúng tên lựa chọn."></textarea></label>' +
-      '<label class="rong">Ghi chú<input name="ghiChu" placeholder="Nguồn, lý do đổi…"></label>' +
-      '<div class="klNut"><button class="btn primary" type="submit">Đặt lịch</button></div>' +
-      '</form>';
+      '<textarea name="giaTri" rows="4" placeholder="Số thì gõ số trần (900000). Ngày thì YYYY-MM-DD. Chọn thì gõ đúng tên lựa chọn." data-no-i18n>' +
+        esc(cu ? cu.giaTriMoi : '') + '</textarea></label>' +
+      '<label class="rong">Ghi chú<input name="ghiChu" placeholder="Nguồn, lý do đổi…" value="' +
+        esc(cu ? cu.ghiChu : '') + '" data-no-i18n></label>' +
+      '<div class="klNut">' +
+      '<button class="btn primary" type="submit">' + (cu ? 'Lưu' : 'Đặt lịch') + '</button>' +
+      (cu ? '<button class="btn" type="button" id="lichThoi">Thôi</button>' : '') +
+      '</div></form>';
   }
 
   if (!ds) return h + '<div class="trong">Đang đọc…</div></section>';
@@ -705,7 +718,8 @@ function lichHtml() {
           '<span class="ttLich tt-' + (LOP_TT[r.trangThai] || 'cho') + '">' +
             esc(r.trangThai || '—') + '</span>' +
           '<span class="klNgay2">' + esc(veNgay(r.ngayApDung) || '—') + '</span>' +
-          (choR ? '<button class="btn sm" data-huy-lich="' + esc(r.id) + '">Huỷ</button>'
+          (choR ? '<button class="btn sm" data-sua-lich="' + esc(r.id) + '">Sửa</button>' +
+            '<button class="btn sm" data-huy-lich="' + esc(r.id) + '">Huỷ</button>'
             : '<span></span>') +
           '</summary>' +
           '<div class="klThan">' +
@@ -1141,7 +1155,25 @@ document.addEventListener('click', async (ev) => {
 
   if (ev.target.id === 'btnXoaLoc') { xoaLoc(); ve(); return; }
 
-  if (ev.target.id === 'lichThem') { S.lichMoForm = !S.lichMoForm; ve(); return; }
+  if (ev.target.id === 'lichThem') {
+    S.lichMoForm = !S.lichMoForm;
+    S.lichSua = '';
+    ve();
+    return;
+  }
+  if (ev.target.id === 'lichThoi') { S.lichSua = ''; ve(); return; }
+
+  const suaL = ev.target.closest('[data-sua-lich]');
+  if (suaL) {
+    /* Nút nằm trong <summary>; không chặn thì cú bấm vừa mở form vừa gập khối. */
+    ev.preventDefault();
+    S.lichSua = suaL.dataset.suaLich;
+    S.lichMoForm = false;
+    ve();
+    const f = $('#lichForm');
+    if (f) f.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    return;
+  }
 
   const huy = ev.target.closest('[data-huy-lich]');
   if (huy) {
@@ -1285,16 +1317,19 @@ document.addEventListener('submit', async (ev) => {
   if (nut.disabled) return;
   nut.disabled = true;
   try {
-    await guiJson('/api/lich/them', {
+    const than = {
       sanPham: f.sanPham.value,
       cot: f.cot.value,
       ngay: f.ngay.value,
       giaTri: f.giaTri.value,
       ghiChu: f.ghiChu.value,
-    });
+    };
+    const dangSua = S.lichSua;
+    await guiJson(dangSua ? '/api/lich/' + dangSua : '/api/lich/them', than);
     S.lichMoForm = false;
+    S.lichSua = '';
     await napLich();
-    toast('Đã đặt lịch.', 'ok');
+    toast(dangSua ? 'Đã lưu.' : 'Đã đặt lịch.', 'ok');
   } catch (e) {
     toast(e.message, 'err');
   } finally {
