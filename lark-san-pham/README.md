@@ -78,8 +78,15 @@ Mỗi sản phẩm rơi vào **đúng một** tầng, tầng đầu tiên nó kh
 | Chưa xếp mức | ✓ | cần quản lý xếp mức |
 | 🔵 Duy trì · 🌤 Theo mùa · ⏸ Tạm dừng · Mức khác | gập | chỉ để tra |
 
-Bốn tầng trên bày dạng **thẻ** (chiếm chỗ, bắt mắt, mỗi thẻ có một dòng *việc cần
-làm* tô theo mức gấp); bốn tầng dưới bày **dòng gọn**. Màu của tầng chỉ xuất hiện
+Bốn tầng trên bày dạng **thẻ**, bốn tầng dưới bày **dòng gọn**. Thẻ mang đúng
+bảy thứ: mã · tên Việt + Anh · giá trước và sau ưu đãi · giá trẻ em · mức ưu tiên
+· USP (cắt 3 dòng) · ngày bắt đầu – kết thúc.
+
+Không có dòng “Hồ sơ đủ, chạy được” và không có nhãn “thiếu …”: đó là trạng thái
+hồ sơ, đã có hẳn tab **Cần bổ sung** lo. Để trên thẻ thì mỗi sản phẩm cõng thêm
+một dòng mà chín trên mười lần chỉ nói “không có gì phải làm”. Hai mốc hiệu lực
+viết thẳng ra (tô vàng/đỏ khi sắp/đã hết) thay cho một nhãn cảnh báo riêng — hai
+mốc đã trả lời được cả “còn bán tới bao giờ” lẫn “có sắp hết không”. Màu của tầng chỉ xuất hiện
 ở **hai** chỗ — chấm trên thanh phân bổ và huy hiệu số ở đầu tầng. Bản đầu còn kẻ
 thêm vạch màu dọc bên trái tầng và bên trái từng thẻ; bỏ ngày 22/09/2026 vì tô
 cùng một thông tin ba lần là hai lần thừa, và nhìn rối. Trên cùng là **thanh phân bổ**

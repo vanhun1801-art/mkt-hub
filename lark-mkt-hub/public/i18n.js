@@ -1026,6 +1026,10 @@
     /* --- Thông tin sản phẩm: câu có con số nên không khớp khoá nguyên câu --- */
     [/^(\d+) dòng trong Base$/, '$1 rows in the Base'],
     [/^(\d+) sản phẩm$/, '$1 products'],
+    [/^(\d{2}\/\d{2}\/\d{4}) → (\d{2}\/\d{2}\/\d{4}) · còn (\d+) ngày$/, '$1 → $2 · $3 days left'],
+    [/^(\d{2}\/\d{2}\/\d{4}) → (\d{2}\/\d{2}\/\d{4})$/, '$1 → $2'],
+    [/^đến (\d{2}\/\d{2}\/\d{4}) · còn (\d+) ngày$/, 'until $1 · $2 days left'],
+    [/^từ (\d{2}\/\d{2}\/\d{4}) · chưa đặt hạn$/, 'from $1 · no end date'],
     [/^(\d+) mục$/, '$1 items'],
     [/^từ (\d{2}\/\d{2}\/\d{4})$/, 'from $1'],
     [/^(\d+) khách$/, '$1 guests'],

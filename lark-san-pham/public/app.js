@@ -269,24 +269,6 @@ const TANG = [
     hop: () => true },
 ];
 
-/**
- * Việc cần làm với MỘT sản phẩm, rút thành một câu.
- *
- * Đây là thứ anh Hùng hỏi: nhìn vào biết chỗ nào cần làm. Thứ tự xét là thứ tự
- * gấp — hồ sơ thiếu thì chưa chạy được bài nào, nên nó đứng trước cả hạn.
- */
-function vieCanLam(p) {
-  if (p.thieu) return { muc: 'gap', chu: 'Thiếu ' + p.thieu.toLowerCase() };
-  if (/Đã hết hạn/.test(p.tinhTrang)) return { muc: 'gap', chu: 'Đã hết hạn — rà với Kinh doanh' };
-  if (/Sắp hết hạn/.test(p.tinhTrang)) {
-    return { muc: 'vua', chu: 'Còn ' + (p.conLai != null ? p.conLai + ' ngày' : 'ít ngày') + ' hiệu lực' };
-  }
-  const ud = uuDaiSapHet(p);
-  if (ud.length) return { muc: 'vua', chu: 'Ưu đãi hết ' + veNgay(ud[0].den) };
-  if (!p.uuTien) return { muc: 'vua', chu: 'Chưa xếp mức ưu tiên' };
-  return { muc: 'ok', chu: 'Hồ sơ đủ, chạy được' };
-}
-
 /* Lần đầu vẽ Bảng đẩy thì lấy mặc định từ TANG. Gọi mỗi lần vẽ cũng không sao:
    sau lần đầu `tangMo` đã có phần tử nên nó không ghi đè lựa chọn của người dùng. */
 function motTangMacDinh() {
@@ -458,20 +440,58 @@ function phanBoHtml(nhom) {
     '</div>';
 }
 
-/** Thẻ lớn cho các tầng cần hành động — kèm một dòng "việc cần làm". */
+/**
+ * Thẻ trên Bảng đẩy — đúng bảy thứ anh Hùng cần, không hơn:
+ * mã · tên Việt + Anh · giá trước và sau ưu đãi · giá trẻ em · mức ưu tiên ·
+ * USP · ngày bắt đầu và kết thúc.
+ *
+ * CỐ Ý bỏ dòng "Hồ sơ đủ, chạy được" và nhãn "thiếu …": đó là trạng thái hồ sơ,
+ * đã có hẳn tab **Cần bổ sung** lo. Để trên thẻ thì mỗi sản phẩm cõng thêm một
+ * dòng mà chín trên mười lần chỉ nói "không có gì phải làm".
+ *
+ * Giữ nhãn "⏳ đổi": nó nói về thứ SẮP tới, không phải trạng thái hồ sơ.
+ *
+ * Thẻ cũng không mang màu tầng: nó đã nằm trong khối tầng có tiêu đề rồi.
+ */
 function theDayHtml(p) {
-  const v = vieCanLam(p);
-  /* Thẻ KHÔNG mang màu tầng nữa (bỏ 22/09/2026 — vạch màu dọc bị rối mắt); nó
-     đã nằm trong khối tầng có tiêu đề rồi, tô thêm là thừa. */
+  const nhan = [];
+  if (laSapRaMat(p)) nhan.push('<span class="nhan moi">🆕 Sắp ra mắt</span>');
+  if (p.uuTien) nhan.push('<span class="nhan ' + lopUuTien(p.uuTien) + '">' + esc(p.uuTien) + '</span>');
+  if (p.lichCho && p.lichCho.length) {
+    nhan.push('<span class="nhan doi">⏳ đổi ' + esc(veNgay(p.lichCho[0].ngayApDung)) +
+      (p.lichCho.length > 1 ? ' · ' + p.lichCho.length + ' mục' : '') + '</span>');
+  }
+
   return '<article class="theDay' + (S.moId === p.id ? ' chon' : '') + '" data-id="' + esc(p.id) + '">' +
     '<div class="tdDau">' +
       (p.ma ? '<span class="ma">' + esc(p.ma) + '</span>' : '') +
       '<span class="tdTen" data-no-i18n>' + esc(p.ten) + '</span>' +
     '</div>' +
+    (p.tenEn ? '<div class="tdEn" data-no-i18n>' + esc(p.tenEn) + '</div>' : '') +
     '<div class="giaHang">' + giaHtml(p) + '</div>' +
-    '<div class="nhanHang">' + nhanHtml(p) + '</div>' +
-    '<div class="tdViec muc-' + v.muc + '">' + esc(v.chu) + '</div>' +
+    (nhan.length ? '<div class="nhanHang">' + nhan.join('') + '</div>' : '') +
+    (p.usp || p.noiBat
+      ? '<div class="tdUsp" data-no-i18n>' + esc(p.usp || p.noiBat) + '</div>' : '') +
+    hanHtml(p) +
     '</article>';
+}
+
+/**
+ * Ngày bắt đầu – kết thúc hiệu lực.
+ *
+ * Viết thẳng hai mốc thay vì một nhãn "⚠️ Sắp hết hạn" riêng: hai mốc trả lời
+ * được cả "còn bán tới bao giờ" lẫn "có sắp hết không" trong một dòng. Vẫn tô
+ * vàng/đỏ theo cột `Tình trạng hiệu lực` của Base để liếc ra được.
+ */
+function hanHtml(p) {
+  if (!p.hieuLucTu && !p.hieuLucDen) return '';
+  const lop = /Đã hết hạn/.test(p.tinhTrang) ? ' het'
+    : /Sắp hết hạn/.test(p.tinhTrang) ? ' canh' : '';
+  const chu = p.hieuLucDen
+    ? (p.hieuLucTu ? veNgay(p.hieuLucTu) + ' → ' : 'đến ') + veNgay(p.hieuLucDen) +
+      (p.conLai != null ? ' · còn ' + p.conLai + ' ngày' : '')
+    : 'từ ' + veNgay(p.hieuLucTu) + ' · chưa đặt hạn';
+  return '<div class="tdHan' + lop + '">' + esc(chu) + '</div>';
 }
 
 function bangDayHtml() {
