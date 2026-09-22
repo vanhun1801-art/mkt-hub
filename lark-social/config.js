@@ -142,6 +142,10 @@ module.exports = {
          * Trang kiểu mới, kể cả khi hỏi bằng mã của người thật có business_management.
          * Đồng bộ KHÔNG BAO GIỜ ghi cột này — cùng lý do với cột Nhãn ở trên. */
         poster: 'fld8RB5agE',
+        /* Bài này làm để BÁN HÀNG hay để TƯƠNG TÁC — quyết định hệ số quy đổi
+         * khi app KPI chấm điểm (×1,0 và ×0,2). Điền tự động từ hashtag bằng
+         * `muc-dich.js`; trống thì app KPI chặn chốt tháng chứ không tự đoán. */
+        mucDich: 'fldW3g7168',
         source: 'fldbcgFFf0',
         updated: 'fldG6bq0Fk',
       },

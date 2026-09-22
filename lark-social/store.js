@@ -167,6 +167,10 @@ function docBai(r) {
     fullWatchRate: num(r.c[f.fullWatchRate]),
     nhanBu: clean(r.c[f.labels]),
     poster: sel(r.c[f.poster]),
+    /* Phải đọc ra: `muc-dich.js` dựa vào đây để BIẾT ô nào đã có giá trị mà
+     * không đè lên. Thiếu dòng này thì mọi ô trông như đang trống và phần
+     * trưởng phòng sửa tay bị ghi đè mất sau lần chạy sau. */
+    mucDich: sel(r.c[f.mucDich]),
     source: sel(r.c[f.source]),
   };
 }
