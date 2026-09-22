@@ -634,39 +634,71 @@ main { padding: 16px; max-width: 1460px; margin: 0 auto; }
   .bangLich .klGt { font-size: 12.5px; }
 }
 
-/* ---- Lịch đổi thông tin: gom theo SẢN PHẨM ----
-   Một đợt sinh 2 dòng cho mỗi tour (lịch trình + dịch vụ bao gồm); bày phẳng thì
-   16 dòng na ná nhau, phải dò mã mới biết cái nào của ai. */
-.klNhom { display: grid; gap: 10px; padding: 12px 14px; }
+/* ---- Lịch đổi thông tin: gom theo SẢN PHẨM, GẬP hai tầng ----
+   Bản đầu phơi cả nội dung mới của từng mục ra màn hình: 16 mục chiếm mấy màn,
+   và mất luôn thứ duy nhất người ta cần nhìn trước — "hôm nay có gì đang chờ".
+   Nay: một dòng tóm tắt cho cả khu → bấm sản phẩm ra danh sách mục → bấm mục
+   mới ra nội dung mới. Ba tầng, mỗi tầng chỉ nói đúng phần của nó. */
+.klTom { font-size: 12.5px; color: var(--t2); font-weight: 600; }
+.klCanh {
+  font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
+  background: var(--red-bg); color: var(--red-t); border: 1px solid var(--red-vien);
+}
+.klNhom { display: grid; gap: 6px; padding: 10px 14px; }
+
 .klSP {
   border: 1px solid var(--line-soft); border-left: 3px solid var(--primary);
   border-radius: 10px; background: var(--surface-2); overflow: hidden;
 }
-/* Dòng chưa gán sản phẩm sẽ thành Lỗi vào đúng ngày áp dụng nếu không ai gán —
-   phải đập vào mắt, không nằm lẫn. */
+/* Nhóm chưa gán sản phẩm sẽ thành Lỗi đúng ngày áp dụng nếu không ai gán —
+   phải đập vào mắt, và nó cũng là nhóm duy nhất mở sẵn. */
 .klSP.chuaGan { border-left-color: var(--red); background: var(--red-bg); }
+
 .klSPDau {
-  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
-  padding: 8px 12px; border-bottom: 1px solid var(--line-soft);
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  padding: 7px 12px; cursor: pointer; list-style: none; user-select: none;
 }
-.klSPDau b { font-size: 13.5px; }
+.klSP summary::-webkit-details-marker { display: none; }
+.klSP > summary::before {
+  content: '▸'; color: var(--t3); font-size: 11px; width: 10px; flex: none;
+  transition: transform .12s ease;
+}
+.klSP[open] > summary::before { transform: rotate(90deg); }
+.klSPDau:hover { background: var(--hover); }
+.klSP[open] > .klSPDau { border-bottom: 1px solid var(--line-soft); }
+.klSPDau b { font-size: 13px; }
 .klDem { font-size: 12px; color: var(--t3); font-weight: 600; }
 .klNgay { font-size: 12px; color: var(--primary); font-weight: 700; }
+/* Tên các cột sắp đổi, nằm bên phải dòng tóm tắt: biết sản phẩm này đổi CÁI GÌ
+   mà không cần mở ra. Thu lại khi hẹp chỗ. */
+.klCot2 {
+  font-size: 11.5px; color: var(--t3); overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; max-width: 46%;
+}
 
+.klMuc { border-top: 1px solid var(--line-soft); }
+.klMuc:first-of-type { border-top: 0; }
 .klDong {
-  display: grid; align-items: center; gap: 6px 10px;
-  grid-template-columns: minmax(120px, 1fr) auto auto auto;
-  padding: 8px 12px; border-bottom: 1px solid var(--line-soft);
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  padding: 6px 12px 6px 34px; cursor: pointer; list-style: none; user-select: none;
 }
-.klDong:last-child { border-bottom: 0; }
-.klCot { font-weight: 600; font-size: 12.5px; }
+.klMuc summary::-webkit-details-marker { display: none; }
+.klMuc > summary::before {
+  content: '▸'; color: var(--t3); font-size: 11px; width: 10px; flex: none;
+  transition: transform .12s ease;
+}
+.klMuc[open] > summary::before { transform: rotate(90deg); }
+.klDong:hover { background: var(--hover); }
+.klCot { font-weight: 600; font-size: 12.5px; flex: 1; min-width: 120px; }
 .klNgay2 { font-size: 12.5px; color: var(--t2); font-variant-numeric: tabular-nums; }
+
+.klThan { padding: 0 12px 10px 34px; }
 .klGt {
-  grid-column: 1 / -1; white-space: pre-wrap; font-size: 12.5px; color: var(--t2);
+  white-space: pre-wrap; font-size: 12.5px; color: var(--t2);
   background: var(--surface); border: 1px solid var(--line-soft); border-radius: 8px;
-  padding: 7px 9px; max-height: 160px; overflow: auto;
+  padding: 8px 10px;
 }
-.klGhi { grid-column: 1 / -1; font-size: 12px; color: var(--t3); }
+.klGhi { font-size: 12px; color: var(--t3); margin-top: 5px; }
 
 /* Nhãn "sắp đổi" trên thẻ sản phẩm: màu tím riêng, không lẫn với cảnh báo hạn —
    đây là thứ SẮP TỚI, không phải việc đang sai. */
@@ -677,7 +709,16 @@ main { padding: 16px; max-width: 1460px; margin: 0 auto; }
 }
 
 @media (max-width: 640px) {
-  .klDong { grid-template-columns: 1fr auto; }
-  .klCot, .klNgay2, .klGt, .klGhi { font-size: 12.5px; }
-  .klDem, .klNgay { font-size: 12.5px; }
+  .klCot { font-size: 12.5px; }
+  .klNgay2 { font-size: 12.5px; }
+  .klGt { font-size: 12.5px; }
+  .klGhi { font-size: 12.5px; }
+  .klDem { font-size: 12.5px; }
+  .klNgay { font-size: 12.5px; }
+  .klTom { font-size: 12.5px; }
+  .klCanh { font-size: 12.5px; }
+  .klCot2 { font-size: 12.5px; }
+  /* Hẹp chỗ thì bỏ hẳn danh sách cột trên dòng tóm tắt — mở ra là thấy. */
+  .klCot2 { display: none; }
+  .klDong, .klThan { padding-left: 22px; }
 }

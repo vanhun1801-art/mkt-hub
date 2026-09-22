@@ -32,6 +32,9 @@ const S = {
   cotDatLich: [],
   lich: null,          // null = chưa nạp; mảng = danh sách lịch đổi
   lichMoForm: false,
+  /* Nhóm sản phẩm nào đang mở trong khu Lịch đổi. Vẽ lại sau mỗi thao tác
+     mà không nhớ thì nó đóng sập đúng chỗ người ta vừa mở ra xem. */
+  lichMo: new Set(),
   baseUrl: '',
   baseUrlBoSung: '',
   capNhat: 0,
@@ -599,9 +602,22 @@ const LOP_TT = {
 
 function lichHtml() {
   const ds = S.lich;
+
+  /* Dòng tóm tắt trên đầu: trả lời "có gì đang chờ không" mà không phải mở
+     khối nào. Đây là thứ người ta liếc mỗi sáng. */
+  let tom = '';
+  if (ds && ds.length) {
+    const cho = ds.filter((r) => r.trangThai === 'Chờ áp dụng');
+    const chuaGan = cho.filter((r) => !r.sanPhamTen).length;
+    const som = cho.length ? Math.min(...cho.map((r) => r.ngayApDung || Infinity)) : 0;
+    const soSP = new Set(ds.map((r) => r.sanPhamTen)).size;
+    tom = '<span class="klTom">' + ds.length + ' mục · ' + soSP + ' sản phẩm' +
+      (som && Number.isFinite(som) ? ' · sớm nhất ' + esc(veNgay(som)) : '') + '</span>' +
+      (chuaGan ? '<span class="klCanh">' + chuaGan + ' mục chưa gán sản phẩm</span>' : '');
+  }
+
   let h = '<section class="khoiLich"><header class="klDau">' +
-    '<b>Lịch đổi thông tin</b>' +
-    '<span class="phu">Đặt trước — tới ngày app tự ghi vào sản phẩm, có lưu bản cũ.</span>' +
+    '<b>Lịch đổi thông tin</b>' + tom +
     '<span class="sp"></span>' +
     '<button class="btn sm primary" id="lichThem">' +
     (S.lichMoForm ? 'Đóng' : '+ Đặt lịch đổi') + '</button>' +
@@ -630,19 +646,18 @@ function lichHtml() {
   if (!ds) return h + '<div class="trong">Đang đọc…</div></section>';
   if (!ds.length) return h + '<div class="trong">Chưa đặt lịch đổi nào.</div></section>';
 
-  /* Gom THEO SẢN PHẨM, không phải một danh sách phẳng.
-     Một đợt như 01/10 sinh ra 2 dòng cho mỗi tour (lịch trình + dịch vụ bao
-     gồm); bày phẳng thì 16 dòng na ná nhau, phải dò mã mới biết cái nào của ai.
-     Gom lại thì câu hỏi thật — "tour nào sắp đổi, đổi cái gì" — trả lời được
-     bằng một cái liếc. */
+  /* Gom THEO SẢN PHẨM và GẬP lại.
+     Một đợt sinh 2 dòng cho mỗi tour; nếu bày hết cả nội dung mới thì 16 mục
+     chiếm mấy màn hình và không còn nhìn ra bức tranh chung. Nên: mỗi sản phẩm
+     một dòng tóm tắt, bấm mới mở ra các mục, bấm tiếp mới thấy nội dung mới. */
   const nhom = new Map();
   for (const r of ds) {
     const khoa = r.sanPhamTen || '';
     if (!nhom.has(khoa)) nhom.set(khoa, []);
     nhom.get(khoa).push(r);
   }
-  /* Dòng chưa gán sản phẩm lên ĐẦU: chúng sẽ thành Lỗi vào đúng ngày áp dụng
-     nếu không ai gán, nên phải đập vào mắt trước. */
+  /* Nhóm chưa gán sản phẩm lên ĐẦU và mở sẵn: chúng sẽ thành Lỗi đúng ngày áp
+     dụng nếu không ai gán, nên không được nằm sau một cái nút gập. */
   const khoa = [...nhom.keys()].sort((a, b) => (a ? 1 : 0) - (b ? 1 : 0) || a.localeCompare(b, 'vi'));
 
   h += '<div class="klNhom">';
@@ -651,28 +666,35 @@ function lichHtml() {
     const chuaGan = !k;
     const cho = rs.filter((r) => r.trangThai === 'Chờ áp dụng');
     const somNhat = cho.length ? Math.min(...cho.map((r) => r.ngayApDung || Infinity)) : 0;
-    h += '<article class="klSP' + (chuaGan ? ' chuaGan' : '') + '">' +
-      '<header class="klSPDau">' +
+    const mo = chuaGan || S.lichMo.has(k);
+    h += '<details class="klSP' + (chuaGan ? ' chuaGan' : '') + '" data-lich-sp="' + esc(k) + '"' +
+      (mo ? ' open' : '') + '>' +
+      '<summary class="klSPDau">' +
         '<b data-no-i18n>' + esc(k || 'Chưa gán sản phẩm') + '</b>' +
         '<span class="klDem">' + rs.length + ' mục</span>' +
         (somNhat && Number.isFinite(somNhat)
           ? '<span class="klNgay">từ ' + esc(veNgay(somNhat)) + '</span>' : '') +
-      '</header>' +
+        '<span class="sp"></span>' +
+        '<span class="klCot2">' + esc(rs.map((r) => r.cot).filter(Boolean).join(' · ')) + '</span>' +
+      '</summary>' +
       rs.map((r) => {
         const choR = r.trangThai === 'Chờ áp dụng';
-        return '<div class="klDong">' +
+        return '<details class="klMuc"><summary class="klDong">' +
           '<span class="klCot">' + esc(r.cot || '—') + '</span>' +
           '<span class="ttLich tt-' + (LOP_TT[r.trangThai] || 'cho') + '">' +
             esc(r.trangThai || '—') + '</span>' +
           '<span class="klNgay2">' + esc(veNgay(r.ngayApDung) || '—') + '</span>' +
           (choR ? '<button class="btn sm" data-huy-lich="' + esc(r.id) + '">Huỷ</button>'
             : '<span></span>') +
+          '</summary>' +
+          '<div class="klThan">' +
           '<div class="klGt" data-no-i18n>' + esc(r.giaTriMoi || '') + '</div>' +
           (r.ghiChu ? '<div class="klGhi" data-no-i18n>' + esc(r.ghiChu) + '</div>' : '') +
+          (r.giaTriCu ? '<div class="klGhi" data-no-i18n>Bản cũ: ' + esc(r.giaTriCu) + '</div>' : '') +
           (r.apDungLuc ? '<div class="klGhi">áp lúc ' + esc(veNgay(r.apDungLuc)) + '</div>' : '') +
-          '</div>';
+          '</div></details>';
       }).join('') +
-      '</article>';
+      '</details>';
   }
   return h + '</div></section>';
 }
@@ -1102,6 +1124,9 @@ document.addEventListener('click', async (ev) => {
 
   const huy = ev.target.closest('[data-huy-lich]');
   if (huy) {
+    /* Nút này nằm trong <summary>; không chặn thì một cú bấm vừa huỷ vừa gập
+       khối lại, và người dùng không thấy kết quả mình vừa gây ra. */
+    ev.preventDefault();
     if (!window.confirm('Huỷ dòng lịch này?')) return;
     try {
       await guiJson('/api/lich/' + huy.dataset.huyLich + '/huy', {});
@@ -1219,9 +1244,16 @@ document.addEventListener('change', async (ev) => {
 /* <details> không bắn sự kiện nổi bọt, nên bắt ở pha capture. */
 document.addEventListener('toggle', (ev) => {
   const t = ev.target.closest ? ev.target.closest('[data-tang]') : null;
-  if (!t) return;
-  if (t.open) S.tangMo.add(t.dataset.tang);
-  else S.tangMo.delete(t.dataset.tang);
+  if (t) {
+    if (t.open) S.tangMo.add(t.dataset.tang);
+    else S.tangMo.delete(t.dataset.tang);
+    return;
+  }
+  const l = ev.target.closest ? ev.target.closest('[data-lich-sp]') : null;
+  if (l) {
+    if (l.open) S.lichMo.add(l.dataset.lichSp);
+    else S.lichMo.delete(l.dataset.lichSp);
+  }
 }, true);
 
 document.addEventListener('submit', async (ev) => {

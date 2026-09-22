@@ -202,10 +202,18 @@ Bảng **Lịch đổi thông tin** trên Base giữ từng thay đổi: sản p
 giá trị mới, ngày áp dụng, trạng thái, giá trị cũ. Đặt và huỷ ngay trong tab
 **Quản lý**.
 
-Khu này **gom theo sản phẩm**, không phải một danh sách phẳng: một đợt sinh 2
-dòng cho mỗi tour (lịch trình + dịch vụ bao gồm), bày phẳng thì 16 dòng na ná
-nhau và phải dò mã mới biết cái nào của ai. Nhóm **chưa gán sản phẩm** lên đầu
-và viền đỏ — chúng sẽ thành Lỗi đúng ngày áp dụng nếu không ai gán.
+Khu này **gom theo sản phẩm và gập ba tầng**, không phải một danh sách phẳng:
+
+1. **Dòng tóm tắt cả khu** — *“16 mục · 7 sản phẩm · sớm nhất 01/10 · 4 mục chưa
+   gán”*. Trả lời “hôm nay có gì đang chờ” mà không phải mở khối nào.
+2. **Một dòng cho mỗi sản phẩm** — mã, số mục, ngày sớm nhất, và tên các cột sắp
+   đổi. Biết sản phẩm nào đổi *cái gì* mà chưa cần mở.
+3. **Bấm một mục mới ra nội dung mới.**
+
+Bản đầu phơi hết nội dung mới ra màn hình: 16 mục chiếm mấy màn, và mất luôn thứ
+duy nhất cần nhìn trước. Nhóm **chưa gán sản phẩm** lên đầu, viền đỏ và **mở
+sẵn** — chúng sẽ thành Lỗi đúng ngày áp dụng nếu không ai gán, nên không được
+nằm sau một cái nút gập.
 
 Sản phẩm nào có thay đổi đang chờ thì mang nhãn tím **⏳ đổi 01/10** ở mọi chỗ
 nó xuất hiện, và ngăn chi tiết có mục *Sắp đổi*.
