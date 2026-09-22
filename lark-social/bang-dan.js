@@ -86,4 +86,40 @@ function docBangDan(text) {
   }).filter((o) => o.start || o.views);
 }
 
-module.exports = { COT_LIVE, docBangDan, soVN };
+/**
+ * Cùng phép nhận cột như docBangDan(), nhưng nhận đầu vào đã tách sẵn thành
+ * object {tên cột: giá trị} — đó là hình dạng `docBang()` của bộ đọc .xlsx trả
+ * ra. Tách riêng để đường DÁN và đường THẢ TỆP dùng chung đúng một bộ luật:
+ * bản xuất nào dán được thì thả tệp cũng đọc được, không có chuyện hai đường
+ * hiểu khác nhau về cùng một file.
+ */
+function docBangObj(ds) {
+  const dsObj = Array.isArray(ds) ? ds : [];
+  if (!dsObj.length) {
+    throw Object.assign(new Error('Tệp không có dòng số liệu nào'), { code: 400 });
+  }
+  const nhan = Object.keys(dsObj[0]);
+  const map = new Map();
+  nhan.forEach((h) => {
+    const k = COT_LIVE[String(h).toLowerCase().trim()];
+    if (k && !map.has(h)) map.set(h, k);
+  });
+  if (!map.size) {
+    throw Object.assign(new Error('Không nhận ra cột nào trong tệp. Cần ít nhất một cột như '
+      + '"Thời gian bắt đầu", "Lượt xem", "Bình luận". Tệp này có: '
+      + nhan.slice(0, 12).join(' · ')), { code: 400 });
+  }
+  return dsObj.map((r) => {
+    const o = {};
+    for (const [h, k] of map) {
+      const v = r[h];
+      if (v == null || v === '') continue;
+      /* Ô ngày của .xlsx có thể về dạng Date hoặc số sê-ri — cứ để nguyên chuỗi
+       * cho nhapTayLive() xử, đừng đoán ở đây rồi đoán sai lặng lẽ. */
+      o[k] = CHU.includes(k) ? String(v).trim() : soVN(v);
+    }
+    return o;
+  }).filter((o) => o.start || o.views);
+}
+
+module.exports = { COT_LIVE, docBangDan, docBangObj, soVN };
