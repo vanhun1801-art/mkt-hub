@@ -483,20 +483,21 @@
       + '<div class="note"><span class="ico">!</span><span>'
       + '<b>TikTok và Instagram không mở API cho LIVE.</b> Số của Facebook LIVE tự về; '
       + 'còn TikTok/Instagram phải nhập tay hoặc dán bảng xuất từ LIVE Center — nút '
-      + '<b>Dán bảng LIVE</b> bên dưới nhận cả CSV lẫn bảng copy từ Excel.'
+      + '<b>Bảng LIVE Center</b> bên dưới nhận cả tệp xuất (.xlsx / .csv) lẫn bảng copy từ Excel.'
       + '</span></div>'
       + '<div class="note"><span class="ico">!</span><span>'
-      + '<b>Ba cột Lead · Đơn · Doanh thu do app tự gắn từ Tourwell</b> — lead rơi vào '
-      + 'khung giờ phiên (cộng thêm 2 tiếng sau khi tắt) và đúng nền tảng, rồi cộng tiền '
-      + 'các đơn của chính những lead ấy. Đây là <b>trùng khung giờ, không phải nhân quả</b>: '
-      + 'khách đến lúc đang LIVE vẫn có thể là do quảng cáo. Doanh thu còn chạy nhiều ngày '
-      + 'sau khi phiên tắt nên mỗi lượt gắn là tính lại từ đầu.'
+      + '<b>Bốn cột Tin nhắn · Lead · Đơn · Doanh thu do app tự gắn</b>, theo khung giờ phiên '
+      + 'cộng thêm 2 tiếng sau khi tắt. Đọc từ trái sang phải là đi từ chắc chắn sang phỏng đoán: '
+      + '<b>Tin nhắn</b> là số hội thoại MỚI mở trên Pancake — đúng cú bấm nút nhắn tin của khách, '
+      + 'gần buổi LIVE nhất. <b>Lead · Đơn · Doanh thu</b> lấy từ Tourwell, xa hơn vì lead chỉ sinh '
+      + 'ra sau khi sale nhập và đơn có thể vài ngày sau mới về. Cả bốn đều là '
+      + '<b>trùng khung giờ, không phải nhân quả</b> — khách đến lúc đang LIVE vẫn có thể do quảng cáo.'
       + '</span></div></div>'
       + '<div class="card"><div class="card-head"><h3>Phiên LIVE</h3>'
       + '<div style="display:flex;gap:8px">'
-      + '<button class="btn ghost small" id="btnLiveTien">Gắn doanh thu</button>'
+      + '<button class="btn ghost small" id="btnLiveTien">Gắn số về phiên</button>'
       + '<button class="btn ghost small" id="btnLiveTay">Thêm một phiên</button>'
-      + '<button class="btn ghost small" id="btnLiveDan">Dán bảng LIVE</button>'
+      + '<button class="btn ghost small" id="btnLiveDan">Bảng LIVE Center</button>'
       + '</div></div><div class="card-body tight">'
       + bangGon([
         { t: 'Phiên', name: 1, v: (x) => esc(x.title || '(không tiêu đề)')
@@ -507,6 +508,7 @@
         { t: 'Đỉnh', num: 1, v: (x) => n0(x.peak) },
         { t: 'B.luận', num: 1, v: (x) => n0(x.comments) },
         { t: 'Follow mới', num: 1, v: (x) => n0(x.newFollows) },
+        { t: 'Tin nhắn', num: 1, v: (x) => n0(x.messages) },
         { t: 'Lead', num: 1, v: (x) => n0(x.leads) },
         { t: 'Đơn', num: 1, v: (x) => n0(x.orders) },
         { t: 'Doanh thu', num: 1, v: (x) => n0(x.revenue) + 'đ' },
@@ -558,30 +560,95 @@
     };
   }
 
+  /* Gắn lại tiền cho khoảng đang xem. Một lượt mất khoảng một phút vì Tourwell
+   * chặn nhịp và luôn trả 25 dòng một trang — nên phải khoá nút lại và nói rõ
+   * là đang chạy, chứ để nút im lìm là người ta bấm tiếp mấy lần. */
+  async function ganTienLive() {
+    const b = $('#btnLiveTien');
+    if (!b || b.disabled) return;
+    b.disabled = true;
+    const chu = b.textContent;
+    b.textContent = 'Đang gắn…';   // một lượt mất khoảng một phút
+    try {
+      const r = await goiJSON('/api/live/gan-so' + '?' + truyVan(), {});
+      if (r.bo) toast(r.lyDo, 'err');
+      else {
+        toast(r.soPhien + ' phiên · ' + r.ganTinNhan + ' tin nhắn · ' + r.ganLead + ' lead · '
+          + Math.round(r.doanhThu || 0).toLocaleString('vi-VN') + 'đ');
+      }
+      await veLive();
+    } catch (e) {
+      toast(e.message, 'err');
+      b.disabled = false; b.textContent = chu;
+    }
+  }
+
   function moLiveDan() {
-    moModal('<div class="modal-head"><h3>Dán bảng LIVE</h3></div>'
+    moModal('<div class="modal-head"><h3>Bảng LIVE Center</h3></div>'
       + '<div class="modal-body"><div class="notes" style="margin-bottom:12px">'
       + '<div class="note info"><span class="ico">i</span><span>'
-      + 'Mở TikTok LIVE Center → xuất báo cáo → bôi đen cả bảng (kể cả dòng tiêu đề) → dán vào đây. '
-      + 'App đọc cột theo TÊN ở dòng đầu chứ không theo thứ tự, nên xuất bản nào cũng nhận. '
+      + 'Mở TikTok LIVE Center → xuất báo cáo → <b>thả tệp .xlsx hoặc .csv vào ô bên dưới</b>. '
+      + 'Không có tệp thì bôi đen cả bảng (kể cả dòng tiêu đề) rồi dán vào ô văn bản. '
+      + 'App đọc cột theo TÊN chứ không theo thứ tự, nên xuất bản nào cũng nhận. '
       + 'Tên cột hiểu được: Thời gian bắt đầu · Thời gian kết thúc · Thời lượng · Lượt xem · '
       + 'Người xem cao nhất · Bình luận · Thích · Chia sẻ · Người theo dõi mới · Tiêu đề.'
       + '</span></div></div>'
       + '<div class="kn-form"><div class="kn-row"><label>Kênh</label>' + chonKenhHtml('dnKenh') + '</div>'
-      + '<textarea id="dnText" placeholder="Dán bảng vào đây…"></textarea></div></div>'
+      + '<div id="dnTha" style="border:1px dashed var(--vien,#3a4256);border-radius:10px;'
+      + 'padding:18px;text-align:center;cursor:pointer;margin-bottom:10px">'
+      + '<b>Thả tệp xuất của LIVE Center vào đây</b><br>'
+      + '<span class="sub-line">hoặc bấm để chọn tệp — nhận .xlsx và .csv</span>'
+      + '<input type="file" id="dnTep" accept=".xlsx,.csv,.txt" hidden></div>'
+      + '<textarea id="dnText" placeholder="…hoặc dán bảng vào đây"></textarea></div></div>'
       + '<div class="modal-foot"><button class="btn ghost" id="mHuy">Đóng</button>'
       + '<button class="btn primary" id="mLuu">Đọc và ghi</button></div>');
     $('#mHuy').onclick = dongModal;
-    $('#mLuu').onclick = async () => {
+
+    const bao = (r) => {
+      dongModal();
+      toast('Đọc ' + r.doc + ' dòng, ghi được ' + r.ghi
+        + (r.hong.length ? ' · ' + r.hong.length + ' dòng lỗi' : ''),
+      r.hong.length ? 'err' : 'ok');
+      veLive();
+    };
+
+    /* Gửi thẳng byte của tệp, không bọc multipart: mỗi lượt đúng một tệp, mà
+     * đọc multipart thì phải nuôi thêm một bộ phân tích nữa. */
+    async function guiTep(f) {
+      if (!f) return;
+      const nut = $('#mLuu'); nut.disabled = true; nut.textContent = 'Đang đọc…';
       try {
-        const r = await goiJSON('/api/live/dan-bang', {
-          extId: $('#dnKenh').value, text: $('#dnText').value,
+        const q = new URLSearchParams({ ten: f.name, extId: $('#dnKenh').value });
+        const r = await goi('/api/live/tai-tep?' + q.toString(), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/octet-stream' },
+          body: await f.arrayBuffer(),
         });
-        dongModal();
-        toast('Đọc ' + r.doc + ' dòng, ghi được ' + r.ghi
-          + (r.hong.length ? ' · ' + r.hong.length + ' dòng lỗi' : ''),
-        r.hong.length ? 'err' : 'ok');
-        veLive();
+        bao(r);
+      } catch (e) {
+        toast(e.message, 'err');
+        nut.disabled = false; nut.textContent = 'Đọc và ghi';
+      }
+    }
+
+    const tha = $('#dnTha');
+    tha.onclick = () => $('#dnTep').click();
+    $('#dnTep').onchange = (e) => guiTep(e.target.files && e.target.files[0]);
+    ['dragenter', 'dragover'].forEach((k) => tha.addEventListener(k, (e) => {
+      e.preventDefault(); tha.style.background = 'rgba(255,255,255,.04)';
+    }));
+    ['dragleave', 'drop'].forEach((k) => tha.addEventListener(k, (e) => {
+      e.preventDefault(); tha.style.background = '';
+    }));
+    tha.addEventListener('drop', (e) => guiTep(e.dataTransfer.files && e.dataTransfer.files[0]));
+
+    $('#mLuu').onclick = async () => {
+      const f = $('#dnTep').files && $('#dnTep').files[0];
+      if (f) return guiTep(f);
+      try {
+        bao(await goiJSON('/api/live/dan-bang', {
+          extId: $('#dnKenh').value, text: $('#dnText').value,
+        }));
       } catch (e) { toast(e.message, 'err'); }
     };
   }

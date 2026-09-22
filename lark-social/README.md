@@ -25,17 +25,21 @@ chỗ nào người phải gõ, để không ai ngồi chờ số không bao gi�
 | Lượt xem trang / hồ sơ | ✅ | ✅ | ❌ | ✅ | ❌ |
 | Từng bài: xem/thích/bình luận/chia sẻ | ⚠️ cần `pages_read_user_content` | ✅ | ✅ | ✅ | ⚠️ tuỳ gói |
 | Tỷ lệ xem hết video, thời gian xem TB | ➖ chỉ thời gian xem | ➖ chỉ Reels | ❌ | ✅ | ❌ |
-| **LIVE** (xem / bình luận / follow mới) | ⚠️ cần Meta duyệt App Review | ❌ | ❌ | ❌ | ❌ |
+| **LIVE** (xem / bình luận / follow mới) | ➖ đường vòng qua `/videos` | ❌ | ❌ | ❌ | ❌ |
+| **LIVE ra tiền** (lead · đơn · doanh thu) | ✅ Tourwell | ❌ | ✅ Tourwell | ✅ Tourwell | ❌ |
 | Tin nhắn / hội thoại | ❌ | ➖ replies | ❌ | ❌ | ✅ |
 
 ✅ máy lấy được · ➖ lấy được nhưng gián tiếp · ⚠️ tuỳ gói dịch vụ · ❌ phải nhập tay
 
 **Ba điều đáng nhớ:**
 
-1. **Không nền tảng nào cho số LIVE.** TikTok không mở API. Facebook có endpoint
-   `live_videos` nhưng đòi Meta duyệt **App Review** — xin thêm scope vô ích.
-   Chưa duyệt thì LIVE của cả hai đều phải nhập tay: tab LIVE → *Dán bảng LIVE*,
-   app đọc cột theo tên nên bản xuất nào cũng nhận.
+1. **Không nền tảng nào cho số LIVE, nhưng tiền thì đo được.** TikTok và
+   Instagram không mở API cho phát trực tiếp. Facebook có `live_videos` nhưng đòi
+   Meta duyệt **App Review** — xin thêm scope vô ích; app đi đường vòng qua
+   `/videos`, đọc được phiên **đã tắt** (xem mục 2b). Lượt xem LIVE của TikTok vẫn
+   phải nhập tay: tab LIVE → *Dán bảng LIVE*, app đọc cột theo tên nên bản xuất nào
+   cũng nhận. Còn **hiệu quả** của buổi LIVE thì không đợi nền tảng nữa — lead và
+   doanh thu Tourwell gắn thẳng vào từng phiên, xem mục 2c.
 
 4. **Facebook Page mất Lượt hiển thị và Lượt tiếp cận.** Đã dò thật trên Page của
    Rooty Trip ngày 09/09/2026 với API v23.0: Meta bỏ hẳn `page_impressions`,
@@ -72,6 +76,116 @@ Hệ quả cần biết: **lần đồng bộ đầu tiên, các kênh TikTok di
 cho phần lượt xem. Từ lần thứ hai trở đi mới có số. Đó là đúng, không phải lỗi.
 
 `chenhLech()` trong `sync/index.js` và các phép thử trong `test/chuanhoa.test.js`.
+
+---
+
+## 2b. LIVE của Facebook về bằng đường nào
+
+`GET /{page-id}/live_videos` trả `(#10) … must be reviewed and approved`. Đó là
+**App Review của Meta**, không phải thiếu scope — xin thêm quyền bao nhiêu cũng
+vẫn câu đó.
+
+Đường vòng: một phiên LIVE **đã tắt** thì trở thành video bình thường của Trang,
+mà video đọc được bằng đúng quyền app đang xin. Video sinh ra từ phát trực tiếp
+mang thêm `live_status` và `broadcast_start_time` — đó là dấu để nhận ra nó giữa
+đống video đăng thường. `liveTuVideo()` trong `sync/facebook.js`.
+
+Ba điều phải biết trước khi tin cột này:
+
+- Chỉ thấy phiên **đã tắt**. Phiên đang chạy chưa thành video.
+- **Không có "Người xem cao nhất"** — `live_views` chỉ có ở `/live_videos`.
+- Mất cả hai dấu `live_status` và `broadcast_start_time` thì app **trả rỗng và
+  nói rõ**, chứ không đổ cả kho video vào bảng Phiên LIVE.
+
+Đoạn này **chưa chạy thật lần nào** (21/09/2026 app chưa nối Facebook). Nên nó dò
+từng trường: Meta không nhận trường nào thì bỏ đúng trường đó rồi hỏi lại, và ghi
+vào nhật ký những trường đã phải bỏ. Nối xong, xem nhật ký đồng bộ là biết Meta
+thật sự cho gì.
+
+---
+
+## 2c. Đo hiệu quả LIVE bằng dấu vết thật, không bằng lượt xem
+
+Lượt xem LIVE thì nền tảng giấu. Nhưng mô hình LIVE ở đây là tư vấn rồi bảo khách
+**bấm nút mũi tên cam để nhắn tin** — mà cú bấm đó mở một hội thoại trên Pancake kèm
+dấu thời gian. Đó là dấu vết thật của buổi LIVE, không phải suy đoán.
+
+```
+phiên LIVE  [bắt đầu … kết thúc + 2 giờ]  ×  nền tảng
+     ↓  hội thoại MỚI mở trên Pancake trong khung đó        → Tin nhắn
+     ↓  lead Tourwell rơi vào khung đó, đúng nền tảng       → Lead
+     ↓  đơn của cùng KHÁCH (customer.code), tạo sau lead ấy → Đơn · Doanh thu
+```
+
+**Bốn cột, bốn khoảng cách tới buổi LIVE.** Đọc từ trái sang phải là đi từ chắc chắn
+sang phỏng đoán:
+
+| Cột | Nguồn | Gần buổi LIVE tới đâu | Cỡ số thật (đo 15–21/09/2026) |
+|---|---|---|---|
+| **Tin nhắn** | Pancake | chính cú bấm nút | ~80 hội thoại/ngày → một buổi tối 20–22h chạm ~15 |
+| **Lead** | Tourwell | sau khi sale nhập | ~8 lead/ngày → một buổi chạm 0–2 |
+| **Đơn · Doanh thu** | Tourwell | có thể vài ngày sau | thưa, nhưng là tiền thật |
+
+Cột **Tin nhắn** đếm hội thoại **MỞ MỚI**, không đếm tin nhắn. Khách cũ nhắn lại
+không mở hội thoại mới nên không được đếm — cột này trả lời "bao nhiêu người mới
+bấm vào", không phải "bao nhiêu tin nhắn".
+
+**Khung giờ nào đáng LIVE** (hội thoại mở, giờ Việt Nam, 7 ngày 15–21/09/2026):
+
+```
+13h ███████████████████████  45      20h ███████████████████  37
+14h █████████████████████████ 50      21h ████████████████    32
+15h ██████████████████████████ 60     22h ██████████          19
+```
+
+Đỉnh là **13–15h**, tối 17–21h cũng dày. Từ 02h đến 06h gần như không ai nhắn.
+
+**Bẫy giờ của Pancake — đọc trước khi tin bất kỳ con số giờ nào.** `inserted_at` về
+dạng `2026-09-21T13:34:45.860818`: **không có `Z`, không có `+07:00`**, mà giá trị
+thì là giờ **UTC**. Chuỗi ISO có giờ mà thiếu múi giờ thì JavaScript hiểu là *giờ
+máy* — nên `Date.parse()` trần ra kết quả **đúng trên Render (UTC) và lệch 7 tiếng
+trên máy ở Việt Nam**. Kiểu lỗi tệ nhất: thử ở nhà thấy sai, lên server lại thấy
+đúng. `mocUTC()` trong `tien-live.js` gắn `'Z'` vào chuỗi nào chưa có múi giờ.
+`sync/pancake.js` bên app quảng cáo còn đang dính lỗi này.
+
+**Nối lead với đơn bằng mã khách, không bằng mã đơn.** Bản lead có trường
+`orders[]`, và `lark-ads-manager` đang đọc nó — nhưng dò thật 21/09/2026 thì mảng
+ấy **rỗng** (0/249 lead của một tháng có 895 đơn). Tin vào nó thì cột Doanh thu im
+lặng bằng 0 mãi mãi mà không có lỗi nào. `customer.code` thì có ở 100% cả hai bên.
+
+Lead mang sẵn nhãn nền tảng ở `source.name` — đã đếm thật: 55 *"Tiktok Rooty Trip
+Phú Quốc"* / 45 *"Facebook Rooty Trip Phú Quốc"* trên 100 lead gần nhất. Đủ để tách
+TikTok với Facebook.
+
+Chạy tự động ở cuối mỗi lượt đồng bộ, hoặc bấm tay: tab LIVE → **Gắn doanh thu**.
+Một lượt mất khoảng một phút vì Tourwell chặn 60 yêu cầu/phút và luôn trả 25 dòng
+một trang. Mỗi lượt **tính lại cả khoảng** chứ không cộng dồn — doanh thu của một
+buổi LIVE còn chạy nhiều ngày sau khi nó tắt.
+
+**Đây là trùng khung giờ, không phải nhân quả.** Khách đến trong lúc đang LIVE vẫn
+có thể là do quảng cáo hay bài đăng hôm trước. Vài luật giữ cho số khỏi phồng:
+
+| Tình huống | Xử |
+|---|---|
+| Hai phiên cùng nền tảng chồng giờ | lead về phiên **bắt đầu muộn hơn** |
+| Một đơn thuộc hai lead | chỉ ghi công **một lần** |
+| Đơn tạo **trước** lead | bỏ — khách cũ quay lại, không phải công của phiên |
+| Đơn đã huỷ | không tính vào doanh thu |
+| Đơn do **Api Official** tạo | không tính — đó là đơn chi phí của chính phòng mình, xem `lark-chung/tourwell.js` |
+| Hội thoại cũ được nhắn lại | không đếm — cột Tin nhắn đếm hội thoại MỞ MỚI |
+| Lead không có nhãn nền tảng | không gắn vào phiên nào |
+
+Hai kênh cùng một nền tảng LIVE cùng giờ thì **không tách được** (Tourwell chỉ có
+một nhãn nguồn cho cả trang) — nên đừng xếp trùng giờ.
+
+**Đừng mong con số to.** Đã đo thật trên tháng 22/08–21/09/2026: cả tháng 250 lead
+(178 TikTok / 71 Facebook), tức khoảng **8 lead/ngày cho mọi khung giờ cộng lại**.
+Thử ba khung 20–22h các tối thứ Sáu thì ra 0, 1, 0 lead. Đó là số học, không phải
+lỗi: một buổi LIVE hai tiếng thường chạm 0–2 lead. Muốn nới đuôi thì đặt biến
+`TIEN_LIVE_DUOI_PHUT` (mặc định 120) — nhưng nới đuôi chỉ quét thêm lead, không
+tạo thêm nhân quả.
+
+`tien-live.js`, và `test/tien-live.test.js` có 31 phép thử cho đúng các luật trên.
 
 ---
 
@@ -274,8 +388,18 @@ thì app không hẹn giờ, để khỏi đẻ nhật ký rác mỗi 6 tiếng.
 **Quét lại mấy ngày**: mặc định 7. Số liệu social còn chạy tiếp vài ngày sau khi
 đăng, nên quét lại là cần chứ không phải chạy thừa.
 
-**Test**: `node test/chuanhoa.test.js && node test/vault.test.js` (34 phép thử,
-không cần mạng, không đụng Base).
+**Gắn doanh thu cho LIVE**: tự chạy ở cuối mỗi lượt đồng bộ; bấm tay ở tab LIVE →
+*Gắn doanh thu*. Cần token Open API của Tourwell trong `lark-chung/tourwell.json`
+(hoặc biến `TOURWELL_TOKEN`) — thiếu thì app nói rõ chứ không im lặng để 0.
+
+**Số của LIVE Center vào app bằng hai đường**: tab LIVE → *Bảng LIVE Center* →
+**thả tệp** `.xlsx`/`.csv` xuất từ LIVE Center, hoặc dán bảng như cũ. Cả hai đi qua
+đúng một bộ luật nhận cột (`bang-dan.js`), nên bản xuất nào dán được thì thả tệp
+cũng đọc được. Nhận dạng tệp theo NỘI DUNG (`PK` ở hai byte đầu là .xlsx) chứ không
+theo đuôi tên.
+
+**Test**: `node test/chuanhoa.test.js && node test/vault.test.js && node test/tien-live.test.js && node test/tep-live.test.js`
+(119 phép thử, không cần mạng, không đụng Base).
 
 ---
 
@@ -289,6 +413,9 @@ không cần mạng, không đụng Base).
 | `store.js` | đọc/ghi Base, ghi theo khoá, xử lý ngày tháng |
 | `metrics.js` | gộp số cho giao diện — `agg()` là định nghĩa duy nhất |
 | `bang-dan.js` | đọc bảng LIVE dán vào (nhận cột theo tên, số kiểu Việt/Anh) |
+| `tien-live.js` | gắn tin nhắn Pancake + lead/doanh thu Tourwell vào từng phiên LIVE |
+| `cho-khop.js` | hàng chờ người đăng ở máy chủ; `viTriPhaiGiu()` quyết định tiện ích còn phải gửi lại gì |
+| `../lark-chung/xlsx-doc.js` | đọc .xlsx — dùng chung với app quảng cáo |
 | `sync/facebook.js` · `instagram.js` · `tiktok.js` · `zalo.js` | bốn adapter |
 | `sync/index.js` | nhạc trưởng: kéo → tính chênh lệch → ghi Base → ghi nhật ký |
 | `server.js` | HTTP, phân quyền, nhập tay, lịch chạy |
@@ -303,5 +430,12 @@ tiêu chí và tỷ trọng kênh của từng người (Thư · Hằng · Khán
 Bản này lo phần kết nối và gom số trước; phần chấm điểm làm sau, và khi làm thì thêm
 bảng *Chỉ tiêu tháng* vào Base rồi tính từ bảng *Số liệu theo ngày* đã có.
 
-**Cột Lead.** Đang để trống. Nguồn thật của lead là Pancake, mà `lark-ads-manager` đã
-nối sẵn — nên khi làm sẽ đọc từ đó chứ không nối Pancake lần thứ hai.
+**Cột Lead ở bảng Số liệu theo ngày.** Vẫn để trống. Lead đã gắn được cho *phiên
+LIVE* (mục 2c, nguồn Tourwell), nhưng lead theo NGÀY cho từng kênh thì chưa — nguồn
+tốt hơn cho việc đó là Pancake, mà `lark-ads-manager` đã nối sẵn, nên khi làm sẽ đọc
+từ đó chứ không nối Pancake lần thứ hai.
+
+**Ghép phiên LIVE với chi quảng cáo.** Có doanh thu rồi thì ROAS của một buổi LIVE
+chỉ còn thiếu vế chi. Số đó nằm bên `lark-ads-manager`; chưa nối vì chi quảng cáo
+ghi theo NGÀY, còn phiên LIVE tính theo GIỜ — chia chi phí ngày cho một khung hai
+tiếng là đoán, mà đoán vào tiền thì thà chưa làm.

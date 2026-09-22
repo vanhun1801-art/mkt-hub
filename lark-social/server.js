@@ -17,6 +17,7 @@ const ketnoi = require('./ketnoi');
 const vault = require('./vault');
 const sync = require('./sync');
 const tienLive = require('./tien-live');
+const { docBang: docXlsx } = require('../lark-chung/xlsx-doc');
 const canhBao = require('./canh-bao');
 const noiDung = require('./noi-dung');
 const binhLuan = require('./binh-luan');
@@ -30,7 +31,7 @@ const xuatDT = require('./xuat-doi-tac');
 const facebook = require('./sync/facebook');
 const zalo = require('./sync/zalo');
 const tiktok = require('./sync/tiktok');
-const { docBangDan } = require('./bang-dan');
+const { docBangDan, docBangObj, COT_LIVE } = require('./bang-dan');
 
 const T = cfg.tables;
 const PUBLIC = path.join(__dirname, 'public');
@@ -47,6 +48,47 @@ function send(res, code, body, headers = {}) {
 }
 const ok = (res, body) => send(res, 200, body);
 const fail = (res, code, message, extra = {}) => send(res, code, { error: message, ...extra });
+
+/**
+ * Đọc thân yêu cầu ở dạng NHỊ PHÂN — cho đường thả tệp .xlsx. readBody() bên
+ * dưới ép sang utf8 rồi JSON.parse, làm thế với một file zip là hỏng file.
+ */
+function readRaw(req, tran = 12 * 1024 * 1024) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    req.on('data', (c) => {
+      size += c.length;
+      if (size > tran) { reject(new Error('Tệp quá lớn (trần ' + Math.round(tran / 1048576) + 'MB)')); req.destroy(); return; }
+      chunks.push(c);
+    });
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
+}
+
+/**
+ * Một tệp LIVE Center → danh sách phiên, nhận cả .xlsx lẫn .csv/.txt.
+ *
+ * Nhận dạng theo NỘI DUNG chứ không theo đuôi tên: 'PK' ở hai byte đầu là zip,
+ * tức .xlsx. Người ta hay đổi đuôi tay, và đoán theo đuôi thì một file .xlsx
+ * đặt tên .csv sẽ ra một mớ ký tự rác chứ không ra lỗi đọc được.
+ */
+function docTepLive(buf, ten = '') {
+  if (!buf || !buf.length) throw Object.assign(new Error('Tệp rỗng'), { code: 400 });
+  const laZip = buf[0] === 0x50 && buf[1] === 0x4b;
+  if (laZip) {
+    const { rows } = docXlsx(buf, { tenCot: Object.keys(COT_LIVE) });
+    return docBangObj(rows);
+  }
+  // Bỏ BOM: Excel xuất CSV kèm BOM, để nguyên thì tên cột đầu tiên không khớp.
+  let text = buf.toString('utf8');
+  if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
+  if (/^\s*</.test(text)) {
+    throw Object.assign(new Error('Tệp "' + ten + '" trông như một trang web, không phải bảng số liệu.'), { code: 400 });
+  }
+  return docBangDan(text);
+}
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -306,6 +348,23 @@ async function nhapTayNgay(ban) {
   }
   const r = await store.ghiTheoKhoa('daily', [row], (x) => x[f.key]);
   return { ...r, kenh: kenh.name, ngay: ban.date };
+}
+
+/**
+ * Ghi cả một danh sách phiên đọc từ bản xuất LIVE Center (dán bảng hoặc thả
+ * tệp). Một dòng hỏng thì ghi tên dòng đó vào `hong` rồi đi tiếp — mất một
+ * phiên còn hơn mất cả bản xuất, và người bấm cần biết chính xác dòng nào hỏng.
+ */
+async function ghiDsLive(ds, { channel = '', extId = '' } = {}) {
+  let ghi = 0;
+  const hong = [];
+  for (const r of ds) {
+    try {
+      await nhapTayLive({ ...r, channel, extId, source: 'CSV LIVE Center' });
+      ghi += 1;
+    } catch (e) { hong.push((r.start || '?') + ': ' + e.message); }
+  }
+  return { doc: ds.length, ghi, hong };
 }
 
 /** Ghi một phiên LIVE nhập tay (TikTok/Instagram không có API cho LIVE). */
@@ -755,10 +814,12 @@ async function api(req, res, u) {
     return ok(res, await nhapTayLive(await readBody(req)));
   }
 
-  /* Gắn lại tiền cho khoảng đang xem, không cần đợi lượt đồng bộ.
+  /* Gắn lại số cho khoảng đang xem, không cần đợi lượt đồng bộ. Tên cũ
+   * /gan-tien giữ lại để bản giao diện đang mở trong trình duyệt ai đó không
+   * gãy giữa chừng khi máy chủ vừa lên bản mới.
    * Chỉ quản lý: mỗi lượt là vài chục lời gọi Tourwell, mà Tourwell chặn nhịp
    * chung cho cả phòng — không để ai bấm cũng được. */
-  if (p === '/api/live/gan-tien' && method === 'POST') {
+  if ((p === '/api/live/gan-so' || p === '/api/live/gan-tien') && method === 'POST') {
     const loi = chanNeuKhongPhaiQuanLy(req); if (loi) throw loi;
     const t = thamSo(u, await hanMucKenh(req));
     return ok(res, await tienLive.ganTien({ from: t.from, to: t.to, log: ghiLog }));
@@ -767,16 +828,24 @@ async function api(req, res, u) {
   if (p === '/api/live/dan-bang' && method === 'POST') {
     const loi = chanNeuKhongPhaiQuanLy(req); if (loi) throw loi;
     const b = await readBody(req);
-    const ds = docBangDan(b.text);
-    let xong = 0;
-    const hong = [];
-    for (const r of ds) {
-      try {
-        await nhapTayLive({ ...r, channel: b.channel, extId: b.extId, source: 'CSV LIVE Center' });
-        xong++;
-      } catch (e) { hong.push((r.start || '?') + ': ' + e.message); }
-    }
-    return ok(res, { doc: ds.length, ghi: xong, hong });
+    return ok(res, await ghiDsLive(docBangDan(b.text), b));
+  }
+
+  /* Thả tệp xuất của LIVE Center xuống app — .xlsx hoặc .csv.
+   *
+   * Thân yêu cầu là NHỊ PHÂN thô, không phải JSON và không phải multipart: chỉ
+   * có đúng một tệp mỗi lượt, nên gói nó vào multipart là thêm một bộ phân tích
+   * nữa để nuôi mà chẳng được gì. Tên tệp và kênh đi bằng query. */
+  if (p === '/api/live/tai-tep' && method === 'POST') {
+    const loi = chanNeuKhongPhaiQuanLy(req); if (loi) throw loi;
+    const ten = u.searchParams.get('ten') || 'tệp';
+    const buf = await readRaw(req);
+    const ds = docTepLive(buf, ten);
+    const kq = await ghiDsLive(ds, {
+      channel: u.searchParams.get('channel') || '',
+      extId: u.searchParams.get('extId') || '',
+    });
+    return ok(res, { ...kq, ten });
   }
 
   /* Hoạt động đăng bài — ai vừa đăng gì, cho MỌI NGƯỜI xem.
@@ -1044,18 +1113,35 @@ async function api(req, res, u) {
           : ''),
     });
 
+    /* Vị trí các mục tiện ích PHẢI GIỮ LẠI để gửi lại sau — và CHỈ khi máy chủ
+     * không cất được vào hàng chờ.
+     *
+     * Trước đây chỗ này trả về mọi mục chưa khớp, nên tiện ích giữ chúng lại
+     * rồi gửi lại mỗi năm phút. Từ khi hàng chờ chuyển về máy chủ (cho-khop.js)
+     * thì việc đó vừa thừa vừa có hại: máy chủ đã cất mục ấy rồi, mà tiện ích
+     * cứ gửi lại thì cột Số lần thử leo tới 193, và — nặng hơn — xoá dòng trên
+     * Base không có tác dụng, vì năm phút sau nó được tạo lại y nguyên. Người
+     * dùng xoá một dòng là có ý bảo "bỏ cái này đi", mà hệ thống lặng lẽ dựng
+     * lại thì không còn cách nào bỏ.
+     *
+     * Cất được rồi thì máy chủ nhận trách nhiệm: sau MỖI lượt đồng bộ nó tự
+     * khớp lại, không cần trình duyệt ai mở. Chỉ khi cất HỎNG mới bảo tiện ích
+     * giữ, để không mất bài lúc Base trục trặc.
+     *
+     * Vẫn trả bằng tên cũ `chuaKhop` để bản tiện ích cũ chưa cập nhật cũng thôi
+     * gửi lại — nghĩa của trường không đổi ("những mục phải giữ"), chỉ là bây
+     * giờ nó ngắn hơn. */
+    const chuaKhop = [...r.khongKhop.map((x) => x.viTri), ...r.tenLa.map((x) => x.viTri)]
+      .sort((a, b) => a - b);
+    const giuLai = choKhop.viTriPhaiGiu(chuaKhop, choMoi);
+
     return ok(res, {
       nhan: (b.items || []).length,
       daGhi: r.capNhat.length,
       khongKhop: r.khongKhop.length,
-      /* Vị trí các mục tiện ích PHẢI GIỮ LẠI để gửi lại sau.
-       *
-       * Gồm cả mục tên lạ, không chỉ mục chưa tìm thấy bài. Bản trước chỉ trả vị
-       * trí của nhóm chưa tìm thấy bài, nên một người mới chưa kịp khai vào Base là
-       * bài của họ BỊ XOÁ KHỎI HÀNG CHỜ luôn — mất trắng, không dấu vết ngoài một
-       * dòng nhật ký. Giữ lại thì khai xong tên là lượt gửi sau tự ghi được. */
-      chuaKhop: [...r.khongKhop.map((x) => x.viTri), ...r.tenLa.map((x) => x.viTri)]
-        .sort((a, b) => a - b),
+      daCatVaoHangCho: giuLai.length ? 0 : chuaKhop.length,
+      giuLai,
+      chuaKhop: giuLai,
       tenLa: r.tenLa.map((x) => x.nguoi).slice(0, 5),
     });
   }

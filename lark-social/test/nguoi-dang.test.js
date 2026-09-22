@@ -163,10 +163,35 @@ t('mục TÊN LẠ cũng phải mang vị trí, để tiện ích giữ lại g�
   assert.deepStrictEqual(chuaKhop, [0, 1]);
 });
 
-t('server.js gộp cả tên lạ vào chuaKhop', () => {
+t('server.js cất cả tên lạ vào hàng chờ, không riêng bài chưa tìm thấy', () => {
+  /* Luật cần giữ: mục của người CHƯA KHAI TÊN không được biến mất.
+   *
+   * Chỗ bảo vệ luật này đã DỜI. Trước kia nó nằm ở tiện ích: máy chủ trả tên lạ
+   * về trong `chuaKhop`, tiện ích giữ lại rồi gửi lại mỗi năm phút. Từ 1.15.0
+   * hàng chờ nằm hẳn ở máy chủ — tiện ích gửi xong là buông, nên chỗ phải kiểm
+   * bây giờ là lời gọi choKhop.luu(): nó phải nhận CẢ HAI nhóm. Thiếu r.tenLa ở
+   * đây thì khai tên xong cũng không còn gì để ghi.
+   *
+   * Kiểm trên mã nguồn vì tuyến này chưa có test HTTP; thà một phép thử thô còn
+   * hơn để một luật đã mất một bài thật không ai canh. */
   const src = require('fs').readFileSync(require.resolve('../server'), 'utf8');
-  assert.ok(/chuaKhop:\s*\[\.\.\.r\.khongKhop[\s\S]{0,120}r\.tenLa/.test(src),
-    'chuaKhop phải gồm cả r.tenLa, nếu không là mất bài của người chưa khai tên');
+  assert.ok(/\[\.\.\.r\.khongKhop,\s*\.\.\.r\.tenLa\]/.test(src),
+    'phần cất vào hàng chờ phải gồm cả r.tenLa, nếu không là mất bài của người chưa khai tên');
+  assert.ok(/choKhop\.luu\(/.test(src),
+    'phải thật sự gọi choKhop.luu() — giữ ở trình duyệt thì bài hẹn giờ lại rơi mất');
+});
+
+t('server.js KHÔNG còn bắt tiện ích gửi lại mục đã cất được', () => {
+  /* Đây là lỗi anh Hùng gặp: xoá dòng thử nghiệm trên Base mà nó cứ hiện lại,
+   * Số lần thử leo tới 193. Nguyên nhân là `chuaKhop` trả về mọi mục chưa khớp
+   * nên tiện ích gửi lại mỗi năm phút, và luu() không thấy khoá cũ nên tạo dòng
+   * mới. Luật quyết định nằm ở choKhop.viTriPhaiGiu(), có test riêng bên
+   * test/cho-khop.test.js. */
+  const src = require('fs').readFileSync(require.resolve('../server'), 'utf8');
+  assert.ok(/viTriPhaiGiu\(/.test(src),
+    'phải dùng choKhop.viTriPhaiGiu() để quyết định mục nào tiện ích còn phải giữ');
+  assert.ok(!/chuaKhop:\s*\[\.\.\.r\.khongKhop/.test(src),
+    'trả thẳng mọi mục chưa khớp về cho tiện ích là dựng lại vòng gửi lại vô tận');
 });
 
 console.log('\nnguoi-dang — bảng chấm KPI theo người');
