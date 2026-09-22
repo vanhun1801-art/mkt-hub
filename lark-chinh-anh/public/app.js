@@ -75,6 +75,9 @@
     form: { gui: true, muc: [] },
     /* id → tên, để hiện chip người chỉnh mà không phải gọi lại danh bạ. */
     tenNguoi: {},
+    /* Danh bạ cả phòng xin từ lớp vỏ — nguồn chính để tìm người bằng tên KHÔNG
+     * dấu; xem khối khongDau/taiDanhBa. Rỗng khi chạy ngoài lớp vỏ. */
+    danhBa: [],
     /* Gợi ý danh bạ đang mở của mục nào: { i, ds } */
     goiY: null,
     dangGui: false,
@@ -175,6 +178,73 @@
 
   const soCanSua = () => (S.ds || []).filter((b) => b.trangThai === 'Cần sửa lại'
     && (!S.meta || !S.meta.user || b.nguoiLam.some((u) => u.id === S.meta.user.id))).length;
+
+  /* ---------------- danh bạ & tìm không dấu ----------------
+   *
+   * Anh Hùng báo hai lần "chỗ tìm người không tìm được ai" (11/09 và 22/09/2026).
+   * Đo ra hai nguyên nhân khác hẳn nhau:
+   *
+   *   1. API danh bạ của Lark KHÔNG bỏ dấu. Gõ "Hung" trả về 0 người; gõ "Hùng"
+   *      trả về 20, có cả Lê Văn Hùng. Mà người Việt gõ tên đồng nghiệp thì hầu
+   *      như không bao giờ bỏ dấu ra gõ. Không sửa được ở phía Lark.
+   *   2. Danh sách dự phòng phía server chỉ gồm người ĐÃ TỪNG có báo cáo trong
+   *      base này — app mới, bảng gần như trống, nên chẳng đỡ được gì.
+   *
+   * Nên: xin danh bạ cả phòng của lớp vỏ MỘT LẦN, rồi lọc ngay tại máy bằng so
+   * khớp bỏ dấu. Gõ là ra liền, không chờ mạng. Vẫn hỏi Lark song song để bắt
+   * được người chưa xuất hiện ở base nào (người mới, hoặc gõ đúng dấu).
+   */
+  const khongDau = (s) => {
+    /* Lọc dấu bằng code point, không dùng regex chứa ký tự tổ hợp — dải
+     * U+0300..U+036F viết thẳng vào regex rất dễ bị công cụ chuyển mã làm hỏng,
+     * mà hỏng kiểu câm: hàm vẫn chạy, chỉ là hết bỏ được dấu. Cùng cách với
+     * ten-thu-muc.js bên server, để hai bên khớp nhau. */
+    const nfd = String(s == null ? '' : s).normalize('NFD');
+    let out = '';
+    for (const ch of nfd) {
+      const cp = ch.codePointAt(0);
+      if (cp >= 0x300 && cp <= 0x36f) continue;
+      if (cp === 0x111 || cp === 0x110) { out += 'd'; continue; }
+      out += ch;
+    }
+    return out.toLowerCase();
+  };
+  const gonTen = (s) => khongDau(s).replace(/[^a-z0-9]/g, '');
+
+  /**
+   * Danh bạ cả phòng, xin từ lớp vỏ. Lớp vỏ gom người từ Base của mọi app con nên
+   * không phải xin thêm quyền đọc danh bạ công ty trên Lark.
+   *
+   * Chạy một mình ngoài lớp vỏ thì không có gì — vẫn tìm được bằng đường hỏi Lark.
+   */
+  async function taiDanhBa() {
+    if (!window.__HUB__) return;
+    try {
+      /* Lớp vỏ vá fetch để mọi đường bắt đầu bằng "/" chạy về app con — gọi
+       * "/api/danh-ba" là rơi vào chính app này rồi 404. Ghi đủ origin thì shim
+       * bỏ qua, request mới tới được lớp vỏ. */
+      const r = await fetch(location.origin + '/api/danh-ba');
+      if (!r.ok) return;
+      const d = await r.json();
+      if (!Array.isArray(d.nguoi) || !d.nguoi.length) return;
+      S.danhBa = d.nguoi.map((x) => ({ id: x.id, ten: x.name || x.ten || x.id }))
+        .filter((x) => x.id);
+      S.danhBa.forEach((x) => { if (!S.tenNguoi[x.id]) S.tenNguoi[x.id] = x.ten; });
+    } catch (_) { /* không có danh bạ thì vẫn tìm được bằng đường hỏi Lark */ }
+  }
+
+  /** Người khớp NGAY tại máy: đã từng làm trong base này, cộng danh bạ cả phòng. */
+  function timTaiCho(tu) {
+    const g = gonTen(tu);
+    if (!g) return [];
+    const nguon = [...((S.meta && S.meta.people) || []), ...(S.danhBa || [])];
+    const thay = new Map();
+    nguon.forEach((x) => {
+      if (!x || !x.id || thay.has(x.id)) return;
+      if (gonTen(x.ten).includes(g)) thay.set(x.id, { id: x.id, ten: x.ten });
+    });
+    return [...thay.values()];
+  }
 
   /* ---------------- nạp ---------------- */
   async function napMeta(moi) {
@@ -445,11 +515,20 @@
     const g = S.goiY && S.goiY.i === i ? S.goiY : null;
     if (!g) { o.hidden = true; o.innerHTML = ''; return; }
     o.hidden = false;
-    if (g.dangTim) { o.innerHTML = '<div class="ng-trong">đang tìm…</div>'; return; }
+    const ds = g.ds || [];
+    const nut = ds.map((x) => `<button data-them="${esc(x.id)}" data-ten="${esc(x.ten)}">${esc(x.ten)}${x.phong ? ' <span class="ng-phong">' + esc(x.phong) + '</span>' : ''}</button>`).join('');
+
+    /* Đang tra Lark mà tại máy ĐÃ có người khớp thì hiện luôn, đừng thay bằng
+     * mỗi chữ "đang tìm…". Người ta gõ tên đồng nghiệp là thấy ngay và bấm được;
+     * kết quả Lark về sau chỉ nối thêm. */
+    if (g.dangTim) {
+      o.innerHTML = nut + '<div class="ng-trong">'
+        + (ds.length ? 'đang tìm thêm…' : 'đang tìm…') + '</div>';
+      return;
+    }
     if (g.loi) { o.innerHTML = '<div class="ng-trong canh">' + esc(g.loi) + '</div>'; return; }
-    o.innerHTML = g.ds.length
-      ? g.ds.map((x) => `<button data-them="${esc(x.id)}" data-ten="${esc(x.ten)}">${esc(x.ten)}${x.phong ? ' <span class="ng-phong">' + esc(x.phong) + '</span>' : ''}</button>`).join('')
-      : '<div class="ng-trong">không thấy ai khớp</div>';
+    o.innerHTML = ds.length ? nut
+      : '<div class="ng-trong">không thấy ai khớp — thử gõ có dấu, hoặc gõ ít chữ hơn</div>';
   }
 
   /**
@@ -617,14 +696,26 @@
      * thì người dùng kết luận là hỏng — đúng như anh Hùng vừa gặp. */
     datGoiY({ i, dangTim: true, ds: [] });
 
+    /* Khớp tại máy trước — hiện được liền, và đây mới là đường ra kết quả khi
+     * người ta gõ không dấu (Lark tra có dấu, xem khối khongDau ở trên). */
+    const tacCho = timTaiCho(tu);
+    datGoiY({ i, ds: tacCho.slice(0, 8), dangTim: true });
+
     const lan = (lanTim[i] = (lanTim[i] || 0) + 1);
     hen['n' + i] = setTimeout(async () => {
       try {
         const r = await goi('/api/nhan-su?q=' + encodeURIComponent(tu));
         if (lan !== lanTim[i]) return;           // đã có lượt gõ mới
-        datGoiY({ i, ds: r.nguoi.slice(0, 8) });
+        /* Gộp: người tìm được tại máy đứng trước (thường là đồng nghiệp hay gặp),
+         * người Lark tra thêm nối sau, không trùng id. */
+        const gop = new Map(tacCho.map((x) => [x.id, x]));
+        (r.nguoi || []).forEach((x) => { if (x && x.id && !gop.has(x.id)) gop.set(x.id, x); });
+        datGoiY({ i, ds: [...gop.values()].slice(0, 8) });
       } catch (e) {
-        if (lan === lanTim[i]) datGoiY({ i, ds: [], loi: e.message });
+        /* Hỏi Lark hỏng mà tại máy đã có người thì cứ hiện, đừng nuốt mất. */
+        if (lan !== lanTim[i]) return;
+        if (tacCho.length) datGoiY({ i, ds: tacCho.slice(0, 8) });
+        else datGoiY({ i, ds: [], loi: e.message });
       }
     }, 280);
   }
@@ -1115,6 +1206,9 @@
       await napMeta();
       veTabs();
       ve();
+      /* Danh bạ tải NGẦM: thiếu nó thì ô chọn người vẫn tìm được bằng đường hỏi
+       * Lark, nên đừng bắt cả màn hình đứng chờ nó. */
+      taiDanhBa().catch(() => {});
       await napDs();
       await napHangDoi();
       ve();

@@ -114,6 +114,32 @@ function dsNguoi() {
   return (m.scopeAvailable && (m.scopePeople || []).length) ? m.scopePeople : (m.people || []);
 }
 
+/**
+ * Bỏ dấu tiếng Việt để so tên.
+ *
+ * Mọi ô tìm người trước đây so bằng `name.toLowerCase().includes(q)`, nên gõ
+ * "hung" KHÔNG ra "Lê Văn Hùng" — mà người Việt gõ tên đồng nghiệp thì hầu như
+ * không bao giờ bỏ dấu ra gõ. Anh Hùng gặp đúng cảnh này ở app Chỉnh ảnh
+ * (22/09/2026); bốn ô chọn người của app này dính y hệt.
+ *
+ * Lọc dấu bằng code point chứ không dùng regex chứa ký tự tổ hợp: dải
+ * U+0300..U+036F viết thẳng vào regex rất dễ bị công cụ chuyển mã làm hỏng, mà
+ * hỏng kiểu câm — hàm vẫn chạy, chỉ là hết bỏ được dấu.
+ */
+const khongDau = (s) => {
+  const nfd = String(s == null ? '' : s).normalize('NFD');
+  let out = '';
+  for (const ch of nfd) {
+    const cp = ch.codePointAt(0);
+    if (cp >= 0x300 && cp <= 0x36f) continue;
+    if (cp === 0x111 || cp === 0x110) { out += 'd'; continue; }
+    out += ch;
+  }
+  return out.toLowerCase();
+};
+/** Tên có khớp từ khoá không — bỏ dấu cả hai phía rồi mới so. */
+const khopTen = (ten, q) => !q || khongDau(ten).includes(khongDau(q));
+
 const $ = (s) => document.querySelector(s);
 const el = (tag, cls, txt) => {
   const n = document.createElement(tag);
@@ -1045,7 +1071,7 @@ function renderQuyen() {
   const { chon, me } = S.quyen;
 
   const list = S.quyen.people
-    .filter((p) => !q || p.name.toLowerCase().includes(q))
+    .filter((p) => khopTen(p.name, q))
     .sort((a, b) => (chon.has(b.id) - chon.has(a.id)) || a.name.localeCompare(b.name, 'vi'));
 
   for (const p of list) {
@@ -2679,7 +2705,7 @@ function multiDropdown(items, selectedIds, onChange, placeholder, opts) {
   function veDs() {
     const q = tim.value.trim().toLowerCase();
     list.innerHTML = '';
-    const hien = items.filter((i) => !q || i.name.toLowerCase().includes(q));
+    const hien = items.filter((i) => khopTen(i.name, q));
     if (!hien.length) {
       list.appendChild(el('div', 'dd-trong', 'Không có ai khớp'));
     }
@@ -4185,7 +4211,7 @@ function lapChonNguoi(hostId, nhan, doc, ghi) {
     }
 
     const me = S.meta.me;
-    const ds = dsNguoi().filter((p) => !q || p.name.toLowerCase().includes(q));
+    const ds = dsNguoi().filter((p) => khopTen(p.name, q));
     for (const p of ds) {
       const row = dongNguoi(p, { on: p.id === dangChon, hau: me && p.id === me.id ? '  (bạn)' : '' });
       row.onclick = () => { ghi(p.id); dong(); ve(); render(); };
@@ -4252,11 +4278,11 @@ function renderViewAsList() {
   // Chế độ cli không đọc được phạm vi -> đành dùng danh bạ từ Base.
   const nguon = dsNguoi();
 
-  if (me && (!q || me.name.toLowerCase().includes(q))) {
+  if (me && khopTen(me.name, q)) {
     box.appendChild(dong(me, true));
     box.appendChild(el('div', 'as-sep', 'Người được cấp quyền dùng app'));
   }
-  const ds = nguon.filter((p) => (!me || p.id !== me.id) && (!q || p.name.toLowerCase().includes(q)));
+  const ds = nguon.filter((p) => (!me || p.id !== me.id) && khopTen(p.name, q));
   for (const p of ds) box.appendChild(dong(p, false));
 
   if (!ds.length) {
