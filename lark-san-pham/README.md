@@ -78,9 +78,14 @@ Mỗi sản phẩm rơi vào **đúng một** tầng, tầng đầu tiên nó kh
 | Chưa xếp mức | ✓ | cần quản lý xếp mức |
 | 🔵 Duy trì · 🌤 Theo mùa · ⏸ Tạm dừng · Mức khác | gập | chỉ để tra |
 
-Bốn tầng trên bày dạng **thẻ**, bốn tầng dưới bày **dòng gọn**. Thẻ mang đúng
-bảy thứ: mã · tên Việt + Anh · giá trước và sau ưu đãi · giá trẻ em · mức ưu tiên
-· USP (cắt 3 dòng) · ngày bắt đầu – kết thúc.
+Bốn tầng trên bày dạng **thẻ**, bốn tầng dưới bày **dòng gọn**. Thẻ mang: mã ·
+tên Việt + Anh · giá trước và sau ưu đãi · giá trẻ em · USP (cắt 3 dòng) · ngày
+bắt đầu – kết thúc.
+
+Thẻ **không** gắn nhãn mức ưu tiên hay “Sắp ra mắt”: nó đang nằm trong đúng cái
+tầng mang tên đó rồi. Nhãn duy nhất còn giữ là **⏳ đổi** — thứ đó nói về tương
+lai, không phải về tầng. Ở tab Danh mục thì ngược lại, nhãn ưu tiên vẫn cần vì
+lưới đó chia theo *nhóm sản phẩm*, không theo mức ưu tiên.
 
 Không có dòng “Hồ sơ đủ, chạy được” và không có nhãn “thiếu …”: đó là trạng thái
 hồ sơ, đã có hẳn tab **Cần bổ sung** lo. Để trên thẻ thì mỗi sản phẩm cõng thêm

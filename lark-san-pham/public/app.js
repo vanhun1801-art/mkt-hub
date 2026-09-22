@@ -456,9 +456,10 @@ function phanBoHtml(nhom) {
  * Thẻ cũng không mang màu tầng: nó đã nằm trong khối tầng có tiêu đề rồi.
  */
 function theDayHtml(p) {
+  /* KHÔNG gắn nhãn mức ưu tiên hay "Sắp ra mắt" ở đây: thẻ đang nằm trong đúng
+     cái tầng mang tên đó rồi, in lại là nói hai lần cùng một điều. Nhãn duy
+     nhất còn giữ là "⏳ đổi" — nó nói về thứ sắp tới, không phải về tầng. */
   const nhan = [];
-  if (laSapRaMat(p)) nhan.push('<span class="nhan moi">🆕 Sắp ra mắt</span>');
-  if (p.uuTien) nhan.push('<span class="nhan ' + lopUuTien(p.uuTien) + '">' + esc(p.uuTien) + '</span>');
   if (p.lichCho && p.lichCho.length) {
     nhan.push('<span class="nhan doi">⏳ đổi ' + esc(veNgay(p.lichCho[0].ngayApDung)) +
       (p.lichCho.length > 1 ? ' · ' + p.lichCho.length + ' mục' : '') + '</span>');
