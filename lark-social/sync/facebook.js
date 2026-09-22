@@ -564,6 +564,149 @@ async function soThatChoVideo(conf, token, ds, ten, canhBao) {
 
 /* ---------------- phiên LIVE ---------------- */
 
+/**
+ * Lấy thêm lượt xem / cảm xúc / bình luận của một video đã xử lý xong.
+ * Dùng chung cho cả hai đường đọc LIVE bên dưới.
+ */
+async function boSungTuVideo(conf, token, vid, row) {
+  try {
+    const ins = await getJson(g(conf) + '/' + vid + '/video_insights'
+      + '?metric=' + encodeURIComponent('total_video_views,total_video_impressions,total_video_reactions_by_type_total')
+      + '&access_token=' + encodeURIComponent(token),
+      { label: 'Facebook video_insights ' + vid, retries: 1 });
+    ((ins && ins.data) || []).forEach((m) => {
+      const v = ((m.values || [])[0] || {}).value;
+      if (m.name === 'total_video_views') row.views = Math.max(row.views, num(v));
+      if (m.name === 'total_video_reactions_by_type_total' && v && typeof v === 'object') {
+        row.likes = Object.values(v).reduce((s, x) => s + num(x), 0);
+      }
+    });
+    const cm = await getJson(g(conf) + '/' + vid + '/comments?summary=true&limit=0'
+      + '&access_token=' + encodeURIComponent(token),
+      { label: 'Facebook live comments ' + vid, retries: 1 });
+    row.comments = num(cm && cm.summary && cm.summary.total_count);
+  } catch (_) { /* một phiên thiếu số không đáng làm hỏng cả lượt */ }
+  return row;
+}
+
+/* Trường hỏi ở /videos. Thứ tự có ý: hai trường ĐẦU là dấu nhận ra một video
+ * sinh ra từ phát trực tiếp — mất cả hai thì không còn cách nào phân biệt LIVE
+ * với video đăng thường, và khi đó thà không trả gì còn hơn đổ cả kho video
+ * vào bảng Phiên LIVE. */
+const TRUONG_VIDEO = [
+  'live_status', 'broadcast_start_time',
+  'id', 'title', 'description', 'created_time', 'length', 'permalink_url',
+];
+
+/* Meta báo trường lạ bằng vài kiểu câu khác nhau; bắt cả ba để còn biết BỎ CÁI
+ * NÀO. Không đọc được tên thủ phạm thì thôi dò — mò từng trường trên một edge
+ * có thể hàng trăm video là quá tốn. */
+const RE_TRUONG_HONG = /nonexisting field \(([^)]+)\)|unknown fields?:? ?([A-Za-z_]+)|field ([A-Za-z_]+) is invalid/i;
+
+/**
+ * ĐƯỜNG VÒNG cho LIVE của Facebook: đọc từ /{page-id}/videos.
+ *
+ * Vì sao cần: `/live_videos` đòi Meta duyệt App Review, xin thêm scope vô ích.
+ * Nhưng một phiên LIVE đã tắt thì trở thành một VIDEO bình thường của Trang, mà
+ * video thì đọc được bằng đúng quyền app đang xin. Video sinh ra từ phát trực
+ * tiếp mang thêm `live_status` / `broadcast_start_time` — đó là dấu nhận ra nó.
+ *
+ * CHƯA THỬ ĐƯỢC TRÊN PAGE THẬT: lúc viết (21/09/2026) app chưa nối Facebook nên
+ * không có token nào để chạy. Vì thế viết theo lối phòng thủ — hỏi cả danh sách
+ * trường, trường nào Meta không nhận thì bỏ ĐÚNG trường đó rồi hỏi lại, và ghi
+ * vào ghi chú những trường đã phải bỏ. Nối xong nhìn nhật ký là biết Meta cho gì.
+ *
+ * Hệ quả cần biết: đường này chỉ thấy phiên ĐÃ TẮT (phiên đang chạy chưa thành
+ * video), và không có "người xem cao nhất" — `live_views` chỉ có ở `/live_videos`.
+ */
+async function liveTuVideo(conf, page, from, to, canhBao, ghiChu = []) {
+  const token = await tokenPage(conf, page);
+  const ten = page.name || page.id;
+  let truong = TRUONG_VIDEO.slice();
+  const boTruong = [];
+  const out = [];
+
+  const dungUrl = () => g(conf) + '/' + page.id + '/videos?limit=50'
+    + '&since=' + from + '&until=' + to
+    + '&fields=' + encodeURIComponent(truong.join(','))
+    + '&access_token=' + encodeURIComponent(token);
+
+  let url = null;
+  for (let vong = 0; vong < TRUONG_VIDEO.length; vong++) {
+    const thu = await getJson(dungUrl(), { label: 'Facebook videos ' + ten, retries: 2 });
+    if (!thu.error) { url = dungUrl(); break; }
+    const m = RE_TRUONG_HONG.exec(String(thu.error.message || ''));
+    const hong = m && (m[1] || m[2] || m[3]);
+    if (!hong || !truong.includes(hong)) {
+      canhBao.push('Facebook · ' + ten + ': không đọc được video để dò LIVE — '
+        + scrub(String(thu.error.message || '')));
+      return [];
+    }
+    boTruong.push(hong);
+    truong = truong.filter((t) => t !== hong);
+  }
+  if (!url) {
+    canhBao.push('Facebook · ' + ten + ': bỏ hết trường mà vẫn không đọc được /videos.');
+    return [];
+  }
+
+  /* Mất cả hai dấu nhận biết thì DỪNG. Đổ mọi video vào bảng Phiên LIVE là hỏng
+   * dữ liệu của người khác, tệ hơn hẳn việc trả rỗng và nói rõ vì sao. */
+  if (!truong.includes('live_status') && !truong.includes('broadcast_start_time')) {
+    ghiChu.push('Facebook · ' + ten + ': Meta không cho đọc live_status lẫn '
+      + 'broadcast_start_time nên không tách được video LIVE khỏi video thường — '
+      + 'LIVE của trang này vẫn phải nhập tay.');
+    return [];
+  }
+  if (boTruong.length) {
+    ghiChu.push('Facebook · ' + ten + ': /videos không nhận trường '
+      + boTruong.join(', ') + ' — đã bỏ và đọc tiếp.');
+  }
+
+  for (let trang = 0; url && trang < 20; trang++) {
+    const res = await getJson(url, { label: 'Facebook videos ' + ten, retries: 2 });
+    if (res.error) {
+      canhBao.push('Facebook · ' + ten + ': đọc video hỏng giữa chừng — '
+        + scrub(String(res.error.message || '')));
+      break;
+    }
+    for (const v of (res.data || [])) {
+      // Không mang dấu phát trực tiếp thì là video đăng thường — bỏ qua.
+      const batDau = v.broadcast_start_time || '';
+      if (!v.live_status && !batDau) continue;
+      // Phiên đang chạy chưa có số đầy đủ; để lượt đồng bộ sau lấy.
+      if (String(v.live_status || '').toUpperCase() === 'LIVE') continue;
+
+      const mocBatDau = batDau || v.created_time || '';
+      const d = ngay(mocBatDau);
+      if (from && d && d < from) continue;
+      if (to && d && d > to) continue;
+
+      const row = {
+        platform: PLATFORM,
+        extId: String(page.id),
+        liveId: String(v.id),
+        title: (v.title || v.description || '').slice(0, 200),
+        start: mocBatDau,
+        end: '',
+        minutes: v.length ? Math.round(num(v.length) / 60) : 0,
+        views: 0,
+        peak: 0,          // /videos không có live_views — cột Đỉnh đành để trống
+        comments: 0, likes: 0, shares: 0, newFollows: 0,
+        url: v.permalink_url ? 'https://facebook.com' + v.permalink_url : '',
+        source: NGUON,
+      };
+      const t0 = Date.parse(row.start);
+      if (Number.isFinite(t0) && row.minutes) {
+        row.end = new Date(t0 + row.minutes * 60000).toISOString();
+      }
+      await boSungTuVideo(conf, token, String(v.id), row);
+      out.push(row);
+    }
+    url = (res.paging && res.paging.next) || null;
+  }
+  return out;
+}
 
 async function liveCuaPage(conf, page, from, to, canhBao, ghiChu = []) {
   const token = await tokenPage(conf, page);
@@ -587,11 +730,14 @@ async function liveCuaPage(conf, page, from, to, canhBao, ghiChu = []) {
        * thêm scope bao nhiêu cũng vô ích. Đây là GHI CHÚ đúng ở mọi lượt chạy, để
        * vào cảnh báo thì cột Kết quả vàng vĩnh viễn và cảnh báo thật chìm nghỉm. */
       if (/reviewed and approved|review/i.test(m)) {
-        ghiChu.push('Facebook LIVE cần Meta duyệt App Review mới gọi được — '
-          + 'chưa duyệt thì số phiên LIVE của Facebook phải nhập tay như TikTok.');
-      } else {
-        canhBao.push('Facebook · ' + (page.name || page.id) + ': không đọc được LIVE — ' + scrub(m));
+        /* Không bỏ trắng nữa: phiên đã tắt vẫn còn là video của Trang, đọc được
+         * bằng quyền sẵn có. Đây là GHI CHÚ chứ không phải cảnh báo — nó đúng ở
+         * mọi lượt chạy, để vào cảnh báo thì cột Kết quả vàng vĩnh viễn. */
+        ghiChu.push('Facebook LIVE: /live_videos cần Meta duyệt App Review — đã chuyển '
+          + 'sang đọc phiên đã tắt từ /videos. Cột "Người xem cao nhất" sẽ trống.');
+        return liveTuVideo(conf, page, from, to, canhBao, ghiChu);
       }
+      canhBao.push('Facebook · ' + (page.name || page.id) + ': không đọc được LIVE — ' + scrub(m));
       break;
     }
     for (const lv of (res.data || [])) {
@@ -623,25 +769,7 @@ async function liveCuaPage(conf, page, from, to, canhBao, ghiChu = []) {
 
       // Số liệu đầy đủ chỉ có sau khi phiên kết thúc và Meta xử lý xong video.
       const vid = lv.video && lv.video.id;
-      if (vid && lv.status !== 'LIVE') {
-        try {
-          const ins = await getJson(g(conf) + '/' + vid + '/video_insights'
-            + '?metric=' + encodeURIComponent('total_video_views,total_video_impressions,total_video_reactions_by_type_total')
-            + '&access_token=' + encodeURIComponent(token),
-            { label: 'Facebook video_insights ' + vid, retries: 1 });
-          ((ins && ins.data) || []).forEach((m) => {
-            const v = ((m.values || [])[0] || {}).value;
-            if (m.name === 'total_video_views') row.views = Math.max(row.views, num(v));
-            if (m.name === 'total_video_reactions_by_type_total' && v && typeof v === 'object') {
-              row.likes = Object.values(v).reduce((s, x) => s + num(x), 0);
-            }
-          });
-          const cm = await getJson(g(conf) + '/' + vid + '/comments?summary=true&limit=0'
-            + '&access_token=' + encodeURIComponent(token),
-            { label: 'Facebook live comments ' + vid, retries: 1 });
-          row.comments = num(cm && cm.summary && cm.summary.total_count);
-        } catch (_) { /* một phiên thiếu số không đáng làm hỏng cả lượt */ }
-      }
+      if (vid && lv.status !== 'LIVE') await boSungTuVideo(conf, token, vid, row);
       out.push(row);
     }
     url = (res.paging && res.paging.next) || null;
