@@ -99,7 +99,8 @@ async function apDungDenHan(ds, dsLich, lark, doiTruong, nay = Date.now()) {
     p[khoa] = o.field === 'giaNL' || o.field === 'giaTE' ? o.giaTri
       : /^hieuLuc/.test(o.field) ? (o.giaTri ? Date.parse(String(o.giaTri).slice(0, 10) + 'T00:00:00+07:00') : 0)
         : (o.giaTri == null ? '' : o.giaTri);
-    ketQua.push({ id: r.id, ok: true, ten: r.ten, ma: p.ma, cot: r.cot });
+    ketQua.push({ id: r.id, ok: true, ten: r.ten, ma: p.ma, cot: r.cot,
+      spId: p.id, cu, moi: o.giaTri });
   }
 
   /* Ghi sản phẩm TRƯỚC, đánh dấu lịch SAU. Đổi thứ tự thì lúc mạng đứt giữa

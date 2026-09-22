@@ -1161,7 +1161,7 @@ async function api(req, res, u) {
    * hình, đọc xong là biến mất. Bảng tin thì để xem lại, nên đọc rồi vẫn còn —
    * chỉ đánh dấu "đã đọc" để phân biệt cái mới. */
   if (p === '/api/tb-app/tin' && m === 'GET') {
-    const { nguoi: nguoiTin, xemNhu: nhuTin } = await aiDangXem(req);
+    const { nguoi: nguoiTin, xemNhu: nhuTin, q: qTin } = await aiDangXem(req);
     const id = (nguoiTin && nguoiTin.id) || '';
     let ds = [];
     let loiBang = '';
@@ -1177,18 +1177,61 @@ async function api(req, res, u) {
         : het.filter((tb) => tbApp.dangHieuLuc(Object.assign({}, tb, { moiAi: true }), id));
     } catch (e) { loiBang = e.message; }
     const bac = { 'Gấp': 0, 'Quan trọng': 1, 'Tin': 2 };
+    const raTB = ds.map((tb) => ({
+      recordId: tb.recordId, tieuDe: tb.tieuDe, noiDung: tb.noiDung, mucDo: tb.mucDo,
+      nhanNut: tb.nhanNut, lienKet: tb.lienKet, tuNgay: tb.tuNgay, denNgay: tb.denNgay,
+      tep: tb.tep || [],
+      daDoc: tbApp.daXacNhan(tb, id),
+    }));
+
+    /* TIN TỰ ĐỘNG TỪ APP CON.
+     *
+     * Anh Hùng: "các thay đổi trong sản phẩm sẽ biến thành tin tức được cập nhật
+     * tự động trên bảng tin tổng quát để tất cả cùng nắm".
+     *
+     * App con tự phát tin qua GET /api/tin; hub chỉ gộp. Cố ý KHÔNG cho app con
+     * ghi vào bảng Thông báo: bảng đó vừa nuôi bảng tin vừa nuôi popup CHẶN MÀN
+     * HÌNH, nên mỗi lần ai đó đổi giá là cả phòng ăn một popup. Đi đường này thì
+     * tin tự động không bao giờ chặn được màn hình ai — không phải vì có cờ nào
+     * đó bật đúng, mà vì nó không nằm trong nguồn của popup.
+     *
+     * Chỉ hỏi app có khai `tin: true`, và chỉ app người này được xem. */
+    const modTin = danhSach().filter((x) => x.bat && x.tin && duocXem(qTin, x));
+    const goiTin = await Promise.all(modTin.map((mod) =>
+      goiJson(mod, '/api/tin', { nguoi: nguoiTin })
+        .then((r) => ({ mod, ds: (r && r.ds) || [] }))
+        .catch(() => null)));
+    const raApp = [];
+    for (const g of goiTin) {
+      if (!g) continue;
+      for (const t of g.ds) {
+        if (!t || !t.tieuDe) continue;
+        raApp.push(Object.assign({}, t, {
+          tuDong: true, mod: g.mod.id, modTen: g.mod.ten || g.mod.id,
+        }));
+      }
+    }
+
+    /* CHIA SUẤT, không trộn rồi cắt.
+     *
+     * Bản đầu gộp hai nguồn rồi sort theo (mức độ, ngày) và cắt 20. Bảng Thông
+     * báo của phòng đang có đúng 20 mục còn hiệu lực, nên tin tự động — mức "Tin",
+     * bậc thấp nhất — bị đẩy ra ngoài sạch. Nó chạy đúng mà không ai thấy gì.
+     *
+     * Nay chừa sẵn tối đa 6 suất cho tin tự động; nguồn nào ít hơn thì nhường
+     * phần dư cho nguồn kia. */
+    const CAP = 20;
+    const nTuDong = Math.min(raApp.length, 6);
+    const dsTB = raTB.sort((a, b) => (bac[a.mucDo] - bac[b.mucDo]) || (b.tuNgay - a.tuNgay))
+      .slice(0, CAP - nTuDong);
+    const dsApp = raApp.sort((a, b) => b.tuNgay - a.tuNgay)
+      .slice(0, CAP - dsTB.length);
+
     return ok(res, {
       xemNhu: !!nhuTin,
       loiBang,
-      ds: ds
-        .sort((a, b) => (bac[a.mucDo] - bac[b.mucDo]) || (b.tuNgay - a.tuNgay))
-        .slice(0, 20)
-        .map((tb) => ({
-          recordId: tb.recordId, tieuDe: tb.tieuDe, noiDung: tb.noiDung, mucDo: tb.mucDo,
-          nhanNut: tb.nhanNut, lienKet: tb.lienKet, tuNgay: tb.tuNgay, denNgay: tb.denNgay,
-          tep: tb.tep || [],
-          daDoc: tbApp.daXacNhan(tb, id),
-        })),
+      ds: dsTB.concat(dsApp)
+        .sort((a, b) => (bac[a.mucDo] - bac[b.mucDo]) || (b.tuNgay - a.tuNgay)),
     });
   }
 

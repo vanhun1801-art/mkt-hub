@@ -74,6 +74,7 @@ const khoGia = {
     ds: SP,
     mediaChung: [{ id: 'm1', ten: 'Bảng giá đối tác', spIds: [] }],
     dsLich: LICH,
+    dsNhatKy: [],
     luc: nay,
   }),
   xoaDem: () => {},
@@ -81,8 +82,10 @@ const khoGia = {
   canBoSung: (ds) => ds.filter((p) => p.thieu),
   uuDaiSapHet: () => [{ id: 'cs1', ten: 'Voucher ẩm thực', den: nay + 8 * NGAY, sanPham: ['TG01'] }],
 };
+let ghiNhatKy = null;
 const larkGia = {
   whoami: async () => ({ id: 'ou_test', name: 'Người thử' }),
+  createMany: async (rows, tableId) => { ghiNhatKy = { rows, tableId }; return {}; },
   updateRecord: async (id, fields, tableId) => { ghiCuoi = { id, fields, tableId }; return {}; },
   updateMany: async (map, tableId) => { ghiNhieu = { map, tableId }; return {}; },
 };
@@ -258,6 +261,51 @@ const sua = (id, truong, giaTri, headers) =>
     const d = await hl(['rec1'], 'uuTien', 'Đẩy mạnh', QUAN_LY);
     ok('hàng loạt cũng kiểm giá trị', d.ma === 400, String(d.ma));
     ok('và không ghi gì', ghiNhieu === null);
+  }
+
+  /* ---------------------------------------------------------------- */
+  group('Mỗi lần ghi để lại một dòng nhật ký');
+  {
+    /* Không có nhật ký thì không loan tin được: trạng thái hiện tại của Base chỉ
+     * nói giá ĐANG là bao nhiêu, không nói hôm qua nó là bao nhiêu. */
+    ghiNhatKy = null;
+    await sua('rec1', 'giaNL', 850000, QUAN_LY);
+    ok('sửa tay có ghi nhật ký', !!ghiNhatKy, 'không thấy dòng nào');
+    ok('ghi vào đúng bảng Nhật ký', ghiNhatKy.tableId === cfg.nhatKyTableId);
+    ok('lưu cả giá trị cũ lẫn mới, đã định dạng tiền',
+      ghiNhatKy.rows[0][cfg.f.nhatKy.giaTriCu] === '800.000đ' &&
+      ghiNhatKy.rows[0][cfg.f.nhatKy.giaTriMoi] === '850.000đ',
+      JSON.stringify([ghiNhatKy.rows[0][cfg.f.nhatKy.giaTriCu],
+        ghiNhatKy.rows[0][cfg.f.nhatKy.giaTriMoi]]));
+    ok('ghi tên người đổi', ghiNhatKy.rows[0][cfg.f.nhatKy.nguoiDoi] === 'Nhân sự thử');
+
+    ghiNhatKy = null;
+    await goi('/api/san-pham/hang-loat', {
+      method: 'POST', headers: QUAN_LY,
+      body: { ids: ['rec1', 'rec2'], truong: 'uuTien', giaTri: '🔵 Duy trì' },
+    });
+    ok('hàng loạt cũng ghi nhật ký', !!ghiNhatKy && ghiNhatKy.rows.length === 2,
+      String(ghiNhatKy && ghiNhatKy.rows.length));
+    ok('cả nhóm chung một mã lô',
+      ghiNhatKy.rows[0][cfg.f.nhatKy.lo] === ghiNhatKy.rows[1][cfg.f.nhatKy.lo]);
+    ok('đánh dấu nguồn là Hàng loạt',
+      ghiNhatKy.rows[0][cfg.f.nhatKy.nguon] === 'Hàng loạt');
+
+    /* Ghi nhật ký hỏng KHÔNG được làm thao tác chính báo lỗi. */
+    const cu = larkGia.createMany;
+    larkGia.createMany = async () => { throw new Error('Base sập'); };
+    const r = await sua('rec1', 'giaNL', 860000, QUAN_LY);
+    ok('nhật ký hỏng thì thao tác chính vẫn báo thành công', r.ma === 200, String(r.ma));
+    larkGia.createMany = cu;
+  }
+
+  /* ---------------------------------------------------------------- */
+  group('/api/tin — nguồn cho bảng tin của lớp vỏ');
+  {
+    const r = await goi('/api/tin', { headers: NHAN_SU });
+    ok('trả mảng ds', r.ma === 200 && Array.isArray(r.d.ds), JSON.stringify(r.d).slice(0, 120));
+    /* Nhân sự cũng đọc được: bảng tin là để "tất cả cùng nắm". */
+    ok('không đòi quyền quản lý', r.ma !== 403);
   }
 
   /* ---------------------------------------------------------------- */

@@ -281,10 +281,49 @@ sản phẩm trước ngày áp dụng, nếu không app sẽ đánh dấu Lỗi
 
 ---
 
+## Nhật ký thay đổi → bảng tin tổng quát
+
+Anh Hùng: *“các thay đổi trong sản phẩm sẽ biến thành tin tức được cập nhật tự
+động trên bảng tin tổng quát để tất cả cùng nắm”*.
+
+Muốn loan tin thì phải biết **cái gì vừa đổi** — mà trạng thái hiện tại của Base
+không trả lời được: nhìn bảng Sản phẩm chỉ thấy giá **đang** là 800.000đ, không
+thấy hôm qua nó là 900.000đ. Nên mọi đường ghi của app (sửa tay · hàng loạt ·
+lịch tự áp) để lại một dòng trong bảng **Nhật ký thay đổi** trước, và tin dựng
+từ nhật ký.
+
+Ghi nhật ký là **việc phụ**: Base chậm hay lỗi lúc ghi thì thao tác của người
+dùng vẫn coi như xong — họ đã thấy giá đổi trên màn hình rồi. `nhatky.ghi()` tự
+nuốt lỗi, có test canh.
+
+**Gộp theo lô.** Một lần “đặt mức ưu tiên cho 12 sản phẩm” sinh 12 dòng nhật ký;
+nếu mỗi dòng thành một tin thì bảng tin ngập 12 tin giống hệt nhau. Mỗi thao tác
+hàng loạt và mỗi đợt lịch mang một **mã lô**, bảng tin gộp cùng lô + cùng cột
+thành một tin *“12 sản phẩm đổi mức ưu tiên”*.
+
+### Vì sao KHÔNG ghi vào bảng Thông báo của hub
+
+Bảng Thông báo của lớp vỏ vừa nuôi bảng tin **vừa nuôi popup chặn màn hình**.
+Ghi vào đó thì mỗi lần ai đó đổi giá là cả phòng ăn một popup. Nên app tự phát
+tin qua `GET /api/tin`, hub gộp vào **bảng tin và chỉ bảng tin**. Tin tự động
+không bao giờ chặn được màn hình ai — không phải vì có cờ nào bật đúng, mà vì nó
+không nằm trong nguồn của popup.
+
+Hub **chia suất**: 20 mục, chừa tối đa 6 cho tin tự động, nguồn nào ít hơn thì
+nhường phần dư. Bản đầu trộn rồi cắt 20 — bảng Thông báo đang có đúng 20 mục còn
+hiệu lực nên tin tự động (mức “Tin”, bậc thấp nhất) bị đẩy ra ngoài sạch: chạy
+đúng mà không ai thấy gì.
+
+Ai xem được app này thì xem được tin của nó (cùng luật `duocXem` với phần còn
+lại của hub). Muốn cả phòng thấy thì thêm `san-pham` vào `HUB_CA_PHONG`.
+
+---
+
 ## Mấy cái bẫy đã sập, đừng sập lại
 
 | Bẫy | Hậu quả | Chỗ vá |
 |---|---|---|
+| Thêm field vào `modules.json` mà quên khai ở `config.docModules()` | Hàm đó là **danh sách trắng** — field không liệt kê thì rơi mất và tính năng hỏng IM LẶNG. Cờ `tin: true` đã dính đúng bẫy này: hub không hỏi app nào cả, không lỗi, không log | khai thêm ở `config.js` |
 | Trừ khuyến mãi vào giá công bố mà **tự suy từ nội dung** chính sách | Ưu đãi có điều kiện (khách cũ, từ vé thứ 5) lọt vào giá công khai — hứa với khách thứ họ không được hưởng | phải bật tay ô `Áp vào giá hiển thị`; `🔒 Chỉ nội bộ` bị chặn cứng |
 | Sự kiện `change` do **script** bắn ra | App chạy cùng mã hub chèn vào (i18n dịch nhãn, `thugon.js`, `loc.js` khoác dãy nút cho `<select>` rồi `dispatchEvent(new Event('change'))`). Bất kỳ đoạn nào chạm vào ô của app là một dòng lặng lẽ đổi giá trên Base cả phòng đang đọc | `ghiO` bỏ qua sự kiện có `isTrusted === false` |
 | `Number('')` ra **0** | Cột `Còn lại (ngày)` trả chuỗi rỗng cho dòng chưa đặt hạn ⇒ 0 ngày = “hết hạn hôm nay” ⇒ 50 sản phẩm không có hạn nhảy lên đầu cảnh báo | `kho.so()` trả `null`, có test |
@@ -309,6 +348,7 @@ sản phẩm trước ngày áp dụng, nếu không app sẽ đánh dấu Lỗi
 | `kho.js` | đọc bốn bảng một lượt, ghép thành hồ sơ sản phẩm, đệm 90 giây |
 | `kiem.js` | `doiTruong()` — cửa kiểm giá trị duy nhất, dùng chung cho người bấm và cho lịch |
 | `lich.js` | bộ máy áp lịch tới hạn |
+| `nhatky.js` | ghi nhật ký thay đổi và dựng tin cho bảng tin |
 | `server.js` | tệp tĩnh + `/api/khoi-tao`, `/api/san-pham`, `/api/tong-quan`, `POST /api/san-pham/:id`, `/hang-loat`, `/api/lich`, `/api/lich/them`, `/api/lich/:id/huy` |
 | `public/` | giao diện. `khung-xuong.*` là bản chép từ hub — sửa ở hub rồi chạy `node dong-bo-khung.js` |
 

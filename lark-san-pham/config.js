@@ -41,6 +41,7 @@ module.exports = {
   mediaTableId: 'tblUgaFAj0VZ4Chj',
   lichTableId: 'tblSjAgrKdYI1eLy',
   giaPaxTableId: 'tblgB57gdBQqplrU',
+  nhatKyTableId: 'tblmEGalXqAuwINs',
 
   /* View "🛠 Cần bổ sung thông tin" — chỉ dùng để mở thẳng sang Base, app tự
      tính lại danh sách này từ cột công thức nên không phụ thuộc vào view. */
@@ -116,6 +117,17 @@ module.exports = {
       tinhTrang: 'flddnkpap5',
       truyenThong: 'flddqLyZbg',
       nguon: 'fldX9qVTVH',
+    },
+    nhatKy: {
+      noiDung: 'fldTvS42Dx',
+      sanPham: 'fldcIToP1L',
+      cot: 'fldZfchAWI',
+      giaTriCu: 'fldaFxX924',
+      giaTriMoi: 'fldC8gAXdm',
+      nguon: 'fldFIup4zL',
+      nguoiDoi: 'fld8wCZV56',
+      luc: 'fldhpOnZ9n',
+      lo: 'fldhnRauAR',
     },
     giaPax: {
       ten: 'fldrv57bNe',

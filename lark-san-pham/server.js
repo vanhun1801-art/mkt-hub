@@ -28,6 +28,7 @@ const path = require('path');
 const cfg = require('./config');
 const kho = require('./kho');
 const lich = require('./lich');
+const nhatKy = require('./nhatky');
 const { doiTruong } = require('./kiem');
 const lark = cfg.mode === 'api' ? require('./larkapi') : require('./lark');
 
@@ -237,6 +238,25 @@ const veNgay = (t) => {
   return hai(d.getUTCDate()) + '/' + hai(d.getUTCMonth() + 1) + '/' + d.getUTCFullYear();
 };
 
+/**
+ * Giá trị thô -> chữ người đọc được, để in trong một dòng tin.
+ *
+ * Ngày trong bộ nhớ là epoch ms còn giá trị vừa ghi là chuỗi "YYYY-MM-DD 00:00:00";
+ * tiền là số trần. In thẳng thì tin đọc ra "1790... → 2026-10-01 00:00:00".
+ */
+function veGiaTri(v, field) {
+  if (v == null || v === '') return '(trống)';
+  if (field === 'giaNL' || field === 'giaTE') {
+    const n = Number(v);
+    return Number.isFinite(n) ? n.toLocaleString('vi-VN') + 'đ' : String(v);
+  }
+  if (/^hieuLuc/.test(field)) {
+    const t = typeof v === 'number' ? v : Date.parse(String(v).slice(0, 10) + 'T00:00:00+07:00');
+    return Number.isFinite(t) && t ? veNgay(t) : String(v);
+  }
+  return String(v);
+}
+
 /* ---------------- nhật ký ghi ---------------- */
 
 /**
@@ -307,8 +327,20 @@ async function api(req, res, u) {
     const than = await docThan(req);
     let o;
     try { o = doiTruong(than.truong, than.giaTri); } catch (e) { return loi(res, 400, e.message); }
+    /* Lấy giá trị CŨ trước khi ghi — sau khi ghi thì không còn ai biết nó là gì,
+       mà đó chính là nửa quan trọng của một dòng tin ("900.000đ → 800.000đ"). */
+    const { ds: dsTruoc } = await kho.tatCa();
+    const spTruoc = dsTruoc.find((x) => x.id === mSua[1]);
     nhatKyGhi(toi, req, 'sua', mSua[1], than.truong, o.giaTri);
     await lark.updateRecord(mSua[1], { [cfg.f.sp[o.field]]: o.giaTri }, cfg.spTableId);
+    if (spTruoc) {
+      await nhatKy.ghi(lark, [{
+        spId: spTruoc.id, ma: spTruoc.ma, ten: spTruoc.ten,
+        cot: cfg.suaDuoc[than.truong].nhan,
+        cu: veGiaTri(spTruoc[o.field], o.field),
+        moi: veGiaTri(o.giaTri, o.field),
+      }], { nguon: 'Sửa tay', nguoi: toi.ten });
+    }
     kho.xoaDem();
     return json(res, { ok: true, truong: than.truong, giaTri: o.giaTri });
   }
@@ -326,8 +358,21 @@ async function api(req, res, u) {
     try { o = doiTruong(than.truong, than.giaTri); } catch (e) { return loi(res, 400, e.message); }
     const map = {};
     for (const id of ids) map[id] = { [cfg.f.sp[o.field]]: o.giaTri };
+    const { ds: dsTruoc } = await kho.tatCa();
+    const theoId = new Map(dsTruoc.map((x) => [x.id, x]));
     nhatKyGhi(toi, req, 'hang-loat', ids.join(','), than.truong, o.giaTri);
     await lark.updateMany(map, cfg.spTableId);
+    /* Cả nhóm chung MỘT mã lô — bảng tin gộp thành một tin "12 sản phẩm đổi …"
+       thay vì 12 tin giống hệt nhau. */
+    await nhatKy.ghi(lark, ids.filter((id) => theoId.has(id)).map((id) => {
+      const q = theoId.get(id);
+      return {
+        spId: q.id, ma: q.ma, ten: q.ten,
+        cot: cfg.suaDuoc[than.truong].nhan,
+        cu: veGiaTri(q[o.field], o.field),
+        moi: veGiaTri(o.giaTri, o.field),
+      };
+    }), { nguon: 'Hàng loạt', nguoi: toi.ten, lo: nhatKy.maLo() });
     kho.xoaDem();
     return json(res, { ok: true, so: ids.length, truong: than.truong, giaTri: o.giaTri });
   }
@@ -431,6 +476,17 @@ async function api(req, res, u) {
     nhatKyGhi(toi, req, 'huy-lich', mHuy[1], 'Trạng thái', 'Đã huỷ');
     kho.xoaDem();
     return json(res, { ok: true });
+  }
+
+  /* Tin sản phẩm cho bảng tin của lớp vỏ.
+   *
+   * KHÔNG ghi vào bảng Thông báo của hub: bảng đó vừa nuôi bảng tin vừa nuôi
+   * popup CHẶN MÀN HÌNH, nên mỗi lần đổi giá là cả phòng bị một popup. App tự
+   * phát tin, hub gộp vào bảng tin và chỉ bảng tin. */
+  if (p === '/tin') {
+    const { ds, dsNhatKy } = await kho.tatCa();
+    const ten = new Map(ds.map((x) => [x.id, (x.ma ? x.ma + ' — ' : '') + x.ten]));
+    return json(res, { ds: nhatKy.dungTin(dsNhatKy || [], ten, cfg.baseUrl) });
   }
 
   if (p === '/lam-moi' && req.method === 'POST') {

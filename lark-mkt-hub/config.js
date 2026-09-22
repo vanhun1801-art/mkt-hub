@@ -55,6 +55,10 @@ function docModules() {
     url: m.url || '',
     larkUrl: m.larkUrl || '',
     kpi: m.kpi || '',
+    /* App này có tự phát tin cho bảng tin trang Tổng quan không (GET /api/tin).
+       Phải khai ở đây: hàm này là DANH SÁCH TRẮNG — field không liệt kê thì rơi
+       mất và tính năng hỏng im lặng, đúng như đã xảy ra lần đầu nối tin sản phẩm. */
+    tin: m.tin === true,
     an: Array.isArray(m.an) ? m.an : [],
     css: typeof m.css === 'string' ? m.css : '',
     phuSelector: m.phuSelector || '',

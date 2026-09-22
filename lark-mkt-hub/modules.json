@@ -268,7 +268,9 @@
       "caPhong": false,
       "locSelector": ".filters",
       "_thuApi": "app này không có /api/meta — cửa đầu tiên của nó là /api/khoi-tao; khai ở đây để test proxy gọi đúng đường",
-      "thuApi": "/api/khoi-tao"
+      "thuApi": "/api/khoi-tao",
+      "_tin": "true = app này tự phát tin cho bảng tin trang Tổng quan qua GET /api/tin. Khai tường minh để hub khỏi gọi thử cả mười app mỗi lần vẽ bảng tin.",
+      "tin": true
     }
   ]
 }

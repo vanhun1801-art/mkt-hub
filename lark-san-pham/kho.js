@@ -10,6 +10,7 @@
 const cfg = require('./config');
 const lark = cfg.mode === 'api' ? require('./larkapi') : require('./lark');
 const lich = require('./lich');
+const nhatKy = require('./nhatky');
 const { doiTruong } = require('./kiem');
 
 const F = cfg.f;
@@ -283,13 +284,14 @@ function tinhGiaSauGiam(p) {
 const thuTu = (ds, v) => { const i = ds.indexOf(v); return i < 0 ? ds.length : i; };
 
 async function docTatCa() {
-  const [sp, gia, cs, media, lichRaw, paxRaw] = await Promise.all([
+  const [sp, gia, cs, media, lichRaw, paxRaw, nkRaw] = await Promise.all([
     lark.listAllRecords(cfg.spTableId),
     lark.listAllRecords(cfg.giaTableId),
     lark.listAllRecords(cfg.chinhSachTableId),
     lark.listAllRecords(cfg.mediaTableId),
     lark.listAllRecords(cfg.lichTableId),
     lark.listAllRecords(cfg.giaPaxTableId),
+    lark.listAllRecords(cfg.nhatKyTableId),
   ]);
 
   const ds = sp.map(veSanPham).filter((p) => p.ma || p.ten);
@@ -343,6 +345,14 @@ async function docTatCa() {
   for (const r of daAp) {
     console.log('[LỊCH]', r.ok ? 'đã áp' : 'LỖI', r.ma || '', r.cot || '', r.ten, r.loi || '');
   }
+  /* Cả đợt lịch chung MỘT mã lô: bảng tin gộp lại thành một tin "8 sản phẩm đổi
+     lịch trình" thay vì 16 tin giống nhau. */
+  const apOk = daAp.filter((r) => r.ok);
+  if (apOk.length) {
+    await nhatKy.ghi(lark, apOk.map((r) => ({
+      spId: r.spId, ma: r.ma, ten: r.ten, cot: r.cot, cu: r.cu, moi: r.moi,
+    })), { nguon: 'Lịch tự áp', nguoi: 'Lịch đặt trước' });
+  }
 
   for (const r of paxRaw.map(veGiaPax)) {
     if (r.soKhach == null) continue;
@@ -369,7 +379,9 @@ async function docTatCa() {
     thuTu(cfg.chon.uuTien, a.uuTien) - thuTu(cfg.chon.uuTien, b.uuTien) ||
     a.ten.localeCompare(b.ten, 'vi'));
 
-  return { ds, mediaChung, dsLich, luc: Date.now() };
+  const dsNhatKy = nkRaw.map((r) => nhatKy.veDong(r, chu, mot, ms, idLink));
+
+  return { ds, mediaChung, dsLich, dsNhatKy, luc: Date.now() };
 }
 
 /* ---------------- đệm ---------------- */
