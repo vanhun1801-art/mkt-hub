@@ -674,6 +674,11 @@ async function tuAppTuCong(mod, khoang, nguoi, duong) {
 const kpiThang = (mod, khoang, nguoi) => tuAppTuCong(mod, null, nguoi);
 const quyChiPhi = (mod, khoang, nguoi) => tuAppTuCong(mod, khoang, nguoi);
 const baoCaoViec = (mod, khoang, nguoi) => tuAppTuCong(mod, khoang, nguoi);
+/* Thông tin sản phẩm KHÔNG có trục thời gian: một sản phẩm không thuộc về tháng
+   nào, nên khoảng lọc của trang Tổng quan không áp được. Nuốt `khoang` ngay ở
+   đây thay vì gửi xuống rồi để app lặng lẽ bỏ qua — và app trả về câu
+   "không lọc theo thời gian" để người xem biết con số này là toàn bộ. */
+const sanPham = (mod, khoang, nguoi) => tuAppTuCong(mod, null, nguoi);
 
 const BO_DOC = {
   'cong-viec': congViec,
@@ -687,6 +692,7 @@ const BO_DOC = {
   'kpi': kpiThang,
   'quy-chi-phi': quyChiPhi,
   'bao-cao': baoCaoViec,
+  'san-pham': sanPham,
 };
 
 /* ---------------- cache + gom ---------------- */

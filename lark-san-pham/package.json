@@ -1,0 +1,11 @@
+{
+  "name": "lark-san-pham",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Tra cuu thong tin san pham cua phong Marketing tu Lark Base San pham",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/chay-het.js"
+  }
+}

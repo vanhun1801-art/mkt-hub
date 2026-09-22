@@ -243,6 +243,32 @@
       "bat": true,
       "caPhong": false,
       "kpi": "bao-cao"
+    },
+    {
+      "id": "san-pham",
+      "ten": "Thông tin sản phẩm",
+      "mo_ta": "Giá công bố · USP · lịch trình · ưu đãi",
+      "icon": "san-pham",
+      "mau": "#8b5cf6",
+      "kieu": "local",
+      "thuMuc": "../lark-san-pham",
+      "cong": 5184,
+      "lenh": [
+        "node",
+        "server.js"
+      ],
+      "larkUrl": "https://rootytrip2.sg.larksuite.com/base/N7CjbeUiXaq67LsmChtlUQBfgrc?table=tblrljpiBqDdz2Sj&view=vewi2IHOMY",
+      "kpi": "san-pham",
+      "an": [
+        "header.topbar > .brand",
+        "#btnBase"
+      ],
+      "phuSelector": "#phuDe",
+      "bat": true,
+      "caPhong": false,
+      "locSelector": ".filters",
+      "_thuApi": "app này không có /api/meta — cửa đầu tiên của nó là /api/khoi-tao; khai ở đây để test proxy gọi đúng đường",
+      "thuApi": "/api/khoi-tao"
     }
   ]
 }

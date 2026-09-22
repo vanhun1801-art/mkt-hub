@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 /**
- * Chép khung-xuong.css + khung-xuong.js sang public/ của CHÍN app con.
+ * Chép khung-xuong.css + khung-xuong.js sang public/ của MƯỜI app con.
  *
  * Vì sao phải chép chứ không dùng chung một file: mỗi app con chạy độc lập được
  * (cổng riêng, server riêng, thư mục public riêng), nên nó chỉ phục vụ được file
@@ -21,6 +21,7 @@ const CHA = path.join(__dirname, '..');
 const APP = [
   'lark-task-manager', 'lark-lich-tac-nghiep', 'lark-ads-manager', 'lark-ota-manager',
   'lark-social', 'lark-chinh-anh', 'lark-kpi', 'lark-quy-chi-phi', 'lark-bao-cao',
+  'lark-san-pham',
 ];
 
 const goc = TEP.map((t) => fs.readFileSync(path.join(__dirname, 'public', t)));

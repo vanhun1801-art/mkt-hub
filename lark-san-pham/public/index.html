@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thông tin sản phẩm</title>
+<link rel="stylesheet" href="/styles.css?v=BUILD">
+<link rel="stylesheet" href="/khung-xuong.css?v=BUILD">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">SP</div>
+    <div>
+      <div class="ten">Thông tin sản phẩm</div>
+      <div class="phu" id="phuDe">đang tải…</div>
+    </div>
+  </div>
+
+  <div class="pills" id="tabs"></div>
+
+  <span class="sp"></span>
+  <div class="top-right">
+    <span class="chip" id="chipToi">…</span>
+    <button class="btn sm" id="btnLamMoi" title="Đọc lại từ Lark Base">Làm mới</button>
+    <button class="btn sm" id="btnBase">Mở Base</button>
+  </div>
+</header>
+
+<!-- Hai cột trong CÙNG một trang: ngăn chi tiết trượt vào thì lưới sản phẩm hẹp
+     lại chứ không bị che — cùng lối với app Báo cáo công việc và Quỹ chi phí. -->
+<div class="than-trang">
+  <main id="man" data-kx-nho="san-pham">
+    <!-- Khung xương cho lần mở ĐẦU TIÊN trên một máy. Từ lần thứ hai,
+         khung-xuong.js thay chỗ này bằng bản chụp của chính màn thật lần trước. -->
+    <div class="kx-man kx-vung" aria-busy="true" aria-label="Đang nạp danh mục sản phẩm"><div class="kx-khoi"><span class="kx" style="height:78px;border-radius:12px"></span></div><div class="kx-khoi"><span class="kx" style="height:44px;border-radius:10px"></span></div><div class="kx-khoi"><span class="kx" style="height:150px;border-radius:12px"></span><span class="kx" style="height:150px;border-radius:12px"></span><span class="kx" style="height:150px;border-radius:12px"></span></div></div>
+  </main>
+
+  <aside id="so" aria-label="Chi tiết sản phẩm">
+    <header class="so-dau">
+      <b id="soTieuDe">Chi tiết sản phẩm</b>
+      <span class="phu" id="soPhu"></span>
+      <span class="sp"></span>
+      <button class="btn sm" id="soDong" title="Đóng (Esc)">✕</button>
+    </header>
+    <div class="so-than" id="soThan"></div>
+  </aside>
+</div>
+
+<div id="toasts"></div>
+
+<script src="/khung-xuong.js?v=BUILD"></script>
+<script src="/app.js?v=BUILD"></script>
+</body>
+</html>

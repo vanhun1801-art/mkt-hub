@@ -782,6 +782,135 @@
     'Sổ quỹ tạm ứng · chứng từ · quyết toán': 'Advance ledger · receipts · settlement',
     'Báo cáo ngày · tuần · tháng của từng người': 'Daily · weekly · monthly reports per person',
 
+    /* Base thứ mười (22/09/2026) — khai khoá NGAY lúc thêm base, đừng để lặp lại
+       chuyện panel bảy dòng tiếng Anh xen hai dòng tiếng Việt. */
+    'Thông tin sản phẩm': 'Product info',
+    'Giá công bố · USP · lịch trình · ưu đãi': 'List price · USP · itinerary · offers',
+
+    /* tab + bộ lọc */
+    'Danh mục': 'Catalogue',
+    'Đang đẩy': 'Being pushed',
+    'Sắp hết hạn': 'Expiring soon',
+    'Cần bổ sung': 'Needs filling in',
+    'Tài liệu chung': 'Shared files',
+    'Bảng đẩy': 'Push board',
+    'Quản lý': 'Manage',
+
+    /* tầng của Bảng đẩy */
+    '🆕 Sắp ra mắt': '🆕 Launching soon',
+    '🔥 Ưu tiên đẩy': '🔥 Priority push',
+    '🟢 Chạy hằng ngày': '🟢 Running daily',
+    '🔵 Duy trì': '🔵 Maintain',
+    '🌤 Theo mùa / theo yêu cầu': '🌤 Seasonal / on request',
+    '⏸ Tạm dừng đẩy': '⏸ Push paused',
+    'Chưa xếp mức': 'No tier set',
+    'Sắp ra mắt': 'Launching soon',
+    'Chuẩn bị nội dung trước ngày mở bán': 'Get content ready before the launch date',
+    'Dồn ngân sách và nội dung vào nhóm này': 'Put budget and content into this group',
+    'Có bài đều, giữ nhịp': 'Post regularly, keep the rhythm',
+    'Giữ hồ sơ đủ, chạy khi có nhu cầu': 'Keep the profile complete, run on demand',
+    'Chỉ đẩy khi Kinh doanh yêu cầu hoặc vào mùa': 'Push only on a Sales request or in season',
+    'Không chạy truyền thông lúc này': 'No marketing right now',
+    'Cần quản lý xếp mức ưu tiên': 'A manager needs to set the priority',
+    'Mỗi sản phẩm nằm ở đúng một tầng. \u201cSắp ra mắt\u201d đứng trên cùng vì việc phải làm là kịp nội dung cho ngày mở bán.':
+      'Each product sits in exactly one tier. \u201cLaunching soon\u201d comes first because the job is getting content ready in time.',
+    'Mỗi sản phẩm nằm ở đúng một tầng. \u201cSắp ra mắt\u201d đứng trên cùng vì việc phải làm là kịp nội dung cho ngày mở bán. Đổi tầng của một sản phẩm ở tab Quản lý hoặc trong ngăn chi tiết.':
+      'Each product sits in exactly one tier. \u201cLaunching soon\u201d comes first because the job is getting content ready in time. Change a product\u2019s tier on the Manage tab or in the detail panel.',
+    'theo báo giá': 'by quotation',
+    'chưa có giá': 'no price yet',
+
+    /* khu quản lý */
+    'Đặt cho cả nhóm:': 'Set for the whole group:',
+    'Bỏ chọn': 'Clear selection',
+    'Tick vài dòng để đặt mức ưu tiên cho cả nhóm một lượt.':
+      'Tick a few rows to set the priority for the whole group at once.',
+    '— trống —': '— empty —',
+    'Sản phẩm': 'Product',
+    'Trạng thái': 'Status',
+    'Giá NL': 'Adult price',
+    'Giá TE': 'Child price',
+    'Chi tiết': 'Detail',
+    'Xếp loại': 'Tier',
+    'sửa được': 'editable',
+    'Trạng thái kinh doanh': 'Business status',
+    'Ghi chú giá — dùng khi giá không cố định': 'Price note — for when the price is not fixed',
+    'Giai đoạn áp dụng hoặc ưu đãi sắp kết thúc. Rà lại với Kinh doanh trước khi chạy tiếp.':
+      'The applicable period or the offer is ending. Check with Sales before running it again.',
+    'Làm mới': 'Refresh',
+    'Mở Base': 'Open Base',
+    'Đang đọc…': 'Reading…',
+    'Tìm mã, tên, USP, trải nghiệm…': 'Search code, name, USP, experience…',
+    'Mọi nhóm': 'All groups',
+    'Mọi mức ưu tiên': 'All priorities',
+    'Mọi tệp khách': 'All audiences',
+    'Mọi trải nghiệm': 'All experiences',
+    'Bỏ lọc': 'Clear filter',
+    'Không có sản phẩm nào khớp.': 'No product matches.',
+    'Chưa có tài liệu dùng chung nào.': 'No shared file yet.',
+    'Chưa xếp nhóm': 'Ungrouped',
+    'Mở': 'Open',
+
+    /* câu dẫn của ba tab cảnh báo */
+    'Sản phẩm đang được đẩy truyền thông — mức ưu tiên đặt ở từng sản phẩm.':
+      'Products currently being pushed — priority is set on each product.',
+    'Giai đoạn áp dụng sắp kết thúc hoặc đã kết thúc. Rà lại với Kinh doanh trước khi chạy tiếp.':
+      'The applicable period is ending or has ended. Check with Sales before running it again.',
+    'Hồ sơ chưa đủ để làm truyền thông. Bổ sung trong Lark Base rồi bấm Làm mới.':
+      'Profile not complete enough for marketing. Fill it in on Lark Base, then hit Refresh.',
+    'Mở view “Cần bổ sung” trên Base': 'Open the “Needs filling in” view on the Base',
+
+    /* thẻ sản phẩm */
+    'trẻ em': 'child',
+    'chưa có giá công bố': 'no list price yet',
+    'chưa xếp': 'not set',
+    'chưa đặt hạn': 'no end date',
+    'chưa ghi nguồn': 'source not recorded',
+
+    /* ngăn chi tiết */
+    'Chi tiết sản phẩm': 'Product detail',
+    'Chép': 'Copy',
+    'Đã chép.': 'Copied.',
+    'Đã đọc lại từ Lark Base.': 'Re-read from Lark Base.',
+    'Đã đổi mức ưu tiên.': 'Priority updated.',
+    '— chưa xếp —': '— not set —',
+    '(chỉ quản lý đổi được mức này)': '(only managers can change this)',
+    'Ưu tiên marketing': 'Marketing priority',
+    'Giá công bố': 'List price',
+    'Người lớn': 'Adult',
+    'Trẻ em': 'Child',
+    'Hiệu lực từ': 'Valid from',
+    'Hiệu lực đến': 'Valid until',
+    'Giá theo giai đoạn': 'Price by period',
+    'Giai đoạn': 'Period',
+    'Áp dụng': 'Applies',
+    'Điểm nổi bật': 'Highlights',
+    'Đối tượng mục tiêu': 'Target audience',
+    'Nhãn': 'Tags',
+    'Lịch trình tóm tắt': 'Itinerary summary',
+    'Dịch vụ bao gồm': 'Included services',
+    'Dịch vụ chưa bao gồm': 'Excluded services',
+    'Ưu đãi đang chạy': 'Live offers',
+    'Chính sách trẻ em': 'Child policy',
+    'Chính sách phụ thu': 'Surcharge policy',
+    'Chính sách giảm trừ': 'Discount policy',
+    'Lưu ý cho marketing': 'Notes for marketing',
+    'Chính sách & khuyến mãi áp dụng': 'Policies & offers that apply',
+    'Ảnh · video · tài liệu': 'Photos · videos · files',
+    'Nguồn & cập nhật': 'Source & last update',
+    'Nguồn': 'Source',
+    'Sửa trong Lark Base': 'Edit on Lark Base',
+    'Không đọc được Base: ': 'Could not read the Base: ',
+    'Chỉ quản lý đổi được mức ưu tiên đẩy.': 'Only managers can change the push priority.',
+    'Giá công bố · USP · lịch trình · ưu đãi': 'List price · USP · itinerary · offers',
+    'Sản phẩm đang bán': 'Products on sale',
+    'Ưu tiên đẩy': 'Priority push',
+    'Chạy hằng ngày': 'Running daily',
+    'Sắp / đã hết hạn': 'Expiring / expired',
+    'Ưu đãi sắp hết': 'Offers ending soon',
+    'Hồ sơ còn thiếu': 'Incomplete profiles',
+    'dòng trong Base': 'rows in the Base',
+    'không lọc theo thời gian': 'not filtered by date',
+
     /* Nhãn thẻ số trên chính trang Tổng quan — màn hình đầu tiên ai cũng thấy */
     'Doanh thu từ QC': 'Revenue from ads',
     'Doanh thu thu về': 'Revenue received',
@@ -850,6 +979,21 @@
    * Cho những câu ghép số/tên vào giữa. $1, $2… là nhóm bắt được.
    */
   const MAU_EN = [
+    /* --- Thông tin sản phẩm: câu có con số nên không khớp khoá nguyên câu --- */
+    [/^(\d+) dòng trong Base$/, '$1 rows in the Base'],
+    [/^(\d+) sản phẩm$/, '$1 products'],
+    [/^Chọn cả (\d+) dòng đang hiện$/, 'Select all $1 rows shown'],
+    [/^Đã chọn (\d+)$/, '$1 selected'],
+    [/^Đã đặt cho (\d+) sản phẩm\.$/, 'Applied to $1 products.'],
+    [/^ưu đãi hết (\d{2}\/\d{2}\/\d{4})$/, 'offer ends $1'],
+    [/^(\d+) sản phẩm đã ngừng bán không nằm trong bảng này — tra ở tab Danh mục\.$/,
+      '$1 discontinued products are not on this board — look them up on the Catalogue tab.'],
+    [/^(\d+) sản phẩm · đọc lúc (.+)$/, '$1 products · read at $2'],
+    [/^trẻ em ([\d.,]+)đ$/, 'child $1đ'],
+    [/^thiếu: (.+)$/, 'missing: $1'],
+    [/^Sửa lần cuối: (.+)$/, 'Last edited: $1'],
+    [/^đến (\d{2}\/\d{2}\/\d{4})$/, 'until $1'],
+
     /* --- lớp vỏ: phụ đề trang Tổng quan trong lúc chờ số liệu về --- */
     [/^Đang đọc số liệu từ (\d+) base…$/, 'Reading data from $1 bases…'],
 

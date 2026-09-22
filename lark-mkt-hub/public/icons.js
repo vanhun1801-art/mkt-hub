@@ -63,6 +63,13 @@ const ICONS = {
     '<circle cx="12" cy="12.8" r="3.4"/>'
   ),
 
+  /* Thông tin sản phẩm: nhãn giá treo — thứ gắn lên một sản phẩm đang bán.
+     Không dùng lại 'base' (đã là app KPI) hay 'tien' (đã là Quỹ chi phí). */
+  'san-pham': IC(
+    '<path d="M11.2 3.5H19a1.5 1.5 0 0 1 1.5 1.5v7.8a2 2 0 0 1-.6 1.4l-6.6 6.6a1.5 1.5 0 0 1-2.1 0l-6.7-6.7a1.5 1.5 0 0 1 0-2.1l6.3-6.3a2 2 0 0 1 1.4-.6Z"/>' +
+    '<circle cx="16" cy="8" r="1.4"/>'
+  ),
+
   /* Tải nhân sự / người */
   'nguoi': IC(
     '<circle cx="12" cy="8" r="3.5"/>' +

@@ -73,14 +73,14 @@ Mỗi module vẫn là một app Node độc lập, chạy được riêng như 
 Iframe của module được **giữ lại trong DOM** sau khi mở, nên chuyển qua lại giữa các base
 không mất trạng thái (bộ lọc, tab đang xem, ô đang nhập).
 
-### Nén — đặt ở lớp vỏ, phủ cả chín app
+### Nén — đặt ở lớp vỏ, phủ cả mười app
 
 Proxy **xoá `accept-encoding`** khi gọi lên app con (bước 3 ở trên cần HTML thô để còn
 chèn shim vào). Hệ quả là app con luôn trả bản không nén, và trước đây không ai nén lại:
 mở Bảng công việc là tải 268 KB, Lịch tác nghiệp 286 KB, riêng lớp vỏ đã 315 KB.
 
 `nen.js` nén trên **đường ra** của hub, nên một chỗ phủ hết — không phải sửa dòng nào
-của chín app con, đúng nguyên tắc kiến trúc ở trên. Đo thật:
+của mười app con, đúng nguyên tắc kiến trúc ở trên. Đo thật:
 
 | | Thô | Nén (brotli) |
 |---|---|---|
@@ -166,7 +166,7 @@ nhấp nháy, rồi thay dữ liệu thật vào đúng chỗ đó.
 |---|---|
 | `public/khung-xuong.css` | **bản gốc** — token màu (sáng/tối), hiệu ứng lướt, các hình dạng chuẩn |
 | `public/khung-xuong.js` | **bản gốc** — bộ dựng `KX.*` |
-| `dong-bo-khung.js` | chép CẢ HAI bản gốc sang `public/` của chín app con |
+| `dong-bo-khung.js` | chép CẢ HAI bản gốc sang `public/` của mười app con |
 | `test/khung-xuong.test.js` | canh cho không bản nào lệch và không chỗ nào rơi lại về vùng trắng |
 
 `KX.*` có **hai nhóm, đừng lẫn**:
@@ -177,13 +177,13 @@ nhấp nháy, rồi thay dữ liệu thật vào đúng chỗ đó.
 - **nhóm riêng của lớp vỏ** — `the` `khoiBase` `luoiBase` `viec` `tai` `rail` `tin`: mượn lớp
   bố cục của trang Tổng quan (`.the-luoi`, `.tn-hang`, `.viec-dong`…). **App con đừng gọi**:
   `.the` bên Báo cáo là thẻ báo cáo, bên lớp vỏ là ô số — gọi nhầm là ăn nhầm CSS của chính
-  app đó. `test/khung-xuong.test.js` quét mọi tệp JS của chín app để canh chuyện này.
+  app đó. `test/khung-xuong.test.js` quét mọi tệp JS của mười app để canh chuyện này.
 
 ### Trí nhớ hình dạng — thứ làm nó KHỚP giao diện thật
 
 Anh Hùng nhìn bản đầu và nói đúng một câu: *"nó không khớp với giao diện thật"*. Gốc của
 chuyện đó là vẽ **hình trung bình**: bốn ô đều nhau cho mọi base, bốn thẻ + một bảng cho cả
-chín app. Mà thật thì thẻ base có **một ô chính số 30px rộng hết hàng** rồi mới tới ô phụ,
+mười app. Mà thật thì thẻ base có **một ô chính số 30px rộng hết hàng** rồi mới tới ô phụ,
 mỗi base một số ô khác nhau, và số base thì tuỳ người đăng nhập.
 
 Cách chữa: **nhớ hình của lần mở trước rồi dựng lại đúng hình đó.**
@@ -205,7 +205,7 @@ Cách chữa: **nhớ hình của lần mở trước rồi dựng lại đúng 
 
 ### App con: CHỤP khung xương từ chính màn thật
 
-Lớp vỏ khai hình bằng tay được vì nó chỉ có một trang. Chín app con thì không: mỗi app mấy
+Lớp vỏ khai hình bằng tay được vì nó chỉ có một trang. Mười app con thì không: mỗi app mấy
 chục màn, khai tay vừa không xuể vừa lệch ngay lần sửa giao diện kế tiếp. Nên ở đó làm
 thẳng — **sau khi màn thật vẽ xong, đi một vòng qua DOM và đúc ra khung xương**:
 
@@ -243,7 +243,7 @@ Hai cái bẫy đã dính thật khi làm:
 Lớp vỏ cũng bỏ lớp phủ iframe **ngay khi app con dựng xong DOM** (không đợi `load`): app con
 đã có khung xương của chính nó, giữ thêm lớp phủ là hai lớp khung xương chồng nhau.
 
-### Chín app con, chín hình khác nhau
+### Mười app con, mười hình khác nhau
 
 Hình của từng app **đo trên màn thật của nó**, không bịa:
 
@@ -258,6 +258,7 @@ Hình của từng app **đo trên màn thật của nó**, không bịa:
 | Quỹ chi phí | 4 thẻ số → bảng dài | `oSo(4)` + `dong(10)` |
 | Chỉnh ảnh | form lớn trái + danh sách phải | `hai(khoi, khoi)` |
 | Báo cáo công việc | thẻ ngày → thẻ form lớn | ba `khoi()` chồng nhau |
+| Thông tin sản phẩm | dải thẻ số → các tầng ưu tiên xếp chồng | `khoi(78)` + `khoi(44)` + 3 × `khoi(150)` |
 
 Ba quy ước, phá cái nào cũng mất đúng thứ vừa làm được:
 
@@ -280,7 +281,7 @@ chỉ phục vụ được file trong thư mục của chính nó — phải có
 
 Có, ở mọi chỗ **một khối nội dung đang chờ dữ liệu**: trang Tổng quan (lưới base, dải nhiệt,
 việc cần xử lý, bảng tin), màn Cài đặt (logo, video, tài khoản, phân quyền, thông báo, hộp
-log), ba hộp thoại của lớp vỏ, màn khởi động của cả chín app con, và các màn nạp lại bên
+log), ba hộp thoại của lớp vỏ, màn khởi động của cả mười app con, và các màn nạp lại bên
 trong chúng — đổi tab Social, đổi kỳ Báo cáo, tính lại KPI, Booking mới / Thống kê / Dữ liệu
 Lark của OTA, danh sách hội thoại và điều khiển nền tảng của Quảng cáo, khung giờ + cấu hình
 thông báo của Lịch, bình luận công việc và hộp Phân phối của Bảng công việc.
@@ -1059,6 +1060,7 @@ quyết toán" hay "nộp bù" nghĩa là gì.
 | Báo cáo & KPI | Đạt mục tiêu (%) tháng gần nhất **có số** | chưa chấm xong · cảnh báo số liệu · chưa chốt |
 | Quỹ chi phí | Còn trong quỹ | chờ chi · chờ quyết toán |
 | Báo cáo công việc | Phiếu đã nộp | nộp trễ · nộp bù · cần hỗ trợ |
+| Thông tin sản phẩm | Sản phẩm đang bán | sắp/đã hết hạn · ưu đãi sắp hết · hồ sơ còn thiếu (thẻ bấm được, lọc thẳng ra danh sách) |
 
 Ba điều đã cân nhắc, ghi lại kẻo lần sau làm ngược:
 
@@ -1146,7 +1148,7 @@ trong Lark**, không liên quan tới vai quản lý/nhân sự bên trong từn
 | `modules.json` | **danh sách base** — sửa ở đây là thêm/bớt base |
 | `children.js` | bật/tắt/bật lại tiến trình module, log, health check 10s |
 | `proxy.js` | proxy ngược + chèn CSS/JS vào HTML module + `goiJson()` |
-| `nen.js` | nén gzip/brotli cho MỌI đường ra — kể cả phần proxy vào chín app con |
+| `nen.js` | nén gzip/brotli cho MỌI đường ra — kể cả phần proxy vào mười app con |
 | `kpi.js` | bộ đọc chỉ số cho Tổng quan chung (một hàm / một base) |
 | `lichchung.js` | gộp việc mọi base thành dải nhiệt nhân sự × ngày (khối Tải nhân sự) |
 | `bot.js` | nguồn số liệu chỉ-đọc cho trợ lý hỏi đáp (`/bot/*`) — xem `docs/tro-ly-bot.md` |
@@ -1155,8 +1157,8 @@ trong Lark**, không liên quan tới vai quản lý/nhân sự bên trong từn
 | `quyen.js` | bảng Phân quyền: ai thấy base nào, ai quản trị base nào |
 | `thongbao-app.js` | bảng Thông báo chặn màn hình: ai nhận, còn hiệu lực không, ai đã đọc |
 | `nhom-lark.js` | thành viên nhóm chat Phòng MKT — để form soạn thông báo tick sẵn đúng phòng |
-| `public/khung-xuong.css` · `khung-xuong.js` | **khung xương** dùng chung: hình dạng chờ dữ liệu cho lớp vỏ và chín app con |
-| `dong-bo-khung.js` | chép `khung-xuong.css` sang chín app con — chạy sau mỗi lần sửa bản gốc |
+| `public/khung-xuong.css` · `khung-xuong.js` | **khung xương** dùng chung: hình dạng chờ dữ liệu cho lớp vỏ và mười app con |
+| `dong-bo-khung.js` | chép `khung-xuong.css` sang mười app con — chạy sau mỗi lần sửa bản gốc |
 | `test/khung-xuong.test.js` | canh khung xương: đúng thứ tự nạp, đúng bản, và không màn nào rơi lại về vùng trắng |
 | `public/index.html` · `styles.css` · `app.js` · `icons.js` | panel base, sân khấu iframe, trang Tổng quan chung, modal Cài đặt / Thêm base / Log |
 | `test/api.test.js` | kiểm thử chỉ đọc |
