@@ -53,12 +53,32 @@ của Meta, vừa có nguy cơ bị khoá tài khoản đang giữ quyền trên
 **Trên máy người đăng (chính).** Khai tên mình ở Tuỳ chọn → mỗi lần bấm Đăng
 trong Business Suite, tiện ích chụp lại đoạn chữ vừa soạn, ghi tên người đó và **gửi
 ngay** — không ai phải bấm gì. Bảng góc màn hình **im lặng**, chỉ hiện khi:
-chưa khai địa chỉ/khoá, gửi hỏng vì sai khoá, hoặc có bài treo quá một ngày chưa
-ghi được. Vừa bắt được một bài thì báo một câu rồi tự tắt sau năm giây. Hàng chờ
-cũng tự gửi lại mỗi năm phút khi tab còn mở.
-Không phụ thuộc Facebook có vẽ dòng "Người đăng" hay không. Bài vừa đăng chưa
-có trong Base (đồng bộ 6 tiếng một lượt), nên tiện ích giữ trong máy rồi tự gửi
-lại mỗi lần mở Facebook cho tới khi khớp được — không cần ai nhớ.
+chưa khai địa chỉ/khoá, hoặc gửi hỏng vì sai khoá. Vừa bắt được một bài thì báo
+một câu rồi tự tắt sau năm giây.
+Không phụ thuộc Facebook có vẽ dòng "Người đăng" hay không. Bài vừa đăng chưa có
+trong Base (đồng bộ 6 tiếng một lượt), nên **máy chủ** giữ nó trong bảng *Người
+đăng chờ khớp* rồi tự khớp lại sau mỗi lượt đồng bộ.
+
+## Gửi xong là buông — từ 1.15.0
+
+Tiện ích gửi một mục lên, máy chủ cất vào bảng *Người đăng chờ khớp*, rồi tiện
+ích **bỏ mục đó khỏi máy mình**. Chỉ giữ lại khi máy chủ báo cất hỏng.
+
+Trước 1.15.0 thì ngược lại: mục nào chưa khớp được là tiện ích giữ và **gửi lại
+mỗi năm phút**. Từ khi hàng chờ chuyển về máy chủ, việc đó vừa thừa vừa có hại:
+
+- cột **Số lần thử** leo tới 193 cho một bài thử nghiệm;
+- **xoá dòng trên Base không có tác dụng** — năm phút sau tiện ích gửi lại, máy
+  chủ không thấy khoá cũ nên tạo dòng mới y nguyên. Người ta xoá một dòng là có
+  ý bảo "bỏ cái này đi", mà hệ thống lặng lẽ dựng lại thì không còn cách nào bỏ.
+
+Máy chủ cũ (chưa cập nhật) vẫn hiểu được bản tiện ích mới, và ngược lại — máy
+chủ mới cũng làm bản tiện ích **cũ** thôi gửi lại, vì nó trả về cùng trường
+`chuaKhop` với nghĩa không đổi ("những mục phải giữ"), chỉ là ngắn hơn.
+
+**Muốn bỏ một dòng đang chờ**: xoá nó trên Base là xong. Nếu dòng đó có từ trước
+khi cập nhật, bấm *xoá hàng chờ* trên bảng góc màn hình một lần trước — không thì
+lượt gửi kế tiếp còn dựng lại nó thêm một lần nữa.
 
 **Trên máy quản lý (rà bài cũ).** Để trống ô "Tôi là", mở Trang rồi cuộn; tiện
 ích đọc dòng "Người đăng" đã hiện trên màn hình, xong bấm **Gửi**.

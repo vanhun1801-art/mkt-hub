@@ -171,4 +171,34 @@ async function khopLai(posts, kenhDS) {
   };
 }
 
-module.exports = { nap, luu, khopLai, khoa, HAN_NGAY };
+/**
+ * Tiện ích phải GIỮ LẠI những mục nào để gửi lần sau?
+ *
+ * Câu trả lời ngắn: chỉ khi máy chủ không cất được vào hàng chờ.
+ *
+ * Đây từng là một dòng nằm lẫn trong server.js và đã sai theo kiểu khó thấy.
+ * Bản cũ bảo tiện ích giữ MỌI mục chưa khớp, nên cứ năm phút nó gửi lại một
+ * lượt. Hai hậu quả:
+ *
+ *   · cột "Số lần thử" leo tới 193 cho một bài thử nghiệm;
+ *   · anh Hùng XOÁ dòng trên Base thì năm phút sau nó mọc lại y nguyên, vì
+ *     luu() không tìm thấy khoá cũ nên tạo dòng mới. Người ta xoá một dòng là
+ *     có ý bảo "bỏ cái này đi" — hệ thống lặng lẽ dựng lại là lấy mất cái
+ *     quyền đó, và không còn cách nào bỏ.
+ *
+ * Từ khi hàng chờ về máy chủ, cất được rồi là máy chủ nhận trách nhiệm: sau mỗi
+ * lượt đồng bộ nó tự khớp lại, không cần trình duyệt ai mở. Tiện ích chỉ còn
+ * giữ phần máy chủ CHƯA nhận được — để Base trục trặc thì không mất bài.
+ *
+ * Tách ra thành hàm riêng vì đây là một luật, không phải một dòng tiện tay; và
+ * luật một dòng là thứ dễ bị "dọn cho gọn" nhất.
+ *
+ * @param chuaKhop  vị trí các mục chưa ghi được vào bảng Bài đăng
+ * @param ketQuaLuu kết quả của luu() — có `.loi` nghĩa là cất hỏng
+ */
+function viTriPhaiGiu(chuaKhop, ketQuaLuu) {
+  const ds = Array.isArray(chuaKhop) ? chuaKhop : [];
+  return (ketQuaLuu && ketQuaLuu.loi) ? ds : [];
+}
+
+module.exports = { nap, luu, khopLai, khoa, viTriPhaiGiu, HAN_NGAY };

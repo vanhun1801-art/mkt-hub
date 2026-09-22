@@ -54,6 +54,35 @@ let so = 0;
 const cases = [];
 const t = (ten, fn) => cases.push([ten, fn]);
 
+t('cất được vào hàng chờ thì tiện ích KHÔNG giữ lại — nếu không, xoá dòng là mọc lại', () => {
+  assert.deepStrictEqual(cho.viTriPhaiGiu([0, 2, 5], { them: 3, capNhat: 0 }), []);
+});
+
+t('cất HỎNG thì tiện ích phải giữ, không thì mất bài lúc Base trục trặc', () => {
+  assert.deepStrictEqual(cho.viTriPhaiGiu([0, 2, 5], { loi: 'Lark 503' }), [0, 2, 5]);
+});
+
+t('không có kết quả cất (lượt cũ, máy chủ chưa cập nhật) thì coi như đã cất', () => {
+  assert.deepStrictEqual(cho.viTriPhaiGiu([1], null), []);
+  assert.deepStrictEqual(cho.viTriPhaiGiu(null, { them: 0 }), []);
+});
+
+t('xoá dòng trên Base rồi mà tiện ích gửi lại thì nó MỌC LẠI — lý do phải ngừng gửi', async () => {
+  /* Phép thử này ghi lại đúng cái anh Hùng gặp: xoá dòng thử nghiệm mà nó cứ
+   * hiện. luu() nhận diện theo khoá (vân, người, nền tảng); xoá dòng là mất
+   * khoá, nên lượt gửi sau tạo dòng mới. Bản thân luu() không sai — sai là ở
+   * chỗ để tiện ích gửi lại mãi. Giữ phép thử để ai định bật lại vòng gửi lại
+   * thì thấy ngay hậu quả. */
+  bang = {};
+  await cho.luu([{ nguoi: AI, van: 'Bài thử nghiệm xoá rồi mọc lại nhé', nenTang: 'Facebook' }]);
+  assert.strictEqual(dsCho().length, 1);
+
+  bang[TP.id] = [];                       // anh Hùng xoá dòng trên Base
+  await cho.luu([{ nguoi: AI, van: 'Bài thử nghiệm xoá rồi mọc lại nhé', nenTang: 'Facebook' }]);
+  assert.strictEqual(dsCho().length, 1);  // …và nó mọc lại
+  assert.strictEqual(dsCho()[0].soLan, 1); // dòng mới tinh, đếm lại từ đầu
+});
+
 t('giờ ghi vào bảng là giờ Việt Nam, không phải UTC cũng không phải giờ Base', async () => {
   bang = {};
   await cho.luu([{ nguoi: AI, van: 'Một nội dung đủ dài để không bị bỏ qua' }]);

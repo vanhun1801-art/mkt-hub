@@ -467,7 +467,17 @@
           return;
         }
         loi = '';
-        const giu = new Set(r.kq && r.kq.chuaKhop ? r.kq.chuaKhop : []);
+        /* `giuLai` là danh sách mục máy chủ KHÔNG cất được vào hàng chờ — chỉ
+         * những mục ấy mới phải gửi lại. Mục đã cất rồi thì bỏ khỏi kho máy
+         * này: hàng chờ nằm ở máy chủ, nó tự khớp lại sau mỗi lượt đồng bộ.
+         *
+         * Giữ tiếp là hỏng hai đường: cột Số lần thử leo vô tận, và anh Hùng
+         * xoá dòng trên Base thì năm phút sau nó mọc lại.
+         *
+         * `chuaKhop` là tên cũ của cùng một thứ, đọc để chạy được với máy chủ
+         * chưa cập nhật. */
+        const kq = r.kq || {};
+        const giu = new Set(Array.isArray(kq.giuLai) ? kq.giuLai : (kq.chuaKhop || []));
         const conLai = cho.filter((_x, i) => giu.has(i));
         await chrome.storage.local.set({ cho: conLai });
         soCho = conLai.length;
