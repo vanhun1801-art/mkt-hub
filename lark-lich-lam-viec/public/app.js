@@ -135,7 +135,7 @@ function veToi() {
         : '<span class="nhan-tt cam">Nháp · chưa nộp</span>';
 
   let h = '';
-  if (d.ky && !d.hoNguoi) {
+  if (d.ky && !d.hoNguoi && !d.chot) {
     h += d.ky.dangMo && d.ky.thang === d.thang
       ? '<div class="bao xanh">Đang mở đăng ký tháng ' + veThang(d.ky.thang) + ' · đóng lúc ' + esc(veLucVN(d.ky.dong)) + '</div>'
       : !d.suaDuoc ? '<div class="bao tim">Đăng ký tháng ' + veThang(d.ky.thang) + ' mở ' + esc(veKy(d.ky)) + '</div>' : '';
@@ -171,6 +171,10 @@ function veToi() {
       d.canhBao.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ul></div>';
   }
 
+  /* Đã nộp = chốt: ghi chú hiện thành chữ thường, không còn ô nhập. */
+  if (d.chot && ph && ph.ghiChu) {
+    h += '<section class="the"><div class="the-than ghi-chu-chot">' + esc(ph.ghiChu) + '</div></section>';
+  }
   if (sua) {
     h += '<section class="the"><div class="the-than">' +
       '<textarea class="in" id="ghiChu" placeholder="Ghi chú cho quản lý / HCNS">' + esc(S.ghiChu != null ? S.ghiChu : ((ph && ph.ghiChu) || '')) + '</textarea>' +

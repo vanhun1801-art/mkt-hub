@@ -178,6 +178,10 @@ textarea.in {
 .ngay .ten-ma { font-size: 12px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ngay.doi { border-color: var(--blue); box-shadow: inset 0 0 0 1px var(--blue); }
 .ngay.nay .so-ngay { color: var(--blue-text); font-weight: 700; }
+/* Hôm nay: viền xanh đậm + quầng sáng — nhận ra ngay giữa 30 ô giống nhau. */
+.ngay.nay { border: 2px solid var(--blue); box-shadow: 0 0 0 3px var(--blue-bg), 0 4px 14px rgba(43, 92, 255, .18); }
+.ngay:disabled { opacity: 1; }
+.ghi-chu-chot { color: var(--text-2); white-space: pre-wrap; }
 .ngay.rong { visibility: hidden; }
 
 /* ---------------- bảng cả phòng ---------------- */

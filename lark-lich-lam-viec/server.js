@@ -247,7 +247,7 @@ async function api(req, res, u) {
     return json(res, {
       thang, nhanSu: { recordId: n.recordId, hoTen: n.hoTen, maNV: n.maNV, chucVu: n.chucVu },
       ngay: l.ngay, phieu: vePhieu(p0), tinh: MA.tinh(thang, l.ma, ngLe),
-      canhBao: MA.canhBao(thang, l.ma, ngLe), suaDuoc: suaDuoc(toi, thang, ky), hoNguoi: !!xin,
+      canhBao: MA.canhBao(thang, l.ma, ngLe), suaDuoc: !kho.daNop(p0) && suaDuoc(toi, thang, ky), chot: kho.daNop(p0), hoNguoi: !!xin,
       ky: { dangMo: ky.dangMo, thang: ky.thang, mo: ky.mo, dong: ky.dong },
     });
   }
@@ -267,6 +267,11 @@ async function api(req, res, u) {
     if (b.nhanSu && toi.quanLy) n = ns.find((x) => x.recordId === b.nhanSu);
     else n = kho.timNhanSu(toi, ns);
     if (!n) return loi(res, 404, 'Chưa xác định được bạn trong danh sách nhân sự.');
+    /* Nộp rồi là CHỐT — anh Hùng 23/09/2026: "chỉ ở dạng xem, không được chỉnh kể
+     * cả anh". Chặn ở server, không chỉ ẩn nút: phiếu đã nộp thì mọi vai đều 403.
+     * Cần sửa thật thì sửa thẳng trên Base (có lịch sử sửa của Lark). */
+    const daCo = (await kho.dsDangKy(thang, true)).find((x) => x.maNV === n.maNV);
+    if (kho.daNop(daCo)) return loi(res, 403, 'Lịch tháng ' + thang + ' của ' + n.hoTen + ' đã nộp — chỉ còn xem, không sửa được.');
     const { nam, thang: th } = MA.docThang(thang);
     const ma = Array.isArray(b.ma) ? b.ma.slice(0, MA.soNgay(nam, th)) : [];
     if (ma.length !== MA.soNgay(nam, th) || !ma.every(MA.laMa)) {
