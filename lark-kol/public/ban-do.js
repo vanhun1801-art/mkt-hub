@@ -1,106 +1,222 @@
 /* ==========================================================================
-   Sơ đồ Phú Quốc — lịch trình vẽ bằng vector (anh Hùng 23/09/2026).
+   Bản đồ lịch trình Phú Quốc (anh Hùng 23/09/2026: "vẽ chính xác hơn bằng Google Maps").
 
-   KHÔNG phải bản đồ đo đạc: đường bờ biển là đa giác GẦN ĐÚNG (sai số ~1 km), đủ
-   để nhìn chuyến đi chạy từ Bắc (VinWonders, Safari) xuống Nam (An Thới, Hòn Thơm)
-   ra sao trong từng ngày. Địa điểm đoán bằng từ khoá trong tên hạng mục / điểm hẹn /
-   đối tác; không đoán được thì để ở danh sách "chưa rõ vị trí" — thiếu dữ liệu
-   thì không vẽ bừa.
+   Google Maps nhúng trong trang cần API key có thẻ thanh toán Google Cloud — chưa có.
+   Nên:
+     · bản đồ trong app = Leaflet + nền OpenStreetMap — đường, bãi, địa danh chính xác,
+       nền tối bằng cách đảo màu CSS theo giao diện
+     · đường đi bám ĐƯỜNG BỘ thật qua OSRM (router.project-osrm.org); chặng ra đảo
+       (Hòn Thơm, 3 đảo) vẽ nét đứt vì đi cáp treo / cano
+     · mỗi ngày một nút "Mở trên Google Maps" → Google Maps thật, chỉ đường đủ các điểm
+     · ô Điểm hẹn nhận link Google Maps / toạ độ dán vào → ghim đúng chỗ
+     · không tải được Leaflet (mất mạng) → lùi về sơ đồ vector vẽ tay như bản cũ
+
+   Toạ độ địa điểm tra từ OpenStreetMap (Nominatim) ngày 23/09/2026; dòng ghi "ước lượng"
+   là nơi OSM chưa có — dán link Google Maps vào Điểm hẹn để ghim cho chắc.
    ========================================================================== */
 (function (goc) {
   'use strict';
-  /* [kinh độ, vĩ độ] theo chiều kim đồng hồ từ Gành Dầu (Tây Bắc). */
+  /* [tên, vĩ độ, kinh độ, từ khoá không dấu (cụ thể đứng TRƯỚC chung chung), ngoài đảo chính?] */
+  const DIEM = [
+    ['VinWonders', 10.3384, 103.85467, ['vinwonders', 'vin wonders']],
+    ['Vinpearl Safari', 10.33654, 103.88902, ['safari']],
+    ['Wyndham Garden Grand World', 10.3232, 103.8563, ['wyndham']],
+    ['Grand World', 10.32494, 103.85814, ['grand world', 'venice', 'tinh hoa viet nam', 'bao tang gau', 'teddy', 'gland_gw', 'gland_vin']],
+    ['Gành Dầu', 10.37077, 103.84472, ['ganh dau']],
+    ['Rạch Vẹm (Bãi Sao Biển)', 10.37419, 103.93898, ['rach vem', 'sao bien', 'starfish', 'gland_rv']],
+    ['Bãi Thơm', 10.41201, 104.03149, ['bai thom']],
+    ['Sân bay Phú Quốc', 10.17271, 103.99216, ['san bay', 'don bay', 'tien bay', 'airport']],
+    ['Bãi Trường', 10.13606, 103.9764, ['bai truong', 'long beach']],
+    ['Suối Tranh', 10.18378, 104.01534, ['suoi tranh']],
+    ['Hàm Ninh', 10.17634, 104.03263, ['ham ninh']],
+    ['Thiền viện Trúc Lâm Hộ Quốc (ước lượng)', 10.107, 104.047, ['ho quoc', 'thien vien', 'truc lam']],
+    ['Nhà tù Phú Quốc', 10.04345, 104.01879, ['nha tu', 'coconut prison', 'coconut tree']],
+    ['Bãi Sao', 10.05247, 104.03519, ['bai sao', 'sao beach']],
+    ['Bãi Khem', 10.03577, 104.03063, ['bai khem', 'kem beach', 'sun premier village kem']],
+    ['Cầu Hôn', 10.02826, 104.00419, ['cau hon', 'kiss bridge', 'nha hat', 'kiss of the sea', 'symphony']],
+    ['Ga cáp treo An Thới', 10.02704, 104.00724, ['ga cap treo', 'nha ga an thoi']],
+    ['Sunset Town', 10.02943, 104.00831, ['sunset town', 'hoang hon', 'primavera', 'gland5', 'land 5', 'viet xua an thoi']],
+    ['An Thới', 10.01209, 104.01481, ['an thoi']],
+    ['Hòn Thơm', 9.9565, 104.01807, ['hon thom', 'cap treo', 'sun world', 'aquatopia', 'exotica', 'sun paradise', 'sun-c', 'mango'], true],
+    ['Hòn Mây Rút', 9.91142, 103.98959, ['hon may rut', '3 dao', 'ba dao', 'cano', 'lan bien', 'lan ngam', 'g4'], true],
+    ['Hòn Gầm Ghì', 9.912, 104.01493, ['hon gam ghi'], true],
+    ['Hòn Dừa', 9.99601, 104.01042, ['hon dua'], true],
+    ['Sunset Sanato', 10.15401, 103.97942, ['sanato']],
+    ['Chợ đêm Dinh Cậu', 10.2163, 103.96058, ['cho dem', 'night market', 'dinh cau']],
+    ['Dương Đông', 10.2175, 103.9601, ['duong dong', 'viet xua']],
+  ];
+  const kd = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
+  const e = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const trongPhuQuoc = (lat, lng) => lat > 9.8 && lat < 10.5 && lng > 103.75 && lng < 104.2;
+
+  /** Toạ độ dán tay: link Google Maps (@lat,lng · !3dlat!4dlng · q=lat,lng) hoặc "10.217, 103.960". */
+  function toaDoTrongChu(s) {
+    const t = String(s || '');
+    const m = /!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/.exec(t) || /@(-?\d+\.\d+),(-?\d+\.\d+)/.exec(t) ||
+      /[?&](?:q|query|ll|destination)=(-?\d+\.\d+)(?:,|%2C)\s*(-?\d+\.\d+)/i.exec(t) || /(?:^|[^\d.])(9\.\d{3,}|10\.\d{3,})\s*,\s*(10[34]\.\d{3,})/.exec(t);
+    if (!m) return null;
+    const lat = +m[1], lng = +m[2];
+    return trongPhuQuoc(lat, lng) ? { lat, lng } : null;
+  }
+  const linkNgan = (s) => (/https?:\/\/(maps\.app\.goo\.gl|goo\.gl\/maps)\/\S+/i.exec(String(s || '')) || [])[0] || '';
+
+  /** Đoán vị trí một hạng mục. Toạ độ dán tay thắng từ khoá. `giai` = kết quả link rút gọn đã giải. */
+  function doan(h, giai) {
+    const tay = toaDoTrongChu(h.diemHen) || (giai && giai[linkNgan(h.diemHen)]);
+    if (tay) {
+      /* Tên ghim: chữ trong Điểm hẹn (bỏ link, bỏ toạ độ); không còn chữ thì dùng tên hạng mục. */
+      const chu = String(h.diemHen || '').replace(/https?:\/\/\S+/g, '').replace(/-?\d+\.\d+\s*,\s*-?\d+\.\d+/g, '').replace(/[\s,;:·-]+$/, '').trim();
+      const tenHm = String(h.ten || '').replace(/\s+[—-]\s+(Người lớn|Trẻ em|Em bé)$/i, '').trim();
+      return { ten: chu || tenHm || 'Điểm hẹn', lat: tay.lat, lng: tay.lng, tay: true };
+    }
+    const t = kd([h.ten, h.diemHen, h.nhaCungCap, h.maDv].join(' '));
+    for (const d of DIEM) if (d[3].some((k) => t.includes(k))) return { ten: d[0], lat: d[1], lng: d[2], dao: !!d[4] };
+    return null;
+  }
+
+  /* moc: [{ngay, gio, ten, h}] → điểm đã định vị + danh sách chưa rõ */
+  function dinhVi(moc, giai) {
+    const ngay = [...new Set(moc.map((m) => m.ngay).filter(Boolean))].sort((a, b) => a - b);
+    const diem = [], chuaRo = [];
+    for (const m of moc) {
+      const d = doan(m.h, giai);
+      if (!d) { chuaRo.push(m.ten); continue; }
+      diem.push({ ...d, noi: d.ten, ngay: ngay.indexOf(m.ngay), gio: m.gio || 0, ten: m.ten });
+    }
+    diem.sort((a, b) => a.ngay - b.ngay || a.gio - b.gio);
+    diem.forEach((d, i) => { d.so = i + 1; });
+    return { ngay, diem, chuaRo };
+  }
+
+  /** Link Google Maps chỉ đường cho một ngày (tối đa 10 điểm — giới hạn của Google). */
+  function linkGoogle(ds) {
+    const p = ds.filter((d, i) => i === 0 || d.noi !== ds[i - 1].noi).slice(0, 10).map((d) => d.lat + ',' + d.lng);
+    if (!p.length) return '';
+    if (p.length === 1) return 'https://www.google.com/maps/search/?api=1&query=' + p[0];
+    return 'https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=' + p[0] + '&destination=' + p[p.length - 1] +
+      (p.length > 2 ? '&waypoints=' + encodeURIComponent(p.slice(1, -1).join('|')) : '');
+  }
+
+  /* ---------------- sơ đồ vector (dự phòng khi không tải được bản đồ) ---------------- */
   const DAO = [[103.845, 10.372], [103.858, 10.398], [103.884, 10.418], [103.92, 10.438], [103.955, 10.452], [103.99, 10.458],
     [104.025, 10.447], [104.056, 10.43], [104.079, 10.408], [104.084, 10.382], [104.066, 10.36], [104.045, 10.345], [104.043, 10.315],
     [104.058, 10.286], [104.076, 10.255], [104.083, 10.222], [104.072, 10.19], [104.078, 10.158], [104.073, 10.12], [104.062, 10.088],
     [104.052, 10.058], [104.046, 10.03], [104.034, 10.006], [104.018, 10.004], [104.006, 10.022], [103.994, 10.055], [103.984, 10.09],
     [103.976, 10.128], [103.969, 10.165], [103.958, 10.2], [103.95, 10.228], [103.929, 10.255], [103.9, 10.276], [103.872, 10.298],
     [103.856, 10.322], [103.846, 10.348]];
-  const DAO_NHO = [[104.03, 9.958, 0.009, 0.007], [104.012, 9.975, 0.006, 0.005], [104.0, 9.99, 0.005, 0.004], [104.045, 9.94, 0.006, 0.005], [103.99, 9.975, 0.004, 0.003]];
-
-  /* Địa điểm hay đi — từ khoá viết không dấu, cụ thể đứng TRƯỚC chung chung. */
-  const DIEM = [
-    ['VinWonders', 103.861, 10.336, ['vinwonders', 'vin wonders']],
-    ['Vinpearl Safari', 103.887, 10.339, ['safari']],
-    ['Grand World', 103.873, 10.331, ['grand world', 'venice', 'tinh hoa viet nam', 'bao tang gau', 'teddy', 'gland_gw', 'gland_vin', 'wyndham']],
-    ['Vinpearl Resort', 103.852, 10.327, ['vinpearl resort', 'melia vinpearl', 'wonderworld', 'vinholiday']],
-    ['Gành Dầu', 103.846, 10.37, ['ganh dau']],
-    ['Rạch Vẹm', 103.968, 10.382, ['rach vem', 'sao bien', 'gland_rv']],
-    ['Bãi Thơm', 104.02, 10.362, ['bai thom']],
-    ['Sân bay', 103.993, 10.17, ['san bay', 'don bay', 'tien bay', 'airport']],
-    ['Bãi Trường', 103.967, 10.157, ['bai truong', 'long beach']],
-    ['Suối Tranh', 104.02, 10.178, ['suoi tranh']],
-    ['Hàm Ninh', 104.052, 10.183, ['ham ninh']],
-    ['Thiền viện Trúc Lâm', 104.047, 10.107, ['ho quoc', 'thien vien', 'truc lam']],
-    ['Nhà tù Phú Quốc', 104.034, 10.064, ['nha tu', 'coconut prison']],
-    ['Bãi Sao', 104.038, 10.056, ['bai sao']],
-    ['Bãi Khem', 104.031, 10.031, ['bai khem', 'symphony', 'kiss of the sea', 'sun premier', 'nha hat', 'gland5', 'land 5']],
-    ['Sunset Town', 104.016, 10.031, ['sunset town', 'cau hon', 'kiss bridge', 'hoang hon', 'viet xua an thoi', 'an thoi']],
-    ['Ga cáp treo An Thới', 104.011, 10.024, ['ga cap treo']],
-    ['Hòn Thơm', 104.03, 9.958, ['hon thom', 'cap treo', 'sun world', 'aquatopia', 'exotica', 'sun paradise', 'sun-c', 'mango']],
-    ['3 đảo (Hòn Mây Rút)', 104.0, 9.99, ['3 dao', 'ba dao', 'cano', 'hon may rut', 'hon gam ghi', 'lan bien', 'lan ngam', 'g4']],
-    ['Dương Đông', 103.962, 10.217, ['duong dong', 'cho dem', 'dinh cau', 'night market', 'viet xua']],
-  ];
-  const kd = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
-
-  const W = 300, H = 560, X0 = 103.82, X1 = 104.1, Y0 = 10.47, Y1 = 9.93;
+  const W = 300, H = 600, X0 = 103.82, X1 = 104.1, Y0 = 10.47, Y1 = 9.88;
   const px = (lng) => ((lng - X0) / (X1 - X0)) * W;
   const py = (lat) => ((Y0 - lat) / (Y0 - Y1)) * H;
-
-  /** Đoán địa điểm của một hạng mục. Trả null khi không chắc. */
-  function doan(h) {
-    const t = kd([h.ten, h.diemHen, h.nhaCungCap, h.maDv].join(' '));
-    for (const d of DIEM) if (d[3].some((k) => t.includes(k))) return { ten: d[0], x: px(d[1]), y: py(d[2]) };
-    return null;
+  function svg(dv, nho) {
+    const dao = 'M' + DAO.map(([a, b]) => px(a).toFixed(1) + ',' + py(b).toFixed(1)).join('L') + 'Z';
+    const duong = dv.ngay.map((_, i) => {
+      const ds = dv.diem.filter((d) => d.ngay === i);
+      return ds.length > 1 ? '<polyline class="bd-duong n' + (i % 5) + '" points="' + ds.map((d) => px(d.lng).toFixed(1) + ',' + py(d.lat).toFixed(1)).join(' ') + '"/>' : '';
+    }).join('');
+    const gom = new Map();
+    dv.diem.forEach((d) => { if (!gom.has(d.noi)) gom.set(d.noi, { ...d, soDs: [] }); gom.get(d.noi).soDs.push(d.so); });
+    const cham = [...gom.values()].map((d) => { const x = px(d.lng), y = py(d.lat), trai = x > W * 0.62;
+      return '<g class="bd-diem n' + (d.ngay % 5) + '"><circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="' + (nho ? 7 : 9) + '"/><text class="bd-so" x="' + x.toFixed(1) + '" y="' + (y + 3.5).toFixed(1) + '">' +
+        (d.soDs.length > 2 ? d.soDs[0] + '+' : d.soDs.join(',')) + '</text>' + (nho ? '' : '<text class="bd-ten" text-anchor="' + (trai ? 'end' : 'start') + '" x="' + (x + (trai ? -13 : 13)).toFixed(1) + '" y="' + (y + 4).toFixed(1) + '">' + e(d.noi) + '</text>') + '</g>'; }).join('');
+    return '<svg class="ban-do' + (nho ? ' nho' : '') + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Sơ đồ lịch trình Phú Quốc"><path class="bd-dao" d="' + dao + '"/>' + duong + cham + '</svg>';
   }
+  /** Bản vector — giữ chữ ký cũ cho chỗ nào còn gọi. */
+  function ve(moc, nho, giai) { const dv = dinhVi(moc, giai); return { svg: svg(dv, nho), chuaRo: dv.chuaRo, coDiem: dv.diem.length, soNgay: dv.ngay.length }; }
 
-  const e = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  /* ---------------- bản đồ thật (Leaflet) ---------------- */
+  const LEAFLET = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/';
+  let napLeaflet = null;
+  function taiLeaflet() {
+    if (goc.L) return Promise.resolve(goc.L);
+    if (napLeaflet) return napLeaflet;
+    napLeaflet = new Promise((ok, loi) => {
+      const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = LEAFLET + 'leaflet.css'; document.head.appendChild(css);
+      const s = document.createElement('script'); s.src = LEAFLET + 'leaflet.js';
+      s.onload = () => (goc.L ? ok(goc.L) : loi(new Error('Leaflet không nạp được')));
+      s.onerror = () => { napLeaflet = null; loi(new Error('Không tải được thư viện bản đồ')); };
+      document.head.appendChild(s);
+    });
+    return napLeaflet;
+  }
+  const toi = () => {
+    const t = document.documentElement.getAttribute('data-theme');
+    return t === 'toi' || (t !== 'sang' && goc.matchMedia && goc.matchMedia('(prefers-color-scheme: dark)').matches);
+  };
+  const MAU = () => { const c = getComputedStyle(document.documentElement); return ['--blue', '--orange', '--green', '--purple', '--red'].map((v) => c.getPropertyValue(v).trim() || '#2b5cff'); };
+
+  /* Đường bộ giữa hai điểm (OSRM). Nhớ trong phiên để vẽ lại không gọi lại; hỏng thì trả null → vẽ thẳng. */
+  const nhoDuong = new Map();
+  async function duongBo(a, b) {
+    const k = a.lat + ',' + a.lng + '>' + b.lat + ',' + b.lng;
+    if (nhoDuong.has(k)) return nhoDuong.get(k);
+    const p = (async () => {
+      try {
+        const ctl = new AbortController(); const hen = setTimeout(() => ctl.abort(), 8000);
+        const r = await fetch('https://router.project-osrm.org/route/v1/driving/' + a.lng + ',' + a.lat + ';' + b.lng + ',' + b.lat + '?overview=full&geometries=geojson', { signal: ctl.signal });
+        clearTimeout(hen);
+        const j = await r.json();
+        const c = j.routes && j.routes[0] && j.routes[0].geometry.coordinates;
+        return c && c.length ? { toaDo: c.map(([x, y]) => [y, x]), km: j.routes[0].distance / 1000 } : null;
+      } catch (_) { return null; }
+    })();
+    nhoDuong.set(k, p);
+    return p;
+  }
 
   /**
-   * @param moc  [{ngay (ms đầu ngày), gio (ms|0), ten, h (hạng mục đại diện)}] — đã gộp NL/TE
-   * @param nho  true = bản nhỏ cho cột bên cạnh bảng kê
-   * @returns {{svg:string, chuaRo:string[], coDiem:number}}
+   * Vẽ bản đồ thật vào `khung`. Trả Promise<{ok, chuaRo, soDiem, ngay}>.
+   * Không tải được Leaflet → đổ bản vector vào khung, ok:false.
    */
-  function ve(moc, nho) {
-    const ngay = [...new Set(moc.map((m) => m.ngay).filter(Boolean))].sort((a, b) => a - b);
-    const chuaRo = [];
-    const diem = [];
-    moc.forEach((m) => {
-      const d = doan(m.h);
-      if (!d) { chuaRo.push(m.ten); return; }
-      /* Nhãn trên sơ đồ là TÊN ĐỊA ĐIỂM (ngắn, không chồng); tên hạng mục nằm trong tooltip. */
-      diem.push({ ...d, noi: d.ten, ngay: ngay.indexOf(m.ngay), gio: m.gio, ten: m.ten });
-    });
-    const dao = 'M' + DAO.map(([a, b]) => px(a).toFixed(1) + ',' + py(b).toFixed(1)).join('L') + 'Z';
-    const daoNho = DAO_NHO.map(([a, b, rx, ry]) => '<ellipse class="bd-dao" cx="' + px(a).toFixed(1) + '" cy="' + py(b).toFixed(1) +
-      '" rx="' + (rx / (X1 - X0) * W).toFixed(1) + '" ry="' + (ry / (Y0 - Y1) * H).toFixed(1) + '"/>').join('');
-    /* Đường đi: nối các điểm theo thứ tự thời gian trong TỪNG ngày. */
-    const duong = ngay.map((_, i) => {
-      const ds = diem.filter((d) => d.ngay === i).sort((a, b) => (a.gio || 0) - (b.gio || 0));
-      return ds.length > 1 ? '<polyline class="bd-duong n' + (i % 5) + '" points="' + ds.map((d) => d.x.toFixed(1) + ',' + d.y.toFixed(1)).join(' ') + '"/>' : '';
-    }).join('');
-    /* Cùng một địa điểm nhiều mốc → một chấm, nhiều số. */
+  async function veThat(khung, moc, { nho = false, giai = null, ngayNhan = [] } = {}) {
+    const dv = dinhVi(moc, giai);
+    let L;
+    try { L = await taiLeaflet(); } catch (_) { khung.innerHTML = svg(dv, nho); return { ok: false, chuaRo: dv.chuaRo, soDiem: dv.diem.length, ngay: dv.ngay }; }
+    if (khung._banDo) { khung._banDo.remove(); khung._banDo = null; }
+    khung.innerHTML = '';
+    const map = L.map(khung, { zoomControl: !nho, attributionControl: true, scrollWheelZoom: !nho });
+    khung._banDo = map;
+    /* Nền OpenStreetMap gốc — miễn phí, không cần khoá (CARTO từ 2026 đòi API key, hiện chữ
+     * "API KEY REQUIRED"). OSM bắt buộc có Referer, mà hub đặt Referrer-Policy: same-origin cho
+     * cả trang → đặt riêng chính sách cho ảnh nền, không thì OSM trả ô "Access blocked".
+     * Nền tối = đảo màu bằng CSS (.bd-toi), OSM không có bản tối. */
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19, referrerPolicy: 'strict-origin-when-cross-origin',
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    }).addTo(map);
+    khung.classList.toggle('bd-toi', toi());
+    const mau = MAU();
+    const bien = [];
+    /* Cùng một địa điểm nhiều mốc → một ghim, popup liệt kê các mốc. */
     const gom = new Map();
-    /* Đánh số theo thứ tự thời gian của cả chuyến. */
-    const theoGio = diem.slice().sort((a, b) => a.ngay - b.ngay || (a.gio || 0) - (b.gio || 0));
-    theoGio.forEach((d, i) => { const k = d.noi; if (!gom.has(k)) gom.set(k, { ...d, so: [], muc: [] }); gom.get(k).so.push(i + 1); gom.get(k).muc.push(d.ten); });
-    /* Nhãn bên phải; điểm nằm sát mép phải (bờ Đông) thì đặt nhãn bên trái cho khỏi tràn. Hai nhãn quá gần nhau thì nhãn sau lùi xuống. */
-    const daDat = [];
-    const cham = [...gom.values()].map((d) => {
-      const trai = d.x > W * 0.62;
-      let ly = d.y + 4;
-      while (daDat.some((p) => Math.abs(p.y - ly) < 11 && Math.abs(p.x - d.x) < 90)) ly += 11;
-      daDat.push({ x: d.x, y: ly });
-      return '<g class="bd-diem n' + (d.ngay % 5) + '"><title>' + e(d.noi + ': ' + d.muc.join('; ')) + '</title><circle cx="' + d.x.toFixed(1) + '" cy="' + d.y.toFixed(1) + '" r="' + (nho ? 7 : 9) + '"/>' +
-        '<text class="bd-so" x="' + d.x.toFixed(1) + '" y="' + (d.y + (nho ? 3 : 3.5)).toFixed(1) + '">' + (d.so.length > 2 ? d.so[0] + '+' : d.so.join(',')) + '</text>' +
-        (nho ? '' : '<text class="bd-ten" text-anchor="' + (trai ? 'end' : 'start') + '" x="' + (d.x + (trai ? -13 : 13)).toFixed(1) + '" y="' + ly.toFixed(1) + '">' + e(d.noi) + '</text>') + '</g>';
-    }).join('');
-    const nhanVung = nho ? '' : [['DƯƠNG ĐÔNG', 103.93, 10.235], ['AN THỚI', 103.975, 10.04], ['GÀNH DẦU', 103.86, 10.395], ['HÒN THƠM', 104.05, 9.965]]
-      .map(([t, a, b]) => '<text class="bd-vung" x="' + px(a).toFixed(1) + '" y="' + py(b).toFixed(1) + '">' + t + '</text>').join('');
-    const svg = '<svg class="ban-do' + (nho ? ' nho' : '') + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Sơ đồ lịch trình Phú Quốc">' +
-      '<path class="bd-dao" d="' + dao + '"/>' + daoNho + nhanVung + duong + cham + '</svg>';
-    return { svg, chuaRo, coDiem: diem.length, soNgay: ngay.length };
+    dv.diem.forEach((d) => { const k = d.lat + ',' + d.lng; if (!gom.has(k)) gom.set(k, { ...d, muc: [] }); gom.get(k).muc.push(d); });
+    for (const g of gom.values()) {
+      const c = mau[g.ngay % 5];
+      const nhan = g.muc.length > 2 ? g.muc[0].so + '+' : g.muc.map((m) => m.so).join(',');
+      const icon = L.divIcon({ className: 'bd-ghim', html: '<span style="background:' + c + '">' + nhan + '</span>', iconSize: [26, 26], iconAnchor: [13, 13] });
+      L.marker([g.lat, g.lng], { icon, title: g.noi }).addTo(map).bindPopup('<b>' + e(g.noi) + '</b>' + (g.tay ? ' <i>(ghim tay)</i>' : '') + '<br>' +
+        g.muc.map((m) => m.so + '. ' + e(m.ten) + (ngayNhan[m.ngay] ? ' · ' + e(ngayNhan[m.ngay]) : '') + (m.gio ? ' ' + new Date(m.gio + 7 * 3600000).toISOString().slice(11, 16) : '')).join('<br>') +
+        '<br><a href="https://www.google.com/maps/search/?api=1&query=' + g.lat + ',' + g.lng + '" target="_blank" rel="noopener">Mở trên Google Maps</a>');
+      bien.push([g.lat, g.lng]);
+    }
+    if (bien.length) map.fitBounds(bien, { padding: [28, 28], maxZoom: 14 }); else map.setView([10.2, 103.97], 10);
+    /* Đường đi từng ngày: vẽ thẳng nét đứt trước (thấy ngay), rồi thay chặng trên đảo bằng đường bộ thật. */
+    dv.ngay.forEach((_, i) => {
+      const ds = dv.diem.filter((d) => d.ngay === i);
+      for (let j = 1; j < ds.length; j++) {
+        const a = ds[j - 1], b = ds[j];
+        if (a.lat === b.lat && a.lng === b.lng) continue;
+        const thang = L.polyline([[a.lat, a.lng], [b.lat, b.lng]], { color: mau[i % 5], weight: 3, opacity: 0.8, dashArray: '6 6' }).addTo(map);
+        if (a.dao || b.dao) continue;   // cáp treo / cano: giữ nét đứt
+        duongBo(a, b).then((r) => {
+          if (!r || !khung._banDo || khung._banDo !== map) return;
+          map.removeLayer(thang);
+          L.polyline(r.toaDo, { color: mau[i % 5], weight: 4, opacity: 0.85 }).addTo(map);
+        });
+      }
+    });
+    setTimeout(() => map.invalidateSize(), 60);
+    return { ok: true, chuaRo: dv.chuaRo, soDiem: dv.diem.length, ngay: dv.ngay, theoNgay: dv.ngay.map((_, i) => linkGoogle(dv.diem.filter((d) => d.ngay === i))) };
   }
 
-  goc.BanDo = { ve, doan, DIEM };
+  goc.BanDo = { ve, veThat, doan, dinhVi, linkGoogle, toaDoTrongChu, linkNgan, DIEM };
 })(window);

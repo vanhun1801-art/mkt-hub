@@ -159,8 +159,8 @@ async function ve() {
   veTabs(d.trang);
   const man = $('#man');
   try {
-    if (d.trang === 'ht' && d.id) return veChiTiet(man, d.id, d.con || 'thong-tin');
-    if (d.trang === 'lich-trinh') return veLichTrinh(man, d.q.get('ht'));
+    if (d.trang === 'ht' && d.id) { veChiTiet(man, d.id, d.con || 'thong-tin'); return ganBanDo(man); }
+    if (d.trang === 'lich-trinh') { veLichTrinh(man, d.q.get('ht')); return ganBanDo(man); }
     if (d.trang === 'ban-giao') return veBanGiaoTat(man);
     if (d.trang === 'kol') return veKol(man);
     if (d.trang === 'dich-vu') return veDichVu(man);
@@ -569,19 +569,45 @@ function dsDoiTac(them) {
     ...S.dl.hangMuc.map((h) => h.nhaCungCap), ...(them || [])].map((x) => String(x || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi'));
 }
 
-/** Sơ đồ Phú Quốc + chú thích ngày. moc: [{ngay, gio, ten, h}] (xem public/ban-do.js). */
+/* ---------------- bản đồ lịch trình (public/ban-do.js) ----------------
+ * htmlBanDo() chỉ đặt KHUNG + ghi dữ liệu vào S.bd; ganBanDo() gắn bản đồ thật (Leaflet)
+ * sau khi khung đã nằm trên trang. Tách hai bước vì Leaflet cần phần tử thật, và để gõ
+ * phím trong bảng kê không phải dựng lại bản đồ. */
+S.bd = {}; let soBd = 0;
 function htmlBanDo(moc, nho) {
   if (!window.BanDo || !moc.length) return '';
-  const r = window.BanDo.ve(moc, nho);
-  if (!r.coDiem) return '<div class="nho" style="margin-bottom:8px">Chưa đặt được mốc nào lên sơ đồ — thêm điểm hẹn (VinWonders, Bãi Sao, Dương Đông…) để hiện đường đi.</div>';
-  const ngay = [...new Set(moc.map((m) => m.ngay).filter(Boolean))].sort((a, b) => a - b);
-  return '<div class="bd-khung' + (nho ? ' nho' : '') + '">' + r.svg + '<div class="bd-chu">' +
-    ngay.map((d, i) => { const t = vn(d); return '<span class="bd-ngay n' + (i % 5) + '">' + THU[t.thu] + ' ' + p2(t.d) + '/' + p2(t.m) + '</span>'; }).join('') +
-    (r.chuaRo.length ? '<span class="nho" title="' + e(r.chuaRo.join('; ')) + '">' + r.chuaRo.length + ' mốc chưa rõ vị trí</span>' : '') + '</div></div>';
+  const id = 'bd' + (++soBd);
+  S.bd[id] = { moc, nho };
+  return '<div class="bd-khung' + (nho ? ' nho' : '') + '"><div class="bd-that" id="' + id + '"></div><div class="bd-chu" data-bdc="' + id + '"></div></div>';
+}
+const giaiLink = {};
+async function ganBanDo(goc) {
+  for (const el of $$('.bd-that', goc || document)) {
+    const cf = S.bd[el.id];
+    if (!cf || el.dataset.xong) continue;
+    el.dataset.xong = '1';
+    /* Link Google Maps rút gọn trong Điểm hẹn → hỏi server giải ra toạ độ (một lần mỗi link). */
+    const can = [...new Set(cf.moc.map((m) => window.BanDo.linkNgan(m.h.diemHen)).filter((u) => u && !(u in giaiLink)))];
+    await Promise.all(can.map((u) => api('/api/vi-tri?u=' + encodeURIComponent(u)).then((r) => { giaiLink[u] = r.lat ? r : null; }).catch(() => { giaiLink[u] = null; })));
+    const ngay = [...new Set(cf.moc.map((m) => m.ngay).filter(Boolean))].sort((x, y) => x - y);
+    const nhan = ngay.map((d) => { const t = vn(d); return THU[t.thu] + ' ' + p2(t.d) + '/' + p2(t.m); });
+    const r = await window.BanDo.veThat(el, cf.moc, { nho: cf.nho, giai: giaiLink, ngayNhan: nhan });
+    const chu = $('[data-bdc="' + el.id + '"]', goc || document);
+    if (!chu) continue;
+    if (!r.soDiem) {
+      chu.innerHTML = '<span class="nho">Chưa đặt được mốc nào lên bản đồ — ghi Điểm hẹn (VinWonders, Bãi Sao…) hoặc dán link Google Maps vào Điểm hẹn.</span>';
+      continue;
+    }
+    chu.innerHTML = nhan.map((t, i) => (r.theoNgay && r.theoNgay[i]
+      ? '<a class="bd-ngay n' + (i % 5) + '" href="' + e(r.theoNgay[i]) + '" target="_blank" rel="noopener" title="Mở lộ trình ngày này trên Google Maps">' + t + '</a>'
+      : '<span class="bd-ngay n' + (i % 5) + '">' + t + '</span>')).join('') +
+      (r.ok ? '<span class="nho">bấm ngày để mở Google Maps</span>' : '<span class="nho">không tải được bản đồ — đang hiện sơ đồ vẽ tay</span>') +
+      (r.chuaRo.length ? '<span class="nho" title="' + e(r.chuaRo.join('; ')) + '">· ' + r.chuaRo.length + ' mốc chưa rõ vị trí</span>' : '');
+  }
 }
 
 /** Lịch trình dựng từ chính các dòng đang sửa — thêm dòng nào hiện ngay dòng đó. */
-function htmlLichBk(ds, ht) {
+function htmlLichBk(ds, ht, chiDanhSach) {
   const song = ds.filter((h) => h.tinhTrang !== 'Huỷ');
   const nhom = new Map();
   for (const h of song) {
@@ -605,12 +631,13 @@ function htmlLichBk(ds, ht) {
   };
   const chua = moc.filter((g) => !g.d);
   const mocBd = moc.filter((g) => g.d).map((g) => ({ ngay: g.d, gio: g.gio, ten: g.ten, h: g.ds[0] }));
+  const dsHtml = ngay.map((d) => { const t = vn(d); const ds2 = moc.filter((g) => g.d === d);
+      return '<div class="lbk-ngay"><div class="lbk-dau">' + THU[t.thu] + ', ' + p2(t.d) + '/' + p2(t.m) + '</div>' + (ds2.map(veMoc).join('') || '<div class="nho" style="padding:2px 0 6px">Trống</div>') + '</div>'; }).join('') +
+    (chua.length ? '<div class="lbk-ngay"><div class="lbk-dau">Chưa xếp ngày</div>' + chua.map(veMoc).join('') + '</div>' : '');
+  if (chiDanhSach) return dsHtml;
   return '<div class="the lbk"><div class="the-dau"><h2>Lịch trình</h2><span class="nho">' + (ngay.length ? ngay.length + ' ngày' : '') + '</span></div><div class="the-than">' +
     (moc.length ? htmlBanDo(mocBd, true) : '<div class="nho">Thêm dòng vào bảng kê, lịch trình hiện ở đây.</div>') +
-    ngay.map((d) => { const t = vn(d); const ds2 = moc.filter((g) => g.d === d);
-      return '<div class="lbk-ngay"><div class="lbk-dau">' + THU[t.thu] + ', ' + p2(t.d) + '/' + p2(t.m) + '</div>' + (ds2.map(veMoc).join('') || '<div class="nho" style="padding:2px 0 6px">Trống</div>') + '</div>'; }).join('') +
-    (chua.length ? '<div class="lbk-ngay"><div class="lbk-dau">Chưa xếp ngày</div>' + chua.map(veMoc).join('') + '</div>' : '') +
-    '</div></div>';
+    '<div id="bkLichDs">' + dsHtml + '</div></div></div>';
 }
 
 function veBangKe(than, ht) {
@@ -660,6 +687,7 @@ function veBangKe(than, ht) {
       (goc.some((h) => h.ghiChu) ? '<div class="the"><div class="the-dau"><h2>Ghi chú dòng</h2></div><div class="the-than">' + goc.filter((h) => h.ghiChu).map((h) =>
         '<div style="margin-bottom:6px"><b>' + e(h.ten) + ':</b> <span class="nho">' + e(h.ghiChu) + '</span></div>').join('') + '</div></div>' : '') +
       '</div><div id="bkLich">' + htmlLichBk(ds, ht) + '</div></div>';
+    setTimeout(() => ganBanDo(than), 0);
     /* Đã chốt: khoá mọi ô, chỉ còn xem (mở chốt ở băng phía trên). */
     if (chot) { $$('.da-chot input, .da-chot select, .da-chot .nut-x', than).forEach((x) => { x.disabled = true; }); $('#bkLich').innerHTML = htmlLichBk(ds, ht); }
     if (chot) { $('#bkFoc').onclick = () => moXinFoc(ht); return; }
@@ -697,7 +725,7 @@ function veBangKe(than, ht) {
     const t = tong();
     $('#bkTong').textContent = tien(t.tt);
     $('#bkQd').textContent = chuQd(t.foc, t.qd);
-    $('#bkLich').innerHTML = htmlLichBk(S.sua.ds, ht);
+    if ($('#bkLichDs')) $('#bkLichDs').innerHTML = htmlLichBk(S.sua.ds, ht, true);
     $('#bkLuu').disabled = false;
   };
   than.onclick = async (ev) => {

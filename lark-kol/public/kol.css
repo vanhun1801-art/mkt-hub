@@ -184,6 +184,16 @@ select.foc-do { background: var(--red-bg); color: var(--red-text); }
 .lt-bd { position: sticky; top: 70px; }
 @media (max-width: 900px) { .lt-luoi { grid-template-columns: 1fr; } .lt-bd { position: static; } }
 .bd-khung { display: flex; flex-direction: column; gap: 8px; }
+/* bản đồ thật (Leaflet) */
+.bd-that { height: 560px; max-height: 72vh; border-radius: var(--r-lg); overflow: hidden; background: var(--surface-3); border: 1px solid var(--border); z-index: 0; }
+.bd-khung.nho .bd-that { height: 280px; }
+.bd-that .leaflet-control-attribution { font-size: 10px; }
+/* OSM không có nền tối — đảo màu ảnh nền (không đảo ghim, đường đi). */
+.bd-that.bd-toi .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.95) contrast(.9) saturate(.6); }
+.bd-ghim span { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; color: #fff; font: 700 11px/1 system-ui, sans-serif;
+  border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.35); }
+a.bd-ngay { text-decoration: none; }
+a.bd-ngay:hover { filter: brightness(1.1); text-decoration: underline; }
 .ban-do { width: 100%; max-height: 72vh; }
 .bd-khung.nho .ban-do { max-height: 300px; }
 .bd-dao { fill: var(--surface-3); stroke: var(--border-2); stroke-width: 1.2; }

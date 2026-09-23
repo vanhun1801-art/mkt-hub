@@ -245,6 +245,35 @@ async function luuKol(b) {
   return id;
 }
 
+/* Link Google Maps (kể cả rút gọn) → {lat, lng}. Đi theo chuyển hướng tối đa 5 lần, và CHỈ trong
+ * tên miền của Google — không thì ai cũng dùng được máy chủ này để gọi đi bất cứ đâu (SSRF). */
+const nhoViTri = new Map();
+/* Đuôi tên miền viết chặt: "google\.[a-z.]+" từng để lọt google.com.evil.com. */
+const MIEN_GOOGLE = /^(maps\.app\.goo\.gl|goo\.gl|(www\.|maps\.)?google\.(com|[a-z]{2})(\.[a-z]{2})?)$/i;
+function toaDoTuLink(t) {
+  const m = /!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/.exec(t) || /@(-?\d+\.\d+),(-?\d+\.\d+)/.exec(t) ||
+    /[?&](?:q|query|ll|destination|center)=(-?\d+\.\d+)(?:,|%2C)\s*(-?\d+\.\d+)/i.exec(t);
+  return m ? { lat: +m[1], lng: +m[2] } : null;
+}
+async function giaiLinkBanDo(link) {
+  if (nhoViTri.has(link)) return nhoViTri.get(link);
+  let url = link, kq = { lat: null };
+  try {
+    for (let i = 0; i < 5; i++) {
+      const h = new URL(url);
+      if (h.protocol !== 'https:' || !MIEN_GOOGLE.test(h.hostname)) break;
+      const tu = toaDoTuLink(decodeURIComponent(url));
+      if (tu) { kq = tu; break; }
+      const r = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(6000) });
+      const tiep = r.headers.get('location');
+      if (!tiep) { const tu2 = toaDoTuLink(await r.text().catch(() => '')); if (tu2) kq = tu2; break; }
+      url = new URL(tiep, url).href;
+    }
+  } catch (_) {}
+  nhoViTri.set(link, kq);
+  return kq;
+}
+
 /* ---------------- API ---------------- */
 async function api(req, res, u) {
   const p = u.pathname;
@@ -569,6 +598,11 @@ async function api(req, res, u) {
     const dong = dl[bang].find((x) => x.id === r[2]);
     if (dong && dong.hopTac) await tinhLaiTien(dong.hopTac);
     return json(res, { ok: true });
+  }
+
+  /* ----- toạ độ từ link Google Maps rút gọn (maps.app.goo.gl) ----- */
+  if (p === '/api/vi-tri' && m === 'GET') {
+    return json(res, await giaiLinkBanDo(String(u.searchParams.get('u') || '')));
   }
 
   /* ----- theo dõi thư trả lời ----- */
