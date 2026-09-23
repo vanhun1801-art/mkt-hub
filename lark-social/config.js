@@ -143,8 +143,13 @@ module.exports = {
          * Đồng bộ KHÔNG BAO GIỜ ghi cột này — cùng lý do với cột Nhãn ở trên. */
         poster: 'fld8RB5agE',
         /* Bài này làm để BÁN HÀNG hay để TƯƠNG TÁC — quyết định hệ số quy đổi
-         * khi app KPI chấm điểm (×1,0 và ×0,2). Điền tự động từ hashtag bằng
-         * `muc-dich.js`; trống thì app KPI chặn chốt tháng chứ không tự đoán. */
+         * khi app KPI chấm điểm (×1,0 và ×0,2). Trống thì app KPI chặn chốt
+         * tháng chứ không tự đoán.
+         *
+         * Cột này có HAI CHỦ, chia theo ngày anh Hùng ra quy định #Tour:
+         *   · từ 23/09/2026 trở đi — phan-loai.js giữ, tính lại mỗi lượt đồng bộ
+         *   · trước đó — nhập một lần từ bảng KPI của phòng, máy không đụng vào
+         * Xem phan-loai.js để biết vì sao không áp luật hashtag ngược về trước. */
         mucDich: 'fldW3g7168',
         source: 'fldbcgFFf0',
         updated: 'fldG6bq0Fk',
@@ -192,9 +197,12 @@ module.exports = {
         /* CHỈ dùng cho lần gắn bù bài cũ. Bài từ nay trở đi nhận nhãn bằng
          * hashtag, đúng như quy định anh Hùng ra cho đội nội dung. */
         keywords: 'fldXW92ZaV',
-        /* Bài mang nhãn này thì coi là Bán hàng hay Tương tác khi chấm KPI.
-         * Bỏ trống = nhãn này không nói lên mục đích (tên địa điểm, chủ đề). */
-        mucDich: 'fldz3loqW5',
+        /* BỎ TỪ 23/09/2026. Trước đây mỗi nhãn tự khai nó là Bán hàng hay Tương
+         * tác, rồi bài mang nhãn nào thì suy ra mục đích. Anh Hùng bỏ cách đó:
+         * giờ chỉ mỗi thẻ #Tour suy ra Bán hàng, xem phan-loai.js. Cột trên Base
+         * đã xoá sạch giá trị và hai nhãn nhóm "Mục đích" đã xoá; giữ lại id ở
+         * đây để ai gặp cột cũ còn biết nó từng là gì. Không mã nào đọc nữa. */
+        mucDich_BO: 'fldz3loqW5',
       },
     },
     alert: {

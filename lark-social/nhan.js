@@ -49,7 +49,7 @@ function theCuaBai(caption) {
 
 /**
  * Chuẩn hoá bảng nhãn đọc từ Base.
- * @returns [{ nhan, nhom, doiTac, mucDich, the: [...], ghiChu }]
+ * @returns [{ nhan, nhom, doiTac, the: [...], ghiChu }]
  */
 function chuanHoaNhan(rows) {
   return (rows || [])
@@ -57,9 +57,6 @@ function chuanHoaNhan(rows) {
       nhan: String(r.nhan || '').trim(),
       nhom: String(r.nhom || '').trim(),
       doiTac: String(r.doiTac || '').trim(),
-      /* Nhãn này nói lên mục đích gì khi chấm KPI ('Bán hàng' | 'Tương tác' |
-       * '' nếu nhãn không nói lên mục đích, như tên địa điểm). */
-      mucDich: String(r.mucDich || '').trim(),
       ghiChu: String(r.ghiChu || '').trim(),
       bat: r.bat !== false,
       the: tachThe(r.hashtag),
