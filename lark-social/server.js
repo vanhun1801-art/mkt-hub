@@ -24,6 +24,7 @@ const binhLuan = require('./binh-luan');
 const nhan = require('./nhan');
 const nguoiDang = require('./nguoi-dang');
 const choKhop = require('./cho-khop');
+const phanLoai = require('./phan-loai');
 /* Lọc mã ra khỏi mọi thông báo lỗi trước khi trả về trình duyệt. */
 const { scrub } = require('./sync/http');
 const phamVi = require('./pham-vi');
@@ -282,6 +283,18 @@ async function chayDongBo(opts) {
     /* Đồng bộ vừa kéo bài mới về — đây đúng là lúc hàng chờ người đăng có cơ
      * khớp được. Chạy ở đây chứ không nhờ trình duyệt ai cả. Hỏng thì ghi log
      * rồi thôi: không để nó làm hỏng một lượt đồng bộ đã xong. */
+    /* Phân loại Bán hàng / Tương tác theo thẻ #Tour. Chạy trước phần người
+     * đăng vì nó chỉ đọc caption — không phụ thuộc gì, và hỏng thì cũng không
+     * được kéo theo phần kia. */
+    try {
+      const pl = await phanLoai.chay((await store.tai(true)).posts);
+      if (pl.soDoi) {
+        store.xoaCache();
+        ghiLog('Phân loại: đổi ' + pl.soDoi + ' bài · bán hàng ' + pl.ban
+          + ' · tương tác ' + pl.tuong);
+      }
+    } catch (e) { ghiLog('Phân loại: hỏng — ' + e.message); }
+
     try {
       const k = await khopLaiNguoiDang();
       if (k.ghi || k.quaHan) {
