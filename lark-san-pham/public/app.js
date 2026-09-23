@@ -531,13 +531,32 @@ function hanHtml(p) {
 function bangDayHtml() {
   motTangMacDinh();
   const nhom = chiaTang(S.ds);
+
+  /* MÃ ĐÃ CÓ ĐANG CHỜ CẬP NHẬT — đi kèm tầng "Sắp ra mắt".
+     Anh Hùng, chỉ vào băng "Sắp ra mắt": "chỗ này hiện luôn giúp anh các thông
+     tin chuẩn bị thay đổi trên các mã sản phẩm đã có trước đó, chỉ là update".
+     Cùng một câu hỏi "sắp tới có gì khác đi" mà đang phải xem hai nơi: tour mới
+     thì ở đây, còn tour cũ sắp đổi lịch trình thì nằm rải trong các tầng bên
+     dưới. Gom lại một chỗ. Tách khối con có nhãn riêng chứ không trộn chung
+     lưới: mã mới mở bán và mã chỉ đổi nội dung là hai việc khác nhau. */
+  const daCoTrongTang = new Set((nhom[0] ? nhom[0].ds : []).map((p) => p.id));
+  const choCapNhat = S.ds
+    .filter((p) => p.trangThai !== 'Ngừng bán' && p.lichCho && p.lichCho.length
+      && !daCoTrongTang.has(p.id))
+    .sort((a, b) => (a.lichCho[0].ngayApDung || 0) - (b.lichCho[0].ngayApDung || 0));
+
   let html = phanBoHtml(nhom);
   html += '<p class="dan">Mỗi sản phẩm nằm ở đúng một tầng. “Sắp ra mắt” đứng trên cùng vì ' +
     'việc phải làm là kịp nội dung cho ngày mở bán.' +
+    (choCapNhat.length
+      ? ' Băng đó kèm luôn những mã đã có đang chờ cập nhật, nên các mã này hiện hai lần: ' +
+        'một ở trên cùng, một ở tầng của chúng.'
+      : '') +
     (laQuanLy() ? ' Đổi tầng của một sản phẩm ở tab Quản lý hoặc trong ngăn chi tiết.' : '') +
     '</p>';
   for (const { tang, ds } of nhom) {
-    if (!ds.length) continue;
+    const themCapNhat = tang.id === 'sap-ra-mat' ? choCapNhat : [];
+    if (!ds.length && !themCapNhat.length) continue;
     /* <details> chứ không phải nút tự viết: gập/mở là hành vi sẵn có của trình
        duyệt, đọc được bằng bàn phím và trình đọc màn hình mà không cần thêm mã. */
     const dangMo = S.tangMo.has(tang.id);
@@ -549,9 +568,19 @@ function bangDayHtml() {
         '<span class="dem">' + ds.length + '</span>' +
         '<span class="tangMo">' + esc(tang.ghi) + '</span>' +
       '</summary>' +
-      (tang.the
-        ? '<div class="tangLuoi">' + ds.map(theDayHtml).join('') + '</div>'
-        : '<div class="tangThan">' + ds.map(dongHtml).join('') + '</div>') +
+      (ds.length
+        ? (tang.the
+          ? '<div class="tangLuoi">' + ds.map(theDayHtml).join('') + '</div>'
+          : '<div class="tangThan">' + ds.map(dongHtml).join('') + '</div>')
+        : '') +
+      (themCapNhat.length
+        ? '<div class="cnDau">' +
+            '<span class="tangIcon">🔄</span><b>Cập nhật trên mã đã có</b>' +
+            '<span class="dem">' + themCapNhat.length + '</span>' +
+            '<span class="tangMo">Mã cũ, chỉ đổi nội dung — không phải sản phẩm mới</span>' +
+          '</div>' +
+          '<div class="tangLuoi">' + themCapNhat.map(theDayHtml).join('') + '</div>'
+        : '') +
       '</details>';
   }
   const ngung = S.ds.filter((p) => p.trangThai === 'Ngừng bán').length;

@@ -374,6 +374,21 @@ main { padding: 16px; max-width: 1460px; margin: 0 auto; }
 }
 .tangDau .tangMo { font-size: 12px; color: var(--t3); }
 
+/* Khối con "Cập nhật trên mã đã có" nằm trong băng Sắp ra mắt. Cùng một câu hỏi
+   "sắp tới có gì khác đi" nên để chung băng, nhưng mã mới mở bán và mã chỉ đổi
+   nội dung là hai việc khác nhau — nên có nhãn riêng, kẻ một vạch ngăn, và
+   KHÔNG bấm gập được (nó không phải một tầng). */
+.cnDau {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px 14px; border-top: 1px solid var(--line-soft); background: var(--surface-2);
+}
+.cnDau b { font-size: 14px; }
+.cnDau .dem {
+  font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 999px;
+  background: var(--line-soft); color: var(--t2);
+}
+.cnDau .tangMo { font-size: 12px; color: var(--t3); }
+
 .tangThan { display: flex; flex-direction: column; }
 .dong {
   display: grid; grid-template-columns: 96px minmax(0, 1.6fr) 120px minmax(0, 2fr);
