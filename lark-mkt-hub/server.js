@@ -1217,9 +1217,8 @@ async function api(req, res, u) {
       if (!g) continue;
       for (const t of g.ds) {
         if (!t || !t.tieuDe) continue;
-        raApp.push(Object.assign({}, t, {
-          tuDong: true, mod: g.mod.id, modTen: g.mod.ten || g.mod.id,
-        }));
+        /* Ghép nút CTA về đúng app — luật nằm trong tbApp.tuAppCon(). */
+        raApp.push(tbApp.tuAppCon(g.mod, t));
       }
     }
 
@@ -1415,7 +1414,30 @@ async function api(req, res, u) {
       try { hang = await quyen.docTatCa(u.searchParams.get('refresh') === '1'); }
       catch (e) { loiBang = e.message; }
 
-      const danhBa = await danhBaMoiApp(nguoi);
+      let danhBa = await danhBaMoiApp(nguoi);
+
+      /* GỘP CẢ TÀI KHOẢN NGOÀI LARK vào danh bạ đối chiếu.
+       *
+       * Người đăng ký bằng email + mật khẩu không có trong danh bạ Lark. Không
+       * gộp vào đây thì dòng phân quyền của họ hiện băng ĐỎ "Chưa khớp ai —
+       * quyền chưa có tác dụng", mà đó là câu SAI: `quyen.cuaNguoi()` khớp bằng
+       * email trước tiên, nên quyền vẫn ăn. Báo sai kiểu này còn tệ hơn không
+       * báo, vì nó đẩy quản lý đi sửa một thứ vốn đang đúng.
+       *
+       * Anh Hùng gặp đúng thế ngày 23/09/2026: duyệt xong một tài khoản rồi
+       * "không thấy chỉnh quyền, hay thông tin của tài khoản này".
+       *
+       * `ngoaiLark` để panel nói rõ đây là người ngoài — cấp base cho họ là
+       * chuyện cần cân nhắc hơn cấp cho nhân sự trong công ty. */
+      try {
+        if (taiKhoan.co()) {
+          const tk = (await taiKhoan.docHet()).filter((x) => x.trangThai === taiKhoan.TT.hoatDong);
+          const daCo = new Set(danhBa.map((x) => String(x.email || '').toLowerCase()));
+          danhBa = danhBa.concat(tk
+            .filter((x) => !daCo.has(x.email))
+            .map((x) => ({ id: 'mk:' + x.recordId, ten: x.ten || x.email, email: x.email, ngoaiLark: true })));
+        }
+      } catch (_) { /* Base lỗi thì thôi, panel vẫn chạy với danh bạ Lark */ }
 
       /* ĐỐI CHIẾU với danh bạ thật: dòng khai bằng tay rất dễ lệch (tên trong Lark
        * là "Hân Phù MKT" mà khai "Phù Mỹ Hân", email đoán sai) — lệch là app không
@@ -1431,7 +1453,7 @@ async function api(req, res, u) {
         const ai = theoMail || theoId || theoTen || null;
         return Object.assign({}, h, {
           khop: ai ? {
-            id: ai.id, ten: ai.ten,
+            id: ai.id, ten: ai.ten, ngoaiLark: !!ai.ngoaiLark,
             cach: theoMail ? 'email' : theoId ? 'open_id' : 'ten',
           } : null,
           trungTen: cungTen.length > 1 ? cungTen.length : 0,

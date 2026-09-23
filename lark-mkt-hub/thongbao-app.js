@@ -400,11 +400,42 @@ async function cotThieu() {
   }
 }
 
+/**
+ * Một tin do APP CON tự phát -> mục cho bảng tin của lớp vỏ.
+ *
+ * NÚT CTA ĐƯA VỀ APP, KHÔNG VỀ BASE. Anh Hùng: "nút CTA cần đưa về app thay vì
+ * về page". App con chỉ nói MỞ BẢN GHI NÀO (`moRec`); đường đi do hub ghép, vì
+ * chỉ hub biết định tuyến của chính nó — app con nằm trong iframe, nó không
+ * được phép đoán hub đang ở địa chỉ nào.
+ *
+ * Dấu `#` mở đầu là giao ước sẵn có với popup (public/tbapp.js): đường trong
+ * hub thì đi bằng định tuyến, link ra ngoài mới mở tab mới.
+ *
+ * App con vẫn trỏ ra ngoài được khi thật sự cần (link http tuyệt đối) — hub
+ * tôn trọng, không giẫm lên.
+ *
+ * `tuDong` là thứ ngăn tin máy dựng bị đối xử như thông báo của quản lý; nó
+ * được đóng CỨNG ở đây chứ không lấy theo lời app con khai.
+ */
+function tuAppCon(mod, t) {
+  const raNgoai = /^https?:/i.test((t && t.lienKet) || '');
+  const ten = (mod && (mod.ten || mod.id)) || '';
+  return Object.assign({}, t, {
+    tuDong: true,
+    mod: mod && mod.id,
+    modTen: ten,
+    nhanNut: (t && t.nhanNut) || ('Mở ' + ten),
+    lienKet: raNgoai ? t.lienKet
+      : '#/m/' + (mod && mod.id) + (t && t.moRec ? '?rec=' + encodeURIComponent(t.moRec) : ''),
+  });
+}
+
 const coBang = () => !!(FILE || B);
 const larkUrl = () => (B ? B.larkUrl : '');
 
 module.exports = {
   F, MUC_DO, docTatCa, cuaNguoi, xacNhan, luu, xoa, xoaCache, cotThieu, coBang, larkUrl,
+  tuAppCon,
   dinhTep, goTep, taiTep,
   // để kiểm thử gọi trực tiếp
   dangHieuLuc, daXacNhan, docDaDoc, ghiDaDoc, chuanHoa, ghiCoDocLai,

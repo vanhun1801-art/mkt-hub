@@ -47,6 +47,28 @@ function gon(v, tran = 70) {
   return s.length > tran ? s.slice(0, tran) + '…' : s;
 }
 
+/* Tự chấm phân cách nghìn thay vì toLocaleString('vi-VN'): hàm kia phụ thuộc
+   bộ ICU của Node, mà Node gọn trên máy chủ có thể không kèm, và lúc đó nó im
+   lặng trả về "850000" chứ không báo lỗi. */
+const tien = (n) => String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
+/**
+ * Dòng nhận diện một tour: loại tour · thời lượng · giá.
+ *
+ * Anh Hùng: "nên có nhiều thông tin hơn về loại tour đó để người xem nhận diện
+ * được tour dễ hơn". Mã tour là đủ cho đội sản phẩm, nhưng bảng tin thì cả
+ * phòng đọc — người chạy quảng cáo không thuộc GLAND_RV là tour nào.
+ *
+ * Thiếu trường nào thì bỏ trường đó, không in chỗ trống.
+ */
+function dongNhanDien(t) {
+  if (!t) return '';
+  const gia = [];
+  if (t.giaNL) gia.push(tien(t.giaNL) + 'đ NL');
+  if (t.giaTE) gia.push(tien(t.giaTE) + 'đ TE');
+  return [t.nhom, t.thoiLuong, gia.join(' · ')].filter(Boolean).join(' · ');
+}
+
 /**
  * Ghi một lô thay đổi.
  *
@@ -103,8 +125,13 @@ const NGAY = 86400000;
  * Gộp theo LÔ + CỘT: một thao tác hàng loạt ra một tin, một sửa lẻ ra một tin.
  * Chỉ lấy trong `soNgay` ngày gần đây — bảng tin là nơi "có gì mới", không phải
  * kho lưu trữ; muốn tra đủ thì mở bảng Nhật ký thay đổi trên Base.
+ *
+ * `theTheoId`: Map recordId -> thẻ nhận diện sản phẩm
+ *   { ten, tenEn, nhom, thoiLuong, giaNL, giaTE }
+ * Trước đây chỗ này chỉ nhận mỗi cái tên, và tin đọc ra "GLAND_RV — Tour Rạch
+ * Vẹm — đổi ưu tiên marketing" là hết; ai không thuộc mã tour thì chịu.
  */
-function dungTin(dsLog, tenTheoId, baseUrl, soNgay = 14, tran = 12) {
+function dungTin(dsLog, theTheoId, soNgay = 14, tran = 12) {
   const moc = Date.now() - soNgay * NGAY;
   const nhom = new Map();
   for (const r of dsLog) {
@@ -117,22 +144,35 @@ function dungTin(dsLog, tenTheoId, baseUrl, soNgay = 14, tran = 12) {
   const tin = [];
   for (const [khoa, rs] of nhom) {
     const dau = rs[0];
-    const ten = (r) => tenTheoId.get(r.spIds[0]) || r.ten || '?';
+    const the = (r) => theTheoId.get(r.spIds[0]) || null;
+    const ten = (r) => (the(r) || {}).ten || r.ten || '?';
     const nhieuSP = rs.length > 1;
     const tieuDe = nhieuSP
       ? rs.length + ' sản phẩm đổi ' + dau.cot.toLowerCase()
       : ten(dau) + ' — đổi ' + dau.cot.toLowerCase();
-    const noiDung = nhieuSP
-      ? rs.slice(0, 8).map(ten).join(' · ') + (rs.length > 8 ? ' …' : '') +
-        '\n' + dau.cot + ': ' + gon(dau.moi)
-      : dau.cot + ': ' + gon(dau.cu) + ' → ' + gon(dau.moi);
+
+    /* Thân tin xếp từ NHẬN RA TOUR NÀO xuống ĐỔI CÁI GÌ. Đảo lại thì người đọc
+       gặp "900.000đ → 800.000đ" trước khi kịp biết đang nói về tour nào. */
+    const dong = [];
+    const t1 = nhieuSP ? null : the(dau);
+    if (t1 && t1.tenEn) dong.push(t1.tenEn);
+    if (t1) { const nd = dongNhanDien(t1); if (nd) dong.push(nd); }
+    if (nhieuSP) dong.push(rs.slice(0, 8).map(ten).join(' · ') + (rs.length > 8 ? ' …' : ''));
+    dong.push(nhieuSP
+      ? dau.cot + ': ' + gon(dau.moi)
+      : dau.cot + ': ' + gon(dau.cu) + ' → ' + gon(dau.moi));
+
     tin.push({
       recordId: 'nk-' + khoa,
       tieuDe,
-      noiDung,
+      noiDung: dong.join('\n'),
       mucDo: 'Tin',
-      nhanNut: 'Mở Base sản phẩm',
-      lienKet: baseUrl,
+      /* Nút CTA mở ĐÚNG app, không quăng người ta ra Base — anh Hùng: "nút CTA
+         cần đưa về app thay vì về page". App con chỉ nói MỞ BẢN GHI NÀO; lớp vỏ
+         ghép thành đường, vì chỉ nó biết mình đang nằm ở địa chỉ nào và định
+         tuyến ra sao. Nhóm nhiều sản phẩm thì không có bản ghi nào để trỏ, mở
+         thẳng app là đủ. */
+      moRec: nhieuSP ? '' : (dau.spIds[0] || ''),
       tuNgay: dau.luc,
       denNgay: 0,
       tep: [],
@@ -148,4 +188,4 @@ function dungTin(dsLog, tenTheoId, baseUrl, soNgay = 14, tran = 12) {
   return tin.sort((a, b) => b.tuNgay - a.tuNgay).slice(0, tran);
 }
 
-module.exports = { ghi, veDong, dungTin, gioBase, maLo, gon };
+module.exports = { ghi, veDong, dungTin, gioBase, maLo, gon, dongNhanDien, tien };

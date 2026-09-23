@@ -118,7 +118,19 @@ function veTbApp() {
     oMo.onclick = () => {
       TB.daBam = true;
       if (trongHub) {
-        /* Nhớ lại rồi đi sau khi xác nhận — xem chú thích ở trên. */
+        /* ĐỌC LẠI thì đi NGAY. Chế độ này chỉ có nút "Đóng" — không có "Tôi đã
+           đọc" để mà chờ, nên nhớ-rồi-đi-sau là chờ một nút không tồn tại: bấm
+           CTA xong popup đứng yên, trông như nút hỏng. Tin tự động của app con
+           LUÔN rơi vào nhánh này (nó không bao giờ chặn màn hình), nên đây là
+           đường đi chính của chúng chứ không phải trường hợp hiếm. */
+        if (TB.chiDoc) {
+          const di = tb.lienKet;
+          dongXemThu();
+          location.hash = di;
+          return;
+        }
+        /* Còn popup chặn màn hình thì nhớ lại, xác nhận xong mới đi — xem chú
+           thích ở trên. */
         TB.diToi = tb.lienKet;
         veTbApp();
         return;

@@ -413,6 +413,44 @@ const LUC = NGAY('2026-09-11') + 10 * 3600000;   // 10h sáng 11/09 giờ VN
 
   try { fs.rmSync(tmp, { recursive: true, force: true }); } catch (_) {}
 
+  group('9. tuAppCon() — tin của app con: nút CTA đưa về app, không về Base');
+  {
+    const mod = { id: 'san-pham', ten: 'Thông tin sản phẩm' };
+
+    /* Anh Hùng: "nút CTA cần đưa về app thay vì về page". App con gửi record id,
+       hub ghép đường — app con nằm trong iframe, nó không biết hub ở địa chỉ nào. */
+    const co = tb.tuAppCon(mod, { tieuDe: 'GLAND_RV đổi ưu tiên', moRec: 'recABC' });
+    ok('dựng đường vào đúng app kèm bản ghi', co.lienKet === '#/m/san-pham?rec=recABC', co.lienKet);
+    /* Dấu # là giao ước với popup (public/tbapp.js): đường trong hub thì đi bằng
+       định tuyến. Mất dấu này là nút quăng người ta ra một tab mới. */
+    ok('đường trong hub bắt đầu bằng #', co.lienKet.startsWith('#'));
+    ok('nhãn nút mang tên app', co.nhanNut === 'Mở Thông tin sản phẩm', co.nhanNut);
+
+    const khong = tb.tuAppCon(mod, { tieuDe: '3 sản phẩm đổi giá' });
+    ok('không có bản ghi thì mở thẳng app', khong.lienKet === '#/m/san-pham', khong.lienKet);
+
+    /* Mã bản ghi phải qua encodeURIComponent, không thì một ký tự lạ cắt mất
+       phần truy vấn phía sau. */
+    const la = tb.tuAppCon(mod, { tieuDe: 'x', moRec: 'rec A&b=1' });
+    ok('mã bản ghi được mã hoá', la.lienKet === '#/m/san-pham?rec=rec%20A%26b%3D1', la.lienKet);
+
+    /* App con vẫn trỏ ra ngoài được khi thật sự cần — hub không giẫm lên. */
+    const ngoai = tb.tuAppCon(mod, { tieuDe: 'x', lienKet: 'https://rootytrip2.sg.larksuite.com/base/A' });
+    ok('link http tuyệt đối thì giữ nguyên',
+      ngoai.lienKet === 'https://rootytrip2.sg.larksuite.com/base/A', ngoai.lienKet);
+
+    /* Cờ này ngăn tin máy dựng bị đối xử như thông báo của quản lý — đóng cứng
+       ở hub, không nghe theo lời app con khai. */
+    const doi = tb.tuAppCon(mod, { tieuDe: 'x', tuDong: false });
+    ok('luôn đánh dấu là tin tự động', doi.tuDong === true);
+
+    const nhanRieng = tb.tuAppCon(mod, { tieuDe: 'x', nhanNut: 'Xem bảng giá' });
+    ok('app con đặt nhãn riêng thì tôn trọng', nhanRieng.nhanNut === 'Xem bảng giá');
+
+    const khuyetTen = tb.tuAppCon({ id: 'social' }, { tieuDe: 'x' });
+    ok('app không khai tên thì dùng id', khuyetTen.nhanNut === 'Mở social', khuyetTen.nhanNut);
+  }
+
   console.log('\n' + '─'.repeat(56));
   console.log('  ' + pass + ' pass · ' + fail + ' fail');
   if (fail) { console.log('\n  Không đạt:'); fails.forEach((f) => console.log('   - ' + f)); }

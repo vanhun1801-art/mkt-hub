@@ -485,8 +485,22 @@ async function api(req, res, u) {
    * phát tin, hub gộp vào bảng tin và chỉ bảng tin. */
   if (p === '/tin') {
     const { ds, dsNhatKy } = await kho.tatCa();
-    const ten = new Map(ds.map((x) => [x.id, (x.ma ? x.ma + ' — ' : '') + x.ten]));
-    return json(res, { ds: nhatKy.dungTin(dsNhatKy || [], ten, cfg.baseUrl) });
+    /* Thẻ nhận diện, không phải mỗi cái tên: bảng tin cả phòng đọc, mà ngoài đội
+       sản phẩm thì không ai thuộc mã tour. Giá lấy bản SAU ưu đãi khi có, vì đó
+       mới là giá đang bán — bảng tin nói giá gốc là gieo nhầm số cho người chạy
+       quảng cáo. */
+    const the = new Map(ds.map((x) => {
+      const g = x.giaSauGiam || {};
+      return [x.id, {
+        ten: (x.ma ? x.ma + ' — ' : '') + x.ten,
+        tenEn: x.tenEn || '',
+        nhom: x.nhom || '',
+        thoiLuong: x.thoiLuong || '',
+        giaNL: g.nl || x.giaNL || 0,
+        giaTE: g.te || x.giaTE || 0,
+      }];
+    }));
+    return json(res, { ds: nhatKy.dungTin(dsNhatKy || [], the) });
   }
 
   if (p === '/lam-moi' && req.method === 'POST') {

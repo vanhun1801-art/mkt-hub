@@ -1088,6 +1088,24 @@ async function nap(moi) {
   S.capNhat = d.capNhat;
 }
 
+/**
+ * Mở sẵn sổ chi tiết của một tour khi lớp vỏ gọi tới kèm `?rec=…`.
+ *
+ * Người ta bấm nút trên một tin sản phẩm ở trang Tổng quan; lớp vỏ nạp app này
+ * kèm record id. Không đọc thì họ rơi vào danh sách 67 dòng và phải tự đi tìm
+ * đúng cái tour vừa đọc tin — nút CTA coi như chỉ mở app chứ không dẫn tới đâu.
+ *
+ * Mã không khớp (tour bị xoá, link cũ) thì im lặng mở danh sách bình thường:
+ * một lời báo lỗi ở đây không giúp được gì cho người đọc tin.
+ */
+function moTheoDuong() {
+  let rec = '';
+  try { rec = new URLSearchParams(location.search).get('rec') || ''; } catch (_) { return; }
+  if (!rec) return;
+  const p = S.ds.find((x) => x.id === rec);
+  if (p) veSo(p);
+}
+
 async function khoiTao() {
   try {
     const [kt] = await Promise.all([api('/api/khoi-tao'), nap(false)]);
@@ -1098,6 +1116,7 @@ async function khoiTao() {
     S.baseUrl = kt.baseUrl;
     S.baseUrlBoSung = kt.baseUrlBoSung;
     ve();
+    moTheoDuong();
   } catch (e) {
     $('#man').innerHTML = '<div class="dangTai err">Không đọc được Base: ' + esc(e.message) + '</div>';
     $('#man').removeAttribute('aria-busy');
