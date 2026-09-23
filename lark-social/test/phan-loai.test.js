@@ -56,11 +56,12 @@ t('caption rỗng thì vẫn phải ra một loại, không để trống', () =
 });
 
 t('chỉ trả về dòng CẦN đổi, không ghi lại cái đang đúng', () => {
+  const N = P.NGAY_AP_DUNG + 'T09:00:00+08:00';    // trong diện máy cầm quyền
   const bai = [
-    { id: 'a', title: 'Combo #Tour', mucDich: 'Bán hàng' },   // đã đúng
-    { id: 'b', title: 'Biển đẹp', mucDich: 'Tương tác' },     // đã đúng
-    { id: 'c', title: 'Combo #Tour', mucDich: '' },           // phải điền
-    { id: 'd', title: 'Biển đẹp', mucDich: 'Bán hàng' },      // phải sửa lại
+    { id: 'a', title: 'Combo #Tour', mucDich: 'Bán hàng', publishedAt: N },  // đã đúng
+    { id: 'b', title: 'Biển đẹp', mucDich: 'Tương tác', publishedAt: N },    // đã đúng
+    { id: 'c', title: 'Combo #Tour', mucDich: '', publishedAt: N },          // phải điền
+    { id: 'd', title: 'Biển đẹp', mucDich: 'Bán hàng', publishedAt: N },     // phải sửa lại
   ];
   const r = P.tinh(bai);
   assert.strictEqual(r.ban, 2);
@@ -73,7 +74,8 @@ t('cột này do máy giữ: ô người ta sửa tay sẽ bị tính lại', ()
   /* Cố ý. Anh Hùng nói "còn lại là tương tác hết" — hết nghĩa là không ngoại lệ.
      Ghi phép thử để sau này ai thấy ô mình sửa bị đổi thì biết đó là thiết kế,
      không phải app nuốt mất. */
-  const r = P.tinh([{ id: 'x', title: 'Biển đẹp #phuquoc', mucDich: 'Bán hàng' }]);
+  const r = P.tinh([{ id: 'x', title: 'Biển đẹp #phuquoc', mucDich: 'Bán hàng',
+    publishedAt: P.NGAY_AP_DUNG + 'T09:00:00+08:00' }]);
   assert.strictEqual(r.soDoi, 1);
 });
 
@@ -87,6 +89,35 @@ t('danh sách thẻ bán hàng khai được từ ngoài, không phải sửa m�
 t('đọc được mọi hashtag trong caption, kể cả tiếng Việt có dấu', () => {
   assert.deepStrictEqual(P.theCuaBai('#Tour #hònthơm #Phú_Quốc #tour'),
     ['#tour', '#hònthơm', '#phú_quốc']);
+});
+
+
+t('luật chỉ cầm quyền TỪ NGÀY CÓ LUẬT trở đi', () => {
+  /* Anh Hùng ra quy định #Tour ngày 23/09/2026. Bài trước đó thì đội nội dung
+     chưa từng được yêu cầu gõ thẻ — soi hashtag vào là kết luận sai. Đo thật:
+     cả kho 2.525 bài chỉ ra 134 bài bán hàng, trong khi bảng KPI của phòng ghi
+     481 bài bán hàng cho cùng giai đoạn. Áp ngược là xoá sạch công phân loại
+     tay của phòng và hạ nhầm KPI của người ta. */
+  const truoc = { id: 'a', title: 'Biển đẹp', mucDich: 'Bán hàng', publishedAt: '2026-09-22T10:00:00+08:00' };
+  const sau = { id: 'b', title: 'Biển đẹp', mucDich: 'Bán hàng', publishedAt: '2026-09-23T10:00:00+08:00' };
+  const r = P.tinh([truoc, sau]);
+  assert.strictEqual(r.boQua, 1, 'bài trước ngày ra luật thì không đụng vào');
+  assert.deepStrictEqual(Object.keys(r.doi), ['b'], 'chỉ sửa bài từ ngày ra luật trở đi');
+  assert.strictEqual(r.ban + r.tuong, 1, 'và cũng chỉ ĐẾM phần mình cầm quyền');
+});
+
+t('không rõ ngày đăng thì coi là bài cũ, không đụng', () => {
+  /* Thà bỏ sót còn hơn đè nhầm lên một ô đã phân loại tay. */
+  [null, undefined, '', 'không phải ngày'].forEach((ngay) => {
+    const r = P.tinh([{ id: 'x', title: '#Tour', mucDich: '', publishedAt: ngay }]);
+    assert.strictEqual(r.soDoi, 0, JSON.stringify(ngay));
+  });
+});
+
+t('ngày ra luật đổi được từ ngoài, không phải sửa mã', () => {
+  assert.ok(/^\d{4}-\d{2}-\d{2}$/.test(P.NGAY_AP_DUNG), 'dạng YYYY-MM-DD: ' + P.NGAY_AP_DUNG);
+  assert.strictEqual(P.trongTam({ publishedAt: P.NGAY_AP_DUNG + 'T00:00:00+08:00' }), true,
+    'đúng ngày ra luật thì đã tính');
 });
 
 console.log('\n' + so + ' phép thử đạt\n');

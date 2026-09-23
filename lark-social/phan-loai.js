@@ -33,6 +33,20 @@ const lark = require('./lark');
 const BAN_HANG = 'Bán hàng';
 const TUONG_TAC = 'Tương tác';
 
+/**
+ * LUẬT NÀY CHỈ CẦM QUYỀN TỪ NGÀY CÓ LUẬT.
+ *
+ * Anh Hùng ra quy định #Tour ngày 23/09/2026. Bài đăng TRƯỚC đó thì đội nội
+ * dung chưa từng được yêu cầu gõ thẻ, nên soi hashtag vào là kết luận sai —
+ * đo thật: cả kho 2.525 bài chỉ ra 134 bài bán hàng, trong khi bảng KPI của
+ * phòng ghi 409 bài bán hàng chỉ trong phần nó phủ. Áp ngược là xoá sạch công
+ * phân loại tay của phòng và hạ nhầm KPI của người ta.
+ *
+ * Nên: từ NGAY_AP_DUNG trở đi máy giữ cột; trước đó máy KHÔNG ĐỤNG VÀO, giá
+ * trị ở đấy là do nhập từ bảng KPI hoặc do người điền.
+ */
+const NGAY_AP_DUNG = String(process.env.SOCIAL_NGAY_PHAN_LOAI || '2026-09-23').slice(0, 10);
+
 /** Chuẩn hoá một thẻ người ta gõ: thêm #, bỏ hoa thường, bỏ khoảng trắng. */
 const chuanThe = (s) => {
   const t = String(s || '').trim().toLowerCase();
@@ -62,17 +76,30 @@ function loaiCuaBai(caption) {
  * Chỉ trả dòng lệch, không trả tất cả: ghi 2.525 dòng mỗi lượt đồng bộ chỉ để
  * ghi lại đúng cái đang có là mười mấy lô gọi Lark cho vui.
  */
+function trongTam(p) {
+  /* Không rõ ngày đăng thì coi như bài cũ — thà bỏ sót còn hơn đè nhầm lên một
+   * ô đã phân loại tay. */
+  const ngay = String(p && p.publishedAt ? p.publishedAt : '').slice(0, 10);
+  /* Phải ĐÚNG DẠNG ngày mới đem so. So chuỗi thô thì "không phải ngày" lớn hơn
+   * "2026-09-23" (chữ 'k' đứng sau chữ số), nên một ô ngày hỏng lại lọt vào
+   * diện máy cầm quyền rồi bị ghi đè. */
+  if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(ngay)) return false;
+  return ngay >= NGAY_AP_DUNG;
+}
+
 function tinh(posts) {
   const f = cfg.tables.post.f;
   const doi = {};
   let ban = 0;
   let tuong = 0;
+  let boQua = 0;
   (posts || []).forEach((p) => {
+    if (!trongTam(p)) { boQua += 1; return; }
     const moi = loaiCuaBai(p.title);
     if (moi === BAN_HANG) ban += 1; else tuong += 1;
     if (String(p.mucDich || '').trim() !== moi) doi[p.id] = { [f.mucDich]: moi };
   });
-  return { doi, ban, tuong, soDoi: Object.keys(doi).length };
+  return { doi, ban, tuong, boQua, soDoi: Object.keys(doi).length };
 }
 
 /** Tính rồi ghi. Gọi sau mỗi lượt đồng bộ. */
@@ -83,6 +110,6 @@ async function chay(posts) {
 }
 
 module.exports = {
-  chay, tinh, loaiCuaBai, theCuaBai, chuanThe,
-  THE_BAN_HANG, BAN_HANG, TUONG_TAC,
+  chay, tinh, trongTam, loaiCuaBai, theCuaBai, chuanThe,
+  THE_BAN_HANG, BAN_HANG, TUONG_TAC, NGAY_AP_DUNG,
 };
