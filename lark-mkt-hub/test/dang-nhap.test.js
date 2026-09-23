@@ -310,7 +310,34 @@ async function chay() {
   const sv2 = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
   ok('danh bạ đối chiếu có gộp tài khoản ngoài Lark',
     /ngoaiLark: true/.test(sv2) && /taiKhoan\.docHet\(\)/.test(sv2));
-  ok('panel nói rõ đây là người NGOÀI công ty', /ngoài Lark/.test(qj));
+  ok('panel vẫn nhắc cân nhắc base nào mở cho người này',
+    /Cân nhắc kỹ base nào mở cho người này/.test(qj));
+
+  /* Anh Hùng 23/09/2026: "không gọi người không có tài khoản Lark mà đơn giản
+   * là gọi là tài khoản thôi". Chữ trên MÀN HÌNH phải sạch; chú thích trong mã
+   * vẫn được nhắc, vì nó giải thích vì sao có chỗ phân biệt. */
+  const boChuThichJs = (s) => s.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
+  const chuManHinh = boChuThichJs(cd) + boChuThichJs(qj) +
+    boChuThichJs(fs.readFileSync(path.join(__dirname, '..', 'auth.js'), 'utf8'));
+  for (const xau of ['ngoài Lark', 'không dùng Lark', 'không có tài khoản Lark']) {
+    ok('không còn chữ "' + xau + '" trên màn hình', !chuManHinh.includes(xau));
+  }
+
+  console.log('\nduy trì đăng nhập & đăng xuất');
+
+  const au = fs.readFileSync(path.join(__dirname, '..', 'auth.js'), 'utf8');
+  ok('form đăng nhập có ô tick Duy trì đăng nhập',
+    /name="nho"/.test(au) && /Duy trì đăng nhập/.test(au));
+  ok('tick sẵn — không ai bị đăng xuất oan vì mình thêm ô này', /name="nho" value="1" checked/.test(au));
+  ok('bỏ tick thì cookie theo phiên (không Max-Age)',
+    /if \(giuLau\) parts\.push\('Max-Age='/.test(au));
+  ok('bỏ tick thì mốc hết hạn TRONG chuỗi ký cũng ngắn lại',
+    /giuLau \? cfg\.sessionDays \* 86400000 : PHIEN_NGAN_MS/.test(au));
+  ok('ô tick được đọc ra và truyền xuống phiên',
+    /f\.get\('nho'\) === '1'/.test(au));
+  ok('Cài đặt → Của tôi có nút Đăng xuất',
+    /id="cdDangXuat"/.test(cd) && /\/auth\/logout/.test(cd));
+  ok('hỏi lại trước khi đăng xuất', /confirm\('Đăng xuất khỏi /.test(cd));
 
   if (cu === undefined) delete process.env.SESSION_SECRET; else process.env.SESSION_SECRET = cu;
 

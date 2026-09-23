@@ -88,9 +88,9 @@ function nhanDien(h) {
   if (h.khop.ngoaiLark) {
     return {
       loai: 'luc',
-      chu: 'Đã khớp: ' + h.khop.ten + ' · ngoài Lark',
-      mo: 'Tài khoản email + mật khẩu, không phải người trong công ty. Khớp theo email. ' +
-          'Cân nhắc kỹ base nào mở cho họ.',
+      chu: 'Đã khớp: ' + h.khop.ten + ' · tài khoản',
+      mo: 'Đăng nhập bằng email và mật khẩu. Khớp theo email. ' +
+          'Cân nhắc kỹ base nào mở cho người này.',
     };
   }
   return {

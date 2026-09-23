@@ -101,7 +101,20 @@ function sessionUser(req) {
   };
 }
 
-function setSession(res, user, kieu) {
+/* Phiên NGẮN khi không tick "duy trì đăng nhập": cookie sống theo phiên trình
+ * duyệt, đóng trình duyệt là mất. 12 tiếng đủ cho một ngày làm việc. */
+const PHIEN_NGAN_MS = 12 * 3600 * 1000;
+
+/**
+ * @param {boolean} [nho=true] tick "duy trì đăng nhập" hay không.
+ *   true  — cookie có Max-Age, sống qua cả lúc đóng trình duyệt (cfg.sessionDays).
+ *   false — cookie THEO PHIÊN: đóng trình duyệt là mất. Dành cho máy dùng chung.
+ *
+ * Mặc định `true` để đường đăng nhập Lark giữ nguyên hành vi cũ — không ai bị
+ * đăng xuất oan chỉ vì mình thêm một ô tick ở màn khác.
+ */
+function setSession(res, user, kieu, nho) {
+  const giuLau = nho !== false;
   const bayGio = Date.now();
   const token = sign({
     id: user.id,
@@ -114,15 +127,19 @@ function setSession(res, user, kieu) {
     /* Mã phiên ngẫu nhiên, để đăng xuất huỷ được ĐÚNG phiên này mà không đụng
      * tới phiên của người đó trên máy khác. */
     sid: crypto.randomBytes(9).toString('base64url'),
-    exp: bayGio + cfg.sessionDays * 86400000,
+    exp: bayGio + (giuLau ? cfg.sessionDays * 86400000 : PHIEN_NGAN_MS),
   });
   const parts = [
     COOKIE + '=' + encodeURIComponent(token),
     'Path=/',
     'HttpOnly',
     'SameSite=Lax',
-    'Max-Age=' + cfg.sessionDays * 86400,
   ];
+  /* KHÔNG đặt Max-Age khi không tick: thiếu Max-Age lẫn Expires thì trình duyệt
+   * coi đây là cookie theo phiên và xoá lúc đóng. Mốc hết hạn nằm TRONG chuỗi
+   * đã ký vẫn chặn thêm một lớp nữa — ai tự chỉnh cookie cũng không kéo dài
+   * phiên ra được. */
+  if (giuLau) parts.push('Max-Age=' + cfg.sessionDays * 86400);
   if (cfg.publicUrl.startsWith('https://')) parts.push('Secure');
   res.setHeader('Set-Cookie', parts.join('; '));
 }
@@ -302,6 +319,10 @@ button.phu-nut:hover{filter:none;background:var(--nen)}
 .duoi a{color:var(--lam);text-decoration:none;font-weight:550}
 .duoi a:hover{text-decoration:underline}
 .goi-y{font-size:12.5px;color:var(--mo);margin:7px 0 0}
+.o-tick{display:flex;align-items:center;gap:9px;margin:18px 0 0;font-size:13.5px;
+  color:var(--muc);cursor:pointer;font-weight:500}
+.o-tick input{width:17px;height:17px;margin:0;accent-color:var(--lam);cursor:pointer;flex:0 0 auto}
+.o-tick+.goi-y{margin-top:5px}
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
     --muc:#e8ecf1;--mo:#98a2b0;--vien:#2c333c;--the:#1a1f26;--nen:#0f1319;
@@ -391,8 +412,7 @@ async function handle(req, res, url) {
       '<input type="hidden" name="next" value="' + esc(next) + '">' +
       '<button type="submit" class="phu-nut">Tài khoản và mật khẩu</button>' +
       '</form>' +
-      '<p class="duoi">Người trong công ty dùng Lark.<br>' +
-      'Cộng tác viên và đối tác dùng tài khoản riêng.</p>');
+      '<p class="duoi">Chọn cách đăng nhập của anh/chị.</p>');
   }
 
   if (p === '/auth/login' || p === '/auth/lark') {
@@ -445,7 +465,7 @@ async function handle(req, res, url) {
     const next = duongDanNoiBo(url.searchParams.get('next'));
 
     const veTrang = (loiCau, mail) => trang(res, 'Đăng nhập · ' + cfg.ten,
-      dauTrang('Đăng nhập', 'Tài khoản dành cho người không dùng Lark') +
+      dauTrang('Đăng nhập', 'Bằng email và mật khẩu') +
       (loiCau ? '<div class="loi">' + esc(loiCau) + '</div>' : '') +
       '<form method="post" action="/auth/mat-khau?next=' + encodeURIComponent(next) + '">' +
       '<label for="e">Email</label>' +
@@ -453,6 +473,12 @@ async function handle(req, res, url) {
       'value="' + esc(mail || '') + '">' +
       '<label for="m">Mật khẩu</label>' +
       '<input id="m" name="mk" type="password" autocomplete="current-password" required>' +
+      /* Tick SẴN: giữ đúng hành vi cũ (phiên 7 ngày), nên không ai bỗng dưng bị
+       * đăng xuất vì mình thêm ô này. Bỏ tick là phiên chỉ sống tới lúc đóng
+       * trình duyệt — dành cho máy dùng chung. */
+      '<label class="o-tick"><input type="checkbox" name="nho" value="1" checked>' +
+      '<span>Duy trì đăng nhập</span></label>' +
+      '<p class="goi-y">Bỏ tick nếu đang dùng máy chung — đóng trình duyệt là thoát.</p>' +
       '<button type="submit">Đăng nhập</button>' +
       '</form>' +
       '<p class="duoi"><a href="/auth/dang-ky">Chưa có tài khoản? Đăng ký</a><br>' +
@@ -493,7 +519,7 @@ async function handle(req, res, url) {
 
     chanTs.xong(kIp); chanTs.xong(kMail);
     const rid = String(kq.nguoi.id).slice(3);   // 'mk:' + recordId
-    setSession(res, { ...kq.nguoi, rid }, 'mk');
+    setSession(res, { ...kq.nguoi, rid }, 'mk', f.get('nho') === '1');
     taiKhoan.ghiDangNhap(rid).catch(() => {});  // ghi nhật ký, không chặn đường vào
     return redirect(res, next);
   }

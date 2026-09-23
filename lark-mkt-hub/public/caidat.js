@@ -65,7 +65,7 @@ function cdNhom() {
         tu: 'popup thông báo bắt buộc đọc gấp phổ biến nhắc cả phòng', ql: true },
       /* Cửa vào cho người KHÔNG có Lark. Đặt ngay dưới Phân quyền vì duyệt xong
        * là phải sang đó cấp base cho họ — duyệt không tự cho quyền gì cả. */
-      { k: 'tai-khoan', ten: 'Tài khoản ngoài Lark', ic: 'nguoi',
+      { k: 'tai-khoan', ten: 'Tài khoản', ic: 'nguoi',
         mo: 'Duyệt người đăng ký bằng email và mật khẩu',
         tu: 'đăng ký duyệt mật khẩu cộng tác viên đối tác khoá tài khoản', ql: true },
     { k: 'thuong-hieu', ten: 'Nhận diện thương hiệu', ic: 'anh',
@@ -307,7 +307,22 @@ function veCdToi(el) {
        * LARK_MANAGER_IDS trên Render. Để sẵn nút Copy ở đây thì lúc cần cấp
        * quyền quản lý cho ai, người đó tự mở mục này copy gửi sang. */
       (t.id ? cdHang('Mã Lark (open_id)', '<code>' + esc(t.id) + '</code>',
-        '<button class="btn nho ghost" data-copy-id="' + esc(t.id) + '">Copy</button>') : '');
+        '<button class="btn nho ghost" data-copy-id="' + esc(t.id) + '">Copy</button>') : '') +
+      /* Đăng xuất. Trước nay chỉ có đường /auth/logout gõ tay — không nút nào
+       * trong app dẫn tới, nên máy dùng chung là hết cách rời ra.
+       *
+       * Đăng xuất ở đây không chỉ xoá cookie máy này: nó huỷ luôn phiên, nên
+       * chuỗi cookie có bị sao ra ngoài cũng chết theo. Xem auth.js. */
+      cdHang('Đăng xuất', 'Thoát khỏi tài khoản trên máy này',
+        '<button class="btn nho" id="cdDangXuat">Đăng xuất</button>');
+
+    const nx = $('#cdDangXuat');
+    if (nx) {
+      nx.onclick = () => {
+        if (!confirm('Đăng xuất khỏi ' + (t.ten || 'tài khoản này') + '?')) return;
+        location.href = '/auth/logout';
+      };
+    }
   }).catch(() => {});
 }
 
@@ -551,8 +566,8 @@ let TBSUA = null;     // thông báo đang soạn / sửa
  *      (laQuanLy), không phải chỉ ẩn nút ở đây.
  */
 function veCdTaiKhoan(el) {
-  el.innerHTML = cdTieuDe('Tài khoản ngoài Lark') +
-    '<div class="cd-muc-nho">Người không dùng Lark · tự đăng ký, anh duyệt</div>' +
+  el.innerHTML = cdTieuDe('Tài khoản') +
+    '<div class="cd-muc-nho">Tự đăng ký · quản lý duyệt</div>' +
     '<div id="cdTkDs">' + cdCho('240px') + '</div>';
   napCdTaiKhoan();
 }
