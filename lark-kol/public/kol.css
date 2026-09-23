@@ -213,6 +213,14 @@ a.bd-ngay:hover { filter: brightness(1.1); text-decoration: underline; }
 .bd-ngay.n0 { background: var(--blue); } .bd-ngay.n1 { background: var(--orange); } .bd-ngay.n2 { background: var(--green); }
 .bd-ngay.n3 { background: var(--purple); } .bd-ngay.n4 { background: var(--red); }
 
+/* nhập số bài đăng nhanh */
+.nhap-nhanh { display: grid; gap: 10px; }
+.nn-dau { display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; }
+.nn-so { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)) auto; gap: 8px; align-items: end; }
+.nn-so label, .nn-link { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-3); font-weight: 600; }
+.nn-link { margin-bottom: 8px; }
+@media (max-width: 640px) { .nn-so { grid-template-columns: repeat(3, minmax(0, 1fr)); } .nn-so .btn { grid-column: 1 / -1; } }
+
 pre.tin { white-space: pre-wrap; background: var(--surface-3); border-radius: var(--r-lg); padding: 12px 14px; font: 13px/1.5 inherit; margin: 0 0 10px; }
 
 @media (max-width: 760px) {

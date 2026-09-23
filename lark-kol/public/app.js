@@ -1197,24 +1197,60 @@ function veLichTrinh(man, htId) {
 /* ==========================================================================
    BÀN GIAO (toàn bộ)
    ========================================================================== */
+/* Nhập số nhanh (anh Hùng 23/09): chỉ lấy số HIỂN THỊ công khai trên bài — mở link, nhìn, gõ.
+ * Mốc 7 ngày cho biết bài có "nổ" không; mốc 30 ngày là số chốt để báo cáo. */
+const SO_BAI = [['xem', 'Xem'], ['thich', 'Thích'], ['binhLuan', 'Bình luận'], ['chiaSe', 'Chia sẻ'], ['luu', 'Lưu']];
+function htmlNhapNhanh(ds) {
+  if (!ds.length) return '<div class="bao xanh">Không có bài nào đến hạn nhập số. Bài "Đã đăng" sẽ hiện ở đây sau 7 ngày và 30 ngày kể từ ngày đăng.</div>';
+  return '<div class="nhap-nhanh">' + ds.map((b) => {
+    const ht = htCua(b.hopTac) || {};
+    const moc = b.tt.ma === 'do-30' ? '30' : '7';
+    const tu = b.ngayDang ? ddmm(dauNgay(b.ngayDang) + +moc * NGAY_MS) : '';
+    return '<div class="the nn-the" data-bg="' + b.id + '" data-moc="' + moc + '"><div class="the-than">' +
+      '<div class="nn-dau"><div><b>' + e(ht.kolTen || '') + '</b> <span class="nho">' + e(ht.ma || '') + '</span><div>' + e(b.ten) + '</div>' +
+      '<div class="nho">đăng ' + ddmm(b.ngayDang) + ' · số ' + moc + ' ngày (từ ' + tu + ')' + (moc === '30' && b.xem7 != null ? ' · mốc 7 ngày: ' + tien(b.xem7) + ' xem' : '') + '</div></div>' +
+      (b.link ? '<a class="btn nho" href="' + e(b.link) + '" target="_blank" rel="noopener">Mở bài</a>' : '') + '</div>' +
+      (b.link ? '' : '<label class="nn-link">Link bài<input class="in-o" data-o="link" placeholder="Dán link bài để lần sau mở nhanh"></label>') +
+      '<div class="nn-so">' + SO_BAI.map(([k, n]) => '<label>' + n + '<input class="in-o" type="number" min="0" inputmode="numeric" data-o="' + k + moc + '" placeholder="' +
+        (moc === '30' && b[k + '7'] != null ? tien(b[k + '7']) : '') + '"></label>').join('') +
+      '<button class="btn chinh" data-luu="' + b.id + '">Lưu</button></div></div></div>';
+  }).join('') + '</div>';
+}
+
 function veBanGiaoTat(man) {
   const loc = duong().q.get('loc') || '';
   const LOC = [['', 'Tất cả'], ['tre', 'Quá hạn đăng'], ['cho', 'Chưa đăng'], ['can-do', 'Đến hạn nhập số'], ['dang', 'Đã đăng']];
   const khop = (b) => !loc || (loc === 'can-do' ? ['do-7', 'do-30'].includes(b.tt.ma) : loc === 'dang' ? b.trangThai === 'Đã đăng' : b.tt.ma === loc);
   const ds = S.dl.banGiao.filter((b) => b.tt.ma !== 'huy' && khop(b)).sort((a, b) => (a.hanDang || 9e15) - (b.hanDang || 9e15));
+  const soCanDo = S.dl.banGiao.filter((b) => ['do-7', 'do-30'].includes(b.tt.ma)).length;
   const mau = { tre: 'do', 'do-7': 'cam', 'do-30': 'cam', dang: 'xanh' };
-  man.innerHTML = '<div class="hang-nut" style="margin-bottom:12px">' + LOC.map(([k, t]) => '<button class="chip-chon' + (k === loc ? ' on' : '') + '" data-loc="' + k + '">' + t + '</button>').join('') + '</div>' +
+  man.innerHTML = '<div class="hang-nut" style="margin-bottom:12px">' + LOC.map(([k, t]) => '<button class="chip-chon' + (k === loc ? ' on' : '') + '" data-loc="' + k + '">' + t +
+      (k === 'can-do' && soCanDo ? ' · ' + soCanDo : '') + '</button>').join('') + '</div>' +
+    (loc === 'can-do' ? htmlNhapNhanh(ds) :
     '<div class="the"><div class="the-than khit cuon"><table class="bang"><thead><tr><th>KOL</th><th class="w-ten">Sản phẩm</th><th>Loại</th><th>Hạn đăng</th><th>Tình trạng</th><th class="so">Xem</th><th></th></tr></thead><tbody>' +
     (ds.map((b) => { const ht = htCua(b.hopTac) || {}; return '<tr><td>' + e(ht.kolTen || '') + '<div class="nho">' + e(ht.ma || '') + '</div></td><td>' + (b.link ? '<a href="' + e(b.link) + '" target="_blank" rel="noopener">' + e(b.ten) + '</a>' : e(b.ten)) +
       '<div class="nho">' + e(b.chuDe) + '</div></td><td>' + e(b.loai) + (b.soLuong > 1 ? ' ×' + b.soLuong : '') + '</td><td>' + ddmm(b.hanDang) + '</td><td>' + nhanTT(b.tt.nhan, mau[b.tt.ma]) + '</td><td class="so">' +
       tien(b.xem30 ?? b.xem7) + '</td><td><button class="btn nho" data-ht="' + b.hopTac + '">Mở</button></td></tr>'; }).join('') ||
-      '<tr><td colspan="7" class="nho" style="padding:16px">Không có mục nào.</td></tr>') + '</tbody></table></div></div>';
+      '<tr><td colspan="7" class="nho" style="padding:16px">Không có mục nào.</td></tr>') + '</tbody></table></div></div>');
+  const luu = async (the) => {
+    const b = {};
+    $$('[data-o]', the).forEach((x) => { if (x.value.trim() !== '') b[x.dataset.o] = x.dataset.o === 'link' ? x.value.trim() : Number(x.value); });
+    const moc = the.dataset.moc;
+    if (!('xem' + moc in b)) return toast('Nhập ít nhất lượt xem', true);
+    const nut = $('[data-luu]', the); nut.disabled = true;
+    try { await api('/api/ban-giao/' + the.dataset.bg, b); await nap(true); toast('Đã lưu số ' + moc + ' ngày'); ve(); }
+    catch (err) { toast(err.message, true); nut.disabled = false; }
+  };
   man.onclick = (ev) => {
     const l = ev.target.closest('[data-loc]');
     if (l) return di('#/ban-giao' + (l.dataset.loc ? '?loc=' + l.dataset.loc : ''));
+    const s = ev.target.closest('[data-luu]');
+    if (s) return luu(s.closest('.nn-the'));
     const h = ev.target.closest('[data-ht]');
     if (h) di('#/ht/' + h.dataset.ht + '/ban-giao');
   };
+  /* Enter trong ô số = lưu thẻ đó */
+  man.onkeydown = (ev) => { if (ev.key === 'Enter' && ev.target.closest('.nn-the')) { ev.preventDefault(); luu(ev.target.closest('.nn-the')); } };
 }
 
 /* ==========================================================================
