@@ -310,4 +310,4 @@ async function taoDon(k) {
   }
 }
 
-module.exports = { SO, docCauHinh, bat, ngayVN, moTa, thanDon, thanChiPhi, taoDon, GIAN_MS };
+module.exports = { SO, docCauHinh, bat, ngayVN, moTa, thanDon, thanChiPhi, taoDon, GIAN_MS, goi };

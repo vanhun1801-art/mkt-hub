@@ -78,6 +78,14 @@ const ICONS = {
     '<path d="m9 15 2 2 4-4"/>'
   ),
 
+  /* Hợp tác KOL: người + tia phát sóng — người có tiếng nói. Không dùng lại
+     'nguoi' (đã là Báo cáo / Tải nhân sự). */
+  'kol': IC(
+    '<circle cx="11" cy="8" r="3.5"/>' +
+    '<path d="M4 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5"/>' +
+    '<path d="M17.5 4.5l1.3-1.3M19 8h1.8M17.5 11.5l1.3 1.3"/>'
+  ),
+
   /* Tải nhân sự / người */
   'nguoi': IC(
     '<circle cx="12" cy="8" r="3.5"/>' +

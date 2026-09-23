@@ -297,6 +297,7 @@ ok('dienthoai.css có thanh tóm tắt', /\.tg-thanh\s*\{/.test(DT_SACH));
     'quang-cao': 'lark-ads-manager', 'ota': 'lark-ota-manager', 'social': 'lark-social',
     'kpi': 'lark-kpi', 'quy-chi-phi': 'lark-quy-chi-phi', 'chinh-anh': 'lark-chinh-anh',
     'bao-cao': 'lark-bao-cao', 'san-pham': 'lark-san-pham', 'lich-lam-viec': 'lark-lich-lam-viec',
+    'kol': 'lark-kol',
   };
   const khai = MODS.modules.filter((m) => m.locSelector);
   ok('có module khai locSelector', khai.length >= 5, String(khai.length));

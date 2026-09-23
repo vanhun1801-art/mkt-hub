@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KOL</title>
+<link rel="stylesheet" href="/styles.css?v=BUILD">
+<!-- Bản gốc: lark-mkt-hub/public/mobile-chung.css — sửa xong chạy dong-bo-khung.js -->
+<link rel="stylesheet" href="/mobile-chung.css?v=BUILD">
+<link rel="stylesheet" href="/khung-xuong.css?v=BUILD">
+<link rel="stylesheet" href="/kol.css?v=BUILD">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="dau-kol"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5"/><path d="M18.5 4.5l1.2-1.2M20 8h1.6"/></svg></div>
+    <div>
+      <b>KOL</b>
+      <small id="phuDe">đang tải…</small>
+    </div>
+  </div>
+
+  <div class="pills" id="tabs"></div>
+  <div class="lon"></div>
+  <button class="btn nho" id="btnLamMoi">Làm mới</button>
+  <a class="btn nho" id="btnLark" target="_blank" rel="noopener" hidden>Mở Base</a>
+</header>
+
+<main id="man" data-kx-nho="kol">
+  <div class="kx-man kx-vung" aria-busy="true" aria-label="Đang nạp"><div class="kx-khoi"><span class="kx kx-chu to" style="width:32%"></span><span class="kx kx-chu " style="width:74%"></span></div><div class="kx-khoi"><span class="kx" style="height:420px;border-radius:10px"></span></div></div>
+</main>
+
+<div id="modal"></div>
+<div id="hoi"></div>
+<div id="toast" hidden></div>
+
+<script src="/khung-xuong.js?v=BUILD"></script>
+<script src="/ma-vung.js?v=BUILD"></script>
+<script src="/ban-do.js?v=BUILD"></script>
+<script src="/app.js?v=BUILD"></script>
+</body>
+</html>

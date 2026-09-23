@@ -1,0 +1,11 @@
+{
+  "name": "lark-kol",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Hợp tác KOL: chốt thông tin, trình BGĐ, thư mời, lịch trình + nhắc hẹn, bàn giao, báo cáo — app con thứ 12 của Marketing Hub",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/tinh.test.js"
+  }
+}

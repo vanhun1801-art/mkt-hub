@@ -294,6 +294,29 @@
       "phuSelector": "#phuDe",
       "bat": true,
       "caPhong": false
+    },
+    {
+      "id": "kol",
+      "ten": "KOL",
+      "mo_ta": "Trình BGĐ · thư mời · lịch trình · bàn giao",
+      "icon": "kol",
+      "mau": "#d9468f",
+      "kieu": "local",
+      "thuMuc": "../lark-kol",
+      "cong": 5186,
+      "lenh": [
+        "node",
+        "server.js"
+      ],
+      "larkUrl": "https://rootytrip2.sg.larksuite.com/base/TqOFbEdN9aEKyNsGk8qlpeKZgHh",
+      "kpi": "kol",
+      "an": [
+        "header.topbar > .brand",
+        "#btnLark"
+      ],
+      "phuSelector": "#phuDe",
+      "bat": true,
+      "caPhong": false
     }
   ]
 }

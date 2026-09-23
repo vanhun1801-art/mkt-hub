@@ -23,6 +23,7 @@
 !lark-bao-cao/
 !lark-san-pham/
 !lark-lich-lam-viec/
+!lark-kol/
 
 # mã dùng chung giữa các app (Tourwell…)
 !lark-chung/
@@ -44,6 +45,7 @@
 # Điểm KPI gắn với lương của từng người — repo này đẩy lên GitHub, dữ liệu này
 # thì không. Bộ luật và mã nguồn vẫn lên; số điểm ở lại máy.
 lark-kpi/du-lieu/
+lark-kol/du-lieu/
 
 # ---- rác ----
 **/node_modules/
