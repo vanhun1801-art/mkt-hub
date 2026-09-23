@@ -176,7 +176,12 @@ function tongQuan(ds) {
     { nhan: 'Chạy hằng ngày', so: dem(ds, (p) => /Chạy hằng ngày/.test(p.uuTien)), dinhDang: 'so' },
     { nhan: 'Sắp ra mắt', so: sapRaMat, dinhDang: 'so' },
     { nhan: 'Sắp / đã hết hạn', so: hetHan.length, dinhDang: 'so',
-      muc: hetHan.length ? 'gap' : 'ok' },
+      /* 'cao', KHÔNG phải 'gap'. Lớp vỏ chỉ hiểu cao/vua/thap/ok — xem
+         kpi.js và public/app.js bên hub. Từ lạ không gây lỗi, nó chỉ rơi im
+         lặng: huy hiệu đỏ cạnh tên app đếm đúng những thẻ 'cao' nên đứng ở 0
+         mãi, và trong danh sách cần xử lý thì sản phẩm ĐÃ HẾT HẠN bị chấm xám
+         "thấp" — thứ gấp nhất trông nhẹ nhất. */
+      muc: hetHan.length ? 'cao' : 'ok' },
     { nhan: 'Ưu đãi sắp hết', so: uuDai.length, dinhDang: 'so',
       muc: uuDai.length ? 'vua' : 'ok' },
     { nhan: 'Hồ sơ còn thiếu', so: thieu.length, dinhDang: 'so',
@@ -192,7 +197,7 @@ function tongQuan(ds) {
       phu: p.tinhTrang + (p.conLai != null ? ' · còn ' + p.conLai + ' ngày' : '') +
         (p.hieuLucDen ? ' (đến ' + veNgay(p.hieuLucDen) + ')' : ''),
       the: [p.nhom].filter(Boolean),
-      muc: /Đã hết hạn/.test(p.tinhTrang) ? 'gap' : 'vua',
+      muc: /Đã hết hạn/.test(p.tinhTrang) ? 'cao' : 'vua',
       _sap: /Đã hết hạn/.test(p.tinhTrang) ? -1 : (p.conLai == null ? 999 : p.conLai),
     })),
     ...uuDai.map((c) => ({

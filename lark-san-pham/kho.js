@@ -366,7 +366,11 @@ async function docTatCa() {
     if (r.trangThai !== 'Chờ áp dụng') continue;
     for (const id of r.spIds) {
       const p = theoId.get(id);
-      if (p) p.lichCho.push({ id: r.id, cot: r.cot, ngayApDung: r.ngayApDung });
+      /* Kèm cả GIÁ TRỊ MỚI, không chỉ tên cột. Thẻ sản phẩm trước đây chỉ đếm
+         "2 mục sắp đổi" rồi vẫn bày nguyên nội dung cũ trên Base — anh Hùng,
+         về một tour sắp ra mắt: "nó hiển thị các thông tin trên base, thay vì
+         thông tin chuẩn bị được thay đổi trong thời gian tới". */
+      if (p) p.lichCho.push({ id: r.id, cot: r.cot, ngayApDung: r.ngayApDung, moi: r.giaTriMoi });
     }
   }
   for (const p of ds) p.lichCho.sort((a, b) => (a.ngayApDung || 0) - (b.ngayApDung || 0));

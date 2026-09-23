@@ -368,7 +368,7 @@ function veDai() {
   return '<div class="dai">' + t.the.map((o) => {
     const di = DI_THE[o.nhan];
     return '<button class="o' + (o.chinh ? ' chinh' : '') +
-      (o.muc === 'gap' ? ' gap' : o.muc === 'vua' ? ' vua' : '') +
+      (o.muc === 'cao' ? ' cao' : o.muc === 'vua' ? ' vua' : '') +
       (di ? ' bam' : '') + '"' +
       (di ? ' data-the="' + esc(o.nhan) + '" title="Bấm để xem danh sách"' : ' disabled') + '>' +
       '<span class="nhan">' + esc(o.nhan) + '</span>' +
@@ -455,16 +455,47 @@ function phanBoHtml(nhom) {
  *
  * Thẻ cũng không mang màu tầng: nó đã nằm trong khối tầng có tiêu đề rồi.
  */
+/**
+ * Khối "sắp đổi thành gì" trên thẻ sản phẩm.
+ *
+ * Trước đây chỗ này chỉ là một nhãn đếm số: "⏳ đổi 15/10/2026 · 2 mục". Anh
+ * Hùng, nhìn thẻ của một tour SẮP RA MẮT: "nó hiển thị các thông tin trên base,
+ * thay vì thông tin chuẩn bị được thay đổi trong thời gian tới". Đúng: với tour
+ * chưa mở bán, nội dung đang nằm trên Base là bản sắp bị thay, còn bản thật thì
+ * nằm trong Lịch đổi mà thẻ không hé ra chữ nào.
+ *
+ * Nên in thẳng giá trị mới. KHÔNG thay vào chỗ giá trị cũ: hôm nay bán theo bản
+ * cũ, người viết bài cần cả hai — cái đang chạy và cái sắp tới. Nhãn ngày đứng
+ * ngay trên từng mục để không ai nhầm đây là nội dung đã hiệu lực.
+ *
+ * Mỗi mục cắt một dòng cho các thẻ cao bằng nhau; đọc trọn thì bấm vào thẻ.
+ */
+function sapDoiHtml(p) {
+  if (!p.lichCho || !p.lichCho.length) return '';
+  /* Cả đợt thường cùng một ngày (Kinh doanh gửi từng đợt). Ngày đó ghi một lần
+     ở đầu khối, đỡ lặp lại trên mỗi dòng của một thẻ vốn đã hẹp. Khác ngày thì
+     mới ghi kèm từng mục — lúc đó nó là thông tin thật, không phải tiếng ồn. */
+  const ngay = p.lichCho.map((x) => x.ngayApDung);
+  const motNgay = ngay.every((t) => t === ngay[0]);
+  const muc = p.lichCho.slice(0, 3).map((x) =>
+    '<div class="sdMuc">' +
+      '<div class="sdCot">' +
+        (motNgay ? '' : esc(veNgay(x.ngayApDung)) + ' · ') + esc(x.cot) +
+      '</div>' +
+      (x.moi ? '<div class="sdMoi" data-no-i18n>' + esc(x.moi) + '</div>' : '') +
+    '</div>').join('');
+  const con = p.lichCho.length - 3;
+  return '<div class="sapDoi">' +
+    '<div class="sdDau">⏳ Sắp đổi' +
+      (motNgay ? ' <span class="sdNgay">từ ' + esc(veNgay(ngay[0])) + '</span>' : '') +
+    '</div>' + muc +
+    (con > 0 ? '<div class="sdCon">và ' + con + ' mục nữa</div>' : '') +
+    '</div>';
+}
+
 function theDayHtml(p) {
   /* KHÔNG gắn nhãn mức ưu tiên hay "Sắp ra mắt" ở đây: thẻ đang nằm trong đúng
-     cái tầng mang tên đó rồi, in lại là nói hai lần cùng một điều. Nhãn duy
-     nhất còn giữ là "⏳ đổi" — nó nói về thứ sắp tới, không phải về tầng. */
-  const nhan = [];
-  if (p.lichCho && p.lichCho.length) {
-    nhan.push('<span class="nhan doi">⏳ đổi ' + esc(veNgay(p.lichCho[0].ngayApDung)) +
-      (p.lichCho.length > 1 ? ' · ' + p.lichCho.length + ' mục' : '') + '</span>');
-  }
-
+     cái tầng mang tên đó rồi, in lại là nói hai lần cùng một điều. */
   return '<article class="theDay' + (S.moId === p.id ? ' chon' : '') + '" data-id="' + esc(p.id) + '">' +
     '<div class="tdDau">' +
       (p.ma ? '<span class="ma">' + esc(p.ma) + '</span>' : '') +
@@ -472,9 +503,9 @@ function theDayHtml(p) {
     '</div>' +
     (p.tenEn ? '<div class="tdEn" data-no-i18n>' + esc(p.tenEn) + '</div>' : '') +
     '<div class="giaHang">' + giaHtml(p) + '</div>' +
-    (nhan.length ? '<div class="nhanHang">' + nhan.join('') + '</div>' : '') +
     (p.usp || p.noiBat
       ? '<div class="tdUsp" data-no-i18n>' + esc(p.usp || p.noiBat) + '</div>' : '') +
+    sapDoiHtml(p) +
     hanHtml(p) +
     '</article>';
 }

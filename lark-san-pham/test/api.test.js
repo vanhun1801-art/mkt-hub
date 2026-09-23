@@ -369,18 +369,33 @@ const sua = (id, truong, giaTri, headers) =>
     ok('có thẻ Sắp ra mắt và đếm đúng', tim('Sắp ra mắt').so === 1, String(tim('Sắp ra mắt').so));
     ok('đếm đúng sắp/đã hết hạn', tim('Sắp / đã hết hạn').so === 2);
     ok('đếm đúng hồ sơ còn thiếu', tim('Hồ sơ còn thiếu').so === 2);
-    ok('thẻ có số > 0 được đánh mức cảnh báo', tim('Sắp / đã hết hạn').muc === 'gap');
+    ok('thẻ có số > 0 được đánh mức cảnh báo', tim('Sắp / đã hết hạn').muc === 'cao');
     ok('thẻ không có gì để lo thì mức ok', tim('Ưu tiên đẩy').so === 0);
 
     ok('có canXuLy và canXuLyTong', Array.isArray(t.canXuLy) && typeof t.canXuLyTong === 'number');
     /* Dòng "đã hết hạn" phải đứng TRƯỚC dòng "còn 8 ngày" — nếu không thì danh
      * sách cảnh báo mất nghĩa. */
-    const iHet = t.canXuLy.findIndex((v) => /CT7/.test(v.tieuDe) && v.muc === 'gap');
+    const iHet = t.canXuLy.findIndex((v) => /CT7/.test(v.tieuDe) && v.muc === 'cao');
     const iSap = t.canXuLy.findIndex((v) => /TG01/.test(v.tieuDe) && v.muc === 'vua');
     ok('đã hết hạn xếp trước sắp hết hạn', iHet >= 0 && iSap >= 0 && iHet < iSap,
       'iHet=' + iHet + ' iSap=' + iSap);
     ok('mọi dòng canXuLy đều có tieuDe',
       t.canXuLy.every((v) => v.tieuDe && v.tieuDe.length));
+    /* TỪ VỰNG MỨC ĐỘ LÀ GIAO KÈO VỚI LỚP VỎ, không phải chuyện nội bộ app.
+     * Hub chỉ hiểu cao/vua/thap/ok (xem kpi.js và public/app.js bên hub); từ lạ
+     * KHÔNG gây lỗi, nó rơi im lặng. App này từng khai 'gap' và trả giá đúng hai
+     * chỗ: huy hiệu đỏ cạnh tên app đếm theo thẻ 'cao' nên đứng ở 0 dù có sáu sản
+     * phẩm sắp hết hạn, còn trong danh sách cần xử lý thì sản phẩm ĐÃ HẾT HẠN rơi
+     * xuống nhánh mặc định và bị chấm xám "thấp". Không ai thấy gì sai cho tới khi
+     * có người soi từng dòng JSON. */
+    const MUC_HOP_LE = ['cao', 'vua', 'thap', 'ok'];
+    const theLa = t.the.filter((x) => x.muc != null && !MUC_HOP_LE.includes(x.muc));
+    ok('mọi thẻ dùng đúng từ vựng mức độ của hub', theLa.length === 0,
+      JSON.stringify(theLa.map((x) => x.nhan + '=' + x.muc)));
+    const viecLa = t.canXuLy.filter((v) => !['cao', 'vua', 'thap'].includes(v.muc));
+    ok('mọi dòng canXuLy dùng đúng từ vựng mức độ của hub', viecLa.length === 0,
+      JSON.stringify(viecLa.map((v) => v.tieuDe + '=' + v.muc)));
+
     /* Base này không có trục thời gian; phải NÓI RA thay vì im lặng để người
      * xem tưởng con số đã được lọc theo khoảng của trang Tổng quan. */
     ok('nói rõ là không lọc theo thời gian', /không lọc theo thời gian/.test(t.khoang));

@@ -161,8 +161,10 @@ main { padding: 16px; max-width: 1460px; margin: 0 auto; }
 .o .so { font-size: 24px; font-weight: 700; letter-spacing: -.02em; margin-top: 2px; }
 .o .ghi { font-size: 11px; color: var(--t3); margin-top: 2px; }
 .o.chinh .so { color: var(--primary); }
-.o.gap { border-color: var(--red-vien); background: var(--red-bg); }
-.o.gap .so { color: var(--red-t); }
+/* Tên lớp đi theo từ vựng của lớp vỏ (cao/vua/thap) chứ không đặt riêng —
+   một mức mà hai nơi gọi hai tên là chỗ để lọt lỗi im lặng. */
+.o.cao { border-color: var(--red-vien); background: var(--red-bg); }
+.o.cao .so { color: var(--red-t); }
 .o.vua .so { color: var(--vang-t); }
 
 /* ---- bộ lọc ----
@@ -583,12 +585,35 @@ main { padding: 16px; max-width: 1460px; margin: 0 auto; }
 .tdHan.canh { color: var(--vang-t); }
 .tdHan.het { color: var(--red-t); }
 
+/* SẮP ĐỔI THÀNH GÌ.
+   Với tour chưa mở bán, nội dung trên Base là bản sắp bị thay — bản thật nằm
+   trong Lịch đổi. Khối này in thẳng giá trị mới, đặt DƯỚI nội dung hiện hành
+   chứ không thay chỗ: hôm nay vẫn bán theo bản cũ, người viết bài cần cả hai.
+   Dùng biến màu sẵn có nên tự đúng ở cả nền sáng lẫn nền tối. */
+.sapDoi {
+  border-top: 1px dashed var(--line-soft); padding-top: 6px;
+  display: flex; flex-direction: column; gap: 5px;
+}
+.sdDau { font-size: 12px; font-weight: 700; color: var(--t3); letter-spacing: .01em; }
+.sdCot { font-size: 12px; font-weight: 600; color: var(--t2); }
+/* Cắt một dòng để mọi thẻ cao bằng nhau; đọc trọn thì bấm vào thẻ. */
+.sdMoi {
+  font-size: 12px; color: var(--t3); line-height: 1.45;
+  display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
+}
+.sdCon { font-size: 12px; color: var(--t3); }
+.sdNgay { font-weight: 600; color: var(--t2); }
+
 @media (max-width: 640px) {
   .tangLuoi { grid-template-columns: 1fr; }
   .pbMuc { font-size: 12.5px; }
   .pbKhuc { font-size: 12.5px; }
   .tdEn { font-size: 12.5px; }
   .tdHan { font-size: 12.5px; }
+  .sdDau { font-size: 12.5px; }
+  .sdCot { font-size: 12.5px; }
+  .sdMoi { font-size: 12.5px; }
+  .sdCon { font-size: 12.5px; }
 }
 
 /* ==========================================================================
