@@ -305,5 +305,79 @@ group('panel thu gọn chỉ có MỘT định nghĩa');
     || /ghim\s*=\s*localStorage\.getItem\('hub\.rail\.min'\)\s*===\s*'1'/.test(js));
 }
 
+/* ============================================================================
+ * BỘ LUẬT MOBILE DÙNG CHUNG — cả mười app phải nạp, và phải nạp SAU styles.css
+ * ============================================================================
+ * Anh Hùng 23/09/2026: "tối ưu thao tác như app thật, không có hiện tượng thu
+ * phóng liên tục ra vào trượt qua trượt lại như web".
+ *
+ * Gốc của "thu phóng liên tục": iOS Safari TỰ PHÓNG TO cả trang mỗi khi chạm
+ * vào ô nhập có cỡ chữ dưới 16px. Đo trên Quỹ chi phí ở khung 375px trước khi
+ * sửa: 177 ô đang để 13px. Bấm ô nào cũng phóng, gõ xong lại phải chụm tay thu
+ * về — không phải lỗi của một app, mà là cỡ chữ mặc định của cả hệ.
+ */
+group('bộ luật mobile dùng chung cho 10 app');
+{
+  const goc = path.join(GOC, '..');
+  const APP = ['lark-task-manager', 'lark-lich-tac-nghiep', 'lark-ads-manager',
+    'lark-ota-manager', 'lark-social', 'lark-chinh-anh', 'lark-kpi',
+    'lark-quy-chi-phi', 'lark-bao-cao', 'lark-san-pham'];
+
+  const ban = doc('public/mobile-chung.css');
+
+  ok('ô nhập chữ được ép lên 16px (chặn iOS tự phóng)', /font-size:\s*16px/.test(ban));
+  /* `input {…}` chỉ là (0,0,1), thua bất cứ luật nào viết theo class — đã gặp
+   * thật ở app Báo cáo. Chuỗi :not() vừa loại ô không gõ chữ vừa nâng ưu tiên. */
+  ok('bộ chọn đủ mạnh để không bị luật theo class đè',
+    /input:not\(\[type="range"\]\)/.test(ban) && /:not\(\[type="checkbox"\]\)/.test(ban));
+  /* Bỏ chú thích trước khi dò — chính chú thích trong tệp đó có nhắc
+   * `user-scalable` để giải thích vì sao KHÔNG dùng, và lần đầu viết phép thử
+   * thì câu giải thích bị đọc thành luật. Đã dính đúng bẫy này ở bộ `.rail.min`. */
+  const banSach = ban.replace(/\/\*[\s\S]*?\*\//g, ' ');
+  ok('KHÔNG khoá phóng to bằng user-scalable (cướp quyền của người mắt kém)',
+    !/user-scalable/.test(banSach));
+  ok('trang không trượt ngang', /overflow-x:\s*hidden/.test(ban));
+  ok('thanh tab là dải cuộn ngang, một kiểu cho mọi app',
+    /\.tabs,\s*\.tabsbar/.test(ban) && /scroll-snap-type/.test(ban));
+  ok('ẩn tên người dùng và chức danh trên điện thoại',
+    /#chipVai/.test(ban) && /#meChip/.test(ban) && /#chipToi/.test(ban) && /#chipUser/.test(ban));
+
+  const thieu = [];
+  const saiThuTu = [];
+  for (const a of APP) {
+    const f = path.join(goc, a, 'public', 'index.html');
+    let h;
+    try { h = fs.readFileSync(f, 'utf8'); } catch (_) { thieu.push(a + ' (không đọc được)'); continue; }
+    if (!/mobile-chung\.css/.test(h)) { thieu.push(a); continue; }
+    /* Nạp TRƯỚC styles.css thì mọi luật ở đây thua hết — hỏng im lặng, vì file
+     * vẫn có mặt và vẫn tải về bình thường. */
+    if (h.indexOf('mobile-chung.css') < h.indexOf('styles.css')) saiThuTu.push(a);
+  }
+  ok('app nào cũng nạp mobile-chung.css', thieu.length === 0, thieu.join(', '));
+  ok('nạp SAU styles.css, không phải trước', saiThuTu.length === 0, saiThuTu.join(', '));
+
+  /* Bản trong từng app phải y hệt bản gốc — cùng lý do với khung-xuong. */
+  const lech = APP.filter((a) => {
+    try { return fs.readFileSync(path.join(goc, a, 'public', 'mobile-chung.css'), 'utf8') !== ban; }
+    catch (_) { return true; }
+  });
+  ok('bản trong 10 app khớp đúng bản gốc (chạy dong-bo-khung.js)',
+    lech.length === 0, lech.join(', '));
+
+  const sync = doc('dong-bo-khung.js');
+  ok('dong-bo-khung.js có chép mobile-chung.css', /mobile-chung\.css/.test(sync));
+
+  /* Nút Làm mới ở góc phải thanh trên — một nút cho mọi app. */
+  const html = doc('public/index.html');
+  const js = doc('public/app.js');
+  ok('thanh trên cùng có nút Làm mới', /id="btnMobLamMoi"/.test(html));
+  ok('nút đó nằm SAU tên app (tức là ở mép phải)',
+    html.indexOf('btnMobLamMoi') > html.indexOf('id="mobTen"'));
+  ok('bấm thì tải lại app đang mở, không phải tải lại cả vỏ',
+    /btnMobLamMoi'\)\.onclick/.test(js) && /contentWindow\.location\.reload/.test(js));
+  ok('ở trang Tổng quan thì nạp lại số của chính trang đó',
+    /S\.view === 'home'[\s\S]{0,60}napTongQuan\(\)/.test(js));
+}
+
 console.log('\n' + (fail ? '\x1b[31m' : '\x1b[32m') + pass + ' pass · ' + fail + ' fail\x1b[0m');
 if (fail) { console.log(fails.map((x) => ' - ' + x).join('\n')); process.exit(1); }

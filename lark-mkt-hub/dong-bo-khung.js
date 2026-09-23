@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 /**
- * Chép khung-xuong.css + khung-xuong.js sang public/ của MƯỜI app con.
+ * Chép các tệp DÙNG CHUNG sang public/ của MƯỜI app con.
  *
  * Vì sao phải chép chứ không dùng chung một file: mỗi app con chạy độc lập được
  * (cổng riêng, server riêng, thư mục public riêng), nên nó chỉ phục vụ được file
@@ -16,7 +16,10 @@
 const fs = require('fs');
 const path = require('path');
 
-const TEP = ['khung-xuong.css', 'khung-xuong.js'];
+/* mobile-chung.css: bộ luật mobile dùng chung — ô nhập 16px (chặn iOS tự phóng),
+ * trang không trượt ngang, thanh tab một kiểu cho mọi app, ẩn chip danh tính.
+ * Xem chú thích trong chính tệp đó. */
+const TEP = ['khung-xuong.css', 'khung-xuong.js', 'mobile-chung.css'];
 const CHA = path.join(__dirname, '..');
 const APP = [
   'lark-task-manager', 'lark-lich-tac-nghiep', 'lark-ads-manager', 'lark-ota-manager',

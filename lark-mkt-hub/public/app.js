@@ -2839,6 +2839,37 @@ window.addEventListener('resize', () => {
 /* Mở/đóng ngăn kéo. Đóng lại ngay khi đã chọn xong một base — hashchange bắt
  * cả lối bấm vào panel lẫn lối bấm nút Lùi của trình duyệt. */
 $('#btnMenu').onclick = () => moNganKeo(!document.body.classList.contains('rail-mo'));
+
+/* ---------------- Làm mới, một nút cho mọi app ----------------
+ * Anh Hùng 23/09/2026: "điều chỉnh nút làm mới lên góc phải trên cùng".
+ *
+ * Trước đây mỗi app con có nút "Làm mới" riêng, nằm ở một hàng giữa nội dung,
+ * mỗi app một chỗ. Trên điện thoại hàng đó ăn chỗ mà tay lại phải với xuống
+ * giữa màn. Giờ một nút duy nhất ở góc phải thanh trên, dùng cho cả 10 app.
+ *
+ * Cách làm KHÔNG cần app con biết gì: app con nằm trong iframe CÙNG ORIGIN (đi
+ * qua proxy của hub), nên vỏ gọi thẳng `location.reload()` của nó được. Không
+ * phải bịa ra một giao thức postMessage rồi đi sửa mười app.
+ *
+ * Ở trang Tổng quan thì không có iframe nào — nạp lại số của chính trang đó.
+ */
+$('#btnMobLamMoi').onclick = () => {
+  const nut = $('#btnMobLamMoi');
+  nut.classList.add('dang-chay');
+  /* Gỡ hiệu ứng quay sau 1,2 giây dù kết quả thế nào: iframe tải xong không
+   * phải lúc nào cũng báo về được (trang lỗi, mạng chết), mà một cái nút quay
+   * mãi thì tệ hơn là không quay. */
+  setTimeout(() => nut.classList.remove('dang-chay'), 1200);
+
+  if (S.view === 'home') { napTongQuan(); return; }
+  const f = S.frames.get(S.view);
+  if (f && f.iframe) {
+    try { f.iframe.contentWindow.location.reload(); return; } catch (_) { /* rơi xuống dưới */ }
+    /* Không với được vào trong (khác origin, hay iframe chưa sẵn sàng) thì gán
+     * lại src — nặng tay hơn nhưng luôn chạy. */
+    try { f.iframe.src = f.iframe.src; } catch (_) {}
+  }
+};
 $('#railNen').onclick = () => moNganKeo(false);
 window.addEventListener('hashchange', () => moNganKeo(false));
 window.addEventListener('keydown', (e) => {

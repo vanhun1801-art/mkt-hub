@@ -16,6 +16,10 @@
 <link rel="icon" type="image/png" sizes="180x180" href="/logo-app-180.png?v=BUILD">
 <link rel="apple-touch-icon" href="/logo-app-180.png?v=BUILD">
 <link rel="stylesheet" href="/styles.css?v=BUILD">
+<!-- Luật mobile dùng chung cho cả 10 app: ô nhập 16px (chặn iOS tự phóng),
+     trang không trượt ngang, thanh tab một kiểu. Phải nằm SAU styles.css.
+     Bản gốc: lark-mkt-hub/public/mobile-chung.css — sửa xong chạy dong-bo-khung.js -->
+<link rel="stylesheet" href="/mobile-chung.css?v=BUILD">
 <!-- Khung xương (skeleton): phải nằm SAU styles.css để đè được nền/viền của
      thành phần thật mà nó đang giả dạng. -->
 <link rel="stylesheet" href="/khung-xuong.css?v=BUILD">
@@ -37,6 +41,16 @@
     <span class="mob-gach"></span>
   </button>
   <b class="mob-ten" id="mobTen">Tổng quan chung</b>
+  <!-- Anh Hùng 23/09/2026: "điều chỉnh nút làm mới lên góc phải trên cùng".
+       MỘT nút cho mọi app thay vì mỗi app một nút nằm giữa nội dung: app con
+       nằm trong iframe cùng origin nên vỏ tải lại được, không cần app con biết
+       gì cả. Ở trang Tổng quan thì nó nạp lại số của chính trang đó. -->
+  <button class="mob-nut" id="btnMobLamMoi" aria-label="Làm mới" title="Làm mới">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M20 11a8 8 0 1 0-1.6 5.3"></path><path d="M20 5v6h-6"></path>
+    </svg>
+  </button>
 </header>
 <div class="rail-nen" id="railNen" hidden></div>
 

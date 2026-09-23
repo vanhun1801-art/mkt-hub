@@ -1945,7 +1945,13 @@ input.cd-in-nho { width: 72px; }
   .mob-ten {
     font-size: 15px; font-weight: 650; min-width: 0;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    /* Đẩy nút Làm mới sang sát mép phải, tên app giữ chỗ còn lại. */
+    flex: 1;
   }
+  #btnMobLamMoi svg { width: 19px; height: 19px; display: block; }
+  /* Quay một vòng trong lúc đang tải lại, để bấm xong biết là máy có nghe. */
+  #btnMobLamMoi.dang-chay svg { animation: mob-quay .7s linear infinite; }
+  @keyframes mob-quay { to { transform: rotate(360deg); } }
 
   /* ---- panel base = ngăn kéo ---- */
   /* Kể cả khi người dùng đã ghim panel ở dạng thu gọn (.min) trên máy tính:
