@@ -72,7 +72,7 @@
       return { ten: chu || tenHm || 'Điểm hẹn', lat: tay.lat, lng: tay.lng, tay: true };
     }
     const t = kd([h.ten, h.diemHen, h.nhaCungCap, h.maDv].join(' '));
-    for (const d of DIEM) if (d[3].some((k) => t.includes(k))) return { ten: d[0], lat: d[1], lng: d[2], dao: !!d[4], ben: d[4] ? BEN[d[4]] : null };
+    for (const d of DIEM) if (d[3].some((k) => t.includes(k))) return { ten: d[0], lat: d[1], lng: d[2], dao: !!d[4], kieu: d[4] || '', ben: d[4] ? BEN[d[4]] : null };
     return null;
   }
 
@@ -193,11 +193,40 @@
         clearTimeout(hen);
         const j = await r.json();
         const c = j.routes && j.routes[0] && j.routes[0].geometry.coordinates;
-        return c && c.length ? { toaDo: c.map(([x, y]) => [y, x]), km: j.routes[0].distance / 1000 } : null;
+        return c && c.length ? { toaDo: c.map(([x, y]) => [y, x]), km: j.routes[0].distance / 1000, phut: j.routes[0].duration / 60 } : null;
       } catch (_) { return null; }
     })();
     nhoDuong.set(k, p);
     return p;
+  }
+
+  /* Kiểu nền bản đồ (anh Hùng 23/09: "chuyển được sang vệ tinh"). Cả ba miễn phí, không cần khoá:
+   * OSM gốc · ảnh vệ tinh Esri World Imagery + lớp nhãn địa danh/đường của Esri · OpenTopoMap. */
+  const NEN = {
+    duong: { ten: 'Bản đồ', lop: [['https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, referrerPolicy: 'strict-origin-when-cross-origin',
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }]] },
+    veTinh: { ten: 'Vệ tinh', lop: [
+      ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Ảnh &copy; Esri, Maxar, Earthstar Geographics' }],
+      ['https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, opacity: 0.7 }],
+      ['https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 }]] },
+    diaHinh: { ten: 'Địa hình', lop: [['https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxZoom: 17, subdomains: 'abc',
+      attribution: '&copy; OpenStreetMap, <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)' }]] },
+  };
+  const nenLuu = () => { try { const v = goc.localStorage.getItem('kol-nen'); return NEN[v] ? v : 'duong'; } catch (_) { return 'duong'; } };
+  const taoNen = (L, k) => L.layerGroup((NEN[k] || NEN.duong).lop.map(([u, o]) => L.tileLayer(u, o)));
+
+  /** Chặng từ a tới b cho KOL đọc: km + phút đi xe (OSRM), và phương tiện ra đảo nếu có.
+   *  null = cùng một chỗ. Hỏng mạng thì km/phut = null, vẫn biết có đi cáp treo/cano không. */
+  async function quangDuong(a, b) {
+    if (Math.abs(a.lat - b.lat) < 1e-4 && Math.abs(a.lng - b.lng) < 1e-4) return null;
+    let km = 0, phut = 0, du = true, bien = '';
+    for (const d of doanChang(a, b)) {
+      if (d.bien) { bien = (a.dao ? a.kieu : '') || (b.dao ? b.kieu : '') || bien || 'cano'; continue; }
+      const r = await duongBo(d.tu, d.den);
+      if (r) { km += r.km; phut += r.phut || 0; } else du = false;
+    }
+    /* huong: 'ra' = từ đảo chính ra đảo (xe trước, cáp/cano sau) · 've' = ngược lại · 'giua' = đảo sang đảo */
+    return { km: du ? km : null, phut: du ? phut : null, bien, huong: bien ? (a.dao && b.dao ? 'giua' : a.dao ? 've' : 'ra') : '' };
   }
 
   /**
@@ -206,7 +235,7 @@
    */
   /* Trang in (in-lich.js) gọi với: tinh — ảnh tĩnh, không nút phóng/kéo; sang — luôn nền sáng
    * dù app đang tối; lech — bản đồ riêng một ngày vẫn giữ màu của ngày đó trong cả chuyến. */
-  async function veThat(khung, moc, { nho = false, giai = null, ngayNhan = [], tinh = false, sang = false, lech = 0 } = {}) {
+  async function veThat(khung, moc, { nho = false, giai = null, ngayNhan = [], tinh = false, sang = false, lech = 0, nen = '' } = {}) {
     const dv = dinhVi(moc, giai);
     let L;
     try { L = await taiLeaflet(); } catch (_) { khung.innerHTML = svg(dv, nho); return { ok: false, chuaRo: dv.chuaRo, soDiem: dv.diem.length, ngay: dv.ngay }; }
@@ -220,11 +249,23 @@
      * "API KEY REQUIRED"). OSM bắt buộc có Referer, mà hub đặt Referrer-Policy: same-origin cho
      * cả trang → đặt riêng chính sách cho ảnh nền, không thì OSM trả ô "Access blocked".
      * Nền tối = đảo màu bằng CSS (.bd-toi), OSM không có bản tối. */
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19, referrerPolicy: 'strict-origin-when-cross-origin',
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    }).addTo(map);
-    khung.classList.toggle('bd-toi', !sang && toi());
+    const kNen = NEN[nen] ? nen : nenLuu();
+    const datToi = (k) => khung.classList.toggle('bd-toi', !sang && k === 'duong' && toi());   // vệ tinh/địa hình không đảo màu
+    const lopNen = {};
+    for (const k of Object.keys(NEN)) lopNen[k] = taoNen(L, k);
+    lopNen[kNen].addTo(map);
+    datToi(kNen);
+    /* Trên app: nút chọn kiểu nền (nhớ lựa chọn cho mọi bản đồ sau). Trang in tự có ô chọn riêng. */
+    if (!tinh) {
+      const theoTen = {};
+      for (const k of Object.keys(NEN)) theoTen[NEN[k].ten] = lopNen[k];
+      L.control.layers(theoTen, null, { position: 'bottomright', collapsed: true }).addTo(map);
+      map.on('baselayerchange', (ev) => {
+        const k = Object.keys(NEN).find((x) => NEN[x].ten === ev.name) || 'duong';
+        datToi(k);
+        try { goc.localStorage.setItem('kol-nen', k); } catch (_) {}
+      });
+    }
     const mau = MAU();
     const bien = [];
     /* Cùng một địa điểm nhiều mốc → một ghim, popup liệt kê các mốc. */
@@ -263,5 +304,5 @@
       caChuyen: linkGoogleNhieu(dv.diem), diem: dv.diem, map, xong: Promise.all(cho) };
   }
 
-  goc.BanDo = { ve, veThat, doan, dinhVi, linkGoogle, linkGoogleNhieu, chang, doanChang, toaDoTrongChu, linkNgan, DIEM };
+  goc.BanDo = { ve, veThat, quangDuong, NEN, doan, dinhVi, linkGoogle, linkGoogleNhieu, chang, doanChang, toaDoTrongChu, linkNgan, DIEM };
 })(window);

@@ -41,6 +41,10 @@ const BASE = process.env.LARK_BASE_TOKEN || 'TqOFbEdN9aEKyNsGk8qlpeKZgHh';
 module.exports = {
   port: Number(process.env.PORT || 5186),
 
+  /* Dòng liên hệ in trên lịch trình PDF gửi KOL, VD "Lê Văn Hùng · 0901 234 567 · Zalo cùng số".
+   * Để trống thì tờ in không có mục liên hệ — không tự đoán số điện thoại. */
+  lienHeKol: process.env.KOL_LIEN_HE || '',
+
   mode: process.env.LARK_MODE ||
     ((process.env.LARK_APP_ID && process.env.LARK_APP_SECRET) ? 'api' : 'cli'),
   identity: process.env.LARK_AS || 'user',

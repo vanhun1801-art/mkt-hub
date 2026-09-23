@@ -12,7 +12,11 @@
 <body>
 <div class="il-thanh">
   <div class="il-thanh-trai"><b>Lịch trình cho KOL</b><span id="ilTrangThai">Đang dựng bản đồ…</span></div>
-  <button type="button" id="ilIn" disabled>Lưu PDF</button>
+  <div class="il-thanh-phai">
+    <label>Nền bản đồ <select id="ilNen"></select></label>
+    <label><input type="checkbox" id="ilTin" checked> Tờ thông tin chuyến đi</label>
+    <button type="button" id="ilIn" disabled>Lưu PDF</button>
+  </div>
 </div>
 <div id="ilSach"></div>
 <script src="/ban-do.js?v=BUILD"></script>

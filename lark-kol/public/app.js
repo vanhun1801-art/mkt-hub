@@ -1203,6 +1203,36 @@ function veDongThoiGian(than, ht, trongCt) {
 }
 const conLai = (ms) => { const p = Math.round(ms / 60000); return p < 60 ? p + ' phút' : p < 1440 ? Math.floor(p / 60) + ' giờ ' + (p % 60 ? p % 60 + ' phút' : '') : Math.round(p / 1440) + ' ngày'; };
 
+/* Thẻ chọn chuyến (anh Hùng 23/09: dải chip cũ khó đọc): ai · khi nào · đang ở đâu trong chuyến ·
+ * xong bao nhiêu mốc · mốc kế tiếp. Nhìn lướt biết chuyến nào cần để mắt. */
+function theChuyen(h, on, now) {
+  const hm = gomMoc(S.dl.hangMuc.filter((x) => x.hopTac === h.id && x.tinhTrang !== 'Huỷ'));
+  const xong = hm.filter((g) => g[0].tinhTrang === 'Đã xong').length;
+  const chuaGio = hm.filter((g) => !g[0].gioHen).length;
+  const di = h.batDau ? dauNgay(h.batDau) : 0, ve = h.ketThuc ? dauNgay(h.ketThuc) : di;
+  const soNgay = di ? Math.round((ve - di) / NGAY_MS) + 1 : 0;
+  const homNay = dauNgay(now);
+  let thoi = '', mauThoi = '';
+  if (di && homNay < di) { const n = Math.round((di - homNay) / NGAY_MS); thoi = n === 1 ? 'Đi ngày mai' : 'Còn ' + n + ' ngày'; mauThoi = 'cam'; }
+  else if (di && homNay <= ve) { thoi = 'Đang đi · ngày ' + (Math.round((homNay - di) / NGAY_MS) + 1) + '/' + soNgay; mauThoi = 'xanh'; }
+  else if (di) { const n = Math.round((homNay - ve) / NGAY_MS); thoi = n === 0 ? 'Về hôm nay' : 'Đã về ' + n + ' ngày'; }
+  const tiep = hm.find((g) => g[0].gioHen && g[0].gioHen > now && g[0].tinhTrang !== 'Đã xong');
+  const phan = hm.length ? Math.round(xong / hm.length * 100) : 0;
+  const k = kolCua(h.kol);
+  const chu = String(h.kolTen || h.ma || '?').replace(/^\[[^\]]*\]\s*/, '').trim();
+  const tat = chu.split(/\s+/).filter(Boolean);
+  return '<button type="button" class="lt-the' + (on ? ' on' : '') + '" data-chon="' + h.id + '">' +
+    '<div class="lt-the-dau"><span class="lt-avt">' + e(((tat[0] || '?')[0] + (tat.length > 1 ? tat[tat.length - 1][0] : '')).toUpperCase()) + '</span>' +
+      '<div class="lt-the-ten"><b>' + e(h.kolTen || h.ma) + '</b><small>' + e([h.ma, k.quocGia].filter(Boolean).join(' · ')) + '</small></div></div>' +
+    '<div class="lt-the-ngay">' + (di ? ddmm(di) + (soNgay > 1 ? ' – ' + ddmm(ve) : '') + ' · ' + soNgay + 'N' + (soNgay > 1 ? (soNgay - 1) + 'Đ' : '') : 'Chưa có ngày đi') +
+      (thoi ? nhanTT(thoi, mauThoi) : '') + '</div>' +
+    '<div class="lt-the-tien"><i style="width:' + phan + '%"></i></div>' +
+    '<div class="lt-the-chan"><span>' + (hm.length ? xong + '/' + hm.length + ' mốc xong' : 'Chưa có mốc') + '</span><span>' + e(h.buoc) + '</span></div>' +
+    '<div class="lt-the-tiep">' + (tiep ? 'Tiếp: <b>' + e(tenGon(tiep[0].ten)) + '</b> ' + ddmm(tiep[0].gioHen) + ' ' + hhmm(tiep[0].gioHen)
+      : chuaGio && homNay <= ve ? '<span class="canh">' + chuaGio + ' mốc chưa có giờ hẹn</span>' : '&nbsp;') + '</div>' +
+    '</button>';
+}
+
 function veLichTrinh(man, htId) {
   const now = Date.now();
   const uu = { 'Đang đi tour': 0, 'Đã tạo tour Tourwell': 1, 'KOL đã xác nhận': 2, 'Đã mời KOL': 3, 'BGĐ đã duyệt': 4 };
@@ -1214,8 +1244,7 @@ function veLichTrinh(man, htId) {
   man.innerHTML = '<div class="the"><div class="the-dau"><h2>Nhắc hẹn</h2><span class="nho">' + (nhac.tat ? 'Đang tắt' : nhac.coKenh ? e(nhac.kenh) + ' · trước ' + nhac.truocPhut + ' phút' : 'Chưa có kênh gửi tin') +
     (nhac.lanCuoi ? ' · gửi lần cuối ' + ddmm(nhac.lanCuoi) + ' ' + hhmm(nhac.lanCuoi) : '') + '</span><div class="lon"></div><button class="btn nho" id="thuNhac">Gửi tin thử</button></div>' +
     (nhac.loiCuoi ? '<div class="the-than"><div class="bao cam" style="margin:0">' + e(nhac.loiCuoi) + '</div></div>' : '') + '</div>' +
-    (tatCa.length ? '<div class="hang-nut" style="margin-bottom:12px">' + tatCa.map((h) => '<button class="chip-chon' + (chon && h.id === chon.id ? ' on' : '') + '" data-chon="' + h.id + '">' +
-      e(h.kolTen || h.ma) + ' · ' + ddmm(h.batDau) + ' · ' + e(h.buoc) + '</button>').join('') + '</div><div id="ltThan"></div>' :
+    (tatCa.length ? '<div class="lt-chuyen">' + tatCa.map((h) => theChuyen(h, chon && h.id === chon.id, now)).join('') + '</div><div id="ltThan"></div>' :
       '<div class="bao">Không có chuyến nào sắp đi hoặc đang đi.</div>');
   if (chon) veDongThoiGian($('#ltThan'), chon);
   man.onclick = async (ev) => {

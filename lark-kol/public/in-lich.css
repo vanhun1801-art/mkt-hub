@@ -23,6 +23,9 @@ body { font-family: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', sans
 .il-thanh-trai span { color: var(--il-phu); }
 #ilIn { font: 600 14px/1 inherit; font-family: inherit; padding: 10px 18px; border: 0; border-radius: 8px; background: var(--il-chinh); color: #fff; cursor: pointer; }
 #ilIn:disabled { opacity: .5; cursor: progress; }
+.il-thanh-phai { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.il-thanh-phai label { display: inline-flex; align-items: center; gap: 6px; color: var(--il-than); }
+.il-thanh-phai select { font: inherit; padding: 6px 8px; border: 1px solid var(--il-vien); border-radius: 8px; background: #fff; }
 #ilSach { display: flex; flex-direction: column; align-items: center; gap: 24px; padding: 24px 12px 60px; }
 .il-loi { max-width: 560px; padding: 16px 20px; border-radius: 10px; background: #fff4e5; color: #8a4b00; }
 
@@ -41,6 +44,7 @@ body { font-family: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', sans
 .il-chan b { color: var(--il-chinh); font-weight: 600; }
 
 /* bản đồ */
+.il-bd.trong { background: linear-gradient(135deg, #e8f4f1, #f6f8f9); }
 .il-bd { position: relative; border-radius: 14px; overflow: hidden; border: 1px solid var(--il-vien); background: #eef3f5; min-height: 0; }
 .il-bd .bd-that { position: absolute; inset: 0; }
 /* chỉ sơ đồ vẽ tay dự phòng — đừng chạm svg của Leaflet (lớp đường đi, cờ ở dòng ghi nguồn) */
@@ -106,3 +110,37 @@ body { font-family: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', sans
 @media screen and (max-width: 1160px) {
   #ilSach { align-items: flex-start; overflow-x: auto; }
 }
+
+.il-mui { color: var(--il-phu); }
+/* cột trái tờ ngày: bản đồ + QR lộ trình */
+.il-trai { display: flex; flex-direction: column; gap: 4mm; min-height: 0; }
+.il-trai .il-bd { flex: 1; }
+.il-qr { display: flex; align-items: center; gap: 4mm; padding: 3mm 4mm; border-radius: 12px; background: var(--il-chinh-nhat); color: var(--il-than); text-decoration: none; }
+.il-qr svg { width: 22mm; height: 22mm; flex: none; background: #fff; padding: 1.5mm; border-radius: 6px; }
+.il-qr span { font-size: 10px; line-height: 1.5; color: var(--il-phu); }
+.il-qr b { display: block; font-size: 12px; color: var(--il-than); margin-bottom: .6mm; }
+.il-ngay-dau { margin-left: 6mm; }
+.il-tom { font-size: 11px; line-height: 1.6; }
+.il-tom b { display: block; font-size: 13px; color: var(--il-than); letter-spacing: 0; text-transform: none; }
+/* nhãn buổi + ô chặng đi giữa hai mốc */
+.il-buoi { position: relative; z-index: 1; margin: 0 0 2.5mm 44px; font-size: 9.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--il-chinh); }
+.il-dong > .il-buoi:not(:first-child) { margin-top: 1mm; }
+.il-dac .il-buoi { margin-left: 38px; margin-bottom: 1.5mm; }
+.il-chang { display: inline-flex; align-items: center; gap: 6px; margin-top: 2mm; padding: 1mm 3mm 1mm 2.4mm; border-radius: 999px;
+  background: #f3f4f6; color: var(--il-phu); font-size: 9.5px; font-weight: 600; }
+.il-chang:empty { display: none; }
+.il-chang::before { content: ''; width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 6px solid var(--il-phu); }
+/* tờ thông tin chuyến đi */
+.il-tin { grid-template-columns: 1fr 1.2fr; }
+.il-tin > div { min-height: 0; overflow: hidden; }
+.il-h3 { margin: 0 0 3mm; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--il-chinh); }
+.il-h3:not(:first-child) { margin-top: 6mm; }
+.il-tin-o { padding: 2.4mm 0; border-top: 1px dashed var(--il-vien); font-size: 12px; line-height: 1.5; }
+.il-tin-o small { display: block; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; color: var(--il-phu); margin-bottom: .6mm; }
+.il-tom-ngay { display: flex; gap: 6px; align-items: baseline; font-size: 11px; line-height: 1.55; padding: 1mm 0; }
+.il-tom-ngay b { white-space: nowrap; }
+.il-bang { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 4mm; }
+.il-bang th { text-align: left; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; color: var(--il-phu); font-weight: 600; padding: 0 2mm 2mm 0; border-bottom: 1.5px solid var(--il-chinh-nhat); }
+.il-bang td { padding: 2.2mm 2mm 2.2mm 0; border-bottom: 1px solid var(--il-vien); vertical-align: top; }
+.il-bang .il-mui { font-size: 10px; }
+.il-yeu-cau { white-space: pre-wrap; font-size: 11px; }
