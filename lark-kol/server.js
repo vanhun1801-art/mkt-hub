@@ -24,6 +24,7 @@ const nhac = require('./nhac');
 const theoDoi = require('./theo-doi-mail');
 const MV = require('./public/ma-vung');
 const TW = require('./tourwell-danh-muc');
+const { layLogo } = require('../lark-chung/logo');
 
 const BIND = process.env.BIND || '127.0.0.1';
 const PUBLIC = path.join(__dirname, 'public');
@@ -93,7 +94,8 @@ function tinh(res, duong, truyVan) {
     return gui(res, 404, 'Không có ' + p, { 'Content-Type': 'text/plain; charset=utf-8' });
   }
   let body = fs.readFileSync(f);
-  const trangChu = path.basename(f) === 'index.html';
+  /* mọi trang .html (index + trang in lịch trình) đều thay v=BUILD và không đệm */
+  const trangChu = path.extname(f) === '.html';
   if (trangChu) body = Buffer.from(body.toString('utf8').split('v=BUILD').join('v=' + VER), 'utf8');
   gui(res, 200, body, {
     'Content-Type': MIME[path.extname(f)] || 'application/octet-stream',
@@ -290,6 +292,14 @@ async function api(req, res, u) {
       nhac: { ...nhac.trangThai, kenh: k ? k.ten : '', coKenh: !!k, truocPhut: cfg.nhac.truocPhut, tat: cfg.nhac.tat },
       theoDoi: { ...theoDoi.trangThai, chuKyPhut: theoDoi.CHU_KY / 60000 },
     });
+  }
+
+  /* Logo thương hiệu cho trang in lịch trình — bản gốc ở hub (lark-chung/logo.js).
+   * Không có thì 404 và trang in tự hiện chữ "Rooty Trip" thay ảnh. */
+  if (p === '/api/logo' && m === 'GET') {
+    const logo = await layLogo(path.join(__dirname, 'du-lieu'));
+    if (!logo) return gui(res, 404, '', { 'Content-Type': 'text/plain' });
+    return gui(res, 200, logo.buf, { 'Content-Type': logo.mime, 'Cache-Control': 'private, max-age=3600' });
   }
 
   if (p === '/api/du-lieu' && m === 'GET') {

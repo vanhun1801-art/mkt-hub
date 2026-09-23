@@ -1,0 +1,108 @@
+/* Trang in lịch trình gửi KOL — khổ A4 ngang, mỗi .il-trang là đúng một tờ.
+ * Luôn nền sáng (tệp gửi ra ngoài, không theo kiểu tối của app). Tên lớp có tiền tố il-
+ * để không đụng CSS dùng chung mà hub chèn vào mọi trang con. */
+:root {
+  --il-chinh: #289a87;      /* xanh ngọc của logo Rooty Trip */
+  --il-chinh-nhat: #e8f4f1;
+  --il-than: #3a3a3c;       /* xám than của chữ "trip" */
+  --il-phu: #6b7280;
+  --il-vien: #e5e7eb;
+  --il-nen: #ffffff;
+  /* màu từng ngày — ban-do.js đọc đúng năm biến này theo thứ tự ngày 1..5 */
+  --blue: #289a87; --orange: #e8833a; --green: #2f6fde; --purple: #8a5cd6; --red: #d9534f;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: #e9ecef; color: var(--il-than); }
+body { font-family: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+/* thanh công cụ — chỉ trên màn hình */
+.il-thanh { position: sticky; top: 0; z-index: 1000; display: flex; align-items: center; gap: 16px; justify-content: space-between;
+  padding: 10px 20px; background: #fff; border-bottom: 1px solid var(--il-vien); font-size: 13px; }
+.il-thanh-trai { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+.il-thanh-trai span { color: var(--il-phu); }
+#ilIn { font: 600 14px/1 inherit; font-family: inherit; padding: 10px 18px; border: 0; border-radius: 8px; background: var(--il-chinh); color: #fff; cursor: pointer; }
+#ilIn:disabled { opacity: .5; cursor: progress; }
+#ilSach { display: flex; flex-direction: column; align-items: center; gap: 24px; padding: 24px 12px 60px; }
+.il-loi { max-width: 560px; padding: 16px 20px; border-radius: 10px; background: #fff4e5; color: #8a4b00; }
+
+/* ---------- một tờ A4 ngang ---------- */
+.il-trang { position: relative; width: 297mm; height: 210mm; overflow: hidden; background: var(--il-nen);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, .12); padding: 12mm 14mm 10mm; display: flex; flex-direction: column; }
+.il-dau { display: flex; align-items: center; gap: 14px; padding-bottom: 5mm; border-bottom: 1.5px solid var(--il-chinh-nhat); }
+.il-logo { height: 13mm; width: auto; display: block; }
+.il-logo.nho { height: 9mm; }
+.il-chu-logo { font-weight: 800; font-size: 22px; color: var(--il-chinh); letter-spacing: -.02em; }
+.il-chu-logo i { font-style: normal; color: var(--il-than); }
+.il-dau-phai { margin-left: auto; text-align: right; font-size: 10.5px; color: var(--il-phu); line-height: 1.5; }
+.il-dau-phai b { display: block; font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--il-chinh); }
+.il-than { flex: 1; min-height: 0; display: grid; grid-template-columns: 1.25fr 1fr; gap: 9mm; padding-top: 7mm; }
+.il-chan { display: flex; justify-content: space-between; align-items: center; padding-top: 4mm; font-size: 9.5px; color: var(--il-phu); }
+.il-chan b { color: var(--il-chinh); font-weight: 600; }
+
+/* bản đồ */
+.il-bd { position: relative; border-radius: 14px; overflow: hidden; border: 1px solid var(--il-vien); background: #eef3f5; min-height: 0; }
+.il-bd .bd-that { position: absolute; inset: 0; }
+/* chỉ sơ đồ vẽ tay dự phòng — đừng chạm svg của Leaflet (lớp đường đi, cờ ở dòng ghi nguồn) */
+.il-bd .bd-that > svg { width: 100%; height: 100%; display: block; }
+.il-bd .leaflet-control-attribution { font-size: 8px; }
+.bd-ghim span { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; color: #fff;
+  font: 700 11px/1 'Be Vietnam Pro', system-ui, sans-serif; border: 2.5px solid #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, .35); }
+.il-bd-nhan { position: absolute; left: 12px; bottom: 12px; z-index: 500; display: flex; gap: 6px; flex-wrap: wrap; }
+.il-bd-nhan span { background: rgba(255, 255, 255, .94); border-radius: 999px; padding: 4px 10px 4px 8px; font-size: 10px; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 1px 3px rgba(0, 0, 0, .15); }
+.il-cham { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: none; }
+
+/* ---------- trang bìa ---------- */
+.il-bia-phai { display: flex; flex-direction: column; min-height: 0; }
+.il-mat { font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--il-chinh); font-weight: 700; }
+.il-tieu-de { font-size: 34px; line-height: 1.12; font-weight: 800; margin: 3mm 0 2mm; letter-spacing: -.02em; color: var(--il-than); }
+.il-tieu-de em { font-style: normal; color: var(--il-chinh); }
+.il-khoang { font-size: 14px; color: var(--il-phu); font-weight: 500; }
+.il-so { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; margin: 6mm 0 5mm; }
+.il-so div { background: var(--il-chinh-nhat); border-radius: 10px; padding: 3mm 4mm; }
+.il-so small { display: block; font-size: 9px; color: var(--il-phu); text-transform: uppercase; letter-spacing: .08em; }
+.il-so b { display: block; font-size: 13px; margin-top: 1mm; }
+.il-tq { display: flex; flex-direction: column; gap: 2.4mm; min-height: 0; overflow: hidden; }
+.il-tq-ngay { display: grid; grid-template-columns: 22mm 1fr; gap: 3mm; align-items: start; padding: 2.4mm 0; border-top: 1px dashed var(--il-vien); }
+.il-tq-ngay:first-child { border-top: 0; }
+.il-tq-ngay b { font-size: 12px; display: flex; align-items: center; gap: 6px; }
+.il-tq-ngay small { display: block; font-size: 10px; color: var(--il-phu); margin-top: .5mm; padding-left: 15px; }
+.il-tq-ngay p { margin: 0; font-size: 11.5px; line-height: 1.5; }
+
+/* ---------- trang từng ngày ---------- */
+.il-ngay-dau { display: flex; align-items: center; gap: 12px; }
+.il-ngay-so { color: #fff; border-radius: 10px; padding: 2.4mm 4mm; font-weight: 800; font-size: 15px; line-height: 1; }
+.il-ngay-ten { font-size: 18px; font-weight: 700; }
+.il-ngay-ten small { display: block; font-size: 10.5px; font-weight: 500; color: var(--il-phu); margin-top: 1mm; }
+.il-dong { position: relative; display: flex; flex-direction: column; min-height: 0; padding-left: 2mm; }
+.il-dong::before { content: ''; position: absolute; left: calc(2mm + 17px); top: 6px; bottom: 6px; width: 2px; background: var(--il-vien); }
+.il-moc { position: relative; display: grid; grid-template-columns: 36px 1fr; gap: 12px; padding: 0 0 5mm; }
+.il-moc-so { position: relative; z-index: 1; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; color: #fff;
+  font-weight: 700; font-size: 13px; border: 3px solid #fff; box-shadow: 0 0 0 1px var(--il-vien); }
+.il-moc-so.trong { background: #fff !important; color: var(--il-phu); box-shadow: 0 0 0 1.5px var(--il-vien); }
+.il-moc-gio { font-size: 12px; font-weight: 700; color: var(--il-chinh); letter-spacing: .02em; }
+.il-moc-gio span { font-weight: 500; color: var(--il-phu); margin-left: 6px; text-transform: uppercase; font-size: 9px; letter-spacing: .1em; }
+.il-moc-ten { font-size: 14px; font-weight: 700; line-height: 1.3; margin-top: .6mm; }
+.il-moc-noi { font-size: 10.5px; color: var(--il-phu); margin-top: .8mm; line-height: 1.45; }
+.il-moc-noi a { color: var(--il-chinh); text-decoration: none; font-weight: 600; white-space: nowrap; }
+.il-dac .il-moc { padding-bottom: 3mm; }
+.il-dac .il-moc-ten { font-size: 12.5px; }
+.il-dac .il-moc-so { width: 30px; height: 30px; font-size: 11.5px; }
+.il-dac .il-moc { grid-template-columns: 30px 1fr; }
+.il-dac.il-dong::before { left: calc(2mm + 14px); }
+.il-tu-do { margin: auto 0; text-align: center; color: var(--il-phu); font-size: 14px; }
+.il-tu-do b { display: block; font-size: 20px; color: var(--il-than); margin-bottom: 2mm; }
+
+@page { size: A4 landscape; margin: 0; }
+@media print {
+  html, body { background: #fff; }
+  .il-thanh { display: none; }
+  #ilSach { display: block; padding: 0; }
+  .il-trang { box-shadow: none; break-after: page; page-break-after: always; }
+  .il-trang:last-child { break-after: auto; page-break-after: auto; }
+}
+/* màn hẹp: tờ giữ nguyên khổ thật (thu nhỏ bằng zoom làm Leaflet đặt sai ghim), cuộn ngang trong khung */
+@media screen and (max-width: 1160px) {
+  #ilSach { align-items: flex-start; overflow-x: auto; }
+}

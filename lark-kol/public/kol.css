@@ -183,7 +183,16 @@ select.foc-do { background: var(--red-bg); color: var(--red-text); }
 .lt-luoi { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 14px; align-items: start; }
 .lt-bd { position: sticky; top: 70px; }
 @media (max-width: 900px) { .lt-luoi { grid-template-columns: 1fr; } .lt-bd { position: static; } }
-.bd-khung { display: flex; flex-direction: column; gap: 8px; }
+.bd-khung { display: flex; flex-direction: column; gap: 8px; position: relative; }
+/* nút toàn màn hình đè góc trên phải bản đồ (trên các nút phóng to/thu nhỏ của Leaflet) */
+.bd-phong-nut { position: absolute; top: 10px; right: 10px; z-index: 500; padding: 5px 10px; border-radius: var(--r); border: 1px solid var(--border-2);
+  background: var(--surface); color: var(--text); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; box-shadow: var(--shadow-1); }
+.bd-phong-nut:hover { background: var(--surface-3); }
+/* đang toàn màn hình: Fullscreen API (:fullscreen) hoặc phóng CSS (.bd-phong) — cùng một bố cục */
+.bd-khung:fullscreen, .bd-khung.bd-phong { background: var(--bg); padding: 12px; gap: 10px; }
+.bd-khung.bd-phong { position: fixed; inset: 0; z-index: 90; }
+.bd-khung:fullscreen .bd-that, .bd-khung.bd-phong .bd-that { flex: 1 1 auto; height: auto; max-height: none; }
+.bd-khung:fullscreen .bd-phong-nut, .bd-khung.bd-phong .bd-phong-nut { top: 22px; right: 22px; }
 /* bản đồ thật (Leaflet) */
 .bd-that { height: 560px; max-height: 72vh; border-radius: var(--r-lg); overflow: hidden; background: var(--surface-3); border: 1px solid var(--border); z-index: 0; }
 .bd-khung.nho .bd-that { height: 280px; }

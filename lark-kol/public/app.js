@@ -578,8 +578,42 @@ function htmlBanDo(moc, nho) {
   if (!window.BanDo || !moc.length) return '';
   const id = 'bd' + (++soBd);
   S.bd[id] = { moc, nho };
-  return '<div class="bd-khung' + (nho ? ' nho' : '') + '"><div class="bd-that" id="' + id + '"></div><div class="bd-chu" data-bdc="' + id + '"></div></div>';
+  return '<div class="bd-khung' + (nho ? ' nho' : '') + '"><button type="button" class="bd-phong-nut" data-bdfs title="Mở rộng toàn màn hình (Esc để thu về)">Toàn màn hình</button>' +
+    '<div class="bd-that" id="' + id + '"></div><div class="bd-chu" data-bdc="' + id + '"></div></div>';
 }
+/* Toàn màn hình: dùng Fullscreen API thật (iframe của hub đã allow="fullscreen"); trình duyệt
+ * chặn thì phóng bằng CSS phủ kín khung (.bd-phong). Đổi kích thước xong phải bảo Leaflet vẽ lại. */
+function veLaiBanDo(khung) {
+  const m = khung && $('.bd-that', khung);
+  if (m && m._banDo) setTimeout(() => m._banDo.invalidateSize(), 120);
+}
+function doiToanManHinh(khung) {
+  const dangMo = document.fullscreenElement === khung || khung.classList.contains('bd-phong');
+  const nut = $('[data-bdfs]', khung);
+  if (dangMo) {
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    khung.classList.remove('bd-phong');
+    if (nut) nut.textContent = 'Toàn màn hình';
+    return veLaiBanDo(khung);
+  }
+  const phongCss = () => { khung.classList.add('bd-phong'); if (nut) nut.textContent = 'Thu nhỏ'; veLaiBanDo(khung); };
+  if (khung.requestFullscreen) {
+    khung.requestFullscreen().then(() => { if (nut) nut.textContent = 'Thu nhỏ'; veLaiBanDo(khung); }).catch(phongCss);
+  } else phongCss();
+}
+document.addEventListener('click', (ev) => { const b = ev.target.closest('[data-bdfs]'); if (b) doiToanManHinh(b.closest('.bd-khung')); });
+document.addEventListener('fullscreenchange', () => {
+  for (const k of $$('.bd-khung')) {
+    if (document.fullscreenElement !== k && !k.classList.contains('bd-phong')) { const n = $('[data-bdfs]', k); if (n) n.textContent = 'Toàn màn hình'; }
+    veLaiBanDo(k);
+  }
+});
+/* Esc thu bản phóng CSS (bản Fullscreen API trình duyệt tự lo Esc). */
+document.addEventListener('keydown', (ev) => {
+  if (ev.key !== 'Escape') return;
+  const k = $('.bd-khung.bd-phong');
+  if (k) { ev.stopPropagation(); doiToanManHinh(k); }
+}, true);
 const giaiLink = {};
 async function ganBanDo(goc) {
   for (const el of $$('.bd-that', goc || document)) {
@@ -1126,7 +1160,9 @@ function veDongThoiGian(than, ht, trongCt) {
     tiep ? '<div class="lt-dang"><div>Tiếp theo</div><b>' + e(tenGon(tiep[0].ten)) + '</b><span>' + ddmm(tiep[0].gioHen) + ' ' + hhmm(tiep[0].gioHen) + ' · còn ' + conLai(tiep[0].gioHen - now) + '</span></div>' : '') +
     '<div class="lt-luoi"><div class="the lt-bd"><div class="the-dau"><h2>Sơ đồ Phú Quốc</h2></div><div class="the-than">' +
     htmlBanDo(moc.filter((g) => g[0].gioHen || g[0].ngay).map((g) => ({ ngay: dauNgay(g[0].gioHen || g[0].ngay), gio: g[0].gioHen, ten: tenGon(g[0].ten), h: g[0] })), false) +
-    '</div></div><div class="the" style="min-width:0"><div class="the-than">' +
+    '</div></div><div class="the" style="min-width:0"><div class="the-dau"><h2>Các mốc</h2><div class="lon"></div>' +
+    (moc.length ? '<a class="btn nho chinh" href="' + e(((window.__HUB__ && window.__HUB__.prefix) || '') + '/in-lich.html?ht=' + ht.id) + '" target="_blank" rel="noopener" title="Bản lịch trình có bản đồ và logo Rooty Trip, lưu PDF gửi KOL">Xuất PDF cho KOL</a>' : '') +
+    '</div><div class="the-than">' +
     (moc.length ? '' : '<div class="bao">Chưa có hạng mục nào. Thêm ở tab Bảng kê, đặt Giờ hẹn cho từng mốc.</div>') +
     cacNgay.map((d) => { const ds = moc.filter((g) => dauNgay(g[0].gioHen || g[0].ngay) === d); const t = vn(d);
       return '<div class="lt-ngay' + (d === dauNgay(now) ? ' nay' : '') + '"><b>' + THU[t.thu] + ', ' + p2(t.d) + '/' + p2(t.m) + (d === dauNgay(now) ? ' · hôm nay' : '') + '</b><div class="lt-ds">' +
@@ -1391,6 +1427,8 @@ window.addEventListener('message', (ev) => {
 setInterval(() => {
   const d = duong();
   if (S.sua && S.sua.ban) return;
+  /* đang xem bản đồ toàn màn hình thì đừng vẽ lại, kẻo thu bản đồ về */
+  if (document.fullscreenElement || $('.bd-khung.bd-phong')) return;
   if (d.trang === 'lich-trinh' || d.con === 'lich-trinh') nap(false).then(ve).catch(() => {});
 }, 60000);
 

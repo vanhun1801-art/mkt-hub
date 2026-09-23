@@ -29,7 +29,7 @@
     ['Bãi Trường', 10.13606, 103.9764, ['bai truong', 'long beach']],
     ['Suối Tranh', 10.18378, 104.01534, ['suoi tranh']],
     ['Hàm Ninh', 10.17634, 104.03263, ['ham ninh']],
-    ['Thiền viện Trúc Lâm Hộ Quốc (ước lượng)', 10.107, 104.047, ['ho quoc', 'thien vien', 'truc lam']],
+    ['Thiền viện Trúc Lâm Hộ Quốc', 10.1092, 104.0275, ['ho quoc', 'thien vien', 'truc lam']],
     ['Nhà tù Phú Quốc', 10.04345, 104.01879, ['nha tu', 'coconut prison', 'coconut tree']],
     ['Bãi Sao', 10.05247, 104.03519, ['bai sao', 'sao beach']],
     ['Bãi Khem', 10.03577, 104.03063, ['bai khem', 'kem beach', 'sun premier village kem']],
@@ -204,13 +204,17 @@
    * Vẽ bản đồ thật vào `khung`. Trả Promise<{ok, chuaRo, soDiem, ngay}>.
    * Không tải được Leaflet → đổ bản vector vào khung, ok:false.
    */
-  async function veThat(khung, moc, { nho = false, giai = null, ngayNhan = [] } = {}) {
+  /* Trang in (in-lich.js) gọi với: tinh — ảnh tĩnh, không nút phóng/kéo; sang — luôn nền sáng
+   * dù app đang tối; lech — bản đồ riêng một ngày vẫn giữ màu của ngày đó trong cả chuyến. */
+  async function veThat(khung, moc, { nho = false, giai = null, ngayNhan = [], tinh = false, sang = false, lech = 0 } = {}) {
     const dv = dinhVi(moc, giai);
     let L;
     try { L = await taiLeaflet(); } catch (_) { khung.innerHTML = svg(dv, nho); return { ok: false, chuaRo: dv.chuaRo, soDiem: dv.diem.length, ngay: dv.ngay }; }
     if (khung._banDo) { khung._banDo.remove(); khung._banDo = null; }
     khung.innerHTML = '';
-    const map = L.map(khung, { zoomControl: !nho, attributionControl: true, scrollWheelZoom: !nho });
+    const map = L.map(khung, tinh
+      ? { zoomControl: false, attributionControl: true, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false, zoomSnap: 0.25 }
+      : { zoomControl: !nho, attributionControl: true, scrollWheelZoom: !nho });
     khung._banDo = map;
     /* Nền OpenStreetMap gốc — miễn phí, không cần khoá (CARTO từ 2026 đòi API key, hiện chữ
      * "API KEY REQUIRED"). OSM bắt buộc có Referer, mà hub đặt Referrer-Policy: same-origin cho
@@ -220,14 +224,14 @@
       maxZoom: 19, referrerPolicy: 'strict-origin-when-cross-origin',
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(map);
-    khung.classList.toggle('bd-toi', toi());
+    khung.classList.toggle('bd-toi', !sang && toi());
     const mau = MAU();
     const bien = [];
     /* Cùng một địa điểm nhiều mốc → một ghim, popup liệt kê các mốc. */
     const gom = new Map();
     dv.diem.forEach((d) => { const k = d.lat + ',' + d.lng; if (!gom.has(k)) gom.set(k, { ...d, muc: [] }); gom.get(k).muc.push(d); });
     for (const g of gom.values()) {
-      const c = mau[g.ngay % 5];
+      const c = mau[(g.ngay + lech) % 5];
       const nhan = g.muc.length > 2 ? g.muc[0].so + '+' : g.muc.map((m) => m.so).join(',');
       const icon = L.divIcon({ className: 'bd-ghim', html: '<span style="background:' + c + '">' + nhan + '</span>', iconSize: [26, 26], iconAnchor: [13, 13] });
       L.marker([g.lat, g.lng], { icon, title: g.noi }).addTo(map).bindPopup('<b>' + e(g.noi) + '</b>' + (g.tay ? ' <i>(ghim tay)</i>' : '') + '<br>' +
@@ -235,27 +239,28 @@
         '<br><a href="https://www.google.com/maps/search/?api=1&query=' + g.lat + ',' + g.lng + '" target="_blank" rel="noopener">Mở trên Google Maps</a>');
       bien.push([g.lat, g.lng]);
     }
-    if (bien.length) map.fitBounds(bien, { padding: [28, 28], maxZoom: 14 }); else map.setView([10.2, 103.97], 10);
+    if (bien.length) map.fitBounds(bien, { padding: tinh ? [44, 44] : [28, 28], maxZoom: 14 }); else map.setView([10.2, 103.97], 10);
     /* MỘT hành trình xuyên suốt cả chuyến (anh Hùng 23/09): nối mọi điểm theo thời gian, kể cả
      * chặng cuối ngày → đầu ngày sau. Chặng mang màu ngày của điểm ĐẾN; chặng chuyển ngày vẽ
      * mảnh hơn. Vẽ thẳng nét đứt trước (thấy ngay), rồi thay chặng trên đảo bằng đường bộ thật;
      * chặng có đầu ngoài đảo (cáp treo, cano) giữ nét đứt. */
+    const cho = [];
     for (const { a, b, doiNgay } of chang(dv.diem)) {
-      const c = mau[b.ngay % 5];
+      const c = mau[(b.ngay + lech) % 5];
       const net = doiNgay ? { weight: 2.5, opacity: 0.6, dashArray: '2 6' } : { weight: 4, opacity: 0.85 };
       for (const d of doanChang(a, b)) {
         if (d.bien) { L.polyline([[d.tu.lat, d.tu.lng], [d.den.lat, d.den.lng]], { color: c, weight: 3, opacity: 0.85, dashArray: '8 7' }).addTo(map); continue; }
         const thang = L.polyline([[d.tu.lat, d.tu.lng], [d.den.lat, d.den.lng]], { color: c, weight: 3, opacity: 0.6, dashArray: '6 6' }).addTo(map);
-        duongBo(d.tu, d.den).then((r) => {
+        cho.push(duongBo(d.tu, d.den).then((r) => {
           if (!r || !khung._banDo || khung._banDo !== map) return;
           map.removeLayer(thang);
           L.polyline(r.toaDo, { color: c, ...net }).addTo(map);
-        });
+        }).catch(() => {}));
       }
     }
     setTimeout(() => map.invalidateSize(), 60);
     return { ok: true, chuaRo: dv.chuaRo, soDiem: dv.diem.length, ngay: dv.ngay, theoNgay: dv.ngay.map((_, i) => linkGoogle(dv.diem.filter((d) => d.ngay === i))),
-      caChuyen: linkGoogleNhieu(dv.diem) };
+      caChuyen: linkGoogleNhieu(dv.diem), diem: dv.diem, map, xong: Promise.all(cho) };
   }
 
   goc.BanDo = { ve, veThat, doan, dinhVi, linkGoogle, linkGoogleNhieu, chang, doanChang, toaDoTrongChu, linkNgan, DIEM };
