@@ -322,7 +322,6 @@ button.phu-nut:hover{filter:none;background:var(--nen)}
 .o-tick{display:flex;align-items:center;gap:9px;margin:18px 0 0;font-size:13.5px;
   color:var(--muc);cursor:pointer;font-weight:500}
 .o-tick input{width:17px;height:17px;margin:0;accent-color:var(--lam);cursor:pointer;flex:0 0 auto}
-.o-tick+.goi-y{margin-top:5px}
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
     --muc:#e8ecf1;--mo:#98a2b0;--vien:#2c333c;--the:#1a1f26;--nen:#0f1319;
@@ -478,7 +477,6 @@ async function handle(req, res, url) {
        * trình duyệt — dành cho máy dùng chung. */
       '<label class="o-tick"><input type="checkbox" name="nho" value="1" checked>' +
       '<span>Duy trì đăng nhập</span></label>' +
-      '<p class="goi-y">Bỏ tick nếu đang dùng máy chung — đóng trình duyệt là thoát.</p>' +
       '<button type="submit">Đăng nhập</button>' +
       '</form>' +
       '<p class="duoi"><a href="/auth/dang-ky">Chưa có tài khoản? Đăng ký</a><br>' +
