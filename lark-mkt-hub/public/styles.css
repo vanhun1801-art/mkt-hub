@@ -856,8 +856,20 @@ code { background: var(--trang-2); border: 1px solid var(--vien-mem); border-rad
 
 /* Máy tính bảng: panel thu về dải icon, vẫn đứng cạnh nội dung.
    Chặn dưới ở 641px — từ 640px trở xuống panel thành ngăn kéo (khối
-   "ĐIỆN THOẠI" ở cuối tệp) và phải hiện ĐỦ chữ, nên hai luật này không được
-   với xuống đó. */
+   "ĐIỆN THOẠI" ở cuối tệp) và phải hiện ĐỦ chữ, nên mấy luật này không được
+   với xuống đó.
+
+   CHỈ LÀ KHUNG HÌNH ĐẦU TIÊN. Thứ quyết định dáng "đang thu" là class `.min`,
+   do `railTheoBeNgang()` trong app.js gắn vào ở đúng dải bề ngang này. Ba luật
+   dưới đây chỉ để panel không loé ra rộng 250px trong khoảnh khắc trước khi JS
+   chạy.
+
+   ĐỪNG THÊM LUẬT CHI TIẾT VÀO ĐÂY (giấu badge, cỡ ô icon, thanh cuộn…). Trước
+   đây khối này tự dựng lại dáng thu gọn mà không gắn `.min`, thành ra có HAI
+   bản định nghĩa: sửa ở `.rail.min` thì ở dải 641–900px không có tác dụng gì.
+   Anh Hùng gặp đúng thế ngày 23/09/2026 — bảo giấu mấy con số, sửa xong deploy
+   mà màn hình anh vẫn còn nguyên số, vì cửa sổ anh rộng ~657px. Có phép thử
+   canh chuyện này: xem test/mobile-vo.test.js. */
 @media (min-width: 641px) and (max-width: 900px) {
   .rail { width: var(--rail-w-min); flex-basis: var(--rail-w-min); }
   .rail .logo-text, .rail .ri-tx, .rail .rail-group { display: none; }

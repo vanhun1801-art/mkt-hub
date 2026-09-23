@@ -206,10 +206,15 @@ group('luật thu gọn của máy tính không được rơi xuống ngăn kéo
   const mayTinh = css.slice(0, moKhoi);
   const dienThoai = css.slice(i, het);
 
-  /* Lấy phần đứng SAU `.rail.min` trong mỗi bộ chọn. '' nghĩa là chính `.rail.min`. */
+  /* Lấy phần đứng SAU `.rail.min` trong mỗi bộ chọn. '' nghĩa là chính `.rail.min`.
+   *
+   * BỎ CHÚ THÍCH TRƯỚC KHI DÒ: mấy chú thích trong tệp này có nhắc `.rail.min`
+   * để giải thích, và lần đầu viết phép thử thì chính câu giải thích bị đọc
+   * thành một bộ chọn — phép thử báo lỗi bằng một đoạn văn tiếng Việt. */
+  const boChuThich = (s) => s.replace(/\/\*[\s\S]*?\*\//g, ' ');
   const lay = (s) => {
     const ra = new Set();
-    for (const m of s.matchAll(/\.rail\.min([^,{]*)[,{]/g)) ra.add(m[1].trim());
+    for (const m of boChuThich(s).matchAll(/\.rail\.min([^,{]*)[,{]/g)) ra.add(m[1].trim());
     return ra;
   };
 
@@ -244,6 +249,60 @@ group('luật thu gọn của máy tính không được rơi xuống ngăn kéo
     ['tên app ở logo', '.logo-text']]) {
     ok('ngăn kéo vẫn hiện ' + ten, daGo.has(sel), 'thiếu `.rail.min ' + sel + '` trong khối điện thoại');
   }
+}
+
+/* ============================================================================
+ * CHỈ ĐƯỢC CÓ MỘT ĐỊNH NGHĨA CHO "PANEL ĐANG THU"
+ * ============================================================================
+ * Lỗi ngày 23/09/2026, và nó tốn hai lượt deploy mới tìm ra: CSS có khối
+ * `@media (641px–900px)` tự thu panel về dải icon mà KHÔNG gắn class `.min`.
+ * Thành ra có hai bản định nghĩa, bản trong media query thì thiếu.
+ *
+ * Anh Hùng bảo giấu mấy con số đi khi thu panel. Sửa ở `.rail.min`, deploy, anh
+ * mở ra thì số vẫn còn nguyên — vì cửa sổ anh rộng ~657px, rơi đúng vào dải đó
+ * nên không luật nào khớp. Nhìn code thì mọi thứ đều đúng.
+ *
+ * Giờ `.min` do JS gắn (railTheoBeNgang), CSS chỉ giữ ba luật cho khung hình
+ * đầu tiên. Bộ này canh để đừng ai nhét luật chi tiết ngược lại vào media query.
+ */
+group('panel thu gọn chỉ có MỘT định nghĩa');
+{
+  const css = doc('public/styles.css');
+  const js = doc('public/app.js');
+
+  const i = css.indexOf('@media (min-width: 641px) and (max-width: 900px)');
+  ok('vẫn còn khối máy tính bảng', i >= 0);
+  if (i >= 0) {
+    /* Cắt khối bằng cách ĐẾM NGOẶC. Bản đầu dùng `indexOf('}\n')` — nó dừng ở
+     * dấu đóng của luật ĐẦU TIÊN bên trong, nên khối lấy ra quá ngắn và phép
+     * thử không thấy luật nhét ở cuối. Thử phá mới lộ ra. */
+    let b = css.indexOf('{', i), sau = 0, het = b;
+    for (; het < css.length; het++) {
+      if (css[het] === '{') sau++;
+      else if (css[het] === '}') { sau--; if (!sau) break; }
+    }
+    const khoi = css.slice(b, het);
+    /* Ba luật được phép: bề ngang, giấu chữ, căn giữa — đủ để khung hình đầu
+     * tiên không loé ra panel rộng. Sai ba luật đó thì NHÌN LÀ THẤY, không im
+     * lặng như mấy luật chi tiết. */
+    const cam = ['.ri-badge', '.ri-dot', '.ri-ic', '.rail-nav', 'scrollbar'];
+    const lot = cam.filter((x) => khoi.includes(x));
+    ok('khối máy tính bảng KHÔNG dựng lại luật chi tiết của .min',
+      lot.length === 0,
+      lot.length ? 'đang có: ' + lot.join(' · ') + ' — đưa về .rail.min, đừng chép ra đây' : '');
+  }
+
+  ok('JS gắn .min khi cửa sổ hẹp', /railTheoBeNgang/.test(js)
+    && /classList\.add\('min'\)/.test(js));
+  ok('ngưỡng hẹp khớp với ngưỡng trong CSS (900px)', /RAIL_HEP\s*=\s*900/.test(js));
+  ok('gắn lại khi đổi cỡ cửa sổ', /addEventListener\('resize'[\s\S]{0,200}railTheoBeNgang/.test(js));
+  ok('chạy cả lúc mở trang, không chỉ lúc kéo cửa sổ',
+    /railTheoBeNgang\(\);/.test(js.slice(js.indexOf('async function khoiDongVo'))));
+  /* Ghim tay vẫn phải thắng khi màn đủ rộng — nếu không thì ai ghim thu gọn sẽ
+   * thấy panel tự bung ra mỗi lần tải lại trang. */
+  ok('màn rộng thì trả lại đúng lựa chọn đã ghim',
+    /hub\.rail\.min'\) === '1'[\s\S]{0,120}toggle\('min', ghim\)/.test(js)
+    || /ghim\s*=\s*localStorage\.getItem\('hub\.rail\.min'\)\s*===\s*'1'/.test(js));
 }
 
 console.log('\n' + (fail ? '\x1b[31m' : '\x1b[32m') + pass + ' pass · ' + fail + ' fail\x1b[0m');

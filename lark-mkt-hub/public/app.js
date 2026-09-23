@@ -2791,6 +2791,51 @@ $('#btnPin').onclick = () => {
   $('#btnPin').textContent = r.classList.contains('min') ? '›' : '‹';
   try { localStorage.setItem('hub.rail.min', r.classList.contains('min') ? '1' : '0'); } catch (_) {}
 };
+
+/* ---------------- panel tự thu khi cửa sổ hẹp ----------------
+ * MỘT ĐỊNH NGHĨA DUY NHẤT cho "panel đang thu": class `.min`.
+ *
+ * Trước đây có HAI. CSS có một khối `@media (641px–900px)` tự thu panel về dải
+ * icon mà KHÔNG gắn `.min` — nên nó chỉ dựng lại được ba luật (bề ngang, giấu
+ * chữ, căn giữa) còn mọi luật chi tiết của `.min` thì không khớp cái nào.
+ *
+ * Anh Hùng gặp đúng chuyện đó ngày 23/09/2026: bảo giấu mấy con số đi, em sửa
+ * ở `.rail.min`, deploy xong anh mở ra thì số vẫn còn nguyên. Cửa sổ của anh
+ * rộng khoảng 657px — rơi đúng vào dải đó, nên không luật nào của em chạy.
+ * Sửa ở một bản mà bản kia không biết: kiểu lỗi này sẽ lặp lại mãi nếu còn hai
+ * bản.
+ *
+ * Giờ CSS chỉ còn giữ ba luật đó cho KHUNG HÌNH ĐẦU TIÊN (trước khi JS chạy) —
+ * và sai ba luật đó thì nhìn là thấy ngay, không im lặng. Còn lại JS gắn `.min`,
+ * mọi chi tiết đi theo một chỗ.
+ *
+ * Ghim tay vẫn được tôn trọng: localStorage chỉ do nút ghim ghi. Màn hẹp thì
+ * ép thu và giấu nút ghim (thu/mở ở bề ngang đó không có nghĩa); rộng ra thì
+ * trả lại đúng lựa chọn của người dùng.
+ */
+const RAIL_HEP = 900;
+function railTheoBeNgang() {
+  const r = $('#rail');
+  const nut = $('#btnPin');
+  if (!r) return;
+  const hep = window.innerWidth <= RAIL_HEP;
+  if (hep) {
+    r.classList.add('min');
+  } else {
+    let ghim = false;
+    try { ghim = localStorage.getItem('hub.rail.min') === '1'; } catch (_) {}
+    r.classList.toggle('min', ghim);
+  }
+  if (nut) {
+    nut.style.display = hep ? 'none' : '';
+    nut.textContent = r.classList.contains('min') ? '›' : '‹';
+  }
+}
+let railHen = 0;
+window.addEventListener('resize', () => {
+  clearTimeout(railHen);
+  railHen = setTimeout(railTheoBeNgang, 120);
+});
 /* Mở/đóng ngăn kéo. Đóng lại ngay khi đã chọn xong một base — hashchange bắt
  * cả lối bấm vào panel lẫn lối bấm nút Lùi của trình duyệt. */
 $('#btnMenu').onclick = () => moNganKeo(!document.body.classList.contains('rail-mo'));
@@ -2926,6 +2971,8 @@ async function khoiDongVo() {
       $('#btnPin').textContent = '›';
     }
   } catch (_) {}
+  /* Cửa sổ hẹp thì ép thu, bất kể ghim hay không — xem railTheoBeNgang(). */
+  railTheoBeNgang();
 
   docLoc();
   /* Khung xương theo trí nhớ, đặt TRƯỚC mọi lời gọi mạng: bản trong index.html
