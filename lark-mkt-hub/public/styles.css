@@ -344,20 +344,21 @@ button { font: inherit; }
 .rail.min .rail-nav { padding-left: 0; padding-right: 0; scrollbar-width: none; }
 .rail.min .rail-nav::-webkit-scrollbar { width: 0; }
 
-.rail.min .ri-badge {
-  position: absolute; top: 1px; right: 11px;
-  min-width: 17px; height: 17px; padding: 0 4px; font-size: 10.5px;
-  /* Vòng viền màu nền: đây là thứ làm badge đọc được khi nó nằm trên icon. */
-  box-shadow: 0 0 0 2px var(--rail-nen);
-}
-/* Cùng CỘT với badge, cách nhau hết chiều cao ô icon nên không đụng nhau.
- * Đã thử đặt ở góc trái dưới cho "đối diện" badge: nhìn ra thì chấm rời hẳn khỏi
- * ô icon, đọc như một vệt bẩn lạc chỗ chứ không như chỉ báo của app đó. */
-.rail.min .ri-dot {
-  position: absolute; bottom: 4px; right: 12px;
-  width: 9px; height: 9px;
-  box-shadow: 0 0 0 2px var(--rail-nen);
-}
+/* ---- THU GỌN THÌ CHỈ CÒN BIỂU TƯỢNG ----
+ * Anh Hùng 23/09/2026: "nếu không khắc phục được thì khi co lại thì em ẩn đi,
+ * chừa lại biểu tượng thôi, bỏ số".
+ *
+ * Đã thử hai cách xếp badge + chấm trong ô 38px: chồng góc phải, rồi hai góc
+ * đối diện. Cách nào cũng là ba thứ tranh nhau một ô nhỏ. Bề ngang 68px đơn
+ * giản là không đủ chỗ cho một con số đọc được nằm cạnh một cái icon đọc được.
+ *
+ * Nên bỏ hẳn, và KHÔNG mất thông tin: con số chuyển vào tooltip của mục (xem
+ * `item()` trong app.js). Rê chuột là thấy "Quản lý quảng cáo — 24 việc cần để
+ * mắt". Mở rộng panel ra thì số hiện lại như cũ.
+ *
+ * ĐÁNH ĐỔI phải nói rõ: panel đang thu thì liếc mắt KHÔNG còn biết app nào đang
+ * dồn việc. Ai cần theo dõi con số thì để panel mở. */
+.rail.min .ri-badge, .rail.min .ri-dot { display: none; }
 /* Mục đang mở: nền nhạt phủ cả ô, gạch chỉ báo bám sát mép rail. */
 .rail.min .rail-item.on::before { left: 0; border-radius: 0 3px 3px 0; }
 
@@ -1967,11 +1968,10 @@ input.cd-in-nho { width: 72px; }
   .rail-nav, .rail.min .rail-nav { padding-left: 8px; padding-right: 8px; }
   .rail .ri-ic, .rail.min .ri-ic { width: 28px; height: 28px; border-radius: 8px; }
   .rail .ri-ic svg, .rail.min .ri-ic svg { width: 17px; height: 17px; }
-  /* Về lại dòng chảy bình thường: ở ngăn kéo có chỗ cho chúng đứng cạnh tên app,
-   * không phải chồng lên icon. */
-  .rail.min .ri-badge, .rail.min .ri-dot { position: static; box-shadow: none; }
-  .rail.min .ri-badge { min-width: 20px; height: 18px; padding: 0 5px; }
-  .rail.min .ri-dot { width: 7px; height: 7px; }
+  /* Hiện LẠI badge và chấm: ngăn kéo rộng 300px, có chỗ cho chúng đứng cạnh tên
+   * app. Chỉ ở dải 68px của máy tính mới phải giấu đi. */
+  .rail.min .ri-badge { display: grid; min-width: 20px; height: 18px; padding: 0 5px; }
+  .rail.min .ri-dot { display: block; width: 7px; height: 7px; }
   .rail.min .rail-item.on::before { left: -8px; }
 
   .rail-pin { display: none; }            /* thu gọn/mở rộng vô nghĩa ở đây */

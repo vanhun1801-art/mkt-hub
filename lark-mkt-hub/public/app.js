@@ -536,9 +536,22 @@ function veRail() {
   const nav = $('#railNav');
   const hienTai = S.view;
 
+  /* Con số cũng vào TOOLTIP, không chỉ vào ô badge.
+   *
+   * Panel thu gọn còn 68px thì badge bị giấu đi — ba thứ (icon, số, chấm trạng
+   * thái) không cùng đọc được trong một ô nhỏ như vậy, đã thử hai cách xếp rồi
+   * bỏ. Nhưng giấu con số mà không để nó ở đâu cả là làm mất thông tin: quản lý
+   * thu panel lại là không còn biết app nào đang dồn việc. Để ở tooltip thì rê
+   * chuột vẫn đọc được, ở cả hai trạng thái. */
+  const nhanDayDu = (o) => {
+    const t = o.title || o.ten;
+    if (!o.badge) return t;
+    return t + '  —  ' + (o.badge > 99 ? '99+' : o.badge) + ' việc cần để mắt';
+  };
+
   const item = (o) => `
     <a class="rail-item ${o.on ? 'on' : ''}${o.keo ? ' keo' : ''}" href="${o.href}"
-       title="${esc(o.title || o.ten)}" data-id="${esc(o.id || '')}"${o.keo ? ' draggable="true" data-keo="1"' : ''}>
+       title="${esc(nhanDayDu(o))}" data-id="${esc(o.id || '')}"${o.keo ? ' draggable="true" data-keo="1"' : ''}>
       <span class="ri-ic" style="${o.mau ? 'background:' + esc(o.mau) + '22;color:' + esc(o.mau) : ''}">${icon(o.icon)}</span>
       <span class="ri-tx"><b>${esc(o.ten)}</b>${o.phu ? '<small>' + esc(o.phu) + '</small>' : ''}</span>
       ${o.badge ? '<span class="ri-badge">' + (o.badge > 99 ? '99+' : o.badge) + '</span>' : ''}
