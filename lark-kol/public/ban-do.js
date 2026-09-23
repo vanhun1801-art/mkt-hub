@@ -37,14 +37,16 @@
     ['Ga cáp treo An Thới', 10.02704, 104.00724, ['ga cap treo', 'nha ga an thoi']],
     ['Sunset Town', 10.02943, 104.00831, ['sunset town', 'hoang hon', 'primavera', 'gland5', 'land 5', 'viet xua an thoi']],
     ['An Thới', 10.01209, 104.01481, ['an thoi']],
-    ['Hòn Thơm', 9.9565, 104.01807, ['hon thom', 'cap treo', 'sun world', 'aquatopia', 'exotica', 'sun paradise', 'sun-c', 'mango'], true],
-    ['Hòn Mây Rút', 9.91142, 103.98959, ['hon may rut', '3 dao', 'ba dao', 'cano', 'lan bien', 'lan ngam', 'g4'], true],
-    ['Hòn Gầm Ghì', 9.912, 104.01493, ['hon gam ghi'], true],
-    ['Hòn Dừa', 9.99601, 104.01042, ['hon dua'], true],
+    ['Hòn Thơm', 9.9565, 104.01807, ['hon thom', 'cap treo', 'sun world', 'aquatopia', 'exotica', 'sun paradise', 'sun-c', 'mango'], 'cap'],
+    ['Hòn Mây Rút', 9.91142, 103.98959, ['hon may rut', '3 dao', 'ba dao', 'cano', 'lan bien', 'lan ngam', 'g4'], 'cano'],
+    ['Hòn Gầm Ghì', 9.912, 104.01493, ['hon gam ghi'], 'cano'],
+    ['Hòn Dừa', 9.99601, 104.01042, ['hon dua'], 'cano'],
     ['Sunset Sanato', 10.15401, 103.97942, ['sanato']],
     ['Chợ đêm Dinh Cậu', 10.2163, 103.96058, ['cho dem', 'night market', 'dinh cau']],
     ['Dương Đông', 10.2175, 103.9601, ['duong dong', 'viet xua']],
   ];
+  /* Bến ra đảo: xe chạy tới đây rồi mới đi cáp treo / cano (vẽ nét đứt). */
+  const BEN = { cap: { ten: 'Ga cáp treo An Thới', lat: 10.02704, lng: 104.00724 }, cano: { ten: 'Cảng An Thới', lat: 10.0125, lng: 104.0105 } };
   const kd = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
   const e = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   const trongPhuQuoc = (lat, lng) => lat > 9.8 && lat < 10.5 && lng > 103.75 && lng < 104.2;
@@ -70,7 +72,7 @@
       return { ten: chu || tenHm || 'Điểm hẹn', lat: tay.lat, lng: tay.lng, tay: true };
     }
     const t = kd([h.ten, h.diemHen, h.nhaCungCap, h.maDv].join(' '));
-    for (const d of DIEM) if (d[3].some((k) => t.includes(k))) return { ten: d[0], lat: d[1], lng: d[2], dao: !!d[4] };
+    for (const d of DIEM) if (d[3].some((k) => t.includes(k))) return { ten: d[0], lat: d[1], lng: d[2], dao: !!d[4], ben: d[4] ? BEN[d[4]] : null };
     return null;
   }
 
@@ -90,11 +92,48 @@
 
   /** Link Google Maps chỉ đường cho một ngày (tối đa 10 điểm — giới hạn của Google). */
   function linkGoogle(ds) {
-    const p = ds.filter((d, i) => i === 0 || d.noi !== ds[i - 1].noi).slice(0, 10).map((d) => d.lat + ',' + d.lng);
+    /* Google không chỉ đường xe ra đảo → điểm ngoài đảo thay bằng bến (ga cáp treo / cảng An Thới). */
+    const p = ds.map((d) => (d.dao && d.ben ? { ...d.ben, noi: d.ben.ten } : d))
+      .filter((d, i, a) => i === 0 || d.noi !== a[i - 1].noi).slice(0, 10).map((d) => d.lat + ',' + d.lng);
     if (!p.length) return '';
     if (p.length === 1) return 'https://www.google.com/maps/search/?api=1&query=' + p[0];
     return 'https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=' + p[0] + '&destination=' + p[p.length - 1] +
       (p.length > 2 ? '&waypoints=' + encodeURIComponent(p.slice(1, -1).join('|')) : '');
+  }
+
+/** Các chặng của hành trình liền mạch: điểm i-1 → điểm i (bỏ chặng đứng yên cùng chỗ). */
+  function chang(diem) {
+    const out = [];
+    for (let i = 1; i < diem.length; i++) {
+      const a = diem[i - 1], b = diem[i];
+      if (a.lat === b.lat && a.lng === b.lng) continue;
+      out.push({ a, b, doiNgay: a.ngay !== b.ngay });
+    }
+    return out;
+  }
+  /**
+   * Tách một chặng thành các đoạn đi thật: đất liền → bến (đường bộ) → đảo (cáp treo / cano, nét đứt).
+   * Hai đầu cùng ngoài đảo (đảo này sang đảo kia bằng cano) → một đoạn biển.
+   * @returns [{tu, den, bien}]
+   */
+  function doanChang(a, b) {
+    const gan = (x, y) => Math.abs(x.lat - y.lat) < 1e-4 && Math.abs(x.lng - y.lng) < 1e-4;
+    if (a.dao && b.dao) return [{ tu: a, den: b, bien: true }];
+    const out = [];
+    if (a.dao) { out.push({ tu: a, den: a.ben, bien: true }); if (!gan(a.ben, b)) out.push({ tu: a.ben, den: b, bien: false }); return out; }
+    if (b.dao) { if (!gan(a, b.ben)) out.push({ tu: a, den: b.ben, bien: false }); out.push({ tu: b.ben, den: b, bien: true }); return out; }
+    return [{ tu: a, den: b, bien: false }];
+  }
+  /** Cả chuyến trên Google Maps: Google nhận tối đa 10 điểm/link → chia đoạn, đoạn sau bắt đầu ở điểm cuối đoạn trước. */
+  function linkGoogleNhieu(diem) {
+    const ds = diem.filter((d, i) => i === 0 || d.lat !== diem[i - 1].lat || d.lng !== diem[i - 1].lng);
+    if (ds.length < 2) return [];
+    const out = [];
+    for (let i = 0; i < ds.length - 1; i += 9) {
+      const doan = ds.slice(i, i + 10);
+      out.push({ tu: doan[0].so, den: doan[doan.length - 1].so, link: linkGoogle(doan) });
+    }
+    return out;
   }
 
   /* ---------------- sơ đồ vector (dự phòng khi không tải được bản đồ) ---------------- */
@@ -109,10 +148,8 @@
   const py = (lat) => ((Y0 - lat) / (Y0 - Y1)) * H;
   function svg(dv, nho) {
     const dao = 'M' + DAO.map(([a, b]) => px(a).toFixed(1) + ',' + py(b).toFixed(1)).join('L') + 'Z';
-    const duong = dv.ngay.map((_, i) => {
-      const ds = dv.diem.filter((d) => d.ngay === i);
-      return ds.length > 1 ? '<polyline class="bd-duong n' + (i % 5) + '" points="' + ds.map((d) => px(d.lng).toFixed(1) + ',' + py(d.lat).toFixed(1)).join(' ') + '"/>' : '';
-    }).join('');
+    const duong = chang(dv.diem).flatMap(({ a, b, doiNgay }) => doanChang(a, b).map((d) => '<line class="bd-duong n' + (b.ngay % 5) + (doiNgay && !d.bien ? ' doi-ngay' : '') +
+      '" x1="' + px(d.tu.lng).toFixed(1) + '" y1="' + py(d.tu.lat).toFixed(1) + '" x2="' + px(d.den.lng).toFixed(1) + '" y2="' + py(d.den.lat).toFixed(1) + '"/>')).join('');
     const gom = new Map();
     dv.diem.forEach((d) => { if (!gom.has(d.noi)) gom.set(d.noi, { ...d, soDs: [] }); gom.get(d.noi).soDs.push(d.so); });
     const cham = [...gom.values()].map((d) => { const x = px(d.lng), y = py(d.lat), trai = x > W * 0.62;
@@ -199,24 +236,27 @@
       bien.push([g.lat, g.lng]);
     }
     if (bien.length) map.fitBounds(bien, { padding: [28, 28], maxZoom: 14 }); else map.setView([10.2, 103.97], 10);
-    /* Đường đi từng ngày: vẽ thẳng nét đứt trước (thấy ngay), rồi thay chặng trên đảo bằng đường bộ thật. */
-    dv.ngay.forEach((_, i) => {
-      const ds = dv.diem.filter((d) => d.ngay === i);
-      for (let j = 1; j < ds.length; j++) {
-        const a = ds[j - 1], b = ds[j];
-        if (a.lat === b.lat && a.lng === b.lng) continue;
-        const thang = L.polyline([[a.lat, a.lng], [b.lat, b.lng]], { color: mau[i % 5], weight: 3, opacity: 0.8, dashArray: '6 6' }).addTo(map);
-        if (a.dao || b.dao) continue;   // cáp treo / cano: giữ nét đứt
-        duongBo(a, b).then((r) => {
+    /* MỘT hành trình xuyên suốt cả chuyến (anh Hùng 23/09): nối mọi điểm theo thời gian, kể cả
+     * chặng cuối ngày → đầu ngày sau. Chặng mang màu ngày của điểm ĐẾN; chặng chuyển ngày vẽ
+     * mảnh hơn. Vẽ thẳng nét đứt trước (thấy ngay), rồi thay chặng trên đảo bằng đường bộ thật;
+     * chặng có đầu ngoài đảo (cáp treo, cano) giữ nét đứt. */
+    for (const { a, b, doiNgay } of chang(dv.diem)) {
+      const c = mau[b.ngay % 5];
+      const net = doiNgay ? { weight: 2.5, opacity: 0.6, dashArray: '2 6' } : { weight: 4, opacity: 0.85 };
+      for (const d of doanChang(a, b)) {
+        if (d.bien) { L.polyline([[d.tu.lat, d.tu.lng], [d.den.lat, d.den.lng]], { color: c, weight: 3, opacity: 0.85, dashArray: '8 7' }).addTo(map); continue; }
+        const thang = L.polyline([[d.tu.lat, d.tu.lng], [d.den.lat, d.den.lng]], { color: c, weight: 3, opacity: 0.6, dashArray: '6 6' }).addTo(map);
+        duongBo(d.tu, d.den).then((r) => {
           if (!r || !khung._banDo || khung._banDo !== map) return;
           map.removeLayer(thang);
-          L.polyline(r.toaDo, { color: mau[i % 5], weight: 4, opacity: 0.85 }).addTo(map);
+          L.polyline(r.toaDo, { color: c, ...net }).addTo(map);
         });
       }
-    });
+    }
     setTimeout(() => map.invalidateSize(), 60);
-    return { ok: true, chuaRo: dv.chuaRo, soDiem: dv.diem.length, ngay: dv.ngay, theoNgay: dv.ngay.map((_, i) => linkGoogle(dv.diem.filter((d) => d.ngay === i))) };
+    return { ok: true, chuaRo: dv.chuaRo, soDiem: dv.diem.length, ngay: dv.ngay, theoNgay: dv.ngay.map((_, i) => linkGoogle(dv.diem.filter((d) => d.ngay === i))),
+      caChuyen: linkGoogleNhieu(dv.diem) };
   }
 
-  goc.BanDo = { ve, veThat, doan, dinhVi, linkGoogle, toaDoTrongChu, linkNgan, DIEM };
+  goc.BanDo = { ve, veThat, doan, dinhVi, linkGoogle, linkGoogleNhieu, chang, doanChang, toaDoTrongChu, linkNgan, DIEM };
 })(window);

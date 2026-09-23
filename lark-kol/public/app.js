@@ -601,7 +601,9 @@ async function ganBanDo(goc) {
     chu.innerHTML = nhan.map((t, i) => (r.theoNgay && r.theoNgay[i]
       ? '<a class="bd-ngay n' + (i % 5) + '" href="' + e(r.theoNgay[i]) + '" target="_blank" rel="noopener" title="Mở lộ trình ngày này trên Google Maps">' + t + '</a>'
       : '<span class="bd-ngay n' + (i % 5) + '">' + t + '</span>')).join('') +
-      (r.ok ? '<span class="nho">bấm ngày để mở Google Maps</span>' : '<span class="nho">không tải được bản đồ — đang hiện sơ đồ vẽ tay</span>') +
+      (r.caChuyen && r.caChuyen.length ? r.caChuyen.map((c, i) => '<a class="btn nho" href="' + e(c.link) + '" target="_blank" rel="noopener">' +
+        (r.caChuyen.length > 1 ? 'Hành trình ' + c.tu + '–' + c.den : 'Mở cả hành trình') + ' trên Google Maps</a>').join('') : '') +
+      (r.ok ? '<span class="nho">bấm ngày để xem riêng ngày đó</span>' : '<span class="nho">không tải được bản đồ — đang hiện sơ đồ vẽ tay</span>') +
       (r.chuaRo.length ? '<span class="nho" title="' + e(r.chuaRo.join('; ')) + '">· ' + r.chuaRo.length + ' mốc chưa rõ vị trí</span>' : '');
   }
 }
