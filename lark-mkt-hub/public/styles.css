@@ -316,9 +316,50 @@ button { font: inherit; }
 .ri-dot.tat { background: #5a6379; }
 @keyframes nhay { 50% { opacity: .25; } }
 
-.rail.min .ri-badge { position: absolute; top: 3px; right: 3px; min-width: 16px; height: 16px; font-size: 10px; }
-.rail.min .ri-dot { position: absolute; bottom: 5px; right: 6px; }
-.rail.min .rail-item { justify-content: center; padding: 9px 6px; }
+/* ---------------- rail THU GỌN ----------------
+ * Anh Hùng 23/09/2026: "chưa tối ưu hiển thị", kèm ảnh chụp thanh rail đã thu.
+ * Đo trong trình duyệt ra bốn chuyện, không cái nào nhìn code mà thấy:
+ *
+ *   1. Icon LỆCH TÂM 3px. `.rail-nav` để `padding: 10px 8px` cân hai bên, nhưng
+ *      thanh cuộn 6px ăn mất bên phải — trong rail 68px thì 3px là thấy rõ.
+ *   2. Badge số ĐÈ LÊN ô icon, không có gì tách hai lớp.
+ *   3. Chấm trạng thái cũng ĐÈ LÊN ô icon, lại cùng phía phải với badge.
+ *      Ba thứ chồng nhau trong một ô 28px.
+ *   4. Ô icon chỉ 28px giữa rail 68px — đích bấm nhỏ, mà quanh nó toàn chỗ trống.
+ *
+ * Cách chữa: icon là CHÍNH và to lên; badge với chấm là LỚP PHỦ, đẩy về hai góc
+ * ĐỐI DIỆN nhau, mỗi cái có vòng viền màu nền để tách khỏi icon bên dưới.
+ */
+.rail.min .rail-item {
+  justify-content: center;
+  padding: 5px 0;
+  margin-bottom: 4px;
+}
+.rail.min .ri-ic { width: 38px; height: 38px; border-radius: 11px; }
+.rail.min .ri-ic svg { width: 20px; height: 20px; }
+
+/* Thanh cuộn ẩn đi khi thu gọn — nó là thứ làm lệch tâm, mà ở bề ngang 68px thì
+ * một vạch cuộn cũng chẳng nói thêm được gì. Cuộn vẫn cuộn được bằng chuột và
+ * bàn phím. */
+.rail.min .rail-nav { padding-left: 0; padding-right: 0; scrollbar-width: none; }
+.rail.min .rail-nav::-webkit-scrollbar { width: 0; }
+
+.rail.min .ri-badge {
+  position: absolute; top: 1px; right: 11px;
+  min-width: 17px; height: 17px; padding: 0 4px; font-size: 10.5px;
+  /* Vòng viền màu nền: đây là thứ làm badge đọc được khi nó nằm trên icon. */
+  box-shadow: 0 0 0 2px var(--rail-nen);
+}
+/* Cùng CỘT với badge, cách nhau hết chiều cao ô icon nên không đụng nhau.
+ * Đã thử đặt ở góc trái dưới cho "đối diện" badge: nhìn ra thì chấm rời hẳn khỏi
+ * ô icon, đọc như một vệt bẩn lạc chỗ chứ không như chỉ báo của app đó. */
+.rail.min .ri-dot {
+  position: absolute; bottom: 4px; right: 12px;
+  width: 9px; height: 9px;
+  box-shadow: 0 0 0 2px var(--rail-nen);
+}
+/* Mục đang mở: nền nhạt phủ cả ô, gạch chỉ báo bám sát mép rail. */
+.rail.min .rail-item.on::before { left: 0; border-radius: 0 3px 3px 0; }
 
 .rail-foot { padding: 8px; border-top: 1px solid var(--rail-vien); }
 
@@ -1904,12 +1945,35 @@ input.cd-in-nho { width: 72px; }
     box-shadow: var(--bong-cao);
   }
   body.rail-mo .rail { transform: none; }
-  .rail .logo-text { display: flex; }
-  .rail .ri-tx { display: flex; }
-  .rail .rail-group { display: block; }
+
+  /* ---- GỠ HẾT dáng "thu gọn" khỏi ngăn kéo ----
+   * `.min` là lựa chọn cho màn hình to; ở ngăn kéo rộng 300px nó vô nghĩa.
+   *
+   * PHẢI GỠ TỪNG LUẬT MỘT, và đây là chỗ đã âm thầm sai từ trước: `.rail.min .x`
+   * có độ ưu tiên (0,3,0) còn `.rail .x` chỉ (0,2,0) — luật viết sau KHÔNG thắng,
+   * vì @media không cộng thêm điểm ưu tiên nào cả. Hậu quả đo được 23/09/2026:
+   * ai đã ghim panel thu gọn trên máy tính thì mở app trên điện thoại là ngăn
+   * kéo MẤT HẾT TÊN APP, chỉ còn một cột icon và mấy chấm trạng thái trôi ở mép
+   * phải. Lựa chọn trên máy tính không được phép làm hỏng màn hình điện thoại.
+   *
+   * `.rail-item` trước nay đã liệt kê đúng cả hai; ba luật còn lại thì quên. */
+  .rail .logo-text, .rail.min .logo-text { display: flex; }
+  .rail .ri-tx, .rail.min .ri-tx { display: flex; }
+  .rail .rail-group, .rail.min .rail-group { display: block; }
+  .rail .logo, .rail.min .logo { justify-content: flex-start; }
   .rail .rail-item, .rail.min .rail-item {
-    justify-content: flex-start; padding: 11px 10px;
+    justify-content: flex-start; padding: 11px 10px; margin-bottom: 3px;
   }
+  .rail-nav, .rail.min .rail-nav { padding-left: 8px; padding-right: 8px; }
+  .rail .ri-ic, .rail.min .ri-ic { width: 28px; height: 28px; border-radius: 8px; }
+  .rail .ri-ic svg, .rail.min .ri-ic svg { width: 17px; height: 17px; }
+  /* Về lại dòng chảy bình thường: ở ngăn kéo có chỗ cho chúng đứng cạnh tên app,
+   * không phải chồng lên icon. */
+  .rail.min .ri-badge, .rail.min .ri-dot { position: static; box-shadow: none; }
+  .rail.min .ri-badge { min-width: 20px; height: 18px; padding: 0 5px; }
+  .rail.min .ri-dot { width: 7px; height: 7px; }
+  .rail.min .rail-item.on::before { left: -8px; }
+
   .rail-pin { display: none; }            /* thu gọn/mở rộng vô nghĩa ở đây */
 
   .rail-nen { display: block; position: fixed; inset: 0; z-index: 39; background: rgba(10, 16, 32, .45); }
