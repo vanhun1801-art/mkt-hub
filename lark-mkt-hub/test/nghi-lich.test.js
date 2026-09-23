@@ -51,6 +51,17 @@ async function chay(dsViec, dsNghi) {
   h = kq.hang.find((r) => r.id === 'ou_hung');
   ok('không có id thì khớp theo tên bỏ dấu cách/hoa thường', h && h.nghi['2026-10-06'] && h.nghi['2026-10-06'].ma === 'KL');
 
+  /* Tên Lark lệch tên HCNS — dòng dải nhiệt mang tên Lark, ngày nghỉ mang tên HCNS. */
+  kq = await chay([viec({ chinh: [{ id: 'ou_pinky', name: 'Nguyễn Long Khánh (Pinky)' }] }),
+    viec({ id: 'r2', chinh: [{ id: 'ou_han', name: 'Hân Phù MKT' }] }),
+    viec({ id: 'r3', chinh: [{ id: 'ou_khanh', name: 'Huỳnh Chí Khanh' }] })],
+  [{ id: '', ten: 'Nguyễn Long Khánh', ngay: '2026-10-09', ma: 'NP', muc: 'ca' },
+    { id: '', ten: 'Phù Mỹ Hân', ngay: '2026-10-09', ma: 'NP', muc: 'ca' }]);
+  const cua = (id) => (kq.hang.find((r) => r.id === id) || {}).nghi || {};
+  ok('"Nguyễn Long Khánh" (HCNS) gắn vào dòng "Nguyễn Long Khánh (Pinky)"', !!cua('ou_pinky')['2026-10-09']);
+  ok('"Phù Mỹ Hân" (HCNS) gắn vào dòng "Hân Phù MKT"', !!cua('ou_han')['2026-10-09']);
+  ok('Khánh không bị gắn nhầm sang Huỳnh Chí Khanh', !cua('ou_khanh')['2026-10-09']);
+
   /* Người không có việc nào trong khoảng nhưng có ngày nghỉ, có id -> vẫn một dòng. */
   kq = await chay([], [{ id: 'ou_thu', ten: 'Huỳnh Thị Anh Thư', ngay: '2026-10-07', ma: 'NP', muc: 'ca', tenMa: 'Nghỉ phép năm' }]);
   h = kq.hang.find((r) => r.id === 'ou_thu');

@@ -128,6 +128,15 @@ function chuanTen(s) {
     .toLowerCase().trim().split(' ').filter(Boolean).join(' ');
 }
 
+/** Tập chữ của tên: bỏ phần trong ngoặc và chữ "MKT". */
+const chuTen = (s) => chuanTen(String(s || '').split('(')[0]).split(' ').filter((w) => w && w !== 'mkt');
+/** Tên Lark `a` khớp tên HCNS `b` khi mọi chữ của a đều có trong b. Cùng luật với
+ *  lark-lich-lam-viec/kho.js — hai nơi phải nói cùng một câu về "ai là ai". */
+function tenKhopMem(a, b) {
+  const A = chuTen(a), B = new Set(chuTen(b));
+  return A.length > 0 && A.every((w) => B.has(w));
+}
+
 /* ---------------- gộp thành lưới người × ngày ---------------- */
 const cache = new Map(); // "tu|den|nguoi" -> { at, data }
 
@@ -272,6 +281,12 @@ async function docThat(mods, tu, den, nguoi, kh) {
   let banTen = theoTen();
   nghiRa.flatMap((r) => r.nghi).forEach((n) => {
     let r = (n.id && dong.get(n.id)) || banTen.get(chuanTen(n.ten));
+    /* Tên Lark lệch tên HCNS ("Nguyễn Long Khánh (Pinky)", "Hằng", "Hân Phù MKT"):
+     * mọi chữ của tên Lark nằm trong tên HCNS, và chỉ đúng MỘT dòng khớp. */
+    if (!r) {
+      const khop = [...dong.values()].filter((x) => x.id && tenKhopMem(x.ten, n.ten));
+      if (khop.length === 1) r = khop[0];
+    }
     if (!r) {
       if (!n.id) return;
       dong.set(n.id, { id: n.id, ten: n.ten, o: new Map(), tong: 0, gap: 0, da: new Map() });
@@ -339,4 +354,4 @@ async function docThat(mods, tu, den, nguoi, kh) {
 
 function xoaCache() { cache.clear(); }
 
-module.exports = { lichChung, xoaCache, BO_DOC, DOC_NGHI, chuanTen };
+module.exports = { lichChung, xoaCache, BO_DOC, DOC_NGHI, chuanTen, tenKhopMem };

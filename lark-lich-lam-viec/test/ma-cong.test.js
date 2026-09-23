@@ -80,6 +80,18 @@ ok('khớp theo tên bỏ dấu', (kho.timNhanSu({ id: 'ou_moi', ten: 'nguyen lo
 ok('Khánh và Khanh không lẫn nhau khi có id', (kho.timNhanSu({ id: 'ou_k', ten: 'Nguyễn Long Khánh' }, ds) || {}).recordId === 'b');
 ok('hai người trùng tên thì KHÔNG đoán', kho.timNhanSu({ id: 'ou_z', ten: 'Trần Văn A' }, ds) === null);
 
+/* Tên Lark thật của phòng (23/09/2026) lệch tên HCNS — phải tự nhận ra, không hỏi. */
+const phong = ['Lê Văn Hùng', 'Phù Mỹ Hân', 'Nguyễn Hồng Ngọc', 'Huỳnh Thị Anh Thư', 'Võ Thị Cẩm Hằng',
+  'Nguyễn Long Khánh', 'Danh Minh Trường', 'Huỳnh Chí Khanh'].map((h, i) => ({ recordId: 'p' + i, hoTen: h, nguoi: '', email: '' }));
+const la = (ten) => (kho.timNhanSu({ id: 'ou_moi', ten }, phong) || {}).hoTen || '';
+ok('"Nguyễn Long Khánh (Pinky)" -> Nguyễn Long Khánh', la('Nguyễn Long Khánh (Pinky)') === 'Nguyễn Long Khánh');
+ok('"Võ Hằng" -> Võ Thị Cẩm Hằng', la('Võ Hằng') === 'Võ Thị Cẩm Hằng');
+ok('"Hân Phù MKT" -> Phù Mỹ Hân', la('Hân Phù MKT') === 'Phù Mỹ Hân');
+ok('"Khanh" một chữ khớp cả Khánh lẫn Khanh -> không đoán', la('Khanh') === '');
+ok('người ngoài danh sách không bị gán bừa', la('Lê Trung Thành') === '' && la('Trịnh Xuân Hải') === '');
+ok('email công ty khớp trước tên', (kho.timNhanSu({ id: 'ou_moi', email: 'KHANHNL@rootytrip.com', ten: 'Ai đó' },
+  phong.map((x) => (x.hoTen === 'Nguyễn Long Khánh' ? Object.assign({}, x, { email: 'khanhnl@rootytrip.com' }) : x))) || {}).hoTen === 'Nguyễn Long Khánh');
+
 /* Ô Base đọc về: cli trả chuỗi ISO có +07:00. */
 ok('ngày lễ đọc từ chuỗi ISO giờ Base', kho.asNgay('2027-01-01T00:00:00.000+07:00') === '2027-01-01');
 ok('ngày lễ đọc từ số ms (chế độ api)', kho.asNgay(Date.parse('2027-01-01T00:00:00+07:00')) === '2027-01-01');

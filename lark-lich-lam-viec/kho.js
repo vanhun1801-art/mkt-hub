@@ -117,7 +117,26 @@ function timNhanSu(toi, ds) {
     const khop = ds.filter((x) => chuanTen(x.hoTen) === t);
     if (khop.length === 1) n = khop[0];
   }
+  /* Tên Lark hay lệch tên HCNS: "Nguyễn Long Khánh (Pinky)", "Võ Hằng", "Hân Phù
+   * MKT" (23/09/2026, ba người bị hỏi "Bạn là ai" dù đã có tên). So mềm: mọi chữ
+   * của tên Lark nằm trong tên HCNS, và chỉ đúng MỘT người khớp. */
+  if (!n && toi.ten) {
+    const khop = ds.filter((x) => tenKhopMem(toi.ten, x.hoTen));
+    if (khop.length === 1) n = khop[0];
+  }
   return n || null;
+}
+
+/** Bỏ phần trong ngoặc, chữ "MKT" và dấu — còn lại tập chữ của tên. */
+function chuTen(s) {
+  const bo = String(s || '').split('(')[0];
+  return chuanTen(bo).split(' ').filter((w) => w && w !== 'mkt');
+}
+
+/** Tên Lark `a` khớp tên HCNS `b` khi mọi chữ của a đều có trong b (không đòi thứ tự). */
+function tenKhopMem(a, b) {
+  const A = chuTen(a), B = new Set(chuTen(b));
+  return A.length > 0 && A.every((w) => B.has(w));
 }
 
 /**
@@ -319,7 +338,7 @@ async function luuCauHinh(ch) {
 module.exports = {
   docCauHinh, luuCauHinh,
   luuNhanSu,
-  asText, asMs, asNgay, chuanTen, veDangKy, veNhanSu,
+  asText, asMs, asNgay, chuanTen, tenKhopMem, veDangKy, veNhanSu,
   dsNhanSu, timNhanSu, ganNhanSu, dsNgayLe, leCua, dsDangKy, daNop,
   luuDangKy, danhDauChuyen, xoaDem,
 };
