@@ -43,6 +43,24 @@ async function modalPhanQuyen() {
     return;
   }
   veDanhSachQuyen();
+
+  /* Đến thẳng đúng người, khi mở từ nút "Cấp quyền" bên màn Tài khoản.
+   *
+   * Không có bước này thì quản lý duyệt xong một tài khoản là bế tắc: bảng phân
+   * quyền có thể vài chục dòng, và người vừa duyệt thì CHƯA có dòng nào cả —
+   * phải tự biết là mình cần bấm "Thêm người" rồi gõ lại đúng email. Anh Hùng
+   * nêu đúng chỗ này 23/09/2026. */
+  const mail = S.quyenLocMail;
+  S.quyenLocMail = '';
+  if (!mail) return;
+  const i = (S.quyenHang || []).findIndex((h) =>
+    String(h.email || '').toLowerCase() === String(mail).toLowerCase());
+  if (i >= 0) { moFormQuyen(i); return; }
+  /* Chưa có dòng nào -> mở sẵn form người mới, điền trước email để không ai gõ
+   * lệch một chữ rồi ngồi hỏi vì sao quyền không ăn. */
+  const ng = (S.quyen.danhBa || []).find((x) =>
+    String(x.email || '').toLowerCase() === String(mail).toLowerCase());
+  moFormQuyen(null, ng || { id: '', ten: '', email: mail });
 }
 
 const chanDanhSach = () =>
@@ -64,6 +82,17 @@ function nhanDien(h) {
   }
   const c = h.khop.cach;
   const cach = c === 'email' ? 'theo email' : c === 'open_id' ? 'theo tài khoản đã đăng nhập' : 'theo tên';
+  /* Người ngoài Lark: nói thẳng ra. Cấp base cho cộng tác viên hay đối tác là
+   * việc cần cân nhắc khác với cấp cho nhân sự trong công ty, mà nhìn tên thì
+   * không phân biệt được. */
+  if (h.khop.ngoaiLark) {
+    return {
+      loai: 'luc',
+      chu: 'Đã khớp: ' + h.khop.ten + ' · ngoài Lark',
+      mo: 'Tài khoản email + mật khẩu, không phải người trong công ty. Khớp theo email. ' +
+          'Cân nhắc kỹ base nào mở cho họ.',
+    };
+  }
   return {
     loai: c === 'ten' ? 'vang' : 'luc',
     chu: 'Đã khớp: ' + h.khop.ten,

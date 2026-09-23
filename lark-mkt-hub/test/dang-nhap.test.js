@@ -283,6 +283,35 @@ async function chay() {
   ok('khoá / từ chối / đổi mật khẩu đều đá phiên đang mở',
     /\[C\.phienTu\]: String\(Date\.now\(\)\)/.test(tkSrc));
 
+  console.log('\nduyệt xong thì đi tiếp được');
+
+  /* Anh Hùng 23/09/2026, sau khi tự tạo và duyệt một tài khoản: "anh không thấy
+   * chỉnh quyền, hay thông tin của tài khoản này". Đúng — duyệt xong là bế tắc:
+   * màn Tài khoản chỉ có Khoá/Xoá, mà người vừa duyệt thì chưa thấy base nào. */
+  const cd = fs.readFileSync(path.join(__dirname, '..', 'public', 'caidat.js'), 'utf8');
+  const qj = fs.readFileSync(path.join(__dirname, '..', 'public', 'quyen.js'), 'utf8');
+
+  ok('thẻ tài khoản nói rõ đăng ký / duyệt / lần vào cuối',
+    /đăng ký /.test(cd) && /duyệt /.test(cd) && /chưa đăng nhập lần nào/.test(cd));
+  ok('có nút Cấp quyền dẫn thẳng sang Phân quyền',
+    /data-viec="capQuyen"/.test(cd) && /quyenLocMail/.test(cd));
+  ok('có nút Đặt lại mật khẩu', /data-viec="datLaiMk"/.test(cd));
+  ok('KHÔNG tự sinh mật khẩu rồi hiện lên màn (nó nằm lại trong ảnh chụp màn hình)',
+    !/randomBytes|Math\.random\(\)[\s\S]{0,80}mk/.test(cd));
+  ok('Phân quyền mở đúng người, chưa có dòng thì điền sẵn email',
+    /S\.quyenLocMail/.test(qj) && /moFormQuyen\(null, ng \|\|/.test(qj));
+
+  /* Trạng thái là giá trị đọc từ Base. Bộ dịch từng đổi "Hoạt động" thành
+   * "Activity" — từ đó có trong từ điển của app Lịch tác nghiệp, nơi nó mang
+   * nghĩa "buổi hoạt động". Tên người cũng không được dịch. */
+  ok('khối dữ liệu của thẻ được chắn khỏi bộ dịch',
+    /cd-hang-tx" data-no-i18n/.test(cd));
+
+  const sv2 = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+  ok('danh bạ đối chiếu có gộp tài khoản ngoài Lark',
+    /ngoaiLark: true/.test(sv2) && /taiKhoan\.docHet\(\)/.test(sv2));
+  ok('panel nói rõ đây là người NGOÀI công ty', /ngoài Lark/.test(qj));
+
   if (cu === undefined) delete process.env.SESSION_SECRET; else process.env.SESSION_SECRET = cu;
 
   console.log('\n' + (fail ? '\x1b[31m' : '\x1b[32m') + pass + ' pass · ' + fail + ' fail\x1b[0m');

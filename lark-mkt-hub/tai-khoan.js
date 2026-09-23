@@ -141,6 +141,8 @@ async function docHet(moi) {
       bam: String(d[C.bam] || '').trim(),
       trangThai: String(d[C.trangThai] || '').trim() || TT.cho,
       taoLuc: String(d[C.taoLuc] || ''),
+      duyetLuc: String(d[C.duyetLuc] || ''),
+      dangNhapCuoi: String(d[C.dangNhapCuoi] || ''),
       phienTu: Number(d[C.phienTu] || 0) || 0,
       ghiChu: String(d[C.ghiChu] || ''),
     })).filter((x) => x.email);
@@ -339,6 +341,7 @@ async function dsChoPanel() {
   return ds.map((x) => ({
     id: x.recordId, ten: x.ten, email: x.email,
     trangThai: x.trangThai, taoLuc: x.taoLuc, ghiChu: x.ghiChu,
+    duyetLuc: x.duyetLuc, dangNhapCuoi: x.dangNhapCuoi,
   })).sort((a, b) => {
     const ua = a.trangThai === TT.cho ? 0 : 1;
     const ub = b.trangThai === TT.cho ? 0 : 1;

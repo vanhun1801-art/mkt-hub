@@ -575,6 +575,16 @@ async function napCdTaiKhoan() {
   const cho = ds.filter((x) => x.trangThai === 'Chờ duyệt');
   const con = ds.filter((x) => x.trangThai !== 'Chờ duyệt');
 
+  /* Ngày giờ ISO -> "23/09" hoặc "23/09 14:05". Đủ để biết mới hay cũ, không
+   * bày ra một chuỗi ISO dài loằng ngoằng. */
+  const luc = (s, gio) => {
+    const d = new Date(s);
+    if (!s || isNaN(d)) return '';
+    const hai = (n) => String(n).padStart(2, '0');
+    return hai(d.getDate()) + '/' + hai(d.getMonth() + 1) +
+      (gio ? ' ' + hai(d.getHours()) + ':' + hai(d.getMinutes()) : '');
+  };
+
   const the = (x) => {
     const mau = x.trangThai === 'Hoạt động' ? 'luc' : x.trangThai === 'Chờ duyệt' ? 'vang' : 'do';
     const nut = x.trangThai === 'Chờ duyệt'
@@ -583,11 +593,37 @@ async function napCdTaiKhoan() {
       : x.trangThai === 'Hoạt động'
         ? '<button class="btn ghost nho" data-viec="khoa" data-id="' + esc(x.id) + '">Khoá</button>'
         : '<button class="btn ghost nho" data-viec="moLai" data-id="' + esc(x.id) + '">Mở lại</button>';
+
+    /* Dòng thông tin: đăng ký lúc nào, duyệt lúc nào, đã vào lần nào chưa.
+     * "Chưa đăng nhập lần nào" là thứ đáng nhìn nhất — duyệt xong mà người ta
+     * không vào được thì phải biết ngay, đừng để tự đoán. */
+    const tin = [
+      x.taoLuc ? 'đăng ký ' + luc(x.taoLuc) : '',
+      x.duyetLuc ? 'duyệt ' + luc(x.duyetLuc) : '',
+      x.trangThai === 'Hoạt động'
+        ? (x.dangNhapCuoi ? 'vào lần cuối ' + luc(x.dangNhapCuoi, true) : 'chưa đăng nhập lần nào')
+        : '',
+    ].filter(Boolean).join(' · ');
+
+    /* Chỉ tài khoản ĐANG HOẠT ĐỘNG mới có hai nút này: cấp quyền cho người còn
+     * đang chờ duyệt là cấp cho một người chưa chắc được nhận. */
+    const themNut = x.trangThai === 'Hoạt động'
+      ? '<button class="btn nho" data-viec="capQuyen" data-mail="' + esc(x.email) + '">Cấp quyền</button>' +
+        '<button class="btn ghost nho" data-viec="datLaiMk" data-id="' + esc(x.id) + '">Đặt lại mật khẩu</button>'
+      : '';
+
+    /* `data-no-i18n`: cả khối này là DỮ LIỆU đọc từ Base — tên người, email,
+     * trạng thái. Không chắn thì bộ dịch đổi luôn cả giá trị: đo được ngày
+     * 23/09/2026, chip trạng thái "Hoạt động" ra thành "Activity" vì từ đó có
+     * trong từ điển của app Lịch tác nghiệp (ở đó nó là "buổi hoạt động", nghĩa
+     * khác hẳn). Tên người cũng vậy — không ai muốn tên mình bị dịch. */
     return '<div class="cd-hang">' +
-      '<div class="cd-hang-tx"><b>' + esc(x.ten || x.email) + '</b>' +
+      '<div class="cd-hang-tx" data-no-i18n><b>' + esc(x.ten || x.email) + '</b>' +
       '<span class="chip ' + mau + '">' + esc(x.trangThai) + '</span>' +
-      '<div class="mo">' + esc(x.email) + (x.taoLuc ? ' · đăng ký ' + esc(String(x.taoLuc).slice(0, 10)) : '') + '</div></div>' +
-      '<div class="cd-hang-dk">' + nut +
+      '<div class="mo">' + esc(x.email) + '</div>' +
+      (tin ? '<div class="mo">' + esc(tin) + '</div>' : '') +
+      '</div>' +
+      '<div class="cd-hang-dk">' + themNut + nut +
       '<button class="btn ghost nho" data-viec="xoa" data-id="' + esc(x.id) + '">Xoá</button></div></div>';
   };
 
@@ -602,6 +638,32 @@ async function napCdTaiKhoan() {
   o.querySelectorAll('button[data-viec]').forEach((b) => {
     b.onclick = async () => {
       const viec = b.dataset.viec;
+
+      /* Đường đi tiếp sau khi duyệt. Trước đây duyệt xong là bế tắc: màn này
+       * không có nút nào dẫn sang chỗ cấp base, mà người mới duyệt thì chưa
+       * thấy base nào cả. Anh Hùng nêu đúng chỗ đó 23/09/2026. */
+      if (viec === 'capQuyen') {
+        S.quyenLocMail = b.dataset.mail;   // màn Phân quyền đọc rồi cuộn tới đúng dòng
+        modalPhanQuyen();
+        return;
+      }
+
+      if (viec === 'datLaiMk') {
+        /* Quản lý tự nghĩ mật khẩu tạm rồi đọc cho người ta. KHÔNG tự sinh rồi
+         * hiện lên màn: mật khẩu tự sinh sẽ nằm lại trong ảnh chụp màn hình và
+         * trong lịch sử cuộn của trình duyệt. */
+        const mk = prompt('Mật khẩu tạm cho tài khoản này (từ 10 ký tự, có cả chữ và số).\n'
+          + 'Đọc cho họ rồi bảo họ đổi lại sau.');
+        if (!mk) return;
+        b.disabled = true;
+        try {
+          await goi('/api/tai-khoan', { method: 'POST', body: JSON.stringify({ id: b.dataset.id, viec, mk }) });
+          alert('Xong. Mọi phiên đang mở của tài khoản này đã bị đá ra.');
+          napCdTaiKhoan();
+        } catch (e) { alert(e.message); b.disabled = false; }
+        return;
+      }
+
       if (viec === 'xoa' && !confirm('Xoá hẳn tài khoản này khỏi Base?')) return;
       b.disabled = true;
       try {
