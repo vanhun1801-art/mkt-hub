@@ -406,6 +406,39 @@ const nhom = (t) => console.log('\n\x1b[1m' + t + '\x1b[0m');
     ok('có khoản đã đóng sổ để thử ghi đè', false, 'sổ chưa có khoản nào mang mã QTTU');
   }
 
+  nhom('Mã RT nào cũng bấm được để mở đơn bên Tourwell');
+  /* Kế toán đối chiếu CHÍNH bằng mã này, nên mã hiện ra mà bấm không đi đâu là
+   * bắt chị ấy tự gõ tay vào Tourwell tìm lại. Hai dạng cùng tồn tại trong sổ:
+   * dòng do app Quỹ tạo lưu "mã · link", dòng do app Lịch tác nghiệp ghi sang
+   * thì trước 23/09/2026 chỉ có mã trần. */
+  const coMa = m.chi.filter((c) => String(c.maDon || '').trim());
+  ok('sổ có khoản mang mã đơn để kiểm', coMa.length > 0, coMa.length + ' khoản');
+  const chetLink = coMa.filter((c) => !String(c.linkDon || '').trim());
+  ok('KHÔNG mã nào còn là chữ chết', chetLink.length === 0,
+    chetLink.map((c) => c.maDon).join(' · '));
+
+  /* Đây mới là phép thử thật sự canh chuyện gì.
+   *
+   * Máy chủ dựng link cho mã trần bằng một giả thiết: SỐ trong mã RT chính là
+   * id đơn. Hôm nay đúng — đối chiếu 10/10 mã với /api/v1/orders/<số>. Nhưng
+   * nếu Tourwell đổi cách đánh mã thì link dựng ra sẽ trỏ sang ĐƠN CỦA NGƯỜI
+   * KHÁC, mà không có gì báo.
+   *
+   * Nên mỗi dòng CÓ SẴN link thật (Tourwell tự trả về lúc tạo đơn) là một lần
+   * đối chứng: link thật phải trùng đúng công thức đang dựng. Đơn mới nào phá
+   * giả thiết là chỗ này đỏ ngay. */
+  const coLinkThat = coMa.filter((c) => /https?:\/\//.test(String(c.maDon)));
+  ok('sổ có khoản mang link thật của Tourwell để đối chứng', coLinkThat.length > 0,
+    coLinkThat.length + ' khoản');
+  const lechCongThuc = coLinkThat.filter((c) => {
+    const ma = String(c.maDon).split('·')[0].trim();
+    const so = (ma.match(/^RT(\d+)$/i) || [])[1];
+    const that = (String(c.maDon).match(/(https?:\/\/\S+)/) || [])[1] || '';
+    return !so || !that.endsWith('/admin/order/' + so + '/show');
+  });
+  ok('số trong mã RT vẫn đúng là id đơn — công thức dựng link còn dùng được',
+    lechCongThuc.length === 0, lechCongThuc.map((c) => c.maDon).join('  |  '));
+
   nhom('Không tạo đơn Tourwell trùng cho khoản đã đi qua Tourwell');
   const daQua = m.chi.find((c) => String(c.maDieuHanh || '').trim() && !String(c.maDon || '').trim());
   if (daQua) {

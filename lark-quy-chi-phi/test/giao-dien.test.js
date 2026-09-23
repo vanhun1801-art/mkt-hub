@@ -86,6 +86,16 @@ const META = {
       lyDoTuChoi: 'Hoá đơn mờ, không đọc được mã số thuế', dot: ['recD1'],
     },
     {
+      /* Dòng do app Lịch tác nghiệp ghi sang: ô chỉ có MÃ TRẦN, địa chỉ đơn do
+       * máy chủ dựng rồi đưa xuống ở linkDon. Trước 23/09/2026 mã này hiện ra
+       * là chữ chết — mà kế toán đối chiếu chính bằng nó. */
+      id: 'recC6', noiDung: 'Liv/e/tream Safari (15/09)', loai: 'Tác nghiệp',
+      tien: 732000, ngayChi: '2026-09-16', nguoi: [], tinhTrang: 'Đã chi',
+      hoaDon: [{ name: 'hd6.jpg', token: 'tk6' }], unc: [], maDieuHanh: '',
+      maDon: 'RT16550', linkDon: 'https://rootytrip.tourwell.net/admin/order/16550/show',
+      maQuyetToan: '', linkCu: '', linkUncCu: '', chungTu: null, dot: ['recD1'],
+    },
+    {
       id: 'recC4', noiDung: 'Khoản còn Chờ chi', loai: 'Khác',
       tien: 250000, ngayChi: '', ngayDeNghi: '2026-09-12', nguoi: [],
       tinhTrang: 'Chờ chi', hoaDon: [], unc: [], maDieuHanh: '', maDon: '',
@@ -174,9 +184,19 @@ function chay(meta) {
 
   if (ctx) {
     const bang = ve('bảng sổ quỹ', () => ctx.veBang());
-    ok('bảng có mã đơn Tourwell, bấm được',
-      String(bang).includes('RT16438') && String(bang).includes('order/16438'),
-      String(bang).slice(0, 200));
+    /* Hai dạng cùng nằm trong sổ, và CẢ HAI đều phải bấm được:
+     *   ô có sẵn "mã · link"  — dòng do app Quỹ tạo
+     *   ô chỉ có mã trần      — dòng do app Lịch tác nghiệp ghi sang, link do
+     *                           máy chủ dựng và đưa xuống ở linkDon
+     * Kiểm bằng thẻ <a href>, không kiểm bằng "có chuỗi order/16550": lớp CSS
+     * .ma-don tô xanh cho cả <span>, nên mã chết TRÔNG y hệt mã bấm được. */
+    const theA = (ma) => new RegExp('<a[^>]+href="[^"]*order/' + ma
+      + '/show"[^>]*>RT' + ma).test(String(bang));
+    ok('mã đơn có sẵn link thì bấm được', theA('16438'), String(bang).slice(0, 300));
+    ok('mã đơn TRẦN cũng bấm được nhờ link máy chủ dựng', theA('16550'),
+      (String(bang).match(/[^>]*RT16550[^<]*/) || [''])[0]);
+    ok('khoản không có mã đơn thì KHÔNG dựng thẻ bấm rỗng',
+      !/<a[^>]+href=""/.test(String(bang)));
     ok('khoản chưa có mã điều hành thì hiện nút thêm',
       String(bang).includes('data-gansg'));
     ok('khoản đã có mã điều hành thì hiện mã', String(bang).includes('SG21000'));
@@ -397,7 +417,7 @@ function chay(meta) {
     + '.reduce((a,c) => a + c.tien, 0)');
   ok('chi trong kỳ khớp khi cộng tay lại', k9.chi === chiT9, k9.chi + ' vs ' + chiT9);
   ok('khoản Chờ chi vẫn nằm trong kỳ, cùng luật với số dư quỹ',
-    k9.chi === 406000 + 362000 + 180000 + 250000, String(k9.chi));
+    k9.chi === 406000 + 362000 + 180000 + 250000 + 732000, String(k9.chi));
 
   /* Bản ghi KHÔNG CÓ NGÀY là dữ liệu cũ nhập từ sheet. Xếp vào kỳ hiện tại thì
    * tháng này tự dưng phình ra một khoản không ai tiêu. */

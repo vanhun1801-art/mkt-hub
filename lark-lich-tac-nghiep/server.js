@@ -602,7 +602,11 @@ const dangTaoDon = new Set();
 async function taoDonTourwell(recId, item) {
   if (!tourwell.bat()) return { bo: 'chua-cau-hinh' };
   if (String(item.tourwell || '').trim()) {
-    return { bo: 'da-co', ma: String(item.tourwell).trim() };
+    /* `ghi` là chuỗi ĐỂ GHI XUỐNG Ô, `ma` là chuỗi để CON NGƯỜI ĐỌC. Ở nhánh
+     * này ô Base vốn đã lưu "mã · link" nên hai thứ trùng nhau; ở nhánh tạo mới
+     * bên dưới thì không. Tách tên ra để chỗ gọi khỏi phải đoán. */
+    const co = String(item.tourwell).trim();
+    return { bo: 'da-co', ma: co, ghi: co };
   }
   if (!(Number(item.costActual) > 0)) return { bo: 'khong-co-chi-phi' };
   if (dangTaoDon.has(recId)) return { bo: 'dang-tao' };
@@ -613,7 +617,12 @@ async function taoDonTourwell(recId, item) {
 
     /* Ghi mã ngược vào Base NGAY, kể cả khi dòng chi phí lỗi: đơn đã tồn tại
      * thì ô này phải có mã, nếu không lần bấm sau sẽ đẻ thêm đơn nữa. */
+    /* Chuỗi này đi CẢ HAI nơi: ô "Đơn Tourwell" bên Base lịch, và ô "Mã đơn
+     * Tourwell" bên sổ quỹ. Trước đây sổ quỹ chỉ nhận `kq.ma` nên mã bên đó
+     * hiện ra là chữ chết — bấm không đi đâu, mà kế toán đối chiếu chính bằng
+     * cái mã ấy. */
     const ghi = kq.ma + ' · ' + kq.link;
+    kq.ghi = ghi;
     try {
       await lark.updateRecord(recId, { [F.tourwell.name]: ghi });
       if (cache.records) {
@@ -1626,7 +1635,9 @@ async function api(req, res, url) {
 
         /* Rồi ghi tiếp một dòng vào SỔ QUỸ. Hai việc độc lập: Tourwell hỏng thì
          * sổ quỹ vẫn phải có dòng chi, vì đó là chỗ theo dõi tiền còn lại. */
-        sq = await ghiSoQuy(id, { ...item, ...body }, tw && tw.ma);
+        /* Đưa "mã · link" chứ không đưa mã trần: bên sổ quỹ mã này là nút bấm
+         * mở thẳng đơn, mà nó chỉ bấm được khi trong ô có sẵn địa chỉ. */
+        sq = await ghiSoQuy(id, { ...item, ...body }, tw && (tw.ghi || tw.ma));
         if (sq && sq.loi) console.warn('[sổ quỹ]', sq.loi);
       }
 

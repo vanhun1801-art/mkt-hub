@@ -73,6 +73,39 @@ function doiRa(rec, map) {
   return t;
 }
 
+/* ---------------------------------------------------------------------------
+ * ĐỊA CHỈ ĐƠN TOURWELL
+ * -------------------------------------------------------------------------
+ * Ô "Mã đơn Tourwell" lưu một trong hai dạng:
+ *
+ *   "RT16438 · https://rootytrip.tourwell.net/admin/order/16438/show"
+ *   "RT16486"                       ← ghi từ app Lịch tác nghiệp, thiếu địa chỉ
+ *
+ * Dạng thứ hai là chữ chết trên màn hình, mà kế toán đối chiếu CHÍNH bằng mã
+ * này. Nguồn đã sửa để từ nay luôn ghi kèm địa chỉ; chỗ này lo mấy dòng CŨ và
+ * mấy mã ai đó gõ thẳng vào Base.
+ *
+ * DỰNG ĐƯỢC vì SỐ trong mã chính là id đơn. Không phải suy đoán: ngày
+ * 23/09/2026 đối chiếu cả 10 mã đang có trong sổ với /api/v1/orders/<số> —
+ * 10 khớp, 0 lệch, và link_erp Tourwell trả về đúng bằng chuỗi dựng ở đây.
+ *
+ * Dựng ở MÁY CHỦ chứ không ở giao diện: địa chỉ máy chủ Tourwell là cấu hình,
+ * trình duyệt không biết và không nên biết.
+ *
+ * Bịa link là mở nhầm sang đơn của người khác — tệ hơn hẳn không bấm được. Nên
+ * chỉ dựng khi mã đúng dạng RT + chữ số; ngoài ra trả rỗng.
+ */
+function linkDonTourwell(maDon) {
+  const s = String(maDon || '').trim();
+  if (!s) return '';
+  const co = s.match(/(https?:\/\/\S+)/);
+  if (co) return co[1];
+  const m = s.split('·')[0].trim().match(/^RT(\d+)$/i);
+  if (!m) return '';
+  const host = (tourwell.docCauHinh() || {}).host;
+  return host ? host + '/admin/order/' + m[1] + '/show' : '';
+}
+
 const pad = (n) => String(n).padStart(2, '0');
 
 /** UI -> ô Base. Khoá theo TÊN cột vì lark.js ghi theo tên. */
@@ -353,7 +386,11 @@ async function xuLy(req, res) {
   /* ---- màn hình chính ---- */
   if (p === '/api/meta' && req.method === 'GET') {
     const k = await nap(url.searchParams.get('moi') === '1');
-    const chi = k.chi.map((r) => doiRa(r, F.chi));
+    const chi = k.chi.map((r) => {
+      const c = doiRa(r, F.chi);
+      c.linkDon = linkDonTourwell(c.maDon);
+      return c;
+    });
     const dot = k.dot.map((r) => doiRa(r, F.dot));
     const lan = k.nap.map((r) => doiRa(r, F.nap));
 

@@ -160,14 +160,20 @@ const CHO_CHINH = 'Chờ điều chỉnh';
 /**
  * Ô "Mã đơn Tourwell" lưu "RT16409 · https://…" — tách lại thành mã và link.
  *
+ * Nhận cả KHOẢN CHI chứ không riêng chuỗi, vì địa chỉ đơn có thể không nằm
+ * trong ô: mấy dòng cũ chỉ có mã trần. Máy chủ dựng địa chỉ hộ rồi đưa xuống ở
+ * `linkDon` (xem linkDonTourwell trong server.js) — trình duyệt không biết
+ * địa chỉ máy chủ Tourwell nên không tự dựng được.
+ *
  * Trả về null khi trống, để chỗ gọi phân biệt được "chưa có đơn" với "có đơn
  * mà không có link".
  */
-function tachDon(v) {
-  const s = String(v || '').trim();
+function tachDon(c) {
+  const o = (c && typeof c === 'object') ? c : { maDon: c };
+  const s = String(o.maDon || '').trim();
   if (!s) return null;
   const m = s.match(/(https?:\/\/\S+)/);
-  return { ma: s.split('·')[0].trim() || s, link: m ? m[1] : '' };
+  return { ma: s.split('·')[0].trim() || s, link: m ? m[1] : String(o.linkDon || '') };
 }
 
 function thieuChungTu(c) {
@@ -415,7 +421,7 @@ function veBang() {
      * "có việc phải làm ở dòng này", nên dùng chung một màu — thêm màu thứ ba
      * chỉ làm loãng cái đang có nghĩa. */
     const thieu = thieuChungTu(c) || c.tinhTrang === CHO_CHINH;
-    const dv = tachDon(c.maDon);
+    const dv = tachDon(c);
     return '<tr' + (thieu ? ' class="canhbao"' : '') + '>'
       + '<td class="chon">' + (duocQuyetToan()
         ? '<input type="checkbox" data-chon="' + c.id + '"' + (S.chon.has(c.id) ? ' checked' : '') + '>' : '') + '</td>'
@@ -816,7 +822,7 @@ function moQuyetToan() {
  * là gán mã cho khoản của tháng khác.
  * ------------------------------------------------------------------------- */
 function tomTatKhoan(c) {
-  const dv = tachDon(c.maDon);
+  const dv = tachDon(c);
   return '<div class="tomtat"><b>' + esc(c.noiDung || '(không tên)') + '</b>'
     + '<div class="nho">' + tien(c.tien) + ' đ · ' + esc(ngayVN(c.ngayChi || c.ngayDeNghi))
     + (dv ? ' · ' + esc(dv.ma) : '')
@@ -1282,7 +1288,7 @@ document.addEventListener('click', async (e) => {
      * "đã ghi sổ quỹ" bên Base lịch tác nghiệp. Nói ra trước, vì cả hai chỗ đó
      * phải dọn tay và người bấm xoá là người duy nhất còn nhớ khoản này. */
     const nhac = ['Xoá khoản "' + (c ? c.noiDung : '') + '"?', '', 'Số dư quỹ tự tính lại.'];
-    const dv = c && tachDon(c.maDon);
+    const dv = c && tachDon(c);
     if (dv) nhac.push('Đơn ' + dv.ma + ' bên Tourwell KHÔNG tự huỷ — phải vào huỷ tay, '
       + 'nếu không lịch sử chi của Quỹ Marketing vẫn còn khoản này.');
     if (c && c.buoiTacNghiep) nhac.push('Khoản này do app Lịch tác nghiệp ghi sang. '
