@@ -70,6 +70,14 @@ const ICONS = {
     '<circle cx="16" cy="8" r="1.4"/>'
   ),
 
+  /* Lịch làm việc: tờ lịch có dấu tích — lịch ĐÃ ĐĂNG KÝ. Không dùng lại
+     'lich' (đã là Lịch tác nghiệp), hai base nằm cạnh nhau trên panel. */
+  'lich-lam-viec': IC(
+    '<rect x="3.5" y="5" width="17" height="15.5" rx="2"/>' +
+    '<path d="M3.5 9.5h17M8 3v4M16 3v4"/>' +
+    '<path d="m9 15 2 2 4-4"/>'
+  ),
+
   /* Tải nhân sự / người */
   'nguoi': IC(
     '<circle cx="12" cy="8" r="3.5"/>' +

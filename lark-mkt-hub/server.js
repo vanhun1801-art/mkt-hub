@@ -890,7 +890,7 @@ async function api(req, res, u) {
     if (soNgay > 92) return loi(res, 400, 'Khoảng quá rộng (' + soNgay + ' ngày) — chọn tối đa 3 tháng.');
 
     const { nguoi: nguoiLC, q: qLC } = await aiDangXem(req);
-    const mods = danhSach().filter((x) => x.bat && lich.BO_DOC[x.kpi] && duocXem(qLC, x));
+    const mods = danhSach().filter((x) => x.bat && (lich.BO_DOC[x.kpi] || lich.DOC_NGHI[x.kpi]) && duocXem(qLC, x));
     if (u.searchParams.get('refresh') === '1') lich.xoaCache();
     return ok(res, await lich.lichChung(mods, tu, den, u.searchParams.get('refresh') === '1',
       nguoiKemQuyen(nguoiLC, qLC)));

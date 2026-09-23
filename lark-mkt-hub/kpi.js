@@ -693,6 +693,9 @@ const BO_DOC = {
   'quy-chi-phi': quyChiPhi,
   'bao-cao': baoCaoViec,
   'san-pham': sanPham,
+  /* Lịch làm việc có trục là THÁNG PHẢI ĐĂNG KÝ, không phải khoảng lọc của
+     trang Tổng quan — app tự chọn tháng (từ ngày 29 là tháng sau). */
+  'lich-lam-viec': (mod, khoang, nguoi) => tuAppTuCong(mod, null, nguoi),
 };
 
 /* ---------------- cache + gom ---------------- */

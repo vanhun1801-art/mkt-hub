@@ -109,6 +109,25 @@ const BO_DOC = {
   'lich-tac-nghiep': tuLichTacNghiep,
 };
 
+/* ---------------- ngày nghỉ từ base "Lịch làm việc" ----------------
+ * Không phải việc nên KHÔNG vào BO_DOC — cộng vào tải thì người nghỉ phép lại
+ * thành người "bận" nhất. Nó chỉ tô nền ô ngày trên dải nhiệt. */
+async function nghiTuLichLamViec(mod, tu, den, nguoi) {
+  const d = await goiJson(mod, '/api/nghi?tu=' + tu + '&den=' + den, { nguoi });
+  return d.nghi || [];
+}
+const DOC_NGHI = {
+  'lich-lam-viec': nghiTuLichLamViec,
+};
+
+/** So tên không lệ thuộc dấu và khoảng trắng — tên HCNS và tên Lark hay lệch nhau. */
+function chuanTen(s) {
+  const bo = [...String(s || '').normalize('NFD')]
+    .filter((ch) => { const c = ch.codePointAt(0); return c < 0x300 || c > 0x36f; }).join('');
+  return bo.split(String.fromCharCode(0x111)).join('d').split(String.fromCharCode(0x110)).join('d')
+    .toLowerCase().trim().split(' ').filter(Boolean).join(' ');
+}
+
 /* ---------------- gộp thành lưới người × ngày ---------------- */
 const cache = new Map(); // "tu|den|nguoi" -> { at, data }
 
@@ -171,6 +190,10 @@ async function docThat(mods, tu, den, nguoi, kh) {
     : nguoi;
 
   const dsMod = mods.filter((m) => BO_DOC[m.kpi]);
+  const modNghi = mods.filter((m) => DOC_NGHI[m.kpi]);
+  const lanNghi = Promise.all(modNghi.map(async (m) => {
+    try { return { id: m.id, nghi: await DOC_NGHI[m.kpi](m, tu, den, nguoiDoc) }; } catch (e) { return { id: m.id, nghi: [], loi: e.message }; }
+  }));
   const ket = await Promise.all(dsMod.map(async (m) => {
     try {
       return { id: m.id, viec: await BO_DOC[m.kpi](m, tu, den, nguoiDoc) };
@@ -240,6 +263,25 @@ async function docThat(mods, tu, den, nguoi, kh) {
     v.hoTro.forEach((ng) => themVao(ng, v, 'ho-tro'));
   });
 
+  /* Gắn ngày nghỉ vào dòng của đúng người. Khớp theo open_id trước (cùng app
+   * Lark của hub nên trùng với id bên Bảng công việc), rồi theo tên. Người nghỉ
+   * mà không có việc nào trong khoảng vẫn được một dòng — nếu có id. */
+  const nghiRa = await lanNghi;
+  nghiRa.forEach((r) => { if (r.loi) loi.push({ module: r.id, loi: r.loi }); });
+  const theoTen = () => new Map([...dong.values()].filter((r) => r.id).map((r) => [chuanTen(r.ten), r]));
+  let banTen = theoTen();
+  nghiRa.flatMap((r) => r.nghi).forEach((n) => {
+    let r = (n.id && dong.get(n.id)) || banTen.get(chuanTen(n.ten));
+    if (!r) {
+      if (!n.id) return;
+      dong.set(n.id, { id: n.id, ten: n.ten, o: new Map(), tong: 0, gap: 0, da: new Map() });
+      r = dong.get(n.id);
+      banTen = theoTen();
+    }
+    if (!r.nghi) r.nghi = {};
+    r.nghi[n.ngay] = { ma: n.ma, muc: n.muc, ten: n.tenMa || n.ma };
+  });
+
   const hang = [...dong.values()].map((r) => ({
     id: r.id,
     ten: r.ten,
@@ -248,6 +290,11 @@ async function docThat(mods, tu, den, nguoi, kh) {
     // ngày nào nhiều việc nhất của người này — để biết đỉnh tải
     dinh: Math.max(0, ...[...r.o.values()].map((x) => x.length)),
     o: Object.fromEntries([...r.o.entries()].map(([k, v]) => [k, v])),
+    nghi: r.nghi || {},
+    /* Số việc rơi vào ngày người đó nghỉ CẢ NGÀY — xung đột quản lý cần gỡ. */
+    trungNghi: Object.entries(r.nghi || {})
+      .filter(([, x]) => x.muc === 'ca')
+      .reduce((s, [k]) => s + (r.o.get(k) || []).length, 0),
   }));
 
   // người bị dồn nhiều xếp trước; "Chưa phân công" luôn ở cuối
@@ -292,4 +339,4 @@ async function docThat(mods, tu, den, nguoi, kh) {
 
 function xoaCache() { cache.clear(); }
 
-module.exports = { lichChung, xoaCache, BO_DOC };
+module.exports = { lichChung, xoaCache, BO_DOC, DOC_NGHI, chuanTen };

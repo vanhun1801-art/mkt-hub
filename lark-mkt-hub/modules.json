@@ -271,6 +271,29 @@
       "thuApi": "/api/khoi-tao",
       "_tin": "true = app này tự phát tin cho bảng tin trang Tổng quan qua GET /api/tin. Khai tường minh để hub khỏi gọi thử cả mười app mỗi lần vẽ bảng tin.",
       "tin": true
+    },
+    {
+      "id": "lich-lam-viec",
+      "ten": "Lịch làm việc",
+      "mo_ta": "Đăng ký lịch tháng · chép sang HCNS",
+      "icon": "lich-lam-viec",
+      "mau": "#0ea5a4",
+      "kieu": "local",
+      "thuMuc": "../lark-lich-lam-viec",
+      "cong": 5185,
+      "lenh": [
+        "node",
+        "server.js"
+      ],
+      "larkUrl": "https://rootytrip2.sg.larksuite.com/base/VTqxbgjx1a5ZIMsyMQGlLjtQg6c",
+      "kpi": "lich-lam-viec",
+      "an": [
+        "header.topbar > .brand",
+        "#btnLark"
+      ],
+      "phuSelector": "#phuDe",
+      "bat": true,
+      "caPhong": false
     }
   ]
 }

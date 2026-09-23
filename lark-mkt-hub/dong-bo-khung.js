@@ -24,7 +24,7 @@ const CHA = path.join(__dirname, '..');
 const APP = [
   'lark-task-manager', 'lark-lich-tac-nghiep', 'lark-ads-manager', 'lark-ota-manager',
   'lark-social', 'lark-chinh-anh', 'lark-kpi', 'lark-quy-chi-phi', 'lark-bao-cao',
-  'lark-san-pham',
+  'lark-san-pham', 'lark-lich-lam-viec',
 ];
 
 const goc = TEP.map((t) => fs.readFileSync(path.join(__dirname, 'public', t)));

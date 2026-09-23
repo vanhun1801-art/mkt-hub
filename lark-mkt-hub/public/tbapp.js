@@ -49,6 +49,8 @@ function veTbApp() {
   if (!tb) {
     if (cu) cu.remove();
     document.body.classList.remove('bb-chan');
+    /* Hộp nhắc đăng ký lịch nhường chỗ cho thông báo này — giờ tới lượt nó. */
+    if (typeof veNhacLich === 'function') veNhacLich();
     return;
   }
 

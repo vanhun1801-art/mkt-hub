@@ -60,6 +60,7 @@
   /* dải nhiệt tải nhân sự */
   --nhiet-0: #eef1f6;
   --nhiet-cuoi: #e7ebf2;
+  --nghi-soc: rgba(26, 34, 51, .17);
   --nhiet-1: #dbe6ff;
   --nhiet-2: #a9c6ff;
   --nhiet-3: #6f9bff;
@@ -123,6 +124,7 @@
   --bong-cao: 0 12px 40px rgba(0, 0, 0, .55);
   --nhiet-0: #262d3b;
   --nhiet-cuoi: #212734;
+  --nghi-soc: rgba(255, 255, 255, .17);
   --nhiet-1: #24365c;
   --nhiet-2: #2f4d8a;
   --nhiet-3: #3f6bc7;
@@ -175,6 +177,7 @@
   --bong-cao: 0 12px 40px rgba(0, 0, 0, .55);
     --nhiet-0: #262d3b;
     --nhiet-cuoi: #212734;
+    --nghi-soc: rgba(255, 255, 255, .17);
     --nhiet-1: #24365c;
     --nhiet-2: #2f4d8a;
     --nhiet-3: #3f6bc7;
@@ -1038,6 +1041,22 @@ code { background: var(--trang-2); border: 1px solid var(--vien-mem); border-rad
   box-shadow: 0 0 0 1px rgba(0, 0, 0, .18);
 }
 
+/* Ngày NGHỈ theo base Lịch làm việc (anh Hùng 23/09/2026): CHỈ BẰNG CHỮ, không
+   thêm màu, không lớp phủ — nghỉ cả ngày ghi "OFF", nửa ca ghi "½". Màu ô vẫn
+   hoàn toàn là màu tải; lịch làm việc không được tranh nghĩa với nó.
+   Chữ nhạt hơn màu chữ phụ ~15% để lùi sau số liệu tải.
+   Cỡ chữ lấy của .tn-o (khối điện thoại đã nâng sẵn). */
+.tn-o.ng-ca, .tn-o.ng-nua {
+  color: color-mix(in srgb, var(--chu-nhat) 85%, transparent);
+  letter-spacing: .03em; overflow: hidden;
+}
+.tn-o.ng-ca.m3, .tn-o.ng-ca.m4, .tn-o.ng-nua.m3, .tn-o.ng-nua.m4 { color: rgba(255, 255, 255, .85); }
+.tn-chu-llv { font-weight: 700; color: color-mix(in srgb, var(--chu-nhat) 85%, transparent); letter-spacing: .03em; }
+.ng-nghi {
+  font-size: 11px; font-weight: 650; color: var(--chu-nhat);
+  margin-left: 6px;
+}
+
 /* chú thích trong tiêu đề khối */
 .chu-thich {
   display: inline-flex; align-items: center; gap: 5px; margin-left: 10px;
@@ -1749,6 +1768,20 @@ body.dang-xem-ho .app { height: calc(100vh - 34px); margin-top: 34px; }
    dùng được, chỉ là có hộp chắn ngang. */
 body.bb-chan { overflow: hidden; }
 
+/* Hộp nhắc đăng ký lịch làm việc (nhac-lich.js): ảnh chiếm trọn thân hộp, dưới
+   là một dải gọn. Ảnh vuông nên giới hạn theo CHIỀU CAO màn hình, không thì màn
+   laptop thấp đẩy nút "Đăng ký ngay" ra khỏi tầm nhìn. */
+.bb-hop.nl-hop { max-width: min(560px, calc(100vh - 150px)); padding: 0; overflow: hidden; }
+.nl-anh { display: block; width: 100%; height: auto; aspect-ratio: 1 / 1; object-fit: cover; }
+.nl-chan {
+  display: flex; align-items: center; gap: 12px; padding: 14px 18px;
+  border-top: 1px solid var(--vien); background: var(--trang);
+}
+.nl-chu { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.nl-chu b { font-size: 15px; color: var(--chu); }
+.nl-chu span { font-size: 12.5px; color: var(--chu-nhat); }
+.nl-nut { padding: 10px 18px; font-size: 14.5px; }
+
 .bb-hop {
   width: 100%; max-width: 560px; margin: auto;
   background: var(--trang); border-radius: 14px;
@@ -1913,6 +1946,11 @@ input.cd-in-nho { width: 72px; }
 .rail-nen { display: none; }
 
 @media (max-width: 640px) {
+  /* hộp nhắc đăng ký lịch làm việc (nhac-lich.js) */
+  .bb-hop.nl-hop { max-width: 100%; }
+  .nl-chan { flex-wrap: wrap; }
+  .nl-nut { width: 100%; }
+
   /* Thanh trên cùng nằm NGOÀI .app, nên body thành cột và .app nhận phần còn
      lại. Không dùng calc(100vh - 52px): thanh địa chỉ của trình duyệt di động
      co giãn nên 100vh không phải chiều cao thật. */
@@ -2046,6 +2084,7 @@ input.cd-in-nho { width: 72px; }
   .tn-moc { font-size: 12.5px; }                                 /* 10 */
   .thang-do b { font-size: 12.5px; }                             /* 10.5 */
   .chu-thich { font-size: 12.5px; }                              /* 10.5 */
+  .ng-nghi { font-size: 12.5px; }                                /* 11 */
   .tin-muc, .tin-moi { font-size: 12.5px; }                      /* 10 */
   .tin-ngay { font-size: 12.5px; }                               /* 11 */
   .cd-nhom { font-size: 12.5px; }                                /* 11 */

@@ -2075,7 +2075,10 @@ function khoiTaiNhanSu() {
       '<i class="m0"></i><i class="m1"></i><i class="m2"></i><i class="m3"></i><i class="m4"></i>' +
       '<b>' + NGUONG_QUA_TAI + '+</b>' +
     '</span>' +
-    '<span class="chu-thich"><i class="tn-diem tn-diem-tho"></i>tác nghiệp</span></div>';
+    '<span class="chu-thich"><i class="tn-diem tn-diem-tho"></i>tác nghiệp</span>' +
+    (d.hang.some((r) => r.nghi && Object.keys(r.nghi).length)
+      ? '<span class="chu-thich"><b class="tn-chu-llv">OFF</b>nghỉ</span>' +
+        '<span class="chu-thich"><b class="tn-chu-llv">½</b>nửa ca</span>' : '') + '</div>';
 
   /* `co-so` = bản CÓ số liệu. Phép đo chiều cao chỉ được nhìn vào bản này, chứ
    * đo trúng bản đang chờ thì lần sau nó chừa chỗ theo chính nó — sai dần. */
@@ -2105,13 +2108,18 @@ function daiNhiet(d, dinhCao) {
       const m = mucCua(ds.length);
       // ngày đó có đi tác nghiệp -> chấm nhỏ góc trên phải của ô
       const soTN = ds.filter((v) => v.module === MODULE_TAC_NGHIEP).length;
-      const tip = ds.length
-        ? dmy(c.n) + ' · ' + ds.length + ' việc' + (soTN ? ' (' + soTN + ' tác nghiệp)' : '') + '\n' +
-          ds.slice(0, 6).map((v) => '· ' + (v.gio ? v.gio + ' ' : '') + v.tieuDe).join('\n')
-        : '';
-      return '<span class="tn-o m' + m + (c.nay ? ' nay' : '') + (c.thu === 0 || c.thu === 6 ? ' cuoi' : '') + '"' +
-        (ds.length ? ' data-n="' + c.n + '" data-nguoi="' + esc(r.id) + '" title="' + esc(tip) + '"' : '') +
-        '>' + (ds.length >= NGUONG_QUA_TAI ? ds.length : '') +
+      /* Ngày nghỉ theo base Lịch làm việc: cả ngày -> chữ OFF, nửa ca -> ô mờ. */
+      const nghi = (r.nghi && r.nghi[c.n]) || null;
+      const tip = (nghi ? dmy(c.n) + (nghi.muc === 'nua' ? ' · Nghỉ nửa ngày: ' : ' · Nghỉ: ') + nghi.ma + ' (' + nghi.ten + ')' + (ds.length ? '\n' : '') : '') +
+        (ds.length
+          ? (nghi ? '' : dmy(c.n) + ' · ') + ds.length + ' việc' + (soTN ? ' (' + soTN + ' tác nghiệp)' : '') + '\n' +
+            ds.slice(0, 6).map((v) => '· ' + (v.gio ? v.gio + ' ' : '') + v.tieuDe).join('\n')
+          : '');
+      return '<span class="tn-o m' + m + (c.nay ? ' nay' : '') + (c.thu === 0 || c.thu === 6 ? ' cuoi' : '') +
+        (nghi ? ' ng-' + nghi.muc : '') + '"' +
+        (ds.length ? ' data-n="' + c.n + '" data-nguoi="' + esc(r.id) + '"' : '') +
+        (tip ? ' title="' + esc(tip) + '"' : '') +
+        '>' + (nghi ? (nghi.muc === 'ca' ? 'OFF' : '½') : ds.length >= NGUONG_QUA_TAI ? ds.length : '') +
         (soTN ? '<i class="tn-diem" ></i>' : '') + '</span>';
     }).join('');
 
@@ -2137,7 +2145,7 @@ function lichTheoNgay(d) {
   d.ngay.forEach((n) => {
     const t = new Date(n + 'T00:00:00');
     const theoNguoi = d.hang
-      .map((r) => ({ ten: r.ten, id: r.id, ds: r.o[n] || [] }))
+      .map((r) => ({ ten: r.ten, id: r.id, ds: r.o[n] || [], nghi: r.nghi && r.nghi[n] }))
       .filter((x) => x.ds.length);
     if (!theoNguoi.length) return;
 
@@ -2146,7 +2154,9 @@ function lichTheoNgay(d) {
       '<div class="kh-sub">' + (d.theoNgay[n] || 0) + ' lượt · ' + theoNguoi.length + ' người</div></div></div>' +
       '<div class="khoi-body ngay-body">' +
       theoNguoi.map((x) => '<div class="ng-dong' + (x.ds.length >= NGUONG_QUA_TAI ? ' qua-tai' : '') + '">' +
-        '<div class="ng-ten">' + esc(x.ten) + '<span class="ng-n">' + x.ds.length + '</span></div>' +
+        '<div class="ng-ten">' + esc(x.ten) + '<span class="ng-n">' + x.ds.length + '</span>' +
+          (x.nghi ? '<span class="ng-nghi" title="' + esc(x.nghi.ten) + '">nghỉ ' + esc(x.nghi.ma) + '</span>' : '') +
+        '</div>' +
         '<div class="ng-viec">' + x.ds.map((v) => vienViecHtml(v)).join('') + '</div>' +
         '</div>').join('') +
       '</div></section>';
@@ -3054,6 +3064,10 @@ async function khoiDongVo() {
    * người đang mở app phải chờ hai phút mới thấy thì không còn là chặn. */
   napTbApp();
   setInterval(() => { if (!document.hidden) napTbApp(); }, 60000);
+  /* Nhắc đăng ký lịch làm việc (nhac-lich.js): cùng nhịp phút với thông báo
+   * chặn màn hình — app Lịch làm việc tự quyết hôm nay có phải nhắc không. */
+  napNhacLich();
+  setInterval(() => { if (!document.hidden) napNhacLich(); }, 60000);
 
   /* MỘT chỗ bắt "quay lại tab", không phải bốn.
    *
@@ -3071,6 +3085,7 @@ async function khoiDongVo() {
     quayLaiLuc = Date.now();
     napHub().catch(() => {});
     napTbApp();
+    napNhacLich();
     napThongBao();
     if (S.view === 'home') napTongQuan();
   });

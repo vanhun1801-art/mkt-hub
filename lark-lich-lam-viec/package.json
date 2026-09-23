@@ -1,0 +1,11 @@
+{
+  "name": "lark-lich-lam-viec",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Đăng ký lịch làm việc tháng vào Lark Base, xuất sang HCNS — app con thứ 11 của Marketing Hub",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/chay-het.js"
+  }
+}
