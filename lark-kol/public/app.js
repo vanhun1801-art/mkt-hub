@@ -1103,7 +1103,7 @@ async function moEmail(ht, loai, dt) {
   const guiDuoc = S.meta.mail.guiDuoc;
   const coBuoc = loai === 'de-xuat' || loai === 'thu-moi';
   const hop = moModal(TEN_EMAIL[loai] + (dt ? ' · ' + dt : ''), (m.chan ? '<div class="bao cam">' + e(m.chan) + '</div>' : '') +
-    (guiDuoc ? '' : '<div class="bao cam">Bản này chạy trên máy chủ chung, chưa gửi email thay anh được — mở app trên máy anh để gửi.</div>') +
+    (S.meta.mail.mode === 'api' ? '<div class="bao">Thư gửi từ hộp thư <b>' + e(S.meta.mail.from) + '</b> qua app Marketing Hub. Bản trên Hub chỉ gửi thẳng, không lưu nháp.</div>' : '') +
     (loai === 'xin-foc' && !m.den ? '<div class="bao cam">Chưa có email của ' + e(dt) + '. Điền vào ô Gửi — app nhớ cho lần sau.</div>' : '') +
     '<div class="thu-dau"><span>Từ</span><div>' + e(m.from) + '</div><span>Gửi</span><input class="in-o" id="emDen" value="' + e(m.den) + '">' +
     '<span>CC</span><input class="in-o" id="emCc" value="' + e(m.cc || '') + '" placeholder="cách nhau bằng dấu phẩy"><span>Tiêu đề</span><input class="in-o" id="emTd" value="' + e(m.tieuDe) + '"></div>' +
@@ -1111,7 +1111,7 @@ async function moEmail(ht, loai, dt) {
   '<span class="nho" style="margin-right:auto">Sửa trực tiếp trong khung. Chữ ký Lark Mail tự thêm khi gửi.</span>' +
     (coBuoc ? '<button class="btn" id="emDaGui"' + (m.chan ? ' disabled' : '') + '>Đã gửi từ Lark Mail</button>' : '') +
     '<button class="btn" id="emChep" title="Chép tiêu đề + nội dung (giữ bảng) để dán vào Lark Mail">Chép nội dung</button>' +
-    '<button class="btn" id="emNhap"' + (m.chan || !guiDuoc ? ' disabled' : '') + '>Lưu nháp</button><button class="btn chinh" id="emGui"' + (m.chan || !guiDuoc ? ' disabled' : '') + '>Gửi ngay</button>', true);
+    '<button class="btn" id="emNhap"' + (m.chan || !guiDuoc || !S.meta.mail.nhapDuoc ? ' disabled' : '') + (S.meta.mail.nhapDuoc ? '' : ' title="Chỉ bản chạy trên máy anh lưu nháp được"') + '>Lưu nháp</button><button class="btn chinh" id="emGui"' + (m.chan || !guiDuoc ? ' disabled' : '') + '>Gửi ngay</button>', true);
   const goi = async (gui) => {
     const b = { den: $('#emDen').value, cc: $('#emCc').value, tieuDe: $('#emTd').value, html: $('#emThan').innerHTML, gui };
     if (gui && !(await hoi({ tieuDe: 'Gửi email', noiDung: '"' + b.tieuDe + '" tới ' + b.den + (b.cc ? ' (CC ' + b.cc + ')' : '') + '. Gửi đi là không thu hồi được.', nut: 'Gửi ngay' }))) return;

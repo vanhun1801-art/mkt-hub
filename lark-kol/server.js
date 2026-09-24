@@ -346,7 +346,7 @@ async function api(req, res, u) {
     const k = nhac.kenhGui();
     return json(res, {
       toi, larkUrl: cfg.larkUrl, mode: cfg.mode, buoc: T.BUOC, maVung: cfg.maVung, lienHeKol: cfg.lienHeKol,
-      mail: { from: cfg.mail.from, bgdTo: cfg.mail.bgdTo, guiDuoc: cfg.mode === 'cli' },
+      mail: { from: cfg.mail.from || (cfg.mode === 'api' ? 'cmo@rootytrip.com' : ''), bgdTo: cfg.mail.bgdTo, guiDuoc: true, nhapDuoc: cfg.mode === 'cli', mode: cfg.mode },
       nhac: { ...nhac.trangThai, kenh: k ? k.ten : '', coKenh: !!k, truocPhut: cfg.nhac.truocPhut, tat: cfg.nhac.tat },
       theoDoi: { ...theoDoi.trangThai, chuKyPhut: theoDoi.CHU_KY / 60000 },
     });
