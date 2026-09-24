@@ -87,7 +87,7 @@
     return (r.huong === 've' ? [b, xe] : [xe, b]).filter(Boolean).join(', rồi ') || 'Di chuyển';
   };
 
-  const S = { nen: 'duong', coTin: true };
+  const S = { nen: window.BanDoMinhHoa ? 'minhHoa' : 'duong', coTin: true };   // mặc định nền minh hoạ của phòng
   try { const v = localStorage.getItem('kol-nen-in'); if (window.BanDo.NEN[v]) S.nen = v; } catch (_) {}
   { const v = new URLSearchParams(location.search).get('nen'); if (window.BanDo.NEN[v]) S.nen = v; }   // ?nen=veTinh mở thẳng kiểu nền
 

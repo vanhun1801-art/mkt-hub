@@ -292,3 +292,15 @@ pre.tin { white-space: pre-wrap; background: var(--surface-3); border-radius: va
 .bang-bg .bg-kol { max-width: 180px; white-space: normal; }
 .bang-bg td .nhan-tt { font-size: 11px; }
 .bang-bg tfoot td { background: var(--surface-2); border-bottom: 0; padding-top: 9px; padding-bottom: 9px; }
+
+/* ---- nền "Minh hoạ Rooty Trip" (ban-do-minh-hoa.js) ---- */
+.bd-mh { background: #0a8fc7 !important; }
+.mh-diem svg { position: absolute; left: -20px; top: -44px; width: 40px; height: 40px; filter: drop-shadow(1px 2px 1.5px rgba(8, 42, 34, .35)); }
+.mh-diem span { position: absolute; left: 16px; top: -26px; white-space: nowrap; font: 700 11px/1.1 "Be Vietnam Pro", system-ui, sans-serif; color: #fff;
+  text-shadow: 0 0 2px rgba(10, 50, 35, .9), 0 1px 3px rgba(10, 50, 35, .7); pointer-events: none; }
+.mh-xa .mh-diem svg { left: -15px; top: -33px; width: 30px; height: 30px; }
+.mh-xa .mh-diem span { left: 12px; top: -20px; font-size: 10px; }
+.mh-xa .mh-diem.c2, .mh-xa .mh-diem.c3, .bd-mh:not(.mh-gan) .mh-diem.c3 { display: none; }
+.bd-mh .leaflet-control-attribution { background: rgba(255, 255, 255, .75); }
+.mh-diem.trai span { left: auto; right: 16px; }
+.mh-xa .mh-diem.trai span { right: 12px; }

@@ -203,6 +203,8 @@
   /* Kiểu nền bản đồ (anh Hùng 23/09: "chuyển được sang vệ tinh"). Cả ba miễn phí, không cần khoá:
    * OSM gốc · ảnh vệ tinh Esri World Imagery + lớp nhãn địa danh/đường của Esri · OpenTopoMap. */
   const NEN = {
+    /* bản đồ minh hoạ của phòng (ban-do-minh-hoa.js) — mặc định từ 24/09 */
+    minhHoa: { ten: 'Minh hoạ Rooty Trip', lop: [] },
     duong: { ten: 'Bản đồ', lop: [['https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, referrerPolicy: 'strict-origin-when-cross-origin',
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }]] },
     veTinh: { ten: 'Vệ tinh', lop: [
@@ -212,8 +214,10 @@
     diaHinh: { ten: 'Địa hình', lop: [['https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxZoom: 17, subdomains: 'abc',
       attribution: '&copy; OpenStreetMap, <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)' }]] },
   };
-  const nenLuu = () => { try { const v = goc.localStorage.getItem('kol-nen'); return NEN[v] ? v : 'duong'; } catch (_) { return 'duong'; } };
-  const taoNen = (L, k) => L.layerGroup((NEN[k] || NEN.duong).lop.map(([u, o]) => L.tileLayer(u, o)));
+  const MAC_DINH = () => (goc.BanDoMinhHoa ? 'minhHoa' : 'duong');
+  const nenLuu = () => { try { const v = goc.localStorage.getItem('kol-nen'); return NEN[v] && (v !== 'minhHoa' || goc.BanDoMinhHoa) ? v : MAC_DINH(); } catch (_) { return MAC_DINH(); } };
+  const taoNen = (L, k) => (k === 'minhHoa' && goc.BanDoMinhHoa ? goc.BanDoMinhHoa.lop(L)
+    : L.layerGroup((NEN[k] || NEN.duong).lop.map(([u, o]) => L.tileLayer(u, o))));
 
   /** Chặng từ a tới b cho KOL đọc: km + phút đi xe (OSRM), và phương tiện ra đảo nếu có.
    *  null = cùng một chỗ. Hỏng mạng thì km/phut = null, vẫn biết có đi cáp treo/cano không. */
@@ -249,7 +253,7 @@
      * "API KEY REQUIRED"). OSM bắt buộc có Referer, mà hub đặt Referrer-Policy: same-origin cho
      * cả trang → đặt riêng chính sách cho ảnh nền, không thì OSM trả ô "Access blocked".
      * Nền tối = đảo màu bằng CSS (.bd-toi), OSM không có bản tối. */
-    const kNen = NEN[nen] ? nen : nenLuu();
+    const kNen = NEN[nen] && (nen !== 'minhHoa' || goc.BanDoMinhHoa) ? nen : nenLuu();
     const datToi = (k) => khung.classList.toggle('bd-toi', !sang && k === 'duong' && toi());   // vệ tinh/địa hình không đảo màu
     const lopNen = {};
     for (const k of Object.keys(NEN)) lopNen[k] = taoNen(L, k);
@@ -286,16 +290,19 @@
      * mảnh hơn. Vẽ thẳng nét đứt trước (thấy ngay), rồi thay chặng trên đảo bằng đường bộ thật;
      * chặng có đầu ngoài đảo (cáp treo, cano) giữ nét đứt. */
     const cho = [];
+    if (lopNen[kNen]._san) cho.push(lopNen[kNen]._san);   // nền minh hoạ vẽ ảnh bất đồng bộ
     for (const { a, b, doiNgay } of chang(dv.diem)) {
       const c = mau[(b.ngay + lech) % 5];
       const net = doiNgay ? { weight: 2.5, opacity: 0.6, dashArray: '2 6' } : { weight: 4, opacity: 0.85 };
       for (const d of doanChang(a, b)) {
-        if (d.bien) { L.polyline([[d.tu.lat, d.tu.lng], [d.den.lat, d.den.lng]], { color: c, weight: 3, opacity: 0.85, dashArray: '8 7' }).addTo(map); continue; }
+        if (d.bien) { L.polyline([[d.tu.lat, d.tu.lng], [d.den.lat, d.den.lng]], { color: c, weight: 3, opacity: 0.9, dashArray: '8 7' }).addTo(map); continue; }
         const thang = L.polyline([[d.tu.lat, d.tu.lng], [d.den.lat, d.den.lng]], { color: c, weight: 3, opacity: 0.6, dashArray: '6 6' }).addTo(map);
         cho.push(duongBo(d.tu, d.den).then((r) => {
           if (!r || !khung._banDo || khung._banDo !== map) return;
           map.removeLayer(thang);
-          L.polyline(r.toaDo, { color: c, ...net }).addTo(map);
+          /* viền trắng dưới đường: nền minh hoạ / vệ tinh nhiều màu xanh, không viền là đường chìm mất */
+          L.polyline(r.toaDo, { color: '#fff', weight: net.weight + 2.5, opacity: doiNgay ? 0.45 : 0.85, lineCap: 'round', lineJoin: 'round' }).addTo(map);
+          L.polyline(r.toaDo, { color: c, ...net, opacity: doiNgay ? net.opacity : 1 }).addTo(map);
         }).catch(() => {}));
       }
     }
