@@ -25,8 +25,10 @@ const BAN_DUOC = /Đang kinh doanh|Sắp ra mắt/i;
 
 const boEmoji = (s) => String(s || '').replace(/^[^\p{L}\p{N}]+/u, '').trim();
 
+/* 26/09: thêm Tour trọn gói + Combo tự túc — trước đó rơi vào 'khac' nên không nhóm nào hiện */
 const loaiTour = (nhom) =>
-  /ghép/i.test(nhom) ? 'ghep' : /riêng|VIP/i.test(nhom) ? 'rieng' : /lẻ/i.test(nhom) ? 've' : 'khac';
+  /ghép/i.test(nhom) ? 'ghep' : /riêng|VIP/i.test(nhom) ? 'rieng' : /trọn gói/i.test(nhom) ? 'tron-goi'
+    : /combo/i.test(nhom) ? 'combo' : /lẻ/i.test(nhom) ? 've' : 'khac';
 
 function dongUsp(s) {
   return String(s || '').split('\n')
@@ -111,6 +113,10 @@ async function dungDuLieu(ds, { mang = true } = {}) {
      Ghi ra tao/dem/chua-gan.json để lệnh cập nhật (tao/cap-nhat.js) báo lại. */
   const chuaGan = ds.filter((p) => p.ma && BAN_DUOC.test(p.trangThai) && !canMa.has(p.ma))
     .map((p) => ({ ma: p.ma, ten: boEmoji(p.ten), nhom: p.nhom || '', trangThai: p.trangThai }));
+  /* Sản phẩm đang bán mà chưa gắn điểm (trọn gói, combo, vé Vin, du thuyền…) VẪN lên tab Tour
+     (anh Hùng 26/09: "chưa thấy dữ liệu tour combo") — chỉ không có ghim / hành trình trên bản đồ
+     cho tới khi được gắn điểm trong diem.js. */
+  for (const p of ds) if (p.ma && !tour[p.ma] && BAN_DUOC.test(p.trangThai)) tour[p.ma] = veTour(p);
 
   /* ---- hình học từng chặng của tuyến tour ---- */
   const theoIdDiem = new Map(DIEM.map((d) => [d.id, d]));

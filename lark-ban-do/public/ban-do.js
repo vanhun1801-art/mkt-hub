@@ -73,6 +73,8 @@
   const LOAI_TOUR = {
     ghep: { vi: 'Tour ghép hằng ngày', en: 'Daily join-in tours' },
     rieng: { vi: 'Tour riêng', en: 'Private tours' },
+    'tron-goi': { vi: 'Tour trọn gói', en: 'Package tours' },
+    combo: { vi: 'Combo tự túc', en: 'Self-guided combos' },
     ve: { vi: 'Vé & dịch vụ', en: 'Tickets & services' },
   };
   const THU_TU_VUNG = ['bac', 'trung', 'nam', 'dao', 'dat-lien'];
@@ -133,7 +135,7 @@
     mo: '<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
   };
   const icon = (k) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + ICON[k] + '</svg>';
-  const iconTour = (tr) => icon(tr.loai === 've' ? 've' : tr.tuyen.some((id) => THEO_ID.get(id)?.vung === 'dao') ? 'thuyen' : 'xe');
+  const iconTour = (tr) => icon(tr.loai === 've' ? 've' : tr.tuyen.some((id) => THEO_ID.get(id)?.vung === 'dao') || /du thuyền|cano/i.test(tr.ten) ? 'thuyen' : 'xe');
 
   /* ---------------- lọc ---------------- */
   function khopTim(chuoi) {

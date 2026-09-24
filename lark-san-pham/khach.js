@@ -25,7 +25,8 @@ const TRANG = path.join(__dirname, '..', 'lark-ban-do', 'public', 'khach.html');
 const BAN_DUOC = /Đang kinh doanh|Sắp ra mắt/i;
 const boEmoji = (s) => String(s || '').replace(/^[^\p{L}\p{N}]+/u, '').trim();
 const dong = (s) => String(s || '').split('\n').map((x) => x.replace(/^\s*[-–•+*]\s*/, '').trim()).filter(Boolean);
-const loaiTour = (nhom) => (/ghép/i.test(nhom) ? 'ghep' : /riêng|VIP/i.test(nhom) ? 'rieng' : /lẻ/i.test(nhom) ? 've' : 'khac');
+const loaiTour = (nhom) => (/ghép/i.test(nhom) ? 'ghep' : /riêng|VIP/i.test(nhom) ? 'rieng' : /trọn gói/i.test(nhom) ? 'tron-goi'
+  : /combo/i.test(nhom) ? 'combo' : /lẻ/i.test(nhom) ? 've' : 'khac');
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tien = (n) => (n == null ? '' : Number(n).toLocaleString('vi-VN') + 'đ');
 
