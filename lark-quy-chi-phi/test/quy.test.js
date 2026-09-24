@@ -443,27 +443,49 @@ const nhom = (t) => console.log('\n\x1b[1m' + t + '\x1b[0m');
   ok('KHÔNG mã nào còn là chữ chết', chetLink.length === 0,
     chetLink.map((c) => c.maDon).join(' · '));
 
-  /* Đây mới là phép thử thật sự canh chuyện gì.
+  /* Ô "Mã đơn Tourwell" có HAI dạng, vì hai đường ghi khác nhau:
    *
-   * Máy chủ dựng link cho mã trần bằng một giả thiết: SỐ trong mã RT chính là
-   * id đơn. Hôm nay đúng — đối chiếu 10/10 mã với /api/v1/orders/<số>. Nhưng
-   * nếu Tourwell đổi cách đánh mã thì link dựng ra sẽ trỏ sang ĐƠN CỦA NGƯỜI
-   * KHÁC, mà không có gì báo.
+   *   app ghi qua API   → "RT16696 · https://…/16696/show"      địa chỉ trần
+   *   người gõ vào Base → "RT16438 · [https://…](https://…)"   Lark bọc markdown
    *
-   * Nên mỗi dòng CÓ SẴN link thật (Tourwell tự trả về lúc tạo đơn) là một lần
-   * đối chứng: link thật phải trùng đúng công thức đang dựng. Đơn mới nào phá
-   * giả thiết là chỗ này đỏ ngay. */
-  const coLinkThat = coMa.filter((c) => /https?:\/\//.test(String(c.maDon)));
-  ok('sổ có khoản mang link thật của Tourwell để đối chứng', coLinkThat.length > 0,
+   * Dạng thứ hai làm vỡ mọi cách bới địa chỉ bằng \S+ (nó nuốt cả `]` và `)`),
+   * cho ra địa chỉ thừa dấu ngoặc ở cuối — bấm vào không mở được. Anh Hùng gặp
+   * ngày 25/09/2026 ngay sau khi tự điền mã cho hai dòng còn thiếu. */
+  const daChiDung = (v) => /^https?:\/\/[^\s<>"'\])]+$/.test(String(v || ''));
+  const linkXau = coMa.filter((c) => !daChiDung(c.linkDon));
+  ok('địa chỉ đưa xuống giao diện không dính dấu ngoặc hay ký tự thừa',
+    linkXau.length === 0,
+    linkXau.map((c) => String(c.linkDon).slice(0, 90)).join('  |  '));
+
+  /* Giả thiết "số trong mã RT chính là id đơn" là thứ cả cơ chế dựng link đứng
+   * lên. Mỗi ô CÓ SẴN địa chỉ thật là một lần đối chứng. Nhưng phải đối chứng
+   * bằng bộ đọc ĐÚNG, nếu không markdown làm đỏ nhầm chỗ. */
+  const diaChiTrong = (v) => {
+    const t = String(v || '');
+    const md = /\[[^\]]*\]\((https?:\/\/[^)\s]+)\)/.exec(t);
+    if (md) return md[1];
+    const tho = /https?:\/\/[^\s<>"'\])]+/.exec(t);
+    return tho ? tho[0] : '';
+  };
+  const coLinkThat = coMa.map((c) => ({ c, ma: String(c.maDon).split('·')[0].trim(),
+    that: diaChiTrong(c.maDon) })).filter((x) => x.that);
+  ok('sổ có khoản mang địa chỉ thật của Tourwell để đối chứng', coLinkThat.length > 0,
     coLinkThat.length + ' khoản');
-  const lechCongThuc = coLinkThat.filter((c) => {
-    const ma = String(c.maDon).split('·')[0].trim();
-    const so = (ma.match(/^RT(\d+)$/i) || [])[1];
-    const that = (String(c.maDon).match(/(https?:\/\/\S+)/) || [])[1] || '';
-    return !so || !that.endsWith('/admin/order/' + so + '/show');
+
+  const lechCongThuc = coLinkThat.filter((x) => {
+    const so = (x.ma.match(/^RT(\d+)$/i) || [])[1];
+    return !so || !x.that.endsWith('/admin/order/' + so + '/show');
   });
-  ok('số trong mã RT vẫn đúng là id đơn — công thức dựng link còn dùng được',
-    lechCongThuc.length === 0, lechCongThuc.map((c) => c.maDon).join('  |  '));
+  /* Đỏ ở đây có HAI nghĩa, và phải đọc ô lệch mới biết là nghĩa nào:
+   *   · Tourwell đổi cách đánh mã  → công thức dựng link hết dùng được
+   *   · một dòng bị dán nhầm địa chỉ → dữ liệu sai, sửa trong Base
+   * Ngày 25/09/2026 là nghĩa thứ hai: SG21000 ghi mã RT16401 mà địa chỉ trỏ
+   * sang đơn 16732 của khoản Google WorkSpace — dán từ dòng khác rồi chỉ sửa
+   * mỗi cái mã. App đi theo MÃ nên nút vẫn mở đúng đơn; nhưng ô trong Base thì
+   * vẫn sai, và ai mở Base đọc thẳng sẽ tin cái địa chỉ đó. */
+  ok('mã RT và địa chỉ trong cùng một ô phải chỉ về cùng một đơn',
+    lechCongThuc.length === 0,
+    lechCongThuc.map((x) => x.ma + ' -> ' + x.that.slice(-40)).join('  |  '));
 
   nhom('Không tạo đơn Tourwell trùng cho khoản đã đi qua Tourwell');
   const daQua = m.chi.find((c) => String(c.maDieuHanh || '').trim() && !String(c.maDon || '').trim());

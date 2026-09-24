@@ -61,7 +61,11 @@ const META = {
       nguoi: [{ id: 'ou_y', name: 'Nguyễn Long Khánh' }], tinhTrang: 'Đã chi',
       hoaDon: [{ name: 'hd1.jpg', token: 'tk1' }],
       unc: [{ name: 'unc1.jpg', token: 'tk9' }], soHoaDon: '', maDieuHanh: '',
+      /* Máy chủ gửi kèm `linkDon` — giao diện KHÔNG tự bới địa chỉ ra khỏi
+       * chuỗi nữa (xem tachDon). Mẫu ở đây phải giống hệt thứ máy chủ gửi, nếu
+       * không phép thử đang kiểm một app không tồn tại. */
       maDon: 'RT16438 · https://rootytrip.tourwell.net/admin/order/16438/show',
+      linkDon: 'https://rootytrip.tourwell.net/admin/order/16438/show',
       ncc: '', chuyenKhoan: '', maQuyetToan: '', linkCu: '', linkUncCu: '',
       chungTu: null, mst: '0314567890', ghiChu: '', dot: ['recD1'],
     },

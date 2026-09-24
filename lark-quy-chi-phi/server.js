@@ -117,9 +117,30 @@ function doiRa(rec, map) {
  * App Lịch tác nghiệp đã gặp và đã xử (stripMdLink trong server.js của nó);
  * app này thì chưa. Gỡ ở MÁY CHỦ để giao diện nhận về một địa chỉ sạch.
  */
+/**
+ * Địa chỉ http ĐẦU TIÊN nằm trong một ô, hiểu được cả dạng markdown.
+ *
+ * Không dùng `/https?:\/\/\S+/` — \S nuốt cả `]` và `)`, nên ô dạng
+ *
+ *   RT16438 · [https://…/16438/show](https://…/16438/show)
+ *
+ * cho ra `https://…/16438/show](https://…/16438/show)` — thừa dấu ngoặc ở
+ * cuối nên bấm vào không mở được. Đúng chỗ anh Hùng gặp ngày 25/09/2026 khi tự
+ * gõ mã đơn vào Base: Lark tự bọc markdown quanh địa chỉ người ta GÕ TAY, còn
+ * địa chỉ do app ghi qua API thì để trần — nên cùng một ô mà hai dạng.
+ */
+function diaChiTrong(v) {
+  const s = String(v || '');
+  const md = /\[[^\]]*\]\((https?:\/\/[^)\s]+)\)/.exec(s);
+  if (md) return md[1];
+  const tho = /https?:\/\/[^\s<>"'\])]+/.exec(s);
+  /* Dấu câu dính đuôi khi người ta gõ "…/show." hay "…/show)," */
+  return tho ? tho[0].replace(/[.,;:)\]]+$/, '') : '';
+}
+
+/** Ô chỉ để chứa MỘT địa chỉ: lấy địa chỉ ra, không có thì giữ nguyên chữ. */
 function boMdLink(v) {
-  const m = /^\s*\[([^\]]*)\]\(([^)]*)\)\s*$/.exec(String(v || '').trim());
-  return m ? (m[2] || m[1]).trim() : String(v || '');
+  return diaChiTrong(v) || String(v || '');
 }
 
 /* Ba ô mang dạng đó. Khai thành danh sách chứ không quét mọi ô chữ: một ghi
@@ -136,12 +157,26 @@ function chuanChi(c) {
 function linkDonTourwell(maDon) {
   const s = String(maDon || '').trim();
   if (!s) return '';
-  const co = s.match(/(https?:\/\/\S+)/);
-  if (co) return co[1];
-  const m = s.split('·')[0].trim().match(/^RT(\d+)$/i);
-  if (!m) return '';
   const host = (tourwell.docCauHinh() || {}).host;
-  return host ? host + '/admin/order/' + m[1] + '/show' : '';
+
+  /* MÃ quyết định đích đến, không phải địa chỉ dán trong ô.
+   *
+   * Ngày 25/09/2026 ô của SG21000 ghi "RT16401 · <địa chỉ tới đơn 16732>" —
+   * dán từ dòng khác rồi chỉ sửa mỗi cái mã. Nếu tin địa chỉ thì màn hình bày
+   * mã RT16401 mà bấm vào lại mở đơn của khoản Google WorkSpace. Mã là thứ
+   * người ta gõ có chủ đích và là thứ kế toán đối chiếu; địa chỉ là thứ bị dán
+   * nửa vời. Nên khi hai cái đá nhau, theo mã.
+   *
+   * Dựng được vì số trong mã chính là id đơn — đối chiếu 10/10 mã với
+   * /api/v1/orders/<số> ngày 23/09/2026, và link_erp Tourwell trả về đúng bằng
+   * chuỗi dựng ở đây. Phép thử trong quy.test.js canh tiếp giả thiết đó.
+   */
+  const m = s.split('·')[0].trim().match(/^RT(\d+)$/i);
+  if (m && host) return host + '/admin/order/' + m[1] + '/show';
+
+  /* Mã không đúng khuôn RT+số (ví dụ bản dự phòng "#16407") thì mới đành lấy
+   * địa chỉ có sẵn trong ô. */
+  return diaChiTrong(s);
 }
 
 const pad = (n) => String(n).padStart(2, '0');

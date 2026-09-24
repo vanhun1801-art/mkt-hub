@@ -172,8 +172,12 @@ function tachDon(c) {
   const o = (c && typeof c === 'object') ? c : { maDon: c };
   const s = String(o.maDon || '').trim();
   if (!s) return null;
-  const m = s.match(/(https?:\/\/\S+)/);
-  return { ma: s.split('·')[0].trim() || s, link: m ? m[1] : String(o.linkDon || '') };
+  /* KHÔNG tự bới địa chỉ ra khỏi chuỗi ở đây nữa. Bản cũ dùng
+   * `/(https?:\/\/\S+)/` và \S nuốt cả `]` `)`, nên ô Lark bọc markdown cho
+   * ra một địa chỉ thừa dấu ngoặc — bấm vào không mở được. Máy chủ đã có một
+   * bộ đọc tử tế (diaChiTrong) và đã quyết đích đến theo MÃ, nên ở đây chỉ
+   * nhận kết quả. Hai chỗ cùng bới một chuỗi là hai chỗ lệch nhau. */
+  return { ma: s.split('·')[0].trim() || s, link: String(o.linkDon || '') };
 }
 
 function thieuChungTu(c) {
