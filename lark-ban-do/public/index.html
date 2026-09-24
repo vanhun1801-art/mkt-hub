@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Bản đồ du lịch Phú Quốc · Rooty Trip</title>
+  <meta name="description" content="Bản đồ các điểm du lịch Phú Quốc và tour của Rooty Trip Phú Quốc: tour cano 3 đảo, cáp treo Hòn Thơm, Nam đảo, Grand World, VinWonders.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="ban-do.css">
+</head>
+<body>
+  <div id="khung" aria-label="Bản đồ Phú Quốc"></div>
+
+  <div class="tieu-de-dt"><span>ROOTY TRIP</span><b data-i18n="tieuDe">Bản đồ du lịch Phú Quốc</b></div>
+
+  <aside id="panel">
+    <button class="keo-tay" id="keoTay" aria-label="Kéo ngăn"></button>
+    <header class="dau">
+      <div class="thuong-hieu">ROOTY TRIP PHÚ QUỐC</div>
+      <h1 data-i18n="tieuDe">Bản đồ du lịch Phú Quốc</h1>
+      <div class="phu" data-i18n="phuDe">Phu Quoc tourism map</div>
+    </header>
+    <label class="tim">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="oTim" type="search" autocomplete="off" data-i18n-ph="tim" placeholder="Tìm điểm đến hoặc tour">
+    </label>
+    <div class="tab" role="tablist">
+      <button id="tabDiem" class="bat" role="tab"><span data-i18n="diaDiem">Địa điểm</span><b id="demDiem"></b></button>
+      <button id="tabTour" role="tab"><span data-i18n="tour">Tour</span><b id="demTour"></b></button>
+    </div>
+    <div class="loc" id="loc"></div>
+    <div class="cuon" id="cuon"></div>
+  </aside>
+
+  <div class="ngon-ngu" id="ngonNgu">
+    <button data-lang="vi" class="bat">VI</button>
+    <button data-lang="en">EN</button>
+  </div>
+
+  <div class="cum-nut">
+    <button id="nutPhong" aria-label="Phóng to"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+    <button id="nutThu" aria-label="Thu nhỏ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
+    <button id="nutVua" aria-label="Xem toàn đảo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+  </div>
+
+  <div class="chu-thich" id="chuThich"></div>
+
+  <div class="la-ban" aria-hidden="true">
+    <svg viewBox="0 0 60 70"><text x="30" y="11" text-anchor="middle">N</text><path d="M30 16 35 40 30 36 25 40Z" fill="#fff"/><path d="M30 64 25 40 30 44 35 40Z" fill="rgba(255,255,255,.55)"/><path d="M6 40 28 35 25 40 28 45ZM54 40 32 45 35 40 32 35Z" fill="rgba(255,255,255,.75)"/></svg>
+    <div class="thuoc" id="thuoc"><i></i><b>5 km</b></div>
+  </div>
+  <div class="ban-quyen">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> © <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">OpenMapTiles</a></div>
+
+  <script src="hinh.js"></script>
+  <script src="dia-hinh.js"></script>
+  <script src="hinh-ve.js"></script>
+  <script src="hinh-rieng.js"></script>
+  <script src="du-lieu.js"></script>
+  <script src="ban-do.js"></script>
+</body>
+</html>

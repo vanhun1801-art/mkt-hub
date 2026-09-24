@@ -1,0 +1,18 @@
+# sản phẩm dựng + dữ liệu thô tải về (dựng lại được bằng tao/*.js)
+dist/
+tao/osm/*.json
+tao/dem/
+tao/thu-vien/
+
+# bản sao lưu các vòng thử nghiệm — chỉ để quay lại trên máy
+sao-luu/
+
+# hình gốc anh Hùng tự vẽ (vài MB mỗi hình): bản đồ chỉ cần bản đã cắt + nén WebP
+# trong public/hinh-rieng.js. Giữ lại hướng dẫn, file bấm đúp và bảng cỡ hình.
+hinh-rieng/*
+!hinh-rieng/DOC-TRUOC.md
+!hinh-rieng/CAP-NHAT-BAN-DO.bat
+!hinh-rieng/kich-thuoc.json
+
+# nhật ký cập nhật trên máy
+NHAT-KY-CAP-NHAT.txt

@@ -341,7 +341,10 @@ function chuyenTiep(req, res, mod, duongDan, nguoi) {
       headers.location = tienTo(mod) + headers.location;
     }
 
-    if (HTML_RE.test(loai)) {
+    /* App con có thể xin KHÔNG chèn bằng header X-Hub-Khong-Chen — trang có giao diện
+     * riêng (bản đồ du lịch của app Sản phẩm) mà nhận CSS/JS dùng chung là vỡ bố cục.
+     * Trang đó phải tự dùng đường dẫn tương đối, vì lượt thêm tiền tố cũng bị bỏ qua. */
+    if (HTML_RE.test(loai) && !r.headers['x-hub-khong-chen']) {
       const buf = [];
       r.on('data', (c) => buf.push(c));
       r.on('end', () => {

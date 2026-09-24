@@ -1,0 +1,15 @@
+<!doctype html>
+<meta charset="utf-8"><title>Bộ hình minh hoạ</title>
+<style>
+  body { margin: 0; padding: 16px; background: #d9eeb5; font: 12px system-ui; }
+  .luoi { display: grid; grid-template-columns: repeat(8, 1fr); gap: 10px; }
+  .o { background: rgba(255,255,255,.35); border-radius: 12px; padding: 6px; text-align: center; }
+  svg { width: 110px; height: 110px; display: block; margin: 0 auto; filter: drop-shadow(0 0 1.2px #fff) drop-shadow(0 3px 3px rgba(0,38,30,.3)); }
+</style>
+<div class="luoi" id="luoi"></div>
+<script src="hinh-ve.js"></script>
+<script>
+  document.body.insertAdjacentHTML('afterbegin', '<svg style="display:none"><defs>' + PQ_HINH_VE.defs + '</defs></svg>');
+  const ids = [...new Set(Object.values(PQ_HINH_VE.theoDiem))].concat(['xe-may-bay', 'xe-tau', 'xe-cano', 'xe-cabin']);
+  document.getElementById('luoi').innerHTML = ids.map((i) => '<div class="o"><svg viewBox="0 0 64 64"><use href="#' + i + '"/></svg>' + i.replace('h-', '') + '</div>').join('');
+</script>

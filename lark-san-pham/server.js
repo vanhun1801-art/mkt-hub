@@ -517,6 +517,42 @@ async function api(req, res, u) {
   return loi(res, 404, 'Không có đường ' + p);
 }
 
+/* ---------------- bản đồ du lịch (lark-ban-do) ----------------
+ *
+ * Tab "Bản đồ" của app nhúng bản đồ minh hoạ Phú Quốc ở /ban-do/. Tệp tĩnh (khung,
+ * nền địa hình, hình minh hoạ) phục vụ thẳng từ ../lark-ban-do/public; riêng
+ * du-lieu.js (tour + giá) DỰNG TƯƠI từ chính bộ đọc Base của app này — đổi giá,
+ * thêm/ngừng tour trên Base là bản đồ đổi theo ở lần mở sau, không cần dựng lại.
+ * Dựng bằng dungDuLieu() của lark-ban-do/tao/du-lieu.js (một định nghĩa duy nhất,
+ * cùng hàm lệnh dựng tay dùng), không gọi mạng OSRM: đường bộ đọc từ đệm.
+ *
+ * Trang bản đồ gửi X-Hub-Khong-Chen: lớp vỏ chèn CSS/JS dùng chung vào mọi trang
+ * HTML của app con, mà bản đồ có giao diện riêng — chèn vào là vỡ bố cục. */
+const BAN_DO = path.join(__dirname, '..', 'lark-ban-do', 'public');
+const BAN_DO_TEP = new Set(['index.html', 'ban-do.css', 'ban-do.js', 'hinh.js', 'dia-hinh.js', 'hinh-ve.js', 'hinh-rieng.js']);
+let demBanDo = null;                                    // { luc, js } — theo mốc đọc Base của kho
+
+async function banDo(res, duong) {
+  const ten = duong.replace(/^\/ban-do\/?/, '') || 'index.html';
+  if (ten === 'du-lieu.js') {
+    const d = await kho.tatCa();
+    if (!demBanDo || demBanDo.luc !== d.luc) {
+      const { dungDuLieu } = require(path.join(__dirname, '..', 'lark-ban-do', 'tao', 'du-lieu.js'));
+      const { ra } = await dungDuLieu(d.ds, { mang: false });
+      demBanDo = { luc: d.luc, js: '/* Dựng tươi từ Base "Sản phẩm" lúc ' + new Date(d.luc).toISOString() + ' */\nwindow.PQ_DU_LIEU = ' + JSON.stringify(ra) + ';\n' };
+    }
+    return gui(res, 200, demBanDo.js, { 'Content-Type': MIME['.js'], 'Cache-Control': 'no-store' });
+  }
+  if (!BAN_DO_TEP.has(ten) || !fs.existsSync(path.join(BAN_DO, ten))) {
+    return gui(res, 404, 'Không có ' + duong, { 'Content-Type': 'text/plain; charset=utf-8' });
+  }
+  gui(res, 200, fs.readFileSync(path.join(BAN_DO, ten)), {
+    'Content-Type': MIME[path.extname(ten)] || 'application/octet-stream',
+    'Cache-Control': ten === 'index.html' ? 'no-store' : 'public, max-age=3600',
+    'X-Hub-Khong-Chen': '1',
+  });
+}
+
 /* ---------------- máy chủ ---------------- */
 
 const server = http.createServer(async (req, res) => {
@@ -529,6 +565,14 @@ const server = http.createServer(async (req, res) => {
       if (!res.headersSent) loi(res, 500, e.message || 'Lỗi không xác định');
     }
     return;
+  }
+  if (u.pathname === '/ban-do') return gui(res, 302, '', { Location: 'ban-do/' });
+  if (u.pathname.startsWith('/ban-do/')) {
+    try { return await banDo(res, u.pathname); } catch (e) {
+      console.error('[BẢN ĐỒ]', u.pathname, '->', e.message);
+      if (!res.headersSent) return loi(res, 500, e.message);
+      return;
+    }
   }
   return tinh(res, u.pathname, u.search);
 });

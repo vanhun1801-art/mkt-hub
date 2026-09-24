@@ -343,10 +343,11 @@ function veTabs() {
     ['het-han', 'Sắp hết hạn', soHetHan, soHetHan > 0],
     ['thieu', 'Cần bổ sung', soThieu, soThieu > 0],
   ];
+  muc.push(['ban-do', 'Bản đồ', null, false]);
   if (laQuanLy()) muc.push(['quan-ly', 'Quản lý', S.ds.length, false]);
   $('#tabs').innerHTML = muc.map(([id, ten, n, canh]) =>
     '<button class="pill' + (S.tab === id ? ' on' : '') + '" data-tab="' + id + '">' + esc(ten) +
-    '<span class="dem' + (canh ? ' canh' : '') + '">' + n + '</span></button>').join('');
+    (n == null ? '' : '<span class="dem' + (canh ? ' canh' : '') + '">' + n + '</span>') + '</button>').join('');
 }
 
 /* Mỗi thẻ số dẫn tới đúng danh sách nằm sau con số đó — bấm vào là lọc luôn,
@@ -801,9 +802,43 @@ async function napLich() {
   ve();
 }
 
+/* Tab Bản đồ: bản đồ du lịch Phú Quốc (lark-ban-do) phục vụ ở ban-do/ của chính app,
+   dữ liệu tour dựng tươi từ Base. Giữ MỘT iframe: vẽ lại màn khác rồi quay về thì gắn
+   lại đúng iframe đó, không tải lại bản đồ từ đầu. Đường tương đối để chạy được cả
+   độc lập (localhost:5184/ban-do/) lẫn trong hub (/m/san-pham/ban-do/). */
+let khungBanDo = null;
+/* iframe nằm trong một vùng RIÊNG cạnh #man (không nằm trong #man): gỡ iframe khỏi
+   trang là trình duyệt tải lại nó từ đầu, mà #man bị vẽ lại bằng innerHTML mỗi lần
+   đổi tab. Nên chỉ ẩn/hiện, bản đồ giữ nguyên chỗ đang xem. */
+function hienBanDo(bat) {
+  const man = $('#man');
+  let vung = $('#vungBanDo');
+  if (bat && !vung) {
+    vung = document.createElement('div');
+    vung.id = 'vungBanDo';
+    khungBanDo = document.createElement('iframe');
+    khungBanDo.className = 'khung-ban-do';
+    khungBanDo.title = 'Bản đồ du lịch Phú Quốc';
+    khungBanDo.src = 'ban-do/';
+    khungBanDo.setAttribute('allow', 'fullscreen');
+    vung.appendChild(khungBanDo);
+    man.parentNode.insertBefore(vung, man);
+    addEventListener('resize', () => hienBanDo(S.tab === 'ban-do'));
+  }
+  if (vung) vung.hidden = !bat;
+  man.hidden = !!bat;
+  if (bat) khungBanDo.style.height = Math.max(420, innerHeight - khungBanDo.getBoundingClientRect().top - 12) + 'px';
+}
+
 function ve() {
   veTabs();
   const man = $('#man');
+  hienBanDo(S.tab === 'ban-do');
+  if (S.tab === 'ban-do') {
+    man.removeAttribute('aria-busy');
+    $('#phuDe').textContent = S.ds.length + ' sản phẩm · đọc lúc ' + gioPhut(S.capNhat);
+    return;
+  }
   if (S.tab === 'quan-ly' && laQuanLy()) {
     man.innerHTML = veDai() + lichHtml() + quanLyHtml();
     if (S.lich === null) napLich();
@@ -1285,6 +1320,8 @@ document.addEventListener('click', async (ev) => {
     b.textContent = 'Đang đọc…';
     try {
       await nap(true);
+      /* bản đồ đọc lại du-lieu.js dựng tươi từ Base vừa đọc */
+      if (khungBanDo && khungBanDo.contentWindow) { try { khungBanDo.contentWindow.location.reload(); } catch (_) { khungBanDo.src = 'ban-do/'; } }
       if (S.moId) { const p = S.ds.find((x) => x.id === S.moId); veSo(p || null); } else ve();
       toast('Đã đọc lại từ Lark Base.', 'ok');
     } catch (e) {

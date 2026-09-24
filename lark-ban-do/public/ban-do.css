@@ -1,0 +1,436 @@
+/* ==========================================================================
+   Bản đồ du lịch Phú Quốc — Rooty Trip
+   Tông lấy theo poster "Bản đồ du lịch Phú Quốc" của phòng: biển xanh lục đậm,
+   đảo xanh non, ghim tròn đánh số.
+   Sáng là mặc định (trang nhúng lên website). Tối chỉ bật khi được yêu cầu:
+   ?theme=toi, hoặc Marketing Hub gửi postMessage — không tự theo hệ thống, vì
+   website chứa iframe có thể đang sáng.
+   ========================================================================== */
+:root {
+  /* tông poster theo ảnh mẫu anh Hùng gửi 25/09 */
+  --bien-1: #15a9d5;
+  --bien-2: #078cc7;
+  --bien-gon: rgba(255, 255, 255, .06);
+  --bien-nong: #8feef0;
+  --dat-1: #b8e56f;
+  --dat-2: #8fd35a;
+  --dat-3: #6cbf49;
+  --rung: #3f9f45;
+  --cat: #f7e2a2;
+  --nuoc-ngot: #48c6ce;
+  --duong: #fff5dd;
+  --duong-vien: rgba(85, 115, 78, .42);
+  --chu-dat: #2c5a1f;
+
+  --nen: #ffffff;
+  --nen-2: #f3f7f5;
+  --vien: #dfe8e4;
+  --chu: #16322b;
+  --chu-2: #587068;
+  --chu-3: #8aa099;
+  --bong: 0 1px 2px rgba(8, 40, 32, .08), 0 8px 28px rgba(8, 40, 32, .16);
+
+  --nhan: #ff7a1a;           /* điểm nhấn: tuyến tour, nút đặt, giá */
+  --nhan-nen: #fff1e6;
+  --giam: #d9363e;
+
+  --cua-ngo: #147fd1;       /* xanh dương = cửa ngõ */
+  --bien: #1f9e6e;          /* xanh lá = điểm tự nhiên (biển, đảo) */
+  --vui-choi: #e83e78;
+  --van-hoa: #e99138;
+  --check-in: #8b5cf6;
+  --di-chuyen: #6b7a85;
+
+  --panel: 360px;
+  --r: 18px;
+  font-family: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color-scheme: light;
+}
+
+:root[data-theme="toi"] {
+  --bien-1: #0b3f38;
+  --bien-2: #06241f;
+  --bien-song: rgba(255, 255, 255, .035);
+  --nong-1: rgba(80, 180, 160, .22);
+  --nong-2: rgba(80, 180, 160, .09);
+  --dat-1: #5f8c3e;
+  --dat-3: #3f6a2c;
+  --bien-nong: #1f7f8a;
+  --bien-gon: rgba(255, 255, 255, .06);
+  --duong: rgba(255, 246, 214, .7);
+  --duong-vien: rgba(0, 0, 0, .3);
+  --dat-2: #46712b;
+  --dat-vien: #2f4f1c;
+  --duong-chinh: rgba(255, 246, 214, .75);
+  --duong-phu: rgba(255, 255, 255, .28);
+  --chu-bien: rgba(255, 255, 255, .45);
+  --chu-dat: #e5f4d4;
+  --cat: #8f7d4c;
+  --rung: #2f5a22;
+  --nuoc-ngot: #2c7fa0;
+  --cay: #35652a;
+  --cay-bong: rgba(0, 0, 0, .35);
+  --cay-sang: rgba(150, 210, 110, .3);
+
+  --nen: #111a18;
+  --nen-2: #18241f;
+  --vien: #26352f;
+  --chu: #e6f0ec;
+  --chu-2: #9fb4ad;
+  --chu-3: #6f857e;
+  --bong: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 28px rgba(0, 0, 0, .45);
+  --nhan-nen: #3a2414;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bien-2); }
+body { font-size: 14px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; cursor: pointer; }
+a { color: inherit; }
+
+/* ---------------- bản đồ vector kiểu poster ---------------- */
+#khung {
+  position: fixed; inset: 0; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none;
+  cursor: grab; background: var(--bien-2);
+}
+#khung.keo { cursor: grabbing; }
+#khung svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#khung svg.lop:not(#svgTren) { pointer-events: none; }
+/* lớp đất rộng gấp đôi khung nhìn (lệch nửa màn hình) để co giãn lúc kéo không hở mép */
+#khung #svgDat { left: -50%; top: -50%; right: auto; bottom: auto; width: 200%; height: 200%; transform-origin: 0 0; will-change: transform; }
+/* tối dần ra mép — CSS để không phải vẽ lại khi kéo */
+#khung::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(80% 80% at 55% 50%, transparent 55%, rgba(0, 40, 90, .22)); }
+
+.gon { fill: none; stroke: var(--bien-gon); stroke-width: 1.3; stroke-linecap: round; }
+
+/* quầng nước nông quanh đảo: ba vệt rộng dần, nhạt dần (không dùng blur cho nhẹ) */
+/* bóng đổ nhẹ dưới đảo cho nổi khối trên mặt biển */
+.bong-dao { fill: rgba(0, 45, 110, .2); }
+/* có ảnh nền canvas rồi thì ẩn lớp vector dự phòng (nước nông, đất, rừng, bãi cát phẳng) */
+#khung.co-anh-nen .quang-1, #khung.co-anh-nen .quang-2, #khung.co-anh-nen .quang-3,
+#khung.co-anh-nen .dat, #khung.co-anh-nen .rung, #khung.co-anh-nen .bai-cat { display: none; }
+#khung.co-anh-nen .bot, #khung.co-anh-nen .vien-cat { display: none; }
+.quang-1, .quang-2, .quang-3 { fill: none; stroke: var(--bien-nong); stroke-linejoin: round; stroke-linecap: round; }
+.quang-1 { stroke-width: 12; opacity: .6; }
+.quang-2 { stroke-width: 26; opacity: .32; }
+.quang-3 { stroke-width: 46; opacity: .16; }
+.bot { fill: none; stroke: #fff; stroke-width: 6; stroke-linejoin: round; opacity: .95; }
+.vien-cat { fill: none; stroke: var(--cat); stroke-width: 3.6; stroke-linejoin: round; }
+.dat { fill: url(#toDat); }
+.rung { fill: var(--rung); opacity: .5; stroke: var(--rung); stroke-width: 4; stroke-linejoin: round; stroke-opacity: .5; }
+.bai-cat { fill: var(--cat); }
+.ho { fill: var(--nuoc-ngot); opacity: .85; stroke: rgba(255, 255, 255, .35); stroke-width: .3; }
+.song-ngoi { fill: none; stroke: var(--nuoc-ngot); stroke-width: 1.2; opacity: .85; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.duong-vien { fill: none; stroke: var(--duong-vien); stroke-width: 4.4; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.duong-chinh { fill: none; stroke: var(--duong); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.duong-nho { fill: none; stroke: var(--duong); stroke-width: .9; stroke-linecap: round; stroke-linejoin: round; opacity: .38; vector-effect: non-scaling-stroke; }
+.duong-mon { fill: none; stroke: var(--duong); stroke-width: .8; stroke-dasharray: 2 2.5; stroke-linecap: round; opacity: var(--mo-mon, 0); vector-effect: non-scaling-stroke; }
+.duong-khu { fill: none; stroke: var(--duong); stroke-width: .7; stroke-linecap: round; opacity: var(--mo-mon, 0); vector-effect: non-scaling-stroke; }
+.duong-phu { fill: none; stroke: var(--duong); stroke-width: 1.4; stroke-linecap: round; opacity: .65; vector-effect: non-scaling-stroke; }
+
+/* luồng tàu, đường bay */
+.luong { fill: none; stroke-linecap: round; vector-effect: non-scaling-stroke; opacity: .62; }   /* 25/09: mờ bớt ~38% (anh Hùng) */
+.luong-tau { stroke: rgba(255, 255, 255, .85); stroke-width: 1.8; stroke-dasharray: 5 6; }
+.luong-bay { stroke: rgba(30, 50, 110, .28); stroke-width: 1.2; stroke-dasharray: 2 6; }
+.chu-luong { opacity: .62; font-size: 11.5px; font-style: italic; font-weight: 600; text-anchor: middle; pointer-events: none;
+  paint-order: stroke; stroke-width: 3px; stroke-linejoin: round; }
+.chu-tau { fill: #fff; stroke: rgba(10, 100, 170, .55); }
+.chu-bay { fill: #1f3a6e; stroke: rgba(255, 255, 255, .6); }
+
+/* tuyến tour */
+.tuyen { fill: none; stroke: var(--nhan); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+/* chặng cano trên biển: chỉ nét đứt trắng (anh Hùng 25/09) */
+.tuyen.bien { stroke: #fff; stroke-width: 2.6; stroke-linecap: butt; stroke-dasharray: 9 7; filter: drop-shadow(0 0 1.5px rgba(0, 50, 90, .45)); }
+.tuyen-nen.bien { display: none; }
+.tuyen.cap { stroke: #2b3a42; stroke-dasharray: 8 4; stroke-width: 2.6; }
+.tuyen-nen { fill: none; stroke: rgba(255, 255, 255, .9); stroke-width: 8; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.tuyen-chay { animation: chay 1.2s linear infinite; }
+@keyframes chay { to { stroke-dashoffset: -17; } }
+
+.chu-vung { fill: rgba(255, 255, 255, .75); font-size: 14px; font-weight: 800; letter-spacing: .22em; text-transform: uppercase; pointer-events: none; }
+.chu-dia-danh { fill: var(--chu-dat); font-size: 11px; font-weight: 700; pointer-events: none; paint-order: stroke; stroke: rgba(255, 255, 255, .7); stroke-width: 3px; }
+.chu-dia-danh.thi-tran { font-size: 12.5px; font-weight: 800; }
+.chu-dia-danh.rung { font-style: italic; font-weight: 600; opacity: .85; }
+
+/* sóng trang trí & phương tiện */
+.song-net { fill: none; stroke: rgba(255, 255, 255, .38); stroke-width: 1.3; stroke-linecap: round; }
+.song-net.mo { opacity: .5; }
+.lac { animation: lac 3.6s ease-in-out infinite; }
+@keyframes lac { 0%, 100% { transform: translateX(-2px); opacity: .45; } 50% { transform: translateX(2px); opacity: .9; } }
+.xe { pointer-events: none; }
+.xe > use:not(.xe-bong), .xe > image:not(.xe-bong) { filter: drop-shadow(0 1.5px 1.5px rgba(0, 40, 80, .35)); }
+.xe-bong { filter: brightness(0); opacity: .22; }
+
+/* ghim */
+.ghim { cursor: pointer; }
+.ghim .pin > .vong, .ghim .pin > .so, .ghim .pin > .tt { transition: transform .2s ease; }
+.ghim .pin { opacity: .92; transition: opacity .2s ease; }
+.ghim:hover .pin, .ghim.chon .pin { opacity: 1; }
+.ghim:hover .pin > .vong, .ghim:hover .pin > .so, .ghim:hover .pin > .tt { transform: translateY(-2px) scale(1.06); }
+.ghim.chon .pin > .vong, .ghim.chon .pin > .so, .ghim.chon .pin > .tt { transform: scale(1.15); }
+.ghim .vong { fill: var(--mau); stroke: #fff; stroke-width: 2; filter: url(#bongGhim); }
+.ghim.khong-tour .vong { fill: #fff; stroke: var(--mau); }
+.ghim .so { fill: #fff; font-size: 10px; font-weight: 800; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.ghim.khong-tour .so { fill: var(--mau); }
+.ghim.cham .vong { stroke-width: 1.5; }
+.ghim.cham .so { display: none; }
+.ghim:hover .vong, .ghim.chon .vong { stroke: var(--nhan); stroke-width: 3; }
+.ghim.mo { opacity: .3; }
+.ghim .hinh { filter: url(#khoiHinh); }
+.ghim .hinh.rieng { filter: url(#sangHinh); }                  /* hình riêng: quầng sáng + bóng */
+.ghim .sang-nen { pointer-events: none; }
+.ghim.mo .sang-nen { opacity: .4; }
+.ghim .nen-tron { display: none; }   /* 25/09: bỏ vòng trắng — cửa ngõ nổi nhờ hình to + tên đậm */
+.ghim .day { stroke: #fff; stroke-width: 1.5; stroke-dasharray: 2 2.5; }
+.ghim .thu-tu { fill: var(--nhan); stroke: #fff; stroke-width: 1.8; }
+.ghim .thu-tu-so { fill: #fff; font-size: 9.5px; font-weight: 800; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.ghim.chon .xung { fill: none; stroke: var(--nhan); stroke-width: 2; animation: xung 1.6s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes xung { from { opacity: .9; transform: scale(1); } to { opacity: 0; transform: scale(2.2); } }
+.nhan-g { pointer-events: none; }
+/* tên điểm kiểu bản đồ Sunset Town: chữ trắng, viền tối rất mảnh + bóng nhẹ, không nền */
+.nhan-nen { display: none; }
+#lopNhan { filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .25)); }
+.nhan { fill: #fff; font-size: 12px; font-weight: 600; text-anchor: middle; paint-order: stroke; stroke: rgba(10, 52, 48, .42); stroke-width: 2.2px; stroke-linejoin: round; letter-spacing: .01em; }
+.nhan.c1 { font-size: 14px; font-weight: 700; }
+.nhan.c0 { font-size: 14px; font-weight: 800; stroke-width: 2.6px; }
+.nhan-g.cua-ngo .nhan { fill: #fff8d6; }
+
+/* tiêu đề poster, la bàn, thước, lời tựa */
+.la-ban { position: fixed; z-index: 4; left: calc(var(--panel) + 36px); bottom: 70px; pointer-events: none; color: #fff; }
+.la-ban svg { width: 46px; height: 54px; display: block; filter: drop-shadow(0 1px 3px rgba(0, 40, 90, .4)); }
+.la-ban text { fill: #fff; font-size: 11px; font-weight: 800; }
+.thuoc { margin-top: 6px; font-size: 11px; font-weight: 700; text-shadow: 0 1px 3px rgba(0, 40, 90, .5); }
+.thuoc i { display: block; width: var(--dai, 80px); height: 6px; border: 2px solid #fff; border-top: 0; margin-bottom: 2px; }
+.ban-quyen { position: fixed; right: 64px; bottom: 4px; z-index: 4; font-size: 10.5px; color: rgba(255, 255, 255, .8); }
+.ban-quyen a { color: inherit; }
+@media (max-width: 760px) { .la-ban { display: none; } .ban-quyen { right: auto; left: 8px; bottom: calc(46vh + 4px); } }
+
+/* ---------------- nút trên bản đồ ---------------- */
+.cum-nut {
+  position: fixed; right: 16px; bottom: 28px; z-index: 5;
+  display: flex; flex-direction: column; background: var(--nen); border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(7, 64, 59, .12), 0 1px 4px rgba(7, 64, 59, .08); overflow: hidden;
+}
+.cum-nut button {
+  width: 40px; height: 40px; border: 0; background: none; display: grid; place-items: center;
+  color: var(--chu);
+}
+.cum-nut button + button { border-top: 1px solid var(--vien); }
+.cum-nut button:hover { background: var(--nen-2); }
+.cum-nut svg { width: 18px; height: 18px; }
+.cum-nut .nut-chu { font-size: 12px; font-weight: 800; letter-spacing: .02em; }
+
+.ngon-ngu {
+  position: fixed; right: 16px; top: 16px; z-index: 5; display: flex;
+  background: var(--nen); border-radius: 999px; box-shadow: var(--bong); padding: 3px;
+}
+.ngon-ngu button { border: 0; background: none; padding: 5px 11px; border-radius: 999px; font-size: 12px; font-weight: 700; color: var(--chu-2); }
+.ngon-ngu button.bat { background: var(--chu); color: var(--nen); }
+
+.chu-thich {
+  /* chú giải gọn: một dải mảnh, không chiếm cả đáy bản đồ */
+  position: fixed; left: calc(var(--panel) + 32px); bottom: 14px; z-index: 4;
+  display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center;
+  background: color-mix(in srgb, var(--nen) 88%, transparent); backdrop-filter: blur(6px);
+  padding: 6px 12px; border-radius: 999px; box-shadow: 0 2px 10px rgba(0, 40, 90, .18);
+  font-size: 11px; font-weight: 600; color: var(--chu-2); max-width: calc(100vw - var(--panel) - 120px);
+}
+.chu-thich span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.chu-thich i { width: 10px; height: 10px; border-radius: 50%; background: var(--mau); display: inline-block; }
+.chu-thich i.rong { background: #fff; border: 2px solid var(--chu-3); }
+.chu-thich i.day { background: var(--chu-3); }
+.chu-thich b.vach { width: 18px; height: 0; border-top: 2.5px dashed; display: inline-block; }
+.chu-thich b.vach.tau { border-color: #1a8fc0; }
+.chu-thich b.vach.bay { border-color: #d7282f; }
+
+
+/* ---------------- panel ---------------- */
+#panel {
+  position: fixed; z-index: 6; left: 16px; top: 16px; bottom: 16px; width: var(--panel);
+  background: color-mix(in srgb, var(--nen) 96%, transparent); color: var(--chu); border-radius: var(--r);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, .55);
+  box-shadow: 0 10px 30px rgba(7, 64, 59, .12), 0 2px 8px rgba(7, 64, 59, .08);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.dau { padding: 16px 18px 12px; background: linear-gradient(135deg, #087a69, #086457); color: #fff; }
+.dau .thuong-hieu { font-size: 11px; font-weight: 800; letter-spacing: .18em; opacity: .85; }
+.dau h1 { margin: 2px 0 0; font-size: 20px; line-height: 1.2; font-weight: 800; letter-spacing: -.01em; }
+.dau .phu { font-size: 12px; opacity: .8; margin-top: 2px; letter-spacing: .12em; text-transform: uppercase; }
+.nhung .dau { display: none; }
+
+.tim {
+  margin: 12px 14px 0; display: flex; align-items: center; gap: 8px;
+  border: 1px solid var(--vien); border-radius: 10px; padding: 0 10px; background: var(--nen-2);
+}
+.tim svg { width: 16px; height: 16px; color: var(--chu-3); flex: none; }
+.tim input { flex: 1; border: 0; background: none; outline: none; padding: 10px 0; font: inherit; color: var(--chu); min-width: 0; }
+.tim:focus-within { border-color: var(--bien-1); }
+
+.tab { display: flex; gap: 4px; margin: 10px 14px 0; background: var(--nen-2); border-radius: 10px; padding: 3px; }
+.tab button { flex: 1; border: 0; background: none; padding: 7px 0; border-radius: 8px; font-weight: 700; font-size: 13px; color: var(--chu-2); }
+.tab button.bat { background: var(--nen); color: var(--chu); box-shadow: 0 1px 3px rgba(0, 0, 0, .1); }
+.tab b { font-weight: 600; color: var(--chu-3); margin-left: 4px; }
+
+.loc { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 14px 4px; }
+.chip {
+  border: 1px solid color-mix(in srgb, var(--vien) 70%, transparent); background: var(--nen); border-radius: 999px;
+  padding: 4px 9px 4px 7px; font-size: 12px; font-weight: 600; color: var(--chu-2);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.chip i { width: 9px; height: 9px; border-radius: 50%; background: var(--mau, var(--chu-3)); }
+.chip.bat { background: color-mix(in srgb, var(--mau, var(--chu)) 10%, var(--nen)); border-color: color-mix(in srgb, var(--mau, var(--chu)) 55%, var(--nen)); color: var(--chu); }
+.chip.cong-tac { --mau: var(--nhan); }
+
+.cuon { flex: 1; overflow-y: auto; padding: 4px 8px 16px; overscroll-behavior: contain; }
+.nhom-tieu-de {
+  font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--chu-3); padding: 12px 8px 4px;
+}
+.dong {
+  width: 100%; display: flex; gap: 10px; align-items: center; text-align: left;
+  border: 0; background: none; padding: 8px; border-radius: 10px;
+}
+.dong:hover, .dong.chon { background: var(--nen-2); }
+.dong .o {
+  width: 28px; height: 28px; border-radius: 50%; flex: none; display: grid; place-items: center;
+  background: var(--mau); color: #fff; font-size: 12px; font-weight: 800;
+}
+.dong .o.rong { background: var(--nen); color: var(--mau); box-shadow: inset 0 0 0 2px var(--mau); }
+.dong .than { min-width: 0; flex: 1; }
+.dong .ten { font-weight: 700; font-size: 13.5px; color: var(--chu); }
+.dong .mo-ta { font-size: 12px; color: var(--chu-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dong .gia { font-weight: 800; color: var(--nhan); font-size: 13px; white-space: nowrap; }
+.dong .gia s { color: var(--chu-3); font-weight: 500; font-size: 11.5px; display: block; text-align: right; }
+.o-tour { width: 36px; height: 36px; border-radius: 10px; flex: none; display: grid; place-items: center; background: var(--nhan-nen); color: var(--nhan); }
+.o-tour svg { width: 20px; height: 20px; }
+.nhan-nho {
+  display: inline-block; font-size: 10.5px; font-weight: 800; letter-spacing: .04em;
+  padding: 1px 6px; border-radius: 5px; vertical-align: 1px; margin-left: 4px;
+  background: var(--nhan-nen); color: var(--nhan);
+}
+.nhan-nho.xam { background: var(--nen-2); color: var(--chu-2); }
+.trong { padding: 28px 12px; text-align: center; color: var(--chu-3); }
+
+/* chi tiết */
+.chi-tiet { padding: 6px 10px 18px; }
+.quay-lai {
+  border: 0; background: none; display: inline-flex; align-items: center; gap: 4px;
+  color: var(--chu-2); font-weight: 600; font-size: 13px; padding: 8px 4px;
+}
+.quay-lai svg { width: 16px; height: 16px; }
+.ct-dau { display: flex; gap: 12px; align-items: flex-start; padding: 4px 4px 0; }
+.ct-dau .o { width: 40px; height: 40px; font-size: 15px; border-radius: 50%; flex: none; display: grid; place-items: center; background: var(--mau); color: #fff; font-weight: 800; }
+.ct-dau .o-tour { width: 40px; height: 40px; }
+.ct-loai { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--mau, var(--nhan)); }
+.ct-dau h2 { margin: 2px 0 0; font-size: 19px; line-height: 1.25; }
+.ct-dau .en { color: var(--chu-3); font-size: 12.5px; margin-top: 2px; }
+.ct-mo-ta { margin: 12px 4px 0; color: var(--chu-2); }
+.hang-nut { display: flex; gap: 8px; margin: 14px 4px 0; flex-wrap: wrap; }
+.nut {
+  display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
+  border: 1px solid var(--vien); background: var(--nen); border-radius: 10px;
+  padding: 8px 12px; font-weight: 700; font-size: 13px; color: var(--chu);
+}
+.nut svg { width: 16px; height: 16px; }
+.nut.chinh { background: var(--nhan); border-color: var(--nhan); color: #fff; }
+.nut:hover { filter: brightness(.97); }
+.ct-muc { margin: 18px 4px 6px; font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--chu-3); }
+.o-gia {
+  margin: 14px 4px 0; padding: 12px 14px; border-radius: 12px; background: var(--nhan-nen);
+  display: flex; gap: 18px; flex-wrap: wrap;
+}
+.o-gia .nhan-gia { font-size: 11px; font-weight: 700; color: var(--chu-2); text-transform: uppercase; letter-spacing: .06em; }
+.o-gia .so-gia { font-size: 20px; font-weight: 800; color: var(--nhan); font-variant-numeric: tabular-nums; }
+.o-gia s { display: block; color: var(--chu-3); font-size: 12px; font-weight: 500; }
+.ct-thong-tin { margin: 10px 4px 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 13px; }
+.ct-thong-tin dt { color: var(--chu-3); }
+.ct-thong-tin dd { margin: 0; color: var(--chu); font-weight: 600; }
+.usp { margin: 0 4px; padding: 0; list-style: none; }
+.usp li { position: relative; padding: 4px 0 4px 20px; color: var(--chu-2); }
+.usp li::before { content: ''; position: absolute; left: 3px; top: 11px; width: 8px; height: 8px; border-radius: 2px; background: var(--nhan); transform: rotate(45deg); }
+.chang { counter-reset: chang; margin: 0; padding: 0; list-style: none; }
+.chang li { position: relative; }
+.chang li + li::before {
+  content: ''; position: absolute; left: 21px; top: -8px; height: 12px; border-left: 2px dashed var(--vien);
+}
+
+.keo-tay { display: none; }
+
+/* ---------------- điện thoại: panel thành ngăn kéo dưới ---------------- */
+@media (max-width: 760px) {
+  :root { --panel: 0px; }
+  #panel {
+    left: 0; right: 0; top: auto; bottom: 0; width: auto; border-radius: 18px 18px 0 0;
+    height: 46vh; transition: height .25s ease;
+  }
+  #panel.thu { height: 128px; }
+  #panel.lon { height: 82vh; }
+  .keo-tay { display: block; border: 0; background: none; padding: 8px 0 2px; width: 100%; }
+  .keo-tay::before { content: ''; display: block; margin: 0 auto; width: 40px; height: 4px; border-radius: 4px; background: var(--vien); }
+  .dau { display: none; }
+  .tim { margin-top: 4px; }
+  .chu-thich { display: none; }
+  .ngon-ngu { top: 12px; right: 12px; }
+  .cum-nut { right: 12px; top: 56px; bottom: auto; }
+  .ban-quyen { right: auto; left: 8px; top: 8px; bottom: auto; }
+  .tieu-de-dt {
+    position: fixed; left: 12px; top: 12px; z-index: 5; color: #fff; pointer-events: none;
+    text-shadow: 0 1px 6px rgba(0, 0, 0, .35);
+  }
+  .tieu-de-dt b { display: block; font-size: 16px; font-weight: 800; }
+  .tieu-de-dt span { font-size: 10.5px; letter-spacing: .16em; font-weight: 700; opacity: .85; }
+  .ban-quyen { top: auto; bottom: calc(46vh + 4px); }
+}
+@media (min-width: 761px) { .tieu-de-dt { display: none; } }
+@media (max-width: 760px) {
+  .maplibregl-ctrl-bottom-right { right: 0; bottom: calc(46vh + 2px); transition: bottom .25s; }
+  body[data-ngan="thu"] .maplibregl-ctrl-bottom-right { bottom: 130px; }
+  body[data-ngan="lon"] .maplibregl-ctrl-bottom-right { bottom: calc(82vh + 2px); }
+}
+.nhung .tieu-de-dt { display: none; }
+
+/* thông báo khi máy không chạy được bản đồ */
+.bao-loi {
+  position: fixed; z-index: 20; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  max-width: min(420px, calc(100vw - 32px)); padding: 18px 20px; border-radius: 14px;
+  background: var(--nen); color: var(--chu); box-shadow: var(--bong); font-weight: 600; text-align: center;
+}
+@media (min-width: 761px) { .bao-loi { left: calc(50% + var(--panel) / 2); } }
+
+/* công trình trên đất (25/09): sân bay theo OSM, sao biển Rạch Vẹm, cáp treo Hòn Thơm */
+.sb-san { fill: #b9c0c6; stroke: #9aa2a9; stroke-width: .1; }
+.sb-lan { fill: none; stroke: #a3abb2; stroke-width: .55; stroke-linecap: round; stroke-linejoin: round; }
+.sb-bang { fill: none; stroke: #454c54; stroke-linecap: butt; filter: drop-shadow(0 0 .6px rgba(255, 255, 255, .9)); }
+.sb-tim { fill: none; stroke: #fff; stroke-width: .12; stroke-dasharray: 1.1 .8; }
+.sb-ga { fill: #eef2f5; stroke: #8f99a3; stroke-width: .12; }
+.sao-bien { opacity: max(.55, var(--mo-nho, 1)); }
+.day-cap { fill: none; stroke: #36424b; stroke-width: .8px; vector-effect: non-scaling-stroke; opacity: .85; }
+
+/* ---------- bản minh hoạ 25/09: cụm nhà + LOD theo mức phóng ---------- */
+.nha-bong path { fill: rgba(20, 50, 30, .26); }
+.nha-mai { stroke: rgba(90, 60, 40, .25); stroke-width: .08; }
+.ho-boi { fill: #5fd3ea; stroke: #fff; stroke-width: .14; }
+/* lod-1 (xa): địa hình, đường chính, điểm lớn · lod-2 (toàn đảo): + đường phụ, đô thị, cây vừa
+   · lod-3 (gần): + đường nhỏ, cây nhỏ, trang trí */
+#khung.lod-1 .duong-phu, #khung.lod-1 #lopNha, #khung.lod-1 .cay.t2, #khung.lod-1 .sao-bien { display: none; }
+#khung:not(.lod-3) .duong-nho, #khung:not(.lod-3) .duong-khu, #khung:not(.lod-3) .duong-mon, #khung:not(.lod-3) .cay.t3 { display: none; }
+@media (max-width: 760px) { .nhan { font-size: 10.5px; } .nhan.c0, .nhan.c1 { font-size: 12px; } }
+
+/* ---------- 25/09: ghim = hình trên, dưới [số | tên] ---------- */
+.ten-ghim { fill: #fff; font-weight: 700; text-anchor: start; dominant-baseline: auto; pointer-events: none;
+  paint-order: stroke; stroke: rgba(10, 52, 48, .45); stroke-width: 2.4px; stroke-linejoin: round;
+  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, .28)); }
+.ten-ghim.c0 { font-weight: 800; }
+.ten-ghim.c2 { font-weight: 600; }
+.ghim.cua-ngo .ten-ghim { fill: #fff8d6; }
+.ghim:hover .ten-ghim, .ghim.chon .ten-ghim { fill: #fff3c4; }
+
+/* ---------- bản đồ thế giới quanh Phú Quốc (OpenFreeMap qua MapLibre) ---------- */
+#lopTheGioi { position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: 0; transition: opacity .4s; }
+#khung.co-the-gioi #lopTheGioi { opacity: 1; }
+#lopTheGioi .maplibregl-canvas { outline: none; }
+.bien-pq { pointer-events: none; }
+
+/* 26/09: tầm xa ẩn cabin + trụ cáp treo (chỉ còn dây) — quá nhỏ, trông như vết bẩn trên hình */
+#khung.an-cap .xe-cabin, #khung.an-cap #lopCapTreo use { display: none; }

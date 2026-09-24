@@ -769,3 +769,8 @@ main { padding: 16px; max-width: 1460px; margin: 0 auto; }
   .klCot2 { display: none; }
   .klDong, .klThan { padding-left: 22px; }
 }
+
+/* Tab Bản đồ — bản đồ du lịch Phú Quốc nhúng từ ban-do/ (lark-ban-do) */
+.khung-ban-do { display: block; width: 100%; border: 1px solid var(--vien, #e3e8f0); border-radius: 12px; background: #078cc7; }
+#vungBanDo { flex: 1; min-width: 0; padding: 0 16px 12px; }
+#vungBanDo[hidden], #man[hidden] { display: none; }
