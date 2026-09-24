@@ -105,6 +105,40 @@
     return mot ? { don: null, den: mot } : null;
   }
 
+  /* ---- Tour có tuyến điểm dừng (window.PQ_TOUR từ /api/pq/tour.js, anh Hùng 24/09: "lịch trình của tour
+   * vốn có sẵn trong maps") — G4: Cảng Vịnh Đầm → Mây Rút Ngoài → Mây Rút Trong → Gầm Ghì → Vịnh Đầm. ---- */
+  const maTour = (h) => {
+    const T = goc.PQ_TOUR && goc.PQ_TOUR.tour;
+    const m = String((h && h.maDv) || '').toUpperCase().trim();
+    if (m && T && T[m]) return m;
+    const p = (/^\s*([A-Za-z0-9_]{2,14})\s*[-–:]\s+/.exec(String((h && h.ten) || '')) || [])[1];
+    return p ? p.toUpperCase() : m;
+  };
+  function tuyenTour(h) {
+    const T = goc.PQ_TOUR;
+    const t = T && T.tour[maTour(h)];
+    if (!t || !t.tuyen || t.tuyen.length < 2) return null;
+    const ds = t.tuyen.map((id) => T.diem[id]).filter(Boolean).map((d) => ({ ...d }));
+    const bo = ds.filter((d) => !d.dao);
+    const capT = new Set((T.cap || []).map((c) => c.join('>')));
+    for (const d of ds) {
+      if (!d.dao || !bo.length) continue;
+      /* bến của đảo = điểm đất liền gần nhất trong tuyến (cảng xuất phát, hoặc ga cáp treo) */
+      const ben = bo.reduce((a, b) => (Math.hypot(b.lat - d.lat, b.lng - d.lng) < Math.hypot(a.lat - d.lat, a.lng - d.lng) ? b : a));
+      d.ben = ben;
+      d.kieu = capT.has(ben.id + '>' + d.id) || capT.has(d.id + '>' + ben.id) ? 'cap' : 'cano';
+    }
+    return ds;
+  }
+  /* điểm uốn luồng biển giữa hai điểm tuyến (diem.js LUONG_BIEN), để nét cano không cắt qua đảo */
+  function luong(a, b) {
+    const L = goc.PQ_TOUR && goc.PQ_TOUR.luong;
+    if (!L || !a.id || !b.id) return [];
+    if (L[a.id + '>' + b.id]) return L[a.id + '>' + b.id];
+    if (L[b.id + '>' + a.id]) return L[b.id + '>' + a.id].slice().reverse();
+    return [];
+  }
+
   /* moc: [{ngay, gio, ten, h}] → điểm đã định vị + danh sách chưa rõ.
    * Số thứ tự đánh theo MỐC (không theo điểm): điểm đón và điểm đến của cùng một mốc mang cùng một số,
    * ghim đón vẽ rỗng (xem veThat) — khớp với số trên dòng thời gian của trang in. */
@@ -115,10 +149,13 @@
     let so = 0;
     for (const { m } of ds) {
       const t = doanTach(m.h, giai);
-      if (!t) { chuaRo.push(m.ten); continue; }
+      const tuyen = tuyenTour(m.h);
+      if (!t && !tuyen) { chuaRo.push(m.ten); continue; }
       const chung = { ngay: ngay.indexOf(m.ngay), gio: m.gio || 0, ten: m.ten, so: ++so };
-      if (t.don) diem.push({ ...t.don, ...chung, noi: t.don.ten, don: true });
-      diem.push({ ...t.den, ...chung, noi: t.den.ten });
+      if (t && t.don) diem.push({ ...t.don, ...chung, noi: t.don.ten, don: true });
+      /* tour có tuyến: mọi điểm dừng cùng số của mốc; điểm đầu (bến xuất phát) là ghim chính, còn lại chấm nhỏ */
+      if (tuyen) tuyen.forEach((p, k) => diem.push({ ...p, ...chung, noi: p.ten, phu: k > 0 }));
+      else diem.push({ ...t.den, ...chung, noi: t.den.ten });
     }
     return { ngay, diem, chuaRo };
   }
@@ -314,7 +351,10 @@
       const nhan = soDs.length > 2 ? soDs[0] + '+' : soDs.join(',');
       /* ghim chỉ là điểm đón: vòng rỗng viền màu ngày, để phân biệt với nơi diễn ra hoạt động */
       const chiDon = g.muc.every((m) => m.don);
-      const icon = L.divIcon({ className: 'bd-ghim' + (chiDon ? ' don' : ''), html: '<span style="' + (chiDon ? 'color:' + c + ';border-color:' + c : 'background:' + c) + '">' + nhan + '</span>', iconSize: [26, 26], iconAnchor: [13, 13] });
+      const chiPhu = g.muc.every((m) => m.phu);
+      const icon = chiPhu
+        ? L.divIcon({ className: 'bd-ghim phu', html: '<span style="background:' + c + '"></span>', iconSize: [12, 12], iconAnchor: [6, 6] })
+        : L.divIcon({ className: 'bd-ghim' + (chiDon ? ' don' : ''), html: '<span style="' + (chiDon ? 'color:' + c + ';border-color:' + c : 'background:' + c) + '">' + nhan + '</span>', iconSize: [26, 26], iconAnchor: [13, 13] });
       L.marker([g.lat, g.lng], { icon, title: g.noi }).addTo(map).bindPopup('<b>' + e(g.noi) + '</b>' + (g.tay ? ' <i>(ghim tay)</i>' : '') + '<br>' +
         g.muc.map((m) => m.so + '. ' + (m.don ? 'Đón · ' : '') + e(m.ten) + (ngayNhan[m.ngay] ? ' · ' + e(ngayNhan[m.ngay]) : '') + (m.gio ? ' ' + new Date(m.gio + 7 * 3600000).toISOString().slice(11, 16) : '')).join('<br>') +
         '<br><a href="https://www.google.com/maps/search/?api=1&query=' + g.lat + ',' + g.lng + '" target="_blank" rel="noopener">Mở trên Google Maps</a>');
@@ -331,7 +371,7 @@
       const c = mau[(b.ngay + lech) % 5];
       const net = doiNgay ? { weight: 2.5, opacity: 0.6, dashArray: '2 6' } : { weight: 4, opacity: 0.85 };
       for (const d of doanChang(a, b)) {
-        if (d.bien) { L.polyline([[d.tu.lat, d.tu.lng], [d.den.lat, d.den.lng]], { color: c, weight: 3, opacity: 0.9, dashArray: '8 7' }).addTo(map); continue; }
+        if (d.bien) { L.polyline([[d.tu.lat, d.tu.lng], ...luong(d.tu, d.den), [d.den.lat, d.den.lng]], { color: c, weight: 3, opacity: 0.9, dashArray: '8 7' }).addTo(map); continue; }
         const thang = L.polyline([[d.tu.lat, d.tu.lng], [d.den.lat, d.den.lng]], { color: c, weight: 3, opacity: 0.6, dashArray: '6 6' }).addTo(map);
         cho.push(duongBo(d.tu, d.den).then((r) => {
           if (!r || !khung._banDo || khung._banDo !== map) return;
@@ -347,5 +387,5 @@
       caChuyen: linkGoogleNhieu(dv.diem), diem: dv.diem, map, xong: Promise.all(cho) };
   }
 
-  goc.BanDo = { ve, veThat, quangDuong, NEN, doan, doanTach, dinhVi, linkGoogle, linkGoogleNhieu, chang, doanChang, toaDoTrongChu, linkNgan, DIEM };
+  goc.BanDo = { ve, veThat, quangDuong, NEN, doan, doanTach, maTour, tuyenTour, dinhVi, linkGoogle, linkGoogleNhieu, chang, doanChang, toaDoTrongChu, linkNgan, DIEM };
 })(window);

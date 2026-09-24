@@ -158,3 +158,21 @@ body { font-family: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', sans
 .bd-ghim.don span { background: #fff !important; border: 3px solid; box-sizing: border-box; }
 
 .mh-diem.rieng svg { overflow: visible; }
+
+/* tour có tuyến: điểm dừng phụ là chấm nhỏ */
+.bd-ghim.phu span { width: 12px; height: 12px; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .35); }
+
+/* khung "Lịch trình tour" dưới mốc tour */
+.il-tour { margin-top: 2.4mm; padding: 2.4mm 3.2mm; border-radius: 10px; background: var(--il-chinh-nhat); }
+.il-tour-dau { font-size: 9px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--il-chinh); display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.il-tour-dau span { font-size: 9.5px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--il-phu); }
+.il-tour-tuyen { margin-top: 1.4mm; font-size: 10.5px; font-weight: 600; line-height: 1.6; color: var(--il-than); }
+.il-tour-tuyen i { font-style: normal; color: var(--il-chinh); margin: 0 5px; }
+.il-tour-tuyen .dau { color: var(--il-chinh); }
+.il-tour-ct { margin: 1.4mm 0 0; padding-left: 4mm; font-size: 10px; line-height: 1.5; color: var(--il-than); }
+.il-tour-ct li { margin: .3mm 0; }
+.il-dac .il-tour-ct { font-size: 9.5px; }
+[contenteditable]:hover { outline: 1px dashed rgba(40, 154, 135, .5); outline-offset: 2px; }
+[contenteditable]:focus { outline: 1.5px solid var(--il-chinh); outline-offset: 2px; }
+@media print { [contenteditable]:hover, [contenteditable]:focus { outline: none; } }
+.il-tour-ct li.con { margin-left: 4mm; list-style: circle; color: var(--il-phu); }

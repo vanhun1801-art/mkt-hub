@@ -205,7 +205,7 @@
           '" width="' + 64 * (r.co || 1) + '" height="' + 64 * (r.co || 1) + '" preserveAspectRatio="xMidYMax meet"/></svg>'
         : '<svg viewBox="0 0 64 64"><use href="#' + hv + '"/></svg>';
       const icon = L.divIcon({ className: 'mh-diem c' + (d.cap || 1) + (r ? ' rieng' : ''), iconSize: [0, 0],
-        html: anh + '<span>' + String(d.ten).replace(/</g, '&lt;') + '</span>' });
+        html: anh + '<span>' + String(goc.PQ_LANG === 'en' && d.tenEn ? d.tenEn : d.ten).replace(/</g, '&lt;') + '</span>' });
       const m = L.marker([d.lat, d.lon], { icon, interactive: false, keyboard: false, zIndexOffset: -1000 });
       m.on('add', () => { const el = m.getElement(); if (el) el.dataset.cap = d.cap == null ? 1 : d.cap; });
       g.addLayer(m);

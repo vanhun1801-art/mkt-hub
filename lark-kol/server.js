@@ -123,9 +123,30 @@ async function guiPq(res, ten) {
       if (!pqDem.diem) {
         const D = require(path.join(BAN_DO_GOC, 'diem.js')).DIEM;
         pqDem.diem = '/* 31 điểm của bản đồ du lịch (lark-ban-do/diem.js) */\nwindow.PQ_DIEM = ' +
-          JSON.stringify(D.map((d) => ({ id: d.id, ten: d.ten, lat: d.lat, lon: d.lon, loai: d.loai, cap: d.cap }))) + ';\n';
+          JSON.stringify(D.map((d) => ({ id: d.id, ten: d.ten, tenEn: d.tenEn, lat: d.lat, lon: d.lon, loai: d.loai, cap: d.cap }))) + ';\n';
       }
       return gui(res, 200, pqDem.diem, { ...js, 'Cache-Control': 'private, max-age=3600' });
+    }
+    if (ten === 'tour') {
+      /* Tuyến điểm dừng từng tour (lark-ban-do/diem.js — cùng tuyến tab Bản đồ app Sản phẩm vẽ) + thông tin
+       * tour trên Base Sản phẩm (thời lượng, khởi hành, lịch trình tóm tắt). Base lỗi thì vẫn có tuyến. */
+      if (!pqDem.tour || Date.now() - pqDem.tour.luc > 10 * 60000) {
+        const B = require(path.join(BAN_DO_GOC, 'diem.js'));
+        let sp = [];
+        try { sp = await kho.sanPham(); } catch (_) { /* Base Sản phẩm không đọc được */ }
+        const tour = {};
+        for (const [ma, tuyen] of Object.entries(B.TUYEN)) tour[ma.toUpperCase()] = { tuyen };
+        for (const x of sp) {
+          if (!x.ma || !(x.lichTrinh || tour[x.ma.toUpperCase()])) continue;
+          const k = x.ma.toUpperCase();
+          tour[k] = { ...(tour[k] || {}), ten: x.ten, tenEn: x.tenEn, thoiLuong: x.thoiLuong, khoiHanh: x.khoiHanh, lichTrinh: x.lichTrinh };
+        }
+        const diem = {};
+        for (const d of B.DIEM) diem[d.id] = { id: d.id, ten: d.ten, tenEn: d.tenEn, lat: d.lat, lng: d.lon, dao: d.vung === 'dao' };
+        pqDem.tour = { luc: Date.now(), js: '/* Tour: tuyến (lark-ban-do/diem.js) + lịch trình (Base Sản phẩm) */\nwindow.PQ_TOUR = ' +
+          JSON.stringify({ tour, diem, luong: B.LUONG_BIEN, cap: B.CAP_TREO }) + ';\n' };
+      }
+      return gui(res, 200, pqDem.tour.js, { ...js, 'Cache-Control': 'no-store' });
     }
     if (ten === 'hinh-rieng') {
       /* hình trên Base đổi bất cứ lúc nào → không đệm ở trình duyệt; hỏi app Sản phẩm tối đa 5 giây */
@@ -337,7 +358,7 @@ async function api(req, res, u) {
    *  hinh.js · dia-hinh.js · hinh-ve.js — đọc thẳng từ ../lark-ban-do/public (cùng repo, một bản gốc)
    *  diem.js       — 31 điểm (toạ độ, tên, cấp) từ ../lark-ban-do/diem.js
    *  hinh-rieng.js — hình quản lý tải lên trên Base: hỏi app Sản phẩm; nó ngủ/không có thì dùng bản dựng sẵn trong repo */
-  const mPq = /^\/api\/pq\/(hinh|dia-hinh|hinh-ve|diem|hinh-rieng)\.js$/.exec(p);
+  const mPq = /^\/api\/pq\/(hinh|dia-hinh|hinh-ve|diem|hinh-rieng|tour)\.js$/.exec(p);
   if (mPq && m === 'GET') return guiPq(res, mPq[1]);
 
   if (p === '/api/logo' && m === 'GET') {

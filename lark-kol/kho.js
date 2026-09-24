@@ -228,6 +228,8 @@ async function sanPham() {
     return {
       id: r.record_id, ma: chu(c[sp.f.ma]), ten: chu(c[sp.f.ten]), nhom: nhieu(c[sp.f.nhom])[0] || '',
       giaNL: so(c[sp.f.giaNL]), giaTE: so(c[sp.f.giaTE]), trangThai: nhieu(c[sp.f.trangThai])[0] || '',
+      /* cho lịch trình gửi KOL: tên tiếng Anh, thời lượng, giờ khởi hành, lịch trình tóm tắt của tour */
+      tenEn: chu(c[sp.f.tenEn]), thoiLuong: chu(c[sp.f.thoiLuong]), khoiHanh: chu(c[sp.f.khoiHanh]), lichTrinh: chu(c[sp.f.lichTrinh]),
     };
   }).filter((x) => x.ten);
   demSp = { luc: Date.now(), ds };

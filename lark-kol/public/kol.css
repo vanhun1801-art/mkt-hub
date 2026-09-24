@@ -315,3 +315,6 @@ pre.tin { white-space: pre-wrap; background: var(--surface-3); border-radius: va
 .bd-ghim.don span { background: #fff !important; border: 3px solid; box-sizing: border-box; }
 
 .mh-diem.rieng svg { overflow: visible; }
+
+/* tour có tuyến: điểm dừng phụ là chấm nhỏ */
+.bd-ghim.phu span { width: 12px; height: 12px; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .35); }

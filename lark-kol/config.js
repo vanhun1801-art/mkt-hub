@@ -73,7 +73,8 @@ module.exports = {
     baseToken: 'N7CjbeUiXaq67LsmChtlUQBfgrc',
     bang: 'tblrljpiBqDdz2Sj',
     f: { ma: 'fldO0qbhnA', ten: 'fldZWaezaw', nhom: 'fldNsKm0zi', giaNL: 'fldG4h7M1q', giaTE: 'fld262MZEB',
-      trangThai: 'fldXNNmDiB' },
+      trangThai: 'fldXNNmDiB', tenEn: 'fldfV2RlLL', thoiLuong: 'fldPADsZPY', khoiHanh: 'fldSqoYliG',
+      lichTrinh: 'fld7VQcjHO', usp: 'fldaVLajEk' },
   },
 
   /* ---- email (Lark Mail — MX của rootytrip.com là larksuite) ---- */
