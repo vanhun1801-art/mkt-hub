@@ -213,11 +213,25 @@ tfoot td { background: var(--surface-2); font-weight: 600; border-bottom: 0; }
 .teps { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 
 /* ---- thanh chọn nhiều ---- */
+/* ---- thanh chọn nhiều khoản ----
+   NỔI, không nằm trong dòng chảy. Trước đây nó là một khối bình thường nằm
+   trên đầu bảng, nên lúc hiện ra nó đẩy cả bảng xuống 52px — gần bằng một hàng
+   (60px). Chị kế toán tích ô đầu tiên xong, con trỏ đã đứng trên hàng khác.
+
+   Nổi ở ĐÁY màn hình còn được thêm một việc: bảng dài 173 dòng, chọn tới dòng
+   tháng 8 thì nút "Quyết toán N khoản" ở bản cũ đã trôi khỏi màn hình từ lâu. */
+#thanhChonHop:empty { display: none; }
 .thanhchon {
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: 18px; z-index: 40;
   display: flex; align-items: center; gap: 10px; padding: 10px 14px;
-  background: var(--primary-bg); border-bottom: 1px solid var(--primary-border);
+  max-width: calc(100% - 32px);
+  background: var(--surface); border: 1px solid var(--primary-border);
+  border-radius: 12px; box-shadow: 0 12px 32px -8px rgba(16, 22, 34, .35);
   font-size: 13px; color: var(--t1);
 }
+/* Chừa đáy trang đúng bằng thanh, để hàng cuối không nằm dưới nó. Đệm ở đáy
+   thì thêm bao nhiêu cũng không xê dịch hàng nào. */
+body.co-thanhchon { padding-bottom: 84px; }
 
 /* ---- cửa sổ ---- */
 .modal { position: fixed; inset: 0; background: rgba(16,22,34,.5); display: none;

@@ -314,7 +314,13 @@ function ve() {
     if (e) e.hidden = !hien;
   });
 
-  $('#man').innerHTML = veTong() + veLoc() + (S.tab === 'ung' ? veUng() : veBang());
+  /* Hộp thanh chọn dựng LUÔN LUÔN, dù rỗng. Nó `position: fixed` nên không
+   * chiếm chỗ trong dòng chảy — hiện hay ẩn đều không xê dịch một hàng nào. */
+  $('#man').innerHTML = veTong() + veLoc() + (S.tab === 'ung' ? veUng() : veBang())
+    + '<div id="thanhChonHop">' + (S.chon.size ? veThanhChon() : '') + '</div>';
+  /* Chừa đáy trang đúng bằng thanh đang nổi, để hàng cuối không bị nó che.
+   * Đệm ở ĐÁY thì thêm bao nhiêu cũng không đẩy hàng nào xuống. */
+  document.body.classList.toggle('co-thanhchon', S.chon.size > 0);
   ganSuKien();
 }
 
@@ -470,8 +476,11 @@ function veBang() {
       + '</tr>';
   };
 
+  /* Thanh chọn KHÔNG nằm ở đây nữa — xem #thanhChonHop trong ve(). Đặt nó
+   * trong dòng chảy của bảng thì lúc hiện ra nó đẩy cả bảng xuống 52px, gần
+   * bằng một hàng (60px): tích ô đầu tiên xong, con trỏ đang đứng ở hàng khác
+   * mà không ai bảo. */
   return '<section class="bang">'
-    + (S.chon.size ? veThanhChon() : '')
     + '<div class="cuon"><table><thead><tr>'
       + '<th class="chon">' + (duocQuyetToan() ? '<input type="checkbox" id="chonHet">' : '') + '</th>'
       + '<th>Nội dung</th><th>Loại</th><th class="num">Số tiền</th><th>Ngày chi</th>'
@@ -1369,14 +1378,26 @@ document.addEventListener('click', async (e) => {
   }
 });
 
+/**
+ * TÍCH MỘT Ô THÌ CHỈ ĐỔI THANH CHỌN, KHÔNG VẼ LẠI CẢ TRANG.
+ *
+ * Bản cũ gọi ve() ở hai nước: lúc tích ô ĐẦU TIÊN (thanh chưa có) và lúc bỏ ô
+ * CUỐI CÙNG (thanh phải biến mất). Hai nước đó dựng lại toàn bộ bảng — 173
+ * dòng — chỉ để thêm hay bớt một thanh. Và vì thanh nằm trong dòng chảy, nó
+ * đẩy cả bảng xuống 52px, gần bằng chiều cao một hàng (60px): chị kế toán tích
+ * xong ô đầu, con trỏ đang đứng trên một hàng khác, tích tiếp là sai dòng.
+ *
+ * Giờ thanh nổi trong #thanhChonHop, và ở đây chỉ thay ruột cái hộp đó.
+ */
 document.addEventListener('change', (e) => {
   if (e.target.id === 'chonHet') return chonHetTrongBang(e.target.checked);
   const c = e.target.closest('[data-chon]');
   if (!c) return;
   if (c.checked) S.chon.add(c.dataset.chon); else S.chon.delete(c.dataset.chon);
-  const t = $('.thanhchon');
-  if (S.chon.size && t) t.outerHTML = veThanhChon();
-  else ve();
+  const hop = $('#thanhChonHop');
+  if (!hop) return ve();          // hộp chưa có (bản dựng cũ còn trong trang)
+  hop.innerHTML = S.chon.size ? veThanhChon() : '';
+  document.body.classList.toggle('co-thanhchon', S.chon.size > 0);
 });
 
 /**

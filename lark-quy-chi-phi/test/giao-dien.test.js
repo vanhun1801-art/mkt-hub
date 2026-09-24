@@ -197,6 +197,26 @@ function chay(meta) {
       (String(bang).match(/[^>]*RT16550[^<]*/) || [''])[0]);
     ok('khoản không có mã đơn thì KHÔNG dựng thẻ bấm rỗng',
       !/<a[^>]+href=""/.test(String(bang)));
+    /* THANH CHỌN KHÔNG ĐƯỢC NẰM TRONG BẢNG.
+     *
+     * Bản cũ dựng nó ngay trên đầu <table>, trong dòng chảy. Lúc tích ô đầu
+     * tiên nó hiện ra và đẩy cả bảng xuống 52px — gần bằng chiều cao một hàng
+     * (60px) — nên con trỏ của chị kế toán đang đứng trên một hàng khác mà
+     * không có gì báo; tích tiếp là sai dòng. Đo trên app thật 24/09/2026.
+     *
+     * Giờ nó nổi trong #thanhChonHop. Phép thử canh đúng chuyện "có mặt trong
+     * chuỗi HTML của bảng hay không", vì đó là điều kiện đủ để nó chiếm chỗ. */
+    ctx.__goi('S.chon.add("recC1"); S.chon.add("recC2")');
+    const bangCoChon = String(ctx.veBang());
+    ok('bảng KHÔNG dựng thanh chọn, dù đang chọn 2 khoản',
+      !bangCoChon.includes('thanhchon'), bangCoChon.slice(0, 200));
+    ok('hàng vẫn y nguyên số lượng khi có chọn',
+      (bangCoChon.match(/<tr data-/g) || []).length
+        === (String(bang).match(/<tr data-/g) || []).length);
+    ok('thanh chọn vẫn dựng được, chỉ là ở chỗ khác',
+      String(ctx.veThanhChon()).includes('data-quyettoan'));
+    ctx.__goi('S.chon.clear()');
+
     ok('khoản chưa có mã điều hành thì hiện nút thêm',
       String(bang).includes('data-gansg'));
     ok('khoản đã có mã điều hành thì hiện mã', String(bang).includes('SG21000'));
