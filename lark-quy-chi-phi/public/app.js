@@ -862,8 +862,20 @@ function moChungTu(id) {
   thuHoiAnhChungTu();
 
   const o = (t, i) => {
-    const xem = t.linkCu
-      ? '<a class="ct-xem" target="_blank" href="' + esc(t.linkCu) + '">Mở trên Drive ↗</a>'
+    /* Chỉ dựng thẻ bấm khi thật sự là một địa chỉ http.
+     *
+     * Chuỗi nào KHÔNG mở đầu bằng http thì trình duyệt coi là đường dẫn tương
+     * đối và ghép vào sau địa chỉ app — ra một trang 404 mang nguyên cái chuỗi
+     * đó trên thanh địa chỉ, trông như app hỏng. Ô này vốn lưu markdown
+     * `[url](url)`; máy chủ đã gỡ (boMdLink), nhưng chốt thêm ở đây để một
+     * dạng lạ khác cũng không lọt thành liên kết chết. */
+    const laDiaChi = /^https?:\/\//i.test(String(t.linkCu || '').trim());
+    const xem = laDiaChi
+      ? '<a class="ct-xem" target="_blank" rel="noopener" href="' + esc(t.linkCu) + '">Mở trên Drive ↗</a>'
+      : t.linkCu
+        /* Không mở được thì nói thẳng và bày chuỗi ra, để kế toán còn copy đi
+         * tìm — im lặng bỏ nút đi là giấu mất manh mối duy nhất. */
+        ? '<div class="ct-hong">Không mở được liên kết cũ<code>' + esc(t.linkCu) + '</code></div>'
       : '<span class="ct-xem" data-xem="' + esc(t.token) + '" data-rec="' + esc(t.recId)
         + '" data-ten="' + esc(t.ten) + '">Xem</span>'
         + '<span class="ct-tai" data-tai="1" data-rec="' + esc(t.recId) + '" data-token="'

@@ -95,6 +95,44 @@ function doiRa(rec, map) {
  * Bịa link là mở nhầm sang đơn của người khác — tệ hơn hẳn không bấm được. Nên
  * chỉ dựng khi mã đúng dạng RT + chữ số; ngoài ra trả rỗng.
  */
+/* ---------------------------------------------------------------------------
+ * LINK CHỨNG TỪ CŨ TRÊN DRIVE
+ * -------------------------------------------------------------------------
+ * Ô "Link chứng từ cũ" / "Link UNC cũ" KHÔNG lưu một địa chỉ trần. Lark trả
+ * chúng về dưới dạng markdown:
+ *
+ *   [https://drive.google.com/file/d/1EMJ…/view](https://drive.google.com/file/d/1EMJ…/view)
+ *
+ * Nhét nguyên chuỗi đó vào href thì trình duyệt thấy nó KHÔNG mở đầu bằng
+ * http, nên hiểu là đường dẫn tương đối và ghép vào sau địa chỉ app:
+ *
+ *   mkt-hub-w6hi.onrender.com/m/quy-chi-phi/[https://drive.google.com/…]…
+ *   → {"error":"Not found"}
+ *
+ * Đúng cái anh Hùng gặp ngày 24/09/2026. Và không phải một dòng: ĐỦ CẢ 255 ô
+ * (160 hoá đơn + 95 UNC) đều ở dạng này, tức là mọi nút "Mở trên Drive" trong
+ * app đều hỏng từ ngày dựng — chỉ là mấy khoản gần đây có tệp đính kèm thật
+ * nên không ai bấm tới nút của chứng từ cũ.
+ *
+ * App Lịch tác nghiệp đã gặp và đã xử (stripMdLink trong server.js của nó);
+ * app này thì chưa. Gỡ ở MÁY CHỦ để giao diện nhận về một địa chỉ sạch.
+ */
+function boMdLink(v) {
+  const m = /^\s*\[([^\]]*)\]\(([^)]*)\)\s*$/.exec(String(v || '').trim());
+  return m ? (m[2] || m[1]).trim() : String(v || '');
+}
+
+/* Ba ô mang dạng đó. Khai thành danh sách chứ không quét mọi ô chữ: một ghi
+ * chú ai đó gõ đúng cú pháp markdown thì phải giữ nguyên là chữ. */
+const O_LINK_MD = ['linkCu', 'linkUncCu', 'buoiTacNghiep'];
+
+/** Một khoản chi trước khi đưa xuống giao diện. */
+function chuanChi(c) {
+  O_LINK_MD.forEach((k) => { if (c[k]) c[k] = boMdLink(c[k]); });
+  c.linkDon = linkDonTourwell(c.maDon);
+  return c;
+}
+
 function linkDonTourwell(maDon) {
   const s = String(maDon || '').trim();
   if (!s) return '';
@@ -386,11 +424,7 @@ async function xuLy(req, res) {
   /* ---- màn hình chính ---- */
   if (p === '/api/meta' && req.method === 'GET') {
     const k = await nap(url.searchParams.get('moi') === '1');
-    const chi = k.chi.map((r) => {
-      const c = doiRa(r, F.chi);
-      c.linkDon = linkDonTourwell(c.maDon);
-      return c;
-    });
+    const chi = k.chi.map((r) => chuanChi(doiRa(r, F.chi)));
     const dot = k.dot.map((r) => doiRa(r, F.dot));
     const lan = k.nap.map((r) => doiRa(r, F.nap));
 

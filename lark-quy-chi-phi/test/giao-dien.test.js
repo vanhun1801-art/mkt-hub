@@ -69,6 +69,7 @@ const META = {
       id: 'recC2', noiDung: 'Tác nghiệp Vinwonders (Live)', loai: 'Tác nghiệp',
       tien: 362000, ngayChi: '2026-09-06', nguoi: [], tinhTrang: 'Đã quyết toán',
       hoaDon: [], unc: [], maDieuHanh: 'SG21000', maDon: '', maQuyetToan: 'QTTU52/LVH',
+      /* Địa chỉ trần — dạng ĐÚNG, sau khi máy chủ đã gỡ markdown. */
       linkCu: 'https://drive.google.com/file/d/x/view', linkUncCu: '',
       chungTu: 'Hoá đơn tay / ảnh', dot: ['recD1'],
     },
@@ -94,6 +95,17 @@ const META = {
       hoaDon: [{ name: 'hd6.jpg', token: 'tk6' }], unc: [], maDieuHanh: '',
       maDon: 'RT16550', linkDon: 'https://rootytrip.tourwell.net/admin/order/16550/show',
       maQuyetToan: '', linkCu: '', linkUncCu: '', chungTu: null, dot: ['recD1'],
+    },
+    {
+      /* Ô link cũ mang một chuỗi KHÔNG phải địa chỉ. Máy chủ gỡ markdown rồi,
+       * nhưng dạng lạ khác vẫn có thể lọt — và cái lọt được sẽ thành
+       * <a href="chuỗi đó">, tức trình duyệt ghép vào sau địa chỉ app rồi ra
+       * 404 mang nguyên chuỗi trên thanh địa chỉ. Trông y như app hỏng. */
+      id: 'recC7', noiDung: 'Khoản có link cũ hỏng', loai: 'Khác',
+      tien: 100000, ngayChi: '2026-09-05', nguoi: [], tinhTrang: 'Đã chi',
+      hoaDon: [], unc: [], maDieuHanh: '', maDon: '', maQuyetToan: '',
+      linkCu: 'xem trong thư mục Drive của phòng', linkUncCu: '', chungTu: null,
+      dot: ['recD1'],
     },
     {
       id: 'recC4', noiDung: 'Khoản còn Chờ chi', loai: 'Khác',
@@ -216,6 +228,22 @@ function chay(meta) {
     ok('thanh chọn vẫn dựng được, chỉ là ở chỗ khác',
       String(ctx.veThanhChon()).includes('data-quyettoan'));
     ctx.__goi('S.chon.clear()');
+
+    /* CỬA SỔ CHỨNG TỪ: nút "Mở trên Drive" chỉ được dựng cho địa chỉ http.
+     * Chuỗi khác mà lọt vào href là trình duyệt hiểu thành đường dẫn tương
+     * đối, ghép vào sau địa chỉ app và trả về 404 — đúng lỗi 24/09/2026. */
+    ve('cửa sổ chứng từ (link Drive)', () => ctx.moChungTu('recC2'));
+    const ctDrive = ctx.__than();
+    ok('link Drive đúng dạng thì có nút mở, href là địa chỉ đầy đủ',
+      /<a[^>]+href="https:\/\/drive\.google\.com\/[^"]*"/.test(ctDrive), ctDrive.slice(0, 300));
+
+    ve('cửa sổ chứng từ (link hỏng)', () => ctx.moChungTu('recC7'));
+    const ctHong = ctx.__than();
+    ok('chuỗi không phải địa chỉ thì KHÔNG dựng thẻ bấm',
+      !/<a[^>]+href="xem trong/.test(ctHong), ctHong.slice(0, 300));
+    ok('và nói thẳng là không mở được, có bày chuỗi ra để còn copy',
+      ctHong.includes('Không mở được liên kết cũ')
+      && ctHong.includes('xem trong thư mục Drive'), ctHong.slice(0, 300));
 
     ok('khoản chưa có mã điều hành thì hiện nút thêm',
       String(bang).includes('data-gansg'));
@@ -402,9 +430,10 @@ function chay(meta) {
    * có SG21000 + QTTU52, recC4 còn Chờ chi nhưng cũng sạch dấu vết nên được
    * mời — đúng, vì khai xong mà quên tạo đơn là chuyện hay xảy ra nhất. */
   const soNut = (bQ.match(/data-taodon/g) || []).length;
-  /* Ba khoản sạch dấu vết: recC3, recC4 (Chờ chi) và recC5 (kế toán trả lại).
-   * recC5 được mời là ĐÚNG — trả lại xong sửa chứng từ thì vẫn cần cái đơn. */
-  ok('chỉ mời tạo đơn cho khoản chưa từng qua Tourwell', soNut === 3,
+  /* Bốn khoản sạch dấu vết: recC3, recC4 (Chờ chi), recC5 (kế toán trả lại) và
+   * recC7 (link cũ hỏng). recC5 được mời là ĐÚNG — trả lại xong sửa chứng từ
+   * thì vẫn cần cái đơn. */
+  ok('chỉ mời tạo đơn cho khoản chưa từng qua Tourwell', soNut === 4,
     soNut + ' nút / ' + META.chi.length + ' khoản');
   ok('khoản đã có mã điều hành SG thì KHÔNG mời tạo đơn',
     !/data-taodon="recC2"/.test(bQ));
@@ -437,7 +466,7 @@ function chay(meta) {
     + '.reduce((a,c) => a + c.tien, 0)');
   ok('chi trong kỳ khớp khi cộng tay lại', k9.chi === chiT9, k9.chi + ' vs ' + chiT9);
   ok('khoản Chờ chi vẫn nằm trong kỳ, cùng luật với số dư quỹ',
-    k9.chi === 406000 + 362000 + 180000 + 250000 + 732000, String(k9.chi));
+    k9.chi === 406000 + 362000 + 180000 + 250000 + 732000 + 100000, String(k9.chi));
 
   /* Bản ghi KHÔNG CÓ NGÀY là dữ liệu cũ nhập từ sheet. Xếp vào kỳ hiện tại thì
    * tháng này tự dưng phình ra một khoản không ai tiêu. */

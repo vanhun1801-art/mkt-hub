@@ -406,6 +406,32 @@ const nhom = (t) => console.log('\n\x1b[1m' + t + '\x1b[0m');
     ok('có khoản đã đóng sổ để thử ghi đè', false, 'sổ chưa có khoản nào mang mã QTTU');
   }
 
+  nhom('Link chứng từ cũ trên Drive phải mở được');
+  /* Lark trả hai ô này về dạng markdown `[url](url)`. Nhét nguyên chuỗi đó vào
+   * href thì trình duyệt coi là đường dẫn TƯƠNG ĐỐI và ghép vào sau địa chỉ
+   * app — ra 404. Anh Hùng gặp ngày 24/09/2026, và lúc dò ra thì cả 255 ô
+   * (160 hoá đơn + 95 UNC) đều ở dạng đó: mọi nút "Mở trên Drive" trong app
+   * hỏng từ ngày dựng, chỉ là ít ai bấm tới chứng từ cũ.
+   *
+   * Canh trên dữ liệu THẬT chứ không trên chuỗi tự bịa: ô này do người khác
+   * nhập và Lark quyết cách trả về, nên chỗ duy nhất biết sự thật là sổ. */
+  const oLink = [];
+  for (const c of m.chi) {
+    for (const k of ['linkCu', 'linkUncCu']) {
+      const v = String(c[k] || '').trim();
+      if (v) oLink.push({ k, v });
+    }
+  }
+  ok('sổ có ô link chứng từ cũ để kiểm', oLink.length > 0, oLink.length + ' ô');
+  const conMd = oLink.filter((x) => /^\[.*\]\(.*\)$/.test(x.v));
+  ok('KHÔNG ô nào còn nguyên dạng markdown', conMd.length === 0,
+    conMd.length + ' ô, ví dụ ' + (conMd[0] || {}).v);
+  /* Đây mới là điều kiện để nút bấm được. Không mở đầu bằng http là trình
+   * duyệt ghép vào địa chỉ app, bất kể chuỗi đó trông ra sao. */
+  const khongPhaiDiaChi = oLink.filter((x) => !/^https?:\/\//i.test(x.v));
+  ok('ô nào cũng là địa chỉ http đầy đủ', khongPhaiDiaChi.length === 0,
+    khongPhaiDiaChi.slice(0, 3).map((x) => x.k + '=' + x.v.slice(0, 80)).join(' | '));
+
   nhom('Mã RT nào cũng bấm được để mở đơn bên Tourwell');
   /* Kế toán đối chiếu CHÍNH bằng mã này, nên mã hiện ra mà bấm không đi đâu là
    * bắt chị ấy tự gõ tay vào Tourwell tìm lại. Hai dạng cùng tồn tại trong sổ:
