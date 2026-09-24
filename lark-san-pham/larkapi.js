@@ -210,15 +210,28 @@ async function downloadAttachmentBuffer(recordId, fileToken, tableId, base) {
   };
   duyet(meta);
   const name = (o && o.name) || null;
+  const loi = [];                                         // ghi lại lý do từng cách hỏng — lỗi cuối không đủ để sửa
   const url = o && (o.url || o.tmp_url || o.tmp_download_url || o.download_url);
   if (url) {
-    try { const r = await fetch(url); if (r.ok) return { buffer: Buffer.from(await r.arrayBuffer()), name }; } catch (_) { /* thử cách sau */ }
+    try { const r = await fetch(url); if (r.ok) return { buffer: Buffer.from(await r.arrayBuffer()), name }; loi.push('url-tam HTTP ' + r.status); }
+    catch (e) { loi.push('url-tam ' + e.message); }
   }
-  const duong = (extra) => '/open-apis/drive/v1/medias/' + encodeURIComponent(fileToken) + '/download' +
-    (extra ? '?extra=' + encodeURIComponent(typeof extra === 'string' ? extra : JSON.stringify(extra)) : '');
+  const nhu = (x) => encodeURIComponent(typeof x === 'string' ? x : JSON.stringify(x));
+  const duong = (extra) => '/open-apis/drive/v1/medias/' + encodeURIComponent(fileToken) + '/download' + (extra ? '?extra=' + nhu(extra) : '');
+  const tuDung = { bitablePerm: { tableId, rev: (o && o.rev) || undefined } };
   const extra = (o && (o.extra_info || o.extra)) || null;
-  if (extra) { try { return { buffer: await call('GET', duong(extra), { raw: true }), name }; } catch (_) { /* thử cách sau */ } }
-  return { buffer: await call('GET', duong({ bitablePerm: { tableId, rev: (o && o.rev) || undefined } }), { raw: true }), name };
+  if (extra) { try { return { buffer: await call('GET', duong(extra), { raw: true }), name }; } catch (e) { loi.push('extra-tra-ve ' + e.message); } }
+  try { return { buffer: await call('GET', duong(tuDung), { raw: true }), name }; } catch (e) { loi.push('extra-tu-dung ' + e.message); }
+  /* 26/09: cách thứ tư — xin URL tải tạm (batch_get_tmp_download_url), có và không kèm extra */
+  for (const ex of [extra || tuDung, null]) {
+    try {
+      const d = await call('GET', '/open-apis/drive/v1/medias/batch_get_tmp_download_url?file_tokens=' + encodeURIComponent(fileToken) + (ex ? '&extra=' + nhu(ex) : ''));
+      const u = d.tmp_download_urls && d.tmp_download_urls[0] && d.tmp_download_urls[0].tmp_download_url;
+      if (u) { const r = await fetch(u); if (r.ok) return { buffer: Buffer.from(await r.arrayBuffer()), name }; loi.push('tmp-url HTTP ' + r.status); }
+      else loi.push('tmp-url không trả đường dẫn');
+    } catch (e) { loi.push('tmp-url' + (ex ? '+extra ' : ' ') + e.message); }
+  }
+  throw new Error('Không tải được hình từ Base — ' + loi.join(' | ') + (o ? '' : ' | get_attachments không thấy file_token'));
 }
 
 /** Ghi một tệp (Buffer) vào ô đính kèm — THAY hình cũ (ghi đè cả ô bằng tệp mới). */

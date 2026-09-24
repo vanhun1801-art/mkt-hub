@@ -851,6 +851,7 @@ function hinhBanDoHtml() {
       : '<img loading="lazy" alt="" src="ban-do/hinh/' + encodeURIComponent(o.ma) + '?v=' + encodeURIComponent(o.luc || 'goc') + '">') + '</div>' +
     '<b title="' + esc(o.ma) + '">' + esc(o.ten) + '</b>' +
     '<span class="phu">' + esc(NGUON_HINH[o.nguon] || '') + (o.nguoi ? ' · ' + esc(o.nguoi) : '') + '</span>' +
+    (o.loi ? '<span class="loi-hinh" title="' + esc(o.loi) + '">Bản đồ chưa đọc được hình này: ' + esc(o.loi.slice(0, 160)) + '</span>' : '') +
     '<div class="o-hinh-nut">' +
       '<label class="btn sm">Tải hình<input type="file" accept="image/png,image/webp,image/jpeg,image/svg+xml" data-tai-hinh="' + esc(o.ma) + '" hidden></label>' +
       '<label class="co-hinh" title="Cỡ hiển thị (1 = mặc định)">Cỡ <input type="number" min="0.3" max="3" step="0.1" value="' + (+o.co || 1) + '" data-co-hinh="' + esc(o.ma) + '"></label>' +

@@ -69,11 +69,20 @@ async function docBase({ moi = false } = {}) {
 const xoaDem = () => { dsDem = null; jsDem = null; };
 
 const anhDem = new Map();                                 // file_token → Buffer (tệp đã nén, vài chục KB)
+const anhVuaTai = new Map();                              // mã → Buffer vừa tải lên (chưa biết file_token)
+const loiAnh = new Map();                                 // mã → lý do đọc hình hỏng (hiện ra ô ở màn quản lý)
 async function layAnh(o) {
   if (!anhDem.has(o.tep)) {
-    const { buffer } = await lark.downloadAttachmentBuffer(o.id, o.tep, cfg.hinhTableId);
-    if (anhDem.size > 80) anhDem.delete(anhDem.keys().next().value);
-    anhDem.set(o.tep, buffer);
+    /* vừa tải lên từ chính máy chủ này → dùng luôn bản trong bộ nhớ, khỏi đọc ngược từ Lark */
+    if (anhVuaTai.has(o.ma)) { anhDem.set(o.tep, anhVuaTai.get(o.ma)); anhVuaTai.delete(o.ma); }
+    else {
+      try {
+        const { buffer } = await lark.downloadAttachmentBuffer(o.id, o.tep, cfg.hinhTableId);
+        if (anhDem.size > 80) anhDem.delete(anhDem.keys().next().value);
+        anhDem.set(o.tep, buffer);
+        loiAnh.delete(o.ma);
+      } catch (e) { loiAnh.set(o.ma, e.message); throw e; }
+    }
   }
   return anhDem.get(o.tep);
 }
@@ -87,6 +96,7 @@ async function hinhRiengJs() {
   const khoa = ds.map((o) => o.ma + ':' + o.tep + ':' + o.co).join('|');
   if (jsDem && jsDem.khoa === khoa) return jsDem.js;
   const ra = Object.assign({}, hinhGoc());
+  let hong = false;
   for (const o of ds) {
     if (!laMa(o.ma)) continue;
     if (o.tep) {
@@ -94,11 +104,13 @@ async function hinhRiengJs() {
         const b = await layAnh(o);
         const [w, h] = o.khung.split('x').map(Number);
         ra[o.ma] = { url: 'data:' + kieuAnh(b) + ';base64,' + b.toString('base64'), w: w || 0, h: h || 0, co: o.co };
-      } catch (e) { console.error('[HÌNH BẢN ĐỒ] không tải được', o.ma, e.message); }
+      } catch (e) { hong = true; console.error('[HÌNH BẢN ĐỒ] không tải được', o.ma, e.message); }
     } else if (ra[o.ma]) ra[o.ma] = Object.assign({}, ra[o.ma], { co: o.co });   // chỉ chỉnh cỡ
   }
   const js = '/* Hình bản đồ: dựng sẵn trong repo + bảng "Hình bản đồ" trên Base (Base thắng). */\nwindow.PQ_HINH_RIENG = ' + JSON.stringify(ra) + ';\n';
-  jsDem = { khoa, js };
+  /* có hình đọc hỏng thì KHÔNG giữ đệm — không thì một lần hỏng thoáng qua là bản đồ
+     thiếu hình đó mãi tới khi Base đổi (đã gặp 26/09: tải lên xong mà bản đồ không đổi) */
+  jsDem = hong ? null : { khoa, js };
   return js;
 }
 
@@ -116,12 +128,15 @@ async function anhCua(ma) {
 async function danhSach() {
   const ds = await docBase();
   const goc = hinhGoc();
+  /* thử đọc hình của từng dòng Base (có đệm) để ô báo được lỗi nếu Lark không cho tải */
+  await Promise.all(ds.filter((o) => o.tep).map((o) => layAnh(o).catch(() => null)));
   return danhSachO().map((o) => {
     const b = ds.find((x) => x.ma === o.ma);
     return Object.assign({}, o, {
       nguon: b && b.tep ? 'base' : goc[o.ma] ? 'goc' : 've-san',
       co: b ? b.co : (goc[o.ma] && goc[o.ma].co) || 1,
       nguoi: b ? b.nguoi : '',
+      loi: loiAnh.get(o.ma) || '',
       luc: b && b.tep ? b.tep.slice(-6) : '',
     });
   });
@@ -147,6 +162,7 @@ async function ghiHinh({ ma, anh, w, h, co }, nguoi) {
   const ten = (danhSachO().find((o) => o.ma === ma) || {}).ten || ma;
   const o = await timHoacTao(ma, ten);
   await lark.uploadAttachment(o.id, F.hinh, buf, ma + '.' + (m[1] === 'jpeg' ? 'jpg' : m[1]), cfg.hinhTableId);
+  anhVuaTai.set(ma, buf); loiAnh.delete(ma);
   const sua = { [F.khung]: Math.round(+w || 0) + 'x' + Math.round(+h || 0), [F.nguoi]: nguoi || '' };
   if (co != null && +co > 0) sua[F.co] = Math.min(3, Math.max(.3, +co));
   await lark.updateRecord(o.id, sua, cfg.hinhTableId);
