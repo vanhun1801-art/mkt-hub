@@ -39,15 +39,56 @@ function doc(dong) {
 }
 
 let tinApp = null;
-async function gui(text) {
+/* gửi THẺ; kênh dự phòng của bộ nhắc chỉ nhận chữ nên kèm bản chữ */
+async function gui(card, text) {
   const n = cfg.nhac || {};
   if (nguoi && nguoi.id && n.appId && n.appSecret) {
     if (!tinApp) tinApp = require('../lark-chung/tin-lark').tao({ appId: n.appId, appSecret: n.appSecret, apiHost: cfg.apiHost, tenApp: 'Marketing Hub' });
-    const r = await tinApp.gui({ userId: nguoi.id, text });
+    const r = await tinApp.gui({ userId: nguoi.id, card });
     if (r.ok) return r;
     console.error('[KOL · BÁO BƯỚC] gửi theo open_id hỏng, thử kênh bộ nhắc:', r.loi);
   }
   return require('./nhac').guiTin(text);
+}
+
+/* ---------- thẻ ---------- */
+const MAU_BUOC = { 'Chờ BGĐ duyệt': 'orange', 'BGĐ đã duyệt': 'green', 'KOL đã xác nhận': 'green', 'Hoàn tất': 'green', 'Đang đi tour': 'turquoise', 'Chờ nhận sản phẩm': 'purple', 'Huỷ': 'red' };
+const urlHub = () => (process.env.PUBLIC_URL || process.env.HUB_URL || 'https://mkt-hub-w6hi.onrender.com').replace(/\/+$/, '');
+
+/** Một hợp tác đổi bước → khối thẻ. `ls` = các lần đổi trong đợt gom (lấy đầu → cuối). */
+function khoi(T, h, kol, ls) {
+  const dau = ls[0], cuoi = ls[ls.length - 1];
+  const BUOC = T.BUOC.filter((b) => b !== 'Huỷ');
+  const vt = BUOC.indexOf(cuoi.den), lui = T.viTri(cuoi.den) < T.viTri(dau.tu);
+  /* thanh tiến độ: ● đã qua · ◉ bước hiện tại · ○ chưa tới */
+  const thanh = cuoi.den === 'Huỷ' ? '✕ Đã huỷ' : BUOC.map((b, i) => (i < vt ? '●' : i === vt ? '◉' : '○')).join(' ') + '   ' + (vt + 1) + '/' + BUOC.length;
+  const khach = [h.nguoiLon ? h.nguoiLon + ' NL' : '', h.treEm ? h.treEm + ' TE' : '', h.emBe ? h.emBe + ' em bé' : ''].filter(Boolean).join(' + ');
+  const chuyen = h.batDau ? T.ddmm(h.batDau) + (h.ketThuc && h.ketThuc !== h.batDau ? ' – ' + T.ddmm(h.ketThuc) : '') : 'chưa có ngày';
+  return [
+    { tag: 'markdown', content: '**' + (kol ? kol.ten : h.kolTen || '?') + '**  ·  ' + (h.ma || '') + (lui ? '  ·  <font color="red">lùi bước</font>' : '') },
+    { tag: 'markdown', content: '<font color="grey">' + dau.tu + '</font>  →  **' + cuoi.den + '**\n' + thanh },
+    { tag: 'div', fields: [
+      { is_short: true, text: { tag: 'lark_md', content: '**Chuyến đi**\n' + chuyen } },
+      { is_short: true, text: { tag: 'lark_md', content: '**Khách**\n' + (khach || '—') } },
+    ] },
+    ...(cuoi.ly ? [{ tag: 'note', elements: [{ tag: 'plain_text', content: 'Vì sao: ' + cuoi.ly }] }] : []),
+    { tag: 'action', actions: [{ tag: 'button', type: 'primary', text: { tag: 'plain_text', content: 'Mở hợp tác' }, url: urlHub() + '/#/m/kol?rec=' + encodeURIComponent(h.id || '') }] },
+  ];
+}
+
+function theDoiBuoc(T, muc) {
+  const mot = muc.length === 1;
+  const den = muc[0].ls[muc[0].ls.length - 1].den;
+  const el = [];
+  muc.forEach((m, i) => { if (i) el.push({ tag: 'hr' }); el.push(...khoi(T, m.h, m.kol, m.ls)); });
+  return {
+    config: { wide_screen_mode: true },
+    header: {
+      template: mot ? (MAU_BUOC[den] || 'blue') : 'blue',
+      title: { tag: 'plain_text', content: mot ? 'KOL · ' + den : 'KOL · ' + muc.length + ' hợp tác vừa đổi bước' },
+    },
+    elements: el,
+  };
 }
 
 const cho = new Map();                                      // id hợp tác → [{tu, den, ly}]
@@ -81,11 +122,11 @@ async function xa() {
       return '• ' + (kol ? kol.ten : h.kolTen || '?') + ' (' + (h.ma || '') + ')' + ngay + '\n   ' + dau.tu + ' → ' + cuoi.den +
         (cuoi.ly ? '  (' + cuoi.ly + ')' : '');
     });
-    const url = (process.env.PUBLIC_URL || process.env.HUB_URL || 'https://mkt-hub-w6hi.onrender.com').replace(/\/+$/, '') + '/#/m/kol';
-    const text = 'KOL · ' + (ds.length === 1 ? 'hợp tác vừa đổi bước' : ds.length + ' hợp tác vừa đổi bước') + '\n\n' + dong.join('\n') + '\n\nMở app KOL: ' + url;
-    const r = await gui(text);
+    const text = 'KOL · ' + (ds.length === 1 ? 'hợp tác vừa đổi bước' : ds.length + ' hợp tác vừa đổi bước') + '\n\n' + dong.join('\n') + '\n\nMở app KOL: ' + urlHub() + '/#/m/kol';
+    const muc = ds.map(([id, ls]) => { const h = (dl.hopTac || []).find((x) => x.id === id) || { id, ma: id }; return { h, kol: kolTheoId.get(h.kol), ls }; });
+    const r = await gui(theDoiBuoc(T, muc), text);
     console.log('[KOL · BÁO BƯỚC]', r && r.ok ? 'đã báo ' + ds.length + ' hợp tác' : 'LỖI ' + (r && r.loi));
   } catch (e) { console.error('[KOL · BÁO BƯỚC]', e.message); }
 }
 
-module.exports = { nho, sauKhiGhi, doc };
+module.exports = { nho, sauKhiGhi, doc, theDoiBuoc };
