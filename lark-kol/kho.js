@@ -199,11 +199,14 @@ async function taoNhieu(bang, ds) {
   lamMoi();
   return r.record_id_list || [];
 }
+/* hợp tác đổi bước → báo anh Hùng (thong-bao-buoc.js). Nạp muộn để tránh vòng require. */
+const baoBuoc = (bang, id, obj) => { if (bang === 'hopTac' && obj && obj.buoc) { try { require('./thong-bao-buoc').sauKhiGhi(id, obj); } catch (e) { console.error('[KOL · BÁO BƯỚC]', e.message); } } };
 async function sua(bang, id, obj) {
   const o = sangO(bang, obj);
   if (!Object.keys(o).length) return;
   await lark.updateRecord(id, o, cfg.bang[bang]);
   lamMoi();
+  baoBuoc(bang, id, obj);
 }
 async function suaNhieu(bang, map) {
   const m = {};
@@ -211,6 +214,7 @@ async function suaNhieu(bang, map) {
   if (!Object.keys(m).length) return;
   await lark.updateMany(m, cfg.bang[bang]);
   lamMoi();
+  for (const [id, obj] of Object.entries(map)) baoBuoc(bang, id, obj);
 }
 async function xoa(bang, ids) {
   if (!ids.length) return;

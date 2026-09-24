@@ -63,7 +63,9 @@ async function aiGoi(req) {
   const h = req.headers || {};
   const de = (v) => { try { return decodeURIComponent(v || ''); } catch (_) { return v || ''; } };
   if (['x-hub-user-id', 'x-hub-user-email', 'x-hub-user-name'].some((k) => k in h)) {
-    return { id: h['x-hub-user-id'] || '', ten: de(h['x-hub-user-name']) || '', quanLy: h['x-hub-user-manager'] === '1', quaHub: true };
+    const t = { id: h['x-hub-user-id'] || '', ten: de(h['x-hub-user-name']) || '', quanLy: h['x-hub-user-manager'] === '1', quaHub: true };
+    require('./thong-bao-buoc').nho(t);                    // người nhận tin "hợp tác đổi bước"
+    return t;
   }
   if (Date.now() - demToi.luc < 60000 && demToi.nguoi) return demToi.nguoi;
   let u = null;
