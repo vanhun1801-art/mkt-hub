@@ -78,6 +78,29 @@ ul.ds.co svg { color: var(--xanh-2); }
 ul.ds.khong svg { color: var(--do); }
 ul.ds.sao svg { color: var(--cam); }
 .lich { white-space: pre-line; font-size: 14.5px; line-height: 1.65; color: var(--chu); }
+/* lịch trình dạng dòng thời gian */
+.tl { list-style: none; margin: 0; padding: 0 0 0 18px; position: relative; }
+.tl::before { content: ''; position: absolute; left: 5px; top: 8px; bottom: 8px; width: 2px; background: linear-gradient(var(--xanh-2), #bfe3db); border-radius: 2px; }
+.tl-buoc { position: relative; padding: 0 0 16px 10px; }
+.tl-buoc::before { content: ''; position: absolute; left: -18px; top: 4px; width: 12px; height: 12px; border-radius: 50%; background: #fff; border: 3px solid var(--xanh-2); box-sizing: border-box; }
+.tl-ngay { position: relative; margin: 6px 0 12px -18px; padding: 8px 12px; border-radius: 12px; background: var(--xanh); color: #fff; display: flex; flex-direction: column; gap: 5px; }
+.tl-ngay b { font-size: 13.5px; font-weight: 800; line-height: 1.35; letter-spacing: .01em; }
+.tl-ngay .tl-bua { background: rgba(255, 255, 255, .18); color: #fff; margin: 0; align-self: flex-start; }
+.tl-bua { display: inline-block; margin-top: 5px; font-size: 12px; font-weight: 700; color: #075e52; background: var(--xanh-nhat); padding: 2px 9px; border-radius: 999px; }
+.tl-trong .tl-hd { margin-left: 0; }
+.tl-trong::before { top: 7px; }
+.tl-gio { display: inline-block; font-size: 12.5px; font-weight: 800; color: #075e52; background: var(--xanh-nhat); padding: 2px 9px; border-radius: 6px; font-variant-numeric: tabular-nums; }
+.tl-tieu { font-size: 15px; font-weight: 700; line-height: 1.45; margin-top: 5px; }
+.tl-doan { margin: 4px 0 0; font-size: 14px; line-height: 1.55; color: var(--chu-2); }
+.tl-diem { margin-top: 9px; background: var(--nen-2); border: 1px solid var(--vien); border-radius: 12px; padding: 9px 11px; }
+.tl-diem-ten { display: flex; align-items: center; gap: 6px; font-size: 14.5px; font-weight: 700; color: var(--chu); }
+.tl-diem-ten svg { width: 16px; height: 16px; color: var(--cam); flex: none; }
+.tl-diem-mo { margin: 3px 0 0 22px; font-size: 14px; line-height: 1.5; color: var(--chu-2); }
+.tl-hd { margin: 5px 0 0 22px; padding: 0; list-style: none; display: grid; gap: 4px; }
+.tl-hd li { position: relative; padding-left: 12px; font-size: 14px; line-height: 1.5; color: var(--chu); }
+.tl-hd li::before { content: ''; position: absolute; left: 0; top: 9px; width: 5px; height: 5px; border-radius: 50%; background: var(--xanh-2); }
+.tu-tuc { display: inline-block; font-size: 11.5px; font-weight: 700; color: #b4541a; background: var(--cam-nhat); padding: 1px 7px; border-radius: 999px; vertical-align: 1px; white-space: nowrap; }
+.tl-ghi { margin: 2px 0 0; font-size: 13px; font-style: italic; color: var(--chu-3); }
 .media { display: grid; gap: 8px; }
 .media a { display: flex; align-items: center; gap: 10px; padding: 11px 12px; border: 1px solid var(--vien); border-radius: 12px; text-decoration: none; color: var(--chu); font-size: 14px; font-weight: 600; background: var(--nen); }
 .media a:active { background: var(--nen-2); }
@@ -120,9 +143,77 @@ ul.ds.sao svg { color: var(--cam); }
     video: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="M17 10l4-2v8l-4-2"/></svg>',
     tai: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg>',
     thu: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
+    ghim: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>',
     mui: '<svg class="mui" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="18" height="18"><path d="M9 6l6 6-6 6"/></svg>',
   };
   var iconMedia = function (m) { var s = (m.loai + ' ' + m.ten).toLowerCase(); return /video/.test(s) ? I.video : /thư mục/.test(s) ? I.thu : /ảnh/.test(s) ? I.anh : I.tai; };
+  /* Lịch trình trên Base là một khối chữ tự do. Tách thành dòng thời gian cho khách dễ đọc
+     (không sửa dữ liệu gốc):
+       "7:00 – 8:30: Đón tại khách sạn"   → một BƯỚC, giờ trong ô nổi bật
+       "- Hòn Mây Rút Ngoài[: mô tả]"      → ĐIỂM ĐẾN (thẻ), phần sau ":" là mô tả
+       "+ Tắm biển…"                       → HOẠT ĐỘNG dưới điểm đến; "(chi phí tự túc)" → nhãn Tự túc
+       "Ngày 1 …"                          → tiêu đề ngày (tour nhiều ngày)
+       "(…)" cả dòng                       → ghi chú nhỏ cuối
+     Dòng chữ thường khác → đoạn mô tả của bước đang mở. Không khớp mẫu nào thì vẫn hiện
+     nguyên văn — không bao giờ làm mất chữ của khách. */
+  function veLichTrinh(txt) {
+    var GIO = /^(\d{1,2}\s*[:hH]\s*\d{0,2})\s*(?:[–—-]\s*(\d{1,2}\s*[:hH]\s*\d{0,2}))?\s*[:：]\s*(.*)$/;
+    var NGAY = /^(ngày|day)\s*\d+\b/i;
+    var buoc = [], ghiChu = [], hienTai = null, diem = null;
+    var tuTuc = function (s) {
+      var co = /\(?\s*chi phí tự túc\s*\)?/i.test(s);
+      return { chu: s.replace(/\(\s*chi phí tự túc\s*\)/ig, '').replace(/\s{2,}/g, ' ').trim(), tuTuc: co };
+    };
+    var moBuoc = function (gio, tieuDe) { hienTai = { gio: gio, tieuDe: tieuDe, doan: [], diem: [] }; diem = null; buoc.push(hienTai); };
+    String(txt).split('\n').forEach(function (d0) {
+      var d = d0.trim();
+      if (!d) return;
+      var m;
+      if (NGAY.test(d) && d.length < 90) { buoc.push({ ngay: d.replace(/\s*[:：]\s*/, ' · ') }); hienTai = null; diem = null; return; }
+      if ((m = d.match(GIO))) { moBuoc(m[1].replace(/\s/g, '') + (m[2] ? ' – ' + m[2].replace(/\s/g, '') : ''), m[3]); return; }
+      /* "(Ăn sáng, trưa, tối)" ngay dưới tiêu đề ngày → nhãn bữa ăn của NGÀY đó, không phải ghi chú cuối */
+      if (/^\(\s*(ăn|bữa)/i.test(d) && buoc.length) {
+        var cuoi = buoc[buoc.length - 1];
+        cuoi.buaAn = d.replace(/^\(\s*|\s*\)\.?$/g, '').replace(/^ăn\s+/i, '');
+        return;
+      }
+      if (/^\(.*\)\.?$/.test(d)) { ghiChu.push(d.replace(/^\(|\)\.?$/g, '')); return; }
+      if (!hienTai) moBuoc('', '');
+      if (/^[-–—•]\s*/.test(d)) {
+        var s = d.replace(/^[-–—•]\s*/, ''), i = s.indexOf(':');
+        diem = i > 0 && i < 40 ? { ten: s.slice(0, i).trim(), moTa: s.slice(i + 1).trim(), hd: [] } : { ten: s, moTa: '', hd: [] };
+        hienTai.diem.push(diem);
+        return;
+      }
+      if (/^\+\s*/.test(d)) {
+        var hd = tuTuc(d.replace(/^\+\s*/, ''));
+        if (diem) diem.hd.push(hd); else hienTai.doan.push(hd.chu);
+        return;
+      }
+      if (diem && !diem.hd.length && !diem.moTa) diem.moTa = d;
+      else if (diem && diem.hd.length) diem.hd[diem.hd.length - 1].chu += ' ' + d;  // dòng bị ngắt giữa chừng
+      else hienTai.doan.push(d);
+    });
+    var html = '<ol class="tl">' + buoc.map(function (b) {
+      var bua = b.buaAn ? '<span class="tl-bua">Bữa ăn: ' + esc(b.buaAn) + '</span>' : '';
+      if (b.ngay) return '<li class="tl-ngay"><b>' + esc(b.ngay) + '</b>' + bua + '</li>';
+      /* bước không có giờ (tour nhiều ngày ghi việc theo dòng): các dòng thành gạch đầu dòng */
+      var khongGio = !b.gio && !b.tieuDe;
+      return '<li class="tl-buoc' + (khongGio ? ' tl-trong' : '') + '">' +
+        (b.gio ? '<span class="tl-gio">' + esc(b.gio) + '</span>' : '') +
+        (b.tieuDe ? '<div class="tl-tieu">' + esc(b.tieuDe) + '</div>' : '') + bua +
+        (khongGio && b.doan.length ? '<ul class="tl-hd">' + b.doan.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>'
+          : b.doan.map(function (x) { return '<p class="tl-doan">' + esc(x) + '</p>'; }).join('')) +
+        b.diem.map(function (o) {
+          return '<div class="tl-diem"><div class="tl-diem-ten">' + I.ghim + esc(o.ten) + '</div>' +
+            (o.moTa ? '<div class="tl-diem-mo">' + esc(o.moTa) + '</div>' : '') +
+            (o.hd.length ? '<ul class="tl-hd">' + o.hd.map(function (x) {
+              return '<li>' + esc(x.chu) + (x.tuTuc ? ' <span class="tu-tuc">Tự túc</span>' : '') + '</li>';
+            }).join('') + '</ul>' : '') + '</div>';
+        }).join('') + '</li>';
+    }).join('') + '</ol>';
+    return html + ghiChu.map(function (g) { return '<p class="tl-ghi">' + esc(g) + '</p>'; }).join('');
+  }
   var dsHtml = function (arr, kieu, icon) { return '<ul class="ds ' + kieu + '">' + arr.map(function (x) { return '<li>' + icon + '<span>' + esc(x) + '</span></li>'; }).join('') + '</ul>'; };
 
   /* bản đồ chế độ khách, tự phóng vào hành trình tour */
@@ -156,7 +247,7 @@ ul.ds.sao svg { color: var(--cam); }
     if (t.khoiHanh) chip.push('<span class="chip">' + I.lich + esc(t.khoiHanh) + '</span>');
     if (chip.length) h += '<div class="chip-hang">' + chip.join('') + '</div>';
     if (t.noiBat.length) h += '<h2>Điểm nổi bật</h2>' + dsHtml(t.noiBat, 'sao', I.sao);
-    if (t.lichTrinh) h += '<h2>Lịch trình</h2><div class="lich">' + esc(t.lichTrinh) + '</div>';
+    if (t.lichTrinh) h += '<h2>Lịch trình</h2>' + veLichTrinh(t.lichTrinh);
     if (t.baoGom.length) h += '<h2>Dịch vụ bao gồm</h2>' + dsHtml(t.baoGom, 'co', I.co);
     if (t.khongBaoGom.length) h += '<h2>Không bao gồm</h2>' + dsHtml(t.khongBaoGom, 'khong', I.khong);
     if (t.treEm.length) h += '<h2>Chính sách trẻ em</h2>' + dsHtml(t.treEm, 'co', I.co);
