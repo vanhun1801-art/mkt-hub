@@ -183,13 +183,21 @@ function thanhBuoc(b) {
 function khach(h) {
   return [h.nguoiLon ? h.nguoiLon + ' NL' : '', h.treEm ? h.treEm + ' TE' : '', h.emBe ? h.emBe + ' EB' : ''].filter(Boolean).join(' · ');
 }
+/* Hàng hợp tác trên một lưới CỘT CỐ ĐỊNH chung cho cả danh sách (anh Hùng 24/09: mỗi hàng tự co
+ * cột theo nội dung nên ngày / tiền lệch nhau, khó dò). Cột trạng thái rộng cố định, nhãn xuống dòng. */
 function dongHt(h) {
-  return '<button class="dong-ht" data-ht="' + h.id + '"><div><b>' + e(h.kolTen || '(chưa gắn KOL)') + '</b> <span class="phu">' + e(h.ma) + '</span>' +
-    thanhBuoc(h.buoc) + '</div><div><div>' + (h.batDau ? ddmm(h.batDau) + ' – ' + ddmm(h.ketThuc) : 'Chưa chốt ngày') + '</div><div class="phu">' +
-    e(khach(h)) + '</div></div><div><div class="tien">' + tien(h.kq.tienCongTy) + 'đ</div><div class="phu">quy đổi ' + tien(h.kq.giaTriQuyDoi) +
-    'đ</div></div><div class="canh">' + nhanTT(h.buoc, mauBuoc(h.buoc)) + (h.treHan ? nhanTT(h.treHan + ' bàn giao trễ', 'do') : '') +
+  const kq = h.kq || {};
+  return '<button class="dong-ht" data-ht="' + h.id + '">' +
+    '<div class="c-kol"><b>' + e(h.kolTen || '(chưa gắn KOL)') + '</b> <span class="phu">' + e(h.ma) + '</span>' + thanhBuoc(h.buoc) + '</div>' +
+    '<div><div>' + (h.batDau ? ddmm(h.batDau) + ' – ' + ddmm(h.ketThuc || h.batDau) : '<span class="phu">Chưa chốt ngày</span>') + '</div><div class="phu">' + e(khach(h)) + '</div></div>' +
+    '<div class="so"><div class="tien">' + tien(kq.tienCongTy) + 'đ</div><div class="phu">quy đổi ' + tien(kq.giaTriQuyDoi) + 'đ</div></div>' +
+    '<div class="so"><div class="tien">' + (kq.camKet ? (kq.daDang || 0) + '/' + kq.camKet : '<span class="phu">—</span>') + '</div><div class="phu">' +
+      (kq.xem ? tien(kq.xem) + ' xem' : kq.camKet ? 'chưa có số' : 'chưa có bàn giao') + '</div></div>' +
+    '<div class="canh">' + nhanTT(h.buoc, mauBuoc(h.buoc)) + (h.treHan ? nhanTT(h.treHan + ' bàn giao trễ', 'do') : '') +
     (h.canKiem ? nhanTT(h.canKiem + ' dòng cần kiểm', 'cam') : '') + '</div></button>';
 }
+const DAU_HT = '<div class="dong-ht dau" aria-hidden="true"><div>KOL · tiến độ</div><div>Thời gian · khách</div><div class="so">Chi phí công ty</div>' +
+  '<div class="so">Bài đã đăng</div><div class="canh">Tình trạng</div></div>';
 function veTongQuan(man) {
   const dl = S.dl;
   const now = Date.now();
@@ -209,8 +217,8 @@ function veTongQuan(man) {
     '<button class="o-so bam ' + mau + (loc === k ? ' on' : '') + '" data-loc="' + k + '"><div class="nhan">' + nhan + '</div><div class="so">' + so + '</div></button>').join('') +
     '</div><div class="hang-nut" style="margin-bottom:12px"><button class="btn chinh" id="taoHt">Tạo hợp tác</button>' +
     (loc ? '<button class="btn mo" data-loc="">Bỏ lọc: ' + e(LOC[loc][0]) + '</button>' : '') + '</div>' +
-    '<div class="ds-ht">' + (dangLam.map(dongHt).join('') || '<div class="bao">Không có hợp tác nào đang chạy.</div>') + '</div>' +
-    (xong.length ? '<h3 class="muc">Đã xong · ' + xong.length + '</h3><div class="ds-ht">' + xong.map(dongHt).join('') + '</div>' : '');
+    '<div class="ds-ht">' + (dangLam.length ? DAU_HT + dangLam.map(dongHt).join('') : '<div class="bao">Không có hợp tác nào đang chạy.</div>') + '</div>' +
+    (xong.length ? '<h3 class="muc">Đã xong · ' + xong.length + '</h3><div class="ds-ht">' + DAU_HT + xong.map(dongHt).join('') + '</div>' : '');
   man.onclick = (ev) => {
     const b = ev.target.closest('[data-loc]');
     if (b) { const k = b.dataset.loc; if (k === 'can-do') return di('#/ban-giao?loc=can-do'); S.loc = S.loc === k ? '' : k; return veTongQuan(man); }
@@ -1282,21 +1290,59 @@ function htmlNhapNhanh(ds) {
   }).join('') + '</div>';
 }
 
+/* Bảng bàn giao (anh Hùng 24/09): mỗi bài một dòng, có kênh, link, số xem và từng loại tương tác.
+ * Số lấy mốc MỚI NHẤT (30 ngày nếu đã nhập, không thì 7 ngày); cột "Mốc" nói số đang hiện là mốc nào. */
+const tenKenhBg = (b) => {
+  const k = (b.kenhDang || []).map((id) => S.dl.kenh.find((x) => x.id === id)).filter(Boolean);
+  return k.length ? k.map((x) => x.nenTang || x.ten).filter((x, i, a) => a.indexOf(x) === i).join(', ') : (b.nenTang || []).join(', ');
+};
+function soBai(b) {
+  const moc = b.xem30 != null ? '30' : b.xem7 != null ? '7' : '';
+  const g = (k) => (moc ? b[k + moc] : null);
+  const so = { moc, xem: g('xem'), thich: g('thich'), binhLuan: g('binhLuan'), chiaSe: g('chiaSe'), luu: g('luu') };
+  so.tuongTac = moc ? ['thich', 'binhLuan', 'chiaSe', 'luu'].reduce((t, k) => t + (Number(so[k]) || 0), 0) : null;
+  so.tiLe = so.xem ? so.tuongTac / so.xem * 100 : null;
+  return so;
+}
+function htmlBangBg(ds) {
+  const mau = { tre: 'do', 'do-7': 'cam', 'do-30': 'cam', dang: 'xanh' };
+  const o = (v) => '<td class="so">' + (v == null || v === '' ? '<span class="phu">–</span>' : tien(v)) + '</td>';
+  const tong = { xem: 0, tuongTac: 0, bai: 0 };
+  const dong = ds.map((b) => {
+    const ht = htCua(b.hopTac) || {};
+    const s = soBai(b);
+    if (s.moc) { tong.xem += Number(s.xem) || 0; tong.tuongTac += s.tuongTac || 0; tong.bai++; }
+    return '<tr><td><div class="bg-kol">' + e(ht.kolTen || '') + '</div><div class="nho">' + e(ht.ma || '') + '</div></td>' +
+      '<td class="w-ten"><div>' + e(b.ten) + '</div><div class="nho">' + e([b.chuDe, b.loai + (b.soLuong > 1 ? ' ×' + b.soLuong : '')].filter(Boolean).join(' · ')) + '</div></td>' +
+      '<td>' + e(tenKenhBg(b)) + '</td>' +
+      '<td>' + (b.ngayDang ? 'đăng ' + ddmm(b.ngayDang) : 'hạn ' + ddmm(b.hanDang)) + '</td>' +
+      '<td>' + nhanTT(b.tt.nhan, mau[b.tt.ma]) + '</td>' +
+      '<td class="giua">' + (b.link ? '<a class="btn nho" href="' + e(b.link) + '" target="_blank" rel="noopener" title="' + e(b.link) + '">Mở bài</a>' : '<span class="phu">chưa có</span>') + '</td>' +
+      '<td class="giua">' + (s.moc ? '<span class="nhan-tt">' + s.moc + 'N</span>' : '') + '</td>' +
+      o(s.xem) + o(s.thich) + o(s.binhLuan) + o(s.chiaSe) + o(s.luu) +
+      '<td class="so"><b>' + (s.tuongTac == null ? '<span class="phu">–</span>' : tien(s.tuongTac)) + '</b></td>' +
+      '<td class="so">' + (s.tiLe == null ? '<span class="phu">–</span>' : s.tiLe.toFixed(1).replace('.', ',') + '%') + '</td>' +
+      '<td><button class="btn nho" data-ht="' + b.hopTac + '">Sửa</button></td></tr>';
+  }).join('');
+  return '<div class="the"><div class="the-than khit cuon"><table class="bang bang-bg"><thead><tr><th>KOL</th><th class="w-ten">Sản phẩm</th><th>Kênh</th><th>Ngày</th><th>Tình trạng</th>' +
+    '<th class="giua">Link</th><th class="giua">Mốc</th><th class="so">Xem</th><th class="so">Thích</th><th class="so">Bình luận</th><th class="so">Chia sẻ</th><th class="so">Lưu</th>' +
+    '<th class="so">Tương tác</th><th class="so" title="(thích + bình luận + chia sẻ + lưu) / xem">Tỉ lệ</th><th></th></tr></thead><tbody>' +
+    (dong || '<tr><td colspan="15" class="nho" style="padding:16px">Không có mục nào.</td></tr>') + '</tbody>' +
+    (tong.bai ? '<tfoot><tr><td colspan="7"><b>Tổng ' + tong.bai + ' bài đã có số</b></td><td class="so"><b>' + tien(tong.xem) + '</b></td><td colspan="4"></td>' +
+      '<td class="so"><b>' + tien(tong.tuongTac) + '</b></td><td class="so"><b>' + (tong.xem ? (tong.tuongTac / tong.xem * 100).toFixed(1).replace('.', ',') + '%' : '') + '</b></td><td></td></tr></tfoot>' : '') +
+    '</table></div></div>';
+}
+
 function veBanGiaoTat(man) {
   const loc = duong().q.get('loc') || '';
   const LOC = [['', 'Tất cả'], ['tre', 'Quá hạn đăng'], ['cho', 'Chưa đăng'], ['can-do', 'Đến hạn nhập số'], ['dang', 'Đã đăng']];
   const khop = (b) => !loc || (loc === 'can-do' ? ['do-7', 'do-30'].includes(b.tt.ma) : loc === 'dang' ? b.trangThai === 'Đã đăng' : b.tt.ma === loc);
   const ds = S.dl.banGiao.filter((b) => b.tt.ma !== 'huy' && khop(b)).sort((a, b) => (a.hanDang || 9e15) - (b.hanDang || 9e15));
   const soCanDo = S.dl.banGiao.filter((b) => ['do-7', 'do-30'].includes(b.tt.ma)).length;
-  const mau = { tre: 'do', 'do-7': 'cam', 'do-30': 'cam', dang: 'xanh' };
   man.innerHTML = '<div class="hang-nut" style="margin-bottom:12px">' + LOC.map(([k, t]) => '<button class="chip-chon' + (k === loc ? ' on' : '') + '" data-loc="' + k + '">' + t +
       (k === 'can-do' && soCanDo ? ' · ' + soCanDo : '') + '</button>').join('') + '</div>' +
     (loc === 'can-do' ? htmlNhapNhanh(ds) :
-    '<div class="the"><div class="the-than khit cuon"><table class="bang"><thead><tr><th>KOL</th><th class="w-ten">Sản phẩm</th><th>Loại</th><th>Hạn đăng</th><th>Tình trạng</th><th class="so">Xem</th><th></th></tr></thead><tbody>' +
-    (ds.map((b) => { const ht = htCua(b.hopTac) || {}; return '<tr><td>' + e(ht.kolTen || '') + '<div class="nho">' + e(ht.ma || '') + '</div></td><td>' + (b.link ? '<a href="' + e(b.link) + '" target="_blank" rel="noopener">' + e(b.ten) + '</a>' : e(b.ten)) +
-      '<div class="nho">' + e(b.chuDe) + '</div></td><td>' + e(b.loai) + (b.soLuong > 1 ? ' ×' + b.soLuong : '') + '</td><td>' + ddmm(b.hanDang) + '</td><td>' + nhanTT(b.tt.nhan, mau[b.tt.ma]) + '</td><td class="so">' +
-      tien(b.xem30 ?? b.xem7) + '</td><td><button class="btn nho" data-ht="' + b.hopTac + '">Mở</button></td></tr>'; }).join('') ||
-      '<tr><td colspan="7" class="nho" style="padding:16px">Không có mục nào.</td></tr>') + '</tbody></table></div></div>');
+    htmlBangBg(ds));
   const luu = async (the) => {
     const b = {};
     $$('[data-o]', the).forEach((x) => { if (x.value.trim() !== '') b[x.dataset.o] = x.dataset.o === 'link' ? x.value.trim() : Number(x.value); });

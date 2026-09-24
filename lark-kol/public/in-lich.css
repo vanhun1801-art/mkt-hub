@@ -131,7 +131,9 @@ body { font-family: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', sans
 .il-chang:empty { display: none; }
 .il-chang::before { content: ''; width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 6px solid var(--il-phu); }
 /* tờ thông tin chuyến đi */
-.il-tin { grid-template-columns: 1fr 1.2fr; }
+.il-tin { grid-template-columns: 1fr 1.3fr; }
+.il-tin .il-tom-ngay { padding: 2mm 0; border-top: 1px dashed var(--il-vien); font-size: 12px; }
+.il-tin .il-tom-ngay:first-of-type { border-top: 0; }
 .il-tin > div { min-height: 0; overflow: hidden; }
 .il-h3 { margin: 0 0 3mm; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--il-chinh); }
 .il-h3:not(:first-child) { margin-top: 6mm; }
@@ -139,8 +141,3 @@ body { font-family: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', sans
 .il-tin-o small { display: block; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; color: var(--il-phu); margin-bottom: .6mm; }
 .il-tom-ngay { display: flex; gap: 6px; align-items: baseline; font-size: 11px; line-height: 1.55; padding: 1mm 0; }
 .il-tom-ngay b { white-space: nowrap; }
-.il-bang { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 4mm; }
-.il-bang th { text-align: left; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; color: var(--il-phu); font-weight: 600; padding: 0 2mm 2mm 0; border-bottom: 1.5px solid var(--il-chinh-nhat); }
-.il-bang td { padding: 2.2mm 2mm 2.2mm 0; border-bottom: 1px solid var(--il-vien); vertical-align: top; }
-.il-bang .il-mui { font-size: 10px; }
-.il-yeu-cau { white-space: pre-wrap; font-size: 11px; }

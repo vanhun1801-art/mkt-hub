@@ -4,7 +4,8 @@
      · tờ bìa      — cả hành trình trên bản đồ + tổng quan từng ngày
      · mỗi ngày    — bản đồ ngày đó + QR mở lộ trình trên Google Maps; bên phải các mốc theo
                      buổi, GIỮA hai mốc ghi chặng đi (xe bao nhiêu km / mấy phút, cáp treo, cano)
-     · tờ cuối     — thông tin chuyến đi: đoàn, nơi ở, nội dung hợp tác cần bàn giao, liên hệ
+     · tờ cuối     — thông tin chuyến đi: đoàn, nơi ở, liên hệ, lịch tóm tắt.
+                     KHÔNG có bàn giao / yêu cầu nội dung (anh Hùng 24/09: tệp chỉ để KOL đi chơi theo)
    Chọn được nền bản đồ (Bản đồ / Vệ tinh / Địa hình). In bằng hộp in → "Lưu dưới dạng PDF".
 
    Chỉ đưa thông tin KOL cần. KHÔNG có giá, FOC, nhà cung cấp (trừ tên khách sạn), ghi chú nội bộ.
@@ -98,7 +99,6 @@
     if (!ht) throw new Error('Không tìm thấy hợp tác này');
     const kol = dl.kol.find((k) => k.id === ht.kol) || {};
     const hm = dl.hangMuc.filter((h) => h.hopTac === id && h.tinhTrang !== 'Huỷ');
-    const bg = dl.banGiao.filter((b) => b.hopTac === id && b.trangThai !== 'Huỷ');
 
     /* Link Google Maps rút gọn trong Điểm hẹn → server giải ra toạ độ (như ở app). */
     const giai = {};
@@ -129,7 +129,7 @@
     document.title = 'Lịch trình Phú Quốc · ' + (kol.ten || ht.kolTen || '') + (soNgay ? ' · ' + ddmm(ngay[0]).replace('/', '-') : '');
 
     const logoHtml = (nho) => (logo ? '<img class="il-logo' + (nho ? ' nho' : '') + '" src="' + e(logo) + '" alt="Rooty Trip">' : '<span class="il-chu-logo">Rooty <i>trip</i></span>');
-    const coTin = S.coTin && (bg.length || ht.yeuCau || luuTru.length || lienHe || doan);
+    const coTin = S.coTin && soNgay > 0;
     const tongTo = 1 + theoNgay.reduce((n, ds) => n + Math.max(1, Math.ceil(ds.length / MOI_TO)), 0) + (coTin ? 1 : 0);
     let soTo = 0;
     const chan = () => '<div class="il-chan"><span><b>Rooty Trip Phú Quốc</b> · Lịch trình dành riêng cho ' + e(goi) + (lienHe ? ' · Liên hệ: ' + e(lienHe) : '') +
@@ -207,26 +207,17 @@
 
     /* ---- tờ cuối: thông tin chuyến đi ---- */
     if (coTin) {
-      const tenKenh = (id) => { const k = dl.kenh.find((x) => x.id === id); return k ? [k.nenTang, k.ten].filter(Boolean).join(' · ') : ''; };
-      const kenh = (b) => [...new Set((b.kenhDang || []).map(tenKenh).filter(Boolean))].join(', ') || (b.nenTang || []).join(', ');
-      const dongBg = bg.sort((a, b) => (a.hanDang || 9e15) - (b.hanDang || 9e15)).map((b) =>
-        '<tr><td><b>' + e(b.ten) + '</b>' + (b.chuDe ? '<div class="il-mui">' + e(b.chuDe) + '</div>' : '') + '</td><td>' + e(b.loai || '') + (b.soLuong > 1 ? ' × ' + b.soLuong : '') +
-        '</td><td>' + e(kenh(b)) + '</td><td>' + (b.hanDang ? ddmm(b.hanDang) + '/' + vn(b.hanDang).y : '') + '</td></tr>').join('');
       const o = (nhan, gt) => (gt ? '<div class="il-tin-o"><small>' + nhan + '</small><div>' + gt + '</div></div>' : '');
       trang.push('<section class="il-trang">' +
         '<div class="il-dau">' + logoHtml(true) + '<div class="il-ngay-ten" style="margin-left:6mm">Thông tin chuyến đi<small>' + e(goi) + ' · ' + e(tuDen) + '</small></div><div class="il-dau-phai"></div></div>' +
         '<div class="il-than il-tin">' +
-          '<div>' + '<h3 class="il-h3">Chuyến đi</h3>' +
+          '<div><h3 class="il-h3">Chuyến đi</h3>' +
             o('Thời gian', e([khoang, tuDen].filter(Boolean).join(' · '))) + o('Đoàn', e(doan)) + o('Mã đặt chỗ', e(ht.maTourwell || '')) +
             o('Nơi lưu trú', luuTru.map((l) => '<div>' + e(l.ten) + (l.ngay ? ' <span class="il-mui">· nhận phòng ' + ddmm(l.ngay) + (l.dem ? ', ' + l.dem + ' đêm' : '') + '</span>' : '') + '</div>').join('')) +
             o('Liên hệ Rooty Trip trong chuyến', e(lienHe)) +
-            '<h3 class="il-h3">Lịch trình tóm tắt</h3>' + theoNgay.map((ds, i) => '<div class="il-tom-ngay"><span class="il-cham" style="background:' + mau[i % 5] + '"></span><b>Ngày ' + (i + 1) + ' · ' + ddmm(ngay[i]) + '</b> ' +
-              e(ds.map((m) => m.ten).filter((x, j, a) => a.indexOf(x) === j).join(' · ') || 'Tự do') + '</div>').join('') +
           '</div>' +
-          '<div>' + (dongBg || ht.yeuCau || ht.kenhDang ? '<h3 class="il-h3">Nội dung hợp tác</h3>' +
-            (dongBg ? '<table class="il-bang"><thead><tr><th>Sản phẩm</th><th>Loại</th><th>Kênh đăng</th><th>Hạn đăng</th></tr></thead><tbody>' + dongBg + '</tbody></table>' : '') +
-            (ht.kenhDang ? o('Kênh đăng tải', e(ht.kenhDang)) : '') +
-            (ht.yeuCau ? '<div class="il-tin-o"><small>Yêu cầu nội dung</small><div class="il-yeu-cau">' + e(ht.yeuCau) + '</div></div>' : '') : '') +
+          '<div><h3 class="il-h3">Lịch trình tóm tắt</h3>' + theoNgay.map((ds, i) => '<div class="il-tom-ngay"><span class="il-cham" style="background:' + mau[i % 5] + '"></span><b>Ngày ' + (i + 1) + ' · ' + THU[vn(ngay[i]).thu] + ', ' + ddmm(ngay[i]) + '</b> ' +
+              e(ds.map((m) => m.ten).filter((x, j, a) => a.indexOf(x) === j).join(' · ') || 'Tự do') + '</div>').join('') +
           '</div>' +
         '</div>' + chan() + '</section>');
     }
