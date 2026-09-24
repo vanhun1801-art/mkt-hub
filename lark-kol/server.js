@@ -103,6 +103,43 @@ function tinh(res, duong, truyVan) {
   });
 }
 
+const BAN_DO_GOC = path.join(__dirname, '..', 'lark-ban-do');
+const SAN_PHAM = (process.env.SAN_PHAM_NOI_BO || 'http://127.0.0.1:5184').replace(/\/+$/, '');
+const pqDem = {};
+function taiChu(url, giay) {
+  return new Promise((ok) => {
+    const req = http.get(url, (r) => {
+      if (r.statusCode !== 200) { r.resume(); return ok(null); }
+      const m = []; r.on('data', (c) => m.push(c)); r.on('end', () => ok(Buffer.concat(m))); r.on('error', () => ok(null));
+    });
+    req.on('error', () => ok(null));
+    req.setTimeout(giay * 1000, () => { req.destroy(); ok(null); });
+  });
+}
+async function guiPq(res, ten) {
+  const js = { 'Content-Type': MIME['.js'] };
+  try {
+    if (ten === 'diem') {
+      if (!pqDem.diem) {
+        const D = require(path.join(BAN_DO_GOC, 'diem.js')).DIEM;
+        pqDem.diem = '/* 31 điểm của bản đồ du lịch (lark-ban-do/diem.js) */\nwindow.PQ_DIEM = ' +
+          JSON.stringify(D.map((d) => ({ id: d.id, ten: d.ten, lat: d.lat, lon: d.lon, loai: d.loai, cap: d.cap }))) + ';\n';
+      }
+      return gui(res, 200, pqDem.diem, { ...js, 'Cache-Control': 'private, max-age=3600' });
+    }
+    if (ten === 'hinh-rieng') {
+      /* hình trên Base đổi bất cứ lúc nào → không đệm ở trình duyệt; hỏi app Sản phẩm tối đa 5 giây */
+      const tuSp = await taiChu(SAN_PHAM + '/ban-do/hinh-rieng.js', 5);
+      if (tuSp && /PQ_HINH_RIENG/.test(tuSp.slice(0, 400).toString())) return gui(res, 200, tuSp, { ...js, 'Cache-Control': 'no-store' });
+    }
+    const f = path.join(BAN_DO_GOC, 'public', ten + '.js');
+    if (!fs.existsSync(f)) return gui(res, 404, '', { 'Content-Type': 'text/plain' });
+    return gui(res, 200, fs.readFileSync(f), { ...js, 'Cache-Control': ten === 'hinh-rieng' ? 'no-store' : 'private, max-age=3600' });
+  } catch (e) {
+    return gui(res, 500, '/* ' + String(e.message).replace(/\*\//g, '') + ' */', js);
+  }
+}
+
 function dichLoiBase(e) {
   const m = String((e && e.message) || '');
   if (/91403|permission denied|you don't have permission/i.test(m)) {
@@ -296,6 +333,13 @@ async function api(req, res, u) {
 
   /* Logo thương hiệu cho trang in lịch trình — bản gốc ở hub (lark-chung/logo.js).
    * Không có thì 404 và trang in tự hiện chữ "Rooty Trip" thay ảnh. */
+  /* Bản đồ minh hoạ Phú Quốc DÙNG CHUNG với tab Bản đồ của app Sản phẩm (anh Hùng 24/09):
+   *  hinh.js · dia-hinh.js · hinh-ve.js — đọc thẳng từ ../lark-ban-do/public (cùng repo, một bản gốc)
+   *  diem.js       — 31 điểm (toạ độ, tên, cấp) từ ../lark-ban-do/diem.js
+   *  hinh-rieng.js — hình quản lý tải lên trên Base: hỏi app Sản phẩm; nó ngủ/không có thì dùng bản dựng sẵn trong repo */
+  const mPq = /^\/api\/pq\/(hinh|dia-hinh|hinh-ve|diem|hinh-rieng)\.js$/.exec(p);
+  if (mPq && m === 'GET') return guiPq(res, mPq[1]);
+
   if (p === '/api/logo' && m === 'GET') {
     const logo = await layLogo(path.join(__dirname, 'du-lieu'));
     if (!logo) return gui(res, 404, '', { 'Content-Type': 'text/plain' });

@@ -313,3 +313,5 @@ pre.tin { white-space: pre-wrap; background: var(--surface-3); border-radius: va
 
 /* ghim điểm đón: vòng rỗng viền màu ngày (nơi diễn ra hoạt động là ghim đặc) */
 .bd-ghim.don span { background: #fff !important; border: 3px solid; box-sizing: border-box; }
+
+.mh-diem.rieng svg { overflow: visible; }

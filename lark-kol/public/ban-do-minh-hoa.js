@@ -2,9 +2,11 @@
    Nền "Minh hoạ Rooty Trip" cho bản đồ Leaflet của app KOL (anh Hùng 24/09: dùng bản đồ
    minh hoạ Phú Quốc của phòng thay cho nền OSM trơn).
 
-   Dữ liệu (public/pq-du-lieu.js, ~800 KB, chỉ nạp khi chọn nền này) tách từ bản dựng
-   "Ban-do-du-lich-Phu-Quoc-icon-reality-v3.html" của app lark-ban-do: đường bờ, rừng, bãi cát,
-   hồ, đường sá (OSM), ảnh độ cao + đổ bóng (DEM), 31 hình minh hoạ điểm đến.
+   DÙNG CHUNG dữ liệu với tab Bản đồ của app Sản phẩm (anh Hùng 24/09) — server KOL phát lại
+   /api/pq/*.js từ ../lark-ban-do (xem guiPq trong server.js), chỉ nạp khi chọn nền này:
+     hinh.js (bờ, rừng, cát, đường OSM) · dia-hinh.js (độ cao DEM) · hinh-ve.js (hình vẽ sẵn)
+     diem.js (31 điểm) · hinh-rieng.js (hình quản lý tải lên ở app Sản phẩm — thắng hình vẽ sẵn)
+   Sửa bản đồ bên đó (thêm điểm, thay hình) là bản đồ KOL + PDF đổi theo.
    Cách vẽ nền chép từ veNenCanvas() của bản đó: biển nhiều tầng → nước nông → cát → đất tô
    theo tầng độ cao + sườn đón nắng. Ở đây vẽ MỘT ảnh cho cả đảo rồi phủ lên Leaflet bằng
    imageOverlay; đường sá phủ bằng svgOverlay cho nét sắc khi phóng/in.
@@ -18,15 +20,18 @@
   const TRUOC = (goc.__HUB__ && goc.__HUB__.prefix) || '';
   const V = ((document.currentScript && /[?&]v=([^&]+)/.exec(document.currentScript.src)) || [])[1] || '1';
 
-  let napDl = null;
-  const taiDuLieu = () => napDl || (napDl = new Promise((ok, loi) => {
-    if (goc.PQ_HINH) return ok();
+  const napJs = (ten, tuyY) => new Promise((ok, loi) => {
     const s = document.createElement('script');
-    s.src = TRUOC + '/pq-du-lieu.js?v=' + V;
-    s.onload = () => (goc.PQ_HINH ? ok() : loi(new Error('Thiếu dữ liệu bản đồ minh hoạ')));
-    s.onerror = () => { napDl = null; loi(new Error('Không tải được dữ liệu bản đồ minh hoạ')); };
+    s.src = TRUOC + '/api/pq/' + ten + '.js' + (ten === 'hinh-rieng' ? '' : '?v=' + V);
+    s.onload = ok;
+    s.onerror = () => (tuyY ? ok() : loi(new Error('Không tải được bản đồ minh hoạ (' + ten + ')')));
     document.head.appendChild(s);
-  }));
+  });
+  let napDl = null;
+  const taiDuLieu = () => napDl || (napDl = (goc.PQ_HINH ? Promise.resolve() : Promise.all([
+    napJs('hinh'), napJs('dia-hinh', true), napJs('hinh-ve', true), napJs('diem'), napJs('hinh-rieng', true),
+  ])).then(() => { if (!goc.PQ_HINH) throw new Error('Thiếu dữ liệu bản đồ minh hoạ'); })
+    .catch((e) => { napDl = null; throw e; }));
 
   /* toạ độ bản đồ minh hoạ ↔ vĩ/kinh độ */
   const C = () => goc.PQ_HINH.chieu;
@@ -190,11 +195,17 @@
   /* ---------- hình minh hoạ điểm đến + tên ---------- */
   function lopHinh(L) {
     const g = L.layerGroup();
+    const rieng = goc.PQ_HINH_RIENG || {};
     for (const d of goc.PQ_DIEM || []) {
       const hv = goc.PQ_HINH_VE && goc.PQ_HINH_VE.theoDiem[d.id];
-      if (!hv || d.lat == null) continue;
-      const icon = L.divIcon({ className: 'mh-diem c' + (d.cap || 1), iconSize: [0, 0],
-        html: '<svg viewBox="0 0 64 64"><use href="#' + hv + '"/></svg><span>' + String(d.ten).replace(/</g, '&lt;') + '</span>' });
+      const r = rieng[d.id];
+      if ((!hv && !r) || d.lat == null) continue;
+      /* hình quản lý tải lên (app Sản phẩm) thắng hình vẽ sẵn — như tab Bản đồ bên đó */
+      const anh = r ? '<svg viewBox="0 0 64 64"><image href="' + String(r.url || r).replace(/"/g, '&quot;') + '" x="' + (32 - 32 * (r.co || 1)) + '" y="' + (64 - 64 * (r.co || 1)) +
+          '" width="' + 64 * (r.co || 1) + '" height="' + 64 * (r.co || 1) + '" preserveAspectRatio="xMidYMax meet"/></svg>'
+        : '<svg viewBox="0 0 64 64"><use href="#' + hv + '"/></svg>';
+      const icon = L.divIcon({ className: 'mh-diem c' + (d.cap || 1) + (r ? ' rieng' : ''), iconSize: [0, 0],
+        html: anh + '<span>' + String(d.ten).replace(/</g, '&lt;') + '</span>' });
       const m = L.marker([d.lat, d.lon], { icon, interactive: false, keyboard: false, zIndexOffset: -1000 });
       m.on('add', () => { const el = m.getElement(); if (el) el.dataset.cap = d.cap == null ? 1 : d.cap; });
       g.addLayer(m);
