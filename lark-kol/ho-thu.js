@@ -47,10 +47,33 @@ async function cot() {
   idCot = { khoa: tim('Khoá').id || tim('Khoá').field_id, giaTri: tim('Giá trị').id || tim('Giá trị').field_id };
   return idCot;
 }
-async function docDong() {
+async function docDong(k = KHOA) {
   const c = await cot();
   const ds = await lark.listAllRecords(BANG);
-  return ds.find((r) => chu(r.cells[c.khoa] ?? r.cells['Khoá']) === KHOA) || null;
+  return ds.find((r) => chu(r.cells[c.khoa] ?? r.cells['Khoá']) === k) || null;
+}
+/* Chữ ký email (anh Hùng 24/09: gửi qua API thì Lark Mail KHÔNG tự gắn chữ ký như khi soạn tay) —
+ * anh dán chữ ký một lần trong app, lưu HTML ở bảng Cài đặt, gắn cuối mọi thư gửi từ Hub. */
+const KHOA_CK = 'mail.chuKy';
+let chuKyDem = null;
+async function chuKy() {
+  if (chuKyDem !== null) return chuKyDem;
+  const r = await docDong(KHOA_CK);
+  const c = await cot();
+  chuKyDem = r ? chu(r.cells[c.giaTri] ?? r.cells['Giá trị']) : '';
+  return chuKyDem;
+}
+/* chỉ giữ HTML trình bày: bỏ script/style/iframe, thuộc tính on*, link javascript: */
+const sachHtml = (h) => String(h || '').replace(/<(script|style|iframe|object|embed)[\s\S]*?<\/\1>/gi, '').replace(/<(script|iframe|object|embed)[^>]*>/gi, '')
+  .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '').replace(/(href|src)\s*=\s*(["'])\s*javascript:[^"']*\2/gi, '$1="#"').trim();
+async function ghiChuKy(html) {
+  const h = sachHtml(html);
+  if (h.length > 60000) throw Object.assign(new Error('Chữ ký quá nặng (' + Math.round(h.length / 1000) + ' KB) — thường do ảnh dán thẳng vào. Dùng ảnh có đường link (https) thay vì ảnh dán.'), { http: 400 });
+  const r = await docDong(KHOA_CK);
+  const f = { 'Khoá': KHOA_CK, 'Giá trị': h, 'Ghi chú': 'Chữ ký HTML gắn cuối email gửi từ Hub (sửa trong app KOL)' };
+  if (r) await lark.updateRecord(r.record_id, f, BANG); else await lark.createRecord(f, BANG);
+  chuKyDem = h;
+  return h;
 }
 let phien = null;           // { refresh, hetRefresh, email, ten, luc } — giải mã từ Base
 let access = null;          // { token, het }
@@ -183,4 +206,4 @@ async function trangThai() {
 }
 async function ngat() { access = null; await luuPhien(null); }
 
-module.exports = { urlKetNoi, nhanCode, gui, trangThai, ngat, goiLai, thuDen, napPhien, coQuyenDoc, _ma: ma, _giai: giai };
+module.exports = { urlKetNoi, nhanCode, gui, trangThai, ngat, goiLai, thuDen, napPhien, coQuyenDoc, chuKy, ghiChuKy, _ma: ma, _giai: giai };

@@ -367,6 +367,11 @@ async function api(req, res, u) {
     try { return gui(res, 302, '', { Location: require('./ho-thu').urlKetNoi() }); } catch (e) { return loi(res, 400, e.message); }
   }
   if (p === '/api/mail/ngat' && m === 'POST') { await require('./ho-thu').ngat(); return json(res, { ok: true }); }
+  if (p === '/api/mail/chu-ky' && m === 'GET') return json(res, { html: cfg.mode === 'api' ? await require('./ho-thu').chuKy() : '' });
+  if (p === '/api/mail/chu-ky' && m === 'POST') {
+    const b = await docThan(req, 200 * 1024);
+    try { return json(res, { html: await require('./ho-thu').ghiChuKy(b.html) }); } catch (e) { return loi(res, e.http || 500, e.message); }
+  }
 
   if (p === '/api/logo' && m === 'GET') {
     const logo = await layLogo(path.join(__dirname, 'du-lieu'));

@@ -318,3 +318,10 @@ pre.tin { white-space: pre-wrap; background: var(--surface-3); border-radius: va
 
 /* tour có tuyến: điểm dừng phụ là chấm nhỏ */
 .bd-ghim.phu span { width: 12px; height: 12px; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .35); }
+
+/* chữ ký email (bản trên Hub) */
+.thu-ck { margin-top: 10px; border: 1px dashed var(--border-2); border-radius: var(--r); padding: 8px 12px; }
+.thu-ck-dau { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-3); }
+.thu-ck .canh { color: var(--orange-text); }
+.ck-sua { position: fixed; inset: 0; z-index: 400; background: rgba(0, 0, 0, .35); display: grid; place-items: center; padding: 16px; }
+.ck-hop { background: var(--surface); color: var(--text); border-radius: var(--r-xl); padding: 16px; width: min(640px, 100%); box-shadow: var(--shadow-1); }

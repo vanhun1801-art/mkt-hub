@@ -31,7 +31,10 @@ async function guiApi(m, den, cc) {
   const tu = cfg.mail.from || 'cmo@rootytrip.com';
   if (m.thu) return { ok: true, nhap: false, du: { dryRun: true, tu } };
   /* Lark chỉ cho gửi thư bằng User token → dùng phiên anh đã "Kết nối hộp thư" (ho-thu.js) */
-  const d = await require('./ho-thu').gui({ tu, den, cc, tieuDe: m.tieuDe, html: m.html, ten: cfg.mail.tenGui });
+  const H = require('./ho-thu');
+  const ck = await H.chuKy().catch(() => '');
+  const html = ck ? m.html + '<div style="margin-top:14px">' + ck + '</div>' : m.html;
+  const d = await H.gui({ tu, den, cc, tieuDe: m.tieuDe, html, ten: cfg.mail.tenGui });
   return { ok: true, nhap: false, tu, du: d };
 }
 

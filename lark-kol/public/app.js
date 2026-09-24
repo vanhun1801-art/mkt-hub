@@ -1111,8 +1111,9 @@ async function moEmail(ht, loai, dt) {
     (loai === 'xin-foc' && !m.den ? '<div class="bao cam">Chưa có email của ' + e(dt) + '. Điền vào ô Gửi — app nhớ cho lần sau.</div>' : '') +
     '<div class="thu-dau"><span>Từ</span><div>' + e(m.from) + '</div><span>Gửi</span><input class="in-o" id="emDen" value="' + e(m.den) + '">' +
     '<span>CC</span><input class="in-o" id="emCc" value="' + e(m.cc || '') + '" placeholder="cách nhau bằng dấu phẩy"><span>Tiêu đề</span><input class="in-o" id="emTd" value="' + e(m.tieuDe) + '"></div>' +
-    '<div class="thu-than" id="emThan" contenteditable="true">' + m.html + '</div>',
-  '<span class="nho" style="margin-right:auto">Sửa trực tiếp trong khung. Chữ ký Lark Mail tự thêm khi gửi.</span>' +
+    '<div class="thu-than" id="emThan" contenteditable="true">' + m.html + '</div>' +
+    (S.meta.mail.mode === 'api' ? '<div class="thu-ck"><div class="thu-ck-dau"><span>Chữ ký</span><button type="button" class="btn nho" id="emCk">Sửa chữ ký</button></div><div id="emCkXem" class="nho">Đang tải…</div></div>' : ''),
+  '<span class="nho" style="margin-right:auto">Sửa trực tiếp trong khung. ' + (S.meta.mail.mode === 'api' ? 'Chữ ký bên dưới được gắn cuối thư khi gửi.' : 'Chữ ký Lark Mail tự thêm khi gửi.') + '</span>' +
     (coBuoc ? '<button class="btn" id="emDaGui"' + (m.chan ? ' disabled' : '') + '>Đã gửi từ Lark Mail</button>' : '') +
     '<button class="btn" id="emChep" title="Chép tiêu đề + nội dung (giữ bảng) để dán vào Lark Mail">Chép nội dung</button>' +
     '<button class="btn" id="emNhap"' + (m.chan || !guiDuoc || !S.meta.mail.nhapDuoc ? ' disabled' : '') + (S.meta.mail.nhapDuoc ? '' : ' title="Chỉ bản chạy trên máy anh lưu nháp được"') + '>Lưu nháp</button><button class="btn chinh" id="emGui"' + (m.chan || !guiDuoc ? ' disabled' : '') + '>Gửi ngay</button>', true);
@@ -1128,6 +1129,27 @@ async function moEmail(ht, loai, dt) {
   };
   $('#emGui').onclick = () => goi(true);
   $('#emNhap').onclick = () => goi(false);
+  /* chữ ký (bản trên Hub): xem trước + sửa bằng cách dán từ Lark Mail */
+  if ($('#emCkXem')) {
+    const veCk = (h) => { $('#emCkXem').innerHTML = h || '<span class="canh">Chưa có chữ ký — thư sẽ đi không có chữ ký. Bấm Sửa chữ ký để dán.</span>'; };
+    api('/api/mail/chu-ky').then((r) => veCk(r.html)).catch(() => veCk(''));
+    $('#emCk').onclick = () => {
+      const cu = $('#emCkXem').querySelector('.canh') ? '' : $('#emCkXem').innerHTML;
+      const vung = document.createElement('div');
+      vung.className = 'ck-sua';
+      vung.innerHTML = '<div class="ck-hop"><b>Chữ ký email</b><div class="nho" style="margin:4px 0 8px">Mở một thư anh đã gửi bằng Lark Mail (hoặc Cài đặt → Chữ ký), bôi đen phần chữ ký, Ctrl+C rồi dán vào khung dưới (giữ được định dạng, logo, link).</div>' +
+        '<div class="thu-than" id="ckThan" contenteditable="true" style="min-height:140px">' + cu + '</div>' +
+        '<div class="hang-nut" style="margin-top:10px;justify-content:flex-end"><button class="btn" id="ckHuy">Huỷ</button><button class="btn chinh" id="ckLuu">Lưu chữ ký</button></div></div>';
+      document.body.appendChild(vung);
+      $('#ckThan').focus();
+      $('#ckHuy').onclick = () => vung.remove();
+      $('#ckLuu').onclick = async () => {
+        $('#ckLuu').disabled = true;
+        try { const r = await api('/api/mail/chu-ky', { html: $('#ckThan').innerHTML }); veCk(r.html); vung.remove(); toast('Đã lưu chữ ký'); }
+        catch (err) { toast(err.message, true); $('#ckLuu').disabled = false; }
+      };
+    };
+  }
   /* kết nối hộp thư (bản trên Hub): mở tab Lark; quay lại tab này thì đọc lại trạng thái và mở lại khung */
   if ($('#emKetNoi')) {
     $('#emKetNoi').addEventListener('click', () => {
