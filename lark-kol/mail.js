@@ -24,30 +24,15 @@ const tach = (s) => String(s || '').split(/[,;\s]+/).map((x) => x.trim()).filter
  * @param {{den:string, cc?:string, tieuDe:string, html:string, gui:boolean, thu?:boolean}} m
  * `thu: true` = --dry-run (test dùng, không gửi gì).
  */
-/* ---- Render (chế độ api): gửi bằng Lark Mail Open API với tenant token của app Marketing Hub ----
- * Thư đi từ hộp thư cfg.mail.from (mặc định cmo@rootytrip.com) — anh Hùng 24/09 muốn gửi bằng cmo@.
- * Cần app có quyền mail:user_mailbox.message:send VÀ quản trị viên cho app dùng hộp thư đó
- * (Lark Admin → Ứng dụng → Marketing Hub → phạm vi dữ liệu Mail). Thiếu thì báo đúng chữ, không gửi bằng hộp thư khác.
- * Không có "lưu nháp" ở đường này — chỉ gửi ngay. */
+/* ---- Render (chế độ api): thư đi từ cfg.mail.from (mặc định cmo@rootytrip.com) bằng phiên
+ * "Kết nối hộp thư" (ho-thu.js) — quyền gửi thư của Lark chỉ có ở User token. Chỉ gửi ngay, không nháp. */
 async function guiApi(m, den, cc) {
   if (!m.gui) throw Object.assign(new Error('Bản trên Hub chỉ gửi thẳng được, chưa lưu nháp vào Lark Mail — bấm Gửi ngay, hoặc Chép nội dung để dán vào Lark Mail.'), { http: 400 });
   const tu = cfg.mail.from || 'cmo@rootytrip.com';
-  const api = require('./larkapi');
-  const body = { subject: m.tieuDe, to: den.map((x) => ({ mail_address: x })), body_html: m.html, head_from: { name: cfg.mail.tenGui || 'Rooty Trip Phú Quốc' } };
-  if (cc.length) body.cc = cc.map((x) => ({ mail_address: x }));
-  if (m.thu) return { ok: true, nhap: false, du: { dryRun: true, tu, body } };
-  try {
-    const d = await api.call('POST', '/open-apis/mail/v1/user_mailboxes/' + encodeURIComponent(tu) + '/messages/send', { body, retries: 1 });   // không thử lại: lỗi mạng sau khi đã gửi thì thử lại là gửi hai lần
-    return { ok: true, nhap: false, tu, du: d };
-  } catch (e) {
-    const s = String(e.message || e);
-    if (/99991672|99991679|permission|scope|forbidden|access denied|no auth/i.test(s) || [99991672, 99991679, 1230002, 1230003].includes(e.code)) {
-      throw Object.assign(new Error('App Marketing Hub chưa được phép gửi thư từ ' + tu + '. Cần 2 việc trên Lark: (1) Developer Console → Marketing Hub → Quyền: bật "mail:user_mailbox.message:send" rồi phát hành phiên bản; ' +
-        '(2) Lark Admin → Ứng dụng → Marketing Hub → Phạm vi dữ liệu: cho phép hộp thư ' + tu + '. Thư đang soạn chưa đi đâu cả. (' + s.slice(0, 120) + ')'), { http: 424 });
-    }
-    if (/not found|mailbox/i.test(s)) throw Object.assign(new Error('Không tìm thấy hộp thư ' + tu + ' trên Lark Mail (' + s.slice(0, 120) + ')'), { http: 424 });
-    throw e;
-  }
+  if (m.thu) return { ok: true, nhap: false, du: { dryRun: true, tu } };
+  /* Lark chỉ cho gửi thư bằng User token → dùng phiên anh đã "Kết nối hộp thư" (ho-thu.js) */
+  const d = await require('./ho-thu').gui({ tu, den, cc, tieuDe: m.tieuDe, html: m.html, ten: cfg.mail.tenGui });
+  return { ok: true, nhap: false, tu, du: d };
 }
 
 async function guiMail(m) {

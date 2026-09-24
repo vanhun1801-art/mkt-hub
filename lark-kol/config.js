@@ -65,6 +65,7 @@ module.exports = {
     hangMuc: 'tblvye5QlAByhzzl',
     banGiao: 'tblP7Y3sp2cxRXjd',
     doiTac: 'tblLrDZOC6LnSHeY',     // thêm 23/09/2026 (thiet-lap/nang-cap-1.js)
+    caiDat: 'tblUdsrWcpDILwSl',     // Khoá / Giá trị — phiên hộp thư gửi mail (mã hoá, xem ho-thu.js)
   },
 
   /* Base "Sản phẩm" — chỉ ĐỌC để lấy mã + giá công bố. Lark không cho link chéo

@@ -346,7 +346,8 @@ async function api(req, res, u) {
     const k = nhac.kenhGui();
     return json(res, {
       toi, larkUrl: cfg.larkUrl, mode: cfg.mode, buoc: T.BUOC, maVung: cfg.maVung, lienHeKol: cfg.lienHeKol,
-      mail: { from: cfg.mail.from || (cfg.mode === 'api' ? 'cmo@rootytrip.com' : ''), bgdTo: cfg.mail.bgdTo, guiDuoc: true, nhapDuoc: cfg.mode === 'cli', mode: cfg.mode },
+      mail: { from: cfg.mail.from || (cfg.mode === 'api' ? 'cmo@rootytrip.com' : ''), bgdTo: cfg.mail.bgdTo, guiDuoc: true, nhapDuoc: cfg.mode === 'cli', mode: cfg.mode,
+        hopThu: cfg.mode === 'api' ? await require('./ho-thu').trangThai() : null },
       nhac: { ...nhac.trangThai, kenh: k ? k.ten : '', coKenh: !!k, truocPhut: cfg.nhac.truocPhut, tat: cfg.nhac.tat },
       theoDoi: { ...theoDoi.trangThai, chuKyPhut: theoDoi.CHU_KY / 60000 },
     });
@@ -360,6 +361,12 @@ async function api(req, res, u) {
    *  hinh-rieng.js — hình quản lý tải lên trên Base: hỏi app Sản phẩm; nó ngủ/không có thì dùng bản dựng sẵn trong repo */
   const mPq = /^\/api\/pq\/(hinh|dia-hinh|hinh-ve|diem|hinh-rieng|tour)\.js$/.exec(p);
   if (mPq && m === 'GET') return guiPq(res, mPq[1]);
+
+  /* ----- kết nối hộp thư gửi mail (chỉ bản trên Hub) ----- */
+  if (p === '/api/mail/ket-noi' && m === 'GET') {
+    try { return gui(res, 302, '', { Location: require('./ho-thu').urlKetNoi() }); } catch (e) { return loi(res, 400, e.message); }
+  }
+  if (p === '/api/mail/ngat' && m === 'POST') { await require('./ho-thu').ngat(); return json(res, { ok: true }); }
 
   if (p === '/api/logo' && m === 'GET') {
     const logo = await layLogo(path.join(__dirname, 'du-lieu'));
@@ -711,6 +718,17 @@ const server = http.createServer(async (req, res) => {
   const u = new URL(req.url, 'http://x');
   try {
     if (u.pathname === '/healthz') return json(res, { ok: true });
+    /* Lark quay về đây sau khi anh đồng ý cho gửi thư (ho-thu.js). Trang báo kết quả rồi tự đóng. */
+    if (u.pathname === '/mail-callback') {
+      const trang = (tieuDe, noiDung, ok) => gui(res, ok ? 200 : 400, '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + tieuDe +
+        '</title><body style="font:15px system-ui;max-width:520px;margin:12vh auto;padding:0 20px;color:#16322b"><h2 style="color:' + (ok ? '#289a87' : '#c0392b') + '">' + tieuDe + '</h2><p>' +
+        noiDung.replace(/</g, '&lt;') + '</p><p style="color:#6b7280">Có thể đóng tab này và quay lại app KOL.</p>' + (ok ? '<script>setTimeout(()=>window.close(),2500)</script>' : ''), { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      if (u.searchParams.get('error')) return trang('Chưa kết nối', 'Lark báo: ' + u.searchParams.get('error'), false);
+      try {
+        const p = await require('./ho-thu').nhanCode(u.searchParams.get('code') || '', u.searchParams.get('state') || '');
+        return trang('Đã kết nối hộp thư', 'App KOL gửi được email bằng tài khoản ' + (p.ten || '') + ' <' + p.email + '>.', true);
+      } catch (e) { return trang('Chưa kết nối được', e.message, false); }
+    }
     if (u.pathname.startsWith('/api/')) return await api(req, res, u);
     if (req.method !== 'GET') return loi(res, 405, 'Chỉ GET');
     return tinh(res, u.pathname, u.search);

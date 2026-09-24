@@ -1103,7 +1103,10 @@ async function moEmail(ht, loai, dt) {
   const guiDuoc = S.meta.mail.guiDuoc;
   const coBuoc = loai === 'de-xuat' || loai === 'thu-moi';
   const hop = moModal(TEN_EMAIL[loai] + (dt ? ' · ' + dt : ''), (m.chan ? '<div class="bao cam">' + e(m.chan) + '</div>' : '') +
-    (S.meta.mail.mode === 'api' ? '<div class="bao">Thư gửi từ hộp thư <b>' + e(S.meta.mail.from) + '</b> qua app Marketing Hub. Bản trên Hub chỉ gửi thẳng, không lưu nháp.</div>' : '') +
+    (S.meta.mail.mode === 'api' ? (S.meta.mail.hopThu && S.meta.mail.hopThu.ketNoi
+      ? '<div class="bao xanh" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span>Gửi từ <b>' + e(S.meta.mail.from) + '</b> bằng tài khoản đã kết nối <b>' + e(S.meta.mail.hopThu.email) + '</b>. Bản trên Hub chỉ gửi thẳng, không lưu nháp.</span><div class="lon"></div><button class="btn nho" id="emNgat">Ngắt kết nối</button></div>'
+      : '<div class="bao cam" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span>Chưa kết nối hộp thư. Bấm <b>Kết nối hộp thư</b>, đăng nhập Lark bằng tài khoản giữ hộp thư <b>' + e(S.meta.mail.from) + '</b> và đồng ý quyền gửi thư — làm một lần.</span><div class="lon"></div>' +
+        '<a class="btn chinh nho" id="emKetNoi" href="' + e(((window.__HUB__ && window.__HUB__.prefix) || '') + '/api/mail/ket-noi') + '" target="_blank" rel="noopener">Kết nối hộp thư</a></div>') : '') +
     (loai === 'xin-foc' && !m.den ? '<div class="bao cam">Chưa có email của ' + e(dt) + '. Điền vào ô Gửi — app nhớ cho lần sau.</div>' : '') +
     '<div class="thu-dau"><span>Từ</span><div>' + e(m.from) + '</div><span>Gửi</span><input class="in-o" id="emDen" value="' + e(m.den) + '">' +
     '<span>CC</span><input class="in-o" id="emCc" value="' + e(m.cc || '') + '" placeholder="cách nhau bằng dấu phẩy"><span>Tiêu đề</span><input class="in-o" id="emTd" value="' + e(m.tieuDe) + '"></div>' +
@@ -1124,6 +1127,20 @@ async function moEmail(ht, loai, dt) {
   };
   $('#emGui').onclick = () => goi(true);
   $('#emNhap').onclick = () => goi(false);
+  /* kết nối hộp thư (bản trên Hub): mở tab Lark; quay lại tab này thì đọc lại trạng thái và mở lại khung */
+  if ($('#emKetNoi')) {
+    $('#emKetNoi').addEventListener('click', () => {
+      const lai = async () => { window.removeEventListener('focus', lai); try { S.meta = await api('/api/meta'); } catch (_) { return; }
+        if (S.meta.mail.hopThu && S.meta.mail.hopThu.ketNoi) { toast('Đã kết nối hộp thư ' + S.meta.mail.hopThu.email); moEmail(ht, loai, dt); } };
+      window.addEventListener('focus', lai);
+    });
+  }
+  if ($('#emNgat')) {
+    $('#emNgat').onclick = async () => {
+      if (!(await hoi({ tieuDe: 'Ngắt kết nối hộp thư?', noiDung: 'App KOL trên Hub sẽ không gửi email được nữa cho tới khi kết nối lại.', nut: 'Ngắt kết nối' }))) return;
+      try { await api('/api/mail/ngat', {}); S.meta = await api('/api/meta'); toast('Đã ngắt kết nối'); moEmail(ht, loai, dt); } catch (err) { toast(err.message, true); }
+    };
+  }
   $('#emChep').onclick = async () => {
     const html = $('#emThan').innerHTML, chu = $('#emThan').innerText;
     try {
