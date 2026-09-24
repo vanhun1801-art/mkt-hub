@@ -19,7 +19,7 @@ const T = require('./tinh');
 const kho = require('./kho');
 
 const trangThai = { lanCuoi: 0, loi: '', daBao: 0 };
-const CHU_KY = 15 * 60000;
+const CHU_KY = (cfg.mode === 'cli' ? 15 : 10) * 60000;
 
 function cli(args) {
   return require('./lark').cli(args, { retries: 1, timeout: 60000 });
@@ -83,8 +83,29 @@ function dichLoi(e) {
  * Một vòng kiểm. `bao(text)` là hàm gửi tin cho anh (nhac.guiTin) — truyền vào để
  * file này không phải biết kênh gửi.
  */
+/* ---- Hub (chế độ api): đọc Hộp thư đến bằng phiên "Kết nối hộp thư" (ho-thu.js) ----
+ * Thư trả lời = thư CÙNG LUỒNG với thư đã gửi (thread_id lưu lúc gửi), hoặc cùng tiêu đề (bỏ "Re:"),
+ * người gửi khác hộp thư của mình, tới SAU lúc gửi. */
+const boRe = (s) => String(s || '').replace(/^\s*((re|fw|fwd|tr|trả lời|chuyển tiếp)\s*:\s*)+/i, '').trim().toLowerCase();
+async function traLoiApi(ht, loai, hopThu) {
+  const luong = loai === 'bgd' ? ht.thuBgd : ht.thuKol;
+  const td = boRe(loai === 'bgd' ? ht.tdBgd : ht.tdKol);
+  const guiLuc = (loai === 'bgd' ? ht.trinhLuc : ht.thuMoiLuc) || 0;
+  const minh = String(cfg.mail.from || 'cmo@rootytrip.com').toLowerCase();
+  const khop = hopThu.filter((m) => m.tu && m.tu !== minh && m.luc > guiLuc - 60000 &&
+    ((luong && m.luong === luong) || (td && boRe(m.tieuDe) === td)));
+  const tl = khop[0];
+  return tl ? { luc: tl.luc, tu: tl.tu, noiDung: catTrich(tl.noiDung) || '(thư trả lời không có chữ)' } : null;
+}
+
 async function kiem(bao, now = Date.now()) {
-  if (cfg.mode !== 'cli') { trangThai.loi = 'Chỉ đọc được hộp thư khi app chạy trên máy anh'; return []; }
+  let hopThu = null;
+  if (cfg.mode !== 'cli') {
+    const H = require('./ho-thu');
+    const p = await H.napPhien().catch(() => null);
+    if (!p) { trangThai.loi = 'Chưa kết nối hộp thư — kết nối trong khung email để app đọc được thư trả lời'; return []; }
+    if (!H.coQuyenDoc()) { trangThai.loi = 'Phiên hộp thư chưa có quyền đọc thư — Ngắt kết nối rồi Kết nối hộp thư lại'; return []; }
+  }
   trangThai.lanCuoi = now;
   const dl = await kho.tatCa({ moi: true });
   const kolTen = new Map(dl.kol.map((k) => [k.id, k.ten]));
@@ -93,11 +114,17 @@ async function kiem(bao, now = Date.now()) {
     for (const ht of dl.hopTac) {
       for (const [loai, buoc, tl, tlLuc] of [['bgd', 'Chờ BGĐ duyệt', 'bgdTraLoi', 'bgdTraLoiLuc'], ['kol', 'Đã mời KOL', 'kolTraLoi', 'kolTraLoiLuc']]) {
         if (ht.buoc !== buoc) continue;
-        const luong = await timLuong(ht, loai);
-        if (!luong) continue;
-        const r = await traLoiMoiNhat(luong);
-        const cot = loai === 'bgd' ? 'thuBgd' : 'thuKol';
-        const o = ht[cot] ? {} : { [cot]: luong };
+        let r, o = {};
+        if (cfg.mode !== 'cli') {
+          if (!hopThu) hopThu = await require('./ho-thu').thuDen();
+          r = await traLoiApi(ht, loai, hopThu);
+        } else {
+          const luong = await timLuong(ht, loai);
+          if (!luong) continue;
+          r = await traLoiMoiNhat(luong);
+          const cot = loai === 'bgd' ? 'thuBgd' : 'thuKol';
+          if (!ht[cot]) o = { [cot]: luong };
+        }
         if (r && r.luc > (ht[tlLuc] || 0)) {
           o[tl] = r.noiDung; o[tlLuc] = r.luc;
           moi.push({ ht, loai, ...r });
@@ -120,10 +147,10 @@ async function kiem(bao, now = Date.now()) {
 
 let hen = null;
 function batDau(bao) {
-  if (hen || cfg.mode !== 'cli' || process.env.KOL_THEO_DOI_TAT === '1') return;
+  if (hen || process.env.KOL_THEO_DOI_TAT === '1') return;   // Hub: kiem() tự bỏ qua khi chưa kết nối hộp thư
   setTimeout(() => kiem(bao).catch(() => {}), 30000);
   hen = setInterval(() => kiem(bao).catch(() => {}), CHU_KY);
   hen.unref();
 }
 
-module.exports = { kiem, batDau, trangThai, catTrich, timThread, CHU_KY };
+module.exports = { kiem, batDau, trangThai, catTrich, timThread, CHU_KY, _traLoiApi: traLoiApi };

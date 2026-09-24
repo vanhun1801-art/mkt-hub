@@ -16,7 +16,9 @@ const lark = require('./lark');
 
 const BANG = cfg.bang.caiDat;
 const KHOA = 'mail.phien';
-const PHAM_VI = 'mail:user_mailbox.message:send offline_access';
+/* gửi thư + đọc thư trả lời (theo-doi-mail.js) + giữ phiên lâu dài */
+const QUYEN_DOC = ['mail:user_mailbox.message:readonly', 'mail:user_mailbox.message.subject:read', 'mail:user_mailbox.message.body:read', 'mail:user_mailbox.message.address:read'];
+const PHAM_VI = ['mail:user_mailbox.message:send', ...QUYEN_DOC, 'offline_access'].join(' ');
 const ACC = (cfg.apiHost || 'https://open.larksuite.com').replace('open.', 'accounts.');
 const goiLai = () => (process.env.PUBLIC_URL || '').replace(/\/+$/, '') + (process.env.HUB_PREFIX || '') + '/mail-callback';
 
@@ -99,7 +101,7 @@ async function nhanCode(code, state) {
   const u = await (await fetch(cfg.apiHost + '/open-apis/authen/v1/user_info', { headers: { Authorization: 'Bearer ' + d.access_token } })).json();
   const email = (u.data && (u.data.enterprise_email || u.data.email)) || '';
   access = { token: d.access_token, het: Date.now() + (d.expires_in - 120) * 1000 };
-  await luuPhien({ refresh: d.refresh_token, hetRefresh: Date.now() + (d.refresh_token_expires_in || 0) * 1000, email, ten: (u.data && u.data.name) || '', luc: Date.now() });
+  await luuPhien({ refresh: d.refresh_token, hetRefresh: Date.now() + (d.refresh_token_expires_in || 0) * 1000, email, ten: (u.data && u.data.name) || '', luc: Date.now(), quyen: d.scope || '' });
   return phien;
 }
 async function tokenGui() {
@@ -111,7 +113,7 @@ async function tokenGui() {
     throw Object.assign(new Error('Phiên hộp thư đã hết hạn hoặc bị thu hồi — bấm "Kết nối hộp thư" lại. (' + e.message + ')'), { http: 424 });
   }
   access = { token: d.access_token, het: Date.now() + (d.expires_in - 120) * 1000 };
-  await luuPhien({ ...p, refresh: d.refresh_token || p.refresh, hetRefresh: d.refresh_token_expires_in ? Date.now() + d.refresh_token_expires_in * 1000 : p.hetRefresh });
+  await luuPhien({ ...p, quyen: d.scope || p.quyen || '', refresh: d.refresh_token || p.refresh, hetRefresh: d.refresh_token_expires_in ? Date.now() + d.refresh_token_expires_in * 1000 : p.hetRefresh });
   return access.token;
 }
 
@@ -135,10 +137,50 @@ async function gui({ tu, den, cc, tieuDe, html, ten }) {
   return d.data || {};
 }
 
+/* ---------- đọc thư (bộ theo dõi thư trả lời trên Hub) ---------- */
+async function goiDoc(duong) {
+  const token = await tokenGui();
+  const r = await fetch(cfg.apiHost + '/open-apis/mail/v1/user_mailboxes/' + duong, { headers: { Authorization: 'Bearer ' + token } });
+  const d = await r.json().catch(() => ({ code: r.status, msg: 'HTTP ' + r.status }));
+  if (d.code !== 0) {
+    const e = new Error(/99991679|99991672|scope|permission/i.test(String(d.msg) + d.code)
+      ? 'Phiên hộp thư chưa có quyền đọc thư — bấm Ngắt kết nối rồi Kết nối hộp thư lại để cấp quyền đọc.'
+      : 'Lark Mail: ' + (d.msg || d.code) + ' (mã ' + d.code + ')');
+    e.code = d.code; throw e;
+  }
+  return d.data || {};
+}
+const b64 = (s) => { try { return Buffer.from(String(s || ''), 'base64url').toString('utf8'); } catch (_) { return String(s || ''); } };
+const daDocThu = new Map();   // message_id → thư đã tải (thư không đổi nên nhớ trong phiên chạy)
+/**
+ * Thư mới trong Hộp thư đến của `hop` (mặc định hộp thư gửi): [{id, luong, tieuDe, tu, luc, noiDung}], mới trước.
+ * Chỉ đọc `toiDa` thư gần nhất — thư trả lời BGĐ/KOL thường tới trong vài ngày.
+ */
+async function thuDen(hop, toiDa = 40) {
+  const h = encodeURIComponent(hop || cfg.mail.from || 'me');
+  const ds = await goiDoc(h + '/messages?folder_id=INBOX&page_size=' + Math.min(toiDa, 50));
+  const ids = (ds.items || []).slice(0, toiDa);
+  const out = [];
+  for (const id of ids) {
+    if (!daDocThu.has(id)) {
+      const m = (await goiDoc(h + '/messages/' + encodeURIComponent(id))).message || {};
+      daDocThu.set(id, {
+        id, luong: m.thread_id || '', tieuDe: m.subject || '',
+        tu: String((m.head_from && m.head_from.mail_address) || '').toLowerCase(),
+        luc: Number(m.internal_date) || 0,
+        noiDung: b64(m.body_plain_text) || b64(m.body_html).replace(/<[^>]+>/g, ' '),
+      });
+    }
+    out.push(daDocThu.get(id));
+  }
+  return out.sort((a, b) => b.luc - a.luc);
+}
+const coQuyenDoc = () => !!(phien && QUYEN_DOC.every((q) => String(phien.quyen || '').includes(q)));
+
 async function trangThai() {
   const p = await napPhien().catch(() => null);
-  return p ? { ketNoi: true, email: p.email, ten: p.ten, luc: p.luc } : { ketNoi: false };
+  return p ? { ketNoi: true, email: p.email, ten: p.ten, luc: p.luc, docDuoc: coQuyenDoc() } : { ketNoi: false };
 }
 async function ngat() { access = null; await luuPhien(null); }
 
-module.exports = { urlKetNoi, nhanCode, gui, trangThai, ngat, goiLai, _ma: ma, _giai: giai };
+module.exports = { urlKetNoi, nhanCode, gui, trangThai, ngat, goiLai, thuDen, napPhien, coQuyenDoc, _ma: ma, _giai: giai };
