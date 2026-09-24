@@ -974,12 +974,17 @@ function giaVonHtml() {
     '<td>' + (x.tuKhach ? x.tuKhach + '–' + (x.denKhach || '') + ' khách' : 'mọi bậc') + '</td>' +
     '<td class="sp-num">' + tien(x.donGia) + '</td></tr>').join('');
 
+  /* KHÔNG dùng khoiHtml: hàm đó escape nội dung vì nó phục vụ khối chữ dài có
+     nút Chép. Bảng cần HTML thật, và cũng không cần nút Chép. */
+  const khoiBang = (tieuDe, bang) =>
+    '<section class="muc"><h4>' + esc(tieuDe) + '</h4>' + bang + '</section>';
+
   return chon +
-    khoiHtml('Giá bán theo số khách',
+    khoiBang('Giá bán theo số khách',
       '<table class="gvBang"><thead><tr><th>Số khách</th><th>Chi phí đoàn</th>' +
       '<th>Chi phí đầu người</th><th>Giá vốn</th><th>Biên</th><th>Giá bán</th></tr></thead>' +
       '<tbody>' + hangBac + '</tbody></table>') +
-    khoiHtml('Giá vốn gồm những khoản nào',
+    khoiBang('Giá vốn gồm những khoản nào',
       '<table class="gvBang"><thead><tr><th>Khoản</th><th>Nhóm</th><th>Kiểu</th>' +
       '<th>Áp cho</th><th>Đơn giá</th></tr></thead><tbody>' + hangCt + '</tbody></table>');
 }

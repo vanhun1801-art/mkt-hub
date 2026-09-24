@@ -358,6 +358,17 @@ const sua = (id, truong, giaTri, headers) =>
   }
 
   /* ---------------------------------------------------------------- */
+  group('Giá vốn: số của Sales, nhân sự không xem được');
+  {
+    /* Anh Hùng: phần giá vốn "chỉ nên phục vụ cho Sales hoặc ai làm việc với
+     * giá này kia để tính". Ẩn tab là chuyện giao diện; cửa thật phải nằm ở
+     * máy chủ, vì ai gõ tay đường dẫn cũng phải bị chặn. */
+    const a = await goi('/api/gia-von', { headers: NHAN_SU });
+    ok('nhân sự bị chặn 403', a.ma === 403, String(a.ma));
+    ok('nói rõ lý do', /quản lý/i.test((a.d && a.d.error) || ''), JSON.stringify(a.d));
+  }
+
+  /* ---------------------------------------------------------------- */
   group('Tổng quan: đúng khuôn trang Tổng quan chung của hub');
   {
     const r = await goi('/api/tong-quan', { headers: QUAN_LY });
