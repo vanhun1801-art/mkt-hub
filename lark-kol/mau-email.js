@@ -120,6 +120,31 @@ function khoiBanGiao(bg, kenh) {
   ).join('');
 }
 
+/* Bảng sản phẩm KOL cam kết (anh Hùng 24/09: mục 4 cũ đọc không ra kết quả nhận được) —
+ * mỗi dòng một sản phẩm: chủ đề, loại + số lượng, đăng ở kênh nào (có link), hạn đăng. */
+function bangBanGiao(bg, kenh) {
+  const song = bg.filter((b) => b.trangThai !== 'Huỷ').sort((a, b) => (a.hanDang || 9e15) - (b.hanDang || 9e15));
+  if (!song.length) return P('<i>Chưa khai sản phẩm bàn giao.</i>');
+  const kenhHtml = (b) => {
+    const ds = (b.kenhDang || []).map((id) => (kenh || []).find((k) => k.id === id)).filter(Boolean);
+    if (!ds.length) return esc((b.nenTang || []).join(', ') || '—');
+    return ds.map((k) => esc(k.nenTang && k.nenTang !== 'Khác' ? k.nenTang + ' · ' : '') +
+      (k.link ? '<a href="' + esc(k.link) + '">' + esc(k.ten) + '</a>' : esc(k.ten)) + (k.reup ? ' (re-up)' : '')).join('<br>');
+  };
+  const dau = ['STT', 'Sản phẩm', 'Loại', 'SL', 'Kênh đăng', 'Hạn đăng']
+    .map((c) => '<th style="' + O + 'background:' + XANH + ';color:#fff;text-align:center">' + c + '</th>').join('');
+  const dong = song.map((b, i) => '<tr><td style="' + O + 'text-align:center">' + (i + 1) + '</td><td style="' + O + '"><b>' + esc(b.ten) + '</b>' +
+    (b.chuDe ? '<br><span style="color:#667">Chủ đề: ' + esc(b.chuDe) + '</span>' : '') + '</td><td style="' + O + 'text-align:center">' + esc(b.loai || '') +
+    '</td><td style="' + O + 'text-align:center">' + String(b.soLuong || 1).padStart(2, '0') + '</td><td style="' + O + '">' + kenhHtml(b) +
+    '</td><td style="' + O + 'text-align:center">' + (b.hanDang ? T.ddmm(b.hanDang) + '/' + T.vn(b.hanDang).nam : '—') + '</td></tr>').join('');
+  const tong = song.reduce((n, b) => n + (Number(b.soLuong) || 1), 0);
+  const theoLoai = {};
+  for (const b of song) theoLoai[b.loai || 'Khác'] = (theoLoai[b.loai || 'Khác'] || 0) + (Number(b.soLuong) || 1);
+  return '<table style="border-collapse:collapse;font-size:13px;margin:6px 0 8px"><tr>' + dau + '</tr>' + dong +
+    '<tr style="background:#e0f2ef;font-weight:bold"><td style="' + O + '"></td><td style="' + O + '" colspan="5">Tổng: ' + String(tong).padStart(2, '0') + ' sản phẩm (' +
+    Object.entries(theoLoai).map(([l, n]) => String(n).padStart(2, '0') + ' ' + esc(l.toLowerCase())).join(', ') + ')</td></tr></table>';
+}
+
 function khoiKenh(kenh) {
   if (!kenh.length) return P('Kênh: chưa khai');
   return '<p style="margin:0 0 4px">Kênh:</p>' + kenh.map((k) =>
@@ -150,12 +175,9 @@ function deXuat({ ht, kol, kenh, hm, bg }, cfg) {
     H('3. Bảng kê chi phí'),
     bangKe(hm),
     '<p style="margin:0 0 2px">Tiền công ty chi: <b>' + tien(t.tienCongTy) + ' VNĐ</b></p>',
-    t.giaTriQuyDoi > t.tienCongTy ? '<p style="margin:0 0 2px">Giá trị tài trợ quy đổi (theo giá công bố, gồm phần đối tác FOC): <b>' +
-      tien(t.giaTriQuyDoi) + ' VNĐ</b>' + (t.thieuGia ? ' <i>(còn ' + t.thieuGia + ' dòng FOC chưa có giá công bố)</i>' : '') + '</p>' : '',
     H('4. Sản phẩm KOL cam kết'),
-    kenhCamKet(bg, kenh, ht.kenhDang) ? P('Kênh đăng: ' + esc(kenhCamKet(bg, kenh, ht.kenhDang))) : '',
-    khoiBanGiao(bg, kenh),
-    ht.yeuCau ? P('<br>' + esc(ht.yeuCau)) : '',
+    bangBanGiao(bg, kenh),
+    ht.yeuCau ? '<p style="margin:8px 0 2px"><b>Yêu cầu nội dung:</b></p>' + P(esc(ht.yeuCau).replace(/\n/g, '<br>')) : '',
     P('<br>Mong ' + esc(cfg.bgdTen) + ' phê duyệt đề xuất hợp tác trên nhằm tối ưu hiệu quả tiếp cận khách hàng tiềm năng ' +
       'và thúc đẩy chuyển đổi trên các nền tảng mạng xã hội.'),
     P('Trân trọng,'),
