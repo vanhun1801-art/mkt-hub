@@ -179,9 +179,16 @@ const daDocThu = new Map();   // message_id → thư đã tải (thư không đ�
  * Thư mới trong Hộp thư đến của `hop` (mặc định hộp thư gửi): [{id, luong, tieuDe, tu, luc, noiDung}], mới trước.
  * Chỉ đọc `toiDa` thư gần nhất — thư trả lời BGĐ/KOL thường tới trong vài ngày.
  */
+let hopDoc = null;   // hộp thư đọc được (nhớ sau lần đầu)
 async function thuDen(hop, toiDa = 40) {
-  const h = encodeURIComponent(hop || cfg.mail.from || 'me');
-  const ds = await goiDoc(h + '/messages?folder_id=INBOX&page_size=' + Math.min(toiDa, 50));
+  const thu = [...new Set([hopDoc, hop, cfg.mail.from || 'cmo@rootytrip.com', 'me'].filter(Boolean))];
+  let ds = null, h = '', loiCuoi = null;
+  for (const x of thu) {
+    h = encodeURIComponent(x);
+    try { ds = await goiDoc(h + '/messages?folder_id=INBOX&page_size=' + Math.min(toiDa, 50)); hopDoc = x; break; }
+    catch (e) { loiCuoi = e; if (/quyền đọc/.test(e.message)) throw e; }
+  }
+  if (!ds) throw loiCuoi;
   const ids = (ds.items || []).slice(0, toiDa);
   const out = [];
   for (const id of ids) {
@@ -191,14 +198,14 @@ async function thuDen(hop, toiDa = 40) {
         id, luong: m.thread_id || '', tieuDe: m.subject || '',
         tu: String((m.head_from && m.head_from.mail_address) || '').toLowerCase(),
         luc: Number(m.internal_date) || 0,
-        noiDung: b64(m.body_plain_text) || b64(m.body_html).replace(/<[^>]+>/g, ' '),
+        noiDung: b64(m.body_plain_text) || b64(m.body_html).replace(/<br\s*\/?>|<\/(p|div|tr|li|h\d|blockquote)>/gi, '\n').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/[ \t]+/g, ' '),
       });
     }
     out.push(daDocThu.get(id));
   }
   return out.sort((a, b) => b.luc - a.luc);
 }
-const coQuyenDoc = () => !!(phien && QUYEN_DOC.every((q) => String(phien.quyen || '').includes(q)));
+const coQuyenDoc = () => !!(phien && (hopDoc || /mail:user_mailbox\.message(:readonly|\.body:read)/.test(String(phien.quyen || ''))));
 
 async function trangThai() {
   const p = await napPhien().catch(() => null);

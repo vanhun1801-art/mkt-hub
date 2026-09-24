@@ -104,7 +104,6 @@ async function kiem(bao, now = Date.now()) {
     const H = require('./ho-thu');
     const p = await H.napPhien().catch(() => null);
     if (!p) { trangThai.loi = 'Chưa kết nối hộp thư — kết nối trong khung email để app đọc được thư trả lời'; return []; }
-    if (!H.coQuyenDoc()) { trangThai.loi = 'Phiên hộp thư chưa có quyền đọc thư — Ngắt kết nối rồi Kết nối hộp thư lại'; return []; }
   }
   trangThai.lanCuoi = now;
   const dl = await kho.tatCa({ moi: true });

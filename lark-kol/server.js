@@ -614,7 +614,7 @@ async function api(req, res, u) {
     const doiTac = dl.doiTac.find((x) => cung(x.ten)) || null;
     if (r[2] === 'bao-cao-doi-tac') {
       if (!dt || !g.bg.some((b) => cung(b.traDoiTac))) return loi(res, 400, 'Chưa có sản phẩm bàn giao nào ghi "Trả cho đối tác" = "' + dt + '"');
-      if (m === 'GET') return json(res, { ...EM.baoCaoDoiTac({ ...g, doiTac, tenDoiTac: dt }), cc: doiTac ? doiTac.cc : '', from: cfg.mail.from || '(hộp thư chính)' });
+      if (m === 'GET') return json(res, { ...EM.baoCaoDoiTac({ ...g, doiTac, tenDoiTac: dt }), cc: doiTac ? doiTac.cc : '', from: cfg.mail.from || (cfg.mode === 'api' ? 'cmo@rootytrip.com' : '(hộp thư chính)') });
       const b = await docThan(req);
       await mail.guiMail({ den: b.den, cc: b.cc, tieuDe: b.tieuDe, html: b.html, gui: b.gui === true });
       return json(res, { ok: true, daGui: b.gui === true });
@@ -622,7 +622,7 @@ async function api(req, res, u) {
     if (!dt || !dong.length) return loi(res, 400, 'Chưa có dòng nào của đối tác "' + dt + '" — điền cột Đối tác trong bảng kê trước');
     if (m === 'GET') {
       const e = EM.xinFoc({ ...g, hm: dong, doiTac, tenDoiTac: dt }, cfg.mail);
-      return json(res, { ...e, cc: doiTac ? doiTac.cc : '', from: cfg.mail.from || '(hộp thư chính)', doiTac });
+      return json(res, { ...e, cc: doiTac ? doiTac.cc : '', from: cfg.mail.from || (cfg.mode === 'api' ? 'cmo@rootytrip.com' : '(hộp thư chính)'), doiTac });
     }
     if (m === 'POST') {
       const b = await docThan(req);
@@ -645,7 +645,7 @@ async function api(req, res, u) {
     if (!g) return loi(res, 404, 'Không thấy hợp tác');
     if (m === 'GET') {
       const e = EM[ham](g, cfg.mail);
-      return json(res, { ...e, chan: T.duocLam(g.ht, viec), from: cfg.mail.from || '(hộp thư chính)' });
+      return json(res, { ...e, chan: T.duocLam(g.ht, viec), from: cfg.mail.from || (cfg.mode === 'api' ? 'cmo@rootytrip.com' : '(hộp thư chính)') });
     }
     if (m === 'POST') {
       const l = T.duocLam(g.ht, viec);
