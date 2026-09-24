@@ -264,6 +264,29 @@ const tien = (n) => (n == null ? '' : Math.round(n).toLocaleString('vi-VN'));
  *   ''      — không rõ → để anh đọc và tự bấm
  * Chỉ xét câu BGĐ mới viết (đã cắt chữ ký + thư trích bằng catTrich).
  */
+/**
+ * Ý của thư KOL trả lời thư mời (anh Hùng 24/09) — KOL viết tiếng Việt, Anh hoặc Hàn:
+ *   'xacNhan' — confirm / agree / ok / sounds good / xác nhận / đồng ý / 확인 / 좋아요 / 네 …
+ *   'hoi'     — có câu hỏi, xin đổi, không được … → để anh đọc
+ *   ''        — không rõ
+ * Có dấu "?" coi như đang hỏi (KOL hay "OK, but can we…?").
+ */
+function yXacNhan(noiDung) {
+  const goc = String(noiDung || '');
+  /* bỏ dấu tiếng Việt rồi ghép lại (NFC) — không thì chữ Hàn bị tách thành từng nét, không khớp được */
+  const t = ' ' + goc.normalize('NFD').replace(/[\u0300-\u036f]/g, '').normalize('NFC').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase().replace(/[^a-z0-9\uac00-\ud7a3]+/g, ' ') + ' ';
+  const co = (ds) => ds.some((w) => t.includes(' ' + w + ' ') || (/[\uac00-\ud7a3]/.test(w) && t.includes(w)));
+  const HOI = ['but', 'however', 'change', 'changes', 'reschedule', 'cannot', 'unable', 'not possible', 'not available', 'question', 'questions', 'instead',
+    'chua', 'khong', 'ko', 'doi', 'doi lai', 'thay doi', 'hoi', 'nhung', 'tiec', 'huy', 'lui',
+    '변경', '수정', '어렵', '못', '안 돼', '안돼', '취소', '질문', '문의', '그런데', '하지만'];
+  const DONG_Y = ['confirm', 'confirmed', 'confirming', 'agree', 'agreed', 'ok', 'okay', 'oke', 'sounds good', 'looks good', 'all good', 'perfect', 'great', 'yes',
+    'accept', 'accepted', 'deal', 'see you', 'no problem', 'can t wait', 'looking forward', 'xac nhan', 'dong y', 'nhat tri', 'duoc', 'da nhan', 'tuyet voi',
+    '확인', '좋아요', '좋습니다', '네', '동의', '감사합니다', '알겠습니다'];
+  if (goc.includes('?') || co(HOI)) return 'hoi';
+  if (co(DONG_Y)) return 'xacNhan';
+  return '';
+}
+
 function yDuyet(noiDung) {
   const t = ' ' + String(noiDung || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D')
     .toLowerCase().replace(/[^a-z0-9]+/g, ' ') + ' ';
@@ -282,5 +305,5 @@ module.exports = {
   BUOC, viTri, duocLam, buocTheoLich, lui, dongLichSu, noiLichSu, theoFoc, canhBaoKhach,
   trangThaiLich, canNhac, BUOC_NHAC, tinNhacKol,
   trangThaiBanGiao, xemMoiNhat, ketQua,
-  maMoi, sdtQuocTe, tien, yDuyet,
+  maMoi, sdtQuocTe, tien, yDuyet, yXacNhan,
 };

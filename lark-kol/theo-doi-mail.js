@@ -138,13 +138,20 @@ async function kiem(bao, now = Date.now()) {
           /* anh Hùng 24/09: BGĐ trả lời "duyệt / đồng ý" (không kèm ý sửa) → tự chuyển "BGĐ đã duyệt".
            * Thư có ý sửa hoặc không rõ → giữ nguyên bước, hiện câu trả lời để anh tự bấm. */
           const tuDuyet = loai === 'bgd' && !ht.khongTuChuyen && T.yDuyet(r.noiDung) === 'duyet';
+          /* KOL trả lời có ý xác nhận (không hỏi thêm, không xin đổi) → tự chuyển "KOL đã xác nhận" */
+          const tuXacNhan = loai === 'kol' && !ht.khongTuChuyen && T.yXacNhan(r.noiDung) === 'xacNhan';
+          if (tuXacNhan) {
+            Object.assign(o, { buoc: 'KOL đã xác nhận', xacNhanLuc: r.luc,
+              lichSu: T.noiLichSu(ht.lichSu, T.dongLichSu(ht.buoc, 'KOL đã xác nhận', 'tự chuyển: KOL trả lời "' + r.noiDung.slice(0, 40) + '"', now)) });
+          }
           if (tuDuyet) {
             Object.assign(o, { buoc: 'BGĐ đã duyệt', duyetLuc: r.luc, kenhDuyet: 'Email', nguoiDuyet: r.tu, yKien: r.noiDung.slice(0, 300),
               lichSu: T.noiLichSu(ht.lichSu, T.dongLichSu(ht.buoc, 'BGĐ đã duyệt', 'tự chuyển: BGĐ trả lời "' + r.noiDung.slice(0, 40) + '"', now)) });
           }
           if (bao) {
             await bao('Email trả lời · ' + ai + ' (' + ht.ma + ' · ' + (kolTen.get(ht.kol) || '') + ')\n\n"' + r.noiDung.slice(0, 300) + '"\n\n'
-              + (tuDuyet ? 'App đã tự chuyển sang "BGĐ đã duyệt" — việc tiếp theo: soạn thư mời KOL. Nhầm thì bấm Lùi bước.'
+              + (tuXacNhan ? 'App đã tự chuyển sang "KOL đã xác nhận" — việc tiếp theo: tạo tour trên Tourwell, điền mã RT. Nhầm thì bấm Lùi bước.'
+                : tuDuyet ? 'App đã tự chuyển sang "BGĐ đã duyệt" — việc tiếp theo: soạn thư mời KOL. Nhầm thì bấm Lùi bước.'
                 : 'Mở app KOL bấm ' + (loai === 'bgd' ? '"BGĐ đã duyệt" hoặc "BGĐ yêu cầu sửa"' : '"KOL đã xác nhận"') + '.'), 'kol-tl-' + ht.id + '-' + r.luc);
           }
           trangThai.daBao++;

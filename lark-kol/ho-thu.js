@@ -54,25 +54,31 @@ async function docDong(k = KHOA) {
 }
 /* Chữ ký email (anh Hùng 24/09: gửi qua API thì Lark Mail KHÔNG tự gắn chữ ký như khi soạn tay) —
  * anh dán chữ ký một lần trong app, lưu HTML ở bảng Cài đặt, gắn cuối mọi thư gửi từ Hub. */
-const KHOA_CK = 'mail.chuKy';
-let chuKyDem = null;
-async function chuKy() {
-  if (chuKyDem !== null) return chuKyDem;
-  const r = await docDong(KHOA_CK);
-  const c = await cot();
-  chuKyDem = r ? chu(r.cells[c.giaTri] ?? r.cells['Giá trị']) : '';
-  return chuKyDem;
+/* hai chữ ký: tiếng Việt (mail.chuKy) và tiếng Anh cho thư gửi KOL nước ngoài (mail.chuKyEn).
+ * Thư tiếng Anh chưa có chữ ký riêng thì dùng chữ ký tiếng Việt (trừ khi hỏi `dung` = đúng bản đó). */
+const KHOA_CK = { vi: 'mail.chuKy', en: 'mail.chuKyEn' };
+const chuKyDem = {};
+async function chuKy(lang = 'vi', dung = false) {
+  const k = lang === 'en' ? 'en' : 'vi';
+  if (chuKyDem[k] == null) {
+    const r = await docDong(KHOA_CK[k]);
+    const c = await cot();
+    chuKyDem[k] = r ? chu(r.cells[c.giaTri] ?? r.cells['Giá trị']) : '';
+  }
+  if (k === 'en' && !chuKyDem.en && !dung) return chuKy('vi');
+  return chuKyDem[k];
 }
 /* chỉ giữ HTML trình bày: bỏ script/style/iframe, thuộc tính on*, link javascript: */
 const sachHtml = (h) => String(h || '').replace(/<(script|style|iframe|object|embed)[\s\S]*?<\/\1>/gi, '').replace(/<(script|iframe|object|embed)[^>]*>/gi, '')
   .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '').replace(/(href|src)\s*=\s*(["'])\s*javascript:[^"']*\2/gi, '$1="#"').trim();
-async function ghiChuKy(html) {
+async function ghiChuKy(html, lang = 'vi') {
+  const k = lang === 'en' ? 'en' : 'vi';
   const h = sachHtml(html);
   if (h.length > 60000) throw Object.assign(new Error('Chữ ký quá nặng (' + Math.round(h.length / 1000) + ' KB) — thường do ảnh dán thẳng vào. Dùng ảnh có đường link (https) thay vì ảnh dán.'), { http: 400 });
-  const r = await docDong(KHOA_CK);
-  const f = { 'Khoá': KHOA_CK, 'Giá trị': h, 'Ghi chú': 'Chữ ký HTML gắn cuối email gửi từ Hub (sửa trong app KOL)' };
+  const r = await docDong(KHOA_CK[k]);
+  const f = { 'Khoá': KHOA_CK[k], 'Giá trị': h, 'Ghi chú': 'Chữ ký HTML ' + (k === 'en' ? 'tiếng Anh' : 'tiếng Việt') + ' gắn cuối email gửi từ Hub (sửa trong app KOL)' };
   if (r) await lark.updateRecord(r.record_id, f, BANG); else await lark.createRecord(f, BANG);
-  chuKyDem = h;
+  chuKyDem[k] = h;
   return h;
 }
 let phien = null;           // { refresh, hetRefresh, email, ten, luc } — giải mã từ Base

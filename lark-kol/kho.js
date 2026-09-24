@@ -43,7 +43,7 @@ const BANG = {
     ma: ['Mã hợp tác', 't'], kol: ['KOL', 'l'], buoc: ['Bước', 's'],
     nguoiLon: ['Người lớn', 'n'], treEm: ['Trẻ em', 'n'], emBe: ['Em bé', 'n'],
     batDau: ['Ngày bắt đầu', 'd'], ketThuc: ['Ngày kết thúc', 'd'],
-    kenhDang: ['Kênh đăng tải', 't'], yeuCau: ['Yêu cầu nội dung', 't'],
+    kenhDang: ['Kênh đăng tải', 't'], yeuCau: ['Yêu cầu nội dung', 't'], yeuCauEn: ['Yêu cầu nội dung EN', 't'],
     tienCongTy: ['Tiền công ty chi', 'n'], giaTriFOC: ['Giá trị FOC', 'n'], giaTriQuyDoi: ['Giá trị quy đổi', 'n'],
     trinhLuc: ['Trình BGĐ lúc', 'd'], nguoiDuyet: ['Người duyệt', 't'], kenhDuyet: ['Kênh duyệt', 's'],
     duyetLuc: ['Duyệt lúc', 'd'], yKien: ['Ý kiến BGĐ', 't'],

@@ -260,7 +260,7 @@ const COT = {
   kenh: ['id', 'ten', 'nenTang', 'link', 'theoDoi', 'capNhat', 'reup'],
   dichVu: ['ten', 'loai', 'nhaCungCap', 'donVi', 'cbNL', 'cbTE', 'cbEB', 'netNL', 'netTE', 'netEB', 'focThuong',
     'lienHe', 'sdtLienHe', 'diaChi', 'dangDung', 'ghiChu'],
-  hopTac: ['kol', 'nguoiLon', 'treEm', 'emBe', 'batDau', 'ketThuc', 'kenhDang', 'yeuCau', 'maTourwell', 'ttTourwell', 'ghiChu'],
+  hopTac: ['kol', 'nguoiLon', 'treEm', 'emBe', 'batDau', 'ketThuc', 'kenhDang', 'yeuCau', 'yeuCauEn', 'maTourwell', 'ttTourwell', 'ghiChu'],
   hangMuc: ['id', 'ten', 'nhom', 'ngay', 'gioHen', 'diemHen', 'nguonDv', 'maDv', 'dichVu', 'loaiKhach', 'soLuong', 'demLuot',
     'hinhThuc', 'donGiaChi', 'giaCongBo', 'vat', 'nhaCungCap', 'tinhTrang', 'nhacHen', 'tinNhan', 'kiemLai', 'ghiChu', 'xinFoc', 'tourwellId'],
   banGiao: ['id', 'ten', 'chuDe', 'loai', 'nenTang', 'soLuong', 'hanDang', 'trangThai', 'ngayDang', 'link', 'theTag', 'cta',
@@ -369,10 +369,10 @@ async function api(req, res, u) {
     try { return gui(res, 302, '', { Location: require('./ho-thu').urlKetNoi() }); } catch (e) { return loi(res, 400, e.message); }
   }
   if (p === '/api/mail/ngat' && m === 'POST') { await require('./ho-thu').ngat(); return json(res, { ok: true }); }
-  if (p === '/api/mail/chu-ky' && m === 'GET') return json(res, { html: cfg.mode === 'api' ? await require('./ho-thu').chuKy() : '' });
+  if (p === '/api/mail/chu-ky' && m === 'GET') return json(res, { html: cfg.mode === 'api' ? await require('./ho-thu').chuKy(u.searchParams.get('lang') === 'en' ? 'en' : 'vi', true) : '' });
   if (p === '/api/mail/chu-ky' && m === 'POST') {
     const b = await docThan(req, 200 * 1024);
-    try { return json(res, { html: await require('./ho-thu').ghiChuKy(b.html) }); } catch (e) { return loi(res, e.http || 500, e.message); }
+    try { return json(res, { html: await require('./ho-thu').ghiChuKy(b.html, b.lang === 'en' ? 'en' : 'vi') }); } catch (e) { return loi(res, e.http || 500, e.message); }
   }
 
   if (p === '/api/logo' && m === 'GET') {
@@ -659,7 +659,7 @@ async function api(req, res, u) {
       const l = T.duocLam(g.ht, viec);
       if (l) return loi(res, 409, l);
       const b = await docThan(req);
-      const kq = await mail.guiMail({ den: b.den, cc: b.cc, tieuDe: b.tieuDe, html: b.html, gui: b.gui === true });
+      const kq = await mail.guiMail({ den: b.den, cc: b.cc, tieuDe: b.tieuDe, html: b.html, gui: b.gui === true, lang: b.lang === 'en' ? 'en' : 'vi' });
       let buoc = g.ht.buoc;
       /* thread_id do +send trả về → bộ theo dõi thư đọc lại luồng để bắt thư trả lời. */
       const luong = (kq.du && (kq.du.thread_id || (kq.du.message && kq.du.message.thread_id))) || '';

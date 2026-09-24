@@ -224,6 +224,18 @@ const THANG_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep',
 const THU_EN = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const ngayEn = (ms, thu) => { if (!ms) return '?'; const v = T.vn(ms); const d = new Date(Date.UTC(v.nam, v.thang - 1, v.ngay));
   return (thu ? THU_EN[d.getUTCDay()] + ', ' : '') + v.ngay + ' ' + THANG_EN[v.thang - 1] + ' ' + v.nam; };
+/* Câu yêu cầu hay dùng → tiếng Anh (anh Hùng 24/09). Ô "Yêu cầu nội dung EN" có chữ thì dùng ô đó;
+ * trống thì dịch theo các cụm quen dưới đây — cụm lạ giữ nguyên tiếng Việt để anh thấy mà sửa. */
+const CUM_YC = [
+  [/Nhắc tên Rooty Trip Phú Quốc trong video \(voice \+ hình ảnh\)/gi, 'Mention Rooty Trip Phu Quoc in the video (voice-over + visuals)'],
+  [/có kêu gọi hành động \(CTA\) đến Rooty Trip Phú Quốc/gi, 'with a call to action (CTA) to Rooty Trip Phu Quoc'],
+  [/Gắn thẻ Rooty Trip Phú Quốc/gi, 'Tag Rooty Trip Phu Quoc'],
+  [/Quyền sử dụng hình ảnh của KOL/gi, 'Rooty Trip may use the creator\'s images and videos'],
+  [/Rooty Trip Phú Quốc/g, 'Rooty Trip Phu Quoc'],
+  [/, hashtag /gi, ', hashtags '],
+];
+const dichYeuCau = (s) => CUM_YC.reduce((v, [r, t]) => v.replace(r, t), String(s || ''));
+
 function thuMoiEn({ ht, kol, kenh, hm, bg }, cfg, tenEn = {}) {
   /* mã dịch vụ, hoặc mã ở đầu tên ("G4 - TOUR GHÉP …") */
   const ten = (h) => {
@@ -256,7 +268,7 @@ function thuMoiEn({ ht, kol, kenh, hm, bg }, cfg, tenEn = {}) {
     P('Dates: ' + (ht.batDau ? ngayEn(ht.batDau) : '?') + (ht.ketThuc && T.ngayCua(ht.ketThuc) !== T.ngayCua(ht.batDau) ? ' – ' + ngayEn(ht.ketThuc) : '')),
     H('2) CONTENT DELIVERABLES'),
     bangBanGiao(bg, kenh, 'en'),
-    ht.yeuCau ? '<p style="margin:10px 0 2px"><b>Key messages to include:</b></p>' + P(esc(ht.yeuCau).replace(/\n/g, '<br>')) : '',
+    (ht.yeuCauEn || ht.yeuCau) ? '<p style="margin:10px 0 2px"><b>Key messages to include:</b></p>' + P(esc(ht.yeuCauEn || dichYeuCau(ht.yeuCau)).replace(/\n/g, '<br>')) : '',
     H('3) GENERAL NOTES'),
     '<p style="margin:0 0 2px">Media produced during the collaboration may be used and shared by both parties for content production.</p>',
     P('This collaboration is carried out in a spirit of protecting both the creator\'s image and the brand image.'),

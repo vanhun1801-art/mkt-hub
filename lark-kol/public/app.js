@@ -517,6 +517,7 @@ function veThongTin(than, ht) {
     '<label>Mã đơn Tourwell<input class="in-o" data-k="maTourwell" value="' + e(ht.maTourwell) + '" placeholder="RT…"></label>' +
     '<label>Trạng thái Tourwell<select class="in-o" data-k="ttTourwell">' + opt(['Chưa tạo', 'Đang xử lý', 'Thành công', 'Đã gửi điều hành'], ht.ttTourwell, true) + '</select></label>' +
     '<label class="rong">Yêu cầu nội dung<textarea class="in" data-k="yeuCau" placeholder="Nhắc tên, CTA, gắn thẻ, hashtag…">' + e(ht.yeuCau) + '</textarea></label>' +
+    '<label class="rong">Yêu cầu nội dung (tiếng Anh, cho thư mời KOL nước ngoài)<textarea class="in" data-k="yeuCauEn" placeholder="Để trống = app tự dịch các câu quen (nhắc tên, CTA, gắn thẻ, hashtag); câu lạ giữ tiếng Việt">' + e(ht.yeuCauEn) + '</textarea></label>' +
     '<label class="rong">Ghi chú<textarea class="in" data-k="ghiChu">' + e(ht.ghiChu) + '</textarea></label>' +
     '</div></div></div>' +
     '<div class="the"><div class="the-dau"><h2>KOL</h2><div class="lon"></div><button class="btn nho" id="suaKol">Sửa KOL</button></div><div class="the-than">' + tomTatKol(kol) + '</div></div>' +
@@ -1205,7 +1206,7 @@ async function moEmail(ht, loai, dt, lang) {
     '<button class="btn" id="emChep" title="Chép tiêu đề + nội dung (giữ bảng) để dán vào Lark Mail">Chép nội dung</button>' +
     '<button class="btn" id="emNhap"' + (m.chan || !guiDuoc || !S.meta.mail.nhapDuoc ? ' disabled' : '') + (S.meta.mail.nhapDuoc ? '' : ' title="Chỉ bản chạy trên máy anh lưu nháp được"') + '>Lưu nháp</button><button class="btn chinh" id="emGui"' + (m.chan || !guiDuoc ? ' disabled' : '') + '>Gửi ngay</button>', true);
   const goi = async (gui) => {
-    const b = { den: $('#emDen').value, cc: $('#emCc').value, tieuDe: $('#emTd').value, html: $('#emThan').innerHTML, gui };
+    const b = { den: $('#emDen').value, cc: $('#emCc').value, tieuDe: $('#emTd').value, html: $('#emThan').innerHTML, gui, lang: m.lang || 'vi' };
     if (gui && !(await hoi({ tieuDe: 'Gửi email', noiDung: '"' + b.tieuDe + '" tới ' + b.den + (b.cc ? ' (CC ' + b.cc + ')' : '') + '. Gửi đi là không thu hồi được.', nut: 'Gửi ngay' }))) return;
     $$('.hop-chan .btn', hop).forEach((x) => { x.disabled = true; });
     try {
@@ -1220,7 +1221,10 @@ async function moEmail(ht, loai, dt, lang) {
   /* chữ ký (bản trên Hub): xem trước + sửa bằng cách dán từ Lark Mail */
   if ($('#emCkXem')) {
     const veCk = (h) => { $('#emCkXem').innerHTML = h || '<span class="canh">Chưa có chữ ký — thư sẽ đi không có chữ ký. Bấm Sửa chữ ký để dán.</span>'; };
-    api('/api/mail/chu-ky').then((r) => veCk(r.html)).catch(() => veCk(''));
+    const ckLang = m.lang === 'en' ? 'en' : 'vi';
+    if (ckLang === 'en') $('.thu-ck-dau span').textContent = 'Chữ ký tiếng Anh';
+    api('/api/mail/chu-ky?lang=' + ckLang).then((r) => { if (r.html || ckLang === 'vi') return veCk(r.html);
+      $('#emCkXem').innerHTML = '<span class="canh">Chưa có chữ ký tiếng Anh — thư sẽ dùng chữ ký tiếng Việt. Bấm Sửa chữ ký để dán bản tiếng Anh.</span>'; }).catch(() => veCk(''));
     $('#emCk').onclick = () => {
       const cu = $('#emCkXem').querySelector('.canh') ? '' : $('#emCkXem').innerHTML;
       const vung = document.createElement('div');
@@ -1233,7 +1237,7 @@ async function moEmail(ht, loai, dt, lang) {
       $('#ckHuy').onclick = () => vung.remove();
       $('#ckLuu').onclick = async () => {
         $('#ckLuu').disabled = true;
-        try { const r = await api('/api/mail/chu-ky', { html: $('#ckThan').innerHTML }); veCk(r.html); vung.remove(); toast('Đã lưu chữ ký'); }
+        try { const r = await api('/api/mail/chu-ky', { html: $('#ckThan').innerHTML, lang: ckLang }); veCk(r.html); vung.remove(); toast('Đã lưu chữ ký' + (ckLang === 'en' ? ' tiếng Anh' : '')); }
         catch (err) { toast(err.message, true); $('#ckLuu').disabled = false; }
       };
     };
