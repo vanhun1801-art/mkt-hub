@@ -532,7 +532,15 @@ async function api(req, res, u) {
     const o = (r, f) => (r.cells || {})[f];
     const chu = (v) => (v == null ? '' : Array.isArray(v)
       ? v.map((x) => (x && x.text) || x).join(' ') : String(v));
-    const so = (v) => { const n = Number(chu(v).replace(/[^\d.-]/g, '')); return Number.isFinite(n) ? n : null; };
+    /* Ô rỗng phải ra null, KHÔNG ra 0: Number('') === 0, và một cột giá bán
+       hiện "0đ" trông như một mức giá thật chứ không như chỗ bỏ trống.
+       Đúng cái bẫy đã vá ở kho.js. */
+    const so = (v) => {
+      const t = chu(v).replace(/[^\d.-]/g, '');
+      if (!t) return null;
+      const n = Number(t);
+      return Number.isFinite(n) ? n : null;
+    };
     const mot = (v) => (Array.isArray(v) ? chu(v[0]) : chu(v));
     const F = cfg.f;
 

@@ -964,8 +964,11 @@ function giaVonHtml() {
     '<td class="sp-num">' + tien(x.chiPhiDoan) + '</td>' +
     '<td class="sp-num">' + tien(x.chiPhiDauNguoi) + '</td>' +
     '<td class="sp-num">' + tien(Math.round(x.giaVon || 0)) + '</td>' +
-    '<td class="sp-num">' + Math.round((x.bien || 0) * 100) + '%</td>' +
-    '<td class="sp-num gvBan">' + tien(x.giaBan) + 'đ</td></tr>').join('');
+    '<td class="sp-num">' + (x.bien ? Math.round(x.bien * 100) + '%' : '—') + '</td>' +
+    /* Chưa khai biên thì KHÔNG hiện giá bán. tien(null) ra "0", mà "0đ" trông
+       như một mức giá thật. Tour bán theo bậc cố định (tàu gỗ) không có biên,
+       giá bán của nó nằm ở bảng Giá bán · Bảng công bố. */
+    '<td class="sp-num gvBan">' + (x.giaBan ? tien(x.giaBan) + 'đ' : '—') + '</td></tr>').join('');
 
   const hangCt = ct.map((x) =>
     '<tr><td data-no-i18n>' + esc(x.ten) + '</td>' +
