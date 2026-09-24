@@ -593,9 +593,32 @@
   })();
 
   /* ---------- luồng tàu + đường bay (nét đứt trên biển, có chữ) ---------- */
+  /* 26/09 (anh Hùng: "đường bay mượt mà tí"): dữ liệu đường bay chỉ có 5–6 điểm nối thẳng →
+     gãy góc ngay chỗ rời đường băng và máy bay đổi hướng giật cục. Bo cong Chaikin 4 lượt trên
+     bộ (x, y, độ cao, MỐC THỜI GIAN cộng dồn): nét vẽ và quỹ đạo máy bay đi cùng một đường
+     cong, độ cao lên dần mượt, nhịp chậm lúc chạy đà / nhanh khi lên cao vẫn giữ nguyên.
+     Hai đầu giữ đúng chỗ (đầu đường băng, mép khung). */
+  function lamMuotBay(duong) {
+    let tc = 0;
+    let p = duong.map((q, i) => { if (i) tc += +q[3] || 0; const [x, y] = chieu(q[1], q[0]); return [x, y, +q[2] || 0, tc]; });
+    for (let lan = 0; lan < 4; lan++) {
+      const m = [p[0]];
+      for (let i = 0; i < p.length - 1; i++) {
+        const a = p[i], b = p[i + 1];
+        if (i > 0) m.push(a.map((v, k) => v * .75 + b[k] * .25));
+        if (i < p.length - 2) m.push(a.map((v, k) => v * .25 + b[k] * .75));
+      }
+      m.push(p[p.length - 1]);
+      p = m;
+    }
+    return p;
+  }
+  const BAY_MUOT = D.tuyenBay.map((t) => lamMuotBay(t.duong));
+
   const LUONG = [
     ...D.tuyenTau.map((t) => ({ k: 'tau', ten: t, pts: t.duong.map(tuLonLat) })),
-    ...D.tuyenBay.map((t) => ({ k: 'bay', ten: t, pts: t.duong.map((p) => chieu(p[1], p[0])) })),
+    /* nhan: điểm GỐC (thưa) để đặt chữ tên đường bay — đường đã bo cong gồm nhiều đoạn ngắn, không đoạn nào đủ dài cho chữ */
+    ...D.tuyenBay.map((t, i) => ({ k: 'bay', ten: t, pts: BAY_MUOT[i].map((p) => [p[0], p[1]]), nhan: t.duong.map((p) => chieu(p[1], p[0])) })),
   ];
   for (const l of LUONG) {
     tao('path', { class: 'luong luong-' + l.k, d: duongSvg(l.pts) }, $$('#lopLuong'));
@@ -651,7 +674,7 @@
     const than = ve1();
     XE.push(Object.assign({ loai, pts, doan, tong, g, gb, bong, than, pha: o.pha || 0, khuHoi: !!o.khuHoi, nghi: o.nghi || 0 }));
   }
-  D.tuyenBay.forEach((t, i) => themXe('may-bay', t.duong.map((p) => ({ xy: chieu(p[1], p[0]), cao: p[2], giay: p[3] })), { pha: i * .33, nghi: 10 }));
+  D.tuyenBay.forEach((t, i) => themXe('may-bay', BAY_MUOT[i].map((p, j, a) => ({ xy: [p[0], p[1]], cao: p[2], giay: j ? Math.max(.01, p[3] - a[j - 1][3]) : 0 })), { pha: i * .33, nghi: 10 }));
   D.tuyenTau.forEach((t) => {
     const ds = t.duong.map((p) => ({ xy: tuLonLat(p) }));
     themXe('tau', ds, { khuHoi: true }); themXe('tau', ds, { pha: .5, khuHoi: true });
@@ -875,8 +898,9 @@
     /* chữ trên luồng tàu / đường bay: đặt ở chặng dài nhất còn trong khung nhìn */
     for (const l of LUONG) {
       let tot = null, dai = 0;
-      for (let i = 1; i < l.pts.length; i++) {
-        const a = [X(l.pts[i - 1][0]), Y(l.pts[i - 1][1])], b = [X(l.pts[i][0]), Y(l.pts[i][1])];
+      const pn = l.nhan || l.pts;
+      for (let i = 1; i < pn.length; i++) {
+        const a = [X(pn[i - 1][0]), Y(pn[i - 1][1])], b = [X(pn[i][0]), Y(pn[i][1])];
         const m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
         if (m[0] < 420 && !laDienThoai() || m[0] < 20 || m[1] < 20 || m[0] > innerWidth - 20 || m[1] > innerHeight - 60) continue;
         const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
