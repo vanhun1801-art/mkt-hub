@@ -40,7 +40,9 @@ const S = {
   baseUrl: '',
   baseUrlBoSung: '',
   capNhat: 0,
-  tab: 'bang-day',     // bang-day | danh-muc | het-han | thieu | quan-ly
+  tab: 'bang-day',     // bang-day | danh-muc | het-han | thieu | ban-do | gia-von | quan-ly
+  gv: null,            // số liệu giá vốn, nạp riêng khi mở tab (xem napGiaVon)
+  gvTour: '',          // mã tour đang xem
   loc: { tim: '', nhom: '', uuTien: '', trangThai: '', tepKhach: '', traiNghiem: '' },
   moId: '',
   chonHangLoat: new Set(),
@@ -344,6 +346,9 @@ function veTabs() {
     ['thieu', 'Cần bổ sung', soThieu, soThieu > 0],
   ];
   muc.push(['ban-do', 'Bản đồ', null, false]);
+  /* Giá vốn đứng SAU Bản đồ và gác sau vai quản lý: đây là số của Sales, bạn
+     viết content mở app lên vẫn thấy đúng bốn tab như trước. */
+  if (laQuanLy()) muc.push(['gia-von', 'Giá vốn', null, false]);
   if (laQuanLy()) muc.push(['quan-ly', 'Quản lý', S.ds.length, false]);
   $('#tabs').innerHTML = muc.map(([id, ten, n, canh]) =>
     '<button class="pill' + (S.tab === id ? ' on' : '') + '" data-tab="' + id + '">' + esc(ten) +
@@ -891,7 +896,7 @@ async function nenHinh(tep) {
    Bấm nút = nhận ngay một bản + đăng ký mình làm người nhận hằng tuần. */
 function baoCaoTuanHtml() {
   return '<div class="khoi-hinh khoi-bao-cao"><b>Báo cáo dữ liệu hằng tuần</b> ' +
-    '<span class="phu">Sáng thứ Hai, bot Marketing Hub nhắn riêng: sản phẩm hết hiệu lực · thiếu thông tin · link media hỏng · thay đổi trong tuần</span>' +
+    '<span class="phu">Sáng thứ Hai và thứ Năm, bot Marketing Hub nhắn riêng: sản phẩm hết hiệu lực · thiếu thông tin · link media hỏng · thay đổi trong tuần</span>' +
     '<button class="btn sm" id="btnBaoCao">Gửi báo cáo cho tôi</button></div>';
 }
 
@@ -911,6 +916,74 @@ async function taiHinhLen(inp) {
   } catch (e) { toast(e.message, 'err'); if (o) o.classList.remove('dang-tai'); }
 }
 
+/* ---------------------------------------------------------------------------
+ * GIÁ VỐN — màn của Sales và người làm giá
+ *
+ * Anh Hùng: "không ảnh hưởng đến sự đơn giản của đội marketing, nó chỉ nên
+ * phục vụ cho Sales hoặc ai làm việc với giá này kia để tính".
+ *
+ * Nạp RIÊNG, chỉ khi mở tab: số liệu này không dính gì tới màn hình của
+ * Marketing, nhét chung vào lượt nạp đầu là bắt cả phòng chờ thêm hai lượt đọc
+ * Base cho một tab họ không mở.
+ *
+ * Mọi con số ở đây do Base tính, app chỉ bày ra. Không tính lại ở giao diện —
+ * hai nơi cùng tính một con số là hai nơi lệch được nhau.
+ * ------------------------------------------------------------------------- */
+async function napGiaVon() {
+  try {
+    S.gv = await api('/api/gia-von');
+    if (!S.gvTour && S.gv.ma.length) S.gvTour = S.gv.ma[0];
+    ve();
+  } catch (e) {
+    S.gv = { loi: e.message, ma: [], bac: [], cauThanh: [] };
+    ve();
+  }
+}
+
+function giaVonHtml() {
+  if (S.gv === null) return '<div class="dangTai">Đang đọc bảng giá vốn…</div>';
+  if (S.gv.loi) return '<div class="dangTai err">' + esc(S.gv.loi) + '</div>';
+  if (!S.gv.ma.length) return '<div class="trong">Chưa có tour nào trong bảng giá vốn.</div>';
+
+  const ma = S.gvTour || S.gv.ma[0];
+  const bac = S.gv.bac.filter((x) => x.ma === ma);
+  const ct = S.gv.cauThanh.filter((x) => x.ma === ma);
+
+  const chon = '<div class="filters">' +
+    '<select id="gvChon" data-no-i18n>' +
+      S.gv.ma.map((m) => '<option value="' + esc(m) + '"' +
+        (m === ma ? ' selected' : '') + '>' + esc(m) + '</option>').join('') +
+    '</select>' +
+    '<span class="phu">' + bac.length + ' bậc khách · ' + ct.length + ' khoản chi</span>' +
+    '<span class="sp"></span>' +
+    '<a class="btn sm" href="' + esc(S.gv.baseUrl) + '" target="_blank" rel="noopener">Sửa trên Base</a>' +
+    '</div>';
+
+  const hangBac = bac.map((x) =>
+    '<tr><td>' + x.soKhach + '</td>' +
+    '<td class="sp-num">' + tien(x.chiPhiDoan) + '</td>' +
+    '<td class="sp-num">' + tien(x.chiPhiDauNguoi) + '</td>' +
+    '<td class="sp-num">' + tien(Math.round(x.giaVon || 0)) + '</td>' +
+    '<td class="sp-num">' + Math.round((x.bien || 0) * 100) + '%</td>' +
+    '<td class="sp-num gvBan">' + tien(x.giaBan) + 'đ</td></tr>').join('');
+
+  const hangCt = ct.map((x) =>
+    '<tr><td data-no-i18n>' + esc(x.ten) + '</td>' +
+    '<td>' + esc(x.nhom || '') + '</td>' +
+    '<td>' + esc(x.kieu || '') + '</td>' +
+    '<td>' + (x.tuKhach ? x.tuKhach + '–' + (x.denKhach || '') + ' khách' : 'mọi bậc') + '</td>' +
+    '<td class="sp-num">' + tien(x.donGia) + '</td></tr>').join('');
+
+  return chon +
+    khoiHtml('Giá bán theo số khách',
+      '<table class="gvBang"><thead><tr><th>Số khách</th><th>Chi phí đoàn</th>' +
+      '<th>Chi phí đầu người</th><th>Giá vốn</th><th>Biên</th><th>Giá bán</th></tr></thead>' +
+      '<tbody>' + hangBac + '</tbody></table>') +
+    khoiHtml('Giá vốn gồm những khoản nào',
+      '<table class="gvBang"><thead><tr><th>Khoản</th><th>Nhóm</th><th>Kiểu</th>' +
+      '<th>Áp cho</th><th>Đơn giá</th></tr></thead><tbody>' + hangCt + '</tbody></table>');
+}
+
 function ve() {
   veTabs();
   const man = $('#man');
@@ -918,6 +991,11 @@ function ve() {
   if (S.tab === 'ban-do') {
     man.removeAttribute('aria-busy');
     $('#phuDe').textContent = S.ds.length + ' sản phẩm · đọc lúc ' + gioPhut(S.capNhat);
+    return;
+  }
+  if (S.tab === 'gia-von' && laQuanLy()) {
+    man.innerHTML = giaVonHtml();
+    if (S.gv === null) napGiaVon();
     return;
   }
   if (S.tab === 'quan-ly' && laQuanLy()) {
@@ -1307,7 +1385,7 @@ document.addEventListener('click', async (ev) => {
     if (!ev.isTrusted) return;
     const b = ev.target; if (b.disabled) return;
     b.disabled = true; const cu = b.textContent; b.textContent = 'Đang gửi…';
-    try { const r = await guiJson('/api/bao-cao-tuan', {}); toast('Đã gửi báo cáo vào Lark cho ' + (r.nguoiNhan || 'bạn') + ' — từ giờ nhận mỗi sáng thứ Hai.', 'ok'); }
+    try { const r = await guiJson('/api/bao-cao-tuan', {}); toast('Đã gửi báo cáo vào Lark cho ' + (r.nguoiNhan || 'bạn') + ' — từ giờ nhận mỗi sáng thứ Hai và thứ Năm.', 'ok'); }
     catch (e) { toast(e.message, 'err'); }
     finally { b.disabled = false; b.textContent = cu; }
     return;
@@ -1469,6 +1547,9 @@ document.addEventListener('input', (ev) => {
 });
 
 document.addEventListener('change', async (ev) => {
+  /* Đổi tour ở tab Giá vốn — chỉ đổi màn, không ghi gì xuống Base. */
+  if (ev.target.id === 'gvChon') { S.gvTour = ev.target.value; ve(); return; }
+
   const l = ev.target.closest('[data-loc]');
   if (l) { S.loc[l.dataset.loc] = l.value; S.chonHangLoat.clear(); ve(); return; }
 

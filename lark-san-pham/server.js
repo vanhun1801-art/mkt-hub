@@ -511,6 +511,59 @@ async function api(req, res, u) {
     } catch (e) { return loi(res, e.http || 500, e.message); }
   }
 
+  /* GIÁ VỐN — số liệu của Sales, không phải của Marketing.
+   *
+   * Anh Hùng: "không ảnh hưởng đến sự đơn giản của đội marketing, nó chỉ nên
+   * phục vụ cho Sales hoặc ai làm việc với giá này kia để tính".
+   *
+   * Nên: chặn ở 403 chứ không chỉ ẩn tab. Ẩn nút là chuyện giao diện; ai gõ
+   * tay đường dẫn vẫn phải bị chặn — cùng lối với mọi đường ghi của app này.
+   *
+   * Đọc thẳng hai bảng, KHÔNG nhét vào kho.tatCa(): kho đó nuôi mọi màn hình
+   * của Marketing, thêm hai lượt đọc Base vào đấy là bắt cả phòng trả giá cho
+   * một tab mà họ không mở bao giờ.
+   */
+  if (p === '/gia-von') {
+    if (!toi.quanLy) return loi(res, 403, 'Chỉ quản lý xem được giá vốn.');
+    const [bacRaw, ctRaw] = await Promise.all([
+      lark.listAllRecords(cfg.gvBacTableId),
+      lark.listAllRecords(cfg.gvCauThanhTableId),
+    ]);
+    const o = (r, f) => (r.cells || {})[f];
+    const chu = (v) => (v == null ? '' : Array.isArray(v)
+      ? v.map((x) => (x && x.text) || x).join(' ') : String(v));
+    const so = (v) => { const n = Number(chu(v).replace(/[^\d.-]/g, '')); return Number.isFinite(n) ? n : null; };
+    const mot = (v) => (Array.isArray(v) ? chu(v[0]) : chu(v));
+    const F = cfg.f;
+
+    const bac = bacRaw.map((r) => ({
+      ma: chu(o(r, F.gvBac.maTour)),
+      soKhach: so(o(r, F.gvBac.soKhach)),
+      /* Bốn cột dưới là công thức của Base — app chỉ đọc kết quả, cố ý không
+         tính lại. Hai nơi cùng tính một con số là hai nơi có thể lệch nhau. */
+      chiPhiDoan: so(o(r, F.gvBac.chiPhiDoan)),
+      chiPhiDauNguoi: so(o(r, F.gvBac.chiPhiDauNguoi)),
+      giaVon: so(o(r, F.gvBac.giaVon)),
+      bien: so(o(r, F.gvBac.bien)),
+      giaBan: so(o(r, F.gvBac.giaBan)),
+    })).filter((x) => x.ma && x.soKhach);
+
+    const cauThanh = ctRaw.map((r) => ({
+      ma: chu(o(r, F.gvCauThanh.maTour)),
+      ten: chu(o(r, F.gvCauThanh.ten)),
+      nhom: mot(o(r, F.gvCauThanh.nhom)),
+      kieu: mot(o(r, F.gvCauThanh.kieu)),
+      ngay: so(o(r, F.gvCauThanh.ngay)),
+      donGia: so(o(r, F.gvCauThanh.donGia)),
+      tuKhach: so(o(r, F.gvCauThanh.tuKhach)),
+      denKhach: so(o(r, F.gvCauThanh.denKhach)),
+    })).filter((x) => x.ma);
+
+    const ma = [...new Set(bac.map((x) => x.ma))].sort();
+    bac.sort((a, b) => a.ma.localeCompare(b.ma) || a.soKhach - b.soKhach);
+    return json(res, { ma, bac, cauThanh, baseUrl: cfg.baseUrl });
+  }
+
   /* Tin sản phẩm cho bảng tin của lớp vỏ.
    *
    * KHÔNG ghi vào bảng Thông báo của hub: bảng đó vừa nuôi bảng tin vừa nuôi

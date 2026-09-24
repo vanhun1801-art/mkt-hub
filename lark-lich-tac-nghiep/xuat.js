@@ -87,68 +87,73 @@ function loc(items, dk) {
 /**
  * Dựng cột + dòng. Một chỗ duy nhất, ba lối ra dùng lại.
  *
- * BỘ CỘT LÀ CỦA NGƯỜI NHẬN, KHÔNG PHẢI CỦA BASE. Bảng này đi ra ngoài phòng —
- * đối tác cầm nó để BỐ TRÍ: xin phép bay flycam, giữ chỗ ăn, cử người đón. Nên
- * cột nào không giúp họ bố trí được thì không có mặt:
+ * BỘ CỘT = đúng các cột của sổ Google Sheet "Tháng 9" anh Hùng vẫn dùng
+ * (anh chốt 24/09/2026, thay bộ tám cột "trình đối tác" của 21/09):
  *
- *   · Trạng thái — chuyện nội bộ của phòng (chờ duyệt, đã hoàn tất). Đối tác
- *     đọc "Chờ duyệt/Xử lý" rồi tưởng buổi đó chưa chắc chạy.
- *   · Tên hoạt động — gõ tay, và cố tình chẻ chữ để né bộ lọc nền tảng:
- *     "Li/v/e/stre/a/m", "Liv/e/tream". Đóng mấy cái đó lên văn bản gửi đối tác
- *     thì khó coi. Địa điểm + Loại hình nói đúng chuyện đó mà sạch sẽ, và đó
- *     chính là lý do hai cột ấy ra đời.
- *   · Thời lượng, Link sản phẩm — số của phòng, không phải việc của họ.
+ *   Tên hoạt động · Mục đích · Thời lượng · Thời gian · Phụ trách · Nhân sự ·
+ *   FOC · Phương tiện · Kế hoạch · Báo cáo & ghi chú · Liên kết · Tệp đính kèm ·
+ *   Trạng thái · Yêu cầu FOC · Trạng thái FOC
  *
- * Đổi lại, ba thứ họ thật sự cần thì đưa vào: KẾ HOẠCH CHI TIẾT (lịch giờ từng
- * buổi), GHI CHÚ TRƯỚC TÁC NGHIỆP (chỗ ghi yêu cầu gửi họ: cấp phép flycam, vé
- * FOC, thiết bị), và tách nhân sự thành phụ trách / đi cùng để họ biết hỏi ai.
+ * BỎ phần nhạy cảm: hai cột Chi phí dự kiến / Chi phí thực tế của sổ gốc KHÔNG
+ * ra, với bất kỳ ai — kể cả quản lý (anh Hùng: "bỏ phần nhạy cảm ra"). UNC và
+ * vé cũng không, vì sổ gốc vốn không có hai cột đó.
  *
- * @param {boolean} keTien có kèm cột chi phí không (đã kiểm quyền ở chỗ gọi)
+ * `keTien` còn trong chữ ký chỉ để các chỗ gọi cũ khỏi vỡ; nó bị bỏ qua.
  */
-function dungBang(ds, keTien) {
+function dungBang(ds /* , keTien — bỏ qua, xem trên */) {
   const cot = [
-    { ten: 'Ngày', rong: 11 },
-    { ten: 'Thời gian bắt đầu', rong: 14 },
-    { ten: 'Kế hoạch chi tiết', rong: 52 },
-    { ten: 'Địa điểm', rong: 19 },
-    { ten: 'Loại hình', rong: 18 },
-    { ten: 'Nhân sự phụ trách', rong: 22 },
-    { ten: 'Nhân sự đi cùng', rong: 24 },
-    { ten: 'Ghi chú trước tác nghiệp', rong: 38 },
+    { ten: 'Tên hoạt động', rong: 30 },
+    { ten: 'Mục đích', rong: 32 },
+    { ten: 'Thời lượng', rong: 10 },
+    { ten: 'Thời gian', rong: 17 },
+    { ten: 'Phụ trách', rong: 22 },
+    { ten: 'Nhân sự', rong: 26 },
+    { ten: 'FOC', rong: 18 },
+    { ten: 'Phương tiện', rong: 16 },
+    { ten: 'Kế hoạch', rong: 52 },
+    { ten: 'Báo cáo & ghi chú', rong: 36 },
+    { ten: 'Liên kết', rong: 28 },
+    { ten: 'Tệp đính kèm', rong: 24 },
+    { ten: 'Trạng thái', rong: 18 },
+    { ten: 'Yêu cầu FOC', rong: 11 },
+    { ten: 'Trạng thái FOC', rong: 14 },
   ];
-  if (keTien) {
-    cot.push({ ten: 'Chi phí dự kiến', rong: 15 }, { ten: 'Chi phí thực tế', rong: 15 });
-  }
 
   const hang = ds.map((t) => {
-    /* Buổi nhập từ sổ cũ không có giờ, nên start rơi về 00:00. In "00:00" lên
-     * bảng đưa đối tác là một con số không nói gì — để trống thì người đọc hiểu
-     * ngay là "không ghi giờ". Có giờ kết thúc thì 00:00 là giờ thật, vẫn in. */
+    /* Buổi nhập từ sổ cũ không có giờ, nên start rơi về 00:00 — in "00:00" là
+     * một con số không nói gì, nên chỉ in ngày. Có giờ kết thúc thì 00:00 là
+     * giờ thật, vẫn in. */
     const g1 = gioVN(t.start);
     const gio = (!gioVN(t.end) && g1 === '00:00') ? '' : g1;
+    const thoiGian = [ngayVN(t.start), gio].filter(Boolean).join(' ');
 
-    /* Phụ trách và người đi cùng tách làm HAI cột. Gộp một cột thì đối tác đọc
-     * ra một đám tên ngang hàng, không biết hỏi ai. Và người đã đứng ở cột phụ
-     * trách thì không lặp lại ở cột đi cùng — trong sổ, người đăng ký thường
-     * khai chính mình ở cả hai ô, in ra thành hai người đi. */
+    /* Người đã đứng ở Phụ trách thì không lặp lại ở Nhân sự — người đăng ký
+     * thường khai chính mình ở cả hai ô, in ra thành hai người đi. */
     const dsPT = dsTen(t.owner);
     const pt = new Set(dsPT);
     const diCung = dsTen(t.staff).filter((x) => !pt.has(x));
 
-    const h = [
-      ngayVN(t.start),
-      gio,
-      chu(t.plan),
-      chu(t.diaDiem),
-      chu(t.loaiHinh),
+    /* Thời lượng là SỐ giờ để Excel cộng được; ô gõ lạ thì giữ nguyên chữ. */
+    const tl = chu(t.duration);
+    const soGio = tl !== '' && Number.isFinite(Number(tl)) ? Number(tl) : tl;
+
+    return [
+      chu(t.title),
+      chu(t.purpose),
+      soGio,
+      thoiGian,
       dsPT.join(', '),
       diCung.join(', '),
+      (t.foc || []).map(chu).filter(Boolean).join(', '),
+      (t.transport || []).map(chu).filter(Boolean).join(', '),
+      chu(t.plan),
       chu(t.report),
+      chu(t.link),
+      (t.files || []).map((f) => chu(f && f.name)).filter(Boolean).join(', '),
+      chu(t.status),
+      t.focRequest ? 'Có' : '',
+      chu(t.focStatus),
     ];
-    if (keTien) {
-      h.push(Number(t.costPlan) || 0, Number(t.costActual) || 0);
-    }
-    return h;
   });
 
   return { cot, hang };
@@ -221,7 +226,7 @@ function moTaLoc(dk, so) {
 function tenTep(dk, duoi) {
   const sach = (s) => chu(s).normalize('NFD').replace(/[̀-ͯ]/g, '')
     .replace(/đ/gi, 'd').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  const p = ['tac-nghiep'];
+  const p = ['lich-tac-nghiep'];
   /* Ba địa điểm trở lên thì tên tệp dài loằng ngoằng mà vẫn không nói đủ — ghi
    * số lượng gọn hơn, chi tiết đã nằm ở dòng phụ đề trong tệp. */
   if (chu(dk.diaDiem)) {
@@ -233,7 +238,7 @@ function tenTep(dk, duoi) {
   return p.join('_').toLowerCase() + '.' + duoi;
 }
 
-const TIEU_DE = 'ROOTY TRIP · BÁO CÁO TÁC NGHIỆP';
+const TIEU_DE = 'LỊCH TÁC NGHIỆP';
 
 /* Logo đóng lên tệp cao 46px. Giữ nguyên tỉ lệ ảnh gốc: logo Rooty Trip là
  * chữ nằm ngang rất dài (3994×1385), ép vào một ô vuông là bẹp dí. Không đọc
@@ -252,7 +257,7 @@ function xuatXlsx(ds, dk, keTien, logo) {
     tep: tenTep(dk, 'xlsx'),
     kieu: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     than: ghiXlsx({
-      ten: 'Tác nghiệp', cot, hang,
+      ten: 'Lịch tác nghiệp', cot, hang,
       tieuDe: TIEU_DE, phuDe: moTaLoc(dk, ds.length),
       logo: khoLogo(logo),
     }),

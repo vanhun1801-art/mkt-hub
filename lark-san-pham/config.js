@@ -42,6 +42,18 @@ module.exports = {
   lichTableId: 'tblSjAgrKdYI1eLy',
   giaPaxTableId: 'tblgB57gdBQqplrU',
   nhatKyTableId: 'tblmEGalXqAuwINs',
+
+  /* GIÁ VỐN — phần của Sales và người làm giá, KHÔNG phải của Marketing.
+     Bốn bảng này dựng tháng 09/2026 để thay khối công thức trong file
+     "TOUR GHÉP TRỌN GÓI 3N2Đ" trên wiki. App chỉ ĐỌC; nhập liệu làm thẳng
+     trên Base. Tab hiển thị chúng gác sau vai quản lý, nên giao diện của
+     bạn viết content không đổi một chữ. */
+  nccTableId: 'tblbvsET4Dotknkl',
+  nccGiaTableId: 'tblyag9jkAm9kd1W',
+  gvBienTableId: 'tblSRVk1Z0wQ8tIG',
+  gvCauThanhTableId: 'tbl2nhz4wmzWRGZX',
+  gvBacTableId: 'tblXWOfxI57PoHHw',
+  nldTableId: 'tblePlFlFJQ7tYsH',
   /* Hình minh hoạ của bản đồ du lịch (tab Bản đồ) — quản lý tải lên ở tab Quản lý.
      Mỗi dòng: Mã = mã điểm (vinwonders…) hoặc phương tiện (xe-may-bay, xe-may-bay-2…). */
   hinhTableId: process.env.SP_HINH_TABLE || 'tblGGq3F2wBJsAh4',
@@ -134,6 +146,20 @@ module.exports = {
       nguoiDoi: 'fld8wCZV56',
       luc: 'fldhpOnZ9n',
       lo: 'fldhnRauAR',
+    },
+    /* Giá vốn — xem chú thích ở phần bảng. */
+    gvBac: {
+      ten: 'fldiUiSh6a', maTour: 'fldzYzNOaa', soKhach: 'fldTM3CqGt',
+      /* Năm cột dưới là CÔNG THỨC của Base. App chỉ đọc kết quả, cố ý không
+         tính lại: hai nơi cùng tính một con số là hai nơi lệch được nhau. */
+      chiPhiDoan: 'fldz2CIovy', chiPhiDauNguoi: 'fldZ5nyj0w',
+      giaVon: 'fld58bak5Q', bien: 'fldHV9XEDq', giaBan: 'fldavorfIM',
+    },
+    gvCauThanh: {
+      ten: 'fldQASfMbP', maTour: 'fldTIvuTEG', nhom: 'fldWCCOrDs',
+      kieu: 'fldLaIe5R6', ngay: 'fldtdS5XK4', donGia: 'fld4nVQctj',
+      soLuong: 'fldgUwkoZr', tuKhach: 'flddemNvyR', denKhach: 'fldsDFkg4Q',
+      ghiChu: 'fld2ofYfhr', nguon: 'fldVdIa47n',
     },
     giaPax: {
       ten: 'fldrv57bNe',

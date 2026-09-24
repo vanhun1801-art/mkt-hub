@@ -851,7 +851,9 @@ async function api(req, res, url) {
       manager,
     );
 
-    const keTien = q.get('tien') === '1' && (manager || qChiPhi());
+    /* Bảng xuất không còn cột chi phí (anh Hùng 24/09/2026: "bỏ phần nhạy cảm
+     * ra") — tien=1 bị bỏ qua, và dòng vẫn đi qua boChiPhi() cho chắc. */
+    const keTien = false;
     const dk = {
       tu: q.get('tu') || '', den: q.get('den') || '',
       diaDiem: q.get('diaDiem') || '', loaiHinh: q.get('loaiHinh') || '',

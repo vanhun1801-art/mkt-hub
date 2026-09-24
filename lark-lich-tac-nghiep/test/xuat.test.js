@@ -66,6 +66,10 @@ const DS = [
     staff: [{ id: 'u1', name: 'Nguyễn Long Khánh (Pinky)' }, { id: 'u2', name: 'Võ Hằng' },
       { id: 'u4', name: 'Lê Trung Thành' }],
     costPlan: 700000, costActual: 493000,
+    purpose: 'Cập nhật chương trình Lễ 2/09 tại VinWonders',
+    foc: ['Vé VinWonders'], transport: ['Xe công ty'],
+    files: [{ name: 'kich-ban.pdf' }, { name: 'anh-hien-truong.jpg' }],
+    focRequest: true, focStatus: 'Phê duyệt',
   },
   {
     start: '2026-09-13T00:00:00+07:00', end: '',
@@ -107,57 +111,46 @@ ok('buổi không có ngày thì không lọt vào khoảng ngày nào',
 ok('xếp theo ngày tăng dần',
   xuat.loc(DS, {}).map((t) => t.title)[0] === 'Capcut tháng 8');
 
-nhom('Cột tiền KHÔNG được lọt ra khi không xin');
+nhom('Không có cột tiền nào, kể cả khi xin');
+/* Anh Hùng 24/09/2026: "bỏ phần nhạy cảm ra" — hai cột chi phí của sổ gốc không
+ * ra với BẤT KỲ AI. keTien=true (chỗ gọi cũ) cũng phải ra đúng bảng như thường. */
 const thuong = xuat.dungBang(xuat.loc(DS, {}), false);
 const coTien = xuat.dungBang(xuat.loc(DS, {}), true);
 const tenCot = (b) => b.cot.map((c) => c.ten).join(' | ');
-ok('bảng thường không có cột nào nhắc tiền',
-  !/chi phí/i.test(tenCot(thuong)), tenCot(thuong));
+ok('không cột nào nhắc tiền', !/chi phí/i.test(tenCot(thuong)), tenCot(thuong));
+ok('xin cột tiền cũng KHÔNG ra', tenCot(coTien) === tenCot(thuong) &&
+  JSON.stringify(coTien.hang) === JSON.stringify(thuong.hang));
+ok('không ô nào chứa số tiền của fixture',
+  !JSON.stringify(thuong.hang).includes('493000') && !JSON.stringify(thuong.hang).includes('700000'));
 ok('và không dòng nào dài hơn số cột', thuong.hang.every((h) => h.length === thuong.cot.length));
-ok('xin thì mới có, và có đúng hai cột',
-  coTien.cot.length === thuong.cot.length + 2 && /Chi phí dự kiến/.test(tenCot(coTien)));
-ok('số tiền ghi kiểu SỐ để Excel cộng được',
-  coTien.hang.every((h) => typeof h[h.length - 1] === 'number'));
 
-nhom('Bộ cột là của NGƯỜI NHẬN, không phải của Base');
-/* Bảng này đối tác cầm để BỐ TRÍ: xin phép bay flycam, giữ chỗ ăn, cử người
- * đón. Cột nào không giúp họ bố trí thì không có mặt — và hai cột phải vắng vì
- * lý do riêng, không phải vì thừa:
- *
- *   Trạng thái     — anh Hùng bỏ ngày 21/09/2026. Đối tác đọc "Chờ duyệt/Xử lý"
- *                    rồi tưởng buổi đó chưa chắc chạy.
- *   Tên hoạt động  — gõ tay và cố tình chẻ chữ để né bộ lọc nền tảng
- *                    ("Li/v/e/stre/a/m"). Đóng lên văn bản gửi đối tác thì khó
- *                    coi; Địa điểm + Loại hình nói đúng chuyện đó mà sạch sẽ. */
-ok('KHÔNG có cột Trạng thái', !/trạng thái/i.test(tenCot(thuong)), tenCot(thuong));
-ok('KHÔNG có cột tên hoạt động', !/nội dung tác nghiệp|tên hoạt động/i.test(tenCot(thuong)),
-  tenCot(thuong));
-ok('không có ô nội bộ nào lọt ra',
-  !/mục đích|phản hồi|lý do|báo cáo sau/i.test(tenCot(thuong)), tenCot(thuong));
-ok('có đủ tám cột anh Hùng chốt',
-  tenCot(thuong) === 'Ngày | Thời gian bắt đầu | Kế hoạch chi tiết | Địa điểm | Loại hình'
-    + ' | Nhân sự phụ trách | Nhân sự đi cùng | Ghi chú trước tác nghiệp', tenCot(thuong));
+nhom('Bộ cột = sổ Google Sheet "Tháng 9", bỏ hai cột chi phí');
+ok('đủ 15 cột đúng thứ tự của sổ',
+  tenCot(thuong) === 'Tên hoạt động | Mục đích | Thời lượng | Thời gian | Phụ trách | Nhân sự | FOC'
+    + ' | Phương tiện | Kế hoạch | Báo cáo & ghi chú | Liên kết | Tệp đính kèm | Trạng thái'
+    + ' | Yêu cầu FOC | Trạng thái FOC', tenCot(thuong));
+ok('UNC và vé KHÔNG ra', !/unc|vé/i.test(tenCot(thuong)), tenCot(thuong));
 
 const hVin = xuat.dungBang(xuat.loc(DS, { diaDiem: 'Vinwonders' }), false).hang;
-ok('kế hoạch chi tiết về đúng ô, giữ nguyên xuống dòng',
-  hVin[0][2].includes('13h45 lên live show tiên cá') && hVin[0][2].includes('\n'),
-  JSON.stringify(hVin[0][2]));
-ok('ghi chú trước tác nghiệp về đúng ô',
-  hVin[0][7] === 'Hỗ trợ cấp phép bay flycam', JSON.stringify(hVin[0][7]));
-
-/* Gộp một cột nhân sự thì đối tác đọc ra một đám tên ngang hàng, không biết
- * hỏi ai. Tách hai cột thì phải tách cho đúng. */
-ok('phụ trách đứng riêng một cột',
-  hVin[0][5] === 'Nguyễn Long Khánh (Pinky)', JSON.stringify(hVin[0][5]));
-ok('người đi cùng đứng riêng, KHÔNG lặp lại người phụ trách',
-  hVin[0][6] === 'Võ Hằng, Lê Trung Thành', JSON.stringify(hVin[0][6]));
-ok('không ai đi cùng thì ô để trống, không ghi tên người phụ trách',
-  hVin[1][6] === '', JSON.stringify(hVin[1][6]));
-
-/* Buổi nhập từ sổ cũ rơi về 00:00 — in "00:00" lên bảng đưa đối tác là một con
- * số không nói gì. */
-ok('buổi không ghi giờ thì cột giờ để TRỐNG', hVin[1][1] === '', JSON.stringify(hVin[1][1]));
-ok('buổi có giờ thì chỉ hiện giờ BẮT ĐẦU', hVin[0][1] === '11:00', hVin[0][1]);
+const o = (h, ten) => h[thuong.cot.findIndex((c) => c.ten === ten)];
+ok('tên hoạt động + mục đích về đúng ô',
+  o(hVin[0], 'Tên hoạt động') === 'QUAY + LIVESTREAM VINWONDERS' &&
+  o(hVin[0], 'Mục đích') === 'Cập nhật chương trình Lễ 2/09 tại VinWonders');
+ok('thời lượng là SỐ để Excel cộng được', o(hVin[0], 'Thời lượng') === 8, JSON.stringify(o(hVin[0], 'Thời lượng')));
+ok('thời gian = ngày + giờ bắt đầu', o(hVin[0], 'Thời gian') === '02/09/2026 11:00', o(hVin[0], 'Thời gian'));
+ok('buổi không ghi giờ thì chỉ in ngày', o(hVin[1], 'Thời gian') === '13/09/2026', o(hVin[1], 'Thời gian'));
+ok('kế hoạch giữ nguyên xuống dòng', o(hVin[0], 'Kế hoạch').includes('\n') &&
+  o(hVin[0], 'Kế hoạch').includes('13h45 lên live show tiên cá'));
+ok('báo cáo & ghi chú về đúng ô', o(hVin[0], 'Báo cáo & ghi chú') === 'Hỗ trợ cấp phép bay flycam');
+ok('phụ trách đứng riêng', o(hVin[0], 'Phụ trách') === 'Nguyễn Long Khánh (Pinky)');
+ok('nhân sự KHÔNG lặp lại người phụ trách', o(hVin[0], 'Nhân sự') === 'Võ Hằng, Lê Trung Thành',
+  JSON.stringify(o(hVin[0], 'Nhân sự')));
+ok('FOC, phương tiện, liên kết', o(hVin[0], 'FOC') === 'Vé VinWonders' &&
+  o(hVin[0], 'Phương tiện') === 'Xe công ty' && o(hVin[0], 'Liên kết') === 'https://drive.google.com/x');
+ok('tệp đính kèm ghi TÊN tệp', o(hVin[0], 'Tệp đính kèm') === 'kich-ban.pdf, anh-hien-truong.jpg');
+ok('trạng thái + FOC', o(hVin[0], 'Trạng thái') === 'Đã hoàn tất' &&
+  o(hVin[0], 'Yêu cầu FOC') === 'Có' && o(hVin[0], 'Trạng thái FOC') === 'Phê duyệt');
+ok('không yêu cầu FOC thì để trống', o(hVin[1], 'Yêu cầu FOC') === '');
 
 nhom('Phụ đề và tên tệp nói rõ bảng này là của ai, kỳ nào');
 const dk = { tu: '2026-09-01', den: '2026-09-30', diaDiem: 'Vinwonders' };
@@ -165,7 +158,7 @@ ok('phụ đề có địa điểm, khoảng ngày và số buổi',
   xuat.moTaLoc(dk, 3) === 'Vinwonders  ·  01/09/2026 – 30/09/2026  ·  3 buổi',
   xuat.moTaLoc(dk, 3));
 ok('tên tệp bỏ dấu, có địa điểm và kỳ',
-  xuat.tenTep(dk, 'xlsx') === 'tac-nghiep_vinwonders_2026-09-01_2026-09-30.xlsx',
+  xuat.tenTep(dk, 'xlsx') === 'lich-tac-nghiep_vinwonders_2026-09-01_2026-09-30.xlsx',
   xuat.tenTep(dk, 'xlsx'));
 
 nhom('Tệp .xlsx ghi ra phải đọc lại được');
@@ -177,14 +170,15 @@ ok('có nội dung và đúng đuôi tệp', ra.than.length > 1000 && ra.tep.end
   ra.than.length + ' byte');
 ok('khai đúng kiểu MIME của Excel', /spreadsheetml\.sheet$/.test(ra.kieu), ra.kieu);
 const { sheets } = docXlsx.doc(ra.than);
-ok('đọc lại thấy đúng một sheet, đúng tên', sheets.length === 1 && sheets[0].ten === 'Tác nghiệp',
+ok('đọc lại thấy đúng một sheet, đúng tên', sheets.length === 1 && sheets[0].ten === 'Lịch tác nghiệp',
   JSON.stringify(sheets.map((s) => s.ten)));
 const rows = sheets[0].rows;
 ok('hàng 1 là tiêu đề', rows[0][0] === xuat.TIEU_DE, JSON.stringify(rows[0]));
+ok('tiêu đề là "LỊCH TÁC NGHIỆP"', xuat.TIEU_DE === 'LỊCH TÁC NGHIỆP', xuat.TIEU_DE);
 ok('hàng 2 là phụ đề', rows[1][0] === xuat.moTaLoc(dk, 2), JSON.stringify(rows[1]));
-ok('hàng 4 là tên cột', rows[3][0] === 'Ngày' && rows[3][2] === 'Kế hoạch chi tiết',
+ok('hàng 4 là tên cột', rows[3][0] === 'Tên hoạt động' && rows[3][8] === 'Kế hoạch',
   JSON.stringify(rows[3]));
-ok('dữ liệu về đúng ô', rows[4][3] === 'Vinwonders', JSON.stringify(rows[4]));
+ok('dữ liệu về đúng ô', rows[4][0] === 'QUAY + LIVESTREAM VINWONDERS', JSON.stringify(rows[4]));
 ok('đủ số dòng: 3 dòng đầu + tên cột + 2 buổi', rows.length === 6, String(rows.length));
 
 /* Ký tự XML và ký tự điều khiển: dữ liệu gõ tay có cả hai, và cả hai đều làm
@@ -227,7 +221,7 @@ if (!LOGO_PNG) {
   ok('sheet trỏ tới phần vẽ', ten.includes('xl/worksheets/_rels/sheet1.xml.rels'));
 
   const s2 = docXlsx.doc(coLogo.than).sheets[0];
-  ok('vẫn đọc lại được bằng bộ đọc độc lập', s2.ten === 'Tác nghiệp', s2.ten);
+  ok('vẫn đọc lại được bằng bộ đọc độc lập', s2.ten === 'Lịch tác nghiệp', s2.ten);
   /* Ảnh nổi KHÔNG đẩy nội dung xuống, nên phải chừa sẵn một hàng trống cao
    * đúng bằng nó — thiếu hàng đó là logo nằm đè lên dòng tiêu đề. */
   ok('chừa một hàng trống cho logo đứng, tiêu đề tụt xuống hàng 2',
@@ -250,7 +244,7 @@ ok('vẫn ra tệp đọc được khi không có logo',
 nhom('CSV là đường vào Google Sheet');
 const csv = xuat.xuatCsv(xuat.loc(DS, dk), dk, false).than.toString('utf8');
 ok('mở đầu bằng BOM, nếu không Excel vỡ dấu tiếng Việt', csv.charCodeAt(0) === 0xfeff);
-ok('dòng đầu là tên cột', csv.split('\r\n')[0].includes('Kế hoạch chi tiết'));
+ok('dòng đầu là tên cột', csv.split('\r\n')[0].includes('Tên hoạt động'));
 ok('ô có dấu phẩy được bọc ngoặc kép',
   csv.includes('"Võ Hằng, Lê Trung Thành"'), csv.split('\r\n')[1]);
 const csvTrong = ghiCsv([{ ten: 'A' }], [['có "kép" và, phẩy']]).toString('utf8');
@@ -325,12 +319,12 @@ ok('phụ đề nối bằng dấu cộng, không để nguyên dấu phẩy',
   xuat.moTaLoc({ diaDiem: 'Vinwonders,Grand World' }, 3));
 ok('hai chỗ thì tên tệp ghi cả hai',
   xuat.tenTep({ diaDiem: 'Vinwonders,Grand World' }, 'xlsx')
-    === 'tac-nghiep_vinwonders-grand-world.xlsx',
+    === 'lich-tac-nghiep_vinwonders-grand-world.xlsx',
   xuat.tenTep({ diaDiem: 'Vinwonders,Grand World' }, 'xlsx'));
 /* Ba chỗ trở lên thì tên tệp dài loằng ngoằng mà vẫn không nói đủ. */
 ok('ba chỗ trở lên thì ghi số lượng cho gọn',
   xuat.tenTep({ diaDiem: 'Vinwonders,Grand World,Safari' }, 'xlsx')
-    === 'tac-nghiep_3-dia-diem.xlsx',
+    === 'lich-tac-nghiep_3-dia-diem.xlsx',
   xuat.tenTep({ diaDiem: 'Vinwonders,Grand World,Safari' }, 'xlsx'));
 
 console.log('\n' + (fail ? '\x1b[31m' : '\x1b[32m') + pass + ' pass, ' + fail + ' fail\x1b[0m');

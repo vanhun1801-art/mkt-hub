@@ -854,7 +854,6 @@ function urlXuat(kieu) {
   ['diaDiem', 'loaiHinh', 'trangThai'].forEach((k) => {
     if ((XU[k] || []).length) q.set(k, XU[k].join(','));
   });
-  if (XU.tien) q.set('tien', '1');
   return '/api/xuat?' + q.toString();
 }
 
@@ -934,7 +933,7 @@ function veXuat() {
           : '<div class="xu-mota">Không còn ô lọc nào để bỏ — kỳ này thật sự chưa có buổi nào.</div>')
       : '<span class="xu-so">' + XU.so + '</span> buổi sẽ được xuất';
 
-  $('#mdTitle').textContent = 'Xuất danh sách tác nghiệp';
+  $('#mdTitle').textContent = 'Xuất lịch tác nghiệp';
   $('#mdBody').innerHTML = '<div class="frm">' +
     '<div class="frm-2">' +
       '<div class="frm-row"><label>Từ ngày</label>' +
@@ -954,16 +953,11 @@ function veXuat() {
       oChip('loaiHinh', XU.loaiHinh, O.loaiHinh || [], 'Tất cả', 'loại') + '</div>' +
     '<div class="frm-row"><label>Trạng thái</label>' +
       oChip('trangThai', XU.trangThai, tt, 'Tất cả', 'trạng thái') +
-      /* Trạng thái KHÔNG còn là một cột trong tệp — nó chỉ chọn buổi nào được
-       * lấy. Phải nói ra, vì cùng một ô này phục vụ hai việc ngược nhau: gửi kế
-       * hoạch SẮP tới, và gửi báo cáo ĐÃ chạy. */
-      '<div class="hint">Trạng thái không in ra tệp, nó chỉ chọn buổi nào được lấy. '
-      + 'Gửi <b>kế hoạch sắp tới</b> thì lấy Duyệt/Chờ tác nghiệp; gửi <b>báo cáo đã chạy</b> '
+      /* Cùng một ô phục vụ hai việc ngược nhau: gửi kế hoạch SẮP tới, và gửi
+       * báo cáo ĐÃ chạy — nên nói ra nên chọn gì. */
+      '<div class="hint">Gửi <b>kế hoạch sắp tới</b> thì lấy Duyệt/Chờ tác nghiệp; gửi <b>báo cáo đã chạy</b> '
       + 'thì lấy Đã hoàn tất.</div></div>' +
 
-    (CHIPHI() ? '<label class="xu-tien"><input type="checkbox" data-xu="tien"' +
-      (XU.tien ? ' checked' : '') + '> Kèm cột chi phí ' +
-      '<span class="xu-canh">chỉ tick khi bảng này dùng nội bộ</span></label>' : '') +
 
     '<div class="xu-dong">' + dem + (XU.moTa ? '<div class="xu-mota">' + esc(XU.moTa) + '</div>' : '') + '</div>' +
     '</div>';

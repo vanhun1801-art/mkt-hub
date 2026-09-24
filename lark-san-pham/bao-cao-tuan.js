@@ -1,6 +1,6 @@
 'use strict';
 /**
- * Báo cáo sức khoẻ dữ liệu sản phẩm — gửi anh Hùng mỗi sáng thứ Hai (26/09).
+ * Báo cáo sức khoẻ dữ liệu sản phẩm — gửi anh Hùng HAI lần mỗi tuần: sáng thứ Hai + sáng thứ Năm (26/09).
  *
  * Anh Hùng: "sợ việc quản lý sự thay đổi cũng như cập nhật Base sẽ khó và sai sót" →
  * "em báo cho anh là được, bằng Marketing Hub". Một thẻ Lark gồm:
@@ -13,7 +13,7 @@
  * theo từng app). Chống gửi trùng: ghi một dòng đánh dấu "Báo cáo tuần <năm-Wtuần>" vào bảng
  * Nhật ký (cột Cột để trống nên bảng tin không lấy nó) — Render khởi động lại, deploy mới vẫn
  * không gửi lần hai. Render gói miễn phí ngủ khi không ai vào: báo cáo đi ở lần đầu tiên hub
- * thức từ 8:00 thứ Hai trở đi (nếu cả thứ Hai không ai mở hub thì đi hôm sau, vẫn một lần/tuần).
+ * thức từ 8:00 thứ Hai / thứ Năm trở đi (không ai mở hub hôm đó thì đi hôm sau, vẫn một lần/kỳ).
  */
 const cfg = require('./config');
 const kho = require('./kho');
@@ -51,6 +51,14 @@ function tuanVN(t = Date.now()) {
   u.setUTCDate(u.getUTCDate() + 4 - thu);
   const dau = new Date(Date.UTC(u.getUTCFullYear(), 0, 1));
   return u.getUTCFullYear() + '-W' + String(Math.ceil(((u - dau) / NGAY + 1) / 7)).padStart(2, '0');
+}
+/* 26/09: HAI kỳ mỗi tuần (anh Hùng) — kỳ A từ 8h thứ Hai, kỳ B từ 8h thứ Năm (giờ VN).
+   Trả '2026-W40-A' | '2026-W40-B', hoặc null nếu đang trước 8h thứ Hai / Chủ nhật đã qua kỳ B vẫn tính B. */
+function kyVN(t = Date.now()) {
+  const d = new Date(t + 7 * 3600000), thu = d.getUTCDay() || 7, h = d.getUTCHours();
+  if (thu === 1 && h < 8) return null;                                   // sáng thứ Hai trước 8h: chưa tới kỳ A
+  const B = thu > 4 || (thu === 4 && h >= 8);
+  return tuanVN(t) + (B ? '-B' : '-A');
 }
 const ddmm = (t) => { const d = new Date(t + 7 * 3600000); return String(d.getUTCDate()).padStart(2, '0') + '/' + String(d.getUTCMonth() + 1).padStart(2, '0'); };
 
@@ -107,19 +115,24 @@ async function dung({ moi = false } = {}) {
     khoi.push({ ten: 'Link media khách không mở được (' + hong.length + '/' + links.length + ')', dong: hong.slice(0, 10).map((h) => (theoLink.get(h.u) || h.u) + ' — ' + h.ly) });
   }
 
-  const tuan = (dsNhatKy || []).filter((r) => r.cot && r.luc && r.luc > nay - 7 * NGAY).sort((a, b) => b.luc - a.luc);
+  /* thay đổi TỪ KỲ TRƯỚC (dấu 'Báo cáo tuần …' gần nhất), chưa có kỳ nào thì 7 ngày */
+  const kyTruoc = (dsNhatKy || []).filter((r) => (r.ten || '').startsWith('Báo cáo tuần ') && r.luc).reduce((m, r) => Math.max(m, r.luc), 0);
+  const tu = kyTruoc || nay - 7 * NGAY;
+  const nhan = kyTruoc ? 'Thay đổi từ kỳ trước (' + ddmm(kyTruoc) + ')' : 'Thay đổi 7 ngày qua';
+  const tuan = (dsNhatKy || []).filter((r) => r.cot && r.luc && r.luc > tu).sort((a, b) => b.luc - a.luc);
   const theoId = new Map(ds.map((p) => [p.id, p]));
   if (tuan.length) {
     const nguoi = [...new Set(tuan.map((r) => r.nguoi).filter(Boolean))];
     const gon = (s) => { s = String(s || '—').replace(/\s+/g, ' '); return s.length > 40 ? s.slice(0, 39) + '…' : s; };
     khoi.push({
-      ten: 'Thay đổi 7 ngày qua (' + tuan.length + ' lượt' + (nguoi.length ? ' · ' + nguoi.join(', ') : '') + ')',
+      ten: nhan + ' (' + tuan.length + ' lượt' + (nguoi.length ? ' · ' + nguoi.join(', ') : '') + ')',
       dong: tuan.slice(0, 10).map((r) => { const sp = theoId.get(r.spIds[0]); return (sp ? sp.ma || sp.ten : r.ten) + ' · ' + r.cot + ': ' + gon(r.cu) + ' → ' + gon(r.moi) + (r.nguoi ? ' (' + r.nguoi + ')' : ''); })
         .concat(tuan.length > 10 ? ['… và ' + (tuan.length - 10) + ' lượt nữa (bảng Nhật ký thay đổi)'] : []),
     });
-  } else khoi.push({ ten: 'Thay đổi 7 ngày qua', dong: ['Không có thay đổi nào qua app.'] });
+  } else khoi.push({ ten: nhan, dong: ['Không có thay đổi nào qua app.'] });
 
-  return { tieuDe: 'Sức khoẻ dữ liệu sản phẩm · tuần ' + tuanVN(nay).split('-W')[1] + ' · ' + ban.length + ' sản phẩm đang bán', khoi, soGap: gap.length, soThieu: thieu.length, soHong: hong.length };
+  const ky = kyVN(nay);
+  return { tieuDe: 'Sức khoẻ dữ liệu sản phẩm · ' + (ky && ky.endsWith('-B') ? 'thứ Năm' : 'thứ Hai') + ', tuần ' + tuanVN(nay).split('-W')[1] + ' · ' + ban.length + ' sản phẩm đang bán', khoi, soGap: gap.length, soThieu: thieu.length, soHong: hong.length };
 }
 
 function theLark(bc, urlApp) {
@@ -164,7 +177,7 @@ async function gui({ lark, danhDau = true, toi = null } = {}) {
   const { dsNhatKy } = await kho.tatCa();
   const n = toi && (toi.id || toi.email) ? { userId: toi.id, email: toi.email, ten: toi.ten } : nguoiNhan(dsNhatKy);
   if (!n) return { ok: false, loi: 'Chưa có người nhận — quản lý bấm "Gửi báo cáo cho tôi" trong tab Quản lý một lần' };
-  const r = await k.gui(Object.assign(denCua(n), { card: theLark(bc, urlApp()), khoa: 'bc-sp-' + tuanVN() + (danhDau ? '' : '-' + Date.now()) }));
+  const r = await k.gui(Object.assign(denCua(n), { card: theLark(bc, urlApp()), khoa: 'bc-sp-' + (kyVN() || tuanVN()) + (danhDau ? '' : '-' + Date.now()) }));
   const gio = require('./nhatky').gioBase(Date.now());
   const F = cfg.f.nhatKy;
   if (r.ok && lark) {
@@ -174,7 +187,7 @@ async function gui({ lark, danhDau = true, toi = null } = {}) {
       if (toi && toi.id && (!cu || cu.userId !== toi.id)) {
         await lark.createRecord({ [F.noiDung]: NHAN, [F.giaTriMoi]: [toi.id, toi.email || '', toi.ten || ''].join('|'), [F.nguoiDoi]: toi.ten || '', [F.luc]: gio }, cfg.nhatKyTableId);
       }
-      if (danhDau) await lark.createRecord({ [F.noiDung]: 'Báo cáo tuần ' + tuanVN() + ' — đã gửi ' + (n.ten || n.email || n.userId), [F.luc]: gio }, cfg.nhatKyTableId);
+      if (danhDau) await lark.createRecord({ [F.noiDung]: 'Báo cáo tuần ' + kyVN() + ' — đã gửi ' + (n.ten || n.email || n.userId), [F.luc]: gio }, cfg.nhatKyTableId);
       kho.xoaDem();
     } catch (e) { console.error('[BÁO CÁO TUẦN] không ghi được nhật ký:', e.message); }
   }
@@ -188,12 +201,12 @@ function batVong(lark) {
   const thu = async () => {
     if (dang) return;
     const d = new Date(Date.now() + 7 * 3600000);
-    const thu2 = d.getUTCDay() === 1 ? d.getUTCHours() >= 8 : d.getUTCDay() !== 0;   // từ 8h thứ Hai tới hết thứ Bảy
-    if (!thu2) return;
+    const ky = kyVN();
+    if (!ky) return;
     dang = true;
     try {
       const { dsNhatKy } = await kho.tatCa({ moi: true });
-      const dau = 'Báo cáo tuần ' + tuanVN();
+      const dau = 'Báo cáo tuần ' + ky + ' ';
       if ((dsNhatKy || []).some((r) => (r.ten || '').startsWith(dau))) return;
       if (!nguoiNhan(dsNhatKy)) return;                       // chưa quản lý nào đăng ký nhận
       const r = await gui({ lark });
@@ -204,4 +217,4 @@ function batVong(lark) {
   setInterval(thu, 20 * 60 * 1000).unref();
 }
 
-module.exports = { dung, gui, batVong, theLark, tuanVN };
+module.exports = { dung, gui, batVong, theLark, tuanVN, kyVN };
