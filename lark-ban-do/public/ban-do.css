@@ -436,9 +436,9 @@ a { color: inherit; }
 #khung.an-cap .xe-cabin, #khung.an-cap #lopCapTreo use { display: none; }
 
 /* ---------- 26/09: chế độ khách (trang link gửi khách) + nút tạo link ---------- */
-body.khach #panel, body.khach .chu-thich, body.khach .ngon-ngu, body.khach .tieu-de-dt { display: none !important; }
-body.khach .la-ban { left: 440px; }
-@media (max-width: 760px) { body.khach .ban-quyen { bottom: calc(34vh + 4px); left: 8px; right: auto; } body.khach .cum-nut { top: 12px; bottom: auto; } }
+.khach #panel, .khach .chu-thich, .khach .ngon-ngu, .khach .tieu-de-dt { display: none !important; }
+.khach .la-ban { left: 440px; }
+@media (max-width: 760px) { .khach .ban-quyen { bottom: calc(34vh + 4px); left: 8px; right: auto; } .khach .cum-nut { top: 12px; bottom: auto; } }
 .link-khach { margin: 10px 0 4px; display: grid; gap: 8px; }
 .link-khach-o { display: flex; gap: 6px; }
 .link-khach-o input { flex: 1; min-width: 0; font: inherit; font-size: 13px; padding: 8px 10px; border: 1px solid var(--vien); border-radius: 10px; background: var(--nen-2); color: var(--chu); }
