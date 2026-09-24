@@ -1180,8 +1180,8 @@ function veEmail(than, ht) {
 }
 
 const TEN_EMAIL = { 'de-xuat': 'Email trình Ban Giám Đốc', 'thu-moi': 'Thư mời KOL', 'bao-cao': 'Báo cáo kết quả', 'xin-foc': 'Đề xuất hợp tác FOC', 'bao-cao-doi-tac': 'Báo cáo cho đối tác' };
-async function moEmail(ht, loai, dt) {
-  const duong = '/api/hop-tac/' + ht.id + '/email/' + loai + (dt ? '?dt=' + encodeURIComponent(dt) : '');
+async function moEmail(ht, loai, dt, lang) {
+  const duong = '/api/hop-tac/' + ht.id + '/email/' + loai + (dt ? '?dt=' + encodeURIComponent(dt) : lang ? '?lang=' + lang : '');
   let m;
   try { m = await api(duong); } catch (err) { return toast(err.message, true); }
   const guiDuoc = S.meta.mail.guiDuoc;
@@ -1193,6 +1193,9 @@ async function moEmail(ht, loai, dt) {
       : '<div class="bao cam" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span>Chưa kết nối hộp thư. Bấm <b>Kết nối hộp thư</b>, đăng nhập Lark bằng tài khoản giữ hộp thư <b>' + e(S.meta.mail.from) + '</b> và đồng ý quyền gửi thư — làm một lần.</span><div class="lon"></div>' +
         '<a class="btn chinh nho" id="emKetNoi" href="' + e(((window.__HUB__ && window.__HUB__.prefix) || '') + '/api/mail/ket-noi') + '" target="_blank" rel="noopener">Kết nối hộp thư</a></div>') : '') +
     (loai === 'xin-foc' && !m.den ? '<div class="bao cam">Chưa có email của ' + e(dt) + '. Điền vào ô Gửi — app nhớ cho lần sau.</div>' : '') +
+    (m.coLang ? '<div class="hang-nut" style="margin-bottom:8px"><span class="nho">Ngôn ngữ thư</span>' + [['vi', 'Tiếng Việt'], ['en', 'English']].map(([k, t]) =>
+      '<button type="button" class="chip-chon' + (m.lang === k ? ' on' : '') + '" data-lang="' + k + '">' + t + '</button>').join('') +
+      (m.lang === 'en' ? '<span class="nho">Tên dịch vụ lấy tên tiếng Anh trên Base Sản phẩm; chỗ còn tiếng Việt thì sửa thẳng trong khung.</span>' : '') + '</div>' : '') +
     '<div class="thu-dau"><span>Từ</span><div>' + e(m.from) + '</div><span>Gửi</span><input class="in-o" id="emDen" value="' + e(m.den) + '">' +
     '<span>CC</span><input class="in-o" id="emCc" value="' + e(m.cc || '') + '" placeholder="cách nhau bằng dấu phẩy"><span>Tiêu đề</span><input class="in-o" id="emTd" value="' + e(m.tieuDe) + '"></div>' +
     '<div class="thu-than" id="emThan" contenteditable="true">' + m.html + '</div>' +
@@ -1213,6 +1216,7 @@ async function moEmail(ht, loai, dt) {
   };
   $('#emGui').onclick = () => goi(true);
   $('#emNhap').onclick = () => goi(false);
+  $$('[data-lang]', hop).forEach((b) => { b.onclick = () => { if (b.dataset.lang !== m.lang) moEmail(ht, loai, dt, b.dataset.lang); }; });
   /* chữ ký (bản trên Hub): xem trước + sửa bằng cách dán từ Lark Mail */
   if ($('#emCkXem')) {
     const veCk = (h) => { $('#emCkXem').innerHTML = h || '<span class="canh">Chưa có chữ ký — thư sẽ đi không có chữ ký. Bấm Sửa chữ ký để dán.</span>'; };

@@ -122,27 +122,33 @@ function khoiBanGiao(bg, kenh) {
 
 /* Bảng sản phẩm KOL cam kết (anh Hùng 24/09: mục 4 cũ đọc không ra kết quả nhận được) —
  * mỗi dòng một sản phẩm: chủ đề, loại + số lượng, đăng ở kênh nào (có link), hạn đăng. */
-function bangBanGiao(bg, kenh) {
+const NHAN_BG = {
+  vi: { cot: ['STT', 'Sản phẩm', 'Loại', 'SL', 'Kênh đăng', 'Hạn đăng'], chuDe: 'Chủ đề: ', tong: 'Tổng: ', sp: ' sản phẩm', trong: 'Chưa khai sản phẩm bàn giao.', khac: 'Khác', loai: (l) => l },
+  en: { cot: ['No.', 'Content', 'Type', 'Qty', 'Channel', 'Due date'], chuDe: 'Topic: ', tong: 'Total: ', sp: ' pieces of content', trong: 'To be confirmed.', khac: 'Other',
+    loai: (l) => ({ Video: 'Video', 'Ảnh': 'Photo', Story: 'Story', 'Bộ ảnh': 'Photo set', 'Re-up': 'Re-up', Livestream: 'Livestream', 'Bài viết': 'Post' }[l] || l) },
+};
+function bangBanGiao(bg, kenh, lang = 'vi') {
+  const N = NHAN_BG[lang] || NHAN_BG.vi;
   const song = bg.filter((b) => b.trangThai !== 'Huỷ').sort((a, b) => (a.hanDang || 9e15) - (b.hanDang || 9e15));
-  if (!song.length) return P('<i>Chưa khai sản phẩm bàn giao.</i>');
+  if (!song.length) return P('<i>' + N.trong + '</i>');
   const kenhHtml = (b) => {
     const ds = (b.kenhDang || []).map((id) => (kenh || []).find((k) => k.id === id)).filter(Boolean);
     if (!ds.length) return esc((b.nenTang || []).join(', ') || '—');
-    return ds.map((k) => esc(k.nenTang && k.nenTang !== 'Khác' ? k.nenTang + ' · ' : '') +
+    return ds.map((k) => esc(k.nenTang && k.nenTang !== 'Khác' ? k.nenTang + ' · ' : lang === 'en' && k.nenTang === 'Khác' ? 'Other · ' : '') +
       (k.link ? '<a href="' + esc(k.link) + '">' + esc(k.ten) + '</a>' : esc(k.ten)) + (k.reup ? ' (re-up)' : '')).join('<br>');
   };
-  const dau = ['STT', 'Sản phẩm', 'Loại', 'SL', 'Kênh đăng', 'Hạn đăng']
+  const dau = N.cot
     .map((c) => '<th style="' + O + 'background:' + XANH + ';color:#fff;text-align:center">' + c + '</th>').join('');
   const dong = song.map((b, i) => '<tr><td style="' + O + 'text-align:center">' + (i + 1) + '</td><td style="' + O + '"><b>' + esc(b.ten) + '</b>' +
-    (b.chuDe ? '<br><span style="color:#667">Chủ đề: ' + esc(b.chuDe) + '</span>' : '') + '</td><td style="' + O + 'text-align:center">' + esc(b.loai || '') +
+    (b.chuDe ? '<br><span style="color:#667">' + N.chuDe + esc(b.chuDe) + '</span>' : '') + '</td><td style="' + O + 'text-align:center">' + esc(N.loai(b.loai || '')) +
     '</td><td style="' + O + 'text-align:center">' + String(b.soLuong || 1).padStart(2, '0') + '</td><td style="' + O + '">' + kenhHtml(b) +
-    '</td><td style="' + O + 'text-align:center">' + (b.hanDang ? T.ddmm(b.hanDang) + '/' + T.vn(b.hanDang).nam : '—') + '</td></tr>').join('');
+    '</td><td style="' + O + 'text-align:center">' + (b.hanDang ? (lang === 'en' ? ngayEn(b.hanDang) : T.ddmm(b.hanDang) + '/' + T.vn(b.hanDang).nam) : '—') + '</td></tr>').join('');
   const tong = song.reduce((n, b) => n + (Number(b.soLuong) || 1), 0);
   const theoLoai = {};
   for (const b of song) theoLoai[b.loai || 'Khác'] = (theoLoai[b.loai || 'Khác'] || 0) + (Number(b.soLuong) || 1);
   return '<table style="border-collapse:collapse;font-size:13px;margin:6px 0 8px"><tr>' + dau + '</tr>' + dong +
-    '<tr style="background:#e0f2ef;font-weight:bold"><td style="' + O + '"></td><td style="' + O + '" colspan="5">Tổng: ' + String(tong).padStart(2, '0') + ' sản phẩm (' +
-    Object.entries(theoLoai).map(([l, n]) => String(n).padStart(2, '0') + ' ' + esc(l.toLowerCase())).join(', ') + ')</td></tr></table>';
+    '<tr style="background:#e0f2ef;font-weight:bold"><td style="' + O + '"></td><td style="' + O + '" colspan="5">' + N.tong + String(tong).padStart(2, '0') + N.sp + ' (' +
+    Object.entries(theoLoai).map(([l, n]) => String(n).padStart(2, '0') + ' ' + esc(N.loai(l).toLowerCase())).join(', ') + ')</td></tr></table>';
 }
 
 function khoiKenh(kenh) {
@@ -198,9 +204,8 @@ function thuMoi({ ht, kol, kenh, hm, bg }) {
     '<p style="margin:0 0 2px">Số lượng: ' + soKhach(ht) + '</p>',
     P('Thời gian: ' + khoang(ht)),
     H('2) NỘI DUNG BÀN GIAO'),
-    khoiBanGiao(bg, kenh),
+    bangBanGiao(bg, kenh),
     ht.yeuCau ? '<p style="margin:10px 0 2px"><b>Nội dung cần nhắc đến:</b></p>' + P(esc(ht.yeuCau)) : '',
-    kenhCamKet(bg, kenh, ht.kenhDang) ? P('<b>Đăng tải nội dung tại kênh:</b> ' + esc(kenhCamKet(bg, kenh, ht.kenhDang))) : '',
     H('3) LƯU Ý CHUNG'),
     '<p style="margin:0 0 2px">Media được sản xuất trong quá trình hợp tác, 2 bên có thể sử dụng và trao đổi để phục vụ sản xuất nội dung.</p>',
     P('Hợp tác trên tinh thần bảo vệ hình ảnh diễn viên và bảo vệ hình ảnh thương hiệu.'),
@@ -210,6 +215,56 @@ function thuMoi({ ht, kol, kenh, hm, bg }) {
     P('Trân trọng,'),
   ].join('\n');
   return { tieuDe: 'THƯ MỜI HỢP TÁC ROOTY TRIP PHÚ QUỐC X ' + x.hoa, den: kol.email || '', html };
+}
+
+/* ---------------- Thư mời bản tiếng Anh (anh Hùng 24/09: KOL nước ngoài) ----------------
+ * Cùng bố cục bản Việt. Tên dịch vụ: tên tiếng Anh trên Base Sản phẩm (theo mã dịch vụ) nếu có,
+ * không thì giữ tên Việt — anh sửa trực tiếp trong khung trước khi gửi. */
+const THANG_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const THU_EN = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const ngayEn = (ms, thu) => { if (!ms) return '?'; const v = T.vn(ms); const d = new Date(Date.UTC(v.nam, v.thang - 1, v.ngay));
+  return (thu ? THU_EN[d.getUTCDay()] + ', ' : '') + v.ngay + ' ' + THANG_EN[v.thang - 1] + ' ' + v.nam; };
+function thuMoiEn({ ht, kol, kenh, hm, bg }, cfg, tenEn = {}) {
+  /* mã dịch vụ, hoặc mã ở đầu tên ("G4 - TOUR GHÉP …") */
+  const ten = (h) => {
+    const ma = [h.maDv, (/^\s*([A-Za-z0-9_]{2,14})\s*[-–:]\s+/.exec(h.ten || '') || [])[1]].filter(Boolean).map((x) => String(x).toUpperCase());
+    const k = ma.find((x) => tenEn[x]);
+    return k ? tenEn[k] : tenGon(h.ten);
+  };
+  const song = hm.filter((h) => h.tinhTrang !== 'Huỷ').sort((a, b) => (a.ngay || 0) - (b.ngay || 0) || (a.gioHen || 0) - (b.gioHen || 0));
+  const theoNgay = new Map();
+  for (const h of song) {
+    const k = h.ngay ? T.ngayCua(h.ngay) : '';
+    if (!theoNgay.has(k)) theoNgay.set(k, { ms: h.ngay, ds: [] });
+    const t = ten(h);
+    const g = theoNgay.get(k);
+    if (!g.ds.some((x) => x.t === t)) g.ds.push({ t, gio: h.gioHen });
+  }
+  const taiTro = [...theoNgay.values()].map((g) => '<p style="margin:0 0 4px">- <b>' + (g.ms ? ngayEn(g.ms, true) : 'Date to be confirmed') + ':</b> ' +
+    g.ds.map((d) => (d.gio ? T.hhmm(d.gio) + ' ' : '') + esc(d.t)).join('; ') + '</p>').join('');
+  const nl = ht.nguoiLon || 0, te = ht.treEm || 0, eb = ht.emBe || 0;
+  const khach = [[nl, 'adult'], [te, 'child'], [eb, 'infant']].filter(([n]) => n).map(([n, w]) => String(n).padStart(2, '0') + ' ' + w + (n > 1 ? (w === 'child' ? 'ren' : 's') : '')).join('; ') || 'to be confirmed';
+  const html = [
+    P('Dear ' + esc(kol.ten) + ','),
+    P('Warm greetings from Rooty Trip Phu Quoc!'),
+    P('Thank you for taking the time to talk with us. We are delighted to be working together, and based on our previous discussions, ' +
+      'please find the summary of our collaboration below:'),
+    H('1) SPONSORED EXPERIENCES'),
+    taiTro,
+    '<p style="margin:6px 0 2px">---</p>',
+    '<p style="margin:0 0 2px">Guests: ' + khach + '</p>',
+    P('Dates: ' + (ht.batDau ? ngayEn(ht.batDau) : '?') + (ht.ketThuc && T.ngayCua(ht.ketThuc) !== T.ngayCua(ht.batDau) ? ' – ' + ngayEn(ht.ketThuc) : '')),
+    H('2) CONTENT DELIVERABLES'),
+    bangBanGiao(bg, kenh, 'en'),
+    ht.yeuCau ? '<p style="margin:10px 0 2px"><b>Key messages to include:</b></p>' + P(esc(ht.yeuCau).replace(/\n/g, '<br>')) : '',
+    H('3) GENERAL NOTES'),
+    '<p style="margin:0 0 2px">Media produced during the collaboration may be used and shared by both parties for content production.</p>',
+    P('This collaboration is carried out in a spirit of protecting both the creator\'s image and the brand image.'),
+    P('Please review and confirm the details above by replying to this email, so that our team can prepare the best possible welcome for you.'),
+    P('We look forward to welcoming you and your team to Phu Quoc!'),
+    P('Best regards,'),
+  ].join('\n');
+  return { tieuDe: 'COLLABORATION INVITATION · ROOTY TRIP PHU QUOC x ' + String(kol.ten || '').toUpperCase(), den: kol.email || '', html };
 }
 
 function baoCao({ ht, kol, hm, bg }, cfg) {
@@ -296,4 +351,4 @@ function baoCaoDoiTac({ ht, kol, kenh, bg, doiTac, tenDoiTac }) {
   return { tieuDe: 'KẾT QUẢ TRUYỀN THÔNG · KOL ' + String(kol.ten || '').toUpperCase() + ' x ' + tenDoiTac.toUpperCase(), den: (doiTac && doiTac.email) || '', html };
 }
 
-module.exports = { deXuat, thuMoi, baoCao, xinFoc, baoCaoDoiTac, esc, tenGon, tenKenhDang };
+module.exports = { deXuat, thuMoi, thuMoiEn, baoCao, xinFoc, baoCaoDoiTac, esc, tenGon, tenKenhDang };

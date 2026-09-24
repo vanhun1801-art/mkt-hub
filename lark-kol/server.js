@@ -644,8 +644,14 @@ async function api(req, res, u) {
     const g = goiHopTac(dl, r[1]);
     if (!g) return loi(res, 404, 'Không thấy hợp tác');
     if (m === 'GET') {
-      const e = EM[ham](g, cfg.mail);
-      return json(res, { ...e, chan: T.duocLam(g.ht, viec), from: cfg.mail.from || (cfg.mode === 'api' ? 'cmo@rootytrip.com' : '(hộp thư chính)') });
+      /* thư mời có bản tiếng Anh: ?lang=en, mặc định EN khi KOL không phải người Việt */
+      const lang = r[2] === 'thu-moi' ? (u.searchParams.get('lang') || (g.kol.quocGia && g.kol.quocGia !== 'Việt Nam' ? 'en' : 'vi')) : 'vi';
+      let e;
+      if (lang === 'en') {
+        let sp = []; try { sp = await kho.sanPham(); } catch (_) { /* không có tên EN thì giữ tên Việt */ }
+        e = EM.thuMoiEn(g, cfg.mail, Object.fromEntries(sp.filter((x) => x.ma && x.tenEn).map((x) => [x.ma.toUpperCase(), x.tenEn])));
+      } else e = EM[ham](g, cfg.mail);
+      return json(res, { ...e, lang, coLang: r[2] === 'thu-moi', chan: T.duocLam(g.ht, viec), from: cfg.mail.from || (cfg.mode === 'api' ? 'cmo@rootytrip.com' : '(hộp thư chính)') });
     }
     if (m === 'POST') {
       const l = T.duocLam(g.ht, viec);
