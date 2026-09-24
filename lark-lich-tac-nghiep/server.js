@@ -1165,6 +1165,19 @@ async function api(req, res, url) {
   /* Nhận cả GET để anh Hùng chỉ cần bấm một đường dẫn là thử được, khỏi phải
    * mở cửa sổ Phân quyền. Vẫn chỉ quản lý gọi được và vẫn chỉ gửi cho chính
    * người gọi, nên không có gì để lạm dụng. */
+  /* Gửi thử bản tin sáng (quản lý). ?ngay=YYYY-MM-DD để thử với một ngày có lịch;
+   * không truyền thì lấy hôm nay, hôm nay trống thì lấy ngày gần nhất phía trước có lịch. */
+  if (p === '/api/ban-tin-sang/thu' && (req.method === 'POST' || req.method === 'GET')) {
+    if (!(await requireManager(res))) return;
+    const bts = require('./ban-tin-sang');
+    let t = url.searchParams.get('ngay') ? Date.parse(url.searchParams.get('ngay') + 'T09:00:00+07:00') : Date.now();
+    if (!url.searchParams.get('ngay')) {
+      const items = (await getRecords()).map(toItem);
+      for (let i = 0; i < 60 && !bts.lichHomNay(items, t).length; i++) t += 86400000;
+    }
+    const kq = await bts.chay({ getRecords, toItem, lark, cfg }, { ep: true, t, tieuDeThem: '[THỬ] ' });
+    return json(res, Object.assign({ ngay: new Date(t + 7 * 3600000).toISOString().slice(0, 10) }, kq), kq.ok ? 200 : 502);
+  }
   if (p === '/api/thu-tin-lark' && (req.method === 'POST' || req.method === 'GET')) {
     if (!(await requireManager(res))) return;
     const toi = await whoAmI();
@@ -1801,4 +1814,6 @@ server.listen(cfg.port, BIND, () => {
   console.log('  Table : ' + cfg.tableId + '  (Lịch tác nghiệp)');
   console.log('  Ctrl+C để dừng.');
   console.log('');
+  /* bản tin sáng: hôm nay có lịch thì nhắn anh Hùng từ 7:00 (ban-tin-sang.js) */
+  require('./ban-tin-sang').bat({ getRecords, toItem, lark, cfg });
 });
