@@ -76,17 +76,50 @@
     return null;
   }
 
-  /* moc: [{ngay, gio, ten, h}] → điểm đã định vị + danh sách chưa rõ */
+  const theoTu = (chuoi) => { const t = kd(chuoi); for (const d of DIEM) if (d[3].some((k) => t.includes(k))) return { ten: d[0], lat: d[1], lng: d[2], dao: !!d[4], kieu: d[4] || '', ben: d[4] ? BEN[d[4]] : null }; return null; };
+  const gan = (a, b) => Math.abs(a.lat - b.lat) < 0.003 && Math.abs(a.lng - b.lng) < 0.003;   // ~300 m
+
+  /**
+   * Một hạng mục có thể có HAI chỗ (anh Hùng 24/09: "đón ở Bãi Sao rồi đi G4"):
+   *   don — Điểm hẹn (nơi KOL có mặt / được đón): toạ độ dán tay, link Maps, hoặc tên địa danh trong ô
+   *   den — nơi diễn ra hoạt động, đoán từ tên hạng mục / đối tác / mã dịch vụ
+   * Hai chỗ trùng nhau (hoặc chỉ có một) → chỉ còn den. Trả {don, den} hoặc null nếu không đoán được gì.
+   */
+  function doanTach(h, giai) {
+    let don = null;
+    const tay = toaDoTrongChu(h.diemHen) || (giai && giai[linkNgan(h.diemHen)]);
+    if (tay) {
+      const chu = String(h.diemHen || '').replace(/https?:\/\/\S+/g, '').replace(/-?\d+\.\d+\s*,\s*-?\d+\.\d+/g, '').replace(/[\s,;:·-]+$/, '').trim();
+      don = { ten: chu || 'Điểm hẹn', lat: tay.lat, lng: tay.lng, tay: true };
+    } else if (h.diemHen) {
+      /* vị trí theo địa danh trong ô (VD "DAD Resort - Đường Bãi Sao" → vùng Bãi Sao), nhưng TÊN giữ đúng chữ anh gõ */
+      don = theoTu(h.diemHen);
+      const ten = String(h.diemHen).split(/\s+[-–—]\s+|,/)[0].trim();
+      if (don && ten && ten.length <= 40) don = { ...don, ten, uoc: don.ten };
+    }
+    const den = theoTu([h.ten, h.nhaCungCap, h.maDv].join(' '));
+    if (don && don.tay && don.ten === 'Điểm hẹn') don.ten = String(h.ten || '').replace(/\s+[—-]\s+(Người lớn|Trẻ em|Em bé)$/i, '').trim() || 'Điểm hẹn';
+    if (don && den && !gan(don, den)) return { don, den };
+    /* một chỗ: toạ độ dán tay chính xác hơn từ khoá */
+    const mot = don && (don.tay || !den) ? don : den;
+    return mot ? { don: null, den: mot } : null;
+  }
+
+  /* moc: [{ngay, gio, ten, h}] → điểm đã định vị + danh sách chưa rõ.
+   * Số thứ tự đánh theo MỐC (không theo điểm): điểm đón và điểm đến của cùng một mốc mang cùng một số,
+   * ghim đón vẽ rỗng (xem veThat) — khớp với số trên dòng thời gian của trang in. */
   function dinhVi(moc, giai) {
     const ngay = [...new Set(moc.map((m) => m.ngay).filter(Boolean))].sort((a, b) => a - b);
     const diem = [], chuaRo = [];
-    for (const m of moc) {
-      const d = doan(m.h, giai);
-      if (!d) { chuaRo.push(m.ten); continue; }
-      diem.push({ ...d, noi: d.ten, ngay: ngay.indexOf(m.ngay), gio: m.gio || 0, ten: m.ten });
+    const ds = moc.map((m, i) => ({ m, i })).sort((a, b) => ngay.indexOf(a.m.ngay) - ngay.indexOf(b.m.ngay) || (a.m.gio || 0) - (b.m.gio || 0) || a.i - b.i);
+    let so = 0;
+    for (const { m } of ds) {
+      const t = doanTach(m.h, giai);
+      if (!t) { chuaRo.push(m.ten); continue; }
+      const chung = { ngay: ngay.indexOf(m.ngay), gio: m.gio || 0, ten: m.ten, so: ++so };
+      if (t.don) diem.push({ ...t.don, ...chung, noi: t.don.ten, don: true });
+      diem.push({ ...t.den, ...chung, noi: t.den.ten });
     }
-    diem.sort((a, b) => a.ngay - b.ngay || a.gio - b.gio);
-    diem.forEach((d, i) => { d.so = i + 1; });
     return { ngay, diem, chuaRo };
   }
 
@@ -277,10 +310,13 @@
     dv.diem.forEach((d) => { const k = d.lat + ',' + d.lng; if (!gom.has(k)) gom.set(k, { ...d, muc: [] }); gom.get(k).muc.push(d); });
     for (const g of gom.values()) {
       const c = mau[(g.ngay + lech) % 5];
-      const nhan = g.muc.length > 2 ? g.muc[0].so + '+' : g.muc.map((m) => m.so).join(',');
-      const icon = L.divIcon({ className: 'bd-ghim', html: '<span style="background:' + c + '">' + nhan + '</span>', iconSize: [26, 26], iconAnchor: [13, 13] });
+      const soDs = [...new Set(g.muc.map((m) => m.so))];
+      const nhan = soDs.length > 2 ? soDs[0] + '+' : soDs.join(',');
+      /* ghim chỉ là điểm đón: vòng rỗng viền màu ngày, để phân biệt với nơi diễn ra hoạt động */
+      const chiDon = g.muc.every((m) => m.don);
+      const icon = L.divIcon({ className: 'bd-ghim' + (chiDon ? ' don' : ''), html: '<span style="' + (chiDon ? 'color:' + c + ';border-color:' + c : 'background:' + c) + '">' + nhan + '</span>', iconSize: [26, 26], iconAnchor: [13, 13] });
       L.marker([g.lat, g.lng], { icon, title: g.noi }).addTo(map).bindPopup('<b>' + e(g.noi) + '</b>' + (g.tay ? ' <i>(ghim tay)</i>' : '') + '<br>' +
-        g.muc.map((m) => m.so + '. ' + e(m.ten) + (ngayNhan[m.ngay] ? ' · ' + e(ngayNhan[m.ngay]) : '') + (m.gio ? ' ' + new Date(m.gio + 7 * 3600000).toISOString().slice(11, 16) : '')).join('<br>') +
+        g.muc.map((m) => m.so + '. ' + (m.don ? 'Đón · ' : '') + e(m.ten) + (ngayNhan[m.ngay] ? ' · ' + e(ngayNhan[m.ngay]) : '') + (m.gio ? ' ' + new Date(m.gio + 7 * 3600000).toISOString().slice(11, 16) : '')).join('<br>') +
         '<br><a href="https://www.google.com/maps/search/?api=1&query=' + g.lat + ',' + g.lng + '" target="_blank" rel="noopener">Mở trên Google Maps</a>');
       bien.push([g.lat, g.lng]);
     }
@@ -311,5 +347,5 @@
       caChuyen: linkGoogleNhieu(dv.diem), diem: dv.diem, map, xong: Promise.all(cho) };
   }
 
-  goc.BanDo = { ve, veThat, quangDuong, NEN, doan, dinhVi, linkGoogle, linkGoogleNhieu, chang, doanChang, toaDoTrongChu, linkNgan, DIEM };
+  goc.BanDo = { ve, veThat, quangDuong, NEN, doan, doanTach, dinhVi, linkGoogle, linkGoogleNhieu, chang, doanChang, toaDoTrongChu, linkNgan, DIEM };
 })(window);

@@ -113,7 +113,9 @@
     ngay.sort((a, b) => a - b);
     /* cùng thứ tự với ban-do.js (theo giờ, mốc chưa có giờ giữ thứ tự bảng kê) để số trên ghim khớp số trên dòng thời gian */
     const theoNgay = ngay.map((d) => moc.filter((m) => m.ngay === d).sort((a, b) => a.gio - b.gio)
-      .map((m) => ({ ...m, d: window.BanDo.doan(m.h, giai), buoi: buoi(m) })));
+      .map((m) => { const t = window.BanDo.doanTach(m.h, giai) || {}; return { ...m, d: t.den || null, don: t.don || null, buoi: buoi(m) }; }));
+    /* chuỗi điểm đi thật trong ngày: điểm đón (nếu có) rồi nơi diễn ra của từng mốc */
+    const diemDi = (ds) => ds.flatMap((m) => [m.don, m.d]).filter(Boolean);
     theoNgay.forEach((ds) => { let so = 0; ds.forEach((m) => { m.so = m.d ? ++so : 0; }); });
     const mau = MAU();
     const chuaGio = moc.filter((m) => m.ngay && !m.gio).length;
@@ -161,8 +163,8 @@
     theoNgay.forEach((ds, i) => {
       const t = vn(ngay[i]);
       const c = mau[i % 5];
-      const dsDiem = ds.filter((m) => m.d);
-      const linkNgay = dsDiem.length ? window.BanDo.linkGoogle(dsDiem.map((m) => ({ ...m.d, noi: m.d.ten }))) : '';
+      const dsDiem = diemDi(ds);
+      const linkNgay = dsDiem.length ? window.BanDo.linkGoogle(dsDiem.map((d) => ({ ...d, noi: d.ten }))) : '';
       const qrNgay = qr && linkNgay ? svgQr(qr, linkNgay) : '';
       const phan = [];
       for (let k = 0; k < Math.max(1, ds.length); k += MOI_TO) phan.push(ds.slice(k, k + MOI_TO));
@@ -175,19 +177,24 @@
         const dong = ph.map((x) => {
           const h = x.h;
           const chuNoi = String(h.diemHen || '').replace(/https?:\/\/\S+/g, '').replace(/-?\d+\.\d+\s*,\s*-?\d+\.\d+/g, '').replace(/[\s,;:·-]+$/, '').trim();
-          const noi = chuNoi || (x.d && x.d.ten !== x.ten ? x.d.ten : '');
-          const chiDuong = x.d ? 'https://www.google.com/maps/search/?api=1&query=' + x.d.lat + ',' + x.d.lng : '';
+          /* có điểm đón riêng: dòng nơi ghi "Đón tại …" (chỉ đường tới chỗ đón), rồi chặng tới nơi diễn ra */
+          const toi = x.don || x.d;
+          const noi = x.don ? 'Đón tại ' + x.don.ten : chuNoi || (x.d && x.d.ten !== x.ten ? x.d.ten : '');
+          const chiDuong = toi ? 'https://www.google.com/maps/search/?api=1&query=' + toi.lat + ',' + toi.lng : '';
+          const cTrong = x.don && x.d ? 'ilChT' + i + '_' + ds.indexOf(x) : '';
+          if (cTrong) chang.push({ id: cTrong, a: x.don, b: x.d, den: x.d.ten });
           /* nhãn buổi chỉ hiện khi đổi buổi — đọc lướt thấy ngay sáng làm gì, chiều làm gì */
           const nhanBuoi = x.buoi && x.buoi !== buoiTruoc ? '<div class="il-buoi">Buổi ' + x.buoi.toLowerCase() + '</div>' : '';
           if (x.buoi) buoiTruoc = x.buoi;
           /* chặng tới mốc KẾ TIẾP có vị trí (bỏ qua mốc chưa rõ chỗ) */
           const sau = x.d ? ds.slice(ds.indexOf(x) + 1).find((y) => y.d) : null;
           const cId = sau ? 'ilCh' + i + '_' + ds.indexOf(x) : '';
-          if (sau && ph.includes(sau)) chang.push({ id: cId, a: x.d, b: sau.d });
+          if (sau && ph.includes(sau)) chang.push({ id: cId, a: x.d, b: sau.don || sau.d });
           return nhanBuoi + '<div class="il-moc"><div class="il-moc-so' + (x.so ? '' : ' trong') + '" style="background:' + c + '">' + (x.so || '') + '</div><div>' +
             '<div class="il-moc-gio">' + (x.gio ? hhmm(x.gio) : '') + (h.nhom ? '<span' + (x.gio ? '' : ' style="margin:0"') + '>' + e(h.nhom) + '</span>' : '') + '</div>' +
             '<div class="il-moc-ten">' + e(x.ten) + '</div>' +
             (noi || chiDuong ? '<div class="il-moc-noi">' + e(noi) + (chiDuong ? (noi ? ' · ' : '') + '<a href="' + e(chiDuong) + '" target="_blank" rel="noopener">Chỉ đường</a>' : '') + '</div>' : '') +
+            (cTrong ? '<div class="il-chang" id="' + cTrong + '"></div>' : '') +
             (sau && ph.includes(sau) ? '<div class="il-chang" id="' + cId + '"></div>' : '') +
             '</div></div>';
         }).join('');
@@ -233,14 +240,14 @@
       const r = kq.get(c.id), el = document.getElementById(c.id);
       if (!el) continue;
       if (!r) { el.remove(); continue; }
-      el.textContent = chuChang(r);
+      el.textContent = chuChang(r) + (c.den ? ' → ' + c.den : '');
     }
     for (const t of tomNgay) {
       const el = document.getElementById(t.id);
-      const dsD = t.ds.filter((m) => m.d);
+      const dsD = diemDi(t.ds);
       let km = 0, phut = 0, bien = new Set();
       for (let k = 0; k + 1 < dsD.length; k++) {
-        const r = await window.BanDo.quangDuong(dsD[k].d, dsD[k + 1].d).catch(() => null);
+        const r = await window.BanDo.quangDuong(dsD[k], dsD[k + 1]).catch(() => null);
         if (!r) continue;
         km += r.km || 0; phut += r.phut || 0; if (r.bien) bien.add(r.bien === 'cap' ? 'có đi cáp treo' : 'có đi cano');
       }

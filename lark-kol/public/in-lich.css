@@ -153,3 +153,6 @@ body { font-family: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', sans
 .bd-mh .leaflet-control-attribution { background: rgba(255, 255, 255, .75); }
 .mh-diem.trai span { left: auto; right: 16px; }
 .mh-xa .mh-diem.trai span { right: 12px; }
+
+/* ghim điểm đón: vòng rỗng viền màu ngày (nơi diễn ra hoạt động là ghim đặc) */
+.bd-ghim.don span { background: #fff !important; border: 3px solid; box-sizing: border-box; }

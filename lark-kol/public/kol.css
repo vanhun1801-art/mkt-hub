@@ -310,3 +310,6 @@ pre.tin { white-space: pre-wrap; background: var(--surface-3); border-radius: va
 .bang .in-o.thieu::placeholder { color: var(--orange-text); }
 .bang select.in-o.lech { border-color: var(--red); background: var(--red-bg); color: var(--red-text); }
 .bang th[title] { cursor: help; text-decoration: underline dotted var(--text-4); text-underline-offset: 3px; }
+
+/* ghim điểm đón: vòng rỗng viền màu ngày (nơi diễn ra hoạt động là ghim đặc) */
+.bd-ghim.don span { background: #fff !important; border: 3px solid; box-sizing: border-box; }
