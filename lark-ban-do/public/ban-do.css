@@ -314,11 +314,19 @@ a { color: inherit; }
 
 /* chi tiết */
 .chi-tiet { padding: 6px 10px 18px; }
+/* nút Quay lại: viên thuốc rõ ràng, bám đầu khung khi cuộn (26/09) */
 .quay-lai {
-  border: 0; background: none; display: inline-flex; align-items: center; gap: 4px;
-  color: var(--chu-2); font-weight: 600; font-size: 13px; padding: 8px 4px;
+  position: sticky; top: 0; z-index: 2; margin: 2px 0 8px;
+  border: 1px solid color-mix(in srgb, var(--mau, #087a69) 35%, var(--vien)); display: inline-flex; align-items: center; gap: 6px;
+  background: var(--nen); color: var(--chu); font-weight: 700; font-size: 13.5px; padding: 7px 14px 7px 10px; border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(7, 64, 59, .1); cursor: pointer;
 }
-.quay-lai svg { width: 16px; height: 16px; }
+.quay-lai:hover { background: var(--nen-2); }
+.quay-lai svg { width: 17px; height: 17px; color: #087a69; }
+/* danh sách vẫn cuộn được nhưng không hiện thanh trượt */
+.cuon { scrollbar-width: none; }
+.cuon::-webkit-scrollbar { display: none; }
+.loc[hidden] { display: none !important; }
 .ct-dau { display: flex; gap: 12px; align-items: flex-start; padding: 4px 4px 0; }
 .ct-dau .o { width: 40px; height: 40px; font-size: 15px; border-radius: 50%; flex: none; display: grid; place-items: center; background: var(--mau); color: #fff; font-weight: 800; }
 .ct-dau .o-tour { width: 40px; height: 40px; }

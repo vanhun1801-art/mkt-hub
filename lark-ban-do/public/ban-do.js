@@ -1241,6 +1241,9 @@
   }
 
   function veLoc() {
+    /* 26/09 (anh Hùng): bỏ bộ lọc nhóm ở cả hai tab — danh sách đã chia nhóm sẵn, ô tìm vẫn còn */
+    loc.innerHTML = ''; loc.hidden = true; S.loai.clear(); S.loaiTour.clear(); S.chiTour = false;
+    if (loc.hidden) return;
     if (S.chon) { loc.innerHTML = ''; return; }
     if (S.tab === 'diem') {
       loc.innerHTML = Object.entries(LOAI).map(([k, v]) =>
