@@ -668,7 +668,8 @@ function htmlLichBk(ds, ht, chiDanhSach) {
   const veMoc = (g) => {
     const h = g.ds[0];
     const khachS = g.ds.map((x) => (x.soLuong ? x.soLuong + ' ' + String(x.loaiKhach || '').toLowerCase() : '')).filter(Boolean).join(' + ');
-    const foc = g.ds.some((x) => FOC_CHO.includes(x.xinFoc)) ? nhanTT('đang đề xuất FOC', 'cam')
+    const foc = g.ds.some((x) => x.xinFoc === 'Đã gửi đề xuất') ? nhanTT('chờ đối tác trả lời FOC', 'cam')
+      : g.ds.some((x) => x.xinFoc === 'Chưa đề xuất' && x.hinhThuc === 'FOC đối tác') ? nhanTT('chưa gửi đề xuất FOC', 'cam')
       : g.ds.every((x) => x.hinhThuc === 'FOC đối tác' || x.loaiKhach === 'Em bé') ? nhanTT('FOC', 'xanh') : '';
     return '<div class="lbk-moc"><b>' + (g.gio ? hhmm(g.gio) : '--:--') + '</b><div><div>' + e(g.ten) + ' ' + foc + '</div><div class="nho">' +
       e([h.nhaCungCap, khachS].filter(Boolean).join(' · ')) + '</div></div></div>';
@@ -705,19 +706,20 @@ function veBangKe(than, ht) {
       '<button class="btn nho" id="bkLuu"' + (S.sua.ban ? '' : ' disabled') + '>Lưu bảng kê</button>' +
       '<button class="btn chinh nho" data-viec="chot"' + (ds.length ? '' : ' disabled') + '>Chốt bảng kê</button>') + '</div>' +
       '<div class="the-than khit cuon"><datalist id="dsDoiTac">' + dsDoiTac().map((x) => '<option value="' + e(x) + '">').join('') + '</datalist>' +
-      '<table class="bang"><thead><tr><th>Ngày</th><th>Nhóm</th><th>Khoản mục</th><th title="Đối tác cung cấp dịch vụ — dùng để gom email xin FOC">Đối tác</th><th>Loại khách</th>' +
-      '<th class="so">SL</th><th class="so">Đêm/Lượt</th><th>Hình thức</th><th>Hợp tác FOC</th><th class="so">Đơn giá chi</th><th class="so">Giá công bố</th>' +
-      '<th class="so">Thành tiền</th><th>Giờ hẹn</th><th>Điểm hẹn</th><th title="Bot nhắc anh trước giờ hẹn">Nhắc</th><th title="Cần kiểm lại">Kiểm</th><th>Tình trạng</th><th></th></tr></thead><tbody>' +
+      '<table class="bang"><thead><tr><th>Ngày</th><th>Nhóm</th><th>Khoản mục</th><th title="Nơi cung cấp dịch vụ (Sun World, Vinpearl, nhà hàng…). Bắt buộc với dòng FOC — app gom theo đối tác để soạn email đề xuất">Đối tác</th><th>Loại khách</th>' +
+      '<th class="so">SL</th><th class="so">Đêm/Lượt</th><th title="Ai trả tiền dòng này: Công ty chi = Rooty Trip trả · FOC đối tác = đối tác tài trợ, công ty 0đ · KOL tự trả = không tính vào chi phí">Hình thức</th><th title="Tiến độ xin tài trợ với đối tác: Chưa đề xuất → Đã gửi đề xuất → Đối tác đồng ý (FOC, 0đ) / Đối tác từ chối (chuyển về Công ty chi)">Hợp tác FOC</th><th class="so">Đơn giá chi</th><th class="so">Giá công bố</th>' +
+      '<th class="so">Thành tiền</th><th>Giờ hẹn</th><th>Điểm hẹn</th><th title="Tích thì bot nhắn anh trước giờ hẹn (kèm tin soạn sẵn gửi KOL). Cần có Giờ hẹn">Bot nhắc</th><th title="Đánh dấu dòng còn nghi ngờ (giá, số khách…) — dòng tô vàng và đếm ở trang Hợp tác cho khỏi quên">Cần kiểm</th><th title="Diễn biến trong chuyến: Chờ = chưa tới · Đã xong = KOL đã dùng dịch vụ · Có sự cố = trục trặc, cần xử lý · Huỷ = bỏ, không tính tiền">Tình trạng</th><th></th></tr></thead><tbody>' +
       ds.map((h, i) => '<tr data-i="' + i + '" class="' + (h.kiemLai ? 'kiem' : '') + (h.tinhTrang === 'Huỷ' ? ' huy' : '') + '">' +
         '<td><input class="in-o" type="date" data-f="ngay" value="' + ngayIn(h.ngay) + '"></td>' +
         '<td><select class="in-o" data-f="nhom">' + opt(NHOM, h.nhom, true) + '</select></td>' +
         '<td><input class="in-o" data-f="ten" value="' + e(h.ten) + '" title="' + e((h.maDv ? '[' + h.maDv + '] ' : '') + (h.ghiChu || '')) + '"></td>' +
-        '<td><input class="in-o" data-f="nhaCungCap" list="dsDoiTac" value="' + e(h.nhaCungCap) + '" placeholder="—"></td>' +
+        '<td><input class="in-o' + (h.hinhThuc === 'FOC đối tác' && !h.nhaCungCap ? ' thieu' : '') + '" data-f="nhaCungCap" list="dsDoiTac" value="' + e(h.nhaCungCap) + '" placeholder="' + (h.hinhThuc === 'FOC đối tác' ? 'cần đối tác' : '—') + '"></td>' +
         '<td><select class="in-o" data-f="loaiKhach">' + opt(LOAI_KHACH, h.loaiKhach, true) + '</select></td>' +
         '<td><input class="in-o" type="number" min="0" data-f="soLuong" value="' + (h.soLuong ?? '') + '"></td>' +
         '<td><input class="in-o" type="number" min="0" data-f="demLuot" value="' + (h.demLuot ?? 1) + '"></td>' +
         '<td><select class="in-o" data-f="hinhThuc">' + opt(HINH_THUC, h.hinhThuc) + '</select></td>' +
-        '<td><select class="in-o foc-' + (MAU_FOC[h.xinFoc] || '') + '" data-f="xinFoc">' + opt(XIN_FOC, h.xinFoc || 'Không áp dụng') + '</select></td>' +
+        '<td><select class="in-o foc-' + (MAU_FOC[h.xinFoc] || '') + (h.hinhThuc !== 'FOC đối tác' && FOC_CHO.includes(h.xinFoc) ? ' lech' : '') + '" data-f="xinFoc" title="' +
+          (h.hinhThuc !== 'FOC đối tác' && FOC_CHO.includes(h.xinFoc) ? 'Dòng Công ty chi mà vẫn đang xin FOC — chọn lại Hình thức hoặc đặt Không áp dụng' : '') + '">' + opt(XIN_FOC, h.xinFoc || 'Không áp dụng') + '</select></td>' +
         '<td><input class="in-o" type="number" min="0" step="1000" data-f="donGiaChi" value="' + (h.donGiaChi ?? '') + '"' + (h.hinhThuc === 'Công ty chi' ? '' : ' disabled') + '></td>' +
         '<td><input class="in-o" type="number" min="0" step="1000" data-f="giaCongBo" value="' + (h.giaCongBo ?? '') + '" placeholder="' + (h.hinhThuc === 'FOC đối tác' && h.loaiKhach !== 'Em bé' ? 'thiếu' : '') + '"></td>' +
         '<td class="so tt">' + (h.hinhThuc === 'Công ty chi' ? tien(thanhTien(h)) : '<span class="nho">' + (h.hinhThuc === 'FOC đối tác' ? 'FOC' : 'KOL trả') + '</span>') + '</td>' +
@@ -757,6 +759,14 @@ function veBangKe(than, ht) {
       x.type === 'date' ? tuChuoi(x.value) : x.type === 'datetime-local' ? tuChuoi(x.value) : x.value;
     if (f === 'gioHen' && h.gioHen) h.ngay = dauNgay(h.gioHen);
     if (f === 'hinhThuc' && h.hinhThuc !== 'Công ty chi') h.donGiaChi = 0;
+    /* Hai cột Hình thức và Hợp tác FOC phải khớp nhau (anh Hùng 24/09 thấy dòng "Công ty chi" mà "Chưa đề xuất"):
+     *  chọn FOC đối tác → bắt đầu quy trình xin (Chưa đề xuất) · chọn Công ty chi / KOL tự trả → thôi xin (Không áp dụng)
+     *  chọn Chưa đề xuất / Đã gửi → dòng đó là FOC đối tác · Đồng ý / Từ chối → theoFoc() lo */
+    if (f === 'hinhThuc') {
+      if (h.hinhThuc === 'FOC đối tác' && (!h.xinFoc || h.xinFoc === 'Không áp dụng')) h.xinFoc = 'Chưa đề xuất';
+      if (h.hinhThuc !== 'FOC đối tác' && FOC_CHO.includes(h.xinFoc)) h.xinFoc = 'Không áp dụng';
+    }
+    if (f === 'xinFoc' && FOC_CHO.includes(h.xinFoc)) { h.hinhThuc = 'FOC đối tác'; h.donGiaChi = 0; }
     if (f === 'xinFoc') Object.assign(h, theoFoc(h.xinFoc));
     /* Gõ tên đối tác cho một dòng FOC → đánh dấu chưa đề xuất để nhớ gửi thư. */
     if (f === 'nhaCungCap' && ev.type === 'change' && h.nhaCungCap && (!h.xinFoc || h.xinFoc === 'Không áp dụng') && h.hinhThuc === 'FOC đối tác') h.xinFoc = 'Chưa đề xuất';

@@ -304,3 +304,9 @@ pre.tin { white-space: pre-wrap; background: var(--surface-3); border-radius: va
 .bd-mh .leaflet-control-attribution { background: rgba(255, 255, 255, .75); }
 .mh-diem.trai span { left: auto; right: 16px; }
 .mh-xa .mh-diem.trai span { right: 12px; }
+
+/* bảng kê: ô đối tác còn thiếu ở dòng FOC · FOC lệch với hình thức */
+.bang .in-o.thieu { border-color: var(--orange); background: var(--orange-bg); }
+.bang .in-o.thieu::placeholder { color: var(--orange-text); }
+.bang select.in-o.lech { border-color: var(--red); background: var(--red-bg); color: var(--red-text); }
+.bang th[title] { cursor: help; text-decoration: underline dotted var(--text-4); text-underline-offset: 3px; }
