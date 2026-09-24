@@ -325,3 +325,9 @@ pre.tin { white-space: pre-wrap; background: var(--surface-3); border-radius: va
 .thu-ck .canh { color: var(--orange-text); }
 .ck-sua { position: fixed; inset: 0; z-index: 400; background: rgba(0, 0, 0, .35); display: grid; place-items: center; padding: 16px; }
 .ck-hop { background: var(--surface); color: var(--text); border-radius: var(--r-xl); padding: 16px; width: min(640px, 100%); box-shadow: var(--shadow-1); }
+
+/* Lấy từ Base Sản phẩm */
+.bang tr.cs-nhom td { background: var(--surface-2); font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-3); }
+.bang tr.cs-chon td { background: var(--blue-bg); }
+.bang tr.cs-chon td .in-o { background: var(--surface); }
+.bang tr[data-id] select[data-cs="hinhThuc"] { min-width: 130px; } .bang tr[data-id] select[data-cs="ngay"] { min-width: 100px; }

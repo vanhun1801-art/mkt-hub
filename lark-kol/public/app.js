@@ -702,7 +702,7 @@ function veBangKe(than, ht) {
       (chot ? '<div class="bao xanh" style="display:flex;gap:10px;align-items:center"><b>Đã chốt ' + ddmm(ht.chotLuc) + ' ' + hhmm(ht.chotLuc) + '</b><span>Chi phí công ty ' + tien(t.tt) + 'đ · sẵn sàng trình BGĐ</span><div class="lon"></div><button class="btn nho" data-viec="moChot">Mở chốt để sửa</button></div>' : '') +
       '<div class="the' + (chot ? ' da-chot' : '') + '"><div class="the-dau"><h2>Bảng kê chi phí · ' + ds.filter((h) => h.tinhTrang !== 'Huỷ').length + ' dòng</h2><div class="lon"></div>' +
       '<button class="btn nho" id="bkFoc">Đề xuất hợp tác FOC' + (choXin.length ? ' · ' + choXin.length + ' đối tác' : '') + '</button>' +
-      (chot ? '' : '<button class="btn nho" id="bkChon">Thêm từ danh mục</button><button class="btn nho" id="bkThem">Dòng tự nhập</button>' +
+      (chot ? '' : '<button class="btn chinh nho" id="bkSp">Lấy từ Base Sản phẩm</button><button class="btn nho" id="bkChon">Thêm từ danh mục</button><button class="btn nho" id="bkThem">Dòng tự nhập</button>' +
       '<button class="btn nho" id="bkLuu"' + (S.sua.ban ? '' : ' disabled') + '>Lưu bảng kê</button>' +
       '<button class="btn chinh nho" data-viec="chot"' + (ds.length ? '' : ' disabled') + '>Chốt bảng kê</button>') + '</div>' +
       '<div class="the-than khit cuon"><datalist id="dsDoiTac">' + dsDoiTac().map((x) => '<option value="' + e(x) + '">').join('') + '</datalist>' +
@@ -739,6 +739,7 @@ function veBangKe(than, ht) {
     if (chot) { $('#bkFoc').onclick = () => moXinFoc(ht); return; }
     $('#bkThem').onclick = () => { ds.push({ ten: '', nhom: 'Khác', ngay: ht.batDau || 0, loaiKhach: 'Người lớn', soLuong: ht.nguoiLon || 1, demLuot: 1, hinhThuc: 'Công ty chi', xinFoc: 'Không áp dụng', tinhTrang: 'Chờ', nguonDv: 'Nhập tay' }); S.sua.ban = true; veLai(); };
     $('#bkChon').onclick = () => moChonDichVu(ht, (moi) => { ds.push(...moi); S.sua.ban = true; veLai(); });
+    $('#bkSp').onclick = () => moChonSanPham(ht, (moi) => { ds.push(...moi); S.sua.ban = true; veLai(); });
     $('#bkFoc').onclick = () => moXinFoc(ht);
     $('#bkLuu').onclick = async () => {
       $('#bkLuu').disabled = true;
@@ -845,6 +846,89 @@ function giaRooty(ten) {
  * Bốn nguồn, Tourwell đứng trước: sản phẩm Tourwell · nhà cung cấp Tourwell (kèm bảng giá net) ·
  * bảng giá Rooty (Base Sản phẩm, có giá công bố) · dịch vụ tự khai.
  */
+/* Lấy nhiều dòng một lượt từ Base Sản phẩm (anh Hùng 24/09: bảng kê thường dựng từ tour đang có,
+ * phát sinh mới tự thêm tay). Trình bày như bảng kê: tick sản phẩm, mỗi dòng chỉnh ngày · giờ ·
+ * số NL/TE · hình thức · đơn giá chi, bấm Thêm là ra đủ dòng NL/TE vào bảng kê (qua taoDong). */
+async function moChonSanPham(ht, xong) {
+  const ngayChuyen = [];
+  if (ht.batDau) for (let t = dauNgay(ht.batDau); t <= dauNgay(ht.ketThuc || ht.batDau); t += NGAY_MS) ngayChuyen.push(t);
+  const chon = new Map();   // id sản phẩm → {ngay, gio, nl, te, hinhThuc, dgNL, dgTE, dt}
+  moModal('Lấy từ Base Sản phẩm', '<div class="luoi-form" style="margin-bottom:10px;grid-template-columns:minmax(0,1fr) auto">' +
+    '<label><input class="in-o" id="csTim" placeholder="Tìm theo mã hoặc tên (VD: G4, land 5, vinwonders)"></label>' +
+    '<label style="justify-content:flex-end"><span><input type="checkbox" id="csNhac" checked> Bật nhắc hẹn cho dòng có giờ</span></label></div>' +
+    '<div class="cuon" id="csBang" style="max-height:56vh"><div class="bao">Đang đọc Base Sản phẩm…</div></div>',
+    '<span class="nho" id="csDem" style="margin-right:auto">Chưa chọn sản phẩm nào</span><button class="btn" id="csHuy">Huỷ</button><button class="btn chinh" id="csThem" disabled>Thêm vào bảng kê</button>', true);
+  let sp = [];
+  try { sp = await napSp(); } catch (err) { $('#csBang').innerHTML = '<div class="bao cam">' + e(err.message) + '</div>'; return; }
+  const macDinh = (s) => {
+    const dt = doiTacTheoMa(s.ma, s.ten);
+    return { ngay: ngayChuyen[0] || 0, gio: '', nl: ht.nguoiLon || 1, te: ht.treEm || 0, hinhThuc: dt ? 'FOC đối tác' : 'Công ty chi', dgNL: null, dgTE: null, dt };
+  };
+  const optNgay = (v) => (ngayChuyen.length ? ngayChuyen : [v || 0]).map((t) => '<option value="' + t + '"' + (t === v ? ' selected' : '') + '>' +
+    (t ? THU[vn(t).thu] + ' ' + ddmm(t) : 'chưa có ngày') + '</option>').join('');
+  const ve = () => {
+    const tu = khongDau($('#csTim').value).split(/[^a-z0-9]+/).filter(Boolean);
+    const khop = (s) => { const g = gon(s.ma + ' ' + s.ten); return tu.every((w) => g.includes(w)); };
+    /* dòng đang chọn luôn còn trên bảng (dù ô tìm đã đổi), gom theo nhóm sản phẩm */
+    const ds = sp.filter((s) => chon.has(s.id) || !tu.length || khop(s));
+    const nhom = [...new Set(ds.map((s) => s.nhom || 'Khác'))];
+    const hang = (s) => {
+      const c = chon.get(s.id);
+      const o = c || macDinh(s);
+      const dis = c ? '' : ' disabled';
+      return '<tr data-id="' + s.id + '" class="' + (c ? 'cs-chon' : '') + '"><td style="text-align:center"><input type="checkbox" data-cs="chon"' + (c ? ' checked' : '') + '></td>' +
+        '<td><code>' + e(s.ma) + '</code></td><td class="w-ten">' + e(s.ten) + (o.dt ? ' <span class="nhan-tt xanh">' + e(o.dt) + '</span>' : '') + '</td>' +
+        '<td class="so nho">' + (s.giaNL ? tien(s.giaNL) : '') + (s.giaTE ? '<br>' + tien(s.giaTE) : '') + '</td>' +
+        '<td><select class="in-o" data-cs="ngay"' + dis + '>' + optNgay(o.ngay) + '</select></td>' +
+        '<td><input class="in-o" type="time" data-cs="gio" value="' + e(o.gio) + '"' + dis + '></td>' +
+        '<td><input class="in-o" type="number" min="0" data-cs="nl" value="' + o.nl + '"' + dis + ' style="width:58px"></td>' +
+        '<td><input class="in-o" type="number" min="0" data-cs="te" value="' + o.te + '"' + dis + ' style="width:58px"></td>' +
+        '<td><select class="in-o" data-cs="hinhThuc"' + dis + '>' + opt(HINH_THUC, o.hinhThuc) + '</select></td>' +
+        '<td><input class="in-o" type="number" min="0" step="1000" data-cs="dgNL" value="' + (o.dgNL ?? '') + '" placeholder="' + (s.giaNL ? tien(s.giaNL) : 'NL') + '"' + (c && o.hinhThuc === 'Công ty chi' ? '' : ' disabled') + ' style="width:96px"></td>' +
+        '<td><input class="in-o" type="number" min="0" step="1000" data-cs="dgTE" value="' + (o.dgTE ?? '') + '" placeholder="' + (s.giaTE ? tien(s.giaTE) : 'TE') + '"' + (c && o.hinhThuc === 'Công ty chi' && o.te ? '' : ' disabled') + ' style="width:96px"></td></tr>';
+    };
+    $('#csBang').innerHTML = ds.length ? '<table class="bang"><thead><tr><th></th><th>Mã</th><th class="w-ten">Sản phẩm</th><th class="so">Giá công bố<br>NL / TE</th><th>Ngày</th><th>Giờ hẹn</th>' +
+      '<th>NL</th><th>TE</th><th>Hình thức</th><th>Đơn giá chi NL</th><th>Đơn giá chi TE</th></tr></thead><tbody>' +
+      nhom.map((n) => '<tr class="cs-nhom"><td colspan="11">' + e(n) + '</td></tr>' + ds.filter((s) => (s.nhom || 'Khác') === n).sort((a, b) => chon.has(b.id) - chon.has(a.id)).map(hang).join('')).join('') +
+      '</tbody></table>' : '<div class="bao">Không thấy sản phẩm khớp.</div>';
+    const n = chon.size;
+    $('#csDem').textContent = n ? 'Đã chọn ' + n + ' sản phẩm → ' + [...chon.values()].reduce((t, c) => t + (c.nl ? 1 : 0) + (c.te ? 1 : 0), 0) + ' dòng bảng kê' : 'Chưa chọn sản phẩm nào';
+    $('#csThem').disabled = !n;
+  };
+  ve();
+  $('#csTim').oninput = ve;
+  $('#csBang').onchange = (ev) => {
+    const tr = ev.target.closest('tr[data-id]'); const f = ev.target.dataset.cs;
+    if (!tr || !f) return;
+    const s = sp.find((x) => x.id === tr.dataset.id);
+    if (f === 'chon') { if (ev.target.checked) chon.set(s.id, macDinh(s)); else chon.delete(s.id); return ve(); }
+    const c = chon.get(s.id); if (!c) return;
+    const v = ev.target.value;
+    c[f] = f === 'ngay' ? +v : f === 'nl' || f === 'te' ? Math.max(0, +v || 0) : f === 'dgNL' || f === 'dgTE' ? (v === '' ? null : +v) : v;
+    if (f === 'hinhThuc' || f === 'te' || f === 'nl') ve();
+  };
+  $('#csHuy').onclick = () => dongModal();
+  $('#csThem').onclick = () => {
+    const nhac = $('#csNhac').checked;
+    const dong = [];
+    for (const [id, c] of chon) {
+      const s = sp.find((x) => x.id === id);
+      const gio = c.gio && c.ngay ? tuChuoi(ngayIn(c.ngay) + 'T' + c.gio) : 0;
+      if (!c.nl && !c.te) continue;
+      const ds = taoDong({ ...ht, nguoiLon: c.nl, treEm: c.te, emBe: 0 }, { nguon: 'sp', s }, c.ngay, gio, nhac && !!gio)
+        .filter((d) => (d.loaiKhach === 'Người lớn' ? c.nl : c.te) > 0);
+      for (const d of ds) {
+        if (c.hinhThuc !== 'FOC đối tác') { d.hinhThuc = c.hinhThuc; d.xinFoc = 'Không áp dụng'; d.donGiaChi = c.hinhThuc === 'Công ty chi' ? (d.loaiKhach === 'Trẻ em' ? c.dgTE : c.dgNL) : 0; }
+        else { d.hinhThuc = 'FOC đối tác'; d.donGiaChi = 0; d.xinFoc = 'Chưa đề xuất'; }
+        dong.push(d);
+      }
+    }
+    xong(dong);
+    toast('Đã thêm ' + dong.length + ' dòng từ Base Sản phẩm — nhớ bấm Lưu bảng kê');
+    dongModal();
+  };
+}
+
 async function moChonDichVu(ht, xong) {
   const NGUON = [['twSp', 'Sản phẩm Tourwell'], ['twNcc', 'Nhà cung cấp Tourwell'], ['rooty', 'Bảng giá Rooty'], ['tuKhai', 'Dịch vụ tự khai']];
   let nguon = 'twSp';
