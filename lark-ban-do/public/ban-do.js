@@ -18,6 +18,19 @@
   const H = window.PQ_HINH;
   const D = window.PQ_DU_LIEU;
   const Q = new URLSearchParams(location.search);
+  /* ?khach=1: bản đồ nằm trong trang link gửi khách (khach.html) — ẩn bảng + chú thích,
+     không có nút tạo link, chừa chỗ cho ngăn thông tin của trang cha (xem vungNhin) */
+  const KHACH = Q.get('khach') === '1';
+  /* Link gửi khách: chỉ tạo được khi bản đồ chạy trên máy chủ (hub hoặc app Sản phẩm),
+     không có khi mở file HTML đơn lẻ. Trong hub: /m/san-pham/ban-do/ → /k/tour/<mã> (đường
+     công khai của hub); app chạy một mình: /ban-do/ → /khach/tour/<mã>. */
+  const linkKhach = (ma) => {
+    if (KHACH || !/^https?:$/.test(location.protocol)) return '';
+    const m = location.pathname.match(/^(.*?)\/m\/san-pham\/ban-do\//);
+    if (m) return location.origin + m[1] + '/k/tour/' + encodeURIComponent(ma);
+    if (/^\/ban-do\//.test(location.pathname)) return location.origin + '/khach/tour/' + encodeURIComponent(ma);
+    return '';
+  };
   const $ = (s, g) => (g || document).querySelector(s);
   const NS = 'http://www.w3.org/2000/svg';
 
@@ -780,6 +793,12 @@
 
   /* ---------- camera ---------- */
   function vungNhin() {
+    /* chế độ khách (trang link gửi khách): không có bảng bên trái; trang cha phủ ngăn thông
+       tin lên ĐÁY màn hình (điện thoại) hoặc cột TRÁI 400px (máy tính) — chừa đúng phần đó */
+    if (KHACH) {
+      if (laDienThoai()) return { x: 0, y: 0, w: innerWidth, h: Math.max(200, innerHeight * .66) };
+      return { x: 424, y: 0, w: innerWidth - 424, h: innerHeight };
+    }
     const p = $('#panel').getBoundingClientRect();
     if (laDienThoai()) {
       const cao = S.ngan === 'thu' ? 128 : S.ngan === 'lon' ? innerHeight * .82 : innerHeight * .46;
@@ -1312,6 +1331,8 @@
       '<div class="o-gia">' + gia + '</div>' +
       (thongTin.length ? '<dl class="ct-thong-tin">' + thongTin.map(([a, b]) => '<dt>' + esc(a) + '</dt><dd>' + esc(b) + '</dd>').join('') + '</dl>' : '') +
       (nutLienHe(tr) ? '<div class="hang-nut">' + nutLienHe(tr) + '</div>' : '') +
+      (linkKhach(tr.ma) ? '<div class="link-khach"><button class="nut chinh" data-link-khach="' + esc(tr.ma) + '">' + icon('mo') + 'Tạo link gửi khách</button>' +
+        '<div class="link-khach-o" hidden><input readonly value="' + esc(linkKhach(tr.ma)) + '"><a class="nut" target="_blank" rel="noopener" href="' + esc(linkKhach(tr.ma)) + '">Mở thử</a></div></div>' : '') +
       (tr.usp.length && S.lang === 'vi' ? '<div class="ct-muc">' + t('diemNoiBat') + '</div><ul class="usp">' + tr.usp.map((u) => '<li>' + esc(u) + '</li>').join('') + '</ul>' : '') +
       (ds.length ? '<div class="ct-muc">' + (tr.tuyen.length ? t('lichTrinh') : t('suDungTai')) + '</div><ol class="chang">' + ds.map((d) => '<li>' + dongDiem(d) + '</li>').join('') + '</ol>' : '') +
       '</div>';
@@ -1388,6 +1409,16 @@
     if (b.dataset.diem) return chon({ kieu: 'diem', id: b.dataset.diem });
     if (b.dataset.tour) return chon({ kieu: 'tour', id: b.dataset.tour });
     if (b.dataset.lui) return lui();
+    if (b.dataset.linkKhach) {
+      /* chép link gửi khách + hiện ô link (chép bị chặn — iframe không có quyền clipboard —
+         thì người dùng vẫn bôi đen ô rồi chép tay được) */
+      const o = b.parentNode.querySelector('.link-khach-o'), inp = o.querySelector('input');
+      o.hidden = false; inp.focus(); inp.select();
+      const xong = () => { b.textContent = 'Đã chép link — dán gửi khách'; };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(inp.value).then(xong, () => { try { document.execCommand('copy'); xong(); } catch (_) { /* chép tay */ } });
+      else { try { document.execCommand('copy'); xong(); } catch (_) { /* chép tay */ } }
+      return;
+    }
     if (b.dataset.loai) { S.loai.has(b.dataset.loai) ? S.loai.delete(b.dataset.loai) : S.loai.add(b.dataset.loai); return veTatCa(); }
     if (b.dataset.chiTour) { S.chiTour = !S.chiTour; return veTatCa(); }
     if (b.dataset.loaiTour) { S.loaiTour.has(b.dataset.loaiTour) ? S.loaiTour.delete(b.dataset.loaiTour) : S.loaiTour.add(b.dataset.loaiTour); return veTatCa(); }
@@ -1425,6 +1456,7 @@
 
   /* ---------------- khởi động ---------------- */
   if (Q.get('nhung') === '1') document.body.classList.add('nhung');
+  if (KHACH) document.body.classList.add('khach');
   if (laDienThoai()) datNgan('giua');
   veChu();
   veChuThich();

@@ -2026,6 +2026,26 @@ const server = http.createServer(async (req, res) => {
     return chuyenTiep(req, res, modOta, '/webhook/' + wh[1] + (u.search || ''), null);
   }
 
+  /* ---- link gửi khách: đường CÔNG KHAI, nằm TRƯỚC cổng đăng nhập (26/09) ----
+   * Nhân viên gửi khách link /k/tour/<mã> để xem giá, lịch trình, hành trình trên bản đồ.
+   * Khách không có Lark nên đường này đi vòng ngoài cổng. Bó hẹp giống webhook OTA:
+   *   - chỉ GET/HEAD, chỉ chuyển tới module 'san-pham' và chỉ vào nhánh /khach/* của nó
+   *     (khach.js: chỉ đọc, dữ liệu theo danh sách cho phép, không gọi danh tính);
+   *   - KHÔNG gửi header danh tính (nguoi = null) — chuyenTiep xoá header x-hub-* client tự gửi.
+   * Mở thêm trang công khai khác thì thêm nhánh riêng, ĐỪNG nới sang module khác. */
+  const mKhach = /^\/k(\/[A-Za-z0-9_\-./]*)?$/.exec(p);
+  if (mKhach && !(mKhach[1] || '').includes('..')) {
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      return send(res, 405, 'Chỉ đọc', { 'Content-Type': 'text/plain; charset=utf-8' });
+    }
+    const modSp = timMod('san-pham');
+    if (!modSp || modSp.kieu !== 'local' || !modSp.bat) {
+      return send(res, 404, 'Trang tour tạm chưa mở', { 'Content-Type': 'text/plain; charset=utf-8' });
+    }
+    kids.khoiDong(modSp);
+    return chuyenTiep(req, res, modSp, '/khach' + (mKhach[1] || '/') + (u.search || ''), null);
+  }
+
   /* ---- nguồn số liệu cho trợ lý: đường CÔNG KHAI, nằm TRƯỚC cổng đăng nhập ----
    * Coze (hoặc bộ não nào khác) ở ngoài Internet, không đăng nhập Lark được, nên
    * buộc phải đi vòng ngoài cổng. Bó hẹp giống webhook OTA:

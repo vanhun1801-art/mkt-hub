@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{{TIEU_DE}}</title>
+<meta name="description" content="{{MO_TA}}">
+<meta property="og:type" content="website">
+<meta property="og:title" content="{{TIEU_DE}}">
+<meta property="og:description" content="{{MO_TA}}">
+<meta name="theme-color" content="#087a69">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap">
+<!--
+  Trang LINK GỬI KHÁCH (26/09) — /k/tour/<mã> trên hub, /khach/tour/<mã> khi app Sản phẩm chạy một mình.
+  Khách mở trên điện thoại là chính: bản đồ (hành trình tour) chiếm phần trên, ngăn thông tin
+  nằm dưới — chỉ lộ tên + giá + "Kéo lên để xem chi tiết"; kéo / chạm để mở hết.
+  Máy tính: ngăn thông tin thành cột trái cố định. Dữ liệu: ../api/tour/<mã> (danh sách cho phép,
+  xem lark-san-pham/khach.js). Mọi đường dẫn TƯƠNG ĐỐI để chạy được cả dưới /k/ lẫn /khach/.
+-->
+<style>
+:root {
+  --xanh: #087a69; --xanh-2: #0a9480; --xanh-nhat: #e6f5f1; --cam: #e8702a; --cam-nhat: #fff1e6;
+  --chu: #16222e; --chu-2: #516070; --chu-3: #8794a3; --nen: #ffffff; --nen-2: #f4f7f8; --vien: #e3e9ed;
+  --do: #d64545; --bong: 0 -8px 30px rgba(8, 40, 50, .18);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; font-family: 'Be Vietnam Pro', system-ui, sans-serif; color: var(--chu); background: #078cc7; -webkit-font-smoothing: antialiased; }
+#banDo { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
+
+/* ngăn thông tin — điện thoại: trượt từ đáy lên */
+#ngan {
+  position: fixed; left: 0; right: 0; bottom: 0; height: 90vh; height: 90dvh; z-index: 5;
+  background: var(--nen); border-radius: 20px 20px 0 0; box-shadow: var(--bong);
+  display: flex; flex-direction: column; transform: translateY(var(--dich, calc(90dvh - 34dvh)));
+  transition: transform .32s cubic-bezier(.2, .8, .2, 1); touch-action: none;
+}
+#ngan.dang-keo { transition: none; }
+#ngan.mo { --dich: 0px; }
+.dau-ngan { padding: 8px 18px 12px; cursor: grab; user-select: none; flex: none; }
+.tay-keo { width: 44px; height: 5px; border-radius: 3px; background: #cfd8de; margin: 2px auto 10px; }
+.thuong-hieu { font-size: 11px; font-weight: 800; letter-spacing: .14em; color: var(--xanh); text-transform: uppercase; }
+h1 { margin: 3px 0 6px; font-size: 21px; line-height: 1.25; font-weight: 800; letter-spacing: -.01em; }
+.gia-ngan { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.gia-ngan b { font-size: 22px; color: var(--cam); font-weight: 800; }
+.gia-ngan s { color: var(--chu-3); font-size: 14px; }
+.gia-ngan small { color: var(--chu-2); font-size: 13px; }
+.goi-y { margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--xanh); }
+.goi-y svg { width: 16px; height: 16px; animation: nhun 1.6s ease-in-out infinite; }
+#ngan.mo .goi-y { display: none; }
+@keyframes nhun { 50% { transform: translateY(-3px); } }
+.than-ngan { flex: 1; overflow-y: auto; padding: 0 18px 28px; overscroll-behavior: contain; touch-action: pan-y; -webkit-overflow-scrolling: touch; }
+
+/* máy tính: cột trái cố định */
+@media (min-width: 761px) {
+  #ngan { left: 16px; top: 16px; bottom: 16px; right: auto; width: 392px; height: auto; border-radius: 18px; transform: none !important; box-shadow: 0 10px 30px rgba(7, 64, 59, .16); touch-action: auto; }
+  .tay-keo, .goi-y { display: none; }
+  .dau-ngan { cursor: default; padding-top: 18px; }
+}
+
+.the { background: var(--nen-2); border: 1px solid var(--vien); border-radius: 14px; padding: 12px 14px; margin: 12px 0 0; }
+.o-gia { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.o-gia .nhan { font-size: 12px; font-weight: 700; color: var(--chu-2); text-transform: uppercase; letter-spacing: .05em; }
+.o-gia .so { font-size: 20px; font-weight: 800; color: var(--cam); font-variant-numeric: tabular-nums; }
+.o-gia s { display: block; font-size: 13px; color: var(--chu-3); }
+.giam { display: inline-block; margin-top: 8px; background: var(--cam-nhat); color: #b4541a; font-size: 12.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px; }
+.bac { width: 100%; border-collapse: collapse; font-size: 14px; }
+.bac td { padding: 6px 0; border-bottom: 1px dashed var(--vien); }
+.bac td:last-child { text-align: right; font-weight: 700; color: var(--cam); }
+.chip-hang { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; background: var(--xanh-nhat); color: #075e52; font-size: 13px; font-weight: 600; padding: 6px 10px; border-radius: 999px; }
+.chip svg { width: 15px; height: 15px; }
+h2 { font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--chu-3); margin: 22px 0 8px; }
+ul.ds { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
+ul.ds li { display: flex; gap: 9px; font-size: 14.5px; line-height: 1.5; }
+ul.ds li svg { flex: none; width: 18px; height: 18px; margin-top: 2px; }
+ul.ds.co svg { color: var(--xanh-2); }
+ul.ds.khong svg { color: var(--do); }
+ul.ds.sao svg { color: var(--cam); }
+.lich { white-space: pre-line; font-size: 14.5px; line-height: 1.65; color: var(--chu); }
+.media { display: grid; gap: 8px; }
+.media a { display: flex; align-items: center; gap: 10px; padding: 11px 12px; border: 1px solid var(--vien); border-radius: 12px; text-decoration: none; color: var(--chu); font-size: 14px; font-weight: 600; background: var(--nen); }
+.media a:active { background: var(--nen-2); }
+.media a svg { width: 20px; height: 20px; color: var(--xanh); flex: none; }
+.media a small { display: block; font-weight: 500; color: var(--chu-3); font-size: 12px; }
+.media a .mui { margin-left: auto; color: var(--chu-3); }
+.nhan-nho { display: inline-block; font-size: 11px; font-weight: 800; letter-spacing: .04em; padding: 2px 7px; border-radius: 6px; background: var(--cam-nhat); color: #b4541a; vertical-align: 3px; margin-left: 4px; }
+.cuoi { margin-top: 26px; font-size: 12px; color: var(--chu-3); text-align: center; }
+.trong { padding: 30px 0; text-align: center; color: var(--chu-2); }
+</style>
+</head>
+<body>
+<iframe id="banDo" title="Hành trình tour trên bản đồ" allow="fullscreen"></iframe>
+
+<section id="ngan" aria-label="Thông tin tour">
+  <div class="dau-ngan" id="dauNgan">
+    <div class="tay-keo"></div>
+    <div class="thuong-hieu">Rooty Trip Phú Quốc</div>
+    <h1 id="tenTour">Đang tải…</h1>
+    <div class="gia-ngan" id="giaNgan"></div>
+    <div class="goi-y" id="goiY"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>Kéo lên để xem chi tiết</div>
+  </div>
+  <div class="than-ngan" id="thanNgan"></div>
+</section>
+
+<script>
+(function () {
+  'use strict';
+  var MA = '{{MA}}';
+  var $ = function (s) { return document.querySelector(s); };
+  var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+  var tien = function (n) { return n == null ? '' : Number(n).toLocaleString('vi-VN') + 'đ'; };
+  var I = {
+    dong: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+    lich: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+    co: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+    khong: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M7 7l10 10M17 7L7 17"/></svg>',
+    sao: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg>',
+    anh: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>',
+    video: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="M17 10l4-2v8l-4-2"/></svg>',
+    tai: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg>',
+    thu: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
+    mui: '<svg class="mui" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="18" height="18"><path d="M9 6l6 6-6 6"/></svg>',
+  };
+  var iconMedia = function (m) { var s = (m.loai + ' ' + m.ten).toLowerCase(); return /video/.test(s) ? I.video : /thư mục/.test(s) ? I.thu : /ảnh/.test(s) ? I.anh : I.tai; };
+  var dsHtml = function (arr, kieu, icon) { return '<ul class="ds ' + kieu + '">' + arr.map(function (x) { return '<li>' + icon + '<span>' + esc(x) + '</span></li>'; }).join('') + '</ul>'; };
+
+  /* bản đồ chế độ khách, tự phóng vào hành trình tour */
+  $('#banDo').src = '../ban-do/?khach=1&tour=' + encodeURIComponent(MA);
+
+  fetch('../api/tour/' + encodeURIComponent(MA)).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); }).then(function (kq) {
+    if (!kq.ok) { $('#tenTour').textContent = 'Tour không còn mở bán'; $('#thanNgan').innerHTML = '<div class="trong">Tour này đã ngừng bán hoặc đổi mã. Bạn liên hệ Rooty Trip để được tư vấn tour phù hợp nhé.</div>'; return; }
+    var t = kq.d;
+    $('#tenTour').innerHTML = esc(t.ten) + (t.sapRaMat ? '<span class="nhan-nho">Sắp ra mắt</span>' : '');
+    /* dòng giá trên đầu ngăn (lúc gập vẫn thấy) */
+    var giaChinh = t.sauGiamNL != null ? t.sauGiamNL : t.giaNL;
+    var bacMin = t.bacGia.length ? t.bacGia.reduce(function (a, b) { return b.giaNL < a.giaNL ? b : a; }) : null;
+    $('#giaNgan').innerHTML = giaChinh != null
+      ? '<b>' + tien(giaChinh) + '</b>' + (t.sauGiamNL != null ? '<s>' + tien(t.giaNL) + '</s>' : '') + '<small>/ người lớn</small>'
+      : bacMin ? '<small>Từ</small><b>' + tien(bacMin.giaNL) + '</b><small>/ khách · đoàn ' + bacMin.soKhach + '</small>' : '<small>Liên hệ để nhận giá</small>';
+
+    var h = '';
+    if (t.giaNL != null) {
+      var o = function (nhan, goc, sau) { return goc == null ? '' : '<div><div class="nhan">' + nhan + '</div>' + (sau != null ? '<s>' + tien(goc) + '</s>' : '') + '<div class="so">' + tien(sau != null ? sau : goc) + '</div></div>'; };
+      var giam = t.sauGiamNL != null ? t.giaNL - t.sauGiamNL : 0;
+      h += '<div class="the"><div class="o-gia">' + o('Người lớn', t.giaNL, t.sauGiamNL) + o('Trẻ em', t.giaTE, t.sauGiamTE) + '</div>' +
+        (giam > 0 ? '<span class="giam">Đang giảm ' + tien(giam) + ' / người lớn</span>' : '') + '</div>';
+    }
+    if (t.bacGia.length) {
+      h += '<h2>Giá theo số khách</h2><div class="the"><table class="bac">' + t.bacGia.map(function (b) {
+        return '<tr><td>Đoàn ' + esc(b.soKhach) + ' khách</td><td>' + tien(b.giaNL) + ' / khách</td></tr>';
+      }).join('') + '</table></div>';
+    }
+    var chip = [];
+    if (t.thoiLuong) chip.push('<span class="chip">' + I.dong + esc(t.thoiLuong) + '</span>');
+    if (t.khoiHanh) chip.push('<span class="chip">' + I.lich + esc(t.khoiHanh) + '</span>');
+    if (chip.length) h += '<div class="chip-hang">' + chip.join('') + '</div>';
+    if (t.noiBat.length) h += '<h2>Điểm nổi bật</h2>' + dsHtml(t.noiBat, 'sao', I.sao);
+    if (t.lichTrinh) h += '<h2>Lịch trình</h2><div class="lich">' + esc(t.lichTrinh) + '</div>';
+    if (t.baoGom.length) h += '<h2>Dịch vụ bao gồm</h2>' + dsHtml(t.baoGom, 'co', I.co);
+    if (t.khongBaoGom.length) h += '<h2>Không bao gồm</h2>' + dsHtml(t.khongBaoGom, 'khong', I.khong);
+    if (t.treEm.length) h += '<h2>Chính sách trẻ em</h2>' + dsHtml(t.treEm, 'co', I.co);
+    if (t.media.length) {
+      h += '<h2>Hình ảnh &amp; tài liệu</h2><div class="media">' + t.media.map(function (m) {
+        return '<a href="' + esc(m.link) + '" target="_blank" rel="noopener">' + iconMedia(m) + '<span>' + esc(m.ten) +
+          (m.ngonNgu ? '<small>' + esc(m.loai || '') + (m.loai ? ' · ' : '') + esc(m.ngonNgu) + '</small>' : '') + '</span>' + I.mui + '</a>';
+      }).join('') + '</div>';
+    }
+    h += '<div class="cuoi">Giá công bố của Rooty Trip Phú Quốc · cập nhật theo hệ thống</div>';
+    $('#thanNgan').innerHTML = h;
+  }).catch(function () {
+    $('#tenTour').textContent = 'Chưa tải được thông tin';
+    $('#thanNgan').innerHTML = '<div class="trong">Mạng đang chậm. Bạn tải lại trang giúp mình nhé.</div>';
+  });
+
+  /* kéo ngăn: kéo lên / xuống ở phần đầu ngăn; chạm để mở / gập (chỉ điện thoại) */
+  var ngan = $('#ngan'), dau = $('#dauNgan');
+  var dienThoai = function () { return matchMedia('(max-width: 760px)').matches; };
+  var batDau = null;
+  var chieuCao = function () { return ngan.getBoundingClientRect().height; };
+  var dichGap = function () { return chieuCao() - innerHeight * 0.34; };
+  dau.addEventListener('pointerdown', function (e) {
+    if (!dienThoai()) return;
+    batDau = { y: e.clientY, t: Date.now(), goc: ngan.classList.contains('mo') ? 0 : dichGap() };
+    ngan.classList.add('dang-keo');
+    try { dau.setPointerCapture(e.pointerId); } catch (_) { /* bỏ qua */ }
+  });
+  dau.addEventListener('pointermove', function (e) {
+    if (!batDau) return;
+    var d = Math.max(0, Math.min(dichGap(), batDau.goc + e.clientY - batDau.y));
+    ngan.style.setProperty('--dich', d + 'px');
+  });
+  var tha = function (e) {
+    if (!batDau) return;
+    var dy = e.clientY - batDau.y, nhanh = Math.abs(dy) / Math.max(1, Date.now() - batDau.t);
+    ngan.classList.remove('dang-keo');
+    ngan.style.removeProperty('--dich');
+    var mo = ngan.classList.contains('mo');
+    if (Math.abs(dy) < 6) mo = !mo;                                   // chạm
+    else if (dy < -50 || (dy < 0 && nhanh > .5)) mo = true;            // kéo lên
+    else if (dy > 50 || (dy > 0 && nhanh > .5)) mo = false;            // kéo xuống
+    ngan.classList.toggle('mo', mo);
+    if (!mo) $('#thanNgan').scrollTop = 0;
+    batDau = null;
+  };
+  dau.addEventListener('pointerup', tha);
+  dau.addEventListener('pointercancel', tha);
+})();
+</script>
+</body>
+</html>

@@ -31,6 +31,7 @@ const lich = require('./lich');
 const nhatKy = require('./nhatky');
 const { doiTruong } = require('./kiem');
 const hinhBanDo = require('./hinh-ban-do');
+const khach = require('./khach');
 const lark = cfg.mode === 'api' ? require('./larkapi') : require('./lark');
 
 const BIND = process.env.BIND || '127.0.0.1';
@@ -572,9 +573,16 @@ async function banDo(res, duong) {
   if (!BAN_DO_TEP.has(ten) || !fs.existsSync(path.join(BAN_DO, ten))) {
     return gui(res, 404, 'Không có ' + duong, { 'Content-Type': 'text/plain; charset=utf-8' });
   }
-  gui(res, 200, fs.readFileSync(path.join(BAN_DO, ten)), {
+  let than = fs.readFileSync(path.join(BAN_DO, ten));
+  /* index.html không lưu đệm và gắn số bản (mốc sửa của tệp) vào các tệp tĩnh nó nạp:
+     sửa giao diện bản đồ là trình duyệt lấy bản mới ngay, tệp không đổi thì vẫn dùng đệm. */
+  if (ten === 'index.html') {
+    than = Buffer.from(than.toString('utf8').replace(/(src|href)="((?:ban-do\.css|ban-do\.js|hinh\.js|dia-hinh\.js|hinh-ve\.js))"/g,
+      (m, a, f) => a + '="' + f + '?v=' + Math.round(fs.statSync(path.join(BAN_DO, f)).mtimeMs / 1000) + '"'), 'utf8');
+  }
+  gui(res, 200, than, {
     'Content-Type': MIME[path.extname(ten)] || 'application/octet-stream',
-    'Cache-Control': ten === 'index.html' ? 'no-store' : 'public, max-age=3600',
+    'Cache-Control': ten === 'index.html' ? 'no-store' : 'public, max-age=31536000, immutable',
     'X-Hub-Khong-Chen': '1',
   });
 }
@@ -589,6 +597,14 @@ const server = http.createServer(async (req, res) => {
     } catch (e) {
       console.error('[API]', u.pathname, '->', e.message);
       if (!res.headersSent) loi(res, 500, e.message || 'Lỗi không xác định');
+    }
+    return;
+  }
+  /* link gửi khách — trang công khai chỉ đọc (khach.js). Đặt TRƯỚC mọi thứ khác. */
+  if (u.pathname === '/khach' || u.pathname.startsWith('/khach/')) {
+    try { await khach.xuLy(req, res, u, { gui, json, banDo }); } catch (e) {
+      console.error('[KHÁCH]', u.pathname, '->', e.message);
+      if (!res.headersSent) gui(res, 500, 'Đang bận, bạn thử lại sau ít phút', { 'Content-Type': 'text/plain; charset=utf-8' });
     }
     return;
   }

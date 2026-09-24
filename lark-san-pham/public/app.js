@@ -820,7 +820,7 @@ function hienBanDo(bat) {
     khungBanDo.className = 'khung-ban-do';
     khungBanDo.title = 'Bản đồ du lịch Phú Quốc';
     khungBanDo.src = 'ban-do/';
-    khungBanDo.setAttribute('allow', 'fullscreen');
+    khungBanDo.setAttribute('allow', 'fullscreen; clipboard-write');   // nút "Tạo link gửi khách" chép link
     vung.appendChild(khungBanDo);
     man.parentNode.insertBefore(vung, man);
     addEventListener('resize', () => hienBanDo(S.tab === 'ban-do'));
