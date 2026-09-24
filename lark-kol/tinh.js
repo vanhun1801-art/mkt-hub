@@ -257,11 +257,30 @@ function sdtQuocTe(sdt, maVung) {
 
 const tien = (n) => (n == null ? '' : Math.round(n).toLocaleString('vi-VN'));
 
+/**
+ * Ý của thư BGĐ trả lời (anh Hùng 24/09: "thường có chữ duyệt, đồng ý; sai sót thì trả lời khác").
+ *   'duyet' — có duyệt / đồng ý / ok / approved, KHÔNG kèm chữ phủ định hay yêu cầu sửa
+ *   'sua'   — có chưa / không / sửa / điều chỉnh / xem lại / từ chối …
+ *   ''      — không rõ → để anh đọc và tự bấm
+ * Chỉ xét câu BGĐ mới viết (đã cắt chữ ký + thư trích bằng catTrich).
+ */
+function yDuyet(noiDung) {
+  const t = ' ' + String(noiDung || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D')
+    .toLowerCase().replace(/[^a-z0-9]+/g, ' ') + ' ';
+  const co = (ds) => ds.some((w) => t.includes(' ' + w + ' '));
+  const PHU_DINH = ['chua', 'khong', 'ko', 'k duyet', 'sua', 'sua lai', 'dieu chinh', 'xem lai', 'can them', 'bo sung', 'tu choi', 'huy bo', 'giam bot', 'cat bot',
+    'thay doi', 'doi lai', 'hoi lai', 'goi anh', 'gap anh', 'no', 'reject', 'rejected', 'khoan', 'tam dung'];
+  const DUYET = ['duyet', 'dong y', 'ok', 'oke', 'okay', 'approve', 'approved', 'dong y duyet', 'chap thuan', 'lam di', 'trien khai'];
+  if (co(PHU_DINH)) return 'sua';
+  if (co(DUYET)) return 'duyet';
+  return '';
+}
+
 module.exports = {
   NGAY, vn, ngayCua, choBase, tuChuoi, dauNgay, soDem, hhmm, ddmm,
   thanhTien, giaTriQuyDoi, thieuGiaCongBo, tongHopTac, slGoiY, giaGoiY,
   BUOC, viTri, duocLam, buocTheoLich, lui, dongLichSu, noiLichSu, theoFoc, canhBaoKhach,
   trangThaiLich, canNhac, BUOC_NHAC, tinNhacKol,
   trangThaiBanGiao, xemMoiNhat, ketQua,
-  maMoi, sdtQuocTe, tien,
+  maMoi, sdtQuocTe, tien, yDuyet,
 };

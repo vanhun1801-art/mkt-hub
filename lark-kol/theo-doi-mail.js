@@ -37,9 +37,15 @@ function timThread(o, tieuDe, out = []) {
 const diaChi = (m) => String((m && m.head_from && (m.head_from.mail_address || m.head_from.address)) || (m && m.from) || '').toLowerCase();
 const luc = (m) => Number(m && m.internal_date) || Date.parse((m && m.date_formatted) || '') || 0;
 
-/** Bỏ phần trích thư cũ ("> …", "On … wrote:", "Vào … đã viết:") — chỉ giữ câu người đó mới viết. */
+/* Chữ ký BGĐ / công ty hay gặp — cắt từ đây trở đi (thư trả lời trên Lark: "DUYỆT YOUR TRIP. OUR PASSION…"). */
+const CHU_KY_CUA = [/YOUR TRIP\.?\s*OUR PASSION/i, /D[ẫa]n\s+[Đđ]ầu\s+Du\s+L[ịi]ch/i, /Tr[âa]n\s+tr[ọo]ng\s*,?\s*$/im, /Best regards/i, /Sent from my/i];
+/** Bỏ phần trích thư cũ ("> …", "On … wrote:", "Vào … đã viết:", khối "Từ: … <mail>") và chữ ký — chỉ giữ câu người đó mới viết. */
 function catTrich(s) {
-  const dong = String(s || '').replace(/\r/g, '').split('\n');
+  let v = String(s || '').replace(/\r/g, '');
+  /* thư dồn một dòng: cắt ngay chỗ bắt đầu khối trích "Từ: … <x@y>" / "From: …" / "On … wrote:" */
+  const moc = [/\b(Từ|From)\s*:\s*[^\n]{0,80}?<[^>\s]+@[^>\s]+>/i, /\bOn\b[^\n]{0,120}\bwrote:/i, /\bVào\b[^\n]{0,120}\b(đã )?viết:/i, /-{2,}\s*Original/i, ...CHU_KY_CUA];
+  for (const r of moc) { const m = r.exec(v); if (m && m.index > 0) v = v.slice(0, m.index); }
+  const dong = v.split('\n');
   const out = [];
   for (const d of dong) {
     if (/^\s*>/.test(d)) break;
@@ -124,13 +130,22 @@ async function kiem(bao, now = Date.now()) {
           const cot = loai === 'bgd' ? 'thuBgd' : 'thuKol';
           if (!ht[cot]) o = { [cot]: luong };
         }
-        if (r && r.luc > (ht[tlLuc] || 0)) {
+        /* thư mới, hoặc cùng thư nhưng lần trước cắt sai (nội dung đã lưu khác) → xử lý lại */
+        if (r && (r.luc > (ht[tlLuc] || 0) || (r.luc === ht[tlLuc] && r.noiDung !== ht[tl]))) {
           o[tl] = r.noiDung; o[tlLuc] = r.luc;
           moi.push({ ht, loai, ...r });
           const ai = loai === 'bgd' ? 'BGĐ' : 'KOL ' + (kolTen.get(ht.kol) || '');
+          /* anh Hùng 24/09: BGĐ trả lời "duyệt / đồng ý" (không kèm ý sửa) → tự chuyển "BGĐ đã duyệt".
+           * Thư có ý sửa hoặc không rõ → giữ nguyên bước, hiện câu trả lời để anh tự bấm. */
+          const tuDuyet = loai === 'bgd' && !ht.khongTuChuyen && T.yDuyet(r.noiDung) === 'duyet';
+          if (tuDuyet) {
+            Object.assign(o, { buoc: 'BGĐ đã duyệt', duyetLuc: r.luc, kenhDuyet: 'Email', nguoiDuyet: r.tu, yKien: r.noiDung.slice(0, 300),
+              lichSu: T.noiLichSu(ht.lichSu, T.dongLichSu(ht.buoc, 'BGĐ đã duyệt', 'tự chuyển: BGĐ trả lời "' + r.noiDung.slice(0, 40) + '"', now)) });
+          }
           if (bao) {
             await bao('Email trả lời · ' + ai + ' (' + ht.ma + ' · ' + (kolTen.get(ht.kol) || '') + ')\n\n"' + r.noiDung.slice(0, 300) + '"\n\n'
-              + 'Mở app KOL bấm ' + (loai === 'bgd' ? '"BGĐ đã duyệt" hoặc "BGĐ yêu cầu sửa"' : '"KOL đã xác nhận"') + '.', 'kol-tl-' + ht.id + '-' + r.luc);
+              + (tuDuyet ? 'App đã tự chuyển sang "BGĐ đã duyệt" — việc tiếp theo: soạn thư mời KOL. Nhầm thì bấm Lùi bước.'
+                : 'Mở app KOL bấm ' + (loai === 'bgd' ? '"BGĐ đã duyệt" hoặc "BGĐ yêu cầu sửa"' : '"KOL đã xác nhận"') + '.'), 'kol-tl-' + ht.id + '-' + r.luc);
           }
           trangThai.daBao++;
         }
