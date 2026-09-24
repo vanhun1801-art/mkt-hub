@@ -887,6 +887,14 @@ async function nenHinh(tep) {
   } finally { URL.revokeObjectURL(url); }
 }
 
+/* Báo cáo sức khoẻ dữ liệu (bao-cao-tuan.js): bot Marketing Hub nhắn riêng mỗi sáng thứ Hai.
+   Bấm nút = nhận ngay một bản + đăng ký mình làm người nhận hằng tuần. */
+function baoCaoTuanHtml() {
+  return '<div class="khoi-hinh khoi-bao-cao"><b>Báo cáo dữ liệu hằng tuần</b> ' +
+    '<span class="phu">Sáng thứ Hai, bot Marketing Hub nhắn riêng: sản phẩm hết hiệu lực · thiếu thông tin · link media hỏng · thay đổi trong tuần</span>' +
+    '<button class="btn sm" id="btnBaoCao">Gửi báo cáo cho tôi</button></div>';
+}
+
 const taiLaiBanDo = () => { if (khungBanDo && khungBanDo.contentWindow) { try { khungBanDo.contentWindow.location.reload(); } catch (_) { khungBanDo.src = 'ban-do/'; } } };
 
 async function taiHinhLen(inp) {
@@ -913,7 +921,7 @@ function ve() {
     return;
   }
   if (S.tab === 'quan-ly' && laQuanLy()) {
-    man.innerHTML = veDai() + lichHtml() + hinhBanDoHtml() + quanLyHtml();
+    man.innerHTML = veDai() + lichHtml() + baoCaoTuanHtml() + hinhBanDoHtml() + quanLyHtml();
     if (S.lich === null) napLich();
   } else if (S.tab === 'bang-day') {
     man.innerHTML = veDai() + bangDayHtml();
@@ -1294,6 +1302,16 @@ async function khoiTao() {
 document.addEventListener('click', async (ev) => {
   const tab = ev.target.closest('[data-tab]');
   if (tab) { S.tab = tab.dataset.tab; S.chonHangLoat.clear(); ve(); return; }
+
+  if (ev.target.id === 'btnBaoCao') {
+    if (!ev.isTrusted) return;
+    const b = ev.target; if (b.disabled) return;
+    b.disabled = true; const cu = b.textContent; b.textContent = 'Đang gửi…';
+    try { const r = await guiJson('/api/bao-cao-tuan', {}); toast('Đã gửi báo cáo vào Lark cho ' + (r.nguoiNhan || 'bạn') + ' — từ giờ nhận mỗi sáng thứ Hai.', 'ok'); }
+    catch (e) { toast(e.message, 'err'); }
+    finally { b.disabled = false; b.textContent = cu; }
+    return;
+  }
 
   /* Hình bản đồ: nhớ khối đang mở (vẽ lại không đóng sập) + nút Về mặc định */
   const tomHinh = ev.target.closest('.khoi-hinh > summary');

@@ -486,6 +486,17 @@ async function api(req, res, u) {
   }
 
   /* ---- Hình bản đồ (tab Quản lý → mục Hình bản đồ). Đọc: ai cũng được; ghi: quản lý. ---- */
+  /* ---- báo cáo sức khoẻ dữ liệu (quản lý): xem trước · gửi ngay một bản thử ---- */
+  if (p === '/bao-cao-tuan') {
+    if (!toi.quanLy) return loi(res, 403, 'Chỉ quản lý xem được báo cáo dữ liệu.');
+    const bct = require('./bao-cao-tuan');
+    if (req.method === 'POST') {
+      /* người bấm nhận bản này + được ghi nhớ làm người nhận thứ Hai hằng tuần */
+      const r = await bct.gui({ lark, danhDau: false, toi: toi.quaHub ? toi : null });
+      return r.ok ? json(res, { ok: true, tieuDe: r.bc.tieuDe, nguoiNhan: r.nguoiNhan }) : loi(res, 502, r.loi);
+    }
+    return json(res, await bct.dung());
+  }
   if (p === '/hinh-ban-do' && req.method === 'GET') return json(res, { ds: await hinhBanDo.danhSach() });
   if (p.startsWith('/hinh-ban-do') && req.method === 'POST') {
     if (!toi.quanLy) return loi(res, 403, 'Chỉ quản lý đổi được hình bản đồ.');
@@ -623,6 +634,8 @@ if (require.main === module) {
   server.listen(cfg.port, BIND, () => {
     console.log('Thông tin sản phẩm — http://localhost:' + cfg.port +
       '  [' + cfg.mode + ']  bản ' + VER);
+    /* báo cáo sức khoẻ dữ liệu gửi anh Hùng mỗi sáng thứ Hai (bao-cao-tuan.js) */
+    require('./bao-cao-tuan').batVong(lark);
   });
 }
 
