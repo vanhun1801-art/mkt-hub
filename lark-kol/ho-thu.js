@@ -168,7 +168,8 @@ async function goiDoc(duong) {
   if (d.code !== 0) {
     const e = new Error(/99991679|99991672|scope|permission/i.test(String(d.msg) + d.code)
       ? 'Phiên hộp thư chưa có quyền đọc thư — bấm Ngắt kết nối rồi Kết nối hộp thư lại để cấp quyền đọc.'
-      : 'Lark Mail: ' + (d.msg || d.code) + ' (mã ' + d.code + ')');
+      : 'Lark Mail: ' + (d.msg || d.code) + ' (mã ' + d.code + ')' +
+        (d.error && d.error.field_violations ? ' — ' + d.error.field_violations.map((f) => f.field + ': ' + (f.description || f.value || '')).join('; ') : ''));
     e.code = d.code; throw e;
   }
   return d.data || {};
@@ -180,12 +181,13 @@ const daDocThu = new Map();   // message_id → thư đã tải (thư không đ�
  * Chỉ đọc `toiDa` thư gần nhất — thư trả lời BGĐ/KOL thường tới trong vài ngày.
  */
 let hopDoc = null;   // hộp thư đọc được (nhớ sau lần đầu)
-async function thuDen(hop, toiDa = 40) {
+async function thuDen(hop, toiDa = 20) {
   const thu = [...new Set([hopDoc, hop, cfg.mail.from || 'cmo@rootytrip.com', 'me'].filter(Boolean))];
   let ds = null, h = '', loiCuoi = null;
   for (const x of thu) {
     h = encodeURIComponent(x);
-    try { ds = await goiDoc(h + '/messages?folder_id=INBOX&page_size=' + Math.min(toiDa, 50)); hopDoc = x; break; }
+    /* API danh sách thư của Lark nhận page_size tối đa 20 (40 → lỗi 99992402 field validation failed) */
+    try { ds = await goiDoc(h + '/messages?folder_id=INBOX&page_size=' + Math.min(toiDa, 20)); hopDoc = x; break; }
     catch (e) { loiCuoi = e; if (/quyền đọc/.test(e.message)) throw e; }
   }
   if (!ds) throw loiCuoi;
