@@ -830,6 +830,78 @@ function hienBanDo(bat) {
   if (bat) khungBanDo.style.height = Math.max(420, innerHeight - khungBanDo.getBoundingClientRect().top - 12) + 'px';
 }
 
+/* ---------------- Hình bản đồ (tab Quản lý) ----------------
+   Quản lý tự thay hình minh hoạ của bản đồ — điểm đến và phương tiện (nhiều mẫu máy bay,
+   tàu…). Hình được cắt sát viền trong suốt + nén WebP 512 px NGAY TRÊN TRÌNH DUYỆT rồi mới
+   gửi lên (ảnh xuất từ phần mềm vẽ thường vài MB, khung thừa nhiều), lưu vào bảng
+   "Hình bản đồ" trên Base; bản đồ của cả phòng đổi ở lần mở sau. */
+S.hinh = null;                 // null = chưa nạp
+S.hinhMo = false;
+async function napHinh() {
+  try { S.hinh = (await api('/api/hinh-ban-do')).ds; } catch (e) { S.hinh = []; toast(e.message, 'err'); }
+  if (S.tab === 'quan-ly') ve();
+}
+const NGUON_HINH = { base: 'Hình đã tải lên', goc: 'Hình dựng sẵn', 've-san': 'Hình vẽ sẵn' };
+function hinhBanDoHtml() {
+  if (S.hinh === null) { napHinh(); S.hinh = undefined; }
+  const ds = S.hinh || [];
+  const soRieng = ds.filter((o) => o.nguon === 'base').length;
+  const o1 = (o) => '<div class="o-hinh" data-o-hinh="' + esc(o.ma) + '">' +
+    '<div class="o-hinh-anh">' + (o.nguon === 've-san' ? '<span class="phu">Hình vẽ sẵn</span>'
+      : '<img loading="lazy" alt="" src="ban-do/hinh/' + encodeURIComponent(o.ma) + '?v=' + encodeURIComponent(o.luc || 'goc') + '">') + '</div>' +
+    '<b title="' + esc(o.ma) + '">' + esc(o.ten) + '</b>' +
+    '<span class="phu">' + esc(NGUON_HINH[o.nguon] || '') + (o.nguoi ? ' · ' + esc(o.nguoi) : '') + '</span>' +
+    '<div class="o-hinh-nut">' +
+      '<label class="btn sm">Tải hình<input type="file" accept="image/png,image/webp,image/jpeg,image/svg+xml" data-tai-hinh="' + esc(o.ma) + '" hidden></label>' +
+      '<label class="co-hinh" title="Cỡ hiển thị (1 = mặc định)">Cỡ <input type="number" min="0.3" max="3" step="0.1" value="' + (+o.co || 1) + '" data-co-hinh="' + esc(o.ma) + '"></label>' +
+      (o.nguon === 'base' ? '<button class="btn sm" data-ve-mac-dinh="' + esc(o.ma) + '">Về mặc định</button>' : '') +
+    '</div></div>';
+  return '<details class="khoi-hinh"' + (S.hinhMo ? ' open' : '') + '><summary><b>Hình bản đồ</b> <span class="phu">' +
+    (S.hinh === undefined ? 'đang đọc…' : soRieng + ' hình đã tải lên · PNG/WebP nền trong, app tự cắt viền và nén') + '</span></summary>' +
+    '<div class="nhom-hinh-tieu">Điểm đến</div><div class="luoi-hinh">' + ds.filter((o) => o.nhom === 'diem').map(o1).join('') + '</div>' +
+    '<div class="nhom-hinh-tieu">Phương tiện — mỗi loại nhiều mẫu, các chiếc trên bản đồ lần lượt dùng từng mẫu</div><div class="luoi-hinh">' + ds.filter((o) => o.nhom === 'xe').map(o1).join('') + '</div>' +
+    '</details>';
+}
+
+/** Cắt sát viền trong suốt + thu về tối đa 512 px + WebP — chạy trên trình duyệt. */
+async function nenHinh(tep) {
+  const url = URL.createObjectURL(tep);
+  try {
+    const img = new Image();
+    await new Promise((ok, loi) => { img.onload = ok; img.onerror = () => loi(new Error('Không đọc được hình này')); img.src = url; });
+    const W = img.naturalWidth || 1024, H = img.naturalHeight || 1024, k0 = Math.min(1, 1600 / Math.max(W, H));
+    const c = document.createElement('canvas'); c.width = Math.round(W * k0); c.height = Math.round(H * k0);
+    const g = c.getContext('2d'); g.drawImage(img, 0, 0, c.width, c.height);
+    const d = g.getImageData(0, 0, c.width, c.height).data;
+    let x1 = c.width, y1 = c.height, x2 = -1, y2 = -1;
+    for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) {
+      if (d[(y * c.width + x) * 4 + 3] > 10) { if (x < x1) x1 = x; if (x > x2) x2 = x; if (y < y1) y1 = y; if (y > y2) y2 = y; }
+    }
+    if (x2 < 0) throw new Error('Hình trong suốt hoàn toàn');
+    const bw = x2 - x1 + 1, bh = y2 - y1 + 1, k = Math.min(1, 512 / Math.max(bw, bh));
+    const o = document.createElement('canvas'); o.width = Math.round(bw * k); o.height = Math.round(bh * k);
+    const go = o.getContext('2d'); go.imageSmoothingQuality = 'high';
+    go.drawImage(c, x1, y1, bw, bh, 0, 0, o.width, o.height);
+    return { anh: o.toDataURL('image/webp', .9), w: o.width, h: o.height };
+  } finally { URL.revokeObjectURL(url); }
+}
+
+const taiLaiBanDo = () => { if (khungBanDo && khungBanDo.contentWindow) { try { khungBanDo.contentWindow.location.reload(); } catch (_) { khungBanDo.src = 'ban-do/'; } } };
+
+async function taiHinhLen(inp) {
+  const tep = inp.files && inp.files[0], ma = inp.dataset.taiHinh;
+  inp.value = '';
+  if (!tep) return;
+  const o = $('[data-o-hinh="' + ma + '"]');
+  if (o) o.classList.add('dang-tai');
+  try {
+    const n = await nenHinh(tep);
+    await guiJson('/api/hinh-ban-do', { ma, anh: n.anh, w: n.w, h: n.h });
+    toast('Đã thay hình ' + ma + ' (' + Math.round(n.anh.length * .75 / 1024) + ' KB sau khi nén).', 'ok');
+    S.hinhMo = true; await napHinh(); taiLaiBanDo();
+  } catch (e) { toast(e.message, 'err'); if (o) o.classList.remove('dang-tai'); }
+}
+
 function ve() {
   veTabs();
   const man = $('#man');
@@ -840,7 +912,7 @@ function ve() {
     return;
   }
   if (S.tab === 'quan-ly' && laQuanLy()) {
-    man.innerHTML = veDai() + lichHtml() + quanLyHtml();
+    man.innerHTML = veDai() + lichHtml() + hinhBanDoHtml() + quanLyHtml();
     if (S.lich === null) napLich();
   } else if (S.tab === 'bang-day') {
     man.innerHTML = veDai() + bangDayHtml();
@@ -1222,6 +1294,18 @@ document.addEventListener('click', async (ev) => {
   const tab = ev.target.closest('[data-tab]');
   if (tab) { S.tab = tab.dataset.tab; S.chonHangLoat.clear(); ve(); return; }
 
+  /* Hình bản đồ: nhớ khối đang mở (vẽ lại không đóng sập) + nút Về mặc định */
+  const tomHinh = ev.target.closest('.khoi-hinh > summary');
+  if (tomHinh) { S.hinhMo = !tomHinh.parentNode.open; return; }
+  const veMd = ev.target.closest('[data-ve-mac-dinh]');
+  if (veMd) {
+    if (!ev.isTrusted) return;
+    if (!confirm('Bỏ hình đã tải lên của "' + veMd.dataset.veMacDinh + '" và quay về hình mặc định?')) return;
+    try { await guiJson('/api/hinh-ban-do/xoa', { ma: veMd.dataset.veMacDinh }); toast('Đã quay về hình mặc định.', 'ok'); await napHinh(); taiLaiBanDo(); }
+    catch (e) { toast(e.message, 'err'); }
+    return;
+  }
+
   /* Thẻ số bấm được: nhảy sang đúng danh sách nằm sau con số đó. */
   const the = ev.target.closest('[data-the]');
   if (the) {
@@ -1382,6 +1466,15 @@ document.addEventListener('change', async (ev) => {
     if (tick.checked) S.chonHangLoat.add(tick.dataset.tick);
     else S.chonHangLoat.delete(tick.dataset.tick);
     ve();
+    return;
+  }
+
+  /* hình bản đồ — chỉ nhận thao tác của người (isTrusted), cùng lý do với ô sửa bên dưới */
+  if (ev.target.matches('[data-tai-hinh]')) { if (ev.isTrusted !== false) await taiHinhLen(ev.target); return; }
+  if (ev.target.matches('[data-co-hinh]')) {
+    if (ev.isTrusted === false) return;
+    try { await guiJson('/api/hinh-ban-do/co', { ma: ev.target.dataset.coHinh, co: +ev.target.value }); toast('Đã đổi cỡ hình.', 'ok'); taiLaiBanDo(); }
+    catch (e) { toast(e.message, 'err'); }
     return;
   }
 

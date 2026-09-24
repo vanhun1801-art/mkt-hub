@@ -195,8 +195,54 @@ async function whoami() { return null; }
 /** Cho server.js gọi khi cần biết mình đang chạy backend nào. */
 const cli = async () => { throw new Error('Chế độ api không dùng lark-cli'); };
 
+/* ---------------- đính kèm (bảng Hình bản đồ) — chép cách đã chạy thật của Quỹ chi phí ----------------
+ * Tệp của Base không tải được bằng đường drive thông thường nếu thiếu `extra` đúng
+ * (Lark trả 400). Thử lần lượt: URL tạm → extra_info do API trả → tự dựng bitablePerm.
+ * KHOÁ TÊN LÀ `extra_info`, không phải `extra` (đo từ bản online, 12/09/2026). */
+async function downloadAttachmentBuffer(recordId, fileToken, tableId, base) {
+  const meta = await call('POST', baseUrl(tableId, base) + '/get_attachments', { body: { record_id_list: [recordId] } });
+  let o = null;
+  const duyet = (x) => {
+    if (!x || typeof x !== 'object') return;
+    if (Array.isArray(x)) return x.forEach(duyet);
+    if (x.file_token === fileToken) o = x;
+    Object.values(x).forEach(duyet);
+  };
+  duyet(meta);
+  const name = (o && o.name) || null;
+  const url = o && (o.url || o.tmp_url || o.tmp_download_url || o.download_url);
+  if (url) {
+    try { const r = await fetch(url); if (r.ok) return { buffer: Buffer.from(await r.arrayBuffer()), name }; } catch (_) { /* thử cách sau */ }
+  }
+  const duong = (extra) => '/open-apis/drive/v1/medias/' + encodeURIComponent(fileToken) + '/download' +
+    (extra ? '?extra=' + encodeURIComponent(typeof extra === 'string' ? extra : JSON.stringify(extra)) : '');
+  const extra = (o && (o.extra_info || o.extra)) || null;
+  if (extra) { try { return { buffer: await call('GET', duong(extra), { raw: true }), name }; } catch (_) { /* thử cách sau */ } }
+  return { buffer: await call('GET', duong({ bitablePerm: { tableId, rev: (o && o.rev) || undefined } }), { raw: true }), name };
+}
+
+/** Ghi một tệp (Buffer) vào ô đính kèm — THAY hình cũ (ghi đè cả ô bằng tệp mới). */
+async function uploadAttachment(recordId, fieldName, buffer, fileName, tableId, base) {
+  const fd = new FormData();
+  fd.append('file', new Blob([buffer]), fileName);
+  fd.append('file_name', fileName);
+  fd.append('parent_type', 'bitable_file');
+  fd.append('parent_node', base || cfg.baseToken);
+  fd.append('size', String(buffer.length));
+  const r = await fetch(HOST + '/open-apis/drive/v1/medias/upload_all', {
+    method: 'POST', headers: { Authorization: 'Bearer ' + await tenantToken() }, body: fd,
+  });
+  const d = await r.json();
+  if (d.code !== 0) {
+    if (/Access denied/i.test(d.msg || '')) throw new Error('App Lark chưa được cấp quyền tệp (drive:drive) nên không tải hình lên được. Quản lý cần thêm scope trong Developer Console.');
+    throw new Error('Tải hình lên Lark thất bại: ' + (d.msg || d.code));
+  }
+  return updateRecord(recordId, { [fieldName]: [{ file_token: d.data.file_token }] }, tableId, base);
+}
+
 module.exports = {
   cli, whoami, listAllRecords, listFields, getRecord,
   updateRecord, updateMany, createRecord, createMany, deleteRecords,
+  downloadAttachmentBuffer, uploadAttachment,
   tenantToken, call,
 };

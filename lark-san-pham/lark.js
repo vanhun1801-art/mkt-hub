@@ -198,7 +198,36 @@ async function deleteRecords(recordIds, tableId = cfg.spTableId, base) {
   ]);
 }
 
+/* ---------------- đính kèm (bảng Hình bản đồ) — cùng cách app Quỹ chi phí ----------------
+ * lark-cli chỉ nhận đường dẫn TƯƠNG ĐỐI trong cwd, nên đọc/ghi qua .tmp/ của project. */
+async function downloadAttachmentBuffer(recordId, fileToken, tableId, base) {
+  const rel = './.tmp/hinh-' + recordId;
+  const abs = path.join(__dirname, '.tmp', 'hinh-' + recordId);
+  fs.rmSync(abs, { recursive: true, force: true });
+  fs.mkdirSync(abs, { recursive: true });
+  await cli(['base', '+record-download-attachment', ...baseArgs(base), '--table-id', tableId, '--record-id', recordId,
+    '--file-token', fileToken, '--output', rel, '--overwrite', '--format', 'json'], { timeout: 180000, cwd: __dirname });
+  const f = fs.readdirSync(abs)[0];
+  if (!f) throw new Error('Tải tệp từ Base không ra tệp nào');
+  const buffer = fs.readFileSync(path.join(abs, f));
+  fs.rmSync(abs, { recursive: true, force: true });
+  return { buffer, name: f };
+}
+
+/** Ghi một tệp (Buffer) vào ô đính kèm — THAY hình cũ: xoá ô trước rồi tải lên. */
+async function uploadAttachment(recordId, fieldName, buffer, fileName, tableId, base) {
+  await updateRecord(recordId, { [fieldName]: [] }, tableId, base);
+  const relDir = './.tmp/tai-' + recordId, absDir = path.join(__dirname, '.tmp', 'tai-' + recordId);
+  fs.mkdirSync(absDir, { recursive: true });
+  fs.writeFileSync(path.join(absDir, fileName), buffer);
+  try {
+    return await cli(['base', '+record-upload-attachment', ...baseArgs(base), '--table-id', tableId, '--record-id', recordId,
+      '--field-id', fieldName, '--file', relDir + '/' + fileName, '--format', 'json'], { timeout: 300000, cwd: __dirname });
+  } finally { fs.rmSync(absDir, { recursive: true, force: true }); }
+}
+
 module.exports = cfg.mode === 'api' ? require('./larkapi') : {
   cli, whoami, listAllRecords, listFields, getRecord,
   updateRecord, updateMany, createRecord, createMany, deleteRecords,
+  downloadAttachmentBuffer, uploadAttachment,
 };

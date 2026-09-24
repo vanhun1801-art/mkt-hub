@@ -83,7 +83,8 @@ async function dungHinhRieng() {
     const src = fs.readFileSync(path.join(__dirname, '..', 'diem.js'), 'utf8');
     for (const m of src.matchAll(/\bid:\s*'([a-z0-9-]+)'/g)) ma.add(m[1]);
     /* phương tiện chạy trên bản đồ (26/09) */
-    for (const x of ['xe-may-bay', 'xe-tau', 'xe-cano', 'xe-cabin', 'xe-buom']) ma.add(x);
+    /* nhiều mẫu cho một loại: xe-may-bay, xe-may-bay-2 … xe-may-bay-9 (các chiếc lần lượt dùng từng mẫu) */
+    for (const x of ['xe-may-bay', 'xe-tau', 'xe-cano', 'xe-cabin', 'xe-buom']) { ma.add(x); for (let i = 2; i <= 9; i++) ma.add(x + '-' + i); }
   } catch (_) { /* không đọc được danh mục: nhận mọi tên */ }
   let kichThuoc = {};
   try { kichThuoc = JSON.parse(fs.readFileSync(path.join(THU_MUC, 'kich-thuoc.json'), 'utf8')); } catch (_) { /* không có — dùng mặc định */ }

@@ -30,6 +30,7 @@ const kho = require('./kho');
 const lich = require('./lich');
 const nhatKy = require('./nhatky');
 const { doiTruong } = require('./kiem');
+const hinhBanDo = require('./hinh-ban-do');
 const lark = cfg.mode === 'api' ? require('./larkapi') : require('./lark');
 
 const BIND = process.env.BIND || '127.0.0.1';
@@ -483,6 +484,21 @@ async function api(req, res, u) {
     return json(res, { ok: true });
   }
 
+  /* ---- Hình bản đồ (tab Quản lý → mục Hình bản đồ). Đọc: ai cũng được; ghi: quản lý. ---- */
+  if (p === '/hinh-ban-do' && req.method === 'GET') return json(res, { ds: await hinhBanDo.danhSach() });
+  if (p.startsWith('/hinh-ban-do') && req.method === 'POST') {
+    if (!toi.quanLy) return loi(res, 403, 'Chỉ quản lý đổi được hình bản đồ.');
+    try {
+      const o = await docThan(req, 3 * 1024 * 1024);
+      if (p === '/hinh-ban-do') await hinhBanDo.ghiHinh(o, toi.ten);
+      else if (p === '/hinh-ban-do/co') await hinhBanDo.ghiCo(o.ma, o.co, toi.ten);
+      else if (p === '/hinh-ban-do/xoa') await hinhBanDo.veMacDinh(o.ma);
+      else return loi(res, 404, 'Không có đường ' + p);
+      nhatKyGhi(toi, req, 'hinh-ban-do', o.ma || '', p.replace('/hinh-ban-do', '') || 'tải hình', o.co != null ? String(o.co) : '');
+      return json(res, { ok: true });
+    } catch (e) { return loi(res, e.http || 500, e.message); }
+  }
+
   /* Tin sản phẩm cho bảng tin của lớp vỏ.
    *
    * KHÔNG ghi vào bảng Thông báo của hub: bảng đó vừa nuôi bảng tin vừa nuôi
@@ -534,6 +550,16 @@ let demBanDo = null;                                    // { luc, js } — theo 
 
 async function banDo(res, duong) {
   const ten = duong.replace(/^\/ban-do\/?/, '') || 'index.html';
+  /* hình: dựng sẵn trong repo + bảng "Hình bản đồ" trên Base (hinh-ban-do.js) */
+  if (ten === 'hinh-rieng.js') {
+    return gui(res, 200, await hinhBanDo.hinhRiengJs(), { 'Content-Type': MIME['.js'], 'Cache-Control': 'no-store' });
+  }
+  const mAnh = ten.match(/^hinh\/([a-z0-9-]{2,40})$/);
+  if (mAnh) {
+    const a = await hinhBanDo.anhCua(mAnh[1]);
+    if (!a) return gui(res, 404, 'Chưa có hình', { 'Content-Type': 'text/plain; charset=utf-8' });
+    return gui(res, 200, a.buffer, { 'Content-Type': a.kieu, 'Cache-Control': 'no-store' });
+  }
   if (ten === 'du-lieu.js') {
     const d = await kho.tatCa();
     if (!demBanDo || demBanDo.luc !== d.luc) {

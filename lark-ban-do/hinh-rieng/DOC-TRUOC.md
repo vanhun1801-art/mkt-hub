@@ -40,6 +40,10 @@ Thay được như địa điểm — tên file:
 | xe-cabin | Cabin cáp treo Hòn Thơm | nhìn thẳng, móc treo ở giữa mép trên (không xoay) |
 | xe-buom | Thuyền buồm trang trí | nhìn ngang, hướng sang phải (bản đồ tự lật khi đi sang trái) |
 
+**Nhiều mẫu cho một loại:** thêm số sau tên — `xe-may-bay.png`, `xe-may-bay-2.png`, `xe-may-bay-3.png` (tới -9).
+Các chiếc lần lượt dùng từng mẫu rồi quay vòng. Hiện có: 3 máy bay (HCM, Hà Nội, Singapore–Seoul), 8 tàu cao tốc
+(2 chiếc × 4 tuyến Rạch Giá / Hà Tiên / Nam Du / Thổ Chu), 3 cano, 4 cabin, 2 thuyền buồm.
+
 Hình mẫu: `mau-hien-tai/xe-*.svg`. Cỡ riêng chỉnh trong `kich-thuoc.json`, ví dụ `{ "xe-may-bay": 1.3 }`.
 
 ## Mã điểm

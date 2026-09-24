@@ -771,6 +771,25 @@ main { padding: 16px; max-width: 1460px; margin: 0 auto; }
 }
 
 /* Tab Bản đồ — bản đồ du lịch Phú Quốc nhúng từ ban-do/ (lark-ban-do) */
-.khung-ban-do { display: block; width: 100%; border: 1px solid var(--vien, #e3e8f0); border-radius: 12px; background: #078cc7; }
+.khung-ban-do { display: block; width: 100%; border: 1px solid var(--line); border-radius: 12px; background: #078cc7; }
 #vungBanDo { flex: 1; min-width: 0; padding: 0 16px 12px; }
 #vungBanDo[hidden], #man[hidden] { display: none; }
+
+/* Hình bản đồ (tab Quản lý) */
+.khoi-hinh { margin: 0 0 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
+.khoi-hinh > summary { cursor: pointer; display: flex; gap: 8px; align-items: baseline; list-style: none; }
+.khoi-hinh > summary::before { content: '+'; font-weight: 800; width: 12px; }
+.khoi-hinh[open] > summary::before { content: '−'; }
+.nhom-hinh-tieu { margin: 14px 0 6px; font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--t3); }
+.luoi-hinh { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 10px; }
+.o-hinh { background: var(--surface-2); color: var(--t1); border: 1px solid var(--line); border-radius: 10px; padding: 8px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.o-hinh.dang-tai { opacity: .5; pointer-events: none; }
+.o-hinh b { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.o-hinh .phu { font-size: 12px; }
+.o-hinh-anh { height: 92px; display: grid; place-items: center; border-radius: 8px; background: repeating-conic-gradient(rgba(127,127,127,.12) 0 25%, transparent 0 50%) 0 0 / 14px 14px; }
+.o-hinh-anh img { max-width: 100%; max-height: 88px; object-fit: contain; }
+.o-hinh-nut { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 2px; }
+.o-hinh-nut label.btn { cursor: pointer; }
+.co-hinh { font-size: 12px; display: inline-flex; gap: 4px; align-items: center; }
+.co-hinh input { width: 56px; font-size: 12px; padding: 3px 4px; background: var(--surface); color: var(--t1); border: 1px solid var(--line); border-radius: 6px; }
+.o-hinh .phu, .co-hinh { color: var(--t2); }

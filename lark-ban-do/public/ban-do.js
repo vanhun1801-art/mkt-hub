@@ -636,7 +636,12 @@
     const g = tao('g', { class: 'xe xe-' + loai }, $$(tren ? '#lopBay' : '#lopXe'));
     const gb = loai === 'may-bay' ? tao('g', { class: 'xe xe-bong-g' }, $$('#lopXe')) : null;
     /* hình riêng (hinh-rieng/xe-<loại>.png) nếu có: căn giữa đúng tâm như hình vẽ sẵn, giữ tỉ lệ file */
-    const hr = (window.PQ_HINH_RIENG || {})['xe-' + loai];
+    /* nhiều mẫu cho một loại (xe-may-bay, xe-may-bay-2, …): chiếc thứ n dùng mẫu thứ n (vòng lại) */
+    const HR = window.PQ_HINH_RIENG || {};
+    const mau = ['xe-' + loai, ...[2, 3, 4, 5, 6, 7, 8, 9].map((i) => 'xe-' + loai + '-' + i)].filter((k) => HR[k]);
+    themXe.dem = themXe.dem || {};
+    const thu = themXe.dem[loai] = (themXe.dem[loai] || 0) + 1;
+    const hr = mau.length ? HR[mau[(thu - 1) % mau.length]] : null;
     const ve1 = (cls) => {
       if (!hr) return tao('use', Object.assign(cls ? { class: cls } : {}, { href: '#xe-' + loai, width: 64, height: 64, x: -32, y: -32 }), cls ? gb || g : g);
       const tl = hr.w ? hr.h / hr.w : 1, co = 64 * (hr.co || 1), w = tl > 1 ? co / tl : co, h = w * tl;

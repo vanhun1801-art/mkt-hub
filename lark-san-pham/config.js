@@ -42,6 +42,9 @@ module.exports = {
   lichTableId: 'tblSjAgrKdYI1eLy',
   giaPaxTableId: 'tblgB57gdBQqplrU',
   nhatKyTableId: 'tblmEGalXqAuwINs',
+  /* Hình minh hoạ của bản đồ du lịch (tab Bản đồ) — quản lý tải lên ở tab Quản lý.
+     Mỗi dòng: Mã = mã điểm (vinwonders…) hoặc phương tiện (xe-may-bay, xe-may-bay-2…). */
+  hinhTableId: process.env.SP_HINH_TABLE || 'tblGGq3F2wBJsAh4',
 
   /* View "🛠 Cần bổ sung thông tin" — chỉ dùng để mở thẳng sang Base, app tự
      tính lại danh sách này từ cột công thức nên không phụ thuộc vào view. */
@@ -49,6 +52,9 @@ module.exports = {
 
   /** Field ID theo từng bảng. Đổi tên cột trên Base không ảnh hưởng gì ở đây. */
   f: {
+    hinh: {
+      ma: 'fldzT7VBLD', ten: 'fld0iePe7Q', hinh: 'fldBZqSx7Y', co: 'fldnW11QvI', khung: 'fldGxqFdqD', nguoi: 'fld9f8S3f4',
+    },
     sp: {
       ma: 'fldO0qbhnA',
       ten: 'fldZWaezaw',
