@@ -442,3 +442,4 @@ a { color: inherit; }
 .link-khach { margin: 10px 0 4px; display: grid; gap: 8px; }
 .link-khach-o { display: flex; gap: 6px; }
 .link-khach-o input { flex: 1; min-width: 0; font: inherit; font-size: 13px; padding: 8px 10px; border: 1px solid var(--vien); border-radius: 10px; background: var(--nen-2); color: var(--chu); }
+.ghi-suy { margin: -2px 4px 8px; font-size: 12px; font-style: italic; color: var(--chu-3); }

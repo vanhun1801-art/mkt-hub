@@ -1336,7 +1336,9 @@
       (linkKhach(tr.ma) ? '<div class="link-khach"><button class="nut chinh" data-link-khach="' + esc(tr.ma) + '">' + icon('mo') + 'Tạo link gửi khách</button>' +
         '<div class="link-khach-o" hidden><input readonly value="' + esc(linkKhach(tr.ma)) + '"><a class="nut" target="_blank" rel="noopener" href="' + esc(linkKhach(tr.ma)) + '">Mở thử</a></div></div>' : '') +
       (tr.usp.length && S.lang === 'vi' ? '<div class="ct-muc">' + t('diemNoiBat') + '</div><ul class="usp">' + tr.usp.map((u) => '<li>' + esc(u) + '</li>').join('') + '</ul>' : '') +
-      (ds.length ? '<div class="ct-muc">' + (tr.tuyen.length ? t('lichTrinh') : t('suDungTai')) + '</div><ol class="chang">' + ds.map((d) => '<li>' + dongDiem(d) + '</li>').join('') + '</ol>' : '') +
+      (ds.length ? '<div class="ct-muc">' + (tr.tuyen.length ? t('lichTrinh') : t('suDungTai')) + '</div>' +
+        (tr.tuyenSuy ? '<p class="ghi-suy">' + (S.lang === 'en' ? 'Route drawn from the itinerary — actual order may vary.' : 'Hành trình vẽ theo lịch trình của gói — thứ tự thực tế có thể thay đổi.') + '</p>' : '') +
+        '<ol class="chang">' + ds.map((d) => '<li>' + dongDiem(d) + '</li>').join('') + '</ol>' : '') +
       '</div>';
   }
 

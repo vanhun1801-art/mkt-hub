@@ -90,6 +90,77 @@ async function duongBo(a, b, mang) {
   return [[a.lon, a.lat], [b.lon, b.lat]];
 }
 
+/* ---------- hành trình SUY từ lịch trình (26/09) ----------
+   Tour trọn gói / combo chưa gắn điểm trong diem.js nên bấm vào không thấy đường đi. Đọc lịch
+   trình chữ trên Base theo thứ tự, nhận ra địa danh → dãy điểm. Chỉ dùng khi TUYEN không có mã
+   đó (tuyến khai tay luôn thắng). Một khối "cano / 3 đảo" hay "Nam đảo" nở thành đúng tuyến
+   của tour cano 3 đảo (G4) / tour Nam đảo (GLAND1) để đường đi trùng tour lẻ đã vẽ. */
+const NHAN_DIEN = [
+  [/sân bay|đón bay|tiễn bay|đến phú quốc/i, ['san-bay']],
+  [/vinwonder/i, ['vinwonders']],
+  [/safari/i, ['safari']],
+  [/grand ?world|venice|thành phố không ngủ/i, ['grand-world']],
+  [/cano|3 đảo|ba đảo|đảo đẹp|mây rút|gầm ghì|móng tay|lặn ngắm san hô/i, 'G4'],
+  [/cáp treo|hòn thơm|công viên nước|aquatopia/i, ['ga-cap-treo', 'hon-thom']],
+  [/nam đảo/i, 'GLAND1'],
+  [/địa trung hải|sunset town|thị trấn hoàng hôn/i, ['sunset-town']],
+  [/cầu hôn|kiss bridge/i, ['cau-hon']],
+  [/rạch vẹm/i, ['rach-vem']],
+  [/bãi sao/i, ['bai-sao']],
+  [/bãi khem/i, ['bai-khem']],
+  [/hộ quốc/i, ['ho-quoc']],
+  [/nhà tù/i, ['nha-tu']],
+  [/dinh cậu/i, ['dinh-cau']],
+  [/chợ đêm/i, ['cho-dem']],
+  [/sanato/i, ['sanato']],
+  [/gành dầu/i, ['ganh-dau']],
+];
+function tuyenTuLich(p) {
+  const chu = String(p.lichTrinh || '');
+  if (!chu.trim()) return [];
+  const thay = [];
+  for (const dong of chu.split('\n')) {
+    const coCano = NHAN_DIEN[4][0].test(dong);
+    for (const [re, ra] of NHAN_DIEN) {
+      if (ra === 'GLAND1' && coCano) continue;           // "cano khám phá Nam đảo" là tour đảo, không phải Nam đảo
+      const g = new RegExp(re.source, 'ig');
+      let m;
+      while ((m = g.exec(dong))) thay.push({ o: thay.length ? thay[thay.length - 1].o + 1 : 0, vt: m.index, dong, ra });
+    }
+  }
+  /* thứ tự = thứ tự dòng, trong dòng theo vị trí chữ */
+  const theoDong = [];
+  let o = 0, dongCu = null, trongDong = [];
+  const xong = () => { trongDong.sort((a, b) => a.vt - b.vt); theoDong.push(...trongDong); trongDong = []; };
+  for (const t of thay) { if (t.dong !== dongCu) { xong(); dongCu = t.dong; } trongDong.push(t); o++; }
+  xong();
+  const ds = [];
+  for (const t of theoDong) {
+    const them = typeof t.ra === 'string' ? TUYEN[t.ra] : t.ra;
+    for (const id of them) {
+      if (id === 'san-bay') continue;                                             // sân bay xử lý riêng bên dưới
+      if (ds[ds.length - 1] === id) continue;
+      if (id !== 'cang-vinh-dam' && ds.includes(id)) continue;                    // mỗi điểm một lần (trừ cảng cano)
+      ds.push(id);
+    }
+  }
+  /* rời đảo lên đất liền phải qua đường về: Hòn Thơm → cáp treo về ga An Thới; đảo khác → về cảng cano.
+     Không có bước này thì "Hòn Thơm → VinWonders" thành một nét biển thẳng dọc bờ Tây. */
+  const DAO = new Set(DIEM.filter((d) => d.vung === 'dao').map((d) => d.id));
+  const CANG = new Set(['cang-vinh-dam', 'cang-an-thoi', 'cang-bai-vong', 'ga-cap-treo']);
+  const veDatLien = () => {
+    for (let i = 0; i < ds.length - 1; i++) {
+      if (DAO.has(ds[i]) && !DAO.has(ds[i + 1]) && !CANG.has(ds[i + 1])) ds.splice(i + 1, 0, ds[i] === 'hon-thom' ? 'ga-cap-treo' : 'cang-vinh-dam');
+    }
+  };
+  veDatLien();
+  /* sân bay chỉ ở ĐẦU (đón) và CUỐI (tiễn) — "ĐÓN SÂN BAY" rồi "Đón khách tại sân bay" không phải hai lần ghé */
+  if (/sân bay|đón bay|đến phú quốc/i.test(chu)) ds.unshift('san-bay');
+  if (/tiễn/i.test(chu) && ds[ds.length - 1] !== 'san-bay') ds.push('san-bay');
+  veDatLien();                                   // lần hai: sau khi thêm sân bay cuối (Hòn Thơm → tiễn bay)
+  return ds.length >= 2 ? ds : [];
+}
+
 /**
  * Dựng dữ liệu bản đồ từ danh sách sản phẩm (kho.js) — dùng chung cho:
  *   · lệnh `node tao/du-lieu.js` (ghi public/du-lieu.js, được gọi mạng OSRM)
@@ -117,15 +188,26 @@ async function dungDuLieu(ds, { mang = true } = {}) {
      (anh Hùng 26/09: "chưa thấy dữ liệu tour combo") — chỉ không có ghim / hành trình trên bản đồ
      cho tới khi được gắn điểm trong diem.js. */
   for (const p of ds) if (p.ma && !tour[p.ma] && BAN_DUOC.test(p.trangThai)) tour[p.ma] = veTour(p);
+  /* hành trình suy từ lịch trình cho sản phẩm không có tuyến khai tay */
+  const TUYEN_DU = Object.assign({}, TUYEN);
+  for (const p of ds) {
+    const t = tour[p.ma];
+    if (!t || (t.tuyen && t.tuyen.length)) continue;
+    const suy = tuyenTuLich(p);
+    if (suy.length) { t.tuyen = suy; t.tuyenSuy = true; TUYEN_DU[p.ma] = suy; }
+  }
 
   /* ---- hình học từng chặng của tuyến tour ---- */
   const theoIdDiem = new Map(DIEM.map((d) => [d.id, d]));
   const laCap = (a, b) => CAP_TREO.some(([x, y]) => (x === a.id && y === b.id) || (x === b.id && y === a.id));
-  const laBien = (a, b) => a.vung === 'dao' || b.vung === 'dao' || a.loai === 'cua-ngo' && /cang/.test(a.id) && a.id !== 'cang-quoc-te'
-    || b.loai === 'cua-ngo' && /cang/.test(b.id) && b.id !== 'cang-quoc-te' || a.id === 'ham-rong' || b.id === 'ham-rong';
+  /* chặng biển: có một đầu là đảo, hoặc Mũi Hàm Rồng, hoặc CẢ HAI đầu là cảng. Cảng ↔ điểm trên đất liền
+     (VinWonders → Cảng Vịnh Đầm trong hành trình suy từ lịch trình) là đường bộ — trước 26/09 nó bị
+     vẽ thành một nét thẳng xuyên đảo */
+  const laCang = (d) => d.loai === 'cua-ngo' && /cang/.test(d.id) && d.id !== 'cang-quoc-te';
+  const laBien = (a, b) => a.vung === 'dao' || b.vung === 'dao' || (laCang(a) && laCang(b)) || a.id === 'ham-rong' || b.id === 'ham-rong';
   const lonLat = ([lat, lon]) => [+lon.toFixed(5), +lat.toFixed(5)];
   const chang = {};
-  for (const [ma, ds] of Object.entries(TUYEN)) {
+  for (const [ma, ds] of Object.entries(TUYEN_DU)) {
     for (let i = 0; i < ds.length - 1; i++) {
       const a = theoIdDiem.get(ds[i]), b = theoIdDiem.get(ds[i + 1]);
       if (!a || !b) continue;
