@@ -27,13 +27,29 @@ const tach = (s) => String(s || '').split(/[,;\s]+/).map((x) => x.trim()).filter
 /* ---- Render (chế độ api): thư đi từ cfg.mail.from (mặc định cmo@rootytrip.com) bằng phiên
  * "Kết nối hộp thư" (ho-thu.js) — quyền gửi thư của Lark chỉ có ở User token. Chỉ gửi ngay, không nháp. */
 async function guiApi(m, den, cc) {
-  if (!m.gui) throw Object.assign(new Error('Bản trên Hub chỉ gửi thẳng được, chưa lưu nháp vào Lark Mail — bấm Gửi ngay, hoặc Chép nội dung để dán vào Lark Mail.'), { http: 400 });
   const tu = cfg.mail.from || 'cmo@rootytrip.com';
-  if (m.thu) return { ok: true, nhap: false, du: { dryRun: true, tu } };
+  if (m.thu) return { ok: true, nhap: !m.gui, du: { dryRun: true, tu } };
   /* Lark chỉ cho gửi thư bằng User token → dùng phiên anh đã "Kết nối hộp thư" (ho-thu.js) */
   const H = require('./ho-thu');
   const ck = await H.chuKy(m.lang === 'en' ? 'en' : 'vi').catch(() => '');
   const html = ck ? m.html + '<div style="margin-top:14px">' + ck + '</div>' : m.html;
+  const kem = (m.dinhKem || []).filter((f) => f && f.than && f.than.length);
+
+  /* BA đường, và chọn đường nào là do có tệp / có muốn nháp không:
+   *
+   *   nháp, hoặc có tệp  → dựng lá thư MIME rồi đẩy vào /drafts (ho-thu.nhap).
+   *                        Đây là đường DUY NHẤT đính kèm được.
+   *   gửi thẳng, không tệp → /messages/send, một lời gọi, đã chạy từ trước cho
+   *                        thư KOL — giữ nguyên, đừng đổi thứ đang chạy tốt.
+   */
+  if (!m.gui) {
+    const n = await H.nhap({ tu, den, cc, tieuDe: m.tieuDe, html, ten: cfg.mail.tenGui, dinhKem: kem });
+    return { ok: true, nhap: true, tu, du: n };
+  }
+  if (kem.length) {
+    const n = await H.guiKemTep({ tu, den, cc, tieuDe: m.tieuDe, html, ten: cfg.mail.tenGui, dinhKem: kem });
+    return { ok: true, nhap: false, tu, kem: kem.length, du: n };
+  }
   const d = await H.gui({ tu, den, cc, tieuDe: m.tieuDe, html, ten: cfg.mail.tenGui });
   return { ok: true, nhap: false, tu, du: d };
 }
@@ -55,6 +71,14 @@ async function guiMail(m) {
   fs.writeFileSync(path.join(THU_MUC, ten), m.html, 'utf8');
   const args = ['mail', '+send', '--as', 'user', '--to', den.join(','), '--subject', m.tieuDe,
     '--body-file', 'du-lieu/' + ten];
+  /* lark-cli chỉ nhận đường dẫn TƯƠNG ĐỐI trong thư mục đang chạy, y như
+   * --body-file. Ghi tệp ra du-lieu/ rồi đưa đường tương đối. */
+  for (const f of (m.dinhKem || [])) {
+    if (!f || !f.than || !f.than.length) continue;
+    const tk = 'kem-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6) + '-' + String(f.ten || 'tep').replace(/[^\w.\-]+/g, '-');
+    fs.writeFileSync(path.join(THU_MUC, tk), f.than);
+    args.push('--attach', 'du-lieu/' + tk);
+  }
   if (cc.length) args.push('--cc', cc.join(','));
   if (cfg.mail.from) args.push('--from', cfg.mail.from);
   if (m.gui) args.push('--confirm-send');

@@ -949,8 +949,9 @@ function veBaoCao() {
       /* Nói TRƯỚC khi bấm: thư này đi thẳng tới Ban Giám Đốc và không có nút
        * thu hồi. Và tệp thì không tự đính kèm được — phải nói ra, đừng để anh
        * bấm gửi rồi mới phát hiện Sếp nhận một lá thư thiếu tệp. */
-      + '<div class="bc-nhac">Thư KHÔNG tự đính kèm tệp. Tải Excel về rồi đính tay, '
-        + 'hoặc bấm <b>Lưu nháp</b> để mở Lark Mail đính kèm xong mới gửi.</div>'
+      + '<div class="bc-nhac">Tệp Excel của kỳ này TỰ đính kèm vào thư. '
+        + '<b>Lưu nháp</b> để mở Lark Mail đọc lại rồi tự bấm gửi — <b>Gửi ngay</b> thì thư đi '
+        + 'luôn, không thu hồi được.</div>'
       + (BC.thu ? '<div class="bc-xem"><div class="bc-xem-td">' + esc(BC.thu.tieuDe)
         + '</div><div class="bc-xem-than">' + BC.thu.html + '</div></div>' : '')
     + '</div>'
@@ -1319,16 +1320,17 @@ document.addEventListener('click', async (e) => {
     if (!d) return;
     const hoi = ngay
       ? 'GỬI NGAY tới ' + d.den + '?' + XUONG_DONG + XUONG_DONG + d.tieuDe + XUONG_DONG
-        + XUONG_DONG + 'Thư đi thẳng, không thu hồi được. Tệp Excel KHÔNG tự đính kèm.'
-      : 'Lưu nháp vào Lark Mail để mở ra đính kèm tệp rồi tự gửi?';
+        + XUONG_DONG + 'Kèm tệp Excel của kỳ. Thư đi thẳng, không thu hồi được.'
+      : 'Lưu nháp vào Lark Mail (kèm tệp Excel) để mở ra đọc lại rồi tự gửi?';
     if (!confirm(hoi)) return;
     bcGui.disabled = true;
     const chuCu = bcGui.textContent;
     bcGui.textContent = ngay ? 'Đang gửi…' : 'Đang lưu…';
     try {
       await api('/api/bao-cao/gui', { method: 'POST', body: JSON.stringify({
-        den: d.den, cc: d.cc, tieuDe: d.tieuDe, html: d.html, gui: ngay }) });
-      toast(ngay ? 'Đã gửi tới ' + d.den : 'Đã lưu nháp trong Lark Mail', 'ok');
+        dot: BC.dot, den: d.den, cc: d.cc, tieuDe: d.tieuDe, html: d.html, gui: ngay }) });
+      toast(ngay ? 'Đã gửi tới ' + d.den + ' (kèm tệp Excel)'
+        : 'Đã lưu nháp kèm tệp — mở Lark Mail, mục Nháp, để đọc lại rồi gửi', 'ok');
     } catch (e) { toast(e.message, 'err'); }
     bcGui.disabled = false; bcGui.textContent = chuCu;
     return;

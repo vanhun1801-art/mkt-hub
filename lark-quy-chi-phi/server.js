@@ -587,18 +587,42 @@ async function xuLy(req, res) {
     catch (e) {
       return json(res, { error: 'Chưa dùng được bộ gửi thư của app KOL: ' + e.message }, 503);
     }
+    /* ĐÍNH KÈM chính tệp Excel của kỳ đang báo cáo. Trước đây thư đi không
+     * tệp và anh Hùng phải tải về rồi đính tay — mà quên một lần là Sếp nhận
+     * một lá thư nói "file báo cáo đính kèm" trong khi không có file nào. */
+    let kem = [];
+    if (b.kemExcel !== false && b.dot) {
+      try {
+        const k2 = await nap(false);
+        const kho2 = {
+          chi: k2.chi.map((r) => chuanChi(doiRa(r, F.chi))),
+          dot: k2.dot.map((r) => doiRa(r, F.dot)),
+          nap: k2.nap.map((r) => doiRa(r, F.nap)),
+        };
+        const r2 = baoCao.dungBaoCao(kho2, b.dot, { banDoNhom: cfg.nhomBaoCao });
+        const logo = await layLogo(THU_MUC_DU_LIEU).catch(() => null);
+        const x = bcXuat.xuatXlsx(r2, logo && khoLogoBaoCao(logo));
+        kem = [{ ten: x.tep, kieu: x.kieu, than: x.than }];
+      } catch (e) {
+        /* Dựng tệp hỏng thì KHÔNG nuốt rồi gửi thư trống: nói ra, để người bấm
+         * quyết gửi không tệp hay sửa rồi gửi lại. */
+        return json(res, { error: 'Chưa dựng được tệp Excel để đính kèm: ' + e.message }, 500);
+      }
+    }
+
     try {
       const kq = await mail.guiMail({
         den: b.den || cfg.baoCao.den,
         cc: b.cc || cfg.baoCao.cc,
         tieuDe: b.tieuDe,
         html: b.html,
-        /* gui=false thì Lark Mail chỉ LƯU NHÁP — anh Hùng mở Lark ra đọc lại,
-         * đính kèm tệp rồi tự bấm gửi. Đó là mặc định, vì thư này đi thẳng tới
-         * Ban Giám Đốc và không có nút thu hồi. */
+        dinhKem: kem,
+        /* gui=false thì chỉ LƯU NHÁP trong Lark Mail — anh Hùng mở ra đọc lại
+         * rồi tự bấm gửi. Mặc định là vậy, vì thư này đi thẳng tới Ban Giám
+         * Đốc và không có nút thu hồi. */
         gui: b.gui === true,
       });
-      return json(res, { ok: true, nhap: !(b.gui === true), du: kq });
+      return json(res, { ok: true, nhap: !(b.gui === true), kem: kem.length, du: kq });
     } catch (e) {
       return json(res, { error: e.message }, e.http || 502);
     }

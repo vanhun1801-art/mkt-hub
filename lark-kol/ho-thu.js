@@ -146,6 +146,76 @@ async function tokenGui() {
   return access.token;
 }
 
+/* ---------------------------------------------------------------------------
+ * ĐƯỜNG NHÁP — để có ĐÍNH KÈM và để "Lưu nháp" chạy được trên Hub
+ * -------------------------------------------------------------------------
+ * `messages/send` (hàm gui bên dưới) nhận {subject, to, body_html}: gọn, nhưng
+ * chỉ gửi thẳng được và KHÔNG đính kèm được tệp nào. Nên trên Hub bấm "Lưu
+ * nháp" là báo không làm được, và báo cáo quỹ gửi Ban Giám Đốc thì thiếu tệp
+ * Excel — anh Hùng gặp ngày 25/09/2026.
+ *
+ * `drafts` thì nhận cả lá thư MIME mã base64url, nên có đính kèm và có nháp:
+ *
+ *   POST …/drafts                 → { draft_id }
+ *   POST …/drafts/{id}/send       → gửi lá nháp đó đi
+ *
+ * Gửi = tạo nháp rồi gửi nháp. Hai lời gọi thay vì một, đổi lại là một đường
+ * duy nhất lo cả nháp lẫn gửi lẫn đính kèm — ba nhánh riêng thì hai nhánh ít
+ * dùng sẽ hỏng lặng lẽ.
+ */
+const { dungEml, sangRaw } = require('../lark-chung/eml');
+
+async function goiThu(duong, than) {
+  const token = await tokenGui();
+  const r = await fetch(cfg.apiHost + duong, {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json; charset=utf-8' },
+    body: JSON.stringify(than || {}),
+  });
+  const d = await r.json().catch(() => ({ code: r.status, msg: 'HTTP ' + r.status }));
+  if (d.code !== 0) {
+    throw Object.assign(new Error('Lark Mail: ' + (d.msg || d.code) + ' (mã ' + d.code + ')'), { http: 424 });
+  }
+  return d.data || {};
+}
+
+/**
+ * Lưu một lá NHÁP (có thể kèm tệp). Trả { draftId }.
+ * @param {Array} [dinhKem] [{ten, kieu, than:Buffer}]
+ */
+async function nhap({ tu, den, cc, tieuDe, html, ten, dinhKem }) {
+  const hop = tu || 'me';
+  const eml = dungEml({
+    tu: { email: tu || undefined, ten: ten || 'Rooty Trip Phú Quốc' },
+    den, cc, tieuDe, html, dinhKem,
+  });
+  const d = await goiThu('/open-apis/mail/v1/user_mailboxes/' + encodeURIComponent(hop) + '/drafts',
+    { raw: sangRaw(eml) });
+  const id = d.message_id || d.draft_id || d.id;
+  if (!id) throw Object.assign(new Error('Lark Mail nhận lá nháp nhưng không trả về mã nháp'), { http: 502 });
+  return { draftId: id, hop };
+}
+
+/** Gửi một lá nháp đã lưu. */
+async function guiNhap(hop, draftId) {
+  return goiThu('/open-apis/mail/v1/user_mailboxes/' + encodeURIComponent(hop || 'me')
+    + '/drafts/' + encodeURIComponent(draftId) + '/send', {});
+}
+
+/** Gửi thư CÓ ĐÍNH KÈM: lưu nháp rồi gửi chính lá nháp đó. */
+async function guiKemTep(t) {
+  const n = await nhap(t);
+  /* Nháp đã tạo mà gửi hỏng thì KHÔNG xoá hộ: lá nháp còn nằm trong Lark Mail
+   * là thứ người dùng mở ra bấm gửi tay được. Xoá đi là mất cả công soạn. */
+  try {
+    await guiNhap(n.hop, n.draftId);
+  } catch (e) {
+    throw Object.assign(new Error('Đã lưu nháp nhưng chưa gửi được: ' + e.message
+      + ' — mở Lark Mail, lá thư đang nằm trong mục Nháp.'), { http: e.http || 502 });
+  }
+  return n;
+}
+
 /** Gửi bằng phiên đã kết nối. `tu` = hộp thư gửi (cmo@…); để trống = hộp thư chính của người kết nối. */
 async function gui({ tu, den, cc, tieuDe, html, ten }) {
   const token = await tokenGui();
@@ -221,4 +291,4 @@ async function trangThai() {
 }
 async function ngat() { access = null; await luuPhien(null); }
 
-module.exports = { urlKetNoi, nhanCode, gui, trangThai, ngat, goiLai, thuDen, napPhien, coQuyenDoc, chuKy, ghiChuKy, _ma: ma, _giai: giai };
+module.exports = { urlKetNoi, nhanCode, gui, nhap, guiNhap, guiKemTep, trangThai, ngat, goiLai, thuDen, napPhien, coQuyenDoc, chuKy, ghiChuKy, _ma: ma, _giai: giai };
