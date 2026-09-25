@@ -108,6 +108,8 @@ async function khoiDong(mod) {
         HUB: '1',
         HUB_PREFIX: '/m/' + mod.id,
         HUB_PORT: String(require('./config').port),
+        /* bộ canh lỗi API (bao-loi-api.js): NODE_OPTIONS --require + địa chỉ báo về */
+        ...envThem,
       },
       windowsHide: true,
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -254,4 +256,8 @@ async function tatHet() {
   }
 }
 
-module.exports = { khoiDong, tat, batLai, ktSucKhoe, tinhTrang, logs, tatHet, songKhong };
+/* env thêm cho mọi app con hub bật từ nay — đặt một lần lúc hub khởi động */
+let envThem = {};
+function datEnv(o) { envThem = o || {}; }
+
+module.exports = { khoiDong, tat, batLai, ktSucKhoe, tinhTrang, logs, tatHet, songKhong, datEnv };

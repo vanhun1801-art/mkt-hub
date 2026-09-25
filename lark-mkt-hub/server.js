@@ -28,6 +28,15 @@ const tbApp = require('./thongbao-app');
 const nhomLark = require('./nhom-lark');
 const nen = require('./nen');
 const taiKhoan = require('./tai-khoan');
+/* canh lỗi kết nối API của hub + mọi app con, nhắn anh Hùng ngay (bao-loi-api.js).
+ * Bật TRƯỚC khi bật app con để chúng nhận NODE_OPTIONS --require bộ canh. */
+const baoLoi = require('./bao-loi-api');
+kids.datEnv(baoLoi.bat({
+  cfg,
+  tenApp: (id) => { if (id === 'hub') return 'Marketing Hub'; const m = timMod(id); return (m && m.ten) || id; },
+  docQuyen: () => quyen.docTatCa(),
+  urlHub: (process.env.PUBLIC_URL || 'https://mkt-hub-w6hi.onrender.com').replace(/\/+$/, ''),
+}));
 
 const PUBLIC = path.join(__dirname, 'public');
 
@@ -2002,6 +2011,9 @@ const server = http.createServer(async (req, res) => {
   res.__nen = nen.chon(req);
   const u = new URL(req.url, 'http://' + (req.headers.host || 'localhost'));
   const p = u.pathname;
+
+  /* app con báo lỗi API về (chỉ từ 127.0.0.1 + khoá hub cấp) — trước cổng đăng nhập */
+  if (baoLoi.xuLy(req, res, p)) return;
 
   /* ---- webhook OTA: đường CÔNG KHAI, nằm TRƯỚC cổng đăng nhập ----
    * Máy của Klook / Viator / Ctrip không thể đăng nhập Lark, nên webhook buộc
