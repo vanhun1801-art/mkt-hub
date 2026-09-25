@@ -41,6 +41,27 @@ async function tenantToken() {
 const TRANSIENT = [1254291, 1254036, 99991400, 99991661];
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/* LỖI QUÁ NHỊP PHẢI CHỜ KHÁC, VÀ PHẢI CHỜ LỆCH NHAU.
+ *
+ * 99991400 "request trigger frequency limit" không giống mấy lỗi chập chờn
+ * khác: Lark tính hạn mức theo APP, mà cả phòng chỉ còn MỘT app Lark dùng
+ * chung cho mười hai app con. Nên hạn mức ấy là của chung: vài app con cùng nạp
+ * Base một lúc là đủ vượt, chứ không app nào gọi quá tay cả. Ngày 25/09 lúc
+ * 11:21 hai app Lịch tác nghiệp và KOL cùng báo lỗi trong cùng một phút.
+ *
+ * Hai chỗ phải sửa:
+ *   · Chờ LÂU HƠN. Hạn mức tính theo giây, mà 400ms rồi 800ms là chưa qua hết
+ *     cửa sổ đã thử lại — ba lượt chỉ tốn 1,2 giây rồi bỏ cuộc.
+ *   · Chờ LỆCH NHAU. Đây mới là chỗ quan trọng: hai app va nhau cùng một tích
+ *     tắc, rồi cùng lùi đúng 400ms, nên thử lại cũng cùng một tích tắc và va
+ *     tiếp. Cộng thêm một khoảng ngẫu nhiên là tự tản ra.
+ */
+const QUA_NHIP = [99991400, 99991661];
+const khoangCho = (lan, e) => {
+  const goc = (QUA_NHIP.includes(e && e.code) ? 1200 : 400) * Math.pow(2, lan);
+  return goc + Math.floor(Math.random() * goc);
+};
+
 async function call(method, url, opts = {}) {
   const tries = opts.retries == null ? 3 : opts.retries;
   let cuoi;
@@ -52,7 +73,7 @@ async function call(method, url, opts = {}) {
       const nen = e.transient ||
         /timeout|ECONNRESET|ETIMEDOUT|fetch failed|socket hang up/i.test(e.message);
       if (i === tries - 1 || !nen) throw e;
-      await wait(400 * Math.pow(2, i));
+      await wait(khoangCho(i, e));
     }
   }
   throw cuoi;
