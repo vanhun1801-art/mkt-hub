@@ -1184,7 +1184,15 @@ const TEN_EMAIL = { 'de-xuat': 'Email trình Ban Giám Đốc', 'thu-moi': 'Thư
 async function moEmail(ht, loai, dt, lang) {
   const duong = '/api/hop-tac/' + ht.id + '/email/' + loai + (dt ? '?dt=' + encodeURIComponent(dt) : lang ? '?lang=' + lang : '');
   let m;
-  try { m = await api(duong); } catch (err) { return toast(err.message, true); }
+  /* bấm Soạn phải thấy ngay có chuyện đang xảy ra (anh Hùng 25/09: "nút không ấn được" — thật ra đang chờ máy chủ);
+   * quá 40 giây thì báo lỗi thay vì im lặng */
+  toast('Đang soạn email…');
+  $$('[data-em]').forEach((x) => { x.disabled = true; });
+  try {
+    m = await Promise.race([api(duong), new Promise((_, loi) => setTimeout(() => loi(new Error('Máy chủ chưa trả nội dung email sau 40 giây — có thể Lark đang bắt chờ vì gọi quá nhịp. Thử lại sau ít phút.')), 40000))]);
+  } catch (err) { return toast(err.message, true); }
+  finally { $$('[data-em]').forEach((x) => { x.disabled = false; }); }
+  $('#toast').hidden = true;
   const guiDuoc = S.meta.mail.guiDuoc;
   const coBuoc = loai === 'de-xuat' || loai === 'thu-moi';
   const hop = moModal(TEN_EMAIL[loai] + (dt ? ' · ' + dt : ''), (m.chan ? '<div class="bao cam">' + e(m.chan) + '</div>' : '') +
