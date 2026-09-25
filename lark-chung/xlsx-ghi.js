@@ -263,7 +263,8 @@ function phanAnh(logo) {
  * @param {object} [o.logo]  { buf, mime, rong, cao } — ảnh nổi ở góc trên-trái
  * @returns {Buffer} nội dung file .xlsx
  */
-function ghiXlsx({ ten = 'Sheet1', cot = [], hang = [], tieuDe = '', phuDe = '', logo = null }) {
+function ghiXlsx({ ten = 'Sheet1', cot = [], hang = [], tieuDe = '', phuDe = '', logo = null,
+  khongDauCot = false }) {
   const anh = (logo && logo.buf && logo.buf.length) ? phanAnh(logo) : null;
   const soCot = Math.max(cot.length, ...hang.map((h) => h.length), 1);
   const dong = [];
@@ -284,8 +285,12 @@ function ghiXlsx({ ten = 'Sheet1', cot = [], hang = [], tieuDe = '', phuDe = '',
   if (phuDe) { r++; dong.push('<row r="' + r + '">' + veO(r, 1, phuDe, 2) + '</row>'); }
   if (tieuDe || phuDe) { r++; dong.push('<row r="' + r + '"/>'); }
 
+  /* `khongDauCot`: giữ ĐỘ RỘNG cột nhưng không vẽ hàng tên cột, đóng băng hay
+   * bộ lọc. Dùng cho tờ có khối tóm tắt nằm TRÊN bảng chi tiết — ở đó một hàng
+   * tên cột chễm chệ trên đầu tờ giấy là tên của bảng nằm tận giữa trang, đọc
+   * lên tưởng tờ này bắt đầu bằng bảng. */
   const hangDauCot = r + 1;
-  if (cot.length) {
+  if (cot.length && !khongDauCot) {
     r++;
     dong.push('<row r="' + r + '" ht="20" customHeight="1">'
       + cot.map((c, i) => veO(r, i + 1, c.ten, 3)).join('') + '</row>');
@@ -301,11 +306,11 @@ function ghiXlsx({ ten = 'Sheet1', cot = [], hang = [], tieuDe = '', phuDe = '',
     : '';
   /* Đóng băng hàng tiêu đề: bảng vài trăm dòng mà cuộn xuống là quên mất cột nào
    * là cột nào. */
-  const dongBang = cot.length
+  const dongBang = (cot.length && !khongDauCot)
     ? '<sheetViews><sheetView workbookViewId="0"><pane ySplit="' + hangDauCot
       + '" topLeftCell="A' + (hangDauCot + 1) + '" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
     : '';
-  const loc = cot.length
+  const loc = (cot.length && !khongDauCot)
     ? '<autoFilter ref="A' + hangDauCot + ':' + chuCot(soCot) + Math.max(r, hangDauCot) + '"/>'
     : '';
 

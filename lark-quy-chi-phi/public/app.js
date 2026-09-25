@@ -320,7 +320,8 @@ function ve() {
 
   /* Hộp thanh chọn dựng LUÔN LUÔN, dù rỗng. Nó `position: fixed` nên không
    * chiếm chỗ trong dòng chảy — hiện hay ẩn đều không xê dịch một hàng nào. */
-  $('#man').innerHTML = veTong() + veLoc() + (S.tab === 'ung' ? veUng() : veBang())
+  const than = S.tab === 'ung' ? veUng() : S.tab === 'bao' ? veBaoCao() : veBang();
+  $('#man').innerHTML = (S.tab === 'bao' ? '' : veTong()) + veLoc() + than
     + '<div id="thanhChonHop">' + (S.chon.size ? veThanhChon() : '') + '</div>';
   /* Chừa đáy trang đúng bằng thanh đang nổi, để hàng cuối không bị nó che.
    * Đệm ở ĐÁY thì thêm bao nhiêu cũng không đẩy hàng nào xuống. */
@@ -401,12 +402,17 @@ function veLoc() {
 
   return '<section class="thanh">'
     + '<div class="tabs">'
-      + ['so:Sổ quỹ', 'thieu:Cần bổ sung chứng từ', 'ung:Các lần ứng tiền'].map((x) => {
+      /* Tab Báo cáo chỉ hiện với người giữ quỹ: tài liệu này đi ra khỏi phòng,
+       * mang số dư và toàn bộ khoản chi. */
+      + ['so:Sổ quỹ', 'thieu:Cần bổ sung chứng từ', 'ung:Các lần ứng tiền']
+        .concat(laChuQuy() ? ['bao:Báo cáo gửi BGĐ'] : []).map((x) => {
         const [k, t] = x.split(':');
         return '<button class="tab' + (S.tab === k ? ' on' : '') + '" data-tab="' + k + '">' + t + '</button>';
       }).join('')
     + '</div>'
-    + (S.tab === 'ung' ? '' :
+    /* Tab Báo cáo có ô chọn KỲ riêng; mấy ô lọc tháng/loại/tình trạng của sổ
+     * quỹ không áp vào nó, để đó chỉ tổ bấm rồi tưởng báo cáo đổi theo. */
+    + (S.tab === 'ung' || S.tab === 'bao' ? '' :
       '<div class="loc">'
       + '<input id="lTim" placeholder="Tìm nội dung, mã đơn RT, mã điều hành SG, mã quyết toán…" value="'
         + esc(S.loc.tim) + '">'
@@ -843,6 +849,130 @@ function tomTatKhoan(c) {
 }
 
 /* ---------------------------------------------------------------------------
+ * BÁO CÁO GỬI BAN GIÁM ĐỐC
+ * -------------------------------------------------------------------------
+ * Gần hết quỹ thì anh Hùng báo cáo Sếp rồi xin nhập quỹ mới. Trước đây là mở
+ * sheet, lọc tay theo tháng, gõ lại bảng cơ cấu chi, dựng PDF + Excel, soạn
+ * thư. Mọi con số đó đã nằm trong Base — chép tay là chép lại một cơ hội sai.
+ *
+ * Số do MÁY CHỦ dựng (bao-cao.js), màn hình này chỉ bày. Thư gửi Sếp mà giao
+ * diện tự cộng lại một lần nữa là hai bản số, và lúc lệch thì không biết tin
+ * bản nào.
+ * ------------------------------------------------------------------------- */
+const BC = { dot: '', dang: false, du: null, thu: null, loi: '',
+  xinNap: '', kyMoi: '', hangMuc: '', ghiChu: '' };
+
+async function napBaoCao(dotId) {
+  BC.dang = true; BC.loi = ''; ve();
+  try {
+    const d = await api('/api/bao-cao' + (dotId ? '?dot=' + encodeURIComponent(dotId) : ''));
+    BC.du = d; BC.dot = d.bao.ky.dotId;
+    if (!BC.kyMoi) BC.kyMoi = goiYKyMoi(d.ky, BC.dot);
+  } catch (e) { BC.loi = e.message; BC.du = null; }
+  BC.dang = false; ve();
+}
+
+/* Kỳ đang xin nhập là kỳ NGAY SAU kỳ đang báo cáo — gợi ý sẵn cho khỏi gõ, và
+ * gõ đè được vì tên đợt không phải lúc nào cũng là "THÁNG NN". */
+function goiYKyMoi(ds, dotId) {
+  const i = ds.findIndex((k) => k.id === dotId);
+  if (i > 0) return ds[i - 1].ma;
+  const m = /(\d{1,2})/.exec((ds[i] || {}).ma || '');
+  return m ? 'tháng ' + String(Number(m[1]) + 1).padStart(2, '0') : '';
+}
+
+function veBaoCao() {
+  if (BC.loi) return '<section class="bang"><div class="trong">' + esc(BC.loi) + '</div></section>';
+  if (!BC.du) { if (!BC.dang) napBaoCao(BC.dot); return '<section class="bang"><div class="trong">Đang dựng báo cáo…</div></section>'; }
+
+  const d = BC.du, r = d.bao;
+  const o = (lb, v, g, lop) => '<div class="bc-o"><div class="bc-lb">' + lb + '</div>'
+    + '<div class="bc-v' + (lop ? ' ' + lop : '') + '">' + v + '</div>'
+    + (g ? '<div class="bc-g">' + g + '</div>' : '') + '</div>';
+
+  const bang = (nhan, ds) => '<table class="bc-bang"><thead><tr><th>' + esc(nhan)
+    + '</th><th class="num">Số GD</th><th class="num">Số tiền</th><th class="num">Tỷ trọng</th>'
+    + '</tr></thead><tbody>'
+    + ds.map((x) => '<tr><td>' + esc(x.ten) + '</td><td class="num">' + x.so
+      + '</td><td class="num">' + tien(x.tien) + '</td><td class="num">'
+      + (Math.round(x.tyTrong * 1000) / 10).toString().replace('.', ',') + '%</td></tr>').join('')
+    + '</tbody></table>';
+
+  const chonKy = '<select id="bcKy">' + d.ky.map((k) => '<option value="'
+    + esc(k.id) + '"' + (k.id === BC.dot ? ' selected' : '') + '>' + esc(k.ma)
+    + ' · ' + k.soGD + ' khoản · còn ' + tien(k.conLai) + '</option>').join('') + '</select>';
+
+  return '<section class="bc">'
+    + '<div class="bc-dau">' + chonKy
+      + '<div class="sp"></div>'
+      + '<button class="btn" id="bcXlsx">Tải Excel</button>'
+      + '<button class="btn" id="bcIn">Bản in / PDF</button>'
+    + '</div>'
+
+    + '<div class="bc-so">'
+      + o('Kỳ báo cáo', esc(r.ky.tuVN + ' – ' + r.ky.denVN),
+        esc(r.ky.tenDot + (r.ky.maQuy ? ' · ' + r.ky.maQuy : '')))
+      + o('Tổng nguồn tạm ứng', tien(r.so.tongNguon) + ' đ',
+        tien(r.so.dauKy) + ' dư đầu kỳ + ' + tien(r.so.napThem) + ' nạp mới')
+      + o('Tổng chi trong kỳ', tien(r.so.tongChi) + ' đ', r.so.soGD + ' khoản')
+      + o('Số dư cuối kỳ', tien(r.so.cuoiKy) + ' đ',
+        'còn ' + (Math.round(r.so.tyLeCon * 1000) / 10).toString().replace('.', ',') + '% nguồn',
+        r.so.am ? 'am' : '')
+    + '</div>'
+
+    + '<div class="bc-cot">'
+      + '<div><h3>Cơ cấu theo nhóm</h3>' + bang('Nhóm chi phí', r.nhom) + '</div>'
+      + '<div><h3>Theo tuần</h3>' + bang('Tuần', r.tuan) + '</div>'
+      + '<div><h3>Theo người đề nghị</h3>' + bang('Người đề nghị', r.nguoi) + '</div>'
+    + '</div>'
+
+    + '<div class="bc-thu">'
+      + '<h3>Thư đề xuất gửi ' + esc(d.thu.den) + '</h3>'
+      + '<div class="form">'
+        + '<div class="o"><span>Xin nhập quỹ (đ)</span>'
+          + '<input data-bc="xinNap" inputmode="numeric" placeholder="10.000.000" value="'
+          + esc(BC.xinNap) + '"></div>'
+        + '<div class="o"><span>Cho kỳ</span>'
+          + '<input data-bc="kyMoi" placeholder="tháng 10/2026" value="' + esc(BC.kyMoi) + '"></div>'
+        + '<div class="o rong"><span>Hạng mục ngân sách · mỗi dòng một ý</span>'
+          + '<textarea rows="3" data-bc="hangMuc" placeholder="Ngân sách sản xuất nội dung: di chuyển, hỗ trợ ăn uống…&#10;Công cụ và phần mềm: PhotoROOM, Capcut, Canva…&#10;Chi phí phát sinh khác">'
+          + esc(BC.hangMuc) + '</textarea></div>'
+        + '<div class="o rong"><span>Ghi chú thêm</span>'
+          + '<input data-bc="ghiChu" value="' + esc(BC.ghiChu) + '"></div>'
+      + '</div>'
+      + '<div class="bc-nut">'
+        + '<button class="btn" id="bcXem">Xem trước thư</button>'
+        + '<div class="sp"></div>'
+        + '<button class="btn" id="bcNhap">Lưu nháp vào Lark Mail</button>'
+        + '<button class="btn primary" id="bcGui">Gửi ngay</button>'
+      + '</div>'
+      /* Nói TRƯỚC khi bấm: thư này đi thẳng tới Ban Giám Đốc và không có nút
+       * thu hồi. Và tệp thì không tự đính kèm được — phải nói ra, đừng để anh
+       * bấm gửi rồi mới phát hiện Sếp nhận một lá thư thiếu tệp. */
+      + '<div class="bc-nhac">Thư KHÔNG tự đính kèm tệp. Tải Excel về rồi đính tay, '
+        + 'hoặc bấm <b>Lưu nháp</b> để mở Lark Mail đính kèm xong mới gửi.</div>'
+      + (BC.thu ? '<div class="bc-xem"><div class="bc-xem-td">' + esc(BC.thu.tieuDe)
+        + '</div><div class="bc-xem-than">' + BC.thu.html + '</div></div>' : '')
+    + '</div>'
+  + '</section>';
+}
+
+async function soanThuBaoCao() {
+  const d = await api('/api/bao-cao/thu', {
+    method: 'POST',
+    body: JSON.stringify({
+      dot: BC.dot,
+      xinNap: String(BC.xinNap).replace(/[^0-9]/g, ''),
+      kyMoi: BC.kyMoi,
+      hangMuc: String(BC.hangMuc || '').split('\n'),
+      ghiChu: BC.ghiChu,
+    }),
+  });
+  BC.thu = d;
+  return d;
+}
+
+/* ---------------------------------------------------------------------------
  * CỬA SỔ CHỨNG TỪ
  * -------------------------------------------------------------------------
  * Bày ẢNH chứ không bày tên tệp. Kế toán nhìn hoá đơn để đọc mã số thuế và số
@@ -1164,6 +1294,46 @@ document.addEventListener('click', async (e) => {
     return laChuQuy() ? moNapQuy() : toast('Chỉ người giữ quỹ mới ghi tiền ứng.', 'err');
   }
 
+  if (T.closest('#bcXlsx') && BC.dot) {
+    const a = document.createElement('a');
+    a.href = apiUrl('/api/bao-cao?kieu=xlsx&dot=' + encodeURIComponent(BC.dot));
+    a.download = ''; document.body.appendChild(a); a.click(); a.remove();
+    return;
+  }
+  if (T.closest('#bcIn') && BC.dot) {
+    /* Mở ở cửa sổ riêng rồi để người ta bấm In → Lưu PDF: trình duyệt nào cũng
+     * có sẵn, và nó cho xem trước, chọn khổ giấy, bỏ bớt trang. */
+    window.open(apiUrl('/api/bao-cao?kieu=in&dot=' + encodeURIComponent(BC.dot)), '_blank');
+    return;
+  }
+  if (T.closest('#bcXem')) {
+    const n = T.closest('#bcXem');
+    try { n.disabled = true; n.textContent = 'Đang dựng…'; await soanThuBaoCao(); ve(); }
+    catch (e) { toast(e.message, 'err'); n.disabled = false; n.textContent = 'Xem trước thư'; }
+    return;
+  }
+  const bcGui = T.closest('#bcGui') || T.closest('#bcNhap');
+  if (bcGui && BC.dot) {
+    const ngay = !!T.closest('#bcGui');
+    const d = BC.thu || await soanThuBaoCao().catch((e) => { toast(e.message, 'err'); return null; });
+    if (!d) return;
+    const hoi = ngay
+      ? 'GỬI NGAY tới ' + d.den + '?' + XUONG_DONG + XUONG_DONG + d.tieuDe + XUONG_DONG
+        + XUONG_DONG + 'Thư đi thẳng, không thu hồi được. Tệp Excel KHÔNG tự đính kèm.'
+      : 'Lưu nháp vào Lark Mail để mở ra đính kèm tệp rồi tự gửi?';
+    if (!confirm(hoi)) return;
+    bcGui.disabled = true;
+    const chuCu = bcGui.textContent;
+    bcGui.textContent = ngay ? 'Đang gửi…' : 'Đang lưu…';
+    try {
+      await api('/api/bao-cao/gui', { method: 'POST', body: JSON.stringify({
+        den: d.den, cc: d.cc, tieuDe: d.tieuDe, html: d.html, gui: ngay }) });
+      toast(ngay ? 'Đã gửi tới ' + d.den : 'Đã lưu nháp trong Lark Mail', 'ok');
+    } catch (e) { toast(e.message, 'err'); }
+    bcGui.disabled = false; bcGui.textContent = chuCu;
+    return;
+  }
+
   const tab = T.closest('[data-tab]');
   if (tab) { S.tab = tab.dataset.tab; S.chon.clear(); return ve(); }
 
@@ -1405,7 +1575,14 @@ document.addEventListener('click', async (e) => {
  *
  * Giờ thanh nổi trong #thanhChonHop, và ở đây chỉ thay ruột cái hộp đó.
  */
+document.addEventListener('input', (e) => {
+  const o = e.target.closest('[data-bc]');
+  /* Gõ thì chỉ nhớ, KHÔNG vẽ lại — vẽ lại giữa chừng là con trỏ nhảy về đầu ô. */
+  if (o) { BC[o.dataset.bc] = o.value; BC.thu = null; }
+});
+
 document.addEventListener('change', (e) => {
+  if (e.target.id === 'bcKy') { BC.thu = null; BC.kyMoi = ''; return napBaoCao(e.target.value); }
   if (e.target.id === 'chonHet') return chonHetTrongBang(e.target.checked);
   const c = e.target.closest('[data-chon]');
   if (!c) return;

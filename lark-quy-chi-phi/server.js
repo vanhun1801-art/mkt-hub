@@ -31,6 +31,18 @@ const { AsyncLocalStorage } = require('async_hooks');
 const cfg = require('./config');
 const lark = cfg.mode === 'api' ? require('./larkapi') : require('./lark');
 const tourwell = require('../lark-chung/tourwell');
+const baoCao = require('./bao-cao');
+const bcXuat = require('./bao-cao-xuat');
+const { layLogo } = require('../lark-chung/logo');
+const THU_MUC_DU_LIEU = require('path').join(__dirname, 'du-lieu');
+
+/* Logo đóng lên tệp cao 46px, giữ nguyên tỉ lệ ảnh gốc — logo Rooty Trip là
+ * chữ nằm ngang rất dài, ép vào ô vuông là bẹp. */
+function khoLogoBaoCao(logo) {
+  const { coAnh } = require('../lark-chung/logo');
+  const co = coAnh(logo.buf);
+  return { buf: logo.buf, mime: logo.mime, cao: 46, rong: co && co.cao ? Math.round((co.rong / co.cao) * 46) : 133 };
+}
 
 const F = cfg.fields;
 const BIND = process.env.BIND || '127.0.0.1';
@@ -457,6 +469,141 @@ async function xuLy(req, res) {
   if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
 
   /* ---- màn hình chính ---- */
+  /* -------------------------------------------------------------------
+   * BÁO CÁO QUỸ THEO KỲ
+   * -------------------------------------------------------------------
+   * Gần hết quỹ thì anh Hùng báo cáo Sếp rồi xin nhập quỹ mới. Trước đây là
+   * mở sheet, lọc tay, gõ lại bảng cơ cấu chi, dựng PDF + Excel, soạn thư.
+   * Mọi con số đó đã nằm trong Base này rồi.
+   *
+   * Một đường cho SỐ (json), một đường cho TỆP — cùng một bộ số, xem
+   * bao-cao-xuat.js.
+   *
+   * CHỈ NGƯỜI GIỮ QUỸ. Đây là tài liệu đi ra khỏi phòng, mang số dư và toàn
+   * bộ khoản chi; không phải thứ ai mở app cũng xuất được.
+   * ------------------------------------------------------------------- */
+  if (p === '/api/bao-cao' && req.method === 'GET') {
+    if (!(await laChuQuy())) return json(res, { error: 'Chỉ người giữ quỹ xuất được báo cáo' }, 403);
+
+    const k = await nap(url.searchParams.get('moi') === '1');
+    const kho = {
+      chi: k.chi.map((r) => chuanChi(doiRa(r, F.chi))),
+      dot: k.dot.map((r) => doiRa(r, F.dot)),
+      nap: k.nap.map((r) => doiRa(r, F.nap)),
+    };
+
+    const dsKy = baoCao.cacKy(kho);
+    const dotId = url.searchParams.get('dot') || (dsKy[0] && dsKy[0].id) || '';
+    if (!dotId) return json(res, { error: 'Sổ chưa có đợt tạm ứng nào' }, 400);
+
+    let r;
+    try {
+      r = baoCao.dungBaoCao(kho, dotId, { banDoNhom: cfg.nhomBaoCao });
+    } catch (e) { return json(res, { error: e.message }, 400); }
+
+    const kieu = url.searchParams.get('kieu') || 'json';
+
+    if (kieu === 'xlsx') {
+      /* Logo xin từ lớp vỏ; hub ngủ thì tệp vẫn ra, chỉ thiếu ảnh. */
+      const logo = await layLogo(THU_MUC_DU_LIEU).catch(() => null);
+      const kho2 = logo ? { buf: logo.buf, mime: logo.mime } : null;
+      const ra = bcXuat.xuatXlsx(r, kho2 && khoLogoBaoCao(kho2));
+      res.writeHead(200, {
+        'Content-Type': ra.kieu,
+        'Content-Length': ra.than.length,
+        'Content-Disposition': 'attachment; filename="' + ra.tep + '"; filename*=UTF-8\'\'' + encodeURIComponent(ra.tep),
+        'Cache-Control': 'no-store',
+      });
+      return res.end(ra.than);
+    }
+
+    if (kieu === 'html' || kieu === 'in') {
+      const logo = await layLogo(THU_MUC_DU_LIEU).catch(() => null);
+      const uri = logo ? 'data:' + logo.mime + ';base64,' + logo.buf.toString('base64') : '';
+      const html = bcXuat.htmlBaoCao(r, uri);
+      const b = Buffer.from(html, 'utf8');
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Content-Length': b.length, 'Cache-Control': 'no-store' });
+      return res.end(b);
+    }
+
+    return json(res, {
+      ky: dsKy,
+      bao: r,
+      /* Thân thư dựng SẴN ở máy chủ, không dựng lại ở giao diện: thư này gửi
+       * ra ngoài phòng, một bản dựng là một bản phải kiểm. */
+      thu: {
+        den: cfg.baoCao.den, cc: cfg.baoCao.cc,
+        tieuDe: bcXuat.tieuDeEmail(r, { xinNap: 0 }),
+      },
+    });
+  }
+
+  /* Xem trước thân thư với đúng số tiền và hạng mục anh Hùng gõ. Dựng ở máy
+   * chủ rồi trả về để giao diện bày — bấm Gửi là gửi ĐÚNG chuỗi này. */
+  if (p === '/api/bao-cao/thu' && req.method === 'POST') {
+    if (!(await laChuQuy())) return json(res, { error: 'Chỉ người giữ quỹ soạn được thư này' }, 403);
+    const b = await docThan(req);
+    const k = await nap(false);
+    const kho = {
+      chi: k.chi.map((r) => chuanChi(doiRa(r, F.chi))),
+      dot: k.dot.map((r) => doiRa(r, F.dot)),
+      nap: k.nap.map((r) => doiRa(r, F.nap)),
+    };
+    let r;
+    try { r = baoCao.dungBaoCao(kho, b.dot, { banDoNhom: cfg.nhomBaoCao }); }
+    catch (e) { return json(res, { error: e.message }, 400); }
+    const o = {
+      xinNap: Number(b.xinNap) || 0,
+      kyMoi: String(b.kyMoi || '').trim(),
+      hangMuc: Array.isArray(b.hangMuc) ? b.hangMuc.filter((x) => String(x || '').trim()) : [],
+      ghiChu: String(b.ghiChu || '').trim(),
+    };
+    return json(res, {
+      tieuDe: bcXuat.tieuDeEmail(r, o),
+      html: bcXuat.htmlEmail(r, o),
+      den: cfg.baoCao.den, cc: cfg.baoCao.cc,
+    });
+  }
+
+  /* GỬI THƯ — mượn nguyên bộ gửi thư của app KOL.
+   *
+   * Hộp thư @rootytrip.com nằm trên Lark, và quyền GỬI của Lark chỉ có ở User
+   * token — app KOL đã dựng cả đường đăng nhập hộp thư (ho-thu.js) và đã chạy
+   * thật. Dựng lại một bản thứ hai ở đây là hai phiên hộp thư phải trông coi,
+   * mà cái thứ hai không ai dùng đủ nhiều để biết nó hỏng.
+   *
+   * Nạp MUỘN (require ngay trong nhánh này) chứ không nạp lúc khởi động: app
+   * KOL chưa cấu hình thì app Quỹ vẫn phải mở lên được, chỉ riêng nút gửi thư
+   * là báo lỗi có chữ.
+   */
+  if (p === '/api/bao-cao/gui' && req.method === 'POST') {
+    if (!(await laChuQuy())) return json(res, { error: 'Chỉ người giữ quỹ gửi được báo cáo' }, 403);
+    const b = await docThan(req);
+    if (!String(b.html || '').trim()) return json(res, { error: 'Chưa có nội dung thư' }, 400);
+    if (!String(b.tieuDe || '').trim()) return json(res, { error: 'Chưa có tiêu đề thư' }, 400);
+
+    let mail;
+    try { mail = require('../lark-kol/mail'); }
+    catch (e) {
+      return json(res, { error: 'Chưa dùng được bộ gửi thư của app KOL: ' + e.message }, 503);
+    }
+    try {
+      const kq = await mail.guiMail({
+        den: b.den || cfg.baoCao.den,
+        cc: b.cc || cfg.baoCao.cc,
+        tieuDe: b.tieuDe,
+        html: b.html,
+        /* gui=false thì Lark Mail chỉ LƯU NHÁP — anh Hùng mở Lark ra đọc lại,
+         * đính kèm tệp rồi tự bấm gửi. Đó là mặc định, vì thư này đi thẳng tới
+         * Ban Giám Đốc và không có nút thu hồi. */
+        gui: b.gui === true,
+      });
+      return json(res, { ok: true, nhap: !(b.gui === true), du: kq });
+    } catch (e) {
+      return json(res, { error: e.message }, e.http || 502);
+    }
+  }
+
   if (p === '/api/meta' && req.method === 'GET') {
     const k = await nap(url.searchParams.get('moi') === '1');
     const chi = k.chi.map((r) => chuanChi(doiRa(r, F.chi)));
@@ -488,7 +635,6 @@ async function xuLy(req, res) {
     const kq = await require('./nhac-thang').chay(depNhac(), { t, ep: true, xem: !gui, tieuDeThem: gui ? '[THỬ] ' : '' });
     return json(res, kq, kq.ok ? 200 : 502);
   }
-
   /* quỹ thấp: GET xem trước (dựng cả khi quỹ chưa thấp), ?gui=1 gửi thử */
   if (p === '/api/nhac-quy-thap' && req.method === 'GET') {
     if (!(await doiChuQuy(res))) return;

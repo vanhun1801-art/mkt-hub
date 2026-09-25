@@ -100,6 +100,36 @@ module.exports = {
 
   loaiChi: ['Tác nghiệp', 'Di chuyển', 'Công cụ & phần mềm', 'In ấn',
     'Quảng cáo', 'Tiếp khách', 'Khác'],
+
+  /* ---- Gom loại chi thành NHÓM cho báo cáo gửi Ban Giám Đốc ----
+   *
+   * Ô "Loại" phục vụ người NHẬP: bảy lựa chọn ngắn, gõ nhanh. Bảng gửi Sếp thì
+   * cần ít nhóm hơn và tên nói rõ tiền đi vào việc gì — "Tác nghiệp hiện
+   * trường" đọc ra một hoạt động, "Tác nghiệp" với "Di chuyển" tách đôi thì
+   * Sếp phải tự cộng lại trong đầu.
+   *
+   * Loại nào KHÔNG khai ở đây thì báo cáo giữ nguyên tên nó, không dồn vào
+   * "Khác": dồn đi là giấu mất một nhóm chi đang lớn dần.
+   */
+  nhomBaoCao: {
+    'Tác nghiệp': 'Tác nghiệp hiện trường',
+    /* Xanh SM, taxi đi tác nghiệp — cùng một hoạt động với khoản tác nghiệp
+     * nó phục vụ, nên gộp. Tách riêng thì ra một nhóm 3% không nói lên gì. */
+    'Di chuyển': 'Tác nghiệp hiện trường',
+    'Công cụ & phần mềm': 'Phần mềm & công cụ marketing',
+    'In ấn': 'In ấn & vật tư marketing',
+    'Quảng cáo': 'Ngân sách quảng cáo',
+    'Tiếp khách': 'Tiếp khách & quan hệ',
+    'Khác': 'Chi phí khác',
+  },
+
+  /* Nơi báo cáo được gửi tới. Đổi ở đây, không rải trong mã. */
+  baoCao: {
+    den: process.env.QUY_BAO_CAO_DEN || 'ceo@rootytrip.com',
+    cc: process.env.QUY_BAO_CAO_CC || '',
+    tenPhong: 'Phòng Marketing',
+    congTy: 'Rooty Trip Phú Quốc',
+  },
   /* "Chờ điều chỉnh" là tình trạng có thật trong quy trình, không phải một kiểu
    * của "Đã chi": tiền đã đi rồi nhưng chứng từ chưa qua được kế toán, và bóng
    * đang ở chân người giữ quỹ.

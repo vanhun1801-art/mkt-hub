@@ -507,3 +507,64 @@ td.tacvu .btn + .btn { margin-left: 5px; }
   .the { font-size: 13px; }                                      /* 11.5 */
   .badge { font-size: 13px; }                                    /* 11.5 */
 }
+
+/* ===========================================================================
+   TAB BÁO CÁO GỬI BAN GIÁM ĐỐC
+   =========================================================================== */
+.bc { display: grid; gap: 14px; }
+.bc-dau { display: flex; align-items: center; gap: 8px; }
+.bc-dau .sp { flex: 1; }
+.bc-dau select { max-width: 380px; }
+
+.bc-so { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+.bc-o { border: 1px solid var(--line); border-radius: 11px; padding: 11px 13px; background: var(--surface); }
+.bc-lb { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--t3); }
+.bc-v { font-size: 19px; font-weight: 700; margin-top: 3px; color: var(--t1); }
+/* Quỹ tạm ứng mà âm là chuyện phải nhìn thấy ngay, không phải tự cộng ra. */
+.bc-v.am { color: var(--red-t, #b42318); }
+.bc-g { font-size: 11.5px; color: var(--t3); margin-top: 2px; }
+
+.bc-cot { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; align-items: start; }
+/* min-width:0 — nếu không, ô lưới từ chối co nhỏ hơn nội dung của nó và bảng
+   tràn sang ô bên cạnh. Lưới CSS mặc định lấy min-width:auto cho ô con, mà
+   auto ở đây nghĩa là "rộng bằng bảng". */
+.bc-cot > div { min-width: 0; }
+.bc-cot h3, .bc-thu h3 { font-size: 13px; margin: 0 0 7px; color: var(--t1); }
+/* table-layout cố định: tên nhóm dài ("Phần mềm & công cụ marketing") kéo bảng
+   rộng hơn ô lưới chứa nó, và ba bảng cạnh nhau thì chữ đè sang nhau. Cố định
+   bề ngang rồi cho tên xuống dòng thì mỗi bảng ở yên trong phần của mình. */
+/* min-width: 0 đè luật chung `table { min-width: 900px }` — luật đó sinh ra cho
+   bảng sổ quỹ 10 cột nằm trong khung cuộn ngang. Ba bảng tóm tắt ở đây chỉ có
+   bốn cột và nằm cạnh nhau, ép 900px là chúng đè lên nhau. */
+.bc-bang { width: 100%; min-width: 0; border-collapse: collapse; font-size: 12.5px; table-layout: fixed; }
+.bc-bang th:first-child, .bc-bang td:first-child { width: auto; word-break: break-word; }
+.bc-bang th.num, .bc-bang td.num { width: 22%; }
+.bc-bang th {
+  background: var(--surface-2); color: var(--t3); font-size: 10.5px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .05em; text-align: left; padding: 6px 8px;
+}
+.bc-bang td { padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.bc-bang .num { text-align: right; white-space: nowrap; }
+
+.bc-thu { border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; background: var(--surface); }
+.bc-nut { display: flex; gap: 8px; margin-top: 12px; }
+.bc-nut .sp { flex: 1; }
+/* Thư đi thẳng tới Ban Giám Đốc và không thu hồi được — dòng nhắc phải nằm
+   cạnh nút, không nằm trong một cửa sổ hiện ra sau khi đã bấm. */
+.bc-nhac { margin-top: 8px; font-size: 11.5px; color: var(--orange-t, #96591b); }
+.bc-xem { margin-top: 14px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.bc-xem-td { padding: 9px 12px; background: var(--surface-2); font-weight: 600; font-size: 13px; }
+/* Nền TRẮNG cố ý: đây là bản xem trước của thư, mà thư thì người nhận mở trong
+   hộp thư nền trắng. Xem trên nền tối rồi gửi đi là gửi một thứ mình chưa xem. */
+.bc-xem-than { padding: 14px 16px; background: #fff; color: #1a2233; max-height: 420px; overflow: auto; }
+/* Khối soạn thư mượn kiểu ô nhập của .form (bộ lớp của chính app này). Chỉ
+   thêm phần .form không lo: nó vốn sinh ra cho cửa sổ, nên không có viền ô. */
+.bc-thu .form input, .bc-thu .form select, .bc-thu .form textarea {
+  border: 1px solid var(--line); background: var(--surface-2); color: var(--t1);
+  border-radius: 8px; padding: 8px 10px; font-size: 13px; font-family: inherit;
+}
+.bc-thu .form { margin-top: 4px; }
+#bcKy {
+  border: 1px solid var(--line); background: var(--surface); color: var(--t1);
+  border-radius: 8px; padding: 7px 10px; font-size: 13px; font-family: inherit;
+}
