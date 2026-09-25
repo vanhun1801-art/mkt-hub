@@ -2147,3 +2147,11 @@ body.col-resizing, body.col-resizing * { cursor: col-resize !important; user-sel
     --h-ctl-sm: 36px;
   }
 }
+
+/* Điện thoại: nâng chữ nhỏ của tab "Việc đã order" (thẻ order) — test/dien-thoai
+   .test.js [4] canh: chữ <12px nào cũng phải có luật nâng ở khối điện thoại.
+   Thêm 25/09/2026 (hai lớp có từ commit 4191904). */
+@media (max-width: 640px) {
+  .ord-status { font-size: 12px; }
+  .ord-lbl { font-size: 12.5px; }
+}

@@ -28,6 +28,27 @@
      này (proxy.js chèn vào <head> của chúng) nên lớp vỏ và chín app con dùng
      chung một bộ cỡ. -->
 <link rel="stylesheet" href="/dienthoai.css?v=BUILD">
+<!-- Lớp giao diện iOS (bản thử). Bật mặc định; ?skin=goc để quay về giao diện cũ,
+     ?skin=ios để bật lại. Lựa chọn nhớ trong localStorage 'hub.skin', app con
+     cùng origin nên tự đọc được (proxy.js). -->
+<link rel="stylesheet" href="/ios.css?v=BUILD">
+<script>
+(function () {
+  var k = 'ios';
+  try {
+    var q = new URLSearchParams(location.search).get('skin');
+    if (q === 'goc' || q === 'ios') localStorage.setItem('hub.skin', q);
+    k = localStorage.getItem('hub.skin') || 'ios';
+  } catch (e) {}
+  if (k !== 'goc') document.documentElement.setAttribute('data-skin', 'ios');
+  /* Lần trước khối "Tin của phòng" có video hay chỉ có tin — ios.css giữ sẵn
+     đúng chỗ cho nó từ nhịp vẽ đầu tiên, để lưới base không bị đẩy xuống. */
+  try {
+    var t = localStorage.getItem('hub.tin.hinh');
+    if (t) document.documentElement.setAttribute('data-tin', t);
+  } catch (e) {}
+})();
+</script>
 </head>
 <body>
 
@@ -216,5 +237,6 @@ if ('serviceWorker' in navigator) {
 <script src="/nhanh.js?v=BUILD"></script>
 <script src="/tbapp.js?v=BUILD"></script>
 <script src="/nhac-lich.js?v=BUILD"></script>
+<script src="/ios.js?v=BUILD"></script>
 </body>
 </html>

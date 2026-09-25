@@ -227,8 +227,16 @@ group('Khung xương phải khớp GIAO DIỆN THẬT, không phải hình chung
 
   /* Lớp vỏ bỏ lớp phủ ngay khi app con dựng xong DOM — app con đã có khung
    * xương của chính nó, giữ thêm lớp phủ là hai lớp khung xương chồng nhau. */
+  /* 25/09/2026: việc gỡ đi qua boLopPhuKhung(). Không bật lớp giao diện iOS
+   * thì nó gỡ NGAY như cũ (l.remove()); bật lớp iOS thì ios.js
+   * (window.__iosChoYen) giữ lớp phủ tới khi app con thôi nhảy bố cục rồi mới
+   * gỡ — cố ý, để người dùng không thấy các khối nở ra/xuống dòng lúc dữ liệu
+   * về. Kiểm cả hai: đường xin-loc gọi hàm gỡ, và hàm gỡ vẫn gỡ ngay khi không
+   * có lớp iOS. */
   ok('lớp vỏ bỏ lớp phủ ngay khi app con sẵn sàng',
-    /hub === 'xin-loc'[\s\S]{0,400}frame-loading[\s\S]{0,80}remove\(\)/.test(APPJS));
+    /hub === 'xin-loc'[\s\S]{0,400}frame-loading[\s\S]{0,80}remove\(\)/.test(APPJS)
+    || (/hub === 'xin-loc'[\s\S]{0,400}boLopPhuKhung\(/.test(APPJS)
+      && /function boLopPhuKhung[\s\S]{0,200}frame-loading[\s\S]{0,400}__iosChoYen[\s\S]{0,200}else l\.remove\(\)/.test(APPJS)));
 
   /* Lỗi suýt gây ra: đặt tên lớp trùng. `.kx-cot` đã là "một cột dọc", mà hình
    * nhiều cột của Bảng công việc suýt dùng lại đúng tên đó. */

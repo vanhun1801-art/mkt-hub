@@ -1789,6 +1789,13 @@ function theViec(t, buoc) {
     '</div></div>';
 }
 
+/* Hai hằng này bị xoá nhầm ở commit 2b31908 (04/09/2026, "soát toàn hệ") trong
+ * khi viewCalendar vẫn dùng — tab Lịch ném ReferenceError và đứng yên ở màn cũ
+ * từ đó. Khôi phục nguyên văn bản trước commit (25/09/2026). */
+const DOW = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'];
+const MONTHS = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6',
+                'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'];
+
 function viewCalendar() {
   const { y, m } = S.cal;
   const q = S.f.q.trim().toLowerCase();

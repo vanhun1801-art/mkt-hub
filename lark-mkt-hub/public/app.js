@@ -775,6 +775,19 @@ function coBanChupXuong(id) {
   try { return !!localStorage.getItem('kx.xuong.' + id); } catch (_) { return false; }
 }
 
+/* Gỡ lớp phủ khung xương của một app con. Lớp giao diện iOS (ios.js) cài
+ * `window.__iosChoYen` để giữ lớp phủ cho tới khi app con vẽ xong và ĐỨNG YÊN
+ * (không còn xê dịch bố cục), rồi mới mờ dần đi — người dùng không thấy các
+ * khối nở ra, xuống dòng, đẩy nhau lúc dữ liệu vừa về. Không có lớp iOS thì gỡ
+ * ngay như cũ. Gọi hai lần (DOMContentLoaded của app con và `load`) là vô hại. */
+function boLopPhuKhung(wrap, f) {
+  const l = wrap.querySelector('.frame-loading');
+  if (!l || l.dataset.dangGo === '1') return;
+  l.dataset.dangGo = '1';
+  if (typeof window.__iosChoYen === 'function') window.__iosChoYen(f, () => l.remove(), l);
+  else l.remove();
+}
+
 function khungCuaModule(mod, rec, mo) {
   if (S.frames.has(mod.id)) return S.frames.get(mod.id);
 
@@ -803,8 +816,7 @@ function khungCuaModule(mod, rec, mo) {
   f.title = mod.ten;
   f.setAttribute('allow', 'clipboard-write; fullscreen');
   f.addEventListener('load', () => {
-    const l = wrap.querySelector('.frame-loading');
-    if (l) l.remove();
+    boLopPhuKhung(wrap, f);
     if (dinhTrangLoi(f)) return phuLoi(o, mod);
     // module vừa nạp -> đẩy theme hiện tại xuống ngay cho khỏi nháy sai tone
     try { f.contentWindow.postMessage({ hub: 'theme', v: themeThuc() }, location.origin); } catch (_) {}
@@ -1134,6 +1146,7 @@ function dongViecHtml(v, tenModule) {
    giữa trang chủ còn tệ hơn là không có.
    ============================================================ */
 let TIN = { phim: null, ds: null };
+let TIN_THU = 0;   // số lần đọc lại khối tin khi máy chủ vừa dậy trả rỗng (xem veKhoiTin)
 
 /* Trang đã từng có cú bấm nào chưa.
  *
@@ -1194,17 +1207,37 @@ async function veKhoiTin() {
   /* Đọc một lần rồi giữ: trang chủ tự vẽ lại theo nhịp số liệu (20 giây), mà
    * hai đường này gần như không đổi. Vẽ lại mà hỏi lại là video đang phát bị
    * dựng lại từ đầu — mất chỗ đang xem. */
+  // Đang đọc (hoặc đang chờ đọc lại) thì lần vẽ lại chen ngang của trang chủ bỏ
+  // qua khối này — không vẽ trạng thái trống, không bắn thêm một lượt đọc song song.
+  if (TIN.cho) return;
   if (TIN.ds === null) {
     /* Khung xương của khối này dựng theo TRÍ NHỚ: lần mở trước có video thì
      * chừa ô video, chỉ có tin thì chừa cột tin, chưa có gì thì không vẽ gì cả.
      * Hứa đúng thứ sắp hiện ra — chứ khối xám hiện lên rồi biến mất thì đọc
      * như trang bị lỗi. */
     veTinXuong();
+    TIN.cho = true;
     const [phim, tin] = await Promise.all([
-      goi('/api/video-gt-tin').catch(() => ({ co: false })),
-      goi('/api/tb-app/tin').catch(() => ({ ds: [] })),
+      goi('/api/video-gt-tin').catch(() => ({ co: false, loi: true })),
+      goi('/api/tb-app/tin').catch(() => ({ ds: [], loi: true })),
     ]);
     TIN = { phim, ds: tin.ds || [] };
+    /* Máy chủ vừa dậy (Render gói Free ngủ 15 phút; hub vừa khởi động lại) thì
+     * lần đọc đầu có thể lỗi hoặc rỗng. Trước đây khối "đọc một lần rồi giữ" nên
+     * giữ luôn "Chưa có thông báo nào." cho tới khi người ta tự tải lại trang —
+     * đo được 25/09/2026 ngay sau một lần khởi động lại. Lần trước có tin mà lần
+     * này lỗi/rỗng thì thử lại sau 4 giây, tối đa 3 lần; và KHÔNG ghi đè trí nhớ
+     * "có tin" bằng một lần đọc hỏng. */
+    let nho = '';
+    try { nho = localStorage.getItem('hub.tin.hinh') || ''; } catch (_) {}
+    // có video mà tin rỗng cũng tính: đúng ca đã gặp (video lên, cột tin "Chưa có thông báo nào")
+    const hong = phim.loi || tin.loi || (nho && !TIN.ds.length);
+    if (hong && TIN_THU < 3) {
+      TIN_THU++;
+      TIN = { phim: null, ds: null, cho: true };
+      setTimeout(() => { TIN.cho = false; o.dataset.xong = ''; veKhoiTin(); }, 4000);
+      return;
+    }
   }
   const coPhim = TIN.phim && TIN.phim.co;
   try {
@@ -1996,12 +2029,19 @@ const MODULE_TAC_NGHIEP = 'lich-tac-nghiep';
 /** Khoảng cho lịch: luôn cần biên, chọn "Toàn bộ" thì lấy tháng hiện tại. */
 function khoangLich() {
   const k = khoangDangLoc();
-  if (k) return k;
   const now = new Date();
-  return {
-    tu: d2s(new Date(now.getFullYear(), now.getMonth(), 1)),
-    den: d2s(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
-  };
+  const thang = (y, m) => ({ tu: d2s(new Date(y, m, 1)), den: d2s(new Date(y, m + 1, 0)) });
+  if (!k) return thang(now.getFullYear(), now.getMonth());
+  /* Máy chủ chặn lưới quá 92 ngày (server.js). Chọn "Năm nay" hay một khoảng
+   * tuỳ chỉnh dài thì trước đây cả khối Tải nhân sự thành hộp báo lỗi đỏ
+   * "Khoảng quá rộng (365 ngày)". Làm như mốc "Toàn bộ": dải nhiệt lấy MỘT
+   * tháng — tháng này nếu hôm nay nằm trong khoảng, không thì tháng cuối của
+   * khoảng. Các thẻ số bên trên vẫn tính trên cả khoảng đã chọn. */
+  const tu = new Date(k.tu + 'T00:00:00'), den = new Date(k.den + 'T00:00:00');
+  // cùng công thức với server.js: số ngày = hiệu + 1, quá 92 là bị chặn
+  if (Math.round((den - tu) / 86400000) + 1 <= 92) return k;
+  if (now >= tu && now <= den) return thang(now.getFullYear(), now.getMonth());
+  return thang(den.getFullYear(), den.getMonth());
 }
 
 let dangNapLich = false;
@@ -2971,8 +3011,7 @@ window.addEventListener('message', (ev) => {
   if (d && d.hub === 'xin-loc') {
     if (d.id) {
       const o = S.frames.get(d.id);
-      const l = o && o.wrap.querySelector('.frame-loading');
-      if (l) l.remove();
+      if (o) boLopPhuKhung(o.wrap, o.iframe);
     }
     guiKhoangXuongModule();
     return;

@@ -218,6 +218,20 @@ ${them}
 `;
 }
 
+/* Lớp giao diện iOS (bản thử) cho app con — chèn CÙNG CHỖ với dienthoai.css
+ * (cuối <head>, sau styles.css của app). File do lớp vỏ phục vụ; mọi luật nằm
+ * dưới html[data-skin="ios"] nên chèn luôn cũng vô hại khi người dùng chọn
+ * 'goc'. Cờ đọc từ localStorage 'hub.skin' (app con cùng origin với lớp vỏ);
+ * data-app để ios.css khoanh luật theo từng app. ios-app.js gỡ emoji khỏi khung
+ * giao diện, dựng nút tạo mới thống nhất… (chỉ chạy khi skin iOS bật). */
+function lopIos(mod) {
+  const v = cfg.verChung || '1';
+  return '<link rel="stylesheet" href="/ios.css?v=' + v + '" data-hub="1">\n'
+    + '<script src="/ios-app.js?v=' + v + '" defer data-hub="1"></' + 'script>\n'
+    + '<script data-hub="1">document.documentElement.setAttribute("data-app",' + JSON.stringify(mod.id)
+    + ');try{if(localStorage.getItem("hub.skin")!=="goc")document.documentElement.setAttribute("data-skin","ios")}catch(e){document.documentElement.setAttribute("data-skin","ios")}</' + 'script>\n';
+}
+
 function chenVaoHtml(html, mod, nguoi) {
   let out = html;
 
@@ -245,8 +259,9 @@ function chenVaoHtml(html, mod, nguoi) {
    *
    * href để NGUYÊN "/dienthoai.css": đoạn này chạy SAU lượt thêm tiền tố ở trên
    * nên nó không bị đổi thành /m/<id>/..., và file này do chính lớp vỏ phục vụ. */
+  const linkIos = lopIos(mod);
   const linkDt = '<link rel="stylesheet" href="/dienthoai.css?v='
-    + (cfg.verChung || '1') + '" data-hub="1">\n';
+    + (cfg.verChung || '1') + '" data-hub="1">\n' + linkIos;
   if (/<\/head>/i.test(out)) out = out.replace(/<\/head>/i, (m) => linkDt + m);
   else out = out.replace('<style data-hub="1">', (m) => linkDt + m);
 

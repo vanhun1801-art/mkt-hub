@@ -568,3 +568,16 @@ td.tacvu .btn + .btn { margin-left: 5px; }
   border: 1px solid var(--line); background: var(--surface); color: var(--t1);
   border-radius: 8px; padding: 7px 10px; font-size: 13px; font-family: inherit;
 }
+
+/* Điện thoại: nâng chữ nhỏ của tab Báo cáo (bảng số gửi BGĐ) và ô hỏng chứng từ
+   — test/dien-thoai.test.js [4] canh: chữ <12px nào cũng phải có luật nâng ở
+   khối điện thoại. Thêm 25/09/2026 (các lớp này có từ commit 06826e4, sau lần
+   cuối bộ test được cập nhật). */
+@media (max-width: 640px) {
+  .ct-hong { font-size: 13px; }
+  .bc-g { font-size: 13px; }
+  .bc-nhac { font-size: 13px; }
+  .ct-hong code { font-size: 12.5px; }
+  .bc-lb { font-size: 12.5px; }
+  .bc-bang th { font-size: 12px; }
+}

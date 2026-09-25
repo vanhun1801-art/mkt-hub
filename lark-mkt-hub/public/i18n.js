@@ -23,6 +23,9 @@
     'Marketing Hub': 'Marketing Hub',
     'Rooty Trip Phú Quốc': 'Rooty Trip Phu Quoc',
     'Tổng quan chung': 'Overview',
+    /* --- lớp giao diện iOS (ios.js): thanh tab điện thoại, màn Cá nhân --- */
+    'Công việc': 'Tasks',
+    'Cá nhân': 'Profile',
 
     /* --- lớp phủ khi khung app con dính trang lỗi (phuLoi trong app.js) ---
      * Trang loi.html đứng một mình, KHÔNG nạp file này (lúc nó hiện ra thì
