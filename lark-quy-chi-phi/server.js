@@ -489,6 +489,14 @@ async function xuLy(req, res) {
     return json(res, kq, kq.ok ? 200 : 502);
   }
 
+  /* quỹ thấp: GET xem trước (dựng cả khi quỹ chưa thấp), ?gui=1 gửi thử */
+  if (p === '/api/nhac-quy-thap' && req.method === 'GET') {
+    if (!(await doiChuQuy(res))) return;
+    const gui = url.searchParams.get('gui') === '1';
+    const kq = await require('./quy-thap').chay(depNhac(), { ep: true, xem: !gui, tieuDeThem: gui ? '[THỬ] ' : '' });
+    return json(res, kq, kq.ok ? 200 : 502);
+  }
+
   /* ---- thẻ chỉ số cho trang Tổng quan của hub ----
    * Hub KHÔNG đọc Base của app này; nó hỏi đúng đường dưới đây. Định nghĩa
    * "còn bao nhiêu tiền", "bao nhiêu khoản chờ quyết toán" nằm ở app — đổi cách
@@ -975,7 +983,9 @@ const MIME_TEP = {
 function depNhac() {
   return {
     lark, cfg,
-    docChi: async () => { const k = await nap(true); return { chi: k.chi.map((r) => doiRa(r, F.chi)), dot: k.dot.map((r) => doiRa(r, F.dot)) }; },
+    docChi: async () => { const k = await nap(true); return { chi: k.chi.map((r) => doiRa(r, F.chi)), dot: k.dot.map((r) => doiRa(r, F.dot)), nap: k.nap.map((r) => doiRa(r, F.nap)) }; },
+    tinhQuy,
+    baoCaoDen: cfg.baoCao && cfg.baoCao.den,
     twHost: ((tourwell.docCauHinh() || {}).host || 'https://rootytrip.tourwell.net').replace(/\/+$/, ''),
     urlHub: (process.env.PUBLIC_URL || process.env.HUB_URL || 'https://mkt-hub-w6hi.onrender.com').replace(/\/+$/, ''),
   };
@@ -984,6 +994,8 @@ function depNhac() {
 server.listen(cfg.port, BIND, () => {
   /* ngày 1 (và 5, 9 nếu còn việc): nhắc thanh toán chi phí tháng trước trước khi kế toán đóng sổ ngày 10 */
   require('./nhac-thang').bat(depNhac());
+  /* quỹ dưới 1,5 triệu: nhắc báo cáo + đề xuất nhập quỹ (quy-thap.js) */
+  require('./quy-thap').bat(depNhac());
   console.log('\n  Rooty Trip · Quỹ chi phí Marketing');
   console.log('  ->  http://localhost:' + cfg.port);
   console.log('\n  Base  : ' + cfg.baseToken);

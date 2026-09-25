@@ -186,4 +186,4 @@ function bat(dep) {
   setInterval(thu, 10 * 60 * 1000).unref();
 }
 
-module.exports = { bat, chay, phanLoai, kyDong, theNhac };
+module.exports = { bat, chay, phanLoai, kyDong, theNhac, timNguoiNhan, gui };
