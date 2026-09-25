@@ -19,6 +19,7 @@
  */
 const crypto = require('crypto');
 const canh = require('../lark-chung/canh-api');
+const nhip = require('./nhip');
 
 const KHOA = crypto.randomBytes(24).toString('hex');
 const GOM_MS = 45 * 1000, IM_MS = 60 * 60 * 1000;
@@ -141,6 +142,8 @@ function bat(dep) {
   return {
     HUB_BAO_LOI_URL: 'http://127.0.0.1:' + c.port + '/_noi-bo/loi-api',
     HUB_GUI_TIN_URL: 'http://127.0.0.1:' + c.port + '/_noi-bo/gui-tin',
+    /* đồng hồ nhịp gọi Lark dùng chung — xem lark-mkt-hub/nhip.js */
+    HUB_NHIP_URL: 'http://127.0.0.1:' + c.port + '/_noi-bo/nhip',
     HUB_KHOA_NOI_BO: KHOA,
     /* gạch chéo xuôi: trong NODE_OPTIONS có ngoặc kép thì "\" là ký tự thoát — để
      * nguyên đường dẫn Windows là mọi app con chết ngay lúc nạp (đã gặp khi thử). */
@@ -150,9 +153,17 @@ function bat(dep) {
 
 /** Xử lý POST /_noi-bo/loi-api. Trả true nếu đã xử lý request. */
 function xuLy(req, res, p) {
-  if (p !== '/_noi-bo/loi-api' && p !== '/_noi-bo/gui-tin') return false;
+  if (p !== '/_noi-bo/loi-api' && p !== '/_noi-bo/gui-tin' && p !== '/_noi-bo/nhip') return false;
   const tuMay = /^(::ffff:)?127\.0\.0\.1$|^::1$/.test(req.socket.remoteAddress || '');
-  if (req.method !== 'POST' || !tuMay || req.headers['x-hub-khoa'] !== KHOA) { res.writeHead(404); res.end(); return true; }
+  const ptDung = p === '/_noi-bo/nhip' ? 'GET' : 'POST';
+  if (req.method !== ptDung || !tuMay || req.headers['x-hub-khoa'] !== KHOA) { res.writeHead(404); res.end(); return true; }
+  /* Xin lượt gọi Lark. Trả lời KHÔNG ĐỌC THÂN và không chờ gì — đường này nằm
+   * trên mọi lời gọi Lark của mười hai app con nên phải rẻ nhất có thể. */
+  if (p === '/_noi-bo/nhip') {
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify(nhip.xin()));
+    return true;
+  }
   const tran = p === '/_noi-bo/gui-tin' ? 200000 : 8192;
   let than = '';
   req.on('data', (d) => { than += d; if (than.length > tran) req.destroy(); });

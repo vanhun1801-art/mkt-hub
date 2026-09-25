@@ -24,6 +24,12 @@
  * thông điệp lỗi cắt ngắn và xoá mọi chuỗi trông như token.
  */
 const https = require('https');
+/* Tệp này được nhét vào MỌI app con bằng NODE_OPTIONS --require. Nó ném lỗi
+ * lúc nạp là cả mười hai app chết ngay từ dòng đầu, mà triệu chứng chỉ là "app
+ * không bật được" — không ai đoán ra tại cái đồng hồ đếm nhịp. Nạp hụt thì coi
+ * như không có nhịp, đúng như chạy dưới máy. */
+let nhip = { xinLuot: async () => 0 };
+try { nhip = require('./nhip-lark'); } catch (_) { /* không có nhịp thì thôi */ }
 const { AsyncLocalStorage } = require('async_hooks');
 
 const im = new AsyncLocalStorage();
@@ -79,6 +85,10 @@ function boc() {
       try { u = new URL(typeof input === 'string' ? input : input && input.url ? input.url : String(input)); } catch (_) { return goc.call(this, input, init); }
       if (NOI_BO.test(u.hostname) || im.getStore()) return goc.call(this, input, init);
       const phuongThuc = (init && init.method) || (input && input.method) || 'GET';
+      /* Xin hub một lượt trước khi gọi Lark: cả mười hai app con dùng chung một
+       * hạn mức, xem lark-mkt-hub/nhip.js. Không có hub thì hàm này trả ngay,
+       * và hub hỏng cũng trả ngay — không bao giờ chặn việc thật. */
+      try { await nhip.xinLuot(u.hostname); } catch (_) { /* nhịp hỏng thì cứ gọi */ }
       let r;
       try { r = await goc.call(this, input, init); } catch (e) {
         const c = e && e.cause;
