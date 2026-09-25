@@ -3029,9 +3029,13 @@ function buildDrawer() {
   const isNew = !!t.isNew;
   const staff = isStaffMode();
 
+  // Tab "Việc đã order": người order chỉ XEM (trạng thái/sản phẩm read-only).
+  // Quản lý vẫn bấm "Sửa đầy đủ" để chuyển sang form sửa.
+  const orderRO = !isNew && S.view === 'order' && !S.suaDayDu;
+
   $('#dRecId').textContent = isNew ? 'CÔNG VIỆC MỚI' : t.id;
   $('#dTitleView').textContent = isNew ? 'Tạo công việc mới' : (t.title || '(chưa có tên)');
-  $('#dDelete').classList.toggle('hidden', isNew || staff);
+  $('#dDelete').classList.toggle('hidden', isNew || staff || orderRO);
   const nutFull = $('#dFull');
   nutFull.classList.toggle('hidden', isNew || !S.isManager);
   nutFull.textContent = staff ? '✎ Sửa đầy đủ' : '◀ Xem bản gọn';
@@ -3039,6 +3043,7 @@ function buildDrawer() {
     ? 'Mở form sửa mọi trường (deadline, người phụ trách, chiến dịch…)'
     : 'Về bản gọn — đúng những gì nhân sự nhìn thấy';
   $('#dSave').textContent = isNew ? 'Tạo công việc' : 'Lưu thay đổi';
+  $('#dSave').classList.toggle('hidden', orderRO);   // read-only: không có gì để lưu
   // Nháp chỉ có nghĩa với việc chưa tồn tại; việc đã có thì "Lưu thay đổi" ghi thẳng
   $('#dNhap').classList.toggle('hidden', !isNew);
 
@@ -3067,6 +3072,7 @@ function buildDrawer() {
   b.innerHTML = '';
 
   if (isNew) return buildCreateForm(b, t, o);
+  if (orderRO) return buildOrderDrawer(b, t, o);   // người order: chỉ xem
   if (staff) return buildStaffDrawer(b, t, o);
 
   /* ---- chế độ quản lý: sửa mọi trường ---- */
@@ -3463,6 +3469,58 @@ function buildStaffDrawer(b, t, o) {
     }
   }
   if (foot.children.length) b.appendChild(foot);
+}
+
+/** Drawer cho NGƯỜI ORDER (tab "Việc đã order"): CHỈ ĐỌC.
+ *  Xem tình trạng + sản phẩm, không sửa được gì; muốn đổi thì gửi Yêu cầu điều chỉnh. */
+function buildOrderDrawer(b, t, o) {
+  // Thẻ 1: yêu cầu mình đã đặt (chỉ đọc)
+  const yc = theKhoi('Yêu cầu bạn đã đặt');
+  if (t.detail) yc.than.appendChild(moTaCoLink(t.detail));
+  else yc.than.appendChild(el('div', 'd-desc trong-nhe', 'Chưa ghi chi tiết yêu cầu.'));
+  if (t.link) {
+    const oLink = el('div', 'field');
+    oLink.appendChild(el('label', '', 'Link tài liệu / tracking'));
+    oLink.appendChild(moTaCoLink(t.link));
+    yc.than.appendChild(oLink);
+  }
+  yc.than.appendChild(khoiTep(t, 'Tài liệu bạn gửi kèm', t.attachment, '', false,
+    'Bạn không gửi tệp nào kèm theo.'));
+  b.appendChild(yc.the);
+
+  // Thẻ 2: tình trạng & sản phẩm (chỉ đọc)
+  const tt = theKhoi('Tình trạng & sản phẩm', 'cb');
+  const chips = el('div', 'd-chips');
+  chips.appendChild(vien('trạng thái', t.status || 'Chưa đặt', toneTrangThai(t.status)));
+  if (t.priority) chips.appendChild(vien('ưu tiên', plainLabel(t.priority), toneUuTien(t.priority)));
+  const nguoiPT = (t.owner || []).map((u) => u.name).join(', ');
+  chips.appendChild(vien('phụ trách', nguoiPT || 'chưa gán'));
+  if (t.workType) chips.appendChild(vien('loại', t.workType));
+  if (t.deadline) chips.appendChild(vien('hạn', fmtDate(t.deadline, true), laTreTheoHan(t) ? 'red' : ''));
+  if (t.rating) chips.appendChild(vien('điểm', '★'.repeat(t.rating) + ' ' + t.rating + '/5', 'green'));
+  tt.than.appendChild(chips);
+
+  const spLink = el('div', 'field');
+  spLink.appendChild(el('label', '', 'Link kết quả'));
+  if (t.linkKetQua) spLink.appendChild(moTaCoLink(t.linkKetQua));
+  else spLink.appendChild(el('div', 'ro-note', 'Chưa có link kết quả.'));
+  tt.than.appendChild(spLink);
+
+  tt.than.appendChild(khoiTep(t, 'File kết quả (sản phẩm)', t.fileKetQua, 'ket-qua', false,
+    'Chưa có sản phẩm nộp.'));
+  b.appendChild(tt.the);
+
+  // trao đổi vẫn mở (đọc + gửi bình luận), không phải sửa việc
+  b.appendChild(khoiBinhLuan(t));
+
+  // hành động duy nhất của người order: gửi yêu cầu điều chỉnh
+  const dc = el('div', 'sd-dc');
+  dc.appendChild(el('div', 'sd-dc-txt',
+    'Cần đổi deadline, nội dung hay thông tin của việc này? Gửi yêu cầu điều chỉnh — Admin sẽ xử lý, đừng tự sửa.'));
+  const adj = el('button', 'btn', 'Gửi yêu cầu điều chỉnh');
+  adj.onclick = () => { closeDrawer(); openAdjust(t); };
+  dc.appendChild(adj);
+  b.appendChild(dc);
 }
 
 const laAnh = (n) => /\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(n || '');
