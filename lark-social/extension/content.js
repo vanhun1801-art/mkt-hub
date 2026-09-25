@@ -349,8 +349,30 @@
       || (t.getAttribute && t.getAttribute('role') === 'textbox');
     if (!laO) return;
     const v = (t.value || t.innerText || t.textContent || '').trim();
-    if (v.length >= DAI_TOI_THIEU) nhoNhap(v);
+    if (v.length >= DAI_TOI_THIEU && !RAC.test(v) && laOSoan(t)) nhoNhap(v);
   }, true);
+
+  /* Ô SOẠN BÀI KHÔNG CHỨA LINK VÀ NÚT.
+   *
+   * Lọc "ô nhiều chữ nhất" là chưa đủ. Đã lọt ba dòng rác vào bảng chờ:
+   * «15 đoạn chat chưa đọc 15 Số thông báo chưa đọc 20+ Quản lý trang Rooty…»
+   * — đó là thanh điều hướng trái của Business Suite, không phải caption nào
+   * cả. Và «Video của bạn bị tắt tiếng ở một số quốc gia…» là hộp thông báo của
+   * Facebook. Chúng dài hơn caption thật nên luôn thắng, rồi nằm trong hàng chờ
+   * ba mươi mốt ngày mới hết hạn.
+   *
+   * Dấu hiệu tách bạch mà không phụ thuộc tên lớp CSS của Facebook: khối soạn
+   * bài chỉ có CHỮ (và ảnh emoji), còn thanh điều hướng hay hộp thoại thì đầy
+   * link, nút, menu. Thấy mấy thứ đó bên trong thì đó không phải ô soạn bài. */
+  function laOSoan(el) {
+    return !el.querySelector(
+      'a[href],button,[role="button"],[role="link"],[role="navigation"],'
+      + '[role="menu"],[role="menuitem"],[role="tablist"],[role="dialog"],input,select',
+    );
+  }
+
+  /* Lưới an toàn thứ hai nằm ở loc.js để thử được bằng Node — xem RT_LOC. */
+  const RAC = { test: (t) => RT_LOC.laRacGiaoDien(t) };
 
   function chuSoanBai() {
     /* Lấy ô nhiều chữ nhất đang hiện, vì Business Suite còn có ô tìm kiếm và ô
@@ -365,8 +387,10 @@
        * nên phép thử cũ loại bỏ ĐÚNG cái ô cần tìm. Đây là lý do bốn lần thử đều
        * “bắt được nút nhưng không đọc được chữ”. getClientRects() đúng cho cả hai. */
       if (!el.getClientRects().length) return;
+      if (!laOSoan(el)) return;
       soO++;
       const t = (el.value || el.innerText || el.textContent || '').trim();
+      if (RAC.test(t)) return;
       if (t.length > tot.length) tot = t;
     });
     daiNhat = tot.length;

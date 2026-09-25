@@ -194,5 +194,42 @@ t('mọi cú bấm đều chụp bản nháp trước khi xét nút', () => {
     'và chỉ ghi khi đủ dài, khác bản đang có');
 });
 
+
+t('nhận ra chữ của giao diện Facebook, không phải caption', () => {
+  /* Ba dòng này đã lọt vào bảng chờ thật, ngày 22–23/09. Chúng dài hơn caption
+     nên luôn thắng phép "lấy ô nhiều chữ nhất", rồi nằm đó ba mươi mốt ngày. */
+  assert.ok(L.laRacGiaoDien(
+    '15 đoạn chat chưa đọc 15 Số thông báo chưa đọc 20+ Quản lý trang Rooty MICE Phú Quốc'),
+  'thanh điều hướng trái của Business Suite');
+  assert.ok(L.laRacGiaoDien(
+    'Video của bạn bị tắt tiếng ở một số quốc gia nơi Meta không có bản quyền'),
+  'hộp thông báo bản quyền');
+  assert.ok(L.laRacGiaoDien('4 đoạn chat chưa đọc 4 Số thông báo chưa đọc 12'));
+});
+
+t('caption thật thì không bị chặn nhầm', () => {
+  /* Lấy từ chính những bài đã ghi nhận đúng — chặn nhầm một bài là mất tên
+     người đăng mà không ai biết, tệ hơn là để lọt một dòng rác. */
+  [
+    'Bà chắc chưa bà?!! #RootyTrip #RootyTripPhuQuoc #reels #dulichphuquoc',
+    'Chỉ 100 cá cho chiếc show tientrieu này thì bảo sao không đông 😘',
+    'When Sunset Town Phu Quoc “dresses up” for the night… #RootyTrip',
+    'Combo 3 ngày 2 đêm khám phá từ Nam chí Bắc!!! #Tour',
+    '',
+  ].forEach((x) => assert.ok(!L.laRacGiaoDien(x), JSON.stringify(x.slice(0, 40))));
+});
+
+t('tiện ích chặn rác theo CẤU TRÚC, không chỉ theo chữ', () => {
+  /* Danh sách chữ là lưới thứ hai. Chặn chính phải là: ô soạn bài không chứa
+     link, nút, menu — thứ mà thanh điều hướng và hộp thoại nào cũng có. Chặn
+     bằng chữ mà thôi thì Facebook đổi một câu là lọt tiếp. */
+  const src = require('fs').readFileSync(
+    require('path').join(__dirname, '..', 'extension', 'content.js'), 'utf8');
+  assert.ok(src.includes('function laOSoan'), 'phải có phép thử cấu trúc');
+  assert.ok(src.includes('[role="navigation"]'), 'loại thanh điều hướng');
+  assert.ok(src.includes('[role="dialog"]'), 'loại hộp thoại');
+  assert.ok(src.includes('if (!laOSoan(el)) return;'), 'và phải THẬT SỰ dùng nó khi quét ô');
+});
+
 console.log('\n' + dat + ' phép thử đạt' + (hong ? ' — CÓ LỖI' : ''));
 if (hong) process.exit(1);

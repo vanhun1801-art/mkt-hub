@@ -39,5 +39,19 @@
     return x.includes(y) || y.includes(x);
   }
 
-  goc.RT_LOC = { dauVan, tachTen, trungNhau, RE_TEN };
+  /* Mấy câu chữ của chính giao diện Facebook — không đời nào là caption.
+   *
+   * Đã lọt vào bảng chờ thật ba dòng: «15 đoạn chat chưa đọc 15 Số thông báo
+   * chưa đọc 20+ Quản lý trang Rooty…» là thanh điều hướng trái của Business
+   * Suite, và «Video của bạn bị tắt tiếng ở một số quốc gia…» là hộp thông báo.
+   * Chúng dài hơn caption thật nên luôn thắng phép "lấy ô nhiều chữ nhất", rồi
+   * nằm trong hàng chờ ba mươi mốt ngày mới hết hạn.
+   *
+   * Chặn chính vẫn là chặn theo CẤU TRÚC (ô soạn bài không chứa link, nút,
+   * menu — xem laOSoan trong content.js). Danh sách chữ này là lưới thứ hai,
+   * phòng khi Facebook dựng lại DOM khiến phép chặn kia hụt. */
+  const RAC = /(đoạn chat chưa đọc|số thông báo chưa đọc|quản lý trang|video của bạn bị tắt tiếng)/i;
+  const laRacGiaoDien = (s) => RAC.test(String(s || ''));
+
+  goc.RT_LOC = { dauVan, tachTen, trungNhau, laRacGiaoDien, RE_TEN, RAC };
 }(typeof self !== 'undefined' ? self : this));
