@@ -18,7 +18,15 @@ const BANG = cfg.bang.caiDat;
 const KHOA = 'mail.phien';
 /* gửi thư + đọc thư trả lời (theo-doi-mail.js) + giữ phiên lâu dài */
 const QUYEN_DOC = ['mail:user_mailbox.message:readonly', 'mail:user_mailbox.message.subject:read', 'mail:user_mailbox.message.body:read', 'mail:user_mailbox.message.address:read'];
-const PHAM_VI = ['mail:user_mailbox.message:send', ...QUYEN_DOC, 'offline_access'].join(' ');
+/* Lưu NHÁP là thao tác SỬA hộp thư, không phải gửi — Lark đòi một quyền
+ * riêng. Thiếu nó thì /drafts trả 99991679 "required one of these privileges:
+ * mail:user_mailbox.message:modify", đúng lỗi ngày 25/09/2026.
+ *
+ * Thêm quyền vào đây CHƯA đủ: phiên đã kết nối vẫn mang bộ quyền cũ, phải
+ * Ngắt kết nối rồi Kết nối hộp thư lại thì Lark mới hỏi cấp quyền mới. Câu
+ * lỗi ở goiThu() nói thẳng điều đó. */
+const QUYEN_SUA = 'mail:user_mailbox.message:modify';
+const PHAM_VI = ['mail:user_mailbox.message:send', QUYEN_SUA, ...QUYEN_DOC, 'offline_access'].join(' ');
 const ACC = (cfg.apiHost || 'https://open.larksuite.com').replace('open.', 'accounts.');
 const goiLai = () => (process.env.PUBLIC_URL || '').replace(/\/+$/, '') + (process.env.HUB_PREFIX || '') + '/mail-callback';
 
@@ -174,7 +182,15 @@ async function goiThu(duong, than) {
   });
   const d = await r.json().catch(() => ({ code: r.status, msg: 'HTTP ' + r.status }));
   if (d.code !== 0) {
-    throw Object.assign(new Error('Lark Mail: ' + (d.msg || d.code) + ' (mã ' + d.code + ')'), { http: 424 });
+    /* Câu của Lark là một đoạn tiếng Anh dài nói "required one of these
+     * privileges…" — người bấm nút đọc xong vẫn không biết phải làm gì. Dịch
+     * thành đúng một việc: đi kết nối lại hộp thư. */
+    const thieuQuyen = d.code === 99991679 || /privilege|permission|scope|unauthorized/i.test(String(d.msg || ''));
+    throw Object.assign(new Error(thieuQuyen
+      ? 'Phiên hộp thư chưa có quyền lưu nháp / đính kèm tệp. Vào Cài đặt → '
+        + 'Kết nối hộp thư, bấm Ngắt kết nối rồi Kết nối lại để cấp thêm quyền '
+        + '(' + QUYEN_SUA + ').'
+      : 'Lark Mail: ' + (d.msg || d.code) + ' (mã ' + d.code + ')'), { http: 424 });
   }
   return d.data || {};
 }
@@ -284,11 +300,16 @@ async function thuDen(hop, toiDa = 20) {
   return out.sort((a, b) => b.luc - a.luc);
 }
 const coQuyenDoc = () => !!(phien && (hopDoc || /mail:user_mailbox\.message(:readonly|\.body:read)/.test(String(phien.quyen || ''))));
+/* Phiên kết nối TRƯỚC 25/09/2026 không có quyền sửa, nên lưu nháp và đính kèm
+ * sẽ hỏng. Bày ra ở màn hình Kết nối hộp thư để thấy trước khi bấm, thay vì
+ * bấm rồi mới nhận câu lỗi. */
+const coQuyenSua = () => !!(phien && String(phien.quyen || '').includes(QUYEN_SUA));
 
 async function trangThai() {
   const p = await napPhien().catch(() => null);
-  return p ? { ketNoi: true, email: p.email, ten: p.ten, luc: p.luc, docDuoc: coQuyenDoc() } : { ketNoi: false };
+  return p ? { ketNoi: true, email: p.email, ten: p.ten, luc: p.luc,
+    docDuoc: coQuyenDoc(), nhapDuoc: coQuyenSua() } : { ketNoi: false };
 }
 async function ngat() { access = null; await luuPhien(null); }
 
-module.exports = { urlKetNoi, nhanCode, gui, nhap, guiNhap, guiKemTep, trangThai, ngat, goiLai, thuDen, napPhien, coQuyenDoc, chuKy, ghiChuKy, _ma: ma, _giai: giai };
+module.exports = { urlKetNoi, nhanCode, gui, nhap, guiNhap, guiKemTep, trangThai, ngat, goiLai, thuDen, napPhien, coQuyenDoc, coQuyenSua, PHAM_VI, chuKy, ghiChuKy, _ma: ma, _giai: giai };

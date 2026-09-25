@@ -1190,7 +1190,11 @@ async function moEmail(ht, loai, dt, lang) {
   const hop = moModal(TEN_EMAIL[loai] + (dt ? ' · ' + dt : ''), (m.chan ? '<div class="bao cam">' + e(m.chan) + '</div>' : '') +
     (S.meta.mail.mode === 'api' ? (S.meta.mail.hopThu && S.meta.mail.hopThu.ketNoi
       ? '<div class="bao xanh" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span>Gửi từ <b>' + e(S.meta.mail.from) + '</b> bằng tài khoản đã kết nối <b>' + e(S.meta.mail.hopThu.email) + '</b>. Bản trên Hub chỉ gửi thẳng, không lưu nháp.' +
-        (S.meta.mail.hopThu.docDuoc ? ' App tự đọc thư trả lời mỗi 10 phút.' : ' <b>Chưa có quyền đọc thư trả lời</b> — bấm Ngắt kết nối rồi Kết nối hộp thư lại.') + '</span><div class="lon"></div><button class="btn nho" id="emNgat">Ngắt kết nối</button></div>'
+        (S.meta.mail.hopThu.docDuoc ? ' App tự đọc thư trả lời mỗi 10 phút.' : ' <b>Chưa có quyền đọc thư trả lời</b> — bấm Ngắt kết nối rồi Kết nối hộp thư lại.')
+        /* Quyền LƯU NHÁP thêm ngày 25/09/2026. Phiên kết nối trước đó không có
+         * nó, nên lưu nháp và đính kèm tệp sẽ hỏng — nói ra ở đây để thấy
+         * trước khi bấm, thay vì bấm rồi mới nhận câu lỗi. */
+        + (S.meta.mail.hopThu.nhapDuoc ? ' Lưu nháp và đính kèm tệp: được.' : ' <b>Chưa lưu nháp / đính kèm tệp được</b> — ngắt rồi kết nối lại để cấp thêm quyền.') + '</span><div class="lon"></div><button class="btn nho" id="emNgat">Ngắt kết nối</button></div>'
       : '<div class="bao cam" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span>Chưa kết nối hộp thư. Bấm <b>Kết nối hộp thư</b>, đăng nhập Lark bằng tài khoản giữ hộp thư <b>' + e(S.meta.mail.from) + '</b> và đồng ý quyền gửi thư — làm một lần.</span><div class="lon"></div>' +
         '<a class="btn chinh nho" id="emKetNoi" href="' + e(((window.__HUB__ && window.__HUB__.prefix) || '') + '/api/mail/ket-noi') + '" target="_blank" rel="noopener">Kết nối hộp thư</a></div>') : '') +
     (loai === 'xin-foc' && !m.den ? '<div class="bao cam">Chưa có email của ' + e(dt) + '. Điền vào ô Gửi — app nhớ cho lần sau.</div>' : '') +
