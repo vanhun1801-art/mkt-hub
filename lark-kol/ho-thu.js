@@ -186,11 +186,8 @@ async function goiThu(duong, than) {
      * privileges…" — người bấm nút đọc xong vẫn không biết phải làm gì. Dịch
      * thành đúng một việc: đi kết nối lại hộp thư. */
     const thieuQuyen = d.code === 99991679 || /privilege|permission|scope|unauthorized/i.test(String(d.msg || ''));
-    throw Object.assign(new Error(thieuQuyen
-      ? 'Phiên hộp thư chưa có quyền lưu nháp / đính kèm tệp. Vào Cài đặt → '
-        + 'Kết nối hộp thư, bấm Ngắt kết nối rồi Kết nối lại để cấp thêm quyền '
-        + '(' + QUYEN_SUA + ').'
-      : 'Lark Mail: ' + (d.msg || d.code) + ' (mã ' + d.code + ')'), { http: 424 });
+    throw Object.assign(new Error('Lark Mail: ' + (d.msg || d.code) + ' (mã ' + d.code + ')'),
+      { http: 424, maLark: d.code, thieuQuyen });
   }
   return d.data || {};
 }
@@ -200,16 +197,50 @@ async function goiThu(duong, than) {
  * @param {Array} [dinhKem] [{ten, kieu, than:Buffer}]
  */
 async function nhap({ tu, den, cc, tieuDe, html, ten, dinhKem }) {
-  const hop = tu || 'me';
   const eml = dungEml({
     tu: { email: tu || undefined, ten: ten || 'Rooty Trip Phú Quốc' },
     den, cc, tieuDe, html, dinhKem,
   });
-  const d = await goiThu('/open-apis/mail/v1/user_mailboxes/' + encodeURIComponent(hop) + '/drafts',
-    { raw: sangRaw(eml) });
-  const id = d.message_id || d.draft_id || d.id;
-  if (!id) throw Object.assign(new Error('Lark Mail nhận lá nháp nhưng không trả về mã nháp'), { http: 502 });
-  return { draftId: id, hop };
+  const raw = sangRaw(eml);
+
+  /* GỬI THAY và LƯU NHÁP THAY là hai chuyện khác nhau.
+   *
+   * Gửi từ cmo@ bằng phiên của người khác thì Lark cho, vì đó là địa chỉ gửi
+   * thay (send_as). Nhưng lá NHÁP phải nằm trong một hộp thư THẬT, và đặt nó
+   * vào hộp thư của người khác là thao tác trên tài nguyên của người ta — Lark
+   * từ chối kể cả khi phiên đã có quyền sửa hộp thư của CHÍNH MÌNH.
+   *
+   * Nên thử hộp thư được chỉ định trước; hỏng vì quyền thì lùi về 'me' — hộp
+   * thư của chính người đã kết nối. Lá nháp nằm ở đó cũng đúng chỗ: người mở
+   * Lark Mail ra đọc lại rồi bấm gửi chính là người ấy. Dòng From vẫn là cmo@
+   * vì nó nằm trong lá thư MIME, không phụ thuộc hộp thư chứa nháp.
+   */
+  const thu = [...new Set([tu || 'me', 'me'])];
+  let loiCuoi = null;
+  for (const hop of thu) {
+    try {
+      const d = await goiThu('/open-apis/mail/v1/user_mailboxes/' + encodeURIComponent(hop) + '/drafts',
+        { raw });
+      const id = d.message_id || d.draft_id || d.id;
+      if (!id) throw Object.assign(new Error('Lark Mail nhận lá nháp nhưng không trả về mã nháp'), { http: 502 });
+      return { draftId: id, hop };
+    } catch (e) {
+      loiCuoi = e;
+      if (!e.thieuQuyen) throw e;        // lỗi khác thì đừng thử mò tiếp
+    }
+  }
+  /* Hết đường: lúc này mới là thiếu quyền thật. Nói đúng việc phải làm, thay vì
+   * đưa nguyên đoạn tiếng Anh của Lark. */
+  const p = (phien && phien.quyen) || '';
+  throw Object.assign(new Error(
+    'Chưa lưu nháp được vào hộp thư nào (' + thu.join(', ') + '). '
+    + (p.includes(QUYEN_SUA)
+      ? 'Phiên ĐÃ có quyền ' + QUYEN_SUA + ', nên nhiều khả năng tài khoản đã kết nối ('
+        + ((phien && phien.email) || '?') + ') không phải chủ hộp thư đó.'
+      : 'Phiên hiện tại CHƯA có quyền ' + QUYEN_SUA + ' — vào Cài đặt → Kết nối hộp thư, '
+        + 'Ngắt kết nối rồi Kết nối lại.')
+    + ' Lark nói: ' + (loiCuoi ? loiCuoi.message : ''),
+  ), { http: 424 });
 }
 
 /** Gửi một lá nháp đã lưu. */
@@ -307,8 +338,10 @@ const coQuyenSua = () => !!(phien && String(phien.quyen || '').includes(QUYEN_SU
 
 async function trangThai() {
   const p = await napPhien().catch(() => null);
+  /* Trả luôn chuỗi quyền Lark ĐÃ cấp. Không có nó thì lúc hỏng phải đoán giữa
+   * "chưa cấp quyền" và "cấp rồi nhưng sai hộp thư" — hai bệnh, hai cách chữa. */
   return p ? { ketNoi: true, email: p.email, ten: p.ten, luc: p.luc,
-    docDuoc: coQuyenDoc(), nhapDuoc: coQuyenSua() } : { ketNoi: false };
+    docDuoc: coQuyenDoc(), nhapDuoc: coQuyenSua(), quyen: String(p.quyen || '') } : { ketNoi: false };
 }
 async function ngat() { access = null; await luuPhien(null); }
 
