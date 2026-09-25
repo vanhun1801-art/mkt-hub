@@ -477,6 +477,18 @@ async function xuLy(req, res) {
     });
   }
 
+  /* ---- nhắc đóng sổ hàng tháng (nhac-thang.js) ----
+   * GET xem trước thẻ; ?gui=1 gửi thử cho người giữ quỹ. ?ngay=YYYY-MM-DD để giả
+   * làm một ngày khác (vd. 2026-10-01). */
+  if (p === '/api/nhac-dong-so' && req.method === 'GET') {
+    if (!(await doiChuQuy(res))) return;
+    const q = url.searchParams.get('ngay');
+    const t = q ? Date.parse(q + 'T09:00:00+07:00') : Date.now();
+    const gui = url.searchParams.get('gui') === '1';
+    const kq = await require('./nhac-thang').chay(depNhac(), { t, ep: true, xem: !gui, tieuDeThem: gui ? '[THỬ] ' : '' });
+    return json(res, kq, kq.ok ? 200 : 502);
+  }
+
   /* ---- thẻ chỉ số cho trang Tổng quan của hub ----
    * Hub KHÔNG đọc Base của app này; nó hỏi đúng đường dưới đây. Định nghĩa
    * "còn bao nhiêu tiền", "bao nhiêu khoản chờ quyết toán" nằm ở app — đổi cách
@@ -959,7 +971,19 @@ const MIME_TEP = {
   '.txt': 'text/plain; charset=utf-8', '.heic': 'image/heic',
 };
 
+/* Phụ thuộc của bộ nhắc đóng sổ: đọc sổ mới nhất, địa chỉ Tourwell, địa chỉ hub. */
+function depNhac() {
+  return {
+    lark, cfg,
+    docChi: async () => { const k = await nap(true); return { chi: k.chi.map((r) => doiRa(r, F.chi)), dot: k.dot.map((r) => doiRa(r, F.dot)) }; },
+    twHost: ((tourwell.docCauHinh() || {}).host || 'https://rootytrip.tourwell.net').replace(/\/+$/, ''),
+    urlHub: (process.env.PUBLIC_URL || process.env.HUB_URL || 'https://mkt-hub-w6hi.onrender.com').replace(/\/+$/, ''),
+  };
+}
+
 server.listen(cfg.port, BIND, () => {
+  /* ngày 1 (và 5, 9 nếu còn việc): nhắc thanh toán chi phí tháng trước trước khi kế toán đóng sổ ngày 10 */
+  require('./nhac-thang').bat(depNhac());
   console.log('\n  Rooty Trip · Quỹ chi phí Marketing');
   console.log('  ->  http://localhost:' + cfg.port);
   console.log('\n  Base  : ' + cfg.baseToken);
