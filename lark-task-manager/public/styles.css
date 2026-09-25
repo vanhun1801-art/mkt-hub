@@ -575,6 +575,29 @@ td.c-check { width: 34px; }
 .inline-sel:hover { border-color: var(--border-2); background: var(--surface); }
 .inline-sel:focus { border-color: var(--blue); background: var(--surface); outline: none; }
 
+/* ---- Bảng công việc: cột cố định + kéo giãn được ---- */
+/* width đặt bằng JS = tổng độ rộng cột; KHÔNG dùng width:auto/min-width:100%
+ * vì kết hợp với table-layout:fixed gây vòng lặp tính rộng (bảng phình 16384px). */
+table.tb-fixed { table-layout: fixed; }
+.tb-fixed th { position: relative; overflow: hidden; }
+.tb-fixed th .th-lab { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tb-fixed td.cell-ell { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tb-fixed td.c-title { min-width: 0; }              /* fixed layout: bỏ min-width cũ để kéo hẹp được */
+.tb-fixed td.c-detail { color: var(--text-2); font-weight: 400; }
+.tb-fixed .c-people .avatars { margin-left: 0; }     /* .avatars mặc định dồn phải — cột người canh trái */
+.tb-fixed .inline-sel { width: 100%; max-width: 100%; }
+.tb-fixed tbody tr.row-click { cursor: pointer; }
+.av-more { background: var(--border-2) !important; color: var(--text-2) !important; font-size: 10px; }
+
+/* tay kéo mép phải tiêu đề cột */
+.col-resize { position: absolute; top: 0; right: 0; width: 9px; height: 100%; cursor: col-resize; z-index: 3; }
+.col-resize::after {
+  content: ''; position: absolute; top: 18%; right: 3px; width: 2px; height: 64%;
+  background: var(--border-2); opacity: 0; border-radius: 2px; transition: opacity .12s;
+}
+.tb-fixed th:hover .col-resize::after, .col-resize:hover::after { opacity: 1; }
+body.col-resizing, body.col-resizing * { cursor: col-resize !important; user-select: none !important; }
+
 /* ---------------- thanh chọn nhiều ---------------- */
 .bulkbar {
   position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);

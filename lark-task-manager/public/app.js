@@ -20,6 +20,7 @@ const S = {
   // không ghi đè bộ lọc thời gian người dùng đang đặt.
   filters: { campaign: '', workType: '', owner: '', priority: '', status: '', due: MAC_DINH_DUE, dueDate: '', moc: '', hideDone: false, q: '' },
   sort: { key: 'deadline', dir: 'asc' },
+  colW: {},                  // độ rộng cột bảng do người dùng kéo, nhớ ở localStorage
   selected: new Set(),
   collapsed: {},             // lane key -> true
   editing: null,
@@ -34,6 +35,8 @@ const S = {
   fetchedAt: 0,              // lúc server lấy dữ liệu lần cuối
   lastFocusPoll: 0,
 };
+
+try { S.colW = JSON.parse(localStorage.getItem('tracking.colW') || '{}') || {}; } catch (e) { S.colW = {}; }
 
 const CLOSED = ['Hoàn thành', 'Hủy'];
 
@@ -2165,26 +2168,46 @@ function taskCard(t) {
 }
 
 /* =======================  render: table  ======================= */
+/* Thứ tự cột ưu tiên theo yêu cầu quản lý; `w` là độ rộng mặc định (px),
+ * người dùng kéo mép để đổi và được nhớ trong localStorage. */
 const COLS = [
-  { key: '_check', label: '', sort: false },
-  { key: 'title', label: 'Công việc' },
-  { key: 'status', label: 'Trạng thái' },
-  { key: 'priority', label: 'Ưu tiên' },
-  { key: 'owner', label: 'Phụ trách' },
-  { key: 'deadline', label: 'Deadline' },
-  { key: 'workType', label: 'Loại việc' },
-  { key: 'campaign', label: 'Campain' },
-  { key: 'rating', label: 'Điểm' },
+  { key: '_check', label: '', sort: false, w: 36 },
+  { key: 'title', label: 'Công việc', w: 230 },
+  { key: 'detail', label: 'Chi tiết', sort: false, w: 300 },
+  { key: 'campaign', label: 'Chiến dịch', w: 150 },
+  { key: 'deadline', label: 'Deadline', w: 150 },
+  { key: 'requester', label: 'Người order', sort: false, w: 140 },
+  { key: 'owner', label: 'Phụ trách', w: 140 },
+  { key: 'priority', label: 'Ưu tiên', w: 130 },
+  { key: 'workType', label: 'Loại việc', w: 130 },
+  { key: 'status', label: 'Trạng thái', w: 150 },
+  { key: 'rating', label: 'Điểm', w: 90 },
 ];
+
+function saveColW() { try { localStorage.setItem('tracking.colW', JSON.stringify(S.colW)); } catch (e) {} }
+function colWidth(c) { const w = S.colW[c.key]; return (typeof w === 'number' && w > 0) ? w : c.w; }
+function tableWidth() { return COLS.reduce((s, c) => s + colWidth(c), 0); }
 
 function renderTable(list) {
   const wrap = $('#table');
   wrap.innerHTML = '';
-  const table = el('table');
+  const table = el('table', 'tb-fixed');
+  // Chiều rộng cố định = tổng cột (table-layout:fixed cần width tường minh, tránh phình)
+  table.style.width = tableWidth() + 'px';
+
+  // colgroup giữ độ rộng cột — table-layout:fixed nên đây là nguồn chuẩn
+  const cg = el('colgroup');
+  for (const c of COLS) {
+    const col = el('col');
+    col.style.width = colWidth(c) + 'px';
+    cg.appendChild(col);
+  }
+  table.appendChild(cg);
+
   const thead = el('thead');
   const trh = el('tr');
 
-  for (const c of COLS) {
+  COLS.forEach((c, i) => {
     const th = el('th', c.sort === false ? 'nosort' : '');
     if (c.key === '_check') {
       const cb = el('input');
@@ -2197,15 +2220,19 @@ function renderTable(list) {
       };
       th.appendChild(cb);
     } else {
-      th.textContent = c.label + (S.sort.key === c.key ? (S.sort.dir === 'asc' ? '  ↑' : '  ↓') : '');
-      th.onclick = () => {
-        if (S.sort.key === c.key) S.sort.dir = S.sort.dir === 'asc' ? 'desc' : 'asc';
-        else S.sort = { key: c.key, dir: 'asc' };
-        render();
-      };
+      th.appendChild(el('span', 'th-lab',
+        c.label + (S.sort.key === c.key ? (S.sort.dir === 'asc' ? '  ↑' : '  ↓') : '')));
+      if (c.sort !== false) {
+        th.onclick = () => {
+          if (S.sort.key === c.key) S.sort.dir = S.sort.dir === 'asc' ? 'desc' : 'asc';
+          else S.sort = { key: c.key, dir: 'asc' };
+          render();
+        };
+      }
     }
+    if (i < COLS.length - 1) th.appendChild(colResizer(cg, i, c));
     trh.appendChild(th);
-  }
+  });
   thead.appendChild(trh);
   table.appendChild(thead);
 
@@ -2213,6 +2240,38 @@ function renderTable(list) {
   for (const t of sortTasks(list)) tb.appendChild(tableRow(t));
   table.appendChild(tb);
   wrap.appendChild(table);
+}
+
+/** Tay kéo ở mép phải tiêu đề cột: kéo đổi độ rộng, bấm đúp về mặc định. */
+function colResizer(cg, idx, c) {
+  const h = el('div', 'col-resize');
+  h.title = 'Kéo để chỉnh độ rộng · bấm đúp để về mặc định';
+  h.onclick = (e) => e.stopPropagation();
+  h.ondblclick = (e) => { e.stopPropagation(); delete S.colW[c.key]; saveColW(); render(); };
+  h.onmousedown = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const col = cg.children[idx];
+    const startX = e.clientX;
+    // Đo từ ô tiêu đề <th> — <col>.getBoundingClientRect() không đáng tin (trả sai số)
+    const startW = h.parentElement.getBoundingClientRect().width;
+    document.body.classList.add('col-resizing');
+    const move = (ev) => {
+      const w = Math.max(60, Math.round(startW + (ev.clientX - startX)));
+      col.style.width = w + 'px';
+      S.colW[c.key] = w;
+      cg.parentElement.style.width = tableWidth() + 'px';   // giữ bảng khớp tổng cột
+    };
+    const up = () => {
+      document.removeEventListener('mousemove', move);
+      document.removeEventListener('mouseup', up);
+      document.body.classList.remove('col-resizing');
+      saveColW();
+    };
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', up);
+  };
+  return h;
 }
 
 function inlineSelect(t, key, options) {
@@ -2233,9 +2292,28 @@ function inlineSelect(t, key, options) {
   return s;
 }
 
+/** Ô người dùng (avatar chồng) cho Người order / Phụ trách. */
+function personCell(users) {
+  const td = el('td', 'c-people');
+  const arr = users || [];
+  if (!arr.length) { td.appendChild(el('span', 'muted', '—')); return td; }
+  const av = el('div', 'avatars');
+  for (const u of arr.slice(0, 3)) {
+    const a = el('div', 'av', initials(u.name));
+    a.style.background = colorOf(u.name);
+    a.title = u.name;
+    av.appendChild(a);
+  }
+  if (arr.length > 3) av.appendChild(el('div', 'av av-more', '+' + (arr.length - 3)));
+  td.appendChild(av);
+  return td;
+}
+
 function tableRow(t) {
-  const tr = el('tr');
+  const tr = el('tr', 'row-click');
   if (S.selected.has(t.id)) tr.classList.add('is-selected');
+  // Bấm bất kỳ đâu trên hàng -> mở cửa sổ chi tiết (trừ checkbox/ô sửa nhanh đã chặn nổi bọt)
+  tr.onclick = () => openDrawer(t);
 
   const tdc = el('td', 'c-check');
   const cb = el('input');
@@ -2246,40 +2324,44 @@ function tableRow(t) {
   tdc.appendChild(cb);
   tr.appendChild(tdc);
 
-  const tdt = el('td', 'c-title', t.title || '(chưa có tên)');
-  tdt.onclick = () => openDrawer(t);
+  // Công việc
+  const tdt = el('td', 'c-title cell-ell', t.title || '(chưa có tên)');
+  tdt.title = t.title || '';
   tr.appendChild(tdt);
 
-  const tds = el('td');
-  tds.appendChild(inlineSelect(t, 'status', S.meta.options.status));
-  tr.appendChild(tds);
+  // Chi tiết (rút gọn một dòng, xem đầy đủ trong cửa sổ chi tiết)
+  const det = (t.detail || '').trim();
+  const tdd2 = el('td', 'c-detail cell-ell', det || '—');
+  tdd2.title = det;
+  tr.appendChild(tdd2);
 
-  const tdp = el('td');
-  tdp.appendChild(inlineSelect(t, 'priority', S.meta.options.priority));
-  tr.appendChild(tdp);
+  // Chiến dịch
+  tr.appendChild(el('td', 'cell-ell', t.campaign || '—'));
 
-  const tdo = el('td');
-  if (!(t.owner || []).length) tdo.appendChild(el('span', 'muted', '—'));
-  else {
-    const av = el('div', 'avatars');
-    for (const u of t.owner.slice(0, 3)) {
-      const a = el('div', 'av', initials(u.name));
-      a.style.background = colorOf(u.name);
-      a.title = u.name;
-      av.appendChild(a);
-    }
-    tdo.appendChild(av);
-  }
-  tr.appendChild(tdo);
-
+  // Deadline
   const tdd = el('td');
   const dl = deadlineTag(t);
   tdd.appendChild(dl || el('span', 'muted', '—'));
   tr.appendChild(tdd);
 
-  tr.appendChild(el('td', '', t.workType || '—'));
-  tr.appendChild(el('td', '', t.campaign || '—'));
+  // Người order · Phụ trách
+  tr.appendChild(personCell(t.requester));
+  tr.appendChild(personCell(t.owner));
 
+  // Ưu tiên (sửa nhanh)
+  const tdp = el('td');
+  tdp.appendChild(inlineSelect(t, 'priority', S.meta.options.priority));
+  tr.appendChild(tdp);
+
+  // Loại việc
+  tr.appendChild(el('td', 'cell-ell', t.workType || '—'));
+
+  // Trạng thái (sửa nhanh)
+  const tds = el('td');
+  tds.appendChild(inlineSelect(t, 'status', S.meta.options.status));
+  tr.appendChild(tds);
+
+  // Điểm
   const tdr = el('td');
   tdr.appendChild(el('span', 'stars', t.rating ? '★'.repeat(t.rating) : '—'));
   tr.appendChild(tdr);
@@ -2902,7 +2984,8 @@ function openDrawer(task, nhap) {
    * lần đặt việc thì tệp cũ không được lẻn sang việc sau. */
   (S.tepMoi || []).forEach((f) => { if (f.__xem) URL.revokeObjectURL(f.__xem); });
   S.tepMoi = [];
-  S.suaDayDu = false;     // mở ra là bản gọn, muốn sửa sâu thì bấm nút
+  // Việc của tôi: mở bản gọn. Kanban/Bảng (quản lý): mở đầy đủ như trước, nút đổi được.
+  S.suaDayDu = S.isManager && S.view !== 'work';
   buildDrawer();
   $('#drawer').classList.add('open');
   $('#scrim').classList.add('open');
@@ -2927,14 +3010,15 @@ function set(key, val) {
 
 /** Drawer ở chế độ nhân sự: khoá trường của người order. */
 function isStaffMode() {
-  if (S.view !== 'work') return false;
   if (S.viewAs) return false;      // quản lý xem việc người khác → mở drawer đầy đủ
-  /* Quản lý sửa được tất cả: bản gọn chỉ là cách XEM, bấm "Sửa đầy đủ" là ra form
-   * mọi trường. Nhân sự không có nút này nên vẫn bị khoá trường của người order. */
-  if (S.isManager && S.suaDayDu) return false;
   const t = S.editing;
   if (!t || t.isNew) return false;
-  return true;
+  /* Quản lý: bản gọn chỉ là cách XEM; nút "Xem bản gọn / Sửa đầy đủ" quyết định,
+   * áp cho MỌI tab (Việc của tôi, Kanban, Bảng). Trước đây khoá cứng ở tab work
+   * nên ở Bảng/Kanban bấm nút không đổi gì. */
+  if (S.isManager) return !S.suaDayDu;
+  // Nhân sự không có nút này nên vẫn bị khoá trường của người order (chỉ có tab work).
+  return S.view === 'work';
 }
 
 function buildDrawer() {
