@@ -2563,3 +2563,161 @@ html[data-skin="ios"][data-app] .topbar .ios-tao[data-ios-co-cong]::before { dis
 @media (max-width: 640px) {
   html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] table.bang td.tach { padding-left: 0 !important; padding-right: 0 !important; }
 }
+
+/* ==========================================================================
+   LIQUID GLASS — lượt 3 (26/09/2026). Anh Hùng: "icon của app chưa có màu sắc
+   hài hoà, hơi giống Android thay vì độ sang của iOS/Macbook… còn lỗi bo góc,
+   chữ trong các nút còn lẹm… hiệu ứng liquid glass cần làm triệt để hơn".
+   ========================================================================== */
+
+/* ---- 1. ICON APP: bảng màu hệ thống kiểu Apple ----
+   Trước: nền đặc đúng mã màu Lark của từng base (#3370ff, #00b96b, #ff7d00…)
+   → phẳng, gắt, lệch tông nhau. Nay mỗi app một sắc trong bảng màu hệ thống
+   của Apple, chuyển nhẹ từ sáng (trên) xuống đậm (dưới) + viền sáng trong —
+   như icon ở Cài đặt iPhone / System Settings của macOS. app.js vẫn ghi màu
+   gốc vào style="…color:<mã>" nên bắt theo mã đó. */
+html[data-skin="ios"] :is(.rail-item .ri-ic, .khoi-head .kh-ic) {
+  --ic-a: #5ea2ff; --ic-b: #1f6ff2;
+  background: linear-gradient(180deg, var(--ic-a), var(--ic-b)) !important;
+  box-shadow: inset 0 .5px 0 rgba(255, 255, 255, .45), inset 0 0 0 .5px rgba(0, 0, 0, .06), 0 1px 1.5px rgba(0, 0, 0, .10) !important;
+}
+html[data-skin="ios"] :is(.ri-ic, .kh-ic)[style*="#3370ff"],
+html[data-skin="ios"] :is(.ri-ic, .kh-ic)[style*="#2b5cff"] { --ic-a: #5ea2ff; --ic-b: #1f6ff2; }   /* Công việc, Tổng quan: xanh */
+html[data-skin="ios"] :is(.ri-ic, .kh-ic)[style*="#00b96b"] { --ic-a: #5ad97e; --ic-b: #2bb453; }   /* Tác nghiệp: lục */
+html[data-skin="ios"] :is(.ri-ic, .kh-ic)[style*="#ff7d00"] { --ic-a: #ffb144; --ic-b: #ff8a1c; }   /* Quảng cáo: cam */
+html[data-skin="ios"] :is(.ri-ic, .kh-ic)[style*="#7a3cff"] { --ic-a: #7f86f5; --ic-b: #5656d8; }   /* OTA: chàm */
+html[data-skin="ios"] :is(.ri-ic, .kh-ic)[style*="#d62976"] { --ic-a: #ff6f93; --ic-b: #f23a67; }   /* Social: hồng */
+html[data-skin="ios"] :is(.ri-ic, .kh-ic)[style*="#00a6b8"] { --ic-a: #5bd0e6; --ic-b: #22a9cf; }   /* Chỉnh ảnh: lam ngọc */
+html[data-skin="ios"] :is(.ri-ic, .kh-ic)[style*="#106b52"] { --ic-a: #8a96a8; --ic-b: #5e6a7d; }   /* Báo cáo & KPI: than chì */
+html[data-skin="ios"] :is(.ri-ic, .kh-ic)[style*="#f2a33c"] { --ic-a: #ffd257; --ic-b: #f6b01c; }   /* Quỹ: vàng */
+html[data-skin="ios"] :is(.ri-ic, .kh-ic)[style*="#7c5cff"] { --ic-a: #c586f0; --ic-b: #a052de; }   /* Báo cáo: tím */
+html[data-skin="ios"] :is(.ri-ic, .kh-ic)[style*="#8b5cf6"] { --ic-a: #cfae86; --ic-b: #a8835c; }   /* Sản phẩm: nâu cát */
+html[data-skin="ios"] :is(.ri-ic, .kh-ic)[style*="#0ea5a4"] { --ic-a: #62d6c4; --ic-b: #25b09c; }   /* Lịch làm việc: bạc hà */
+html[data-skin="ios"] :is(.ri-ic, .kh-ic)[style*="#d9468f"] { --ic-a: #ff8e7a; --ic-b: #f2624d; }   /* KOL: san hô */
+html[data-skin="ios"] :is(.ri-ic, .kh-ic)[style*="#dc2b3d"] { --ic-a: #ff6b62; --ic-b: #f0392f; }   /* Gấp: đỏ */
+html[data-skin="ios"] :is(.ri-ic, .kh-ic)[style*="#8b95a7"] { --ic-a: #aeb4be; --ic-b: #8a919c; }
+html[data-skin="ios"] #btnSettings .ri-ic { --ic-a: #aeb4be; --ic-b: #8a919c; }
+html[data-skin="ios"] #btnAdd .ri-ic { --ic-a: #5ad97e; --ic-b: #2bb453; }
+html[data-skin="ios"] .ios-tb .ri-ic { --ic-a: #ff6b62; --ic-b: #f0392f; }
+html[data-skin="ios"] :is(.rail-item .ri-ic, .khoi-head .kh-ic) svg { stroke-width: 1.9; filter: drop-shadow(0 .5px 0 rgba(0, 0, 0, .12)); }
+
+/* ---- 2. CHẤT LIỆU KÍNH v3 ----
+   Kính của iOS 26 không chỉ là nền mờ: (a) mờ sâu + tăng bão hoà để màu phía
+   sau thấm qua, (b) viền sáng mảnh quanh mép như cạnh thấu kính, (c) vệt bóng
+   sáng ở nửa trên, (d) bóng đổ mềm tách khỏi nội dung. Chỉ dùng cho LỚP ĐIỀU
+   KHIỂN (thanh tab, nút nổi, dải tab, bảng nổi) — lớp nội dung (thẻ, bảng)
+   vẫn đặc, đúng nguyên tắc của Apple. */
+html[data-skin="ios"] {
+  --lg-nen: rgba(255, 255, 255, .56);
+  --lg-mo: blur(26px) saturate(210%) brightness(1.03);
+  --lg-rim: inset 0 1px 0 rgba(255, 255, 255, .9), inset 0 -1px 0 rgba(255, 255, 255, .28), inset 0 0 0 .5px rgba(255, 255, 255, .55);
+  --lg-bong: 0 12px 32px -10px rgba(20, 30, 60, .22), 0 2px 6px rgba(20, 30, 60, .06), 0 0 0 .5px rgba(0, 0, 0, .05);
+  --lg-vet: linear-gradient(180deg, rgba(255, 255, 255, .42) 0%, rgba(255, 255, 255, .10) 46%, rgba(255, 255, 255, 0) 60%);
+  --lg-lens: rgba(255, 255, 255, .92);
+  --lg-lens-bong: 0 1px 2px rgba(0, 0, 0, .08), 0 3px 10px -2px rgba(0, 0, 0, .10), inset 0 1px 0 #fff, inset 0 0 0 .5px rgba(0, 0, 0, .04);
+}
+html[data-skin="ios"][data-theme="toi"] {
+  --lg-nen: rgba(36, 36, 40, .56);
+  --lg-mo: blur(26px) saturate(180%) brightness(.92);
+  --lg-rim: inset 0 1px 0 rgba(255, 255, 255, .16), inset 0 -1px 0 rgba(255, 255, 255, .04), inset 0 0 0 .5px rgba(255, 255, 255, .10);
+  --lg-bong: 0 12px 32px -10px rgba(0, 0, 0, .6), 0 2px 6px rgba(0, 0, 0, .3), 0 0 0 .5px rgba(0, 0, 0, .5);
+  --lg-vet: linear-gradient(180deg, rgba(255, 255, 255, .09) 0%, rgba(255, 255, 255, .02) 46%, rgba(255, 255, 255, 0) 60%);
+  --lg-lens: rgba(255, 255, 255, .14);
+  --lg-lens-bong: 0 1px 2px rgba(0, 0, 0, .3), inset 0 1px 0 rgba(255, 255, 255, .14), inset 0 0 0 .5px rgba(255, 255, 255, .08);
+}
+@media (prefers-color-scheme: dark) {
+  html[data-skin="ios"]:not([data-theme="sang"]) {
+    --lg-nen: rgba(36, 36, 40, .56);
+    --lg-mo: blur(26px) saturate(180%) brightness(.92);
+    --lg-rim: inset 0 1px 0 rgba(255, 255, 255, .16), inset 0 -1px 0 rgba(255, 255, 255, .04), inset 0 0 0 .5px rgba(255, 255, 255, .10);
+    --lg-bong: 0 12px 32px -10px rgba(0, 0, 0, .6), 0 2px 6px rgba(0, 0, 0, .3), 0 0 0 .5px rgba(0, 0, 0, .5);
+    --lg-vet: linear-gradient(180deg, rgba(255, 255, 255, .09) 0%, rgba(255, 255, 255, .02) 46%, rgba(255, 255, 255, 0) 60%);
+    --lg-lens: rgba(255, 255, 255, .14);
+    --lg-lens-bong: 0 1px 2px rgba(0, 0, 0, .3), inset 0 1px 0 rgba(255, 255, 255, .14), inset 0 0 0 .5px rgba(255, 255, 255, .08);
+  }
+}
+
+/* thanh tab nổi + mục đang chọn là "thấu kính" sáng bên trong */
+@media (max-width: 640px) {
+  html[data-skin="ios"]:not(#_) .ios-tabbar {
+    background: var(--lg-vet), var(--lg-nen);
+    backdrop-filter: var(--lg-mo); -webkit-backdrop-filter: var(--lg-mo);
+    border: 0; box-shadow: var(--lg-rim), var(--lg-bong);
+  }
+  html[data-skin="ios"]:not(#_) .ios-tabbar [aria-current="page"] { background: var(--lg-lens); box-shadow: var(--lg-lens-bong); }
+  html[data-skin="ios"]:not(#_) .ios-tabbar :is(a, button) { transition: background .25s, box-shadow .25s, color .2s, transform .12s; }
+  html[data-skin="ios"]:not(#_) .ios-tabbar :is(a, button):active { transform: scale(.94); }
+  /* nút tròn trên thanh đầu (làm mới) = viên kính */
+  html[data-skin="ios"]:not(#_) .mob-nut {
+    background: var(--lg-vet), var(--lg-nen) !important;
+    backdrop-filter: var(--lg-mo); -webkit-backdrop-filter: var(--lg-mo);
+    border: 0 !important; box-shadow: var(--lg-rim), 0 4px 14px -6px rgba(20, 30, 60, .25) !important;
+  }
+}
+/* nút TẠO MỚI = kính nhuộm xanh (tinted glass) */
+html[data-skin="ios"]:not(#_)[data-app] .topbar .ios-tao {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .28), rgba(255, 255, 255, 0) 55%), var(--ios-xanh) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .45), inset 0 0 0 .5px rgba(255, 255, 255, .25), 0 4px 12px -4px rgba(31, 111, 242, .55) !important;
+}
+/* dải tab = rãnh kính, tab đang chọn = thấu kính */
+html[data-skin="ios"]:not(#_) :is(.topbar .tabs, .tabsbar .tabs, .thanh .tabs, .topbar > .pills) {
+  background: var(--lg-vet), var(--lg-nen) !important;
+  backdrop-filter: var(--lg-mo); -webkit-backdrop-filter: var(--lg-mo);
+  box-shadow: var(--lg-rim), 0 1px 3px rgba(20, 30, 60, .06) !important; border: 0 !important;
+}
+html[data-skin="ios"]:not(#_) :is(.topbar .tabs, .tabsbar .tabs, .thanh .tabs, .topbar > .pills) > :is(.on, .is-active, .chon) {
+  background: var(--lg-lens) !important; box-shadow: var(--lg-lens-bong) !important;
+}
+/* bảng nổi, trình đơn, ngăn kéo, hộp thoại: viền sáng mép + bóng mềm (nền giữ đặc cho chữ rõ) */
+html[data-skin="ios"]:not(#_) :is(.dd-panel, .pick-pop, .popover, .pk-pop, .drawer, .modal, .sheet, .toast) {
+  box-shadow: var(--lg-rim), var(--lg-bong) !important;
+}
+
+/* ---- 3. MÉP DẢI TRƯỢT NGANG mờ dần thay vì cắt ngang chữ ----
+   ios.js / ios-app.js gắn data-mep = trai | phai | ca theo vị trí cuộn: chỉ
+   mờ phía còn nội dung; cuộn tới đầu/cuối thì hết mờ ("Danh sá", "Tuầ" cắt
+   cụt ở mép trông như lỗi). */
+html[data-skin="ios"] [data-mep="phai"] { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent); }
+html[data-skin="ios"] [data-mep="trai"] { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(to left, #000 calc(100% - 32px), transparent); }
+html[data-skin="ios"] [data-mep="ca"] { -webkit-mask-image: linear-gradient(to right, transparent, #000 32px, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(to right, transparent, #000 32px, #000 calc(100% - 32px), transparent); }
+
+/* ---- 4. SỬA LỖI BỘ QUÉT ---- */
+/* hàng đợi Công việc: danh sách vuông góc lòi ra dưới thẻ bo 16–18px */
+html[data-skin="ios"] .queue { overflow: hidden; }
+/* nhãn hạn chót: cao cố định, chữ có dấu ("Quá hạn") bị xén đỉnh */
+html[data-skin="ios"]:not(#_) :is(.tag, .chip, .badge, .cnt, .ri-badge) { overflow: visible; line-height: 1.35; }
+html[data-skin="ios"]:not(#_) :is(td .tag, td .badge) { height: auto; white-space: nowrap; }
+
+@media (max-width: 640px) {
+  /* ô lịch: dòng lịch 14px (luật nút 40px của điện thoại kéo cao) */
+  html[data-skin="ios"]:not(#_):not(#__) .cal-cell :is(.ev, .ev-more, .cal-chip) { min-height: 0 !important; height: auto !important; }
+  html[data-skin="ios"]:not(#_):not(#__) .cal-cell .ev-more { font-size: 10.5px !important; padding: 0 3px !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+
+  /* ---- 5. GỌN THÔNG TIN trên điện thoại ----
+     Thẻ widget: bỏ dòng giải thích nhỏ dưới các số phụ ("thiếu SĐT / điểm
+     đón…", "chỉ tính phần từ quảng cáo") — bấm vào thẻ là xem chi tiết.
+     Giữ số + % so kỳ trước. Cảnh báo "số cũ" gọn thành một dòng. */
+  html[data-skin="ios"]:not(#_):not(#__) .nhom-base .the:not(.chinh) .ghi { display: none !important; }
+  html[data-skin="ios"]:not(#_):not(#__) .nhom-base .the .lech { font-size: 11.5px !important; line-height: 15px; }
+  html[data-skin="ios"]:not(#_):not(#__) .nhom-base .the.chinh .so { font-size: 26px !important; line-height: 31px !important; }
+  html[data-skin="ios"]:not(#_):not(#__) .nhom-base .the .nhan { font-size: 11.5px !important; line-height: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  html[data-skin="ios"]:not(#_):not(#__) .nhom-base .canh-bao {
+    margin: 4px 12px 12px !important; padding: 7px 11px !important; border-radius: 12px !important;
+    font-size: 12.5px !important; line-height: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block !important;
+  }
+  html[data-skin="ios"]:not(#_):not(#__) .nhom-base .canh-bao :is(button, .btn) { display: none !important; }
+  /* dải tab điện thoại: bỏ rãnh bao ngoài (rãnh bị cắt ở mép khi trượt trông
+     như lỗi); mỗi tab là một viên, tab đang chọn là thấu kính */
+  html[data-skin="ios"]:not(#_):not(#__) :is(.topbar .tabs, .tabsbar .tabs, .thanh .tabs, .topbar > .pills) {
+    background: transparent !important; box-shadow: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+    padding: 3px 2px !important; gap: 2px !important;
+  }
+}
+/* Báo cáo: nhãn "Ca" bị bỏ lại một mình ở mép phải khi ô chọn ca rớt dòng —
+   điện thoại xếp tiêu đề một hàng, "Ca + ô chọn" một hàng. */
+@media (max-width: 640px) {
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] .the-dau:has(#chonCa) { flex-wrap: wrap; row-gap: 8px; align-items: center; }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] .the-dau:has(#chonCa) > h2 { flex: 1 1 100%; }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] .the-dau:has(#chonCa) > .lon { display: none; }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] .the-dau:has(#chonCa) > .nho { margin-right: 8px; }
+}

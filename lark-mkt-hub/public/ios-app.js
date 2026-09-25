@@ -143,8 +143,25 @@
     });
   }
 
+
+  /* Mép dải trượt ngang (tab, bộ lọc): gắn data-mep = trai | phai | ca để CSS
+   * làm mờ dần phía còn nội dung, thay vì cắt ngang chữ ở mép khung. */
+  const MEP = '.topbar .tabs, .tabsbar .tabs, .thanh .tabs, .topbar > .pills, .filters, .filters-dash, .filters-work, .cal-filters, .loc-bar, .cd-nav, .tb-chips';
+  function mepMot(d) {
+    const tran = d.scrollWidth > d.clientWidth + 2 && /auto|scroll/.test(getComputedStyle(d).overflowX);
+    let v = '';
+    if (tran) {
+      const trai = d.scrollLeft > 2, phai = d.scrollLeft + d.clientWidth < d.scrollWidth - 2;
+      v = trai && phai ? 'ca' : trai ? 'trai' : phai ? 'phai' : '';
+    }
+    if ((d.getAttribute('data-mep') || '') !== v) { if (v) d.setAttribute('data-mep', v); else d.removeAttribute('data-mep'); }
+  }
+  const mepHet = () => document.querySelectorAll(MEP).forEach(mepMot);
+  document.addEventListener('scroll', (e) => { const d = e.target; if (d && d.matches && d.matches(MEP)) mepMot(d); }, { capture: true, passive: true });
+  addEventListener('resize', () => requestAnimationFrame(mepHet));
+
   let hen = 0;
-  const lich = () => { if (hen) return; hen = requestAnimationFrame(() => { hen = 0; try { donMot(document.body); nutTao(); chipNguon(); tabTrongTam(); } catch (_) {} }); };
+  const lich = () => { if (hen) return; hen = requestAnimationFrame(() => { hen = 0; try { donMot(document.body); nutTao(); chipNguon(); tabTrongTam(); mepHet(); } catch (_) {} }); };
   const batDau = () => {
     lich();
     new MutationObserver(lich).observe(document.body, { childList: true, subtree: true, characterData: true });
