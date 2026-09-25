@@ -19,6 +19,8 @@ const S = {
   // `moc` là điều kiện phụ của hai thẻ Quá hạn / Hạn hôm nay — ghép AND với `due`,
   // không ghi đè bộ lọc thời gian người dùng đang đặt.
   filters: { campaign: '', workType: '', owner: '', priority: '', status: '', due: MAC_DINH_DUE, dueDate: '', moc: '', hideDone: false, q: '' },
+  orders: [],                // việc mình đã gửi order (tab "Việc tôi order")
+  of: { campaign: '', workType: '', owner: '', status: '', due: MAC_DINH_DUE, dueDate: '', hideDone: false },   // bộ lọc tab order
   sort: { key: 'deadline', dir: 'asc' },
   colW: {},                  // độ rộng cột bảng do người dùng kéo, nhớ ở localStorage
   selected: new Set(),
@@ -2984,8 +2986,8 @@ function openDrawer(task, nhap) {
    * lần đặt việc thì tệp cũ không được lẻn sang việc sau. */
   (S.tepMoi || []).forEach((f) => { if (f.__xem) URL.revokeObjectURL(f.__xem); });
   S.tepMoi = [];
-  // Việc của tôi: mở bản gọn. Kanban/Bảng (quản lý): mở đầy đủ như trước, nút đổi được.
-  S.suaDayDu = S.isManager && S.view !== 'work';
+  // Việc của tôi / Việc tôi order: mở bản gọn. Kanban/Bảng (quản lý): mở đầy đủ, nút đổi được.
+  S.suaDayDu = S.isManager && S.view !== 'work' && S.view !== 'order';
   buildDrawer();
   $('#drawer').classList.add('open');
   $('#scrim').classList.add('open');
@@ -3017,8 +3019,8 @@ function isStaffMode() {
    * áp cho MỌI tab (Việc của tôi, Kanban, Bảng). Trước đây khoá cứng ở tab work
    * nên ở Bảng/Kanban bấm nút không đổi gì. */
   if (S.isManager) return !S.suaDayDu;
-  // Nhân sự không có nút này nên vẫn bị khoá trường của người order (chỉ có tab work).
-  return S.view === 'work';
+  // Nhân sự: bản gọn ở tab "Việc của tôi" và "Việc tôi order" (khoá trường order).
+  return S.view === 'work' || S.view === 'order';
 }
 
 function buildDrawer() {
@@ -4010,6 +4012,14 @@ function syncFilterInputs() {
   $('#fDueDate').value = S.filters.dueDate;
   $('#wDueDate').value = S.wf.dueDate;
   $('#dDueDate').value = S.df.dueDate;
+  if ($('#oCampaign')) {
+    $('#oCampaign').value = S.of.campaign;
+    $('#oWorkType').value = S.of.workType;
+    $('#oStatus').value = S.of.status;
+    $('#oDue').value = S.of.due;
+    $('#oDueDate') && ($('#oDueDate').value = S.of.dueDate);
+    $('#oHideDone').checked = S.of.hideDone;
+  }
   for (const k of Object.keys(CHON_NGUOI)) CHON_NGUOI[k].ve();
   syncDateInputs();
 }
@@ -4064,13 +4074,127 @@ function setupFilters() {
   fillSelect($('#calStatus'), o.status, 'Mọi trạng thái');
   fillSelect($('#calCampaign'), o.campaign, 'Mọi chiến dịch');
 
+  // Bộ lọc tab "Việc tôi order"
+  fillSelect($('#oCampaign'), o.campaign, 'Chiến dịch: tất cả');
+  fillSelect($('#oWorkType'), o.workType, 'Loại việc: tất cả');
+  fillSelect($('#oStatus'), o.status, 'Trạng thái: tất cả');
+  fillDueSelect($('#oDue'), 'Thời gian: tất cả');
+  if (window.HUB_SEG && DUOI_HUB()) window.HUB_SEG($('#oDue'));
+
   // Ô chọn nhân sự: dùng chung component có ô tìm + số việc, không dùng <select>
   lapChonNguoi('fOwnerHost', 'Phụ trách: tất cả',
     () => S.filters.owner, (v) => { S.filters.owner = v; });
+  lapChonNguoi('oOwnerHost', 'Phụ trách: tất cả',
+    () => S.of.owner, (v) => { S.of.owner = v; });
   lapChonNguoi('dPersonHost', 'Nhân sự: tất cả',
     () => S.df.person, (v) => { S.df.person = v; });
   lapChonNguoi('calPersonHost', 'Mọi nhân sự',
     () => S.cf.person, (v) => { S.cf.person = v; });
+}
+
+/* =======================  render: việc tôi order  ======================= */
+function filterOrders() {
+  const f = S.of;
+  const q = (S.filters.q || '').trim().toLowerCase();
+  let list = S.orders.slice();
+  if (f.campaign) list = list.filter((t) => t.campaign === f.campaign);
+  if (f.workType) list = list.filter((t) => t.workType === f.workType);
+  if (f.status) list = list.filter((t) => t.status === f.status);
+  if (f.owner) list = list.filter((t) => (t.owner || []).some((u) => u.id === f.owner));
+  if (f.hideDone) list = list.filter((t) => !isClosed(t));
+  if (f.due) list = list.filter((t) => matchDue(t, f.due, f.dueDate));
+  if (q) {
+    list = list.filter((t) =>
+      [t.title, t.detail, t.campaign, t.workType, t.status]
+        .concat((t.owner || []).map((u) => u.name)).join(' ').toLowerCase().includes(q));
+  }
+  return list;
+}
+
+function orderCard(t) {
+  const c = el('div', 'ord-card');
+  c.dataset.id = t.id;
+
+  const top = el('div', 'ord-top');
+  top.appendChild(el('div', 'ord-title', t.title || '(chưa có tên)'));
+  const st = el('span', 'ord-status');
+  st.style.background = STATUS_HUE[t.status] || '#8f959e';
+  st.textContent = t.status || 'Chưa đặt';
+  top.appendChild(st);
+  c.appendChild(top);
+
+  const meta = el('div', 'ord-meta');
+  if (t.workType) meta.appendChild(el('span', 'tag', t.workType));
+  if (t.campaign) meta.appendChild(el('span', 'tag', t.campaign));
+  if (t.priority) meta.appendChild(el('span', 'tag ' + priClass(t.priority), plainLabel(t.priority)));
+  const dl = deadlineTag(t);
+  if (dl) meta.appendChild(dl);
+  c.appendChild(meta);
+
+  const foot = el('div', 'ord-foot');
+  const who = el('div', 'ord-who');
+  who.appendChild(el('span', 'ord-lbl', 'Phụ trách:'));
+  if ((t.owner || []).length) {
+    const av = el('div', 'avatars');
+    for (const u of t.owner.slice(0, 3)) {
+      const a = el('div', 'av', initials(u.name));
+      a.style.background = colorOf(u.name); a.title = u.name; av.appendChild(a);
+    }
+    who.appendChild(av);
+  } else who.appendChild(el('span', 'muted', 'chưa gán'));
+  foot.appendChild(who);
+
+  // "Sản phẩm" = File kết quả + Link kết quả (deliverable của nhân sự)
+  const nFile = (t.fileKetQua || []).length;
+  const hasLink = !!(t.linkKetQua || t.link);
+  const sp = el('span', 'ord-sp' + (nFile || hasLink ? ' co' : ''));
+  if (nFile || hasLink) {
+    const parts = [];
+    if (nFile) parts.push(nFile + ' tệp');
+    if (hasLink) parts.push('link');
+    sp.textContent = 'Sản phẩm: ' + parts.join(' + ');
+  } else sp.textContent = 'Chưa có sản phẩm';
+  foot.appendChild(sp);
+
+  if (t.rating) foot.appendChild(el('span', 'ord-rate', '★'.repeat(t.rating) + ' ' + t.rating + '/5'));
+  c.appendChild(foot);
+
+  c.addEventListener('click', () => openDrawer(t));
+  return c;
+}
+
+function renderOrders() {
+  const box = $('#orderList');
+  box.innerHTML = '';
+  const list = filterOrders();
+  $('#oCount').textContent = 'Hiển thị ' + list.length + ' / ' + S.orders.length + ' việc bạn đã order';
+  if (!list.length) {
+    box.appendChild(el('div', 'ord-empty',
+      S.orders.length ? 'Không có việc khớp bộ lọc.' : 'Bạn chưa gửi order công việc nào.'));
+    return;
+  }
+  // nhóm theo trạng thái để nhìn nhanh "đang thế nào rồi"
+  const order = S.meta.statusOrder || [];
+  const rank = (s) => { const i = order.indexOf(s); return i < 0 ? 99 : i; };
+  const groups = new Map();
+  for (const t of list) {
+    const k = t.status || 'Chưa đặt trạng thái';
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(t);
+  }
+  for (const k of [...groups.keys()].sort((a, b) => rank(a) - rank(b))) {
+    const sec = el('div', 'ord-sec');
+    const h = el('div', 'ord-sec-head');
+    const pill = el('span', 'pill'); pill.style.background = STATUS_HUE[k] || '#8f959e';
+    h.appendChild(pill);
+    h.appendChild(el('strong', '', k));
+    h.appendChild(el('span', 'n', String(groups.get(k).length)));
+    sec.appendChild(h);
+    const grid = el('div', 'ord-grid');
+    for (const t of sortTasks(groups.get(k))) grid.appendChild(orderCard(t));
+    sec.appendChild(grid);
+    box.appendChild(sec);
+  }
 }
 
 /* =======================  render root  ======================= */
@@ -4078,10 +4202,12 @@ function render() {
   const isDash = S.view === 'dash';
   const isWork = S.view === 'work';
   const isCal  = S.view === 'cal';
+  const isOrder = S.view === 'order';
   $('#dashboard').classList.toggle('hidden', !isDash);
   $('#workspace').classList.toggle('hidden', !isWork);
   $('#calendar').classList.toggle('hidden', !isCal);
-  $('#adminArea').classList.toggle('hidden', isDash || isWork || isCal);
+  $('#orderArea').classList.toggle('hidden', !isOrder);
+  $('#adminArea').classList.toggle('hidden', isDash || isWork || isCal || isOrder);
 
   if (isCal) {
     if (!S.cf.moc) S.cf.moc = startOfDay(new Date());
@@ -4092,6 +4218,12 @@ function render() {
 
   if (isDash) {
     renderDashboard();
+    $('#bulkbar').classList.add('hidden');
+    return;
+  }
+
+  if (isOrder) {
+    renderOrders();
     $('#bulkbar').classList.add('hidden');
     return;
   }
@@ -4153,8 +4285,18 @@ async function napNhap() {
   }
 }
 
+/** Nạp việc mình đã gửi order (tab "Việc tôi order"). */
+async function napOrders(force) {
+  try {
+    const d = await req('/api/my-orders' + (force ? '?refresh=1' : ''));
+    S.orders = (d && d.tasks) || [];
+  } catch (_) {
+    S.orders = [];
+  }
+}
+
 async function refresh(force) {
-  await Promise.all([loadAll(force), napNhap()]);
+  await Promise.all([loadAll(force), napNhap(), napOrders(force)]);
 
   S.isManager = S.meta.role === 'manager';
   // Tùy chọn quản lý cấp riêng cho nhân sự này (bảng Phân quyền app của hub)
@@ -4205,7 +4347,8 @@ function applyRoleChrome() {
   $('#btnQuyen').classList.toggle('hidden', !S.isManager);
   $('#btnPhanPhoi').classList.toggle('hidden', !S.isManager);
   $('#btnReport').classList.toggle('hidden', !S.isManager);
-  const choPhep = S.isManager ? null : (xemHet ? ['work', 'board', 'table'] : ['work']);
+  // Ai cũng đặt việc được nên ai cũng có tab "Việc tôi order"
+  const choPhep = S.isManager ? null : (xemHet ? ['work', 'order', 'board', 'table'] : ['work', 'order']);
   if (choPhep && !choPhep.includes(S.view)) S.view = 'work';
   // Quản lý mở app là vào Tổng quan trước
   if (S.isManager && !S.viewChosen) S.view = 'dash';
@@ -4553,6 +4696,24 @@ function setupChrome() {
   $('#btnClear').onclick = () => {
     S.filters = { campaign: '', workType: '', owner: '', priority: '', status: '', due: MAC_DINH_DUE, dueDate: '', moc: '', hideDone: false, q: '' };
     $('#search').value = '';
+    syncFilterInputs();
+    render();
+  };
+
+  // bộ lọc tab "Việc tôi order"
+  const bindO = (sel, key) => { const e = $(sel); if (e) e.onchange = () => { S.of[key] = e.value; render(); }; };
+  bindO('#oCampaign', 'campaign');
+  bindO('#oWorkType', 'workType');
+  bindO('#oStatus', 'status');
+  if ($('#oDue')) $('#oDue').onchange = () => {
+    S.of.due = $('#oDue').value;
+    if (S.of.due !== 'exact') S.of.dueDate = '';
+    render();
+  };
+  if ($('#oHideDone')) $('#oHideDone').onchange = () => { S.of.hideDone = $('#oHideDone').checked; render(); };
+  if ($('#oClear')) $('#oClear').onclick = () => {
+    S.of = { campaign: '', workType: '', owner: '', status: '', due: MAC_DINH_DUE, dueDate: '', hideDone: false };
+    $('#search').value = ''; S.filters.q = '';
     syncFilterInputs();
     render();
   };

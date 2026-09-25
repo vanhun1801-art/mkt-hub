@@ -29,6 +29,7 @@
   <div class="tabs" id="tabs">
     <button class="tab hidden" data-view="dash">Tổng quan</button>
     <button class="tab is-active" data-view="work">Việc của tôi</button>
+    <button class="tab" data-view="order">Việc tôi order</button>
     <button class="tab" data-view="cal">Lịch</button>
     <button class="tab" data-view="board">Kanban</button>
     <button class="tab" data-view="table">Bảng</button>
@@ -227,6 +228,22 @@
     <div id="board" class="board"></div>
     <div id="table" class="tablewrap hidden"></div>
   </div>
+</section>
+
+<!-- ======== VIỆC TÔI ORDER ======== -->
+<section id="orderArea" class="hidden">
+  <div class="filters" id="orderFilters">
+    <select id="oCampaign" class="sel"><option value="">Chiến dịch: tất cả</option></select>
+    <select id="oWorkType" class="sel"><option value="">Loại việc: tất cả</option></select>
+    <span id="oOwnerHost" class="pick-host"></span>
+    <select id="oStatus" class="sel"><option value="">Trạng thái: tất cả</option></select>
+    <select id="oDue" class="sel"><option value="">Thời gian: tất cả</option></select>
+    <label class="chk"><input type="checkbox" id="oHideDone"> Ẩn việc đã đóng</label>
+    <button id="oClear" class="btn btn-ghost">Xoá lọc</button>
+    <span class="grow"></span>
+    <span id="oCount" class="muted"></span>
+  </div>
+  <div id="orderList" class="order-list"></div>
 </section>
 
 <div id="bulkbar" class="bulkbar hidden">

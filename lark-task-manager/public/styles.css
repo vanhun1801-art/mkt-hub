@@ -598,6 +598,31 @@ table.tb-fixed { table-layout: fixed; }
 .tb-fixed th:hover .col-resize::after, .col-resize:hover::after { opacity: 1; }
 body.col-resizing, body.col-resizing * { cursor: col-resize !important; user-select: none !important; }
 
+/* ---- tab "Việc tôi order" ---- */
+.order-list { display: flex; flex-direction: column; gap: 20px; }
+.ord-sec-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.ord-sec-head .pill { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.ord-sec-head strong { font-size: 14px; }
+.ord-sec-head .n { color: var(--text-2); font-variant-numeric: tabular-nums; background: var(--surface-3); padding: 1px 9px; border-radius: 100px; font-size: 12px; }
+.ord-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.ord-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-card); padding: 14px 16px; cursor: pointer; box-shadow: var(--shadow-1); transition: border-color .12s, transform .06s; }
+.ord-card:hover { border-color: var(--border-2); }
+.ord-card:active { transform: translateY(1px); }
+.ord-top { display: flex; align-items: flex-start; gap: 10px; justify-content: space-between; }
+.ord-title { font-weight: 600; font-size: 14px; line-height: 1.35; }
+.ord-status { flex: none; color: #fff; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 100px; white-space: nowrap; }
+.ord-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.ord-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
+.ord-who { display: flex; align-items: center; gap: 6px; }
+.ord-who .avatars { margin-left: 0; }
+.ord-lbl { font-size: 11.5px; color: var(--text-2); }
+.ord-sp { font-size: 12px; font-weight: 600; color: var(--text-2); margin-left: auto; display: inline-flex; align-items: center; gap: 5px; }
+.ord-sp::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--border-2); }
+.ord-sp.co { color: #2f9e5f; }
+.ord-sp.co::before { background: #2f9e5f; }
+.ord-rate { font-size: 12px; font-weight: 600; color: var(--orange-text, #b0862f); }
+.ord-empty { text-align: center; color: var(--text-2); padding: 44px 0; font-size: 14px; }
+
 /* ---------------- thanh chọn nhiều ---------------- */
 .bulkbar {
   position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);

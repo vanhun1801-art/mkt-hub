@@ -739,6 +739,18 @@ async function api(req, res, url) {
     return json(res, { tasks, fetchedAt: cache.at });
   }
 
+  /* Việc TÔI đã order: trả các việc mà mình là Người order, bất kể có phụ trách
+   * hay không. Lọc ngay trên server nên nhân sự cũng thấy được việc mình đặt mà
+   * không phải nới quyền của /api/tasks (4 app khác đọc chung endpoint đó). */
+  if (p === '/api/my-orders' && req.method === 'GET') {
+    const me = await whoAmI(req);
+    if (!me) return json(res, { tasks: [], fetchedAt: cache.at });
+    const records = await getRecords(url.searchParams.get('refresh') === '1');
+    const tasks = records.map(toTask)
+      .filter((t) => (t.requester || []).some((u) => u && u.id === me.id));
+    return json(res, { tasks, fetchedAt: cache.at });
+  }
+
   if (p === '/api/tasks' && req.method === 'POST') {
     const body = await readBody(req);
     const me = await whoAmI(req);
