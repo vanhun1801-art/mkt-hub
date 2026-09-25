@@ -38,6 +38,21 @@ kids.datEnv(baoLoi.bat({
   urlHub: (process.env.PUBLIC_URL || 'https://mkt-hub-w6hi.onrender.com').replace(/\/+$/, ''),
 }));
 
+/* GIỮ THỨC BUỔI CHIỀU (25/09/2026). Render gói miễn phí ngủ sau 15 phút không ai vào,
+ * nên bản tin quảng cáo 20:00 không bao giờ đi nếu cả phòng nghỉ lúc 17:30. Trong khung
+ * HUB_GIU_THUC (mặc định 16:00–20:30 giờ VN) hub tự gọi /healthz của chính nó qua địa
+ * chỉ công khai mỗi 8 phút — lưu lượng từ ngoài vào nên Render tính là có người dùng.
+ * Chỉ giữ được khi hub đang thức lúc vào khung; ngủ từ trước thì không tự dậy được.
+ * Tốn ~4 giờ chạy/ngày trong hạn mức 750 giờ/tháng. Tắt: HUB_GIU_THUC=0. */
+if (process.env.RENDER_EXTERNAL_URL && process.env.HUB_GIU_THUC !== '0') {
+  const [tu, den] = (process.env.HUB_GIU_THUC || '16:00-20:30').split('-').map((s) => { const [h, m] = s.split(':').map(Number); return h * 60 + (m || 0); });
+  setInterval(() => {
+    const d = new Date(Date.now() + 7 * 3600000), phut = d.getUTCHours() * 60 + d.getUTCMinutes();
+    if (phut < tu || phut > den) return;
+    require('../lark-chung/canh-api').imLang(() => fetch(process.env.RENDER_EXTERNAL_URL.replace(/\/+$/, '') + '/healthz').catch(() => {}));
+  }, 8 * 60 * 1000).unref();
+}
+
 const PUBLIC = path.join(__dirname, 'public');
 
 /* ---------------- ai là quản lý ----------------

@@ -363,6 +363,16 @@ async function api(req, res, u) {
     return ok(res, { from, to, nenTang: ra });
   }
 
+  /* Bản tin quảng cáo sáng/tối (ban-tin-qc.js). ?buoi=sang|toi — GET xem trước,
+   * &gui=1 gửi thử cho anh Hùng. Chỉ quản lý. */
+  if (p === '/api/ban-tin-qc' && method === 'GET') {
+    if (!laQuanLy(req)) return fail(res, 403, 'Chỉ vai quản lý mới xem được bản tin');
+    const buoi = u.searchParams.get('buoi') === 'toi' ? 'toi' : 'sang';
+    const gui = u.searchParams.get('gui') === '1';
+    const kq = await require('./ban-tin-qc').chay(depBanTin(), { buoi, xem: !gui, ep: gui });
+    return ok(res, kq);
+  }
+
   if (p === '/api/overview' && method === 'GET') {
     const data = await dataFor(u, req);
     return ok(res, M.overview(data, queryOpts(u, req)));
@@ -1732,7 +1742,24 @@ if (!LOOPBACK.includes(BIND) && process.env.HUB_TRUST_HEADER !== '0') {
     '  việc tin header danh tính của lớp vỏ. Chạy dưới Marketing Hub thì bỏ BIND_HOST.\n');
 }
 
+/* Dữ liệu cho bản tin: đúng đường dataFor dùng cho Tổng quan, nhưng xem TOÀN BỘ kênh
+ * (tin gửi riêng anh Hùng) và không có request. */
+function depBanTin() {
+  return {
+    M,
+    cli: lark.cli,
+    layDuLieu: async () => {
+      if (!live.kenhDangBat().length) return { ...(await store.get()), live: { bat: false, nenTang: [], loi: [] } };
+      try { return await live.duLieu({ soNgay: 14 }); } catch (e) {
+        return { ...(await store.get()), live: { bat: false, nenTang: [], loi: [{ loi: e.message }] } };
+      }
+    },
+  };
+}
+
 server.listen(cfg.port, BIND, () => {
+  /* 8:00 tổng kết hôm qua · 20:00 hôm nay tới giờ — nhắn anh Hùng qua bot Marketing Hub */
+  require('./ban-tin-qc').bat(depBanTin());
   console.log(`\n  Quản lý quảng cáo đa nền tảng — Rooty Trip`);
   console.log(`  http://localhost:${cfg.port}`);
   console.log(`  Base: ${cfg.baseUrl}\n`);

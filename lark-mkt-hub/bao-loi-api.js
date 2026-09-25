@@ -140,6 +140,7 @@ function bat(dep) {
   canh.cai(nhan);                                         // lỗi của chính hub
   return {
     HUB_BAO_LOI_URL: 'http://127.0.0.1:' + c.port + '/_noi-bo/loi-api',
+    HUB_GUI_TIN_URL: 'http://127.0.0.1:' + c.port + '/_noi-bo/gui-tin',
     HUB_KHOA_NOI_BO: KHOA,
     /* gạch chéo xuôi: trong NODE_OPTIONS có ngoặc kép thì "\" là ký tự thoát — để
      * nguyên đường dẫn Windows là mọi app con chết ngay lúc nạp (đã gặp khi thử). */
@@ -149,13 +150,29 @@ function bat(dep) {
 
 /** Xử lý POST /_noi-bo/loi-api. Trả true nếu đã xử lý request. */
 function xuLy(req, res, p) {
-  if (p !== '/_noi-bo/loi-api') return false;
+  if (p !== '/_noi-bo/loi-api' && p !== '/_noi-bo/gui-tin') return false;
   const tuMay = /^(::ffff:)?127\.0\.0\.1$|^::1$/.test(req.socket.remoteAddress || '');
   if (req.method !== 'POST' || !tuMay || req.headers['x-hub-khoa'] !== KHOA) { res.writeHead(404); res.end(); return true; }
+  const tran = p === '/_noi-bo/gui-tin' ? 200000 : 8192;
   let than = '';
-  req.on('data', (d) => { than += d; if (than.length > 8192) req.destroy(); });
-  req.on('end', () => { try { nhan(JSON.parse(than)); } catch (_) { /* bỏ */ } res.writeHead(204); res.end(); });
+  req.on('data', (d) => { than += d; if (than.length > tran) req.destroy(); });
+  req.on('end', async () => {
+    if (p === '/_noi-bo/loi-api') { try { nhan(JSON.parse(than)); } catch (_) { /* bỏ */ } res.writeHead(204); return res.end(); }
+    /* app con nhờ hub gửi một thẻ cho anh Hùng (lark-chung/gui-anh-hung.js) */
+    let kq;
+    try { kq = await guiAnhHung(JSON.parse(than)); } catch (e) { kq = { ok: false, loi: e.message }; }
+    res.writeHead(kq.ok ? 200 : 502, { 'content-type': 'application/json' });
+    res.end(JSON.stringify(kq));
+  });
   return true;
+}
+
+async function guiAnhHung({ card, khoa }) {
+  if (!card || typeof card !== 'object') return { ok: false, loi: 'thiếu thẻ' };
+  if (!guiTin) return { ok: false, loi: 'hub chưa có khoá app Marketing Hub' };
+  const id = await nguoiNhan();
+  if (!id) return { ok: false, loi: 'không tìm thấy "' + TEN + '" có open_id trong bảng Phân quyền' };
+  return canh.imLang(() => guiTin({ userId: id, card, khoa }));
 }
 
 module.exports = { bat, xuLy, nhan, theLoi, ganDay: () => ganDay.slice().reverse(), _xa: xa };
