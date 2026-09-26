@@ -312,13 +312,16 @@ table.tbl .num { text-align: right; font-variant-numeric: tabular-nums; }
   background: var(--surface); border: 1px solid var(--line);
   border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-1);
 }
-.cal-dow { display: grid; grid-template-columns: repeat(7, 1fr); background: var(--surface-2); }
+.cal-dow { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); background: var(--surface-2); }
 .cal-dow div {
   padding: 8px 10px; font-size: 12px; color: var(--t2); font-weight: 500;
   border-bottom: 1px solid var(--line);
 }
-.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+/* minmax(0, 1fr) chứ không phải 1fr: 1fr = minmax(auto, 1fr), tên lịch dài
+   (nowrap) đẩy cột giãn theo chữ → 7 cột lệch nhau (26/09/2026). */
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
 .cal-cell {
+  min-width: 0;
   min-height: 118px; border-right: 1px solid var(--line-soft);
   border-bottom: 1px solid var(--line-soft); padding: 6px; position: relative;
 }
