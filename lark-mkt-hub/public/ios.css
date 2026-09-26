@@ -2552,7 +2552,11 @@ html[data-skin="ios"][data-app] .topbar .ios-tao[data-ios-co-cong]::before { dis
 
   /* ô tìm của .cal-filters là <input> trực tiếp (không có .search bọc) */
   html[data-skin="ios"]:not(#_):not(#__) .cal-filters > input[type=search] {
-    order: 0; width: 190px !important; height: 32px !important; min-height: 32px !important; border-radius: 999px !important; font-size: 15px !important;
+    order: 0; width: 190px !important; height: 32px !important; min-height: 32px !important; border-radius: 999px !important;
+    /* 16px là SÀN, không phải lựa chọn thẩm mỹ: iOS tự phóng to cả trang khi
+       chạm vào ô nhập chữ dưới 16px. Đặt 15px cho gọn thì đổi lại bằng việc
+       mỗi lần gõ tìm là trang nhảy — xem test/co-chu-o-nhap.test.js. */
+    font-size: 16px !important;
   }
   html[data-skin="ios"]:not(#_):not(#__) .cal-filters > label { order: 3; display: inline-flex !important; align-items: center; gap: 6px; white-space: nowrap; font-size: 14px !important; height: 32px; }
   html[data-skin="ios"]:not(#_):not(#__) .cal-filters > label input { width: 18px !important; height: 18px !important; min-height: 0 !important; }
@@ -2792,7 +2796,8 @@ html[data-skin="ios"][data-theme="toi"]:not(#_)[data-app="san-pham"] :is(.sdDau,
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%238e8e93' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
     background-repeat: no-repeat !important; background-position: right 12px center !important;
   }
-  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] table.bang tbody td.o-viec .v-viec { font-size: 15px !important; color: var(--ios-chu-2) !important; }
+  /* 16px là SÀN trên điện thoại — dưới ngưỡng đó iOS tự phóng to trang khi chạm. */
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] table.bang tbody td.o-viec .v-viec { font-size: 16px !important; color: var(--ios-chu-2) !important; }
   html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] table.bang tbody td.so-o input { text-align: right; }
   html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] table.bang tbody td textarea { min-height: 64px !important; padding-top: 9px !important; padding-bottom: 9px !important; resize: vertical; }
   html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] table.bang tbody td .td-o { display: flex; align-items: center; gap: 12px; height: 30px; }

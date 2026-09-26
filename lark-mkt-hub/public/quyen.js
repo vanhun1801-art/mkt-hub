@@ -69,35 +69,58 @@ const chanDanhSach = () =>
   '<button class="btn ghost" data-close="1">Đóng</button>';
 
 /**
- * Dòng này có thật sự bám được vào một người trong Lark chưa.
- * Server đã đối chiếu với danh bạ (`khop`) — ở đây chỉ diễn đạt lại cho dễ đọc.
- * KHÔNG khớp là chuyện nặng: người đó rơi về mặc định THẤY MỌI BASE.
+ * Dòng này có bám chắc vào một con người chưa — và nói SỰ THẬT về chỗ bám.
+ *
+ * XẾP THEO THỨ TỰ HỆ THỰC SỰ KHỚP LÚC ĐĂNG NHẬP, không phải theo danh bạ:
+ * `quyen.cuaNguoi()` thử EMAIL trong phiên trước, rồi open_id, cuối cùng mới
+ * tới tên. Danh bạ của các app KHÔNG tham gia vào việc đó.
+ *
+ * Vì sao phải viết lại (đo ngày 26/09/2026):
+ *   · 4/13 dòng bị báo ĐỎ "quyền chưa có tác dụng" trong khi cả 4 đều có email
+ *     công ty hợp lệ và quyền vẫn chạy đúng;
+ *   · 12/13 dòng bị khuyên "nên điền email cho chắc" trong khi email ĐÃ điền.
+ *     Gốc: 39/40 mục trong danh bạ không mang email (các app chỉ trả id + tên),
+ *     nên đối chiếu email không bao giờ ăn và mọi dòng rơi xuống khớp-theo-tên.
+ *
+ * Cả hai đều là báo sai, và báo sai còn tệ hơn không báo: nó đẩy quản lý đi sửa
+ * thứ đang chạy đúng, đồng thời che mất hai dòng thật sự mong manh (không email).
  */
 function nhanDien(h) {
-  if (!h.khop) {
+  const mail = String(h.email || '').trim();
+  const k = h.khop;
+
+  /* Tài khoản email + mật khẩu: nói rõ, vì cấp base cho người ngoài công ty là
+   * việc cần cân nhắc khác, mà nhìn tên thì không phân biệt được. */
+  if (k && k.ngoaiLark) {
+    return { loai: 'luc', chu: 'Đã khớp: ' + k.ten + ' · tài khoản',
+      mo: 'Đăng nhập bằng email và mật khẩu, khớp theo email. Cân nhắc kỹ base nào mở cho người này.' };
+  }
+
+  /* 1. CÓ EMAIL — khoá chắc nhất, và là thứ hệ dùng đầu tiên lúc đăng nhập. */
+  if (mail) {
+    if (k && k.cach === 'email') {
+      return { loai: 'luc', chu: 'Đã khớp: ' + k.ten, mo: 'Khớp theo email — chắc nhất.' };
+    }
+    return { loai: 'luc', chu: 'Khớp theo email',
+      mo: 'Người này đăng nhập bằng ' + mail + ' là quyền áp dụng đúng — hệ khớp email ' +
+          'trước tiên. Danh bạ các app chưa mang email nên không đối chiếu chính tả hộ ' +
+          'được; soát lại địa chỉ bằng mắt cho chắc.' };
+  }
+
+  /* 2. KHÔNG có email — chỉ còn cái tên, và đây mới là chỗ mong manh thật. */
+  if (!k) {
     return { loai: 'do', chu: 'Chưa khớp ai',
-      mo: 'Không tìm thấy ai trong Lark khớp dòng này (email hoặc tên đang lệch) — ' +
-          'quyền chưa có tác dụng, người đó rơi về mặc định (chỉ base mở cho cả phòng). ' +
-          'Bấm Gán người để sửa.' };
+      mo: 'Dòng này KHÔNG có email và cũng không ai trùng tên — quyền chưa có tác dụng, ' +
+          'người đó rơi về mặc định (chỉ base mở cho cả phòng). Bấm Gán người để sửa.' };
   }
-  const c = h.khop.cach;
-  const cach = c === 'email' ? 'theo email' : c === 'open_id' ? 'theo tài khoản đã đăng nhập' : 'theo tên';
-  /* Người ngoài Lark: nói thẳng ra. Cấp base cho cộng tác viên hay đối tác là
-   * việc cần cân nhắc khác với cấp cho nhân sự trong công ty, mà nhìn tên thì
-   * không phân biệt được. */
-  if (h.khop.ngoaiLark) {
-    return {
-      loai: 'luc',
-      chu: 'Đã khớp: ' + h.khop.ten + ' · tài khoản',
-      mo: 'Đăng nhập bằng email và mật khẩu. Khớp theo email. ' +
-          'Cân nhắc kỹ base nào mở cho người này.',
-    };
+  if (h.trungTen) {
+    return { loai: 'do', chu: 'Trùng tên ' + h.trungTen + ' người',
+      mo: 'Không có email, mà lại có ' + h.trungTen + ' người cùng tên — hệ KHÔNG đoán, ' +
+          'nên quyền chưa có tác dụng. Phải điền email.' };
   }
-  return {
-    loai: c === 'ten' ? 'vang' : 'luc',
-    chu: 'Đã khớp: ' + h.khop.ten,
-    mo: 'Khớp ' + cach + '.' + (c === 'ten' ? ' Nên điền email cho chắc — tên có thể bị sửa.' : ''),
-  };
+  return { loai: 'vang', chu: 'Chỉ khớp theo tên: ' + k.ten,
+    mo: 'Dòng này CHƯA có email. Khớp bằng tên thì chỉ cần đổi tên hiển thị trong Lark ' +
+        'là mất sạch quyền, mà không có gì báo. Điền email vào.' };
 }
 
 /* ---------------- màn 1: danh sách ---------------- */
