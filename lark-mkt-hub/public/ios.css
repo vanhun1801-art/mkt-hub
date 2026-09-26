@@ -2726,3 +2726,82 @@ html[data-skin="ios"]:not(#_) :is(td .tag, td .badge) { height: auto; white-spac
    Chủ nhật tràn khỏi khung (26/09/2026). */
 html[data-skin="ios"] :is(.cal-grid, .cal-dow) { grid-template-columns: repeat(7, minmax(0, 1fr)) !important; }
 html[data-skin="ios"] .cal-cell { min-width: 0; }
+
+/* Sản phẩm — khối "Sắp đổi" trong thẻ (anh Hùng 26/09: "chỗ này hiển thị tốt
+   hơn"). Trước: luật chung đổi viền đứt thành viền liền cho cả 4 cạnh, mà app
+   chỉ khai độ dày cạnh trên → 3 cạnh còn lại nhận độ dày mặc định 3px = khung
+   xám dày hai lớp, chữ nhạt. Nay: một ô nền tím rất nhạt (tím = "sắp đổi"
+   như app đã quy ước), không viền, tiêu đề có chấm tím, tên cột đậm dễ đọc. */
+html[data-skin="ios"]:not(#_)[data-app="san-pham"] .sapDoi {
+  border: 0 !important; margin-top: 2px; padding: 9px 11px 10px !important; gap: 6px;
+  border-radius: 12px; background: color-mix(in srgb, #8b5cf6 7%, var(--ios-the));
+}
+html[data-skin="ios"]:not(#_)[data-app="san-pham"] .sdDau {
+  display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: #7c4ddb;
+}
+html[data-skin="ios"]:not(#_)[data-app="san-pham"] .sdDau::before {
+  content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: 0 0 auto;
+}
+html[data-skin="ios"]:not(#_)[data-app="san-pham"] .sdNgay { font-weight: 500; color: inherit; opacity: .85; }
+html[data-skin="ios"]:not(#_)[data-app="san-pham"] .sdMuc { display: flex; flex-direction: column; gap: 1px; }
+html[data-skin="ios"]:not(#_)[data-app="san-pham"] .sdCot { font-size: 12.5px; font-weight: 600; color: var(--ios-chu); }
+html[data-skin="ios"]:not(#_)[data-app="san-pham"] .sdMoi { font-size: 12.5px; color: var(--ios-chu-2); line-height: 1.4; }
+html[data-skin="ios"]:not(#_)[data-app="san-pham"] .sdCon { font-size: 12px; color: #7c4ddb; font-weight: 500; }
+html[data-skin="ios"][data-theme="toi"]:not(#_)[data-app="san-pham"] :is(.sdDau, .sdCon) { color: #b69cff; }
+@media (prefers-color-scheme: dark) {
+  html[data-skin="ios"]:not([data-theme="sang"]):not(#_)[data-app="san-pham"] :is(.sdDau, .sdCon) { color: #b69cff; }
+}
+
+/* Báo cáo — phiếu nhập trên điện thoại (anh Hùng 26/09: "trang báo cáo này
+   anh thấy chưa ổn"). Trước: mỗi dòng việc là một khung viền không có lề
+   trong — ô chọn chạm sát mép khung, nhãn in hoa xám, "Nhóm"/"Phút" chồng
+   dọc tốn chỗ. Nay mỗi dòng là một thẻ nền nhạt có lề 12px, ô nhập trắng nổi
+   lên trên nền thẻ, xếp lưới 2 cột:
+     Công việc (chọn + gõ)      — cả hàng
+     Nhóm        | Phút
+     Tiến độ                    — cả hàng
+     Ghi chú tiến độ            — cả hàng
+     Trạng thái  |          [✕] */
+@media (max-width: 780px) {
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] .the-than:has(> table.bang) { padding: 4px 12px 2px !important; }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] table.bang tbody tr {
+    display: grid !important; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px;
+    padding: 12px !important; margin: 0 0 10px !important; border: 0 !important; border-radius: 14px !important;
+    background: color-mix(in srgb, var(--ios-chu) 4.5%, transparent) !important; overflow: visible !important;
+  }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] table.bang tbody tr:hover td { background: transparent !important; }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] table.bang tbody td {
+    border: 0 !important; padding: 0 !important; min-width: 0; width: auto !important; background: transparent !important;
+  }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] table.bang tbody td::before {
+    padding: 0 0 5px !important; font-size: 12.5px !important; font-weight: 600; color: var(--ios-chu-2) !important;
+    text-transform: none !important; letter-spacing: 0 !important;
+  }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] table.bang tbody td:is(.o-viec, :nth-child(4), :nth-child(5)) { grid-column: 1 / -1; }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] table.bang tbody td.o-viec { display: flex !important; flex-direction: column; gap: 6px; }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] table.bang tbody td.o-viec::before { padding-bottom: 0 !important; }
+  /* ô nhập: trắng nổi trên nền thẻ, cùng một cỡ */
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] table.bang tbody td :is(input:not([type=range]), select, textarea) {
+    width: 100% !important; box-sizing: border-box; border: 0 !important; border-radius: 10px !important;
+    background-color: var(--ios-the) !important; color: var(--ios-chu) !important;
+    padding-left: 12px !important; padding-right: 12px !important; font-size: 16px !important;
+    box-shadow: 0 0 0 .5px var(--ios-vach) !important;
+  }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] table.bang tbody td select {
+    -webkit-appearance: none; appearance: none; padding-right: 30px !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%238e8e93' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important; background-position: right 12px center !important;
+  }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] table.bang tbody td.o-viec .v-viec { font-size: 15px !important; color: var(--ios-chu-2) !important; }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] table.bang tbody td.so-o input { text-align: right; }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] table.bang tbody td textarea { min-height: 64px !important; padding-top: 9px !important; padding-bottom: 9px !important; resize: vertical; }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] table.bang tbody td .td-o { display: flex; align-items: center; gap: 12px; height: 30px; }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] table.bang tbody td .td-o input[type=range] { flex: 1 1 auto; min-width: 0; }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] table.bang tbody td .td-o .pt { font-size: 14px; font-weight: 600; min-width: 38px; text-align: right; font-variant-numeric: tabular-nums; }
+  /* nút xoá dòng: nút tròn nhỏ ở góc dưới phải, ngang hàng Trạng thái */
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] table.bang tbody td.o-nut { grid-column: 2; justify-self: end; align-self: end; text-align: right; }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] table.bang tbody td.o-nut .v-xoa {
+    width: 34px !important; min-width: 34px !important; height: 34px !important; min-height: 34px !important; padding: 0 !important;
+    border-radius: 50% !important; background: color-mix(in srgb, var(--ios-do) 12%, transparent) !important; color: var(--ios-do) !important;
+  }
+}
