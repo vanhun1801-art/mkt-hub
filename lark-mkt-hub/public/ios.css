@@ -2721,3 +2721,8 @@ html[data-skin="ios"]:not(#_) :is(td .tag, td .badge) { height: auto; white-spac
   html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] .the-dau:has(#chonCa) > .lon { display: none; }
   html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] .the-dau:has(#chonCa) > .nho { margin-right: 8px; }
 }
+/* Lịch tháng mọi khổ màn: 7 cột bằng nhau. 1fr = minmax(auto, 1fr) nên tên
+   lịch dài (nowrap) đẩy cột giãn theo chữ — desktop từng lệch: Thứ 2 hẹp,
+   Chủ nhật tràn khỏi khung (26/09/2026). */
+html[data-skin="ios"] :is(.cal-grid, .cal-dow) { grid-template-columns: repeat(7, minmax(0, 1fr)) !important; }
+html[data-skin="ios"] .cal-cell { min-width: 0; }
