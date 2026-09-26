@@ -2837,3 +2837,215 @@ html[data-skin="ios"][data-app="cong-viec"] .ord-sp { font-size: 12.5px; font-we
   html[data-skin="ios"]:not(#_):not(#__) .ord-sec-head .pill { width: 8px !important; height: 8px !important; min-height: 0 !important; padding: 0 !important; border-radius: 50% !important; }
   html[data-skin="ios"]:not(#_):not(#__) .order-list { padding: 8px 16px 24px !important; }
 }
+
+/* ==========================================================================
+   ĐỒNG CỠ DESKTOP + ĐƯỜNG TIẾP GIÁP MỀM (26/09/2026). Anh Hùng: "còn lỗi hiển
+   thị nhỏ nhỏ như lệch các nút… cần sự đồng nhất… các đoạn tiếp giáp với nhau
+   cần làm cẩn thận hơn… ngôn ngữ thiết kế mềm mại".
+   Bộ soát đo từng hàng điều khiển trên 12 app ở 1440px: ô chọn 31 cạnh ô chọn
+   người 34, nút 34 cạnh nút 30, nút nhỏ 26 cạnh ô nhập 38… Chuẩn macOS: MỌI
+   điều khiển trên một hàng cao 32px (nút, nút nhỏ, nút tròn, ô chọn, ô nhập,
+   ô chọn người). Nút phân đoạn nằm trong rãnh thì theo rãnh.
+   ========================================================================== */
+@media (min-width: 641px) {
+  html[data-skin="ios"]:not(#_):not(#__) :is(.btn, .btn-primary, .btn-ghost, .btn-danger, .btn.sm, .btn.small, .btn.nho, .btn-sm, .cal-arrow) {
+    height: 32px !important; min-height: 32px !important; padding-top: 0 !important; padding-bottom: 0 !important;
+    display: inline-flex; align-items: center; justify-content: center; line-height: 1.2 !important; box-sizing: border-box;
+  }
+  html[data-skin="ios"]:not(#_):not(#__) :is(.btn.icon, .btn-icon, .cal-arrow) { width: 32px !important; min-width: 32px !important; padding: 0 !important; }
+  html[data-skin="ios"]:not(#_):not(#__) :is(select, .sel, .fld:not(textarea), .in:not(textarea), .cal-search, .in-o,
+    input[type=text], input[type=search], input[type=email], input[type=url], input[type=number], input[type=date], input[type=time], input[type=datetime-local], input[type=password], input:not([type])) {
+    height: 32px !important; min-height: 32px !important; padding-top: 0 !important; padding-bottom: 0 !important; box-sizing: border-box;
+  }
+  html[data-skin="ios"]:not(#_):not(#__) :is(.pick-sum, .dd-sum, .pk-sum) { height: 32px !important; min-height: 32px !important; box-sizing: border-box; padding-top: 0 !important; padding-bottom: 0 !important; display: inline-flex; align-items: center; }
+  html[data-skin="ios"]:not(#_):not(#__) .pick-host { height: 32px; align-items: center; }
+  /* ô nhỏ trong bảng/ô lưới giữ cỡ riêng (không phải hàng công cụ) */
+  html[data-skin="ios"]:not(#_):not(#__) :is(td, .cal-cell) :is(.btn, button.btn) { height: auto !important; min-height: 26px !important; }
+  html[data-skin="ios"]:not(#_):not(#__) .bang td :is(input, select) { height: auto !important; min-height: 30px !important; }
+}
+
+/* nút phân đoạn: bo theo rãnh (rãnh 9–10px, đệm 2px → nút 8px), thay 7px lẻ */
+html[data-skin="ios"]:not(#_) :is(.seg, .hub-seg, .cal-modes) > button { border-radius: 8px !important; }
+html[data-skin="ios"]:not(#_) button.ct-nut { border-radius: 8px !important; }
+
+/* thanh nhấn màu dày ở mép trái/trên của thẻ → bỏ; màu trạng thái chuyển vào
+   nền nhạt. Riêng dòng lịch (.ev, .cal-chip) giữ vạch trái — đúng kiểu Lịch của
+   Apple. */
+html[data-skin="ios"]:not(#_) :is(.yc-noi, .suc-khoe-card, .fstage) { border-left-width: 0 !important; border-top-width: 0 !important; }
+html[data-skin="ios"]:not(#_) .yc-noi { background: color-mix(in srgb, var(--ios-cam) 9%, transparent) !important; border-radius: 10px !important; }
+html[data-skin="ios"]:not(#_)[data-app="ota"] :is(.lark-hero, .luong-buoc, .form-lark-cot) { border-color: var(--ios-vach) !important; }
+html[data-skin="ios"]:not(#_)[data-app="kol"] .lt-the.on { border-color: transparent !important; box-shadow: 0 0 0 2px color-mix(in srgb, var(--ios-xanh) 45%, transparent), var(--ios-bong) !important; }
+html[data-skin="ios"]:not(#_)[data-app="chinh-anh"] .pills > .pill.on { border-color: transparent !important; }
+
+/* ==========================================================================
+   CHUYỂN ĐỘNG LIQUID GLASS (26/09/2026). Anh Hùng: "hiệu ứng chuyển động của
+   các thao tác cần làm thật sự như liquid glass… chỉn chu như macOS, iOS".
+   Ba nguyên tắc của Apple: (1) chuyển động có QUÁN TÍNH — lò xo hơi vượt đà
+   rồi về chỗ, không trượt đều; (2) phần tử đang chọn là một THẤU KÍNH DI
+   CHUYỂN giữa các lựa chọn chứ không nhảy bụp; (3) chạm vào là có PHẢN HỒI
+   ngay dưới ngón tay (co lại nhẹ, thả ra nảy về).
+   ========================================================================== */
+html[data-skin="ios"] {
+  --lo-xo: cubic-bezier(.32, 1.32, .5, 1);        /* lò xo vượt đà nhẹ */
+  --lo-xo-em: cubic-bezier(.2, .9, .25, 1.05);    /* lò xo êm cho khối lớn */
+  --ra: cubic-bezier(.2, .8, .2, 1);
+}
+/* (2) thấu kính trượt: ios-app.js / ios.js dựng <i class="ios-lens"> trong
+   dải tab / rãnh phân đoạn / thanh tab và dời nó tới mục đang chọn */
+html[data-skin="ios"] .ios-co-lens { position: relative; isolation: isolate; }
+html[data-skin="ios"] .ios-co-lens > :not(.ios-lens) { position: relative; z-index: 1; }
+html[data-skin="ios"]:not(#_):not(#__) .ios-co-lens > :is(.on, .is-active, .chon, .cal-mode.is-active, [aria-current="page"], [aria-selected="true"]) {
+  background: transparent !important; box-shadow: none !important;
+}
+html[data-skin="ios"] .ios-lens {
+  position: absolute; left: 0; top: 0; z-index: 0; pointer-events: none; display: block;
+  border-radius: 999px; background: var(--lg-lens); box-shadow: var(--lg-lens-bong);
+  transform: translate3d(var(--x, 0), var(--y, 0), 0); width: var(--w, 0); height: var(--h, 0);
+  opacity: 0;
+}
+html[data-skin="ios"] .ios-lens.san { opacity: 1; }
+html[data-skin="ios"] .ios-lens.chay {
+  transition: transform .5s var(--lo-xo), width .5s var(--lo-xo), height .5s var(--lo-xo), opacity .2s;
+}
+html[data-skin="ios"] :is(.seg, .hub-seg, .cal-modes) > .ios-lens { border-radius: 8px; }
+/* thanh tab điện thoại: thấu kính cùng bo với mục */
+html[data-skin="ios"] .ios-tabbar > .ios-lens { border-radius: 27px; }
+/* đang kéo/nhấn trên thanh tab: thấu kính phình nhẹ như giọt nước */
+html[data-skin="ios"] .ios-tabbar:active > .ios-lens.chay { transition-duration: .35s; }
+
+/* (3) phản hồi chạm: co 3–4% với lò xo, thả ra nảy về */
+html[data-skin="ios"] :is(.btn, button.tab, .tab, button.pill, .tb-chip, .seg > button, .hub-seg > button, .ios-tabbar > :is(a, button), .mob-nut, .ios-tao, .rail-item, .cd-item) {
+  transition: transform .45s var(--lo-xo), background-color .2s var(--ra), color .2s var(--ra), box-shadow .25s var(--ra);
+}
+html[data-skin="ios"] :is(.btn, button.tab, .tab, button.pill, .tb-chip, .seg > button, .hub-seg > button, .mob-nut, .ios-tao, .cd-item):active:not(:disabled) {
+  transform: scale(.955); transition: transform .12s var(--ra);
+}
+html[data-skin="ios"] .ios-tabbar > :is(a, button):active { transform: scale(.92); transition: transform .12s var(--ra); }
+html[data-skin="ios"] :is(.card.bam-duoc, .wcard, .ord-card, .dcard, .nhom-base .the.bam-duoc, .tile, .tb-o, .theDay, .lt-the) {
+  transition: transform .5s var(--lo-xo), box-shadow .25s var(--ra), background-color .2s var(--ra);
+}
+html[data-skin="ios"] :is(.card.bam-duoc, .wcard, .ord-card, .dcard, .nhom-base .the.bam-duoc, .tile, .tb-o, .theDay, .lt-the):active {
+  transform: scale(.985); transition: transform .14s var(--ra);
+}
+html[data-skin="ios"] .rail-item:active { transform: scale(.975); transition: transform .12s var(--ra); }
+
+/* bảng thả xuống, trình đơn: bung từ phía nút bấm với lò xo */
+@keyframes ios-bung { from { opacity: 0; transform: translateY(-6px) scale(.96); } to { opacity: 1; transform: none; } }
+html[data-skin="ios"] :is(details[open] > .dd-panel, .dd[open] > .dd-panel, details[open] > .dd-pop) {
+  transform-origin: top center; animation: ios-bung .34s var(--lo-xo-em) both;
+}
+/* hộp thoại: nổi lên từ 94% với lò xo; nền mờ dần */
+@keyframes ios-noi2 { from { opacity: 0; transform: translateY(10px) scale(.94); } to { opacity: 1; transform: none; } }
+html[data-skin="ios"]:not(#_) :is(.modal.open, .modal.on, .modal-wrap:not([hidden]):not(.hidden)) :is(.modal-box, .modal) {
+  animation: ios-noi2 .42s var(--lo-xo-em) both;
+}
+/* ngăn chi tiết: trượt vào bằng lò xo êm thay cho ease đều */
+html[data-skin="ios"]:not(#_) .drawer { transition: transform .44s cubic-bezier(.2, .9, .25, 1) !important; }
+/* thông báo nhỏ: rơi xuống nảy nhẹ */
+html[data-skin="ios"]:not(#_) .toast { animation: ios-ha .45s var(--lo-xo) both; }
+/* đổi màn trong lớp vỏ: mờ + trồi 6px với lò xo êm */
+html[data-skin="ios"]:not(#_):not([data-app]) .stage > .page:not([hidden]) { animation: ios-vao .38s var(--lo-xo-em) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-skin="ios"] *, html[data-skin="ios"] *::before, html[data-skin="ios"] *::after {
+    animation-duration: .01ms !important; transition-duration: .01ms !important;
+  }
+}
+/* thấu kính: không để các luật cỡ tối thiểu của điện thoại (chip/tab ≥ 30–40px)
+   kéo giãn — cỡ lấy đúng từ mục đang chọn */
+html[data-skin="ios"]:not(#_):not(#__) .ios-lens {
+  min-height: 0 !important; min-width: 0 !important; max-width: none !important; padding: 0 !important; margin: 0 !important;
+  width: var(--w, 0); height: var(--h, 0); flex: none !important; border: 0 !important;
+}
+
+/* ==========================================================================
+   CHỊU ĐƯỢC DỮ LIỆU MỚI (26/09/2026). Anh Hùng: "giao diện thường lỗi tại các
+   thông tin phát sinh mới". Bộ thử nhồi tên rất dài, đường link không dấu cách,
+   số tiền 12 chữ số, huy hiệu 999+ vào mọi thẻ của 12 app rồi đo:
+     · link/chuỗi liền (không dấu cách) đẩy thẻ việc lòi 777px, thẻ order 167px,
+       thẻ sản phẩm 318px, thẻ KOL 52px — con của flex mặc định min-width:auto;
+     · chip nhãn dài không xuống dòng → thẻ OTA vỡ;
+     · dải tab desktop giãn theo chữ → cả trang cuộn ngang.
+   ========================================================================== */
+/* chữ trong thẻ được phép bẻ giữa chuỗi liền; con flex/grid được co dưới cỡ chữ */
+html[data-skin="ios"] :is(.wcard, .ord-card, .dcard, .card, .kpi, .the, .theDay, .lt-the, .tile, .tb-o, .queue-row, .khoi, .nhom-base, .drawer, .modal-box, .danh-muc-card) {
+  overflow-wrap: break-word; min-width: 0;   /* break-word, không phải anywhere: anywhere làm bảng tự co cột, bẻ giữa từ */
+}
+html[data-skin="ios"] :is(.wcard-main, .ord-top, .ord-title, .tdDau, .tdTen, .lt-the-tiep, .queue-main, .dcard-main, .the-dau > h2, .khoi-head > div) { min-width: 0; }
+html[data-skin="ios"] :is(.wcard-meta, .ord-meta, .pills, .khoi-thanh, .the-dau, .tb-meta) { flex-wrap: wrap; }
+/* chip/nhãn: dài quá thì cắt "…" trong bề rộng thẻ (dòng đủ cao cho dấu tiếng Việt) */
+html[data-skin="ios"]:not(#_) :is(.tag, .chip) {
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; box-sizing: border-box;
+}
+/* huy hiệu số: 999+ vẫn là viên gọn, không đẩy tab */
+html[data-skin="ios"]:not(#_) :is(.cnt, .ri-badge, .ios-so) { white-space: nowrap; flex: none; }
+/* dải tab desktop: cuộn trong chính nó, không kéo giãn trang */
+@media (min-width: 641px) {
+  html[data-skin="ios"]:not(#_) :is(.topbar .tabs, .tabsbar .tabs, .topbar > .pills) { min-width: 0; flex-shrink: 1; overflow-x: auto; scrollbar-width: none; }
+  html[data-skin="ios"]:not(#_) :is(.topbar .tabs, .tabsbar .tabs, .topbar > .pills)::-webkit-scrollbar { display: none; }
+  html[data-skin="ios"]:not(#_) :is(.topbar .tabs, .tabsbar .tabs, .topbar > .pills) > :not(.ios-lens) { flex: none; white-space: nowrap; }
+}
+/* Thẻ việc điện thoại xếp dọc với align-items:flex-start → phần thân lấy bề
+   rộng theo chuỗi dài nhất (link 1037px) thay vì bề rộng thẻ. Thân giãn đúng
+   bề ngang thẻ; tiêu đề/mô tả được bẻ giữa chuỗi liền (anywhere chỉ dùng cho
+   chữ trong thẻ, không cho bảng). */
+html[data-skin="ios"] :is(.wcard > .wcard-main, .dcard > .dcard-main) { align-self: stretch; max-width: 100%; }
+html[data-skin="ios"] :is(.wcard-title, .wcard-sub, .ord-title, .tdTen, .tdEn, .tdUsp, .queue-title, .queue-meta, .lt-ten, .dcard-title, .tb-dau, .tb-mo, .sdMoi) { overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  /* dòng đếm "Hiển thị x / y việc…" trong hàng lọc (mọi tab): ẩn như Tổng quan */
+  html[data-skin="ios"]:not(#_):not(#__) :is(.filters, .filters-dash, .filters-work).tg-dong > span.muted { display: none !important; }
+}
+/* tiêu đề làn/nhóm: dài quá thì "…", không cắt cụt */
+html[data-skin="ios"] :is(.lane-head, .ord-sec-head) { min-width: 0; }
+html[data-skin="ios"] :is(.lane-head strong, .ord-sec-head strong) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* thanh đầu: chip vai trò / tên người dài không được kéo cụm bên phải giãn ra
+   ngoài màn (bộ thử: chip KPI dài 1341px đẩy trang cuộn ngang) */
+html[data-skin="ios"] .topbar > :is(.top-right, .topbar-right, .topbar-actions, .tb-phai) { min-width: 0; flex-shrink: 1; }
+html[data-skin="ios"]:not(#_) .topbar :is(.chip, .tag, .mechip, #homeUser) { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ĐIỆN THOẠI — một cỡ cho mọi điều khiển đứng chung hàng: 36px (nút, nút nhỏ,
+   nút tròn, mũi tên lịch, ô nhập, ô chọn). Bộ soát còn thấy nút 30/34 đứng cạnh
+   ô nhập 38. Hàng viên lọc giữ 32, dải tab giữ 30 (luật riêng phía trên). */
+@media (max-width: 640px) {
+  html[data-skin="ios"]:not(#_):not(#__) :is(.btn, .btn-primary, .btn-ghost, .btn-danger, .btn.sm, .btn.small, .btn.nho, .btn-sm, .btn.src, .cal-arrow) {
+    height: 36px !important; min-height: 36px !important; padding-top: 0 !important; padding-bottom: 0 !important;
+    display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box;
+  }
+  html[data-skin="ios"]:not(#_):not(#__) :is(.btn.icon, .btn-icon, .cal-arrow) { width: 36px !important; min-width: 36px !important; padding: 0 !important; }
+  html[data-skin="ios"]:not(#_):not(#__) body :is(input[type=text], input[type=search], input[type=email], input[type=url], input[type=number], input[type=date], input[type=time], input[type=datetime-local], input[type=password], input:not([type]), select, .fld:not(textarea), .sel, .in:not(textarea)) {
+    height: 36px !important; min-height: 36px !important;
+  }
+  html[data-skin="ios"]:not(#_):not(#__) :is(.dd-sum, .pick-sum, .pk-sum) { height: 36px !important; min-height: 36px !important; }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app] .topbar .ios-tao { width: 36px !important; min-width: 36px !important; height: 36px !important; min-height: 36px !important; }
+  /* trong bảng/ô lịch giữ cỡ riêng */
+  html[data-skin="ios"]:not(#_):not(#__) :is(td, .cal-cell) .btn { height: auto !important; min-height: 30px !important; }
+  html[data-skin="ios"]:not(#_):not(#__) .cal-cell :is(.ev, .ev-more) { height: auto !important; min-height: 0 !important; }
+}
+/* Công việc: số của ô trung tính ("84 Tổng công việc", "63% Tỉ lệ hoàn thành")
+   lấy màu var(--c) — trong lớp iOS biến đó trỏ vào màu chữ mờ 18% → số như bị
+   vô hiệu. Số là tầng thông tin quan trọng nhất của ô: về màu chữ chính. */
+html[data-skin="ios"]:not(#_) .kpi:not(.kpi-alert):not(.kpi-warn):not(.kpi-ok):not(.kpi-hot) .kpi-n { color: var(--ios-chu) !important; }
+
+/* Nút "Làm mới" trên thanh đầu (KOL, Sản phẩm) ở điện thoại: thành nút tròn
+   biểu tượng như nút làm mới của lớp vỏ, đứng cùng hàng với dải tab — trước
+   đó chữ "Làm mới" chen sát dải tab (KOL) hoặc chiếm cả một hàng (Sản phẩm). */
+@media (max-width: 640px) {
+  html[data-skin="ios"]:not(#_):not(#__):is([data-app="kol"], [data-app="san-pham"]) .topbar #btnLamMoi {
+    width: 36px !important; min-width: 36px !important; padding: 0 !important; font-size: 0 !important; border-radius: 50% !important;
+    background: var(--lg-vet), var(--lg-nen) !important; box-shadow: var(--lg-rim), 0 3px 10px -5px rgba(20, 30, 60, .25) !important; color: var(--ios-xanh) !important;
+    flex: none; margin-left: 6px !important;
+  }
+  html[data-skin="ios"]:not(#_):not(#__):is([data-app="kol"], [data-app="san-pham"]) .topbar #btnLamMoi::before {
+    content: ""; width: 17px; height: 17px; background: currentColor;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 12a8 8 0 1 1-2.34-5.66'/%3E%3Cpath d='M20 4v5h-5'/%3E%3C/svg%3E") center / contain no-repeat;
+            mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 12a8 8 0 1 1-2.34-5.66'/%3E%3Cpath d='M20 4v5h-5'/%3E%3C/svg%3E") center / contain no-repeat;
+  }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="kol"] .topbar > .lon { display: none; }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="kol"] .topbar > a.btn.nho { display: none !important; }
+  /* Sản phẩm: tab + cụm phải trên MỘT hàng */
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="san-pham"] .topbar { flex-wrap: nowrap !important; align-items: center; gap: 0 !important; }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="san-pham"] .topbar > .pills { flex: 1 1 0 !important; min-width: 0 !important; width: auto !important; }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="san-pham"] .topbar > .sp { display: none !important; }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="san-pham"] .topbar > .top-right { flex: none !important; width: auto !important; margin: 0 !important; }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="san-pham"] .topbar > .top-right > :not(#btnLamMoi) { display: none !important; }
+}

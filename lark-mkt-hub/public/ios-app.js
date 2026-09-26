@@ -158,13 +158,63 @@
   }
   const mepHet = () => document.querySelectorAll(MEP).forEach(mepMot);
   document.addEventListener('scroll', (e) => { const d = e.target; if (d && d.matches && d.matches(MEP)) mepMot(d); }, { capture: true, passive: true });
-  addEventListener('resize', () => requestAnimationFrame(mepHet));
+  addEventListener('resize', () => requestAnimationFrame(() => { mepHet(); lensHet(); }));
+
+
+  /* THẤU KÍNH TRƯỢT (Liquid Glass): trong mỗi dải tab / rãnh phân đoạn có một
+   * <i class="ios-lens"> nằm dưới các nút; mục đang chọn đổi thì thấu kính trượt
+   * tới bằng lò xo (CSS .ios-lens.chay) thay vì nền nhảy bụp từ nút này sang
+   * nút kia. Lần đặt đầu tiên không chạy hiệu ứng (khỏi bay từ góc trái vào).
+   * Dải bị "tháo" thành display:contents (hàng viên lọc điện thoại) thì bỏ
+   * thấu kính, trả nền về cho nút. */
+  const LENS = '.topbar .tabs, .tabsbar .tabs, .thanh .tabs, .topbar > .pills, .seg, .hub-seg, .cal-modes, .ios-tabbar';
+  const DANG_CHON = ':scope > :is(.on, .is-active, .chon, [aria-current="page"], [aria-selected="true"])';
+  const lensCu = new Map();
+  function lensMot(d) {
+    let l = d.querySelector(':scope > .ios-lens');
+    const on = d.querySelector(DANG_CHON);
+    const hs = getComputedStyle(d);
+    if (!on || hs.display === 'contents' || hs.display === 'none' || !on.offsetWidth) {
+      if (l) { l.remove(); d.classList.remove('ios-co-lens'); }
+      return;
+    }
+    const khoa = (d.id || '') + '|' + String(d.className).replace(/\s*ios-co-lens/, '') + '|' + (d.parentElement ? d.parentElement.className : '');
+    let tuCu = null;
+    if (!l) {
+      l = document.createElement('i');
+      l.className = 'ios-lens'; l.setAttribute('aria-hidden', 'true');
+      d.insertBefore(l, d.firstChild);
+      d.classList.add('ios-co-lens');
+      tuCu = lensCu.get(khoa) || null;   // app vẽ lại dải tab: xuất phát từ chỗ cũ
+    }
+    const x = on.offsetLeft, y = on.offsetTop, w = on.offsetWidth, h = on.offsetHeight;
+    const cu = l.dataset.k, moi = x + ',' + y + ',' + w + ',' + h;
+    if (cu === moi) return;
+    l.dataset.k = moi;
+    lensCu.set(khoa, [x, y, w, h]);
+    if (tuCu && tuCu.join(',') !== moi && l.animate && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      /* Phần tử vừa chèn chưa có "kiểu trước đó" nên CSS transition không có
+       * điểm xuất phát → dùng Web Animations, chạy thẳng từ chỗ cũ tới chỗ mới. */
+      l.classList.add('san');
+      l.animate([
+        { transform: 'translate3d(' + tuCu[0] + 'px,' + tuCu[1] + 'px,0)', width: tuCu[2] + 'px', height: tuCu[3] + 'px' },
+        { transform: 'translate3d(' + x + 'px,' + y + 'px,0)', width: w + 'px', height: h + 'px' },
+      ], { duration: 500, easing: 'cubic-bezier(.32, 1.32, .5, 1)' });
+      requestAnimationFrame(() => l.classList.add('chay'));
+    }
+    l.style.setProperty('--x', x + 'px'); l.style.setProperty('--y', y + 'px');
+    l.style.setProperty('--w', w + 'px'); l.style.setProperty('--h', h + 'px');
+    const br = getComputedStyle(on).borderTopLeftRadius;
+    if (br && br !== '0px') l.style.borderRadius = br;
+    if (!l.classList.contains('san')) requestAnimationFrame(() => { l.classList.add('san'); requestAnimationFrame(() => l.classList.add('chay')); });
+  }
+  const lensHet = () => document.querySelectorAll(LENS).forEach(lensMot);
 
   let hen = 0;
-  const lich = () => { if (hen) return; hen = requestAnimationFrame(() => { hen = 0; try { donMot(document.body); nutTao(); chipNguon(); tabTrongTam(); mepHet(); } catch (_) {} }); };
+  const lich = () => { if (hen) return; hen = requestAnimationFrame(() => { hen = 0; try { donMot(document.body); nutTao(); chipNguon(); tabTrongTam(); mepHet(); lensHet(); } catch (_) {} }); };
   const batDau = () => {
     lich();
-    new MutationObserver(lich).observe(document.body, { childList: true, subtree: true, characterData: true });
+    new MutationObserver(lich).observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class', 'aria-current', 'aria-selected', 'hidden'] });
     // đổi tab nhiều app chỉ đổi lớp .on (không đổi DOM) — nghe cả cú bấm
     document.addEventListener('click', (e) => { if (e.target.closest('.tabs, .pills')) requestAnimationFrame(tabTrongTam); });
   };
