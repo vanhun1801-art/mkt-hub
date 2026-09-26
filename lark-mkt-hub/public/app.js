@@ -850,6 +850,38 @@ function datTenMan(ten) {
   if (o) o.textContent = ten;
 }
 
+/**
+ * Kéo iframe của app con VỀ ĐÚNG CHỖ nếu nó đã lạc đi đâu.
+ *
+ * Hub giữ iframe trong bộ nhớ để mở lại app cho nhanh. Nhưng nếu app con tự
+ * điều hướng ra khỏi đường của nó — một nút tải về trỏ sai rồi rơi vào trang
+ * 404, một lần chuyển hướng đăng nhập, một link quên `target` — thì iframe đó
+ * KẸT LẠI ở trang kia. Bấm lại app ở panel cũng chỉ hiện đúng trang chết đó, và
+ * cách duy nhất thoát ra là tải lại cả hub.
+ *
+ * Gặp thật ngày 27/09/2026: nút "Xuất CSV" của Booking OTA gọi
+ * `/api/export.csv` (có gạch chéo đầu) nên trượt về gốc hub và nhận 404 dạng
+ * HTML — không có Content-Disposition nên trình duyệt ĐIỀU HƯỚNG iframe sang
+ * trang lỗi đó. Cả panel app biến thành trang lỗi.
+ *
+ * Đường dẫn đã vá, nhưng vá một nguyên nhân không bằng chặn cả hậu quả: lạc vì
+ * bất cứ lý do gì thì lần mở sau cũng nạp lại cho đúng. Phải kiểm ở ĐÂY, mỗi
+ * lần mở module — không phải lúc tạo bản ghi khung: trình duyệt còn khôi phục
+ * địa chỉ cũ của iframe từ lịch sử phiên sau khi khung đã dựng xong.
+ *
+ * Cùng origin nên đọc được location; đọc không nổi thì để nguyên.
+ */
+function keoIframeVeNeuLac(mod, o) {
+  if (!o || !o.iframe) return;
+  try {
+    const w = o.iframe.contentWindow;
+    if (!w) return;
+    const dung = '/m/' + encodeURIComponent(mod.id) + '/';
+    if (w.location.pathname.indexOf(dung) === 0) return;
+    o.iframe.src = srcCuaModule(mod);
+  } catch (_) { /* khác origin hoặc chưa sẵn sàng */ }
+}
+
 function moModule(id, rec, mo) {
   const mod = S.modules.find((m) => m.id === id);
   if (!mod) { location.hash = '#/tong-quan'; return; }
@@ -870,6 +902,7 @@ function moModule(id, rec, mo) {
     const moi = srcCuaModule(mod, rec, mo);
     if (o.iframe.getAttribute('src') !== moi) o.iframe.setAttribute('src', moi);
   }
+  keoIframeVeNeuLac(mod, o);
   S.frames.forEach((x, k) => { x.wrap.hidden = k !== id; });
   o.wrap.hidden = false;
   document.title = mod.ten + ' · Marketing Hub';

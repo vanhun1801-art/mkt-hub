@@ -851,7 +851,7 @@ VIEW['quang-cao'] = async (view) => {
   view.innerHTML = `
   <div class="card">
     <div class="card-head"><h3>Quảng cáo</h3><span class="sub">${dmy(d.from)} → ${dmy(d.to)} · ${d.rows.length} quảng cáo</span>
-      <a class="btn small ghost" href="/api/export.csv?${qs()}">Xuất CSV</a></div>
+      <a class="btn small ghost" href="api/export.csv?${qs()}">Xuất CSV</a></div>
     <div class="card-body tight">${table('adTbl', cols, d.rows, { footer: true, sort: { key: 'spend', dir: 'desc' } })}</div>
   </div>`;
 };
@@ -870,7 +870,7 @@ VIEW['du-lieu'] = async (view) => {
   view.innerHTML = `
   <div class="card">
     <div class="card-head"><h3>Dữ liệu theo ngày</h3><span class="sub">${d.rows.length} dòng · ${dmy(d.from)} → ${dmy(d.to)}</span>
-      <a class="btn small ghost" href="/api/export.csv?${qs()}">Xuất CSV</a></div>
+      <a class="btn small ghost" href="api/export.csv?${qs()}">Xuất CSV</a></div>
     <div class="card-body tight">${table('dailyTbl', cols, d.rows, { footer: true, sort: { key: 'date', dir: 'desc' } })}</div>
   </div>`;
 };

@@ -1137,7 +1137,7 @@ function oDem(n, mau) {
 function xuat() {
   const t = kyThangNay();
   const caPhong = META.toi.quanLy ? '&ca-phong=1' : '';
-  window.location.href = '/api/xuat?tu=' + t.tu + '&den=' + t.den + caPhong;
+  window.location.href = 'api/xuat?tu=' + t.tu + '&den=' + t.den + caPhong;
 }
 
 nap().catch((e) => {

@@ -953,7 +953,7 @@ async function submitDone() {
     const files = [...($('#doneFile').files || [])];
     for (let i = 0; i < files.length; i++) {
       msg.textContent = 'Đang tải tệp ' + (i + 1) + '/' + files.length + '…';
-      const r = await fetch('/api/tasks/' + t.id + '/upload?cot=ket-qua', {
+      const r = await fetch('api/tasks/' + t.id + '/upload?cot=ket-qua', {
         method: 'POST',
         headers: { 'X-File-Name': encodeURIComponent(files[i].name) },
         body: files[i],
@@ -3628,7 +3628,7 @@ function oTaiLen(t, cot) {
       for (let i = 0; i < files.length; i++) {
         st.textContent = 'Đang tải ' + (i + 1) + '/' + files.length + ' — ' + files[i].name;
         try {
-          const r = await fetch('/api/tasks/' + t.id + '/upload' + (cot ? '?cot=' + cot : ''), {
+          const r = await fetch('api/tasks/' + t.id + '/upload' + (cot ? '?cot=' + cot : ''), {
             method: 'POST',
             headers: { 'X-File-Name': encodeURIComponent(files[i].name) },
             body: files[i],
@@ -3761,7 +3761,7 @@ async function taiTepViecMoi(id) {
   const hong = [];
   for (const f of files) {
     try {
-      const r = await fetch('/api/tasks/' + id + '/upload', {
+      const r = await fetch('api/tasks/' + id + '/upload', {
         method: 'POST',
         headers: { 'X-File-Name': encodeURIComponent(f.name) },
         body: f,
@@ -4860,7 +4860,7 @@ function setupChrome() {
       toast('Không giao được: ' + err.message, true);
     }
   });
-  $('#btnReport').onclick = () => window.open('/api/report', '_blank', 'noopener');
+  $('#btnReport').onclick = () => window.open('api/report', '_blank', 'noopener');
   $('#assignSubmit').onclick = submitAssign;
 
   // ---- tab Lịch ----

@@ -1379,7 +1379,7 @@ function ganSuKienChung() {
     finally { ev.currentTarget.disabled = false; }
   };
 
-  $('#btnCsv').onclick = () => { window.location = '/api/export.csv?' + queryLoc(); };
+  $('#btnCsv').onclick = () => { window.location = 'api/export.csv?' + queryLoc(); };
 
 
   // đóng cửa sổ
