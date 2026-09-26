@@ -2805,3 +2805,30 @@ html[data-skin="ios"][data-theme="toi"]:not(#_)[data-app="san-pham"] :is(.sdDau,
     border-radius: 50% !important; background: color-mix(in srgb, var(--ios-do) 12%, transparent) !important; color: var(--ios-do) !important;
   }
 }
+
+/* Công việc — tab "Việc đã order" (anh Hùng 26/09: "chưa tối ưu thống nhất").
+   Thẻ đồng dáng với thẻ việc ở các tab khác; bỏ viên trạng thái đặc màu trên
+   từng thẻ vì thẻ đã nằm dưới đúng tiêu đề nhóm trạng thái đó (nói hai lần);
+   tiêu đề nhóm dùng chấm tròn như mọi chấm trạng thái của hệ. */
+html[data-skin="ios"][data-app="cong-viec"] .ord-status { display: none !important; }
+html[data-skin="ios"][data-app="cong-viec"] .ord-sec-head { margin-bottom: 10px; gap: 8px; }
+html[data-skin="ios"][data-app="cong-viec"] .ord-sec-head .pill { width: 8px !important; height: 8px !important; border-radius: 50% !important; padding: 0 !important; min-height: 0 !important; }
+html[data-skin="ios"][data-app="cong-viec"] .ord-sec-head strong { font-size: 15px; font-weight: 600; }
+html[data-skin="ios"][data-app="cong-viec"] .ord-sec-head .n { background: var(--ios-o); color: var(--ios-chu-2); font-size: 12px; font-weight: 600; }
+html[data-skin="ios"][data-app="cong-viec"] .ord-grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+html[data-skin="ios"][data-app="cong-viec"] .ord-card { padding: 14px 16px 12px !important; display: flex; flex-direction: column; }
+html[data-skin="ios"][data-app="cong-viec"] .ord-title { font-size: 15px; font-weight: 600; line-height: 1.35; }
+html[data-skin="ios"][data-app="cong-viec"] .ord-meta { margin: 8px 0 12px; gap: 5px; }
+html[data-skin="ios"][data-app="cong-viec"] .ord-foot { margin-top: auto; padding-top: 10px; border-top: .5px solid var(--ios-vach) !important; }
+html[data-skin="ios"][data-app="cong-viec"] .ord-lbl { color: var(--ios-chu-3, var(--ios-chu-2)); font-size: 12.5px; }
+html[data-skin="ios"][data-app="cong-viec"] .ord-sp { font-size: 12.5px; font-weight: 500; }
+/* "Việc đã order" trên điện thoại: dòng đếm ẩn như các tab khác; ô "Ẩn việc
+   đã đóng" về cuối hàng viên; chấm nhóm tròn (luật chip điện thoại kéo méo). */
+@media (max-width: 640px) {
+  html[data-skin="ios"]:not(#_):not(#__) #orderFilters > #oCount { display: none !important; }
+  html[data-skin="ios"]:not(#_):not(#__) #orderFilters > label.chk { order: 3; display: inline-flex !important; align-items: center; gap: 6px; white-space: nowrap; font-size: 14px !important; height: 32px; }
+  html[data-skin="ios"]:not(#_):not(#__) #orderFilters > label.chk input { width: 18px !important; height: 18px !important; min-height: 0 !important; }
+  html[data-skin="ios"]:not(#_):not(#__) #orderFilters > #oClear { order: 4; }
+  html[data-skin="ios"]:not(#_):not(#__) .ord-sec-head .pill { width: 8px !important; height: 8px !important; min-height: 0 !important; padding: 0 !important; border-radius: 50% !important; }
+  html[data-skin="ios"]:not(#_):not(#__) .order-list { padding: 8px 16px 24px !important; }
+}

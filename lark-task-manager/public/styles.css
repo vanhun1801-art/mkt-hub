@@ -599,7 +599,9 @@ table.tb-fixed { table-layout: fixed; }
 body.col-resizing, body.col-resizing * { cursor: col-resize !important; user-select: none !important; }
 
 /* ---- tab "Việc tôi order" ---- */
-.order-list { display: flex; flex-direction: column; gap: 20px; }
+/* Cùng lề trái/phải với các tab khác (--le) — trước đó thẻ tràn sát hai mép
+   màn hình, cột cuối lọt ra ngoài khung (26/09/2026). */
+.order-list { display: flex; flex-direction: column; gap: 20px; padding: 12px var(--le) 28px; }
 .ord-sec-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 .ord-sec-head .pill { width: 10px; height: 10px; border-radius: 3px; flex: none; }
 .ord-sec-head strong { font-size: 14px; }
