@@ -2892,7 +2892,11 @@ html[data-skin="ios"] {
 }
 /* (2) thấu kính trượt: ios-app.js / ios.js dựng <i class="ios-lens"> trong
    dải tab / rãnh phân đoạn / thanh tab và dời nó tới mục đang chọn */
-html[data-skin="ios"] .ios-co-lens { position: relative; isolation: isolate; }
+/* KHÔNG đặt position ở đây: luật này từng thắng position:fixed của thanh tab
+   điện thoại → thanh rơi vào dòng chảy trang, lệch 16px và tràn mép phải
+   (lỗi anh Hùng thấy trên iPhone 15 Pro Max). JS chỉ đặt relative cho khung
+   đang static. */
+html[data-skin="ios"] .ios-co-lens { isolation: isolate; }
 html[data-skin="ios"] .ios-co-lens > :not(.ios-lens) { position: relative; z-index: 1; }
 html[data-skin="ios"]:not(#_):not(#__) .ios-co-lens > :is(.on, .is-active, .chon, .cal-mode.is-active, [aria-current="page"], [aria-selected="true"]) {
   background: transparent !important; box-shadow: none !important;
@@ -3048,4 +3052,53 @@ html[data-skin="ios"]:not(#_) .kpi:not(.kpi-alert):not(.kpi-warn):not(.kpi-ok):n
   html[data-skin="ios"]:not(#_):not(#__)[data-app="san-pham"] .topbar > .sp { display: none !important; }
   html[data-skin="ios"]:not(#_):not(#__)[data-app="san-pham"] .topbar > .top-right { flex: none !important; width: auto !important; margin: 0 !important; }
   html[data-skin="ios"]:not(#_):not(#__)[data-app="san-pham"] .topbar > .top-right > :not(#btnLamMoi) { display: none !important; }
+}
+
+/* ==========================================================================
+   THANH MENU ĐIỆN THOẠI — NỀN LIỀN XUỐNG ĐÁY (27/09/2026, iPhone 15 Pro Max).
+   Anh Hùng: "thanh menu trên mobile đừng để phần nền dưới thô, hãy bo như
+   hiện tại và vô cực nền dưới".
+   Trước: .app chừa lề dưới 102px → khung app dừng cứng phía trên thanh, bên
+   dưới là một dải nền trống, mép cắt ngang như bị lỗi. Nay (như iOS 26):
+     · khung app kéo tới tận đáy màn, nội dung lướt PHÍA SAU viên kính;
+     · vùng cuộn chính có đệm cuối (JS gắn .ios-cuon-day) để mục cuối vẫn cuộn
+       lên được trên thanh;
+     · lớp "mép cuộn" sau thanh: mờ dần + nhoè dần về đáy, nền tan vào vô cực.
+   ========================================================================== */
+@media (max-width: 640px) {
+  html[data-skin="ios"]:not(#_):not(#__) body > .app { margin-bottom: 0 !important; }
+  html[data-skin="ios"]:not(#_):not(#__) .ios-cuon-day { padding-bottom: calc(var(--ios-duoi, 0px) + 96px) !important; scroll-padding-bottom: calc(var(--ios-duoi, 0px) + 96px); }
+  html[data-skin="ios"]:not([data-app]) { --ios-duoi: env(safe-area-inset-bottom, 0px); }
+
+  /* lớp mép cuộn: nằm dưới thanh tab (z 44 < 45), không nhận chạm */
+  html[data-skin="ios"]:not([data-app]) body::after {
+    content: ""; position: fixed; left: 0; right: 0; bottom: 0; z-index: 44; pointer-events: none;
+    height: calc(env(safe-area-inset-bottom, 0px) + 104px);
+    background: linear-gradient(to bottom,
+      color-mix(in srgb, var(--ios-nen) 0%, transparent) 0%,
+      color-mix(in srgb, var(--ios-nen) 55%, transparent) 55%,
+      color-mix(in srgb, var(--ios-nen) 82%, transparent) 100%);
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 60%);
+            mask-image: linear-gradient(to bottom, transparent 0%, #000 60%);
+  }
+  /* màn Cá nhân / Thông báo phủ lên trên: lớp mép cuộn vẫn nằm dưới thanh tab */
+  html[data-skin="ios"]:not([data-app]) body.rail-mo::after { z-index: 44; }
+
+  /* viên kính: bo tròn giữ nguyên, nổi cao hơn thanh Home 8px */
+  html[data-skin="ios"]:not(#_):not(#__) .ios-tabbar {
+    position: fixed !important; left: 14px; right: 14px; width: auto;
+    bottom: calc(max(env(safe-area-inset-bottom, 0px) - 10px, 0px) + 10px);
+    height: 58px; border-radius: 29px; padding: 4px;
+  }
+  html[data-skin="ios"]:not(#_):not(#__) .ios-tabbar :is(a, button) { border-radius: 25px; min-width: 0; }
+  html[data-skin="ios"]:not(#_):not(#__) .ios-tabbar > .ios-lens { border-radius: 25px; }
+  html[data-skin="ios"]:not(#_):not(#__) .ios-tabbar svg { width: 22px; height: 22px; }
+  html[data-skin="ios"]:not(#_):not(#__) .ios-tabbar :is(a, button) span:not(.ios-so) { font-size: 10px; letter-spacing: 0; }
+  /* huy hiệu: nằm trong viên kính, không bị mép viên cắt */
+  html[data-skin="ios"]:not(#_):not(#__) .ios-tabbar .ios-so { top: 3px; left: calc(50% + 4px); }
+
+  /* thanh đầu: chừa tai thỏ / Dynamic Island khi mở như ứng dụng (thêm vào màn hình chính) */
+  html[data-skin="ios"]:not(#_):not(#__) .mob-bar { padding-top: calc(4px + env(safe-area-inset-top, 0px)); }
+  html[data-skin="ios"]:not(#_):not(#__) .mob-bar.thu .mob-ten { top: calc(4px + env(safe-area-inset-top, 0px)); }
 }

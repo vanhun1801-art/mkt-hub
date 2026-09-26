@@ -341,6 +341,7 @@
       l.className = 'ios-lens'; l.setAttribute('aria-hidden', 'true');
       d.insertBefore(l, d.firstChild);
       d.classList.add('ios-co-lens');
+      if (getComputedStyle(d).position === 'static') d.style.position = 'relative';
       tuCu = lensCu.get(khoa) || null;   // app vẽ lại dải tab: xuất phát từ chỗ cũ
     }
     const x = on.offsetLeft, y = on.offsetTop, w = on.offsetWidth, h = on.offsetHeight;
@@ -366,8 +367,47 @@
   }
   const lensHet = () => document.querySelectorAll(LENS).forEach(lensMot);
 
+
+  /* ĐỆM CUỐI VÙNG CUỘN (điện thoại): khung app nay kéo tới đáy màn, nội dung
+   * lướt sau viên kính của thanh tab → vùng cuộn chính cần đệm cuối để mục cuối
+   * cùng vẫn cuộn lên được phía trên thanh. Tìm vùng cuộn lớn nhất (cao > nửa
+   * màn), gắn .ios-cuon-day; cuộn cả trang thì gắn cho <body>. Trong app con,
+   * lấy độ cao thanh Home (safe-area) đo từ lớp vỏ, vì iframe không có env(). */
+  let cuonHen = 0;
+  function cuonDay() {
+    const cu = document.querySelectorAll('.ios-cuon-day');
+    if (innerWidth > 640) { cu.forEach((e) => e.classList.remove('ios-cuon-day')); return; }
+    const vh = innerHeight;
+    let tot = null, dt = 0;
+    const de = document.scrollingElement || document.documentElement;
+    if (de.scrollHeight > de.clientHeight + 4) { tot = document.body; dt = de.clientWidth * de.clientHeight; }
+    document.querySelectorAll('body *').forEach((e) => {
+      if (e.clientHeight < vh * 0.5 || e.scrollHeight <= e.clientHeight + 4) return;
+      if (!/auto|scroll/.test(getComputedStyle(e).overflowY)) return;
+      const s = e.clientWidth * e.clientHeight;
+      if (s > dt) { tot = e; dt = s; }
+    });
+    cu.forEach((e) => { if (e !== tot) e.classList.remove('ios-cuon-day'); });
+    if (tot && !tot.classList.contains('ios-cuon-day')) tot.classList.add('ios-cuon-day');
+  }
+  const henCuon = () => { clearTimeout(cuonHen); cuonHen = setTimeout(cuonDay, 350); };
+  try {
+    if (parent !== window && parent.document) {
+      const pd = parent.document, pr = pd.createElement('div');
+      pr.style.cssText = 'position:fixed;left:0;bottom:0;width:0;height:env(safe-area-inset-bottom,0px);visibility:hidden;pointer-events:none';
+      pd.body.appendChild(pr);
+      document.documentElement.style.setProperty('--ios-duoi', pr.offsetHeight + 'px');
+      pr.remove();
+    }
+  } catch (_) {}
+  addEventListener('resize', henCuon);
+  addEventListener('load', henCuon);
+  addEventListener('hashchange', henCuon);
+  document.addEventListener('click', henCuon, true);
+  setTimeout(cuonDay, 1200); setTimeout(cuonDay, 4000);
+
   let hen = 0;
-  const lich = () => { if (hen) return; hen = requestAnimationFrame(() => { hen = 0; mepHet(); lensHet(); }); };
+  const lich = () => { if (hen) return; hen = requestAnimationFrame(() => { hen = 0; mepHet(); lensHet(); henCuon(); }); };
   lich();
   new MutationObserver(lich).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'aria-current', 'aria-selected', 'hidden'] });
 })();
