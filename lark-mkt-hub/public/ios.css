@@ -3780,3 +3780,83 @@ html[data-skin="ios"]:not(#_):not(#__) :is(.card.bam-duoc, .wcard, .ord-card, .d
   html[data-skin="ios"]:not(#_):not(#__)[data-app] .topbar > :is(.topbar-right, .top-right) > * { flex: none; }
   html[data-skin="ios"]:not(#_):not(#__)[data-app] .topbar > :is(.topbar-right, .top-right) > .btn.src { flex: 0 1 auto !important; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
+
+/* Thanh menu THU GỌN = cùng nhịp dọc với lúc MỞ RỘNG (27/09). Anh Hùng: "độ dài
+   khi mở ra và thu gọn quá khác, cần cùng kích thước để không hoang mang". Đo:
+   mở rộng mục 30px cách 1px, tiêu đề nhóm 35px, đầu 57px; thu gọn từng là mục
+   44px cách 4px, bỏ tiêu đề nhóm, đầu 82px → icon tụt dần, KOL lệch 200px.
+   Nay mỗi icon nằm ĐÚNG hàng của nó ở cả hai trạng thái. */
+@media (min-width: 641px) {
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .rail.min .rail-item {
+    height: 30px !important; min-height: 30px !important; width: 40px !important; border-radius: 9px !important;
+  }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .rail.min :is(.rail-nav, .rail-foot) { gap: 1px !important; padding-top: 4px !important; padding-bottom: 4px !important; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .rail.min .rail-item .ri-ic { width: 24px !important; height: 24px !important; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .rail.min .rail-item:has(.ri-badge)::after { top: 1px; right: 4px; width: 7px; height: 7px; }
+  /* tiêu đề nhóm: giữ đúng chỗ (35px), chỉ giấu chữ; thay bằng vạch mảnh */
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .rail.min .rail-group {
+    display: block !important; visibility: visible; color: transparent !important; font-size: 0 !important; position: relative;
+    height: 35px; min-height: 35px; padding: 0 !important; margin: 0 !important; width: 100%; flex: none;
+  }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .rail.min .rail-group::after {
+    content: ""; position: absolute; left: 50%; top: 50%; width: 20px; height: 1px; transform: translateX(-50%);
+    background: color-mix(in srgb, var(--ios-chu) 14%, transparent);
+  }
+  /* đầu: cùng 57px — chỉ logo; nút mở rộng hiện ĐÈ ĐÚNG chỗ logo khi rê chuột */
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .rail.min .rail-head {
+    flex-direction: row !important; height: 57px; min-height: 57px !important; padding: 0 !important; gap: 0 !important; justify-content: center;
+  }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .rail.min .rail-pin {
+    position: absolute !important; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: 30px !important; height: 30px !important; opacity: 0; pointer-events: none; transition: opacity .15s ease;
+    background: var(--ios-the) !important; box-shadow: 0 1px 3px rgba(0, 0, 0, .12) !important; z-index: 2;
+  }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .rail.min .rail-head:hover .rail-pin,
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .rail.min .rail-pin:focus-visible { opacity: 1; pointer-events: auto; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .rail.min .rail-head .logo { transition: opacity .15s ease; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .rail.min .rail-head:hover .logo { opacity: 0; }
+}
+
+@media (min-width: 641px) {
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .rail.min .rail-nav > .rail-group { margin-bottom: -2px !important; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .rail.min .rail-foot { padding-bottom: 11px !important; }
+}
+
+/* Thu gọn / mở rộng thanh menu MƯỢT (27/09). Trước: bề rộng trượt .16s ease
+   nhưng chữ tắt/bật tức thì (display:none) và ô mục nhảy từ 230px về 40px ngay
+   nhịp đầu → giật. Nay: bề rộng thanh + bề rộng ô mục đi CÙNG một đường cong
+   lò xo êm; chữ không bị gỡ khỏi bố cục mà mờ dần trong ô đang hẹp lại. */
+@media (min-width: 641px) {
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .rail {
+    transition: width .36s cubic-bezier(.32, .72, 0, 1), flex-basis .36s cubic-bezier(.32, .72, 0, 1) !important;
+  }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .rail .rail-item {
+    width: 100%; overflow: hidden;
+    transition: width .36s cubic-bezier(.32, .72, 0, 1), padding .36s cubic-bezier(.32, .72, 0, 1), background-color .2s ease !important;
+  }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .rail.min .rail-item { padding: 0 8px !important; justify-content: flex-start !important; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .rail .rail-nav, html[data-skin="ios"]:not(#_):not(#__):not(#___) .rail .rail-foot { transition: padding .36s cubic-bezier(.32, .72, 0, 1); }
+  /* chữ: giữ trong bố cục, chỉ mờ + co */
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .rail.min :is(.logo-text, .ri-tx) {
+    display: flex !important; opacity: 0; max-width: 0; min-width: 0; overflow: hidden; white-space: nowrap;
+  }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .rail :is(.logo-text, .ri-tx) {
+    max-width: 200px; white-space: nowrap;
+    transition: opacity .22s ease .1s, max-width .36s cubic-bezier(.32, .72, 0, 1) !important;
+  }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .rail.min :is(.logo-text, .ri-tx) { transition: opacity .1s ease, max-width .36s cubic-bezier(.32, .72, 0, 1) !important; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .rail .rail-group { transition: color .2s ease; }
+  /* nội dung bên cạnh co giãn theo cùng nhịp (không nhảy một phát) */
+  html[data-skin="ios"]:not(#_):not(#__):not([data-app]) :is(.stage, #stage) { transition: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-skin="ios"] .rail, html[data-skin="ios"] .rail * { transition: none !important; }
+}
+
+@media (min-width: 641px) {
+  /* icon gần như ĐỨNG YÊN khi co/giãn: ô mục neo mép trái (không canh giữa theo
+     bề rộng đang đổi), chỉ đệm đổi nhẹ 10→14 / 16→8 để icon về giữa 68px */
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .rail.min :is(.rail-nav, .rail-foot) { align-items: flex-start !important; padding-left: 14px !important; padding-right: 0 !important; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .rail.min :is(.rail-nav, .rail-foot) > .rail-item { margin: 0 !important; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .rail.min .rail-nav > .rail-group { width: 40px; }
+}
