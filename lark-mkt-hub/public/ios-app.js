@@ -567,6 +567,27 @@
   addEventListener('resize', henKiemTran);
   document.addEventListener('click', henKiemTran, true);
 
+  /* THANH ĐẦU KIỂU iOS (27/09): anh Hùng thấy trên điện thoại khu vực trên cùng
+   * "màu khác, không liền mạch" — thanh đầu phủ kính trắng + saturate làm vệt
+   * xanh của nền đậm lên, cộng đường kẻ dưới → hai mảng. iOS làm: ở đỉnh trang
+   * thanh đầu TRONG SUỐT, liền với nền; chỉ khi nội dung cuộn chui xuống dưới
+   * nó mới hiện kính mờ + đường kẻ. html.ios-dau-noi = "đang có nội dung dưới
+   * thanh đầu"; ios.css đọc lớp này. */
+  let dauCuon = null;
+  const datDau = (v) => document.documentElement.classList.toggle('ios-dau-noi', !!v);
+  document.addEventListener('scroll', (e) => {
+    const tb = document.querySelector('body > header.topbar');
+    if (!tb) return;
+    const t = e.target === document ? document.scrollingElement : e.target;
+    if (!t || !t.getBoundingClientRect || t.clientHeight < 200) return;
+    if (t !== document.scrollingElement && t !== document.body && t.getBoundingClientRect().top > tb.getBoundingClientRect().bottom + 60) return;
+    dauCuon = t; datDau(t.scrollTop > 2);
+  }, { capture: true, passive: true });
+  // đổi tab: vùng cuộn cũ có thể đã ẩn, vùng mới đang ở đỉnh
+  document.addEventListener('click', () => setTimeout(() => {
+    if (dauCuon && (!dauCuon.isConnected || (dauCuon !== document.scrollingElement && !dauCuon.offsetParent) || dauCuon.scrollTop <= 2)) datDau(false);
+  }, 350), true);
+
   function gopTab() {
     const tb = document.querySelector('body > header.topbar');
     const bar = document.querySelector('body > .tabsbar');

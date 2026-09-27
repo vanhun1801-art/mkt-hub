@@ -4065,3 +4065,30 @@ html[data-skin="ios"]:not(#_):not(#__):not(#___) body :is(div, label, span, sect
   height: auto !important; min-height: 0 !important; padding: revert !important;
   background-color: transparent !important; border-radius: 0 !important; box-shadow: none !important; border: 0 !important;
 }
+
+/* ==========================================================================
+   THANH ĐẦU LIỀN NỀN TRÊN ĐIỆN THOẠI (27/09): ở đỉnh trang thanh đầu trong suốt
+   — cùng một nền với phần dưới, không kẻ vạch; nội dung cuộn chui xuống dưới
+   (html.ios-dau-noi, ios-app.js đặt) thì mới hiện kính mờ + vạch mảnh.
+   ========================================================================== */
+@media (max-width: 640px) {
+  html[data-skin="ios"][data-app] body > :is(header.topbar, .tabsbar) {
+    transition: background-color .25s ease, border-color .25s ease, -webkit-backdrop-filter .25s ease, backdrop-filter .25s ease !important;
+  }
+  html[data-skin="ios"][data-app]:not(.ios-dau-noi):not(#_):not(#__):not(#___) body > :is(header.topbar, .tabsbar) {
+    background: transparent !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+    border-bottom-color: transparent !important; box-shadow: none !important;
+  }
+}
+/* Nền PHẲNG trên điện thoại (27/09): vệt loang radial chỉ có lớp màu cuối là
+   "fixed", các vệt tính theo từng khung — thanh tiêu đề lớp vỏ (0–108px) và
+   iframe app con mỗi bên một vệt → đường ranh ngay dưới tiêu đề. Safari iPhone
+   còn bỏ qua hẳn background-attachment: fixed. Nên điện thoại dùng một màu phẳng
+   như nền hệ thống iOS; lớp kính vẫn mờ trên nội dung khi cuộn. */
+@media (max-width: 640px) {
+  html[data-skin="ios"] { --mac-nen-cua-so: #eef0f5; }
+  html[data-skin="ios"][data-theme="toi"] { --mac-nen-cua-so: #050507; }
+}
+@media (max-width: 640px) and (prefers-color-scheme: dark) {
+  html[data-skin="ios"]:not([data-theme="sang"]) { --mac-nen-cua-so: #050507; }
+}
