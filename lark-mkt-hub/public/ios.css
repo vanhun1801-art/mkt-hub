@@ -4173,3 +4173,18 @@ html[data-skin="ios"]:not(#_):not(#__):not([data-app]) body.mod-che .page { z-in
 html[data-skin="ios"]:not(#_):not(#__):not(#___) :is(.mask.on, .scrim.open, .modal-mask, .modal-wrap, .modal.on, .modal.open, .xt, .ios-nen-so, .md-mask, .overlay, .phu-man, .modal-nen):not(.modal-wrap > *) {
   box-shadow: none !important;
 }
+
+/* MÀN CÁ NHÂN (điện thoại): chỉ danh sách app cuộn (27/09). Anh Hùng: "thao tác
+   kéo nên kéo cả trang thay vì chỉ kéo mỗi danh sách các ứng dụng". Chạm vào
+   phần đứng yên (thẻ tài khoản, nhóm Cài đặt) hoặc vuốt quá đầu/cuối danh sách
+   thì iPhone chuyền cú vuốt ra cả trang → cả màn nảy. Khoá vuốt ở phần đứng
+   yên, danh sách tự cuộn và không chuyền ra ngoài. */
+@media (max-width: 640px) {
+  html[data-skin="ios"]:not([data-app]):has(body.rail-mo) { overscroll-behavior: none; }
+  html[data-skin="ios"]:not([data-app]) body.rail-mo { overscroll-behavior: none; }
+  html[data-skin="ios"]:not(#_):not(#__):not([data-app]) body.rail-mo .rail { touch-action: none; overscroll-behavior: contain; }
+  html[data-skin="ios"]:not(#_):not(#__):not([data-app]) body.rail-mo .rail .rail-nav {
+    touch-action: pan-y; overscroll-behavior-y: contain; -webkit-overflow-scrolling: touch;
+  }
+  html[data-skin="ios"]:not(#_):not(#__):not([data-app]) .tb-panel { overscroll-behavior: contain; }
+}

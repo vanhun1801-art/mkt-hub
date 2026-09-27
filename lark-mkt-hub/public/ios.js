@@ -140,6 +140,21 @@
     rail.insertBefore(hoso, rail.firstChild);
     hoso.addEventListener('click', () => { const s = $('#btnSettings'); if (s) s.click(); });
 
+    /* Màn Cá nhân: chỉ danh sách app được kéo. Safari iPhone không phải lúc
+     * nào cũng theo overscroll-behavior (ios.css) — chặn thêm bằng tay: vuốt
+     * ngoài danh sách, hoặc vuốt quá đầu/cuối danh sách, thì không cho chuyền
+     * ra trang phía sau. */
+    let y0 = 0;
+    rail.addEventListener('touchstart', (e) => { y0 = e.touches[0].clientY; }, { passive: true });
+    rail.addEventListener('touchmove', (e) => {
+      if (innerWidth > 640 || !document.body.classList.contains('rail-mo')) return;
+      const ds = e.target.closest('.rail-nav');
+      if (!ds || ds.scrollHeight <= ds.clientHeight + 1) { e.preventDefault(); return; }
+      const dy = e.touches[0].clientY - y0;
+      const dinh = ds.scrollTop <= 0, day = ds.scrollTop + ds.clientHeight >= ds.scrollHeight - 1;
+      if ((dy > 0 && dinh) || (dy < 0 && day)) e.preventDefault();
+    }, { passive: false });
+
     const foot = $('.rail-foot', rail);
     if (foot) {
       dongTbRail = document.createElement('button');
@@ -160,7 +175,12 @@
     const t = u ? (u.textContent || '').replace(/^[^:]*:\s*/, '').trim() : '';
     if (!hoso || !t) return;
     $('b', hoso).textContent = t;
-    $('.ios-av', hoso).textContent = t.split(/\s+/).slice(-2).map((w) => w[0]).join('').toUpperCase();
+    const av = $('.ios-av', hoso);
+    av.textContent = t.split(/\s+/).slice(-2).map((w) => w[0]).join('').toUpperCase();
+    /* Ảnh Lark: ganAnh() tìm tên qua data-ten — ô này nằm cạnh khối "tên + Tài
+     * khoản Lark" nên đọc chữ bên cạnh không ra tên. Gắn thẳng tên vào ô. */
+    if (av.dataset.ten !== t) { av.dataset.ten = t; delete av.dataset.iosAnh; av.classList.remove('ios-co-anh'); av.style.backgroundImage = ''; }
+    try { ganAnh(); } catch (_) {}
   }
   const u = $('#homeUser');
   if (u) new MutationObserver(tenNguoi).observe(u, { childList: true, subtree: true, characterData: true });
