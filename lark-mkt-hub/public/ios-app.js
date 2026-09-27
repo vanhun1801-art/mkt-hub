@@ -518,6 +518,7 @@
     baoLoi('promise', (r && (r.message || r)) || 'Promise bị từ chối', (r && r.stack ? String(r.stack).split('\n')[1] || '' : '').trim());
   });
   function kiemTran() {
+    try { kiemKet(); } catch (_) {}
     const d = document.documentElement;
     if (d.scrollWidth <= d.clientWidth + 2) return;
     let thu = '';
@@ -530,6 +531,35 @@
       }
     }
     baoLoi('tran', 'Trang tràn ngang ' + d.scrollWidth + '>' + d.clientWidth + 'px', thu);
+  }
+  /* KẸT CUỘN (27/09): app khoá cuộn ở body (Công việc) mà một khung quên khai
+   * vùng cuộn → nội dung dưới đáy màn không bao giờ tới được (tab "Việc đã
+   * order"). Chỉ xét khi khung nhìn không cuộn được — app cuộn bằng trang thì
+   * thoát ngay, không tốn gì. Thẻ bo góc (overflow hidden) không tính là kẹt. */
+  function kiemKet() {
+    const d = document.documentElement, b = document.body;
+    const hv = getComputedStyle(d).overflowY, bv = getComputedStyle(b).overflowY;
+    const vp = hv === 'visible' ? bv : hv;
+    if (!/hidden|clip/.test(vp) && d.scrollHeight > innerHeight + 2) return;
+    if (hv !== 'visible' && /auto|scroll/.test(bv) && b.scrollHeight > b.clientHeight + 2) return;
+    let dem = 0;
+    for (const e of b.querySelectorAll('*')) {
+      if (++dem > 4000) return;
+      const r = e.getBoundingClientRect();
+      if (r.top <= innerHeight + 4 || r.height < 5 || r.width < 5 || !e.offsetParent) continue;
+      let a = e.parentElement, ok = false;
+      while (a && a !== b) {
+        const s = getComputedStyle(a);
+        if (s.position === 'fixed') { ok = true; break; }
+        if (/auto|scroll/.test(s.overflowY) && a.scrollHeight > a.clientHeight + 2) { ok = true; break; }
+        if (/hidden|clip/.test(s.overflowY) && r.top >= a.getBoundingClientRect().bottom - 1) { ok = true; break; }
+        a = a.parentElement;
+      }
+      if (ok) continue;
+      const k = e.closest('[id]');
+      baoLoi('ket-cuon', 'Nội dung dưới đáy màn không cuộn tới được', k ? '#' + k.id : e.tagName.toLowerCase());
+      return;
+    }
   }
   let henTran = 0;
   const henKiemTran = () => { clearTimeout(henTran); henTran = setTimeout(kiemTran, 1500); };

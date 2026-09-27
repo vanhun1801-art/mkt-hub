@@ -293,6 +293,11 @@ body { display: flex; flex-direction: column; overflow: hidden; }
 /* ---------------- thẻ đếm ---------------- */
 #workspace, #adminArea { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 #adminMain { flex: 1; min-height: 0; overflow: hidden; padding: 0 var(--le) 16px; }
+/* Tab "Việc đã order": body khoá cuộn (overflow: hidden) nên khung này phải tự
+   là vùng cuộn như hai tab kia — thiếu dòng này thì danh sách dài bị kẹt, không
+   cuộn được (27/09/2026). Thanh lọc đứng yên, chỉ danh sách cuộn. */
+#orderArea { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+#orderArea > .order-list { flex: 1; min-height: 0; overflow-y: auto; }
 
 .flowstrip {
   display: flex; align-items: stretch; gap: 8px;
