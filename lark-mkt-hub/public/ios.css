@@ -174,7 +174,7 @@ html[data-skin="ios"] .btn {
   transition: background .15s, transform .12s, opacity .15s;
 }
 html[data-skin="ios"] .btn:hover { background: var(--ios-o-2); }
-html[data-skin="ios"] .btn:active { transform: scale(.97); }
+html[data-skin="ios"] .btn:active { opacity: .62; }
 html[data-skin="ios"] .btn.primary,
 html[data-skin="ios"] .btn-primary { background: var(--ios-xanh); color: #fff; }
 html[data-skin="ios"] .btn.primary:hover,
@@ -1723,7 +1723,7 @@ html[data-skin="ios"] :is(.card, .kpi, .tile, .dcard, .ord-card, .wcard):hover {
 }
 
 /* Bấm xuống: lún nhẹ — mọi cỡ màn (điện thoại cũng cần cảm giác đã chạm) */
-html[data-skin="ios"] :is(.btn, .btn-primary, .btn-ghost, button.pill, .tb-chip, .mob-nut):active:not(:disabled) { transform: scale(.97); }
+html[data-skin="ios"] :is(.btn, .btn-primary, .btn-ghost, button.pill, .tb-chip, .mob-nut):active:not(:disabled) { opacity: .62; }
 html[data-skin="ios"] :is(.rail-item, .queue-row, .wcard, .tb-o, .ios-hoso):active { background: var(--hover-nen-dam) !important; }
 
 /* Con trỏ đúng loại: thứ bấm được là bàn tay, thứ bị khoá là mũi tên cấm */
@@ -2650,7 +2650,7 @@ html[data-skin="ios"][data-theme="toi"] {
   }
   html[data-skin="ios"]:not(#_) .ios-tabbar [aria-current="page"] { background: var(--lg-lens); box-shadow: var(--lg-lens-bong); }
   html[data-skin="ios"]:not(#_) .ios-tabbar :is(a, button) { transition: background .25s, box-shadow .25s, color .2s, transform .12s; }
-  html[data-skin="ios"]:not(#_) .ios-tabbar :is(a, button):active { transform: scale(.94); }
+  html[data-skin="ios"]:not(#_) .ios-tabbar :is(a, button):active { opacity: .62; }
   /* nút tròn trên thanh đầu (làm mới) = viên kính */
   html[data-skin="ios"]:not(#_) .mob-nut {
     background: var(--lg-vet), var(--lg-nen) !important;
@@ -2922,16 +2922,16 @@ html[data-skin="ios"] :is(.btn, button.tab, .tab, button.pill, .tb-chip, .seg > 
   transition: transform .45s var(--lo-xo), background-color .2s var(--ra), color .2s var(--ra), box-shadow .25s var(--ra);
 }
 html[data-skin="ios"] :is(.btn, button.tab, .tab, button.pill, .tb-chip, .seg > button, .hub-seg > button, .mob-nut, .ios-tao, .cd-item):active:not(:disabled) {
-  transform: scale(.955); transition: transform .12s var(--ra);
+  opacity: .62; transition: opacity 0s;
 }
-html[data-skin="ios"] .ios-tabbar > :is(a, button):active { transform: scale(.92); transition: transform .12s var(--ra); }
+html[data-skin="ios"] .ios-tabbar > :is(a, button):active { opacity: .62; }
 html[data-skin="ios"] :is(.card.bam-duoc, .wcard, .ord-card, .dcard, .nhom-base .the.bam-duoc, .tile, .tb-o, .theDay, .lt-the) {
   transition: transform .5s var(--lo-xo), box-shadow .25s var(--ra), background-color .2s var(--ra);
 }
 html[data-skin="ios"] :is(.card.bam-duoc, .wcard, .ord-card, .dcard, .nhom-base .the.bam-duoc, .tile, .tb-o, .theDay, .lt-the):active {
-  transform: scale(.985); transition: transform .14s var(--ra);
+  filter: brightness(.96);
 }
-html[data-skin="ios"] .rail-item:active { transform: scale(.975); transition: transform .12s var(--ra); }
+html[data-skin="ios"] .rail-item:active { opacity: .7; }
 
 /* bảng thả xuống, trình đơn: bung từ phía nút bấm với lò xo */
 @keyframes ios-bung { from { opacity: 0; transform: translateY(-6px) scale(.96); } to { opacity: 1; transform: none; } }
@@ -3713,11 +3713,10 @@ html[data-skin="ios"]:not(#_):not(#__):not([data-app]) body.mod-che :is(.rail, .
   filter: brightness(.68) blur(3px) saturate(.9) !important; pointer-events: none;
 }
 
-/* CHẠM: nút đứng yên — chỉ nhạt đi như iOS (bỏ co/nảy: co lại là chính chỗ vừa
-   chạm bị dời đi dưới ngón tay, đọc như giao diện nhảy) */
-html[data-skin="ios"]:not(#_):not(#__) :is(.btn, button, .tab, .pill, .tb-chip, .cxl-chip, .cd-item, .seg > button, .hub-seg > button, .ios-tabbar > *, .mob-nut, .ios-tao, .rail-item, .card.bam-duoc, .wcard, .ord-card, .dcard, .nhom-base .the.bam-duoc, .tile, .tb-o, .theDay, .lt-the):active {
-  transform: none !important;
-}
+/* CHẠM: nút đứng yên — chỉ nhạt đi như iOS (các luật :active phía trên đã đổi
+   từ co/nảy sang nhạt). KHÔNG đặt transform:none chung cho mọi nút: nút canh
+   giữa bằng transform (nút mở rộng menu, nút lịch trong ô ngày) sẽ dịch chỗ
+   ngay lúc nhấn → thả chuột lệch ra ngoài → cú bấm bị mất. */
 html[data-skin="ios"]:not(#_):not(#__) :is(.btn, button, .tab, .pill, .tb-chip, .cxl-chip, .cd-item, .seg > button, .hub-seg > button, .ios-tabbar > *, .mob-nut, .ios-tao, .rail-item):active:not(:disabled) {
   opacity: .62; transition: opacity 0s !important;
 }
@@ -3807,7 +3806,7 @@ html[data-skin="ios"]:not(#_):not(#__) :is(.card.bam-duoc, .wcard, .ord-card, .d
     flex-direction: row !important; height: 57px; min-height: 57px !important; padding: 0 !important; gap: 0 !important; justify-content: center;
   }
   html[data-skin="ios"]:not(#_):not(#__):not(#___) .rail.min .rail-pin {
-    position: absolute !important; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    position: absolute !important; left: 0; right: 0; top: 0; bottom: 0; margin: auto !important; transform: none !important;
     width: 30px !important; height: 30px !important; opacity: 0; pointer-events: none; transition: opacity .15s ease;
     background: var(--ios-the) !important; box-shadow: 0 1px 3px rgba(0, 0, 0, .12) !important; z-index: 2;
   }
@@ -3859,4 +3858,126 @@ html[data-skin="ios"]:not(#_):not(#__) :is(.card.bam-duoc, .wcard, .ord-card, .d
   html[data-skin="ios"]:not(#_):not(#__):not(#___) .rail.min :is(.rail-nav, .rail-foot) { align-items: flex-start !important; padding-left: 14px !important; padding-right: 0 !important; }
   html[data-skin="ios"]:not(#_):not(#__):not(#___) .rail.min :is(.rail-nav, .rail-foot) > .rail-item { margin: 0 !important; }
   html[data-skin="ios"]:not(#_):not(#__):not(#___) .rail.min .rail-nav > .rail-group { width: 40px; }
+}
+
+/* ==========================================================================
+   CỬA SỔ CHI TIẾT — TINH GỌN KIỂU iOS (27/09). Anh Hùng: "có những cái không cần
+   hiển thị to như thế, tinh tế lại và thanh lịch như iOS". Soát trên iPhone:
+   mã bản ghi "recvv…" chữ đơn cách; viên hạn "Trễ · hạn 17/09/26 16:00 (10
+   ngày)" bẻ 4 dòng thành khối đỏ tròn to; ba nút đầu 36px chữ 15 ép tiêu đề
+   còn nửa bề ngang; nút chân to.
+   ========================================================================== */
+/* mã bản ghi: việc của hệ thống, không phải của người đọc */
+html[data-skin="ios"]:not(#_):not(#__) :is(#dRecId, .drawer-head .mono, .dr-head .mono) { display: none !important; }
+/* đầu cửa sổ: tiêu đề chiếm trọn hàng, nút phụ nhỏ gọn */
+html[data-skin="ios"]:not(#_):not(#__) :is(.drawer-head, .dr-head) {
+  display: grid !important; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 8px 10px;
+  padding: 16px 16px 12px !important; border: 0 !important; border-bottom: .5px solid var(--ios-vach) !important;
+  background: transparent !important;
+}
+html[data-skin="ios"]:not(#_):not(#__) :is(.drawer-head h2, .dr-head h3, #drTitle, #dTitleView) { font-size: 17px !important; font-weight: 600 !important; line-height: 1.3 !important; margin: 0 !important; }
+html[data-skin="ios"]:not(#_):not(#__) .drawer-head-actions { display: flex; gap: 6px; align-items: center; }
+html[data-skin="ios"]:not(#_):not(#__):not(#___) :is(.drawer-head-actions, .dr-head) > :is(.btn, button):not(#dClose):not(#drClose) {
+  height: 28px !important; min-height: 28px !important; padding: 0 11px !important; font-size: 13px !important; line-height: 28px !important;
+}
+html[data-skin="ios"]:not(#_):not(#__):not(#___) :is(#dClose, #drClose, #soDong, .modal-x, .md-dong) {
+  width: 28px !important; min-width: 28px !important; height: 28px !important; min-height: 28px !important; padding: 0 !important;
+  border-radius: 50% !important; background: var(--c-nen-phu, rgba(118,118,128,.12)) !important; color: var(--ios-chu-2) !important;
+  font-size: 13px !important; display: inline-flex !important; align-items: center; justify-content: center; border: 0 !important;
+}
+html[data-skin="ios"]:not(#_):not(#__) :is(#dClose, #drClose) svg { width: 12px; height: 12px; }
+/* dòng trạng thái + hạn: viên nhỏ một dòng, không khối nền */
+html[data-skin="ios"]:not(#_):not(#__):not(#___) :is(#dStage, .stagebadge) {
+  display: flex !important; flex-wrap: wrap; gap: 6px; background: transparent !important; padding: 0 !important; margin: 8px 0 0 !important; border-radius: 0 !important;
+}
+html[data-skin="ios"]:not(#_):not(#__):not(#___) #dStage :is(.sb-lan, .sb-han) {
+  display: inline-flex !important; align-items: center; height: 22px !important; min-height: 0 !important; padding: 0 9px !important;
+  border-radius: 999px !important; font-size: 12px !important; font-weight: 600 !important; white-space: nowrap !important;
+  background: var(--c-nen-phu, rgba(118,118,128,.12)) !important; color: var(--ios-chu-2) !important; box-shadow: none !important; border: 0 !important;
+}
+html[data-skin="ios"]:not(#_):not(#__):not(#___) #dStage .sb-han.tre { background: color-mix(in srgb, var(--ios-do) 13%, transparent) !important; color: var(--ios-do) !important; }
+html[data-skin="ios"]:not(#_):not(#__):not(#___) #dStage .sb-han.gq { background: color-mix(in srgb, var(--ios-cam) 14%, transparent) !important; color: color-mix(in srgb, var(--ios-cam) 70%, #000) !important; }
+html[data-skin="ios"]:not(#_):not(#__) :is(#drSub, .dr-head .sub) { margin-top: 6px !important; font-size: 12.5px !important; color: var(--ios-chu-2) !important; }
+/* thân: nhãn nhỏ, khoảng cách đều */
+html[data-skin="ios"]:not(#_):not(#__) :is(.drawer-body, .dr-body) { padding: 12px 16px 16px !important; }
+html[data-skin="ios"]:not(#_):not(#__) :is(.drawer-body, .dr-body) :is(.field > label, .frm-row > label, label.lbl) { font-size: 12.5px !important; font-weight: 600 !important; color: var(--ios-chu-2) !important; margin-bottom: 5px !important; }
+html[data-skin="ios"]:not(#_):not(#__) :is(.drawer-body, .dr-body) :is(.field, .frm-row) { margin-bottom: 12px !important; }
+/* chân: nút gọn, không nền tách khối */
+html[data-skin="ios"]:not(#_):not(#__) :is(.drawer-foot, .dr-foot) { padding: 10px 16px 12px !important; gap: 8px !important; border-top: .5px solid var(--ios-vach) !important; background: transparent !important; }
+html[data-skin="ios"]:not(#_):not(#__):not(#___) :is(.drawer-foot, .dr-foot) .btn { height: 34px !important; min-height: 34px !important; font-size: 14px !important; padding: 0 16px !important; }
+@media (min-width: 641px) {
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) :is(.drawer-foot, .dr-foot) .btn { height: 32px !important; min-height: 32px !important; font-size: 13px !important; }
+}
+@media (max-width: 640px) {
+  /* điện thoại: ô nhập giữ 16px (iPhone không tự phóng khi chạm) nhưng thấp lại */
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) :is(.drawer-body, .dr-body) :is(input:not([type=checkbox]):not([type=radio]):not([type=range]), select) { height: 38px !important; min-height: 38px !important; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) :is(.drawer-body, .dr-body) textarea { min-height: 72px !important; }
+}
+
+/* ==========================================================================
+   MỌI HỘP THOẠI một dáng (27/09): Lịch tác nghiệp "Đăng ký lịch" rộng cố định
+   720px → tràn mép phải điện thoại; KOL "Tạo hợp tác" phủ kín màn trắng như một
+   trang riêng. Nay: hộp nổi giữa, bo 18px, tối đa (màn − 24px), nền dưới mờ.
+   ========================================================================== */
+html[data-skin="ios"]:not(#_):not(#__):not(#___) :is(.modal-box, .hop, .md-box, .xt-box, .modal-wrap > .modal) {
+  max-width: calc(100vw - 24px) !important; box-sizing: border-box; border-radius: 18px !important; border: 0 !important;
+  box-shadow: var(--lg-rim, none), 0 30px 80px -20px rgba(0, 0, 0, .35), 0 0 0 .5px rgba(0, 0, 0, .06) !important; overflow: hidden;
+}
+html[data-skin="ios"]:not(#_):not(#__):not(#___) .modal-box { width: min(720px, calc(100vw - 24px)) !important; }
+html[data-skin="ios"]:not(#_):not(#__) :is(.modal-box, .hop) :is(.modal-head, .hop-dau) {
+  border-left: 0 !important; background: transparent !important; padding: 14px 16px 12px !important; border-bottom: .5px solid var(--ios-vach) !important;
+}
+html[data-skin="ios"]:not(#_):not(#__) :is(.modal-head, .hop-dau) :is(h2, h3) { font-size: 17px !important; font-weight: 600 !important; }
+html[data-skin="ios"]:not(#_):not(#__):not(#___) :is(.modal-head, .hop-dau) > :is(button, .btn):last-child:is(.icon, .btn-icon, .x, [title="Đóng"], [aria-label="Đóng"]),
+html[data-skin="ios"]:not(#_):not(#__):not(#___) .hop-dau > button:last-child {
+  width: 28px !important; min-width: 28px !important; height: 28px !important; min-height: 28px !important; padding: 0 !important;
+  border-radius: 50% !important; background: var(--c-nen-phu, rgba(118,118,128,.12)) !important; color: var(--ios-chu-2) !important; border: 0 !important;
+  display: inline-flex !important; align-items: center; justify-content: center; font-size: 13px !important;
+}
+html[data-skin="ios"]:not(#_):not(#__) :is(.hop-chan, .modal-foot, .md-foot) { border-top: .5px solid var(--ios-vach) !important; padding: 10px 16px 12px !important; background: transparent !important; }
+/* KOL: lớp phủ = nền mờ, hộp nổi giữa (kể cả điện thoại) */
+html[data-skin="ios"]:not(#_):not(#__):not(#___) .phu-man { padding: 24px 12px !important; align-items: flex-start !important; }
+html[data-skin="ios"]:not(#_):not(#__):not(#___) .phu-man > .hop { min-height: 0 !important; margin: auto 0; }
+/* chip chọn nhiều (KOL "Lĩnh vực"…): theo chuẩn chip lọc */
+html[data-skin="ios"]:not(#_):not(#__):not(#___) .chip-chon {
+  height: 30px; padding: 0 12px !important; border: 0 !important; border-radius: 999px !important;
+  background: var(--c-nen-phu, rgba(118,118,128,.12)) !important; color: var(--ios-chu) !important; font-size: 13px !important; font-weight: 500 !important;
+  display: inline-flex; align-items: center;
+}
+html[data-skin="ios"]:not(#_):not(#__):not(#___) .chip-chon.on { background: var(--ios-xanh) !important; color: #fff !important; font-weight: 600 !important; }
+
+/* Hộp thoại: bỏ vạch màu trái + nền chuyển màu ở đầu (Lịch tác nghiệp) */
+html[data-skin="ios"]:not(#_):not(#__) .modal-head { background: transparent !important; }
+html[data-skin="ios"]:not(#_):not(#__) .modal-head::before { display: none !important; }
+/* Nhãn phần trong form (Đăng ký lịch…): dải màu in hoa → tiêu đề nhóm iOS có chấm màu */
+html[data-skin="ios"]:not(#_):not(#__) .frm .sec-title {
+  background: transparent !important; border: 0 !important; padding: 0 !important; margin: 18px 0 8px !important;
+  text-transform: none !important; letter-spacing: 0 !important; font-size: 13px !important; font-weight: 600 !important;
+  color: var(--ios-chu-2) !important; display: flex; align-items: center; gap: 7px;
+}
+html[data-skin="ios"]:not(#_):not(#__) .frm .sec-title::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--ios-xanh); flex: none; }
+html[data-skin="ios"]:not(#_):not(#__) .frm .sec-nguoi::before { background: #af52de; }
+html[data-skin="ios"]:not(#_):not(#__) .frm .sec-tien::before { background: var(--ios-luc); }
+html[data-skin="ios"]:not(#_):not(#__) .frm .sec-foc::before { background: var(--ios-cam); }
+html[data-skin="ios"]:not(#_):not(#__) .frm .sec-ghichu::before { background: #5ac8fa; }
+html[data-skin="ios"]:not(#_):not(#__) .frm .sec-title:first-child { margin-top: 2px !important; }
+
+/* Điện thoại: cửa sổ mở → thanh tab của lớp vỏ lui xuống (như sheet iOS che
+   tab bar). Trước: chân cửa sổ nằm dưới viên kính thanh tab → góc dưới bị đè. */
+@media (max-width: 640px) {
+  html[data-skin="ios"]:not(#_):not(#__):not([data-app]) .ios-tabbar { transition: opacity .25s ease, transform .35s cubic-bezier(.32, .72, 0, 1), filter .28s ease !important; }
+  html[data-skin="ios"]:not(#_):not(#__):not([data-app]) body.mod-che .ios-tabbar {
+    opacity: 0 !important; transform: translateY(24px) !important; pointer-events: none !important;
+  }
+  /* cửa sổ trong app con: chừa đáy an toàn, bo đủ 4 góc */
+  html[data-skin="ios"]:not(#_):not(#__):not(#___)[data-app] .drawer { max-height: calc(100dvh - 96px) !important; }
+}
+
+/* Lịch tác nghiệp: thanh đầu (dải tab + nút) CỐ ĐỊNH khi cuộn như Bảng công
+   việc — app này cuộn cả trang (body), nên thanh đầu dùng sticky + kính mờ. */
+html[data-skin="ios"]:not(#_):not(#__)[data-app="lich-tac-nghiep"] body > header.topbar {
+  position: sticky !important; top: 0; z-index: 45;
+  background: color-mix(in srgb, var(--mac-nen, #f5f5f7) 78%, transparent) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
+  box-shadow: 0 .5px 0 var(--ios-vach) !important;
 }
