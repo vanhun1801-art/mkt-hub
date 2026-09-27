@@ -53,19 +53,11 @@
         xong = true;
         try { ob && ob.disconnect(); } catch (_) {}
         if (giam || !lop) return go();
-        /* Kiểu C · kính nhoè: lớp phủ tan ra (mờ + nhoè) trong khi khung app
-         * bên dưới "hiện hình" từ nhoè sang rõ — một nhịp liền, không bật bụp. */
-        lop.style.transition = 'opacity .42s cubic-bezier(.2,.8,.2,1), filter .42s cubic-bezier(.2,.8,.2,1)';
+        /* Kiểu B: lớp chờ chỉ mờ dần đi (nhẹ, không nhoè) */
+        lop.style.transition = 'opacity .22s ease';
         lop.style.opacity = '0';
-        lop.style.filter = 'blur(10px)';
         lop.style.pointerEvents = 'none';
-        try {
-          f.animate([
-            { filter: 'blur(14px)', opacity: 0.35, transform: 'scale(.99)' },
-            { filter: 'blur(0px)', opacity: 1, transform: 'none' },
-          ], { duration: 520, easing: 'cubic-bezier(.2,.8,.2,1)' });
-        } catch (_) {}
-        setTimeout(go, 440);
+        setTimeout(go, 240);
       } else setTimeout(kiem, 60);
     };
     kiem();
@@ -428,8 +420,62 @@
   document.addEventListener('click', henCuon, true);
   setTimeout(cuonDay, 1200); setTimeout(cuonDay, 4000);
 
+
+  /* ẢNH ĐẠI DIỆN LARK: thay ô tròn chữ viết tắt bằng ảnh thật của người đó.
+   * Máy chủ trả bảng tên → ảnh (/api/anh-dai-dien, gọi bằng đường TUYỆT ĐỐI để
+   * shim của proxy không đổi sang API của app con). Tên lấy từ chính ô: title,
+   * data-ten, aria-label, hoặc chữ tên nằm ngay cạnh. Chỉ gắn ảnh nền + lớp
+   * .ios-co-anh (CSS giấu chữ) — không sửa chữ, i18n.js không bị ảnh hưởng. */
+  const O_AV = '.av, .pk-ava, .avatar, .ava, .ios-av, .av-sm, .tn-av, .nv-av, .ng-av';
+  const chuanTenAv = (s) => String(s || '').normalize('NFC').replace(/\s+/g, ' ').trim().toLowerCase();
+  let bangAnh = null, dangLayAnh = false;
+  function layBangAnh() {
+    if (bangAnh || dangLayAnh) return;
+    try {
+      const c = JSON.parse(sessionStorage.getItem('ios.anh') || 'null');
+      if (c && Date.now() - c.at < 3600e3) { bangAnh = c.ds; return; }
+    } catch (_) {}
+    dangLayAnh = true;
+    fetch(location.origin + '/api/anh-dai-dien', { credentials: 'same-origin' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        bangAnh = (j && (j.ds || (j.data && j.data.ds))) || {};
+        try { sessionStorage.setItem('ios.anh', JSON.stringify({ at: Date.now(), ds: bangAnh })); } catch (_) {}
+        ganAnh();
+      })
+      .catch(() => { bangAnh = {}; })
+      .finally(() => { dangLayAnh = false; });
+  }
+  function tenCuaAv(e) {
+    const c = [e.getAttribute('title'), e.dataset.ten, e.getAttribute('aria-label')];
+    const ke = e.nextElementSibling;
+    if (ke && !ke.matches(O_AV)) c.push(ke.textContent);
+    const cha = e.parentElement;
+    if (cha) c.push(cha.getAttribute('title'));
+    for (const x of c) {
+      const k = chuanTenAv(x);
+      if (!k) continue;
+      if (bangAnh[k]) return bangAnh[k];
+      const bo = k.replace(/\s*\(.*?\)\s*/g, ' ').trim();   // "Nguyễn Long Khánh (Pinky)"
+      if (bangAnh[bo]) return bangAnh[bo];
+    }
+    return '';
+  }
+  function ganAnh() {
+    if (!bangAnh) return layBangAnh();
+    if (!Object.keys(bangAnh).length) return;
+    document.querySelectorAll(O_AV).forEach((e) => {
+      if (e.dataset.iosAnh === '1') return;
+      const u = tenCuaAv(e);
+      if (!u) return;
+      e.dataset.iosAnh = '1';
+      e.style.backgroundImage = 'url("' + u.replace(/"/g, '%22') + '")';
+      e.classList.add('ios-co-anh');
+    });
+  }
+
   let hen = 0;
-  const lich = () => { if (hen) return; hen = requestAnimationFrame(() => { hen = 0; mepHet(); lensHet(); henCuon(); }); };
+  const lich = () => { if (hen) return; hen = requestAnimationFrame(() => { hen = 0; mepHet(); lensHet(); henCuon(); ganAnh(); }); };
 
   function caiHienHinh() {
     /* KHUNG XƯƠNG KIỂU C — "hiện hình": khối nào vừa được thay khung xương bằng

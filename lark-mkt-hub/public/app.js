@@ -1155,6 +1155,14 @@ function theHtml(t, moduleId, lopTang = '') {
     '<div class="so' + dai + '">' + so(t.so, t.dinhDang) + '</div>' + duoi + '</div>';
 }
 
+/* Chip lọc "Cần xử lý" theo base — nhớ lựa chọn trong S rồi vẽ lại trang. */
+document.addEventListener('click', (e) => {
+  const c = e.target.closest && e.target.closest('.cxl-chip');
+  if (!c) return;
+  S.cxlLoc = c.dataset.cxl || '';
+  if (typeof veHome === 'function') veHome();
+});
+
 function dongViecHtml(v, tenModule) {
   // có id thì cả dòng bấm được: mở app rồi mở đúng bản ghi đó
   const mo = v.id && v.module
@@ -2010,8 +2018,9 @@ function veHome() {
       '</div>';
   }
 
-  /* --- tải nhân sự: ai làm gì ngày nào --- */
-  html += khoiTaiNhanSu();
+  /* --- tải nhân sự: ai làm gì ngày nào — công cụ của QUẢN LÝ (nhân viên không cần
+   * soi lịch cả phòng; bớt một khối dài trên màn của họ) --- */
+  const taiHtml = S.quanLy ? khoiTaiNhanSu() : '';
 
   /* --- cần xử lý ngay (gộp mọi base), cuộn trong khối --- */
   const cxl = tq.canXuLy || [];
@@ -2019,28 +2028,51 @@ function veHome() {
   // tổng thật (server cộng trước khi cắt); bản cũ không có trường này thì lấy tạm độ dài
   const tong = tq.canXuLyTong != null ? tq.canXuLyTong : cxl.length;
   const con = Math.max(0, tong - cxl.length);
-  html += '<section class="khoi"' +
+  /* Chip lọc theo base: quản lý thấy ngay mỗi base đang dồn bao nhiêu việc gấp
+   * và lọc riêng một base (lựa chọn giữ qua các lần vẽ lại 20 giây/lần). */
+  const demMod = new Map();
+  cxl.forEach((v) => demMod.set(v.module, (demMod.get(v.module) || 0) + 1));
+  const locCxl = S.cxlLoc && demMod.has(S.cxlLoc) ? S.cxlLoc : '';
+  const chipCxl = !choSo && demMod.size > 1
+    ? '<div class="cxl-loc" role="tablist">' +
+      '<button class="cxl-chip' + (locCxl ? '' : ' on') + '" data-cxl="">Tất cả <b>' + cxl.length + '</b></button>' +
+      [...demMod.entries()].sort((a, b) => b[1] - a[1]).map(([id, n]) => {
+        const mm = S.modules.find((x) => x.id === id);
+        return '<button class="cxl-chip' + (locCxl === id ? ' on' : '') + '" data-cxl="' + esc(id) + '">' +
+          esc(mm ? mm.ten : id) + ' <b>' + n + '</b></button>';
+      }).join('') + '</div>'
+    : '';
+  /* Nhân viên: cùng dữ liệu (máy chủ đã lọc theo quyền từng người) nhưng gọi
+   * đúng tên — đây là việc CỦA HỌ, không phải tồn đọng của phòng. */
+  const tenCxl = S.quanLy ? 'Cần xử lý ngay' : 'Việc của tôi cần làm';
+  let cxlHtml = '<section class="khoi khoi-cxl' + (locCxl ? ' dang-loc' : '') + '"' + (locCxl ? ' data-loc="' + esc(locCxl) + '"' : '') +
     (choSo && HCu && HCu.cxl ? ' style="min-height:' + HCu.cxl + 'px"' : '') + '>' +
     '<div class="khoi-head">' +
     '<span class="kh-ic" style="background:#fdeaec;color:#dc2b3d">' + icon('gap') + '</span>' +
     /* Con số phải là TỔNG THẬT, không phải độ dài danh sách đã cắt. Từng bộ đọc
      * chỉ đẩy lên 6 việc quá hạn, 4 việc chưa phân công… nên trước đây trang chủ
      * báo "35 việc" trong khi riêng quá hạn đã 24. */
-    '<div><h2>Cần xử lý ngay</h2>' +
+    '<div><h2>' + tenCxl + '</h2>' +
     (choSo ? '' : tong ? '<div class="kh-sub">' + tong + ' việc' +
       (con ? ' · đang hiện ' + cxl.length + ' việc gấp nhất' : '') + '</div>' : '') + '</div>' +
-    '<span class="grow"></span></div>' +
+    '<span class="grow"></span></div>' + chipCxl +
     '<div class="khoi-body"><div class="viec viec-cuon">' +
     (choSo && window.KX ? KX.viec(soViecCu())
-      : cxl.length ? cxl.map((v) => {
+      : cxl.length ? cxl.filter((v) => !locCxl || v.module === locCxl).map((v) => {
       const m = S.modules.find((x) => x.id === v.module);
         return dongViecHtml(v, m ? m.ten : v.module);
-      }).join('') : '<div class="trong">Không còn việc nào.</div>') +
+      }).join('') : '<div class="trong">' + (S.quanLy ? 'Không còn việc nào.' : 'Hôm nay không có việc gấp nào của bạn.') + '</div>') +
     /* Nói ra phần bị cắt và chỉ chỗ xem hết — trước đây nó im lặng, mà im lặng ở
      * đây nghĩa là quản lý tưởng đã xử lý xong tồn đọng. */
     (con ? '<div class="viec-con">Còn <b>' + con + ' việc</b> nữa không hiện ở đây. ' +
       'Bấm thẻ số của từng base ở trên để xem đủ danh sách.</div>' : '') +
     '</div></div></section>';
+
+  /* THỨ TỰ TRANG (27/09/2026): "Cần xử lý" lên ĐẦU — trước đây nó nằm dưới 12
+   * thẻ base và cả khối Tải nhân sự, gần như không ai cuộn tới. Quản lý: việc
+   * gấp → số liệu từng base → tải nhân sự. Nhân viên: việc của tôi → số liệu. */
+  const iBase = html.indexOf('<div class="luoi-base">');
+  html = (iBase >= 0 ? html.slice(0, iBase) + cxlHtml + html.slice(iBase) : html + cxlHtml) + taiHtml;
 
   body.innerHTML = html;
   if (hinhMoi.length) doCaoThe(body, hinhMoi);

@@ -290,7 +290,7 @@
   } catch (_) {}
 
   let hen = 0;
-  const lich = () => { if (hen) return; hen = requestAnimationFrame(() => { hen = 0; try { donMot(document.body); nutTao(); chipNguon(); tabTrongTam(); mepHet(); lensHet(); henCuon(); henCot(); } catch (_) {} }); };
+  const lich = () => { if (hen) return; hen = requestAnimationFrame(() => { hen = 0; try { donMot(document.body); nutTao(); chipNguon(); tabTrongTam(); mepHet(); lensHet(); henCuon(); henCot(); nenSo(); xoaLoc(); nutTheoChu(); ganAnh(); baoChe(); } catch (_) {} }); };
 
   function caiHienHinh() {
     /* KHUNG XƯƠNG KIỂU C — "hiện hình": khối nào vừa được thay khung xương bằng
@@ -338,6 +338,138 @@
    * này để dải tab trong <div class="tabsbar"> — một hàng RIÊNG dưới thanh đầu,
    * nên cụm nút (Mục tiêu, Xuất CSV…) lơ lửng một hàng trống phía trên. Chuyển
    * đúng phần tử #tabs lên đầu thanh đầu: app vẫn tìm nó bằng id nên không gãy. */
+  /* VAI TRÒ: lớp vỏ cho biết người đang xem có phải QUẢN LÝ base này không
+   * (window.__HUB__.quanLy — gồm cả Lead; "xem như" nhân viên thì false). Gắn cờ
+   * lên <html> để CSS ẩn những thứ nhân viên không dùng được: tab cấu hình, nút
+   * đặt mục tiêu, dòng lỗi kỹ thuật (token, JSON của lark-cli). */
+  try {
+    if (window.__HUB__ && window.__HUB__.quanLy === false) document.documentElement.classList.add('ios-nhan-vien');
+  } catch (_) {}
+  /* Ngăn Sổ (Báo cáo, Sản phẩm) nay nổi giữa màn trên máy tính → cần nền mờ
+   * phía sau; bấm nền = bấm nút ✕ (#soDong) của chính app, không tự đóng kiểu
+   * khác để app giữ đúng trạng thái của nó. */
+  function nenSo() {
+    const so = document.getElementById('so');
+    if (!so || innerWidth <= 640) return;
+    let nen = document.querySelector('.ios-nen-so');
+    if (!nen) {
+      nen = document.createElement('div'); nen.className = 'ios-nen-so';
+      nen.addEventListener('click', () => { const d = document.getElementById('soDong'); if (d) d.click(); });
+      document.body.appendChild(nen);
+    }
+    const mo = document.body.classList.contains('so-mo') || so.classList.contains('mo');
+    nen.classList.toggle('hien', mo);
+  }
+  /* XOÁ LỌC — một tên, một dáng ở mọi app. Nút đặt lại bộ lọc mỗi app một chữ
+   * ("Xoá lọc", "Bỏ lọc", "Bỏ lọc") và một kiểu (nút xám, nút trắng, chữ trần).
+   * Gắn .ios-xoa-loc (CSS: chữ xanh trần); ở tiếng Việt đổi chữ về "Xoá lọc" —
+   * tách nút chữ riêng rồi thay, như donMot(), để i18n.js vẫn dịch đúng. */
+  const XOA_LOC = '#dClear, #wClear, #fReset, #oClear, #calClear, #btnBoLoc, #btnClearFilter, #btnClear, #btnXoaLoc, #boLoc, #xoaLoc';
+  function xoaLoc() {
+    document.querySelectorAll(XOA_LOC).forEach((b) => {
+      b.classList.add('ios-xoa-loc');
+      if (!/^vi/.test(document.documentElement.lang || 'vi')) return;
+      const t = [...b.childNodes].find((n) => n.nodeType === 3 && /Bỏ lọc/.test(n.nodeValue));
+      if (t) t.nodeValue = t.nodeValue.replace('Bỏ lọc', 'Xoá lọc');
+    });
+  }
+  /* Nút nguy hiểm theo CHỮ — app nào cũng có nút "Xoá" nhưng lớp CSS mỗi app
+   * một kiểu (btn-danger, btn do, btn small ghost…). Và nút ✕ gỡ một dòng. */
+  function nutTheoChu() {
+    document.querySelectorAll('.btn, button.btn').forEach((b) => {
+      if (b.closest('.topbar .tabs, .pk-chip, .chip, .modal-x')) return;
+      const t = (b.textContent || '').trim();
+      const nguy = /^(Xoá|Xóa)(?! lọc)/.test(t) || /^(Huỷ lịch|Hủy lịch)$/.test(t);
+      if (nguy !== b.classList.contains('ios-nguy')) b.classList.toggle('ios-nguy', nguy);
+      const x = /^[✕×]$/.test(t) && !b.closest('.topbar, .dr-head, .drawer-head, .so-dau, .modal-head, .md-head');
+      if (x !== b.classList.contains('ios-nut-x')) b.classList.toggle('ios-nut-x', x);
+    });
+  }
+
+  /* ẢNH ĐẠI DIỆN LARK: thay ô tròn chữ viết tắt bằng ảnh thật của người đó.
+   * Máy chủ trả bảng tên → ảnh (/api/anh-dai-dien, gọi bằng đường TUYỆT ĐỐI để
+   * shim của proxy không đổi sang API của app con). Tên lấy từ chính ô: title,
+   * data-ten, aria-label, hoặc chữ tên nằm ngay cạnh. Chỉ gắn ảnh nền + lớp
+   * .ios-co-anh (CSS giấu chữ) — không sửa chữ, i18n.js không bị ảnh hưởng. */
+  const O_AV = '.av, .pk-ava, .avatar, .ava, .ios-av, .av-sm, .tn-av, .nv-av, .ng-av';
+  const chuanTenAv = (s) => String(s || '').normalize('NFC').replace(/\s+/g, ' ').trim().toLowerCase();
+  let bangAnh = null, dangLayAnh = false;
+  function layBangAnh() {
+    if (bangAnh || dangLayAnh) return;
+    try {
+      const c = JSON.parse(sessionStorage.getItem('ios.anh') || 'null');
+      if (c && Date.now() - c.at < 3600e3) { bangAnh = c.ds; return; }
+    } catch (_) {}
+    dangLayAnh = true;
+    fetch(location.origin + '/api/anh-dai-dien', { credentials: 'same-origin' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        bangAnh = (j && (j.ds || (j.data && j.data.ds))) || {};
+        try { sessionStorage.setItem('ios.anh', JSON.stringify({ at: Date.now(), ds: bangAnh })); } catch (_) {}
+        ganAnh();
+      })
+      .catch(() => { bangAnh = {}; })
+      .finally(() => { dangLayAnh = false; });
+  }
+  function tenCuaAv(e) {
+    const c = [e.getAttribute('title'), e.dataset.ten, e.getAttribute('aria-label')];
+    const ke = e.nextElementSibling;
+    if (ke && !ke.matches(O_AV)) c.push(ke.textContent);
+    const cha = e.parentElement;
+    if (cha) c.push(cha.getAttribute('title'));
+    for (const x of c) {
+      const k = chuanTenAv(x);
+      if (!k) continue;
+      if (bangAnh[k]) return bangAnh[k];
+      const bo = k.replace(/\s*\(.*?\)\s*/g, ' ').trim();   // "Nguyễn Long Khánh (Pinky)"
+      if (bangAnh[bo]) return bangAnh[bo];
+    }
+    return '';
+  }
+  function ganAnh() {
+    if (!bangAnh) return layBangAnh();
+    if (!Object.keys(bangAnh).length) return;
+    document.querySelectorAll(O_AV).forEach((e) => {
+      if (e.dataset.iosAnh === '1') return;
+      const u = tenCuaAv(e);
+      if (!u) return;
+      e.dataset.iosAnh = '1';
+      e.style.backgroundImage = 'url("' + u.replace(/"/g, '%22') + '")';
+      e.classList.add('ios-co-anh');
+    });
+  }
+
+  /* GIỮ CHỖ CUỘN NGANG khi app vẽ lại dải (bấm chip lọc → app dựng lại cả hàng
+   * lọc bằng innerHTML → hàng mới cuộn về đầu → chip vừa bấm nhảy khỏi chỗ).
+   * Nhớ scrollLeft theo "khoá" của dải (id hoặc lớp + vị trí trong trang), dải
+   * mới cùng khoá thì trả lại đúng chỗ ngay nhịp vẽ đầu tiên. */
+  const CUON_NGANG = '.topbar .tabs, .tabsbar .tabs, .topbar > .pills, .filters, .filters-dash, .filters-work, .cal-filters, .loc, .loc-hang, .cxl-loc, .fgroup > .pills, .fgroup > .seg';
+  const choCuon = new Map();
+  const khoaCuon = (d) => (d.id || '') + '|' + String(d.className).replace(/\s*(ios-\S+|on|tg-dong)/g, '') + '|' + (d.parentElement ? (d.parentElement.id || d.parentElement.className) : '');
+  document.addEventListener('scroll', (e) => {
+    const d = e.target;
+    if (d && d.matches && d.matches(CUON_NGANG)) { choCuon.set(khoaCuon(d), d.scrollLeft); d.__iosDaGiu = true; }
+  }, { capture: true, passive: true });
+  function giuCuon() {
+    document.querySelectorAll(CUON_NGANG).forEach((d) => {
+      if (d.__iosDaGiu) return;
+      d.__iosDaGiu = true;
+      const x = choCuon.get(khoaCuon(d));
+      if (x && d.scrollLeft < 2) d.scrollLeft = x;
+    });
+  }
+  /* Cửa sổ bất kỳ đang mở (ngăn chi tiết, hộp thoại, Sổ…) → báo lớp vỏ làm tối
+   * + mờ cả thanh menu và thanh đầu (__HUB__.che). App nào đã tự gọi thì gọi lại
+   * cũng vô hại — chỉ gửi khi trạng thái đổi. */
+  const CUA_SO = '.drawer.on, .drawer.open, .modal.on, .modal.open, .modal-wrap:not([hidden]):not(.hidden), .md.on, .md.open, .xt.on, .xt.mo, #so.mo, body.so-mo #so, .modal-mask.on, .scrim.open, .mask.on, [role="dialog"]:not([hidden])';
+  let daChe = false;
+  function baoChe() {
+    let mo = false;
+    document.querySelectorAll(CUA_SO).forEach((e) => { if (!mo && e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden' && +getComputedStyle(e).opacity > 0.05) mo = true; });
+    if (mo === daChe) return;
+    daChe = mo;
+    try { if (window.__HUB__ && window.__HUB__.che) window.__HUB__.che(mo); } catch (_) {}
+  }
   function gopTab() {
     const tb = document.querySelector('body > header.topbar');
     const bar = document.querySelector('body > .tabsbar');
@@ -354,9 +486,18 @@
     lich();
     caiHienHinh();
     requestAnimationFrame(() => requestAnimationFrame(baoKhungSan));
-    new MutationObserver(lich).observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class', 'aria-current', 'aria-selected', 'hidden'] });
+    new MutationObserver(() => { try { giuCuon(); } catch (_) {} lich(); }).observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class', 'aria-current', 'aria-selected', 'hidden'] });
     // đổi tab nhiều app chỉ đổi lớp .on (không đổi DOM) — nghe cả cú bấm
-    document.addEventListener('click', (e) => { if (e.target.closest('.tabs, .pills')) requestAnimationFrame(tabTrongTam); });
+    /* Anh Hùng 27/09: "bấm xong thì nhảy giao diện tại chính cái nút — hãy giữ
+     * nguyên cái mình vừa chạm". Tab vừa bấm vốn đang nằm dưới ngón tay nên
+     * KHÔNG cuộn dải theo nó nữa; chỉ ghi nhận là tab đang chọn để lần vẽ lại sau
+     * không tưởng tab đổi rồi kéo dải đi. */
+    document.addEventListener('click', (e) => {
+      const t = e.target.closest && e.target.closest('.tabs > *, .pills > *');
+      if (!t) return;
+      const d = t.parentElement;
+      tabCu.set(d, (t.dataset.tab || t.dataset.man || t.textContent || '').trim());
+    }, true);
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', batDau);
   else batDau();

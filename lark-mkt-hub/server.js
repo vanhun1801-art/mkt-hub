@@ -26,6 +26,7 @@ const viTri = require('./vi-tri');
 const { chuyenTiep, goiJson } = require('./proxy');
 const tbApp = require('./thongbao-app');
 const nhomLark = require('./nhom-lark');
+const anhDaiDien = require('./anh-dai-dien');
 const nen = require('./nen');
 const taiKhoan = require('./tai-khoan');
 /* canh lỗi kết nối API của hub + mọi app con, nhắn anh Hùng ngay (bao-loi-api.js).
@@ -766,6 +767,14 @@ function xoaLogo() {
 async function api(req, res, u) {
   const p = u.pathname;
   const m = req.method;
+
+  /* Ảnh đại diện Lark của cả phòng: bảng TÊN (chuẩn hoá) → đường ảnh CDN Lark.
+   * ios.js / ios-app.js thay ô tròn chữ viết tắt bằng ảnh thật. Chỉ đọc. */
+  if (p === '/api/anh-dai-dien' && m === 'GET') {
+    const { nguoi } = await aiDangXem(req);
+    const ds = await anhDaiDien.bang(() => danhBaMoiApp(nguoi));
+    return ok(res, { ds });
+  }
 
   if (p === '/api/hub' && m === 'GET') {
     const { nguoi, q, xemNhu, quanLyThat } = await aiDangXem(req);
