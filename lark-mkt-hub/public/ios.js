@@ -242,12 +242,23 @@
       o.forEach((x, i) => {
         const m = /(\d+)\s*việc/.exec(x.getAttribute('title') || '');
         x.dataset.so = m ? m[1] : '0';
+        /* Ngày nghỉ (Lịch làm việc): máy tính in chữ OFF / ½ trong ô — điện thoại
+         * in đúng chữ đó thay cho số việc, để không mất thông tin nghỉ. */
+        x.dataset.hien = /ng-(ca|nua)/.test(x.className) ? (x.classList.contains('ng-ca') ? 'OFF' : '½') : x.dataset.so;
         let ngay = x.dataset.n;
         if (!ngay && goc) { const d = new Date(goc); d.setDate(goc.getDate() + (i - moc)); ngay = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
         x.dataset.ngay = ngay ? String(+ngay.slice(8)) : '';
         if (ngay === khoaNay) { x.classList.add('ios-nay'); iNay = i; }
       });
       dai.dataset.ios = '1';
+      /* Một tháng (≤ 31 ngày): điện thoại xếp thành lưới hai hàng nửa tháng, thấy
+       * trọn cả tháng như máy tính, không phải vuốt, không ô nào bị cắt mép.
+       * Khoảng dài hơn (Năm nay, Tuỳ chỉnh) giữ dải vuốt ngang. */
+      if (o.length <= 31) {
+        dai.classList.add('ios-luoi');
+        dai.style.setProperty('--so-cot', String(Math.min(16, o.length)));
+        return;
+      }
       if (iNay > 0 && innerWidth <= 640) requestAnimationFrame(() => { dai.scrollLeft = Math.max(0, (iNay - 1) * 44); });
     });
   }
@@ -591,4 +602,56 @@
   caiHienHinh();
   lich();
   new MutationObserver(lich).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'aria-current', 'aria-selected', 'hidden'] });
+})();
+
+/* ĐÓNG CỬA SỔ MƯỢT, MỘT NHỊP CHO CẢ HỆ (27/09). Anh Hùng: "cho hiệu ứng đóng cửa
+ * sổ mượt hơn và đồng bộ trên toàn bộ ứng dụng". Mở đã có lò xo (ios.css), còn
+ * đóng thì mỗi app một kiểu — đa số tắt phụt (display:none / gỡ khỏi trang).
+ * Không sửa từng app: lúc một cửa sổ vừa tắt, dựng ngay BẢN SAO của nó ở đúng
+ * chỗ (giữ lớp lúc mở, giá trị ô nhập, vị trí cuộn), rồi cho bản sao mờ + thu
+ * nhẹ 0,22s và tự gỡ. Cửa sổ thật đã đóng xong theo đúng logic của app; bản sao
+ * chỉ là hình, không bấm được (inert). Cửa sổ tự mờ dần (opacity/visibility)
+ * thì để nguyên, không nhân đôi. */
+(function () {
+  if (document.documentElement.getAttribute('data-skin') !== 'ios') return;
+  const HOP = '.modal, .modal-wrap, .md, .xt, #so, .phu-man, .hop, .mask, .scrim, .modal-mask, .modal-nen, .ios-nen-so, [role="dialog"]';
+  const dangMo = new Map();
+  const thay = (e, s) => s.display !== 'none' && s.visibility !== 'hidden' && e.getClientRects().length > 0;   // KHÔNG xét opacity: lúc vừa mở hộp còn đang hiện dần từ 0
+  function dong(e, r) {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const cha = r.cha && r.cha.isConnected ? r.cha : document.body;
+    const c = e.cloneNode(true);
+    c.className = r.lop; c.removeAttribute('hidden'); c.removeAttribute('style');
+    if (r.kieu) c.setAttribute('style', r.kieu);
+    c.style.setProperty('display', r.hien, 'important');
+    c.setAttribute('aria-hidden', 'true'); c.inert = true;
+    const a = e.querySelectorAll('input, textarea, select'), b = c.querySelectorAll('input, textarea, select');
+    a.forEach((x, i) => { if (b[i]) { b[i].value = x.value; if ('checked' in x) b[i].checked = x.checked; } });
+    const sau = e.isConnected && e.parentNode === cha ? e.nextSibling : (r.ke && r.ke.parentNode === cha ? r.ke : null);
+    cha.insertBefore(c, sau);
+    const cuonA = [e, ...e.querySelectorAll('*')], cuonB = [c, ...c.querySelectorAll('*')];
+    cuonA.forEach((x, i) => { if (x.scrollTop && cuonB[i]) cuonB[i].scrollTop = x.scrollTop; });
+    const q = c.getBoundingClientRect();
+    if (q.width >= innerWidth * 0.9 && q.height >= innerHeight * 0.9) {
+      c.classList.add('ios-bong-dong');                         // nền phủ cả màn: mờ dần
+      let hop = null, dt = 0;
+      for (const x of c.children) { const k = x.getBoundingClientRect(); if (k.width * k.height > dt && k.width < innerWidth * 0.98) { dt = k.width * k.height; hop = x; } }
+      if (hop) hop.classList.add('ios-bong-hop');               // hộp ở giữa: mờ + thu nhẹ
+    } else c.classList.add('ios-bong-dong', 'ios-bong-hop');
+    let xong = false;
+    const go = () => { if (!xong) { xong = true; c.remove(); } };
+    c.addEventListener('animationend', (ev) => { if (ev.target === c) go(); });
+    setTimeout(go, 320);
+  }
+  function quet() {
+    document.querySelectorAll(HOP).forEach((e) => {
+      if (e.closest('.ios-bong-dong') || (e.parentElement && e.parentElement.closest(HOP))) return;
+      const s = getComputedStyle(e);
+      if (thay(e, s)) dangMo.set(e, { hien: s.display, lop: e.className, kieu: e.getAttribute('style'), cha: e.parentNode, ke: e.nextSibling });
+      else if (dangMo.has(e)) { const r = dangMo.get(e); dangMo.delete(e); if (s.display === 'none' || e.hidden) dong(e, r); }
+    });
+    dangMo.forEach((r, e) => { if (!e.isConnected) { dangMo.delete(e); dong(e, r); } });
+  }
+  new MutationObserver(() => { try { quet(); } catch (_) {} })
+    .observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ['class', 'hidden', 'style', 'open'] });
 })();

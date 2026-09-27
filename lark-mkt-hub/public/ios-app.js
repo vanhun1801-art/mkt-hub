@@ -478,13 +478,33 @@
   /* Cửa sổ bất kỳ đang mở (ngăn chi tiết, hộp thoại, Sổ…) → báo lớp vỏ làm tối
    * + mờ cả thanh menu và thanh đầu (__HUB__.che). App nào đã tự gọi thì gọi lại
    * cũng vô hại — chỉ gửi khi trạng thái đổi. */
-  const CUA_SO = '.drawer.on, .drawer.open, .modal.on, .modal.open, .modal-wrap:not([hidden]):not(.hidden), .md.on, .md.open, .xt.on, .xt.mo, #so.mo, body.so-mo #so, .modal-mask.on, .scrim.open, .mask.on, [role="dialog"]:not([hidden])';
+  const CUA_SO = '.drawer.on, .drawer.open, .phu-man, .hop-nen, .modal.on, .modal.open, .modal-wrap:not([hidden]):not(.hidden), .md.on, .md.open, .xt.on, .xt.mo, #so.mo, body.so-mo #so, .modal-mask.on, .scrim.open, .mask.on, [role="dialog"]:not([hidden])';
   let daChe = false;
-  function baoChe() {
+  /* Cửa sổ vừa mở còn đang hiện dần (opacity 0 lúc đo) hoặc vừa đóng còn đang
+   * mờ dần (visibility trễ) → một lần đo ngay lúc đổi lớp dễ sai, mà sau đó có
+   * thể không còn thay đổi nào để đo lại → lớp vỏ không tối, hoặc tối kẹt.
+   * Nên đo lại khi hiệu ứng xong và thêm một lần sau 480ms. */
+  let henChe = 0;
+  const cheLai = () => { clearTimeout(henChe); henChe = setTimeout(() => baoChe(true), 480); };
+  document.addEventListener('transitionend', () => baoChe(true), true);
+  document.addEventListener('animationend', () => baoChe(true), true);
+  function baoChe(lai) {
+    if (lai !== true) cheLai();
     let mo = false;
-    document.querySelectorAll(CUA_SO).forEach((e) => { if (!mo && e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden' && +getComputedStyle(e).opacity > 0.05) mo = true; });
+    document.querySelectorAll(CUA_SO).forEach((e) => { if (!mo && !e.closest('.ios-bong-dong') && e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden' && (+getComputedStyle(e).opacity > 0.05 || (e.getAnimations && e.getAnimations().some((a) => a.playState === 'running')))) mo = true; });
     if (mo === daChe) return;
     daChe = mo;
+    /* Thanh cuộn của trang nằm NGOÀI lớp phủ tối (fixed không phủ được rãnh cuộn)
+     * → một dải sáng dọc mép phải khi mở cửa sổ. Tô rãnh cùng độ tối lớp phủ. */
+    try {
+      const h = document.documentElement;
+      if (mo) {
+        const m = /(\d+),\s*(\d+),\s*(\d+)/.exec(getComputedStyle(document.body).backgroundColor) || [0, 238, 240, 245];
+        const t = (v) => Math.round(v * 0.68);
+        h.style.setProperty('--ios-ranh-toi', 'rgb(' + t(+m[1]) + ',' + t(+m[2]) + ',' + t(+m[3]) + ')');
+      }
+      h.classList.toggle('ios-co-cua-so', mo);
+    } catch (_) {}
     try { if (window.__HUB__ && window.__HUB__.che) window.__HUB__.che(mo); } catch (_) {}
   }
 
@@ -619,4 +639,56 @@
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', batDau);
   else batDau();
+})();
+
+/* ĐÓNG CỬA SỔ MƯỢT, MỘT NHỊP CHO CẢ HỆ (27/09). Anh Hùng: "cho hiệu ứng đóng cửa
+ * sổ mượt hơn và đồng bộ trên toàn bộ ứng dụng". Mở đã có lò xo (ios.css), còn
+ * đóng thì mỗi app một kiểu — đa số tắt phụt (display:none / gỡ khỏi trang).
+ * Không sửa từng app: lúc một cửa sổ vừa tắt, dựng ngay BẢN SAO của nó ở đúng
+ * chỗ (giữ lớp lúc mở, giá trị ô nhập, vị trí cuộn), rồi cho bản sao mờ + thu
+ * nhẹ 0,22s và tự gỡ. Cửa sổ thật đã đóng xong theo đúng logic của app; bản sao
+ * chỉ là hình, không bấm được (inert). Cửa sổ tự mờ dần (opacity/visibility)
+ * thì để nguyên, không nhân đôi. */
+(function () {
+  if (document.documentElement.getAttribute('data-skin') !== 'ios') return;
+  const HOP = '.modal, .modal-wrap, .md, .xt, #so, .phu-man, .hop, .mask, .scrim, .modal-mask, .modal-nen, .ios-nen-so, [role="dialog"]';
+  const dangMo = new Map();
+  const thay = (e, s) => s.display !== 'none' && s.visibility !== 'hidden' && e.getClientRects().length > 0;   // KHÔNG xét opacity: lúc vừa mở hộp còn đang hiện dần từ 0
+  function dong(e, r) {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const cha = r.cha && r.cha.isConnected ? r.cha : document.body;
+    const c = e.cloneNode(true);
+    c.className = r.lop; c.removeAttribute('hidden'); c.removeAttribute('style');
+    if (r.kieu) c.setAttribute('style', r.kieu);
+    c.style.setProperty('display', r.hien, 'important');
+    c.setAttribute('aria-hidden', 'true'); c.inert = true;
+    const a = e.querySelectorAll('input, textarea, select'), b = c.querySelectorAll('input, textarea, select');
+    a.forEach((x, i) => { if (b[i]) { b[i].value = x.value; if ('checked' in x) b[i].checked = x.checked; } });
+    const sau = e.isConnected && e.parentNode === cha ? e.nextSibling : (r.ke && r.ke.parentNode === cha ? r.ke : null);
+    cha.insertBefore(c, sau);
+    const cuonA = [e, ...e.querySelectorAll('*')], cuonB = [c, ...c.querySelectorAll('*')];
+    cuonA.forEach((x, i) => { if (x.scrollTop && cuonB[i]) cuonB[i].scrollTop = x.scrollTop; });
+    const q = c.getBoundingClientRect();
+    if (q.width >= innerWidth * 0.9 && q.height >= innerHeight * 0.9) {
+      c.classList.add('ios-bong-dong');                         // nền phủ cả màn: mờ dần
+      let hop = null, dt = 0;
+      for (const x of c.children) { const k = x.getBoundingClientRect(); if (k.width * k.height > dt && k.width < innerWidth * 0.98) { dt = k.width * k.height; hop = x; } }
+      if (hop) hop.classList.add('ios-bong-hop');               // hộp ở giữa: mờ + thu nhẹ
+    } else c.classList.add('ios-bong-dong', 'ios-bong-hop');
+    let xong = false;
+    const go = () => { if (!xong) { xong = true; c.remove(); } };
+    c.addEventListener('animationend', (ev) => { if (ev.target === c) go(); });
+    setTimeout(go, 320);
+  }
+  function quet() {
+    document.querySelectorAll(HOP).forEach((e) => {
+      if (e.closest('.ios-bong-dong') || (e.parentElement && e.parentElement.closest(HOP))) return;
+      const s = getComputedStyle(e);
+      if (thay(e, s)) dangMo.set(e, { hien: s.display, lop: e.className, kieu: e.getAttribute('style'), cha: e.parentNode, ke: e.nextSibling });
+      else if (dangMo.has(e)) { const r = dangMo.get(e); dangMo.delete(e); if (s.display === 'none' || e.hidden) dong(e, r); }
+    });
+    dangMo.forEach((r, e) => { if (!e.isConnected) { dangMo.delete(e); dong(e, r); } });
+  }
+  new MutationObserver(() => { try { quet(); } catch (_) {} })
+    .observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ['class', 'hidden', 'style', 'open'] });
 })();

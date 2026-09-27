@@ -3389,7 +3389,7 @@ html[data-skin="ios"]:not(#_):not(#__) .drawer {
   height: auto !important; max-height: min(88vh, 940px) !important;
   border-radius: 18px !important; border: 0 !important;
   transform: translate(-50%, -48%) scale(.96) !important; opacity: 0; visibility: hidden;
-  transition: transform .3s cubic-bezier(.4, 0, .2, 1), opacity .18s ease, visibility 0s linear .3s !important;
+  transition: transform .22s cubic-bezier(.4, 0, 1, 1), opacity .22s cubic-bezier(.4, 0, 1, 1), visibility 0s linear .22s !important;
   box-shadow: var(--lg-rim), 0 30px 80px -20px rgba(0, 0, 0, .35), 0 0 0 .5px rgba(0, 0, 0, .06) !important;
   display: flex !important; flex-direction: column; overflow: hidden;
 }
@@ -3416,7 +3416,7 @@ html[data-skin="ios"]:not(#_) :is(.mask, .scrim) {
     width: min(760px, calc(100vw - 32px)) !important; flex: none !important; height: auto !important; max-height: min(88vh, 940px) !important;
     border: 0 !important; border-radius: 18px !important; background: var(--ios-the) !important;
     transform: translate(-50%, -48%) scale(.96); opacity: 0; visibility: hidden; pointer-events: none;
-    transition: transform .3s cubic-bezier(.4, 0, .2, 1), opacity .18s ease, visibility 0s linear .3s !important;
+    transition: transform .22s cubic-bezier(.4, 0, 1, 1), opacity .22s cubic-bezier(.4, 0, 1, 1), visibility 0s linear .22s !important;
     box-shadow: var(--lg-rim), 0 30px 80px -20px rgba(0, 0, 0, .35), 0 0 0 .5px rgba(0, 0, 0, .06) !important;
   }
   html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] body.so-mo #so,
@@ -4000,7 +4000,7 @@ html[data-skin="ios"]:not(#_):not(#__):not(#___) .pbVach > .pbKhuc {
     border: 0 !important; border-radius: 18px !important; background: var(--ios-the) !important; overflow: hidden;
     display: flex !important; flex-direction: column;
     transform: translate(-50%, -48%) scale(.96); opacity: 0; visibility: hidden; pointer-events: none;
-    transition: transform .3s cubic-bezier(.4, 0, .2, 1), opacity .18s ease, visibility 0s linear .3s !important;
+    transition: transform .22s cubic-bezier(.4, 0, 1, 1), opacity .22s cubic-bezier(.4, 0, 1, 1), visibility 0s linear .22s !important;
     box-shadow: 0 30px 80px -20px rgba(0, 0, 0, .35), 0 0 0 .5px rgba(0, 0, 0, .06) !important;
   }
   html[data-skin="ios"]:not(#_):not(#__):not(#___)[data-app="bao-cao"] body.so-mo #so,
@@ -4091,4 +4091,85 @@ html[data-skin="ios"]:not(#_):not(#__):not(#___) body :is(div, label, span, sect
 }
 @media (max-width: 640px) and (prefers-color-scheme: dark) {
   html[data-skin="ios"]:not([data-theme="sang"]) { --mac-nen-cua-so: #050507; }
+}
+
+/* ==========================================================================
+   TẢI NHÂN SỰ trên điện thoại = trọn tháng như máy tính (27/09). Anh Hùng: "không
+   thấy được off hay làm nửa ngày, cứ thể hiện như máy tính và đảm bảo tính
+   nguyên vẹn". Dải cũ vuốt ngang chỉ thấy ~8 ngày, ô ở mép bị cắt, và font-size:0
+   nuốt mất chữ OFF / ½. Nay: lưới hai hàng nửa tháng (ios.js gắn .ios-luoi và
+   --so-cot), ô = ngày nhỏ ở trên + OFF / ½ / số việc ở dưới (data-hien).
+   ========================================================================== */
+@media (max-width: 640px) {
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .khoi-tai .tn-dai.ios-luoi {
+    display: grid !important; grid-template-columns: repeat(var(--so-cot, 16), minmax(0, 1fr)); gap: 3px;
+    overflow: visible; scroll-snap-type: none; padding-bottom: 0;
+  }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .khoi-tai .tn-dai.ios-luoi .tn-o {
+    flex: none !important; width: auto !important; min-width: 0 !important; height: 32px !important;
+    border-radius: 6px !important; gap: 0; padding: 0; scroll-snap-align: none;
+  }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .khoi-tai .tn-dai.ios-luoi .tn-o::before {
+    font-size: 9px !important; line-height: 11px; font-weight: 500;
+  }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .khoi-tai .tn-dai.ios-luoi .tn-o::after {
+    content: attr(data-hien); font-size: 12px !important; line-height: 14px; font-weight: 700; letter-spacing: -.02em;
+  }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .khoi-tai .tn-dai.ios-luoi .tn-o.ng-ca::after {
+    font-size: 8.5px !important; letter-spacing: -.01em; opacity: .75;
+  }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .khoi-tai .tn-dai.ios-luoi .tn-o.ng-nua::after { opacity: .8; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .khoi-tai .tn-dai.ios-luoi .tn-o[data-hien="0"]::after { opacity: .3; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .khoi-tai .tn-dai.ios-luoi .tn-o .tn-diem { top: 2px; right: 2px; width: 4px; height: 4px; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .khoi-tai .tn-dai.ios-luoi .tn-o.ios-nay { box-shadow: inset 0 0 0 1.5px var(--ios-xanh); }
+  /* ngày nghỉ: nền kẻ chéo nhẹ để nhìn lướt cả tháng vẫn thấy ngay */
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .khoi-tai .tn-dai.ios-luoi .tn-o.ng-ca.m0 {
+    background: repeating-linear-gradient(135deg, var(--ios-o) 0 4px, color-mix(in srgb, var(--ios-chu) 7%, var(--ios-o)) 4px 8px) !important;
+  }
+}
+
+/* ==========================================================================
+   ĐÓNG CỬA SỔ + NỀN TỐI MỘT NHỊP CHO CẢ HỆ (27/09)
+   ========================================================================== */
+/* Bản sao lúc đóng (ios-app.js / ios.js dựng): nền mờ dần, hộp mờ + thu nhẹ —
+   nhanh hơn lúc mở như iOS (mở 0,42s lò xo, đóng 0,22s gia tốc). */
+@keyframes ios-dong-nen { from { opacity: 1; } to { opacity: 0; } }
+@keyframes ios-dong-hop { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(6px) scale(.96); } }
+html[data-skin="ios"]:not(#_):not(#__):not(#___) .ios-bong-dong {
+  pointer-events: none !important; transition: none !important;
+  animation: ios-dong-nen .22s cubic-bezier(.4, 0, 1, 1) forwards !important;
+}
+html[data-skin="ios"]:not(#_):not(#__):not(#___) .ios-bong-dong *:not(.ios-bong-hop) { animation: none !important; transition: none !important; }
+html[data-skin="ios"]:not(#_):not(#__):not(#___) .ios-bong-dong .ios-bong-hop,
+html[data-skin="ios"]:not(#_):not(#__):not(#___) .ios-bong-dong.ios-bong-hop {
+  transition: none !important; animation: ios-dong-hop .22s cubic-bezier(.4, 0, 1, 1) forwards !important;
+}
+/* Nền mờ tự bật/tắt bằng lớp (mask/scrim dùng opacity): cùng nhịp */
+html[data-skin="ios"]:not(#_):not(#__) :is(.mask, .scrim, .modal-mask) { transition: opacity .22s ease, visibility .22s !important; }
+
+/* Rãnh cuộn app con khi đang có cửa sổ: cùng độ tối lớp phủ (ios-app.js đo) */
+html[data-skin="ios"][data-app].ios-co-cua-so { scrollbar-color: rgba(0, 0, 0, .18) var(--ios-ranh-toi, #a2a3a7); }
+
+/* LỚP VỎ khi app con mở cửa sổ: trước đây chỉ làm tối riêng thanh menu bằng
+   filter → nền lớp vỏ quanh thanh menu + khe giữa không tối → đường ranh dọc
+   ngay mép khung app (anh Hùng chụp ở Lịch tác nghiệp). Nay: một lớp phủ tối +
+   mờ CÙNG MÀU lớp phủ trong app, trải kín màn, nằm ngay dưới khung app. */
+/* mờ thẳng thanh menu (không dùng backdrop-filter trên lớp phủ: đang mờ dần thì
+   Chrome có khung vẽ trắng cả vùng thanh menu) — cùng nhịp lớp phủ */
+html[data-skin="ios"]:not(#_):not(#__):not([data-app]) :is(.rail, .mob-bar, .ios-tabbar, .page-head) { transition: filter .22s cubic-bezier(.4, 0, 1, 1), opacity .28s ease !important; }
+html[data-skin="ios"]:not(#_):not(#__):not([data-app]) body.mod-che :is(.rail, .mob-bar, .ios-tabbar, .page-head) { filter: blur(3px) saturate(.9) !important; transition: filter .3s ease, opacity .28s ease !important; }
+html[data-skin="ios"]:not([data-app]) body::before {
+  content: ""; position: fixed; inset: 0; z-index: 50; pointer-events: none;
+  background: rgba(0, 0, 0, .32);
+  opacity: 0; visibility: hidden; transition: opacity .22s cubic-bezier(.4, 0, 1, 1), visibility 0s linear .22s;
+}
+html[data-skin="ios"]:not([data-app]) body.mod-che::before {
+  opacity: 1; visibility: visible; pointer-events: auto; transition: opacity .3s ease, visibility 0s;
+}
+html[data-skin="ios"]:not(#_):not(#__):not([data-app]) body.mod-che .page { z-index: 51; }
+/* Lớp NỀN phủ cả màn không có viền sáng kiểu kính: Quỹ dùng .modal làm nền
+   (hộp là .hop bên trong) → viền 1px trắng của --lg-rim vẽ thành một vạch sáng
+   ngay mép trên khung app, giữa hai vùng đang tối. */
+html[data-skin="ios"]:not(#_):not(#__):not(#___) :is(.mask.on, .scrim.open, .modal-mask, .modal-wrap, .modal.on, .modal.open, .xt, .ios-nen-so, .md-mask, .overlay, .phu-man, .modal-nen):not(.modal-wrap > *) {
+  box-shadow: none !important;
 }
