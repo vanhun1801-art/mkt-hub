@@ -772,7 +772,9 @@ function phuLoi(o, mod) {
  * `/m/<id>/` của chính hub, nên localStorage là chung một kho. Đã đo: mở trang
  * Tổng quan rồi đọc `kx.xuong.social` ra đúng bản app con vừa cất. */
 function coBanChupXuong(id) {
-  try { return !!localStorage.getItem('kx.xuong.' + id); } catch (_) { return false; }
+  /* Khoá nay mang phiên bản giao diện (khung-xuong.js PHIEN_GD) — hỏi qua KX.lay
+   * để luôn đúng khoá; KX chưa nạp thì mới dò khoá kiểu cũ. */
+  try { return !!(window.KX && KX.lay ? KX.lay(id) : localStorage.getItem('kx.xuong.' + id)); } catch (_) { return false; }
 }
 
 /* Gỡ lớp phủ khung xương của một app con. Lớp giao diện iOS (ios.js) cài
@@ -806,9 +808,14 @@ function khungCuaModule(mod, rec, mo) {
    * app nào cũng có ở đúng chỗ đó, nên lúc bản chụp lên thay không có gì xê
    * dịch. Chỉ lần mở đầu tiên trong đời máy (chưa có bản chụp nào) mới dùng
    * hình chung, vì lúc đó thật sự không biết app đó trông thế nào. */
+  /* 27/09/2026: bỏ luôn hình đoán ở lần mở đầu tiên. Mười hai app con nay đều
+   * có khung xương riêng dựng sẵn trong HTML (hiện ngay nhịp vẽ đầu tiên), nên
+   * hình chung của lớp vỏ chỉ còn là một bố cục thứ ba chen vào giữa — anh Hùng
+   * thấy "khung xương chồng đè, chưa chính xác". Lớp phủ giờ luôn chỉ có thanh
+   * đầu trang; `daChup` còn dùng để biết có bản chụp hay không. */
   const daChup = coBanChupXuong(mod.id);
-  wrap.innerHTML = '<div class="frame-loading' + (window.KX ? ' xuong' : '') + '">' +
-    (window.KX ? KX.man(esc(mod.ten), daChup ? { the: 0, dong: 0 } : null)
+  wrap.innerHTML = '<div class="frame-loading' + (window.KX ? ' xuong' : '') + (daChup ? ' co-chup' : '') + '">' +
+    (window.KX ? KX.man(esc(mod.ten), { the: 0, dong: 0 })
       : '<span class="spin"></span> Đang mở ' + esc(mod.ten) + '…') + '</div>';
 
   const f = document.createElement('iframe');

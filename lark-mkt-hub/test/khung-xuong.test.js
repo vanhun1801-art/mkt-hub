@@ -254,7 +254,16 @@ group('Khung xương phải khớp GIAO DIỆN THẬT, không phải hình chung
   ok('Bảng công việc dựng ba cột việc', /kx-nhieu-cot/.test(hinh['lark-task-manager']));
   ok('KPI dựng lưới ô số nhỏ', /kx-luoi-nho/.test(hinh['lark-kpi']));
   ok('Chỉnh ảnh dựng hai cột', /kx-2cot/.test(hinh['lark-chinh-anh']));
-  ok('Lịch tác nghiệp dựng lưới lịch', /kx-lich-luoi/.test(hinh['lark-lich-tac-nghiep']));
+  /* 27/09/2026: Lịch tác nghiệp MỞ ở tab Tổng quan (ô số + hàng đợi | phân bổ),
+   * không phải tab Lịch — khung lưới lịch cũ là hình của một màn khác, anh Hùng
+   * thấy "khung xương chưa thật sự chính xác". Tương tự KOL: ô số + danh sách,
+   * không phải một khối xám khổng lồ. */
+  ok('Lịch tác nghiệp dựng ô số + hai cột như tab Tổng quan',
+    /kx-man-the/.test(hinh['lark-lich-tac-nghiep']) && /kx-2cot/.test(hinh['lark-lich-tac-nghiep']));
+  {
+    const kol = fs.readFileSync(path.join(CHA, 'lark-kol', 'public', 'index.html'), 'utf8');
+    ok('KOL dựng ô số + danh sách', /kx-man-the/.test(kol) && /kx-man-bang/.test(kol));
+  }
   const soKhac = new Set(Object.values(hinh)).size;
   ok('chín app KHÔNG dùng chung một hình', soKhac >= 7, soKhac + ' hình khác nhau');
 }
@@ -275,8 +284,11 @@ group('Không vẽ HÌNH CHUNG khi app con đã có hình thật của nó');
    * Chỉ lần mở đầu tiên trong đời máy mới dùng hình chung. */
   ok('lớp vỏ biết hỏi app con đã chụp được chưa', /function coBanChupXuong\(/.test(APPJS));
   ok('… đọc đúng kho dùng chung của app con', /getItem\('kx\.xuong\.' \+ id\)/.test(APPJS));
-  ok('đã có bản chụp thì KHÔNG vẽ thẻ số và bảng đoán mò',
-    /daChup \? \{ the: 0, dong: 0 \} : null/.test(APPJS));
+  /* 27/09/2026: app con nào cũng đã có khung xương riêng dựng sẵn trong HTML,
+   * nên lớp phủ của lớp vỏ KHÔNG BAO GIỜ vẽ thẻ số và bảng đoán mò nữa — kể cả
+   * lần mở đầu tiên (hình đoán chen giữa thành ba bố cục nối tiếp). */
+  ok('lớp phủ không bao giờ vẽ thẻ số và bảng đoán mò',
+    /KX\.man\(esc\(mod\.ten\), \{ the: 0, dong: 0 \}\)/.test(APPJS));
   /* Cái bẫy đã dính thật: `lap(n || 4, …)` biến số 0 thành 4, nên xin "đừng vẽ
    * thẻ nào" vẫn ra bốn thẻ — sửa xong mà màn hình không đổi gì. */
   ok('số 0 nghĩa là KHÔNG vẽ, không phải "vẽ mặc định"',

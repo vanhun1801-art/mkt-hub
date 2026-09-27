@@ -251,7 +251,24 @@
        data-kx-xem="<tên>"  chỉ hiện (lớp phủ của Bảng công việc, khung iframe
                             của lớp vỏ) — chụp là việc của chỗ kia
      ============================================================ */
-  const KHOA = (t) => 'kx.xuong.' + t;
+  /* Khoá mang PHIÊN BẢN GIAO DIỆN. Bản chụp cũ giữ cỡ chữ, bề rộng khối, cỡ
+     nút của giao diện lúc chụp; giao diện đổi (lớp iOS, đồng cỡ nút 32/36px,
+     dải tab mới…) mà vẫn đổ lại bản cũ thì khung xương lệch, chồng lên nhau —
+     anh Hùng thấy đúng cảnh đó (27/09/2026). Đổi giao diện → tăng PHIEN_GD là
+     mọi bản cũ tự bỏ, lần mở kế tiếp chụp lại theo giao diện mới. */
+  const PHIEN_GD = 3;
+  const TIEN_TO = () => 'kx.xuong.' + (document.documentElement.getAttribute('data-skin') || 'goc') + PHIEN_GD + '.';
+  const KHOA = (t) => TIEN_TO() + t;
+  /* dọn các bản chụp của phiên bản cũ cho nhẹ localStorage */
+  setTimeout(() => {
+    try {
+      const giu = TIEN_TO();
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i);
+        if (k && k.indexOf('kx.xuong.') === 0 && k.indexOf(giu) !== 0) localStorage.removeItem(k);
+      }
+    } catch (_) {}
+  }, 3000);
   const TRAN_NUT = 900;      // số nút tối đa một lần chụp
   const TRAN_CON = 30;       // số con giữ lại trong một khối lặp (bảng, danh sách)
   const TRAN_BYTE = 40000;   // cỡ tối đa một màn
@@ -292,7 +309,7 @@
     try { cao = Math.round(parseFloat(getComputedStyle(el).fontSize) * 0.72) || 12; } catch (_) {}
     cao = Math.max(8, Math.min(30, cao));
     const rong = Math.max(24, Math.min(rongToiDa || 240, Math.round(chuDai * cao * 0.58)));
-    return '<span class="kx" style="display:inline-block;width:' + rong +
+    return '<span class="kx" style="display:inline-block;max-width:100%;vertical-align:middle;width:' + rong +
       'px;height:' + cao + 'px;border-radius:5px"></span>';
   }
 
@@ -300,6 +317,8 @@
     if (dem.n > TRAN_NUT || dem.byte > TRAN_BYTE) return '';
     const tag = el.tagName;
     if (THE_BO.has(tag) || el.hidden) return '';
+    // thấu kính trượt của lớp iOS là trang trí, không phải bố cục
+    if (el.classList && el.classList.contains('ios-lens')) return '';
     let hien = '';
     try { hien = getComputedStyle(el).display; } catch (_) {}
     if (hien === 'none') return '';
@@ -314,7 +333,9 @@
     /* Ảnh, biểu đồ, ô nhập: một khối xám ĐÚNG CỠ. Giữ đúng cỡ mới là phần quan
        trọng — biểu đồ cao 210px mà vẽ thành một dòng chữ thì cả trang tụt lên. */
     if (THE_KHOI.has(tag)) {
-      const h = '<span class="kx" style="display:block;width:' + Math.round(r.width) +
+      /* max-width:100% — khối đúng cỡ lúc chụp, nhưng không bao giờ tràn khỏi
+         khung chứa (khung hẹp hơn lúc chụp thì khối xám từng đè lên nhau) */
+      const h = '<span class="kx" style="display:block;max-width:100%;width:' + Math.round(r.width) +
         'px;height:' + Math.round(r.height) + 'px;border-radius:8px' +
         (st ? ';' + st : '') + '"></span>';
       dem.byte += h.length;
@@ -374,7 +395,7 @@
 
   /** Bản đã nhớ còn dùng được không — cửa sổ đổi bề ngang nhiều thì bố cục khác. */
   function conDung(v) {
-    return !!(v && v.html && Math.abs((v.w || 0) - window.innerWidth) < 140);
+    return !!(v && v.html && Math.abs((v.w || 0) - window.innerWidth) < 60);
   }
 
   /** Đổ khung xương đã nhớ vào một chỗ. */

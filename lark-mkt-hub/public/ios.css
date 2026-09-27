@@ -3102,3 +3102,76 @@ html[data-skin="ios"]:not(#_) .kpi:not(.kpi-alert):not(.kpi-warn):not(.kpi-ok):n
   html[data-skin="ios"]:not(#_):not(#__) .mob-bar { padding-top: calc(4px + env(safe-area-inset-top, 0px)); }
   html[data-skin="ios"]:not(#_):not(#__) .mob-bar.thu .mob-ten { top: calc(4px + env(safe-area-inset-top, 0px)); }
 }
+
+/* ==========================================================================
+   TIẾP GIÁP LIỀN MẠCH + THẲNG CỘT + THANH CUỘN MẢNH (27/09/2026).
+   Anh Hùng: "vị trí tiếp giáp này chưa liền mạch và tự nhiên · các cảnh báo
+   hiển thị sai trật tự · không muốn thanh cuộn trang quá thô bên phải · lệch".
+   ========================================================================== */
+
+/* ---- 1. Thanh cuộn: mảnh, trong suốt, chỉ đậm lên khi rê chuột (như macOS) ---- */
+/* :where() = độ ưu tiên 0: luật scrollbar-width:none riêng của app (dải tab trượt…) vẫn thắng */
+:where(html[data-skin="ios"], html[data-skin="ios"] *) {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--ios-chu) 18%, transparent) transparent;
+}
+html[data-skin="ios"] ::-webkit-scrollbar { width: 10px; height: 10px; background: transparent; }
+html[data-skin="ios"] ::-webkit-scrollbar-track { background: transparent; }
+html[data-skin="ios"] ::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--ios-chu) 20%, transparent); border-radius: 10px;
+  border: 3px solid transparent; background-clip: padding-box; min-height: 40px;
+}
+html[data-skin="ios"] ::-webkit-scrollbar-thumb:hover { background-color: color-mix(in srgb, var(--ios-chu) 38%, transparent); }
+html[data-skin="ios"] ::-webkit-scrollbar-corner { background: transparent; }
+
+@media (min-width: 641px) {
+  /* ---- 2. Thanh đầu thẳng cột: dải tab bắt đầu ở mép trái cột, nút cuối
+     dừng ở mép phải cột (ios-app.js đo --cot-trai / --cot-phai) ---- */
+  html[data-skin="ios"]:not(#_):not(#__)[data-app] :is(body > header.topbar, body > .topbar, body > .tabsbar) {
+    padding-left: var(--cot-trai, 20px) !important; padding-right: var(--cot-phai, 20px) !important;
+  }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app] :is(body > header.topbar, body > .topbar) > :is(.tabs, .pills):first-of-type { margin-left: 0 !important; }
+
+  /* dải tab desktop: cao 34 (tab 30 + đệm 2) — đứng cạnh nút 32px thì tâm
+     trùng, mép gần như trùng; trước đó rãnh cao 40 cạnh nút 32 */
+  html[data-skin="ios"]:not(#_):not(#__) :is(.topbar .tabs, .tabsbar .tabs, .thanh .tabs, .topbar > .pills) {
+    padding: 2px !important; min-height: 0 !important; height: 34px; box-sizing: border-box; align-items: center;
+  }
+  html[data-skin="ios"]:not(#_):not(#__) :is(.topbar .tabs, .tabsbar .tabs, .thanh .tabs, .topbar > .pills) > :not(.ios-lens) {
+    height: 30px !important; min-height: 30px !important; line-height: 30px !important; padding-top: 0 !important; padding-bottom: 0 !important;
+    display: inline-flex; align-items: center;
+  }
+
+  /* ---- 3. Thanh lọc tràn viền (Quảng cáo, OTA, Social) → một thẻ trong cột,
+     như thẻ "Lọc" của Công việc. Không còn dải trắng dính vào khe thanh bên. ---- */
+  html[data-skin="ios"]:not(#_):not(#__)[data-app] body > section#filters.filters {
+    margin: 10px var(--cot-phai, 20px) 4px var(--cot-trai, 20px) !important;
+    background: var(--ios-the) !important; border: 0 !important; border-radius: 16px !important;
+    box-shadow: var(--ios-bong) !important; padding: 12px 16px !important;
+  }
+
+  /* ---- 4. Băng cảnh báo: nằm TRONG cột, ngay dưới thanh lọc, cùng bo với thẻ;
+     dòng lỗi kỹ thuật (JSON của lark-cli…) gọn một dòng, rê chuột mới xem đủ ---- */
+  html[data-skin="ios"]:not(#_):not(#__)[data-app] body > #bangKenhLoi {
+    padding: 0 !important; margin: 10px var(--cot-phai, 20px) 0 var(--cot-trai, 20px) !important; background: transparent !important;
+  }
+}
+html[data-skin="ios"]:not(#_)[data-app] #bangKenhLoi .bang-loi {
+  display: flex; align-items: flex-start; gap: 14px;
+  border: 0 !important; border-radius: 14px !important; padding: 12px 14px !important;
+  background: color-mix(in srgb, var(--ios-do) 8%, var(--ios-the)) !important; box-shadow: none !important;
+}
+html[data-skin="ios"]:not(#_)[data-app] #bangKenhLoi .bl-noi { flex: 1 1 auto; min-width: 0; font-size: 13.5px; line-height: 1.45; color: var(--ios-chu); }
+html[data-skin="ios"]:not(#_)[data-app] #bangKenhLoi .bl-noi > b:first-child { color: var(--ios-do); }
+html[data-skin="ios"]:not(#_)[data-app] #bangKenhLoi .bl-ly {
+  margin: 4px 0 2px; font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--ios-chu-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: help;
+}
+html[data-skin="ios"]:not(#_)[data-app] #bangKenhLoi .bl-ly:hover { white-space: normal; overflow-wrap: anywhere; }
+html[data-skin="ios"]:not(#_)[data-app] #bangKenhLoi .bl-lam { font-size: 13px; color: var(--ios-chu-2); }
+html[data-skin="ios"]:not(#_)[data-app] #bangKenhLoi .btn { flex: none; }
+/* Thanh đầu desktop: cụm bên phải luôn dạt về mép phải cột (Chỉnh ảnh từng
+   có chip tên người lơ lửng giữa một hàng riêng). */
+@media (min-width: 641px) {
+  html[data-skin="ios"]:not(#_)[data-app] body > header.topbar > :is(.topbar-right, .top-right, .topbar-actions):last-child { margin-left: auto !important; }
+}

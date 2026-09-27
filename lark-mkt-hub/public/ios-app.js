@@ -249,8 +249,47 @@
   document.addEventListener('click', henCuon, true);
   setTimeout(cuonDay, 1200); setTimeout(cuonDay, 4000);
 
+
+  /* CỘT NỘI DUNG (desktop): đo mép trái/phải thật của các thẻ nội dung rồi
+   * đặt --cot-trai / --cot-phai lên <html>. CSS dùng hai số này để thanh đầu
+   * (dải tab, cụm nút), thanh lọc và băng cảnh báo thẳng đúng mép cột — trước
+   * đó dải tab bắt đầu ở 16–28px trong khi thẻ bắt đầu ở 71px, nút cuối kết
+   * thúc ở 1642px trong khi thẻ dừng ở 1591px ("lệch"). */
+  const BO_COT = '.topbar, .tabsbar, header, #filters, #bangKenhLoi, .ios-lens, script, style';
+  function doCot() {
+    const html = document.documentElement;
+    if (innerWidth <= 640) { html.style.removeProperty('--cot-trai'); html.style.removeProperty('--cot-phai'); return; }
+    const vw = html.clientWidth;
+    const goc = document.querySelector('main') || document.body;
+    let L = Infinity, R = -Infinity;
+    goc.querySelectorAll(':scope > *, :scope > * > *, :scope > * > * > *').forEach((e) => {
+      if (e.closest(BO_COT)) return;
+      const b = e.getBoundingClientRect();
+      if (b.width < vw * 0.4 || b.height < 24 || b.left < 1 || b.right > vw - 1) return;
+      const s = getComputedStyle(e);
+      const coNen = (s.backgroundColor !== 'rgba(0, 0, 0, 0)' && s.backgroundColor !== 'transparent') || s.boxShadow !== 'none';
+      if (!coNen) return;
+      L = Math.min(L, b.left); R = Math.max(R, b.right);
+    });
+    if (!isFinite(L)) return;
+    const tr = Math.round(L) + 'px', ph = Math.round(vw - R) + 'px';
+    if (html.style.getPropertyValue('--cot-trai') !== tr) html.style.setProperty('--cot-trai', tr);
+    if (html.style.getPropertyValue('--cot-phai') !== ph) html.style.setProperty('--cot-phai', ph);
+  }
+  let cotHen = 0;
+  const henCot = () => { clearTimeout(cotHen); cotHen = setTimeout(doCot, 250); };
+  addEventListener('resize', henCot);
+  addEventListener('load', henCot);
+  [800, 2500, 6000].forEach((t) => setTimeout(doCot, t));
+  // nội dung thật thay khung xương, bảng/biểu đồ nở ra… → đo lại
+  try {
+    const ro = new ResizeObserver(henCot);
+    const gan = () => { const g = document.querySelector('main') || document.body; if (g) ro.observe(g); };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', gan); else gan();
+  } catch (_) {}
+
   let hen = 0;
-  const lich = () => { if (hen) return; hen = requestAnimationFrame(() => { hen = 0; try { donMot(document.body); nutTao(); chipNguon(); tabTrongTam(); mepHet(); lensHet(); henCuon(); } catch (_) {} }); };
+  const lich = () => { if (hen) return; hen = requestAnimationFrame(() => { hen = 0; try { donMot(document.body); nutTao(); chipNguon(); tabTrongTam(); mepHet(); lensHet(); henCuon(); henCot(); } catch (_) {} }); };
   const batDau = () => {
     lich();
     new MutationObserver(lich).observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class', 'aria-current', 'aria-selected', 'hidden'] });
