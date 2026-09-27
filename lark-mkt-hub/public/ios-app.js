@@ -221,20 +221,37 @@
   function cuonDay() {
     const cu = document.querySelectorAll('.ios-cuon-day');
     if (innerWidth > 640) { cu.forEach((e) => e.classList.remove('ios-cuon-day')); return; }
+    /* MỌI vùng cuộn chạm đáy màn (không chỉ vùng lớn nhất): app có vùng cuộn thứ
+     * hai (bảng tự cuộn, khung con) thì mục cuối của nó từng nằm dưới thanh tab
+     * — "Nộp báo cáo" của Báo cáo, ô chấm KPI, dòng cuối bảng Công việc. */
     const vh = innerHeight;
-    let tot = null, dt = 0;
+    const can = new Set();
     const de = document.scrollingElement || document.documentElement;
-    if (de.scrollHeight > de.clientHeight + 4) { tot = document.body; dt = de.clientWidth * de.clientHeight; }
+    if (de.scrollHeight > de.clientHeight + 4) can.add(document.body);
+    /* app cuộn bằng chính <body> (Lịch tác nghiệp: html cao đúng màn, body tự
+     * cuộn) — "body *" không gồm body nên từng bỏ sót */
+    const bs = getComputedStyle(document.body);
+    if (document.body.scrollHeight > document.body.clientHeight + 4 && /auto|scroll/.test(bs.overflowY)) can.add(document.body);
     document.querySelectorAll('body *').forEach((e) => {
-      if (e.clientHeight < vh * 0.5 || e.scrollHeight <= e.clientHeight + 4) return;
+      if (e.clientHeight < 160 || e.scrollHeight <= e.clientHeight + 4 || !e.getClientRects().length) return;
       if (!/auto|scroll/.test(getComputedStyle(e).overflowY)) return;
-      const s = e.clientWidth * e.clientHeight;
-      if (s > dt) { tot = e; dt = s; }
+      if (e.closest('.drawer, .modal, .modal-wrap, .phu-man, #so, .dd-panel, .pk-panel')) return;
+      const b = e.getBoundingClientRect();
+      if (b.bottom < vh - 110) return;          // vùng cuộn không chạm vùng thanh tab
+      can.add(e);
     });
-    cu.forEach((e) => { if (e !== tot) e.classList.remove('ios-cuon-day'); });
-    if (tot && !tot.classList.contains('ios-cuon-day')) tot.classList.add('ios-cuon-day');
+    cu.forEach((e) => { if (!can.has(e)) e.classList.remove('ios-cuon-day'); });
+    can.forEach((e) => { if (!e.classList.contains('ios-cuon-day')) e.classList.add('ios-cuon-day'); });
   }
-  const henCuon = () => { clearTimeout(cuonHen); cuonHen = setTimeout(cuonDay, 350); };
+  /* Điều tiết (throttle), KHÔNG dồn (debounce): app vẽ lại liên tục (Bảng công
+   * việc) thì kiểu "chờ yên 350ms" không bao giờ tới lượt chạy — vùng cuộn của
+   * tab mới không được chừa đáy, dòng cuối nằm dưới thanh tab. */
+  let cuonLan = 0;
+  const henCuon = () => {
+    if (cuonHen) return;
+    const cho = Math.max(0, 400 - (Date.now() - cuonLan));
+    cuonHen = setTimeout(() => { cuonHen = 0; cuonLan = Date.now(); cuonDay(); }, cho);
+  };
   try {
     if (parent !== window && parent.document) {
       const pd = parent.document, pr = pd.createElement('div');
@@ -350,7 +367,7 @@
    * khác để app giữ đúng trạng thái của nó. */
   function nenSo() {
     const so = document.getElementById('so');
-    if (!so || innerWidth <= 640) return;
+    if (!so) return;
     let nen = document.querySelector('.ios-nen-so');
     if (!nen) {
       nen = document.createElement('div'); nen.className = 'ios-nen-so';
@@ -470,6 +487,56 @@
     daChe = mo;
     try { if (window.__HUB__ && window.__HUB__.che) window.__HUB__.che(mo); } catch (_) {}
   }
+
+  /* THEO DÕI ÂM THẦM (loi-giao-dien.js ở máy chủ): lỗi JS, promise không ai bắt,
+   * trang tràn ngang, cửa sổ kẹt — gửi về lớp vỏ bằng sendBeacon, người dùng
+   * không thấy gì. Tối đa 15 báo mỗi lần mở trang, không gửi trùng. */
+  const BAO_APP = document.documentElement.getAttribute('data-app') || 'hub';
+  const daBao = new Set();
+  let soBao = 0;
+  function baoLoi(loai, msg, nguon) {
+    try {
+      const k = loai + '|' + msg + '|' + nguon;
+      if (!msg || daBao.has(k) || soBao >= 15) return;
+      daBao.add(k); soBao++;
+      const b = JSON.stringify({ loai, app: BAO_APP, msg: String(msg).slice(0, 400), nguon: String(nguon || '').slice(0, 200),
+        url: location.pathname + location.hash, w: innerWidth, h: innerHeight, ua: navigator.userAgent.slice(0, 160) });
+      const u = location.origin + '/api/loi-giao-dien';
+      if (!(navigator.sendBeacon && navigator.sendBeacon(u, new Blob([b], { type: 'text/plain' })))) {
+        fetch(u, { method: 'POST', body: b, credentials: 'same-origin', keepalive: true }).catch(() => {});
+      }
+    } catch (_) {}
+  }
+  addEventListener('error', (e) => {
+    if (!e || e.target !== window && e.target && e.target !== document) return;   // ảnh/tệp tải hỏng: không phải lỗi giao diện
+    const f = String(e.filename || '');
+    if (f && f.indexOf(location.origin) !== 0) return;                            // tiện ích trình duyệt
+    baoLoi('js', e.message || 'Lỗi không rõ', f.replace(location.origin, '') + ':' + (e.lineno || 0) + ':' + (e.colno || 0));
+  });
+  addEventListener('unhandledrejection', (e) => {
+    const r = e && e.reason;
+    baoLoi('promise', (r && (r.message || r)) || 'Promise bị từ chối', (r && r.stack ? String(r.stack).split('\n')[1] || '' : '').trim());
+  });
+  function kiemTran() {
+    const d = document.documentElement;
+    if (d.scrollWidth <= d.clientWidth + 2) return;
+    let thu = '';
+    for (const e of document.querySelectorAll('body *')) {
+      const r = e.getBoundingClientRect();
+      if (r.right > d.clientWidth + 2 && r.width > 0 && r.width < d.scrollWidth + 1) {
+        let a = e.parentElement, cat = false;
+        while (a && a !== document.body) { if (getComputedStyle(a).overflowX !== 'visible') { cat = true; break; } a = a.parentElement; }
+        if (!cat) { thu = e.tagName.toLowerCase() + (e.id ? '#' + e.id : '') + [...e.classList].slice(0, 2).map((c) => '.' + c).join(''); break; }
+      }
+    }
+    baoLoi('tran', 'Trang tràn ngang ' + d.scrollWidth + '>' + d.clientWidth + 'px', thu);
+  }
+  let henTran = 0;
+  const henKiemTran = () => { clearTimeout(henTran); henTran = setTimeout(kiemTran, 1500); };
+  addEventListener('load', () => setTimeout(kiemTran, 5000));
+  addEventListener('resize', henKiemTran);
+  document.addEventListener('click', henKiemTran, true);
+
   function gopTab() {
     const tb = document.querySelector('body > header.topbar');
     const bar = document.querySelector('body > .tabsbar');

@@ -2986,6 +2986,14 @@ $('#btnMobLamMoi').onclick = () => {
   if (S.view === 'home') { napTongQuan(); return; }
   const f = S.frames.get(S.view);
   if (f && f.iframe) {
+    /* App có nút "Làm mới" riêng (xoá bộ nhớ đệm + đọc lại Base) thì bấm hộ nút
+     * đó — nó đúng hơn tải lại trang. Trên điện thoại nút riêng bị giấu (ios.css)
+     * để thanh đầu không có hai nút làm mới trùng nhau. */
+    try {
+      const d = f.iframe.contentDocument;
+      const rieng = d && d.querySelector('#btnLamMoi, #btnRefresh, #btnReload, #lamMoi');
+      if (rieng && !rieng.disabled) { rieng.click(); return; }
+    } catch (_) {}
     try { f.iframe.contentWindow.location.reload(); return; } catch (_) { /* rơi xuống dưới */ }
     /* Không với được vào trong (khác origin, hay iframe chưa sẵn sàng) thì gán
      * lại src — nặng tay hơn nhưng luôn chạy. */

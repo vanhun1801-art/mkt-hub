@@ -3981,3 +3981,87 @@ html[data-skin="ios"]:not(#_):not(#__)[data-app="lich-tac-nghiep"] body > header
   -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
   box-shadow: 0 .5px 0 var(--ios-vach) !important;
 }
+
+/* Thanh phân tầng (Sản phẩm) và mọi đoạn màu bấm được trong thanh cao cố định:
+   luật cỡ nút (cao 32–36px, dòng 36px) đẩy chữ xuống dưới thanh 22px → số bị
+   cắt nửa dưới. Đoạn trong thanh giữ đúng chiều cao của thanh. */
+html[data-skin="ios"]:not(#_):not(#__):not(#___) .pbVach > .pbKhuc {
+  height: 100% !important; min-height: 0 !important; line-height: 22px !important; padding: 0 !important;
+  font-size: 11px !important; font-weight: 700 !important; border-radius: 0 !important; background-image: none !important;
+  box-shadow: none !important; display: block !important; opacity: 1 !important;
+}
+
+/* Điện thoại: ngăn Sổ (Báo cáo, Sản phẩm) cũng là cửa sổ giữa màn có nền mờ —
+   trước phủ kín màn nên không bấm ra ngoài để đóng được như mọi cửa sổ khác. */
+@media (max-width: 640px) {
+  html[data-skin="ios"]:not(#_):not(#__):not(#___):is([data-app="bao-cao"], [data-app="san-pham"]) #so {
+    position: fixed !important; top: 50% !important; left: 50% !important; right: auto !important; bottom: auto !important; z-index: 80;
+    width: calc(100vw - 24px) !important; height: auto !important; max-height: calc(100dvh - 96px) !important; flex: none !important;
+    border: 0 !important; border-radius: 18px !important; background: var(--ios-the) !important; overflow: hidden;
+    display: flex !important; flex-direction: column;
+    transform: translate(-50%, -48%) scale(.96); opacity: 0; visibility: hidden; pointer-events: none;
+    transition: transform .3s cubic-bezier(.4, 0, .2, 1), opacity .18s ease, visibility 0s linear .3s !important;
+    box-shadow: 0 30px 80px -20px rgba(0, 0, 0, .35), 0 0 0 .5px rgba(0, 0, 0, .06) !important;
+  }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___)[data-app="bao-cao"] body.so-mo #so,
+  html[data-skin="ios"]:not(#_):not(#__):not(#___)[data-app="san-pham"] #so.mo {
+    transform: translate(-50%, -50%) scale(1); opacity: 1; visibility: visible; pointer-events: auto;
+    transition: transform .42s cubic-bezier(.2, .9, .25, 1.05), opacity .2s ease, visibility 0s !important;
+  }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app] #so > .so-than { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] body.so-mo main { display: block !important; }
+  html[data-skin="ios"] .ios-nen-so {
+    position: fixed; inset: 0; z-index: 79; background: rgba(0, 0, 0, .32);
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); opacity: 0; pointer-events: none; transition: opacity .2s ease;
+  }
+  html[data-skin="ios"] .ios-nen-so.hien { opacity: 1; pointer-events: auto; }
+}
+
+/* ---- Soát lỗi 27/09 (ảnh anh Hùng) — sửa theo LOẠI lỗi, không theo chỗ ---- */
+/* (1) Ô nhập có biểu tượng bên trong (ô tìm có kính lúp…): luật chuẩn ô tìm
+   (lề trái 14px) đè mất lề chừa cho biểu tượng → kính lúp đè chữ gợi ý. */
+html[data-skin="ios"]:not(#_):not(#__):not(#___) :is(.search, .o-tim, .tim, .search-box, .ip-tim):has(> svg, > i, > .ic) > :is(input, .fld) { padding-left: 32px !important; }
+html[data-skin="ios"]:not(#_):not(#__):not(#___) :is(.search, .o-tim, .tim, .search-box, .ip-tim) > :is(svg, i, .ic) {
+  position: absolute !important; left: 11px !important; top: 50% !important; transform: translateY(-50%) !important;
+  pointer-events: none; opacity: .5; z-index: 1;
+}
+html[data-skin="ios"]:not(#_):not(#__) :is(.search, .o-tim, .tim, .search-box, .ip-tim) { position: relative; }
+/* (2) Nút chữ trần làm chú thích / liên kết trong nội dung (chú thích biểu đồ
+   Sản phẩm…): không phải nút bấm cỡ chuẩn — giữ đúng cỡ dòng chữ. */
+html[data-skin="ios"]:not(#_):not(#__):not(#___) :is(.pbMuc, .chu-thich > button, .legend > button, .lg-muc) {
+  height: auto !important; min-height: 0 !important; line-height: 1.4 !important; padding: 2px 0 !important;
+  background: none !important; box-shadow: none !important; border-radius: 0 !important; font-size: 12.5px !important;
+}
+@media (max-width: 640px) {
+  /* (3) Nút làm mới trùng: lớp vỏ đã có nút làm mới ở thanh tiêu đề (bấm hộ
+     nút của app). Giấu nút riêng của app trên điện thoại. */
+  html[data-skin="ios"]:not(#_):not(#__):not(#___)[data-app] .topbar :is(#btnLamMoi, #btnRefresh, #btnReload) { display: none !important; }
+}
+
+/* (4) Bảng rộng hơn khung trên điện thoại: khung chứa trực tiếp của bảng lướt
+   ngang được (trước: thẻ .card / khối Quỹ cắt mất cột "Số tiền", bảng Cảnh báo
+   Quảng cáo 752px trong khung 390px). Áp cho MỌI bảng, không theo từng app. */
+@media (max-width: 640px) {
+  html[data-skin="ios"]:not(#_):not(#__) :is(div, section, article):has(> table) { overflow-x: auto !important; -webkit-overflow-scrolling: touch; max-width: 100%; }
+}
+
+/* (5) Nhãn trong danh sách nhãn (span trần trong .tag-list…, OTA "ID booking,
+   Tên khách…"): cùng dáng nhãn chuẩn — trước là viên trắng có viền riêng. */
+html[data-skin="ios"]:not(#_):not(#__):not(#___) :is(.tag-list, .tags, .chip-list, .ds-nhan, .nhan-ds) > span:not([class]) {
+  display: inline-flex !important; align-items: center; min-height: 20px; padding: 2px 8px !important; border: 0 !important; box-shadow: none !important;
+  border-radius: 999px !important; background: var(--c-nen-phu, rgba(118,118,128,.12)) !important; color: var(--ios-chu-2) !important;
+  font-size: 11.5px !important; font-weight: 600 !important; line-height: 16px !important;
+}
+
+/* (6) Khung đặt cứng chiều cao nhưng nội dung cao hơn → tràn đè phần bên cạnh.
+   Lịch tác nghiệp "theo tháng": .spark cao 96px, mỗi cột 96px + nhãn tháng →
+   cột tràn LÊN (canh đáy) đè tiêu đề. Khung cao theo nội dung. */
+html[data-skin="ios"]:not(#_):not(#__) .spark { height: auto !important; min-height: 96px; }
+
+/* (7) Lớp ô nhập (.fld .in .sel .in-o) dùng làm KHUNG BỌC (KPI: <label class="fld">
+   ô Tháng, <div class="fld"> ô mục tiêu): luật chuẩn "ô nhập cao 32/36, nền xám"
+   ép cả khung → ô bên trong lòi 50px. Khung bọc trả về khung thường. */
+html[data-skin="ios"]:not(#_):not(#__):not(#___) body :is(div, label, span, section, p):is(.fld, .in, .sel, .in-o) {
+  height: auto !important; min-height: 0 !important; padding: revert !important;
+  background-color: transparent !important; border-radius: 0 !important; box-shadow: none !important; border: 0 !important;
+}

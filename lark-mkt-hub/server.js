@@ -27,6 +27,7 @@ const { chuyenTiep, goiJson } = require('./proxy');
 const tbApp = require('./thongbao-app');
 const nhomLark = require('./nhom-lark');
 const anhDaiDien = require('./anh-dai-dien');
+const loiGiaoDien = require('./loi-giao-dien');
 const nen = require('./nen');
 const taiKhoan = require('./tai-khoan');
 /* canh lỗi kết nối API của hub + mọi app con, nhắn anh Hùng ngay (bao-loi-api.js).
@@ -770,6 +771,20 @@ async function api(req, res, u) {
 
   /* Ảnh đại diện Lark của cả phòng: bảng TÊN (chuẩn hoá) → đường ảnh CDN Lark.
    * ios.js / ios-app.js thay ô tròn chữ viết tắt bằng ảnh thật. Chỉ đọc. */
+  /* Lỗi giao diện từ máy người dùng (loi-giao-dien.js): ios.js / ios-app.js
+   * gửi âm thầm bằng sendBeacon; quản lý xem lại bằng GET. */
+  if (p === '/api/loi-giao-dien' && m === 'POST') {
+    const { nguoi } = await aiDangXem(req);
+    const b = await docBody(req).catch(() => null);
+    (Array.isArray(b) ? b.slice(0, 10) : [b]).forEach((x) => loiGiaoDien.ghi(x, nguoi));
+    return ok(res, { ok: true });
+  }
+  if (p === '/api/loi-giao-dien' && m === 'GET') {
+    const { q, quanLyThat } = await aiDangXem(req);
+    if (!(quanLyThat || (q && q.quanLy) || cfg.mode !== 'api')) return loi(res, 403, 'Chỉ quản lý xem được.');
+    return ok(res, { ds: loiGiaoDien.danhSach() });
+  }
+
   if (p === '/api/anh-dai-dien' && m === 'GET') {
     const { nguoi } = await aiDangXem(req);
     const ds = await anhDaiDien.bang(() => danhBaMoiApp(nguoi));
