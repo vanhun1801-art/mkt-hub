@@ -447,7 +447,7 @@
     if (!bangAnh) return layBangAnh();
     if (!Object.keys(bangAnh).length) return;
     document.querySelectorAll(O_AV).forEach((e) => {
-      if (e.dataset.iosAnh === '1') return;
+      if (e.dataset.iosAnh === '1' && e.classList.contains('ios-co-anh')) return;   // bị vẽ lại mất lớp ảnh thì gắn lại
       const u = tenCuaAv(e);
       if (!u) return;
       e.dataset.iosAnh = '1';
