@@ -3175,3 +3175,55 @@ html[data-skin="ios"]:not(#_)[data-app] #bangKenhLoi .btn { flex: none; }
 @media (min-width: 641px) {
   html[data-skin="ios"]:not(#_)[data-app] body > header.topbar > :is(.topbar-right, .top-right, .topbar-actions):last-child { margin-left: auto !important; }
 }
+
+/* ==========================================================================
+   KHUNG XƯƠNG KIỂU C · KÍNH NHOÈ (27/09/2026 — anh Hùng chọn từ trang mẫu
+   kx-mau.html). Lúc đang nạp: thẻ là tấm kính mờ, thanh chữ rất nhạt và ĐỨNG
+   YÊN (bỏ vệt sáng lướt — nhiều thứ chuyển động cùng lúc trông nặng, kiểu web).
+   Lúc dữ liệu về: nội dung "hiện hình" từ nhoè sang rõ ngay tại chỗ khung
+   xương vừa đứng (ios-app.js / ios.js gắn .kx-hien-hinh cho khối vừa thay).
+   ========================================================================== */
+html[data-skin="ios"]:not(#_) {
+  --kx-nen: rgba(118, 118, 128, .075);
+  --kx-kinh: color-mix(in srgb, var(--ios-the) 68%, transparent);
+}
+html[data-skin="ios"][data-theme="toi"]:not(#_) { --kx-nen: rgba(118, 118, 128, .16); }
+@media (prefers-color-scheme: dark) {
+  html[data-skin="ios"]:not([data-theme="sang"]):not(#_) { --kx-nen: rgba(118, 118, 128, .16); }
+}
+/* thanh chữ / khối: phẳng, nhạt, không vệt lướt, không nhấp nháy */
+html[data-skin="ios"]:not(#_) .kx {
+  background: var(--kx-nen) !important; background-image: none !important; animation: none !important;
+}
+/* thẻ, bảng, khối giả + thẻ trong bản chụp màn thật = tấm kính mờ */
+html[data-skin="ios"]:not(#_) :is(.kx-man-the > .kx-the, .kx-man-bang, .kx-khoi, .kx-luoi-nho > .kx-the, .kx-nhieu-cot .kx-khoi),
+html[data-skin="ios"]:not(#_) .kx-chup :is(.card, .kpi, .the, .khoi, .nhom-base, .tile, .wcard, .ord-card, .dcard, .theDay, .lt-the, .queue, .lane-items, .filters-dash, .filters-work, .bang-boc, .tbl-wrap, .tablewrap, .o-so, .stat) {
+  background: var(--kx-kinh) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(160%); backdrop-filter: blur(12px) saturate(160%);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 55%, transparent), inset 0 0 0 .5px color-mix(in srgb, var(--ios-chu) 6%, transparent), 0 1px 2px rgba(0, 0, 0, .03) !important;
+}
+html[data-skin="ios"][data-theme="toi"]:not(#_) :is(.kx-man-the > .kx-the, .kx-man-bang, .kx-khoi) { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), inset 0 0 0 .5px rgba(255, 255, 255, .06) !important; }
+/* khung xương hiện ra: mờ dần vào, không bật bụp */
+html[data-skin="ios"]:not(#_) .kx-vung { animation: kx-kinh-vao .3s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes kx-kinh-vao { from { opacity: 0; } to { opacity: 1; } }
+
+/* nội dung thật "hiện hình": từ nhoè + trong suốt sang rõ, hơi phóng về đúng cỡ */
+@keyframes kx-hien-hinh {
+  from { opacity: 0; filter: blur(14px) saturate(120%); transform: scale(.988); }
+  60%  { opacity: 1; }
+  to   { opacity: 1; filter: none; transform: none; }
+}
+html[data-skin="ios"] .kx-hien-hinh { animation: kx-hien-hinh .55s cubic-bezier(.2, .8, .2, 1) both; transform-origin: 50% 0; }
+@media (prefers-reduced-motion: reduce) {
+  html[data-skin="ios"] .kx-hien-hinh { animation: kx-kinh-vao .2s ease both; }
+}
+/* Băng cảnh báo trên điện thoại: dòng lỗi kỹ thuật một dòng (nowrap) từng kéo
+   cả băng giãn ra ngoài mép phải — băng nằm gọn trong lề 16px, nút xuống dưới. */
+@media (max-width: 640px) {
+  html[data-skin="ios"]:not(#_):not(#__)[data-app] body > #bangKenhLoi { margin: 8px 16px 0 !important; padding: 0 !important; max-width: calc(100% - 32px); overflow: hidden; }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app] #bangKenhLoi .bang-loi { flex-direction: column; align-items: stretch; gap: 10px; max-width: 100%; }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app] #bangKenhLoi .btn { align-self: flex-start; }
+}
+/* #bangKenhLoi là lưới: con (.bang-loi) mặc định min-width:auto → giãn theo
+   dòng lỗi kỹ thuật dài nhất (nowrap). Cho co về đúng bề rộng khung. */
+html[data-skin="ios"]:not(#_)[data-app] #bangKenhLoi > .bang-loi { min-width: 0; max-width: 100%; }

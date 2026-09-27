@@ -40,10 +40,19 @@
         xong = true;
         try { ob && ob.disconnect(); } catch (_) {}
         if (giam || !lop) return go();
-        lop.style.transition = 'opacity .18s ease';
+        /* Kiểu C · kính nhoè: lớp phủ tan ra (mờ + nhoè) trong khi khung app
+         * bên dưới "hiện hình" từ nhoè sang rõ — một nhịp liền, không bật bụp. */
+        lop.style.transition = 'opacity .42s cubic-bezier(.2,.8,.2,1), filter .42s cubic-bezier(.2,.8,.2,1)';
         lop.style.opacity = '0';
+        lop.style.filter = 'blur(10px)';
         lop.style.pointerEvents = 'none';
-        setTimeout(go, 200);
+        try {
+          f.animate([
+            { filter: 'blur(14px)', opacity: 0.35, transform: 'scale(.99)' },
+            { filter: 'blur(0px)', opacity: 1, transform: 'none' },
+          ], { duration: 520, easing: 'cubic-bezier(.2,.8,.2,1)' });
+        } catch (_) {}
+        setTimeout(go, 440);
       } else setTimeout(kiem, 60);
     };
     kiem();
@@ -408,6 +417,44 @@
 
   let hen = 0;
   const lich = () => { if (hen) return; hen = requestAnimationFrame(() => { hen = 0; mepHet(); lensHet(); henCuon(); }); };
+
+  function caiHienHinh() {
+    /* KHUNG XƯƠNG KIỂU C — "hiện hình": khối nào vừa được thay khung xương bằng
+     * nội dung thật thì gắn .kx-hien-hinh (nhoè → rõ, CSS trong ios.css). Nhận ra
+     * bằng bản ghi của MutationObserver: nút bị gỡ có chứa .kx, và khối cha sau đó
+     * không còn .kx nào. Lớp phủ toàn màn (data-kx-xem, Bảng công việc) tắt bằng
+     * đổi lớp → cho các vùng nội dung đang hiện "hiện hình" cùng lúc. Lớp phủ
+   * iframe của lớp vỏ (.frame-loading) KHÔNG tính: nó đã tự tan nhoè trong
+   * __iosChoYen, tính thêm là khung trang nhoè hai lần liền nhau. */
+    const coXuong = (n) => n.nodeType === 1 && !n.classList.contains('frame-loading') && (n.classList.contains('kx') || n.classList.contains('kx-vung') || !!n.querySelector('.kx'));
+    function hienHinh(e) {
+      if (!e || e === document.body || e === document.documentElement || e.closest('.kx-hien-hinh')) return;
+      e.classList.remove('kx-hien-hinh'); void e.offsetWidth; e.classList.add('kx-hien-hinh');
+      setTimeout(() => e.classList.remove('kx-hien-hinh'), 700);
+    }
+    new MutationObserver((ds) => {
+      const da = new Set();
+      for (const m of ds) {
+        if (m.type === 'childList') {
+          if (!m.removedNodes.length || da.has(m.target)) continue;
+          let co = false;
+          for (const n of m.removedNodes) { if (coXuong(n)) { co = true; break; } }
+          if (!co || !(m.target instanceof Element) || m.target.querySelector('.kx')) continue;
+          da.add(m.target);
+          if (m.target === document.body) [...document.body.children].forEach((c) => { if (c.offsetHeight && !c.matches('script, .topbar, header')) hienHinh(c); });
+          else hienHinh(m.target);
+        } else if (m.type === 'attributes' && m.target.matches && m.target.matches('[data-kx-xem]')) {
+          const t = m.target, an = t.hidden || getComputedStyle(t).display === 'none' || t.classList.contains('hidden');
+          if (an && !t.dataset.daHien) {
+            t.dataset.daHien = '1';
+            document.querySelectorAll('body > main, body > section, body > .page').forEach((c) => { if (c.offsetHeight && c !== t) hienHinh(c); });
+          }
+        }
+      }
+    }).observe(document.body || document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'hidden', 'style'] });
+  
+  }
+  caiHienHinh();
   lich();
   new MutationObserver(lich).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'aria-current', 'aria-selected', 'hidden'] });
 })();
