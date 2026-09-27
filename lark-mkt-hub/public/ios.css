@@ -3034,12 +3034,12 @@ html[data-skin="ios"]:not(#_) .kpi:not(.kpi-alert):not(.kpi-warn):not(.kpi-ok):n
    biểu tượng như nút làm mới của lớp vỏ, đứng cùng hàng với dải tab — trước
    đó chữ "Làm mới" chen sát dải tab (KOL) hoặc chiếm cả một hàng (Sản phẩm). */
 @media (max-width: 640px) {
-  html[data-skin="ios"]:not(#_):not(#__):is([data-app="kol"], [data-app="san-pham"]) .topbar #btnLamMoi {
+  html[data-skin="ios"]:not(#_):not(#__)[data-app] .topbar :is(#btnLamMoi, #btnRefresh):not(.btn.icon) {
     width: 36px !important; min-width: 36px !important; padding: 0 !important; font-size: 0 !important; border-radius: 50% !important;
     background: var(--lg-vet), var(--lg-nen) !important; box-shadow: var(--lg-rim), 0 3px 10px -5px rgba(20, 30, 60, .25) !important; color: var(--ios-xanh) !important;
     flex: none; margin-left: 6px !important;
   }
-  html[data-skin="ios"]:not(#_):not(#__):is([data-app="kol"], [data-app="san-pham"]) .topbar #btnLamMoi::before {
+  html[data-skin="ios"]:not(#_):not(#__)[data-app] .topbar :is(#btnLamMoi, #btnRefresh):not(.btn.icon)::before {
     content: ""; width: 17px; height: 17px; background: currentColor;
     -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 12a8 8 0 1 1-2.34-5.66'/%3E%3Cpath d='M20 4v5h-5'/%3E%3C/svg%3E") center / contain no-repeat;
             mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 12a8 8 0 1 1-2.34-5.66'/%3E%3Cpath d='M20 4v5h-5'/%3E%3C/svg%3E") center / contain no-repeat;
@@ -3722,3 +3722,61 @@ html[data-skin="ios"]:not(#_):not(#__) :is(.btn, button, .tab, .pill, .tb-chip, 
   opacity: .62; transition: opacity 0s !important;
 }
 html[data-skin="ios"]:not(#_):not(#__) :is(.card.bam-duoc, .wcard, .ord-card, .dcard, .nhom-base .the.bam-duoc, .tile, .tb-o, .theDay, .lt-the):active { filter: brightness(.96); transition: filter 0s !important; }
+
+/* Thanh menu THU GỌN (desktop) — anh Hùng 27/09: "thu lại không cần hiện số, và
+   các nút kia chỉnh lại". Luật đồng cỡ số đếm (display:inline-block !important)
+   từng đè luật ẩn số của trạng thái thu gọn. Nay: không số; mục cần chú ý chỉ
+   có một chấm đỏ nhỏ ở góc icon. Nút mở rộng không còn lơ lửng đè lên logo mà
+   là nút tròn kính ngay dưới logo; mục đang chọn, Thêm base, Cài đặt cùng một
+   ô vuông bo 12px canh giữa. */
+@media (min-width: 641px) {
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .rail.min .ri-badge { display: none !important; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .rail.min .ri-dot { display: none !important; }
+  html[data-skin="ios"]:not(#_):not(#__) .rail.min .rail-item { position: relative; justify-content: center !important; padding: 0 !important; width: 44px !important; height: 44px !important; min-height: 44px !important; margin: 0 auto !important; border-radius: 12px !important; gap: 0 !important; }
+  html[data-skin="ios"]:not(#_):not(#__) .rail.min .rail-item:has(.ri-badge)::after {
+    content: ""; position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--ios-do); box-shadow: 0 0 0 2px color-mix(in srgb, #fff 80%, transparent);
+  }
+  html[data-skin="ios"]:not(#_):not(#__) .rail.min .rail-item.on:has(.ri-badge)::after { box-shadow: 0 0 0 2px var(--ios-xanh); }
+  html[data-skin="ios"]:not(#_):not(#__) .rail.min .rail-item .ri-ic { width: 28px !important; height: 28px !important; margin: 0 !important; }
+  html[data-skin="ios"]:not(#_):not(#__) .rail.min :is(.rail-nav, .rail-foot) { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 0 !important; }
+  html[data-skin="ios"]:not(#_):not(#__) .rail.min .rail-foot > * { margin: 0 auto !important; }
+  html[data-skin="ios"]:not(#_):not(#__) .rail.min .rail-head {
+    flex-direction: column !important; align-items: center !important; justify-content: center; gap: 8px !important;
+    padding: 12px 0 8px !important; min-height: 0 !important; position: relative;
+  }
+  html[data-skin="ios"]:not(#_):not(#__) .rail.min .logo { flex: none !important; justify-content: center !important; }
+  html[data-skin="ios"]:not(#_):not(#__) .rail.min .rail-pin {
+    position: static !important; width: 28px !important; height: 28px !important; border-radius: 50% !important;
+    display: inline-flex !important; align-items: center; justify-content: center; font-size: 14px !important;
+    background: var(--c-nen-phu, rgba(118,118,128,.12)) !important; border: 0 !important; box-shadow: none !important; color: var(--ios-chu-2) !important;
+  }
+  /* nút thu gọn khi đang mở rộng: cùng dáng tròn */
+  html[data-skin="ios"]:not(#_):not(#__) .rail:not(.min) .rail-pin {
+    width: 28px !important; height: 28px !important; border-radius: 50% !important; border: 0 !important;
+    display: inline-flex !important; align-items: center; justify-content: center; background: transparent !important; color: var(--ios-chu-2) !important;
+  }
+  html[data-skin="ios"]:not(#_):not(#__) .rail .rail-pin:hover { background: var(--c-nen-phu, rgba(118,118,128,.12)) !important; }
+}
+
+/* ĐIỆN THOẠI · soát 27/09 lượt cuối */
+@media (max-width: 640px) {
+  /* chip danh tính trên thanh đầu (tên · vai trò): màn Cá nhân đã có — bỏ cho
+     thanh đầu còn một hàng (Quảng cáo, OTA, Social, Chỉnh ảnh, Quỹ, KPI…) */
+  html[data-skin="ios"]:not(#_):not(#__)[data-app] .topbar :is(#meChip, #chipToi, #chipVai, .chip.ql, .chip-user, .mechip, #nguoiChip, #toiChip, .toi-chip, .chip.toi, #chipQL) { display: none !important; }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app] .topbar > :is(.topbar-right, .top-right) > span.chip:not(.src):not([id*="nguon"]) { display: none !important; }
+  /* Lịch làm việc: dải tab một hàng riêng, cụm chuyển tháng hàng dưới */
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="lich-lam-viec"] .topbar { flex-wrap: wrap !important; row-gap: 8px !important; }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="lich-lam-viec"] .topbar > #tabs { flex: 1 1 100% !important; order: 1; }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="lich-lam-viec"] .topbar > .thang-nav { order: 2; flex: 1 1 auto; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  /* OTA: "Sắp theo" + phân đoạn xuống dòng khi hẹp, không đè nhau */
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="ota"] .khoi-thanh { flex-wrap: wrap !important; row-gap: 8px; }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="ota"] .khoi-thanh > .nhan-sap { flex: none; margin-right: 6px; }
+}
+
+@media (max-width: 640px) {
+  /* cụm nút thanh đầu một hàng: chip nguồn số co lại (cắt "…"), nút giữ nguyên cỡ */
+  html[data-skin="ios"]:not(#_):not(#__)[data-app] .topbar > :is(.topbar-right, .top-right) { flex-wrap: nowrap !important; align-items: center; gap: 8px !important; min-width: 0; justify-content: flex-end; }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app] .topbar > :is(.topbar-right, .top-right) > * { flex: none; }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app] .topbar > :is(.topbar-right, .top-right) > .btn.src { flex: 0 1 auto !important; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
