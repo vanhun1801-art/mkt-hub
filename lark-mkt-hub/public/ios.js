@@ -22,6 +22,19 @@
    * ra / xuống dòng). Giữ lớp phủ cho tới khi app con 350ms liền không có lần
    * nhảy nào (đọc bằng PerformanceObserver 'layout-shift' ngay trong app con —
    * cùng origin), tối đa 1,5 giây, rồi mờ lớp phủ đi trong 180ms. */
+  /* App con báo "khung xương của tôi đã hiện" → gỡ lớp chờ của lớp vỏ ngay
+   * (mờ nhanh), để người dùng thấy đúng khung của trang thay vì khung đoán. */
+  addEventListener('message', (e) => {
+    if (e.origin !== location.origin || !e.data || e.data.ios !== 'khung-san') return;
+    const f = [...document.querySelectorAll('iframe')].find((x) => x.contentWindow === e.source);
+    const l = f && f.parentElement && f.parentElement.querySelector('.frame-loading');
+    if (!l || l.dataset.dangGo === '1') return;
+    l.dataset.dangGo = '1';
+    l.style.transition = 'opacity .16s ease';
+    l.style.opacity = '0';
+    l.style.pointerEvents = 'none';
+    setTimeout(() => l.remove(), 180);
+  });
   window.__iosChoYen = (f, go, lop) => {
     const t0 = performance.now();
     let cuoi = t0, xong = false, ob = null;
@@ -429,6 +442,8 @@
     const coXuong = (n) => n.nodeType === 1 && !n.classList.contains('frame-loading') && (n.classList.contains('kx') || n.classList.contains('kx-vung') || !!n.querySelector('.kx'));
     function hienHinh(e) {
       if (!e || e === document.body || e === document.documentElement || e.closest('.kx-hien-hinh')) return;
+      // thanh bên, thanh đầu, dải tab, thanh tab: khung cố định, không đổi gì — nhoè là thừa, trông như lỗi
+      if (e.closest('.rail, .topbar, header, .ios-tabbar, .mob-bar, .tabs, .pills, .tabsbar')) return;
       e.classList.remove('kx-hien-hinh'); void e.offsetWidth; e.classList.add('kx-hien-hinh');
       setTimeout(() => e.classList.remove('kx-hien-hinh'), 700);
     }

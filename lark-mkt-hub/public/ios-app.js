@@ -146,7 +146,7 @@
 
   /* Mép dải trượt ngang (tab, bộ lọc): gắn data-mep = trai | phai | ca để CSS
    * làm mờ dần phía còn nội dung, thay vì cắt ngang chữ ở mép khung. */
-  const MEP = '.topbar .tabs, .tabsbar .tabs, .thanh .tabs, .topbar > .pills, .filters, .filters-dash, .filters-work, .cal-filters, .loc-bar, .cd-nav, .tb-chips';
+  const MEP = '.topbar .tabs, .tabsbar .tabs, .thanh .tabs, .topbar > .pills, .filters, .filters-dash, .filters-work, .cal-filters, .loc-bar, .cd-nav, .tb-chips, .filters .fgroup > .pills, .filters .fgroup > .seg';
   function mepMot(d) {
     const tran = d.scrollWidth > d.clientWidth + 2 && /auto|scroll/.test(getComputedStyle(d).overflowX);
     let v = '';
@@ -265,7 +265,8 @@
     goc.querySelectorAll(':scope > *, :scope > * > *, :scope > * > * > *').forEach((e) => {
       if (e.closest(BO_COT)) return;
       const b = e.getBoundingClientRect();
-      if (b.width < vw * 0.4 || b.height < 24 || b.left < 1 || b.right > vw - 1) return;
+      // ≥20% bề ngang: cột phải của bố cục hai cột (Chỉnh ảnh ~32%) cũng tính — ngưỡng 40% từng bỏ sót, mép phải đo thành 936px
+      if (b.width < vw * 0.2 || b.height < 24 || b.left < 1 || b.right > vw - 1) return;
       const s = getComputedStyle(e);
       const coNen = (s.backgroundColor !== 'rgba(0, 0, 0, 0)' && s.backgroundColor !== 'transparent') || s.boxShadow !== 'none';
       if (!coNen) return;
@@ -302,6 +303,8 @@
     const coXuong = (n) => n.nodeType === 1 && !n.classList.contains('frame-loading') && (n.classList.contains('kx') || n.classList.contains('kx-vung') || !!n.querySelector('.kx'));
     function hienHinh(e) {
       if (!e || e === document.body || e === document.documentElement || e.closest('.kx-hien-hinh')) return;
+      // thanh bên, thanh đầu, dải tab, thanh tab: khung cố định, không đổi gì — nhoè là thừa, trông như lỗi
+      if (e.closest('.rail, .topbar, header, .ios-tabbar, .mob-bar, .tabs, .pills, .tabsbar')) return;
       e.classList.remove('kx-hien-hinh'); void e.offsetWidth; e.classList.add('kx-hien-hinh');
       setTimeout(() => e.classList.remove('kx-hien-hinh'), 700);
     }
@@ -327,9 +330,30 @@
     }).observe(document.body || document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'hidden', 'style'] });
   
   }
+  /* Báo lớp vỏ: khung xương CỦA CHÍNH APP (bản chụp màn thật / khung dựng sẵn)
+   * đã vẽ xong → lớp vỏ gỡ lớp chờ ngay. Lớp chờ của lớp vỏ không biết app trông
+   * thế nào (nó vẽ "ô icon + tiêu đề + 2 nút" trong khi app là dải tab…), để nó
+   * che tới lúc có dữ liệu là người dùng thấy một hình SAI rồi mới tới hình đúng. */
+  /* DẢI TAB LÊN CÙNG HÀNG với cụm nút (Quảng cáo, OTA, Social, KPI): các app
+   * này để dải tab trong <div class="tabsbar"> — một hàng RIÊNG dưới thanh đầu,
+   * nên cụm nút (Mục tiêu, Xuất CSV…) lơ lửng một hàng trống phía trên. Chuyển
+   * đúng phần tử #tabs lên đầu thanh đầu: app vẫn tìm nó bằng id nên không gãy. */
+  function gopTab() {
+    const tb = document.querySelector('body > header.topbar');
+    const bar = document.querySelector('body > .tabsbar');
+    if (!tb || !bar) return;
+    const tabs = bar.querySelector(':scope > .tabs');
+    if (!tabs) return;
+    tb.insertBefore(tabs, tb.firstChild);
+    bar.classList.add('ios-tabsbar-rong');
+    document.documentElement.classList.add('ios-gop-tab');
+  }
+  const baoKhungSan = () => { try { if (parent !== window) parent.postMessage({ ios: 'khung-san' }, location.origin); } catch (_) {} };
   const batDau = () => {
+    gopTab();
     lich();
     caiHienHinh();
+    requestAnimationFrame(() => requestAnimationFrame(baoKhungSan));
     new MutationObserver(lich).observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['class', 'aria-current', 'aria-selected', 'hidden'] });
     // đổi tab nhiều app chỉ đổi lớp .on (không đổi DOM) — nghe cả cú bấm
     document.addEventListener('click', (e) => { if (e.target.closest('.tabs, .pills')) requestAnimationFrame(tabTrongTam); });

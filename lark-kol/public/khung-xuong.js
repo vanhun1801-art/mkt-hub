@@ -256,7 +256,7 @@
      dải tab mới…) mà vẫn đổ lại bản cũ thì khung xương lệch, chồng lên nhau —
      anh Hùng thấy đúng cảnh đó (27/09/2026). Đổi giao diện → tăng PHIEN_GD là
      mọi bản cũ tự bỏ, lần mở kế tiếp chụp lại theo giao diện mới. */
-  const PHIEN_GD = 3;
+  const PHIEN_GD = 5;   // 4: bỏ phần tử nổi / nhãn màu khỏi bản chụp, sửa điều kiện "đã xong"
   const TIEN_TO = () => 'kx.xuong.' + (document.documentElement.getAttribute('data-skin') || 'goc') + PHIEN_GD + '.';
   const KHOA = (t) => TIEN_TO() + t;
   /* dọn các bản chụp của phiên bản cũ cho nhẹ localStorage */
@@ -281,6 +281,7 @@
     'NAV', 'UL', 'OL', 'LI', 'TABLE', 'THEAD', 'TBODY', 'TFOOT', 'TR', 'TD', 'TH',
     'P', 'SPAN', 'B', 'STRONG', 'EM', 'SMALL', 'LABEL',
     'H1', 'H2', 'H3', 'H4', 'H5', 'H6']);
+  const THE_GIU_NHAN = new Set(['TD', 'TH', 'LABEL']);   // ô bảng giữ nguyên để cột không lệch
   const THE_BO = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE', 'LINK', 'META', 'BR', 'HR']);
   const THE_KHOI = new Set(['IMG', 'SVG', 'CANVAS', 'VIDEO', 'IFRAME', 'PICTURE', 'OBJECT',
     'INPUT', 'SELECT', 'TEXTAREA', 'BUTTON', 'PROGRESS', 'METER']);
@@ -325,10 +326,30 @@
 
     const r = el.getBoundingClientRect();
     if (r.width < 1 && r.height < 1) return '';
+    /* Phần tử NỔI không thuộc bố cục: bảng thả xuống, cửa sổ, thông báo, chú
+       thích, lớp phủ… Chụp vào thì lần sau chúng hiện thành một khối lơ lửng
+       giữa khung xương (anh Hùng: "chồng đè lên nhau"). Cả phần tử đang ẩn,
+       trong suốt, và nội dung của <details> đang đóng. */
+    let cs = null;
+    try { cs = getComputedStyle(el); } catch (_) {}
+    if (cs && (cs.position === 'absolute' || cs.position === 'fixed' || cs.visibility === 'hidden' || +cs.opacity < 0.05)) return '';
+    if (el.matches && el.matches('.dd-panel, .modal, .modal-wrap, .drawer, .toast, .tooltip, .popover, .menu, [role="dialog"], [role="menu"], [role="tooltip"], .frame-loading, .ios-lens')) return '';
+    const cha = el.parentElement;
+    if (cha && cha.tagName === 'DETAILS' && !cha.open && tag !== 'SUMMARY') return '';
     dem.n++;
 
     const lop = (el.getAttribute('class') || '').trim();
     const st = locStyle(el);
+
+    /* Cụm phân đoạn / dải tab / hàng viên chọn: MỘT viên xám nguyên khối đúng cỡ.
+       Chụp từng nút con thì các khối con xếp dọc (khối lơ lửng cao 160px giữa
+       khung xương Bảng công việc). */
+    if (el.matches && el.matches('.hub-seg, .seg, .cal-modes, .tabs, .pills')) {
+      const h = '<span class="kx" style="display:block;max-width:100%;width:' + Math.round(r.width) +
+        'px;height:' + Math.round(r.height) + 'px;border-radius:' + (cs ? cs.borderTopLeftRadius : '10px') + '"></span>';
+      dem.byte += h.length;
+      return h;
+    }
 
     /* Ảnh, biểu đồ, ô nhập: một khối xám ĐÚNG CỠ. Giữ đúng cỡ mới là phần quan
        trọng — biểu đồ cao 210px mà vẽ thành một dòng chữ thì cả trang tụt lên. */
@@ -351,6 +372,15 @@
     let trong = '';
     if (!con.length) {
       const t = (el.textContent || '').replace(/\s+/g, ' ').trim();
+      /* Nhãn / huy hiệu nhỏ (viên màu "Quá hạn", số đỏ…): chỉ giữ MỘT thanh xám,
+         bỏ lớp CSS của nó — giữ lớp là giữ luôn nền đỏ/cam giữa khung xương. */
+      const dang = cs ? cs.display : '';
+      const coNenMau = cs && cs.backgroundColor && !/rgba\(0, 0, 0, 0\)|transparent/.test(cs.backgroundColor);
+      if (t && (/inline/.test(dang) || coNenMau) && r.width < 220 && r.height < 40 && !THE_GIU_NHAN.has(tag)) {
+        const h = thanhChu(el, t.length, r.width);
+        dem.byte += h.length;
+        return h;
+      }
       if (t) trong = thanhChu(el, t.length, r.width);
     } else if (sau <= 0) {
       /* Quá sâu thì gộp cả nhánh thành MỘT khối đúng chiều cao: vẫn giữ được
@@ -445,7 +475,11 @@
     let hen = 0;
     const chupLai = () => {
       if (daBam) return;                        // người dùng đã đi chỗ khác
-      if (el.querySelector('.kx')) return;      // vẫn đang là khung xương
+      /* Còn là khung xương khi lớp khung GỐC còn ngay ở cấp đầu. Trước đây hễ
+       * còn một thanh .kx nào là thôi — mà Báo cáo, Chỉnh ảnh, Quỹ, KOL luôn giữ
+       * vài thanh .kx nhỏ trong một góc (ô "đang đọc…"), nên KHÔNG BAO GIỜ được
+       * chụp: mỗi lần mở lại là trang trống / khung đoán, không giống trang thật. */
+      if (el.querySelector(':scope > .kx-vung, :scope > .kx-man, :scope > .kx-chup, :scope > .kx-lich, :scope > #boot')) return;
       if (dangCho()) return;                    // còn lớp phủ -> chưa xong
       clearTimeout(hen);
       /* Chờ một nhịp: màn thật hay vẽ làm nhiều lượt (bảng xong rồi mới tới
@@ -492,6 +526,20 @@
   /* Cho lớp vỏ dùng lại: khung iframe của nó hiện khung xương của chính app sắp
      mở. Lớp vỏ và chín app con chạy chung MỘT origin (app con đi qua proxy
      /m/<id>/), nên localStorage là chung — lớp vỏ đọc được bản mà app con chụp. */
+  /* Lần nạp ĐẦU: app gọi KX.man(...) để vẽ khung chờ (Báo cáo, OTA, Social,
+     KPI…) — đè mất bản chụp màn thật vừa hiện, thành ra hai hình nối nhau:
+     bản chụp đúng → hình đoán → màn thật. Khi bản chụp còn đang đứng đó và
+     người dùng chưa bấm gì, trả lại CHÍNH bản chụp để hình không đổi. */
+  const manGoc = KX.man;
+  KX.man = function (ten, opt) {
+    try {
+      if (!daBam) {
+        const chup = document.querySelector('[data-kx-nho] > .kx-chup');
+        if (chup) return chup.outerHTML;
+      }
+    } catch (_) {}
+    return manGoc.call(KX, ten, opt);
+  };
   KX.lay = docXuong;
   KX.conDung = conDung;
   KX.chup = chup;

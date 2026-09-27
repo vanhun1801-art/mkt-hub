@@ -3227,3 +3227,46 @@ html[data-skin="ios"] .kx-hien-hinh { animation: kx-hien-hinh .55s cubic-bezier(
 /* #bangKenhLoi là lưới: con (.bang-loi) mặc định min-width:auto → giãn theo
    dòng lỗi kỹ thuật dài nhất (nowrap). Cho co về đúng bề rộng khung. */
 html[data-skin="ios"]:not(#_)[data-app] #bangKenhLoi > .bang-loi { min-width: 0; max-width: 100%; }
+/* Khung xương kiểu C — đậm hơn một chút: .075 nhạt tới mức khung trông như
+   một trang TRỐNG rồi nội dung bật ra (anh Hùng: "cảm giác như bị lỗi"). Hình
+   khối phải đọc được ngay: thanh chữ .11, khối ảnh/biểu đồ .13. */
+html[data-skin="ios"]:not(#_):not(#__) { --kx-nen: rgba(118, 118, 128, .11); }
+html[data-skin="ios"][data-theme="toi"]:not(#_):not(#__) { --kx-nen: rgba(118, 118, 128, .2); }
+@media (prefers-color-scheme: dark) { html[data-skin="ios"]:not([data-theme="sang"]):not(#_):not(#__) { --kx-nen: rgba(118, 118, 128, .2); } }
+html[data-skin="ios"]:not(#_):not(#__) :is(.kx-anh, .tin-phim > .kx) { background: rgba(118, 118, 128, .13) !important; }
+/* Lớp chờ khung app của lớp vỏ: chỉ là NỀN TRƠN. Hình "ô icon + tiêu đề + 2
+   nút" không giống thanh đầu của app nào (app là dải tab + cụm nút) — mà lớp
+   chờ nay chỉ còn sống ~0,2 giây trước khi khung xương thật của app hiện. */
+html[data-skin="ios"] .frame-loading.xuong > .kx-man { visibility: hidden; }
+
+/* ==========================================================================
+   THANH ĐẦU MỘT HÀNG + BỘ LỌC KÊNH GỌN (27/09/2026). Anh Hùng: "cho ngang
+   hàng với nhau · cho ngang hàng và tối ưu các lựa chọn lọc kênh".
+   ========================================================================== */
+html[data-skin="ios"] .ios-tabsbar-rong { display: none !important; }
+@media (min-width: 641px) {
+  /* dải tab (ios-app.js chuyển lên) + cụm nút: cùng một hàng, tâm thẳng nhau */
+  html[data-skin="ios"]:not(#_).ios-gop-tab body > header.topbar { display: flex !important; align-items: center !important; flex-wrap: nowrap !important; gap: 12px; min-height: 56px; }
+  html[data-skin="ios"]:not(#_).ios-gop-tab body > header.topbar > .tabs { flex: 0 1 auto; min-width: 0; margin: 0 !important; }
+  html[data-skin="ios"]:not(#_).ios-gop-tab body > header.topbar > :is(.topbar-right, .top-right) { margin-left: auto !important; flex: none; }
+}
+@media (max-width: 640px) {
+  /* điện thoại: dải tab vẫn một hàng riêng bên dưới cụm nút */
+  html[data-skin="ios"]:not(#_).ios-gop-tab body > header.topbar { flex-wrap: wrap !important; }
+  html[data-skin="ios"]:not(#_).ios-gop-tab body > header.topbar > .tabs { order: 9; flex: 1 1 100% !important; }
+}
+
+/* Bộ lọc dạng nhóm (Quảng cáo, OTA, Social): chip kênh / trạng thái đứng MỘT
+   hàng — trước đó "Kênh OTA" bẻ ba hàng và kéo cả hàng lọc cao gấp ba, các ô
+   ngày tụt xuống đáy. Dài quá thì lướt ngang (mép mờ như dải tab). */
+html[data-skin="ios"]:not(#_) .filters .fgroup > :is(.pills, .seg) {
+  flex-wrap: nowrap !important; overflow-x: auto; scrollbar-width: none; max-width: 100%; min-width: 0;
+}
+html[data-skin="ios"]:not(#_) .filters .fgroup > :is(.pills, .seg)::-webkit-scrollbar { display: none; }
+html[data-skin="ios"]:not(#_) .filters .fgroup > :is(.pills, .seg) > * { flex: none; white-space: nowrap; }
+html[data-skin="ios"]:not(#_) .filters .fgroup { min-width: 0; }
+@media (min-width: 641px) {
+  html[data-skin="ios"]:not(#_):not(#__) section#filters.filters { align-items: flex-end !important; row-gap: 12px !important; column-gap: 14px !important; }
+  html[data-skin="ios"]:not(#_):not(#__) .filters .fgroup > .pills > :is(button, .pill, span) { height: 32px !important; min-height: 32px !important; padding: 0 12px !important; display: inline-flex; align-items: center; }
+  html[data-skin="ios"]:not(#_):not(#__) .filters .fgroup > label { font-size: 12.5px !important; font-weight: 600; color: var(--ios-chu-2) !important; margin-bottom: 2px; }
+}
