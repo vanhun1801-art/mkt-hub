@@ -286,7 +286,7 @@ function theBang(d) {
         '<th class="tach" style="width:130px">Nhóm</th>' +
         '<th style="width:82px">Phút</th>' +
         '<th style="width:172px">Tiến độ</th>' +
-        '<th style="min-width:170px">Ghi chú tiến độ</th>' +
+        '<th style="min-width:170px">Ghi chú công việc</th>' +
         '<th style="width:124px">Trạng thái</th>' +
         '<th class="o-nut"></th>' +
       '</tr></thead><tbody id="thanBang">' + dong.map(veHang).join('') + '</tbody></table>' +
@@ -360,9 +360,9 @@ function veHang(d) {
       '<input class="v-pt" type="range" min="0" max="100" step="5" value="' + pt + '">' +
       '<span class="pt' + (pt >= 100 ? ' du' : '') + '">' + pt + '%</span>' +
     '</div></td>' +
-    /* Không chữ gợi ý: cột đã có tiêu đề "GHI CHÚ TIẾN ĐỘ" ngay trên đầu, và ô
+    /* Không chữ gợi ý: cột đã có tiêu đề "GHI CHÚ CÔNG VIỆC" ngay trên đầu, và ô
      * này chỉ cao một dòng nên câu gợi ý dài bị cắt làm đôi, nhìn như lỗi. */
-    '<td data-nhan="Ghi chú tiến độ"><textarea class="v-td" rows="1">' +
+    '<td data-nhan="Ghi chú công việc"><textarea class="v-td" rows="1">' +
       esc(d.tienDo) + '</textarea></td>' +
     '<td data-nhan="Trạng thái"><select class="v-tt">' +
       META.trangThaiViec.map((n) => '<option' + (n === d.trangThai ? ' selected' : '') + '>' +
@@ -461,6 +461,10 @@ function moSo(tieuDe, phu, than) {
   document.body.classList.add('so-mo');
   SO_MO = true;
   $('#soThan').scrollTop = 0;
+  /* Gắn ngay sau khi đổ HTML: nội dung sổ vẽ lại mỗi lần mở, nên tay nghe cũng
+   * phải gắn lại mỗi lần — gắn một lần lúc khởi động thì mở sổ lần hai là mấy
+   * dòng ngày bấm không ra gì. */
+  ganMoNgay($('#soThan'));
   capNhatNutSo();
 }
 
@@ -498,9 +502,14 @@ function muc(ten, dem, than, mo) {
 /**
  * Nội dung sổ cho kỳ tuần/tháng.
  *
- * Thứ tự theo việc người ta thật sự làm khi ngồi viết nhận định tuần: nhìn đầu
- * việc trước (làm gì, việc nào đứng), rồi đọc lại chính mình đã viết gì, cuối
- * cùng mới soi từng ngày. Nên hai mục đầu mở sẵn, mục cuối để đóng.
+ * Anh Hùng xem bản đầu rồi chốt lại thứ tự (28/09): "nhìn vào là biết dành bao
+ * nhiêu thời gian cho các nhóm công việc nào" — nên PHÂN BỔ THỜI GIAN lên đầu,
+ * không phải danh sách đầu việc. Danh sách từng đầu việc thì anh bảo thẳng là
+ * "liệt kê vào cũng không có ý nghĩa mấy", nên bỏ hẳn: nó dài nhất trang mà
+ * không trả lời câu hỏi nào người ta thật sự hỏi khi ngồi viết nhận định tuần.
+ *
+ * Còn lại đúng ba mục, theo đúng việc người ta làm: nhìn thời gian đi đâu → đọc
+ * lại chính mình đã viết gì → soi lại từng ngày nếu cần.
  */
 function soKy(d) {
   const t = d.tongHop;
@@ -510,68 +519,158 @@ function soKy(d) {
     'Hiện chưa nối — nhận định tự động bên dưới do luật sinh, đọc từ chính số ' +
     'liệu của kỳ.</div>';
 
-  const nhomViec = t.theoNhom.length
-    ? t.theoNhom.map((n) =>
-      '<div style="display:flex;gap:10px;align-items:center;margin-bottom:6px">' +
-        '<span style="width:104px" class="nho">' + esc(n.ten) + '</span>' +
-        '<div class="thanh" style="flex:1"><i style="width:' +
-          Math.round((n.phut / Math.max(1, t.theoNhom[0].phut)) * 100) + '%"></i></div>' +
-        '<span class="nho" style="width:70px;text-align:right">' + esc(n.gio) + '</span>' +
-      '</div>').join('')
-    : '<p class="phu">Chưa có dữ liệu.</p>';
+  const dung = t.theoNgay.filter((n) => n.trangThaiHan !== 'tre').length;
+  const tre = t.theoNgay.length - dung;
 
   return choAI +
-    muc('Đầu việc trong kỳ', t.viec.length + ' việc', bangViec(t), true) +
-    muc('Anh/chị đã viết gì', t.daViet.length + ' ghi chú', bangDaViet(t), true) +
-    muc('Các báo cáo ngày đã nộp', t.soPhieuNgay + ' ngày', bangNgay(t)) +
-    muc('Thời lượng theo nhóm việc', t.theoNhom.length + ' nhóm', nhomViec);
+    muc('Thời gian đã dành cho việc gì', t.tongGio, phanBoThoiGian(t), true) +
+    muc('Nhận định & kế hoạch đã viết', t.daViet.length + ' ghi chú',
+      bangDaViet(t), true) +
+    muc('Nhật ký nộp báo cáo',
+      dung + ' đúng hạn' + (tre ? ' · ' + tre + ' trễ' : '') +
+      (t.ngayThieu.length ? ' · ' + t.ngayThieu.length + ' chưa nộp' : ''),
+      bangNgay(t));
 }
 
-function bangViec(t) {
-  if (!t.viec.length) {
-    return '<p class="phu">Chưa có báo cáo ngày nào trong kỳ — nộp báo cáo từng ' +
-      'ngày trước, phần này tự cộng lại.</p>';
+/**
+ * Thời gian của kỳ đi vào những nhóm việc nào — câu hỏi anh Hùng đặt nguyên
+ * văn: "nhìn vào là biết dành bao nhiêu thời gian cho các nhóm công việc nào".
+ *
+ * Nên mỗi dòng phải có ĐỦ BA thứ: tên nhóm, số giờ, và phần trăm của tổng.
+ * Thiếu phần trăm thì "12 giờ" không nói được nó là nửa kỳ hay một góc nhỏ —
+ * mà so sánh giữa các nhóm mới là thứ người ta nhìn.
+ */
+function phanBoThoiGian(t) {
+  if (!t.theoNhom.length) {
+    return '<p class="phu">Chưa có dòng việc nào trong kỳ — nộp báo cáo từng ngày ' +
+      'trước, phần này tự cộng lại.</p>';
   }
-  return '<div class="cuon"><table class="bang-xem"><thead><tr>' +
-      '<th>Công việc</th><th class="so-o">Giờ</th><th class="so-o">Ngày</th>' +
-      '<th>Tiến độ</th>' +
-    '</tr></thead><tbody>' +
-    t.viec.map((v) => '<tr>' +
-      '<td><b>' + esc(v.ten) + '</b><div class="nho">' + esc(v.nhom) +
-        (v.trangThai === 'Hoàn thành' ? ' · xong' : '') + '</div></td>' +
-      '<td class="so-o">' + esc(v.gio) + '</td>' +
-      '<td class="so-o">' + v.soNgay + '</td>' +
-      '<td>' + veTienDo(v) + '</td>' +
-    '</tr>').join('') + '</tbody></table></div>';
+  const tong = Math.max(1, t.tongPhut);
+  const lonNhat = Math.max(1, t.theoNhom[0].phut);
+  return '<div class="pb">' + t.theoNhom.map((n) => {
+    const pt = Math.round((n.phut / tong) * 100);
+    return '<div class="pb-d">' +
+      '<div class="pb-ten">' + esc(n.ten) + '</div>' +
+      '<div class="thanh"><i style="width:' +
+        Math.round((n.phut / lonNhat) * 100) + '%"></i></div>' +
+      '<div class="pb-so">' + esc(n.gio) + '<span class="pb-pt">' + pt + '%</span></div>' +
+    '</div>';
+  }).join('') +
+  '<div class="pb-tong">Tổng <b>' + esc(t.tongGio) + '</b>' +
+    (t.dinhMucGio ? ' · định mức ' + esc(t.dinhMucGio) : '') +
+    (t.phanTram == null ? '' : ' · <b>' + t.phanTram + '%</b>') + '</div>' +
+  '</div>';
 }
 
-/** "30% → 70%" khi có nhích, "70%" khi đứng một chỗ — và nói thẳng nếu đứng yên. */
-function veTienDo(v) {
-  if (v.ptDau === v.ptCuoi) {
-    return '<span class="' + (v.dungYen ? 'nhan-tt cam' : 'nho') + '">' + v.ptCuoi + '%' +
-      (v.dungYen ? ' · đứng yên' : '') + '</span>';
-  }
-  return '<span class="nho">' + v.ptDau + '% → </span><b>' + v.ptCuoi + '%</b>';
-}
-
+/**
+ * Nhật ký nộp: ngày nào đúng hạn, ngày nào trễ, ngày nào bỏ trống — và bấm vào
+ * một ngày là đọc đúng những gì đã báo cáo hôm đó.
+ *
+ * Anh Hùng: "liệt kê nhẹ các công việc báo cáo đúng ngày và không đúng deadline,
+ * ấn vào xem được nội dung đã báo cáo là gì" (28/09). Nên mặt ngoài phải NHẸ —
+ * một dòng một ngày, không bảng nhiều cột — còn nội dung thì giấu bên trong,
+ * mở ra khi cần.
+ *
+ * Nạp khi bấm, không nạp sẵn: mở sổ tháng mà gọi hai mươi lượt mạng cho hai
+ * mươi ngày thì chậm, mà phần lớn không ai mở tới.
+ */
 function bangNgay(t) {
-  if (!t.theoNgay.length) return '<p class="phu">Chưa có ngày nào.</p>';
-  return '<div class="cuon"><table class="bang-xem"><thead><tr>' +
-      '<th>Ngày</th><th class="so-o">Việc</th><th class="so-o">Giờ</th><th>Nộp</th>' +
-    '</tr></thead><tbody>' +
-    t.theoNgay.map((n) => '<tr>' +
-      '<td>' + esc(n.nhan) + '</td>' +
-      '<td class="so-o">' + n.soViec + '</td>' +
-      '<td class="so-o">' + esc(n.tongGio) + '</td>' +
-      '<td>' + (n.trangThaiHan === 'tre'
+  if (!t.theoNgay.length && !t.ngayThieu.length) {
+    return '<p class="phu">Chưa có ngày nào trong kỳ.</p>';
+  }
+  return '<div class="nk">' + t.theoNgay.map((n) =>
+    '<details class="nk-d"><summary>' +
+      '<span class="nk-ten">' + esc(n.nhan) + '</span>' +
+      '<span class="nk-so">' + esc(n.tongGio) + ' · ' + n.soViec + ' việc</span>' +
+      (n.trangThaiHan === 'tre'
         ? '<span class="nhan-tt cam">' + esc(n.veHan) + '</span>'
-        : '<span class="nhan-tt xanh">đúng hạn</span>') + '</td>' +
-    '</tr>').join('') + '</tbody></table></div>' +
+        : '<span class="nhan-tt xanh">đúng hạn</span>') +
+    '</summary>' +
+    '<div class="nk-than" data-ngay="' + n.tu + '">' +
+      '<p class="phu">Đang mở…</p></div></details>').join('') + '</div>' +
     (t.ngayThieu.length
       ? '<p class="nho" style="margin:10px 0 0">Chưa nộp: ' +
         t.ngayThieu.map((x) => '<span class="nhan-tt do" style="margin-right:4px">' +
           esc(x.nhan) + '</span>').join('') + '</p>'
       : '');
+}
+
+/* Ngày nào đã mở rồi thì giữ lại, đóng mở lần nữa không gọi mạng lại. */
+const NGAY_DA_MO = new Map();
+
+/**
+ * Bấm mở một ngày trong nhật ký -> nạp đúng phiếu hôm đó rồi vẽ nội dung.
+ *
+ * Gắn bằng uỷ quyền trên cả sổ, không gắn từng dòng: sổ vẽ lại mỗi lần đổi kỳ,
+ * mà gắn từng dòng thì mỗi lần vẽ lại chồng thêm một tay nghe.
+ */
+function ganMoNgay(goc) {
+  $$('.nk-d', goc).forEach((el) => {
+    el.addEventListener('toggle', async () => {
+      if (!el.open) return;
+      const than = $('.nk-than', el);
+      const moc = Number(than && than.dataset.ngay);
+      if (!than || !moc || than.dataset.xong === '1') return;
+      if (NGAY_DA_MO.has(moc)) { than.innerHTML = NGAY_DA_MO.get(moc); than.dataset.xong = '1'; return; }
+      try {
+        const d = await goi('/api/phieu?ky=ngay&moc=' + moc);
+        const html = chiTietPhieu(d);
+        NGAY_DA_MO.set(moc, html);
+        than.innerHTML = html;
+        than.dataset.xong = '1';
+      } catch (e) {
+        than.innerHTML = '<p class="phu">Không đọc được ngày này: ' + esc(e.message) + '</p>';
+      }
+    });
+  });
+}
+
+/**
+ * Nội dung MỘT phiếu đã nộp: làm những việc gì, và đã viết gì.
+ *
+ * Dùng chung cho hai chỗ — mở một ngày trong nhật ký, và mở một dòng trong tab
+ * "Đã nộp". Một bản vẽ duy nhất thì hai nơi không bao giờ hiện hai kiểu.
+ */
+function chiTietPhieu(d) {
+  const p = d.phieu || {};
+  const dong = d.dong || [];
+  const oChu = (nhan, chu) => (String(chu || '').trim()
+    ? '<div class="ct-o"><div class="o-nhan">' + esc(nhan) + '</div>' +
+      '<div class="ct-chu">' + esc(chu) + '</div></div>' : '');
+
+  /* Thẻ chứ không phải bảng: chỗ này nằm trong cột sổ chỉ rộng chừng 320px, mà
+   * tên việc thì dài ("TOUR CÁP TREO HÒN THƠM 2 CHIỀU_26.9_C NGỌC…"). Nhét vào
+   * bảng bốn cột là mỗi ô còn mấy chục pixel, chữ vỡ dọc thành từng chữ cái.
+   * Thẻ thì tên chạy hết chiều ngang, số nằm gọn một hàng dưới. */
+  const bang = dong.length
+    ? '<div class="ct-ds">' + dong.map((v) => '<div class="ct-v">' +
+        '<div class="ct-v-ten">' + esc(v.congViec || '—') + '</div>' +
+        '<div class="ct-v-so">' +
+          '<span>' + esc(v.nhom || 'Khác') + '</span>' +
+          '<span>' + (Number(v.phut) || 0) + ' phút</span>' +
+          '<span>' + (v.tienDoPt == null ? '—' : v.tienDoPt + '%') + '</span>' +
+          (v.trangThai ? '<span class="nhan-tt ' +
+            (v.trangThai === 'Hoàn thành' ? 'xanh' : 'xam') + '">' +
+            esc(v.trangThai) + '</span>' : '') +
+        '</div>' +
+        (String(v.tienDo || '').trim()
+          ? '<div class="ct-v-gc">' + esc(v.tienDo) + '</div>' : '') +
+      '</div>').join('') + '</div>'
+    : '<p class="phu">Không có dòng việc nào.</p>';
+
+  const chu = oChu('Nhận định', p.nhanDinh) + oChu('Kế hoạch', p.keHoach) +
+    oChu('Cần hỗ trợ & vấn đề gặp phải', p.canHoTro) +
+    (String(p.linkVideo || '').trim()
+      ? '<div class="ct-o"><div class="o-nhan">Link video</div>' +
+        '<div class="ct-chu">' + esc(p.linkVideo) + '</div></div>' : '');
+
+  return '<div class="ct-dau">' +
+      '<span class="m">Tổng <b>' + esc(p.tongGio || '0 phút') + '</b></span>' +
+      '<span class="m">Định mức <b>' +
+        (p.phanTram == null ? '—' : p.phanTram + '%') + '</b></span>' +
+      (p.daNop ? '<span class="m">Nộp lúc <b>' + esc(veLuc(p.nopLuc)) + '</b></span>'
+        : '<span class="nhan-tt cam">Còn là nháp</span>') +
+    '</div>' + bang + (chu || '');
 }
 
 /**
@@ -618,12 +717,25 @@ function theVietTay(d, loaiKy) {
       '<input class="in" id="txVideo" type="url" value="' + esc(p.linkVideo || '') +
       '"></div>';
 
+  /* Nhãn gọi đúng tên kỳ đang đứng. "Kế hoạch kỳ sau" là chữ của người viết
+   * phần mềm, không phải chữ của người ngồi viết báo cáo: đứng ở màn tuần thì
+   * trong đầu họ là "tuần sau", phải đọc thêm một nhịp mới dịch được "kỳ sau"
+   * là gì. Anh Hùng gọi tên từng cái (28/09). */
+  const nhan = loaiKy === 'tuan'
+    ? { nd: 'Nhận định tuần này', kh: 'Kế hoạch tuần sau' }
+    : loaiKy === 'thang'
+      ? { nd: 'Nhận định tháng này', kh: 'Kế hoạch tháng sau' }
+      : { nd: 'Nhận định', kh: 'Kế hoạch công việc tiếp theo' };
+
   return '<div class="the"><div class="the-dau"><h2>Đánh giá báo cáo</h2></div>' +
     '<div class="the-than viec-ds">' +
-      o('Nhận định', 'txNhanDinh', p.nhanDinh) +
-      o('Kế hoạch kỳ sau', 'txKeHoach', p.keHoach) +
+      o(nhan.nd, 'txNhanDinh', p.nhanDinh) +
+      o(nhan.kh, 'txKeHoach', p.keHoach) +
       video +
-      o('Cần hỗ trợ', 'txHoTro', p.canHoTro) +
+      /* Gọi cả "vấn đề gặp phải": chỉ ghi "Cần hỗ trợ" thì người ta hiểu là ô
+       * để xin việc gì đó, nên vướng mắc tự gỡ được lại không ai ghi — mà đó
+       * mới là thứ quản lý cần đọc. */
+      o('Cần hỗ trợ & vấn đề gặp phải', 'txHoTro', p.canHoTro) +
     '</div></div>';
 }
 
@@ -1014,11 +1126,13 @@ async function veDaNop(el) {
   const d = await goi('/api/danh-sach?tu=' + t.tu + '&den=' + t.den + '&moi=1');
   el.innerHTML = '<div class="the"><div class="the-dau"><h2>Báo cáo đã nộp</h2>' +
     '<span class="nho">' + veNgay(d.tu) + ' – ' + veNgay(d.den) + '</span></div>' +
-    '<div class="the-than khit cuon">' + (d.ds.length
-      ? '<table class="bang-xem"><thead><tr><th>Kỳ</th><th>Loại</th>' +
+    '<div class="the-than khit">' + (d.ds.length
+      ? '<p class="nho" style="margin:0 0 8px">Bấm một dòng để xem lại đã báo cáo gì.</p>' +
+        '<div class="cuon"><table class="bang-xem bam-duoc"><thead><tr><th>Kỳ</th><th>Loại</th>' +
         '<th class="so-o">Thời lượng</th><th class="so-o">Định mức</th>' +
         '<th>Nộp lúc</th><th>Hạn</th></tr></thead><tbody>' +
-        d.ds.map((p) => '<tr>' +
+        d.ds.map((p) => '<tr data-xem-ky="' + esc(p.loaiKy) + '" data-xem-moc="' +
+            (p.tu + 3600000) + '" data-xem-nhan="' + esc(p.nhan) + '">' +
           '<td>' + esc(p.nhan) + '</td>' +
           '<td><span class="nhan-tt xam">' +
             esc(p.loaiKy === 'ngay' ? 'Ngày' : p.loaiKy === 'tuan' ? 'Tuần' : 'Tháng') + '</span></td>' +
@@ -1026,9 +1140,31 @@ async function veDaNop(el) {
           '<td class="so-o">' + (p.phanTram == null ? '—' : p.phanTram + '%') + '</td>' +
           '<td>' + (p.daNop ? esc(veLuc(p.nopLuc)) : '<span class="nhan-tt cam">Nháp</span>') + '</td>' +
           '<td>' + nhanHan(p) + '</td>' +
-        '</tr>').join('') + '</tbody></table>'
+        '</tr>').join('') + '</tbody></table></div>'
       : rong('Chưa có phiếu nào', 'Tháng này anh/chị chưa nộp báo cáo nào.')) +
     '</div></div>';
+
+  /* Bấm một dòng -> mở sổ bên phải với đúng nội dung phiếu đó. Anh Hùng: "báo
+   * cáo đã nộp cho phép ấn vào xem chi tiết" (28/09). Trước đây bảng này chỉ
+   * có mấy con số, muốn đọc lại đã viết gì thì phải lùi ngày ở tab khác. */
+  $$('[data-xem-moc]', el).forEach((tr) => {
+    tr.onclick = async () => {
+      const loai = tr.dataset.xemKy;
+      const nhan = tr.dataset.xemNhan;
+      moSo(nhan, loai === 'ngay' ? 'Báo cáo ngày' : loai === 'tuan' ? 'Báo cáo tuần' : 'Báo cáo tháng',
+        '<p class="phu">Đang mở…</p>');
+      try {
+        const chiTiet = await goi('/api/phieu?ky=' + loai + '&moc=' + tr.dataset.xemMoc);
+        moSo(nhan, loai === 'ngay' ? 'Báo cáo ngày' : loai === 'tuan' ? 'Báo cáo tuần' : 'Báo cáo tháng',
+          chiTietPhieu(chiTiet) +
+          /* Phiếu tuần/tháng không có dòng việc của riêng nó — số là máy cộng từ
+           * các ngày. Nên kèm luôn phần tổng hợp, khỏi phải sang tab khác. */
+          (chiTiet.tongHop ? soKy(chiTiet) : ''));
+      } catch (e) {
+        moSo(nhan, '', '<p class="phu">Không đọc được phiếu này: ' + esc(e.message) + '</p>');
+      }
+    };
+  });
 }
 
 const rong = (a, b) => '<div class="rong"><b>' + esc(a) + '</b>' + esc(b || '') + '</div>';

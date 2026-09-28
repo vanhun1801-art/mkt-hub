@@ -304,9 +304,26 @@ function nap() {
     ok('không còn dòng giải thích thừa dưới ô',
       !tay.includes('Ô này gom về một chỗ'));
     ok('nhãn vẫn còn để biết ô nào là ô nào',
-      tay.includes('Nhận định') && tay.includes('Kế hoạch kỳ sau') &&
-      tay.includes('Cần hỗ trợ'),
+      tay.includes('Nhận định') && tay.includes('Kế hoạch công việc tiếp theo') &&
+      /* &amp; vì nhãn đi qua esc() — đúng như vậy, đừng đổi esc() cho khớp test */
+      tay.includes('Cần hỗ trợ &amp; vấn đề gặp phải'),
       'bỏ cả nhãn thì thành ba ô trắng không biết điền gì');
+
+    /* Nhãn gọi đúng tên kỳ đang đứng (anh Hùng, 28/09). "Kế hoạch kỳ sau" là
+     * chữ của người viết phần mềm: đứng ở màn tuần thì trong đầu người viết là
+     * "tuần sau", phải dịch thêm một nhịp mới hiểu "kỳ sau" là gì. */
+    const tayT = ve('khối tự viết của TUẦN', 'theVietTay(DU, "tuan")');
+    ok('màn tuần gọi đúng tên tuần',
+      tayT.includes('Nhận định tuần này') && tayT.includes('Kế hoạch tuần sau'),
+      'đang ra: ' + (tayT.match(/class="o-nhan">[^<]*/g) || []).join(' · '));
+    const tayTh = ve('khối tự viết của THÁNG', 'theVietTay(DU, "thang")');
+    ok('màn tháng gọi đúng tên tháng',
+      tayTh.includes('Nhận định tháng này') && tayTh.includes('Kế hoạch tháng sau'),
+      'đang ra: ' + (tayTh.match(/class="o-nhan">[^<]*/g) || []).join(' · '));
+    ok('ô vướng mắc gọi cả "vấn đề gặp phải" ở mọi kỳ',
+      tayT.includes('Cần hỗ trợ &amp; vấn đề gặp phải') &&
+      tayTh.includes('Cần hỗ trợ &amp; vấn đề gặp phải'),
+      'chỉ ghi "Cần hỗ trợ" thì vướng mắc tự gỡ được lại không ai ghi');
 
     ve('khối nút lưu', 'theLuu(DU)');
 
@@ -473,30 +490,85 @@ function nap() {
       'chừa sẵn thì sau này nối AI không phải xếp lại cả trang');
     ok('và nói thật là chưa nối', so.includes('chưa nối'));
 
-    ok('Sổ có mục đầu việc', so.includes('Đầu việc trong kỳ'));
-    ok('gộp theo việc, không theo ngày',
-      so.includes('Thiết kế logo') && so.includes('12 giờ'));
-    ok('tiến độ hiện đường đi, không chỉ con số cuối',
-      so.includes('30% → ') && so.includes('<b>70%</b>'));
-    ok('việc đứng yên bị gọi tên', so.includes('40% · đứng yên'),
-      'đó là thứ người viết báo cáo tuần cần bị đập vào mắt');
+    /* Anh Hùng (28/09): "nhìn vào là biết dành bao nhiêu thời gian cho các
+     * nhóm công việc nào" — nên phân bổ thời gian đứng ĐẦU sổ. */
+    ok('Sổ mở đầu bằng phân bổ thời gian',
+      so.indexOf('Thời gian đã dành cho việc gì') >= 0 &&
+      so.indexOf('Thời gian đã dành cho việc gì') < so.indexOf('Nhận định &amp; kế hoạch'),
+      'thứ tự đang là: ' + (so.match(/<summary>[^<]*/g) || []).join(' | '));
+    ok('mỗi nhóm việc có đủ tên · giờ · phần trăm',
+      so.includes('Thiết kế') && so.includes('12 giờ') && so.includes('67%'),
+      '12 giờ trên tổng 18 giờ là 67% — thiếu phần trăm thì không so được nhóm nào nặng hơn');
+    ok('có dòng tổng để đối chiếu với định mức',
+      so.includes('class="pb-tong"') && so.includes('75%'));
 
-    ok('Sổ có mục "đã viết gì"', so.includes('Anh/chị đã viết gì'),
+    /* Danh sách từng đầu việc: anh Hùng bảo "liệt kê vào cũng không có ý nghĩa
+     * mấy" nên đã bỏ. Tín hiệu "việc đứng yên" KHÔNG mất theo: nó vẫn do
+     * nhan-dinh.js phát ra và hiện ở khối nhận định tự động. */
+    ok('bỏ hẳn bảng liệt kê từng đầu việc', !so.includes('Đầu việc trong kỳ'),
+      'nó dài nhất trang mà không trả lời câu hỏi nào người ta thật sự hỏi');
+
+    ok('Sổ có mục "đã viết gì"', so.includes('Nhận định &amp; kế hoạch đã viết'),
       'muốn đọc lại bảy ngày mà phải mở bảy tấm ảnh thì không ai làm');
     ok('gom cả nhận định ngày', so.includes('chạy tốt'));
     ok('gom cả vướng mắc đã nêu', so.includes('thiếu file gốc'));
     ok('gom cả ghi chú tiến độ từng việc', so.includes('chờ sếp duyệt'));
     ok('mỗi ghi chú có mốc ngày', so.includes('class="dv-ngay"'));
 
-    ok('Sổ có mục các ngày đã nộp', so.includes('Các báo cáo ngày đã nộp'));
+    ok('Sổ có nhật ký nộp báo cáo', so.includes('Nhật ký nộp báo cáo'));
     ok('mỗi ngày nói rõ đúng hạn hay trễ',
       so.includes('đúng hạn') && so.includes('trễ 2 giờ'));
+    /* "Ấn vào xem được nội dung đã báo cáo là gì" (anh Hùng, 28/09). Mỗi ngày
+     * phải là một khối mở được và mang theo mốc ngày để nạp đúng phiếu hôm đó. */
+    ok('mỗi ngày bấm mở ra được', (so.match(/class="nk-d"/g) || []).length === 2,
+      'đang có ' + (so.match(/class="nk-d"/g) || []).length + ' khối mở được');
+    ok('và mang theo mốc ngày để nạp đúng phiếu',
+      (so.match(/data-ngay="\d+"/g) || []).length === 2,
+      'thiếu mốc thì bấm ra không biết mở phiếu nào');
+    /* Số đếm trên đầu mục phải nói ngay nhịp nộp, khỏi phải mở ra đếm tay. */
+    ok('đầu mục đếm sẵn đúng hạn / trễ / chưa nộp',
+      /Nhật ký nộp báo cáo<span class="dem">1 đúng hạn · 1 trễ · 1 chưa nộp/.test(so),
+      'đang ra: ' + (so.match(/Nhật ký nộp báo cáo<span class="dem">[^<]*/) || [''])[0]);
 
     /* Hai mục đầu mở sẵn, phần còn lại đóng — mở hết thì lại thành cuộn dài,
      * mà cuộn dài chính là thứ vừa dọn khỏi trang chính. */
     ok('mở sẵn đúng hai mục', (so.match(/<details class="muc" open>/g) || []).length === 2,
       'đang mở: ' + (so.match(/<details class="muc" open>/g) || []).length);
     ok('mỗi mục có số đếm để liếc là biết', so.includes('class="dem"'));
+  }
+
+  group('Mở một phiếu ra đọc lại — dùng chung cho nhật ký và tab "Đã nộp"');
+  {
+    ctx.__goi('DU = ' + JSON.stringify(PHIEU_NGAY));
+    const ct = ve('nội dung một phiếu', 'chiTietPhieu(DU)');
+    /* Anh Hùng (28/09): "ấn vào xem được nội dung đã báo cáo là gì". Nội dung
+     * = làm những việc gì, mất bao lâu, tới đâu, VÀ đã viết gì. Thiếu vế sau
+     * thì mở ra vẫn chỉ là mấy con số, đúng thứ ảnh chụp Excel từng cho. */
+    ok('liệt kê việc đã làm', ct.includes('Thiết kế logo') && ct.includes('Việc tự nhập'));
+    ok('kèm phút và tiến độ từng việc', ct.includes('240') && ct.includes('30%'));
+    ok('kèm ghi chú công việc đã ghi hôm đó', ct.includes('chờ duyệt'));
+    ok('kèm cả những gì đã tự viết',
+      ct.includes('ổn') && ct.includes('tiếp tục') && ct.includes('thiếu file gốc'));
+    ok('nói rõ đã nộp lúc nào', ct.includes('Nộp lúc'));
+
+    /* Phiếu còn là nháp phải nói ra — mở lại tưởng đã nộp rồi là hỏng việc. */
+    const nhap = JSON.parse(JSON.stringify(PHIEU_NGAY));
+    nhap.phieu.daNop = false;
+    ctx.__goi('DU2 = ' + JSON.stringify(nhap));
+    const ctN = ve('phiếu còn nháp', 'chiTietPhieu(DU2)');
+    ok('phiếu chưa nộp thì nói thẳng là nháp', ctN.includes('Còn là nháp'));
+
+    /* Bảng "Đã nộp" phải NHÌN là biết bấm được, và mỗi dòng mang theo kỳ + mốc
+     * để mở đúng phiếu đó. */
+    const src = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+    const than = src.slice(src.indexOf('async function veDaNop'), src.indexOf('const rong ='));
+    ok('mỗi dòng "Đã nộp" mang theo kỳ và mốc để mở lại',
+      /data-xem-ky=/.test(than) && /data-xem-moc=/.test(than));
+    ok('và trông ra là bấm được', /bam-duoc/.test(than),
+      'không có dấu hiệu gì thì không ai thử bấm');
+    ok('bấm thì mở sổ bằng chính hàm vẽ chi tiết ở trên',
+      /moSo\([\s\S]{0,400}chiTietPhieu\(/.test(than),
+      'hai nơi vẽ hai kiểu thì sớm muộn lệch nhau');
   }
 
   group('Đóng mở Sổ — cột thật, không phải lớp phủ');
