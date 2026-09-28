@@ -301,7 +301,12 @@ function toanCanh(dl, now = Date.now()) {
     treHan: banGiao.filter((b) => b.tt.ma === 'tre').length,
     canDo: banGiao.filter((b) => b.tt.ma === 'do-7' || b.tt.ma === 'do-30').length,
   };
-  return { now, kol: dl.kol, kenh: dl.kenh, dichVu: dl.dichVu, doiTac: dl.doiTac, hopTac, hangMuc, banGiao, thanhVien: dl.thanhVien || [], so };
+  const kolXoa = new Map(((dl.daXoa && dl.daXoa.kol) || []).concat(dl.kol).map((k) => [k.id, k]));
+  const thungRac = ((dl.daXoa && dl.daXoa.hopTac) || []).map((h) => ({ id: h.id, ma: h.ma, buoc: h.buoc, daXoa: h.daXoa, batDau: h.batDau,
+    kolTen: (kolXoa.get(h.kol) || {}).ten || '', soHangMuc: dl.daXoa.hangMuc.filter((x) => x.hopTac === h.id).length,
+    soBanGiao: dl.daXoa.banGiao.filter((x) => x.hopTac === h.id).length, soThanhVien: dl.daXoa.thanhVien.filter((x) => x.hopTac === h.id).length }))
+    .sort((a, b) => b.daXoa - a.daXoa);
+  return { now, kol: dl.kol, kenh: dl.kenh, dichVu: dl.dichVu, doiTac: dl.doiTac, hopTac, hangMuc, banGiao, thanhVien: dl.thanhVien || [], thungRac, so };
 }
 
 /** Đồng bộ danh sách con: dòng không id → tạo, có id → sửa, id cũ không còn → xoá. */
@@ -528,7 +533,7 @@ async function api(req, res, u) {
     const o = cho(b.ht || {}, COT.hopTac);
     const kolId = await luuKol({ ...k, kenh: b.kenh });
     const dl = await kho.tatCa({ moi: true });
-    const ma = T.maMoi(dl.hopTac.map((x) => x.ma), T.vn(now).nam);
+    const ma = T.maMoi([...dl.hopTac, ...((dl.daXoa && dl.daXoa.hopTac) || [])].map((x) => x.ma), T.vn(now).nam);
     const id = await kho.tao('hopTac', {
       nguoiLon: 1, treEm: 0, emBe: 0, ...o, ma, kol: kolId, buoc: 'Đang trao đổi',
       ttTourwell: o.maTourwell ? 'Đang xử lý' : 'Chưa tạo',
@@ -553,7 +558,7 @@ async function api(req, res, u) {
     if (b.id) { await kho.sua('hopTac', b.id, o); return json(res, { ok: true, id: b.id }); }
     if (!o.kol) return loi(res, 400, 'Chọn KOL trước');
     const dl = await kho.tatCa({ moi: true });
-    const ma = T.maMoi(dl.hopTac.map((x) => x.ma), T.vn(now).nam);
+    const ma = T.maMoi([...dl.hopTac, ...((dl.daXoa && dl.daXoa.hopTac) || [])].map((x) => x.ma), T.vn(now).nam);
     const id = await kho.tao('hopTac', { ma, buoc: 'Đang trao đổi', ttTourwell: 'Chưa tạo', nguoiLon: 1, treEm: 0, emBe: 0, ...o });
     const kol = dl.kol.find((k) => k.id === o.kol);
     if (kol && ['Tiềm năng', ''].includes(kol.tinhTrang)) await kho.sua('kol', kol.id, { tinhTrang: 'Đang trao đổi' });
@@ -724,6 +729,40 @@ async function api(req, res, u) {
       }
       return json(res, { ok: true, daGui: b.gui === true });
     }
+  }
+
+  /* ----- thùng rác: xoá (ẩn) · khôi phục · xoá hẳn ----- */
+  if ((r = /^\/api\/hop-tac\/(rec\w+)\/(xoa|khoi-phuc|xoa-han)$/.exec(p)) && m === 'POST') {
+    const b = await docThan(req);
+    const dl = await kho.tatCa({ moi: true });
+    const tat = [...dl.hopTac, ...dl.daXoa.hopTac];
+    const ht = tat.find((x) => x.id === r[1]);
+    if (!ht) return loi(res, 404, 'Không thấy hợp tác');
+    const kolAll = [...dl.kol, ...dl.daXoa.kol];
+    const kol = kolAll.find((k) => k.id === ht.kol);
+    /* KOL chỉ đi kèm hợp tác này (không còn hợp tác nào khác dùng) → xoá / khôi phục cùng */
+    const kolRieng = kol && !tat.some((h) => h.id !== ht.id && h.kol === kol.id);
+    if (r[2] === 'xoa') {
+      await kho.sua('hopTac', ht.id, { daXoa: now });
+      if (kolRieng && b.kemKol !== false) await kho.sua('kol', kol.id, { daXoa: now });
+      return json(res, { ok: true, kemKol: !!(kolRieng && b.kemKol !== false) });
+    }
+    if (r[2] === 'khoi-phuc') {
+      await kho.sua('hopTac', ht.id, { daXoa: null });
+      if (kol && kol.daXoa) await kho.sua('kol', kol.id, { daXoa: null });
+      return json(res, { ok: true });
+    }
+    /* xoá hẳn: chỉ cho hợp tác ĐANG trong thùng rác; xoá luôn con của nó (không để mồ côi) */
+    if (!ht.daXoa) return loi(res, 409, 'Chỉ xoá hẳn được hợp tác đã ở trong thùng rác');
+    const cua = (ds) => ds.filter((x) => x.hopTac === ht.id).map((x) => x.id);
+    for (const [bang, ids] of [['hangMuc', cua(dl.daXoa.hangMuc)], ['banGiao', cua(dl.daXoa.banGiao)], ['thanhVien', cua(dl.daXoa.thanhVien)]]) if (ids.length) await kho.xoa(bang, ids);
+    await kho.xoa('hopTac', [ht.id]);
+    if (kol && kol.daXoa && kolRieng) {
+      const kn = dl.daXoa.kenh.filter((x) => x.kol === kol.id).map((x) => x.id);
+      if (kn.length) await kho.xoa('kenh', kn);
+      await kho.xoa('kol', [kol.id]);
+    }
+    return json(res, { ok: true });
   }
 
   /* ----- form KOL tự điền ----- */

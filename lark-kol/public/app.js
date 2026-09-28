@@ -218,13 +218,15 @@ function veTongQuan(man) {
     '</div><div class="hang-nut" style="margin-bottom:12px"><button class="btn chinh" id="taoHt">Tạo hợp tác</button>' +
     (loc ? '<button class="btn mo" data-loc="">Bỏ lọc: ' + e(LOC[loc][0]) + '</button>' : '') + '</div>' +
     '<div class="ds-ht">' + (dangLam.length ? DAU_HT + dangLam.map(dongHt).join('') : '<div class="bao">Không có hợp tác nào đang chạy.</div>') + '</div>' +
-    (xong.length ? '<h3 class="muc">Đã xong · ' + xong.length + '</h3><div class="ds-ht">' + DAU_HT + xong.map(dongHt).join('') + '</div>' : '');
+    (xong.length ? '<h3 class="muc">Đã xong · ' + xong.length + '</h3><div class="ds-ht">' + DAU_HT + xong.map(dongHt).join('') + '</div>' : '') +
+    htmlThungRac();
   man.onclick = (ev) => {
     const b = ev.target.closest('[data-loc]');
     if (b) { const k = b.dataset.loc; if (k === 'can-do') return di('#/ban-giao?loc=can-do'); S.loc = S.loc === k ? '' : k; return veTongQuan(man); }
     const h = ev.target.closest('[data-ht]');
     if (h) return di('#/ht/' + h.dataset.ht);
     if (ev.target.id === 'taoHt') return moTaoHopTac();
+    thaoTacThungRac(ev);
   };
 }
 
@@ -432,7 +434,8 @@ function veChiTiet(man, id, con) {
   if (!ht) { man.innerHTML = '<div class="bao cam">Không thấy hợp tác này — có thể đã bị xoá trên Base.</div>'; return; }
   const kol = kolCua(ht.kol);
   const i = BUOC.indexOf(ht.buoc);
-  man.innerHTML = '<div class="ct-dau"><div style="flex:1;min-width:240px"><div class="phu"><a href="#/tong-quan">Hợp tác</a> / ' + e(ht.ma) + '</div><h1>' + e(kol.ten || '(chưa gắn KOL)') + '</h1>' +
+  man.innerHTML = '<div class="ct-dau"><div style="flex:1;min-width:240px"><div class="phu"><a href="#/tong-quan">Hợp tác</a> / ' + e(ht.ma) +
+    ' <button type="button" class="nut-xoa-ht" id="xoaHt" title="Nhập nhầm? Chuyển hợp tác này vào Thùng rác — khôi phục được ở cuối trang Hợp tác">Xoá</button></div><h1>' + e(kol.ten || '(chưa gắn KOL)') + '</h1>' +
     '<div class="phu">' + (ht.batDau ? ddmm(ht.batDau) + ' – ' + ddmm(ht.ketThuc) + '/' + vn(ht.ketThuc || ht.batDau).y : 'Chưa chốt ngày') + ' · ' + e(khach(ht)) + '</div></div>' +
     '<div class="luoi-tong" style="flex:2;min-width:320px">' +
     '<div class="o-so"><div class="nhan">Chi phí công ty</div><div class="so">' + tien(ht.kq.tienCongTy) + '</div></div>' +
@@ -449,9 +452,54 @@ function veChiTiet(man, id, con) {
     if (c) return di('#/ht/' + id + '/' + c.dataset.con);
     const v = ev.target.closest('[data-viec]');
     if (v) return lamViec(ht, v.dataset.viec, v);
+    if (ev.target.id === 'xoaHt') return xoaHopTac(ht);
   };
   const than = $('#ctThan');
   ({ 'thong-tin': veThongTin, 'bang-ke': veBangKe, 'ban-giao': veBanGiaoHt, 'lich-trinh': (t, h) => veDongThoiGian(t, h, true), email: veEmail }[con] || veThongTin)(than, ht);
+}
+
+/* ---------------- Thùng rác (28/09) ----------------
+ * Xoá = ẩn (ghi "Đã xoá lúc"), khôi phục được bất cứ lúc nào; xoá hẳn chỉ làm trong Thùng rác. */
+async function xoaHopTac(ht) {
+  const kol = kolCua(ht.kol);
+  const kolRieng = kol.id && !S.dl.hopTac.some((h) => h.id !== ht.id && h.kol === kol.id);
+  const soCon = [S.dl.hangMuc.filter((x) => x.hopTac === ht.id).length + ' dòng bảng kê', S.dl.banGiao.filter((x) => x.hopTac === ht.id).length + ' bàn giao',
+    (S.dl.thanhVien || []).filter((x) => x.hopTac === ht.id).length + ' thành viên'].join(', ');
+  const ok = await hoi({ tieuDe: 'Xoá ' + ht.ma + ' · ' + (kol.ten || '(chưa gắn KOL)') + '?', nguy: true, nut: 'Chuyển vào Thùng rác',
+    noiDung: 'Hợp tác (' + soCon + ')' + (kolRieng ? ' và hồ sơ KOL "' + kol.ten + '" (không dùng ở hợp tác nào khác)' : '') +
+      ' sẽ ẩn khỏi app, nhắc hẹn, bản tin và link form. Khôi phục được ở mục Thùng rác cuối trang Hợp tác.' });
+  if (!ok) return;
+  try {
+    await api('/api/hop-tac/' + ht.id + '/xoa', {});
+    await nap(true);
+    toast('Đã chuyển ' + ht.ma + ' vào Thùng rác');
+    di('#/tong-quan');
+  } catch (err) { toast(err.message, true); }
+}
+function htmlThungRac() {
+  const ds = S.dl.thungRac || [];
+  if (!ds.length) return '';
+  return '<details class="thung-rac"><summary><h3 class="muc" style="display:inline">Thùng rác · ' + ds.length + '</h3> <span class="nho">hợp tác đã xoá — bấm để xem, khôi phục</span></summary>' +
+    '<div class="the"><div class="the-than khit cuon"><table class="bang"><thead><tr><th>Mã</th><th class="w-ten">KOL</th><th>Bước lúc xoá</th><th>Có</th><th>Xoá lúc</th><th></th></tr></thead><tbody>' +
+    ds.map((h) => '<tr><td>' + e(h.ma) + '</td><td class="w-ten">' + e(h.kolTen || '(chưa gắn KOL)') + '</td><td>' + e(h.buoc) + '</td><td class="nho">' +
+      [h.soHangMuc && h.soHangMuc + ' dòng bảng kê', h.soBanGiao && h.soBanGiao + ' bàn giao', h.soThanhVien && h.soThanhVien + ' thành viên'].filter(Boolean).join(', ') +
+      '</td><td>' + ddmm(h.daXoa) + ' ' + hhmm(h.daXoa) + '</td><td style="white-space:nowrap"><button class="btn nho chinh" data-khoi-phuc="' + h.id + '">Khôi phục</button> ' +
+      '<button class="btn nho mo" data-xoa-han="' + h.id + '">Xoá hẳn</button></td></tr>').join('') + '</tbody></table></div></div></details>';
+}
+async function thaoTacThungRac(ev) {
+  const kp = ev.target.closest('[data-khoi-phuc]');
+  const xh = ev.target.closest('[data-xoa-han]');
+  if (!kp && !xh) return false;
+  const h = (S.dl.thungRac || []).find((x) => x.id === (kp || xh).dataset[kp ? 'khoiPhuc' : 'xoaHan']);
+  if (!h) return true;
+  if (xh && !(await hoi({ tieuDe: 'Xoá hẳn ' + h.ma + '?', nguy: true, nut: 'Xoá hẳn',
+    noiDung: 'Xoá vĩnh viễn khỏi Base: hợp tác, bảng kê, bàn giao, thành viên đoàn (cả ảnh giấy tờ) và hồ sơ KOL đi kèm. Không khôi phục được nữa.' }))) return true;
+  try {
+    await api('/api/hop-tac/' + h.id + '/' + (kp ? 'khoi-phuc' : 'xoa-han'), {});
+    await nap(true); ve();
+    toast(kp ? 'Đã khôi phục ' + h.ma : 'Đã xoá hẳn ' + h.ma);
+  } catch (err) { toast(err.message, true); }
+  return true;
 }
 
 function viecTiep(ht) {

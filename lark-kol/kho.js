@@ -26,6 +26,7 @@ const BANG = {
     maVung: ['Mã vùng', 't'], sdt: ['Số điện thoại', 't'], email: ['Email', 't'],
     lienHe: ['Liên hệ khác', 't'], nguon: ['Nguồn', 's'], linhVuc: ['Lĩnh vực', 'm'],
     tongTheoDoi: ['Tổng theo dõi', 'n'], danhGia: ['Đánh giá', 'n'], ghiChu: ['Ghi chú', 't'],
+    daXoa: ['Đã xoá lúc', 'd'],
   },
   kenh: {
     ten: ['Tên kênh', 't'], kol: ['KOL', 'l'], nenTang: ['Nền tảng', 's'], link: ['Link', 'u'],
@@ -58,6 +59,7 @@ const BANG = {
     maForm: ['Mã form', 't'], formGuiLuc: ['Form gửi lúc', 'd'], formDienLuc: ['Form điền lúc', 'd'],
     bayDen: ['Chuyến bay đến', 't'], bayVe: ['Chuyến bay về', 't'], yeuCauDacBiet: ['Yêu cầu đặc biệt', 't'],
     noiDon: ['Nơi đón', 't'], noiTra: ['Nơi trả', 't'],
+    daXoa: ['Đã xoá lúc', 'd'],   // thùng rác (28/09): có ngày = đã xoá, khôi phục được
   },
   doiTac: {
     ten: ['Tên đối tác', 't'], email: ['Email', 't'], cc: ['CC', 't'], lienHe: ['Người liên hệ', 't'],
@@ -192,13 +194,33 @@ async function tatCa({ moi = false } = {}) {
   dem.bay = (async () => {
     const ten = Object.keys(BANG);
     const kq = await Promise.all(ten.map(docBang));
-    const dl = Object.fromEntries(ten.map((t, i) => [t, kq[i]]));
+    const dl = tachThungRac(Object.fromEntries(ten.map((t, i) => [t, kq[i]])));
     dem = { luc: Date.now(), dl, bay: null };
     return dl;
   })();
   try { return await dem.bay; } finally { dem.bay = null; }
 }
 const lamMoi = () => { dem.luc = 0; };
+
+/* Thùng rác (anh Hùng 28/09: "nút xoá hợp tác, nhớ chừa đường khôi phục"). Hợp tác / KOL có
+ * "Đã xoá lúc" bị ẩn khỏi MỌI chỗ đọc dl (app, nhắc hẹn, bản tin, link form, Tổng quan hub) —
+ * lọc ngay ở đây nên không nơi nào phải nhớ tự lọc. Bản ghi vẫn nằm trên Base, gom ở dl.daXoa
+ * (kèm hạng mục / bàn giao / thành viên / kênh con) để khôi phục hoặc xoá hẳn. */
+function tachThungRac(dl) {
+  const htXoa = new Set(dl.hopTac.filter((h) => h.daXoa).map((h) => h.id));
+  const kolXoa = new Set(dl.kol.filter((k) => k.daXoa).map((k) => k.id));
+  const con = (ds, k, set) => (ds || []).filter((x) => set.has(x[k]));
+  const giu = (ds, k, set) => (ds || []).filter((x) => !set.has(x[k]));
+  const daXoa = {
+    hopTac: dl.hopTac.filter((h) => htXoa.has(h.id)), kol: dl.kol.filter((k) => kolXoa.has(k.id)),
+    hangMuc: con(dl.hangMuc, 'hopTac', htXoa), banGiao: con(dl.banGiao, 'hopTac', htXoa),
+    thanhVien: con(dl.thanhVien, 'hopTac', htXoa), kenh: con(dl.kenh, 'kol', kolXoa),
+  };
+  return { ...dl, daXoa,
+    hopTac: dl.hopTac.filter((h) => !htXoa.has(h.id)), kol: dl.kol.filter((k) => !kolXoa.has(k.id)),
+    hangMuc: giu(dl.hangMuc, 'hopTac', htXoa), banGiao: giu(dl.banGiao, 'hopTac', htXoa),
+    thanhVien: giu(dl.thanhVien, 'hopTac', htXoa), kenh: giu(dl.kenh, 'kol', kolXoa) };
+}
 
 /* ---------------- ghi ---------------- */
 async function tao(bang, obj) {
