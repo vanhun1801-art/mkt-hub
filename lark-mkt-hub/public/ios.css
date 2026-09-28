@@ -3385,7 +3385,7 @@ html[data-skin="ios"]:not(#_) .dr-khoi { gap: 12px !important; }
 /* ==========================================================================
    MỌI CỬA SỔ VỀ GIỮA MÀN (27/09/2026). Anh Hùng: "đưa tất cả cửa sổ hiển thị
    lên về giữa hết". Ngăn chi tiết trượt từ mép phải (Lịch tác nghiệp, Bảng
-   công việc — .drawer) và ngăn Sổ (Báo cáo, Sản phẩm — #so) nay nổi lên GIỮA
+   công việc — .drawer) nay nổi lên GIỮA (ngăn Sổ của Báo cáo/Sản phẩm thì KHÔNG — xem dưới)
    màn như cửa sổ macOS: lò xo từ 96% lên, nền phía sau tối + mờ; bấm ra ngoài
    hoặc ✕ để đóng. Khối này đứng cuối và mang :not(#_):not(#__) để thắng mọi
    luật ngăn kéo cũ (trượt phải trên máy tính, trượt dưới lên trên điện thoại).
@@ -3415,33 +3415,9 @@ html[data-skin="ios"]:not(#_) :is(.mask, .scrim) {
   html[data-skin="ios"]:not(#_):not(#__) .drawer { width: calc(100vw - 24px) !important; max-height: calc(100dvh - 120px) !important; }
 }
 
-/* Ngăn Sổ (Báo cáo: body.so-mo #so · Sản phẩm: #so.mo) — máy tính */
-@media (min-width: 641px) {
-  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] #so,
-  html[data-skin="ios"]:not(#_):not(#__)[data-app="san-pham"] #so {
-    position: fixed !important; top: 50% !important; left: 50% !important; right: auto !important; z-index: 80;
-    width: min(760px, calc(100vw - 32px)) !important; flex: none !important; height: auto !important; max-height: min(88vh, 940px) !important;
-    border: 0 !important; border-radius: 18px !important; background: var(--ios-the) !important;
-    transform: translate(-50%, -48%) scale(.96); opacity: 0; visibility: hidden; pointer-events: none;
-    transition: transform .22s cubic-bezier(.4, 0, 1, 1), opacity .22s cubic-bezier(.4, 0, 1, 1), visibility 0s linear .22s !important;
-    box-shadow: var(--lg-rim), 0 30px 80px -20px rgba(0, 0, 0, .35), 0 0 0 .5px rgba(0, 0, 0, .06) !important;
-  }
-  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] body.so-mo #so,
-  html[data-skin="ios"]:not(#_):not(#__)[data-app="san-pham"] #so.mo {
-    transform: translate(-50%, -50%) scale(1); opacity: 1; visibility: visible; pointer-events: auto;
-    transition: transform .42s var(--lo-xo-em), opacity .2s ease, visibility 0s !important;
-  }
-  html[data-skin="ios"]:not(#_):not(#__)[data-app] #so > .so-than { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
-  /* nội dung phía sau không còn bị co/ẩn khi mở Sổ */
-  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] body.so-mo main { display: block !important; }
-  /* nền mờ phía sau Sổ (ios-app.js dựng .ios-nen-so, bấm vào là đóng) */
-  html[data-skin="ios"] .ios-nen-so {
-    position: fixed; inset: 0; z-index: 79; background: rgba(0, 0, 0, .32);
-    -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
-    opacity: 0; pointer-events: none; transition: opacity .2s ease;
-  }
-  html[data-skin="ios"] .ios-nen-so.hien { opacity: 1; pointer-events: auto; }
-}
+/* Ngăn Sổ (Báo cáo, Sản phẩm) GIỮ kiểu trượt ngang của chính app (28/09, anh
+   Hùng: "chỗ sản phẩm và báo cáo giữ nguyên kiểu cửa sổ trượt ngang") — lớp
+   iOS không đè vị trí, không phủ nền, lớp vỏ không tối theo. */
 
 /* ==========================================================================
    BỘ CHUẨN THÀNH PHẦN DUY NHẤT (27/09/2026). Anh Hùng: "không muốn một đồ hoạ
@@ -3996,32 +3972,6 @@ html[data-skin="ios"]:not(#_):not(#__):not(#___) .pbVach > .pbKhuc {
   height: 100% !important; min-height: 0 !important; line-height: 22px !important; padding: 0 !important;
   font-size: 11px !important; font-weight: 700 !important; border-radius: 0 !important; background-image: none !important;
   box-shadow: none !important; display: block !important; opacity: 1 !important;
-}
-
-/* Điện thoại: ngăn Sổ (Báo cáo, Sản phẩm) cũng là cửa sổ giữa màn có nền mờ —
-   trước phủ kín màn nên không bấm ra ngoài để đóng được như mọi cửa sổ khác. */
-@media (max-width: 640px) {
-  html[data-skin="ios"]:not(#_):not(#__):not(#___):is([data-app="bao-cao"], [data-app="san-pham"]) #so {
-    position: fixed !important; top: 50% !important; left: 50% !important; right: auto !important; bottom: auto !important; z-index: 80;
-    width: calc(100vw - 24px) !important; height: auto !important; max-height: calc(100dvh - 96px) !important; flex: none !important;
-    border: 0 !important; border-radius: 18px !important; background: var(--ios-the) !important; overflow: hidden;
-    display: flex !important; flex-direction: column;
-    transform: translate(-50%, -48%) scale(.96); opacity: 0; visibility: hidden; pointer-events: none;
-    transition: transform .22s cubic-bezier(.4, 0, 1, 1), opacity .22s cubic-bezier(.4, 0, 1, 1), visibility 0s linear .22s !important;
-    box-shadow: 0 30px 80px -20px rgba(0, 0, 0, .35), 0 0 0 .5px rgba(0, 0, 0, .06) !important;
-  }
-  html[data-skin="ios"]:not(#_):not(#__):not(#___)[data-app="bao-cao"] body.so-mo #so,
-  html[data-skin="ios"]:not(#_):not(#__):not(#___)[data-app="san-pham"] #so.mo {
-    transform: translate(-50%, -50%) scale(1); opacity: 1; visibility: visible; pointer-events: auto;
-    transition: transform .42s cubic-bezier(.2, .9, .25, 1.05), opacity .2s ease, visibility 0s !important;
-  }
-  html[data-skin="ios"]:not(#_):not(#__)[data-app] #so > .so-than { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
-  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] body.so-mo main { display: block !important; }
-  html[data-skin="ios"] .ios-nen-so {
-    position: fixed; inset: 0; z-index: 79; background: rgba(0, 0, 0, .32);
-    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); opacity: 0; pointer-events: none; transition: opacity .2s ease;
-  }
-  html[data-skin="ios"] .ios-nen-so.hien { opacity: 1; pointer-events: auto; }
 }
 
 /* ---- Soát lỗi 27/09 (ảnh anh Hùng) — sửa theo LOẠI lỗi, không theo chỗ ---- */

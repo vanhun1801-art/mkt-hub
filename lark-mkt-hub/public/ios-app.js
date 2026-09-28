@@ -235,7 +235,7 @@
     document.querySelectorAll('body *').forEach((e) => {
       if (e.clientHeight < 160 || e.scrollHeight <= e.clientHeight + 4 || !e.getClientRects().length) return;
       if (!/auto|scroll/.test(getComputedStyle(e).overflowY)) return;
-      if (e.closest('.drawer, .modal, .modal-wrap, .phu-man, #so, .dd-panel, .pk-panel')) return;
+      if (e.closest('.drawer, .modal, .modal-wrap, .phu-man, .dd-panel, .pk-panel')) return;   // Sổ (Báo cáo, Sản phẩm) là ngăn trong trang: vẫn chừa đáy dưới thanh tab
       const b = e.getBoundingClientRect();
       if (b.bottom < vh - 110) return;          // vùng cuộn không chạm vùng thanh tab
       can.add(e);
@@ -307,7 +307,7 @@
   } catch (_) {}
 
   let hen = 0;
-  const lich = () => { if (hen) return; hen = requestAnimationFrame(() => { hen = 0; try { donMot(document.body); nutTao(); chipNguon(); tabTrongTam(); mepHet(); lensHet(); henCuon(); henCot(); nenSo(); xoaLoc(); nutTheoChu(); ganAnh(); baoChe(); } catch (_) {} }); };
+  const lich = () => { if (hen) return; hen = requestAnimationFrame(() => { hen = 0; try { donMot(document.body); nutTao(); chipNguon(); tabTrongTam(); mepHet(); lensHet(); henCuon(); henCot(); xoaLoc(); nutTheoChu(); ganAnh(); baoChe(); } catch (_) {} }); };
 
   function caiHienHinh() {
     /* KHUNG XƯƠNG KIỂU C — "hiện hình": khối nào vừa được thay khung xương bằng
@@ -362,21 +362,6 @@
   try {
     if (window.__HUB__ && window.__HUB__.quanLy === false) document.documentElement.classList.add('ios-nhan-vien');
   } catch (_) {}
-  /* Ngăn Sổ (Báo cáo, Sản phẩm) nay nổi giữa màn trên máy tính → cần nền mờ
-   * phía sau; bấm nền = bấm nút ✕ (#soDong) của chính app, không tự đóng kiểu
-   * khác để app giữ đúng trạng thái của nó. */
-  function nenSo() {
-    const so = document.getElementById('so');
-    if (!so) return;
-    let nen = document.querySelector('.ios-nen-so');
-    if (!nen) {
-      nen = document.createElement('div'); nen.className = 'ios-nen-so';
-      nen.addEventListener('click', () => { const d = document.getElementById('soDong'); if (d) d.click(); });
-      document.body.appendChild(nen);
-    }
-    const mo = document.body.classList.contains('so-mo') || so.classList.contains('mo');
-    nen.classList.toggle('hien', mo);
-  }
   /* XOÁ LỌC — một tên, một dáng ở mọi app. Nút đặt lại bộ lọc mỗi app một chữ
    * ("Xoá lọc", "Bỏ lọc", "Bỏ lọc") và một kiểu (nút xám, nút trắng, chữ trần).
    * Gắn .ios-xoa-loc (CSS: chữ xanh trần); ở tiếng Việt đổi chữ về "Xoá lọc" —
@@ -478,7 +463,7 @@
   /* Cửa sổ bất kỳ đang mở (ngăn chi tiết, hộp thoại, Sổ…) → báo lớp vỏ làm tối
    * + mờ cả thanh menu và thanh đầu (__HUB__.che). App nào đã tự gọi thì gọi lại
    * cũng vô hại — chỉ gửi khi trạng thái đổi. */
-  const CUA_SO = '.drawer.on, .drawer.open, .phu-man, .hop-nen, .modal.on, .modal.open, .modal-wrap:not([hidden]):not(.hidden), .md.on, .md.open, .xt.on, .xt.mo, #so.mo, body.so-mo #so, .modal-mask.on, .scrim.open, .mask.on, [role="dialog"]:not([hidden])';
+  const CUA_SO = '.drawer.on, .drawer.open, .phu-man, .hop-nen, .modal.on, .modal.open, .modal-wrap:not([hidden]):not(.hidden), .md.on, .md.open, .xt.on, .xt.mo, .modal-mask.on, .scrim.open, .mask.on, [role="dialog"]:not([hidden])';
   let daChe = false;
   /* Cửa sổ vừa mở còn đang hiện dần (opacity 0 lúc đo) hoặc vừa đóng còn đang
    * mờ dần (visibility trễ) → một lần đo ngay lúc đổi lớp dễ sai, mà sau đó có
@@ -651,7 +636,7 @@
  * thì để nguyên, không nhân đôi. */
 (function () {
   if (document.documentElement.getAttribute('data-skin') !== 'ios') return;
-  const HOP = '.modal, .modal-wrap, .md, .xt, #so, .phu-man, .hop, .mask, .scrim, .modal-mask, .modal-nen, .ios-nen-so, [role="dialog"]';
+  const HOP = '.modal, .modal-wrap, .md, .xt, .phu-man, .hop, .mask, .scrim, .modal-mask, .modal-nen, .ios-nen-so, [role="dialog"]';
   const dangMo = new Map();
   const thay = (e, s) => s.display !== 'none' && s.visibility !== 'hidden' && e.getClientRects().length > 0;   // KHÔNG xét opacity: lúc vừa mở hộp còn đang hiện dần từ 0
   function dong(e, r) {

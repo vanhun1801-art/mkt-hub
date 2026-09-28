@@ -561,7 +561,7 @@
   addEventListener('resize', henKiemTran);
   document.addEventListener('click', henKiemTran, true);
 
-  const CUA_KET = '.drawer.on, .drawer.open, .modal.on, .modal.open, .modal-wrap:not([hidden]):not(.hidden), .phu-man, .md.on, .xt.on, .xt.mo, #so.mo, [role="dialog"]:not([hidden]), .mask.on, .scrim.open';
+  const CUA_KET = '.drawer.on, .drawer.open, .modal.on, .modal.open, .modal-wrap:not([hidden]):not(.hidden), .phu-man, .md.on, .xt.on, .xt.mo, [role="dialog"]:not([hidden]), .mask.on, .scrim.open';
   let ketTu = 0;
   setInterval(() => {
     if (!document.body.classList.contains('mod-che')) { ketTu = 0; return; }
@@ -634,7 +634,7 @@
  * thì để nguyên, không nhân đôi. */
 (function () {
   if (document.documentElement.getAttribute('data-skin') !== 'ios') return;
-  const HOP = '.modal, .modal-wrap, .md, .xt, #so, .phu-man, .hop, .mask, .scrim, .modal-mask, .modal-nen, .ios-nen-so, [role="dialog"]';
+  const HOP = '.modal, .modal-wrap, .md, .xt, .phu-man, .hop, .mask, .scrim, .modal-mask, .modal-nen, .ios-nen-so, [role="dialog"]';
   const dangMo = new Map();
   const thay = (e, s) => s.display !== 'none' && s.visibility !== 'hidden' && e.getClientRects().length > 0;   // KHÔNG xét opacity: lúc vừa mở hộp còn đang hiện dần từ 0
   function dong(e, r) {
