@@ -1728,7 +1728,14 @@ html[data-skin="ios"] :is(.rail-item, .queue-row, .wcard, .tb-o, .ios-hoso):acti
 
 /* Con trỏ đúng loại: thứ bấm được là bàn tay, thứ bị khoá là mũi tên cấm */
 html[data-skin="ios"] :is(.btn, button, .rail-item, .tab, .pill, .chip[data-mo], .tb-o, .wcard, .queue-row, .ios-hoso):not(:disabled) { cursor: pointer; }
-html[data-skin="ios"] :is(.btn, button):disabled { cursor: not-allowed; opacity: .45; transform: none !important; filter: none !important; }
+/* Làm mờ HÀNH ĐỘNG không bấm được — KHÔNG làm mờ NỘI DUNG chỉ đọc.
+   `.ngay` của Lịch làm việc là ô lịch mang chữ để ĐỌC ("x · Đi làm cả ngày");
+   `disabled` ở đó nghĩa là "tháng đã nộp, chỉ đọc", không phải "nút chết".
+   App đã tự khai `.ngay:disabled { opacity: 1 }`, nhưng luật này ưu tiên cao
+   hơn nên đè mất — đo 28/09/2026: 31 ô, 430.000 px² màn hình chìm ở 45%.
+   Quy tắc: lớp dùng chung không được đè ý định mà app đã nói rõ. */
+html[data-skin="ios"] :is(.btn, button):disabled:not(.ngay) { cursor: not-allowed; opacity: .45; transform: none !important; filter: none !important; }
+html[data-skin="ios"] .ngay:disabled { opacity: 1; cursor: default; }
 
 @media (prefers-reduced-motion: reduce) {
   html[data-skin="ios"] * { transition-duration: 0s !important; }
