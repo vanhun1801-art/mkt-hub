@@ -2,6 +2,7 @@
 /* Test thuần Node: `node test/pham-vi.test.js`. */
 const assert = require('assert');
 const pv = require('../pham-vi');
+const Q = require('../quyen');
 
 let so = 0;
 const t = (ten, fn) => {
@@ -171,6 +172,58 @@ t('hộp thoại trong app Social chỉ để XEM, không khai nữa', () => {
   assert.ok(!/pq-in/.test(khuc), 'không còn ô nhập email');
   assert.ok(!/nguoi-xem/.test(khuc), 'không còn gọi API ghi');
   assert.ok(/Marketing Hub/.test(khuc), 'phải chỉ đường sang chỗ khai thật');
+});
+
+
+t('nhân sự KHÔNG được thấy con số tiền', () => {
+  /* Anh Hùng 28/09/2026: "nhân sự không cho thấy doanh thu nhé em". */
+  const cfgApi = { mode: 'api' };
+  const ns = { headers: {} };
+  assert.strictEqual(Q.duocXemTien(ns, cfgApi, {}), false, 'nhân sự thường');
+  assert.strictEqual(
+    Q.duocXemTien({ headers: { 'x-hub-user-manager': '1' } }, cfgApi, {}), true, 'quản lý');
+  /* Dùng lại đúng quyền "Xem chi phí" có sẵn của hub, không đẻ quyền thứ hai
+     cùng nghĩa để rồi hai chỗ lệch nhau. */
+  assert.strictEqual(
+    Q.duocXemTien({ headers: { 'x-hub-perm-chi-phi': '1' } }, cfgApi, {}), true,
+    'nhân sự ĐƯỢC cấp quyền Xem chi phí');
+});
+
+t('cổng mở ra ngoài thì không tin header của ai', () => {
+  /* Cùng lý do với laQuanLy: HUB_TRUST_HEADER=0 nghĩa là app không còn nấp sau
+     hub nữa, client tự đặt header gì cũng được. */
+  assert.strictEqual(
+    Q.duocXemTien({ headers: { 'x-hub-perm-chi-phi': '1' } }, { mode: 'api' },
+      { HUB_TRUST_HEADER: '0' }), false);
+  assert.strictEqual(
+    Q.duocXemTien({ headers: { 'x-hub-user-manager': '1' } }, { mode: 'api' },
+      { HUB_TRUST_HEADER: '0' }), false);
+});
+
+t('máy cá nhân thì xem được — chốt ở đó không bảo vệ được gì', () => {
+  assert.strictEqual(Q.duocXemTien({ headers: {} }, { mode: 'cli' }, {}), true);
+});
+
+t('máy chủ XOÁ HẲN con số tiền, không chỉ giấu cột', () => {
+  /* Giấu ở giao diện thì số vẫn nằm trong phản hồi JSON, mở tab Network của
+     trình duyệt là đọc được — mà thứ phải giấu ở đây là doanh thu. */
+  const src = require('fs').readFileSync(
+    require('path').join(__dirname, '..', 'server.js'), 'utf8');
+  assert.ok(src.includes('revenue: null'), 'doanh thu phiên LIVE phải bị xoá');
+  assert.ok(src.includes('usd: null'), 'tiền quà TikTok phải bị xoá');
+  assert.ok(/xemTien: duocXemTien\(req\)/.test(src), 'và phải nói cho giao diện biết');
+  /* Hai bảng, hai mảng — lọc một quên một là cột kia vẫn lòi tiền ra. */
+  assert.strictEqual((src.match(/\.map\(loc\)/g) || []).length, 2,
+    'phải lọc CẢ hai mảng: phiên LIVE và LIVE theo ngày');
+
+  /* Giao diện: thiếu cờ thì hiểu là KHÔNG được xem. Cờ quyền mà mặc định "được"
+     là kiểu sai âm thầm — máy chủ cũ không gửi cờ thì cột tiền hiện ra với toàn
+     số 0, trông như doanh thu bằng không. */
+  const ui = require('fs').readFileSync(
+    require('path').join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  assert.ok(ui.includes('S.xemTien = me.xemTien === true;'), 'mặc định là không được xem');
+  assert.ok(ui.includes("...(S.xemTien ? [{ t: 'Doanh thu'"), 'cột Doanh thu có điều kiện');
+  assert.ok(ui.includes("...(S.xemTien ? [{ t: 'Quà (USD)'"), 'cột Quà (USD) có điều kiện');
 });
 
 console.log('\n' + so + ' phép thử đạt' + (process.exitCode ? ' — CÓ LỖI' : '') + '\n');

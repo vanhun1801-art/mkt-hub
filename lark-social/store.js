@@ -175,6 +175,31 @@ function docBai(r) {
   };
 }
 
+/**
+ * Một NGÀY LIVE, từ bản xuất của TikTok LIVE Center.
+ *
+ * Khác docLive(): kia là một PHIÊN có giờ bắt đầu/kết thúc, đây là tổng của cả
+ * ngày và một ngày có thể nhiều phiên. Xem live-ngay.js để biết vì sao không
+ * gộp hai thứ vào một bảng.
+ */
+function docLiveNgay(r) {
+  const f = T.liveNgay.f;
+  const o = {
+    id: r.id,
+    key: clean(r.c[f.key]),
+    date: toKey(r.c[f.date]),
+    channelIds: links(r.c[f.channel]),
+    platform: sel(r.c[f.platform]),
+    source: clean(r.c[f.source]),
+    updated: clean(r.c[f.updated]),
+  };
+  ['soPhien', 'thoiLuong', 'luotXem', 'nguoiXemRieng', 'nguoiXemTuongTac',
+    'xemTrungBinh', 'dinhDongThoi', 'trungBinhDongThoi', 'nguoiTangQua',
+    'followerMoi', 'nguoiBinhLuan', 'thich', 'chiaSe', 'kimCuong', 'usd',
+  ].forEach((k) => { o[k] = num(r.c[f[k]]); });
+  return o;
+}
+
 function docLive(r) {
   const f = T.live.f;
   return {
@@ -205,11 +230,12 @@ function docLive(r) {
 }
 
 async function taiThat() {
-  const [kenhRaw, ngayRaw, baiRaw, liveRaw] = await Promise.all([
+  const [kenhRaw, ngayRaw, baiRaw, liveRaw, liveNgayRaw] = await Promise.all([
     lark.listAll(T.channel.id),
     lark.listAll(T.daily.id),
     lark.listAll(T.post.id),
     lark.listAll(T.live.id),
+    lark.listAll(T.liveNgay.id),
   ]);
 
   const channels = kenhRaw.map(docKenh);
@@ -230,11 +256,12 @@ async function taiThat() {
   const daily = ngayRaw.map(docNgay).map(gan);
   const posts = baiRaw.map(docBai).map(gan);
   const lives = liveRaw.map(docLive).map(gan);
+  const liveNgay = liveNgayRaw.map(docLiveNgay).map(gan);
 
   return {
     luc: Date.now(),
     channels, byRec, byExt,
-    daily, posts, lives,
+    daily, posts, lives, liveNgay,
   };
 }
 

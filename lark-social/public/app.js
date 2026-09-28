@@ -478,6 +478,7 @@
       : '<div class="loading">Đang nạp phiên LIVE…</div>';
     const r = await goi('/api/live?' + truyVan());
     const ds = r.live || [];
+    const dsNgay = r.liveNgay || [];
     $('#view').innerHTML = ''
       + '<div class="notes" style="margin-bottom:14px">'
       + '<div class="note"><span class="ico">!</span><span>'
@@ -511,13 +512,63 @@
         { t: 'Tin nhắn', num: 1, v: (x) => n0(x.messages) },
         { t: 'Lead', num: 1, v: (x) => n0(x.leads) },
         { t: 'Đơn', num: 1, v: (x) => n0(x.orders) },
-        { t: 'Doanh thu', num: 1, v: (x) => n0(x.revenue) + 'đ' },
+        /* Cột tiền chỉ hiện với người được xem. Máy chủ đã xoá luôn con số khỏi
+         * phản hồi, chỗ này chỉ để khỏi hiện một cột toàn "0đ" trông như thật. */
+        ...(S.xemTien ? [{ t: 'Doanh thu', num: 1, v: (x) => n0(x.revenue) + 'đ' }] : []),
         { t: 'Nguồn', v: (x) => '<span class="tag">' + esc(x.source || '') + '</span>' },
       ], ds)
-      + '</div></div>';
+      + '</div></div>'
+      + bangLiveNgay(dsNgay);
     $('#btnLiveTay').onclick = moLiveTay;
     $('#btnLiveDan').onclick = moLiveDan;
     $('#btnLiveTien').onclick = ganTienLive;
+  }
+
+  /**
+   * LIVE THEO NGÀY — bản xuất TikTok LIVE Center nhân sự tải lên.
+   *
+   * Bảng riêng chứ không trộn vào bảng Phiên LIVE ở trên: bản xuất gộp theo
+   * NGÀY, một ngày có thể bốn phiên, nên nhét chung là đọc nhầm một ngày thành
+   * một phiên. Cột "Phiên" ở đây là SỐ phiên trong ngày, không phải tên phiên.
+   *
+   * Hiện cả khi rỗng, kèm câu chỉ đường. Trước đây phần này không có chỗ hiện
+   * nào cả: anh Hùng tải bốn tệp lên đúng cách, số vào Base đủ, mà màn hình
+   * trống trơn — không có gì cho thấy nó đã chạy.
+   */
+  function bangLiveNgay(ds) {
+    const tong = (k) => ds.reduce((a, x) => a + (Number(x[k]) || 0), 0);
+    const than = ds.length
+      ? bangGon([
+        { t: 'Ngày', name: 1, v: (x) => esc(x.date)
+          + '<span class="sub-line">' + esc(x.channel || '') + '</span>' },
+        { t: 'Nền tảng', v: (x) => theTag(x.platform) },
+        { t: 'Số phiên', num: 1, v: (x) => n0(x.soPhien) },
+        { t: 'Phút', num: 1, v: (x) => n0(Math.round((x.thoiLuong || 0) / 60)) },
+        { t: 'Lượt xem', num: 1, v: (x) => n0(x.luotXem) },
+        { t: 'Người xem riêng', num: 1, v: (x) => n0(x.nguoiXemRieng) },
+        { t: 'Đỉnh đồng thời', num: 1, v: (x) => n0(x.dinhDongThoi) },
+        { t: 'Xem TB (giây)', num: 1, v: (x) => n0(x.xemTrungBinh) },
+        { t: 'B.luận', num: 1, v: (x) => n0(x.nguoiBinhLuan) },
+        { t: 'Thích', num: 1, v: (x) => n0(x.thich) },
+        { t: 'Chia sẻ', num: 1, v: (x) => n0(x.chiaSe) },
+        { t: 'Follow mới', num: 1, v: (x) => n0(x.followerMoi) },
+        ...(S.xemTien ? [{ t: 'Quà (USD)', num: 1, v: (x) => n0(x.usd) }] : []),
+      ], ds)
+      : '<div class="trong">Chưa có ngày LIVE nào trong khoảng này. '
+        + 'Bấm <b>Bảng LIVE Center</b> ở trên rồi thả bốn tệp .zip tải từ LIVE Center vào.</div>';
+    return '<div class="card" style="margin-top:14px">'
+      + '<div class="card-head"><h3>LIVE theo ngày</h3>'
+      + (ds.length ? '<span class="sub-line">' + ds.length + ' ngày · '
+        + n0(tong('soPhien')) + ' phiên · ' + n0(tong('luotXem')) + ' lượt xem'
+        + (S.xemTien ? ' · ' + n0(tong('usd')) + ' USD quà tặng' : '') + '</span>' : '')
+      + '</div><div class="card-body tight">'
+      + '<div class="note" style="margin-bottom:10px"><span class="ico">!</span><span>'
+      + 'TikTok LIVE Center chỉ xuất được TỔNG CỦA CẢ NGÀY, không tách từng phiên — '
+      + 'ngày có 2 phiên thì chỉ biết tổng, không biết phiên nào ra số nào.'
+      + (S.xemTien ? ' <b>Quà (USD)</b> là tiền TikTok trả cho kênh, '
+        + '<b>không phải doanh thu tour</b>.' : '')
+      + '</span></div>'
+      + than + '</div></div>';
   }
 
   function chonKenhHtml(id) {
@@ -1908,6 +1959,10 @@
     try {
       const me = await goi('/api/me');
       S.me = me.user; S.quanLy = me.quanLy; S.phamVi = me.phamVi;
+      /* MẶC ĐỊNH LÀ KHÔNG. Cờ quyền thì thiếu tin phải hiểu là không được, chứ
+       * không phải được: máy chủ bản cũ không gửi cờ này, mà nó cũng đã xoá con
+       * số rồi — hiện cột thì chỉ ra một cột "0đ" trông như doanh thu bằng 0. */
+      S.xemTien = me.xemTien === true;
       $('#meChip').textContent = (me.user && me.user.name) || (me.quanLy ? 'Quản lý' : 'Khách');
       $('#linkBase').href = me.baseUrl;
       if (!me.quanLy) {

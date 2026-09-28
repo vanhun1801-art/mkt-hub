@@ -69,9 +69,9 @@ t('không ghi gì thì nhiều lời gọi cùng lúc vẫn chỉ đọc Base m�
   nhaSau = 30;
   dangDoc = 0;
   const [a, b, c] = await Promise.all([store.tai(true), store.tai(), store.tai()]);
-  /* Một lần nạp = bốn lượt đọc bảng (Kênh, Ngày, Bài, Live). Ba lời gọi mà
-   * thành mười hai là mỗi người tự đi đọc một lượt. */
-  assert.strictEqual(dangDoc, 4, 'gộp chung một lần nạp');
+  /* Một lần nạp = năm lượt đọc bảng (Kênh, Ngày, Bài, Phiên LIVE, LIVE theo
+   * ngày). Ba lời gọi mà thành mười lăm là mỗi người tự đi đọc một lượt. */
+  assert.strictEqual(dangDoc, 5, 'gộp chung một lần nạp');
   assert.strictEqual(a.channels[0].viewers, 'c@x.com');
   assert.strictEqual(b, a);
   assert.strictEqual(c, a);

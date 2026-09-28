@@ -169,6 +169,7 @@ function thamSo(u, hanMuc) {
 
 /* ---------------- danh tính ---------------- */
 const laQuanLy = (req) => require('./quyen').laQuanLy(req, cfg);
+const duocXemTien = (req) => require('./quyen').duocXemTien(req, cfg);
 
 async function nguoiDung(req) {
   if (cfg.mode !== 'api') return lark.whoami();
@@ -476,7 +477,7 @@ async function api(req, res, u) {
     const d = await store.tai();
     const han = phamVi.gioiHan(d.channels, nd, quanLy);
     return ok(res, {
-      user: nd, quanLy, mode: cfg.mode,
+      user: nd, quanLy, xemTien: duocXemTien(req), mode: cfg.mode,
       baseUrl: cfg.baseUrl, nguonCauHinh: ketnoi.nguon(),
       khoBat: vault.bat(),
       /* Để giao diện nói được "anh đang xem 3/11 kênh được giao" thay vì âm thầm
@@ -849,11 +850,28 @@ async function api(req, res, u) {
     const t = thamSo(u, await hanMucKenh(req));
     const d = await store.tai();
     const pset = t.platforms.length ? new Set(t.platforms) : null;
+    const han = await hanMucKenh(req);
+    const choPhep = han ? new Set(han.map((c) => c.id)) : null;
+    /* Người không được xem tiền thì XOÁ HẲN con số khỏi phản hồi, không chỉ
+     * giấu cột. Giấu ở giao diện thì mở tab Network của trình duyệt là đọc
+     * được — mà thứ phải giấu ở đây là doanh thu. */
+    const tien = duocXemTien(req);
+    const loc = (x) => (tien ? x : { ...x, revenue: null, usd: null });
     return ok(res, {
+      xemTien: tien,
       live: d.lives
         .filter((l) => (!l.date || (l.date >= t.from && l.date <= t.to))
           && (!pset || pset.has(l.platform)))
-        .sort((a, b) => String(b.start).localeCompare(String(a.start))),
+        .sort((a, b) => String(b.start).localeCompare(String(a.start)))
+        .map(loc),
+      /* LIVE theo NGÀY — bản xuất LIVE Center nhân sự tải lên. Bảng riêng nên
+       * phải trả riêng; gộp vào mảng `live` là lẫn phiên với ngày. */
+      liveNgay: d.liveNgay
+        .filter((l) => l.date >= t.from && l.date <= t.to
+          && (!pset || pset.has(l.platform))
+          && (!choPhep || (l.channelIds || []).some((id) => choPhep.has(id))))
+        .sort((a, b) => String(b.date).localeCompare(String(a.date)))
+        .map(loc),
     });
   }
 
