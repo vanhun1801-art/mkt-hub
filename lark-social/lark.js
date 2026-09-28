@@ -3,7 +3,11 @@
 const { execFile } = require('child_process');
 const cfg = require('./config');
 
-const TRANSIENT = [1254291, 1254036, 99991400];
+/* 800004135 = "OpenAPIListRecord limited": Lark chặn tần suất ĐỌC bản ghi.
+ * Giới hạn tính theo CẢ TENANT, mà 12 app cùng đọc Base một lúc khi hub khởi
+ * động — đo được trên log 28/09/2026. Thiếu mã này thì app coi đây là lỗi
+ * VĨNH VIỄN và không thử lại, người dùng nhận thẳng một màn lỗi. */
+const TRANSIENT = [1254291, 1254036, 99991400, 800004135];
 
 function isTransient(err) {
   const m = String((err && err.message) || '');

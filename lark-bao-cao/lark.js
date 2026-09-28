@@ -5,10 +5,15 @@ const path = require('path');
 const cfg = require('./config');
 
 /** Lỗi tạm thời của Base — thử lại được. */
+/* 800004135 = "OpenAPIListRecord limited": Lark chặn tần suất ĐỌC bản ghi.
+ * Giới hạn tính theo CẢ TENANT, mà 12 app cùng đọc Base một lúc khi hub khởi
+ * động — đo được trên log 28/09/2026. Thiếu mã này thì app coi đây là lỗi
+ * VĨNH VIỄN và không thử lại, người dùng nhận thẳng một màn lỗi. */
 const TRANSIENT = [
   1254291,          // ghi đồng thời, xung đột revision
   1254036,          // quá tần suất
   99991400,         // rate limit
+  800004135,        // "OpenAPIListRecord limited" — đọc bản ghi quá dày
 ];
 
 function isTransient(err) {

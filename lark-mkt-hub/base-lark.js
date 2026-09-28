@@ -136,7 +136,7 @@ function bang(baseToken, tableId, tenCotTep) {
   const url = (duoi) => cfg.apiHost + '/open-apis/base/v3/bases/' + baseToken +
     '/tables/' + tableId + duoi;
 
-  async function goi(method, duoi, body) {
+  async function goiMot(method, duoi, body) {
     const token = await tenantToken();
     const r = await fetch(url(duoi), {
       method,
@@ -151,6 +151,49 @@ function bang(baseToken, tableId, tenCotTep) {
       throw e;
     }
     return d.data || {};
+  }
+
+  /**
+   * Gọi Base, TỰ THỬ LẠI khi gặp lỗi tạm thời.
+   *
+   * Mười hai app con đều đã có lớp này từ lâu; riêng hub thì KHÔNG — đo được
+   * ngày 28/09/2026. Mà hub là chỗ đọc những thứ nặng nhất: bảng Phân quyền
+   * (ai thấy base nào), Thông báo, ô phát và logo. Lark chặn tần suất một
+   * nhịp là cả phòng rơi về quyền mặc định hoặc mất thông báo — hỏng ở đúng
+   * chỗ không được phép hỏng.
+   *
+   * Lỗi TẠM THỜI, thử lại được:
+   *   1254291   ghi đồng thời, xung đột revision
+   *   1254036   quá tần suất
+   *   99991400  rate limit
+   *   99991661  token vừa hết hạn
+   *   800004135 "OpenAPIListRecord limited" — Lark chặn đọc bản ghi. Giới hạn
+   *             tính theo CẢ TENANT, mà 12 app cùng đọc Base lúc hub khởi
+   *             động; chính dòng này xuất hiện trong log hôm đo.
+   * Cộng thêm mạng chớp (timeout, ECONNRESET…).
+   *
+   * Lỗi quyền (91403) hay bảng sai (NOTEXIST) thì KHÔNG thử lại — thử mấy lần
+   * cũng vậy, chỉ làm người dùng chờ lâu hơn rồi vẫn nhận đúng câu lỗi đó.
+   */
+  const TAM_THOI = [1254291, 1254036, 99991400, 99991661, 800004135];
+  const laTamThoi = (e) => {
+    const m = String((e && e.message) || '');
+    if (TAM_THOI.some((c) => m.includes(String(c)))) return true;
+    return /timeout|timed out|ETIMEDOUT|ECONNRESET|ECONNREFUSED|EAI_AGAIN|ENOTFOUND|socket hang up|EPIPE|fetch failed/i.test(m);
+  };
+  const cho = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  async function goi(method, duoi, body) {
+    let cuoi;
+    for (let i = 0; i < 3; i++) {
+      try { return await goiMot(method, duoi, body); }
+      catch (e) {
+        cuoi = e;
+        if (i === 2 || !laTamThoi(e)) throw e;
+        await cho(400 * Math.pow(2, i));   // 400ms, 800ms
+      }
+    }
+    throw cuoi;
   }
 
   let mapCot = { at: 0, theoId: null };

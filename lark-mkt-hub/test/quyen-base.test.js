@@ -18,12 +18,21 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const PORT = 5192;
+/* Cổng tự chọn, KHÔNG cắm cứng. Bài thử này từng đỏ ba dòng liền chỉ vì một
+ * app con của lần chạy trước còn sống và ôm mất cổng — đỏ giả, mà đỏ giả thì
+ * còn hại hơn không có bài thử: nó dạy người đọc bỏ qua màu đỏ. Xin cổng trống
+ * từ hệ điều hành thì hai lần chạy song song cũng không giẫm nhau. */
+/* Không xin cổng 0 từ hệ điều hành được: listen() là bất đồng bộ, mà PORT phải
+ * có NGAY để dựng modules.json và env trước khi bật hub. Nên bốc ngẫu nhiên —
+ * mỗi lần chạy một cặp cổng khác nhau, hai phiên song song không giẫm nhau, và
+ * một tiến trình sót (nếu còn) cũng gần như không trùng. */
+const congTrong = () => 20000 + Math.floor(Math.random() * 30000);
+const PORT = congTrong();
 const SECRET = 'kiem-thu-quyen-base';
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'hub-quyen-'));
 const fMod = path.join(tmp, 'modules.json');
 const fQuyen = path.join(tmp, 'quyen.json');
-const CONG_ECHO = 5193;
+const CONG_ECHO = congTrong();
 
 /* Một app con TỐI GIẢN, chỉ để đọc lại header danh tính mà proxy gửi xuống.
  * Cả tính năng "Lead quản trị một base" nằm ở đúng cái header này — không đo nó
@@ -214,7 +223,17 @@ const nhuNhau = (a, b) => a.length === b.length && a.every((x, i) => x === b[i])
   }
 
   console.log(bang.join('\n'));
-  con.kill();
+  /* Giết CẢ CÂY. Hub tự sinh ra app con, nên trên Windows `con.kill()` chỉ hạ
+   * hub còn đứa cháu vẫn sống — đúng cái đã ôm cổng và làm hỏng mọi lần chạy
+   * sau. `taskkill /T` hạ cả nhánh; POSIX thì bắn vào nhóm tiến trình. */
+  try {
+    if (process.platform === 'win32') {
+      require('child_process').execFileSync('taskkill', ['/pid', String(con.pid), '/T', '/F'],
+        { stdio: 'ignore' });
+    } else {
+      con.kill();
+    }
+  } catch (_) { try { con.kill(); } catch (_) {} }
   try { fs.rmSync(tmp, { recursive: true, force: true }); } catch (_) {}
   process.exit(bang.some((x) => x.startsWith('FAIL')) ? 1 : 0);
 })();

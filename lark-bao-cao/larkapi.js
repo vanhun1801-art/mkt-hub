@@ -38,7 +38,11 @@ async function tenantToken() {
 }
 
 /* ---------------- gọi API (có thử lại) ---------------- */
-const TRANSIENT = [1254291, 1254036, 99991400, 99991661];
+/* 800004135 = "OpenAPIListRecord limited": Lark chặn tần suất ĐỌC bản ghi.
+ * Giới hạn tính theo CẢ TENANT, mà 12 app cùng đọc Base một lúc khi hub khởi
+ * động — đo được trên log 28/09/2026. Thiếu mã này thì app coi đây là lỗi
+ * VĨNH VIỄN và không thử lại, người dùng nhận thẳng một màn lỗi. */
+const TRANSIENT = [1254291, 1254036, 99991400, 99991661, 800004135];
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /* LỖI QUÁ NHỊP PHẢI CHỜ KHÁC, VÀ PHẢI CHỜ LỆCH NHAU.
