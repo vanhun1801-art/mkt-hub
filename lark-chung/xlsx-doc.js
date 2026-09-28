@@ -235,4 +235,21 @@ function docBang(buf, { tenCot = [] } = {}) {
   return { rows: out, cot: Object.keys(cot), dongTieuDe: iTieuDe + 1, tenSheet: sheets[0].ten };
 }
 
-module.exports = { doc, docBang, cotSo, boThe };
+/* Mở một ZIP thường (không phải .xlsx) — dùng cho bản xuất của TikTok LIVE
+ * Center: mỗi tệp tải về là một ZIP chứa đúng một CSV. Bộ đọc ZIP ở đây đã
+ * đúng và đã chịu thử, viết lại một bản nữa chỉ để bóc một CSV là thêm một chỗ
+ * để sai. */
+function moZip(buf) {
+  const muc = mucLuc(buf);
+  const ra = [];
+  for (const ten of muc.keys()) {
+    if (ten.endsWith('/')) continue;
+    ra.push({ ten, than: docTrongZip(buf, muc, ten) });
+  }
+  return ra;
+}
+
+/** Bốn byte đầu của mọi ZIP. */
+const laZip = (buf) => Buffer.isBuffer(buf) && buf.length > 4 && buf.readUInt32LE(0) === LOC;
+
+module.exports = { doc, docBang, cotSo, boThe, moZip, laZip };

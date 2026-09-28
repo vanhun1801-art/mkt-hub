@@ -597,8 +597,9 @@
       + '<div id="dnTha" style="border:1px dashed var(--vien,#3a4256);border-radius:10px;'
       + 'padding:18px;text-align:center;cursor:pointer;margin-bottom:10px">'
       + '<b>Thả tệp xuất của LIVE Center vào đây</b><br>'
-      + '<span class="sub-line">hoặc bấm để chọn tệp — nhận .xlsx và .csv</span>'
-      + '<input type="file" id="dnTep" accept=".xlsx,.csv,.txt" hidden></div>'
+      + '<span class="sub-line">hoặc bấm để chọn — nhận .zip, .xlsx, .csv · '
+      + 'thả được CẢ BỐN tệp cùng lúc</span>'
+      + '<input type="file" id="dnTep" accept=".xlsx,.csv,.txt,.zip" multiple hidden></div>'
       + '<textarea id="dnText" placeholder="…hoặc dán bảng vào đây"></textarea></div></div>'
       + '<div class="modal-foot"><button class="btn ghost" id="mHuy">Đóng</button>'
       + '<button class="btn primary" id="mLuu">Đọc và ghi</button></div>');
@@ -612,19 +613,45 @@
       veLive();
     };
 
+    /* Bản xuất THEO NGÀY trả về một hình khác hẳn bảng phiên — nói đúng cái
+     * vừa xảy ra, đừng nhét vào câu "ghi N dòng" của bảng phiên. */
+    const baoNgay = (ds) => {
+      dongModal();
+      const canChon = ds.filter((r) => r.canChonKenh);
+      if (canChon.length) { toast(canChon[0].thongBao, 'err'); return; }
+      const loai = [...new Set(ds.map((r) => r.loai))].join(' · ');
+      const them = ds.reduce((a, r) => a + (r.them || 0), 0);
+      const sua = ds.reduce((a, r) => a + (r.capNhat || 0), 0);
+      toast(ds.length + ' tệp (' + loai + ') → ' + (ds[0].kenh || '')
+        + ': thêm ' + them + ' ngày, cập nhật ' + sua + ' ngày', 'ok');
+      veLive();
+    };
+
     /* Gửi thẳng byte của tệp, không bọc multipart: mỗi lượt đúng một tệp, mà
      * đọc multipart thì phải nuôi thêm một bộ phân tích nữa. */
-    async function guiTep(f) {
-      if (!f) return;
-      const nut = $('#mLuu'); nut.disabled = true; nut.textContent = 'Đang đọc…';
+    async function guiTep(ds) {
+      const fs = [...(ds || [])].filter(Boolean);
+      if (!fs.length) return;
+      const nut = $('#mLuu'); nut.disabled = true;
       try {
-        const q = new URLSearchParams({ ten: f.name, extId: $('#dnKenh').value });
-        const r = await goi('/api/live/tai-tep?' + q.toString(), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/octet-stream' },
-          body: await f.arrayBuffer(),
-        });
-        bao(r);
+        const kq = [];
+        for (let i = 0; i < fs.length; i += 1) {
+          const f = fs[i];
+          nut.textContent = fs.length > 1 ? 'Đang đọc ' + (i + 1) + '/' + fs.length + '…' : 'Đang đọc…';
+          const q = new URLSearchParams({ ten: f.name, extId: $('#dnKenh').value });
+          /* GỬI LẦN LƯỢT, không Promise.all: bốn tệp cùng ghi vào một bảng theo
+           * khoá, chạy song song là hai lượt cùng thấy "chưa có dòng này" rồi
+           * cùng tạo mới — ra hai dòng trùng khoá cho cùng một ngày. */
+          // eslint-disable-next-line no-await-in-loop
+          kq.push(await goi('/api/live/tai-tep?' + q.toString(), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/octet-stream' },
+            // eslint-disable-next-line no-await-in-loop
+            body: await f.arrayBuffer(),
+          }));
+        }
+        if (kq.some((r) => r.theoNgay || r.canChonKenh)) baoNgay(kq);
+        else bao(kq[kq.length - 1]);
       } catch (e) {
         toast(e.message, 'err');
         nut.disabled = false; nut.textContent = 'Đọc và ghi';
@@ -633,14 +660,14 @@
 
     const tha = $('#dnTha');
     tha.onclick = () => $('#dnTep').click();
-    $('#dnTep').onchange = (e) => guiTep(e.target.files && e.target.files[0]);
+    $('#dnTep').onchange = (e) => guiTep(e.target.files);
     ['dragenter', 'dragover'].forEach((k) => tha.addEventListener(k, (e) => {
       e.preventDefault(); tha.style.background = 'rgba(255,255,255,.04)';
     }));
     ['dragleave', 'drop'].forEach((k) => tha.addEventListener(k, (e) => {
       e.preventDefault(); tha.style.background = '';
     }));
-    tha.addEventListener('drop', (e) => guiTep(e.dataTransfer.files && e.dataTransfer.files[0]));
+    tha.addEventListener('drop', (e) => guiTep(e.dataTransfer.files));
 
     $('#mLuu').onclick = async () => {
       const f = $('#dnTep').files && $('#dnTep').files[0];

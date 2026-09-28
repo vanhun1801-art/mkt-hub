@@ -33,6 +33,7 @@ const facebook = require('./sync/facebook');
 const zalo = require('./sync/zalo');
 const tiktok = require('./sync/tiktok');
 const { docBangDan, docBangObj, COT_LIVE } = require('./bang-dan');
+const liveNgay = require('./live-ngay');
 
 const T = cfg.tables;
 const PUBLIC = path.join(__dirname, 'public');
@@ -368,6 +369,47 @@ async function nhapTayNgay(ban) {
  * tệp). Một dòng hỏng thì ghi tên dòng đó vào `hong` rồi đi tiếp — mất một
  * phiên còn hơn mất cả bản xuất, và người bấm cần biết chính xác dòng nào hỏng.
  */
+/**
+ * Ghi bản xuất THEO NGÀY của LIVE Center.
+ *
+ * Kênh lấy theo thứ tự: người dùng chọn trên màn hình → handle trong TÊN TỆP
+ * (LIVE Center đặt tên kèm handle) → chịu. Đoán bừa là số vào nhầm kênh, mà
+ * nhầm kênh thì không ai nhìn ra vì bảng vẫn đầy đủ.
+ */
+async function ghiLiveNgay(daDoc, ten, u) {
+  const g = liveNgay.gop([daDoc]);
+  const d = await store.tai();
+  const chon = (u.searchParams.get('extId') || '').trim();
+  const handle = liveNgay.handleTuTen(ten);
+  const kenh = chon
+    ? d.channels.find((c) => c.extId === chon)
+    : d.channels.find((c) => String(c.handle || '').toLowerCase() === handle)
+      || d.channels.find((c) => String(c.extId || '').toLowerCase() === handle);
+  if (!kenh) {
+    return {
+      canChonKenh: true,
+      loai: daDoc.loai,
+      soNgay: g.ds.length,
+      handle,
+      thongBao: handle
+        ? 'Tên tệp ghi kênh "' + handle + '" nhưng chưa khai kênh đó trong bảng Kênh — chọn kênh rồi tải lại.'
+        : 'Không đoán được tệp này của kênh nào — chọn kênh rồi tải lại.',
+    };
+  }
+  const kq = await liveNgay.ghi({
+    ds: g.ds, kenh, nguon: 'LIVE Center · ' + daDoc.loai, store, lark, cfg,
+  });
+  store.xoaCache();
+  return {
+    theoNgay: true,
+    loai: daDoc.loai,
+    kenh: kenh.name,
+    soNgay: g.ds.length,
+    boQuaNgayTrong: g.boQuaNgayTrong,
+    ...kq,
+  };
+}
+
 async function ghiDsLive(ds, { channel = '', extId = '' } = {}) {
   let ghi = 0;
   const hong = [];
@@ -853,6 +895,17 @@ async function api(req, res, u) {
     const loi = chanNeuKhongPhaiQuanLy(req); if (loi) throw loi;
     const ten = u.searchParams.get('ten') || 'tệp';
     const buf = await readRaw(req);
+
+    /* BẢN XUẤT THEO NGÀY đi đường riêng.
+     *
+     * LIVE Center có hai kiểu xuất: bảng phiên (mỗi dòng một phiên) và bốn tệp
+     * theo ngày (Viewership / Activity / Engagement / Rewards). Bộ đọc cũ vớ
+     * phải tệp theo ngày thì đọc ra 12 dòng chỉ có mỗi "lượt xem" và MẤT SẠCH
+     * ngày — đã thử với tệp thật. Dòng không ngày thì ghi vào bảng Phiên LIVE
+     * là số rơi vào hư không mà bảng vẫn trông bình thường. Nhận ra sớm ở đây. */
+    const theoNgay = liveNgay.docMot(buf, ten);
+    if (theoNgay.ds.length) return ok(res, await ghiLiveNgay(theoNgay, ten, u));
+
     const ds = docTepLive(buf, ten);
     const kq = await ghiDsLive(ds, {
       channel: u.searchParams.get('channel') || '',

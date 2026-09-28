@@ -184,6 +184,40 @@ module.exports = {
         updated: 'fldNN6cfPe',
       },
     },
+    /* LIVE theo NGÀY — bản xuất của TikTok LIVE Center, nhân sự tải lên.
+     *
+     * Tách hẳn khỏi bảng "Phiên LIVE": bảng kia mỗi dòng là MỘT phiên có giờ
+     * bắt đầu và kết thúc, còn bản xuất này gộp theo ngày và một ngày có thể 4
+     * phiên. Nhét một ngày vào một dòng phiên là nói dối về dữ liệu, và
+     * tien-live.js gắn doanh thu theo khung giờ phiên sẽ vơ hết lead cả ngày
+     * về cho LIVE. Xem live-ngay.js. */
+    liveNgay: {
+      id: 'tblNR46RzBJ8BVhe',
+      name: 'LIVE theo ngày',
+      f: {
+        key: 'fldIQufRVl',        // ⚙️ Khoá <extId>#<YYYY-MM-DD>
+        date: 'fldU9EOY9T',       // Ngày (datetime)
+        channel: 'fldHI3QknW',    // Kênh (link)
+        platform: 'fldcaJ9tA5',   // Nền tảng (select)
+        soPhien: 'fldS5YCehz',
+        thoiLuong: 'fldQerMzSI',  // giây
+        luotXem: 'fldwnHCTq9',
+        nguoiXemRieng: 'flduYbbgxm',
+        nguoiXemTuongTac: 'fldWGAZZfB',
+        xemTrungBinh: 'fldEXhyVTN',   // giây
+        dinhDongThoi: 'fldj5dwELa',
+        trungBinhDongThoi: 'flddQcTTSk',
+        nguoiTangQua: 'fld8QBw4vW',
+        followerMoi: 'fldwr2KLJx',
+        nguoiBinhLuan: 'fldFO2necu',
+        thich: 'fldXcqX5MI',
+        chiaSe: 'fld694DETg',
+        kimCuong: 'fld8ynP8gW',
+        usd: 'fldIEBsBVH',
+        source: 'fldwXQiRrJ',
+        updated: 'fldDTIb4eg',
+      },
+    },
     label: {
       id: 'tbl7hTSAe9vTikii',
       name: 'Nhãn bài',
