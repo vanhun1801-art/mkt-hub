@@ -1727,16 +1727,48 @@ const FILE_MIME = {
 
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
-function serveStatic(res, pathname) {
+
+/* ============================================================================
+ * SO BAN CUA TEP TINH
+ * ============================================================================
+ * App nay tra `no-store` cho MOI tep tinh, nen moi lan mo tab trong hub la
+ * trinh duyet tai lai toan bo CSS/JS - 374 KB, lan nao cung vay. Tren dien
+ * thoai do la khoan cham thay ro nhat.
+ *
+ * Ly do viet `no-store` ngay truoc la dung: sua app xong F5 phai thay ngay,
+ * khong bi giu ban cu. Cach giu duoc ca hai la danh so ban: doi tep thi van
+ * tay doi, tuc DIA CHI doi, nen khong bao gio lay nham ban cu - ma ban khong
+ * doi thi khong phai tai lai lan nao nua.
+ *
+ * Rieng index.html van no-store: no la noi duy nhat giu so ban cua cac tep
+ * kia, giu ban cu la xin dung nhung tep cu, va ca co che thanh vo nghia.
+ */
+const VAN_TAY = (() => {
+  const h = require('crypto').createHash('sha1');
+  try {
+    fs.readdirSync(PUBLIC_DIR).sort().forEach((f) => {
+      try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) {}
+    });
+  } catch (_) { h.update(String(Date.now())); }
+  return h.digest('hex').slice(0, 10);
+})();
+const soBan = (u) => /[?&]v=/.test(String(u || ''));
+const capNhatSoBan = (rel, buf) =>
+  /index\.html$/.test(rel) ? Buffer.from(buf.toString('utf8').split('__V__').join(VAN_TAY), 'utf8') : buf;
+const cacheTinh = (rel, u) =>
+  !/index\.html$/.test(rel) && soBan(u) ? 'public, max-age=31536000, immutable' : 'no-store';
+
+function serveStatic(res, pathname, truyVan) {
   const rel = pathname === '/' ? '/index.html' : pathname;
   const file = path.join(PUBLIC_DIR, path.normalize(rel));
   if (!file.startsWith(PUBLIC_DIR)) return json(res, { error: 'Forbidden' }, 403);
-  fs.readFile(file, (err, buf) => {
+  fs.readFile(file, (err, buf0) => {
     if (err) return json(res, { error: 'Not found' }, 404);
+    const buf = capNhatSoBan(rel, buf0);
     res.writeHead(200, {
       'Content-Type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream',
       'Content-Length': buf.length,
-      'Cache-Control': 'no-store',
+      'Cache-Control': cacheTinh(rel, truyVan),
     });
     res.end(buf);
   });
@@ -1771,7 +1803,7 @@ const server = http.createServer(async (req, res) => {
   await nguoiCuaRequest.run({ me: nguoiTuHeader(req), quyen: quyenTuHeader(req) }, async () => {
     try {
       if (url.pathname.startsWith('/api/')) return await api(req, res, url);
-      return serveStatic(res, url.pathname);
+      return serveStatic(res, url.pathname, url.search);
     } catch (e) {
       console.error('[ERR]', e.message);
       if (!res.headersSent) json(res, { error: e.message }, 500);

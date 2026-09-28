@@ -393,19 +393,25 @@ function send(res, code, body, headers = {}, daNen) {
 const ok = (res, b) => send(res, 200, b);
 const loi = (res, code, msg) => send(res, code, { error: msg });
 
+/* Lỗi do BÊN GỬI, không phải do máy chủ. Trước đây thân yêu cầu hỏng cũng ra
+ * 500: câu chữ đúng nhưng mã sai — 500 nghĩa là "máy chủ gãy", nên mọi bảng
+ * theo dõi báo động nhầm, và người viết app gọi vào cứ tưởng lỗi ở phía mình
+ * là không sửa được. */
+const loiKhach = (lyDo, ma) => Object.assign(new Error(lyDo), { http: ma });
+
 function docBody(req) {
   return new Promise((resolve, reject) => {
     const buf = [];
     let n = 0;
     req.on('data', (c) => {
       n += c.length;
-      if (n > 1024 * 1024) { reject(new Error('Body quá lớn')); req.destroy(); return; }
+      if (n > 1024 * 1024) { reject(loiKhach('Body quá lớn', 413)); req.destroy(); return; }
       buf.push(c);
     });
     req.on('end', () => {
       const raw = Buffer.concat(buf).toString('utf8');
       if (!raw) return resolve({});
-      try { resolve(JSON.parse(raw)); } catch (e) { reject(new Error('JSON không hợp lệ')); }
+      try { resolve(JSON.parse(raw)); } catch (e) { reject(loiKhach('JSON không hợp lệ', 400)); }
     });
     req.on('error', reject);
   });
@@ -2425,8 +2431,13 @@ const server = http.createServer(async (req, res) => {
 
   if (p.startsWith('/api/') || p === '/healthz') {
     return api(req, res, u).catch((e) => {
-      console.error('[API]', p, '->', e.message);
-      if (!res.headersSent) loi(res, 500, e.message || 'Lỗi không xác định');
+      /* e.http là lỗi ĐÃ được phân loại (thân hỏng, quá lớn…) — giữ nguyên mã
+       * đó. Chỉ thứ không ai phân loại mới đáng gọi là 500, và chỉ thứ đó mới
+       * đáng ghi vào log lỗi; đừng để yêu cầu rác của bên gửi làm ngập log
+       * tới mức sự cố thật lẫn vào giữa. */
+      const ma = e.http && e.http >= 400 && e.http < 600 ? e.http : 500;
+      if (ma >= 500) console.error('[API]', p, '->', e.message);
+      if (!res.headersSent) loi(res, ma, e.message || 'Lỗi không xác định');
     });
   }
 

@@ -78,15 +78,47 @@ const MIME = {
   '.png': 'image/png',
 };
 
+
+/* ============================================================================
+ * SO BAN CUA TEP TINH
+ * ============================================================================
+ * App nay tra `no-store` cho MOI tep tinh, nen moi lan mo tab trong hub la
+ * trinh duyet tai lai toan bo CSS/JS - 146 KB, lan nao cung vay. Tren dien
+ * thoai do la khoan cham thay ro nhat.
+ *
+ * Ly do viet `no-store` ngay truoc la dung: sua app xong F5 phai thay ngay,
+ * khong bi giu ban cu. Cach giu duoc ca hai la danh so ban: doi tep thi van
+ * tay doi, tuc DIA CHI doi, nen khong bao gio lay nham ban cu - ma ban khong
+ * doi thi khong phai tai lai lan nao nua.
+ *
+ * Rieng index.html van no-store: no la noi duy nhat giu so ban cua cac tep
+ * kia, giu ban cu la xin dung nhung tep cu, va ca co che thanh vo nghia.
+ */
+const VAN_TAY = (() => {
+  const h = require('crypto').createHash('sha1');
+  try {
+    fs.readdirSync(PUBLIC).sort().forEach((f) => {
+      try { h.update(fs.readFileSync(path.join(PUBLIC, f))); } catch (_) {}
+    });
+  } catch (_) { h.update(String(Date.now())); }
+  return h.digest('hex').slice(0, 10);
+})();
+const soBan = (u) => /[?&]v=/.test(String(u || ''));
+const capNhatSoBan = (rel, buf) =>
+  /index\.html$/.test(rel) ? Buffer.from(buf.toString('utf8').split('__V__').join(VAN_TAY), 'utf8') : buf;
+const cacheTinh = (rel, u) =>
+  !/index\.html$/.test(rel) && soBan(u) ? 'public, max-age=31536000, immutable' : 'no-store';
+
 function serveStatic(req, res, urlPath) {
   const rel = urlPath === '/' ? 'index.html' : urlPath.replace(/^\/+/, '');
   const file = path.join(PUBLIC, rel);
   if (!file.startsWith(PUBLIC)) return fail(res, 403, 'Từ chối');
-  fs.readFile(file, (err, buf) => {
+  fs.readFile(file, (err, buf0) => {
     if (err) return fail(res, 404, 'Không tìm thấy ' + rel);
+    const buf = capNhatSoBan(rel, buf0);
     res.writeHead(200, {
       'Content-Type': MIME[path.extname(file)] || 'application/octet-stream',
-      'Cache-Control': 'no-store',
+      'Cache-Control': cacheTinh(rel, req.url),
     });
     res.end(buf);
   });

@@ -1085,11 +1085,11 @@ async function xuLy(req, res) {
     const ten = p === '/' ? '/index.html' : p;
     const f = path.join(__dirname, 'public', ten.replace(/^\/+/, ''));
     if (f.startsWith(path.join(__dirname, 'public')) && fs.existsSync(f) && fs.statSync(f).isFile()) {
-      const buf = fs.readFileSync(f);
+      const buf = capNhatSoBan(ten, fs.readFileSync(f));
       res.writeHead(200, {
         'Content-Type': MIME[path.extname(f).toLowerCase()] || 'application/octet-stream',
         'Content-Length': buf.length,
-        'Cache-Control': 'no-cache',
+        'Cache-Control': cacheTinh(ten, req.url),
       });
       return res.end(buf);
     }
@@ -1097,6 +1097,37 @@ async function xuLy(req, res) {
 
   return json(res, { error: 'Not found' }, 404);
 }
+
+
+/* ============================================================================
+ * SO BAN CUA TEP TINH
+ * ============================================================================
+ * App nay tra `no-store` cho MOI tep tinh, nen moi lan mo tab trong hub la
+ * trinh duyet tai lai toan bo CSS/JS - 161 KB, lan nao cung vay. Tren dien
+ * thoai do la khoan cham thay ro nhat.
+ *
+ * Ly do viet `no-store` ngay truoc la dung: sua app xong F5 phai thay ngay,
+ * khong bi giu ban cu. Cach giu duoc ca hai la danh so ban: doi tep thi van
+ * tay doi, tuc DIA CHI doi, nen khong bao gio lay nham ban cu - ma ban khong
+ * doi thi khong phai tai lai lan nao nua.
+ *
+ * Rieng index.html van no-store: no la noi duy nhat giu so ban cua cac tep
+ * kia, giu ban cu la xin dung nhung tep cu, va ca co che thanh vo nghia.
+ */
+const VAN_TAY = (() => {
+  const h = require('crypto').createHash('sha1');
+  try {
+    fs.readdirSync(path.join(__dirname, 'public')).sort().forEach((f) => {
+      try { h.update(fs.readFileSync(path.join(path.join(__dirname, 'public'), f))); } catch (_) {}
+    });
+  } catch (_) { h.update(String(Date.now())); }
+  return h.digest('hex').slice(0, 10);
+})();
+const soBan = (u) => /[?&]v=/.test(String(u || ''));
+const capNhatSoBan = (rel, buf) =>
+  /index\.html$/.test(rel) ? Buffer.from(buf.toString('utf8').split('__V__').join(VAN_TAY), 'utf8') : buf;
+const cacheTinh = (rel, u) =>
+  !/index\.html$/.test(rel) && soBan(u) ? 'public, max-age=31536000, immutable' : 'no-store';
 
 /* ---------------- tiện ---------------- */
 function json(res, obj, code) {

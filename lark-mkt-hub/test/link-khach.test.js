@@ -18,7 +18,14 @@ const t = (n, c, x = '') => {
   else { fail += 1; console.log('  FAIL ' + n + (x ? '  → ' + x : '')); }
 };
 
-const src = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+/* Chuẩn hoá xuống dòng trước khi dò.
+ *
+ * Kho này để core.autocrlf=true, nên bản clone mới trên Windows nhận CRLF —
+ * mà các mốc dưới đây neo vào ký tự xuống dòng đơn. Không chuẩn hoá thì bài
+ * thử đỏ ở máy người khác trong khi mã hoàn toàn đúng; đỏ giả còn hại hơn
+ * không có bài thử, vì nó dạy người đọc bỏ qua màu đỏ. */
+const src = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8')
+  .split('\r\n').join('\n');
 const m = src.match(/const mKhach = (\/.*\/)\.exec\(p\);/);
 t('server.js có nhánh /k/', !!m);
 const RE = m ? eval(m[1]) : /$^/;                     // eslint-disable-line no-eval

@@ -78,9 +78,19 @@ function serveStatic(req, res, urlPath) {
     if (err) return fail(res, 404, 'Không tìm thấy ' + rel);
     let out = buf;
     if (rel === 'index.html') out = Buffer.from(buf.toString('utf8').split('__V__').join(VAN_TAY), 'utf8');
+    /* Trang chủ KHÔNG được vào cache: nó là nơi duy nhất giữ số bản của mọi
+     * file khác, giữ bản cũ là xin đúng những file cũ. Còn file được xin KÈM
+     * số bản thì cứ cache lâu — đổi file là đổi vân tay, tức đổi luôn địa chỉ,
+     * nên không bao giờ lấy nhầm bản cũ.
+     *
+     * Vân tay đã có sẵn từ lâu và index.html đã đóng dấu ?v=__V__, nhưng vẫn
+     * trả no-store, nên cả bộ máy đó không dùng được vào việc gì: mỗi lần mở
+     * một tab trong hub là tải lại toàn bộ CSS/JS của app. */
+    const coSoBan = /[?&]v=/.test(String(req.url || ''));
+    const cache = rel !== 'index.html' && coSoBan ? 'public, max-age=31536000, immutable' : 'no-store';
     res.writeHead(200, {
       'Content-Type': MIME[path.extname(file)] || 'application/octet-stream',
-      'Cache-Control': 'no-store',
+      'Cache-Control': cache,
     });
     res.end(out);
   });
