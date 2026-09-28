@@ -1392,7 +1392,10 @@ async function api(req, res, url) {
     const cells = toCells(patch);
     const out = await lark.createRecord(cells);
     cache.at = 0; // buộc tải lại lần sau
-    return json(res, { ok: true, result: out });
+    /* Trả luôn mã bản ghi: form Đăng ký tự lưu nháp (28/09) tạo lịch một lần,
+     * các lần sau PATCH đúng bản ghi đó — không có mã là mỗi lần lưu một lịch. */
+    const maMoi = (JSON.stringify(out || {}).match(/"(rec[A-Za-z0-9]{6,})"/) || [])[1] || null;
+    return json(res, { ok: true, id: maMoi, result: out });
   }
 
   /* --- đính kèm --- */

@@ -3070,7 +3070,14 @@ function openCreate(preDate) {
   $('#modal').classList.add('on');
 }
 
-function closeModal() { $('#modal').classList.remove('on'); }
+function closeModal() {
+  // form đăng ký: còn thay đổi chưa gửi thì gửi nốt; đã có nháp trên Base thì nói ra
+  if (laFormMoi() && !NEW.__gui) {
+    if (henMoi) tuLuuMoi();
+    if (NEW.__id) toast('Lịch đã lưu nháp trong Base (Đang lên kế hoạch) — mở lại để sửa tiếp hoặc gửi duyệt', 'ok');
+  }
+  $('#modal').classList.remove('on');
+}
 
 /**
  * PHIẾU ĐI TÁC NGHIỆP — cửa sổ chỉ để đọc.
@@ -3314,13 +3321,12 @@ function renderCreate() {
       'Quản lý đọc ô này khi duyệt.</div></div>' +
     '</div>';
 
-  /* Hai lối đi, nói thẳng ra khác nhau chỗ nào. Trước đây chân cửa sổ chỉ nhắc
-   * mỗi chuyện gửi duyệt, nên nút Lưu nháp đứng cạnh mà không ai đọc ra là một
-   * lựa chọn — ô Nháp vì thế lúc nào cũng trống. */
+  /* Không còn nút Lưu nháp (28/09, anh Hùng: "bỏ nút lưu nháp, tất cả đều tự
+   * động lưu nháp liên tục"): đủ 5 ô bắt buộc là tự lưu vào Base ở trạng thái
+   * Đang lên kế hoạch, sửa tiếp thì tự cập nhật đúng lịch đó. */
   $('#mdFoot').innerHTML =
-    '<span class="mini muted" style="margin-right:auto">Chưa xong thì <b>Lưu nháp</b> để sửa tiếp sau. ' +
-    'Xong rồi thì <b>Gửi duyệt</b> — lịch chuyển sang <b>Chờ duyệt/Xử lý</b> và khoá lại.</span>' +
-    '<button class="btn nhap" data-nsave="draft">Lưu nháp</button>' +
+    '<span class="mini muted" id="ttMoi" style="margin-right:auto">' + (NEW.__id ? 'Đã lưu nháp trong Base' : 'Điền đủ các ô có dấu * là tự lưu nháp vào Base') + '</span>' +
+    '<span class="mini muted" style="margin-right:8px">Xong thì <b>Gửi duyệt</b> — lịch chuyển sang <b>Chờ duyệt/Xử lý</b> và khoá lại.</span>' +
     '<button class="btn primary" data-nsave="send">Gửi duyệt</button>';
 
   /* Mở form ra đã có gợi ý sẵn nếu đang sửa một bản nháp có tên rồi. */
@@ -3371,6 +3377,84 @@ function veGoiYPhanLoai() {
     + dong('Loại hình', lh, NEW.loaiHinh, 'loaiHinh');
 }
 
+/** Thân lịch từ form đăng ký — dùng chung cho tự lưu nháp và Gửi duyệt. */
+function thanMoi() {
+  const body = {
+    title: NEW.title.trim(),
+    purpose: NEW.purpose.trim(),
+    plan: NEW.plan.trim(),
+    start: NEW.start,
+    duration: NEW.duration || null,
+    staff: NEW.staff,
+    transport: NEW.transport,
+    diaDiem: NEW.diaDiem,
+    loaiHinh: NEW.loaiHinh,
+    costPlan: NEW.costPlan === '' ? null : Number(NEW.costPlan),
+    foc: NEW.foc,
+    report: NEW.report.trim(),
+    focRequest: (NEW.foc || []).length > 0,
+    mediaRequest: false,
+  };
+  if (MGR()) body.owner = NEW.owner;
+  return body;
+}
+/** Lịch đã có trên Base (tự lưu nháp rồi): ghi đè bằng PATCH, giữ đúng luật POST. */
+function patchMoi(than) {
+  const p = Object.assign({}, than);
+  if (!MGR()) delete p.owner;                       // owner do quản lý phụ trách
+  // POST tự thêm người đăng ký vào nhóm nhân sự — PATCH thì không, giữ cho bằng
+  if (S.me && Array.isArray(p.staff) && !p.staff.includes(S.me.id)) p.staff = [...p.staff, S.me.id];
+  return p;
+}
+
+/* ---- TỰ LƯU NHÁP FORM ĐĂNG KÝ (28/09) ----
+ * Chưa đủ 5 ô bắt buộc (Base từ chối tạo): lớp iOS giữ nháp ngay trên máy.
+ * Đủ rồi: 2,5 giây sau lần sửa cuối tự tạo lịch "Đang lên kế hoạch" (như nút
+ * Lưu nháp cũ), rồi mỗi lần sửa tiếp PATCH đúng lịch đó. Đang mượn vai thì
+ * không ghi (máy chủ chặn mọi lệnh ghi lúc đó). */
+let henMoi = 0, dangMoi = false;
+const laFormMoi = () => $('#modal').classList.contains('on') && !!document.querySelector('#mdFoot [data-nsave]');
+const duBatBuoc = () => !!(NEW.title && NEW.title.trim() && NEW.purpose && NEW.purpose.trim() && NEW.start && NEW.diaDiem && NEW.loaiHinh);
+function ttMoi(chu) { const o = document.getElementById('ttMoi'); if (o) o.textContent = chu; }
+function henTuLuuMoi() {
+  if (!laFormMoi() || S.actingId || NEW.__gui) return;
+  if (JSON.stringify(thanMoi()) === NEW.__daLuu) return;
+  if (!duBatBuoc()) { ttMoi(NEW.__id ? 'Thiếu ô có dấu * — chưa lưu được thay đổi' : 'Điền đủ các ô có dấu * là tự lưu nháp vào Base'); return; }
+  clearTimeout(henMoi);
+  ttMoi('Có thay đổi chưa lưu…');
+  henMoi = setTimeout(() => tuLuuMoi(), 2500);
+}
+async function tuLuuMoi() {
+  clearTimeout(henMoi); henMoi = 0;
+  const form = NEW;
+  if (dangMoi || !duBatBuoc() || form.__gui || S.actingId) return;
+  const than = thanMoi(), js = JSON.stringify(than);
+  if (js === form.__daLuu) return;
+  dangMoi = true;
+  ttMoi('Đang lưu nháp…');
+  try {
+    if (!form.__id) {
+      const r = await api('/api/items', { method: 'POST', body: JSON.stringify(Object.assign({}, than, { status: 'Đang lên kế hoạch' })) });
+      if (!r || !r.id) throw new Error('máy chủ không trả mã lịch');
+      form.__id = r.id;
+    } else {
+      await api('/api/items/' + form.__id, { method: 'PATCH', body: JSON.stringify(patchMoi(than)) });
+    }
+    form.__daLuu = js;
+    const g = new Date();
+    if (form === NEW) ttMoi('Đã tự lưu nháp vào Base · ' + pad(g.getHours()) + ':' + pad(g.getMinutes()));
+    // lớp iOS thôi giữ nháp trên máy cho form này — bản thật đã ở Base
+    $('#modal').dispatchEvent(new CustomEvent('ios-nhap-xong', { bubbles: true }));
+    refresh(true);
+  } catch (e) {
+    if (form === NEW) ttMoi('Chưa tự lưu được — ' + e.message + '. Sửa tiếp là thử lại');
+  } finally {
+    dangMoi = false;
+    if (form === NEW && laFormMoi() && JSON.stringify(thanMoi()) !== form.__daLuu) henTuLuuMoi();
+  }
+}
+['input', 'change', 'click'].forEach((ev) => document.addEventListener(ev, () => setTimeout(henTuLuuMoi, 0)));
+
 async function submitCreate(mode) {
   if (!NEW.title.trim()) return toast('Chưa nhập Tên hoạt động', 'err');
   if (!NEW.purpose.trim()) return toast('Chưa nhập Mục đích', 'err');
@@ -3401,8 +3485,17 @@ async function submitCreate(mode) {
 
   const btns = document.querySelectorAll('[data-nsave]');
   btns.forEach((b) => (b.disabled = true));
+  clearTimeout(henMoi); henMoi = 0;
   try {
-    await api('/api/items', { method: 'POST', body: JSON.stringify(body) });
+    // đã tự lưu nháp lên Base → gửi duyệt CHÍNH lịch đó, không tạo thêm lịch thứ hai
+    if (NEW.__id) {
+      const p = patchMoi(body);
+      await api('/api/items/' + NEW.__id, { method: 'PATCH', body: JSON.stringify(p) });
+    } else {
+      await api('/api/items', { method: 'POST', body: JSON.stringify(body) });
+    }
+    NEW.__gui = true;
+    $('#modal').dispatchEvent(new CustomEvent('ios-nhap-xong', { bubbles: true }));
     closeModal();
     toast(mode === 'draft' ? 'Đã lưu nháp vào Base' : 'Đã gửi duyệt', 'ok');
     const doiKy = keoLocToiLich(body.start);

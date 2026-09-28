@@ -632,7 +632,7 @@ function theLuu(d) {
   return '<div class="the"><div class="the-than" ' +
     'style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">' +
     '<button class="btn chinh" id="btnNop">' + (daNop ? 'Cập nhật báo cáo' : 'Nộp báo cáo') + '</button>' +
-    '<button class="btn" id="btnNhap">Lưu nháp</button>' +
+    // Không còn nút Lưu nháp (28/09): phiếu chưa nộp tự lưu nháp liên tục
     '<span class="nho" id="ttTuLuu">' + (daNop ? '' : 'Tự lưu nháp khi có thay đổi') + '</span>' +
     '</div></div>';
 }
@@ -716,7 +716,6 @@ function gan(loaiKy) {
   }
 
   $('#btnNop').onclick = () => luu(true);
-  $('#btnNhap').onclick = () => luu(false);
   ['#txNhanDinh', '#txKeHoach', '#txHoTro', '#txVideo'].forEach((s) => {
     const e = $(s);
     if (e) e.oninput = () => { BAN = true; };
@@ -936,7 +935,7 @@ async function luu(nop) {
   if (nop && MAN === 'ngay' && !than.dong.length) return toast('Chưa có đầu việc nào để nộp.', 'do');
   clearTimeout(henTL);
 
-  const nut = [$('#btnNop'), $('#btnNhap')].filter(Boolean);
+  const nut = [$('#btnNop')].filter(Boolean);
   nut.forEach((b) => { b.disabled = true; });
   try {
     const r = await goi('/api/phieu', { method: 'POST', body: JSON.stringify(than) });
@@ -960,7 +959,7 @@ async function luu(nop) {
  * CHỈ tự lưu phiếu CHƯA NỘP: phiếu đã nộp mà gửi nop:false là rút nó về nháp —
  * sửa phiếu đã nộp vẫn phải bấm "Cập nhật báo cáo" như cũ. */
 let henTL = 0, dangTL = false, SUA = 0;
-const tuLuuDuoc = () => !!(BAN && DU && DU.ky && $('#btnNhap') && !(DU.phieu && DU.phieu.daNop));
+const tuLuuDuoc = () => !!(BAN && DU && DU.ky && $('#btnNop') && !(DU.phieu && DU.phieu.daNop));
 function ttTuLuu(chu, loi) {
   const o = $('#ttTuLuu');
   if (!o) return;
@@ -989,7 +988,8 @@ async function tuLuu(roiTrang) {
     const g = new Date();
     ttTuLuu('Đã tự lưu nháp · ' + String(g.getHours()).padStart(2, '0') + ':' + String(g.getMinutes()).padStart(2, '0'));
   } catch (e) {
-    ttTuLuu('Chưa tự lưu được — ' + e.message + '. Bấm "Lưu nháp" để thử lại', true);
+    ttTuLuu('Chưa tự lưu được — ' + e.message + '. Tự thử lại sau 15 giây', true);
+    henTL = setTimeout(() => tuLuu(), 15000);
   } finally {
     dangTL = false;
     if (BAN && SUA !== moc) henTuLuu();

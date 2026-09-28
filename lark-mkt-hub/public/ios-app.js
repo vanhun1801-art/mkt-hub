@@ -787,6 +787,17 @@
   };
   document.addEventListener('input', suKien, true);
   document.addEventListener('change', suKien, true);
+  /* App tự lưu nháp lên Base rồi (Lịch tác nghiệp: form Đăng ký) → bỏ bản trên
+   * máy và thôi giữ tiếp, kẻo mở form mới lại mời khôi phục một lịch đã có. */
+  document.addEventListener('ios-nhap-xong', (e) => {
+    const k = e.target && e.target.closest ? ngoai(e.target) || e.target : null;
+    if (!k) return;
+    clearTimeout(hen);
+    const t = trangThai.get(k);
+    xoa(t ? t.kh : khoa(k));
+    if (t) t.sua = true;
+    const b = k.querySelector('.ios-nhap-bar'); if (b) b.remove();
+  });
   // mở cửa sổ: dò có nháp không (form trống)
   let henDo = 0;
   new MutationObserver(() => {

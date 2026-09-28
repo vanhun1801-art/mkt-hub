@@ -219,7 +219,6 @@ function veToi() {
       '<textarea class="in" id="ghiChu" placeholder="Ghi chú cho quản lý / HCNS">' + esc(S.ghiChu != null ? S.ghiChu : ((ph && ph.ghiChu) || '')) + '</textarea>' +
       '<div class="hang-nut" style="margin-top:10px"><span class="lon"></span>' +
       '<span class="nho" id="ttTuLuu">' + (S.ttTuLuu || (doi ? S.ma.filter((m, i) => m !== d.ngay[i].ma).length + ' ngày chưa lưu' : (ph && ph.daNop) || d.hoNguoi ? '' : 'Tự lưu nháp khi có thay đổi')) + '</span>' +
-      '<button class="btn" data-luu="0"' + (S.dangLuu ? ' disabled' : '') + '>Lưu nháp</button>' +
       '<button class="btn chinh" data-luu="1"' + (S.dangLuu ? ' disabled' : '') + '>' +
       (ph && ph.daNop ? 'Nộp lại' : 'Nộp đăng ký') + '</button></div></div></section>';
   }
@@ -316,7 +315,8 @@ async function tuLuu(roiTrang) {
     const dangGo = document.activeElement && document.activeElement.id === 'ghiChu';
     if (!dangGo && SUA === moc && S.du === d) ve();   // đã sang tháng khác thì thôi   // trạng thái "Nháp · chưa nộp" + tổng công
   } catch (e) {
-    datTT('Chưa tự lưu được — ' + e.message + '. Bấm "Lưu nháp" để thử lại');
+    datTT('Chưa tự lưu được — ' + e.message + '. Tự thử lại sau 15 giây');
+    henTL = setTimeout(() => tuLuu(), 15000);
   } finally {
     dangTL = false;
     if (SUA !== moc) henTuLuu();
