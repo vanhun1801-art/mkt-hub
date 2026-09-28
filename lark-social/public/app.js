@@ -496,8 +496,11 @@
       + '</span></div></div>'
       + '<div class="card"><div class="card-head"><h3>Phiên LIVE</h3>'
       + '<div style="display:flex;gap:8px">'
-      + '<button class="btn ghost small" id="btnLiveTien">Gắn số về phiên</button>'
-      + '<button class="btn ghost small" id="btnLiveTay">Thêm một phiên</button>'
+      /* Hai nút này là việc của quản lý: một cái gắn doanh thu vào phiên, một
+       * cái thêm phiên bằng tay. Nút tải bản xuất thì để cho nhân sự — chính
+       * người trực LIVE mới có tệp trong tay. */
+      + (S.quanLy ? '<button class="btn ghost small" id="btnLiveTien">Gắn số về phiên</button>'
+        + '<button class="btn ghost small" id="btnLiveTay">Thêm một phiên</button>' : '')
       + '<button class="btn ghost small" id="btnLiveDan">Bảng LIVE Center</button>'
       + '</div></div><div class="card-body tight">'
       + bangGon([
@@ -519,9 +522,11 @@
       ], ds)
       + '</div></div>'
       + bangLiveNgay(dsNgay);
-    $('#btnLiveTay').onclick = moLiveTay;
     $('#btnLiveDan').onclick = moLiveDan;
-    $('#btnLiveTien').onclick = ganTienLive;
+    if (S.quanLy) {
+      $('#btnLiveTay').onclick = moLiveTay;
+      $('#btnLiveTien').onclick = ganTienLive;
+    }
   }
 
   /**
@@ -650,11 +655,14 @@
     moModal('<div class="modal-head"><h3>Bảng LIVE Center</h3></div>'
       + '<div class="modal-body"><div class="notes" style="margin-bottom:12px">'
       + '<div class="note info"><span class="ico">i</span><span>'
-      + 'Mở TikTok LIVE Center → xuất báo cáo → <b>thả tệp .xlsx hoặc .csv vào ô bên dưới</b>. '
-      + 'Không có tệp thì bôi đen cả bảng (kể cả dòng tiêu đề) rồi dán vào ô văn bản. '
-      + 'App đọc cột theo TÊN chứ không theo thứ tự, nên xuất bản nào cũng nhận. '
-      + 'Tên cột hiểu được: Thời gian bắt đầu · Thời gian kết thúc · Thời lượng · Lượt xem · '
-      + 'Người xem cao nhất · Bình luận · Thích · Chia sẻ · Người theo dõi mới · Tiêu đề.'
+      + 'Mở TikTok LIVE Center → tải báo cáo → <b>thả cả bốn tệp .zip vào ô bên dưới</b> '
+      + '(Viewership · Activity · Engagement · Rewards). Thả lại lần nữa thì số cập nhật '
+      + 'đè lên chính nó, không đẻ dòng mới — nên tuần nào tháng nào tải lại cũng được.'
+      + (S.quanLy
+        ? ' Ngoài ra còn nhận bảng PHIÊN (.xlsx/.csv hoặc bôi đen cả bảng rồi dán vào ô '
+          + 'văn bản): Thời gian bắt đầu · Thời gian kết thúc · Thời lượng · Lượt xem · '
+          + 'Người xem cao nhất · Bình luận · Thích · Chia sẻ · Người theo dõi mới · Tiêu đề.'
+        : '')
       + '</span></div></div>'
       + '<div class="kn-form"><div class="kn-row"><label>Kênh</label>' + chonKenhHtml('dnKenh') + '</div>'
       + '<div id="dnTha" style="border:1px dashed var(--vien,#3a4256);border-radius:10px;'
@@ -663,9 +671,11 @@
       + '<span class="sub-line">hoặc bấm để chọn — nhận .zip, .xlsx, .csv · '
       + 'thả được CẢ BỐN tệp cùng lúc</span>'
       + '<input type="file" id="dnTep" accept=".xlsx,.csv,.txt,.zip" multiple hidden></div>'
-      + '<textarea id="dnText" placeholder="…hoặc dán bảng vào đây"></textarea></div></div>'
+      + (S.quanLy ? '<textarea id="dnText" placeholder="…hoặc dán bảng vào đây"></textarea>' : '')
+      + '</div></div>'
       + '<div class="modal-foot"><button class="btn ghost" id="mHuy">Đóng</button>'
-      + '<button class="btn primary" id="mLuu">Đọc và ghi</button></div>');
+      + (S.quanLy ? '<button class="btn primary" id="mLuu">Đọc và ghi</button>' : '')
+      + '</div>');
     $('#mHuy').onclick = dongModal;
 
     const bao = (r) => {
@@ -695,12 +705,22 @@
     async function guiTep(ds) {
       const fs = [...(ds || [])].filter(Boolean);
       if (!fs.length) return;
-      const nut = $('#mLuu'); nut.disabled = true;
+      /* Nhân sự KHÔNG có nút "Đọc và ghi" — họ thả tệp là gửi luôn. Nên chỗ báo
+       * tiến độ phải chịu được việc không có nút; bản trước không chịu được và
+       * thả tệp là nổ ngay ("Cannot set properties of null"). */
+      const tha = $('#dnTha');
+      const chu0 = tha ? tha.innerHTML : '';
+      const nut = $('#mLuu');
+      const noi = (t) => {
+        if (nut) nut.textContent = t;
+        else if (tha) tha.innerHTML = '<b>' + t + '</b>';
+      };
+      if (nut) nut.disabled = true;
       try {
         const kq = [];
         for (let i = 0; i < fs.length; i += 1) {
           const f = fs[i];
-          nut.textContent = fs.length > 1 ? 'Đang đọc ' + (i + 1) + '/' + fs.length + '…' : 'Đang đọc…';
+          noi(fs.length > 1 ? 'Đang đọc ' + (i + 1) + '/' + fs.length + '…' : 'Đang đọc…');
           const q = new URLSearchParams({ ten: f.name, extId: $('#dnKenh').value });
           /* GỬI LẦN LƯỢT, không Promise.all: bốn tệp cùng ghi vào một bảng theo
            * khoá, chạy song song là hai lượt cùng thấy "chưa có dòng này" rồi
@@ -717,7 +737,8 @@
         else bao(kq[kq.length - 1]);
       } catch (e) {
         toast(e.message, 'err');
-        nut.disabled = false; nut.textContent = 'Đọc và ghi';
+        if (nut) { nut.disabled = false; nut.textContent = 'Đọc và ghi'; }
+        else if (tha) tha.innerHTML = chu0;
       }
     }
 
@@ -732,14 +753,16 @@
     }));
     tha.addEventListener('drop', (e) => guiTep(e.dataTransfer.files));
 
-    $('#mLuu').onclick = async () => {
-      const f = $('#dnTep').files && $('#dnTep').files[0];
-      if (f) return guiTep(f);
+    /* Nhân sự không có nút này — họ chỉ thả tệp, thả xong là gửi luôn. */
+    if ($('#mLuu')) $('#mLuu').onclick = async () => {
+      const fs = $('#dnTep').files;
+      if (fs && fs.length) return guiTep(fs);
       try {
         bao(await goiJSON('/api/live/dan-bang', {
           extId: $('#dnKenh').value, text: $('#dnText').value,
         }));
       } catch (e) { toast(e.message, 'err'); }
+      return undefined;
     };
   }
 

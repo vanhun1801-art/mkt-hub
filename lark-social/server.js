@@ -377,16 +377,34 @@ async function nhapTayNgay(ban) {
  * (LIVE Center đặt tên kèm handle) → chịu. Đoán bừa là số vào nhầm kênh, mà
  * nhầm kênh thì không ai nhìn ra vì bảng vẫn đầy đủ.
  */
-async function ghiLiveNgay(daDoc, ten, u) {
+async function ghiLiveNgay(daDoc, ten, u, req) {
   const g = liveNgay.gop([daDoc]);
   const d = await store.tai();
   const chon = (u.searchParams.get('extId') || '').trim();
   const handle = liveNgay.handleTuTen(ten);
+  /* Nhân sự chỉ thấy — và chỉ ghi được — kênh đã giao cho mình. Lọc TRƯỚC khi
+   * tìm: lọc sau thì tên tệp vẫn trỏ được sang kênh người khác rồi mới bị chặn,
+   * mà lúc ấy thông báo lại thành "không tìm thấy kênh" nghe như lỗi hệ thống. */
+  const han = await hanMucKenh(req);
+  const dsKenh = han || d.channels;
   const kenh = chon
-    ? d.channels.find((c) => c.extId === chon)
-    : d.channels.find((c) => String(c.handle || '').toLowerCase() === handle)
-      || d.channels.find((c) => String(c.extId || '').toLowerCase() === handle);
+    ? dsKenh.find((c) => c.extId === chon)
+    : dsKenh.find((c) => String(c.handle || '').toLowerCase() === handle)
+      || dsKenh.find((c) => String(c.extId || '').toLowerCase() === handle);
   if (!kenh) {
+    /* Kênh CÓ thật nhưng không phải của người này — nói thẳng, đừng để họ đi
+     * tìm xem mình gõ sai chỗ nào. */
+    const coThat = d.channels.some((c) => c.extId === chon
+      || String(c.handle || '').toLowerCase() === handle);
+    if (coThat && han) {
+      return {
+        canChonKenh: true,
+        loai: daDoc.loai,
+        soNgay: g.ds.length,
+        handle,
+        thongBao: 'Tệp này của kênh chưa giao cho bạn — báo anh Hùng nếu bạn phụ trách kênh đó.',
+      };
+    }
     return {
       canChonKenh: true,
       loai: daDoc.loai,
@@ -909,8 +927,14 @@ async function api(req, res, u) {
    * Thân yêu cầu là NHỊ PHÂN thô, không phải JSON và không phải multipart: chỉ
    * có đúng một tệp mỗi lượt, nên gói nó vào multipart là thêm một bộ phân tích
    * nữa để nuôi mà chẳng được gì. Tên tệp và kênh đi bằng query. */
+  /* NHÂN SỰ TẢI ĐƯỢC. Anh Hùng 28/09: "người báo cáo là nhân sự, em cho nhân
+   * sự tải file .zip lên giúp anh" — chính người trực LIVE mới là người có tệp
+   * trong tay, bắt họ nhờ quản lý tải hộ là việc sẽ không ai làm.
+   *
+   * Chốt không nằm ở vai mà ở PHẠM VI KÊNH: chỉ ghi được cho kênh đã giao cho
+   * người đó, xem ghiLiveNgay(). Tệp là bản xuất chính chủ của TikTok nên nội
+   * dung tin được; thứ phải giữ là không ai ghi đè số của kênh người khác. */
   if (p === '/api/live/tai-tep' && method === 'POST') {
-    const loi = chanNeuKhongPhaiQuanLy(req); if (loi) throw loi;
     const ten = u.searchParams.get('ten') || 'tệp';
     const buf = await readRaw(req);
 
@@ -922,8 +946,11 @@ async function api(req, res, u) {
      * ngày — đã thử với tệp thật. Dòng không ngày thì ghi vào bảng Phiên LIVE
      * là số rơi vào hư không mà bảng vẫn trông bình thường. Nhận ra sớm ở đây. */
     const theoNgay = liveNgay.docMot(buf, ten);
-    if (theoNgay.ds.length) return ok(res, await ghiLiveNgay(theoNgay, ten, u));
+    if (theoNgay.ds.length) return ok(res, await ghiLiveNgay(theoNgay, ten, u, req));
 
+    /* Đường ghi bảng PHIÊN LIVE vẫn chỉ quản lý: đó là bảng gắn doanh thu, và
+     * nó nhận cả bảng dán tay chứ không riêng bản xuất chính chủ. */
+    const loi = chanNeuKhongPhaiQuanLy(req); if (loi) throw loi;
     const ds = docTepLive(buf, ten);
     const kq = await ghiDsLive(ds, {
       channel: u.searchParams.get('channel') || '',
