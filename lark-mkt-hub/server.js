@@ -749,6 +749,37 @@ function ghiDiaPhim(i, ten, buf) {
   fs.writeFileSync(path.join(THU_MUC_DL, tenPhim(i, duoi)), buf);
 }
 
+/* ---- cầu nối đĩa <-> Base cho LOGO ----
+ * Logo có y hệt bài toán của ô phát: ổ đĩa Render là ổ tạm, tải lên qua Cài
+ * đặt là bay sau lần deploy kế tiếp, và khi đó mọi tệp xuất in bản chữ thay
+ * logo — hỏng im lặng, mở tệp ra mới biết.
+ *
+ * Dùng chung kho với ô phát (phim-kho.js), khoá riêng là 'logo'. */
+function coTepLogo() {
+  const t = tepLogo();
+  if (!t) return null;
+  try { return { co: fs.statSync(t.duong).size }; } catch (_) { return null; }
+}
+
+/** Hàng logo có thật trên Base chưa (không phải "kho có chạy không"). */
+async function logoTrenBase() {
+  if (!phimKho.co()) return false;
+  try {
+    const kho = await phimKho.docKho();
+    const o = kho.get(phimKho.KHOA_LOGO);
+    return !!(o && o.tep && o.tep.token);
+  } catch (_) { return false; }
+}
+
+/** Ghi logo kéo từ Base xuống bộ đệm. */
+function ghiDiaLogo(_khoa, ten, buf) {
+  const duoi = (String(ten).match(/[.][a-z0-9]+$/i) || ['.png'])[0].toLowerCase();
+  if (!MIME_LOGO[duoi]) return;
+  xoaLogo();
+  if (!fs.existsSync(THU_MUC_DL)) fs.mkdirSync(THU_MUC_DL, { recursive: true });
+  fs.writeFileSync(path.join(THU_MUC_DL, 'logo' + duoi), buf);
+}
+
 /** Xoá sạch ô i — MỌI đuôi, phòng khi ô từng đổi định dạng (video sang ảnh). */
 function xoaPhim(i) {
   const o = Number(i) || 1;
@@ -1093,6 +1124,15 @@ async function api(req, res, u) {
     return ok(res, {
       co: true, ten: path.basename(t.duong), mime: t.mime,
       kb: Math.round(st.size / 1024), luc: st.mtimeMs,
+      /* Nói THẬT chỗ logo đang được giữ: 'base' là sống qua deploy, 'tam' là
+       * mất sau lần deploy kế tiếp.
+       *
+       * Phải hỏi xem HÀNG LOGO có thật trên Base không, chứ không chỉ hỏi kho
+       * có chạy không. Bản đầu của chính chỗ này trả 'base' ngay cả khi logo
+       * mới chỉ nằm trên đĩa — một câu nói dối đúng kiểu nguy: quản lý yên tâm
+       * rồi deploy phát sau logo bay mất. */
+      kho: await logoTrenBase() ? 'base' : 'tam',
+      khoLoi: phimKho.loi(),
     });
   }
 
@@ -1105,14 +1145,26 @@ async function api(req, res, u) {
     if (buf.length > 2 * 1024 * 1024) return loi(res, 400, 'Ảnh quá 2 MB — nén bớt rồi tải lại');
     xoaLogo();
     if (!fs.existsSync(THU_MUC_DL)) fs.mkdirSync(THU_MUC_DL, { recursive: true });
-    fs.writeFileSync(path.join(THU_MUC_DL, 'logo' + DUOI_LOGO[khop[1]]), buf);
-    return ok(res, { ok: true, kb: Math.round(buf.length / 1024) });
+    const duoiLogo = DUOI_LOGO[khop[1]];
+    fs.writeFileSync(path.join(THU_MUC_DL, 'logo' + duoiLogo), buf);
+    /* Cất luôn lên Base — đĩa chỉ là bộ đệm. Cất hỏng thì vẫn trả ok (logo đã
+     * nằm trên đĩa, dùng được ngay) nhưng kèm mã lỗi Lark để Cài đặt nói ra,
+     * chứ không lặng lẽ để nó bay sau lần deploy sau. */
+    const lenLogo = await phimKho.ghiKho(phimKho.KHOA_LOGO,
+      { ten: 'logo' + duoiLogo, kieu: khop[1], buf });
+    return ok(res, {
+      ok: true, kb: Math.round(buf.length / 1024),
+      len: lenLogo, khoLoi: lenLogo ? '' : phimKho.loi(),
+    });
   }
 
   if (p === '/api/logo' && m === 'DELETE') {
     if (await chiQuanLy(req, res)) return;
     xoaLogo();
-    return ok(res, { ok: true });
+    /* Xoá cả trên Base. Thiếu bước này thì gỡ xong, deploy phát sau kho lại
+     * kéo về — đúng cái đã xảy ra với Video 2 (xem .gitignore). */
+    await phimKho.xoaKho(phimKho.KHOA_LOGO);
+    return ok(res, { ok: true, khoLoi: phimKho.loi() });
   }
 
   /* Video giới thiệu: phát trên trang Tổng quan, ai đăng nhập cũng xem được;
@@ -2427,10 +2479,15 @@ server.listen(cfg.port, () => {
    *
    * KHÔNG chờ: hub phải nhận request ngay, kéo tệp là việc nền. Tệp chưa về
    * kịp thì trang Tổng quan tạm chưa có ô phát, lát sau vào lại là có. */
-  phimKho.veDia(coTepPhim, ghiDiaPhim).then((kq) => {
-    if (!kq.ok) return console.log('  Ô phát: chưa kéo được từ Base — ' + (kq.lyDo || ''));
-    if (kq.keo) console.log('  Ô phát: kéo ' + kq.keo + ' tệp từ Base về bộ đệm.');
-    if (kq.loi) console.log('  Ô phát: có lỗi khi kéo — ' + kq.loi);
+  phimKho.veDia(
+    (k) => (k === phimKho.KHOA_LOGO ? coTepLogo() : coTepPhim(k)),
+    (k, ten, buf) => (k === phimKho.KHOA_LOGO ? ghiDiaLogo(k, ten, buf) : ghiDiaPhim(k, ten, buf)),
+  ).then((kq) => {
+    /* "Ô phát và logo": kho này giữ cả hai từ 28/09/2026. Câu cũ chỉ nói "Ô
+     * phát" nên lúc nó kéo logo về thì dòng log nói sai việc nó vừa làm. */
+    if (!kq.ok) return console.log('  Ô phát và logo: chưa kéo được từ Base — ' + (kq.lyDo || ''));
+    if (kq.keo) console.log('  Ô phát và logo: kéo ' + kq.keo + ' tệp từ Base về bộ đệm.');
+    if (kq.loi) console.log('  Ô phát và logo: có lỗi khi kéo — ' + kq.loi);
   }).catch(() => {});
 
   setInterval(() => { kids.ktSucKhoe(danhSach()).catch(() => {}); }, 10000);

@@ -37,6 +37,16 @@ const COT_O = 'Ô';
 const COT_TEP = 'Tệp';
 const COT_LUC = 'Cập nhật';
 
+/* Khoá của hàng LOGO. Bảng này vốn chỉ giữ ô phát 1..5, nhưng logo có y hệt
+ * bài toán: ổ đĩa Render là ổ tạm nên logo tải lên qua Cài đặt bay sau lần
+ * deploy kế tiếp, và mọi tệp xuất in bản chữ thay logo.
+ *
+ * Dùng CHUNG một bảng thay vì dựng bảng thứ hai: phòng chỉ phải chia sẻ một
+ * Base, và cột "Ô" vốn là văn bản nên chứa chữ 'logo' được. Nhờ đó mọi thứ
+ * khác — gỡ tệp cũ trước khi đính tệp mới, so cỡ để biết có phải tải lại,
+ * báo lỗi Lark ra Cài đặt — dùng lại nguyên, không chép thêm một bản. */
+const KHOA_LOGO = 'logo';
+
 const B = TABLE ? baseLark.bang(BASE, TABLE, COT_TEP) : null;
 
 /* Lỗi lần chạm Base gần nhất. Cài đặt đọc cái này để nói thật với người dùng
@@ -53,8 +63,9 @@ async function docKho() {
   const ds = await B.docHet();
   const ra = new Map();
   for (const d of ds) {
-    const o = Number(String(d[COT_O] || '').trim());
-    if (!(o >= 1 && o <= 5)) continue;
+    const raw = String(d[COT_O] || '').trim();
+    const o = raw === KHOA_LOGO ? KHOA_LOGO : Number(raw);
+    if (o !== KHOA_LOGO && !(o >= 1 && o <= 5)) continue;
     const tep = baseLark.docOTep(d[COT_TEP])[0] || null;
     ra.set(o, { recordId: d.recordId, tep });
   }
@@ -136,4 +147,4 @@ async function veDia(tepCua, ghiDia) {
   } catch (e) { bao(e); return { ok: false, lyDo: loiCuoi }; }
 }
 
-module.exports = { co, loi, docKho, ghiKho, xoaKho, veDia, BASE, TABLE };
+module.exports = { co, loi, docKho, ghiKho, xoaKho, veDia, BASE, TABLE, KHOA_LOGO };

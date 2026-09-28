@@ -253,9 +253,16 @@ function donDuLieu() {
         sv.indexOf('fs.writeFileSync(path.join(THU_MUC_DL, tenPhim(o, DUOI_PHIM[kieu])), buf);') <
         sv.indexOf('await phimKho.ghiKho(o,'));
       ok('gỡ ô thì gỡ cả trên Base', /await phimKho\.xoaKho\(o\)/.test(sv));
-      ok('khởi động là kéo từ Base về đệm', /phimKho\.veDia\(coTepPhim, ghiDiaPhim\)/.test(sv));
+      /* Từ 28/09/2026 kho giữ CẢ logo, nên lời gọi nhận hai hàm chọn đường
+       * theo khoá chứ không truyền thẳng coTepPhim/ghiDiaPhim nữa. Canh theo
+       * VIỆC nó làm, đừng canh theo đúng một dáng chữ. */
+      ok('khởi động là kéo từ Base về đệm',
+        /phimKho\.veDia\(/.test(sv) && /coTepPhim\(k\)/.test(sv) && /ghiDiaPhim\(k, ten, buf\)/.test(sv));
+      ok('… và kéo cả logo, không chỉ ô phát',
+        /coTepLogo\(\)/.test(sv) && /ghiDiaLogo\(k, ten, buf\)/.test(sv));
       /* Không được CHỜ: hub phải nhận request ngay, kéo tệp là việc nền. */
-      ok('… nhưng KHÔNG chờ nó xong mới chạy', /veDia\(coTepPhim, ghiDiaPhim\)\.then\(/.test(sv));
+      ok('… nhưng KHÔNG chờ nó xong mới chạy',
+        /\)\.then\(\(kq\) => \{/.test(sv.slice(sv.indexOf('phimKho.veDia('))));
       /* Chuyện này từng hỏng im lặng nhiều lần — Base chưa chia sẻ cho app,
        * thiếu scope, mạng chớp. Hỏng thì ô vẫn chạy bằng đệm, nhưng phải NÓI. */
       ok('nói rõ đang lưu ở đâu', /kho: khoOk \? 'base' : 'tam'/.test(sv));

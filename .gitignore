@@ -55,10 +55,14 @@ lark-kol/du-lieu/
 *.log
 **/*.log
 *.png
-# ...trừ logo thương hiệu. Nó không phải bí mật, và ổ đĩa Render là ổ TẠM: tải
-# lên qua Cài đặt thì mất sau lần deploy sau, nên mọi báo cáo xuất trên server
-# chung sẽ in bản chữ thay logo. Để trong repo là cách duy nhất nó sống được.
-!lark-mkt-hub/du-lieu/logo.*
+# Logo thương hiệu (đóng lên tệp xuất) KHÔNG để trong kho mã nữa.
+#
+# Trước 28/09/2026 thì có, vì để trong repo là cách duy nhất nó sống qua deploy.
+# Từ 28/09 logo cất trên Lark Base cùng kho với ô phát (phim-kho.js, khoá
+# 'logo'); `du-lieu/` chỉ còn là bộ đệm, hub khởi động thì kéo về.
+#
+# Giữ lại bản trong repo sẽ tái lập ĐÚNG lỗi của Video 2: gỡ trong Cài đặt,
+# deploy phát sau git khôi phục tệp, logo cũ sống lại. Một nguồn thôi.
 
 # Logo THẬT của app (Ma-Két) dùng làm favicon và logo góc panel. Đây là nhận
 # diện, không phải dữ liệu — phải nằm trong kho, nếu không ổ đĩa tạm của Render

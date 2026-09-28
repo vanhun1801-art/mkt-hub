@@ -46,12 +46,14 @@ try {
 
 ok('đọc được danh sách tệp git đang theo dõi', dsGit.length > 0, 'không chạy được git ls-files');
 
-/* HAI thứ được phép nằm lại, mỗi thứ một lý do rõ ràng:
- *   logo.*        — chưa có kho trên Base; bỏ ra là mọi tệp xuất trên bản
- *                   deploy in bản chữ thay logo.
- *   nhom-mkt.json — bản lưu danh sách nhóm MKT, để ngày đầu deploy đã có sẵn
- *                   một bản dùng ngay khi chưa đọc được Lark. */
-const DUOC_PHEP = /(^|\/)(logo\.[a-z0-9]+|nhom-mkt\.json)$/i;
+/* Chỉ MỘT thứ được phép nằm lại: nhom-mkt.json — bản lưu danh sách nhóm MKT,
+ * để ngày đầu deploy đã có sẵn một bản dùng ngay khi chưa đọc được Lark.
+ *
+ * Logo TỪNG được phép, vì trước 28/09/2026 nó chưa có kho trên Base. Từ khi
+ * cất được lên Base (phim-kho.js, khoá 'logo') thì giữ bản trong repo sẽ tái
+ * lập đúng lỗi của Video 2: gỡ trong Cài đặt, deploy phát sau git khôi phục,
+ * logo cũ sống lại. */
+const DUOC_PHEP = /(^|\/)(nhom-mkt\.json)$/i;
 const MEDIA = /\.(mp4|webm|mov|m4v|avi|mkv|png|jpe?g|gif|webp|avif)$/i;
 
 const lot = dsGit.filter((f) => MEDIA.test(f) && !DUOC_PHEP.test(f));
@@ -69,10 +71,20 @@ const moCua = gi.split('\n').filter((d) => /^!.*video-tong-quan/i.test(d.trim())
 ok('.gitignore không còn dòng bỏ-chặn cho video ô phát',
   moCua.length === 0, moCua.join(' · '));
 
-/* Nhưng logo thì VẪN phải được giữ — bỏ ra là hỏng thứ khác. Vá quá tay cũng
- * là một kiểu hỏng. */
-ok('logo vẫn được giữ trong kho (nó chưa có kho trên Base)',
-  /^!.*du-lieu\/logo\./m.test(gi) && dsGit.some((f) => /du-lieu\/logo\./i.test(f)));
+/* Logo giờ cũng sống trên Base — và phải KHÔNG còn trong kho mã, cùng lý do. */
+ok('logo không còn trong kho mã', !dsGit.some((f) => /du-lieu\/logo\./i.test(f)),
+  dsGit.filter((f) => /du-lieu\/logo\./i.test(f)).join(', '));
+ok('.gitignore không còn dòng bỏ-chặn cho logo',
+  !gi.split('\n').some((d2) => /^!.*du-lieu\/logo\./.test(d2.trim())));
+
+/* Nhưng phải có đường cất logo lên Base thật — gỡ khỏi repo mà không có chỗ
+ * cất là xoá trắng logo, vá quá tay cũng là một kiểu hỏng. */
+const sv = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+ok('POST /api/logo có cất lên Base', /phimKho\.ghiKho\(phimKho\.KHOA_LOGO/.test(sv));
+ok('DELETE /api/logo có xoá trên Base', /phimKho\.xoaKho\(phimKho\.KHOA_LOGO\)/.test(sv));
+ok('khởi động có kéo logo từ Base về', /KHOA_LOGO \? ghiDiaLogo/.test(sv));
+ok('Cài đặt nói THẬT logo đang ở đâu (hỏi hàng trên Base, không phải hỏi kho có chạy)',
+  /kho: await logoTrenBase\(\)/.test(sv));
 
 /* Chốt lại lý do: nguồn thật phải là Base. */
 const pk = fs.readFileSync(path.join(__dirname, '..', 'phim-kho.js'), 'utf8');
