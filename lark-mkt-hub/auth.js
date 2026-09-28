@@ -156,6 +156,14 @@ function clearSession(res) {
  */
 let tokenCache = { value: null, exp: 0 };
 
+/* Hạn giờ cho mọi cuộc gọi ra Lark. Không đặt thì Node để mặc định 300 giây:
+ * một lần Lark treo là trang đăng nhập đứng im năm phút mà không nói gì. Những
+ * lời gọi này bình thường dưới một giây; quá 20 giây thì không phải chậm nữa
+ * mà là hỏng, và báo hỏng sớm hơn là bắt người ta ngồi chờ. */
+const HAN_GOI = 20000;
+const han = () => (typeof AbortSignal !== 'undefined' && AbortSignal.timeout
+  ? AbortSignal.timeout(HAN_GOI) : undefined);
+
 async function tenantToken() {
   if (tokenCache.value && Date.now() < tokenCache.exp) return tokenCache.value;
   if (!cfg.appId || !cfg.appSecret) throw new Error('Thiếu LARK_APP_ID / LARK_APP_SECRET');
@@ -163,6 +171,7 @@ async function tenantToken() {
     method: 'POST',
     headers: { 'Content-Type': 'application/json; charset=utf-8' },
     body: JSON.stringify({ app_id: cfg.appId, app_secret: cfg.appSecret }),
+    signal: han(),
   });
   const d = await r.json();
   if (d.code !== 0) throw new Error('Lấy tenant_access_token thất bại: ' + (d.msg || d.code));
@@ -194,12 +203,14 @@ async function exchangeCode(code) {
       Authorization: 'Bearer ' + appToken,
     },
     body: JSON.stringify({ grant_type: 'authorization_code', code }),
+    signal: han(),
   });
   const d = await r.json();
   if (d.code !== 0) throw new Error('Đổi code thất bại: ' + (d.msg || d.code));
 
   const ui = await fetch(cfg.apiHost + '/open-apis/authen/v1/user_info', {
     headers: { Authorization: 'Bearer ' + d.data.access_token },
+    signal: han(),
   });
   const u = await ui.json();
   if (u.code !== 0) throw new Error('Lấy thông tin người dùng thất bại: ' + (u.msg || u.code));

@@ -67,6 +67,14 @@ function gomNguoi(d) {
     .filter((x) => x.ten);
 }
 
+/* Hạn giờ cho mọi cuộc gọi ra Lark. Không đặt thì Node để mặc định 300 giây:
+ * một lần Lark treo là trang đăng nhập đứng im năm phút mà không nói gì. Những
+ * lời gọi này bình thường dưới một giây; quá 20 giây thì không phải chậm nữa
+ * mà là hỏng, và báo hỏng sớm hơn là bắt người ta ngồi chờ. */
+const HAN_GOI = 20000;
+const han = () => (typeof AbortSignal !== 'undefined' && AbortSignal.timeout
+  ? AbortSignal.timeout(HAN_GOI) : undefined);
+
 async function quaApi() {
   const token = await tenantToken();
   const nguoi = [];
@@ -75,7 +83,7 @@ async function quaApi() {
     const u = cfg.apiHost + '/open-apis/im/v1/chats/' + encodeURIComponent(CHAT_ID) +
       '/members?member_id_type=open_id&page_size=100' +
       (cursor ? '&page_token=' + encodeURIComponent(cursor) : '');
-    const r = await fetch(u, { headers: { Authorization: 'Bearer ' + token } });
+    const r = await fetch(u, { headers: { Authorization: 'Bearer ' + token }, signal: han() });
     const d = await r.json();
     if (d.code !== 0) {
       /* 230002 / 99991672 nói đúng một chuyện: app chưa ở trong nhóm hoặc chưa

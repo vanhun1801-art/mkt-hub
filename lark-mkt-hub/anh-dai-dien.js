@@ -29,13 +29,21 @@ const anhCua = (u) => {
   return a.avatar_240 || a.avatar_middle || a.avatar_640 || a.avatar_big || a.avatar_72 || a.avatar_thumb || a.avatar_url || '';
 };
 
+/* Hạn giờ cho mọi cuộc gọi ra Lark. Không đặt thì Node để mặc định 300 giây:
+ * một lần Lark treo là trang đăng nhập đứng im năm phút mà không nói gì. Những
+ * lời gọi này bình thường dưới một giây; quá 20 giây thì không phải chậm nữa
+ * mà là hỏng, và báo hỏng sớm hơn là bắt người ta ngồi chờ. */
+const HAN_GOI = 20000;
+const han = () => (typeof AbortSignal !== 'undefined' && AbortSignal.timeout
+  ? AbortSignal.timeout(HAN_GOI) : undefined);
+
 async function quaApi(ids) {
   const token = await tenantToken();
   const ra = [];
   for (let i = 0; i < ids.length; i += 50) {
     const q = ids.slice(i, i + 50).map((x) => 'user_ids=' + encodeURIComponent(x)).join('&');
     const r = await fetch(cfg.apiHost + '/open-apis/contact/v3/users/batch?user_id_type=open_id&' + q,
-      { headers: { Authorization: 'Bearer ' + token } });
+      { headers: { Authorization: 'Bearer ' + token }, signal: han() });
     const d = await r.json();
     if (d.code !== 0) throw new Error('Lark từ chối đọc danh bạ (' + d.code + ' ' + (d.msg || '') + ')');
     ((d.data && d.data.items) || []).forEach((u) => ra.push({ id: u.open_id, ten: u.name || u.en_name || '', anh: anhCua(u) }));
@@ -66,6 +74,7 @@ async function idTheoEmail(emails) {
     const r = await fetch(cfg.apiHost + '/open-apis/contact/v3/users/batch_get_id?user_id_type=open_id', {
       method: 'POST', headers: { Authorization: 'Bearer ' + token, 'content-type': 'application/json' },
       body: JSON.stringify({ emails: emails.slice(i, i + 50) }),
+      signal: han(),
     });
     const d = await r.json();
     if (d.code === 0) ((d.data && d.data.user_list) || []).forEach((x) => { if (x.user_id) ra.push(x.user_id); });

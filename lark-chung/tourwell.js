@@ -148,6 +148,11 @@ async function goi(method, duong, than) {
     try {
       r = await fetch(cf.host + duong, {
         method,
+        /* Tourwell là hệ của bên khác, chậm hay treo là chuyện mình không nắm được.
+         * Không đặt hạn thì Node chờ 300 giây, và cả luồng đồng bộ đứng theo. 30
+         * giây là rộng cho một lời gọi đơn, mà vẫn đủ sớm để báo ra là hỏng. */
+        signal: (typeof AbortSignal !== 'undefined' && AbortSignal.timeout
+          ? AbortSignal.timeout(30000) : undefined),
         headers: {
           Authorization: 'Bearer ' + cf.token,
           Accept: 'application/json',

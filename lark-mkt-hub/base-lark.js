@@ -26,6 +26,25 @@ const cfg = require('./config');
 
 const laApi = () => cfg.mode === 'api';
 
+/* ============================================================================
+ * HAN GIO CHO CAC CUOC GOI RA NGOAI
+ * ============================================================================
+ * Khong cuoc goi nao ra Lark tung co han gio. Node de mac dinh 300 giay, ma
+ * lop thu-lai vua them o duoi thu toi 3 lan - xau nhat la 15 PHUT treo cho
+ * mot lan dang nhap, va nguoi dung chi thay trang trang khong noi gi.
+ *
+ * Moc chon theo viec, khong chon mot so chung:
+ *   - doi token & doc/ghi bang: 20 giay. Binh thuong duoi mot giay; qua 20
+ *     giay thi khong phai "cham" nua ma la hong, bao som con hon cho.
+ *   - tai tep len: 120 giay. Anh vai MB qua mang cham la co that.
+ * Qua han thi nem TimeoutError - ma laTamThoi() o duoi da nhan ra la loi tam
+ * thoi, nen no duoc thu lai dung nhu moi loi mang khac.
+ */
+const HAN_GOI = 20000;
+const HAN_TAI = 120000;
+const han = (ms) => (typeof AbortSignal !== 'undefined' && AbortSignal.timeout
+  ? AbortSignal.timeout(ms) : undefined);
+
 /* ---------------- token của app ---------------- */
 let tokenCache = { value: null, exp: 0 };
 
@@ -36,6 +55,7 @@ async function tenantToken() {
     method: 'POST',
     headers: { 'Content-Type': 'application/json; charset=utf-8' },
     body: JSON.stringify({ app_id: cfg.appId, app_secret: cfg.appSecret }),
+    signal: han(HAN_GOI),
   });
   const d = await r.json();
   if (d.code !== 0) throw new Error('Lấy tenant_access_token thất bại: ' + (d.msg || d.code));
@@ -143,6 +163,7 @@ function bang(baseToken, tableId, tenCotTep) {
       headers: Object.assign({ Authorization: 'Bearer ' + token },
         body ? { 'Content-Type': 'application/json; charset=utf-8' } : {}),
       body: body ? JSON.stringify(body) : undefined,
+      signal: han(HAN_GOI),
     });
     const d = await r.json();
     if (d.code !== 0) {
@@ -343,6 +364,7 @@ function bang(baseToken, tableId, tenCotTep) {
       method: 'POST',
       headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'multipart/form-data; boundary=' + bien },
       body: than,
+      signal: han(HAN_TAI),
     });
     const d = await r.json();
     if (d.code !== 0) {
@@ -471,9 +493,14 @@ function bang(baseToken, tableId, tenCotTep) {
         return { buf, kieu: ct };
       };
 
+      /* Cung han nhu tai len: day la tai VE mot tep dinh kem (anh, video o
+       * phat), co the vai MB. Khong dat han thi mot lan Lark treo la ca lan
+       * doc kho dung im nam phut. */
       const goiThu = async (nhan, url, headers) => {
-        try { return await doc(nhan, await fetch(url, headers ? { headers } : undefined)); }
-        catch (e) { loi.push(nhan + ' → ' + String(e.message || e)); return null; }
+        try {
+          return await doc(nhan, await fetch(url,
+            Object.assign({ signal: han(HAN_TAI) }, headers ? { headers } : {})));
+        } catch (e) { loi.push(nhan + ' → ' + String(e.message || e)); return null; }
       };
 
       const M = cfg.apiHost + '/open-apis/drive/v1/medias/';
@@ -487,7 +514,7 @@ function bang(baseToken, tableId, tenCotTep) {
       for (const [nhan, q] of [['đường tạm + bitablePerm', '&extra=' + extra], ['đường tạm', '']]) {
         try {
           const r = await fetch(M + 'batch_get_tmp_download_url?file_tokens=' +
-            encodeURIComponent(token) + q, { headers: dau });
+            encodeURIComponent(token) + q, { headers: dau, signal: han(HAN_GOI) });
           const d = await r.json();
           const mot = ((d.data || {}).tmp_download_urls || [])[0];
           if (d.code === 0 && mot && mot.tmp_download_url) {

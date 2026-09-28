@@ -1,0 +1,99 @@
+'use strict';
+/**
+ * ============================================================================
+ * MỌI CUỘC GỌI RA NGOÀI PHẢI CÓ HẠN GIỜ
+ * ============================================================================
+ * Anh Hùng 29/09/2026: "tuyệt đối không để sót một lỗi nào… kể cả kết nối".
+ *
+ * Soát ra: KHÔNG cuộc gọi nào ra Lark có hạn giờ. Node để mặc định 300 giây,
+ * và ngay trong đợt này lớp thử-lại vừa được thêm sẽ thử tới 3 lần — nên xấu
+ * nhất là MƯỜI LĂM PHÚT treo cho một lần đăng nhập, trong khi người dùng chỉ
+ * thấy một trang trắng không nói gì.
+ *
+ * Đây đúng là loại hỏng tệ nhất: nó không bao giờ xuất hiện lúc thử, chỉ xuất
+ * hiện đúng hôm Lark có sự cố — tức đúng hôm mình cần app chạy nhất.
+ *
+ * Mốc chọn theo VIỆC, không chọn một số chung:
+ *   · gọi Lark, gọi danh bạ, đổi token   20 giây  (bình thường dưới 1 giây)
+ *   · tải tệp lên Lark                  120 giây  (ảnh vài MB qua mạng chậm)
+ *   · gọi Tourwell                       30 giây  (hệ của bên khác)
+ *
+ * Quá hạn thì ném TimeoutError, mà câu lỗi của nó có chữ "timeout" nên
+ * laTamThoi() nhận ra là lỗi tạm thời — tức là vẫn được thử lại đàng hoàng,
+ * chứ không phải cắt rồi bỏ.
+ */
+const fs = require('fs');
+const path = require('path');
+
+let pass = 0, fail = 0;
+const fails = [];
+const ok = (ten, dk, vi) => {
+  if (dk) { pass++; console.log('  ✓ ' + ten); }
+  else { fail++; fails.push(ten + (vi ? ' — ' + vi : '')); console.log('  ✗ ' + ten + (vi ? '\n      ' + vi : '')); }
+};
+
+const HUB = path.join(__dirname, '..');
+const GOC = path.join(HUB, '..');
+
+console.log('\nkhông cuộc gọi ra ngoài nào được phép treo vô hạn');
+
+/* ---- quét từng lời gọi fetch trong các tệp gọi ra ngoài ---- */
+const TEP = [
+  ['lark-mkt-hub/base-lark.js', 'đọc/ghi Base, đổi token, tải tệp'],
+  ['lark-mkt-hub/auth.js', 'đăng nhập Lark'],
+  ['lark-mkt-hub/anh-dai-dien.js', 'danh bạ & ảnh đại diện'],
+  ['lark-mkt-hub/nhom-lark.js', 'đọc thành viên nhóm'],
+  ['lark-chung/tourwell.js', 'gọi Tourwell'],
+];
+
+for (const [tep, viec] of TEP) {
+  const s = fs.readFileSync(path.join(GOC, tep), 'utf8');
+  /* Cắt từ mỗi `fetch(` tới dấu `});` gần nhất — đủ để thấy có khai signal
+   * trong CHÍNH lời gọi đó hay không. Đếm theo từng lời gọi chứ không đếm cả
+   * tệp: một tệp có 3 lời gọi mà chỉ 1 chỗ đặt hạn thì vẫn còn 2 chỗ treo. */
+  const viTri = [];
+  let i = -1;
+  while ((i = s.indexOf('await fetch(', i + 1)) !== -1) viTri.push(i);
+  const thieu = [];
+  for (const v of viTri) {
+    const het = s.indexOf('});', v);
+    const doan = s.slice(v, het === -1 ? v + 400 : het + 3);
+    if (!/signal:/.test(doan)) thieu.push('dòng ' + (s.slice(0, v).split('\n').length));
+  }
+  ok(tep + ' (' + viec + '): cả ' + viTri.length + ' lời gọi đều có hạn giờ',
+    viTri.length > 0 && thieu.length === 0,
+    viTri.length === 0 ? 'không tìm thấy lời gọi nào — phép thử đang soi nhầm tệp'
+      : 'còn treo ở ' + thieu.join(', '));
+}
+
+/* ---- mốc phải hợp lý: không quá ngắn để cắt oan, không quá dài thành vô nghĩa ---- */
+const bl = fs.readFileSync(path.join(HUB, 'base-lark.js'), 'utf8');
+const soGoi = Number((/const HAN_GOI = (\d+)/.exec(bl) || [])[1]);
+const soTai = Number((/const HAN_TAI = (\d+)/.exec(bl) || [])[1]);
+ok('hạn gọi Base nằm trong khoảng hợp lý (10–60 giây)', soGoi >= 10000 && soGoi <= 60000, String(soGoi));
+ok('hạn tải tệp rộng hơn hạn gọi (ảnh vài MB cần thời gian thật)', soTai > soGoi, soTai + ' vs ' + soGoi);
+
+const tw = fs.readFileSync(path.join(GOC, 'lark-chung', 'tourwell.js'), 'utf8');
+ok('hạn gọi Tourwell nằm trong khoảng hợp lý', /AbortSignal\.timeout\((?:2|3|4|6)0000\)/.test(tw));
+
+/* ---- và quá hạn phải được coi là lỗi TẠM THỜI, không phải lỗi vĩnh viễn ----
+ * Nếu không, hạn giờ biến một sự cố thoáng qua thành một lần hỏng dứt khoát —
+ * tức là chữa một bệnh bằng cách gây một bệnh khác. */
+ok('lớp thử lại nhận ra lỗi quá hạn', /timeout|timed out/i.test(
+  (/const laTamThoi = [\s\S]*?\};/.exec(bl) || [''])[0]));
+
+/* Chốt bằng hành vi thật của Node, không chỉ bằng chữ trong mã: câu lỗi mà
+ * AbortSignal.timeout ném ra phải khớp được với biểu thức đó. */
+(async () => {
+  let e;
+  try {
+    await fetch('http://127.0.0.1:9', { signal: AbortSignal.timeout(1) });
+  } catch (x) { e = x; }
+  const cau = String((e && e.message) || '');
+  ok('câu lỗi quá hạn của Node khớp biểu thức đang dùng',
+    /timeout|timed out|fetch failed/i.test(cau), cau);
+
+  console.log('\n' + (fail ? '\x1b[31m' : '\x1b[32m') + pass + ' pass · ' + fail + ' fail\x1b[0m');
+  if (fail) console.log(fails.map((x) => ' - ' + x).join('\n'));
+  process.exit(fail ? 1 : 0);
+})();
