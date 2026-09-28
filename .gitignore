@@ -67,21 +67,21 @@ lark-kol/du-lieu/
 !lark-mkt-hub/public/logo-app-180.png
 
 
-# Video giới thiệu trên trang Tổng quan: ĐỂ TRONG KHO, cùng lý do với logo — ổ
-# đĩa Render là ổ tạm nên tệp tải lên qua Cài đặt sẽ mất sau lần deploy kế tiếp.
-# Anh Hùng chọn đường này (15/09/2026) sau khi cân với hai đường kia: cắt clip
-# xuống dưới 20 MB để đẩy lên Lark, hoặc tải lên lại sau mỗi lần deploy.
+# Video / ảnh của ô phát trang Tổng quan: KHÔNG để trong kho mã.
 #
-# CÁI GIÁ, nhớ trước khi đổi video: mỗi bản là một khối nhị phân ~24 MB nằm lại
-# trong lịch sử git VĨNH VIỄN, kể cả sau khi xoá tệp. Đổi vài lần là kho nặng
-# thêm vài chục MB. Đổi thường xuyên thì nên chuyển sang đường Lark.
-# Nhiều video phát luân phiên: ô 1 giữ tên cũ, ô 2..5 có hậu tố số.
-!lark-mkt-hub/du-lieu/video-tong-quan.mp4
-!lark-mkt-hub/du-lieu/video-tong-quan.webm
-!lark-mkt-hub/du-lieu/video-tong-quan.mov
-!lark-mkt-hub/du-lieu/video-tong-quan-[2-5].mp4
-!lark-mkt-hub/du-lieu/video-tong-quan-[2-5].webm
-!lark-mkt-hub/du-lieu/video-tong-quan-[2-5].mov
+# Trước 22/09/2026 thì có — hồi đó ổ đĩa tạm của Render là vấn đề duy nhất, nên
+# đưa tệp vào repo là cách duy nhất nó sống qua deploy (chọn 15/09/2026).
+#
+# Từ khi có phim-kho.js, nguồn THẬT là bảng "Ô phát trang Tổng quan" trên Lark
+# Base; `du-lieu/` chỉ còn là bộ đệm, hub khởi động thì kéo từ Base về.
+#
+# Để tệp trong repo sau đó thành NGUỒN THỨ HAI, và nó thắng: anh Hùng gỡ Video 2
+# trong Cài đặt (xoá cả đĩa lẫn Base), deploy phát sau là git khôi phục tệp vào
+# `du-lieu/`, mà `dsPhim()` quét ĐĨA để dựng danh sách ô — nên video gỡ rồi cứ
+# hiện lại. Gỡ bao nhiêu lần cũng vậy. Đo 28/09/2026.
+#
+# Muốn đổi video thì tải lên qua Cài đặt, Base giữ giùm. Đừng commit tệp media.
+# (Logo ở trên thì NGƯỢC LẠI — nó chưa có kho trên Base nên vẫn phải nằm đây.)
 .git-cu/
 
 # Bản logo app tải về từ hub để đóng lên tệp xuất — bản tạm, hub mới là chủ.
