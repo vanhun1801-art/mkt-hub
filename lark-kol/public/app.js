@@ -1325,12 +1325,12 @@ async function moEmail(ht, loai, dt, lang) {
   const coBuoc = loai === 'de-xuat' || loai === 'thu-moi';
   const hop = moModal(TEN_EMAIL[loai] + (dt ? ' · ' + dt : ''), (m.chan ? '<div class="bao cam">' + e(m.chan) + '</div>' : '') +
     (S.meta.mail.mode === 'api' ? (S.meta.mail.hopThu && S.meta.mail.hopThu.ketNoi
-      ? '<div class="bao xanh" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span>Gửi từ <b>' + e(S.meta.mail.from) + '</b> bằng tài khoản đã kết nối <b>' + e(S.meta.mail.hopThu.email) + '</b>. Bản trên Hub chỉ gửi thẳng, không lưu nháp.' +
+      ? '<div class="bao xanh" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span>Gửi từ <b>' + e(S.meta.mail.from) + '</b> bằng tài khoản đã kết nối <b>' + e(S.meta.mail.hopThu.email) + '</b>. Thư đang soạn tự giữ trên máy, gửi là đi thẳng.' +
         (S.meta.mail.hopThu.docDuoc ? ' App tự đọc thư trả lời mỗi 10 phút.' : ' <b>Chưa có quyền đọc thư trả lời</b> — bấm Ngắt kết nối rồi Kết nối hộp thư lại.')
         /* Quyền LƯU NHÁP thêm ngày 25/09/2026. Phiên kết nối trước đó không có
          * nó, nên lưu nháp và đính kèm tệp sẽ hỏng — nói ra ở đây để thấy
          * trước khi bấm, thay vì bấm rồi mới nhận câu lỗi. */
-        + (S.meta.mail.hopThu.nhapDuoc ? ' Lưu nháp và đính kèm tệp: được.' : ' <b>Chưa lưu nháp / đính kèm tệp được</b> — ngắt rồi kết nối lại để cấp thêm quyền.')
+        + (S.meta.mail.hopThu.nhapDuoc ? ' Đính kèm tệp: được.' : ' <b>Chưa đính kèm tệp được</b> — ngắt rồi kết nối lại để cấp thêm quyền.')
         /* Bày thẳng chuỗi quyền Lark ĐÃ cấp. Lúc hỏng mà không thấy nó thì phải
          * đoán giữa "chưa cấp quyền" và "cấp rồi nhưng sai hộp thư" — hai bệnh,
          * hai cách chữa, mà đoán sai là mất một vòng thử. */
@@ -1348,19 +1348,48 @@ async function moEmail(ht, loai, dt, lang) {
   '<span class="nho" style="margin-right:auto">Sửa trực tiếp trong khung. ' + (S.meta.mail.mode === 'api' ? 'Chữ ký bên dưới được gắn cuối thư khi gửi.' : 'Chữ ký Lark Mail tự thêm khi gửi.') + '</span>' +
     (coBuoc ? '<button class="btn" id="emDaGui"' + (m.chan ? ' disabled' : '') + '>Đã gửi từ Lark Mail</button>' : '') +
     '<button class="btn" id="emChep" title="Chép tiêu đề + nội dung (giữ bảng) để dán vào Lark Mail">Chép nội dung</button>' +
-    '<button class="btn" id="emNhap"' + (m.chan || !guiDuoc || !S.meta.mail.nhapDuoc ? ' disabled' : '') + (S.meta.mail.nhapDuoc ? '' : ' title="Chỉ bản chạy trên máy anh lưu nháp được"') + '>Lưu nháp</button><button class="btn chinh" id="emGui"' + (m.chan || !guiDuoc ? ' disabled' : '') + '>Gửi ngay</button>', true);
+    '<button class="btn chinh" id="emGui"' + (m.chan || !guiDuoc ? ' disabled' : '') + '>Gửi ngay</button>', true);
   const goi = async (gui) => {
     const b = { den: $('#emDen').value, cc: $('#emCc').value, tieuDe: $('#emTd').value, html: $('#emThan').innerHTML, gui, lang: m.lang || 'vi' };
     if (gui && !(await hoi({ tieuDe: 'Gửi email', noiDung: '"' + b.tieuDe + '" tới ' + b.den + (b.cc ? ' (CC ' + b.cc + ')' : '') + '. Gửi đi là không thu hồi được.', nut: 'Gửi ngay' }))) return;
     $$('.hop-chan .btn', hop).forEach((x) => { x.disabled = true; });
     try {
       const r = await api(duong, b);
+      if (r.daGui) { clearTimeout(henNhap); try { localStorage.removeItem(khNhap); } catch (_) {} }
       dongModal(); await nap(true);
       toast(r.daGui ? 'Đã gửi' + (r.buoc ? '. Bước: ' + r.buoc : '') : 'Đã lưu nháp trong Lark Mail' + (coBuoc ? ' — gửi xong bấm "Đã gửi từ Lark Mail"' : '')); ve();
     } catch (err) { toast(err.message, true); $$('.hop-chan .btn', hop).forEach((x) => { x.disabled = false; }); }
   };
   $('#emGui').onclick = () => goi(true);
-  $('#emNhap').onclick = () => goi(false);
+
+  /* NHÁP THƯ TỰ ĐỘNG (28/09). Anh Hùng: "bỏ luôn các nút nháp còn lại, tất cả
+   * đều có cơ chế tự lưu nháp". Thay cho nút "Lưu nháp" (nháp trong Lark Mail):
+   * thư đang soạn — người nhận, CC, tiêu đề, thân thư đã sửa — giữ NGAY TRÊN MÁY
+   * theo từng hợp tác × loại thư × đối tác × ngôn ngữ. Mở lại là thấy đúng bản
+   * đang soạn dở; gửi xong thì bỏ. */
+  const khNhap = 'kol.thu.' + ht.id + '.' + loai + '.' + (dt || '') + '.' + (m.lang || 'vi');
+  let nhap = null;
+  try { nhap = JSON.parse(localStorage.getItem(khNhap) || 'null'); } catch (_) {}
+  if (nhap && Date.now() - nhap.at < 14 * 864e5) {
+    $('#emDen').value = nhap.den || ''; $('#emCc').value = nhap.cc || ''; $('#emTd').value = nhap.tieuDe || ''; $('#emThan').innerHTML = nhap.html || '';
+    const bao = document.createElement('div');
+    bao.className = 'bao xanh';
+    bao.innerHTML = 'Đang mở lại thư soạn dở lúc ' + new Date(nhap.at).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) +
+      '. <button type="button" class="btn nho" id="emSoanLai">Soạn lại từ mẫu</button>';
+    const dau = $('.thu-dau', hop);
+    dau.parentElement.insertBefore(bao, dau);
+    $('#emSoanLai').onclick = () => { try { localStorage.removeItem(khNhap); } catch (_) {} dongModal(); moEmail(ht, loai, dt, lang); };
+  }
+  let henNhap = 0;
+  const giuNhap = (ev) => {
+    // lớp iOS có cơ chế nháp chung cho form — khung này app tự giữ, bảo nó đứng ngoài
+    if (ev && ev.target) ev.target.dispatchEvent(new CustomEvent('ios-nhap-xong', { bubbles: true }));
+    clearTimeout(henNhap);
+    henNhap = setTimeout(() => {
+      try { localStorage.setItem(khNhap, JSON.stringify({ at: Date.now(), den: $('#emDen').value, cc: $('#emCc').value, tieuDe: $('#emTd').value, html: $('#emThan').innerHTML })); } catch (_) {}
+    }, 500);
+  };
+  ['#emDen', '#emCc', '#emTd', '#emThan'].forEach((x) => { const o = $(x); if (o) o.addEventListener('input', giuNhap); });
   $$('[data-lang]', hop).forEach((b) => { b.onclick = () => { if (b.dataset.lang !== m.lang) moEmail(ht, loai, dt, b.dataset.lang); }; });
   /* chữ ký (bản trên Hub): xem trước + sửa bằng cách dán từ Lark Mail */
   if ($('#emCkXem')) {

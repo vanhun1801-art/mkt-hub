@@ -867,6 +867,7 @@ async function napBaoCao(dotId) {
   try {
     const d = await api('/api/bao-cao' + (dotId ? '?dot=' + encodeURIComponent(dotId) : ''));
     BC.du = d; BC.dot = d.bao.ky.dotId;
+    layNhapThu();
     if (!BC.kyMoi) BC.kyMoi = goiYKyMoi(d.ky, BC.dot);
   } catch (e) { BC.loi = e.message; BC.du = null; }
   BC.dang = false; ve();
@@ -943,15 +944,14 @@ function veBaoCao() {
       + '<div class="bc-nut">'
         + '<button class="btn" id="bcXem">Xem trước thư</button>'
         + '<div class="sp"></div>'
-        + '<button class="btn" id="bcNhap">Lưu nháp vào Lark Mail</button>'
         + '<button class="btn primary" id="bcGui">Gửi ngay</button>'
       + '</div>'
       /* Nói TRƯỚC khi bấm: thư này đi thẳng tới Ban Giám Đốc và không có nút
        * thu hồi. Và tệp thì không tự đính kèm được — phải nói ra, đừng để anh
        * bấm gửi rồi mới phát hiện Sếp nhận một lá thư thiếu tệp. */
       + '<div class="bc-nhac">Tệp Excel của kỳ này TỰ đính kèm vào thư. '
-        + '<b>Lưu nháp</b> để mở Lark Mail đọc lại rồi tự bấm gửi — <b>Gửi ngay</b> thì thư đi '
-        + 'luôn, không thu hồi được.</div>'
+        + 'Các ô trên tự giữ trên máy khi đang soạn. <b>Gửi ngay</b> thì thư đi '
+        + 'luôn, không thu hồi được — bấm <b>Xem trước thư</b> để đọc lại trước.</div>'
       + (BC.thu ? '<div class="bc-xem"><div class="bc-xem-td">' + esc(BC.thu.tieuDe)
         + '</div><div class="bc-xem-than">' + BC.thu.html + '</div></div>' : '')
     + '</div>'
@@ -1313,24 +1313,22 @@ document.addEventListener('click', async (e) => {
     catch (e) { toast(e.message, 'err'); n.disabled = false; n.textContent = 'Xem trước thư'; }
     return;
   }
-  const bcGui = T.closest('#bcGui') || T.closest('#bcNhap');
+  const bcGui = T.closest('#bcGui');
   if (bcGui && BC.dot) {
-    const ngay = !!T.closest('#bcGui');
+    // Chỉ còn Gửi ngay: nút "Lưu nháp vào Lark Mail" bỏ 28/09 — nháp tự giữ trên máy
     const d = BC.thu || await soanThuBaoCao().catch((e) => { toast(e.message, 'err'); return null; });
     if (!d) return;
-    const hoi = ngay
-      ? 'GỬI NGAY tới ' + d.den + '?' + XUONG_DONG + XUONG_DONG + d.tieuDe + XUONG_DONG
-        + XUONG_DONG + 'Kèm tệp Excel của kỳ. Thư đi thẳng, không thu hồi được.'
-      : 'Lưu nháp vào Lark Mail (kèm tệp Excel) để mở ra đọc lại rồi tự gửi?';
+    const hoi = 'GỬI NGAY tới ' + d.den + '?' + XUONG_DONG + XUONG_DONG + d.tieuDe + XUONG_DONG
+      + XUONG_DONG + 'Kèm tệp Excel của kỳ. Thư đi thẳng, không thu hồi được.';
     if (!confirm(hoi)) return;
     bcGui.disabled = true;
     const chuCu = bcGui.textContent;
-    bcGui.textContent = ngay ? 'Đang gửi…' : 'Đang lưu…';
+    bcGui.textContent = 'Đang gửi…';
     try {
       await api('/api/bao-cao/gui', { method: 'POST', body: JSON.stringify({
-        dot: BC.dot, den: d.den, cc: d.cc, tieuDe: d.tieuDe, html: d.html, gui: ngay }) });
-      toast(ngay ? 'Đã gửi tới ' + d.den + ' (kèm tệp Excel)'
-        : 'Đã lưu nháp kèm tệp — mở Lark Mail, mục Nháp, để đọc lại rồi gửi', 'ok');
+        dot: BC.dot, den: d.den, cc: d.cc, tieuDe: d.tieuDe, html: d.html, gui: true }) });
+      toast('Đã gửi tới ' + d.den + ' (kèm tệp Excel)', 'ok');
+      xoaNhapThu();
     } catch (e) { toast(e.message, 'err'); }
     bcGui.disabled = false; bcGui.textContent = chuCu;
     return;
@@ -1580,8 +1578,32 @@ document.addEventListener('click', async (e) => {
 document.addEventListener('input', (e) => {
   const o = e.target.closest('[data-bc]');
   /* Gõ thì chỉ nhớ, KHÔNG vẽ lại — vẽ lại giữa chừng là con trỏ nhảy về đầu ô. */
-  if (o) { BC[o.dataset.bc] = o.value; BC.thu = null; }
+  if (o) { BC[o.dataset.bc] = o.value; BC.thu = null; giuNhapThu(); }
 });
+
+/* NHÁP THƯ GỬI BGĐ (28/09). Anh Hùng: "bỏ luôn các nút nháp còn lại, tất cả
+ * đều có cơ chế tự lưu nháp". Thay nút "Lưu nháp vào Lark Mail": bốn ô của thư
+ * (xin nhập, cho kỳ, hạng mục, ghi chú) tự giữ trên máy theo từng kỳ báo cáo,
+ * mở lại kỳ đó là có lại; gửi xong thì bỏ. */
+const O_THU = ['xinNap', 'kyMoi', 'hangMuc', 'ghiChu'];
+const khNhapThu = () => 'quy.thu.' + (BC.dot || '');
+let henThu = 0;
+function giuNhapThu() {
+  clearTimeout(henThu);
+  henThu = setTimeout(() => {
+    try {
+      const f = {}; O_THU.forEach((k) => { f[k] = BC[k] || ''; });
+      if (O_THU.some((k) => String(f[k]).trim())) localStorage.setItem(khNhapThu(), JSON.stringify({ at: Date.now(), f }));
+    } catch (_) {}
+  }, 500);
+}
+function layNhapThu() {
+  try {
+    const x = JSON.parse(localStorage.getItem(khNhapThu()) || 'null');
+    if (x && Date.now() - x.at < 30 * 864e5) O_THU.forEach((k) => { if (x.f[k] != null) BC[k] = x.f[k]; });
+  } catch (_) {}
+}
+function xoaNhapThu() { clearTimeout(henThu); try { localStorage.removeItem(khNhapThu()); } catch (_) {} }
 
 document.addEventListener('change', (e) => {
   if (e.target.id === 'bcKy') { BC.thu = null; BC.kyMoi = ''; return napBaoCao(e.target.value); }

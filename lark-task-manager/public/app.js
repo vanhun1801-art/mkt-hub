@@ -2893,57 +2893,6 @@ function nhanLucNhap(v) {
   return cungNgay ? gio : gio + ' · ' + p(d.getDate()) + '/' + p(d.getMonth() + 1);
 }
 
-/** Bấm "Lưu nháp": cất bản đang soạn lên Base rồi đóng form. */
-async function luuNhap() {
-  const t = S.editing;
-  if (!t || !t.isNew) return;
-  if (!nhapCoGi(t)) { toast('Nháp cần ít nhất tên việc hoặc chi tiết yêu cầu'); return; }
-
-  const btn = $('#dNhap');
-  btn.disabled = true;
-  const chuCu = btn.textContent;
-  btn.textContent = 'Đang lưu…';
-  try {
-    // gửi đúng bộ trường vai trò hiện tại được phép, như lúc tạo việc thật
-    const allowed = S.isManager
-      ? S.meta.rules.staffCreatable.concat(S.meta.rules.managerOnlyFields)
-      : S.meta.rules.staffCreatable;
-    const payload = {};
-    for (const k of allowed) {
-      const v = t[k];
-      if (v == null || v === '' || (Array.isArray(v) && !v.length)) continue;
-      payload[k] = v;
-    }
-    if (S.nhapId) payload.id = S.nhapId;
-
-    const kq = await req('/api/nhap', { method: 'POST', body: JSON.stringify(payload) });
-    S.nhapId = kq.id || S.nhapId;
-
-    /* Có bản ghi rồi thì tệp đang chờ tải lên được luôn — đây là cái mà nháp để
-     * trong trình duyệt không làm được. */
-    const soTep = (S.tepMoi || []).length;
-    let hong = [];
-    if (soTep && S.nhapId) {
-      btn.textContent = 'Đang tải tệp…';
-      hong = await taiTepViecMoi(S.nhapId);
-      S.tepMoi = [];
-    }
-
-    toast('Đã lưu nháp' + (soTep ? ' · ' + (soTep - hong.length) + '/' + soTep + ' tệp' : '') +
-      ' — mở "+ Công việc" là soạn tiếp');
-    if (hong.length) toast('Chưa đính được: ' + hong.join(' · '), true);
-    closeDrawer();
-    // để bản nháp vừa lưu hiện ngay trong làn "Nháp" của Việc của tôi
-    await napNhap();
-    render();
-  } catch (e) {
-    toast('Không lưu được nháp: ' + e.message, true);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = chuCu;
-  }
-}
-
 /** Xoá hẳn một bản nháp khỏi Base. */
 async function boNhap(id) {
   await req('/api/nhap/' + encodeURIComponent(id), { method: 'DELETE' });
@@ -2995,6 +2944,10 @@ function openDrawer(task, nhap) {
 }
 
 function closeDrawer() {
+  // việc mới còn thay đổi chưa cất: cất nốt (tuLuuNhap chụp S.editing ngay lúc gọi)
+  if (henNhap && S.editing && S.editing.isNew) {
+    tuLuuNhap().then(() => napNhap()).then(() => render()).catch(() => {});
+  }
   S.editing = null;
   S.dirty = {};
   $('#drawer').classList.remove('open');
@@ -3008,6 +2961,53 @@ function set(key, val) {
   S.editing[key] = val;
   $('#dStatusMsg').textContent = 'Có thay đổi chưa lưu';
   if (key === 'title') $('#dTitleView').textContent = val || '(chưa có tên)';
+  if (S.editing.isNew) henNhapTD();
+}
+
+/* TỰ LƯU NHÁP VIỆC MỚI (28/09). Anh Hùng: "bỏ luôn các nút nháp còn lại, tất
+ * cả đều có cơ chế tự lưu nháp". Thay nút "Lưu nháp": sửa xong 2,5 giây thì tự
+ * cất lên Base đúng đường /api/nhap cũ (nháp ẩn, chỉ chủ nó thấy, "Tạo công
+ * việc" đè lên chính bản ghi đó) — nhưng KHÔNG đóng form. Tệp chờ tải lên vẫn
+ * đợi lúc Tạo công việc. Đóng form thì gửi nốt phần chưa cất. */
+let henNhap = 0, nhapDangLuu = null;
+function henNhapTD() {
+  clearTimeout(henNhap);
+  henNhap = setTimeout(() => { tuLuuNhap(); }, 2500);
+}
+function tuLuuNhap() {
+  clearTimeout(henNhap); henNhap = 0;
+  const t = S.editing;
+  if (!t || !t.isNew || !nhapCoGi(t) || S.viewAs) return nhapDangLuu || Promise.resolve();
+  const truoc = nhapDangLuu || Promise.resolve();
+  nhapDangLuu = truoc.then(async () => {
+    const payload = thanNhap(t);
+    if (S.nhapId) payload.id = S.nhapId;
+    try {
+      const kq = await req('/api/nhap', { method: 'POST', body: JSON.stringify(payload) });
+      S.nhapId = kq.id || S.nhapId;
+      if (S.editing === t) {
+        const g = new Date();
+        $('#dStatusMsg').textContent = 'Đã tự lưu nháp · ' + String(g.getHours()).padStart(2, '0') + ':' +
+          String(g.getMinutes()).padStart(2, '0') + ' — chỉ anh thấy';
+      }
+    } catch (e) {
+      if (S.editing === t) $('#dStatusMsg').textContent = 'Chưa tự lưu được nháp — ' + e.message;
+    }
+  }).finally(() => { nhapDangLuu = null; });
+  return nhapDangLuu;
+}
+/** Bộ trường nháp: đúng bộ vai trò hiện tại được phép gửi, như lúc tạo việc thật. */
+function thanNhap(t) {
+  const allowed = S.isManager
+    ? S.meta.rules.staffCreatable.concat(S.meta.rules.managerOnlyFields)
+    : S.meta.rules.staffCreatable;
+  const payload = {};
+  for (const k of allowed) {
+    const v = t[k];
+    if (v == null || v === '' || (Array.isArray(v) && !v.length)) continue;
+    payload[k] = v;
+  }
+  return payload;
 }
 
 /** Drawer ở chế độ nhân sự: khoá trường của người order. */
@@ -3044,8 +3044,6 @@ function buildDrawer() {
     : 'Về bản gọn — đúng những gì nhân sự nhìn thấy';
   $('#dSave').textContent = isNew ? 'Tạo công việc' : 'Lưu thay đổi';
   $('#dSave').classList.toggle('hidden', orderRO);   // read-only: không có gì để lưu
-  // Nháp chỉ có nghĩa với việc chưa tồn tại; việc đã có thì "Lưu thay đổi" ghi thẳng
-  $('#dNhap').classList.toggle('hidden', !isNew);
 
   /* Đầu ô chi tiết nhuốm màu theo giai đoạn, và mang luôn cái quan trọng nhất
    * là HẠN — vì dưới kia chỉ còn bốn viên trạng thái/ưu tiên/order/loại việc. */
@@ -3891,6 +3889,9 @@ async function saveDrawer() {
   btn.disabled = true;
   try {
     if (t.isNew) {
+      // đợi lượt tự lưu nháp đang chạy xong, để "Tạo công việc" đè đúng bản nháp đó
+      clearTimeout(henNhap); henNhap = 0;
+      if (nhapDangLuu) await nhapDangLuu;
       // Gom payload từ đúng những trường vai trò hiện tại được phép gửi
       const allowed = S.isManager
         ? S.meta.rules.staffCreatable.concat(S.meta.rules.managerOnlyFields, ['status'])
@@ -4801,7 +4802,6 @@ function setupChrome() {
   $('#dCancel').onclick = closeDrawer;
   $('#scrim').onclick = () => luuRoiDong();
   $('#dSave').onclick = saveDrawer;
-  $('#dNhap').onclick = luuNhap;
   $('#dDelete').onclick = deleteCurrent;
 
   $('#doneSubmit').onclick = submitDone;
