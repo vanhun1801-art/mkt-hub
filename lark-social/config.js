@@ -216,6 +216,11 @@ module.exports = {
         usd: 'fldIEBsBVH',
         source: 'fldwXQiRrJ',
         updated: 'fldDTIb4eg',
+        /* Nhãn GẮN TAY. Bản xuất LIVE Center không có cột tiêu đề — chỉ ngày và
+         * số — nên không suy ra được điểm đến như phiên LIVE Facebook. Người
+         * trực LIVE biết hôm đó quay ở đâu, nên họ chọn. Lượt tải lại KHÔNG
+         * được đụng vào cột này. */
+        nhan: 'fldnZIcpJr',
       },
     },
     label: {

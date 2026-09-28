@@ -192,6 +192,7 @@ function docLiveNgay(r) {
     platform: sel(r.c[f.platform]),
     source: clean(r.c[f.source]),
     updated: clean(r.c[f.updated]),
+    nhanTay: clean(r.c[f.nhan]),
   };
   ['soPhien', 'thoiLuong', 'luotXem', 'nguoiXemRieng', 'nguoiXemTuongTac',
     'xemTrungBinh', 'dinhDongThoi', 'trungBinhDongThoi', 'nguoiTangQua',

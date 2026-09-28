@@ -2,6 +2,7 @@
 /* Test thuần Node: `node test/nhan.test.js`. */
 const assert = require('assert');
 const nhan = require('../nhan');
+const N = nhan;
 
 let so = 0;
 const t = (ten, fn) => {
@@ -330,6 +331,123 @@ t('dấu chấm phẩy và BOM, để Excel tiếng Việt mở đúng', () => {
 
 t('ô chứa dấu chấm phẩy hoặc nháy được bọc đúng', () => {
   assert.strictEqual(nhan.dongCsv(['a;b', 'c"d', 'e']), '"a;b";"c""d";e');
+});
+
+
+t('phiên LIVE nhận nhãn từ TIÊU ĐỀ, vì tiêu đề không có hashtag', () => {
+  /* Anh Hùng 28/09: "bên LIVE có tiêu đề nội dung để xác định tên show, tên địa
+     điểm để biết thuộc hashtag nào luôn". Người dẫn gõ tên show, không gõ thẻ. */
+  const ds = N.chuanHoaNhan([
+    { nhan: 'VinWonders Phú Quốc', nhom: 'Địa điểm', doiTac: 'Vinpearl',
+      hashtag: '#vinwonders', tuKhoa: 'vinwonder, vin wonder' },
+  ]);
+  assert.deepStrictEqual(
+    N.nhanCuaLive({ title: 'Show Tiên cá Thuỷ cung Vinwonders Phú Quốc' }, ds),
+    ['VinWonders Phú Quốc']);
+  /* Không dấu, viết hoa lung tung — tiêu đề phiên gõ vội. */
+  assert.deepStrictEqual(N.nhanCuaLive({ title: 'VIN WONDER buổi tối' }, ds),
+    ['VinWonders Phú Quốc']);
+  assert.deepStrictEqual(N.nhanCuaLive({ title: 'Chào buổi sáng Phú Quốc' }, ds), []);
+  assert.deepStrictEqual(N.nhanCuaLive({ title: '' }, ds), [], 'không tiêu đề thì thôi');
+});
+
+t('hashtag của nhãn dùng luôn làm từ khoá, sau khi bóp dấu cách', () => {
+  /* Nhãn "Sunset Town" đã khai sẵn #symphonyofthesea — phòng ĐÃ nói thứ đó
+     thuộc về nó. Bắt gõ lại y hệt vào ô Từ khoá là chép tay hai lần rồi hai nơi
+     lệch nhau. */
+  const ds = N.chuanHoaNhan([
+    { nhan: 'Sunset Town', nhom: 'Địa điểm', doiTac: 'Sun Group',
+      hashtag: '#sunsettown #symphonyofthesea #cauhon' },
+  ]);
+  assert.deepStrictEqual(
+    N.nhanCuaLive({ title: 'Show Symphony of the sea Phú Quốc' }, ds), ['Sunset Town']);
+  assert.deepStrictEqual(
+    N.nhanCuaLive({ title: 'Sunset Town về đêm' }, ds), ['Sunset Town']);
+});
+
+t('thẻ QUÁ NGẮN không được dùng làm từ khoá — nếu không thì dán nhãn cho tất', () => {
+  /* Đo trên 35 phiên thật: hạ ngưỡng xuống 7 thì #phuquoc khớp 34/35 tiêu đề,
+     vì tiêu đề nào cũng có "Phú Quốc". Nhãn dán cho tất cả là nhãn vô nghĩa. */
+  assert.strictEqual(N.DAI_THE_TOI_THIEU, 8);
+  const ds = N.chuanHoaNhan([
+    { nhan: 'Du lịch Phú Quốc', nhom: 'Chủ đề', hashtag: '#phuquoc #dulich' },
+  ]);
+  assert.deepStrictEqual(
+    N.nhanCuaLive({ title: 'Show Symphony of the sea Phú Quốc' }, ds), [],
+    '#phuquoc chỉ 7 ký tự — không được dùng');
+  /* Nhưng thẻ đủ dài thì vẫn bắt. */
+  const ds2 = N.chuanHoaNhan([
+    { nhan: 'Du lịch Phú Quốc', nhom: 'Chủ đề', hashtag: '#dulichphuquoc' },
+  ]);
+  assert.deepStrictEqual(
+    N.nhanCuaLive({ title: 'Du lịch Phú Quốc mùa này' }, ds2), ['Du lịch Phú Quốc']);
+});
+
+t('một phiên mang được nhiều nhãn, và không trùng lặp', () => {
+  const ds = N.chuanHoaNhan([
+    { nhan: 'Hòn Thơm', nhom: 'Địa điểm', hashtag: '#honthom', tuKhoa: 'hòn thơm, cáp treo' },
+    { nhan: 'Sunset Town', nhom: 'Địa điểm', hashtag: '#sunsettown', tuKhoa: 'sunset town' },
+  ]);
+  const ra = N.nhanCuaLive({ title: 'Cáp treo Hòn Thơm rồi qua Sunset Town' }, ds);
+  assert.deepStrictEqual(ra.sort(), ['Hòn Thơm', 'Sunset Town']);
+  /* Khớp được bằng cả từ khoá lẫn hashtag thì vẫn chỉ một lần. */
+  const ds2 = N.chuanHoaNhan([
+    { nhan: 'Sunset Town', nhom: 'Địa điểm', hashtag: '#sunsettown', tuKhoa: 'sunset town' },
+  ]);
+  assert.strictEqual(N.nhanCuaLive({ title: 'Sunset Town đêm nay' }, ds2).length, 1);
+});
+
+t('nhãn chỉ có từ khoá, không có hashtag, vẫn dùng được', () => {
+  /* Trước đây chuanHoaNhan() vứt bỏ nhãn không khai hashtag. Với LIVE thì nhãn
+     kiểu ấy vẫn có ích — tên show có khi chẳng ai đặt thẻ bao giờ. */
+  const ds = N.chuanHoaNhan([
+    { nhan: 'Chợ đêm Phú Quốc', nhom: 'Địa điểm', hashtag: '', tuKhoa: 'chợ đêm, cho dem' },
+  ]);
+  assert.strictEqual(ds.length, 1, 'không bị loại vì thiếu hashtag');
+  assert.deepStrictEqual(N.nhanCuaLive({ title: 'Dạo chợ đêm Phú Quốc' }, ds),
+    ['Chợ đêm Phú Quốc']);
+});
+
+t('từ khoá dưới 3 ký tự bị bỏ — bắt bừa còn tệ hơn không bắt', () => {
+  assert.deepStrictEqual(N.tachTuKhoa('ab, xyz, ,  mn  '), ['xyz']);
+  assert.deepStrictEqual(N.tachTuKhoa('Hòn Thơm, HON THOM'), ['hon thom']);
+  assert.deepStrictEqual(N.tachTuKhoa(''), []);
+});
+
+
+t('ngày LIVE TikTok nhận nhãn GẮN TAY, chỉ tên có thật', () => {
+  /* Bản xuất LIVE Center không có cột tiêu đề — chỉ ngày và số — nên không suy
+     ra được điểm đến như phiên LIVE Facebook. Người trực LIVE chọn tay. */
+  const ds = N.chuanHoaNhan([
+    { nhan: 'Sunset Town', nhom: 'Địa điểm', hashtag: '#sunsettown' },
+    { nhan: 'Hòn Thơm', nhom: 'Địa điểm', hashtag: '#honthom' },
+  ]);
+  assert.deepStrictEqual(
+    N.nhanCuaLiveNgay({ nhanTay: 'Sunset Town, Hòn Thơm' }, ds), ['Sunset Town', 'Hòn Thơm']);
+  /* Gõ sai một chữ thì thà bỏ còn hơn đẻ nhãn ma: nhãn ma không bao giờ vào báo
+     cáo đối tác, mà nhìn bảng vẫn thấy có gắn — sai mà không ai phát hiện. */
+  assert.deepStrictEqual(
+    N.nhanCuaLiveNgay({ nhanTay: 'Sunset Town, Sunset Twon' }, ds), ['Sunset Town']);
+  assert.deepStrictEqual(N.nhanCuaLiveNgay({ nhanTay: '' }, ds), []);
+  assert.deepStrictEqual(N.nhanCuaLiveNgay({}, ds), []);
+});
+
+t('chịu mọi kiểu ngăn cách, và không đếm hai lần', () => {
+  const ds = N.chuanHoaNhan([{ nhan: 'Hòn Thơm', nhom: 'Địa điểm', hashtag: '#honthom' }]);
+  ['Hòn Thơm', ' Hòn Thơm ', 'Hòn Thơm;Hòn Thơm', 'Hòn Thơm | Hòn Thơm']
+    .forEach((x) => assert.deepStrictEqual(N.nhanGanTay(x, ds), ['Hòn Thơm'], JSON.stringify(x)));
+});
+
+t('lượt tải lại KHÔNG được đụng vào cột Nhãn', () => {
+  /* Nhân sự gắn nhãn xong, cuối tháng tải lại bản xuất — nhãn phải còn nguyên.
+     Mất nhãn thì không ai báo, chỉ đến kỳ báo cáo đối tác mới thấy hụt. */
+  const src = require('fs').readFileSync(
+    require('path').join(__dirname, '..', 'live-ngay.js'), 'utf8');
+  const than = src.slice(src.indexOf('async function ghi('));
+  assert.ok(!/f\.nhan/.test(than), 'ghi() không được nhắc tới cột Nhãn');
+  /* Và danh sách cột số cũng không được lỡ chứa nó. */
+  const LN = require('../live-ngay');
+  assert.ok(!LN.SO.includes('nhan'), 'cột Nhãn không phải cột số');
 });
 
 console.log('\n' + so + ' phép thử đạt' + (process.exitCode ? ' — CÓ LỖI' : '') + '\n');

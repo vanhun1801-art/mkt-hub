@@ -578,10 +578,30 @@ async function api(req, res, u) {
     /* Gộp theo đối tác: KHÔNG cộng dồn số của các nhãn con, vì một bài mang hai
      * nhãn của cùng đối tác vẫn chỉ là một bài. Xem nhan.gopTheoDoiTac(). */
     const theoDoiTac = nhan.gopTheoDoiTac(bai, ds);
+
+    /* SỐ LIVE ĐỂ RIÊNG, không cộng vào số bài. Anh Hùng chốt 28/09: lượt xem
+     * một phiên LIVE và lượt xem một bài đăng không cùng loại số — gộp chung là
+     * tự tay làm mờ đúng cái đối tác cần nhìn.
+     *
+     * Lọc theo cùng khoảng ngày và cùng phạm vi kênh với bài, nếu không thì
+     * bảng "tháng này" lại cộng phiên của tháng khác. */
+    const trongKhoang = (ngay) => ngay && ngay >= t.from && ngay <= t.to;
+    /* Dùng hanMucKenh() chứ không t.channels: cái kia là danh sách người dùng
+     * CHỌN trên thanh lọc, còn cái này là phần họ được phép thấy. Đây là chốt
+     * phân quyền, phải lấy đúng cái sau. */
+    const hanLive = await hanMucKenh(req);
+    const hanId = hanLive ? new Set(hanLive.map((c) => c.id)) : null;
+    const hopKenh = (x) => !hanId || (x.channelIds || []).some((id) => hanId.has(id));
+    const liveFb = (d.lives || []).filter((l) => trongKhoang(String(l.start || '').slice(0, 10)) && hopKenh(l));
+    const liveTt = (d.liveNgay || []).filter((l) => trongKhoang(l.date) && hopKenh(l));
+    const liveNhan = nhan.gopLiveTheoNhan(liveFb, liveTt, ds);
+    const liveDoiTac = nhan.gopLiveTheoDoiTac(liveFb, liveTt, ds);
+    const themLive = (o, key) => ({ ...o, live: liveNhan.get(key) || { soPhien: 0, luotXem: 0 } });
+
     return ok(res, {
       /* Bỏ mảng bài ra khỏi phản hồi — 1.300 bài nhân nhiều nhãn là payload vài
        * megabyte mà bảng không dùng tới. Muốn xem bài thì tải CSV. */
-      nhan: gop.map(({ bai: _b, ...o }) => o),
+      nhan: gop.map(({ bai: _b, ...o }) => themLive(o, o.nhan)),
       /* Bản THÔ của bảng Nhãn bài, kể cả nhãn đang tắt hoặc chưa khai hashtag —
        * màn hình thiết lập phải sửa được cả những dòng đó, chứ không chỉ những
        * dòng đủ điều kiện tính số. */
@@ -589,7 +609,14 @@ async function api(req, res, u) {
         id: x.id, nhan: x.nhan, nhom: x.nhom, hashtag: x.hashtag,
         doiTac: x.doiTac, ghiChu: x.ghiChu, bat: x.bat,
       })),
-      theoDoiTac,
+      theoDoiTac: theoDoiTac.map((o) => ({
+        ...o, live: liveDoiTac.get(o.doiTac) || { soPhien: 0, luotXem: 0 },
+      })),
+      tongLive: {
+        soPhien: liveFb.length + liveTt.reduce((a, b) => a + (Number(b.soPhien) || 0), 0),
+        luotXem: liveFb.reduce((a, b) => a + (Number(b.views) || 0), 0)
+          + liveTt.reduce((a, b) => a + (Number(b.luotXem) || 0), 0),
+      },
       /* Mọi hashtag đang dùng trong khoảng lọc, kèm nhãn đang giữ nó. Giao diện
        * dùng bảng này cho hai việc: liệt kê thẻ chưa có chủ, và gợi ý thẻ khi
        * khai nhãn. Gửi một lần thay vì mỗi lần gõ lại hỏi máy chủ. */
@@ -874,13 +901,25 @@ async function api(req, res, u) {
      * giấu cột. Giấu ở giao diện thì mở tab Network của trình duyệt là đọc
      * được — mà thứ phải giấu ở đây là doanh thu. */
     const tien = duocXemTien(req);
+    /* Nhãn cho phiên LIVE suy từ TIÊU ĐỀ, không từ hashtag — người dẫn gõ tên
+     * show và tên địa điểm chứ không gõ thẻ. Xem nhan.nhanCuaLive(). */
+    const dsNhan = nhan.chuanHoaNhan(await store.taiNhan());
+    const ganNhan = (x) => ({ ...x, nhan: nhan.nhanCuaLive(x, dsNhan) });
+    /* Danh sách nhãn gửi kèm để hộp chọn nhãn cho ngày LIVE khỏi phải gọi thêm
+     * một lượt nữa — nó chỉ có 25 dòng. */
+    const nhanChon = dsNhan.map((n) => ({ nhan: n.nhan, nhom: n.nhom, doiTac: n.doiTac }))
+      .sort((a, b) => String(a.nhom).localeCompare(String(b.nhom), 'vi')
+        || String(a.nhan).localeCompare(String(b.nhan), 'vi'));
+    const ganNhanNgay = (x) => ({ ...x, nhan: nhan.nhanCuaLiveNgay(x, dsNhan) });
     const loc = (x) => (tien ? x : { ...x, revenue: null, usd: null });
     return ok(res, {
       xemTien: tien,
+      dsNhan: nhanChon,
       live: d.lives
         .filter((l) => (!l.date || (l.date >= t.from && l.date <= t.to))
           && (!pset || pset.has(l.platform)))
         .sort((a, b) => String(b.start).localeCompare(String(a.start)))
+        .map(ganNhan)
         .map(loc),
       /* LIVE theo NGÀY — bản xuất LIVE Center nhân sự tải lên. Bảng riêng nên
        * phải trả riêng; gộp vào mảng `live` là lẫn phiên với ngày. */
@@ -889,6 +928,7 @@ async function api(req, res, u) {
           && (!pset || pset.has(l.platform))
           && (!choPhep || (l.channelIds || []).some((id) => choPhep.has(id))))
         .sort((a, b) => String(b.date).localeCompare(String(a.date)))
+        .map(ganNhanNgay)
         .map(loc),
     });
   }
@@ -934,6 +974,28 @@ async function api(req, res, u) {
    * Chốt không nằm ở vai mà ở PHẠM VI KÊNH: chỉ ghi được cho kênh đã giao cho
    * người đó, xem ghiLiveNgay(). Tệp là bản xuất chính chủ của TikTok nên nội
    * dung tin được; thứ phải giữ là không ai ghi đè số của kênh người khác. */
+  /* Gắn nhãn cho MỘT NGÀY LIVE của TikTok.
+   *
+   * Nhân sự làm được — cùng lý do với việc cho họ tải tệp: người trực LIVE mới
+   * biết hôm đó quay ở đâu. Chốt vẫn là PHẠM VI KÊNH, không phải vai. */
+  if (p === '/api/live-ngay/nhan' && method === 'POST') {
+    const b = await readBody(req);
+    const d = await store.tai();
+    const dong = (d.liveNgay || []).find((x) => x.id === String(b.id || ''));
+    if (!dong) return fail(res, 404, 'Không có dòng này');
+    const han = await hanMucKenh(req);
+    if (han && !(dong.channelIds || []).some((id) => han.some((c) => c.id === id))) {
+      return fail(res, 403, 'Ngày này thuộc kênh chưa giao cho bạn');
+    }
+    /* Chỉ nhận tên nhãn CÓ THẬT — gõ sai thì thà bỏ còn hơn đẻ nhãn ma. */
+    const dsNhan = nhan.chuanHoaNhan(await store.taiNhan());
+    const ds = nhan.nhanGanTay(Array.isArray(b.nhan) ? b.nhan.join(', ') : b.nhan, dsNhan);
+    await lark.updateMany(cfg.tables.liveNgay.id,
+      { [dong.id]: { [cfg.tables.liveNgay.f.nhan]: ds.join(', ') } });
+    store.xoaCache();
+    return ok(res, { nhan: ds });
+  }
+
   if (p === '/api/live/tai-tep' && method === 'POST') {
     const ten = u.searchParams.get('ten') || 'tệp';
     const buf = await readRaw(req);

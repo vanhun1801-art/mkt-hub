@@ -60,8 +60,112 @@ function chuanHoaNhan(rows) {
       ghiChu: String(r.ghiChu || '').trim(),
       bat: r.bat !== false,
       the: tachThe(r.hashtag),
+      /* Từ khoá — dùng cho những thứ KHÔNG mang hashtag. Trước đây chỉ để gắn
+       * bù bài cũ; từ 28/09/2026 còn dùng cho phiên LIVE, vì tiêu đề phiên
+       * ("Show Tiên cá Thuỷ cung Vinwonders Phú Quốc") không bao giờ có hashtag
+       * — người dẫn gõ tên show và tên địa điểm, không gõ thẻ. */
+      tuKhoa: tachTuKhoa(r.tuKhoa),
     }))
-    .filter((x) => x.nhan && x.bat && x.the.length);
+    .filter((x) => x.nhan && x.bat && (x.the.length || x.tuKhoa.length));
+}
+
+/**
+ * Tách ô "Từ khoá" thành mảng đã bỏ dấu, viết thường.
+ *
+ * Bỏ dấu vì đội nội dung gõ cả hai kiểu và tiêu đề phiên LIVE thì gõ vội —
+ * "Vinwonders" với "VinWonders" với "vin wonder" phải coi như một.
+ */
+function tachTuKhoa(s) {
+  return [...new Set(String(s || '')
+    .split(/\s*[,;|]\s*/)
+    .map((x) => khongDau(x).trim())
+    .filter((x) => x.length >= 3))];          // dưới 3 ký tự thì bắt bừa
+}
+
+/**
+ * Gắn nhãn cho một PHIÊN LIVE, dựa vào tiêu đề.
+ *
+ * Anh Hùng 28/09/2026: "bên LIVE có tiêu đề nội dung để xác định tên show, tên
+ * địa điểm để biết thuộc hashtag nào luôn".
+ *
+ * Khác bài đăng ở chỗ KHÔNG CÓ HASHTAG để bám. Người dẫn đặt tiêu đề phiên là
+ * "Show Tiên cá Thuỷ cung Vinwonders Phú Quốc" — tên show và tên địa điểm nằm
+ * ngay trong câu chữ. Nên khớp bằng cột "Từ khoá" của bảng Nhãn, đúng cột đã có
+ * sẵn cho việc gắn bù bài cũ.
+ *
+ * Vẫn soi cả hashtag: thỉnh thoảng có người gõ thẻ vào tiêu đề, bắt được thì
+ * bắt, mà bắt theo thẻ thì chắc hơn theo chữ.
+ *
+ * Đo trên 35 phiên đang có: 21 phiên (60%) khớp ngay bằng từ khoá sẵn có, 14
+ * phiên còn lại đều là "Symphony of the sea" — chưa nhãn nào khai từ khoá đó.
+ * Thêm một từ vào bảng Nhãn là xong, không phải sửa mã.
+ */
+const DAI_THE_TOI_THIEU = 8;
+
+function nhanCuaLive(live, dsNhan) {
+  const ra = new Set();
+  const tieuDe = String((live && live.title) || '');
+  if (!tieuDe.trim()) return [];
+
+  const the = new Set(theCuaBai(tieuDe));
+  if (the.size) dsNhan.forEach((n) => { if (n.the.some((t) => the.has(t))) ra.add(n.nhan); });
+
+  const g = khongDau(tieuDe);
+  dsNhan.forEach((n) => {
+    if ((n.tuKhoa || []).some((w) => g.includes(w))) ra.add(n.nhan);
+  });
+
+  /* HASHTAG DÙNG LUÔN LÀM TỪ KHOÁ, sau khi bóp hết dấu cách và dấu câu.
+   *
+   * Nhãn "Sunset Town" đã khai sẵn #symphonyofthesea, #cauhon, #diatrunghai…
+   * — tức phòng ĐÃ nói những thứ đó thuộc về nó. Bắt người ta gõ lại y hệt vào
+   * ô Từ khoá là chép tay hai lần rồi hai nơi lệch nhau. Bóp "#symphonyofthesea"
+   * thành "symphonyofthesea" thì khớp được tiêu đề "Symphony of the sea".
+   *
+   * TỐI THIỂU 8 KÝ TỰ, và đây là con số phải đo chứ không đoán. Trên 35 phiên
+   * thật:
+   *     ngưỡng 6-7 → 35/35 khớp, NHƯNG nhãn "Du lịch Phú Quốc" dán vào 34 phiên
+   *                  vì #phuquoc (7 ký tự) nằm trong mọi tiêu đề — vô nghĩa
+   *     ngưỡng 8   → 34/35 khớp, đúng ba nhãn có ý nghĩa, không nhãn rác nào
+   * Một phiên không khớp là "Lễ Quốc Khánh 2/9 Phú Quốc" — nó thật sự không
+   * thuộc điểm đến nào, để trống mới đúng. */
+  const bop = (x) => khongDau(x).replace(/[^a-z0-9]/g, '');
+  const gBop = bop(tieuDe);
+  dsNhan.forEach((n) => {
+    if (ra.has(n.nhan)) return;
+    if ((n.the || []).some((t) => { const k = bop(t); return k.length >= DAI_THE_TOI_THIEU && gBop.includes(k); })) {
+      ra.add(n.nhan);
+    }
+  });
+  return [...ra];
+}
+
+/**
+ * Đọc chuỗi nhãn người ta gõ tay, chỉ giữ tên CÓ THẬT trong bảng Nhãn.
+ *
+ * Gõ sai một chữ thì thà không tính còn hơn đẻ ra một nhãn ma chỉ tồn tại ở
+ * đúng một dòng — nhãn ma không bao giờ vào báo cáo đối tác, mà nhìn bảng thì
+ * vẫn thấy có gắn.
+ */
+function nhanGanTay(chuoi, dsNhan) {
+  const hopLe = new Set(dsNhan.map((n) => n.nhan));
+  return [...new Set(String(chuoi || '').split(/\s*[,;|]\s*/)
+    .map((x) => x.trim())
+    .filter((x) => x && hopLe.has(x)))];
+}
+
+/**
+ * Nhãn của một NGÀY LIVE (bản xuất TikTok LIVE Center).
+ *
+ * Khác hẳn phiên LIVE Facebook: bản xuất chỉ có ngày và số, KHÔNG có tiêu đề —
+ * không có chữ nào để suy ra điểm đến. Nên nhãn ở đây do người trực LIVE chọn
+ * tay, họ biết hôm đó quay ở đâu.
+ *
+ * Anh Hùng chọn cách này ngày 28/09/2026, sau khi cân với phương án bỏ hẳn
+ * nhãn cho TikTok LIVE.
+ */
+function nhanCuaLiveNgay(dong, dsNhan) {
+  return nhanGanTay(dong && dong.nhanTay, dsNhan);
 }
 
 /**
@@ -274,6 +378,67 @@ const CONG = ['views', 'reach', 'impressions', 'likes', 'comments', 'shares', 's
  * Facebook không trả lượt xem cho bài chữ, nên cộng cả số 0 của chúng vào rồi
  * chia trung bình là ra một con số thấp giả tạo.
  */
+/**
+ * Gộp số LIVE theo nhãn — ĐỂ RIÊNG, không cộng vào số bài đăng.
+ *
+ * Anh Hùng chốt 28/09/2026: tách riêng. Lý do: lượt xem một phiên LIVE và lượt
+ * xem một bài đăng không phải cùng một loại số. Một phiên hai tiếng với một
+ * reel mười lăm giây mà cộng chung thành "lượt xem của đối tác" là tự tay làm
+ * mờ đúng cái mà đối tác cần nhìn.
+ *
+ * Hai nguồn, nhãn đến từ hai đường khác nhau:
+ *   · Phiên LIVE Facebook — nhãn SUY TỪ TIÊU ĐỀ (nhanCuaLive).
+ *   · Ngày LIVE TikTok    — nhãn GẮN TAY, vì bản xuất LIVE Center không có
+ *     tiêu đề (nhanCuaLiveNgay).
+ *
+ * Số phiên của TikTok là số phiên TRONG NGÀY, không phải một dòng một phiên.
+ *
+ * @returns Map(tên nhãn → { soPhien, luotXem })
+ */
+function gopLiveTheoNhan(lives, liveNgay, dsNhan) {
+  const m = new Map(dsNhan.map((n) => [n.nhan, { soPhien: 0, luotXem: 0 }]));
+  (lives || []).forEach((l) => {
+    nhanCuaLive(l, dsNhan).forEach((ten) => {
+      const o = m.get(ten);
+      if (!o) return;
+      o.soPhien += 1;
+      o.luotXem += num(l.views);
+    });
+  });
+  (liveNgay || []).forEach((d) => {
+    nhanCuaLiveNgay(d, dsNhan).forEach((ten) => {
+      const o = m.get(ten);
+      if (!o) return;
+      o.soPhien += num(d.soPhien);
+      o.luotXem += num(d.luotXem);
+    });
+  });
+  return m;
+}
+
+/** Cùng phép trên, nhưng gộp theo ĐỐI TÁC.
+ *
+ * Một phiên mang hai nhãn của CÙNG một đối tác thì vẫn chỉ là một phiên — cùng
+ * luật với gopTheoDoiTac() cho bài đăng.
+ */
+function gopLiveTheoDoiTac(lives, liveNgay, dsNhan) {
+  const theoTen = new Map(dsNhan.map((n) => [n.nhan, n]));
+  const m = new Map();
+  const cong = (tens, soPhien, luotXem) => {
+    const dts = new Set();
+    tens.forEach((t) => { const n = theoTen.get(t); if (n && n.doiTac) dts.add(n.doiTac); });
+    dts.forEach((dt) => {
+      if (!m.has(dt)) m.set(dt, { soPhien: 0, luotXem: 0 });
+      const o = m.get(dt);
+      o.soPhien += soPhien;
+      o.luotXem += luotXem;
+    });
+  };
+  (lives || []).forEach((l) => cong(nhanCuaLive(l, dsNhan), 1, num(l.views)));
+  (liveNgay || []).forEach((d) => cong(nhanCuaLiveNgay(d, dsNhan), num(d.soPhien), num(d.luotXem)));
+  return m;
+}
+
 function gopTheoNhan(posts, dsNhan) {
   const m = new Map();
   dsNhan.forEach((n) => m.set(n.nhan, {
@@ -390,7 +555,10 @@ function csvChoNhan(o, khoang) {
 }
 
 module.exports = {
-  tachThe, theCuaBai, khongDau, goiYThe, thongKeThe, QUA_CHUNG,
+  tachThe, tachTuKhoa, theCuaBai, khongDau, nhanCuaLive, nhanCuaLiveNgay, nhanGanTay,
+  gopLiveTheoNhan, gopLiveTheoDoiTac,
+  DAI_THE_TOI_THIEU,
+  goiYThe, thongKeThe, QUA_CHUNG,
   chuanHoaNhan, nhanCuaBai, nguonNhan, doiTenTrongNhanBu, nhanHopVoiThe,
   gopTheoNhan, gopTheoDoiTac, baiKhongNhan,
   dongCsv, csvChoNhan, BOM, CONG,

@@ -479,6 +479,8 @@
     const r = await goi('/api/live?' + truyVan());
     const ds = r.live || [];
     const dsNgay = r.liveNgay || [];
+    S.liveNgay = dsNgay;
+    S.dsNhan = r.dsNhan || [];
     $('#view').innerHTML = ''
       + '<div class="notes" style="margin-bottom:14px">'
       + '<div class="note"><span class="ico">!</span><span>'
@@ -515,6 +517,12 @@
           + (conTang(x) ? ' · <b style="color:var(--vang,#f0b45f)">số còn tăng</b>' : '')
           + '</span>' },
         { t: 'Nền tảng', v: (x) => theTag(x.platform) },
+        /* Nhãn suy từ tiêu đề phiên — xem nhan.nhanCuaLive(). Không có thì để
+         * gạch chứ đừng bỏ trắng: ô trắng đọc thành "chưa ai gắn", còn gạch là
+         * "đã soi rồi, phiên này không thuộc điểm đến nào". */
+        { t: 'Nhãn', v: (x) => ((x.nhan || []).length
+          ? x.nhan.map((n) => '<span class="tag">' + esc(n) + '</span>').join(' ')
+          : '<span class="sub-line">—</span>') },
         { t: 'Phút', num: 1, v: (x) => n0(x.minutes) },
         { t: 'Lượt xem', num: 1, v: (x) => n0(x.views) },
         { t: 'Đỉnh', num: 1, v: (x) => n0(x.peak) },
@@ -531,6 +539,9 @@
       + '</div></div>'
       + bangLiveNgay(dsNgay);
     $('#btnLiveDan').onclick = moLiveDan;
+    $$('[data-nhanngay]').forEach((a) => {
+      a.onclick = (e) => { e.preventDefault(); moNhanNgay(a.dataset.nhanngay); };
+    });
     if (S.quanLy) {
       $('#btnLiveTay').onclick = moLiveTay;
       $('#btnLiveTien').onclick = ganTienLive;
@@ -577,6 +588,14 @@
         { t: 'Ngày', name: 1, v: (x) => esc(x.date)
           + '<span class="sub-line">' + esc(x.channel || '') + '</span>' },
         { t: 'Nền tảng', v: (x) => theTag(x.platform) },
+        /* Nhãn GẮN TAY. Bản xuất LIVE Center không có tiêu đề nên không suy ra
+         * được điểm đến như phiên LIVE Facebook — người trực LIVE biết hôm đó
+         * quay ở đâu thì họ chọn. Bấm vào ô là mở hộp chọn. */
+        { t: 'Nhãn', v: (x) => '<a href="#" data-nhanngay="' + esc(x.id) + '">'
+          + ((x.nhan || []).length
+            ? x.nhan.map((n) => '<span class="tag">' + esc(n) + '</span>').join(' ')
+            : '<span class="sub-line">+ gắn nhãn</span>')
+          + '</a>' },
         { t: 'Số phiên', num: 1, v: (x) => n0(x.soPhien) },
         { t: 'Phút', num: 1, v: (x) => n0(Math.round((x.thoiLuong || 0) / 60)) },
         /* PHÚT/PHIÊN — không có trong bốn tệp, app tự chia.
@@ -616,6 +635,41 @@
         + '<b>không phải doanh thu tour</b>.' : '')
       + '</span></div>'
       + than + '</div></div>';
+  }
+
+  /* Hộp chọn nhãn cho một ngày LIVE. Tick chứ không gõ: cột này lưu TÊN nhãn,
+   * gõ sai một chữ là nhãn không vào báo cáo đối tác mà nhìn bảng vẫn thấy có
+   * gắn — kiểu sai không ai phát hiện ra. */
+  function moNhanNgay(id) {
+    const dong = (S.liveNgay || []).find((x) => x.id === id);
+    if (!dong) return;
+    const dang = new Set(dong.nhan || []);
+    moModal('<div class="modal-head"><h3>Nhãn cho ngày ' + esc(dong.date) + '</h3>'
+      + '<span class="sub-line">' + esc(dong.channel || '') + ' · '
+      + n0(dong.soPhien) + ' phiên · ' + n0(dong.luotXem) + ' lượt xem</span></div>'
+      + '<div class="modal-body"><div class="note" style="margin-bottom:10px">'
+      + '<span class="ico">!</span><span>Bản xuất LIVE Center không ghi tên show hay địa điểm, '
+      + 'nên chỗ này phải chọn tay. Ngày chạy nhiều điểm thì tick nhiều nhãn — '
+      + 'nhưng số của ngày sẽ được tính cho <b>từng nhãn đã tick</b>, không chia nhỏ ra được.'
+      + '</span></div>'
+      + '<div class="kn-form">' + (S.dsNhan || []).map((n) => '<label class="q-ck">'
+        + '<input type="checkbox" data-nn="' + esc(n.nhan) + '"' + (dang.has(n.nhan) ? ' checked' : '') + '>'
+        + '<span>' + esc(n.nhan) + '</span>'
+        + '<small class="sub-line">— ' + esc(n.nhom || '') + (n.doiTac ? ' · ' + esc(n.doiTac) : '') + '</small>'
+        + '</label>').join('') + '</div></div>'
+      + '<div class="modal-foot"><button class="btn ghost" data-close="1">Đóng</button>'
+      + '<button class="btn primary" id="mLuu">Lưu</button></div>');
+    $('#mLuu').onclick = async () => {
+      /* '.modal-body', KHÔNG phải '#mdBody' — cái đó là bộ chọn của app Hub.
+       * Sai selector thì $$ trả mảng rỗng, nút Lưu lưu một danh sách trống và
+       * xoá sạch nhãn người ta vừa tick, mà không báo lỗi gì. */
+      const chon = $$('.modal-body [data-nn]').filter((x) => x.checked).map((x) => x.dataset.nn);
+      try {
+        await goiJSON('/api/live-ngay/nhan', { id, nhan: chon });
+        dongModal();
+        veLive();
+      } catch (e) { toast(e.message, 'err'); }
+    };
   }
 
   function chonKenhHtml(id) {
@@ -1874,15 +1928,18 @@
       ...(S.platforms.length ? { platform: S.platforms.join(',') } : {}),
     });
 
-    const coBai = d.nhan.filter((x) => x.soBai);
-    const chuaDung = d.nhan.filter((x) => !x.soBai);
+    /* Nhãn có LIVE mà chưa có bài nào vẫn phải nằm ở bảng chính — xếp nó vào
+     * nhóm "chưa dùng" thì số LIVE của nó biến mất khỏi báo cáo. */
+    const coBai = d.nhan.filter((x) => x.soBai || ((x.live || {}).soPhien));
+    const chuaDung = d.nhan.filter((x) => !x.soBai && !((x.live || {}).soPhien));
     const chuaCoChu = (d.the || []).filter((t) => !t.thuocNhan);
     const phuSong = d.tongBai ? (d.tongBai - d.khongNhan) / d.tongBai : 0;
 
     $('#view').innerHTML = ''
       + (d.theoDoiTac.length
         ? '<div class="card"><div class="card-head"><h3>Theo đối tác</h3>'
-          + '<span class="sub">gộp mọi nhãn của cùng một đối tác · mỗi bài đếm một lần</span></div>'
+          + '<span class="sub">gộp mọi nhãn của cùng một đối tác · mỗi bài đếm một lần · '
+          + 'LIVE để riêng, không cộng vào lượt xem bài</span></div>'
           + '<div class="card-body tight">'
           + bangGon([
             { t: 'Đối tác', name: 1, v: (x) => esc(x.doiTac)
@@ -1890,6 +1947,13 @@
             { t: 'Bài', num: 1, v: (x) => n0(x.soBai) },
             { t: 'Lượt xem', num: 1, k: 'views', v: (x) => n0(x.views) },
             { t: 'Tương tác', num: 1, k: 'engagement', v: (x) => n0(x.engagement) },
+            /* LIVE ĐỂ RIÊNG, không cộng vào cột Lượt xem bên trái. Một phiên
+             * hai tiếng và một reel mười lăm giây không phải cùng một loại số —
+             * cộng chung là tự tay làm mờ đúng cái đối tác cần nhìn. */
+            { t: 'Phiên LIVE', num: 1, v: (x) => ((x.live || {}).soPhien
+              ? n0(x.live.soPhien) : '<span class="sub-line">—</span>') },
+            { t: 'Xem LIVE', num: 1, v: (x) => ((x.live || {}).soPhien
+              ? n0(x.live.luotXem) : '<span class="sub-line">—</span>') },
             { t: 'Gửi đối tác', v: (x) => '<a class="btn ghost small" href="'
               + esc(linkXuat(x.doiTac, 'excel')) + '" download>Excel</a> '
               + '<a class="btn ghost small" href="' + esc(linkXuat(x.doiTac, 'in'))
@@ -1924,6 +1988,10 @@
         { t: 'Lượt xem', num: 1, k: 'views', v: (x) => n0(x.views) },
         { t: 'Tương tác', num: 1, k: 'engagement', v: (x) => n0(x.engagement) },
         { t: 'Tỷ lệ TT', num: 1, v: (x) => pct(x.tyLeTuongTac) },
+        { t: 'Phiên LIVE', num: 1, v: (x) => ((x.live || {}).soPhien
+          ? n0(x.live.soPhien) : '<span class="sub-line">—</span>') },
+        { t: 'Xem LIVE', num: 1, v: (x) => ((x.live || {}).soPhien
+          ? n0(x.live.luotXem) : '<span class="sub-line">—</span>') },
         { t: '', v: (x) => '<a class="btn ghost small" href="' + esc(linkCsv(x.nhan))
           + '" download>Tải CSV</a>'
           + (S.quanLy ? ' <button class="btn ghost small" data-sua="' + esc(x.nhan)
