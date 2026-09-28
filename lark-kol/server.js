@@ -740,7 +740,11 @@ async function api(req, res, u) {
     const dl = await kho.tatCa();
     const ht = dl.hopTac.find((x) => x.maForm === r[1]);
     if (!ht || ht.buoc === 'Huỷ') return loi(res, 404, 'Liên kết không còn dùng được / This link is no longer valid');
-    try { return json(res, await luuAnhGiay(ht, r[2], await docThan(req, 40 * 1024 * 1024))); } catch (e) { return loi(res, e.http || 500, e.message); }
+    try {
+      const kq = await luuAnhGiay(ht, r[2], await docThan(req, 40 * 1024 * 1024));
+      if (!cfg.nhac.tat) require('./bao-form').hen(ht.id);   // hẹn lại: thẻ đếm đủ ảnh vừa tải
+      return json(res, kq);
+    } catch (e) { return loi(res, e.http || 500, e.message); }
   }
   /* xem ảnh giấy tờ — CHỈ trong app (sau cổng đăng nhập của Hub), không qua link form */
   if ((r = /^\/api\/thanh-vien\/(rec\w+)\/anh\/([\w-]+)$/.exec(p)) && m === 'GET') {
@@ -761,10 +765,8 @@ async function api(req, res, u) {
     if (m === 'POST') {
       const b = await docThan(req, 256 * 1024);
       const kq = await luuForm(ht, b, now);
-      if (!cfg.nhac.tat) {
-        nhac.guiTin('KOL đã điền form thông tin · ' + ht.ma + '\n' + catChu(b.kol && b.kol.ten, 80) + ' · ' + kq.soNguoi + ' người trong đoàn\n\nMở app KOL, tab Thông tin để xem danh sách thành viên.',
-          'kol-form-' + ht.id + '-' + now).catch(() => {});
-      }
+      /* thẻ Lark bằng bot Marketing Hub — chờ ảnh giấy tờ tải xong rồi mới gửi (bao-form.js) */
+      if (!cfg.nhac.tat) require('./bao-form').hen(ht.id);
       return json(res, { ok: true, ...kq });
     }
   }
