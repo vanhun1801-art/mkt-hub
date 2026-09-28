@@ -85,6 +85,35 @@
 
   /** Một mục trắng. Kế thừa Tour / Loại / ngày / người của mục trước — thêm mục
    *  thứ hai trong cùng buổi thì thường chỉ khác cái link. */
+  /* ---- NHÁP TẠI MÁY (28/09) ----
+   * Anh Hùng: cần tự lưu nháp khi có nhập liệu mới, khỏi phải bấm. Báo cáo ở
+   * đây chỉ ghi vào Base lúc bấm "Báo cáo N mục" (ghi sớm là tạo bản ghi dở
+   * dang trong bảng nghiệm thu), nên nháp giữ NGAY TRÊN MÁY: gõ tới đâu giữ tới
+   * đó, mở lại app là có lại, gửi xong thì xoá. */
+  const KHOA_NHAP = () => 'chinh-anh.nhap.' + ((S.meta && S.meta.user && S.meta.user.id) || 'khach');
+  const coNoiDung = (f) => !!(f && (f.muc || []).some((m) =>
+    ['linkAnh', 'linkVideo', 'soAnh', 'soVideo', 'nhanXetAnh', 'ghiChu'].some((k) => String(m[k] || '').trim())));
+  function docNhap() {
+    try {
+      const x = JSON.parse(localStorage.getItem(KHOA_NHAP()) || 'null');
+      return x && Date.now() - x.at < 7 * 864e5 && coNoiDung(x.form) ? x.form : null;
+    } catch (_) { return null; }
+  }
+  function xoaNhap() { try { localStorage.removeItem(KHOA_NHAP()); } catch (_) {} }
+  let henNhap = 0;
+  function giuNhap() {
+    clearTimeout(henNhap);
+    henNhap = setTimeout(() => {
+      try {
+        if (coNoiDung(S.form)) localStorage.setItem(KHOA_NHAP(), JSON.stringify({ at: Date.now(), form: S.form }));
+        else xoaNhap();
+      } catch (_) {}
+    }, 400);
+  }
+  ['input', 'change', 'click'].forEach((ev) => document.addEventListener(ev, (e) => {
+    if (S.meta && e.target && e.target.closest && e.target.closest('#dsMuc, #btnThemMuc, #fGui')) setTimeout(giuNhap, 0);
+  }));
+
   function mucMoi(truoc) {
     const t = truoc || {};
     return {
@@ -254,6 +283,12 @@
     $('#linkBase').href = S.meta.baseUrl;
     (S.meta.people || []).forEach((x) => { S.tenNguoi[x.id] = x.ten; });
     if (u) S.tenNguoi[u.id] = u.name;
+    /* Bản nháp chưa gửi lần trước (đóng tab, mất mạng, lỡ bấm sang app khác). */
+    const nhap = docNhap();
+    if (nhap && S.form.muc.length <= 1 && !coNoiDung(S.form)) {
+      S.form = nhap;
+      setTimeout(() => toast('Đã khôi phục báo cáo đang soạn dở (chưa gửi).'), 300);
+    }
     if (!S.form.muc.length) {
       const m = mucMoi();
       /* Người chỉnh mặc định là chính người đang mở app — trường hợp thường gặp
@@ -775,6 +810,7 @@
        * thường báo liền mấy lô trong cùng buổi. Xoá link và số lượng vì đó là thứ
        * khác nhau giữa các lô. */
       S.form.muc = [mucMoi(f.muc[f.muc.length - 1])];
+      xoaNhap();
       S.goiY = null;
       await napDs();
     } catch (e) {

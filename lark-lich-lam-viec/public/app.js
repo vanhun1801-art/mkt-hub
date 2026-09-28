@@ -104,6 +104,11 @@ let dangVe = '';
 const khoaMan = () => [S.tab, S.thang, S.hoNguoi || ''].join('|');
 
 async function nap(moi) {
+  /* Đổi tháng / đổi tab / xem hộ: còn nháp chưa gửi thì gửi luôn. KHÔNG chờ
+   * (màn chờ phải hiện ngay), và tuLuu() chụp S.du/S.ma của lịch ĐANG HIỆN
+   * ngay lúc gọi — nút đổi tháng đã đổi S.thang trước khi vào đây rồi. */
+  if (henTL) tuLuu();
+  S.ttTuLuu = '';
   veTabs();
   /* Đổi tháng / đổi tab / xem hộ người khác = NỘI DUNG CŨ KHÔNG CÒN ĐÚNG nữa,
    * phải dọn ngay. Còn bấm làm mới đúng thứ đang xem thì giữ màn, đỡ nháy. */
@@ -213,7 +218,7 @@ function veToi() {
     h += '<section class="the"><div class="the-than">' +
       '<textarea class="in" id="ghiChu" placeholder="Ghi chú cho quản lý / HCNS">' + esc(S.ghiChu != null ? S.ghiChu : ((ph && ph.ghiChu) || '')) + '</textarea>' +
       '<div class="hang-nut" style="margin-top:10px"><span class="lon"></span>' +
-      (doi ? '<span class="nho">' + S.ma.filter((m, i) => m !== d.ngay[i].ma).length + ' ngày chưa lưu</span>' : '') +
+      '<span class="nho" id="ttTuLuu">' + (S.ttTuLuu || (doi ? S.ma.filter((m, i) => m !== d.ngay[i].ma).length + ' ngày chưa lưu' : (ph && ph.daNop) || d.hoNguoi ? '' : 'Tự lưu nháp khi có thay đổi')) + '</span>' +
       '<button class="btn" data-luu="0"' + (S.dangLuu ? ' disabled' : '') + '>Lưu nháp</button>' +
       '<button class="btn chinh" data-luu="1"' + (S.dangLuu ? ' disabled' : '') + '>' +
       (ph && ph.daNop ? 'Nộp lại' : 'Nộp đăng ký') + '</button></div></div></section>';
@@ -246,6 +251,7 @@ function veLich(d, sua) {
 
 async function luu(nop) {
   if (S.dangLuu) return;
+  clearTimeout(henTL); henTL = 0;
   S.dangLuu = true;
   ve();
   const ghi = $('#ghiChu');
@@ -266,6 +272,60 @@ async function luu(nop) {
     bao(e.message, 'do');
   }
 }
+
+/* ---------------- tự lưu nháp ----------------
+ * Anh Hùng: "cần cơ chế tự động lưu nháp khi có phát sinh thêm nhập liệu mới".
+ * Bấm ngày / đổi ghi chú xong 2,5 giây thì tự gửi đúng như nút "Lưu nháp",
+ * lặng lẽ: không nạp lại, và KHÔNG vẽ lại lúc đang gõ ghi chú (mất con trỏ).
+ * Chỉ tự lưu lịch CỦA MÌNH, CHƯA NỘP: lịch đã nộp gửi nop:false là rút về nháp
+ * (vẫn bấm "Nộp lại"); quản lý sửa hộ người khác vẫn bấm tay cho chắc. */
+let henTL = 0, dangTL = false, SUA = 0;
+function coGiNhap() {
+  const d = S.du;
+  // xét theo CHÍNH lịch đang hiện (S.du), không theo S.tab/S.hoNguoi — hai cái đó đổi trước khi nạp
+  if (!d || !d.ngay || !d.thang || !d.suaDuoc || d.hoNguoi) return false;
+  if (d.phieu && d.phieu.daNop) return false;
+  const ghi = S.ghiChu != null && S.ghiChu !== ((d.phieu && d.phieu.ghiChu) || '');
+  return ghi || S.ma.some((m, i) => m !== (d.ngay[i] && d.ngay[i].ma));
+}
+function datTT(chu) {
+  S.ttTuLuu = chu;
+  const o = document.getElementById('ttTuLuu');
+  if (o) o.textContent = chu;
+}
+function henTuLuu() {
+  if (!coGiNhap()) return;
+  SUA++;
+  clearTimeout(henTL);
+  datTT('Có thay đổi chưa lưu…');
+  henTL = setTimeout(() => tuLuu(), 2500);
+}
+async function tuLuu(roiTrang) {
+  clearTimeout(henTL); henTL = 0;
+  if (dangTL || S.dangLuu || !coGiNhap()) return;
+  const d = S.du, moc = SUA, ma = S.ma.slice(), ghiChu = S.ghiChu != null ? S.ghiChu : undefined;
+  dangTL = true;
+  datTT('Đang lưu nháp…');
+  try {
+    await goi('/api/thang', { method: 'POST', keepalive: !!roiTrang, body: JSON.stringify({ thang: d.thang, ma, nop: false, ghiChu }) });
+    // Máy chủ đã giữ đúng bản này: cập nhật mốc so sánh tại chỗ, khỏi nạp lại
+    d.ngay.forEach((n, i) => { n.ma = ma[i]; });
+    d.phieu = Object.assign(d.phieu || { trangThai: 'Nháp' }, { daNop: false }, ghiChu !== undefined ? { ghiChu } : {});
+    const g = new Date();
+    datTT('Đã tự lưu nháp · ' + p2(g.getHours()) + ':' + p2(g.getMinutes()));
+    const dangGo = document.activeElement && document.activeElement.id === 'ghiChu';
+    if (!dangGo && SUA === moc && S.du === d) ve();   // đã sang tháng khác thì thôi   // trạng thái "Nháp · chưa nộp" + tổng công
+  } catch (e) {
+    datTT('Chưa tự lưu được — ' + e.message + '. Bấm "Lưu nháp" để thử lại');
+  } finally {
+    dangTL = false;
+    if (SUA !== moc) henTuLuu();
+  }
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden' && henTL) tuLuu(true);
+});
+window.addEventListener('beforeunload', () => { if (henTL) tuLuu(true); });
 
 /* ---------------- tab Cả phòng ---------------- */
 function vePhong() {
@@ -433,9 +493,10 @@ document.addEventListener('click', async (e) => {
     const chuan = S.du.ngay[i].chuan;
     /* Bấm lại đúng mã đang cầm lên ngày đã mang mã đó = trả về lịch chuẩn. */
     S.ma[i] = S.ma[i] === S.co ? chuan : S.co;
-    return ve();
+    ve();
+    return henTuLuu();
   }
-  if (el('[data-chuan]')) { S.ma = S.du.ngay.map((n) => n.chuan); return ve(); }
+  if (el('[data-chuan]')) { S.ma = S.du.ngay.map((n) => n.chuan); ve(); return henTuLuu(); }
   if ((x = el('[data-luu]'))) return luu(x.dataset.luu === '1');
   if ((x = el('[data-toi-la]'))) {
     try {
@@ -461,7 +522,7 @@ document.addEventListener('click', async (e) => {
   if (el('[data-chuyen]')) return chuyen();
 });
 document.addEventListener('input', (e) => {
-  if (e.target && e.target.id === 'ghiChu') S.ghiChu = e.target.value;
+  if (e.target && e.target.id === 'ghiChu') { S.ghiChu = e.target.value; henTuLuu(); }
 });
 $('#thangTruoc').onclick = () => { S.thang = congThang(S.thang, -1); nap(); };
 $('#thangSau').onclick = () => { S.thang = congThang(S.thang, 1); nap(); };

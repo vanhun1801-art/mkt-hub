@@ -136,7 +136,8 @@ function veTab(o, ds) {
     '<button class="pill' + (m.ma === MAN ? ' on' : '') + '" data-man="' + m.ma + '">' +
     esc(m.ten) + '</button>').join('');
   $$('.pill', el).forEach((b) => {
-    b.onclick = () => {
+    b.onclick = async () => {
+      await luuTruocKhiDi();
       if (BAN && !confirm('Còn thay đổi chưa lưu. Rời đi?')) return;
       BAN = false;
       MAN = b.dataset.man;
@@ -149,6 +150,7 @@ function veTab(o, ds) {
 
 window.addEventListener('beforeunload', (e) => {
   if (!BAN) return;
+  if (tuLuuDuoc()) { tuLuu(true); return; }   // phiếu nháp: gửi luôn (keepalive), khỏi hỏi
   e.preventDefault();
   e.returnValue = '';
 });
@@ -631,6 +633,7 @@ function theLuu(d) {
     'style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">' +
     '<button class="btn chinh" id="btnNop">' + (daNop ? 'Cập nhật báo cáo' : 'Nộp báo cáo') + '</button>' +
     '<button class="btn" id="btnNhap">Lưu nháp</button>' +
+    '<span class="nho" id="ttTuLuu">' + (daNop ? '' : 'Tự lưu nháp khi có thay đổi') + '</span>' +
     '</div></div>';
 }
 
@@ -693,13 +696,18 @@ const mauDiem = (d) => (d >= 85 ? '' : d >= 60 ? 'cam' : 'do');
 
 /* ---------------- gắn sự kiện ---------------- */
 function gan(loaiKy) {
+  /* Phiếu vừa vẽ từ dữ liệu máy chủ: chưa có gì chưa lưu. Không xoá cờ này thì
+   * một lần tự lưu hỏng ở kỳ trước sẽ đem phiếu TRỐNG của kỳ mới đi lưu nháp. */
+  BAN = false; clearTimeout(henTL);
   const dau = $('[data-buoc]');
   const buoc = Number(dau && dau.dataset.buoc) || 0;
-  $('#btnLui').onclick = () => doiMoc(-1, loaiKy, buoc);
-  $('#btnToi').onclick = () => doiMoc(1, loaiKy, buoc);
-  $('#btnNay').onclick = () => { MOC = Date.now(); ve(); };
+  /* Đổi kỳ trước đây vẽ lại luôn, mất trắng những gì đang gõ mà không hỏi —
+   * nay lưu nháp trước rồi mới đổi. */
+  $('#btnLui').onclick = async () => { await luuTruocKhiDi(); doiMoc(-1, loaiKy, buoc); };
+  $('#btnToi').onclick = async () => { await luuTruocKhiDi(); doiMoc(1, loaiKy, buoc); };
+  $('#btnNay').onclick = async () => { await luuTruocKhiDi(); MOC = Date.now(); ve(); };
   const cn = $('#chonNgay');
-  if (cn) cn.onchange = () => { MOC = tuISO(cn.value); ve(); };
+  if (cn) cn.onchange = async () => { await luuTruocKhiDi(); MOC = tuISO(cn.value); ve(); };
 
   const bSo = $('#btnSo');
   if (bSo) {
@@ -904,7 +912,8 @@ function doiMoc(huong, loaiKy, buoc) {
 }
 
 /* ---------------- lưu ---------------- */
-async function luu(nop) {
+/** Thân phiếu gửi lên /api/phieu — dùng chung cho nút Lưu/Nộp và tự lưu nháp. */
+function thanPhieu(nop) {
   const than = {
     loaiKy: MAN,
     moc: DU.ky.tu + 3600000,
@@ -918,8 +927,14 @@ async function luu(nop) {
     than.dong = docBang();
     than.ca = ($('#chonCa') || {}).value || 'ngay';
     than.dinhMucTay = Number(($('#dmTay') || {}).value || 0) || 0;
-    if (nop && !than.dong.length) return toast('Chưa có đầu việc nào để nộp.', 'do');
   }
+  return than;
+}
+
+async function luu(nop) {
+  const than = thanPhieu(nop);
+  if (nop && MAN === 'ngay' && !than.dong.length) return toast('Chưa có đầu việc nào để nộp.', 'do');
+  clearTimeout(henTL);
 
   const nut = [$('#btnNop'), $('#btnNhap')].filter(Boolean);
   nut.forEach((b) => { b.disabled = true; });
@@ -935,6 +950,61 @@ async function luu(nop) {
     nut.forEach((b) => { b.disabled = false; });
   }
 }
+
+/* ---------------- tự lưu nháp ----------------
+ * Anh Hùng: "điều cần bấm nút lưu nháp để có thể lưu nháp, anh cần cơ chế tự
+ * động lưu nháp khi có phát sinh thêm nhập liệu mới". Gõ / chọn / thêm-xoá dòng
+ * xong 2,5 giây thì tự gửi đúng như bấm "Lưu nháp" — lặng lẽ, không vẽ lại màn
+ * (đang gõ dở không mất con trỏ). Đổi kỳ / đổi tab / rời trang thì lưu ngay.
+ *
+ * CHỈ tự lưu phiếu CHƯA NỘP: phiếu đã nộp mà gửi nop:false là rút nó về nháp —
+ * sửa phiếu đã nộp vẫn phải bấm "Cập nhật báo cáo" như cũ. */
+let henTL = 0, dangTL = false, SUA = 0;
+const tuLuuDuoc = () => !!(BAN && DU && DU.ky && $('#btnNhap') && !(DU.phieu && DU.phieu.daNop));
+function ttTuLuu(chu, loi) {
+  const o = $('#ttTuLuu');
+  if (!o) return;
+  o.textContent = chu;
+  o.classList.toggle('do', !!loi);
+}
+function henTuLuu() {
+  if (!BAN) return;
+  if (DU && DU.phieu && DU.phieu.daNop) return ttTuLuu('Có thay đổi — bấm "Cập nhật báo cáo" để lưu');
+  if (!tuLuuDuoc()) return;
+  SUA++;
+  clearTimeout(henTL);
+  ttTuLuu('Có thay đổi chưa lưu…');
+  henTL = setTimeout(() => tuLuu(), 2500);
+}
+async function tuLuu(roiTrang) {
+  clearTimeout(henTL); henTL = 0;
+  if (!tuLuuDuoc() || dangTL) return;
+  const moc = SUA;
+  dangTL = true;
+  ttTuLuu('Đang lưu nháp…');
+  try {
+    await goi('/api/phieu', { method: 'POST', body: JSON.stringify(thanPhieu(false)), keepalive: !!roiTrang });
+    if (SUA === moc) BAN = false;
+    if (DU.phieu) DU.phieu.daNop = false; else DU.phieu = { daNop: false };
+    const g = new Date();
+    ttTuLuu('Đã tự lưu nháp · ' + String(g.getHours()).padStart(2, '0') + ':' + String(g.getMinutes()).padStart(2, '0'));
+  } catch (e) {
+    ttTuLuu('Chưa tự lưu được — ' + e.message + '. Bấm "Lưu nháp" để thử lại', true);
+  } finally {
+    dangTL = false;
+    if (BAN && SUA !== moc) henTuLuu();
+  }
+}
+/** Gọi trước mọi thao tác thay màn (đổi kỳ, đổi tab): còn gì chưa lưu thì lưu. */
+async function luuTruocKhiDi() {
+  if (BAN && tuLuuDuoc()) await tuLuu();
+}
+// Chạy SAU các handler của từng ô (onX gắn trên phần tử chạy trước khi sự kiện nổi lên document)
+['input', 'change', 'click'].forEach((ev) =>
+  document.addEventListener(ev, () => setTimeout(henTuLuu, 0)));
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden' && BAN && tuLuuDuoc()) tuLuu(true);
+});
 
 /* ==================================================================
    MÀN ĐÃ NỘP (nhân sự)

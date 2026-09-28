@@ -551,3 +551,7 @@ body.so-mo #so {
   .dv-ngay { font-size: 13px; }                                  /* 11.5 */
   .bang-xem th { font-size: 13px; }                              /* 11.5 */
 }
+
+/* Trạng thái tự lưu nháp cạnh nút Lưu (28/09) */
+#ttTuLuu { margin-left: 4px; }
+#ttTuLuu.do { color: var(--red-text); }

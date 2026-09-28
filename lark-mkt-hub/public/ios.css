@@ -4164,3 +4164,17 @@ html[data-skin="ios"][data-theme="toi"]:not(#_):not(#__) tbody tr:hover { backgr
 @media (prefers-color-scheme: dark) {
   html[data-skin="ios"]:not([data-theme="sang"]):not(#_):not(#__) tbody tr:hover { background-color: rgba(255, 255, 255, .05) !important; }
 }
+
+/* Thanh "Có bản nháp chưa lưu · Khôi phục · Bỏ" (ios-app.js, 28/09) */
+html[data-skin="ios"] .ios-nhap-bar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin: 10px 16px 4px; padding: 8px 10px 8px 12px; border-radius: 12px;
+  background: color-mix(in srgb, var(--ios-xanh, #007aff) 10%, transparent); color: var(--ios-chu);
+  font-size: 13px; line-height: 18px;
+}
+html[data-skin="ios"] .ios-nhap-bar > span { flex: 1 1 auto; min-width: 0; }
+html[data-skin="ios"] .ios-nhap-bar > button {
+  height: 28px; padding: 0 12px; border: 0; border-radius: 999px; cursor: pointer;
+  font: inherit; font-weight: 600; background: var(--ios-xanh, #007aff); color: #fff;
+}
+html[data-skin="ios"] .ios-nhap-bar > button[data-nhap="bo"] { background: transparent; color: var(--ios-chu-2); }

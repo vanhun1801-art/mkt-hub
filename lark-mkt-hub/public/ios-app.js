@@ -677,3 +677,139 @@
   new MutationObserver(() => { try { quet(); } catch (_) {} })
     .observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ['class', 'hidden', 'style', 'open'] });
 })();
+
+/* NHÁP TẠI MÁY CHO MỌI FORM TRONG CỬA SỔ (28/09). Anh Hùng: "cần cơ chế tự động
+ * lưu nháp khi có phát sinh thêm nhập liệu mới". Mỗi app một kiểu form, phần lớn
+ * chỉ ghi Base lúc bấm Lưu/Gửi — lỡ đóng cửa sổ, lỡ bấm ra ngoài là mất trắng.
+ * Ở đây giữ mọi ô đang gõ NGAY TRÊN MÁY (không ghi Base, không tạo bản ghi dở):
+ *  - chỉ form mở ra còn TRỐNG (form tạo mới) — cửa sổ sửa bản ghi có sẵn không
+ *    đụng tới, nhiều app đã tự lưu Base ở đó, khôi phục bản cũ là đè sai;
+ *  - mở lại đúng form đó mà có nháp → thanh "Khôi phục · Bỏ", KHÔNG tự điền;
+ *  - bấm Lưu/Gửi/Tạo… rồi cửa sổ đóng = đã lưu thật → xoá nháp; đóng bằng ✕,
+ *    Esc, bấm ra ngoài → giữ nháp. Nháp quá 7 ngày tự bỏ. */
+(function () {
+  const html = document.documentElement;
+  const APP = html.getAttribute('data-app');
+  if (html.getAttribute('data-skin') !== 'ios' || !APP) return;
+  const KHUNG = '.modal, .modal-wrap, .drawer, .xt, .hop, .phu-man, .md, [role="dialog"]';
+  const O = 'input:not([type=hidden]):not([type=password]):not([type=file]):not([type=button]):not([type=submit]):not([type=search]):not([type=range]), textarea, select';
+  const NUT_LUU = /^\s*(\+\s*)?(lưu|gửi|nộp|tạo|ghi|đăng ký|cập nhật|xác nhận|thêm|hoàn tất|báo cáo)/i;
+  const TIEN_TO = 'ios.nhap:' + APP + ':';
+  const hien = (e) => e && e.isConnected && e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden';
+  const ngoai = (e) => { let k = e.closest(KHUNG); while (k && k.parentElement && k.parentElement.closest(KHUNG)) k = k.parentElement.closest(KHUNG); return k; };
+  const boQua = (o) => o.closest('.ios-bong-dong, .pk-panel, .dd-panel, .ios-nhap-bar') || /tìm|search/i.test(o.placeholder || '') || o.readOnly || o.disabled;
+  const oCua = (k) => [...k.querySelectorAll(O)].filter((o) => !boQua(o));
+  const tenO = (o, i) => o.id || o.name || o.dataset.f || o.dataset.k || ('#' + i);
+  const chu = (o) => o.tagName === 'TEXTAREA' || (o.tagName === 'INPUT' && /^(text|email|url|tel|number|)$/.test(o.type));
+  const coChu = (k) => oCua(k).some((o) => chu(o) && String(o.value || '').trim());
+  function khoa(k) {
+    const h = k.querySelector('h1, h2, h3, .modal-title, .dr-title, .xt-ten, .hop-dau');
+    const t = h ? [...h.childNodes].filter((n) => n.nodeType === 3 || !n.matches('button, .md-x, .x')).map((n) => n.textContent).join('') : '';
+    return TIEN_TO + (k.id || [...k.classList].filter((c) => !/^(on|open|mo|hien|ios-)/.test(c)).join('.')) + ':' + t.replace(/\s+/g, ' ').trim().slice(0, 60);
+  }
+  const doc = (kh) => { try { const x = JSON.parse(localStorage.getItem(kh) || 'null'); return x && Date.now() - x.at < 7 * 864e5 ? x : null; } catch (_) { return null; } };
+  const xoa = (kh) => { try { localStorage.removeItem(kh); } catch (_) {} };
+
+  /* Form TẠO MỚI hay cửa sổ SỬA bản ghi có sẵn? Lúc mở, chụp giá trị ban đầu
+   * (form mới vẫn có sẵn giá trị mặc định: người phụ trách, ngày hôm nay…).
+   * Tới lần gõ đầu tiên: ô khác đã bị app ĐIỀN SAU lúc mở (nạp bản ghi về) và
+   * mang chữ → cửa sổ sửa → không giữ nháp. */
+  const giaTri = (k) => { const g = {}; oCua(k).forEach((o, i) => { g[tenO(o, i)] = (o.type === 'checkbox' || o.type === 'radio') ? String(o.checked) : String(o.value); }); return g; };
+  const trangThai = new Map();   // khung đang mở → { kh, goc, daGo, sua }; đóng là quên
+  function thay(k) {
+    let t = trangThai.get(k);
+    if (t && t.kh === khoa(k)) return t;
+    t = { kh: khoa(k), goc: giaTri(k), daGo: new Set(), sua: undefined };
+    trangThai.set(k, t);
+    moiKhoiPhuc(k, t);
+    return t;
+  }
+  let hen = 0;
+  function giu(k, oGo) {
+    const t = thay(k);
+    const ds = oCua(k);
+    const ten = oGo ? tenO(oGo, ds.indexOf(oGo)) : '';
+    if (t.sua === undefined) {
+      t.sua = ds.some((o, i) => { const n = tenO(o, i); return o !== oGo && !t.daGo.has(n) && chu(o) && String(o.value).trim() && String(o.value) !== t.goc[n]; });
+      if (t.sua) { const b = k.querySelector('.ios-nhap-bar'); if (b) b.remove(); }
+    }
+    if (ten) t.daGo.add(ten);
+    if (t.sua) return;
+    clearTimeout(hen);
+    hen = setTimeout(() => {
+      try {
+        if (!coChu(k)) return xoa(t.kh);
+        const f = {};
+        oCua(k).forEach((o, i) => { f[tenO(o, i)] = (o.type === 'checkbox' || o.type === 'radio') ? { c: o.checked } : { v: o.value }; });
+        localStorage.setItem(t.kh, JSON.stringify({ at: Date.now(), f }));
+      } catch (_) {}
+    }, 500);
+  }
+  function moiKhoiPhuc(k, t) {
+    const x = doc(t.kh);
+    if (!x || k.querySelector('.ios-nhap-bar')) return;
+    const o0 = oCua(k)[0];
+    if (!o0) return;
+    // chen thanh ngay truoc khoi chua o dau tien, o cap con truc tiep cua hop
+    let hop = k;
+    const con = [...k.children].filter((c) => c.contains(o0));
+    if (con[0] && con[0] !== o0 && con[0].getBoundingClientRect().width < innerWidth * 0.98) hop = con[0];
+    let khoi = o0;
+    while (khoi.parentElement && khoi.parentElement !== hop) khoi = khoi.parentElement;
+    const g = new Date(x.at);
+    const bar = document.createElement('div');
+    bar.className = 'ios-nhap-bar';
+    bar.innerHTML = '<span>Có bản nháp chưa lưu · ' + String(g.getHours()).padStart(2, '0') + ':' + String(g.getMinutes()).padStart(2, '0') +
+      ' ' + String(g.getDate()).padStart(2, '0') + '/' + String(g.getMonth() + 1).padStart(2, '0') + '</span>' +
+      '<button type="button" data-nhap="lay">Khôi phục</button><button type="button" data-nhap="bo">Bỏ</button>';
+    bar.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-nhap]');
+      if (!b) return;
+      e.preventDefault(); e.stopPropagation();
+      if (b.dataset.nhap === 'lay') {
+        oCua(k).forEach((o, i) => {
+          const v = x.f[tenO(o, i)];
+          if (!v) return;
+          if ('c' in v) o.checked = v.c; else o.value = v.v;
+          o.dispatchEvent(new Event('input', { bubbles: true }));
+          o.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+      } else xoa(t.kh);
+      bar.remove();
+    });
+    khoi.parentElement.insertBefore(bar, khoi);
+  }
+  const suKien = (e) => {
+    const o = e.target;
+    if (!o || !o.matches || !o.matches(O) || boQua(o)) return;
+    const k = ngoai(o);
+    if (k && hien(k)) giu(k, o);
+  };
+  document.addEventListener('input', suKien, true);
+  document.addEventListener('change', suKien, true);
+  // mở cửa sổ: dò có nháp không (form trống)
+  let henDo = 0;
+  new MutationObserver(() => {
+    if (henDo) return;
+    henDo = requestAnimationFrame(() => {
+      henDo = 0;
+      // cửa sổ đã đóng: quên trạng thái — app dùng lại đúng khung đó cho lần mở sau
+      trangThai.forEach((t, k) => { if (!hien(k)) { trangThai.delete(k); const b = k.querySelector('.ios-nhap-bar'); if (b) b.remove(); } });
+      document.querySelectorAll(KHUNG).forEach((k) => { if (k === ngoai(k) && hien(k) && oCua(k).length) thay(k); });
+    });
+  }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'hidden', 'style'] });
+  // bấm nút lưu → cửa sổ đóng trong 6 giây = đã lưu thật → bỏ nháp
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest && e.target.closest('button, .btn, [type=submit]');
+    if (!b || b.closest('.ios-nhap-bar')) return;
+    const k = ngoai(b);
+    if (!k || !NUT_LUU.test(b.textContent || '')) return;
+    const t = trangThai.get(k);
+    if (!t || t.sua) return;
+    const kh = t.kh, t0 = Date.now();
+    const doi = setInterval(() => {
+      if (!hien(k)) { clearInterval(doi); xoa(kh); }
+      else if (Date.now() - t0 > 6000) clearInterval(doi);
+    }, 300);
+  }, true);
+})();
