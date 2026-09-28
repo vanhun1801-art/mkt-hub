@@ -1274,8 +1274,16 @@ async function api(req, res, u) {
     const ds = (c && c.kq && c.kq.hoiThoaiPhanLoai) || [];
     const dem = { 'chuyen-doi': 0, 'tiem-nang': 0, rac: 0 };
     ds.forEach((h) => { dem[h.nhom] = (dem[h.nhom] || 0) + 1; });
+    /* Khoảng ngày của LƯỢT GHI CÔNG, không phải khoảng đang chọn trên đầu trang.
+     * Hai thứ này khác nhau và trước đây giao diện không nói, nên số hội thoại
+     * của tháng 8 nằm ngay cạnh doanh thu tháng 9 mà không ai biết. */
+    const kq = (c && c.kq) || {};
     return ok(res, {
       luc: c ? c.luc : null,
+      tu: kq.from || null,
+      den: kq.to || null,
+      cuaSo: kq.cuaSo || null,
+      cauNoi: kq.cauNoi || null,
       tongCong: ds.length,
       chuyenDoi: dem['chuyen-doi'],
       tiemNang: dem['tiem-nang'],

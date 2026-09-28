@@ -529,7 +529,7 @@ function roasO(salesD) {
     <div class="kpi">
       <div class="k-label">Doanh thu từ quảng cáo</div>
       <div class="k-value">${vnd(T.dtTuQuangCao || 0)}</div>
-      <div class="k-foot">${int(T.donTuQuangCao || 0)} đơn ghi công được
+      <div class="k-foot">${int(T.donTuQuangCao || 0)} đơn Tourwell ghi nguồn là Facebook · TikTok · Google
         <button class="link-btn" onclick="window.__goTab('doanh-thu')" style="margin-left:6px">Xem chi tiết →</button></div>
     </div>
     ${cot3 ? `<div class="kpi">
@@ -584,6 +584,25 @@ function leadO(hoiThoaiD) {
   }
   const T = hoiThoaiD;
   const ty = (n) => (T.tongCong ? Math.round((n / T.tongCong) * 100) : 0);
+  const C = T.cauNoi || null;
+  /* Khối này đọc từ lượt ghi công gần nhất, KHÔNG theo khoảng ngày và chiến dịch
+   * đang chọn ở đầu trang. Không nói ra thì người đọc mặc định là cùng một kỳ —
+   * mà lượt ghi công có thể đang phủ tháng khác hẳn. */
+  const kyChay = (T.tu && T.den)
+    ? `Phủ ${dmy(T.tu)} → ${dmy(T.den)} — <b>không theo bộ lọc ở đầu trang</b>.`
+    : '';
+  /* Cầu nối sang ô "Doanh thu từ quảng cáo" ngay phía trên. Hai ô đó đi hai
+   * đường khác nhau; chênh nhau là bình thường, nhưng phải giải thích tại chỗ
+   * chứ không để người đọc tự đoán. */
+  const cau = C ? `<div class="help" style="margin-top:10px">
+    <b>Vì sao con số này không khớp ô doanh thu phía trên.</b>
+    Ô doanh thu đếm đơn theo ô <b>Kênh</b> mà Tourwell tự khai, không truy về hội thoại nào.
+    Khối này thì chỉ lần được theo <b>số điện thoại</b> khách để lại trong Pancake.
+    Lượt ghi công gần nhất: ${int(C.donGhiCong)} đơn ghép được với quảng cáo —
+    ${int(C.donQuaHoiThoai)} đơn qua đường hội thoại (truy ngược được về ${int(C.donTruyVeHoiThoai)} hội thoại cụ thể),
+    ${int(C.donQuaPOS)} đơn qua khoá cứng POS (đường này <b>không đi qua Pancake</b> nên không đánh dấu hội thoại nào).
+    ${int(C.hoiThoaiKhongSdt)} hội thoại không để lại số điện thoại nên <b>không thể</b> xếp vào Chuyển đổi, dù khách đó có mua hay không.
+  </div>` : '';
   const the = (nhom, nhan, n, cls) => `<div class="kpi" style="cursor:pointer" data-nhom="${nhom}" onclick="window.__moHoiThoai('${nhom}')">
     <div class="k-label">${nhan}</div>
     <div class="k-value"><span class="tag ${cls}">${int(n)}</span></div>
@@ -596,13 +615,14 @@ function leadO(hoiThoaiD) {
       <div class="help">
         <b>Đây là ước lượng</b>, dựa trên có để lại số điện thoại và có ra đơn hay không —
         không phải team tự gắn nhãn nên không tuyệt đối chính xác. ${int(T.tongCong)} hội thoại
-        có gắn quảng cáo trong lần ghi công gần nhất.
+        có gắn quảng cáo trong lần ghi công gần nhất. ${kyChay}
       </div>
       <div class="kpis" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-top:10px">
         ${the('chuyen-doi', 'Chuyển đổi', T.chuyenDoi, 'good')}
         ${the('tiem-nang', 'Có tiềm năng, chưa chốt', T.tiemNang, 'warn')}
         ${the('rac', 'Rác / chưa rõ ý định', T.rac, '')}
       </div>
+      ${cau}
     </div>
   </div>`;
 }
@@ -1028,7 +1048,7 @@ VIEW['doanh-thu'] = async (view) => {
   <div class="kpis" style="grid-template-columns:repeat(${d.biGioiHan ? 3 : 4},minmax(0,1fr))">
     <div class="kpi"><div class="k-label">Doanh thu từ quảng cáo</div>
       <div class="k-value">${vnd(T.dtTuQuangCao || 0)}</div>
-      <div class="k-foot">${int(T.donTuQuangCao || 0)} đơn ghi công được</div></div>
+      <div class="k-foot">${int(T.donTuQuangCao || 0)} đơn Tourwell ghi nguồn là kênh quảng cáo</div></div>
     <div class="kpi"><div class="k-label">Chi tiêu ads</div>
       <div class="k-value">${vnd(T.chiQuangCao || 0)}</div>
       <div class="k-foot">cả kỳ, đủ mọi kênh</div></div>
@@ -2054,6 +2074,9 @@ window.__moHoiThoai = async (nhom) => {
         { key: 'tenKhach', label: 'Khách', render: (r) => esc(r.tenKhach || '(không rõ tên)') },
         { key: 'platform', label: 'Kênh', render: (r) => platTag(r.platform) },
         { key: 'soTinNhan', label: 'Số tin', num: true, render: (r) => int(r.soTinNhan) },
+        { key: 'maDon', label: 'Đơn ghép được', render: (r) => ((r.maDon || []).length
+          ? (r.maDon || []).map((m) => `<span class="tag good">${esc(m)}</span>`).join(' ')
+          : '<span class="sub">—</span>') },
         { key: 'lyDo', label: 'Vì sao', render: (r) => `<span class="sub">${esc(r.lyDo)}</span>` },
         {
           key: 'act',

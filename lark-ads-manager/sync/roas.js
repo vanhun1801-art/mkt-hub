@@ -106,7 +106,7 @@ function tinh({ posRows = [], hoiThoaiRows = [], leadRows = [], donRows = [], da
   };
 
   /** Ghi công mọi đơn hợp lệ của một lead cho một quảng cáo. */
-  const ghi = (o, lead) => {
+  const ghi = (o, lead, hoiThoaiId = '') => {
     if (!lead.ngay || !lead.kh) return 0;
     let n = 0;
     (donTheoKH.get(lead.kh) || []).forEach((d) => {
@@ -117,6 +117,10 @@ function tinh({ posRows = [], hoiThoaiRows = [], leadRows = [], donRows = [], da
       daDungDon.add(d.ma);
       ghiCongDon.set(String(d.ma), {
         adId: o.adId, duong: o.duong, maLead: lead.ma || '', leadId: lead.id,
+        /* Hội thoại nào sinh ra đơn này. Đường POS không đi qua hội thoại nào
+         * nên để rỗng — và chỗ rỗng đó chính là câu trả lời cho "sao ra doanh
+         * thu mà không thấy hội thoại nào chuyển đổi". */
+        hoiThoaiId: hoiThoaiId || '',
       });
       o.don += 1;
       o.tien += d.tien;
@@ -168,7 +172,7 @@ function tinh({ posRows = [], hoiThoaiRows = [], leadRows = [], donRows = [], da
     if (!lead) { nhat.sdtKhongKhopLead += 1; return; }
     const o = layO(ads[0], 'hội thoại');
     o.lead += 1;
-    ghi(o, lead);
+    ghi(o, lead, h.id);
   });
 
   /* ---------- phân loại hội thoại (chất lượng lead từ quảng cáo) ----------
@@ -185,14 +189,22 @@ function tinh({ posRows = [], hoiThoaiRows = [], leadRows = [], donRows = [], da
    * `nguonPhanLoai: 'heuristic'` cố tình để riêng một trường — chỗ cắm sau
    * này nếu có AI đọc hội thoại đánh giá lại, không phải sửa lại hình dạng dữ
    * liệu ở nơi khác đang dùng nó. */
-  const coDonTrongCuaSo = (sdtList) => sdtList.some((p) => {
-    const leads = leadTheoSdt.get(p) || [];
-    return leads.some((lead) => (donTheoKH.get(lead.kh) || []).some((d) => {
-      if (!d.ngay || !lead.ngay) return false;
-      const tre = cachNgay(lead.ngay, d.ngay);
-      return tre >= 0 && tre <= cuaSo;
-    }));
-  });
+  /* Trả về MÃ ĐƠN, không trả true/false. Anh Hùng hỏi đúng chỗ: "ra doanh thu
+   * rồi thì phải biết hội thoại nào đã chuyển đổi" — biết có đơn mà không nói
+   * được đơn nào thì vẫn chưa trả lời được câu đó. */
+  const donTrongCuaSo = (sdtList) => {
+    const ma = new Set();
+    sdtList.forEach((p) => {
+      (leadTheoSdt.get(p) || []).forEach((lead) => {
+        (donTheoKH.get(lead.kh) || []).forEach((d) => {
+          if (!d.ngay || !lead.ngay || !d.ma) return;
+          const tre = cachNgay(lead.ngay, d.ngay);
+          if (tre >= 0 && tre <= cuaSo) ma.add(String(d.ma));
+        });
+      });
+    });
+    return [...ma];
+  };
   const hoiThoaiPhanLoai = hoiThoaiRows
     .filter((h) => h.type === 'INBOX' && (h.adIds || []).length)
     .map((h) => {
@@ -200,19 +212,24 @@ function tinh({ posRows = [], hoiThoaiRows = [], leadRows = [], donRows = [], da
       const coLienHe = !!h.coSdt || sdt.length > 0;
       let nhom = 'rac';
       let lyDo = 'Không để lại số điện thoại';
+      let maDon = [];
       if (coLienHe) {
         nhom = 'tiem-nang';
         lyDo = 'Có để lại số điện thoại, chưa thấy ra đơn';
-        if (sdt.length && coDonTrongCuaSo(sdt)) {
-          nhom = 'chuyen-doi';
-          lyDo = 'Số điện thoại đã ghép được với đơn hàng';
+        if (sdt.length) {
+          maDon = donTrongCuaSo(sdt);
+          if (maDon.length) {
+            nhom = 'chuyen-doi';
+            lyDo = 'Ghép được với đơn ' + maDon.slice(0, 3).join(', ')
+              + (maDon.length > 3 ? ` và ${maDon.length - 3} đơn nữa` : '');
+          }
         }
       }
       return {
         id: h.id, pageId: h.pageId || '', khachId: h.khachId || '', ngay: h.ngay,
         adIds: h.adIds || [], platform: h.platform || '',
         soTinNhan: h.soTinNhan || 0, tenKhach: h.tenKhach || '',
-        nhom, lyDo, nguonPhanLoai: 'heuristic',
+        nhom, lyDo, maDon, nguonPhanLoai: 'heuristic',
       };
     });
 
@@ -309,7 +326,7 @@ function tinh({ posRows = [], hoiThoaiRows = [], leadRows = [], donRows = [], da
     ghiCongDon: [...ghiCongDon.entries()].map(([ma, g]) => {
       const a = adTheoExt.get(String(g.adId)) || {};
       return { ma, adId: g.adId, ten: a.name || '', nenTang: a.platform || '',
-        duong: g.duong, maLead: g.maLead, leadId: g.leadId };
+        duong: g.duong, maLead: g.maLead, leadId: g.leadId, hoiThoaiId: g.hoiThoaiId || '' };
     }),
     donKhongGhep: {
       so: donRows.length - daDungDon.size,
@@ -319,6 +336,24 @@ function tinh({ posRows = [], hoiThoaiRows = [], leadRows = [], donRows = [], da
     lyDoTheoDon: [...lyDoTheoDon.entries()].map(([ma, lyDo]) => ({ ma, lyDo, lyDoText: NHAN_LY_DO[lyDo] })),
     /* Phân loại lead từ hội thoại quảng cáo — xem giải thích ở khối tính phía trên. */
     hoiThoaiPhanLoai,
+    /* CẦU NỐI giữa hai con số hay bị đọc cạnh nhau trên Tổng quan: doanh thu ghi
+     * công được, và số hội thoại chuyển đổi. Hai cái đi hai đường khác nhau nên
+     * chênh nhau là chuyện thường — nhưng phải NÓI RA mới đọc được, không thì
+     * nhìn "131 triệu" cạnh "0 hội thoại chuyển đổi" là thấy app tự mâu thuẫn.
+     *
+     * `donQuaPOS` là phần không bao giờ đánh dấu được hội thoại nào: đường POS
+     * ghép bằng ad_id + mã LU trên đơn, không đi qua Pancake. */
+    cauNoi: (() => {
+      const g = [...ghiCongDon.values()];
+      return {
+        donGhiCong: g.length,
+        donQuaHoiThoai: g.filter((x) => x.duong === 'hội thoại').length,
+        donQuaPOS: g.filter((x) => x.duong === 'POS').length,
+        donTruyVeHoiThoai: g.filter((x) => x.hoiThoaiId).length,
+        hoiThoaiCoSdt: hoiThoaiPhanLoai.filter((h) => h.nhom !== 'rac').length,
+        hoiThoaiKhongSdt: hoiThoaiPhanLoai.filter((h) => h.nhom === 'rac').length,
+      };
+    })(),
   };
 }
 
