@@ -544,6 +544,18 @@
         { t: 'Nền tảng', v: (x) => theTag(x.platform) },
         { t: 'Số phiên', num: 1, v: (x) => n0(x.soPhien) },
         { t: 'Phút', num: 1, v: (x) => n0(Math.round((x.thoiLuong || 0) / 60)) },
+        /* PHÚT/PHIÊN — không có trong bốn tệp, app tự chia.
+         *
+         * Đây là cột nhanh nhất để thấy hôm nào LIVE bị đứt quãng: tháng 8
+         * thường 40 phút/phiên, riêng 30/08 sáu phiên mà chỉ 18 phút mỗi phiên
+         * — hoặc cố tình chia nhỏ, hoặc rớt sóng phải lên lại. Nhìn riêng cột
+         * "số phiên" hay cột "phút" đều không thấy, đặt cạnh nhau mới lộ.
+         *
+         * Không có phiên nào thì để gạch, đừng ghi 0: ngày chỉ có tiền quà mà
+         * không LIVE (08/09, 23/08) mà ghi "0 phút/phiên" là đọc thành phiên
+         * dài 0 phút. */
+        { t: 'Phút/phiên', num: 1, v: (x) => (x.soPhien
+          ? n0(Math.round((x.thoiLuong || 0) / 60 / x.soPhien)) : '—') },
         { t: 'Lượt xem', num: 1, v: (x) => n0(x.luotXem) },
         { t: 'Người xem riêng', num: 1, v: (x) => n0(x.nguoiXemRieng) },
         { t: 'Đỉnh đồng thời', num: 1, v: (x) => n0(x.dinhDongThoi) },
