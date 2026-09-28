@@ -74,8 +74,40 @@ function veTabs() {
 }
 const laQL = () => !!(S.meta && S.meta.toi.quanLy);
 
+/* Khung xương ĐÚNG BỐ CỤC THẬT của màn này, không phải một hình đoán:
+ * hàng 5 thẻ số, rồi thẻ lịch có 7 cột × 5 hàng, rồi bảng cả phòng (nếu đang
+ * là quản lý). Mắt không phải dựng lại bố cục khi dữ liệu về.
+ *
+ * VÌ SAO CẦN: `nap()` đọc xong mới vẽ, nên trong lúc chờ thì màn vẫn là THÁNG
+ * CŨ — mà tiêu đề trên thanh công cụ đã nhảy sang tháng mới ngay khi bấm. Đo
+ * 28/09/2026: lệch nhau khoảng 3 giây. Ba giây đọc lịch tháng 10 mà tưởng là
+ * tháng 9 thì đủ để xếp nhầm một ca trực. Thà trống còn hơn sai. */
+function veCho() {
+  const K = window.KX;
+  if (!K) { $('#man').innerHTML = '<div class="bao">Đang đọc…</div>'; return; }
+  const oSoCho = K.oSo ? K.oSo(5) : '';
+  const oNgay = [];
+  for (let i = 0; i < 35; i++) oNgay.push('<div class="ngay kx-o" style="height:74px"></div>');
+  $('#man').innerHTML =
+    '<div class="kx-vung" aria-busy="true" aria-label="Đang đọc lịch">' +
+    oSoCho +
+    '<section class="the"><div class="the-dau">' + K.chu('240px', 'to') + '</div>' +
+    '<div class="the-than"><div class="lich">' + oNgay.join('') + '</div></div></section>' +
+    (laQL() && !S.hoNguoi ? '<section class="the"><div class="the-dau">' + K.chu('200px', 'to') +
+      '</div><div class="the-than">' + (K.bang ? K.bang(6, 6) : '') + '</div></section>' : '') +
+    '</div>';
+}
+
+/* Câu hỏi đang hiển thị trên màn là câu hỏi nào — để biết lúc nào phải xoá màn
+ * đi chờ, lúc nào chỉ là làm mới đúng thứ đang xem (thì giữ nguyên cho đỡ nháy). */
+let dangVe = '';
+const khoaMan = () => [S.tab, S.thang, S.hoNguoi || ''].join('|');
+
 async function nap(moi) {
   veTabs();
+  /* Đổi tháng / đổi tab / xem hộ người khác = NỘI DUNG CŨ KHÔNG CÒN ĐÚNG nữa,
+   * phải dọn ngay. Còn bấm làm mới đúng thứ đang xem thì giữ màn, đỡ nháy. */
+  if (khoaMan() !== dangVe) veCho();
   try {
     const m = moi ? '&moi=1' : '';
     if (S.tab === 'tv') {
@@ -90,7 +122,9 @@ async function nap(moi) {
       S.phong = laQL() && !S.hoNguoi ? await goi('/api/ca-phong?thang=' + S.thang + m) : null;
     }
     ve();
+    dangVe = khoaMan();
   } catch (e) {
+    dangVe = '';
     $('#man').innerHTML = '<div class="bao cam">' + esc(e.message) + '</div>';
   }
 }
