@@ -54,6 +54,10 @@ const BANG = {
     thuBgd: ['Thư BGĐ', 't'], tdBgd: ['Tiêu đề thư BGĐ', 't'], bgdTraLoi: ['BGĐ trả lời', 't'], bgdTraLoiLuc: ['BGĐ trả lời lúc', 'd'],
     thuKol: ['Thư KOL', 't'], tdKol: ['Tiêu đề thư mời', 't'], kolTraLoi: ['KOL trả lời', 't'], kolTraLoiLuc: ['KOL trả lời lúc', 'd'],
     chotLuc: ['Chốt bảng kê lúc', 'd'],
+    /* form KOL tự điền (28/09/2026) */
+    maForm: ['Mã form', 't'], formGuiLuc: ['Form gửi lúc', 'd'], formDienLuc: ['Form điền lúc', 'd'],
+    bayDen: ['Chuyến bay đến', 't'], bayVe: ['Chuyến bay về', 't'], yeuCauDacBiet: ['Yêu cầu đặc biệt', 't'],
+    noiDon: ['Nơi đón', 't'], noiTra: ['Nơi trả', 't'],
   },
   doiTac: {
     ten: ['Tên đối tác', 't'], email: ['Email', 't'], cc: ['CC', 't'], lienHe: ['Người liên hệ', 't'],
@@ -69,6 +73,13 @@ const BANG = {
     tinhTrang: ['Tình trạng', 's'], nhacHen: ['Nhắc hẹn', 'b'], daNhac: ['Đã nhắc lúc', 'd'],
     tinNhan: ['Tin nhắn nhắc', 't'], kiemLai: ['Cần kiểm lại', 'b'], ghiChu: ['Ghi chú', 't'],
     xinFoc: ['Hợp tác FOC', 's'], xinFocLuc: ['Gửi đề xuất FOC lúc', 'd'], tourwellId: ['Tourwell ID', 't'],
+  },
+  /* Thành viên đoàn — KOL điền qua form; CCCD / hộ chiếu dùng để đặt vé, khai lưu trú */
+  thanhVien: {
+    ten: ['Họ tên', 't'], hopTac: ['Hợp tác', 'l'], vaiTro: ['Vai trò', 's'], nhomKhach: ['Nhóm khách', 's'],
+    ngaySinh: ['Ngày sinh', 'd'], gioiTinh: ['Giới tính', 's'], quocTich: ['Quốc tịch', 't'],
+    loaiGiay: ['Loại giấy tờ', 's'], soGiay: ['Số giấy tờ', 't'], ngayCap: ['Ngày cấp', 'd'], ngayHet: ['Ngày hết hạn', 'd'],
+    sdt: ['SĐT', 't'], ghiChu: ['Ghi chú', 't'], anhGiay: ['Ảnh giấy tờ', 'f'],
   },
   banGiao: {
     ten: ['Sản phẩm', 't'], hopTac: ['Hợp tác', 'l'], chuDe: ['Chủ đề', 't'], loai: ['Loại', 's'],
@@ -114,6 +125,8 @@ function url(v) {
 const DOC = {
   t: chu, s: (v) => nhieu(v)[0] || '', m: nhieu, n: so, d: ms, b: (v) => v === true,
   l: (v) => idLink(v)[0] || '', L: idLink, u: url,
+  /* ô đính kèm: [{token, ten, loai, co}] — chỉ đọc; ghi đi đường lark.ganTep */
+  f: (v) => (Array.isArray(v) ? v : []).map((x) => ({ token: x.file_token || x.token || '', ten: x.name || '', loai: x.mime_type || x.type || '', co: x.size || 0 })).filter((x) => x.token),
 };
 
 /* ---------------- ghi ô ---------------- */
@@ -127,6 +140,7 @@ const GHI = {
   l: (v) => (v ? [{ id: String(v) }] : []),
   L: (v) => (Array.isArray(v) ? v : v ? [v] : []).filter(Boolean).map((id) => ({ id: String(id) })),
   u: (v) => (v ? String(v) : ''),
+  f: () => undefined,   // đính kèm không ghi qua sangO
 };
 
 /** {khoá: giá trị} → {tên cột: CellValue}; bỏ khoá lạ (client không ghi được cột ngoài danh sách). */

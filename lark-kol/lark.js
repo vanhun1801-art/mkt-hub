@@ -221,7 +221,35 @@ async function guiTinNhan(openId, noiDung) {
   }
 }
 
+/* ---------------- tệp đính kèm (ảnh CCCD / hộ chiếu của thành viên đoàn) ----------------
+ * ganTep: THAY cả ô bằng danh sách tệp mới (xoá ô rồi tải lần lượt). taiTep: đọc một tệp về Buffer. */
+async function ganTep(recordId, fieldName, tep, tableId) {
+  await updateRecord(recordId, { [fieldName]: [] }, tableId);
+  const rel = './du-lieu/tai-' + recordId, abs = path.join(__dirname, 'du-lieu', 'tai-' + recordId);
+  fs.rmSync(abs, { recursive: true, force: true });
+  fs.mkdirSync(abs, { recursive: true });
+  try {
+    for (const t of tep) {
+      fs.writeFileSync(path.join(abs, t.ten), t.buf);
+      await cli(['base', '+record-upload-attachment', ...baseArgs(), '--table-id', tableId, '--record-id', recordId,
+        '--field-id', fieldName, '--file', rel + '/' + t.ten, '--format', 'json'], { timeout: 300000, cwd: __dirname });
+    }
+  } finally { fs.rmSync(abs, { recursive: true, force: true }); }
+}
+async function taiTep(recordId, fileToken, tableId) {
+  const rel = './du-lieu/xem-' + recordId, abs = path.join(__dirname, 'du-lieu', 'xem-' + recordId);
+  fs.rmSync(abs, { recursive: true, force: true });
+  fs.mkdirSync(abs, { recursive: true });
+  try {
+    await cli(['base', '+record-download-attachment', ...baseArgs(), '--table-id', tableId, '--record-id', recordId,
+      '--file-token', fileToken, '--output', rel, '--overwrite', '--format', 'json'], { timeout: 180000, cwd: __dirname });
+    const f = fs.readdirSync(abs)[0];
+    if (!f) throw new Error('Tải tệp từ Base không ra tệp nào');
+    return { buf: fs.readFileSync(path.join(abs, f)), ten: f };
+  } finally { fs.rmSync(abs, { recursive: true, force: true }); }
+}
+
 module.exports = cfg.mode === 'api' ? require('./larkapi') : {
   cli, whoami, listAllRecords, listFields, getRecord,
-  updateRecord, updateMany, createRecord, createMany, deleteRecords, guiTinNhan,
+  updateRecord, updateMany, createRecord, createMany, deleteRecords, guiTinNhan, ganTep, taiTep,
 };

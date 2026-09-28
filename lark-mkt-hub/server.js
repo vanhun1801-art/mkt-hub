@@ -2245,7 +2245,12 @@ const server = http.createServer(async (req, res) => {
      * ấn tượng đầu tiên của người lạ với hệ thống. Đây là nhãn hiệu, không phải
      * dữ liệu: không có gì để lộ. */
     const anhCong = ['/logo-app-180.png', '/logo-app-32.png', '/icon.svg'];
+    /* Form KOL tự điền (lark-kol, 28/09/2026): KOL là người NGOÀI, không có tài khoản Lark của
+     * công ty — nên đúng các đường của form được mở không cần đăng nhập. Mỗi link mang một mã
+     * ngẫu nhiên 32 ký tự, chỉ mở đúng một đoàn; form chỉ nhận dữ liệu đoàn đó gửi lên và không
+     * bao giờ trả ra ảnh giấy tờ. Mọi đường khác của app KOL vẫn sau cổng đăng nhập. */
     const moCong = p === '/healthz'
+      || /^\/m\/kol\/(f\/[a-f0-9]{32}|api\/form\/[a-f0-9]{32}(\/anh\/rec\w+)?|form\.(js|css)|ma-vung\.js|api\/logo)$/.test(p)
       || (p === '/api/logo' && (req.method === 'GET' || req.method === 'HEAD'))
       || (anhCong.includes(p) && (req.method === 'GET' || req.method === 'HEAD'));
     if (!moCong) {

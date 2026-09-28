@@ -261,8 +261,31 @@ async function guiTinNhan(openId, noiDung) {
   }
 }
 
+/* ---------------- tệp đính kèm — cùng chữ ký với lark.js ---------------- */
+async function ganTep(recordId, fieldName, tep, tableId) {
+  const token = [];
+  for (const t of tep) {
+    const fd = new FormData();
+    fd.append('file', new Blob([t.buf]), t.ten);
+    fd.append('file_name', t.ten);
+    fd.append('parent_type', 'bitable_file');
+    fd.append('parent_node', cfg.baseToken);
+    fd.append('size', String(t.buf.length));
+    const r = await fetch(HOST + '/open-apis/drive/v1/medias/upload_all', { method: 'POST', headers: { Authorization: 'Bearer ' + await tenantToken() }, body: fd });
+    const d = await r.json();
+    if (d.code !== 0) throw new Error(/Access denied/i.test(d.msg || '') ? 'App Lark chưa có quyền tệp (drive:drive) nên không tải ảnh lên được.' : 'Tải ảnh lên Lark thất bại: ' + (d.msg || d.code));
+    token.push({ file_token: d.data.file_token });
+  }
+  return updateRecord(recordId, { [fieldName]: token }, tableId);
+}
+async function taiTep(recordId, fileToken, tableId) {
+  const extra = encodeURIComponent(JSON.stringify({ bitablePerm: { tableId } }));
+  const buf = await call('GET', '/open-apis/drive/v1/medias/' + encodeURIComponent(fileToken) + '/download?extra=' + extra, { raw: true });
+  return { buf, ten: fileToken };
+}
+
 module.exports = {
-  guiTinNhan,
+  guiTinNhan, ganTep, taiTep,
   cli, whoami, listAllRecords, listFields, getRecord,
   updateRecord, updateMany, createRecord, createMany, deleteRecords,
   tenantToken, call,

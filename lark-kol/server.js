@@ -163,6 +163,88 @@ async function guiPq(res, ten) {
   }
 }
 
+/* ============================================================================
+ * Form KOL tự điền (anh Hùng 28/09): anh tạo link, gửi KOL; KOL điền liên hệ, kênh, chuyến đi và
+ * DANH SÁCH THÀNH VIÊN (CCCD / hộ chiếu, ngày cấp, ngày sinh) — không phải chép tay từ Zalo.
+ *   · link = /f/<mã 32 hex>; mã ngẫu nhiên, chỉ mở đúng một hợp tác
+ *   · form CHỈ thấy thông tin của chính đoàn đó (không có tiền, bảng kê, ghi chú nội bộ)
+ *   · KOL gửi lại bao nhiêu lần cũng được — lần sau ghi đè lần trước
+ * ========================================================================== */
+const MA_FORM = /^[a-f0-9]{32}$/;
+const goc = () => (process.env.PUBLIC_URL ? process.env.PUBLIC_URL.replace(/\/+$/, '') + (process.env.HUB_PREFIX || '') : 'http://localhost:' + cfg.port);
+const linkForm = (ma) => goc() + '/f/' + ma;
+const COT_TV = ['id', 'ten', 'vaiTro', 'nhomKhach', 'ngaySinh', 'gioiTinh', 'quocTich', 'loaiGiay', 'soGiay', 'ngayCap', 'ngayHet', 'sdt', 'ghiChu'];
+const catChu = (v, n) => String(v == null ? '' : v).trim().slice(0, n);
+function duLieuForm(dl, ht) {
+  const kol = dl.kol.find((k) => k.id === ht.kol) || {};
+  const tv = (dl.thanhVien || []).filter((x) => x.hopTac === ht.id);
+  return {
+    ma: ht.ma, daDien: ht.formDienLuc || null,
+    lang: kol.quocGia && kol.quocGia !== 'Việt Nam' ? 'en' : 'vi',
+    kol: { ten: /^\(KOL chưa điền\)$/.test(kol.ten || '') ? '' : kol.ten || '', quocGia: kol.quocGia || '', maVung: kol.maVung || '', sdt: kol.sdt || '', email: kol.email || '', lienHe: kol.lienHe || '' },
+    kenh: dl.kenh.filter((k) => k.kol === kol.id).map((k) => ({ id: k.id, nenTang: k.nenTang, ten: k.ten, link: k.link, theoDoi: k.theoDoi })),
+    ht: { batDau: ht.batDau || null, ketThuc: ht.ketThuc || null, bayDen: ht.bayDen || '', bayVe: ht.bayVe || '', yeuCauDacBiet: ht.yeuCauDacBiet || '',
+      noiDon: ht.noiDon || '', noiTra: ht.noiTra || '',
+      nguoiLon: ht.nguoiLon || 0, treEm: ht.treEm || 0, emBe: ht.emBe || 0 },
+    /* ảnh giấy tờ: form chỉ biết ĐÃ CÓ mấy ảnh, không bao giờ trả ảnh ra ngoài */
+    tv: tv.map((x) => ({ ...Object.fromEntries(COT_TV.map((k) => [k, x[k] ?? null])), soAnh: (x.anhGiay || []).length })),
+  };
+}
+async function luuForm(ht, b, now) {
+  const k = b.kol || {};
+  if (!catChu(k.ten, 120)) throw Object.assign(new Error('Vui lòng điền họ tên / Please enter your name'), { http: 400 });
+  const tv = (Array.isArray(b.tv) ? b.tv : []).slice(0, 40).map((x) => {
+    const o = {};
+    for (const c of COT_TV) if (c in x) o[c] = typeof x[c] === 'string' ? catChu(x[c], 200) : x[c];
+    return o;
+  }).filter((x) => x.ten);
+  if (!tv.length) throw Object.assign(new Error('Cần ít nhất một thành viên trong đoàn / Please add at least one traveller'), { http: 400 });
+  const kenh = (Array.isArray(b.kenh) ? b.kenh : []).slice(0, 15).map((x) => ({ id: x.id || undefined, nenTang: catChu(x.nenTang, 30), ten: catChu(x.ten, 120),
+    link: catChu(x.link, 400), theoDoi: x.theoDoi === '' || x.theoDoi == null ? null : Number(x.theoDoi) || 0 })).filter((x) => x.ten || x.link);
+  const kolId = await luuKol({ id: ht.kol || undefined, ten: catChu(k.ten, 120), quocGia: catChu(k.quocGia, 60), maVung: catChu(k.maVung, 8),
+    sdt: catChu(k.sdt, 30), email: catChu(k.email, 120), lienHe: catChu(k.lienHe, 200), kenh });
+  const dl = await kho.tatCa({ moi: true });
+  const hopLe = new Set((dl.thanhVien || []).filter((x) => x.hopTac === ht.id).map((x) => x.id));
+  for (const x of tv) if (x.id && !hopLe.has(x.id)) delete x.id;   // id lạ (không thuộc đoàn này) → tạo mới, không sửa hộ đoàn khác
+  await dongBo('thanhVien', (dl.thanhVien || []).filter((x) => x.hopTac === ht.id), tv, { hopTac: ht.id });
+  const dem = (n) => tv.filter((x) => (x.nhomKhach || 'Người lớn') === n).length;
+  const h = b.ht || {};
+  const o = { kol: kolId, nguoiLon: dem('Người lớn'), treEm: dem('Trẻ em'), emBe: dem('Em bé'), formDienLuc: now,
+    bayDen: catChu(h.bayDen, 200), bayVe: catChu(h.bayVe, 200), yeuCauDacBiet: catChu(h.yeuCauDacBiet, 1000),
+    noiDon: catChu(h.noiDon, 300), noiTra: catChu(h.noiTra, 300) };
+  if (h.batDau) o.batDau = h.batDau;
+  if (h.ketThuc) o.ketThuc = h.ketThuc;
+  await kho.sua('hopTac', ht.id, o);
+  /* trả id từng thành viên theo đúng thứ tự gửi — form dùng để tải ảnh giấy tờ lên đúng người */
+  const sau = ((await kho.tatCa({ moi: true })).thanhVien || []).filter((x) => x.hopTac === ht.id);
+  const daDung = new Set();
+  const ids = tv.map((x) => {
+    const r = sau.find((y) => !daDung.has(y.id) && (x.id ? y.id === x.id : y.ten === x.ten && (y.soGiay || '') === (x.soGiay || '')));
+    if (r) daDung.add(r.id);
+    return r ? r.id : null;
+  });
+  return { kolId, soNguoi: tv.length, ids };
+}
+/* ảnh CCCD / hộ chiếu: tối đa 4 tệp mỗi người (mặt trước + sau), mỗi tệp ≤ 8 MB, chỉ ảnh / PDF */
+const LOAI_ANH = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/heic': 'heic', 'application/pdf': 'pdf' };
+async function luuAnhGiay(ht, tvId, b) {
+  const dl = await kho.tatCa();
+  const x = (dl.thanhVien || []).find((y) => y.id === tvId && y.hopTac === ht.id);
+  if (!x) throw Object.assign(new Error('Không thấy thành viên / Traveller not found'), { http: 404 });
+  const tep = (Array.isArray(b.tep) ? b.tep : []).slice(0, 4).map((t, i) => {
+    const m = /^data:([\w/+.-]+);base64,(.+)$/.exec(String(t.du || ''));
+    if (!m || !LOAI_ANH[m[1]]) throw Object.assign(new Error('Chỉ nhận ảnh (JPG, PNG, WEBP, HEIC) hoặc PDF / Images or PDF only'), { http: 400 });
+    const buf = Buffer.from(m[2], 'base64');
+    if (buf.length > 8 * 1024 * 1024) throw Object.assign(new Error('Mỗi ảnh tối đa 8 MB / Max 8 MB per file'), { http: 400 });
+    const ten = (x.ten || 'thanh-vien').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
+    return { buf, ten: ten + '-' + (x.loaiGiay === 'Hộ chiếu' ? 'ho-chieu' : x.loaiGiay === 'CCCD' ? 'cccd' : 'giay-to') + '-' + (i + 1) + '.' + LOAI_ANH[m[1]] };
+  });
+  if (!tep.length) return { ok: true, so: 0 };
+  await kho.lark.ganTep(tvId, 'Ảnh giấy tờ', tep, cfg.bang.thanhVien);
+  kho.lamMoi();
+  return { ok: true, so: tep.length };
+}
+
 function dichLoiBase(e) {
   const m = String((e && e.message) || '');
   if (/91403|permission denied|you don't have permission/i.test(m)) {
@@ -219,7 +301,7 @@ function toanCanh(dl, now = Date.now()) {
     treHan: banGiao.filter((b) => b.tt.ma === 'tre').length,
     canDo: banGiao.filter((b) => b.tt.ma === 'do-7' || b.tt.ma === 'do-30').length,
   };
-  return { now, kol: dl.kol, kenh: dl.kenh, dichVu: dl.dichVu, doiTac: dl.doiTac, hopTac, hangMuc, banGiao, so };
+  return { now, kol: dl.kol, kenh: dl.kenh, dichVu: dl.dichVu, doiTac: dl.doiTac, hopTac, hangMuc, banGiao, thanhVien: dl.thanhVien || [], so };
 }
 
 /** Đồng bộ danh sách con: dòng không id → tạo, có id → sửa, id cũ không còn → xoá. */
@@ -260,7 +342,8 @@ const COT = {
   kenh: ['id', 'ten', 'nenTang', 'link', 'theoDoi', 'capNhat', 'reup'],
   dichVu: ['ten', 'loai', 'nhaCungCap', 'donVi', 'cbNL', 'cbTE', 'cbEB', 'netNL', 'netTE', 'netEB', 'focThuong',
     'lienHe', 'sdtLienHe', 'diaChi', 'dangDung', 'ghiChu'],
-  hopTac: ['kol', 'nguoiLon', 'treEm', 'emBe', 'batDau', 'ketThuc', 'kenhDang', 'yeuCau', 'yeuCauEn', 'maTourwell', 'ttTourwell', 'ghiChu'],
+  hopTac: ['kol', 'nguoiLon', 'treEm', 'emBe', 'batDau', 'ketThuc', 'kenhDang', 'yeuCau', 'yeuCauEn', 'maTourwell', 'ttTourwell', 'ghiChu',
+    'noiDon', 'noiTra', 'bayDen', 'bayVe', 'yeuCauDacBiet'],
   hangMuc: ['id', 'ten', 'nhom', 'ngay', 'gioHen', 'diemHen', 'nguonDv', 'maDv', 'dichVu', 'loaiKhach', 'soLuong', 'demLuot',
     'hinhThuc', 'donGiaChi', 'giaCongBo', 'vat', 'nhaCungCap', 'tinhTrang', 'nhacHen', 'tinNhan', 'kiemLai', 'ghiChu', 'xinFoc', 'tourwellId'],
   banGiao: ['id', 'ten', 'chuDe', 'loai', 'nenTang', 'soLuong', 'hanDang', 'trangThai', 'ngayDang', 'link', 'theTag', 'cta',
@@ -438,7 +521,10 @@ async function api(req, res, u) {
   if (p === '/api/hop-tac/tao' && m === 'POST') {
     const b = await docThan(req);
     const k = b.kol || {};
-    if (!k.id && !String(k.ten || '').trim()) return loi(res, 400, 'Chưa có tên KOL');
+    if (!k.id && !String(k.ten || '').trim()) {
+      if (!b.taoForm) return loi(res, 400, 'Chưa có tên KOL');
+      k.ten = '(KOL chưa điền)';   // tạo để gửi form — KOL điền tên thật sau
+    }
     const o = cho(b.ht || {}, COT.hopTac);
     const kolId = await luuKol({ ...k, kenh: b.kenh });
     const dl = await kho.tatCa({ moi: true });
@@ -640,6 +726,49 @@ async function api(req, res, u) {
     }
   }
 
+  /* ----- form KOL tự điền ----- */
+  if ((r = /^\/api\/hop-tac\/(rec\w+)\/form$/.exec(p)) && m === 'POST') {
+    const b = await docThan(req);
+    const dl = await kho.tatCa();
+    const ht = dl.hopTac.find((x) => x.id === r[1]);
+    if (!ht) return loi(res, 404, 'Không thấy hợp tác');
+    const ma = !b.moi && MA_FORM.test(ht.maForm || '') ? ht.maForm : require('crypto').randomBytes(16).toString('hex');
+    await kho.sua('hopTac', ht.id, { maForm: ma, formGuiLuc: now });
+    return json(res, { ok: true, ma, link: linkForm(ma) });
+  }
+  if ((r = /^\/api\/form\/([a-f0-9]{32})\/anh\/(rec\w+)$/.exec(p)) && m === 'POST') {
+    const dl = await kho.tatCa();
+    const ht = dl.hopTac.find((x) => x.maForm === r[1]);
+    if (!ht || ht.buoc === 'Huỷ') return loi(res, 404, 'Liên kết không còn dùng được / This link is no longer valid');
+    try { return json(res, await luuAnhGiay(ht, r[2], await docThan(req, 40 * 1024 * 1024))); } catch (e) { return loi(res, e.http || 500, e.message); }
+  }
+  /* xem ảnh giấy tờ — CHỈ trong app (sau cổng đăng nhập của Hub), không qua link form */
+  if ((r = /^\/api\/thanh-vien\/(rec\w+)\/anh\/([\w-]+)$/.exec(p)) && m === 'GET') {
+    const dl = await kho.tatCa();
+    const x = (dl.thanhVien || []).find((y) => y.id === r[1]);
+    const t = x && (x.anhGiay || []).find((y) => y.token === r[2]);
+    if (!t) return loi(res, 404, 'Không thấy ảnh');
+    const { buf } = await kho.lark.taiTep(x.id, t.token, cfg.bang.thanhVien);
+    const duoi = (/\.(\w+)$/.exec(t.ten || '') || [])[1] || '';
+    const kieu = t.loai || { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', pdf: 'application/pdf', heic: 'image/heic' }[duoi.toLowerCase()] || 'application/octet-stream';
+    return gui(res, 200, buf, { 'Content-Type': kieu, 'Cache-Control': 'private, no-store', 'Content-Disposition': 'inline' });
+  }
+  if ((r = /^\/api\/form\/([a-f0-9]{32})$/.exec(p))) {
+    const dl = await kho.tatCa({ moi: m === 'POST' });
+    const ht = dl.hopTac.find((x) => x.maForm === r[1]);
+    if (!ht || ht.buoc === 'Huỷ') return loi(res, 404, 'Liên kết không còn dùng được / This link is no longer valid');
+    if (m === 'GET') return json(res, duLieuForm(dl, ht));
+    if (m === 'POST') {
+      const b = await docThan(req, 256 * 1024);
+      const kq = await luuForm(ht, b, now);
+      if (!cfg.nhac.tat) {
+        nhac.guiTin('KOL đã điền form thông tin · ' + ht.ma + '\n' + catChu(b.kol && b.kol.ten, 80) + ' · ' + kq.soNguoi + ' người trong đoàn\n\nMở app KOL, tab Thông tin để xem danh sách thành viên.',
+          'kol-form-' + ht.id + '-' + now).catch(() => {});
+      }
+      return json(res, { ok: true, ...kq });
+    }
+  }
+
   if ((r = /^\/api\/hop-tac\/(rec\w+)\/email\/(de-xuat|thu-moi|bao-cao)$/.exec(p))) {
     const [ham, viec] = EMAIL[r[2]];
     const dl = await kho.tatCa({ moi: m === 'POST' });
@@ -727,11 +856,22 @@ async function api(req, res, u) {
 }
 
 /* ---------------- máy chủ ---------------- */
+/* KOL_CHI_FORM=1: bản chạy cho điện thoại / người ngoài thử form — CHỈ trang form, API form, logo và
+ * tệp tĩnh form cần. Mọi đường khác (dữ liệu hợp tác, CCCD, bảng kê…) trả 404, kể cả khi mở ra mạng LAN. */
+const CHI_FORM = process.env.KOL_CHI_FORM === '1';
+const DUONG_FORM = /^\/(f\/[a-f0-9]{32}|api\/form\/[a-f0-9]{32}(\/anh\/rec\w+)?|api\/logo|form\.(js|css)|ma-vung\.js|healthz)$/;
 const server = http.createServer(async (req, res) => {
   const u = new URL(req.url, 'http://x');
+  if (CHI_FORM && !DUONG_FORM.test(u.pathname)) return gui(res, 404, 'Không có', { 'Content-Type': 'text/plain; charset=utf-8' });
   try {
     if (u.pathname === '/healthz') return json(res, { ok: true });
     /* Lark quay về đây sau khi anh đồng ý cho gửi thư (ho-thu.js). Trang báo kết quả rồi tự đóng. */
+    /* trang form KOL tự điền: /f/<mã> → public/form.html (dữ liệu nạp qua /api/form/<mã>) */
+    if (/^\/f\/[a-f0-9]{32}$/.test(u.pathname)) {
+      /* X-Hub-Khong-Chen: trang cho người ngoài — Hub không chèn khung, giao diện, phiên đăng nhập */
+      const html = fs.readFileSync(path.join(PUBLIC, 'form.html'), 'utf8').split('v=BUILD').join('v=' + VER);
+      return gui(res, 200, html, { 'Content-Type': MIME['.html'], 'Cache-Control': 'no-store', 'X-Hub-Khong-Chen': '1', 'X-Robots-Tag': 'noindex', 'Referrer-Policy': 'no-referrer' });
+    }
     if (u.pathname === '/mail-callback') {
       const trang = (tieuDe, noiDung, ok) => gui(res, ok ? 200 : 400, '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + tieuDe +
         '</title><body style="font:15px system-ui;max-width:520px;margin:12vh auto;padding:0 20px;color:#16322b"><h2 style="color:' + (ok ? '#289a87' : '#c0392b') + '">' + tieuDe + '</h2><p>' +

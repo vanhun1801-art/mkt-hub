@@ -363,6 +363,7 @@ function moTaoHopTac(kolId) {
     '<label>Mã đơn Tourwell<input class="in-o" id="thRT" placeholder="RT… (điền sau cũng được)"></label>' +
     '<label class="rong"><span class="goi-y" id="thCanh"></span></label>' +
     '<label class="rong">Yêu cầu nội dung<textarea class="in" id="thYc">' + e(YEU_CAU_MAU) + '</textarea></label></div>',
+  '<button class="btn" id="thForm" title="Tạo hợp tác rồi lấy link gửi KOL tự điền liên hệ, kênh, chuyến bay và danh sách thành viên (CCCD / hộ chiếu)">Tạo form điền thông tin</button>' +
   '<div class="lon"></div><button class="btn mo" data-dong>Huỷ</button><button class="btn chinh" id="thTao">Tạo và dựng bảng kê</button>', true);
   $('.hop-chan [data-dong]', hop).onclick = dongModal;
   let doc;
@@ -388,6 +389,20 @@ function moTaoHopTac(kolId) {
   ['#thNL', '#thTE', '#thEB', '#thTu', '#thDen'].forEach((s) => $(s).addEventListener('input', kiem));
   $('#thTu').addEventListener('change', () => { if (!$('#thDen').value) $('#thDen').value = $('#thTu').value; kiem(); });
   kiem();
+  /* Chưa có đủ thông tin cũng tạo được — KOL tự điền phần còn lại qua form */
+  $('#thForm').onclick = async () => {
+    const f = doc();
+    if (f.loi && !/Chưa có tên KOL/.test(f.loi)) return toast(f.loi, true);
+    const ht = { nguoiLon: +$('#thNL').value || 0, treEm: +$('#thTE').value || 0, emBe: +$('#thEB').value || 0,
+      batDau: $('#thTu').value, ketThuc: $('#thDen').value, maTourwell: $('#thRT').value.trim(), yeuCau: $('#thYc').value };
+    $('#thForm').disabled = true;
+    try {
+      const r = await api('/api/hop-tac/tao', { kol: f.kol, kenh: f.kenh, ht, taoForm: true });
+      const fm = await api('/api/hop-tac/' + r.id + '/form', {});
+      await nap(true); di('#/ht/' + r.id);
+      moLinkForm(htCua(r.id), fm.link);
+    } catch (err) { toast(err.message, true); $('#thForm').disabled = false; }
+  };
   $('#thTao').onclick = async () => {
     const f = doc();
     if (f.loi) return toast(f.loi, true);
@@ -505,6 +520,54 @@ async function lamViec(ht, viec, nut) {
 }
 
 /* ---------------- Thông tin ---------------- */
+/* ---------------- Form KOL tự điền (28/09) ---------------- */
+const TIN_FORM = {
+  vi: (ten, link) => 'Chào ' + (ten || 'bạn') + ',\n\nĐể Rooty Trip Phú Quốc chuẩn bị vé, dịch vụ và khai báo lưu trú cho chuyến đi, bạn giúp điền thông tin liên hệ, kênh và danh sách thành viên trong đoàn (CCCD / hộ chiếu, ngày cấp, ngày sinh) tại link sau:\n' + link + '\n\nCần sửa gì bạn cứ mở lại link này. Cảm ơn bạn!',
+  en: (ten, link) => 'Hi ' + (ten || 'there') + ',\n\nTo help Rooty Trip Phu Quoc arrange your tickets, services and accommodation registration, please fill in your contact details, channels and the list of travellers (passport number, date of issue, date of birth) here:\n' + link + '\n\nYou can reopen the link anytime to make changes. Thank you!',
+};
+function moLinkForm(ht, link) {
+  const kol = kolCua(ht.kol);
+  const ten = /^\(KOL chưa điền\)$/.test(kol.ten || '') ? '' : (kol.tenGoi || kol.ten || '');
+  let lang = kol.quocGia && kol.quocGia !== 'Việt Nam' ? 'en' : 'vi';
+  const ve = () => {
+    moModal('Form điền thông tin · ' + ht.ma, '<p class="nho" style="margin:0 0 10px">Gửi link này cho KOL (Zalo, KakaoTalk, email…). KOL điền liên hệ, kênh, chuyến bay và <b>danh sách thành viên</b> (CCCD / hộ chiếu, ngày cấp, ngày sinh) — dữ liệu tự vào Base, số người lớn / trẻ em / em bé tự cập nhật, bot báo anh khi KOL gửi.</p>' +
+      '<div class="hang-nut" style="margin-bottom:8px"><input class="in-o" id="lfLink" readonly value="' + e(link) + '" style="flex:1;min-width:260px"><button class="btn chinh" id="lfChep">Chép link</button>' +
+      '<a class="btn" href="' + e(link) + '" target="_blank" rel="noopener">Mở form</a></div>' +
+      '<div class="hang-nut" style="margin:14px 0 6px"><b>Tin nhắn soạn sẵn</b><div class="lon"></div>' + [['vi', 'Tiếng Việt'], ['en', 'English']].map(([k, t]) =>
+        '<button type="button" class="chip-chon' + (k === lang ? ' on' : '') + '" data-lf="' + k + '">' + t + '</button>').join('') + '</div>' +
+      '<pre class="tin" id="lfTin">' + e(TIN_FORM[lang](ten, link)) + '</pre>' +
+      (/^https?:\/\/localhost/.test(link) ? '<div class="bao cam" style="margin-top:10px">Link này chỉ mở được trên máy anh (bản chạy local). Bản trên Hub sẽ ra link công khai để gửi KOL.</div>' : ''),
+    '<button class="btn mo" id="lfMoi" title="Link cũ thôi dùng được, KOL phải dùng link mới">Tạo link mới</button><div class="lon"></div><button class="btn chinh" id="lfChepTin">Chép tin nhắn</button>', true);
+    $('#lfChep').onclick = () => chep(link);
+    $('#lfChepTin').onclick = () => chep(TIN_FORM[lang](ten, link));
+    $$('[data-lf]').forEach((b) => { b.onclick = () => { lang = b.dataset.lf; ve(); }; });
+    $('#lfMoi').onclick = async () => {
+      if (!(await hoi({ tieuDe: 'Tạo link mới?', noiDung: 'Link cũ sẽ không mở được nữa. Dùng khi lỡ gửi nhầm người.', nut: 'Tạo link mới' }))) return;
+      try { const r = await api('/api/hop-tac/' + ht.id + '/form', { moi: true }); link = r.link; ht.maForm = r.ma; ve(); toast('Đã tạo link mới — link cũ đã thôi dùng'); } catch (err) { toast(err.message, true); }
+    };
+  };
+  ve();
+}
+const GIAY_NGAN = { CCCD: 'CCCD', 'Hộ chiếu': 'HC', 'Giấy khai sinh': 'GKS' };
+function theThanhVien(ht) {
+  const tv = (S.dl.thanhVien || []).filter((x) => x.hopTac === ht.id).sort((a, b) => (a.vaiTro === 'Trưởng đoàn' ? -1 : 0) - (b.vaiTro === 'Trưởng đoàn' ? -1 : 0));
+  const ngay = (ms) => (ms ? ddmm(ms) + '/' + vn(ms).y : '—');
+  const trangThai = ht.formDienLuc ? nhanTT('KOL đã điền ' + ddmm(ht.formDienLuc) + ' ' + hhmm(ht.formDienLuc), 'xanh')
+    : ht.maForm ? nhanTT('Đã tạo link ' + (ht.formGuiLuc ? ddmm(ht.formGuiLuc) : '') + ' · chờ KOL điền', 'cam') : nhanTT('Chưa gửi form');
+  return '<div class="the"><div class="the-dau"><h2>Thành viên đoàn · ' + tv.length + '</h2>' + trangThai + '<div class="lon"></div>' +
+    '<button class="btn nho chinh" id="ttForm">' + (ht.maForm ? 'Link form cho KOL' : 'Tạo form điền thông tin') + '</button></div>' +
+    (tv.length ? '<div class="the-than khit cuon"><table class="bang"><thead><tr><th>#</th><th class="w-ten">Họ tên</th><th>Nhóm</th><th>Giới tính</th><th>Ngày sinh</th><th>Quốc tịch</th>' +
+      '<th>Giấy tờ</th><th>Số</th><th>Ngày cấp</th><th>Hết hạn</th><th>Ảnh</th><th>SĐT</th></tr></thead><tbody>' +
+      tv.map((x, i) => '<tr><td>' + (i + 1) + '</td><td class="w-ten"><b>' + e(x.ten) + '</b>' + (x.vaiTro === 'Trưởng đoàn' ? ' <span class="nhan-tt">Trưởng đoàn</span>' : '') + '</td>' +
+        '<td>' + e(x.nhomKhach || '') + '</td><td>' + e(x.gioiTinh || '') + '</td><td>' + ngay(x.ngaySinh) + '</td><td>' + e(x.quocTich || '') + '</td>' +
+        '<td>' + e(GIAY_NGAN[x.loaiGiay] || x.loaiGiay || '') + '</td><td><code>' + e(x.soGiay || '') + '</code></td><td>' + ngay(x.ngayCap) + '</td><td>' + (x.ngayHet ? ngay(x.ngayHet) : '—') + '</td>' +
+        '<td>' + ((x.anhGiay || []).map((a, j) => '<a href="' + e(((window.__HUB__ && window.__HUB__.prefix) || '') + '/api/thanh-vien/' + x.id + '/anh/' + a.token) + '" target="_blank" rel="noopener">Ảnh ' + (j + 1) + '</a>').join(' · ') || '<span class="nho">—</span>') + '</td>' +
+        '<td>' + e(x.sdt || '') + '</td></tr>').join('') + '</tbody></table></div>' +
+      ''
+      : '<div class="the-than"><div class="nho">Chưa có thành viên. Gửi form cho KOL tự điền danh sách đoàn (CCCD / hộ chiếu, ngày cấp, ngày sinh).</div></div>') +
+    '</div>';
+}
+
 function veThongTin(than, ht) {
   const kol = kolCua(ht.kol);
   const lichSu = String(ht.lichSu || '').split('\n').filter(Boolean).reverse();
@@ -516,11 +579,18 @@ function veThongTin(than, ht) {
     '<label>Ngày kết thúc<input class="in-o" type="date" data-k="ketThuc" value="' + ngayIn(ht.ketThuc) + '"></label>' +
     '<label>Mã đơn Tourwell<input class="in-o" data-k="maTourwell" value="' + e(ht.maTourwell) + '" placeholder="RT…"></label>' +
     '<label>Trạng thái Tourwell<select class="in-o" data-k="ttTourwell">' + opt(['Chưa tạo', 'Đang xử lý', 'Thành công', 'Đã gửi điều hành'], ht.ttTourwell, true) + '</select></label>' +
+    /* thu qua form KOL tự điền (28/09) — sửa được ở đây */
+    '<label>Nơi đón tại Phú Quốc<input class="in-o" data-k="noiDon" value="' + e(ht.noiDon) + '" placeholder="Sân bay, khách sạn, link Google Maps…"></label>' +
+    '<label>Nơi trả tại Phú Quốc<input class="in-o" data-k="noiTra" value="' + e(ht.noiTra) + '" placeholder="Sân bay, khách sạn, link Google Maps…"></label>' +
+    '<label>Chuyến bay đến<input class="in-o" data-k="bayDen" value="' + e(ht.bayDen) + '" placeholder="VJ321 · 08:30"></label>' +
+    '<label>Chuyến bay về<input class="in-o" data-k="bayVe" value="' + e(ht.bayVe) + '" placeholder="VJ322 · 18:00"></label>' +
+    '<label class="rong">Yêu cầu đặc biệt của đoàn<textarea class="in" data-k="yeuCauDacBiet" placeholder="Ăn chay, dị ứng, xe đẩy em bé…">' + e(ht.yeuCauDacBiet) + '</textarea></label>' +
     '<label class="rong">Yêu cầu nội dung<textarea class="in" data-k="yeuCau" placeholder="Nhắc tên, CTA, gắn thẻ, hashtag…">' + e(ht.yeuCau) + '</textarea></label>' +
     '<label class="rong">Yêu cầu nội dung (tiếng Anh, cho thư mời KOL nước ngoài)<textarea class="in" data-k="yeuCauEn" placeholder="Để trống = app tự dịch các câu quen (nhắc tên, CTA, gắn thẻ, hashtag); câu lạ giữ tiếng Việt">' + e(ht.yeuCauEn) + '</textarea></label>' +
     '<label class="rong">Ghi chú<textarea class="in" data-k="ghiChu">' + e(ht.ghiChu) + '</textarea></label>' +
     '</div></div></div>' +
     '<div class="the"><div class="the-dau"><h2>KOL</h2><div class="lon"></div><button class="btn nho" id="suaKol">Sửa KOL</button></div><div class="the-than">' + tomTatKol(kol) + '</div></div>' +
+    theThanhVien(ht) +
     '<div class="the"><div class="the-dau"><h2>Duyệt &amp; mốc</h2></div><div class="the-than"><div class="luoi-form">' +
     [['Trình BGĐ', ht.trinhLuc], ['BGĐ duyệt', ht.duyetLuc], ['Gửi thư mời', ht.thuMoiLuc], ['KOL xác nhận', ht.xacNhanLuc]].map(([n, v]) =>
       '<label>' + n + '<span style="font-weight:400;color:var(--text)">' + (v ? ddmm(v) + ' ' + hhmm(v) : '—') + '</span></label>').join('') +
@@ -548,6 +618,16 @@ function veThongTin(than, ht) {
     try { await api('/api/hop-tac', b); await nap(true); toast('Đã lưu'); ve(); } catch (err) { toast(err.message, true); $('#luuTT').disabled = false; }
   };
   $('#suaKol').onclick = () => moKol(kol.id);
+  $('#ttForm').onclick = async () => {
+    $('#ttForm').disabled = true; toast('Đang lấy link…');
+    try {
+      const r = await api('/api/hop-tac/' + ht.id + '/form', {});
+      Object.assign(htCua(ht.id), { maForm: r.ma, formGuiLuc: Date.now() });
+      moLinkForm(htCua(ht.id), r.link);
+      nap(true).catch(() => {});
+    } catch (err) { toast(err.message, true); }
+    $('#ttForm').disabled = false;
+  };
   $('#doiBuoc').onchange = async (ev) => {
     if (!(await hoi({ tieuDe: 'Nhảy thẳng tới bước', noiDung: 'Chuyển "' + ht.buoc + '" sang "' + ev.target.value + '"? Chỉ dùng khi sửa sai — các nút Việc tiếp theo tự ghi ngày trình, ngày duyệt…; nhảy tay thì không. Bấm nhầm một bước thì dùng nút Lùi bước.', nut: 'Chuyển' }))) { ev.target.value = ht.buoc; return; }
     try { await api('/api/hop-tac/' + ht.id + '/buoc', { viec: 'doiBuoc', buoc: ev.target.value }); await nap(true); ve(); } catch (err) { toast(err.message, true); }
