@@ -46,6 +46,15 @@ const TEP = [
   ['lark-chung/tourwell.js', 'gọi Tourwell'],
 ];
 
+/* Và cả 12 app con. Trên Render (chế độ api) thì CHÍNH chúng mới là lớp gọi
+ * Lark thật — hub chỉ đọc Phân quyền, Thông báo và ô phát. Vá hub mà bỏ app
+ * con là vá đúng một phần nhỏ của vấn đề. */
+for (const app of ['lark-task-manager', 'lark-lich-tac-nghiep', 'lark-ads-manager',
+  'lark-ota-manager', 'lark-social', 'lark-chinh-anh', 'lark-kpi', 'lark-quy-chi-phi',
+  'lark-bao-cao', 'lark-san-pham', 'lark-lich-lam-viec', 'lark-kol']) {
+  TEP.push([app + '/larkapi.js', 'lớp gọi Lark khi chạy trên Render']);
+}
+
 for (const [tep, viec] of TEP) {
   const s = fs.readFileSync(path.join(GOC, tep), 'utf8');
   /* Cắt từ mỗi `fetch(` tới dấu `});` gần nhất — đủ để thấy có khai signal

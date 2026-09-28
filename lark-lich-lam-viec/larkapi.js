@@ -13,6 +13,22 @@ const path = require('path');
 const cfg = require('./config');
 
 const HOST = process.env.LARK_API_HOST || 'https://open.larksuite.com';
+
+/* HẠN GIỜ CHO MỌI CUỘC GỌI RA LARK.
+ *
+ * Không đặt thì Node chờ mặc định 300 giây, mà lớp thử-lại ở dưới còn thử tới 3
+ * lần — xấu nhất là mười lăm phút treo cho một lần bấm, trong khi người dùng chỉ
+ * thấy một vòng xoay không nói gì. Đây là loại hỏng không bao giờ gặp lúc thử, chỉ
+ * gặp đúng hôm Lark có sự cố — tức đúng hôm cần app chạy nhất.
+ *
+ * Mốc theo việc: đọc/ghi bảng và đổi token bình thường dưới một giây; tải tệp
+ * thì ảnh vài MB qua mạng chậm là có thật. Quá hạn ném TimeoutError, câu lỗi có
+ * chữ "timeout" nên isTransient() nhận ra là lỗi tạm thời và vẫn thử lại đàng hoàng. */
+const HAN_GOI = 20000;
+const HAN_TAI = 120000;
+const han = (ms) => (typeof AbortSignal !== 'undefined' && AbortSignal.timeout
+  ? AbortSignal.timeout(ms) : undefined);
+
 const APP_ID = process.env.LARK_APP_ID || '';
 const APP_SECRET = process.env.LARK_APP_SECRET || '';
 
@@ -27,6 +43,7 @@ async function tenantToken() {
     method: 'POST',
     headers: { 'Content-Type': 'application/json; charset=utf-8' },
     body: JSON.stringify({ app_id: APP_ID, app_secret: APP_SECRET }),
+    signal: han(HAN_GOI),
   });
   const d = await r.json();
   if (d.code !== 0) throw new Error('Lấy tenant_access_token thất bại: ' + (d.msg || d.code));
@@ -88,6 +105,7 @@ async function callOnce(method, url, { body, raw } = {}) {
       body ? { 'Content-Type': 'application/json; charset=utf-8' } : {}
     ),
     body: body ? JSON.stringify(body) : undefined,
+    signal: han(HAN_GOI),
   });
 
   if (raw) {
