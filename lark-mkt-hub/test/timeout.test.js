@@ -64,6 +64,12 @@ console.log('— những đường vốn dĩ lâu phải được nới giờ');
   /* Đối chiếu Base với nền tảng: bảy chiến dịch là bảy lượt gọi nối tiếp ra
    * Meta/TikTok/Google. Cắt ở 30 giây thì khối này luôn trắng. */
   ['/api/doi-chieu', 'hỏi lịch chạy thật của từng chiến dịch'],
+  /* Nối quảng cáo với lead Tourwell. Lượt gợi ý đọc TOÀN BỘ hội thoại Pancake
+   * trong khoảng của kho — đo thật 28/09/2026: ~40 giây cho 2.857 hội thoại một
+   * tháng, tức là chắc chắn quá 30 giây. Và bước GHI thì đụng Tourwell thật, nên
+   * bị cắt giữa chừng là tình huống tệ nhất: không biết đã ghi hay chưa. */
+  ['/api/noi-qc/goi-y', 'đọc hết hội thoại Pancake rồi ghép với lead'],
+  ['/api/noi-qc/ghi', 'ghi ghi chú lên từng lead Tourwell, nhiều lượt nối tiếp'],
 ].forEach(([p, vi]) => t(`${p} — ${vi}`, VIEC_LAU.test(p)));
 
 /* Điểm cốt lõi của cách làm mới: một đường CHƯA TỒN TẠI trong nhóm cũng phải khớp,
@@ -71,6 +77,7 @@ console.log('— những đường vốn dĩ lâu phải được nới giờ');
 t('đường tương lai trong nhóm roas tự được nới', VIEC_LAU.test('/api/roas/mot-duong-chua-co'));
 t('đường tương lai trong nhóm pancake tự được nới', VIEC_LAU.test('/api/pancake/gi-do-moi'));
 t('đường tương lai trong nhóm điều khiển tự được nới', VIEC_LAU.test('/api/dieu-khien/gi-do-moi'));
+t('đường tương lai trong nhóm nối quảng cáo tự được nới', VIEC_LAU.test('/api/noi-qc/gi-do-moi'));
 
 t('có tham số đuôi vẫn nhận', VIEC_LAU.test('/api/sync?days=14'));
 

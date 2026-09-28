@@ -127,6 +127,45 @@ console.log('— tên khớp lead nhưng lead chưa ra đơn: là TIỀM NĂNG, 
   t('và không bịa ra tiền', !h.tien, String(h.tien));
 }
 
+console.log('— KHÁCH CŨ quay lại: lead có TRƯỚC hội thoại thì KHÔNG được ghép');
+{
+  /* Cái bẫy suýt lọt, bắt được lúc chạy thử trên dữ liệu thật ngày 28/09/2026.
+   *
+   * Trong 18 hội thoại tháng 8 khớp TÊN với một lead Tourwell, 17 cái có lead
+   * sinh ra TRƯỚC hội thoại 38–62 ngày. Đó là khách đã mua từ tháng 6, tháng 7,
+   * nay bấm quảng cáo rồi nhắn lại. Quảng cáo tháng 8 KHÔNG sinh ra lead tháng 6,
+   * và ghép vào là gán doanh thu cũ cho quảng cáo mới.
+   *
+   * Trùng tên ở đây rất có thể là cùng một người thật, nên không lọc được bằng
+   * tên — phải lọc bằng HƯỚNG THỜI GIAN. */
+  const kq = roas.tinh({ ...CHUNG,
+    hoiThoaiRows: [ht({ id: 'h1', adIds: ['111'], ngay: '2026-09-20', tenKhachDs: ['Cô 2 Họ Đào'] })],
+    leadRows: [{ id: 1, ma: 'LU1', kh: 'KH-A', ngay: '2026-07-15', khach: 'Cô 2 Họ Đào' }],
+    donRows: [{ ma: 'RT1', kh: 'KH-A', ngay: '2026-07-16', tien: 9000000, thu: 7000000 }],
+  });
+  t('không ghi công doanh thu tháng 7 cho quảng cáo tháng 9',
+    kq.tong.don === 0 && kq.tong.tien === 0, JSON.stringify(kq.tong));
+  t('đếm riêng số ca bị loại vì lệch ngày', kq.nhat.tenLechNgay === 1, String(kq.nhat.tenLechNgay));
+  t('và hội thoại đó KHÔNG bị gọi là chuyển đổi',
+    (kq.hoiThoaiPhanLoai[0] || {}).nhom !== 'chuyen-doi', (kq.hoiThoaiPhanLoai[0] || {}).nhom);
+
+  /* Vẫn phải nhận ca đúng hướng, nếu không thì cái chắn này làm chết luôn đường 3. */
+  const dung = roas.tinh({ ...CHUNG,
+    hoiThoaiRows: [ht({ id: 'h1', adIds: ['111'], ngay: '2026-09-05', tenKhachDs: ['Cô 2 Họ Đào'] })],
+    leadRows: [{ id: 1, ma: 'LU1', kh: 'KH-A', ngay: '2026-09-07', khach: 'Cô 2 Họ Đào' }],
+    donRows: [{ ma: 'RT1', kh: 'KH-A', ngay: '2026-09-08', tien: 4000000, thu: 3000000 }],
+  });
+  t('lead sinh sau hội thoại 2 ngày thì vẫn nhận', dung.tong.don === 1, JSON.stringify(dung.tong));
+
+  /* Và phải có mép: quá cửa sổ là loại. */
+  const xa = roas.tinh({ ...CHUNG,
+    hoiThoaiRows: [ht({ id: 'h1', adIds: ['111'], ngay: '2026-09-05', tenKhachDs: ['Cô 2 Họ Đào'] })],
+    leadRows: [{ id: 1, ma: 'LU1', kh: 'KH-A', ngay: '2026-09-30', khach: 'Cô 2 Họ Đào' }],
+    donRows: [{ ma: 'RT1', kh: 'KH-A', ngay: '2026-09-30', tien: 4000000, thu: 3000000 }],
+  });
+  t('lead sinh sau 25 ngày thì loại', xa.tong.don === 0, JSON.stringify(xa.tong));
+}
+
 console.log('— app phải NÓI RA chỗ nó mù, kèm số đã đo');
 {
   const fs = require('fs');
@@ -139,6 +178,10 @@ console.log('— app phải NÓI RA chỗ nó mù, kèm số đã đo');
   t('ghi lại kết quả dò tin nhắn 0/80', /0 \/ 80/.test(r));
   t('ghi lại vì sao loại đường tag sales', /19% ra ĐÚNG MỘT quảng cáo/.test(r));
   t('nói rõ phần còn lại phải sửa ở chỗ tạo lead', /KHÔNG chữa được từ dữ liệu/.test(r));
+  /* Cái bẫy khách cũ phải được ghi lại ngay cạnh hằng số chặn nó, để người sau
+   * đừng nới cửa sổ cho "được nhiều cặp hơn". */
+  t('ghi lại bẫy khách cũ quay lại', /KHÁCH\s*\n?\s*\*?\s*CŨ quay lại|khách cũ quay lại|KHÁCH CŨ/i.test(r));
+  t('có hằng số chặn hướng thời gian', /NGAY_HOI_THOAI_TOI_LEAD/.test(r));
 
   /* Và giao diện phải nói với người dùng, không chỉ nói với người đọc code. */
   t('giao diện giải thích vì sao không đo được', /Vì sao phần còn lại không đo được/.test(app));

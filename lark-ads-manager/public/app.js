@@ -1101,6 +1101,7 @@ VIEW['doanh-thu'] = async (view) => {
     <div class="card-head"><h3>Hiệu quả theo kênh</h3><span class="sub">${dmy(d.from)} → ${dmy(d.to)}</span></div>
     <div class="card-body tight">${table('salesTbl', cols, d.byChannel, { footer: true, empty: 'Bảng Báo cáo Sales chưa có dữ liệu trong khoảng này' })}</div>
   </div>
+  <div id="noiQCKhoi" style="margin-top:14px"></div>
   <div id="donTrungKhoi" style="margin-top:14px"></div>
   ${d.rows.length ? `<div class="card" style="margin-top:14px">
     <div class="card-head"><h3>Đơn gần nhất</h3>
@@ -1133,6 +1134,7 @@ VIEW['doanh-thu'] = async (view) => {
    * Báo lỗi TẠI CHỖ của khối đó, không nuốt: nuốt đi thì khối biến mất im lặng,
    * đúng loại lỗi khó tìm nhất. */
   await chayKhoi('#roasKhoi', 'ROAS từng quảng cáo', roasVe);
+  await chayKhoi('#noiQCKhoi', 'Nối quảng cáo với lead', noiQCVe);
   await chayKhoi('#donTrungKhoi', 'Đơn ghi trùng trên Base', donTrungVe);
   /* Bảng ROAS vẽ xong thì cuộn về đầu tab: khối vừa dựng cao hơn chỗ nó chiếm
    * lúc trống, nên trình duyệt giữ nguyên scrollTop là người dùng thấy giữa
@@ -1258,6 +1260,169 @@ function lyDoGhiCong(r) {
  *   hội thoại  — ghép bằng số điện thoại. Yếu hơn. Đường duy nhất của TikTok.
  */
 const RS = { kq: null, dangChay: false };
+/* Trạng thái khối "Nối quảng cáo với lead" — giữ ngoài hàm vẽ để bấm Tìm xong,
+ * đổi tab rồi quay lại vẫn còn danh sách, khỏi gọi Pancake lại. */
+const NQ = { kq: null, chon: new Set() };
+
+/**
+ * Khối NỐI TAY hội thoại quảng cáo với lead Tourwell.
+ *
+ * Đo 28/09/2026: 97% hội thoại TikTok có gắn quảng cáo mà không kèm số điện
+ * thoại, và mọi cách lấy số tự động đều đã dò và chết (xem "CHỖ MÙ 96%" đầu
+ * sync/roas.js). Phần đó chỉ NGƯỜI biết — sales đang chat thì biết khách này
+ * thành lead nào. Khối này xếp ra cặp đáng ngờ để bấm xác nhận, rồi ghi mã
+ * quảng cáo vào ghi chú lead trên Tourwell.
+ *
+ * Việc GHI VÀO TOURWELL THẬT, nên: xem trước trước khi ghi, hỏi lại một lần,
+ * và không bao giờ tự chạy.
+ */
+async function noiQCVe() {
+  const khoi = $('#noiQCKhoi');
+  if (!khoi) return;
+
+  const veBang = () => {
+    const d = NQ.kq;
+    if (!d) return '';
+    const b = d.boQua || {};
+    const ds = d.capDoi || [];
+    const kh = d.khoang || [];
+
+    /* KHO KHÔNG CÓ id API thì chẳng nối được gì, và mọi con số "bỏ qua" bên dưới
+     * đều là hệ quả của đúng chuyện đó — in chúng ra là dẫn người đọc đi sai
+     * hướng. Bản đầu tôi chỉ cảnh báo ở nhánh CÓ cặp, nên đúng lúc hỏng nhất thì
+     * màn hình lại im. Kho cũ (kéo trước khi app đọc id API) hay kho nhập Excel
+     * đều rơi vào đây. */
+    if (!d.coApiId) {
+      return `<div class="help" style="margin-top:12px;border-color:var(--warn);color:var(--warn)">
+        <b>Kho lead đang có chưa kèm id API của Tourwell, nên chưa nối được.</b>
+        ${int(d.soLead)} lead trong kho, <b>0</b> lead có id.
+        Ghi vào Tourwell cần id đó — kho nhập từ Excel, hoặc kho kéo từ trước khi
+        app biết đọc id, đều không có.
+        <br>Bấm <b>Kéo lại từ Tourwell ngay</b> ở khối ROAS phía trên, rồi quay lại đây.
+      </div>`;
+    }
+
+    if (!ds.length) {
+      return `<div class="help" style="margin-top:12px">
+        <b>Không tìm thấy cặp nào đáng nối</b> trong ${dmy(kh[0])} → ${dmy(kh[1])}.
+        Đã xét ${int(d.soHoiThoai)} hội thoại và ${int(d.soLead)} lead.
+        <br><span class="sub">Bỏ qua: ${int(b.coSoDienThoai || 0)} hội thoại đã có số điện thoại (đường khác lo),
+        ${int(b.nhieuQuangCao || 0)} dính nhiều quảng cáo, ${int(b.khongTenDungDuoc || 0)} không có tên dùng được,
+        ${int(b.khongThayLead || 0)} không tìm được lead trùng tên,
+        <b>${int(b.leadLechNgay || 0)} tìm được lead nhưng lead có trước hội thoại</b> (khách cũ quay lại, không phải quảng cáo này sinh ra),
+        ${int(b.daCoMaQC || 0)} lead đã nối rồi.</span>
+      </div>`;
+    }
+    const cot = [
+      { key: 'chon', label: '', noSort: true, render: (r) => `<input type="checkbox" class="nqChon" data-id="${esc(String(r.leadApiId))}"${NQ.chon.has(String(r.leadApiId)) ? ' checked' : ''}>` },
+      { key: 'tenKhachPancake', label: 'Khách trên Pancake', cls: 'name', render: (r) => esc(r.tenKhachPancake || '—') },
+      { key: 'leadKhach', label: 'Lead Tourwell', cls: 'name', render: (r) => `${esc(r.leadKhach || '—')} <span class="sub">${esc(r.leadMa || '')}</span>` },
+      { key: 'hoiThoaiNgay', label: 'Ngày chat', render: (r) => dmy(r.hoiThoaiNgay) },
+      { key: 'leadNgay', label: 'Ngày lead', render: (r) => dmy(r.leadNgay) },
+      { key: 'adId', label: 'Quảng cáo', render: (r) => `<span class="mono">${esc(r.adId)}</span>` },
+      { key: 'tien', label: 'Đơn đã ra', num: true, render: (r) => (r.soDon ? `${int(r.soDon)} đơn · <b>${vnd(r.tien)}</b>` : '<span class="sub">chưa có</span>') },
+      { key: 'lyDo', label: 'Vì sao ghép', render: (r) => `<span class="sub">${esc(r.lyDo)}</span>` },
+      { key: 'xem', label: '', noSort: true, render: (r) => `<button class="btn small ghost" onclick="window.__xemHoiThoai('${esc(r.hoiThoaiId)}','${esc(r.khachId)}','${esc(r.pageId)}')">Xem chat</button>` },
+    ];
+    return `<div class="help" style="margin-top:12px">
+        <b>${int(ds.length)} cặp đáng nối</b> trong ${dmy(kh[0])} → ${dmy(kh[1])}.
+        App ghép theo <b>tên khách</b> và <b>ngày</b>, và chỉ gợi ý khi hội thoại chỉ về đúng một quảng cáo.
+        <b>Xem chat rồi mới tích</b> — app gợi ý, người quyết.
+        ${d.coApiId < d.soLead ? `<br><span style="color:var(--warn)">${int(d.soLead - d.coApiId)}/${int(d.soLead)} lead trong kho chưa có id API — những lead đó không nối được, đã bỏ khỏi danh sách.</span>` : ''}
+        ${(d.loi || []).length ? `<br><span style="color:var(--bad)">${d.loi.map(esc).join('<br>')}</span>` : ''}
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center">
+        <button class="btn small ghost" id="nqTatCa">Chọn tất cả</button>
+        <button class="btn small ghost" id="nqBoChon">Bỏ chọn</button>
+        <button class="btn primary" id="nqGhi">Nối và ghi vào Tourwell</button>
+        <span class="sub" id="nqDem">${NQ.chon.size} cặp đang chọn</span>
+      </div>
+      ${table('nqTbl', cot, ds, { sort: { key: 'tien', dir: 'desc' } })}`;
+  };
+
+  khoi.innerHTML = `<div class="card">
+    <div class="card-head"><h3>Nối quảng cáo với lead Tourwell</h3>
+      <span class="sub">chữa chỗ 97% hội thoại TikTok không có số điện thoại</span></div>
+    <div class="card-body">
+      <div class="help">
+        Với hội thoại TikTok, Pancake gần như không bao giờ có số điện thoại khách
+        (đo 28/09: <b>609/628</b>), nên app không tự ghi công được. Khoá duy nhất còn lại là
+        <b>người đang chat</b>. Nối xong, mã quảng cáo được ghi vào ghi chú lead trên Tourwell,
+        và từ lượt kéo sau ROAS đọc thẳng từ đó — không phải nối lại lần nữa.
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center">
+        <button class="btn ${NQ.kq ? 'ghost' : 'primary'}" id="nqTim">${NQ.kq ? 'Tìm lại' : 'Tìm cặp đáng nối'}</button>
+        <span class="sub">đọc Pancake tại chỗ, mất vài giây</span>
+      </div>
+      <div id="nqBang">${veBang()}</div>
+      <div id="nqKq" style="margin-top:10px"></div>
+    </div>
+  </div>`;
+
+  const demLai = () => { const d = $('#nqDem'); if (d) d.textContent = `${NQ.chon.size} cặp đang chọn`; };
+
+  function ganSuKien() {
+    document.querySelectorAll('.nqChon').forEach((el) => {
+      el.onchange = (ev) => {
+        const id = ev.target.getAttribute('data-id');
+        if (ev.target.checked) NQ.chon.add(id); else NQ.chon.delete(id);
+        demLai();
+      };
+    });
+    ganBam('#nqTatCa', () => { (NQ.kq.capDoi || []).forEach((r) => NQ.chon.add(String(r.leadApiId))); veLai(); });
+    ganBam('#nqBoChon', () => { NQ.chon.clear(); veLai(); });
+    ganBam('#nqGhi', nqGhi);
+  }
+
+  function veLai() { const o = $('#nqBang'); if (o) { o.innerHTML = veBang(); ganSuKien(); } }
+
+  async function nqGhi(ev) {
+    const b = ev.currentTarget;
+    const cu = b.textContent;
+    const chon = (NQ.kq.capDoi || []).filter((r) => NQ.chon.has(String(r.leadApiId)));
+    if (!chon.length) { toast('Chưa tích cặp nào', 'err'); return; }
+    b.disabled = true; b.textContent = 'Đang xem trước…';
+    try {
+      /* XEM TRƯỚC trước đã: đây là ghi vào Tourwell thật của công ty, không được
+       * để một cú bấm nhầm là xong. */
+      const xt = await api('/api/noi-qc/ghi', { method: 'POST',
+        body: JSON.stringify({ xemTruoc: true, capDoi: chon }) });
+      const hong = (xt.rows || []).filter((x) => !x.ok);
+      const hoi = 'Sẽ ghi vào ghi chú lead trên TOURWELL THẬT:\n\n'
+        + `  • ${xt.xong} lead được nối\n`
+        + (hong.length ? `  • ${hong.length} lead bỏ qua (${hong[0].vi})\n` : '')
+        + '  • ghi THÊM vào ghi chú, không xoá chữ đang có\n'
+        + '  • lead đã nối rồi thì bỏ qua, không ghi đè\n\nTiếp tục?';
+      if (!confirm(hoi)) { b.disabled = false; b.textContent = cu; return; }
+      b.textContent = 'Đang ghi…';
+      const r = await api('/api/noi-qc/ghi', { method: 'POST', body: JSON.stringify({ capDoi: chon }) });
+      const loi = (r.rows || []).filter((x) => !x.ok);
+      const o = $('#nqKq');
+      if (o) {
+        o.innerHTML = `<div class="help"${r.hong ? ' style="border-color:var(--warn);color:var(--warn)"' : ''}>
+          <b>Đã nối ${int(r.xong)}/${int(r.tong)} lead.</b>
+          ${r.hong ? `<br>${int(r.hong)} lead không ghi được:<br>${loi.slice(0, 5).map((x) => esc(`${x.leadMa || x.leadApiId}: ${x.vi}`)).join('<br>')}` : ''}
+          ${r.nhac ? `<br><span class="sub">${esc(r.nhac)}</span>` : ''}
+        </div>`;
+      }
+      if (r.xong) { NQ.chon.clear(); NQ.kq = null; veLai(); }
+    } catch (err) { toast(err.message, 'err'); }
+    b.disabled = false; b.textContent = cu;
+  }
+
+  ganBam('#nqTim', async (ev) => {
+    const b = ev.currentTarget;
+    b.disabled = true; b.textContent = 'Đang đọc Pancake…';
+    try {
+      NQ.kq = await api('/api/noi-qc/goi-y');
+      NQ.chon.clear();
+      veLai();
+      b.textContent = 'Tìm lại';
+    } catch (err) { toast(err.message, 'err'); b.textContent = 'Tìm cặp đáng nối'; }
+    b.disabled = false;
+  });
+  if (NQ.kq) ganSuKien();
+}
 
 /**
  * Câu đầu tiên của thẻ ROAS: số đang dùng đến từ ĐÂU và lúc nào.

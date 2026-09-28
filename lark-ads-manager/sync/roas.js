@@ -7,6 +7,11 @@
  *   1. POS — khoá cứng. Đơn POS mang ĐỒNG THỜI `ad_id` và ghi chú `LU####`.
  *      Không phải đoán gì. Đây là đường của Facebook.
  *
+ *   0. GHI CHÚ LEAD — người tự nối. Mạnh nhất, vì nó không đoán gì cả: sales
+ *      đang chat với khách thì biết khách đó thành lead nào, và bấm xác nhận.
+ *      Mã nằm trong ghi chú lead dạng `QC=<ad id>` (xem sync/noiquangcao.js).
+ *      Đây là đường DUY NHẤT chạm được tới 97% hội thoại TikTok không có số.
+ *
  *   3. Hội thoại — khoá là TÊN KHÁCH. Yếu nhất, và chỉ dùng cho hội thoại KHÔNG
  *      có số điện thoại. Xem "đường 3" phía dưới để biết vì sao phải có nó.
  *
@@ -29,6 +34,19 @@
  */
 
 const { chuanTen } = require('./pancake');
+const { docMaQC } = require('./noiquangcao');
+
+/* Hội thoại phải sinh ra lead trong BAO NHIÊU NGÀY thì mới coi là nó sinh ra.
+ *
+ * Con số này chặn đúng một cái bẫy, đo được ngày 28/09/2026: trong 18 hội thoại
+ * tháng 8 khớp TÊN với một lead Tourwell, 17 cái có lead sinh ra TRƯỚC hội thoại
+ * 38–62 ngày. Đó không phải quảng cáo tháng 8 sinh ra lead tháng 6 — đó là KHÁCH
+ * CŨ quay lại nhắn tin. Ghép vào là gán doanh thu tháng 6 cho quảng cáo tháng 8.
+ *
+ * Trùng tên thì rất dễ là cùng một người thật, nên không thể dựa vào tên để loại;
+ * phải dựa vào HƯỚNG THỜI GIAN. Ba ngày đã rộng: trễ lead→đơn đo được là 0–6
+ * ngày, mà trễ chat→lead còn ngắn hơn. */
+const NGAY_HOI_THOAI_TOI_LEAD = 3;
 
 const cachNgay = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
 
@@ -48,8 +66,11 @@ const cachNgay = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000
  *     (đã đo trước đó: 586 đơn POS/3 tháng, 100% từ page Facebook)
  *   · tag sales + ngày                     →  chỉ 19% ra ĐÚNG MỘT quảng cáo,
  *     41% ra nhiều quảng cáo. Quá nhập nhằng, KHÔNG dùng.
- *   · TÊN KHÁCH                            →  phủ 5% nhưng đúng 86% (44/51 ra
- *     đúng một quảng cáo). Nhỏ mà chắc → đây là đường 3 dưới đây.
+ *   · TÊN KHÁCH                            →  dùng được, NHƯNG phải kèm hướng
+ *     thời gian. Đo 28/09: trong 18 hội thoại tháng 8 khớp tên với một lead,
+ *     17 cái có lead sinh ra TRƯỚC hội thoại 38–62 ngày — khách cũ quay lại,
+ *     không phải quảng cáo tháng 8 sinh ra lead tháng 6. Xem
+ *     NGAY_HOI_THOAI_TOI_LEAD.
  *
  * Kết luận: phần còn lại KHÔNG chữa được từ dữ liệu. Muốn đo hết thì phải sửa ở
  * chỗ tạo lead — hoặc đơn TikTok đi qua Pancake POS như đơn Facebook, hoặc sales
@@ -104,6 +125,15 @@ function tinh({ posRows = [], hoiThoaiRows = [], leadRows = [], donRows = [], da
   });
   tenTrung.forEach((t) => leadTheoTen.delete(t));
 
+  /* Hội thoại có sinh ra lead này không — xét theo HƯỚNG thời gian.
+   * Lead có trước hội thoại thì hội thoại không sinh ra nó; đó là khách cũ
+   * quay lại, và 17/18 ca khớp tên đo được rơi đúng vào đây. */
+  const hopHuongThoiGian = (h, lead) => {
+    if (!h.ngay || !lead.ngay) return false;
+    const tre = cachNgay(h.ngay, lead.ngay);
+    return tre >= 0 && tre <= NGAY_HOI_THOAI_TOI_LEAD;
+  };
+
   const donTheoKH = new Map();
   donRows.forEach((r) => {
     if (!r.kh) return;
@@ -143,7 +173,7 @@ function tinh({ posRows = [], hoiThoaiRows = [], leadRows = [], donRows = [], da
    * đúng cột Kênh cho từng dòng doanh thu. */
   const ghiCongDon = new Map();
   const nhat = { nhapNhangPOS: 0, nhapNhangHoiThoai: 0, leadKhongCoTrongXuat: 0,
-    sdtKhongKhopLead: 0, sdtNhieuLead: 0, tenNhieuLead: 0 };
+    sdtKhongKhopLead: 0, sdtNhieuLead: 0, tenNhieuLead: 0, tenLechNgay: 0 };
 
   const layO = (adId, duong) => {
     const k = `${adId}|${duong}`;
@@ -177,7 +207,22 @@ function tinh({ posRows = [], hoiThoaiRows = [], leadRows = [], donRows = [], da
     return n;
   };
 
-  // --- đường 1: POS (khoá cứng), chạy TRƯỚC để giữ quyền ưu tiên
+  /* --- đường 0: mã quảng cáo NGƯỜI đã ghi vào ghi chú lead
+   *
+   * Chạy trước cả POS: đây là quyết định của người đang chat với khách, không
+   * phải suy luận của máy. Máy không được ghi đè lên nó.
+   *
+   * Không kiểm `ads.size !== 1` như các đường kia, vì một lead chỉ mang được
+   * một mã — chỗ nhập nhằng đã được giải ngay lúc người bấm xác nhận. */
+  leadRows.forEach((l) => {
+    const ma = docMaQC(l.ghiChu);
+    if (!ma) return;
+    const o = layO(ma, 'người nối');
+    o.lead += 1;
+    if (!ghi(o, l)) o.lead -= 1;
+  });
+
+  // --- đường 1: POS (khoá cứng), chạy sau đường 0, trước các đường suy luận
   const leadTheoAd = new Map();   // leadId → Set(adId)
   posRows.forEach((r) => {
     if (r.leadId == null || !r.adId) return;
@@ -243,6 +288,7 @@ function tinh({ posRows = [], hoiThoaiRows = [], leadRows = [], donRows = [], da
      * lead nào là khách này — bỏ, đừng chọn bừa cái đầu tiên. */
     const hop = [...new Set(tens.map((t) => leadTheoTen.get(t)).filter(Boolean))];
     if (hop.length !== 1) { if (hop.length > 1) nhat.tenNhieuLead += 1; return; }
+    if (!hopHuongThoiGian(h, hop[0])) { nhat.tenLechNgay += 1; return; }
     const o = layO(ads[0], 'tên khách');
     o.lead += 1;
     if (!ghi(o, hop[0], h.id)) o.lead -= 1;   // không ra đơn nào thì đừng đếm lead
@@ -320,7 +366,7 @@ function tinh({ posRows = [], hoiThoaiRows = [], leadRows = [], donRows = [], da
         const tens = [...new Set([...(h.tenKhachDs || []), h.tenKhach].filter(Boolean)
           .map(chuanTen).filter(Boolean))];
         const hop = [...new Set(tens.map((x) => leadTheoTen.get(x)).filter(Boolean))];
-        if (hop.length === 1) {
+        if (hop.length === 1 && hopHuongThoiGian(h, hop[0])) {
           const k = donCuaLead(hop[0]);
           if (k.ma.length) {
             nhom = 'chuyen-doi'; maDon = k.ma; tien = k.tien; thu = k.thu;

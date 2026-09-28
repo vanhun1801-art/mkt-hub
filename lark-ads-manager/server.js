@@ -34,6 +34,7 @@ const doiChieu = require('./sync/doichieu');
 const nhatKyGhi = require('./sync/nhatkyghi');
 const ghiDT = require('./sync/ghidoanhthu');
 const roasTinh = require('./sync/roas');
+const noiQC = require('./sync/noiquangcao');
 
 const T = cfg.tables;
 const PUBLIC = path.join(__dirname, 'public');
@@ -1304,6 +1305,128 @@ async function api(req, res, u) {
       luc: c ? c.luc : null,
       rows: (nhom ? ds.filter((h) => h.nhom === nhom) : ds)
         .slice().sort((a, b) => (a.ngay < b.ngay ? 1 : -1)),
+    });
+  }
+
+  /* ==================================================================
+   * NỐI TAY hội thoại quảng cáo với lead Tourwell.
+   *
+   * Đây là đường DUY NHẤT chạm được tới 97% hội thoại TikTok không có số điện
+   * thoại — mọi cách lấy số tự động đã dò và chết (xem "CHỖ MÙ 96%" đầu
+   * sync/roas.js). Nên nó phải là việc TAY: app xếp ra cặp đáng ngờ, người
+   * đang chat với khách bấm xác nhận.
+   *
+   * Chỉ quản lý: gợi ý mang theo tên khách thật, và bước ghi thì GHI VÀO
+   * TOURWELL THẬT của công ty.
+   * ================================================================== */
+  if (p === '/api/noi-qc/goi-y' && method === 'GET') {
+    if (!laQuanLy(req)) return fail(res, 403, 'Chỉ vai quản lý mới xem được gợi ý nối quảng cáo');
+    const kho = docKho();
+    if (!kho || !kho.lead || !kho.don) {
+      return fail(res, 400, 'Chưa có kho lead/đơn Tourwell. Bấm "Kéo lại từ Tourwell ngay" ở khối ROAS trước.');
+    }
+    const c = ketnoi.read();
+    const tu = kho.don.tomTat.tu;
+    const den = kho.don.tomTat.den;
+    let htRows = [];
+    const loi = [];
+    for (const pg of (c.pancake.pages || []).filter((x) => x.pageId && x.token)) {
+      try {
+        const r = await pancake.fetchConversations(pg, tu, den, () => {});
+        htRows = htRows.concat(r.rows);
+      } catch (e) { loi.push(`Pancake ${pg.label || pg.pageId}: ${e.message}`); }
+    }
+    const kq = noiQC.goiY({
+      hoiThoai: htRows,
+      leads: (kho.lead && kho.lead.rows) || [],
+      don: kho.don.rows,
+      cuaSo: Number(u.searchParams.get('cuaSo')) || 3,
+    });
+    /* `coApiId` nói thẳng bao nhiêu lead ghi được. Kho nhập từ Excel KHÔNG có
+     * apiId (chỉ bản API mới có), mà thiếu apiId thì không PUT lên Tourwell
+     * được — không nói ra thì người dùng bấm mãi mà chẳng có gì xảy ra. */
+    const leads = (kho.lead && kho.lead.rows) || [];
+    return ok(res, {
+      ...kq,
+      khoang: [tu, den],
+      soHoiThoai: htRows.length,
+      soLead: leads.length,
+      coApiId: leads.filter((x) => x.apiId).length,
+      tuApi: !!kho.tuApi,
+      loi,
+    });
+  }
+
+  /**
+   * Ghi mã quảng cáo vào ghi chú lead Tourwell.
+   *
+   * GHI VÀO HỆ THỐNG THẬT. Ba lớp chắn:
+   *   · chỉ vai quản lý
+   *   · `xemTruoc: true` trả về ĐÚNG chuỗi sẽ ghi, không gọi Tourwell
+   *   · mỗi lệnh một dòng nhật ký, kể cả lệnh hỏng
+   * Và không ghi đè: lead đã có mã quảng cáo thì bỏ qua, báo ra chứ không lặng lẽ
+   * đè lên quyết định của người trước.
+   */
+  if (p === '/api/noi-qc/ghi' && method === 'POST') {
+    if (!laQuanLy(req)) return fail(res, 403, 'Chỉ vai quản lý mới ghi được vào Tourwell');
+    const body = await readBody(req);
+    const ds = Array.isArray(body.capDoi) ? body.capDoi : [];
+    if (!ds.length) return fail(res, 400, 'Chưa chọn cặp nào để nối');
+    if (ds.length > 200) return fail(res, 400, 'Mỗi lượt tối đa 200 cặp — chia nhỏ ra cho dễ kiểm lại');
+
+    const c = ketnoi.read();
+    const tw = c.tourwell || {};
+    /* Chỉ chặn ở bước GHI. Xem trước là đọc thuần — bắt phải có token mới xem
+     * được chuỗi sắp ghi là chặn nhầm chỗ, và người dùng mất đúng cái màn hình
+     * dùng để kiểm trước khi quyết. */
+    if (!body.xemTruoc && (!tw.enabled || !tw.host || !tw.token)) {
+      return fail(res, 400, 'Tourwell API chưa bật hoặc chưa có token — bật ở tab Kết nối & Đồng bộ.');
+    }
+    const ai = await nguoiDung(req);
+    const nguoiNoi = (ai && ai.name) || '';
+    const data = await store.get();
+    const tenTheoExt = new Map((data.ads || []).filter((a) => a.extId)
+      .map((a) => [String(a.extId), a.name || '']));
+
+    const luc = new Date().toISOString();
+    const ra = [];
+    for (const x of ds) {
+      const adId = String(x.adId || '').trim();
+      const apiId = x.leadApiId;
+      const dong = { leadApiId: apiId, leadMa: x.leadMa || '', adId };
+      if (!adId || !apiId) { ra.push({ ...dong, ok: false, vi: 'Thiếu mã quảng cáo hoặc id lead' }); continue; }
+      /* Không ghi đè quyết định đã có. */
+      const daCo = noiQC.docMaQC(x.ghiChuCu);
+      if (daCo && daCo !== adId) {
+        ra.push({ ...dong, ok: false, vi: `Lead này đã được nối với quảng cáo ${daCo} — không ghi đè` });
+        continue;
+      }
+      const than = noiQC.thanGhiChu({
+        adId, tenQC: tenTheoExt.get(adId) || '', hoiThoaiId: x.hoiThoaiId || '',
+        nenTang: x.nenTang || '', nguoiNoi, luc,
+      });
+      if (body.xemTruoc) { ra.push({ ...dong, ok: true, xemTruoc: true, than }); continue; }
+      try {
+        await tourwellApi.ghiGhiChuLead(tw, apiId, than, x.ghiChuCu || '');
+        ra.push({ ...dong, ok: true });
+        nhatKyGhi.ghi({ ai: nguoiNoi || 'không rõ', viec: 'noi-qc', nenTang: x.nenTang || '',
+          adExtId: adId, leadApiId: apiId, leadMa: x.leadMa || '', hoiThoaiId: x.hoiThoaiId || '', ok: true });
+      } catch (e) {
+        ra.push({ ...dong, ok: false, vi: e.message });
+        nhatKyGhi.ghi({ ai: nguoiNoi || 'không rõ', viec: 'noi-qc', nenTang: x.nenTang || '',
+          adExtId: adId, leadApiId: apiId, leadMa: x.leadMa || '', ok: false, loi: e.message });
+      }
+    }
+    const xong = ra.filter((x) => x.ok).length;
+    return ok(res, {
+      xemTruoc: !!body.xemTruoc,
+      tong: ra.length, xong, hong: ra.length - xong, rows: ra,
+      /* Ghi xong CHƯA đổi số ngay: bảng ROAS đọc từ kho, mà kho giữ bản lead cũ
+       * chưa có ghi chú mới. Nói ra để khỏi tưởng nối hỏng. */
+      /* Đọc nhịp từ chính hằng số của bộ hẹn giờ, đừng gõ "2 giờ" vào chuỗi:
+       * đổi TUOI_KHO_GIO một lần là câu này thành nói dối. */
+      nhac: body.xemTruoc ? '' : 'Đã ghi vào Tourwell. Số ROAS chỉ đổi sau lượt kéo Tourwell kế tiếp '
+        + `(tự chạy mỗi ${sync.TUOI_KHO_GIO} giờ), hoặc bấm "Kéo lại từ Tourwell ngay".`,
     });
   }
 

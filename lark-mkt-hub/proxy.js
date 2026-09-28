@@ -48,6 +48,11 @@ const VIEC_LAU_NHOM = [
   /* Đối chiếu Base với nền tảng: mỗi chiến dịch một lời gọi ra Meta/TikTok/Google,
    * bảy chiến dịch là bảy lượt nối tiếp. Cắt ở 30 giây thì khối này luôn trắng. */
   'doi-chieu',
+  /* Nối quảng cáo với lead Tourwell: mỗi lượt gợi ý đọc TOÀN BỘ hội thoại
+   * Pancake trong khoảng của kho — đo trên máy là ~40 giây cho 2.857 hội thoại
+   * của một tháng. Cắt ở 30 giây thì nút "Tìm cặp đáng nối" không bao giờ ra
+   * kết quả, mà lỗi lại hiện thành "Module không trả lời" nên rất khó lần. */
+  'noi-qc',
 ];
 const VIEC_LAU = new RegExp('^/api/(' + VIEC_LAU_NHOM.join('|') + ')(-[a-z-]+)?(/|$|\\?)');
 const cfg = require('./config');
