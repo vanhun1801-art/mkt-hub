@@ -4178,3 +4178,26 @@ html[data-skin="ios"] .ios-nhap-bar > button {
   font: inherit; font-weight: 600; background: var(--ios-xanh, #007aff); color: #fff;
 }
 html[data-skin="ios"] .ios-nhap-bar > button[data-nhap="bo"] { background: transparent; color: var(--ios-chu-2); }
+
+/* ==========================================================================
+   HỘP THOẠI / NGĂN CHI TIẾT CUỘN ĐƯỢC KHI DÀI HƠN MÀN (28/09 — soát toàn diện)
+   Luật bo góc đặt overflow:hidden cho mọi hộp → hộp nào vốn tự cuộn trên
+   chính nó thì hết cuộn: OTA chi tiết booking trên điện thoại (nội dung 992px
+   trong khung 725px, mất dòng giá), Hub "chi tiết" ở Tổng quan (chân hộp bị
+   cắt, nút Đóng nằm ngoài hộp → bấm trúng nền mờ). Bo góc chỉ cần cắt NGANG;
+   chiều dọc cho cuộn. Hộp có thân tự cuộn thì hộp vừa khít, không đổi gì.
+   ========================================================================== */
+html[data-skin="ios"]:not(#_):not(#__):not(#___) :is(.modal-box, .hop, .md-box, .xt-box, .xt-hop, .modal-hop, .modal-wrap > .modal, .drawer) {
+  overflow-x: hidden !important; overflow-y: auto !important; overscroll-behavior: contain;
+}
+/* thân + chân trong hộp flex: thân co được (min-height:0), chân không bị ép dẹt */
+html[data-skin="ios"]:not(#_):not(#__):not(#___) .modal-wrap > .modal > :is(.modal-head, .modal-foot) { flex-shrink: 0; }
+html[data-skin="ios"]:not(#_):not(#__):not(#___) .modal-wrap > .modal > .modal-body { min-height: 0; }
+
+/* Nhóm lọc (máy tính) KHÔNG bị bóp: luật min-width:0 cho .fgroup thắng luật
+   200px của app → Social 1280px, nhóm "Nền tảng" còn 3px, nút TikTok/Facebook
+   biến mất. Nhóm có hàng nút giữ tối thiểu 240px; hàng lọc chật thì xuống dòng. */
+@media (min-width: 641px) {
+  html[data-skin="ios"]:not(#_):not(#__) .filters .fgroup:has(> .pills, > .seg) { min-width: min(100%, 240px); }
+  html[data-skin="ios"]:not(#_):not(#__) .filters:has(> .fgroup > .pills, > .fgroup > .seg) { flex-wrap: wrap; }
+}

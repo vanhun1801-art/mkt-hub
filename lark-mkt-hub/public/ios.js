@@ -675,3 +675,26 @@
   new MutationObserver(() => { try { quet(); } catch (_) {} })
     .observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ['class', 'hidden', 'style', 'open'] });
 })();
+
+/* LĂN CHUỘT CUỘN DẢI NGANG (29/09 — soát toàn diện). Dải tab, hàng nút lọc,
+ * hàng chip "Cần xử lý"… giấu thanh cuộn cho gọn như iPhone; trên máy tính dùng
+ * chuột thì lăn chỉ đi dọc → phần bị che (Quảng cáo: "Cảnh báo · Doanh thu &
+ * ROAS · Kết nối"; OTA "Kênh OTA"…) không cách nào kéo tới. Lăn chuột trên một
+ * dải NGANG thấp (không tự cuộn dọc) thì đổi thành cuộn ngang; bảng cao vẫn để
+ * lăn dọc cuộn trang như thường. Hết dải thì trả lại cho trang. */
+(function () {
+  if (document.documentElement.getAttribute('data-skin') !== 'ios') return;
+  document.addEventListener('wheel', (e) => {
+    if (e.ctrlKey || e.shiftKey || innerWidth <= 640 || Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return;
+    for (let el = e.target; el && el.nodeType === 1 && el !== document.body; el = el.parentElement) {
+      const s = getComputedStyle(el);
+      if (/auto|scroll/.test(s.overflowY) && el.scrollHeight > el.clientHeight + 2) return;   // gặp khung cuộn dọc trước: để nó
+      if (/auto|scroll/.test(s.overflowX) && el.scrollWidth > el.clientWidth + 2 && (el.clientHeight < 140 || s.scrollbarWidth === 'none')) {
+        const dau = el.scrollLeft;
+        el.scrollLeft += e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+        if (el.scrollLeft !== dau) e.preventDefault();
+        return;
+      }
+    }
+  }, { passive: false, capture: true });
+})();

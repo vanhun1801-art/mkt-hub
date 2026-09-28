@@ -307,7 +307,7 @@
   } catch (_) {}
 
   let hen = 0;
-  const lich = () => { if (hen) return; hen = requestAnimationFrame(() => { hen = 0; try { donMot(document.body); nutTao(); chipNguon(); tabTrongTam(); mepHet(); lensHet(); henCuon(); henCot(); xoaLoc(); nutTheoChu(); ganAnh(); baoChe(); } catch (_) {} }); };
+  const lich = () => { if (hen) return; hen = requestAnimationFrame(() => { hen = 0; try { donMot(document.body); nutTao(); chipNguon(); tabTrongTam(); mepHet(); lensHet(); henCuon(); henCot(); xoaLoc(); nutTheoChu(); ganAnh(); baoChe(); vuaPanel(); } catch (_) {} }); };
 
   function caiHienHinh() {
     /* KHUNG XƯƠNG KIỂU C — "hiện hình": khối nào vừa được thay khung xương bằng
@@ -465,6 +465,34 @@
    * cũng vô hại — chỉ gửi khi trạng thái đổi. */
   const CUA_SO = '.drawer.on, .drawer.open, .phu-man, .hop-nen, .modal.on, .modal.open, .modal-wrap:not([hidden]):not(.hidden), .md.on, .md.open, .xt.on, .xt.mo, .modal-mask.on, .scrim.open, .mask.on, [role="dialog"]:not([hidden])';
   let daChe = false;
+  /* DANH SÁCH XỔ LÒI KHỎI MÀN (29/09, soát toàn diện): danh sách chọn (nhân sự,
+   * danh mục…) luôn xổ XUỐNG dưới ô, kể cả khi dưới không đủ chỗ — iPhone nhỏ
+   * (667px) ở Lịch tác nghiệp lòi 20px, mấy dòng cuối không bấm tới. Lòi thì:
+   * trên rộng hơn → lật lên trên ô; không thì co lại vừa phần màn còn lại và
+   * cuộn bên trong. Chỉ đụng khi đang lòi, và gỡ khi danh sách đóng. */
+  function vuaPanel() {
+    document.querySelectorAll('.pk-panel, .dd-panel, .ng-pop').forEach((p) => {
+      const mo = p.getClientRects().length && getComputedStyle(p).display !== 'none';
+      if (!mo) { if (p.dataset.iosVua) { p.style.maxHeight = ''; p.style.overflowY = ''; delete p.dataset.iosVua; } return; }
+      const r = p.getBoundingClientRect();
+      if (r.bottom <= innerHeight - 6 || r.height < 40) return;
+      const o = p.parentElement ? p.parentElement.getBoundingClientRect() : r;
+      const tren = o.top - 12, duoi = innerHeight - r.top - 10;
+      const s = getComputedStyle(p);
+      if (s.position === 'fixed' && tren > duoi && tren > 160) {
+        const h = Math.min(r.height, tren);
+        p.style.maxHeight = h + 'px';
+        p.style.top = Math.max(8, o.top - 6 - h) + 'px';
+      } else {
+        p.style.maxHeight = Math.max(120, duoi) + 'px';
+      }
+      p.style.overflowY = 'auto';
+      p.dataset.iosVua = '1';
+    });
+  }
+  addEventListener('resize', () => requestAnimationFrame(vuaPanel));
+  document.addEventListener('click', () => setTimeout(vuaPanel, 60), true);
+
   /* Cửa sổ vừa mở còn đang hiện dần (opacity 0 lúc đo) hoặc vừa đóng còn đang
    * mờ dần (visibility trễ) → một lần đo ngay lúc đổi lớp dễ sai, mà sau đó có
    * thể không còn thay đổi nào để đo lại → lớp vỏ không tối, hoặc tối kẹt.
@@ -823,4 +851,27 @@
       else if (Date.now() - t0 > 6000) clearInterval(doi);
     }, 300);
   }, true);
+})();
+
+/* LĂN CHUỘT CUỘN DẢI NGANG (29/09 — soát toàn diện). Dải tab, hàng nút lọc,
+ * hàng chip "Cần xử lý"… giấu thanh cuộn cho gọn như iPhone; trên máy tính dùng
+ * chuột thì lăn chỉ đi dọc → phần bị che (Quảng cáo: "Cảnh báo · Doanh thu &
+ * ROAS · Kết nối"; OTA "Kênh OTA"…) không cách nào kéo tới. Lăn chuột trên một
+ * dải NGANG thấp (không tự cuộn dọc) thì đổi thành cuộn ngang; bảng cao vẫn để
+ * lăn dọc cuộn trang như thường. Hết dải thì trả lại cho trang. */
+(function () {
+  if (document.documentElement.getAttribute('data-skin') !== 'ios') return;
+  document.addEventListener('wheel', (e) => {
+    if (e.ctrlKey || e.shiftKey || innerWidth <= 640 || Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return;
+    for (let el = e.target; el && el.nodeType === 1 && el !== document.body; el = el.parentElement) {
+      const s = getComputedStyle(el);
+      if (/auto|scroll/.test(s.overflowY) && el.scrollHeight > el.clientHeight + 2) return;   // gặp khung cuộn dọc trước: để nó
+      if (/auto|scroll/.test(s.overflowX) && el.scrollWidth > el.clientWidth + 2 && (el.clientHeight < 140 || s.scrollbarWidth === 'none')) {
+        const dau = el.scrollLeft;
+        el.scrollLeft += e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+        if (el.scrollLeft !== dau) e.preventDefault();
+        return;
+      }
+    }
+  }, { passive: false, capture: true });
 })();
