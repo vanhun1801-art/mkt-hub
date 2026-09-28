@@ -7,6 +7,9 @@
  *   1. POS — khoá cứng. Đơn POS mang ĐỒNG THỜI `ad_id` và ghi chú `LU####`.
  *      Không phải đoán gì. Đây là đường của Facebook.
  *
+ *   3. Hội thoại — khoá là TÊN KHÁCH. Yếu nhất, và chỉ dùng cho hội thoại KHÔNG
+ *      có số điện thoại. Xem "đường 3" phía dưới để biết vì sao phải có nó.
+ *
  *   2. Hội thoại — khoá là SỐ ĐIỆN THOẠI. Hội thoại mang `ad_ids` và số điện thoại;
  *      ghép số đó với lead Tourwell. Yếu hơn: một số điện thoại có thể thuộc nhiều
  *      lead, và `has_phone` của Pancake đếm thiếu. Đây là đường duy nhất của TikTok,
@@ -25,7 +28,33 @@
  * ngành khác, không phải để nới cho khớp.
  */
 
+const { chuanTen } = require('./pancake');
+
 const cachNgay = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
+
+/* ============================================================================
+ * CHỖ MÙ 96%, và mọi đường đã dò qua (đo ngày 28/09/2026 trên page TikTok
+ * "Rooty Trip Phú Quốc", 1.603 hội thoại trong 21 ngày).
+ *
+ * 628 hội thoại có gắn quảng cáo, trong đó 609 (97%) KHÔNG có số điện thoại —
+ * nên đường 2 mù gần hết. Đã dò hết các hướng:
+ *
+ *   · khách tự gõ số trong nội dung chat  →  0 / 80.  Ba ca tìm thấy đều là
+ *     ADMIN gửi hotline công ty, không phải khách để lại. Khách TikTok nhắn
+ *     xong là chuyển sang Zalo, số không bao giờ xuất hiện trong luồng chat.
+ *   · trường customers[] của Pancake       →  không có ô nào tên phone/tel/mobile
+ *   · 4 endpoint hồ sơ khách (v1, v2)      →  404 hết
+ *   · đơn POS khoá cứng                    →  TikTok không sinh đơn POS
+ *     (đã đo trước đó: 586 đơn POS/3 tháng, 100% từ page Facebook)
+ *   · tag sales + ngày                     →  chỉ 19% ra ĐÚNG MỘT quảng cáo,
+ *     41% ra nhiều quảng cáo. Quá nhập nhằng, KHÔNG dùng.
+ *   · TÊN KHÁCH                            →  phủ 5% nhưng đúng 86% (44/51 ra
+ *     đúng một quảng cáo). Nhỏ mà chắc → đây là đường 3 dưới đây.
+ *
+ * Kết luận: phần còn lại KHÔNG chữa được từ dữ liệu. Muốn đo hết thì phải sửa ở
+ * chỗ tạo lead — hoặc đơn TikTok đi qua Pancake POS như đơn Facebook, hoặc sales
+ * ghi mã quảng cáo vào lead Tourwell lúc tạo. App không tự bịa ra được.
+ * ========================================================================== */
 
 /* Lý do một đơn KHÔNG ghép được quảng cáo — ba nhóm, dùng chung nhãn ở mọi nơi
  * hiển thị (bảng Đơn gần nhất, ghi chú trên Base) để khỏi lệch chữ. Cố tình
@@ -59,6 +88,22 @@ function tinh({ posRows = [], hoiThoaiRows = [], leadRows = [], donRows = [], da
       leadTheoSdt.get(r.sdt).push(r);
     }
   });
+  /* Lead theo TÊN đã chuẩn hoá — khoá của đường 3.
+   *
+   * Tên TRÙNG NHAU thì bỏ hẳn, không giữ cái nào: hai khách cùng tên thì không
+   * có cách nào biết hội thoại thuộc ai, mà đoán bừa ở đây là gán doanh thu
+   * của người này cho quảng cáo mang người kia về. Đo trên kho tháng 8: cách
+   * này bỏ đi rất ít, vì tên TikTok phần lớn là duy nhất. */
+  const leadTheoTen = new Map();
+  const tenTrung = new Set();
+  leadRows.forEach((r) => {
+    const t = chuanTen(r.khach);
+    if (!t) return;
+    if (leadTheoTen.has(t)) { tenTrung.add(t); return; }
+    leadTheoTen.set(t, r);
+  });
+  tenTrung.forEach((t) => leadTheoTen.delete(t));
+
   const donTheoKH = new Map();
   donRows.forEach((r) => {
     if (!r.kh) return;
@@ -97,7 +142,8 @@ function tinh({ posRows = [], hoiThoaiRows = [], leadRows = [], donRows = [], da
    * ai truy được chiều ngược lại; mà chiều ngược lại mới là thứ cần khi muốn ghi
    * đúng cột Kênh cho từng dòng doanh thu. */
   const ghiCongDon = new Map();
-  const nhat = { nhapNhangPOS: 0, nhapNhangHoiThoai: 0, leadKhongCoTrongXuat: 0, sdtKhongKhopLead: 0, sdtNhieuLead: 0 };
+  const nhat = { nhapNhangPOS: 0, nhapNhangHoiThoai: 0, leadKhongCoTrongXuat: 0,
+    sdtKhongKhopLead: 0, sdtNhieuLead: 0, tenNhieuLead: 0 };
 
   const layO = (adId, duong) => {
     const k = `${adId}|${duong}`;
@@ -175,6 +221,33 @@ function tinh({ posRows = [], hoiThoaiRows = [], leadRows = [], donRows = [], da
     ghi(o, lead, h.id);
   });
 
+  /* --- đường 3: hội thoại KHÔNG có số điện thoại, khoá là TÊN KHÁCH
+   *
+   * Chạy SAU cùng, và chỉ nhận hội thoại mà đường 2 đã bỏ qua vì không có số.
+   * Đây là đường duy nhất chạm tới được 97% hội thoại TikTok đang mù — xem khối
+   * ghi chú "CHỖ MÙ 96%" ở đầu tệp để biết mọi hướng khác đã dò và loại vì sao.
+   *
+   * Ba lớp chắn, vì đây là khoá yếu nhất trong ba đường:
+   *   · tên dưới 4 ký tự bị chuanTen() loại (Anh, My, Linh đụng nhau hàng loạt)
+   *   · tên trùng giữa nhiều lead đã bị loại khỏi leadTheoTen ở trên
+   *   · hội thoại quy về nhiều quảng cáo thì bỏ, y như hai đường kia
+   * Đơn đã được đường POS hoặc đường số điện thoại nhận thì ghi() tự bỏ qua. */
+  hoiThoaiRows.forEach((h) => {
+    if ((h.sdt || []).filter(Boolean).length) return;   // đã có số → đường 2 lo
+    const ads = [...new Set(h.adIds || [])];
+    if (ads.length !== 1) return;
+    const tens = [...new Set([...(h.tenKhachDs || []), h.tenKhach].filter(Boolean)
+      .map(chuanTen).filter(Boolean))];
+    if (!tens.length) return;
+    /* Nhiều tên của cùng hội thoại chỉ về NHIỀU lead khác nhau thì không biết
+     * lead nào là khách này — bỏ, đừng chọn bừa cái đầu tiên. */
+    const hop = [...new Set(tens.map((t) => leadTheoTen.get(t)).filter(Boolean))];
+    if (hop.length !== 1) { if (hop.length > 1) nhat.tenNhieuLead += 1; return; }
+    const o = layO(ads[0], 'tên khách');
+    o.lead += 1;
+    if (!ghi(o, hop[0], h.id)) o.lead -= 1;   // không ra đơn nào thì đừng đếm lead
+  });
+
   /* ---------- phân loại hội thoại (chất lượng lead từ quảng cáo) ----------
    * Ba nhóm theo ĐÚNG yêu cầu: dựa vào có để lại số điện thoại và có ra đơn
    * hay không — KHÔNG dùng tag CSKH (team chưa gắn tag nào cho việc này, gắn
@@ -198,6 +271,20 @@ function tinh({ posRows = [], hoiThoaiRows = [], leadRows = [], donRows = [], da
    *
    * Dùng Map theo mã đơn chứ không cộng thẳng: một hội thoại có thể chạm tới
    * cùng một đơn qua nhiều số điện thoại, cộng thẳng là nhân đôi tiền. */
+  /* Các đơn hợp lệ của MỘT lead — dùng chung cho nhánh ghép theo tên. */
+  const donCuaLead = (lead) => {
+    const theoMa = new Map();
+    (donTheoKH.get(lead.kh) || []).forEach((d) => {
+      if (!d.ngay || !lead.ngay || !d.ma) return;
+      const tre = cachNgay(lead.ngay, d.ngay);
+      if (tre >= 0 && tre <= cuaSo) theoMa.set(String(d.ma), d);
+    });
+    const ds = [...theoMa.values()];
+    return { ma: [...theoMa.keys()],
+      tien: ds.reduce((a, d) => a + (d.tien || 0), 0),
+      thu: ds.reduce((a, d) => a + (d.thu || 0), 0) };
+  };
+
   const donTrongCuaSo = (sdtList) => {
     const theoMa = new Map();
     sdtList.forEach((p) => {
@@ -226,6 +313,26 @@ function tinh({ posRows = [], hoiThoaiRows = [], leadRows = [], donRows = [], da
       let maDon = [];
       let tien = 0;
       let thu = 0;
+      /* Không có số nhưng TÊN khớp đúng một lead — cùng khoá với đường 3 ở trên.
+       * Trước đây mọi hội thoại không số đều rơi hết vào "Rác", kể cả khách đã
+       * mua thật; ô "Rác 96%" vì vậy đang nói quá. */
+      if (!coLienHe) {
+        const tens = [...new Set([...(h.tenKhachDs || []), h.tenKhach].filter(Boolean)
+          .map(chuanTen).filter(Boolean))];
+        const hop = [...new Set(tens.map((x) => leadTheoTen.get(x)).filter(Boolean))];
+        if (hop.length === 1) {
+          const k = donCuaLead(hop[0]);
+          if (k.ma.length) {
+            nhom = 'chuyen-doi'; maDon = k.ma; tien = k.tien; thu = k.thu;
+            lyDo = 'Ghép theo TÊN khách với đơn ' + k.ma.slice(0, 3).join(', ')
+              + (k.ma.length > 3 ? ` và ${k.ma.length - 3} đơn nữa` : '')
+              + ' (khoá yếu hơn số điện thoại)';
+          } else {
+            nhom = 'tiem-nang';
+            lyDo = 'Không để lại số, nhưng tên khớp một lead Tourwell — chưa thấy ra đơn';
+          }
+        }
+      }
       if (coLienHe) {
         nhom = 'tiem-nang';
         lyDo = 'Có để lại số điện thoại, chưa thấy ra đơn';
@@ -376,6 +483,9 @@ function tinh({ posRows = [], hoiThoaiRows = [], leadRows = [], donRows = [], da
         donTruyVeHoiThoai: g.filter((x) => x.hoiThoaiId).length,
         hoiThoaiCoSdt: hoiThoaiPhanLoai.filter((h) => h.nhom !== 'rac').length,
         hoiThoaiKhongSdt: hoiThoaiPhanLoai.filter((h) => h.nhom === 'rac').length,
+        /* Đường 3 (tên khách) gỡ được bao nhiêu khỏi ô "Rác". Đo riêng vì đây
+         * là khoá yếu nhất — phải nhìn được nó đang gánh bao nhiêu phần. */
+        hoiThoaiTheoTen: hoiThoaiPhanLoai.filter((h) => /theo TÊN|tên khớp/.test(h.lyDo || '')).length,
         /* Câu trả lời cho "lượt tin nhắn ra bao nhiêu tiền". */
         hoiThoaiChuyenDoi: cd.length,
         donCuaHoiThoai: donCuaHoiThoai.size,

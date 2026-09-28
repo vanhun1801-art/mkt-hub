@@ -614,7 +614,12 @@ function leadO(hoiThoaiD) {
     Lượt ghi công gần nhất: ${int(C.donGhiCong)} đơn ghép được với quảng cáo —
     ${int(C.donQuaHoiThoai)} đơn qua đường hội thoại (${int(C.donTruyVeHoiThoai)} trong số đó chỉ được về đúng một hội thoại cụ thể),
     ${int(C.donQuaPOS)} đơn qua khoá cứng POS (đường này <b>không đi qua Pancake</b> nên không đánh dấu hội thoại nào).
-    ${int(C.hoiThoaiKhongSdt)} hội thoại không để lại số điện thoại nên <b>không thể</b> xếp vào Chuyển đổi, dù khách đó có mua hay không.
+    ${int(C.hoiThoaiKhongSdt)} hội thoại không để lại số điện thoại — với chúng app chỉ còn khoá <b>tên khách</b>,
+    và khoá đó gỡ được ${int(C.hoiThoaiTheoTen || 0)} hội thoại ra khỏi ô Rác.
+    <br><b>Vì sao phần còn lại không đo được.</b> Đo ngày 28/09/2026 trên page TikTok: 97% hội thoại có gắn quảng cáo
+    không kèm số điện thoại. Khách TikTok nhắn xong là chuyển sang Zalo, nên số không nằm trong luồng chat —
+    dò 80 hội thoại thì <b>0</b> ca khách tự gõ số. Pancake cũng không có hồ sơ khách kèm số, và TikTok không sinh đơn POS
+    để dùng khoá cứng như Facebook. Muốn đo hết thì phải sửa ở chỗ tạo lead, app không tự bịa ra được.
   </div>` : '';
   const the = (nhom, nhan, n, cls) => `<div class="kpi" style="cursor:pointer" data-nhom="${nhom}" onclick="window.__moHoiThoai('${nhom}')">
     <div class="k-label">${nhan}</div>

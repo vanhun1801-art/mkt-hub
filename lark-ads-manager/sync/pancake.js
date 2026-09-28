@@ -310,7 +310,18 @@ function chuanHoa(c, page) {
     tagChotCuaPancake: tags.some((t) => t.is_lead_event),
     soTinNhan: c.message_count || 0,
     khachId: c.customer_id || '',
-    tenKhach: (c.from && c.from.name) || '',
+    tenKhach: (c.from && c.from.name) || (c.page_customer && c.page_customer.name) || '',
+    /* MỌI tên Pancake biết về khách này, không chỉ một.
+     *
+     * Đây là khoá ghép cuối cùng còn dùng được cho TikTok, và đo được là mỗi
+     * chỗ giữ một kiểu tên: `from.name` hay trống, `page_customer.name` là tên
+     * hiển thị, `customers[].username` là @handle. Chỉ lấy một chỗ là hụt.
+     * Xem ghi chú "đường 3" trong sync/roas.js để biết vì sao phải cần tới nó. */
+    tenKhachDs: [...new Set([
+      c.from && c.from.name,
+      c.page_customer && c.page_customer.name,
+      ...(c.customers || []).filter(Boolean).flatMap((u) => [u.name, u.username]),
+    ].filter(Boolean).map(String))],
     sales: (c.current_assign_users || []).map((u) => u.name).filter(Boolean),
   };
 }
@@ -326,6 +337,25 @@ function chuanSdt(v) {
   s = s.replace(/^\+?84/, '0');
   if (!s.startsWith('0')) s = `0${s}`;
   return s.length >= 9 && s.length <= 12 ? s : '';
+}
+
+/**
+ * Chuẩn hoá TÊN để ghép hai hệ thống.
+ *
+ * Tourwell lưu '(Quý khách) Cô 2 Họ Đào', Pancake lưu 'Cô 2 Họ Đào' — cùng một
+ * người. Bỏ dấu, bỏ tiền tố '(Quý khách)', bỏ mọi thứ không phải chữ và số.
+ * Emoji cũng rụng theo, và đó là ý muốn: 'MiMi 🇻🇳🇺🇸' với 'MiMi' là một người.
+ *
+ * Trả '' cho tên quá ngắn: dưới 4 ký tự thì 'Anh', 'My', 'Linh' đụng nhau hàng
+ * loạt, ghép vào là gán doanh thu cho nhầm quảng cáo.
+ */
+function chuanTen(v) {
+  const s = String(v == null ? '' : v)
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/\(\s*quy\s*khach\s*\)/ig, '')
+    .replace(/[^a-z0-9]/ig, '')
+    .toLowerCase();
+  return s.length >= 4 ? s : '';
 }
 
 /* ---------------- tổng hợp ---------------- */
@@ -643,5 +673,5 @@ function ghepVoiChiTieu(gomTheoAd, data, { from, to } = {}) {
 module.exports = {
   danhSachPage, danhSachTag, fetchConversations, fetchMessages, test,
   theoAdVaNgay, phanLoaiId, ghepVoiChiTieu, laKeyPOS,
-  chuanSdt, chuanNenTang, doanNenTang, ngayVN, dauNgay, cuoiNgay,
+  chuanSdt, chuanTen, chuanNenTang, doanNenTang, ngayVN, dauNgay, cuoiNgay,
 };
