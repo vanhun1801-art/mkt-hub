@@ -189,21 +189,32 @@ function tinh({ posRows = [], hoiThoaiRows = [], leadRows = [], donRows = [], da
    * `nguonPhanLoai: 'heuristic'` cố tình để riêng một trường — chỗ cắm sau
    * này nếu có AI đọc hội thoại đánh giá lại, không phải sửa lại hình dạng dữ
    * liệu ở nơi khác đang dùng nó. */
-  /* Trả về MÃ ĐƠN, không trả true/false. Anh Hùng hỏi đúng chỗ: "ra doanh thu
-   * rồi thì phải biết hội thoại nào đã chuyển đổi" — biết có đơn mà không nói
-   * được đơn nào thì vẫn chưa trả lời được câu đó. */
+  /* Trả về MÃ ĐƠN và SỐ TIỀN, không trả true/false.
+   *
+   * Anh Hùng hỏi đúng chỗ hai lần: "ra doanh thu rồi thì phải biết hội thoại nào
+   * đã chuyển đổi" (27/09), rồi "lượt tin nhắn mà biết chuyển đổi ra tiền thì
+   * tốt biết mấy" (28/09). Biết có đơn mà không nói được đơn nào, bao nhiêu
+   * tiền, thì vẫn chưa trả lời được câu đó.
+   *
+   * Dùng Map theo mã đơn chứ không cộng thẳng: một hội thoại có thể chạm tới
+   * cùng một đơn qua nhiều số điện thoại, cộng thẳng là nhân đôi tiền. */
   const donTrongCuaSo = (sdtList) => {
-    const ma = new Set();
+    const theoMa = new Map();
     sdtList.forEach((p) => {
       (leadTheoSdt.get(p) || []).forEach((lead) => {
         (donTheoKH.get(lead.kh) || []).forEach((d) => {
           if (!d.ngay || !lead.ngay || !d.ma) return;
           const tre = cachNgay(lead.ngay, d.ngay);
-          if (tre >= 0 && tre <= cuaSo) ma.add(String(d.ma));
+          if (tre >= 0 && tre <= cuaSo) theoMa.set(String(d.ma), d);
         });
       });
     });
-    return [...ma];
+    const ds = [...theoMa.values()];
+    return {
+      ma: [...theoMa.keys()],
+      tien: ds.reduce((a, d) => a + (d.tien || 0), 0),
+      thu: ds.reduce((a, d) => a + (d.thu || 0), 0),
+    };
   };
   const hoiThoaiPhanLoai = hoiThoaiRows
     .filter((h) => h.type === 'INBOX' && (h.adIds || []).length)
@@ -213,11 +224,14 @@ function tinh({ posRows = [], hoiThoaiRows = [], leadRows = [], donRows = [], da
       let nhom = 'rac';
       let lyDo = 'Không để lại số điện thoại';
       let maDon = [];
+      let tien = 0;
+      let thu = 0;
       if (coLienHe) {
         nhom = 'tiem-nang';
         lyDo = 'Có để lại số điện thoại, chưa thấy ra đơn';
         if (sdt.length) {
-          maDon = donTrongCuaSo(sdt);
+          const k = donTrongCuaSo(sdt);
+          maDon = k.ma; tien = k.tien; thu = k.thu;
           if (maDon.length) {
             nhom = 'chuyen-doi';
             lyDo = 'Ghép được với đơn ' + maDon.slice(0, 3).join(', ')
@@ -229,7 +243,7 @@ function tinh({ posRows = [], hoiThoaiRows = [], leadRows = [], donRows = [], da
         id: h.id, pageId: h.pageId || '', khachId: h.khachId || '', ngay: h.ngay,
         adIds: h.adIds || [], platform: h.platform || '',
         soTinNhan: h.soTinNhan || 0, tenKhach: h.tenKhach || '',
-        nhom, lyDo, maDon, nguonPhanLoai: 'heuristic',
+        nhom, lyDo, maDon, tien, thu, nguonPhanLoai: 'heuristic',
       };
     });
 
@@ -345,6 +359,16 @@ function tinh({ posRows = [], hoiThoaiRows = [], leadRows = [], donRows = [], da
      * ghép bằng ad_id + mã LU trên đơn, không đi qua Pancake. */
     cauNoi: (() => {
       const g = [...ghiCongDon.values()];
+      const cd = hoiThoaiPhanLoai.filter((h) => h.nhom === 'chuyen-doi');
+      /* Tiền của NHÓM hội thoại chuyển đổi. Cộng theo mã đơn đã khử trùng ở mỗi
+       * hội thoại, nhưng hai hội thoại KHÁC NHAU vẫn có thể cùng chạm một đơn
+       * (khách nhắn hai lần) — nên khử trùng thêm một lần nữa ở mức nhóm, không
+       * cộng thẳng h.tien. Bỏ bước này là số tiền phồng lên trông rất đẹp. */
+      const donCuaHoiThoai = new Set();
+      cd.forEach((h) => (h.maDon || []).forEach((m) => donCuaHoiThoai.add(m)));
+      const tienNhom = donRows
+        .filter((d) => d.ma && donCuaHoiThoai.has(String(d.ma)))
+        .reduce((a, d) => a + (d.tien || 0), 0);
       return {
         donGhiCong: g.length,
         donQuaHoiThoai: g.filter((x) => x.duong === 'hội thoại').length,
@@ -352,6 +376,11 @@ function tinh({ posRows = [], hoiThoaiRows = [], leadRows = [], donRows = [], da
         donTruyVeHoiThoai: g.filter((x) => x.hoiThoaiId).length,
         hoiThoaiCoSdt: hoiThoaiPhanLoai.filter((h) => h.nhom !== 'rac').length,
         hoiThoaiKhongSdt: hoiThoaiPhanLoai.filter((h) => h.nhom === 'rac').length,
+        /* Câu trả lời cho "lượt tin nhắn ra bao nhiêu tiền". */
+        hoiThoaiChuyenDoi: cd.length,
+        donCuaHoiThoai: donCuaHoiThoai.size,
+        tienCuaHoiThoai: tienNhom,
+        tienMoiHoiThoai: cd.length ? Math.round(tienNhom / cd.length) : 0,
       };
     })(),
   };

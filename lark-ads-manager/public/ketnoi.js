@@ -214,7 +214,78 @@
          </div>`);
 
     const d = c.dongBo;
+
+    /* ---- DẢI SỨC KHOẺ KÊNH ----------------------------------------------
+     * Anh Hùng 28/09: "giao diện kết nối làm thông minh hơn giúp anh tiện theo dõi".
+     *
+     * Vấn đề cũ rất cụ thể: muốn biết "mọi thứ có ổn không" phải đọc SÁU cái thẻ,
+     * mỗi thẻ một khối chữ, và số liệu mới nhất của từng kênh thì nằm lẫn trong
+     * băng sức khoẻ ở trên dưới dạng một chuỗi "Facebook 2026-08-31 · TikTok …".
+     *
+     * Dải này gom lại: một dòng một kênh, trả lời đúng bốn câu hay hỏi — đang bật
+     * không, token còn hạn không, có số tới ngày nào, và có phải làm gì không.
+     * Chỗ nào KHÔNG BIẾT thì ghi gạch, không tô xanh cho đẹp. */
+    const sucKhoeKenh = (() => {
+      const moiNhat = (sk && sk.moiNhat) || {};
+      const homNay = new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10);
+      const soNgayTre = (ngay) => {
+        if (!ngay) return null;
+        const t = Math.round((Date.parse(homNay) - Date.parse(ngay)) / 86400000);
+        return Number.isFinite(t) ? t : null;
+      };
+      const ds = c.providers.filter(hienKenh).filter((x) => x.sanSang || x.coToken);
+      if (!ds.length) return '';
+
+      const dong = (p) => {
+        const plat = PLAT_OF[p.key] || p.label;
+        const ngay = moiNhat[plat] || null;
+        const tre = soNgayTre(ngay);
+        const han = p.hanToken;
+
+        /* Việc cần làm — xếp theo mức gấp, chỉ in CÁI GẤP NHẤT. In cả bốn dòng
+         * thì lại thành khối chữ phải đọc, đúng cái đang muốn bỏ. */
+        let viec = '<span class="tag good">không phải làm gì</span>';
+        if (!p.sanSang) viec = '<span class="tag bad">chưa cấu hình xong</span>';
+        else if (han && han.muc === 'het') viec = '<span class="tag bad">token hết hạn — dán token mới</span>';
+        else if (!p.enabled) viec = '<span class="tag warn">đã cấu hình nhưng đang tắt</span>';
+        else if (han && han.muc === 'sapHet') viec = '<span class="tag warn">token sắp hết — chuẩn bị token mới</span>';
+        else if (tre == null) viec = '<span class="tag warn">chưa có số nào trong Base</span>';
+        else if (tre > 2) viec = `<span class="tag bad">số cũ ${tre} ngày — đồng bộ lại</span>`;
+        else if (tre === 2) viec = '<span class="tag warn">số trễ 2 ngày</span>';
+
+        return `<tr>
+          <!-- Thẻ kênh đã nói "Facebook" rồi, nhãn lại là "Facebook / Meta" —
+               in cả hai thành "Facebook Facebook / Meta". Chỉ thêm nhãn khi nó
+               nói thêm được điều gì (vd. Google Ads qua Sheet vs qua API). -->
+          <td>${platTag(plat)}${p.label && p.label !== plat
+            ? ` <span class="sub">${esc(p.label)}</span>` : ''}</td>
+          <td>${p.enabled ? '<span class="tag good">bật</span>' : '<span class="tag">tắt</span>'}</td>
+          <td>${!p.coToken ? '<span class="tag bad">chưa có</span>'
+            : han ? `<span class="tag ${HAN_CLASS[han.muc] || ''}">${esc(han.text)}</span>`
+            : '<span class="tag good">đã có</span>'}</td>
+          <td>${p.soTaiKhoan ? esc(p.taiKhoan.join(', ')) : '<span class="sub">—</span>'}</td>
+          <td>${ngay ? `${dmy(ngay)}${tre ? ` <span class="sub">(${tre} ngày trước)</span>` : ' <span class="sub">(hôm nay)</span>'}`
+            : '<span class="sub">—</span>'}</td>
+          <td>${viec}</td>
+        </tr>`;
+      };
+
+      return `<div class="card" style="margin-bottom:14px">
+        <div class="card-head"><h3>Sức khoẻ từng kênh</h3>
+          <span class="sub">${c.hengio.dangBat
+            ? `đồng bộ tự chạy mỗi ${d.moiSoGio} giờ · Tourwell + ROAS mỗi 2 giờ`
+            : 'hẹn giờ đang TẮT — mọi thứ phải bấm tay'}</span></div>
+        <div class="card-body tight">
+          <div class="tbl-wrap"><table class="tbl"><thead><tr>
+            <th>Kênh</th><th>Trạng thái</th><th>Token</th><th>Tài khoản</th>
+            <th>Số mới nhất trong Base</th><th>Cần làm gì</th>
+          </tr></thead><tbody>${ds.map(dong).join('')}</tbody></table></div>
+        </div>
+      </div>`;
+    })();
+
     view.innerHTML = `
+    ${sucKhoeKenh}
     ${bangSucKhoe}`;
     view.innerHTML += `
     ${

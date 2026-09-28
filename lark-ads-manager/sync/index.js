@@ -187,10 +187,20 @@ async function testAll() {
 let timer = null;
 let nextAt = null;
 
-/* Kho lead/đơn Tourwell coi là còn dùng được trong bao lâu. Mỗi lượt kéo là hàng
- * trăm lời gọi API và Tourwell giới hạn 60 yêu cầu/phút, nên kéo lại mỗi giờ là
- * phí. Sáu giờ đủ tươi cho một bảng ROAS. */
-const TUOI_KHO_GIO = Number(process.env.TOURWELL_TUOI_GIO || 6);
+/* Kho lead/đơn Tourwell coi là còn dùng được trong bao lâu.
+ *
+ * Anh Hùng chốt 28/09/2026: mỗi 2 tiếng kéo một lượt. Trước là 6 tiếng.
+ *
+ * Cái giá, đo thật chứ không ước: một lượt 60 ngày mất 1.077 giây cho ~700 lời
+ * gọi (Tourwell trả 25 dòng/trang, mỗi trang ~1,5 giây). Cửa sổ định kỳ là 21
+ * ngày ≈ 245 lời gọi ≈ 6 phút. Mười hai lượt một ngày ≈ 76 phút gọi API — nằm
+ * trong trần 60 yêu cầu/phút của Tourwell, nhưng đây là con số nên biết trước
+ * khi hạ tiếp xuống 1 tiếng.
+ *
+ * KHÔNG hạ cửa sổ 21 ngày xuống cho bớt tốn: keoVeKho() THAY cả kho chứ không
+ * trộn thêm, nên kéo 7 ngày là vứt mất 14 ngày đang có — và đơn đổi trạng thái
+ * từ "Đang tư vấn" sang "Đã chốt" sau hai tuần sẽ không bao giờ được cập nhật. */
+const TUOI_KHO_GIO = Number(process.env.TOURWELL_TUOI_GIO || 2);
 
 /* Số ngày lùi cho lượt kéo ĐỊNH KỲ. Lần nạp đầu vẫn dùng 60 ngày qua nút bấm. */
 const NGAY_LUI_TW = Number(process.env.TOURWELL_NGAY_LUI || 21);
@@ -256,7 +266,8 @@ function startScheduler(logFn = console.log) {
              * cơ chế thử lại sau 60 giây của r.tong.loi. */
             try {
               const gcq = await ghiCongTuDong.chay({ kho: khoRoas.doc(), from: '', to: '', ghi: logFn });
-              logFn(`  [hẹn giờ] ghi công + ghi Base xong: tạo ${gcq.taoMoi}, sửa ${gcq.capNhat}`);
+              logFn(`  [hẹn giờ] tính ROAS + ghi Base xong: tạo ${gcq.taoMoi}, sửa ${gcq.capNhat}`
+              + ` (bảng ROAS đã lưu vào roas-cache.json, màn hình đọc thẳng từ đó)`);
             } catch (e) {
               logFn('  [hẹn giờ] ghi công LỖI  ' + e.message);
             }

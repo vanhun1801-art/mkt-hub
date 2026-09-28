@@ -594,12 +594,25 @@ function leadO(hoiThoaiD) {
   /* Cầu nối sang ô "Doanh thu từ quảng cáo" ngay phía trên. Hai ô đó đi hai
    * đường khác nhau; chênh nhau là bình thường, nhưng phải giải thích tại chỗ
    * chứ không để người đọc tự đoán. */
+  /* Anh Hùng 28/09: "lượt tin nhắn mà biết chuyển đổi ra tiền thì tốt biết mấy".
+   * Đặt ngay dưới ô Chuyển đổi, vì đó là ô người ta đang nhìn khi hỏi câu này. */
+  const tienO = (C && C.hoiThoaiChuyenDoi) ? `<div class="kpis" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-top:10px">
+    <div class="kpi"><div class="k-label">Tiền từ hội thoại quảng cáo</div>
+      <div class="k-value">${vnd(C.tienCuaHoiThoai || 0)}</div>
+      <div class="k-foot">${int(C.donCuaHoiThoai || 0)} đơn, truy được về ${int(C.hoiThoaiChuyenDoi)} hội thoại</div></div>
+    <div class="kpi"><div class="k-label">Bình quân mỗi hội thoại chuyển đổi</div>
+      <div class="k-value">${vnd(C.tienMoiHoiThoai || 0)}</div>
+      <div class="k-foot">chia đều, không phải giá trị đơn</div></div>
+    <div class="kpi"><div class="k-label">Tỉ lệ hội thoại ra tiền</div>
+      <div class="k-value">${phanTram(T.tongCong ? C.hoiThoaiChuyenDoi / T.tongCong : null)}</div>
+      <div class="k-foot">trên ${int(T.tongCong)} hội thoại có gắn quảng cáo</div></div>
+  </div>` : '';
   const cau = C ? `<div class="help" style="margin-top:10px">
     <b>Vì sao con số này không khớp ô doanh thu phía trên.</b>
     Ô doanh thu đếm đơn theo ô <b>Kênh</b> mà Tourwell tự khai, không truy về hội thoại nào.
     Khối này thì chỉ lần được theo <b>số điện thoại</b> khách để lại trong Pancake.
     Lượt ghi công gần nhất: ${int(C.donGhiCong)} đơn ghép được với quảng cáo —
-    ${int(C.donQuaHoiThoai)} đơn qua đường hội thoại (truy ngược được về ${int(C.donTruyVeHoiThoai)} hội thoại cụ thể),
+    ${int(C.donQuaHoiThoai)} đơn qua đường hội thoại (${int(C.donTruyVeHoiThoai)} trong số đó chỉ được về đúng một hội thoại cụ thể),
     ${int(C.donQuaPOS)} đơn qua khoá cứng POS (đường này <b>không đi qua Pancake</b> nên không đánh dấu hội thoại nào).
     ${int(C.hoiThoaiKhongSdt)} hội thoại không để lại số điện thoại nên <b>không thể</b> xếp vào Chuyển đổi, dù khách đó có mua hay không.
   </div>` : '';
@@ -622,6 +635,7 @@ function leadO(hoiThoaiD) {
         ${the('tiem-nang', 'Có tiềm năng, chưa chốt', T.tiemNang, 'warn')}
         ${the('rac', 'Rác / chưa rõ ý định', T.rac, '')}
       </div>
+      ${tienO}
       ${cau}
     </div>
   </div>`;
@@ -1073,6 +1087,11 @@ VIEW['doanh-thu'] = async (view) => {
       nên không được cộng vào tử số.` : ''}
     ${T.thieuGoogle ? '<br>Google Ads có chi tiêu nhưng chưa ghi công được đơn nào — chi tiêu đó VẪN nằm trong mẫu số, nên ROAS ở đây là sàn dưới.' : ''}
   </div>`}
+  <!-- Anh Hùng 28/09: "lôi giúp anh các cái tính ROAS lên trên". Khối này trước
+       nằm CUỐI tab, dưới cả bảng "Đơn gần nhất" hàng nghìn dòng — phải cuộn qua
+       hết mới tới ba cái nút là việc chính của cả tab. -->
+  <div id="roasKhoi" style="margin-top:14px"></div>
+
   <div class="card" style="margin-top:14px">
     <div class="card-head"><h3>Hiệu quả theo kênh</h3><span class="sub">${dmy(d.from)} → ${dmy(d.to)}</span></div>
     <div class="card-body tight">${table('salesTbl', cols, d.byChannel, { footer: true, empty: 'Bảng Báo cáo Sales chưa có dữ liệu trong khoảng này' })}</div>
@@ -1096,9 +1115,7 @@ VIEW['doanh-thu'] = async (view) => {
         { key: 'staff', label: 'Sales', render: (r) => esc((r.staff || []).map((s) => s.name).join(', ')) },
       ], S.chiXemQC ? d.rows.filter((r) => r.laQuangCao) : d.rows, { sort: { key: 'date', dir: 'desc' } })}
     </div>
-  </div>` : ''}
-
-  <div id="roasKhoi" style="margin-top:14px"></div>`;
+  </div>` : ''}`;
 
   const chk = $('#chkChiQC');
   if (chk) chk.onchange = (e) => { S.chiXemQC = e.target.checked; render(); };
@@ -1112,6 +1129,10 @@ VIEW['doanh-thu'] = async (view) => {
    * đúng loại lỗi khó tìm nhất. */
   await chayKhoi('#roasKhoi', 'ROAS từng quảng cáo', roasVe);
   await chayKhoi('#donTrungKhoi', 'Đơn ghi trùng trên Base', donTrungVe);
+  /* Bảng ROAS vẽ xong thì cuộn về đầu tab: khối vừa dựng cao hơn chỗ nó chiếm
+   * lúc trống, nên trình duyệt giữ nguyên scrollTop là người dùng thấy giữa
+   * bảng chứ không thấy mấy cái nút. */
+  if (window.scrollY < 200) window.scrollTo({ top: 0 });
 };
 
 /**
@@ -1243,6 +1264,23 @@ const RS = { kq: null, dangChay: false };
  * một câu chung chung: "chưa bật API" và "đã bật nhưng kho rỗng" cần hai hành
  * động khác nhau, gộp lại là bắt người đọc tự đoán.
  */
+/**
+ * Một dòng gọn cho biết cơ chế tự chạy đang ở đâu — đặt cạnh mấy cái nút, vì
+ * câu hỏi "có phải bấm không" nảy ra đúng lúc nhìn thấy nút.
+ *
+ * Anh Hùng chốt 28/09/2026: mỗi 2 tiếng tự kéo Tourwell, tự tính ROAS, tự ghi
+ * lên Base. Nên mấy cái nút ở đây chỉ còn để ép chạy ngay, không phải việc bắt
+ * buộc hằng ngày — và giao diện phải nói ra điều đó chứ đừng để người dùng
+ * tưởng không bấm là không có số.
+ */
+function nhipTuDong(tt) {
+  if (!tt.tourwellBat) return '';
+  const cu = tt.luc ? Math.round((Date.now() - Date.parse(tt.luc)) / 3600000) : null;
+  const tuoi = cu == null ? 'chưa lượt nào'
+    : cu < 1 ? 'vừa chạy dưới 1 giờ trước' : `lượt gần nhất ${cu} giờ trước`;
+  return `⟳ tự chạy mỗi <b>${tt.tuDongMoiGio} giờ</b> · ${tuoi}`;
+}
+
 function nguonSo(tt) {
   const nhip = `App tự kéo <b>${tt.tuDongSoNgay} ngày</b> gần nhất mỗi khi kho cũ hơn `
     + `<b>${tt.tuDongMoiGio} giờ</b>, và tự ghi công + ghi doanh thu lên Base ngay sau đó — `
@@ -1387,17 +1425,27 @@ async function roasVe() {
     <div class="card-head"><h3>ROAS từng quảng cáo</h3>
       <span class="sub">doanh thu Tourwell ghi công về quảng cáo, không dùng trường Nguồn</span></div>
     <div class="card-body">
-      ${nguonSo(tt)}
-      <div class="help" style="${tt.coDuLieu ? '' : 'border-color:var(--warn);color:var(--warn)'}">
-        ${banXuat('Lead:', tt.lead)}<br>${banXuat('Đơn hàng:', tt.don)}
-        ${tt.coDuLieu && tt.oDiaTam && !tt.tourwellBat ? '<br><b style="color:var(--warn)">Kho nằm trên ổ đĩa tạm — mất sau lần deploy kế tiếp, nhập lại là xong.</b>' : ''}
-      </div>
-      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+      <!-- Thứ tự cố ý: NÚT trước, BẢNG ngay sau, rồi mới tới mấy khối giải thích
+           nguồn dữ liệu. Bản trước để hai khối chữ dài lên đầu nên phải đọc hết
+           mới thấy nút — mà nút mới là việc người ta vào đây để làm. -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <button class="btn primary" id="rsTinh" ${tt.coDuLieu ? '' : 'disabled'}>${RS.kq ? 'Tính lại ROAS' : 'Tính ROAS'}</button>
         ${tt.tourwellBat ? '<button class="btn ghost" id="rsKeo">Kéo lại từ Tourwell ngay</button>' : ''}
         ${tt.coDuLieu ? `<button class="btn ghost" id="rsGhiBase">${tt.ghiBaseLuc && tt.ghiBaseLuc.luc ? 'Ghi lại doanh thu lên Base' : 'Ghi doanh thu lên Base'}</button>` : ''}
         ${tt.coDuLieu ? '<button class="btn ghost" id="rsXoa">Xoá dữ liệu đã nhập</button>' : ''}
+        ${tt.tourwellBat ? `<span class="sub" style="margin-left:auto">${nhipTuDong(tt)}</span>` : ''}
       </div>
+      <div id="rsKetQua" style="margin-top:12px"></div>
+      <details class="lui" style="margin-top:12px">
+        <summary>Dữ liệu này đến từ đâu</summary>
+        <div style="margin-top:8px">
+          ${nguonSo(tt)}
+          <div class="help" style="${tt.coDuLieu ? '' : 'border-color:var(--warn);color:var(--warn)'}">
+            ${banXuat('Lead:', tt.lead)}<br>${banXuat('Đơn hàng:', tt.don)}
+            ${tt.coDuLieu && tt.oDiaTam && !tt.tourwellBat ? '<br><b style="color:var(--warn)">Kho nằm trên ổ đĩa tạm — mất sau lần deploy kế tiếp, nhập lại là xong.</b>' : ''}
+          </div>
+        </div>
+      </details>
       <details class="lui" style="margin-top:12px">
         <summary>Nhập bằng file Excel — đường lùi khi API Tourwell không dùng được</summary>
         <div class="help" style="margin-top:8px">
@@ -1413,7 +1461,6 @@ async function roasVe() {
         </div>
         <button class="btn ghost" id="rsNhap" disabled>Nhập file</button>
       </details>
-      <div id="rsKetQua" style="margin-top:12px"></div>
     </div>
   </div>`;
 
@@ -2077,6 +2124,8 @@ window.__moHoiThoai = async (nhom) => {
         { key: 'maDon', label: 'Đơn ghép được', render: (r) => ((r.maDon || []).length
           ? (r.maDon || []).map((m) => `<span class="tag good">${esc(m)}</span>`).join(' ')
           : '<span class="sub">—</span>') },
+        { key: 'tien', label: 'Ra tiền', num: true, render: (r) => (r.tien ? `<b>${vnd(r.tien)}</b>` : '<span class="sub">—</span>'),
+          foot: (rs) => vnd(rs.reduce((a, x) => a + (x.tien || 0), 0)) },
         { key: 'lyDo', label: 'Vì sao', render: (r) => `<span class="sub">${esc(r.lyDo)}</span>` },
         {
           key: 'act',
@@ -2084,7 +2133,8 @@ window.__moHoiThoai = async (nhom) => {
           noSort: true,
           render: (r) => `<button class="btn small ghost" onclick="window.__xemHoiThoai('${esc(r.id)}','${esc(r.khachId)}','${esc(r.pageId)}')">Xem hội thoại</button>`,
         },
-      ], rows, { sort: { key: 'ngay', dir: 'desc' }, empty: 'Không có hội thoại nào trong nhóm này' }));
+      ], rows, { sort: { key: 'tien', dir: 'desc' }, footer: nhom === 'chuyen-doi',
+        empty: 'Không có hội thoại nào trong nhóm này' }));
   } catch (e) {
     modal(esc(NHAN_NHOM_HOI_THOAI[nhom] || nhom), `<div class="empty">${esc(e.message)}</div>`);
   }

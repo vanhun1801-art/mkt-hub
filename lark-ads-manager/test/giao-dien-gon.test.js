@@ -175,7 +175,10 @@ console.log('— thẻ "Giữ cấu hình qua lần deploy" chỉ hiện khi câ
    * trỏ vào chỗ không có gì — cùng lỗi với băng gọi tên nút "Lấy lại quyền". */
   const bang = kn.indexOf('ngay dưới đây');
   const the = kn.indexOf('${theGiuBen(c)}');
-  const kenh = kn.indexOf('c.providers.filter(hienKenh)');
+  /* Neo vào ĐÚNG lưới thẻ kênh, không neo vào `c.providers.filter(hienKenh)`:
+   * từ 28/09 dải "Sức khoẻ từng kênh" ở đầu tab cũng lọc cùng danh sách đó, nên
+   * indexOf bắt phải nó trước và phép kiểm này kêu oan. */
+  const kenh = kn.indexOf('<div class="grid g3">');
   t('băng cảnh báo có trỏ xuống dưới', bang > 0);
   t('thẻ đứng ngay dưới băng, trước các thẻ kênh', the > 0 && the < kenh);
   t('nút mà băng gọi tên đúng là nút có thật',
