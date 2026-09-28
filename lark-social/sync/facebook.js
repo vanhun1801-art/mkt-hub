@@ -568,17 +568,39 @@ async function soThatChoVideo(conf, token, ds, ten, canhBao) {
  * Lấy thêm lượt xem / cảm xúc / bình luận của một video đã xử lý xong.
  * Dùng chung cho cả hai đường đọc LIVE bên dưới.
  */
+/* Chỉ số hỏi cho một phiên LIVE đã tắt.
+ *
+ * total_video_stories_by_action_type là chỗ DUY NHẤT lấy được LƯỢT CHIA SẺ của
+ * video: /{video-id}?fields=shares và ?fields=sharedposts đều báo "nonexisting
+ * field" — đã thử thẳng lên Graph API v23.0 ngày 28/09/2026. Thiếu nó thì cột
+ * Chia sẻ của cả 35 phiên đứng im ở 0 trong khi Facebook có số thật.
+ *
+ * Nó trả cả like và comment nữa, nhưng hai cột ấy đã có nguồn tốt hơn
+ * (reactions_by_type cho đủ loại cảm xúc, comments.summary đếm thẳng) nên chỉ
+ * lấy phần share.
+ */
+const CHI_SO_LIVE = ['total_video_views', 'total_video_impressions',
+  'total_video_reactions_by_type_total', 'total_video_stories_by_action_type'];
+
 async function boSungTuVideo(conf, token, vid, row) {
   try {
-    const ins = await getJson(g(conf) + '/' + vid + '/video_insights'
-      + '?metric=' + encodeURIComponent('total_video_views,total_video_impressions,total_video_reactions_by_type_total')
+    const hoi = async (ds) => getJson(g(conf) + '/' + vid + '/video_insights'
+      + '?metric=' + encodeURIComponent(ds.join(','))
       + '&access_token=' + encodeURIComponent(token),
-      { label: 'Facebook video_insights ' + vid, retries: 1 });
+    { label: 'Facebook video_insights ' + vid, retries: 1 });
+    /* MỘT CHỈ SỐ HỎNG LÀ HỎNG CẢ LƯỢT HỎI — Meta trả lỗi cho cả request chứ
+     * không bỏ riêng cái nó không biết. Nên hỏng thì hỏi lại bằng bộ cũ, thà
+     * mất mỗi cột Chia sẻ còn hơn mất sạch số của phiên đó. */
+    let ins = await hoi(CHI_SO_LIVE);
+    if (ins && ins.error) ins = await hoi(CHI_SO_LIVE.slice(0, 3));
     ((ins && ins.data) || []).forEach((m) => {
       const v = ((m.values || [])[0] || {}).value;
       if (m.name === 'total_video_views') row.views = Math.max(row.views, num(v));
       if (m.name === 'total_video_reactions_by_type_total' && v && typeof v === 'object') {
         row.likes = Object.values(v).reduce((s, x) => s + num(x), 0);
+      }
+      if (m.name === 'total_video_stories_by_action_type' && v && typeof v === 'object') {
+        row.shares = num(v.share);
       }
     });
     const cm = await getJson(g(conf) + '/' + vid + '/comments?summary=true&limit=0'
