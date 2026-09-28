@@ -4145,3 +4145,22 @@ html[data-skin="ios"]:not(#_):not(#__):not(#___) :is(.mask.on, .scrim.open, .mod
   }
   html[data-skin="ios"]:not(#_):not(#__):not([data-app]) .tb-panel { overscroll-behavior: contain; }
 }
+
+/* DANH SÁCH XỔ XUỐNG (<select>) Ở GIAO DIỆN TỐI (28/09): ô chọn mang nền kính
+   trong suốt (xám 12%) — Chrome/Windows vẽ khung danh sách bằng chính màu nền
+   này trên nền TRẮNG → danh sách xám sáng mà chữ lựa chọn lại trắng theo giao
+   diện tối, gần như không đọc được (Quỹ "Mọi tháng", Báo cáo "Nhóm"). Lựa chọn
+   nay có nền ĐẶC theo giao diện. */
+html[data-skin="ios"]:not(#_):not(#__) :is(select option, select optgroup) { background-color: #fff; color: #1c1c1e; }
+html[data-skin="ios"][data-theme="toi"]:not(#_):not(#__) :is(select option, select optgroup) { background-color: #2c2c2e; color: #f2f2f7; }
+@media (prefers-color-scheme: dark) {
+  html[data-skin="ios"]:not([data-theme="sang"]):not(#_):not(#__) :is(select option, select optgroup) { background-color: #2c2c2e; color: #f2f2f7; }
+}
+html[data-skin="ios"]:not(#_):not(#__) select option:disabled { color: #8e8e93; }
+/* Rê chuột lên dòng bảng ở giao diện TỐI: app Quảng cáo đặt cứng nền
+   rgb(248,250,255) → dòng bật trắng, chữ trắng trên nền trắng. Mọi bảng ở giao
+   diện tối: sáng lên nhẹ thay vì trắng. */
+html[data-skin="ios"][data-theme="toi"]:not(#_):not(#__) tbody tr:hover { background-color: rgba(255, 255, 255, .05) !important; }
+@media (prefers-color-scheme: dark) {
+  html[data-skin="ios"]:not([data-theme="sang"]):not(#_):not(#__) tbody tr:hover { background-color: rgba(255, 255, 255, .05) !important; }
+}
