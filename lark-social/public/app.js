@@ -493,6 +493,12 @@
       + 'gần buổi LIVE nhất. <b>Lead · Đơn · Doanh thu</b> lấy từ Tourwell, xa hơn vì lead chỉ sinh '
       + 'ra sau khi sale nhập và đơn có thể vài ngày sau mới về. Cả bốn đều là '
       + '<b>trùng khung giờ, không phải nhân quả</b> — khách đến lúc đang LIVE vẫn có thể do quảng cáo.'
+      + '</span></div>'
+      + '<div class="note"><span class="ico">!</span><span>'
+      + '<b>Lượt xem của phiên LIVE chưa chốt ngay khi tắt sóng.</b> Nó gồm cả lượt xem lại '
+      + 'và còn tăng khoảng ba ngày — đo thật: phiên 1 ngày tuổi tăng thêm 522 lượt chỉ trong '
+      + 'bảy tiếng, còn phiên 7 ngày thì đứng im. Phiên nào còn chạy số thì có ghi '
+      + '<b>“số còn tăng”</b> ngay dưới tên. <b>Chốt KPI thì đợi qua ba ngày.</b>'
       + '</span></div></div>'
       + '<div class="card"><div class="card-head"><h3>Phiên LIVE</h3>'
       + '<div style="display:flex;gap:8px">'
@@ -505,7 +511,9 @@
       + '</div></div><div class="card-body tight">'
       + bangGon([
         { t: 'Phiên', name: 1, v: (x) => esc(x.title || '(không tiêu đề)')
-          + '<span class="sub-line">' + esc(x.channel || '') + ' · ' + esc(x.date || '') + '</span>' },
+          + '<span class="sub-line">' + esc(x.channel || '') + ' · ' + esc(x.date || '')
+          + (conTang(x) ? ' · <b style="color:var(--vang,#f0b45f)">số còn tăng</b>' : '')
+          + '</span>' },
         { t: 'Nền tảng', v: (x) => theTag(x.platform) },
         { t: 'Phút', num: 1, v: (x) => n0(x.minutes) },
         { t: 'Lượt xem', num: 1, v: (x) => n0(x.views) },
@@ -527,6 +535,28 @@
       $('#btnLiveTay').onclick = moLiveTay;
       $('#btnLiveTien').onclick = ganTienLive;
     }
+  }
+
+  /**
+   * Số của phiên này đã lặng chưa.
+   *
+   * Lượt xem của một phiên LIVE Facebook KHÔNG chốt lúc tắt sóng: nó gồm cả
+   * lượt xem lại, và còn tăng vài ngày sau. Đo thật ngày 28/09/2026, so số app
+   * ghi lúc 05:00 với API lúc 12:30 — cùng một ngày:
+   *
+   *     phiên 0 ngày tuổi  +345      phiên 7 ngày  0
+   *     phiên 1 ngày tuổi  +522      phiên 8 ngày  0
+   *     phiên 2 ngày tuổi  +14, +4
+   *
+   * Tức là ba ngày đầu số còn chạy, từ ngày thứ ba trở đi thì đứng. Chốt KPI
+   * ngay hôm sau buổi LIVE là chốt trên số thiếu — mà nhìn bảng thì không có gì
+   * cho thấy điều đó. Nên phải nói ra.
+   */
+  const NGAY_LANG = 3;
+  function conTang(x) {
+    if (x.platform !== 'Facebook') return false;      // chỉ đo được trên Facebook
+    const t = Date.parse(x.start || x.date || '');
+    return Number.isFinite(t) && (Date.now() - t) < NGAY_LANG * 86400000;
   }
 
   /**
