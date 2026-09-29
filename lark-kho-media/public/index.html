@@ -48,6 +48,10 @@ button:hover,a.nut-a:hover{background:var(--hover)}
 .o-tim-boc{position:relative;flex:1;min-width:0}
 /* Nút xoá: vùng bấm có thể to (điện thoại ép sàn chạm 40px), nhưng chỉ VẼ vòng tròn nhỏ quanh dấu × */
 .o-tim-xoa{border:0;background:transparent;min-width:28px;height:28px;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--phu);flex:none}
+.o-tim-xoa[hidden]{display:none!important}
+.nhan-moi{color:var(--do,#e5484d);font-weight:700}
+.pill.on .nhan-moi,.chip.on .nhan-moi{color:inherit}
+#spChon .so{white-space:nowrap;align-self:center}
 .o-tim-xoa .ic{width:22px;height:22px;padding:5px;border-radius:50%;background:var(--hover);stroke-width:2.2}
 /* Bảng gợi ý: ĐỤC hẳn (bảng chọn trong suốt thì chữ phía sau lộ qua) */
 .goi-y{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:15;background:var(--the);border:1px solid var(--vien);border-radius:12px;
@@ -125,6 +129,52 @@ video.phat{display:block;width:100%;height:300px;background:#000;border-radius:1
 .toast.hien{opacity:1;transform:translateX(-50%)}
 @media (max-width:1100px){.day{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:900px){.giua{grid-template-columns:minmax(0,1fr)}.xem{position:static}}
+/* ===== ĐIỆN THOẠI: đo ở 390px trang dài 7.153px, kết quả bắt đầu ở màn thứ 2, Xem nhanh nằm
+   cách chỗ bấm 7 màn. Nguyên tắc: ô tìm luôn trong tầm tay, không có số chỉ-để-xem, mọi dải
+   chọn trượt NGANG một hàng, bấm ảnh là mở tấm xem nhanh từ dưới lên ngay tại chỗ. ===== */
+#xemNen{display:none}
+/* nút chỉ-điện-thoại: lớp .btn của hub đặt display bằng !important nên phải đè cùng cấp */
+html:not(#_) .chi-dt{display:none!important}
+@media (max-width:640px){
+  /* mobile-chung.css đặt html,body{overflow-x:hidden} — theo luật CSS thế là <body> thành một vùng
+     cuộn riêng (overflow-y tự thành auto), mà trang lại cuộn ở <html> → sticky bám nhầm vào body và
+     ô tìm trôi mất. `clip` chặn tràn ngang y như vậy nhưng KHÔNG tạo vùng cuộn. */
+  @supports (overflow:clip){html,body{overflow-x:clip}}
+  .khung{padding:8px 12px calc(var(--ios-duoi,0px) + 28px);gap:12px}
+  .the{padding:12px 14px}
+  /* bỏ khối số tổng + dòng giờ quét: không phải việc cần làm, tốn 100px đầu màn */
+  #tong,#quet,.the-dau-tim{display:none!important}
+  .the-tim{position:sticky;top:0;z-index:12;margin:0 -12px;border-radius:0 0 14px 14px;border-top:0;padding:10px 12px 8px}
+  .tim{margin-top:0}
+  /* mọi dải chọn: một hàng trượt ngang, không xuống dòng */
+  #loc,#locNb,#spChon{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;margin-left:-14px;margin-right:-14px;padding-left:14px;padding-right:14px}
+  #loc::-webkit-scrollbar,#locNb::-webkit-scrollbar,#spChon::-webkit-scrollbar{display:none}
+  #loc{margin-top:8px}
+  #loc .ngan{display:none}
+  .the-nb .dau{flex-direction:column;align-items:stretch;gap:8px;margin-bottom:10px}
+  /* Nổi bật: MỘT hàng trượt, hé thẻ kế tiếp để biết còn nữa */
+  .day{display:grid;grid-auto-flow:column;grid-auto-columns:44%;grid-template-columns:none;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;
+    margin:0 -14px;padding:0 14px;gap:10px}
+  .day::-webkit-scrollbar{display:none}
+  .day>div{scroll-snap-align:start}
+  .luoi{gap:10px}
+  .ten{font-size:13px}
+  #themNua{width:100%;justify-content:center}
+  /* Xem nhanh = tấm trượt từ dưới lên, ĐỤC hẳn, chừa thanh tab của hub */
+  #xemNen{display:block;position:fixed;inset:0;background:rgba(10,15,30,.4);z-index:30;opacity:0;pointer-events:none;transition:opacity .2s}
+  html.xem-mo #xemNen{opacity:1;pointer-events:auto}
+  .xem{position:fixed!important;left:0;right:0;bottom:0;top:auto;z-index:31;max-height:88vh;overflow:auto;overscroll-behavior:contain;
+    border-radius:18px 18px 0 0;border:0;padding:8px 16px calc(var(--ios-duoi,0px) + env(safe-area-inset-bottom,0px) + 18px);
+    transform:translateY(105%);transition:transform .28s cubic-bezier(.2,.8,.2,1);box-shadow:0 -10px 40px rgba(10,15,30,.25)}
+  html.xem-mo .xem{transform:none}
+  .xem::before{content:"";display:block;width:38px;height:5px;border-radius:3px;background:var(--vien);margin:2px auto 8px}
+  html:not(#_) .chi-dt{display:inline-flex!important}
+  video.phat,.xem .o{height:auto;aspect-ratio:16/10;max-height:44vh}
+  .xem .nut .btn{flex:1 1 44%;justify-content:center}
+  /* Sơ đồ kho gập sẵn — ít ai mở trên điện thoại, mở ra là 480px */
+  .the-cay.gap .so-do{display:none}
+  html:not(#_) .the-cay.gap #dongHet,html:not(#_) .the-cay:not(.gap) #moCay{display:none!important}
+}
 /* Chuẩn điện thoại của Marketing Hub: chữ đọc được ≥13px (nhãn nhỏ trên ảnh cũng vậy) */
 @media (max-width:640px){
   .nhan,.tong span,.so,.duong,.o .the-nho,.o .ghim.ai,.the-nd span,.bang td{font-size:13px}
@@ -139,8 +189,8 @@ video.phat{display:block;width:100%;height:300px;background:#000;border-radius:1
 <body>
 <div class="khung">
 
-  <div class="the">
-    <div class="dau" style="margin-bottom:0">
+  <div class="the the-tim">
+    <div class="dau the-dau-tim" style="margin-bottom:0">
       <div class="tong" id="tong"></div>
       <span class="so" id="quet"></span>
     </div>
@@ -159,7 +209,7 @@ video.phat{display:block;width:100%;height:300px;background:#000;border-radius:1
     <div class="loc" id="loc"></div>
   </div>
 
-  <div class="the">
+  <div class="the the-nb">
     <div class="dau">
       <p class="nhan">Nổi bật</p>
       <div class="loc" id="locNb" style="margin:0"></div>
@@ -180,15 +230,17 @@ video.phat{display:block;width:100%;height:300px;background:#000;border-radius:1
     <div class="the xem" id="xem"></div>
   </div>
 
-  <div class="the">
+  <div class="the the-cay" id="theCay">
     <div class="dau">
       <p class="nhan">Sơ đồ kho</p>
       <button class="btn" id="dongHet">Thu gọn</button>
+      <button class="btn chi-dt" id="moCay">Xem sơ đồ</button>
     </div>
     <div class="so-do" id="soDo"></div>
   </div>
 
 </div>
+<div id="xemNen"></div>
 <div class="toast" id="toast"></div>
 
 <script src="khung-xuong.js?v=BUILD"></script>
@@ -234,8 +286,11 @@ const noiChup = m => m.duong.slice(1).find(s => !LA_NGAY.test(s.trim())) || m.du
 function o(m, nb) {
   DA_BIET.set(m.t, m);
   return '<div data-t="' + m.t + '"><div class="o' + (S.chon === m.t ? ' chon' : '') + '">' + anh(m) + '</div>' +
-    '<div class="ten"' + (m.mo ? ' title="' + esc(m.mo) + '"' : '') + '>' + esc(m.mo || (nb ? dep(noiChup(m)) : m.ten)) + '</div>' +
-    '<div class="duong">' + esc(nb ? dep(m.duong[0]) + (m.nam ? ' · ' + m.nam : '') : m.duong.slice(-2).join(' › ')) + '</div></div>';
+    /* Dòng chính = NỘI DUNG (mô tả AI) hoặc NƠI CHỤP; tên file máy đặt (DJI_2026…, IMG_…) không nói
+       gì với người xem nên chỉ đứng cuối dòng phụ, để còn đối chiếu khi cần. */
+    '<div class="ten" title="' + esc(m.mo || m.ten) + '">' + esc(m.mo || dep(noiChup(m))) + '</div>' +
+    '<div class="duong">' + esc(nb ? dep(m.duong[0]) + (m.nam ? ' · ' + m.nam : '')
+      : [m.mo ? dep(noiChup(m)) : dep(m.duong[m.duong.length - 1] || ''), m.nam, m.ten].filter((x, k, a) => x && a.indexOf(x) === k && !(k === 0 && x === dep(noiChup(m)) && !m.mo)).join(' · ')) + '</div></div>';
 }
 
 /* ---------- vẽ ---------- */
@@ -252,12 +307,12 @@ function veLoc() {
   const ngayNgan = t => { const d = new Date(t); return d.getDate() + '/' + (d.getMonth() + 1); };
   if (S.nb === 'tn') {
     $('spChon').innerHTML = S.dsTn.slice(0, 14).map(l => '<button type="button" class="pill chip' + (S.tnId === l.id ? ' on' : '') + '" data-tn="' + l.id + '" title="' + esc((l.nguoi || []).join(', ')) + '">' +
-      (l.moi ? '<b style="color:var(--do,#e5484d);font-weight:700">Mới</b> · ' : '') + ngayNgan(l.kt) + ' · ' + esc(l.ten.length > 38 ? l.ten.slice(0, 37) + '…' : l.ten) + ' · ' + so(l.n) + '</button>').join('') +
+      (l.moi ? '<b class="nhan-moi">Mới</b> · ' : '') + ngayNgan(l.kt) + ' · ' + esc(l.ten.length > 38 ? l.ten.slice(0, 37) + '…' : l.ten) + ' · ' + so(l.n) + '</button>').join('') +
       (S.chiGoogle.length ? '<span class="so" style="margin-left:4px" title="' + esc(S.chiGoogle.map(x => x.ten).join('\n')) + '">' + S.chiGoogle.length + ' lịch chỉ có link Google Drive, chưa đọc được</span>' : '');
     $('spChon').style.display = '';
   } else
   $('spChon').innerHTML = S.nb === 'sp' ? S.dsSp.map(s => '<button type="button" class="pill chip' + (S.sp === s.ma ? ' on' : '') + '" data-sp="' + esc(s.ma) + '">' +
-    (s.day ? '<b style="color:var(--do,#e5484d);font-weight:700">Ưu tiên</b> · ' : '') + esc(s.ten) + '</button>').join('') : '';
+    (s.day ? '<b class="nhan-moi">Ưu tiên</b> · ' : '') + esc(s.ten) + '</button>').join('') : '';
   if (S.nb !== 'tn') $('spChon').style.display = S.nb === 'sp' ? '' : 'none';
   $('locNb').innerHTML = (S.dsTn.length ? [['tn', 'Mới từ tác nghiệp']] : []).concat(S.dsSp.length ? [['sp', 'Theo sản phẩm đang bán']] : []).concat([['ai', 'AI chọn'], ['goi-y', 'Gợi ý hôm nay'], ['moi', 'Mới nhất'], ['ghim', 'Được ghim · ' + ghim.length]])
     .map(([k, t]) => '<button type="button" class="pill chip' + (S.nb === k ? ' on' : '') + '" data-nb="' + k + '">' + t + '</button>').join('');
@@ -323,9 +378,9 @@ function veXem() {
     ? '<video class="phat" controls preload="none" playsinline poster="api/anh/' + m.t + '?c=middle" src="api/phat/' + m.t + '"></video>'
     : '<div class="o" data-to="1" style="cursor:zoom-in">' + anh(m, 'middle') + '</div>';
   const tai = m.loai === 'v'
-    ? '<a class="btn nut-a" href="api/tai/' + m.t + '?ban=1080" download data-sk-tai="' + m.t + '">' + IC.tai + 'Tải bản nhẹ 1080p</a><button class="btn" data-goc="' + m.t + '">' + IC.tai + 'Tải file gốc</button>'
+    ? '<a class="btn nut-a" href="api/tai/' + m.t + '?ban=1080" download data-sk-tai="' + m.t + '">' + IC.tai + 'Tải bản 1080p</a><button class="btn" data-goc="' + m.t + '">' + IC.tai + 'Tải file gốc</button>'
     : '<button class="btn" data-goc="' + m.t + '">' + IC.tai + (m.loai === 'r' ? 'Tải file RAW' : 'Tải ảnh gốc') + '</button>';
-  $('xem').innerHTML = '<div class="dau" style="margin-bottom:10px"><p class="nhan">Xem nhanh</p>' + (m.loai !== 'r' ? '<button class="btn" data-to="1" style="height:28px">' + IC.to + 'Phóng to</button>' : '') + '</div>' +
+  $('xem').innerHTML = '<div class="dau" style="margin-bottom:10px"><p class="nhan">Xem nhanh</p><span style="display:flex;gap:6px">' + (m.loai !== 'r' ? '<button class="btn" data-to="1" style="height:28px">' + IC.to + 'Phóng to</button>' : '') + '<button class="btn chi-dt" data-dong-xem="1" style="height:28px">Đóng</button></span></div>' +
     khung + '<div class="loi-phat" id="loiPhat"></div>' +
     '<div class="nut" style="margin-top:10px">' + tai + '</div>' +
     (m.mo ? '<p class="mo-ai">' + esc(m.mo) + '</p><div class="the-nd">' + m.the.map(t => '<span data-tag="' + esc(t) + '">' + esc(t) + '</span>').join('') + '</div>' : '') +
@@ -398,6 +453,7 @@ function phongTo() {
   if (v) v.pause();
   const d = document.createElement('div');
   d.className = 'phu-kin';
+  d.setAttribute('role', 'dialog'); d.setAttribute('aria-modal', 'true');   // hub tự làm mờ thanh tab/đầu
   d.innerHTML = '<span class="ten-kin">' + esc(m.mo || m.ten) + '</span><button class="dong">' + IC.x.replace('12px', '16px') + 'Đóng</button>' +
     (m.loai === 'v' ? '<video controls autoplay playsinline src="api/phat/' + m.t + '"></video>' : '<img alt="" src="api/anh/' + m.t + '?c=middle">');
   document.body.appendChild(d);
@@ -405,7 +461,40 @@ function phongTo() {
   if (vk && luc) vk.addEventListener('loadedmetadata', () => { vk.currentTime = luc; }, { once: true });
 }
 function dongKin() { const d = document.querySelector('.phu-kin'); if (d) d.remove(); }
-document.addEventListener('keydown', e => { if (e.key === 'Escape') dongKin(); });
+document.addEventListener('keydown', e => { if (e.key !== 'Escape') return; if (document.querySelector('.phu-kin')) dongKin(); else dongXem(); });
+
+/* ---------- điện thoại: tấm xem nhanh trượt từ dưới lên ----------
+   role="dialog" CHỈ gắn lúc mở: ios-app.js của hub coi [role=dialog] đang hiện là cửa sổ mở và tự
+   làm mờ thanh tab/thanh đầu — cùng một kiểu với mọi cửa sổ khác trong hệ. */
+const laDT = () => window.matchMedia('(max-width:640px)').matches;
+function moXem() {
+  if (!laDT()) return;
+  document.documentElement.classList.add('xem-mo');
+  const x = $('xem'); x.setAttribute('role', 'dialog'); x.setAttribute('aria-modal', 'true'); x.scrollTop = 0;
+}
+function dongXem() {
+  if (!document.documentElement.classList.contains('xem-mo')) return;
+  document.documentElement.classList.remove('xem-mo');
+  const x = $('xem'); x.removeAttribute('role'); x.removeAttribute('aria-modal');
+  const v = x.querySelector('video'); if (v) v.pause();
+}
+$('xemNen').addEventListener('click', dongXem);
+/* vuốt xuống ở đầu tấm (khi đã cuộn lên đỉnh) là đóng */
+(() => {
+  let y0 = null;
+  $('xem').addEventListener('touchstart', e => { y0 = $('xem').scrollTop <= 0 ? e.touches[0].clientY : null; }, { passive: true });
+  $('xem').addEventListener('touchmove', e => {
+    if (y0 == null) return;
+    const dy = e.touches[0].clientY - y0;
+    if (dy > 0) $('xem').style.transform = 'translateY(' + dy + 'px)';
+  }, { passive: true });
+  $('xem').addEventListener('touchend', e => {
+    if (y0 == null) return;
+    const dy = (e.changedTouches[0].clientY - y0); y0 = null;
+    $('xem').style.transform = '';
+    if (dy > 90) dongXem();
+  });
+})();
 const MB = b => (b / 1048576).toFixed(b > 104857600 ? 0 : 1) + ' MB';
 async function taiGoc(nut) {
   if (nut.dataset.dang) return;
@@ -536,6 +625,7 @@ $('dongHet').onclick = () => { S.mo = new Set([khoa([])]); veSoDo(); };
 
 document.addEventListener('click', async e => {
   if (e.target.closest('[data-bo-het]')) { S.duong = []; S.loai = ''; S.nam = ''; S.ai = ''; veLoc(); veSoDo(); timMoi(); return; }
+  if (e.target.closest('[data-dong-xem]')) { dongXem(); return; }
   if (e.target.closest('[data-to]')) { phongTo(); return; }
   if (e.target.closest('.phu-kin .dong') || e.target.classList.contains('phu-kin')) { dongKin(); return; }
   const g = e.target.closest('[data-goc]');
@@ -568,7 +658,8 @@ document.addEventListener('click', async e => {
     document.querySelectorAll('.o.chon').forEach(x => x.classList.remove('chon'));
     it.querySelector('.o').classList.add('chon');
     veXem();
-    if (it.closest('#noiBat')) $('xem').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    if (laDT()) moXem();
+    else if (it.closest('#noiBat')) $('xem').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     return;
   }
   const v = e.target.closest('[data-vet]');
@@ -597,6 +688,8 @@ document.addEventListener('click', async e => {
   }
 });
 
+if (laDT()) $('theCay').classList.add('gap');
+$('moCay').addEventListener('click', () => { $('theCay').classList.remove('gap'); veSoDo(); });
 (async () => {
   const [t, goc] = await Promise.all([api('api/tong'), napNhanh([])]);
   $('tong').innerHTML = [['Media', t.media], ['Video', t.video], ['Ảnh', t.anh], ['RAW', t.raw], ['Thư mục', t.thuMuc]]

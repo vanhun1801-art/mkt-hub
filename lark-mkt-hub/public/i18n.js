@@ -1059,6 +1059,7 @@
     'Xem thêm': 'Show more',
     'Phóng to': 'Enlarge',
     'Tải bản nhẹ 1080p': 'Download light 1080p',
+    'Tải bản 1080p': 'Download 1080p',
     'Tải file gốc': 'Download original',
     'Tải ảnh gốc': 'Download original photo',
     'Tải file RAW': 'Download RAW file',
