@@ -271,6 +271,47 @@ tr.phu td { background: var(--trang-2); }
 .canhbao.canhBao { border-color: var(--vang); background: var(--vang-nhat); }
 .canhbao.tin { border-color: var(--vien); background: var(--trang-2); color: var(--chu-mo); }
 
+/* ---- bảng xu hướng nhiều tháng ----
+   Mỗi dòng một chỉ số, mỗi cột một tháng, THANG RIÊNG theo dòng: lượt xem hàng
+   triệu không thể chung thang với ROAS. */
+.xh { display: grid; gap: 4px; overflow-x: auto; }
+.xh-hang {
+  display: grid; grid-template-columns: minmax(130px, 200px) repeat(var(--xh-n, 6), minmax(56px, 1fr)) 84px;
+  gap: 8px; align-items: end; padding: 6px 0; border-bottom: 1px solid var(--vien-mem);
+}
+.xh-dau { border-bottom: 1px solid var(--vien-dam); padding-bottom: 4px; }
+.xh-dau .xh-o, .xh-dau .xh-lech {
+  font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--chu-nhat); text-align: center;
+}
+.xh-dau .xh-lech { text-align: right; }
+.xh-ten { font-size: 12.5px; color: var(--chu-mo); align-self: center; }
+.xh-o { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+/* position:relative để vạch mục tiêu đặt tuyệt đối theo chiều cao cột. */
+.xh-cot { position: relative; width: 100%; max-width: 40px; height: 46px; display: flex; align-items: flex-end; }
+.xh-cot > i { display: block; width: 100%; background: var(--vien-dam); border-radius: 3px 3px 0 0; }
+.xh-cot > i.nay { background: var(--xanh); }
+.xh-cot > i.trong {
+  height: 100%; border-radius: 3px; background: repeating-linear-gradient(45deg,
+    transparent, transparent 3px, var(--vien-mem) 3px, var(--vien-mem) 6px);
+}
+.xh-cot > u {
+  position: absolute; left: -2px; right: -2px; height: 0;
+  border-top: 1px dashed var(--vang); pointer-events: none;
+}
+.xh-o > b {
+  margin-top: 5px; font-size: 12px; font-variant-numeric: tabular-nums;
+  color: var(--chu-nhat); white-space: nowrap;
+}
+.xh-o > b.nay { color: var(--chu); font-weight: 700; }
+.xh-o > b.trong { color: var(--vien-dam); }
+.xh-lech {
+  align-self: center; text-align: right; font-size: 12px; font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.xh-lech.tot { color: var(--luc); } .xh-lech.xau { color: var(--do); }
+.xh-lech.im { color: var(--chu-nhat); }
+
 /* ---- vạch mục tiêu dưới mỗi ô số ----
    Thang màu dùng chung với các màn KPI: ≥100% xanh · 80–100% vàng · <80% đỏ.
    Đổi ở đây thì phải đổi cả bên kia, nếu không hai màn cùng một con số mà tô
@@ -670,6 +711,7 @@ input.ghi-cham::placeholder { color: var(--chu-nhat); font-style: italic; }
   .ss-chan { font-size: 12.5px; }                                /* 11 */
   .ph-ghi { font-size: 12.5px; }                                 /* 11,5 */
   .sp-chu { font-size: 12.5px; }                                 /* 11,5 */
+  .xh-dau .xh-o, .xh-dau .xh-lech { font-size: 12.5px; }         /* 11 */
   .tn-ten em { font-size: 12.5px; }                              /* 11 */
   .tn-pt { font-size: 12.5px; }                                  /* 11.5 */
 }

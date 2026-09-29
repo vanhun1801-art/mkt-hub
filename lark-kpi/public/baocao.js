@@ -20,6 +20,9 @@ var BC_KY = null;     // eslint-disable-line no-var — { tu, den, nhan }
 /* Kỳ đem ra so sánh. Ba kiểu trả lời ba câu khác nhau — xem kyTruoc() ở
  * bao-cao.js. Nhớ giữa các lần vẽ lại để đổi khoảng thời gian không mất lựa chọn. */
 var BC_SS = 'truoc';  // eslint-disable-line no-var
+/* Số tháng của bảng xu hướng. Nhớ giữa các lần vẽ để đổi khoảng thời gian
+ * không làm mất lựa chọn. */
+var BC_SO_THANG = 6; // eslint-disable-line no-var
 const BC_KIEU_SS = [
   ['truoc', 'Kỳ liền trước'],
   ['thangtruoc', 'Cùng kỳ tháng trước'],
@@ -103,6 +106,13 @@ async function veBaoCao() {
 
   /* Chi phí đứng TRƯỚC các base: tiền của phòng đi ra hai app khác nhau, và
    * câu "tháng này phòng tiêu bao nhiêu" là câu Sếp hỏi đầu tiên. */
+  /* Xu hướng đứng ĐẦU, trước cả chi phí: câu "đang lên hay đang xuống" phải
+   * trả lời trước câu "tháng này bao nhiêu". Nhưng nó đọc sáu tháng mất mươi
+   * giây, nên dựng chỗ trống rồi điền sau — không bắt cả báo cáo đứng chờ. */
+  const oXu = el('div');
+  hop.appendChild(oXu);
+  bcNapXuHuong(oXu);
+
   if (BC.chiPhi) hop.appendChild(bcChiPhi(BC.chiPhi));
   if (BC.tepMoi) hop.appendChild(bcTepMoi(BC.tepMoi));
   BC.base.forEach((b) => hop.appendChild(bcKhoi(b)));
@@ -431,6 +441,128 @@ function bcCot(c) {
     g.appendChild(el('div', 'ss-chan', 'Hiện 14 mục cao nhất trong ' + ds.length + ' mục.'));
   }
   return g;
+}
+
+/**
+ * Nạp bảng xu hướng vào chỗ đã chừa. Chạy sau khi báo cáo chính đã hiện.
+ *
+ * `#den` lấy theo tháng của NGÀY CUỐI khoảng đang xem, không phải tháng hiện
+ * tại: đang xem tháng 5 mà bảng xu hướng chạy tới tháng 9 thì cột cuối không
+ * phải cái đang đọc, nhìn lệch hẳn.
+ */
+async function bcNapXuHuong(o) {
+  const den = String(BC_KY.den).slice(0, 7);
+  o.appendChild(el('div', 'the', '<div class="than nho nhat">'
+    + 'đang đọc xu hướng ' + BC_SO_THANG + ' tháng…</div>'));
+  let x;
+  try {
+    x = await goi('xu-huong?den=' + den + '&so=' + BC_SO_THANG);
+  } catch (e) {
+    o.innerHTML = '';
+    o.appendChild(el('div', 'the', '<div class="than nho nhat">'
+      + 'không đọc được xu hướng: ' + esc(e.message) + '</div>'));
+    return;
+  }
+  /* Người dùng có thể đã đổi khoảng trong lúc chờ — bỏ kết quả cũ đi, đừng vẽ
+   * bảng của khoảng khác vào màn hình đang xem khoảng này. */
+  if (String(BC_KY.den).slice(0, 7) !== den) return;
+  o.innerHTML = '';
+  o.appendChild(bcXuHuong(x));
+}
+
+/**
+ * BẢNG XU HƯỚNG — mỗi chỉ số một dãy cột, mỗi cột một tháng.
+ *
+ * Báo cáo chỉ so được hai kỳ, nên không phân biệt được "tháng này kém" với
+ * "đang xuống dốc ba tháng liền". Phú Quốc theo mùa rất nặng: giảm 51% so tháng
+ * trước có thể chỉ là hết cao điểm, cũng có thể là hỏng thật.
+ *
+ * Mỗi dòng có THANG RIÊNG, như biểu đồ so sánh — lượt xem hàng triệu không thể
+ * chung thang với ROAS. Trong một dòng thì các tháng so được với nhau, đó là
+ * phép so duy nhất bảng này hứa hẹn.
+ */
+function bcXuHuong(x) {
+  const t = el('div', 'the');
+  const nhanThang = (th) => 'T' + Number(th.slice(5));
+  t.appendChild(el('header', '',
+    '<span class="cham-tron" style="background:#f59e0b"></span>'
+    + '<h3>Xu hướng ' + x.thang.length + ' tháng</h3>'
+    + '<span class="phu">' + nhanThang(x.thang[0]) + ' – '
+    + nhanThang(x.thang[x.thang.length - 1]) + '</span>'));
+
+  const chon = el('div', 'than nho');
+  chon.appendChild(el('span', '', 'Xem '));
+  [3, 6, 12].forEach((n) => {
+    const b = el('button', 'seg-nut' + (BC_SO_THANG === n ? ' chon' : ''), n + ' tháng');
+    b.onclick = () => { BC_SO_THANG = n; veBaoCao(); };
+    chon.appendChild(b);
+  });
+  t.appendChild(chon);
+
+  const bang = el('div', 'xh');
+  /* Số cột do dữ liệu quyết định (3 · 6 · 12 tháng), nên lưới phải nhận từ JS
+   * chứ không viết cứng trong CSS. */
+  bang.style.setProperty('--xh-n', x.thang.length);
+  const dau = el('div', 'xh-hang xh-dau');
+  dau.innerHTML = '<div class="xh-ten"></div>'
+    + x.thang.map((th) => '<div class="xh-o">' + nhanThang(th) + '</div>').join('')
+    + '<div class="xh-lech">so tháng đầu có số</div>';
+  bang.appendChild(dau);
+
+  x.dong.forEach((r) => {
+    const co = r.diem.filter((p) => p.so != null && p.so !== 0);
+    const max = Math.max(1, ...r.diem.map((p) => Math.abs(p.so || 0)));
+    const dauKy = co.length ? co[0] : null;
+    const cuoiKy = r.diem[r.diem.length - 1];
+    let lech = null;
+    if (dauKy && cuoiKy && cuoiKy.so != null && dauKy.so) {
+      lech = ((cuoiKy.so - dauKy.so) / Math.abs(dauKy.so)) * 100;
+    }
+    const mauLech = lech == null || r.trungTinh ? 'im' : (lech > 0 ? 'tot' : 'xau');
+
+    const h = el('div', 'xh-hang');
+    h.innerHTML = '<div class="xh-ten">' + esc(r.nhan) + '</div>'
+      + r.diem.map((pt, i) => {
+        /* Tháng KHÔNG ĐỌC ĐƯỢC vẽ ô gạch chéo, không vẽ cột cao 0 — cột thấp
+         * đọc thành "tháng đó làm kém", trong khi sự thật là chưa có số. */
+        if (pt.so == null) {
+          return '<div class="xh-o"><div class="xh-cot"><i class="trong"></i></div>'
+            + '<b class="trong">—</b></div>';
+        }
+        const cuoi = i === r.diem.length - 1;
+        /* Vạch mục tiêu nằm ngay trên cột, chỉ vẽ khi tháng đó có đặt mục tiêu. */
+        const vach = pt.mucTieu
+          ? '<u style="bottom:' + Math.min(100, (pt.mucTieu / max) * 100) + '%"></u>' : '';
+        return '<div class="xh-o" title="' + esc(nhanThang(pt.thang)) + ': '
+          + gon(pt.so) + (pt.mucTieu ? ' · mục tiêu ' + gon(pt.mucTieu) : '') + '">'
+          + '<div class="xh-cot">' + vach
+          + '<i class="' + (cuoi ? 'nay' : '') + '" style="height:'
+          + Math.max(2, (Math.abs(pt.so) / max) * 100) + '%"></i></div>'
+          + '<b' + (cuoi ? ' class="nay"' : '') + '>' + bcSo(pt.so, r.dinhDang) + '</b></div>';
+      }).join('')
+      /* Mốc so là tháng ĐẦU TIÊN CÓ SỐ, không phải tháng đầu bảng: app Quảng
+       * cáo mới có dữ liệu từ T8, lấy T4 làm mốc thì ra "+∞%". Nói rõ mốc nào
+       * trong tooltip, vì cùng một cột mà mỗi dòng có thể so từ tháng khác. */
+      + '<div class="xh-lech ' + mauLech + '"' + (dauKy
+        ? ' title="so ' + nhanThang(cuoiKy.thang) + ' với ' + nhanThang(dauKy.thang)
+          + ' — tháng đầu tiên có số ở dòng này"' : '') + '>'
+      + (lech == null ? '—'
+        : (lech > 0 ? '▲ +' : '▼ ') + (Math.round(lech * 10) / 10).toString().replace('.', ',') + '%')
+      + '</div>';
+    bang.appendChild(h);
+  });
+  t.appendChild(el('div', 'bieu-do', ''));
+  t.lastChild.appendChild(bang);
+
+  const chu = ['<b>Mỗi dòng có thang riêng</b> — các tháng trong cùng một dòng so '
+    + 'được với nhau, chiều cao giữa các dòng thì không. Cột cuối là tháng đang xem. '
+    + 'Vạch ngang trên cột là mục tiêu tháng đó, chỉ hiện khi bộ luật KPI đã đặt.'];
+  if ((x.thieu || []).length) {
+    chu.push('Tháng đọc thiếu base: ' + x.thieu.map((k) => nhanThang(k.thang)
+      + ' (' + k.doc + '/' + k.tong + ')').join(', ') + '.');
+  }
+  t.appendChild(el('div', 'than nho nhat', chu.join(' ')));
+  return t;
 }
 
 /**

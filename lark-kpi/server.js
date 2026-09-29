@@ -383,6 +383,12 @@ async function api(req, res, u) {
   }
 
   /** Một tệp HTML hoàn chỉnh để gửi Sếp — mở ra in thẳng thành PDF được. */
+  if (p === '/api/xu-huong') {
+    const den = u.searchParams.get('den') || new Date().toISOString().slice(0, 7);
+    const so = u.searchParams.get('so');
+    return ok(res, await baoCao.xuHuong(den, so, docLuatCuaThang));
+  }
+
   if (p === '/api/xuat-bao-cao') {
     if (!nx.quanLy) return fail(res, 403, 'Chỉ trưởng phòng xuất được báo cáo toàn phòng');
     const { tu, den } = khoangTu(u);

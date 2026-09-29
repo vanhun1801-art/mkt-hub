@@ -1279,11 +1279,101 @@ function gomTepMoi(base, tongChi) {
 }
 
 /** @param {{id,ten,quanLy}} nguoi Người đang xem — gửi kèm cho app con biết ai hỏi. */
+/* ================= XU HƯỚNG NHIỀU THÁNG =================
+ * Báo cáo chỉ so được hai kỳ, nên không phân biệt được "tháng này kém" với
+ * "đang xuống dốc ba tháng liền". Phú Quốc làm du lịch theo mùa rất nặng: giảm
+ * 51% so tháng trước có thể chỉ là hết cao điểm, cũng có thể là hỏng thật —
+ * chỉ nhìn nhiều tháng mới phân biệt được.
+ *
+ * Đọc NHẸ: chỉ bốn app có số kinh tế, không đọc đủ chín. Quét sáu tháng × chín
+ * app là năm mươi tư lượt gọi, người dùng ngồi chờ cả phút để xem một cái bảng.
+ */
+const APP_XU_HUONG = ['social', 'quang-cao', 'ota', 'quy-chi-phi'];
+
+async function xuHuong(denThang, soThang, docLuat) {
+  const n = Math.max(2, Math.min(12, Number(soThang) || 6));
+  const [Y, M] = denThang.split('-').map(Number);
+  const thang = [];
+  for (let i = n - 1; i >= 0; i -= 1) {
+    const d = new Date(Date.UTC(Y, M - 1 - i, 1));
+    thang.push(d.toISOString().slice(0, 7));
+  }
+  const khoang = thang.map((th) => {
+    const [y, m] = th.split('-').map(Number);
+    return {
+      thang: th,
+      tu: th + '-01',
+      den: th + '-' + String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, '0'),
+    };
+  });
+
+  /* Chạy TUẦN TỰ chứ không Promise.all sáu tháng một lúc: mỗi tháng đã bắn bốn
+   * lượt gọi song song rồi, nhân lên hai mươi tư thì các app con bị dồn và bắt
+   * đầu trả lỗi timeout — chậm hơn là chạy lần lượt. */
+  const ky = [];
+  for (const k of khoang) {
+    /* eslint-disable no-await-in-loop */
+    const d = await gom(k.tu, k.den, undefined, 'khong', docLuat, APP_XU_HUONG);
+    ky.push({ ...k, d });
+  }
+
+  const lay = (d, id, nhan) => {
+    const b = d.base.find((x) => x.id === id);
+    if (!b || !b.chay) return null;
+    const o = (b.o || []).find((x) => x.nhan === nhan);
+    return o && Number.isFinite(so(o.so)) ? so(o.so) : null;
+  };
+  const oMT = (d, id, nhan) => {
+    const b = d.base.find((x) => x.id === id);
+    if (!b || !b.chay) return null;
+    const o = (b.o || []).find((x) => x.nhan === nhan);
+    return o && Number.isFinite(o.mucTieu) ? o.mucTieu : null;
+  };
+
+  const DONG = [
+    { nhan: 'Tổng chi phí phòng', dinhDang: 'vnd', trungTinh: true,
+      lay: (d) => (d.chiPhi && d.chiPhi.doc ? d.chiPhi.tong : null) },
+    { nhan: 'Chi quảng cáo', dinhDang: 'vnd', trungTinh: true,
+      lay: (d) => lay(d, 'quang-cao', 'Chi tiêu') },
+    { nhan: 'Doanh thu ghi công cho QC', dinhDang: 'vnd',
+      lay: (d) => lay(d, 'quang-cao', 'Doanh thu từ QC') },
+    { nhan: 'ROAS', dinhDang: 'x', lay: (d) => lay(d, 'quang-cao', 'ROAS') },
+    { nhan: 'Booking OTA', dinhDang: 'so', lay: (d) => lay(d, 'ota', 'Booking') },
+    { nhan: 'Doanh thu OTA', dinhDang: 'vnd', lay: (d) => lay(d, 'ota', 'Doanh thu thu về') },
+    { nhan: 'Lượt xem Social', dinhDang: 'so', lay: (d) => lay(d, 'social', 'Lượt xem'),
+      mt: (d) => oMT(d, 'social', 'Lượt xem') },
+    { nhan: 'Follower tăng ròng', dinhDang: 'so',
+      lay: (d) => lay(d, 'social', 'Follower tăng ròng') },
+  ];
+
+  return {
+    thang,
+    /* Tháng nào có base không đọc được thì đánh dấu, để giao diện không vẽ một
+     * cột thấp như thể tháng đó làm kém — có khi chỉ là app tắt. */
+    thieu: ky.filter((k) => k.d.soChay < k.d.soApp)
+      .map((k) => ({ thang: k.thang, doc: k.d.soChay, tong: k.d.soApp })),
+    dong: DONG.map((r) => ({
+      nhan: r.nhan,
+      dinhDang: r.dinhDang,
+      trungTinh: !!r.trungTinh,
+      diem: ky.map((k) => ({
+        thang: k.thang,
+        so: r.lay(k.d),
+        mucTieu: r.mt ? r.mt(k.d) : null,
+      })),
+    })),
+  };
+}
+
 /** @param {(thang:string)=>object|null} docLuat Đọc bộ luật một tháng — truyền
  *  từ server để tầng này không phải biết tới store, và phép thử khỏi cần Base. */
-async function gom(tu, den, nguoi, kieuSS, docLuat) {
+async function gom(tu, den, nguoi, kieuSS, docLuat, chiApp) {
   const truoc = kyTruoc(tu, den, kieuSS === 'khong' ? 'truoc' : kieuSS);
-  const base = await Promise.all(APP.map(async (app) => {
+  /* `chiApp` giới hạn danh sách base phải đọc. Bảng xu hướng quét 6 tháng, đọc
+   * đủ 9 app mỗi tháng là 54 lượt gọi và người dùng ngồi chờ cả phút — mà bảng
+   * đó chỉ cần số của 4 app. */
+  const dsApp = chiApp ? APP.filter((x) => chiApp.includes(x.id)) : APP;
+  const base = await Promise.all(dsApp.map(async (app) => {
     const nen = { id: app.id, ten: app.ten, mo: app.mo, mau: app.mau };
     try {
       const r = await BO_DOC[app.id]({ ...app, nguoi }, tu, den);
@@ -1515,4 +1605,4 @@ function dungSoSanh(oList) {
   return ds.slice(0, 12);
 }
 
-module.exports = { gom, gomSoSanh, kyTruoc, KIEU_SS, APP };
+module.exports = { gom, gomSoSanh, xuHuong, kyTruoc, KIEU_SS, APP };
