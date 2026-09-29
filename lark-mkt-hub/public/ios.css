@@ -2369,8 +2369,12 @@ html[data-skin="ios"][data-app] .topbar .ios-tao[data-ios-co-cong]::before { dis
   html[data-skin="ios"]:not(#_):not(#__) :is(button.pill, .tb-chip) { height: 32px !important; min-height: 32px !important; padding: 0 12px !important; font-size: 14px !important; }
   html[data-skin="ios"]:not(#_):not(#__) :is(.chip, .tag, .badge, span.pill) { min-height: 22px; font-size: 12px !important; line-height: 16px; padding: 2px 8px !important; }
 
-  /* ================= BỘ LỌC = một hàng viên chọn trượt ngang ================= */
-  html[data-skin="ios"]:not(#_):not(#__) :is(:is(.filters, .filters-dash, .filters-work).tg-dong, .cal-filters),
+  /* ================= BỘ LỌC = một hàng viên chọn trượt ngang =================
+     Áp NGAY, không chờ thugon.js gắn .tg-dong (29/09): đổi tab là khối lọc của
+     tab mới hiện dạng gốc nhiều dòng một khoảnh khắc rồi mới co → cả trang giật
+     (Bảng công việc điện thoại, CLS 0,68). Trên điện thoại nút Lọc đã giấu, khối
+     lọc luôn là một hàng. */
+  html[data-skin="ios"]:not(#_):not(#__) :is(:is(.filters, .filters-dash, .filters-work), .cal-filters),
   html[data-skin="ios"]:not(#_):not(#__):not([data-app]) .loc-bar {
     display: flex !important; flex-wrap: nowrap !important; align-items: center; gap: 6px !important;
     overflow-x: auto !important; overflow-y: hidden; scrollbar-width: none; -webkit-overflow-scrolling: touch;
@@ -2380,23 +2384,23 @@ html[data-skin="ios"][data-app] .topbar .ios-tao[data-ios-co-cong]::before { dis
     /* overflow ≠ visible làm min-height:auto thành 0 → trong cột flex thanh bị ép còn 12px */
     flex-shrink: 0 !important; min-height: 44px;
   }
-  html[data-skin="ios"]:not(#_):not(#__) :is(:is(.filters, .filters-dash, .filters-work).tg-dong, .cal-filters)::-webkit-scrollbar { display: none; }
-  html[data-skin="ios"]:not(#_):not(#__) :is(:is(.filters, .filters-dash, .filters-work).tg-dong, .cal-filters) > * { flex: 0 0 auto !important; max-width: none !important; width: auto !important; }
+  html[data-skin="ios"]:not(#_):not(#__) :is(:is(.filters, .filters-dash, .filters-work), .cal-filters)::-webkit-scrollbar { display: none; }
+  html[data-skin="ios"]:not(#_):not(#__) :is(:is(.filters, .filters-dash, .filters-work), .cal-filters) > * { flex: 0 0 auto !important; max-width: none !important; width: auto !important; }
   /* dãy mốc thời gian "tháo" ra thành các viên rời cùng hàng */
-  html[data-skin="ios"]:not(#_):not(#__) :is(:is(.filters, .filters-dash, .filters-work).tg-dong, .cal-filters) > .hub-seg,
+  html[data-skin="ios"]:not(#_):not(#__) :is(:is(.filters, .filters-dash, .filters-work), .cal-filters) > .hub-seg,
   html[data-skin="ios"]:not(#_):not(#__):not([data-app]) .loc-bar > .seg { display: contents !important; }
-  html[data-skin="ios"]:not(#_):not(#__) :is(:is(.filters, .filters-dash, .filters-work).tg-dong, .cal-filters) > .hub-seg > button,
+  html[data-skin="ios"]:not(#_):not(#__) :is(:is(.filters, .filters-dash, .filters-work), .cal-filters) > .hub-seg > button,
   html[data-skin="ios"]:not(#_):not(#__):not([data-app]) .loc-bar > .seg > button {
     order: 1; flex: 0 0 auto; height: 32px !important; min-height: 32px !important; line-height: 32px !important;
     padding: 0 12px !important; border-radius: 999px !important; font-size: 14px !important; font-weight: 500 !important;
     background: var(--ios-o) !important; color: var(--ios-chu) !important; box-shadow: none !important; border: 0 !important;
   }
-  html[data-skin="ios"]:not(#_):not(#__) :is(:is(.filters, .filters-dash, .filters-work).tg-dong, .cal-filters) > .hub-seg > button.on,
+  html[data-skin="ios"]:not(#_):not(#__) :is(:is(.filters, .filters-dash, .filters-work), .cal-filters) > .hub-seg > button.on,
   html[data-skin="ios"]:not(#_):not(#__):not([data-app]) .loc-bar > .seg > button.on {
     background: var(--ios-xanh) !important; color: #fff !important; font-weight: 600 !important;
   }
   /* ô chọn = viên có mũi tên */
-  html[data-skin="ios"]:not(#_):not(#__) :is(:is(.filters, .filters-dash, .filters-work).tg-dong, .cal-filters) > :is(select, .sel, .fld) {
+  html[data-skin="ios"]:not(#_):not(#__) :is(:is(.filters, .filters-dash, .filters-work), .cal-filters) > :is(select, .sel, .fld) {
     order: 2; -webkit-appearance: none; appearance: none;
     height: 32px !important; min-height: 32px !important; border-radius: 999px !important;
     padding: 0 28px 0 12px !important; font-weight: 500; max-width: 190px !important;
@@ -2406,24 +2410,24 @@ html[data-skin="ios"][data-app] .topbar .ios-tao[data-ios-co-cong]::before { dis
     text-overflow: ellipsis; white-space: nowrap; overflow: hidden;
   }
   /* ô chọn người (không phải <select>) cũng thành viên */
-  html[data-skin="ios"]:not(#_):not(#__) :is(:is(.filters, .filters-dash, .filters-work).tg-dong, .cal-filters) > :is(.pick-host, .dd, .pk) { order: 2; }
-  html[data-skin="ios"]:not(#_):not(#__) :is(:is(.filters, .filters-dash, .filters-work).tg-dong, .cal-filters) :is(.pick-host, .dd, .pk) :is(.dd-sum, .pick-sum, .pk-sum) {
+  html[data-skin="ios"]:not(#_):not(#__) :is(:is(.filters, .filters-dash, .filters-work), .cal-filters) > :is(.pick-host, .dd, .pk) { order: 2; }
+  html[data-skin="ios"]:not(#_):not(#__) :is(:is(.filters, .filters-dash, .filters-work), .cal-filters) :is(.pick-host, .dd, .pk) :is(.dd-sum, .pick-sum, .pk-sum) {
     height: 32px !important; min-height: 32px !important; border-radius: 999px !important; padding: 0 12px !important; font-size: 14px !important; font-weight: 500;
     max-width: 190px; white-space: nowrap;
   }
   /* ô tìm: viên đầu hàng */
-  html[data-skin="ios"]:not(#_):not(#__) :is(:is(.filters, .filters-dash, .filters-work).tg-dong, .cal-filters) > .search { order: 0; width: 180px !important; }
-  html[data-skin="ios"]:not(#_):not(#__) :is(:is(.filters, .filters-dash, .filters-work).tg-dong, .cal-filters) > .search :is(input, .fld) {
+  html[data-skin="ios"]:not(#_):not(#__) :is(:is(.filters, .filters-dash, .filters-work), .cal-filters) > .search { order: 0; width: 180px !important; }
+  html[data-skin="ios"]:not(#_):not(#__) :is(:is(.filters, .filters-dash, .filters-work), .cal-filters) > .search :is(input, .fld) {
     width: 100% !important; height: 32px !important; min-height: 32px !important; border-radius: 999px !important; padding-left: 30px !important;
   }
-  html[data-skin="ios"]:not(#_):not(#__) :is(:is(.filters, .filters-dash, .filters-work).tg-dong, .cal-filters) > .search svg { top: 50% !important; transform: translateY(-50%); left: 11px !important; }
+  html[data-skin="ios"]:not(#_):not(#__) :is(:is(.filters, .filters-dash, .filters-work), .cal-filters) > .search svg { top: 50% !important; transform: translateY(-50%); left: 11px !important; }
   /* Xoá lọc: chữ cuối hàng */
-  html[data-skin="ios"]:not(#_):not(#__) :is(:is(.filters, .filters-dash, .filters-work).tg-dong, .cal-filters) > :is(#dClear, #fReset, .btn-ghost, .btn.ghost) {
+  html[data-skin="ios"]:not(#_):not(#__) :is(:is(.filters, .filters-dash, .filters-work), .cal-filters) > :is(#dClear, #fReset, .btn-ghost, .btn.ghost) {
     order: 3; height: 32px !important; min-height: 32px !important; padding: 0 8px !important; font-size: 14px !important;
     background: transparent !important;
   }
   /* bỏ ô ẩn, khoảng đệm, dòng đếm "84 / 483 việc" (chữ nhỏ không cần trên điện thoại) */
-  html[data-skin="ios"]:not(#_):not(#__) :is(:is(.filters, .filters-dash, .filters-work).tg-dong, .cal-filters) > :is(.grow, .sp, #dScope, .hidden, [hidden], select#dDue, select#fPeriod) { display: none !important; }
+  html[data-skin="ios"]:not(#_):not(#__) :is(:is(.filters, .filters-dash, .filters-work), .cal-filters) > :is(.grow, .sp, #dScope, .hidden, [hidden], select#dDue, select#fPeriod) { display: none !important; }
   /* Tổng quan (lớp vỏ): bỏ chữ "Thời gian" và khoảng ngày — viên đang chọn đã nói */
   html[data-skin="ios"]:not(#_):not(#__):not([data-app]) .loc-bar > :is(.loc-nhan, .loc-mo, .grow) { display: none !important; }
 
@@ -3004,7 +3008,7 @@ html[data-skin="ios"] :is(.wcard > .wcard-main, .dcard > .dcard-main) { align-se
 html[data-skin="ios"] :is(.wcard-title, .wcard-sub, .ord-title, .tdTen, .tdEn, .tdUsp, .queue-title, .queue-meta, .lt-ten, .dcard-title, .tb-dau, .tb-mo, .sdMoi) { overflow-wrap: anywhere; }
 @media (max-width: 640px) {
   /* dòng đếm "Hiển thị x / y việc…" trong hàng lọc (mọi tab): ẩn như Tổng quan */
-  html[data-skin="ios"]:not(#_):not(#__) :is(.filters, .filters-dash, .filters-work).tg-dong > span.muted { display: none !important; }
+  html[data-skin="ios"]:not(#_):not(#__) :is(.filters, .filters-dash, .filters-work) > span.muted { display: none !important; }
 }
 /* tiêu đề làn/nhóm: dài quá thì "…", không cắt cụt */
 html[data-skin="ios"] :is(.lane-head, .ord-sec-head) { min-width: 0; }
@@ -3390,18 +3394,22 @@ html[data-skin="ios"]:not(#_) .dr-khoi { gap: 12px !important; }
    hoặc ✕ để đóng. Khối này đứng cuối và mang :not(#_):not(#__) để thắng mọi
    luật ngăn kéo cũ (trượt phải trên máy tính, trượt dưới lên trên điện thoại).
    ========================================================================== */
+/* Căn giữa bằng inset:0 + margin:auto (29/09), KHÔNG bằng translate(-50%,-50%):
+   khung mang transform thành gốc toạ độ cho mọi lớp position:fixed bên trong →
+   bảng chọn nhân sự (app đặt toạ độ theo màn) hiện lệch hẳn xuống góc dưới phải
+   (anh Hùng chụp ở Lịch tác nghiệp). Mở xong transform = none. */
 html[data-skin="ios"]:not(#_):not(#__) .drawer {
-  top: 50% !important; left: 50% !important; right: auto !important; bottom: auto !important;
+  top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; margin: auto !important;
   width: min(760px, calc(100vw - 32px)) !important; max-width: none !important; min-width: 0 !important;
-  height: auto !important; max-height: min(88vh, 940px) !important;
+  height: fit-content !important; max-height: min(88vh, 940px) !important;
   border-radius: 18px !important; border: 0 !important;
-  transform: translate(-50%, -48%) scale(.96) !important; opacity: 0; visibility: hidden;
+  transform: translateY(2%) scale(.96) !important; opacity: 0; visibility: hidden;
   transition: transform .22s cubic-bezier(.4, 0, 1, 1), opacity .22s cubic-bezier(.4, 0, 1, 1), visibility 0s linear .22s !important;
   box-shadow: var(--lg-rim), 0 30px 80px -20px rgba(0, 0, 0, .35), 0 0 0 .5px rgba(0, 0, 0, .06) !important;
   display: flex !important; flex-direction: column; overflow: hidden;
 }
 html[data-skin="ios"]:not(#_):not(#__) .drawer:is(.on, .open) {
-  transform: translate(-50%, -50%) scale(1) !important; opacity: 1; visibility: visible;
+  transform: none !important; opacity: 1; visibility: visible;
   transition: transform .42s var(--lo-xo-em), opacity .2s ease, visibility 0s !important;
 }
 html[data-skin="ios"]:not(#_):not(#__) .drawer::before { display: none !important; }
@@ -3603,7 +3611,7 @@ html[data-skin="ios"]:not(#_):not(#__) .topbar :is(.mechip, summary.mechip) { he
      hàng chip — hai kiểu cho cùng một việc). Nhóm (.fgroup) và nhãn chữ bị tháo:
      ô đã tự nói nó là gì. */
   html[data-skin="ios"]:not(#_):not(#__)[data-app] .tg-thanh { display: none !important; }
-  html[data-skin="ios"]:not(#_):not(#__)[data-app] :is(.filters, .loc, .loc-hang).tg-dong,
+  html[data-skin="ios"]:not(#_):not(#__)[data-app] :is(.filters, .loc, .loc-hang),
   html[data-skin="ios"]:not(#_):not(#__)[data-app] section#filters.filters {
     display: flex !important; flex-wrap: nowrap !important; align-items: center; gap: 6px !important;
     overflow-x: auto !important; overflow-y: hidden; scrollbar-width: none;
@@ -4200,4 +4208,29 @@ html[data-skin="ios"]:not(#_):not(#__):not(#___) .modal-wrap > .modal > .modal-b
 @media (min-width: 641px) {
   html[data-skin="ios"]:not(#_):not(#__) .filters .fgroup:has(> .pills, > .seg) { min-width: min(100%, 240px); }
   html[data-skin="ios"]:not(#_):not(#__) .filters:has(> .fgroup > .pills, > .fgroup > .seg) { flex-wrap: wrap; }
+}
+
+/* CHỐNG NHẢY NGANG KHI ĐỔI TAB (29/09): trang con ngắn ↔ dài → thanh cuộn chợt
+   hiện/chợt mất, cả trang lệch 10px sang ngang (KPI, Chỉnh ảnh đo được mỗi lần
+   bấm tab). Máy tính luôn chừa sẵn chỗ thanh cuộn cho vùng cuộn chính. */
+@media (min-width: 641px) {
+  /* gutter chỉ có tác dụng khi khung tự cuộn (overflow auto) — gốc để visible thì
+     trình duyệt bỏ qua, thanh cuộn vẫn chợt hiện/chợt mất */
+  /* Bảng công việc khoá cuộn ở body, cuộn trong khung riêng → không cần rãnh gốc */
+  /* rãnh tô đúng màu nền trang (Chrome vẽ rãnh "transparent" thành trắng → vệt 10px) */
+  html[data-skin="ios"][data-app]:not([data-app="cong-viec"]) { overflow-y: scroll; background-color: #f5f5f7; scrollbar-color: color-mix(in srgb, #1c1c1e 22%, #f5f5f7) #f5f5f7; }
+  html[data-skin="ios"][data-app][data-theme="toi"]:not([data-app="cong-viec"]) { background-color: #101114; scrollbar-color: #3a3a3c #101114; }
+  html[data-skin="ios"]:not([data-app]) .page { scrollbar-gutter: stable; }
+}
+@media (min-width: 641px) and (prefers-color-scheme: dark) {
+  html[data-skin="ios"][data-app]:not([data-theme="sang"]):not([data-app="cong-viec"]) { background-color: #101114; scrollbar-color: #3a3a3c #101114; }
+}
+
+/* Bảng chọn trong cửa sổ hiện đúng dưới ô (29/09). backdrop-filter / filter trên
+   khung cũng biến khung thành gốc toạ độ cho lớp position:fixed bên trong (như
+   transform) → bảng chọn nhân sự ở ngăn chi tiết Lịch tác nghiệp lệch 201px phải,
+   59px xuống. Hộp thoại / ngăn chi tiết nổi trên nền tối đặc nên không cần kính:
+   bỏ kính, nền đặc. */
+html[data-skin="ios"]:not(#_):not(#__):not(#___) :is(.drawer, .modal-box, .hop, .md-box, .xt-box, .xt-hop, .modal-hop, .modal-wrap > .modal) {
+  -webkit-backdrop-filter: none !important; backdrop-filter: none !important; filter: none !important;
 }
