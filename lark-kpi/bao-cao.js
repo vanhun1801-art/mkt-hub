@@ -36,7 +36,7 @@ const APP = [
     mau: '#00b96b', url: process.env.KPI_URL_LICH || 'http://localhost:5174' },
   { id: 'quy-chi-phi', ten: 'Quỹ chi phí', mo: 'Sổ quỹ tạm ứng · quyết toán',
     mau: '#d4a017', url: process.env.KPI_URL_QUY || 'http://localhost:5182' },
-  { id: 'chinh-anh', ten: 'Chỉnh ảnh & Edit video', mo: 'Sản phẩm hậu kỳ · nghiệm thu',
+  { id: 'chinh-anh', ten: 'Hậu kỳ — ảnh & video', mo: 'Edit video · thiết kế · nghiệm thu',
     mau: '#e0529c', url: process.env.KPI_URL_ANH || 'http://localhost:5181' },
   { id: 'kol', ten: 'KOL', mo: 'Mời · đi tour · bàn giao bài',
     mau: '#8b5cf6', url: process.env.KPI_URL_KOL || 'http://localhost:5186' },
@@ -541,8 +541,10 @@ async function docCongViec(app, tu, den) {
   return {
     o: [
       { nhan: 'Đến hạn trong kỳ', so: trongKy.length, dinhDang: 'so', chinh: true },
+      /* "% số việc", không phải "% đúng hạn" — xem chú thích ở khối Hậu kỳ: bảng
+       * này không có ngày hoàn thành nên không ai kiểm được chuyện kịp hạn. */
       { nhan: 'Trong đó đã xong', so: xong.length, dinhDang: 'so',
-        ghi: trongKy.length ? Math.round((xong.length / trongKy.length) * 100) + '% đúng hạn' : '' },
+        ghi: trongKy.length ? Math.round((xong.length / trongKy.length) * 100) + '% số việc đến hạn' : '' },
       { nhan: 'Có minh chứng', so: coMinhChung, dinhDang: 'so',
         ghi: trongKy.length ? Math.round((coMinhChung / trongKy.length) * 100) + '% số việc' : '' },
       { nhan: 'Việc đang mở', so: mo.length, dinhDang: 'so' },
@@ -961,29 +963,119 @@ async function docTheoKy(app, tu, den) {
 }
 
 /**
- * Chỉnh ảnh & Edit video — app này KHÔNG theo quy ước `the`, nó trả thẳng các
- * khoá riêng. Nên phải dịch tay.
+ * HẬU KỲ — ẢNH & VIDEO. Gộp hai nguồn, vì không nguồn nào đủ một mình.
+ *
+ * App "Chỉnh ảnh & Edit video" đáng lẽ là nguồn chuẩn: nó có nghiệm thu, có
+ * phân loại ảnh/video, có gửi nhóm. Nhưng Base của nó hiện CHƯA CÓ PHIẾU NÀO —
+ * mọi ô đều bằng 0. Khối này trước đây in tám con số 0 mà không nói gì thêm,
+ * đọc y như phòng cả tháng không dựng được cái video nào.
+ *
+ * Trong khi đó Bảng công việc có 90 việc "Edit Video" và 184 việc "Thiết kế",
+ * phần lớn đã hoàn thành. Đó mới là chỗ ghi lại công hậu kỳ thật.
+ *
+ * Nên: lấy số từ Bảng công việc, giữ số app Chỉnh ảnh làm phần nghiệm thu, và
+ * nói rõ ô nào từ đâu. Một lưu ý phải nêu: MỘT VIỆC KHÔNG CHẮC LÀ MỘT VIDEO —
+ * một dòng trên bảng có thể gồm cả loạt. Gọi đúng tên là "việc", không gọi là
+ * "video", rồi để người đọc tự biết cái mình đang đếm.
  */
-async function docChinhAnh(app, tu, den) {
-  const d = await goi(app, '/api/tong-quan?tu=' + tu + '&den=' + den);
+async function docHauKy(app, tu, den) {
+  const a = new Date(tu + 'T00:00:00Z').getTime();
+  const b = new Date(den + 'T23:59:59Z').getTime();
+
+  /* Hai nguồn đọc song song, và HỎNG MỘT BÊN KHÔNG KÉO ĐỔ BÊN KIA: app Chỉnh
+   * ảnh tắt thì vẫn phải báo được số việc hậu kỳ trên bảng, và ngược lại. */
+  const bangCv = APP.find((x) => x.id === 'cong-viec');
+  const [ca, cv] = await Promise.all([
+    goi(app, '/api/tong-quan?tu=' + tu + '&den=' + den).catch(() => null),
+    bangCv ? goi(bangCv, '/api/tasks').catch(() => null) : Promise.resolve(null),
+  ]);
+  if (!ca && !cv) throw new Error('không đọc được cả app Chỉnh ảnh lẫn Bảng công việc');
+
+  const viec = (cv && cv.tasks) || [];
+  const han = (t) => msOf(t.deadline);
+  const trongKy = viec.filter((t) => { const x = han(t); return x >= a && x <= b; });
+  const nhomHauKy = (t) => {
+    const k = nhanOf(t.workType);
+    return k === 'Edit Video' || k === 'Thiết kế' ? k : null;
+  };
+  const hk = trongKy.filter(nhomHauKy);
+  const xong = (ds) => ds.filter((t) => nhanOf(t.status) === 'Hoàn thành');
+  const video = hk.filter((t) => nhanOf(t.workType) === 'Edit Video');
+  const thietKe = hk.filter((t) => nhanOf(t.workType) === 'Thiết kế');
+  const coKetQua = (t) => (t.fileKetQua || []).length || (t.attachment || []).length || t.linkKetQua;
+
+  const nguoiCua = (t) => (t.owner || []).map((u) => u.name || u.id).join(', ') || '(chưa giao)';
+  const theoNguoi = gomTheo(xong(hk), nguoiCua, []);
+
   const dem = (v) => so(v);
+  const tuBang = 'từ Bảng công việc';
+  const o = [];
+  if (cv) {
+    o.push(
+      { nhan: 'Việc Edit Video đã xong', so: xong(video).length, dinhDang: 'so', chinh: true,
+        ghi: tuBang + ' · ' + video.length + ' việc đến hạn trong kỳ' },
+      { nhan: 'Việc Thiết kế đã xong', so: xong(thietKe).length, dinhDang: 'so', chinh: true,
+        ghi: tuBang + ' · ' + thietKe.length + ' việc đến hạn trong kỳ' },
+      { nhan: 'Tổng sản phẩm hậu kỳ', so: xong(hk).length, dinhDang: 'so',
+        ghi: 'edit video + thiết kế' },
+      /* Gọi là "hoàn thành", KHÔNG gọi là "đúng hạn". Bảng việc chỉ có deadline,
+       * không có ngày hoàn thành — một việc hạn mùng 5 mà đến 28 mới tick xong
+       * vẫn nằm trong con số này. Nói "đúng hạn" là hứa một điều số liệu không
+       * kiểm được. */
+      { nhan: 'Tỷ lệ hoàn thành', so: hk.length ? (xong(hk).length / hk.length) * 100 : 0,
+        dinhDang: 'pt', ghi: xong(hk).length + '/' + hk.length
+          + ' việc đến hạn đã báo xong · bảng không ghi ngày hoàn thành nên không rõ có kịp hạn không' },
+      { nhan: 'Có file hoặc link kết quả', so: hk.filter(coKetQua).length, dinhDang: 'so',
+        ghi: hk.length ? Math.round((hk.filter(coKetQua).length / hk.length) * 100)
+          + '% số việc — phần còn lại báo xong nhưng không đính sản phẩm' : '' },
+      { nhan: 'Người làm hậu kỳ', so: theoNguoi.length, dinhDang: 'so' },
+    );
+  }
+  if (ca) {
+    o.push(
+      { nhan: 'Lô sản phẩm đã báo', so: dem(ca.soBaoCao), dinhDang: 'so', ghi: 'từ app Chỉnh ảnh' },
+      { nhan: 'Ảnh đã chỉnh', so: dem(ca.soAnh), dinhDang: 'so', ghi: 'từ app Chỉnh ảnh' },
+      { nhan: 'Video đã dựng (có nghiệm thu)', so: dem(ca.soVideo), dinhDang: 'so',
+        ghi: 'từ app Chỉnh ảnh' },
+      { nhan: 'Chờ nghiệm thu', so: dem(ca.choNghiemThu), dinhDang: 'so', dao: true,
+        muc: dem(ca.choNghiemThu) ? 'vua' : 'ok' },
+      { nhan: 'Đã nghiệm thu đạt', so: dem(ca.dat), dinhDang: 'so' },
+      { nhan: 'Cần sửa lại', so: dem(ca.canSua), dinhDang: 'so', dao: true },
+    );
+  }
+
+  const luuY = [];
+  if (cv) {
+    luuY.push('Số việc KHÔNG bằng số video: một dòng "Edit Video" trên Bảng công việc '
+      + 'có thể là một video, cũng có thể là cả loạt. Đây là số VIỆC hậu kỳ đã xong.');
+  }
+  if (ca && !dem(ca.soBaoCao)) {
+    luuY.push('App Chỉnh ảnh & Edit video chưa có phiếu nào trong kỳ — sáu ô nghiệm thu '
+      + 'bên dưới bằng 0 vì chưa ai lập phiếu, không phải vì không có sản phẩm. '
+      + 'Nghiệm thu chất lượng vẫn đang nằm ngoài hệ thống.');
+  }
+  if (!ca) luuY.push('Không đọc được app Chỉnh ảnh — chỉ còn số từ Bảng công việc.');
+  if (!cv) luuY.push('Không đọc được Bảng công việc — chỉ còn số nghiệm thu của app Chỉnh ảnh.');
+
   return {
-    o: [
-      { nhan: 'Lô sản phẩm đã báo', so: dem(d.soBaoCao), dinhDang: 'so', chinh: true },
-      { nhan: 'Ảnh đã chỉnh', so: dem(d.soAnh), dinhDang: 'so' },
-      { nhan: 'Video đã dựng', so: dem(d.soVideo), dinhDang: 'so' },
-      { nhan: 'Chờ nghiệm thu', so: dem(d.choNghiemThu), dinhDang: 'so', dao: true,
-        muc: dem(d.choNghiemThu) ? 'vua' : 'ok' },
-      { nhan: 'Đã nghiệm thu đạt', so: dem(d.dat), dinhDang: 'so' },
-      { nhan: 'Cần sửa lại', so: dem(d.canSua), dinhDang: 'so', dao: true },
-      { nhan: 'Chưa gửi nhóm', so: dem(d.chuaGui), dinhDang: 'so', dao: true },
-      { nhan: 'Người có sản phẩm', so: dem(d.nguoi), dinhDang: 'so' },
-    ],
+    luuY,
+    o,
+    thanh: {
+      nhan: 'Sản phẩm hậu kỳ đã xong, theo người',
+      don: 'so',
+      muc: theoNguoi.slice().sort((x, y) => y._n - x._n).map((x) => ({ nhan: x._k, so: x._n })),
+    },
     bang: [
+      { tieuDe: 'Việc hậu kỳ đến hạn trong kỳ',
+        cot: ['Việc', 'Loại', 'Người', 'Trạng thái', 'Hạn', 'Kết quả'],
+        dong: hk.slice().sort((x, y) => han(y) - han(x)).slice(0, 40).map((t) => [
+          (t.title || '(không tên)').slice(0, 80), nhanOf(t.workType), nguoiCua(t),
+          nhanOf(t.status), han(t) ? new Date(han(t)).toLocaleDateString('vi-VN') : '',
+          coKetQua(t) ? 'có' : '—']) },
       { tieuDe: 'Cần xử lý',
         cot: ['Việc', 'Số'], soCot: [1],
-        dong: (d.canXuLy || []).map((x) => [x.nhan || x.ten || '', so(x.so)]) },
-    ].filter((b) => b.dong.length),
+        dong: ((ca && ca.canXuLy) || []).map((x) => [x.nhan || x.ten || '', so(x.so)]) },
+    ].filter((x) => x.dong.length),
   };
 }
 
@@ -994,7 +1086,7 @@ const BO_DOC = {
   'cong-viec': docCongViec,
   'lich-tac-nghiep': docLich,
   'quy-chi-phi': docQuyChiPhi,
-  'chinh-anh': docChinhAnh,
+  'chinh-anh': docHauKy,
   kol: docKol,
   live: docLiveRieng,
 };
