@@ -70,7 +70,11 @@ async function veBaoCao() {
   $('#noiDung').innerHTML = '';
   $('#noiDung').appendChild(g);
 
-  hop.innerHTML = '<div class="rong">đang đọc số từ 5 base…</div>';
+  /* Số base đếm từ máy chủ trả về chứ không viết cứng: danh sách app đã đổi vài
+   * lần, và dòng chờ ghi "5 base" trong khi đang đọc 9 cái thì sai ngay từ chữ
+   * đầu tiên người dùng nhìn thấy. */
+  hop.innerHTML = '<div class="rong">đang đọc số từ '
+    + (BC && BC.soApp ? BC.soApp + ' base' : 'các base') + '…</div>';
   try {
     BC = await goi('bao-cao?tu=' + BC_KY.tu + '&den=' + BC_KY.den + '&ss=' + BC_SS);
   } catch (e) { hop.innerHTML = '<div class="rong">' + esc(e.message) + '</div>'; return; }
@@ -87,6 +91,7 @@ async function veBaoCao() {
   /* Chi phí đứng TRƯỚC các base: tiền của phòng đi ra hai app khác nhau, và
    * câu "tháng này phòng tiêu bao nhiêu" là câu Sếp hỏi đầu tiên. */
   if (BC.chiPhi) hop.appendChild(bcChiPhi(BC.chiPhi));
+  if (BC.tepMoi) hop.appendChild(bcTepMoi(BC.tepMoi));
   BC.base.forEach((b) => hop.appendChild(bcKhoi(b)));
 }
 
@@ -239,7 +244,7 @@ function bcChiPhi(c) {
  * Dùng thay vành khuyên khi có quá 6 phần: vành khuyên nhiều miếng thì miếng
  * nhỏ mảnh như sợi chỉ, và chú thích dài hơn cả hình.
  */
-function bcThanhNgang(ds, tieuDe, tong) {
+function bcThanhNgang(ds, tieuDe, tong, don) {
   const g = el('div', 'ss');
   g.appendChild(el('h4', 'ss-tieu', esc(tieuDe)));
   const max = Math.max(1, ...ds.map((x) => x.so));
@@ -250,7 +255,7 @@ function bcThanhNgang(ds, tieuDe, tong) {
     r.innerHTML = '<div class="tn-ten">' + esc(x.nhan)
       + (x.vi ? '<em>' + esc(x.vi) + '</em>' : '') + '</div>'
       + '<div class="tn-ray"><i style="width:' + ((x.so / max) * 100) + '%"></i></div>'
-      + '<div class="tn-so">' + bcSo(x.so, 'vnd') + '</div>'
+      + '<div class="tn-so">' + bcSo(x.so, don || 'vnd') + '</div>'
       + '<div class="tn-pt">' + (t ? Math.round((x.so / t) * 100) : 0) + '%</div>';
     if (x.soKhoan != null) r.title = x.soKhoan + ' khoản';
     hang.appendChild(r);
@@ -258,7 +263,7 @@ function bcThanhNgang(ds, tieuDe, tong) {
   g.appendChild(hang);
   if (ds.length > 14) {
     g.appendChild(el('div', 'ss-chan', 'Còn ' + (ds.length - 14)
-      + ' hạng mục nhỏ hơn — xem đủ ở bảng bên dưới.'));
+      + ' mục nhỏ hơn — xem đủ ở bảng bên dưới.'));
   }
   return g;
 }
@@ -280,50 +285,94 @@ function bcBang(t, bg) {
 }
 
 /**
- * BIỂU ĐỒ SO SÁNH KỲ TRƯỚC — thanh phần trăm đổi, toả hai bên vạch 0.
+ * BIỂU ĐỒ SO SÁNH KỲ TRƯỚC — cột dựng, mọc lên hoặc thõng xuống khỏi vạch 0.
  *
- * Vì sao không vẽ cột kỳ này cạnh cột kỳ trước: các chỉ số trong một base lệch
- * nhau mấy bậc độ lớn (lượt xem 1,99 triệu đứng cạnh bình luận 40). Chung một
- * thang thì cột nhỏ dẹp thành đường kẻ. Đổi sang % thay đổi thì mọi chỉ số về
- * chung thang, và biểu đồ trả lời đúng câu cần hỏi: cái gì lên, cái gì xuống.
+ * Bản trước vẽ thanh NẰM NGANG toả hai bên một vạch dọc giữa. Đúng về số nhưng
+ * phải dừng lại đọc chú thích mới hiểu, vì "sang phải" không phải hình ảnh tự
+ * nhiên của "tăng". Cột dựng thì không cần giải thích: mọc lên là lên, thõng
+ * xuống là xuống — ai cũng đọc được trong một giây.
  *
- * Màu theo TỐT/XẤU chứ không theo dấu: "chi phí giảm 27%" là tin tốt nên xanh,
- * dù thanh đổ về bên trái.
+ * Vì sao vẫn là % chứ không phải cột kỳ này cạnh cột kỳ trước: các chỉ số trong
+ * một base lệch nhau mấy bậc độ lớn (lượt xem 1,99 triệu đứng cạnh bình luận
+ * 40). Chung một thang tuyệt đối thì cột nhỏ dẹp thành vạch kẻ. Đổi sang % thay
+ * đổi thì mọi chỉ số về chung thang, và số tuyệt đối vẫn hiện khi rê chuột.
+ *
+ * Màu theo TỐT/XẤU chứ không theo hướng: "chi phí giảm 27%" là tin tốt nên
+ * xanh, dù cột thõng xuống.
  */
 function bcSoSanh(ds, tieuDe) {
   const g = el('div', 'ss');
   g.appendChild(el('h4', 'ss-tieu', esc(tieuDe || 'So với kỳ trước')));
-  /* Chặn thang ở 150%: một chỉ số nhảy 900% sẽ ép mọi thanh còn lại thành vạch
-   * mờ. Thanh chạm biên thì có mũi nhọn, và số thật vẫn in nguyên bên cạnh. */
+  /* Chặn thang ở 150%: một chỉ số nhảy 900% sẽ ép mọi cột còn lại thành vệt mờ.
+   * Cột chạm biên thì cụt đầu có răng cưa, và số thật vẫn in nguyên bên cạnh. */
   const TRAN = 150;
   const max = Math.min(TRAN, Math.max(20, ...ds.map((x) => Math.abs(x.lech))));
-  const hang = el('div', 'ss-ds');
+  const kh = el('div', 'cs-khung');
+  const hang = el('div', 'cs-ds');
   ds.forEach((x) => {
     const v = Math.abs(x.lech);
-    const w = Math.min(100, (Math.min(v, max) / max) * 100);
+    const h = Math.min(100, (Math.min(v, max) / max) * 100);
     const tran = v > max;
     /* Ba trạng thái, không phải hai: tốt · xấu · TRUNG TÍNH. Tổng tiền đã chi
      * không có chiều tốt xấu — tô xám, chỉ nói mức đổi. */
     const mau = x.tot == null ? 'im' : x.tot ? 'tot' : 'xau';
-    const r = el('div', 'ss-hang');
-    r.innerHTML = '<div class="ss-ten">' + esc(x.nhan) + '</div>'
-      + '<div class="ss-ray">'
-      + '<div class="ss-nua trai">' + (x.lech < 0
-        ? '<i class="' + mau + (tran ? ' tran' : '') + '" style="width:' + w + '%"></i>' : '')
-      + '</div><div class="ss-vach"></div><div class="ss-nua phai">' + (x.lech > 0
-        ? '<i class="' + mau + (tran ? ' tran' : '') + '" style="width:' + w + '%"></i>' : '')
-      + '</div></div>'
-      + '<div class="ss-so ' + mau + '">'
-      + (x.lech > 0 ? '+' : '') + (Math.round(x.lech * 10) / 10).toString().replace('.', ',') + '%</div>';
-    r.title = x.nhan + ': ' + gon(x.truoc) + ' → ' + gon(x.nay);
-    hang.appendChild(r);
+    const len = x.lech > 0;
+    const pt = (x.lech > 0 ? '+' : '') + (Math.round(x.lech * 10) / 10).toString().replace('.', ',') + '%';
+    const c = el('div', 'cs-cot');
+    c.innerHTML = '<div class="cs-nua tren">'
+      + (len ? '<b class="' + mau + '">' + pt + '</b><i class="' + mau + (tran ? ' tran' : '')
+        + '" style="height:' + h + '%"></i>' : '')
+      + '</div><div class="cs-vach"></div><div class="cs-nua duoi">'
+      + (!len ? '<i class="' + mau + (tran ? ' tran' : '') + '" style="height:' + h + '%"></i>'
+        + '<b class="' + mau + '">' + pt + '</b>' : '')
+      + '</div><div class="cs-ten">' + esc(x.nhan) + '</div>';
+    c.title = x.nhan + ': ' + gon(x.truoc) + ' → ' + gon(x.nay) + ' (' + pt + ')';
+    hang.appendChild(c);
   });
-  g.appendChild(hang);
+  kh.appendChild(hang);
+  g.appendChild(kh);
   g.appendChild(el('div', 'ss-chan',
-    'Thang ±' + Math.round(max) + '% · thanh có mũi nhọn là vượt thang · '
+    'Thang ±' + Math.round(max) + '% quanh vạch giữa · cột cụt đầu là vượt thang · '
     + 'xanh = tốt lên · đỏ = xấu đi · <b>xám = không có chiều tốt xấu</b> '
     + '(tổng tiền đã chi: giảm có thể là tiết kiệm, cũng có thể là ngừng chạy) · '
     + 'rê chuột để xem số kỳ trước'));
+  return g;
+}
+
+/**
+ * BIỂU ĐỒ CỘT SỐ TUYỆT ĐỐI — "cái nào nhiều nhất".
+ *
+ * Dùng thay vành khuyên ở những chỗ các phần đứng cùng một thang và người đọc
+ * muốn so bên nào hơn bên nào (trạng thái việc, lượt xem theo KOL, các bậc của
+ * phễu). Vành khuyên bắt người ta ướm hai miếng bánh với nhau; cột thì chỉ cần
+ * nhìn cái nào cao hơn.
+ */
+function bcCot(c) {
+  const ds = (c.muc || []).filter((x) => Number.isFinite(x.so));
+  const g = el('div', 'ss');
+  g.appendChild(el('h4', 'ss-tieu', esc(c.nhan)));
+  if (!ds.length) {
+    g.appendChild(el('div', 'ss-chan', 'chưa có số cho biểu đồ này'));
+    return g;
+  }
+  const max = Math.max(1, ...ds.map((x) => x.so));
+  const hang = el('div', 'ct-ds');
+  ds.slice(0, 14).forEach((x, i) => {
+    const o = el('div', 'ct-cot');
+    o.innerHTML = '<b>' + bcSo(x.so, c.don || 'so') + '</b>'
+      /* Chiều cao tính thẳng ra px chứ không dùng %: ô bọc cột không có chiều
+       * cao xác định (nó co theo nhãn bên dưới), nên % sẽ rơi về auto và mọi
+       * cột dẹp bằng nhau. */
+      + '<i style="height:' + Math.max(3, Math.round((x.so / max) * 130)) + 'px;'
+      + 'background:' + (window.Charts ? Charts.colorFor(x.nhan, i) : '#2b5cff') + '"></i>'
+      + '<span>' + esc(x.nhan) + '</span>';
+    o.title = x.nhan + ': ' + gon(x.so);
+    hang.appendChild(o);
+  });
+  g.appendChild(hang);
+  if (ds.length > 14) {
+    g.appendChild(el('div', 'ss-chan', 'Hiện 14 mục cao nhất trong ' + ds.length + ' mục.'));
+  }
   return g;
 }
 
@@ -343,6 +392,73 @@ function bcO(o) {
     '<div class="nhan">' + esc(o.nhan) + '</div>'
     + '<div class="so">' + bcSo(o.so, o.dinhDang) + '</div>'
     + dLech + dGhi + bcNen(o.nen));
+}
+
+/**
+ * PHỄU — các dải thu hẹp dần, KHÔNG có trục số.
+ *
+ * Cột và thanh đều thua ở đây: từ 3,1 triệu lượt tiếp cận xuống 6 booking là
+ * khoảng cách nửa triệu lần, thang nào cũng bóp bốn bậc cuối thành sợi chỉ. Bỏ
+ * trục đi thì không còn gì để đọc sai, và bề rộng thu hẹp theo thứ bậc nói đúng
+ * cái cần nói: càng xuống sâu càng ít người. Số thật in thẳng lên dải, mức rơi
+ * in vào khe giữa hai dải — chỗ rơi nhiều nhất là chỗ cần sửa.
+ */
+function bcPheu(ds, goc) {
+  const g = el('div', 'ss');
+  g.appendChild(el('h4', 'ss-tieu', 'Từ người nhìn thấy đến người đặt'));
+  const kh = el('div', 'ph-ds');
+  ds.forEach((x, i) => {
+    /* Bề rộng theo THỨ BẬC chứ không theo số: 100% xuống 34% chia đều. Cố tình
+     * không tỷ lệ với giá trị — nếu tỷ lệ thì dải cuối mỏng 0,0002 pixel. */
+    const w = 100 - (i * (66 / Math.max(1, ds.length - 1)));
+    if (i) {
+      const g0 = el('div', 'ph-khe');
+      g0.innerHTML = '<span>▼ rơi ' + (100 - x.conLai).toString().replace('.', ',') + '%'
+        + ' · còn lại ' + x.conLai.toString().replace('.', ',') + '%</span>';
+      kh.appendChild(g0);
+    }
+    const d = el('div', 'ph-dai');
+    d.innerHTML = '<div class="ph-than" style="width:' + w + '%">'
+      + '<b>' + gon(x.so) + '</b><span>' + esc(x.nhan) + '</span></div>'
+      + (x.moiMot ? '<div class="ph-ghi">cứ ' + x.moiMot.toLocaleString('vi-VN')
+        + ' ' + esc(goc) + ' mới có 1</div>' : '');
+    d.title = x.nhan + ': ' + gon(x.so);
+    kh.appendChild(d);
+  });
+  g.appendChild(kh);
+  g.appendChild(el('div', 'ss-chan',
+    'Bề rộng các dải thu hẹp đều theo thứ bậc, <b>không tỷ lệ với con số</b> — '
+    + 'từ bậc đầu xuống bậc cuối chênh nhau tới mấy trăm nghìn lần, vẽ đúng tỷ lệ '
+    + 'thì bốn dải dưới mỏng đến mức không nhìn thấy. Số thật in trên từng dải.'));
+  return g;
+}
+
+/**
+ * TỆP KHÁCH HÀNG TIẾP CẬN MỚI — khối gộp, đứng ngay sau chi phí.
+ *
+ * Đặt ở đây là cố ý: đọc xong "phòng tiêu bao nhiêu" thì câu tiếp theo luôn là
+ * "đổi được bao nhiêu người mới". Hai khối cạnh nhau thì tự nó thành một câu.
+ */
+function bcTepMoi(m) {
+  const t = el('div', 'the chi-phi');
+  t.appendChild(el('header', '',
+    '<span class="cham-tron" style="background:#0ea5a0"></span>'
+    + '<h3>Tệp khách hàng tiếp cận mới</h3>'
+    + '<span class="phu">gộp từ Social · LIVE · Quảng cáo · KOL · OTA</span>'));
+  t.appendChild(el('div', 'than nho',
+    'Xếp từ xa đến gần: người mới nhìn thấy → người theo dõi → người chủ động '
+    + 'nhắn → người để lại thông tin → người đã đặt. Đọc dọc xuống là thấy phễu '
+    + 'rơi ở bậc nào. Ô nào không app nào đo được thì để trống chứ không hiện 0.'));
+  const luoi = el('div', 'o-luoi');
+  (m.o || []).forEach((o) => luoi.appendChild(bcO(o)));
+  t.appendChild(luoi);
+  if ((m.pheu || []).length > 1) {
+    const kh = el('div', 'bieu-do');
+    kh.appendChild(bcPheu(m.pheu, m.goc));
+    t.appendChild(kh);
+  }
+  (m.bang || []).forEach((bg) => bcBang(t, bg));
+  return t;
 }
 
 function bcKhoi(b) {
@@ -382,6 +498,24 @@ function bcKhoi(b) {
     const kh = el('div', 'bieu-do');
     kh.appendChild(bcSoSanh(b.soSanh, 'Thay đổi so với kỳ trước'));
     t.appendChild(kh);
+  }
+
+  /* --- cột số tuyệt đối + thanh xếp hạng theo người ---
+   * Bảng công việc và Lịch tác nghiệp trước đây chỉ có một vành khuyên trạng
+   * thái. Vành khuyên trả lời "việc đang nằm ở đâu" — câu của người trực bảng.
+   * Người đọc báo cáo tháng hỏi khác: cái nào nhiều nhất, và ai làm bao nhiêu. */
+  if ((b.cot && (b.cot.muc || []).length) || (b.thanh && (b.thanh.muc || []).length)) {
+    const khung = el('div', 'bieu-do'
+      + (b.cot && b.thanh && b.cot.muc.length && b.thanh.muc.length ? ' bieu-do-cap' : ''));
+    if (b.cot && b.cot.muc.length) {
+      const o = el('div'); o.appendChild(bcCot(b.cot)); khung.appendChild(o);
+    }
+    if (b.thanh && b.thanh.muc.length) {
+      const o = el('div');
+      o.appendChild(bcThanhNgang(b.thanh.muc, b.thanh.nhan, 0, b.thanh.don || 'so'));
+      khung.appendChild(o);
+    }
+    t.appendChild(khung);
   }
 
   /* --- biểu đồ: đường theo ngày + vành khuyên cơ cấu, xếp cạnh nhau --- */

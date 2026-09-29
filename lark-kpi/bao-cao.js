@@ -24,6 +24,8 @@ const https = require('https');
 const APP = [
   { id: 'social', ten: 'Social', mo: 'TikTok · Facebook · Instagram · Zalo OA',
     mau: '#d62976', url: process.env.KPI_URL_SOCIAL || 'http://localhost:5178' },
+  { id: 'live', ten: 'LIVE', mo: 'Phiên phát trực tiếp — TikTok · Facebook',
+    mau: '#e0245e', url: process.env.KPI_URL_SOCIAL || 'http://localhost:5178' },
   { id: 'quang-cao', ten: 'Quảng cáo', mo: 'Meta · TikTok · Google',
     mau: '#ff7d00', url: process.env.KPI_URL_ADS || 'http://localhost:5176' },
   { id: 'ota', ten: 'Booking OTA', mo: 'Klook · KKday · GYG · Trip.com…',
@@ -38,15 +40,12 @@ const APP = [
     mau: '#e0529c', url: process.env.KPI_URL_ANH || 'http://localhost:5181' },
   { id: 'kol', ten: 'KOL', mo: 'Mời · đi tour · bàn giao bài',
     mau: '#8b5cf6', url: process.env.KPI_URL_KOL || 'http://localhost:5186' },
-  { id: 'san-pham', ten: 'Sản phẩm', mo: 'Giá công bố · USP · ưu đãi',
-    mau: '#0ea5a0', url: process.env.KPI_URL_SP || 'http://localhost:5184' },
-  { id: 'bao-cao-viec', ten: 'Báo cáo công việc', mo: 'Phiếu ngày · tuần · tháng',
-    mau: '#6366f1', url: process.env.KPI_URL_BCV || 'http://localhost:5183' },
-  { id: 'kho-media', ten: 'Kho media', mo: 'Ảnh · video trên Drive Marketing',
-    mau: '#64748b', url: process.env.KPI_URL_MEDIA || 'http://localhost:5188' },
-  { id: 'lich-lam-viec', ten: 'Lịch làm việc', mo: 'Đăng ký ca · chép sang HCNS',
-    mau: '#0891b2', url: process.env.KPI_URL_LLV || 'http://localhost:5185' },
 ];
+/* BỎ khỏi báo cáo: Sản phẩm · Báo cáo công việc · Kho media · Lịch làm việc.
+ * Bốn app đó trả số TỒN KHO và số việc nội bộ (bao nhiêu sản phẩm đang bán, bao
+ * nhiêu ảnh đã gắn thẻ, ai chưa đăng ký ca) — không nói phòng làm được gì trong
+ * kỳ, mà lại đứng ngang hàng với Social và Quảng cáo. Báo cáo này là báo cáo
+ * KẾT QUẢ, không phải bảng kiểm nội bộ. */
 
 /**
  * Hỏi một app con.
@@ -119,6 +118,9 @@ const so = (v) => {
 const q = (tu, den) => '?from=' + encodeURIComponent(tu) + '&to=' + encodeURIComponent(den);
 const msOf = (v) => (v == null || v === '' ? 0 : typeof v === 'number' ? v : Date.parse(v) || 0);
 const nhanOf = (v) => (v && typeof v === 'object' ? (v.text || v.name || '') : (v || ''));
+/* Tiền rút gọn cho câu ghi chú. `Math.round(x / 1e6)` làm 6,95 triệu thành "7 tr"
+ * rồi hai vế cộng lại không khớp tổng in ở trên — giữ một chữ số thập phân. */
+const gonTrieu = (v) => (Math.round(so(v) / 1e5) / 10).toString().replace('.', ',') + ' tr';
 /** Gom một mảng theo khoá, cộng dồn các trường số. */
 function gomTheo(ds, khoa, truong) {
   const m = new Map();
@@ -213,23 +215,11 @@ async function docSocial(app, tu, den) {
   const nt = d.nenTang || [];
   /* `n(khoa)` gắn vào ô danh sách nền tảng có / không có con số đó — xem gopNen. */
   const n = (khoa) => gopNen(nt, khoa);
+  /* Ô "Số phiên LIVE" đã chuyển hẳn sang khối LIVE. Để lại đây thì hai khối cùng
+   * báo một con số, và người đọc phải tự đoán hai chỗ có phải cùng một thứ
+   * không. Cột LIVE trong bảng "Theo nền tảng" thì giữ, vì ở đó nó trả lời câu
+   * khác: nền tảng nào gánh phần live. */
 
-  /* Gom các phiên LIVE. App Social trả từng phiên trong `d.live`; ở tầng báo
-   * cáo cần số gộp của cả kỳ. */
-  const dsLive = d.live || [];
-  const congLive = (f) => dsLive.reduce((a, x) => a + so(x[f]), 0);
-  const lv = {
-    soPhien: dsLive.length,
-    phut: congLive('minutes'),
-    views: congLive('views'),
-    comments: congLive('comments'),
-    newFollows: congLive('newFollows'),
-    messages: congLive('messages'),
-    leads: congLive('leads'),
-    orders: congLive('orders'),
-    revenue: congLive('revenue'),
-    peak: Math.max(0, ...dsLive.map((x) => so(x.peak))),
-  };
   return {
     luuY: d.luuY || [],
     o: [
@@ -250,22 +240,6 @@ async function docSocial(app, tu, den) {
       { nhan: 'Tin nhắn', so: so(t.messages), dinhDang: 'so', lech: l.messages, nen: n('messages') },
       { nhan: 'Lead', so: so(t.leads), dinhDang: 'so', lech: l.leads, nen: n('leads') },
       { nhan: 'Số bài đăng', so: so(t.posts), dinhDang: 'so', lech: l.posts, nen: n('posts') },
-      { nhan: 'Số phiên LIVE', so: so(t.lives), dinhDang: 'so', lech: l.lives, nen: n('lives') },
-      /* LIVE tách thành nhóm ô riêng. Trước đây cả mảng 28 phiên chỉ được tóm
-       * lại thành một con số đếm — mất sạch giờ lên sóng, đơn chốt và doanh thu
-       * của nó, trong khi LIVE lại là phần đội nội dung tốn công nhất. */
-      { nhan: 'LIVE · giờ lên sóng', so: lv.phut / 60, dinhDang: 'so2', ghi: 'giờ' },
-      { nhan: 'LIVE · lượt xem', so: lv.views, dinhDang: 'so' },
-      { nhan: 'LIVE · đỉnh cùng lúc', so: lv.peak, dinhDang: 'so', ghi: 'người xem cao nhất một phiên' },
-      { nhan: 'LIVE · bình luận', so: lv.comments, dinhDang: 'so' },
-      { nhan: 'LIVE · follow mới', so: lv.newFollows, dinhDang: 'so' },
-      { nhan: 'LIVE · tin nhắn', so: lv.messages, dinhDang: 'so' },
-      { nhan: 'LIVE · lead', so: lv.leads, dinhDang: 'so' },
-      { nhan: 'LIVE · đơn chốt', so: lv.orders, dinhDang: 'so' },
-      { nhan: 'LIVE · doanh thu', so: lv.revenue, dinhDang: 'vnd',
-        ghi: lv.revenue ? '' : 'chưa ghi doanh thu phiên nào' },
-      { nhan: 'LIVE · xem trung bình một phiên', so: lv.soPhien ? lv.views / lv.soPhien : 0,
-        dinhDang: 'so' },
       /* KHÔNG dùng `tyLeTuongTac` của app Social ở tầng tổng: mẫu số là tổng
        * reach, mà Facebook không trả reach nên tỷ lệ vọt lên 294%. Ở đây lấy mẫu
        * số là LƯỢT XEM và gọi đúng tên, để không ai phải đoán mẫu số là gì. */
@@ -299,19 +273,77 @@ async function docSocial(app, tu, den) {
         soCot: [2, 3, 4, 5],
         dong: (d.kenh || []).map((k) => [k.name, k.platform, so(k.views), so(k.engagement),
           so(k.followUp), so(k.posts)]) },
-      { tieuDe: 'Phiên LIVE trong kỳ',
-        cot: ['Ngày', 'Kênh', 'Nền tảng', 'Phút', 'Lượt xem', 'Đỉnh', 'Bình luận', 'Follow mới', 'Đơn', 'Doanh thu'],
-        soCot: [3, 4, 5, 6, 7, 8, 9],
-        dong: dsLive.slice().sort((a, b) => String(b.start || '').localeCompare(String(a.start || '')))
-          .slice(0, 40).map((x) => [String(x.start || '').slice(0, 10), x.channel || '',
-            x.platform || '', so(x.minutes), so(x.views), so(x.peak), so(x.comments),
-            so(x.newFollows), so(x.orders), so(x.revenue)]) },
       { tieuDe: 'Bài xem nhiều nhất',
         cot: ['Bài', 'Kênh', 'Lượt xem', 'Tương tác'],
         soCot: [2, 3],
         dong: (d.topBai || []).slice(0, 15).map((b) => [
           (b.title || '(không tiêu đề)').slice(0, 90), b.channel || b.platform || '',
           so(b.views), so(b.engagement)]) },
+    ].filter((b) => b.dong.length),
+  };
+}
+
+/* ================= LIVE =================
+ * Tách khỏi Social thành khối riêng. Lý do: LIVE là một cách làm khác hẳn —
+ * người thật ngồi trước máy mấy tiếng, đo bằng giờ lên sóng và đơn chốt, chứ
+ * không đo bằng lượt xem bài như nội dung đăng sẵn. Trộn chung thì mười ô LIVE
+ * lọt thỏm giữa hai mươi ô bài đăng và không ai đọc ra công của nó.
+ *
+ * Số vẫn lấy từ app Social (nó sở hữu bảng phiên LIVE) — chỉ trình bày riêng. */
+async function docLiveRieng(app, tu, den) {
+  const d = await goi(app, '/api/tong-quan' + q(tu, den));
+  const ds = d.live || [];
+  const cong = (f) => ds.reduce((a, x) => a + so(x[f]), 0);
+  const phut = cong('minutes');
+  const views = cong('views');
+  const tuongTac = cong('comments') + cong('likes') + cong('shares');
+  /* Trung bình phải chia cho SỐ PHIÊN CÓ SỐ, không phải mọi phiên. Phiên chưa
+   * nhập số mà vẫn nằm dưới mẫu thì "xem trung bình" tụt xuống một cách vô cớ. */
+  const coXem = ds.filter((x) => so(x.views) > 0).length;
+  const nenTang = gomTheo(ds, (x) => x.platform || '(không rõ)', ['views']);
+
+  /* Cột nào cả 28 phiên đều ghi 0 thì gần như chắc chắn là KHÔNG AI ĐIỀN, chứ
+   * không phải phiên nào cũng thật sự bằng 0 (không lẽ 17 giờ lên sóng mà không
+   * một người nào bấm theo dõi). Base lưu 0 nên không phân biệt được bằng kiểu
+   * dữ liệu — nhưng nói thẳng nghi ngờ đó ra còn hơn để người đọc tin vào 0. */
+  const trong = (f) => (ds.length && ds.every((x) => so(x[f]) === 0)
+    ? ds.length + '/' + ds.length + ' phiên ghi 0 — nhiều khả năng cột này chưa ai điền'
+    : '');
+  return {
+    o: [
+      { nhan: 'Số phiên LIVE', so: ds.length, dinhDang: 'so', chinh: true },
+      { nhan: 'Giờ lên sóng', so: phut / 60, dinhDang: 'so2', ghi: 'giờ' },
+      { nhan: 'Lượt xem', so: views, dinhDang: 'so' },
+      { nhan: 'Đỉnh cùng lúc', so: Math.max(0, ...ds.map((x) => so(x.peak))), dinhDang: 'so',
+        ghi: trong('peak') || 'người xem cao nhất một phiên' },
+      { nhan: 'Bình luận', so: cong('comments'), dinhDang: 'so' },
+      { nhan: 'Follow mới', so: cong('newFollows'), dinhDang: 'so', ghi: trong('newFollows') },
+      { nhan: 'Tin nhắn', so: cong('messages'), dinhDang: 'so', ghi: trong('messages') },
+      { nhan: 'Lead', so: cong('leads'), dinhDang: 'so' },
+      { nhan: 'Đơn chốt', so: cong('orders'), dinhDang: 'so' },
+      { nhan: 'Xem trung bình một phiên', so: coXem ? views / coXem : 0, dinhDang: 'so',
+        ghi: coXem === ds.length ? '' : coXem + '/' + ds.length + ' phiên đã nhập lượt xem' },
+      { nhan: 'Phút lên sóng mỗi phiên', so: ds.length ? phut / ds.length : 0, dinhDang: 'so' },
+      { nhan: 'Tương tác trên 1.000 lượt xem', so: views ? (tuongTac / views) * 1000 : 0,
+        dinhDang: 'so2' },
+    ],
+    /* DOANH THU LIVE chưa đưa vào — anh Hùng gác lại vì chưa rõ cơ chế ghi nhận:
+     * cột doanh thu trong bảng phiên không nói rõ là đơn chốt ngay trên sóng hay
+     * đơn khách nhắn tin sau đó, nên cộng vào là cộng nhầm với doanh thu Quảng
+     * cáo và OTA. Khi nào chốt được luật ghi nhận thì mở lại ô này. */
+    cot: {
+      nhan: 'Lượt xem LIVE theo nền tảng',
+      don: 'so',
+      muc: nenTang.map((x) => ({ nhan: x._k, so: x.views })).filter((x) => x.so),
+    },
+    bang: [
+      { tieuDe: 'Phiên LIVE trong kỳ',
+        cot: ['Ngày', 'Kênh', 'Nền tảng', 'Phút', 'Lượt xem', 'Đỉnh', 'Bình luận', 'Follow mới', 'Đơn'],
+        soCot: [3, 4, 5, 6, 7, 8],
+        dong: ds.slice().sort((a, b) => String(b.start || '').localeCompare(String(a.start || '')))
+          .slice(0, 40).map((x) => [String(x.start || '').slice(0, 10), x.channel || '',
+            x.platform || '', so(x.minutes), so(x.views), so(x.peak), so(x.comments),
+            so(x.newFollows), so(x.orders)]) },
     ].filter((b) => b.dong.length),
   };
 }
@@ -493,10 +525,20 @@ async function docCongViec(app, tu, den) {
       { nhan: 'Chưa phân công', so: mo.filter((t) => !(t.owner || []).length).length, dinhDang: 'so', dao: true },
       { nhan: 'Tổng việc trên bảng', so: ds.length, dinhDang: 'so' },
     ],
-    tron: {
-      nhan: 'Cơ cấu việc theo trạng thái',
-      giua: 'Việc',
-      phan: tt.map((x) => ({ nhan: x._k, so: x._n })),
+    /* Vành khuyên trạng thái bị bỏ. Nó trả lời "việc đang ở đâu" — câu của người
+     * trực bảng, không phải của người đọc báo cáo tháng. Thay bằng hai hình:
+     * cột trạng thái (đọc ngay cái nào nhiều nhất, không phải ướm miếng bánh),
+     * và thanh xếp hạng theo người (ai gánh bao nhiêu việc trong kỳ). */
+    cot: {
+      nhan: 'Việc theo trạng thái',
+      don: 'so',
+      muc: tt.slice().sort((x, y) => y._n - x._n).map((x) => ({ nhan: x._k, so: x._n })),
+    },
+    thanh: {
+      nhan: 'Việc đến hạn trong kỳ, theo người',
+      don: 'so',
+      muc: theoNguoi.slice().sort((x, y) => y._n - x._n)
+        .map((x) => ({ nhan: x._k, so: x._n })),
     },
     bang: [
       { tieuDe: 'Việc đến hạn trong kỳ, theo người',
@@ -548,6 +590,21 @@ async function docLich(app, tu, den) {
     return s + (b - a) / 36e5;
   }, 0);
   const tt = gomTheo(it, (x) => nhanOf(x.status) || '(trống)', []);
+
+  /* Giờ tác nghiệp theo người — đây là con số duy nhất trong app Lịch nói được
+   * "ai ra hiện trường bao nhiêu". Chia đều giờ của buổi cho những người cùng
+   * đi, chứ không cộng đủ giờ cho từng người: bốn người đi một buổi bốn tiếng là
+   * bốn tiếng của phòng, không phải mười sáu. */
+  const gioNguoi = new Map();
+  it.forEach((x) => {
+    const a2 = Date.parse(x.start), b2 = Date.parse(x.end);
+    if (!Number.isFinite(a2) || !Number.isFinite(b2) || b2 <= a2) return;
+    const ds = (x.owner || x.staff || []).map((u) => u.name || u.id).filter(Boolean);
+    const ten = ds.length ? ds : ['(chưa ghi người)'];
+    const phan = ((b2 - a2) / 36e5) / ten.length;
+    ten.forEach((t) => gioNguoi.set(t, (gioNguoi.get(t) || 0) + phan));
+  });
+
   return {
     o: [
       { nhan: 'Buổi tác nghiệp', so: it.length, dinhDang: 'so', chinh: true },
@@ -565,10 +622,16 @@ async function docLich(app, tu, den) {
       { nhan: 'Chênh dự toán', so: cong('costActual') - cong('costPlan'), dinhDang: 'vnd', dao: true },
       { nhan: 'Có báo cáo sau buổi', so: it.filter((x) => x.reportAfter || x.report).length, dinhDang: 'so' },
     ],
-    tron: {
-      nhan: 'Cơ cấu buổi theo trạng thái',
-      giua: 'Buổi',
-      phan: tt.map((x) => ({ nhan: x._k, so: x._n })),
+    cot: {
+      nhan: 'Buổi theo trạng thái',
+      don: 'so',
+      muc: tt.slice().sort((x, y) => y._n - x._n).map((x) => ({ nhan: x._k, so: x._n })),
+    },
+    thanh: {
+      nhan: 'Giờ tác nghiệp theo người',
+      don: 'so2',
+      muc: [...gioNguoi.entries()].sort((x, y) => y[1] - x[1])
+        .map(([ten, g]) => ({ nhan: ten, so: Math.round(g * 10) / 10 })),
     },
     bang: [
       { tieuDe: 'Buổi tác nghiệp trong kỳ',
@@ -688,17 +751,163 @@ function chepThe(d, hienTai) {
   }));
 }
 
+/* ================= KOL =================
+ * Trước đây khối này chỉ chép `/api/tong-quan` của app KOL, tức là bốn ô TRẠNG
+ * THÁI CÔNG VIỆC: chờ BGĐ duyệt, sắp đi, bàn giao quá hạn, đến hạn nhập số.
+ * Đọc xong không biết tiền bỏ ra đổi được cái gì.
+ *
+ * Nên đọc thẳng `/api/du-lieu` và báo KẾT QUẢ: bài KOL đã đăng, lượt xem và
+ * tương tác bài đó mang về, tệp theo dõi của kênh đã đăng, tiền và giá trị FOC
+ * đã bỏ ra, rồi chia ra giá mỗi nghìn lượt xem. Bốn ô trạng thái cũ vẫn giữ,
+ * nhưng xuống cuối — việc cần làm là phần phụ của báo cáo kết quả.
+ */
+async function docKol(app, tu, den) {
+  const d = await goi(app, '/api/du-lieu');
+  const a = new Date(tu + 'T00:00:00Z').getTime();
+  const b = new Date(den + 'T23:59:59Z').getTime();
+  const trong = (ms) => ms >= a && ms <= b;
+
+  const dsKol = (d.kol || []).filter((x) => !x.daXoa);
+  const dsKenh = d.kenh || [];
+  const dsHt = d.hopTac || [];
+  const dsBg = d.banGiao || [];
+  const tenKol = new Map(dsKol.map((k) => [k.id, k.ten]));
+  const kenhTheo = new Map(dsKenh.map((k) => [k.id, so(k.theoDoi)]));
+
+  /* "Trong kỳ" của hợp tác tính theo NGÀY BẮT ĐẦU chuyến đi, của bài bàn giao
+   * tính theo NGÀY ĐĂNG. Hai mốc khác nhau vì hai việc khác nhau: tiền tiêu khi
+   * đoàn đi, còn kết quả về khi bài lên sóng — có khi lệch nhau cả tháng. */
+  const htKy = dsHt.filter((h) => trong(msOf(h.batDau)));
+  const dangKy = dsBg.filter((x) => nhanOf(x.trangThai) === 'Đã đăng' && trong(msOf(x.ngayDang)));
+
+  const cong = (ds, f) => ds.reduce((t, x) => t + so(x[f]), 0);
+  const tienMat = cong(htKy, 'tienCongTy');
+  const foc = cong(htKy, 'giaTriFOC');
+  const tongChi = tienMat + foc;
+  const khach = cong(htKy, 'nguoiLon') + cong(htKy, 'treEm') + cong(htKy, 'emBe');
+
+  /* 0 ≠ CHƯA ĐO ĐƯỢC. Bài mới đăng chưa tới mốc 7 ngày thì `xem7` là null, không
+   * phải 0 lượt xem. Cộng null thành 0 rồi chia trung bình là bịa ra một con số
+   * thấp hơn sự thật — nên đếm riêng bài đã có số và ghi rõ trên ô. */
+  const coSo = dangKy.filter((x) => x.xem7 != null);
+  const xem7 = cong(coSo, 'xem7');
+  const tt7 = cong(coSo, 'thich7') + cong(coSo, 'binhLuan7')
+    + cong(coSo, 'chiaSe7') + cong(coSo, 'luu7');
+  const ghiSo = coSo.length === dangKy.length ? ''
+    : coSo.length + '/' + dangKy.length + ' bài đã có số 7 ngày';
+
+  /* Tệp theo dõi CHẠM TỚI: cộng follower của các kênh đã đăng bài trong kỳ, mỗi
+   * kênh đếm một lần. Đây là quy mô tiếp cận tiềm năng, KHÔNG phải số người đã
+   * xem — nói rõ trên ô để không ai đọc nhầm thành lượt xem. */
+  const kenhDaDang = new Set();
+  dangKy.forEach((x) => (x.kenhDang || []).forEach((k) => kenhDaDang.add(k)));
+  const tepTheoDoi = [...kenhDaDang].reduce((t, k) => t + (kenhTheo.get(k) || 0), 0);
+
+  const dungChuan = dangKy.filter((x) => x.theTag && x.cta).length;
+  const treHan = dsBg.filter((x) => nhanOf(x.trangThai) !== 'Đã đăng'
+    && msOf(x.hanDang) && msOf(x.hanDang) < Date.now()).length;
+
+  /* Bảng theo KOL — ai mang về nhiều nhất trên mỗi đồng bỏ ra. */
+  const theoKol = new Map();
+  const oKol = (id) => {
+    if (!theoKol.has(id)) {
+      theoKol.set(id, { ten: tenKol.get(id) || '(không rõ)', bai: 0, xem: 0, tt: 0, chi: 0 });
+    }
+    return theoKol.get(id);
+  };
+  htKy.forEach((h) => { const o = oKol(h.kol); o.chi += so(h.tienCongTy) + so(h.giaTriFOC); });
+  const kolCuaHt = new Map(dsHt.map((h) => [h.id, h.kol]));
+  dangKy.forEach((x) => {
+    const o = oKol(kolCuaHt.get(x.hopTac));
+    o.bai += 1; o.xem += so(x.xem7);
+    o.tt += so(x.thich7) + so(x.binhLuan7) + so(x.chiaSe7) + so(x.luu7);
+  });
+  const bangKol = [...theoKol.values()].sort((x, y) => y.xem - x.xem);
+
+  /* Tiền và kết quả của KOL KHÔNG rơi vào cùng một kỳ: hợp tác trả tiền lúc đoàn
+   * đi, còn bài lên sóng có khi cả tháng sau. Nếu kỳ này chỉ có một trong hai
+   * đầu thì phải nói ra, không thì người đọc lấy tử số kỳ này chia mẫu số kỳ
+   * khác rồi kết luận nhầm về hiệu quả. */
+  const luuY = [];
+  if (dangKy.length && !htKy.length) {
+    luuY.push('Kỳ này có bài KOL lên sóng nhưng không hợp tác nào khởi hành — '
+      + 'tiền cho những bài này đã chi ở kỳ trước, nên khối này chưa tính được giá mỗi lượt xem.');
+  }
+  if (htKy.length && !dangKy.length) {
+    luuY.push('Kỳ này có hợp tác khởi hành nhưng chưa bài nào lên sóng — '
+      + 'chi phí đã phát sinh, kết quả sẽ rơi vào kỳ sau.');
+  }
+  if (dangKy.length && !coSo.length) {
+    luuY.push('Chưa bài nào tới mốc đo 7 ngày hoặc chưa ai nhập số, nên lượt xem '
+      + 'để trống chứ không phải bằng 0.');
+  }
+
+  return {
+    luuY,
+    o: [
+      { nhan: 'Bài KOL đã lên sóng', so: dangKy.length, dinhDang: 'so', chinh: true },
+      { nhan: 'Lượt xem 7 ngày', so: xem7, dinhDang: 'so', chinh: true, ghi: ghiSo },
+      { nhan: 'Tương tác 7 ngày', so: tt7, dinhDang: 'so', ghi: ghiSo },
+      { nhan: 'Tệp theo dõi chạm tới', so: tepTheoDoi, dinhDang: 'so',
+        ghi: kenhDaDang.size + ' kênh đã đăng · là quy mô tiếp cận, không phải số người đã xem' },
+      /* Hai ô trung bình cũng chỉ hiện khi có mẫu số thật. Không có bài nào đã
+       * đo mà vẫn in "0 lượt xem mỗi bài" thì người đọc hiểu là bài KOL không ai
+       * xem, trong khi sự thật là chưa tới ngày đo. */
+      ...(coSo.length ? [{ nhan: 'Xem trung bình mỗi bài',
+        so: xem7 / coSo.length, dinhDang: 'so' }] : []),
+      ...(xem7 ? [{ nhan: 'Tương tác trên 1.000 lượt xem',
+        so: (tt7 / xem7) * 1000, dinhDang: 'so2' }] : []),
+      { nhan: 'Chi cho KOL', so: tongChi, dinhDang: 'vnd', trungTinh: true,
+        ghi: tongChi
+          ? 'tiền mặt ' + gonTrieu(tienMat) + ' + FOC ' + gonTrieu(foc)
+          : 'không hợp tác nào khởi hành trong kỳ này' },
+      /* HAI Ô GIÁ CHỈ HIỆN KHI CÓ CẢ TỬ SỐ LẪN MẪU SỐ. Thiếu một đầu mà vẫn in
+       * thì ra "0 đ mỗi nghìn lượt xem" — đọc như KOL không tốn xu nào, trong
+       * khi sự thật là tiền tiêu ở kỳ khác. Thà trống còn hơn rẻ giả. */
+      ...(tongChi && xem7 ? [{ nhan: 'Giá mỗi 1.000 lượt xem',
+        so: (tongChi / xem7) * 1000, dinhDang: 'vnd', dao: true }] : []),
+      ...(tongChi && dangKy.length ? [{ nhan: 'Giá mỗi bài lên sóng',
+        so: tongChi / dangKy.length, dinhDang: 'vnd', dao: true }] : []),
+      { nhan: 'Bài đúng chuẩn gắn thẻ + CTA', so: dungChuan, dinhDang: 'so',
+        ghi: dangKy.length ? Math.round((dungChuan / dangKy.length) * 100) + '% số bài' : '' },
+      { nhan: 'Hợp tác khởi hành trong kỳ', so: htKy.length, dinhDang: 'so' },
+      { nhan: 'Lượt khách KOL đi tour', so: khach, dinhDang: 'so' },
+      { nhan: 'Bài quá hạn chưa đăng', so: treHan, dinhDang: 'so', dao: true,
+        muc: treHan ? 'cao' : 'ok' },
+    ],
+    cot: {
+      nhan: 'Lượt xem 7 ngày mang về, theo KOL',
+      don: 'so',
+      muc: bangKol.filter((x) => x.xem).map((x) => ({ nhan: x.ten, so: x.xem })),
+    },
+    bang: [
+      { tieuDe: 'Kết quả theo KOL',
+        cot: ['KOL', 'Bài đã đăng', 'Lượt xem 7 ngày', 'Tương tác', 'Chi', 'Giá mỗi 1.000 xem'],
+        soCot: [1, 2, 3, 4, 5],
+        dong: bangKol.map((x) => [x.ten, x.bai, x.xem, x.tt, x.chi,
+          x.xem ? Math.round((x.chi / x.xem) * 1000) : 0]) },
+      { tieuDe: 'Bài KOL đã lên sóng trong kỳ',
+        cot: ['Ngày đăng', 'Bài', 'Loại', 'Nền tảng', 'Xem 7 ngày', 'Tương tác 7 ngày'],
+        soCot: [4, 5],
+        dong: dangKy.slice().sort((x, y) => msOf(y.ngayDang) - msOf(x.ngayDang)).slice(0, 30)
+          .map((x) => [new Date(msOf(x.ngayDang)).toLocaleDateString('vi-VN'),
+            (x.ten || '(không tên)').slice(0, 80), x.loai || '',
+            (x.nenTang || []).join(', '),
+            x.xem7 == null ? '—' : so(x.xem7),
+            x.xem7 == null ? '—' : so(x.thich7) + so(x.binhLuan7) + so(x.chiaSe7) + so(x.luu7)]) },
+      { tieuDe: 'Việc KOL còn phải xử lý',
+        cot: ['Việc', 'Số'], soCot: [1],
+        dong: (d.canXuLy || []).map((x) => [x.nhan || x.ten || '', so(x.so)])
+          .concat(treHan ? [['Bài quá hạn chưa đăng', treHan]] : []) },
+    ].filter((x) => x.dong.length),
+  };
+}
+
 /** App nhận khoảng thời gian: Chỉnh ảnh · Báo cáo công việc. */
 async function docTheoKy(app, tu, den) {
   const d = await goi(app, '/api/tong-quan?tu=' + tu + '&den=' + den
     + '&from=' + tu + '&to=' + den);
   return { o: chepThe(d, false), bang: [] };
-}
-
-/** App chỉ có số tại thời điểm mở: Sản phẩm · Lịch làm việc · KOL · Kho media. */
-async function docHienTai(app) {
-  const d = await goi(app, '/api/tong-quan');
-  return { o: chepThe(d, true), bang: [] };
 }
 
 /**
@@ -736,12 +945,143 @@ const BO_DOC = {
   'lich-tac-nghiep': docLich,
   'quy-chi-phi': docQuyChiPhi,
   'chinh-anh': docChinhAnh,
-  kol: (app, tu, den) => docTheoKy(app, tu, den),
-  'san-pham': (app) => docHienTai(app),
-  'bao-cao-viec': (app, tu, den) => docTheoKy(app, tu, den),
-  'kho-media': (app) => docHienTai(app),
-  'lich-lam-viec': (app) => docHienTai(app),
+  kol: docKol,
+  live: docLiveRieng,
 };
+
+/**
+ * TỆP KHÁCH HÀNG TIẾP CẬN MỚI.
+ *
+ * Mọi app đều đo phần việc của riêng nó — Social đo lượt xem, LIVE đo phiên,
+ * Quảng cáo đo click, KOL đo bài. Không app nào trả lời được câu Sếp hỏi trước
+ * nhất: kỳ này có thêm bao nhiêu người mới biết đến Rooty Trip, và mỗi người
+ * như vậy tốn bao nhiêu. Khối này gom lại từ các app đã đọc được.
+ *
+ * Xếp theo độ CHẮC CHẮN, từ xa đến gần: người mới chỉ nhìn thấy → người theo dõi
+ * → người chủ động nhắn → người để lại thông tin → người đã đặt. Càng xuống dưới
+ * càng ít người mà càng đáng tiền, và đọc dọc xuống là thấy phễu rơi ở đâu.
+ *
+ * Ô nào không có app nào đo được thì KHÔNG hiện, chứ không hiện số 0 — 0 ở đây
+ * sẽ bị đọc thành "không ai biết tới mình", trong khi thật ra là chưa đo.
+ */
+function gomTepMoi(base, tongChi) {
+  const lay = (id, nhan) => {
+    const b = base.find((x) => x.id === id);
+    if (!b || !b.chay) return null;
+    const o = (b.o || []).find((x) => x.nhan === nhan);
+    return o && Number.isFinite(so(o.so)) ? { so: so(o.so), lech: o.lech } : null;
+  };
+  /* Cộng nhiều nguồn cho cùng một ý. Trả null khi KHÔNG nguồn nào đọc được, và
+   * ghi tên nguồn đã góp — để người đọc biết con số này gồm những đâu. */
+  const congNguon = (ds) => {
+    const co = ds.filter((x) => x.v);
+    if (!co.length) return null;
+    return { so: co.reduce((t, x) => t + x.v.so, 0), nguon: co.map((x) => x.ten) };
+  };
+
+  const oList = [
+    { nhan: 'Lượt tiếp cận', chinh: true,
+      g: congNguon([{ ten: 'Social', v: lay('social', 'Lượt tiếp cận') }]),
+      ghi: 'số lần nội dung hiện ra trước một người — chưa phải số người' },
+    { nhan: 'Người theo dõi mới (ròng)', chinh: true,
+      g: congNguon([{ ten: 'Social', v: lay('social', 'Follower tăng ròng') },
+        { ten: 'LIVE', v: lay('live', 'Follow mới') }]) },
+    { nhan: 'Tệp theo dõi KOL chạm tới',
+      g: congNguon([{ ten: 'KOL', v: lay('kol', 'Tệp theo dõi chạm tới') }]),
+      ghi: 'quy mô kênh KOL đã đăng bài' },
+    { nhan: 'Click về kênh bán',
+      g: congNguon([{ ten: 'Social', v: lay('social', 'Click liên kết') },
+        { ten: 'Quảng cáo', v: lay('quang-cao', 'Lượt nhấp') }]) },
+    { nhan: 'Người chủ động nhắn tin',
+      g: congNguon([{ ten: 'Social', v: lay('social', 'Tin nhắn') },
+        { ten: 'LIVE', v: lay('live', 'Tin nhắn') }]) },
+    { nhan: 'Lead để lại thông tin', chinh: true,
+      g: congNguon([{ ten: 'Social', v: lay('social', 'Lead') },
+        { ten: 'LIVE', v: lay('live', 'Lead') }]) },
+    /* KHÔNG cộng chung "chuyển đổi quảng cáo" với "booking OTA". Một booking đến
+     * từ quảng cáo được đếm ở CẢ HAI chỗ: Meta ghi một chuyển đổi, sàn OTA ghi
+     * một booking. Cộng lại là đếm đôi, và cái giá "chi cho mỗi đơn" sẽ rẻ đi
+     * một nửa một cách vô căn cứ. Nên tách ra, mỗi nguồn một ô, gọi đúng tên. */
+    { nhan: 'Booking đã chốt trên OTA', chinh: true,
+      g: congNguon([{ ten: 'OTA', v: lay('ota', 'Booking') }]),
+      ghi: 'đơn có thật trên sàn — con số chắc chắn nhất của phễu này' },
+    { nhan: 'Chuyển đổi quảng cáo ghi nhận',
+      g: congNguon([{ ten: 'Quảng cáo', v: lay('quang-cao', 'Chuyển đổi') }]),
+      ghi: 'nền tảng quảng cáo tự đếm — trùng một phần với booking OTA, không cộng dồn' },
+    { nhan: 'Đơn chốt trên sóng LIVE',
+      g: congNguon([{ ten: 'LIVE', v: lay('live', 'Đơn chốt') }]) },
+  ];
+
+  const o = oList.filter((x) => x.g).map((x) => ({
+    nhan: x.nhan, so: x.g.so, dinhDang: 'so', chinh: !!x.chinh,
+    ghi: (x.ghi ? x.ghi + ' · ' : '') + 'từ ' + x.g.nguon.join(' + '),
+  }));
+  if (!o.length) return null;
+
+  /* Giá mỗi người mới. Chỉ tính khi ĐỌC ĐƯỢC tổng chi của cả phòng — chia cho
+   * một nửa chi phí thì ra một cái giá rẻ giả, tệ hơn là không có giá nào. */
+  const tim = (nhan) => o.find((x) => x.nhan === nhan);
+  if (tongChi) {
+    const tdMoi = tim('Người theo dõi mới (ròng)');
+    const lead = tim('Lead để lại thông tin');
+    const don = tim('Booking đã chốt trên OTA');
+    if (tdMoi && tdMoi.so > 0) {
+      o.push({ nhan: 'Chi cho mỗi người theo dõi mới', so: tongChi / tdMoi.so,
+        dinhDang: 'vnd', dao: true, ghi: 'toàn bộ chi phí phòng chia cho người theo dõi mới' });
+    }
+    if (lead && lead.so > 0) {
+      o.push({ nhan: 'Chi cho mỗi lead', so: tongChi / lead.so, dinhDang: 'vnd', dao: true,
+        ghi: 'chỉ tính lead Social và LIVE đã ghi nhận' });
+    }
+    if (don && don.so > 0) {
+      o.push({ nhan: 'Chi cho mỗi booking', so: tongChi / don.so, dinhDang: 'vnd', dao: true,
+        ghi: 'chia cho booking OTA — chi phí toàn phòng, không riêng quảng cáo' });
+    }
+  }
+
+  /* Phễu: mỗi bậc kèm tỷ lệ còn lại so với bậc trên. Đây mới là chỗ đọc ra vấn
+   * đề — tiếp cận triệu lượt mà lead vài chục thì hỏng ở khâu kêu gọi, chứ
+   * không phải thiếu nội dung. */
+  const bac = ['Lượt tiếp cận', 'Người theo dõi mới (ròng)', 'Người chủ động nhắn tin',
+    'Lead để lại thông tin', 'Booking đã chốt trên OTA']
+    .map((n) => tim(n)).filter((x) => x && x.so > 0);
+
+  return {
+    o,
+    /* PHỄU VẼ BẰNG HÌNH RIÊNG, KHÔNG PHẢI CỘT.
+     *
+     * Đã thử hai cách và cả hai đều hỏng vì cùng một lý do. Vẽ số tuyệt đối thì
+     * 3,1 triệu lượt tiếp cận đứng cạnh 6 booking: cột đầu chạm trần, bốn cột
+     * sau là bốn sợi chỉ sát đáy. Đổi sang tỷ lệ còn lại cũng không thoát, vì
+     * tỷ lệ cũng lệch tới 500 lần (100% rồi tụt thẳng xuống 0,1%).
+     *
+     * Nên bỏ hẳn trục số: vẽ năm dải thu hẹp dần theo THỨ BẬC, in số thật và
+     * mức rơi lên từng dải. Không có trục thì không hứa hẹn một tỷ lệ nào để mà
+     * đọc sai, còn hình thu hẹp dần thì nói đúng điều cần nói — càng xuống sâu
+     * càng ít người. */
+    pheu: bac.map((x, i) => ({
+      nhan: x.nhan,
+      so: x.so,
+      conLai: i === 0 ? null : Math.round((x.so / bac[i - 1].so) * 1000) / 10,
+      moiMot: i === 0 ? null : Math.round(bac[0].so / x.so),
+    })),
+    goc: bac.length ? bac[0].nhan.toLowerCase() : '',
+    bang: bac.length > 1 ? [{
+      tieuDe: 'Phễu tiếp cận — còn lại bao nhiêu sau mỗi bậc',
+      cot: ['Bậc', 'Số người', '% còn lại so với bậc trên', 'Tính từ bậc đầu'],
+      soCot: [1, 2],
+      /* Cột cuối KHÔNG dùng phần trăm. 12 lead trên 3,1 triệu lượt tiếp cận là
+       * 0,0004% — làm tròn kiểu nào cũng thành "0%", đọc như không có ai. "Cứ
+       * 258.445 lượt mới có 1" nói đúng cùng một tỷ lệ mà hình dung được. */
+      dong: bac.map((x, i) => [x.nhan, x.so,
+        i === 0 ? '—' : (Math.round((x.so / bac[i - 1].so) * 1000) / 10)
+          .toString().replace('.', ',') + '%',
+        i === 0 ? 'điểm xuất phát'
+          : 'cứ ' + Math.round(bac[0].so / x.so).toLocaleString('vi-VN')
+            + ' ' + bac[0].nhan.toLowerCase() + ' mới có 1']),
+    }] : [],
+  };
+}
 
 /** @param {{id,ten,quanLy}} nguoi Người đang xem — gửi kèm cho app con biết ai hỏi. */
 async function gom(tu, den, nguoi, kieuSS) {
@@ -755,10 +1095,12 @@ async function gom(tu, den, nguoi, kieuSS) {
       return { ...nen, chay: false, loi: e.message, o: [], bang: [], chuoi: null, tron: null, luuY: [] };
     }
   }));
+  const cp = gomChiPhi(base);
   return {
     tu, den, kyTruoc: truoc, soNgay: truoc.soNgay,
     base, luc: Date.now(),
-    chiPhi: gomChiPhi(base),
+    chiPhi: cp,
+    tepMoi: gomTepMoi(base, cp && cp.doc ? cp.tong : 0),
     soChay: base.filter((b) => b.chay).length, soApp: base.length,
     soO: base.reduce((s, b) => s + (b.o || []).length, 0),
   };
