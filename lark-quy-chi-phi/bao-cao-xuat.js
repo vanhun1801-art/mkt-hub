@@ -21,6 +21,15 @@ const { ghiXlsx } = require('../lark-chung/xlsx-ghi');
 
 const tien = (n) => Math.round(Number(n) || 0).toLocaleString('vi-VN');
 const pt = (v) => (Math.round((Number(v) || 0) * 1000) / 10).toString().replace('.', ',') + '%';
+const chu = (v) => String(v == null ? '' : v).trim();
+/** Mốc ISO hay Date -> 25/09/2026. Trống thì trả chuỗi rỗng, KHÔNG trả
+    'Invalid Date' — ô đó in ra tệp gửi kế toán thì trông như lỗi dữ liệu. */
+function ngayVN(v) {
+  const d = v instanceof Date ? v : new Date(v);
+  if (!v || isNaN(d.getTime())) return '';
+  const p = (n) => String(n).padStart(2, '0');
+  return p(d.getDate()) + '/' + p(d.getMonth() + 1) + '/' + d.getFullYear();
+}
 const esc = (s) => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -270,4 +279,96 @@ function tieuDeEmail(r, o) {
     : 'BÁO CÁO QUỸ MARKETING ' + r.ky.tenDot.toUpperCase());
 }
 
-module.exports = { xuatXlsx, htmlBaoCao, htmlEmail, tieuDeEmail, tenTep, bangXlsx, TIEU_DE };
+/* ---------------------------------------------------------------------------
+ * XUẤT SỔ QUỸ THEO ĐÚNG BỘ LỌC ĐANG XEM
+ * -------------------------------------------------------------------------
+ * Khác hẳn báo cáo kỳ ở trên. Báo cáo kỳ là tài liệu gửi Ban Giám Đốc: ít cột,
+ * gom nhóm, không có mã nội bộ. Cái này là bản sao SỔ — anh Hùng và chị kế
+ * toán lọc ra cái gì thì xuất đúng cái đó, đủ mọi mã để đối chiếu.
+ *
+ * KHÔNG lọc lại ở máy chủ. Giao diện gửi xuống DANH SÁCH ID của đúng những
+ * dòng đang hiện, theo đúng thứ tự đang hiện. Lọc lại ở đây là viết bản thứ
+ * hai của locChi() — và bản thứ hai thì sớm muộn lệch bản thứ nhất, lúc đó
+ * người bấm nút nhận một tệp không giống cái họ vừa nhìn.
+ * ------------------------------------------------------------------------- */
+const TIEU_DE_SO = 'SỔ QUỸ CHI PHÍ MARKETING';
+
+/** "3 hoá đơn · 1 UNC" — đọc là biết khoản này đủ chứng từ chưa. */
+function moTaChungTu(c) {
+  const ra = [];
+  const hd = (c.hoaDon || []).length;
+  const unc = (c.unc || []).length;
+  if (hd) ra.push(hd + ' hoá đơn');
+  if (unc) ra.push(unc + ' UNC');
+  /* Khoản cũ nhập từ sheet không có tệp đính kèm, chỉ có đường dẫn Drive. Ghi
+   * rõ để người đọc biết là CÓ chứng từ, chỉ nằm chỗ khác. */
+  if (!hd && String(c.linkCu || '').trim()) ra.push('hoá đơn (Drive cũ)');
+  if (!unc && String(c.linkUncCu || '').trim()) ra.push('UNC (Drive cũ)');
+  if (!ra.length && chu(c.chungTu)) return chu(c.chungTu);
+  return ra.join(' · ');
+}
+
+function bangSoQuy(ds) {
+  const cot = [
+    { ten: 'Ngày chi', rong: 12 },
+    { ten: 'Ngày đề nghị', rong: 13 },
+    { ten: 'Nội dung chi', rong: 46 },
+    { ten: 'Loại', rong: 20 },
+    { ten: 'Số tiền', rong: 15 },
+    { ten: 'Người đề nghị', rong: 24 },
+    { ten: 'Mã điều hành', rong: 14 },
+    { ten: 'Mã đơn Tourwell', rong: 15 },
+    { ten: 'Mã quyết toán', rong: 15 },
+    { ten: 'Tình trạng', rong: 16 },
+    { ten: 'Chứng từ', rong: 26 },
+    { ten: 'Ghi chú', rong: 34 },
+  ];
+
+  const hang = ds.map((c) => [
+    ngayVN(c.ngayChi),
+    ngayVN(c.ngayDeNghi),
+    chu(c.noiDung),
+    chu(c.loai),
+    Number(c.tien) || 0,
+    ((c.nguoi || [])[0] || {}).name || '',
+    chu(c.maDieuHanh),
+    /* Ô mã đơn lưu "RT16438 · https://…" — bảng này để đối chiếu, nên chỉ lấy
+     * phần mã. Ai cần mở đơn thì bấm trong app. */
+    chu(c.maDon).split('·')[0].trim(),
+    chu(c.maQuyetToan),
+    chu(c.tinhTrang),
+    moTaChungTu(c),
+    chu(c.ghiChu) || chu(c.lyDoTuChoi),
+  ]);
+
+  /* Dòng tổng: thứ đầu tiên kế toán nhìn khi mở tệp ra. */
+  const tong = ds.reduce((a, c) => a + (Number(c.tien) || 0), 0);
+  hang.push(['', '', 'TỔNG CỘNG ' + ds.length + ' khoản', '', tong, '', '', '', '', '', '', '']);
+
+  return { cot, hang };
+}
+
+/**
+ * @param {Array}  ds    khoản chi, ĐÃ lọc và ĐÃ xếp thứ tự bởi giao diện
+ * @param {string} moTa  bộ lọc đang áp, viết bằng tiếng người
+ */
+function xuatSoQuy(ds, moTa, logo) {
+  const { cot, hang } = bangSoQuy(ds);
+  const sach = (x) => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/gi, 'd').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase();
+  return {
+    tep: ['so-quy', sach(moTa).slice(0, 40)].filter(Boolean).join('_') + '.xlsx',
+    kieu: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    than: ghiXlsx({
+      ten: 'Sổ quỹ', cot, hang,
+      tieuDe: TIEU_DE_SO,
+      phuDe: 'Phòng Marketing · Rooty Trip Phú Quốc'
+        + (moTa ? '  ·  ' + moTa : '')
+        + '  ·  xuất ' + ngayVN(new Date()),
+      logo,
+    }),
+  };
+}
+
+module.exports = { xuatXlsx, htmlBaoCao, htmlEmail, tieuDeEmail, tenTep, bangXlsx, TIEU_DE,
+  xuatSoQuy, bangSoQuy, moTaChungTu, TIEU_DE_SO };

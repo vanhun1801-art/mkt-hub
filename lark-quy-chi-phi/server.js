@@ -648,6 +648,47 @@ async function xuLy(req, res) {
     });
   }
 
+  /* -------------------------------------------------------------------
+   * XUẤT SỔ QUỸ THEO ĐÚNG BỘ LỌC ĐANG XEM
+   * -------------------------------------------------------------------
+   * CẢ NGƯỜI GIỮ QUỸ LẪN KẾ TOÁN đều xuất được — chị kế toán lọc ra một
+   * tháng, một mã quyết toán rồi cần bản Excel để đối chiếu, đó là việc
+   * chính của chị ấy.
+   *
+   * Giao diện gửi xuống DANH SÁCH ID của đúng những dòng đang hiện, theo
+   * đúng thứ tự đang hiện. Máy chủ KHÔNG lọc lại: lọc lại là viết bản thứ
+   * hai của locChi(), mà bản thứ hai sớm muộn lệch bản thứ nhất — lúc đó
+   * người bấm nút nhận một tệp không giống cái họ vừa nhìn.
+   *
+   * POST chứ không GET vì danh sách id dài hơn mọi giới hạn đường dẫn.
+   * ------------------------------------------------------------------- */
+  if (p === '/api/xuat-so' && req.method === 'POST') {
+    if (!(await doiQuyenQuyetToan(res))) return;
+    const b = await docThan(req);
+    const ids = Array.isArray(b.ids) ? b.ids.filter((x) => typeof x === 'string') : [];
+    if (!ids.length) return json(res, { error: 'Bộ lọc hiện tại không còn khoản nào để xuất.' }, 400);
+
+    const k = await nap(false);
+    const theoId = new Map(k.chi.map((r) => {
+      const c = chuanChi(doiRa(r, F.chi));
+      return [c.id, c];
+    }));
+    /* Giữ ĐÚNG thứ tự giao diện gửi xuống, và bỏ id không còn (ai đó vừa xoá
+     * khoản trong lúc mình đang mở trang). */
+    const ds = ids.map((id) => theoId.get(id)).filter(Boolean);
+    if (!ds.length) return json(res, { error: 'Mấy khoản này không còn trong sổ — bấm Làm mới rồi thử lại.' }, 409);
+
+    const logo = await layLogo(THU_MUC_DU_LIEU).catch(() => null);
+    const ra = bcXuat.xuatSoQuy(ds, String(b.moTa || '').trim(), logo && khoLogoBaoCao(logo));
+    res.writeHead(200, {
+      'Content-Type': ra.kieu,
+      'Content-Length': ra.than.length,
+      'Content-Disposition': 'attachment; filename="' + ra.tep + '"; filename*=UTF-8\'\'' + encodeURIComponent(ra.tep),
+      'Cache-Control': 'no-store',
+    });
+    return res.end(ra.than);
+  }
+
   /* ---- nhắc đóng sổ hàng tháng (nhac-thang.js) ----
    * GET xem trước thẻ; ?gui=1 gửi thử cho người giữ quỹ. ?ngay=YYYY-MM-DD để giả
    * làm một ngày khác (vd. 2026-10-01). */

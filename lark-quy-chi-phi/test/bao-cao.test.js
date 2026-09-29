@@ -191,5 +191,51 @@ ok('khai khổ A4 và lặp tiêu đề bảng mỗi trang giấy',
 ok('khai nền trắng tường minh', /html\{background:#fff\}/.test(inRa));
 ok('in đúng số dư cuối kỳ', inRa.includes('970.000đ'));
 
+nhom('Xuất sổ theo bộ lọc đang xem — bản sao SỔ, không phải báo cáo BGĐ');
+/* Hai tệp phục vụ hai người. Báo cáo kỳ ở trên gửi Ban Giám Đốc: ít cột, gom
+ * nhóm, không mã nội bộ. Cái này chị kế toán mở ra đối chiếu, nên phải có ĐỦ
+ * mã — thiếu một mã là chị ấy quay lại mở app dò từng dòng. */
+const SO = [
+  { id: 'r1', ngayChi: '2026-09-29T00:00:00+07:00', ngayDeNghi: '2026-09-28T00:00:00+07:00',
+    noiDung: 'KHÁCH SẠN HÒN THƠM', loai: 'Tác nghiệp', tien: 468000,
+    nguoi: [{ name: 'Hằng' }], maDieuHanh: 'SG21658',
+    maDon: 'RT16881 · https://rootytrip.tourwell.net/admin/order/16881/show',
+    maQuyetToan: 'QTTU61/LVH', tinhTrang: 'Đã quyết toán',
+    hoaDon: [{ token: 'a' }, { token: 'b' }], unc: [{ token: 'c' }], ghiChu: '' },
+  { id: 'r2', ngayChi: '', ngayDeNghi: '2026-09-20T00:00:00+07:00', noiDung: 'Khoản chưa chi',
+    loai: 'Khác', tien: 100000, nguoi: [], maDieuHanh: '', maDon: '', maQuyetToan: '',
+    tinhTrang: 'Chờ chi', hoaDon: [], unc: [], linkCu: 'https://drive.google.com/x' },
+];
+const bSo = bx.bangSoQuy(SO);
+const tenSo = bSo.cot.map((c) => c.ten).join(' | ');
+ok('có đủ ba mã để đối chiếu',
+  /Mã điều hành/.test(tenSo) && /Mã đơn Tourwell/.test(tenSo) && /Mã quyết toán/.test(tenSo), tenSo);
+/* Ô mã đơn lưu "RT16881 · https://…". Đổ cả địa chỉ vào ô Excel thì cột phình
+ * ra và mã bị đẩy khuất — mà mã mới là thứ để đối chiếu. */
+ok('mã đơn cắt bỏ phần địa chỉ', bSo.hang[0][7] === 'RT16881', bSo.hang[0][7]);
+ok('số tiền ghi kiểu SỐ để Excel cộng được', typeof bSo.hang[0][4] === 'number');
+ok('đếm được chứng từ của từng khoản', bSo.hang[0][10] === '2 hoá đơn · 1 UNC', bSo.hang[0][10]);
+/* Khoản cũ nhập từ sheet không có tệp, chỉ có đường dẫn Drive — phải nói rõ là
+ * CÓ chứng từ, chỉ nằm chỗ khác, nếu không kế toán tưởng thiếu. */
+ok('chứng từ nằm trên Drive cũ vẫn được kể ra', /Drive cũ/.test(bSo.hang[1][10]), bSo.hang[1][10]);
+/* Khoản chưa chi thì ô ngày trống. In "Invalid Date" lên tệp gửi kế toán là
+ * trông như dữ liệu hỏng. */
+ok('khoản chưa chi thì ô Ngày chi để TRỐNG', bSo.hang[1][0] === '', JSON.stringify(bSo.hang[1][0]));
+const cuoiSo = bSo.hang[bSo.hang.length - 1];
+ok('dòng cuối chốt số khoản và tổng tiền',
+  /TỔNG CỘNG 2 khoản/.test(cuoiSo[2]) && cuoiSo[4] === 568000, JSON.stringify(cuoiSo));
+
+const xSo = bx.xuatSoQuy(SO, 'Tháng 09/2026 · Tác nghiệp', null);
+ok('tên tệp mang bộ lọc, bỏ dấu', xSo.tep === 'so-quy_thang-09-2026-tac-nghiep.xlsx', xSo.tep);
+const rSo = docXlsx.doc(xSo.than).sheets[0].rows;
+/* 3 dòng đầu (tiêu đề · phụ đề · trống) + hàng tên cột + 2 khoản + dòng tổng. */
+ok('đọc lại được bằng bộ đọc độc lập, đủ 7 hàng', rSo.length === 7, String(rSo.length));
+ok('hàng tên cột nằm đúng hàng 4', rSo[3][0] === 'Ngày chi', JSON.stringify(rSo[3]));
+ok('dữ liệu bắt đầu từ hàng 5', rSo[4][2] === 'KHÁCH SẠN HÒN THƠM', JSON.stringify(rSo[4]));
+ok('phụ đề ghi rõ đang lọc gì', /Tháng 09\/2026 · Tác nghiệp/.test(rSo[1][0]), rSo[1][0]);
+/* Bộ lọc rỗng vẫn phải ra tên tệp dùng được, không phải "so-quy_.xlsx". */
+ok('không lọc gì thì tên tệp vẫn sạch',
+  bx.xuatSoQuy(SO, '', null).tep === 'so-quy.xlsx', bx.xuatSoQuy(SO, '', null).tep);
+
 console.log('\n' + (fail ? '\x1b[31m' : '\x1b[32m') + pass + ' pass, ' + fail + ' fail\x1b[0m');
 if (fail) { fails.forEach((f) => console.log('  - ' + f)); process.exit(1); }

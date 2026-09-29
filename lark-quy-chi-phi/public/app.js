@@ -315,7 +315,10 @@ function ve() {
 
   /* Vai không được phép thì GIẤU HẲN nút, đừng để nó nằm đó rồi bấm vào chỉ báo
    * "bạn không có quyền". Một nút bấm được mà không làm gì là lời hứa suông. */
-  [['#btnNap', laChuQuy()], ['#btnChiMoi', laChuQuy()]].forEach(([sel, hien]) => {
+  [['#btnNap', laChuQuy()], ['#btnChiMoi', laChuQuy()],
+    /* Kế toán cũng xuất được: lọc ra một tháng, một mã quyết toán rồi cần bản
+     * Excel để đối chiếu — đó là việc chính của chị ấy. */
+    ['#btnXuatSo', duocQuyetToan() && S.tab !== 'ung' && S.tab !== 'bao']].forEach(([sel, hien]) => {
     const e = $(sel);
     if (e) e.hidden = !hien;
   });
@@ -707,6 +710,59 @@ async function moChotKy() {
     '<div class="sp"></div><button class="btn" data-close="1">Thôi</button>'
     + '<button class="btn primary" id="ckLam" data-chinh="1">Chốt kỳ & mở kỳ mới</button>');
   setTimeout(() => $('#ckMa') && $('#ckMa').focus(), 30);
+}
+
+/* ---------------------------------------------------------------------------
+ * XUẤT SỔ THEO BỘ LỌC ĐANG XEM
+ * -------------------------------------------------------------------------
+ * Gửi xuống ID của đúng những dòng đang hiện, theo đúng thứ tự đang hiện. Máy
+ * chủ không lọc lại — xem /api/xuat-so.
+ *
+ * Tải bằng Blob chứ không bằng thẻ <a href>: đường này là POST (danh sách id
+ * dài hơn mọi giới hạn đường dẫn), mà thẻ <a> thì chỉ GET được.
+ */
+function moTaLocDangXem() {
+  const p = [];
+  if (S.tab === 'thieu') p.push('Cần bổ sung chứng từ');
+  if (S.loc.thang) p.push('Tháng ' + S.loc.thang.slice(5) + '/' + S.loc.thang.slice(0, 4));
+  if (S.loc.loai) p.push(S.loc.loai);
+  if (S.loc.tinhTrang) p.push(S.loc.tinhTrang);
+  if (String(S.loc.tim || '').trim()) p.push('tìm "' + String(S.loc.tim).trim() + '"');
+  return p.join(' · ') || 'toàn bộ sổ';
+}
+
+async function xuatSoDangXem(nut) {
+  const ds = locChi();
+  if (!ds.length) return toast('Bộ lọc hiện tại không còn khoản nào để xuất.', 'err');
+  const moTa = moTaLocDangXem();
+  const chuCu = nut ? nut.textContent : '';
+  if (nut) { nut.disabled = true; nut.textContent = 'Đang dựng…'; }
+  try {
+    const r = await fetch(apiUrl('/api/xuat-so'), {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: ds.map((c) => c.id), moTa }),
+    });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      throw new Error(d.error || ('Lỗi máy chủ ' + r.status));
+    }
+    /* Tên tệp do máy chủ đặt — lấy lại từ đầu mục để người nhận thấy đúng tên
+     * đó, không phải một chuỗi ngẫu nhiên của trình duyệt. */
+    const cd = r.headers.get('content-disposition') || '';
+    const ten = decodeURIComponent((/filename\*=UTF-8''([^;]+)/.exec(cd) || [])[1]
+      || (/filename="([^"]+)"/.exec(cd) || [])[1] || 'so-quy.xlsx');
+    const b = await r.blob();
+    const u = URL.createObjectURL(b);
+    const a = document.createElement('a');
+    a.href = u; a.download = ten;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(u), 30000);
+    toast('Đã xuất ' + ds.length + ' khoản · ' + moTa, 'ok');
+  } catch (e) {
+    toast(e.message, 'err');
+  } finally {
+    if (nut) { nut.disabled = false; nut.textContent = chuCu; }
+  }
 }
 
 /* ---------------- cửa sổ ---------------- */
@@ -1383,6 +1439,8 @@ document.addEventListener('click', async (e) => {
     }
     return;
   }
+
+  if (T.closest('#btnXuatSo')) return xuatSoDangXem(T.closest('#btnXuatSo'));
 
   if (T.closest('#btnNap') || T.closest('#btnNap2')) {
     return laChuQuy() ? moNapQuy() : toast('Chỉ người giữ quỹ mới ghi tiền ứng.', 'err');
