@@ -122,6 +122,8 @@ async function taiLai(moi) {
   const d = await api('/api/meta' + (moi ? '?moi=1' : ''));
   S.chi = d.chi || [];
   S.nap = d.nap || [];
+  /* Danh sách ĐỢT (kỳ quỹ) — dải kỳ ở tab Các lần ứng tiền đọc từ đây. */
+  S.dot = d.dot || [];
   S.quy = d.quy || S.quy;
   S.options = d.options || S.options;
   S.me = d.me;
@@ -610,8 +612,36 @@ function veThanhChon() {
  * Dòng "Chuyển từ kỳ trước" cố ý hiện mờ và KHÔNG cộng vào tổng: nó là tồn của
  * kỳ trước, đếm vào là tính trùng 11.194.600 đ.
  */
+/* ---------------------------------------------------------------------------
+ * CÁC KỲ QUỸ
+ * -------------------------------------------------------------------------
+ * Trên sheet cũ, hết tháng là tách một tab mới: ghi số tồn tháng trước lên đầu
+ * rồi trừ dần. Ở đây một kỳ là một ĐỢT TẠM ỨNG, và trước 29/09/2026 không có
+ * chỗ nào bấm để sang kỳ mới — mấy đợt đang có đều do nhập từ sheet sang.
+ *
+ * Bày cả danh sách kỳ chứ không chỉ kỳ đang dùng: số tồn kỳ này chính là số
+ * đầu kỳ sau, nên nhìn liền mạch mới thấy được mạch tiền.
+ */
+function veCacKy() {
+  const ds = [...(S.dot || [])].reverse();
+  if (!ds.length) return '';
+  const o = (d) => {
+    const dang = d.tinhTrang === 'Đang dùng';
+    return '<div class="ky-o' + (dang ? ' dang' : '') + '">'
+      + '<div class="ky-ten">' + esc(d.ma || '(chưa đặt tên)')
+        + '<span class="badge ' + (dang ? 'xanh' : 'xam') + '">' + esc(d.tinhTrang || '—') + '</span></div>'
+      + '<div class="ky-so"><span>Nạp ' + tien(d.tongNap) + '</span>'
+        + '<span>Chi ' + tien(d.tongChi) + '</span>'
+        + '<b class="' + (d.conLai < 0 ? 'am' : '') + '">Còn ' + tien(d.conLai) + '</b></div>'
+      + (dang && laChuQuy()
+        ? '<button class="btn nho" data-chotky="1">Chốt kỳ &amp; mở kỳ mới</button>' : '')
+    + '</div>';
+  };
+  return '<section class="ky-dai">' + ds.map(o).join('') + '</section>';
+}
+
 function veUng() {
-  if (!S.nap.length) return '<section class="bang"><div class="trong">Chưa có lần ứng nào.</div></section>';
+  if (!S.nap.length) return veCacKy() + '<section class="bang"><div class="trong">Chưa có lần ứng nào.</div></section>';
   const ds = [...S.nap].sort((a, b) => String(b.ngay || '').localeCompare(String(a.ngay || '')));
 
   const dong = (n) => {
@@ -626,7 +656,7 @@ function veUng() {
     + '</tr>';
   };
 
-  return '<section class="bang"><div class="cuon"><table><thead><tr>'
+  return veCacKy() + '<section class="bang"><div class="cuon"><table><thead><tr>'
     + '<th>Nội dung</th><th class="num">Số tiền</th><th>Ngày</th><th>Loại</th><th></th>'
     + '</tr></thead><tbody>' + ds.map(dong).join('') + '</tbody>'
     + '<tfoot><tr><td>Công ty đã ứng ' + S.quy.soLanUng + ' lần</td>'
@@ -634,6 +664,49 @@ function veUng() {
     + '</table></div>'
     + (laChuQuy() ? '<div class="duoi"><button class="btn" id="btnNap2">+ Ghi một lần ứng tiền</button></div>' : '')
   + '</section>';
+}
+
+/* ---------------------------------------------------------------------------
+ * CHỐT KỲ & MỞ KỲ MỚI
+ * -------------------------------------------------------------------------
+ * Ba bước đi liền nhau (xem /api/chot-ky ở server.js). Cửa sổ này chỉ có một
+ * việc: bày ĐỦ những gì sắp xảy ra trước khi bấm. Chốt kỳ không gỡ lại được
+ * bằng một nút — phải vào Base sửa tay hai bảng.
+ */
+async function moChotKy() {
+  let d;
+  try { d = await api('/api/chot-ky'); }
+  catch (e) { return toast(e.message, 'err'); }
+
+  const canh = [];
+  /* Kế toán đóng sổ bằng cách gán mã quyết toán. Khoản chưa có mã thì sau khi
+   * kỳ đóng sẽ nằm lại đó và không ai ngó tới nữa — nói ra TRƯỚC khi bấm. */
+  if (d.chuaQuyetToan) {
+    canh.push('<b>' + d.chuaQuyetToan + ' khoản chưa có mã quyết toán.</b> '
+      + 'Chốt kỳ bây giờ thì chúng nằm lại ở kỳ ' + esc(d.ky.ma) + ' mà chưa đóng sổ.');
+  }
+  if (d.thieuChungTu) {
+    canh.push(d.thieuChungTu + ' khoản chưa có chứng từ.');
+  }
+  if (d.choChi) {
+    canh.push(d.choChi + ' khoản còn "Chờ chi" — tiền chưa ra khỏi quỹ nhưng đã bị trừ vào số tồn.');
+  }
+
+  moModal('Chốt kỳ ' + esc(d.ky.ma) + ' & mở kỳ mới',
+    '<div class="form">'
+    + '<div class="tomtat"><b>' + esc(d.ky.ma) + '</b>'
+      + '<div class="nho">Nạp ' + tien(d.ky.tongNap) + ' · Chi ' + tien(d.ky.tongChi)
+      + ' · ' + d.soKhoan + ' khoản</div></div>'
+    + '<div class="nhac">Số tồn <b>' + tien(d.ky.ton) + ' đ</b> sẽ thành <b>số dư đầu kỳ</b> '
+      + 'của kỳ mới — đúng như tách tab mới trên sheet.</div>'
+    + (canh.length ? '<div class="nhac canhbao">' + canh.join('<br>') + '</div>' : '')
+    + o('Tên kỳ mới', '<input id="ckMa" value="' + esc(d.maGoiY || '') + '" placeholder="THÁNG 10">', true)
+    + '<div class="nhac">Sau khi chốt, kỳ <b>' + esc(d.ky.ma) + '</b> chuyển sang "Đã chốt" và '
+      + 'mọi khoản chi khai mới rơi vào kỳ mới. Gỡ lại thì phải sửa tay trên Base.</div>'
+    + '</div>',
+    '<div class="sp"></div><button class="btn" data-close="1">Thôi</button>'
+    + '<button class="btn primary" id="ckLam" data-chinh="1">Chốt kỳ & mở kỳ mới</button>');
+  setTimeout(() => $('#ckMa') && $('#ckMa').focus(), 30);
 }
 
 /* ---------------- cửa sổ ---------------- */
@@ -1291,6 +1364,26 @@ document.addEventListener('click', async (e) => {
   if (T.closest('#btnChiMoi')) {
     return laChuQuy() ? moKhaiChi() : toast('Chỉ người giữ quỹ mới khai khoản chi.', 'err');
   }
+  if (T.closest('[data-chotky]')) {
+    return laChuQuy() ? moChotKy() : toast('Chỉ người giữ quỹ chốt được kỳ.', 'err');
+  }
+  if (T.closest('#ckLam')) {
+    const n = T.closest('#ckLam');
+    const ma = ($('#ckMa') || {}).value || '';
+    if (!String(ma).trim()) return toast('Đặt tên cho kỳ mới đã.', 'err');
+    n.disabled = true; n.textContent = 'Đang chốt…';
+    try {
+      const d = await api('/api/chot-ky', { method: 'POST', body: JSON.stringify({ ma }) });
+      dongModal();
+      toast('Đã chốt ' + d.dong + ', mở ' + d.ky.ma + ' với số dư đầu kỳ ' + tien(d.ton), 'ok');
+      await taiLai(true);
+    } catch (e) {
+      toast(e.message, 'err');
+      n.disabled = false; n.textContent = 'Chốt kỳ & mở kỳ mới';
+    }
+    return;
+  }
+
   if (T.closest('#btnNap') || T.closest('#btnNap2')) {
     return laChuQuy() ? moNapQuy() : toast('Chỉ người giữ quỹ mới ghi tiền ứng.', 'err');
   }

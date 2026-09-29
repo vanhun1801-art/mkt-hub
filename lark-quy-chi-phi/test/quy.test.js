@@ -65,10 +65,27 @@ const nhom = (t) => console.log('\n\x1b[1m' + t + '\x1b[0m');
   ok('tổng đã ứng khớp khi tính lại', m.quy.tongUng === ungThat, m.quy.tongUng + ' vs ' + ungThat);
   ok('tổng đã chi khớp khi tính lại', m.quy.tongChi === chiHet, m.quy.tongChi + ' vs ' + chiHet);
   ok('còn lại = đã ứng − đã chi', m.quy.conLai === ungThat - chiHet, String(m.quy.conLai));
-  /* Chốt chặn hồi quy: nếu ai đó lỡ đếm cả dòng chuyển tiếp, con số này vọt lên
-   * 76.754.531 và bài thử phải đỏ ngay. */
-  ok('KHÔNG cộng nhầm dòng chuyển từ kỳ trước', m.quy.tongUng < 70000000,
-    'đang là ' + m.quy.tongUng.toLocaleString('vi'));
+  /* Chốt chặn hồi quy: đếm cả dòng chuyển tiếp thì tổng vọt lên đúng bằng tổng
+   * các dòng ấy.
+   *
+   * TỪNG viết là `tongUng < 70000000`. Sai lầm y hệt cái đã mắc ngay dưới đây
+   * với con số 7.378.056: một ngưỡng cứng đo một cuốn sổ đang sống. Ngày
+   * 29/09/2026 anh Hùng nạp thêm 22 triệu, tổng đã ứng lên 77.559.931 và bài
+   * thử đỏ — trong khi mã KHÔNG hỏng gì cả.
+   *
+   * Đo bằng chính hai cách cộng, đặt cạnh nhau: có và không có dòng chuyển
+   * tiếp. Khoảng cách giữa chúng phải đúng bằng tổng dòng chuyển tiếp, và sổ có
+   * to lên bao nhiêu thì phép thử vẫn đo đúng thứ nó sinh ra để đo. */
+  const chuyenTiep = m.nap.filter((n) => n.loai === 'Chuyển từ kỳ trước')
+    .reduce((a, n) => a + n.tien, 0);
+  const congTuot = m.nap.reduce((a, n) => a + n.tien, 0);
+  ok('sổ có dòng chuyển từ kỳ trước để mà đếm nhầm', chuyenTiep > 0,
+    chuyenTiep.toLocaleString('vi'));
+  ok('KHÔNG cộng nhầm dòng chuyển từ kỳ trước',
+    congTuot - m.quy.tongUng === chuyenTiep,
+    'cộng tuốt ' + congTuot.toLocaleString('vi') + ' − tổng ứng '
+    + m.quy.tongUng.toLocaleString('vi') + ' = ' + (congTuot - m.quy.tongUng).toLocaleString('vi')
+    + ', đáng ra ' + chuyenTiep.toLocaleString('vi'));
 
   /* TỪNG ghim cứng 7.378.056 — con số anh Hùng đối chiếu với kế toán ngày
    * 12/09/2026. Sai lầm: đó là ảnh chụp một khoảnh khắc, mà sổ thì sống. Ngay

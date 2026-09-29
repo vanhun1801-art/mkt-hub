@@ -581,3 +581,17 @@ td.tacvu .btn + .btn { margin-left: 5px; }
   .bc-lb { font-size: 12.5px; }
   .bc-bang th { font-size: 12px; }
 }
+
+/* ===========================================================================
+   DẢI CÁC KỲ QUỸ — tab "Các lần ứng tiền"
+   Số tồn kỳ này chính là số đầu kỳ sau, nên bày liền mạch mới thấy mạch tiền.
+   =========================================================================== */
+.ky-dai { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.ky-o { border: 1px solid var(--line); border-radius: 11px; padding: 11px 13px; background: var(--surface); min-width: 0; }
+/* Kỳ đang dùng phải nổi hơn hẳn: đó là kỳ mọi khoản chi mới rơi vào. */
+.ky-o.dang { border-color: var(--primary-border); background: var(--primary-bg); }
+.ky-ten { display: flex; align-items: center; gap: 7px; font-weight: 600; font-size: 13.5px; color: var(--t1); }
+.ky-so { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 6px; font-size: 12px; color: var(--t3); }
+.ky-so b { color: var(--t1); }
+.ky-so b.am { color: var(--red-t, #b42318); }
+.ky-o .btn.nho { margin-top: 9px; }

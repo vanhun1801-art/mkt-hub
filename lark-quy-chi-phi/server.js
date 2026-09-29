@@ -875,6 +875,112 @@ async function xuLy(req, res) {
     return json(res, { ok: true });
   }
 
+  /* -------------------------------------------------------------------
+   * CHỐT KỲ & MỞ KỲ MỚI
+   * -------------------------------------------------------------------
+   * Trên sheet cũ, hết tháng là anh Hùng tách một tab mới: ghi số tồn của
+   * tháng trước lên đầu rồi trừ dần. Ở đây một kỳ là một ĐỢT TẠM ỨNG, nên
+   * việc đó gồm đúng ba bước — và ba bước ấy phải đi liền nhau, vì làm lẻ thì
+   * dễ bỏ sót đúng bước quan trọng nhất là chuyển số tồn.
+   *
+   *   1. mở đợt mới, đặt "Đang dùng"
+   *   2. ghi một dòng nạp "Chuyển từ kỳ trước" = số tồn của kỳ cũ
+   *   3. đóng đợt cũ lại, đặt "Đã chốt"
+   *
+   * THỨ TỰ CỐ Ý NGƯỢC với cách đọc: đóng đợt cũ SAU CÙNG. Hỏng ở giữa chừng
+   * thì đợt cũ vẫn "Đang dùng", tức là khoản chi khai tiếp vẫn có chỗ rơi vào.
+   * Đóng trước rồi hỏng là mọi khoản mới rơi vào khoảng không.
+   * ------------------------------------------------------------------- */
+  if (p === '/api/chot-ky' && (req.method === 'GET' || req.method === 'POST')) {
+    if (!(await doiChuQuy(res))) return;
+    const k = await nap(req.method === 'POST');
+    const dsDot = k.dot.map((r) => doiRa(r, F.dot));
+    const dsChi = k.chi.map((r) => doiRa(r, F.chi));
+
+    const dangDung = dsDot.filter((d) => d.tinhTrang === 'Đang dùng');
+    if (!dangDung.length) {
+      return json(res, { error: 'Không có kỳ nào đang dùng. Mở một đợt tạm ứng trước đã.' }, 400);
+    }
+    /* Hai kỳ cùng "Đang dùng" thì khoản chi mới rơi vào cái nào là chuyện hên
+     * xui — không đoán hộ, bắt dọn trước. */
+    if (dangDung.length > 1) {
+      return json(res, { error: 'Đang có ' + dangDung.length + ' kỳ cùng ở trạng thái "Đang dùng" ('
+        + dangDung.map((d) => d.ma).join(', ') + '). Đóng bớt trên Base rồi chốt lại.' }, 409);
+    }
+    const cu = dangDung[0];
+    const chiCuaKy = dsChi.filter((c) => (c.dot || []).includes(cu.id));
+    /* Số tồn TIN ô công thức của Base. Chỉ khi ô trống mới cộng tay. */
+    const ton = (cu.conLai === 0 || cu.conLai) ? cu.conLai
+      : (Number(cu.tongNap) || 0) - (Number(cu.tongChi) || 0);
+
+    /* Kế toán đóng sổ bằng cách gán mã quyết toán. Còn khoản chưa có mã thì
+     * chốt kỳ vẫn được — nhưng phải NÓI RA, vì chúng nằm lại ở kỳ cũ và sẽ
+     * không ai ngó tới nữa sau khi kỳ đó đóng. */
+    const chuaQT = chiCuaKy.filter((c) => !String(c.maQuyetToan || '').trim()).length;
+    const choChi = chiCuaKy.filter((c) => c.tinhTrang === 'Chờ chi').length;
+    const thieuCT = chiCuaKy.filter((c) => !((c.hoaDon || []).length || String(c.linkCu || '').trim())
+      && c.tinhTrang !== 'Chờ chi' && !String(c.maQuyetToan || '').trim()).length;
+
+    /* Gợi ý tên kỳ mới: "THÁNG 09" -> "THÁNG 10". Chỉ gợi ý — tên đợt không
+     * phải lúc nào cũng theo tháng (còn "QUỸ TẠM CHI - PC9955"). */
+    const mTh = /^(.*?)(\d{1,2})\s*$/.exec(cu.ma || '');
+    const maGoiY = mTh ? mTh[1] + String(Number(mTh[2]) % 12 + 1).padStart(2, '0') : '';
+
+    const xem = {
+      ky: { id: cu.id, ma: cu.ma, tongNap: cu.tongNap, tongChi: cu.tongChi, ton },
+      soKhoan: chiCuaKy.length, chuaQuyetToan: chuaQT, choChi, thieuChungTu: thieuCT,
+      maGoiY,
+    };
+    if (req.method === 'GET') return json(res, xem);
+
+    const body = await docThan(req);
+    const maMoi = String(body.ma || '').trim();
+    if (!maMoi) return json(res, { error: 'Phải đặt tên cho kỳ mới.' }, 400);
+    if (dsDot.some((d) => String(d.ma || '').trim().toLowerCase() === maMoi.toLowerCase())) {
+      return json(res, { error: 'Đã có kỳ tên "' + maMoi + '". Đặt tên khác để khỏi lẫn.' }, 409);
+    }
+
+    const me = await toiLaAi();
+    let idMoi = '';
+    try {
+      await lark.createRecord(doiVao({
+        ma: maMoi, tinhTrang: 'Đang dùng', ngayMo: new Date().toISOString(),
+        nguoiGiu: me ? [me.id] : [],
+        ghiChu: 'Chuyển tiếp từ kỳ ' + cu.ma,
+      }, F.dot), cfg.dotTableId);
+
+      /* Tìm lại kỳ vừa tạo THEO TÊN, không bới record_id ra khỏi câu trả lời
+       * của Base: hai chế độ chạy (lark-cli và Open API) gói câu trả lời hai
+       * kiểu khác nhau, mà đọc trượt thì dòng số tồn không có chỗ để gắn vào —
+       * đúng thứ quan trọng nhất của cả việc này. Tên thì vừa kiểm là chưa
+       * trùng ở trên. */
+      kho.at = 0;
+      const k2 = await nap(true);
+      const moiTao = k2.dot.map((r) => doiRa(r, F.dot))
+        .find((d) => String(d.ma || '').trim().toLowerCase() === maMoi.toLowerCase());
+      idMoi = moiTao ? moiTao.id : '';
+      if (!idMoi) throw new Error('Đã tạo kỳ mới nhưng chưa đọc lại được từ Base');
+
+      /* Dòng số tồn KHÔNG ghi ngày, đúng như mấy dòng chuyển tiếp đang có
+       * trong sổ: nó không phải một lần công ty đưa tiền, nên đặt cho nó một
+       * ngày là đẻ ra một giao dịch không có thật. */
+      await lark.createRecord(doiVao({
+        noiDung: 'Số dư đầu kỳ', loai: 'Chuyển từ kỳ trước', tien: ton, dot: [idMoi],
+        ghiChu: 'Tồn chuyển tiếp từ kỳ ' + cu.ma,
+      }, F.nap), cfg.napTableId);
+
+      await lark.updateRecord(cu.id, doiVao({ tinhTrang: 'Đã chốt' }, F.dot), cfg.dotTableId);
+    } catch (e) {
+      kho.at = 0;
+      return json(res, { error: 'Chốt kỳ chưa xong: ' + e.message
+        + (idMoi ? ' — kỳ mới ĐÃ tạo, kỳ cũ vẫn đang dùng. Kiểm trên Base rồi làm nốt bằng tay.'
+          : ' — chưa có gì đổi.') }, 502);
+    }
+
+    kho.at = 0;
+    return json(res, { ok: true, ky: { id: idMoi, ma: maMoi }, ton, dong: cu.ma });
+  }
+
   /* ---- mở đợt mới ---- */
   if (p === '/api/dot' && req.method === 'POST') {
     if (!(await doiChuQuy(res))) return;
