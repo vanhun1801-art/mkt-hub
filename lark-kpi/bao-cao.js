@@ -34,6 +34,18 @@ const APP = [
     mau: '#00b96b', url: process.env.KPI_URL_LICH || 'http://localhost:5174' },
   { id: 'quy-chi-phi', ten: 'Quỹ chi phí', mo: 'Sổ quỹ tạm ứng · quyết toán',
     mau: '#d4a017', url: process.env.KPI_URL_QUY || 'http://localhost:5182' },
+  { id: 'chinh-anh', ten: 'Chỉnh ảnh & Edit video', mo: 'Sản phẩm hậu kỳ · nghiệm thu',
+    mau: '#e0529c', url: process.env.KPI_URL_ANH || 'http://localhost:5181' },
+  { id: 'kol', ten: 'KOL', mo: 'Mời · đi tour · bàn giao bài',
+    mau: '#8b5cf6', url: process.env.KPI_URL_KOL || 'http://localhost:5186' },
+  { id: 'san-pham', ten: 'Sản phẩm', mo: 'Giá công bố · USP · ưu đãi',
+    mau: '#0ea5a0', url: process.env.KPI_URL_SP || 'http://localhost:5184' },
+  { id: 'bao-cao-viec', ten: 'Báo cáo công việc', mo: 'Phiếu ngày · tuần · tháng',
+    mau: '#6366f1', url: process.env.KPI_URL_BCV || 'http://localhost:5183' },
+  { id: 'kho-media', ten: 'Kho media', mo: 'Ảnh · video trên Drive Marketing',
+    mau: '#64748b', url: process.env.KPI_URL_MEDIA || 'http://localhost:5188' },
+  { id: 'lich-lam-viec', ten: 'Lịch làm việc', mo: 'Đăng ký ca · chép sang HCNS',
+    mau: '#0891b2', url: process.env.KPI_URL_LLV || 'http://localhost:5185' },
 ];
 
 /**
@@ -144,14 +156,53 @@ function gopNen(ds, khoa, tenKhoa = 'platform') {
   return { co, khong, tong: co.length + khong.length };
 }
 
-function kyTruoc(tu, den) {
+/**
+ * Kỳ đem ra so sánh. Ba kiểu, vì ba câu hỏi khác nhau:
+ *
+ *   'truoc'     — khoảng liền trước, cùng độ dài. Trả lời "so với vừa rồi".
+ *   'thangtruoc'— cùng ngày, lùi một tháng. Trả lời "so với tháng trước", giữ
+ *                 đúng vị trí trong tháng (mùng 1–15 so với mùng 1–15).
+ *   'namtruoc'  — cùng ngày, lùi một năm. Trả lời "cùng kỳ năm ngoái", là cách
+ *                 duy nhất so được khi việc kinh doanh có mùa.
+ *
+ * `soNgay` luôn là độ dài của kỳ ĐANG XEM, không phải của kỳ so sánh — lùi một
+ * tháng từ 31/03 ra tháng 2 ngắn hơn, nhưng số ngày in trên báo cáo phải là số
+ * ngày của kỳ người ta chọn.
+ */
+const KIEU_SS = {
+  truoc: 'kỳ liền trước',
+  thangtruoc: 'cùng kỳ tháng trước',
+  namtruoc: 'cùng kỳ năm trước',
+};
+
+function kyTruoc(tu, den, kieu) {
   const a = new Date(tu + 'T00:00:00Z');
   const b = new Date(den + 'T00:00:00Z');
   const dai = Math.round((b - a) / 86400000) + 1;
+  const iso = (d) => d.toISOString().slice(0, 10);
+
+  if (kieu === 'thangtruoc' || kieu === 'namtruoc') {
+    const lui = (d) => {
+      const x = new Date(d.getTime());
+      if (kieu === 'namtruoc') x.setUTCFullYear(x.getUTCFullYear() - 1);
+      else {
+        /* Lùi tháng phải đặt về ngày 1 TRƯỚC khi đổi tháng. `setUTCMonth(-1)`
+         * trên ngày 31 tháng 3 ra ngày 3 tháng 3 (tháng 2 không có 31) — lặng
+         * lẽ lệch cả kỳ. Đặt ngày 1, lùi tháng, rồi kẹp ngày vào cuối tháng. */
+        const ngay = x.getUTCDate();
+        x.setUTCDate(1);
+        x.setUTCMonth(x.getUTCMonth() - 1);
+        const cuoi = new Date(Date.UTC(x.getUTCFullYear(), x.getUTCMonth() + 1, 0)).getUTCDate();
+        x.setUTCDate(Math.min(ngay, cuoi));
+      }
+      return x;
+    };
+    return { tu: iso(lui(a)), den: iso(lui(b)), soNgay: dai, kieu, nhan: KIEU_SS[kieu] };
+  }
+
   const bTruoc = new Date(a.getTime() - 86400000);
   const aTruoc = new Date(bTruoc.getTime() - (dai - 1) * 86400000);
-  const iso = (d) => d.toISOString().slice(0, 10);
-  return { tu: iso(aTruoc), den: iso(bTruoc), soNgay: dai };
+  return { tu: iso(aTruoc), den: iso(bTruoc), soNgay: dai, kieu: 'truoc', nhan: KIEU_SS.truoc };
 }
 
 /* ================= SOCIAL ================= */
@@ -162,6 +213,23 @@ async function docSocial(app, tu, den) {
   const nt = d.nenTang || [];
   /* `n(khoa)` gắn vào ô danh sách nền tảng có / không có con số đó — xem gopNen. */
   const n = (khoa) => gopNen(nt, khoa);
+
+  /* Gom các phiên LIVE. App Social trả từng phiên trong `d.live`; ở tầng báo
+   * cáo cần số gộp của cả kỳ. */
+  const dsLive = d.live || [];
+  const congLive = (f) => dsLive.reduce((a, x) => a + so(x[f]), 0);
+  const lv = {
+    soPhien: dsLive.length,
+    phut: congLive('minutes'),
+    views: congLive('views'),
+    comments: congLive('comments'),
+    newFollows: congLive('newFollows'),
+    messages: congLive('messages'),
+    leads: congLive('leads'),
+    orders: congLive('orders'),
+    revenue: congLive('revenue'),
+    peak: Math.max(0, ...dsLive.map((x) => so(x.peak))),
+  };
   return {
     luuY: d.luuY || [],
     o: [
@@ -183,6 +251,21 @@ async function docSocial(app, tu, den) {
       { nhan: 'Lead', so: so(t.leads), dinhDang: 'so', lech: l.leads, nen: n('leads') },
       { nhan: 'Số bài đăng', so: so(t.posts), dinhDang: 'so', lech: l.posts, nen: n('posts') },
       { nhan: 'Số phiên LIVE', so: so(t.lives), dinhDang: 'so', lech: l.lives, nen: n('lives') },
+      /* LIVE tách thành nhóm ô riêng. Trước đây cả mảng 28 phiên chỉ được tóm
+       * lại thành một con số đếm — mất sạch giờ lên sóng, đơn chốt và doanh thu
+       * của nó, trong khi LIVE lại là phần đội nội dung tốn công nhất. */
+      { nhan: 'LIVE · giờ lên sóng', so: lv.phut / 60, dinhDang: 'so2', ghi: 'giờ' },
+      { nhan: 'LIVE · lượt xem', so: lv.views, dinhDang: 'so' },
+      { nhan: 'LIVE · đỉnh cùng lúc', so: lv.peak, dinhDang: 'so', ghi: 'người xem cao nhất một phiên' },
+      { nhan: 'LIVE · bình luận', so: lv.comments, dinhDang: 'so' },
+      { nhan: 'LIVE · follow mới', so: lv.newFollows, dinhDang: 'so' },
+      { nhan: 'LIVE · tin nhắn', so: lv.messages, dinhDang: 'so' },
+      { nhan: 'LIVE · lead', so: lv.leads, dinhDang: 'so' },
+      { nhan: 'LIVE · đơn chốt', so: lv.orders, dinhDang: 'so' },
+      { nhan: 'LIVE · doanh thu', so: lv.revenue, dinhDang: 'vnd',
+        ghi: lv.revenue ? '' : 'chưa ghi doanh thu phiên nào' },
+      { nhan: 'LIVE · xem trung bình một phiên', so: lv.soPhien ? lv.views / lv.soPhien : 0,
+        dinhDang: 'so' },
       /* KHÔNG dùng `tyLeTuongTac` của app Social ở tầng tổng: mẫu số là tổng
        * reach, mà Facebook không trả reach nên tỷ lệ vọt lên 294%. Ở đây lấy mẫu
        * số là LƯỢT XEM và gọi đúng tên, để không ai phải đoán mẫu số là gì. */
@@ -216,6 +299,13 @@ async function docSocial(app, tu, den) {
         soCot: [2, 3, 4, 5],
         dong: (d.kenh || []).map((k) => [k.name, k.platform, so(k.views), so(k.engagement),
           so(k.followUp), so(k.posts)]) },
+      { tieuDe: 'Phiên LIVE trong kỳ',
+        cot: ['Ngày', 'Kênh', 'Nền tảng', 'Phút', 'Lượt xem', 'Đỉnh', 'Bình luận', 'Follow mới', 'Đơn', 'Doanh thu'],
+        soCot: [3, 4, 5, 6, 7, 8, 9],
+        dong: dsLive.slice().sort((a, b) => String(b.start || '').localeCompare(String(a.start || '')))
+          .slice(0, 40).map((x) => [String(x.start || '').slice(0, 10), x.channel || '',
+            x.platform || '', so(x.minutes), so(x.views), so(x.peak), so(x.comments),
+            so(x.newFollows), so(x.orders), so(x.revenue)]) },
       { tieuDe: 'Bài xem nhiều nhất',
         cot: ['Bài', 'Kênh', 'Lượt xem', 'Tương tác'],
         soCot: [2, 3],
@@ -238,8 +328,18 @@ async function docQuangCao(app, tu, den) {
     o: [
       { nhan: 'Chi tiêu', so: so(k.spend), dinhDang: 'vnd', lech: l.spend, chinh: true, nen: n('spend') },
       { nhan: 'Doanh thu từ QC', so: so(k.revenue), dinhDang: 'vnd', lech: l.revenue,
-        ghi: so(k.revenue) ? '' : 'chưa ghi công được đơn nào' },
-      { nhan: 'ROAS', so: so(k.roas), dinhDang: 'x', lech: l.roas },
+        ghi: so(k.revenue) ? 'đơn ghi công được cho quảng cáo' : 'chưa ghi công được đơn nào' },
+      { nhan: 'ROAS', so: so(k.roas), dinhDang: 'x', lech: l.roas,
+        ghi: 'mỗi đồng chi ra thu về' },
+      /* Ba ô đặt doanh thu quảng cáo vào bối cảnh công ty. App Ads đã tính sẵn;
+       * thiếu chúng thì "157 triệu" đọc lên như toàn bộ doanh thu của phòng. */
+      { nhan: 'Doanh thu toàn công ty', so: so(k.revenueCongTy), dinhDang: 'vnd',
+        ghi: 'mọi nguồn, để đặt cạnh mà so' },
+      { nhan: 'Doanh thu NGOÀI quảng cáo', so: so(k.revenueNgoaiQuangCao), dinhDang: 'vnd' },
+      { nhan: 'Phần doanh thu đến từ QC', so: so(k.tyLeTuQuangCao), dinhDang: 'pt',
+        ghi: 'trên doanh thu toàn công ty' },
+      { nhan: 'Doanh thu mỗi chuyển đổi', so: so(k.conversions) ? so(k.revenue) / so(k.conversions) : 0,
+        dinhDang: 'vnd' },
       { nhan: 'Chuyển đổi', so: so(k.conversions), dinhDang: 'so', lech: l.conversions, nen: n('conversions') },
       /* CPA / CPC / CPM thấp là TỐT — `dao` để giao diện đảo chiều màu mũi tên,
        * không đảo thì "CPA giảm 20%" bị tô đỏ như một tin xấu. */
@@ -255,9 +355,11 @@ async function docQuangCao(app, tu, den) {
         ghi: nang ? nang + ' mức cao' : '' },
     ],
     chuoi: {
-      nhan: 'Chi tiêu & chuyển đổi theo ngày',
-      diem: (d.series || []).map((x) => ({ x: x.date, spend: so(x.spend), conversions: so(x.conversions) })),
+      nhan: 'Chi tiêu · doanh thu · chuyển đổi theo ngày',
+      diem: (d.series || []).map((x) => ({ x: x.date, spend: so(x.spend),
+        revenue: so(x.revenue), conversions: so(x.conversions) })),
       duong: [{ key: 'spend', label: 'Chi tiêu', mau: '#ff7d00' },
+        { key: 'revenue', label: 'Doanh thu', mau: '#12a150' },
         { key: 'conversions', label: 'Chuyển đổi', mau: '#2b5cff', truc: 2 }],
     },
     tron: {
@@ -267,15 +369,21 @@ async function docQuangCao(app, tu, den) {
     },
     bang: [
       { tieuDe: 'Theo nền tảng',
-        cot: ['Nền tảng', 'Chi tiêu', '% chi', 'Hiển thị', 'Nhấp', 'CTR', 'Chuyển đổi', 'CPA'],
-        soCot: [1, 2, 3, 4, 5, 6, 7],
+        cot: ['Nền tảng', 'Chi tiêu', '% chi', 'Doanh thu', 'ROAS', 'Nhấp', 'CTR', 'Chuyển đổi', 'CPA'],
+        soCot: [1, 2, 3, 4, 5, 6, 7, 8],
         dong: (d.byPlatform || []).map((x) => [x.platform, so(x.spend), so(x.shareSpend),
-          so(x.impressions), so(x.clicks), so(x.ctr), so(x.conversions), so(x.cpa)]) },
+          so(x.revenue), so(x.roas), so(x.clicks), so(x.ctr), so(x.conversions), so(x.cpa)]) },
       { tieuDe: 'Theo chiến dịch',
         cot: ['Chiến dịch', 'Nền tảng', 'Trạng thái', 'Chi tiêu', 'Chuyển đổi', 'CPA'],
         soCot: [3, 4, 5],
         dong: (d.byCampaign || []).map((x) => [x.name, x.platform, x.status,
           so(x.spend), so(x.conversions), so(x.cpa)]) },
+      { tieuDe: 'Doanh thu ghi nhận theo chiến dịch',
+        cot: ['Chiến dịch', 'Nền tảng', 'Chi tiêu', 'Doanh thu', 'ROAS', 'Chuyển đổi', 'CPA'],
+        soCot: [2, 3, 4, 5, 6],
+        dong: (d.byCampaign || []).slice().sort((a, b) => so(b.revenue) - so(a.revenue))
+          .map((x) => [x.name, x.platform, so(x.spend), so(x.revenue), so(x.roas),
+            so(x.conversions), so(x.cpa)]) },
       { tieuDe: 'Quảng cáo hiệu quả nhất',
         cot: ['Quảng cáo', 'Chiến dịch', 'Chi tiêu', 'Chuyển đổi', 'CPA'],
         soCot: [2, 3, 4],
@@ -552,6 +660,74 @@ async function docQuyChiPhi(app, tu, den) {
   };
 }
 
+/* ================= SÁU APP CÒN LẠI =================
+ * Sáu app này đều cấp `/api/tong-quan` theo quy ước chung của Hub: một mảng
+ * `the` gồm các ô đã có sẵn nhãn, số, định dạng và mức nghiêm trọng. Không phải
+ * viết bộ đọc riêng cho từng cái — chép thẳng mảng đó sang là xong, và app nào
+ * thêm chỉ số mới thì báo cáo tự có theo.
+ *
+ * ĐÁNH ĐỔI, nói trước: quy ước `the` KHÔNG mang khoảng thời gian cho mọi app.
+ * Cái nào nhận `tu`/`den` thì lọc đúng kỳ; cái nào không thì trả số tại thời
+ * điểm mở (tồn kho, số đang chờ xử lý). Ô nào thuộc loại đó được gắn cờ
+ * `hienTai` để giao diện ghi rõ "số hiện tại", chứ không để người đọc tưởng nó
+ * là số phát sinh trong kỳ.
+ */
+function chepThe(d, hienTai) {
+  return (d.the || []).map((t) => ({
+    nhan: t.nhan,
+    so: so(t.so),
+    dinhDang: t.dinhDang || 'so',
+    chinh: !!t.chinh,
+    muc: t.muc,
+    ghi: t.ghi || '',
+    /* App con tự biết ô nào "thấp là tốt" — nhưng quy ước `the` chưa mang cờ
+     * đó, nên suy từ mức nghiêm trọng: ô nào app đánh dấu là đáng lo thì càng
+     * nhiều càng xấu. */
+    dao: t.muc === 'cao' || t.muc === 'vua',
+    hienTai: !!hienTai,
+  }));
+}
+
+/** App nhận khoảng thời gian: Chỉnh ảnh · Báo cáo công việc. */
+async function docTheoKy(app, tu, den) {
+  const d = await goi(app, '/api/tong-quan?tu=' + tu + '&den=' + den
+    + '&from=' + tu + '&to=' + den);
+  return { o: chepThe(d, false), bang: [] };
+}
+
+/** App chỉ có số tại thời điểm mở: Sản phẩm · Lịch làm việc · KOL · Kho media. */
+async function docHienTai(app) {
+  const d = await goi(app, '/api/tong-quan');
+  return { o: chepThe(d, true), bang: [] };
+}
+
+/**
+ * Chỉnh ảnh & Edit video — app này KHÔNG theo quy ước `the`, nó trả thẳng các
+ * khoá riêng. Nên phải dịch tay.
+ */
+async function docChinhAnh(app, tu, den) {
+  const d = await goi(app, '/api/tong-quan?tu=' + tu + '&den=' + den);
+  const dem = (v) => so(v);
+  return {
+    o: [
+      { nhan: 'Lô sản phẩm đã báo', so: dem(d.soBaoCao), dinhDang: 'so', chinh: true },
+      { nhan: 'Ảnh đã chỉnh', so: dem(d.soAnh), dinhDang: 'so' },
+      { nhan: 'Video đã dựng', so: dem(d.soVideo), dinhDang: 'so' },
+      { nhan: 'Chờ nghiệm thu', so: dem(d.choNghiemThu), dinhDang: 'so', dao: true,
+        muc: dem(d.choNghiemThu) ? 'vua' : 'ok' },
+      { nhan: 'Đã nghiệm thu đạt', so: dem(d.dat), dinhDang: 'so' },
+      { nhan: 'Cần sửa lại', so: dem(d.canSua), dinhDang: 'so', dao: true },
+      { nhan: 'Chưa gửi nhóm', so: dem(d.chuaGui), dinhDang: 'so', dao: true },
+      { nhan: 'Người có sản phẩm', so: dem(d.nguoi), dinhDang: 'so' },
+    ],
+    bang: [
+      { tieuDe: 'Cần xử lý',
+        cot: ['Việc', 'Số'], soCot: [1],
+        dong: (d.canXuLy || []).map((x) => [x.nhan || x.ten || '', so(x.so)]) },
+    ].filter((b) => b.dong.length),
+  };
+}
+
 const BO_DOC = {
   social: docSocial,
   'quang-cao': docQuangCao,
@@ -559,11 +735,17 @@ const BO_DOC = {
   'cong-viec': docCongViec,
   'lich-tac-nghiep': docLich,
   'quy-chi-phi': docQuyChiPhi,
+  'chinh-anh': docChinhAnh,
+  kol: (app, tu, den) => docTheoKy(app, tu, den),
+  'san-pham': (app) => docHienTai(app),
+  'bao-cao-viec': (app, tu, den) => docTheoKy(app, tu, den),
+  'kho-media': (app) => docHienTai(app),
+  'lich-lam-viec': (app) => docHienTai(app),
 };
 
 /** @param {{id,ten,quanLy}} nguoi Người đang xem — gửi kèm cho app con biết ai hỏi. */
-async function gom(tu, den, nguoi) {
-  const truoc = kyTruoc(tu, den);
+async function gom(tu, den, nguoi, kieuSS) {
+  const truoc = kyTruoc(tu, den, kieuSS);
   const base = await Promise.all(APP.map(async (app) => {
     const nen = { id: app.id, ten: app.ten, mo: app.mo, mau: app.mau };
     try {
@@ -605,6 +787,25 @@ function gomChiPhi(base) {
   const quy = lay('quy-chi-phi', 'Chi trong kỳ');
   const dt = lay('quang-cao', 'Doanh thu từ QC');
 
+  /* Hạng mục chi — lấy thẳng bảng "Theo loại chi" của app Quỹ và bảng "Theo nền
+   * tảng" của app Quảng cáo, gộp thành MỘT danh sách hạng mục của cả phòng.
+   * Không có nó thì "44 triệu" chỉ là một con số, không ai biết tiêu vào đâu. */
+  const bangCua = (id, tieuDe) => {
+    const b = base.find((x) => x.id === id);
+    if (!b || !b.chay) return null;
+    return (b.bang || []).find((x) => x.tieuDe === tieuDe) || null;
+  };
+  const hangMuc = [];
+  const bQuy = bangCua('quy-chi-phi', 'Theo loại chi');
+  if (bQuy) {
+    bQuy.dong.forEach((r) => hangMuc.push({ nhan: r[0], vi: 'Quỹ chi phí', soKhoan: so(r[1]), so: so(r[2]) }));
+  }
+  const bQc = bangCua('quang-cao', 'Theo nền tảng');
+  if (bQc) {
+    bQc.dong.forEach((r) => hangMuc.push({ nhan: 'Quảng cáo ' + r[0], vi: 'Quảng cáo', soKhoan: null, so: so(r[1]) }));
+  }
+  hangMuc.sort((a, b) => b.so - a.so);
+
   const thieu = [];
   if (!qc) thieu.push('Quảng cáo');
   if (!quy) thieu.push('Quỹ chi phí');
@@ -636,6 +837,14 @@ function gomChiPhi(base) {
       phan: [{ nhan: 'Quảng cáo', so: qc.so }, { nhan: 'Quỹ chi phí', so: quy.so }]
         .filter((x) => x.so > 0),
     },
+    hangMuc,
+    bang: [
+      { tieuDe: 'Chi theo hạng mục — cả phòng',
+        cot: ['Hạng mục', 'Ví tiền', 'Số khoản', 'Số tiền', '% tổng chi'],
+        soCot: [2, 3, 4],
+        dong: hangMuc.map((x) => [x.nhan, x.vi, x.soKhoan == null ? '—' : x.soKhoan, x.so,
+          tong ? Math.round((x.so / tong) * 1000) / 10 : 0]) },
+    ].filter((b) => b.dong.length),
   };
 }
 
@@ -648,9 +857,12 @@ function gomChiPhi(base) {
  * trả `lech`, ba app kia thì không — chỉ hiện lệch cho hai app thì báo cáo khập
  * khiễng, chỗ có chỗ không.
  */
-async function gomSoSanh(tu, den, nguoi) {
-  const kt = kyTruoc(tu, den);
-  const [nay, truoc] = await Promise.all([gom(tu, den, nguoi), gom(kt.tu, kt.den, nguoi)]);
+async function gomSoSanh(tu, den, nguoi, kieuSS) {
+  const kt = kyTruoc(tu, den, kieuSS);
+  const [nay, truoc] = await Promise.all([
+    gom(tu, den, nguoi, kieuSS),
+    gom(kt.tu, kt.den, nguoi, kieuSS),
+  ]);
   nay.base.forEach((b) => {
     const bt = truoc.base.find((x) => x.id === b.id);
     (b.o || []).forEach((o) => {
@@ -725,4 +937,4 @@ function dungSoSanh(oList) {
   return ds.slice(0, 12);
 }
 
-module.exports = { gom, gomSoSanh, kyTruoc, APP };
+module.exports = { gom, gomSoSanh, kyTruoc, KIEU_SS, APP };

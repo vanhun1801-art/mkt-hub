@@ -17,6 +17,14 @@ const ICON_MOI = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
 
 var BC = null;        // eslint-disable-line no-var
 var BC_KY = null;     // eslint-disable-line no-var — { tu, den, nhan }
+/* Kỳ đem ra so sánh. Ba kiểu trả lời ba câu khác nhau — xem kyTruoc() ở
+ * bao-cao.js. Nhớ giữa các lần vẽ lại để đổi khoảng thời gian không mất lựa chọn. */
+var BC_SS = 'truoc';  // eslint-disable-line no-var
+const BC_KIEU_SS = [
+  ['truoc', 'Kỳ liền trước'],
+  ['thangtruoc', 'Cùng kỳ tháng trước'],
+  ['namtruoc', 'Cùng kỳ năm trước'],
+];
 
 /* ---- các mốc thời gian dựng sẵn, cùng bộ với app Social ---- */
 function bcMoc() {
@@ -64,14 +72,15 @@ async function veBaoCao() {
 
   hop.innerHTML = '<div class="rong">đang đọc số từ 5 base…</div>';
   try {
-    BC = await goi('bao-cao?tu=' + BC_KY.tu + '&den=' + BC_KY.den);
+    BC = await goi('bao-cao?tu=' + BC_KY.tu + '&den=' + BC_KY.den + '&ss=' + BC_SS);
   } catch (e) { hop.innerHTML = '<div class="rong">' + esc(e.message) + '</div>'; return; }
 
   hop.innerHTML = '';
   const ngay = (s) => s.split('-').reverse().join('/');
   hop.appendChild(el('div', 'canhbao tin',
     '<div>Kỳ <b>' + ngay(BC.tu) + ' – ' + ngay(BC.den) + '</b> (' + BC.soNgay + ' ngày) · '
-    + 'so với kỳ trước ' + ngay(BC.kyTruoc.tu) + ' – ' + ngay(BC.kyTruoc.den) + ' · '
+    + 'so với <b>' + esc(BC.kyTruoc.nhan || 'kỳ trước') + '</b> '
+    + ngay(BC.kyTruoc.tu) + ' – ' + ngay(BC.kyTruoc.den) + ' · '
     + '<b>' + BC.soChay + '/' + BC.soApp + '</b> base đọc được. '
     + 'Số đọc trực tiếp từ các base tại thời điểm mở.</div>'));
 
@@ -113,17 +122,32 @@ function bcThanhLoc() {
   };
   i1.onchange = doiTay; i2.onchange = doiTay;
 
+  than.appendChild(g1); than.appendChild(g2); than.appendChild(g3);
+
+  /* Chọn kỳ so sánh. Đặt ngay cạnh khoảng thời gian vì hai thứ này luôn đi đôi:
+   * đổi khoảng mà không đổi mốc so thì mọi mũi tên ▲▼ đổi nghĩa mà không báo. */
+  const gSS = el('div', 'loc-nhom');
+  gSS.innerHTML = '<label>So với</label>';
+  const segSS = el('div', 'seg');
+  BC_KIEU_SS.forEach(([ma, nhan]) => {
+    const b = el('button', 'seg-nut' + (BC_SS === ma ? ' chon' : ''), nhan);
+    b.onclick = () => { BC_SS = ma; veBaoCao(); };
+    segSS.appendChild(b);
+  });
+  gSS.appendChild(segSS);
+  than.appendChild(gSS);
+
   const g4 = el('div', 'loc-nhom grow');
   g4.innerHTML = '<label>&nbsp;</label>';
   const hang = el('div', 'nut-hang');
   const nutXuat = el('button', 'btn chinh', 'Xuất báo cáo');
   nutXuat.title = 'Mở tệp báo cáo hoàn chỉnh — trong đó có nút Lưu PDF, tải HTML, tải CSV';
-  nutXuat.onclick = () => window.open('api/xuat-bao-cao?tu=' + BC_KY.tu + '&den=' + BC_KY.den, '_blank');
+  nutXuat.onclick = () => window.open('api/xuat-bao-cao?tu=' + BC_KY.tu + '&den=' + BC_KY.den + '&ss=' + BC_SS, '_blank');
   /* Lối tắt cho ai chỉ cần số để bê sang bảng tính, khỏi mở tệp báo cáo ra rồi
    * mới bấm nút CSV trong đó. */
   const nutCsv = el('button', 'btn', 'CSV');
   nutCsv.title = 'Tải thẳng bảng số cho Excel';
-  nutCsv.onclick = () => taiVe('xuat-bao-cao-csv?tu=' + BC_KY.tu + '&den=' + BC_KY.den);
+  nutCsv.onclick = () => taiVe('xuat-bao-cao-csv?tu=' + BC_KY.tu + '&den=' + BC_KY.den + '&ss=' + BC_SS);
   /* Nút đọc lại là BIỂU TƯỢNG, không phải chữ — giống mọi app khác trong Hub.
    * Chữ "Đọc lại" đứng cạnh "Xuất báo cáo" trông như hai hành động ngang hàng,
    * trong khi một cái là việc chính còn một cái chỉ là làm tươi màn hình. */
@@ -134,7 +158,7 @@ function bcThanhLoc() {
   hang.appendChild(nutXuat); hang.appendChild(nutCsv); hang.appendChild(nutMoi);
   g4.appendChild(hang);
 
-  than.appendChild(g1); than.appendChild(g2); than.appendChild(g3); than.appendChild(g4);
+  than.appendChild(g4);
   t.appendChild(than);
   return t;
 }
@@ -197,7 +221,62 @@ function bcChiPhi(c) {
     Charts.donut(oTron, c.tron.phan.map((x) => ({ label: x.nhan, value: x.so })),
       { centerLabel: c.tron.giua, size: 180 });
   }
+
+  /* Hạng mục — câu "tiêu 44 triệu vào đâu". Thanh ngang chứ không vành khuyên:
+   * vành khuyên trên 10 hạng mục thì miếng nhỏ mảnh như sợi chỉ và chú thích
+   * dài hơn cả hình. */
+  if ((c.hangMuc || []).length) {
+    const kh = el('div', 'bieu-do');
+    kh.appendChild(bcThanhNgang(c.hangMuc, 'Chi theo hạng mục', c.tong));
+    t.appendChild(kh);
+  }
+  (c.bang || []).forEach((bg) => bcBang(t, bg));
   return t;
+}
+
+/**
+ * Thanh ngang xếp hạng — cho câu hỏi "cái gì nhiều nhất".
+ * Dùng thay vành khuyên khi có quá 6 phần: vành khuyên nhiều miếng thì miếng
+ * nhỏ mảnh như sợi chỉ, và chú thích dài hơn cả hình.
+ */
+function bcThanhNgang(ds, tieuDe, tong) {
+  const g = el('div', 'ss');
+  g.appendChild(el('h4', 'ss-tieu', esc(tieuDe)));
+  const max = Math.max(1, ...ds.map((x) => x.so));
+  const t = tong || ds.reduce((a, x) => a + x.so, 0);
+  const hang = el('div', 'tn-ds');
+  ds.slice(0, 14).forEach((x) => {
+    const r = el('div', 'tn-hang');
+    r.innerHTML = '<div class="tn-ten">' + esc(x.nhan)
+      + (x.vi ? '<em>' + esc(x.vi) + '</em>' : '') + '</div>'
+      + '<div class="tn-ray"><i style="width:' + ((x.so / max) * 100) + '%"></i></div>'
+      + '<div class="tn-so">' + bcSo(x.so, 'vnd') + '</div>'
+      + '<div class="tn-pt">' + (t ? Math.round((x.so / t) * 100) : 0) + '%</div>';
+    if (x.soKhoan != null) r.title = x.soKhoan + ' khoản';
+    hang.appendChild(r);
+  });
+  g.appendChild(hang);
+  if (ds.length > 14) {
+    g.appendChild(el('div', 'ss-chan', 'Còn ' + (ds.length - 14)
+      + ' hạng mục nhỏ hơn — xem đủ ở bảng bên dưới.'));
+  }
+  return g;
+}
+
+/** Một bảng chi tiết. Tách ra vì khối base và khối chi phí đều dùng. */
+function bcBang(t, bg) {
+  const soCot = new Set(bg.soCot || []);
+  const tb = el('table');
+  tb.innerHTML = '<thead><tr>' + bg.cot.map((c, i) =>
+    '<th' + (soCot.has(i) ? ' class="so"' : '') + '>' + esc(c) + '</th>').join('')
+    + '</tr></thead><tbody>' + bg.dong.map((r) => '<tr>' + r.map((c, i) =>
+      '<td' + (soCot.has(i) ? ' class="so"' : ' class="dai"') + '>'
+      + (typeof c === 'number' ? gon(c) : esc(c)) + '</td>').join('') + '</tr>').join('')
+    + '</tbody>';
+  const kh = el('div', 'bang-cuon');
+  kh.appendChild(tb);
+  t.appendChild(el('div', 'than nho nhat', bg.tieuDe + ' · ' + bg.dong.length + ' dòng'));
+  t.appendChild(kh);
 }
 
 /**
@@ -330,19 +409,6 @@ function bcKhoi(b) {
   }
 
   /* --- các bảng chi tiết --- */
-  (b.bang || []).forEach((bg) => {
-    const soCot = new Set(bg.soCot || []);
-    const tb = el('table');
-    tb.innerHTML = '<thead><tr>' + bg.cot.map((c, i) =>
-      '<th' + (soCot.has(i) ? ' class="so"' : '') + '>' + esc(c) + '</th>').join('')
-      + '</tr></thead><tbody>' + bg.dong.map((r) => '<tr>' + r.map((c, i) =>
-        '<td' + (soCot.has(i) ? ' class="so"' : ' class="dai"') + '>'
-        + (typeof c === 'number' ? gon(c) : esc(c)) + '</td>').join('') + '</tr>').join('')
-      + '</tbody>';
-    const kh = el('div', 'bang-cuon');
-    kh.appendChild(tb);
-    t.appendChild(el('div', 'than nho nhat', bg.tieuDe + ' · ' + bg.dong.length + ' dòng'));
-    t.appendChild(kh);
-  });
+  (b.bang || []).forEach((bg) => bcBang(t, bg));
   return t;
 }

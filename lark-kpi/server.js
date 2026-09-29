@@ -371,14 +371,14 @@ async function api(req, res, u) {
   if (p === '/api/bao-cao') {
     if (!nx.quanLy) return fail(res, 403, 'Chỉ trưởng phòng xem được báo cáo toàn phòng');
     const { tu, den } = khoangTu(u);
-    return ok(res, await baoCao.gomSoSanh(tu, den, nx));
+    return ok(res, await baoCao.gomSoSanh(tu, den, nx, u.searchParams.get('ss')));
   }
 
   /** Một tệp HTML hoàn chỉnh để gửi Sếp — mở ra in thẳng thành PDF được. */
   if (p === '/api/xuat-bao-cao') {
     if (!nx.quanLy) return fail(res, 403, 'Chỉ trưởng phòng xuất được báo cáo toàn phòng');
     const { tu, den } = khoangTu(u);
-    const d = await baoCao.gomSoSanh(tu, den, nx);
+    const d = await baoCao.gomSoSanh(tu, den, nx, u.searchParams.get('ss'));
     const html = X.trangBaoCao(d, nx, await X.logoHtml(store.THU_MUC));
     return send(res, 200, html, {
       'Content-Type': 'text/html; charset=utf-8',
@@ -390,7 +390,7 @@ async function api(req, res, u) {
   if (p === '/api/xuat-bao-cao-csv') {
     if (!nx.quanLy) return fail(res, 403, 'Chỉ trưởng phòng xuất được báo cáo toàn phòng');
     const { tu, den } = khoangTu(u);
-    const d = await baoCao.gomSoSanh(tu, den, nx);
+    const d = await baoCao.gomSoSanh(tu, den, nx, u.searchParams.get('ss'));
     return send(res, 200, X.csvBaoCao(d), {
       'Content-Type': 'text/csv; charset=utf-8',
       'Content-Disposition': 'attachment; filename="'

@@ -304,6 +304,19 @@ tr.phu td { background: var(--trang-2); }
 .o .ghi.im { color: var(--chu-mo); font-weight: 600; }
 .ss-chan { margin-top: 10px; font-size: 11px; color: var(--chu-nhat); line-height: 1.5; }
 
+/* ---- thanh ngang xếp hạng ---- */
+.tn-ds { display: grid; gap: 7px; font-family: inherit; }
+.tn-hang {
+  display: grid; grid-template-columns: minmax(120px, 210px) 1fr 92px 42px;
+  gap: 11px; align-items: center; font-size: 12.5px;
+}
+.tn-ten { color: var(--chu-mo); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tn-ten em { font-style: normal; color: var(--chu-nhat); font-size: 11px; margin-left: 7px; }
+.tn-ray { height: 16px; background: var(--vien-mem); border-radius: 3px; overflow: hidden; }
+.tn-ray > i { display: block; height: 100%; background: var(--xanh); border-radius: 3px; }
+.tn-so { text-align: right; font-variant-numeric: tabular-nums; font-weight: 650; }
+.tn-pt { text-align: right; font-variant-numeric: tabular-nums; color: var(--chu-nhat); font-size: 11.5px; }
+
 /* Thẻ chi phí đứng đầu báo cáo — viền đậm hơn để tách khỏi dãy thẻ base. */
 .the.the-chinh { border-color: var(--vien-dam); }
 
@@ -575,4 +588,6 @@ input.ghi-cham::placeholder { color: var(--chu-nhat); font-style: italic; }
   .pt-phu { font-size: 13px; }                                   /* 11.5 */
   .ss-tieu { font-size: 12.5px; }                                /* 11 */
   .ss-chan { font-size: 12.5px; }                                /* 11 */
+  .tn-ten em { font-size: 12.5px; }                              /* 11 */
+  .tn-pt { font-size: 12.5px; }                                  /* 11.5 */
 }
