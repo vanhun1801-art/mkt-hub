@@ -64,23 +64,32 @@ function danhSach() {
 }
 
 /* Chấm điểm media theo một sản phẩm: khớp nội dung AI thấy ×2, khớp đường dẫn ×1, cộng điểm đẹp */
-/* Chuẩn hoá chữ của một media, nhớ theo object (chỉ mục nạp lại là object mới → tự làm lại) */
-const DEM_CHU = new WeakMap();
+/* Chữ chuẩn hoá của một media. KHÔNG giữ sẵn cho từng file (bản online RAM hẹp): phần thư mục
+   dùng chung theo thư mục (~2.900 cái), phần mô tả AI tính tại chỗ — kết quả cả lượt đã được
+   nhớ theo sản phẩm ở goiYChoSanPham nên mỗi lần nạp chỉ mục chỉ tính một lần cho mỗi sản phẩm. */
+let chuTM = new Map();
 function chuan(i) {
-  let c = DEM_CHU.get(i);
-  if (c && c.mo === i.mo) return c;
-  const doan = i.duong.concat(i.ten);
-  c = {
-    mo: i.mo,
+  const k = i.duong.join('/');
+  let t = chuTM.get(k);
+  if (!t) { t = { dg: thuong(i.duong.join(' ')), kd: i.duong.filter(s => !coDau(s)).map(s => thuong(s)).join(' ') }; chuTM.set(k, t); }
+  const ten = thuong(i.ten), tenKd = coDau(i.ten) ? '' : ten;
+  return {
     ai: i.mo ? ' ' + thuong(i.mo + ' ' + (i.the || []).join(' ')) + ' ' : '',
-    dg: ' ' + thuong(doan.join(' ')) + ' ',
-    dgKhongDau: ' ' + doan.filter(s => !coDau(s)).map(s => thuong(s)).join(' ') + ' ',
+    dg: ' ' + t.dg + ' ' + ten + ' ',
+    dgKhongDau: ' ' + t.kd + ' ' + tenKd + ' ',
   };
-  DEM_CHU.set(i, c);
-  return c;
 }
+/* Kết quả theo sản phẩm, nhớ theo MẢNG chỉ mục (nạp lại chỉ mục = mảng mới = tự tính lại) */
+const DEM_KQ = new WeakMap();
 
-function goiYChoSanPham(sp, items, n = 12) {
+function goiYChoSanPham(sp, items, n = 12, boQua) {
+  let dem = DEM_KQ.get(items);
+  if (!dem) { dem = new Map(); DEM_KQ.set(items, dem); chuTM = new Map(); }
+  const khoa = sp.ma + '|' + n + '|' + sp.tu.map(k => k.t).join(',');
+  if (!dem.has(khoa)) dem.set(khoa, tinhGoiY(sp, boQua ? items.filter(i => !boQua(i)) : items, n));
+  return dem.get(khoa);
+}
+function tinhGoiY(sp, items, n) {
   /* Tour ban ngày (không có pháo hoa/show trong lịch trình) thì ảnh ban đêm là lạc đề */
   const coDem = sp.tu.some(k => k.t === 'phao hoa' || k.t === 'show' || k.t === 'symphony' || k.t === 'kiss of the sea');
   const theoTu = new Map(sp.tu.map(k => [k.t, []]));

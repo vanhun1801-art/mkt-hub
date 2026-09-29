@@ -17,9 +17,18 @@ const MIEN = process.env.LARK_MIEN || 'https://rootytrip2.sg.larksuite.com';
 const CLI = process.env.LARK_CLI_JS ||
   path.join(process.env.APPDATA || '', 'npm', 'node_modules', '@larksuite', 'cli', 'scripts', 'run.js');
 
-const { bo, thuong, docMedia, docThe } = require('./chi-muc');
+const { bo, thuong, docMedia, docThe, docGoi, GOI } = require('./chi-muc');
 const hoc = require('./hoc');
 const tacNghiep = require('./tac-nghiep');
+const larkApi = require('./lark-api');
+const dongBoLen = require('./dong-bo-len');
+const { Readable } = require('stream');
+const crypto = require('crypto');
+/* ONLINE = bản deploy (Render): có khoá app, không có chỉ mục quét tại chỗ. Đọc gói chỉ mục máy
+   nội bộ đẩy lên, và lấy ảnh/video/file gốc thẳng từ Lark bằng khoá app — không cần lark-cli, không
+   cần ổ đĩa. Máy nội bộ (có cay.json) vẫn chạy như cũ và là nơi đẩy gói lên. */
+const ONLINE = process.env.KHO_ONLINE === '1' ||
+  (larkApi.coApi() && !fs.existsSync(path.join(__dirname, 'du-lieu', 'cay.json')));
 const MOI_NGAY = 7 * 86400e3; // lịch kết thúc trong 7 ngày → gắn nhãn "Mới"
 const sanPham = require('./san-pham');
 
@@ -38,7 +47,6 @@ function napChiMuc() {
     it.mo = t.mo; it.the = t.the; it.diem = t.diem;
     it.chuoiAi = bo(t.mo + ' ' + t.the.join(' '));
   }
-  for (const it of items) it.goc = ' ' + thuong(it.duong.join(' ') + ' ' + it.ten + ' ' + (it.mo || '') + ' ' + (it.the || []).join(' ')) + ' ';
   items.sort((a, b) => (b.nam || 0) - (a.nam || 0) || b.mod - a.mod);
   /* cây đếm dồn: mỗi nút biết tổng số media bên dưới */
   const goc = { ten: 'Drive Marketing', n: 0, con: new Map() };
@@ -55,6 +63,7 @@ function napChiMuc() {
     tong: { daGan: items.filter(i => i.mo).length, media: items.length, video: dem('v'), anh: dem('a'), raw: dem('r'), thuMuc: tm.size, nhayCam: loaiNhayCam, banSao: gop, quetLuc: d.quetLuc },
   };
   dungGoiY();
+  henDayLen();
   console.log(`Chỉ mục: ${items.length} media · loại ${loaiNhayCam} file nhạy cảm · gộp ${gop} bản sao`);
 }
 
@@ -209,6 +218,9 @@ const MIME = { '.mp4': 'video/mp4', '.m4v': 'video/mp4', '.mov': 'video/quicktim
 const tomLich = id => { const l = id && KHO.lich && KHO.lich[id]; return l ? { id, ten: l.ten, kt: l.kt, moi: Date.now() - l.kt < MOI_NGAY } : null; };
 const ra = it => ({ t: it.t, ten: it.ten, duong: it.duong, loai: it.loai, nam: it.nam, mod: it.mod, mo: it.mo || null, the: it.the || null, diem: it.diem || null, tn: tomLich(it.tn), url: MIEN + '/file/' + it.t, tm: KHO.tm.get('/' + it.duong.join('/')) || null });
 function docDuong(s) { try { const a = JSON.parse(s || '[]'); return Array.isArray(a) ? a.map(String) : []; } catch (e) { return []; } }
+/* Chữ CÓ dấu của một media — chỉ tính cho các kết quả đang xếp hạng khi người gõ có dấu,
+   không giữ sẵn cho cả 97 nghìn file (tốn RAM hơn cả chỉ mục). */
+const gocCua = i => ' ' + thuong(i.duong.join(' ') + ' ' + i.ten + ' ' + (i.mo || '') + ' ' + (i.the || []).join(' ')) + ' ';
 function locItems(q) {
   /* "đẹp", "nổi bật"… là yêu cầu CHẤT LƯỢNG, không phải nội dung: bỏ khỏi điều kiện khớp,
      dùng để đẩy ảnh điểm cao lên. Không có từ này trong tên file/mô tả nên để lại thì ra 0. */
@@ -249,7 +261,7 @@ function locItems(q) {
      - cùng hạng thì ảnh đẹp trước */
   const tuDau = thuong(qGoc).split(' ').filter(w => /[^\x00-\x7f]/.test(w)).map(w => ' ' + w + ' ');
   const diem = i => (i.chuoiAi ? nhomTu.filter(g => g.some(s => i.chuoiAi.includes(s))).length * 10 : 0) +
-    hoc.diemHoc(q.get('q') || '', i.t) * 4 + (tuDau.length ? tuDau.filter(w => i.goc.includes(w)).length * 3 : 0) + (i.diem || 0) * (uuDep ? 3 : 1);
+    hoc.diemHoc(q.get('q') || '', i.t) * 4 + (tuDau.length ? tuDau.filter(w => gocCua(i).includes(w)).length * 3 : 0) + (i.diem || 0) * (uuDep ? 3 : 1);
   const kq = r.map((i, k) => [diem(i), k, i]).sort((a, b) => b[0] - a[0] || a[1] - b[1]).map(x => x[2]);
   kq.ganDung = ganDung;
   return kq;
@@ -284,15 +296,69 @@ const VER = (() => {
   return String(Math.round(t / 1000) || 1);
 })();
 
+/* ---------- bản online: luồng từ Lark + đệm ảnh trong RAM ---------- */
+function chuyenLuong(r, res, ct, tenLuu) {
+  if (r.status !== 200 && r.status !== 206) {
+    try { r.body && r.body.cancel(); } catch (e) {}
+    res.writeHead(r.status === 416 ? 416 : 502); return res.end();
+  }
+  const h = { 'Content-Type': ct, 'Accept-Ranges': 'bytes', 'Cache-Control': 'private, max-age=3600' };
+  for (const k of ['content-length', 'content-range']) { const v = r.headers.get(k); if (v) h[k] = v; }
+  if (tenLuu) h['Content-Disposition'] = "attachment; filename=\"" + tenLuu.replace(/[^\x20-\x7e]|"/g, '_') + "\"; filename*=UTF-8''" + encodeURIComponent(tenLuu);
+  res.writeHead(r.status, h);
+  Readable.fromWeb(r.body).on('error', () => res.destroy()).pipe(res);
+}
+/* Ảnh thu nhỏ ~100 KB/ảnh: giữ tối đa 40 MB gần nhất (RAM bản online chia với hub + 12 app);
+   trình duyệt còn tự nhớ 7 ngày nhờ Cache-Control, nên lượt xem lại không tới đây. */
+const anhRam = new Map(); let anhRamCo = 0;
+function nhoAnh(k, x) {
+  anhRam.set(k, x); anhRamCo += x.buf.length;
+  while (anhRamCo > 40 * 1024 * 1024 && anhRam.size) { const [k0, v0] = anhRam.entries().next().value; anhRam.delete(k0); anhRamCo -= v0.buf.length; }
+}
+
+/* Bản online nạp gói chỉ mục 10 phút một lần (đổi mới ghi đè + nạp lại) */
+let bamGoi = '';
+async function napGoiOnline() {
+  try {
+    const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'dong-bo.json'), 'utf8'));
+    if (!cfg.file) return console.log('dong-bo.json chưa có mã file gói chỉ mục');
+    const { r, buf } = await larkApi.taiFile(cfg.file);
+    if (!buf) return console.log('Không tải được gói chỉ mục: HTTP ' + r.status);
+    const bam = crypto.createHash('sha1').update(buf).digest('hex');
+    if (bam === bamGoi) return;
+    fs.mkdirSync(DL, { recursive: true });
+    fs.writeFileSync(GOI + '.tmp', buf); fs.renameSync(GOI + '.tmp', GOI);
+    bamGoi = bam;
+    const g = docGoi();
+    if (g && g.dongNghia) { fs.mkdirSync(path.join(DL, 'hoc'), { recursive: true }); fs.writeFileSync(path.join(DL, 'hoc', 'dong-nghia.json'), JSON.stringify(g.dongNghia, null, 1)); }
+    napChiMuc();
+  } catch (e) { console.log('Nạp gói chỉ mục lỗi:', e.message); }
+}
+
+/* Máy nội bộ: dữ liệu đổi (quét, gắn thẻ, lịch tác nghiệp, từ đồng nghĩa) → đẩy gói lên cho bản
+   online, gom lại tối đa một lần mỗi 10 phút. KHO_DAY_TAT=1 để tắt. */
+let henDay, lanDay = 0;
+function henDayLen() {
+  if (ONLINE || process.env.KHO_DAY_TAT === '1') return;
+  clearTimeout(henDay);
+  henDay = setTimeout(async () => {
+    try { const r = await dongBoLen.dayLen(); lanDay = Date.now(); console.log('Đã đẩy gói chỉ mục lên Drive (' + Math.round(r.bytes / 1024) + ' KB)'); }
+    catch (e) { console.log('Đẩy gói chỉ mục lỗi:', e.message); }
+  }, Math.max(60e3, lanDay + 10 * 60e3 - Date.now()));
+}
+
 napChiMuc();
+if (ONLINE) { napGoiOnline(); setInterval(napGoiOnline, 10 * 60e3); }
 /* Lượt quét/gắn thẻ hằng ngày ghi đè cay.json, the.json → nạp lại, không phải khởi động lại server */
 let henNap;
-/* Lịch tác nghiệp: đồng bộ 10 giây sau khi bật rồi 15 phút một lần (KHO_TN_TAT=1 để tắt) */
-if (process.env.KHO_TN_TAT !== '1') {
+/* Lịch tác nghiệp: đồng bộ 10 giây sau khi bật rồi 15 phút một lần (KHO_TN_TAT=1 để tắt).
+   Bản online không quét được thư mục Drive — phần này chạy ở máy nội bộ rồi theo gói lên. */
+if (process.env.KHO_TN_TAT !== '1' && !ONLINE) {
   setTimeout(() => tacNghiep.dongBo(), 10e3);
   setInterval(() => tacNghiep.dongBo(), 15 * 60e3);
 }
 for (const f of ['cay.json', 'the.json', 'tac-nghiep.json']) fs.watchFile(path.join(DL, f), { interval: 5000 }, () => { clearTimeout(henNap); henNap = setTimeout(napChiMuc, 3000); });
+fs.watchFile(path.join(DL, 'hoc', 'dong-nghia.json'), { interval: 5000 }, () => henDayLen());
 for (const d of [ANH, XEM, GOC_DL]) fs.mkdirSync(d, { recursive: true });
 
 http.createServer(async (req, res) => {
@@ -300,7 +366,7 @@ http.createServer(async (req, res) => {
   const u = new URL(req.url, 'http://x');
   const p = u.pathname, q = u.searchParams;
   if (p === '/healthz') return json(res, { ok: true });
-  if (p === '/api/tong') return json(res, KHO.tong);
+  if (p === '/api/tong') return json(res, Object.assign({ online: ONLINE }, KHO.tong));
   if (p === '/api/tim') {
     const r = locItems(q); const tu = Math.max(0, +q.get('tu') || 0);
     return json(res, { tong: r.length, video: r.filter(i => i.loai === 'v').length, ganDung: !!r.ganDung, items: r.slice(tu, tu + 48).map(ra) });
@@ -380,8 +446,7 @@ http.createServer(async (req, res) => {
     const d = await sanPham.danhSach().catch(() => null);
     const sp = d && d.ds.find(s => s.ma === q.get('ma'));
     if (!sp) return json(res, { items: [] });
-    const nguon = KHO.items.filter(i => !KHONG_GOI_Y.test(i.duong[0]));
-    return json(res, { items: sanPham.goiYChoSanPham(sp, nguon, Math.min(24, +q.get('n') || 12)).map(ra) });
+    return json(res, { items: sanPham.goiYChoSanPham(sp, KHO.items, Math.min(24, +q.get('n') || 12), i => KHONG_GOI_Y.test(i.duong[0])).map(ra) });
   }
   if (p === '/api/goi-y') return json(res, { items: goiY(q.get('kieu'), Math.min(24, +q.get('n') || 12)).map(ra) });
   if (p === '/api/theo-token') {
@@ -393,6 +458,18 @@ http.createServer(async (req, res) => {
     const it = KHO.theoToken.get(pt[2]);
     if (!it) { res.writeHead(404); return res.end(); }
     const goc = it.ten.replace(/^Bản sao của /, '');
+    if (ONLINE) {
+      /* Bản online: không có ổ đĩa để đệm → chuyển thẳng luồng từ Lark, giữ nguyên Range/206 để tua */
+      if (pt[1] === 'tai-tt') return json(res, { xong: true, loi: null, daTai: 0 });
+      const la1080 = pt[1] === 'phat' || q.get('ban') === '1080';
+      if (la1080 && it.loai !== 'v') { res.writeHead(404); return res.end(); }
+      const tenLuu = pt[1] === 'tai' ? (la1080 ? goc.replace(/\.[^.]+$/, '') + '_1080p.mp4' : goc) : null;
+      try {
+        const r = la1080 ? await larkApi.phat(it.t, req.headers.range, res) : await larkApi.goc(it.t, req.headers.range, res);
+        if (!r) return json(res, { loi: 'Lark chưa có bản xem trước cho video này' }, 502);
+        return chuyenLuong(r, res, la1080 ? 'video/mp4' : (MIME[duoiCua(it)] || 'application/octet-stream'), tenLuu);
+      } catch (e) { if (!res.headersSent) return json(res, { loi: 'Không đọc được file từ Lark' }, 502); return res.end(); }
+    }
     if (pt[1] === 'phat' || (pt[1] === 'tai' && q.get('ban') === '1080')) {
       if (it.loai !== 'v') { res.writeHead(404); return res.end(); }
       const f = await layBanXem(it.t);
@@ -412,6 +489,17 @@ http.createServer(async (req, res) => {
     /* chỉ trả ảnh của file có trong chỉ mục — không thành cổng đọc bất kỳ file Lark nào */
     if (!KHO.theoToken.has(a[1])) { res.writeHead(404); return res.end(); }
     const co = q.get('c') === 'middle' ? 'middle' : 'grid';
+    if (ONLINE) {
+      const khoa = a[1] + '-' + co;
+      let x = anhRam.get(khoa);
+      if (!x) {
+        try { const { r, buf } = await larkApi.anh(a[1], co); if (buf) x = { buf, ct: r.headers.get('content-type') || 'image/png' }; } catch (e) {}
+        if (x) nhoAnh(khoa, x);
+      }
+      if (!x) { res.writeHead(404); return res.end(); }
+      res.writeHead(200, { 'Content-Type': x.ct, 'Content-Length': x.buf.length, 'Cache-Control': 'private, max-age=604800' });
+      return res.end(x.buf);
+    }
     const f = await layAnh(a[1], co);
     if (!f) { res.writeHead(404); return res.end(); }
     res.writeHead(200, { 'Content-Type': KIEU[path.extname(f)] || 'image/png', 'Cache-Control': 'private, max-age=86400' });

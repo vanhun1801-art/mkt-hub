@@ -28,10 +28,20 @@ nằm trong thư mục Wyndham), nên app tìm trên đường dẫn + mô tả 
 Mọi thứ **chỉ đọc** Drive và Lark Base. `du-lieu/` (chỉ mục, thẻ, ảnh đệm, file gốc đệm tối đa
 5 GB, nhật ký tìm) không lên git.
 
-## Chỉ chạy trên máy nội bộ
+## Hai chế độ: máy nội bộ và bản online (Render)
 
-Module khai `"chiMay": true` trong `lark-mkt-hub/modules.json`: trên Render (chế độ api) hub
-coi như không có app này. Lý do: đọc Drive bằng `lark-cli` với danh tính người ngồi máy, và
-chỉ mục/ảnh đệm nằm trên ổ đĩa (Render xoá ổ đĩa mỗi lần deploy/ngủ). Muốn chạy online cần:
-chia sẻ thư mục Drive cho app Marketing Hub, thay lark-cli bằng API gọi bằng token app, và
-chỗ lưu bền cho chỉ mục + ảnh đệm.
+App Marketing Hub **không liệt kê được** thư mục Drive Marketing (403) nhưng **đọc được từng
+file** đã chia sẻ trong công ty (ảnh thu nhỏ, bản 1080p, file gốc, kể cả theo đoạn). Nên chia việc:
+
+| | Máy nội bộ (có `du-lieu/cay.json`) | Bản online (`LARK_APP_ID/SECRET`, không có cay.json) |
+|---|---|---|
+| Chỉ mục | quét Drive bằng lark-cli (`quet-drive.js`), gắn thẻ AI, theo dõi lịch tác nghiệp | tải **gói chỉ mục** 10 phút/lần (`napGoiOnline`) |
+| Ảnh/video/file gốc | lark-cli + đệm trên ổ đĩa | `lark-api.js` chuyển thẳng luồng từ Lark (giữ Range/206), ảnh đệm RAM ≤ 40 MB |
+| Gói chỉ mục | `dong-bo-len.js` đóng gói (đã lọc nhạy cảm, ~3 MB nén) và **ghi đè** file trên Drive sau mỗi lần dữ liệu đổi (≤ 10 phút/lần) | chỉ đọc |
+
+Gói nằm ở Drive Marketing › `Hệ thống · Kho media (không xoá)` — mã thư mục/file trong
+`dong-bo.json`. **Xoá hoặc chuyển file đó là bản online mất chỉ mục.** Bản online chỉ mới bằng
+lượt đẩy gần nhất của máy nội bộ: máy tắt thì online vẫn chạy, chỉ không có file mới.
+
+Hub chạy app với `--max-old-space-size=200` (chỉ mục ~55 MB heap): vượt trần thì chỉ app này dừng.
+Cờ `chiMay` trong modules.json (hub `config.js`) vẫn còn cho app nào thật sự chỉ chạy được ở máy.

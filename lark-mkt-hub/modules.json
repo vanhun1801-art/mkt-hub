@@ -329,19 +329,20 @@
       "cong": 5188,
       "lenh": [
         "node",
+        "--max-old-space-size=200",
+        "--max-semi-space-size=4",
         "server.js"
       ],
       "larkUrl": "https://rootytrip2.sg.larksuite.com/drive/folder/ZlJ5f08Jzl1GVrdDV59l9M6PgAb",
       "kpi": "kho-media",
       "_thuApi": "Kho media không có /api/meta; /api/tong là JSON nhẹ nhất (đếm chỉ mục), đủ chứng minh JSON đi xuyên proxy",
       "thuApi": "/api/tong",
-      "_chiMay": "Đọc Drive bằng lark-cli trên máy anh Hùng + chỉ mục/ảnh đệm ở ổ đĩa — trên Render tự ẩn (config.js)",
-      "chiMay": true,
       "an": [
         ".bang-thu"
       ],
       "bat": true,
-      "caPhong": false
+      "caPhong": false,
+      "_lenh": "Kho media giữ chỉ mục 97 nghìn file trong RAM (~55 MB heap). Trần 200 MB: vượt thì chỉ app này dừng, không kéo hub + 12 app sập theo; semi-space nhỏ để RSS không phình."
     }
   ]
 }

@@ -57,7 +57,9 @@ for (const app of ['lark-task-manager', 'lark-lich-tac-nghiep', 'lark-ads-manage
 
 /* Kho media không có larkapi.js: nó gọi Drive qua `lark-cli` (execFile). Cùng một nguyên tắc,
  * soi theo đúng cách nó gọi ra ngoài — mỗi execFile phải khai `timeout:` trong chính lời gọi. */
-for (const tep of ['server.js', 'tac-nghiep.js', 'gan-the/chuan-bi.js']) {
+/* Bản online của nó gọi Lark bằng fetch (lark-api.js) → soi như larkapi.js của các app khác */
+TEP.push(['lark-kho-media/lark-api.js', 'Kho media gọi Drive bằng khoá app khi chạy trên Render']);
+for (const tep of ['server.js', 'tac-nghiep.js', 'dong-bo-len.js', 'gan-the/chuan-bi.js']) {
   const s = fs.readFileSync(path.join(GOC, 'lark-kho-media', tep), 'utf8');
   const viTri = []; let i = -1;
   while ((i = s.indexOf('execFile(', i + 1)) !== -1) viTri.push(i);

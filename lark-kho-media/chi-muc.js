@@ -18,9 +18,38 @@ const NAM_TM = /(?:^|[^0-9])(20(?:1[5-9]|2[0-6]))(?:[^0-9]|$)/;
 const NAM_TEN = /(20(?:1[5-9]|2[0-6]))(?:0[1-9]|1[0-2])[0-3]\d/;
 const nhayCam = seg => seg.some(s => CAM.has(bo(s).trim()) || GIAY_TO.test(bo(s).trim()) || SO_DT.test(s));
 
+/* Bản online không có cay.json (không tự liệt kê được Drive): đọc gói do máy nội bộ đẩy lên
+   (dong-bo-len.js) — đã lọc nhạy cảm và gộp bản sao TỪ MÁY NỘI BỘ, ở đây chỉ dựng lại object. */
+const GOI = path.join(DL, 'goi-chi-muc.json.gz');
+/* KHÔNG giữ nguyên gói đã giải nén (mảng 97 nghìn dòng) — nó nhân đôi RAM so với chỉ mục dựng
+   từ nó. Chỉ nhớ phần nhỏ đọc lại nhiều lần (the, lich, dongNghia); mảng items đọc mỗi lần nạp. */
+let goiNho = null;
+function docGoi(canItems) {
+  if (!fs.existsSync(GOI)) return null;
+  const st = fs.statSync(GOI);
+  if (!canItems && goiNho && goiNho.mtime === st.mtimeMs) return goiNho.goi;
+  const goi = JSON.parse(require('zlib').gunzipSync(fs.readFileSync(GOI)));
+  const { items, ...nho } = goi;
+  goiNho = { mtime: st.mtimeMs, goi: nho };
+  return canItems ? goi : nho;
+}
+function tuGoi() {
+  const g = docGoi(true);
+  if (!g) return null;
+  const chung = new Map();
+  const ghim = s => { let v = chung.get(s); if (v === undefined) { v = s; chung.set(s, v); } return v; };
+  const lich = g.lich || {};
+  const items = g.items.map(([t, ten, duong, loai, nam, mod, tn]) => {
+    const seg = duong ? duong.split('/') : [];
+    const tenLich = tn && lich[tn] ? ' ' + lich[tn].ten : '';
+    return { t, ten, duong: seg.map(ghim), loai, nam: nam || null, mod, tn: tn || null, chuoi: bo(seg.join(' ') + ' ' + ten + tenLich) };
+  });
+  return { items, tm: new Map(g.tm || []), loaiNhayCam: g.loaiNhayCam || 0, gop: g.gop || 0, lich, quetLuc: g.quetLuc || g.luc, tuGoi: true };
+}
+
 function docMedia() {
   const f = path.join(DL, 'cay.json');
-  if (!fs.existsSync(f)) return null;
+  if (!fs.existsSync(f)) return tuGoi();
   const cay = JSON.parse(fs.readFileSync(f, 'utf8'));
   const tm = new Map();
   for (const x of cay) if (x.type === 'folder') tm.set(x.path, x.url);
@@ -59,6 +88,10 @@ function docMedia() {
   }
   const items = [];
   let gop = 0;
+  /* 97 nghìn file nằm trong ~2.900 thư mục: dùng CHUNG một chuỗi cho mỗi tên thư mục, không để mỗi
+     file giữ một bản — bản online chạy chung máy với hub + 12 app, RAM là thứ hiếm nhất */
+  const chung = new Map();
+  const ghim = s => { let v = chung.get(s); if (v === undefined) { v = s; chung.set(s, v); } return v; };
   for (const ds of theoTM.values()) {
     const co = new Set(ds.map(d => d.ten));
     for (const d of ds) {
@@ -69,17 +102,21 @@ function docMedia() {
       if (!nam) { const n = d.ten.match(NAM_TEN); if (n) nam = +n[1]; }
       const tnId = lichCua.get(d.x.token) || null;
       const tenLich = tnId ? ' ' + tn.lich[tnId].ten : '';
-      items.push({ t: d.x.token, ten: d.ten, duong: d.seg, loai: d.loai, nam, mod: d.x.mod, tn: tnId, chuoi: bo(d.seg.join(' ') + ' ' + d.ten + tenLich) });
+      items.push({ t: d.x.token, ten: d.ten, duong: d.seg.map(ghim), loai: d.loai, nam, mod: d.x.mod, tn: tnId, chuoi: bo(d.seg.join(' ') + ' ' + d.ten + tenLich) });
     }
   }
   return { items, tm, loaiNhayCam, gop, lich: tn.lich || {}, quetLuc: fs.statSync(f).mtimeMs };
 }
 
 function docThe() {
-  try { return JSON.parse(fs.readFileSync(path.join(DL, 'the.json'), 'utf8')); } catch (e) { return {}; }
+  let the = null;
+  try { the = JSON.parse(fs.readFileSync(path.join(DL, 'the.json'), 'utf8')); } catch (e) {}
+  if (the) return the;
+  const g = !fs.existsSync(path.join(DL, 'cay.json')) && docGoi();
+  return (g && g.the) || {};
 }
 
 /* chữ thường GIỮ dấu, dấu câu → khoảng trắng: để phân biệt "san hô" với "(khách) sạn hồ" */
 const thuong = s => String(s || '').normalize('NFC').toLowerCase().replace(/uỷ/g, 'ủy').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 
-module.exports = { DL, bo, thuong, docMedia, docThe };
+module.exports = { DL, GOI, bo, thuong, docMedia, docThe, docGoi };
