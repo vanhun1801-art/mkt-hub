@@ -473,7 +473,10 @@ function trangBaoCao(d, nx, logo) {
     + '<div class="dau">' + logo + '<div>'
     + '<h1>Báo cáo Marketing</h1>'
     + '<div class="ky">Kỳ <b>' + ngay(d.tu) + ' – ' + ngay(d.den) + '</b> (' + d.soNgay + ' ngày)'
-    + ' · so với kỳ trước ' + ngay(d.kyTruoc.tu) + ' – ' + ngay(d.kyTruoc.den) + '<br>'
+    /* `kyTruoc` là null khi người xem tắt so sánh — bản xuất phải chịu được, nếu
+     * không thì bấm Xuất báo cáo lúc đang tắt so sánh là nổ trang trắng. */
+    + (d.kyTruoc ? ' · so với ' + (d.kyTruoc.nhan || 'kỳ trước') + ' '
+      + ngay(d.kyTruoc.tu) + ' – ' + ngay(d.kyTruoc.den) : ' · không so với kỳ nào') + '<br>'
     + '<b>' + d.soChay + '/' + d.soApp + '</b> base đọc được · <b>' + d.soO + '</b> chỉ số'
     + '</div></div></div>'
     + khoi
@@ -767,7 +770,7 @@ const lamCsv = (dong) => '﻿' + dong.map((d) => d.map(oCsv).join(',')).join('\r
 function csvBaoCao(d) {
   const r = [
     ['Báo cáo Marketing', d.tu + ' đến ' + d.den, d.soNgay + ' ngày'],
-    ['So với kỳ trước', d.kyTruoc.tu + ' đến ' + d.kyTruoc.den],
+    ['So với kỳ trước', d.kyTruoc ? d.kyTruoc.tu + ' đến ' + d.kyTruoc.den : 'không so sánh'],
     ['Base đọc được', d.soChay + '/' + d.soApp], [],
     ['CHỈ SỐ TỔNG'], [],
     ['Base', 'Chỉ số', 'Giá trị', 'Đơn vị', '% so kỳ trước', 'Nền tảng có số', 'Nền tảng chưa có'],

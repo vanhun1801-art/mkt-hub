@@ -215,6 +215,27 @@ async function docSocial(app, tu, den) {
   const nt = d.nenTang || [];
   /* `n(khoa)` gắn vào ô danh sách nền tảng có / không có con số đó — xem gopNen. */
   const n = (khoa) => gopNen(nt, khoa);
+
+  /* FOLLOWER TĂNG KHÔNG PHỦ HẾT CÁC KÊNH — phải nói ra, không thì con số bị đọc
+   * như thành tích của cả phòng.
+   *
+   * TikTok nối bằng Display API: nó trả follower HIỆN TẠI, không trả tăng/giảm
+   * theo ngày, và ảnh chụp follower cũng chỉ ghi được rải rác vài ngày trong
+   * tháng. Zalo OA cũng vậy. Nên "follower tăng" thật ra chỉ đo được Facebook và
+   * Instagram — trong khi TikTok chiếm hơn một phần ba tổng người theo dõi.
+   *
+   * Đã cân nhắc lấy hiệu số hai lần chốt để suy ra mức tăng cho TikTok, và bỏ:
+   * phần lớn kênh có lần chốt đầu tháng bằng 0 (chưa đồng bộ), lấy hiệu số ra
+   * "+301.369 follower mới" — một con số bịa to hơn cả sự thật. Thà nói không đo
+   * được. Ô "Follower toàn phòng" ở trên thì cộng đủ mọi kênh, vì đó là ảnh chụp
+   * hiện tại chứ không phải mức tăng. */
+  const thieuDong = (d.nenTang || []).filter((x) => so(x.followers) > 0
+    && !so(x.followUp) && !so(x.followDown));
+  const ghiFollow = thieuDong.length
+    ? 'chưa gồm ' + thieuDong.map((x) => x.platform + ' ('
+      + Math.round(so(x.followers) / 1000) + 'k follower)').join(', ')
+      + ' — nền tảng không trả số tăng giảm theo ngày'
+    : '';
   /* Ô "Số phiên LIVE" đã chuyển hẳn sang khối LIVE. Để lại đây thì hai khối cùng
    * báo một con số, và người đọc phải tự đoán hai chỗ có phải cùng một thứ
    * không. Cột LIVE trong bảng "Theo nền tảng" thì giữ, vì ở đó nó trả lời câu
@@ -226,10 +247,14 @@ async function docSocial(app, tu, den) {
       { nhan: 'Lượt xem', so: so(t.views), dinhDang: 'so', lech: l.views, chinh: true, nen: n('views') },
       { nhan: 'Lượt hiển thị', so: so(t.impressions), dinhDang: 'so', lech: l.impressions, nen: n('impressions') },
       { nhan: 'Lượt tiếp cận', so: so(t.reach), dinhDang: 'so', lech: l.reach, nen: n('reach') },
-      { nhan: 'Follower', so: so(t.followers), dinhDang: 'so', ghi: 'chốt ngày mới nhất', nen: n('followers') },
-      { nhan: 'Follower tăng', so: so(t.followUp), dinhDang: 'so', lech: l.followUp, nen: n('followUp') },
-      { nhan: 'Follower giảm', so: so(t.followDown), dinhDang: 'so', lech: l.followDown, dao: true, nen: n('followDown') },
-      { nhan: 'Follower tăng ròng', so: so(t.followNet), dinhDang: 'so', lech: l.followNet, nen: n('followNet') },
+      { nhan: 'Follower toàn phòng', so: so(t.followers), dinhDang: 'so', chinh: true,
+        ghi: 'chốt mới nhất · cộng đủ ' + (d.kenh || []).length + ' kênh', nen: n('followers') },
+      { nhan: 'Follower tăng', so: so(t.followUp), dinhDang: 'so', lech: l.followUp,
+        ghi: ghiFollow, nen: n('followUp') },
+      { nhan: 'Follower giảm', so: so(t.followDown), dinhDang: 'so', lech: l.followDown,
+        dao: true, ghi: ghiFollow, nen: n('followDown') },
+      { nhan: 'Follower tăng ròng', so: so(t.followNet), dinhDang: 'so', lech: l.followNet,
+        ghi: ghiFollow, nen: n('followNet') },
       { nhan: 'Tương tác', so: so(t.engagement), dinhDang: 'so', lech: l.engagement, nen: n('engagement') },
       { nhan: 'Thích', so: so(t.likes), dinhDang: 'so', lech: l.likes, nen: n('likes') },
       { nhan: 'Bình luận', so: so(t.comments), dinhDang: 'so', lech: l.comments, nen: n('comments') },
@@ -269,10 +294,14 @@ async function docSocial(app, tu, den) {
         dong: (d.nenTang || []).map((x) => [x.platform, so(x.views), so(x.impressions),
           so(x.engagement), so(x.followUp), so(x.posts), so(x.lives)]) },
       { tieuDe: 'Theo kênh',
-        cot: ['Kênh', 'Nền tảng', 'Lượt xem', 'Tương tác', 'Follower tăng', 'Bài'],
-        soCot: [2, 3, 4, 5],
-        dong: (d.kenh || []).map((k) => [k.name, k.platform, so(k.views), so(k.engagement),
-          so(k.followUp), so(k.posts)]) },
+        cot: ['Kênh', 'Nền tảng', 'Follower', 'Follower tăng', 'Lượt xem', 'Tương tác', 'Bài'],
+        soCot: [2, 3, 4, 5, 6],
+        /* Cột Follower đứng ngay cạnh cột tăng: kênh nào có tệp lớn mà cột tăng
+         * để trống thì thấy ngay đó là kênh chưa đo được, không phải kênh chết. */
+        dong: (d.kenh || []).slice().sort((a, b) => so(b.followers) - so(a.followers))
+          .map((k) => [k.name, k.platform, so(k.followers),
+            so(k.followUp) || so(k.followDown) ? so(k.followUp) : '—',
+            so(k.views), so(k.engagement), so(k.posts)]) },
       { tieuDe: 'Bài xem nhiều nhất',
         cot: ['Bài', 'Kênh', 'Lượt xem', 'Tương tác'],
         soCot: [2, 3],
@@ -525,17 +554,21 @@ async function docCongViec(app, tu, den) {
       { nhan: 'Chưa phân công', so: mo.filter((t) => !(t.owner || []).length).length, dinhDang: 'so', dao: true },
       { nhan: 'Tổng việc trên bảng', so: ds.length, dinhDang: 'so' },
     ],
-    /* Vành khuyên trạng thái bị bỏ. Nó trả lời "việc đang ở đâu" — câu của người
-     * trực bảng, không phải của người đọc báo cáo tháng. Thay bằng hai hình:
-     * cột trạng thái (đọc ngay cái nào nhiều nhất, không phải ướm miếng bánh),
-     * và thanh xếp hạng theo người (ai gánh bao nhiêu việc trong kỳ). */
-    cot: {
-      nhan: 'Việc theo trạng thái',
-      don: 'so',
-      muc: tt.slice().sort((x, y) => y._n - x._n).map((x) => ({ nhan: x._k, so: x._n })),
-    },
+    /* Bảng việc chỉ cần ĐỊNH LƯỢNG: kỳ này làm được bao nhiêu việc, loại gì, ai
+     * làm. Vành khuyên trạng thái đã bỏ (nó trả lời "việc đang nằm ở đâu" — câu
+     * của người trực bảng, không phải của người đọc báo cáo tháng), và cột trạng
+     * thái cũng bỏ nốt: "407 việc Hoàn thành" là con số cộng dồn của cả bảng từ
+     * đầu năm, đứng trong báo cáo một tháng thì chỉ gây hiểu nhầm.
+     *
+     * Còn lại một hình duy nhất, gọn: việc LÀM TRONG KỲ theo loại. */
     thanh: {
-      nhan: 'Việc đến hạn trong kỳ, theo người',
+      nhan: 'Việc đến hạn trong kỳ, theo loại',
+      don: 'so',
+      muc: theoLoai.slice().sort((x, y) => y._n - x._n)
+        .map((x) => ({ nhan: x._k, so: x._n })),
+    },
+    thanh2: {
+      nhan: 'Theo người',
       don: 'so',
       muc: theoNguoi.slice().sort((x, y) => y._n - x._n)
         .map((x) => ({ nhan: x._k, so: x._n })),
@@ -590,6 +623,12 @@ async function docLich(app, tu, den) {
     return s + (b - a) / 36e5;
   }, 0);
   const tt = gomTheo(it, (x) => nhanOf(x.status) || '(trống)', []);
+  /* Địa điểm: app Lịch có cột `diaDiem` mà báo cáo chưa bao giờ đọc tới. Đây là
+   * thứ duy nhất nói được phòng đã ra những đâu trong kỳ — và nhìn ra chỗ nào đi
+   * nhiều mà tốn kém thì mới bàn được chuyện gộp buổi. */
+  const dd = gomTheo(it.filter((x) => nhanOf(x.diaDiem)),
+    (x) => nhanOf(x.diaDiem), ['costActual']);
+  const chuaGhiDd = it.length - dd.reduce((a, x) => a + x._n, 0);
 
   /* Giờ tác nghiệp theo người — đây là con số duy nhất trong app Lịch nói được
    * "ai ra hiện trường bao nhiêu". Chia đều giờ của buổi cho những người cùng
@@ -621,6 +660,8 @@ async function docLich(app, tu, den) {
       { nhan: 'Dự toán', so: cong('costPlan'), dinhDang: 'vnd' },
       { nhan: 'Chênh dự toán', so: cong('costActual') - cong('costPlan'), dinhDang: 'vnd', dao: true },
       { nhan: 'Có báo cáo sau buổi', so: it.filter((x) => x.reportAfter || x.report).length, dinhDang: 'so' },
+      { nhan: 'Số địa điểm đã đến', so: dd.length, dinhDang: 'so',
+        ghi: chuaGhiDd ? chuaGhiDd + '/' + it.length + ' buổi chưa ghi địa điểm' : '' },
     ],
     cot: {
       nhan: 'Buổi theo trạng thái',
@@ -628,18 +669,27 @@ async function docLich(app, tu, den) {
       muc: tt.slice().sort((x, y) => y._n - x._n).map((x) => ({ nhan: x._k, so: x._n })),
     },
     thanh: {
+      nhan: 'Địa điểm tác nghiệp nhiều nhất',
+      don: 'so',
+      muc: dd.slice().sort((x, y) => y._n - x._n).map((x) => ({ nhan: x._k, so: x._n })),
+    },
+    thanh2: {
       nhan: 'Giờ tác nghiệp theo người',
       don: 'so2',
       muc: [...gioNguoi.entries()].sort((x, y) => y[1] - x[1])
         .map(([ten, g]) => ({ nhan: ten, so: Math.round(g * 10) / 10 })),
     },
     bang: [
+      { tieuDe: 'Theo địa điểm',
+        cot: ['Địa điểm', 'Số buổi', 'Chi phí thực tế'], soCot: [1, 2],
+        dong: dd.slice().sort((x, y) => y._n - x._n)
+          .map((x) => [x._k, x._n, so(x.costActual)]) },
       { tieuDe: 'Buổi tác nghiệp trong kỳ',
-        cot: ['Ngày', 'Nội dung', 'Trạng thái', 'Người', 'Chi phí'],
-        soCot: [4],
+        cot: ['Ngày', 'Nội dung', 'Địa điểm', 'Trạng thái', 'Người', 'Chi phí'],
+        soCot: [5],
         dong: it.slice().sort((x, y) => String(x.start).localeCompare(String(y.start)))
           .slice(0, 40).map((x) => [String(x.start || '').slice(0, 10),
-            x.title || '(không tên)', nhanOf(x.status),
+            x.title || '(không tên)', nhanOf(x.diaDiem) || '—', nhanOf(x.status),
             (x.owner || x.staff || []).map((u) => u.name || u.id).join(', '), so(x.costActual)]) },
     ].filter((x) => x.dong.length),
   };
@@ -1085,7 +1135,7 @@ function gomTepMoi(base, tongChi) {
 
 /** @param {{id,ten,quanLy}} nguoi Người đang xem — gửi kèm cho app con biết ai hỏi. */
 async function gom(tu, den, nguoi, kieuSS) {
-  const truoc = kyTruoc(tu, den, kieuSS);
+  const truoc = kyTruoc(tu, den, kieuSS === 'khong' ? 'truoc' : kieuSS);
   const base = await Promise.all(APP.map(async (app) => {
     const nen = { id: app.id, ten: app.ten, mo: app.mo, mau: app.mau };
     try {
@@ -1200,6 +1250,25 @@ function gomChiPhi(base) {
  * khiễng, chỗ có chỗ không.
  */
 async function gomSoSanh(tu, den, nguoi, kieuSS) {
+  /* TẮT SO SÁNH. Không phải chuyện ẩn vài cái mũi tên: bỏ so sánh thì khỏi phải
+   * đọc lại toàn bộ 9 base cho kỳ trước, tức là nhanh gấp đôi. Ai chỉ cần xem
+   * "tháng này ra sao" thì không nên phải chờ máy đọc cả tháng trước. */
+  if (kieuSS === 'khong') {
+    const d = await gom(tu, den, nguoi);
+    /* Xoá sạch mức lệch, kể cả mức do app nguồn tự trả. Social và Quảng cáo gắn
+     * sẵn `lech` theo cửa sổ của riêng chúng; để nguyên thì tắt so sánh xong vẫn
+     * còn vài ô đeo mũi tên "▼ 3,9% so kỳ trước" — so với kỳ nào thì không ai
+     * biết, vì màn hình vừa nói là không so với kỳ nào cả. */
+    d.base.forEach((b) => (b.o || []).forEach((o) => { delete o.lech; delete o.soTruoc; }));
+    if (d.chiPhi && d.chiPhi.o) {
+      d.chiPhi.o.forEach((o) => { delete o.lech; delete o.soTruoc; });
+      d.chiPhi.soSanh = [];
+    }
+    if (d.tepMoi && d.tepMoi.o) d.tepMoi.o.forEach((o) => { delete o.lech; delete o.soTruoc; });
+    d.kyTruoc = null;
+    d.kyTruocDoc = 0;
+    return d;
+  }
   const kt = kyTruoc(tu, den, kieuSS);
   const [nay, truoc] = await Promise.all([
     gom(tu, den, nguoi, kieuSS),
@@ -1215,7 +1284,17 @@ async function gomSoSanh(tu, den, nguoi, kieuSS) {
        * `return` sớm ở đây nên hai base tự tính lệch (Social, Quảng cáo) không
        * bao giờ có số kỳ trước — và biểu đồ so sánh của chúng rỗng trơn. */
       o.soTruoc = ot.so;
-      if (o.lech != null) return;
+      /* TÍNH LẠI mức lệch từ chính hai con số này, KỂ CẢ khi app nguồn đã trả
+       * sẵn `lech`.
+       *
+       * Bản trước giữ nguyên `lech` của app nguồn. Nhưng Social và Quảng cáo tự
+       * so với cửa sổ của RIÊNG chúng, không phải cửa sổ người xem chọn ở đây.
+       * Hậu quả lộ ra ngay khi biểu đồ bắt đầu vẽ hai cột: ô "Bình luận" hiện
+       * 24 → 58 mà nhãn ghi ▲ +1,4%. Cột lấy từ cửa sổ này, phần trăm lấy từ
+       * cửa sổ kia — hai thứ cạnh nhau nói hai chuyện khác nhau.
+       *
+       * Ai đặt khoảng thời gian thì người đó định nghĩa "kỳ trước". Khoảng này
+       * do báo cáo đặt, nên phần trăm cũng phải do báo cáo tính. */
       /* Kỳ trước bằng 0 thì không phần trăm nào có nghĩa (chia cho 0) — để trống
        * và cho giao diện hiện ghi chú thay vì "∞%". */
       o.lech = ot.so ? ((o.so - ot.so) / Math.abs(ot.so)) * 100 : null;

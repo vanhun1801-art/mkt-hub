@@ -271,64 +271,51 @@ tr.phu td { background: var(--trang-2); }
 .canhbao.canhBao { border-color: var(--vang); background: var(--vang-nhat); }
 .canhbao.tin { border-color: var(--vien); background: var(--trang-2); color: var(--chu-mo); }
 
-/* ---- biểu đồ so sánh kỳ trước: CỘT DỰNG trên/dưới vạch 0 ----
-   Bản trước là thanh nằm ngang toả hai bên một vạch dọc. Đúng số nhưng phải đọc
-   chú thích mới hiểu, vì "sang phải" không phải hình ảnh tự nhiên của "tăng".
-   Cột mọc lên / thõng xuống thì không cần ai giải thích.
-   Màu vẫn theo TỐT/XẤU chứ không theo hướng — "chi phí giảm 27%" thõng xuống
-   nhưng là tin tốt nên vẫn xanh. */
+/* ---- biểu đồ so sánh kỳ trước: mỗi chỉ số một ô, hai cột cạnh nhau ----
+   Bản trước vẽ một cột phần trăm. Gọn, nhưng "+20%" không cho biết đang nói về
+   hai triệu lượt xem hay bốn mươi bình luận. Hai cột cạnh nhau kèm số thật thì
+   thấy được cả mức đổi lẫn quy mô.
+   Mỗi ô có THANG RIÊNG, cố ý: chung thang thì cột hàng chục dẹp thành vạch kẻ
+   bên cạnh cột hàng triệu. Trong một ô hai cột so được với nhau — đó là phép so
+   duy nhất biểu đồ này hứa hẹn, và chân biểu đồ nói rõ điều đó. */
 .ss { padding: 2px 0 0; }
 .ss-tieu {
-  margin: 0 0 14px; font-size: 11px; font-weight: 700; letter-spacing: .05em;
+  margin: 0 0 10px; font-size: 11px; font-weight: 700; letter-spacing: .05em;
   text-transform: uppercase; color: var(--chu-nhat);
 }
-/* Cuộn ngang khi nhiều cột: thà kéo còn hơn bóp cột lại thành sợi chỉ. */
-.cs-khung { overflow-x: auto; padding-bottom: 4px; }
-/* Vạch 0 vẽ LIỀN MỘT NÉT qua cả biểu đồ, không cắt theo từng cột. Vạch đứt
-   quãng theo khe hở giữa các cột thì mắt không bám được vào đâu để biết cột nào
-   mọc lên, cột nào thõng xuống — mất đúng cái làm nên hình này. 74px là chiều
-   cao nửa trên, khai một chỗ ở --cs-nua để hai bên không lệch nhau. */
-.cs-ds {
-  display: flex; gap: 10px; align-items: stretch; min-width: min-content;
-  position: relative; --cs-nua: 74px;
+.seg-ghi { margin-left: 10px; font-size: 12px; color: var(--chu-nhat); align-self: center; }
+
+.sp-chu { display: flex; gap: 16px; margin-bottom: 14px; font-size: 11.5px; color: var(--chu-nhat); }
+.sp-chu i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.sp-chu i.truoc { background: var(--vien-dam); }
+.sp-chu i.nay { background: var(--xanh); }
+.sp-luoi { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 16px 12px; }
+.sp-o { display: flex; flex-direction: column; min-width: 0; }
+.sp-ten {
+  font-size: 12px; line-height: 1.35; color: var(--chu-mo); min-height: 32px;
+  margin-bottom: 6px; word-break: break-word;
 }
-.cs-ds::before {
-  content: ''; position: absolute; left: 0; right: 0; top: var(--cs-nua);
-  height: 1px; background: var(--chu-nhat); opacity: .55; pointer-events: none;
-}
-.cs-cot { flex: 1 1 0; min-width: 62px; display: flex; flex-direction: column; }
-.cs-nua { height: var(--cs-nua); display: flex; flex-direction: column; align-items: center; }
-.cs-nua.tren { justify-content: flex-end; }
-.cs-nua.duoi { justify-content: flex-start; }
-.cs-nua > i { display: block; width: 100%; max-width: 46px; }
-.cs-nua.tren > i { border-radius: 4px 4px 0 0; }
-.cs-nua.duoi > i { border-radius: 0 0 4px 4px; }
-.cs-nua > i.tot { background: var(--luc); }
-.cs-nua > i.xau { background: var(--do); }
-.cs-nua > i.im  { background: var(--vien-dam); }
-/* Cột cụt đầu răng cưa = vượt thang; số thật vẫn in nguyên nên không giấu gì. */
-.cs-nua.tren > i.tran {
-  clip-path: polygon(0 8px, 25% 0, 50% 8px, 75% 0, 100% 8px, 100% 100%, 0 100%);
-  border-radius: 0 0 4px 4px;
-}
-.cs-nua.duoi > i.tran {
-  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 8px), 75% 100%, 50% calc(100% - 8px), 25% 100%, 0 calc(100% - 8px));
-  border-radius: 4px 4px 0 0;
-}
-.cs-nua > b {
+/* align-items:flex-end — hai cột cùng đứng trên một đáy dù số trên đầu dài ngắn khác nhau. */
+.sp-cap { display: flex; align-items: flex-end; justify-content: center; gap: 9px; }
+.sp-cot { display: flex; flex-direction: column; align-items: center; flex: 0 1 46px; min-width: 0; }
+.sp-cot > b {
   font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums;
-  padding: 3px 0; white-space: nowrap;
+  padding-bottom: 4px; white-space: nowrap; color: var(--chu-mo);
 }
-.cs-nua > b.tot { color: var(--luc); }
-.cs-nua > b.xau { color: var(--do); }
-.cs-nua > b.im  { color: var(--chu-mo); }
-/* Chỗ giữ chiều cao cho vạch 0 — nét thật do .cs-ds::before vẽ liền. */
-.cs-vach { height: 1px; }
-.cs-ten {
-  margin-top: 8px; font-size: 12px; line-height: 1.35; color: var(--chu-mo);
-  text-align: center; word-break: break-word; hyphens: auto;
+.sp-cot > b.tot { color: var(--luc); } .sp-cot > b.xau { color: var(--do); }
+.sp-cot > b.im { color: var(--chu); }
+.sp-cot > i { display: block; width: 100%; max-width: 40px; border-radius: 4px 4px 0 0; }
+.sp-cot > i.truoc { background: var(--vien-dam); }
+.sp-cot > i.nay.tot { background: var(--luc); }
+.sp-cot > i.nay.xau { background: var(--do); }
+.sp-cot > i.nay.im  { background: var(--xanh); }
+.sp-lech {
+  margin-top: 7px; text-align: center; font-size: 12px; font-weight: 650;
+  font-variant-numeric: tabular-nums;
 }
-.ss-chan { margin-top: 12px; font-size: 11px; color: var(--chu-nhat); line-height: 1.5; }
+.sp-lech.tot { color: var(--luc); } .sp-lech.xau { color: var(--do); }
+.sp-lech.im { color: var(--chu-nhat); }
+.ss-chan { margin-top: 14px; font-size: 11px; color: var(--chu-nhat); line-height: 1.5; }
 .o .ghi.im { color: var(--chu-mo); font-weight: 600; }
 
 /* ---- biểu đồ cột số tuyệt đối ----
@@ -666,6 +653,7 @@ input.ghi-cham::placeholder { color: var(--chu-nhat); font-style: italic; }
   .ss-tieu { font-size: 12.5px; }                                /* 11 */
   .ss-chan { font-size: 12.5px; }                                /* 11 */
   .ph-ghi { font-size: 12.5px; }                                 /* 11,5 */
+  .sp-chu { font-size: 12.5px; }                                 /* 11,5 */
   .tn-ten em { font-size: 12.5px; }                              /* 11 */
   .tn-pt { font-size: 12.5px; }                                  /* 11.5 */
 }

@@ -83,8 +83,10 @@ async function veBaoCao() {
   const ngay = (s) => s.split('-').reverse().join('/');
   hop.appendChild(el('div', 'canhbao tin',
     '<div>Kỳ <b>' + ngay(BC.tu) + ' – ' + ngay(BC.den) + '</b> (' + BC.soNgay + ' ngày) · '
-    + 'so với <b>' + esc(BC.kyTruoc.nhan || 'kỳ trước') + '</b> '
-    + ngay(BC.kyTruoc.tu) + ' – ' + ngay(BC.kyTruoc.den) + ' · '
+    + (BC.kyTruoc
+      ? 'so với <b>' + esc(BC.kyTruoc.nhan || 'kỳ trước') + '</b> '
+        + ngay(BC.kyTruoc.tu) + ' – ' + ngay(BC.kyTruoc.den) + ' · '
+      : '<b>không so với kỳ nào</b> · ')
     + '<b>' + BC.soChay + '/' + BC.soApp + '</b> base đọc được. '
     + 'Số đọc trực tiếp từ các base tại thời điểm mở.</div>'));
 
@@ -135,11 +137,19 @@ function bcThanhLoc() {
   gSS.innerHTML = '<label>So với</label>';
   const segSS = el('div', 'seg');
   BC_KIEU_SS.forEach(([ma, nhan]) => {
-    const b = el('button', 'seg-nut' + (BC_SS === ma ? ' chon' : ''), nhan);
-    b.onclick = () => { BC_SS = ma; veBaoCao(); };
+    const dangChon = BC_SS === ma;
+    const b = el('button', 'seg-nut' + (dangChon ? ' chon' : ''), nhan);
+    /* Bấm lại cái đang chọn thì TẮT so sánh. Nhóm nút kiểu này thường không cho
+     * bỏ chọn, nhưng ở đây "không so với gì cả" là một lựa chọn thật: có lúc chỉ
+     * cần con số của kỳ này, và mọi mũi tên ▲▼ chỉ làm rối mắt. */
+    b.title = dangChon ? 'Bấm lần nữa để bỏ so sánh' : 'So với ' + nhan.toLowerCase();
+    b.onclick = () => { BC_SS = dangChon ? 'khong' : ma; veBaoCao(); };
     segSS.appendChild(b);
   });
   gSS.appendChild(segSS);
+  if (BC_SS === 'khong') {
+    gSS.appendChild(el('span', 'seg-ghi', 'đang tắt so sánh — bấm một mốc để bật lại'));
+  }
   than.appendChild(gSS);
 
   const g4 = el('div', 'loc-nhom grow');
@@ -222,7 +232,9 @@ function bcChiPhi(c) {
     const oSs = el('div');
     khung.appendChild(oSs); khung.appendChild(oTron);
     t.appendChild(khung);
-    if ((c.soSanh || []).length) oSs.appendChild(bcSoSanh(c.soSanh, 'Chi phí so kỳ trước'));
+    if ((c.soSanh || []).length) {
+      oSs.appendChild(bcSoSanh(c.soSanh, 'Chi phí so kỳ trước', bcNhanKyTruoc()));
+    }
     Charts.donut(oTron, c.tron.phan.map((x) => ({ label: x.nhan, value: x.so })),
       { centerLabel: c.tron.giua, size: 180 });
   }
@@ -285,57 +297,63 @@ function bcBang(t, bg) {
 }
 
 /**
- * BIỂU ĐỒ SO SÁNH KỲ TRƯỚC — cột dựng, mọc lên hoặc thõng xuống khỏi vạch 0.
+ * BIỂU ĐỒ SO SÁNH KỲ TRƯỚC — mỗi chỉ số một ô nhỏ, hai cột đứng cạnh nhau:
+ * kỳ trước (cột nhạt) và kỳ này (cột đậm), có in số thật lên đầu từng cột.
  *
- * Bản trước vẽ thanh NẰM NGANG toả hai bên một vạch dọc giữa. Đúng về số nhưng
- * phải dừng lại đọc chú thích mới hiểu, vì "sang phải" không phải hình ảnh tự
- * nhiên của "tăng". Cột dựng thì không cần giải thích: mọc lên là lên, thõng
- * xuống là xuống — ai cũng đọc được trong một giây.
+ * Hai bản trước đều chỉ vẽ MỘT cột phần trăm đổi. Gọn, nhưng "+20%" không cho
+ * biết đang nói về hai triệu lượt xem hay bốn mươi bình luận — mất hết cảm giác
+ * về quy mô, mà quy mô mới là thứ quyết định nên bận tâm vào chỉ số nào.
  *
- * Vì sao vẫn là % chứ không phải cột kỳ này cạnh cột kỳ trước: các chỉ số trong
- * một base lệch nhau mấy bậc độ lớn (lượt xem 1,99 triệu đứng cạnh bình luận
- * 40). Chung một thang tuyệt đối thì cột nhỏ dẹp thành vạch kẻ. Đổi sang % thay
- * đổi thì mọi chỉ số về chung thang, và số tuyệt đối vẫn hiện khi rê chuột.
+ * Vẽ hai cột cạnh nhau thì vướng chuyện các chỉ số lệch nhau mấy bậc độ lớn
+ * (lượt xem 1,99 triệu đứng cạnh bình luận 40): chung một thang thì cột nhỏ dẹp
+ * thành vạch kẻ. Cách thoát là KHÔNG dùng chung thang — mỗi ô tự đo theo cột cao
+ * nhất của chính nó. Trong một ô, hai cột so được với nhau vì cùng thang; giữa
+ * các ô thì không so chiều cao, và cũng không cần, vì số thật in ngay trên đầu.
  *
  * Màu theo TỐT/XẤU chứ không theo hướng: "chi phí giảm 27%" là tin tốt nên
- * xanh, dù cột thõng xuống.
+ * xanh, dù cột kỳ này thấp hơn cột kỳ trước.
  */
-function bcSoSanh(ds, tieuDe) {
+/** Tên mốc so sánh đang chọn — để chú thích nói đúng "tháng trước" hay "năm trước". */
+function bcNhanKyTruoc() {
+  const k = BC && BC.kyTruoc;
+  return k && k.nhan ? k.nhan : 'kỳ trước';
+}
+
+function bcSoSanh(ds, tieuDe, nhanTruoc) {
   const g = el('div', 'ss');
   g.appendChild(el('h4', 'ss-tieu', esc(tieuDe || 'So với kỳ trước')));
-  /* Chặn thang ở 150%: một chỉ số nhảy 900% sẽ ép mọi cột còn lại thành vệt mờ.
-   * Cột chạm biên thì cụt đầu có răng cưa, và số thật vẫn in nguyên bên cạnh. */
-  const TRAN = 150;
-  const max = Math.min(TRAN, Math.max(20, ...ds.map((x) => Math.abs(x.lech))));
-  const kh = el('div', 'cs-khung');
-  const hang = el('div', 'cs-ds');
+  g.appendChild(el('div', 'sp-chu',
+    '<span><i class="truoc"></i>' + esc(nhanTruoc || 'kỳ trước') + '</span>'
+    + '<span><i class="nay"></i>kỳ này</span>'));
+  const luoi = el('div', 'sp-luoi');
+  const CAO = 78;
   ds.forEach((x) => {
-    const v = Math.abs(x.lech);
-    const h = Math.min(100, (Math.min(v, max) / max) * 100);
-    const tran = v > max;
-    /* Ba trạng thái, không phải hai: tốt · xấu · TRUNG TÍNH. Tổng tiền đã chi
-     * không có chiều tốt xấu — tô xám, chỉ nói mức đổi. */
+    /* Thang riêng cho từng ô: chia theo cột cao nhất TRONG Ô, không phải cao
+     * nhất cả biểu đồ. Số âm (chênh dự toán, lãi lỗ) thì lấy trị tuyệt đối làm
+     * thang, nếu không cột sẽ có chiều cao âm và biến mất. */
+    const max = Math.max(Math.abs(x.nay), Math.abs(x.truoc), 1);
+    const cao = (v) => Math.max(3, Math.round((Math.abs(v) / max) * CAO));
     const mau = x.tot == null ? 'im' : x.tot ? 'tot' : 'xau';
-    const len = x.lech > 0;
     const pt = (x.lech > 0 ? '+' : '') + (Math.round(x.lech * 10) / 10).toString().replace('.', ',') + '%';
-    const c = el('div', 'cs-cot');
-    c.innerHTML = '<div class="cs-nua tren">'
-      + (len ? '<b class="' + mau + '">' + pt + '</b><i class="' + mau + (tran ? ' tran' : '')
-        + '" style="height:' + h + '%"></i>' : '')
-      + '</div><div class="cs-vach"></div><div class="cs-nua duoi">'
-      + (!len ? '<i class="' + mau + (tran ? ' tran' : '') + '" style="height:' + h + '%"></i>'
-        + '<b class="' + mau + '">' + pt + '</b>' : '')
-      + '</div><div class="cs-ten">' + esc(x.nhan) + '</div>';
-    c.title = x.nhan + ': ' + gon(x.truoc) + ' → ' + gon(x.nay) + ' (' + pt + ')';
-    hang.appendChild(c);
+    const o = el('div', 'sp-o');
+    o.innerHTML = '<div class="sp-ten">' + esc(x.nhan) + '</div>'
+      + '<div class="sp-cap">'
+      + '<div class="sp-cot"><b>' + bcSo(x.truoc, x.dinhDang) + '</b>'
+      + '<i class="truoc" style="height:' + cao(x.truoc) + 'px"></i></div>'
+      + '<div class="sp-cot"><b class="' + mau + '">' + bcSo(x.nay, x.dinhDang) + '</b>'
+      + '<i class="nay ' + mau + '" style="height:' + cao(x.nay) + 'px"></i></div>'
+      + '</div>'
+      + '<div class="sp-lech ' + mau + '">' + (x.lech > 0 ? '▲ ' : '▼ ') + pt + '</div>';
+    o.title = x.nhan + ': ' + gon(x.truoc) + ' → ' + gon(x.nay) + ' (' + pt + ')';
+    luoi.appendChild(o);
   });
-  kh.appendChild(hang);
-  g.appendChild(kh);
+  g.appendChild(luoi);
   g.appendChild(el('div', 'ss-chan',
-    'Thang ±' + Math.round(max) + '% quanh vạch giữa · cột cụt đầu là vượt thang · '
-    + 'xanh = tốt lên · đỏ = xấu đi · <b>xám = không có chiều tốt xấu</b> '
-    + '(tổng tiền đã chi: giảm có thể là tiết kiệm, cũng có thể là ngừng chạy) · '
-    + 'rê chuột để xem số kỳ trước'));
+    '<b>Mỗi ô có thang riêng</b> — hai cột trong cùng một ô so được với nhau, '
+    + 'còn chiều cao giữa các ô thì không (lượt xem hàng triệu đứng cạnh bình luận '
+    + 'hàng chục, chung thang thì cột nhỏ dẹp thành vạch kẻ). Số thật in trên đầu '
+    + 'từng cột · xanh = tốt lên · đỏ = xấu đi · <b>xám = không có chiều tốt xấu</b> '
+    + '(tổng tiền đã chi: giảm có thể là tiết kiệm, cũng có thể là ngừng chạy)'));
   return g;
 }
 
@@ -496,7 +514,7 @@ function bcKhoi(b) {
    * tháng ra sao". */
   if ((b.soSanh || []).length) {
     const kh = el('div', 'bieu-do');
-    kh.appendChild(bcSoSanh(b.soSanh, 'Thay đổi so với kỳ trước'));
+    kh.appendChild(bcSoSanh(b.soSanh, 'Thay đổi so với kỳ trước', bcNhanKyTruoc()));
     t.appendChild(kh);
   }
 
@@ -504,17 +522,18 @@ function bcKhoi(b) {
    * Bảng công việc và Lịch tác nghiệp trước đây chỉ có một vành khuyên trạng
    * thái. Vành khuyên trả lời "việc đang nằm ở đâu" — câu của người trực bảng.
    * Người đọc báo cáo tháng hỏi khác: cái nào nhiều nhất, và ai làm bao nhiêu. */
-  if ((b.cot && (b.cot.muc || []).length) || (b.thanh && (b.thanh.muc || []).length)) {
-    const khung = el('div', 'bieu-do'
-      + (b.cot && b.thanh && b.cot.muc.length && b.thanh.muc.length ? ' bieu-do-cap' : ''));
-    if (b.cot && b.cot.muc.length) {
-      const o = el('div'); o.appendChild(bcCot(b.cot)); khung.appendChild(o);
+  /* Tối đa hai hình cạnh nhau. `cot` là cột số tuyệt đối, `thanh`/`thanh2` là
+   * bảng xếp hạng — base nào dùng gì thì tự khai, ở đây chỉ xếp chỗ. */
+  const hinh = [];
+  if (b.cot && (b.cot.muc || []).length) hinh.push(() => bcCot(b.cot));
+  [b.thanh, b.thanh2].forEach((x) => {
+    if (x && (x.muc || []).length) {
+      hinh.push(() => bcThanhNgang(x.muc, x.nhan, 0, x.don || 'so'));
     }
-    if (b.thanh && b.thanh.muc.length) {
-      const o = el('div');
-      o.appendChild(bcThanhNgang(b.thanh.muc, b.thanh.nhan, 0, b.thanh.don || 'so'));
-      khung.appendChild(o);
-    }
+  });
+  if (hinh.length) {
+    const khung = el('div', 'bieu-do' + (hinh.length > 1 ? ' bieu-do-cap' : ''));
+    hinh.forEach((ve) => { const o = el('div'); o.appendChild(ve()); khung.appendChild(o); });
     t.appendChild(khung);
   }
 
