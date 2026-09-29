@@ -60,10 +60,15 @@ function bcSo(v, kieu) {
   return gon(v);
 }
 
+/* Ngày kiểu Việt. Trước đây khai bên trong veBaoCao(), nên thanh lọc gọi tới là
+ * nổ ReferenceError — giờ để chung một chỗ cho cả tệp dùng. */
+const ngay = (s) => String(s || '').split('-').reverse().join('/');
+
 async function veBaoCao() {
   if (!BC_KY) { const m = bcMoc(); BC_KY = { tu: m[0].tu, den: m[0].den, ma: m[0].ma }; }
   const g = el('div');
-  g.appendChild(bcThanhLoc());
+  let thanhLoc = bcThanhLoc();
+  g.appendChild(thanhLoc);
 
   const hop = el('div');
   g.appendChild(hop);
@@ -79,8 +84,13 @@ async function veBaoCao() {
     BC = await goi('bao-cao?tu=' + BC_KY.tu + '&den=' + BC_KY.den + '&ss=' + BC_SS);
   } catch (e) { hop.innerHTML = '<div class="rong">' + esc(e.message) + '</div>'; return; }
 
+  /* Dựng lại thanh lọc SAU khi có số. Nút "bấm lần hai để đi tới mốc đó" lấy
+   * khoảng thời gian từ `BC.kyTruoc`, mà lúc dựng lần đầu `BC` vẫn là của lần vẽ
+   * trước — vừa đổi sang "cùng kỳ tháng trước" thì nhãn còn ghi khoảng của "kỳ
+   * liền trước", và bấm tiếp sẽ nhảy sang đúng cái khoảng sai đó. */
+  thanhLoc.replaceWith(thanhLoc = bcThanhLoc());
+
   hop.innerHTML = '';
-  const ngay = (s) => s.split('-').reverse().join('/');
   hop.appendChild(el('div', 'canhbao tin',
     '<div>Kỳ <b>' + ngay(BC.tu) + ' – ' + ngay(BC.den) + '</b> (' + BC.soNgay + ' ngày) · '
     + (BC.kyTruoc
@@ -136,19 +146,47 @@ function bcThanhLoc() {
   const gSS = el('div', 'loc-nhom');
   gSS.innerHTML = '<label>So với</label>';
   const segSS = el('div', 'seg');
+  /* BẤM LẦN HAI = ĐI TỚI CHÍNH MỐC ĐÓ.
+   *
+   * Lần một: so kỳ đang xem với mốc. Lần hai: chuyển hẳn báo cáo sang khoảng
+   * thời gian của mốc đó, và bỏ so sánh — thành một bản báo cáo độc lập của
+   * tháng trước (hoặc năm trước).
+   *
+   * Vì sao gộp hai việc vào một nút: muốn xem lại tháng trước thì trước đây
+   * phải tự gõ hai ô ngày, mà "cùng kỳ năm trước" thì còn phải tự tính. Máy vừa
+   * tính đúng khoảng đó xong để so sánh — `BC.kyTruoc` đang giữ sẵn — nên chỉ
+   * cần đưa nó lên thanh lọc, không phải tính lại lần nữa.
+   *
+   * Bỏ so sánh ở bước này là cố ý: nhảy sang tháng 8 mà vẫn so tiếp với tháng 7
+   * thì người xem mất dấu, không còn biết con số nào thuộc kỳ nào. */
   BC_KIEU_SS.forEach(([ma, nhan]) => {
     const dangChon = BC_SS === ma;
+    const diToi = dangChon && BC && BC.kyTruoc;
     const b = el('button', 'seg-nut' + (dangChon ? ' chon' : ''), nhan);
-    /* Bấm lại cái đang chọn thì TẮT so sánh. Nhóm nút kiểu này thường không cho
-     * bỏ chọn, nhưng ở đây "không so với gì cả" là một lựa chọn thật: có lúc chỉ
-     * cần con số của kỳ này, và mọi mũi tên ▲▼ chỉ làm rối mắt. */
-    b.title = dangChon ? 'Bấm lần nữa để bỏ so sánh' : 'So với ' + nhan.toLowerCase();
-    b.onclick = () => { BC_SS = dangChon ? 'khong' : ma; veBaoCao(); };
+    b.title = diToi
+      ? 'Bấm lần nữa để xem thẳng báo cáo của ' + nhan.toLowerCase()
+        + ' (' + ngay(BC.kyTruoc.tu) + ' – ' + ngay(BC.kyTruoc.den) + '), không so sánh'
+      : 'So với ' + nhan.toLowerCase();
+    b.onclick = () => {
+      if (diToi) {
+        BC_KY = { tu: BC.kyTruoc.tu, den: BC.kyTruoc.den, ma: '' };
+        BC_SS = 'khong';
+      } else if (dangChon) {
+        /* Không có `BC.kyTruoc` để nhảy tới (lần vẽ trước hỏng) thì ít nhất vẫn
+         * tắt được so sánh, chứ đừng bấm mà không có gì xảy ra. */
+        BC_SS = 'khong';
+      } else {
+        BC_SS = ma;
+      }
+      veBaoCao();
+    };
     segSS.appendChild(b);
   });
   gSS.appendChild(segSS);
   if (BC_SS === 'khong') {
-    gSS.appendChild(el('span', 'seg-ghi', 'đang tắt so sánh — bấm một mốc để bật lại'));
+    gSS.appendChild(el('span', 'seg-ghi',
+      'báo cáo riêng khoảng ' + ngay(BC_KY.tu) + ' – ' + ngay(BC_KY.den)
+      + ', không so sánh — bấm một mốc để bật lại'));
   }
   than.appendChild(gSS);
 
