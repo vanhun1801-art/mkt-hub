@@ -309,4 +309,10 @@ function ghepFile(bang, luat) {
   return { soLieu, khop, truot };
 }
 
-module.exports = { docTuApp, tachBang, ghepFile, doSo, khoang, DIA_CHI };
+/* `tach`, `chuan` và ba bảng tra được mở ra ngoài để `muc-tieu.js` dùng lại.
+ * Khớp kênh là chỗ đã từng sai một lần (điền view TikTok vào ô Facebook vì tên
+ * kênh trùng nhau) — chỉ được có MỘT bản luật khớp trong cả app. */
+module.exports = {
+  docTuApp, tachBang, ghepFile, doSo, khoang, DIA_CHI,
+  tach, chuan, NEN_TANG, CHI_SO_BAI, CHI_SO_LIVE,
+};

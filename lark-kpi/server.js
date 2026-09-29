@@ -24,6 +24,14 @@ const cfgKho = require('./config').dungBase;
 const baoCao = require('./bao-cao');
 
 const PORT = Number(process.env.PORT || 5179);
+
+/* Cửa đọc bộ luật cho tầng báo cáo. Trả null khi tháng đó chưa có dữ liệu —
+ * `muc-tieu.js` sẽ xếp tháng ấy vào `thieuLuat` và báo cáo nói rõ là chưa đặt
+ * mục tiêu, thay vì lặng lẽ coi như mục tiêu bằng 0. */
+const docLuatCuaThang = (thang) => {
+  const t = store.thang(thang);
+  return t && t.luat ? t.luat : null;
+};
 /* PHẢI là loopback. App này đọc danh tính từ header `x-hub-user-id` mà hub truyền
  * xuống, và tin nó — chỉ an toàn khi không ai ngoài hub gọi tới được. Nghe
  * 0.0.0.0 thì bất kỳ máy nào trong mạng LAN cũng tự đặt header đó rồi thành
@@ -371,14 +379,14 @@ async function api(req, res, u) {
   if (p === '/api/bao-cao') {
     if (!nx.quanLy) return fail(res, 403, 'Chỉ trưởng phòng xem được báo cáo toàn phòng');
     const { tu, den } = khoangTu(u);
-    return ok(res, await baoCao.gomSoSanh(tu, den, nx, u.searchParams.get('ss')));
+    return ok(res, await baoCao.gomSoSanh(tu, den, nx, u.searchParams.get('ss'), docLuatCuaThang));
   }
 
   /** Một tệp HTML hoàn chỉnh để gửi Sếp — mở ra in thẳng thành PDF được. */
   if (p === '/api/xuat-bao-cao') {
     if (!nx.quanLy) return fail(res, 403, 'Chỉ trưởng phòng xuất được báo cáo toàn phòng');
     const { tu, den } = khoangTu(u);
-    const d = await baoCao.gomSoSanh(tu, den, nx, u.searchParams.get('ss'));
+    const d = await baoCao.gomSoSanh(tu, den, nx, u.searchParams.get('ss'), docLuatCuaThang);
     const html = X.trangBaoCao(d, nx, await X.logoHtml(store.THU_MUC));
     return send(res, 200, html, {
       'Content-Type': 'text/html; charset=utf-8',
@@ -390,7 +398,7 @@ async function api(req, res, u) {
   if (p === '/api/xuat-bao-cao-csv') {
     if (!nx.quanLy) return fail(res, 403, 'Chỉ trưởng phòng xuất được báo cáo toàn phòng');
     const { tu, den } = khoangTu(u);
-    const d = await baoCao.gomSoSanh(tu, den, nx, u.searchParams.get('ss'));
+    const d = await baoCao.gomSoSanh(tu, den, nx, u.searchParams.get('ss'), docLuatCuaThang);
     return send(res, 200, X.csvBaoCao(d), {
       'Content-Type': 'text/csv; charset=utf-8',
       'Content-Disposition': 'attachment; filename="'

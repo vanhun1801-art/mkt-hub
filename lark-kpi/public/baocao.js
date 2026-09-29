@@ -98,7 +98,8 @@ async function veBaoCao() {
         + ngay(BC.kyTruoc.tu) + ' – ' + ngay(BC.kyTruoc.den) + ' · '
       : '<b>không so với kỳ nào</b> · ')
     + '<b>' + BC.soChay + '/' + BC.soApp + '</b> base đọc được. '
-    + 'Số đọc trực tiếp từ các base tại thời điểm mở.</div>'));
+    + 'Số đọc trực tiếp từ các base tại thời điểm mở.'
+    + bcChuMucTieu() + '</div>'));
 
   /* Chi phí đứng TRƯỚC các base: tiền của phòng đi ra hai app khác nhau, và
    * câu "tháng này phòng tiêu bao nhiêu" là câu Sếp hỏi đầu tiên. */
@@ -432,6 +433,60 @@ function bcCot(c) {
   return g;
 }
 
+/**
+ * Một dòng nói về mục tiêu: lấy của tháng nào, đã chia theo ngày chưa, tháng
+ * nào chưa đặt. Không có dòng này thì người đọc không biết vạch mục tiêu dưới
+ * mỗi ô là mục tiêu cả tháng hay phần đã chia.
+ */
+function bcChuMucTieu() {
+  const m = BC && BC.mucTieu;
+  if (!m) return '';
+  if (!m.coLuat.length) {
+    return '<br><b>Chưa đặt mục tiêu</b> cho '
+      + m.thieuLuat.map((x) => 'tháng ' + x.slice(5)).join(', ')
+      + ' — các ô không có vạch mục tiêu vì bộ luật KPI tháng đó chưa lập, '
+      + 'không phải vì mục tiêu bằng 0.';
+  }
+  let t = '<br>Mục tiêu lấy từ bộ luật KPI '
+    + m.coLuat.map((x) => 'tháng ' + x.slice(5)).join(' + ')
+    + ' (' + m.soKenh + ' kênh) — cùng bộ luật đang dùng để chấm lương.';
+  if (!m.tronThang) {
+    t += ' Khoảng đang xem không trọn tháng nên <b>mục tiêu đã chia theo số ngày</b>, '
+      + 'giả định công việc rải đều trong tháng.';
+  }
+  if (m.thieuLuat.length) {
+    t += ' Chưa có bộ luật cho ' + m.thieuLuat.map((x) => 'tháng ' + x.slice(5)).join(', ')
+      + ' nên phần đó không góp mục tiêu.';
+  }
+  return t;
+}
+
+/**
+ * VẠCH MỤC TIÊU dưới con số.
+ *
+ * Báo cáo trước đây chỉ nói "được bao nhiêu", không nói "có đạt không" — trong
+ * khi nửa KPI của chính app này đã có mục tiêu tới từng kênh. Vạch này nối hai
+ * nửa lại: cùng một bộ luật đang dùng để chấm lương, nên báo cáo và phiếu KPI
+ * không thể nói hai con số khác nhau.
+ *
+ * Thang màu dùng chung với các màn KPI: ≥100% xanh · 80–100% vàng · <80% đỏ.
+ * Ô nào bộ luật không đặt mục tiêu thì KHÔNG vẽ gì — "chưa đặt mục tiêu" khác
+ * hẳn "mục tiêu bằng 0", vẽ một vạch rỗng là nói sai.
+ */
+function bcVachMucTieu(o) {
+  if (!Number.isFinite(o.mucTieu) || o.mucTieu <= 0) return '';
+  const pt = Number.isFinite(o.datPt) ? o.datPt : 0;
+  const mau = pt >= 100 ? 'dat' : (pt >= 80 ? 'gan' : 'thieu');
+  /* Vượt mục tiêu thì thanh đầy, không cho tràn ra ngoài khung — con số phần
+   * trăm bên cạnh đã nói rõ vượt bao nhiêu. */
+  const w = Math.max(1, Math.min(100, pt));
+  return '<div class="mt">'
+    + '<div class="mt-ray"><i class="' + mau + '" style="width:' + w + '%"></i></div>'
+    + '<div class="mt-chu"><b class="' + mau + '">'
+    + (Math.round(pt * 10) / 10).toString().replace('.', ',') + '%</b> mục tiêu '
+    + bcSo(o.mucTieu, o.dinhDang) + '</div></div>';
+}
+
 /** Một ô số. Tách ra vì cả khối base lẫn khối chi phí đều dùng. */
 function bcO(o) {
   const l = o.lech;
@@ -447,7 +502,7 @@ function bcO(o) {
   return el('div', 'o' + (o.muc === 'cao' ? ' xau' : '') + (o.chinh ? ' chinh' : ''),
     '<div class="nhan">' + esc(o.nhan) + '</div>'
     + '<div class="so">' + bcSo(o.so, o.dinhDang) + '</div>'
-    + dLech + dGhi + bcNen(o.nen));
+    + bcVachMucTieu(o) + dLech + dGhi + bcNen(o.nen));
 }
 
 /**

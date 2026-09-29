@@ -21,6 +21,9 @@
 const http = require('http');
 const https = require('https');
 
+const MT = require('./muc-tieu');
+const { CHI_SO_BAI, CHI_SO_LIVE } = require('./nguon');
+
 const APP = [
   { id: 'social', ten: 'Social', mo: 'TikTok · Facebook · Instagram · Zalo OA',
     mau: '#d62976', url: process.env.KPI_URL_SOCIAL || 'http://localhost:5178' },
@@ -1092,6 +1095,56 @@ const BO_DOC = {
 };
 
 /**
+ * GẮN MỤC TIÊU VÀO CÁC Ô ĐÃ DỰNG.
+ *
+ * Chỉ gắn cho những chỉ số bộ luật thật sự có mục tiêu. Ô nào không có thì để
+ * nguyên — KHÔNG bịa một mục tiêu bằng 0 hay bằng kỳ trước, vì "chưa đặt mục
+ * tiêu" và "đặt mục tiêu 0" là hai chuyện khác hẳn nhau.
+ *
+ * Bộ luật đặt mục tiêu theo TỪNG KÊNH. Cộng lại thành mục tiêu phòng là hợp lệ
+ * với các chỉ số cộng được (view, follow, lead) — không áp dụng cho tỷ lệ.
+ */
+function ganMucTieu(base, mt) {
+  const p = mt.phong;
+  const dat = (b, nhan, khoa) => {
+    if (!b || !b.chay || !Number.isFinite(p[khoa]) || p[khoa] <= 0) return;
+    const i = (b.o || []).findIndex((x) => x.nhan === nhan);
+    if (i < 0) return;
+    b.o[i] = MT.gan(b.o[i], p[khoa]);
+  };
+  const social = base.find((x) => x.id === 'social');
+  const live = base.find((x) => x.id === 'live');
+
+  dat(social, 'Lượt xem', 'view');
+  dat(social, 'Follower tăng', 'follow');
+  dat(social, 'Lead', 'lead');
+  dat(live, 'Lượt xem', 'liveView');
+  dat(live, 'Follow mới', 'liveFollow');
+  dat(live, 'Bình luận', 'liveComment');
+
+  /* Bảng "Theo kênh" của Social là chỗ mục tiêu có ích nhất: nó cho biết kênh
+   * nào kéo cả phòng xuống. Thêm ba cột — mục tiêu view, % đạt, và mục tiêu
+   * follow — chứ không thêm hết mọi chỉ số, bảng sẽ không đọc nổi. */
+  if (social && social.chay) {
+    const bg = (social.bang || []).find((x) => x.tieuDe === 'Theo kênh');
+    if (bg && !bg.cot.includes('Mục tiêu xem')) {
+      bg.cot = ['Kênh', 'Nền tảng', 'Follower', 'Follower tăng', 'Lượt xem',
+        'Mục tiêu xem', '% đạt', 'Tương tác', 'Bài'];
+      bg.soCot = [2, 3, 4, 5, 6, 7, 8];
+      bg.dong = bg.dong.map((r) => {
+        const k = mt.kenh.get(r[1] + '|' + r[0]);
+        const mtXem = k && k.view;
+        const xem = so(r[4]);
+        return [r[0], r[1], r[2], r[3], r[4],
+          mtXem ? Math.round(mtXem) : '—',
+          mtXem ? Math.round((xem / mtXem) * 1000) / 10 : '—',
+          r[5], r[6]];
+      });
+    }
+  }
+}
+
+/**
  * TỆP KHÁCH HÀNG TIẾP CẬN MỚI.
  *
  * Mọi app đều đo phần việc của riêng nó — Social đo lượt xem, LIVE đo phiên,
@@ -1226,7 +1279,9 @@ function gomTepMoi(base, tongChi) {
 }
 
 /** @param {{id,ten,quanLy}} nguoi Người đang xem — gửi kèm cho app con biết ai hỏi. */
-async function gom(tu, den, nguoi, kieuSS) {
+/** @param {(thang:string)=>object|null} docLuat Đọc bộ luật một tháng — truyền
+ *  từ server để tầng này không phải biết tới store, và phép thử khỏi cần Base. */
+async function gom(tu, den, nguoi, kieuSS, docLuat) {
   const truoc = kyTruoc(tu, den, kieuSS === 'khong' ? 'truoc' : kieuSS);
   const base = await Promise.all(APP.map(async (app) => {
     const nen = { id: app.id, ten: app.ten, mo: app.mo, mau: app.mau };
@@ -1237,12 +1292,20 @@ async function gom(tu, den, nguoi, kieuSS) {
       return { ...nen, chay: false, loi: e.message, o: [], bang: [], chuoi: null, tron: null, luuY: [] };
     }
   }));
+  /* MỤC TIÊU — gắn sau khi mọi base đã đọc xong, vì nó sửa thẳng vào các ô. */
+  const mt = docLuat ? MT.gomMucTieu(tu, den, docLuat) : null;
+  if (mt) ganMucTieu(base, mt);
+
   const cp = gomChiPhi(base);
   return {
     tu, den, kyTruoc: truoc, soNgay: truoc.soNgay,
     base, luc: Date.now(),
     chiPhi: cp,
     tepMoi: gomTepMoi(base, cp && cp.doc ? cp.tong : 0),
+    mucTieu: mt ? {
+      coLuat: mt.coLuat, thieuLuat: mt.thieuLuat,
+      tronThang: mt.tronThang, soKenh: mt.kenh.size,
+    } : null,
     soChay: base.filter((b) => b.chay).length, soApp: base.length,
     soO: base.reduce((s, b) => s + (b.o || []).length, 0),
   };
@@ -1341,12 +1404,12 @@ function gomChiPhi(base) {
  * trả `lech`, ba app kia thì không — chỉ hiện lệch cho hai app thì báo cáo khập
  * khiễng, chỗ có chỗ không.
  */
-async function gomSoSanh(tu, den, nguoi, kieuSS) {
+async function gomSoSanh(tu, den, nguoi, kieuSS, docLuat) {
   /* TẮT SO SÁNH. Không phải chuyện ẩn vài cái mũi tên: bỏ so sánh thì khỏi phải
    * đọc lại toàn bộ 9 base cho kỳ trước, tức là nhanh gấp đôi. Ai chỉ cần xem
    * "tháng này ra sao" thì không nên phải chờ máy đọc cả tháng trước. */
   if (kieuSS === 'khong') {
-    const d = await gom(tu, den, nguoi);
+    const d = await gom(tu, den, nguoi, 'khong', docLuat);
     /* Xoá sạch mức lệch, kể cả mức do app nguồn tự trả. Social và Quảng cáo gắn
      * sẵn `lech` theo cửa sổ của riêng chúng; để nguyên thì tắt so sánh xong vẫn
      * còn vài ô đeo mũi tên "▼ 3,9% so kỳ trước" — so với kỳ nào thì không ai
@@ -1363,7 +1426,9 @@ async function gomSoSanh(tu, den, nguoi, kieuSS) {
   }
   const kt = kyTruoc(tu, den, kieuSS);
   const [nay, truoc] = await Promise.all([
-    gom(tu, den, nguoi, kieuSS),
+    gom(tu, den, nguoi, kieuSS, docLuat),
+    /* Kỳ trước KHÔNG gắn mục tiêu: nó chỉ góp con số để so, còn mục tiêu của nó
+     * lại là mục tiêu tháng khác — hiện lên là hai thang lẫn vào nhau. */
     gom(kt.tu, kt.den, nguoi, kieuSS),
   ]);
   nay.base.forEach((b) => {
