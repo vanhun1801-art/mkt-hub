@@ -338,6 +338,70 @@ const CSS_BC = ':root{--vien:#e3e8f0;--mem:#eef1f6;--chu:#1a2233;--mo:#5b6779;--
   + 'margin-right:6px;flex:0 0 auto}'
   + '.ct span{display:inline-flex;align-items:center}'
   + '.ct em{font-style:normal;color:var(--nhat);font-size:10.5px;margin-left:5px}'
+  /* ---- vạch mục tiêu ---- */
+  + '.mt{margin-top:6px}'
+  + '.mt-ray{height:5px;border-radius:3px;background:var(--mem);overflow:hidden}'
+  + '.mt-ray i{display:block;height:100%;border-radius:3px;background:var(--luc)}'
+  + '.mt-ray i.vua{background:var(--vang)}.mt-ray i.xau{background:var(--do)}'
+  + '.mt-chu{margin-top:3px;font-size:10.5px;color:var(--nhat)}'
+  + '.mt-chu b{font-variant-numeric:tabular-nums;color:var(--luc)}'
+  + '.mt-chu b.vua{color:var(--vang)}.mt-chu b.xau{color:var(--do)}'
+  + '.o .lech.im{color:var(--mo)}'
+  /* ---- cặp cột so kỳ trước ---- */
+  + '.ss{margin:14px 0 4px}.ss h3{margin:0 0 7px;font-size:11px;letter-spacing:.05em;'
+  + 'text-transform:uppercase;color:var(--nhat)}'
+  + '.sp-chu{display:flex;gap:14px;margin-bottom:10px;font-size:10.5px;color:var(--nhat)}'
+  + '.sp-chu i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;'
+  + 'background:var(--vien-dam)}.sp-chu i.nay{background:var(--xanh)}'
+  + '.sp{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:12px 9px}'
+  + '.sp-o{break-inside:avoid;page-break-inside:avoid}'
+  + '.sp-ten{font-size:10.5px;line-height:1.3;color:var(--mo);min-height:26px;margin-bottom:5px}'
+  + '.sp-cap{display:flex;align-items:flex-end;justify-content:center;gap:7px}'
+  + '.sp-cot{display:flex;flex-direction:column;align-items:center;flex:0 1 38px}'
+  + '.sp-cot b{font-size:10.5px;font-weight:700;padding-bottom:3px;white-space:nowrap;color:var(--mo)}'
+  + '.sp-cot b.tot{color:var(--luc)}.sp-cot b.xau{color:var(--do)}.sp-cot b.im{color:var(--chu)}'
+  + '.sp-cot i{display:block;width:100%;max-width:34px;border-radius:3px 3px 0 0;'
+  + 'background:var(--vien-dam)}'
+  + '.sp-cot i.nay.tot{background:var(--luc)}.sp-cot i.nay.xau{background:var(--do)}'
+  + '.sp-cot i.nay.im{background:var(--xanh)}'
+  + '.sp-lech{margin-top:5px;text-align:center;font-size:10.5px;font-weight:650}'
+  + '.sp-lech.tot{color:var(--luc)}.sp-lech.xau{color:var(--do)}.sp-lech.im{color:var(--nhat)}'
+  + '.ghi-bd{margin:8px 0 0;font-size:10px;color:var(--nhat);line-height:1.5}'
+  /* ---- thanh xếp hạng ---- */
+  + '.tn{margin:14px 0 4px}.tn h3{margin:0 0 8px;font-size:11px;letter-spacing:.05em;'
+  + 'text-transform:uppercase;color:var(--nhat)}'
+  + '.tn-h{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(30px,2fr) 74px 34px;'
+  + 'gap:8px;align-items:center;font-size:11px;padding:2px 0;break-inside:avoid}'
+  + '.tn-t{color:var(--mo);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
+  + '.tn-t em{font-style:normal;color:var(--nhat);font-size:10px;margin-left:5px}'
+  + '.tn-r{height:13px;background:var(--mem);border-radius:3px;overflow:hidden}'
+  + '.tn-r i{display:block;height:100%;background:var(--xanh);border-radius:3px}'
+  + '.tn-s{text-align:right;font-variant-numeric:tabular-nums;font-weight:650}'
+  + '.tn-p{text-align:right;font-variant-numeric:tabular-nums;color:var(--nhat);font-size:10px}'
+  /* ---- cột số tuyệt đối ---- */
+  + '.ct{margin:14px 0 4px}.ct h3{margin:0 0 8px;font-size:11px;letter-spacing:.05em;'
+  + 'text-transform:uppercase;color:var(--nhat)}'
+  + '.ct-ds{display:flex;gap:9px;align-items:flex-end}'
+  + '.ct-c{flex:1 1 0;min-width:52px;display:flex;flex-direction:column;align-items:center;'
+  + 'break-inside:avoid}'
+  + '.ct-c b{font-size:11px;font-weight:700;padding-bottom:3px;white-space:nowrap}'
+  + '.ct-c i{display:block;width:100%;max-width:40px;border-radius:3px 3px 0 0;background:var(--xanh)}'
+  + '.ct-c span{margin-top:6px;font-size:10px;line-height:1.3;color:var(--mo);text-align:center}'
+  /* ---- phễu ---- */
+  + '.ph{margin:14px 0 4px}.ph h3{margin:0 0 10px;font-size:11px;letter-spacing:.05em;'
+  + 'text-transform:uppercase;color:var(--nhat)}'
+  + '.ph-d{display:flex;flex-direction:column;align-items:center;break-inside:avoid}'
+  + '.ph-t{display:flex;align-items:baseline;justify-content:center;gap:10px;padding:9px 14px;'
+  + 'border-radius:6px;min-width:170px;background:var(--xanh);color:#fff;box-sizing:border-box}'
+  + '.ph-t b{font-size:17px;font-weight:750;font-variant-numeric:tabular-nums}'
+  + '.ph-t span{font-size:11px;opacity:.92}'
+  + '.ph-g{margin-top:4px;font-size:10px;color:var(--nhat)}'
+  + '.ph-k{padding:6px 0 4px;font-size:10.5px;color:var(--nhat);text-align:center}'
+  /* ---- bảng xu hướng ---- */
+  + 'table.xh td.nay{font-weight:700;color:var(--chu)}'
+  + 'table.xh td.tot{color:var(--luc);font-weight:650}'
+  + 'table.xh td.xau{color:var(--do);font-weight:650}'
+  + 'table.xh td.im{color:var(--nhat)}'
   + '.tron{display:flex;flex-direction:column;gap:9px;align-items:center}'
   + '.tron-ct{font-size:11px;color:var(--mo);display:flex;flex-direction:column;gap:4px;'
   + 'align-self:stretch}'
@@ -393,6 +457,28 @@ const tatNen = (x) => TAT_NEN[x] || x;
  * Báo cáo tổng hợp — một tệp HTML tự chứa, không phụ thuộc máy chủ.
  * Mở ra bấm Lưu PDF là thành tệp gửi Sếp.
  */
+/** Một dòng nói mục tiêu lấy từ đâu — giống hệt câu trên màn hình, để bản in
+ *  và bản xem không nói hai chuyện khác nhau. */
+function chuMucTieu(m) {
+  if (!m) return '';
+  if (!m.coLuat.length) {
+    return '<br><b>Chưa đặt mục tiêu</b> cho '
+      + m.thieuLuat.map((x) => 'tháng ' + x.slice(5)).join(', ')
+      + ' — các ô không có vạch mục tiêu vì bộ luật KPI tháng đó chưa lập, '
+      + 'không phải vì mục tiêu bằng 0.';
+  }
+  let t = '<br>Mục tiêu lấy từ bộ luật KPI '
+    + m.coLuat.map((x) => 'tháng ' + x.slice(5)).join(' + ')
+    + ' (' + m.soKenh + ' kênh) — cùng bộ luật dùng để chấm lương.';
+  if (!m.tronThang) {
+    t += ' Khoảng đang xem không trọn tháng nên <b>mục tiêu đã chia theo số ngày</b>.';
+  }
+  if (m.thieuLuat.length) {
+    t += ' Chưa có bộ luật cho ' + m.thieuLuat.map((x) => 'tháng ' + x.slice(5)).join(', ') + '.';
+  }
+  return t;
+}
+
 function trangBaoCao(d, nx, logo) {
   const ngay = (s) => s.split('-').reverse().join('/');
   const ten = 'Bao cao Marketing ' + d.tu + ' den ' + d.den;
@@ -413,17 +499,103 @@ function trangBaoCao(d, nx, logo) {
   const o = (x) => {
     const l = x.lech;
     /* CPA thấp là tốt nên mũi tên đảo chiều — không đảo thì "CPA giảm 20%" bị
-     * tô đỏ như một tin xấu. */
-    const tot = l == null ? null : (x.dao ? l < 0 : l > 0);
+     * tô đỏ như một tin xấu. Ô trung tính (tổng tiền đã chi) không có chiều
+     * tốt xấu nên tô xám, giống hệt giao diện. */
+    const tot = (l == null || x.trungTinh) ? null : (x.dao ? l < 0 : l > 0);
     return '<div class="o"><div class="nhan">' + hEsc(x.nhan) + '</div>'
       + '<div class="so">' + gonSo(x.so, x.dinhDang) + '</div>'
+      + vachMt(x)
       + (l != null && Number.isFinite(l)
-        ? '<div class="lech ' + (tot ? 'tot' : 'xau') + '">'
+        ? '<div class="lech ' + (tot == null ? 'im' : tot ? 'tot' : 'xau') + '">'
           + (l > 0 ? '▲ ' : '▼ ') + Math.abs(Math.round(l * 10) / 10).toString().replace('.', ',')
           + '%</div>'
         : '')
       + (x.ghi ? '<div class="ghi">' + hEsc(x.ghi) + '</div>' : '')
       + nen(x) + '</div>';
+  };
+
+  /* Vạch mục tiêu — cùng ngưỡng màu với giao diện: ≥100% xanh, ≥80% vàng. */
+  const vachMt = (x) => {
+    if (!Number.isFinite(x.mucTieu) || x.mucTieu <= 0) return '';
+    const pt = Number.isFinite(x.datPt) ? x.datPt : 0;
+    const m = pt >= 100 ? 'tot' : (pt >= 80 ? 'vua' : 'xau');
+    return '<div class="mt"><div class="mt-ray"><i class="' + m + '" style="width:'
+      + Math.max(1, Math.min(100, pt)) + '%"></i></div><div class="mt-chu"><b class="' + m + '">'
+      + (Math.round(pt * 10) / 10).toString().replace('.', ',') + '%</b> mục tiêu '
+      + gonSo(x.mucTieu, x.dinhDang) + '</div></div>';
+  };
+
+  /* Cặp cột so kỳ trước — mỗi chỉ số một ô, thang riêng. Bản xuất trước KHÔNG
+   * có biểu đồ này, nên bản in thiếu hẳn phần "đổi bao nhiêu" mà màn hình có. */
+  const capCot = (ds, tieuDe) => {
+    if (!(ds || []).length) return '';
+    const CAO = 64;
+    return '<div class="ss"><h3>' + hEsc(tieuDe) + '</h3>'
+      + '<div class="sp-chu"><span><i class="truoc"></i>'
+      + hEsc((d.kyTruoc && d.kyTruoc.nhan) || 'kỳ trước')
+      + '</span><span><i class="nay"></i>kỳ này</span></div><div class="sp">'
+      + ds.map((x) => {
+        const max = Math.max(Math.abs(x.nay), Math.abs(x.truoc), 1);
+        const h = (v) => Math.max(3, Math.round((Math.abs(v) / max) * CAO));
+        const m = x.tot == null ? 'im' : x.tot ? 'tot' : 'xau';
+        const pt = (x.lech > 0 ? '+' : '')
+          + (Math.round(x.lech * 10) / 10).toString().replace('.', ',') + '%';
+        return '<div class="sp-o"><div class="sp-ten">' + hEsc(x.nhan) + '</div>'
+          + '<div class="sp-cap">'
+          + '<div class="sp-cot"><b>' + gonSo(x.truoc, x.dinhDang) + '</b>'
+          + '<i class="truoc" style="height:' + h(x.truoc) + 'px"></i></div>'
+          + '<div class="sp-cot"><b class="' + m + '">' + gonSo(x.nay, x.dinhDang) + '</b>'
+          + '<i class="nay ' + m + '" style="height:' + h(x.nay) + 'px"></i></div>'
+          + '</div><div class="sp-lech ' + m + '">' + (x.lech > 0 ? '▲ ' : '▼ ') + pt
+          + '</div></div>';
+      }).join('')
+      + '</div><p class="ghi-bd"><b>Mỗi ô có thang riêng</b> — hai cột trong cùng một ô '
+      + 'so được với nhau, chiều cao giữa các ô thì không.</p></div>';
+  };
+
+  /* Thanh xếp hạng (hạng mục chi, theo người, theo địa điểm). */
+  const thanhXep = (ds, tieuDe, don) => {
+    if (!(ds || []).length) return '';
+    const max = Math.max(1, ...ds.map((x) => x.so));
+    const tong = ds.reduce((a, x) => a + x.so, 0);
+    return '<div class="tn"><h3>' + hEsc(tieuDe) + '</h3>'
+      + ds.slice(0, 14).map((x) => '<div class="tn-h">'
+        + '<span class="tn-t">' + hEsc(x.nhan)
+        + (x.vi ? ' <em>' + hEsc(x.vi) + '</em>' : '') + '</span>'
+        + '<span class="tn-r"><i style="width:' + ((x.so / max) * 100) + '%"></i></span>'
+        + '<span class="tn-s">' + gonSo(x.so, don || 'so') + '</span>'
+        + '<span class="tn-p">' + (tong ? Math.round((x.so / tong) * 100) : 0) + '%</span>'
+        + '</div>').join('') + '</div>';
+  };
+
+  /* Cột số tuyệt đối. */
+  const cotDung = (c) => {
+    const ds = ((c && c.muc) || []).filter((x) => Number.isFinite(x.so));
+    if (!ds.length) return '';
+    const max = Math.max(1, ...ds.map((x) => x.so));
+    return '<div class="ct"><h3>' + hEsc(c.nhan) + '</h3><div class="ct-ds">'
+      + ds.slice(0, 14).map((x) => '<div class="ct-c"><b>' + gonSo(x.so, c.don || 'so') + '</b>'
+        + '<i style="height:' + Math.max(3, Math.round((x.so / max) * 96)) + 'px"></i>'
+        + '<span>' + hEsc(x.nhan) + '</span></div>').join('')
+      + '</div></div>';
+  };
+
+  /* Phễu — dải thu hẹp theo THỨ BẬC, không theo giá trị. Từ 3,1 triệu lượt tiếp
+   * cận xuống 6 booking là nửa triệu lần; vẽ đúng tỷ lệ thì bốn dải cuối mỏng
+   * dưới một pixel. Bỏ trục số đi thì không còn gì để đọc sai. */
+  const pheu = (ds, goc) => {
+    if ((ds || []).length < 2) return '';
+    return '<div class="ph"><h3>Từ người nhìn thấy đến người đặt</h3>'
+      + ds.map((x, i) => (i ? '<div class="ph-k">▼ rơi '
+        + (100 - x.conLai).toString().replace('.', ',') + '% · còn lại '
+        + x.conLai.toString().replace('.', ',') + '%</div>' : '')
+        + '<div class="ph-d"><div class="ph-t" style="width:'
+        + (100 - (i * (66 / Math.max(1, ds.length - 1)))) + '%">'
+        + '<b>' + soDep(x.so, 'so') + '</b><span>' + hEsc(x.nhan) + '</span></div>'
+        + (x.moiMot ? '<div class="ph-g">cứ ' + x.moiMot.toLocaleString('vi-VN') + ' '
+          + hEsc(goc || '') + ' mới có 1</div>' : '') + '</div>').join('')
+      + '<p class="ghi-bd">Bề rộng thu hẹp đều theo thứ bậc, <b>không tỷ lệ với con số</b> — '
+      + 'bậc đầu và bậc cuối chênh nhau tới mấy trăm nghìn lần.</p></div>';
   };
 
   const bang = (b) => {
@@ -449,6 +621,12 @@ function trangBaoCao(d, nx, logo) {
       + '</div>';
   };
 
+  /* Cột và thanh xếp hạng của từng base (trạng thái việc, giờ theo người, địa
+   * điểm tác nghiệp, lượt xem theo KOL). Bản xuất trước bỏ sót hết. */
+  const hinhKhoi = (b) => cotDung(b.cot)
+    + [b.thanh, b.thanh2].map((x) => (x && (x.muc || []).length
+      ? thanhXep(x.muc, x.nhan, x.don) : '')).join('');
+
   /* Lưu ý của chính app nguồn về giới hạn số liệu của nó. Chép nguyên, không tự
    * diễn giải lại — app sở hữu chỉ số biết rõ nhất vì sao nó trống, và Sếp đọc
    * báo cáo cần thấy giới hạn đó chứ không chỉ thấy một ô bằng 0. */
@@ -456,12 +634,82 @@ function trangBaoCao(d, nx, logo) {
     : '<div class="ly"><b>Giới hạn số liệu</b><ul>'
       + b.luuY.map((x) => '<li>' + hEsc(x) + '</li>').join('') + '</ul></div>');
 
-  const khoi = d.base.map((b) => '<section class="base">'
+  /* CHI PHÍ TOÀN PHÒNG. Bản xuất trước không có khối này — bản in thiếu hẳn
+   * phần tiền, trong khi đó là thứ Sếp đọc trước tiên. */
+  const khoiChiPhi = (c) => {
+    if (!c) return '';
+    if (!c.doc) {
+      return '<section class="base"><header><span class="cham-tron" style="background:#d4a017">'
+        + '</span><b>Chi phí toàn phòng</b></header><p class="loi">Chưa cộng được: thiếu '
+        + hEsc((c.thieu || []).join(', ')) + '. Không cộng một nửa rồi gọi là tổng chi.</p></section>';
+    }
+    return '<section class="base"><header>'
+      + '<span class="cham-tron" style="background:#d4a017"></span>'
+      + '<b>Chi phí toàn phòng</b><span class="mo">quảng cáo + quỹ chi phí</span></header>'
+      + '<div class="luoi">' + (c.o || []).map(o).join('') + '</div>'
+      + capCot(c.soSanh, 'Chi phí so kỳ trước')
+      + thanhXep(c.hangMuc, 'Chi theo hạng mục', 'vnd')
+      + (c.tron && (c.tron.phan || []).length
+        ? '<div class="bd"><div><h3>' + hEsc(c.tron.nhan) + '</h3>' + svgTron(c.tron)
+          + '</div><div></div></div>' : '')
+      + (c.bang || []).map(bang).join('') + '</section>';
+  };
+
+  const khoiTepMoi = (m) => {
+    if (!m) return '';
+    return '<section class="base"><header>'
+      + '<span class="cham-tron" style="background:#0ea5a0"></span>'
+      + '<b>Tệp khách hàng tiếp cận mới</b>'
+      + '<span class="mo">gộp từ Social · LIVE · Quảng cáo · KOL · OTA</span></header>'
+      + '<div class="luoi">' + (m.o || []).map(o).join('') + '</div>'
+      + pheu(m.pheu, m.goc) + (m.bang || []).map(bang).join('') + '</section>';
+  };
+
+  /* XU HƯỚNG. `d.xuHuong` do server đọc thêm rồi gắn vào — bản xuất không tự
+   * gọi được vì nó chỉ nhận dữ liệu đã gom. Không có thì bỏ qua, chứ đừng nổ. */
+  const khoiXuHuong = (x) => {
+    if (!x || !(x.dong || []).length) return '';
+    const nt = (th) => 'T' + Number(th.slice(5));
+    return '<section class="base"><header>'
+      + '<span class="cham-tron" style="background:#f59e0b"></span>'
+      + '<b>Xu hướng ' + x.thang.length + ' tháng</b><span class="mo">'
+      + nt(x.thang[0]) + ' – ' + nt(x.thang[x.thang.length - 1]) + '</span></header>'
+      + '<table class="xh"><thead><tr><th>Chỉ số</th>'
+      + x.thang.map((th) => '<th class="r">' + nt(th) + '</th>').join('')
+      + '<th class="r">so tháng đầu có số</th></tr></thead><tbody>'
+      + x.dong.map((r) => {
+        /* Ít nhất HAI tháng có số mới nói được xu hướng — xem chú thích cùng
+         * chỗ này trong public/baocao.js. */
+        const co = r.diem.filter((q) => q.so != null && q.so !== 0);
+        const cuoi = r.diem[r.diem.length - 1];
+        let lech = null;
+        if (co.length >= 2 && cuoi && cuoi.so != null && co[0].so) {
+          lech = ((cuoi.so - co[0].so) / Math.abs(co[0].so)) * 100;
+        }
+        const m = lech == null || r.trungTinh ? 'im' : (lech > 0 ? 'tot' : 'xau');
+        return '<tr><td>' + hEsc(r.nhan) + '</td>'
+          + r.diem.map((q, i) => '<td class="r'
+            + (i === r.diem.length - 1 ? ' nay' : '') + '">'
+            + (q.so == null ? '—' : gonSo(q.so, r.dinhDang)) + '</td>').join('')
+          + '<td class="r ' + m + '">' + (lech == null ? '—'
+            : (lech > 0 ? '▲ +' : '▼ ')
+              + (Math.round(lech * 10) / 10).toString().replace('.', ',') + '%')
+          + '</td></tr>';
+      }).join('')
+      + '</tbody></table>'
+      + '<p class="ghi-bd">Cột lệch so với tháng ĐẦU TIÊN CÓ SỐ của từng dòng, '
+      + 'không phải tháng đầu bảng — app nào mới nối thì mấy tháng đầu còn trống.</p>'
+      + '</section>';
+  };
+
+  const khoi = khoiXuHuong(d.xuHuong) + khoiChiPhi(d.chiPhi) + khoiTepMoi(d.tepMoi)
+    + d.base.map((b) => '<section class="base">'
     + '<header><span class="cham-tron" style="background:' + hEsc(b.mau) + '"></span>'
     + '<b>' + hEsc(b.ten) + '</b><span class="mo">' + hEsc(b.mo) + '</span></header>'
     + (b.chay
       ? luuY(b) + '<div class="luoi">' + (b.o || []).map(o).join('') + '</div>'
-        + bieuDo(b) + (b.bang || []).map(bang).join('')
+        + capCot(b.soSanh, 'Thay đổi so với kỳ trước')
+        + hinhKhoi(b) + bieuDo(b) + (b.bang || []).map(bang).join('')
       : '<p class="loi">Không đọc được số liệu — ' + hEsc(b.loi) + '</p>')
     + '</section>').join('');
 
@@ -478,6 +726,7 @@ function trangBaoCao(d, nx, logo) {
     + (d.kyTruoc ? ' · so với ' + (d.kyTruoc.nhan || 'kỳ trước') + ' '
       + ngay(d.kyTruoc.tu) + ' – ' + ngay(d.kyTruoc.den) : ' · không so với kỳ nào') + '<br>'
     + '<b>' + d.soChay + '/' + d.soApp + '</b> base đọc được · <b>' + d.soO + '</b> chỉ số'
+    + chuMucTieu(d.mucTieu)
     + '</div></div></div>'
     + khoi
     + '<div class="chan">Xuất lúc ' + new Date(d.luc).toLocaleString('vi-VN')

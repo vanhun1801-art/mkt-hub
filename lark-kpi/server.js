@@ -393,6 +393,13 @@ async function api(req, res, u) {
     if (!nx.quanLy) return fail(res, 403, 'Chỉ trưởng phòng xuất được báo cáo toàn phòng');
     const { tu, den } = khoangTu(u);
     const d = await baoCao.gomSoSanh(tu, den, nx, u.searchParams.get('ss'), docLuatCuaThang);
+    /* Bản xuất tự đọc thêm xu hướng. Màn hình nạp nó sau khi trang đã hiện, còn
+     * ở đây phải có sẵn trước khi dựng HTML — tệp gửi đi không tự gọi lại được.
+     * Hỏng thì bỏ qua khối đó chứ đừng làm hỏng cả bản xuất. */
+    const soThang = Number(u.searchParams.get('xh')) || 6;
+    try {
+      d.xuHuong = await baoCao.xuHuong(String(den).slice(0, 7), soThang, docLuatCuaThang);
+    } catch (e) { d.xuHuong = null; }
     const html = X.trangBaoCao(d, nx, await X.logoHtml(store.THU_MUC));
     return send(res, 200, html, {
       'Content-Type': 'text/html; charset=utf-8',

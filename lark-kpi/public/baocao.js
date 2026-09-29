@@ -512,7 +512,11 @@ function bcXuHuong(x) {
   x.dong.forEach((r) => {
     const co = r.diem.filter((p) => p.so != null && p.so !== 0);
     const max = Math.max(1, ...r.diem.map((p) => Math.abs(p.so || 0)));
-    const dauKy = co.length ? co[0] : null;
+    /* Cần ÍT NHẤT HAI tháng có số mới nói được xu hướng. App Quảng cáo mới nối
+     * từ T8, nên trong bảng tới T8 nó chỉ có đúng một điểm — lấy điểm đó làm cả
+     * mốc đầu lẫn mốc cuối thì ra "▼ 0%", đọc như đứng yên trong khi thật ra là
+     * chưa có gì để so. */
+    const dauKy = co.length >= 2 ? co[0] : null;
     const cuoiKy = r.diem[r.diem.length - 1];
     let lech = null;
     if (dauKy && cuoiKy && cuoiKy.so != null && dauKy.so) {
