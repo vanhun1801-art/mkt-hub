@@ -33,12 +33,17 @@ const taiKhoan = require('./tai-khoan');
 /* canh lỗi kết nối API của hub + mọi app con, nhắn anh Hùng ngay (bao-loi-api.js).
  * Bật TRƯỚC khi bật app con để chúng nhận NODE_OPTIONS --require bộ canh. */
 const baoLoi = require('./bao-loi-api');
-kids.datEnv(baoLoi.bat({
+const envNoiBo = baoLoi.bat({
   cfg,
   tenApp: (id) => { if (id === 'hub') return 'Marketing Hub'; const m = timMod(id); return (m && m.ten) || id; },
   docQuyen: () => quyen.docTatCa(),
   urlHub: (process.env.PUBLIC_URL || 'https://mkt-hub-w6hi.onrender.com').replace(/\/+$/, ''),
-}));
+});
+/* Kho Base dùng chung: hub đọc mỗi bảng một lần, phát cho mọi app con (kho-base.js).
+ * Dùng cùng khoá nội bộ với bộ canh lỗi; app con nhận URL qua HUB_KHO_URL. */
+const khoBase = require('./kho-base');
+Object.assign(envNoiBo, khoBase.bat({ cfg, cliScript: require('./base-lark').timLarkCli() }));
+kids.datEnv(envNoiBo);
 
 /* GIỮ THỨC BUỔI CHIỀU (25/09/2026). Render gói miễn phí ngủ sau 15 phút không ai vào,
  * nên bản tin quảng cáo 20:00 không bao giờ đi nếu cả phòng nghỉ lúc 17:30. Trong khung
@@ -1455,6 +1460,9 @@ async function api(req, res, u) {
         host_that: hostThat,
         public_url_khop: !hostKhai || !hostThat || hostKhai.toLowerCase() === hostThat.toLowerCase(),
         co_session_secret: !!cfg.sessionSecret,
+        /* kho Base dùng chung (kho-base.js): trung/hut/gop nói kho có đang gánh
+         * được các lượt đọc trùng của app con hay không */
+        kho_base: khoBase.tinhTrang(),
       },
       modules: ket,
     });
@@ -2111,6 +2119,8 @@ const server = http.createServer(async (req, res) => {
 
   /* app con báo lỗi API về (chỉ từ 127.0.0.1 + khoá hub cấp) — trước cổng đăng nhập */
   if (baoLoi.xuLy(req, res, p)) return;
+  /* app con hỏi kho Base dùng chung (cũng chỉ từ 127.0.0.1 + khoá hub cấp) */
+  if (khoBase.xuLy(req, res, p, envNoiBo.HUB_KHOA_NOI_BO)) return;
 
   /* ---- webhook OTA: đường CÔNG KHAI, nằm TRƯỚC cổng đăng nhập ----
    * Máy của Klook / Viator / Ctrip không thể đăng nhập Lark, nên webhook buộc

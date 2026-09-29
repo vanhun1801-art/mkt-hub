@@ -45,7 +45,9 @@ const ok = (ten, dk) => {
 /** Mọi tệp văn bản trong kho, bỏ .git và node_modules. */
 function quet(thuMuc, ra) {
   for (const t of fs.readdirSync(thuMuc, { withFileTypes: true })) {
-    if (['.git', '.claude', 'node_modules', 'du-lieu'].includes(t.name)) continue;
+    /* graphify-out và .tmp là sản phẩm sinh ra trên máy (đồ thị tri thức, tệp tạm),
+     * không phải mã hay cấu hình — đồ thị chép cả tài liệu chuyển đổi nên có tên app cũ. */
+    if (['.git', '.claude', 'node_modules', 'du-lieu', 'graphify-out', '.tmp'].includes(t.name)) continue;
     const p = path.join(thuMuc, t.name);
     if (t.isDirectory()) { quet(p, ra); continue; }
     if (!/\.(js|json|ya?ml|md|html|css|env\.mau)$/.test(t.name)) continue;

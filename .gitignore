@@ -27,8 +27,17 @@
 !lark-ban-do/
 !lark-kho-media/
 
-# mã dùng chung giữa các app (Tourwell…)
+# mã dùng chung giữa các app (Tourwell, lõi gọi Lark lark-core.js, kho-hub.js…)
 !lark-chung/
+
+# Tài liệu ở gốc kho: hướng dẫn cho Claude Code ở MỌI máy (CLAUDE.md) và kế
+# hoạch + nhật ký hợp nhất dữ liệu (docs/). Người ở máy khác chỉ biết qua git —
+# để bị chặn ở đây là cả kế hoạch chỉ nằm trong đầu một người.
+!CLAUDE.md
+!docs/
+
+# Đồ thị tri thức Graphify: sinh trên máy, 9 MB, dựng lại bằng `/graphify .` — không lên kho.
+graphify-out/
 
 # ---- bí mật & dữ liệu cục bộ: KHÔNG bao giờ lên GitHub ----
 .env

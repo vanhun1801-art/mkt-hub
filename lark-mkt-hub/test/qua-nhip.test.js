@@ -40,10 +40,20 @@ const ok = (dieu, ten) => {
 console.log('\nlỗi quá nhịp 99991400 — ' + teps.length + ' bản larkapi.js');
 ok(teps.length >= 12, 'tìm thấy đủ các app (thấy ' + teps.length + ')');
 
+/* Từ 29/09/2026 mười hai bản larkapi.js chỉ còn là vỏ mỏng gọi lõi dùng chung
+ * lark-chung/lark-core.js (docs/hop-nhat-du-lieu.md). Phép thử vẫn soi từng app —
+ * nhưng app nào uỷ quyền cho lõi thì soi lõi thay cho nó; app nào còn giữ bản
+ * riêng thì soi đúng bản riêng đó. Nhờ vậy ai tách một app ra khỏi lõi là bị bắt. */
+const LOI = path.join(GOC, 'lark-chung', 'lark-core.js');
+const nguonThat = (p) => {
+  const s = fs.readFileSync(p, 'utf8');
+  return /require\(['"][^'"]*lark-core['"]\)|require\(['"]\.\/lark['"]\)/.test(s) ? fs.readFileSync(LOI, 'utf8') : s;
+};
+
 const thieu = { nhan: [], lau: [], lech: [], dung: [] };
 teps.forEach((p) => {
   const ten = path.basename(path.dirname(p));
-  const s = fs.readFileSync(p, 'utf8');
+  const s = nguonThat(p);
   if (!s.includes('99991400')) thieu.nhan.push(ten);
   if (!s.includes('1200')) thieu.lau.push(ten);
   if (!s.includes('Math.random()')) thieu.lech.push(ten);
@@ -59,7 +69,7 @@ ok(!thieu.lech.length, 'có khoảng ngẫu nhiên để hai app không lùi b�
 ok(!thieu.dung.length, 'và THẬT SỰ dùng phép lùi mới' + (thieu.dung.length ? ' — sai: ' + thieu.dung.join(', ') : ''));
 
 /* Chạy thử phép lùi thật, lấy từ một bản bất kỳ — mọi bản đều giống nhau. */
-const nguon = fs.readFileSync(teps[0], 'utf8');
+const nguon = nguonThat(teps[0]);
 /* Thân hàm có dấu chấm phẩy bên trong, nên phải cắt tới dòng `};` đóng hàm
  * chứ không cắt ở dấu chấm phẩy đầu tiên. */
 const doan = /const QUA_NHIP = \[[^\]]*\];[\s\S]*?\n\};/.exec(nguon);

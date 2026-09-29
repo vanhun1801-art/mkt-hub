@@ -1,0 +1,8 @@
+{
+  "name": "lark-chung",
+  "private": true,
+  "description": "Mã dùng chung của mọi app Marketing Hub: lõi gọi Lark (lark-core.js), kho Base ở hub (kho-hub.js), nhịp gọi Lark, tin nhắn, xlsx…",
+  "scripts": {
+    "test": "node test/lark-core.test.js && node test/eml.test.js"
+  }
+}

@@ -56,6 +56,12 @@ for (const app of APP) {
     const f = path.join(GOC, app, ten);
     let s;
     try { s = fs.readFileSync(f, 'utf8'); } catch (_) { continue; }
+    /* Từ 29/09/2026 lark.js / larkapi.js của 12 app là vỏ mỏng gọi lõi dùng chung
+     * lark-chung/lark-core.js (docs/hop-nhat-du-lieu.md) — app uỷ quyền cho lõi
+     * thì soi lõi thay cho nó; app nào tách ra giữ bản riêng thì soi bản riêng. */
+    if (/require\(['"][^'"]*lark-core['"]\)|require\(['"]\.\/lark['"]\)/.test(s)) {
+      s = fs.readFileSync(path.join(GOC, 'lark-chung', 'lark-core.js'), 'utf8');
+    }
     soTep++;
     /* Tệp phải vừa CÓ lớp thử lại, vừa BIẾT mã chặn tần suất. Có lớp mà thiếu
      * mã thì lớp đó không cứu được đúng tình huống hay gặp nhất. */
@@ -63,7 +69,7 @@ for (const app of APP) {
     /* Đọc mã TRONG MẢNG, không dò trên cả tệp. Tệp nào cũng có một lời chú
      * giải thích mã 800004135 — dò cả tệp thì xoá mã khỏi mảng mà để lời chú
      * lại vẫn "đạt", tức phép thử canh lời chú chứ không canh hành vi. */
-    const mang = (/const (?:TRANSIENT|TRANSIENT_CODES|TAM_THOI) = \[([\s\S]*?)\]/.exec(s) || [])[1];
+    const mang = (/const (?:TRANSIENT|TRANSIENT_CODES|TAM_THOI|MA_TAM_THOI) = \[([\s\S]*?)\]/.exec(s) || [])[1];
     const soTrongMang = String(mang || '').replace(/\/\/.*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
     const thieuMa = mang == null ? MA_TAM_THOI.slice() : MA_TAM_THOI.filter((m) => !soTrongMang.includes(m));
     if (!coThuLai) thieu.push(app + '/' + ten + ' — KHÔNG có lớp thử lại');

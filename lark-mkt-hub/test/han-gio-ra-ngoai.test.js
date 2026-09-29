@@ -68,8 +68,16 @@ for (const tep of ['server.js', 'tac-nghiep.js', 'dong-bo-len.js', 'gan-the/chua
     viTri.length > 0 && thieu.length === 0, viTri.length ? 'còn treo ở ' + thieu.join(', ') : 'không tìm thấy lời gọi nào');
 }
 
+/* Từ 29/09/2026 larkapi.js của 12 app là vỏ mỏng gọi lõi lark-chung/lark-core.js
+ * (docs/hop-nhat-du-lieu.md): app nào uỷ quyền cho lõi thì soi lõi thay cho nó. */
+const LOI = path.join(GOC, 'lark-chung', 'lark-core.js');
+const nguonThat = (p) => {
+  const s = fs.readFileSync(p, 'utf8');
+  return /require\(['"][^'"]*lark-core['"]\)|require\(['"]\.\/lark['"]\)/.test(s) ? fs.readFileSync(LOI, 'utf8') : s;
+};
+
 for (const [tep, viec] of TEP) {
-  const s = fs.readFileSync(path.join(GOC, tep), 'utf8');
+  const s = nguonThat(path.join(GOC, tep));
   /* Cắt từ mỗi `fetch(` tới dấu `});` gần nhất — đủ để thấy có khai signal
    * trong CHÍNH lời gọi đó hay không. Đếm theo từng lời gọi chứ không đếm cả
    * tệp: một tệp có 3 lời gọi mà chỉ 1 chỗ đặt hạn thì vẫn còn 2 chỗ treo. */
