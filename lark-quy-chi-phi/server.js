@@ -659,6 +659,23 @@ async function xuLy(req, res) {
     const kq = await require('./nhac-thang').chay(depNhac(), { t, ep: true, xem: !gui, tieuDeThem: gui ? '[THỬ] ' : '' });
     return json(res, kq, kq.ok ? 200 : 502);
   }
+  /* ---- nhắc chốt sổ cuối tháng (nhac-chot-so.js) ----
+   * Hai mốc: trước ngày cuối tháng 1 ngày, và ngày cuối tháng. Hai lá tin:
+   * nhóm Phòng MKT (không con số tiền nào) và riêng người giữ quỹ (có số).
+   * ?moc=apChot|cuoi để xem đúng lá muốn xem; ?gui=1 gửi thử.
+   *
+   * Chỉ chạy được đúng hai ngày một tháng, nên đường xem thử này KHÔNG phải
+   * tiện nghi — không có nó thì muốn sửa một chữ cũng phải chờ tới cuối tháng. */
+  if (p === '/api/nhac-chot-so' && req.method === 'GET') {
+    if (!(await doiChuQuy(res))) return;
+    const q = url.searchParams.get('ngay');
+    const t = q ? Date.parse(q + 'T09:00:00+07:00') : Date.now();
+    const gui = url.searchParams.get('gui') === '1';
+    const moc = url.searchParams.get('moc') || '';
+    const kq = await require('./nhac-chot-so').chay(depNhac(),
+      { t, moc, ep: true, xem: !gui, tieuDeThem: gui ? '[THỬ] ' : '' });
+    return json(res, kq, kq.ok ? 200 : 502);
+  }
   /* quỹ thấp: GET xem trước (dựng cả khi quỹ chưa thấp), ?gui=1 gửi thử */
   if (p === '/api/nhac-quy-thap' && req.method === 'GET') {
     if (!(await doiChuQuy(res))) return;
@@ -1303,6 +1320,8 @@ server.listen(cfg.port, BIND, () => {
   require('./nhac-thang').bat(depNhac());
   /* quỹ dưới 1,5 triệu: nhắc báo cáo + đề xuất nhập quỹ (quy-thap.js) */
   require('./quy-thap').bat(depNhac());
+  /* áp chót và ngày cuối tháng: nhắc nhóm Phòng MKT dọn hoá đơn + nhắc riêng chốt sổ */
+  require('./nhac-chot-so').bat(depNhac());
   console.log('\n  Rooty Trip · Quỹ chi phí Marketing');
   console.log('  ->  http://localhost:' + cfg.port);
   console.log('\n  Base  : ' + cfg.baseToken);
