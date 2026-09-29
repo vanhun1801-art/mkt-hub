@@ -153,6 +153,36 @@ html[data-skin="ios"]:not(#_) {
   --vang-bg: var(--ios-cam-nhat); --vang-t: var(--ios-cam-chu);
   --shadow-1: var(--ios-bong);
 }
+/* Kho media dùng vài tên biến riêng (--the, --phu, --nhat, --o…) — khoanh theo data-app để
+   không đè biến trùng tên của app khác. (1,2,1) thắng khối ánh xạ chung (1,1,1). */
+html[data-skin="ios"][data-app="kho-media"]:not(#_) {
+  --the: var(--ios-the); --phu: var(--ios-chu-2); --nhat: var(--ios-chu-nhat);
+  --brand-nhat: var(--ios-xanh-nhat); --brand-chu: var(--ios-xanh);
+  --o: var(--ios-o); --o-chu: var(--ios-chu-nhat);
+}
+html[data-skin="ios"][data-app="kho-media"] .the { border: 0; border-radius: var(--ios-r); }
+html[data-skin="ios"][data-app="kho-media"] body { font-family: var(--ios-font); }
+/* Ô tìm kiếm Kho media theo MẪU CHUẨN ô tìm có biểu tượng (khối "Soát lỗi 27/09 (1)"): ô nhập tự
+   mang nền + bo của BỘ CHUẨN, kính lúp đè trái (luật chuẩn), nút xoá đè phải. Khung .o-tim chỉ còn
+   là chỗ neo — để nó có nền nữa là thành hai lớp ô lồng nhau. */
+html[data-skin="ios"]:not(#_):not(#__)[data-app="kho-media"] .o-tim {
+  border: 0 !important; background: transparent !important; box-shadow: none !important; padding: 0 !important; height: auto !important;
+}
+/* cao bằng nút cạnh bên: máy tính 32px (--c-h), điện thoại 36px — chuẩn "đồng cỡ điều khiển" */
+html[data-skin="ios"]:not(#_):not(#__)[data-app="kho-media"] .o-tim > input#q { width: 100% !important; height: var(--c-h, 32px) !important; padding-right: 36px !important; }
+html[data-skin="ios"]:not(#_):not(#__)[data-app="kho-media"] .o-tim > .o-tim-xoa {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%); z-index: 1; background: transparent !important; box-shadow: none !important;
+}
+html[data-skin="ios"][data-app="kho-media"] .o-tim > .o-tim-xoa .ic { background: rgba(118, 118, 128, .24); color: var(--ios-chu-2); }
+/* Bảng gợi ý: ĐỤC hẳn, bo 14, bóng nổi như bảng chọn của macOS */
+html[data-skin="ios"]:not(#_)[data-app="kho-media"] .goi-y {
+  background: var(--ios-the) !important; border: 0 !important; border-radius: 14px !important; box-shadow: var(--ios-bong-noi) !important;
+}
+html[data-skin="ios"][data-app="kho-media"] .gy-dong.chon { background: var(--ios-o) !important; }
+@media (max-width: 640px) {
+  /* bằng đúng nút Tìm bên cạnh (nút điện thoại 36px) để hai thứ thẳng một hàng */
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="kho-media"] .o-tim > input#q { height: 36px !important; }
+}
 
 /* ============================ CHUNG ============================ */
 html[data-skin="ios"] body {

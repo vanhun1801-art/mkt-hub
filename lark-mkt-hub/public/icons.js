@@ -86,6 +86,15 @@ const ICONS = {
     '<path d="M17.5 4.5l1.3-1.3M19 8h1.8M17.5 11.5l1.3 1.3"/>'
   ),
 
+  /* Kho media: hai khung ảnh chồng nhau, khung trước có núi + mặt trời — thư viện ảnh.
+     Không dùng lại một icon ảnh đơn để khỏi lẫn với Chỉnh ảnh. */
+  'kho-media': IC(
+    '<rect x="6.5" y="3.5" width="14" height="11" rx="2"/>' +
+    '<path d="M3.5 8v10a2.5 2.5 0 0 0 2.5 2.5h11"/>' +
+    '<circle cx="11" cy="7.5" r="1.3"/>' +
+    '<path d="m20.5 12.5-4-4-6.5 6"/>'
+  ),
+
   /* Tải nhân sự / người */
   'nguoi': IC(
     '<circle cx="12" cy="8" r="3.5"/>' +

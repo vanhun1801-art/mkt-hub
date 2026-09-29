@@ -55,6 +55,17 @@ for (const app of ['lark-task-manager', 'lark-lich-tac-nghiep', 'lark-ads-manage
   TEP.push([app + '/larkapi.js', 'lớp gọi Lark khi chạy trên Render']);
 }
 
+/* Kho media không có larkapi.js: nó gọi Drive qua `lark-cli` (execFile). Cùng một nguyên tắc,
+ * soi theo đúng cách nó gọi ra ngoài — mỗi execFile phải khai `timeout:` trong chính lời gọi. */
+for (const tep of ['server.js', 'tac-nghiep.js', 'gan-the/chuan-bi.js']) {
+  const s = fs.readFileSync(path.join(GOC, 'lark-kho-media', tep), 'utf8');
+  const viTri = []; let i = -1;
+  while ((i = s.indexOf('execFile(', i + 1)) !== -1) viTri.push(i);
+  const thieu = viTri.filter(v => !/timeout:/.test(s.slice(v, v + 400))).map(v => 'dòng ' + s.slice(0, v).split('\n').length);
+  ok('lark-kho-media/' + tep + ': cả ' + viTri.length + ' lời gọi lark-cli đều có hạn giờ',
+    viTri.length > 0 && thieu.length === 0, viTri.length ? 'còn treo ở ' + thieu.join(', ') : 'không tìm thấy lời gọi nào');
+}
+
 for (const [tep, viec] of TEP) {
   const s = fs.readFileSync(path.join(GOC, tep), 'utf8');
   /* Cắt từ mỗi `fetch(` tới dấu `});` gần nhất — đủ để thấy có khai signal

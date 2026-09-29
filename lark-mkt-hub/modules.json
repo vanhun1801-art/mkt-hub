@@ -317,6 +317,31 @@
       "phuSelector": "#phuDe",
       "bat": true,
       "caPhong": false
+    },
+    {
+      "id": "kho-media",
+      "ten": "Kho media",
+      "mo_ta": "Tìm ảnh/video Drive · gợi ý theo sản phẩm · media tác nghiệp",
+      "icon": "kho-media",
+      "mau": "#0fa5a5",
+      "kieu": "local",
+      "thuMuc": "../lark-kho-media",
+      "cong": 5188,
+      "lenh": [
+        "node",
+        "server.js"
+      ],
+      "larkUrl": "https://rootytrip2.sg.larksuite.com/drive/folder/ZlJ5f08Jzl1GVrdDV59l9M6PgAb",
+      "kpi": "kho-media",
+      "_thuApi": "Kho media không có /api/meta; /api/tong là JSON nhẹ nhất (đếm chỉ mục), đủ chứng minh JSON đi xuyên proxy",
+      "thuApi": "/api/tong",
+      "_chiMay": "Đọc Drive bằng lark-cli trên máy anh Hùng + chỉ mục/ảnh đệm ở ổ đĩa — trên Render tự ẩn (config.js)",
+      "chiMay": true,
+      "an": [
+        ".bang-thu"
+      ],
+      "bat": true,
+      "caPhong": false
     }
   ]
 }

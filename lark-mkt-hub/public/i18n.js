@@ -1049,6 +1049,53 @@
     '— chưa có —': '— none —',
     'Theo dõi chiến dịch': 'Campaign tracker',
 
+    /* Kho media (lark-kho-media) — tên thư mục, mô tả AI, tên lịch là DỮ LIỆU, chắn ở BO_QUA */
+    'Nổi bật': 'Featured',
+    'Mới từ tác nghiệp': 'New from field shoots',
+    'Theo sản phẩm đang bán': 'By products on sale',
+    'AI chọn': 'AI picks',
+    'Gợi ý hôm nay': "Today's picks",
+    'Mới nhất': 'Newest',
+    'Xem thêm': 'Show more',
+    'Phóng to': 'Enlarge',
+    'Tải bản nhẹ 1080p': 'Download light 1080p',
+    'Tải file gốc': 'Download original',
+    'Tải ảnh gốc': 'Download original photo',
+    'Tải file RAW': 'Download RAW file',
+    'Năm (theo thư mục)': 'Year (from folder)',
+    'Tải lên Drive': 'Uploaded to Drive',
+    'Mở file': 'Open file',
+    'Copy link': 'Copy link',
+    'Ghim': 'Pin',
+    'Bỏ ghim': 'Unpin',
+    'Sơ đồ kho': 'Library map',
+    'Thu gọn': 'Collapse',
+    'Xem nhanh': 'Quick view',
+    'Điểm AI': 'AI score',
+    'Mới': 'New',
+    'Ưu tiên': 'Priority',
+    'Media': 'Media',
+    'Ảnh RAW': 'RAW photo',
+    'Chọn một media': 'Select a media item',
+    'Không tìm thấy': 'Nothing found',
+    'Chưa ghim media nào': 'No pinned media yet',
+    'Chưa có media khớp sản phẩm này': 'No media matches this product yet',
+    'Tìm trong toàn kho': 'Search the whole library',
+    'Không có trong bộ lọc đang chọn': 'Not in the current filters',
+    'Đã copy link file': 'File link copied',
+    'Đang lưu file gốc về máy': 'Saving the original file',
+    'Đã ghim vào Nổi bật': 'Pinned to Featured',
+    'Đã bỏ ghim': 'Unpinned',
+    'Tìm ảnh, video… vd: đoàn sân bay, hoàng hôn Hòn Thơm': 'Search photos, videos… e.g. group at airport, Hon Thom sunset',
+    'Vừa tìm': 'Recent',
+    'Cả phòng hay tìm': 'Popular in the team',
+    'Nội dung phổ biến': 'Popular content',
+    'Hay tìm': 'Popular',
+    'Địa điểm': 'Place',
+    'Kho': 'Library',
+    'Không phát được video này trên trình duyệt. Bấm Mở file để xem trên Lark.':
+      "This video can't play in the browser. Click Open file to watch it on Lark.",
+
     /* Tooltip — không thấy trên ảnh chụp nên rất dễ bị bỏ quên */
     'Thu gọn / mở rộng panel': 'Collapse / expand the panel',
     'Thêm một base vào panel': 'Add a base to the panel',
@@ -1086,6 +1133,16 @@
    * Cho những câu ghép số/tên vào giữa. $1, $2… là nhóm bắt được.
    */
   const MAU_EN = [
+    /* --- Kho media: câu có con số --- */
+    [/^AI đã xem · ([\d.]+)$/, 'AI-reviewed · $1'],
+    [/^Được ghim · (\d+)$/, 'Pinned · $1'],
+    [/^([\d.]+) kết quả · ([\d.]+) video$/, '$1 results · $2 videos'],
+    [/^Không có kết quả khớp đủ · ([\d.]+) kết quả gần đúng · ([\d.]+) video$/, 'No exact match · $1 close results · $2 videos'],
+    [/^Quét lúc (.+) · đã loại ([\d.]+) file nhạy cảm$/, 'Scanned $1 · $2 sensitive files excluded'],
+    [/^Trong: (.+)$/, 'In: $1'],
+    [/^Không có gợi ý — nhấn Enter để tìm "(.+)"$/, 'No suggestions — press Enter to search "$1"'],
+    [/^Đang lấy từ Drive · (.+)$/, 'Fetching from Drive · $1'],
+    [/^(\d+) lịch chỉ có link Google Drive, chưa đọc được$/, '$1 schedules only have Google Drive links, not readable'],
     /* --- Thông tin sản phẩm: câu có con số nên không khớp khoá nguyên câu --- */
     [/^(\d+) dòng trong Base$/, '$1 rows in the Base'],
     [/^(\d+) sản phẩm$/, '$1 products'],
@@ -1295,6 +1352,8 @@
        dịch là sai nghĩa. Tên thư mục thì không trùng khoá nào, nhưng nhận xét
        ngắn kiểu "Đạt" thì trùng — chắn cả hai cho chắc. */
     '.ml-ten', '.ml-nx', 'td .phu',
+    /* Kho media: tên file, đường dẫn thư mục, mô tả AI, thẻ, tên lịch/sản phẩm/kho */
+    'html[data-app="kho-media"] :is(.ten, .duong, .vet, .mo-ai, .the-nd, h3, .so-do, .ten-kin, [data-kho], [data-tn], [data-sp], [data-tn-xem])',
     '.log', 'code', 'pre', 'option[data-giu]',
     /* Vùng nào tự khai là dữ liệu thì tôn trọng. Cần thiết vì có bảng cấu hình
        lấy tên dòng từ Base, mà mấy tên đó trùng nhãn giao diện trong từ điển —

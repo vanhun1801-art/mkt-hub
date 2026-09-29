@@ -25,6 +25,7 @@
 !lark-lich-lam-viec/
 !lark-kol/
 !lark-ban-do/
+!lark-kho-media/
 
 # mã dùng chung giữa các app (Tourwell…)
 !lark-chung/
@@ -47,6 +48,8 @@
 # thì không. Bộ luật và mã nguồn vẫn lên; số điểm ở lại máy.
 lark-kpi/du-lieu/
 lark-kol/du-lieu/
+# Chỉ mục Drive (123k đường dẫn, có tên người/đoàn) + ảnh thu nhỏ + file gốc tải về — chỉ ở máy
+lark-kho-media/du-lieu/
 
 # ---- rác ----
 **/node_modules/

@@ -37,12 +37,21 @@ function dsCaPhongEnv() {
 }
 
 /** Đọc lại modules.json mỗi lần gọi để thêm/sửa base không cần restart. */
+/* Cùng luật với `mode` bên dưới — đọc thẳng biến môi trường vì hàm này chạy trước khi object cfg xong */
+const cheDoHienTai = () => process.env.LARK_MODE ||
+  ((process.env.LARK_APP_ID && process.env.LARK_APP_SECRET) ? 'api' : 'cli');
+
 function docModules() {
   const raw = fs.readFileSync(MODULES_FILE, 'utf8');
   const data = JSON.parse(raw);
   const list = Array.isArray(data.modules) ? data.modules : [];
   const env = dsCaPhongEnv();
-  return list.map((m, i) => ({
+  /* chiMay: app chỉ chạy được trên MÁY NỘI BỘ (vd Kho media đọc Drive bằng lark-cli của người
+   * ngồi máy + giữ chỉ mục/ảnh đệm trên ổ đĩa). Trên bản deploy (chế độ api) hub coi như không có
+   * nó — không bật tiến trình, không hiện cả ở nhóm "Đang ẩn" — thay vì phơi ra một trang trống.
+   * Chỉ lọc ở đây; docModulesTho/ghiModules vẫn giữ nguyên dòng trong file. */
+  const api = cheDoHienTai() === 'api';
+  return list.filter((m) => !(api && m.chiMay === true)).map((m, i) => ({
     id: String(m.id || 'module-' + i),
     ten: m.ten || m.id || 'Module',
     mo_ta: m.mo_ta || '',
@@ -68,6 +77,7 @@ function docModules() {
      * khối lọc không bao giờ thu lại). */
     locSelector: m.locSelector || '',
     bat: m.bat !== false,
+    chiMay: m.chiMay === true,
     /* Ai thấy base này khi CHƯA được cấp riêng:
      *   true  = cả phòng (base dùng chung, ai đăng nhập cũng thấy)
      *   false = chỉ quản lý + người được cấp tên trong bảng Phân quyền

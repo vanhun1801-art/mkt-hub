@@ -699,6 +699,8 @@ const BO_DOC = {
   /* Hợp tác KOL: một chuyến đang chạy thì việc gấp của nó không thuộc về "tháng
      này" — bàn giao trễ từ chuyến tháng trước vẫn phải hiện. Nuốt `khoang`. */
   'kol': (mod, khoang, nguoi) => tuAppTuCong(mod, null, nguoi),
+  /* Kho media không có trục thời gian của hub — thẻ "7 ngày" tự tính trong app */
+  'kho-media': (mod, khoang, nguoi) => tuAppTuCong(mod, null, nguoi),
 };
 
 /* ---------------- cache + gom ---------------- */

@@ -1,0 +1,147 @@
+/* ============================================================================
+ * MOBILE DÙNG CHUNG CHO CẢ MƯỜI APP — cho ra dáng app thật, không phải trang web
+ * ============================================================================
+ * Anh Hùng 23/09/2026: "mục tiêu khi dùng mobile thì thuần là các cái để xem
+ * nhanh hoặc điều chỉnh quan trọng thôi. Còn cái nào hiển thị không cần thiết
+ * thì lược bỏ… tối ưu thao tác như app thật, không có hiện tượng thu phóng liên
+ * tục ra vào trượt qua trượt lại như web".
+ *
+ * BẢN GỐC nằm ở lark-mkt-hub/public/mobile-chung.css. Sửa ở đây rồi chạy:
+ *     node dong-bo-khung.js
+ * test/khung-xuong.test.js canh cho không bản nào lệch bản gốc.
+ *
+ * Nạp SAU styles.css của từng app, nên cùng độ ưu tiên thì tệp này thắng.
+ * ============================================================================
+ */
+
+/* ---------------------------------------------------------------------------
+ * 1. CHẶN TRÌNH DUYỆT TỰ PHÓNG TO
+ * ---------------------------------------------------------------------------
+ * `-webkit-text-size-adjust` chặn iOS/Android tự phóng cỡ chữ khi xoay ngang.
+ * `touch-action: manipulation` bỏ cái trễ 300ms chờ xem có phải double-tap để
+ * phóng to không — chạm là ăn ngay, đúng cảm giác app thật.
+ */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+button, a, label, summary, [role="tab"], .tab, .seg > *, .pill, .chip {
+  touch-action: manipulation;
+}
+
+@media (max-width: 640px) {
+
+  /* -------------------------------------------------------------------------
+   * 2. Ô NHẬP PHẢI TỪ 16px — đây là gốc của "thu phóng liên tục ra vào"
+   * -------------------------------------------------------------------------
+   * iOS Safari TỰ PHÓNG TO cả trang mỗi khi chạm vào một ô nhập có cỡ chữ dưới
+   * 16px, rồi người dùng phải tự chụm tay thu lại. Bấm ô nào cũng phóng, gõ
+   * xong lại thu — đúng cái anh Hùng tả.
+   *
+   * Đo ngày 23/09/2026 trên app Quỹ chi phí ở khung 375px: 177 ô nhập đang để
+   * 13px. Không phải một chỗ quên, mà là cỡ chữ mặc định của cả hệ.
+   *
+   * KHÔNG chữa bằng `user-scalable=no` trong thẻ viewport: iOS bỏ qua thuộc
+   * tính đó từ iOS 10, và nó còn khoá luôn cả thao tác phóng to CỐ Ý của người
+   * mắt kém. Đưa ô nhập lên 16px là cách duy nhất vừa hết tự phóng vừa không
+   * lấy mất quyền phóng to của người dùng.
+   */
+  /* Bộ chọn dài dòng là CỐ Ý, hai lý do:
+   *
+   *   1. Loại ra mấy kiểu ô KHÔNG gõ chữ (thanh trượt, ô tick, chọn màu, chọn
+   *      tệp). Ép 16px cho chúng chẳng để làm gì, vì iOS chỉ phóng to khi bàn
+   *      phím bật lên.
+   *   2. ĐỘ ƯU TIÊN. `input {…}` chỉ là (0,0,1), thua bất cứ luật nào viết theo
+   *      class. Đo được đúng một chỗ như vậy ở app Báo cáo: `.v-pt { font-size:
+   *      14px }` đè mất. Chuỗi `:not()` này nâng lên (0,3,1) nên thắng gần như
+   *      mọi luật thường — mà vẫn không phải dùng `!important`, thứ làm app con
+   *      hết đường đè lại khi thật sự cần. */
+  input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="file"]),
+  select:not([multiple]),
+  textarea,
+  [contenteditable="true"] {
+    font-size: 16px;
+  }
+  /* Ô tick không có chữ nên không dính luật trên; nhưng 13px thì ngón tay bấm
+   * trượt. */
+  input[type="checkbox"], input[type="radio"] {
+    width: 18px; height: 18px;
+  }
+
+  /* -------------------------------------------------------------------------
+   * 3. TRANG KHÔNG BAO GIỜ TRƯỢT NGANG
+   * -------------------------------------------------------------------------
+   * Trang web trượt ngang được là thứ tố cáo ngay "đây không phải app". Khoá
+   * cả trang lại; chỗ nào thật sự rộng hơn màn (bảng nhiều cột) thì tự cuộn
+   * TRONG khung của nó — xem mục 5.
+   *
+   * `overscroll-behavior-y: contain` chặn luôn cú kéo quá đà làm cả trang nảy
+   * lên rồi tải lại.
+   */
+  html, body {
+    overflow-x: hidden;
+    overscroll-behavior-y: contain;
+  }
+
+  /* -------------------------------------------------------------------------
+   * 4. THANH TAB: MỘT KIỂU DUY NHẤT CHO MỌI APP
+   * -------------------------------------------------------------------------
+   * Anh Hùng: "các tab hiển thị gọn lại cùng 1 cái như nhau trên các app".
+   * Trước đây mỗi app một kiểu — viên thuốc, gạch chân, khối liền — và app nào
+   * nhiều tab thì tab cuối bị cắt cụt giữa chữ ("Cần", "Kh", "Nhóm quảng cá").
+   *
+   * Giờ tất cả là một DẢI CUỘN NGANG: không xuống dòng, không cắt chữ, vuốt để
+   * xem tiếp, và có điểm dừng nên vuốt xong tab nằm gọn chứ không lửng lơ.
+   * Thanh cuộn ẩn đi — trên điện thoại nó chỉ chiếm chỗ.
+   */
+  .tabs, .tabsbar, .seg, .seg-ai, .tab-bar {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    /* Lề âm + đệm: dải chạy hết bề ngang màn hình, nhưng tab đầu và tab cuối
+     * vẫn thụt vào đúng bằng lề của nội dung xung quanh. */
+    padding-left: 14px; padding-right: 14px;
+    margin-left: -14px; margin-right: -14px;
+  }
+  .tabs::-webkit-scrollbar, .tabsbar::-webkit-scrollbar, .seg::-webkit-scrollbar,
+  .seg-ai::-webkit-scrollbar, .tab-bar::-webkit-scrollbar { display: none; }
+
+  .tabs > *, .tabsbar > *, .seg > *, .seg-ai > *, .tab-bar > *, .tab, .pill {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+    /* Ngón tay không bấm trúng mục cao 30px. 40px là mức tối thiểu quen dùng. */
+    min-height: 40px;
+    white-space: nowrap;
+  }
+
+  /* -------------------------------------------------------------------------
+   * 5. BẢNG NHIỀU CỘT TỰ CUỘN TRONG KHUNG CỦA NÓ
+   * -------------------------------------------------------------------------
+   * Đo trên Quỹ chi phí ở khung 375px: bảng sổ quỹ rộng 1103px. Không bó lại
+   * thì hoặc cả trang trượt ngang, hoặc cột cuối bị cắt mất chữ ("SỐ TIỀ").
+   */
+  .tablewrap, .bang-cuon, .table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+
+  /* -------------------------------------------------------------------------
+   * 6. BỎ TÊN NGƯỜI DÙNG VÀ CHỨC DANH
+   * -------------------------------------------------------------------------
+   * Anh Hùng: "bỏ tên người dùng hiển thị… bỏ chức danh tại giao diện mobile".
+   *
+   * Trên máy tính chip này có ích: mở app ra mà không biết mình đang là vai nào
+   * thì mọi nút thiếu đều thành một câu hỏi. Nhưng trên điện thoại nó ăn nguyên
+   * một hàng để nói một điều người dùng đã biết — họ đang cầm máy của chính họ.
+   *
+   * Mỗi app đặt một id khác nhau cho cùng một thứ; liệt kê hết ở đây. Id nào
+   * app đó không có thì bộ chọn chỉ đơn giản không khớp, vô hại.
+   */
+  #chipVai, #meChip, #meChipBtn, #meChipText, #chipToi, #chipUser, #chipNguoi {
+    display: none;
+  }
+}

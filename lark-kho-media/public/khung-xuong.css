@@ -1,0 +1,205 @@
+/* ============================================================
+   KHUNG XƯƠNG (skeleton) — MỘT bộ khuôn cho cả hệ
+
+   Vấn đề nó giải: mọi màn trong hệ đều phải chờ Lark Base trả dữ liệu (0,3s
+   trên máy, 2-5s trên Render gói Free). Trong khoảng chờ đó trang trước đây chỉ
+   có một dòng chữ "Đang nạp…" giữa vùng trắng — người dùng đọc khoảng trắng đó
+   là "hỏng" chứ không phải "đang tải", và mỗi app lại nói một kiểu khác nhau.
+
+   Cách làm theo YouTube: vẽ sẵn ĐÚNG hình dạng của nội dung sắp tới (ô, dòng,
+   thẻ) bằng khối xám nhấp nháy, rồi thay dữ liệu thật vào đúng chỗ đó. Hai cái
+   lợi đo được: khung trang đứng yên (không giật layout khi dữ liệu về), và mắt
+   biết ngay trang sẽ có gì ở đâu.
+
+   NGUYÊN TẮC DÙNG: bọc khung xương bằng CHÍNH các lớp bố cục thật của màn đó
+   (.luoi-base, .the-luoi, .viec-dong…) rồi đặt .kx vào bên trong. Đừng dựng bố
+   cục riêng cho khung xương — dựng riêng là hai bố cục lệch nhau, và lúc dữ
+   liệu về trang nhảy một nhịp, đúng cái đang muốn tránh.
+
+   TỆP NÀY ĐƯỢC NHÂN BẢN sang public/ của MỌI app con (chúng chạy độc lập được
+   nên không mượn được file của lớp vỏ). Bản gốc là bản này; sửa xong chạy
+   `node dong-bo-khung.js` để chép sang chín app kia — test/khung-xuong.test.js
+   canh để không ai quên.
+   ============================================================ */
+
+:root {
+  --kx-nen: #e6eaf2;      /* nền khối xương */
+  --kx-sang: #f3f6fb;     /* vệt sáng lướt qua */
+  --kx-vien: #e3e8f0;
+  --kx-mat: #ffffff;      /* mặt thẻ giả (nền của khối bọc) */
+}
+
+/* Tối: hai nhánh y như styles.css — người tự chọn "Tối", và hệ thống tối mà
+   người dùng không chọn "Sáng". SỬA THÌ SỬA CẢ HAI. */
+:root[data-theme="toi"] {
+  --kx-nen: #262d3b;
+  --kx-sang: #323b4d;
+  --kx-vien: #2c3444;
+  --kx-mat: #1a1f2b;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="sang"]) {
+    --kx-nen: #262d3b;
+    --kx-sang: #323b4d;
+    --kx-vien: #2c3444;
+    --kx-mat: #1a1f2b;
+  }
+}
+
+/* ---- khối xương cơ bản ----
+   `display: block` + chiều cao rõ ràng: khối xương KHÔNG có chữ bên trong nên
+   nếu để nó tự co theo nội dung thì cao 0. */
+.kx {
+  display: block;
+  border-radius: 7px;
+  background: var(--kx-nen);
+  background-image: linear-gradient(100deg,
+    var(--kx-nen) 28%, var(--kx-sang) 48%, var(--kx-nen) 68%);
+  background-size: 260% 100%;
+  animation: kx-luot 1.4s ease-in-out infinite;
+  /* Chữ lỡ lọt vào bên trong (VD người dịch tự chèn) cũng không hiện ra, và
+     không ai bôi đen được một khối xám. */
+  color: transparent !important;
+  user-select: none;
+  pointer-events: none;
+  flex: 0 0 auto;
+}
+
+@keyframes kx-luot {
+  from { background-position: 190% 0; }
+  to   { background-position: -30% 0; }
+}
+
+/* Ai tắt hiệu ứng chuyển động trong hệ điều hành thì đổi sang nhịp mờ dần —
+   vẫn nói được "đang chạy" mà không có gì trượt ngang màn hình.
+
+   Đáy nhịp là .72, KHÔNG phải .45 như bản đầu: xuống 45% thì cả khối xương
+   nhạt đi gần một nửa, và trên ảnh chụp của anh Hùng nó không còn giống "đang
+   nạp" mà giống trang bị hỏng, chữ mất hết. Khoảng chờ phải nói "đang chạy",
+   không được nói "có chuyện gì rồi". */
+@media (prefers-reduced-motion: reduce) {
+  .kx {
+    background-image: none;
+    animation: kx-tho 1.8s ease-in-out infinite alternate;
+  }
+  @keyframes kx-tho { from { opacity: 1; } to { opacity: .72; } }
+}
+
+/* ---- thanh lọc thời gian lúc đang chờ (chỉ lớp vỏ có) ----
+   Thanh xám bên trong để MẢNH cho nhẹ mắt, nhưng cái NÚT phải cao đúng bằng
+   nút thật: .seg button có `padding: 6px 11px` và dòng chữ 13px cao 19.5px,
+   tổng 32px. Không ép thì nút khung xương chỉ 24px, cả thanh lọc thấp hơn bản
+   thật 8px — và trang nhảy đúng vào lúc bộ lọc lên. Đã đo cả hai trên máy. */
+.loc-bar[aria-busy="true"] .seg button { min-height: 32px; }
+
+/* ---- các hình dạng hay gặp ----
+   Kích thước bám theo thành phần thật tương ứng trong styles.css, nên đặt cạnh
+   nhau là khớp: .kx-o = .ri-ic/.kh-ic (28px), .kx-so = .the .so (19px)… */
+.kx-o    { width: 28px; height: 28px; border-radius: 8px; }
+.kx-tron { border-radius: 50%; }
+.kx-chu  { height: 12px; border-radius: 6px; }
+.kx-chu.to  { height: 15px; }
+.kx-chu.nho { height: 10px; }
+.kx-so   { height: 20px; width: 56px; border-radius: 6px; margin-top: 3px; }
+.kx-so.to  { height: 30px; width: 84px; }
+.kx-so.nho { height: 16px; width: 42px; }
+.kx-nut  { height: 28px; width: 76px; border-radius: 9px; }
+.kx-anh  { width: 100%; height: 100%; border-radius: 10px; }
+
+/* ---- xếp hàng ----
+   Chỉ hai lớp bố cục, dùng cho phần KHÔNG có sẵn lớp bố cục thật (VD màn khởi
+   động của app con, lúc đó chưa có gì trên trang để mượn). */
+.kx-hang { display: flex; align-items: center; gap: 10px; }
+.kx-cot  { display: flex; flex-direction: column; gap: 7px; min-width: 0; flex: 1 1 auto; }
+
+/* ---- vùng đang nạp ----
+   Đặt trên thẻ bọc để trình đọc màn hình biết đây là chỗ chờ dữ liệu chứ không
+   phải nội dung thật (khối xương bên trong thì aria-hidden). */
+.kx-vung { animation: kx-hien .18s ease-out; }
+@keyframes kx-hien { from { opacity: 0; } }
+
+/* Khung xương của MỘT thẻ số: nhãn ngắn ở trên, số ở dưới — đúng thứ tự
+   .the .nhan / .the .so, nên lúc số thật về không có gì xê dịch. */
+.kx-the { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; }
+
+/* ---- màn khởi động của app con ----
+   Chín app con có bố cục đầu trang giống nhau (thanh tiêu đề, hàng thẻ số,
+   bảng), nên gói sẵn một khuôn ở đây thay vì mỗi app chép một kiểu. */
+.kx-man { padding: 16px 20px; display: flex; flex-direction: column; gap: 16px; }
+.kx-man-dau { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.kx-man-the {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+/* Mặt thẻ và mặt bảng lấy token RIÊNG của khung xương, không mượn biến của app.
+   Chín app con đặt tên biến khác nhau (--panel, --card, --trang…), mượn thì app
+   nào không có biến đó sẽ rơi về giá trị dự phòng sáng — và trên nền tối thì
+   thẻ trắng toát giữa trang đen, đúng lỗi đo được ở app Quảng cáo. */
+.kx-man-the > .kx-the {
+  background: var(--kx-mat); border: 1px solid var(--kx-vien);
+  border-radius: 12px; padding: 12px 14px;
+}
+.kx-man-bang {
+  background: var(--kx-mat); border: 1px solid var(--kx-vien);
+  border-radius: 12px; overflow: hidden;
+}
+.kx-man-bang > .kx-hang {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--kx-vien);
+}
+.kx-man-bang > .kx-hang:last-child { border-bottom: 0; }
+
+/* ---- màn lịch (app Lịch tác nghiệp) ----
+   Lịch không có thẻ số và bảng, nó là một lưới 7 cột — dựng đúng lưới đó thì
+   lúc dữ liệu về không có gì phải xếp lại. */
+.kx-lich { padding: 16px 20px; display: flex; flex-direction: column; gap: 10px; }
+.kx-lich-thu, .kx-lich-luoi {
+  display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px;
+}
+.kx-lich-luoi > .kx { height: 82px; border-radius: 10px; }
+.kx-lich-thu > .kx { height: 11px; }
+
+/* ---- thêm mấy hình dạng mà chín app con thật sự đang dùng ----
+   Đo trên màn đầu của từng app chứ không bịa: Bảng công việc là ba cột danh
+   sách việc, KPI là một lưới ô số nhỏ dày đặc, Chỉnh ảnh là form lớn bên trái +
+   danh sách bên phải, Báo cáo là hai khối form chồng nhau. Vẽ "bốn thẻ + một
+   bảng" cho tất cả thì khung xương lại là một giao diện KHÁC — đúng chỗ anh
+   Hùng nói không khớp.
+
+   Tên `kx-nhieu-cot` chứ không phải `kx-cot`: `.kx-cot` đã là một cột dọc đơn
+   giản ở trên rồi, trùng tên là hai luật đè nhau. */
+.kx-nhieu-cot {
+  display: grid; grid-template-columns: repeat(var(--kx-n, 3), minmax(0, 1fr)); gap: 12px;
+}
+.kx-nhieu-cot > div { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.kx-2cot { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; align-items: start; }
+@media (max-width: 900px) {
+  .kx-nhieu-cot, .kx-2cot { grid-template-columns: 1fr; }
+}
+
+/* Lưới ô số nhỏ, dày (màn KPI: mười mấy ô trên một khối) */
+.kx-luoi-nho {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 10px;
+}
+
+/* Khối lớn liền: form, biểu đồ, lịch — chỗ mà nội dung thật là một mảng liền */
+.kx-khoi {
+  background: var(--kx-mat); border: 1px solid var(--kx-vien);
+  border-radius: 12px; padding: 14px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.kx-khoi > .kx { flex: 0 0 auto; }
+
+/* ---- bản chụp từ màn thật ----
+   Mọi thứ bên trong là hình giả: không bấm được, không bôi đen được, và không
+   một chữ nào lọt ra (chữ đã bị thay bằng thanh xám lúc chụp, dòng dưới chỉ là
+   lớp chắn cuối). */
+.kx-chup { pointer-events: none; user-select: none; }
+.kx-chup * { color: transparent !important; }
+/* Bản chụp giữ nguyên lớp CSS của app, nên nó cũng giữ luôn viền/nền/bóng thật.
+   Riêng ẢNH NỀN thì phải chặn: ảnh nền không phải bố cục, để lại là khung xương
+   thành bản sao loè loẹt của màn thật. */
+/* `*:not(.kx)` chứ không phải `*`: chính khối xương cũng vẽ bằng background-image
+   (vệt sáng lướt qua). Quét sạch cả nó thì bản chụp đứng im như ảnh chết — nhìn
+   không ra là đang tải. */
+.kx-chup *:not(.kx) { background-image: none !important; }
