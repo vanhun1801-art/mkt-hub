@@ -135,8 +135,15 @@ const mau = {
   const ph1 = TB.dungThePhanHoi({ trangThai: 'xong', noi: 'Capcut *lỗi*', ngayMs: ngay, ghiChu: 'Đã cài lại', nguoiXuLy: 'Hùng' });
   const c1 = ph1.elements[0].text.content;
   ok('phản hồi xong: tiêu đề + tình trạng ✅', /đã được xử lý/.test(ph1.header.title.content) && c1.includes('✅ Đã xử lý'), c1);
-  ok('phản hồi: nhắc lại vấn đề + ngày + ghi chú + người', c1.includes('30/09/2026') && c1.includes('Capcut \\*lỗi\\*') &&
-    c1.includes('Đã cài lại') && c1.includes('Hùng'), c1);
+  ok('phản hồi: vấn đề + ngày + người ở khối đầu', c1.includes('30/09/2026') && c1.includes('Capcut \\*lỗi\\*') &&
+    c1.includes('Hùng'), c1);
+  /* Thứ tự anh Hùng chốt: Tình trạng → Người phản hồi → Vấn đề bạn nêu. */
+  const i1 = c1.indexOf('Tình trạng'), i2 = c1.indexOf('Người phản hồi'), i3 = c1.indexOf('Vấn đề bạn nêu');
+  ok('thứ tự: Tình trạng → Người phản hồi → Vấn đề', i1 >= 0 && i1 < i2 && i2 < i3, c1);
+  ok('hướng dẫn TÁCH khối riêng dưới gạch ngang', ph1.elements[1].tag === 'hr' &&
+    /^\*\*Hướng dẫn:\*\*\nĐã cài lại$/.test(ph1.elements[2].text.content) && !c1.includes('Đã cài lại'), ph1.elements);
+  const ph0 = TB.dungThePhanHoi({ trangThai: 'xong', noi: 'x', ngayMs: ngay, ghiChu: '', nguoiXuLy: 'H' });
+  ok('không ghi chú → không có khối dưới', ph0.elements.length === 1);
   const ph2 = TB.dungThePhanHoi({ trangThai: 'chua-duoc', noi: 'Máy lag', ngayMs: ngay, ghiChu: 'Chờ máy mới' });
   ok('phản hồi chưa xử lý được: thẻ cam + câu "tại thời điểm này"', ph2.header.template === 'orange' &&
     ph2.elements[0].text.content.includes('Chưa xử lý được tại thời điểm này'));

@@ -171,23 +171,28 @@ function dungThe(t, { thu = false, mau = TIN_MAC_DINH } = {}) {
  */
 function dungThePhanHoi(p) {
   const xong = p.trangThai === 'xong';
-  const dong = [
+  /* Thứ tự anh Hùng chốt 30/09: Tình trạng → Người phản hồi → Vấn đề bạn nêu,
+   * rồi TÁCH RIÊNG bên dưới phần hướng dẫn anh viết. */
+  const dau = [
+    '**Tình trạng:** ' + (xong ? '✅ Đã xử lý' : '⏳ Chưa xử lý được tại thời điểm này'),
+    '**Người phản hồi:** ' + sachMd(p.nguoiXuLy || 'Quản lý'),
     '**Vấn đề bạn nêu** (báo cáo ' + K.veNgay(p.ngayMs) + '):',
     sachMd(String(p.noi || '').trim().slice(0, 600)),
-    '',
-    '**Tình trạng:** ' + (xong ? '✅ Đã xử lý' : '⏳ Chưa xử lý được tại thời điểm này'),
   ];
-  /* Ghi chú nhiều dòng: đặt xuống dòng riêng dưới nhãn để các bước thẳng hàng. */
-  if (String(p.ghiChu || '').trim()) dong.push('**Ghi chú:**', sachMd(String(p.ghiChu).trim().slice(0, 3000)));
-  if (p.nguoiXuLy) dong.push('**Phản hồi bởi:** ' + sachMd(p.nguoiXuLy));
-  if (!xong) dong.push('', 'Quản lý đã ghi nhận và sẽ theo dõi tiếp. Nếu cần gấp, bạn nhắn trực tiếp nhé.');
+  /* Ghi chú là markdown rút gọn do ô soạn có định dạng tạo ra (đậm, nghiêng,
+   * link, danh sách) — GIỮ nguyên để Lark vẽ đúng; chỉ gỡ thẻ HTML lạ. */
+  const ghi = String(p.ghiChu || '').replace(/<[^>]*>/g, '').trim().slice(0, 3000);
+  const duoi = [];
+  if (ghi) duoi.push((xong ? '**Hướng dẫn:**' : '**Lý do / hướng xử lý:**'), ghi);
+  if (!xong) duoi.push((ghi ? '\n' : '') + 'Quản lý đã ghi nhận và sẽ theo dõi tiếp. Nếu cần gấp, bạn nhắn trực tiếp nhé.');
   return {
     config: { wide_screen_mode: true },
     header: {
       template: xong ? 'turquoise' : 'orange',
       title: { tag: 'plain_text', content: (xong ? '✅ Vướng mắc đã được xử lý' : '⏳ Vướng mắc chưa xử lý được') },
     },
-    elements: [{ tag: 'div', text: { tag: 'lark_md', content: dong.join('\n') } }],
+    elements: [{ tag: 'div', text: { tag: 'lark_md', content: dau.join('\n') } }]
+      .concat(duoi.length ? [{ tag: 'hr' }, { tag: 'div', text: { tag: 'lark_md', content: duoi.join('\n') } }] : []),
   };
 }
 

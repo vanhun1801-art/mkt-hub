@@ -1239,6 +1239,144 @@ async function veToanPhong(el) {
   });
 }
 
+/* ---------------- Ô soạn có định dạng (ghi chú xử lý vướng mắc) ----------------
+ * Anh Hùng (30/09): "anh cần định dạng được luôn, vì đôi khi anh chép có văn bản
+ * định dạng". Lưu dưới dạng MARKDOWN RÚT GỌN — đúng thứ thẻ Lark (lark_md) hiểu:
+ * **đậm** · *nghiêng* · [chữ](link) · dòng "- " và "1. ". Nhờ vậy một chuỗi dùng
+ * được cho cả ba chỗ: Base, màn hình app, và tin nhắn gửi nhân sự.
+ *
+ * Dán từ Word/Docs/web: chỉ giữ đậm, nghiêng, link, danh sách, xuống dòng — màu,
+ * cỡ chữ, bảng… bỏ hết, vì Lark không vẽ được và dán nguyên thì ô soạn loạn. */
+
+/** HTML (từ ô soạn / clipboard) → markdown rút gọn. */
+function htmlSangMd(goc) {
+  const ra = [];
+  const dem = [];                 // bộ đếm cho <ol> lồng nhau
+  /* Xuống dòng chỉ khi chưa đứng đầu dòng — mỗi <div> là MỘT dòng, không sinh
+   * dòng trống giữa các dòng như cách ghép "\n" hai đầu khối. */
+  let dauMuc = false;             // vừa viết "1. " / "- " — khối con không được xuống dòng
+  const nl = () => {
+    if (dauMuc) return;
+    if (ra.length && ra.join('').slice(-1) !== '\n') ra.push('\n');
+  };
+  const di = (n, ctx) => {
+    if (n.nodeType === 3) {
+      const chu = n.nodeValue.replace(/\s+/g, ' ');
+      if (dauMuc && !chu.trim()) return;       // khoảng trắng giữa "1. " và chữ đầu tiên
+      if (chu.trim()) dauMuc = false;
+      ra.push(dauMuc ? chu.replace(/^\s+/, '') : chu);
+      return;
+    }
+    if (n.nodeType !== 1) return;
+    const t = n.tagName.toLowerCase();
+    if (['script', 'style', 'meta', 'title', 'head'].includes(t)) return;
+    const con = () => n.childNodes.forEach((c) => di(c, ctx));
+    const w = n.style || {};
+    const dam = t === 'b' || t === 'strong' || /^h[1-6]$/.test(t) || Number(w.fontWeight) >= 600 || w.fontWeight === 'bold';
+    const nghieng = t === 'i' || t === 'em' || w.fontStyle === 'italic';
+    if (t === 'br') { ra.push('\n'); return; }
+    if (t === 'li') {
+      const o = dem[dem.length - 1];
+      dauMuc = false; nl(); ra.push(o && o.ol ? (++o.n) + '. ' : '- '); dauMuc = true;
+      con(); return;
+    }
+    if (t === 'ul' || t === 'ol') { dem.push({ ol: t === 'ol', n: (Number(n.getAttribute('start')) || 1) - 1 }); con(); dem.pop(); nl(); return; }
+    if (t === 'a' && /^https?:\/\//i.test(n.getAttribute('href') || '')) {
+      ra.push('['); con(); ra.push('](' + n.getAttribute('href') + ')'); return;
+    }
+    const khoi = ['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'tr', 'blockquote', 'section'].includes(t);
+    if (khoi) nl();
+    if (dam) ra.push('**');
+    if (nghieng) ra.push('*');
+    con();
+    if (nghieng) ra.push('*');
+    if (dam) ra.push('**');
+    if (khoi) nl();
+  };
+  const tam = document.createElement('div');
+  tam.innerHTML = goc;
+  tam.childNodes.forEach((c) => di(c));
+  return ra.join('')
+    .replace(/\*\*\s*\*\*/g, '').replace(/(^|[^*])\*\s+\*(?!\*)/g, '$1')   // cặp rỗng (phải có khoảng trắng — "**" là mở chữ đậm)
+    /* Khoảng trắng lọt VÀO TRONG cặp đậm ("** chữ **" — hay gặp khi dán từ Word)
+     * đẩy ra ngoài; Lark không vẽ đậm nếu ** đứng cạnh khoảng trắng. */
+    .replace(/\*\*(\s*)([^*\n]+?)(\s*)\*\*/g, '$1**$2**$3')
+    .replace(/[ \t]+\n/g, '\n').replace(/\n[ \t]+/g, '\n')
+    .replace(/\n{3,}/g, '\n\n').trim();
+}
+
+/** Markdown rút gọn → HTML an toàn (thoát hết rồi mới dựng lại vài thẻ cho phép). */
+function mdSangHtml(md) {
+  const dong = esc(String(md || '')).split('\n');
+  const noi = (s) => s
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+    .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+    .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<i>$2</i>');
+  const ra = [];
+  let ds = null;                   // 'ul' | 'ol' đang mở
+  for (const d of dong) {
+    const ul = d.match(/^\s*[-•]\s+(.*)$/), olm = d.match(/^\s*(\d+)[.)]\s+(.*)$/);
+    const ol = olm && [olm[0], olm[2]];
+    const loai = ul ? 'ul' : ol ? 'ol' : null;
+    if (ds && loai !== ds) { ra.push('</' + ds + '>'); ds = null; }
+    if (loai) {
+      /* Danh sách số bị gạch đầu dòng con cắt ngang vẫn đếm tiếp (start=). */
+      if (!ds) { ra.push(loai === 'ol' ? '<ol start="' + olm[1] + '">' : '<ul>'); ds = loai; }
+      ra.push('<li>' + noi((ul || ol)[1]) + '</li>');
+    } else ra.push(d.trim() ? '<div>' + noi(d) + '</div>' : '<div><br></div>');
+  }
+  if (ds) ra.push('</' + ds + '>');
+  return ra.join('');
+}
+
+/** Ô soạn: thanh công cụ + vùng contenteditable. `md` là nội dung đã lưu. */
+function oSoan(rec, md, goiY) {
+  const nut = (lenh, chu, ten) => '<button type="button" class="soan-nut" data-lenh="' + lenh + '" title="' + ten + '">' + chu + '</button>';
+  return '<div class="soan" data-rec="' + esc(rec) + '">' +
+    '<div class="soan-thanh">' +
+      nut('bold', '<b>B</b>', 'Đậm (Ctrl+B)') + nut('italic', '<i>I</i>', 'Nghiêng (Ctrl+I)') +
+      nut('insertUnorderedList', '•', 'Gạch đầu dòng') + nut('insertOrderedList', '1.', 'Danh sách số') +
+      nut('createLink', '🔗', 'Chèn link') + nut('removeFormat', '⌫', 'Bỏ định dạng') +
+    '</div>' +
+    '<div class="in soan-vung ht-ghi" contenteditable="true" data-rec="' + esc(rec) + '" data-goi-y="' + esc(goiY) + '">' +
+      (md ? mdSangHtml(md) : '') + '</div>' +
+  '</div>';
+}
+
+/** Gắn hành vi cho mọi ô soạn trong `el`. */
+function batSoan(el) {
+  $$('.soan', el).forEach((s) => {
+    const vung = $('.soan-vung', s);
+    $$('.soan-nut', s).forEach((b) => {
+      b.onmousedown = (e) => e.preventDefault();          // giữ vùng chọn trong ô soạn
+      b.onclick = () => {
+        vung.focus();
+        if (b.dataset.lenh === 'createLink') {
+          const u = prompt('Dán link (https://…)');
+          if (u && /^https?:\/\//i.test(u.trim())) document.execCommand('createLink', false, u.trim());
+          return;
+        }
+        document.execCommand(b.dataset.lenh, false, null);
+      };
+    });
+    /* Dán: lọc HTML về đúng bộ định dạng giữ được, rồi dựng lại cho sạch. */
+    vung.addEventListener('paste', (e) => {
+      const cd = e.clipboardData || window.clipboardData;
+      if (!cd) return;
+      e.preventDefault();
+      const html = cd.getData('text/html');
+      const md = html ? htmlSangMd(html) : String(cd.getData('text/plain') || '');
+      document.execCommand('insertHTML', false, mdSangHtml(md));
+    });
+  });
+}
+
+/** Nội dung ô soạn của một mục → markdown để gửi lên máy chủ. */
+const layMd = (el, rec) => {
+  const v = $('.soan-vung[data-rec="' + rec + '"]', el);
+  return v ? htmlSangMd(v.innerHTML) : '';
+};
+
 /* Lọc ở màn Cần hỗ trợ — giữ ngoài hàm để đổi tab rồi quay lại vẫn đúng chỗ. */
 let HT_LOC = 'chua';
 
@@ -1278,13 +1416,11 @@ async function veCanHoTro(el) {
       ? '<div class="ht-kq"><div class="ht-kq-dau">' + (s === 'xong' ? '✔ Đã xử lý' : '⏳ Chưa xử lý được') +
           (x.xuLyBoi ? ' · ' + esc(x.xuLyBoi) : '') + (x.xuLyLuc ? ' · ' + esc(veNgay(x.xuLyLuc)) : '') +
           (x.daBaoLuc ? ' · đã nhắn cho ' + esc(x.ten) : '') + '</div>' +
-          (x.ghiChu ? '<div class="ht-kq-chu">' + esc(x.ghiChu) + '</div>' : '') + '</div>' : '';
+          (x.ghiChu ? '<div class="ht-kq-chu">' + mdSangHtml(x.ghiChu) + '</div>' : '') + '</div>' : '';
     const tac = s === 'xong'
       ? '<div class="ht-tac"><div class="ht-nut-nhom">' + nut(x, 'mo-lai', 'Mở lại', true) + '</div></div>'
       : '<div class="ht-tac">' +
-          '<textarea class="in ht-ghi" rows="2" data-rec="' + esc(x.recId) + '" ' +
-            'placeholder="Ghi chú cách xử lý / lý do chưa xử lý được — xuống dòng thoải mái, nhân sự nhận đúng như vậy">' +
-            esc(x.ghiChu) + '</textarea>' +
+          oSoan(x.recId, x.ghiChu, 'Ghi chú cách xử lý / lý do chưa xử lý được — dán văn bản có định dạng được, nhân sự nhận đúng như vậy') +
           '<div class="ht-nut-nhom">' +
             nut(x, 'chua-duoc', s === 'chua-duoc' ? 'Cập nhật lý do' : 'Chưa xử lý được', false) +
             '<button class="btn nho chinh ht-nut" data-rec="' + esc(x.recId) + '" data-tt="xong">✓ Đã xử lý</button>' +
@@ -1313,21 +1449,19 @@ async function veCanHoTro(el) {
     '</div></div>';
 
   $$('[data-loc]', el).forEach((b) => { b.onclick = () => { HT_LOC = b.dataset.loc; veCanHoTro(el); }; });
-  /* Ô ghi chú tự giãn theo nội dung — dán cả đoạn vẫn thấy hết, không phải cuộn trong ô. */
-  const gian = (o) => { o.style.height = 'auto'; o.style.height = Math.min(o.scrollHeight + 2, 420) + 'px'; };
-  $$('.ht-ghi', el).forEach((o) => { gian(o); o.addEventListener('input', () => gian(o)); });
+  batSoan(el);
   $$('.ht-nut', el).forEach((b) => {
     b.onclick = async () => {
       const rec = b.dataset.rec;
-      const o = $('.ht-ghi[data-rec="' + rec + '"]', el);
-      if (b.dataset.tt === 'chua-duoc' && !(o && o.value.trim())) {
-        if (o) o.focus();
+      const ghi = layMd(el, rec);
+      if (b.dataset.tt === 'chua-duoc' && !ghi) {
+        const v = $('.soan-vung[data-rec="' + rec + '"]', el); if (v) v.focus();
         return toast('Ghi lý do chưa xử lý được để nhân sự biết', 'do');
       }
       b.disabled = true;
       try {
         const r = await goi('/api/can-ho-tro/xu-ly', { method: 'POST', body: JSON.stringify({
-          recId: rec, trangThai: b.dataset.tt, ghiChu: o ? o.value : '',
+          recId: rec, trangThai: b.dataset.tt, ghiChu: ghi,
           bao: b.dataset.tt !== 'mo-lai' }) });
         const chu = { xong: 'Đã ghi nhận xử lý', 'chua-duoc': 'Đã ghi chưa xử lý được', 'mo-lai': 'Đã mở lại' }[r.trangThai];
         if (r.bao && !r.bao.ok) toast(chu + ' — nhưng chưa nhắn được cho ' + r.nguoi + ': ' + r.bao.loi, 'do');

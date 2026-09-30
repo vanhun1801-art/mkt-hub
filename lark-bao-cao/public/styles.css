@@ -684,3 +684,22 @@ body.so-mo #so {
 .ht-kq { padding: 8px 11px; border-radius: var(--r); background: var(--surface-2); border: 1px solid var(--border); }
 .ht-kq-dau { font-size: 12px; color: var(--text-3); }
 .ht-kq-chu { margin-top: 4px; white-space: pre-wrap; color: var(--text); line-height: 1.55; font-size: 13px; }
+
+/* Ô soạn có định dạng (ghi chú xử lý vướng mắc) — thanh công cụ dính trên vùng
+ * soạn, hai phần chung một khung để nhìn như một ô nhập. */
+.soan { border: 1px solid var(--border-2); border-radius: var(--r); background: var(--surface); overflow: hidden; }
+.soan:focus-within { border-color: var(--blue); outline: 2px solid var(--blue-bg); outline-offset: -1px; }
+.soan-thanh { display: flex; gap: 2px; padding: 4px 6px; border-bottom: 1px solid var(--border); background: var(--surface-2); }
+.soan-nut {
+  min-width: 28px; height: 26px; padding: 0 7px; border: 0; border-radius: var(--r-sm);
+  background: none; color: var(--text-2); font: inherit; font-size: 13px; cursor: pointer;
+}
+.soan-nut:hover { background: var(--surface-3); color: var(--text); }
+.soan .soan-vung {
+  border: 0; border-radius: 0; outline: none; min-height: 64px; max-height: 420px; overflow-y: auto;
+  padding: 9px 11px; line-height: 1.6; font-size: 13px; white-space: normal;
+}
+.soan-vung:empty::before { content: attr(data-goi-y); color: var(--text-4); pointer-events: none; }
+.soan-vung ul, .soan-vung ol, .ht-kq-chu ul, .ht-kq-chu ol { margin: 4px 0; padding-left: 22px; }
+.soan-vung a, .ht-kq-chu a { color: var(--blue-text); }
+.ht-kq-chu { white-space: normal; }
