@@ -254,6 +254,15 @@ function duocGoiWebhook(req) {
       ? { ok: true }
       : { ok: false, ma: 401, ly: 'Secret không đúng. Gửi ?secret=… hoặc header x-ota-secret.' };
   }
+  /* Hub đóng dấu x-hub-cong-khai lên đường webhook công khai /ota/webhook/*. Request
+   * đó tới đây từ loopback nhưng thật ra đến từ Internet — không có secret thì từ chối. */
+  if (req.headers['x-hub-cong-khai']) {
+    return {
+      ok: false, ma: 403,
+      ly: 'Chưa khai OTA_WEBHOOK_SECRET nên webhook qua hub bị khoá. ' +
+          'Đặt biến OTA_WEBHOOK_SECRET rồi đưa secret đó cho OTA.',
+    };
+  }
   /* Sau lớp vỏ, request đến từ chính hub trên loopback; header x-forwarded-for do
    * client tự đặt được nên KHÔNG dùng để quyết định — chỉ tin địa chỉ socket. */
   const ip = (req.socket && req.socket.remoteAddress) || '';

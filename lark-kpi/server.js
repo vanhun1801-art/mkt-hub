@@ -384,6 +384,8 @@ async function api(req, res, u) {
 
   /** Một tệp HTML hoàn chỉnh để gửi Sếp — mở ra in thẳng thành PDF được. */
   if (p === '/api/xu-huong') {
+    /* Cùng dữ liệu tiền (chi phí, doanh thu, ROAS) với /api/bao-cao — cùng chốt. */
+    if (!nx.quanLy) return fail(res, 403, 'Chỉ trưởng phòng xem được báo cáo toàn phòng');
     const den = u.searchParams.get('den') || new Date().toISOString().slice(0, 7);
     const so = u.searchParams.get('so');
     return ok(res, await baoCao.xuHuong(den, so, docLuatCuaThang));
@@ -639,6 +641,7 @@ async function api(req, res, u) {
    * sau thành mã chết — và tab "Tổng quan KPI" lặng lẽ trắng trơn vì nhận về
    * đúng payload của thẻ Hub. Không có lỗi nào hiện ra. */
   if (p === '/api/tong-quan-kpi') {
+    if (!nx.quanLy) return fail(res, 403, 'Chỉ trưởng phòng xem được tổng quan KPI cả phòng');
     const ths = store.danhSachThang().slice().sort()
       .filter((th) => {
         const t = store.thang(th);
@@ -831,7 +834,9 @@ async function api(req, res, u) {
         den, ngay,
         nhipChuan: ngay / soNgay,
         layDuoc: r.dem.layDuoc,
-        nguoi: nguoiPT,
+        /* Lọc Ở SERVER. Trước đây trả đủ cả phòng kèm cờ `loc` để client tự lọc —
+         * mà client không lọc, nên nhân sự thấy % KPI của mọi người. */
+        nguoi: nx.quanLy ? nguoiPT : nguoiPT.filter((x) => nx.ma && x.ma === nx.ma),
         /* Kèm luôn từng tiêu chí của mỗi nhóm kênh: màn Tiến độ cần trả lời
          * "kênh này đang hụt ở CHỖ NÀO" chứ không chỉ "kênh này 34%". Một con số
          * gộp không cho biết nên đẩy view hay đẩy tương tác. */

@@ -65,6 +65,26 @@ function songKhong(cong, timeoutMs = 1500) {
   });
 }
 
+/* Khoá chỉ hub dùng — app con không cần, lộ ra thì giả được phiên / bot của hub. */
+const KHOA_RIENG_HUB = ['BOT_API_TOKEN', 'FB_WEBHOOK_TOKEN', 'ZALO_VERIFIER'];
+
+/**
+ * Môi trường cho app con: bản sao của hub TRỪ các khoá riêng của hub.
+ * SESSION_SECRET không bỏ hẳn được — Bảng công việc ở chế độ api thiếu nó là
+ * thoát — nên mỗi app nhận một khoá SUY RA từ khoá hub (HMAC theo id). App con
+ * vẫn chạy, nhưng một app bị lộ không ký được cookie hub_session.
+ * LARK_APP_SECRET vẫn phải truyền: app con đọc/ghi Base bằng chính nó.
+ */
+function envChoCon(mod) {
+  const env = { ...process.env };
+  for (const k of KHOA_RIENG_HUB) delete env[k];
+  if (env.SESSION_SECRET) {
+    env.SESSION_SECRET = require('crypto').createHmac('sha256', env.SESSION_SECRET)
+      .update('app-con:' + mod.id).digest('base64url');
+  }
+  return env;
+}
+
 async function khoiDong(mod) {
   if (mod.kieu !== 'local') return state(mod.id);
   const s = state(mod.id);
@@ -103,7 +123,7 @@ async function khoiDong(mod) {
        * bên cạnh đã bị ghi đè thành cổng của app con, nên app con không còn
        * cách nào biết cổng hub nữa. */
       env: {
-        ...process.env,
+        ...envChoCon(mod),
         PORT: String(mod.cong),
         HUB: '1',
         HUB_PREFIX: '/m/' + mod.id,
@@ -260,4 +280,4 @@ async function tatHet() {
 let envThem = {};
 function datEnv(o) { envThem = o || {}; }
 
-module.exports = { khoiDong, tat, batLai, ktSucKhoe, tinhTrang, logs, tatHet, songKhong, datEnv };
+module.exports = { khoiDong, tat, batLai, ktSucKhoe, tinhTrang, logs, tatHet, songKhong, datEnv, envChoCon };

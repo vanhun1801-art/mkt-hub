@@ -463,10 +463,11 @@ async function xuLy(req, res) {
   const url = new URL(req.url, 'http://x');
   const p = url.pathname;
 
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,X-Hub-User-Id,X-Hub-User-Name');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS');
-  if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
+  /* KHÔNG mở CORS. Trước đây là `*` kèm cho phép X-Hub-User-Id: một trang web lạ
+   * mở trên cùng máy gọi được localhost:5182 dưới tên chủ quỹ (open_id nằm sẵn
+   * trong config) — kể cả tạo đơn Tourwell. Mọi lời gọi thật đều cùng nguồn (qua
+   * hub) hoặc server gọi server, nên không cần CORS. */
+  if (req.method === 'OPTIONS') { res.writeHead(403); return res.end(); }
 
   /* ---- màn hình chính ---- */
   /* -------------------------------------------------------------------

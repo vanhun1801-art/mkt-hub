@@ -2132,6 +2132,10 @@ const server = http.createServer(async (req, res) => {
         { 'Content-Type': 'application/json; charset=utf-8' });
     }
     kids.khoiDong(modOta);   // bảo đảm module đang chạy (không chờ)
+    /* Đóng dấu "đến từ Internet". Request tới module đi từ loopback, nên nếu module
+     * chưa khai secret mà cứ tin loopback thì ai trên mạng cũng ghi được booking.
+     * Dấu này client không gỡ được (hub ghi đè), module thấy nó là bắt buộc secret. */
+    req.headers['x-hub-cong-khai'] = '1';
     return chuyenTiep(req, res, modOta, '/webhook/' + wh[1] + (u.search || ''), null);
   }
 
@@ -2447,7 +2451,12 @@ const server = http.createServer(async (req, res) => {
 /* ---------------- khởi động ---------------- */
 const mods = danhSach();
 
-server.listen(cfg.port, () => {
+/* Chế độ cli không có đăng nhập và coi người gọi là quản lý — nghe mọi địa chỉ thì
+ * ai cùng wifi cũng có toàn quyền. Nên trên máy chỉ nghe 127.0.0.1; cần mở cho điện
+ * thoại trong mạng thì khai HUB_HOST=0.0.0.0. Chế độ api (Render) giữ nghe mọi địa chỉ. */
+const HUB_HOST = process.env.HUB_HOST || (cfg.mode === 'api' ? undefined : '127.0.0.1');
+
+server.listen(cfg.port, HUB_HOST, () => {
   console.log('');
   console.log('  ' + cfg.ten + ' · ' + cfg.phu + '   (build ' + cfg.build + ')');
   console.log('  ->  http://localhost:' + cfg.port);

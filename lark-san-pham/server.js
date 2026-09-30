@@ -81,6 +81,11 @@ let demToi = { luc: 0, nguoi: null };
  * chứ không bằng giá trị — một request từ hub mà hụt danh tính phải là người lạ,
  * không được rơi xuống nhánh chạy-một-mình rồi tự cấp quyền quản lý.
  */
+function chayMotMinh() {
+  return process.env.HUB !== '1' && cfg.mode !== 'api' &&
+    ['127.0.0.1', 'localhost', '::1'].includes(BIND);
+}
+
 async function aiGoi(req) {
   const h = req.headers || {};
   const de = (v) => { try { return decodeURIComponent(v || ''); } catch (_) { return v || ''; } };
@@ -100,7 +105,10 @@ async function aiGoi(req) {
     id: (u && u.id) || '',
     ten: (u && u.name) || 'Chưa đăng nhập',
     email: '',
-    quanLy: true,
+    /* Tự cấp quản lý CHỈ khi thật sự chạy một mình trên máy (cli, nghe loopback,
+     * không do hub bật). Do hub bật / chế độ api / mở ra mạng mà hụt header thì
+     * là người lạ — trước đây nhánh này cho luôn quyền quản lý. */
+    quanLy: chayMotMinh(),
     quaHub: false,
   };
   demToi = { luc: Date.now(), nguoi: n };
