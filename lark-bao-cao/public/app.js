@@ -116,7 +116,15 @@ async function nap() {
   chip.classList.toggle('ql', META.toi.quanLy);
   $('span:last-child', chip).textContent = META.toi.quanLy ? 'Quản lý' : 'Nhân sự';
 
-  veTab('#tabToi', MAN_TOI);
+  /* Nhân sự có thêm tab "Cần hỗ trợ" của RIÊNG mình (anh Hùng 30/09: "cho họ
+   * tab Cần hỗ trợ, cho họ thấy"). Quản lý đã có tab cùng tên ở cụm quản lý. */
+  veTab('#tabToi', META.toi.quanLy ? MAN_TOI : MAN_TOI.concat([{ ma: 'vuong-mac', ten: 'Cần hỗ trợ' }]));
+  if (META.toi.giaLap) {
+    const b = document.createElement('div');
+    b.textContent = 'Đang XEM THỬ vai nhân sự (' + META.toi.ten + ') — chỉ xem, mọi nút lưu/nộp đều bị chặn.';
+    b.style.cssText = 'background:var(--orange-bg);color:var(--orange-text);padding:8px 14px;font-size:13px;font-weight:600;text-align:center';
+    document.body.prepend(b);
+  }
   if (META.toi.quanLy) {
     $('#tabQL').hidden = false;
     veTab('#tabQL', MAN_QL);
@@ -169,6 +177,7 @@ async function ve() {
     if (SO_MO && MAN !== 'tuan' && MAN !== 'thang') dongSo();
     if (MAN === 'toan-phong') return await veToanPhong(el);
     if (MAN === 'can-ho-tro') return await veCanHoTro(el);
+    if (MAN === 'vuong-mac') return await veVuongMac(el);
     if (MAN === 'theo-doi') return await veTheoDoi(el);
     if (MAN === 'thiet-lap') return await veThietLap(el);
     if (MAN === 'da-nop') return await veDaNop(el);
@@ -1376,6 +1385,42 @@ const layMd = (el, rec) => {
   const v = $('.soan-vung[data-rec="' + rec + '"]', el);
   return v ? htmlSangMd(v.innerHTML) : '';
 };
+
+/**
+ * Tab "Cần hỗ trợ" phía NHÂN SỰ — vướng mắc mình đã nêu trong 90 ngày và tình
+ * trạng xử lý, kèm hướng dẫn quản lý ghi (giữ định dạng). Chỉ xem.
+ */
+async function veVuongMac(el) {
+  const d = await goi('/api/vuong-mac-cua-toi?moi=1');
+  const nhan = {
+    chua: '<span class="nhan-tt cam">Đang chờ xử lý</span>',
+    'chua-duoc': '<span class="nhan-tt do">Chưa xử lý được</span>',
+    xong: '<span class="nhan-tt xanh">Đã xử lý</span>',
+  };
+  const thu = { chua: 0, 'chua-duoc': 1, xong: 2 };
+  const ds = d.ds.slice().sort((a, b) => (thu[a.trangThai] - thu[b.trangThai]) || (b.tu - a.tu));
+  const soCho = ds.filter((x) => x.trangThai !== 'xong').length;
+  const muc = (x) => '<div class="ht-muc ' + x.trangThai + '">' +
+    '<div class="ht-dau"><span class="ht-ten">' + esc(x.loaiKy) + ' · ' + esc(x.nhan) + '</span>' +
+      '<span class="ht-tt">' + nhan[x.trangThai] + '</span></div>' +
+    '<div class="ht-noi">' + esc(String(x.noi || '').trim()) + '</div>' +
+    (x.trangThai !== 'chua'
+      ? '<div class="ht-kq"><div class="ht-kq-dau">' +
+          (x.trangThai === 'xong' ? '✔ Đã xử lý' : '⏳ Chưa xử lý được tại thời điểm này') +
+          (x.xuLyBoi ? ' · ' + esc(x.xuLyBoi) : '') + (x.xuLyLuc ? ' · ' + esc(veNgay(x.xuLyLuc)) : '') + '</div>' +
+          (x.ghiChu ? '<div class="ht-kq-chu">' + mdSangHtml(x.ghiChu) + '</div>' : '') + '</div>'
+      : '<div class="ht-kq"><div class="ht-kq-dau">Quản lý đã nhận được, sẽ phản hồi cho bạn qua tin nhắn Lark.</div></div>') +
+  '</div>';
+  el.innerHTML = '<div class="the"><div class="the-dau"><h2>Vướng mắc bạn đã nêu</h2>' +
+    '<span class="nho">90 ngày gần đây · ' + ds.length + ' mục' +
+      (soCho ? ' · <b style="color:var(--orange-text)">' + soCho + ' đang chờ</b>' : '') + '</span></div>' +
+    '<div class="the-than">' +
+      '<div class="nho" style="margin-bottom:10px">Ghi vào ô <b>"Cần hỗ trợ & vấn đề gặp phải"</b> khi nộp báo cáo — ' +
+        'quản lý nhận ngay và phản hồi cho bạn tại đây và qua tin nhắn Lark.</div>' +
+      (ds.length ? '<div class="ht-ds">' + ds.map(muc).join('') + '</div>'
+        : rong('Bạn chưa nêu vướng mắc nào', 'Khi gặp khó, ghi vào ô "Cần hỗ trợ" trong phiếu báo cáo.')) +
+    '</div></div>';
+}
 
 /* Lọc ở màn Cần hỗ trợ — giữ ngoài hàm để đổi tab rồi quay lại vẫn đúng chỗ. */
 let HT_LOC = 'chua';

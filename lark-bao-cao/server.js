@@ -115,6 +115,16 @@ async function aiGoi(req) {
       quaHub: true,
     };
   }
+  /* XEM THỬ VAI NHÂN SỰ trên máy (anh Hùng 30/09: "cho anh link local anh vai
+   * nhân sự"). Chỉ khi chạy một mình có khai BAO_CAO_GIA_NHAN_SU="email|open_id|tên"
+   * — request qua hub đã rẽ nhánh ở trên, nên bản deploy không bao giờ vào đây.
+   * Chế độ này CHỈ XEM: api() chặn mọi lệnh ghi, để không ai nộp phiếu dưới tên
+   * người được mượn. */
+  if (process.env.BAO_CAO_GIA_NHAN_SU) {
+    const [email, id, ten] = String(process.env.BAO_CAO_GIA_NHAN_SU).split('|').map((x) => x.trim());
+    return { id: id || '', email: email || '', ten: ten || email || id || 'Nhân sự thử',
+      quanLy: false, quaHub: false, giaLap: true };
+  }
   if (Date.now() - demToi.luc < 60000 && demToi.nguoi) return demToi.nguoi;
   let u = null;
   try { u = await lark.whoami(); } catch (_) { u = null; }
@@ -338,6 +348,25 @@ async function api(req, res, u) {
   const q = u.searchParams;
   const m = req.method;
   const toi = await aiGoi(req);
+  if (toi.giaLap && m !== 'GET') {
+    return loi(res, 403, 'Đang xem thử vai nhân sự — chế độ chỉ xem, không lưu được.', 'XEM_THU');
+  }
+
+  /* Vướng mắc CỦA CHÍNH người gọi, kèm tình trạng xử lý (anh Hùng 30/09: "cho
+   * họ tab Cần hỗ trợ, cho họ thấy"). Chỉ phiếu của mình — không nhận ?nguoi=. */
+  if (p === '/api/vuong-mac-cua-toi' && m === 'GET') {
+    const tu = Date.now() - 90 * 86400000;
+    const ds = (await kho.dsPhieu({ nguoi: toi, tu }, q.get('moi') === '1'))
+      .filter((x) => K.canHoTroThat(x.canHoTro))
+      .map((x) => ({
+        loaiKy: x.loaiKy, nhan: K.veNgay(x.tuNgay), tu: x.tuNgay, noi: x.canHoTro,
+        trangThai: x.hoTroXong ? 'xong' : (x.hoTroTT === cfg.chon.hoTro['chua-duoc'] ? 'chua-duoc' : 'chua'),
+        ghiChu: (x.hoTroXong || x.hoTroTT === cfg.chon.hoTro['chua-duoc']) ? (x.hoTroGhiChu || '') : '',
+        xuLyBoi: x.hoTroBoi || '', xuLyLuc: x.hoTroLuc || 0,
+      }))
+      .sort((a, b) => b.tu - a.tu);
+    return json(res, { ds });
+  }
   const moc = () => {
     const v = Number(q.get('moc'));
     return Number.isFinite(v) && v > 0 ? v : Date.now();
