@@ -25,8 +25,8 @@ if (!tepKq || !tepMa) { console.error('Cách dùng: node ai/ghi.js <kết quả>
   const loai = bang.loai === 'thang' ? 'thang' : 'tuan';
   const F = cfg.fields.phieu;
   const gio = new Date(Date.now() + 7 * 3600000);
-  const dau = '_Cập nhật ' + String(gio.getUTCHours()).padStart(2, '0') + ':' + String(gio.getUTCMinutes()).padStart(2, '0') +
-    ' ' + K.veNgay(Date.now()) + '_';
+  const dau = '*Cập nhật ' + String(gio.getUTCHours()).padStart(2, '0') + ':' + String(gio.getUTCMinutes()).padStart(2, '0') +
+    ' ' + K.veNgay(Date.now()) + '*';
   let ghi = 0;
   for (const x of (kq.nguoi || [])) {
     const ai = bang.ma[x.ma];
