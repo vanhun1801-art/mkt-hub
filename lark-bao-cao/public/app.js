@@ -538,10 +538,10 @@ function soKy(d) {
   const aiChu = d.phieu && d.phieu.danhGiaAI;
   const loaiK = (d.phieu && d.phieu.loaiKy) || (d.ky && d.ky.loai) || MAN;
   const choAI = aiChu
-    ? '<div class="ai-nx"><div class="ai-nx-dau">🤖 Nhận xét &amp; gợi ý từ AI</div>' +
+    ? '<div class="ai-nx"><div class="ai-nx-dau">🤖 Nhận xét và gợi ý từ Marketing Hub AI</div>' +
       '<div class="ai-nx-chu">' + mdSangHtml(aiChu) + '</div>' +
       '<div class="nho" style="margin-top:6px">AI chỉ nhận xét và gợi ý, không chấm điểm.</div></div>'
-    : '<div class="cho-ai">Nhận xét &amp; gợi ý từ AI sẽ có ở đây — ' +
+    : '<div class="cho-ai">Nhận xét và gợi ý từ Marketing Hub AI sẽ có ở đây — ' +
       (loaiK === 'thang' ? 'chạy lúc 8:30 và 14:00 ngày 29, 30 hằng tháng.' : 'chạy lúc 8:30 và 14:00 Thứ 7, cho tuần vừa khép.') +
       '</div>';
 
@@ -1314,7 +1314,7 @@ async function veToanPhong(el) {
       $('#oChiTiet').innerHTML = theY(n.ten + ' — ' + d.nhan, n.y, n.diem) +
         /* Nhận xét AI của người này cho kỳ đang xem (01/10) — cùng khối như ở Chi tiết kỳ. */
         '<div class="the"><div class="the-than">' + (n.ai
-          ? '<div class="ai-nx" style="margin:0"><div class="ai-nx-dau">🤖 Nhận xét &amp; gợi ý từ AI</div>' +
+          ? '<div class="ai-nx" style="margin:0"><div class="ai-nx-dau">🤖 Nhận xét và gợi ý từ Marketing Hub AI</div>' +
             '<div class="ai-nx-chu">' + mdSangHtml(n.ai) + '</div></div>'
           : '<span class="nho">Chưa có nhận xét AI cho kỳ này — tuần chạy 8:30 &amp; 14:00 Thứ 7, tháng 8:30 &amp; 14:00 ngày 29–30.</span>') +
         '</div></div>';
