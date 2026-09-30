@@ -1311,7 +1311,13 @@ async function veToanPhong(el) {
   $$('tr.mo-duoc').forEach((tr) => {
     tr.onclick = () => {
       const n = d.nguoi[Number(tr.dataset.i)];
-      $('#oChiTiet').innerHTML = theY(n.ten + ' — ' + d.nhan, n.y, n.diem);
+      $('#oChiTiet').innerHTML = theY(n.ten + ' — ' + d.nhan, n.y, n.diem) +
+        /* Nhận xét AI của người này cho kỳ đang xem (01/10) — cùng khối như ở Chi tiết kỳ. */
+        '<div class="the"><div class="the-than">' + (n.ai
+          ? '<div class="ai-nx" style="margin:0"><div class="ai-nx-dau">🤖 Nhận xét &amp; gợi ý từ AI</div>' +
+            '<div class="ai-nx-chu">' + mdSangHtml(n.ai) + '</div></div>'
+          : '<span class="nho">Chưa có nhận xét AI cho kỳ này — tuần chạy 8:30 &amp; 14:00 Thứ 7, tháng 8:30 &amp; 14:00 ngày 29–30.</span>') +
+        '</div></div>';
       $('#oChiTiet').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     };
   });

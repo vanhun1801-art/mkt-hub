@@ -923,6 +923,8 @@ async function api(req, res, u) {
       .filter((x) => x.trangThai === cfg.chon.trangThaiPhieu.daNop);
     const dongKy = await kho.dsDong({ tu: k.tu, den: k.den }, false);
     const dsLichTP = await LL.docHet();
+    /* Phiếu tuần/tháng của từng người — để quản lý đọc được nhận xét AI (01/10). */
+    const phieuKy = await kho.dsPhieu({ loaiKy: loai, tu: k.tu, den: k.den }, moi);
 
     const nguoi = [];
     for (const g of gomNguoi(phieuNgay)) {
@@ -949,6 +951,7 @@ async function api(req, res, u) {
         soPhieu: n.ps.length, tongPhut: gop.tongPhut, tongGio: K.vePhut(gop.tongPhut),
         phanTram: gop.phanTram, soThieu: bc.ngayThieu.length,
         diem: ND.chamDiem(y), motCau: ND.motCau(y), y,
+        ai: ((phieuKy.find((x) => x.tuNgay === k.tu && kho.cungNguoi(x, n)) || {}).danhGiaAI) || '',
       });
     }
     nguoi.sort((a, b) => a.diem - b.diem || a.ten.localeCompare(b.ten));
