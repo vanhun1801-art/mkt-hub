@@ -532,9 +532,18 @@ function soKy(d) {
   const t = d.tongHop;
   if (!t) return '<p class="phu">Chưa có dữ liệu cho kỳ này.</p>';
 
-  const choAI = '<div class="cho-ai">Phần nhận xét bằng AI sẽ nằm ở đây. ' +
-    'Hiện chưa nối — nhận định tự động bên dưới do luật sinh, đọc từ chính số ' +
-    'liệu của kỳ.</div>';
+  /* Nhận xét AI (anh Hùng 01/10): Claude chạy theo lịch — tuần 8:30 & 14:00 Thứ 7,
+   * tháng 8:30 & 14:00 ngày 29–30 — ghi vào ô "Đánh giá AI" của phiếu kỳ. Chỉ
+   * nhận xét và gợi ý, không chấm điểm. */
+  const aiChu = d.phieu && d.phieu.danhGiaAI;
+  const loaiK = (d.phieu && d.phieu.loaiKy) || (d.ky && d.ky.loai) || MAN;
+  const choAI = aiChu
+    ? '<div class="ai-nx"><div class="ai-nx-dau">🤖 Nhận xét &amp; gợi ý từ AI</div>' +
+      '<div class="ai-nx-chu">' + mdSangHtml(aiChu) + '</div>' +
+      '<div class="nho" style="margin-top:6px">AI chỉ nhận xét và gợi ý, không chấm điểm.</div></div>'
+    : '<div class="cho-ai">Nhận xét &amp; gợi ý từ AI sẽ có ở đây — ' +
+      (loaiK === 'thang' ? 'chạy lúc 8:30 và 14:00 ngày 29, 30 hằng tháng.' : 'chạy lúc 8:30 và 14:00 Thứ 7, cho tuần vừa khép.') +
+      '</div>';
 
   const dung = t.theoNgay.filter((n) => n.trangThaiHan !== 'tre').length;
   const tre = t.theoNgay.length - dung;

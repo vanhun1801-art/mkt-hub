@@ -300,7 +300,15 @@ async function ghiPhieu(ma, cells) {
     return { id: co.id, moi: false };
   }
   const r = await lark.createRecord(cells, cfg.phieuTableId);
-  return { id: (r.records && r.records[0] && r.records[0].record_id) || null, moi: true };
+  /* Hai hình dạng trả về: Open API → records[].record_id; lark-cli → record_id_list[].
+   * Bắt hụt thì id null, và mọi bước sau (gắn tệp, ghi nhận xét AI) ghi vào hư
+   * không — dính 01/10/2026 khi AI ghi nhận xét tuần. Không thấy thì đọc lại. */
+  let id = (r.record_id_list && r.record_id_list[0]) || (r.records && r.records[0] && r.records[0].record_id) || null;
+  if (!id) {
+    const lai = (await docTat('phieu', true)).find((x) => x.ma === ma);
+    id = lai ? lai.id : null;
+  }
+  return { id, moi: true };
 }
 
 /**

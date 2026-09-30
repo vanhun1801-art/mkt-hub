@@ -94,3 +94,6 @@ lark-kho-media/du-lieu/
 
 # Bản logo app tải về từ hub để đóng lên tệp xuất — bản tạm, hub mới là chủ.
 lark-lich-tac-nghiep/du-lieu/
+
+# Dữ liệu AI nhận xét tuần/tháng: có bảng mã ẩn danh → tên thật, không đưa lên git.
+lark-bao-cao/ai/du-lieu/

@@ -709,3 +709,11 @@ body.so-mo #so {
 .soan-vung ul, .soan-vung ol, .ht-kq-chu ul, .ht-kq-chu ol { margin: 4px 0; padding-left: 22px; }
 .soan-vung a, .ht-kq-chu a { color: var(--blue-text); }
 .ht-kq-chu { white-space: normal; }
+
+/* Nhận xét AI ở khung Chi tiết kỳ */
+.ai-nx { border: 1px solid var(--border); border-left: 3px solid var(--blue); border-radius: var(--r-lg);
+  background: var(--surface-2); padding: 11px 13px; margin-bottom: 12px; }
+.ai-nx-dau { font-weight: 650; font-size: 13.5px; margin-bottom: 6px; }
+.ai-nx-chu { font-size: 13px; line-height: 1.6; }
+.ai-nx-chu ul, .ai-nx-chu ol { margin: 4px 0; padding-left: 20px; }
+.ai-nx-chu em, .ai-nx-chu i { color: var(--text-3); }

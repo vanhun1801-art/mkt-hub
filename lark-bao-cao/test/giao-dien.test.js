@@ -488,7 +488,8 @@ function nap() {
     const so = ve('nội dung Sổ', 'soKy(DU)');
     ok('Sổ có chỗ dành sẵn cho AI', so.includes('class="cho-ai"'),
       'chừa sẵn thì sau này nối AI không phải xếp lại cả trang');
-    ok('và nói thật là chưa nối', so.includes('chưa nối'));
+    /* 01/10: AI đã nối theo lịch — chưa có nhận xét thì nói rõ khi nào chạy. */
+    ok('chưa có nhận xét thì nói lịch chạy', /8:30 và 14:00/.test(so));
 
     /* Anh Hùng (28/09): "nhìn vào là biết dành bao nhiêu thời gian cho các
      * nhóm công việc nào" — nên phân bổ thời gian đứng ĐẦU sổ. */
