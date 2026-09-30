@@ -57,6 +57,16 @@ module.exports = {
     table: process.env.HUB_QUYEN_TABLE || 'tblBKm6ZurhN3703',
   },
 
+  /* Lịch làm việc từng người — Base "Lịch làm việc MKT" của app lark-lich-lam-viec
+   * (anh Hùng 30/09: báo cáo ngày theo các ngày CÓ LỊCH làm việc). Id chép từ
+   * lark-lich-lam-viec/config.js; xem lich-lam.js. */
+  lichLam: {
+    base: process.env.LLV_BASE_TOKEN || 'VTqxbgjx1a5ZIMsyMQGlLjtQg6c',
+    table: 'tblad6snuvuCzh8y',
+    f: { thang: 'fldBq3V0lR', hoTen: 'fldBFvVDvF', email: 'fldqyPRTfj' },
+    ngay: {'1':'fldTanWlt5', '2':'fldl98cl2R', '3':'fldPKNKwYu', '4':'fldVnAFtDO', '5':'fldnUCbjlo', '6':'fldzweRrzD', '7':'fldpWvJGkg', '8':'fldLs7J53e', '9':'fldxobeaJJ', '10':'fld4NCmDWa', '11':'fld3F309Bm', '12':'fldHaKPTWT', '13':'fldGhrBtFE', '14':'fldUH9qFXZ', '15':'fldzM0D3xC', '16':'fld4vAbWC7', '17':'fldw2RTJRa', '18':'fldtrWGqHt', '19':'fldnJSEWfw', '20':'fldpUR1Jje', '21':'fldO9tGe6x', '22':'fldCtFmoLb', '23':'fldxhnGXUc', '24':'fldLUWgnih', '25':'fldQhrOcwC', '26':'fldKxYyJCT', '27':'fldgc2qrm6', '28':'fld6rzDA6m', '29':'fldGuupDej', '30':'fld3MD6cxx', '31':'fldpVLAhqm'},
+  },
+
   /* App Chỉnh ảnh đã đếm sẵn số ảnh/video mỗi lô người ta chỉnh (anh Hùng
    * 30/09: "nếu bạn thực hiện chỉnh ảnh thì sẽ có số liệu đó") — chỉ tiêu "ảnh
    * hậu kỳ" của Designer lấy thẳng từ đây, không bắt gõ lại số lượng. */
@@ -107,6 +117,9 @@ module.exports = {
       hoTroLuc:    { id: 'fldJ1GTeue', name: 'Hỗ trợ xử lý lúc', type: 'datetime' },
       hoTroTT:     { id: 'fldKXVnzAM', name: 'Hỗ trợ trạng thái', type: 'select' },
       hoTroBaoLuc: { id: 'fldy42HUhj', name: 'Hỗ trợ đã báo lúc', type: 'datetime' },
+      /* Tệp nhân sự tải lên kèm báo cáo tháng (anh Hùng 30/09). Ghi/xoá bằng lệnh
+       * đính kèm riêng (lark.taiLenTep / xoaTep) — không đi qua ghi ô thường. */
+      tep:         { id: 'fldrjyP5Rm', name: 'Tệp đính kèm',    type: 'attachment' },
       diemAI:      { id: 'fldE7Dj8pp', name: 'Điểm AI',         type: 'number' },
     },
     dong: {

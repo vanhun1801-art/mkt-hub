@@ -283,7 +283,66 @@ async function guiTinNhan(openId, noiDung) {
   }
 }
 
+/* ---------------- tệp đính kèm (báo cáo tháng, 30/09/2026) ----------------
+ * base/v3 không nhận ghi ô đính kèm như ô thường. Đường chuẩn của Open API:
+ *   1. drive/v1/medias/upload_all (parent_type=bitable_file, parent_node=Base)
+ *      → file_token
+ *   2. bitable/v1 cập nhật bản ghi: ô đính kèm = danh sách CŨ + token mới
+ *      (ghi đè cả ô, nên phải đọc danh sách cũ trước, không thì mất tệp cũ). */
+const v1Rec = (tableId, recordId) => '/open-apis/bitable/v1/apps/' + cfg.baseToken + '/tables/' +
+  tableId + '/records/' + recordId;
+
+const tenCot = (id) => {
+  for (const nhom of Object.values(cfg.fields)) for (const f of Object.values(nhom)) if (f && f.id === id) return f.name;
+  return id;
+};
+
+async function tepHienCo(recordId, fieldId, tableId) {
+  /* bitable/v1 trả và nhận ô theo TÊN cột — tra tên từ id trong config. */
+  const ten = tenCot(fieldId);
+  const d = await call('GET', v1Rec(tableId, recordId));
+  const o = d.record && d.record.fields && d.record.fields[ten];
+  return Array.isArray(o) ? o.map((x) => ({ file_token: x.file_token })) : [];
+}
+
+async function taiLenTep(recordId, fieldId, tep, tableId = cfg.phieuTableId) {
+  const token = await tenantToken();
+  const fd = new FormData();
+  fd.append('file_name', tep.ten);
+  fd.append('parent_type', 'bitable_file');
+  fd.append('parent_node', cfg.baseToken);
+  fd.append('size', String(tep.buf.length));
+  fd.append('file', new Blob([tep.buf]), tep.ten);
+  const r = await fetch(HOST + '/open-apis/drive/v1/medias/upload_all', {
+    method: 'POST', headers: { Authorization: 'Bearer ' + token }, body: fd, signal: han(180000),
+  });
+  const d = await r.json();
+  if (d.code !== 0) throw new Error('Lark API ' + d.code + ' khi tải tệp lên: ' + (d.msg || ''));
+  const ft = d.data.file_token;
+  const cu = await tepHienCo(recordId, fieldId, tableId);
+  await call('PUT', v1Rec(tableId, recordId), {
+    body: { fields: { [tenCot(fieldId)]: cu.concat([{ file_token: ft }]) } },
+  });
+  return { file_token: ft };
+}
+
+async function xoaTep(recordId, fieldId, fileToken, tableId = cfg.phieuTableId) {
+  const cu = await tepHienCo(recordId, fieldId, tableId);
+  await call('PUT', v1Rec(tableId, recordId), {
+    body: { fields: { [tenCot(fieldId)]: cu.filter((x) => x.file_token !== fileToken) } },
+  });
+  return { ok: true };
+}
+
+async function taiVeTep(recordId, fileToken, tableId = cfg.phieuTableId) {
+  /* Base bật quyền nâng cao thì phải kèm `extra` chỉ đúng ô — gửi luôn cho chắc. */
+  const extra = encodeURIComponent(JSON.stringify({ bitablePerm: { tableId, attachments: {
+    [cfg.fields.phieu.tep.id]: { [recordId]: [fileToken] } } } }));
+  return call('GET', '/open-apis/drive/v1/medias/' + fileToken + '/download?extra=' + extra, { raw: true });
+}
+
 module.exports = {
+  taiLenTep, xoaTep, taiVeTep,
   guiTinNhan,
   cli, whoami, listAllRecords, listFields, getRecord,
   updateRecord, updateMany, createRecord, createMany, deleteRecords,

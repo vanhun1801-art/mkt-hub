@@ -730,7 +730,9 @@ function theVietTay(d, loaiKy) {
   /* Link video chỉ hỏi ở kỳ TUẦN và THÁNG, và KHÔNG ghi "không bắt buộc": quay
    * video báo cáo là quy định của phòng, viết thêm câu đó là nói ngược lại. */
   const video = loaiKy === 'ngay' ? ''
-    : '<div class="viec-o"><div class="o-nhan">Link video</div>' +
+    : '<div class="viec-o"><div class="o-nhan">Link video' +
+      /* Anh Hùng 30/09: báo cáo tuần PHẢI có video — máy chủ chặn nộp nếu trống. */
+      (loaiKy === 'tuan' ? ' <span style="color:var(--red-text)">*</span>' : '') + '</div>' +
       '<input class="in" id="txVideo" type="url" value="' + esc(p.linkVideo || '') +
       '"></div>';
 
@@ -749,12 +751,70 @@ function theVietTay(d, loaiKy) {
       o(nhan.nd, 'txNhanDinh', p.nhanDinh) +
       o(nhan.kh, 'txKeHoach', p.keHoach) +
       video +
+      (loaiKy === 'thang' ? khoiTep(p) : '') +
       /* Gọi cả "vấn đề gặp phải": chỉ ghi "Cần hỗ trợ" thì người ta hiểu là ô
        * để xin việc gì đó, nên vướng mắc tự gỡ được lại không ai ghi — mà đó
        * mới là thứ quản lý cần đọc. */
       o('Cần hỗ trợ & vấn đề gặp phải', 'txHoTro', p.canHoTro) +
     '</div></div>';
 }
+
+/**
+ * Tệp đính kèm báo cáo tháng (anh Hùng 30/09: "cho nhân sự tải tệp lên").
+ * Tệp gắn thẳng vào ô "Tệp đính kèm" của phiếu tháng trên Base; chưa có phiếu
+ * thì máy chủ tự lưu nháp để có chỗ gắn. Mỗi tệp ≤ 20MB.
+ */
+function khoiTep(p) {
+  const cuaToi = !p.nguoi || !META.toi.quanLy || p.nguoi === META.toi.id || p.email === META.toi.email;
+  const ds = (p.tep || []);
+  const co = (n) => n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+  return '<div class="viec-o"><div class="o-nhan">Tệp đính kèm</div>' +
+    (ds.length ? '<div class="tep-ds">' + ds.map((t) =>
+      '<div class="tep-muc"><span class="tep-ten">📎 ' + esc(t.ten) + '</span>' +
+        (t.co ? '<span class="nho">' + co(t.co) + '</span>' : '') +
+        '<a class="btn nho mo" href="api/tep/tai?rec=' + encodeURIComponent(p.id) + '&token=' +
+          encodeURIComponent(t.token) + '">Tải về</a>' +
+        (cuaToi ? '<button type="button" class="btn nho mo" data-xoa-tep="' + esc(t.token) + '" data-rec="' +
+          esc(p.id) + '">Xoá</button>' : '') +
+      '</div>').join('') + '</div>' : '<div class="nho" style="margin-bottom:6px">Chưa có tệp nào.</div>') +
+    (cuaToi ? '<label class="btn nho" style="display:inline-block;align-self:flex-start;margin-top:6px;cursor:pointer">+ Tải tệp lên' +
+      '<input type="file" id="tepChon" multiple hidden></label>' +
+      '<span class="nho" id="tepTT" style="margin-left:8px">PDF, Excel, Word, slide, ảnh… mỗi tệp tối đa 20MB</span>' : '') +
+  '</div>';
+}
+
+/* Gắn một lần cho cả trang — màn vẽ lại nhiều lần, ô chọn tệp sinh mới mỗi lần. */
+document.addEventListener('change', async (e) => {
+  if (!e.target || e.target.id !== 'tepChon') return;
+  const tt = $('#tepTT');
+  const tep = [...e.target.files];
+  for (let i = 0; i < tep.length; i++) {
+    const f = tep[i];
+    if (f.size > 20 * 1024 * 1024) { toast('"' + f.name + '" quá 20MB — nén lại hoặc để trên Drive rồi dán link', 'do'); continue; }
+    if (tt) tt.textContent = 'Đang tải ' + (i + 1) + '/' + tep.length + ': ' + f.name + '…';
+    try {
+      const du = await new Promise((ok, hong) => {
+        const r = new FileReader();
+        r.onload = () => ok(String(r.result).split(',')[1] || '');
+        r.onerror = () => hong(new Error('Không đọc được tệp'));
+        r.readAsDataURL(f);
+      });
+      await goi('api/tep', { method: 'POST', body: JSON.stringify({ moc: MOC, ten: f.name, du }) });
+    } catch (er) { toast('Tải "' + f.name + '" hỏng: ' + er.message, 'do'); }
+  }
+  toast('Đã tải tệp lên');
+  ve();
+});
+document.addEventListener('click', async (e) => {
+  const b = e.target && e.target.closest && e.target.closest('[data-xoa-tep]');
+  if (!b) return;
+  if (!confirm('Xoá tệp này khỏi báo cáo tháng?')) return;
+  b.disabled = true;
+  try {
+    await goi('api/tep/xoa', { method: 'POST', body: JSON.stringify({ recId: b.dataset.rec, token: b.dataset.xoaTep }) });
+    toast('Đã xoá tệp'); ve();
+  } catch (er) { toast('Xoá hỏng: ' + er.message, 'do'); b.disabled = false; }
+});
 
 function theLuu(d) {
   const daNop = d.phieu && d.phieu.daNop;

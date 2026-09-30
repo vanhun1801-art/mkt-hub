@@ -334,11 +334,18 @@ function gopTheoViec(dong) {
  * Đây là câu hỏi anh Hùng thật sự hỏi mỗi chiều — "ai chưa nộp" — nên nó phải
  * là một hàm, không phải việc mắt người dò trong nhóm chat.
  */
-function ngayThieu(tu, den, dsNgayDaNop, luat = LUAT) {
+/**
+ * `lich` (tuỳ chọn): (ms) → true đi làm · false nghỉ · null không biết — từ Base
+ * Lịch làm việc (lich-lam.js). Có lịch thì theo lịch; không biết mới lùi về
+ * luật T2–T7. Anh Hùng 30/09: "đi làm bao nhiêu ngày thì bấy nhiêu báo cáo".
+ */
+function ngayThieu(tu, den, dsNgayDaNop, luat = LUAT, lich = null) {
   const co = new Set((dsNgayDaNop || []).map((x) => dauNgay(x)));
   const ra = [];
   for (let d = dauNgay(tu); d <= den; d += NGAY) {
-    if (!luat.ngayLamViec.includes(phanRaVN(d).thu)) continue;
+    const theoLich = lich ? lich(d) : null;
+    if (theoLich === false) continue;
+    if (theoLich === null && !(luat || LUAT).ngayLamViec.includes(phanRaVN(d).thu)) continue;
     if (!co.has(d)) ra.push(d);
   }
   return ra;

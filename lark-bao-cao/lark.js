@@ -225,7 +225,48 @@ async function guiTinNhan(openId, noiDung) {
   }
 }
 
+/* ---------------- tệp đính kèm (báo cáo tháng, 30/09/2026) ----------------
+ * Ô đính kèm không ghi được bằng lệnh bản ghi thường — lark-cli có lệnh riêng.
+ * `tep` = { ten, buf } — ghi ra thư mục tạm rồi đưa đường dẫn cho lark-cli. */
+async function taiLenTep(recordId, fieldId, tep, tableId = cfg.phieuTableId) {
+  const os = require('os'), fs = require('fs'), path = require('path');
+  const thu = fs.mkdtempSync(path.join(os.tmpdir(), 'bc-tep-'));
+  /* lark-cli chỉ nhận đường dẫn TƯƠNG ĐỐI trong thư mục đang chạy — chạy ngay
+   * trong thư mục tạm và đưa "./tên-tệp". */
+  const ten = String(tep.ten).replace(/[\\/:*?"<>|]/g, '_');
+  fs.writeFileSync(path.join(thu, ten), tep.buf);
+  try {
+    return await cli(['base', '+record-upload-attachment', ...baseArgs(), '--table-id', tableId,
+      '--record-id', recordId, '--field-id', fieldId, '--file', './' + ten, '--format', 'json'],
+      { retries: 1, timeout: 180000, cwd: thu });
+  } finally {
+    try { fs.rmSync(thu, { recursive: true, force: true }); } catch (_) { /* tạm */ }
+  }
+}
+
+async function xoaTep(recordId, fieldId, fileToken, tableId = cfg.phieuTableId) {
+  return cli(['base', '+record-remove-attachment', ...baseArgs(), '--table-id', tableId,
+    '--record-id', recordId, '--field-id', fieldId, '--file-token', fileToken, '--yes', '--format', 'json'], { retries: 1 });
+}
+
+/** Trả Buffer nội dung tệp. */
+async function taiVeTep(recordId, fileToken, tableId = cfg.phieuTableId) {
+  const os = require('os'), fs = require('fs'), path = require('path');
+  const thu = fs.mkdtempSync(path.join(os.tmpdir(), 'bc-tai-'));
+  const duong = path.join(thu, 'tep');
+  try {
+    await cli(['base', '+record-download-attachment', ...baseArgs(), '--table-id', tableId,
+      '--record-id', recordId, '--file-token', fileToken, '--output', './tep', '--overwrite', '--format', 'json'],
+      { retries: 1, timeout: 180000, cwd: thu });
+    const that = fs.existsSync(duong) ? duong : path.join(thu, fs.readdirSync(thu)[0] || 'tep');
+    return fs.readFileSync(that);
+  } finally {
+    try { fs.rmSync(thu, { recursive: true, force: true }); } catch (_) { /* tạm */ }
+  }
+}
+
 module.exports = cfg.mode === 'api' ? require('./larkapi') : {
   cli, whoami, listAllRecords, listFields, getRecord,
   updateRecord, updateMany, createRecord, createMany, deleteRecords, guiTinNhan,
+  taiLenTep, xoaTep, taiVeTep,
 };

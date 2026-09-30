@@ -19,6 +19,7 @@ const ND = require('./nhan-dinh');
 const VT = require('./viec-tracking');
 const TB = require('./thong-bao-nhom');
 const CH = require('./chuan');
+const LL = require('./lich-lam');
 
 /**
  * Tiến độ LẦN BÁO TRƯỚC của từng việc, tính tới trước ngày `tu` — để sản lượng
@@ -237,6 +238,7 @@ function vePhieu(p) {
     nopBu: !!cham.bu,
     veHan: K.veLanNop(cham),
     danhGiaAI: p.danhGiaAI,
+    tep: p.tep || [],
     diemAI: p.diemAI,
   };
 }
@@ -337,7 +339,7 @@ async function boiCanhCho(loai, k, ai, phieu) {
     dungYen: ND.timDungYen(nhomTheoNgay(dongRong)),
     /* Kỳ ngày không có khái niệm "ngày thiếu" — chính nó là một ngày. */
     ngayThieu: loai === 'ngay' ? []
-      : K.ngayThieu(k.tu, Math.min(k.den, Date.now()), daNop),
+      : K.ngayThieu(k.tu, Math.min(k.den, Date.now()), daNop, K.LUAT, LL.lichCua(await LL.docHet(), ai)),
   };
 }
 
@@ -514,6 +516,10 @@ async function api(req, res, u) {
     }
     const mocB = Number(b.moc) > 0 ? Number(b.moc) : Date.now();
     const nop = b.nop !== false;
+    /* Anh Hùng 30/09: báo cáo TUẦN phải có video — lưu nháp thì không đòi. */
+    if (loai === 'tuan' && nop && !String(b.linkVideo || '').trim()) {
+      return loi(res, 400, 'Báo cáo tuần cần link video — quay video báo cáo rồi dán link vào ô "Link video".', 'THIEU_VIDEO');
+    }
 
     try {
       const r = loai === 'ngay'
@@ -668,6 +674,66 @@ async function api(req, res, u) {
     return json(res, { soNgay, soPhieu: daNop.length, khongVT, viTri: Object.values(theoVT) });
   }
 
+  /* ---------------- tệp đính kèm báo cáo tháng (anh Hùng 30/09) ----------------
+   * Tải lên luôn vào phiếu tháng CỦA CHÍNH người gọi; chưa có phiếu thì lưu nháp
+   * trước để có chỗ gắn tệp. Nhận base64 trong JSON (≤ 20MB mỗi tệp). */
+  if (p === '/api/tep' && m === 'POST') {
+    if (!toi.id && !toi.email) return loi(res, 401, 'Chưa nhận ra anh/chị là ai.', 'KHONG_RO_NGUOI');
+    const b = await docThan(req, 29 * 1024 * 1024);
+    const ten = String(b.ten || '').trim().slice(0, 180);
+    const buf = Buffer.from(String(b.du || ''), 'base64');
+    if (!ten || !buf.length) return loi(res, 400, 'Chưa có tệp.', 'THIEU_TEP');
+    if (buf.length > 20 * 1024 * 1024) return loi(res, 413, 'Tệp quá 20MB — nén lại hoặc để trên Drive rồi dán link.', 'TEP_LON');
+    const k = K.kyThang(Number(b.moc) > 0 ? Number(b.moc) : Date.now());
+    const ma = kho.maPhieu('thang', k.tu, toi.id);
+    let ph = (await kho.dsPhieu({ loaiKy: 'thang' }, true)).find((x) => x.ma === ma);
+    try {
+      if (!ph) {
+        const r0 = await kho.luuTongHop({ nguoi: toi, loaiKy: 'thang', mocMs: k.tu, nop: false });
+        ph = { id: r0.phieu.id, ma };
+      }
+      await lark.taiLenTep(ph.id, cfg.fields.phieu.tep.id, { ten, buf });
+      kho.xoaDem();
+      return json(res, { ok: true, ma, recId: ph.id });
+    } catch (e) {
+      return loi(res, 502, dichLoiBase(e), maLoiBase(e));
+    }
+  }
+
+  /* Phiếu mà người gọi được đụng tới tệp: của chính mình, hoặc quản lý. */
+  const phieuCuaToi = async (recId) => {
+    const ph = (await kho.dsPhieu({}, true)).find((x) => x.id === recId);
+    if (!ph) return { loi: [404, 'Không thấy phiếu.'] };
+    if (!toi.quanLy && !kho.cungNguoi(ph, toi)) return { loi: [403, 'Không phải phiếu của bạn.'] };
+    return { ph };
+  };
+
+  if (p === '/api/tep/xoa' && m === 'POST') {
+    const b = await docThan(req);
+    const x = await phieuCuaToi(String(b.recId || ''));
+    if (x.loi) return loi(res, x.loi[0], x.loi[1]);
+    if (toi.quanLy && !kho.cungNguoi(x.ph, toi)) return loi(res, 403, 'Quản lý chỉ xem, không xoá tệp của người khác.');
+    try {
+      await lark.xoaTep(x.ph.id, cfg.fields.phieu.tep.id, String(b.token || ''));
+      kho.xoaDem();
+      return json(res, { ok: true });
+    } catch (e) { return loi(res, 502, dichLoiBase(e), maLoiBase(e)); }
+  }
+
+  if (p === '/api/tep/tai' && m === 'GET') {
+    const x = await phieuCuaToi(String(q.get('rec') || ''));
+    if (x.loi) return loi(res, x.loi[0], x.loi[1]);
+    const t = (x.ph.tep || []).find((y) => y.token === q.get('token'));
+    if (!t) return loi(res, 404, 'Không thấy tệp.');
+    try {
+      const buf = await lark.taiVeTep(x.ph.id, t.token);
+      return gui(res, 200, buf, {
+        'Content-Type': t.loai || 'application/octet-stream',
+        'Content-Disposition': "attachment; filename*=UTF-8''" + encodeURIComponent(t.ten),
+      });
+    } catch (e) { return loi(res, 502, dichLoiBase(e), maLoiBase(e)); }
+  }
+
   /* Danh sách phiếu — của tôi, hoặc của cả phòng nếu là quản lý. */
   if (p === '/api/danh-sach' && m === 'GET') {
     const caPhong = q.get('ca-phong') === '1' && toi.quanLy;
@@ -751,6 +817,9 @@ async function api(req, res, u) {
 
     const denThat = Math.min(den, Date.now());
     const soNgayCong = K.ngayThieu(tu, denThat, []).length;
+    /* Lịch làm việc từng người (Base Lịch làm việc) — ngày thiếu và tỷ lệ đúng
+     * hạn tính trên NGÀY CÓ LỊCH của chính người đó (anh Hùng 30/09). */
+    const dsLich = await LL.docHet();
 
     /**
      * Bốn nhóm, không phải hai. Anh Hùng muốn "kiểm soát được nhân sự báo cáo
@@ -766,7 +835,9 @@ async function api(req, res, u) {
       const bu = daNop.filter((x) => x.nopBu);
       const tre = daNop.filter((x) => x.dungHan === cfg.chon.dungHan.tre && !x.nopBu);
       const dung = daNop.filter((x) => x.dungHan === cfg.chon.dungHan['dung-han']);
-      const thieu = K.ngayThieu(tu, denThat, daNop.map((x) => x.tuNgay));
+      const lich = LL.lichCua(dsLich, { email: n.email, ten: n.ten });
+      const soCong = K.ngayThieu(tu, denThat, [], K.LUAT, lich).length;
+      const thieu = K.ngayThieu(tu, denThat, daNop.map((x) => x.tuNgay), K.LUAT, lich);
       const sua = daNop.filter((x) => (x.soLanNop || 1) > 1);
       return {
         ten: n.ten, id: n.id, email: n.email,
@@ -777,15 +848,29 @@ async function api(req, res, u) {
         soSua: sua.length,
         /* Tỷ lệ tính trên NGÀY CÔNG, không trên số phiếu đã nộp — chia cho số
          * phiếu thì người nộp đúng một ngày trong tuần vẫn ra 100%. */
-        tyLeDung: soNgayCong ? Math.round((dung.length / soNgayCong) * 100) : null,
+        soNgayCong: soCong,
+        tyLeDung: soCong ? Math.round((dung.length / soCong) * 100) : null,
         tongPhut: daNop.reduce((s, x) => s + (x.tongPhut || 0), 0),
         treNhatPhut: daNop.reduce((m, x) => Math.max(m, x.trePhut || 0), 0),
         thieu: thieu.map((x) => ({ ms: x, nhan: K.veNgay(x) })),
       };
-    }).sort((a, b) => (b.thieu.length + b.soBu) - (a.thieu.length + a.soBu)
+    });
+    /* Người CÓ LỊCH đi làm trong kỳ mà chưa nộp phiếu nào — trước đây bị ẩn hẳn
+     * khỏi bảng, nên "không nộp gì" trông giống "không phải làm". */
+    for (const x of LL.coLich(dsLich, tu, denThat)) {
+      const k = LL.boDau(x.ten);
+      if (nguoi.some((n) => (x.email && n.email && n.email.toLowerCase() === x.email) ||
+        LL.boDau(n.ten) === k || LL.boDau(n.ten).startsWith(k + ' ('))) continue;
+      const lich = LL.lichCua(dsLich, x);
+      const thieu = K.ngayThieu(tu, denThat, [], K.LUAT, lich);
+      nguoi.push({ ten: x.ten, id: '', email: x.email, soNgayDaNop: 0, soDungHan: 0, soTre: 0, soBu: 0, soSua: 0,
+        soNgayCong: thieu.length, tyLeDung: thieu.length ? 0 : null, tongPhut: 0, treNhatPhut: 0,
+        thieu: thieu.map((ms) => ({ ms, nhan: K.veNgay(ms) })) });
+    }
+    nguoi.sort((a, b) => (b.thieu.length + b.soBu) - (a.thieu.length + a.soBu)
       || b.soTre - a.soTre || a.ten.localeCompare(b.ten));
 
-    return json(res, { tu, den, soNgayCong, nguoi });
+    return json(res, { tu, den, soNgayCong, nguoi, theoLich: dsLich.length > 0 });
   }
 
   /**
@@ -837,6 +922,7 @@ async function api(req, res, u) {
     const phieuNgay = (await kho.dsPhieu({ loaiKy: 'ngay', tu: k.tu, den: k.den }, moi))
       .filter((x) => x.trangThai === cfg.chon.trangThaiPhieu.daNop);
     const dongKy = await kho.dsDong({ tu: k.tu, den: k.den }, false);
+    const dsLichTP = await LL.docHet();
 
     const nguoi = [];
     for (const g of gomNguoi(phieuNgay)) {
@@ -853,7 +939,8 @@ async function api(req, res, u) {
         canHoTro: n.ps.map((x) => x.canHoTro).filter(Boolean).join(' · '),
       };
       const bc = {
-        ngayThieu: K.ngayThieu(k.tu, Math.min(k.den, Date.now()), n.ps.map((x) => x.tuNgay)),
+        ngayThieu: K.ngayThieu(k.tu, Math.min(k.den, Date.now()), n.ps.map((x) => x.tuNgay), K.LUAT,
+          LL.lichCua(dsLichTP, { email: n.email, ten: n.ten })),
         dungYen: ND.timDungYen(nhomTheoNgay(cuaHo)),
       };
       const y = ND.chiMotPhieu(gia, cuaHo, bc);

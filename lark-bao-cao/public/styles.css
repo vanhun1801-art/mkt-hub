@@ -685,6 +685,12 @@ body.so-mo #so {
 .ht-kq-dau { font-size: 12px; color: var(--text-3); }
 .ht-kq-chu { margin-top: 4px; white-space: pre-wrap; color: var(--text); line-height: 1.55; font-size: 13px; }
 
+/* Tệp đính kèm báo cáo tháng */
+.tep-ds { display: flex; flex-direction: column; gap: 6px; }
+.tep-muc { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border: 1px solid var(--border);
+  border-radius: var(--r); background: var(--surface-2); flex-wrap: wrap; }
+.tep-ten { flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; font-size: 13px; }
+
 /* Ô soạn có định dạng (ghi chú xử lý vướng mắc) — thanh công cụ dính trên vùng
  * soạn, hai phần chung một khung để nhìn như một ô nhập. */
 .soan { border: 1px solid var(--border-2); border-radius: var(--r); background: var(--surface); overflow: hidden; }

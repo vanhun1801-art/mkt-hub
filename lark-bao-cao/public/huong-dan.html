@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hướng dẫn báo cáo công việc</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400&display=swap">
+<style>
+  :root {
+    --nen: #f6f7f8; --giay: #ffffff; --muc: #14202b; --mo: #5b6b7a;
+    --vien: #e0e6eb; --nhan: #0e7c86; --nhan-nen: #e6f4f5;
+    --luu: #b45309; --luu-nen: #fdf3e3;
+    --toi-nen: #1c1e21; --toi-chu: #e4e6eb; --toi-vien: #3e4042;
+    --xanh: #15803d; --xanh-nen: #e8f6ec; --do: #b42318; --do-nen: #fdecea;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --nen: #10151a; --giay: #161d24; --muc: #e7edf2; --mo: #9aabb8;
+      --vien: #26313b; --nhan: #4ec5cf; --nhan-nen: #103236;
+      --luu: #f0b45f; --luu-nen: #33270f;
+      --toi-nen: #0b0e11; --toi-chu: #e4e6eb; --toi-vien: #2c333a;
+      --xanh: #6fcf8e; --xanh-nen: #13301d; --do: #f28b82; --do-nen: #3a1a18;
+    }
+  }
+  :root[data-theme="dark"] {
+    --nen: #10151a; --giay: #161d24; --muc: #e7edf2; --mo: #9aabb8;
+    --vien: #26313b; --nhan: #4ec5cf; --nhan-nen: #103236;
+    --luu: #f0b45f; --luu-nen: #33270f;
+    --toi-nen: #0b0e11; --toi-chu: #e4e6eb; --toi-vien: #2c333a;
+    --xanh: #6fcf8e; --xanh-nen: #13301d; --do: #f28b82; --do-nen: #3a1a18;
+  }
+
+  body {
+    background: var(--nen); color: var(--muc);
+    font-family: "Be Vietnam Pro", system-ui, sans-serif;
+    line-height: 1.65; font-size: 16px;
+  }
+  .khung { max-width: 42rem; margin: 0 auto; padding: 0 16px; padding-block: 44px 64px; }
+
+  .eyebrow {
+    font-size: 12px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase;
+    color: var(--nhan); margin: 0 0 10px;
+  }
+  h1 {
+    font-size: clamp(28px, 6vw, 38px); line-height: 1.15; font-weight: 700;
+    margin: 0 0 12px; text-wrap: balance; letter-spacing: -.02em;
+  }
+  .dat { color: var(--mo); font-size: 17px; margin: 0 0 40px; max-width: 32em; }
+
+  h2 {
+    font-size: 20px; font-weight: 600; margin: 42px 0 8px; letter-spacing: -.01em;
+    padding-top: 20px; border-top: 1px solid var(--vien); text-wrap: balance;
+  }
+  h3 { font-size: 16px; font-weight: 600; margin: 0 0 2px; }
+  p { margin: 10px 0; }
+  .mo { color: var(--mo); }
+
+  ol.buoc { list-style: none; counter-reset: b; padding: 0; margin: 18px 0 0; display: grid; gap: 16px; }
+  ol.buoc > li { counter-increment: b; display: grid; grid-template-columns: 28px 1fr; gap: 13px; align-items: start; }
+  ol.buoc > li::before {
+    content: counter(b); width: 28px; height: 28px; border-radius: 50%;
+    display: grid; place-items: center; background: var(--nhan-nen); color: var(--nhan);
+    font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums;
+  }
+  ol.buoc p { margin: 0; }
+
+  code {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: .87em;
+    background: var(--nhan-nen); color: var(--nhan);
+    padding: .12em .42em; border-radius: 4px; word-break: break-all;
+  }
+
+  .bang-mau {
+    background: var(--toi-nen); color: var(--toi-chu);
+    border: 1px solid var(--toi-vien); border-radius: 10px;
+    padding: 11px 14px; max-width: 340px; margin: 16px 0;
+    font-size: 13.5px; line-height: 1.5;
+  }
+  .bang-mau .ten { font-weight: 600; margin-bottom: 4px; }
+  .bang-mau .ke { border-top: 1px solid var(--toi-vien); margin: 8px 0; }
+  .bang-mau .hang { display: flex; justify-content: space-between; gap: 12px; }
+
+  .luu-y {
+    background: var(--luu-nen); border-left: 3px solid var(--luu);
+    padding: 13px 16px; border-radius: 0 8px 8px 0; margin: 20px 0;
+  }
+  .luu-y p { margin: 0; }
+  .luu-y b { color: var(--luu); }
+
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 15px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--vien); vertical-align: top; }
+  th { font-weight: 600; font-size: 12.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--mo); }
+  .cuon { overflow-x: auto; }
+
+  ul.gon { list-style: none; padding: 0; margin: 16px 0; display: grid; gap: 12px; }
+  ul.gon li {
+    background: var(--giay); border: 1px solid var(--vien); border-radius: 10px;
+    padding: 14px 16px;
+  }
+  ul.gon p { margin: 4px 0 0; }
+
+  .nhan-tt { display: inline-block; font-size: 12.5px; font-weight: 600; padding: 1px 9px; border-radius: 999px; white-space: nowrap; }
+  .nhan-tt.xanh { background: var(--xanh-nen); color: var(--xanh); }
+  .nhan-tt.cam { background: var(--luu-nen); color: var(--luu); }
+  .nhan-tt.do { background: var(--do-nen); color: var(--do); }
+
+  footer {
+    margin-top: 48px; padding-top: 18px; border-top: 1px solid var(--vien);
+    color: var(--mo); font-size: 14px;
+  }
+</style>
+
+</head>
+<body>
+<div class="khung">
+
+  <p class="eyebrow">Rooty Trip Phú Quốc · Phòng Marketing</p>
+  <h1>Hướng dẫn báo cáo công việc</h1>
+  <p class="dat">Mỗi ngày đi làm là một báo cáo ngày, nộp trên app <strong>Báo cáo công việc</strong> trong Marketing Hub. Cuối tuần có thêm báo cáo tuần, cuối tháng có báo cáo tháng — số liệu hai loại này máy tự cộng từ báo cáo ngày, bạn chỉ viết nhận định.</p>
+
+  <h2>Ba loại báo cáo</h2>
+
+  <div class="cuon">
+    <table>
+      <thead><tr><th>Loại</th><th>Khi nào</th><th>Nộp gì</th><th>Hạn</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Ngày</strong></td>
+          <td>Mỗi ngày có lịch làm việc</td>
+          <td>Các đầu việc đã làm trong ngày</td>
+          <td>23:59 cùng ngày</td>
+        </tr>
+        <tr>
+          <td><strong>Tuần</strong></td>
+          <td>Ngày cuối tuần (Thứ 6) — tuần tính từ Thứ 7 đến Thứ 6</td>
+          <td>Nhận định, kế hoạch tuần sau, <strong>link video</strong></td>
+          <td>23:59 Thứ 7</td>
+        </tr>
+        <tr>
+          <td><strong>Tháng</strong></td>
+          <td>Ngày cuối tháng hoặc đầu tháng sau</td>
+          <td>Nhận định, kế hoạch tháng sau, link video, <strong>tệp đính kèm</strong></td>
+          <td>23:59 ngày 1 tháng sau</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Ngày nào phải báo cáo</h2>
+
+  <p>App đọc lịch bạn đã đăng ký ở app <strong>Lịch làm việc</strong>. Đi làm bao nhiêu ngày thì có bấy nhiêu báo cáo ngày.</p>
+
+  <div class="cuon">
+    <table>
+      <thead><tr><th>Mã trên lịch</th><th>Nghĩa</th><th>Báo cáo ngày</th></tr></thead>
+      <tbody>
+        <tr><td><code>x</code></td><td>Làm cả ngày</td><td><span class="nhan-tt xanh">Có</span></td></tr>
+        <tr><td><code>x/2</code></td><td>Làm nửa ngày</td><td><span class="nhan-tt xanh">Có</span> — chọn ca Nửa ngày</td></tr>
+        <tr><td><code>OFF</code> · <code>NL</code> · <code>NP</code> · <code>KL</code></td><td>Nghỉ · nghỉ lễ · nghỉ phép · nghỉ không lương</td><td><span class="nhan-tt cam">Không</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="luu-y">
+    <p><b>Đăng ký lịch đầy đủ, đúng hạn.</b> Ngày nào lịch để trống, app tính theo mặc định Thứ 2 → Thứ 7 là ngày phải báo cáo. Nghỉ mà lịch không ghi là bị tính thiếu báo cáo.</p>
+  </div>
+
+  <p class="mo">Đi làm Chủ nhật hoặc tăng ca vẫn nộp báo cáo ngày bình thường.</p>
+
+  <h2>Nộp báo cáo ngày</h2>
+
+  <p>Mở <strong>Marketing Hub → Báo cáo công việc → Hôm nay</strong>.</p>
+
+  <ol class="buoc">
+    <li><p><strong>Chọn ca</strong>: Cả ngày, Nửa ngày, hoặc Khác (tự khai số phút).</p></li>
+    <li><p><strong>Thêm từng đầu việc</strong>: chọn việc có sẵn từ <strong>Bảng công việc</strong>. Việc không có trong bảng thì chọn nhóm <em>Khác</em> rồi gõ tên.</p></li>
+    <li><p>Mỗi việc điền: <strong>nhóm việc</strong>, <strong>số phút</strong>, <strong>SL</strong> (số lượng), <strong>tiến độ %</strong>, ghi chú, trạng thái.</p></li>
+    <li><p>Đang vướng gì thì ghi vào ô <strong>Cần hỗ trợ &amp; vấn đề gặp phải</strong> — xem mục cuối.</p></li>
+    <li><p>Bấm <strong>Nộp báo cáo</strong>. Phiếu chưa nộp tự lưu nháp, đóng máy giữa chừng không mất.</p></li>
+  </ol>
+
+  <p>Nộp xong, Marketing Hub tự gửi thẻ báo cáo vào nhóm <strong>Phòng MKT</strong>:</p>
+
+  <div class="bang-mau">
+    <div class="ten">📋 BCCV Ngày - Nguyễn Văn A - 30/09/2026</div>
+    <div>Người gửi: @Nguyễn Văn A<br>Số lượng đầu công việc: 3<br>Nộp lúc: 17:02 · ✅ Đúng hạn</div>
+    <div class="ke"></div>
+    <div class="hang"><span>1. Clip tour cano 3 đảo</span><span>✅ 100%</span></div>
+    <div class="hang"><span>2. Kịch bản TikTok Rạch Vẹm</span><span>70%</span></div>
+    <div class="hang"><span>3. Đăng 3 post Tour Đảo</span><span>✅ 100%</span></div>
+    <div class="ke"></div>
+    <div>Đánh giá: ✅ Tốt · Duy trì phong độ và tiếp tục phát triển nhé</div>
+  </div>
+
+  <div class="luu-y">
+    <p><b>Giờ nộp tính theo lần bấm Nộp đầu tiên.</b> Mở lại sửa bao nhiêu lần cũng không đổi giờ nộp và không gửi thêm thẻ vào nhóm.</p>
+  </div>
+
+  <h2>Hạn nộp</h2>
+
+  <div class="cuon">
+    <table>
+      <thead><tr><th>Nộp lúc</th><th>Ghi nhận</th></tr></thead>
+      <tbody>
+        <tr><td>Trong hạn</td><td><span class="nhan-tt xanh">Đúng hạn</span></td></tr>
+        <tr><td>Quá hạn, trong vòng 24 giờ</td><td><span class="nhan-tt cam">Trễ</span> — thẻ gửi nhóm ghi rõ trễ bao lâu</td></tr>
+        <tr><td>Quá hạn hơn 24 giờ</td><td><span class="nhan-tt do">Nộp bù</span></td></tr>
+        <tr><td>Không nộp</td><td><span class="nhan-tt do">Chưa nộp</span> — hiện ở bảng theo dõi của quản lý</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="mo">Quên nộp hôm qua: ở tab Hôm nay bấm <strong>‹</strong> để lùi về ngày đó rồi nộp. Nộp muộn vẫn hơn bỏ trống.</p>
+
+  <h2>Ghi đúng để được đánh giá đúng</h2>
+
+  <p>Dòng <strong>Đánh giá</strong> cuối thẻ xét hai việc: thời gian dành cho việc chính của vị trí (tối thiểu 80%, việc phụ như họp, báo cáo, việc khác tối đa 20%) và sản lượng trong ngày. Chọn đúng nhóm việc là đủ để được chấm đúng.</p>
+
+  <div class="cuon">
+    <table>
+      <thead><tr><th>Bạn làm</th><th>Chọn nhóm</th></tr></thead>
+      <tbody>
+        <tr><td>Trả lời comment, lên lịch đăng bài</td><td><code>Page</code> / <code>TikTok</code></td></tr>
+        <tr><td>Họp</td><td><code>Họp</code></td></tr>
+        <tr><td>Làm báo cáo</td><td><code>Báo cáo</code></td></tr>
+        <tr><td>Livestream</td><td><code>Livestream</code></td></tr>
+        <tr><td>SEO, web · OTA · chatbot</td><td><code>Website/SEO</code> · <code>OTA</code> · <code>Chatbot</code></td></tr>
+        <tr><td><strong>Máy treo, phần mềm lỗi, mất điện, mất mạng</strong></td><td><code>Lỗi máy / mất điện</code> — không tính vào đánh giá</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <ul class="gon">
+    <li>
+      <h3>Ô SL — số lượng</h3>
+      <p class="mo">Một dòng gồm nhiều sản phẩm thì ghi số: "Đăng 3 post" ghi <strong>3</strong>, "Chỉnh 500 ảnh" ghi <strong>500</strong>. Để trống là 1. Ảnh đã báo trên app Chỉnh ảnh được tự cộng.</p>
+    </li>
+    <li>
+      <h3>Tiến độ %</h3>
+      <p class="mo">Ghi đúng tiến độ thật. Clip hôm nay dựng tới 50%, mai dựng tiếp lên 100% — app tự tính mỗi ngày nửa sản phẩm, không đếm trùng.</p>
+    </li>
+  </ul>
+
+  <div class="cuon">
+    <table>
+      <thead><tr><th>Vị trí</th><th>Sản lượng tối thiểu mỗi ngày</th></tr></thead>
+      <tbody>
+        <tr><td>Editor</td><td>2,5 video</td></tr>
+        <tr><td>Content</td><td>3 kịch bản · 4 bài đăng · 2 clip</td></tr>
+        <tr><td>Designer</td><td>2 thiết kế · 500 ảnh hậu kỳ</td></tr>
+        <tr><td>Website</td><td>5 đầu việc</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Báo cáo tuần</h2>
+
+  <ol class="buoc">
+    <li><p><strong>Thứ 6 vẫn nộp báo cáo ngày</strong> như mọi ngày làm việc.</p></li>
+    <li><p><strong>Quay video báo cáo tuần</strong>: làm được gì, vướng gì, tuần sau làm gì. Để trên Drive hoặc Lark, lấy link chia sẻ.</p></li>
+    <li><p>Vào tab <strong>Tuần</strong>, viết <strong>Nhận định tuần này</strong>, <strong>Kế hoạch tuần sau</strong>, dán <strong>Link video</strong>.</p></li>
+    <li><p>Bấm <strong>Nộp báo cáo</strong>.</p></li>
+  </ol>
+
+  <div class="luu-y">
+    <p><b>Thiếu link video thì không nộp được báo cáo tuần.</b> Viết trước rồi để đó cũng được — app tự lưu nháp, quay xong dán link rồi nộp.</p>
+  </div>
+
+  <h2>Báo cáo tháng</h2>
+
+  <ol class="buoc">
+    <li><p>Vào tab <strong>Tháng</strong>, viết <strong>Nhận định tháng này</strong>, <strong>Kế hoạch tháng sau</strong>, dán link video.</p></li>
+    <li><p>Ở mục <strong>Tệp đính kèm</strong>, bấm <strong>+ Tải tệp lên</strong>: PDF, Excel, Word, slide, ảnh… chọn nhiều tệp một lúc được, tối đa <strong>20MB mỗi tệp</strong>. Tải nhầm thì bấm <strong>Xoá</strong> cạnh tên tệp.</p></li>
+    <li><p>Kiểm tra lại, bấm <strong>Nộp báo cáo</strong>.</p></li>
+  </ol>
+
+  <p class="mo">Tệp lớn hơn 20MB: nén lại, hoặc để trên Drive rồi dán link vào phần nhận định.</p>
+
+  <h2>Khi gặp vướng mắc</h2>
+
+  <p>Máy hỏng, thiếu kịch bản, chờ duyệt, cần tài khoản… ghi vào ô <strong>Cần hỗ trợ &amp; vấn đề gặp phải</strong> khi nộp báo cáo.</p>
+
+  <ol class="buoc">
+    <li><p><strong>Bạn ghi vướng mắc</strong> và nộp báo cáo như bình thường.</p></li>
+    <li><p><strong>Quản lý nhận tin ngay</strong> — Marketing Hub nhắn riêng nội dung bạn nêu.</p></li>
+    <li><p><strong>Quản lý xử lý</strong> và ghi hướng dẫn hoặc lý do.</p></li>
+    <li><p><strong>Bạn nhận tin nhắn riêng</strong> từ Marketing Hub, và xem lại bất cứ lúc nào ở tab <strong>Cần hỗ trợ</strong>.</p></li>
+  </ol>
+
+  <div class="bang-mau">
+    <div class="ten">✅ Vướng mắc đã được xử lý</div>
+    <div>Tình trạng: ✅ Đã xử lý<br>Người phản hồi: Quản lý phòng<br>Vấn đề bạn nêu (báo cáo 30/09/2026):<br>- Vbee không tạo được voice</div>
+    <div class="ke"></div>
+    <div>Hướng dẫn:<br>1. Đổi sang giọng đọc chuẩn<br>2. Nhấn Ctrl + F5, đăng xuất rồi đăng nhập lại</div>
+  </div>
+
+  <ul class="gon">
+    <li>
+      <h3><span class="nhan-tt cam">Đang chờ xử lý</span></h3>
+      <p class="mo">Quản lý đã nhận, chưa phản hồi.</p>
+    </li>
+    <li>
+      <h3><span class="nhan-tt do">Chưa xử lý được</span></h3>
+      <p class="mo">Tạm thời chưa giải quyết được, luôn kèm lý do hoặc hướng xử lý. Quản lý vẫn theo dõi tiếp — xong sẽ có thêm tin báo đã xử lý.</p>
+    </li>
+    <li>
+      <h3><span class="nhan-tt xanh">Đã xử lý</span></h3>
+      <p class="mo">Kèm hướng dẫn. Làm theo; còn vướng thì ghi tiếp ở báo cáo sau.</p>
+    </li>
+  </ul>
+
+  <div class="luu-y">
+    <p><b>Ghi cụ thể để được xử lý nhanh</b>: việc gì, lỗi gì, từ khi nào, đã thử gì. Ví dụ: "Capcut tự thoát khi xuất clip dài hơn 3 phút, từ 22/09, đã cài lại vẫn lỗi". Không có vướng mắc thì để trống.</p>
+  </div>
+
+  <h2>Câu hỏi thường gặp</h2>
+
+  <ul class="gon">
+    <li>
+      <h3>Hôm nay nghỉ phép mà app vẫn báo chưa nộp</h3>
+      <p class="mo">Lịch làm việc chưa ghi <code>NP</code> cho ngày đó. Nhờ quản lý sửa lịch — app tự bỏ ngày đó ra.</p>
+    </li>
+    <li>
+      <h3>Nộp rồi mới nhớ thiếu việc</h3>
+      <p class="mo">Mở lại phiếu, sửa, bấm <strong>Cập nhật báo cáo</strong>. Giờ nộp vẫn giữ lần đầu.</p>
+    </li>
+    <li>
+      <h3>Xem lại vướng mắc của mình ở đâu</h3>
+      <p class="mo">Tab <strong>Cần hỗ trợ</strong> trong app Báo cáo — chỉ bạn thấy vướng mắc của mình, kèm tình trạng và hướng dẫn.</p>
+    </li>
+  </ul>
+
+  <footer>
+    Có gì không khớp với thực tế, báo lại để sửa tài liệu — đừng tự suy diễn rồi mỗi người làm một kiểu.
+  </footer>
+
+</div>
+
+</body>
+</html>

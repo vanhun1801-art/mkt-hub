@@ -93,6 +93,10 @@ function doiRa(rec, map) {
       case 'number': t[key] = asSo(v); break;
       case 'url': t[key] = asLink(v); break;
       case 'checkbox': t[key] = asTick(v); break;
+      /* Ô đính kèm: giữ tên + mã tệp + cỡ để hiện danh sách và tải về. */
+      case 'attachment': t[key] = (Array.isArray(v) ? v : []).map((x) => ({
+        token: x.file_token || x.token || '', ten: x.name || x.file_name || 'tệp',
+        co: Number(x.size) || 0, loai: x.type || x.mime_type || '' })).filter((x) => x.token); break;
       default: t[key] = asText(v); break;
     }
   }
