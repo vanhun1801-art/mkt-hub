@@ -50,6 +50,7 @@ const mau = {
   const tag = TB.dungThe(Object.assign({}, mau, { openId: 'ou_abc123' })).elements[0].text.content;
   ok('có open_id → tag người gửi', tag.includes('**Người gửi:** <at id=ou_abc123></at>'), tag);
   ok('không có open_id → ghi tên', chu.includes('**Người gửi:** Ngọc'), chu);
+  ok('không kèm nút bấm', !the.elements.some((e) => e.tag === 'action'));
   ok('thẻ thật không có chữ THỬ', !/THỬ/.test(the.header.title.content));
   ok('thẻ thử có chữ THỬ', /^\[THỬ\]/.test(TB.dungThe(mau, { thu: true }).header.title.content));
 

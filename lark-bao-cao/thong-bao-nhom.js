@@ -20,8 +20,6 @@ const K = require('./ky');
 const NHOM_MAC_DINH = 'oc_246eff4a1b9d2e711cedad1645830465';   // nhóm "Phòng MKT"
 const nhomId = () => process.env.BAO_CAO_CHAT_ID || process.env.HUB_NHOM_MKT || NHOM_MAC_DINH;
 const dangBat = () => process.env.BAO_CAO_TIN_NHOM !== '0';
-const urlHub = () => (process.env.PUBLIC_URL || process.env.HUB_URL ||
-  'https://mkt-hub-w6hi.onrender.com').replace(/\/+$/, '');
 
 /** "17:05" giờ Việt Nam. */
 function gioVN(ms) {
@@ -99,16 +97,8 @@ function dungThe(t, { thu = false } = {}) {
     },
     elements: [
       { tag: 'div', text: { tag: 'lark_md', content: dau.join('\n') } },
-    ].concat(bang.length ? [{ tag: 'hr' }] : [], bang, [
-      {
-        tag: 'action',
-        actions: [{
-          tag: 'button', type: 'default',
-          text: { tag: 'plain_text', content: 'Mở app Báo cáo' },
-          url: urlHub() + '/#/m/bao-cao',
-        }],
-      },
-    ]),
+    /* Anh Hùng (30/09): không kèm nút bấm — thẻ chỉ để báo, không để mở app. */
+    ].concat(bang.length ? [{ tag: 'hr' }] : [], bang),
   };
 }
 
