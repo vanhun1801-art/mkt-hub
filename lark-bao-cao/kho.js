@@ -144,6 +144,25 @@ async function docTat(loai, force) {
  * Dùng mốc BẮT ĐẦU của kỳ chứ không phải ngày người bấm nút — nộp bù ngày 10
  * vào ngày 12 vẫn phải rơi đúng vào phiếu ngày 10, không tạo phiếu thứ hai.
  */
+/* Khoá theo MÃ PHIẾU (rà 01/10/2026): hai lượt lưu cùng một phiếu chạy song song
+ * — tự lưu nháp đang bay mà người bấm Nộp, hoặc mở hai tab — đều thấy "chưa có
+ * phiếu" rồi cùng tạo, thành hai bản ghi một mã và dòng việc gấp đôi (phút gấp
+ * đôi ở mọi bảng). Nối đuôi các lượt cùng mã trong một tiến trình là đủ: app
+ * chạy một tiến trình. */
+const hangCho = new Map();
+function trongKhoa(khoa, fn) {
+  const truoc = hangCho.get(khoa) || Promise.resolve();
+  const lan = truoc.catch(() => {}).then(fn);
+  const duoi = lan.catch(() => {});
+  hangCho.set(khoa, duoi);
+  duoi.then(() => { if (hangCho.get(khoa) === duoi) hangCho.delete(khoa); });
+  return lan;
+}
+
+/** Khoá người trong mã phiếu: open_id, lùi về email — KHÔNG gộp mọi người không
+ *  có id vào chung "khuyet" (hai người chỉ có email sẽ đè phiếu của nhau). */
+const khoaNguoi = (n) => (n && (n.id || String(n.email || '').trim().toLowerCase())) || '';
+
 function maPhieu(loaiKy, tuMs, nguoiId) {
   const p = K.phanRaVN(tuMs);
   const p2 = (n) => String(n).padStart(2, '0');
@@ -207,9 +226,14 @@ function oNguoi(map, nguoi) {
  * `nop=false` là lưu nháp — vẫn ghi xuống Base để người ta đóng máy giữa chừng
  * không mất, nhưng không đóng dấu giờ nộp và không chấm hạn.
  */
-async function luuNgay({ nguoi, ngayMs, ca, dinhMucTay, dong, nhanDinh, keHoach, canHoTro, linkVideo, nop }) {
+async function luuNgay(dau) {
+  const k = K.kyNgay(dau.ngayMs);
+  return trongKhoa(maPhieu('ngay', k.tu, khoaNguoi(dau.nguoi)), () => luuNgayTrong(dau));
+}
+
+async function luuNgayTrong({ nguoi, ngayMs, ca, dinhMucTay, dong, nhanDinh, keHoach, canHoTro, linkVideo, nop }) {
   const k = K.kyNgay(ngayMs);
-  const ma = maPhieu('ngay', k.tu, nguoi.id);
+  const ma = maPhieu('ngay', k.tu, khoaNguoi(nguoi));
   const dm = K.dinhMuc(ca, dinhMucTay);
   const sach = (dong || [])
     .filter((d) => (d.congViec || '').trim() || asSo(d.phut) > 0)
@@ -235,6 +259,12 @@ async function luuNgay({ nguoi, ngayMs, ca, dinhMucTay, dong, nhanDinh, keHoach,
   const cuPhieu = (await docTat('phieu', true)).find((x) => x.ma === ma) || null;
   const kyLuat = nop ? oKyLuat(k, cuPhieu, luc) : null;
   const cham = kyLuat && kyLuat.cham;
+  /* Lượt NHÁP không được kéo phiếu ĐÃ NỘP về Nháp (rà 01/10/2026): tự lưu 2,5 giây
+   * có thể bay sau cú bấm Nộp, và trước đây nó ghi đè "Nháp" lên phiếu vừa báo
+   * vào nhóm — Theo dõi lại đếm ngày đó là thiếu. Giữ nguyên trạng thái, không
+   * đụng các ô kỷ luật nộp. */
+  const daNopCu = !!(cuPhieu && cuPhieu.trangThai === C.trangThaiPhieu.daNop);
+  const giuNop = !nop && daNopCu;
 
   const cells = locO({
     [F.phieu.ma.id]: ma,
@@ -250,16 +280,18 @@ async function luuNgay({ nguoi, ngayMs, ca, dinhMucTay, dong, nhanDinh, keHoach,
     [F.phieu.keHoach.id]: keHoach,
     [F.phieu.canHoTro.id]: canHoTro,
     [F.phieu.linkVideo.id]: linkVideo,
-    [F.phieu.trangThai.id]: nop ? C.trangThaiPhieu.daNop : C.trangThaiPhieu.nhap,
+    [F.phieu.trangThai.id]: (nop || giuNop) ? C.trangThaiPhieu.daNop : C.trangThaiPhieu.nhap,
     [F.phieu.hanNop.id]: K.hanNop(k),
     ...(nop ? kyLuat.o : {}),
   });
 
-  const phieu = await ghiPhieu(ma, cells);
+  const phieu = await ghiPhieu(ma, cells, cuPhieu);
   await ghiDong(ma, k.tu, nguoi, sach);
   xoaDem();
   return { ma, phieu, tong: g, ky: k, cham, dong: sach, soLanNop: kyLuat && kyLuat.o[F.phieu.soLanNop.id],
-    canHoTroCu: (cuPhieu && cuPhieu.canHoTro) || '' };
+    /* So với vướng mắc của LẦN NỘP trước — bản nháp tự lưu đã ghi sẵn ô này,
+     * so với nó thì lúc Nộp luôn thành "không đổi" và quản lý không được báo. */
+    canHoTroCu: (daNopCu && cuPhieu.canHoTro) || '' };
 }
 
 /**
@@ -293,8 +325,10 @@ function oKyLuat(k, cu, luc) {
 }
 
 /** Tạo mới hoặc cập nhật phiếu theo mã. */
-async function ghiPhieu(ma, cells) {
-  const co = (await docTat('phieu', true)).find((x) => x.ma === ma);
+async function ghiPhieu(ma, cells, daDoc) {
+  /* `daDoc`: phiếu cũ người gọi VỪA đọc (null = chắc chắn chưa có). undefined
+   * thì tự đọc. Đỡ một lượt đọc cả bảng cho mỗi lần lưu. */
+  const co = daDoc !== undefined ? daDoc : (await docTat('phieu', true)).find((x) => x.ma === ma);
   if (co) {
     await lark.updateRecord(co.id, cells, cfg.phieuTableId);
     return { id: co.id, moi: false };
@@ -378,7 +412,9 @@ async function tongHop(loaiKy, mocMs, nguoi, force, denToiDa) {
   return {
     ky: k,
     soPhieuNgay: phieuNgay.length,
-    ngayThieu: K.ngayThieu(k.tu, Math.min(den, Date.now()), daNop),
+    /* Theo lịch làm việc từng người, như Theo dõi / Toàn phòng (rà 01/10). */
+    ngayThieu: K.ngayThieu(k.tu, Math.min(den, Date.now()), daNop, K.LUAT,
+      nguoi ? require('./lich-lam').lichCua(await require('./lich-lam').docHet(), nguoi) : null),
     ...g,
     phieuNgay,
     /* Trả cả dòng việc thô. Báo cáo tuần cần đọc lại từng đầu việc và từng
@@ -389,15 +425,26 @@ async function tongHop(loaiKy, mocMs, nguoi, force, denToiDa) {
 }
 
 /** Lưu phiếu TUẦN hoặc THÁNG: số do máy cộng, chữ do người viết. */
-async function luuTongHop({ nguoi, loaiKy, mocMs, nhanDinh, keHoach, canHoTro, linkVideo, nop }) {
-  if (loaiKy !== 'tuan' && loaiKy !== 'thang') throw new Error('Chỉ tuần hoặc tháng');
+async function luuTongHop(dau) {
+  if (dau.loaiKy !== 'tuan' && dau.loaiKy !== 'thang') throw new Error('Chỉ tuần hoặc tháng');
+  const k = K.ky(dau.loaiKy, dau.mocMs);
+  return trongKhoa(maPhieu(dau.loaiKy, k.tu, khoaNguoi(dau.nguoi)), () => luuTongHopTrong(dau));
+}
+
+async function luuTongHopTrong({ nguoi, loaiKy, mocMs, nhanDinh, keHoach, canHoTro, linkVideo, nop }) {
   const t = await tongHop(loaiKy, mocMs, nguoi, true);
   const k = t.ky;
-  const ma = maPhieu(loaiKy, k.tu, nguoi.id);
+  const ma = maPhieu(loaiKy, k.tu, khoaNguoi(nguoi));
   const luc = Date.now();
   const cuPhieu = (await docTat('phieu', true)).find((x) => x.ma === ma) || null;
   const kyLuat = nop ? oKyLuat(k, cuPhieu, luc) : null;
   const cham = kyLuat && kyLuat.cham;
+  /* Lượt NHÁP không được kéo phiếu ĐÃ NỘP về Nháp (rà 01/10/2026): tự lưu 2,5 giây
+   * có thể bay sau cú bấm Nộp, và trước đây nó ghi đè "Nháp" lên phiếu vừa báo
+   * vào nhóm — Theo dõi lại đếm ngày đó là thiếu. Giữ nguyên trạng thái, không
+   * đụng các ô kỷ luật nộp. */
+  const daNopCu = !!(cuPhieu && cuPhieu.trangThai === C.trangThaiPhieu.daNop);
+  const giuNop = !nop && daNopCu;
 
   const cells = locO({
     [F.phieu.ma.id]: ma,
@@ -412,21 +459,23 @@ async function luuTongHop({ nguoi, loaiKy, mocMs, nhanDinh, keHoach, canHoTro, l
     [F.phieu.keHoach.id]: keHoach,
     [F.phieu.canHoTro.id]: canHoTro,
     [F.phieu.linkVideo.id]: linkVideo,
-    [F.phieu.trangThai.id]: nop ? C.trangThaiPhieu.daNop : C.trangThaiPhieu.nhap,
+    [F.phieu.trangThai.id]: (nop || giuNop) ? C.trangThaiPhieu.daNop : C.trangThaiPhieu.nhap,
     [F.phieu.hanNop.id]: K.hanNop(k),
     ...(nop ? kyLuat.o : {}),
   });
 
-  const phieu = await ghiPhieu(ma, cells);
+  const phieu = await ghiPhieu(ma, cells, cuPhieu);
   xoaDem();
   return { ma, phieu, tong: t, ky: k, cham, soLanNop: kyLuat && kyLuat.o[F.phieu.soLanNop.id],
-    canHoTroCu: (cuPhieu && cuPhieu.canHoTro) || '' };
+    /* So với vướng mắc của LẦN NỘP trước — bản nháp tự lưu đã ghi sẵn ô này,
+     * so với nó thì lúc Nộp luôn thành "không đổi" và quản lý không được báo. */
+    canHoTroCu: (daNopCu && cuPhieu.canHoTro) || '' };
 }
 
 /** Một phiếu kèm dòng việc — dùng khi mở lại phiếu để sửa. */
 async function motPhieu(loaiKy, mocMs, nguoi, force) {
   const k = K.ky(loaiKy, mocMs);
-  const ma = maPhieu(loaiKy, k.tu, nguoi && nguoi.id);
+  const ma = maPhieu(loaiKy, k.tu, khoaNguoi(nguoi));
   const p = (await dsPhieu({}, force)).find((x) => x.ma === ma) || null;
   const dong = p ? await dsDong({ maPhieu: ma }) : [];
   return { ma, ky: k, phieu: p, dong };
@@ -434,6 +483,6 @@ async function motPhieu(loaiKy, mocMs, nguoi, force) {
 
 module.exports = {
   asText, asMs, asSo, asLink, asTick, doiRa, locO, cungNguoi,
-  maPhieu, dsPhieu, dsDong, motPhieu,
+  maPhieu, khoaNguoi, trongKhoa, dsPhieu, dsDong, motPhieu,
   luuNgay, luuTongHop, tongHop, xoaDem,
 };

@@ -100,7 +100,7 @@ async function call(method, url, opts = {}) {
   throw cuoi;
 }
 
-async function callOnce(method, url, { body, raw } = {}) {
+async function callOnce(method, url, { body, raw, hanMs } = {}) {
   const token = await tenantToken();
   const r = await fetch(HOST + url, {
     method,
@@ -109,7 +109,9 @@ async function callOnce(method, url, { body, raw } = {}) {
       body ? { 'Content-Type': 'application/json; charset=utf-8' } : {}
     ),
     body: body ? JSON.stringify(body) : undefined,
-    signal: han(HAN_GOI),
+    /* Tải tệp đính kèm cần lâu hơn 20 giây (rà 01/10): trước đây mọi lượt đều
+     * dùng HAN_GOI nên tệp vài MB trên đường chậm bị cắt rồi thử lại ba lần. */
+    signal: han(hanMs || HAN_GOI),
   });
 
   if (raw) {
@@ -149,10 +151,16 @@ function columnsToRecords(data) {
 }
 
 /* ---------------- các thao tác (cùng chữ ký với lark.js) ---------------- */
+/* Đọc tới khi hết (rà 01/10/2026). Bản trước dừng ở 30 trang = 6.000 dòng mà
+ * không nói gì: bảng Dòng việc chạm mốc đó sau ~3 tháng, app thôi thấy dòng mới
+ * rồi mỗi lần lưu lại tạo dòng trùng. Trần 1.000 trang (200.000 dòng) chỉ để
+ * chặn vòng lặp vô tận — chạm trần là lỗi thật, phải báo. */
+const TRAN_TRANG = 1000;
 async function listAllRecords(tableId = cfg.phieuTableId, base) {
   const out = [];
   let offset = 0;
-  for (let trang = 0; trang < 30; trang++) {
+  for (let trang = 0; ; trang++) {
+    if (trang >= TRAN_TRANG) throw new Error('Bảng ' + tableId + ' vượt ' + TRAN_TRANG + ' trang — cần đọc có lọc');
     const d = await call('GET', baseUrl(tableId, base) + '/records?limit=200&offset=' + offset);
     out.push(...columnsToRecords(d));
     if (!d.has_more) break;
@@ -338,7 +346,7 @@ async function taiVeTep(recordId, fileToken, tableId = cfg.phieuTableId) {
   /* Base bật quyền nâng cao thì phải kèm `extra` chỉ đúng ô — gửi luôn cho chắc. */
   const extra = encodeURIComponent(JSON.stringify({ bitablePerm: { tableId, attachments: {
     [cfg.fields.phieu.tep.id]: { [recordId]: [fileToken] } } } }));
-  return call('GET', '/open-apis/drive/v1/medias/' + fileToken + '/download?extra=' + extra, { raw: true });
+  return call('GET', '/open-apis/drive/v1/medias/' + fileToken + '/download?extra=' + extra, { raw: true, hanMs: HAN_TAI, retries: 2 });
 }
 
 module.exports = {

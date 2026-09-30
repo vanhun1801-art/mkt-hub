@@ -40,13 +40,17 @@ const catChu = (s, n) => { const t = String(s || '').replace(/\s+/g, ' ').trim()
   const phieuNgay = phieu.filter((x) => x.loaiKy === cfg.chon.loaiKy.ngay && x.trangThai === cfg.chon.trangThaiPhieu.daNop);
   const dongHet = await kho.dsDong({});
 
-  /* gom theo người (email / open_id) */
-  const nhom = new Map();
+  /* gom theo người: trùng email HOẶC trùng open_id là một người (như gomNguoi của
+   * server) — phiếu lúc có email lúc không thì không bị tách thành NS1 + NS2. */
+  const ds0 = [];
   for (const p of phieuNgay) {
-    const khoa = (p.email || '').toLowerCase() || p.nguoi;
-    if (!nhom.has(khoa)) nhom.set(khoa, { id: p.nguoi, email: p.email, ten: p.tenNguoi, ps: [] });
-    nhom.get(khoa).ps.push(p);
+    const mail = String(p.email || '').trim().toLowerCase(), id = String(p.nguoi || '').trim();
+    let n = ds0.find((x) => (mail && x.mail.has(mail)) || (id && x.ids.has(id)));
+    if (!n) { n = { mail: new Set(), ids: new Set(), ten: '', ps: [] }; ds0.push(n); }
+    if (mail) n.mail.add(mail); if (id) n.ids.add(id); if (!n.ten && p.tenNguoi) n.ten = p.tenNguoi;
+    n.ps.push(p);
   }
+  const nhom = new Map(ds0.map((n, i) => [i, { id: [...n.ids][0] || '', email: [...n.mail][0] || '', ten: n.ten, ps: n.ps }]));
 
   const ma = {};
   const nguoi = [];
@@ -60,7 +64,8 @@ const catChu = (s, n) => { const t = String(s || '').replace(/\s+/g, ' ').trim()
     for (const p of n.ps.sort((a, b) => a.tuNgay - b.tuNgay)) {
       const dong = cuaHo.filter((d) => d.maPhieu === p.ma);
       cuaHo.filter((d) => d.ngay < p.tuNgay).forEach((d) => truoc.set(CH.khoaViec(d), CH.ptCua(d)));
-      const kq = CH.cham(dong, viTri, chuan, truoc);
+      /* Kèm số ảnh/video từ app Chỉnh ảnh — chấm y như thẻ gửi nhóm (Designer). */
+      const kq = CH.cham(dong, viTri, chuan, truoc, await CH.chinhAnhTrongNgay(n, p.tuNgay));
       ngay.push({
         ngay: K.veNgayThu(p.tuNgay),
         dungHan: p.dungHan || '',

@@ -107,10 +107,16 @@ function columnsToRecords(data) {
   });
 }
 
+/* Đọc tới khi hết (rà 01/10/2026). Bản trước dừng ở 30 trang = 6.000 dòng mà
+ * không nói gì: bảng Dòng việc chạm mốc đó sau ~3 tháng, app thôi thấy dòng mới
+ * rồi mỗi lần lưu lại tạo dòng trùng. Trần 1.000 trang (200.000 dòng) chỉ để
+ * chặn vòng lặp vô tận — chạm trần là lỗi thật, phải báo. */
+const TRAN_TRANG = 1000;
 async function listAllRecords(tableId = cfg.phieuTableId, base) {
   const out = [];
   let offset = 0;
-  for (let page = 0; page < 30; page++) {
+  for (let page = 0; ; page++) {
+    if (page >= TRAN_TRANG) throw new Error('Bảng ' + tableId + ' vượt ' + TRAN_TRANG + ' trang — cần đọc có lọc');
     const data = await cli([
       'base', '+record-list', ...baseArgs(base),
       '--table-id', tableId,

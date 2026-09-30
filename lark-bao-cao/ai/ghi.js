@@ -28,13 +28,16 @@ if (!tepKq || !tepMa) { console.error('Cách dùng: node ai/ghi.js <kết quả>
   const dau = '*Cập nhật ' + String(gio.getUTCHours()).padStart(2, '0') + ':' + String(gio.getUTCMinutes()).padStart(2, '0') +
     ' ' + K.veNgay(Date.now()) + '*';
   let ghi = 0;
+  /* Đọc bảng phiếu MỘT lần (rà 01/10) — đọc lại cho từng người dễ chạm hạn mức
+   * đọc của Lark khi các app khác cũng đang chạy. */
+  const phieu = await kho.dsPhieu({}, true);
   for (const x of (kq.nguoi || [])) {
     const ai = bang.ma[x.ma];
     const chu = String(x.nhanXet || '').replace(/<[^>]*>/g, '').trim();
     if (!ai || !chu) { console.log('bỏ ' + x.ma + (ai ? ' (trống)' : ' (không có mã)')); continue; }
     const nguoi = { id: ai.id, email: ai.email, ten: ai.ten };
-    const ma = kho.maPhieu(loai, bang.tu, nguoi.id);
-    let ph = (await kho.dsPhieu({}, true)).find((p) => p.ma === ma);
+    const ma = kho.maPhieu(loai, bang.tu, kho.khoaNguoi(nguoi));
+    let ph = phieu.find((p) => p.ma === ma);
     if (!ph) {
       const r = await kho.luuTongHop({ nguoi, loaiKy: loai, mocMs: bang.tu, nop: false });
       ph = { id: r.phieu.id };

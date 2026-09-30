@@ -69,13 +69,13 @@ function docThan(req, tran = 1024 * 1024) {
     let n = 0;
     req.on('data', (c) => {
       n += c.length;
-      if (n > tran) { reject(new Error('Nội dung quá lớn')); req.destroy(); return; }
+      if (n > tran) { reject(Object.assign(new Error('Nội dung quá lớn'), { maHttp: 413 })); req.destroy(); return; }
       buf.push(c);
     });
     req.on('end', () => {
       const raw = Buffer.concat(buf).toString('utf8');
       if (!raw) return resolve({});
-      try { resolve(JSON.parse(raw)); } catch (e) { reject(new Error('JSON hỏng: ' + e.message)); }
+      try { resolve(JSON.parse(raw)); } catch (e) { reject(Object.assign(new Error('Dữ liệu gửi lên không đọc được'), { maHttp: 400 })); }
     });
     req.on('error', reject);
   });
@@ -653,6 +653,14 @@ async function api(req, res, u) {
     const daNop = phieu.filter((x) => x.trangThai === cfg.chon.trangThaiPhieu.daNop && x.tuNgay >= tu);
     const theoMa = new Map();
     for (const d of dongHet) { if (!theoMa.has(d.maPhieu)) theoMa.set(d.maPhieu, []); theoMa.get(d.maPhieu).push(d); }
+    /* Dòng của từng người xếp theo ngày — đi một lượt, thay vì lọc + sắp cả bảng
+     * cho MỖI phiếu (O(phiếu × dòng), rà 01/10). */
+    const khoaAi = (o) => String(o.email || '').toLowerCase() || o.nguoi || '';
+    const dongTheoNguoi = new Map();
+    for (const d of dongHet) { const kk = khoaAi(d); if (!dongTheoNguoi.has(kk)) dongTheoNguoi.set(kk, []); dongTheoNguoi.get(kk).push(d); }
+    for (const a of dongTheoNguoi.values()) a.sort((p, q) => p.ngay - q.ngay);
+    const truocTheoNguoi = new Map();   // người → { i, truoc }
+    daNop.sort((p, q) => p.tuNgay - q.tuNgay);
     /* Gộp theo VỊ TRÍ, không theo tên (anh Hùng 30/09). */
     const theoVT = {};
     let khongVT = 0;
@@ -662,9 +670,12 @@ async function api(req, res, u) {
       if (!viTri || !chuan.viTri[viTri]) { khongVT++; continue; }
       const n = theoVT[viTri] || (theoVT[viTri] = { viTri, tot: 0, 'luu-y': 0, lech: 0, phieu: 0, hutSL: {} });
       /* Tiến độ trước: mọi dòng của người này TRƯỚC ngày phiếu, lấy lần cuối. */
-      const truoc = new Map();
-      dongHet.filter((d) => kho.cungNguoi(d, ai) && d.ngay < x.tuNgay).sort((a, c) => a.ngay - c.ngay)
-        .forEach((d) => truoc.set(CH.khoaViec(d), CH.ptCua(d)));
+      const kk = khoaAi({ email: x.email, nguoi: x.nguoi });
+      const cua = dongTheoNguoi.get(kk) || [];
+      const st = truocTheoNguoi.get(kk) || { i: 0, truoc: new Map() };
+      while (st.i < cua.length && cua[st.i].ngay < x.tuNgay) { st.truoc.set(CH.khoaViec(cua[st.i]), CH.ptCua(cua[st.i])); st.i++; }
+      truocTheoNguoi.set(kk, st);
+      const truoc = new Map(st.truoc);
       const kq = CH.cham(theoMa.get(x.ma) || [], viTri, chuan, truoc, await CH.chinhAnhTrongNgay(ai, x.tuNgay));
       if (!kq) continue;
       n.phieu++; n[kq.muc]++;
@@ -685,14 +696,16 @@ async function api(req, res, u) {
     if (!ten || !buf.length) return loi(res, 400, 'Chưa có tệp.', 'THIEU_TEP');
     if (buf.length > 20 * 1024 * 1024) return loi(res, 413, 'Tệp quá 20MB — nén lại hoặc để trên Drive rồi dán link.', 'TEP_LON');
     const k = K.kyThang(Number(b.moc) > 0 ? Number(b.moc) : Date.now());
-    const ma = kho.maPhieu('thang', k.tu, toi.id);
+    const ma = kho.maPhieu('thang', k.tu, kho.khoaNguoi(toi));
     let ph = (await kho.dsPhieu({ loaiKy: 'thang' }, true)).find((x) => x.ma === ma);
     try {
       if (!ph) {
         const r0 = await kho.luuTongHop({ nguoi: toi, loaiKy: 'thang', mocMs: k.tu, nop: false });
         ph = { id: r0.phieu.id, ma };
       }
-      await lark.taiLenTep(ph.id, cfg.fields.phieu.tep.id, { ten, buf });
+      /* Khoá theo bản ghi (rà 01/10): hai lần tải cùng lúc đọc-danh-sách-rồi-ghi-đè
+       * nên một tệp bị mất. Nối đuôi thì tuần tự. */
+      await kho.trongKhoa('tep:' + ph.id, () => lark.taiLenTep(ph.id, cfg.fields.phieu.tep.id, { ten, buf }));
       kho.xoaDem();
       return json(res, { ok: true, ma, recId: ph.id });
     } catch (e) {
@@ -702,7 +715,7 @@ async function api(req, res, u) {
 
   /* Phiếu mà người gọi được đụng tới tệp: của chính mình, hoặc quản lý. */
   const phieuCuaToi = async (recId) => {
-    const ph = (await kho.dsPhieu({}, true)).find((x) => x.id === recId);
+    const ph = (await kho.dsPhieu({})).find((x) => x.id === recId) || (await kho.dsPhieu({}, true)).find((x) => x.id === recId);
     if (!ph) return { loi: [404, 'Không thấy phiếu.'] };
     if (!toi.quanLy && !kho.cungNguoi(ph, toi)) return { loi: [403, 'Không phải phiếu của bạn.'] };
     return { ph };
@@ -714,7 +727,7 @@ async function api(req, res, u) {
     if (x.loi) return loi(res, x.loi[0], x.loi[1]);
     if (toi.quanLy && !kho.cungNguoi(x.ph, toi)) return loi(res, 403, 'Quản lý chỉ xem, không xoá tệp của người khác.');
     try {
-      await lark.xoaTep(x.ph.id, cfg.fields.phieu.tep.id, String(b.token || ''));
+      await kho.trongKhoa('tep:' + x.ph.id, () => lark.xoaTep(x.ph.id, cfg.fields.phieu.tep.id, String(b.token || '')));
       kho.xoaDem();
       return json(res, { ok: true });
     } catch (e) { return loi(res, 502, dichLoiBase(e), maLoiBase(e)); }
@@ -772,7 +785,8 @@ async function api(req, res, u) {
     const bu = daNop.filter((x) => x.nopBu);
     const tre = daNop.filter((x) => x.dungHan === cfg.chon.dungHan.tre && !x.nopBu);
     /* "Không" không phải lời cầu cứu — xem K.canHoTroThat(). */
-    const hoTro = ds.filter((x) => K.canHoTroThat(x.canHoTro));
+    /* Chỉ vướng mắc CHƯA xử lý (rà 01/10) — đã xử lý mà vẫn đếm là "cần người gỡ" sai. */
+    const hoTro = ds.filter((x) => K.canHoTroThat(x.canHoTro) && !x.hoTroXong);
 
     const the = [
       { chinh: true, nhan: 'Phiếu đã nộp', so: daNop.length, dinhDang: 'so',
@@ -789,7 +803,7 @@ async function api(req, res, u) {
       /* Việc cần xử lý: mỗi lời "cần hỗ trợ" là một việc thật có người đang
        * chờ. Đưa lên danh sách chung của trang Tổng quan. */
       canXuLy: hoTro.slice(0, 8).map((x) => ({
-        id: x.recordId,
+        id: x.id,
         /* `tieuDe`, KHÔNG phải `ten`: trang Tổng quan của lớp vỏ đọc đúng khoá
          * này (app.js — `esc(v.tieuDe)`). Đặt sai tên thì việc vẫn được đếm mà
          * thẻ hiện ra trống trơn — lỗi im lặng, chỉ lộ khi có người thật viết
@@ -1068,7 +1082,12 @@ const server = http.createServer(async (req, res) => {
       await api(req, res, u);
     } catch (e) {
       console.error('[API]', u.pathname, '->', e.message);
-      if (!res.headersSent) loi(res, 500, e.message || 'Lỗi không xác định');
+      /* Lỗi thân yêu cầu có mã riêng (413/400); lỗi khác KHÔNG đẩy nguyên văn
+       * stderr của lark-cli ra màn hình — chỉ câu ngắn, chi tiết nằm ở log. */
+      if (!res.headersSent) {
+        loi(res, e.maHttp || 500, e.maHttp ? e.message
+          : String(e.message || 'Lỗi không xác định').split(String.fromCharCode(10))[0].slice(0, 200));
+      }
     }
     return;
   }

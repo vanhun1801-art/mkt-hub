@@ -45,7 +45,16 @@ const MAN_QL = [
 ];
 
 /* ---------------- gọi API ---------------- */
+/* Lượt vẽ màn hiện tại. Bấm đổi tab nhanh thì dữ liệu của tab TRƯỚC có thể về
+ * SAU và vẽ đè lên tab đang đứng — thấy tận mắt 30/09 (thanh tab ghi "Cần hỗ
+ * trợ" mà nội dung là Toàn phòng). Mỗi lần ve() tăng số lượt; lệnh đọc (GET)
+ * về trễ của lượt cũ bị bỏ, không vẽ. Lệnh ghi (POST) không bị bỏ. */
+let LUOT = 0;
+const CU = 'luot-cu';
+
 async function goi(duong, opts = {}) {
+  const luot = LUOT;
+  const doc = !opts.method || opts.method === 'GET';
   const r = await fetch(duong, Object.assign({
     headers: { 'content-type': 'application/json' },
   }, opts));
@@ -54,6 +63,7 @@ async function goi(duong, opts = {}) {
   try { d = raw ? JSON.parse(raw) : {}; } catch (_) { d = null; }
   if (!r.ok) throw new Error((d && d.error) || ('HTTP ' + r.status));
   if (d === null) throw new Error('Máy chủ trả về thứ không đọc được');
+  if (doc && luot !== LUOT) throw Object.assign(new Error(CU), { cu: true });
   return d;
 }
 
@@ -166,6 +176,7 @@ window.addEventListener('beforeunload', (e) => {
 });
 
 async function ve() {
+  LUOT++;
   const el = $('#man');
   /* Khung xương thay cho chữ: đổi kỳ / đổi màn là cả cột nội dung trắng ra
    * trong lúc chờ Base, mà mấy màn này đọc khá lâu. */
@@ -183,6 +194,7 @@ async function ve() {
     if (MAN === 'da-nop') return await veDaNop(el);
     return await veManPhieu(el, MAN);
   } catch (e) {
+    if (e && e.cu) return;                 // lượt cũ, màn khác đã thay chỗ
     el.innerHTML = '<div class="the"><div class="rong"><b>Không tải được</b>' +
       esc(e.message) + '</div></div>';
   }
@@ -195,7 +207,7 @@ async function ve() {
 async function veManPhieu(el, loaiKy) {
   DU = await goi('/api/phieu?ky=' + loaiKy + '&moc=' + MOC + '&moi=1');
   if (loaiKy === 'ngay') {
-    VIEC = await goi('/api/viec-cua-toi?moc=' + DU.ky.tu).catch(() => ({ chay: false, ds: [] }));
+    VIEC = await goi('/api/viec-cua-toi?moc=' + DU.ky.tu).catch((e) => { if (e && e.cu) throw e; return { chay: false, ds: [] }; });
   }
 
   el.innerHTML =
@@ -1133,11 +1145,16 @@ async function luu(nop) {
   const than = thanPhieu(nop);
   if (nop && MAN === 'ngay' && !than.dong.length) return toast('Chưa có đầu việc nào để nộp.', 'do');
   clearTimeout(henTL);
+  /* Đang nộp thì KHÔNG tự lưu nháp chen vào (rà 01/10): cú bấm Nộp cũng là một
+   * cú click, và trình nghe click hẹn tự lưu 2,5 giây — nộp chậm hơn thế là lượt
+   * nháp bay sau và từng kéo phiếu về Nháp. Máy chủ cũng đã chặn, đây là lớp hai. */
+  DANG_NOP = true;
 
   const nut = [$('#btnNop')].filter(Boolean);
   nut.forEach((b) => { b.disabled = true; });
   try {
     const r = await goi('/api/phieu', { method: 'POST', body: JSON.stringify(than) });
+    clearTimeout(henTL);
     BAN = false;
     toast(nop ? 'Đã nộp — ' + r.veHan : 'Đã lưu nháp',
       nop && r.cham && r.cham.trangThai === 'tre' ? '' : 'xanh');
@@ -1145,6 +1162,7 @@ async function luu(nop) {
   } catch (e) {
     toast(e.message, 'do');
   } finally {
+    DANG_NOP = false;
     nut.forEach((b) => { b.disabled = false; });
   }
 }
@@ -1157,8 +1175,8 @@ async function luu(nop) {
  *
  * CHỈ tự lưu phiếu CHƯA NỘP: phiếu đã nộp mà gửi nop:false là rút nó về nháp —
  * sửa phiếu đã nộp vẫn phải bấm "Cập nhật báo cáo" như cũ. */
-let henTL = 0, dangTL = false, SUA = 0;
-const tuLuuDuoc = () => !!(BAN && DU && DU.ky && $('#btnNop') && !(DU.phieu && DU.phieu.daNop));
+let henTL = 0, dangTL = false, SUA = 0, DANG_NOP = false;
+const tuLuuDuoc = () => !!(!DANG_NOP && BAN && DU && DU.ky && $('#btnNop') && !(DU.phieu && DU.phieu.daNop));
 function ttTuLuu(chu, loi) {
   const o = $('#ttTuLuu');
   if (!o) return;
