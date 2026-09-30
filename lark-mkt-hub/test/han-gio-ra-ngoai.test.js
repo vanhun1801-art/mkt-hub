@@ -51,7 +51,7 @@ const TEP = [
  * con là vá đúng một phần nhỏ của vấn đề. */
 for (const app of ['lark-task-manager', 'lark-lich-tac-nghiep', 'lark-ads-manager',
   'lark-ota-manager', 'lark-social', 'lark-chinh-anh', 'lark-kpi', 'lark-quy-chi-phi',
-  'lark-bao-cao', 'lark-san-pham', 'lark-lich-lam-viec', 'lark-kol']) {
+  'lark-bao-cao', 'lark-san-pham', 'lark-lich-lam-viec', 'lark-kol', 'lark-mat-khau']) {
   TEP.push([app + '/larkapi.js', 'lớp gọi Lark khi chạy trên Render']);
 }
 

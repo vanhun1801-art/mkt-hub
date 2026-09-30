@@ -40,7 +40,8 @@ const ok = (ten, dk, vi) => {
 const GOC = path.join(__dirname, '..', '..');
 const APP = ['lark-task-manager', 'lark-lich-tac-nghiep', 'lark-ads-manager',
   'lark-ota-manager', 'lark-social', 'lark-chinh-anh', 'lark-kpi',
-  'lark-quy-chi-phi', 'lark-bao-cao', 'lark-san-pham', 'lark-lich-lam-viec', 'lark-kol', 'lark-kho-media'];
+  'lark-quy-chi-phi', 'lark-bao-cao', 'lark-san-pham', 'lark-lich-lam-viec', 'lark-kol', 'lark-kho-media',
+  'lark-mat-khau'];
 
 /* Chỗ nào thật sự sinh ra một lời gọi mạng: fetch, đổi địa chỉ trang, mở tab
  * mới, hay thuộc tính href/src trong chuỗi HTML. */

@@ -343,6 +343,33 @@
       "bat": true,
       "caPhong": false,
       "_lenh": "Kho media giữ chỉ mục 97 nghìn file trong RAM (~55 MB heap). Trần 200 MB: vượt thì chỉ app này dừng, không kéo hub + 12 app sập theo; semi-space nhỏ để RSS không phình."
+    },
+    {
+      "id": "mat-khau",
+      "ten": "Tài khoản & gói dịch vụ",
+      "mo_ta": "Mật khẩu mã hoá · quyền xem theo người · hạn & chi phí gói",
+      "icon": "mat-khau",
+      "mau": "#289683",
+      "kieu": "local",
+      "thuMuc": "../lark-mat-khau",
+      "cong": 5189,
+      "lenh": [
+        "node",
+        "server.js"
+      ],
+      "larkUrl": "https://rootytrip2.sg.larksuite.com/wiki/JcERwvjFQiKIDSkPzqrlHiaIgmd",
+      "kpi": "mat-khau",
+      "an": [
+        "header.topbar > .brand",
+        "#btnBase"
+      ],
+      "phuSelector": "#phuDe",
+      "locSelector": ".filters",
+      "_thuApi": "không có /api/meta — cố ý: /api/meta của hub gom people[] vào danh bạ, app giữ mật khẩu không nên phát danh sách người",
+      "thuApi": "/api/khoi-tao",
+      "bat": true,
+      "caPhong": false,
+      "_caPhong": "KHÔNG thêm mat-khau vào HUB_CA_PHONG. Quyền xem mật khẩu đã chia theo từng dòng; mở cả phòng chỉ nên là quyết định có chủ ý."
     }
   ]
 }

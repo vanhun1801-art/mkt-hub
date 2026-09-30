@@ -95,6 +95,15 @@ const ICONS = {
     '<path d="m20.5 12.5-4-4-6.5 6"/>'
   ),
 
+  /* Tài khoản & gói dịch vụ: ổ khoá có lỗ khoá — kho mật khẩu.
+     Không dùng lại 'nguoi' (đó là tài khoản NGƯỜI DÙNG của hub, ở Cài đặt). */
+  'mat-khau': IC(
+    '<rect x="4.5" y="10.5" width="15" height="10" rx="2.2"/>' +
+    '<path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>' +
+    '<circle cx="12" cy="15" r="1.4"/>' +
+    '<path d="M12 16.4v1.8"/>'
+  ),
+
   /* Tải nhân sự / người */
   'nguoi': IC(
     '<circle cx="12" cy="8" r="3.5"/>' +

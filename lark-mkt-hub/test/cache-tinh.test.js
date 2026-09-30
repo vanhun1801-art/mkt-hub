@@ -41,7 +41,8 @@ const ok = (ten, dk, vi) => {
 const GOC = path.join(__dirname, '..', '..');
 const APP = ['lark-task-manager', 'lark-lich-tac-nghiep', 'lark-ads-manager',
   'lark-ota-manager', 'lark-social', 'lark-chinh-anh', 'lark-kpi',
-  'lark-quy-chi-phi', 'lark-bao-cao', 'lark-san-pham', 'lark-lich-lam-viec', 'lark-kol', 'lark-kho-media'];
+  'lark-quy-chi-phi', 'lark-bao-cao', 'lark-san-pham', 'lark-lich-lam-viec', 'lark-kol', 'lark-kho-media',
+  'lark-mat-khau'];
 
 console.log('\ntệp tĩnh được nhớ, và nhớ đúng bản');
 
@@ -81,7 +82,7 @@ for (const app of APP) {
   if (ds.some((u) => u.includes('__V__')) && !/__V__/.test(sv)) conDauChuaThay.push(app);
 }
 
-ok('soi được cả 13 app', soApp === 13, 'mới soi ' + soApp);
+ok('soi được cả 14 app', soApp === 14, 'mới soi ' + soApp);
 ok('app nào cũng cache tệp tĩnh, và chỉ khi có số bản',
   thieuCache.length === 0, thieuCache.join(' · '));
 ok('mọi đường css/js đều được đóng dấu số bản',

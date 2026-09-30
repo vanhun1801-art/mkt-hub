@@ -701,6 +701,8 @@ const BO_DOC = {
   'kol': (mod, khoang, nguoi) => tuAppTuCong(mod, null, nguoi),
   /* Kho media không có trục thời gian của hub — thẻ "7 ngày" tự tính trong app */
   'kho-media': (mod, khoang, nguoi) => tuAppTuCong(mod, null, nguoi),
+  /* Tài khoản & gói: không có trục thời gian — hạn gói tính theo hôm nay. Không có mật khẩu trong bộ số. */
+  'mat-khau': (mod, khoang, nguoi) => tuAppTuCong(mod, null, nguoi),
 };
 
 /* ---------------- cache + gom ---------------- */

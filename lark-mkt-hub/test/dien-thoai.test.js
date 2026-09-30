@@ -299,6 +299,7 @@ ok('dienthoai.css có thanh tóm tắt', /\.tg-thanh\s*\{/.test(DT_SACH));
     'bao-cao': 'lark-bao-cao', 'san-pham': 'lark-san-pham', 'lich-lam-viec': 'lark-lich-lam-viec',
     'kol': 'lark-kol',
     'kho-media': 'lark-kho-media',
+    'mat-khau': 'lark-mat-khau',
   };
   const khai = MODS.modules.filter((m) => m.locSelector);
   ok('có module khai locSelector', khai.length >= 5, String(khai.length));

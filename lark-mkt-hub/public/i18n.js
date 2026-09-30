@@ -1049,6 +1049,42 @@
     '— chưa có —': '— none —',
     'Theo dõi chiến dịch': 'Campaign tracker',
 
+    /* Tài khoản & gói dịch vụ (lark-mat-khau) — tên nền tảng, user, mật khẩu là DỮ LIỆU (data-no-i18n) */
+    'Tài khoản & gói dịch vụ': 'Accounts & subscriptions',
+    'Gói đăng ký': 'Subscriptions',
+    'Chỉ cái tôi xem được': 'Only ones I can view',
+    '＋ Thêm tài khoản': '＋ Add account',
+    'Mọi nhóm': 'All groups',
+    'Mạng xã hội': 'Social media',
+    'Email & Google': 'Email & Google',
+    'Kênh bán OTA': 'OTA channels',
+    'Website & hạ tầng': 'Website & infrastructure',
+    'Công cụ & AI': 'Tools & AI',
+    'Thanh toán': 'Payments',
+    '🔒 chưa được cấp quyền': '🔒 not granted',
+    'lâu chưa đổi': 'stale',
+    'Mở ↗': 'Open ↗',
+    'Đăng nhập': 'Sign-in',
+    'Mật khẩu': 'Password',
+    'Mật khẩu cũ': 'Old password',
+    'Đổi mật khẩu': 'Change password',
+    'Sinh': 'Generate',
+    'Lưu': 'Save',
+    'Ai được xem mật khẩu': 'Who can view the password',
+    'Cấp thêm quyền': 'Grant access',
+    'Rút quyền': 'Revoke access',
+    '1 · Chọn người': '1 · Pick people',
+    '2 · Làm gì': '2 · Action',
+    'chỉ quản lý': 'managers only',
+    'Tài khoản đang quản lý': 'Accounts managed',
+    'Chi phí gói / tháng': 'Subscription cost / month',
+    'Gói đã hết hạn': 'Expired subscriptions',
+    'Tổng mỗi tháng': 'Monthly total',
+    'Ước tính cả năm': 'Yearly estimate',
+    'Gia hạn trong 90 ngày tới': 'Renewals in the next 90 days',
+    'Toàn bộ gói': 'All subscriptions',
+    'Đọc lại': 'Reload',
+
     /* Kho media (lark-kho-media) — tên thư mục, mô tả AI, tên lịch là DỮ LIỆU, chắn ở BO_QUA */
     'Nổi bật': 'Featured',
     'Mới từ tác nghiệp': 'New from field shoots',
@@ -1355,6 +1391,8 @@
     '.ml-ten', '.ml-nx', 'td .phu',
     /* Kho media: tên file, đường dẫn thư mục, mô tả AI, thẻ, tên lịch/sản phẩm/kho */
     'html[data-app="kho-media"] :is(.ten, .duong, .vet, .mo-ai, .the-nd, h3, .so-do, .ten-kin, [data-kho], [data-tn], [data-sp], [data-tn-xem])',
+    /* Tài khoản & gói: tên dịch vụ trên thẻ, người phụ trách, tên nhóm trong bảng Chi phí */
+    'html[data-app="mat-khau"] :is(h3, .c-ten, .c-pt, .vach-ngang .t, .mk-gia)',
     '.log', 'code', 'pre', 'option[data-giu]',
     /* Vùng nào tự khai là dữ liệu thì tôn trọng. Cần thiết vì có bảng cấu hình
        lấy tên dòng từ Base, mà mấy tên đó trùng nhãn giao diện trong từ điển —

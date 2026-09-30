@@ -41,7 +41,8 @@ const ok = (ten, dk, vi) => {
 const GOC = path.join(__dirname, '..', '..');
 const APP = ['lark-task-manager', 'lark-lich-tac-nghiep', 'lark-ads-manager',
   'lark-ota-manager', 'lark-social', 'lark-chinh-anh', 'lark-kpi',
-  'lark-quy-chi-phi', 'lark-bao-cao', 'lark-san-pham', 'lark-lich-lam-viec', 'lark-kol', 'lark-kho-media'];
+  'lark-quy-chi-phi', 'lark-bao-cao', 'lark-san-pham', 'lark-lich-lam-viec', 'lark-kol', 'lark-kho-media',
+  'lark-mat-khau'];
 
 /** Mã Lark báo "bận, thử lại đi" — không phải lỗi của dữ liệu hay của quyền. */
 const MA_TAM_THOI = ['800004135', '1254291', '1254036', '99991400'];

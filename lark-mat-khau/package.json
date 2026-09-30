@@ -1,0 +1,11 @@
+{
+  "name": "lark-mat-khau",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Tai khoan & goi dich vu cua phong Marketing: mat khau ma hoa tren Lark Base, quyen xem theo nguoi, han va chi phi goi",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/chay-het.js"
+  }
+}
