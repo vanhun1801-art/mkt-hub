@@ -28,12 +28,15 @@ const mau = {
 (async () => {
   const the = TB.dungThe(mau);
   const chu = the.elements[0].text.content;
-  ok('tiêu đề có tên người gửi', /Ghi nhận báo cáo ngày · Ngọc/.test(the.header.title.content));
+  ok('tiêu đề: BCCV Ngày - tên - ngày', the.header.title.content === '📋 BCCV Ngày - Ngọc - 30/09/2026', the.header.title.content);
   ok('tiêu đề màu turquoise (gần logo Hub)', the.header.template === 'turquoise');
   ok('tiêu đề có icon 📋', the.header.title.content.includes('📋'));
-  ok('có ngày báo cáo', chu.includes('30/09/2026'), chu);
+  ok('thân thẻ đúng thứ tự: người gửi → số lượng → nộp lúc',
+    chu.split('\n').map((l) => l.split(':**')[0]).join('|') ===
+      '**Người gửi|**Số lượng đầu công việc|**Nộp lúc', chu);
+  ok('số lượng đầu việc bỏ dòng trống', chu.includes('**Số lượng đầu công việc:** 3'), chu);
+  ok('không còn dòng Ngày báo cáo', !chu.includes('Ngày báo cáo'), chu);
   ok('giờ nộp theo giờ VN', chu.includes('17:05'), chu);
-  ok('số mục việc bỏ dòng trống', chu.includes('**Số mục công việc:** 3'), chu);
   ok('BỎ dòng thời lượng', !/Thời lượng|định mức/.test(JSON.stringify(the)));
   const hangs = the.elements.filter((e) => e.tag === 'column_set');
   const o = (h, i) => h.columns[i].elements[0].text.content;
@@ -52,9 +55,9 @@ const mau = {
 
   const tre = TB.dungThe(Object.assign({}, mau, { cham: { trangThai: 'tre', treMs: 2 * 3600000 } }));
   ok('trễ vẫn cùng màu tiêu đề', tre.header.template === 'turquoise');
-  ok('trễ ghi rõ bao lâu', tre.elements[0].text.content.includes('Trễ 2 giờ'), tre.elements[0].text.content);
+  ok('trễ ghi rõ bao lâu', tre.elements[0].text.content.includes("🚨 <font color='red'>**TRỄ 2 GIỜ**</font>"), tre.elements[0].text.content);
   const bu = TB.dungThe(Object.assign({}, mau, { cham: { trangThai: 'tre', treMs: 30 * 3600000, bu: true } }));
-  ok('nộp bù ghi chữ Nộp bù', bu.elements[0].text.content.includes('Nộp bù'));
+  ok('nộp bù ghi chữ Nộp bù', bu.elements[0].text.content.includes('NỘP BÙ'));
 
   /* baoNop: bộ gửi giả qua cfg có khoá → đi đường tin-lark; thay bằng lark.cli giả
    * ở chế độ máy (cfg không khoá). */

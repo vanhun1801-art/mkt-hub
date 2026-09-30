@@ -63,16 +63,20 @@ const sachMd = (s) => String(s || '').replace(/([*_~`\[\]])/g, '\$1');
 function dungThe(t, { thu = false } = {}) {
   const c = t.cham || {};
   const dung = c.trangThai === 'dung-han';
-  const han = dung ? '✅ Đúng hạn' : '⏰ ' + K.veLanNop(c).replace(/^trễ/, 'Trễ');
+  /* Anh Hùng (30/09): trễ phải có tính răn đe — ⏰ quá hiền. Còi 🚨 + chữ đỏ
+   * đậm viết hoa để cả nhóm nhìn là thấy ngay. */
+  const han = dung ? '✅ Đúng hạn'
+    : "🚨 <font color='red'>**" + K.veLanNop(c).toUpperCase() + '**</font>';
   const dong = (t.dong || []).filter((d) => String(d.congViec || '').trim());
   const dau = [
     /* Anh Hùng (30/09): tag luôn người gửi. `<at>` chỉ ăn với open_id CỦA APP ĐANG
      * GỬI (open_id riêng theo từng app) — id hub gửi xuống là của Marketing Hub,
      * đúng app gửi tin trên Render. Không có id thì lùi về tên chữ. */
     '**Người gửi:** ' + (/^ou_/.test(t.openId || '') ? '<at id=' + t.openId + '></at>' : (t.ten || 'Không rõ')),
-    '**Ngày báo cáo:** ' + K.veNgayThu(t.ngayMs),
+    /* Thứ tự anh Hùng chốt 30/09: Người gửi → Số lượng đầu công việc → Nộp lúc.
+     * Ngày báo cáo đã lên tiêu đề nên không còn dòng riêng. */
+    '**Số lượng đầu công việc:** ' + dong.length,
     '**Nộp lúc:** ' + gioVN(t.nopLuc) + ' · ' + han,
-    '**Số mục công việc:** ' + dong.length,
   ];
   const bang = dong.length
     ? [hang('**Công việc**', '**Tiến độ**', true)]
@@ -87,7 +91,10 @@ function dungThe(t, { thu = false } = {}) {
       template: 'turquoise',
       title: {
         tag: 'plain_text',
-        content: (thu ? '[THỬ] ' : '') + '📋 Ghi nhận báo cáo ngày · ' + (t.ten || 'Không rõ'),
+        /* Anh Hùng chốt 30/09: "BCCV Ngày - Tên - Ngày" (BCCV = báo cáo công
+         * việc; Ngày cuối là NGÀY BÁO CÁO, không phải ngày nộp). */
+        content: (thu ? '[THỬ] ' : '') + '📋 BCCV Ngày - ' + (t.ten || 'Không rõ') +
+          ' - ' + K.veNgay(t.ngayMs),
       },
     },
     elements: [

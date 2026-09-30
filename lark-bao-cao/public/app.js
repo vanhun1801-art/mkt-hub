@@ -1351,7 +1351,8 @@ async function veTinNhom() {
     tt.textContent = d.dangBat ? 'Đang BẬT — mỗi lần nộp đầu sẽ báo vào nhóm'
       : 'Đang TẮT — chưa gửi gì vào nhóm';
     const md = (c) => esc(String(c || '').replace(/\\([*_~`\[\]])/g, '$1')
-      .replace(/<at id=[^>]*><\/at>/g, '@' + (d.ten || 'người gửi')))
+      .replace(/<at id=[^>]*><\/at>/g, '@' + (d.ten || 'người gửi'))
+      .replace(/<font color='red'>(.*?)<\/font>/g, '$1'))
       .split('\n').join('<br>').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
     const than = d.card.elements.map((e) => {
       if (e.tag === 'div') return '<div style="padding:10px 12px;line-height:1.7">' + md(e.text.content) + '</div>';
