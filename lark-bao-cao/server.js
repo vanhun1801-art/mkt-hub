@@ -877,7 +877,7 @@ async function api(req, res, u) {
      * · 'mo-lai' (về chưa xử lý). Bản đầu chỉ có daXuLy true/false — vẫn nhận. */
     const tt = ['xong', 'chua-duoc', 'mo-lai'].includes(b.trangThai) ? b.trangThai
       : (b.daXuLy === false ? 'mo-lai' : 'xong');
-    const ghiChu = String(b.ghiChu || '').trim().slice(0, 1000);
+    const ghiChu = String(b.ghiChu || '').replace(/\r\n/g, '\n').trim().slice(0, 3000);
     if (tt === 'chua-duoc' && !ghiChu) {
       return loi(res, 400, 'Ghi lý do chưa xử lý được để nhân sự biết.', 'THIEU_LY_DO');
     }

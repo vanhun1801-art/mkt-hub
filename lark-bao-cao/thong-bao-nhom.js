@@ -177,7 +177,8 @@ function dungThePhanHoi(p) {
     '',
     '**Tình trạng:** ' + (xong ? '✅ Đã xử lý' : '⏳ Chưa xử lý được tại thời điểm này'),
   ];
-  if (String(p.ghiChu || '').trim()) dong.push('**Ghi chú:** ' + sachMd(String(p.ghiChu).trim().slice(0, 600)));
+  /* Ghi chú nhiều dòng: đặt xuống dòng riêng dưới nhãn để các bước thẳng hàng. */
+  if (String(p.ghiChu || '').trim()) dong.push('**Ghi chú:**', sachMd(String(p.ghiChu).trim().slice(0, 3000)));
   if (p.nguoiXuLy) dong.push('**Phản hồi bởi:** ' + sachMd(p.nguoiXuLy));
   if (!xong) dong.push('', 'Quản lý đã ghi nhận và sẽ theo dõi tiếp. Nếu cần gấp, bạn nhắn trực tiếp nhé.');
   return {

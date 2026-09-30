@@ -1272,15 +1272,19 @@ async function veCanHoTro(el) {
    * Bấm Đã xử lý / Chưa xử lý được là bot nhắn riêng cho người nêu. */
   const muc = (x) => {
     const s = tt(x);
+    /* Ghi chú xử lý thường là cả đoạn hướng dẫn nhiều bước (anh Hùng 30/09 dán
+     * cách sửa Vbee) — giữ nguyên xuống dòng, không dồn thành một hàng. */
     const kq = s !== 'chua' && (x.ghiChu || x.xuLyBoi)
-      ? '<div class="ht-kq">' + (s === 'xong' ? '✔ ' : '⏳ ') + '<b>' + esc(x.ghiChu || 'Đã xử lý') + '</b>' +
-        (x.xuLyBoi ? ' · ' + esc(x.xuLyBoi) : '') + (x.xuLyLuc ? ' · ' + esc(veNgay(x.xuLyLuc)) : '') +
-        (x.daBaoLuc ? ' · đã nhắn cho ' + esc(x.ten) : '') + '</div>' : '';
+      ? '<div class="ht-kq"><div class="ht-kq-dau">' + (s === 'xong' ? '✔ Đã xử lý' : '⏳ Chưa xử lý được') +
+          (x.xuLyBoi ? ' · ' + esc(x.xuLyBoi) : '') + (x.xuLyLuc ? ' · ' + esc(veNgay(x.xuLyLuc)) : '') +
+          (x.daBaoLuc ? ' · đã nhắn cho ' + esc(x.ten) : '') + '</div>' +
+          (x.ghiChu ? '<div class="ht-kq-chu">' + esc(x.ghiChu) + '</div>' : '') + '</div>' : '';
     const tac = s === 'xong'
       ? '<div class="ht-tac"><div class="ht-nut-nhom">' + nut(x, 'mo-lai', 'Mở lại', true) + '</div></div>'
       : '<div class="ht-tac">' +
-          '<input class="in ht-ghi" data-rec="' + esc(x.recId) + '" value="' + esc(x.ghiChu) + '" ' +
-            'placeholder="Ghi chú cách xử lý / lý do chưa xử lý được">' +
+          '<textarea class="in ht-ghi" rows="2" data-rec="' + esc(x.recId) + '" ' +
+            'placeholder="Ghi chú cách xử lý / lý do chưa xử lý được — xuống dòng thoải mái, nhân sự nhận đúng như vậy">' +
+            esc(x.ghiChu) + '</textarea>' +
           '<div class="ht-nut-nhom">' +
             nut(x, 'chua-duoc', s === 'chua-duoc' ? 'Cập nhật lý do' : 'Chưa xử lý được', false) +
             '<button class="btn nho chinh ht-nut" data-rec="' + esc(x.recId) + '" data-tt="xong">✓ Đã xử lý</button>' +
@@ -1309,6 +1313,9 @@ async function veCanHoTro(el) {
     '</div></div>';
 
   $$('[data-loc]', el).forEach((b) => { b.onclick = () => { HT_LOC = b.dataset.loc; veCanHoTro(el); }; });
+  /* Ô ghi chú tự giãn theo nội dung — dán cả đoạn vẫn thấy hết, không phải cuộn trong ô. */
+  const gian = (o) => { o.style.height = 'auto'; o.style.height = Math.min(o.scrollHeight + 2, 420) + 'px'; };
+  $$('.ht-ghi', el).forEach((o) => { gian(o); o.addEventListener('input', () => gian(o)); });
   $$('.ht-nut', el).forEach((b) => {
     b.onclick = async () => {
       const rec = b.dataset.rec;
