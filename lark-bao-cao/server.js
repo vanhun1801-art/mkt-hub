@@ -17,6 +17,7 @@ const K = require('./ky');
 const kho = require('./kho');
 const ND = require('./nhan-dinh');
 const VT = require('./viec-tracking');
+const TB = require('./thong-bao-nhom');
 const lark = cfg.mode === 'api' ? require('./larkapi') : require('./lark');
 
 const BIND = process.env.BIND || '127.0.0.1';
@@ -472,6 +473,9 @@ async function api(req, res, u) {
           nhanDinh: b.nhanDinh, keHoach: b.keHoach, canHoTro: b.canHoTro,
           linkVideo: b.linkVideo, nop,
         });
+      /* Báo nhóm KHÔNG await: phiếu đã vào Base, người nộp không phải chờ Lark
+       * nhắn xong mới thấy "đã nộp". Xem thong-bao-nhom.js. */
+      if (loai === 'ngay' && nop) TB.baoNop({ cfg, lark }, toi, r);
       return json(res, {
         ok: true,
         ma: r.ma,
@@ -490,6 +494,38 @@ async function api(req, res, u) {
     } catch (e) {
       return loi(res, 502, dichLoiBase(e), maLoiBase(e));
     }
+  }
+
+  /* Thử tin "Ghi nhận báo cáo ngày" — chỉ quản lý. GET xem thẻ, POST gửi thẻ
+   * cho CHÍNH người bấm (không vào nhóm). Dữ liệu lấy từ phiếu ngày nộp gần
+   * nhất của người bấm (hoặc của phòng), để thẻ thử trông y như thẻ thật. */
+  if (p === '/api/thu-tin-nhom' && (m === 'GET' || m === 'POST')) {
+    if (!toi.quanLy) return loi(res, 403, 'Chỉ quản lý được gửi thử.', 'KHONG_QUYEN');
+    const ds = (await kho.dsPhieu({ loaiKy: 'ngay' }))
+      .filter((x) => x.trangThai === cfg.chon.trangThaiPhieu.daNop && x.nopLuc);
+    /* Ưu tiên phiếu của CHÍNH người bấm: thẻ thử tag người gửi, tag người khác
+     * vào một tin thử là làm phiền họ vô cớ. */
+    ds.sort((a, b) => b.nopLuc - a.nopLuc);
+    const x = ds.find((y) => y.nguoi === toi.id) || ds[0];
+    const t = x ? {
+      ten: x.tenNguoi || x.nguoi, openId: x.nguoi === toi.id ? toi.id : '',
+      ngayMs: x.tuNgay, nopLuc: x.nopLuc,
+      cham: K.chamHan({ loai: 'ngay', tu: x.tuNgay, den: x.denNgay }, x.nopLuc),
+      dong: await kho.dsDong({ maPhieu: x.ma }),
+    } : {
+      ten: 'Nhân sự mẫu', ngayMs: K.kyNgay(Date.now()).tu, nopLuc: Date.now(),
+      cham: { trangThai: 'dung-han' },
+      dong: [{ congViec: 'Việc mẫu A', tienDoPt: 100, trangThai: 'Hoàn thành' },
+        { congViec: 'Việc mẫu B', tienDoPt: 60, trangThai: 'Đang làm' }],
+    };
+    const card = TB.dungThe(t, { thu: true });
+    const tt = { dangBat: TB.dangBat(), nhom: TB.nhomId(), cheDo: cfg.mode, mau: x ? x.ma : 'mẫu', ten: t.ten };
+    if (m === 'GET') return json(res, Object.assign({ card }, tt));
+    /* open_id TRƯỚC email: đo 30/09 — bot Marketing Hub gửi theo email anh Hùng
+     * bị Lark trả 230001, theo open_id hub gửi xuống (cùng app) thì lọt. */
+    const kq = await TB.guiThe({ cfg, lark }, toi.id ? { openId: toi.id } : { email: toi.email }, card,
+      'bcn-thu-' + Date.now());
+    return json(res, Object.assign({ nguoiNhan: toi.email || toi.ten }, tt, kq), kq.ok ? 200 : 502);
   }
 
   /* Danh sách phiếu — của tôi, hoặc của cả phòng nếu là quản lý. */

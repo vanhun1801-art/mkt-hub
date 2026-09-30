@@ -253,7 +253,7 @@ async function luuNgay({ nguoi, ngayMs, ca, dinhMucTay, dong, nhanDinh, keHoach,
   const phieu = await ghiPhieu(ma, cells);
   await ghiDong(ma, k.tu, nguoi, sach);
   xoaDem();
-  return { ma, phieu, tong: g, ky: k, cham, soLanNop: kyLuat && kyLuat.o[F.phieu.soLanNop.id] };
+  return { ma, phieu, tong: g, ky: k, cham, dong: sach, soLanNop: kyLuat && kyLuat.o[F.phieu.soLanNop.id] };
 }
 
 /**

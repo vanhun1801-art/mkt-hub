@@ -1322,7 +1322,14 @@ async function veTheoDoi(el) {
             : '<span class="nhan-tt xanh">đủ</span>') + '</td>' +
         '</tr>').join('') + '</tbody></table>'
       : rong('Chưa ai nộp phiếu nào trong kỳ này')) +
-    '</div></div>';
+    '</div></div>' +
+
+    '<div class="the"><div class="the-dau"><h2>Tin báo vào nhóm</h2>' +
+      '<span class="nho" id="tnTrang">…</span><div class="lon"></div>' +
+      '<button class="btn nho" id="tnGui">Gửi thử cho tôi</button>' +
+    '</div><div class="the-than" id="tnXem"><span class="nho">Đang dựng thẻ mẫu…</span></div></div>';
+
+  veTinNhom();
 
   $('#tdTuan').onclick = () => { TD_KY = 'tuan'; TD_MOC = Date.now(); ve(); };
   $('#tdThang').onclick = () => { TD_KY = 'thang'; ve(); };
@@ -1330,6 +1337,50 @@ async function veTheoDoi(el) {
   if (lui) lui.onclick = () => { TD_MOC = k.tu - 7 * NGAY_MS + 3600000; ve(); };
   const toi = $('#tdToi');
   if (toi) toi.onclick = () => { TD_MOC = k.tu + 7 * NGAY_MS + 3600000; ve(); };
+}
+
+/**
+ * Xem trước + gửi thử tin "Ghi nhận báo cáo ngày". Thẻ vẽ lại từ chính JSON
+ * máy chủ sẽ gửi, nên nhìn ở đây thế nào thì trong Lark ra thế ấy (trừ màu).
+ */
+async function veTinNhom() {
+  const xem = $('#tnXem'), tt = $('#tnTrang'), nut = $('#tnGui');
+  if (!xem) return;
+  try {
+    const d = await goi('/api/thu-tin-nhom');
+    tt.textContent = d.dangBat ? 'Đang BẬT — mỗi lần nộp đầu sẽ báo vào nhóm'
+      : 'Đang TẮT — chưa gửi gì vào nhóm';
+    const md = (c) => esc(String(c || '').replace(/\\([*_~`\[\]])/g, '$1')
+      .replace(/<at id=[^>]*><\/at>/g, '@' + (d.ten || 'người gửi')))
+      .split('\n').join('<br>').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+    const than = d.card.elements.map((e) => {
+      if (e.tag === 'div') return '<div style="padding:10px 12px;line-height:1.7">' + md(e.text.content) + '</div>';
+      if (e.tag === 'hr') return '<div style="border-top:1px solid var(--vien,#ddd)"></div>';
+      if (e.tag === 'column_set') {
+        return '<div style="display:flex;gap:8px;padding:6px 12px;' +
+          (e.background_style === 'grey' ? 'background:rgba(127,127,127,.12)' : '') + '">' +
+          e.columns.map((c) => '<div style="flex:' + c.weight + ';text-align:' +
+            c.elements[0].text.text_align + '">' + md(c.elements[0].text.content) + '</div>').join('') +
+          '</div>';
+      }
+      return '';
+    }).join('');
+    xem.innerHTML = '<div style="border:1px solid var(--vien,#ddd);border-radius:10px;overflow:hidden;max-width:420px">' +
+      '<div style="padding:10px 12px;color:#fff;font-weight:600;background:' +
+      'linear-gradient(90deg,#1fb5a8,#22c3e6)' + '">' +
+      esc(d.card.header.title.content) + '</div>' +
+      than + '</div>' +
+      '<div class="nho" style="margin-top:6px">Mẫu lấy từ phiếu ' + esc(d.mau) +
+      ' · nhóm nhận: ' + esc(d.nhom) + '</div>';
+  } catch (e) { xem.innerHTML = '<span class="nho">' + esc(e.message) + '</span>'; }
+  nut.onclick = async () => {
+    nut.disabled = true;
+    try {
+      const d = await goi('/api/thu-tin-nhom', { method: 'POST' });
+      toast('Đã gửi thử cho ' + (d.nguoiNhan || 'bạn') + (d.guiTu ? ' · ' + d.guiTu : ''));
+    } catch (e) { toast('Gửi thử hỏng: ' + e.message, 'do'); }
+    nut.disabled = false;
+  };
 }
 
 /** Số 0 để mờ, số khác 0 mới tô màu — mắt chỉ dừng ở chỗ có chuyện. */
