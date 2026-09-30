@@ -1490,6 +1490,25 @@ function veKhoiTin() {
         hop('Hiện bảng Công việc | Tiến độ', 'tnBang', t.hienBang) +
         hop('Hiện dòng Đánh giá cuối thẻ (theo chuẩn bên dưới)', 'tnDG', t.hienDanhGia) +
         '<button class="btn nho mo" id="tnMacDinh" style="margin-top:6px">Mẫu mặc định</button>' +
+        /* Anh Hùng (30/09): "nếu có vướng mắc tới thì thông báo cho anh luôn". */
+        '<div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border)">' +
+          '<label style="display:flex;gap:8px;align-items:center;margin-bottom:8px;font-weight:600">' +
+            '<input type="checkbox" id="tnHT"' + (t.baoHoTro ? ' checked' : '') + '> Báo ngay khi có vướng mắc mới</label>' +
+          '<div class="nho" style="margin-bottom:6px">Nhắn riêng cho — mỗi khi phiếu nộp có ô "Cần hỗ trợ" mới hoặc đổi nội dung</div>' +
+          (t.nhanHoTro.length ? t.nhanHoTro.map((u, i) =>
+            '<span class="nhan-tt xam" style="margin:0 6px 6px 0;display:inline-flex;gap:6px;align-items:center">' +
+              esc(u.ten || u.openId) + ' <a href="#" data-bo-ht="' + i + '" title="Bỏ">✕</a></span>').join('')
+            : '<div class="nho" style="margin-bottom:6px;color:var(--orange-text)">Chưa có ai nhận — vướng mắc sẽ không được báo.</div>') +
+          '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">' +
+            (TL.toi && TL.toi.openId && !t.nhanHoTro.some((x) => x.openId === TL.toi.openId)
+              ? '<button class="btn nho mo" id="tnHTToi">+ Tôi</button>' : '') +
+            ((TL.coTheNhan || []).some((u) => !t.nhanHoTro.some((x) => x.openId === u.openId))
+              ? '<select id="tnHTChon"><option value="">+ Thêm người…</option>' +
+                TL.coTheNhan.filter((u) => !t.nhanHoTro.some((x) => x.openId === u.openId))
+                  .map((u) => '<option value="' + esc(u.openId) + '">' + esc(u.ten) + '</option>').join('') +
+                '</select>' : '') +
+          '</div>' +
+        '</div>' +
       '</div>' +
       '<div style="flex:1 1 320px;min-width:0"><div class="nho" style="margin-bottom:6px">Xem trước</div>' +
         '<div id="tnXem"><span class="nho">Đang dựng thẻ mẫu…</span></div></div>' +
@@ -1513,6 +1532,14 @@ function batKhoiTin(el) {
   $('#tnTag').onchange = (e) => { t.tagNguoi = e.target.checked; doi(); };
   $('#tnBang').onchange = (e) => { t.hienBang = e.target.checked; doi(); };
   $('#tnDG').onchange = (e) => { t.hienDanhGia = e.target.checked; doi(); };
+  $('#tnHT').onchange = (e) => { t.baoHoTro = e.target.checked; doi(); };
+  $$('[data-bo-ht]', el).forEach((a) => { a.onclick = (e) => { e.preventDefault(); t.nhanHoTro.splice(Number(a.dataset.boHt), 1); doi(); }; });
+  const htToi = $('#tnHTToi'); if (htToi) htToi.onclick = () => { t.nhanHoTro.push({ ten: TL.toi.ten, openId: TL.toi.openId }); doi(); };
+  const htCh = $('#tnHTChon');
+  if (htCh) htCh.onchange = () => {
+    const u = TL.coTheNhan.find((x) => x.openId === htCh.value);
+    if (u) { t.nhanHoTro.push({ ten: u.ten, openId: u.openId }); doi(); }
+  };
   $('#tnMacDinh').onclick = () => {
     Object.assign(t, { tieuDe: TL.tinMacDinh.tieuDe, tagNguoi: true, hienBang: true, hienDanhGia: true }); doi();
   };

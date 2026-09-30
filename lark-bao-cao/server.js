@@ -501,6 +501,10 @@ async function api(req, res, u) {
       /* Báo nhóm KHÔNG await: phiếu đã vào Base, người nộp không phải chờ Lark
        * nhắn xong mới thấy "đã nộp". Xem thong-bao-nhom.js. */
       if (loai === 'ngay' && nop) TB.baoNop({ cfg, lark, danhGia }, toi, r);
+      /* Vướng mắc mới → nhắn riêng quản lý ngay (anh Hùng 30/09). Cả ba loại kỳ. */
+      if (nop) {
+        TB.baoHoTro({ cfg, lark }, toi, cfg.chon.loaiKy[loai], r, b.canHoTro, K.canHoTroThat);
+      }
       return json(res, {
         ok: true,
         ma: r.ma,

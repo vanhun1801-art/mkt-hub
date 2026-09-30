@@ -38,6 +38,11 @@ const TIN_MAC_DINH = {
   tagNguoi: true,
   hienBang: true,
   hienDanhGia: true,
+  /* Anh Hùng (30/09): "nếu có vướng mắc tới thì thông báo cho anh luôn". Nhắn
+   * RIÊNG người trong danh sách mỗi khi phiếu nộp có ô "Cần hỗ trợ" mới hoặc
+   * đổi nội dung. open_id là của app Marketing Hub (lấy từ bảng Phân quyền). */
+  baoHoTro: true,
+  nhanHoTro: [{ ten: 'Lê Văn Hùng', openId: 'ou_49d2cc26b43058bc931c236ed8313d0b' }],
 };
 
 function lamTin(x) {
@@ -54,6 +59,11 @@ function lamTin(x) {
     tagNguoi: g.tagNguoi === undefined ? true : g.tagNguoi !== false,
     hienBang: g.hienBang === undefined ? true : g.hienBang !== false,
     hienDanhGia: g.hienDanhGia === undefined ? true : g.hienDanhGia !== false,
+    baoHoTro: g.baoHoTro === undefined ? true : g.baoHoTro !== false,
+    /* Chưa từng lưu (undefined) → người nhận mặc định; đã lưu mảng rỗng → tôn trọng. */
+    nhanHoTro: (Array.isArray(g.nhanHoTro) ? g.nhanHoTro : TIN_MAC_DINH.nhanHoTro)
+      .filter((u) => u && /^ou_[0-9a-z]+$/i.test(String(u.openId || '')))
+      .slice(0, 20).map((u) => ({ ten: String(u.ten || '').slice(0, 80), openId: String(u.openId) })),
   };
 }
 
@@ -180,6 +190,53 @@ function dungThePhanHoi(p) {
   };
 }
 
+/** Thẻ báo quản lý có vướng mắc mới. p = { ten, loaiKy, nhan, noi, sua } */
+function dungTheHoTro(p) {
+  const dong = [
+    '**Người nêu:** ' + sachMd(p.ten || 'Không rõ'),
+    '**Báo cáo:** ' + sachMd(p.loaiKy + ' ' + p.nhan),
+    '',
+    sachMd(String(p.noi || '').trim().slice(0, 1200)),
+    '',
+    'Xử lý ở app Báo cáo → tab **Cần hỗ trợ** — người nêu sẽ nhận phản hồi của bạn.',
+  ];
+  return {
+    config: { wide_screen_mode: true },
+    header: { template: 'orange', title: { tag: 'plain_text',
+      content: (p.sua ? '🆘 Vướng mắc vừa cập nhật · ' : '🆘 Vướng mắc mới · ') + (p.ten || '') } },
+    elements: [{ tag: 'div', text: { tag: 'lark_md', content: dong.join('\n') } }],
+  };
+}
+
+/**
+ * Gọi sau khi nộp phiếu (ngày/tuần/tháng). Nhắn khi ô "Cần hỗ trợ" có nội dung
+ * THẬT và khác lần trước — sửa phiếu chỗ khác không nhắn lại. Không bao giờ ném.
+ */
+async function baoHoTro(dep, nguoi, loaiKy, r, noi, laThat) {
+  try {
+    if (!dangBat()) return { ok: false, bo: 'tắt cứng' };
+    const moi = String(noi || '').trim(), cu = String((r && r.canHoTroCu) || '').trim();
+    if (!laThat(moi)) return { ok: false, bo: 'không có vướng mắc' };
+    if (moi === cu) return { ok: false, bo: 'vướng mắc không đổi' };
+    if (!(dep.cfg.appId && dep.cfg.appSecret) && process.env.BAO_CAO_TIN_NHOM !== '1') {
+      return { ok: false, bo: 'chạy trên máy, không có khoá Marketing Hub' };
+    }
+    const tin = dep.tin || await docTin();
+    if (!tin.baoHoTro || !tin.nhanHoTro.length) return { ok: false, bo: 'quản lý tắt báo vướng mắc' };
+    const card = dungTheHoTro({ ten: nguoi.ten || nguoi.email, loaiKy, nhan: K.veNgay(r.ky.tu), noi: moi, sua: laThat(cu) });
+    const kqs = [];
+    for (const u of tin.nhanHoTro) {
+      const kq = await guiThe(dep, { openId: u.openId }, card, 'hta-' + r.ma + '-' + Date.now() + '-' + kqs.length);
+      if (!kq.ok) console.error('[vướng mắc] nhắn ' + u.ten + ' hỏng: ' + kq.loi);
+      kqs.push(kq);
+    }
+    return { ok: kqs.some((x) => x.ok), soNguoi: kqs.length };
+  } catch (e) {
+    console.error('[vướng mắc] ' + e.message);
+    return { ok: false, loi: e.message };
+  }
+}
+
 /** Lấy dữ liệu tin từ kết quả kho.luuNgay(). */
 function tuKetQua(nguoi, r) {
   return {
@@ -267,4 +324,4 @@ async function baoNop(dep, nguoi, r) {
 }
 
 module.exports = { dungThe, veTienDo, tuKetQua, guiThe, baoNop, nhomId, dangBat, gioVN,
-  TIN_MAC_DINH, lamTin, docTin, luuTin, dichGui, dungThePhanHoi };
+  TIN_MAC_DINH, lamTin, docTin, luuTin, dichGui, dungThePhanHoi, dungTheHoTro, baoHoTro };

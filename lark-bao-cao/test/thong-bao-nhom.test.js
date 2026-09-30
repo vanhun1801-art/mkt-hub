@@ -111,6 +111,26 @@ const mau = {
   ok('cả hai → gửi 2 tin (nhóm + người)', goi.length === 2 && goi[1].includes('--user-id'));
   delete process.env.BAO_CAO_TIN_NHOM;
 
+  /* báo quản lý khi có vướng mắc mới */
+  const K2 = require('../ky');
+  ok('mặc định báo vướng mắc cho anh Hùng', md.baoHoTro && md.nhanHoTro.length === 1 && /^ou_/.test(md.nhanHoTro[0].openId));
+  ok('đã lưu danh sách rỗng thì tôn trọng', TB.lamTin({ nhanHoTro: [] }).nhanHoTro.length === 0);
+  process.env.BAO_CAO_TIN_NHOM = '1';
+  const dht = Object.assign({}, dep, { tin: TB.lamTin(null) });
+  const rht = { ma: 'NGAY-y', ky: { tu: ngay }, canHoTroCu: '' };
+  goi = [];
+  kq = await TB.baoHoTro(dht, { ten: 'Pinky' }, 'Ngày', rht, 'Capcut lỗi, cần máy mới', K2.canHoTroThat);
+  ok('vướng mắc mới → nhắn riêng 1 người', kq.ok && goi.length === 1 && goi[0].includes('--user-id'), kq);
+  ok('thẻ vướng mắc có tên + nội dung', goi[0].join(' ').includes('Vướng mắc mới') && goi[0].join(' ').includes('Capcut lỗi'));
+  goi = [];
+  kq = await TB.baoHoTro(dht, { ten: 'Pinky' }, 'Ngày', Object.assign({}, rht, { canHoTroCu: 'Capcut lỗi, cần máy mới' }), 'Capcut lỗi, cần máy mới', K2.canHoTroThat);
+  ok('nội dung không đổi → không nhắn lại', goi.length === 0 && /không đổi/.test(kq.bo));
+  kq = await TB.baoHoTro(dht, { ten: 'Pinky' }, 'Ngày', rht, 'Không', K2.canHoTroThat);
+  ok('ghi "Không" → không phải vướng mắc', goi.length === 0 && /không có vướng mắc/.test(kq.bo));
+  kq = await TB.baoHoTro(Object.assign({}, dep, { tin: TB.lamTin({ baoHoTro: false }) }), { ten: 'P' }, 'Ngày', rht, 'Lỗi máy', K2.canHoTroThat);
+  ok('quản lý tắt → không nhắn', goi.length === 0 && /tắt/.test(kq.bo));
+  delete process.env.BAO_CAO_TIN_NHOM;
+
   /* thẻ phản hồi vướng mắc gửi riêng nhân sự */
   const ph1 = TB.dungThePhanHoi({ trangThai: 'xong', noi: 'Capcut *lỗi*', ngayMs: ngay, ghiChu: 'Đã cài lại', nguoiXuLy: 'Hùng' });
   const c1 = ph1.elements[0].text.content;

@@ -254,7 +254,8 @@ async function luuNgay({ nguoi, ngayMs, ca, dinhMucTay, dong, nhanDinh, keHoach,
   const phieu = await ghiPhieu(ma, cells);
   await ghiDong(ma, k.tu, nguoi, sach);
   xoaDem();
-  return { ma, phieu, tong: g, ky: k, cham, dong: sach, soLanNop: kyLuat && kyLuat.o[F.phieu.soLanNop.id] };
+  return { ma, phieu, tong: g, ky: k, cham, dong: sach, soLanNop: kyLuat && kyLuat.o[F.phieu.soLanNop.id],
+    canHoTroCu: (cuPhieu && cuPhieu.canHoTro) || '' };
 }
 
 /**
@@ -406,7 +407,8 @@ async function luuTongHop({ nguoi, loaiKy, mocMs, nhanDinh, keHoach, canHoTro, l
 
   const phieu = await ghiPhieu(ma, cells);
   xoaDem();
-  return { ma, phieu, tong: t, ky: k, cham, soLanNop: kyLuat && kyLuat.o[F.phieu.soLanNop.id] };
+  return { ma, phieu, tong: t, ky: k, cham, soLanNop: kyLuat && kyLuat.o[F.phieu.soLanNop.id],
+    canHoTroCu: (cuPhieu && cuPhieu.canHoTro) || '' };
 }
 
 /** Một phiếu kèm dòng việc — dùng khi mở lại phiếu để sửa. */
