@@ -281,11 +281,21 @@ textarea.in { width: 100%; min-height: 76px; resize: vertical; }
   background: var(--surface-2); border: 1px solid var(--border);
   border-left: 3px solid var(--border-2);
 }
-.dv-dau { display: flex; gap: 8px; align-items: baseline; margin-bottom: 3px; }
-.dv-ngay { font-size: 11.5px; color: var(--text-3); }
+/* Nhãn có khi là TÊN VIỆC bên Tracking, dài hai ba dòng. Trước đây nó là span
+   inline bo tròn kiểu viên thuốc: xuống dòng là nền đè lên câu chữ bên dưới, còn
+   mốc ngày bị ép gãy làm đôi (nhân sự phản hồi 30/09). Nên: ngày không bao giờ
+   gãy, nhãn dài thì tự xuống hàng riêng dưới ngày, và là khối thật để đẩy chữ
+   xuống thay vì đè lên. */
+.dv-dau {
+  display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center;
+  margin-bottom: 6px;
+}
+.dv-ngay { font-size: 11.5px; color: var(--text-3); white-space: nowrap; }
 .dv-loai {
-  font-size: 11px; padding: 1px 7px; border-radius: 999px;
+  display: block; max-width: 100%; min-width: 0;
+  font-size: 11px; line-height: 1.45; padding: 2px 8px; border-radius: 8px;
   background: var(--surface-3); color: var(--text-2);
+  overflow-wrap: anywhere;
 }
 .dv-chu { white-space: pre-wrap; }
 
