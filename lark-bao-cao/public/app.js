@@ -1491,7 +1491,7 @@ async function veThietLap(el) {
         (c.hienTrongThe ? ' checked' : '') + '> Hiện dòng đánh giá ở cuối thẻ báo cáo gửi nhóm Phòng MKT</label>' +
       /* Lời nhắn ngắn ở cuối thẻ — anh Hùng 30/09: "đơn giản thôi". */
       '<div class="nho" style="margin:14px 0 6px">Lời nhắn cuối thẻ</div>' +
-      [['tot', '🌟 Đạt chuẩn'], ['luuY', '💡 Hơi hụt'], ['lech', '💪 Lệch nhiều'], ['tre', '⏰ Nộp trễ'],
+      [['tot', '✅ Tốt'], ['luuY', '⚠️ Cần lưu ý'], ['lech', '⚠️ Lệch nhiều'], ['tre', '⏰ Nộp trễ'],
         ['loiMay', '⚙️ Có lỗi máy / mất điện ({phut} = số phút)']].map(([k, nhan]) =>
         '<label style="display:flex;gap:8px;align-items:center;margin-bottom:6px;flex-wrap:wrap">' +
           '<span style="width:230px">' + esc(nhan) + '</span>' +

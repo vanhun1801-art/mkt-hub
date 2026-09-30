@@ -80,10 +80,10 @@ ok('Website: họp/báo cáo/khác không phải đầu việc → 2/5', kq.sanL
 
 /* lời nhắn cuối thẻ — đơn giản, không con số */
 const tot = C.cham([d('Edit video', 200, { ten: 'a' }), d('Edit video', 150, { ten: 'b' }), d('Edit video', 100, { ten: 'c' })], 'Editor', chuan);
-ok('tốt → lời khen, có "phát triển"', /^🌟 .*phát triển/.test(C.loiNhanThe(tot, chuan)[0]), C.loiNhanThe(tot, chuan));
+ok('tốt → "✅ Tốt · Duy trì…phát triển nhé"', /^✅ Tốt · Duy trì.*phát triển nhé$/.test(C.loiNhanThe(tot, chuan)[0]), C.loiNhanThe(tot, chuan));
 const ly = C.cham([d('Edit video', 200)], 'Editor', chuan);
-ok('lưu ý → lời nhắc nhẹ, không chữ "Cần lưu ý"', /^💡 /.test(C.loiNhanThe(ly, chuan)[0]) && !/Cần lưu ý|🚨/.test(C.loiNhanThe(ly, chuan).join()));
-ok('trễ → thêm lời nhắc gửi sớm', /^⏰ .*sớm hơn/.test(C.loiNhanThe(tot, chuan, { tre: true })[1]));
+ok('lưu ý → "⚠️ Cần lưu ý · Chú ý hiệu suất…", không 🚨', /^⚠️ Cần lưu ý · Chú ý hiệu suất/.test(C.loiNhanThe(ly, chuan)[0]) && !/🚨/.test(C.loiNhanThe(ly, chuan).join()));
+ok('trễ → thêm lời nhắc sắp xếp thời gian', /^⏰ Chú ý sắp xếp thời gian/.test(C.loiNhanThe(tot, chuan, { tre: true })[1]));
 const loi = C.cham([d('Edit video', 300, { ten: 'x' }), d('Lỗi máy / mất điện', 150)], 'Editor', chuan);
 ok('lỗi máy → câu cân đối có số phút', C.loiNhanThe(loi, chuan).some((l) => /^⚙️ .*150 phút.*cân đối lại/.test(l)));
 ok('không vị trí + trễ → chỉ dòng trễ', C.loiNhanThe(null, chuan, { tre: true }).length === 1);

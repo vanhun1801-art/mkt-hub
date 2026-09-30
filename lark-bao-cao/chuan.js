@@ -35,14 +35,14 @@ const MAC_DINH = {
   /* Lời nhắn ở dòng cuối thẻ gửi nhóm — anh Hùng 30/09: "đơn giản thôi". Con số
    * chi tiết không lên thẻ (vẫn xem được khi Chấm thử trong tab Thiết lập).
    * {phut} trong câu lỗi máy được thay bằng số phút. */
-  /* Lần 2 (30/09): "nhẹ nhàng khéo léo hơn tẹo" — lời nhắc, không phải lời phê.
-   * Không còn chữ "Cần lưu ý"/🚨 ở dòng này; sự răn đe nằm ở dòng Nộp lúc. */
+  /* Ba lần chỉnh 30/09: bản 1 cụt ("Duy trì và phát triển"), bản 2 anh Hùng
+   * chê "tình cảm quá". Bản này ở giữa: ngắn, thẳng, có "nhé" cho mềm. */
   loiNhan: {
-    tot: 'Hôm nay bạn làm rất tốt, cứ giữ phong độ này và phát triển thêm nhé!',
-    luuY: 'Hôm nay còn hơi hụt một chút, mình xem lại cách sắp xếp để ngày mai tốt hơn nhé!',
-    lech: 'Hôm nay có vẻ nhiều việc ngoài chuyên môn, mình cùng cân đối lại để tập trung việc chính hơn nhé!',
-    tre: 'Lần sau bạn thu xếp gửi báo cáo sớm hơn một chút nhé!',
-    loiMay: 'Hôm nay mất {phut} phút vì lỗi máy / mất điện, vất vả rồi — mình cân đối lại công việc nhé!',
+    tot: 'Duy trì phong độ và tiếp tục phát triển nhé',
+    luuY: 'Chú ý hiệu suất công việc và cải thiện thêm nhé',
+    lech: 'Tập trung hơn vào việc chính để cải thiện hiệu suất nhé',
+    tre: 'Chú ý sắp xếp thời gian để gửi báo cáo đúng hạn nhé',
+    loiMay: 'Có {phut} phút lỗi máy / mất điện — cân đối lại công việc nhé',
   },
   viTri: {
     Editor: {
@@ -333,7 +333,7 @@ async function chinhAnhTrongNgay(nguoi, tu) {
   return out;
 }
 
-const NHAN_NGAN = { tot: '🌟', 'luu-y': '💡', lech: '💪' };
+const NHAN_NGAN = { tot: '✅ Tốt ·', 'luu-y': '⚠️ Cần lưu ý ·', lech: '⚠️ Cần lưu ý ·' };
 
 /**
  * Lời nhắn cho thẻ gửi nhóm — ngắn, không con số (anh Hùng 30/09):
