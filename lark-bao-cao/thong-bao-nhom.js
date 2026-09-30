@@ -19,7 +19,54 @@ const K = require('./ky');
 
 const NHOM_MAC_DINH = 'oc_246eff4a1b9d2e711cedad1645830465';   // nhóm "Phòng MKT"
 const nhomId = () => process.env.BAO_CAO_CHAT_ID || process.env.HUB_NHOM_MKT || NHOM_MAC_DINH;
+/* Công tắc cứng của máy chủ. Công tắc mềm (quản lý bật/tắt trong app) nằm
+ * trong thiết lập 'tin-nhom' bên dưới — biến môi trường =0 thì thắng tất cả. */
 const dangBat = () => process.env.BAO_CAO_TIN_NHOM !== '0';
+
+/* ---------------- thiết lập gửi tin (tab Thiết lập) ----------------
+ * Anh Hùng (30/09): "cho anh thiết lập gửi nhóm hay gửi cá nhân, hay điều chỉnh
+ * mẫu, bật hay tắt" — trong tab Thiết lập, lưu bảng Base "Thiết lập" khoá
+ * 'tin-nhom'. Người nhận riêng giữ open_id CỦA APP MARKETING HUB (open_id riêng
+ * theo từng app; theo email thì bot này bị Lark trả 230001). */
+const KHOA_TIN = 'tin-nhom';
+const TIN_MAC_DINH = {
+  bat: true,
+  dich: 'nhom',                       // 'nhom' | 'ca-nhan' | 'ca-hai'
+  nhomId: '',                          // rỗng = nhóm Phòng MKT mặc định
+  nguoiNhan: [],                       // [{ ten, openId }]
+  tieuDe: '📋 BCCV Ngày - {ten} - {ngay}',
+  tagNguoi: true,
+  hienBang: true,
+  hienDanhGia: true,
+};
+
+function lamTin(x) {
+  const g = x && typeof x === 'object' ? x : {};
+  const s = (v, md, n) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, n || 200) : md);
+  return {
+    bat: g.bat === undefined ? TIN_MAC_DINH.bat : g.bat !== false,
+    dich: ['nhom', 'ca-nhan', 'ca-hai'].includes(g.dich) ? g.dich : TIN_MAC_DINH.dich,
+    nhomId: /^oc_[0-9a-z]+$/i.test(String(g.nhomId || '').trim()) ? String(g.nhomId).trim() : '',
+    nguoiNhan: (Array.isArray(g.nguoiNhan) ? g.nguoiNhan : [])
+      .filter((u) => u && /^ou_[0-9a-z]+$/i.test(String(u.openId || '')))
+      .slice(0, 20).map((u) => ({ ten: String(u.ten || '').slice(0, 80), openId: String(u.openId) })),
+    tieuDe: s(g.tieuDe, TIN_MAC_DINH.tieuDe, 120),
+    tagNguoi: g.tagNguoi === undefined ? true : g.tagNguoi !== false,
+    hienBang: g.hienBang === undefined ? true : g.hienBang !== false,
+    hienDanhGia: g.hienDanhGia === undefined ? true : g.hienDanhGia !== false,
+  };
+}
+
+const docTin = (force) => require('./chuan').docKhoa(KHOA_TIN, lamTin, force);
+const luuTin = (x, nguoi) => require('./chuan').luuKhoa(KHOA_TIN, lamTin(x), nguoi);
+
+/** Danh sách đích gửi theo thiết lập. */
+function dichGui(tin) {
+  const ds = [];
+  if (tin.dich !== 'ca-nhan') ds.push({ chatId: tin.nhomId || nhomId(), ten: 'nhóm' });
+  if (tin.dich !== 'nhom') for (const u of tin.nguoiNhan) ds.push({ openId: u.openId, ten: u.ten });
+  return ds;
+}
 
 /** "17:05" giờ Việt Nam. */
 function gioVN(ms) {
@@ -50,7 +97,7 @@ function hang(trai, phai, dau) {
 
 /* Lark markdown hiểu *, _, ~ là định dạng — tên việc có mấy ký tự đó thì bị
  * nghiêng/gạch lung tung. */
-const sachMd = (s) => String(s || '').replace(/([*_~`\[\]])/g, '\$1');
+const sachMd = (s) => String(s || '').replace(/([*_~`\[\]])/g, '\\$1');
 
 /**
  * Dữ liệu tin → thẻ Lark.
@@ -58,7 +105,7 @@ const sachMd = (s) => String(s || '').replace(/([*_~`\[\]])/g, '\$1');
  *
  * Anh Hùng (30/09): liệt kê thành BẢNG tên việc + tiến độ, BỎ dòng thời lượng.
  */
-function dungThe(t, { thu = false } = {}) {
+function dungThe(t, { thu = false, mau = TIN_MAC_DINH } = {}) {
   const c = t.cham || {};
   const dung = c.trangThai === 'dung-han';
   /* Anh Hùng (30/09): trễ phải có tính răn đe — ⏰ quá hiền. Còi 🚨 + chữ đỏ
@@ -70,13 +117,14 @@ function dungThe(t, { thu = false } = {}) {
     /* Anh Hùng (30/09): tag luôn người gửi. `<at>` chỉ ăn với open_id CỦA APP ĐANG
      * GỬI (open_id riêng theo từng app) — id hub gửi xuống là của Marketing Hub,
      * đúng app gửi tin trên Render. Không có id thì lùi về tên chữ. */
-    '**Người gửi:** ' + (/^ou_/.test(t.openId || '') ? '<at id=' + t.openId + '></at>' : (t.ten || 'Không rõ')),
+    '**Người gửi:** ' + (mau.tagNguoi !== false && /^ou_/.test(t.openId || '')
+      ? '<at id=' + t.openId + '></at>' : (t.ten || 'Không rõ')),
     /* Thứ tự anh Hùng chốt 30/09: Người gửi → Số lượng đầu công việc → Nộp lúc.
      * Ngày báo cáo đã lên tiêu đề nên không còn dòng riêng. */
     '**Số lượng đầu công việc:** ' + dong.length,
     '**Nộp lúc:** ' + gioVN(t.nopLuc) + ' · ' + han,
   ];
-  const bang = dong.length
+  const bang = dong.length && mau.hienBang !== false
     ? [hang('**Công việc**', '**Tiến độ**', true)]
       .concat(dong.map((d, i) => hang((i + 1) + '. ' + sachMd(d.congViec), veTienDo(d))))
     : [];
@@ -91,8 +139,8 @@ function dungThe(t, { thu = false } = {}) {
         tag: 'plain_text',
         /* Anh Hùng chốt 30/09: "BCCV Ngày - Tên - Ngày" (BCCV = báo cáo công
          * việc; Ngày cuối là NGÀY BÁO CÁO, không phải ngày nộp). */
-        content: (thu ? '[THỬ] ' : '') + '📋 BCCV Ngày - ' + (t.ten || 'Không rõ') +
-          ' - ' + K.veNgay(t.ngayMs),
+        content: (thu ? '[THỬ] ' : '') + String(mau.tieuDe || TIN_MAC_DINH.tieuDe)
+          .replace(/\{ten\}/g, t.ten || 'Không rõ').replace(/\{ngay\}/g, K.veNgay(t.ngayMs)),
       },
     },
     elements: [
@@ -103,6 +151,32 @@ function dungThe(t, { thu = false } = {}) {
       (t.loiNhan && t.loiNhan.length)
         ? [{ tag: 'hr' }, { tag: 'div', text: { tag: 'lark_md', content: '**Đánh giá:** ' + t.loiNhan.join('\n') } }]
         : []),
+  };
+}
+
+/**
+ * Thẻ phản hồi vướng mắc — nhắn RIÊNG cho người nêu. Anh Hùng (30/09): "gửi cho
+ * nhân sự biết khi vấn đề đã được xử lý hoặc chưa xử lý được tại thời điểm".
+ * p = { trangThai: 'xong' | 'chua-duoc', noi, ngayMs, ghiChu, nguoiXuLy }
+ */
+function dungThePhanHoi(p) {
+  const xong = p.trangThai === 'xong';
+  const dong = [
+    '**Vấn đề bạn nêu** (báo cáo ' + K.veNgay(p.ngayMs) + '):',
+    sachMd(String(p.noi || '').trim().slice(0, 600)),
+    '',
+    '**Tình trạng:** ' + (xong ? '✅ Đã xử lý' : '⏳ Chưa xử lý được tại thời điểm này'),
+  ];
+  if (String(p.ghiChu || '').trim()) dong.push('**Ghi chú:** ' + sachMd(String(p.ghiChu).trim().slice(0, 600)));
+  if (p.nguoiXuLy) dong.push('**Phản hồi bởi:** ' + sachMd(p.nguoiXuLy));
+  if (!xong) dong.push('', 'Quản lý đã ghi nhận và sẽ theo dõi tiếp. Nếu cần gấp, bạn nhắn trực tiếp nhé.');
+  return {
+    config: { wide_screen_mode: true },
+    header: {
+      template: xong ? 'turquoise' : 'orange',
+      title: { tag: 'plain_text', content: (xong ? '✅ Vướng mắc đã được xử lý' : '⏳ Vướng mắc chưa xử lý được') },
+    },
+    elements: [{ tag: 'div', text: { tag: 'lark_md', content: dong.join('\n') } }],
   };
 }
 
@@ -159,6 +233,8 @@ async function baoNop(dep, nguoi, r) {
   try {
     if (!dangBat()) return { ok: false, bo: 'tắt (BAO_CAO_TIN_NHOM=0)' };
     if (!r || !r.cham || r.soLanNop !== 1) return { ok: false, bo: 'không phải lần nộp đầu' };
+    const tin = dep.tin || await docTin();
+    if (!tin.bat) return { ok: false, bo: 'quản lý đã tắt trong Thiết lập' };
     /* Máy cá nhân không có khoá Marketing Hub → sẽ gửi bằng bot lark-cli, tức
      * nhóm thấy một người gửi lạ. Chỉ gửi khi ép bằng BAO_CAO_TIN_NHOM=1. */
     if (!(dep.cfg.appId && dep.cfg.appSecret) && process.env.BAO_CAO_TIN_NHOM !== '1') {
@@ -169,19 +245,26 @@ async function baoNop(dep, nguoi, r) {
     if (dep.danhGia) {
       const CH = require('./chuan');
       const chuan = await CH.doc();
-      if (chuan.hienTrongThe) {
+      if (tin.hienDanhGia) {
         const kq = await dep.danhGia(nguoi, r.ky.tu, r.dong || [], chuan);
         t.loiNhan = CH.loiNhanThe(kq, chuan, { tre: !!(r.cham && r.cham.trangThai === 'tre') });
       }
     }
-    const card = dungThe(t);
-    const kq = await guiThe(dep, { chatId: nhomId() }, card, 'bcn-' + r.ma);
-    if (!kq.ok) console.error('[tin nhóm] ' + r.ma + ' -> ' + kq.loi);
-    return kq;
+    const card = dungThe(t, { mau: tin });
+    const dich = dichGui(tin);
+    if (!dich.length) return { ok: false, bo: 'chưa chọn người nhận' };
+    const kqs = [];
+    for (let i = 0; i < dich.length; i++) {
+      const kq = await guiThe(dep, dich[i], card, 'bcn-' + i + '-' + r.ma);
+      if (!kq.ok) console.error('[tin nhóm] ' + r.ma + ' → ' + dich[i].ten + ': ' + kq.loi);
+      kqs.push(kq);
+    }
+    return Object.assign({ ok: kqs.some((x) => x.ok), soDich: dich.length }, kqs[0]);
   } catch (e) {
     console.error('[tin nhóm] ' + (r && r.ma) + ' -> ' + e.message);
     return { ok: false, loi: e.message };
   }
 }
 
-module.exports = { dungThe, veTienDo, tuKetQua, guiThe, baoNop, nhomId, dangBat, gioVN };
+module.exports = { dungThe, veTienDo, tuKetQua, guiThe, baoNop, nhomId, dangBat, gioVN,
+  TIN_MAC_DINH, lamTin, docTin, luuTin, dichGui, dungThePhanHoi };

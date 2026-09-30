@@ -133,43 +133,45 @@ function chuanHoa(c) {
 /* ---------------- đọc / lưu ---------------- */
 
 const F = cfg.fields.thietLap;
-let dem = { luc: 0, chuan: null, recId: null };
+/* Bảng "Thiết lập" giữ nhiều KHOÁ, mỗi khoá một dòng JSON: 'chuan-vi-tri' (chuẩn)
+ * và 'tin-nhom' (cách gửi thẻ báo cáo). Đọc chung một lượt, đệm 60 giây. */
+let demTL = { luc: 0, rows: null };
 
-async function doc(force) {
-  if (!force && dem.chuan && Date.now() - dem.luc < 60000) return dem.chuan;
-  let chuan = chuanHoa(MAC_DINH), recId = null;
-  try {
-    const rows = await lark.listAllRecords(cfg.thietLapTableId);
-    const r = rows.find((x) => String(txt(x.cells[F.khoa.id])).trim() === KHOA);
-    if (r) {
-      recId = r.record_id;
-      const raw = txt(r.cells[F.giaTri.id]);
-      try { chuan = chuanHoa(JSON.parse(raw)); } catch (_) { /* hỏng thì dùng mặc định */ }
-    }
-  } catch (e) {
-    /* Base lỗi thì vẫn chấm được bằng mặc định — nhưng không cất vào đệm, để
-     * lần sau thử đọc lại. */
-    console.error('[chuẩn] đọc Thiết lập hỏng: ' + e.message);
-    return chuan;
-  }
-  dem = { luc: Date.now(), chuan, recId };
-  return chuan;
+async function docDong(force) {
+  if (!force && demTL.rows && Date.now() - demTL.luc < 60000) return demTL.rows;
+  const rows = await lark.listAllRecords(cfg.thietLapTableId);
+  demTL = { luc: Date.now(), rows };
+  return rows;
 }
 
-async function luu(c, nguoi) {
-  const sach = chuanHoa(c);
-  await doc(true);
+/** Giá trị JSON của một khoá, đã qua `lam` (hàm làm sạch). Base lỗi → mặc định. */
+async function docKhoa(khoa, lam, force) {
+  try {
+    const r = (await docDong(force)).find((x) => String(txt(x.cells[F.khoa.id])).trim() === khoa);
+    if (r) { try { return lam(JSON.parse(txt(r.cells[F.giaTri.id]))); } catch (_) { /* hỏng → mặc định */ } }
+  } catch (e) {
+    console.error('[thiết lập] đọc ' + khoa + ' hỏng: ' + e.message);
+  }
+  return lam(null);
+}
+
+async function luuKhoa(khoa, giaTri, nguoi) {
+  const rows = await docDong(true);
+  const r = rows.find((x) => String(txt(x.cells[F.khoa.id])).trim() === khoa);
   const cells = {
-    [F.khoa.id]: KHOA,
-    [F.giaTri.id]: JSON.stringify(sach),
+    [F.khoa.id]: khoa,
+    [F.giaTri.id]: JSON.stringify(giaTri),
     [F.suaBoi.id]: (nguoi && (nguoi.ten || nguoi.email)) || '',
     [F.suaLuc.id]: Date.now(),
   };
-  if (dem.recId) await lark.updateRecord(dem.recId, cells, cfg.thietLapTableId);
+  if (r) await lark.updateRecord(r.record_id, cells, cfg.thietLapTableId);
   else await lark.createRecord(cells, cfg.thietLapTableId);
-  dem = { luc: 0, chuan: null, recId: null };
-  return sach;
+  demTL = { luc: 0, rows: null };
+  return giaTri;
 }
+
+const doc = (force) => docKhoa(KHOA, (x) => chuanHoa(x || MAC_DINH), force);
+const luu = (c, nguoi) => luuKhoa(KHOA, chuanHoa(c), nguoi);
 
 /** Ô Base có thể là chuỗi, mảng đoạn chữ, hoặc số — gom về chuỗi. */
 function txt(v) {
@@ -352,4 +354,4 @@ function loiNhanThe(kq, chuan, { tre = false } = {}) {
   return dong;
 }
 
-module.exports = { loiNhanThe, chinhAnhTrongNgay, NGUON, MAC_DINH, KHOA, NHOM_BO, chuanHoa, doc, luu, dsViTri, viTriCua, cham, veCau, khoaViec, ptCua, NHAN };
+module.exports = { docKhoa, luuKhoa, txt, loiNhanThe, chinhAnhTrongNgay, NGUON, MAC_DINH, KHOA, NHOM_BO, chuanHoa, doc, luu, dsViTri, viTriCua, cham, veCau, khoaViec, ptCua, NHAN };

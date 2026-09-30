@@ -45,7 +45,7 @@ const mau = {
   ok('việc xong có dấu ✅', o(hangs[1], 1) === '✅ 100%', o(hangs[1], 1));
   ok('việc đang làm chỉ %', o(hangs[2], 1) === '60%');
   ok('việc tạm dừng ghi rõ', o(hangs[3], 1) === '30% · Tạm dừng');
-  ok('ký tự markdown trong tên được thoát', o(hangs[1], 0) === '1. Dựng video \*Hòn Thơm\*', o(hangs[1], 0));
+  ok('ký tự markdown trong tên được thoát', o(hangs[1], 0) === '1. Dựng video \\*Hòn Thơm\\*', o(hangs[1], 0));
   ok('không có việc → không có bảng', !TB.dungThe(Object.assign({}, mau, { dong: [] })).elements.some((e) => e.tag === 'column_set'));
   const tag = TB.dungThe(Object.assign({}, mau, { openId: 'ou_abc123' })).elements[0].text.content;
   ok('có open_id → tag người gửi', tag.includes('**Người gửi:** <at id=ou_abc123></at>'), tag);
@@ -63,7 +63,7 @@ const mau = {
   /* baoNop: bộ gửi giả qua cfg có khoá → đi đường tin-lark; thay bằng lark.cli giả
    * ở chế độ máy (cfg không khoá). */
   let goi = [];
-  const dep = { cfg: {}, lark: { cli: async (a) => { goi.push(a); return {}; } } };
+  const dep = { cfg: {}, tin: TB.lamTin(null), lark: { cli: async (a) => { goi.push(a); return {}; } } };
   const r = { ma: 'NGAY-x', ky: { tu: ngay }, cham: { trangThai: 'dung-han' }, soLanNop: 1,
     dong: [{ congViec: 'X', tienDoPt: 50 }] };
 
@@ -81,14 +81,45 @@ const mau = {
   kq = await TB.baoNop(dep, { ten: 'A' }, r);
   ok('lần nộp đầu — gửi đúng một tin', goi.length === 1 && kq.ok);
   ok('gửi vào nhóm Phòng MKT', goi[0].includes('--chat-id') && goi[0].includes(TB.nhomId()));
-  ok('khoá chống trùng theo mã phiếu', goi[0].includes('bcn-NGAY-x'));
+  ok('khoá chống trùng theo mã phiếu', goi[0].some((a) => /^bcn-.*NGAY-x/.test(a)));
 
-  const hong = { cfg: {}, lark: { cli: async () => { throw new Error('Lark sập'); } } };
+  const hong = { cfg: {}, tin: TB.lamTin(null), lark: { cli: async () => { throw new Error('Lark sập'); } } };
   const oe = console.error; console.error = () => {};
   kq = await TB.baoNop(hong, { ten: 'A' }, r);
   console.error = oe;
   ok('Lark hỏng → không ném, trả lỗi', kq.ok === false && /Lark sập/.test(kq.loi));
   delete process.env.BAO_CAO_TIN_NHOM;
+
+  /* thiết lập gửi tin (tab Thiết lập) */
+  const md = TB.lamTin(null);
+  ok('mặc định: bật, gửi nhóm, tag, có bảng, có đánh giá', md.bat && md.dich === 'nhom' && md.tagNguoi && md.hienBang && md.hienDanhGia);
+  ok('gửi nhóm → 1 đích là nhóm Phòng MKT', TB.dichGui(md).length === 1 && TB.dichGui(md)[0].chatId === TB.nhomId());
+  const cn = TB.lamTin({ dich: 'ca-nhan', nguoiNhan: [{ ten: 'A', openId: 'ou_abc' }, { ten: 'rác', openId: 'x' }] });
+  ok('cá nhân → chỉ người có open_id hợp lệ', TB.dichGui(cn).length === 1 && TB.dichGui(cn)[0].openId === 'ou_abc');
+  ok('cả hai → nhóm + người', TB.dichGui(TB.lamTin({ dich: 'ca-hai', nguoiNhan: [{ openId: 'ou_1' }, { openId: 'ou_2' }] })).length === 3);
+  ok('mã nhóm lạ bị bỏ → về nhóm mặc định', TB.lamTin({ nhomId: 'abc' }).nhomId === '');
+  const the2 = TB.dungThe(Object.assign({}, mau, { openId: 'ou_x' }),
+    { mau: TB.lamTin({ tieuDe: 'BC {ngay} · {ten}', tagNguoi: false, hienBang: false }) });
+  ok('mẫu tiêu đề thay {ten} {ngay}', the2.header.title.content === 'BC 30/09/2026 · Ngọc', the2.header.title.content);
+  ok('tắt tag → ghi tên chữ', the2.elements[0].text.content.includes('**Người gửi:** Ngọc'));
+  ok('tắt bảng → không có column_set', !the2.elements.some((e) => e.tag === 'column_set'));
+  process.env.BAO_CAO_TIN_NHOM = '1';
+  goi = [];
+  kq = await TB.baoNop(Object.assign({}, dep, { tin: TB.lamTin({ bat: false }) }), { ten: 'A' }, r);
+  ok('quản lý tắt trong Thiết lập → không gửi', goi.length === 0 && /tắt trong Thiết lập/.test(kq.bo || ''));
+  kq = await TB.baoNop(Object.assign({}, dep, { tin: TB.lamTin({ dich: 'ca-hai', nguoiNhan: [{ openId: 'ou_1' }] }) }), { ten: 'A' }, r);
+  ok('cả hai → gửi 2 tin (nhóm + người)', goi.length === 2 && goi[1].includes('--user-id'));
+  delete process.env.BAO_CAO_TIN_NHOM;
+
+  /* thẻ phản hồi vướng mắc gửi riêng nhân sự */
+  const ph1 = TB.dungThePhanHoi({ trangThai: 'xong', noi: 'Capcut *lỗi*', ngayMs: ngay, ghiChu: 'Đã cài lại', nguoiXuLy: 'Hùng' });
+  const c1 = ph1.elements[0].text.content;
+  ok('phản hồi xong: tiêu đề + tình trạng ✅', /đã được xử lý/.test(ph1.header.title.content) && c1.includes('✅ Đã xử lý'), c1);
+  ok('phản hồi: nhắc lại vấn đề + ngày + ghi chú + người', c1.includes('30/09/2026') && c1.includes('Capcut \\*lỗi\\*') &&
+    c1.includes('Đã cài lại') && c1.includes('Hùng'), c1);
+  const ph2 = TB.dungThePhanHoi({ trangThai: 'chua-duoc', noi: 'Máy lag', ngayMs: ngay, ghiChu: 'Chờ máy mới' });
+  ok('phản hồi chưa xử lý được: thẻ cam + câu "tại thời điểm này"', ph2.header.template === 'orange' &&
+    ph2.elements[0].text.content.includes('Chưa xử lý được tại thời điểm này'));
 
   console.log('\n' + pass + ' pass · ' + fail + ' fail');
   process.exit(fail ? 1 : 0);

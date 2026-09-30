@@ -1239,24 +1239,96 @@ async function veToanPhong(el) {
   });
 }
 
+/* Lọc ở màn Cần hỗ trợ — giữ ngoài hàm để đổi tab rồi quay lại vẫn đúng chỗ. */
+let HT_LOC = 'chua';
+
+/**
+ * Anh Hùng (30/09): "note giúp anh luôn là đã xử lý hay chưa", rồi "gửi cho nhân
+ * sự biết khi vấn đề đã được xử lý hoặc chưa xử lý được tại thời điểm". Ba trạng
+ * thái: Chưa xử lý · Chưa xử lý được (có lý do) · Đã xử lý. Mỗi lần chốt, bot
+ * Marketing Hub nhắn RIÊNG cho người nêu — luôn gửi, không có ô tắt.
+ */
 async function veCanHoTro(el) {
   const t = mocTuan(Date.now());
   /* Nhìn rộng hơn một tuần: vướng mắc nêu tuần trước mà chưa gỡ thì vẫn là
    * vướng mắc, biến mất khỏi màn hình không làm nó tự hết. */
   const tu = t.tu - 21 * NGAY_MS;
   const d = await goi('/api/can-ho-tro?tu=' + tu + '&den=' + Date.now() + '&moi=1');
+  const tt = (x) => x.trangThaiHT || (x.daXuLy ? 'xong' : 'chua');
+  const soChua = d.ds.filter((x) => tt(x) !== 'xong').length;
+  const thu = { chua: 0, 'chua-duoc': 1, xong: 2 };
+  const ds = d.ds.filter((x) => HT_LOC === 'tat-ca' || (HT_LOC === 'chua' ? tt(x) !== 'xong' : tt(x) === 'xong'))
+    .sort((x, y) => (thu[tt(x)] - thu[tt(y)]) || (y.tu - x.tu));
+  const pill = (ma, chu) => '<button class="pill' + (HT_LOC === ma ? ' on' : '') + '" data-loc="' + ma + '">' + chu + '</button>';
+  const nhan = {
+    chua: '<span class="nhan-tt cam">Chưa xử lý</span>',
+    'chua-duoc': '<span class="nhan-tt do">Chưa xử lý được</span>',
+    xong: '<span class="nhan-tt xanh">Đã xử lý</span>',
+  };
+  const nut = (x, ma, chu, phu) => '<button class="btn nho' + (phu ? ' mo' : '') + ' ht-nut" data-rec="' +
+    esc(x.recId) + '" data-tt="' + ma + '">' + chu + '</button>';
+
+  /* Anh Hùng (30/09): thông báo MẶC ĐỊNH gửi — không còn ô tick "Nhắn cho…".
+   * Bấm Đã xử lý / Chưa xử lý được là bot nhắn riêng cho người nêu. */
+  const muc = (x) => {
+    const s = tt(x);
+    const kq = s !== 'chua' && (x.ghiChu || x.xuLyBoi)
+      ? '<div class="ht-kq">' + (s === 'xong' ? '✔ ' : '⏳ ') + '<b>' + esc(x.ghiChu || 'Đã xử lý') + '</b>' +
+        (x.xuLyBoi ? ' · ' + esc(x.xuLyBoi) : '') + (x.xuLyLuc ? ' · ' + esc(veNgay(x.xuLyLuc)) : '') +
+        (x.daBaoLuc ? ' · đã nhắn cho ' + esc(x.ten) : '') + '</div>' : '';
+    const tac = s === 'xong'
+      ? '<div class="ht-tac"><div class="ht-nut-nhom">' + nut(x, 'mo-lai', 'Mở lại', true) + '</div></div>'
+      : '<div class="ht-tac">' +
+          '<input class="in ht-ghi" data-rec="' + esc(x.recId) + '" value="' + esc(x.ghiChu) + '" ' +
+            'placeholder="Ghi chú cách xử lý / lý do chưa xử lý được">' +
+          '<div class="ht-nut-nhom">' +
+            nut(x, 'chua-duoc', s === 'chua-duoc' ? 'Cập nhật lý do' : 'Chưa xử lý được', false) +
+            '<button class="btn nho chinh ht-nut" data-rec="' + esc(x.recId) + '" data-tt="xong">✓ Đã xử lý</button>' +
+          '</div></div>';
+    return '<div class="ht-muc ' + s + '">' +
+      '<div class="ht-dau"><span class="ht-ten">' + esc(x.ten) + '</span>' +
+        '<span class="ht-ngay">' + esc(x.loaiKy) + ' · ' + esc(x.nhan) + '</span>' +
+        '<span class="ht-tt">' + nhan[s] + '</span></div>' +
+      '<div class="ht-noi">' + esc(String(x.noi || '').trim()) + '</div>' + kq + tac +
+    '</div>';
+  };
+
   el.innerHTML = '<div class="the"><div class="the-dau"><h2>Vướng mắc cả phòng đang nêu</h2>' +
-    '<span class="nho">bốn tuần gần đây · ' + d.ds.length + ' mục</span></div>' +
-    '<div class="the-than">' + (d.ds.length
-      ? '<div class="y-ds">' + d.ds.map((x) =>
-        '<div class="y canh"><span class="cham"></span><div>' +
-          '<div class="chu">' + esc(x.ten) + ' — ' + esc(x.nhan) +
-            ' <span class="nhan-tt xam">' + esc(x.loaiKy) + '</span></div>' +
-          '<div class="vi">' + esc(x.noi) + '</div>' +
-        '</div></div>').join('') + '</div>'
-      : rong('Không ai nêu vướng mắc',
-        'Ô "Cần hỗ trợ" trong phiếu báo cáo đang trống ở mọi người.')) +
+    '<span class="nho">bốn tuần gần đây · ' + d.ds.length + ' mục · ' +
+      (soChua ? '<b style="color:var(--orange-text)">' + soChua + ' chưa xong</b>' : 'đã xử lý hết') + '</span>' +
+    '<div class="lon"></div><div class="pills">' +
+      pill('chua', 'Chưa xong') + pill('xong', 'Đã xử lý') + pill('tat-ca', 'Tất cả') +
+    '</div></div>' +
+    '<div class="the-than">' +
+      '<div class="nho" style="margin-bottom:10px">Bấm <b>Đã xử lý</b> hoặc <b>Chưa xử lý được</b> — bot Marketing Hub ' +
+        'sẽ nhắn riêng cho người nêu kèm ghi chú của bạn.</div>' +
+      (ds.length ? '<div class="ht-ds">' + ds.map(muc).join('') + '</div>'
+        : (d.ds.length
+          ? rong(HT_LOC === 'chua' ? 'Không còn vướng mắc nào chưa xong' : 'Chưa có mục nào đã xử lý')
+          : rong('Không ai nêu vướng mắc', 'Ô "Cần hỗ trợ" trong phiếu báo cáo đang trống ở mọi người.'))) +
     '</div></div>';
+
+  $$('[data-loc]', el).forEach((b) => { b.onclick = () => { HT_LOC = b.dataset.loc; veCanHoTro(el); }; });
+  $$('.ht-nut', el).forEach((b) => {
+    b.onclick = async () => {
+      const rec = b.dataset.rec;
+      const o = $('.ht-ghi[data-rec="' + rec + '"]', el);
+      if (b.dataset.tt === 'chua-duoc' && !(o && o.value.trim())) {
+        if (o) o.focus();
+        return toast('Ghi lý do chưa xử lý được để nhân sự biết', 'do');
+      }
+      b.disabled = true;
+      try {
+        const r = await goi('/api/can-ho-tro/xu-ly', { method: 'POST', body: JSON.stringify({
+          recId: rec, trangThai: b.dataset.tt, ghiChu: o ? o.value : '',
+          bao: b.dataset.tt !== 'mo-lai' }) });
+        const chu = { xong: 'Đã ghi nhận xử lý', 'chua-duoc': 'Đã ghi chưa xử lý được', 'mo-lai': 'Đã mở lại' }[r.trangThai];
+        if (r.bao && !r.bao.ok) toast(chu + ' — nhưng chưa nhắn được cho ' + r.nguoi + ': ' + r.bao.loi, 'do');
+        else toast(chu + (r.bao && r.bao.ok ? ' · đã nhắn cho ' + r.nguoi : ''));
+        veCanHoTro(el);
+      } catch (e) { toast('Không lưu được: ' + e.message, 'do'); b.disabled = false; }
+    };
+  });
 }
 
 /**
@@ -1331,14 +1403,7 @@ async function veTheoDoi(el) {
             : '<span class="nhan-tt xanh">đủ</span>') + '</td>' +
         '</tr>').join('') + '</tbody></table>'
       : rong('Chưa ai nộp phiếu nào trong kỳ này')) +
-    '</div></div>' +
-
-    '<div class="the"><div class="the-dau"><h2>Tin báo vào nhóm</h2>' +
-      '<span class="nho" id="tnTrang">…</span><div class="lon"></div>' +
-      '<button class="btn nho" id="tnGui">Gửi thử cho tôi</button>' +
-    '</div><div class="the-than" id="tnXem"><span class="nho">Đang dựng thẻ mẫu…</span></div></div>';
-
-  veTinNhom();
+    '</div></div>';
 
   $('#tdTuan').onclick = () => { TD_KY = 'tuan'; TD_MOC = Date.now(); ve(); };
   $('#tdThang').onclick = () => { TD_KY = 'thang'; ve(); };
@@ -1349,48 +1414,134 @@ async function veTheoDoi(el) {
 }
 
 /**
- * Xem trước + gửi thử tin "Ghi nhận báo cáo ngày". Thẻ vẽ lại từ chính JSON
- * máy chủ sẽ gửi, nên nhìn ở đây thế nào thì trong Lark ra thế ấy (trừ màu).
+ * Vẽ một thẻ Lark (JSON máy chủ sẽ gửi) thành HTML xem trước — nhìn ở đây thế
+ * nào thì trong Lark ra thế ấy (trừ màu).
  */
-async function veTinNhom() {
-  const xem = $('#tnXem'), tt = $('#tnTrang'), nut = $('#tnGui');
-  if (!xem) return;
-  try {
-    const d = await goi('/api/thu-tin-nhom');
-    tt.textContent = d.dangBat ? 'Đang BẬT — mỗi lần nộp đầu sẽ báo vào nhóm'
-      : 'Đang TẮT — chưa gửi gì vào nhóm';
-    const md = (c) => esc(String(c || '').replace(/\\([*_~`\[\]])/g, '$1')
-      .replace(/<at id=[^>]*><\/at>/g, '@' + (d.ten || 'người gửi'))
-      .replace(/<font color='red'>(.*?)<\/font>/g, '$1'))
-      .split('\n').join('<br>').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
-    const than = d.card.elements.map((e) => {
-      if (e.tag === 'div') return '<div style="padding:10px 12px;line-height:1.7">' + md(e.text.content) + '</div>';
-      if (e.tag === 'hr') return '<div style="border-top:1px solid var(--vien,#ddd)"></div>';
-      if (e.tag === 'column_set') {
-        return '<div style="display:flex;gap:8px;padding:6px 12px;' +
-          (e.background_style === 'grey' ? 'background:rgba(127,127,127,.12)' : '') + '">' +
-          e.columns.map((c) => '<div style="flex:' + c.weight + ';text-align:' +
-            c.elements[0].text.text_align + '">' + md(c.elements[0].text.content) + '</div>').join('') +
-          '</div>';
-      }
-      return '';
-    }).join('');
-    xem.innerHTML = '<div style="border:1px solid var(--vien,#ddd);border-radius:10px;overflow:hidden;max-width:420px">' +
-      '<div style="padding:10px 12px;color:#fff;font-weight:600;background:' +
-      'linear-gradient(90deg,#1fb5a8,#22c3e6)' + '">' +
-      esc(d.card.header.title.content) + '</div>' +
-      than + '</div>' +
-      '<div class="nho" style="margin-top:6px">Mẫu lấy từ phiếu ' + esc(d.mau) +
-      ' · nhóm nhận: ' + esc(d.nhom) + '</div>';
-  } catch (e) { xem.innerHTML = '<span class="nho">' + esc(e.message) + '</span>'; }
-  nut.onclick = async () => {
-    nut.disabled = true;
-    try {
-      const d = await goi('/api/thu-tin-nhom', { method: 'POST' });
-      toast('Đã gửi thử cho ' + (d.nguoiNhan || 'bạn') + (d.guiTu ? ' · ' + d.guiTu : ''));
-    } catch (e) { toast('Gửi thử hỏng: ' + e.message, 'do'); }
-    nut.disabled = false;
+function veTheLark(card, tenNguoi) {
+  const md = (c) => esc(String(c || '').replace(/\\([*_~`\[\]])/g, '$1')
+    .replace(/<at id=[^>]*><\/at>/g, '@' + (tenNguoi || 'người gửi'))
+    .replace(/<font color='red'>(.*?)<\/font>/g, '$1'))
+    .split('\n').join('<br>').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+  const than = card.elements.map((e) => {
+    if (e.tag === 'div') return '<div style="padding:10px 12px;line-height:1.7">' + md(e.text.content) + '</div>';
+    if (e.tag === 'hr') return '<div style="border-top:1px solid var(--border)"></div>';
+    if (e.tag === 'column_set') {
+      return '<div style="display:flex;gap:8px;padding:6px 12px;' +
+        (e.background_style === 'grey' ? 'background:rgba(127,127,127,.12)' : '') + '">' +
+        e.columns.map((c) => '<div style="flex:' + c.weight + ';text-align:' +
+          c.elements[0].text.text_align + '">' + md(c.elements[0].text.content) + '</div>').join('') +
+        '</div>';
+    }
+    return '';
+  }).join('');
+  return '<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;max-width:440px">' +
+    '<div style="padding:10px 12px;color:#fff;font-weight:600;background:linear-gradient(90deg,#1fb5a8,#22c3e6)">' +
+    esc(card.header.title.content) + '</div>' + than + '</div>';
+}
+
+/* ---------------- Thiết lập: gửi thông báo ----------------
+ * Anh Hùng (30/09): "cho anh thiết lập gửi nhóm hay gửi cá nhân, hay điều chỉnh
+ * mẫu, bật hay tắt. Lôi nó qua tab thiết lập thì đúng hơn". Lưu riêng (khoá
+ * 'tin-nhom'), nút Lưu riêng — sửa mẫu tin không đụng tới chuẩn chấm. */
+let TL_TIN_BAN = false;
+
+function veKhoiTin() {
+  const t = TL.tin;
+  const nhan = (TL.coTheNhan || []).filter((u) => !t.nguoiNhan.some((x) => x.openId === u.openId));
+  const coToi = TL.toi && TL.toi.openId && !t.nguoiNhan.some((x) => x.openId === TL.toi.openId);
+  const pill = (on, attrs, chu) => '<button class="pill' + (on ? ' on' : '') + '" ' + attrs + '>' + esc(chu) + '</button>';
+  const hop = (ten, id, on) => '<label style="display:flex;gap:8px;align-items:center;margin-bottom:6px">' +
+    '<input type="checkbox" id="' + id + '"' + (on ? ' checked' : '') + '> ' + esc(ten) + '</label>';
+  return '<div class="the"><div class="the-dau"><h2>Gửi thông báo khi nộp báo cáo ngày</h2>' +
+      '<span class="nho">' + (TL.tatCung ? 'Máy chủ đang TẮT CỨNG (BAO_CAO_TIN_NHOM=0)'
+        : TL_TIN_BAN ? 'có chỉnh chưa lưu' : (t.bat ? 'đang bật' : 'đang tắt')) + '</span>' +
+      '<div class="lon"></div>' +
+      '<button class="btn nho mo" id="tnGui">Gửi thử cho tôi</button>' +
+      '<button class="btn nho" id="tnLuu"' + (TL_TIN_BAN ? '' : ' disabled') + '>Lưu</button>' +
+    '</div><div class="the-than" style="display:flex;flex-wrap:wrap;gap:24px">' +
+      '<div style="flex:1 1 320px;min-width:0">' +
+        '<label style="display:flex;gap:8px;align-items:center;margin-bottom:14px;font-weight:600">' +
+          '<input type="checkbox" id="tnBat"' + (t.bat ? ' checked' : '') + '> Bật gửi thông báo</label>' +
+        '<div class="nho" style="margin-bottom:6px">Gửi tới</div>' +
+        '<div class="pills" style="margin-bottom:10px;display:inline-flex">' +
+          pill(t.dich === 'nhom', 'data-dich="nhom"', 'Nhóm') +
+          pill(t.dich === 'ca-nhan', 'data-dich="ca-nhan"', 'Cá nhân') +
+          pill(t.dich === 'ca-hai', 'data-dich="ca-hai"', 'Cả hai') +
+        '</div>' +
+        (t.dich !== 'ca-nhan'
+          ? '<div style="margin-bottom:12px"><div class="nho" style="margin-bottom:4px">Mã nhóm chat (để trống = Phòng MKT)</div>' +
+            '<input id="tnNhom" value="' + esc(t.nhomId) + '" placeholder="' + esc(TL.nhomMacDinh) +
+            '" style="width:100%;max-width:340px"></div>' : '') +
+        (t.dich !== 'nhom'
+          ? '<div style="margin-bottom:12px"><div class="nho" style="margin-bottom:4px">Người nhận riêng</div>' +
+            (t.nguoiNhan.length ? t.nguoiNhan.map((u, i) =>
+              '<span class="nhan-tt xam" style="margin:0 6px 6px 0;display:inline-flex;gap:6px;align-items:center">' +
+                esc(u.ten || u.openId) + ' <a href="#" data-bo="' + i + '" title="Bỏ">✕</a></span>').join('')
+              : '<div class="nho" style="margin-bottom:6px">Chưa có ai — chọn bên dưới.</div>') +
+            '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">' +
+              (coToi ? '<button class="btn nho mo" id="tnThemToi">+ Tôi</button>' : '') +
+              (nhan.length ? '<select id="tnChon"><option value="">+ Thêm người…</option>' +
+                nhan.map((u) => '<option value="' + esc(u.openId) + '">' + esc(u.ten) + '</option>').join('') +
+                '</select>' : '') +
+            '</div></div>' : '') +
+        '<div class="nho" style="margin:14px 0 4px">Mẫu tiêu đề — <code>{ten}</code> tên người, <code>{ngay}</code> ngày báo cáo</div>' +
+        '<input id="tnTieuDe" value="' + esc(t.tieuDe) + '" style="width:100%;max-width:340px;margin-bottom:12px">' +
+        hop('Tag người gửi', 'tnTag', t.tagNguoi) +
+        hop('Hiện bảng Công việc | Tiến độ', 'tnBang', t.hienBang) +
+        hop('Hiện dòng Đánh giá cuối thẻ (theo chuẩn bên dưới)', 'tnDG', t.hienDanhGia) +
+        '<button class="btn nho mo" id="tnMacDinh" style="margin-top:6px">Mẫu mặc định</button>' +
+      '</div>' +
+      '<div style="flex:1 1 320px;min-width:0"><div class="nho" style="margin-bottom:6px">Xem trước</div>' +
+        '<div id="tnXem"><span class="nho">Đang dựng thẻ mẫu…</span></div></div>' +
+    '</div></div>';
+}
+
+function batKhoiTin(el) {
+  const t = TL.tin;
+  const doi = () => { TL_TIN_BAN = true; veThietLap(el); };
+  $('#tnBat').onchange = (e) => { t.bat = e.target.checked; doi(); };
+  $$('[data-dich]', el).forEach((b) => { b.onclick = () => { t.dich = b.dataset.dich; doi(); }; });
+  const nh = $('#tnNhom'); if (nh) nh.onchange = () => { t.nhomId = nh.value.trim(); doi(); };
+  $$('[data-bo]', el).forEach((a) => { a.onclick = (e) => { e.preventDefault(); t.nguoiNhan.splice(Number(a.dataset.bo), 1); doi(); }; });
+  const toiB = $('#tnThemToi'); if (toiB) toiB.onclick = () => { t.nguoiNhan.push({ ten: TL.toi.ten, openId: TL.toi.openId }); doi(); };
+  const ch = $('#tnChon');
+  if (ch) ch.onchange = () => {
+    const u = TL.coTheNhan.find((x) => x.openId === ch.value);
+    if (u) { t.nguoiNhan.push({ ten: u.ten, openId: u.openId }); doi(); }
   };
+  $('#tnTieuDe').onchange = (e) => { t.tieuDe = e.target.value; doi(); };
+  $('#tnTag').onchange = (e) => { t.tagNguoi = e.target.checked; doi(); };
+  $('#tnBang').onchange = (e) => { t.hienBang = e.target.checked; doi(); };
+  $('#tnDG').onchange = (e) => { t.hienDanhGia = e.target.checked; doi(); };
+  $('#tnMacDinh').onclick = () => {
+    Object.assign(t, { tieuDe: TL.tinMacDinh.tieuDe, tagNguoi: true, hienBang: true, hienDanhGia: true }); doi();
+  };
+  $('#tnLuu').onclick = async (e) => {
+    if (t.bat && t.dich !== 'nhom' && !t.nguoiNhan.length) return toast('Chọn ít nhất một người nhận riêng', 'do');
+    e.target.disabled = true;
+    try {
+      const r = await goi('/api/thiet-lap/tin', { method: 'POST', body: JSON.stringify({ tin: t }) });
+      TL.tin = r.tin; TL_TIN_BAN = false;
+      toast('Đã lưu — áp từ lần nộp báo cáo tiếp theo');
+      veThietLap(el);
+    } catch (er) { toast('Lưu hỏng: ' + er.message, 'do'); e.target.disabled = false; }
+  };
+  $('#tnGui').onclick = async (e) => {
+    e.target.disabled = true;
+    try {
+      const d = await goi('/api/thu-tin-nhom', { method: 'POST', body: JSON.stringify({ tin: t, gui: true }) });
+      toast('Đã gửi thử cho ' + (d.nguoiNhan || 'bạn') + (d.guiTu ? ' · ' + d.guiTu : ''));
+    } catch (er) { toast('Gửi thử hỏng: ' + er.message, 'do'); }
+    e.target.disabled = false;
+  };
+  /* Xem trước theo bản ĐANG sửa, chưa cần lưu. */
+  goi('/api/thu-tin-nhom', { method: 'POST', body: JSON.stringify({ tin: t, gui: false }) })
+    .then((d) => {
+      const x = $('#tnXem'); if (!x) return;
+      x.innerHTML = veTheLark(d.card, d.ten) +
+        '<div class="nho" style="margin-top:6px">Mẫu lấy từ phiếu nộp gần nhất · sẽ gửi tới ' + d.soDich + ' nơi</div>';
+    })
+    .catch((er) => { const x = $('#tnXem'); if (x) x.innerHTML = '<span class="nho">' + esc(er.message) + '</span>'; });
 }
 
 /* ==================================================================
@@ -1410,6 +1561,7 @@ async function veThietLap(el) {
   if (!TL) {
     TL = await goi('/api/thiet-lap');
     TL.chuan = JSON.parse(JSON.stringify(TL.chuan));
+    TL.tin = JSON.parse(JSON.stringify(TL.tin));
   }
   const c = TL.chuan;
   const chip = (on, attrs, chu) => '<button type="button" class="pill tl-chip' + (on ? ' on' : '') + '" ' +
@@ -1468,7 +1620,7 @@ async function veThietLap(el) {
     '</div></div>';
   }).join('');
 
-  el.innerHTML =
+  el.innerHTML = veKhoiTin() +
     '<div class="the"><div class="the-dau"><h2>Chuẩn chung mọi vị trí</h2>' +
       '<span class="nho">' + (TL_BAN ? 'có chỉnh chưa lưu' : 'đã lưu trên Base') + '</span><div class="lon"></div>' +
       '<button class="btn nho mo" id="tlMacDinh">Về mặc định</button>' +
@@ -1487,8 +1639,6 @@ async function veThietLap(el) {
       '</div>' +
       '<div class="nho" style="margin-bottom:12px">"' + esc(TL.nhomBo.join(', ')) +
         '" không tính vào chuẩn — máy hỏng, mất điện không phải lỗi phân bổ.</div>' +
-      '<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="tlThe"' +
-        (c.hienTrongThe ? ' checked' : '') + '> Hiện dòng đánh giá ở cuối thẻ báo cáo gửi nhóm Phòng MKT</label>' +
       /* Lời nhắn ngắn ở cuối thẻ — anh Hùng 30/09: "đơn giản thôi". */
       '<div class="nho" style="margin:14px 0 6px">Lời nhắn cuối thẻ</div>' +
       [['tot', '✅ Tốt'], ['luuY', '⚠️ Cần lưu ý'], ['lech', '⚠️ Lệch nhiều'], ['tre', '⏰ Nộp trễ'],
@@ -1547,7 +1697,7 @@ async function veThietLap(el) {
     if (c.viTri[t]) return toast('Đã có vị trí "' + t + '"', 'do');
     c.viTri[t] = { nhomChinh: [], sanLuong: [], cheDo: 'tat-ca' }; doi();
   };
-  $('#tlThe').onchange = (e) => { c.hienTrongThe = e.target.checked; doi(); };
+  batKhoiTin(el);
   $$('.tl-ln', el).forEach((i) => { i.onchange = () => { c.loiNhan = c.loiNhan || {}; c.loiNhan[i.dataset.ln] = i.value; doi(); }; });
   $('#tlMacDinh').onclick = () => {
     if (!confirm('Đưa mọi con số về mặc định (80/20 và chỉ tiêu chốt 30/09)? Chưa lưu cho tới khi bấm Lưu.')) return;

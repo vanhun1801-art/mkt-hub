@@ -99,6 +99,14 @@ module.exports = {
        * dùng Minutes). Không có ô này thì họ mất một thứ đang làm được. */
       linkVideo:   { id: 'fldFYQix0N', name: 'Link video',      type: 'url' },
       danhGiaAI:   { id: 'fldGz6B366', name: 'Đánh giá AI',     type: 'text' },
+      /* Quản lý đánh dấu vướng mắc "Cần hỗ trợ" đã xử lý chưa (anh Hùng 30/09).
+       * Nhân sự lưu lại phiếu KHÔNG ghi đè bốn ô này — kho.js không gửi chúng. */
+      hoTroXong:   { id: 'fldAvkWhXt', name: 'Hỗ trợ đã xử lý', type: 'checkbox' },
+      hoTroGhiChu: { id: 'fldBXZqGWR', name: 'Hỗ trợ ghi chú',  type: 'text' },
+      hoTroBoi:    { id: 'fldsXkg8gV', name: 'Hỗ trợ xử lý bởi', type: 'text' },
+      hoTroLuc:    { id: 'fldJ1GTeue', name: 'Hỗ trợ xử lý lúc', type: 'datetime' },
+      hoTroTT:     { id: 'fldKXVnzAM', name: 'Hỗ trợ trạng thái', type: 'select' },
+      hoTroBaoLuc: { id: 'fldy42HUhj', name: 'Hỗ trợ đã báo lúc', type: 'datetime' },
       diemAI:      { id: 'fldE7Dj8pp', name: 'Điểm AI',         type: 'number' },
     },
     dong: {
@@ -140,6 +148,7 @@ module.exports = {
     ca: { ngay: 'Cả ngày', nua: 'Nửa ngày', khac: 'Khác' },
     trangThaiPhieu: { nhap: 'Nháp', daNop: 'Đã nộp' },
     dungHan: { 'dung-han': 'Đúng hạn', tre: 'Trễ', thieu: 'Thiếu' },
+    hoTro: { chua: 'Chưa xử lý', xong: 'Đã xử lý', 'chua-duoc': 'Chưa xử lý được' },
     trangThaiViec: ['Hoàn thành', 'Đang làm', 'Tạm dừng', 'Huỷ'],
     /* Năm nhóm cuối thêm 30/09/2026 sau khi đọc 184 bảng ảnh chụp: thiếu chúng
      * thì Website ghi gì cũng rơi vào "Khác", và thời gian chết (Capcut lỗi, mất

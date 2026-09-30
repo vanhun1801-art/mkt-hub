@@ -543,9 +543,19 @@ async function api(req, res, u) {
       dong: [{ congViec: 'Việc mẫu A', tienDoPt: 100, trangThai: 'Hoàn thành' },
         { congViec: 'Việc mẫu B', tienDoPt: 60, trangThai: 'Đang làm' }],
     };
-    const card = TB.dungThe(t, { thu: true });
-    const tt = { dangBat: TB.dangBat(), nhom: TB.nhomId(), cheDo: cfg.mode, mau: x ? x.ma : 'mẫu', ten: t.ten };
-    if (m === 'GET') return json(res, Object.assign({ card }, tt));
+    /* POST có thể mang bản thiết lập CHƯA lưu (b.tin) để xem trước ngay khi
+     * quản lý đang sửa mẫu; b.gui=true mới thật sự gửi. */
+    const b = m === 'POST' ? await docThan(req) : {};
+    const tin = b.tin ? TB.lamTin(b.tin) : await TB.docTin(true);
+    if (tin.hienDanhGia && x) {
+      const chuan = await CH.doc();
+      const kq = await danhGia({ id: x.nguoi, email: x.email, ten: x.tenNguoi }, x.tuNgay, t.dong, chuan);
+      t.loiNhan = CH.loiNhanThe(kq, chuan, { tre: t.cham.trangThai === 'tre' });
+    }
+    const card = TB.dungThe(t, { thu: true, mau: tin });
+    const tt = { dangBat: TB.dangBat() && tin.bat, nhom: tin.nhomId || TB.nhomId(), cheDo: cfg.mode,
+      mau: x ? x.ma : 'mẫu', ten: t.ten, soDich: TB.dichGui(tin).length };
+    if (m === 'GET' || !b.gui) return json(res, Object.assign({ card }, tt));
     /* open_id TRƯỚC email: đo 30/09 — bot Marketing Hub gửi theo email anh Hùng
      * bị Lark trả 230001, theo open_id hub gửi xuống (cùng app) thì lọt. */
     const kq = await TB.guiThe({ cfg, lark }, toi.id ? { openId: toi.id } : { email: toi.email }, card,
@@ -556,8 +566,13 @@ async function api(req, res, u) {
   /* ---------------- Thiết lập chuẩn theo vị trí (chỉ quản lý) ---------------- */
   if (p === '/api/thiet-lap' && m === 'GET') {
     if (!toi.quanLy) return loi(res, 403, 'Chỉ quản lý xem được thiết lập.', 'KHONG_QUYEN');
-    const [chuan, vt] = await Promise.all([CH.doc(true), CH.dsViTri()]);
+    const [chuan, vt, tin] = await Promise.all([CH.doc(true), CH.dsViTri(), TB.docTin(true)]);
     return json(res, {
+      tin, tinMacDinh: TB.TIN_MAC_DINH, nhomMacDinh: TB.nhomId(), tatCung: !TB.dangBat(),
+      /* Người có thể nhận tin riêng: open_id ở bảng Phân quyền là của app Marketing
+       * Hub (hub ghi lúc đăng nhập) — đúng app gửi tin, nên <at>/gửi riêng ăn. */
+      coTheNhan: vt.filter((x) => /^ou_/.test(x.openId)).map((x) => ({ ten: x.ten, openId: x.openId })),
+      toi: { ten: toi.ten, openId: /^ou_/.test(toi.id) ? toi.id : '' },
       chuan, macDinh: CH.chuanHoa(CH.MAC_DINH), nhomViec: cfg.chon.nhomViec, nhomBo: CH.NHOM_BO,
       /* Anh Hùng (30/09): thiết lập theo VỊ TRÍ, không theo tên — nhân sự đổi.
        * Chỉ trả số người ở mỗi vị trí để biết chuẩn đang áp cho bao nhiêu người. */
@@ -571,6 +586,16 @@ async function api(req, res, u) {
     try {
       const chuan = await CH.luu(b.chuan, toi);
       return json(res, { ok: true, chuan });
+    } catch (e) {
+      return loi(res, 502, dichLoiBase(e), maLoiBase(e));
+    }
+  }
+
+  if (p === '/api/thiet-lap/tin' && m === 'POST') {
+    if (!toi.quanLy) return loi(res, 403, 'Chỉ quản lý sửa được thiết lập.', 'KHONG_QUYEN');
+    const b = await docThan(req);
+    try {
+      return json(res, { ok: true, tin: await TB.luuTin(b.tin, toi) });
     } catch (e) {
       return loi(res, 502, dichLoiBase(e), maLoiBase(e));
     }
@@ -826,9 +851,62 @@ async function api(req, res, u) {
         loaiKy: x.loaiKy, nhan: K.veNgay(x.tuNgay),
         tu: x.tuNgay, noi: x.canHoTro,
         daNop: x.trangThai === cfg.chon.trangThaiPhieu.daNop,
+        /* Anh Hùng (30/09): ghi luôn đã xử lý hay chưa. */
+        recId: x.id, daXuLy: !!x.hoTroXong, ghiChu: x.hoTroGhiChu || '',
+        trangThaiHT: x.hoTroXong ? 'xong' : (x.hoTroTT === cfg.chon.hoTro['chua-duoc'] ? 'chua-duoc' : 'chua'),
+        daBaoLuc: x.hoTroBaoLuc || 0,
+        xuLyBoi: x.hoTroBoi || '', xuLyLuc: x.hoTroLuc || 0,
       }))
       .sort((a, b) => b.tu - a.tu);
     return json(res, { tu, den, ds });
+  }
+
+  /* Đánh dấu một vướng mắc đã / chưa xử lý, kèm ghi chú. Chỉ quản lý. Ghi thẳng
+   * bốn ô "Hỗ trợ …" của phiếu — nhân sự lưu lại phiếu không đè lên (kho.js
+   * không gửi các ô này). */
+  if (p === '/api/can-ho-tro/xu-ly' && m === 'POST') {
+    if (!toi.quanLy) return loi(res, 403, 'Chỉ quản lý.', 'CHI_QUAN_LY');
+    const b = await docThan(req);
+    if (!/^rec[0-9a-z]+$/i.test(String(b.recId || ''))) return loi(res, 400, 'Thiếu mã phiếu.', 'THIEU_MA');
+    const F = cfg.fields.phieu;
+    /* Ba trạng thái: 'xong' · 'chua-duoc' (tạm thời chưa xử lý được, có lý do)
+     * · 'mo-lai' (về chưa xử lý). Bản đầu chỉ có daXuLy true/false — vẫn nhận. */
+    const tt = ['xong', 'chua-duoc', 'mo-lai'].includes(b.trangThai) ? b.trangThai
+      : (b.daXuLy === false ? 'mo-lai' : 'xong');
+    const ghiChu = String(b.ghiChu || '').trim().slice(0, 1000);
+    if (tt === 'chua-duoc' && !ghiChu) {
+      return loi(res, 400, 'Ghi lý do chưa xử lý được để nhân sự biết.', 'THIEU_LY_DO');
+    }
+    const ph = (await kho.dsPhieu({}, true)).find((x) => x.id === b.recId);
+    if (!ph) return loi(res, 404, 'Không thấy phiếu.', 'KHONG_THAY');
+    const coDau = tt !== 'mo-lai';
+    try {
+      await lark.updateRecord(b.recId, {
+        [F.hoTroXong.id]: tt === 'xong',
+        [F.hoTroTT.id]: cfg.chon.hoTro[tt === 'mo-lai' ? 'chua' : tt],
+        [F.hoTroGhiChu.id]: ghiChu,
+        [F.hoTroBoi.id]: coDau ? (toi.ten || toi.email || '') : '',
+        [F.hoTroLuc.id]: coDau ? Date.now() : null,
+      }, cfg.phieuTableId);
+    } catch (e) {
+      return loi(res, 502, dichLoiBase(e), maLoiBase(e));
+    }
+    /* Nhắn riêng cho người nêu (anh Hùng 30/09). Hỏng thì vẫn giữ trạng thái đã
+     * ghi, chỉ báo lại cho quản lý — nhắn lại được bằng cách bấm lần nữa. */
+    let bao = null;
+    if (coDau && b.bao !== false) {
+      const card = TB.dungThePhanHoi({ trangThai: tt, noi: ph.canHoTro, ngayMs: ph.tuNgay, ghiChu,
+        nguoiXuLy: toi.ten || toi.email || '' });
+      const dich = /^ou_/.test(ph.nguoi || '') ? { openId: ph.nguoi } : (ph.email ? { email: ph.email } : null);
+      bao = dich ? await TB.guiThe({ cfg, lark }, dich, card, 'ht-' + b.recId + '-' + tt + '-' + Date.now())
+        : { ok: false, loi: 'Phiếu không có open_id / email người nêu' };
+      if (bao.ok) {
+        try { await lark.updateRecord(b.recId, { [F.hoTroBaoLuc.id]: Date.now() }, cfg.phieuTableId); } catch (_) { /* chỉ là dấu giờ */ }
+      } else console.error('[hỗ trợ] nhắn ' + (ph.tenNguoi || ph.email) + ' hỏng: ' + bao.loi);
+    }
+    kho.xoaDem();
+    return json(res, { ok: true, trangThai: tt, daXuLy: tt === 'xong', bao,
+      nguoi: ph.tenNguoi || ph.email || '' });
   }
 
   /** Xuất CSV — "trích xuất báo cáo nhanh hơn", đúng nguyên văn yêu cầu. */
