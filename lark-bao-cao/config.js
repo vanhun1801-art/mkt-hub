@@ -48,6 +48,23 @@ module.exports = {
 
   phieuTableId: process.env.LARK_TB_PHIEU || 'tblMIviEWyBXNTFz',
   dongTableId: process.env.LARK_TB_DONG || 'tblo5FBTVuXzv0W0',
+  thietLapTableId: process.env.LARK_TB_THIET_LAP || 'tblw5Tlrq8ioUI0o',
+
+  /* Vị trí từng người lấy từ bảng Phân quyền của hub (cột "Vị trí") — nơi anh
+   * Hùng đã khai sẵn, không khai lại lần hai ở app này. */
+  phanQuyen: {
+    base: process.env.HUB_QUYEN_BASE || 'JhZtbxv0gamk5ys3Fr0luHnsgwG',
+    table: process.env.HUB_QUYEN_TABLE || 'tblBKm6ZurhN3703',
+  },
+
+  /* App Chỉnh ảnh đã đếm sẵn số ảnh/video mỗi lô người ta chỉnh (anh Hùng
+   * 30/09: "nếu bạn thực hiện chỉnh ảnh thì sẽ có số liệu đó") — chỉ tiêu "ảnh
+   * hậu kỳ" của Designer lấy thẳng từ đây, không bắt gõ lại số lượng. */
+  chinhAnh: {
+    base: process.env.ANH_BASE_TOKEN || 'OzF9bSPkPamYQHsNcU8lmMVQgFb',
+    table: 'tblPBDyAV8sOM1ne',
+    f: { nguoi: 'fldXjGGZeg', anh: 'fld4FvLZzo', video: 'fldf2Ub8NS', luc: 'fldVinadYI' },
+  },
 
   /* Field ID lấy từ +field-list, không đoán. Đổi TÊN cột trên Base thì app vẫn
    * chạy; xoá cột mới hỏng — đó là lý do dùng id chứ không dùng tên. */
@@ -102,6 +119,17 @@ module.exports = {
       maViec:      { id: 'fldzmmM4X3', name: 'Mã việc tracking', type: 'text' },
       trangThai:   { id: 'fldZiU2VNb', name: 'Trạng thái việc', type: 'select' },
       ghiChu:      { id: 'fldHnljusq', name: 'Ghi chú',         type: 'text' },
+      /* 500 ảnh hậu kỳ hay 4 bài đăng là MỘT dòng việc — không có ô này thì không
+       * đếm được sản lượng theo chuẩn vị trí. Rỗng = 1. Thêm 30/09/2026. */
+      soLuong:     { id: 'fldihaykaU', name: 'Số lượng',        type: 'number' },
+    },
+    /* Bảng "Thiết lập": chuẩn theo vị trí do quản lý chỉnh trong app. Lưu ở Base
+     * vì ổ Render mất sau mỗi lần deploy. Dựng bằng thiet-lap/nang-cap-chuan.js. */
+    thietLap: {
+      khoa:        { id: 'fldajWwJ2O', name: 'Khoá',            type: 'text' },
+      giaTri:      { id: 'fldw9BWBFV', name: 'Giá trị',         type: 'text' },
+      suaBoi:      { id: 'fldy2UsCQs', name: 'Sửa bởi',         type: 'text' },
+      suaLuc:      { id: 'fldcgUGlWN', name: 'Sửa lúc',         type: 'datetime' },
     },
   },
 
@@ -113,7 +141,11 @@ module.exports = {
     trangThaiPhieu: { nhap: 'Nháp', daNop: 'Đã nộp' },
     dungHan: { 'dung-han': 'Đúng hạn', tre: 'Trễ', thieu: 'Thiếu' },
     trangThaiViec: ['Hoàn thành', 'Đang làm', 'Tạm dừng', 'Huỷ'],
+    /* Năm nhóm cuối thêm 30/09/2026 sau khi đọc 184 bảng ảnh chụp: thiếu chúng
+     * thì Website ghi gì cũng rơi vào "Khác", và thời gian chết (Capcut lỗi, mất
+     * điện) bị chấm là phân bổ kém. */
     nhomViec: ['Page', 'TikTok', 'Edit video', 'Chỉnh ảnh', 'Thiết kế', 'Kịch bản',
-      'Chụp/Quay', 'Chạy quảng cáo', 'Báo cáo', 'Họp', 'Khác'],
+      'Chụp/Quay', 'Livestream', 'Chạy quảng cáo', 'Website/SEO', 'OTA', 'Chatbot',
+      'Báo cáo', 'Họp', 'Khác', 'Lỗi máy / mất điện'],
   },
 };

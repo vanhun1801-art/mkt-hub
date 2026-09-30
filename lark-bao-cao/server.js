@@ -18,6 +18,31 @@ const kho = require('./kho');
 const ND = require('./nhan-dinh');
 const VT = require('./viec-tracking');
 const TB = require('./thong-bao-nhom');
+const CH = require('./chuan');
+
+/**
+ * Tiến độ LẦN BÁO TRƯỚC của từng việc, tính tới trước ngày `tu` — để sản lượng
+ * đếm phần tăng trong ngày chứ không đếm lại việc dựng dở từ hôm qua.
+ */
+async function tienDoTruoc(nguoi, tu) {
+  const cu = (await kho.dsDong({ nguoi })).filter((d) => d.ngay < tu).sort((a, b) => a.ngay - b.ngay);
+  const m = new Map();
+  for (const d of cu) m.set(CH.khoaViec(d), CH.ptCua(d));
+  return m;
+}
+
+/** Chấm một phiếu ngày theo chuẩn vị trí. Không ném — trả null nếu không chấm được. */
+async function danhGia(nguoi, tu, dong, chuan) {
+  try {
+    const c = chuan || await CH.doc();
+    const vt = CH.viTriCua(await CH.dsViTri(), nguoi);
+    if (!vt) return null;
+    return CH.cham(dong, vt, c, await tienDoTruoc(nguoi, tu), await CH.chinhAnhTrongNgay(nguoi, tu));
+  } catch (e) {
+    console.error('[chuẩn] chấm hỏng: ' + e.message);
+    return null;
+  }
+}
 const lark = cfg.mode === 'api' ? require('./larkapi') : require('./lark');
 
 const BIND = process.env.BIND || '127.0.0.1';
@@ -475,7 +500,7 @@ async function api(req, res, u) {
         });
       /* Báo nhóm KHÔNG await: phiếu đã vào Base, người nộp không phải chờ Lark
        * nhắn xong mới thấy "đã nộp". Xem thong-bao-nhom.js. */
-      if (loai === 'ngay' && nop) TB.baoNop({ cfg, lark }, toi, r);
+      if (loai === 'ngay' && nop) TB.baoNop({ cfg, lark, danhGia }, toi, r);
       return json(res, {
         ok: true,
         ma: r.ma,
@@ -526,6 +551,63 @@ async function api(req, res, u) {
     const kq = await TB.guiThe({ cfg, lark }, toi.id ? { openId: toi.id } : { email: toi.email }, card,
       'bcn-thu-' + Date.now());
     return json(res, Object.assign({ nguoiNhan: toi.email || toi.ten }, tt, kq), kq.ok ? 200 : 502);
+  }
+
+  /* ---------------- Thiết lập chuẩn theo vị trí (chỉ quản lý) ---------------- */
+  if (p === '/api/thiet-lap' && m === 'GET') {
+    if (!toi.quanLy) return loi(res, 403, 'Chỉ quản lý xem được thiết lập.', 'KHONG_QUYEN');
+    const [chuan, vt] = await Promise.all([CH.doc(true), CH.dsViTri()]);
+    return json(res, {
+      chuan, macDinh: CH.chuanHoa(CH.MAC_DINH), nhomViec: cfg.chon.nhomViec, nhomBo: CH.NHOM_BO,
+      /* Anh Hùng (30/09): thiết lập theo VỊ TRÍ, không theo tên — nhân sự đổi.
+       * Chỉ trả số người ở mỗi vị trí để biết chuẩn đang áp cho bao nhiêu người. */
+      soNguoi: vt.reduce((o, x) => { if (x.viTri) o[x.viTri] = (o[x.viTri] || 0) + 1; return o; }, {}),
+    });
+  }
+
+  if (p === '/api/thiet-lap' && m === 'POST') {
+    if (!toi.quanLy) return loi(res, 403, 'Chỉ quản lý sửa được thiết lập.', 'KHONG_QUYEN');
+    const b = await docThan(req);
+    try {
+      const chuan = await CH.luu(b.chuan, toi);
+      return json(res, { ok: true, chuan });
+    } catch (e) {
+      return loi(res, 502, dichLoiBase(e), maLoiBase(e));
+    }
+  }
+
+  /* Chấm thử một bộ chuẩn (CHƯA lưu) lên các phiếu ngày đã nộp trong N ngày —
+   * để quản lý thấy trước chỉnh con số thì bao nhiêu ngày thành đỏ. */
+  if (p === '/api/thiet-lap/thu' && m === 'POST') {
+    if (!toi.quanLy) return loi(res, 403, 'Chỉ quản lý.', 'KHONG_QUYEN');
+    const b = await docThan(req);
+    const chuan = CH.chuanHoa(b.chuan);
+    const soNgay = Math.max(1, Math.min(120, Number(b.soNgay) || 30));
+    const tu = Date.now() - soNgay * 86400000;
+    const [vt, phieu, dongHet] = await Promise.all([
+      CH.dsViTri(), kho.dsPhieu({ loaiKy: 'ngay' }), kho.dsDong({})]);
+    const daNop = phieu.filter((x) => x.trangThai === cfg.chon.trangThaiPhieu.daNop && x.tuNgay >= tu);
+    const theoMa = new Map();
+    for (const d of dongHet) { if (!theoMa.has(d.maPhieu)) theoMa.set(d.maPhieu, []); theoMa.get(d.maPhieu).push(d); }
+    /* Gộp theo VỊ TRÍ, không theo tên (anh Hùng 30/09). */
+    const theoVT = {};
+    let khongVT = 0;
+    for (const x of daNop) {
+      const ai = { id: x.nguoi, email: x.email, ten: x.tenNguoi };
+      const viTri = CH.viTriCua(vt, ai);
+      if (!viTri || !chuan.viTri[viTri]) { khongVT++; continue; }
+      const n = theoVT[viTri] || (theoVT[viTri] = { viTri, tot: 0, 'luu-y': 0, lech: 0, phieu: 0, hutSL: {} });
+      /* Tiến độ trước: mọi dòng của người này TRƯỚC ngày phiếu, lấy lần cuối. */
+      const truoc = new Map();
+      dongHet.filter((d) => kho.cungNguoi(d, ai) && d.ngay < x.tuNgay).sort((a, c) => a.ngay - c.ngay)
+        .forEach((d) => truoc.set(CH.khoaViec(d), CH.ptCua(d)));
+      const kq = CH.cham(theoMa.get(x.ma) || [], viTri, chuan, truoc, await CH.chinhAnhTrongNgay(ai, x.tuNgay));
+      if (!kq) continue;
+      n.phieu++; n[kq.muc]++;
+      if (kq.chinhPt != null && kq.chinhPt < chuan.chinhToiThieu) n.hutChinh = (n.hutChinh || 0) + 1;
+      for (const s of kq.sanLuong) if (!s.ok) n.hutSL[s.ten] = (n.hutSL[s.ten] || 0) + 1;
+    }
+    return json(res, { soNgay, soPhieu: daNop.length, khongVT, viTri: Object.values(theoVT) });
   }
 
   /* Danh sách phiếu — của tôi, hoặc của cả phòng nếu là quản lý. */

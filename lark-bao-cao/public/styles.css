@@ -644,3 +644,9 @@ body.so-mo #so {
   .ct-v-so  { font-size: 12.5px; color: var(--text-2); }
   .ct-v-gc  { font-size: 12.5px; }
 }
+
+/* Tab Thiết lập — chip chọn nhóm việc. Pill thường chỉ đổi màu chữ khi bật,
+ * đứng giữa 16 chip thì mắt không phân biệt nổi cái nào đang chọn. */
+.tl-chip { border: 1px solid var(--border); background: transparent; }
+.tl-chip.on { background: var(--blue-bg, rgba(51, 112, 255, .12)); border-color: var(--blue-text); color: var(--blue-text); box-shadow: none; }
+.tl-so { text-align: right; }

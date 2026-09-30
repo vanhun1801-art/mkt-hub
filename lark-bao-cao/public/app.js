@@ -40,6 +40,8 @@ const MAN_QL = [
   { ma: 'toan-phong', ten: 'Toàn phòng' },
   { ma: 'can-ho-tro', ten: 'Cần hỗ trợ' },
   { ma: 'theo-doi', ten: 'Theo dõi' },
+  /* Anh Hùng (30/09): thiết lập chuẩn nằm chung cụm quản lý cho tiện. */
+  { ma: 'thiet-lap', ten: 'Thiết lập' },
 ];
 
 /* ---------------- gọi API ---------------- */
@@ -168,6 +170,7 @@ async function ve() {
     if (MAN === 'toan-phong') return await veToanPhong(el);
     if (MAN === 'can-ho-tro') return await veCanHoTro(el);
     if (MAN === 'theo-doi') return await veTheoDoi(el);
+    if (MAN === 'thiet-lap') return await veThietLap(el);
     if (MAN === 'da-nop') return await veDaNop(el);
     return await veManPhieu(el, MAN);
   } catch (e) {
@@ -285,6 +288,7 @@ function theBang(d) {
         '<th style="min-width:250px">Công việc</th>' +
         '<th class="tach" style="width:130px">Nhóm</th>' +
         '<th style="width:82px">Phút</th>' +
+        '<th style="width:70px" title="Số sản phẩm của dòng này: 3 bài đăng, 500 ảnh… Để trống = 1">SL</th>' +
         '<th style="width:172px">Tiến độ</th>' +
         '<th style="min-width:170px">Ghi chú công việc</th>' +
         '<th style="width:124px">Trạng thái</th>' +
@@ -356,6 +360,10 @@ function veHang(d) {
     '</select></td>' +
     '<td data-nhan="Phút" class="so-o"><input class="v-phut" type="number" min="0" step="5" value="' +
       esc(d.phut === 0 || d.phut === '' ? '' : d.phut) + '" placeholder="0"></td>' +
+    /* Số lượng: 500 ảnh hậu kỳ hay 4 bài đăng là MỘT dòng việc. Không có ô này
+     * thì chuẩn sản lượng theo vị trí không đếm được. Trống = 1. */
+    '<td data-nhan="Số lượng" class="so-o"><input class="v-sl" type="number" min="1" step="1" value="' +
+      esc(Number(d.soLuong) > 0 ? d.soLuong : '') + '" placeholder="1"></td>' +
     '<td data-nhan="Tiến độ"><div class="td-o">' +
       '<input class="v-pt" type="range" min="0" max="100" step="5" value="' + pt + '">' +
       '<span class="pt' + (pt >= 100 ? ' du' : '') + '">' + pt + '%</span>' +
@@ -971,6 +979,7 @@ function docBang() {
       maViec: (viec && viec.value) || '',
       nhom: ($('.v-nhom', tr) || {}).value || 'Khác',
       phut: Number(($('.v-phut', tr) || {}).value || 0) || 0,
+      soLuong: Number(($('.v-sl', tr) || {}).value || 0) || undefined,
       tienDoPt: Number(($('.v-pt', tr) || {}).value || 0) || 0,
       tienDo: ($('.v-td', tr) || {}).value || '',
       trangThai: ($('.v-tt', tr) || {}).value || 'Đang làm',
@@ -1382,6 +1391,207 @@ async function veTinNhom() {
     } catch (e) { toast('Gửi thử hỏng: ' + e.message, 'do'); }
     nut.disabled = false;
   };
+}
+
+/* ==================================================================
+   THIẾT LẬP CHUẨN THEO VỊ TRÍ (quản lý)
+   ==================================================================
+ * Anh Hùng (30/09/2026): chuẩn chung 80% việc chính / 20% việc phụ, cộng chỉ
+ * tiêu sản lượng từng vị trí. Thiết lập theo VỊ TRÍ, không theo tên người —
+ * nhân sự đổi thì chỉ sửa cột "Vị trí" ở bảng Phân quyền của hub.
+ *
+ * Toàn bộ màn vẽ lại từ biến TL; mỗi ô nhập ghi thẳng vào TL qua data-*. Không
+ * đọc ngược từ DOM lúc lưu, để thứ đang thấy và thứ được lưu là một. */
+let TL = null;          // { chuan, macDinh, nhomViec, nhomBo, soNguoi }
+let TL_THU = null;      // kết quả chấm thử gần nhất
+let TL_BAN = false;     // có chỉnh chưa lưu
+
+async function veThietLap(el) {
+  if (!TL) {
+    TL = await goi('/api/thiet-lap');
+    TL.chuan = JSON.parse(JSON.stringify(TL.chuan));
+  }
+  const c = TL.chuan;
+  const chip = (on, attrs, chu) => '<button type="button" class="pill tl-chip' + (on ? ' on' : '') + '" ' +
+    attrs + '>' + esc(chu) + '</button>';
+  const nhomChon = TL.nhomViec.filter((n) => !TL.nhomBo.includes(n));
+  const oSo = (attrs, v, rong, buoc) => '<input type="number" class="tl-so" ' + attrs + ' value="' + esc(v) +
+    '" min="0" step="' + (buoc || 1) + '" style="width:' + (rong || 70) + 'px">';
+  const hop = 'display:flex;flex-wrap:wrap;gap:6px';
+
+  const theVT = Object.entries(c.viTri).map(([vt, v]) => {
+    const n = (TL.soNguoi || {})[vt] || 0;
+    const dv = 'data-vt="' + esc(vt) + '"';
+    return '<div class="the"><div class="the-dau"><h2>' + esc(vt) + '</h2>' +
+      '<span class="nho">' + (n ? 'đang áp cho ' + n + ' người' : 'chưa ai có vị trí này') + '</span>' +
+      '<div class="lon"></div>' +
+      '<button class="btn nho mo tl-xoa-vt" ' + dv + ' title="Bỏ vị trí này">Bỏ</button>' +
+    '</div><div class="the-than">' +
+      '<div class="nho" style="margin-bottom:6px">Nhóm việc tính là <b>việc chính</b></div>' +
+      '<div style="' + hop + ';margin-bottom:14px">' +
+        nhomChon.map((nh) => chip(v.nhomChinh.includes(nh), dv + ' data-chinh="' + esc(nh) + '"', nh)).join('') +
+      '</div>' +
+      '<div class="nho" style="margin-bottom:6px">Sản lượng tối thiểu mỗi ngày</div>' +
+      (v.sanLuong.length ? v.sanLuong.map((sl, i) => {
+        const a = dv + ' data-i="' + i + '"';
+        return '<div style="border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:8px">' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px">' +
+            '<input class="tl-ten" ' + a + ' value="' + esc(sl.ten) + '" placeholder="tên, vd video" style="width:130px">' +
+            '<span class="nho">tối thiểu</span>' + oSo(a + ' data-k="toiThieu"', sl.toiThieu, 80, 0.5) +
+            '<select class="tl-dem" ' + a + '>' +
+              '<option value="san-pham"' + (sl.dem !== 'dong' ? ' selected' : '') + '>sản phẩm (tiến độ × số lượng)</option>' +
+              '<option value="dong"' + (sl.dem === 'dong' ? ' selected' : '') + '>đầu việc (đếm dòng)</option>' +
+            '</select>' +
+            /* Nguồn: app Chỉnh ảnh đã đếm sẵn số ảnh/video từng lô — lấy số lớn
+             * hơn giữa báo cáo và app, người quên ghi SL vẫn được tính đủ. */
+            '<select class="tl-nguon" ' + a + '>' +
+              '<option value="bao-cao"' + (!sl.nguon || sl.nguon === 'bao-cao' ? ' selected' : '') + '>chỉ từ báo cáo</option>' +
+              '<option value="chinh-anh-anh"' + (sl.nguon === 'chinh-anh-anh' ? ' selected' : '') + '>+ số ảnh từ app Chỉnh ảnh</option>' +
+              '<option value="chinh-anh-video"' + (sl.nguon === 'chinh-anh-video' ? ' selected' : '') + '>+ số video từ app Chỉnh ảnh</option>' +
+            '</select>' +
+            '<div class="lon"></div><button class="btn nho mo tl-xoa-sl" ' + a + '>✕</button>' +
+          '</div>' +
+          '<div style="' + hop + '">' +
+            chip(sl.nhom.includes('*'), a + ' data-sln="*"', 'mọi nhóm') +
+            nhomChon.map((nh) => chip(sl.nhom.includes(nh), a + ' data-sln="' + esc(nh) + '"', nh)).join('') +
+          '</div></div>';
+      }).join('') : '<div class="nho" style="margin-bottom:8px">Chưa đặt chỉ tiêu sản lượng — chỉ chấm phân bổ thời gian.</div>') +
+      '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">' +
+        '<button class="btn nho mo tl-them-sl" ' + dv + '>+ Thêm chỉ tiêu</button>' +
+        (v.sanLuong.length > 1
+          ? '<div class="pills">' +
+            '<button class="pill tl-che' + (v.cheDo !== 'mot-trong' ? ' on' : '') + '" ' + dv + ' data-che="tat-ca">Phải đạt tất cả</button>' +
+            '<button class="pill tl-che' + (v.cheDo === 'mot-trong' ? ' on' : '') + '" ' + dv + ' data-che="mot-trong">Đạt một trong</button>' +
+            '</div>' : '') +
+      '</div>' +
+      veThuVT(vt) +
+    '</div></div>';
+  }).join('');
+
+  el.innerHTML =
+    '<div class="the"><div class="the-dau"><h2>Chuẩn chung mọi vị trí</h2>' +
+      '<span class="nho">' + (TL_BAN ? 'có chỉnh chưa lưu' : 'đã lưu trên Base') + '</span><div class="lon"></div>' +
+      '<button class="btn nho mo" id="tlMacDinh">Về mặc định</button>' +
+      '<button class="btn nho mo" id="tlThu">Chấm thử 30 ngày</button>' +
+      '<button class="btn nho" id="tlLuu"' + (TL_BAN ? '' : ' disabled') + '>Lưu</button>' +
+    '</div><div class="the-than">' +
+      '<div style="display:flex;flex-wrap:wrap;gap:18px;align-items:center;margin-bottom:14px">' +
+        '<label>Việc chính tối thiểu ' + oSo('data-g="chinhToiThieu"', c.chinhToiThieu) + ' %</label>' +
+        '<label>Việc phụ tối đa ' + oSo('data-g="phuToiDa"', c.phuToiDa) + ' %</label>' +
+        '<label title="Lệch chuẩn trong biên này là Lưu ý, quá biên là Lệch">Biên lưu ý ' +
+          oSo('data-g="bien"', c.bien) + ' điểm</label>' +
+      '</div>' +
+      '<div class="nho" style="margin-bottom:6px">Nhóm việc tính là <b>việc phụ</b></div>' +
+      '<div style="' + hop + ';margin-bottom:12px">' +
+        nhomChon.map((nh) => chip(c.nhomPhu.includes(nh), 'data-phu="' + esc(nh) + '"', nh)).join('') +
+      '</div>' +
+      '<div class="nho" style="margin-bottom:12px">"' + esc(TL.nhomBo.join(', ')) +
+        '" không tính vào chuẩn — máy hỏng, mất điện không phải lỗi phân bổ.</div>' +
+      '<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="tlThe"' +
+        (c.hienTrongThe ? ' checked' : '') + '> Hiện dòng đánh giá ở cuối thẻ báo cáo gửi nhóm Phòng MKT</label>' +
+      /* Lời nhắn ngắn ở cuối thẻ — anh Hùng 30/09: "đơn giản thôi". */
+      '<div class="nho" style="margin:14px 0 6px">Lời nhắn cuối thẻ</div>' +
+      [['tot', '🌟 Đạt chuẩn'], ['luuY', '💡 Hơi hụt'], ['lech', '💪 Lệch nhiều'], ['tre', '⏰ Nộp trễ'],
+        ['loiMay', '⚙️ Có lỗi máy / mất điện ({phut} = số phút)']].map(([k, nhan]) =>
+        '<label style="display:flex;gap:8px;align-items:center;margin-bottom:6px;flex-wrap:wrap">' +
+          '<span style="width:230px">' + esc(nhan) + '</span>' +
+          '<input class="tl-ln" data-ln="' + k + '" value="' + esc((c.loiNhan || {})[k] || '') +
+          '" style="flex:1 1 260px;min-width:0"></label>').join('') +
+      (TL_THU ? '<div class="nho" style="margin-top:12px">Chấm thử ' + TL_THU.soPhieu + ' phiếu ngày trong ' +
+        TL_THU.soNgay + ' ngày qua' +
+        (TL_THU.khongVT ? ' · ' + TL_THU.khongVT + ' phiếu của người chưa có vị trí có chuẩn, bỏ qua' : '') +
+        '. Kết quả ở cuối từng vị trí.</div>' : '') +
+    '</div></div>' +
+    theVT +
+    '<div class="the"><div class="the-than" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
+      '<input id="tlVTMoi" placeholder="Tên vị trí, đúng như cột Vị trí ở Phân quyền" style="width:300px;max-width:100%">' +
+      '<button class="btn nho mo" id="tlThemVT">+ Thêm vị trí</button>' +
+      '<span class="nho">Người có vị trí không nằm trong danh sách thì không được chấm.</span>' +
+    '</div></div>';
+
+  const doi = () => { TL_BAN = true; TL_THU = null; veThietLap(el); };
+  const vtCua = (b) => c.viTri[b.dataset.vt];
+  const bat = (arr, x) => { const i = arr.indexOf(x); if (i >= 0) arr.splice(i, 1); else arr.push(x); };
+
+  $$('[data-g]', el).forEach((i) => { i.onchange = () => { c[i.dataset.g] = Number(i.value) || 0; doi(); }; });
+  $$('[data-phu]', el).forEach((b) => { b.onclick = () => { bat(c.nhomPhu, b.dataset.phu); doi(); }; });
+  $$('[data-chinh]', el).forEach((b) => { b.onclick = () => { bat(vtCua(b).nhomChinh, b.dataset.chinh); doi(); }; });
+  $$('[data-sln]', el).forEach((b) => {
+    b.onclick = () => {
+      const sl = vtCua(b).sanLuong[b.dataset.i];
+      if (b.dataset.sln === '*') sl.nhom = sl.nhom.includes('*') ? [] : ['*'];
+      else { sl.nhom = sl.nhom.filter((x) => x !== '*'); bat(sl.nhom, b.dataset.sln); }
+      doi();
+    };
+  });
+  $$('.tl-ten', el).forEach((i) => { i.onchange = () => { vtCua(i).sanLuong[i.dataset.i].ten = i.value.trim(); doi(); }; });
+  $$('[data-k="toiThieu"]', el).forEach((i) => {
+    i.onchange = () => { vtCua(i).sanLuong[i.dataset.i].toiThieu = Number(i.value) || 0; doi(); };
+  });
+  $$('.tl-dem', el).forEach((i) => { i.onchange = () => { vtCua(i).sanLuong[i.dataset.i].dem = i.value; doi(); }; });
+  $$('.tl-nguon', el).forEach((i) => { i.onchange = () => { vtCua(i).sanLuong[i.dataset.i].nguon = i.value; doi(); }; });
+  $$('.tl-xoa-sl', el).forEach((b) => { b.onclick = () => { vtCua(b).sanLuong.splice(Number(b.dataset.i), 1); doi(); }; });
+  $$('.tl-them-sl', el).forEach((b) => {
+    b.onclick = () => { vtCua(b).sanLuong.push({ ten: 'sản phẩm', nhom: [], toiThieu: 1, dem: 'san-pham' }); doi(); };
+  });
+  $$('.tl-che', el).forEach((b) => { b.onclick = () => { vtCua(b).cheDo = b.dataset.che; doi(); }; });
+  $$('.tl-xoa-vt', el).forEach((b) => {
+    b.onclick = () => {
+      if (!confirm('Bỏ chuẩn của vị trí "' + b.dataset.vt + '"? Người ở vị trí này sẽ không được chấm nữa.')) return;
+      delete c.viTri[b.dataset.vt]; doi();
+    };
+  });
+  $('#tlThemVT').onclick = () => {
+    const t = ($('#tlVTMoi').value || '').trim();
+    if (!t) return;
+    if (c.viTri[t]) return toast('Đã có vị trí "' + t + '"', 'do');
+    c.viTri[t] = { nhomChinh: [], sanLuong: [], cheDo: 'tat-ca' }; doi();
+  };
+  $('#tlThe').onchange = (e) => { c.hienTrongThe = e.target.checked; doi(); };
+  $$('.tl-ln', el).forEach((i) => { i.onchange = () => { c.loiNhan = c.loiNhan || {}; c.loiNhan[i.dataset.ln] = i.value; doi(); }; });
+  $('#tlMacDinh').onclick = () => {
+    if (!confirm('Đưa mọi con số về mặc định (80/20 và chỉ tiêu chốt 30/09)? Chưa lưu cho tới khi bấm Lưu.')) return;
+    TL.chuan = JSON.parse(JSON.stringify(TL.macDinh)); doi();
+  };
+  $('#tlThu').onclick = async (e) => {
+    e.target.disabled = true; e.target.textContent = 'Đang chấm…';
+    try {
+      TL_THU = await goi('/api/thiet-lap/thu', { method: 'POST', body: JSON.stringify({ chuan: c, soNgay: 30 }) });
+      veThietLap(el);
+    } catch (er) {
+      toast('Chấm thử hỏng: ' + er.message, 'do');
+      e.target.disabled = false; e.target.textContent = 'Chấm thử 30 ngày';
+    }
+  };
+  $('#tlLuu').onclick = async (e) => {
+    e.target.disabled = true;
+    try {
+      const r = await goi('/api/thiet-lap', { method: 'POST', body: JSON.stringify({ chuan: c }) });
+      TL.chuan = r.chuan; TL_BAN = false;
+      toast('Đã lưu chuẩn — áp từ lần nộp báo cáo tiếp theo');
+      veThietLap(el);
+    } catch (er) { toast('Lưu hỏng: ' + er.message, 'do'); e.target.disabled = false; }
+  };
+}
+
+/** Kết quả chấm thử của một vị trí — gộp số, không hiện tên người. */
+function veThuVT(vt) {
+  if (!TL_THU) return '';
+  const x = (TL_THU.viTri || []).find((y) => y.viTri === vt);
+  if (!x || !x.phieu) {
+    return '<div class="nho" style="margin-top:12px">Chấm thử: chưa có phiếu nào của vị trí này trong ' +
+      TL_THU.soNgay + ' ngày.</div>';
+  }
+  const pt = (n) => Math.round(n / x.phieu * 100) + '%';
+  const hut = Object.entries(x.hutSL || {}).map(([k, v]) => k + ' ' + v + ' ngày').join(' · ');
+  return '<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">' +
+    '<div class="nho" style="margin-bottom:6px">Chấm thử ' + x.phieu + ' phiếu:</div>' +
+    '<span class="nhan-tt xanh">Đạt ' + pt(x.tot) + '</span> ' +
+    '<span class="nhan-tt cam">Lưu ý ' + pt(x['luu-y']) + '</span> ' +
+    '<span class="nhan-tt do">Lệch ' + pt(x.lech) + '</span>' +
+    ((x.hutChinh || hut) ? '<div class="nho" style="margin-top:6px">Hụt: ' +
+      [x.hutChinh ? 'việc chính ' + x.hutChinh + ' ngày' : '', hut].filter(Boolean).join(' · ') + '</div>' : '') +
+  '</div>';
 }
 
 /** Số 0 để mờ, số khác 0 mới tô màu — mắt chỉ dừng ở chỗ có chuyện. */

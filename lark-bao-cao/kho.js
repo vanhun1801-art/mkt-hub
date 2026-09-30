@@ -223,6 +223,7 @@ async function luuNgay({ nguoi, ngayMs, ca, dinhMucTay, dong, nhanDinh, keHoach,
       maViec: String(d.maViec || '').trim(),
       trangThai: C.trangThaiViec.includes(d.trangThai) ? d.trangThai : 'Hoàn thành',
       ghiChu: String(d.ghiChu || '').trim(),
+      soLuong: asSo(d.soLuong) > 0 ? Math.round(asSo(d.soLuong)) : undefined,
     }));
   const g = K.gop(sach, dm);
 
@@ -323,6 +324,7 @@ async function ghiDong(ma, ngayMs, nguoi, sach) {
     [F.dong.tienDo.id]: d.tienDo,
     [F.dong.trangThai.id]: d.trangThai,
     [F.dong.ghiChu.id]: d.ghiChu,
+    [F.dong.soLuong.id]: d.soLuong,
     ...chung,
   });
 

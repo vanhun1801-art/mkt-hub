@@ -98,7 +98,11 @@ function dungThe(t, { thu = false } = {}) {
     elements: [
       { tag: 'div', text: { tag: 'lark_md', content: dau.join('\n') } },
     /* Anh Hùng (30/09): không kèm nút bấm — thẻ chỉ để báo, không để mở app. */
-    ].concat(bang.length ? [{ tag: 'hr' }] : [], bang),
+    ].concat(bang.length ? [{ tag: 'hr' }] : [], bang,
+      /* Anh Hùng (30/09): "một sự đánh giá ở dòng cuối" theo chuẩn vị trí. */
+      (t.loiNhan && t.loiNhan.length)
+        ? [{ tag: 'hr' }, { tag: 'div', text: { tag: 'lark_md', content: '**Đánh giá:** ' + t.loiNhan.join('\n') } }]
+        : []),
   };
 }
 
@@ -160,7 +164,17 @@ async function baoNop(dep, nguoi, r) {
     if (!(dep.cfg.appId && dep.cfg.appSecret) && process.env.BAO_CAO_TIN_NHOM !== '1') {
       return { ok: false, bo: 'chạy trên máy, không có khoá Marketing Hub' };
     }
-    const card = dungThe(tuKetQua(nguoi, r));
+    const t = tuKetQua(nguoi, r);
+    /* Đánh giá theo chuẩn vị trí — dòng cuối thẻ. Hỏng thì bỏ dòng, không bỏ tin. */
+    if (dep.danhGia) {
+      const CH = require('./chuan');
+      const chuan = await CH.doc();
+      if (chuan.hienTrongThe) {
+        const kq = await dep.danhGia(nguoi, r.ky.tu, r.dong || [], chuan);
+        t.loiNhan = CH.loiNhanThe(kq, chuan, { tre: !!(r.cham && r.cham.trangThai === 'tre') });
+      }
+    }
+    const card = dungThe(t);
     const kq = await guiThe(dep, { chatId: nhomId() }, card, 'bcn-' + r.ma);
     if (!kq.ok) console.error('[tin nhóm] ' + r.ma + ' -> ' + kq.loi);
     return kq;
