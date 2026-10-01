@@ -19,7 +19,12 @@
  * của phòng (Claude tạo 01/10, chỉ thêm mới). Bản ghi công ty chỉ nhận phần TỔNG:
  *   - người đầu tiên bấm Bắt đầu làm      → "Đã tiếp nhận"
  *   - có người đã nộp, còn người chưa nộp  → "Đang xử lý"
- *   - mọi người nhận đều đã nộp            → "Đã gửi"
+ *   - mọi người nhận đều đã nộp            → "Hoàn thành"
+ *   - bị trả Làm lại                        → "Đang xử lý" (mở lại)
+ * Rooty Workspace (app của Base này, dữ liệu riêng) CHỈ nghe từ Base hai việc:
+ * "Hoàn thành" và mở lại — nên đó là hai chữ phải ghi đúng. Tiếp nhận, trao
+ * đổi, sửa hạn… của app mình không sang được bên đó, và anh Hùng chốt là được:
+ * "bên mình chuyên sâu nên nhiều vậy là đúng, miễn bên đó có cái cơ bản".
  *   - "Kết quả": link của từng người, mỗi người một dòng "Tên: link"
  *   - tệp sản phẩm: cột "File kết quả" (Claude THÊM cột này 01/10, chỉ thêm mới)
  * Không chép việc sang Base Tracking, không sửa cột nào khác của Base công ty.
@@ -37,6 +42,8 @@ const NGUON = {
   wiki: process.env.LIEN_PHONG_WIKI || 'CI6Qwe8wui9WDnkH0wMl5q9UgFe',
   host: process.env.LIEN_PHONG_HOST || 'https://rootytrip2.sg.larksuite.com',
   ten: 'Giao việc công ty',
+  /* App làm việc trên Base này (dữ liệu CV từng người, trao đổi riêng của nó). */
+  app: process.env.LIEN_PHONG_APP || 'https://rooty-workspace.onrender.com/cong-viec',
 };
 /** Tắt hẳn bằng LIEN_PHONG=0 (ví dụ khi app trên Render chưa được cấp quyền Base đó). */
 const bat = () => process.env.LIEN_PHONG !== '0';
@@ -107,6 +114,7 @@ function sangViec(rec) {
     nguonTen: NGUON.ten,
     nguonMa: chu(c[F.stt]),
     nguonUrl: linkBanGhi(rec.record_id),
+    appUrl: NGUON.app,
     phongBan: motChon(c[F.phongBan]),
     trangThaiGoc: goc,
     title: tieuDe.slice(0, 300),
@@ -168,6 +176,7 @@ function tachTheoNguoi(rec, tienDo) {
       dongNhan: mot ? [] : nhan.filter((x) => x.id && x.id !== u.id),
       status,
       /* Một người và chưa có dòng tiến độ: dùng Kết quả/Ghi chú của bản ghi công ty. */
+      tdTrangThai: td ? td.trangThai : '',
       linkKetQua: td ? td.link : (mot ? goc.linkKetQua : ''),
       note: td ? td.ghiChu : (mot ? goc.note : ''),
       tdRid: td ? td.rid : null,
@@ -250,18 +259,24 @@ async function ghiTienDo(lark, v, o, gioVN) {
 }
 
 /** Sau mỗi lần ghi tiến độ: tính lại phần TỔNG rồi ghi vào bản ghi công ty. */
-async function tongHopVeCongTy(lark, recId, gioVN, giuTrangThai) {
+async function tongHopVeCongTy(lark, recId, gioVN, giuTrangThai, moLai) {
   quen();
   const ds = (await docHet(lark, true)).filter((x) => x.nguonRec === recId);
   if (!ds.length) return;
   const goc = ds[0].trangThaiGoc;
-  if (goc === 'Hoàn thành' || goc === 'Từ chối') return;   // người giao đã chốt — không đụng
-  const xong = ds.filter((x) => x.status === 'Hoàn thành').length;
-  const batDau = ds.some((x) => x.status === 'Đang tiến hành' || x.status === 'Hoàn thành');
+  if (goc === 'Từ chối') return;   // người nhận đã từ chối bên app công ty — không đụng
+  /* Đếm theo dòng tiến độ RIÊNG (status của từng việc bị ô công ty "Hoàn thành"
+   * phủ lên, dùng nó thì không bao giờ mở lại được). Chưa có dòng riêng: theo ô
+   * công ty. */
+  const daXong = (x) => x.tdTrangThai ? x.tdTrangThai === 'Hoàn thành' : (goc === 'Hoàn thành' || goc === 'Đã gửi');
+  const xong = ds.filter(daXong).length;
+  const batDau = ds.some((x) => x.tdTrangThai || x.status === 'Đang tiến hành');
   let trangThai = null;
-  if (xong === ds.length) trangThai = 'Đã gửi';
+  if (moLai) trangThai = 'Đang xử lý';
+  else if (xong === ds.length) trangThai = 'Hoàn thành';
   else if (xong > 0) trangThai = 'Đang xử lý';
   else if (batDau && goc === 'Chờ tiếp nhận') trangThai = 'Đã tiếp nhận';
+  if (trangThai === goc) trangThai = null;
   const mot = ds.length === 1;
   const ketQua = mot ? ds[0].linkKetQua
     : ds.filter((x) => x.linkKetQua).map((x) => x.owner[0].name + ': ' + x.linkKetQua).join('\n');
@@ -293,7 +308,7 @@ async function nop(lark, v, o, gioVN) {
 async function capNhat(lark, v, o, gioVN) {
   const tt = o.trangThai || (v.tdRid ? null : (v.status === 'Hoàn thành' || v.status === 'Đang tiến hành' ? v.status : null));
   await ghiTienDo(lark, v, { trangThai: tt, link: o.link, ghiChu: o.ghiChu }, gioVN);
-  await tongHopVeCongTy(lark, v.nguonRec, gioVN, !o.trangThai);
+  await tongHopVeCongTy(lark, v.nguonRec, gioVN, !o.trangThai, o.trangThai === 'Đang tiến hành');
 }
 
 const taiLen = async (lark, v, relPath) => {

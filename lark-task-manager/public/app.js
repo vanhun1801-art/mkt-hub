@@ -3523,8 +3523,8 @@ function buildStaffDrawer(b, t, o) {
   }
   /* Việc liên phòng: nguồn ở app Giao việc công ty — mở bản gốc một chạm. */
   if (t.lienPhong) {
-    const mo = el('a', 'sg-nguon', '⇄ Liên phòng ban · ' + (t.nguonMa || '') + ' · mở trong Giao việc công ty ↗');
-    mo.href = t.nguonUrl || '#';
+    const mo = el('a', 'sg-nguon', '⇄ Liên phòng ban · ' + (t.nguonMa || '') + ' · mở trong Rooty Workspace ↗');
+    mo.href = t.appUrl || t.nguonUrl || '#';
     mo.target = '_blank';
     mo.rel = 'noopener';
     hero.appendChild(mo);
@@ -3618,6 +3618,15 @@ function buildStaffDrawer(b, t, o) {
 /** Drawer cho NGƯỜI ORDER (tab "Việc đã order"): CHỈ ĐỌC.
  *  Xem tình trạng + sản phẩm, không sửa được gì; muốn đổi thì gửi Yêu cầu điều chỉnh. */
 function buildOrderDrawer(b, t, o) {
+  /* Việc liên phòng mình giao: nội dung, hạn… do Rooty Workspace giữ — sửa ở đó. */
+  if (t.lienPhong) {
+    const mo = el('a', 'sg-nguon', '⇄ Liên phòng ban · ' + (t.nguonMa || '') +
+      ' · sửa nội dung / deadline trong Rooty Workspace ↗');
+    mo.href = t.appUrl || t.nguonUrl || '#';
+    mo.target = '_blank';
+    mo.rel = 'noopener';
+    b.appendChild(mo);
+  }
   // Thẻ 1: yêu cầu mình đã đặt (chỉ đọc)
   const yc = theKhoi('Yêu cầu bạn đã đặt');
   if (t.detail) yc.than.appendChild(moTaCoLink(t.detail));
