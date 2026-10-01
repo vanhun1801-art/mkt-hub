@@ -325,6 +325,24 @@ function danhBa({ tk, goi }, toi) {
   return [...m.values()].sort((a, b) => a.ten.localeCompare(b.ten, 'vi'));
 }
 
+const laOpenId = (x) => typeof x === 'string' && /^ou_\w+$/.test(x);
+
+/**
+ * Nhân sự thêm một dòng thì PHẢI tự được xem dòng đó — không thì thêm xong là
+ * mất hút, vì danh sách chỉ hiện dòng được phân quyền. Gán họ vào "Được xem mật
+ * khẩu", và vào "Người phụ trách" nếu ô đó còn trống. Quản lý vốn thấy hết nên
+ * không gán gì (khỏi rác tên quản lý trên mọi dòng).
+ *
+ * id lấy từ header hub, mà hub và lớp ghi Base dùng CÙNG app Lark ở chế độ api,
+ * nên open_id ghi xuống khớp với open_id đọc lên.
+ */
+function ganNguoiThem(toi, ghi, F) {
+  if (toi.quanLy || !laOpenId(toi.id)) return;
+  ghi[F.duocXem] = [{ id: toi.id }];
+  const pt = ghi[F.phuTrach];
+  if (!Array.isArray(pt) || !pt.length) ghi[F.phuTrach] = [{ id: toi.id }];
+}
+
 /* ---------------- API ---------------- */
 
 async function api(req, res, u) {
@@ -501,7 +519,8 @@ async function api(req, res, u) {
 
   /* ---- thêm tài khoản mới: chỉ quản lý ---- */
   if (p === '/them' && req.method === 'POST') {
-    if (!toi.quanLy) return loi(res, 403, 'Chỉ quản lý thêm được tài khoản.');
+    /* Ai cũng thêm được (anh Hùng 01/10). Nhân sự thêm thì tự được cấp xem — xem ganNguoiThem. */
+    if (!toi.quanLy && !laOpenId(toi.id)) return loi(res, 403, 'Chưa xác định được anh/chị là ai nên chưa thêm được.');
     if (!mh.coKhoa()) return loi(res, 503, 'Máy chủ chưa có khoá TK_KHOA.');
     const t = await docThan(req);
     const s = (v, n = 300) => String(v == null ? '' : v).trim().slice(0, n);
@@ -520,6 +539,7 @@ async function api(req, res, u) {
       [F.trangThai]: 'Đang dùng',
     };
     if (t.matKhau) { o[F.matKhau] = mh.maHoa(String(t.matKhau).slice(0, 500)); o[F.doiLuc] = gioVN(); }
+    ganNguoiThem(toi, o, cfg.f.tk);
     await lark.createRecord(o, cfg.tkTableId);
     await ghiNhatKy(toi, req, 'Thêm mới', 'tk', { id: '', nenTang: s(t.nenTang), ten: s(t.ten) });
     kho.xoaDem();
@@ -562,7 +582,7 @@ async function api(req, res, u) {
 
   /* ---- thêm gói đăng ký: chỉ quản lý ---- */
   if (p === '/them-goi' && req.method === 'POST') {
-    if (!toi.quanLy) return loi(res, 403, 'Chỉ quản lý thêm được gói.');
+    if (!toi.quanLy && !laOpenId(toi.id)) return loi(res, 403, 'Chưa xác định được anh/chị là ai nên chưa thêm được.');
     const than = await docThan(req);
     let ghi;
     try { ghi = kiem.doiNhieu('goi', than.truong); } catch (e) { return loi(res, e.http || 400, e.message); }
@@ -572,6 +592,7 @@ async function api(req, res, u) {
       ghi[cfg.f.goi.matKhau] = mh.maHoa(String(than.matKhau).slice(0, 500));
     }
     if (!ghi[cfg.f.goi.trangThai]) ghi[cfg.f.goi.trangThai] = 'Đang dùng';
+    ganNguoiThem(toi, ghi, cfg.f.goi);
     await lark.createRecord(ghi, cfg.goiTableId);
     await ghiNhatKy(toi, req, 'Thêm mới', 'goi', { id: '', ten: ghi[cfg.f.goi.ten] });
     kho.xoaDem();

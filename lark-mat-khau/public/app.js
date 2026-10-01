@@ -260,8 +260,10 @@ function veLai() {
 }
 
 /* Người chưa được phân quyền dòng nào: KHÔNG thấy gì — kể cả tên nền tảng. */
-const chuaDuocCap = () => '<div class="trong chua-cap"><div class="to">🔒</div>' +
-  '<b>Anh/chị chưa được phân quyền tài khoản nào.</b><br>Nhờ quản lý cấp ở tab Phân quyền — được cấp dòng nào thì thấy và chỉnh dòng đó.</div>';
+/* Nút thêm vẫn có ở đây: nhân sự thêm được, thêm xong tự được xem dòng đó. */
+const chuaDuocCap = (nut, chu) => '<div class="trong chua-cap"><div class="to">🔒</div>' +
+  '<b>Anh/chị chưa được phân quyền tài khoản nào.</b><br>Nhờ quản lý cấp ở tab Phân quyền — được cấp dòng nào thì thấy và chỉnh dòng đó.' +
+  (nut ? '<br>Hoặc tự thêm tài khoản mình đang giữ — thêm xong anh/chị thấy được ngay.<div style="margin-top:12px"><button class="btn primary" id="' + nut + '">' + chu + '</button></div>' : '') + '</div>';
 
 /* ---------------------------------------------------------------------------
  * Ô CHỌN NGƯỜI — gõ tên/email, chọn từ danh bạ công ty (GET /api/tim-nguoi)
@@ -313,9 +315,9 @@ function veTaiKhoan() {
     '<input type="search" id="tim" placeholder="Tìm nền tảng, user, người phụ trách… (gõ không dấu cũng được)" value="' + esc(S.loc.tim) + '">' +
     '<select id="locNhom"><option value="">Mọi nhóm</option>' +
       S.nhom.map((n) => '<option' + (S.loc.nhom === n ? ' selected' : '') + '>' + esc(n) + '</option>').join('') + '</select>' +
-    (laQuanLy() ? '<button class="btn sm primary" id="btnThem">＋ Thêm tài khoản</button>' : '') +
+    '<button class="btn sm primary" id="btnThem">＋ Thêm tài khoản</button>' +
     '<span class="demKq">' + ds.length + ' / ' + S.tk.length + '</span></div>';
-  if (!S.tk.length && !laQuanLy()) return chuaDuocCap();
+  if (!S.tk.length && !laQuanLy()) return chuaDuocCap('btnThem', '＋ Thêm tài khoản');
   if (!S.tk.length) {
     return loc + '<div class="trong">Bảng Tài khoản còn trống.' +
       (laQuanLy() ? '<br>Nhập file Excel bằng: <code>node nhap.js "…\\TÀI KHOẢN MẬT KHẨU - ROOTY TRIP.xlsx"</code>' : '') + '</div>';
@@ -355,9 +357,9 @@ function hanCua(g) {
 }
 
 function veGoi() {
-  const dau = laQuanLy() && S.suaDuoc ? '<div class="filters"><span class="phu">Bấm vào một gói để sửa hạn, chi phí, thiết bị, người phụ trách.</span>' +
+  const dau = S.suaDuoc ? '<div class="filters"><span class="phu">Bấm vào một gói để sửa hạn, chi phí, thiết bị, người phụ trách.</span>' +
     '<button class="btn sm primary" id="btnThemGoi" style="margin-left:auto">＋ Thêm gói</button></div>' : '';
-  if (!S.goi.length && !laQuanLy()) return chuaDuocCap();
+  if (!S.goi.length && !laQuanLy()) return chuaDuocCap('btnThemGoi', '＋ Thêm gói');
   if (!S.goi.length) return dau + '<div class="trong">Chưa có gói đăng ký nào trên Base.</div>';
   return dau + '<div class="luoi">' + S.goi.map((g) => {
     const h = hanCua(g);
@@ -608,7 +610,8 @@ function moFormThem() {
     '<label class="o-nhap"><span>Mật khẩu</span><span class="nut-hang"><input id="tMatKhau" type="password" autocomplete="new-password" style="flex:1;min-width:0"><button class="btn sm" id="tSinh">Sinh</button></span></label>' +
     o('tSdt', 'Số điện thoại') + o('tPhuTrach', 'Người phụ trách (ghi tên)') +
     '<label class="o-nhap"><span>Ghi chú</span><textarea id="tGhiChu" rows="3"></textarea></label>' +
-    '<p class="phu">Muốn giao người phụ trách bằng tài khoản Lark hoặc cấp quyền xem: lưu xong rồi làm ở Base / tab Phân quyền.</p>' +
+    (laQuanLy() ? '<p class="phu">Lưu xong thì bấm vào dòng vừa thêm để giao người phụ trách và chọn ai được xem mật khẩu.</p>'
+      : '<p class="phu">Lưu xong anh/chị tự được xem và đứng tên phụ trách tài khoản này. Muốn cho người khác xem thì nhờ quản lý.</p>') +
     '<div class="nut-hang"><button class="btn primary" id="tLuu">Lưu tài khoản</button></div></div>';
 }
 
@@ -735,7 +738,7 @@ document.addEventListener('click', async (e) => {
       matKhau: g('tMatKhau'), sdt: g('tSdt'), phuTrachChu: g('tPhuTrach'), ghiChu: g('tGhiChu') };
     if (!than.nenTang.trim()) return toast('Cần điền Nền tảng', 'err');
     t.disabled = true;
-    try { await guiJson('/api/them', than); await napDanhSach(true); dongSo(); toast('Đã thêm tài khoản', 'ok'); }
+    try { await guiJson('/api/them', than); await napDanhSach(true); S.timNguoi = true; dongSo(); toast('Đã thêm tài khoản', 'ok'); }
     catch (er) { toast(er.message, 'err'); t.disabled = false; }
     return;
   }

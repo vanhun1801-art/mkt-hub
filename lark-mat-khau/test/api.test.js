@@ -81,6 +81,7 @@ const NGUOI = {
   hanApp: { 'x-hub-user-id': 'ou_KHAC_APP', 'x-hub-user-name': encodeURIComponent('Mỹ Hân') },
   la: { 'x-hub-user-id': 'ou_la', 'x-hub-user-name': encodeURIComponent('Người Lạ') },
   hut: { 'x-hub-user-id': '' },
+  trang: { 'x-hub-user-id': 'ou_trang', 'x-hub-user-name': encodeURIComponent('Người Trắng') },
 };
 function goi(duong, ai, than) {
   return new Promise((resolve, reject) => {
@@ -183,14 +184,20 @@ const nk = () => BANG[cfg.nkTableId].map((r) => r.cells[F.nk.hanhDong]);
       !JSON.stringify(BANG[cfg.nkTableId]).includes(MK_A));
 
     group('Thêm / nhật ký — chỉ quản lý');
-    ok('nhân sự thêm → 403', (await goi('/api/them', 'han', { nenTang: 'X' })).ma === 403);
+    r = await goi('/api/them', 'han', { nenTang: 'Canva Hân', matKhau: 'Hn-1' });
+    const tkHan = BANG[cfg.tkTableId].at(-1).cells;
+    ok('nhân sự thêm được tài khoản', r.ma === 200 && tkHan[F.tk.nenTang] === 'Canva Hân', r.s);
+    ok('…và tự được xem + đứng tên phụ trách dòng mình thêm', JSON.stringify(tkHan[F.tk.duocXem]) === '[{"id":"ou_han"}]' &&
+      JSON.stringify(tkHan[F.tk.phuTrach]) === '[{"id":"ou_han"}]');
+    ok('…thấy ngay dòng đó trong danh sách', (await goi('/api/danh-sach?moi=1', 'han')).j.tk.some((x) => x.nenTang === 'Canva Hân'));
+    ok('request hụt danh tính không thêm được', (await goi('/api/them', 'hut', { nenTang: 'X' })).ma === 403);
     r = await goi('/api/them', 'ql', { nenTang: 'Zalo 999', matKhau: 'Zz-1', nhom: 'Mạng xã hội' });
     const moi = BANG[cfg.tkTableId].at(-1).cells;
     ok('quản lý thêm → mật khẩu mã hoá', r.ma === 200 && mh.daMaHoa(moi[F.tk.matKhau]));
     ok('nhân sự đọc nhật ký → 403', (await goi('/api/nhat-ky', 'han')).ma === 403);
     r = await goi('/api/nhat-ky', 'ql');
     ok('quản lý đọc nhật ký', r.ma === 200 && r.j.ds.length > 0);
-    ok('khoi-tao: người mới không được tìm danh bạ, quản lý thì được', (await goi('/api/khoi-tao', 'la')).j.timNguoi === false &&
+    ok('khoi-tao: người mới không được tìm danh bạ, quản lý thì được', (await goi('/api/khoi-tao', 'trang')).j.timNguoi === false &&
       (await goi('/api/khoi-tao', 'ql')).j.timNguoi === true);
 
     group('Sửa thông tin — chỉ quản lý, chỉ cột trong danh sách');
@@ -211,7 +218,10 @@ const nk = () => BANG[cfg.nkTableId].map((r) => r.cells[F.nk.hanhDong]);
     ok('số âm → 400', (await goi('/api/sua', 'ql', { bang: 'goi', id: 'recG', truong: { soLuong: -1 } })).ma === 400);
     r = await goi('/api/sua', 'ql', { bang: 'tk', id: 'recA', truong: { ghiChu: '' } });
     ok('ô để trống → xoá ô (null)', r.ma === 200 && BANG[cfg.tkTableId][0].cells[F.tk.ghiChu] === null);
-    ok('nhân sự thêm gói → 403', (await goi('/api/them-goi', 'han', { truong: { ten: 'X' } })).ma === 403);
+    r = await goi('/api/them-goi', 'la', { truong: { ten: 'Gói của Lạ' } });
+    const gLa = BANG[cfg.goiTableId].at(-1).cells;
+    ok('người mới thêm được gói và tự được xem gói đó', r.ma === 200 && gLa[F.goi.ten] === 'Gói của Lạ' &&
+      JSON.stringify(gLa[F.goi.duocXem]) === '[{"id":"ou_la"}]', r.s);
     r = await goi('/api/them-goi', 'ql', { truong: { ten: 'Canva', chuKy: 'Năm', chiPhi: 3000000 }, matKhau: 'Cv-1' });
     const gm = BANG[cfg.goiTableId].at(-1).cells;
     ok('quản lý thêm gói, mật khẩu mã hoá', r.ma === 200 && gm[F.goi.ten] === 'Canva' && mh.daMaHoa(gm[F.goi.matKhau]), r.s);
@@ -225,7 +235,7 @@ const nk = () => BANG[cfg.nkTableId].map((r) => r.cells[F.nk.hanhDong]);
     ok('người ngồi máy là quản lý — cùng quyền với phiên lark-cli đang đọc Base', r.ma === 200 && r.j.me.quanLy === true, r.s.slice(0, 200));
 
     group('Tìm người trong danh bạ');
-    ok('người mới (chưa được cấp dòng nào) không tra danh bạ được', (await goi('/api/tim-nguoi?q=moi', 'la')).ma === 403);
+    ok('người mới (chưa được cấp dòng nào) không tra danh bạ được', (await goi('/api/tim-nguoi?q=moi', 'trang')).ma === 403);
     r = await goi('/api/tim-nguoi?q=moi', 'ql');
     ok('quản lý tra được, trả id + tên + phòng', r.ma === 200 && r.j.ds[0].id === 'ou_moi' && r.j.ds[0].phong === 'Phòng MKT', r.s);
     ok('người được cấp một dòng cũng tra được (để gán phụ trách)', (await goi('/api/tim-nguoi?q=moi', 'han')).ma === 200);
