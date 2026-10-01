@@ -3523,11 +3523,7 @@ function buildStaffDrawer(b, t, o) {
   }
   /* Việc liên phòng: nguồn ở app Giao việc công ty — mở bản gốc một chạm. */
   if (t.lienPhong) {
-    const mo = el('a', 'sg-nguon', '⇄ Liên phòng ban · ' + (t.nguonMa || '') + ' · mở trong Rooty Workspace ↗');
-    mo.href = t.appUrl || t.nguonUrl || '#';
-    mo.target = '_blank';
-    mo.rel = 'noopener';
-    hero.appendChild(mo);
+    hero.appendChild(el('div', 'sg-nguon', '⇄ Liên phòng ban · ' + (t.nguonMa || '')));
   }
   b.appendChild(hero);
 
@@ -3618,18 +3614,29 @@ function buildStaffDrawer(b, t, o) {
 /** Drawer cho NGƯỜI ORDER (tab "Việc đã order"): CHỈ ĐỌC.
  *  Xem tình trạng + sản phẩm, không sửa được gì; muốn đổi thì gửi Yêu cầu điều chỉnh. */
 function buildOrderDrawer(b, t, o) {
-  /* Việc liên phòng mình giao: nội dung, hạn… do Rooty Workspace giữ — sửa ở đó. */
+  /* Việc LIÊN PHÒNG mình giao: sửa thẳng ở đây, tự lưu vào Base Giao việc công ty
+   * (anh Hùng 01/10/2026: "anh không muốn đi đâu cả, chỉ muốn chỉnh trực tiếp
+   * trên app mình"). */
   if (t.lienPhong) {
-    const mo = el('a', 'sg-nguon', '⇄ Liên phòng ban · ' + (t.nguonMa || '') +
-      ' · sửa nội dung / deadline trong Rooty Workspace ↗');
-    mo.href = t.appUrl || t.nguonUrl || '#';
-    mo.target = '_blank';
-    mo.rel = 'noopener';
-    b.appendChild(mo);
+    b.appendChild(el('div', 'sg-nguon', '⇄ Liên phòng ban · ' + (t.nguonMa || '') + ' · tự lưu vào Giao việc công ty'));
+    const sv = theKhoi('Việc bạn đã giao');
+    sv.than.appendChild(field('Tên việc', textInput(t.title, (v) => set('title', v))));
+    const nd = el('textarea');
+    nd.value = t.detail || '';
+    nd.style.minHeight = '160px';
+    nd.oninput = () => set('detail', nd.value);
+    sv.than.appendChild(field('Nội dung', nd));
+    const r = el('div', 'row2');
+    r.appendChild(field('Deadline', ngayInput(t.deadline1, (v) => set('deadline1', v))));
+    r.appendChild(field('Mức độ ưu tiên', selectInput(t.uuTienGoc || '', ['Gấp', 'Cao', 'Trung bình', 'Thấp'],
+      (v) => set('uuTienGoc', v))));
+    sv.than.appendChild(r);
+    b.appendChild(sv.the);
   }
   // Thẻ 1: yêu cầu mình đã đặt (chỉ đọc)
   const yc = theKhoi('Yêu cầu bạn đã đặt');
-  if (t.detail) yc.than.appendChild(moTaCoLink(t.detail));
+  if (t.lienPhong) { /* đã có ô sửa ở trên — không lặp lại bản chỉ đọc */ }
+  else if (t.detail) yc.than.appendChild(moTaCoLink(t.detail));
   else yc.than.appendChild(el('div', 'd-desc trong-nhe', 'Chưa ghi chi tiết yêu cầu.'));
   if (t.link) {
     const oLink = el('div', 'field');
@@ -3667,6 +3674,7 @@ function buildOrderDrawer(b, t, o) {
   b.appendChild(khoiBinhLuan(t));
 
   // hành động duy nhất của người order: gửi yêu cầu điều chỉnh
+  if (t.lienPhong) return;   // việc liên phòng: người giao tự sửa ngay ở trên
   const dc = el('div', 'sd-dc');
   dc.appendChild(el('div', 'sd-dc-txt',
     'Cần đổi deadline, nội dung hay thông tin của việc này? Gửi yêu cầu điều chỉnh — Admin sẽ xử lý, đừng tự sửa.'));

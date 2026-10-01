@@ -59,7 +59,10 @@ const F = {
 const TEN = {
   trangThai: 'Trạng thái', ketQua: 'Kết quả', ghiChu: 'Ghi chú/ hướng xử lý tiếp theo',
   fileKetQua: 'File kết quả', capNhatCuoi: 'Ngày cập nhật cuối',
+  noiDung: 'Nội dung giao việc', deadline: 'Deadline', uuTien: 'Mức độ ưu tiên',
 };
+/* Bộ ưu tiên GỐC của Base công ty — người giao sửa bằng đúng bộ này. */
+const UU_TIEN_GOC = ['Gấp', 'Cao', 'Trung bình', 'Thấp'];
 
 /* Bảng tiến độ riêng từng người (Base Tracking của phòng). */
 const TD = {
@@ -121,6 +124,7 @@ function sangViec(rec) {
     detail: dong.join('\n').trim(),
     status: TRANG_THAI[goc] || 'Đang tiến hành',
     priority: UU_TIEN[motChon(c[F.uuTien])] || null,
+    uuTienGoc: motChon(c[F.uuTien]),
     owner: nguoi(c[F.nguoiNhan]),
     helper: [],
     requester: nguoi(c[F.nguoiGiao]),
@@ -311,6 +315,28 @@ async function capNhat(lark, v, o, gioVN) {
   await tongHopVeCongTy(lark, v.nguonRec, gioVN, !o.trangThai, o.trangThai === 'Đang tiến hành');
 }
 
+/**
+ * NGƯỜI GIAO sửa việc mình giao, ngay trên app (anh Hùng 01/10/2026: "anh không
+ * muốn đi đâu cả, chỉ muốn chỉnh trực tiếp trên app mình"). Ghi thẳng vào bản
+ * ghi Base công ty: tên + nội dung (chung một ô "Nội dung giao việc", dòng đầu là
+ * tên), deadline (chuỗi giờ VN dựng sẵn), mức độ ưu tiên (bộ gốc).
+ * `o`: { title, detail, deadlineVN (chuỗi | null = xoá hạn), uuTienGoc } — thiếu khoá = không đụng.
+ */
+async function suaNguoiGiao(lark, v, o, gioVN) {
+  const cells = {};
+  if (o.title !== undefined || o.detail !== undefined) {
+    const ten = String(o.title !== undefined ? o.title : v.title).replace(/\n+/g, ' ').trim();
+    const nd = String(o.detail !== undefined ? o.detail : v.detail || '').trim();
+    cells[TEN.noiDung] = ten + (nd ? '\n' + nd : '');
+  }
+  if (o.deadlineVN !== undefined) cells[TEN.deadline] = o.deadlineVN;
+  if (o.uuTienGoc !== undefined && UU_TIEN_GOC.includes(o.uuTienGoc)) cells[TEN.uuTien] = o.uuTienGoc;
+  if (!Object.keys(cells).length) return;
+  if (gioVN) cells[TEN.capNhatCuoi] = gioVN;
+  await lark.updateRecord(v.nguonRec, cells, NGUON.table, NGUON.base);
+  quen();
+}
+
 const taiLen = async (lark, v, relPath) => {
   await lark.uploadAttachment(v.nguonRec, TEN.fileKetQua, relPath, NGUON.table, NGUON.base);
   quen();
@@ -324,4 +350,4 @@ const taiVe = (lark, v, token, slug) => lark.downloadAttachment(v.nguonRec, toke
 async function tim(lark, id) { return (await docHet(lark)).find((v) => v.id === id) || null; }
 
 module.exports = { docHet, lienQuan, sangViec, tachTheoNguoi, maRieng, NGUON, bat, loi: () => dem.loi,
-  batDau, nop, capNhat, taiLen, goTep, taiVe, tim, quen };
+  batDau, nop, capNhat, suaNguoiGiao, UU_TIEN_GOC, taiLen, goTep, taiVe, tim, quen };

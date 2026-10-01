@@ -1872,15 +1872,37 @@ async function api(req, res, url) {
       if (!rec0) {
         const lp = await LP.tim(lark, id);
         if (lp) {
-          if (!(await requireOwnTask(res, lp, req))) return;
           const body = await readBody(req);
-          /* Base công ty chỉ có chỗ cho Kết quả và Ghi chú — trường khác (deadline,
-           * người giao…) là của người giao bên công ty, không sửa từ đây. */
-          const khac = Object.keys(body).filter((k) => !['linkKetQua', 'note'].includes(k));
+          /* Hai phần, hai người: NGƯỜI NHẬN sửa link kết quả + ghi chú; NGƯỜI GIAO
+           * sửa tên, nội dung, deadline, ưu tiên. Quản lý sửa được cả hai. */
+          const O_NHAN = ['linkKetQua', 'note'];
+          const O_GIAO = ['title', 'detail', 'deadline1', 'uuTienGoc'];
+          const khac = Object.keys(body).filter((k) => !O_NHAN.includes(k) && !O_GIAO.includes(k));
           if (khac.length) {
-            return json(res, { error: 'Việc liên phòng chỉ sửa được Link kết quả và Ghi chú từ đây — phần còn lại sửa ở app Giao việc công ty.', code: 'FIELD_LOCKED' }, 403);
+            return json(res, { error: 'Việc liên phòng không có chỗ cho "' + khac.join(', ') + '" trên Base công ty.', code: 'FIELD_LOCKED' }, 403);
           }
-          await LP.capNhat(lark, lp, { link: body.linkKetQua, ghiChu: body.note }, chuoiGioVN(new Date()));
+          const me = await whoAmI(req);
+          const ql = await isManager(req);
+          const laNhan = !!(me && ownedBy(lp, me.id));
+          const laGiao = !!(me && (lp.requester || []).some((u) => u && u.id === me.id));
+          const coNhan = Object.keys(body).some((k) => O_NHAN.includes(k));
+          const coGiao = Object.keys(body).some((k) => O_GIAO.includes(k));
+          if ((coNhan && !laNhan && !ql) || (coGiao && !laGiao && !ql)) {
+            return json(res, { error: 'Phần này không phải của bạn trong việc liên phòng.', code: 'NOT_YOUR_TASK' }, 403);
+          }
+          const gio = chuoiGioVN(new Date());
+          if (coGiao) {
+            const o = {};
+            if (body.title !== undefined) o.title = body.title;
+            if (body.detail !== undefined) o.detail = body.detail;
+            if (body.deadline1 !== undefined) {
+              const d = body.deadline1 ? new Date(body.deadline1) : null;
+              o.deadlineVN = d && !isNaN(d.getTime()) ? chuoiGioVN(d) : null;
+            }
+            if (body.uuTienGoc !== undefined) o.uuTienGoc = body.uuTienGoc;
+            await LP.suaNguoiGiao(lark, lp, o, gio);
+          }
+          if (coNhan) await LP.capNhat(lark, lp, { link: body.linkKetQua, ghiChu: body.note }, gio);
           return json(res, { ok: true });
         }
       }
