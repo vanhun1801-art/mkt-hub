@@ -105,7 +105,9 @@ const veGio = (t) => {
 };
 
 const tenNguoi = (ds) => (ds || []).map((n) => n.ten).filter(Boolean).join(', ');
-const phuTrachCua = (x) => tenNguoi(x.phuTrach) || x.phuTrachChu || '';
+/* Chỉ người gắn tài khoản Lark. Ô "Phụ trách (ghi tay)" từ file Excel đã được
+   dò và gắn sang tài khoản Lark ngày 01/10; cột cũ vẫn nằm trên Base, app không đọc nữa. */
+const phuTrachCua = (x) => tenNguoi(x.phuTrach);
 const timBanGhi = (bang, id) => (bang === 'goi' ? S.goi : S.tk).find((x) => x.id === id);
 
 /* Link đăng nhập: chỉ http(s). Ô trên Base gõ tay được, một "javascript:" lọt
@@ -640,7 +642,7 @@ function moFormThem() {
     '<label class="o-nhap"><span>Nhóm</span><select id="tNhom">' + S.nhom.map((n) => '<option>' + esc(n) + '</option>').join('') + '</select></label>' +
     o('tLink', 'Link đăng nhập') + o('tUser', 'User') +
     '<label class="o-nhap"><span>Mật khẩu</span><span class="nut-hang"><input id="tMatKhau" type="password" autocomplete="new-password" style="flex:1;min-width:0"><button class="btn sm" id="tSinh">Sinh</button></span></label>' +
-    o('tSdt', 'Số điện thoại') + o('tPhuTrach', 'Người phụ trách (ghi tên)') +
+    o('tSdt', 'Số điện thoại') +
     '<label class="o-nhap"><span>Ghi chú</span><textarea id="tGhiChu" rows="3"></textarea></label>' +
     (laQuanLy() ? '<p class="phu">Lưu xong thì bấm vào dòng vừa thêm để giao người phụ trách và chọn ai được xem mật khẩu.</p>'
       : '<p class="phu">Lưu xong anh/chị tự được xem và đứng tên phụ trách tài khoản này. Muốn cho người khác xem thì nhờ quản lý.</p>') +
@@ -792,7 +794,7 @@ document.addEventListener('click', async (e) => {
   if (t.id === 'tLuu') {
     const g = (id) => ($('#' + id) || {}).value || '';
     const than = { nenTang: g('tNenTang'), ten: g('tTen'), nhom: g('tNhom'), link: g('tLink'), user: g('tUser'),
-      matKhau: g('tMatKhau'), sdt: g('tSdt'), phuTrachChu: g('tPhuTrach'), ghiChu: g('tGhiChu') };
+      matKhau: g('tMatKhau'), sdt: g('tSdt'), ghiChu: g('tGhiChu') };
     if (!than.nenTang.trim()) return toast('Cần điền Nền tảng', 'err');
     t.disabled = true;
     try { await guiJson('/api/them', than); await napDanhSach(true); S.timNguoi = true; dongSo(); toast('Đã thêm tài khoản', 'ok'); }

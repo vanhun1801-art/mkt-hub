@@ -267,7 +267,8 @@ function tongQuan({ tk, goi }) {
   const tkDung = tk.filter((x) => x.trangThai !== 'Ngừng dùng');
   const cu = tkDung.filter((x) => x.coMatKhau && (!x.doiLuc || Date.now() - x.doiLuc > cfg.cuNgay * NGAY));
   const chuaMaHoa = dem(tk, (x) => x.chuaMaHoa) + dem(goi, (x) => x.chuaMaHoa);
-  const thieuPT = dem(tkDung, (x) => !x.phuTrach.length && !x.phuTrachChu);
+  /* Chỉ tính người phụ trách gắn tài khoản Lark — ô ghi tay đã bỏ khỏi app (01/10). */
+  const thieuPT = dem(tkDung, (x) => !x.phuTrach.length);
 
   const the = [
     { chinh: true, nhan: 'Tài khoản đang quản lý', so: tkDung.length, dinhDang: 'so',
@@ -291,7 +292,7 @@ function tongQuan({ tk, goi }) {
       the: ['Gói đăng ký'], muc: 'vua', _s: g.conLai })),
     ...(chuaMaHoa ? [{ tieuDe: chuaMaHoa + ' ô mật khẩu còn để chữ thường trên Base',
       phu: 'chạy node nhap.js --ma-hoa-goi', the: ['Bảo mật'], muc: 'cao', _s: -999 }] : []),
-    ...(thieuPT ? [{ tieuDe: thieuPT + ' tài khoản chưa có người phụ trách', phu: 'giao người trên Base',
+    ...(thieuPT ? [{ tieuDe: thieuPT + ' tài khoản chưa có người phụ trách', phu: 'bấm vào dòng để gán',
       the: ['Tài khoản'], muc: 'thap', _s: 900 }] : []),
   ].sort((a, b) => a._s - b._s).map(({ _s, ...v }) => v);
 
