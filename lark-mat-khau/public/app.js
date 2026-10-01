@@ -135,14 +135,30 @@ async function layMatKhau(bang, id, truong, viec) {
   return d.matKhau || '';
 }
 
+/* Vẽ lại ĐÚNG các ô mật khẩu của một khoá, không vẽ lại cả trang.
+   veLai() dựng lại cả ngăn chi tiết — đang gõ dở form mà mật khẩu tự che (hết
+   30 giây, hay rời tab) là mất sạch chữ vừa gõ (bắt được khi bấm thử 01/10). */
+function veOMk(k) {
+  const [bang, id, truong] = k.split(':');
+  const x = timBanGhi(bang, id);
+  if (!x) return;
+  document.querySelectorAll('[data-mk-o="' + CSS.escape(k) + '"]').forEach((el) => { el.outerHTML = oMatKhau(x, truong); });
+}
+
+function cheHet() {
+  const ks = [...S.hien.keys()];
+  S.hien.clear();
+  ks.forEach(veOMk);
+}
+
 async function hienMatKhau(bang, id, truong) {
   const k = khoaHien(bang, id, truong);
-  if (S.hien.has(k)) { S.hien.delete(k); veLai(); return; }
+  if (S.hien.has(k)) { S.hien.delete(k); veOMk(k); return; }
   try {
     const mk = await layMatKhau(bang, id, truong, 'xem');
     S.hien.set(k, { gia: mk, het: Date.now() + HIEN_MS });
-    setTimeout(() => { const o = S.hien.get(k); if (o && o.het <= Date.now()) { S.hien.delete(k); veLai(); } }, HIEN_MS + 50);
-    veLai();
+    setTimeout(() => { const o = S.hien.get(k); if (o && o.het <= Date.now()) { S.hien.delete(k); veOMk(k); } }, HIEN_MS + 50);
+    veOMk(k);
   } catch (e) { toast(e.message, 'err'); }
 }
 
@@ -164,10 +180,11 @@ async function chepChu(chu) {
 function oMatKhau(x, truong) {
   truong = truong || 'matKhau';
   const co = truong === 'matKhauCu' ? x.coMatKhauCu : x.coMatKhau;
-  if (!co) return '<span class="mk trong">—</span>';
+  if (!co) return '<span class="mk mk-trong">—</span>';
   if (!x.xem) return '<span class="mk khoa" title="Chưa được cấp quyền xem. Nhờ quản lý cấp.">🔒 chưa được cấp quyền</span>';
-  const h = S.hien.get(khoaHien(x.bang, x.id, truong));
-  return '<span class="mk">' +
+  const k = khoaHien(x.bang, x.id, truong);
+  const h = S.hien.get(k);
+  return '<span class="mk" data-mk-o="' + esc(k) + '">' +
     '<code class="mk-gia' + (h ? ' hien' : '') + '" data-no-i18n>' + (h ? esc(h.gia) : '••••••••') + '</code>' +
     '<button class="btn sm ic" data-mk="hien" data-bang="' + x.bang + '" data-id="' + x.id + '" data-truong="' + truong + '" title="' + (h ? 'Che lại' : 'Hiện 30 giây') + '">' + (h ? IC_CHE : IC_MAT) + '</button>' +
     '<button class="btn sm ic" data-mk="chep" data-bang="' + x.bang + '" data-id="' + x.id + '" data-truong="' + truong + '" title="Chép mật khẩu">⧉</button>' +
@@ -614,7 +631,11 @@ async function doiNguoiXem(kieu, n) {
   const ten = $('#soTieuDe').textContent;
   try {
     await guiJson('/api/cap-quyen', { bang: S.mo.bang, ids: [S.mo.id], nguoi: [n.id], tenNguoi: { [n.id]: n.ten }, kieu });
-    await napDanhSach(true); veLai();
+    await napDanhSach(true);
+    /* Chỉ vẽ lại ô người xem — vẽ cả ngăn là mất chữ đang gõ dở ở form Sửa thông tin. */
+    const x = timBanGhi(S.mo.bang, S.mo.id);
+    const khung = document.querySelector('#soThan [data-xem-chon]');
+    if (x && khung) khung.outerHTML = oChonNguoi(x.duocXem, 'data-xem-chon'); else veLai();
     toast((kieu === 'them' ? 'Đã cho ' : 'Đã rút quyền của ') + (n.ten || n.id) + (kieu === 'them' ? ' xem ' : ' ở ') + ten, 'ok');
   } catch (e) { toast(e.message, 'err'); }
 }
@@ -657,6 +678,12 @@ document.addEventListener('click', async (e) => {
   /* Lớp vỏ có script bắn sự kiện giả (loc.js). Mọi thao tác ở đây đều đụng
      tới mật khẩu hoặc Base, nên chỉ nghe cú bấm thật. */
   if (!e.isTrusted) return;
+  /* Bấm vào đâu trên dòng của bảng Phân quyền cũng là tick dòng đó — ô tick 13px khó bấm trúng. */
+  const hang = e.target.closest('.pq-dong tbody tr');
+  if (hang && !e.target.closest('input, button, a')) {
+    const o = hang.querySelector('[data-pq-dong]');
+    if (o) { o.checked ? S.pq.chon.delete(o.dataset.pqDong) : S.pq.chon.add(o.dataset.pqDong); return veLai(); }
+  }
   const t = e.target.closest('button, a, [data-mo], input');
   if (!t) return;
 
@@ -851,6 +878,6 @@ document.addEventListener('input', (e) => {
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('#so').classList.contains('mo')) dongSo(); });
 
 /* Rời tab / ẩn trang → che hết mật khẩu đang hiện. */
-document.addEventListener('visibilitychange', () => { if (document.hidden && S.hien.size) { S.hien.clear(); veLai(); } });
+document.addEventListener('visibilitychange', () => { if (document.hidden && S.hien.size) cheHet(); });
 
 khoiTao();

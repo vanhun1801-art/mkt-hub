@@ -176,7 +176,10 @@ function gioVN(t = Date.now()) {
 const TEN_BANG = { tk: 'Tài khoản', goi: 'Gói đăng ký' };
 
 async function ghiNhatKy(toi, req, hanhDong, bang, banGhi, them) {
-  const viec = hanhDong + ' · ' + (banGhi ? (banGhi.nenTang ? banGhi.nenTang + ' — ' : '') + (banGhi.ten || banGhi.user || '') : '') +
+  /* "Nền tảng — Tên"; bỏ phần trùng hoặc trống để khỏi ra "Zalo — " cụt đuôi. */
+  const tenDong = banGhi ? [banGhi.nenTang, banGhi.ten && banGhi.ten !== banGhi.nenTang ? banGhi.ten : (banGhi.nenTang ? '' : banGhi.user)]
+    .filter(Boolean).join(' — ') : '';
+  const viec = hanhDong + ' · ' + tenDong +
     (them ? ' · ' + them : '');
   console.log('[NHẬT KÝ]', hanhDong, bang, banGhi ? banGhi.id : '-', '| ai:', toi.ten || '?',
     toi.quaHub ? '(qua hub)' : '(máy)', '| từ:', req.headers.referer || '-');
