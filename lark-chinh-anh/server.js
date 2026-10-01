@@ -327,13 +327,18 @@ async function api(req, res, u) {
 
       const loai = cfg.loai.includes(m.loai) ? m.loai : 'Khác';
       const ngay = String(m.ngay).slice(0, 10);
-      const khoa = ttm.khoa({ tour: tour.ten, loai, ngay });
+      /* Tour VIP phải có tên HDV (anh Hùng 01/10/2026) — chặn ở server như nhận xét ảnh. */
+      const hdv = ttm.hdvCua(loai, m.hdv).slice(0, 120);
+      if (loai === 'VIP' && !hdv) {
+        return fail(res, 400, o('tour VIP thì nhập tên HDV.'));
+      }
+      const khoa = ttm.khoa({ tour: tour.ten, loai, ngay, hdv });
 
       /* Hai mục cùng Tour + Loại + ngày trong CÙNG một lần bấm thì mục sau đè mục
        * trước trên Base — người dùng mất dữ liệu mà không ai báo. Chặn ngay, và nói
        * rõ trùng với mục nào. */
       if (daThay.has(khoa)) {
-        return fail(res, 400, o('trùng Tour + Loại + ngày với mục ' + (daThay.get(khoa) + 1)
+        return fail(res, 400, o('trùng Tour + Loại + ngày' + (hdv ? ' + HDV' : '') + ' với mục ' + (daThay.get(khoa) + 1)
           + ' — hai thư mục cùng lô thì gộp link vào một mục, hoặc đổi Loại/ngày.'));
       }
       daThay.set(khoa, k);
@@ -350,8 +355,8 @@ async function api(req, res, u) {
 
       canGhi.push({
         id: m.id || '',
-        thuMuc: String(m.thuMuc || '').trim() || ttm.dat({ tour: tour.ten, loai, ngay }),
-        khoa, ngay, tourId: tour.id, tour: tour.ten, loai, hangMuc, linkAnh, linkVideo,
+        thuMuc: String(m.thuMuc || '').trim() || ttm.dat({ tour: tour.ten, loai, ngay, hdv }),
+        khoa, ngay, tourId: tour.id, tour: tour.ten, loai, hdv, hangMuc, linkAnh, linkVideo,
         soAnh: coAnh ? (m.soAnh === '' || m.soAnh == null ? 0 : m.soAnh) : 0,
         soVideo: coVideo ? (m.soVideo === '' || m.soVideo == null ? 0 : m.soVideo) : 0,
         nguoiLamIds: [...nguoi],

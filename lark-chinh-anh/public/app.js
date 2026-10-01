@@ -119,6 +119,7 @@
     return {
       tourId: t.tourId || '',
       loai: t.loai || 'Ghép',
+      hdv: '',
       ngay: t.ngay || (S.meta ? S.meta.homNay : ''),
       hangMuc: (t.hangMuc || ['Chỉnh ảnh']).slice(),
       nguoiIds: (t.nguoiIds || []).slice(),
@@ -380,15 +381,17 @@
     const t = tourCua(m);
     const k = /^(\d{4})-(\d{2})-(\d{2})$/.exec(m.ngay || '');
     const ng = k ? k[3] + '.' + k[2] + '.' + k[1] : '';
-    return [t ? t.ten : '', m.loai, ng].filter(Boolean).join(' · ');
+    const hdv = m.loai === 'VIP' ? String(m.hdv || '').trim() : '';
+    return [t ? t.ten : '', m.loai, hdv, ng].filter(Boolean).join(' · ');
   }
 
   /** Lô đã có báo cáo chưa — để nói trước là sẽ CẬP NHẬT chứ không tạo dòng mới. */
   function loTrung(m) {
     const t = tourCua(m);
     if (!t || !m.ngay) return null;
+    const hdv = m.loai === 'VIP' ? String(m.hdv || '').trim().toLowerCase() : '';
     return (S.ds || []).find((b) => b.tour === t.ten && b.loai === m.loai
-      && b.ngay === m.ngay) || null;
+      && b.ngay === m.ngay && String(b.hdv || '').trim().toLowerCase() === hdv) || null;
   }
 
   /** Hai mục trong cùng lần bấm mà cùng Tour + Loại + ngày thì mục sau đè mục
@@ -399,7 +402,7 @@
     S.form.muc.forEach((m, i) => {
       const t = tourCua(m);
       if (!t || !m.ngay) return;
-      const k = t.ten + '|' + m.loai + '|' + m.ngay;
+      const k = t.ten + '|' + m.loai + '|' + m.ngay + '|' + (m.loai === 'VIP' ? String(m.hdv || '').trim().toLowerCase() : '');
       if (thay.has(k)) ra.push([i, thay.get(k)]);
       else thay.set(k, i);
     });
@@ -478,6 +481,10 @@
           <label>Ngày tác nghiệp</label>
           <input type="date" data-f="ngay" value="${esc(m.ngay)}">
         </div>
+        ${m.loai === 'VIP' ? `<div class="field">
+          <label>Tên HDV <b class="buoc">*</b></label>
+          <input data-f="hdv" value="${esc(m.hdv || '')}" placeholder="Hướng dẫn viên đi đoàn VIP" autocomplete="off">
+        </div>` : ''}
         <div class="field">
           <label>Hạng mục</label>
           <div class="pills" data-f="hangMuc">
@@ -771,6 +778,7 @@
       const o = 'Mục ' + (i + 1) + ': ';
       if (!tourCua(m)) return toast(o + 'chọn Tour trước.', 'err');
       if (!m.ngay) return toast(o + 'chọn ngày tác nghiệp.', 'err');
+      if (m.loai === 'VIP' && !String(m.hdv || '').trim()) return toast(o + 'tour VIP thì nhập tên HDV.', 'err');
       if (m.hangMuc.includes('Chỉnh ảnh') && !/^https?:\/\//i.test(String(m.linkAnh).trim())) {
         return toast(o + 'thiếu link thư mục ảnh.', 'err');
       }
@@ -790,6 +798,7 @@
         gui: f.gui,
         muc: f.muc.map((m) => ({
           tourId: m.tourId, loai: m.loai, ngay: m.ngay, hangMuc: m.hangMuc,
+          hdv: m.loai === 'VIP' ? String(m.hdv || '').trim() : '',
           linkAnh: String(m.linkAnh).trim(), linkVideo: String(m.linkVideo).trim(),
           soAnh: m.soAnh, soVideo: m.soVideo,
           nhanXetAnh: String(m.nhanXetAnh || '').trim(), ghiChu: m.ghiChu,

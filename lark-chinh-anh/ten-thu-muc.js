@@ -40,9 +40,12 @@ function ngayVietGon(key) {
   return `${m[3]}.${m[2]}.${m[1]}`;
 }
 
-/** Ghép tên thư mục chuẩn từ ba trường. Thiếu trường nào thì bỏ phần đó. */
-function dat({ tour, loai, ngay }) {
-  return [String(tour || '').trim(), String(loai || '').trim(), ngayVietGon(ngay)]
+/** Tên HDV chỉ có nghĩa với tour VIP — loại khác thì bỏ qua dù có gõ. */
+const hdvCua = (loai, hdv) => (String(loai || '').trim() === 'VIP' ? String(hdv || '').trim() : '');
+
+/** Ghép tên thư mục chuẩn từ ba trường (VIP thêm tên HDV sau Loại). Thiếu trường nào thì bỏ phần đó. */
+function dat({ tour, loai, ngay, hdv }) {
+  return [String(tour || '').trim(), String(loai || '').trim(), hdvCua(loai, hdv), ngayVietGon(ngay)]
     .filter(Boolean).join(' · ');
 }
 
@@ -51,9 +54,11 @@ function dat({ tour, loai, ngay }) {
  * Bỏ dấu và gọn hoá để "TOUR ĐẢO" và "Tour đảo" không thành hai lô khác nhau —
  * tên trong Base có thể được sửa lại hoa/thường bất cứ lúc nào.
  */
-function khoa({ tour, loai, ngay }) {
+function khoa({ tour, loai, ngay, hdv }) {
   if (!tour || !ngay) return '';
-  return [gon(tour), gon(loai) || 'khac', String(ngay).slice(0, 10)].join('|');
+  /* VIP: cùng tour cùng ngày có thể nhiều đoàn — HDV tách thành nhiều lô. */
+  const h = gon(hdvCua(loai, hdv));
+  return [gon(tour), gon(loai) || 'khac', String(ngay).slice(0, 10)].concat(h ? [h] : []).join('|');
 }
 
-module.exports = { dat, khoa, ngayVietGon, khongDau, gon };
+module.exports = { dat, khoa, ngayVietGon, khongDau, gon, hdvCua };

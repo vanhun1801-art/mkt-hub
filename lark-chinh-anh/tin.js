@@ -112,7 +112,7 @@ function theMotMuc(bc, { nguoiTen, capNhat }) {
     tag: 'div',
     fields: [
       { is_short: true, text: md('**Tour**\n' + (bc.tour || '—')) },
-      { is_short: true, text: md('**Loại**\n' + (bc.loai || '—')) },
+      { is_short: true, text: md('**Loại**\n' + (bc.loai || '—') + (bc.loai === 'VIP' && bc.hdv ? ' · HDV ' + bc.hdv : '')) },
       { is_short: true, text: md('**Ngày tác nghiệp**\n' + (ngayGon(bc.ngay) || '—')) },
       { is_short: true, text: md('**Hạng mục**\n' + hangMuc) },
       { is_short: true, text: md('**Người chỉnh**\n' + tenNguoi(bc, nguoiTen)) },

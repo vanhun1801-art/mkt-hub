@@ -115,6 +115,7 @@ function docBaoCao(r) {
     tourIds: links(r.c[f.tour]),
     tour: clean(r.c[f.tourName]),
     loai: sel(r.c[f.kind]),
+    hdv: clean(r.c[f.hdv]),
     hangMuc: multi(r.c[f.items]),
     linkAnh: url(r.c[f.linkPhoto]),
     linkVideo: url(r.c[f.linkVideo]),
@@ -185,6 +186,7 @@ async function ghiBaoCao(ban) {
   if (ban.tourId) dat(f.tour, [{ id: ban.tourId }]);
   dat(f.tourName, ban.tour);
   if (ban.loai) dat(f.kind, ban.loai);
+  dat(f.hdv, ban.hdv);
   if (ban.hangMuc) dat(f.items, ban.hangMuc);
   dat(f.linkPhoto, ban.linkAnh);
   dat(f.linkVideo, ban.linkVideo);

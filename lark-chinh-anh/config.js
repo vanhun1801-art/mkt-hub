@@ -146,6 +146,9 @@ module.exports = {
         tour: 'fld1sb52da',      // Tour (link → Danh mục Tour)
         tourName: 'fldfpFyLVG',  // Tên Tour (text, sao lại)
         kind: 'fldyegYxB9',      // Loại (select: Ghép | VIP | Khác)
+        /* Tên HDV — CHỈ cho tour VIP (anh Hùng 01/10/2026): VIP đi riêng từng đoàn,
+         * cùng tour cùng ngày có thể vài đoàn, HDV là thứ phân biệt. Thêm 01/10. */
+        hdv: 'fldB8WGLpE',       // HDV (text)
         items: 'fldlyiSwLm',     // Hạng mục (multi-select)
         linkPhoto: 'fldJJ4wGtb', // Link ảnh (url)
         linkVideo: 'flddv8GIir', // Link video (url)
