@@ -65,7 +65,6 @@ function tuTaiKhoan(r) {
     link: chu(c[F.link]).trim(),
     user: chu(c[F.user]).trim(),
     sdt: chu(c[F.sdt]).trim(),
-    phuTrachChu: chu(c[F.phuTrachChu]).trim(),
     phuTrach: nguoi(c[F.phuTrach]),
     duocXem: nguoi(c[F.duocXem]),
     trangThai: mot(c[F.trangThai]) || 'Đang dùng',

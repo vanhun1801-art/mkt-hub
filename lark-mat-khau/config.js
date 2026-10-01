@@ -71,7 +71,6 @@ module.exports = {
       matKhauCu: 'fldxN0TKty',
       doiLuc: 'fldE4YUVpr',
       sdt: 'fldlQ6F9bw',
-      phuTrachChu: 'fldXxa88US',
       phuTrach: 'fldZh5g0oz',
       duocXem: 'fldKNwhKf1',
       trangThai: 'fldj9jegwF',

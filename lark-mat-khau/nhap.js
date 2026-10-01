@@ -205,7 +205,6 @@ async function main() {
       [F.matKhauCu]: d.matKhauCu ? mh.maHoa(d.matKhauCu) : null,
       [F.doiLuc]: d.doiLuc,
       [F.sdt]: d.sdt || null,
-      [F.phuTrachChu]: d.phuTrachChu || null,
       [F.trangThai]: 'Đang dùng',
       [F.ghiChu]: d.ghiChu || null,
     };

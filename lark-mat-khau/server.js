@@ -535,7 +535,6 @@ async function api(req, res, u) {
       [F.link]: s(t.link, 1000) || null,
       [F.user]: s(t.user) || null,
       [F.sdt]: s(t.sdt, 40) || null,
-      [F.phuTrachChu]: s(t.phuTrachChu) || null,
       [F.ghiChu]: s(t.ghiChu, 2000) || null,
       [F.trangThai]: 'Đang dùng',
     };
