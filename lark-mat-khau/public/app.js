@@ -479,7 +479,12 @@ function veSo() {
       (x.bang === 'tk' && x.coMatKhauCu ? '<div class="dn"><span class="k">Mật khẩu cũ</span>' + oMatKhau(x, 'matKhauCu') + '</div>' : '') +
       (link ? '<div class="dn"><span class="k">Link</span><a href="' + esc(link) + '" target="_blank" rel="noopener noreferrer" data-no-i18n>' + esc(link) + '</a></div>' : '') +
     '</div></div>' +
-    (S.suaDuoc ? '<div class="muc"><h4>Sửa thông tin</h4><div class="noi">' + formSua(x.bang, x) +
+    (S.suaDuoc ? '<div class="muc"><h4>Sửa thông tin</h4><div class="noi">' +
+      (x.xem && S.coKhoa ? '<label class="o-nhap"><span>Mật khẩu mới <i class="phu">— để trống nếu không đổi' +
+        (x.bang === 'tk' && x.coMatKhau ? '; mật khẩu đang lưu sẽ thành "mật khẩu cũ"' : '') + '</i></span>' +
+        '<span class="nut-hang"><input type="text" id="mkMoi" autocomplete="new-password" spellcheck="false" placeholder="Bấm Sinh để tạo mật khẩu mạnh" style="flex:1;min-width:0">' +
+        '<button class="btn sm" id="mkSinh" type="button" title="Sinh mật khẩu mạnh 20 ký tự">Sinh</button></span></label>' : '') +
+      formSua(x.bang, x) +
       '<div class="nut-hang" style="margin-top:10px"><button class="btn sm primary" id="suaLuu">Lưu thay đổi</button>' +
       '<span class="phu">Chỉ ghi những ô đã đổi · mỗi lần lưu là một dòng nhật ký</span></div></div></div>' : '') +
     (S.suaDuoc ? '' : '<div class="muc"><h4>Thông tin</h4><div class="doi">' +
@@ -491,15 +496,8 @@ function veSo() {
     '</div></div>') +
     (x.ghiChu && !S.suaDuoc ? '<div class="muc"><h4>Ghi chú</h4><div class="noi" data-no-i18n style="white-space:pre-wrap">' + esc(x.ghiChu) + '</div></div>' : '') +
     (laQuanLy() ? '<div class="muc"><h4>Ai được xem mật khẩu</h4><div class="noi">' +
-      (x.duocXem.length ? x.duocXem.map((n) => '<span class="nhan">' + esc(n.ten || n.id) + '</span>').join(' ') : '<span class="phu">Chỉ quản lý. Cấp thêm ở tab Phân quyền.</span>') +
-      '</div></div>' : '') +
-    (x.xem && S.coKhoa ? '<div class="muc"><h4>Đổi mật khẩu</h4><div class="noi">' +
-      '<p class="phu">Đổi trên trang ' + esc(x.nenTang || x.ten) + ' xong rồi mới lưu ở đây.' + (x.bang === 'tk' ? ' Mật khẩu đang lưu sẽ chuyển thành "mật khẩu cũ".' : '') + '</p>' +
-      '<div class="nut-hang"><input type="password" id="mkMoi" autocomplete="new-password" placeholder="Mật khẩu mới" style="flex:1;min-width:0">' +
-      '<button class="btn sm" id="mkSinh" title="Sinh mật khẩu mạnh 20 ký tự">Sinh</button>' +
-      '<button class="btn sm primary" id="mkLuu">Lưu</button></div>' +
-      (x.coMatKhau ? '<div class="nut-hang" style="margin-top:8px"><button class="btn sm nguy" id="mkXoa">Xoá mật khẩu</button>' +
-        '<span class="phu">' + (x.bang === 'tk' ? 'Ô mật khẩu thành trống, bản vừa xoá cất sang "mật khẩu cũ".' : 'Gói không lưu bản cũ — xoá là mất.') + '</span></div>' : '') +
+      oChonNguoi(x.duocXem, 'data-xem-chon') +
+      '<p class="phu goi-y">' + (x.duocXem.length ? 'Thêm hay bỏ người là lưu ngay, có ghi nhật ký.' : 'Hiện chỉ quản lý xem được. Thêm người là lưu ngay.') + '</p>' +
       '</div></div>' : '') +
     (laQuanLy() ? '<div class="muc"><h4>Xoá ' + (x.bang === 'goi' ? 'gói' : 'tài khoản') + '</h4><div class="noi nguy-khung">' +
       '<p class="phu">Xoá hẳn dòng này khỏi Lark Base, kể cả mật khẩu. Không hoàn tác được. Chỉ muốn tạm cất thì đổi Trạng thái sang "Ngừng dùng".</p>' +
@@ -573,6 +571,18 @@ function moFormThemGoi() {
     '<div class="nut-hang" style="margin-top:10px"><button class="btn primary" id="gLuu">Lưu gói</button></div></div></div>';
 }
 
+/* Thêm / bỏ MỘT người ở ô "Ai được xem" của ngăn chi tiết — lưu ngay, cùng cửa
+   /api/cap-quyen với tab Phân quyền nên cùng một dòng nhật ký "Cấp quyền". */
+async function doiNguoiXem(kieu, n) {
+  if (!S.mo) return;
+  const ten = $('#soTieuDe').textContent;
+  try {
+    await guiJson('/api/cap-quyen', { bang: S.mo.bang, ids: [S.mo.id], nguoi: [n.id], tenNguoi: { [n.id]: n.ten }, kieu });
+    await napDanhSach(true); veLai();
+    toast((kieu === 'them' ? 'Đã cho ' : 'Đã rút quyền của ') + (n.ten || n.id) + (kieu === 'them' ? ' xem ' : ' ở ') + ten, 'ok');
+  } catch (e) { toast(e.message, 'err'); }
+}
+
 /* Sinh mật khẩu bằng crypto của trình duyệt, không Math.random. */
 function sinhMatKhau(n = 20) {
   const bo = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%&*?';
@@ -617,6 +627,7 @@ document.addEventListener('click', async (e) => {
     const khung = t.closest('.chon-nguoi');
     const n = { id: t.dataset.id, ten: t.dataset.ten };
     if ('pqChon' in khung.dataset) { S.pq.nguoi.set(n.id, n.ten); return veLai(); }
+    if ('xemChon' in khung.dataset) return doiNguoiXem('them', n);
     khung.querySelector('.the-ng-ds').insertAdjacentHTML('beforeend', theNguoi(n));
     const inp = khung.querySelector('.tim-ng'); inp.value = ''; khung.querySelector('.goi-y-ng').hidden = true; inp.focus();
     return;
@@ -624,6 +635,7 @@ document.addEventListener('click', async (e) => {
   if (t.classList.contains('bo-ng')) {
     const the = t.closest('.the-ng'), khung = t.closest('.chon-nguoi');
     if ('pqChon' in khung.dataset) { S.pq.nguoi.delete(the.dataset.id); return veLai(); }
+    if ('xemChon' in khung.dataset) return doiNguoiXem('bot', { id: the.dataset.id, ten: the.dataset.ten });
     the.remove();
     return;
   }
@@ -652,13 +664,18 @@ document.addEventListener('click', async (e) => {
   if (t.id === 'suaLuu') {
     const x = timBanGhi(S.mo.bang, S.mo.id);
     const truong = docFormSua($('#soThan'), S.mo.bang, x);
-    if (!Object.keys(truong).length) return toast('Chưa đổi ô nào');
+    const mkMoi = (($('#mkMoi') || {}).value || '').trim();
+    if (!Object.keys(truong).length && !mkMoi) return toast('Chưa đổi ô nào');
+    if (mkMoi && !(await xacNhan('Lưu <b>mật khẩu mới</b> cho <b>' + esc($('#soTieuDe').textContent) + '</b>' +
+      (Object.keys(truong).length ? ' cùng ' + Object.keys(truong).length + ' ô thông tin' : '') + '?<br><span class="phu">Nhớ đổi trên trang đó trước, rồi mới lưu ở đây.</span>', 'Lưu'))) return;
     t.disabled = true;
     try {
+      if (mkMoi) await guiJson('/api/doi-mat-khau', { bang: S.mo.bang, id: S.mo.id, matKhau: mkMoi });
+      if (!Object.keys(truong).length) { S.hien.clear(); await napDanhSach(true); veLai(); toast('Đã lưu mật khẩu mới (mã hoá)', 'ok'); return; }
       const tenNguoi = {};
       document.querySelectorAll('#soThan .the-ng').forEach((e) => { tenNguoi[e.dataset.id] = e.dataset.ten; });
       const d = await guiJson('/api/sua', { bang: S.mo.bang, id: S.mo.id, truong, tenNguoi });
-      await napDanhSach(true); veLai(); toast('Đã lưu ' + d.doi.length + ' ô', 'ok');
+      S.hien.clear(); await napDanhSach(true); veLai(); toast('Đã lưu ' + d.doi.length + ' ô' + (mkMoi ? ' và mật khẩu mới' : ''), 'ok');
     } catch (er) { toast(er.message, 'err'); t.disabled = false; }
     return;
   }
@@ -674,7 +691,7 @@ document.addEventListener('click', async (e) => {
     return;
   }
   if (t.id === 'nkLai') { S.nk = null; return veLai(); }
-  if (t.id === 'mkSinh') { const i = $('#mkMoi'); i.value = sinhMatKhau(); i.type = 'text'; return; }
+  if (t.id === 'mkSinh') { const i = $('#mkMoi'); i.value = sinhMatKhau(); i.select(); return; }
   if (t.id === 'tSinh') { const i = $('#tMatKhau'); i.value = sinhMatKhau(); i.type = 'text'; return; }
 
   if (t.id === 'mkXoa') {
