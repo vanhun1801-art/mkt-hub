@@ -73,6 +73,7 @@ function tuTaiKhoan(r) {
     stt: so(c[F.stt]),
     coMatKhau: !!mk,
     coMatKhauCu: !!chu(c[F.matKhauCu]),
+    co2fa: !!chu(c[F.ma2fa]),
     chuaMaHoa: !!mk && !daMaHoa(mk),
   };
 }
@@ -111,6 +112,7 @@ function tuGoi(r) {
     ghiChu: chu(c[F.ghiChu]).trim(),
     stt: so(c[F.stt]),
     coMatKhau: !!mk,
+    co2fa: !!chu(c[F.ma2fa]),
     chuaMaHoa: !!mk && !daMaHoa(mk),
   };
 }

@@ -2115,3 +2115,16 @@ input.cd-in-nho { width: 72px; }
   .bb-ai { font-size: 13px; }                                    /* 11.5 */
   .bb-luc { font-size: 13px; }                                   /* 11.5 */
 }
+
+/* Dòng báo khi app con đang được đánh thức (khungCuaModule trong app.js) —
+   nằm TRÊN khung xương, hiện cả khi lớp iOS ẩn khung xương đi. */
+.frame-loading .frame-cho {
+  position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center;
+  max-width: min(420px, calc(100% - 32px)); padding: 18px 20px; border-radius: 16px;
+  background: var(--trang, #fff); color: var(--chu, inherit); box-shadow: 0 8px 30px rgba(0,0,0,.12);
+  font-size: 14px; line-height: 1.5; animation: frame-cho-hien .25s ease;
+}
+.frame-loading .frame-cho > span:not(.spin) { color: var(--chu-mo, #888); font-size: 13px; }
+.frame-loading .frame-cho .spin { margin-bottom: 2px; }
+@keyframes frame-cho-hien { from { opacity: 0; transform: translate(-50%, -46%); } to { opacity: 1; transform: translate(-50%, -50%); } }

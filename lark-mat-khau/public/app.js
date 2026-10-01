@@ -223,7 +223,7 @@ const TAB = () => [
   { k: 'goi', ten: 'Gói đăng ký', dem: S.goi.length,
     canh: S.goi.filter((g) => g.conLai != null && g.conLai <= 14 && !/ngừng/i.test(g.trangThai)).length },
   { k: 'chi-phi', ten: 'Chi phí' },
-  ...(laQuanLy() ? [{ k: 'phan-quyen', ten: 'Phân quyền' }, { k: 'nhat-ky', ten: 'Nhật ký' }] : []),
+  ...(laQuanLy() ? [{ k: 'can-don', ten: 'Cần dọn', canh: canDon().tong }, { k: 'phan-quyen', ten: 'Phân quyền' }, { k: 'nhat-ky', ten: 'Nhật ký' }] : []),
 ];
 
 function veTab() {
@@ -271,7 +271,7 @@ function veLai() {
   veTab();
   $('#phuDe').textContent = S.tk.length + ' tài khoản · ' + S.goi.length + ' gói · cập nhật ' + veGio(S.capNhat).slice(-5);
   const man = $('#man');
-  const ve = { 'tai-khoan': veTaiKhoan, goi: veGoi, 'chi-phi': veChiPhi, 'phan-quyen': vePhanQuyen, 'nhat-ky': veNhatKy }[S.tab] || veTaiKhoan;
+  const ve = { 'tai-khoan': veTaiKhoan, goi: veGoi, 'chi-phi': veChiPhi, 'can-don': veCanDon, 'phan-quyen': vePhanQuyen, 'nhat-ky': veNhatKy }[S.tab] || veTaiKhoan;
   /* Chưa được cấp dòng nào thì dải thẻ toàn số 0 chỉ là nhiễu — bỏ hẳn. */
   const trong = !laQuanLy() && !S.tk.length && !S.goi.length;
   man.innerHTML = veCanhBao() + (trong ? '' : veDai()) + ve();
@@ -488,10 +488,46 @@ function veAiCoQuyen() {
         '<td>' + (n.goi.length ? '<details><summary>' + n.goi.length + ' gói</summary><ul data-no-i18n>' + n.goi.map((x) => '<li>' + ten(x) + '</li>').join('') + '</ul></details>' : '<span class="phu">—</span>') + '</td>' +
         '<td class="phu">Thấy · xem / chép / đổi mật khẩu · sửa thông tin <b>trên các dòng này</b> · tự thêm tài khoản mới</td>' +
         '<td class="nut-o"><button class="btn sm" data-aiq-sua="' + esc(n.id) + '">Sửa</button> ' +
-        '<button class="btn sm nguy" data-aiq-rut="' + esc(n.id) + '">Rút hết</button></td></tr>').join('') +
+        '<button class="btn sm nguy" data-aiq-rut="' + esc(n.id) + '">Rút hết</button> ' +
+        '<button class="btn sm nguy" data-nghi="' + esc(n.id) + '" data-nghi-ten="' + esc(n.ten) + '" title="Rút hết quyền + liệt kê tài khoản họ đã từng mở để đổi mật khẩu">Nghỉ việc</button></td></tr>').join('') +
       '</tbody></table>'
       : '<div class="phu">Chưa ai được cấp — hiện chỉ quản lý thấy mật khẩu.</div>') +
     '<p class="phu goi-y">Không ai được: cho người khác xem, xoá dòng, đọc nhật ký — ba việc đó chỉ quản lý.</p></section>';
+}
+
+/* ---- Cần dọn (quản lý) ----
+   Dữ liệu nhập từ Excel còn hổng: không người phụ trách, nhóm "Khác", gói đã
+   hết hạn mà vẫn để "Đang dùng"… App chỉ có ích khi dữ liệu đúng, nên gom hết
+   chỗ hổng về một tab, mỗi dòng bấm vào là mở thẳng ngăn sửa. */
+function canDon() {
+  const dung = (x) => x.trangThai !== 'Ngừng dùng';
+  const nhom = [
+    { k: 'pt', ten: 'Tài khoản chưa có người phụ trách', mo: 'Không ai nhận nhắc đổi mật khẩu cho các tài khoản này.', bang: 'tk',
+      ds: S.tk.filter((x) => dung(x) && !x.phuTrach.length) },
+    { k: 'het', ten: 'Gói đã hết hạn mà vẫn để "Đang dùng"', mo: 'Đã gia hạn thì cập nhật Ngày hết hạn; không dùng nữa thì đổi Trạng thái.', bang: 'goi',
+      ds: S.goi.filter((g) => !/ngừng|huỷ|hủy|dừng/i.test(g.trangThai) && g.conLai != null && g.conLai < 0) },
+    { k: 'goipt', ten: 'Gói chưa có người phụ trách', mo: 'Không ai nhận nhắc gia hạn.', bang: 'goi',
+      ds: S.goi.filter((g) => !/ngừng/i.test(g.trangThai) && !g.phuTrach.length) },
+    { k: 'goihan', ten: 'Gói chưa có ngày hết hạn', mo: 'Không có ngày thì không nhắc gia hạn được.', bang: 'goi',
+      ds: S.goi.filter((g) => !/ngừng/i.test(g.trangThai) && !g.hetHan) },
+    { k: 'khac', ten: 'Tài khoản đang ở nhóm "Khác"', mo: 'Xếp đúng nhóm để lọc và tìm cho nhanh.', bang: 'tk',
+      ds: S.tk.filter((x) => dung(x) && x.nhom === 'Khác') },
+    { k: 'mk', ten: 'Tài khoản chưa có mật khẩu', mo: 'Đăng nhập bằng Google/SSO thì ghi vào Ghi chú; còn không thì điền mật khẩu.', bang: 'tk',
+      ds: S.tk.filter((x) => dung(x) && !x.coMatKhau) },
+    { k: 'ten', ten: 'Tài khoản thiếu tên nền tảng', mo: 'Dòng không tên rất khó tìm lại.', bang: 'tk',
+      ds: S.tk.filter((x) => dung(x) && !x.nenTang) },
+  ];
+  return { nhom, tong: nhom.reduce((a, n) => a + n.ds.length, 0) };
+}
+
+function veCanDon() {
+  const { nhom, tong } = canDon();
+  if (!tong) return '<div class="trong">✅ Không còn gì cần dọn — dữ liệu đã đủ.</div>';
+  return nhom.filter((n) => n.ds.length).map((n) => '<section class="khung"><h4>' + esc(n.ten) + ' <span class="nhan canh">' + n.ds.length + '</span></h4>' +
+    '<p class="phu goi-y">' + esc(n.mo) + '</p><div class="ds-don">' +
+    n.ds.map((x) => '<button class="don-o" data-mo="' + n.bang + '" data-id="' + x.id + '"><b data-no-i18n>' + esc(x.nenTang || x.ten || '(chưa đặt tên)') + '</b>' +
+      '<span class="phu" data-no-i18n>' + esc([x.user, n.bang === 'goi' && x.hetHan ? 'hết hạn ' + veNgay(x.hetHan) : ''].filter(Boolean).join(' · ')) + '</span></button>').join('') +
+    '</div></section>').join('');
 }
 
 /* ---- Nhật ký (quản lý) ---- */
@@ -501,13 +537,31 @@ function veNhatKy() {
     api('/api/nhat-ky').then((d) => { S.nk = d.ds; veLai(); }).catch((e) => toast(e.message, 'err'));
     return '<div class="dangTai">Đang đọc nhật ký…</div>';
   }
-  if (!S.nk.length) return '<div class="trong">Chưa có lượt truy cập nào.</div>';
-  return '<section class="khung"><h4>500 lượt gần nhất <button class="btn sm" id="nkLai" style="margin-left:8px">Đọc lại</button></h4>' +
+  return veBoNhac() + (!S.nk.length ? '<div class="trong">Chưa có lượt truy cập nào.</div>' : '<section class="khung"><h4>500 lượt gần nhất <button class="btn sm" id="nkLai" style="margin-left:8px">Đọc lại</button></h4>' +
     '<table class="bang"><thead><tr><th>Lúc</th><th>Người</th><th>Việc</th><th>Chi tiết</th></tr></thead><tbody>' +
     S.nk.map((r) => '<tr' + (r.hanhDong === 'Bị từ chối' ? ' class="tu-choi"' : '') + '><td>' + veGio(r.luc) + '</td><td data-no-i18n>' + esc(r.nguoi) + '</td>' +
       '<td><span class="nhan' + (r.hanhDong === 'Bị từ chối' ? ' het' : r.hanhDong === 'Cấp quyền' || r.hanhDong === 'Đổi mật khẩu' ? ' canh' : '') + '">' + esc(r.hanhDong) + '</span></td>' +
       '<td data-no-i18n>' + esc(r.viec) + '</td></tr>').join('') +
-    '</tbody></table></section>';
+    '</tbody></table></section>');
+}
+
+/* Bộ nhắc tự động (nhac.js bên server): xem trước hôm nay sẽ nhắc ai, và gửi ngay. */
+function veBoNhac() {
+  if (S.nhac === undefined) {
+    S.nhac = null;
+    api('/api/nhac').then((d) => { S.nhac = d; if (S.tab === 'nhat-ky') veLai(); }).catch((e) => { S.nhac = { loi: [e.message], xemTruoc: [] }; });
+  }
+  const d = S.nhac;
+  const ds = (d && d.xemTruoc) || [];
+  return '<section class="khung"><h4>Bộ nhắc tự động <span class="phu">bot Marketing Hub nhắn riêng người phụ trách · gia hạn gói trước 7 & 1 ngày · đổi mật khẩu đầu tháng</span>' +
+    '<button class="btn sm" id="nhacGui" style="margin-left:auto">Gửi những tin đang chờ</button></h4>' +
+    (!d ? '<div class="phu">Đang xem hôm nay cần nhắc gì…</div>'
+      : (ds.length ? '<table class="bang"><thead><tr><th>Loại</th><th>Nội dung</th><th>Người nhận</th><th>Trạng thái</th></tr></thead><tbody>' +
+          ds.map((t) => '<tr><td>' + (t.loai === 'han' ? 'Gia hạn' : 'Đổi mật khẩu') + '</td><td data-no-i18n>' + esc(t.tieuDe) + '</td><td data-no-i18n>' + esc(t.nguoi || '—') + '</td>' +
+            '<td><span class="nhan' + (t.trangThai === 'đã gửi' ? ' ngay' : t.trangThai === 'chờ gửi' ? ' canh' : ' het') + '">' + esc(t.trangThai) + '</span></td></tr>').join('') +
+          '</tbody></table>' : '<div class="phu">Hôm nay không có gì cần nhắc.</div>') +
+        (d.loi && d.loi.length ? '<p class="phu goi-y">' + esc(d.loi.join(' · ')) + '</p>' : '')) +
+    '</section>';
 }
 
 /* ---------------------------------------------------------------------------
@@ -529,10 +583,15 @@ function veSo() {
       '<div class="dn"><span class="k">User</span><code data-no-i18n>' + esc(x.user || '—') + '</code>' +
         (x.user ? '<button class="btn sm ic" data-chep="' + esc(x.user) + '">⧉</button>' : '') + '</div>' +
       '<div class="dn"><span class="k">Mật khẩu</span>' + oMatKhau(x) + '</div>' +
+      (x.co2fa && x.xem ? '<div class="dn"><span class="k">Mã 2FA</span><span class="otp" id="otpO"><button class="btn sm" id="otpHien">Hiện mã 6 số</button></span></div>' : '') +
       (x.bang === 'tk' && x.coMatKhauCu ? '<div class="dn"><span class="k">Mật khẩu cũ</span>' + oMatKhau(x, 'matKhauCu') + '</div>' : '') +
       (link ? '<div class="dn"><span class="k">Link</span><a href="' + esc(link) + '" target="_blank" rel="noopener noreferrer" data-no-i18n>' + esc(link) + '</a></div>' : '') +
     '</div></div>' +
     (S.suaDuoc ? '<div class="muc"><h4>Sửa thông tin</h4><div class="noi">' +
+      (x.xem && S.coKhoa ? '<label class="o-nhap"><span>Mã bí mật 2FA <i class="phu">— dán chuỗi trang web đưa lúc bật 2FA, hoặc đường otpauth://' +
+        (x.co2fa ? '; đang có mã, dán mới để thay' : '') + '</i></span>' +
+        '<span class="nut-hang"><input type="text" id="ma2faMoi" autocomplete="off" spellcheck="false" placeholder="VD: JBSW Y3DP EHPK 3PXP" style="flex:1;min-width:0">' +
+        (x.co2fa ? '<button class="btn sm nguy" id="ma2faXoa" type="button">Bỏ 2FA</button>' : '') + '</span></label>' : '') +
       (x.xem && S.coKhoa ? '<label class="o-nhap"><span>Mật khẩu mới <i class="phu">— để trống nếu không đổi' +
         (x.bang === 'tk' && x.coMatKhau ? '; mật khẩu đang lưu sẽ thành "mật khẩu cũ"' : '') + '</i></span>' +
         '<span class="nut-hang"><input type="text" id="mkMoi" autocomplete="new-password" spellcheck="false" placeholder="Bấm Sinh để tạo mật khẩu mạnh" style="flex:1;min-width:0">' +
@@ -640,6 +699,47 @@ async function doiNguoiXem(kieu, n) {
   } catch (e) { toast(e.message, 'err'); }
 }
 
+/* ---- mã 2FA: hiện mã 6 số, tự đổi khi hết chu kỳ, tự tắt sau 2 phút ---- */
+let otpHen = 0, otpHet = 0, otpCua = '', otpDem = 0;
+/* Đồng hồ mã 2FA GẮN VỚI dòng đã bấm. Không gắn thì chuyển sang dòng khác lúc
+   đồng hồ còn chạy là tự xin mã của dòng mới — không ai bấm, không ghi nhật ký. */
+async function hienOtp(dau) {
+  clearTimeout(otpHen); clearInterval(otpDem);
+  const o = $('#otpO');
+  if (!o || !S.mo) return;
+  const cua = S.mo.bang + ':' + S.mo.id;
+  if (dau) { otpHet = Date.now() + 120000; otpCua = cua; }
+  if (cua !== otpCua) return;
+  if (Date.now() > otpHet) { o.innerHTML = '<button class="btn sm" id="otpHien">Hiện mã 6 số</button>'; return; }
+  try {
+    const d = await guiJson('/api/otp', { bang: S.mo.bang, id: S.mo.id, dau: !!dau });
+    if (!$('#otpO') || !S.mo || S.mo.bang + ':' + S.mo.id !== otpCua) return;
+    $('#otpO').innerHTML = '<code class="mk-gia hien otp-ma" data-no-i18n>' + esc(d.ma.slice(0, 3) + ' ' + d.ma.slice(3)) + '</code>' +
+      '<button class="btn sm ic" data-chep="' + esc(d.ma) + '" title="Chép mã">⧉</button><span class="phu" id="otpGiay">còn ' + d.conLai + ' giây</span>';
+    /* Đếm lùi từng giây — người ta canh còn đủ giây để gõ kịp không. */
+    const het = Date.now() + d.conLai * 1000;
+    otpDem = setInterval(() => {
+      const g = $('#otpGiay');
+      if (!g) return clearInterval(otpDem);
+      g.textContent = 'còn ' + Math.max(0, Math.ceil((het - Date.now()) / 1000)) + ' giây';
+    }, 1000);
+    otpHen = setTimeout(() => hienOtp(false), d.conLai * 1000 + 300);
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+function moKetQuaNghi(ten, ds) {
+  S.mo = null;
+  $('#so').classList.add('mo');
+  $('#soTieuDe').textContent = ten + ' — nghỉ việc';
+  $('#soPhu').textContent = '';
+  const nen = ds.filter((x) => x.daMo || x.phuTrach);
+  $('#soThan').innerHTML = '<div class="muc"><div class="noi"><p>Đã rút quyền xem của <b>' + esc(ten) + '</b> ở mọi dòng.</p>' +
+    '<p class="phu">Những tài khoản dưới đây họ <b>đã từng mở mật khẩu</b> hoặc đang <b>đứng tên phụ trách</b> — nên đổi mật khẩu và giao người phụ trách mới. Bấm vào để mở.</p></div></div>' +
+    (nen.length ? '<div class="ds-don">' + nen.map((x) => '<button class="don-o" data-mo="' + x.bang + '" data-id="' + x.id + '"><b data-no-i18n>' + esc(x.ten) + '</b>' +
+      '<span class="phu">' + [x.daMo ? 'đã mở mật khẩu' : '', x.phuTrach ? 'đang phụ trách' : ''].filter(Boolean).join(' · ') + '</span></button>').join('') + '</div>'
+      : '<div class="trong">Họ chưa từng mở mật khẩu nào và không phụ trách tài khoản nào.</div>');
+}
+
 /* Sinh mật khẩu bằng crypto của trình duyệt, không Math.random. */
 function sinhMatKhau(n = 20) {
   const bo = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%&*?';
@@ -703,6 +803,30 @@ document.addEventListener('click', async (e) => {
     the.remove();
     return;
   }
+  if (t.id === 'otpHien') return hienOtp(true);
+  if (t.id === 'ma2faXoa') {
+    if (!(await xacNhan('Bỏ mã 2FA đã lưu của <b>' + esc($('#soTieuDe').textContent) + '</b>?<br><span class="phu">Chỉ xoá trong app — 2FA trên trang đó vẫn bật.</span>', 'Bỏ 2FA'))) return;
+    try { await guiJson('/api/doi-2fa', { bang: S.mo.bang, id: S.mo.id, bimat: '' }); await napDanhSach(true); veLai(); toast('Đã bỏ mã 2FA', 'ok'); }
+    catch (er) { toast(er.message, 'err'); }
+    return;
+  }
+  if (t.id === 'nhacGui') {
+    if (!(await xacNhan('Gửi ngay các tin nhắc đang <b>chờ gửi</b> qua bot Marketing Hub?<br><span class="phu">Tin đã gửi sẽ không gửi lại.</span>', 'Gửi'))) return;
+    t.disabled = true;
+    try { S.nhac = await guiJson('/api/nhac', {}); S.nk = null; veLai(); toast('Đã gửi ' + S.nhac.guiDuoc + ' tin' + (S.nhac.loi.length ? ' · ' + S.nhac.loi[0] : ''), S.nhac.loi.length ? 'err' : 'ok'); }
+    catch (er) { toast(er.message, 'err'); t.disabled = false; }
+    return;
+  }
+  if (t.dataset.nghi) {
+    const ten = t.dataset.nghiTen;
+    if (!(await xacNhan('<b>' + esc(ten) + '</b> nghỉ việc?<br><span class="phu">Rút quyền xem ở mọi tài khoản và gói, rồi liệt kê những tài khoản họ đã từng mở mật khẩu — nên đổi mật khẩu các tài khoản đó.</span>', 'Rút quyền'))) return;
+    t.disabled = true;
+    try {
+      const d = await guiJson('/api/nghi-viec', { id: t.dataset.nghi, ten });
+      await napDanhSach(true); veLai(); moKetQuaNghi(ten, d.lienQuan);
+    } catch (er) { toast(er.message, 'err'); t.disabled = false; }
+    return;
+  }
   if (t.dataset.aiqSua) {
     /* Nạp người + đúng các dòng của họ vào khu chọn bên dưới để thêm/bớt. */
     const n = aiCoQuyen().find((x) => x.id === t.dataset.aiqSua);
@@ -754,17 +878,22 @@ document.addEventListener('click', async (e) => {
     const x = timBanGhi(S.mo.bang, S.mo.id);
     const truong = docFormSua($('#soThan'), S.mo.bang, x);
     const mkMoi = (($('#mkMoi') || {}).value || '').trim();
-    if (!Object.keys(truong).length && !mkMoi) return toast('Chưa đổi ô nào');
+    const ma2fa = (($('#ma2faMoi') || {}).value || '').trim();
+    if (!Object.keys(truong).length && !mkMoi && !ma2fa) return toast('Chưa đổi ô nào');
     if (mkMoi && !(await xacNhan('Lưu <b>mật khẩu mới</b> cho <b>' + esc($('#soTieuDe').textContent) + '</b>' +
       (Object.keys(truong).length ? ' cùng ' + Object.keys(truong).length + ' ô thông tin' : '') + '?<br><span class="phu">Nhớ đổi trên trang đó trước, rồi mới lưu ở đây.</span>', 'Lưu'))) return;
     t.disabled = true;
     try {
+      /* 2FA lưu TRƯỚC: dán sai chuỗi là báo lỗi ngay, chưa ghi gì khác. */
+      let maMoi = null;
+      if (ma2fa) maMoi = (await guiJson('/api/doi-2fa', { bang: S.mo.bang, id: S.mo.id, bimat: ma2fa })).ma;
       if (mkMoi) await guiJson('/api/doi-mat-khau', { bang: S.mo.bang, id: S.mo.id, matKhau: mkMoi });
-      if (!Object.keys(truong).length) { S.hien.clear(); await napDanhSach(true); veLai(); toast('Đã lưu mật khẩu mới (mã hoá)', 'ok'); return; }
+      const baoMa = maMoi ? ' · mã 2FA lúc này: ' + maMoi.ma + ' — so với điện thoại' : '';
+      if (!Object.keys(truong).length) { S.hien.clear(); await napDanhSach(true); veLai(); toast('Đã lưu' + (mkMoi ? ' mật khẩu mới' : '') + (ma2fa ? ' mã 2FA' : '') + baoMa, 'ok'); return; }
       const tenNguoi = {};
       document.querySelectorAll('#soThan .the-ng').forEach((e) => { tenNguoi[e.dataset.id] = e.dataset.ten; });
       const d = await guiJson('/api/sua', { bang: S.mo.bang, id: S.mo.id, truong, tenNguoi });
-      S.hien.clear(); await napDanhSach(true); veLai(); toast('Đã lưu ' + d.doi.length + ' ô' + (mkMoi ? ' và mật khẩu mới' : ''), 'ok');
+      S.hien.clear(); await napDanhSach(true); veLai(); toast('Đã lưu ' + d.doi.length + ' ô' + (mkMoi ? ' và mật khẩu mới' : '') + baoMa, 'ok');
     } catch (er) { toast(er.message, 'err'); t.disabled = false; }
     return;
   }
@@ -843,7 +972,8 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
-  if (t.dataset.mo && !e.target.closest('button, input, a')) return moSo(t.dataset.mo, t.dataset.id);
+  /* Dòng danh sách: bấm vào chỗ trống (không phải nút con). Nút mang data-mo (ô ở tab Cần dọn) thì chính nó là đích. */
+  if (t.dataset.mo && (t.tagName === 'BUTTON' || !e.target.closest('button, input, a'))) return moSo(t.dataset.mo, t.dataset.id);
 });
 
 document.addEventListener('change', (e) => {

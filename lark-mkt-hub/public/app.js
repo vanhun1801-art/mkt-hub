@@ -818,11 +818,30 @@ function khungCuaModule(mod, rec, mo) {
     (window.KX ? KX.man(esc(mod.ten), { the: 0, dong: 0 })
       : '<span class="spin"></span> Đang mở ' + esc(mod.ten) + '…') + '</div>';
 
+  /* Lớp chờ trên chỉ được tính sống ~0,2 giây, nên lớp iOS để nó TRƠN. Nhưng
+   * trên Render lần mở đầu một app đứng 10–25 giây (đo 01/10/2026: lượt đọc
+   * Base đầu tiên, 14 app cùng đọc nên chạm hạn mức Lark) và người dùng chỉ
+   * thấy một màn trắng — tưởng app hỏng. Chậm quá 1,2 giây thì
+   * hiện một dòng nói thật đang làm gì; quá 40 giây thì cho nút tải lại. */
+  const henCho = setTimeout(() => {
+    const l = wrap.querySelector('.frame-loading');
+    if (!l || l.dataset.dangGo === '1') return;
+    l.insertAdjacentHTML('beforeend', '<div class="frame-cho" role="status"><span class="spin"></span>' +
+      '<b>Đang mở ' + esc(mod.ten) + '…</b><span>Đang đọc dữ liệu từ Lark Base — lần mở đầu có thể mất 15–25 giây.</span></div>');
+  }, 1200);
+  const henLau = setTimeout(() => {
+    const c = wrap.querySelector('.frame-loading .frame-cho');
+    if (!c || c.querySelector('button')) return;
+    c.insertAdjacentHTML('beforeend', '<span>Lâu hơn bình thường.</span><button class="btn sm" type="button">Tải lại app này</button>');
+    c.querySelector('button').onclick = () => { f.src = srcCuaModule(mod, rec, mo); };
+  }, 40000);
+
   const f = document.createElement('iframe');
   f.src = srcCuaModule(mod, rec, mo);
   f.title = mod.ten;
   f.setAttribute('allow', 'clipboard-write; fullscreen');
   f.addEventListener('load', () => {
+    clearTimeout(henCho); clearTimeout(henLau);
     boLopPhuKhung(wrap, f);
     if (dinhTrangLoi(f)) return phuLoi(o, mod);
     // module vừa nạp -> đẩy theme hiện tại xuống ngay cho khỏi nháy sai tone

@@ -31,6 +31,8 @@ const kho = require('./kho');
 const mh = require('./ma-hoa');
 const kiem = require('./kiem');
 const danhBaCty = require('./danh-ba');
+const totp = require('./totp');
+const nhac = require('./nhac');
 
 const lark = kho.lark;
 const BIND = process.env.BIND || '127.0.0.1';
@@ -200,6 +202,7 @@ async function ghiNhatKy(toi, req, hanhDong, bang, banGhi, them) {
  * nên quản lý thấy được ai. */
 const HAN = { so: 40, ms: 10 * 60000 };
 const lanMo = new Map();
+const daGhiOtp = new Map();       // người|bảng:dòng → lúc ghi nhật ký 'Xem mã 2FA' gần nhất
 function quaHan(toi) {
   const k = toi.id || toi.ten || '?';
   const nay = Date.now();
@@ -352,6 +355,8 @@ function ganNguoiThem(toi, ghi, F) {
 async function api(req, res, u) {
   const p = u.pathname.replace(/^\/api/, '') || '/';
   const toi = await aiGoi(req);
+  /* Đọc-thì-chạy bộ nhắc (nhac.js) — tối đa một lần mỗi giờ, không chặn request. */
+  nhac.moiGio({ kho, lark });
 
   if (p === '/khoi-tao') {
     const d = await kho.tatCa();
@@ -602,6 +607,105 @@ async function api(req, res, u) {
     return json(res, { ok: true });
   }
 
+  /* ---- mã 2FA: xem mã 6 số đang hiệu lực (cùng quyền với xem mật khẩu) ---- */
+  if (p === '/otp' && req.method === 'POST') {
+    const than = await docThan(req);
+    const bang = than.bang;
+    if (!BANG.has(bang) || !laId(than.id)) return loi(res, 400, 'Thiếu bảng hoặc mã bản ghi.');
+    if (quaHan(toi)) return loi(res, 429, 'Mở quá nhiều mã trong 10 phút. Đợi một lúc rồi thử lại.');
+    let r;
+    try { r = await docVaKiem(toi, bang, than.id, 'ma2fa'); } catch (e) { return loi(res, e.http || 500, e.message); }
+    if (!r.duoc) {
+      try { await ghiNhatKy(toi, req, 'Bị từ chối', bang, r.bg, 'mã 2FA'); } catch (_) {}
+      return loi(res, 403, 'Anh/chị chưa được cấp quyền với tài khoản này.');
+    }
+    if (!r.gia) return loi(res, 404, 'Tài khoản này chưa lưu mã 2FA.');
+    let ma;
+    try { ma = totp.sinhMa(totp.moGoi(mh.giaiMa(r.gia))); } catch (e) { return loi(res, 500, e.message); }
+    /* Nhật ký: SERVER quyết, không tin cờ của trình duyệt (gửi tay `dau:false`
+       là xem mã không để dấu). Trình duyệt tự xin mã mới mỗi 30 giây, nên gộp:
+       mỗi người × mỗi dòng ghi tối đa một lần trong 2 phút. */
+    const kNk = (toi.id || toi.ten) + '|' + bang + ':' + than.id;
+    if (Date.now() - (daGhiOtp.get(kNk) || 0) > 120000) {
+      try { await ghiNhatKy(toi, req, 'Xem mã 2FA', bang, r.bg); }
+      catch (e) { return loi(res, 503, 'Không ghi được nhật ký nên chưa mở mã. Thử lại sau ít giây.'); }
+      daGhiOtp.set(kNk, Date.now());
+    }
+    return json(res, ma);
+  }
+
+  /* ---- lưu / xoá mã bí mật 2FA (cùng quyền với đổi mật khẩu) ---- */
+  if (p === '/doi-2fa' && req.method === 'POST') {
+    const than = await docThan(req);
+    const bang = than.bang;
+    if (!BANG.has(bang) || !laId(than.id)) return loi(res, 400, 'Thiếu bảng hoặc mã bản ghi.');
+    if (!mh.coKhoa()) return loi(res, 503, 'Máy chủ chưa có khoá TK_KHOA.');
+    let r;
+    try { r = await docVaKiem(toi, bang, than.id, 'ma2fa'); } catch (e) { return loi(res, e.http || 500, e.message); }
+    if (!r.duoc) return loi(res, 403, 'Chưa được cấp quyền với tài khoản này.');
+    const F = bang === 'goi' ? cfg.f.goi : cfg.f.tk;
+    let gia = null;
+    let ma = null;
+    if (than.bimat) {
+      let c;
+      try { c = totp.docCauHinh(than.bimat); } catch (e) { return loi(res, 400, e.message); }
+      gia = mh.maHoa(totp.dongGoi(c));
+      ma = totp.sinhMa(c);
+    }
+    await ghiNhatKy(toi, req, 'Sửa thông tin', bang, r.bg, gia ? 'lưu mã 2FA' : 'xoá mã 2FA');
+    await lark.updateRecord(than.id, { [F.ma2fa]: gia }, bang === 'goi' ? cfg.goiTableId : cfg.tkTableId);
+    kho.xoaDem();
+    /* Trả luôn mã hiện tại để người dán so với điện thoại ngay — dán sai là biết liền. */
+    return json(res, { ok: true, ma });
+  }
+
+  /* ---- người nghỉ việc: rút hết quyền + liệt kê tài khoản cần đổi mật khẩu (quản lý) ---- */
+  if (p === '/nghi-viec' && req.method === 'POST') {
+    if (!toi.quanLy) return loi(res, 403, 'Chỉ quản lý làm được việc này.');
+    const than = await docThan(req);
+    const id = typeof than.id === 'string' && /^ou_\w+$/.test(than.id) ? than.id : '';
+    const ten = String(than.ten || '').trim().slice(0, 60);
+    if (!id && !ten) return loi(res, 400, 'Thiếu người.');
+    const d = await kho.tatCa({ moi: true });
+    const laHo = (n) => (id && n.id === id) || (ten && n.ten && boDau(n.ten) === boDau(ten));
+    /* 1. Những dòng họ từng MỞ mật khẩu / mã 2FA — đọc từ nhật ký. Đây là danh sách
+          phải đổi mật khẩu: họ đã thấy, rút quyền không làm họ quên. */
+    const F = cfg.f.nk;
+    const daMo = new Set();
+    if (ten) {
+      for (const r of await lark.listAllRecords(cfg.nkTableId)) {
+        const c = r.cells || {};
+        const hd = kho.chu(Array.isArray(c[F.hanhDong]) ? c[F.hanhDong][0] : c[F.hanhDong]);
+        if (!/^(Xem|Chép|Xem mã 2FA|Đổi mật khẩu)$/.test(hd)) continue;
+        if (boDau(kho.chu(c[F.nguoi])).startsWith(boDau(ten))) daMo.add(kho.chu(c[F.ma]));
+      }
+    }
+    const dong = (x, bang) => ({ bang, id: x.id, ten: (x.nenTang || x.ten) + (x.ten && x.ten !== x.nenTang ? ' — ' + x.ten : ''), user: x.user,
+      daMo: daMo.has(x.id), duocXem: x.duocXem.some(laHo), phuTrach: x.phuTrach.some(laHo) });
+    const lienQuan = [...d.tk.map((x) => dong(x, 'tk')), ...d.goi.map((x) => dong(x, 'goi'))].filter((x) => x.daMo || x.duocXem || x.phuTrach);
+    /* 2. Rút "Được xem" ở mọi dòng. "Người phụ trách" để nguyên cho quản lý giao lại
+          người khác — tự xoá thì dòng thành "chưa giao" mà không ai biết vì sao. */
+    for (const [bang, ds, tbl, FF] of [['tk', d.tk, cfg.tkTableId, cfg.f.tk], ['goi', d.goi, cfg.goiTableId, cfg.f.goi]]) {
+      const map = {};
+      for (const x of ds) {
+        if (!x.duocXem.some(laHo)) continue;
+        map[x.id] = { [FF.duocXem]: x.duocXem.filter((n) => !laHo(n)).map((n) => ({ id: n.id })) };
+      }
+      if (Object.keys(map).length) await lark.updateMany(map, tbl);
+    }
+    await ghiNhatKy(toi, req, 'Nghỉ việc', 'tk', { id: id || '', ten: ten || id },
+      'rút quyền ' + lienQuan.filter((x) => x.duocXem).length + ' dòng · ' + lienQuan.filter((x) => x.daMo).length + ' dòng đã từng mở mật khẩu');
+    kho.xoaDem();
+    return json(res, { ok: true, lienQuan });
+  }
+
+  /* ---- bộ nhắc: xem trước / chạy ngay (quản lý) ---- */
+  if (p === '/nhac') {
+    if (!toi.quanLy) return loi(res, 403, 'Chỉ quản lý xem được bộ nhắc.');
+    const kq = await nhac.chay({ kho, lark, thu: req.method !== 'POST' });
+    return json(res, kq);
+  }
+
   /* ---- nhật ký: chỉ quản lý ---- */
   if (p === '/nhat-ky') {
     if (!toi.quanLy) return loi(res, 403, 'Chỉ quản lý xem được nhật ký truy cập.');
@@ -650,6 +754,7 @@ if (require.main === module) {
   server.listen(cfg.port, BIND, () => {
     console.log('Tài khoản & gói dịch vụ — http://localhost:' + cfg.port +
       '  [' + cfg.mode + ']  bản ' + VER + (mh.coKhoa() ? '' : '  ⚠ CHƯA CÓ TK_KHOA'));
+    nhac.batVong({ kho, lark });
   });
 }
 

@@ -53,13 +53,51 @@ Excel gốc**.
 
 ## Giữ khoá
 
-Mất `TK_KHOA` là mất mọi mật khẩu đã mã hoá — không có cửa sau. Sao lưu nó ở chỗ không phải
-Lark Base (trình quản lý mật khẩu cá nhân, hoặc giấy cất két). Trên Render khai **đúng cùng
-giá trị** với máy. `nhap.js --tao-khoa` từ chối tạo khoá thứ hai nếu đã có.
+Mất `TK_KHOA` là mất mọi mật khẩu **và mã 2FA** đã mã hoá — không có cửa sau. Khoá hiện ở
+HAI nơi (máy anh Hùng + Render); cả hai cùng mất (máy hỏng + service Render bị xoá) là mất
+hết. Cất bản thứ ba ở chỗ không liên quan: trình quản lý mật khẩu cá nhân, hoặc giấy niêm
+phong trong két công ty — KHÔNG cất trên Lark Base. Trên Render khai **đúng cùng giá trị**
+với máy. `nhap.js --tao-khoa` từ chối tạo khoá thứ hai nếu đã có.
+
+## Nhắc tự động (nhac.js)
+
+Bot **Marketing Hub** nhắn riêng **người phụ trách** (cột Người phụ trách, tài khoản Lark):
+
+| Khi nào | Nội dung |
+|---|---|
+| Gói còn 7 ngày, còn 1 ngày, quá hạn 1 ngày | tên gói, tài khoản, chi phí, hạn, link mở app |
+| Ngày 1–3 hằng tháng | MỘT tin / người: các tài khoản họ phụ trách mà mật khẩu > 180 ngày chưa đổi |
+
+- Không gửi trùng: mỗi tin là một dòng "Nhắc …" ở Nhật ký, cột Mã bản ghi giữ khoá.
+- Không cron (Render cho app ngủ): chạy mỗi 30 phút khi đang thức + mỗi request vào app tối đa 1 lần/giờ.
+- Không nhắn trước 8:00 giờ VN. Chỉ gửi trên Render; ở máy chỉ xem trước. Tắt: `MK_NHAC_TAT=1`.
+- Quản lý xem trước / gửi ngay ở **tab Nhật ký → Bộ nhắc tự động**.
+- Dòng không có người phụ trách thì không ai nhận — tab **Cần dọn** liệt kê những dòng đó.
+
+## Mã 2FA
+
+Dán mã bí mật lúc bật 2FA (chuỗi base32 hoặc cả đường `otpauth://`) vào ô **Mã bí mật 2FA**
+trong form Sửa thông tin. App lưu mã hoá như mật khẩu, và ở khung Đăng nhập có nút **Hiện mã
+6 số** (TOTP chuẩn RFC 6238 — trùng mã Google Authenticator), tự đổi theo chu kỳ, tự tắt sau
+2 phút. Cùng quyền với xem mật khẩu; mỗi người × mỗi tài khoản ghi nhật ký tối đa 1 lần / 2 phút.
+
+## Người nghỉ việc
+
+Tab Phân quyền → bảng "Ai đang có quyền" → **Nghỉ việc**: rút quyền xem ở mọi dòng, rồi liệt
+kê các tài khoản họ **đã từng mở mật khẩu** (đọc từ Nhật ký) hoặc **đang phụ trách** — đó là
+danh sách cần đổi mật khẩu và giao người mới. Cột Người phụ trách cố ý để nguyên.
+
+## Bấm thử không đụng Base thật
+
+```
+node test/may-gia.js                # vai quản lý, http://localhost:5193
+MAY_GIA_NV=1 node test/may-gia.js   # vai nhân sự
+```
+Chạy đúng server.js trên một Base giả trong bộ nhớ.
 
 ## Giới hạn đã biết
 
-- Danh bạ ở tab Phân quyền gom từ các ô người trên Base. Người chưa từng xuất hiện: thêm họ
-  vào cột "Được xem mật khẩu" của một dòng trên Base một lần.
+- Ô chọn người tìm trong danh bạ công ty (danh-ba.js) bằng ĐÚNG app đang ghi Base — open_id
+  riêng theo app, tìm bằng app khác là ghi id lạ.
 - open_id riêng theo từng app Lark, nên quyền khớp theo id **hoặc** tên (header tên do hub
   đặt, trình duyệt không giả được).

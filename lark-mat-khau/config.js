@@ -69,6 +69,7 @@ module.exports = {
       user: 'fldnAUvcN1',
       matKhau: 'fld8VUZ1eI',
       matKhauCu: 'fldxN0TKty',
+      ma2fa: 'fldTffXxdc',         // mã bí mật 2FA, enc:v1:… (totp.js)
       doiLuc: 'fldE4YUVpr',
       sdt: 'fldlQ6F9bw',
       phuTrach: 'fldZh5g0oz',
@@ -96,6 +97,7 @@ module.exports = {
       ghiChu: 'fldtoKs9Y2',
       mucDo: 'fldgx8IRGs',
       duocXem: 'fldijWgbfp',
+      ma2fa: 'fld9b1GRMj',
     },
     nk: {
       viec: 'fldtEJJubC',

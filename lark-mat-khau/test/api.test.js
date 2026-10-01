@@ -261,6 +261,44 @@ const nk = () => BANG[cfg.nkTableId].map((r) => r.cells[F.nk.hanhDong]);
       !/enc:v1|Moi-2026|Bi-mat/.test(nkXoa.cells[F.nk.viec]), nkXoa && nkXoa.cells[F.nk.viec]);
     ok('xoá dòng không còn → 404', (await goi('/api/xoa-dong', 'ql', { bang: 'tk', id: 'recA' })).ma === 404);
 
+    group('Mã 2FA');
+    const RFC = 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ';
+    ok('người không quyền lưu 2FA → 403', (await goi('/api/doi-2fa', 'la', { bang: 'tk', id: 'recB', bimat: RFC })).ma === 403);
+    ok('chuỗi sai → 400, không ghi', (await goi('/api/doi-2fa', 'ql', { bang: 'tk', id: 'recB', bimat: 'sai!!' })).ma === 400 &&
+      !BANG[cfg.tkTableId][0].cells[F.tk.ma2fa]);
+    r = await goi('/api/doi-2fa', 'ql', { bang: 'tk', id: 'recB', bimat: RFC });
+    const oB = BANG[cfg.tkTableId].find((x) => x.record_id === 'recB').cells[F.tk.ma2fa];
+    ok('quản lý lưu 2FA → trả mã để so ngay', r.ma === 200 && /^\d{6}$/.test(r.j.ma.ma), r.s);
+    ok('mã bí mật trên Base đã mã hoá', mh.daMaHoa(oB) && !oB.includes(RFC));
+    ok('danh sách không chở mã bí mật', !(await goi('/api/danh-sach', 'ql')).s.includes(RFC));
+    ok('danh sách có cờ co2fa', (await goi('/api/danh-sach', 'ql')).j.tk.find((x) => x.id === 'recB').co2fa === true);
+    const truocNk = BANG[cfg.nkTableId].length;
+    r = await goi('/api/otp', 'ql', { bang: 'tk', id: 'recB' });
+    ok('xem mã 6 số', r.ma === 200 && /^\d{6}$/.test(r.j.ma) && r.j.conLai >= 1 && r.j.conLai <= 30, r.s);
+    ok('lượt xem đầu ghi nhật ký "Xem mã 2FA"', BANG[cfg.nkTableId].length === truocNk + 1 &&
+      BANG[cfg.nkTableId].at(-1).cells[F.nk.hanhDong] === 'Xem mã 2FA');
+    await goi('/api/otp', 'ql', { bang: 'tk', id: 'recB', dau: true });
+    ok('xin lại trong 2 phút: không ghi trùng (server tự gộp, không tin cờ trình duyệt)', BANG[cfg.nkTableId].length === truocNk + 1);
+    ok('người không quyền xem mã → 403', (await goi('/api/otp', 'trang', { bang: 'tk', id: 'recB' })).ma === 403);
+    ok('dòng chưa có 2FA → 404', (await goi('/api/otp', 'ql', { bang: 'goi', id: 'recG' })).ma === 404);
+    r = await goi('/api/doi-2fa', 'ql', { bang: 'tk', id: 'recB', bimat: '' });
+    ok('bỏ 2FA → ô trống', r.ma === 200 && BANG[cfg.tkTableId].find((x) => x.record_id === 'recB').cells[F.tk.ma2fa] === null);
+
+    group('Nghỉ việc');
+    BANG[cfg.tkTableId].find((x) => x.record_id === 'recB').cells[F.tk.duocXem] = [{ id: 'ou_han', name: 'Mỹ Hân' }];
+    BANG[cfg.nkTableId].push({ record_id: 'recNkH', cells: { [F.nk.hanhDong]: ['Xem'], [F.nk.nguoi]: 'Mỹ Hân', [F.nk.ma]: 'recB' } });
+    ok('nhân sự gọi → 403', (await goi('/api/nghi-viec', 'han', { id: 'ou_han', ten: 'Mỹ Hân' })).ma === 403);
+    r = await goi('/api/nghi-viec', 'ql', { id: 'ou_han', ten: 'Mỹ Hân' });
+    ok('quản lý đánh dấu nghỉ việc → 200', r.ma === 200, r.s);
+    ok('rút "Được xem" ở mọi dòng', BANG[cfg.tkTableId].every((x) => !(x.cells[F.tk.duocXem] || []).some((n) => n.id === 'ou_han')));
+    ok('liệt kê dòng họ đã từng mở mật khẩu', r.j.lienQuan.some((x) => x.id === 'recB' && x.daMo));
+    ok('sau đó Hân không thấy dòng nào', (await goi('/api/danh-sach?moi=1', 'han')).j.tk.every((x) => x.nenTang === 'Canva Hân'));
+
+    group('Bộ nhắc');
+    ok('nhân sự xem bộ nhắc → 403', (await goi('/api/nhac', 'han')).ma === 403);
+    r = await goi('/api/nhac', 'ql');
+    ok('quản lý xem trước → có danh sách, không gửi gì', r.ma === 200 && Array.isArray(r.j.xemTruoc) && r.j.guiDuoc === 0, r.s);
+
     group('Hạn mức mở');
     let ma = 0;
     for (let i = 0; i < 45; i++) { ma = (await goi('/api/mo', 'la', { bang: 'tk', id: 'recB' })).ma; if (ma === 429) break; }

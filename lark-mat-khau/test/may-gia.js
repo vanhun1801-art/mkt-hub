@@ -45,6 +45,8 @@ const BANG = {
       [F.tk.matKhau]: mk ? mh.maHoa(mk) : null, [F.tk.matKhauCu]: i === 0 ? mh.maHoa('MatKhauCuGia') : null,
       [F.tk.phuTrach]: pt, [F.tk.duocXem]: xem, [F.tk.trangThai]: ['Đang dùng'], [F.tk.stt]: i + 1,
       [F.tk.doiLuc]: i === 3 ? hom - 10 * NGAY : null,
+      /* Google có 2FA (khoá mẫu RFC 6238) để bấm thử nút "Hiện mã 6 số". */
+      [F.tk.ma2fa]: i === 3 ? mh.maHoa(require('../totp').dongGoi(require('../totp').docCauHinh('GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ'))) : null,
     },
   })),
   [cfg.goiTableId]: [
