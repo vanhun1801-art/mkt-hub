@@ -422,7 +422,7 @@ function vePhanQuyen() {
   const ds = bang === 'goi' ? S.goi : S.tk;
   const q = boDau(S.loc.tim).trim();
   const hien = ds.filter((x) => !q || boDau([x.nenTang, x.ten, x.user, phuTrachCua(x)].join(' ')).includes(q));
-  return '<div class="filters">' +
+  return veAiCoQuyen() + '<div class="filters">' +
       '<select id="pqBang"><option value="tk"' + (bang === 'tk' ? ' selected' : '') + '>Tài khoản</option><option value="goi"' + (bang === 'goi' ? ' selected' : '') + '>Gói đăng ký</option></select>' +
       '<input type="search" id="tim" placeholder="Lọc dòng…" value="' + esc(S.loc.tim) + '">' +
       '<span class="demKq">đã chọn ' + S.pq.chon.size + ' dòng · ' + S.pq.nguoi.size + ' người</span></div>' +
@@ -441,6 +441,38 @@ function vePhanQuyen() {
           '<td data-no-i18n>' + esc(phuTrachCua(x) || '—') + '</td>' +
           '<td data-no-i18n>' + (x.duocXem.length ? x.duocXem.map((n) => '<span class="nhan">' + esc(n.ten || n.id) + '</span>').join(' ') : '<span class="phu">chỉ quản lý</span>') + '</td></tr>').join('') +
         '</tbody></table></section></div>';
+}
+
+/* Gom "ai đang được cấp gì" từ cột Được xem mật khẩu của CẢ HAI bảng. */
+function aiCoQuyen() {
+  const m = new Map();
+  for (const [bang, ds] of [['tk', S.tk], ['goi', S.goi]]) {
+    for (const x of ds) {
+      for (const n of x.duocXem || []) {
+        const k = n.id || n.ten;
+        if (!k) continue;
+        if (!m.has(k)) m.set(k, { id: n.id, ten: n.ten || n.id, tk: [], goi: [] });
+        m.get(k)[bang].push(x);
+      }
+    }
+  }
+  return [...m.values()].sort((a, b) => (b.tk.length + b.goi.length) - (a.tk.length + a.goi.length) || a.ten.localeCompare(b.ten, 'vi'));
+}
+
+function veAiCoQuyen() {
+  const ds = aiCoQuyen();
+  const ten = (x) => esc(x.nenTang || x.ten) + (x.user ? ' <span class="phu">' + esc(x.user) + '</span>' : '');
+  return '<section class="khung"><h4>Ai đang có quyền <span class="phu">' + ds.length + ' người được cấp · quản lý (theo Hub) luôn thấy hết</span></h4>' +
+    (ds.length ? '<table class="bang aiq"><thead><tr><th>Người</th><th>Tài khoản</th><th>Gói</th><th>Được làm gì</th><th></th></tr></thead><tbody>' +
+      ds.map((n) => '<tr><td data-no-i18n><b>' + esc(n.ten) + '</b></td>' +
+        '<td>' + (n.tk.length ? '<details><summary>' + n.tk.length + ' tài khoản</summary><ul data-no-i18n>' + n.tk.map((x) => '<li>' + ten(x) + '</li>').join('') + '</ul></details>' : '<span class="phu">—</span>') + '</td>' +
+        '<td>' + (n.goi.length ? '<details><summary>' + n.goi.length + ' gói</summary><ul data-no-i18n>' + n.goi.map((x) => '<li>' + ten(x) + '</li>').join('') + '</ul></details>' : '<span class="phu">—</span>') + '</td>' +
+        '<td class="phu">Thấy · xem / chép / đổi mật khẩu · sửa thông tin <b>trên các dòng này</b> · tự thêm tài khoản mới</td>' +
+        '<td class="nut-o"><button class="btn sm" data-aiq-sua="' + esc(n.id) + '">Sửa</button> ' +
+        '<button class="btn sm nguy" data-aiq-rut="' + esc(n.id) + '">Rút hết</button></td></tr>').join('') +
+      '</tbody></table>'
+      : '<div class="phu">Chưa ai được cấp — hiện chỉ quản lý thấy mật khẩu.</div>') +
+    '<p class="phu goi-y">Không ai được: cho người khác xem, xoá dòng, đọc nhật ký — ba việc đó chỉ quản lý.</p></section>';
 }
 
 /* ---- Nhật ký (quản lý) ---- */
@@ -640,6 +672,31 @@ document.addEventListener('click', async (e) => {
     if ('pqChon' in khung.dataset) { S.pq.nguoi.delete(the.dataset.id); return veLai(); }
     if ('xemChon' in khung.dataset) return doiNguoiXem('bot', { id: the.dataset.id, ten: the.dataset.ten });
     the.remove();
+    return;
+  }
+  if (t.dataset.aiqSua) {
+    /* Nạp người + đúng các dòng của họ vào khu chọn bên dưới để thêm/bớt. */
+    const n = aiCoQuyen().find((x) => x.id === t.dataset.aiqSua);
+    if (!n) return;
+    S.pq.nguoi = new Map([[n.id, n.ten]]);
+    S.pq.bang = n.tk.length || !n.goi.length ? 'tk' : 'goi';
+    S.pq.chon = new Set(n[S.pq.bang].map((x) => x.id));
+    veLai();
+    const k = document.querySelector('.pq'); if (k) k.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return toast('Đã chọn ' + n.ten + ' và ' + S.pq.chon.size + ' dòng của họ — bỏ/thêm dòng rồi bấm Cấp hoặc Rút');
+  }
+  if (t.dataset.aiqRut) {
+    const n = aiCoQuyen().find((x) => x.id === t.dataset.aiqRut);
+    if (!n) return;
+    if (!(await xacNhan('Rút <b>toàn bộ</b> quyền của <b>' + esc(n.ten) + '</b>?<br><span class="phu">' + n.tk.length + ' tài khoản · ' + n.goi.length +
+      ' gói. Họ sẽ không thấy dòng nào nữa (trừ dòng họ tự thêm sau này).</span>', 'Rút hết'))) return;
+    t.disabled = true;
+    try {
+      for (const bang of ['tk', 'goi']) {
+        if (n[bang].length) await guiJson('/api/cap-quyen', { bang, ids: n[bang].map((x) => x.id), nguoi: [n.id], tenNguoi: { [n.id]: n.ten }, kieu: 'bot' });
+      }
+      await napDanhSach(true); veLai(); toast('Đã rút hết quyền của ' + n.ten, 'ok');
+    } catch (er) { toast(er.message, 'err'); t.disabled = false; }
     return;
   }
   if (t.dataset.tab) { S.tab = t.dataset.tab; S.loc.tim = ''; return veLai(); }

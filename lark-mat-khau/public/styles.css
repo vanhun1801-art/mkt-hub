@@ -468,3 +468,9 @@ code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size
 .btn.nguy:hover { background: var(--red); color: #fff; border-color: var(--red); }
 .nguy-khung { border-color: var(--red-vien) !important; }
 .xn-noi .phu { font-size: 12.5px; }
+
+/* ---- bảng "Ai đang có quyền" ---- */
+.aiq td { vertical-align: top; }
+.aiq details summary { cursor: pointer; color: var(--primary); font-weight: 600; }
+.aiq ul { margin: 6px 0 0; padding-left: 18px; font-size: 12.5px; line-height: 1.6; max-height: 220px; overflow: auto; }
+.aiq .nut-o { white-space: nowrap; text-align: right; }
