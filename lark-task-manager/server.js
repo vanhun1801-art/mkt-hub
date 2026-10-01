@@ -275,6 +275,15 @@ async function dongBoVe(viecPhong, dsLP) {
     /* Người giao chốt: Từ chối → trả Làm lại; Hoàn thành (nghiệm thu) → Hoàn thành. */
     if (v.trangThaiGoc === 'Từ chối' && t.status !== 'Làm lại' && t.status !== 'Hủy') p.status = 'Làm lại';
     if (v.trangThaiGoc === 'Hoàn thành' && t.status !== 'Hoàn thành') p.status = 'Hoàn thành';
+    /* Bị MỞ LẠI bên công ty (Hoàn thành → Đang xử lý / Đã tiếp nhận…) mà bản lưu về
+     * vẫn Hoàn thành: trả về Làm lại. Chỉ chắc chắn khi cả việc có MỘT người nhận,
+     * hoặc mọi người nhận bên mình đều đã nộp — việc nhiều người còn người chưa
+     * nộp thì "Đang xử lý" là bình thường, không phải bị mở lại. */
+    if (t.status === 'Hoàn thành' && ['Chờ tiếp nhận', 'Đã tiếp nhận', 'Đang xử lý'].includes(v.trangThaiGoc)) {
+      const cung = dsLP.filter((x) => x.nguonRec === v.nguonRec);
+      const datCa = cung.length && cung.every((x) => x.tdTrangThai === 'Hoàn thành' || (!x.tdTrangThai && cung.length === 1));
+      if (datCa) p.status = 'Làm lại';
+    }
     if (!Object.keys(p).length) continue;
     await lark.updateRecord(t.id, toCells(p));
     const rec = (cache.records || []).find((r) => r.record_id === t.id);
@@ -1931,13 +1940,32 @@ async function api(req, res, url) {
       /* Bản lưu về từ việc LIÊN PHÒNG: tên, nội dung, hạn, ưu tiên, người giao là
        * của người giao bên công ty — đồng bộ VỀ từ đó, không sửa ở đây. */
       const maLP = asText(rec0.cells[F.maLienPhong.id]).trim();
+      let lpGiao = null;   // phần người giao cần đẩy sang Base công ty
       if (maLP) {
         const khoa = Object.keys(body).filter((k) => O_NGUOI_GIAO.includes(k));
         if (khoa.length) {
-          return json(res, {
-            error: 'Việc liên phòng: tên, nội dung, deadline, ưu tiên, người giao do người giao quyết — sửa ở app Giao việc công ty, app tự cập nhật về.',
-            code: 'FIELD_LOCKED',
-          }, 403);
+          /* Người giao (hoặc quản lý) sửa thẳng ở đây cũng được — ghi vào Base
+           * công ty để hai bên như nhau. Người nhận thì không: đó là phần người giao. */
+          const me0 = await whoAmI(req);
+          const laGiao0 = !!(me0 && (toTask(rec0).requester || []).some((u) => u && u.id === me0.id));
+          const doiNguoi = khoa.includes('requester') || khoa.includes('startAt') || khoa.includes('deadline2');
+          if (doiNguoi || (!laGiao0 && !(await isManager(req)))) {
+            return json(res, {
+              error: 'Việc liên phòng: tên, nội dung, deadline, ưu tiên do người giao sửa.',
+              code: 'FIELD_LOCKED',
+            }, 403);
+          }
+          lpGiao = {};
+          if (body.title !== undefined) lpGiao.title = body.title;
+          if (body.detail !== undefined) lpGiao.detail = body.detail;
+          if (body.deadline1 !== undefined) {
+            const d = body.deadline1 ? new Date(body.deadline1) : null;
+            lpGiao.deadlineVN = d && !isNaN(d.getTime()) ? chuoiGioVN(d) : null;
+          }
+          if (body.priority !== undefined) {
+            const UT = { '🔴 Cao': 'Cao', '🟡 Trung bình': 'Trung bình', '🟢 Thấp': 'Thấp' };
+            if (UT[body.priority]) lpGiao.uuTienGoc = UT[body.priority];
+          }
         }
       }
 
@@ -1947,6 +1975,10 @@ async function api(req, res, url) {
       const truoc = toTask(rec0);
       await lark.updateRecord(id, cells);
       if (maLP) dongBoDi(maLP, body).catch((e) => console.error('  [liên phòng] đồng bộ đi hỏng: ' + e.message));
+      if (maLP && lpGiao) {
+        LP.tim(lark, maLP).then((v) => v && LP.suaNguoiGiao(lark, v, lpGiao, chuoiGioVN(new Date())))
+          .catch((e) => console.error('  [liên phòng] đẩy phần người giao hỏng: ' + e.message));
+      }
       if (cache.records) {
         const rec = cache.records.find((r) => r.record_id === id);
         if (rec) applyLocal(rec, body);
