@@ -497,7 +497,13 @@ function veSo() {
       '<p class="phu">Đổi trên trang ' + esc(x.nenTang || x.ten) + ' xong rồi mới lưu ở đây.' + (x.bang === 'tk' ? ' Mật khẩu đang lưu sẽ chuyển thành "mật khẩu cũ".' : '') + '</p>' +
       '<div class="nut-hang"><input type="password" id="mkMoi" autocomplete="new-password" placeholder="Mật khẩu mới" style="flex:1;min-width:0">' +
       '<button class="btn sm" id="mkSinh" title="Sinh mật khẩu mạnh 20 ký tự">Sinh</button>' +
-      '<button class="btn sm primary" id="mkLuu">Lưu</button></div></div></div>' : '');
+      '<button class="btn sm primary" id="mkLuu">Lưu</button></div>' +
+      (x.coMatKhau ? '<div class="nut-hang" style="margin-top:8px"><button class="btn sm nguy" id="mkXoa">Xoá mật khẩu</button>' +
+        '<span class="phu">' + (x.bang === 'tk' ? 'Ô mật khẩu thành trống, bản vừa xoá cất sang "mật khẩu cũ".' : 'Gói không lưu bản cũ — xoá là mất.') + '</span></div>' : '') +
+      '</div></div>' : '') +
+    (laQuanLy() ? '<div class="muc"><h4>Xoá ' + (x.bang === 'goi' ? 'gói' : 'tài khoản') + '</h4><div class="noi nguy-khung">' +
+      '<p class="phu">Xoá hẳn dòng này khỏi Lark Base, kể cả mật khẩu. Không hoàn tác được. Chỉ muốn tạm cất thì đổi Trạng thái sang "Ngừng dùng".</p>' +
+      '<button class="btn sm nguy" id="dongXoa">Xoá ' + (x.bang === 'goi' ? 'gói' : 'tài khoản') + ' này</button></div></div>' : '');
 }
 
 /* ---------------------------------------------------------------------------
@@ -670,6 +676,28 @@ document.addEventListener('click', async (e) => {
   if (t.id === 'nkLai') { S.nk = null; return veLai(); }
   if (t.id === 'mkSinh') { const i = $('#mkMoi'); i.value = sinhMatKhau(); i.type = 'text'; return; }
   if (t.id === 'tSinh') { const i = $('#tMatKhau'); i.value = sinhMatKhau(); i.type = 'text'; return; }
+
+  if (t.id === 'mkXoa') {
+    const ten = $('#soTieuDe').textContent;
+    const bang = S.mo.bang;
+    if (!(await xacNhan('Xoá mật khẩu của <b>' + esc(ten) + '</b>?<br><span class="phu">' +
+      (bang === 'tk' ? 'Bản vừa xoá vẫn cất ở "mật khẩu cũ".' : 'Gói không lưu bản cũ — xoá là mất hẳn.') + '</span>', 'Xoá mật khẩu'))) return;
+    t.disabled = true;
+    try { await guiJson('/api/xoa-mat-khau', { bang, id: S.mo.id }); S.hien.clear(); await napDanhSach(true); veLai(); toast('Đã xoá mật khẩu', 'ok'); }
+    catch (er) { toast(er.message, 'err'); t.disabled = false; }
+    return;
+  }
+
+  if (t.id === 'dongXoa') {
+    const ten = $('#soTieuDe').textContent;
+    const bang = S.mo.bang;
+    if (!(await xacNhan('Xoá hẳn <b>' + esc(ten) + '</b> khỏi Lark Base?<br><span class="phu">Kể cả mật khẩu. Không hoàn tác được — nhật ký vẫn ghi lại tên dòng đã xoá.</span>',
+      'Xoá hẳn'))) return;
+    t.disabled = true;
+    try { await guiJson('/api/xoa-dong', { bang, id: S.mo.id }); S.hien.clear(); await napDanhSach(true); dongSo(); toast('Đã xoá ' + ten, 'ok'); }
+    catch (er) { toast(er.message, 'err'); t.disabled = false; }
+    return;
+  }
 
   if (t.id === 'mkLuu') {
     const v = $('#mkMoi').value;

@@ -64,6 +64,7 @@ const lark = {
   updateRecord: async (id, fields, t) => {
     const r = BANG[t].find((x) => x.record_id === id); Object.assign(r.cells, fields); daGhi.push({ t, id, fields });
   },
+  deleteRecords: async (ids, t) => { BANG[t] = BANG[t].filter((r) => !ids.includes(r.record_id)); daGhi.push({ t, xoa: ids }); },
   updateMany: async (map, t) => { for (const [id, f] of Object.entries(map)) await lark.updateRecord(id, f, t); },
 };
 const goc = Module._load;
@@ -230,6 +231,25 @@ const nk = () => BANG[cfg.nkTableId].map((r) => r.cells[F.nk.hanhDong]);
     ok('người được cấp một dòng cũng tra được (để gán phụ trách)', (await goi('/api/tim-nguoi?q=moi', 'han')).ma === 200);
     r = await goi('/api/cap-quyen', 'ql', { bang: 'tk', ids: ['recB'], nguoi: ['ou_moi'], tenNguoi: { ou_moi: 'Người Mới' }, kieu: 'them' });
     ok('cấp quyền người tìm được: nhật ký ghi đúng tên', r.ma === 200 && BANG[cfg.nkTableId].some((x) => /thêm: Người Mới/.test(x.cells[F.nk.viec])));
+
+    group('Xoá mật khẩu / xoá dòng');
+    BANG[cfg.tkTableId][0].cells[F.tk.duocXem] = [{ id: 'ou_han', name: 'Mỹ Hân' }];
+    const mkTruoc = BANG[cfg.tkTableId][0].cells[F.tk.matKhau];
+    ok('người mới xoá mật khẩu → 403', (await goi('/api/xoa-mat-khau', 'la', { bang: 'tk', id: 'recA' })).ma === 403);
+    r = await goi('/api/xoa-mat-khau', 'han', { bang: 'tk', id: 'recA' });
+    const cA = BANG[cfg.tkTableId][0].cells;
+    ok('người được cấp xoá được mật khẩu dòng của mình', r.ma === 200 && cA[F.tk.matKhau] === null, r.s);
+    ok('bản vừa xoá cất sang "mật khẩu cũ"', cA[F.tk.matKhauCu] === mkTruoc);
+    ok('ô trống rồi thì báo, không ghi đè mật khẩu cũ bằng rỗng', (await goi('/api/xoa-mat-khau', 'han', { bang: 'tk', id: 'recA' })).ma === 400 &&
+      cA[F.tk.matKhauCu] === mkTruoc);
+    ok('nhân sự xoá dòng → 403', (await goi('/api/xoa-dong', 'han', { bang: 'tk', id: 'recA' })).ma === 403 &&
+      BANG[cfg.tkTableId].some((x) => x.record_id === 'recA'));
+    r = await goi('/api/xoa-dong', 'ql', { bang: 'tk', id: 'recA' });
+    ok('quản lý xoá dòng → mất khỏi Base', r.ma === 200 && !BANG[cfg.tkTableId].some((x) => x.record_id === 'recA'), r.s);
+    const nkXoa = BANG[cfg.nkTableId].find((x) => x.cells[F.nk.hanhDong] === 'Xoá dòng');
+    ok('nhật ký giữ tên dòng đã xoá, không kèm mật khẩu', !!nkXoa && /Tik Tok/.test(nkXoa.cells[F.nk.viec]) &&
+      !/enc:v1|Moi-2026|Bi-mat/.test(nkXoa.cells[F.nk.viec]), nkXoa && nkXoa.cells[F.nk.viec]);
+    ok('xoá dòng không còn → 404', (await goi('/api/xoa-dong', 'ql', { bang: 'tk', id: 'recA' })).ma === 404);
 
     group('Hạn mức mở');
     let ma = 0;

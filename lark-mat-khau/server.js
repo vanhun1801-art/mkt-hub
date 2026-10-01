@@ -421,6 +421,49 @@ async function api(req, res, u) {
     return json(res, { ok: true });
   }
 
+  /* ---- xoá mật khẩu (làm trống ô), tài khoản vẫn giữ ----
+   * Cùng quyền với đổi mật khẩu. Bảng Tài khoản: mật khẩu vừa xoá chuyển sang
+   * cột "cũ" — bấm nhầm là còn đường lấy lại. Bảng gói không có cột cũ nên giao
+   * diện nói rõ điều đó trước khi bấm. */
+  if (p === '/xoa-mat-khau' && req.method === 'POST') {
+    const than = await docThan(req);
+    const bang = than.bang;
+    if (!BANG.has(bang) || !laId(than.id)) return loi(res, 400, 'Thiếu bảng hoặc mã bản ghi.');
+    let r;
+    try { r = await docVaKiem(toi, bang, than.id, 'matKhau'); } catch (e) { return loi(res, e.http || 500, e.message); }
+    if (!r.duoc) return loi(res, 403, 'Chưa được cấp quyền với tài khoản này.');
+    if (!r.gia) return loi(res, 400, 'Ô mật khẩu đang trống.');
+    const F = bang === 'goi' ? cfg.f.goi : cfg.f.tk;
+    const truong = { [F.matKhau]: null };
+    if (bang === 'tk') {
+      if (!mh.coKhoa() && !mh.daMaHoa(r.gia)) return loi(res, 503, 'Máy chủ chưa có khoá TK_KHOA.');
+      truong[F.matKhauCu] = mh.daMaHoa(r.gia) ? r.gia : mh.maHoa(r.gia);
+      truong[F.doiLuc] = gioVN();
+    }
+    await ghiNhatKy(toi, req, 'Xoá mật khẩu', bang, r.bg, bang === 'tk' ? 'đã cất sang mật khẩu cũ' : 'gói không lưu bản cũ');
+    await lark.updateRecord(than.id, truong, bang === 'goi' ? cfg.goiTableId : cfg.tkTableId);
+    kho.xoaDem();
+    return json(res, { ok: true });
+  }
+
+  /* ---- xoá hẳn một dòng: chỉ quản lý ----
+   * Ghi nhật ký TRƯỚC khi xoá, kèm tên + user (không bao giờ kèm mật khẩu): xoá
+   * xong thì bản ghi không còn, nhật ký là dấu vết duy nhất "ai xoá cái gì". */
+  if (p === '/xoa-dong' && req.method === 'POST') {
+    if (!toi.quanLy) return loi(res, 403, 'Chỉ quản lý xoá được tài khoản / gói.');
+    const than = await docThan(req);
+    const bang = than.bang;
+    if (!BANG.has(bang) || !laId(than.id)) return loi(res, 400, 'Thiếu bảng hoặc mã bản ghi.');
+    const tableId = bang === 'goi' ? cfg.goiTableId : cfg.tkTableId;
+    const raw = await lark.getRecord(than.id, tableId);
+    if (!raw) return loi(res, 404, 'Không thấy bản ghi này trên Base.');
+    const bg = banGhiTu(bang, raw);
+    await ghiNhatKy(toi, req, 'Xoá dòng', bang, bg, bg.user ? 'user: ' + bg.user : '');
+    await lark.deleteRecords([than.id], tableId);
+    kho.xoaDem();
+    return json(res, { ok: true });
+  }
+
   /* ---- cấp / rút quyền xem: chỉ quản lý ---- */
   if (p === '/cap-quyen' && req.method === 'POST') {
     if (!toi.quanLy) return loi(res, 403, 'Chỉ quản lý cấp được quyền xem mật khẩu.');
