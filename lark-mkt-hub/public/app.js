@@ -878,14 +878,18 @@ function datTenMan(ten) {
  *
  * Cùng origin nên đọc được location; đọc không nổi thì để nguyên.
  */
-function keoIframeVeNeuLac(mod, o) {
+function keoIframeVeNeuLac(mod, o, rec, mo) {
   if (!o || !o.iframe) return;
   try {
     const w = o.iframe.contentWindow;
     if (!w) return;
+    /* Khung VỪA dựng còn ở about:blank (chưa nạp xong src) — không phải lạc.
+     * Trước 01/10/2026 chỗ này coi đó là lạc rồi nạp lại bằng src KHÔNG có
+     * rec/mo: mở hub lần đầu từ nút "Mở …" trên thẻ Lark là mất bản ghi. */
+    if (w.location.href === 'about:blank') return;
     const dung = '/m/' + encodeURIComponent(mod.id) + '/';
     if (w.location.pathname.indexOf(dung) === 0) return;
-    o.iframe.src = srcCuaModule(mod);
+    o.iframe.src = srcCuaModule(mod, rec, mo);
   } catch (_) { /* khác origin hoặc chưa sẵn sàng */ }
 }
 
@@ -909,7 +913,7 @@ function moModule(id, rec, mo) {
     const moi = srcCuaModule(mod, rec, mo);
     if (o.iframe.getAttribute('src') !== moi) o.iframe.setAttribute('src', moi);
   }
-  keoIframeVeNeuLac(mod, o);
+  keoIframeVeNeuLac(mod, o, rec, mo);
   S.frames.forEach((x, k) => { x.wrap.hidden = k !== id; });
   o.wrap.hidden = false;
   document.title = mod.ten + ' · Marketing Hub';

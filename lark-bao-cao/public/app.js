@@ -359,7 +359,10 @@ function menuViec(d) {
   if (ds.length) {
     o += '<optgroup label="Công việc đang tiến hành">' +
       ds.map((v) => '<option value="' + esc(v.id) + '" data-nhom="' + esc(v.nhom) + '"' +
-        ' data-ten="' + esc(v.ten) + '"' + (v.id === d.maViec ? ' selected' : '') + '>' +
+        ' data-ten="' + esc(v.ten) + '"' +
+        /* Cờ cho cửa sổ nộp sản phẩm khi kéo 100% (01/10/2026). */
+        (v.coKetQua ? ' data-kq="1"' : '') + (v.laChinh ? ' data-chinh="1"' : '') +
+        (v.id === d.maViec ? ' selected' : '') + '>' +
         (v.dong ? '✓ ' : '') + esc(v.ten) + (v.loai ? ' · ' + esc(v.loai) : '') +
         '</option>').join('') + '</optgroup>';
   }
@@ -1025,6 +1028,15 @@ function ganHang() {
         if (tt && Number(pt.value) >= 100 && tt.value === 'Đang làm') tt.value = 'Hoàn thành';
         tinhLai();
       };
+      /* Thả tay ở 100% với một việc từ Bảng công việc chưa có sản phẩm → mời nộp
+       * sản phẩm luôn (anh Hùng 01/10/2026). Việc nhóm "Khác" (gõ tay, không có
+       * mã việc) thì không bắt nộp. */
+      pt.onchange = () => {
+        if (Number(pt.value) < 100 || !viec || !viec.value) return;
+        const op = viec.selectedOptions[0];
+        if (!op || op.dataset.kq === '1' || op.dataset.chinh !== '1') return;
+        moNopSanPham(viec.value, op.dataset.ten || (cv && cv.value) || '', op);
+      };
     }
 
     /* Bọc thêm một lớp cho MỌI ô: những ô chưa có xử lý riêng vẫn phải đánh dấu
@@ -1051,6 +1063,66 @@ function ganHang() {
       };
     }
   });
+}
+
+/**
+ * Cửa sổ NỘP SẢN PHẨM ngay trong báo cáo ngày. Gửi qua máy chủ Báo cáo, máy
+ * chủ chuyển sang Bảng công việc đúng danh tính — nộp xong việc bên đó thành
+ * Hoàn thành (việc đã trễ: thành "đã giải quyết", giữ nhãn trễ).
+ */
+function moNopSanPham(maViec, ten, op) {
+  let hop = $('#hopNopSP');
+  if (!hop) {
+    hop = document.createElement('dialog');
+    hop.id = 'hopNopSP';
+    hop.className = 'hop-nop';
+    document.body.appendChild(hop);
+  }
+  hop.innerHTML =
+    '<form method="dialog" class="hn-than">' +
+      '<div class="hn-dau"><div class="hn-nhan">Nộp sản phẩm</div>' +
+        '<div class="hn-ten">' + esc(ten) + '</div>' +
+        '<div class="nho">Tiến độ 100% — nộp link hoặc tệp sản phẩm để việc bên Bảng công việc chuyển Hoàn thành.</div></div>' +
+      '<label class="hn-o"><span>Link kết quả</span><input id="hnLink" type="url" placeholder="https://drive.google.com/…"></label>' +
+      '<label class="hn-o"><span>Tệp sản phẩm</span><input id="hnTep" type="file" multiple></label>' +
+      '<label class="hn-o"><span>Ghi chú cho người order <i class="nho">(không bắt buộc)</i></span><textarea id="hnNote" rows="2"></textarea></label>' +
+      '<div id="hnMsg" class="hn-msg"></div>' +
+      '<div class="hn-nut"><button type="button" class="btn mo" id="hnDe">Để sau</button>' +
+        '<button type="button" class="btn chinh" id="hnGui">Nộp sản phẩm</button></div>' +
+    '</form>';
+  const msg = $('#hnMsg', hop);
+  $('#hnDe', hop).onclick = () => hop.close();
+  $('#hnGui', hop).onclick = async () => {
+    const link = $('#hnLink', hop).value.trim();
+    const tep = [...($('#hnTep', hop).files || [])];
+    if (!link && !tep.length) { msg.textContent = 'Dán link hoặc chọn tệp sản phẩm trước đã.'; return; }
+    const nut = $('#hnGui', hop);
+    nut.disabled = true;
+    try {
+      for (let i = 0; i < tep.length; i++) {
+        msg.textContent = 'Đang tải tệp ' + (i + 1) + '/' + tep.length + '…';
+        const r = await fetch('api/nop-san-pham/tep?viec=' + encodeURIComponent(maViec), {
+          method: 'POST', headers: { 'x-file-name': encodeURIComponent(tep[i].name) }, body: tep[i],
+        });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error('Tệp "' + tep[i].name + '": ' + (d.loi || d.error || 'tải lên thất bại'));
+      }
+      msg.textContent = 'Đang nộp…';
+      const r = await fetch('api/nop-san-pham', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ maViec, link, note: $('#hnNote', hop).value.trim() }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error((d.loi || d.error || 'Không nộp được') + (d.goiY ? ' — ' + d.goiY : ''));
+      if (op) op.dataset.kq = '1';
+      hop.close();
+      toast(d.giaiQuyet ? 'Đã nộp sản phẩm — việc trễ hạn nên giữ nhãn trễ, chờ nghiệm thu.'
+        : 'Đã nộp sản phẩm — việc bên Bảng công việc đã chuyển Hoàn thành.', 'xanh');
+    } catch (e) {
+      msg.textContent = e.message;
+    } finally { nut.disabled = false; }
+  };
+  hop.showModal();
 }
 
 const htmlRa = (h) => {
@@ -1329,14 +1401,48 @@ async function veToanPhong(el) {
   $$('tr.mo-duoc').forEach((tr) => {
     tr.onclick = () => {
       const n = d.nguoi[Number(tr.dataset.i)];
-      $('#oChiTiet').innerHTML = theY(n.ten + ' — ' + d.nhan, n.y, n.diem) +
+      $$('tr.mo-duoc').forEach((x) => x.classList.toggle('dang-chon', x === tr));
+      const loaiTen = (l) => (l === 'ngay' ? 'Ngày' : l === 'tuan' ? 'Tuần' : 'Tháng');
+      $('#oChiTiet').innerHTML =
+        /* Phiếu người này đã viết — bấm mở sổ bên phải đọc đầy đủ (01/10). */
+        '<div class="the"><div class="the-dau"><h2>Báo cáo của ' + esc(n.ten) + '</h2>' +
+          '<span class="nho">' + esc(d.nhan) + ' · bấm một phiếu để đọc đầy đủ</span></div>' +
+        '<div class="the-than khit">' + ((n.phieu || []).length
+          ? '<div class="cuon"><table class="bang-xem bam-duoc"><thead><tr><th>Kỳ</th><th>Loại</th>' +
+            '<th class="so-o">Thời lượng</th><th>Nộp lúc</th><th>Hạn</th></tr></thead><tbody>' +
+            n.phieu.map((p) => '<tr data-ql-ky="' + esc(p.loaiKy) + '" data-ql-ma="' + esc(p.ma) + '" data-ql-moc="' + (p.tu + 3600000) +
+                '" data-ql-nhan="' + esc(p.nhan) + '">' +
+              '<td><b>' + esc(p.nhan) + '</b></td>' +
+              '<td><span class="nhan-tt xam">' + loaiTen(p.loaiKy) + '</span></td>' +
+              '<td class="so-o">' + esc(p.tongGio) + '</td>' +
+              '<td>' + (p.daNop ? esc(veLuc(p.nopLuc)) : '<span class="nhan-tt cam">Nháp</span>') + '</td>' +
+              '<td>' + nhanHan(p) + '</td></tr>').join('') +
+            '</tbody></table></div>'
+          : rong('Chưa có phiếu nào trong kỳ')) +
+        '</div></div>' +
+        theY(n.ten + ' — ' + d.nhan, n.y, n.diem) +
         /* Nhận xét AI của người này cho kỳ đang xem (01/10) — cùng khối như ở Chi tiết kỳ. */
         '<div class="the"><div class="the-than">' + (n.ai
           ? '<div class="ai-nx" style="margin:0"><div class="ai-nx-dau">🤖 Nhận xét và gợi ý từ Marketing Hub AI</div>' +
             '<div class="ai-nx-chu">' + mdSangHtml(n.ai) + '</div></div>'
           : '<span class="nho">Chưa có nhận xét AI cho kỳ này — tuần chạy 8:30 &amp; 14:00 Thứ 7, tháng 8:30 &amp; 14:00 ngày 29–30.</span>') +
         '</div></div>';
-      $('#oChiTiet').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      $$('[data-ql-moc]', $('#oChiTiet')).forEach((r) => {
+        r.onclick = async () => {
+          const loai = r.dataset.qlKy, nhan = r.dataset.qlNhan;
+          const phu = n.ten + ' · Báo cáo ' + loaiTen(loai).toLowerCase();
+          moSo(nhan, phu, '<p class="phu">Đang mở…</p>');
+          try {
+            const ct = await goi('/api/phieu?ky=' + loai + '&moc=' + r.dataset.qlMoc +
+              '&ma=' + encodeURIComponent(r.dataset.qlMa));
+            moSo(nhan, phu, chiTietPhieu(ct) + (ct.tongHop ? soKy(ct) : ''));
+          } catch (e) {
+            if (e && e.cu) return;
+            moSo(nhan, phu, '<p class="phu">Không đọc được phiếu này: ' + esc(e.message) + '</p>');
+          }
+        };
+      });
+      $('#oChiTiet').scrollIntoView({ behavior: 'smooth', block: 'start' });
     };
   });
 }

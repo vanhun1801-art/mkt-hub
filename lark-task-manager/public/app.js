@@ -194,7 +194,7 @@ async function req(url, opts) {
 
 async function loadAll(refresh) {
   const q = refresh ? '?refresh=1' : '';
-  const [meta, tasks] = await Promise.all([req('/api/meta' + q), req('/api/tasks' + q)]);
+  const [meta, tasks] = await Promise.all([req('/api/meta' + q), req('/api/tasks' + (q ? q + '&' : '?') + 'lienPhong=1')]);
   S.meta = meta;
   S.tasks = tasks.tasks;
   S.fetchedAt = tasks.fetchedAt || Date.now();
@@ -553,8 +553,10 @@ const isOverdue = (t) => laTreTheoHan(t) && !daGiaiQuyet(t);
  *    sự đính sản phẩm vào "Tệp đính kèm", nên việc nộp theo lối đó không được
  *    chặn ngược. */
 const daNopKetQua = (t) => (t.fileKetQua || []).length > 0 || !!t.linkKetQua;
+/* Việc liên phòng: "Tệp đính kèm"/"Links" là của người giao bên công ty, KHÔNG
+ * phải sản phẩm — chỉ tính kết quả của chính người nhận (khớp luật phía máy chủ). */
 const coMinhChung = (t) => daNopKetQua(t) ||
-  (t.attachment || []).length > 0 || !!t.link;
+  (!t.lienPhong && ((t.attachment || []).length > 0 || !!t.link));
 
 /** Nhãn minh chứng: CHỈ hai trạng thái — đã nộp, hoặc chưa.
  *
@@ -807,6 +809,24 @@ function renderLanes(list) {
   }
 }
 
+/* ---- Việc LIÊN PHÒNG BAN (01/10/2026) ----
+ * Đọc thêm từ Base "Giao việc" công ty, CHỈ ĐỌC. Anh Hùng: "hiển thị một biểu
+ * tượng nhỏ, đây là công việc liên phòng ban — một dấu nhỏ thôi, không quá nổi
+ * bật". Mọi chỗ vẽ tên việc đi qua veTen() nên dấu có mặt ở mọi màn. */
+function dauLP(t) {
+  const x = el('span', 'lp-dau', '⇄');
+  x.title = t.lienPhong
+    ? 'Công việc liên phòng ban · ' + (t.nguonTen || 'Base Giao việc công ty') +
+      (t.nguonMa ? ' · ' + t.nguonMa : '') + (t.trangThaiGoc ? ' · ' + t.trangThaiGoc : '')
+    : 'Công việc liên phòng ban — đã hoàn thành và lưu về Base phòng';
+  return x;
+}
+function veTen(tag, cls, t) {
+  const x = el(tag, cls, t.title || '(chưa có tên)');
+  if (t.lienPhong || t.maLienPhong) x.appendChild(dauLP(t));
+  return x;
+}
+
 function workCard(t, lane) {
   const c = el('div', 'wcard');
   const d = daysLeft(t.deadline);
@@ -816,7 +836,7 @@ function workCard(t, lane) {
   }
 
   const main = el('div', 'wcard-main');
-  const title = el('div', 'wcard-title', t.title || '(chưa có tên)');
+  const title = veTen('div', 'wcard-title', t);
   title.onclick = () => openDrawer(t);
   main.appendChild(title);
 
@@ -882,9 +902,12 @@ function workCard(t, lane) {
     const b = el('button', 'btn btn-primary', primary.label);
     b.onclick = primary.run;
     acts.appendChild(b);
-    const a = el('button', 'btn', 'Yêu cầu điều chỉnh');
-    a.onclick = () => openAdjust(t);
-    acts.appendChild(a);
+    /* Việc liên phòng: điều chỉnh trao đổi với người giao ở tab Trao đổi. */
+    if (!t.lienPhong) {
+      const a = el('button', 'btn', 'Yêu cầu điều chỉnh');
+      a.onclick = () => openAdjust(t);
+      acts.appendChild(a);
+    }
   } else {
     const b = el('button', 'btn', 'Xem chi tiết');
     b.onclick = () => openDrawer(t);
@@ -927,13 +950,26 @@ function openDone(t, kieu) {
   for (const a of att) list.appendChild(el('span', 'md-file mo', (a.name || 'tệp') + ' · tài liệu kèm'));
   $('#doneFileLabel').textContent = 'Chọn file kết quả để nộp';
 
+  /* Việc liên phòng: hoàn thành là lưu một bản về Base phòng — chọn chiến dịch
+   * cho bản đó (mặc định Operate). */
+  const oCamp = $('#doneCampWrap');
+  if (oCamp) {
+    oCamp.classList.toggle('hidden', !t.lienPhong);
+    if (t.lienPhong) {
+      const ds = (S.meta.options && S.meta.options.campaign) || [];
+      const mac = ds.includes('Operate') ? 'Operate' : (ds[0] || '');
+      $('#doneCamp').innerHTML = ds.map((c) => '<option' + (c === mac ? ' selected' : '') + '>' +
+        escPP(c) + '</option>').join('');
+    }
+  }
+
   const co = $('#doneCallout');
   if (coMinhChung(t)) {
     const phan = [];
     if (kq.length) phan.push(kq.length + ' file kết quả');
-    if (att.length) phan.push(att.length + ' tệp kèm yêu cầu');
+    if (att.length && !t.lienPhong) phan.push(att.length + ' tệp kèm yêu cầu');
     if (t.linkKetQua) phan.push('có link kết quả');
-    else if (t.link) phan.push('có link (ô cũ)');
+    else if (t.link && !t.lienPhong) phan.push('có link (ô cũ)');
     co.className = 'md-proof ok';
     co.textContent = 'Đã có minh chứng: ' + phan.join(' · ');
   } else {
@@ -968,15 +1004,26 @@ async function submitDone() {
     const link = $('#doneLink').value.trim();
     const note = $('#doneNote').value.trim();
     const laGQ = S.doneKieu === 'giai-quyet';
-    await req('/api/tasks/' + t.id + '/' + (laGQ ? 'giai-quyet' : 'complete'), {
+    const kq = await req('/api/tasks/' + t.id + '/' + (laGQ ? 'giai-quyet' : 'complete'), {
       method: 'POST',
-      body: JSON.stringify({ linkKetQua: link || undefined, note: note || undefined }),
+      body: JSON.stringify({
+        linkKetQua: link || undefined, note: note || undefined,
+        campaign: t.lienPhong ? ($('#doneCamp').value || undefined) : undefined,
+      }),
     });
 
     closeModal('mDone');
-    toast(laGQ
-      ? 'Đã nộp sản phẩm. Việc rời khỏi danh sách quá hạn, nhưng trạng thái trễ được giữ lại.'
-      : 'Đã hoàn thành. Hệ thống sẽ gửi thẻ chấm điểm cho người order.');
+    /* Báo luôn chuyện báo cáo ngày (01/10/2026): Hoàn thành ở đây là báo cáo
+     * hôm nay đã có sẵn dòng 100% (nháp). */
+    const bc = kq && kq.baoCao;
+    const duoiBC = !bc ? ''
+      : bc.ok ? ' Đã thêm vào báo cáo ngày ' + (bc.nhan || 'hôm nay') + ' (nháp) — nhớ vào nộp.'
+        : bc.bo === 'da-nop' ? ' Báo cáo hôm nay đã nộp — vào Báo cáo công việc cập nhật nếu cần.' : '';
+    toast((t.lienPhong
+      ? 'Đã gửi kết quả sang Giao việc công ty' + (kq && kq.luuVe ? ' và lưu về Base phòng.' : '.')
+      : laGQ
+        ? 'Đã nộp sản phẩm. Việc rời khỏi danh sách quá hạn, nhưng trạng thái trễ được giữ lại.'
+        : 'Đã hoàn thành. Hệ thống sẽ gửi thẻ chấm điểm cho người order.') + duoiBC);
     await refresh(true);
   } catch (e) {
     msg.textContent = '';
@@ -1210,7 +1257,7 @@ function renderCalMonth(box, list) {
 
     for (const t of ds.slice(0, gioiHan)) {
       const chip = el('div', 'cal-chip ' + calClass(t) + (khacThang ? ' mo' : ''));
-      chip.appendChild(el('span', 'cal-chip-t', t.title || '(chưa có tên)'));
+      chip.appendChild(veTen('span', 'cal-chip-t', t));
       chip.title = (t.title || '') +
         ((t.owner || []).length ? '\n' + t.owner.map((u) => u.name).join(', ') : '') +
         '\nBắt đầu: ' + (fmtDate(t.startAt) || '—') +
@@ -1309,7 +1356,7 @@ function renderCalLine(box, list) {
       const den = Math.min(soNgay - 1, Math.round((b - dau) / 86400000));
       const bar = el('div', 'tl-bar ' + calClass(t));
       bar.style.gridColumn = (tu + 1) + ' / ' + (den + 2);
-      bar.appendChild(el('span', '', t.title || '(chưa có tên)'));
+      bar.appendChild(veTen('span', '', t));
       bar.title = (t.title || '') +
         '\nBắt đầu: ' + (fmtDate(t.startAt) || '—') +
         '\nHạn: ' + (fmtDate(t.deadline) || '—') +
@@ -1488,7 +1535,7 @@ function moDanhSachNhanh(key, tieuDe, items) {
     dong.onkeydown = (e) => {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); dong.onclick(); }
     };
-    dong.appendChild(el('div', 'xn-ten', t.title || '(chưa có tên)'));
+    dong.appendChild(veTen('div', 'xn-ten', t));
     const meta = el('div', 'xn-meta');
     if (t.priority) meta.appendChild(el('span', 'tag ' + priClass(t.priority), plainLabel(t.priority)));
     if (t.workType) meta.appendChild(el('span', 'tag', t.workType));
@@ -1629,7 +1676,7 @@ function queueBlock(key, title, items, tone, hint, actionLabel, onAction) {
   for (const t of laneSort(items).slice(0, 60)) {
     const row = el('div', 'queue-row');
     const main = el('div', 'queue-main');
-    const ttl = el('div', 'queue-title', t.title || '(chưa có tên)');
+    const ttl = veTen('div', 'queue-title', t);
     ttl.onclick = () => openDrawer(t);
     main.appendChild(ttl);
 
@@ -1711,7 +1758,7 @@ function renderDoing(D) {
     const list = el('div', 'dcol-list');
     for (const t of laneSort(g.items)) {
       const row = el('div', 'dcard' + (isOverdue(t) ? ' late' : ''));
-      const ttl = el('div', 'dcard-title', t.title || '(chưa có tên)');
+      const ttl = veTen('div', 'dcard-title', t);
       ttl.onclick = () => openDrawer(t);
       row.appendChild(ttl);
 
@@ -2123,7 +2170,7 @@ function renderBoard(list) {
         col.classList.remove('drop-active');
         const id = e.dataTransfer.getData('text/plain');
         const t = S.tasks.find((x) => x.id === id);
-        if (!t || t.status === status) return;
+        if (!t || t.lienPhong || t.status === status) return;
         await patchTask(t, { status }, 'Đã chuyển sang "' + status + '"');
       });
     }
@@ -2134,9 +2181,9 @@ function renderBoard(list) {
 function taskCard(t) {
   const c = el('div', 'card');
   if (S.selected.has(t.id)) c.classList.add('is-selected');
-  c.draggable = true;
+  c.draggable = !t.lienPhong;   // việc liên phòng: chỉ đọc, không kéo đổi trạng thái
   c.dataset.id = t.id;
-  c.appendChild(el('div', 'card-title', t.title || '(chưa có tên)'));
+  c.appendChild(veTen('div', 'card-title', t));
 
   const meta = el('div', 'card-meta');
   if (t.priority) meta.appendChild(el('span', 'tag ' + priClass(t.priority), plainLabel(t.priority)));
@@ -2327,7 +2374,7 @@ function tableRow(t) {
   tr.appendChild(tdc);
 
   // Công việc
-  const tdt = el('td', 'c-title cell-ell', t.title || '(chưa có tên)');
+  const tdt = veTen('td', 'c-title cell-ell', t);
   tdt.title = t.title || '';
   tr.appendChild(tdt);
 
@@ -2944,6 +2991,11 @@ function openDrawer(task, nhap) {
 }
 
 function closeDrawer() {
+  clearInterval(henChat); henChat = 0;
+  /* Còn thay đổi chưa gửi của việc đã có: gửi nốt (tuLuuViec đọc S.editing ngay). */
+  if (S.editing && !S.editing.isNew && Object.keys(S.dirty || {}).length) {
+    tuLuuViec().then(() => render()).catch(() => {});
+  }
   // việc mới còn thay đổi chưa cất: cất nốt (tuLuuNhap chụp S.editing ngay lúc gọi)
   if (henNhap && S.editing && S.editing.isNew) {
     tuLuuNhap().then(() => napNhap()).then(() => render()).catch(() => {});
@@ -2959,9 +3011,47 @@ function closeDrawer() {
 function set(key, val) {
   S.dirty[key] = val;
   S.editing[key] = val;
-  $('#dStatusMsg').textContent = 'Có thay đổi chưa lưu';
+  $('#dStatusMsg').textContent = S.editing.isNew ? 'Có thay đổi chưa lưu' : 'Đang chờ lưu…';
   if (key === 'title') $('#dTitleView').textContent = val || '(chưa có tên)';
   if (S.editing.isNew) henNhapTD();
+  else henTuLuu();
+}
+
+/* TỰ LƯU VIỆC ĐÃ CÓ (01/10/2026). Anh Hùng: "loại bỏ nút lưu thay đổi, vì sẽ tự
+ * lưu". Sửa xong 1,2 giây thì gửi đúng những ô vừa đổi lên Base; đóng ô chi tiết
+ * thì gửi nốt. Lỗi thì giữ lại phần chưa lưu để lần sau gửi tiếp, không mất chữ. */
+let henLuu = 0;
+function henTuLuu() {
+  clearTimeout(henLuu);
+  henLuu = setTimeout(() => { tuLuuViec(); }, 1200);
+}
+async function tuLuuViec() {
+  clearTimeout(henLuu); henLuu = 0;
+  const t = S.editing;
+  if (!t || t.isNew || S.viewAs || !Object.keys(S.dirty).length) return;
+  const goi = Object.assign({}, S.dirty);
+  S.dirty = {};
+  const suffix = isStaffMode() ? '?role=staff' : '';
+  const msg = $('#dStatusMsg');
+  if (S.editing === t) msg.textContent = 'Đang lưu…';
+  try {
+    await req('/api/tasks/' + t.id + suffix, { method: 'PATCH', body: JSON.stringify(goi) });
+    const local = S.tasks.find((x) => x.id === t.id);
+    if (local) {
+      Object.assign(local, goi);
+      local.deadline = local.deadline1 || local.deadline2 || null;
+    }
+    if (S.editing === t) {
+      const g = new Date();
+      msg.textContent = 'Đã tự lưu · ' + String(g.getHours()).padStart(2, '0') + ':' + String(g.getMinutes()).padStart(2, '0');
+    }
+  } catch (e) {
+    if (S.editing === t) {
+      S.dirty = Object.assign(goi, S.dirty);
+      msg.textContent = 'Chưa lưu được — ' + e.message;
+    }
+    toast('Chưa lưu được: ' + e.message, true);
+  }
 }
 
 /* TỰ LƯU NHÁP VIỆC MỚI (28/09). Anh Hùng: "bỏ luôn các nút nháp còn lại, tất
@@ -3033,17 +3123,22 @@ function buildDrawer() {
   // Quản lý vẫn bấm "Sửa đầy đủ" để chuyển sang form sửa.
   const orderRO = !isNew && S.view === 'order' && !S.suaDayDu;
 
-  $('#dRecId').textContent = isNew ? 'CÔNG VIỆC MỚI' : t.id;
+  $('#dRecId').textContent = isNew ? 'CÔNG VIỆC MỚI' : t.lienPhong ? ((t.nguonMa || '') + ' · Liên phòng ban') : t.id;
   $('#dTitleView').textContent = isNew ? 'Tạo công việc mới' : (t.title || '(chưa có tên)');
-  $('#dDelete').classList.toggle('hidden', isNew || staff || orderRO);
+  /* Việc liên phòng: không Xoá, không Sửa đầy đủ — bản ghi là của Base công ty. */
+  $('#dDelete').classList.toggle('hidden', isNew || staff || orderRO || !!t.lienPhong);
   const nutFull = $('#dFull');
-  nutFull.classList.toggle('hidden', isNew || !S.isManager);
+  nutFull.classList.toggle('hidden', isNew || !S.isManager || !!t.lienPhong);
   nutFull.textContent = staff ? '✎ Sửa đầy đủ' : '◀ Xem bản gọn';
   nutFull.title = staff
     ? 'Mở form sửa mọi trường (deadline, người phụ trách, chiến dịch…)'
     : 'Về bản gọn — đúng những gì nhân sự nhìn thấy';
   $('#dSave').textContent = isNew ? 'Tạo công việc' : 'Lưu thay đổi';
-  $('#dSave').classList.toggle('hidden', orderRO);   // read-only: không có gì để lưu
+  /* Việc đã có thì tự lưu — nút Lưu chỉ còn ở form tạo việc mới. */
+  $('#dSave').classList.toggle('hidden', orderRO || !isNew);
+  /* Nút hành động chính (Bắt đầu làm / Hoàn thành…) do bản gọn đặt vào góc dưới. */
+  const nutCu = $('#dAct');
+  if (nutCu) nutCu.remove();
 
   /* Đầu ô chi tiết nhuốm màu theo giai đoạn, và mang luôn cái quan trọng nhất
    * là HẠN — vì dưới kia chỉ còn bốn viên trạng thái/ưu tiên/order/loại việc. */
@@ -3070,8 +3165,9 @@ function buildDrawer() {
   b.innerHTML = '';
 
   if (isNew) return buildCreateForm(b, t, o);
-  if (orderRO) return buildOrderDrawer(b, t, o);   // người order: chỉ xem
-  if (staff) return buildStaffDrawer(b, t, o);
+  if (t.lienPhong && !orderRO) { buildStaffDrawer(b, t, o); return chiaTab(b, t); }
+  if (orderRO) { buildOrderDrawer(b, t, o); return chiaTab(b, t); }   // người order: chỉ xem
+  if (staff) { buildStaffDrawer(b, t, o); return chiaTab(b, t); }
 
   /* ---- chế độ quản lý: sửa mọi trường ---- */
   b.appendChild(field('Tên công việc *', textInput(t.title, (v) => set('title', v))));
@@ -3125,6 +3221,7 @@ function buildDrawer() {
   b.appendChild(khoiTep(t, 'File kết quả', t.fileKetQua, 'ket-qua', true, 'Nhân sự chưa nộp file nào.'));
   b.appendChild(oTaiLen(t, 'ket-qua'));
   b.appendChild(khoiBinhLuan(t));
+  chiaTab(b, t);
 }
 
 /**
@@ -3366,107 +3463,156 @@ function khoiTep(t, nhan, att, cot, xoaDuoc, khiTrong) {
 
 /** Drawer cho Phụ trách chính — chỉ mở đúng những gì tài liệu cho phép sửa. */
 function buildStaffDrawer(b, t, o) {
-  const stage = laneOf(t, S.who && S.who.id);
+  /* Bản gọn kiểu iOS (anh Hùng 01/10/2026): "tối ưu đồng bộ như iOS và tổng quan
+   * giao diện của ứng dụng; đưa ra thông tin hữu ích cho nhân sự đọc và làm được
+   * việc". Thứ tự theo câu hỏi người làm tự hỏi khi mở việc:
+   *   1. Việc này đang ở đâu, còn bao lâu, giờ bấm gì?   → thẻ đầu + nút chính
+   *   2. Ai giao, ai làm cùng, gấp không?               → danh sách thông tin
+   *   3. Làm cái gì, tài liệu đâu?                        → "Cần làm gì"
+   *   4. Nộp ở đâu?                                       → "Sản phẩm của bạn"
+   * Yêu cầu điều chỉnh xuống cuối, một dòng nhẹ — cần thì có, không chiếm chỗ. */
+  const me = S.who && S.who.id;
+  const stage = laneOf(t, me);
   const st = LANE_BY_KEY[stage];
-  const myRole = roleIn(t, S.who && S.who.id);
+  const myRole = roleIn(t, me);
+  const laChinh = myRole === 'owner';
+  const ten = (ds) => (ds || []).map((u) => u.name).filter(Boolean).join(', ');
 
-  const co = el('div', 'callout' + (stage === 'new' || stage === 'redo' || stage === 'late' ? ' warn' : ''));
-  co.textContent = st ? st.hint : '';
-  b.appendChild(co);
+  /* ---------- 1. Thẻ đầu: tình trạng · hạn · việc tiếp theo ---------- */
+  const hero = el('div', 'sg-hero sg-' + (stage || 'x'));
+  const dau = el('div', 'sg-hero-dau');
+  dau.appendChild(el('span', 'sg-giai', st ? st.title : (t.status || '—')));
+  const tre = laTreTheoHan(t);
+  const con = daysLeft(t.deadline);
+  const hanChu = !t.deadline ? 'Chưa có hạn'
+    : tre ? (con != null && con < 0 ? 'Trễ ' + Math.abs(con) + ' ngày' : 'Đã trễ')
+      : con === 0 ? 'Hạn hôm nay' : con === 1 ? 'Hạn ngày mai' : con != null && con > 1 ? 'Còn ' + con + ' ngày' : 'Hạn';
+  dau.appendChild(el('span', 'sg-han' + (tre ? ' tre' : con != null && con <= 1 ? ' gap' : ''),
+    hanChu + (t.deadline ? ' · ' + fmtDate(t.deadline, true) : '')));
+  hero.appendChild(dau);
+  if (st && st.hint) {
+    hero.appendChild(el('div', 'sg-goi-y', t.lienPhong
+      ? st.hint.replace(/gửi Yêu cầu điều chỉnh/g, 'nhắn người giao ở tab Trao đổi')
+      : st.hint));
+  }
 
-  /* --- yêu cầu từ người order: chỉ đọc ---
-   * Thứ tự đọc: PHẢI LÀM GÌ (mô tả) -> tài liệu kèm -> phần còn lại gọn thành
-   * viên nhỏ. Tên việc đã nằm ở đầu drawer nên không lặp lại ở đây. */
-  /* ---------- THẺ 1: yêu cầu từ người order (chỉ đọc) ----------
-   * Nhân sự cần đúng ba thứ để bắt tay vào làm: làm gì, tài liệu đâu, ai order.
-   * Phần còn lại gọn thành viên nhỏ. */
-  const yc = theKhoi('Yêu cầu từ người order');
+  /* Nút chính nằm ở GÓC DƯỚI của ô chi tiết (anh Hùng 01/10/2026), chỗ nút Lưu
+   * cũ — tay luôn tìm hành động ở đó, thẻ đầu chỉ còn để đọc. */
+  const datNut = (bt) => {
+    bt.id = 'dAct';
+    bt.classList.remove('sg-nut');
+    const foot = $('#drawerFoot');
+    if (foot) foot.appendChild(bt);
+  };
+  if (laChinh && stage === 'new') {
+    const bt = el('button', 'btn btn-primary sg-nut', '▶  Bắt đầu làm');
+    bt.onclick = async () => { closeDrawer(); await startTask(t); };
+    datNut(bt);
+  } else if (laChinh && (stage === 'doing' || stage === 'redo' || stage === 'late' || stage === 'daNop')) {
+    const treGQ = !S.isManager && cfg0().chanTre && laTreTheoHan(t);
+    const bt = el('button', 'btn btn-primary sg-nut',
+      treGQ
+        ? (daGiaiQuyet(t) ? '↥  Nộp lại sản phẩm' : '↥  Nộp sản phẩm · giải quyết việc trễ')
+        : stage === 'redo' ? '↻  Nộp lại · Hoàn thành' : '✓  Hoàn thành công việc');
+    bt.onclick = () => { closeDrawer(); openDone(t, treGQ ? 'giai-quyet' : ''); };
+    datNut(bt);
+    if (!coMinhChung(t)) hero.appendChild(el('div', 'sg-nho', 'Cần link hoặc tệp sản phẩm — nộp ngay trong cửa sổ Hoàn thành.'));
+  } else if (!laChinh && stage !== 'done') {
+    hero.appendChild(el('div', 'sg-nho', 'Bạn là ' + (myRole === 'helper' ? 'người hỗ trợ' : 'người order') +
+      ' — phụ trách chính là người cập nhật trạng thái.'));
+  }
+  /* Việc liên phòng: nguồn ở app Giao việc công ty — mở bản gốc một chạm. */
+  if (t.lienPhong) {
+    const mo = el('a', 'sg-nguon', '⇄ Liên phòng ban · ' + (t.nguonMa || '') + ' · mở trong Giao việc công ty ↗');
+    mo.href = t.nguonUrl || '#';
+    mo.target = '_blank';
+    mo.rel = 'noopener';
+    hero.appendChild(mo);
+  }
+  b.appendChild(hero);
+
+  /* ---------- 2. Thông tin việc: danh sách kiểu iOS ---------- */
+  const ds = el('div', 'sg-nhom');
+  const hang = (nhan, giaTri, tone) => {
+    if (!giaTri) return null;
+    const r = el('div', 'sg-hang');
+    r.appendChild(el('span', 'sg-k', nhan));
+    r.appendChild(el('span', 'sg-v' + (tone ? ' t-' + tone : ''), giaTri));
+    ds.appendChild(r);
+    return r;
+  };
+  if (t.lienPhong) hang('Trạng thái bên công ty', t.trangThaiGoc);
+  hang(t.lienPhong ? 'Người giao' : 'Người order', ten(t.requester));
+  hang(t.lienPhong ? 'Người nhận' : 'Phụ trách chính', ten(t.owner) || 'Chưa giao');
+  /* Việc liên phòng giao cho nhiều người được tách mỗi người một việc — nêu ai
+   * cùng nhận để biết phần mình nằm trong việc chung nào. */
+  if (t.lienPhong && (t.dongNhan || []).length) hang('Cùng nhận việc này', ten(t.dongNhan));
+  hang('Người hỗ trợ', ten(t.helper));
+  hang('Độ ưu tiên', plainLabel(t.priority), toneUuTien(t.priority));
+  hang('Loại việc', t.workType);
+  if (t.lienPhong) hang('Phòng ban nhận', t.phongBan);
+  hang('Ngày giao', t.startAt ? fmtDate(t.startAt, true) : '');
+  if (daGiaiQuyet(t)) hang('Đã nộp', nhanGiaiQuyet(t), 'green');
+  if (t.rating) hang('Chấm điểm', '★'.repeat(t.rating) + '  ' + t.rating + '/5', 'green');
+  /* Dòng báo cáo ngày: đọc sau (Base khác), bấm là sang tab Báo cáo. */
+  const rBC = hang('Báo cáo ngày', 'Đang đọc…');
+  if (rBC) {
+    rBC.classList.add('bam');
+    rBC.appendChild(el('span', 'sg-mui', '›'));
+    rBC.onclick = () => {
+      const nutBC = [...b.querySelectorAll('.dt-tab')].find((x) => /Báo cáo/.test(x.textContent));
+      if (nutBC) nutBC.click();
+    };
+    napBaoCaoViec(t).then((bc) => {
+      const v = rBC.querySelector('.sg-v');
+      if (!bc.length) { v.textContent = 'Chưa có lần nào'; return; }
+      const cuoi = bc[bc.length - 1];
+      v.textContent = bc.length + ' lần · mới nhất ' + (cuoi.tienDoPt == null ? '—' : cuoi.tienDoPt + '%');
+    }).catch(() => { const v = rBC.querySelector('.sg-v'); if (v) v.textContent = '—'; });
+  }
+  b.appendChild(ds);
+
+  /* ---------- 3. Cần làm gì (chỉ đọc) ---------- */
+  const yc = theKhoi('Cần làm gì');
   if (t.detail) yc.than.appendChild(moTaCoLink(t.detail));
   else yc.than.appendChild(el('div', 'd-desc trong-nhe', 'Người order chưa ghi chi tiết yêu cầu.'));
-
   if (t.link) {
     const oLink = el('div', 'field');
-    oLink.appendChild(el('label', '', 'Link tài liệu / tracking của người order'));
+    oLink.appendChild(el('label', '', 'Link tài liệu của người order'));
     oLink.appendChild(moTaCoLink(t.link));
     yc.than.appendChild(oLink);
   }
-  yc.than.appendChild(khoiTep(t, 'Tài liệu kèm yêu cầu', t.attachment, '', false,
-    'Người order không gửi tệp nào kèm theo.'));
-
-  const chips = el('div', 'd-chips');
-  const themVien = (nhan, v, tone) => { if (v) chips.appendChild(vien(nhan, v, tone)); };
-  themVien('', t.status, toneTrangThai(t.status));
-  themVien('', plainLabel(t.priority), toneUuTien(t.priority));
-  themVien('order', (t.requester || []).map((u) => u.name).join(', '));
-  themVien('loại', t.workType);
-  if (t.rating) themVien('điểm', '★'.repeat(t.rating) + ' ' + t.rating + '/5', 'green');
-  if (chips.children.length) yc.than.appendChild(chips);
-
-  /* Nút điều chỉnh: nói rõ khi nào dùng, đừng để họ đoán. */
-  const dc = el('div', 'sd-dc');
-  dc.appendChild(el('div', 'sd-dc-txt',
-    'Yêu cầu này có gì chưa rõ hoặc chưa đảm bảo để làm — thiếu tài liệu, sai thông tin, ' +
-    'deadline không kịp? Gửi yêu cầu điều chỉnh cho người order thay vì tự sửa.'));
-  const adj = el('button', 'btn', 'Gửi yêu cầu điều chỉnh');
-  adj.onclick = () => { closeDrawer(); openAdjust(t); };
-  dc.appendChild(adj);
-  yc.than.appendChild(dc);
+  yc.than.appendChild(khoiTep(t, 'Tài liệu kèm', t.attachment, '', false, 'Không có tệp kèm.'));
   b.appendChild(yc.the);
 
-  /* ---------- THẺ 2: phần của bạn (được sửa) ---------- */
-  const cb = theKhoi('Phần của bạn', 'cb');
-
-  if (myRole !== 'owner') {
-    cb.than.appendChild(el('div', 'callout', 'Bạn là ' +
-      (myRole === 'helper' ? 'Người hỗ trợ' : 'Người order') +
-      ' của task này. Người cập nhật trạng thái là Phụ trách chính.'));
-  }
-
+  /* ---------- 4. Sản phẩm của bạn ---------- */
+  const cb = theKhoi('Sản phẩm của bạn', 'cb');
   cb.than.appendChild(field('Link kết quả', textInput(t.linkKetQua, (v) => set('linkKetQua', v), 'url')));
-
+  cb.than.appendChild(khoiTep(t, 'File kết quả', t.fileKetQua, 'ket-qua', laChinh, 'Chưa nộp file nào.'));
+  if (laChinh) cb.than.appendChild(oTaiLen(t, 'ket-qua'));
   const note = el('textarea');
   note.value = t.note || '';
   note.style.minHeight = '60px';
+  note.placeholder = 'Ghi chú cho người order (không bắt buộc)';
   note.oninput = () => set('note', note.value);
   cb.than.appendChild(field('Ghi chú', note));
-
-  cb.than.appendChild(khoiTep(t, 'File kết quả', t.fileKetQua, 'ket-qua', myRole === 'owner',
-    'Chưa nộp file nào.'));
-  if (myRole === 'owner') {
-    const nop = el('div', 'field');
-    nop.appendChild(el('div', 'ro-note',
-      'Chọn tệp ở đây là vào thẳng ô "File kết quả" của bản ghi trên Base — ' +
-      'không lẫn với tài liệu người order gửi kèm.'));
-    nop.appendChild(oTaiLen(t, 'ket-qua'));
-    cb.than.appendChild(nop);
+  /* Base công ty không có cột Người hỗ trợ — việc liên phòng thì bỏ ô này. */
+  if (!t.lienPhong) {
+    cb.than.appendChild(field('Thêm người hỗ trợ (khi thật cần)',
+      peopleDropdown(t.helper, (v) => set('helper', v), 'Chọn người hỗ trợ…')));
   }
-
-  cb.than.appendChild(field('Người hỗ trợ (chỉ thêm khi thật cần)',
-    peopleDropdown(t.helper, (v) => set('helper', v), 'Chọn người hỗ trợ…')));
   b.appendChild(cb.the);
 
   b.appendChild(khoiBinhLuan(t));
 
-  /* --- hành động chính --- */
-  const foot = el('div', 'field');
-  if (myRole === 'owner') {
-    if (stage === 'new') {
-      const bt = el('button', 'btn btn-primary', '▶ Bắt đầu làm  (→ Đang tiến hành)');
-      bt.onclick = async () => { closeDrawer(); await startTask(t); };
-      foot.appendChild(bt);
-    } else if (stage === 'doing' || stage === 'redo' || stage === 'late' || stage === 'daNop') {
-      const treGQ = !S.isManager && cfg0().chanTre && laTreTheoHan(t);
-      const bt = el('button', 'btn btn-primary',
-        treGQ
-          ? (daGiaiQuyet(t)
-            ? '↥ Nộp lại sản phẩm (đang chờ nghiệm thu)'
-            : '↥ Giải quyết · nộp sản phẩm (giữ nguyên trạng thái trễ)')
-          : stage === 'redo' ? '↻ Nộp lại  (→ Hoàn thành)' : '✓ Hoàn thành công việc');
-      bt.onclick = () => { closeDrawer(); openDone(t, treGQ ? 'giai-quyet' : ''); };
-      foot.appendChild(bt);
-    }
-  }
-  if (foot.children.length) b.appendChild(foot);
+  /* ---------- 5. Điều chỉnh: một dòng nhẹ ở cuối ---------- */
+  if (t.lienPhong) return;   // việc liên phòng: trao đổi với người giao ở tab Trao đổi
+  const dc = el('button', 'sg-dc');
+  dc.type = 'button';
+  dc.appendChild(el('span', 'sg-dc-chu', 'Yêu cầu chưa rõ, thiếu tài liệu hay deadline không kịp?'));
+  dc.appendChild(el('b', '', 'Gửi yêu cầu điều chỉnh ›'));
+  dc.onclick = () => { closeDrawer(); openAdjust(t); };
+  b.appendChild(dc);
 }
 
 /** Drawer cho NGƯỜI ORDER (tab "Việc đã order"): CHỈ ĐỌC.
@@ -3774,13 +3920,97 @@ async function taiTepViecMoi(id) {
 }
 
 /* ---- bình luận trong công việc ---- */
+/* ==================================================================
+   NGĂN CHI TIẾT VIỆC: 3 TAB — Thông tin · Trao đổi · Lịch sử
+   Anh Hùng (01/10/2026), theo app giao việc của phòng bạn: "chat trên task và
+   phân tab riêng khá hay". Form cũ dồn trao đổi xuống đáy, phải cuộn qua cả
+   form mới thấy; giờ trao đổi là một tab riêng dạng chat, có số tin trên tab.
+   ================================================================== */
+
+/** Tab đang mở — giữ qua các lần mở việc khác cho đỡ phải bấm lại. */
+let DT_TAB = 'info';
+/* Hẹn giờ nạp lại tin khi tab Trao đổi đang mở (người kia trả lời thì thấy). */
+let henChat = 0;
+
+function chiaTab(b, t, tuyChon) {
+  const khongChat = !!(tuyChon && tuyChon.khongChat);   // việc liên phòng: trao đổi ở app công ty
+  clearInterval(henChat); henChat = 0;
+  const chat = b.querySelector(':scope > .cmt-khoi');
+  if (chat) chat.remove();
+
+  const info = el('div', 'dt-pane dt-info');
+  while (b.firstChild) info.appendChild(b.firstChild);
+  /* ios-khong-nhap: ô nhắn tin không phải form — lớp vỏ iOS đừng giữ nháp cho nó. */
+  const paneChat = el('div', 'dt-pane dt-chat ios-khong-nhap');
+  if (chat) paneChat.appendChild(chat);
+  const paneLs = el('div', 'dt-pane dt-ls');
+  if (!['info', 'chat', 'bc'].includes(DT_TAB)) DT_TAB = 'info';
+
+  const bar = el('div', 'dt-tabs');
+  const nut = {};
+  const mk = (ma, ic, ten) => {
+    const x = el('button', 'dt-tab');
+    x.type = 'button';
+    x.innerHTML = '<span class="dt-ic">' + ic + '</span><span>' + ten + '</span><span class="dt-n hidden"></span>';
+    x.onclick = () => chon(ma);
+    bar.appendChild(x);
+    nut[ma] = x;
+  };
+  mk('info', 'ⓘ', 'Thông tin');
+  if (!khongChat) mk('chat', '💬', 'Trao đổi');
+  /* Anh Hùng 01/10: "Lịch sử" đổi thành "Báo cáo" — các lần nhân sự tick việc
+   * này trong báo cáo ngày kèm tiến độ; mốc của việc nằm dưới cùng. */
+  mk('bc', '📋', 'Báo cáo');
+
+  const dat = (ma, n) => {
+    const s = nut[ma] && nut[ma].querySelector('.dt-n');
+    if (!s) return;
+    s.textContent = n;
+    s.classList.toggle('hidden', !n);
+  };
+  b._datSo = dat;
+
+  function chon(ma) {
+    if (khongChat && ma === 'chat') ma = 'info';
+    DT_TAB = ma;
+    for (const k of Object.keys(nut)) nut[k].classList.toggle('on', k === ma);
+    info.classList.toggle('hidden', ma !== 'info');
+    paneChat.classList.toggle('hidden', ma !== 'chat');
+    paneLs.classList.toggle('hidden', ma !== 'bc');
+    b.classList.toggle('dt-dang-chat', ma === 'chat');
+    b.dataset.tab = ma;   // khung "Có bản nháp chưa lưu" của lớp vỏ chỉ hiện ở Thông tin (CSS)
+    clearInterval(henChat); henChat = 0;
+    if (ma === 'chat') {
+      const list = paneChat.querySelector('.cmt-list');
+      if (list) {
+        list.scrollTop = list.scrollHeight;
+        henChat = setInterval(() => {
+          if (!S.editing || S.editing.id !== t.id || !document.body.contains(list)) {
+            clearInterval(henChat); henChat = 0; return;
+          }
+          napBinhLuan(t, list, true);
+        }, 15000);
+      }
+      const ta = paneChat.querySelector('.cmt-input');
+      if (ta) setTimeout(() => ta.focus(), 30);
+    }
+    if (ma === 'bc') veBaoCao(t, paneLs);
+    b.scrollTop = 0;
+  }
+
+  b.appendChild(bar);
+  b.appendChild(info);
+  b.appendChild(paneChat);
+  b.appendChild(paneLs);
+  chon(DT_TAB);
+  /* Đếm số lần báo cáo ngay khi mở, để tab có số như tab Trao đổi. */
+  napBaoCaoViec(t).then((ds) => dat('bc', ds.length)).catch(() => {});
+}
+
 function khoiBinhLuan(t) {
-  const f = el('div', 'field');
-  f.appendChild(el('label', '', 'Trao đổi'));
+  const f = el('div', 'cmt-khoi');
 
   const list = el('div', 'cmt-list');
-  /* Khung xương: ba dòng trao đổi giả. Ô này nằm giữa form nên một dòng chữ
-     "Đang tải…" làm cả form co lại rồi giãn ra khi bình luận về. */
   if (window.KX) list.innerHTML = KX.log(3);
   else list.appendChild(el('div', 'cmt-load', 'Đang tải…'));
   f.appendChild(list);
@@ -3788,64 +4018,224 @@ function khoiBinhLuan(t) {
   const soan = el('div', 'cmt-new');
   const ta = el('textarea', 'cmt-input');
   ta.rows = 2;
-  ta.placeholder = 'Viết trao đổi về công việc này…';
-  const gui = el('button', 'btn btn-primary', 'Gửi');
+  ta.placeholder = 'Nhắn tin… (Enter gửi, Shift+Enter xuống dòng)';
+  const gui = el('button', 'btn btn-primary cmt-gui', '➤ Gửi');
   gui.onclick = async () => {
     const noi = ta.value.trim();
     if (!noi) return;
     gui.disabled = true;
+    /* Hiện ngay bong bóng "đang gửi" — không bắt người gõ ngồi chờ Base. */
+    const tam = bongBong({ content: noi, author: S.meta.me ? [S.meta.me] : [], at: new Date().toISOString() }, true);
+    tam.classList.add('dang-gui');
+    const rong = list.querySelector('.cmt-load');
+    if (rong) rong.remove();
+    list.appendChild(tam);
+    list.scrollTop = list.scrollHeight;
+    ta.value = '';
     try {
       await req('/api/tasks/' + t.id + '/comments', {
         method: 'POST', body: JSON.stringify({ content: noi }),
       });
-      ta.value = '';
-      await napBinhLuan(t, list);
-      toast('Đã gửi trao đổi');
+      await napBinhLuan(t, list, true);
     } catch (e) {
+      tam.remove();
+      ta.value = noi;
       toast('Lỗi: ' + e.message, true);
-    } finally { gui.disabled = false; }
+    } finally { gui.disabled = false; ta.focus(); }
   };
   ta.onkeydown = (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') gui.click();
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); gui.click(); }
   };
   soan.appendChild(ta);
   soan.appendChild(gui);
   f.appendChild(soan);
-  f.appendChild(el('div', 'ro-note', 'Ctrl + Enter để gửi nhanh. Người liên quan sẽ nhận thông báo trong Lark.'));
+  f.appendChild(el('div', 'ro-note cmt-goi-y', 'Người phụ trách, người hỗ trợ và người order sẽ nhận thông báo trong Lark.'));
 
   napBinhLuan(t, list);
   return f;
 }
 
-async function napBinhLuan(t, list) {
+/** Một bong bóng tin. `cuaToi` = tin của người đang xem (nằm bên phải). */
+function bongBong(c, cuaToi) {
+  const ten = (c.author && c.author[0] && c.author[0].name) || 'Ẩn danh';
+  const o = el('div', 'cmt' + (cuaToi ? ' cua-toi' : ''));
+  if (!cuaToi) {
+    const av = el('span', 'av av-sm', initials(ten));
+    av.style.background = colorOf(ten);
+    o.appendChild(av);
+  }
+  const body = el('div', 'cmt-body');
+  const head = el('div', 'cmt-head');
+  head.appendChild(el('span', 'cmt-who', cuaToi ? 'Bạn' : ten));
+  const g = c.at ? vnParts(c.at) : null;
+  head.appendChild(el('span', 'cmt-at', g ? p2(g.H) + ':' + p2(g.M) : ''));
+  body.appendChild(head);
+  body.appendChild(el('div', 'cmt-txt', c.content));
+  o.appendChild(body);
+  return o;
+}
+
+async function napBinhLuan(t, list, im) {
   try {
     const d = await req('/api/tasks/' + t.id + '/comments');
+    t._cmts = d.comments;
+    const b = list.closest('.drawer-body');
+    if (b && b._datSo) b._datSo('chat', d.comments.length);
+    /* Nạp lại định kỳ: không có gì mới thì khỏi vẽ lại (giữ chỗ đang cuộn). */
+    const dau = d.comments.map((c) => c.id).join(',');
+    if (im && list._dau === dau) return;
+    list._dau = dau;
+    const oCuoi = list.scrollHeight - list.scrollTop - list.clientHeight < 40;
     list.innerHTML = '';
     if (!d.comments.length) {
-      list.appendChild(el('div', 'cmt-load', 'Chưa có trao đổi nào.'));
+      list.appendChild(el('div', 'cmt-load', 'Chưa có trao đổi nào — nhắn tin đầu tiên cho việc này.'));
       return;
     }
+    const meId = S.meta.me && S.meta.me.id;
+    let ngayTruoc = '';
     for (const c of d.comments) {
-      const o = el('div', 'cmt');
-      const ten = (c.author && c.author[0] && c.author[0].name) || 'Ẩn danh';
-      const av = el('span', 'av av-sm', initials(ten));
-      av.style.background = colorOf(ten);
-      o.appendChild(av);
-
-      const body = el('div', 'cmt-body');
-      const head = el('div', 'cmt-head');
-      head.appendChild(el('span', 'cmt-who', ten));
-      head.appendChild(el('span', 'cmt-at', fmtDate(c.at, true) || ''));
-      body.appendChild(head);
-      body.appendChild(el('div', 'cmt-txt', c.content));
-      o.appendChild(body);
-      list.appendChild(o);
+      const ngay = c.at ? fmtDate(c.at) : '';
+      if (ngay && ngay !== ngayTruoc) {
+        list.appendChild(el('div', 'cmt-ngay', ngay));
+        ngayTruoc = ngay;
+      }
+      const tacGia = c.author && c.author[0] && c.author[0].id;
+      list.appendChild(bongBong(c, !!meId && tacGia === meId));
     }
-    list.scrollTop = list.scrollHeight;
+    if (!im || oCuoi) list.scrollTop = list.scrollHeight;
   } catch (e) {
+    if (im) return;
     list.innerHTML = '';
     list.appendChild(el('div', 'cmt-load', 'Không tải được trao đổi: ' + e.message));
   }
+}
+
+/* ---- Lịch sử ----
+ * Bảng việc trên Base KHÔNG có cột ngày tạo, cũng không ghi ai đổi gì lúc nào,
+ * nên lịch sử dựng lại từ những mốc có thật: ngày bắt đầu, hạn, các yêu cầu
+ * điều chỉnh, các lần trao đổi, nộp kết quả, ngày giải quyết. */
+function dsLichSu(t) {
+  const ten = (ds) => (ds || []).map((u) => u.name).filter(Boolean).join(', ');
+  const ra = [];
+  if (t.startAt) {
+    ra.push({ at: t.startAt, loai: 0, ic: '📨', chu: (ten(t.requester) || 'Người order') + ' giao việc' +
+      (ten(t.owner) ? ' cho ' + ten(t.owner) : '') + (ten(t.helper) ? ' · hỗ trợ: ' + ten(t.helper) : '') });
+  }
+  if (t.deadline1) ra.push({ at: t.deadline1, loai: 3, ic: '⏰', chu: 'Deadline 1', hen: true });
+  if (t.deadline2 && t.deadline2 !== t.deadline1) ra.push({ at: t.deadline2, loai: 3, ic: '⏰', chu: 'Deadline 2', hen: true });
+  for (const y of (S.requests || []).filter((r) => (r.taskIds || []).includes(t.id))) {
+    ra.push({ at: null, ic: '✏️', chu: (ten(y.sender) || 'Ai đó') + ' gửi yêu cầu điều chỉnh' +
+      ((y.parts || []).length ? ': ' + y.parts.join(', ') : '') + (y.handled ? ' — đã xử lý' : ' — chờ xử lý') });
+  }
+  for (const c of (t._cmts || [])) {
+    ra.push({ at: c.at, loai: 1, ic: '💬', chu: ((c.author && c.author[0] && c.author[0].name) || 'Ẩn danh') + ' nhắn: ' +
+      String(c.content || '').replace(/\s+/g, ' ').slice(0, 80) });
+  }
+  if (t.linkKetQua || (t.fileKetQua || []).length) {
+    ra.push({ at: null, ic: '📦', chu: 'Đã nộp kết quả' +
+      ((t.fileKetQua || []).length ? ' · ' + t.fileKetQua.length + ' tệp' : '') + (t.linkKetQua ? ' · có link' : '') });
+  }
+  if (t.ngayGiaiQuyet) ra.push({ at: t.ngayGiaiQuyet, loai: 2, ic: '✅', chu: 'Đánh dấu đã giải quyết' });
+  ra.push({ at: null, ic: '●', chu: 'Trạng thái hiện tại: ' + (t.status || '—'), hienTai: true });
+  /* Có ngày thì xếp theo NGÀY; cùng ngày thì giao việc trước, rồi trao đổi, giải
+   * quyết, hạn sau cùng (ô chỉ có ngày mang giờ 00:00 — so giờ là đảo thứ tự).
+   * Mục không có ngày nằm sau, giữ thứ tự thêm. */
+  const ngay = (v) => { const p = vnParts(v); return p ? p.y * 10000 + p.m * 100 + p.d : 0; };
+  const gio = (v) => { const g = new Date(v).getTime(); return isNaN(g) ? 0 : g; };
+  return ra.map((x, i) => Object.assign(x, { i }))
+    .sort((a, b) => (a.at ? 0 : 1) - (b.at ? 0 : 1) ||
+      (a.at && b.at ? ngay(a.at) - ngay(b.at) || (a.loai || 0) - (b.loai || 0) || gio(a.at) - gio(b.at) : 0) ||
+      a.i - b.i);
+}
+
+function veLichSu(t, pane) {
+  const ds = dsLichSu(t);
+  const ul = el('div', 'ls-ds');
+  for (const x of ds) {
+    const d = el('div', 'ls-m' + (x.hen ? ' hen' : '') + (x.hienTai ? ' hien-tai' : ''));
+    d.appendChild(el('span', 'ls-ic', x.ic));
+    const th = el('div', 'ls-than');
+    th.appendChild(el('div', 'ls-chu', x.chu));
+    if (x.at) th.appendChild(el('div', 'ls-at', fmtDate(x.at, true)));
+    d.appendChild(th);
+    ul.appendChild(d);
+  }
+  pane.appendChild(ul);
+}
+
+/* ---- tab Báo cáo: dữ liệu báo cáo ngày của app Báo cáo công việc ---- */
+async function napBaoCaoViec(t, moi) {
+  if (t._bc && !moi) return t._bc;
+  const d = await req('/api/tasks/' + t.id + '/bao-cao');
+  t._bc = d.dong || [];
+  t._bcLoi = d.loi || '';
+  return t._bc;
+}
+
+const THU_VN = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+function nhanNgayBC(ms) {
+  const p = vnParts(ms);
+  if (!p) return '';
+  const thu = new Date(Date.UTC(p.y, p.m - 1, p.d)).getUTCDay();
+  return THU_VN[thu] + ' ' + p2(p.d) + '/' + p2(p.m);
+}
+const gioPhut = (ph) => { ph = Math.round(ph || 0); const g = Math.floor(ph / 60), m = ph % 60; return g ? g + ' giờ' + (m ? ' ' + m + ' phút' : '') : m + ' phút'; };
+
+async function veBaoCao(t, pane) {
+  pane.innerHTML = '';
+  const dang = el('div', 'cmt-load', 'Đang đọc báo cáo ngày…');
+  pane.appendChild(dang);
+  let ds = [];
+  try { ds = await napBaoCaoViec(t, true); } catch (e) { t._bcLoi = e.message; }
+  if (!pane.isConnected) return;
+  pane.innerHTML = '';
+  const b = pane.closest('.drawer-body');
+  if (b && b._datSo) b._datSo('bc', ds.length);
+
+  const khoi = el('div', 'bc-khoi');
+  if (t._bcLoi) khoi.appendChild(el('div', 'bc-trong', t._bcLoi));
+  else if (!ds.length) {
+    khoi.appendChild(el('div', 'bc-trong',
+      'Chưa có báo cáo ngày nào chọn việc này. Khi nhân sự báo cáo ngày và tick việc này kèm tiến độ, từng lần sẽ hiện ở đây.'));
+  } else {
+    /* Tóm tắt: tiến độ mới nhất + tổng thời gian đã khai cho việc này. */
+    const cuoi = ds[ds.length - 1];
+    const tong = ds.reduce((x, d) => x + (d.phut || 0), 0);
+    const pt = cuoi.tienDoPt == null ? null : Math.max(0, Math.min(100, cuoi.tienDoPt));
+    const tt = el('div', 'bc-tom');
+    tt.innerHTML = '<div class="bc-tom-dau"><span>Tiến độ mới nhất</span><b>' + (pt == null ? '—' : pt + '%') + '</b></div>' +
+      '<div class="bc-thanh"><i style="width:' + (pt || 0) + '%"></i></div>' +
+      '<div class="bc-tom-duoi">' + escPP(cuoi.ten || '') + ' · ' + escPP(nhanNgayBC(cuoi.ngay)) +
+      ' · tổng ' + escPP(gioPhut(tong)) + ' qua ' + ds.length + ' lần báo cáo</div>';
+    khoi.appendChild(tt);
+
+    const list = el('div', 'bc-ds');
+    for (const d of ds.slice().reverse()) {
+      const o = el('div', 'bc-m');
+      const p = d.tienDoPt == null ? null : Math.max(0, Math.min(100, d.tienDoPt));
+      const ten = d.ten || 'Ẩn danh';
+      const av = el('span', 'av av-sm', initials(ten));
+      av.style.background = colorOf(ten);
+      o.appendChild(av);
+      const th = el('div', 'bc-than');
+      th.innerHTML =
+        '<div class="bc-dau"><b>' + escPP(ten) + '</b><span class="bc-ngay">' + escPP(nhanNgayBC(d.ngay)) + '</span>' +
+          (d.daNop ? '' : '<span class="bc-nhap">nháp</span>') +
+          '<span class="bc-pt">' + (p == null ? '—' : p + '%') + '</span></div>' +
+        '<div class="bc-thanh nho"><i style="width:' + (p || 0) + '%"></i></div>' +
+        '<div class="bc-so">' + [d.nhom, d.phut ? gioPhut(d.phut) : '', d.soLuong ? 'SL ' + d.soLuong : '', d.trangThai]
+          .filter(Boolean).map((x) => '<span>' + escPP(x) + '</span>').join('') + '</div>' +
+        ((d.tienDo || d.ghiChu) ? '<div class="bc-ghi">' + escPP([d.tienDo, d.ghiChu].filter(Boolean).join(' · ')) + '</div>' : '');
+      o.appendChild(th);
+      list.appendChild(o);
+    }
+    khoi.appendChild(list);
+  }
+  pane.appendChild(khoi);
+
+  /* Mốc của việc (bản "Lịch sử" cũ) — gọn ở dưới cùng. */
+  pane.appendChild(el('div', 'bc-tieu', 'Mốc của việc'));
+  veLichSu(t, pane);
 }
 
 /* ---- xem tệp toàn màn hình ---- */
@@ -3958,7 +4348,7 @@ async function saveDrawer() {
 /** Bấm ra ngoài ô chi tiết: có thay đổi thì lưu rồi đóng, không thì đóng luôn. */
 async function luuRoiDong() {
   const t = S.editing;
-  if (t && !t.isNew && Object.keys(S.dirty).length) return saveDrawer();
+  /* Việc đã có tự lưu — đóng là closeDrawer() gửi nốt phần chưa lưu. */
   closeDrawer();
 }
 
@@ -3998,6 +4388,7 @@ async function patchTask(task, patch, okMsg) {
 }
 
 function toggleSelect(id) {
+  if ((S.tasks || []).some((x) => x.id === id && x.lienPhong)) return;   // liên phòng: không chọn để sửa hàng loạt
   if (S.selected.has(id)) S.selected.delete(id); else S.selected.add(id);
   render();
 }
@@ -4175,7 +4566,7 @@ function orderCard(t) {
   c.dataset.id = t.id;
 
   const top = el('div', 'ord-top');
-  top.appendChild(el('div', 'ord-title', t.title || '(chưa có tên)'));
+  top.appendChild(veTen('div', 'ord-title', t));
   const st = el('span', 'ord-status');
   st.style.background = STATUS_HUE[t.status] || '#8f959e';
   st.textContent = t.status || 'Chưa đặt';
@@ -4347,7 +4738,7 @@ async function napNhap() {
 /** Nạp việc mình đã gửi order (tab "Việc tôi order"). */
 async function napOrders(force) {
   try {
-    const d = await req('/api/my-orders' + (force ? '?refresh=1' : ''));
+    const d = await req('/api/my-orders?lienPhong=1' + (force ? '&refresh=1' : ''));
     S.orders = (d && d.tasks) || [];
   } catch (_) {
     S.orders = [];
@@ -4639,7 +5030,7 @@ function notifyNew() {
  */
 async function poll(epTaiLai) {
   try {
-    const d = await req('/api/tasks' + (epTaiLai ? '?refresh=1' : ''));
+    const d = await req('/api/tasks?lienPhong=1' + (epTaiLai ? '&refresh=1' : ''));
     S.tasks = d.tasks;
     S.fetchedAt = d.fetchedAt || Date.now();
     notifyNew();
@@ -4971,6 +5362,8 @@ function setupChrome() {
     const rec = tv.get('rec');
     if (rec) {
       const t = (S.tasks || []).find((x) => x.id === rec);
+      /* ?mo=trao-doi: bấm "Mở trao đổi" trên thẻ Lark -> mở thẳng tab chat. */
+      if (t && tv.get('mo') === 'trao-doi') DT_TAB = 'chat';
       if (t) openDrawer(t);
     }
     /* ?mo=phan-phoi -> mở thẳng màn phân phối. Cài đặt của lớp vỏ gọi đường

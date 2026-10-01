@@ -6,6 +6,7 @@ const path = require('path');
 const cfg = require('./config');
 const PP = require('./phanphoi');
 const ppdoc = require('./ppdoc');
+const LP = require('./lien-phong');   // việc liên phòng ban — chỉ đọc (01/10/2026)
 // cli: dùng phiên lark-cli của máy · api: gọi thẳng Open API bằng app credentials
 const lark = cfg.mode === 'api' ? require('./larkapi') : require('./lark');
 const auth = require('./auth');
@@ -79,6 +80,250 @@ async function getRecords(force = false, keCaNhap = false) {
     }
   })();
   return inflight.then(loc);
+}
+
+/* ---------------- đọc báo cáo ngày (Base "Báo cáo công việc MKT") ----------------
+ * Id Base/bảng/cột lấy từ lark-bao-cao/config.js. Đệm 60 giây: ngăn việc mở
+ * liên tục cũng chỉ đọc Base kia mỗi phút một lần. */
+const BC = {
+  base: process.env.BAO_CAO_BASE || 'IqK1b8mdSapQaIsYhavlMMxzgQf',
+  dong: process.env.BAO_CAO_TB_DONG || 'tblo5FBTVuXzv0W0',
+  phieu: process.env.BAO_CAO_TB_PHIEU || 'tblMIviEWyBXNTFz',
+  f: {
+    congViec: 'fldMheDpEc', maPhieu: 'fldLOYQorR', ngay: 'fldybGgAf3', tenNguoi: 'fldg6E9qI5',
+    nhom: 'fldir5ctSP', phut: 'fldH0Ow26w', tienDo: 'fldRa41V4n', tienDoPt: 'fldVwUZluK',
+    maViec: 'fldzmmM4X3', trangThai: 'fldZiU2VNb', ghiChu: 'fldHnljusq', soLuong: 'fldihaykaU',
+  },
+  pf: { ma: 'fldHWf4ymH', trangThai: 'fldcESNvXR' },
+};
+const demBC = { at: 0, ds: null, dang: null };
+/** Ô ngày của Base: số ms, hoặc chuỗi giờ trần theo giờ Việt Nam. */
+function msNgayBC(v) {
+  const x = first(v);
+  if (typeof x === 'number') return x;
+  const s = asText(x);
+  if (/^\d{10,}$/.test(s)) return Number(s);
+  const m = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/.exec(s);
+  return m ? Date.UTC(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0)) - 7 * 3600000 : 0;
+}
+const soBC = (v) => { const n = Number(asText(first(v)) || first(v)); return isFinite(n) ? n : null; };
+async function docBaoCaoNgay() {
+  if (demBC.ds && Date.now() - demBC.at < 60000) return demBC.ds;
+  if (demBC.dang) return demBC.dang;
+  demBC.dang = (async () => {
+    const [dong, phieu] = await Promise.all([
+      lark.listAllRecords(BC.dong, BC.base), lark.listAllRecords(BC.phieu, BC.base),
+    ]);
+    const ttPhieu = new Map(phieu.map((r) => [asText(r.cells[BC.pf.ma]), asText(r.cells[BC.pf.trangThai])]));
+    const F = BC.f;
+    const ds = dong.map((r) => {
+      const c = r.cells;
+      const maViec = asText(c[F.maViec]).trim();
+      if (!maViec) return null;
+      const maPhieu = asText(c[F.maPhieu]);
+      return {
+        maViec,
+        ngay: msNgayBC(c[F.ngay]),
+        ten: asText(c[F.tenNguoi]),
+        congViec: asText(c[F.congViec]),
+        nhom: asText(c[F.nhom]),
+        phut: soBC(c[F.phut]) || 0,
+        tienDoPt: soBC(c[F.tienDoPt]),
+        tienDo: asText(c[F.tienDo]),
+        trangThai: asText(c[F.trangThai]),
+        ghiChu: asText(c[F.ghiChu]),
+        soLuong: soBC(c[F.soLuong]),
+        daNop: ttPhieu.get(maPhieu) === 'Đã nộp',
+      };
+    }).filter(Boolean);
+    demBC.ds = ds; demBC.at = Date.now();
+    return ds;
+  })().finally(() => { demBC.dang = null; });
+  return demBC.dang;
+}
+
+/* ---------------- Hoàn thành ở đây → dòng nháp trong báo cáo ngày ----------------
+ * Anh Hùng (01/10/2026): bấm Hoàn thành ở Bảng công việc thì báo cáo ngày hôm đó
+ * có sẵn dòng việc 100% (nháp), khỏi vào báo cáo kéo 100% lần nữa.
+ * Gọi app Báo cáo (tiến trình con cùng máy) bằng ĐÚNG danh tính hub của người
+ * bấm. Chỉ khi người bấm có tên trong việc (phụ trách/hỗ trợ) — quản lý đóng
+ * việc hộ thì không ghi vào báo cáo của quản lý. Lệnh đi ra TỪ báo cáo
+ * (x-tu-bao-cao) thì bỏ qua: bên đó tự có dòng rồi. Hỏng thì im lặng. */
+const CONG_BAO_CAO = Number(process.env.BAO_CAO_CONG || 5183);
+async function themVaoBaoCao(req, task) {
+  const h = req.headers || {};
+  if (h['x-tu-bao-cao']) return null;
+  /* Không có header hub: chỉ chấp nhận khi chạy trên máy (cli) — lúc đó app Báo
+   * cáo cũng tự nhận người dùng theo phiên lark-cli của máy, tức cùng một người. */
+  if (!h['x-hub-user-id'] && cfg.mode !== 'cli') return null;
+  const id = h['x-hub-user-id'] || '';
+  /* Có tên trong việc: so theo danh tính app này đang dùng (Render: header hub;
+   * chạy máy: phiên lark-cli — open_id khác app nên phải dùng whoAmI). */
+  const me = await whoAmI(req);
+  if (!ownedBy(task, (me && me.id) || id)) return null;
+  const than = Buffer.from(JSON.stringify({ maViec: task.id, congViec: task.title || '', loai: task.workType || '' }), 'utf8');
+  const hd = { 'content-type': 'application/json', 'content-length': than.length };
+  if (id) hd['x-hub-user-id'] = id;
+  for (const k of ['x-hub-user-name', 'x-hub-user-email']) if (h[k]) hd[k] = h[k];
+  return new Promise((ok) => {
+    const r = require('http').request({ host: '127.0.0.1', port: CONG_BAO_CAO, path: '/api/phieu/them-viec', method: 'POST', headers: hd, timeout: 8000 },
+      (res) => {
+        const ra = [];
+        res.on('data', (c) => ra.push(c));
+        res.on('end', () => { try { ok(JSON.parse(Buffer.concat(ra).toString('utf8'))); } catch (_) { ok(null); } });
+      });
+    r.on('timeout', () => { r.destroy(); ok(null); });
+    r.on('error', () => ok(null));
+    r.end(than);
+  });
+}
+
+/* ---------------- Thao tác trên việc LIÊN PHÒNG (01/10/2026) ----------------
+ * Cùng luật với việc của phòng: chỉ người nhận (hoặc quản lý) thao tác; Hoàn
+ * thành phải có minh chứng (link hoặc tệp). Ghi vào Base công ty qua LP.ghi. */
+async function hanhDongLienPhong(req, res, url, action, task) {
+  if (!(await requireOwnTask(res, task, req))) return;
+  const gio = chuoiGioVN(new Date());
+  if (action === 'upload') {
+    if (url.searchParams.get('cot') !== 'ket-qua') {
+      return json(res, { error: 'Tài liệu kèm của người giao thêm ở app Giao việc công ty.', code: 'FIELD_LOCKED' }, 403);
+    }
+    const name = decodeURIComponent(req.headers['x-file-name'] || '') || 'file';
+    const safe = name.replace(/[\\/:*?"<>|]/g, '_').slice(-120);
+    const buf = await readRawBody(req, 60 * 1024 * 1024);
+    if (!buf.length) return json(res, { error: 'Tệp trống' }, 400);
+    const slug = 'up-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+    const absDir = path.join(__dirname, '.tmp', slug);
+    fs.mkdirSync(absDir, { recursive: true });
+    fs.writeFileSync(path.join(absDir, safe), buf);
+    try { await LP.taiLen(lark, task, './.tmp/' + slug + '/' + safe); }
+    finally { try { fs.rmSync(absDir, { recursive: true, force: true }); } catch (_) {} }
+    return json(res, { ok: true, name: safe, size: buf.length });
+  }
+  if (action === 'start') {
+    await LP.batDau(lark, task, gio);
+    return json(res, { ok: true, status: 'Đang tiến hành' });
+  }
+  /* complete / giai-quyet: bên công ty không có khái niệm "giải quyết việc trễ",
+   * cả hai đều là nộp kết quả cho người giao. */
+  const body = await readBody(req);
+  const link = String(body.linkKetQua || body.link || '').trim();
+  const lp = await LP.tim(lark, task.id) || task;
+  if (!link && !lp.linkKetQua && !(lp.fileKetQua || []).length) {
+    return json(res, {
+      error: 'Chưa có minh chứng kết quả', code: 'PROOF_REQUIRED',
+      hint: 'Chọn tệp ở nút nộp (vào ô "File kết quả") hoặc dán "Link kết quả" trước khi bấm Hoàn thành.',
+    }, 422);
+  }
+  /* Ghi phần của RIÊNG người này; bản ghi công ty chỉ chuyển "Đã gửi" khi mọi
+   * người nhận đều đã nộp (xem lien-phong.js). */
+  await LP.nop(lark, lp, { link, ghiChu: body.note ? String(body.note) : '' }, gio);
+  /* Lưu về Base phòng (anh Hùng 01/10/2026: "lưu lúc hoàn thành và cho gán chiến
+   * dịch") — từ đây việc được tính vào thống kê/KPI như việc của phòng. */
+  let luuVe = null;
+  try { luuVe = await luuVeBasePhong(task.id, body); }
+  catch (e) { console.error('  [liên phòng] chưa lưu về Base phòng được: ' + e.message); }
+  baoTin((task.requester || []).map((u) => u.id),
+    'Việc liên phòng "' + (task.title || '') + '" (' + (task.nguonMa || '') + ') đã gửi kết quả.' + XD +
+    'Mời bạn xem trong app Giao việc công ty: ' + (task.nguonUrl || ''));
+  const baoCao = await themVaoBaoCao(req, task);
+  return json(res, { ok: true, status: 'Hoàn thành', baoCao, luuVe });
+}
+
+/* ---------------- ĐỒNG BỘ hai Base cho việc liên phòng đã lưu về ----------------
+ * Anh Hùng 01/10/2026: "nếu anh chỉnh sửa trên đây khi đã hoàn thành thì dữ liệu
+ * 2 base có được như nhau không". Nguyên tắc: Ô CỦA AI THÌ NGƯỜI ĐÓ LÀ GỐC.
+ *   Phần người NHẬN (link kết quả, ghi chú, tệp, nộp/làm lại): Base phòng → công ty
+ *   Phần người GIAO (tên, nội dung, deadline, ưu tiên, nghiệm thu/từ chối):
+ *     Base công ty → Base phòng (khoá sửa ở Base phòng)
+ *   Riêng của phòng (chiến dịch, loại việc, chấm điểm): không đồng bộ. */
+const O_NGUOI_GIAO = ['title', 'detail', 'deadline1', 'deadline2', 'priority', 'requester', 'startAt'];
+/* Dòng nguồn app tự thêm vào Ghi chú lúc lưu về — không đẩy ngược sang công ty. */
+const boDongNguon = (s) => String(s || '').split('\n').filter((x) => !/^Liên phòng ban · /.test(x.trim())).join('\n').trim();
+
+/** Base phòng → công ty: phần của người nhận. */
+async function dongBoDi(maLP, body) {
+  const v = await LP.tim(lark, maLP);
+  if (!v) return;
+  const o = {};
+  if (body.linkKetQua !== undefined) o.link = String(body.linkKetQua || '');
+  if (body.note !== undefined) o.ghiChu = boDongNguon(body.note);
+  if (body.status === 'Làm lại' || body.status === 'Đang tiến hành') o.trangThai = 'Đang tiến hành';
+  else if (body.status === 'Hoàn thành') o.trangThai = 'Hoàn thành';
+  if (!Object.keys(o).length) return;
+  await LP.capNhat(lark, v, o, chuoiGioVN(new Date()));
+}
+
+/** Công ty → Base phòng: phần của người giao. Chỉ ghi khi THẬT SỰ khác. Mỗi phút một lần. */
+let dongBoVeLuc = 0;
+async function dongBoVe(viecPhong, dsLP) {
+  if (Date.now() - dongBoVeLuc < 60000) return;
+  dongBoVeLuc = Date.now();
+  const theoMa = new Map(dsLP.map((v) => [v.id, v]));
+  const phut = (x) => { const g = x ? new Date(x).getTime() : 0; return isNaN(g) ? 0 : Math.round(g / 60000); };
+  const khoiCach = (x) => String(x || '').replace(/\s+/g, ' ').trim();
+  let doi = 0;
+  for (const t of viecPhong) {
+    const ma = String(t.maLienPhong || '').trim();
+    const v = ma && theoMa.get(ma);
+    if (!v) continue;
+    const p = {};
+    if (khoiCach(v.title) && khoiCach(v.title) !== khoiCach(t.title)) p.title = v.title;
+    if (khoiCach(v.detail) !== khoiCach(t.detail)) p.detail = v.detail;
+    if (phut(v.deadline1) !== phut(t.deadline1)) p.deadline1 = v.deadline1 || null;
+    if (v.priority && v.priority !== t.priority) p.priority = v.priority;
+    /* Người giao chốt: Từ chối → trả Làm lại; Hoàn thành (nghiệm thu) → Hoàn thành. */
+    if (v.trangThaiGoc === 'Từ chối' && t.status !== 'Làm lại' && t.status !== 'Hủy') p.status = 'Làm lại';
+    if (v.trangThaiGoc === 'Hoàn thành' && t.status !== 'Hoàn thành') p.status = 'Hoàn thành';
+    if (!Object.keys(p).length) continue;
+    await lark.updateRecord(t.id, toCells(p));
+    const rec = (cache.records || []).find((r) => r.record_id === t.id);
+    if (rec) applyLocal(rec, p);
+    doi++;
+  }
+  if (doi) console.log('  [liên phòng] đồng bộ về Base phòng: ' + doi + ' việc');
+}
+
+/**
+ * Tạo (hoặc cập nhật) bản ghi Base Tracking cho phần việc liên phòng của MỘT
+ * người vừa hoàn thành. Khoá chống trùng: cột "Mã liên phòng" = mã việc riêng.
+ * Loại công việc / Campain: việc gốc không có — người nộp chọn Campain trong cửa
+ * sổ Hoàn thành (mặc định Operate), Loại công việc mặc định "Khác".
+ */
+async function luuVeBasePhong(id, body) {
+  const v = await LP.tim(lark, id);            // bản mới nhất sau khi nộp
+  if (!v) return null;
+  const recs = await getRecords(true);
+  const co = recs.find((r) => asText(r.cells[F.maLienPhong.id]).trim() === id);
+  const patch = {
+    title: v.title,
+    detail: v.detail,
+    status: 'Hoàn thành',
+    priority: v.priority || undefined,
+    workType: String(body.workType || 'Khác'),
+    campaign: String(body.campaign || 'Operate'),
+    owner: v.owner,
+    requester: v.requester,
+    startAt: v.startAt || undefined,
+    deadline1: v.deadline1 || undefined,
+    linkKetQua: v.linkKetQua || undefined,
+    note: [v.note, 'Liên phòng ban · ' + (v.nguonMa || '') + ' · ' + (v.nguonUrl || '')].filter(Boolean).join(XD),
+    maLienPhong: id,
+  };
+  for (const k of Object.keys(patch)) if (patch[k] === undefined) delete patch[k];
+  if (co) {
+    /* Nộp lại: chỉ cập nhật phần kết quả + chiến dịch, không đè cả bản ghi. */
+    const capNhat = { status: 'Hoàn thành', linkKetQua: patch.linkKetQua, note: patch.note };
+    if (body.campaign) capNhat.campaign = patch.campaign;
+    for (const k of Object.keys(capNhat)) if (capNhat[k] === undefined) delete capNhat[k];
+    await lark.updateRecord(co.record_id, toCells(capNhat));
+    cache.at = 0;
+    return { id: co.record_id, moi: false };
+  }
+  const kq = await lark.createRecord(toCells(patch));
+  cache.at = 0;
+  const rid = kq && ((kq.record_id_list && kq.record_id_list[0]) || (kq.data && kq.data.record_id_list && kq.data.record_id_list[0]));
+  return { id: rid || null, moi: true };
 }
 
 /* ---------------- mapping: Base -> UI ---------------- */
@@ -423,6 +668,51 @@ async function guiTinNgay(openIds, text) {
   return { gui, loi };
 }
 
+/* ---- Thẻ "nhắn về việc" (anh Hùng 01/10/2026, theo app giao việc phòng bạn) ----
+ * Trước là một dòng chữ trần "Bình luận mới trên …" kèm link app. Giờ là thẻ:
+ * tiêu đề ai nhắn về việc nào, nội dung tin, nút "Mở trao đổi" mở thẳng tab
+ * Trao đổi của đúng việc đó trong Marketing Hub. */
+const urlHubTB = () => (process.env.HUB_URL || cfg.publicUrl || 'https://mkt-hub-w6hi.onrender.com').replace(/\/+$/, '');
+const sachMd = (s) => String(s || '').replace(/([*_~`[\]<>])/g, '\\$1');
+
+function theTraoDoi(t, me, noiDung) {
+  const ten = (me && me.name) || 'Ai đó';
+  const viec = String(t.title || '(chưa có tên)').replace(/\s+/g, ' ').trim();
+  const tin = String(noiDung || '').slice(0, 600);
+  return {
+    config: { wide_screen_mode: true },
+    header: {
+      template: 'blue',
+      title: { tag: 'plain_text', content: '💬 ' + ten + ' nhắn về việc: ' + viec.slice(0, 120) },
+    },
+    elements: [
+      { tag: 'note', elements: [{ tag: 'plain_text', content: 'Bảng công việc · Marketing Hub' }] },
+      { tag: 'div', text: { tag: 'lark_md', content: '**' + sachMd(ten) + ':** ' + sachMd(tin) } },
+      { tag: 'action', actions: [{
+        tag: 'button', type: 'primary', text: { tag: 'plain_text', content: 'Mở trao đổi' },
+        url: urlHubTB() + '/#/m/cong-viec?rec=' + encodeURIComponent(t.id) + '&mo=trao-doi',
+      }] },
+    ],
+  };
+}
+
+/** Gửi thẻ trao đổi; thẻ hỏng (thiếu quyền…) thì lùi về tin chữ như cũ. Chạy nền. */
+function baoTraoDoi(openIds, t, me, noiDung) {
+  if (!cfg.notify || !openIds || !openIds.length) return;
+  const ds = [...new Set(openIds.filter(Boolean))].slice(0, 30);
+  const the = theTraoDoi(t, me, noiDung);
+  const chu = 'Bình luận mới trên "' + (t.title || '') + '"' + XD +
+    (me ? me.name + ': ' : '') + String(noiDung || '').slice(0, 200) + duoiTin();
+  (async () => {
+    for (const id of ds) {
+      try {
+        const ok = lark.sendCard ? await lark.sendCard(id, the) : false;
+        if (!ok) await lark.sendMessage(id, chu);
+      } catch (_) {}
+    }
+  })().catch(() => {});
+}
+
 /** Đuôi tin nhắn: link mở app. */
 const duoiTin = () => (cfg.publicUrl ? XD + cfg.publicUrl : '');
 
@@ -735,8 +1025,21 @@ async function api(req, res, url) {
      * nhịp hẹn giờ một mình không đủ. Không chờ kết quả — người mở app không việc
      * gì phải đợi việc của người khác được giao xong. */
     quetPhanPhoi().catch(() => {});
-    const tasks = await visibleFor(records.map(toTask), req);
-    return json(res, { tasks, fetchedAt: cache.at });
+    const viecPhong = records.map(toTask);
+    let tasks = await visibleFor(viecPhong, req);
+    /* ?lienPhong=1: CHỈ giao diện Bảng công việc xin thêm việc liên phòng ban
+     * (chỉ đọc, từ Base Giao việc công ty). Bốn app khác đọc chung đường này
+     * nên mặc định giữ nguyên — số liệu của chúng không bị cộng thêm. */
+    if (url.searchParams.get('lienPhong') === '1') {
+      /* Phần việc nào đã hoàn thành và lưu về Base phòng thì bản ghi của phòng
+       * thay chỗ nó (vẫn mang dấu ⇄ nhờ cột Mã liên phòng) — không hiện hai lần. */
+      const daLuu = new Set(viecPhong.map((t) => String(t.maLienPhong || '').trim()).filter(Boolean));
+      const tatCaLP = await LP.docHet(lark, url.searchParams.get('refresh') === '1');
+      dongBoVe(viecPhong, tatCaLP).catch((e) => console.error('  [liên phòng] đồng bộ về hỏng: ' + e.message));
+      const lp = LP.lienQuan(tatCaLP, viecPhong).filter((v) => !daLuu.has(v.id));
+      tasks = tasks.concat(await visibleFor(lp, req));
+    }
+    return json(res, { tasks, fetchedAt: cache.at, lienPhongLoi: LP.loi() || undefined });
   }
 
   /* Việc TÔI đã order: trả các việc mà mình là Người order, bất kể có phụ trách
@@ -746,8 +1049,15 @@ async function api(req, res, url) {
     const me = await whoAmI(req);
     if (!me) return json(res, { tasks: [], fetchedAt: cache.at });
     const records = await getRecords(url.searchParams.get('refresh') === '1');
-    const tasks = records.map(toTask)
+    let tasks = records.map(toTask)
       .filter((t) => (t.requester || []).some((u) => u && u.id === me.id));
+    /* Việc liên phòng do chính mình giao (chỉ đọc) — xem cùng chỗ với việc đã order. */
+    if (url.searchParams.get('lienPhong') === '1') {
+      const tatCa = records.map(toTask);
+      const daLuu = new Set(tatCa.map((t) => String(t.maLienPhong || '').trim()).filter(Boolean));
+      const lp = LP.lienQuan(await LP.docHet(lark), tatCa).filter((v) => !daLuu.has(v.id));
+      tasks = tasks.concat(lp.filter((t) => t.requester.some((u) => u && u.id === me.id)));
+    }
     return json(res, { tasks, fetchedAt: cache.at });
   }
 
@@ -939,6 +1249,11 @@ async function api(req, res, url) {
      * lên NGAY sau khi tạo bản ghi, mà danh sách vừa đọc có thể là bản chụp
      * trước đó — báo 404 lúc này là nuốt mất tệp của một việc có thật. */
     if (!rec) rec = (await getRecords(true)).find((r) => r.record_id === id);
+    if (!rec) {
+      /* Việc LIÊN PHÒNG (Base Giao việc công ty) — thao tác như việc của phòng. */
+      const lp = await LP.tim(lark, id);
+      if (lp) return hanhDongLienPhong(req, res, url, action, lp);
+    }
     if (!rec) return json(res, { error: 'Không tìm thấy công việc' }, 404);
     const task = toTask(rec);
 
@@ -968,6 +1283,12 @@ async function api(req, res, url) {
       const cot = cotTep === 'ket-qua' ? F.fileKetQua.name : F.attachment.name;
       try {
         await lark.uploadAttachment(id, cot, './.tmp/' + slug + '/' + safe);
+        /* Bản lưu về từ việc liên phòng: tệp sản phẩm gửi luôn sang "File kết quả"
+         * bên công ty, để người giao thấy cùng tệp. */
+        if (cotTep === 'ket-qua' && task.maLienPhong) {
+          const v = await LP.tim(lark, task.maLienPhong);
+          if (v) await LP.taiLen(lark, v, './.tmp/' + slug + '/' + safe).catch((e) => console.error('  [liên phòng] gửi tệp sang công ty hỏng: ' + e.message));
+        }
       } finally {
         try { fs.rmSync(absDir, { recursive: true, force: true }); } catch (_) {}
       }
@@ -978,6 +1299,7 @@ async function api(req, res, url) {
     if (action === 'start') {
       await lark.updateRecord(id, toCells({ status: 'Đang tiến hành' }));
       applyLocal(rec, { status: 'Đang tiến hành' });
+      if (task.maLienPhong) dongBoDi(task.maLienPhong, { status: 'Đang tiến hành' }).catch(() => {});
       return json(res, { ok: true, status: 'Đang tiến hành' });
     }
 
@@ -1032,7 +1354,8 @@ async function api(req, res, url) {
       baoTin((task.requester || []).map((u) => u.id),
         'Việc "' + (task.title || '') + '" đã nộp sản phẩm (trễ so với deadline).' + XD +
         'Trạng thái trễ được giữ lại để thống kê; mời bạn nghiệm thu.' + duoiTin());
-      return json(res, { ok: true, daGiaiQuyet: true, status: task.status });
+      const baoCaoGQ = await themVaoBaoCao(req, task);
+      return json(res, { ok: true, daGiaiQuyet: true, status: task.status, baoCao: baoCaoGQ });
     }
 
     /* Việc đã quá hạn thì NHÂN SỰ không tự chuyển Hoàn thành — phải bấm "Giải
@@ -1052,13 +1375,19 @@ async function api(req, res, url) {
     patch.status = cfg.proofRequiredFor;
     await lark.updateRecord(id, toCells(patch));
     applyLocal(rec, patch);
+    /* Nộp lại một việc liên phòng đã lưu về (sau khi bị trả Làm lại). */
+    if (task.maLienPhong) {
+      dongBoDi(task.maLienPhong, { status: 'Hoàn thành', linkKetQua: patch.linkKetQua, note: patch.note })
+        .catch((e) => console.error('  [liên phòng] đồng bộ đi hỏng: ' + e.message));
+    }
 
     // báo người order vào nghiệm thu & chấm điểm
     baoTin((task.requester || []).map((u) => u.id),
       'Việc "' + (task.title || '') + '" đã hoàn thành.' + XD +
       'Mời bạn nghiệm thu và chấm điểm.' + duoiTin());
 
-    return json(res, { ok: true, status: patch.status });
+    const baoCao = await themVaoBaoCao(req, task);
+    return json(res, { ok: true, status: patch.status, baoCao });
   }
 
   /* ---- báo cáo tổng quan (HTML, in ra PDF được) ---- */
@@ -1082,6 +1411,27 @@ async function api(req, res, url) {
     return res.end(b);
   }
 
+  /* ---- báo cáo ngày đã ghi cho việc này (tab "Báo cáo", 01/10/2026) ----
+   * Anh Hùng: nhân sự báo cáo ngày tick chọn việc + chọn tiến độ — "lôi dữ liệu
+   * đó hiển thị lên đây". Dòng việc của app Báo cáo lưu "Mã việc tracking" =
+   * record_id của việc ở đây, nên chỉ cần lọc theo id. Chỉ ĐỌC Base kia. */
+  const mBC = p.match(/^\/api\/tasks\/(rec[A-Za-z0-9]+)\/bao-cao$/);
+  if (mBC && req.method === 'GET') {
+    const id = mBC[1];
+    const recs = await getRecords();
+    const rec = recs.find((r) => r.record_id === id) ||
+      (await LP.docHet(lark)).find((v) => v.id === id);   // việc liên phòng cũng có báo cáo ngày
+    if (!rec) return json(res, { error: 'Không tìm thấy công việc' }, 404);
+    try {
+      const maLPBC = rec && rec.cells ? asText(rec.cells[F.maLienPhong.id]).trim() : '';
+      const ds = (await docBaoCaoNgay()).filter((d) => d.maViec === id || (maLPBC && d.maViec === maLPBC))
+        .sort((a, b) => a.ngay - b.ngay || a.ten.localeCompare(b.ten));
+      return json(res, { dong: ds });
+    } catch (e) {
+      return json(res, { dong: [], loi: 'Chưa đọc được Base Báo cáo: ' + String(e.message || e).split('\n')[0].slice(0, 160) });
+    }
+  }
+
   /* ---- bình luận ---- */
 
   const mCmt = p.match(/^\/api\/tasks\/(rec[A-Za-z0-9]+)\/comments$/);
@@ -1090,6 +1440,10 @@ async function api(req, res, url) {
     const CF = cfg.commentFields;
 
     if (req.method === 'GET') {
+      /* Việc liên phòng đã lưu về Base phòng: trao đổi lúc còn là việc liên phòng
+       * được ghi theo mã liên phòng — vẫn hiện tiếp ở bản lưu về. */
+      const recCmt = (cache.records || []).find((r) => r.record_id === id);
+      const maLPCmt = recCmt ? asText(recCmt.cells[F.maLienPhong.id]).trim() : '';
       const recs = await lark.listAllRecords(cfg.commentTableId);
       const list = recs
         .map((r) => ({
@@ -1100,8 +1454,9 @@ async function api(req, res, url) {
           content: asText(r.cells[CF.content.id]),
           author: asUsers(r.cells[CF.author.id]),
           at: r.cells[CF.at.id] || null,
+          lienPhong: asText(r.cells[CF.lienPhong.id]).trim(),
         }))
-        .filter((c) => c.taskIds.includes(id))
+        .filter((c) => c.taskIds.includes(id) || c.lienPhong === id || (maLPCmt && c.lienPhong === maLPCmt))
         .sort((a, b) => new Date(a.at || 0) - new Date(b.at || 0));
       return json(res, { comments: list });
     }
@@ -1109,8 +1464,14 @@ async function api(req, res, url) {
     if (req.method === 'POST') {
       const recs = await getRecords();
       const rec = recs.find((r) => r.record_id === id);
-      if (!rec) return json(res, { error: 'Không tìm thấy công việc' }, 404);
-      if (!(await requireOwnTask(res, toTask(rec), req))) return;
+      const lpCmt = rec ? null : await LP.tim(lark, id);
+      if (!rec && !lpCmt) return json(res, { error: 'Không tìm thấy công việc' }, 404);
+      /* Liên phòng: người giao (bên công ty) cũng nhắn được, không chỉ người nhận. */
+      if (lpCmt) {
+        const me0 = await whoAmI(req);
+        const coTen = me0 && [...lpCmt.owner, ...lpCmt.requester].some((u) => u.id === me0.id);
+        if (!coTen && !(await requireOwnTask(res, lpCmt, req))) return;
+      } else if (!(await requireOwnTask(res, toTask(rec), req))) return;
 
       const body = await readBody(req);
       const noiDung = String(body.content || '').trim();
@@ -1120,7 +1481,10 @@ async function api(req, res, url) {
       const me = await whoAmI(req);
       const cells = {};
       cells[CF.content.name] = noiDung;
-      cells[CF.task.name] = [{ id }];
+      /* Việc liên phòng nằm ở Base KHÁC — ô liên kết không trỏ sang được, nên
+       * ghi record_id vào cột chữ "Việc liên phòng". */
+      if (lpCmt) cells[CF.lienPhong.name] = id;
+      else cells[CF.task.name] = [{ id }];
       if (me) cells[CF.author.name] = [{ id: me.id }];
       /* Ghi thẳng GIỜ vào ô "Thời gian". Bỏ trống thì Base tự điền ngày với giờ
        * 00:00, thành ra mọi bình luận trong cùng một ngày cùng một mốc — nhìn
@@ -1129,13 +1493,11 @@ async function api(req, res, url) {
 
       const kq = await lark.createRecord(cells, cfg.commentTableId);
 
-      const t = toTask(rec);
+      const t = lpCmt || toTask(rec);
       const nhan = [...(t.owner || []), ...(t.helper || []), ...(t.requester || [])]
         .map((u) => u.id)
         .filter((x, i, a) => x && a.indexOf(x) === i && (!me || x !== me.id));
-      baoTin(nhan,
-        'Bình luận mới trên "' + (t.title || '') + '"' + XD +
-        (me ? me.name + ': ' : '') + noiDung.slice(0, 200) + duoiTin());
+      baoTraoDoi(nhan, t, me, noiDung);
 
       return json(res, { ok: true, result: kq });
     }
@@ -1148,6 +1510,17 @@ async function api(req, res, url) {
     const id = mRm[1];
     const recs = await getRecords();
     const rec = recs.find((r) => r.record_id === id);
+    if (!rec) {
+      const lp = await LP.tim(lark, id);
+      if (lp) {
+        if (!(await requireOwnTask(res, lp, req))) return;
+        const tk = url.searchParams.get('token') || '';
+        if (!/^[A-Za-z0-9]+$/.test(tk)) return json(res, { error: 'Tham số không hợp lệ' }, 400);
+        if (url.searchParams.get('cot') !== 'ket-qua') return json(res, { error: 'Tài liệu của người giao — gỡ ở app Giao việc công ty.' }, 403);
+        await LP.goTep(lark, lp, tk);
+        return json(res, { ok: true });
+      }
+    }
     if (!rec) return json(res, { error: 'Không tìm thấy công việc' }, 404);
     if (!(await requireOwnTask(res, toTask(rec), req))) return;
 
@@ -1451,7 +1824,11 @@ async function api(req, res, url) {
     const slug = 'att-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
     let dir = null;
     try {
-      dir = await lark.downloadAttachment(recordId, token, slug);
+      /* Tệp của việc liên phòng nằm ở Base công ty. */
+      const lpTep = await LP.tim(lark, recordId);
+      dir = lpTep
+        ? await LP.taiVe(lark, lpTep, token, slug)
+        : await lark.downloadAttachment(recordId, token, slug);
       const names = fs.existsSync(dir) ? fs.readdirSync(dir) : [];
       const target = names.length ? path.join(dir, names[0]) : null;
       if (!target) return json(res, { error: 'Không tải được tệp' }, 502);
@@ -1492,6 +1869,21 @@ async function api(req, res, url) {
     if (req.method === 'PATCH') {
       const recs = await getRecords();
       const rec0 = recs.find((r) => r.record_id === id);
+      if (!rec0) {
+        const lp = await LP.tim(lark, id);
+        if (lp) {
+          if (!(await requireOwnTask(res, lp, req))) return;
+          const body = await readBody(req);
+          /* Base công ty chỉ có chỗ cho Kết quả và Ghi chú — trường khác (deadline,
+           * người giao…) là của người giao bên công ty, không sửa từ đây. */
+          const khac = Object.keys(body).filter((k) => !['linkKetQua', 'note'].includes(k));
+          if (khac.length) {
+            return json(res, { error: 'Việc liên phòng chỉ sửa được Link kết quả và Ghi chú từ đây — phần còn lại sửa ở app Giao việc công ty.', code: 'FIELD_LOCKED' }, 403);
+          }
+          await LP.capNhat(lark, lp, { link: body.linkKetQua, ghiChu: body.note }, chuoiGioVN(new Date()));
+          return json(res, { ok: true });
+        }
+      }
       if (!rec0) return json(res, { error: 'Không tìm thấy công việc' }, 404);
       if (!(await requireOwnTask(res, toTask(rec0), req))) return;
 
@@ -1514,11 +1906,25 @@ async function api(req, res, url) {
         }
       }
 
+      /* Bản lưu về từ việc LIÊN PHÒNG: tên, nội dung, hạn, ưu tiên, người giao là
+       * của người giao bên công ty — đồng bộ VỀ từ đó, không sửa ở đây. */
+      const maLP = asText(rec0.cells[F.maLienPhong.id]).trim();
+      if (maLP) {
+        const khoa = Object.keys(body).filter((k) => O_NGUOI_GIAO.includes(k));
+        if (khoa.length) {
+          return json(res, {
+            error: 'Việc liên phòng: tên, nội dung, deadline, ưu tiên, người giao do người giao quyết — sửa ở app Giao việc công ty, app tự cập nhật về.',
+            code: 'FIELD_LOCKED',
+          }, 403);
+        }
+      }
+
       const cells = toCells(body);
       if (!Object.keys(cells).length) return json(res, { error: 'Không có trường nào để cập nhật' }, 400);
 
       const truoc = toTask(rec0);
       await lark.updateRecord(id, cells);
+      if (maLP) dongBoDi(maLP, body).catch((e) => console.error('  [liên phòng] đồng bộ đi hỏng: ' + e.message));
       if (cache.records) {
         const rec = cache.records.find((r) => r.record_id === id);
         if (rec) applyLocal(rec, body);

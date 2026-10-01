@@ -1873,8 +1873,16 @@ html[data-skin="ios"] .dash-head { padding-left: 16px !important; }
     color: var(--ios-chu-nhat) !important; border-left-color: var(--ios-vach) !important;
   }
   html[data-skin="ios"] .lane-head .lh-caret { color: var(--ios-chu-3) !important; }
-  html[data-skin="ios"] .lane-head:hover { background: transparent !important; }
   html[data-skin="ios"] .lane-head:hover strong { color: var(--ios-xanh) !important; }
+  /* Tiêu đề làn DÍNH khi cuộn (anh Hùng chụp 01/10/2026): nền trong suốt thì
+     thẻ việc chạy xuyên bên dưới, chữ "Công việc mới" đè lên tên việc. Nền
+     ĐẶC theo màu trang + lớp trên các thẻ; top -6px bù đệm trên của vùng cuộn
+     .lanes, không thì còn khe 6px cho chữ thẻ lọt qua phía trên tiêu đề. */
+  html[data-skin="ios"]:not(#_) .lane-head, html[data-skin="ios"]:not(#_) .lane.is-empty .lane-head,
+  html[data-skin="ios"]:not(#_) .lane-head:hover {
+    background: var(--mac-nen, #f5f5f7) !important;
+    top: -6px; padding-top: 10px; z-index: 6;
+  }
   html[data-skin="ios"] .lane-items {
     background: var(--ios-the); border-radius: 16px; overflow: hidden; box-shadow: var(--mac-bong, var(--ios-bong));
   }

@@ -404,8 +404,19 @@ async function api(req, res, u) {
 
   /* Một phiếu cụ thể để mở ra sửa. */
   if (p === '/api/phieu' && m === 'GET') {
-    const ai = nguoiXem(toi, q);
-    const d = await kho.motPhieu(loaiKy(), moc(), ai, q.get('moi') === '1');
+    let ai = nguoiXem(toi, q);
+    let loaiXem = loaiKy(), mocXem = moc();
+    /* Quản lý mở phiếu của nhân sự từ Toàn phòng (01/10): đi theo MÃ PHIẾU, lấy
+     * người + kỳ từ chính phiếu — khỏi đoán phiếu lập theo open_id hay email. */
+    const maXem = (q.get('ma') || '').trim();
+    if (maXem && toi.quanLy) {
+      const ph = (await kho.dsPhieu({})).find((x) => x.ma === maXem)
+        || (await kho.dsPhieu({}, true)).find((x) => x.ma === maXem);
+      if (!ph) return loi(res, 404, 'Không thấy phiếu này.');
+      ai = { id: ph.nguoi || '', email: ph.email || '', ten: ph.tenNguoi || '' };
+      loaiXem = vePhieu(ph).loaiKy; mocXem = ph.tuNgay + 3600000;
+    }
+    const d = await kho.motPhieu(loaiXem, mocXem, ai, q.get('moi') === '1');
     const ra = {
       ma: d.ma,
       ky: d.ky,
@@ -894,6 +905,92 @@ async function api(req, res, u) {
    * ("không nối được Tracking") thay vì hiện một menu rỗng — menu rỗng thì
    * người dùng tưởng mình không có việc nào.
    */
+  /**
+   * Bảng công việc gọi sang khi nhân sự bấm HOÀN THÀNH một việc (01/10/2026).
+   * Anh Hùng: "nhảy một bản báo cáo sẵn chờ nháp trong ngày đó cho nhân sự thay
+   * vì đã làm xong bên đây thì báo cáo ngày ấn tiến độ 100% nữa."
+   *
+   * Thêm (hoặc nâng lên 100%) đúng một dòng việc trong phiếu ngày HÔM NAY của
+   * người gọi, giữ nguyên mọi dòng và ô chữ khác, lưu dạng NHÁP. Phiếu hôm nay
+   * đã nộp thì không đụng — báo lại để người đó tự mở ra cập nhật.
+   */
+  if (p === '/api/phieu/them-viec' && m === 'POST') {
+    if (!toi.id && !toi.email) return loi(res, 401, 'Chưa nhận ra anh/chị là ai.', 'KHONG_RO_NGUOI');
+    const b = await docThan(req);
+    const maViec = String(b.maViec || '').trim();
+    if (!/^rec[A-Za-z0-9]+$/.test(maViec)) return loi(res, 400, 'Thiếu mã việc.');
+    const homNay = Date.now();
+    const d = await kho.motPhieu('ngay', homNay, toi, true);
+    if (d.phieu && d.phieu.trangThai === cfg.chon.trangThaiPhieu.daNop) {
+      return json(res, { ok: false, bo: 'da-nop', nhan: K.veNgayThu(d.ky.tu) });
+    }
+    const dong = d.dong.map((x) => ({
+      congViec: x.congViec, nhom: x.nhom, phut: x.phut, tienDoPt: x.tienDoPt, tienDo: x.tienDo,
+      maViec: x.maViec, trangThai: x.trangThai, ghiChu: x.ghiChu, soLuong: x.soLuong,
+    }));
+    const co = dong.find((x) => x.maViec === maViec);
+    if (co) { co.tienDoPt = 100; co.trangThai = 'Hoàn thành'; }
+    else {
+      dong.push({
+        congViec: String(b.congViec || '').trim().slice(0, 300) || '(việc từ Bảng công việc)',
+        nhom: VT.doanNhom(b.loai, b.congViec), phut: 0, tienDoPt: 100,
+        maViec, trangThai: 'Hoàn thành', tienDo: '', ghiChu: '',
+      });
+    }
+    const ph = d.phieu || {};
+    try {
+      await kho.luuNgay({
+        nguoi: toi, ngayMs: homNay, ca: (ph.ca && Object.keys(cfg.chon.ca).find((k) => cfg.chon.ca[k] === ph.ca)) || 'ngay',
+        dinhMucTay: ph.dinhMuc, dong, nhanDinh: ph.nhanDinh, keHoach: ph.keHoach, canHoTro: ph.canHoTro, linkVideo: ph.linkVideo, nop: false,
+      });
+    } catch (e) {
+      return loi(res, 502, dichLoiBase(e), maLoiBase(e));
+    }
+    return json(res, { ok: true, capNhat: !!co, nhan: K.veNgayThu(d.ky.tu) });
+  }
+
+  /**
+   * Nộp sản phẩm từ báo cáo ngày (01/10/2026): kéo tiến độ việc tracking lên
+   * 100% mà việc chưa có kết quả → cửa sổ nộp. Chuyển nguyên lệnh sang Bảng
+   * công việc, ĐÚNG danh tính người gọi — luật minh chứng/trễ hạn ở bên đó.
+   *   POST /api/nop-san-pham       { maViec, link, note }
+   *   POST /api/nop-san-pham/tep?viec=rec…   (thân = tệp, header x-file-name)
+   */
+  if ((p === '/api/nop-san-pham' || p === '/api/nop-san-pham/tep') && m === 'POST') {
+    if (!toi.id && !toi.email) return loi(res, 401, 'Chưa nhận ra anh/chị là ai.', 'KHONG_RO_NGUOI');
+    const h = VT.headerNguoi(toi, false);
+    try {
+      if (p === '/api/nop-san-pham/tep') {
+        const viec = String(q.get('viec') || '');
+        if (!/^rec[A-Za-z0-9]+$/.test(viec)) return loi(res, 400, 'Thiếu mã việc.');
+        const buf = await new Promise((ok, ko) => {
+          const ra = []; let n = 0;
+          req.on('data', (c) => { n += c.length; if (n > 60 * 1024 * 1024) { ko(Object.assign(new Error('Tệp quá lớn (tối đa 60MB)'), { maHttp: 413 })); req.destroy(); } else ra.push(c); });
+          req.on('end', () => ok(Buffer.concat(ra)));
+          req.on('error', ko);
+        });
+        h['x-file-name'] = req.headers['x-file-name'] || 'tep';
+        const r = await VT.ghiTracking('/api/tasks/' + viec + '/upload?cot=ket-qua', h, buf);
+        if (r.ma >= 400) return loi(res, r.ma, r.d.error || 'Không tải được tệp.', r.d.code);
+        return json(res, { ok: true, ten: r.d.name });
+      }
+      const b = await docThan(req);
+      const viec = String(b.maViec || '');
+      if (!/^rec[A-Za-z0-9]+$/.test(viec)) return loi(res, 400, 'Thiếu mã việc.');
+      const than = { linkKetQua: String(b.link || '').trim() || undefined, note: String(b.note || '').trim() || undefined };
+      let r = await VT.ghiTracking('/api/tasks/' + viec + '/complete', h, than);
+      /* Việc đã trễ: nhân sự không tự Hoàn thành được — bên kia bảo "Giải quyết". */
+      if (r.ma === 422 && r.d.code === 'LATE_NEEDS_RESOLVE') {
+        r = await VT.ghiTracking('/api/tasks/' + viec + '/giai-quyet', h, than);
+      }
+      if (r.ma >= 400) return json(res, { loi: r.d.error || 'Không nộp được.', ma: r.d.code, goiY: r.d.hint || '' }, r.ma);
+      VT.quen();
+      return json(res, { ok: true, giaiQuyet: !!r.d.daGiaiQuyet });
+    } catch (e) {
+      return loi(res, 502, 'Không nối được Bảng công việc: ' + String(e.message || e).slice(0, 160));
+    }
+  }
+
   if (p === '/api/viec-cua-toi' && m === 'GET') {
     const ai = nguoiXem(toi, q);
     try {
@@ -966,6 +1063,16 @@ async function api(req, res, u) {
         phanTram: gop.phanTram, soThieu: bc.ngayThieu.length,
         diem: ND.chamDiem(y), motCau: ND.motCau(y), y,
         ai: ((phieuKy.find((x) => x.tuNgay === k.tu && kho.cungNguoi(x, n)) || {}).danhGiaAI) || '',
+        /* Danh sách phiếu để quản lý bấm mở đọc nội dung (anh Hùng 01/10: "ấn vào
+         * đâu cũng chưa xem được từng báo cáo nhân sự đã viết gì"). Phiếu ngày đã
+         * nộp + phiếu tuần/tháng của kỳ (nếu có, kể cả nháp). */
+        phieu: [
+          ...phieuKy.filter((x) => x.tuNgay === k.tu && kho.cungNguoi(x, n)),
+          ...n.ps.slice().sort((a, b) => a.tuNgay - b.tuNgay),
+        ].map(vePhieu).map((p) => ({
+          ma: p.ma, loaiKy: p.loaiKy, tu: p.tu, nhan: p.nhan, tongGio: p.tongGio, daNop: p.daNop,
+          nopLuc: p.nopLuc, trangThaiHan: p.trangThaiHan, veHan: p.veHan,
+        })),
       });
     }
     nguoi.sort((a, b) => a.diem - b.diem || a.ten.localeCompare(b.ten));

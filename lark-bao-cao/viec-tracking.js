@@ -87,6 +87,39 @@ function goiTracking(duong, headers) {
 }
 
 /**
+ * GHI sang Tracking (01/10/2026): nộp sản phẩm từ báo cáo ngày — kéo tiến độ
+ * việc lên 100% thì hiện cửa sổ nộp, nộp xong là việc bên kia Hoàn thành.
+ * `than`: object (gửi JSON) hoặc Buffer (tải tệp, kèm x-file-name trong headers).
+ * Trả { ma, d } — KHÔNG ném khi Tracking trả 4xx: lỗi kiểu "chưa có minh chứng"
+ * hay "việc đã trễ" phải tới được tay người dùng nguyên văn.
+ */
+function ghiTracking(duong, headers, than) {
+  return new Promise((ok, ko) => {
+    const laTep = Buffer.isBuffer(than);
+    const buf = laTep ? than : Buffer.from(JSON.stringify(than || {}), 'utf8');
+    const h = Object.assign({}, headers || {}, {
+      'content-type': laTep ? 'application/octet-stream' : 'application/json',
+      'content-length': buf.length,
+      /* Bên kia đừng lại tự thêm dòng vào báo cáo — lệnh này đi RA từ báo cáo. */
+      'x-tu-bao-cao': '1',
+    });
+    const req = http.request({ host: HOST, port: CONG, path: duong, method: 'POST', timeout: laTep ? 120000 : CHO_MS, headers: h },
+      (res) => {
+        const ra = [];
+        res.on('data', (c) => ra.push(c));
+        res.on('end', () => {
+          let d = {};
+          try { d = JSON.parse(Buffer.concat(ra).toString('utf8') || '{}'); } catch (_) { d = { error: 'Tracking trả thứ không phải JSON' }; }
+          ok({ ma: res.statusCode, d });
+        });
+      });
+    req.on('timeout', () => { req.destroy(new Error('Tracking không trả lời')); });
+    req.on('error', ko);
+    req.end(buf);
+  });
+}
+
+/**
  * Hỏi Tracking, KÈM danh tính, rồi vẫn tự lọc lại một lần nữa.
  *
  * Hai tầng lọc nghe như thừa nhưng mỗi tầng chữa một chuyện khác nhau. Tầng của
@@ -102,11 +135,13 @@ async function docHet(nguoi, quanLy, force) {
   const h = headerNguoi(nguoi, quanLy);
   let d;
   try {
-    d = await goiTracking('/api/tasks', h);
+    /* ?lienPhong=1 (01/10/2026): kèm việc liên phòng ban từ Base Giao việc công
+     * ty — nhân sự báo cáo ngày được cả những việc đó, như việc của phòng. */
+    d = await goiTracking('/api/tasks?lienPhong=1', h);
   } catch (e) {
     /* Một lần thử lại: trên Render gói Free, lần gọi đầu sau khi container ngủ
      * dậy hay chạm trần thời gian chờ, còn lần thứ hai thì cache đã ấm. */
-    d = await goiTracking('/api/tasks', h);
+    d = await goiTracking('/api/tasks?lienPhong=1', h);
   }
   const ds = Array.isArray(d && d.tasks) ? d.tasks : [];
   dem.set(khoa, { luc: Date.now(), ds });
@@ -128,6 +163,11 @@ function cuaAi(viec, nguoi) {
     if (mail && chuan(u.email) === mail) return true;
     return false;
   });
+}
+
+/** Người này là PHỤ TRÁCH CHÍNH (không phải người hỗ trợ). */
+function laPhuTrachChinh(viec, nguoi) {
+  return cuaAi({ owner: viec.owner || [], helper: [] }, nguoi);
 }
 
 /* Trạng thái coi là "đã đóng" — việc đóng lâu rồi thì không cần nằm trong danh
@@ -160,6 +200,11 @@ async function vieCuaNguoi(nguoi, ngayMs, force, quanLy) {
       trangThai: v.status || '',
       hanChot: Date.parse(v.deadline || v.deadline1 || '') || 0,
       dong: daXong(v),
+      /* Đã có sản phẩm (link/tệp kết quả, hoặc đã giải quyết/đóng): kéo 100% thì
+       * khỏi hỏi nộp nữa. Chỉ PHỤ TRÁCH CHÍNH mới nộp được bên Tracking. */
+      coKetQua: daXong(v) || !!v.daGiaiQuyet || !!v.linkKetQua || (v.fileKetQua || []).length > 0,
+      laChinh: laPhuTrachChinh(v, nguoi),
+      treHan: chuan(v.status) === 'trễ deadline',
     }))
     .sort((a, b) => (a.dong - b.dong) || (a.hanChot || 9e15) - (b.hanChot || 9e15));
 }
@@ -195,4 +240,7 @@ async function song() {
   try { await docHet(null, false, true); return true; } catch (_) { return false; }
 }
 
-module.exports = { vieCuaNguoi, doanNhom, cuaAi, daXong, song, CONG };
+/** Xoá ô nhớ danh sách việc của một người (sau khi nộp sản phẩm). */
+function quen() { dem.clear(); }
+
+module.exports = { vieCuaNguoi, doanNhom, cuaAi, daXong, song, CONG, ghiTracking, headerNguoi, quen };

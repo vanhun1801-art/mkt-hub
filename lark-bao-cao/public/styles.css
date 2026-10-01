@@ -346,6 +346,8 @@ textarea.in { width: 100%; min-height: 76px; resize: vertical; }
 .bang-xem tbody tr:hover td { background: var(--surface-2); }
 .bang-xem td.so-o { text-align: right; font-variant-numeric: tabular-nums; }
 .bang-xem tr.mo-duoc { cursor: pointer; }
+.bang-xem tr.dang-chon td { background: color-mix(in srgb, var(--accent, #289683) 10%, transparent); }
+.bang-xem tr[data-ql-moc] { cursor: pointer; }
 
 /* điểm dạng vòng nhỏ */
 .diem {
@@ -717,3 +719,22 @@ body.so-mo #so {
 .ai-nx-chu { font-size: 13px; line-height: 1.6; }
 .ai-nx-chu ul, .ai-nx-chu ol { margin: 4px 0; padding-left: 20px; }
 .ai-nx-chu em, .ai-nx-chu i { color: var(--text-3); }
+
+/* ---------- Cửa sổ nộp sản phẩm khi kéo tiến độ 100% (01/10/2026) ---------- */
+.hop-nop {
+  border: 1px solid var(--border); border-radius: 18px; padding: 0;
+  width: min(460px, calc(100vw - 32px)); background: var(--surface); color: var(--text);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .28);
+}
+.hop-nop::backdrop { background: rgba(10, 14, 22, .45); backdrop-filter: blur(3px); }
+.hn-than { display: flex; flex-direction: column; gap: 14px; padding: 20px; margin: 0; }
+.hn-nhan { font-size: 12px; font-weight: 600; color: var(--green-text); text-transform: uppercase; letter-spacing: .05em; }
+.hn-ten { font-size: 17px; font-weight: 650; margin: 4px 0 6px; line-height: 1.35; }
+.hn-o { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 550; color: var(--text-2); }
+.hn-o input, .hn-o textarea {
+  font: inherit; font-weight: 400; color: var(--text); background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: 10px; padding: 9px 11px;
+}
+.hn-o textarea { resize: vertical; }
+.hn-msg { font-size: 13px; color: var(--red-text); min-height: 1em; }
+.hn-nut { display: flex; justify-content: flex-end; gap: 8px; }

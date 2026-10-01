@@ -725,7 +725,9 @@
   const TIEN_TO = 'ios.nhap:' + APP + ':';
   const hien = (e) => e && e.isConnected && e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden';
   const ngoai = (e) => { let k = e.closest(KHUNG); while (k && k.parentElement && k.parentElement.closest(KHUNG)) k = k.parentElement.closest(KHUNG); return k; };
-  const boQua = (o) => o.closest('.ios-bong-dong, .pk-panel, .dd-panel, .ios-nhap-bar') || /tìm|search/i.test(o.placeholder || '') || o.readOnly || o.disabled;
+  /* .ios-khong-nhap: app con đánh dấu vùng KHÔNG phải form (ô nhắn tin trong
+   * tab Trao đổi của Bảng công việc, 01/10/2026) — gõ tin không sinh nháp. */
+  const boQua = (o) => o.closest('.ios-bong-dong, .pk-panel, .dd-panel, .ios-nhap-bar, .ios-khong-nhap') || /tìm|search/i.test(o.placeholder || '') || o.readOnly || o.disabled;
   const oCua = (k) => [...k.querySelectorAll(O)].filter((o) => !boQua(o));
   const tenO = (o, i) => o.id || o.name || o.dataset.f || o.dataset.k || ('#' + i);
   const chu = (o) => o.tagName === 'TEXTAREA' || (o.tagName === 'INPUT' && /^(text|email|url|tel|number|)$/.test(o.type));

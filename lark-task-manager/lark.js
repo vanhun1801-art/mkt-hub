@@ -74,7 +74,7 @@ function cliOnce(args, { timeout = 60000, cwd } = {}) {
   });
 }
 
-const baseArgs = () => ['--base-token', cfg.baseToken, '--as', cfg.identity];
+const baseArgs = (base) => ['--base-token', base || cfg.baseToken, '--as', cfg.identity];
 
 /** Người dùng đang đăng nhập lark-cli (dùng cho tab "Của tôi"). */
 async function whoami() {
@@ -109,12 +109,13 @@ function columnsToRecords(data) {
   });
 }
 
-async function listAllRecords(tableId = cfg.tableId) {
+/* `base`: đọc bảng của Base KHÁC (Báo cáo công việc — tab Báo cáo trong ngăn việc, 01/10/2026). */
+async function listAllRecords(tableId = cfg.tableId, base) {
   const out = [];
   let offset = 0;
   for (let page = 0; page < 30; page++) {
     const data = await cli([
-      'base', '+record-list', ...baseArgs(),
+      'base', '+record-list', ...baseArgs(base),
       '--table-id', tableId,
       '--limit', '200', '--offset', String(offset),
       '--format', 'json',
@@ -126,8 +127,8 @@ async function listAllRecords(tableId = cfg.tableId) {
   return out;
 }
 
-async function listFields(tableId = cfg.tableId) {
-  const data = await cli(['base', '+field-list', ...baseArgs(), '--table-id', tableId, '--format', 'json']);
+async function listFields(tableId = cfg.tableId, base) {
+  const data = await cli(['base', '+field-list', ...baseArgs(base), '--table-id', tableId, '--format', 'json']);
   return data.fields || [];
 }
 
@@ -149,9 +150,9 @@ async function updateField(fieldId, def, tableId = cfg.tableId) {
   ]);
 }
 
-async function updateRecord(recordId, fields, tableId = cfg.tableId) {
+async function updateRecord(recordId, fields, tableId = cfg.tableId, base) {
   return cli([
-    'base', '+record-batch-update', ...baseArgs(),
+    'base', '+record-batch-update', ...baseArgs(base),
     '--table-id', tableId,
     '--json', JSON.stringify({ update_records: { [recordId]: fields } }),
   ]);
@@ -180,12 +181,12 @@ async function createRecord(fields, tableId = cfg.tableId) {
  * trong cwd, nên tải vào .tmp/<id> ngay trong thư mục project.
  * Trả về đường dẫn tuyệt đối của thư mục chứa tệp.
  */
-async function downloadAttachment(recordId, fileToken, relDirName, tableId = cfg.tableId) {
+async function downloadAttachment(recordId, fileToken, relDirName, tableId = cfg.tableId, base) {
   const relDir = './.tmp/' + relDirName;
   const absDir = path.join(__dirname, '.tmp', relDirName);
   fs.mkdirSync(absDir, { recursive: true });
   await cli([
-    'base', '+record-download-attachment', ...baseArgs(),
+    'base', '+record-download-attachment', ...baseArgs(base),
     '--table-id', tableId,
     '--record-id', recordId,
     '--file-token', fileToken,
@@ -197,9 +198,9 @@ async function downloadAttachment(recordId, fileToken, relDirName, tableId = cfg
 }
 
 /** Upload tệp lên một ô attachment. lark-cli cần --file là đường dẫn tương đối trong cwd. */
-async function uploadAttachment(recordId, fieldName, relFilePath, tableId = cfg.tableId) {
+async function uploadAttachment(recordId, fieldName, relFilePath, tableId = cfg.tableId, base) {
   return cli([
-    'base', '+record-upload-attachment', ...baseArgs(),
+    'base', '+record-upload-attachment', ...baseArgs(base),
     '--table-id', tableId,
     '--record-id', recordId,
     '--field-id', fieldName,
@@ -218,9 +219,9 @@ async function deleteRecords(recordIds, tableId = cfg.tableId) {
 }
 
 /** Gỡ tệp khỏi ô đính kèm. */
-async function removeAttachment(recordId, fieldName, fileToken, tableId = cfg.tableId) {
+async function removeAttachment(recordId, fieldName, fileToken, tableId = cfg.tableId, base) {
   return cli([
-    'base', '+record-remove-attachment', ...baseArgs(),
+    'base', '+record-remove-attachment', ...baseArgs(base),
     '--table-id', tableId,
     '--record-id', recordId,
     '--field-id', fieldName,
@@ -238,6 +239,15 @@ async function sendMessage(openId, text) {
   } catch (_) { return false; }
 }
 
+/** Gửi thẻ (interactive) — trao đổi trên việc hiện thành thẻ có nút mở (01/10/2026). */
+async function sendCard(openId, card) {
+  try {
+    await cli(['im', '+messages-send', '--user-id', openId, '--msg-type', 'interactive',
+      '--content', JSON.stringify(card), '--as', 'bot', '--format', 'json'], { retries: 1 });
+    return true;
+  } catch (_) { return false; }
+}
+
 /** Chế độ cli không đọc được phạm vi app — UI sẽ dùng danh bạ từ Base. */
 async function scopeUsers() { return []; }
 
@@ -245,7 +255,7 @@ async function scopeUsers() { return []; }
  * gọi require('./lark') đều phải nhận backend Open API. Chuyển hướng ngay tại đây
  * để không phải sửa từng chỗ gọi (store.js, quyen.js, sync/*.js...). */
 module.exports = cfg.mode === 'api' ? require('./larkapi') : {
-  cli, isTransient, whoami, scopeUsers, removeAttachment, sendMessage, listAllRecords, listFields,
+  cli, isTransient, whoami, scopeUsers, removeAttachment, sendMessage, sendCard, listAllRecords, listFields,
   updateField, updateRecord, updateMany, createRecord, deleteRecords,
   downloadAttachment, uploadAttachment,
 };

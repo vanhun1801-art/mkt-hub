@@ -158,6 +158,10 @@ module.exports = {
     daGiaiQuyet:   { id: 'fldhYDnqUx', name: 'Đã giải quyết',  type: 'checkbox' },
     ngayGiaiQuyet: { id: 'fldFy0vF7l', name: 'Ngày giải quyết', type: 'datetime' },
     parent:     { id: 'fld80gHPbr', name: 'Parent items',      type: 'link',       readOnly: true },
+    /* Việc LIÊN PHÒNG đã hoàn thành được lưu về Base phòng (01/10/2026): ô này giữ
+     * mã việc gốc (record_id công ty + đuôi người nhận) — chống tạo trùng, và để
+     * app ẩn bản liên phòng khi đã có bản trong Base phòng. */
+    maLienPhong: { id: 'fldGRskfU7', name: 'Mã liên phòng',     type: 'text' },
   },
 
   // Bảng "Yêu cầu điều chỉnh"
@@ -178,6 +182,9 @@ module.exports = {
     task:    { id: 'fldKbMPwc4', name: 'Công việc',  type: 'link' },
     author:  { id: 'fldEp0NeFp', name: 'Người viết', type: 'user' },
     at:      { id: 'fldbzKMDbJ', name: 'Thời gian',  type: 'datetime' },
+    /* record_id của việc LIÊN PHÒNG (Base Giao việc công ty) — ô liên kết không trỏ
+     * sang Base khác được. Thêm 01/10/2026. */
+    lienPhong: { id: 'fldsyQJPsC', name: 'Việc liên phòng', type: 'text' },
   },
 
   /* ---- Thông báo qua Lark ---- */

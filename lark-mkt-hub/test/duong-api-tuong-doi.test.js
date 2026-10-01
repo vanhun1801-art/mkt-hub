@@ -109,7 +109,7 @@ console.log('\nhub kéo iframe về khi app con lạc đường');
    * SAU khi khung đã dựng xong. Đã thử và thấy nó trượt đúng như vậy. */
   const i2 = app.indexOf('function moModule(');
   const than = i2 < 0 ? '' : app.slice(i2, app.indexOf('\nfunction ', i2 + 10));
-  ok('gọi trong moModule, mỗi lần mở app', than.indexOf('keoIframeVeNeuLac(mod, o);') >= 0);
+  ok('gọi trong moModule, mỗi lần mở app', than.indexOf('keoIframeVeNeuLac(mod, o, rec, mo);') >= 0);
   ok('gọi TRƯỚC khi hiện khung ra',
     than.indexOf('keoIframeVeNeuLac') >= 0
     && than.indexOf('keoIframeVeNeuLac') < than.indexOf('o.wrap.hidden = false'));
