@@ -811,7 +811,26 @@ async function ghiDaXem(taskId, laLienPhong, nguoi) {
   const gio = chuoiGioVN(new Date());
   try {
     const recs = await lark.listAllRecords(cfg.daXemTableId);
-    const cu = recs.find((r) => asText(r.cells[DF.khoa.id]).trim() === khoa);
+    /* Soi trùng bằng Ô NGƯỜI, không chỉ bằng chuỗi Khoá.
+     *
+     * open_id của Lark khác nhau theo từng APP: cùng một người, bản chạy trên
+     * Render thấy một mã, lark-cli ở máy lập trình thấy một mã khác. Khoá là
+     * chuỗi mã nên hai bên ghi ra hai khoá khác nhau → một người một việc
+     * thành hai dòng, đúng cái chuyện ghi trùng đang muốn chặn. Đã gặp thật
+     * ngày 02/10/2026, soi ra khi thấy khoá nói một người mà ô Người xem nói
+     * người khác.
+     *
+     * Ô người thì không dính chuyện đó: Lark luôn trả mã theo app của bên
+     * đang hỏi, nên so với `nguoi.id` của chính lượt gọi này là khớp. Vẫn giữ
+     * cột Khoá vì nó cho mở Base ra là đọc được ngay dòng nào của ai. */
+    const cungViec = (r) => {
+      const ids = Array.isArray(r.cells[DF.task.id])
+        ? r.cells[DF.task.id].map((x) => (x && (x.record_ids ? x.record_ids[0] : x.id)) || x).filter(Boolean)
+        : [];
+      return ids.includes(taskId) || asText(r.cells[DF.lienPhong.id]).trim() === taskId;
+    };
+    const cu = recs.find((r) => cungViec(r) && (asUsers(r.cells[DF.nguoi.id])[0] || {}).id === nguoi.id)
+      || recs.find((r) => asText(r.cells[DF.khoa.id]).trim() === khoa);
     if (cu) {
       await lark.updateRecord(cu.record_id, { [DF.xemToi.name]: gio }, cfg.daXemTableId);
       return { ok: true, moi: false, at: gio };

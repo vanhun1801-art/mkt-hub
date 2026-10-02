@@ -64,6 +64,14 @@ ok('tìm được hàm ghiDaXem', ghi.length > 100);
 ok('có dòng rồi thì SỬA, chưa có mới tạo (không đẻ dòng trùng)',
   /if \(cu\)[\s\S]{0,200}updateRecord/.test(ghi) && /createRecord/.test(ghi));
 ok('soi trùng bằng khoá (việc × người)', /khoaDaXem/.test(sv) && /DF\.khoa\.id/.test(ghi));
+/* open_id của Lark khác nhau theo từng APP: cùng một người, bản trên Render
+ * thấy một mã, lark-cli ở máy lập trình thấy một mã khác. Soi trùng CHỈ bằng
+ * chuỗi khoá thì hai bên ghi ra hai khoá khác nhau, một người một việc thành
+ * hai dòng — đúng cái chuyện ghi trùng đang muốn chặn. Ô người thì không dính,
+ * vì Lark luôn trả mã theo app của bên đang hỏi. */
+ok('soi trùng ưu tiên Ô NGƯỜI, không chỉ chuỗi khoá (open_id khác nhau theo app)',
+  /asUsers\(r\.cells\[DF\.nguoi\.id\]\)\[0\] \|\| \{\}\)\.id === nguoi\.id/.test(ghi));
+ok('vẫn so cả việc khi soi trùng (không nhầm sang việc khác)', /cungViec\(r\)/.test(ghi));
 ok('việc liên phòng ghi vào cột chữ, không nhét vào ô liên kết',
   /if \(laLienPhong\) cells\[DF\.lienPhong\.name\]/.test(ghi));
 
