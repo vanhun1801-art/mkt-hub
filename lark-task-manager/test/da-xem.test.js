@@ -144,6 +144,23 @@ ok('việc chưa có tin nào của mình thì không vẽ gì',
     [{ id: 'c9', at: '2026-10-02T09:00:00+07:00', author: [{ id: 'ou_a', name: 'Ngọc' }] }])
     === '(không vẽ gì)');
 
+/* ---- 3b. dấu đã xem đổi thì màn hình phải VẼ LẠI ----
+ * Lỗi đã gặp 02/10/2026: Trường mở ra xem rồi mà màn hình anh Hùng vẫn báo
+ * "Chưa ai xem". Vì khoá "có gì mới không" của lượt nạp định kỳ chỉ tính id
+ * các TIN — người kia đọc thì dấu đổi mà danh sách tin thì không, nên lượt nạp
+ * thoát ngay và dòng đó đứng nguyên mãi. Phải đóng mở lại ngăn mới thấy. */
+const nguonNap = (/async function napBinhLuan[\s\S]*?\n\}/.exec(fe) || [''])[0];
+ok('tìm được napBinhLuan', nguonNap.length > 200);
+ok('khoá "có gì mới" tính cả dấu đã xem',
+  /const dauXem = \(d\.daXem \|\| \[\]\)\.map/.test(nguonNap));
+ok('chỉ dấu đổi thì vẽ lại ĐÚNG dòng đó',
+  /querySelector\('\.cmt-daxem'\)[\s\S]{0,160}veDaXem\(/.test(nguonNap));
+/* Và KHÔNG dựng lại cả danh sách tin trong nhánh đó — dựng lại là nhảy mất
+ * chỗ đang cuộn và chớp một cái, trong khi thứ đổi chỉ là một dòng chữ. */
+const nhanh = (/if \(im && list\._dau === dau\) \{[\s\S]*?\n    \}/.exec(nguonNap) || [''])[0];
+ok('nhánh đó không dựng lại danh sách tin',
+  !!nhanh && nhanh.indexOf("innerHTML = ''") === -1);
+
 /* ---- 4. không ghi dồn ---- */
 let soLanGoi = 0;
 const napD = new Function(                                  // eslint-disable-line no-new-func

@@ -4134,8 +4134,26 @@ async function napBinhLuan(t, list, im) {
     if (b && b._datSo) b._datSo('chat', d.comments.length);
     /* Nạp lại định kỳ: không có gì mới thì khỏi vẽ lại (giữ chỗ đang cuộn). */
     const dau = d.comments.map((c) => c.id).join(',');
-    if (im && list._dau === dau) return;
+    /* Nhưng "mới" không chỉ là có thêm TIN. Người kia mở ra đọc cũng là tin
+     * mới cần vẽ lại — mà dấu đã xem đổi thì danh sách tin thì không, nên nếu
+     * chỉ so id tin thì lượt nạp thoát ngay ở đây và dòng "Chưa ai xem" đứng
+     * nguyên mãi. Anh Hùng gặp đúng chuyện này 02/10/2026: Trường đã xem rồi
+     * mà màn hình vẫn báo chưa.
+     *
+     * Khi CHỈ có dấu đã xem đổi thì vẽ lại mỗi dòng đó, không dựng lại cả danh
+     * sách tin: dựng lại là nhảy mất chỗ đang cuộn và chớp một cái, trong khi
+     * thứ đổi chỉ là một dòng chữ cuối. */
+    const dauXem = (d.daXem || []).map((x) => x.id + '@' + x.at).sort().join(',');
+    if (im && list._dau === dau) {
+      if (list._dauXem === dauXem) return;
+      list._dauXem = dauXem;
+      const cu = list.querySelector('.cmt-daxem');
+      if (cu) cu.remove();
+      veDaXem(list, d.comments, d.daXem || [], S.meta.me && S.meta.me.id);
+      return;
+    }
     list._dau = dau;
+    list._dauXem = dauXem;
     const oCuoi = list.scrollHeight - list.scrollTop - list.clientHeight < 40;
     list.innerHTML = '';
     if (!d.comments.length) {
