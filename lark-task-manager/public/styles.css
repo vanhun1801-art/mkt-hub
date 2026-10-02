@@ -1821,6 +1821,15 @@ body.col-resizing, body.col-resizing * { cursor: col-resize !important; user-sel
   background: var(--surface-3); border: 1px solid var(--border);
   padding: 2px 10px; border-radius: 10px; margin: 6px 0 2px;
 }
+/* Dấu "đã xem" — nép bên phải, dưới tin cuối của mình, cùng mép với bong bóng
+ * tin của mình. Cỡ chữ nhỏ và màu nhạt vì nó là chú thích, không phải nội
+ * dung; nhưng vẫn giữ 12px chứ không nhỏ hơn — trên điện thoại dưới cỡ đó là
+ * đọc bằng cách đoán. */
+.cmt-daxem {
+  align-self: flex-end; font-size: 12px; color: var(--text-2);
+  margin: 2px 2px 4px; letter-spacing: .1px;
+}
+.cmt-daxem.chua { color: var(--text-3); }
 .dt-chat .cmt-new { border-top: 1px solid var(--border); padding-top: 10px; margin-top: 6px; }
 .dt-chat .cmt-input { resize: none; }
 .dt-chat .cmt-goi-y { margin-top: 4px; }

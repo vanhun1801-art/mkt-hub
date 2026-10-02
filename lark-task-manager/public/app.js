@@ -4153,12 +4153,76 @@ async function napBinhLuan(t, list, im) {
       const tacGia = c.author && c.author[0] && c.author[0].id;
       list.appendChild(bongBong(c, !!meId && tacGia === meId));
     }
+    veDaXem(list, d.comments, d.daXem || [], meId);
     if (!im || oCuoi) list.scrollTop = list.scrollHeight;
+    /* Mình vừa NHÌN THẤY những tin này — đánh dấu. Chỉ gọi khi có tin của
+     * NGƯỜI KHÁC mới hơn mốc đã ghi, chứ không gọi mỗi nhịp nạp lại: tab này
+     * tự nạp đều đặn, gọi theo nhịp đó là mỗi người mở một tab thành vài chục
+     * lượt ghi Base mỗi phút. */
+    danhDauDaXem(t, d.comments, d.daXem || [], meId);
   } catch (e) {
     if (im) return;
     list.innerHTML = '';
     list.appendChild(el('div', 'cmt-load', 'Không tải được trao đổi: ' + e.message));
   }
+}
+
+/* ==========================================================================
+   DẤU "ĐÃ XEM"
+   ==========================================================================
+   Một người đã đọc tin nào: so GIỜ. Mốc "Xem tới" của họ ≥ giờ của tin thì tin
+   đó họ đã đọc. So theo giờ chứ không lưu id tin cuối — lưu id thì tin tới trễ
+   hoặc tin bị sửa sẽ làm lệch, còn so giờ thì chỉ một phép so.
+*/
+
+/** Vẽ dòng "đã xem" dưới tin CUỐI CÙNG của mình. */
+function veDaXem(list, cmts, daXem, meId) {
+  if (!meId || !cmts.length) return;
+  /* Chỉ gắn dưới tin cuối của mình: gắn dưới mọi tin thì một cuộc trao đổi dài
+   * thành ra đầy chữ "đã xem" lặp lại, đọc rất mệt mà không thêm thông tin. */
+  let cuoi = null;
+  for (const c of cmts) {
+    if (c.author && c.author[0] && c.author[0].id === meId) cuoi = c;
+  }
+  if (!cuoi || !cuoi.at) return;
+  const moc = new Date(cuoi.at).getTime();
+  const roi = daXem.filter((x) => x.id !== meId && new Date(x.at).getTime() >= moc);
+  const o = el('div', 'cmt-daxem');
+  if (!roi.length) {
+    o.classList.add('chua');
+    o.textContent = 'Chưa ai xem';
+  } else {
+    const gio = (s) => { const g = vnParts(s); return p2(g.H) + ':' + p2(g.M); };
+    /* Một người thì nói rõ lúc mấy giờ; đông người thì nói số, không liệt kê
+     * một hàng dài tên. */
+    o.textContent = roi.length === 1
+      ? '✓✓ ' + roi[0].name + ' đã xem ' + gio(roi[0].at)
+      : '✓✓ ' + roi.length + ' người đã xem';
+    o.title = roi.map((x) => x.name + ' · ' + gio(x.at)).join('\n');
+  }
+  list.appendChild(o);
+}
+
+/**
+ * Đánh dấu mình đã xem — chỉ khi THẬT SỰ có cái mới để đánh dấu.
+ *
+ * Điều kiện: có tin của người khác, và tin mới nhất trong số đó mới hơn mốc đã
+ * ghi của mình. Không có điều kiện này thì mỗi nhịp nạp lại là một lượt ghi
+ * Base, nhân với số người đang mở tab.
+ */
+function danhDauDaXem(t, cmts, daXem, meId) {
+  if (!meId || !cmts.length) return;
+  const cuaNguoiKhac = cmts.filter((c) => !(c.author && c.author[0] && c.author[0].id === meId) && c.at);
+  if (!cuaNguoiKhac.length) return;
+  const moiNhat = Math.max(...cuaNguoiKhac.map((c) => new Date(c.at).getTime()));
+  const cua = daXem.find((x) => x.id === meId);
+  if (cua && new Date(cua.at).getTime() >= moiNhat) return;     // đã đánh dấu rồi
+  /* Chặn gọi chồng: hai nhịp nạp sát nhau trước khi lượt ghi đầu kịp xong. */
+  if (t._dangDanhDau) return;
+  t._dangDanhDau = true;
+  req('/api/tasks/' + t.id + '/da-xem', { method: 'POST' })
+    .catch(() => {})                 // dấu đã xem hỏng thì thôi, đừng phá tab
+    .finally(() => { t._dangDanhDau = false; });
 }
 
 /* ---- Lịch sử ----

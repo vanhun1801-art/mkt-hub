@@ -58,6 +58,14 @@ module.exports = {
   tableId:   process.env.LARK_TABLE_ID   || 'tbl2ZBrfhXfmrsD4',   // Tracking
   requestTableId: process.env.LARK_REQ_TABLE_ID || 'tblYblcwsjzEVaXM', // Yêu cầu điều chỉnh
   commentTableId: process.env.LARK_CMT_TABLE_ID || 'tbl5uA7zSY0TJMLq', // Bình luận
+  /* "Trao đổi · đã xem" — mỗi (việc × người) một dòng, ghi người đó đã đọc tới
+   * thời điểm nào. Tin nào có giờ ≤ mốc đó thì người đó đã xem.
+   *
+   * Vì sao một bảng riêng chứ không phải một ô trên dòng việc: ô trên dòng việc
+   * nghĩa là mười người cùng mở một việc là mười lượt ghi vào CÙNG một dòng —
+   * Base sẽ trả 1254291 (xung đột revision) và dòng việc vốn đã là dòng nóng
+   * nhất. Tách ra thì mỗi người ghi dòng của mình, không ai giẫm ai. */
+  daXemTableId: process.env.LARK_DAXEM_TABLE_ID || 'tblOrgjlkzIKYibx',
 
   /* ---- Trung tâm phân phối công việc ----
    * Hai bảng, cố ý tách đôi: một dòng mỗi LOẠI (bật/tắt, mốc chờ, cách chia) và
@@ -185,6 +193,20 @@ module.exports = {
     /* record_id của việc LIÊN PHÒNG (Base Giao việc công ty) — ô liên kết không trỏ
      * sang Base khác được. Thêm 01/10/2026. */
     lienPhong: { id: 'fldsyQJPsC', name: 'Việc liên phòng', type: 'text' },
+  },
+
+  // Bảng "Trao đổi · đã xem"
+  daXemFields: {
+    /* Cột chính, dạng "<id việc>·<id người>". Lark không cho cột chính là ô
+     * liên kết, mà để một ô chữ trống làm cột chính thì mở Base ra chỉ thấy một
+     * cột rỗng. Ghi khoá vào đây thì vừa đọc được, vừa soi trùng được bằng mắt. */
+    khoa:      { id: 'fldONCDWFL', name: 'Khoá',            type: 'text' },
+    task:      { id: 'fldHKkSz0e', name: 'Công việc',       type: 'link' },
+    nguoi:     { id: 'fldhNomTMt', name: 'Người xem',       type: 'user' },
+    xemToi:    { id: 'flddePKsjP', name: 'Xem tới',         type: 'datetime' },
+    /* Việc liên phòng nằm ở Base khác — ô liên kết không trỏ sang được, giống
+     * hệt chuyện đã gặp ở bảng Bình luận. */
+    lienPhong: { id: 'fldJNTQFnm', name: 'Việc liên phòng', type: 'text' },
   },
 
   /* ---- Thông báo qua Lark ---- */

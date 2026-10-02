@@ -750,6 +750,83 @@ async function baoTraoDoi(openIds, t, me, noiDung) {
   return { gui, loi };
 }
 
+/* ==========================================================================
+   ĐÃ XEM TỚI ĐÂU
+   ==========================================================================
+   Anh Hùng 02/10/2026: "nếu người kia đã xem thì có biết được luôn không".
+
+   Hai cách làm, đã cân rồi mới chọn:
+
+     · Hỏi Lark ai đã đọc THẺ (im.messages.read_users). Rẻ nhất, không đụng
+       Base. Nhưng Lark chỉ cho hỏi tin do chính app gửi và CHỈ TRONG 7 NGÀY —
+       quá hạn là mất dấu. Và nó đo "đã mở thẻ trên Lark", không phải "đã đọc
+       nội dung trong app".
+     · Ghi lại lúc mỗi người mở tab Trao đổi. Phải thêm chỗ lưu, nhưng giữ được
+       mãi và đúng nghĩa đã đọc. Anh Hùng chọn cách này.
+
+   Mốc lưu là THỜI ĐIỂM XEM, không phải id tin cuối. Lưu id tin cuối thì tin cũ
+   được sửa hay tin tới trễ sẽ làm lệch; so theo giờ thì một phép so là xong:
+   tin nào có giờ ≤ mốc của ai, người đó đã đọc.
+*/
+const DF = cfg.daXemFields;
+
+/** Khoá một dòng: mỗi (việc × người) đúng một dòng, không đẻ thêm. */
+const khoaDaXem = (taskId, openId) => taskId + '·' + openId;
+
+/**
+ * Ai đã đọc việc này tới lúc nào.
+ * Hỏng thì trả mảng rỗng — "đã xem" là thứ trang trí, mất nó không được phép
+ * làm hỏng cả tab Trao đổi.
+ */
+async function docDaXem(taskId, maLP) {
+  try {
+    const recs = await lark.listAllRecords(cfg.daXemTableId);
+    return recs
+      .map((r) => ({
+        taskIds: Array.isArray(r.cells[DF.task.id])
+          ? r.cells[DF.task.id].map((x) => (x && (x.record_ids ? x.record_ids[0] : x.id)) || x).filter(Boolean)
+          : [],
+        lienPhong: asText(r.cells[DF.lienPhong.id]).trim(),
+        nguoi: asUsers(r.cells[DF.nguoi.id])[0] || null,
+        at: r.cells[DF.xemToi.id] || null,
+      }))
+      .filter((x) => x.nguoi && x.at
+        && (x.taskIds.includes(taskId) || x.lienPhong === taskId || (maLP && x.lienPhong === maLP)))
+      .map((x) => ({ id: x.nguoi.id, name: x.nguoi.name, at: x.at }));
+  } catch (e) {
+    console.error('[da-xem] đọc hỏng:', String((e && e.message) || e).slice(0, 160));
+    return [];
+  }
+}
+
+/**
+ * Ghi "người này đã đọc việc này tới bây giờ".
+ *
+ * Có dòng rồi thì SỬA, chưa có thì tạo — nếu không, mỗi lần mở tab là một dòng
+ * mới và bảng phình ra vô hạn.
+ */
+async function ghiDaXem(taskId, laLienPhong, nguoi) {
+  if (!nguoi || !nguoi.id) return { ok: false, ly: 'không rõ người xem' };
+  const khoa = khoaDaXem(taskId, nguoi.id);
+  const gio = chuoiGioVN(new Date());
+  try {
+    const recs = await lark.listAllRecords(cfg.daXemTableId);
+    const cu = recs.find((r) => asText(r.cells[DF.khoa.id]).trim() === khoa);
+    if (cu) {
+      await lark.updateRecord(cu.record_id, { [DF.xemToi.name]: gio }, cfg.daXemTableId);
+      return { ok: true, moi: false, at: gio };
+    }
+    const cells = { [DF.khoa.name]: khoa, [DF.nguoi.name]: [{ id: nguoi.id }], [DF.xemToi.name]: gio };
+    if (laLienPhong) cells[DF.lienPhong.name] = taskId;
+    else cells[DF.task.name] = [{ id: taskId }];
+    await lark.createRecord(cells, cfg.daXemTableId);
+    return { ok: true, moi: true, at: gio };
+  } catch (e) {
+    console.error('[da-xem] ghi hỏng:', String((e && e.message) || e).slice(0, 160));
+    return { ok: false, ly: String((e && e.message) || e).slice(0, 160) };
+  }
+}
+
 /** Đuôi tin nhắn: link mở app. */
 const duoiTin = () => (cfg.publicUrl ? XD + cfg.publicUrl : '');
 
@@ -1469,6 +1546,28 @@ async function api(req, res, url) {
     }
   }
 
+  /* ---- đánh dấu đã xem tới bây giờ ----
+   * Màn hình gọi đường này khi nó VỪA VẼ RA tin mới cho người đang ngồi xem —
+   * không gọi mỗi nhịp nạp lại. Tab Trao đổi tự nạp lại đều đặn, gọi theo nhịp
+   * đó là mỗi người mở một tab thành vài chục lượt ghi Base mỗi phút. */
+  const mXem = p.match(/^\/api\/tasks\/(rec[A-Za-z0-9]+)\/da-xem$/);
+  if (mXem && req.method === 'POST') {
+    const id = mXem[1];
+    const recs = await getRecords();
+    const rec = recs.find((r) => r.record_id === id);
+    const lp = rec ? null : await LP.tim(lark, id);
+    if (!rec && !lp) return json(res, { error: 'Không tìm thấy công việc' }, 404);
+    /* Cùng một chốt quyền với việc đọc bình luận: xem được thì mới đánh dấu
+     * được. Không có chốt thì ai cũng ghi được "mình đã xem" lên việc người
+     * khác, và cái dấu đó thành ra nói dối. */
+    const me = await whoAmI(req);
+    if (lp) {
+      const coTen = me && [...lp.owner, ...lp.requester].some((u) => u.id === me.id);
+      if (!coTen && !(await requireOwnTask(res, lp, req))) return;
+    } else if (!(await requireOwnTask(res, toTask(rec), req))) return;
+    return json(res, await ghiDaXem(id, !!lp, me));
+  }
+
   /* ---- bình luận ---- */
 
   const mCmt = p.match(/^\/api\/tasks\/(rec[A-Za-z0-9]+)\/comments$/);
@@ -1495,7 +1594,10 @@ async function api(req, res, url) {
         }))
         .filter((c) => c.taskIds.includes(id) || c.lienPhong === id || (maLPCmt && c.lienPhong === maLPCmt))
         .sort((a, b) => new Date(a.at || 0) - new Date(b.at || 0));
-      return json(res, { comments: list });
+      /* Kèm luôn ai đã đọc tới đâu — gửi chung một lượt với bình luận, không
+       * mở thêm một đường gọi nữa. Tab Trao đổi vốn nạp lại định kỳ, tách làm
+       * hai lượt là nhân đôi số lần ra vào Base cho đúng một màn hình. */
+      return json(res, { comments: list, daXem: await docDaXem(id, maLPCmt) });
     }
 
     if (req.method === 'POST') {
