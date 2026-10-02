@@ -315,6 +315,29 @@ async function docSocial(app, tu, den) {
   };
 }
 
+/**
+ * DỰNG PHỄU — chỉ dùng được khi các bậc CÙNG MỘT TẬP NGƯỜI và cùng một hệ đo.
+ *
+ * Đây là điều kiện bắt buộc, không phải lời khuyên. Xếp mấy chỉ số rời rạc
+ * thành hình phễu là vẽ ra một dòng chảy không tồn tại, và mọi tỷ lệ rút ra từ
+ * nó đều vô nghĩa — xem chú thích dài trong gomTepMoi(). Chỉ hai chỗ trong cả
+ * báo cáo đạt điều kiện: trong một nền tảng quảng cáo (chính nó quy công người
+ * đã nhấp thành người chuyển đổi) và trong một phiên LIVE (người bình luận là
+ * người đang xem phiên đó).
+ *
+ * @param {{nhan:string,so:number}[]} bac Các bậc, từ rộng tới hẹp.
+ */
+function dungPheu(bac) {
+  const ds = bac.filter((x) => Number.isFinite(x.so) && x.so > 0);
+  if (ds.length < 2) return null;
+  return ds.map((x, i) => ({
+    nhan: x.nhan,
+    so: x.so,
+    conLai: i === 0 ? null : Math.round((x.so / ds[i - 1].so) * 1000) / 10,
+    moiMot: i === 0 ? null : Math.round(ds[0].so / x.so),
+  }));
+}
+
 /* ================= LIVE =================
  * Tách khỏi Social thành khối riêng. Lý do: LIVE là một cách làm khác hẳn —
  * người thật ngồi trước máy mấy tiếng, đo bằng giờ lên sóng và đơn chốt, chứ
@@ -359,6 +382,17 @@ async function docLiveRieng(app, tu, den) {
       { nhan: 'Tương tác trên 1.000 lượt xem', so: views ? (tuongTac / views) * 1000 : 0,
         dinhDang: 'so2' },
     ],
+    /* Phễu TRONG MỘT PHIÊN LIVE. Đủ điều kiện dựng phễu: người bình luận là
+     * người đang xem phiên đó, người để lại số cũng vậy — cùng một tập người,
+     * cùng một phiên, chứ không phải ba hệ đo khác nhau ghép lại. */
+    pheu: dungPheu([
+      { nhan: 'Lượt xem phiên', so: views },
+      { nhan: 'Người bình luận', so: cong('comments') },
+      { nhan: 'Lead để lại thông tin', so: cong('leads') },
+      { nhan: 'Đơn chốt', so: cong('orders') },
+    ]),
+    goc: 'lượt xem',
+
     /* DOANH THU LIVE chưa đưa vào — anh Hùng gác lại vì chưa rõ cơ chế ghi nhận:
      * cột doanh thu trong bảng phiên không nói rõ là đơn chốt ngay trên sóng hay
      * đơn khách nhắn tin sau đó, nên cộng vào là cộng nhầm với doanh thu Quảng
@@ -389,6 +423,16 @@ async function docQuangCao(app, tu, den) {
   const nang = canh.filter((a) => a.level === 'high').length;
   const n = (khoa) => gopNen(d.byPlatform || [], khoa);
   return {
+    /* Phễu QUẢNG CÁO. Đây là phễu thật duy nhất ngoài LIVE: cùng một nền tảng
+     * đo cả ba bậc, và chính nó quy công người đã nhấp thành người chuyển đổi.
+     * "Cứ N lượt hiển thị mới có 1 chuyển đổi" ở đây có nghĩa vì cùng một tập
+     * người — khác hẳn phép chia tiếp cận Facebook cho booking WAUG. */
+    pheu: dungPheu([
+      { nhan: 'Lượt hiển thị', so: so(k.impressions) },
+      { nhan: 'Lượt nhấp', so: so(k.clicks) },
+      { nhan: 'Chuyển đổi', so: so(k.conversions) },
+    ]),
+    goc: 'lượt hiển thị',
     o: [
       { nhan: 'Chi tiêu', so: so(k.spend), dinhDang: 'vnd', lech: l.spend, chinh: true, nen: n('spend') },
       { nhan: 'Doanh thu từ QC', so: so(k.revenue), dinhDang: 'vnd', lech: l.revenue,
@@ -1174,13 +1218,26 @@ function gomTepMoi(base, tongChi) {
     return { so: co.reduce((t, x) => t + x.v.so, 0), nguon: co.map((x) => x.ten) };
   };
 
+  /* Mỗi ô ghi rõ CHỖ NÀO ĐO ĐƯỢC chỉ số đó, không chỉ ghi app nào trả về. Bản
+   * trước ghi "từ Social" cho cả lượt tiếp cận lẫn tin nhắn, trong khi tiếp cận
+   * chỉ đo được ở Facebook + Instagram còn tin nhắn thì 100% là Zalo OA. */
+  const phuSong = (id, nhan) => {
+    const b = base.find((x) => x.id === id);
+    if (!b || !b.chay) return '';
+    const o = (b.o || []).find((x) => x.nhan === nhan);
+    if (!o || !o.nen || !o.nen.co.length) return '';
+    return o.nen.co.map((k) => k.ten).join(' + ');
+  };
+
   const oList = [
     { nhan: 'Lượt tiếp cận', chinh: true,
       g: congNguon([{ ten: 'Social', v: lay('social', 'Lượt tiếp cận') }]),
+      do: phuSong('social', 'Lượt tiếp cận'),
       ghi: 'số lần nội dung hiện ra trước một người — chưa phải số người' },
     { nhan: 'Người theo dõi mới (ròng)', chinh: true,
       g: congNguon([{ ten: 'Social', v: lay('social', 'Follower tăng ròng') },
-        { ten: 'LIVE', v: lay('live', 'Follow mới') }]) },
+        { ten: 'LIVE', v: lay('live', 'Follow mới') }]),
+      do: phuSong('social', 'Follower tăng ròng') },
     { nhan: 'Tệp theo dõi KOL chạm tới',
       g: congNguon([{ ten: 'KOL', v: lay('kol', 'Tệp theo dõi chạm tới') }]),
       ghi: 'quy mô kênh KOL đã đăng bài' },
@@ -1189,17 +1246,18 @@ function gomTepMoi(base, tongChi) {
         { ten: 'Quảng cáo', v: lay('quang-cao', 'Lượt nhấp') }]) },
     { nhan: 'Người chủ động nhắn tin',
       g: congNguon([{ ten: 'Social', v: lay('social', 'Tin nhắn') },
-        { ten: 'LIVE', v: lay('live', 'Tin nhắn') }]) },
+        { ten: 'LIVE', v: lay('live', 'Tin nhắn') }]),
+      do: phuSong('social', 'Tin nhắn') },
     { nhan: 'Lead để lại thông tin', chinh: true,
       g: congNguon([{ ten: 'Social', v: lay('social', 'Lead') },
-        { ten: 'LIVE', v: lay('live', 'Lead') }]) },
+        { ten: 'LIVE', v: lay('live', 'Lead') }]),
+      do: phuSong('social', 'Lead') },
     /* KHÔNG cộng chung "chuyển đổi quảng cáo" với "booking OTA". Một booking đến
      * từ quảng cáo được đếm ở CẢ HAI chỗ: Meta ghi một chuyển đổi, sàn OTA ghi
-     * một booking. Cộng lại là đếm đôi, và cái giá "chi cho mỗi đơn" sẽ rẻ đi
-     * một nửa một cách vô căn cứ. Nên tách ra, mỗi nguồn một ô, gọi đúng tên. */
+     * một booking. Cộng lại là đếm đôi. */
     { nhan: 'Booking đã chốt trên OTA', chinh: true,
       g: congNguon([{ ten: 'OTA', v: lay('ota', 'Booking') }]),
-      ghi: 'đơn có thật trên sàn — con số chắc chắn nhất của phễu này' },
+      ghi: 'đơn có thật trên sàn Klook · WAUG · GetYourGuide…' },
     { nhan: 'Chuyển đổi quảng cáo ghi nhận',
       g: congNguon([{ ten: 'Quảng cáo', v: lay('quang-cao', 'Chuyển đổi') }]),
       ghi: 'nền tảng quảng cáo tự đếm — trùng một phần với booking OTA, không cộng dồn' },
@@ -1209,76 +1267,60 @@ function gomTepMoi(base, tongChi) {
 
   const o = oList.filter((x) => x.g).map((x) => ({
     nhan: x.nhan, so: x.g.so, dinhDang: 'so', chinh: !!x.chinh,
-    ghi: (x.ghi ? x.ghi + ' · ' : '') + 'từ ' + x.g.nguon.join(' + '),
+    ghi: (x.ghi ? x.ghi + ' · ' : '')
+      + (x.do ? 'đo được ở ' + x.do : 'từ ' + x.g.nguon.join(' + ')),
   }));
   if (!o.length) return null;
 
   /* Giá mỗi người mới. Chỉ tính khi ĐỌC ĐƯỢC tổng chi của cả phòng — chia cho
-   * một nửa chi phí thì ra một cái giá rẻ giả, tệ hơn là không có giá nào. */
+   * một nửa chi phí thì ra một cái giá rẻ giả, tệ hơn là không có giá nào.
+   *
+   * KHÔNG còn "chi cho mỗi booking": chia tổng chi của phòng cho booking OTA là
+   * gán công của cả phòng cho đơn đến từ chợ của WAUG và GetYourGuide — bảng
+   * OTA không có lấy một trường nguồn marketing nào để nói hai bên có liên
+   * quan. Hai ô còn lại vẫn là tỷ số thô, nên gọi đúng tên "chia đều", không
+   * gọi là chi phí để có được một người. */
   const tim = (nhan) => o.find((x) => x.nhan === nhan);
   if (tongChi) {
     const tdMoi = tim('Người theo dõi mới (ròng)');
     const lead = tim('Lead để lại thông tin');
-    const don = tim('Booking đã chốt trên OTA');
     if (tdMoi && tdMoi.so > 0) {
-      o.push({ nhan: 'Chi cho mỗi người theo dõi mới', so: tongChi / tdMoi.so,
-        dinhDang: 'vnd', dao: true, ghi: 'toàn bộ chi phí phòng chia cho người theo dõi mới' });
+      o.push({ nhan: 'Chi phòng chia đều mỗi người theo dõi mới', so: tongChi / tdMoi.so,
+        dinhDang: 'vnd', dao: true,
+        ghi: 'tỷ số thô — phần lớn tiền quảng cáo chạy để bán tour, không phải để kéo follow' });
     }
     if (lead && lead.so > 0) {
-      o.push({ nhan: 'Chi cho mỗi lead', so: tongChi / lead.so, dinhDang: 'vnd', dao: true,
-        ghi: 'chỉ tính lead Social và LIVE đã ghi nhận' });
-    }
-    if (don && don.so > 0) {
-      o.push({ nhan: 'Chi cho mỗi booking', so: tongChi / don.so, dinhDang: 'vnd', dao: true,
-        ghi: 'chia cho booking OTA — chi phí toàn phòng, không riêng quảng cáo' });
+      o.push({ nhan: 'Chi phòng chia đều mỗi lead', so: tongChi / lead.so,
+        dinhDang: 'vnd', dao: true, ghi: 'tỷ số thô — chỉ tính lead Social và LIVE đã ghi nhận' });
     }
   }
 
-  /* Phễu: mỗi bậc kèm tỷ lệ còn lại so với bậc trên. Đây mới là chỗ đọc ra vấn
-   * đề — tiếp cận triệu lượt mà lead vài chục thì hỏng ở khâu kêu gọi, chứ
-   * không phải thiếu nội dung. */
-  const bac = ['Lượt tiếp cận', 'Người theo dõi mới (ròng)', 'Người chủ động nhắn tin',
-    'Lead để lại thông tin', 'Booking đã chốt trên OTA']
-    .map((n) => tim(n)).filter((x) => x && x.so > 0);
-
-  return {
-    o,
-    /* PHỄU VẼ BẰNG HÌNH RIÊNG, KHÔNG PHẢI CỘT.
-     *
-     * Đã thử hai cách và cả hai đều hỏng vì cùng một lý do. Vẽ số tuyệt đối thì
-     * 3,1 triệu lượt tiếp cận đứng cạnh 6 booking: cột đầu chạm trần, bốn cột
-     * sau là bốn sợi chỉ sát đáy. Đổi sang tỷ lệ còn lại cũng không thoát, vì
-     * tỷ lệ cũng lệch tới 500 lần (100% rồi tụt thẳng xuống 0,1%).
-     *
-     * Nên bỏ hẳn trục số: vẽ năm dải thu hẹp dần theo THỨ BẬC, in số thật và
-     * mức rơi lên từng dải. Không có trục thì không hứa hẹn một tỷ lệ nào để mà
-     * đọc sai, còn hình thu hẹp dần thì nói đúng điều cần nói — càng xuống sâu
-     * càng ít người. */
-    pheu: bac.map((x, i) => ({
-      nhan: x.nhan,
-      so: x.so,
-      conLai: i === 0 ? null : Math.round((x.so / bac[i - 1].so) * 1000) / 10,
-      moiMot: i === 0 ? null : Math.round(bac[0].so / x.so),
-    })),
-    goc: bac.length ? bac[0].nhan.toLowerCase() : '',
-    bang: bac.length > 1 ? [{
-      tieuDe: 'Phễu tiếp cận — còn lại bao nhiêu sau mỗi bậc',
-      cot: ['Bậc', 'Số người', '% còn lại so với bậc trên', 'Tính từ bậc đầu'],
-      soCot: [1, 2],
-      /* Cột cuối KHÔNG dùng phần trăm. 12 lead trên 3,1 triệu lượt tiếp cận là
-       * 0,0004% — làm tròn kiểu nào cũng thành "0%", đọc như không có ai. "Cứ
-       * 258.445 lượt mới có 1" nói đúng cùng một tỷ lệ mà hình dung được. */
-      dong: bac.map((x, i) => [x.nhan, x.so,
-        i === 0 ? '—' : (Math.round((x.so / bac[i - 1].so) * 1000) / 10)
-          .toString().replace('.', ',') + '%',
-        i === 0 ? 'điểm xuất phát'
-          : 'cứ ' + Math.round(bac[0].so / x.so).toLocaleString('vi-VN')
-            + ' ' + bac[0].nhan.toLowerCase() + ' mới có 1']),
-    }] : [],
-  };
+  /* KHÔNG DỰNG PHỄU Ở ĐÂY NỮA.
+   *
+   * Bản trước xếp năm ô này thành phễu: tiếp cận → theo dõi → nhắn tin → lead →
+   * booking, kèm "rơi 99,9%" và "cứ 516.891 lượt tiếp cận mới có 1 booking".
+   * Nhìn thì thuyết phục, nhưng kiểm lại thì năm bậc đó là NĂM TẬP NGƯỜI KHÁC
+   * NHAU, không phải năm chặng của một dòng người:
+   *
+   *   - Lượt tiếp cận chỉ đo được ở Facebook và Instagram (TikTok nối bằng
+   *     Display API nên không có reach, Zalo cũng không).
+   *   - Người theo dõi mới cũng chỉ Facebook + Instagram.
+   *   - Tin nhắn thì 100% là Zalo OA — Facebook, TikTok, Instagram đều bằng 0.
+   *   - Lead không có cái nào đến từ Social; cả 12 lead là của các phiên LIVE.
+   *   - Booking đến từ WAUG, GetYourGuide, Trip.com — và bảng OTA KHÔNG CÓ một
+   *     trường nguồn marketing nào. Khách đặt trên chợ của WAUG, không đi ra từ
+   *     bài Facebook của mình.
+   *
+   * Không có một mã khách, một UTM hay một trường nguồn nào nối năm bậc lại.
+   * Thiếu cái đó thì phễu không phải "đo chưa đủ chính xác" — nó là một dòng
+   * chảy không tồn tại, và mọi tỷ lệ rút ra từ nó đều vô nghĩa.
+   *
+   * Phễu thật nằm ở chỗ có quy công thật: trong app Quảng cáo (hiển thị → nhấp
+   * → chuyển đổi, cùng một hệ đo, cùng một người) và trong một phiên LIVE (xem
+   * → bình luận → lead → đơn, cùng một phiên). Hai chỗ đó đã có phễu riêng. */
+  return { o };
 }
 
-/** @param {{id,ten,quanLy}} nguoi Người đang xem — gửi kèm cho app con biết ai hỏi. */
 /* ================= XU HƯỚNG NHIỀU THÁNG =================
  * Báo cáo chỉ so được hai kỳ, nên không phân biệt được "tháng này kém" với
  * "đang xuống dốc ba tháng liền". Phú Quốc làm du lịch theo mùa rất nặng: giảm

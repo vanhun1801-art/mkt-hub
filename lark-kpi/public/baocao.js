@@ -675,8 +675,10 @@ function bcPheu(ds, goc) {
   g.appendChild(kh);
   g.appendChild(el('div', 'ss-chan',
     'Bề rộng các dải thu hẹp đều theo thứ bậc, <b>không tỷ lệ với con số</b> — '
-    + 'từ bậc đầu xuống bậc cuối chênh nhau tới mấy trăm nghìn lần, vẽ đúng tỷ lệ '
-    + 'thì bốn dải dưới mỏng đến mức không nhìn thấy. Số thật in trên từng dải.'));
+    + 'bậc đầu và bậc cuối chênh nhau quá xa, vẽ đúng tỷ lệ thì dải cuối mỏng đến '
+    + 'mức không nhìn thấy. Số thật in trên từng dải. <b>Các bậc ở đây cùng một '
+    + 'tập người và cùng một hệ đo</b> nên tỷ lệ giữa chúng mới có nghĩa — báo cáo '
+    + 'chỉ dựng phễu ở những chỗ đạt điều kiện đó.'));
   return g;
 }
 
@@ -693,17 +695,17 @@ function bcTepMoi(m) {
     + '<h3>Tệp khách hàng tiếp cận mới</h3>'
     + '<span class="phu">gộp từ Social · LIVE · Quảng cáo · KOL · OTA</span>'));
   t.appendChild(el('div', 'than nho',
-    'Xếp từ xa đến gần: người mới nhìn thấy → người theo dõi → người chủ động '
-    + 'nhắn → người để lại thông tin → người đã đặt. Đọc dọc xuống là thấy phễu '
-    + 'rơi ở bậc nào. Ô nào không app nào đo được thì để trống chứ không hiện 0.'));
+    'Đây là các phép đo <b>rời rạc</b>, không phải các chặng của một phễu: lượt '
+    + 'tiếp cận chỉ đo được ở Facebook và Instagram, tin nhắn hầu hết là Zalo OA, '
+    + 'còn booking đến từ chợ của các sàn OTA và không có trường nguồn marketing '
+    + 'nào nối về đây. <b>Đừng chia bậc này cho bậc kia</b> — mỗi ô ghi rõ chỗ nào '
+    + 'đo được. Ô nào không app nào đo được thì để trống chứ không hiện 0.'));
   const luoi = el('div', 'o-luoi');
   (m.o || []).forEach((o) => luoi.appendChild(bcO(o)));
   t.appendChild(luoi);
-  if ((m.pheu || []).length > 1) {
-    const kh = el('div', 'bieu-do');
-    kh.appendChild(bcPheu(m.pheu, m.goc));
-    t.appendChild(kh);
-  }
+  /* Khối này KHÔNG còn phễu — xem chú thích trong gomTepMoi() ở bao-cao.js.
+   * Các ô dưới đây là những phép đo rời rạc trên các tập người khác nhau; xếp
+   * thành phễu là vẽ ra một dòng chảy không tồn tại. */
   (m.bang || []).forEach((bg) => bcBang(t, bg));
   return t;
 }
@@ -744,6 +746,13 @@ function bcKhoi(b) {
   if ((b.soSanh || []).length) {
     const kh = el('div', 'bieu-do');
     kh.appendChild(bcSoSanh(b.soSanh, 'Thay đổi so với kỳ trước', bcNhanKyTruoc()));
+    t.appendChild(kh);
+  }
+
+  /* Phễu — chỉ khối nào có quy công thật mới khai (Quảng cáo, LIVE). */
+  if ((b.pheu || []).length > 1) {
+    const kh = el('div', 'bieu-do');
+    kh.appendChild(bcPheu(b.pheu, b.goc));
     t.appendChild(kh);
   }
 

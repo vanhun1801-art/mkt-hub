@@ -623,7 +623,7 @@ function trangBaoCao(d, nx, logo) {
 
   /* Cột và thanh xếp hạng của từng base (trạng thái việc, giờ theo người, địa
    * điểm tác nghiệp, lượt xem theo KOL). Bản xuất trước bỏ sót hết. */
-  const hinhKhoi = (b) => cotDung(b.cot)
+  const hinhKhoi = (b) => pheu(b.pheu, b.goc) + cotDung(b.cot)
     + [b.thanh, b.thanh2].map((x) => (x && (x.muc || []).length
       ? thanhXep(x.muc, x.nhan, x.don) : '')).join('');
 
@@ -660,9 +660,13 @@ function trangBaoCao(d, nx, logo) {
     return '<section class="base"><header>'
       + '<span class="cham-tron" style="background:#0ea5a0"></span>'
       + '<b>Tệp khách hàng tiếp cận mới</b>'
-      + '<span class="mo">gộp từ Social · LIVE · Quảng cáo · KOL · OTA</span></header>'
+      + '<span class="mo">các phép đo rời rạc — không phải các chặng của một phễu</span></header>'
       + '<div class="luoi">' + (m.o || []).map(o).join('') + '</div>'
-      + pheu(m.pheu, m.goc) + (m.bang || []).map(bang).join('') + '</section>';
+      /* Khối này KHÔNG còn phễu: các ô là phép đo rời rạc trên những tập người
+       * khác nhau (tiếp cận chỉ có ở Facebook+Instagram, tin nhắn hầu hết là
+       * Zalo OA, booking đến từ chợ của sàn OTA và không có trường nguồn nào
+       * nối về đây). Xem chú thích dài trong gomTepMoi() ở bao-cao.js. */
+      + (m.bang || []).map(bang).join('') + '</section>';
   };
 
   /* XU HƯỚNG. `d.xuHuong` do server đọc thêm rồi gắn vào — bản xuất không tự
