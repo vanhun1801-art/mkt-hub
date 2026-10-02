@@ -25,6 +25,10 @@ const theoDoi = require('./theo-doi-mail');
 const MV = require('./public/ma-vung');
 const TW = require('./tourwell-danh-muc');
 const { layLogo } = require('../lark-chung/logo');
+/* `imLang` tắt bộ canh lỗi API trong một đoạn — xem giaiLinkBanDo(). Nạp hụt thì
+ * chạy như không có bộ canh, đúng như lúc mở app một mình, ngoài hub. */
+let imLang = (fn) => fn();
+try { ({ imLang } = require('../lark-chung/canh-api')); } catch (_) { /* không có bộ canh thì thôi */ }
 
 const BIND = process.env.BIND || '127.0.0.1';
 const PUBLIC = path.join(__dirname, 'public');
@@ -405,21 +409,30 @@ function toaDoTuLink(t) {
     /[?&](?:q|query|ll|destination|center)=(-?\d+\.\d+)(?:,|%2C)\s*(-?\d+\.\d+)/i.exec(t);
   return m ? { lat: +m[1], lng: +m[2] } : null;
 }
+/* Chạy TRONG `imLang` (tắt bộ canh lỗi API) vì link này do NGƯỜI DÙNG dán vào, và
+ * hàm đã cố ý nuốt mọi lỗi: hỏng thì toạ độ để trống, không ai mất gì. Một link
+ * Google Maps rút gọn chết hay bị chặn là chuyện của cái link, không phải app mất
+ * kết nối — nhưng bộ canh thấy 401/403/429 là nhắn anh Hùng một thẻ "Lỗi kết nối
+ * API · KOL → Google · Token hết hạn, cần cấp lại", trong khi app không giữ token
+ * Google nào. Cùng một kiểu báo nhầm đã gặp ở app Thông tin sản phẩm (01/10/2026). */
 async function giaiLinkBanDo(link) {
   if (nhoViTri.has(link)) return nhoViTri.get(link);
-  let url = link, kq = { lat: null };
-  try {
-    for (let i = 0; i < 5; i++) {
-      const h = new URL(url);
-      if (h.protocol !== 'https:' || !MIEN_GOOGLE.test(h.hostname)) break;
-      const tu = toaDoTuLink(decodeURIComponent(url));
-      if (tu) { kq = tu; break; }
-      const r = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(6000) });
-      const tiep = r.headers.get('location');
-      if (!tiep) { const tu2 = toaDoTuLink(await r.text().catch(() => '')); if (tu2) kq = tu2; break; }
-      url = new URL(tiep, url).href;
-    }
-  } catch (_) {}
+  const kq = await imLang(async () => {
+    let url = link, r2 = { lat: null };
+    try {
+      for (let i = 0; i < 5; i++) {
+        const h = new URL(url);
+        if (h.protocol !== 'https:' || !MIEN_GOOGLE.test(h.hostname)) break;
+        const tu = toaDoTuLink(decodeURIComponent(url));
+        if (tu) { r2 = tu; break; }
+        const r = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(6000) });
+        const tiep = r.headers.get('location');
+        if (!tiep) { const tu2 = toaDoTuLink(await r.text().catch(() => '')); if (tu2) r2 = tu2; break; }
+        url = new URL(tiep, url).href;
+      }
+    } catch (_) {}
+    return r2;
+  });
   nhoViTri.set(link, kq);
   return kq;
 }

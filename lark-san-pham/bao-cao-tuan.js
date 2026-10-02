@@ -18,6 +18,12 @@
 const cfg = require('./config');
 const kho = require('./kho');
 
+/* Bộ canh lỗi API (lark-chung/canh-api.js) bọc fetch của CẢ tiến trình; `imLang`
+ * tắt nó trong một đoạn. Nạp hụt thì chạy như không có bộ canh — đúng như lúc mở
+ * app một mình, ngoài hub. */
+let imLang = (fn) => fn();
+try { ({ imLang } = require('../lark-chung/canh-api')); } catch (_) { /* không có bộ canh thì thôi */ }
+
 const NGAY = 86400000;
 const EMAIL = process.env.SP_BAO_CAO_EMAIL || 'hunglv@rootytrip.com';
 const BAN = /Đang kinh doanh|Sắp ra mắt/i;
@@ -62,20 +68,32 @@ function kyVN(t = Date.now()) {
 }
 const ddmm = (t) => { const d = new Date(t + 7 * 3600000); return String(d.getUTCDate()).padStart(2, '0') + '/' + String(d.getUTCMonth() + 1).padStart(2, '0'); };
 
-/* link media: khoá = trang Drive/Docs đòi xin quyền hoặc chuyển sang đăng nhập Google */
+/* link media: khoá = trang Drive/Docs đòi xin quyền hoặc chuyển sang đăng nhập Google
+ *
+ * Cả hàm chạy TRONG `imLang`, tức là TẮT bộ canh lỗi API. Đây là phép ĐO chứ không
+ * phải lời gọi API của app: link khoá chính là thứ đi tìm, và nó đã có chỗ nói rồi —
+ * khối "Link media khách không mở được" của chính báo cáo này.
+ *
+ * Để bộ canh nhìn thấy thì mỗi link Drive khoá hoá thành một thẻ Lark "Lỗi kết nối
+ * API · Thông tin sản phẩm → Google · HTTP 401 · Token / khoá truy cập hết hạn hoặc
+ * sai — cần cấp lại" nhắn thẳng cho anh Hùng (gặp sáng 01/10/2026). Câu đó vừa sai
+ * vừa chỉ nhầm chỗ: app không hề giữ token Google nào để mà cấp lại, việc cần làm
+ * là mở quyền xem cho đúng cái link ấy. */
 async function kiemLink(links) {
-  const hong = [];
-  await Promise.all(links.map(async (u) => {
-    try {
-      const r = await fetch(u, { redirect: 'manual', headers: { 'User-Agent': 'Mozilla/5.0', 'Accept-Language': 'en' }, signal: AbortSignal.timeout(15000) });
-      const loc = r.headers.get('location') || '';
-      if (r.status >= 300 && r.status < 400) { if (/accounts\.google/.test(loc)) hong.push({ u, ly: 'cần đăng nhập' }); return; }
-      if (r.status >= 400) { hong.push({ u, ly: 'lỗi ' + r.status }); return; }
-      const t = await r.text();
-      if (/You need access|Request access|need permission/i.test(t)) hong.push({ u, ly: 'chưa mở quyền xem' });
-    } catch (e) { hong.push({ u, ly: 'không mở được' }); }
-  }));
-  return hong;
+  return imLang(async () => {
+    const hong = [];
+    await Promise.all(links.map(async (u) => {
+      try {
+        const r = await fetch(u, { redirect: 'manual', headers: { 'User-Agent': 'Mozilla/5.0', 'Accept-Language': 'en' }, signal: AbortSignal.timeout(15000) });
+        const loc = r.headers.get('location') || '';
+        if (r.status >= 300 && r.status < 400) { if (/accounts\.google/.test(loc)) hong.push({ u, ly: 'cần đăng nhập' }); return; }
+        if (r.status >= 400) { hong.push({ u, ly: 'lỗi ' + r.status }); return; }
+        const t = await r.text();
+        if (/You need access|Request access|need permission/i.test(t)) hong.push({ u, ly: 'chưa mở quyền xem' });
+      } catch (e) { hong.push({ u, ly: 'không mở được' }); }
+    }));
+    return hong;
+  });
 }
 
 /** Dựng nội dung báo cáo. Trả { tieuDe, khoi: [{ten, dong[]}], tong } */
