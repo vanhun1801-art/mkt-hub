@@ -310,6 +310,20 @@ group('Ai chưa nộp — câu anh Hùng hỏi mỗi chiều');
     'tuần có 7 ngày, trừ Chủ nhật còn 6');
 }
 
+group('Kỳ NĂM — chỉ để cộng số, không phải loại phiếu');
+{
+  const n = K.kyNam(K.tuNgayVN(2026, 7, 15));
+  ok('bắt đầu 01/01', K.veNgay(n.tu) === '01/01/2026', K.veNgay(n.tu));
+  ok('kết thúc hết 31/12', K.veNgay(n.den) === '31/12/2026' &&
+    K.veNgay(n.den + 1) === '01/01/2027', K.veNgay(n.den));
+  ok('nhãn gọn', n.nhan === 'Năm 2026', n.nhan);
+  /* ky() CỐ Ý không nhận 'nam': lọt vào đó là có chỗ đi dựng mã phiếu
+   * "nam-2026-ou_…" cho một loại phiếu không ai nộp. */
+  let cau = '';
+  try { K.ky('nam', Date.now()); } catch (e) { cau = e.message; }
+  ok('ky() không nhận "nam"', /Loại kỳ lạ/.test(cau), cau || '(không ném lỗi)');
+}
+
 group('So với kỳ trước — chỗ dễ đẻ ra con số vô nghĩa nhất');
 {
   const thang9 = K.kyThang(K.tuNgayVN(2026, 9, 14));

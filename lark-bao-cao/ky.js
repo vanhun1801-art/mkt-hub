@@ -144,6 +144,24 @@ function kyThang(ms) {
   };
 }
 
+/**
+ * Cả năm — chỉ dùng cho bảng TOÀN PHÒNG của quản lý (anh Hùng 02/10 muốn bộ lọc
+ * có "năm nay").
+ *
+ * KHÔNG phải một loại phiếu: không ai nộp báo cáo năm. Đây thuần tuý là một
+ * khoảng để cộng số lại — nên `ky()` không nhận 'nam', phải gọi thẳng hàm này.
+ * Để lẫn vào ky() thì sớm muộn có chỗ đi tạo mã phiếu "nam-2026-ou_…".
+ */
+function kyNam(ms) {
+  const p = phanRaVN(ms);
+  return {
+    loai: 'nam',
+    tu: tuNgayVN(p.nam, 1, 1),
+    den: tuNgayVN(p.nam + 1, 1, 1) - 1,
+    nhan: 'Năm ' + p.nam,
+  };
+}
+
 /** Dựng kỳ theo loại — một cửa duy nhất cho server gọi. */
 function ky(loai, ms, luat = LUAT) {
   if (loai === 'ngay') return kyNgay(ms);
@@ -472,7 +490,7 @@ module.exports = {
   PHUT, GIO, NGAY, VN, CA, TEN_THU, LUAT, NGUONG_BU,
   phanRaVN, dauNgay, cuoiNgay, tuNgayVN,
   veNgay, veNgayThu, veLuc, vePhut, veTre, veLanNop,
-  kyNgay, kyTuan, kyThang, ky,
+  kyNgay, kyTuan, kyThang, kyNam, ky,
   hanNop, chamHan, gopTheoViec,
   dinhMuc, gop, ngayThieu,
   mocSoSanh, veChenhPhut, soSanh,

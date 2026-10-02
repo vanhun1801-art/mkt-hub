@@ -728,15 +728,22 @@ function nap() {
     ok('vào đường cũ #theo-doi thì đưa sang Toàn phòng',
       ctx.__goi('MAN') === 'toan-phong', ctx.__goi('MAN'));
 
-    ctx.__goi('MAN = "toan-phong"; TP_KY = "thang"; TP_MOC = Date.now()');
+    ctx.__goi('MAN = "toan-phong"; TP_LOC = "thang-nay"');
     await ctx.__goi('ve()');
     await new Promise((r) => setTimeout(r, 30));
     const tp = String(ctx.__goi('$("#man").innerHTML'));
-    /* Anh Hùng (02/10): "cần có bộ lọc báo cáo như các bộ lọc khác, mặc định
-     * là tháng hiện tại". */
-    ok('mặc định là tháng', ctx.__goi('TP_KY') === 'thang');
-    ok('có bộ lọc Tuần / Tháng', tp.includes('id="tpTuan"') && tp.includes('id="tpThang"'));
-    ok('có nút lùi / tới kỳ', tp.includes('id="tpLui"') && tp.includes('id="tpToi"'));
+    /* Anh Hùng chốt đúng năm lựa chọn (02/10): "tuần này; tuần trước; tháng
+     * này; tháng trước; năm nay" — không hơn, không kém, và mặc định tháng
+     * hiện tại. */
+    ok('mặc định là tháng này', ctx.__goi('TP_LOC') === 'thang-nay');
+    ok('bộ lọc có đủ năm lựa chọn',
+      ['tuan-nay', 'tuan-truoc', 'thang-nay', 'thang-truoc', 'nam-nay']
+        .every((x) => tp.includes('data-loc-ky="' + x + '"')),
+      'đang có: ' + (tp.match(/data-loc-ky="[a-z-]+"/g) || []).join(' '));
+    ok('và KHÔNG thừa lựa chọn nào khác',
+      (tp.match(/data-loc-ky="/g) || []).length === 5);
+    ok('bỏ mũi tên lùi/tới — năm lựa chọn đã đủ',
+      !tp.includes('id="tpLui"') && !tp.includes('id="tpToi"'));
     /* Cột của màn Theo dõi cũ phải có mặt ở đây, không thì gọi là "gộp" nhưng
      * thực ra là xoá. */
     ok('bảng có cột nhịp nộp', tp.includes('Nhịp nộp'));
@@ -765,15 +772,54 @@ function nap() {
     ok('ngày chưa nộp cũng nói ra', so.includes('11/09'));
   }
 
+  group('Năm lựa chọn lọc — ngày tháng phải khớp đúng phía máy chủ');
+  {
+    const K = require('../ky');
+    /* 05/01/2027: cố ý chọn đầu tháng 1 để "tháng trước" phải vắt sang NĂM cũ.
+     * Lùi tháng bằng cách trừ 30 ngày là sai ở đúng chỗ này. */
+    const gia = K.tuNgayVN(2027, 1, 5) + 10 * K.GIO;
+    ctx.__goi('globalThis.__nowCu = Date.now; Date.now = () => ' + gia);
+    const loc = (ma) => JSON.parse(ctx.__goi('JSON.stringify(kyTheoLoc("' + ma + '"))'));
+    const khop = (a, b) => a.tu === b.tu && a.den === b.den;
+
+    const tn = loc('thang-nay');
+    ok('tháng này khớp kyThang của máy chủ', khop(tn, K.kyThang(gia)) && tn.ky === 'thang',
+      tn.nhan + ' vs ' + K.kyThang(gia).nhan);
+
+    const tt = loc('thang-truoc');
+    const kTT = K.kyThang(K.tuNgayVN(2026, 12, 15));
+    ok('tháng trước vắt qua năm cũ vẫn đúng',
+      khop(tt, kTT) && tt.nhan === 'Tháng 12/2026', tt.nhan);
+    ok('mốc gửi cho máy chủ nằm trong đúng tháng đó',
+      K.kyThang(tt.moc).tu === kTT.tu, new Date(tt.moc).toISOString());
+
+    const w = loc('tuan-nay');
+    ok('tuần này khớp kyTuan của máy chủ', khop(w, K.kyTuan(gia)) && w.ky === 'tuan');
+    const wt = loc('tuan-truoc');
+    ok('tuần trước lùi đúng bảy ngày',
+      khop(wt, K.kyTuan(gia - 7 * K.NGAY)), wt.nhan);
+    ok('mốc tuần trước rơi vào đúng tuần đó',
+      K.kyTuan(wt.moc).tu === wt.tu);
+
+    const ny = loc('nam-nay');
+    ok('năm nay là 01/01 → 31/12', khop(ny, K.kyNam(gia)) && ny.nhan === 'Năm 2027', ny.nhan);
+    ok('năm nay gửi loại kỳ "nam" cho máy chủ', ny.ky === 'nam',
+      'máy chủ có nhánh riêng cho nam — gửi sai loại là nó cộng nhầm một tháng');
+
+    ctx.__goi('Date.now = globalThis.__nowCu');
+  }
+
   group('Cần hỗ trợ cũng lọc theo kỳ (02/10)');
   {
-    ctx.__goi('MAN = "can-ho-tro"; HT_KY = "thang"; HT_MOC = Date.now()');
+    ctx.__goi('MAN = "can-ho-tro"; HT_KYLOC = "thang-nay"');
     await ctx.__goi('ve()');
     await new Promise((r) => setTimeout(r, 30));
-    const ht = ctx.__goi('$("#man").innerHTML');
-    ok('có bộ lọc kỳ như Toàn phòng',
-      ht.includes('id="htTuan"') && ht.includes('id="htThang"') && ht.includes('id="htLui"'));
-    ok('mặc định tháng', ctx.__goi('HT_KY') === 'thang');
+    const ht = String(ctx.__goi('$("#man").innerHTML'));
+    ok('có đúng bộ lọc như Toàn phòng',
+      ['tuan-nay', 'tuan-truoc', 'thang-nay', 'thang-truoc', 'nam-nay']
+        .every((x) => ht.includes('data-loc-ky="' + x + '"')),
+      'hai màn phải giống hệt nhau, lệch một lựa chọn là người dùng tưởng hỏng');
+    ok('mặc định tháng này', ctx.__goi('HT_KYLOC') === 'thang-nay');
     ok('nhãn kỳ thay cho chữ "bốn tuần gần đây" cứng',
       !ht.includes('bốn tuần gần đây'));
     ok('vẫn còn bộ lọc trạng thái cũ',

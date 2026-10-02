@@ -188,6 +188,30 @@ const QUAN_LY = Object.assign({}, NHAN_SU, { 'x-hub-user-manager': '1' });
   ok('cột Nộp bù khai kiểu checkbox để đi qua đường đó', F.type === 'checkbox');
 }
 
+group('"Ngày chưa nộp" không đếm ngược về trước khi có hệ thống');
+{
+  /* Lọc "Năm nay" (02/10) ra 1291 lượt ngày thiếu và kéo điểm cả phòng xuống,
+   * chỉ vì nó đếm từ 01/01 trong khi app mới chạy từ giữa tháng 9. Đúng số học,
+   * sai sự thật. Mốc sàn lấy từ phiếu ngày sớm nhất trên Base — không cắm cứng
+   * ngày nào, Base dọn sạch thì mốc tự đi theo. */
+  const src = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+  ok('có hàm lấy mốc sàn từ chính dữ liệu',
+    /async function ngayHeThongBatDau/.test(src) &&
+    /dsPhieu\(\{ loaiKy: 'ngay' \}/.test(src));
+  ok('không cắm cứng một ngày bắt đầu',
+    !/BAT_DAU_HE_THONG\s*=\s*\d/.test(src));
+
+  const tp = src.slice(src.indexOf("p === '/api/toan-phong'"), src.indexOf("p === '/api/can-ho-tro'"));
+  ok('Toàn phòng kẹp mốc sàn trước khi đếm ngày thiếu',
+    /tuThieu = Math\.max\(k\.tu, batDauHT/.test(tp) && /ngayThieu\(tuThieu,/.test(tp),
+    'quên chỗ này là bảng năm biến cả phòng thành lười');
+
+  const td = src.slice(src.indexOf("p === '/api/theo-doi'"), src.indexOf("p === '/api/toan-phong'"));
+  ok('Theo dõi cũng kẹp — hai bảng ăn chung một con số',
+    /const tu = Math\.max\(tuQ, batDau/.test(td),
+    'lệch nhau thì Toàn phòng nói 86, bảng kia nói 1291');
+}
+
 group('Giữ lần nộp ĐẦU TIÊN — sửa phiếu không được biến thành trễ');
 {
   const src = fs.readFileSync(path.join(__dirname, '..', 'kho.js'), 'utf8');

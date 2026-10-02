@@ -275,6 +275,22 @@ function maLoiBase(e) {
 }
 
 /**
+ * Ngày đầu tiên hệ thống CÓ dữ liệu — mốc sàn khi đếm "ngày chưa nộp".
+ *
+ * Lọc "Năm nay" (02/10) lôi ra con số vô lý: mỗi người thiếu 201–227 ngày, cả
+ * phòng 1291 lượt. Đúng số học mà sai sự thật — app mới chạy từ giữa tháng 9,
+ * trước đó không ai nộp được vào đâu cả. Điểm cũng tụt theo, nên bảng biến cả
+ * phòng thành lười trong khi họ chỉ chưa có app.
+ *
+ * Lấy từ chính dữ liệu (phiếu ngày sớm nhất) chứ không cắm cứng một ngày: Base
+ * dọn sạch hay dựng lại thì mốc tự đi theo, không phải nhớ sửa.
+ */
+async function ngayHeThongBatDau(moi) {
+  const ds = await kho.dsPhieu({ loaiKy: 'ngay' }, moi);
+  return ds.reduce((m, x) => (x.tuNgay && (!m || x.tuNgay < m) ? x.tuNgay : m), 0);
+}
+
+/**
  * Gom phiếu về từng NGƯỜI.
  *
  * Không gom bằng một khoá chuỗi (`email || open_id`) như bản đầu: open_id do
@@ -835,11 +851,13 @@ async function api(req, res, u) {
 
   if (p === '/api/theo-doi' && m === 'GET') {
     if (!toi.quanLy) return loi(res, 403, 'Chỉ quản lý xem được bảng này.', 'CHI_QUAN_LY');
-    const tu = Number(q.get('tu')) || K.kyTuan(Date.now()).tu;
+    const tuQ = Number(q.get('tu')) || K.kyTuan(Date.now()).tu;
     const den = Number(q.get('den')) || Date.now();
-    const ds = await kho.dsPhieu({ loaiKy: 'ngay', tu, den }, q.get('moi') === '1');
+    const ds = await kho.dsPhieu({ loaiKy: 'ngay', tu: tuQ, den }, q.get('moi') === '1');
 
-
+    /* Không đếm ngược về trước ngày hệ thống có dữ liệu — xem ngayHeThongBatDau. */
+    const batDau = await ngayHeThongBatDau(q.get('moi') === '1');
+    const tu = Math.max(tuQ, batDau || tuQ);
     const denThat = Math.min(den, Date.now());
     const soNgayCong = K.ngayThieu(tu, denThat, []).length;
     /* Lịch làm việc từng người (Base Lịch làm việc) — ngày thiếu và tỷ lệ đúng
@@ -1027,15 +1045,25 @@ async function api(req, res, u) {
    */
   if (p === '/api/toan-phong' && m === 'GET') {
     if (!toi.quanLy) return loi(res, 403, 'Chỉ quản lý xem được bảng này.', 'CHI_QUAN_LY');
-    const loai = loaiKy() === 'ngay' ? 'tuan' : loaiKy();   // toàn phòng theo ngày thì quá vụn
-    const k = K.ky(loai, moc());
+    /* 'nam' là khoảng để CỘNG, không phải loại phiếu — xem K.kyNam. Toàn phòng
+     * theo ngày thì quá vụn nên vẫn quy về tuần. */
+    const loai = q.get('ky') === 'nam' ? 'nam'
+      : (loaiKy() === 'ngay' ? 'tuan' : loaiKy());
+    const k = loai === 'nam' ? K.kyNam(moc()) : K.ky(loai, moc());
     const moi = q.get('moi') === '1';
     const phieuNgay = (await kho.dsPhieu({ loaiKy: 'ngay', tu: k.tu, den: k.den }, moi))
       .filter((x) => x.trangThai === cfg.chon.trangThaiPhieu.daNop);
     const dongKy = await kho.dsDong({ tu: k.tu, den: k.den }, false);
     const dsLichTP = await LL.docHet();
-    /* Phiếu tuần/tháng của từng người — để quản lý đọc được nhận xét AI (01/10). */
-    const phieuKy = await kho.dsPhieu({ loaiKy: loai, tu: k.tu, den: k.den }, moi);
+    const batDauHT = await ngayHeThongBatDau(moi);
+    const tuThieu = Math.max(k.tu, batDauHT || k.tu);
+    /* Phiếu tuần/tháng của từng người — để quản lý đọc được nhận xét AI (01/10).
+     * Lọc cả năm thì lấy phiếu THÁNG: không ai nộp phiếu năm, mà mười hai dòng
+     * tháng đọc được, còn 250 dòng ngày thì không ai cuộn hết. */
+    const phieuKy = loai === 'nam'
+      ? (await kho.dsPhieu({ tu: k.tu, den: k.den }, moi))
+        .filter((x) => x.loaiKy !== cfg.chon.loaiKy.ngay)
+      : await kho.dsPhieu({ loaiKy: loai, tu: k.tu, den: k.den }, moi);
 
     const nguoi = [];
     for (const g of gomNguoi(phieuNgay)) {
@@ -1052,7 +1080,9 @@ async function api(req, res, u) {
         canHoTro: n.ps.map((x) => x.canHoTro).filter(Boolean).join(' · '),
       };
       const bc = {
-        ngayThieu: K.ngayThieu(k.tu, Math.min(k.den, Date.now()), n.ps.map((x) => x.tuNgay), K.LUAT,
+        /* `tuThieu` chứ không phải k.tu: lọc cả năm thì không đếm ngược về
+         * trước ngày hệ thống có dữ liệu — xem ngayHeThongBatDau. */
+        ngayThieu: K.ngayThieu(tuThieu, Math.min(k.den, Date.now()), n.ps.map((x) => x.tuNgay), K.LUAT,
           LL.lichCua(dsLichTP, { email: n.email, ten: n.ten })),
         dungYen: ND.timDungYen(nhomTheoNgay(cuaHo)),
       };
@@ -1062,14 +1092,24 @@ async function api(req, res, u) {
         soPhieu: n.ps.length, tongPhut: gop.tongPhut, tongGio: K.vePhut(gop.tongPhut),
         phanTram: gop.phanTram, soThieu: bc.ngayThieu.length,
         diem: ND.chamDiem(y), motCau: ND.motCau(y), y,
-        ai: ((phieuKy.find((x) => x.tuNgay === k.tu && kho.cungNguoi(x, n)) || {}).danhGiaAI) || '',
+        /* Nhận xét AI là của ĐÚNG kỳ đang xem. Lọc cả năm thì KHÔNG có — và
+         * phải để rỗng chứ không lấy đại phiếu tháng 1 (nó cũng bắt đầu đúng
+         * ngày k.tu), kẻo nhận xét tháng 1 bị đọc thành nhận xét cả năm. */
+        ai: loai === 'nam' ? ''
+          : ((phieuKy.find((x) => x.tuNgay === k.tu && kho.cungNguoi(x, n)) || {}).danhGiaAI) || '',
         /* Danh sách phiếu để quản lý bấm mở đọc nội dung (anh Hùng 01/10: "ấn vào
          * đâu cũng chưa xem được từng báo cáo nhân sự đã viết gì"). Phiếu ngày đã
-         * nộp + phiếu tuần/tháng của kỳ (nếu có, kể cả nháp). */
-        phieu: [
-          ...phieuKy.filter((x) => x.tuNgay === k.tu && kho.cungNguoi(x, n)),
-          ...n.ps.slice().sort((a, b) => a.tuNgay - b.tuNgay),
-        ].map(vePhieu).map((p) => ({
+         * nộp + phiếu tuần/tháng của kỳ (nếu có, kể cả nháp).
+         *
+         * Cả năm thì chỉ liệt kê phiếu TỔNG KẾT (tuần + tháng) — mỗi kỳ một
+         * dòng, bấm vào đọc được nhận định và nhận xét AI của kỳ đó. Đổ 250
+         * dòng ngày vào sổ thì không ai cuộn hết. */
+        phieu: (loai === 'nam'
+          ? phieuKy.filter((x) => kho.cungNguoi(x, n)).sort((a, b) => a.tuNgay - b.tuNgay)
+          : [
+            ...phieuKy.filter((x) => x.tuNgay === k.tu && kho.cungNguoi(x, n)),
+            ...n.ps.slice().sort((a, b) => a.tuNgay - b.tuNgay),
+          ]).map(vePhieu).map((p) => ({
           ma: p.ma, loaiKy: p.loaiKy, tu: p.tu, nhan: p.nhan, tongGio: p.tongGio, daNop: p.daNop,
           nopLuc: p.nopLuc, trangThaiHan: p.trangThaiHan, veHan: p.veHan,
         })),

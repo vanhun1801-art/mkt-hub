@@ -28,10 +28,8 @@ let BAN = false;    // có thay đổi chưa lưu
  * đang soi tháng trước của cả phòng mà bấm sang tab Hôm nay rồi quay lại thì
  * phải còn ở tháng đó. Mặc định THÁNG hiện tại — anh Hùng (02/10): soát cả
  * phòng là việc của cuối tháng, tuần chỉ xem khi cần nhìn kỹ một ai đó. */
-let TP_KY = 'thang';
-let TP_MOC = Date.now();
-let HT_KY = 'thang';
-let HT_MOC = Date.now();
+let TP_LOC = 'thang-nay';
+let HT_KYLOC = 'thang-nay';
 
 /* ---------------- bản nháp trên máy (localStorage) ----------------
  * Mấy chỗ dưới đây chỉ giữ chữ đang gõ trong bộ nhớ: ghi chú xử lý ở Cần hỗ
@@ -170,58 +168,67 @@ function mocTuan(ms) {
 }
 
 /**
- * Kỳ tuần/tháng CHỨA một mốc bất kỳ — để hai màn quản lý lùi về kỳ trước được.
+ * Năm lựa chọn của bộ lọc hai màn quản lý — đúng danh sách anh Hùng chốt
+ * (02/10): tuần này · tuần trước · tháng này · tháng trước · năm nay.
  *
- * `kyThangNay()` chỉ biết tháng hiện tại, nên bấm ‹ là không đi đâu. Hàm này
- * nhận mốc, trả cùng hình dạng, kèm nhãn để khỏi mỗi chỗ tự ghép một kiểu.
+ * Đặt thành LỰA CHỌN CÓ TÊN thay cho "Tuần|Tháng + mũi tên lùi/tới": gần như
+ * lần nào quản lý cũng chỉ hỏi một trong năm câu đó, mà đường cũ phải bấm hai
+ * nhát (chọn loại rồi lùi) và nhìn nhãn mới biết mình đang đứng đâu.
+ *
+ * `ky` là thứ máy chủ hiểu (tuan / thang / nam), `moc` là một mốc nằm trong kỳ.
+ * tu/den tính luôn ở đây cho mấy đầu mối nhận khoảng (theo-doi, can-ho-tro) —
+ * một chỗ tính, hai nơi dùng, khỏi lệch nhau một ngày.
  */
-function kyCua(loai, ms) {
-  if (loai !== 'thang') {
-    const t = mocTuan(ms);
-    return Object.assign(t, { nhan: veNgay(t.tu) + ' – ' + veNgay(t.den) });
-  }
-  const p = phanRa(ms);
-  const tu = Date.UTC(p.nam, p.thang - 1, 1) - VN;
-  const sau = p.thang === 12 ? Date.UTC(p.nam + 1, 0, 1) : Date.UTC(p.nam, p.thang, 1);
-  return { tu, den: sau - VN - 1, nhan: 'Tháng ' + p2(p.thang) + '/' + p.nam };
-}
+const LOC_KY = [
+  { ma: 'tuan-nay', ten: 'Tuần này' },
+  { ma: 'tuan-truoc', ten: 'Tuần trước' },
+  { ma: 'thang-nay', ten: 'Tháng này' },
+  { ma: 'thang-truoc', ten: 'Tháng trước' },
+  { ma: 'nam-nay', ten: 'Năm nay' },
+];
 
-/** Lùi/tới một kỳ. Trả mốc nằm GIỮA kỳ mới, không sát mép, cho khỏi lệch múi. */
-function docKy(loai, k, huong) {
-  if (loai !== 'thang') return k.tu + huong * 7 * NGAY_MS + 3600000;
-  const p = phanRa(k.tu + 15 * NGAY_MS);        // giữa tháng hiện tại
-  const th = p.thang + huong;
-  return Date.UTC(p.nam + (th > 12 ? 1 : th < 1 ? -1 : 0), (th - 1 + 12) % 12, 15) - VN;
+function kyTheoLoc(ma) {
+  const nay = Date.now();
+  if (ma === 'tuan-nay' || ma === 'tuan-truoc') {
+    const moc = ma === 'tuan-truoc' ? nay - 7 * NGAY_MS : nay;
+    const t = mocTuan(moc);
+    return Object.assign({ ky: 'tuan', moc: t.tu + 3600000 }, t,
+      { nhan: veNgay(t.tu) + ' – ' + veNgay(t.den) });
+  }
+  if (ma === 'nam-nay') {
+    const p = phanRa(nay);
+    return {
+      ky: 'nam', moc: nay, nhan: 'Năm ' + p.nam,
+      tu: Date.UTC(p.nam, 0, 1) - VN, den: Date.UTC(p.nam + 1, 0, 1) - VN - 1,
+    };
+  }
+  const p = phanRa(nay);
+  /* Lùi tháng bằng số tháng, không bằng 30 ngày: 31/03 trừ 30 ngày ra tháng 3. */
+  const th = p.thang - (ma === 'thang-truoc' ? 1 : 0);
+  const nam = p.nam + (th < 1 ? -1 : 0);
+  const t12 = (th - 1 + 12) % 12;
+  const tu = Date.UTC(nam, t12, 1) - VN;
+  const sau = Date.UTC(t12 === 11 ? nam + 1 : nam, (t12 + 1) % 12, 1) - VN;
+  return { ky: 'thang', moc: tu + 15 * NGAY_MS, tu, den: sau - 1,
+    nhan: 'Tháng ' + p2(t12 + 1) + '/' + nam };
 }
 
 /**
- * Thanh chọn kỳ dùng chung cho hai màn quản lý: Tuần | Tháng · ‹ › · Hiện tại.
+ * Thanh lọc dùng chung cho hai màn quản lý.
  *
- * Gom một chỗ vì hai màn phải trông và chạy GIỐNG HỆT nhau — anh Hùng (02/10)
- * nêu đúng chuyện này: "tab toàn phòng cần có bộ lọc như các bộ lọc khác", và
- * "tab cần hỗ trợ cũng cần lọc theo". Hai chỗ tự vẽ riêng là sớm muộn một bên
- * có nút "Hiện tại" còn bên kia không.
+ * Gom một chỗ vì hai màn phải trông và chạy GIỐNG HỆT nhau — anh Hùng nêu đúng
+ * chuyện này: "tab toàn phòng cần có bộ lọc như các bộ lọc khác", và "tab cần
+ * hỗ trợ cũng cần lọc theo". Hai chỗ tự vẽ riêng là sớm muộn lệch nhau.
  */
-function thanhKy(id, loai, k) {
-  const sau = k.den >= Date.now();
-  return '<div class="pills">' +
-      '<button class="pill' + (loai === 'tuan' ? ' on' : '') + '" id="' + id + 'Tuan">Tuần</button>' +
-      '<button class="pill' + (loai === 'thang' ? ' on' : '') + '" id="' + id + 'Thang">Tháng</button>' +
-    '</div>' +
-    '<button class="btn nho mo" id="' + id + 'Lui" title="Kỳ trước">‹</button>' +
-    '<button class="btn nho mo" id="' + id + 'Toi"' + (sau ? ' disabled' : '') + ' title="Kỳ sau">›</button>' +
-    (sau ? '' : '<button class="btn nho mo" id="' + id + 'Nay">Hiện tại</button>');
+function thanhKy(id, ma) {
+  return '<div class="pills">' + LOC_KY.map((x) =>
+    '<button class="pill' + (ma === x.ma ? ' on' : '') + '" data-loc-ky="' + x.ma +
+    '" id="' + id + '-' + x.ma + '">' + esc(x.ten) + '</button>').join('') + '</div>';
 }
 
-/** Gắn tay nghe cho thanh kỳ. `dat(ky, moc)` ghi lại trạng thái rồi vẽ lại. */
-function ganThanhKy(id, loai, k, dat) {
-  $('#' + id + 'Tuan').onclick = () => dat('tuan', Date.now());
-  $('#' + id + 'Thang').onclick = () => dat('thang', Date.now());
-  $('#' + id + 'Lui').onclick = () => dat(loai, docKy(loai, k, -1));
-  const toi = $('#' + id + 'Toi');
-  if (toi) toi.onclick = () => dat(loai, docKy(loai, k, 1));
-  const nay = $('#' + id + 'Nay');
-  if (nay) nay.onclick = () => dat(loai, Date.now());
+/** Gắn tay nghe cho thanh lọc. `dat(ma)` ghi lại lựa chọn rồi vẽ lại. */
+function ganThanhKy(goc, dat) {
+  $$('[data-loc-ky]', goc).forEach((b) => { b.onclick = () => dat(b.dataset.locKy); });
 }
 
 /* ---------------- khởi động ---------------- */
@@ -1542,7 +1549,8 @@ function nhanHan(p) {
  * một: cả hai đã chạy thật và có bài thử riêng, gộp lại là viết lại cả hai.
  */
 async function veToanPhong(el) {
-  const d = await goi('/api/toan-phong?ky=' + TP_KY + '&moc=' + TP_MOC + '&moi=1');
+  const f = kyTheoLoc(TP_LOC);
+  const d = await goi('/api/toan-phong?ky=' + f.ky + '&moc=' + f.moc + '&moi=1');
   /* Lấy đúng khoảng máy chủ vừa chốt, không tự tính lại: hai đầu mối lệch nhau
    * một ngày là bảng ghép ra số vênh mà nhìn không biết vì sao. */
   const kd = await goi('/api/theo-doi?tu=' + d.ky.tu + '&den=' + d.ky.den + '&moi=1')
@@ -1579,7 +1587,7 @@ async function veToanPhong(el) {
       '<span class="nho">' + esc(d.nhan) +
         (kd.soNgayCong ? ' · ' + kd.soNgayCong + ' ngày công' : '') +
         ' · bấm một dòng để mở bên phải</span>' +
-      '<div class="lon"></div>' + thanhKy('tp', TP_KY, d.ky) +
+      '<div class="lon"></div>' + thanhKy('tp', TP_LOC) +
       '</div><div class="the-than khit cuon">' + (co
       ? '<table class="bang-xem bam-duoc"><thead><tr><th style="width:52px">Điểm</th><th>Người</th>' +
         '<th class="so-o">Phiếu</th><th class="so-o">Thời lượng</th><th class="so-o">Định mức</th>' +
@@ -1598,7 +1606,7 @@ async function veToanPhong(el) {
         'Khi nhân sự bắt đầu nộp, bảng này tự có người.')) +
     '</div></div>';
 
-  ganThanhKy('tp', TP_KY, d.ky, (ky, moc) => { TP_KY = ky; TP_MOC = moc; ve(); });
+  ganThanhKy(el, (ma) => { TP_LOC = ma; ve(); });
   $$('tr.mo-duoc', el).forEach((tr) => {
     tr.onclick = () => {
       $$('tr.mo-duoc', el).forEach((x) => x.classList.toggle('dang-chon', x === tr));
@@ -1655,7 +1663,13 @@ function moNguoi(n, nhanKy) {
           '<span class="nk-so">' + loaiTen(p.loaiKy) + ' · ' + esc(p.tongGio) + '</span>' +
           (p.daNop ? nhanHan(p) : '<span class="nhan-tt cam">Nháp</span>') +
         '</div></div>').join('') + '</div>'
-      : rong('Chưa có phiếu nào trong kỳ')) +
+      /* Lọc cả năm thì sổ chỉ liệt kê phiếu tổng kết tuần/tháng. Chưa ai nộp
+       * tổng kết mà vẫn có báo cáo ngày thì phải nói ra đường đi tiếp, không
+       * để người xem tưởng cả năm người ta không làm gì. */
+      : (n.soPhieu
+        ? rong('Chưa có phiếu tổng kết trong kỳ',
+          n.soPhieu + ' báo cáo ngày đã nộp — chọn "Tháng này" hoặc "Tuần này" để mở từng ngày.')
+        : rong('Chưa có phiếu nào trong kỳ'))) +
     theY('Nhận định theo luật', n.y, n.diem) +
     (n.ai
       ? '<div class="ai-nx"><div class="ai-nx-dau">🤖 Nhận xét và gợi ý từ Marketing Hub AI</div>' +
@@ -1877,7 +1891,7 @@ async function veCanHoTro(el) {
    * Vẫn giữ tinh thần cũ "nhìn rộng hơn một tuần": mặc định là THÁNG, không
    * phải tuần. Vướng mắc nêu tuần trước mà chưa gỡ thì vẫn là vướng mắc, biến
    * mất khỏi màn hình không làm nó tự hết. */
-  const k = kyCua(HT_KY, HT_MOC);
+  const k = kyTheoLoc(HT_KYLOC);
   const d = await goi('/api/can-ho-tro?tu=' + k.tu + '&den=' + Math.min(k.den, Date.now()) + '&moi=1');
   const tt = (x) => x.trangThaiHT || (x.daXuLy ? 'xong' : 'chua');
   const soChua = d.ds.filter((x) => tt(x) !== 'xong').length;
@@ -1932,7 +1946,7 @@ async function veCanHoTro(el) {
       (soChua ? '<b style="color:var(--orange-text)">' + soChua + ' chưa xong</b>' : 'đã xử lý hết') + '</span>' +
     '<div class="lon"></div><div class="pills">' +
       pill('chua', 'Chưa xong') + pill('xong', 'Đã xử lý') + pill('tat-ca', 'Tất cả') +
-    '</div>' + thanhKy('ht', HT_KY, k) + '</div>' +
+    '</div>' + thanhKy('ht', HT_KYLOC) + '</div>' +
     '<div class="the-than">' +
       '<div class="nho" style="margin-bottom:10px">Bấm <b>Đã xử lý</b> hoặc <b>Chưa xử lý được</b> — bot Marketing Hub ' +
         'sẽ nhắn riêng cho người nêu kèm ghi chú của bạn.</div>' +
@@ -1943,7 +1957,7 @@ async function veCanHoTro(el) {
     '</div></div>';
 
   $$('[data-loc]', el).forEach((b) => { b.onclick = () => { HT_LOC = b.dataset.loc; veCanHoTro(el); }; });
-  ganThanhKy('ht', HT_KY, k, (ky, moc) => { HT_KY = ky; HT_MOC = moc; veCanHoTro(el); });
+  ganThanhKy(el, (ma) => { HT_KYLOC = ma; veCanHoTro(el); });
   batSoan(el);
   const daLuu = new Map(d.ds.map((x) => [String(x.recId), String(x.ghiChu || '')]));
   $$('.soan-vung', el).forEach((v) => {
