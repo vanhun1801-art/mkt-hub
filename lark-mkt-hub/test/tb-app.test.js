@@ -39,8 +39,12 @@ fs.writeFileSync(fTb, JSON.stringify([
   { tieuDe: 'Cả phòng', noiDung: 'x', mucDo: 'Gấp', nguoiNhan: '*', bat: true },
   { tieuDe: 'Chỉ A và B', noiDung: 'x', mucDo: 'Tin', nguoiNhan: 'ou_a,ou_b', bat: true },
   { tieuDe: 'Đang tắt', noiDung: 'x', mucDo: 'Gấp', nguoiNhan: '*', bat: false },
-  { tieuDe: 'Chưa tới ngày', noiDung: 'x', nguoiNhan: '*', bat: true, tuNgay: NGAY('2026-10-01') },
-  { tieuDe: 'Đã hết hạn', noiDung: 'x', nguoiNhan: '*', bat: true, denNgay: NGAY('2026-09-05') },
+  /* Hai mốc này tính TỪ HÔM NAY chứ không ghi cứng theo lịch: `cuaNguoi()` đo bằng
+     đồng hồ thật, nên ngày ghi cứng rồi cũng tới. Bản trước đặt 'Chưa tới ngày' là
+     01/10/2026, và đúng sáng 01/10/2026 hai phép kiểm dưới đây đỏ trong khi không ai
+     đụng vào code. */
+  { tieuDe: 'Chưa tới ngày', noiDung: 'x', nguoiNhan: '*', bat: true, tuNgay: Date.now() + 30 * 86400000 },
+  { tieuDe: 'Đã hết hạn', noiDung: 'x', nguoiNhan: '*', bat: true, denNgay: Date.now() - 30 * 86400000 },
   { tieuDe: 'A đã đọc rồi', noiDung: 'x', nguoiNhan: '*', bat: true, daDoc: 'ou_a@2026-09-01T00:00:00Z' },
   { tieuDe: 'Không gửi cho ai', noiDung: 'x', nguoiNhan: '', bat: true },
 ]));

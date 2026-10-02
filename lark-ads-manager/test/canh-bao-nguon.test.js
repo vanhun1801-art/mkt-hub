@@ -31,7 +31,11 @@ const NGUONG = {
 /* Dựng dữ liệu tay: bộ test phải chạy được cả khi Base rỗng, và phải dựng được
  * đúng tình huống "ô Base điền tượng trưng" mới bắt được lỗi. */
 function duLieu({ end, budget, status = 'Đang chạy', approval = 'Đã duyệt' } = {}) {
-  const ngay = '2026-09-01';
+  /* Ngày chi tiêu phải nằm trong THÁNG ĐANG CHẠY: mốc so của cảnh báo ngân sách
+     lấy theo hôm nay (metrics.js · alerts), nên một ngày ghi cứng sẽ rứt khỏi tháng
+     đó vào đầu tháng sau. Bản trước ghăm '2026-09-01' và đúng sáng 01/10/2026 thì
+     năm phép kiểm ở khối này đỏ, trong khi không ai đụng vào code. */
+  const ngay = new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 8) + '01';
   return {
     campaigns: [{ id: 'c1', name: 'CD thử', platform: 'Facebook', status, end, start: null, budget: budget || 0, dailyBudget: 0 }],
     groups: [{ id: 'g1', name: 'Nhóm', campaignId: 'c1' }],
