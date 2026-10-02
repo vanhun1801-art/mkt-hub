@@ -107,6 +107,14 @@ const catChu = (s, n) => { const t = String(s || '').replace(/\s+/g, ' ').trim()
     nguoi,
   }, null, 1));
   fs.writeFileSync(path.join(THU_MUC, 'ma-' + ten + '.json'), JSON.stringify({ loai, tu: k.tu, ma }, null, 1));
+  /* Dọn tệp kết quả của lượt TRƯỚC cùng kỳ: bảng mã vừa đánh số lại, nên tệp
+   * cũ không còn khớp mã nào nữa. Để nằm đó thì có ngày ai đó (hoặc chính
+   * Claude lượt sau, khi bước viết hỏng giữa chừng) đem nó đi ghi, và nhận xét
+   * rơi nhầm người. ghi.js còn một chốt nữa theo giờ sửa tệp. */
+  const tepCu = path.join(THU_MUC, 'ket-qua-' + ten + '.json');
+  if (fs.existsSync(tepCu)) {
+    fs.renameSync(tepCu, path.join(THU_MUC, 'cu-ket-qua-' + ten + '-' + Date.now() + '.json'));
+  }
   console.log(JSON.stringify({ tepDuLieu, tepMa: path.join(THU_MUC, 'ma-' + ten + '.json'),
     tepKetQua: path.join(THU_MUC, 'ket-qua-' + ten + '.json'), soNguoi: nguoi.length, ky: K.veNgay(k.tu) + ' – ' + K.veNgay(den) }));
 })().catch((e) => { console.error('HỎNG: ' + e.message); process.exit(1); });
