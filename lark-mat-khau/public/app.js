@@ -199,6 +199,8 @@ function oMatKhau(x, truong) {
 async function napDanhSach(moi) {
   const d = await api('/api/danh-sach' + (moi ? '?moi=1' : ''));
   S.tk = d.tk; S.goi = d.goi; S.tomTat = d.tomTat; S.capNhat = d.capNhat;
+  napLuot++;
+
 }
 
 async function khoiTao() {
@@ -275,8 +277,12 @@ function veLai() {
   /* Chưa được cấp dòng nào thì dải thẻ toàn số 0 chỉ là nhiễu — bỏ hẳn. */
   const trong = !laQuanLy() && !S.tk.length && !S.goi.length;
   man.innerHTML = veCanhBao() + (trong ? '' : veDai()) + ve();
-  if (S.mo) veSo();
+  /* Ngăn chi tiết chỉ dựng lại khi đổi dòng hoặc dữ liệu vừa nạp mới. Trước đây
+     mỗi phím gõ ở ô Tìm, mỗi lần bấm tab đều dựng lại cả ngăn — xoá trắng form
+     Sửa thông tin đang gõ dở (kể cả mật khẩu mới vừa Sinh). */
+  if (S.mo && $('#soThan').dataset.ve !== dauSo()) veSo();
 }
+const dauSo = () => (S.mo ? S.mo.bang + ':' + S.mo.id + ':' + napLuot : '');
 
 /* Người chưa được phân quyền dòng nào: KHÔNG thấy gì — kể cả tên nền tảng. */
 /* Nút thêm vẫn có ở đây: nhân sự thêm được, thêm xong tự được xem dòng đó. */
@@ -569,7 +575,13 @@ function veBoNhac() {
  * ------------------------------------------------------------------------- */
 
 function moSo(bang, id) { S.mo = { bang, id }; veLai(); $('#so').classList.add('mo'); }
-function dongSo() { S.mo = null; $('#so').classList.remove('mo'); veLai(); }
+function dongSo() {
+  /* Đóng ngăn không xoá nháp: mở lại đúng dòng đó là còn nguyên phần đang gõ. */
+  ghiNhapNgay();
+  S.mo = null; $('#so').classList.remove('mo');
+  const g = $('#soThan'); g.dataset.ve = ''; g.dataset.nhap = '';
+  veLai();
+}
 
 function veSo() {
   const x = timBanGhi(S.mo.bang, S.mo.id);
@@ -590,11 +602,11 @@ function veSo() {
     (S.suaDuoc ? '<div class="muc"><h4>Sửa thông tin</h4><div class="noi">' +
       (x.xem && S.coKhoa ? '<label class="o-nhap"><span>Mã bí mật 2FA <i class="phu">— dán chuỗi trang web đưa lúc bật 2FA, hoặc đường otpauth://' +
         (x.co2fa ? '; đang có mã, dán mới để thay' : '') + '</i></span>' +
-        '<span class="nut-hang"><input type="text" id="ma2faMoi" autocomplete="off" spellcheck="false" placeholder="VD: JBSW Y3DP EHPK 3PXP" style="flex:1;min-width:0">' +
+        '<span class="nut-hang ios-khong-nhap"><input type="text" id="ma2faMoi" class="ios-khong-nhap" autocomplete="off" spellcheck="false" placeholder="VD: JBSW Y3DP EHPK 3PXP" style="flex:1;min-width:0">' +
         (x.co2fa ? '<button class="btn sm nguy" id="ma2faXoa" type="button">Bỏ 2FA</button>' : '') + '</span></label>' : '') +
       (x.xem && S.coKhoa ? '<label class="o-nhap"><span>Mật khẩu mới <i class="phu">— để trống nếu không đổi' +
         (x.bang === 'tk' && x.coMatKhau ? '; mật khẩu đang lưu sẽ thành "mật khẩu cũ"' : '') + '</i></span>' +
-        '<span class="nut-hang"><input type="text" id="mkMoi" autocomplete="new-password" spellcheck="false" placeholder="Bấm Sinh để tạo mật khẩu mạnh" style="flex:1;min-width:0">' +
+        '<span class="nut-hang ios-khong-nhap"><input type="text" id="mkMoi" class="ios-khong-nhap" autocomplete="new-password" spellcheck="false" placeholder="Bấm Sinh để tạo mật khẩu mạnh" style="flex:1;min-width:0">' +
         '<button class="btn sm" id="mkSinh" type="button" title="Sinh mật khẩu mạnh 20 ký tự">Sinh</button></span></label>' : '') +
       formSua(x.bang, x) +
       '<div class="nut-hang" style="margin-top:10px"><button class="btn sm primary" id="suaLuu">Lưu thay đổi</button>' +
@@ -614,6 +626,10 @@ function veSo() {
     (laQuanLy() ? '<div class="muc"><h4>Xoá ' + (x.bang === 'goi' ? 'gói' : 'tài khoản') + '</h4><div class="noi nguy-khung">' +
       '<p class="phu">Xoá hẳn dòng này khỏi Lark Base, kể cả mật khẩu. Không hoàn tác được. Chỉ muốn tạm cất thì đổi Trạng thái sang "Ngừng dùng".</p>' +
       '<button class="btn sm nguy" id="dongXoa">Xoá ' + (x.bang === 'goi' ? 'gói' : 'tài khoản') + ' này</button></div></div>' : '');
+  const goc = $('#soThan');
+  goc.dataset.ve = dauSo();
+  goc.dataset.nhap = '';
+  if (S.suaDuoc) ganNhap(x.bang + '.' + x.id);
 }
 
 /* ---------------------------------------------------------------------------
@@ -673,14 +689,121 @@ function docFormSua(goc, bang, x) {
   return ra;
 }
 
+/* ---------------------------------------------------------------------------
+ * NHÁP FORM Ở NGĂN CHI TIẾT
+ * Ngăn #so không nằm trong khung nào lớp nháp chung của hub nhận ra, nên app tự
+ * giữ: chữ đang gõ ở form Sửa / Thêm tài khoản / Thêm gói chép vào bộ nhớ (vẽ
+ * lại ngăn vẫn còn) và xuống máy này (tải lại trang vẫn còn), khoá theo dòng
+ * ("tk.<id>", "goi.<id>", "tk.moi", "goi.moi"). Quá 14 ngày thì bỏ. Chỉ xoá sau
+ * khi máy chủ báo lưu được.
+ *
+ * LUẬT CỨNG: mật khẩu, mã 2FA KHÔNG BAO GIỜ xuống localStorage — kể cả khi bấm
+ * "Sinh" đã đổi ô sang type=text. Không quét form bừa: chỉ đọc đúng các cột
+ * S.suaDuoc (không cột nào là bí mật) và danh sách ô thêm tài khoản dưới đây,
+ * rồi còn loại thêm mọi ô password / có tên trong KHONG_NHAP / nằm trong
+ * vùng .ios-khong-nhap, phòng khi sau này ai thêm cột mới.
+ * ------------------------------------------------------------------------- */
+const NHAP_HAN = 14 * 86400000;
+const NHAP_TRUOC = 'mat-khau.nhap.';
+const KHONG_NHAP = new Set(['mkMoi', 'tMatKhau', 'gMatKhau', 'ma2faMoi']);
+const O_THEM_TK = ['tNenTang', 'tTen', 'tNhom', 'tLink', 'tUser', 'tSdt', 'tGhiChu'];
+const NHAP_MEM = new Map();          // khoá → giá trị đang gõ (sống qua các lần vẽ lại ngăn)
+let napLuot = 0;                     // tăng mỗi lần nạp danh sách — dữ liệu mới thì mới dựng lại ngăn
+const biMat = (el) => !el || el.type === 'password' || KHONG_NHAP.has(el.id) || !!el.closest('.ios-khong-nhap') ||
+  /mat-?khau|matkhau|password|2fa|otp|bimat|secret|pin/i.test((el.id || '') + ' ' + (el.name || '') + ' ' + ((el.dataset && el.dataset.sua) || ''));
+
+function docNhap(goc, khoa) {
+  const bang = khoa.split('.')[0];
+  const ra = { sua: {}, o: {} };
+  if (khoa === 'tk.moi') {
+    O_THEM_TK.forEach((id) => { const el = goc.querySelector('#' + id); if (el && !biMat(el)) ra.o[id] = el.value; });
+    return ra;
+  }
+  for (const c of S.suaDuoc && S.suaDuoc[bang] || []) {
+    const el = goc.querySelector('[data-sua="' + c.k + '"]');
+    if (!el || biMat(el)) continue;
+    ra.sua[c.k] = c.kieu === 'nguoi' ? daChonTrong(el) : el.value;
+  }
+  return ra;
+}
+function apNhap(goc, v) {
+  Object.entries(v.o || {}).forEach(([id, gt]) => { const el = goc.querySelector('#' + id); if (el && !biMat(el)) el.value = gt; });
+  Object.entries(v.sua || {}).forEach(([k, gt]) => {
+    const el = goc.querySelector('[data-sua="' + k + '"]');
+    if (!el || biMat(el)) return;
+    if (el.classList.contains('chon-nguoi')) {
+      const ds = el.querySelector('.the-ng-ds');
+      if (ds && Array.isArray(gt)) ds.innerHTML = gt.map(theNguoi).join('');
+    } else el.value = gt;
+  });
+}
+function nhapDoc(khoa) {
+  try {
+    const v = JSON.parse(localStorage.getItem(NHAP_TRUOC + khoa) || 'null');
+    if (v && v.luc && Date.now() - v.luc <= NHAP_HAN && v.v) return v;
+    if (v) localStorage.removeItem(NHAP_TRUOC + khoa);
+  } catch (_) { /* chặn lưu / hỏng: coi như không có */ }
+  return null;
+}
+let henNhap = 0, ghiCho = null;
+function ghiNhapNgay() {
+  clearTimeout(henNhap); henNhap = 0;
+  const g = ghiCho; ghiCho = null;
+  if (!g) return;
+  try {
+    if (g.v) localStorage.setItem(NHAP_TRUOC + g.khoa, JSON.stringify({ luc: g.luc, v: g.v }));
+    else localStorage.removeItem(NHAP_TRUOC + g.khoa);
+  } catch (_) { /* hết chỗ: thôi */ }
+}
+function nhapHuy(khoa) {
+  if (ghiCho && ghiCho.khoa === khoa) { clearTimeout(henNhap); henNhap = 0; ghiCho = null; }
+  NHAP_MEM.delete(khoa);
+  try { localStorage.removeItem(NHAP_TRUOC + khoa); } catch (_) { /* thôi */ }
+}
+/** Có gõ/đổi gì trong form đang mở: chép vào bộ nhớ ngay, xuống máy sau 0,4 giây. */
+function ghiNhapSo() {
+  const goc = $('#soThan');
+  const khoa = goc && goc.dataset.nhap;
+  if (!khoa) return;
+  const v = docNhap(goc, khoa);
+  const giong = JSON.stringify(v) === goc.dataset.nhapGoc;
+  if (giong) NHAP_MEM.delete(khoa); else NHAP_MEM.set(khoa, { v, luc: Date.now() });
+  if (ghiCho && ghiCho.khoa !== khoa) ghiNhapNgay();
+  ghiCho = { khoa, v: giong ? null : v, luc: Date.now() };
+  clearTimeout(henNhap);
+  henNhap = setTimeout(ghiNhapNgay, 400);
+}
+/** Vừa dựng form: ghi mốc "bản đã lưu", rồi đắp phần đang gõ dở (nếu có) lên. */
+function ganNhap(khoa) {
+  const goc = $('#soThan');
+  goc.dataset.nhap = khoa;
+  goc.dataset.nhapGoc = JSON.stringify(docNhap(goc, khoa));
+  let n = NHAP_MEM.get(khoa), tuMay = false;
+  if (!n) { n = nhapDoc(khoa); tuMay = !!n; }
+  if (!n || JSON.stringify(n.v) === goc.dataset.nhapGoc) { if (tuMay) nhapHuy(khoa); return; }
+  apNhap(goc, n.v);
+  NHAP_MEM.set(khoa, n);
+  /* Báo chỉ khi lấy từ máy (sau tải lại trang). Vẽ lại trong phiên thì chữ vẫn
+     nằm đó như chưa từng đi đâu — báo nữa chỉ gây hoảng. */
+  if (tuMay) {
+    const gio = new Date(n.luc);
+    goc.insertAdjacentHTML('afterbegin', '<div class="phu nhap-kp" style="margin:0 0 10px;color:var(--vang-t)">Đã khôi phục phần đang nhập dở lúc ' +
+      String(gio.getHours()).padStart(2, '0') + ':' + String(gio.getMinutes()).padStart(2, '0') +
+      ' · <a href="#" data-bo-nhap="' + esc(khoa) + '">Bỏ</a> <i>(mật khẩu không được giữ — gõ lại nếu cần)</i></div>');
+  }
+}
+window.addEventListener('beforeunload', ghiNhapNgay);
+
 function moFormThemGoi() {
   S.mo = null;
   $('#so').classList.add('mo');
   $('#soTieuDe').textContent = 'Thêm gói đăng ký';
   $('#soPhu').textContent = '';
+  $('#soThan').dataset.ve = '';
   $('#soThan').innerHTML = '<div class="muc"><div class="noi">' + formSua('goi', null) +
-    '<label class="o-nhap" style="margin-top:10px"><span>Mật khẩu</span><span class="nut-hang"><input id="gMatKhau" type="password" autocomplete="new-password" style="flex:1;min-width:0"><button class="btn sm" id="gSinh">Sinh</button></span></label>' +
+    '<label class="o-nhap ios-khong-nhap" style="margin-top:10px"><span>Mật khẩu</span><span class="nut-hang"><input id="gMatKhau" class="ios-khong-nhap" type="password" autocomplete="new-password" style="flex:1;min-width:0"><button class="btn sm" id="gSinh">Sinh</button></span></label>' +
     '<div class="nut-hang" style="margin-top:10px"><button class="btn primary" id="gLuu">Lưu gói</button></div></div></div>';
+  ganNhap('goi.moi');
 }
 
 /* Thêm / bỏ MỘT người ở ô "Ai được xem" của ngăn chi tiết — lưu ngay, cùng cửa
@@ -694,7 +817,7 @@ async function doiNguoiXem(kieu, n) {
     /* Chỉ vẽ lại ô người xem — vẽ cả ngăn là mất chữ đang gõ dở ở form Sửa thông tin. */
     const x = timBanGhi(S.mo.bang, S.mo.id);
     const khung = document.querySelector('#soThan [data-xem-chon]');
-    if (x && khung) khung.outerHTML = oChonNguoi(x.duocXem, 'data-xem-chon'); else veLai();
+    if (x && khung) { khung.outerHTML = oChonNguoi(x.duocXem, 'data-xem-chon'); $('#soThan').dataset.ve = dauSo(); } else veLai();
     toast((kieu === 'them' ? 'Đã cho ' : 'Đã rút quyền của ') + (n.ten || n.id) + (kieu === 'them' ? ' xem ' : ' ở ') + ten, 'ok');
   } catch (e) { toast(e.message, 'err'); }
 }
@@ -733,6 +856,7 @@ function moKetQuaNghi(ten, ds) {
   $('#soTieuDe').textContent = ten + ' — nghỉ việc';
   $('#soPhu').textContent = '';
   const nen = ds.filter((x) => x.daMo || x.phuTrach);
+  $('#soThan').dataset.ve = ''; $('#soThan').dataset.nhap = '';
   $('#soThan').innerHTML = '<div class="muc"><div class="noi"><p>Đã rút quyền xem của <b>' + esc(ten) + '</b> ở mọi dòng.</p>' +
     '<p class="phu">Những tài khoản dưới đây họ <b>đã từng mở mật khẩu</b> hoặc đang <b>đứng tên phụ trách</b> — nên đổi mật khẩu và giao người phụ trách mới. Bấm vào để mở.</p></div></div>' +
     (nen.length ? '<div class="ds-don">' + nen.map((x) => '<button class="don-o" data-mo="' + x.bang + '" data-id="' + x.id + '"><b data-no-i18n>' + esc(x.ten) + '</b>' +
@@ -762,12 +886,14 @@ function moFormThem() {
     o('tNenTang', 'Nền tảng *') + o('tTen', 'Tên tài khoản') +
     '<label class="o-nhap"><span>Nhóm</span><select id="tNhom">' + S.nhom.map((n) => '<option>' + esc(n) + '</option>').join('') + '</select></label>' +
     o('tLink', 'Link đăng nhập') + o('tUser', 'User') +
-    '<label class="o-nhap"><span>Mật khẩu</span><span class="nut-hang"><input id="tMatKhau" type="password" autocomplete="new-password" style="flex:1;min-width:0"><button class="btn sm" id="tSinh">Sinh</button></span></label>' +
+    '<label class="o-nhap ios-khong-nhap"><span>Mật khẩu</span><span class="nut-hang"><input id="tMatKhau" class="ios-khong-nhap" type="password" autocomplete="new-password" style="flex:1;min-width:0"><button class="btn sm" id="tSinh">Sinh</button></span></label>' +
     o('tSdt', 'Số điện thoại') +
     '<label class="o-nhap"><span>Ghi chú</span><textarea id="tGhiChu" rows="3"></textarea></label>' +
     (laQuanLy() ? '<p class="phu">Lưu xong thì bấm vào dòng vừa thêm để giao người phụ trách và chọn ai được xem mật khẩu.</p>'
       : '<p class="phu">Lưu xong anh/chị tự được xem và đứng tên phụ trách tài khoản này. Muốn cho người khác xem thì nhờ quản lý.</p>') +
     '<div class="nut-hang"><button class="btn primary" id="tLuu">Lưu tài khoản</button></div></div>';
+  $('#soThan').dataset.ve = '';
+  ganNhap('tk.moi');
 }
 
 /* ---------------------------------------------------------------------------
@@ -794,6 +920,7 @@ document.addEventListener('click', async (e) => {
     if ('xemChon' in khung.dataset) return doiNguoiXem('them', n);
     khung.querySelector('.the-ng-ds').insertAdjacentHTML('beforeend', theNguoi(n));
     const inp = khung.querySelector('.tim-ng'); inp.value = ''; khung.querySelector('.goi-y-ng').hidden = true; inp.focus();
+    if (khung.closest('#soThan')) ghiNhapSo();       // chọn người không bắn "input" — tự ghi nháp
     return;
   }
   if (t.classList.contains('bo-ng')) {
@@ -801,6 +928,17 @@ document.addEventListener('click', async (e) => {
     if ('pqChon' in khung.dataset) { S.pq.nguoi.delete(the.dataset.id); return veLai(); }
     if ('xemChon' in khung.dataset) return doiNguoiXem('bot', { id: the.dataset.id, ten: the.dataset.ten });
     the.remove();
+    if (khung.closest('#soThan')) ghiNhapSo();
+    return;
+  }
+  if (t.dataset.boNhap) {
+    /* Bỏ bản khôi phục: xoá nháp rồi dựng lại form từ dữ liệu đã lưu. */
+    e.preventDefault();
+    const khoa = t.dataset.boNhap;
+    nhapHuy(khoa);
+    if (khoa === 'tk.moi') return moFormThem();
+    if (khoa === 'goi.moi') return moFormThemGoi();
+    if (S.mo) return veSo();
     return;
   }
   if (t.id === 'otpHien') return hienOtp(true);
@@ -889,10 +1027,12 @@ document.addEventListener('click', async (e) => {
       if (ma2fa) maMoi = (await guiJson('/api/doi-2fa', { bang: S.mo.bang, id: S.mo.id, bimat: ma2fa })).ma;
       if (mkMoi) await guiJson('/api/doi-mat-khau', { bang: S.mo.bang, id: S.mo.id, matKhau: mkMoi });
       const baoMa = maMoi ? ' · mã 2FA lúc này: ' + maMoi.ma + ' — so với điện thoại' : '';
-      if (!Object.keys(truong).length) { S.hien.clear(); await napDanhSach(true); veLai(); toast('Đã lưu' + (mkMoi ? ' mật khẩu mới' : '') + (ma2fa ? ' mã 2FA' : '') + baoMa, 'ok'); return; }
+      const khoaNhap = S.mo.bang + '.' + S.mo.id;
+      if (!Object.keys(truong).length) { nhapHuy(khoaNhap); S.hien.clear(); await napDanhSach(true); veLai(); toast('Đã lưu' + (mkMoi ? ' mật khẩu mới' : '') + (ma2fa ? ' mã 2FA' : '') + baoMa, 'ok'); return; }
       const tenNguoi = {};
       document.querySelectorAll('#soThan .the-ng').forEach((e) => { tenNguoi[e.dataset.id] = e.dataset.ten; });
       const d = await guiJson('/api/sua', { bang: S.mo.bang, id: S.mo.id, truong, tenNguoi });
+      nhapHuy(khoaNhap);                 // máy chủ đã nhận — nháp hết việc
       S.hien.clear(); await napDanhSach(true); veLai(); toast('Đã lưu ' + d.doi.length + ' ô' + (mkMoi ? ' và mật khẩu mới' : '') + baoMa, 'ok');
     } catch (er) { toast(er.message, 'err'); t.disabled = false; }
     return;
@@ -904,6 +1044,7 @@ document.addEventListener('click', async (e) => {
     t.disabled = true;
     try {
       await guiJson('/api/them-goi', { truong, matKhau: ($('#gMatKhau') || {}).value || '' });
+      nhapHuy('goi.moi');
       await napDanhSach(true); dongSo(); toast('Đã thêm gói', 'ok');
     } catch (er) { toast(er.message, 'err'); t.disabled = false; }
     return;
@@ -918,7 +1059,7 @@ document.addEventListener('click', async (e) => {
     if (!(await xacNhan('Xoá hẳn <b>' + esc(ten) + '</b> khỏi Lark Base?<br><span class="phu">Kể cả mật khẩu. Không hoàn tác được — nhật ký vẫn ghi lại tên dòng đã xoá.</span>',
       'Xoá hẳn'))) return;
     t.disabled = true;
-    try { await guiJson('/api/xoa-dong', { bang, id: S.mo.id }); S.hien.clear(); await napDanhSach(true); dongSo(); toast('Đã xoá ' + ten, 'ok'); }
+    try { await guiJson('/api/xoa-dong', { bang, id: S.mo.id }); nhapHuy(bang + '.' + S.mo.id); S.hien.clear(); await napDanhSach(true); dongSo(); toast('Đã xoá ' + ten, 'ok'); }
     catch (er) { toast(er.message, 'err'); t.disabled = false; }
     return;
   }
@@ -929,7 +1070,7 @@ document.addEventListener('click', async (e) => {
       matKhau: g('tMatKhau'), sdt: g('tSdt'), ghiChu: g('tGhiChu') };
     if (!than.nenTang.trim()) return toast('Cần điền Nền tảng', 'err');
     t.disabled = true;
-    try { await guiJson('/api/them', than); await napDanhSach(true); S.timNguoi = true; dongSo(); toast('Đã thêm tài khoản', 'ok'); }
+    try { await guiJson('/api/them', than); nhapHuy('tk.moi'); await napDanhSach(true); S.timNguoi = true; dongSo(); toast('Đã thêm tài khoản', 'ok'); }
     catch (er) { toast(er.message, 'err'); t.disabled = false; }
     return;
   }
@@ -964,6 +1105,14 @@ document.addEventListener('change', (e) => {
   }
 });
 
+/* Gõ / chọn trong form ở ngăn chi tiết → nháp. Ô mật khẩu, 2FA vẫn bắn sự kiện
+   tới đây nhưng docNhap() không bao giờ đọc chúng. Chỉ nghe cú gõ thật. */
+['input', 'change'].forEach((ev) => document.addEventListener(ev, (e) => {
+  if (!e.isTrusted || !e.target.closest || !e.target.closest('#soThan')) return;
+  if (e.target.classList.contains('tim-ng')) return;      // ô tìm người: chưa chọn ai thì chưa là dữ liệu
+  ghiNhapSo();
+}));
+
 let hoanTim = 0;
 document.addEventListener('input', (e) => {
   if (e.isTrusted && e.target.classList.contains('tim-ng')) {
@@ -985,5 +1134,6 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('#so')
 
 /* Rời tab / ẩn trang → che hết mật khẩu đang hiện. */
 document.addEventListener('visibilitychange', () => { if (document.hidden && S.hien.size) cheHet(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) ghiNhapNgay(); });   // Lark điện thoại hay không bắn beforeunload
 
 khoiTao();

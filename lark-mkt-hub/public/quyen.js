@@ -333,7 +333,8 @@ function moFormQuyen(i, nguoiSan) {
     '<div class="q-hang"><label>' + nhan + '</label><div class="q-o">' + noi +
     (ghi ? '<div class="q-ghi-nho">' + ghi + '</div>' : '') + '</div></div>';
 
-  let html = '<div class="q-form">';
+  /* nháp tại máy riêng từng người (nhap-chung.js) — 02/10/2026 */
+  let html = '<div class="q-form" data-nhap-khoa="quyen.' + (h.recordId || h.openId || h.email || 'moi') + '">';
 
   /* Ô này là cách CHẮC NHẤT để dòng bám đúng người: danh bạ lấy từ chính Lark nên
    * tên và tài khoản không thể lệch. Luôn hiện, cả khi sửa — vì dòng cũ khai tay

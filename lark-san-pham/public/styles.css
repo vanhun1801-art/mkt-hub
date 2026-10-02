@@ -660,6 +660,9 @@ main { padding: 16px; max-width: 1460px; margin: 0 auto; }
 .klForm textarea { resize: vertical; line-height: 1.5; }
 .klNut { grid-column: 1 / -1; display: flex; gap: 8px; }
 .klFormDau { grid-column: 1 / -1; font-weight: 700; font-size: 13px; }
+/* Dòng báo đã khôi phục nháp — nhỏ, không màu cảnh báo: đây là tin tốt. */
+.klNhap { grid-column: 1 / -1; font-size: 12.5px; color: var(--t2); }
+.klNhap a { color: inherit; font-weight: 700; }
 
 .bangLich .klGt { max-width: 340px; white-space: pre-wrap; font-size: 12.5px; }
 /* "Chờ áp dụng" là trạng thái BÌNH THƯỜNG của gần như mọi dòng — tô 16 pill màu

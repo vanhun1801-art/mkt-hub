@@ -37,6 +37,10 @@ const S = {
   lichMo: new Set(),
   /* id dòng lịch đang sửa; rỗng = form đang ở chế độ thêm mới. */
   lichSua: '',
+  /* Bản nháp form lịch đang mở: { khoa, v: {sanPham, cot, ngay, giaTri, ghiChu},
+     luc, khoiPhuc }. Xem docNhapLich ở khu Lịch đổi. */
+  lichNhap: null,
+  lichDaDoNhap: false,
   baseUrl: '',
   baseUrlBoSung: '',
   capNhat: 0,
@@ -690,6 +694,48 @@ const LOP_TT = {
   'Chờ áp dụng': 'cho', 'Đã áp dụng': 'xong', 'Đã huỷ': 'huy', 'Lỗi': 'loi',
 };
 
+/* BẢN NHÁP form lịch đổi.
+   Form nằm giữa #man, mà #man bị vẽ lại bằng innerHTML sau MỌI thao tác — gõ ô
+   tìm, tick một dòng, napLich sau khi huỷ… Giá trị chỉ sống trong DOM nên gõ dở
+   nội dung lịch trình mới cho một tour rồi lỡ tay lọc là mất trắng. Nay giá trị
+   sống trong S.lichNhap (lichHtml vẽ từ đó) và chép ra localStorage để qua được
+   cả tải lại trang. Khoá theo dòng lịch ('moi' = form thêm mới): nháp của dòng
+   A không được đổ vào form sửa dòng B. Chỉ xoá khi máy chủ đã nhận. */
+const NHAP_LICH = 'sanpham.nhap.lich.';
+const HAN_NHAP_LICH = 14 * 864e5;
+const O_LICH = ['sanPham', 'cot', 'ngay', 'giaTri', 'ghiChu'];
+let henLich = 0;
+
+function docNhapLich(khoa) {
+  try {
+    const d = JSON.parse(localStorage.getItem(NHAP_LICH + khoa) || 'null');
+    if (d && d.v && Date.now() - (d.luc || 0) < HAN_NHAP_LICH) return d;
+  } catch (_) {}
+  return null;
+}
+function ghiNhapLich(ngay) {
+  clearTimeout(henLich);
+  const n = S.lichNhap;
+  if (!n) return;
+  const ghi = () => {
+    try { localStorage.setItem(NHAP_LICH + n.khoa, JSON.stringify({ luc: n.luc, v: n.v })); } catch (_) {}
+  };
+  if (ngay) ghi(); else henLich = setTimeout(ghi, 400);
+}
+function boNhapLich(khoa) {
+  clearTimeout(henLich);
+  if (S.lichNhap && S.lichNhap.khoa === khoa) S.lichNhap = null;
+  try { localStorage.removeItem(NHAP_LICH + khoa); } catch (_) {}
+}
+/* Đóng form (Đóng / Thôi / chuyển sang sửa dòng khác) KHÔNG bỏ nháp — chỉ cất
+   ngay xuống localStorage rồi nhả khỏi bộ nhớ, mở lại là có dòng báo khôi phục.
+   Bấm nhầm nút Đóng không được bằng với bấm "bỏ những gì vừa gõ". */
+function catNhapLich() {
+  if (!S.lichNhap) return;
+  ghiNhapLich(true);
+  S.lichNhap = null;
+}
+
 function lichHtml() {
   const ds = S.lich;
 
@@ -719,25 +765,44 @@ function lichHtml() {
     const cu = S.lichSua ? (S.lich || []).find((r) => r.id === S.lichSua) : null;
     const sp = S.ds.slice().sort((a, b) => (a.ma || '').localeCompare(b.ma || ''));
     const spCu = cu && cu.spIds && cu.spIds.length ? cu.spIds[0] : '';
+    /* Số đã lưu của dòng (hoặc form trống), rồi phủ bản nháp lên nếu có. */
+    const khoa = S.lichSua || 'moi';
+    const goc = {
+      sanPham: spCu, cot: cu ? cu.cot || '' : '', ngay: cu ? veNgayO(cu.ngayApDung) : '',
+      giaTri: cu ? cu.giaTriMoi || '' : '', ghiChu: cu ? cu.ghiChu || '' : '',
+    };
+    if (!S.lichNhap || S.lichNhap.khoa !== khoa) {
+      const d = docNhapLich(khoa);
+      if (d && O_LICH.some((k) => String(d.v[k] || '') !== String(goc[k] || ''))) {
+        S.lichNhap = { khoa, v: d.v, luc: d.luc, khoiPhuc: true };
+      } else {
+        S.lichNhap = null;
+        if (d) boNhapLich(khoa); // nháp trùng số đã lưu: chẳng còn gì để khôi phục
+      }
+    }
+    const v = S.lichNhap ? Object.assign({}, goc, S.lichNhap.v) : goc;
     h += '<form class="klForm" id="lichForm">' +
       (cu ? '<div class="klFormDau">Sửa dòng lịch</div>' : '') +
+      (S.lichNhap && S.lichNhap.khoiPhuc
+        ? '<div class="klNhap">Đã khôi phục phần đang nhập dở lúc <b>' + esc(gioPhut(S.lichNhap.luc)) +
+          '</b> · <a href="#" id="lichBoNhap">Bỏ</a></div>' : '') +
       '<label>Sản phẩm<select name="sanPham" required>' +
       '<option value="">— chọn —</option>' +
-      sp.map((p) => '<option value="' + esc(p.id) + '"' + (spCu === p.id ? ' selected' : '') +
+      sp.map((p) => '<option value="' + esc(p.id) + '"' + (v.sanPham === p.id ? ' selected' : '') +
         ' data-no-i18n>' + esc((p.ma ? p.ma + ' — ' : '') + p.ten) + '</option>').join('') +
       '</select></label>' +
       '<label>Cột cần đổi<select name="cot" required>' +
       '<option value="">— chọn —</option>' +
-      S.cotDatLich.map((c) => '<option' + (cu && cu.cot === c ? ' selected' : '') + '>' +
+      S.cotDatLich.map((c) => '<option' + (v.cot === c ? ' selected' : '') + '>' +
         esc(c) + '</option>').join('') +
       '</select></label>' +
       '<label>Ngày áp dụng<input type="date" name="ngay" required value="' +
-        (cu ? veNgayO(cu.ngayApDung) : '') + '"></label>' +
+        esc(v.ngay) + '"></label>' +
       '<label class="rong">Giá trị mới' +
       '<textarea name="giaTri" rows="4" placeholder="Số thì gõ số trần (900000). Ngày thì YYYY-MM-DD. Chọn thì gõ đúng tên lựa chọn." data-no-i18n>' +
-        esc(cu ? cu.giaTriMoi : '') + '</textarea></label>' +
+        esc(v.giaTri) + '</textarea></label>' +
       '<label class="rong">Ghi chú<input name="ghiChu" placeholder="Nguồn, lý do đổi…" value="' +
-        esc(cu ? cu.ghiChu : '') + '" data-no-i18n></label>' +
+        esc(v.ghiChu) + '" data-no-i18n></label>' +
       '<div class="klNut">' +
       '<button class="btn primary" type="submit">' + (cu ? 'Lưu' : 'Đặt lịch') + '</button>' +
       (cu ? '<button class="btn" type="button" id="lichThoi">Thôi</button>' : '') +
@@ -804,6 +869,17 @@ function lichHtml() {
 async function napLich() {
   try { S.lich = (await api('/api/lich')).ds || []; }
   catch (e) { S.lich = []; toast(e.message, 'err'); }
+  /* Lần nạp đầu sau khi mở trang: còn nháp dở thì mở sẵn đúng form đó, không
+     thì nháp nằm im trong localStorage mà người gõ không biết để đi tìm. Ưu tiên
+     form thêm mới; không có thì dòng đang sửa dở (nếu dòng đó vẫn còn chờ áp). */
+  if (!S.lichDaDoNhap && !S.lichMoForm && !S.lichSua) {
+    S.lichDaDoNhap = true;
+    if (docNhapLich('moi')) S.lichMoForm = true;
+    else {
+      const r = S.lich.find((x) => x.trangThai === 'Chờ áp dụng' && docNhapLich(x.id));
+      if (r) S.lichSua = r.id;
+    }
+  }
   ve();
 }
 
@@ -1460,17 +1536,26 @@ document.addEventListener('click', async (ev) => {
   if (ev.target.id === 'btnXoaLoc') { xoaLoc(); ve(); return; }
 
   if (ev.target.id === 'lichThem') {
+    catNhapLich();
     S.lichMoForm = !S.lichMoForm;
     S.lichSua = '';
     ve();
     return;
   }
-  if (ev.target.id === 'lichThoi') { S.lichSua = ''; ve(); return; }
+  if (ev.target.id === 'lichThoi') { catNhapLich(); S.lichSua = ''; ve(); return; }
+  if (ev.target.id === 'lichBoNhap') {
+    /* Bỏ nháp = vẽ lại form từ số đã lưu của dòng (hoặc form trống). */
+    ev.preventDefault();
+    boNhapLich(S.lichSua || 'moi');
+    ve();
+    return;
+  }
 
   const suaL = ev.target.closest('[data-sua-lich]');
   if (suaL) {
     /* Nút nằm trong <summary>; không chặn thì cú bấm vừa mở form vừa gập khối. */
     ev.preventDefault();
+    catNhapLich();
     S.lichSua = suaL.dataset.suaLich;
     S.lichMoForm = false;
     ve();
@@ -1541,6 +1626,27 @@ document.addEventListener('click', async (ev) => {
     }
   }
 });
+
+/* Mỗi lần gõ/chọn trong form lịch: chép cả form vào S.lichNhap (lichHtml vẽ lại
+   từ đó) rồi hẹn ghi localStorage. Nghe cả 'change' vì select và ô ngày trên
+   vài trình duyệt chỉ bắn change. */
+function chepNhapLich(ev) {
+  const f = ev.target.form;
+  if (!f || f.id !== 'lichForm') return;
+  const khoa = S.lichSua || 'moi';
+  const v = {};
+  O_LICH.forEach((k) => { v[k] = f[k] ? f[k].value : ''; });
+  /* Form thêm mới bị xoá trắng lại thì không còn gì để giữ — để nguyên nháp rỗng
+     là lần sau mở trang form tự bật ra mà chẳng có gì trong đó. */
+  if (khoa === 'moi' && !O_LICH.some((k) => v[k])) { boNhapLich('moi'); return; }
+  S.lichNhap = {
+    khoa, v, luc: Date.now(),
+    khoiPhuc: !!(S.lichNhap && S.lichNhap.khoa === khoa && S.lichNhap.khoiPhuc),
+  };
+  ghiNhapLich();
+}
+document.addEventListener('input', chepNhapLich);
+document.addEventListener('change', chepNhapLich);
 
 document.addEventListener('input', (ev) => {
   if (ev.target.id === 'oTim') {
@@ -1644,6 +1750,8 @@ document.addEventListener('submit', async (ev) => {
     };
     const dangSua = S.lichSua;
     await guiJson(dangSua ? '/api/lich/' + dangSua : '/api/lich/them', than);
+    /* Máy chủ đã nhận — giờ mới bỏ nháp. Lỗi thì nháp còn nguyên để bấm lại. */
+    boNhapLich(dangSua || 'moi');
     S.lichMoForm = false;
     S.lichSua = '';
     await napLich();

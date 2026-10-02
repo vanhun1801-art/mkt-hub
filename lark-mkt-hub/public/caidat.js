@@ -994,7 +994,9 @@ function moFormTb(tb) {
   const hang = (nhan, noi) =>
     '<div class="q-hang"><label>' + nhan + '</label><div class="q-o">' + noi + '</div></div>';
 
-  let html = '<div class="q-form">';
+  /* data-nhap-khoa: nháp tại máy (nhap-chung.js) riêng từng thông báo — sửa tin A
+   * không bị mời khôi phục chữ đang gõ dở của tin B (02/10/2026). */
+  let html = '<div class="q-form" data-nhap-khoa="tb.' + ((tb && (tb.id || tb.recordId)) || 'moi') + '">';
   html += hang('Mức độ',
     '<select class="q-in" id="tbMucDo">' + (d.mucDo || ['Tin']).map((x) =>
       '<option value="' + esc(x) + '"' + (t.mucDo === x ? ' selected' : '') + '>' + esc(x) + '</option>').join('') +

@@ -861,6 +861,39 @@
     ['messages', 'Tin nhắn'], ['leads', 'Lead'], ['posts', 'Số bài đăng'],
   ];
 
+  /* Bản nháp của ô nhập tay. Form này nằm thẳng trên trang chứ không trong
+     modal, nên lớp nháp chung của Hub không trông hộ — mà bấm sang tab khác là
+     veNhapTay vẽ lại từ đầu, gõ mười mấy con số xong lỡ tay là mất sạch. Giữ
+     một bản trong bộ nhớ (sống qua lượt vẽ lại) và chép ra localStorage (sống
+     qua tải lại trang). Một bản cho cả máy là đủ: kênh và ngày nằm luôn trong
+     bản nháp, khôi phục là về đúng kênh đúng ngày đang gõ dở. */
+  const KHOA_NT = 'social.nhap.nhapTay';
+  const HAN_NHAP_NT = 14 * 864e5;
+  let NT = null; // { kenh, ngay, so: { k: v }, luc }
+  let henNT = 0;
+  function docNhapNT() {
+    if (NT) return NT;
+    try {
+      const d = JSON.parse(localStorage.getItem(KHOA_NT) || 'null');
+      if (d && d.so && Object.keys(d.so).length && Date.now() - (d.luc || 0) < HAN_NHAP_NT) NT = d;
+    } catch (_) { /* bỏ qua */ }
+    return NT;
+  }
+  function ghiNhapNT() {
+    clearTimeout(henNT);
+    henNT = setTimeout(() => {
+      try {
+        if (NT) localStorage.setItem(KHOA_NT, JSON.stringify(NT));
+        else localStorage.removeItem(KHOA_NT);
+      } catch (_) { /* bỏ qua */ }
+    }, 400);
+  }
+  function boNhapNT() {
+    NT = null; clearTimeout(henNT);
+    try { localStorage.removeItem(KHOA_NT); } catch (_) { /* bỏ qua */ }
+  }
+  const gioPhut = (t) => new Date(t).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+
   function veNhapTay() {
     $('#view').innerHTML = ''
       + '<div class="notes" style="margin-bottom:14px">'
@@ -871,7 +904,8 @@
       + 'phân biệt được cái nào máy lấy, cái nào người gõ.'
       + '</span></div></div>'
       + '<div class="card"><div class="card-head"><h3>Nhập số liệu một ngày</h3></div>'
-      + '<div class="card-body">'
+      + '<div class="card-body" id="ntForm">'
+      + '<div id="ntKhoiPhuc"></div>'
       + '<div class="nhap-grid" style="margin-bottom:12px">'
       + '<div style="grid-column:span 2"><label>Kênh</label>' + chonKenhHtml('ntKenh') + '</div>'
       + '<div><label>Ngày</label><input type="date" id="ntNgay" value="' + homNay() + '"></div>'
@@ -896,12 +930,45 @@
       ], S.kenh)
       + '</div></div>';
 
+    /* Vẽ lại xong thì đổ bản nháp (nếu có) về form. Kênh đã bị gỡ khỏi danh
+       sách thì để select tự chọn kênh đầu — vẫn giữ số, người nhập tự chọn lại. */
+    const nh = docNhapNT();
+    if (nh) {
+      if ([...$('#ntKenh').options].some((o) => o.value === nh.kenh)) $('#ntKenh').value = nh.kenh;
+      if (nh.ngay) $('#ntNgay').value = nh.ngay;
+      $$('.nt').forEach((i) => { i.value = nh.so[i.dataset.k] != null ? nh.so[i.dataset.k] : ''; });
+      $('#ntKhoiPhuc').innerHTML = '<div class="note info" style="margin-bottom:12px">'
+        + '<span class="ico">↺</span><span>Đã khôi phục phần đang nhập dở lúc '
+        + esc(gioPhut(nh.luc)) + ' · <a href="#" id="ntBo">Bỏ</a></span></div>';
+      $('#ntBo').onclick = (e) => {
+        e.preventDefault();
+        boNhapNT();
+        /* "Giá trị đã lưu" của form này là form trống (ô trống = không đụng Base). */
+        $$('.nt').forEach((i) => { i.value = ''; });
+        $('#ntNgay').value = homNay();
+        $('#ntKhoiPhuc').innerHTML = '';
+      };
+    }
+    const chepNhap = () => {
+      const so = {};
+      $$('.nt').forEach((i) => { if (i.value !== '') so[i.dataset.k] = i.value; });
+      /* Chưa gõ con số nào thì chẳng có gì để mất — không giữ nháp chỉ vì đổi kênh. */
+      NT = Object.keys(so).length
+        ? { kenh: $('#ntKenh').value, ngay: $('#ntNgay').value, so, luc: Date.now() } : null;
+      ghiNhapNT();
+    };
+    $('#ntForm').addEventListener('input', chepNhap);
+    $('#ntForm').addEventListener('change', chepNhap);
+
     $('#ntLuu').onclick = async () => {
       const ban = { extId: $('#ntKenh').value, date: $('#ntNgay').value };
       $$('.nt').forEach((i) => { if (i.value !== '') ban[i.dataset.k] = i.value; });
       try {
         const r = await goiJSON('/api/nhap-tay', ban);
         toast('Đã ghi ' + r.kenh + ' · ' + r.ngay);
+        /* Chỉ bỏ nháp khi Base đã nhận — lỗi mạng thì số vẫn còn để bấm lại. */
+        boNhapNT();
+        if ($('#ntKhoiPhuc')) $('#ntKhoiPhuc').innerHTML = '';
         $$('.nt').forEach((i) => { i.value = ''; });
         S.du = null; tai();
       } catch (e) { toast(e.message, 'err'); }
@@ -1138,14 +1205,14 @@
       + '<label><input type="checkbox" id="fbOn"' + (c.facebook.enabled ? ' checked' : '')
       + '> bật</label></header><div class="body">'
       + '<div class="kn-row"><label>Token gốc</label>'
-      + '<input id="fbToken" value="' + esc(c.facebook.userToken || '') + '" '
+      + '<input id="fbToken" class="ios-khong-nhap" value="' + esc(c.facebook.userToken || '') + '" '
       + 'placeholder="System User token (không hết hạn) — quyền pages_read_engagement, pages_show_list, read_insights"></div>'
       + '<div class="kn-row"><label>Phiên bản API</label>'
       + '<input id="fbVer" value="' + esc(c.facebook.apiVersion || 'v23.0') + '"></div>'
       + '<div><button class="btn ghost small" id="fbLietKe">Liệt kê Page từ token</button>'
       + ' <span class="help">Chọn trang xong app tự lấy page token và tự cắm Instagram gắn với trang đó.</span></div>'
       + '<div class="kn-row"><label>Thử mã đọc người đăng</label>'
-      + '<input id="fbThuNd" placeholder="Dán mã sinh từ tài khoản Facebook của người thật — chỉ để thử, KHÔNG lưu"></div>'
+      + '<input id="fbThuNd" class="ios-khong-nhap" placeholder="Dán mã sinh từ tài khoản Facebook của người thật — chỉ để thử, KHÔNG lưu"></div>'
       + '<div><button class="btn ghost small" id="fbThuNdBtn">Thử xem có đọc được người đăng không</button>'
       + ' <span class="help">Facebook hiện "Người đăng: …" dưới tên Trang, nhưng mã Người dùng hệ thống '
       + 'không đọc được — Meta chỉ trả trường đó cho mã sinh từ một CON NGƯỜI có vai trò trên Trang. '
@@ -1165,9 +1232,9 @@
       + '<label><input type="checkbox" id="ttOn"' + (c.tiktok.enabled ? ' checked' : '')
       + '> bật</label></header><div class="body">'
       + '<div class="kn-row"><label>Client key</label>'
-      + '<input id="ttKey" value="' + esc(c.tiktok.clientKey || '') + '"></div>'
+      + '<input id="ttKey" class="ios-khong-nhap" value="' + esc(c.tiktok.clientKey || '') + '"></div>'
       + '<div class="kn-row"><label>Client secret</label>'
-      + '<input id="ttSecret" value="' + esc(c.tiktok.clientSecret || '') + '"></div>'
+      + '<input id="ttSecret" class="ios-khong-nhap" value="' + esc(c.tiktok.clientSecret || '') + '"></div>'
       + '<div class="kn-row"><label>Địa chỉ chuyển hướng</label>'
       + '<input id="ttRedirect" value="' + esc(c.tiktok.redirectUri || (location.origin + '/tiktok-callback'))
       + '" placeholder="https://…"></div>'
@@ -1199,7 +1266,7 @@
       + '<div style="margin:8px 0"><button class="btn ghost small" id="ttLink">1 · Tạo link cấp quyền</button></div>'
       + '<div id="ttLinkBox"></div>'
       + '<div class="kn-row"><label>2 · Dán URL trả về</label>'
-      + '<input id="ttCode" placeholder="dán nguyên cả thanh địa chỉ sau khi bấm đồng ý"></div>'
+      + '<input id="ttCode" class="ios-khong-nhap" placeholder="dán nguyên cả thanh địa chỉ sau khi bấm đồng ý"></div>'
       + '<div style="margin-top:8px"><button class="btn primary small" id="ttDoi">3 · Đổi mã lấy token</button></div>'
       + '</div>'
 
@@ -1216,7 +1283,7 @@
       + '<div class="kn-row"><label>App ID</label>'
       + '<input id="zaApp" value="' + esc(c.zalo.appId || '') + '"></div>'
       + '<div class="kn-row"><label>Secret key</label>'
-      + '<input id="zaSecret" value="' + esc(c.zalo.secretKey || '') + '"></div>'
+      + '<input id="zaSecret" class="ios-khong-nhap" value="' + esc(c.zalo.secretKey || '') + '"></div>'
       + '<div class="kn-row"><label>Địa chỉ chuyển hướng</label>'
       + '<input id="zaRedirect" value="' + esc(c.zalo.redirectUri || (location.origin + '/zalo-callback'))
       + '"><span class="help">Phải trùng từng ký tự với ô Redirect URI khai trong ứng dụng ở '
@@ -1225,7 +1292,7 @@
       + '<div style="margin:8px 0"><button class="btn ghost small" id="zaLink">1 · Tạo link cấp quyền</button></div>'
       + '<div id="zaLinkBox"></div>'
       + '<div class="kn-row"><label>2 · Mã uỷ quyền</label>'
-      + '<input id="zaCode" placeholder="dán giá trị code=... trên thanh địa chỉ sau khi bấm Cho phép"></div>'
+      + '<input id="zaCode" class="ios-khong-nhap" placeholder="dán giá trị code=... trên thanh địa chỉ sau khi bấm Cho phép"></div>'
       + '<div><button class="btn ghost small" id="zaDoi">3 · Đổi mã lấy token</button>'
       + ' <span class="help">Token Zalo sống 1 giờ; app tự làm mới và cất bản mới vào kho khoá.</span></div>'
       + '<div class="acc-list">'
@@ -1522,7 +1589,7 @@
       + '<option value="business"' + (ch.mode === 'business' ? ' selected' : '') + '>business</option>'
       + '</select>'
       + '<input class="tt-biz" style="flex:1 1 130px" placeholder="business_id (nếu business)" value="' + esc(ch.businessId || '') + '">'
-      + '<input class="tt-rt" style="flex:1 1 200px" placeholder="refresh token" value="' + esc(ch.refreshToken || '') + '">'
+      + '<input class="tt-rt ios-khong-nhap" style="flex:1 1 200px" placeholder="refresh token" value="' + esc(ch.refreshToken || '') + '">'
       + '</div>';
   }
 

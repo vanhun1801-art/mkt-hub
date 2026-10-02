@@ -108,6 +108,7 @@ async function nap(moi) {
    * (màn chờ phải hiện ngay), và tuLuu() chụp S.du/S.ma của lịch ĐANG HIỆN
    * ngay lúc gọi — nút đổi tháng đã đổi S.thang trước khi vào đây rồi. */
   if (henTL) tuLuu();
+  ghiNhapNgay();                 // nháp trên máy của lịch đang hiện, ghi trước khi thay
   S.ttTuLuu = '';
   veTabs();
   /* Đổi tháng / đổi tab / xem hộ người khác = NỘI DUNG CŨ KHÔNG CÒN ĐÚNG nữa,
@@ -124,6 +125,7 @@ async function nap(moi) {
       S.du = await goi('/api/thang?thang=' + S.thang + (S.hoNguoi ? '&nhan-su=' + encodeURIComponent(S.hoNguoi) : '') + m);
       S.ma = S.du.ngay ? S.du.ngay.map((x) => x.ma) : [];
       S.ghiChu = null;
+      khoiPhucNhap();
       S.phong = laQL() && !S.hoNguoi ? await goi('/api/ca-phong?thang=' + S.thang + m) : null;
     }
     ve();
@@ -217,7 +219,10 @@ function veToi() {
   if (sua) {
     h += '<section class="the"><div class="the-than">' +
       '<textarea class="in" id="ghiChu" placeholder="Ghi chú cho quản lý / HCNS">' + esc(S.ghiChu != null ? S.ghiChu : ((ph && ph.ghiChu) || '')) + '</textarea>' +
-      '<div class="hang-nut" style="margin-top:10px"><span class="lon"></span>' +
+      '<div class="hang-nut" style="margin-top:10px">' +
+      (S.kp ? '<span class="nho" style="color:var(--orange-text)">Đã khôi phục phần đang nhập dở lúc ' +
+        esc(veLuc(S.kp).slice(0, 5)) + ' · <a href="#" data-bo-nhap="1">Bỏ</a></span>' : '') +
+      '<span class="lon"></span>' +
       '<span class="nho" id="ttTuLuu">' + (S.ttTuLuu || (doi ? S.ma.filter((m, i) => m !== d.ngay[i].ma).length + ' ngày chưa lưu' : (ph && ph.daNop) || d.hoNguoi ? '' : 'Tự lưu nháp khi có thay đổi')) + '</span>' +
       '<button class="btn chinh" data-luu="1"' + (S.dangLuu ? ' disabled' : '') + '>' +
       (ph && ph.daNop ? 'Nộp lại' : 'Nộp đăng ký') + '</button></div></div></section>';
@@ -255,10 +260,14 @@ async function luu(nop) {
   ve();
   const ghi = $('#ghiChu');
   const ghiChu = ghi ? ghi.value : undefined;
+  const k = S.du && S.du.thang && !S.du.chuaKhop ? khoaNhap(S.du) : '';   // tính trước: nap() sẽ thay S.du
   try {
     const r = await goi('/api/thang', { method: 'POST', body: JSON.stringify({
       thang: S.thang, ma: S.ma, nop, ghiChu, nhanSu: S.hoNguoi || undefined,
     }) });
+    /* Máy chủ đã nhận đúng bản này — nháp trên máy hết việc. */
+    if (k) { clearTimeout(henNhap); henNhap = 0; layNhap = null; nhapXoa(k); }
+    S.kp = 0;
     bao(nop ? 'Đã nộp lịch tháng ' + veThang(S.thang) : 'Đã lưu nháp');
     S.dangLuu = false;
     await nap(true);
@@ -287,12 +296,65 @@ function coGiNhap() {
   const ghi = S.ghiChu != null && S.ghiChu !== ((d.phieu && d.phieu.ghiChu) || '');
   return ghi || S.ma.some((m, i) => m !== (d.ngay[i] && d.ngay[i].ma));
 }
+/* ---------------- nháp trên máy ----------------
+ * Hai trường hợp KHÔNG tự lưu lên máy chủ (lịch đã nộp · quản lý sửa hộ) thì
+ * trước đây chỉ có bộ nhớ: lỡ tải lại trang là mất cả dãy ngày vừa tô. Nay chép
+ * một bản xuống máy này (không gửi đi đâu), khoá theo người + tháng, quá 14 ngày
+ * thì bỏ. Chỉ xoá sau khi "Nộp lại" / "Nộp đăng ký" thành công. */
+const NHAP_HAN = 14 * 86400000;
+const nhapMayDuoc = (d) => !!(d && d.ngay && d.thang && d.suaDuoc && !d.chuaKhop &&
+  (d.hoNguoi || (d.phieu && d.phieu.daNop)));
+const khoaNhap = (d) => 'llv.nhap.lich.' + ((d.nhanSu && d.nhanSu.recordId) || d.hoNguoi || 'toi') + '.' + d.thang;
+function nhapDoc(k) {
+  try {
+    const v = JSON.parse(localStorage.getItem(k) || 'null');
+    if (v && v.luc && Date.now() - v.luc <= NHAP_HAN) return v;
+    if (v) localStorage.removeItem(k);
+  } catch (_) { /* chặn lưu / hỏng: coi như không có */ }
+  return null;
+}
+function nhapXoa(k) { try { localStorage.removeItem(k); } catch (_) { /* thôi */ } }
+let henNhap = 0, layNhap = null;
+/** Chụp lịch ĐANG HIỆN ngay lúc gọi, ghi xuống máy sau 0,4 giây. */
+function henNhapMay() {
+  const d = S.du;
+  if (!nhapMayDuoc(d)) return;
+  const k = khoaNhap(d);
+  layNhap = () => {
+    if (S.du !== d) return;                       // đã sang lịch khác (nap() đã ghi trước khi thay)
+    const doiMa = S.ma.some((m, i) => m !== (d.ngay[i] && d.ngay[i].ma));
+    const doiGhi = S.ghiChu != null && S.ghiChu !== ((d.phieu && d.phieu.ghiChu) || '');
+    try {
+      if (doiMa || doiGhi) localStorage.setItem(k, JSON.stringify({ luc: Date.now(), ma: S.ma.slice(), ghiChu: doiGhi ? S.ghiChu : null }));
+      else localStorage.removeItem(k);
+    } catch (_) { /* hết chỗ: thôi */ }
+  };
+  clearTimeout(henNhap);
+  henNhap = setTimeout(ghiNhapNgay, 400);
+}
+function ghiNhapNgay() { clearTimeout(henNhap); henNhap = 0; const f = layNhap; layNhap = null; if (f) f(); }
+/** Vừa nạp lịch: có nháp trên máy khác bản đã lưu thì đem ra, kèm dòng báo. */
+function khoiPhucNhap() {
+  S.kp = 0;
+  const d = S.du;
+  if (!nhapMayDuoc(d)) return;
+  const k = khoaNhap(d), n = nhapDoc(k);
+  if (!n || !Array.isArray(n.ma) || n.ma.length !== d.ngay.length) { if (n) nhapXoa(k); return; }
+  const doiMa = n.ma.some((m, i) => m !== d.ngay[i].ma);
+  const doiGhi = n.ghiChu != null && n.ghiChu !== ((d.phieu && d.phieu.ghiChu) || '');
+  if (!doiMa && !doiGhi) { nhapXoa(k); return; }
+  S.ma = n.ma.slice();
+  if (doiGhi) S.ghiChu = n.ghiChu;
+  S.kp = n.luc;
+}
+
 function datTT(chu) {
   S.ttTuLuu = chu;
   const o = document.getElementById('ttTuLuu');
   if (o) o.textContent = chu;
 }
 function henTuLuu() {
+  henNhapMay();
   if (!coGiNhap()) return;
   SUA++;
   clearTimeout(henTL);
@@ -323,9 +385,10 @@ async function tuLuu(roiTrang) {
   }
 }
 document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') ghiNhapNgay();   // Lark trên điện thoại hay không bắn beforeunload
   if (document.visibilityState === 'hidden' && henTL) tuLuu(true);
 });
-window.addEventListener('beforeunload', () => { if (henTL) tuLuu(true); });
+window.addEventListener('beforeunload', () => { ghiNhapNgay(); if (henTL) tuLuu(true); });
 
 /* ---------------- tab Cả phòng ---------------- */
 function vePhong() {
@@ -402,9 +465,12 @@ function veTV() {
         : x.trangThai === 'Nháp' ? '<span class="nhan-tt cam">Nháp</span>' : '<span class="nhan-tt xanh">Đã nộp</span>';
   const o = (ten, v, rong) => '<input class="in-o" data-f="' + ten + '" value="' + esc(v == null ? '' : v) + '"' +
     (rong ? ' style="width:' + rong + '"' : '') + '>';
+  /* Chữ đang gõ ở dòng sửa (S.tvGo) thắng dữ liệu đã lưu: tick "Đang làm" của
+   * người khác là nạp lại cả bảng, trước đây xoá trắng dòng đang sửa dở. */
+  const gt = (x, f) => (S.tvGo && S.tvGo.rec === (x.recordId || 'moi') && f in S.tvGo.o ? S.tvGo.o[f] : x[f]);
   const dongSua = (x) => '<tr class="tv-sua" data-rec="' + esc(x.recordId || 'moi') + '">' +
-    '<td>' + o('thuTu', x.thuTu, '48px') + '</td><td>' + o('hoTen', x.hoTen) + '</td><td>' + o('maNV', x.maNV, '96px') +
-    '</td><td>' + o('chucVu', x.chucVu) + '</td><td>' + o('email', x.email) + '</td><td colspan="2"></td>' +
+    '<td>' + o('thuTu', gt(x, 'thuTu'), '48px') + '</td><td>' + o('hoTen', gt(x, 'hoTen')) + '</td><td>' + o('maNV', gt(x, 'maNV'), '96px') +
+    '</td><td>' + o('chucVu', gt(x, 'chucVu')) + '</td><td>' + o('email', gt(x, 'email')) + '</td><td colspan="2"></td>' +
     '<td class="tv-nut"><button class="btn nho chinh" data-tv-luu="' + esc(x.recordId || 'moi') + '">Lưu</button>' +
     '<button class="btn nho mo" data-tv-huy="1">Huỷ</button></td></tr>';
   const dong = (x) => S.tvSua === x.recordId ? dongSua(x) :
@@ -432,7 +498,8 @@ function veTV() {
 /* Kỳ đăng ký cố định: quản lý chỉnh ngày/giờ mở, số ngày tới lúc đóng, và có
  * khoá các app khác của hub hay không. */
 function veCauHinh() {
-  const c = S.ch.ch, k = S.ch.ky;
+  /* Như dòng thành viên: số đang chỉnh dở (S.chGo) giữ qua các lần nạp lại. */
+  const c = Object.assign({}, S.ch.ch, S.chGo || {}), k = S.ch.ky;
   const so = (f, v, min, max) => '<input class="in-o" type="number" data-ch="' + f + '" value="' + esc(v) + '" min="' + min + '" max="' + max + '" style="width:64px">';
   const gio = (f, v) => '<input class="in-o" type="text" inputmode="numeric" maxlength="5" placeholder="HH:MM" data-ch="' + f + '" value="' + esc(v) + '" style="width:72px">';
   return '<section class="the"><div class="the-dau"><h2>Kỳ đăng ký</h2>' +
@@ -451,6 +518,7 @@ async function luuCH() {
   document.querySelectorAll('[data-ch]').forEach((i) => { o[i.dataset.ch] = i.type === 'checkbox' ? i.checked : i.value; });
   try {
     const r = await goi('/api/cau-hinh', { method: 'POST', body: JSON.stringify(o) });
+    S.chGo = null;
     bao('Đã lưu · tháng ' + veThang(r.ky.thang) + ' mở ' + veKy(r.ky));
     await nap(true);
   } catch (e) { bao(e.message, 'do'); }
@@ -464,7 +532,7 @@ async function luuTV(rec) {
   if (rec !== 'moi') o.recordId = rec;
   try {
     await goi('/api/thanh-vien', { method: 'POST', body: JSON.stringify(o) });
-    S.tvSua = '';
+    S.tvSua = ''; S.tvGo = null;
     bao(rec === 'moi' ? 'Đã thêm ' + o.hoTen : 'Đã lưu');
     await nap(true);
   } catch (e) { bao(e.message, 'do'); }
@@ -485,6 +553,7 @@ document.addEventListener('click', async (e) => {
   if ((x = el('[data-tab]'))) {
     S.tab = x.dataset.tab;
     S.hoNguoi = '';
+    S.tvGo = null; S.chGo = null;     // rời hẳn tab: bỏ chỉnh dở như trước
     return nap();
   }
   if ((x = el('[data-co]'))) { S.co = x.dataset.co; return ve(); }
@@ -497,6 +566,14 @@ document.addEventListener('click', async (e) => {
     return henTuLuu();
   }
   if (el('[data-chuan]')) { S.ma = S.du.ngay.map((n) => n.chuan); ve(); return henTuLuu(); }
+  if (el('[data-bo-nhap]')) {
+    /* Bỏ bản khôi phục: về đúng lịch đã lưu trên Base. */
+    e.preventDefault();
+    clearTimeout(henNhap); henNhap = 0; layNhap = null;
+    if (S.du) nhapXoa(khoaNhap(S.du));
+    S.ma = S.du.ngay.map((n) => n.ma); S.ghiChu = null; S.kp = 0;
+    return ve();
+  }
   if ((x = el('[data-luu]'))) return luu(x.dataset.luu === '1');
   if ((x = el('[data-toi-la]'))) {
     try {
@@ -512,8 +589,8 @@ document.addEventListener('click', async (e) => {
     return window.scrollTo(0, 0);
   }
   if (el('[data-ch-luu]')) return luuCH();
-  if ((x = el('[data-tv-sua]'))) { S.tvSua = x.dataset.tvSua; return ve(); }
-  if (el('[data-tv-huy]')) { S.tvSua = ''; return ve(); }
+  if ((x = el('[data-tv-sua]'))) { S.tvSua = x.dataset.tvSua; S.tvGo = null; return ve(); }
+  if (el('[data-tv-huy]')) { S.tvSua = ''; S.tvGo = null; return ve(); }
   if ((x = el('[data-tv-luu]'))) return luuTV(x.dataset.tvLuu);
   if ((x = el('[data-tv-go]'))) return doiTV(x.dataset.tvGo, { goLienKet: true },
     'Gỡ tài khoản đang gắn với ' + x.dataset.ten + '? Lần mở sau app nhận lại người theo tên.');
@@ -523,6 +600,16 @@ document.addEventListener('click', async (e) => {
 });
 document.addEventListener('input', (e) => {
   if (e.target && e.target.id === 'ghiChu') { S.ghiChu = e.target.value; henTuLuu(); }
+  const t = e.target;
+  const tr = t && t.dataset && t.dataset.f && t.closest('tr.tv-sua');
+  if (tr) {
+    if (!S.tvGo || S.tvGo.rec !== tr.dataset.rec) S.tvGo = { rec: tr.dataset.rec, o: {} };
+    S.tvGo.o[t.dataset.f] = t.value;
+  }
+  if (t && t.dataset && t.dataset.ch) {
+    S.chGo = S.chGo || {};
+    S.chGo[t.dataset.ch] = t.type === 'checkbox' ? t.checked : t.value;
+  }
 });
 $('#thangTruoc').onclick = () => { S.thang = congThang(S.thang, -1); nap(); };
 $('#thangSau').onclick = () => { S.thang = congThang(S.thang, 1); nap(); };

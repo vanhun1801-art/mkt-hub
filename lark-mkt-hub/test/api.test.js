@@ -105,7 +105,7 @@ const json = async (p, opts) => {
      * con — gắn tiền tố /m/<id>/ vào là trỏ sang server của module, nơi không có
      * file đó. Mọi đường dẫn khác phải mang tiền tố. */
     const conTuyetDoi = html.raw.replace(
-      /\s(?:href|src)="\/(?:loc\.js|i18n\.js|thugon\.js|dienthoai\.css|ios\.css|ios-app\.js)[^"]*"/g, ' ');
+      /\s(?:href|src)="\/(?:loc\.js|i18n\.js|thugon\.js|dienthoai\.css|ios\.css|ios-app\.js|nhap-chung\.js)[^"]*"/g, ' ');
     ok(!/(\s(?:href|src)=")\/(?!\/|m\/)/.test(conTuyetDoi),
       '  ' + m.id + ': không còn đường dẫn tuyệt đối chưa gắn tiền tố');
     // app.js/styles.css có thể được khai bằng đường dẫn tương đối (như app quảng cáo)

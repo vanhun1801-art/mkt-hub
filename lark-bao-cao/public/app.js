@@ -30,6 +30,52 @@ let BAN = false;    // có thay đổi chưa lưu
 let TD_KY = 'tuan';
 let TD_MOC = Date.now();
 
+/* ---------------- bản nháp trên máy (localStorage) ----------------
+ * Mấy chỗ dưới đây chỉ giữ chữ đang gõ trong bộ nhớ: ghi chú xử lý ở Cần hỗ
+ * trợ, Thiết lập, phiếu ĐÃ NỘP đang sửa. Lỡ tải lại trang (hay hub tự làm mới)
+ * là mất trắng. Nên chép một bản xuống máy, có ghi giờ — quá 14 ngày coi như
+ * bỏ dở hẳn, không đem ra khôi phục nữa. Chỉ xoá bản nháp SAU KHI máy chủ báo
+ * lưu được; lưu hỏng thì nháp còn nguyên. */
+const NHAP_HAN = 14 * 86400000;
+const NHAP_TRUOC = 'bao-cao.nhap.';
+function nhapDoc(khoa) {
+  try {
+    const v = JSON.parse(localStorage.getItem(NHAP_TRUOC + khoa) || 'null');
+    if (!v || !v.luc || Date.now() - v.luc > NHAP_HAN) { if (v) localStorage.removeItem(NHAP_TRUOC + khoa); return null; }
+    return v;
+  } catch (_) { return null; }
+}
+function nhapGhi(khoa, v) {
+  try { localStorage.setItem(NHAP_TRUOC + khoa, JSON.stringify(Object.assign({}, v, { luc: Date.now() }))); } catch (_) { /* hết chỗ / chặn lưu: thôi */ }
+}
+function nhapXoa(khoa) {
+  try { localStorage.removeItem(NHAP_TRUOC + khoa); } catch (_) { /* không sao */ }
+}
+/* Ghi xuống máy chậm 0,4 giây sau phím cuối — gõ liên tục không ghi từng phím. */
+const henNhap = {};
+function nhapHen(khoa, layV) {
+  clearTimeout(henNhap[khoa]);
+  henNhap[khoa] = setTimeout(() => { delete henNhap[khoa]; const v = layV(); if (v) nhapGhi(khoa, v); else nhapXoa(khoa); }, 400);
+  henNhap[khoa].lay = layV;
+}
+/** Rời trang: ghi ngay mọi bản đang hẹn, đừng để 0,4 giây cuối rơi mất. */
+function nhapGhiHet() {
+  Object.keys(henNhap).forEach((k) => {
+    const h = henNhap[k]; clearTimeout(h); delete henNhap[k];
+    const v = h && h.lay && h.lay(); if (v) nhapGhi(k, v); else nhapXoa(k);
+  });
+}
+function nhapHuy(khoa) { clearTimeout(henNhap[khoa]); delete henNhap[khoa]; nhapXoa(khoa); }
+/** Ghi ngay (bỏ lượt đang hẹn) — dùng khi vừa lưu xong một phần, phần còn lại phải đúng tức thì. */
+function nhapNgay(khoa, layV) {
+  clearTimeout(henNhap[khoa]); delete henNhap[khoa];
+  const v = layV(); if (v) nhapGhi(khoa, v); else nhapXoa(khoa);
+}
+const gioPhut = (ms) => { const g = new Date(ms); return String(g.getHours()).padStart(2, '0') + ':' + String(g.getMinutes()).padStart(2, '0'); };
+/** Dòng báo nhỏ "đã khôi phục …" kèm nút Bỏ (data-bo-nhap mang tên chỗ cần bỏ). */
+const baoKhoiPhuc = (luc, cho) => '<span class="nho nhap-kp" style="color:var(--orange-text)">Đã khôi phục phần đang nhập dở lúc ' +
+  gioPhut(luc) + ' · <a href="#" data-bo-nhap="' + esc(cho) + '">Bỏ</a></span>';
+
 const MAN_TOI = [
   { ma: 'ngay', ten: 'Hôm nay' },
   { ma: 'tuan', ten: 'Tuần' },
@@ -159,6 +205,10 @@ function veTab(o, ds) {
     b.onclick = async () => {
       await luuTruocKhiDi();
       if (BAN && !confirm('Còn thay đổi chưa lưu. Rời đi?')) return;
+      /* Thiết lập giữ chỉnh sửa trong TL (và bản nháp trên máy) nên rời tab không
+       * mất — nhưng vẫn phải hỏi, kẻo tưởng đã lưu rồi bỏ đi luôn. */
+      if (MAN === 'thiet-lap' && (TL_BAN || TL_TIN_BAN) &&
+        !confirm('Thiết lập còn chỉnh chưa lưu (vẫn giữ nháp trên máy này). Rời đi?')) return;
       BAN = false;
       MAN = b.dataset.man;
       MOC = Date.now();
@@ -169,6 +219,8 @@ function veTab(o, ds) {
 }
 
 window.addEventListener('beforeunload', (e) => {
+  nhapGhiHet();
+  if (!BAN && (TL_BAN || TL_TIN_BAN)) { e.preventDefault(); e.returnValue = ''; return; }
   if (!BAN) return;
   if (tuLuuDuoc()) { tuLuu(true); return; }   // phiếu nháp: gửi luôn (keepalive), khỏi hỏi
   e.preventDefault();
@@ -218,6 +270,7 @@ async function veManPhieu(el, loaiKy) {
 
   gan(loaiKy);
   if (loaiKy === 'ngay') tinhLai();
+  khoiPhucSua();
   napNhanDinh(loaiKy);
   if (SO_MO && DU.tongHop) moSo('Chi tiết kỳ', DU.nhan || '', soKy(DU));
 }
@@ -847,6 +900,7 @@ function theLuu(d) {
     '<button class="btn chinh" id="btnNop">' + (daNop ? 'Cập nhật báo cáo' : 'Nộp báo cáo') + '</button>' +
     // Không còn nút Lưu nháp (28/09): phiếu chưa nộp tự lưu nháp liên tục
     '<span class="nho" id="ttTuLuu">' + (daNop ? '' : 'Tự lưu nháp khi có thay đổi') + '</span>' +
+    '<span id="ttKhoiPhuc"></span>' +
     '</div></div>';
 }
 
@@ -1076,8 +1130,12 @@ function moNopSanPham(maViec, ten, op) {
     hop = document.createElement('dialog');
     hop.id = 'hopNopSP';
     hop.className = 'hop-nop';
+    hop.setAttribute('role', 'dialog');
     document.body.appendChild(hop);
   }
+  /* Lớp nháp chung của hub giữ link + ghi chú đang gõ dở, khoá theo mã việc —
+   * đóng "Để sau" rồi mở lại đúng việc đó là còn nguyên. */
+  hop.setAttribute('data-nhap-khoa', maViec);
   hop.innerHTML =
     '<form method="dialog" class="hn-than">' +
       '<div class="hn-dau"><div class="hn-nhan">Nộp sản phẩm</div>' +
@@ -1216,6 +1274,7 @@ function thanPhieu(nop) {
 async function luu(nop) {
   const than = thanPhieu(nop);
   if (nop && MAN === 'ngay' && !than.dong.length) return toast('Chưa có đầu việc nào để nộp.', 'do');
+  const khoa = khoaSua();               // tính trước: ve() sau khi lưu sẽ thay DU
   clearTimeout(henTL);
   /* Đang nộp thì KHÔNG tự lưu nháp chen vào (rà 01/10): cú bấm Nộp cũng là một
    * cú click, và trình nghe click hẹn tự lưu 2,5 giây — nộp chậm hơn thế là lượt
@@ -1228,6 +1287,7 @@ async function luu(nop) {
     const r = await goi('/api/phieu', { method: 'POST', body: JSON.stringify(than) });
     clearTimeout(henTL);
     BAN = false;
+    if (nop && khoa) nhapHuy(khoa);     // máy chủ đã nhận bản sửa — nháp trên máy hết việc
     toast(nop ? 'Đã nộp — ' + r.veHan : 'Đã lưu nháp',
       nop && r.cham && r.cham.trangThai === 'tre' ? '' : 'xanh');
     await ve();
@@ -1257,7 +1317,13 @@ function ttTuLuu(chu, loi) {
 }
 function henTuLuu() {
   if (!BAN) return;
-  if (DU && DU.phieu && DU.phieu.daNop) return ttTuLuu('Có thay đổi — bấm "Cập nhật báo cáo" để lưu');
+  if (DU && DU.phieu && DU.phieu.daNop) {
+    /* Không tự gửi (gửi là rút phiếu về nháp / nộp hộ), nhưng giữ một bản trên
+     * máy để tải lại trang không mất phần đang sửa. */
+    const k = khoaSua();
+    if (k && $('#btnNop')) nhapHen(k, () => { const v = layNhapSua(); return JSON.stringify(v) === GOC_SUA ? null : { phieu: v }; });
+    return ttTuLuu('Có thay đổi — bấm "Cập nhật báo cáo" để lưu');
+  }
   if (!tuLuuDuoc()) return;
   SUA++;
   clearTimeout(henTL);
@@ -1284,6 +1350,48 @@ async function tuLuu(roiTrang) {
     if (BAN && SUA !== moc) henTuLuu();
   }
 }
+/* ---- nháp trên máy cho phiếu ĐÃ NỘP đang sửa ----
+ * Khoá theo mã phiếu (mỗi người · mỗi kỳ một mã), nên mở lại đúng phiếu đó mới
+ * thấy. GOC_SUA là phiếu đúng như máy chủ trả về — nháp trùng nó thì khỏi giữ. */
+let GOC_SUA = '';
+function khoaSua() {
+  return DU && DU.ky && DU.phieu && DU.phieu.daNop
+    ? 'phieu.' + (DU.phieu.ma || (MAN + '-' + DU.ky.tu)) : '';
+}
+function layNhapSua() {
+  const t = thanPhieu(true);
+  delete t.nop; delete t.moc;
+  return t;
+}
+function khoiPhucSua() {
+  GOC_SUA = '';
+  const k = khoaSua();
+  if (!k) return;
+  GOC_SUA = JSON.stringify(layNhapSua());
+  const n = nhapDoc(k);
+  if (!n || !n.phieu) return;
+  if (JSON.stringify(n.phieu) === GOC_SUA) { nhapXoa(k); return; }
+  const v = n.phieu;
+  [['#txNhanDinh', 'nhanDinh'], ['#txKeHoach', 'keHoach'], ['#txHoTro', 'canHoTro'], ['#txVideo', 'linkVideo']]
+    .forEach(([s, f]) => { const e = $(s); if (e && v[f] != null) e.value = v[f]; });
+  if (MAN === 'ngay' && Array.isArray(v.dong) && $('#thanBang')) {
+    $('#thanBang').innerHTML = (v.dong.length ? v.dong : [dongTrong()]).map(veHang).join('');
+    ganHang();
+    const ca = $('#chonCa');
+    if (ca && v.ca && [...ca.options].some((o) => o.value === v.ca)) ca.value = v.ca;
+    const dm = $('#dmTay');
+    if (dm) dm.value = v.dinhMucTay || '';
+    hienDmTay(); tinhLai();
+  }
+  /* Bản khôi phục CHƯA được gửi — vẫn phải bấm "Cập nhật báo cáo". */
+  BAN = true;
+  ttTuLuu('Có thay đổi — bấm "Cập nhật báo cáo" để lưu');
+  const o = $('#ttKhoiPhuc');
+  if (!o) return;
+  o.innerHTML = baoKhoiPhuc(n.luc, 'phieu');
+  $('[data-bo-nhap]', o).onclick = (e) => { e.preventDefault(); nhapHuy(k); BAN = false; ve(); };
+}
+
 /** Gọi trước mọi thao tác thay màn (đổi kỳ, đổi tab): còn gì chưa lưu thì lưu. */
 async function luuTruocKhiDi() {
   if (BAN && tuLuuDuoc()) await tuLuu();
@@ -1292,6 +1400,8 @@ async function luuTruocKhiDi() {
 ['input', 'change', 'click'].forEach((ev) =>
   document.addEventListener(ev, () => setTimeout(henTuLuu, 0)));
 document.addEventListener('visibilitychange', () => {
+  /* Trong Lark trên điện thoại, đóng app thường chỉ bắn sự kiện này, không có beforeunload. */
+  if (document.visibilityState === 'hidden') nhapGhiHet();
   if (document.visibilityState === 'hidden' && BAN && tuLuuDuoc()) tuLuu(true);
 });
 
@@ -1623,6 +1733,19 @@ async function veVuongMac(el) {
 
 /* Lọc ở màn Cần hỗ trợ — giữ ngoài hàm để đổi tab rồi quay lại vẫn đúng chỗ. */
 let HT_LOC = 'chua';
+/* Ghi chú xử lý đang gõ dở, theo từng mục (recId → markdown). Màn này vẽ lại cả
+ * danh sách mỗi lần bấm lọc hay chốt một mục khác — trước đây là xoá trắng ghi
+ * chú đang soạn ở mọi mục còn lại. Map sống ngoài lượt vẽ; mỗi mục còn một bản
+ * trên máy (khoá ht.<recId>) để tải lại trang cũng không mất. */
+const HT_NHAP = new Map();
+const htKhoa = (rec) => 'ht.' + rec;
+function htNhapCua(rec) {
+  if (!HT_NHAP.has(rec)) {
+    const n = nhapDoc(htKhoa(rec));
+    if (n && typeof n.md === 'string') HT_NHAP.set(rec, { md: n.md, luc: n.luc, may: true });
+  }
+  return HT_NHAP.get(rec) || null;
+}
 
 /**
  * Anh Hùng (30/09): "note giúp anh luôn là đã xử lý hay chưa", rồi "gửi cho nhân
@@ -1661,10 +1784,17 @@ async function veCanHoTro(el) {
           (x.xuLyBoi ? ' · ' + esc(x.xuLyBoi) : '') + (x.xuLyLuc ? ' · ' + esc(veNgay(x.xuLyLuc)) : '') +
           (x.daBaoLuc ? ' · đã nhắn cho ' + esc(x.ten) : '') + '</div>' +
           (x.ghiChu ? '<div class="ht-kq-chu">' + mdSangHtml(x.ghiChu) + '</div>' : '') + '</div>' : '';
+    /* Ghi chú đang gõ dở (nếu có và khác bản đã lưu) thắng bản đã lưu. */
+    const nh = s === 'xong' ? null : htNhapCua(String(x.recId));
+    const coNhap = nh && nh.md !== String(x.ghiChu || '');
+    if (nh && !coNhap) { HT_NHAP.delete(String(x.recId)); nhapXoa(htKhoa(x.recId)); }
     const tac = s === 'xong'
       ? '<div class="ht-tac"><div class="ht-nut-nhom">' + nut(x, 'mo-lai', 'Mở lại', true) + '</div></div>'
       : '<div class="ht-tac">' +
-          oSoan(x.recId, x.ghiChu, 'Ghi chú cách xử lý / lý do chưa xử lý được — dán văn bản có định dạng được, nhân sự nhận đúng như vậy') +
+          oSoan(x.recId, coNhap ? nh.md : x.ghiChu, 'Ghi chú cách xử lý / lý do chưa xử lý được — dán văn bản có định dạng được, nhân sự nhận đúng như vậy') +
+          /* Chỉ báo "khôi phục" khi bản nháp lấy từ máy (sau tải lại trang). Vẽ
+           * lại trong cùng phiên thì chữ vẫn nằm đó như chưa từng đi đâu. */
+          (coNhap && nh.may ? '<div style="margin:4px 0 6px">' + baoKhoiPhuc(nh.luc, x.recId) + '</div>' : '') +
           '<div class="ht-nut-nhom">' +
             nut(x, 'chua-duoc', s === 'chua-duoc' ? 'Cập nhật lý do' : 'Chưa xử lý được', false) +
             '<button class="btn nho chinh ht-nut" data-rec="' + esc(x.recId) + '" data-tt="xong">✓ Đã xử lý</button>' +
@@ -1694,6 +1824,24 @@ async function veCanHoTro(el) {
 
   $$('[data-loc]', el).forEach((b) => { b.onclick = () => { HT_LOC = b.dataset.loc; veCanHoTro(el); }; });
   batSoan(el);
+  const daLuu = new Map(d.ds.map((x) => [String(x.recId), String(x.ghiChu || '')]));
+  $$('.soan-vung', el).forEach((v) => {
+    const rec = v.dataset.rec;
+    v.addEventListener('input', () => {
+      const md = htmlSangMd(v.innerHTML);
+      if (md === daLuu.get(rec)) { HT_NHAP.delete(rec); nhapHen(htKhoa(rec), () => null); return; }
+      HT_NHAP.set(rec, { md, luc: Date.now() });
+      nhapHen(htKhoa(rec), () => ({ md }));
+    });
+  });
+  $$('[data-bo-nhap]', el).forEach((a) => {
+    a.onclick = (e) => {
+      e.preventDefault();
+      const rec = a.dataset.boNhap;
+      HT_NHAP.delete(rec); nhapHuy(htKhoa(rec));
+      veCanHoTro(el);
+    };
+  });
   $$('.ht-nut', el).forEach((b) => {
     b.onclick = async () => {
       const rec = b.dataset.rec;
@@ -1707,6 +1855,7 @@ async function veCanHoTro(el) {
         const r = await goi('/api/can-ho-tro/xu-ly', { method: 'POST', body: JSON.stringify({
           recId: rec, trangThai: b.dataset.tt, ghiChu: ghi,
           bao: b.dataset.tt !== 'mo-lai' }) });
+        HT_NHAP.delete(rec); nhapHuy(htKhoa(rec));   // máy chủ đã nhận ghi chú — nháp hết việc
         const chu = { xong: 'Đã ghi nhận xử lý', 'chua-duoc': 'Đã ghi chưa xử lý được', 'mo-lai': 'Đã mở lại' }[r.trangThai];
         if (r.bao && !r.bao.ok) toast(chu + ' — nhưng chưa nhắn được cho ' + r.nguoi + ': ' + r.bao.loi, 'do');
         else toast(chu + (r.bao && r.bao.ok ? ' · đã nhắn cho ' + r.nguoi : ''));
@@ -1830,6 +1979,25 @@ function veTheLark(card, tenNguoi) {
  * 'tin-nhom'), nút Lưu riêng — sửa mẫu tin không đụng tới chuẩn chấm. */
 let TL_TIN_BAN = false;
 
+/* Nháp Thiết lập trên máy: một khoá cho cả màn, mỗi phần (chuẩn / tin) chỉ có
+ * mặt khi phần đó đang có chỉnh chưa lưu. TL_KP ghi giờ của phần vừa khôi phục
+ * để hiện dòng báo cạnh nhãn "có chỉnh chưa lưu". */
+const TL_KHOA = 'thiet-lap';
+let TL_KP = null;
+const tlNhap = () => (TL && (TL_BAN || TL_TIN_BAN)
+  ? { chuan: TL_BAN ? TL.chuan : null, tin: TL_TIN_BAN ? TL.tin : null } : null);
+const tlGhiNhap = () => nhapHen(TL_KHOA, tlNhap);
+function tlKhoiPhuc() {
+  TL_KP = null;
+  const n = nhapDoc(TL_KHOA);
+  if (!n) return;
+  const khac = (a, b) => JSON.stringify(a) !== JSON.stringify(b);
+  if (n.chuan && khac(n.chuan, TL.chuan)) { TL.chuan = n.chuan; TL_BAN = true; TL_KP = { chuan: n.luc }; }
+  if (n.tin && khac(n.tin, TL.tin)) { TL.tin = n.tin; TL_TIN_BAN = true; TL_KP = Object.assign(TL_KP || {}, { tin: n.luc }); }
+  if (!TL_KP) nhapXoa(TL_KHOA);
+}
+const tlBaoKP = (phan, ban) => (ban && TL_KP && TL_KP[phan] ? ' ' + baoKhoiPhuc(TL_KP[phan], phan) : '');
+
 function veKhoiTin() {
   const t = TL.tin;
   const nhan = (TL.coTheNhan || []).filter((u) => !t.nguoiNhan.some((x) => x.openId === u.openId));
@@ -1840,6 +2008,7 @@ function veKhoiTin() {
   return '<div class="the"><div class="the-dau"><h2>Gửi thông báo khi nộp báo cáo ngày</h2>' +
       '<span class="nho">' + (TL.tatCung ? 'Máy chủ đang TẮT CỨNG (BAO_CAO_TIN_NHOM=0)'
         : TL_TIN_BAN ? 'có chỉnh chưa lưu' : (t.bat ? 'đang bật' : 'đang tắt')) + '</span>' +
+      tlBaoKP('tin', TL_TIN_BAN) +
       '<div class="lon"></div>' +
       '<button class="btn nho mo" id="tnGui">Gửi thử cho tôi</button>' +
       '<button class="btn nho" id="tnLuu"' + (TL_TIN_BAN ? '' : ' disabled') + '>Lưu</button>' +
@@ -1902,7 +2071,12 @@ function veKhoiTin() {
 
 function batKhoiTin(el) {
   const t = TL.tin;
-  const doi = () => { TL_TIN_BAN = true; veThietLap(el); };
+  const doi = () => { TL_TIN_BAN = true; tlGhiNhap(); veThietLap(el); };
+  /* Ô chữ chỉ báo đổi khi rời ô (onchange) — gõ dở mà tải lại trang thì mất.
+   * Ghi vào TL ngay từng phím (không vẽ lại, kẻo mất con trỏ) để nháp có chữ. */
+  const go = (o, ghi) => { if (o) o.oninput = () => { ghi(o.value); TL_TIN_BAN = true; tlGhiNhap(); }; };
+  go($('#tnNhom'), (v) => { t.nhomId = v.trim(); });
+  go($('#tnTieuDe'), (v) => { t.tieuDe = v; });
   $('#tnBat').onchange = (e) => { t.bat = e.target.checked; doi(); };
   $$('[data-dich]', el).forEach((b) => { b.onclick = () => { t.dich = b.dataset.dich; doi(); }; });
   const nh = $('#tnNhom'); if (nh) nh.onchange = () => { t.nhomId = nh.value.trim(); doi(); };
@@ -1934,6 +2108,8 @@ function batKhoiTin(el) {
     try {
       const r = await goi('/api/thiet-lap/tin', { method: 'POST', body: JSON.stringify({ tin: t }) });
       TL.tin = r.tin; TL_TIN_BAN = false;
+      if (TL_KP) TL_KP.tin = null;
+      nhapNgay(TL_KHOA, tlNhap);          // bỏ phần tin khỏi nháp, giữ phần chuẩn nếu còn
       toast('Đã lưu — áp từ lần nộp báo cáo tiếp theo');
       veThietLap(el);
     } catch (er) { toast('Lưu hỏng: ' + er.message, 'do'); e.target.disabled = false; }
@@ -1974,6 +2150,7 @@ async function veThietLap(el) {
     TL = await goi('/api/thiet-lap');
     TL.chuan = JSON.parse(JSON.stringify(TL.chuan));
     TL.tin = JSON.parse(JSON.stringify(TL.tin));
+    tlKhoiPhuc();
   }
   const c = TL.chuan;
   const chip = (on, attrs, chu) => '<button type="button" class="pill tl-chip' + (on ? ' on' : '') + '" ' +
@@ -2034,7 +2211,8 @@ async function veThietLap(el) {
 
   el.innerHTML = veKhoiTin() +
     '<div class="the"><div class="the-dau"><h2>Chuẩn chung mọi vị trí</h2>' +
-      '<span class="nho">' + (TL_BAN ? 'có chỉnh chưa lưu' : 'đã lưu trên Base') + '</span><div class="lon"></div>' +
+      '<span class="nho">' + (TL_BAN ? 'có chỉnh chưa lưu' : 'đã lưu trên Base') + '</span>' +
+      tlBaoKP('chuan', TL_BAN) + '<div class="lon"></div>' +
       '<button class="btn nho mo" id="tlMacDinh">Về mặc định</button>' +
       '<button class="btn nho mo" id="tlThu">Chấm thử 30 ngày</button>' +
       '<button class="btn nho" id="tlLuu"' + (TL_BAN ? '' : ' disabled') + '>Lưu</button>' +
@@ -2071,8 +2249,26 @@ async function veThietLap(el) {
       '<span class="nho">Người có vị trí không nằm trong danh sách thì không được chấm.</span>' +
     '</div></div>';
 
-  const doi = () => { TL_BAN = true; TL_THU = null; veThietLap(el); };
+  const doi = () => { TL_BAN = true; TL_THU = null; tlGhiNhap(); veThietLap(el); };
   const vtCua = (b) => c.viTri[b.dataset.vt];
+  /* Như khối tin: ô gõ ghi vào TL từng phím để nháp trên máy có chữ, vẽ lại thì
+   * vẫn đợi rời ô. */
+  const go = (sel, ghi) => $$(sel, el).forEach((o) => { o.oninput = () => { ghi(o); TL_BAN = true; tlGhiNhap(); }; });
+  go('[data-g]', (i) => { c[i.dataset.g] = Number(i.value) || 0; });
+  go('.tl-ten', (i) => { vtCua(i).sanLuong[i.dataset.i].ten = i.value.trim(); });
+  go('[data-k="toiThieu"]', (i) => { vtCua(i).sanLuong[i.dataset.i].toiThieu = Number(i.value) || 0; });
+  go('.tl-ln', (i) => { c.loiNhan = c.loiNhan || {}; c.loiNhan[i.dataset.ln] = i.value; });
+  /* Bỏ phần vừa khôi phục: xoá phần đó khỏi nháp rồi đọc lại bản trên Base
+   * (phần kia, nếu còn nháp, sẽ được khôi phục lại như cũ). */
+  $$('[data-bo-nhap]', el).forEach((a) => {
+    a.onclick = (e) => {
+      e.preventDefault();
+      if (a.dataset.boNhap === 'chuan') TL_BAN = false; else TL_TIN_BAN = false;
+      nhapNgay(TL_KHOA, tlNhap);
+      TL = null; TL_BAN = false; TL_TIN_BAN = false; TL_THU = null; TL_KP = null;
+      veThietLap(el).catch((er) => toast('Không tải lại được: ' + er.message, 'do'));
+    };
+  });
   const bat = (arr, x) => { const i = arr.indexOf(x); if (i >= 0) arr.splice(i, 1); else arr.push(x); };
 
   $$('[data-g]', el).forEach((i) => { i.onchange = () => { c[i.dataset.g] = Number(i.value) || 0; doi(); }; });
@@ -2130,6 +2326,8 @@ async function veThietLap(el) {
     try {
       const r = await goi('/api/thiet-lap', { method: 'POST', body: JSON.stringify({ chuan: c }) });
       TL.chuan = r.chuan; TL_BAN = false;
+      if (TL_KP) TL_KP.chuan = null;
+      nhapNgay(TL_KHOA, tlNhap);          // bỏ phần chuẩn khỏi nháp, giữ phần tin nếu còn
       toast('Đã lưu chuẩn — áp từ lần nộp báo cáo tiếp theo');
       veThietLap(el);
     } catch (er) { toast('Lưu hỏng: ' + er.message, 'do'); e.target.disabled = false; }

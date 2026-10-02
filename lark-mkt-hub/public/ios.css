@@ -4223,7 +4223,7 @@ html[data-skin="ios"] .ios-nhap-bar > button {
   height: 28px; padding: 0 12px; border: 0; border-radius: 999px; cursor: pointer;
   font: inherit; font-weight: 600; background: var(--ios-xanh, #007aff); color: #fff;
 }
-html[data-skin="ios"] .ios-nhap-bar > button[data-nhap="bo"] { background: transparent; color: var(--ios-chu-2); }
+html[data-skin="ios"] .ios-nhap-bar > button[data-nhap-nut="bo"] { background: transparent; color: var(--ios-chu-2); }
 
 /* ==========================================================================
    HỘP THOẠI / NGĂN CHI TIẾT CUỘN ĐƯỢC KHI DÀI HƠN MÀN (28/09 — soát toàn diện)

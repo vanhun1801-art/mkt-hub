@@ -40,6 +40,7 @@
       xong: 'Đã nhận thông tin, cảm ơn bạn!', xongMo: 'Đội ngũ Rooty Trip Phú Quốc sẽ liên hệ khi mọi thứ sẵn sàng. Cần sửa gì, bạn mở lại đường link này.', suaLai: 'Sửa lại thông tin',
       bat: 'Bắt buộc', loiTen: 'Vui lòng điền họ tên', loiEmail: 'Email chưa đúng dạng', loiCccd: 'CCCD gồm 12 chữ số', loiHc: 'Số hộ chiếu gồm 6–9 chữ và số', loiNgay: 'Ngày không hợp lệ',
       loiCap: 'Ngày cấp phải trước hôm nay', loiDongY: 'Vui lòng đánh dấu đồng ý', loiChung: 'Còn {n} ô cần sửa — xem các ô tô đỏ.', loiTaiVe: 'Không mở được form: ',
+      nhap: 'Đã khôi phục phần bạn đang nhập dở lúc {t} (chỉ lưu trên máy này). Ảnh giấy tờ, nếu đã chọn, cần chọn lại.', boNhap: 'Bỏ',
     },
     en: {
       mat: 'Collaboration details', tieuDe: 'Welcome to Rooty Trip Phu Quoc',
@@ -63,12 +64,42 @@
       xong: 'Thank you — we have received your details!', xongMo: 'The Rooty Trip Phu Quoc team will be in touch once everything is ready. Open this link again anytime to make changes.', suaLai: 'Edit my details',
       bat: 'Required', loiTen: 'Please enter a name', loiEmail: 'Please check the email address', loiCccd: 'CCCD must be 12 digits', loiHc: 'Passport numbers are 6–9 letters and digits', loiNgay: 'Invalid date',
       loiCap: 'Date of issue must be in the past', loiDongY: 'Please tick to agree', loiChung: '{n} field(s) need attention — see the ones in red.', loiTaiVe: 'Could not open the form: ',
+      nhap: 'We restored what you were typing at {t} (kept on this device only). If you had chosen ID photos, please choose them again.', boNhap: 'Discard',
     },
   };
   const GIOI_GOC = ['Nữ', 'Nam', 'Khác'];
   const NEN_TANG = ['TikTok', 'Facebook', 'Instagram', 'YouTube', 'Threads', 'Zalo', 'Khác'];
   const S = { lang: 'vi', d: null };
   const T = (k) => CHU[S.lang][k];
+  /* Nháp trên máy (02/10): KOL gõ dở cả danh sách đoàn mà đóng nhầm tab, điện thoại tải lại trang
+   * hay rớt mạng lúc gửi là mất sạch. Giữ ĐÚNG những gì đang nằm trong các ô của form (không giữ
+   * ảnh giấy tờ, không giữ ô đồng ý) trong localStorage của chính máy KOL, khoá theo mã form;
+   * quá 14 ngày bỏ; gửi thành công thì xoá. */
+  const KH = 'kol.nhap.form.' + MA;
+  const HAN = 14 * 864e5;
+  let henNhap = 0;
+  const nhapDoc = () => {
+    try {
+      const n = JSON.parse(localStorage.getItem(KH) || 'null');
+      if (n && n.at && n.f && Date.now() - n.at < HAN) return n;
+      if (n) localStorage.removeItem(KH);
+    } catch (_) {}
+    return null;
+  };
+  const nhapBo = () => { clearTimeout(henNhap); henNhap = 0; S.daGhi = ''; try { localStorage.removeItem(KH); } catch (_) {} };
+  const nhapGhi = () => {
+    clearTimeout(henNhap); henNhap = 0;
+    if (!S.d || !$('#fKol')) return;   // đang ở màn "đã gửi" / lỗi tải
+    const chu = JSON.stringify(doc());
+    if (chu === S.daGhi) return;
+    S.daGhi = chu;
+    try {
+      if (chu === S.gocChup) localStorage.removeItem(KH);   // y như bản đã gửi — khỏi giữ
+      else localStorage.setItem(KH, JSON.stringify({ at: Date.now(), f: JSON.parse(chu) }));
+    } catch (_) {}
+  };
+  const henGhi = () => { clearTimeout(henNhap); henNhap = setTimeout(nhapGhi, 400); };
+  window.addEventListener('pagehide', () => { if (henNhap) nhapGhi(); });
   const tenNuoc = (x) => { if (S.lang === 'vi') return x.ten; try { return new Intl.DisplayNames(['en'], { type: 'region' }).of(x.iso) || x.ten; } catch (_) { return x.ten; } };
 
   async function api(url, than) {
@@ -126,6 +157,9 @@
     const tv = d.tv;
     $('#fMan').innerHTML = '<div class="f-mo-dau"><div class="f-mat">' + T('mat') + ' · ' + e(d.ma) + '</div><h1>' + T('tieuDe') + '</h1><p>' + T('moTa') + '</p></div>' +
       (d.daDien ? '<div class="f-bao">' + T('daDien').replace('{t}', new Date(d.daDien).toLocaleString(S.lang === 'vi' ? 'vi-VN' : 'en-GB', { timeZone: 'Asia/Ho_Chi_Minh', dateStyle: 'medium', timeStyle: 'short' })) + '</div>' : '') +
+      (S.khoiPhuc ? '<div class="f-bao" id="fNhap">' + e(T('nhap').replace('{t}', new Date(S.khoiPhuc).toLocaleString(S.lang === 'vi' ? 'vi-VN' : 'en-GB',
+        { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }))) +
+        ' <button type="button" class="f-nut" id="fBoNhap">' + e(T('boNhap')) + '</button></div>' : '') +
       '<div class="f-bao do an" id="fLoi"></div>' +
       '<section class="f-the"><h2><span class="so">1</span>' + T('s1') + '</h2><p class="f-giai">' + T('s1g') + '</p><div class="f-luoi" id="fKol">' +
         o(T('ten'), '<input data-k="ten" autocomplete="name" value="' + e(k.ten) + '">', { bat: true }) +
@@ -163,14 +197,18 @@
     const tv = $$('[data-tv]').map((g, i) => ({ id: g.dataset.id || undefined, ...lay(g), vaiTro: i ? 'Thành viên' : 'Trưởng đoàn' }));
     return { kol, kenh, ht, tv };
   }
-  function giuLai() {
-    const f = doc();
+  /* f: mặc định đọc từ màn hình; khôi phục nháp thì truyền bản nháp vào (theoId: ghép số ảnh
+   * đã gửi theo id thành viên, vì thứ tự trong nháp có thể khác bản trên máy chủ). */
+  function giuLai(f, theoId) {
+    f = f || doc();
     const ms = (s) => (s ? Date.parse(s + 'T00:00:00+07:00') : null);
     S.d.kol = { ...S.d.kol, ...f.kol };
     S.d.kenh = f.kenh;
     S.d.ht = { ...S.d.ht, ...f.ht, batDau: ms(f.ht.batDau), ketThuc: ms(f.ht.ketThuc) };
-    S.d.tv = f.tv.map((x, i) => ({ ...x, ngaySinh: ms(x.ngaySinh), ngayCap: ms(x.ngayCap), ngayHet: ms(x.ngayHet),
-      _anh: (S.d.tv[i] || {})._anh, soAnh: (S.d.tv[i] || {}).soAnh }));
+    S.d.tv = f.tv.map((x, i) => {
+      const cu = (theoId ? S.d.tv.find((y) => x.id && y.id === x.id) : S.d.tv[i]) || {};
+      return { ...x, ngaySinh: ms(x.ngaySinh), ngayCap: ms(x.ngayCap), ngayHet: ms(x.ngayHet), _anh: cu._anh, soAnh: cu.soAnh };
+    });
   }
 
   function ganSuKien() {
@@ -206,8 +244,12 @@
       if (k === 'ten' && ev.target.closest('#fKol')) { const o1 = $('[data-tv] [data-k="ten"]'); if (o1 && !o1.value.trim()) o1.value = ev.target.value.trim(); }
       if (k === 'quocGia' && ev.target.closest('#fKol')) { const n = MV.theoTen(ev.target.value); if (n) $('#fKol [data-k="maVung"]').value = '+' + n.ma; }
       const lb = ev.target.closest('.f-o'); if (lb && lb.classList.contains('loi')) { lb.classList.remove('loi'); lb.querySelector('.f-loi').textContent = ''; }
+      henGhi();
     };
+    $('#fMan').oninput = henGhi;
+    if ($('#fBoNhap')) $('#fBoNhap').onclick = () => { nhapBo(); S.d = JSON.parse(S.goc); S.khoiPhuc = 0; S.daGhi = S.gocChup; ve(); };
     $('#fGui').onclick = gui;
+    henGhi();   // vẽ lại sau thêm / xoá thẻ, đổi ngôn ngữ → giữ luôn bố cục mới
   }
 
   function kiem() {
@@ -274,6 +316,8 @@
         try { await api('/api/form/' + MA + '/anh/' + kq.ids[can[j].i], { tep: can[j].a.map((x) => ({ ten: x.ten, du: x.du })) }); }
         catch (err) { throw new Error(T('loiAnh').replace('{ten}', f.tv[can[j].i].ten) + err.message); }
       }
+      nhapBo();   // máy chủ đã nhận đủ — nháp hết việc
+      S.khoiPhuc = 0;
       $('#fMan').innerHTML = '<div class="f-the f-xong"><div class="dau">✓</div><h1>' + T('xong') + '</h1><p>' + T('xongMo') + '</p><button type="button" class="f-nut" id="fSua">' + T('suaLai') + '</button></div>';
       window.scrollTo({ top: 0 });
       $('#fSua').onclick = () => nap();
@@ -289,7 +333,14 @@
       S.d = await api('/api/form/' + MA);
       const q = new URLSearchParams(location.search).get('lang');
       if (!S.chonLang) S.lang = q === 'en' || q === 'vi' ? q : S.d.lang;
+      S.goc = JSON.stringify(S.d); S.khoiPhuc = 0;
       ve();
+      S.gocChup = S.daGhi = JSON.stringify(doc());   // bản máy chủ đúng như hiện trên các ô
+      const n = nhapDoc();
+      /* KOL đã gửi (từ máy khác) SAU lúc ghi nháp → bản trên máy chủ mới hơn, nháp bỏ */
+      if (n && !(S.d.daDien && S.d.daDien > n.at) && JSON.stringify(n.f) !== S.gocChup) {
+        giuLai(n.f, true); S.khoiPhuc = n.at; S.daGhi = JSON.stringify(n.f); ve();
+      } else if (n) nhapBo();
     } catch (err) {
       $('#fMan').innerHTML = '<div class="f-the"><p class="f-mo">' + e(CHU[S.lang].loiTaiVe + err.message) + '</p></div>';
     }

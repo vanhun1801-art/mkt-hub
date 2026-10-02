@@ -233,6 +233,8 @@ function lopIos(mod) {
   const v = cfg.verChung || '1';
   return '<link rel="stylesheet" href="/ios.css?v=' + v + '" data-hub="1">\n'
     + '<script src="/ios-app.js?v=' + v + '" defer data-hub="1"></' + 'script>\n'
+    /* Nháp tại máy cho form trong cửa sổ — chạy ở MỌI giao diện, không riêng iOS (02/10/2026). */
+    + '<script src="/nhap-chung.js?v=' + v + '" defer data-hub="1"></' + 'script>\n'
     + '<script data-hub="1">document.documentElement.setAttribute("data-app",' + JSON.stringify(mod.id)
     + ');try{if(localStorage.getItem("hub.skin")!=="goc")document.documentElement.setAttribute("data-skin","ios")}catch(e){document.documentElement.setAttribute("data-skin","ios")}</' + 'script>\n';
 }

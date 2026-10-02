@@ -2617,6 +2617,7 @@ function moXinHuy(id) {
   if (!t) return;
   if (PREVIEW()) return toast('Đang xem giao diện của người khác — không xin huỷ thay họ được.', 'err');
   XH = { id, reason: t.cancelReason || '' };
+  $('#modal').dataset.nhapKhoa = id;   // nháp riêng từng lịch (nhap-chung.js)
 
   $('#mdTitle').textContent = 'Xin huỷ lịch tác nghiệp';
   $('#mdBody').innerHTML =
@@ -2679,6 +2680,7 @@ let HM = null;
 
 function moXinHuyMuon(id) {
   const t = S.items.find((x) => x.id === id);
+  if (t) $('#modal').dataset.nhapKhoa = id;   // nháp riêng từng lịch (nhap-chung.js)
   if (!t) return;
   if (PREVIEW()) return toast('Đang xem giao diện của người khác — không xin huỷ thay họ được.', 'err');
   if (!huyMuonDuoc(t)) {
@@ -2790,6 +2792,9 @@ function moBaoCao(id) {
     mediaNote: t.mediaNote || '',
   };
   veBaoCao();
+  /* Một tiêu đề cho MỌI buổi — gắn mã lịch để nháp tại máy (nhap-chung.js) của
+   * buổi A không bị mời khôi phục ở buổi B (02/10/2026). */
+  $('#modal').dataset.nhapKhoa = id;
   $('#modal').classList.add('on');
 }
 
@@ -3077,6 +3082,7 @@ function closeModal() {
     if (NEW.__id) toast('Lịch đã lưu nháp trong Base (Đang lên kế hoạch) — mở lại để sửa tiếp hoặc gửi duyệt', 'ok');
   }
   $('#modal').classList.remove('on');
+  delete $('#modal').dataset.nhapKhoa;   // cửa sổ dùng chung — lần mở sau tự gắn lại
 }
 
 /**

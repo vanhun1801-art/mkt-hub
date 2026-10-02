@@ -1156,12 +1156,18 @@ function formGiaHtml(d = {}) {
 }
 
 function moFormGia(recordId, data) {
-  const wrap = $('#modalWrap');
   const moi = !recordId;
-  $('#modalTitle').textContent = moi ? 'Thêm sản phẩm vào bảng giá NET' : 'Sửa bảng giá NET';
-  $('#modalBody').innerHTML = formGiaHtml(data || {});
-  $('#modalFoot').innerHTML = `<button class="btn" data-dong>Hủy</button><button class="btn primary" id="btnLuuGia">${moi ? 'Thêm sản phẩm' : 'Lưu thay đổi'}</button>`;
-  wrap.hidden = false; hubChe(true);
+  /* Dựng qua moModal như cửa sổ chi tiết booking (sửa 02/10/2026). Bản trước ghi
+   * vào #modalTitle / #modalBody / #modalFoot — ba phần tử KHÔNG tồn tại (#modal
+   * trong index.html trống, moModal thay cả ruột) → bấm Thêm/Sửa giá NET là lỗi
+   * ngay, không ai nhập được giá. data-nhap-khoa: nháp tại máy riêng từng dòng giá. */
+  moModal(`
+    <h3>${moi ? 'Thêm sản phẩm vào bảng giá NET' : 'Sửa bảng giá NET'}</h3>
+    <div class="modal-than" data-nhap-khoa="${esc(recordId || 'moi')}">${formGiaHtml(data || {})}</div>
+    <div class="modal-chan">
+      <button class="btn" data-dong="1">Hủy</button>
+      <button class="btn primary" id="btnLuuGia">${moi ? 'Thêm sản phẩm' : 'Lưu thay đổi'}</button>
+    </div>`);
   const btn = $('#btnLuuGia');
   btn.onclick = async () => {
     const payload = {
@@ -1183,7 +1189,7 @@ function moFormGia(recordId, data) {
       await napLai();
     } catch (e) { toast(e.message, 'xau'); btn.disabled = false; btn.textContent = moi ? 'Thêm sản phẩm' : 'Lưu thay đổi'; }
   };
-  $$('[data-dong]', $('#modalFoot')).forEach((b) => { b.onclick = dongModal; });
+  $$('[data-dong]', $('#modal')).forEach((b) => { b.onclick = dongModal; });
 }
 
 function ganSuKienView() {

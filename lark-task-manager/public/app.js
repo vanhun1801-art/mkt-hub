@@ -976,6 +976,7 @@ function openDone(t, kieu) {
     co.className = 'md-proof warn';
     co.textContent = 'Cần dán link hoặc đính tệp sản phẩm trước khi hoàn thành.';
   }
+  $('#mDone').dataset.nhapKhoa = t.id;   // nháp tại máy riêng từng việc (nhap-chung.js)
   openModal('mDone');
 }
 
@@ -1063,6 +1064,9 @@ function openAdjust(t) {
     box.appendChild(c);
   }
   box._selected = cur;
+  /* "Yêu cầu điều chỉnh" cùng một tiêu đề cho mọi việc — gắn mã việc để nháp
+   * đang gõ dở của việc A không bị mời khôi phục ở việc B (02/10/2026). */
+  $('#mAdjust').dataset.nhapKhoa = t.id;
   openModal('mAdjust');
 }
 
@@ -4036,6 +4040,17 @@ function khoiBinhLuan(t) {
   const ta = el('textarea', 'cmt-input');
   ta.rows = 2;
   ta.placeholder = 'Nhắn tin… (Enter gửi, Shift+Enter xuống dòng)';
+  /* Tin đang gõ dở giữ trên máy theo từng việc (02/10/2026): đóng ngăn chi tiết,
+   * tải lại trang hay chuyển việc khác rồi quay lại vẫn còn. Gửi được là xoá. */
+  const khoaTin = 'cong-viec.tin-do.' + t.id;
+  try { ta.value = localStorage.getItem(khoaTin) || ''; } catch (_) {}
+  let henTin = 0;
+  ta.addEventListener('input', () => {
+    clearTimeout(henTin);
+    henTin = setTimeout(() => {
+      try { if (ta.value.trim()) localStorage.setItem(khoaTin, ta.value); else localStorage.removeItem(khoaTin); } catch (_) {}
+    }, 300);
+  });
   const gui = el('button', 'btn btn-primary cmt-gui', '➤ Gửi');
   gui.onclick = async () => {
     const noi = ta.value.trim();
@@ -4049,10 +4064,12 @@ function khoiBinhLuan(t) {
     list.appendChild(tam);
     list.scrollTop = list.scrollHeight;
     ta.value = '';
+    clearTimeout(henTin);
     try {
       await req('/api/tasks/' + t.id + '/comments', {
         method: 'POST', body: JSON.stringify({ content: noi }),
       });
+      try { localStorage.removeItem(khoaTin); } catch (_) {}
       await napBinhLuan(t, list, true);
     } catch (e) {
       tam.remove();

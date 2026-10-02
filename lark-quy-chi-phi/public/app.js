@@ -874,8 +874,11 @@ const chon = (id, ds, gt) => '<select id="' + id + '">'
 function moKhaiChi(sua) {
   const c = sua ? S.chi.find((x) => x.id === sua) : null;
 
+  /* data-nhap-khoa: cửa sổ sửa mang CÙNG một tiêu đề cho mọi khoản, nên lớp nháp
+   * của Hub phải biết đang là khoản nào — không thì nháp sửa dở của khoản A được
+   * mời khôi phục vào khoản B, bấm Lưu là đè số của A lên B. */
   moModal(c ? 'Sửa khoản chi' : 'Khai khoản chi',
-    '<div class="form">'
+    '<div class="form"' + (c ? ' data-nhap-khoa="' + esc(c.id) + '"' : '') + '>'
     + o('Nội dung chi', '<input id="fNoiDung" value="' + esc(c ? c.noiDung : '') + '" placeholder="VD: Xanh SM đi Vinwonders tác nghiệp">', true)
     + o('Số tiền (đ)', '<input id="fTien" type="number" min="0" step="1000" value="' + (c ? c.tien : '') + '">')
     + o('Loại chi', chon('fLoai', S.options.loaiChi, c ? c.loai : 'Khác'))
@@ -1206,8 +1209,9 @@ function moDuyetMot(id) {
   if (!c) return;
   const cu = String(c.maQuyetToan || '').trim();
   const thieu = thieuChungTu(c);
+  /* Nháp theo từng khoản — cùng lý do với cửa sổ Sửa khoản chi. */
   moModal(cu ? 'Sửa quyết toán' : 'Quyết toán khoản này',
-    '<div class="form">'
+    '<div class="form" data-nhap-khoa="' + esc(c.id) + '">'
     + tomTatKhoan(c)
     + (cu ? '<div class="nhac canhbao">Khoản này đang mang mã <b>' + esc(cu)
         + '</b>. Gán mã mới là xoá hẳn mã cũ.</div>' : '')
@@ -1249,8 +1253,9 @@ const LY_DO_SAN = [
 function moTuChoi(id) {
   const c = S.chi.find((x) => x.id === id);
   if (!c) return;
+  /* Nháp theo từng khoản: lý do viết cho khoản này không được hiện ở khoản khác. */
   moModal('Yêu cầu điều chỉnh',
-    '<div class="form">'
+    '<div class="form" data-nhap-khoa="' + esc(c.id) + '">'
     + tomTatKhoan(c)
     + o('Cần điều chỉnh gì', '<textarea id="tLyDo" rows="3" '
         + 'placeholder="Người giữ quỹ sẽ đọc đúng câu này để biết phải sửa gì"></textarea>', true)
@@ -1541,7 +1546,9 @@ document.addEventListener('click', async (e) => {
   const lydo = T.closest('[data-lydo]');
   if (lydo) {
     const o = $('#tLyDo');
-    if (o) { o.value = lydo.dataset.lydo; o.focus(); }
+    /* Gán .value bằng mã không bắn sự kiện input — lớp nháp của Hub không biết ô
+     * đã đổi, đóng nhầm cửa sổ là mất câu vừa chọn. Bắn tay một cái. */
+    if (o) { o.value = lydo.dataset.lydo; o.dispatchEvent(new Event('input', { bubbles: true })); o.focus(); }
     return;
   }
 

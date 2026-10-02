@@ -19,6 +19,8 @@
  */
 var PC = null;      // eslint-disable-line no-var — dữ liệu máy chủ trả về
 var PC_SUA = null;  // eslint-disable-line no-var — { maNguoi: { khoaNhóm: tỷTrọng } } đang sửa
+var PC_SUA_THANG = '';  // eslint-disable-line no-var — PC_SUA đang là của tháng nào
+var PC_KHOI_PHUC = null;  // eslint-disable-line no-var — giờ của bản nháp vừa đổ lại từ localStorage
 
 async function vePhanCong() {
   $('#noiDung').innerHTML = '<div class="rong">đang đọc bộ luật…</div>';
@@ -26,11 +28,34 @@ async function vePhanCong() {
   catch (e) { $('#noiDung').innerHTML = '<div class="rong">' + esc(e.message) + '</div>'; return; }
 
   /* Bản nháp tách khỏi dữ liệu máy chủ: sửa ô nào cũng chỉ đụng bản nháp, chưa
-   * ghi gì. Bấm Lưu mới gửi đi — giống hệt lối làm ở màn Thử luật. */
+   * ghi gì. Bấm Lưu mới gửi đi — giống hệt lối làm ở màn Thử luật.
+   *
+   * Bản trước dựng lại PC_SUA từ số máy chủ MỖI lần vào tab, nên gõ dở nửa lưới
+   * rồi sang tab Thử luật xem điểm là quay lại mất trắng. Giờ: còn sửa dở của
+   * đúng tháng này trong bộ nhớ thì giữ; không có thì lấy nháp localStorage
+   * (tải lại trang). Ô nào nháp trùng số máy chủ thì coi như không sửa. */
+  const cu = PC_SUA && PC_SUA_THANG === THANG ? { v: PC_SUA, luc: null } : nhapDoc(khoaNhap('phancong'));
   PC_SUA = {};
   PC.nguoi.forEach((n) => { PC_SUA[n.ma] = Object.assign({}, n.kenh); });
+  PC_SUA_THANG = THANG;
+  PC_KHOI_PHUC = null;
+  if (cu && cu.v && typeof cu.v === 'object') {
+    PC.nguoi.forEach((n) => { if (cu.v[n.ma]) PC_SUA[n.ma] = Object.assign({}, cu.v[n.ma]); });
+    if (!pcCoSua()) {
+      PC_SUA = {};
+      PC.nguoi.forEach((n) => { PC_SUA[n.ma] = Object.assign({}, n.kenh); });
+      nhapBo(khoaNhap('phancong'));
+    } else if (cu.luc) PC_KHOI_PHUC = cu.luc;
+  }
 
   veLuoiPhanCong();
+}
+
+/** Bỏ mọi sửa dở (cả bộ nhớ lẫn nháp) rồi vẽ lại từ số máy chủ. */
+function pcBoSua() {
+  PC_SUA = null;
+  nhapBo(khoaNhap('phancong'));
+  vePhanCong();
 }
 
 /** Tổng tỷ trọng một người đang giữ, theo bản nháp. */
@@ -61,6 +86,8 @@ function veLuoiPhanCong() {
       + 'Số đã đi vào bảng lương — sửa phân công lúc này là đổi điểm sau khi đã trả tiền. '
       + 'Bỏ chốt ở tab “Soát &amp; chốt” trước nếu thật sự cần sửa.</div>'));
   }
+
+  if (PC_KHOI_PHUC) g.appendChild(nhapThongBao(PC_KHOI_PHUC, pcBoSua));
 
   g.appendChild(pcKhoiSoat());
   g.appendChild(pcKhoiLuoi(coKenh));
@@ -153,7 +180,8 @@ function pcKhoiLuoi(coKenh) {
   const nutBo = el('button', 'btn ghost', 'Bỏ sửa');
   nutBo.id = 'pcBo';
   nutBo.disabled = true;
-  nutBo.onclick = () => { vePhanCong(); };
+  /* Phải xoá bản sửa trước: vePhanCong giờ giữ lại sửa dở, gọi trơn là không bỏ được gì. */
+  nutBo.onclick = pcBoSua;
   nut.appendChild(nutLuu); nut.appendChild(nutBo);
   hd.appendChild(nut);
   the.appendChild(hd);
@@ -218,6 +246,7 @@ function pcKhoiLuoi(coKenh) {
     if (!Number.isFinite(v) || v < 0) return;
     if (v) PC_SUA[i.dataset.ng][i.dataset.khoa] = v;
     else delete PC_SUA[i.dataset.ng][i.dataset.khoa];
+    nhapGhi(khoaNhap('phancong'), pcCoSua() ? PC_SUA : null);
     pcCapNhatTong();
   });
 
@@ -285,6 +314,9 @@ async function pcLuu() {
   try {
     await goi('luu-phan-cong', { method: 'POST', body: JSON.stringify({ thang: THANG, phanBo: PC_SUA }) });
     bao('Đã lưu phân công');
+    /* Máy chủ đã nhận — giờ mới được bỏ bản sửa và nháp. Lỗi thì giữ nguyên để bấm lại. */
+    PC_SUA = null;
+    nhapBo(khoaNhap('phancong'));
     await napThang();
     vePhanCong();
   } catch (e) { bao(e.message, true); }

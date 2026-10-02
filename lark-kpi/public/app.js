@@ -73,6 +73,49 @@ function bao(msg, loi) {
   clearTimeout(docTimer); docTimer = setTimeout(() => { d.hidden = true; }, loi ? 6000 : 2600);
 }
 
+/* ---------------- bản nháp phía trình duyệt ----------------
+ * Ba chỗ gõ của app (lưới phân công, ô thử luật, ô dán file) nằm thẳng trên
+ * trang chứ không trong modal, nên lớp nháp chung của Hub không trông hộ. Mỗi
+ * lần đổi tab là màn vẽ lại từ đầu, tải lại trang là mất sạch — trong khi gõ
+ * hết lưới 21 kênh × 5 người là việc của cả buổi. Chép ra localStorage, khoá
+ * theo tháng VÀ người xem: bản nháp tháng 9 không được hiện lên ở tháng 10,
+ * và máy dùng chung thì nháp của người này không đổ vào màn của người kia.
+ * Quá 14 ngày thì bỏ — bộ luật lúc đó đã đổi, đổ nháp cũ vào là đè số mới. */
+const HAN_NHAP = 14 * 864e5;
+const khoaNhap = (form) => 'kpi.nhap.' + form + '.' + THANG + '.'
+  + ((META && META.nguoiXem && META.nguoiXem.ma) || '');
+function nhapDoc(khoa) {
+  try {
+    const d = JSON.parse(localStorage.getItem(khoa) || 'null');
+    if (d && d.v != null && Date.now() - (d.luc || 0) < HAN_NHAP) return d;
+  } catch (_) { /* bỏ qua */ }
+  return null;
+}
+const henNhap = {};
+/* Giãn 400ms: gõ một con số năm chữ số là năm lần input, ghi một lần là đủ.
+ * `giaTri` null nghĩa là không còn gì chưa lưu — xoá luôn bản nháp. */
+function nhapGhi(khoa, giaTri) {
+  clearTimeout(henNhap[khoa]);
+  henNhap[khoa] = setTimeout(() => {
+    try {
+      if (giaTri == null) localStorage.removeItem(khoa);
+      else localStorage.setItem(khoa, JSON.stringify({ luc: Date.now(), v: giaTri }));
+    } catch (_) { /* đầy bộ nhớ / chặn localStorage: mất nháp chứ không được hỏng màn */ }
+  }, 400);
+}
+function nhapBo(khoa) {
+  clearTimeout(henNhap[khoa]);
+  try { localStorage.removeItem(khoa); } catch (_) { /* bỏ qua */ }
+}
+/** Dòng báo "đã khôi phục … · Bỏ". Bấm Bỏ là xoá nháp rồi gọi `boDi` vẽ lại từ số đã lưu. */
+function nhapThongBao(luc, boDi) {
+  const gio = new Date(luc).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+  const d = el('div', 'canhbao tin', '<div>Đã khôi phục phần đang nhập dở lúc <b>' + esc(gio)
+    + '</b> · <a href="#" data-bo-nhap>Bỏ</a></div>');
+  d.querySelector('[data-bo-nhap]').onclick = (ev) => { ev.preventDefault(); boDi(); };
+  return d;
+}
+
 /* ---------------- khởi động ---------------- */
 async function khoiDong() {
   try {
@@ -378,10 +421,21 @@ async function veNguon() {
   oText.rows = 6; oText.placeholder = 'Kênh\tChỉ số\tGiá trị\nRooty Trip Phú Quốc\tview\t1.234.567';
   oText.style.cssText = 'width:100%;font:12px ui-monospace,Consolas,monospace;padding:9px;'
     + 'border:1px solid var(--vien);border-radius:9px;resize:vertical';
+  /* Nháp ô dán: dán từ Excel xong lỡ bấm sang tab khác là phải mở Excel chép lại.
+   * Tệp quá lớn thì thôi không giữ — localStorage chỉ vài MB cho cả trang. */
+  const khoaDan = khoaNhap('taiFile');
+  const giuDan = () => nhapGhi(khoaDan, oText.value.trim() && oText.value.length < 500000 ? oText.value : null);
+  oText.addEventListener('input', giuDan);
+  const danCu = nhapDoc(khoaDan);
+  let oKhoiPhuc = null;
+  if (danCu && typeof danCu.v === 'string') {
+    oText.value = danCu.v;
+    oKhoiPhuc = nhapThongBao(danCu.luc, () => { nhapBo(khoaDan); oText.value = ''; oKhoiPhuc.remove(); });
+  }
   oFile.onchange = () => {
     const f = oFile.files[0]; if (!f) return;
     const fr = new FileReader();
-    fr.onload = () => { oText.value = fr.result; bao('Đã đọc ' + f.name); };
+    fr.onload = () => { oText.value = fr.result; giuDan(); bao('Đã đọc ' + f.name); };
     fr.readAsText(f, 'utf-8');
   };
   const ketQua = el('div');
@@ -405,9 +459,12 @@ async function veNguon() {
     if (!confirm('Nạp số từ file vào tháng ' + Number(THANG.slice(5)) + '?')) return;
     try {
       const d = await goi('tai-file', { method: 'POST', body: JSON.stringify({ thang: THANG, noiDung: oText.value }) });
+      /* Số đã vào tháng — bản dán không còn gì để giữ. */
+      nhapBo(khoaDan);
       bao('Đã nạp ' + d.ghi + ' số'); await napThang(); ve();
     } catch (e) { bao(e.message, true); }
   };
+  if (oKhoiPhuc) than2.appendChild(oKhoiPhuc);
   than2.appendChild(oFile); than2.appendChild(oText);
   const hang2 = el('div', 'nut-hang'); hang2.style.marginTop = '10px';
   hang2.appendChild(nutXem); hang2.appendChild(nutNap);
@@ -842,7 +899,8 @@ async function veThu() {
     + '<b>trước → sau</b>. Sửa xong thấy ai bị tụt quá thì chỉnh lại.</li>'
     + '</ul>'
     + '<b>KHÔNG có gì bị ghi xuống cho tới khi bấm “Lưu bộ luật”.</b> '
-    + 'Cứ sửa thoải mái để xem thử, đóng tab đi là mất hết thay đổi.'
+    + 'Cứ sửa thoải mái để xem thử. Chưa lưu thì trình duyệt này giữ bản nháp '
+    + '(theo tháng), mở lại là thấy — bấm “Bỏ” ở dòng báo khôi phục để quay về số đã lưu.'
     + '</div>'));
   const oGoiY = el('div');
   g.appendChild(oGoiY);
@@ -855,6 +913,43 @@ async function veThu() {
   try { luat = (await goi('luat?thang=' + encodeURIComponent(THANG))).luat; }
   catch (e) { $('#noiDung').innerHTML = '<div class="rong">' + esc(e.message) + '</div>'; return; }
 
+  /* SUA là biến toàn cục nên đổi tab rồi quay lại vẫn còn; cái mất là khi tải
+   * lại trang hay đổi tháng (đổi tháng xoá SUA). Nên: SUA trống mà tháng này có
+   * nháp thì đổ nháp vào. Rồi gạt bỏ mọi ô trùng số đã lưu — bộ luật có thể đã
+   * được lưu từ máy khác, nháp cũ lúc đó không còn là "phần chưa lưu" nữa. */
+  const khoaThu = khoaNhap('thu');
+  const goc = { mucTieu: {}, tyTrong: {} };
+  luat.nhom.forEach((n) => {
+    const khoa = [n.kenh, n.tenKenh, n.loai].join('|');
+    n.tieuChi.forEach((tc) => {
+      goc.mucTieu[khoa + '#' + tc.ma] = tc.mucTieu;
+      goc.tyTrong[khoa + '#' + tc.ma] = tc.tyTrong;
+    });
+  });
+  const lechGoc = () => ['mucTieu', 'tyTrong'].some((loai) => Object.keys(SUA[loai])
+    .some((k) => k in goc[loai] && Math.abs(SUA[loai][k] - goc[loai][k]) > 1e-9));
+  let thuCu = null;
+  if (!Object.keys(SUA.mucTieu).length && !Object.keys(SUA.tyTrong).length) {
+    const d = nhapDoc(khoaThu);
+    if (d && d.v && typeof d.v === 'object') {
+      SUA = { mucTieu: Object.assign({}, d.v.mucTieu), tyTrong: Object.assign({}, d.v.tyTrong) };
+      thuCu = d;
+    }
+  }
+  ['mucTieu', 'tyTrong'].forEach((loai) => Object.keys(SUA[loai]).forEach((k) => {
+    if (k in goc[loai] && Math.abs(SUA[loai][k] - goc[loai][k]) <= 1e-9) delete SUA[loai][k];
+  }));
+  if (!lechGoc()) { nhapBo(khoaThu); thuCu = null; }
+  if (thuCu) {
+    g.insertBefore(nhapThongBao(thuCu.luc, () => {
+      nhapBo(khoaThu); SUA = { mucTieu: {}, tyTrong: {} }; THU = null; veThu();
+    }), oGoiY);
+  }
+  /* Ô nào đang có trong bản sửa thì vẽ từ bản sửa, không từ bộ luật — trước đây
+   * quay lại tab là ô hiện số gốc trong khi cột "trước → sau" vẫn tính theo số
+   * đã sửa, nhìn vào không biết mình đang thử cái gì. */
+  const oSua = (loai, k, mau) => (k in SUA[loai] ? SUA[loai][k] : mau);
+
   luat.nhom.forEach((n) => {
     const khoa = [n.kenh, n.tenKenh, n.loai].join('|');
     const the = el('div', 'the');
@@ -866,8 +961,10 @@ async function veThu() {
       const k = khoa + '#' + tc.ma;
       const dn = (DATA.nhom.find((x) => x.khoa === khoa) || { tieuChi: [] }).tieuChi.find((x) => x.ma === tc.ma);
       tb.appendChild(el('tr', '', '<td>' + esc(tc.ten) + '</td>'
-        + '<td class="so"><input class="so" type="number" step="any" value="' + tc.mucTieu + '" data-loai="mucTieu" data-k="' + esc(k) + '"></td>'
-        + '<td class="so"><input class="so" type="number" step="0.05" min="0" max="1" value="' + (Math.round(tc.tyTrong * 1000) / 1000) + '" data-loai="tyTrong" data-k="' + esc(k) + '"></td>'
+        + '<td class="so"><input class="so' + (k in SUA.mucTieu ? ' doi' : '') + '" type="number" step="any" value="'
+        + oSua('mucTieu', k, tc.mucTieu) + '" data-loai="mucTieu" data-k="' + esc(k) + '"></td>'
+        + '<td class="so"><input class="so' + (k in SUA.tyTrong ? ' doi' : '') + '" type="number" step="0.05" min="0" max="1" value="'
+        + (Math.round(oSua('tyTrong', k, tc.tyTrong) * 1000) / 1000) + '" data-loai="tyTrong" data-k="' + esc(k) + '"></td>'
         + '<td class="so mo">' + (dn ? gon(dn.ketQua) : '—') + '</td>'));
     });
     t.appendChild(tb);
@@ -886,6 +983,7 @@ async function veThu() {
     const v = Number(i.value);
     if (Number.isFinite(v)) SUA[i.dataset.loai][i.dataset.k] = v;
     i.classList.add('doi');
+    nhapGhi(khoaThu, lechGoc() ? SUA : null);
     clearTimeout(veThu._t); veThu._t = setTimeout(chayThu, 350);
   });
   veKetQuaThu(phai, null);
@@ -1013,6 +1111,7 @@ function veKetQuaThu(hop, r) {
   luu.onclick = async () => {
     try {
       await goi('luu-luat', { method: 'POST', body: JSON.stringify({ thang: THANG, luat: r.luat }) });
+      nhapBo(khoaNhap('thu'));
       bao('Đã lưu bộ luật cho tháng này'); SUA = { mucTieu: {}, tyTrong: {} }; await napThang(); ve();
     } catch (e) { bao(e.message, true); }
   };
@@ -1021,6 +1120,7 @@ function veKetQuaThu(hop, r) {
   ve0.onclick = async () => {
     try {
       await goi('bo-sua-luat', { method: 'POST', body: JSON.stringify({ thang: THANG }) });
+      nhapBo(khoaNhap('thu'));
       SUA = { mucTieu: {}, tyTrong: {} }; bao('Đã về bản nhập từ Excel'); await napThang(); ve();
     } catch (e) { bao(e.message, true); }
   };

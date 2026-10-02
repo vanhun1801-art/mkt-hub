@@ -66,21 +66,72 @@ async function chep(s) {
   }
 }
 
+/* ---------------- nháp trên máy (02/10) ----------------
+ * Các bảng/ô sửa ngay trên trang (Thông tin chuyến, Bảng kê, Bàn giao, ô nhập số) và form
+ * Tạo hợp tác: lớp nháp chung của Hub không với tới — nó chỉ giữ ô trong cửa sổ nổi, không
+ * giữ chip hay dòng thêm sau. Iframe Hub tải lại, lỡ tay đóng tab, máy treo… là mất trắng
+ * phần đang gõ. Nên app tự giữ: localStorage, khoá "kol.nhap.<form>.<id>", kèm giờ ghi;
+ * nháp quá 14 ngày bỏ; lưu thành công thì xoá. Cùng kiểu với nháp thư (kol.thu.*). */
+const NHAP_HAN = 14 * 864e5;
+const NHAP_CHO = {};   // khoá → {t, lay}: lượt ghi đang chờ (gõ liên tục thì ghi một lần sau 400ms)
+function nhapDoc(kh) {
+  try {
+    const n = JSON.parse(localStorage.getItem(kh) || 'null');
+    if (n && n.at && Date.now() - n.at < NHAP_HAN) return n;
+    if (n) localStorage.removeItem(kh);
+  } catch (_) {}
+  return null;
+}
+function nhapBo(kh) {
+  if (NHAP_CHO[kh]) { clearTimeout(NHAP_CHO[kh].t); delete NHAP_CHO[kh]; }
+  try { localStorage.removeItem(kh); } catch (_) {}
+}
+function nhapChay(kh) {
+  const c = NHAP_CHO[kh]; if (!c) return;
+  clearTimeout(c.t); delete NHAP_CHO[kh];
+  /* lay() trả undefined = form đã đóng / đã đổi trang thì thôi; null = không còn gì khác bản đã lưu */
+  const dl = c.lay();
+  if (dl === undefined) return;
+  if (dl === null) { try { localStorage.removeItem(kh); } catch (_) {} return; }
+  try { localStorage.setItem(kh, JSON.stringify({ at: Date.now(), dl })); } catch (_) {}
+}
+function henNhap(kh, lay) {
+  if (NHAP_CHO[kh]) clearTimeout(NHAP_CHO[kh].t);
+  NHAP_CHO[kh] = { lay, t: setTimeout(() => nhapChay(kh), 400) };
+}
+/* ghi ngay mọi lượt đang chờ — trước khi đóng cửa sổ / rời trang, kẻo mất mấy chữ gõ cuối */
+const nhapXa = () => Object.keys(NHAP_CHO).forEach(nhapChay);
+window.addEventListener('pagehide', nhapXa);
+const gioNhap = (at) => hhmm(at) + (dauNgay(at) !== dauNgay(Date.now()) ? ' ' + ddmm(at) : '');
+const baoNhap = (at) => '<div class="bao xanh bao-nhap">Đã khôi phục phần đang nhập dở lúc ' + gioNhap(at) +
+  ' · <button type="button" class="btn nho" data-bo-nhap title="Bỏ bản nháp, quay về dữ liệu đã lưu">Bỏ</button></div>';
+/* Bảng đang sửa (S.sua) của Bảng kê / Bàn giao: giữ nguyên danh sách dòng đang sửa. */
+function giuSua() {
+  const s = S.sua;
+  if (!s || !s.nhap || !s.ban) return;
+  henNhap(s.nhap, () => (S.sua === s && s.ban ? s.ds : undefined));
+}
+
 /* tiền — bản sao của tinh.js để hiện tổng khi đang gõ */
 const heSo = (h) => (Number(h.soLuong) || 0) * (h.demLuot === '' || h.demLuot == null ? 1 : Number(h.demLuot) || 0);
 const thanhTien = (h) => (h.hinhThuc === 'Công ty chi' ? Math.round(heSo(h) * (Number(h.donGiaChi) || 0)) : 0);
 const quyDoi = (h) => (h.tinhTrang === 'Huỷ' ? 0 : Math.round(heSo(h) * (Number(h.giaCongBo !== '' && h.giaCongBo != null ? h.giaCongBo : h.donGiaChi) || 0)));
 
 /* ---------------- modal ---------------- */
-function moModal(tieuDe, than, chan, rong) {
-  $('#modal').innerHTML = '<div class="phu-man"><div class="hop' + (rong ? ' rong' : '') + '"><div class="hop-dau"><h2>' + e(tieuDe) +
+/* them.khoa → data-nhap-khoa: lớp nháp của Hub giữ nháp RIÊNG từng bản ghi (sửa KOL A không
+ * đổ nháp sang KOL B). them.tuLuu → ios-tu-luu: cửa sổ app tự giữ nháp, lớp Hub đứng ngoài. */
+function moModal(tieuDe, than, chan, rong, them) {
+  const t = them || {};
+  nhapXa();   // cửa sổ cũ đang chờ ghi nháp thì ghi nốt trước khi bị thay
+  $('#modal').innerHTML = '<div class="phu-man' + (t.tuLuu ? ' ios-tu-luu' : '') + '"><div class="hop' + (rong ? ' rong' : '') + (t.tuLuu ? ' ios-tu-luu' : '') + '"' +
+    (t.khoa ? ' data-nhap-khoa="' + e(t.khoa) + '"' : '') + '><div class="hop-dau"><h2>' + e(tieuDe) +
     '</h2><button class="nut-x" data-dong>×</button></div><div class="hop-than">' + than + '</div>' +
     (chan ? '<div class="hop-chan">' + chan + '</div>' : '') + '</div></div>';
   $('#modal [data-dong]').onclick = dongModal;
   $('#modal .phu-man').addEventListener('mousedown', (ev) => { if (ev.target.classList.contains('phu-man')) dongModal(); });
   return $('#modal .hop');
 }
-const dongModal = () => { $('#modal').innerHTML = ''; };
+const dongModal = () => { nhapXa(); $('#modal').innerHTML = ''; };
 document.addEventListener('keydown', (ev) => {
   if (ev.key !== 'Escape') return;
   if ($('#hoi').innerHTML) return;          // hộp hỏi tự lo phím Esc của nó
@@ -147,12 +198,20 @@ function veTabs(trang) {
 }
 $('#tabs').addEventListener('click', (ev) => { const b = ev.target.closest('[data-tab]'); if (b) di('#/' + b.dataset.tab); });
 
-async function ve() {
+async function ve(ev) {
   if (S.quayLai) { S.quayLai = false; return; }
   if (S.sua && S.sua.ban) {
-    const bo = await hoi({ tieuDe: 'Bảng đang sửa chưa lưu', noiDung: 'Rời trang sẽ mất các thay đổi chưa bấm Lưu.', nut: 'Bỏ thay đổi', nguy: true });
-    /* Ở lại: trả địa chỉ về trang cũ, và bỏ qua đúng một lượt hashchange do chính việc đó gây ra. */
-    if (!bo) { S.quayLai = true; history.back(); return; }
+    /* Gọi thẳng ve() (không phải hashchange) = vẽ lại CHÍNH trang này sau một thao tác (đổi bước,
+     * kiểm thư, làm mới…). Phần đang sửa đã có nháp trên máy → ghi nốt rồi vẽ lại, nháp tự khôi
+     * phục; khỏi hỏi — hỏi ở đây mà bấm "ở lại" thì history.back() lại đưa sang trang khác. */
+    if (!ev && S.sua.nhap) nhapXa();
+    else {
+      const bo = await hoi({ tieuDe: 'Bảng đang sửa chưa lưu', noiDung: 'Rời trang sẽ mất các thay đổi chưa bấm Lưu.', nut: 'Bỏ thay đổi', nguy: true });
+      /* Ở lại: trả địa chỉ về trang cũ, và bỏ qua đúng một lượt hashchange do chính việc đó gây ra. */
+      if (!bo) { S.quayLai = true; history.back(); return; }
+      /* chủ động bỏ thì bỏ luôn nháp — không để lần sau mở lại "khôi phục" thứ anh đã bỏ */
+      if (S.sua.nhap) nhapBo(S.sua.nhap);
+    }
   }
   S.sua = null;
   const d = duong();
@@ -248,21 +307,24 @@ const optMa = (v) => { const c = String(v || '').replace(/\D/g, ''); return '<op
 /* Phần số sau mã vùng, để ô nhập không lặp lại "+84". */
 const soNoi = (k) => { if (!k.sdt) return ''; const c = MV.chuan(k.sdt, k.maVung); return c.dep.replace(/^\+\d+\s*/, ''); };
 
+/* name="kol.*" / "kenh.<dòng>.*": lớp nháp Hub đặt khoá theo id || name || data-f || data-k. Thiếu
+ * name thì tên KOL (data-k="ten") và tên kênh (data-f="ten") cùng khoá "ten", các dòng kênh cùng
+ * khoá "link"… — khôi phục là tên kênh đè vào ô tên KOL. */
 function formKol(k, kenh, coTinhTrang) {
   const lv = new Set(k.linhVuc || []);
   return '<div class="luoi-form">' +
-    '<label>Tên KOL<input class="in-o" data-k="ten" value="' + e(k.ten) + '" placeholder="Châu Kim Cương"></label>' +
-    '<label>Xưng hô<select class="in-o" data-k="xungHo">' + opt(XUNG, k.xungHo || 'Chị', true) + '</select></label>' +
-    '<label>Tên gọi trong thư<input class="in-o" data-k="tenGoi" value="' + e(k.tenGoi) + '" placeholder="Cương"></label>' +
-    '<label>Quốc gia<select class="in-o" data-k="quocGia" data-vai="qg">' + optNuoc(k.quocGia || 'Việt Nam') + '</select></label>' +
-    '<label>Mã vùng<select class="in-o" data-k="maVung" data-vai="mv">' + optMa(k.maVung || '+84') + '</select></label>' +
-    '<label>Số điện thoại<input class="in-o" data-k="sdt" data-vai="sdt" value="' + e(soNoi(k)) + '" placeholder="778 866 707" inputmode="tel">' +
+    '<label>Tên KOL<input class="in-o" data-k="ten" name="kol.ten" value="' + e(k.ten) + '" placeholder="Châu Kim Cương"></label>' +
+    '<label>Xưng hô<select class="in-o" data-k="xungHo" name="kol.xungHo">' + opt(XUNG, k.xungHo || 'Chị', true) + '</select></label>' +
+    '<label>Tên gọi trong thư<input class="in-o" data-k="tenGoi" name="kol.tenGoi" value="' + e(k.tenGoi) + '" placeholder="Cương"></label>' +
+    '<label>Quốc gia<select class="in-o" data-k="quocGia" name="kol.quocGia" data-vai="qg">' + optNuoc(k.quocGia || 'Việt Nam') + '</select></label>' +
+    '<label>Mã vùng<select class="in-o" data-k="maVung" name="kol.maVung" data-vai="mv">' + optMa(k.maVung || '+84') + '</select></label>' +
+    '<label>Số điện thoại<input class="in-o" data-k="sdt" name="kol.sdt" data-vai="sdt" value="' + e(soNoi(k)) + '" placeholder="778 866 707" inputmode="tel">' +
       '<span class="goi-y" data-vai="goiY"></span></label>' +
-    '<label>Email<input class="in-o" type="email" data-k="email" value="' + e(k.email) + '"></label>' +
-    '<label>Liên hệ khác<input class="in-o" data-k="lienHe" value="' + e(k.lienHe) + '" placeholder="Zalo, quản lý…"></label>' +
-    '<label>Nguồn<select class="in-o" data-k="nguon">' + opt(NGUON, k.nguon, true) + '</select></label>' +
-    '<label>Đánh giá<select class="in-o" data-k="danhGia">' + opt(['1', '2', '3', '4', '5'], k.danhGia ? String(k.danhGia) : '', true) + '</select></label>' +
-    (coTinhTrang ? '<label>Tình trạng<select class="in-o" data-k="tinhTrang">' + opt(TT_KOL, k.tinhTrang, true) + '</select></label>' : '') +
+    '<label>Email<input class="in-o" type="email" data-k="email" name="kol.email" value="' + e(k.email) + '"></label>' +
+    '<label>Liên hệ khác<input class="in-o" data-k="lienHe" name="kol.lienHe" value="' + e(k.lienHe) + '" placeholder="Zalo, quản lý…"></label>' +
+    '<label>Nguồn<select class="in-o" data-k="nguon" name="kol.nguon">' + opt(NGUON, k.nguon, true) + '</select></label>' +
+    '<label>Đánh giá<select class="in-o" data-k="danhGia" name="kol.danhGia">' + opt(['1', '2', '3', '4', '5'], k.danhGia ? String(k.danhGia) : '', true) + '</select></label>' +
+    (coTinhTrang ? '<label>Tình trạng<select class="in-o" data-k="tinhTrang" name="kol.tinhTrang">' + opt(TT_KOL, k.tinhTrang, true) + '</select></label>' : '') +
     '<label class="rong">Lĩnh vực<div class="chip-ds" data-vai="lv">' + LINH_VUC.map((x) => '<button type="button" class="chip-chon' + (lv.has(x) ? ' on' : '') + '" data-lv="' + x + '">' + x + '</button>').join('') + '</div></label>' +
     '</div><h3 class="muc">Kênh</h3><div class="cuon"><table class="bang" data-vai="kenh"></table></div>' +
     '<button type="button" class="btn nho" data-vai="themKenh" style="margin-top:8px">Thêm kênh</button>';
@@ -274,9 +336,25 @@ function ganFormKol(goc, k, kenhBanDau) {
   const q = (vai) => $('[data-vai="' + vai + '"]', goc);
   const veKenh = () => {
     q('kenh').innerHTML = '<thead><tr><th class="w-chon">Nền tảng</th><th>Tên kênh</th><th>Link</th><th class="so w-tien">Theo dõi</th><th>Re-up</th><th></th></tr></thead><tbody>' +
-      kenh.map((x, i) => '<tr data-i="' + i + '"><td><select class="in-o" data-f="nenTang">' + opt(NEN_TANG, x.nenTang) + '</select></td><td><input class="in-o" data-f="ten" value="' + e(x.ten) + '"></td>' +
-        '<td><input class="in-o" data-f="link" value="' + e(x.link) + '" placeholder="https://"></td><td><input class="in-o" type="number" min="0" data-f="theoDoi" value="' + (x.theoDoi ?? '') + '"></td>' +
-        '<td style="text-align:center"><input type="checkbox" data-f="reup"' + (x.reup ? ' checked' : '') + '></td><td><button type="button" class="nut-x" data-xk="' + i + '">×</button></td></tr>').join('') + '</tbody>';
+      kenh.map((x, i) => { const n = (f) => ' data-f="' + f + '" name="kenh.' + i + '.' + f + '"';
+        return '<tr data-i="' + i + '"><td><select class="in-o"' + n('nenTang') + '>' + opt(NEN_TANG, x.nenTang) + '</select></td><td><input class="in-o"' + n('ten') + ' value="' + e(x.ten) + '"></td>' +
+        '<td><input class="in-o"' + n('link') + ' value="' + e(x.link) + '" placeholder="https://"></td><td><input class="in-o" type="number" min="0"' + n('theoDoi') + ' value="' + (x.theoDoi ?? '') + '"></td>' +
+        '<td style="text-align:center"><input type="checkbox"' + n('reup') + (x.reup ? ' checked' : '') + '></td><td><button type="button" class="nut-x" data-xk="' + i + '">×</button></td></tr>'; }).join('') + '</tbody>';
+  };
+  const giaTri = (t) => (t.type === 'checkbox' ? t.checked : t.type === 'number' ? (t.value === '' ? null : Number(t.value)) : t.value);
+  /* Đọc lại các dòng kênh từ chính ô trên màn hình: lớp nháp Hub khôi phục giá trị vào ô mà
+   * không chắc bắn sự kiện input — chỉ tin mảng `kenh` thì bấm Lưu sẽ ghi bản cũ. */
+  const dongBo = () => {
+    $$('tr[data-i]', q('kenh')).forEach((tr) => {
+      const x = kenh[+tr.dataset.i]; if (!x) return;
+      $$('[data-f]', tr).forEach((t) => {
+        const f = t.dataset.f, v = giaTri(t);
+        const cu = x[f] == null ? (t.type === 'checkbox' ? false : t.type === 'number' ? null : '') : x[f];
+        if (cu === v) return;
+        x[f] = v;
+        if (f === 'theoDoi') x.capNhat = Date.now();
+      });
+    });
   };
   veKenh();
   q('kenh').oninput = q('kenh').onchange = (ev) => {
@@ -324,7 +402,8 @@ function ganFormKol(goc, k, kenhBanDau) {
   qg.addEventListener('change', () => { const n = MV.theoTen(qg.value); if (n) { mv.value = '+' + n.ma; xem(); } });
   xem();
 
-  return () => {
+  const doc = () => {
+    dongBo();
     const kol = { id: k.id || undefined, linhVuc: $$('[data-lv].on', goc).map((b) => b.dataset.lv) };
     $$('[data-k]', goc).forEach((x) => { kol[x.dataset.k] = x.dataset.k === 'danhGia' ? (x.value ? Number(x.value) : null) : x.value; });
     const c = MV.chuan(kol.sdt, kol.maVung);
@@ -335,6 +414,11 @@ function ganFormKol(goc, k, kenhBanDau) {
       : kol.email && !/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(kol.email) ? 'Email "' + kol.email + '" chưa đúng dạng (ví dụ ten@gmail.com)' : '';
     return { kol, kenh: kenh.filter((x) => x.ten || x.link), loi, canhSdt: sdt.value.trim() && c.loi ? c.loi : '' };
   };
+  /* cho nháp Tạo hợp tác: chụp / đặt lại các dòng kênh, vẽ lại gợi ý số điện thoại */
+  doc.kenh = () => { dongBo(); return kenh.map((x) => ({ ...x })); };
+  doc.datKenh = (ds) => { kenh.splice(0, kenh.length, ...ds.map((x) => ({ ...x }))); veKenh(); };
+  doc.xem = xem;
+  return doc;
 }
 
 /* ---------------- Tạo hợp tác: MỘT màn, đủ thông tin cần nhất ---------------- */
@@ -351,6 +435,12 @@ function canhBaoKhach(nl, te, eb) {
 function moTaoHopTac(kolId) {
   const trong = { quocGia: 'Việt Nam', maVung: '+84', xungHo: 'Chị', linhVuc: [] };
   let kolChon = kolId ? S.dl.kol.find((k) => k.id === kolId) || trong : trong;
+  /* Nháp app tự giữ (lớp Hub không giữ chip Lĩnh vực, dòng kênh thêm sau, KOL đang chọn).
+   * Một nháp cho cả form — mỗi lúc chỉ tạo một hợp tác. Mở từ hồ sơ KOL khác thì không đổ nháp vào. */
+  const KH_TH = 'kol.nhap.tao-ht';
+  const nhap = nhapDoc(KH_TH);
+  const dungNhap = !!(nhap && nhap.dl && (!kolId || nhap.dl.kolId === kolId));
+  if (dungNhap && nhap.dl.kolId) kolChon = S.dl.kol.find((k) => k.id === nhap.dl.kolId) || kolChon;
   const hop = moModal('Tạo hợp tác', '<div class="bao" style="background:var(--surface-3);margin-bottom:12px">' +
     '<label class="ch-dong" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><b>KOL</b><select class="in-o" id="thChonKol" style="max-width:320px">' +
     '<option value="">— KOL mới —</option>' + S.dl.kol.map((k) => '<option value="' + k.id + '"' + (k.id === kolChon.id ? ' selected' : '') + '>' + e(k.ten) + '</option>').join('') +
@@ -366,16 +456,25 @@ function moTaoHopTac(kolId) {
     '<label class="rong"><span class="goi-y" id="thCanh"></span></label>' +
     '<label class="rong">Yêu cầu nội dung<textarea class="in" id="thYc">' + e(YEU_CAU_MAU) + '</textarea></label></div>',
   '<button class="btn" id="thForm" title="Tạo hợp tác rồi lấy link gửi KOL tự điền liên hệ, kênh, chuyến bay và danh sách thành viên (CCCD / hộ chiếu)">Tạo form điền thông tin</button>' +
-  '<div class="lon"></div><button class="btn mo" data-dong>Huỷ</button><button class="btn chinh" id="thTao">Tạo và dựng bảng kê</button>', true);
+  '<div class="lon"></div><button class="btn mo" data-dong>Huỷ</button><button class="btn chinh" id="thTao">Tạo và dựng bảng kê</button>', true, { tuLuu: true });
   $('.hop-chan [data-dong]', hop).onclick = dongModal;
   let doc;
+  const O_HT = ['thNL', 'thTE', 'thEB', 'thTu', 'thDen', 'thRT', 'thYc'];
+  const chupKol = () => ({ kol: Object.fromEntries($$('[data-k]', $('#thKol')).map((x) => [x.dataset.k, x.value])),
+    linhVuc: $$('[data-lv].on', $('#thKol')).map((b) => b.dataset.lv), kenh: doc.kenh() });
+  const chupHt = () => Object.fromEntries(O_HT.map((id) => [id, $('#' + id).value]));
+  let gocKol = '', gocHt = '';   // bản vừa mở (chưa gõ gì) — giống hệt thì không cần nháp
   const veKol = () => {
     const kenh = kolChon.id ? S.dl.kenh.filter((x) => x.kol === kolChon.id) : [{ nenTang: 'TikTok', ten: '', link: '', theoDoi: null }];
     $('#thKol').innerHTML = formKol(kolChon, kenh, false);
     doc = ganFormKol($('#thKol'), kolChon, kenh);
+    gocKol = JSON.stringify(chupKol());
   };
   veKol();
   $('#thChonKol').onchange = (ev) => { kolChon = S.dl.kol.find((k) => k.id === ev.target.value) || trong; veKol(); };
+  const khac = () => JSON.stringify(chupKol()) !== gocKol || JSON.stringify(chupHt()) !== gocHt;
+  const giu = () => henNhap(KH_TH, () => (!hop.isConnected ? undefined : khac() ? { kolId: kolChon.id || '', ...chupKol(), ht: chupHt() } : null));
+  ['input', 'change', 'click'].forEach((t) => hop.addEventListener(t, giu));
   const kiem = () => {
     const nl = +$('#thNL').value || 0, te = +$('#thTE').value || 0, eb = +$('#thEB').value || 0;
     const tu = tuChuoi($('#thTu').value), den = tuChuoi($('#thDen').value);
@@ -391,6 +490,20 @@ function moTaoHopTac(kolId) {
   ['#thNL', '#thTE', '#thEB', '#thTu', '#thDen'].forEach((s) => $(s).addEventListener('input', kiem));
   $('#thTu').addEventListener('change', () => { if (!$('#thDen').value) $('#thDen').value = $('#thTu').value; kiem(); });
   kiem();
+  gocHt = JSON.stringify(chupHt());
+  if (dungNhap) {
+    const d = nhap.dl;
+    $$('[data-k]', $('#thKol')).forEach((x) => { if (d.kol && x.dataset.k in d.kol) x.value = d.kol[x.dataset.k]; });
+    $$('[data-lv]', $('#thKol')).forEach((b) => b.classList.toggle('on', (d.linhVuc || []).includes(b.dataset.lv)));
+    if (Array.isArray(d.kenh)) doc.datKenh(d.kenh);
+    doc.xem();
+    O_HT.forEach((id) => { if (d.ht && id in d.ht) $('#' + id).value = d.ht[id]; });
+    kiem();
+    if (khac()) {
+      $('.hop-than', hop).insertAdjacentHTML('afterbegin', baoNhap(nhap.at));
+      $('[data-bo-nhap]', hop).onclick = () => { nhapBo(KH_TH); moTaoHopTac(kolId); };
+    } else nhapBo(KH_TH);
+  }
   /* Chưa có đủ thông tin cũng tạo được — KOL tự điền phần còn lại qua form */
   $('#thForm').onclick = async () => {
     const f = doc();
@@ -400,6 +513,7 @@ function moTaoHopTac(kolId) {
     $('#thForm').disabled = true;
     try {
       const r = await api('/api/hop-tac/tao', { kol: f.kol, kenh: f.kenh, ht, taoForm: true });
+      nhapBo(KH_TH);   // đã tạo xong — nháp hết việc
       const fm = await api('/api/hop-tac/' + r.id + '/form', {});
       await nap(true); di('#/ht/' + r.id);
       moLinkForm(htCua(r.id), fm.link);
@@ -417,6 +531,7 @@ function moTaoHopTac(kolId) {
     $('#thTao').disabled = true;
     try {
       const r = await api('/api/hop-tac/tao', { kol: f.kol, kenh: f.kenh, ht });
+      nhapBo(KH_TH);
       dongModal(); await nap(true); toast('Đã tạo ' + r.ma + ' — dựng bảng kê'); di('#/ht/' + r.id + '/bang-ke');
     } catch (err) { toast(err.message, true); $('#thTao').disabled = false; }
   };
@@ -538,7 +653,8 @@ async function lamViec(ht, viec, nut) {
   }
   const b = { viec };
   if (viec === 'chot') {
-    if (S.sua && S.sua.ban) return toast('Bảng kê đang sửa chưa lưu — bấm Lưu bảng kê trước', true);
+    /* chỉ chặn khi chính bảng kê đang sửa — tab Thông tin / Bàn giao gõ dở thì nháp tự giữ qua lượt vẽ lại */
+    if (S.sua && S.sua.ban && S.sua.nhap === 'kol.nhap.bk.' + ht.id) return toast('Bảng kê đang sửa chưa lưu — bấm Lưu bảng kê trước', true);
     if (!(await hoi({ tieuDe: 'Chốt bảng kê', noiDung: 'Chốt ' + tien(ht.kq.tienCongTy) + 'đ chi phí công ty (giá trị quy đổi ' + tien(ht.kq.giaTriQuyDoi) + 'đ) để trình Ban Giám Đốc? Sau khi chốt, bảng kê khoá lại — cần sửa thì bấm Mở chốt.', nut: 'Chốt bảng kê' }))) return;
   } else if (viec === 'moChot') {
     if (!(await hoi({ tieuDe: 'Mở chốt bảng kê', noiDung: BUOC.indexOf(ht.buoc) >= 1 ? 'Bảng kê đã trình BGĐ. Sửa xong nhớ chốt lại và gửi lại email cho BGĐ.' : 'Mở để sửa bảng kê. Sửa xong chốt lại rồi mới trình BGĐ.', nut: 'Mở chốt' }))) return;
@@ -656,6 +772,26 @@ function veThongTin(than, ht) {
     return l;
   };
   $$('[data-k="nguoiLon"],[data-k="treEm"],[data-k="emBe"]', than).forEach((x) => x.addEventListener('input', kiemKhach));
+  /* Nháp (02/10): trước đây gõ dở mà đổi tab / tải lại là mất, không một lời cảnh báo. Giờ đặt
+   * S.sua như Bảng kê (rời trang thì hỏi) và giữ bản đang gõ trên máy theo từng hợp tác. */
+  const kh = 'kol.nhap.tt.' + ht.id;
+  const layTT = () => Object.fromEntries($$('[data-k]', than).map((x) => [x.dataset.k, x.value]));
+  const goc = JSON.stringify(layTT());
+  const s = S.sua = { ban: false, nhap: kh };
+  const nhap = nhapDoc(kh);
+  if (nhap && nhap.dl) {
+    $$('[data-k]', than).forEach((x) => { if (x.dataset.k in nhap.dl) x.value = nhap.dl[x.dataset.k]; });
+    s.ban = JSON.stringify(layTT()) !== goc;
+    if (s.ban) {
+      than.insertAdjacentHTML('afterbegin', baoNhap(nhap.at));
+      $('[data-bo-nhap]', than).onclick = () => { nhapBo(kh); S.sua = null; veThongTin(than, ht); };
+    } else nhapBo(kh);
+  }
+  than.oninput = than.onchange = (ev) => {
+    if (S.sua !== s || !ev.target.dataset.k) return;
+    s.ban = JSON.stringify(layTT()) !== goc;
+    if (s.ban) henNhap(kh, () => (S.sua === s && s.ban ? layTT() : undefined)); else nhapBo(kh);
+  };
   kiemKhach();
   $('#luuTT').onclick = async () => {
     const l = kiemKhach();
@@ -663,7 +799,7 @@ function veThongTin(than, ht) {
     const b = { id: ht.id };
     $$('[data-k]', than).forEach((x) => { b[x.dataset.k] = x.type === 'number' ? Number(x.value || 0) : x.value; });
     $('#luuTT').disabled = true;
-    try { await api('/api/hop-tac', b); await nap(true); toast('Đã lưu'); ve(); } catch (err) { toast(err.message, true); $('#luuTT').disabled = false; }
+    try { await api('/api/hop-tac', b); S.sua = null; nhapBo(kh); await nap(true); toast('Đã lưu'); ve(); } catch (err) { toast(err.message, true); $('#luuTT').disabled = false; }
   };
   $('#suaKol').onclick = () => moKol(kol.id);
   $('#ttForm').onclick = async () => {
@@ -816,7 +952,15 @@ function htmlLichBk(ds, ht, chiDanhSach) {
 
 function veBangKe(than, ht) {
   const goc = S.dl.hangMuc.filter((h) => h.hopTac === ht.id).sort((a, b) => (a.ngay || 9e15) - (b.ngay || 9e15) || (a.gioHen || 0) - (b.gioHen || 0));
-  S.sua = { ban: false, ds: goc.map((h) => ({ ...h })) };
+  /* Nháp (02/10): các dòng đang sửa giữ trên máy theo hợp tác — tải lại / Hub nạp lại iframe vẫn còn.
+   * Bảng đã chốt thì chưa đổ nháp vào (ô đang khoá), nháp nằm chờ tới lúc Mở chốt. */
+  const kh = 'kol.nhap.bk.' + ht.id;
+  S.sua = { ban: false, ds: goc.map((h) => ({ ...h })), nhap: kh };
+  const nhap = !ht.chotLuc && nhapDoc(kh);
+  if (nhap && Array.isArray(nhap.dl)) {
+    if (JSON.stringify(nhap.dl) !== JSON.stringify(S.sua.ds)) S.sua = { ban: true, ds: nhap.dl, nhap: kh, khoiPhuc: nhap.at };
+    else nhapBo(kh);
+  }
   const tong = () => {
     const song = S.sua.ds.filter((k) => k.tinhTrang !== 'Huỷ');
     return { tt: song.reduce((s, h) => s + thanhTien(h), 0), qd: song.reduce((s, h) => s + quyDoi(h), 0),
@@ -827,8 +971,9 @@ function veBangKe(than, ht) {
     const t = tong();
     const choXin = [...new Set(ds.filter((h) => FOC_CHO.includes(h.xinFoc)).map((h) => h.nhaCungCap).filter(Boolean))];
     const chot = !!ht.chotLuc;
-    than.innerHTML = '<div class="bk-luoi"><div style="min-width:0">' +
-      (chot ? '<div class="bao xanh" style="display:flex;gap:10px;align-items:center"><b>Đã chốt ' + ddmm(ht.chotLuc) + ' ' + hhmm(ht.chotLuc) + '</b><span>Chi phí công ty ' + tien(t.tt) + 'đ · sẵn sàng trình BGĐ</span><div class="lon"></div><button class="btn nho" data-viec="moChot">Mở chốt để sửa</button></div>' : '') +
+    if (S.sua.ban) giuSua();
+    than.innerHTML = (S.sua.khoiPhuc ? baoNhap(S.sua.khoiPhuc) : '') + '<div class="bk-luoi"><div style="min-width:0">' +
+      (chot ?'<div class="bao xanh" style="display:flex;gap:10px;align-items:center"><b>Đã chốt ' + ddmm(ht.chotLuc) + ' ' + hhmm(ht.chotLuc) + '</b><span>Chi phí công ty ' + tien(t.tt) + 'đ · sẵn sàng trình BGĐ</span><div class="lon"></div><button class="btn nho" data-viec="moChot">Mở chốt để sửa</button></div>' : '') +
       '<div class="the' + (chot ? ' da-chot' : '') + '"><div class="the-dau"><h2>Bảng kê chi phí · ' + ds.filter((h) => h.tinhTrang !== 'Huỷ').length + ' dòng</h2><div class="lon"></div>' +
       '<button class="btn nho" id="bkFoc">Đề xuất hợp tác FOC' + (choXin.length ? ' · ' + choXin.length + ' đối tác' : '') + '</button>' +
       (chot ? '' : '<button class="btn chinh nho" id="bkSp">Lấy từ Base Sản phẩm</button><button class="btn nho" id="bkChon">Thêm từ danh mục</button><button class="btn nho" id="bkThem">Dòng tự nhập</button>' +
@@ -874,7 +1019,7 @@ function veBangKe(than, ht) {
       $('#bkLuu').disabled = true;
       try {
         await api('/api/hop-tac/' + ht.id + '/hang-muc', { ds: ds.map(choGhiHm) });
-        S.sua = null; await nap(true); toast('Đã lưu bảng kê'); ve();
+        S.sua = null; nhapBo(kh); await nap(true); toast('Đã lưu bảng kê'); ve();
       } catch (err) { toast(err.message, true); $('#bkLuu').disabled = false; }
     };
   };
@@ -911,9 +1056,11 @@ function veBangKe(than, ht) {
     $('#bkQd').textContent = chuQd(t.foc, t.qd);
     if ($('#bkLichDs')) $('#bkLichDs').innerHTML = htmlLichBk(S.sua.ds, ht, true);
     $('#bkLuu').disabled = false;
+    giuSua();
   };
   than.onclick = async (ev) => {
     if (!S.sua) return;
+    if (ev.target.closest('[data-bo-nhap]')) { nhapBo(kh); S.sua = null; return veBangKe(than, ht); }
     const x = ev.target.closest('[data-xoa]');
     if (!x) return;
     const h = S.sua.ds[+x.dataset.xoa];
@@ -1208,12 +1355,20 @@ function veBanGiaoHt(than, ht) {
   const goc = S.dl.banGiao.filter((b) => b.hopTac === ht.id);
   /* Kênh đăng chọn thẳng từ các kênh đã khai của KOL — không gõ lại. */
   const kenh = S.dl.kenh.filter((k) => k.kol === ht.kol);
-  S.sua = { ban: false, ds: goc.map((b) => ({ ...b, kenhDang: [...(b.kenhDang || [])] })) };
+  /* Nháp (02/10): như Bảng kê — danh sách đang sửa giữ trên máy theo hợp tác, lưu xong thì xoá. */
+  const kh = 'kol.nhap.bg.' + ht.id;
+  S.sua = { ban: false, ds: goc.map((b) => ({ ...b, kenhDang: [...(b.kenhDang || [])] })), nhap: kh };
+  const nhap = nhapDoc(kh);
+  if (nhap && Array.isArray(nhap.dl)) {
+    if (JSON.stringify(nhap.dl) !== JSON.stringify(S.sua.ds)) S.sua = { ban: true, ds: nhap.dl, nhap: kh, khoiPhuc: nhap.at };
+    else nhapBo(kh);
+  }
   const veLai = () => {
     const ds = S.sua.ds;
+    if (S.sua.ban) giuSua();
     const dang = ds.map((b, i) => [b, i]).filter(([b]) => b.trangThai === 'Đã đăng');
     const doiTacBg = [...new Set(goc.map((b) => String(b.traDoiTac || '').trim()).filter(Boolean))];
-    than.innerHTML = '<div class="the"><div class="the-dau"><h2>Sản phẩm KOL cam kết</h2><div class="lon"></div>' +
+    than.innerHTML = (S.sua.khoiPhuc ? baoNhap(S.sua.khoiPhuc) : '') + '<div class="the"><div class="the-dau"><h2>Sản phẩm KOL cam kết</h2><div class="lon"></div>' +
       doiTacBg.map((d) => '<button class="btn nho" data-bcdt="' + e(d) + '">Báo cáo cho ' + e(d) + '</button>').join('') +
       '<button class="btn nho" id="bgThem">Thêm sản phẩm</button>' +
       '<button class="btn chinh nho" id="bgLuu"' + (S.sua.ban ? '' : ' disabled') + '>Lưu</button></div>' +
@@ -1259,7 +1414,7 @@ function veBanGiaoHt(than, ht) {
           if (nt.length) r.nenTang = nt;
           return r;
         }) });
-        S.sua = null; await nap(true); toast('Đã lưu sản phẩm'); ve();
+        S.sua = null; nhapBo(kh); await nap(true); toast('Đã lưu sản phẩm'); ve();
       } catch (err) { toast(err.message, true); $('#bgLuu').disabled = false; }
     };
   };
@@ -1271,12 +1426,13 @@ function veBanGiaoHt(than, ht) {
     b[f] = x.type === 'checkbox' ? x.checked : x.type === 'number' ? (x.value === '' ? null : Number(x.value)) : x.type === 'date' ? tuChuoi(x.value) : x.value;
     if (f === 'trangThai' && b.trangThai === 'Đã đăng' && !b.ngayDang) b.ngayDang = Date.now();
     S.sua.ban = true; $('#bgLuu').disabled = false;
-    if (ev.type === 'change' && f === 'trangThai') veLai();
+    if (ev.type === 'change' && f === 'trangThai') veLai(); else giuSua();
   };
   than.onclick = (ev) => {
     const bc = ev.target.closest('[data-bcdt]');
     if (bc) return moEmail(ht, 'bao-cao-doi-tac', bc.dataset.bcdt);
     if (!S.sua) return;
+    if (ev.target.closest('[data-bo-nhap]')) { nhapBo(kh); S.sua = null; return veBanGiaoHt(than, ht); }
     const kd = ev.target.closest('[data-kd]');
     if (kd) { const b = S.sua.ds[+kd.closest('tr').dataset.i]; const s = new Set(b.kenhDang || []); s.has(kd.dataset.kd) ? s.delete(kd.dataset.kd) : s.add(kd.dataset.kd); b.kenhDang = [...s]; S.sua.ban = true; return veLai(); }
     const x = ev.target.closest('[data-xoa]');
@@ -1658,18 +1814,35 @@ function veBanGiaoTat(man) {
       (k === 'can-do' && soCanDo ? ' · ' + soCanDo : '') + '</button>').join('') + '</div>' +
     (loc === 'can-do' ? htmlNhapNhanh(ds) :
     htmlBangBg(ds));
+  /* Nháp từng thẻ (02/10): link + 5 con số gõ dở giữ trên máy theo bài × mốc 7/30 ngày. */
+  const khNn = (the) => 'kol.nhap.nn.' + the.dataset.bg + '.' + the.dataset.moc;
+  const layNn = (the) => { const o = {}; $$('[data-o]', the).forEach((x) => { if (x.value.trim() !== '') o[x.dataset.o] = x.value; }); return o; };
+  $$('.nn-the', man).forEach((the) => {
+    const n = nhapDoc(khNn(the));
+    if (!n || !n.dl) return;
+    let co = false;
+    $$('[data-o]', the).forEach((x) => { if (n.dl[x.dataset.o] != null && x.value === '') { x.value = n.dl[x.dataset.o]; co = true; } });
+    if (co) $('.the-than', the).insertAdjacentHTML('afterbegin', baoNhap(n.at)); else nhapBo(khNn(the));
+  });
+  man.oninput = (ev) => {
+    const the = ev.target.closest('.nn-the');
+    if (!the || !ev.target.dataset.o) return;
+    henNhap(khNn(the), () => (!the.isConnected ? undefined : Object.keys(layNn(the)).length ? layNn(the) : null));
+  };
   const luu = async (the) => {
     const b = {};
     $$('[data-o]', the).forEach((x) => { if (x.value.trim() !== '') b[x.dataset.o] = x.dataset.o === 'link' ? x.value.trim() : Number(x.value); });
     const moc = the.dataset.moc;
     if (!('xem' + moc in b)) return toast('Nhập ít nhất lượt xem', true);
     const nut = $('[data-luu]', the); nut.disabled = true;
-    try { await api('/api/ban-giao/' + the.dataset.bg, b); await nap(true); toast('Đã lưu số ' + moc + ' ngày'); ve(); }
+    try { await api('/api/ban-giao/' + the.dataset.bg, b); nhapBo(khNn(the)); await nap(true); toast('Đã lưu số ' + moc + ' ngày'); ve(); }
     catch (err) { toast(err.message, true); nut.disabled = false; }
   };
   man.onclick = (ev) => {
     const l = ev.target.closest('[data-loc]');
     if (l) return di('#/ban-giao' + (l.dataset.loc ? '?loc=' + l.dataset.loc : ''));
+    const bo = ev.target.closest('[data-bo-nhap]');
+    if (bo) { const the = bo.closest('.nn-the'); nhapBo(khNn(the)); $$('[data-o]', the).forEach((x) => { x.value = ''; }); bo.closest('.bao-nhap').remove(); return; }
     const s = ev.target.closest('[data-luu]');
     if (s) return luu(s.closest('.nn-the'));
     const h = ev.target.closest('[data-ht]');
@@ -1703,7 +1876,8 @@ function moKol(id) {
   const hop = moModal(id ? 'KOL · ' + k.ten : 'Thêm KOL', formKol(k, kenh, true) +
     '<label class="rong" style="display:flex;flex-direction:column;gap:4px;margin-top:12px;font-size:12px;color:var(--text-3);font-weight:600">Ghi chú' +
     '<textarea class="in" data-k="ghiChu">' + e(k.ghiChu) + '</textarea></label>',
-  (id ? '<button class="btn" id="kHt">Tạo hợp tác</button>' : '') + '<div class="lon"></div><button class="btn mo" data-dong>Đóng</button><button class="btn chinh" id="kLuu">Lưu</button>', true);
+  (id ? '<button class="btn" id="kHt">Tạo hợp tác</button>' : '') + '<div class="lon"></div><button class="btn mo" data-dong>Đóng</button><button class="btn chinh" id="kLuu">Lưu</button>', true,
+  { khoa: 'kol.' + (id || 'moi') });   // nháp Hub riêng từng KOL — mở KOL B không thấy chữ gõ dở của KOL A
   $('.hop-chan [data-dong]', hop).onclick = dongModal;
   const doc = ganFormKol($('.hop-than', hop), k, kenh);
   if ($('#kHt')) $('#kHt').onclick = () => moTaoHopTac(id);
@@ -1769,7 +1943,7 @@ function moDoiTac(id) {
     o('lienHe', 'Người liên hệ', '', 'Chị Lan — Marketing') + o('sdt', 'SĐT') +
     '<label class="rong">Ghi chú<textarea class="in" data-k="ghiChu">' + e(d.ghiChu) + '</textarea></label></div>' +
     (d.maTw ? '<div class="nho" style="margin-top:8px">Mã nhà cung cấp Tourwell: ' + e(d.maTw) + '</div>' : ''),
-  '<button class="btn mo" data-dong>Đóng</button><button class="btn chinh" id="dtLuu">Lưu</button>');
+  '<button class="btn mo" data-dong>Đóng</button><button class="btn chinh" id="dtLuu">Lưu</button>', false, { khoa: 'doi-tac.' + (id || 'moi') });
   $('.hop-chan [data-dong]', hop).onclick = dongModal;
   $('#dtLuu').onclick = async () => {
     const b = { id: id || undefined };
@@ -1793,7 +1967,7 @@ function moDichVu(id) {
     '<label class="rong">Địa chỉ<input class="in-o" data-k="diaChi" value="' + e(d.diaChi) + '"></label>' +
     '<label><span><input type="checkbox" data-k="focThuong"' + (d.focThuong ? ' checked' : '') + '> Thường FOC</span></label><label><span><input type="checkbox" data-k="dangDung"' + (d.dangDung !== false ? ' checked' : '') + '> Đang dùng</span></label>' +
     '<label class="rong">Ghi chú<textarea class="in" data-k="ghiChu">' + e(d.ghiChu) + '</textarea></label></div>',
-  '<button class="btn mo" data-dong>Đóng</button><button class="btn chinh" id="dvLuu">Lưu</button>');
+  '<button class="btn mo" data-dong>Đóng</button><button class="btn chinh" id="dvLuu">Lưu</button>', false, { khoa: 'dich-vu.' + (id || 'moi') });
   $('.hop-chan [data-dong]', hop).onclick = dongModal;
   $('#dvLuu').onclick = async () => {
     const b = { id: id || undefined };
