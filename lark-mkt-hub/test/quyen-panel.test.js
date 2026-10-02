@@ -13,7 +13,14 @@
 const { spawn } = require('child_process');
 const crypto = require('crypto');
 
-const PORT = 5191;
+/* Cong boc ngau nhien, KHONG cam cung.
+ *
+ * Bai thu nay tung do ba dong lien chi vi mot dev server cua phien khac dang
+ * giu dung cong do: hub cua bai thu khong bind duoc, bai thu di hoi nham app
+ * khac va nhan 404. Do gia — ma do gia con hai hon khong co bai thu, vi no day
+ * nguoi doc bo qua mau do. Boc ngau nhien thi hai phien chay song song cung
+ * khong giam nhau. */
+const PORT = 20000 + Math.floor(Math.random() * 30000);
 const SECRET = 'kiem-thu-chot-quyen';
 const env = Object.assign({}, process.env, {
   PORT: String(PORT),

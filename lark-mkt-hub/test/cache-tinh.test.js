@@ -98,7 +98,11 @@ ok('dấu __V__ đều có nơi thay, không lọt ra người dùng',
  * thầm quay về no-store là đủ để mất hết phần vừa làm, mà không dòng nào đỏ.
  *
  * Bật 12 app tốn chừng 45 giây. Đổi 45 giây lấy chỗ mù đó là đáng. */
-const DO = APP.map((ten, i) => [ten, 28301 + i]);
+/* Cong boc ngau nhien, khong cam cung: chay rieng thi 28301+ con trong,
+ * nhung chay chung ca bo thi cac cong vua dung o bai truoc con nam trong
+ * TIME_WAIT, va bai nay do nam dong ma khong phai loi san pham. */
+const CONG0 = 20000 + Math.floor(Math.random() * 25000);
+const DO = APP.map((ten, i) => [ten, CONG0 + i]);
 
 async function batVaDo(ten, cong) {
   const con = spawn(process.execPath, ['server.js'], {

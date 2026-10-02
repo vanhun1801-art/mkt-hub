@@ -67,7 +67,14 @@ group('Đường tải tệp lên chỉ dành cho quản lý');
    * Cổng 5199, KHÔNG phải 519x thấp hơn: 5194 và 5196 đang có app con của phòng
    * ngồi sẵn, và bài này gõ vào đó thì nhận 404 của app khác rồi tưởng route
    * của hub biến mất — đã mất một lượt truy nguyên vì đúng chuyện đó. */
-  const PORT = 5199;
+  /* Cong boc ngau nhien, KHONG cam cung.
+   *
+   * Bai thu nay tung do ba dong lien chi vi mot dev server cua phien khac dang
+   * giu dung cong do: hub cua bai thu khong bind duoc, bai thu di hoi nham app
+   * khac va nhan 404. Do gia — ma do gia con hai hon khong co bai thu, vi no day
+   * nguoi doc bo qua mau do. Boc ngau nhien thi hai phien chay song song cung
+   * khong giam nhau. */
+  const PORT = 20000 + Math.floor(Math.random() * 30000);
   const env = Object.assign({}, process.env, {
     PORT: String(PORT),
     LARK_APP_ID: 'cli_gia_de_vao_che_do_api',

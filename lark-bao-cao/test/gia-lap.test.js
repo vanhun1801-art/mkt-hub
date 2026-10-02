@@ -13,7 +13,14 @@ const ok = (ten, dieu, vi) => {
   if (dieu) { pass++; console.log('  \x1b[32mPASS\x1b[0m ' + ten); }
   else { fail++; console.log('  \x1b[31mFAIL\x1b[0m ' + ten + (vi ? '\n        ' + JSON.stringify(vi) : '')); }
 };
-const CONG = 5197;
+/* Cong boc ngau nhien, KHONG cam cung.
+ *
+ * Bai thu nay tung do ba dong lien chi vi mot dev server cua phien khac dang
+ * giu dung cong do: hub cua bai thu khong bind duoc, bai thu di hoi nham app
+ * khac va nhan 404. Do gia — ma do gia con hai hon khong co bai thu, vi no day
+ * nguoi doc bo qua mau do. Boc ngau nhien thi hai phien chay song song cung
+ * khong giam nhau. */
+const CONG = 20000 + Math.floor(Math.random() * 30000);
 const goi = (duong, method) => new Promise((res) => {
   const r = http.request({ host: '127.0.0.1', port: CONG, path: duong, method: method || 'GET',
     headers: { 'content-type': 'application/json' } }, (x) => {
