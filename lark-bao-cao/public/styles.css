@@ -738,3 +738,22 @@ body.so-mo #so {
 .hn-o textarea { resize: vertical; }
 .hn-msg { font-size: 13px; color: var(--red-text); min-height: 1em; }
 .hn-nut { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* Hàng phiếu trong sổ của một người (Toàn phòng → bấm một dòng, 02/10).
+   Dùng lại hình dáng của nhật ký ngày nhưng là div, không phải <details>:
+   bấm vào là THAY nội dung sổ chứ không bung ra tại chỗ. */
+.nk-sum {
+  display: flex; gap: 10px; align-items: center; cursor: pointer;
+  padding: 8px 11px; font-size: 12.5px;
+}
+.nk-sum:hover { background: var(--surface-3); }
+.bang-xem tbody tr.dang-chon { background: var(--surface-3); }
+
+/* Vị trí trong Thiết lập: gập được, nắp là chính thẻ (02/10). */
+.tl-vt > summary { cursor: pointer; list-style: none; }
+.tl-vt > summary::-webkit-details-marker { display: none; }
+.tl-vt > summary::before {
+  content: '▸'; color: var(--text-3); font-size: 11px; margin-right: 2px;
+}
+.tl-vt[open] > summary::before { content: '▾'; }
+.tl-vt > summary:hover { background: var(--surface-3); }

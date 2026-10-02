@@ -130,9 +130,13 @@ const CAN_HO_TRO = {
     noi: 'Thiếu file gốc từ Sales.', daNop: true }],
 };
 
+/* Cùng người với TOAN_PHONG (khớp theo email) — từ 02/10 hai nguồn này ghép
+ * vào MỘT bảng, nên mẫu thử phải ghép được, không thì bài thử xanh mà đời thật
+ * ra hai dòng rời. */
 const THEO_DOI = {
   tu: nay - 6 * NGAY, den: nay, soNgayCong: 6,
-  nguoi: [{ ten: 'Hân', soNgayDaNop: 4, soTre: 1, tongPhut: 1920,
+  nguoi: [{ ten: 'Thư', id: 'ou_t', email: 't@x.vn', soNgayDaNop: 5,
+    soDungHan: 4, soTre: 1, soBu: 0, soSua: 2, tyLeDung: 67, tongPhut: 2400,
     thieu: [{ ms: nay - NGAY, nhan: '11/09' }] }],
 };
 
@@ -357,7 +361,14 @@ function nap() {
     const goc = tao();
     ctx.__goi('DU = ' + JSON.stringify(PHIEU_NGAY));
     /* document giả trả về cùng một phần tử cho mọi truy vấn — đủ để các hàm
-     * xử lý chạy hết thân của chúng. */
+     * xử lý chạy hết thân của chúng.
+     *
+     * NHỚ TRẢ LẠI ở cuối nhóm (xem dòng cuối). Phần tử của nhóm này không có
+     * `innerHTML`, nên để nguyên là mọi nhóm chạy SAU đọc innerHTML ra
+     * undefined — bài thử không đỏ, chỉ lặng lẽ thôi kiểm tra. Mất buổi
+     * 02/10 mới tìm ra. */
+    const qsCu = ctx.document.querySelector;
+    const qsaCu = ctx.document.querySelectorAll;
     ctx.document.querySelector = () => goc;
     ctx.document.querySelectorAll = () => [goc];
 
@@ -375,8 +386,9 @@ function nap() {
     try { ctx.__goi('ganHang(); docBang(); tinhLai();'); } catch (err) { e2 = err; }
     ok('ganHang / docBang / tinhLai chạy được', !e2, e2 && e2.message);
 
-    ctx.document.querySelector = () => tao();
-    ctx.document.querySelectorAll = () => [];
+    /* Trả lại đúng cái document của khung chính — xem chú thích ở đầu nhóm. */
+    ctx.document.querySelector = qsCu;
+    ctx.document.querySelectorAll = qsaCu;
   }
 
   group('Ba trạng thái của danh sách đầu việc — gộp lại là người dùng hiểu sai');
@@ -685,10 +697,10 @@ function nap() {
     ok('điểm 40 tô đỏ', ctx.__goi('mauDiem(40)') === 'do');
   }
 
-  group('Ba màn quản lý');
+  group('Màn quản lý');
   {
     for (const [ten, ma] of [['toàn phòng', 'toan-phong'], ['cần hỗ trợ', 'can-ho-tro'],
-      ['theo dõi', 'theo-doi'], ['đã nộp', 'da-nop']]) {
+      ['đã nộp', 'da-nop']]) {
       let e = null;
       try {
         ctx.__goi('MAN = "' + ma + '"');
@@ -701,6 +713,96 @@ function nap() {
       ['/api/toan-phong', '/api/can-ho-tro', '/api/theo-doi', '/api/danh-sach']
         .every((d) => ctx.__ghi.includes(d)),
       'đã gọi: ' + [...new Set(ctx.__ghi)].join(', '));
+  }
+
+  group('Toàn phòng gộp Theo dõi — một bảng, một kỳ (02/10)');
+  {
+    /* Tab "Theo dõi" đã bỏ. Ai còn giữ đường cũ thì phải rơi vào Toàn phòng,
+     * không phải màn trắng. */
+    ok('thanh tab quản lý không còn "Theo dõi"',
+      !ctx.__goi('JSON.stringify(MAN_QL)').includes('theo-doi'),
+      ctx.__goi('JSON.stringify(MAN_QL)'));
+    ctx.__goi('MAN = "theo-doi"');
+    await ctx.__goi('ve()');
+    await new Promise((r) => setTimeout(r, 30));
+    ok('vào đường cũ #theo-doi thì đưa sang Toàn phòng',
+      ctx.__goi('MAN') === 'toan-phong', ctx.__goi('MAN'));
+
+    ctx.__goi('MAN = "toan-phong"; TP_KY = "thang"; TP_MOC = Date.now()');
+    await ctx.__goi('ve()');
+    await new Promise((r) => setTimeout(r, 30));
+    const tp = String(ctx.__goi('$("#man").innerHTML'));
+    /* Anh Hùng (02/10): "cần có bộ lọc báo cáo như các bộ lọc khác, mặc định
+     * là tháng hiện tại". */
+    ok('mặc định là tháng', ctx.__goi('TP_KY') === 'thang');
+    ok('có bộ lọc Tuần / Tháng', tp.includes('id="tpTuan"') && tp.includes('id="tpThang"'));
+    ok('có nút lùi / tới kỳ', tp.includes('id="tpLui"') && tp.includes('id="tpToi"'));
+    /* Cột của màn Theo dõi cũ phải có mặt ở đây, không thì gọi là "gộp" nhưng
+     * thực ra là xoá. */
+    ok('bảng có cột nhịp nộp', tp.includes('Nhịp nộp'));
+    ok('và ghép đúng số kỷ luật của người đó',
+      tp.includes('4 đúng hạn') && tp.includes('1 trễ'),
+      'ghép theo email — lệch khoá là bảng mất sạch cột này');
+    ok('vẫn giữ phần chất lượng cũ',
+      tp.includes('Đáng chú ý nhất') && tp.includes('>92<'));
+    ok('thẻ số có cả tỷ lệ đúng hạn', tp.includes('nộp đúng hạn'));
+
+    /* Bấm một người -> mở CỬA BÊN PHẢI, không đổ xuống dưới bảng nữa. */
+    ok('không còn khối chi tiết đổ xuống dưới bảng', !tp.includes('id="oChiTiet"'),
+      'đổ xuống dưới thì xem một người là trôi mất chỗ đang đứng trong bảng');
+    ctx.__goi('moNguoi(Object.assign({ kl: ' + JSON.stringify(THEO_DOI.nguoi[0]) +
+      ', ai: "**Gợi ý**: bám sát kế hoạch tuần.", phieu: [{ ma: "ngay-x", loaiKy: "ngay", tu: ' +
+      (nay - NGAY) + ', nhan: "Thứ 6 11/09/2026", tongGio: "6 giờ", daNop: true, nopLuc: ' +
+      (nay - NGAY) + ', trangThaiHan: "dung-han", veHan: "Đúng hạn" }] }, ' +
+      JSON.stringify(TOAN_PHONG.nguoi[0]) + '), "Tháng 09/2026")');
+    const so = ctx.__goi('$("#soThan").innerHTML');
+    ok('sổ hiện thống kê nhanh của người đó',
+      so.includes('Điểm') && so.includes('Thời lượng') && so.includes('Đúng hạn'));
+    ok('sổ liệt kê phiếu đã nộp, bấm được',
+      so.includes('data-ql-moc') && so.includes('Thứ 6 11/09/2026'));
+    ok('sổ có nhận định theo luật', so.includes('Nhận định theo luật'));
+    ok('sổ có nhận xét AI của kỳ', so.includes('Marketing Hub AI') && so.includes('<b>Gợi ý</b>'));
+    ok('ngày chưa nộp cũng nói ra', so.includes('11/09'));
+  }
+
+  group('Cần hỗ trợ cũng lọc theo kỳ (02/10)');
+  {
+    ctx.__goi('MAN = "can-ho-tro"; HT_KY = "thang"; HT_MOC = Date.now()');
+    await ctx.__goi('ve()');
+    await new Promise((r) => setTimeout(r, 30));
+    const ht = ctx.__goi('$("#man").innerHTML');
+    ok('có bộ lọc kỳ như Toàn phòng',
+      ht.includes('id="htTuan"') && ht.includes('id="htThang"') && ht.includes('id="htLui"'));
+    ok('mặc định tháng', ctx.__goi('HT_KY') === 'thang');
+    ok('nhãn kỳ thay cho chữ "bốn tuần gần đây" cứng',
+      !ht.includes('bốn tuần gần đây'));
+    ok('vẫn còn bộ lọc trạng thái cũ',
+      ht.includes('data-loc="chua"') && ht.includes('data-loc="xong"'));
+  }
+
+  group('Thiết lập gọn lại (02/10)');
+  {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+    /* Anh Hùng: "chỗ mẫu xem thử không cần hiện đâu". Thẻ mẫu chiếm nửa bề
+     * ngang và dựng lại bằng một lượt gọi máy chủ mỗi lần gõ — muốn xem thật
+     * thì đã có nút "Gửi thử cho tôi". */
+    ok('bỏ hẳn khối xem trước thẻ mẫu',
+      !src.includes('id="tnXem"') && !src.includes('Đang dựng thẻ mẫu'),
+      'còn dấu vết của khối xem trước');
+    ok('không còn gọi máy chủ để dựng thẻ mẫu mỗi lần gõ',
+      !/thu-tin-nhom[\s\S]{0,120}gui: false/.test(src));
+    ok('nút gửi thử thật thì vẫn còn', src.includes('id="tnGui"'),
+      'bỏ cả đường xem thật thì không ai kiểm được mẫu tin nữa');
+
+    /* "Cho giao diện gọn thông minh hơn": mỗi vị trí là một khối gập được,
+     * nắp mang sẵn tóm tắt để biết có cần mở hay không. */
+    ok('mỗi vị trí là một khối gập được', src.includes('class="the tl-vt"'));
+    ok('nắp khối có tóm tắt việc chính / số chỉ tiêu',
+      src.includes('chỉ tiêu sản lượng') && src.includes("'chính: '"));
+    ok('nhớ khối nào đang mở giữa các lần vẽ lại', src.includes('TL_MO.add'),
+      'không nhớ thì tick một chip là khối vừa mở lại sập xuống');
+    ok('bấm Bỏ trong nắp không làm gập khối',
+      /tl-xoa-vt[\s\S]{0,260}stopPropagation/.test(src));
   }
 
   group('Hàm ngày giờ phía giao diện phải khớp phía máy chủ');

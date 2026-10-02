@@ -24,11 +24,14 @@ let MOC = Date.now();
 let DU = null;      // phiếu đang mở
 let VIEC = null;    // { chay, ds } — đầu việc từ Tracking
 let BAN = false;    // có thay đổi chưa lưu
-/* Màn Theo dõi có phạm vi riêng — quản lý hay lùi lại xem tuần trước, và chuyển
- * sang cả tháng khi soát kỷ luật. Giữ ngoài MAN/MOC để đổi tab đi rồi quay lại
- * vẫn ở đúng chỗ đang xem. */
-let TD_KY = 'tuan';
-let TD_MOC = Date.now();
+/* Hai màn quản lý có phạm vi RIÊNG, không dùng chung MOC với màn phiếu: quản lý
+ * đang soi tháng trước của cả phòng mà bấm sang tab Hôm nay rồi quay lại thì
+ * phải còn ở tháng đó. Mặc định THÁNG hiện tại — anh Hùng (02/10): soát cả
+ * phòng là việc của cuối tháng, tuần chỉ xem khi cần nhìn kỹ một ai đó. */
+let TP_KY = 'thang';
+let TP_MOC = Date.now();
+let HT_KY = 'thang';
+let HT_MOC = Date.now();
 
 /* ---------------- bản nháp trên máy (localStorage) ----------------
  * Mấy chỗ dưới đây chỉ giữ chữ đang gõ trong bộ nhớ: ghi chú xử lý ở Cần hỗ
@@ -83,9 +86,11 @@ const MAN_TOI = [
   { ma: 'da-nop', ten: 'Đã nộp' },
 ];
 const MAN_QL = [
+  /* "Theo dõi" đã gộp vào Toàn phòng (anh Hùng 02/10: "chức năng có vẻ tương
+   * tự, em gom về toàn phòng"). Đúng là vậy: hai màn cùng trả lời "ai nộp thế
+   * nào trong kỳ này", chỉ khác cột. Giờ một bảng, một kỳ, một chỗ để nhìn. */
   { ma: 'toan-phong', ten: 'Toàn phòng' },
   { ma: 'can-ho-tro', ten: 'Cần hỗ trợ' },
-  { ma: 'theo-doi', ten: 'Theo dõi' },
   /* Anh Hùng (30/09): thiết lập chuẩn nằm chung cụm quản lý cho tiện. */
   { ma: 'thiet-lap', ten: 'Thiết lập' },
 ];
@@ -164,6 +169,61 @@ function mocTuan(ms) {
   return { tu, den: tu + 7 * NGAY_MS - 1 };
 }
 
+/**
+ * Kỳ tuần/tháng CHỨA một mốc bất kỳ — để hai màn quản lý lùi về kỳ trước được.
+ *
+ * `kyThangNay()` chỉ biết tháng hiện tại, nên bấm ‹ là không đi đâu. Hàm này
+ * nhận mốc, trả cùng hình dạng, kèm nhãn để khỏi mỗi chỗ tự ghép một kiểu.
+ */
+function kyCua(loai, ms) {
+  if (loai !== 'thang') {
+    const t = mocTuan(ms);
+    return Object.assign(t, { nhan: veNgay(t.tu) + ' – ' + veNgay(t.den) });
+  }
+  const p = phanRa(ms);
+  const tu = Date.UTC(p.nam, p.thang - 1, 1) - VN;
+  const sau = p.thang === 12 ? Date.UTC(p.nam + 1, 0, 1) : Date.UTC(p.nam, p.thang, 1);
+  return { tu, den: sau - VN - 1, nhan: 'Tháng ' + p2(p.thang) + '/' + p.nam };
+}
+
+/** Lùi/tới một kỳ. Trả mốc nằm GIỮA kỳ mới, không sát mép, cho khỏi lệch múi. */
+function docKy(loai, k, huong) {
+  if (loai !== 'thang') return k.tu + huong * 7 * NGAY_MS + 3600000;
+  const p = phanRa(k.tu + 15 * NGAY_MS);        // giữa tháng hiện tại
+  const th = p.thang + huong;
+  return Date.UTC(p.nam + (th > 12 ? 1 : th < 1 ? -1 : 0), (th - 1 + 12) % 12, 15) - VN;
+}
+
+/**
+ * Thanh chọn kỳ dùng chung cho hai màn quản lý: Tuần | Tháng · ‹ › · Hiện tại.
+ *
+ * Gom một chỗ vì hai màn phải trông và chạy GIỐNG HỆT nhau — anh Hùng (02/10)
+ * nêu đúng chuyện này: "tab toàn phòng cần có bộ lọc như các bộ lọc khác", và
+ * "tab cần hỗ trợ cũng cần lọc theo". Hai chỗ tự vẽ riêng là sớm muộn một bên
+ * có nút "Hiện tại" còn bên kia không.
+ */
+function thanhKy(id, loai, k) {
+  const sau = k.den >= Date.now();
+  return '<div class="pills">' +
+      '<button class="pill' + (loai === 'tuan' ? ' on' : '') + '" id="' + id + 'Tuan">Tuần</button>' +
+      '<button class="pill' + (loai === 'thang' ? ' on' : '') + '" id="' + id + 'Thang">Tháng</button>' +
+    '</div>' +
+    '<button class="btn nho mo" id="' + id + 'Lui" title="Kỳ trước">‹</button>' +
+    '<button class="btn nho mo" id="' + id + 'Toi"' + (sau ? ' disabled' : '') + ' title="Kỳ sau">›</button>' +
+    (sau ? '' : '<button class="btn nho mo" id="' + id + 'Nay">Hiện tại</button>');
+}
+
+/** Gắn tay nghe cho thanh kỳ. `dat(ky, moc)` ghi lại trạng thái rồi vẽ lại. */
+function ganThanhKy(id, loai, k, dat) {
+  $('#' + id + 'Tuan').onclick = () => dat('tuan', Date.now());
+  $('#' + id + 'Thang').onclick = () => dat('thang', Date.now());
+  $('#' + id + 'Lui').onclick = () => dat(loai, docKy(loai, k, -1));
+  const toi = $('#' + id + 'Toi');
+  if (toi) toi.onclick = () => dat(loai, docKy(loai, k, 1));
+  const nay = $('#' + id + 'Nay');
+  if (nay) nay.onclick = () => dat(loai, Date.now());
+}
+
 /* ---------------- khởi động ---------------- */
 async function nap() {
   META = await goi('/api/meta');
@@ -237,11 +297,13 @@ async function ve() {
   try {
     /* Sổ đang mở mà đổi kỳ thì nội dung của nó phải đi theo — bỏ quên thì nó
      * ngồi đó hiển thị dữ liệu của kỳ vừa rời khỏi, mà nhìn thì không biết. */
-    if (SO_MO && MAN !== 'tuan' && MAN !== 'thang') dongSo();
+    if (SO_MO && MAN !== 'tuan' && MAN !== 'thang' && MAN !== 'toan-phong') dongSo();
+    /* Ai còn giữ đường dẫn #theo-doi (hoặc bấm nút cũ ở nơi khác) thì đưa thẳng
+     * sang Toàn phòng — nơi đã gom nội dung đó về, thay vì trả màn trắng. */
+    if (MAN === 'theo-doi') MAN = 'toan-phong';
     if (MAN === 'toan-phong') return await veToanPhong(el);
     if (MAN === 'can-ho-tro') return await veCanHoTro(el);
     if (MAN === 'vuong-mac') return await veVuongMac(el);
-    if (MAN === 'theo-doi') return await veTheoDoi(el);
     if (MAN === 'thiet-lap') return await veThietLap(el);
     if (MAN === 'da-nop') return await veDaNop(el);
     return await veManPhieu(el, MAN);
@@ -1466,11 +1528,36 @@ function nhanHan(p) {
    MÀN QUẢN LÝ
    ================================================================== */
 
+/**
+ * TOÀN PHÒNG — một bảng trả lời cả hai câu quản lý hỏi mỗi kỳ.
+ *
+ * Trước 02/10 đây là hai tab: "Toàn phòng" (chất lượng: điểm, thời lượng, đáng
+ * chú ý) và "Theo dõi" (kỷ luật: đúng hạn, trễ, bù, ngày thiếu). Anh Hùng nhìn
+ * ra ngay là trùng: "chức năng có vẻ tương tự, em gom về toàn phòng". Đúng vậy
+ * — cùng một danh sách người, cùng một kỳ, chỉ khác cột; mà tách ra thì mỗi
+ * lần soi một người phải nhớ số bên kia rồi bấm qua bấm lại.
+ *
+ * Nay một màn, một kỳ. Hai nguồn số vẫn là hai đầu mối cũ (/api/toan-phong và
+ * /api/theo-doi), ghép ở đây theo email/id. Cố ý KHÔNG gộp hai đầu mối thành
+ * một: cả hai đã chạy thật và có bài thử riêng, gộp lại là viết lại cả hai.
+ */
 async function veToanPhong(el) {
-  const d = await goi('/api/toan-phong?ky=tuan&moc=' + MOC + '&moi=1');
-  const co = d.nguoi.length;
-  const yeu = d.nguoi.filter((n) => n.diem < 60).length;
-  const thieu = d.nguoi.reduce((s, n) => s + n.soThieu, 0);
+  const d = await goi('/api/toan-phong?ky=' + TP_KY + '&moc=' + TP_MOC + '&moi=1');
+  /* Lấy đúng khoảng máy chủ vừa chốt, không tự tính lại: hai đầu mối lệch nhau
+   * một ngày là bảng ghép ra số vênh mà nhìn không biết vì sao. */
+  const kd = await goi('/api/theo-doi?tu=' + d.ky.tu + '&den=' + d.ky.den + '&moi=1')
+    .catch((e) => { if (e && e.cu) throw e; return { nguoi: [], soNgayCong: 0 }; });
+
+  const khoa = (n) => String(n.email || n.id || n.ten).toLowerCase();
+  const theoKL = new Map((kd.nguoi || []).map((n) => [khoa(n), n]));
+  const ds = d.nguoi.map((n) => Object.assign({ kl: theoKL.get(khoa(n)) || null }, n));
+
+  const co = ds.length;
+  const yeu = ds.filter((n) => n.diem < 60).length;
+  const thieu = ds.reduce((s, n) => s + n.soThieu, 0);
+  const tongKL = (f) => (kd.nguoi || []).reduce((s, n) => s + f(n), 0);
+  const soDung = tongKL((n) => n.soDungHan);
+  const tongPhieu = soDung + tongKL((n) => n.soTre) + tongKL((n) => n.soBu);
   const oSo = (so, nhan, duoi, mau) =>
     '<div class="o-so ' + (mau || '') + '"><div class="so">' + esc(so) + '</div>' +
     '<div class="nhan">' + esc(nhan) + '</div>' +
@@ -1479,92 +1566,127 @@ async function veToanPhong(el) {
   el.innerHTML =
     '<div class="luoi-so">' +
       oSo(co, 'người có báo cáo', d.nhan) +
+      /* Kỷ luật nộp đứng ngay cạnh chất lượng — đó là nửa còn lại của câu hỏi
+       * "phòng kỳ này thế nào", trước phải sang tab khác mới thấy. */
+      oSo(tongPhieu ? Math.round((soDung / tongPhieu) * 100) + '%' : '—',
+        'nộp đúng hạn', soDung + '/' + tongPhieu + ' phiếu',
+        !tongPhieu ? '' : soDung === tongPhieu ? 'xanh' : soDung / tongPhieu < 0.8 ? 'do' : 'cam') +
       oSo(yeu, 'người cần nhìn kỹ', 'điểm dưới 60', yeu ? 'do' : 'xanh') +
       oSo(thieu, 'lượt ngày thiếu', 'trong kỳ', thieu ? 'cam' : 'xanh') +
-      oSo(vePhut(d.nguoi.reduce((s, n) => s + n.tongPhut, 0)), 'tổng thời lượng cả phòng') +
+      oSo(vePhut(ds.reduce((s, n) => s + n.tongPhut, 0)), 'tổng thời lượng cả phòng') +
     '</div>' +
     '<div class="the"><div class="the-dau"><h2>Đánh giá toàn phòng</h2>' +
-      '<span class="nho">' + esc(d.nhan) + ' · bấm một dòng để mở đầy đủ</span>' +
-      '<div class="lon"></div>' +
-      '<button class="btn nho mo" id="btnLui">‹</button>' +
-      '<button class="btn nho mo" id="btnToi"' + (d.ky.den >= Date.now() ? ' disabled' : '') + '>›</button>' +
+      '<span class="nho">' + esc(d.nhan) +
+        (kd.soNgayCong ? ' · ' + kd.soNgayCong + ' ngày công' : '') +
+        ' · bấm một dòng để mở bên phải</span>' +
+      '<div class="lon"></div>' + thanhKy('tp', TP_KY, d.ky) +
       '</div><div class="the-than khit cuon">' + (co
-      ? '<table class="bang-xem"><thead><tr><th style="width:52px">Điểm</th><th>Người</th>' +
+      ? '<table class="bang-xem bam-duoc"><thead><tr><th style="width:52px">Điểm</th><th>Người</th>' +
         '<th class="so-o">Phiếu</th><th class="so-o">Thời lượng</th><th class="so-o">Định mức</th>' +
-        '<th>Đáng chú ý nhất</th></tr></thead><tbody>' +
-        d.nguoi.map((n, i) => '<tr class="mo-duoc" data-i="' + i + '">' +
+        '<th>Nhịp nộp</th><th>Đáng chú ý nhất</th></tr></thead><tbody>' +
+        ds.map((n, i) => '<tr class="mo-duoc" data-i="' + i + '">' +
           '<td><span class="diem ' + mauDiem(n.diem) + '">' + n.diem + '</span></td>' +
           '<td><b>' + esc(n.ten) + '</b>' +
             (n.soThieu ? ' <span class="nhan-tt do">thiếu ' + n.soThieu + ' ngày</span>' : '') + '</td>' +
           '<td class="so-o">' + n.soPhieu + '</td>' +
           '<td class="so-o">' + esc(n.tongGio) + '</td>' +
           '<td class="so-o">' + (n.phanTram == null ? '—' : n.phanTram + '%') + '</td>' +
+          '<td>' + veNhipNop(n.kl) + '</td>' +
           '<td class="phu">' + esc(n.motCau) + '</td>' +
         '</tr>').join('') + '</tbody></table>'
       : rong('Chưa có báo cáo nào trong kỳ này',
         'Khi nhân sự bắt đầu nộp, bảng này tự có người.')) +
-    '</div></div><div id="oChiTiet"></div>';
+    '</div></div>';
 
-  const buoc = 7 * NGAY_MS;
-  $('#btnLui').onclick = () => { MOC = d.ky.tu - buoc + 3600000; ve(); };
-  $('#btnToi').onclick = () => { MOC = d.ky.tu + buoc + 3600000; ve(); };
-  $$('tr.mo-duoc').forEach((tr) => {
+  ganThanhKy('tp', TP_KY, d.ky, (ky, moc) => { TP_KY = ky; TP_MOC = moc; ve(); });
+  $$('tr.mo-duoc', el).forEach((tr) => {
     tr.onclick = () => {
-      const n = d.nguoi[Number(tr.dataset.i)];
-      $$('tr.mo-duoc').forEach((x) => x.classList.toggle('dang-chon', x === tr));
-      const loaiTen = (l) => (l === 'ngay' ? 'Ngày' : l === 'tuan' ? 'Tuần' : 'Tháng');
-      $('#oChiTiet').innerHTML =
-        /* Phiếu người này đã viết — bấm mở sổ bên phải đọc đầy đủ (01/10). */
-        '<div class="the"><div class="the-dau"><h2>Báo cáo của ' + esc(n.ten) + '</h2>' +
-          '<span class="nho">' + esc(d.nhan) + ' · bấm một phiếu để đọc đầy đủ</span></div>' +
-        '<div class="the-than khit">' + ((n.phieu || []).length
-          ? '<div class="cuon"><table class="bang-xem bam-duoc"><thead><tr><th>Kỳ</th><th>Loại</th>' +
-            '<th class="so-o">Thời lượng</th><th>Nộp lúc</th><th>Hạn</th></tr></thead><tbody>' +
-            n.phieu.map((p) => '<tr data-ql-ky="' + esc(p.loaiKy) + '" data-ql-ma="' + esc(p.ma) + '" data-ql-moc="' + (p.tu + 3600000) +
-                '" data-ql-nhan="' + esc(p.nhan) + '">' +
-              '<td><b>' + esc(p.nhan) + '</b></td>' +
-              '<td><span class="nhan-tt xam">' + loaiTen(p.loaiKy) + '</span></td>' +
-              '<td class="so-o">' + esc(p.tongGio) + '</td>' +
-              '<td>' + (p.daNop ? esc(veLuc(p.nopLuc)) : '<span class="nhan-tt cam">Nháp</span>') + '</td>' +
-              '<td>' + nhanHan(p) + '</td></tr>').join('') +
-            '</tbody></table></div>'
-          : rong('Chưa có phiếu nào trong kỳ')) +
-        '</div></div>' +
-        theY(n.ten + ' — ' + d.nhan, n.y, n.diem) +
-        /* Nhận xét AI của người này cho kỳ đang xem (01/10) — cùng khối như ở Chi tiết kỳ. */
-        '<div class="the"><div class="the-than">' + (n.ai
-          ? '<div class="ai-nx" style="margin:0"><div class="ai-nx-dau">🤖 Nhận xét và gợi ý từ Marketing Hub AI</div>' +
-            '<div class="ai-nx-chu">' + mdSangHtml(n.ai) + '</div></div>'
-          : '<span class="nho">Chưa có nhận xét AI cho kỳ này — tuần chạy 8:30 &amp; 14:00 Thứ 7, tháng 8:30 &amp; 14:00 ngày 29–30.</span>') +
-        '</div></div>';
-      $$('[data-ql-moc]', $('#oChiTiet')).forEach((r) => {
-        r.onclick = async () => {
-          const loai = r.dataset.qlKy, nhan = r.dataset.qlNhan;
-          const phu = n.ten + ' · Báo cáo ' + loaiTen(loai).toLowerCase();
-          moSo(nhan, phu, '<p class="phu">Đang mở…</p>');
-          try {
-            const ct = await goi('/api/phieu?ky=' + loai + '&moc=' + r.dataset.qlMoc +
-              '&ma=' + encodeURIComponent(r.dataset.qlMa));
-            moSo(nhan, phu, chiTietPhieu(ct) + (ct.tongHop ? soKy(ct) : ''));
-          } catch (e) {
-            if (e && e.cu) return;
-            moSo(nhan, phu, '<p class="phu">Không đọc được phiếu này: ' + esc(e.message) + '</p>');
-          }
-        };
-      });
-      $('#oChiTiet').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      $$('tr.mo-duoc', el).forEach((x) => x.classList.toggle('dang-chon', x === tr));
+      moNguoi(ds[Number(tr.dataset.i)], d.nhan);
     };
   });
 }
 
-/* ---------------- Ô soạn có định dạng (ghi chú xử lý vướng mắc) ----------------
- * Anh Hùng (30/09): "anh cần định dạng được luôn, vì đôi khi anh chép có văn bản
- * định dạng". Lưu dưới dạng MARKDOWN RÚT GỌN — đúng thứ thẻ Lark (lark_md) hiểu:
- * **đậm** · *nghiêng* · [chữ](link) · dòng "- " và "1. ". Nhờ vậy một chuỗi dùng
- * được cho cả ba chỗ: Base, màn hình app, và tin nhắn gửi nhân sự.
+/** Nhịp nộp của một người, gọn trong một ô: đúng hạn · trễ · bù. */
+function veNhipNop(kl) {
+  if (!kl) return '<span class="nho">—</span>';
+  const o = (n, mau, nhan) => (n ? '<span class="nhan-tt ' + mau + '" style="margin-right:4px">' +
+    n + ' ' + nhan + '</span>' : '');
+  return (o(kl.soDungHan, 'xanh', 'đúng hạn') + o(kl.soTre, 'cam', 'trễ') + o(kl.soBu, 'do', 'bù')) ||
+    '<span class="nho">chưa nộp</span>';
+}
+
+/**
+ * Mở một người ra CỬA BÊN PHẢI: nộp thế nào, viết gì, AI nhận xét ra sao.
  *
- * Dán từ Word/Docs/web: chỉ giữ đậm, nghiêng, link, danh sách, xuống dòng — màu,
- * cỡ chữ, bảng… bỏ hết, vì Lark không vẽ được và dán nguyên thì ô soạn loạn. */
+ * Anh Hùng (02/10): "khi anh ấn vào, cửa bên phải sẽ hiện thống kê nhanh, anh
+ * xem được báo cáo nhân sự đã nộp ngày/tuần/tháng thế nào và nhận định AI thế
+ * nào". Trước đây phần này đổ xuống DƯỚI bảng, nên mỗi lần xem một người là
+ * trôi mất chỗ đang đứng trong bảng, và không so hai người liền nhau được.
+ */
+function moNguoi(n, nhanKy) {
+  const loaiTen = (l) => (l === 'ngay' ? 'Ngày' : l === 'tuan' ? 'Tuần' : 'Tháng');
+  const kl = n.kl;
+  const chip = (nhan, gt, mau) => '<span class="m ' + (mau || '') + '">' + esc(nhan) +
+    ' <b>' + esc(gt) + '</b></span>';
+
+  const than =
+    '<div class="ct-dau">' +
+      chip('Điểm', String(n.diem), n.diem >= 85 ? 'xanh' : n.diem >= 60 ? 'cam' : 'do') +
+      chip('Phiếu', String(n.soPhieu)) +
+      chip('Thời lượng', n.tongGio) +
+      chip('Định mức', n.phanTram == null ? '—' : n.phanTram + '%') +
+      (kl ? chip('Đúng hạn', kl.soDungHan + (kl.tyLeDung == null ? '' : ' · ' + kl.tyLeDung + '%'),
+        kl.tyLeDung == null ? '' : kl.tyLeDung >= 80 ? 'xanh' : 'cam') : '') +
+      (kl && kl.soTre ? chip('Trễ', String(kl.soTre), 'cam') : '') +
+      (kl && kl.soBu ? chip('Nộp bù', String(kl.soBu), 'do') : '') +
+      (kl && kl.soSua ? chip('Sửa lại', String(kl.soSua)) : '') +
+    '</div>' +
+    (kl && kl.thieu && kl.thieu.length
+      ? '<div class="nho" style="margin-bottom:10px">Ngày chưa nộp: ' +
+        kl.thieu.map((x) => '<span class="nhan-tt do" style="margin-right:4px">' +
+          esc(x.nhan) + '</span>').join('') + '</div>'
+      : '') +
+    ((n.phieu || []).length
+      ? '<div class="nk">' + n.phieu.map((p) =>
+        '<div class="nk-d"><div class="nk-sum" data-ql-ky="' + esc(p.loaiKy) + '" data-ql-ma="' + esc(p.ma) +
+            '" data-ql-moc="' + (p.tu + 3600000) + '" data-ql-nhan="' + esc(p.nhan) + '">' +
+          '<span class="nk-ten">' + esc(p.nhan) + '</span>' +
+          '<span class="nk-so">' + loaiTen(p.loaiKy) + ' · ' + esc(p.tongGio) + '</span>' +
+          (p.daNop ? nhanHan(p) : '<span class="nhan-tt cam">Nháp</span>') +
+        '</div></div>').join('') + '</div>'
+      : rong('Chưa có phiếu nào trong kỳ')) +
+    theY('Nhận định theo luật', n.y, n.diem) +
+    (n.ai
+      ? '<div class="ai-nx"><div class="ai-nx-dau">🤖 Nhận xét và gợi ý từ Marketing Hub AI</div>' +
+        '<div class="ai-nx-chu">' + mdSangHtml(n.ai) + '</div></div>'
+      : '<p class="nho">Chưa có nhận xét AI cho kỳ này — tuần chạy 8:30 &amp; 14:00 Thứ 7, ' +
+        'tháng 8:30 &amp; 14:00 ngày 29–30.</p>');
+
+  moSo(n.ten, nhanKy, than);
+
+  /* Bấm một phiếu trong sổ thì thay nội dung sổ bằng chính phiếu đó, kèm nút
+   * quay lại. Không mở sổ thứ hai: bên phải chỉ có một cột. */
+  $$('[data-ql-moc]', $('#soThan')).forEach((r) => {
+    r.onclick = async () => {
+      const loai = r.dataset.qlKy;
+      const nhan = r.dataset.qlNhan;
+      const phu = n.ten + ' · Báo cáo ' + loaiTen(loai).toLowerCase();
+      moSo(nhan, phu, '<p class="phu">Đang mở…</p>');
+      try {
+        const ct = await goi('/api/phieu?ky=' + loai + '&moc=' + r.dataset.qlMoc +
+          '&ma=' + encodeURIComponent(r.dataset.qlMa));
+        moSo(nhan, phu, '<button class="btn nho mo" id="soQuayLai">‹ ' + esc(n.ten) + '</button>' +
+          chiTietPhieu(ct) + (ct.tongHop ? soKy(ct) : ''));
+        const q = $('#soQuayLai');
+        if (q) q.onclick = () => moNguoi(n, nhanKy);
+      } catch (e) {
+        if (e && e.cu) return;
+        moSo(nhan, phu, '<p class="phu">Không đọc được phiếu này: ' + esc(e.message) + '</p>');
+      }
+    };
+  });
+}
 
 /** HTML (từ ô soạn / clipboard) → markdown rút gọn. */
 function htmlSangMd(goc) {
@@ -1747,18 +1869,16 @@ function htNhapCua(rec) {
   return HT_NHAP.get(rec) || null;
 }
 
-/**
- * Anh Hùng (30/09): "note giúp anh luôn là đã xử lý hay chưa", rồi "gửi cho nhân
- * sự biết khi vấn đề đã được xử lý hoặc chưa xử lý được tại thời điểm". Ba trạng
- * thái: Chưa xử lý · Chưa xử lý được (có lý do) · Đã xử lý. Mỗi lần chốt, bot
- * Marketing Hub nhắn RIÊNG cho người nêu — luôn gửi, không có ô tắt.
- */
 async function veCanHoTro(el) {
-  const t = mocTuan(Date.now());
-  /* Nhìn rộng hơn một tuần: vướng mắc nêu tuần trước mà chưa gỡ thì vẫn là
-   * vướng mắc, biến mất khỏi màn hình không làm nó tự hết. */
-  const tu = t.tu - 21 * NGAY_MS;
-  const d = await goi('/api/can-ho-tro?tu=' + tu + '&den=' + Date.now() + '&moi=1');
+  /* Lọc theo kỳ như mọi màn khác (anh Hùng 02/10: "tab cần hỗ trợ cũng cần lọc
+   * theo"). Trước đây cứng bốn tuần gần nhất — xem lại vướng mắc tháng trước
+   * thì chịu, mà cuối tháng ngồi soát lại thì đó đúng là thứ cần xem.
+   *
+   * Vẫn giữ tinh thần cũ "nhìn rộng hơn một tuần": mặc định là THÁNG, không
+   * phải tuần. Vướng mắc nêu tuần trước mà chưa gỡ thì vẫn là vướng mắc, biến
+   * mất khỏi màn hình không làm nó tự hết. */
+  const k = kyCua(HT_KY, HT_MOC);
+  const d = await goi('/api/can-ho-tro?tu=' + k.tu + '&den=' + Math.min(k.den, Date.now()) + '&moi=1');
   const tt = (x) => x.trangThaiHT || (x.daXuLy ? 'xong' : 'chua');
   const soChua = d.ds.filter((x) => tt(x) !== 'xong').length;
   const thu = { chua: 0, 'chua-duoc': 1, xong: 2 };
@@ -1808,11 +1928,11 @@ async function veCanHoTro(el) {
   };
 
   el.innerHTML = '<div class="the"><div class="the-dau"><h2>Vướng mắc cả phòng đang nêu</h2>' +
-    '<span class="nho">bốn tuần gần đây · ' + d.ds.length + ' mục · ' +
+    '<span class="nho">' + esc(k.nhan) + ' · ' + d.ds.length + ' mục · ' +
       (soChua ? '<b style="color:var(--orange-text)">' + soChua + ' chưa xong</b>' : 'đã xử lý hết') + '</span>' +
     '<div class="lon"></div><div class="pills">' +
       pill('chua', 'Chưa xong') + pill('xong', 'Đã xử lý') + pill('tat-ca', 'Tất cả') +
-    '</div></div>' +
+    '</div>' + thanhKy('ht', HT_KY, k) + '</div>' +
     '<div class="the-than">' +
       '<div class="nho" style="margin-bottom:10px">Bấm <b>Đã xử lý</b> hoặc <b>Chưa xử lý được</b> — bot Marketing Hub ' +
         'sẽ nhắn riêng cho người nêu kèm ghi chú của bạn.</div>' +
@@ -1823,6 +1943,7 @@ async function veCanHoTro(el) {
     '</div></div>';
 
   $$('[data-loc]', el).forEach((b) => { b.onclick = () => { HT_LOC = b.dataset.loc; veCanHoTro(el); }; });
+  ganThanhKy('ht', HT_KY, k, (ky, moc) => { HT_KY = ky; HT_MOC = moc; veCanHoTro(el); });
   batSoan(el);
   const daLuu = new Map(d.ds.map((x) => [String(x.recId), String(x.ghiChu || '')]));
   $$('.soan-vung', el).forEach((v) => {
@@ -1865,87 +1986,6 @@ async function veCanHoTro(el) {
   });
 }
 
-/**
- * Màn Theo dõi — kỷ luật nộp báo cáo của cả phòng.
- *
- * Anh Hùng: "anh muốn có thể kiểm soát được nhân sự báo cáo đúng ngày, hay nhân
- * sự báo cáo trễ và báo cáo bù". Nên bảng này chia BỐN cột chứ không phải hai:
- * đúng hạn · trễ · nộp bù · còn thiếu. Gộp ba cái sau thành "chưa đúng hạn" là
- * mất đúng cái phân biệt anh cần — quên gửi buổi tối rồi sáng gửi khác hẳn dồn
- * cả tuần vào cuối tháng, mà cũng khác hẳn không nộp gì.
- */
-async function veTheoDoi(el) {
-  const k = TD_KY === 'thang' ? kyThangNay() : mocTuan(TD_MOC);
-  const d = await goi('/api/theo-doi?tu=' + k.tu + '&den=' + k.den + '&moi=1');
-
-  const tong = (f) => d.nguoi.reduce((s, n) => s + f(n), 0);
-  const oSo = (so, nhan, duoi, mau) =>
-    '<div class="o-so ' + (mau || '') + '"><div class="so">' + esc(so) + '</div>' +
-    '<div class="nhan">' + esc(nhan) + '</div>' +
-    (duoi ? '<div class="duoi">' + esc(duoi) + '</div>' : '') + '</div>';
-
-  const soThieu = tong((n) => n.thieu.length);
-  const soBu = tong((n) => n.soBu);
-  const soTre = tong((n) => n.soTre);
-  const soDung = tong((n) => n.soDungHan);
-  const tongPhieu = soDung + soTre + soBu;
-
-  el.innerHTML =
-    '<div class="luoi-so">' +
-      oSo(tongPhieu ? Math.round((soDung / tongPhieu) * 100) + '%' : '—',
-        'nộp đúng hạn', soDung + '/' + tongPhieu + ' phiếu',
-        !tongPhieu ? '' : soDung === tongPhieu ? 'xanh' : soDung / tongPhieu < 0.8 ? 'do' : 'cam') +
-      oSo(soTre, 'lượt nộp trễ', 'trong ngày hôm sau', soTre ? 'cam' : '') +
-      oSo(soBu, 'lượt nộp bù', 'quá 24 giờ', soBu ? 'do' : '') +
-      oSo(soThieu, 'ngày chưa nộp', d.soNgayCong + ' ngày công × ' + d.nguoi.length + ' người',
-        soThieu ? 'do' : 'xanh') +
-    '</div>' +
-
-    '<div class="the"><div class="the-dau"><h2>Ai nộp thế nào</h2>' +
-      '<span class="nho">' + veNgay(d.tu) + ' – ' + veNgay(d.den) +
-      ' · ' + d.soNgayCong + ' ngày công</span>' +
-      '<div class="lon"></div>' +
-      '<div class="pills">' +
-        '<button class="pill' + (TD_KY === 'tuan' ? ' on' : '') + '" id="tdTuan">Tuần</button>' +
-        '<button class="pill' + (TD_KY === 'thang' ? ' on' : '') + '" id="tdThang">Tháng</button>' +
-      '</div>' +
-      (TD_KY === 'tuan'
-        ? '<button class="btn nho mo" id="tdLui">‹</button>' +
-          '<button class="btn nho mo" id="tdToi"' +
-          (k.den >= Date.now() ? ' disabled' : '') + '>›</button>'
-        : '') +
-    '</div><div class="the-than khit cuon">' + (d.nguoi.length
-      ? '<table class="bang-xem"><thead><tr>' +
-        '<th>Người</th>' +
-        '<th class="so-o">Đúng hạn</th>' +
-        '<th class="so-o">Trễ</th>' +
-        '<th class="so-o">Nộp bù</th>' +
-        '<th class="so-o">Thời lượng</th>' +
-        '<th>Ngày chưa nộp</th>' +
-        '</tr></thead><tbody>' +
-        d.nguoi.map((n) => '<tr>' +
-          '<td><b>' + esc(n.ten) + '</b>' +
-            (n.soSua ? ' <span class="nho">· sửa ' + n.soSua + ' phiếu</span>' : '') + '</td>' +
-          '<td class="so-o">' + oDem(n.soDungHan, 'xanh') +
-            (n.tyLeDung == null ? '' : ' <span class="nho">' + n.tyLeDung + '%</span>') + '</td>' +
-          '<td class="so-o">' + oDem(n.soTre, 'cam') + '</td>' +
-          '<td class="so-o">' + oDem(n.soBu, 'do') + '</td>' +
-          '<td class="so-o">' + esc(vePhut(n.tongPhut)) + '</td>' +
-          '<td>' + (n.thieu.length
-            ? n.thieu.map((x) => '<span class="nhan-tt do" style="margin-right:4px">' +
-              esc(x.nhan) + '</span>').join('')
-            : '<span class="nhan-tt xanh">đủ</span>') + '</td>' +
-        '</tr>').join('') + '</tbody></table>'
-      : rong('Chưa ai nộp phiếu nào trong kỳ này')) +
-    '</div></div>';
-
-  $('#tdTuan').onclick = () => { TD_KY = 'tuan'; TD_MOC = Date.now(); ve(); };
-  $('#tdThang').onclick = () => { TD_KY = 'thang'; ve(); };
-  const lui = $('#tdLui');
-  if (lui) lui.onclick = () => { TD_MOC = k.tu - 7 * NGAY_MS + 3600000; ve(); };
-  const toi = $('#tdToi');
-  if (toi) toi.onclick = () => { TD_MOC = k.tu + 7 * NGAY_MS + 3600000; ve(); };
-}
 
 /**
  * Vẽ một thẻ Lark (JSON máy chủ sẽ gửi) thành HTML xem trước — nhìn ở đây thế
@@ -2064,8 +2104,6 @@ function veKhoiTin() {
           '</div>' +
         '</div>' +
       '</div>' +
-      '<div style="flex:1 1 320px;min-width:0"><div class="nho" style="margin-bottom:6px">Xem trước</div>' +
-        '<div id="tnXem"><span class="nho">Đang dựng thẻ mẫu…</span></div></div>' +
     '</div></div>';
 }
 
@@ -2122,14 +2160,10 @@ function batKhoiTin(el) {
     } catch (er) { toast('Gửi thử hỏng: ' + er.message, 'do'); }
     e.target.disabled = false;
   };
-  /* Xem trước theo bản ĐANG sửa, chưa cần lưu. */
-  goi('/api/thu-tin-nhom', { method: 'POST', body: JSON.stringify({ tin: t, gui: false }) })
-    .then((d) => {
-      const x = $('#tnXem'); if (!x) return;
-      x.innerHTML = veTheLark(d.card, d.ten) +
-        '<div class="nho" style="margin-top:6px">Mẫu lấy từ phiếu nộp gần nhất · sẽ gửi tới ' + d.soDich + ' nơi</div>';
-    })
-    .catch((er) => { const x = $('#tnXem'); if (x) x.innerHTML = '<span class="nho">' + esc(er.message) + '</span>'; });
+  /* Thẻ mẫu xem trước đã BỎ (anh Hùng 02/10: "chỗ mẫu xem thử không cần hiện").
+   * Nó chiếm nửa bề ngang màn thiết lập, dựng lại bằng một lượt gọi máy chủ mỗi
+   * lần gõ một chữ, mà muốn xem thật thì đã có nút "Gửi thử cho tôi" — nhận
+   * đúng thẻ trong Lark chứ không phải bản vẽ lại gần giống. */
 }
 
 /* ==================================================================
@@ -2144,6 +2178,7 @@ function batKhoiTin(el) {
 let TL = null;          // { chuan, macDinh, nhomViec, nhomBo, soNguoi }
 let TL_THU = null;      // kết quả chấm thử gần nhất
 let TL_BAN = false;     // có chỉnh chưa lưu
+const TL_MO = new Set();  // vị trí nào đang mở (màn vẽ lại sau mỗi lần sửa)
 
 async function veThietLap(el) {
   if (!TL) {
@@ -2163,11 +2198,21 @@ async function veThietLap(el) {
   const theVT = Object.entries(c.viTri).map(([vt, v]) => {
     const n = (TL.soNguoi || {})[vt] || 0;
     const dv = 'data-vt="' + esc(vt) + '"';
-    return '<div class="the"><div class="the-dau"><h2>' + esc(vt) + '</h2>' +
-      '<span class="nho">' + (n ? 'đang áp cho ' + n + ' người' : 'chưa ai có vị trí này') + '</span>' +
+    /* Gập lại, mở ra khi cần sửa (anh Hùng 02/10: "cho giao diện gọn thông minh
+     * hơn"). Mỗi vị trí trước đây đổ ra hai hàng chip × 15 nhóm việc, bốn vị
+     * trí là bốn màn hình cuộn — mà phần lớn thời gian chỉ sửa đúng một. Tóm
+     * tắt ngay trên nắp đã đủ để biết có cần mở hay không. */
+    const tomTat = [
+      v.nhomChinh.length ? 'chính: ' + v.nhomChinh.join(', ') : 'chưa chọn việc chính',
+      v.sanLuong.length ? v.sanLuong.length + ' chỉ tiêu sản lượng' : 'không có chỉ tiêu',
+    ].join(' · ');
+    return '<details class="the tl-vt"' + (TL_MO.has(vt) ? ' open' : '') + ' ' + dv + '>' +
+      '<summary class="the-dau"><h2>' + esc(vt) + '</h2>' +
+      '<span class="nho">' + (n ? 'đang áp cho ' + n + ' người' : 'chưa ai có vị trí này') +
+        ' · ' + esc(tomTat) + '</span>' +
       '<div class="lon"></div>' +
       '<button class="btn nho mo tl-xoa-vt" ' + dv + ' title="Bỏ vị trí này">Bỏ</button>' +
-    '</div><div class="the-than">' +
+    '</summary><div class="the-than">' +
       '<div class="nho" style="margin-bottom:6px">Nhóm việc tính là <b>việc chính</b></div>' +
       '<div style="' + hop + ';margin-bottom:14px">' +
         nhomChon.map((nh) => chip(v.nhomChinh.includes(nh), dv + ' data-chinh="' + esc(nh) + '"', nh)).join('') +
@@ -2206,7 +2251,7 @@ async function veThietLap(el) {
             '</div>' : '') +
       '</div>' +
       veThuVT(vt) +
-    '</div></div>';
+    '</div></details>';
   }).join('');
 
   el.innerHTML = veKhoiTin() +
@@ -2293,8 +2338,17 @@ async function veThietLap(el) {
     b.onclick = () => { vtCua(b).sanLuong.push({ ten: 'sản phẩm', nhom: [], toiThieu: 1, dem: 'san-pham' }); doi(); };
   });
   $$('.tl-che', el).forEach((b) => { b.onclick = () => { vtCua(b).cheDo = b.dataset.che; doi(); }; });
+  /* Nhớ vị trí nào đang mở: cả màn vẽ lại sau mỗi lần sửa, không nhớ thì mỗi
+   * lần tick một chip là khối vừa mở lại sập xuống. */
+  $$('.tl-vt', el).forEach((d) => {
+    d.addEventListener('toggle', () => {
+      if (d.open) TL_MO.add(d.dataset.vt); else TL_MO.delete(d.dataset.vt);
+    });
+  });
   $$('.tl-xoa-vt', el).forEach((b) => {
-    b.onclick = () => {
+    b.onclick = (e) => {
+      /* Nút nằm trong <summary>: không chặn thì bấm Bỏ cũng gập/mở khối. */
+      e.preventDefault(); e.stopPropagation();
       if (!confirm('Bỏ chuẩn của vị trí "' + b.dataset.vt + '"? Người ở vị trí này sẽ không được chấm nữa.')) return;
       delete c.viTri[b.dataset.vt]; doi();
     };
