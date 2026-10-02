@@ -2385,19 +2385,74 @@ function theoDoiSangToi() {
   } catch (e) {}
 }
 
+/* Bộ rình sáng/tối chỉ gắn MỘT lần cho cả đời trang: mỗi lần "Thử lại" mà gắn
+   thêm một bộ nữa là bấy nhiêu lần vẽ lại biểu đồ cho một cú đổi giao diện. */
+let daTheoDoiSangToi = false;
+
+/**
+ * Một lượt khởi động: đọc /api/meta rồi dựng khay tab, thanh lọc và màn đầu.
+ *
+ * Tách hẳn khỏi `boot` để nút "Thử lại" gọi lại ĐÚNG bước này. Tải lại cả trang
+ * cũng xong việc, nhưng lúc hub đang bật lại tiến trình con thì chính trang HTML
+ * cũng đi qua proxy — tải lại là đánh đổi một màn báo hỏng biết nói lấy trang 502
+ * trống trơn của hạ tầng, rồi người dùng phải bấm Back. Gọi lại một lời gọi API
+ * thì không mất gì: hỏng tiếp thì vẫn đứng ở màn báo hỏng này.
+ */
+async function khoiDong() {
+  await loadMeta();
+  const cho = window.__hubKhoangCho;
+  if (cho) { window.__hubKhoangCho = null; hubApKhoangSauNap(cho.tu, cho.den); }
+  renderShell();
+  await render();
+  if (!daTheoDoiSangToi) { daTheoDoiSangToi = true; theoDoiSangToi(); }
+}
+
+/**
+ * Màn báo hỏng khi khởi động không xong.
+ *
+ * VÌ SAO phải dọn dẹp chứ không chỉ nhét thêm một dòng chữ: khung xương nằm sẵn
+ * trong index.html, còn khay tab và thanh lọc chỉ được dựng SAU khi /api/meta
+ * trả lời. Lời gọi đó hỏng — hay gặp nhất là hub đang bật lại tiến trình con
+ * nên proxy trả 502 — thì không ai dọn ba thứ đó đi, và người dùng nhìn thấy
+ * một trang xám có thanh lọc rỗng cùng ô chiến dịch "0 selected": đọc y hệt
+ * "đang tải", nên người ta ngồi chờ mãi một thứ không bao giờ tới.
+ */
+function veLoiKhoiDong(e) {
+  const v = $('#view');
+  /* Khung xương để lại min-height bằng chiều cao màn thật lần trước (xem
+     khung-xuong.js). Không xoá thì dưới lời báo hỏng hở ra cả nghìn pixel
+     trống — vẫn trông như đang tải dở. */
+  v.style.minHeight = '';
+  $('#tabs').innerHTML = '';
+  $('#filters').hidden = true;
+  $('#brandSub').textContent = 'chưa nạp được dữ liệu';
+
+  const loi = (e && e.message) ? e.message : String(e);
+  /* `kx-vung` ở NGAY cấp con của #view là dấu "đây chưa phải màn thật" mà
+     khung-xuong.js soi trước khi chụp. Thiếu nó thì bộ chụp coi màn báo hỏng là
+     màn thật và nhớ luôn hình của nó — lần mở sau, kể cả lúc mọi thứ đã lành,
+     người dùng vẫn thấy khung xương hình một hộp báo lỗi. */
+  v.innerHTML = `<div class="card kx-vung"><div class="card-body">
+    <b style="color:var(--bad)">Chưa mở được app Quản lý quảng cáo.</b>
+    <p>Máy chủ chưa trả lời nên chưa có số nào để hiện. Thường là nó vừa bật lại:
+      chờ vài giây rồi bấm <b>Thử lại</b>. Vẫn không được thì báo người quản trị
+      kèm nguyên dòng bên dưới.</p>
+    <p style="margin-top:8px"><code style="color:var(--ink-3);font-size:12px;word-break:break-word">${esc(loi)}</code></p>
+    <button class="btn" id="btnThuLaiBoot" style="margin-top:10px">Thử lại</button>
+  </div></div>`;
+
+  $('#btnThuLaiBoot').onclick = async (ev) => {
+    const b = ev.currentTarget;
+    b.disabled = true;
+    b.textContent = 'Đang thử lại…';
+    try { await khoiDong(); }
+    catch (e2) { veLoiKhoiDong(e2); }   // vẽ lại màn này với lời lỗi MỚI nhất
+  };
+}
+
 (async function boot() {
-  try {
-    await loadMeta();
-    const cho = window.__hubKhoangCho;
-    if (cho) { window.__hubKhoangCho = null; hubApKhoangSauNap(cho.tu, cho.den); }
-    renderShell();
-    await render();
-    theoDoiSangToi();
-  } catch (e) {
-    $('#view').innerHTML = `<div class="card"><div class="card-body">
-      <b style="color:var(--bad)">Không nạp được dữ liệu:</b> ${esc(e.message)}
-      <p>Kiểm tra: đã đăng nhập <code>lark-cli auth login</code> chưa, và tài khoản có quyền vào Base không.</p></div></div>`;
-  }
+  try { await khoiDong(); }
+  catch (e) { veLoiKhoiDong(e); }
 })();
 
 /* Nghe lệnh từ Marketing Hub: bấm thẻ "Cảnh báo" ở trang Tổng quan của hub thì

@@ -98,6 +98,36 @@ group('Không đắp thân phản hồi ra làm thông báo lỗi');
   ok('bốn bộ gọi API nói rõ "máy chủ đang bật lại"', thieu.length === 0, thieu.join(', '));
 }
 
+group('Quản lý quảng cáo — khởi động hỏng thì phải NÓI, không đứng im');
+{
+  /* Cùng ngày 18/09/2026, cùng cảnh "hub đang bật lại tiến trình con": lời gọi
+   * /api/meta lúc mở app trả 502. Khay tab và thanh lọc chỉ được dựng SAU khi
+   * lời gọi đó về, còn khung xương thì nằm sẵn trong index.html — nên hỏng là
+   * cả ba thứ đứng nguyên: thanh lọc rỗng, không có tab nào, ô chiến dịch ghi
+   * "0 selected". Trang đọc y hệt "đang tải" và người dùng ngồi chờ mãi.
+   *
+   * Nên nhánh hỏng phải làm đủ ba việc: DỌN khung xương đi, NÓI ra lỗi thật,
+   * và cho một đường đi tiếp. */
+  const js = doc('lark-ads-manager', 'public', 'app.js');
+
+  ok('bước khởi động là một hàm riêng (để nút "Thử lại" gọi lại được)',
+    /async function khoiDong\s*\(/.test(js));
+  ok('boot bọc khởi động trong try/catch',
+    /try \{ await khoiDong\(\); \}[\s\S]{0,40}catch \([^)]*\) \{ veLoiKhoiDong\(/.test(js));
+
+  const than = js.slice(js.indexOf('function veLoiKhoiDong'));
+  ok('màn hỏng xoá chiều cao khung xương để lại', /minHeight = ''/.test(than));
+  ok('màn hỏng dọn khay tab rỗng', /\$\('#tabs'\)\.innerHTML = ''/.test(than));
+  ok('màn hỏng giấu thanh lọc rỗng', /\$\('#filters'\)\.hidden = true/.test(than));
+  ok('màn hỏng in nguyên lời lỗi thật cho người quản trị', /esc\(loi\)/.test(than));
+  ok('màn hỏng được đánh dấu kx-vung để bộ chụp khung xương bỏ qua',
+    /class="card kx-vung"/.test(than));
+  ok('màn hỏng có nút "Thử lại"', /id="btnThuLaiBoot"/.test(than));
+  ok('nút "Thử lại" gọi lại bước khởi động, KHÔNG tải lại cả trang',
+    /btnThuLaiBoot'\)\.onclick[\s\S]{0,400}await khoiDong\(\)/.test(than)
+    && !/location\.reload/.test(than));
+}
+
 group('Quản lý quảng cáo — thanh trên cùng trên máy hẹp');
 {
   const css = doc('lark-ads-manager', 'public', 'styles.css');
