@@ -705,21 +705,49 @@ function theTraoDoi(t, me, noiDung) {
   };
 }
 
-/** Gửi thẻ trao đổi; thẻ hỏng (thiếu quyền…) thì lùi về tin chữ như cũ. Chạy nền. */
-function baoTraoDoi(openIds, t, me, noiDung) {
-  if (!cfg.notify || !openIds || !openIds.length) return;
-  const ds = [...new Set(openIds.filter(Boolean))].slice(0, 30);
+/**
+ * Gửi thẻ trao đổi; thẻ hỏng (thiếu quyền…) thì lùi về tin chữ như cũ.
+ *
+ * KHÔNG xét cfg.notify — cùng đúng một lý lẽ đã viết ở guiTinNgay() bên trên.
+ *
+ * Anh Hùng 02/10/2026: "khi có thông báo mới, anh chưa nhận được Marketing Hub
+ * thông báo qua Lark rằng có tin nhắn mới". Đo ra: việc đó có đủ người để báo
+ * (Ngọc phụ trách, anh Hùng người order), danh sách người nhận tính đúng, lớp
+ * gửi có sẵn — nhưng cfg.notify bật bằng LARK_NOTIFY=1 mà biến đó KHÔNG được
+ * đặt ở đâu cả. Chính tài liệu trong kho (docs/automation-va-app.md mục 7) đã
+ * ghi điều này. Nên mọi tin trao đổi đều bị chặn ngay dòng đầu.
+ *
+ * Vì sao chữa ở đây chứ không bật cờ: cờ ấy chặn thông báo TỰ ĐỘNG — app tự
+ * nhắn khi giao việc, khi tới hạn. Bật nó lên là mở luôn cả mấy thứ đó cùng
+ * lúc, trong khi anh chỉ xin đúng một việc. Mà tin trao đổi vốn KHÔNG tự động:
+ * một người gõ chữ rồi bấm Gửi, cho đúng những người có tên trong việc. Nó
+ * cùng loại với nút "Nhắc" — đã cố ý không xét cờ — chứ không cùng loại với
+ * tin máy tự bắn. Xếp nhầm nhóm nên bị chặn oan.
+ *
+ * Và CHỜ kết quả thay vì chạy nền: chạy nền kèm `catch (_) {}` nghĩa là gửi
+ * hỏng cũng không ai biết, kể cả người gửi lẫn log. Đúng ba tuần như vậy mà
+ * màn hình vẫn hứa "sẽ nhận thông báo trong Lark". Nhiều nhất là vài người,
+ * mỗi người một lời gọi — chờ không đáng kể, mà đổi lại nói được sự thật.
+ */
+async function baoTraoDoi(openIds, t, me, noiDung) {
+  const ds = [...new Set((openIds || []).filter(Boolean))].slice(0, 30);
+  if (!ds.length) return { gui: 0, loi: [] };
   const the = theTraoDoi(t, me, noiDung);
   const chu = 'Bình luận mới trên "' + (t.title || '') + '"' + XD +
     (me ? me.name + ': ' : '') + String(noiDung || '').slice(0, 200) + duoiTin();
-  (async () => {
-    for (const id of ds) {
-      try {
-        const ok = lark.sendCard ? await lark.sendCard(id, the) : false;
-        if (!ok) await lark.sendMessage(id, chu);
-      } catch (_) {}
+  let gui = 0;
+  const loi = [];
+  for (const id of ds) {
+    try {
+      const ok = lark.sendCard ? await lark.sendCard(id, the) : false;
+      if (!ok) await lark.sendMessage(id, chu);
+      gui += 1;
+    } catch (e) {
+      loi.push(String((e && e.message) || e).slice(0, 200));
     }
-  })().catch(() => {});
+  }
+  if (loi.length) console.error('[trao-doi] không báo được cho', loi.length, 'người:', loi[0]);
+  return { gui, loi };
 }
 
 /** Đuôi tin nhắn: link mở app. */
@@ -1503,12 +1531,26 @@ async function api(req, res, url) {
       const kq = await lark.createRecord(cells, cfg.commentTableId);
 
       const t = lpCmt || toTask(rec);
-      const nhan = [...(t.owner || []), ...(t.helper || []), ...(t.requester || [])]
-        .map((u) => u.id)
-        .filter((x, i, a) => x && a.indexOf(x) === i && (!me || x !== me.id));
-      baoTraoDoi(nhan, t, me, noiDung);
+      /* Giữ cả TÊN chứ không chỉ id: để còn nói được với người gửi là tin đã
+       * tới tay ai. Trước chỉ lấy id rồi bắn đi, nên màn hình không có gì để
+       * nói ngoài một câu hứa chung chung. */
+      const nguoiNhan = [...(t.owner || []), ...(t.helper || []), ...(t.requester || [])]
+        .filter((u) => u && u.id && (!me || u.id !== me.id))
+        .filter((u, i, a) => a.findIndex((x) => x.id === u.id) === i);
+      const kqBao = await baoTraoDoi(nguoiNhan.map((u) => u.id), t, me, noiDung);
 
-      return json(res, { ok: true, result: kq });
+      /* Nói thẳng kết quả báo tin cho màn hình. Ba trường hợp đều có thật và
+       * đều phải phân biệt được: báo xong, không có ai để báo (việc chưa ai
+       * nhận và người gửi chính là người duy nhất có tên), và báo hỏng. */
+      return json(res, {
+        ok: true,
+        result: kq,
+        bao: {
+          ten: nguoiNhan.map((u) => u.name).filter(Boolean),
+          gui: kqBao.gui,
+          hong: kqBao.loi.length,
+        },
+      });
     }
   }
 

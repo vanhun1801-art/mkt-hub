@@ -4066,10 +4066,14 @@ function khoiBinhLuan(t) {
     ta.value = '';
     clearTimeout(henTin);
     try {
-      await req('/api/tasks/' + t.id + '/comments', {
+      const d = await req('/api/tasks/' + t.id + '/comments', {
         method: 'POST', body: JSON.stringify({ content: noi }),
       });
       try { localStorage.removeItem(khoaTin); } catch (_) {}
+      /* Báo tin hỏng thì phải NÓI RA. Trước đây máy chủ bắn tin rồi quên, màn
+       * hình không biết gì, nên tin không tới nơi mà vẫn im như đã tới. */
+      const b = d && d.bao;
+      if (b && b.hong) toast('Đã gửi, nhưng không báo được Lark cho ' + b.hong + ' người', true);
       await napBinhLuan(t, list, true);
     } catch (e) {
       tam.remove();
@@ -4083,7 +4087,20 @@ function khoiBinhLuan(t) {
   soan.appendChild(ta);
   soan.appendChild(gui);
   f.appendChild(soan);
-  f.appendChild(el('div', 'ro-note cmt-goi-y', 'Người phụ trách, người hỗ trợ và người order sẽ nhận thông báo trong Lark.'));
+  /* Nói ĐÚNG ai sẽ nhận, không hứa chung chung.
+   *
+   * Câu cũ — "Người phụ trách, người hỗ trợ và người order sẽ nhận thông báo
+   * trong Lark" — mô tả luật, không mô tả việc này. Việc chưa ai nhận thì ô
+   * phụ trách trống, có khi người gõ là người duy nhất có tên: không ai nhận
+   * được gì, mà dòng chữ vẫn hứa như thường. Đọc tên ra thì nhìn một cái là
+   * biết tin sẽ đi đâu, và biết luôn khi nó chẳng đi đâu cả. */
+  const ai = [...(t.owner || []), ...(t.helper || []), ...(t.requester || [])]
+    .filter((u) => u && u.id && (!S.meta.me || u.id !== S.meta.me.id))
+    .filter((u, i, a) => a.findIndex((x) => x.id === u.id) === i)
+    .map((u) => u.name).filter(Boolean);
+  f.appendChild(el('div', 'ro-note cmt-goi-y', ai.length
+    ? 'Gửi xong sẽ báo Lark cho: ' + ai.join(', ') + '.'
+    : 'Việc này chưa có ai khác ngoài bạn — tin sẽ không báo Lark cho ai.'));
 
   napBinhLuan(t, list);
   return f;
