@@ -448,31 +448,6 @@ async function api(req, res, u) {
     return json(res, { ok: true });
   }
 
-  /* ---- xoá mật khẩu (làm trống ô), tài khoản vẫn giữ ----
-   * Cùng quyền với đổi mật khẩu. Bảng Tài khoản: mật khẩu vừa xoá chuyển sang
-   * cột "cũ" — bấm nhầm là còn đường lấy lại. Bảng gói không có cột cũ nên giao
-   * diện nói rõ điều đó trước khi bấm. */
-  if (p === '/xoa-mat-khau' && req.method === 'POST') {
-    const than = await docThan(req);
-    const bang = than.bang;
-    if (!BANG.has(bang) || !laId(than.id)) return loi(res, 400, 'Thiếu bảng hoặc mã bản ghi.');
-    let r;
-    try { r = await docVaKiem(toi, bang, than.id, 'matKhau'); } catch (e) { return loi(res, e.http || 500, e.message); }
-    if (!r.duoc) return loi(res, 403, 'Chưa được cấp quyền với tài khoản này.');
-    if (!r.gia) return loi(res, 400, 'Ô mật khẩu đang trống.');
-    const F = bang === 'goi' ? cfg.f.goi : cfg.f.tk;
-    const truong = { [F.matKhau]: null };
-    if (bang === 'tk') {
-      if (!mh.coKhoa() && !mh.daMaHoa(r.gia)) return loi(res, 503, 'Máy chủ chưa có khoá TK_KHOA.');
-      truong[F.matKhauCu] = mh.daMaHoa(r.gia) ? r.gia : mh.maHoa(r.gia);
-      truong[F.doiLuc] = gioVN();
-    }
-    await ghiNhatKy(toi, req, 'Xoá mật khẩu', bang, r.bg, bang === 'tk' ? 'đã cất sang mật khẩu cũ' : 'gói không lưu bản cũ');
-    await lark.updateRecord(than.id, truong, bang === 'goi' ? cfg.goiTableId : cfg.tkTableId);
-    kho.xoaDem();
-    return json(res, { ok: true });
-  }
-
   /* ---- xoá hẳn một dòng: chỉ quản lý ----
    * Ghi nhật ký TRƯỚC khi xoá, kèm tên + user (không bao giờ kèm mật khẩu): xoá
    * xong thì bản ghi không còn, nhật ký là dấu vết duy nhất "ai xoá cái gì". */
@@ -673,7 +648,8 @@ async function api(req, res, u) {
     const F = cfg.f.nk;
     const daMo = new Set();
     if (ten) {
-      for (const r of await lark.listAllRecords(cfg.nkTableId)) {
+      const loc = { logic: 'or', conditions: ['Xem', 'Chép', 'Xem mã 2FA', 'Đổi mật khẩu'].map((h) => [F.hanhDong, '==', h]) };
+      for (const r of await lark.listAllRecords(cfg.nkTableId, undefined, { filter: loc })) {
         const c = r.cells || {};
         const hd = kho.chu(Array.isArray(c[F.hanhDong]) ? c[F.hanhDong][0] : c[F.hanhDong]);
         if (!/^(Xem|Chép|Xem mã 2FA|Đổi mật khẩu)$/.test(hd)) continue;
@@ -710,7 +686,9 @@ async function api(req, res, u) {
   if (p === '/nhat-ky') {
     if (!toi.quanLy) return loi(res, 403, 'Chỉ quản lý xem được nhật ký truy cập.');
     const F = cfg.f.nk;
-    const ds = (await lark.listAllRecords(cfg.nkTableId)).map((r) => {
+    /* Base sắp mới nhất trước và chỉ lấy 500 — đọc cả bảng (lớn dần mỗi ngày) rồi
+       mới sắp là chậm dần, và quá 6.000 dòng thì chỉ còn thấy phần CŨ NHẤT. */
+    const ds = (await lark.listAllRecords(cfg.nkTableId, undefined, { sort: [{ field: F.luc, desc: true }], toiDa: 500 })).map((r) => {
       const c = r.cells || {};
       const luc = c[F.luc];
       return {
@@ -755,6 +733,10 @@ if (require.main === module) {
     console.log('Tài khoản & gói dịch vụ — http://localhost:' + cfg.port +
       '  [' + cfg.mode + ']  bản ' + VER + (mh.coKhoa() ? '' : '  ⚠ CHƯA CÓ TK_KHOA'));
     nhac.batVong({ kho, lark });
+    /* Đọc sẵn hai bảng: hub bật 14 app cùng lúc khi khởi động, người mở app này
+       đầu tiên khỏi phải chờ. Lệch 8 giây để khỏi chen hạn mức đọc Lark với các app
+       khác đang nạp cùng nhịp (xem TRANSIENT 800004135 trong lark.js). */
+    setTimeout(() => kho.tatCa().catch((e) => console.error('[KHO] đọc sẵn:', e.message)), 8000).unref();
   });
 }
 

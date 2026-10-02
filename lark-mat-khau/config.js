@@ -91,8 +91,7 @@ module.exports = {
       hetHan: 'fldvF4Ttt4',
       tbToiDa: 'fldd4862yu',
       tbDangDung: 'fldl72Kvnd',
-      dangNhap: 'fldoe079qN',
-      user: 'fldoe079qN',          // cùng cột với dangNhap — tên khoá khớp bản ghi đã chuẩn hoá (x.user)
+      user: 'fldoe079qN',          // "Email/TK Đăng nhập" — tên khoá khớp bản ghi đã chuẩn hoá (x.user)
       stt: 'fldNTIsdFj',
       ghiChu: 'fldtoKs9Y2',
       mucDo: 'fldgx8IRGs',

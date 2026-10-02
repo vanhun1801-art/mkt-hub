@@ -40,7 +40,7 @@ const BANG = {
   ],
   [cfg.goiTableId]: [
     { record_id: 'recG', cells: { [F.goi.ten]: 'Adobe', [F.goi.chuKy]: ['Năm'], [F.goi.chiPhi]: 1200000, [F.goi.soLuong]: 1,
-      [F.goi.matKhau]: MK_GOI, [F.goi.hetHan]: Date.now() + 5 * 86400000, [F.goi.dangNhap]: '[a@b.vn](mailto:a@b.vn)',
+      [F.goi.matKhau]: MK_GOI, [F.goi.hetHan]: Date.now() + 5 * 86400000, [F.goi.user]: '[a@b.vn](mailto:a@b.vn)',
       [F.goi.duocXem]: [] } },
   ],
   [cfg.nkTableId]: [],
@@ -242,16 +242,10 @@ const nk = () => BANG[cfg.nkTableId].map((r) => r.cells[F.nk.hanhDong]);
     r = await goi('/api/cap-quyen', 'ql', { bang: 'tk', ids: ['recB'], nguoi: ['ou_moi'], tenNguoi: { ou_moi: 'Người Mới' }, kieu: 'them' });
     ok('cấp quyền người tìm được: nhật ký ghi đúng tên', r.ma === 200 && BANG[cfg.nkTableId].some((x) => /thêm: Người Mới/.test(x.cells[F.nk.viec])));
 
-    group('Xoá mật khẩu / xoá dòng');
+    group('Xoá dòng');
+    ok('cửa xoá mật khẩu đã bỏ → 404', (await goi('/api/xoa-mat-khau', 'ql', { bang: 'tk', id: 'recA' })).ma === 404);
     BANG[cfg.tkTableId][0].cells[F.tk.duocXem] = [{ id: 'ou_han', name: 'Mỹ Hân' }];
     const mkTruoc = BANG[cfg.tkTableId][0].cells[F.tk.matKhau];
-    ok('người mới xoá mật khẩu → 403', (await goi('/api/xoa-mat-khau', 'la', { bang: 'tk', id: 'recA' })).ma === 403);
-    r = await goi('/api/xoa-mat-khau', 'han', { bang: 'tk', id: 'recA' });
-    const cA = BANG[cfg.tkTableId][0].cells;
-    ok('người được cấp xoá được mật khẩu dòng của mình', r.ma === 200 && cA[F.tk.matKhau] === null, r.s);
-    ok('bản vừa xoá cất sang "mật khẩu cũ"', cA[F.tk.matKhauCu] === mkTruoc);
-    ok('ô trống rồi thì báo, không ghi đè mật khẩu cũ bằng rỗng', (await goi('/api/xoa-mat-khau', 'han', { bang: 'tk', id: 'recA' })).ma === 400 &&
-      cA[F.tk.matKhauCu] === mkTruoc);
     ok('nhân sự xoá dòng → 403', (await goi('/api/xoa-dong', 'han', { bang: 'tk', id: 'recA' })).ma === 403 &&
       BANG[cfg.tkTableId].some((x) => x.record_id === 'recA'));
     r = await goi('/api/xoa-dong', 'ql', { bang: 'tk', id: 'recA' });

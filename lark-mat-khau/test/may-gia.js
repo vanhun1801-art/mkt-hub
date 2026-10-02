@@ -58,7 +58,7 @@ const BANG = {
     cells: {
       [F.goi.ten]: ten, [F.goi.loai]: [loai], [F.goi.chuKy]: [chuKy], [F.goi.chiPhi]: chiPhi, [F.goi.soLuong]: 1,
       [F.goi.hetHan]: hom + conNgay * NGAY, [F.goi.batDau]: hom - 300 * NGAY, [F.goi.tbToiDa]: toiDa, [F.goi.tbDangDung]: dung,
-      [F.goi.dangNhap]: '[goi' + i + '@vidu.vn](mailto:goi' + i + '@vidu.vn)', [F.goi.matKhau]: mh.maHoa('GoiGia-' + i),
+      [F.goi.user]: '[goi' + i + '@vidu.vn](mailto:goi' + i + '@vidu.vn)', [F.goi.matKhau]: mh.maHoa('GoiGia-' + i),
       [F.goi.phuTrach]: [HUNG], [F.goi.duocXem]: i === 1 ? [HAN] : [], [F.goi.trangThai]: 'Đang dùng',
     },
   })),

@@ -88,11 +88,21 @@ function lapDanhSach({ tk, goi }, luc = Date.now()) {
   return ds;
 }
 
-/** Các khoá đã gửi, đọc từ Nhật ký. */
+/**
+ * Các khoá đã gửi, đọc từ Nhật ký — CHỈ các dòng "Nhắc …" (Base lọc giùm).
+ *
+ * Trước đây đọc cả bảng Nhật ký mỗi giờ. Bảng đó lớn thêm một dòng mỗi lần ai
+ * mở mật khẩu, và lớp đọc dừng ở 30 trang (6.000 dòng): tới mốc đó là KHÔNG CÒN
+ * thấy tin đã gửi gần đây → gửi lặp mỗi giờ. Lọc ở Base thì chỉ còn vài chục dòng.
+ * Nhớ trong tiến trình 6 giờ; tin vừa gửi được thêm thẳng vào bộ nhớ.
+ */
+let nhoGui = { luc: 0, s: null };
 async function daGui(lark) {
+  if (nhoGui.s && Date.now() - nhoGui.luc < 6 * 3600000) return nhoGui.s;
   const F = cfg.f.nk;
   const s = new Set();
-  for (const r of await lark.listAllRecords(cfg.nkTableId)) {
+  const loc = { logic: 'or', conditions: [[F.hanhDong, '==', 'Nhắc gia hạn'], [F.hanhDong, '==', 'Nhắc đổi mật khẩu']] };
+  for (const r of await lark.listAllRecords(cfg.nkTableId, undefined, { filter: loc })) {
     const hd = r.cells[F.hanhDong];
     const ten = Array.isArray(hd) ? String(hd[0] && (hd[0].text || hd[0])) : String(hd || '');
     if (/^Nhắc/.test(ten)) {
@@ -101,6 +111,7 @@ async function daGui(lark) {
       if (k) s.add(k);
     }
   }
+  nhoGui = { luc: Date.now(), s };
   return s;
 }
 
@@ -151,15 +162,16 @@ async function chay({ kho, lark, thu = false, luc = Date.now() } = {}) {
 
 /** "Đọc-thì-chạy": gọi từ mỗi request, tự giới hạn một lần mỗi giờ. Không bao giờ ném. */
 function moiGio(o) {
-  if (Date.now() - lanCuoi < 3600000 || dangChay) return;
+  /* Ở máy (cli) không gửi được gì — chạy mỗi giờ chỉ để đọc Nhật ký rồi in lỗi. */
+  if (!kenhGui() || Date.now() - lanCuoi < 3600000 || dangChay) return;
   lanCuoi = Date.now();
   chay(o).catch((e) => console.error('[NHẮC]', e.message));
 }
 
 function batVong(o) {
-  if (process.env.MK_NHAC_TAT === '1') return;
+  if (process.env.MK_NHAC_TAT === '1' || !kenhGui()) return;
   setTimeout(() => moiGio(o), 60000).unref();
   setInterval(() => { lanCuoi = 0; moiGio(o); }, 30 * 60000).unref();
 }
 
-module.exports = { lapDanhSach, chay, moiGio, batVong, isoVN };
+module.exports = { lapDanhSach, chay, moiGio, batVong, isoVN, _quenNho: () => { nhoGui = { luc: 0, s: null }; } };

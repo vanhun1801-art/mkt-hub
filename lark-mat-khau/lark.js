@@ -1,7 +1,5 @@
 'use strict';
 const { execFile } = require('child_process');
-const fs = require('fs');
-const path = require('path');
 const cfg = require('./config');
 
 /** Lỗi tạm thời của Base — thử lại được. */
@@ -107,21 +105,33 @@ function columnsToRecords(data) {
   });
 }
 
-async function listAllRecords(tableId = cfg.tkTableId, base) {
+/**
+ * Đọc bản ghi, lật trang. `o` (tuỳ chọn):
+ *   sort   [{ field: <field id>, desc }]   — để Base sắp, khỏi kéo cả bảng về rồi sắp
+ *   filter { logic, conditions: [[field, op, giá trị]] } — để Base lọc
+ *   toiDa  dừng khi đủ bấy nhiêu dòng
+ * Nhật ký truy cập lớn dần mỗi ngày; không lọc/sắp ở Base thì tới mốc 30 trang
+ * (6.000 dòng) là chỉ còn đọc được phần CŨ NHẤT — xem nhac.js/daGui.
+ */
+async function listAllRecords(tableId = cfg.tkTableId, base, o = {}) {
   const out = [];
   let offset = 0;
+  const them = [];
+  if (o.sort) them.push('--sort-json', JSON.stringify(o.sort));
+  if (o.filter) them.push('--filter-json', JSON.stringify(o.filter));
   for (let page = 0; page < 30; page++) {
     const data = await cli([
       'base', '+record-list', ...baseArgs(base),
       '--table-id', tableId,
       '--limit', '200', '--offset', String(offset),
+      ...them,
       '--format', 'json',
     ]);
     out.push(...columnsToRecords(data));
-    if (!data.has_more) break;
+    if (!data.has_more || (o.toiDa && out.length >= o.toiDa)) break;
     offset += 200;
   }
-  return out;
+  return o.toiDa ? out.slice(0, o.toiDa) : out;
 }
 
 /**
@@ -136,11 +146,6 @@ async function getRecord(recordId, tableId = cfg.tkTableId) {
     '--format', 'json',
   ]);
   return columnsToRecords(data)[0] || null;
-}
-
-async function listFields(tableId = cfg.tkTableId, base) {
-  const data = await cli(['base', '+field-list', ...baseArgs(base), '--table-id', tableId, '--format', 'json']);
-  return data.fields || [];
 }
 
 async function updateRecord(recordId, fields, tableId = cfg.tkTableId, base) {
@@ -203,36 +208,7 @@ async function deleteRecords(recordIds, tableId = cfg.tkTableId, base) {
   ]);
 }
 
-/* ---------------- đính kèm (bảng Hình bản đồ) — cùng cách app Quỹ chi phí ----------------
- * lark-cli chỉ nhận đường dẫn TƯƠNG ĐỐI trong cwd, nên đọc/ghi qua .tmp/ của project. */
-async function downloadAttachmentBuffer(recordId, fileToken, tableId, base) {
-  const rel = './.tmp/hinh-' + recordId;
-  const abs = path.join(__dirname, '.tmp', 'hinh-' + recordId);
-  fs.rmSync(abs, { recursive: true, force: true });
-  fs.mkdirSync(abs, { recursive: true });
-  await cli(['base', '+record-download-attachment', ...baseArgs(base), '--table-id', tableId, '--record-id', recordId,
-    '--file-token', fileToken, '--output', rel, '--overwrite', '--format', 'json'], { timeout: 180000, cwd: __dirname });
-  const f = fs.readdirSync(abs)[0];
-  if (!f) throw new Error('Tải tệp từ Base không ra tệp nào');
-  const buffer = fs.readFileSync(path.join(abs, f));
-  fs.rmSync(abs, { recursive: true, force: true });
-  return { buffer, name: f };
-}
-
-/** Ghi một tệp (Buffer) vào ô đính kèm — THAY hình cũ: xoá ô trước rồi tải lên. */
-async function uploadAttachment(recordId, fieldName, buffer, fileName, tableId, base) {
-  await updateRecord(recordId, { [fieldName]: [] }, tableId, base);
-  const relDir = './.tmp/tai-' + recordId, absDir = path.join(__dirname, '.tmp', 'tai-' + recordId);
-  fs.mkdirSync(absDir, { recursive: true });
-  fs.writeFileSync(path.join(absDir, fileName), buffer);
-  try {
-    return await cli(['base', '+record-upload-attachment', ...baseArgs(base), '--table-id', tableId, '--record-id', recordId,
-      '--field-id', fieldName, '--file', relDir + '/' + fileName, '--format', 'json'], { timeout: 300000, cwd: __dirname });
-  } finally { fs.rmSync(absDir, { recursive: true, force: true }); }
-}
-
 module.exports = cfg.mode === 'api' ? require('./larkapi') : {
-  cli, whoami, listAllRecords, listFields, getRecord,
+  cli, whoami, listAllRecords, getRecord,
   updateRecord, updateMany, createRecord, createMany, deleteRecords,
-  downloadAttachmentBuffer, uploadAttachment,
 };

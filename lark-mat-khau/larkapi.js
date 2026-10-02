@@ -8,8 +8,6 @@
  * chỉ cần `const lark = cfg.mode === 'api' ? require('./larkapi') : require('./lark')`.
  * Endpoint lấy từ bản `api` của app Bảng công việc (đã chạy thật trên Render).
  */
-const fs = require('fs');
-const path = require('path');
 const cfg = require('./config');
 
 const HOST = process.env.LARK_API_HOST || 'https://open.larksuite.com';
@@ -149,16 +147,19 @@ function columnsToRecords(data) {
 }
 
 /* ---------------- các thao tác (cùng chữ ký với lark.js) ---------------- */
-async function listAllRecords(tableId = cfg.tkTableId, base) {
+/* `o` = { sort, filter, toiDa } — cùng nghĩa với lark.js; cùng query mà lark-cli gửi (đã dò bằng --dry-run). */
+async function listAllRecords(tableId = cfg.tkTableId, base, o = {}) {
   const out = [];
   let offset = 0;
+  const them = (o.sort ? '&sort=' + encodeURIComponent(JSON.stringify(o.sort)) : '') +
+    (o.filter ? '&filter=' + encodeURIComponent(JSON.stringify(o.filter)) : '');
   for (let trang = 0; trang < 30; trang++) {
-    const d = await call('GET', baseUrl(tableId, base) + '/records?limit=200&offset=' + offset);
+    const d = await call('GET', baseUrl(tableId, base) + '/records?limit=200&offset=' + offset + them);
     out.push(...columnsToRecords(d));
-    if (!d.has_more) break;
+    if (!d.has_more || (o.toiDa && out.length >= o.toiDa)) break;
     offset += 200;
   }
-  return out;
+  return o.toiDa ? out.slice(0, o.toiDa) : out;
 }
 
 /**
@@ -180,11 +181,6 @@ async function getRecord(recordId, tableId = cfg.tkTableId) {
     offset += 200;
   }
   return null;
-}
-
-async function listFields(tableId = cfg.tkTableId, base) {
-  const d = await call('GET', baseUrl(tableId, base) + '/fields?limit=100&offset=0');
-  return d.fields || d.items || [];
 }
 
 async function updateRecord(recordId, fields, tableId = cfg.tkTableId, base) {
@@ -238,68 +234,8 @@ async function whoami() { return null; }
 /** Cho server.js gọi khi cần biết mình đang chạy backend nào. */
 const cli = async () => { throw new Error('Chế độ api không dùng lark-cli'); };
 
-/* ---------------- đính kèm (bảng Hình bản đồ) — chép cách đã chạy thật của Quỹ chi phí ----------------
- * Tệp của Base không tải được bằng đường drive thông thường nếu thiếu `extra` đúng
- * (Lark trả 400). Thử lần lượt: URL tạm → extra_info do API trả → tự dựng bitablePerm.
- * KHOÁ TÊN LÀ `extra_info`, không phải `extra` (đo từ bản online, 12/09/2026). */
-async function downloadAttachmentBuffer(recordId, fileToken, tableId, base) {
-  const meta = await call('POST', baseUrl(tableId, base) + '/get_attachments', { body: { record_id_list: [recordId] } });
-  let o = null;
-  const duyet = (x) => {
-    if (!x || typeof x !== 'object') return;
-    if (Array.isArray(x)) return x.forEach(duyet);
-    if (x.file_token === fileToken) o = x;
-    Object.values(x).forEach(duyet);
-  };
-  duyet(meta);
-  const name = (o && o.name) || null;
-  const loi = [];                                         // ghi lại lý do từng cách hỏng — lỗi cuối không đủ để sửa
-  const url = o && (o.url || o.tmp_url || o.tmp_download_url || o.download_url);
-  if (url) {
-    try { const r = await fetch(url, { signal: han(HAN_TAI) }); if (r.ok) return { buffer: Buffer.from(await r.arrayBuffer()), name }; loi.push('url-tam HTTP ' + r.status); }
-    catch (e) { loi.push('url-tam ' + e.message); }
-  }
-  const nhu = (x) => encodeURIComponent(typeof x === 'string' ? x : JSON.stringify(x));
-  const duong = (extra) => '/open-apis/drive/v1/medias/' + encodeURIComponent(fileToken) + '/download' + (extra ? '?extra=' + nhu(extra) : '');
-  const tuDung = { bitablePerm: { tableId, rev: (o && o.rev) || undefined } };
-  const extra = (o && (o.extra_info || o.extra)) || null;
-  if (extra) { try { return { buffer: await call('GET', duong(extra), { raw: true }), name }; } catch (e) { loi.push('extra-tra-ve ' + e.message); } }
-  try { return { buffer: await call('GET', duong(tuDung), { raw: true }), name }; } catch (e) { loi.push('extra-tu-dung ' + e.message); }
-  /* 26/09: cách thứ tư — xin URL tải tạm (batch_get_tmp_download_url), có và không kèm extra */
-  for (const ex of [extra || tuDung, null]) {
-    try {
-      const d = await call('GET', '/open-apis/drive/v1/medias/batch_get_tmp_download_url?file_tokens=' + encodeURIComponent(fileToken) + (ex ? '&extra=' + nhu(ex) : ''));
-      const u = d.tmp_download_urls && d.tmp_download_urls[0] && d.tmp_download_urls[0].tmp_download_url;
-      if (u) { const r = await fetch(u, { signal: han(HAN_TAI) }); if (r.ok) return { buffer: Buffer.from(await r.arrayBuffer()), name }; loi.push('tmp-url HTTP ' + r.status); }
-      else loi.push('tmp-url không trả đường dẫn');
-    } catch (e) { loi.push('tmp-url' + (ex ? '+extra ' : ' ') + e.message); }
-  }
-  throw new Error('Không tải được hình từ Base — ' + loi.join(' | ') + (o ? '' : ' | get_attachments không thấy file_token'));
-}
-
-/** Ghi một tệp (Buffer) vào ô đính kèm — THAY hình cũ (ghi đè cả ô bằng tệp mới). */
-async function uploadAttachment(recordId, fieldName, buffer, fileName, tableId, base) {
-  const fd = new FormData();
-  fd.append('file', new Blob([buffer]), fileName);
-  fd.append('file_name', fileName);
-  fd.append('parent_type', 'bitable_file');
-  fd.append('parent_node', base || cfg.baseToken);
-  fd.append('size', String(buffer.length));
-  const r = await fetch(HOST + '/open-apis/drive/v1/medias/upload_all', {
-    method: 'POST', headers: { Authorization: 'Bearer ' + await tenantToken() }, body: fd,
-    signal: han(HAN_TAI),
-  });
-  const d = await r.json();
-  if (d.code !== 0) {
-    if (/Access denied/i.test(d.msg || '')) throw new Error('App Lark chưa được cấp quyền tệp (drive:drive) nên không tải hình lên được. Quản lý cần thêm scope trong Developer Console.');
-    throw new Error('Tải hình lên Lark thất bại: ' + (d.msg || d.code));
-  }
-  return updateRecord(recordId, { [fieldName]: [{ file_token: d.data.file_token }] }, tableId, base);
-}
-
 module.exports = {
-  cli, whoami, listAllRecords, listFields, getRecord,
+  cli, whoami, listAllRecords, getRecord,
   updateRecord, updateMany, createRecord, createMany, deleteRecords,
-  downloadAttachmentBuffer, uploadAttachment,
   tenantToken, call,
 };

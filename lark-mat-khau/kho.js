@@ -108,7 +108,7 @@ function tuGoi(r) {
     conLai: hetHan == null ? null : Math.ceil((hetHan - Date.now()) / NGAY),
     tbToiDa: so(c[F.tbToiDa]),
     tbDangDung: so(c[F.tbDangDung]),
-    user: boMailto(chu(c[F.dangNhap])),
+    user: boMailto(chu(c[F.user])),
     ghiChu: chu(c[F.ghiChu]).trim(),
     stt: so(c[F.stt]),
     coMatKhau: !!mk,
@@ -129,11 +129,23 @@ async function docMoi() {
   return { luc: Date.now(), tk, goi };
 }
 
-async function tatCa({ moi } = {}) {
-  if (!moi && dem && Date.now() - dem.luc < DEM_MS) return dem;
-  if (dangDoc) return dangDoc;
-  dangDoc = docMoi().then((d) => { dem = d; return d; }).finally(() => { dangDoc = null; });
+/* Trả bản đệm cũ NGAY rồi đọc mới ở nền (stale-while-revalidate), miễn bản đệm
+   chưa quá 10 phút. Trước đây cứ quá 60 giây là người mở kế tiếp phải ngồi chờ
+   đọc lại hai bảng (1–3 giây trên Render, có lúc hơn khi chạm hạn mức Lark).
+   An toàn: quyền mở mật khẩu / sửa luôn kiểm trên bản ghi ĐỌC TƯƠI (layO,
+   getRecord), không trên bộ đệm; ghi xong thì giao diện xin `moi=1`. */
+const CU_TOI_DA = 10 * 60000;
+
+function docNen() {
+  if (!dangDoc) dangDoc = docMoi().then((d) => { dem = d; return d; }).finally(() => { dangDoc = null; });
   return dangDoc;
+}
+
+async function tatCa({ moi } = {}) {
+  const tuoi = dem ? Date.now() - dem.luc : Infinity;
+  if (!moi && tuoi < DEM_MS) return dem;
+  if (!moi && tuoi < CU_TOI_DA) { docNen().catch((e) => console.error('[KHO] đọc nền:', e.message)); return dem; }
+  return docNen();
 }
 
 const xoaDem = () => { dem = null; };
@@ -152,4 +164,4 @@ async function layO(bang, id, truong) {
   return { co: true, gia: chu((r.cells || {})[fid]), banGhi: r };
 }
 
-module.exports = { tatCa, xoaDem, layO, tuTaiKhoan, tuGoi, chu, nguoi, lark, _dat: (d) => { dem = d; } };
+module.exports = { tatCa, xoaDem, layO, tuTaiKhoan, tuGoi, chu, nguoi, lark };

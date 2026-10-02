@@ -912,17 +912,6 @@ document.addEventListener('click', async (e) => {
   if (t.id === 'mkSinh') { const i = $('#mkMoi'); i.value = sinhMatKhau(); i.select(); return; }
   if (t.id === 'tSinh') { const i = $('#tMatKhau'); i.value = sinhMatKhau(); i.type = 'text'; return; }
 
-  if (t.id === 'mkXoa') {
-    const ten = $('#soTieuDe').textContent;
-    const bang = S.mo.bang;
-    if (!(await xacNhan('Xoá mật khẩu của <b>' + esc(ten) + '</b>?<br><span class="phu">' +
-      (bang === 'tk' ? 'Bản vừa xoá vẫn cất ở "mật khẩu cũ".' : 'Gói không lưu bản cũ — xoá là mất hẳn.') + '</span>', 'Xoá mật khẩu'))) return;
-    t.disabled = true;
-    try { await guiJson('/api/xoa-mat-khau', { bang, id: S.mo.id }); S.hien.clear(); await napDanhSach(true); veLai(); toast('Đã xoá mật khẩu', 'ok'); }
-    catch (er) { toast(er.message, 'err'); t.disabled = false; }
-    return;
-  }
-
   if (t.id === 'dongXoa') {
     const ten = $('#soTieuDe').textContent;
     const bang = S.mo.bang;
@@ -931,19 +920,6 @@ document.addEventListener('click', async (e) => {
     t.disabled = true;
     try { await guiJson('/api/xoa-dong', { bang, id: S.mo.id }); S.hien.clear(); await napDanhSach(true); dongSo(); toast('Đã xoá ' + ten, 'ok'); }
     catch (er) { toast(er.message, 'err'); t.disabled = false; }
-    return;
-  }
-
-  if (t.id === 'mkLuu') {
-    const v = $('#mkMoi').value;
-    if (!v) return toast('Chưa nhập mật khẩu mới', 'err');
-    if (!(await xacNhan('Lưu mật khẩu mới cho <b>' + esc($('#soTieuDe').textContent) + '</b>?', 'Lưu mật khẩu'))) return;
-    t.disabled = true;
-    try {
-      await guiJson('/api/doi-mat-khau', { bang: S.mo.bang, id: S.mo.id, matKhau: v });
-      S.hien.clear();
-      await napDanhSach(true); veLai(); toast('Đã lưu mật khẩu mới (mã hoá)', 'ok');
-    } catch (er) { toast(er.message, 'err'); } finally { t.disabled = false; }
     return;
   }
 
