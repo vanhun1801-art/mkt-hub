@@ -397,9 +397,47 @@ function veTong() {
   + '</section>';
 }
 
+/* Trần 10 năm: một ngày gõ nhầm năm (2026 -> 1026) không được phép biến ô lọc
+   thành mười nghìn dòng, và không được làm vòng lặp dưới chạy mãi. */
+const TRAN_THANG = 120;
+
+/**
+ * Danh sách tháng cho ô lọc: LIỀN MẠCH từ tháng xưa nhất của sổ tới THÁNG NÀY.
+ *
+ * Bản trước chỉ lấy những tháng ĐÃ CÓ khoản chi. Nên sang tháng mới mà chưa ai
+ * kịp nhập khoản nào thì tháng đó không hề có trong ô lọc — anh Hùng mở app
+ * ngày 01/10/2026 và không chọn được tháng 10. Hỏng đúng lúc cần nhất: đầu
+ * tháng là lúc người giữ quỹ cần nhìn số dư đầu kỳ để mở sổ, và đó chính là
+ * con số tinhKy() trả về cho một tháng chưa tiêu đồng nào.
+ *
+ * Lấp luôn tháng trống ở giữa, và tính cả tháng chỉ có NẠP: một tháng không
+ * tiêu đồng nào vẫn là một kỳ có sổ. tinhKy() tính được cho mọi tháng (đầu kỳ
+ * + nạp − chi), nó không cần tháng đó phải có khoản chi nào.
+ */
+function dsThang() {
+  const moc = S.chi.map((c) => thangCua(c.ngayChi || c.ngayDeNghi))
+    .concat(S.nap.map((n) => thangCua(n.ngay)))
+    .filter(Boolean);
+  const nay = thangCua(new Date().toISOString());
+  /* Mốc đầu/cuối đều lấy THÁNG NÀY làm giá trị khởi đầu: sổ rỗng thì danh sách
+     vẫn có đúng một tháng để chọn, và tháng này luôn nằm trong dải. Khoản ghi
+     ngày tương lai (thanh toán tháng sau) vẫn được tính vào mốc cuối. */
+  const dau = moc.reduce((a, b) => (a < b ? a : b), nay);
+  const cuoi = moc.reduce((a, b) => (a > b ? a : b), nay);
+
+  const ds = [];
+  let [y, m] = cuoi.split('-').map(Number);
+  for (let i = 0; i < TRAN_THANG; i++) {
+    const t = y + '-' + String(m).padStart(2, '0');
+    ds.push(t);
+    if (t <= dau) break;
+    if (--m < 1) { m = 12; y -= 1; }
+  }
+  return ds;                                  // mới nhất đứng trước
+}
+
 function veLoc() {
-  const thangs = [...new Set(S.chi.map((c) => thangCua(c.ngayChi || c.ngayDeNghi)).filter(Boolean))]
-    .sort().reverse();
+  const thangs = dsThang();
   const opt = (ds, sel, rong) => '<option value="">' + rong + '</option>'
     + ds.map((x) => '<option value="' + esc(x.v != null ? x.v : x) + '"'
       + ((x.v != null ? x.v : x) === sel ? ' selected' : '') + '>'

@@ -257,7 +257,44 @@ function chay(meta) {
     ok('số dư hiện đúng dạng có dấu phân cách', String(tong).includes('6.972.056'),
       String(tong).slice(0, 200));
 
-    ve('thanh lọc', () => ctx.veLoc());
+    const loc = ve('thanh lọc', () => ctx.veLoc());
+
+    /* ---- ô chọn tháng phải LUÔN có THÁNG NÀY ----
+     * Sổ mẫu có khoản chi từ 08/2026 tới 16/09/2026, không có khoản nào của
+     * tháng đang chạy — đúng cảnh sáng mùng 1 khi chưa ai kịp nhập gì. Bản
+     * trước dựng danh sách tháng từ những tháng ĐÃ CÓ khoản chi, nên tháng mới
+     * không hề xuất hiện: anh Hùng mở app ngày 01/10/2026 và không chọn được
+     * tháng 10 (ảnh chụp). Mà đầu tháng mới là lúc cần nhất — người giữ quỹ
+     * phải nhìn số dư đầu kỳ để mở sổ. */
+    const nayVN = new Date().toISOString().slice(0, 7);
+    const ds = ctx.__goi('dsThang()');
+    ok('danh sách tháng có THÁNG NÀY dù chưa khoản nào', ds.includes(nayVN), ds.join(' '));
+    ok('ô chọn tháng in ra tháng này', String(loc).includes('value="' + nayVN + '"'),
+      String(loc).slice(0, 300));
+    ok('tháng mới nhất đứng đầu danh sách', ds[0] === nayVN, ds.join(' '));
+
+    /* Liền mạch: một tháng không tiêu đồng nào vẫn là một kỳ có sổ, và tinhKy()
+     * tính được cho mọi tháng. Có lỗ hổng thì đúng tháng đó không ai mở được. */
+    const lien = ds.every((t, i) => {
+      if (i === ds.length - 1) return true;
+      const [y, m] = ds[i + 1].split('-').map(Number);
+      const keTiep = m === 12 ? (y + 1) + '-01' : y + '-' + String(m + 1).padStart(2, '0');
+      return keTiep === t;
+    });
+    ok('danh sách tháng liền mạch, không hụt tháng nào ở giữa', lien, ds.join(' '));
+    ok('vẫn tới được tháng xưa nhất của sổ', ds.includes('2026-08'), ds.join(' '));
+
+    /* Chọn tháng chưa có khoản nào thì dải số vẫn phải nói được số dư đầu kỳ —
+     * đó chính là con số kế toán cần để mở sổ tháng mới. */
+    ctx.__goi('S.loc.thang = ' + JSON.stringify(nayVN));
+    const tongMoi = ve('dải tổng quan ở tháng chưa có khoản nào', () => ctx.veTong());
+    const k = ctx.__goi('tinhKy(' + JSON.stringify(nayVN) + ')');
+    ok('tháng trống vẫn mang số dư đầu kỳ của tháng trước',
+      k.chi === 0 && k.nap === 0 && k.cuoiKy === k.dauKy && k.dauKy > 0, JSON.stringify(k));
+    ok('và dải số gọi đúng tên tháng đang xem',
+      String(tongMoi).includes('tháng ' + nayVN.slice(5) + '/' + nayVN.slice(0, 4)),
+      String(tongMoi).slice(0, 200));
+    ctx.__goi('S.loc.thang = ""');
     ctx.__goi('S.tab = "ung"');
     ve('bảng các lần ứng tiền', () => ctx.veUng());
     ctx.__goi('S.tab = "thieu"');
