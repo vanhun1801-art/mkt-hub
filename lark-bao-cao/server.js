@@ -455,6 +455,25 @@ async function api(req, res, u) {
     });
   }
 
+  /* Soi đường đọc Base "Lịch tác nghiệp". Dựng 03/10 vì bản chạy trên Render
+   * vẫn liệt ngày đi tác nghiệp vào "chưa nộp" trong khi ở máy thì đúng — mà
+   * đọc hỏng thì app chỉ ghi một dòng log rồi im, không ai thấy. */
+  if (p === '/api/soat-tac-nghiep' && m === 'GET') {
+    if (!toi.quanLy) return loi(res, 403, 'Chỉ quản lý xem được.', 'CHI_QUAN_LY');
+    const ds = await TN.docHet(q.get('moi') === '1');
+    const quyen = await CH.dsViTri();
+    const ai = (q.get('ten') || '').trim();
+    return json(res, {
+      ...TN.tinhTrang(),
+      soNguoiPhanQuyen: quyen.length,
+      /* Ba dòng gần nhất, để nhìn phát biết ngày tháng và tên có đúng không. */
+      mau: ds.slice().sort((a, b) => b.ngay - a.ngay).slice(0, 3)
+        .map((x) => ({ ngay: K.veNgay(x.ngay), ten: x.ten, trangThai: x.trangThai,
+          coBaoCao: x.coBaoCao, tieuDe: x.tieuDe })),
+      ...(ai ? { nguoiHoi: ai, ngayCuaHo: TN.ngayDaBaoCao(ds, { ten: ai }).sort().map(K.veNgay) } : {}),
+    });
+  }
+
   if (p === '/api/meta' && m === 'GET') {
     const nay = Date.now();
     return json(res, {

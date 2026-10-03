@@ -121,8 +121,10 @@ group('Bốn chỗ đếm ngày thiếu đều phải nối');
   const fs = require('fs');
   const sv = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
   const cb = fs.readFileSync(path.join(__dirname, '..', 'ai', 'chuan-bi.js'), 'utf8');
-  /* Sót một chỗ thì cùng một người, màn này nói thiếu, màn kia nói đủ. */
-  const so = (sv.match(/TN\.ngayDaBaoCao\(/g) || []).length;
+  /* Sót một chỗ thì cùng một người, màn này nói thiếu, màn kia nói đủ. Đếm
+   * theo lời gọi ngayThieu() chứ không đếm chữ TN.ngayDaBaoCao trong cả tệp:
+   * còn chỗ khác dùng nó mà không phải để đếm ngày thiếu (cửa soi). */
+  const so = (sv.match(/K\.ngayThieu\([^;]*?TN\.ngayDaBaoCao\(/g) || []).length;
   ok('server.js nối ở cả bốn chỗ (phiếu của mình, Theo dõi, người chưa nộp gì, Toàn phòng)',
     so === 4, 'đang có ' + so + ' chỗ');
   ok('tệp dữ liệu đưa AI cũng nối', /TN\.ngayDaBaoCao\(dsTN, n\)/.test(cb));

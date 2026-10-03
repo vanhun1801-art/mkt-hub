@@ -58,7 +58,7 @@ const VN = 7 * 3600000;
 const NGAY = 86400000;
 const dauNgay = (ms) => Math.floor((Number(ms) + VN) / NGAY) * NGAY - VN;
 
-let dem = { luc: 0, ds: null };
+let dem = { luc: 0, ds: null, loi: null, soDong: 0 };
 
 /**
  * Tên một chữ ("hằng") -> tên đầy đủ trong bảng Phân quyền ("võ thị cẩm hằng").
@@ -100,12 +100,23 @@ async function docHet(moi) {
         tieuDe: txt(c[iTen]).trim(),
       };
     }).filter((x) => x.ngay && x.ten.length);
-    dem = { luc: Date.now(), ds };
+    dem = { luc: Date.now(), ds, loi: null, soDong: rows.length };
     return ds;
   } catch (e) {
+    /* Đọc hỏng là im lặng NGUY HIỂM: không có dòng nào thì mọi ngày đi tác
+     * nghiệp lại thành "không có báo cáo", đúng cái lỗi đang đi sửa. Giữ lại
+     * câu lỗi để /api/soat-tac-nghiep nói ra, thay vì chỉ nằm trong log. */
     console.error('[tác nghiệp] đọc Base hỏng: ' + e.message);
+    dem = { luc: dem.luc, ds: dem.ds, loi: e.message + ' (lúc ' + new Date().toISOString() + ')', soDong: dem.soDong };
     return dem.ds || [];
   }
+}
+
+/** Soi nhanh: đọc được bao nhiêu dòng, hỏng ở đâu. Xem /api/soat-tac-nghiep. */
+function tinhTrang() {
+  return { base: T.base, table: T.table, cheDo: cfg.mode,
+    soDong: dem.soDong, soDongDung: dem.ds ? dem.ds.length : 0,
+    docLuc: dem.luc ? new Date(dem.luc).toISOString() : null, loi: dem.loi };
 }
 
 /** Những ngày (ms đầu ngày) người này có buổi tác nghiệp ĐÃ báo cáo. */
@@ -127,4 +138,4 @@ function buoiTrongNgay(ds, nguoi, ms) {
     ten.startsWith(t + ' (') || t.startsWith(ten + ' (')));
 }
 
-module.exports = { docHet, ngayDaBaoCao, buoiTrongNgay, boDau, dayDu };
+module.exports = { docHet, ngayDaBaoCao, buoiTrongNgay, boDau, dayDu, tinhTrang };
