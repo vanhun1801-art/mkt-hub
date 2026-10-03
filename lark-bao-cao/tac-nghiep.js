@@ -31,18 +31,29 @@
  * ---------------------------------------------------------------------------
  * THẾ NÀO LÀ "ĐÃ BÁO CÁO"
  *
- * Chỉ cần ô "Báo cáo sau tác nghiệp" có chữ. KHÔNG đòi đủ cả chi phí thực tế
- * như luật nghiệm thu bên app kia: ở đây câu hỏi chỉ là "hôm đó người này có
- * báo cáo gì không", chứ không phải "buổi đó đã nghiệm thu xong chưa". Buổi bị
- * huỷ hoặc bị từ chối thì không tính — không đi thì không có gì để báo.
+ * Hai điều kiện, phải đủ cả hai:
+ *   1. Trạng thái đúng bằng "Đã hoàn tất". Anh Hùng chốt 03/10: "chỉ khi
+ *      trạng thái đã hoàn thành mới hiển thị vậy nha". Đây là trạng thái CUỐI
+ *      của luồng và chỉ quản lý đặt được (xem statusOrder bên app Lịch tác
+ *      nghiệp) — nên nó là mốc duy nhất nói rằng buổi đó đã xong thật. Dùng
+ *      danh sách CHO PHÉP chứ không phải danh sách loại trừ: thêm trạng thái
+ *      mới vào luồng thì mặc định là KHÔNG tính, an toàn hơn là mặc định tính.
+ *   2. Ô "Báo cáo sau tác nghiệp" có chữ. Hoàn tất mà bỏ trống ô báo cáo thì
+ *      chẳng có gì để thay cho báo cáo ngày.
+ *
+ * Ở đây KHÔNG đòi đủ chi phí thực tế như luật nghiệm thu bên app kia: câu hỏi
+ * là "hôm đó người này có báo cáo gì không", không phải "đã nghiệm thu chưa".
  */
 const cfg = require('./config');
 const lark = cfg.mode === 'api' ? require('./larkapi') : require('./lark');
 const CH = require('./chuan');
 
 const T = cfg.tacNghiep;
-/* Trạng thái coi như KHÔNG đi: có ghi báo cáo cũng không tính thay báo cáo ngày. */
-const BO = ['Hủy lịch', 'Huỷ lịch', 'Từ chối'];
+/* Trạng thái DUY NHẤT được tính. Xem đầu tệp. */
+const XONG = 'Đã hoàn tất';
+
+/** Buổi này có thay được báo cáo ngày không. Một chỗ định nghĩa, dùng mọi nơi. */
+const daXong = (x) => !!(x && x.coBaoCao && String(x.trangThai || '').trim() === XONG);
 
 const txt = (v) => {
   if (v == null) return '';
@@ -132,8 +143,7 @@ function ngayDaBaoCao(ds, nguoi) {
   const khop = (x) => x.ten.some((t) => t === ten ||
     /* "Nguyễn Long Khánh" ↔ "Nguyễn Long Khánh (Pinky)", hai chiều */
     ten.startsWith(t + ' (') || t.startsWith(ten + ' ('));
-  return [...new Set(ds.filter((x) => x.coBaoCao && !BO.includes(x.trangThai) && khop(x))
-    .map((x) => x.ngay))];
+  return [...new Set(ds.filter((x) => daXong(x) && khop(x)).map((x) => x.ngay))];
 }
 
 /** Buổi tác nghiệp của người này trong một ngày — để màn hình nói rõ vì sao. */
@@ -144,4 +154,4 @@ function buoiTrongNgay(ds, nguoi, ms) {
     ten.startsWith(t + ' (') || t.startsWith(ten + ' (')));
 }
 
-module.exports = { docHet, ngayDaBaoCao, buoiTrongNgay, boDau, dayDu, tinhTrang };
+module.exports = { docHet, ngayDaBaoCao, buoiTrongNgay, boDau, dayDu, tinhTrang, daXong, XONG };

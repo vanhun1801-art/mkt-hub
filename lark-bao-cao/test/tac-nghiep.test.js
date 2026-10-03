@@ -11,7 +11,9 @@
  *   1. GHÉP NGƯỜI BẰNG TÊN. Ô người bên Lịch tác nghiệp mang open_id do app
  *      tạo dòng cấp, dòng cũ mang id của app cũ — so id là trượt sạch. Mà ghép
  *      tên thì phải lo "Nguyễn Long Khánh" ↔ "Nguyễn Long Khánh (Pinky)".
- *   2. BUỔI BỊ HUỶ KHÔNG TÍNH. Không đi thì không có gì để báo.
+ *   2. CHỈ "ĐÃ HOÀN TẤT" MỚI TÍNH (anh Hùng 03/10). Đây là trạng thái cuối,
+ *      chỉ quản lý đặt được. Buổi huỷ, buổi còn "Đang báo cáo", buổi chờ
+ *      duyệt — đều không tính, dù ô báo cáo đã có chữ.
  *   3. CHƯA BÁO CÁO THÌ VẪN LÀ THIẾU. Có lịch đi mà không nộp gì cả thì ngày
  *      đó vẫn phải hiện đỏ, không thì "đăng ký đi tác nghiệp" thành cách né
  *      báo cáo.
@@ -40,6 +42,7 @@ const MAU = [
   { ngay: N(2026, 9, 29), ten: ['huynh thi anh thu'], trangThai: 'Đã hoàn tất', coBaoCao: false, tieuDe: 'Chưa nộp' },
   { ngay: N(2026, 9, 30), ten: ['huynh thi anh thu'], trangThai: 'Hủy lịch', coBaoCao: true, tieuDe: 'Huỷ' },
   { ngay: N(2026, 10, 1), ten: ['nguyen long khanh'], trangThai: 'Đang báo cáo', coBaoCao: true, tieuDe: 'Live' },
+  { ngay: N(2026, 10, 3), ten: ['nguyen long khanh'], trangThai: 'Đã hoàn tất', coBaoCao: true, tieuDe: 'Xong' },
   { ngay: N(2026, 10, 2), ten: ['le trung thanh', 'nguyen hong ngoc'], trangThai: 'Đã hoàn tất', coBaoCao: true, tieuDe: 'Đi hai người' },
 ];
 
@@ -55,9 +58,25 @@ group('Ngày nào được tính là đã báo cáo');
   ok('buổi bị HUỶ thì không tính dù ô báo cáo có chữ',
     !ngay('Huỳnh Thị Anh Thư').includes('30/09/2026'));
 
+  /* Anh Hùng 03/10: chỉ "Đã hoàn tất" mới tính. Buổi đã điền báo cáo nhưng
+   * quản lý chưa chốt thì chưa thay được báo cáo ngày. */
+  ok('"Đang báo cáo" dù đã điền báo cáo thì KHÔNG tính',
+    !ngay('Nguyễn Long Khánh (Pinky)').includes('01/10/2026'));
+  ok('"Đã hoàn tất" thì tính',
+    ngay('Nguyễn Long Khánh (Pinky)').includes('03/10/2026'));
+  ok('mọi trạng thái giữa chừng đều không tính',
+    ['Đang lên kế hoạch', 'Chờ duyệt/Xử lý', 'Duyệt/Chờ tác nghiệp',
+      'Từ chối/Cần điều chỉnh', 'Đang báo cáo', ''].every((tt) =>
+      TN.ngayDaBaoCao([{ ngay: N(2026, 10, 5), ten: ['le trung thanh'],
+        trangThai: tt, coBaoCao: true }], { ten: 'Lê Trung Thành' }).length === 0),
+    'danh sách CHO PHÉP, không phải danh sách loại trừ — trạng thái mới thêm vào luồng phải mặc định là không tính');
+  ok('hoàn tất mà bỏ trống ô báo cáo cũng không tính',
+    TN.ngayDaBaoCao([{ ngay: N(2026, 10, 5), ten: ['le trung thanh'],
+      trangThai: 'Đã hoàn tất', coBaoCao: false }], { ten: 'Lê Trung Thành' }).length === 0);
+
   /* Tên trong hai Base lệch nhau một cái đuôi — đã gặp thật với Khánh. */
   ok('"Nguyễn Long Khánh (Pinky)" khớp dòng ghi "Nguyễn Long Khánh"',
-    ngay('Nguyễn Long Khánh (Pinky)').includes('01/10/2026'));
+    ngay('Nguyễn Long Khánh (Pinky)').includes('03/10/2026'));
   ok('và ngược lại, tên ngắn khớp dòng ghi tên dài',
     TN.ngayDaBaoCao([{ ngay: N(2026, 10, 1), ten: ['nguyen long khanh (pinky)'],
       trangThai: 'Đã hoàn tất', coBaoCao: true }], { ten: 'Nguyễn Long Khánh' }).length === 1);

@@ -429,7 +429,7 @@ async function tongHop(loaiKy, mocMs, nguoi, force, denToiDa) {
     /* Nói ra chứ không trừ thầm — màn hình phải giải thích được vì sao ngày đó
      * trống mà vẫn không bị đòi (anh Hùng 03/10: "cho anh xem nó hiện thế nào"). */
     ngayTacNghiep: ngayTN.sort((x, y) => x - y).map((ms) => ({ ms,
-      tieuDe: TN.buoiTrongNgay(dsTN, nguoi, ms).filter((x) => x.coBaoCao)
+      tieuDe: TN.buoiTrongNgay(dsTN, nguoi, ms).filter(TN.daXong)
         .map((x) => x.tieuDe).filter(Boolean).join(' · '),
       daNopNgay: daNop.includes(ms) })),
     ...g,
