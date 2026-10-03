@@ -154,6 +154,26 @@ function vePhut(p) {
   const g = Math.floor(n / 60), du = n % 60;
   return du ? g + ' giờ ' + du : g + ' giờ';
 }
+/**
+ * Mốc "hiện tại" của từng màn — không phải lúc nào cũng là bây giờ.
+ *
+ * Báo cáo TUẦN chạy Thứ 7 → Thứ 6, hạn nộp là Thứ 7 ngay sau đó. Nên khi đang
+ * đứng NGÀY THỨ 7, tuần phải viết báo cáo là tuần VỪA KHÉP (Thứ 7 trước → Thứ
+ * 6 hôm qua), không phải tuần vừa mở ra sáng nay. Trước đây mở tab Tuần hôm
+ * Thứ 7 là thấy một tuần trống trơn, trong khi tuần đến hạn 23:59 hôm đó lại
+ * nằm sau nút ‹ — anh Hùng gặp đúng cảnh này (03/10) và chốt: "ấn nút hiện tại
+ * thì thời gian báo cáo tuần phải là từ thứ 7 tuần trước tới thứ 6 tuần này".
+ *
+ * Cách làm: lấy kỳ chứa HÔM QUA. Thứ 7 ra tuần vừa khép; sáu ngày còn lại vẫn
+ * ra tuần đang chạy, vì hôm qua và hôm nay cùng một tuần.
+ *
+ * Màn Ngày giữ nguyên hôm nay. Màn Tháng cũng chưa đụng — ngày mùng 1 có
+ * chuyện y hệt (hạn báo cáo tháng là mùng 1) nhưng để anh Hùng chốt trước.
+ */
+function mocNay(loaiKy) {
+  return loaiKy === 'tuan' ? Date.now() - NGAY_MS : Date.now();
+}
+
 function kyThangNay() {
   const p = phanRa(Date.now());
   const tu = Date.UTC(p.nam, p.thang - 1, 1) - VN;
@@ -278,7 +298,7 @@ function veTab(o, ds) {
         !confirm('Thiết lập còn chỉnh chưa lưu (vẫn giữ nháp trên máy này). Rời đi?')) return;
       BAN = false;
       MAN = b.dataset.man;
-      MOC = Date.now();
+      MOC = mocNay(MAN);
       $$('.pill').forEach((x) => x.classList.toggle('on', x.dataset.man === MAN));
       ve();
     };
@@ -1041,7 +1061,7 @@ function gan(loaiKy) {
    * nay lưu nháp trước rồi mới đổi. */
   $('#btnLui').onclick = async () => { await luuTruocKhiDi(); doiMoc(-1, loaiKy, buoc); };
   $('#btnToi').onclick = async () => { await luuTruocKhiDi(); doiMoc(1, loaiKy, buoc); };
-  $('#btnNay').onclick = async () => { await luuTruocKhiDi(); MOC = Date.now(); ve(); };
+  $('#btnNay').onclick = async () => { await luuTruocKhiDi(); MOC = mocNay(loaiKy); ve(); };
   const cn = $('#chonNgay');
   if (cn) cn.onchange = async () => { await luuTruocKhiDi(); MOC = tuISO(cn.value); ve(); };
 

@@ -772,6 +772,41 @@ function nap() {
     ok('ngày chưa nộp cũng nói ra', so.includes('11/09'));
   }
 
+  group('"Hiện tại" của màn Tuần — đứng Thứ 7 phải ra tuần vừa khép (03/10)');
+  {
+    const K = require('../ky');
+    /* Anh Hùng: "ấn nút hiện tại thì thời gian báo cáo tuần phải là từ thứ 7
+     * tuần trước tới thứ 6 tuần này". Hạn nộp tuần đúng là Thứ 7 — nên đứng
+     * Thứ 7 mà màn Tuần mở ra tuần mới trống trơn là mở nhầm tuần. */
+    const t7 = K.tuNgayVN(2026, 10, 3) + 9 * K.GIO;      // Thứ 7 03/10
+    ctx.__goi('globalThis.__nowCu = Date.now; Date.now = () => ' + t7);
+    const mocT7 = ctx.__goi('mocNay("tuan")');
+    const kT7 = K.kyTuan(mocT7);
+    ok('Thứ 7: màn Tuần mở tuần 26/09 – 02/10',
+      K.veNgay(kT7.tu) === '26/09/2026' && K.veNgay(kT7.den) === '02/10/2026',
+      K.veNgay(kT7.tu) + ' – ' + K.veNgay(kT7.den));
+    ok('hạn của tuần đó đúng là hôm nay',
+      K.veNgay(K.hanNop(kT7)) === '03/10/2026', K.veNgay(K.hanNop(kT7)));
+    ok('màn Ngày vẫn là hôm nay',
+      K.veNgay(ctx.__goi('mocNay("ngay")')) === '03/10/2026');
+
+    /* Sáu ngày còn lại không được đổi: hôm qua và hôm nay cùng một tuần. */
+    for (const [ngay, cho] of [[4, '03/10/2026'], [5, '03/10/2026'], [9, '03/10/2026']]) {
+      const m = K.tuNgayVN(2026, 10, ngay) + 9 * K.GIO;
+      ctx.__goi('Date.now = () => ' + m);
+      const k = K.kyTuan(ctx.__goi('mocNay("tuan")'));
+      ok('ngày ' + ngay + '/10 vẫn mở tuần đang chạy (' + cho + ' – …)',
+        K.veNgay(k.tu) === cho, K.veNgay(k.tu) + ' – ' + K.veNgay(k.den));
+    }
+    ctx.__goi('Date.now = globalThis.__nowCu');
+
+    /* Nút "Hiện tại" và lúc đổi tab đều phải đi qua mocNay, không gọi thẳng
+     * Date.now() — sót một chỗ là hai đường vào ra hai tuần khác nhau. */
+    const src = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+    ok('nút "Hiện tại" dùng mocNay', /#btnNay[\s\S]{0,120}MOC = mocNay\(loaiKy\)/.test(src));
+    ok('đổi tab cũng dùng mocNay', /MAN = b\.dataset\.man;[\s\S]{0,60}MOC = mocNay\(MAN\)/.test(src));
+  }
+
   group('Năm lựa chọn lọc — ngày tháng phải khớp đúng phía máy chủ');
   {
     const K = require('../ky');
