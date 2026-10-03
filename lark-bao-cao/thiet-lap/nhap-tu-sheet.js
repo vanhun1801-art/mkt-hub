@@ -34,10 +34,11 @@ const cfg = require('../config');
 const K = require('../ky');
 const kho = require('../kho');
 const lark = require('../lark');
+const CH = require('../chuan');
 
 /* Tên trong Sheet -> nhóm việc của app. Khoá là chữ thường, so bằng "chứa". */
 const BANG_NHOM = [
-  [['page', 'fb', 'facebook', 'zalo'], 'Page'],
+  [['page', 'fb', 'facebook', 'zalo', 'instagram', '(ig)'], 'Page'],
   [['tiktok', 'tik tok'], 'TikTok'],
   [['edit clip', 'edit video', 'edit'], 'Edit video'],
   [['chỉnh ảnh', 'chinh anh'], 'Chỉnh ảnh'],
@@ -86,6 +87,9 @@ function doTienDo(tho) {
   return { tienDoPt: pt, trangThai, ghiChu: dong.join(' · ') };
 }
 
+/* Người nào chưa có ở đây thì tra bảng Phân quyền của hub theo email — chỗ
+ * anh Hùng đã khai sẵn cả phòng, khỏi chép tay thêm một dòng mỗi lần có thêm
+ * một bảng Sheet. Bảng dưới chỉ còn là bản vá cho ai Phân quyền ghi thiếu. */
 const NGUOI = {
   'thuhta@rootytrip.com': { id: 'ou_498e794af73c287291ca37a8cb6f50cc', ten: 'Huỳnh Thị Anh Thư' },
   'hangvtc@rootytrip.com': { id: 'ou_832738e765aae94e9b1fb96d548d3d5e', ten: 'Võ Thị Cẩm Hằng' },
@@ -104,9 +108,11 @@ if (!tep) { console.error('Cách dùng: node thiet-lap/nhap-tu-sheet.js <tệp.j
   let soGhi = 0, soBo = 0;
   const laKhac = [];
 
+  const bangQuyen = await CH.dsViTri();
   for (const [email, theoNgay] of Object.entries(vao)) {
-    const ng = NGUOI[email];
-    if (!ng) { console.log('BỎ QUA ' + email + ' — chưa khai trong bảng NGUOI'); continue; }
+    const q = bangQuyen.find((x) => x.email === String(email).toLowerCase());
+    const ng = NGUOI[email] || (q && q.openId ? { id: q.openId, ten: q.ten } : null);
+    if (!ng) { console.log('BỎ QUA ' + email + ' — không có trong Phân quyền, cũng chưa khai ở bảng NGUOI'); continue; }
     const nguoi = { id: ng.id, email, ten: ng.ten };
 
     for (const [ngay, dsTho] of Object.entries(theoNgay).sort()) {
