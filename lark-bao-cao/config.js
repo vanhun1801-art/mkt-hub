@@ -60,6 +60,14 @@ module.exports = {
   /* Lịch làm việc từng người — Base "Lịch làm việc MKT" của app lark-lich-lam-viec
    * (anh Hùng 30/09: báo cáo ngày theo các ngày CÓ LỊCH làm việc). Id chép từ
    * lark-lich-lam-viec/config.js; xem lich-lam.js. */
+  /* Base "Lịch tác nghiệp" (app lark-lich-tac-nghiep). Ngày nào có buổi đã nộp
+   * "Báo cáo sau tác nghiệp" thì ngày đó không đòi báo cáo ngày nữa — anh Hùng
+   * 03/10: "đi tác nghiệp xong thấy không khoẻ thì báo cáo tác nghiệp là đủ". */
+  tacNghiep: {
+    base: process.env.LTN_BASE_TOKEN || 'U8bAbfnwgalWgDsEU11lpHfPgTb',
+    table: process.env.LTN_TABLE || 'tblwfl1sEXHI9HOp',
+  },
+
   lichLam: {
     base: process.env.LLV_BASE_TOKEN || 'VTqxbgjx1a5ZIMsyMQGlLjtQg6c',
     table: 'tblad6snuvuCzh8y',

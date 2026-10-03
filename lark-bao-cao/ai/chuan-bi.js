@@ -22,6 +22,7 @@ const K = require('../ky');
 const kho = require('../kho');
 const CH = require('../chuan');
 const LL = require('../lich-lam');
+const TN = require('../tac-nghiep');
 
 const loai = process.argv[2] === 'thang' ? 'thang' : 'tuan';
 const iMoc = process.argv.indexOf('--moc');
@@ -35,7 +36,7 @@ const THU_MUC = path.join(__dirname, 'du-lieu');
 const catChu = (s, n) => { const t = String(s || '').replace(/\s+/g, ' ').trim(); return t.length > n ? t.slice(0, n) + '…' : t; };
 
 (async () => {
-  const [chuan, dsVT, dsLich] = await Promise.all([CH.doc(true), CH.dsViTri(), LL.docHet()]);
+  const [chuan, dsVT, dsLich, dsTN] = await Promise.all([CH.doc(true), CH.dsViTri(), LL.docHet(), TN.docHet()]);
   const phieu = (await kho.dsPhieu({ tu: k.tu, den: k.den }, true));
   const phieuNgay = phieu.filter((x) => x.loaiKy === cfg.chon.loaiKy.ngay && x.trangThai === cfg.chon.trangThaiPhieu.daNop);
   const dongHet = await kho.dsDong({});
@@ -89,9 +90,14 @@ const catChu = (s, n) => { const t = String(s || '').replace(/\s+/g, ' ').trim()
         viecPhuToiDa: chuan.phuToiDa + '%',
         sanLuongMoiNgay: chuan.viTri[viTri].sanLuong.map((s) => s.ten + ' ≥ ' + s.toiThieu),
       } : null,
-      /* Chỉ tính ngày ĐÃ QUA HẠN (hết ngày) — hôm nay còn tới 23:59 mới là thiếu. */
-      ngayCoLichMaChuaNop: K.ngayThieu(k.tu, Math.min(den, K.kyNgay(bayGio).tu - 1), n.ps.map((p) => p.tuNgay), K.LUAT, lich)
+      /* Chỉ tính ngày ĐÃ QUA HẠN (hết ngày) — hôm nay còn tới 23:59 mới là thiếu.
+       * Ngày có buổi tác nghiệp đã báo cáo cũng không tính thiếu (anh Hùng
+       * 03/10) — gộp vào danh sách ngày đã nộp, xem tac-nghiep.js. */
+      ngayCoLichMaChuaNop: K.ngayThieu(k.tu, Math.min(den, K.kyNgay(bayGio).tu - 1),
+        n.ps.map((p) => p.tuNgay).concat(TN.ngayDaBaoCao(dsTN, n)), K.LUAT, lich)
         .map(K.veNgayThu),
+      /* Để AI biết vì sao ngày đó không bị tính thiếu, và nhắc đúng việc. */
+      ngayDiTacNghiep: TN.ngayDaBaoCao(dsTN, n).filter((x) => x >= k.tu && x <= den).map(K.veNgayThu),
       ngay,
       daViet: baoCaoKy ? { nhanDinh: catChu(baoCaoKy.nhanDinh, 600) || undefined, keHoach: catChu(baoCaoKy.keHoach, 600) || undefined } : undefined,
       nhanXetAiTruoc: baoCaoKy && baoCaoKy.danhGiaAI ? catChu(baoCaoKy.danhGiaAI, 800) : undefined,

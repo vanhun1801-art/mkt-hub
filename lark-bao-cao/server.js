@@ -20,6 +20,7 @@ const VT = require('./viec-tracking');
 const TB = require('./thong-bao-nhom');
 const CH = require('./chuan');
 const LL = require('./lich-lam');
+const TN = require('./tac-nghiep');
 
 /**
  * Tiến độ LẦN BÁO TRƯỚC của từng việc, tính tới trước ngày `tu` — để sản lượng
@@ -375,8 +376,14 @@ async function boiCanhCho(loai, k, ai, phieu) {
     dongKy,
     dungYen: ND.timDungYen(nhomTheoNgay(dongRong)),
     /* Kỳ ngày không có khái niệm "ngày thiếu" — chính nó là một ngày. */
+    /* Ngày có buổi tác nghiệp ĐÃ báo cáo tính như ngày đã có báo cáo — anh
+     * Hùng 03/10: "đi tác nghiệp xong thấy không khoẻ thì báo cáo tác nghiệp
+     * là đủ, đừng ghi nhận là không có báo cáo". Gộp vào danh sách ngày đã
+     * nộp thay vì thêm một nhánh luật: ngayThieu() không phải biết gì thêm. */
     ngayThieu: loai === 'ngay' ? []
-      : K.ngayThieu(k.tu, Math.min(k.den, Date.now()), daNop, K.LUAT, LL.lichCua(await LL.docHet(), ai)),
+      : K.ngayThieu(k.tu, Math.min(k.den, Date.now()),
+        daNop.concat(TN.ngayDaBaoCao(await TN.docHet(), ai)),
+        K.LUAT, LL.lichCua(await LL.docHet(), ai)),
   };
 }
 
@@ -920,6 +927,7 @@ async function api(req, res, u) {
     /* Lịch làm việc từng người (Base Lịch làm việc) — ngày thiếu và tỷ lệ đúng
      * hạn tính trên NGÀY CÓ LỊCH của chính người đó (anh Hùng 30/09). */
     const dsLich = await LL.docHet();
+    const dsTN = await TN.docHet();
 
     /**
      * Bốn nhóm, không phải hai. Anh Hùng muốn "kiểm soát được nhân sự báo cáo
@@ -937,7 +945,8 @@ async function api(req, res, u) {
       const dung = daNop.filter((x) => x.dungHan === cfg.chon.dungHan['dung-han']);
       const lich = LL.lichCua(dsLich, { email: n.email, ten: n.ten });
       const soCong = K.ngayThieu(tu, denThat, [], K.LUAT, lich).length;
-      const thieu = K.ngayThieu(tu, denThat, daNop.map((x) => x.tuNgay), K.LUAT, lich);
+      const thieu = K.ngayThieu(tu, denThat,
+        daNop.map((x) => x.tuNgay).concat(TN.ngayDaBaoCao(dsTN, { ten: n.ten })), K.LUAT, lich);
       const sua = daNop.filter((x) => (x.soLanNop || 1) > 1);
       return {
         ten: n.ten, id: n.id, email: n.email,
@@ -962,7 +971,7 @@ async function api(req, res, u) {
       if (nguoi.some((n) => (x.email && n.email && n.email.toLowerCase() === x.email) ||
         LL.boDau(n.ten) === k || LL.boDau(n.ten).startsWith(k + ' ('))) continue;
       const lich = LL.lichCua(dsLich, x);
-      const thieu = K.ngayThieu(tu, denThat, [], K.LUAT, lich);
+      const thieu = K.ngayThieu(tu, denThat, TN.ngayDaBaoCao(dsTN, x), K.LUAT, lich);
       nguoi.push({ ten: x.ten, id: '', email: x.email, soNgayDaNop: 0, soDungHan: 0, soTre: 0, soBu: 0, soSua: 0,
         soNgayCong: thieu.length, tyLeDung: thieu.length ? 0 : null, tongPhut: 0, treNhatPhut: 0,
         thieu: thieu.map((ms) => ({ ms, nhan: K.veNgay(ms) })) });
@@ -1112,6 +1121,7 @@ async function api(req, res, u) {
       .filter((x) => x.trangThai === cfg.chon.trangThaiPhieu.daNop);
     const dongKy = await kho.dsDong({ tu: k.tu, den: k.den }, false);
     const dsLichTP = await LL.docHet();
+    const dsTNTP = await TN.docHet();
     const batDauHT = await ngayHeThongBatDau(moi);
     const tuThieu = Math.max(k.tu, batDauHT || k.tu);
     /* Phiếu tuần/tháng của từng người — để quản lý đọc được nhận xét AI (01/10).
@@ -1139,7 +1149,8 @@ async function api(req, res, u) {
       const bc = {
         /* `tuThieu` chứ không phải k.tu: lọc cả năm thì không đếm ngược về
          * trước ngày hệ thống có dữ liệu — xem ngayHeThongBatDau. */
-        ngayThieu: K.ngayThieu(tuThieu, Math.min(k.den, Date.now()), n.ps.map((x) => x.tuNgay), K.LUAT,
+        ngayThieu: K.ngayThieu(tuThieu, Math.min(k.den, Date.now()),
+          n.ps.map((x) => x.tuNgay).concat(TN.ngayDaBaoCao(dsTNTP, { ten: n.ten })), K.LUAT,
           LL.lichCua(dsLichTP, { email: n.email, ten: n.ten })),
         dungYen: ND.timDungYen(nhomTheoNgay(cuaHo)),
       };
