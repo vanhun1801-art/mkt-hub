@@ -147,10 +147,31 @@ async function aiGoi(req) {
  * ai cũng sửa được trong thanh địa chỉ. Quản lý thì được xem phiếu người khác,
  * nhưng vẫn CHỈ XEM: mọi đường ghi bên dưới đều dùng `toi`, không dùng cái này.
  */
-function nguoiXem(toi, q) {
+function nguoiXem(toi, q, nhu) {
+  /* Đang "xem như" thì mọi đường đọc đi theo người đó — xem xemNhuAi. */
+  if (nhu) return nhu;
   const xin = (q.get('nguoi') || '').trim();
   if (!xin || !toi.quanLy) return toi;
   return { id: xin, ten: xin, email: xin.includes('@') ? xin : '' };
+}
+
+/**
+ * Người mà quản lý đang XEM NHƯ, lấy từ bảng Phân quyền. null nếu không đổi vai.
+ *
+ * Tra bảng chứ không tin tham số: client chỉ gửi email (hoặc open_id), còn
+ * open_id dùng để dựng mã phiếu phải lấy từ bảng. Gửi email suông mà không tra
+ * thì mã phiếu thành `ngay-20261003-<email>` — không khớp phiếu nào, màn hình
+ * trống trơn trong khi người ta có nộp đủ. Đã sập đúng kiểu này hôm 28/09 với
+ * mấy cửa chạy ở máy.
+ */
+async function xemNhuAi(toi, q) {
+  const xin = String(q.get('nhu') || '').trim().toLowerCase();
+  if (!xin || !toi.quanLy) return null;
+  const bang = await CH.dsViTri();
+  const x = bang.find((y) => /^ou_/.test(y.openId) && ((y.email && y.email === xin) ||
+    (y.openId && y.openId.toLowerCase() === xin)));
+  if (!x || !x.openId) return null;
+  return { id: x.openId, email: x.email, ten: x.ten, viTri: x.viTri };
 }
 
 /* ---------------- tệp tĩnh ---------------- */
@@ -370,11 +391,28 @@ async function api(req, res, u) {
     return loi(res, 403, 'Đang xem thử vai nhân sự — chế độ chỉ xem, không lưu được.', 'XEM_THU');
   }
 
+  /* QUẢN LÝ XEM NHƯ MỘT NHÂN SỰ (?nhu=<email|open_id>) — anh Hùng 03/10: "cho
+   * anh xin một nút chuyển vai trò để xem tình hình thực tế thế nào".
+   *
+   * Khác `giaLap` ở trên: cái đó là biến môi trường, chỉ chạy trên máy lẻ. Cái
+   * này đi qua hub và dùng được trên bản deploy, nên phải gác chặt hơn:
+   *   - chỉ quản lý thật (`toi.quanLy`) mới đổi được vai;
+   *   - danh tính lấy từ bảng Phân quyền, KHÔNG nhận tên/email client gõ vào —
+   *     có thế mã phiếu (dựng từ open_id) mới trỏ đúng người;
+   *   - MỌI lệnh ghi bị chặn. Xem thì được, nộp hộ người ta thì không: phiếu
+   *     đứng tên ai thì người đó phải là người bấm.
+   */
+  const nhu = await xemNhuAi(toi, q);
+  if (nhu && m !== 'GET') {
+    return loi(res, 403, 'Đang xem như ' + nhu.ten + ' — chế độ chỉ xem, không ghi được. ' +
+      'Bấm "Tôi (quản lý)" ở góc phải để quay về.', 'XEM_NHU');
+  }
+
   /* Vướng mắc CỦA CHÍNH người gọi, kèm tình trạng xử lý (anh Hùng 30/09: "cho
    * họ tab Cần hỗ trợ, cho họ thấy"). Chỉ phiếu của mình — không nhận ?nguoi=. */
   if (p === '/api/vuong-mac-cua-toi' && m === 'GET') {
     const tu = Date.now() - 90 * 86400000;
-    const ds = (await kho.dsPhieu({ nguoi: toi, tu }, q.get('moi') === '1'))
+    const ds = (await kho.dsPhieu({ nguoi: nguoiXem(toi, q, nhu), tu }, q.get('moi') === '1'))
       .filter((x) => K.canHoTroThat(x.canHoTro))
       .map((x) => ({
         loaiKy: x.loaiKy, nhan: K.veNgay(x.tuNgay), tu: x.tuNgay, noi: x.canHoTro,
@@ -394,10 +432,29 @@ async function api(req, res, u) {
     return ['ngay', 'tuan', 'thang'].includes(v) ? v : 'ngay';
   };
 
+  /* Danh sách người để quản lý đổi vai — chỉ quản lý, và chỉ trả những ô cần
+   * cho cái menu (tên, email, vị trí). Không trả open_id: client không cần,
+   * mà máy chủ tự tra lại từ bảng Phân quyền khi nhận ?nhu=. */
+  if (p === '/api/nguoi-ca-phong' && m === 'GET') {
+    if (!toi.quanLy) return loi(res, 403, 'Chỉ quản lý xem được danh sách này.', 'CHI_QUAN_LY');
+    const bang = await CH.dsViTri();
+    return json(res, {
+      /* Bỏ dòng chưa có open_id THẬT (bảng có một dòng mang 'mk:rec…'):
+       * đổi vai sang đó thì mã phiếu trỏ vào hư không, màn hình trống trơn. */
+      ds: bang.filter((x) => /^ou_/.test(x.openId) && x.ten)
+        .map((x) => ({ ten: x.ten, email: x.email, viTri: x.viTri, khoa: x.email || x.openId }))
+        .sort((a, b) => (a.viTri || '').localeCompare(b.viTri || '', 'vi') ||
+          a.ten.localeCompare(b.ten, 'vi')),
+    });
+  }
+
   if (p === '/api/meta' && m === 'GET') {
     const nay = Date.now();
     return json(res, {
-      toi,
+      /* Đang xem như ai thì cả giao diện phải nghĩ mình LÀ người đó: vai nhân
+       * sự, thấy đúng tab của họ. Giữ `quanLyThat` để vẽ dòng nhắc và đường
+       * quay về — không có nó thì quản lý mắc kẹt trong vai vừa chọn. */
+      toi: nhu ? Object.assign({}, nhu, { quanLy: false, xemNhu: true, quanLyThat: toi.ten }) : toi,
       cheDo: cfg.mode,
       larkUrl: cfg.larkUrl,
       bayGio: nay,
@@ -420,7 +477,7 @@ async function api(req, res, u) {
 
   /* Một phiếu cụ thể để mở ra sửa. */
   if (p === '/api/phieu' && m === 'GET') {
-    let ai = nguoiXem(toi, q);
+    let ai = nguoiXem(toi, q, nhu);
     let loaiXem = loaiKy(), mocXem = moc();
     /* Quản lý mở phiếu của nhân sự từ Toàn phòng (01/10): đi theo MÃ PHIẾU, lấy
      * người + kỳ từ chính phiếu — khỏi đoán phiếu lập theo open_id hay email. */
@@ -781,7 +838,7 @@ async function api(req, res, u) {
     const den = Number(q.get('den')) || Date.now();
     const ds = await kho.dsPhieu({
       loaiKy: q.get('ky') || undefined,
-      nguoi: caPhong ? null : toi,
+      nguoi: caPhong ? null : nguoiXem(toi, q, nhu),
       tu, den,
     }, q.get('moi') === '1');
     return json(res, { tu, den, caPhong, ds: ds.map(vePhieu) });
@@ -1010,7 +1067,7 @@ async function api(req, res, u) {
   }
 
   if (p === '/api/viec-cua-toi' && m === 'GET') {
-    const ai = nguoiXem(toi, q);
+    const ai = nguoiXem(toi, q, nhu);
     try {
       /* Cờ quản lý chỉ truyền khi NGƯỜI GỌI thật sự là quản lý (`toi`), không
        * phải người đang được xem (`ai`) — nhân sự không được mượn vai ai cả. */
@@ -1029,7 +1086,7 @@ async function api(req, res, u) {
 
   /** Nhận định cho một phiếu — của tôi, hoặc của người khác nếu là quản lý. */
   if (p === '/api/nhan-dinh' && m === 'GET') {
-    const ai = nguoiXem(toi, q);
+    const ai = nguoiXem(toi, q, nhu);
     const loai = loaiKy();
     const d = await kho.motPhieu(loai, moc(), ai, q.get('moi') === '1');
     if (!d.phieu) return json(res, { co: false, y: [], diem: null });
@@ -1198,7 +1255,7 @@ async function api(req, res, u) {
     const caPhong = q.get('ca-phong') === '1' && toi.quanLy;
     const tu = Number(q.get('tu')) || K.kyThang(Date.now()).tu;
     const den = Number(q.get('den')) || Date.now();
-    const dong = await kho.dsDong({ nguoi: caPhong ? null : toi, tu, den }, true);
+    const dong = await kho.dsDong({ nguoi: caPhong ? null : nguoiXem(toi, q, nhu), tu, den }, true);
     const o = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
     const dongCsv = [
       ['Ngày', 'Người', 'Email', 'Công việc', 'Nhóm việc', 'Số phút', 'Tiến độ', 'Trạng thái', 'Ghi chú']

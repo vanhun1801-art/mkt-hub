@@ -30,6 +30,12 @@ let BAN = false;    // có thay đổi chưa lưu
  * phòng là việc của cuối tháng, tuần chỉ xem khi cần nhìn kỹ một ai đó. */
 let TP_LOC = 'thang-nay';
 let HT_KYLOC = 'thang-nay';
+/* Quản lý đang xem như ai (email). Giữ trong sessionStorage để tải lại trang
+ * không bật ngược về vai quản lý giữa chừng — nhưng đóng tab là hết, không để
+ * hôm sau mở lên vẫn còn đứng trong vai người khác mà không nhớ. */
+let NHU = '';
+try { NHU = sessionStorage.getItem('bao-cao.nhu') || ''; } catch (_) { NHU = ''; }
+let DS_NGUOI = null;   // danh sách người để đổi vai (chỉ quản lý)
 
 /* ---------------- bản nháp trên máy (localStorage) ----------------
  * Mấy chỗ dưới đây chỉ giữ chữ đang gõ trong bộ nhớ: ghi chú xử lý ở Cần hỗ
@@ -104,6 +110,11 @@ const CU = 'luot-cu';
 async function goi(duong, opts = {}) {
   const luot = LUOT;
   const doc = !opts.method || opts.method === 'GET';
+  /* Đang xem như ai thì MỌI lệnh đọc phải mang theo vai đó. Gắn ở đây, một
+   * chỗ, thay vì sửa ba chục chỗ gọi — sót một chỗ là màn hình trộn dữ liệu
+   * hai người mà nhìn không ra. Lệnh ghi không gắn: máy chủ chặn ghi khi đổi
+   * vai, và gắn vào chỉ khiến lỗi khó đọc hơn. */
+  if (doc && NHU) duong += (duong.includes('?') ? '&' : '?') + 'nhu=' + encodeURIComponent(NHU);
   const r = await fetch(duong, Object.assign({
     headers: { 'content-type': 'application/json' },
   }, opts));
@@ -251,27 +262,96 @@ function ganThanhKy(goc, dat) {
   $$('[data-loc-ky]', goc).forEach((b) => { b.onclick = () => dat(b.dataset.locKy); });
 }
 
+/* ---------------- đổi vai (chỉ quản lý) ----------------
+ * Anh Hùng (03/10): "cho anh xin một nút chuyển vai trò để xem tình hình thực
+ * tế thế nào". Bấm vào chip ở góc phải là ra danh sách người; chọn một người
+ * thì CẢ APP chuyển sang đúng những gì họ thấy — tab của nhân sự, số của họ,
+ * mọi nút ghi tắt hết. Máy chủ chặn ghi lần nữa, không tin mỗi giao diện.
+ * ------------------------------------------------------------ */
+function datNhu(khoa) {
+  NHU = khoa || '';
+  try {
+    if (NHU) sessionStorage.setItem('bao-cao.nhu', NHU);
+    else sessionStorage.removeItem('bao-cao.nhu');
+  } catch (_) { /* trình duyệt chặn lưu thì vẫn đổi vai được trong phiên này */ }
+  location.reload();
+}
+
+async function ganDoiVai() {
+  const chip = $('#chipToi');
+  if (!chip) return;
+  chip.classList.add('bam-duoc');
+  chip.title = 'Đổi vai để xem app như một nhân sự';
+  if (!DS_NGUOI) {
+    try { DS_NGUOI = (await goi('/api/nguoi-ca-phong')).ds || []; } catch (_) { DS_NGUOI = []; }
+  }
+  chip.onclick = () => {
+    const cu = $('#menuVai');
+    if (cu) { cu.remove(); return; }          // bấm lần nữa thì đóng
+    const m = document.createElement('div');
+    m.id = 'menuVai';
+    m.className = 'menu-vai';
+    m.innerHTML = '<div class="menu-vai-dau">Xem app như</div>' +
+      '<button class="menu-vai-d' + (NHU ? '' : ' on') + '" data-vai="">Tôi (quản lý)</button>' +
+      DS_NGUOI.map((n) => '<button class="menu-vai-d' + (NHU === n.khoa ? ' on' : '') +
+        '" data-vai="' + esc(n.khoa) + '"><b>' + esc(n.ten) + '</b>' +
+        (n.viTri ? '<span class="nho">' + esc(n.viTri) + '</span>' : '') + '</button>').join('') +
+      (DS_NGUOI.length ? '' : '<div class="menu-vai-trong">Không đọc được bảng Phân quyền.</div>');
+    chip.parentNode.insertBefore(m, chip.nextSibling);
+    $$('[data-vai]', m).forEach((b) => { b.onclick = () => datNhu(b.dataset.vai); });
+    setTimeout(() => {
+      document.addEventListener('click', function dong(e) {
+        if (m.contains(e.target) || chip.contains(e.target)) return;
+        m.remove(); document.removeEventListener('click', dong);
+      });
+    }, 0);
+  };
+}
+
+/** Đang ở chế độ chỉ xem (xem thử bằng biến môi trường, hoặc quản lý đổi vai). */
+const chiXem = () => !!(META && META.toi && (META.toi.giaLap || META.toi.xemNhu));
+
 /* ---------------- khởi động ---------------- */
 async function nap() {
   META = await goi('/api/meta');
+  /* Vai vừa chọn không còn trong bảng Phân quyền (đã nghỉ, đổi email) thì máy
+   * chủ bỏ qua ?nhu= và trả lại vai thật. Dọn luôn, đừng để cái tên chết nằm
+   * trong sessionStorage rồi mỗi lần tải lại đều hụt một nhịp. */
+  if (NHU && !META.toi.xemNhu) datNhu('');
   $('#phuDe').textContent = META.toi.ten;
   const chip = $('#chipToi');
   chip.classList.toggle('ql', META.toi.quanLy);
-  $('span:last-child', chip).textContent = META.toi.quanLy ? 'Quản lý' : 'Nhân sự';
+  $('span:last-child', chip).textContent = META.toi.xemNhu ? 'Xem như ' + META.toi.ten
+    : META.toi.quanLy ? 'Quản lý' : 'Nhân sự';
 
   /* Nhân sự có thêm tab "Cần hỗ trợ" của RIÊNG mình (anh Hùng 30/09: "cho họ
    * tab Cần hỗ trợ, cho họ thấy"). Quản lý đã có tab cùng tên ở cụm quản lý. */
   veTab('#tabToi', META.toi.quanLy ? MAN_TOI : MAN_TOI.concat([{ ma: 'vuong-mac', ten: 'Cần hỗ trợ' }]));
-  if (META.toi.giaLap) {
+  if (META.toi.giaLap || META.toi.xemNhu) {
     const b = document.createElement('div');
-    b.textContent = 'Đang XEM THỬ vai nhân sự (' + META.toi.ten + ') — chỉ xem, mọi nút lưu/nộp đều bị chặn.';
+    b.className = 'bang-xem-nhu';
+    b.textContent = META.toi.xemNhu
+      ? 'Đang xem như ' + META.toi.ten + (META.toi.viTri ? ' · ' + META.toi.viTri : '') +
+        ' — đúng những gì họ thấy. Chỉ xem: mọi nút nộp/sửa đều tắt.'
+      : 'Đang XEM THỬ vai nhân sự (' + META.toi.ten + ') — chỉ xem, mọi nút lưu/nộp đều bị chặn.';
     b.style.cssText = 'background:var(--orange-bg);color:var(--orange-text);padding:8px 14px;font-size:13px;font-weight:600;text-align:center';
+    if (META.toi.xemNhu) {
+      const nut = document.createElement('button');
+      nut.className = 'btn nho';
+      nut.textContent = '← Quay về vai quản lý';
+      nut.style.marginLeft = '12px';
+      nut.onclick = () => datNhu('');
+      b.appendChild(nut);
+    }
     document.body.prepend(b);
   }
   if (META.toi.quanLy) {
     $('#tabQL').hidden = false;
     veTab('#tabQL', MAN_QL);
   }
+  /* Menu đổi vai: chỉ dựng cho quản lý THẬT, và vẫn dựng khi đang xem như một
+   * người — để đổi thẳng sang người khác, khỏi phải quay về rồi chọn lại. */
+  if (META.toi.quanLy || META.toi.xemNhu) await ganDoiVai();
 
   $('#btnXuat').onclick = xuat;
   ganSo();
@@ -984,6 +1064,15 @@ document.addEventListener('click', async (e) => {
 
 function theLuu(d) {
   const daNop = d.phieu && d.phieu.daNop;
+  /* Chế độ chỉ xem: KHÔNG vẽ nút Nộp. Không chỉ để khoá tay người bấm — hàm
+   * tuLuuDuoc() lấy sự có mặt của #btnNop làm điều kiện, nên bỏ nút đi là tắt
+   * luôn đường tự lưu nháp. Còn nút thì cứ 2,5 giây lại một lượt POST bị máy
+   * chủ trả 403, hiện toast đỏ liên tục. */
+  if (chiXem()) {
+    return '<div class="the"><div class="the-than"><span class="nho">' +
+      'Đang xem như ' + esc(META.toi.ten) + ' — chỉ xem, không nộp hay sửa được.' +
+      '</span></div></div>';
+  }
   return '<div class="the"><div class="the-than" ' +
     'style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">' +
     '<button class="btn chinh" id="btnNop">' + (daNop ? 'Cập nhật báo cáo' : 'Nộp báo cáo') + '</button>' +
@@ -1071,7 +1160,10 @@ function gan(loaiKy) {
     bSo.onclick = () => (SO_MO ? dongSo() : moSo('Chi tiết kỳ', DU.nhan || '', soKy(DU)));
   }
 
-  $('#btnNop').onclick = () => luu(true);
+  /* Chế độ chỉ xem không vẽ nút Nộp, nên phải hỏi trước khi gắn — bản đầu gắn
+   * thẳng và cả màn hình chết với "Cannot set properties of null". */
+  const bNop = $('#btnNop');
+  if (bNop) bNop.onclick = () => luu(true);
   ['#txNhanDinh', '#txKeHoach', '#txHoTro', '#txVideo'].forEach((s) => {
     const e = $(s);
     if (e) e.oninput = () => { BAN = true; };

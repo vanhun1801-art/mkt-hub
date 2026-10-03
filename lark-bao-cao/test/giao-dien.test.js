@@ -861,6 +861,49 @@ function nap() {
       ht.includes('data-loc="chua"') && ht.includes('data-loc="xong"'));
   }
 
+  group('Đổi vai: quản lý xem app như một nhân sự (03/10)');
+  {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+    const sv = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+
+    /* Anh Hùng: "cho anh xin một nút chuyển vai trò để xem tình hình thực tế
+     * thế nào". Nút nằm ở chip góc phải; chọn người nào thì cả app thành vai
+     * người đó. */
+    ok('chip góc phải mở được menu đổi vai',
+      /function ganDoiVai/.test(src) && /menuVai/.test(src));
+    ok('danh sách người lấy từ máy chủ, không cắm cứng',
+      /goi\('\/api\/nguoi-ca-phong'\)/.test(src));
+
+    /* Mọi lệnh ĐỌC phải mang theo vai — gắn một chỗ trong goi(), sót một chỗ
+     * là màn hình trộn dữ liệu hai người mà nhìn không ra. */
+    ok('mọi lệnh đọc tự gắn ?nhu=', /if \(doc && NHU\) duong \+=/.test(src));
+    ok('lệnh ghi KHÔNG gắn ?nhu=', !/opts\.method[\s\S]{0,80}nhu=/.test(src));
+
+    /* Chế độ chỉ xem: không vẽ nút Nộp (nút đó cũng là công tắc của tự lưu
+     * nháp), và phải hỏi trước khi gắn onclick — bản đầu gắn thẳng, cả màn
+     * hình chết với "Cannot set properties of null". */
+    ok('chỉ xem thì không vẽ nút Nộp', /if \(chiXem\(\)\) \{[\s\S]{0,260}không nộp hay sửa được/.test(src));
+    ok('gắn onclick nút Nộp có kiểm null trước',
+      /const bNop = \$\('#btnNop'\);[\s\S]{0,80}if \(bNop\)/.test(src));
+    ok('có dòng nhắc và đường quay về vai quản lý',
+      /Quay về vai quản lý/.test(src) && /datNhu\(''\)/.test(src));
+
+    /* Máy chủ mới là chốt chặn. Ba điều phải đúng, không được tin giao diện. */
+    ok('chỉ QUẢN LÝ mới đổi được vai',
+      /async function xemNhuAi[\s\S]{0,300}if \(!xin \|\| !toi\.quanLy\) return null;/.test(sv),
+      'nhân sự tự gắn ?nhu= là xem được phiếu người khác');
+    ok('danh tính tra từ bảng Phân quyền, không nhận chữ client gõ',
+      /xemNhuAi[\s\S]{0,700}CH\.dsViTri\(\)/.test(sv),
+      'nhận email suông thì mã phiếu trỏ vào hư không, màn hình trống trơn');
+    ok('đang đổi vai thì CHẶN mọi lệnh ghi',
+      /if \(nhu && m !== 'GET'\)[\s\S]{0,200}XEM_NHU/.test(sv),
+      'không thì quản lý bấm Nộp là nộp hộ người ta');
+    ok('bỏ dòng chưa có open_id thật khi liệt kê người',
+      /\/\^ou_\/\.test\(x\.openId\)/.test(sv));
+    ok('đầu mối danh sách người chỉ cho quản lý',
+      /'\/api\/nguoi-ca-phong'[\s\S]{0,160}CHI_QUAN_LY/.test(sv));
+  }
+
   group('Thiết lập gọn lại (02/10)');
   {
     const src = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
