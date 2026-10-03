@@ -136,6 +136,14 @@ group('Bốn chỗ đếm ngày thiếu đều phải nối');
   const so = (sv.match(/K\.ngayThieu\([^;]*?TN\.ngayDaBaoCao\(/g) || []).length;
   ok('server.js nối ở cả bốn chỗ (phiếu của mình, Theo dõi, người chưa nộp gì, Toàn phòng)',
     so === 4, 'đang có ' + so + ' chỗ');
+
+  /* Chỗ thứ NĂM, sót mất một hôm: bảng "Chi tiết kỳ" không lấy số từ server.js
+   * mà từ kho.tongHop(). Màn Toàn phòng nói đủ, sổ bên phải vẫn kẻ đỏ. */
+  const kh = fs.readFileSync(path.join(__dirname, '..', 'kho.js'), 'utf8');
+  ok('kho.tongHop() cũng nối — đây là số mà bảng "Chi tiết kỳ" đọc',
+    /K\.ngayThieu\([^;]*?daNop\.concat\(ngayTN\)/.test(kh));
+  ok('và trả cả danh sách ngày đi tác nghiệp để màn hình nói ra',
+    /ngayTacNghiep:/.test(kh) && /buoiTrongNgay\(/.test(kh));
   ok('tệp dữ liệu đưa AI cũng nối', /TN\.ngayDaBaoCao\(dsTN, n\)/.test(cb));
   ok('và nói cho AI biết ngày nào là ngày đi tác nghiệp',
     /ngayDiTacNghiep:/.test(cb),

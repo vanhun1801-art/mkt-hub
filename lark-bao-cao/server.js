@@ -370,6 +370,7 @@ function nhomTheoNgay(dong) {
 async function boiCanhCho(loai, k, ai, phieu) {
   const tu = loai === 'ngay' ? k.tu - 14 * K.NGAY : k.tu;
   const den = k.den;
+  const dsTN = await TN.docHet();
   const dongRong = await kho.dsDong({ nguoi: ai, tu, den });
   const dongKy = dongRong.filter((d) => d.ngay >= k.tu && d.ngay <= k.den);
   const daNop = (await kho.dsPhieu({ loaiKy: 'ngay', nguoi: ai, tu: k.tu, den: k.den }))
@@ -385,7 +386,7 @@ async function boiCanhCho(loai, k, ai, phieu) {
      * nộp thay vì thêm một nhánh luật: ngayThieu() không phải biết gì thêm. */
     ngayThieu: loai === 'ngay' ? []
       : K.ngayThieu(k.tu, Math.min(k.den, Date.now()),
-        daNop.concat(TN.ngayDaBaoCao(await TN.docHet(), ai)),
+        daNop.concat(TN.ngayDaBaoCao(dsTN, ai)),
         K.LUAT, LL.lichCua(await LL.docHet(), ai)),
   };
 }
@@ -562,6 +563,7 @@ async function api(req, res, u) {
         phanTram: t.phanTram,
         theoNhom: t.theoNhom.map((n) => ({ ...n, gio: K.vePhut(n.phut) })),
         ngayThieu: t.ngayThieu.map((x) => ({ ms: x, nhan: K.veNgayThu(x) })),
+        ngayTacNghiep: (t.ngayTacNghiep || []).map((x) => ({ ...x, nhan: K.veNgayThu(x.ms) })),
         phieuNgay: t.phieuNgay.map(vePhieu),
         viec: viec.map((v) => ({ ...v, gio: K.vePhut(v.tongPhut) })),
         theoNgay,

@@ -602,6 +602,14 @@ body.so-mo #so {
 .nk-ten { flex: 1; color: var(--text); }
 .nk-so { color: var(--text-3); font-variant-numeric: tabular-nums; }
 .nk-than { padding: 11px; }
+/* Ngày đi tác nghiệp: một dòng phẳng, không bấm mở được (nội dung nằm ở app
+   Lịch tác nghiệp). Nền nhạt để tách khỏi ngày có báo cáo ngày, nhưng KHÔNG
+   màu cảnh báo — đây là ngày hợp lệ, không phải ngày thiếu. */
+.nk-tn {
+  display: flex; gap: 10px; align-items: center;
+  padding: 8px 11px; font-size: 12.5px;
+  background: var(--surface-2); border-style: dashed;
+}
 
 /* Nội dung một phiếu — dùng chung cho nhật ký và tab "Đã nộp". */
 .ct-dau { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }

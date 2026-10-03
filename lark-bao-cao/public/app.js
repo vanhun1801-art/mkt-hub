@@ -686,6 +686,7 @@ function theTongHop(d) {
         m('Định mức', t.phanTram == null ? '—' : t.phanTram + '%',
           t.phanTram == null ? '' : t.phanTram >= 100 ? 'xanh' : t.phanTram < 80 ? 'cam' : '') +
         m('Đầu việc', t.viec.length) +
+        (soTN(t) ? m('Đi tác nghiệp', soTN(t) + ' ngày', 'xanh') : '') +
         (t.ngayThieu.length ? m('Chưa nộp', t.ngayThieu.length + ' ngày', 'do') : '') +
       '</div>' +
       '<div class="lon"></div>' +
@@ -791,6 +792,7 @@ function soKy(d) {
       bangDaViet(t), true) +
     muc('Nhật ký nộp báo cáo',
       dung + ' đúng hạn' + (tre ? ' · ' + tre + ' trễ' : '') +
+      (soTN(t) ? ' · ' + soTN(t) + ' đi tác nghiệp' : '') +
       (t.ngayThieu.length ? ' · ' + t.ngayThieu.length + ' chưa nộp' : ''),
       bangNgay(t));
 }
@@ -837,20 +839,42 @@ function phanBoThoiGian(t) {
  * Nạp khi bấm, không nạp sẵn: mở sổ tháng mà gọi hai mươi lượt mạng cho hai
  * mươi ngày thì chậm, mà phần lớn không ai mở tới.
  */
+const dsTN = (t) => (t && t.ngayTacNghiep) || [];
+const soTN = (t) => dsTN(t).length;
+
 function bangNgay(t) {
-  if (!t.theoNgay.length && !t.ngayThieu.length) {
+  if (!t.theoNgay.length && !t.ngayThieu.length && !soTN(t)) {
     return '<p class="phu">Chưa có ngày nào trong kỳ.</p>';
   }
-  return '<div class="nk">' + t.theoNgay.map((n) =>
-    '<details class="nk-d"><summary>' +
+  /* Ngày đi tác nghiệp mà KHÔNG nộp báo cáo ngày cũng là một dòng trong nhật
+   * ký, nằm đúng thứ tự ngày — chứ không phải một ngày trống không lời giải
+   * thích. Ngày vừa đi vừa nộp thì chỉ gắn thêm nhãn lên dòng sẵn có. */
+  const chiTN = dsTN(t).filter((x) => !x.daNopNgay)
+    .map((x) => ({ tu: x.ms, laTN: true, nhan: x.nhan, tieuDe: x.tieuDe }));
+  const coTN = new Set(dsTN(t).map((x) => x.ms));
+  const dong = t.theoNgay.concat(chiTN).sort((a, b) => a.tu - b.tu);
+
+  return '<div class="nk">' + dong.map((n) => (n.laTN
+    ? '<div class="nk-d nk-tn">' +
+        '<span class="nk-ten">' + esc(n.nhan) + '</span>' +
+        '<span class="nk-so">' + (n.tieuDe ? esc(n.tieuDe) : 'buổi tác nghiệp') + '</span>' +
+        '<span class="nhan-tt xanh">đã báo cáo tác nghiệp</span>' +
+      '</div>'
+    : '<details class="nk-d"><summary>' +
       '<span class="nk-ten">' + esc(n.nhan) + '</span>' +
       '<span class="nk-so">' + esc(n.tongGio) + ' · ' + n.soViec + ' việc</span>' +
+      (coTN.has(n.tu) ? '<span class="nhan-tt xam">có tác nghiệp</span>' : '') +
       (n.trangThaiHan === 'tre'
         ? '<span class="nhan-tt cam">' + esc(n.veHan) + '</span>'
         : '<span class="nhan-tt xanh">đúng hạn</span>') +
     '</summary>' +
     '<div class="nk-than" data-ngay="' + n.tu + '">' +
-      '<p class="phu">Đang mở…</p></div></details>').join('') + '</div>' +
+      '<p class="phu">Đang mở…</p></div></details>')).join('') + '</div>' +
+    (chiTN.length
+      ? '<p class="nho" style="margin:8px 0 0">Ngày đi tác nghiệp đã nộp ' +
+        '<b>Báo cáo sau tác nghiệp</b> thì không cần báo cáo ngày — app tự đọc ' +
+        'sang, không tính là thiếu.</p>'
+      : '') +
     (t.ngayThieu.length
       ? '<p class="nho" style="margin:10px 0 0">Chưa nộp: ' +
         t.ngayThieu.map((x) => '<span class="nhan-tt do" style="margin-right:4px">' +

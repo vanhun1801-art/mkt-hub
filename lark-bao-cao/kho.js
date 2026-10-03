@@ -409,12 +409,29 @@ async function tongHop(loaiKy, mocMs, nguoi, force, denToiDa) {
   const g = K.gop(dong.map((d) => ({ nhom: d.nhom, phut: d.phut })), dm);
 
   const daNop = phieuNgay.map((p) => p.tuNgay);
+  /* Ngày đi tác nghiệp ĐÃ nộp báo cáo sau chuyến tính như ngày đã có báo cáo.
+   *
+   * Đây là chỗ đếm THỨ NĂM, và là chỗ hôm 03/10 bị sót: bốn chỗ kia nằm trong
+   * server.js nên đã nối, còn bảng "Chi tiết kỳ" lại lấy số từ đây — thành ra
+   * cùng một người, màn Toàn phòng nói đủ mà sổ bên phải vẫn kẻ đỏ hai ngày.
+   * Đừng tách phép đếm này khỏi phép nối. */
+  const TN = require('./tac-nghiep');
+  const dsTN = nguoi ? await TN.docHet() : [];
+  const ngayTN = nguoi
+    ? TN.ngayDaBaoCao(dsTN, nguoi).filter((ms) => ms >= k.tu && ms <= Math.min(den, Date.now()))
+    : [];
   return {
     ky: k,
     soPhieuNgay: phieuNgay.length,
     /* Theo lịch làm việc từng người, như Theo dõi / Toàn phòng (rà 01/10). */
-    ngayThieu: K.ngayThieu(k.tu, Math.min(den, Date.now()), daNop, K.LUAT,
+    ngayThieu: K.ngayThieu(k.tu, Math.min(den, Date.now()), daNop.concat(ngayTN), K.LUAT,
       nguoi ? require('./lich-lam').lichCua(await require('./lich-lam').docHet(), nguoi) : null),
+    /* Nói ra chứ không trừ thầm — màn hình phải giải thích được vì sao ngày đó
+     * trống mà vẫn không bị đòi (anh Hùng 03/10: "cho anh xem nó hiện thế nào"). */
+    ngayTacNghiep: ngayTN.sort((x, y) => x - y).map((ms) => ({ ms,
+      tieuDe: TN.buoiTrongNgay(dsTN, nguoi, ms).filter((x) => x.coBaoCao)
+        .map((x) => x.tieuDe).filter(Boolean).join(' · '),
+      daNopNgay: daNop.includes(ms) })),
     ...g,
     phieuNgay,
     /* Trả cả dòng việc thô. Báo cáo tuần cần đọc lại từng đầu việc và từng
