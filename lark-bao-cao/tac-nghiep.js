@@ -94,7 +94,13 @@ async function docHet(moi) {
       const nguoi = [txt(c[iNhanSu]), txt(c[iPhuTrach])].filter(Boolean).join(', ');
       return {
         ngay: bd ? dauNgay(bd) : 0,
-        ten: nguoi.split(',').map((x) => dayDu(boDau(x), quyen)).filter(Boolean),
+        /* Giữ CẢ HAI dạng: "hằng" và "võ thị cẩm hằng". Bên Báo cáo cũng có
+         * phiếu ghi tên rút gọn (3 phiếu ghi đủ, 1 phiếu ghi "Hằng"), nên quy
+         * một chiều thôi là lại trượt ở chiều kia. */
+        ten: [...new Set(nguoi.split(',').flatMap((x) => {
+          const t = boDau(x);
+          return t ? [t, dayDu(t, quyen)] : [];
+        }))],
         trangThai: txt(c[iTrangThai]).trim(),
         coBaoCao: !!txt(c[iBaoCao]).trim(),
         tieuDe: txt(c[iTen]).trim(),

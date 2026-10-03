@@ -48,7 +48,9 @@ const catChu = (s, n) => { const t = String(s || '').replace(/\s+/g, ' ').trim()
     const mail = String(p.email || '').trim().toLowerCase(), id = String(p.nguoi || '').trim();
     let n = ds0.find((x) => (mail && x.mail.has(mail)) || (id && x.ids.has(id)));
     if (!n) { n = { mail: new Set(), ids: new Set(), ten: '', ps: [] }; ds0.push(n); }
-    if (mail) n.mail.add(mail); if (id) n.ids.add(id); if (!n.ten && p.tenNguoi) n.ten = p.tenNguoi;
+    if (mail) n.mail.add(mail); if (id) n.ids.add(id);
+    /* Tên dài nhất — xem gomNguoi() bên server.js. */
+    if (p.tenNguoi && String(p.tenNguoi).length > String(n.ten || '').length) n.ten = p.tenNguoi;
     n.ps.push(p);
   }
   const nhom = new Map(ds0.map((n, i) => [i, { id: [...n.ids][0] || '', email: [...n.mail][0] || '', ten: n.ten, ps: n.ps }]));

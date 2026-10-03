@@ -88,6 +88,15 @@ group('Tên rút gọn bên Lịch tác nghiệp');
   ok('bảng Phân quyền đọc hỏng (rỗng) cũng không làm sai tên',
     TN.dayDu('hang', []) === 'hang');
 
+  /* Bên Báo cáo phiếu của chị cũng lúc ghi "Hằng" lúc ghi đủ họ tên, nên hỏi
+   * bằng tên rút gọn cũng phải ra. Dòng giữ cả hai dạng là vì thế. */
+  const haiDang = [{ ngay: N(2026, 10, 2), ten: ['hang', 'vo thi cam hang'],
+    trangThai: 'Đã hoàn tất', coBaoCao: true }];
+  ok('hỏi bằng tên đầy đủ -> ra',
+    TN.ngayDaBaoCao(haiDang, { ten: 'Võ Thị Cẩm Hằng' }).length === 1);
+  ok('hỏi bằng tên rút gọn -> cũng ra',
+    TN.ngayDaBaoCao(haiDang, { ten: 'Hằng' }).length === 1);
+
   /* Đây là dòng thật của buổi 02/10: chị ở cả ô Nhân sự lẫn ô Phụ trách. */
   const dong = [{ ngay: N(2026, 10, 2), ten: ['le trung thanh', 'vo thi cam hang', 'vo thi cam hang'],
     trangThai: 'Đã hoàn tất', coBaoCao: true, tieuDe: 'Khảo sát tour Jeep Phú Quốc' }];

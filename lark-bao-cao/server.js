@@ -337,7 +337,10 @@ function gomNguoi(ds) {
     }
     if (id) n.id.add(id);
     if (mail) n.email.add(mail);
-    if (!n.ten && p.tenNguoi) n.ten = p.tenNguoi;
+    /* Tên DÀI NHẤT, không phải tên gặp đầu tiên: phiếu của một người có thể
+     * lúc ghi "Hằng" lúc ghi "Võ Thị Cẩm Hằng" (tuỳ app tạo dòng), mà tên
+     * là thứ đi ghép sang Lịch làm việc và Lịch tác nghiệp. */
+    if (p.tenNguoi && String(p.tenNguoi).length > String(n.ten || '').length) n.ten = p.tenNguoi;
     n.phieu.push(p);
   }
   return nhom.map((n) => ({
