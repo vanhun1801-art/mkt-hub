@@ -20,6 +20,14 @@
  * dòng cũ. Nên ghép theo tên đã bỏ dấu, kèm mẹo "Nguyễn Long Khánh" ↔ "Nguyễn
  * Long Khánh (Pinky)" y như lich-lam.js.
  *
+ * Còn một kiểu lệch nữa, nặng hơn: bên đó ô người hiện TÊN RÚT GỌN. Chị Hằng
+ * ghi là "Hằng", bên Báo cáo là "Võ Thị Cẩm Hằng" — so tên cũng trượt nốt, nên
+ * buổi 02/10 đã hoàn tất mà màn hình vẫn đòi báo cáo ngày (anh Hùng 03/10).
+ * Lúc đọc Base, tên một chữ được quy về tên đầy đủ trong bảng Phân quyền của
+ * hub, và CHỈ khi đúng một người trong bảng có tên kết thúc bằng chữ đó —
+ * hai người cùng tên thì thà không ghép còn hơn ghép nhầm, vì ghép nhầm nghĩa
+ * là xoá hộ người kia một ngày thiếu.
+ *
  * ---------------------------------------------------------------------------
  * THẾ NÀO LÀ "ĐÃ BÁO CÁO"
  *
@@ -30,6 +38,7 @@
  */
 const cfg = require('./config');
 const lark = cfg.mode === 'api' ? require('./larkapi') : require('./lark');
+const CH = require('./chuan');
 
 const T = cfg.tacNghiep;
 /* Trạng thái coi như KHÔNG đi: có ghi báo cáo cũng không tính thay báo cáo ngày. */
@@ -51,6 +60,18 @@ const dauNgay = (ms) => Math.floor((Number(ms) + VN) / NGAY) * NGAY - VN;
 
 let dem = { luc: 0, ds: null };
 
+/**
+ * Tên một chữ ("hằng") -> tên đầy đủ trong bảng Phân quyền ("võ thị cẩm hằng").
+ * Tên đã đủ chữ thì để nguyên; hai người cùng đuôi thì cũng để nguyên — xem
+ * đầu tệp.
+ */
+function dayDu(t, quyen) {
+  if (!t || t.includes(' ') || !quyen || !quyen.length) return t;
+  if (quyen.some((q) => boDau(q.ten) === t)) return t;
+  const duoi = quyen.filter((q) => boDau(q.ten).endsWith(' ' + t));
+  return duoi.length === 1 ? boDau(duoi[0].ten) : t;
+}
+
 /** [{ ngay: <ms đầu ngày>, ten: [...tên người], coBaoCao: bool, tieuDe }] */
 async function docHet(moi) {
   if (!moi && dem.ds && Date.now() - dem.luc < 10 * 60000) return dem.ds;
@@ -66,13 +87,14 @@ async function docHet(moi) {
     if (!iBatDau || !iBaoCao) throw new Error('bảng thiếu cột Thời gian bắt đầu / Báo cáo sau tác nghiệp');
 
     const rows = await lark.listAllRecords(T.table, T.base);
+    const quyen = await CH.dsViTri().catch(() => []);
     const ds = rows.map((r) => {
       const c = r.cells;
       const bd = Number(c[iBatDau]) || Date.parse(txt(c[iBatDau])) || 0;
       const nguoi = [txt(c[iNhanSu]), txt(c[iPhuTrach])].filter(Boolean).join(', ');
       return {
         ngay: bd ? dauNgay(bd) : 0,
-        ten: nguoi.split(',').map((x) => boDau(x)).filter(Boolean),
+        ten: nguoi.split(',').map((x) => dayDu(boDau(x), quyen)).filter(Boolean),
         trangThai: txt(c[iTrangThai]).trim(),
         coBaoCao: !!txt(c[iBaoCao]).trim(),
         tieuDe: txt(c[iTen]).trim(),
@@ -105,4 +127,4 @@ function buoiTrongNgay(ds, nguoi, ms) {
     ten.startsWith(t + ' (') || t.startsWith(ten + ' (')));
 }
 
-module.exports = { docHet, ngayDaBaoCao, buoiTrongNgay, boDau };
+module.exports = { docHet, ngayDaBaoCao, buoiTrongNgay, boDau, dayDu };

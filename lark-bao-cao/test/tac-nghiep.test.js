@@ -70,6 +70,33 @@ group('Ngày nào được tính là đã báo cáo');
     'tên rỗng mà khớp được thì ai cũng ăn ké ngày của người khác');
 }
 
+group('Tên rút gọn bên Lịch tác nghiệp');
+{
+  /* Ô người bên đó hiện "Hằng", bên Báo cáo là "Võ Thị Cẩm Hằng" — buổi 02/10
+   * đã hoàn tất mà màn hình vẫn đòi báo cáo ngày. Quy về tên đầy đủ lúc đọc. */
+  const quyen = [{ ten: 'Võ Thị Cẩm Hằng' }, { ten: 'Lê Trung Thành' }, { ten: 'Nguyễn Hồng Ngọc' }];
+
+  ok('"hằng" -> "võ thị cẩm hằng"', TN.dayDu('hang', quyen) === 'vo thi cam hang');
+  ok('tên đã đủ chữ thì để nguyên',
+    TN.dayDu('le trung thanh', quyen) === 'le trung thanh');
+  ok('không có trong Phân quyền thì để nguyên, không bịa',
+    TN.dayDu('tuan', quyen) === 'tuan');
+
+  /* Ghép nhầm = xoá hộ người kia một ngày thiếu, nên thà không ghép. */
+  ok('hai người cùng đuôi thì KHÔNG ghép',
+    TN.dayDu('hang', quyen.concat({ ten: 'Trần Thu Hằng' })) === 'hang');
+  ok('bảng Phân quyền đọc hỏng (rỗng) cũng không làm sai tên',
+    TN.dayDu('hang', []) === 'hang');
+
+  /* Đây là dòng thật của buổi 02/10: chị ở cả ô Nhân sự lẫn ô Phụ trách. */
+  const dong = [{ ngay: N(2026, 10, 2), ten: ['le trung thanh', 'vo thi cam hang', 'vo thi cam hang'],
+    trangThai: 'Đã hoàn tất', coBaoCao: true, tieuDe: 'Khảo sát tour Jeep Phú Quốc' }];
+  ok('sau khi quy tên, buổi 02/10 tính cho chị Hằng',
+    TN.ngayDaBaoCao(dong, { ten: 'Võ Thị Cẩm Hằng' }).map(K.veNgay).join() === '02/10/2026');
+  ok('và không tính cho người khác',
+    TN.ngayDaBaoCao(dong, { ten: 'Nguyễn Hồng Ngọc' }).length === 0);
+}
+
 group('Nối vào phép đếm ngày thiếu');
 {
   /* Cách nối: nhét ngày tác nghiệp vào danh sách "đã nộp" rồi gọi ngayThieu
