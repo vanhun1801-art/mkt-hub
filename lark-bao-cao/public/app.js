@@ -1589,11 +1589,16 @@ document.addEventListener('visibilitychange', () => {
 /* ==================================================================
    MÀN ĐÃ NỘP (nhân sự)
    ================================================================== */
+let DN_LOC = 'thang-nay';
 async function veDaNop(el) {
-  const t = kyThangNay();
+  /* Có thanh lọc vì bảng này trước đây đóng cứng ở tháng hiện tại: nhập lại
+   * báo cáo tháng 9 xong, người ta mở tab này thấy trống rồi tưởng mất (anh
+   * Hùng 03/10 — chỗ chị Ngọc). Dùng chung năm nút với hai màn quản lý. */
+  const t = kyTheoLoc(DN_LOC);
   const d = await goi('/api/danh-sach?tu=' + t.tu + '&den=' + t.den + '&moi=1');
   el.innerHTML = '<div class="the"><div class="the-dau"><h2>Báo cáo đã nộp</h2>' +
-    '<span class="nho">' + veNgay(d.tu) + ' – ' + veNgay(d.den) + '</span></div>' +
+    '<span class="nho">' + veNgay(d.tu) + ' – ' + veNgay(d.den) + '</span>' +
+    '<div class="lon"></div>' + thanhKy('dn', DN_LOC) + '</div>' +
     '<div class="the-than khit">' + (d.ds.length
       ? '<p class="nho" style="margin:0 0 8px">Bấm một dòng để xem lại đã báo cáo gì.</p>' +
         '<div class="cuon"><table class="bang-xem bam-duoc"><thead><tr><th>Kỳ</th><th>Loại</th>' +
@@ -1609,8 +1614,11 @@ async function veDaNop(el) {
           '<td>' + (p.daNop ? esc(veLuc(p.nopLuc)) : '<span class="nhan-tt cam">Nháp</span>') + '</td>' +
           '<td>' + nhanHan(p) + '</td>' +
         '</tr>').join('') + '</tbody></table></div>'
-      : rong('Chưa có phiếu nào', 'Tháng này anh/chị chưa nộp báo cáo nào.')) +
+      : rong('Chưa có phiếu nào', 'Khoảng ' + veNgay(d.tu) + ' – ' + veNgay(d.den) +
+          ' không có báo cáo nào. Thử đổi khoảng thời gian ở trên.')) +
     '</div></div>';
+
+  ganThanhKy(el, (ma) => { DN_LOC = ma; veDaNop(el); });
 
   /* Bấm một dòng -> mở sổ bên phải với đúng nội dung phiếu đó. Anh Hùng: "báo
    * cáo đã nộp cho phép ấn vào xem chi tiết" (28/09). Trước đây bảng này chỉ

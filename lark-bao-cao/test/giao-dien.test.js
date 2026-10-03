@@ -807,6 +807,22 @@ function nap() {
     ok('đổi tab cũng dùng mocNay', /MAN = b\.dataset\.man;[\s\S]{0,60}MOC = mocNay\(MAN\)/.test(src));
   }
 
+  group('Tab "Đã nộp" phải với được tháng khác');
+  {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+    const than = src.slice(src.indexOf('async function veDaNop'),
+      src.indexOf('const rong = (a, b)'));
+    /* Đóng cứng ở tháng hiện tại thì nhập lại báo cáo tháng 9 xong, người ta
+     * mở tab này thấy trống rồi tưởng dữ liệu chưa vào (anh Hùng 03/10). */
+    ok('không còn đóng cứng kyThangNay()', !/kyThangNay\(\)/.test(than));
+    ok('lấy khoảng từ thanh lọc dùng chung', /kyTheoLoc\(DN_LOC\)/.test(than));
+    ok('có vẽ thanh lọc', /thanhKy\('dn', DN_LOC\)/.test(than));
+    ok('bấm nút thì vẽ lại đúng tab này',
+      /ganThanhKy\(el, \(ma\) => \{ DN_LOC = ma; veDaNop\(el\); \}\)/.test(than));
+    ok('rỗng thì bảo người ta đổi khoảng, không nói "tháng này"',
+      /Thử đổi khoảng thời gian/.test(than) && !/Tháng này anh\/chị chưa nộp/.test(than));
+  }
+
   group('Năm lựa chọn lọc — ngày tháng phải khớp đúng phía máy chủ');
   {
     const K = require('../ky');
