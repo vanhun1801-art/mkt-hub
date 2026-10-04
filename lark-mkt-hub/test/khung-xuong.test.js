@@ -287,8 +287,14 @@ group('Không vẽ HÌNH CHUNG khi app con đã có hình thật của nó');
   /* 27/09/2026: app con nào cũng đã có khung xương riêng dựng sẵn trong HTML,
    * nên lớp phủ của lớp vỏ KHÔNG BAO GIỜ vẽ thẻ số và bảng đoán mò nữa — kể cả
    * lần mở đầu tiên (hình đoán chen giữa thành ba bố cục nối tiếp). */
-  ok('lớp phủ không bao giờ vẽ thẻ số và bảng đoán mò',
-    /KX\.man\(esc\(mod\.ten\), \{ the: 0, dong: 0 \}\)/.test(APPJS));
+  /* 04/10/2026 — ĐỔI QUYẾT ĐỊNH. Trên Render lớp phủ đứng 10–25 giây lần mở đầu,
+   * và lớp phủ "chỉ thanh đầu" cộng thẻ chữ "Đang đọc dữ liệu từ Lark Base…"
+   * thành một màn trống có một dòng chữ. Anh Hùng: "anh không muốn thế, cho hiển
+   * thị lại khung xương". Lớp phủ nay vẽ khung đầy đủ, và không còn thẻ chữ chờ. */
+  ok('lớp phủ vẽ khung xương đầy đủ (thẻ số + dòng bảng)',
+    /KX\.man\(esc\(mod\.ten\), \{ the: 4, dong: 7 \}\)/.test(APPJS));
+  ok('… và không còn thẻ chữ "Đang đọc dữ liệu từ Lark Base"',
+    !/frame-cho/.test(APPJS));
   /* Cái bẫy đã dính thật: `lap(n || 4, …)` biến số 0 thành 4, nên xin "đừng vẽ
    * thẻ nào" vẫn ra bốn thẻ — sửa xong mà màn hình không đổi gì. */
   ok('số 0 nghĩa là KHÔNG vẽ, không phải "vẽ mặc định"',

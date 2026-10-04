@@ -813,27 +813,30 @@ function khungCuaModule(mod, rec, mo) {
    * hình chung của lớp vỏ chỉ còn là một bố cục thứ ba chen vào giữa — anh Hùng
    * thấy "khung xương chồng đè, chưa chính xác". Lớp phủ giờ luôn chỉ có thanh
    * đầu trang; `daChup` còn dùng để biết có bản chụp hay không. */
+  /* 04/10/2026, anh Hùng: "khi mở tab hiện ra đang tải base, anh không muốn thế,
+   * cho hiển thị lại khung xương". Lớp phủ vẽ KHUNG XƯƠNG ĐẦY ĐỦ ngay từ nhịp đầu
+   * (thanh đầu + thẻ số + dòng bảng), không còn dòng chữ chờ. Không dùng bản chụp
+   * của app con ở đây: bản chụp chỉ là các vạch, hình thẻ nằm trong CSS riêng của
+   * app con nên vẽ trong lớp vỏ thành một cột vạch rời rạc. App con nạp xong HTML
+   * là tự thay bằng khung xương thật của nó. */
   const daChup = coBanChupXuong(mod.id);
+  const xuong = window.KX ? KX.man(esc(mod.ten), { the: 4, dong: 7 }) : '';
   wrap.innerHTML = '<div class="frame-loading' + (window.KX ? ' xuong' : '') + (daChup ? ' co-chup' : '') + '">' +
-    (window.KX ? KX.man(esc(mod.ten), { the: 0, dong: 0 })
-      : '<span class="spin"></span> Đang mở ' + esc(mod.ten) + '…') + '</div>';
+    (xuong || '<span class="spin"></span> Đang mở ' + esc(mod.ten) + '…') + '</div>';
 
   /* Lớp chờ trên chỉ được tính sống ~0,2 giây, nên lớp iOS để nó TRƠN. Nhưng
    * trên Render lần mở đầu một app đứng 10–25 giây (đo 01/10/2026: lượt đọc
    * Base đầu tiên, 14 app cùng đọc nên chạm hạn mức Lark) và người dùng chỉ
    * thấy một màn trắng — tưởng app hỏng. Chậm quá 1,2 giây thì
    * hiện một dòng nói thật đang làm gì; quá 40 giây thì cho nút tải lại. */
-  const henCho = setTimeout(() => {
-    const l = wrap.querySelector('.frame-loading');
-    if (!l || l.dataset.dangGo === '1') return;
-    l.insertAdjacentHTML('beforeend', '<div class="frame-cho" role="status"><span class="spin"></span>' +
-      '<b>Đang mở ' + esc(mod.ten) + '…</b><span>Đang đọc dữ liệu từ Lark Base — lần mở đầu có thể mất 15–25 giây.</span></div>');
-  }, 1200);
+  /* Chỉ khi quá lâu thật (40 giây) mới nói ra, bằng một nút nhỏ ở đáy — khung
+   * xương đã đủ cho người dùng biết đang mở; thẻ chữ "Đang đọc dữ liệu…" bỏ. */
   const henLau = setTimeout(() => {
-    const c = wrap.querySelector('.frame-loading .frame-cho');
-    if (!c || c.querySelector('button')) return;
-    c.insertAdjacentHTML('beforeend', '<span>Lâu hơn bình thường.</span><button class="btn sm" type="button">Tải lại app này</button>');
-    c.querySelector('button').onclick = () => { f.src = srcCuaModule(mod, rec, mo); };
+    const l = wrap.querySelector('.frame-loading');
+    if (!l || l.dataset.dangGo === '1' || l.querySelector('.frame-lau')) return;
+    l.insertAdjacentHTML('beforeend', '<div class="frame-lau" role="status"><span>Lâu hơn bình thường</span>' +
+      '<button class="btn sm" type="button">Tải lại</button></div>');
+    l.querySelector('.frame-lau button').onclick = () => { f.src = srcCuaModule(mod, rec, mo); };
   }, 40000);
 
   const f = document.createElement('iframe');
@@ -841,7 +844,7 @@ function khungCuaModule(mod, rec, mo) {
   f.title = mod.ten;
   f.setAttribute('allow', 'clipboard-write; fullscreen');
   f.addEventListener('load', () => {
-    clearTimeout(henCho); clearTimeout(henLau);
+    clearTimeout(henLau);
     boLopPhuKhung(wrap, f);
     if (dinhTrangLoi(f)) return phuLoi(o, mod);
     // module vừa nạp -> đẩy theme hiện tại xuống ngay cho khỏi nháy sai tone
@@ -912,6 +915,34 @@ function keoIframeVeNeuLac(mod, o, rec, mo) {
   } catch (_) { /* khác origin hoặc chưa sẵn sàng */ }
 }
 
+/* Giấu một khung app. Khung đang MỞ SẴN NGẦM (napTruoc) thì giấu bằng
+ * visibility, không bằng display:none: app con nạp lần đầu trong khung có bề
+ * ngang 0 sẽ chụp khung xương bề ngang 0 đè lên bản chụp tốt. */
+function anKhung(x) {
+  if (x.wrap.dataset.napTruoc === '1') {
+    x.wrap.hidden = false; x.wrap.style.visibility = 'hidden'; x.wrap.style.pointerEvents = 'none';
+  } else x.wrap.hidden = true;
+}
+
+/* MỞ SẴN NGẦM (04/10/2026, anh Hùng: "tối ưu giao diện và các thứ để nhanh
+ * hơn"). Ba app trên thanh tab (Bảng công việc, Lịch tác nghiệp, Báo cáo công
+ * việc) mở nhiều nhất trong ngày — dựng sẵn khung của chúng khi lớp vỏ rảnh, cách
+ * nhau vài giây để không cùng lúc đọc Base. Bấm vào là hiện ngay, khỏi chờ.
+ * Khung đã dựng thì lớp vỏ vốn giữ suốt phiên, nên cũng chỉ tốn đúng một lần. */
+function napTruoc() {
+  if (document.hidden) return;
+  const ds = ['cong-viec', 'lich-tac-nghiep', 'bao-cao']
+    .map((id) => S.modules.find((m) => m.id === id && m.kieu !== 'lark'))
+    .filter((m) => m && !S.frames.has(m.id));
+  ds.forEach((mod, i) => setTimeout(() => {
+    if (S.frames.has(mod.id) || document.hidden) return;
+    const o = khungCuaModule(mod);
+    if (S.view === mod.id) return;              // người dùng vừa tự mở đúng app này
+    o.wrap.dataset.napTruoc = '1';
+    anKhung(o);
+  }, 2500 + i * 6000));
+}
+
 function moModule(id, rec, mo) {
   const mod = S.modules.find((m) => m.id === id);
   if (!mod) { location.hash = '#/tong-quan'; return; }
@@ -933,7 +964,9 @@ function moModule(id, rec, mo) {
     if (o.iframe.getAttribute('src') !== moi) o.iframe.setAttribute('src', moi);
   }
   keoIframeVeNeuLac(mod, o, rec, mo);
-  S.frames.forEach((x, k) => { x.wrap.hidden = k !== id; });
+  S.frames.forEach((x, k) => { if (k !== id) anKhung(x); });
+  delete o.wrap.dataset.napTruoc;
+  o.wrap.style.visibility = ''; o.wrap.style.pointerEvents = '';
   o.wrap.hidden = false;
   document.title = mod.ten + ' · Marketing Hub';
   datTenMan(mod.ten);
@@ -943,7 +976,7 @@ function moModule(id, rec, mo) {
 function moHome() {
   S.view = 'home';
   $('#pageHome').hidden = false;
-  S.frames.forEach((x) => { x.wrap.hidden = true; });
+  S.frames.forEach(anKhung);
   document.title = 'Marketing Hub · Rooty Trip';
   datTenMan('Tổng quan chung');
   veRail();
@@ -2397,6 +2430,7 @@ async function napHub() {
   S.xemNhu = d.xemNhu || null;
   veBangXemNhu();
   veRail();
+  if (!S.daNapTruoc) { S.daNapTruoc = true; setTimeout(napTruoc, 3000); }
   /* Vẽ trang chủ NGAY khi biết có những base nào — số liệu còn đang trên đường.
    * Chỉ làm khi chưa có số (S.tq rỗng): nhịp 10 giây của napHub mà cũng vẽ lại
    * thì danh sách "Cần xử lý ngay" bị cuộn về đầu mỗi 10 giây. */

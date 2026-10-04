@@ -4272,3 +4272,15 @@ html[data-skin="ios"]:not(#_):not(#__):not(#___) .modal-wrap > .modal > .modal-b
 html[data-skin="ios"]:not(#_):not(#__):not(#___) :is(.drawer, .modal-box, .hop, .md-box, .xt-box, .xt-hop, .modal-hop, .modal-wrap > .modal) {
   -webkit-backdrop-filter: none !important; backdrop-filter: none !important; filter: none !important;
 }
+
+/* LỚP CHỜ KHUNG APP = KHUNG XƯƠNG THẬT (04/10/2026). Anh Hùng: "khi mở tab hiện
+   ra đang tải base, anh không muốn thế, cho hiển thị lại khung xương". Trên
+   Render lớp chờ đứng tới 10–25 giây lần mở đầu, nên nó phải là khung xương của
+   chính app (app.js đổ bản chụp vùng nội dung app con đã cất), không phải nền trơn. */
+html[data-skin="ios"]:not(#_):not(#__) .frame-loading.xuong > .kx-man { visibility: visible; }
+
+html[data-skin="ios"] .frame-loading .frame-lau {
+  position: absolute; left: 50%; bottom: 24px; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 14px; border-radius: 999px;
+  background: var(--ios-the, #fff); box-shadow: 0 6px 24px rgba(0, 0, 0, .12); font-size: 13px; color: var(--ios-chu-2, #666);
+}
