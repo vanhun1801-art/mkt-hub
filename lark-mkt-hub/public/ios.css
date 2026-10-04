@@ -1614,9 +1614,12 @@ html[data-skin="ios"] .topbar > .pills { min-height: 40px; }
   html[data-skin="ios"] .topbar > .pills::-webkit-scrollbar { display: none; }
   html[data-skin="ios"] .topbar > .pills > * { flex: 0 0 auto; }
   html[data-skin="ios"] .topbar > .lon { display: none; }
-  /* Báo cáo: dải "của tôi" chung hàng với nút Xuất; dải quản lý xuống hàng 2 */
-  html[data-skin="ios"][data-app="bao-cao"] .topbar > #tabToi { flex: 1 1 0; order: 1; }
-  html[data-skin="ios"][data-app="bao-cao"] .topbar > #btnXuat { order: 2; flex: 0 0 auto; }
+  /* Báo cáo: hàng 1 là hai nút (Hướng dẫn · Xuất CSV), dải tab "của tôi" một
+     hàng riêng, dải quản lý hàng sau. Trước đây ba thứ chung một hàng nên dải
+     tab chỉ còn 155px, tab "Tháng" bị khuất. */
+  html[data-skin="ios"][data-app="bao-cao"] .topbar > a.btn { order: 0; flex: 0 0 auto; }
+  html[data-skin="ios"][data-app="bao-cao"] .topbar > #btnXuat { order: 1; flex: 0 0 auto; margin-left: auto; }
+  html[data-skin="ios"][data-app="bao-cao"] .topbar > #tabToi { order: 2; flex: 1 1 100%; }
   html[data-skin="ios"][data-app="bao-cao"] .topbar > #tabQL { order: 3; }
   /* KOL: nút "Làm mới" trùng nút làm mới tròn của lớp vỏ */
   html[data-skin="ios"][data-app="kol"] .topbar > #btnLamMoi { display: none; }
@@ -4334,3 +4337,39 @@ html[data-skin="ios"] [role="dialog"][tabindex="-1"]:focus { outline: none; }
    lấy màu nền xanh làm màu chữ (2,6:1 ở tối) → màu chữ xanh riêng. */
 html[data-skin="ios"]:not(#_):not(#__):not(#___) :is(.hint, .steps .s:not(.on):not(.done):not(.active):not(.xong)) { color: var(--ios-chu-nhat); }
 html[data-skin="ios"]:not(#_):not(#__):not(#___) .opt.on { color: var(--ios-xanh-chu); }
+
+/* NÚT LÀ THẺ <a> & NÚT ✕ TRONG CHIP (04/10/2026 — soát điện thoại).
+   - <a class="btn"> (vd "📘 Hướng dẫn" của Báo cáo) mang gạch chân mặc định
+     của liên kết, trông như chữ chứ không phải nút.
+   - ✕ bỏ người nhận trong chip chỉ rộng 10×16px — ngón tay khó trúng. Nới
+     vùng bấm lên 28px bằng đệm, lề âm giữ nguyên kích thước chip. */
+html[data-skin="ios"] a.btn { text-decoration: none; }
+html[data-skin="ios"] .nhan-tt > a[href="#"] {
+  display: inline-grid; place-items: center; min-width: 28px; min-height: 28px;
+  margin: -6px -10px -6px -6px; text-decoration: none; border-radius: 50%;
+}
+
+/* KPI: phần trăm đạt (.pt) là CHỮ nên dùng màu chữ, không dùng màu tô —
+   cam tô #ff9500 trên nền sáng chỉ 2,2:1; đỏ tô trên nền tối 3,5:1. */
+html[data-skin="ios"][data-app="kpi"] .pt.tot { color: var(--ios-luc-chu); }
+html[data-skin="ios"][data-app="kpi"] .pt.vua { color: var(--ios-cam-chu); }
+html[data-skin="ios"][data-app="kpi"] .pt.xau { color: var(--ios-do-chu); }
+
+/* XANH LÀ CHỮ thì dùng --ios-xanh-chu, không dùng --ios-xanh (04/10/2026 —
+   soát điện thoại, nền tối). --primary/--brand/--xanh/--blue của các app trỏ
+   về --ios-xanh = màu TÔ (nền nút, chữ trắng đè lên). Ở nền tối không có màu
+   xanh nào vừa làm nền chữ trắng ≥4,5:1 vừa làm chữ trên nền tối ≥4,5:1, nên
+   chỗ nào dùng xanh làm CHỮ phải gọi đích danh. Nền sáng cũng được lợi:
+   #1f4ae0 rõ hơn #2b5cff trên nền nhạt (4,35 → 6+). */
+html[data-skin="ios"] .tin-muc:not(.vang):not(.do),
+html[data-skin="ios"][data-app="quang-cao"] .link-btn,
+html[data-skin="ios"][data-app="quang-cao"] .hd-o.info .hd-so,
+html[data-skin="ios"][data-app="social"] td.name > a,
+html[data-skin="ios"][data-app="quy-chi-phi"] .ma-don,
+html[data-skin="ios"][data-app="ota"] .nhap-kicker,
+html[data-skin="ios"][data-app="ota"] .kenh,
+html[data-skin="ios"][data-app="chinh-anh"] .ng-chip,
+html[data-skin="ios"][data-app="chinh-anh"] .ng-chip button,
+html[data-skin="ios"]:is([data-app="san-pham"], [data-app="mat-khau"]) .o.chinh .so,
+html[data-skin="ios"][data-app="san-pham"] .nhan.duytri,
+html[data-skin="ios"][data-app="khach-hang"] .o .ss.tot { color: var(--ios-xanh-chu); }

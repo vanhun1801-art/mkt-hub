@@ -415,7 +415,7 @@ async function veNguon() {
     'Dán thẳng từ Excel hoặc mở tệp CSV. Cần ba cột: <b>Kênh · Chỉ số · Giá trị</b>. '
     + 'Nhận theo TÊN cột nên thứ tự cột thế nào cũng được, và đọc được cả số kiểu Việt '
     + '(1.234.567) lẫn kiểu Anh (1,234,567).'));
-  const oFile = el('input'); oFile.type = 'file'; oFile.accept = '.csv,.tsv,.txt';
+  const oFile = el('input'); oFile.type = 'file'; oFile.accept = '.csv,.tsv,.txt'; oFile.setAttribute('aria-label', 'Chọn tệp số liệu (CSV)');
   oFile.style.marginBottom = '8px';
   const oText = el('textarea');
   oText.rows = 6; oText.placeholder = 'Kênh\tChỉ số\tGiá trị\nRooty Trip Phú Quốc\tview\t1.234.567';

@@ -2967,7 +2967,7 @@ function openDrawer(task, nhap) {
       status: 'Chờ tiếp nhận',
       priority: '🟡 Trung bình',
       startAt: new Date().toISOString(),
-      requester: S.meta.me ? [S.meta.me] : [],
+      requester: S.meta && S.meta.me ? [S.meta.me] : [],
       campaign: S.isManager ? 'Operate' : null,
       owner: [], helper: [], channel: [],
     };

@@ -91,8 +91,9 @@ const THA = [
   /\.av\b/, /\.av-/, /ava\b/, /caret/, /thumb/,
   /-ic\b/, /\.ic\b/, /kh-ic\b/, /^\.logo$/, /ota-api-logo/,
   /\.rail\.min /, /summary::before/,
-  // nhãn vẽ TRÊN bản đồ (ghi công bản đồ, tên điểm) — cỡ cố định theo bản đồ, không phải chữ đọc
-  /leaflet/, /\.bd-(ten|vung|so)\b/, /\.mh-diem\b/,
+  // nhãn vẽ TRÊN bản đồ (ghi công bản đồ, tên điểm) và nhãn trục biểu đồ cột
+  // (.bd-truc, .bd-nhan của Khách hàng — anh Hùng muốn biểu đồ gọn) — cỡ cố định theo hình
+  /leaflet/, /\.bd-(ten|vung|so|truc|nhan)\b/, /\.mh-diem\b/,
 ];
 const tha = (sel) => THA.some((r) => r.test(sel));
 

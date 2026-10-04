@@ -292,3 +292,13 @@ main { padding: 14px 18px 40px; }
 .bd-truc { font-size: 11px; margin-top: 2px; }
 .bd-nhan { font-size: 10px; margin-top: 2px; }
 .the .bd-hop { margin-top: 2px; }
+
+/* Điện thoại: chữ phụ dưới 12px khó đọc ở khoảng cách cầm máy — nâng lên 12px
+   (chuẩn chung cả hệ, test dien-thoai). Nhãn trục biểu đồ (.bd-truc, .bd-nhan)
+   giữ nhỏ có chủ ý để biểu đồ gọn. */
+@media (max-width: 640px) {
+  .nhan-ngoai { font-size: 12px; }
+  .cd .so4 span { font-size: 12px; }
+  .cd .chip { font-size: 12px; }
+  .o .ss { font-size: 12px; }
+}

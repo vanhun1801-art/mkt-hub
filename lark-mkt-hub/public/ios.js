@@ -708,13 +708,26 @@
   const O = 'input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=file]):not([type=button]):not([type=submit]), select, textarea';
   const gon = (t) => String(t || '').replace(/\s+/g, ' ').replace(/[:*]\s*$/, '').trim().slice(0, 60);
   function nhanCua(o) {
-    const nhom = o.closest('.fgroup, .field, .frm-row, .o, .viec-o, .loc-nhom, .md-field, .fld-wrap, .hang, .the-dau, .form-row');
+    const nhom = o.closest('.fgroup, .field, .frm-row, .o, .viec-o, .loc-nhom, .md-field, .fld-wrap, .hang, .the-dau, .form-row, .fld');
     if (nhom) {
       const l = [...nhom.children].find((c) => c !== o && !c.contains(o) && /^(LABEL|SPAN|DIV|B|STRONG|SMALL)$/.test(c.tagName) && gon(c.innerText) && gon(c.innerText).length < 50);
       if (l) return gon(l.innerText);
     }
+    const dn = o.closest('[data-nhan]');
+    if (dn && gon(dn.getAttribute('data-nhan'))) return gon(dn.getAttribute('data-nhan'));
     const truoc = o.previousElementSibling;
-    if (truoc && !truoc.matches(O) && gon(truoc.innerText) && gon(truoc.innerText).length < 40) return gon(truoc.innerText);
+    const dau = truoc && !truoc.matches(O) ? gon(String(truoc.innerText || '').split(/ — | – |\(/)[0]) : '';
+    if (dau && dau.length < 40) return dau;
+    // ô trong bảng: tên cột (th cùng vị trí)
+    const td = o.closest('td');
+    if (td) {
+      const bang = td.closest('table'), hang = bang && bang.querySelector('thead tr');
+      const th = hang && hang.children[td.cellIndex];
+      if (th && gon(th.innerText)) return gon(th.innerText);
+    }
+    // ô nằm giữa câu ("Lấy trung bình [3] tháng gần nhất"): chữ trần của khối cha
+    const cau = gon([...(o.parentElement || {}).childNodes || []].filter((n) => n.nodeType === 3).map((n) => n.nodeValue).join(' '));
+    if (cau && cau.length < 60) return cau;
     if (o.tagName === 'SELECT' && o.options[0] && gon(o.options[0].text)) return gon(o.options[0].text);
     if (o.type === 'date') return 'Chọn ngày';
     if (o.type === 'search' || /tim|search|q$/i.test(o.id || '')) return 'Tìm';
