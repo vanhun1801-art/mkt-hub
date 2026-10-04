@@ -31,15 +31,16 @@ html[data-skin="ios"] {
   --ios-vach: rgba(60, 60, 67, .16);      /* đường kẻ mảnh */
   --ios-vach-dam: rgba(60, 60, 67, .26);
   --ios-chu: #000000;
-  --ios-chu-2: rgba(60, 60, 67, .64);
-  --ios-chu-nhat: rgba(60, 60, 67, .5);
+  --ios-chu-2: rgba(60, 60, 67, .76);     /* .64 chuẩn iOS chỉ 3,8:1 trên trắng — WCAG cần 4,5 (04/10/2026) */
+  --ios-chu-nhat: rgba(60, 60, 67, .74);
   --ios-chu-3: rgba(60, 60, 67, .32);
   --ios-xanh: #2b5cff;
+  --ios-xanh-chu: #1f4ae0;                 /* xanh làm CHỮ: #2b5cff trên nền xanh nhạt chỉ 4,1:1 — đậm hơn một bậc (04/10/2026) */
   --ios-xanh-dam: #1f4ae0;
   --ios-xanh-nhat: rgba(43, 92, 255, .12);
-  --ios-do: #ff3b30;     --ios-do-chu: #d70015;   --ios-do-nhat: rgba(255, 59, 48, .1);
-  --ios-cam: #ff9500;    --ios-cam-chu: #c93400;  --ios-cam-nhat: rgba(255, 149, 0, .13);
-  --ios-luc: #34c759;    --ios-luc-chu: #248a3d;  --ios-luc-nhat: rgba(52, 199, 89, .14);
+  --ios-do: #d92d20;     --ios-do-chu: #d70015;   /* nền đỏ: #ff3b30 chữ trắng chỉ 3,55:1 (huy hiệu, nút xoá) */   --ios-do-nhat: rgba(255, 59, 48, .1);
+  --ios-cam: #ff9500;    --ios-cam-chu: #b02e00;  --ios-cam-nhat: rgba(255, 149, 0, .13);
+  --ios-luc: #34c759;    --ios-luc-chu: #1a7431;  --ios-luc-nhat: rgba(52, 199, 89, .14);
   --ios-tim: #af52de;    --ios-tim-chu: #8944ab;  --ios-tim-nhat: rgba(175, 82, 222, .12);
   --ios-vang-nhat: rgba(255, 204, 0, .18); --ios-vang-chu: #a05a00;
   --ios-thanh: rgba(249, 249, 251, .84);   /* thanh trên/dưới mờ kính */
@@ -64,9 +65,9 @@ html[data-skin="ios"][data-theme="toi"] {
   --ios-nen: #000000; --ios-the: #1c1c1e; --ios-the-2: #2c2c2e;
   --ios-o: rgba(118, 118, 128, .24); --ios-o-2: rgba(118, 118, 128, .36);
   --ios-vach: rgba(84, 84, 88, .6); --ios-vach-dam: rgba(84, 84, 88, .9);
-  --ios-chu: #ffffff; --ios-chu-2: rgba(235, 235, 245, .64); --ios-chu-nhat: rgba(235, 235, 245, .46); --ios-chu-3: rgba(235, 235, 245, .3);
-  --ios-xanh: #5b82ff; --ios-xanh-dam: #4a70f0; --ios-xanh-nhat: rgba(91, 130, 255, .2);
-  --ios-do: #ff453a;  --ios-do-chu: #ff6961;  --ios-do-nhat: rgba(255, 69, 58, .18);
+  --ios-chu: #ffffff; --ios-chu-2: rgba(235, 235, 245, .64); --ios-chu-nhat: rgba(235, 235, 245, .6); --ios-chu-3: rgba(235, 235, 245, .3);
+  --ios-xanh: #3a5fe0; --ios-xanh-chu: #7a9cff; --ios-xanh-dam: #3356cf; --ios-xanh-nhat: rgba(91, 130, 255, .2);
+  --ios-do: #d92d20;  --ios-do-chu: #ff6961;  --ios-do-nhat: rgba(255, 69, 58, .18);
   --ios-cam: #ff9f0a; --ios-cam-chu: #ffb340; --ios-cam-nhat: rgba(255, 159, 10, .18);
   --ios-luc: #30d158; --ios-luc-chu: #30d158; --ios-luc-nhat: rgba(48, 209, 88, .18);
   --ios-tim: #bf5af2; --ios-tim-chu: #da8fff; --ios-tim-nhat: rgba(191, 90, 242, .2);
@@ -81,9 +82,9 @@ html[data-skin="ios"][data-theme="toi"] {
     --ios-nen: #000000; --ios-the: #1c1c1e; --ios-the-2: #2c2c2e;
     --ios-o: rgba(118, 118, 128, .24); --ios-o-2: rgba(118, 118, 128, .36);
     --ios-vach: rgba(84, 84, 88, .6); --ios-vach-dam: rgba(84, 84, 88, .9);
-    --ios-chu: #ffffff; --ios-chu-2: rgba(235, 235, 245, .64); --ios-chu-nhat: rgba(235, 235, 245, .46); --ios-chu-3: rgba(235, 235, 245, .3);
-    --ios-xanh: #5b82ff; --ios-xanh-dam: #4a70f0; --ios-xanh-nhat: rgba(91, 130, 255, .2);
-    --ios-do: #ff453a;  --ios-do-chu: #ff6961;  --ios-do-nhat: rgba(255, 69, 58, .18);
+    --ios-chu: #ffffff; --ios-chu-2: rgba(235, 235, 245, .64); --ios-chu-nhat: rgba(235, 235, 245, .6); --ios-chu-3: rgba(235, 235, 245, .3);
+    --ios-xanh: #3a5fe0; --ios-xanh-chu: #7a9cff; --ios-xanh-dam: #3356cf; --ios-xanh-nhat: rgba(91, 130, 255, .2);
+    --ios-do: #d92d20;  --ios-do-chu: #ff6961;  --ios-do-nhat: rgba(255, 69, 58, .18);
     --ios-cam: #ff9f0a; --ios-cam-chu: #ffb340; --ios-cam-nhat: rgba(255, 159, 10, .18);
     --ios-luc: #30d158; --ios-luc-chu: #30d158; --ios-luc-nhat: rgba(48, 209, 88, .18);
     --ios-tim: #bf5af2; --ios-tim-chu: #da8fff; --ios-tim-nhat: rgba(191, 90, 242, .2);
@@ -105,7 +106,7 @@ html[data-skin="ios"]:not(#_) {
   --do: var(--ios-do); --do-nhat: var(--ios-do-nhat);
   --vang: var(--ios-cam); --vang-nhat: var(--ios-cam-nhat); --vua-chu: var(--ios-cam-chu);
   --luc: var(--ios-luc-chu); --luc-nhat: var(--ios-luc-nhat);
-  --chip-xanh-chu: var(--ios-xanh); --chip-luc-chu: var(--ios-luc-chu);
+  --chip-xanh-chu: var(--ios-xanh-chu); --chip-luc-chu: var(--ios-luc-chu);
   --chip-do-chu: var(--ios-do-chu); --chip-vang-chu: var(--ios-cam-chu);
   --rail-nen: var(--ios-rail); --rail-chu: var(--ios-chu); --rail-chu-mo: var(--ios-chu-2);
   --rail-vien: var(--ios-vach); --rail-hover: var(--ios-o); --rail-hover-chu: var(--ios-chu);
@@ -120,7 +121,7 @@ html[data-skin="ios"]:not(#_) {
   --bg: var(--ios-nen); --surface: var(--ios-the); --surface-2: var(--ios-the-2); --surface-3: var(--ios-o);
   --border: var(--ios-vach); --border-2: var(--ios-vach-dam);
   --text: var(--ios-chu); --text-2: var(--ios-chu-2); --text-3: var(--ios-chu-nhat); --text-4: var(--ios-chu-3);
-  --blue: var(--ios-xanh); --blue-dark: var(--ios-xanh-dam); --blue-text: var(--ios-xanh); --blue-bg: var(--ios-xanh-nhat);
+  --blue: var(--ios-xanh); --blue-dark: var(--ios-xanh-dam); --blue-text: var(--ios-xanh-chu); --blue-bg: var(--ios-xanh-nhat);
   --red: var(--ios-do); --red-text: var(--ios-do-chu); --red-bg: var(--ios-do-nhat);
   --orange: var(--ios-cam); --orange-text: var(--ios-cam-chu); --orange-bg: var(--ios-cam-nhat);
   --green: var(--ios-luc); --green-text: var(--ios-luc-chu); --green-bg: var(--ios-luc-nhat);
@@ -136,7 +137,7 @@ html[data-skin="ios"]:not(#_) {
   --t1: var(--ios-chu); --t2: var(--ios-chu-2); --t3: var(--ios-chu-nhat); --t4: var(--ios-chu-3);
   --green-t: var(--ios-luc-chu); --orange-t: var(--ios-cam-chu); --red-t: var(--ios-do-chu); --purple-t: var(--ios-tim-chu);
   --yellow-bg: var(--ios-vang-nhat); --yellow-t: var(--ios-vang-chu);
-  --blue-t: var(--ios-xanh); --gray-bg: var(--ios-o); --gray-t: var(--ios-chu-2);
+  --blue-t: var(--ios-xanh-chu); --gray-bg: var(--ios-o); --gray-t: var(--ios-chu-2);
   --red-vien: transparent; --vang-vien: transparent;
   --shadow-2: var(--ios-bong); --shadow-3: var(--ios-bong-noi);
 
@@ -146,7 +147,7 @@ html[data-skin="ios"]:not(#_) {
   --brand: var(--ios-xanh); --brand-soft: var(--ios-xanh-nhat);
   --good: var(--ios-luc-chu); --good-soft: var(--ios-luc-nhat);
   --warn: var(--ios-cam-chu); --warn-soft: var(--ios-cam-nhat);
-  --bad: var(--ios-do); --bad-soft: var(--ios-do-nhat);
+  --bad: var(--ios-do-chu); --bad-soft: var(--ios-do-nhat);
   --radius: var(--ios-r);
 
   /* Quỹ chi phí · Thông tin sản phẩm */
@@ -157,7 +158,7 @@ html[data-skin="ios"]:not(#_) {
    không đè biến trùng tên của app khác. (1,2,1) thắng khối ánh xạ chung (1,1,1). */
 html[data-skin="ios"][data-app="kho-media"]:not(#_) {
   --the: var(--ios-the); --phu: var(--ios-chu-2); --nhat: var(--ios-chu-nhat);
-  --brand-nhat: var(--ios-xanh-nhat); --brand-chu: var(--ios-xanh);
+  --brand-nhat: var(--ios-xanh-nhat); --brand-chu: var(--ios-xanh-chu);
   --o: var(--ios-o); --o-chu: var(--ios-chu-nhat);
 }
 html[data-skin="ios"][data-app="kho-media"] .the { border: 0; border-radius: var(--ios-r); }
@@ -198,7 +199,7 @@ html[data-skin="ios"] .btn {
   border: 0 !important;
   border-radius: var(--ios-r-nut);
   background: var(--ios-o);
-  color: var(--ios-xanh);
+  color: var(--ios-xanh-chu);
   font-weight: 590;
   box-shadow: none;
   transition: background .15s, transform .12s, opacity .15s;
@@ -210,7 +211,7 @@ html[data-skin="ios"] .btn-primary { background: var(--ios-xanh); color: #fff; }
 html[data-skin="ios"] .btn.primary:hover,
 html[data-skin="ios"] .btn-primary:hover { background: var(--ios-xanh); filter: brightness(1.08); }
 html[data-skin="ios"] .btn.ghost,
-html[data-skin="ios"] .btn-ghost { background: transparent; color: var(--ios-xanh); }
+html[data-skin="ios"] .btn-ghost { background: transparent; color: var(--ios-xanh-chu); }
 html[data-skin="ios"] .btn.ghost:hover,
 html[data-skin="ios"] .btn-ghost:hover { background: var(--ios-o); }
 html[data-skin="ios"] .btn.danger,
@@ -369,13 +370,13 @@ html[data-skin="ios"] .khoi-head .kh-ic {
   background: currentColor !important;
 }
 html[data-skin="ios"] .rail-item .ri-ic:not([style*="color"]),
-html[data-skin="ios"] .khoi-head .kh-ic:not([style*="color"]) { color: var(--ios-xanh); }
+html[data-skin="ios"] .khoi-head .kh-ic:not([style*="color"]) { color: var(--ios-xanh-chu); }
 html[data-skin="ios"] .rail-item .ri-ic svg,
 html[data-skin="ios"] .khoi-head .kh-ic svg { color: #fff; stroke: #fff; }
 html[data-skin="ios"] .rail-item .ri-ic > :not(svg),
 html[data-skin="ios"] .khoi-head .kh-ic > :not(svg) { color: #fff; }
 html[data-skin="ios"] .rail-item.on .ri-ic { box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .75); }
-html[data-skin="ios"] .rail-item.on .ri-badge { background: #fff; color: var(--ios-xanh); }
+html[data-skin="ios"] .rail-item.on .ri-badge { background: #fff; color: var(--ios-xanh-chu); }
 html[data-skin="ios"] .rail-item.on .ri-dot { background: #fff !important; }
 html[data-skin="ios"] .rail-foot { border-top: 0; }
 
@@ -428,7 +429,7 @@ html[data-skin="ios"] .modal-foot { border-top: .5px solid var(--ios-vach); back
     box-shadow: none;
   }
   html[data-skin="ios"] .mob-ten { font-size: 17px; font-weight: 650; }
-  html[data-skin="ios"] .mob-nut { color: var(--ios-xanh); background: transparent; border: 0; }
+  html[data-skin="ios"] .mob-nut { color: var(--ios-xanh-chu); background: transparent; border: 0; }
   html[data-skin="ios"] .rail { border-radius: 0 18px 18px 0; box-shadow: var(--ios-bong-noi); }
   html[data-skin="ios"] .page-head h1 { font-size: 28px; }
 
@@ -477,7 +478,7 @@ html[data-skin="ios"] .modal-foot { border-top: .5px solid var(--ios-vach); back
   }
   html[data-skin="ios"] .ios-tabbar span:not(.ios-so) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
   html[data-skin="ios"] .ios-tabbar svg { width: 26px; height: 26px; }
-  html[data-skin="ios"] .ios-tabbar [aria-current="page"] { color: var(--ios-xanh); background: var(--ios-o); }
+  html[data-skin="ios"] .ios-tabbar [aria-current="page"] { color: var(--ios-xanh-chu); background: var(--ios-o); }
   html[data-skin="ios"] .ios-tabbar .ios-so {
     position: absolute; top: -2px; left: calc(50% + 5px);
     min-width: 17px; height: 17px; padding: 0 5px; border-radius: 9px;
@@ -1269,7 +1270,7 @@ html[data-skin="ios"] .rail-item .ri-tx b { white-space: nowrap; overflow: hidde
     border: 0 !important; border-radius: 12px; background: var(--ios-o) !important; color: var(--ios-chu);
   }
   html[data-skin="ios"] :is(.dd-sum, .pick-sum, .pk-sum) * { font-size: inherit; }
-  html[data-skin="ios"] .pick-sum.is-picked { background: var(--ios-xanh-nhat) !important; color: var(--ios-xanh); }
+  html[data-skin="ios"] .pick-sum.is-picked { background: var(--ios-xanh-nhat) !important; color: var(--ios-xanh-chu); }
   /* Ô số: MỌI ô cùng nền trắng — màu chỉ ở con số (đổi ý so với lượt trước:
      tô xám riêng ô cảnh báo làm hàng ô loang lổ hai màu) */
   html[data-skin="ios"] .kpi, html[data-skin="ios"] .kpi.kpi-alert,
@@ -1477,7 +1478,7 @@ html[data-skin="ios"] .kpi::before { display: none !important; }
 html[data-skin="ios"] .nhom-base .khoi-head a.btn,
 html[data-skin="ios"] .nhom-base .khoi-head .den { display: none !important; }
 html[data-skin="ios"] .nhom-base .khoi-head { cursor: pointer; }
-html[data-skin="ios"] .nhom-base .khoi-head:hover h2 { color: var(--ios-xanh); }
+html[data-skin="ios"] .nhom-base .khoi-head:hover h2 { color: var(--ios-xanh-chu); }
 html[data-skin="ios"] .nhom-base .khoi-head::after {
   content: ""; width: 8px; height: 8px; flex: 0 0 auto; margin: 0 6px 0 auto;
   border-top: 2px solid var(--ios-chu-3); border-right: 2px solid var(--ios-chu-3);
@@ -1749,7 +1750,7 @@ html[data-skin="ios"] :is(.card, .kpi, .tile, .dcard, .ord-card, .wcard):hover {
   html[data-skin="ios"] .ios-hoso:hover { background: var(--hover-the); }
 
   /* Liên kết chữ */
-  html[data-skin="ios"] a:not(.btn):not(.rail-item):not([class*="tab"]):hover { color: var(--ios-xanh); }
+  html[data-skin="ios"] a:not(.btn):not(.rail-item):not([class*="tab"]):hover { color: var(--ios-xanh-chu); }
 }
 
 /* Bấm xuống: lún nhẹ — mọi cỡ màn (điện thoại cũng cần cảm giác đã chạm) */
@@ -1846,7 +1847,7 @@ html[data-skin="ios"] .kx-man-dau > .kx-o { border-radius: 10px; }
     border: 0 !important; border-radius: 8px; background: var(--ios-o) !important; color: var(--ios-chu);
     font-size: 13px;
   }
-  html[data-skin="ios"] .pick-sum.is-picked { background: var(--ios-xanh-nhat) !important; color: var(--ios-xanh); }
+  html[data-skin="ios"] .pick-sum.is-picked { background: var(--ios-xanh-nhat) !important; color: var(--ios-xanh-chu); }
 }
 /* Vạch xanh trước tiêu đề khối ("Cần xử lý ngay"…): macOS/iOS không đánh dấu
    tiêu đề bằng vạch màu — chữ đậm là đủ. */
@@ -1873,7 +1874,7 @@ html[data-skin="ios"] .dash-head { padding-left: 16px !important; }
     color: var(--ios-chu-nhat) !important; border-left-color: var(--ios-vach) !important;
   }
   html[data-skin="ios"] .lane-head .lh-caret { color: var(--ios-chu-3) !important; }
-  html[data-skin="ios"] .lane-head:hover strong { color: var(--ios-xanh) !important; }
+  html[data-skin="ios"] .lane-head:hover strong { color: var(--ios-xanh-chu) !important; }
   /* Tiêu đề làn DÍNH khi cuộn (anh Hùng chụp 01/10/2026): nền trong suốt thì
      thẻ việc chạy xuyên bên dưới, chữ "Công việc mới" đè lên tên việc. Nền
      ĐẶC theo màu trang + lớp trên các thẻ; top -6px bù đệm trên của vùng cuộn
@@ -2264,7 +2265,7 @@ html[data-skin="ios"][data-app] td::before { letter-spacing: normal !important; 
    ========================================================================== */
 /* --- Nút trong danh sách của cửa sổ hub --- */
 html[data-skin="ios"]:not([data-app]) .modal-wrap :is(.thao-tac, .cd-hang, .cd-base, .tb-dong, .cd-tb-dong) .btn:not(.primary):not(.chinh) {
-  background: transparent !important; color: var(--ios-xanh) !important; font-weight: 500 !important;
+  background: transparent !important; color: var(--ios-xanh-chu) !important; font-weight: 500 !important;
   padding-left: 8px !important; padding-right: 8px !important;
 }
 html[data-skin="ios"]:not([data-app]) .modal-wrap .btn:is(.do, .danger) {
@@ -3085,7 +3086,7 @@ html[data-skin="ios"]:not(#_) .kpi:not(.kpi-alert):not(.kpi-warn):not(.kpi-ok):n
 @media (max-width: 640px) {
   html[data-skin="ios"]:not(#_):not(#__)[data-app] .topbar :is(#btnLamMoi, #btnRefresh):not(.btn.icon) {
     width: 36px !important; min-width: 36px !important; padding: 0 !important; font-size: 0 !important; border-radius: 50% !important;
-    background: var(--lg-vet), var(--lg-nen) !important; box-shadow: var(--lg-rim), 0 3px 10px -5px rgba(20, 30, 60, .25) !important; color: var(--ios-xanh) !important;
+    background: var(--lg-vet), var(--lg-nen) !important; box-shadow: var(--lg-rim), 0 3px 10px -5px rgba(20, 30, 60, .25) !important; color: var(--ios-xanh-chu) !important;
     flex: none; margin-left: 6px !important;
   }
   html[data-skin="ios"]:not(#_):not(#__)[data-app] .topbar :is(#btnLamMoi, #btnRefresh):not(.btn.icon)::before {
@@ -3486,7 +3487,7 @@ html[data-skin="ios"]:not(#_):not(#__) :is(.btn.primary, .btn-primary, .btn.chin
 }
 /* ---- NÚT PHỤ: viên thuốc, nền xám nhạt, chữ xanh ---- */
 html[data-skin="ios"]:not(#_):not(#__) :is(.btn, .btn-ghost, .btn.ghost, .btn.sm, .btn.small, .btn.nho, .btn-sm, .btn.mo, .btn.bt):not(.primary):not(.btn-primary):not(.chinh):not(.ios-tao):not(.btn-danger):not(.danger):not(.do):not(.src):not(.link-btn):not(.rail-item):not(.ios-xoa-loc) {
-  background: var(--c-nen-phu) !important; color: var(--ios-xanh) !important;
+  background: var(--c-nen-phu) !important; color: var(--ios-xanh-chu) !important;
   border: 0 !important; border-radius: 999px !important; font-weight: 590 !important; box-shadow: none !important;
 }
 /* ---- NÚT XOÁ / NGUY HIỂM ---- */
@@ -3497,7 +3498,7 @@ html[data-skin="ios"]:not(#_):not(#__) :is(.btn-danger, .btn.danger, .btn.do, #d
 /* ---- XOÁ LỌC: chữ xanh trần (ios-app.js gắn .ios-xoa-loc + thống nhất chữ) ---- */
 html[data-skin="ios"]:not(#_):not(#__) .ios-xoa-loc {
   background: transparent !important; border: 0 !important; box-shadow: none !important;
-  color: var(--ios-xanh) !important; font-weight: 500 !important; padding-left: 8px !important; padding-right: 8px !important;
+  color: var(--ios-xanh-chu) !important; font-weight: 500 !important; padding-left: 8px !important; padding-right: 8px !important;
 }
 @media (hover: hover) and (pointer: fine) {
   html[data-skin="ios"]:not(#_):not(#__) .ios-xoa-loc:hover { background: var(--c-nen-phu) !important; }
@@ -3511,7 +3512,7 @@ html[data-skin="ios"]:not(#_):not(#__) .ios-xoa-loc {
 html[data-skin="ios"]:not(#_):not(#__) :is(.btn.icon, .btn-icon, .cal-arrow, #btnLui, #btnToi, #thangTruoc, #thangSau) {
   width: var(--c-h) !important; min-width: var(--c-h) !important; height: var(--c-h) !important; min-height: var(--c-h) !important;
   padding: 0 !important; border-radius: 50% !important; border: 0 !important;
-  background: var(--c-nen-phu) !important; color: var(--ios-xanh) !important; box-shadow: none !important;
+  background: var(--c-nen-phu) !important; color: var(--ios-xanh-chu) !important; box-shadow: none !important;
   display: inline-flex !important; align-items: center; justify-content: center; font-size: 17px !important; line-height: 1 !important;
 }
 @media (max-width: 640px) {
@@ -3565,7 +3566,7 @@ html[data-skin="ios"]:not(#_):not(#__) .ng .ng-nut {
   width: 30px !important; height: 28px !important; min-height: 0 !important; padding: 0 !important;
   background: transparent !important; border: 0 !important; box-shadow: none !important; color: var(--ios-chu) !important; opacity: .45;
 }
-html[data-skin="ios"]:not(#_):not(#__) .ng .ng-nut:hover, html[data-skin="ios"]:not(#_):not(#__) .ng.mo .ng-nut { opacity: .9; color: var(--ios-xanh) !important; }
+html[data-skin="ios"]:not(#_):not(#__) .ng .ng-nut:hover, html[data-skin="ios"]:not(#_):not(#__) .ng.mo .ng-nut { opacity: .9; color: var(--ios-xanh-chu) !important; }
 /* ô chọn người / chọn nhiều: cùng dáng ô chọn */
 html[data-skin="ios"]:not(#_):not(#__) :is(.pick-sum, .dd-sum, .pk-sum):not(.mechip) { border-radius: 8px !important; border: 0 !important; background: var(--c-nen-phu) !important; box-shadow: none !important; }
 /* ô đánh dấu: 16px, màu xanh hệ thống */
@@ -3606,7 +3607,7 @@ html[data-skin="ios"]:not(#_):not(#__) :is(.lt-the, .ord-card) { border: 0 !impo
 /* nút "Chứng từ n" (Quỹ), nút chọn hành động trong bảng (Quảng cáo): cùng dáng nút phụ */
 html[data-skin="ios"]:not(#_):not(#__) :is(.ct-nut, .tag-btn) {
   border: 0 !important; border-radius: 999px !important; background: var(--c-nen-phu) !important;
-  color: var(--ios-xanh) !important; font-weight: 590 !important; box-shadow: none !important;
+  color: var(--ios-xanh-chu) !important; font-weight: 590 !important; box-shadow: none !important;
   display: inline-flex !important; align-items: center; white-space: nowrap;
 }
 html[data-skin="ios"]:not(#_):not(#__) .tag-btn:is(.on, .chon, .is-active) { background: var(--ios-xanh) !important; color: #fff !important; }
@@ -4244,7 +4245,9 @@ html[data-skin="ios"]:not(#_):not(#__):not(#___) .modal-wrap > .modal > .modal-b
    200px của app → Social 1280px, nhóm "Nền tảng" còn 3px, nút TikTok/Facebook
    biến mất. Nhóm có hàng nút giữ tối thiểu 240px; hàng lọc chật thì xuống dòng. */
 @media (min-width: 641px) {
-  html[data-skin="ios"]:not(#_):not(#__) .filters .fgroup:has(> .pills, > .seg) { min-width: min(100%, 240px); }
+  /* không hẹp hơn chính hàng nút (04/10: OTA "Kênh OTA" ở 1440 tiếng Anh bị bóp 240px,
+     mất MyRealTrip · Viator); tối đa cả hàng — không đủ chỗ thì cả nhóm xuống dòng */
+  html[data-skin="ios"]:not(#_):not(#__) .filters .fgroup:has(> .pills, > .seg) { min-width: fit-content; max-width: 100%; flex-shrink: 0; }
   html[data-skin="ios"]:not(#_):not(#__) .filters:has(> .fgroup > .pills, > .fgroup > .seg) { flex-wrap: wrap; }
 }
 
@@ -4296,3 +4299,38 @@ html[data-skin="ios"] .frame-loading .frame-lau {
     font-size: 12px !important;
   }
 }
+
+/* ĐỘ TƯƠNG PHẢN CHỮ (04/10/2026, soát theo WCAG 2.1 AA — skill frontend-ui):
+   - chữ phụ sáng .64 → .76, chữ nhạt .5 → .74; tối .46 → .6 (khai ở bảng màu đầu tệp);
+   - xanh tối tách hai vai: --ios-xanh làm NỀN (#3a5fe0, chữ trắng 5,4:1),
+     --ios-xanh-chu làm CHỮ (#7a9cff, 5,3:1 trên thẻ tối) — một màu không đạt cả hai;
+   - số trắng trong thanh phân tầng nằm trên đoạn màu sáng (1,9:1): thêm viền bóng mờ. */
+html[data-skin="ios"]:not(#_):not(#__):not(#___) .pbVach > .pbKhuc { text-shadow: 0 0 2px rgba(0, 0, 0, .55), 0 0 1px rgba(0, 0, 0, .6); }
+
+/* SOÁT 04/10/2026 (skill frontend-ui) — vùng bấm và thanh đầu máy tính bảng */
+@media (max-width: 640px) {
+  /* vùng bấm tối thiểu 32px trên điện thoại: nút ✕ bỏ người (Chỉnh ảnh, 14px),
+     mốc ngày ở bản đồ lịch trình KOL (18px) */
+  html[data-skin="ios"]:not(#_):not(#__) .ng-chip > button[data-bo] { min-width: 32px; min-height: 32px; display: inline-flex; align-items: center; justify-content: center; }
+  html[data-skin="ios"]:not(#_):not(#__) .bd-ngay { min-height: 28px; display: inline-flex; align-items: center; }
+}
+/* máy tính bảng (641–1100px): thanh đầu có hai dải tab (Báo cáo: của tôi + toàn
+   phòng) cộng cụm nút thì một hàng không đủ — dải tab bị cắt giữa chữ ("Thá",
+   "Needs h"). Không đủ chỗ thì cho xuống dòng. */
+@media (min-width: 641px) and (max-width: 1100px) {
+  html[data-skin="ios"]:not(#_):not(#__)[data-app] body > header.topbar { flex-wrap: wrap; row-gap: 8px; }
+}
+/* Bảng chọn trong HỘP THOẠI lệch khỏi ô (04/10, Lịch tác nghiệp "Đăng ký lịch":
+   lệch 226px): hiệu ứng nổi lên chạy fill-mode `both` nên hết hiệu ứng hộp vẫn
+   mang transform (ma trận đơn vị, khác "none") → hộp thành gốc toạ độ cho bảng
+   chọn position:fixed bên trong. Chỉ giữ khung đầu (backwards), xong là sạch. */
+html[data-skin="ios"]:not(#_):not(#__):not(#___) :is(.modal-box, .hop, .md-box, .xt-box, .xt-hop, .modal-hop, .modal-wrap > .modal, .phu-man > .hop) {
+  animation-fill-mode: backwards !important;
+}
+/* khung cửa sổ nhận tiêu điểm bằng mã (tabindex=-1): không vẽ viền tiêu điểm */
+html[data-skin="ios"] [role="dialog"][tabindex="-1"]:focus { outline: none; }
+/* chữ gợi ý dưới ô (.hint) và nhãn bước (.steps .s) là chữ ĐỌC, không phải trang
+   trí — đang dùng màu bậc 4 (--t4 ≈ 32%, 2,3–2,5:1). Lựa chọn đang bật (.opt.on)
+   lấy màu nền xanh làm màu chữ (2,6:1 ở tối) → màu chữ xanh riêng. */
+html[data-skin="ios"]:not(#_):not(#__):not(#___) :is(.hint, .steps .s:not(.on):not(.done):not(.active):not(.xong)) { color: var(--ios-chu-nhat); }
+html[data-skin="ios"]:not(#_):not(#__):not(#___) .opt.on { color: var(--ios-xanh-chu); }

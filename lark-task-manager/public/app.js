@@ -2141,7 +2141,8 @@ function sortTasks(list) {
 function renderBoard(list) {
   const board = $('#board');
   board.innerHTML = '';
-  const groups = new Map(S.meta.statusOrder.map((s) => [s, []]));
+  // Kanban có thể vẽ trước khi /api/meta về (bấm tab sớm) — chưa có thứ tự cột thì để trống, khỏi văng lỗi
+  const groups = new Map(((S.meta && S.meta.statusOrder) || []).map((s) => [s, []]));
   const other = [];
   for (const t of list) {
     if (groups.has(t.status)) groups.get(t.status).push(t);

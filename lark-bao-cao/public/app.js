@@ -58,24 +58,26 @@ function nhapGhi(khoa, v) {
 function nhapXoa(khoa) {
   try { localStorage.removeItem(NHAP_TRUOC + khoa); } catch (_) { /* không sao */ }
 }
-/* Ghi xuống máy chậm 0,4 giây sau phím cuối — gõ liên tục không ghi từng phím. */
+/* Ghi xuống máy chậm 0,4 giây sau phím cuối — gõ liên tục không ghi từng phím.
+ * Mỗi khoá giữ { t: mã hẹn, lay: hàm lấy dữ liệu }. KHÔNG gắn .lay vào chính mã
+ * hẹn: setTimeout của trình duyệt trả về một SỐ, gắn thuộc tính vào số là
+ * TypeError ở strict mode — nháp không bao giờ được ghi (04/10/2026). */
 const henNhap = {};
 function nhapHen(khoa, layV) {
-  clearTimeout(henNhap[khoa]);
-  henNhap[khoa] = setTimeout(() => { delete henNhap[khoa]; const v = layV(); if (v) nhapGhi(khoa, v); else nhapXoa(khoa); }, 400);
-  henNhap[khoa].lay = layV;
+  if (henNhap[khoa]) clearTimeout(henNhap[khoa].t);
+  henNhap[khoa] = { lay: layV, t: setTimeout(() => { delete henNhap[khoa]; const v = layV(); if (v) nhapGhi(khoa, v); else nhapXoa(khoa); }, 400) };
 }
 /** Rời trang: ghi ngay mọi bản đang hẹn, đừng để 0,4 giây cuối rơi mất. */
 function nhapGhiHet() {
   Object.keys(henNhap).forEach((k) => {
-    const h = henNhap[k]; clearTimeout(h); delete henNhap[k];
-    const v = h && h.lay && h.lay(); if (v) nhapGhi(k, v); else nhapXoa(k);
+    const h = henNhap[k]; clearTimeout(h.t); delete henNhap[k];
+    const v = h.lay && h.lay(); if (v) nhapGhi(k, v); else nhapXoa(k);
   });
 }
-function nhapHuy(khoa) { clearTimeout(henNhap[khoa]); delete henNhap[khoa]; nhapXoa(khoa); }
+function nhapHuy(khoa) { if (henNhap[khoa]) clearTimeout(henNhap[khoa].t); delete henNhap[khoa]; nhapXoa(khoa); }
 /** Ghi ngay (bỏ lượt đang hẹn) — dùng khi vừa lưu xong một phần, phần còn lại phải đúng tức thì. */
 function nhapNgay(khoa, layV) {
-  clearTimeout(henNhap[khoa]); delete henNhap[khoa];
+  if (henNhap[khoa]) clearTimeout(henNhap[khoa].t); delete henNhap[khoa];
   const v = layV(); if (v) nhapGhi(khoa, v); else nhapXoa(khoa);
 }
 const gioPhut = (ms) => { const g = new Date(ms); return String(g.getHours()).padStart(2, '0') + ':' + String(g.getMinutes()).padStart(2, '0'); };

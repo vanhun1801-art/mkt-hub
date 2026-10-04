@@ -479,6 +479,9 @@ tr.pc-chan > td {
 .thu-luoi { display: grid; grid-template-columns: 1fr 350px; gap: 14px; align-items: start; }
 @media (max-width: 1040px) { .thu-luoi { grid-template-columns: 1fr; } }
 .thu-luoi .cot-phai { position: sticky; top: 112px; }
+/* cột lưới được co (min-width:0) và bảng trong đó tự cuộn ngang — bảng 720px từng đẩy cả trang tràn ở 768px (04/10/2026) */
+.thu-luoi > * { min-width: 0; }
+.thu-luoi :is(div, section):has(> table) { overflow-x: auto; }
 input.so {
   width: 116px; padding: 4px 8px; border: 1px solid var(--vien); border-radius: 7px;
   text-align: right; font-variant-numeric: tabular-nums;
@@ -502,7 +505,7 @@ input.ghi-cham {
 input.ghi-cham::placeholder { color: var(--chu-nhat); font-style: italic; }
 
 /* ---- cột tháng ---- */
-.cot-thang { display: flex; gap: 10px; align-items: flex-end; }
+.cot-thang { display: flex; gap: 10px; align-items: flex-end; overflow-x: auto; scrollbar-width: thin; }   /* điện thoại: 7 người × 54px > thẻ 292px — cho vuốt, đừng giấu cột (04/10/2026) */
 .cot { flex: 1; text-align: center; min-width: 54px; }
 .cot-so { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; margin-bottom: 4px; }
 .cot-nen { height: 92px; background: var(--vien-mem); border-radius: 6px; display: flex; align-items: flex-end; overflow: hidden; }

@@ -731,3 +731,82 @@
     }
   }, { passive: false, capture: true });
 })();
+
+/* NHÃN CHO Ô NHẬP (04/10/2026 — soát WCAG, skill frontend-ui): ô lọc ngày, chiến
+ * dịch, trạng thái… nhìn thì có nhãn (chữ đứng trên / trước ô) nhưng nhãn không
+ * gắn vào ô, nên trình đọc màn hình chỉ đọc "ô nhập" — 204 chỗ trên 14 màn.
+ * Lấy đúng chữ người dùng đang thấy gắn thành aria-label; ô đã có nhãn thì để yên. */
+(function () {
+  if (document.documentElement.getAttribute('data-skin') !== 'ios') return;
+  const O = 'input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=file]):not([type=button]):not([type=submit]), select, textarea';
+  const gon = (t) => String(t || '').replace(/\s+/g, ' ').replace(/[:*]\s*$/, '').trim().slice(0, 60);
+  function nhanCua(o) {
+    const nhom = o.closest('.fgroup, .field, .frm-row, .o, .viec-o, .loc-nhom, .md-field, .fld-wrap, .hang, .the-dau, .form-row');
+    if (nhom) {
+      const l = [...nhom.children].find((c) => c !== o && !c.contains(o) && /^(LABEL|SPAN|DIV|B|STRONG|SMALL)$/.test(c.tagName) && gon(c.innerText) && gon(c.innerText).length < 50);
+      if (l) return gon(l.innerText);
+    }
+    const truoc = o.previousElementSibling;
+    if (truoc && !truoc.matches(O) && gon(truoc.innerText) && gon(truoc.innerText).length < 40) return gon(truoc.innerText);
+    if (o.tagName === 'SELECT' && o.options[0] && gon(o.options[0].text)) return gon(o.options[0].text);
+    if (o.type === 'date') return 'Chọn ngày';
+    if (o.type === 'search' || /tim|search|q$/i.test(o.id || '')) return 'Tìm';
+    return '';
+  }
+  function gan() {
+    document.querySelectorAll(O).forEach((o) => {
+      if (o.getAttribute('aria-label') || o.getAttribute('aria-labelledby') || o.title || o.placeholder || o.closest('label')) return;
+      if (o.id && document.querySelector('label[for="' + CSS.escape(o.id) + '"]')) return;
+      const t = nhanCua(o);
+      if (t) o.setAttribute('aria-label', t);
+    });
+  }
+  let hen = 0;
+  const lich = () => { if (!hen) hen = setTimeout(() => { hen = 0; try { gan(); } catch (_) {} }, 300); };
+  const bat = () => { gan(); new MutationObserver(lich).observe(document.body, { childList: true, subtree: true }); };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bat); else bat();
+})();
+
+/* TIÊU ĐIỂM BÀN PHÍM VỚI CỬA SỔ (04/10/2026 — soát WCAG, skill frontend-ui).
+ * Mở cửa sổ mà tiêu điểm vẫn nằm ở trang phía sau: bấm Tab là đi lạc ra sau nền
+ * tối, trình đọc màn hình không biết có cửa sổ. Mở → đưa tiêu điểm vào KHUNG cửa
+ * sổ (không vào ô nhập đầu: điện thoại sẽ bật bàn phím), đánh dấu role=dialog;
+ * đóng → trả tiêu điểm về đúng chỗ cũ (nút đã mở nó). Nút chỉ có biểu tượng ✕ ở
+ * đầu cửa sổ thì gắn tên "Đóng" cho trình đọc màn hình. */
+(function () {
+  if (document.documentElement.getAttribute('data-skin') !== 'ios') return;
+  const HOP = '.modal.on, .modal.open, .modal-wrap:not([hidden]):not(.hidden), .drawer.on, .drawer.open, .xt.on, .xt.mo, .md.on, .phu-man, [role="dialog"]:not([hidden])';
+  const hien = (e) => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden';
+  let dangMo = null, truoc = null;
+  function xet() {
+    const ds = [...document.querySelectorAll(HOP)].filter((e) => hien(e) && !e.closest('.ios-bong-dong') && !(e.parentElement && e.parentElement.closest(HOP)));
+    const k = ds[ds.length - 1] || null;
+    if (k && k !== dangMo) {
+      if (!dangMo) truoc = document.activeElement;
+      dangMo = k;
+      const hop = k.querySelector(':scope > .modal-box, :scope > .hop, :scope > .md-box, :scope > .xt-box, :scope > .xt-hop, :scope > .modal-hop, :scope > .modal') || k;
+      if (!hop.getAttribute('role')) hop.setAttribute('role', 'dialog');
+      hop.setAttribute('aria-modal', 'true');
+      if (!hop.hasAttribute('aria-label') && !hop.hasAttribute('aria-labelledby')) {
+        const td = hop.querySelector('h1, h2, h3, .modal-title, .dr-title, .xt-ten');
+        if (td && td.textContent.trim()) hop.setAttribute('aria-label', td.textContent.trim().slice(0, 80));
+      }
+      if (!hop.contains(document.activeElement)) {
+        if (!hop.hasAttribute('tabindex')) hop.setAttribute('tabindex', '-1');
+        try { hop.focus({ preventScroll: true }); } catch (_) {}
+      }
+      hop.querySelectorAll('button, [role="button"]').forEach((b) => {
+        if (b.getAttribute('aria-label') || b.title || (b.innerText || '').trim()) return;
+        if (b.closest('.modal-head, .drawer-head, .dr-head, .hop-dau, .xt-dau, .md-head') || /(^|[-_ ])(x|close|dong)([-_ ]|$)/i.test(b.className)) b.setAttribute('aria-label', 'Đóng');
+      });
+    } else if (!k && dangMo) {
+      dangMo = null;
+      if (truoc && truoc.isConnected && truoc !== document.body) { try { truoc.focus({ preventScroll: true }); } catch (_) {} }
+      truoc = null;
+    }
+  }
+  let hen = 0;
+  const lich = () => { if (!hen) hen = requestAnimationFrame(() => { hen = 0; try { xet(); } catch (_) {} }); };
+  const bat = () => new MutationObserver(lich).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'hidden', 'style', 'open'] });
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bat); else bat();
+})();
