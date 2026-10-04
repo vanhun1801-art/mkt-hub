@@ -152,7 +152,9 @@ group('Bốn chỗ đếm ngày thiếu đều phải nối');
   /* Sót một chỗ thì cùng một người, màn này nói thiếu, màn kia nói đủ. Đếm
    * theo lời gọi ngayThieu() chứ không đếm chữ TN.ngayDaBaoCao trong cả tệp:
    * còn chỗ khác dùng nó mà không phải để đếm ngày thiếu (cửa soi). */
-  const so = (sv.match(/K\.ngayThieu\([^;]*?TN\.ngayDaBaoCao\(/g) || []).length;
+  /* Nhận cả hai cách viết: gọi thẳng TN.ngayDaBaoCao() trong lời gọi, hoặc
+   * rút ra biến tnNgay trước đó (màn Toàn phòng dùng lại biến này hai lần). */
+  const so = (sv.match(/K\.ngayThieu\([^;]*?(TN\.ngayDaBaoCao\(|tnNgay)/g) || []).length;
   ok('server.js nối ở cả bốn chỗ (phiếu của mình, Theo dõi, người chưa nộp gì, Toàn phòng)',
     so === 4, 'đang có ' + so + ' chỗ');
 
@@ -163,6 +165,11 @@ group('Bốn chỗ đếm ngày thiếu đều phải nối');
     /K\.ngayThieu\([^;]*?daNop\.concat\(ngayTN\)/.test(kh));
   ok('và trả cả danh sách ngày đi tác nghiệp để màn hình nói ra',
     /ngayTacNghiep:/.test(kh) && /buoiTrongNgay\(/.test(kh));
+  ok('biến tnNgay của màn Toàn phòng đúng là ngày tác nghiệp, không phải thứ khác',
+    /const tnNgay = TN\.ngayDaBaoCao\(dsTNTP/.test(sv));
+  ok('và màn Toàn phòng trả danh sách ngày đó cho sổ bên phải',
+    /ngayTacNghiep: loai === 'nam' \? \[\] : tnNgay/.test(sv),
+    'không thì quản lý mở sổ vẫn thấy ngày trống không lời giải thích');
   ok('tệp dữ liệu đưa AI cũng nối', /TN\.ngayDaBaoCao\(dsTN, n\)/.test(cb));
   ok('và nói cho AI biết ngày nào là ngày đi tác nghiệp',
     /ngayDiTacNghiep:/.test(cb),

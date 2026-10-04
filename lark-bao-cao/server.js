@@ -1170,11 +1170,12 @@ async function api(req, res, u) {
         tongPhut: gop.tongPhut, dinhMuc, phanTram: gop.phanTram,
         canHoTro: n.ps.map((x) => x.canHoTro).filter(Boolean).join(' · '),
       };
+      const tnNgay = TN.ngayDaBaoCao(dsTNTP, { ten: n.ten });
       const bc = {
         /* `tuThieu` chứ không phải k.tu: lọc cả năm thì không đếm ngược về
          * trước ngày hệ thống có dữ liệu — xem ngayHeThongBatDau. */
         ngayThieu: K.ngayThieu(tuThieu, Math.min(k.den, Date.now()),
-          n.ps.map((x) => x.tuNgay).concat(TN.ngayDaBaoCao(dsTNTP, { ten: n.ten })), K.LUAT,
+          n.ps.map((x) => x.tuNgay).concat(tnNgay), K.LUAT,
           LL.lichCua(dsLichTP, { email: n.email, ten: n.ten })),
         dungYen: ND.timDungYen(nhomTheoNgay(cuaHo)),
       };
@@ -1205,6 +1206,17 @@ async function api(req, res, u) {
           ma: p.ma, loaiKy: p.loaiKy, tu: p.tu, nhan: p.nhan, tongGio: p.tongGio, daNop: p.daNop,
           nopLuc: p.nopLuc, trangThaiHan: p.trangThaiHan, veHan: p.veHan,
         })),
+        /* Ngày đi tác nghiệp, để sổ bên phải nói ra chứ không trừ thầm — anh
+         * Hùng 04/10: "ngày 02/10 Hằng có đi tác nghiệp và đã hoàn tất báo
+         * cáo, note lên giao diện này giúp anh". Lọc cả năm thì bỏ: sổ năm chỉ
+         * liệt kê phiếu tổng kết, chen ngày lẻ vào là loãng. */
+        ngayTacNghiep: loai === 'nam' ? [] : tnNgay
+          .filter((ms) => ms >= k.tu && ms <= Math.min(k.den, Date.now()))
+          .sort((a, b) => a - b)
+          .map((ms) => ({ ms, nhan: K.veNgayThu(ms),
+            tieuDe: TN.buoiTrongNgay(dsTNTP, { ten: n.ten }, ms).filter(TN.daXong)
+              .map((x) => x.tieuDe).filter(Boolean).join(' · '),
+            daNopNgay: n.ps.some((x) => x.tuNgay === ms) })),
       });
     }
     nguoi.sort((a, b) => a.diem - b.diem || a.ten.localeCompare(b.ten));

@@ -1776,6 +1776,23 @@ function veNhipNop(kl) {
  * nào". Trước đây phần này đổ xuống DƯỚI bảng, nên mỗi lần xem một người là
  * trôi mất chỗ đang đứng trong bảng, và không so hai người liền nhau được.
  */
+/**
+ * Trộn phiếu và ngày đi tác nghiệp thành một danh sách theo đúng thứ tự ngày.
+ *
+ * Phiếu tổng kết của kỳ (tuần/tháng) mang mốc đầu kỳ nên tự nằm trên cùng —
+ * giữ nguyên chỗ cũ của nó. Ngày vừa đi tác nghiệp vừa nộp báo cáo ngày thì
+ * KHÔNG tạo dòng thứ hai, chỉ gắn nhãn lên dòng phiếu sẵn có.
+ */
+function dongSoNguoi(n) {
+  const tn = n.ngayTacNghiep || [];
+  const coTN = new Set(tn.map((x) => x.ms));
+  const ps = (n.phieu || []).map((p) =>
+    (p.loaiKy === 'ngay' && coTN.has(p.tu) ? { ...p, coTN: true } : p));
+  const them = tn.filter((x) => !x.daNopNgay)
+    .map((x) => ({ laTN: true, tu: x.ms, nhan: x.nhan, tieuDe: x.tieuDe }));
+  return ps.concat(them).sort((a, b) => a.tu - b.tu);
+}
+
 function moNguoi(n, nhanKy) {
   const loaiTen = (l) => (l === 'ngay' ? 'Ngày' : l === 'tuan' ? 'Tuần' : 'Tháng');
   const kl = n.kl;
@@ -1793,20 +1810,32 @@ function moNguoi(n, nhanKy) {
       (kl && kl.soTre ? chip('Trễ', String(kl.soTre), 'cam') : '') +
       (kl && kl.soBu ? chip('Nộp bù', String(kl.soBu), 'do') : '') +
       (kl && kl.soSua ? chip('Sửa lại', String(kl.soSua)) : '') +
+      ((n.ngayTacNghiep || []).length
+        ? chip('Đi tác nghiệp', n.ngayTacNghiep.length + ' ngày', 'xanh') : '') +
     '</div>' +
     (kl && kl.thieu && kl.thieu.length
       ? '<div class="nho" style="margin-bottom:10px">Ngày chưa nộp: ' +
         kl.thieu.map((x) => '<span class="nhan-tt do" style="margin-right:4px">' +
           esc(x.nhan) + '</span>').join('') + '</div>'
       : '') +
-    ((n.phieu || []).length
-      ? '<div class="nk">' + n.phieu.map((p) =>
-        '<div class="nk-d"><div class="nk-sum" data-ql-ky="' + esc(p.loaiKy) + '" data-ql-ma="' + esc(p.ma) +
+    ((n.phieu || []).length || (n.ngayTacNghiep || []).length
+      ? '<div class="nk">' + dongSoNguoi(n).map((p) => (p.laTN
+        ? '<div class="nk-d nk-tn">' +
+            '<span class="nk-ten">' + esc(p.nhan) + '</span>' +
+            '<span class="nk-so">' + (p.tieuDe ? esc(p.tieuDe) : 'buổi tác nghiệp') + '</span>' +
+            '<span class="nhan-tt xanh">đã báo cáo tác nghiệp</span>' +
+          '</div>'
+        : '<div class="nk-d"><div class="nk-sum" data-ql-ky="' + esc(p.loaiKy) + '" data-ql-ma="' + esc(p.ma) +
             '" data-ql-moc="' + (p.tu + 3600000) + '" data-ql-nhan="' + esc(p.nhan) + '">' +
           '<span class="nk-ten">' + esc(p.nhan) + '</span>' +
           '<span class="nk-so">' + loaiTen(p.loaiKy) + ' · ' + esc(p.tongGio) + '</span>' +
+          (p.coTN ? '<span class="nhan-tt xam">có tác nghiệp</span>' : '') +
           (p.daNop ? nhanHan(p) : '<span class="nhan-tt cam">Nháp</span>') +
-        '</div></div>').join('') + '</div>'
+        '</div></div>')).join('') + '</div>' +
+        (dongSoNguoi(n).some((x) => x.laTN)
+          ? '<p class="nho" style="margin:8px 0 0">Ngày đi tác nghiệp đã nộp ' +
+            '<b>Báo cáo sau tác nghiệp</b> thì không cần báo cáo ngày — không tính là thiếu.</p>'
+          : '')
       /* Lọc cả năm thì sổ chỉ liệt kê phiếu tổng kết tuần/tháng. Chưa ai nộp
        * tổng kết mà vẫn có báo cáo ngày thì phải nói ra đường đi tiếp, không
        * để người xem tưởng cả năm người ta không làm gì. */
