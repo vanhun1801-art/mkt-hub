@@ -82,7 +82,7 @@ function veTbApp() {
   el.innerHTML =
     '<div class="bb-hop bb-' + esc(mucTb(tb.mucDo)) + '" role="alertdialog" aria-modal="true">' +
       (TB.thu && !TB.chiDoc
-        ? '<div class="bb-thu">Đang <b>xem thử</b> — nhân sự sẽ thấy đúng thế này. ' +
+        ? '<div class="bb-thu">Đang <b>xem thử</b>. Nhân sự sẽ thấy đúng thế này. ' +
           'Bấm gì ở đây cũng không ghi xác nhận của ai.</div>'
         : '') +
       '<div class="bb-dau">' +
@@ -94,7 +94,7 @@ function veTbApp() {
       veTepTb(tb) +
       (nut ? '<div class="bb-viec">' + nut +
         (tb.buocBam ? '<span class="bb-ghi">' +
-          (TB.daBam ? 'Đã mở — giờ xác nhận được rồi'
+          (TB.daBam ? 'Đã mở, giờ xác nhận được rồi'
                     : 'Phải mở mục này trước khi xác nhận') + '</span>' : '') +
         '</div>' : '') +
       '<div class="bb-chan-hop">' +
@@ -225,7 +225,7 @@ async function ghiDaDoc(tb, lan) {
     await goi('/api/tb-app', { method: 'POST', body: JSON.stringify({ recordId: tb.recordId }) });
   } catch (e) {
     if (lan < 2) return setTimeout(() => ghiDaDoc(tb, lan + 1), 4000);
-    toast('Chưa ghi được "đã đọc" lên Base (' + e.message + ') — thông báo này sẽ hiện lại lần sau.', 'do');
+    toast('Chưa ghi được "đã đọc" lên Base (' + e.message + '). Thông báo này sẽ hiện lại lần sau.', 'do');
   }
 }
 
@@ -320,8 +320,8 @@ function vaAnhHong(el) {
       a.className = 'bb-tep-mot';
       a.innerHTML = '<span class="bb-tep-ic">TỆP</span><span>' +
         esc(a.dataset.ten || 'tệp') +
-        (vi ? ' — <b style="color:var(--do)">' + esc(vi.slice(0, 220)) + '</b>'
-            : ' — không hiện được ảnh, bấm để mở') + '</span>';
+        (vi ? ': <b style="color:var(--do)">' + esc(vi.slice(0, 220)) + '</b>'
+            : ': không hiện được ảnh, bấm để mở') + '</span>';
     };
   });
 }

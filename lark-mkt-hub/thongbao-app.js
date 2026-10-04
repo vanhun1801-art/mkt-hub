@@ -261,7 +261,7 @@ async function ghiCoDocLai(doc, ghi, nguoiId, soLan) {
   }
   const cuoi = await doc();
   if (cuoi && cuoi.has(nguoiId)) return { ok: true, lanGhi: lan };
-  throw new Error('Lark nhận lượt xác nhận rồi lại làm mất — có người bấm cùng nhịp. ' +
+  throw new Error('Lark nhận lượt xác nhận rồi lại làm mất, có người bấm cùng nhịp. ' +
     'Bấm "Tôi đã đọc" thêm lần nữa giúp em.');
 }
 
@@ -273,7 +273,7 @@ async function ghiCoDocLai(doc, ghi, nguoiId, soLan) {
  */
 async function dinhTep(recordId, tep) {
   if (FILE) throw new Error('Bản chạy này giữ thông báo trong file, không đính kèm được.');
-  if (!B) throw new Error('Chưa khai HUB_TB_TABLE — xem README.');
+  if (!B) throw new Error('Chưa khai HUB_TB_TABLE. Xem README.');
   const token = await B.dinhTep(recordId, F.dinhKem, tep);
   xoaCache();
   return token;
@@ -282,7 +282,7 @@ async function dinhTep(recordId, tep) {
 /** Gỡ một tệp khỏi thông báo. */
 async function goTep(recordId, token) {
   if (FILE) throw new Error('Bản chạy này giữ thông báo trong file, không đính kèm được.');
-  if (!B) throw new Error('Chưa khai HUB_TB_TABLE — xem README.');
+  if (!B) throw new Error('Chưa khai HUB_TB_TABLE. Xem README.');
   const con = await B.goTep(recordId, F.dinhKem, token);
   xoaCache();
   return con;
@@ -290,7 +290,7 @@ async function goTep(recordId, token) {
 
 /** Tải một tệp đính kèm về bộ nhớ để lớp vỏ phát lại cho trình duyệt. */
 async function taiTep(recordId, token) {
-  if (!B) throw new Error('Chưa khai HUB_TB_TABLE — xem README.');
+  if (!B) throw new Error('Chưa khai HUB_TB_TABLE. Xem README.');
   return B.taiTep(recordId, token);
 }
 
@@ -326,7 +326,7 @@ async function xacNhan(recordId, nguoiId) {
       (m) => { ghiDaDocVaoFile(recordId, m); xoaCache(); },
       nguoiId);
   }
-  if (!B) throw new Error('Chưa khai HUB_TB_TABLE — xem README.');
+  if (!B) throw new Error('Chưa khai HUB_TB_TABLE. Xem README.');
 
   return ghiCoDocLai(
     async () => {
@@ -343,7 +343,7 @@ async function xacNhan(recordId, nguoiId) {
 /** Soạn / sửa một thông báo (chỉ quản lý — máy chủ chốt). */
 async function luu(hang) {
   if (FILE) throw new Error('Bản chạy này giữ thông báo trong file, sửa trực tiếp file đó.');
-  if (!B) throw new Error('Chưa khai HUB_TB_TABLE — xem README.');
+  if (!B) throw new Error('Chưa khai HUB_TB_TABLE. Xem README.');
   const cells = {
     [F.tieuDe]: hang.tieuDe || '',
     [F.noiDung]: hang.noiDung || '',
@@ -384,7 +384,7 @@ async function luu(hang) {
 
 async function xoa(recordId) {
   if (FILE) throw new Error('Bản chạy này giữ thông báo trong file.');
-  if (!B) throw new Error('Chưa khai HUB_TB_TABLE — xem README.');
+  if (!B) throw new Error('Chưa khai HUB_TB_TABLE. Xem README.');
   await B.xoa(recordId);
   xoaCache();
 }

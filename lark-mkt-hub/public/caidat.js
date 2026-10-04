@@ -51,7 +51,7 @@ function cdNhom() {
       { k: 'toi', ten: 'Của tôi', ic: 'nguoi', mo: 'Ngôn ngữ, sáng tối, tài khoản',
         tu: 'tiếng anh english theme giao diện đăng nhập' },
     ] },
-    { nhom: 'Hệ thống', ds: [
+    { nhom: 'Vận hành', ds: [
       { k: 'base', ten: 'Base trong panel', ic: 'base', mo: 'Bật, tắt, ẩn, thêm base',
         tu: 'module app cả phòng kín', ql: true },
       /* MỘT mục cho mọi câu hỏi "ai được làm gì" — xem chú thích ở veCdQuyen. */
@@ -75,9 +75,9 @@ function cdNhom() {
       k: 'app:' + a.id, ten: a.ten, ic: a.ic, mo: a.mo, tu: a.tu, ql: true,
     })) },
     { nhom: 'Nâng cao', ds: [
-      { k: 'kiem-tra', ten: 'Kiểm tra hệ thống', ic: 'may',
+      { k: 'kiem-tra', ten: 'Tình trạng máy chủ', ic: 'may',
         mo: 'Hỏi từng base xem đọc được gì · địa chỉ công khai, app Lark, bản đang chạy',
-        tu: 'url link app id build commit chế độ chạy render hệ thống', ql: true },
+        tu: 'url link app id build commit chế độ chạy render hệ thống kiểm tra', ql: true },
       { k: 'log', ten: 'Log app con', ic: 'may', mo: 'Xem stderr thật của app con', ql: true },
     ] },
   ];
@@ -293,7 +293,7 @@ function veCdToi(el) {
     if (!t.ten && !t.email) {
       o.innerHTML = cdHang('Tài khoản', t.che_do === 'api'
         ? 'Chưa đọc được tài khoản.'
-        : 'Máy cá nhân — dùng thẳng phiên lark-cli, không đăng nhập vào hub.', '');
+        : 'Máy cá nhân: dùng thẳng phiên lark-cli, không đăng nhập vào hub.', '');
       return;
     }
     o.innerHTML =
@@ -363,7 +363,7 @@ async function napCdPhim() {
     (ds.length
       ? ds.map((x, n) => dong(x, n + 1)).join('')
       : '<div class="cd-hang"><div class="cd-hang-tx"><b>Chưa có gì để phát</b>' +
-        '<p>Chưa đặt video hay ảnh nào — trang Tổng quan chỉ hiện bảng tin.</p></div>' +
+        '<p>Chưa đặt video hay ảnh nào, nên trang Tổng quan chỉ hiện bảng tin. Bấm Thêm video hoặc ảnh để bắt đầu.</p></div>' +
         '<div class="cd-hang-dk"><button class="btn nho chinh" id="cdPhimThem">Tải lên</button></div></div>') +
     (ds.length
       ? cdHang('Thứ tự phát',
@@ -388,14 +388,14 @@ async function napCdPhim() {
      * chạy bằng bộ đệm trên đĩa, và phải nói ra ngay tại đây kèm mã lỗi của
      * Lark, chứ không lặng lẽ quay về ổ tạm rồi vài hôm sau mất tệp. */
     (t.kho === 'base'
-      ? cdHang('Nơi lưu', 'Cất trên Lark Base — deploy bao nhiêu lần cũng còn. ' +
+      ? cdHang('Nơi lưu', 'Cất trên Lark Base, deploy bao nhiêu lần cũng còn. ' +
           'Máy chủ chỉ giữ một bản đệm để phát cho nhanh.',
           '<span class="cd-nhan luc">Lark Base</span>')
       : cdHang('Lưu ý: tệp ở đây KHÔNG sống qua lần deploy',
           (t.khoLoi
             ? 'Không ghi lên Lark Base được: ' + esc(t.khoLoi) + '. '
             : '') +
-          'Ổ đĩa của máy chủ là ổ tạm — mỗi lần deploy là dựng lại từ kho, nên ' +
+          'Ổ đĩa của máy chủ là ổ tạm: mỗi lần deploy là dựng lại từ kho, nên ' +
           'video/ảnh tải lên qua đây sẽ mất.',
           '<span class="cd-nhan do">ổ tạm</span>')) +
     cdHang('Định dạng nhận vào', '',
@@ -421,7 +421,7 @@ async function napCdPhim() {
       oTep.value = '';
       if (!f) return;
       if (f.size > 60 * 1024 * 1024) {
-        return toast('Tệp nặng ' + Math.round(f.size / 1048576) + ' MB — quá 60 MB. Nén lại rồi tải lên.', 'do');
+        return toast('Tệp nặng ' + Math.round(f.size / 1048576) + ' MB, quá 60 MB. Nén lại rồi tải lên.', 'do');
       }
 
       /* VIDEO nặng thì NÉN NGAY TRONG TRÌNH DUYỆT trước khi tải lên.
@@ -435,7 +435,7 @@ async function napCdPhim() {
       let than = f;
       let kieuGui = f.type;
       if (/^video\//.test(f.type) && f.size > PHIM_MB_DICH * 1024 * 1024) {
-        toast('Video ' + Math.round(f.size / 1048576) + ' MB — đang nén, chạy theo độ dài clip…');
+        toast('Video ' + Math.round(f.size / 1048576) + ' MB. Đang nén, chạy theo độ dài clip…');
         const kq = await nenPhim(f, {
           bao: (pt) => { const n = $('#cdPhimThem'); if (n) n.textContent = 'Đang nén ' + pt + '%'; },
         });
@@ -444,11 +444,11 @@ async function napCdPhim() {
           toast('Nén xong: ' + Math.round(f.size / 1048576) + ' MB → ' + kq.mb + ' MB', 'luc');
         } else if (kq.bo === 'quaDai') {
           /* Nói thật thay vì lặng lẽ đưa ra một bản nhoè. */
-          return toast('Clip dài ' + kq.giay + ' giây — nén xuống ' + PHIM_MB_DICH +
+          return toast('Clip dài ' + kq.giay + ' giây. Nén xuống ' + PHIM_MB_DICH +
             ' MB thì hình sẽ nhoè. Cắt ngắn clip rồi tải lại.', 'do');
         } else {
           /* Nén không được thì cứ tải bản gốc, đừng chặn người dùng lại. */
-          toast('Không nén được (' + (kq.bo || 'không rõ') + ') — tải nguyên bản.', 'do');
+          toast('Không nén được (' + (kq.bo || 'không rõ') + '). Vẫn tải nguyên bản.', 'do');
         }
       }
 
@@ -503,7 +503,7 @@ function veCdQuyen(el) {
       hang.length + ' người đã khai quyền riêng · ' + chuaKhai + ' người chưa khai (đang ở mặc định: thấy đủ ' +
       (d.base || []).length + ' base)' +
       (chuaKhop ? '<br><b style="color:var(--do)">' + chuaKhop +
-        ' dòng chưa khớp được với ai trong Lark — quyền đó chưa có tác dụng.</b>' : ''),
+        ' dòng chưa khớp được với ai trong Lark, quyền đó chưa có tác dụng.</b>' : ''),
       '<span class="cd-nhan ' + (chuaKhop ? 'do' : 'luc') + '">' +
       (chuaKhop ? 'cần xử lý' : 'ổn') + '</span>');
   }).catch((e) => {
@@ -645,7 +645,7 @@ async function napCdTaiKhoan() {
   o.innerHTML =
     (cho.length
       ? '<div class="canh-bao vang"><span class="grow"><b>' + cho.length + ' người đang chờ duyệt.</b> ' +
-        'Duyệt xong họ đăng nhập được, nhưng <b>chưa thấy base nào</b> — sang Phân quyền khai tiếp.</span></div>' +
+        'Duyệt xong họ đăng nhập được, nhưng <b>chưa thấy base nào</b>. Sang Phân quyền khai tiếp.</span></div>' +
         cho.map(the).join('')
       : '<div class="canh-bao luc"><span class="grow">Không có ai chờ duyệt.</span></div>') +
     (con.length ? '<div class="cd-muc-nho">Đã xử lý</div>' + con.map(the).join('') : '');
@@ -679,7 +679,7 @@ async function napCdTaiKhoan() {
         return;
       }
 
-      if (viec === 'xoa' && !confirm('Xoá hẳn tài khoản này khỏi Base?')) return;
+      if (viec === 'xoa' && !confirm('Xoá hẳn tài khoản này? Người đó không đăng nhập hub được nữa. Muốn vào lại thì phải đăng ký từ đầu và chờ duyệt.')) return;
       b.disabled = true;
       try {
         await goi('/api/tai-khoan', { method: 'POST', body: JSON.stringify({ id: b.dataset.id, viec }) });
@@ -732,7 +732,7 @@ function veCdTbDs() {
 
   if ((d.thieuCot || []).length) {
     h += '<div class="canh-bao do"><span class="grow">Bảng còn thiếu cột: <b>' +
-      d.thieuCot.map(esc).join(', ') + '</b> — mấy ô đó sẽ bị bỏ khi lưu, ' +
+      d.thieuCot.map(esc).join(', ') + '</b>. Mấy ô đó sẽ bị bỏ khi lưu, ' +
       'nghĩa là thiết lập tương ứng KHÔNG có tác dụng.</span></div>';
   }
   if (d.loiBang) {
@@ -745,7 +745,7 @@ function veCdTbDs() {
    * nhau cho cùng một người. Đã đo được đúng thế trên Base thật. */
   if (d.cheDo && d.cheDo !== 'api') {
     h += '<div class="canh-bao do"><span class="grow">' +
-      '<b>Đang mở ở máy cá nhân — đừng soạn thông báo ở đây.</b> Danh bạ máy này ' +
+      '<b>Đang mở ở máy cá nhân, đừng soạn thông báo ở đây.</b> Danh bạ máy này ' +
       'cho <code>open_id</code> khác với bản đã deploy, nên người nhận sẽ không ' +
       'khớp: tick đúng tên, lưu xong, mà không ai nhận được gì. ' +
       'Soạn trên <b>link đã deploy</b>. Xem thử và xem "ai đã xem" ở đây thì vẫn đúng.' +
@@ -790,7 +790,7 @@ function veCdTbDs() {
   });
   $$('#tbqlNoi [data-tb-xoa]').forEach((b) => {
     b.onclick = async () => {
-      if (!confirm('Xoá thông báo này?')) return;
+      if (!confirm('Xoá thông báo này? Người nhận sẽ không thấy nó nữa, kể cả người chưa đọc.')) return;
       try {
         await goi('/api/tb-app/quan-ly?recordId=' + encodeURIComponent(b.dataset.tbXoa),
           { method: 'DELETE' });
@@ -888,13 +888,13 @@ function moAiDaXem(tb) {
         ds.length + '</span></div>' +
       (ds.length
         ? '<div class="bb-cot-ds">' + ds.join('') + '</div>'
-        : '<div class="q-ghi-nho">— không có ai —</div>') +
+        : '<div class="q-ghi-nho">Chưa có ai</div>') +
     '</div>';
 
   moModal('Ai đã xem · ' + (tb.tieuDe || '(không tiêu đề)'),
     '<div class="bb-ai-noi">' +
       '<div class="q-ghi-nho">Gửi cho <b>' +
-        (tb.moiAi ? 'cả phòng — tính theo danh bạ ' + db.length + ' người' : nhan.length + ' người') +
+        (tb.moiAi ? 'cả phòng, tính theo danh bạ ' + db.length + ' người' : nhan.length + ' người') +
         '</b>.' +
       '</div>' +
       '<div class="bb-hai-cot">' +
@@ -943,7 +943,7 @@ function tbGhiNhom(nhom, san, moi, cuLaSao) {
     }
   } else {
     h += '<div class="q-ghi-nho" style="color:var(--do)">Chưa đọc được nhóm ' + ten +
-      ' nên không tick sẵn được ai — đang để mặc định "Cả phòng".' +
+      ' nên không tick sẵn được ai. Đang để mặc định "Cả phòng".' +
       (nhom.loi ? ' ' + esc(nhom.loi) : '') + '</div>';
   }
   if (nhom.nguon === 'luu') {
@@ -959,7 +959,7 @@ function tbGhiNhom(nhom, san, moi, cuLaSao) {
   }
   if ((nhom.trungTen || []).length) {
     h += '<div class="q-ghi-nho" style="color:var(--vang)">Trùng tên nên không dám tick hộ: ' +
-      nhom.trungTen.map(esc).join(', ') + ' — tự tick đúng người giúp anh.</div>';
+      nhom.trungTen.map(esc).join(', ') + '. Anh tự tick đúng người giúp em.</div>';
   }
   return h;
 }
@@ -1005,7 +1005,7 @@ function moFormTb(tb) {
     '<input class="q-in" id="tbTieuDe" type="text" value="' + esc(t.tieuDe || '') +
     '" placeholder="Câu người ta đọc đầu tiên">');
   html += hang('Nội dung',
-    '<textarea class="q-in" id="tbNoiDung" rows="5" placeholder="Xuống dòng được — mỗi dòng một đoạn">' +
+    '<textarea class="q-in" id="tbNoiDung" rows="5" placeholder="Xuống dòng được, mỗi dòng một đoạn">' +
     esc(t.noiDung || '') + '</textarea>');
 
   /* Tệp đính kèm — chọn NGAY LÚC SOẠN.
@@ -1041,7 +1041,7 @@ function moFormTb(tb) {
   html += hang('Gửi cho',
     ((TBQL && TBQL.cheDo && TBQL.cheDo !== 'api')
       ? '<div class="q-ghi-nho" style="color:var(--do)">Máy cá nhân: danh sách dưới đây ' +
-        'cho open_id KHÁC bản deploy — chọn ở đây thì người nhận không khớp.</div>'
+        'cho open_id KHÁC bản deploy. Chọn ở đây thì người nhận không khớp.</div>'
       : '') +
     /* "Cả phòng" NGHĨA LÀ danh sách bên dưới.
      *
@@ -1060,7 +1060,7 @@ function moFormTb(tb) {
       (chiNhom ? ' data-chi-nhom="1"' : '') +
       ((chiNhom ? sanNhom.every((id) => (t.ai || []).includes(id)) || t.moiAi : t.moiAi)
         ? ' checked' : '') + '>' +
-      '<span>Cả phòng</span><small class="q-nhat">— ' +
+      '<span>Cả phòng</span><small class="q-nhat">· ' +
       (chiNhom ? sanNhom.length + ' người trong nhóm ' + esc(nhom.ten || 'Phòng MKT')
         : 'kể cả người vào sau này') + '</small></label>' +
     '<input class="q-in q-loc" id="tbLoc" type="text" placeholder="Gõ tên để tìm người ngoài phòng…">' +
@@ -1267,7 +1267,7 @@ async function themTep(ds) {
       /* Video không nén được ở trình duyệt (phải có bộ mã hoá, nặng gấp mấy lần
        * cả app này), nên nói thẳng đường vòng: cắt ngắn clip, hoặc để clip trên
        * Lark Drive / YouTube rồi gắn link bằng nút hành động. */
-      toast('"' + f.name + '" nặng ' + coTep(tep.size) + ' — quá 20 MB. ' +
+      toast('"' + f.name + '" nặng ' + coTep(tep.size) + ', quá 20 MB. ' +
         (/^video\//.test(f.type || '')
           ? 'Cắt ngắn clip, hoặc để clip trên Drive rồi gắn link ở "Nút hành động".'
           : 'Chọn tệp nhỏ hơn.'), 'do');
@@ -1492,7 +1492,7 @@ async function luuFormTb() {
    * chờ một cái nút không tồn tại. Chặn ở đây, đây là loại lỗi tự gây ra cho
    * chính nhân sự của mình. */
   if (than.buocBam && !(than.nhanNut && than.lienKet)) {
-    return toast('Bật "buộc bấm" thì phải có cả nhãn nút và liên kết — không thì người nhận không đóng được popup.', 'do');
+    return toast('Bật "buộc bấm" thì phải có cả nhãn nút và liên kết. Không thì người nhận không đóng được popup.', 'do');
   }
   const nut = $('#tbLuu');
   nut.disabled = true;
@@ -1575,7 +1575,7 @@ async function napCdCuaSo(a) {
         '<span class="cd-nhan" data-no-i18n="1">Đóng</span>' + oThu('cdCsDongThu', L.dongThu) +
         '<input class="cd-in cd-in-nho" id="cdCsDongGio" value="' + esc(L.dongGio || '12:00') + '" placeholder="12:00">' +
       '</div>' +
-      'Đặt mốc đóng <b>trước</b> mốc mở cũng được — ví dụ mở Thứ 7 15:00, đóng Thứ 2 12:00 ' +
+      'Đặt mốc đóng <b>trước</b> mốc mở cũng được, ví dụ mở Thứ 7 15:00, đóng Thứ 2 12:00 ' +
       'thì cửa sổ vắt qua cuối tuần.',
       '<button class="btn nho chinh" id="cdCsLuu">Lưu khung giờ</button>');
 
@@ -1646,7 +1646,7 @@ function veCdBase(el) {
        * phải mở màn Phân quyền mới biết. Bấm vào là đổi. */
       '<span class="chip ' + (m.caPhong ? 'vang' : '') + '" title="' + (m.caPhong
         ? (m.caPhongTuEnv
-          ? 'Cả phòng thấy base này — mở bằng biến HUB_CA_PHONG, không phải bằng nút ở đây'
+          ? 'Cả phòng thấy base này. Mở bằng biến HUB_CA_PHONG, không phải bằng nút ở đây'
           : 'Cả phòng thấy base này')
         : 'Chỉ quản lý và người được cấp tên') + '">' +
         (m.caPhong ? 'Cả phòng' : 'Kín') + (m.caPhongTuEnv ? ' · env' : '') + '</span>' +
@@ -1699,12 +1699,12 @@ function veCdBase(el) {
 /* ---------------- Người dùng & phân quyền ---------------- */
 /* ---------------- Kiểm tra hệ thống ---------------- */
 async function veCdKiemTra(el) {
-  el.innerHTML = cdTieuDe('Kiểm tra hệ thống') +
+  el.innerHTML = cdTieuDe('Tình trạng máy chủ') +
     (window.KX ? KX.bang(8, 2)
       : '<div class="trong"><span class="spin"></span> Đang hỏi từng base…</div>');
   let d;
   try { d = await goi('/api/kiem-tra'); } catch (e) {
-    el.innerHTML = cdTieuDe('Kiểm tra hệ thống') +
+    el.innerHTML = cdTieuDe('Tình trạng máy chủ') +
       '<div class="canh-bao do"><span class="grow">' + esc(e.message) + '</span></div>';
     return;
   }
@@ -1712,7 +1712,7 @@ async function veCdKiemTra(el) {
   const hang = (ten, gt, tot) => cdHang(ten, '', '<span class="cd-nhan ' +
     (tot === false ? 'do' : tot === true ? 'luc' : '') + '">' + esc(gt) + '</span>');
 
-  let html = cdTieuDe('Kiểm tra hệ thống') +
+  let html = cdTieuDe('Tình trạng máy chủ') +
     hang('Chế độ', h.che_do === 'api' ? 'api · server chung' : 'cli · máy cá nhân') +
     hang('Địa chỉ công khai', location.origin) +
     hang('App Lark đang chạy', h.app_id || '(không dùng app)', h.che_do !== 'api' ? null : !!h.app_id) +
@@ -1728,7 +1728,7 @@ async function veCdKiemTra(el) {
     const loi = m.loi || '';
     const ma = /9999167/.test(loi) ? 'Thiếu quyền (scope) hoặc chưa Publish version'
       : /91403/.test(loi) ? 'App chưa được chia sẻ Base này'
-      : /Cannot find module|lark-cli/.test(loi) ? 'Đang gọi lark-cli — sai chế độ chạy'
+      : /Cannot find module|lark-cli/.test(loi) ? 'Đang gọi lark-cli, sai chế độ chạy'
       : '';
     /* Ba trạng thái, không phải hai: ĐỎ là app trả lời nhưng hỏng · THƯỜNG là
      * đọc được số · XÁM là app đang chạy nhưng không khai /api/meta để mà hỏi.

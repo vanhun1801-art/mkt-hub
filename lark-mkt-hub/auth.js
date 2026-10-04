@@ -495,7 +495,7 @@ async function handle(req, res, url) {
       loiCau ? 401 : 200);
 
     if (req.method !== 'POST') return veTrang('', '');
-    if (!cungNguon(req)) return veTrang('Yêu cầu không hợp lệ. Mở lại trang đăng nhập.', '');
+    if (!cungNguon(req)) return veTrang('Biểu mẫu này không gửi từ trang đăng nhập của hub. Mở lại trang đăng nhập rồi thử lại.', '');
 
     const f = await docForm(req);
     const mail = String(f.get('email') || '').trim().toLowerCase();
@@ -512,7 +512,7 @@ async function handle(req, res, url) {
 
     let kq;
     try { kq = await taiKhoan.kiemMatKhau(mail, mk); }
-    catch (_) { return veTrang('Hệ thống đang lỗi, thử lại sau.', mail); }
+    catch (_) { return veTrang('Máy chủ đang lỗi. Thử lại sau một phút.', mail); }
 
     if (!kq.ok) {
       chanTs.hong(kIp); chanTs.hong(kMail);
@@ -556,7 +556,7 @@ async function handle(req, res, url) {
       loiCau ? 400 : 200);
 
     if (req.method !== 'POST') return veTrang('', null);
-    if (!cungNguon(req)) return veTrang('Yêu cầu không hợp lệ. Mở lại trang đăng ký.', null);
+    if (!cungNguon(req)) return veTrang('Biểu mẫu này không gửi từ trang đăng ký của hub. Mở lại trang đăng ký rồi thử lại.', null);
 
     /* Cửa này mở ra internet: chặn chặt hơn đăng nhập, vì mỗi lần lọt là một
      * dòng ghi vào Base của phòng. */
@@ -568,7 +568,7 @@ async function handle(req, res, url) {
     const cu = { ten: String(f.get('ten') || ''), email: String(f.get('email') || '') };
     let kq;
     try { kq = await taiKhoan.dangKy({ ten: cu.ten, email: cu.email, mk: String(f.get('mk') || '') }); }
-    catch (_) { return veTrang('Hệ thống đang lỗi, thử lại sau.', cu); }
+    catch (_) { return veTrang('Máy chủ đang lỗi. Thử lại sau một phút.', cu); }
 
     if (!kq.ok) { chanTs.hong(kIp); return veTrang(kq.loi || 'Không đăng ký được.', cu); }
 

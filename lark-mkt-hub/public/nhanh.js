@@ -238,7 +238,7 @@ async function lamNhanh(i, act, giaTri, nut) {
     // hub đã xoá cache của base vừa xử lý -> nạp thường là đủ, khỏi đọc lại cả 3 base
     napTongQuan();
   } catch (e) {
-    toast(e.message + (e.goiY ? ' — ' + e.goiY : ''), 'do');
+    toast(e.message + (e.goiY ? (/[.!?…]$/.test(e.message) ? ' ' : '. ') + e.goiY : ''), 'do');
     if (nut) { nut.disabled = false; }
     veCuaSo();
   }

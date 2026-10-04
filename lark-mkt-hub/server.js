@@ -281,7 +281,7 @@ async function chiQuanLy(req, res) {
   // quản lý nhưng đang xem hộ nhân sự -> vẫn không cho ghi
   const nhu = xemNhuCua(req);
   if (nhu && !['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
-    loi(res, 403, 'Đang xem bằng mắt của ' + nhu.name + ' — thoát chế độ này rồi hãy thao tác.');
+    loi(res, 403, 'Đang xem bằng mắt của ' + nhu.name + '. Thoát chế độ này rồi hãy thao tác.');
     return true;
   }
   return false;
@@ -290,7 +290,7 @@ async function chiQuanLy(req, res) {
 /** Đang xem hộ thì chặn mọi thao tác ghi. */
 function chanGhiKhiXemHo(res, xemNhu, method) {
   if (!xemNhu || method === 'GET' || method === 'HEAD' || method === 'OPTIONS') return false;
-  loi(res, 403, 'Đang xem bằng mắt của ' + xemNhu.name + ' — thoát chế độ này rồi hãy thao tác.');
+  loi(res, 403, 'Đang xem bằng mắt của ' + xemNhu.name + '. Thoát chế độ này rồi hãy thao tác.');
   return true;
 }
 
@@ -975,7 +975,7 @@ async function api(req, res, u) {
     if (tu > den) [tu, den] = [den, tu];
     // lưới quá rộng thì vô dụng mà còn nặng — chặn ở 92 ngày
     const soNgay = Math.round((Date.parse(den) - Date.parse(tu)) / 86400000) + 1;
-    if (soNgay > 92) return loi(res, 400, 'Khoảng quá rộng (' + soNgay + ' ngày) — chọn tối đa 3 tháng.');
+    if (soNgay > 92) return loi(res, 400, 'Khoảng quá rộng (' + soNgay + ' ngày). Chọn tối đa 3 tháng.');
 
     const { nguoi: nguoiLC, q: qLC } = await aiDangXem(req);
     const mods = danhSach().filter((x) => x.bat && (lich.BO_DOC[x.kpi] || lich.DOC_NGHI[x.kpi]) && duocXem(qLC, x));
@@ -1151,7 +1151,7 @@ async function api(req, res, u) {
     const khop = /^data:(image\/(?:png|jpeg|svg\+xml|webp));base64,([A-Za-z0-9+/=]+)$/.exec(String(b.anh || ''));
     if (!khop) return loi(res, 400, 'Chỉ nhận PNG · JPG · SVG · WEBP');
     const buf = Buffer.from(khop[2], 'base64');
-    if (buf.length > 2 * 1024 * 1024) return loi(res, 400, 'Ảnh quá 2 MB — nén bớt rồi tải lại');
+    if (buf.length > 2 * 1024 * 1024) return loi(res, 400, 'Ảnh quá 2 MB. Nén bớt rồi tải lại.');
     xoaLogo();
     if (!fs.existsSync(THU_MUC_DL)) fs.mkdirSync(THU_MUC_DL, { recursive: true });
     const duoiLogo = DUOI_LOGO[khop[1]];
@@ -1268,7 +1268,7 @@ async function api(req, res, u) {
      * có một cái; giờ có nhiều thì nghĩa đó thành "xoá sạch" — một cú bấm nhầm
      * là mất cả bộ. Thà báo lỗi. */
     const o = Number(u.searchParams.get('i')) || 0;
-    if (!(o >= 1 && o <= SO_PHIM_TOI_DA)) return loi(res, 400, 'Thiếu ?i= — cần nói rõ gỡ video nào.');
+    if (!(o >= 1 && o <= SO_PHIM_TOI_DA)) return loi(res, 400, 'Thiếu ?i=, cần nói rõ gỡ video nào.');
     xoaPhim(o);
     await phimKho.xoaKho(o);
     return ok(res, { ok: true, i: o, khoLoi: phimKho.loi() });
@@ -1404,7 +1404,7 @@ async function api(req, res, u) {
       const o = { id: mod.id, ten: mod.ten, trangThai: kids.tinhTrang(mod).trangThai };
       o.song = await kids.songKhong(mod.cong, 2500);
       if (!o.song) {
-        o.loi = 'Cổng ' + mod.cong + ' không trả lời — app đang tắt hay chết lúc khởi động? Xem Log app con.';
+        o.loi = 'Cổng ' + mod.cong + ' không trả lời. App đang tắt hay chết lúc khởi động? Xem Log app con.';
         return o;
       }
 
@@ -1417,7 +1417,7 @@ async function api(req, res, u) {
 
       const m = await thu('/api/meta');
       if (!m.co) {
-        if (m.thieu) o.ghi = 'app không khai /api/meta — chỉ kiểm tra được cổng';
+        if (m.thieu) o.ghi = 'app không khai /api/meta, chỉ kiểm tra được cổng';
         else o.loi = m.loi;
         return o;
       }
@@ -1686,7 +1686,7 @@ async function api(req, res, u) {
     try { ten = Buffer.from(String(req.headers['x-ten-tep'] || ''), 'base64').toString('utf8') || 'tep'; }
     catch (_) {}
     const kieu = String(req.headers['content-type'] || 'application/octet-stream').split(';')[0];
-    if (!recordId) return loi(res, 400, 'Thiếu recordId — lưu thông báo trước rồi mới đính kèm.');
+    if (!recordId) return loi(res, 400, 'Thiếu recordId. Lưu thông báo trước rồi mới đính kèm.');
 
     const buf = await new Promise((giai, hong) => {
       const phan = [];
@@ -1792,7 +1792,7 @@ async function api(req, res, u) {
      * nhận theo client thì gõ tay một open_id khác là xác nhận hộ người ta. */
     if (m === 'POST') {
       const { nguoi: nguoiTB, xemNhu: nhuTB } = await aiDangXem(req);
-      if (nhuTB) return loi(res, 403, 'Đang xem giao diện của người khác — không xác nhận thay họ được.');
+      if (nhuTB) return loi(res, 403, 'Đang xem giao diện của người khác, không xác nhận thay họ được.');
       if (!nguoiTB || !nguoiTB.id) return loi(res, 401, 'Chưa nhận ra bạn là ai.');
       const b = await docBody(req);
       if (!b.recordId) return loi(res, 400, 'Thiếu recordId');
@@ -2360,7 +2360,7 @@ const server = http.createServer(async (req, res) => {
     kids.khoiDong(mod); // bảo đảm đang chạy (không chờ)
     if (xemNhu && !['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
       return send(res, 403, 'Đang xem bằng mắt của ' + xemNhu.name +
-        ' — thoát chế độ này rồi hãy thao tác.', { 'Content-Type': 'text/plain; charset=utf-8' });
+        '. Thoát chế độ này rồi hãy thao tác.', { 'Content-Type': 'text/plain; charset=utf-8' });
     }
     if (nguoi) {
       /* Vai tính theo ĐÚNG base đang mở: Lead phụ trách base này vào app con với
@@ -2395,7 +2395,7 @@ const server = http.createServer(async (req, res) => {
         : '<div class="nhan">Tài khoản Lark</div>' +
           '<h1>' + esc(nguoi.name) + '</h1>' +
           (nguoi.email
-            ? '<div class="nhan">Email — dùng cái này để khai quản lý</div>' +
+            ? '<div class="nhan">Email (dùng cái này để khai quản lý)</div>' +
               '<div class="id" id="id">' + esc(nguoi.email) + '</div>' +
               '<button id="cp">Copy email</button>'
             : '<div class="nhan">open_id dưới app này</div>' +
@@ -2404,10 +2404,10 @@ const server = http.createServer(async (req, res) => {
           // email còn lại (nếu Lark có cả email công ty và email đăng nhập)
           (nguoi.emailPhu
             ? '<p style="color:#8b95a7;font-size:13px">Email còn lại của tài khoản này: <code>' +
-              esc(nguoi.emailPhu) + '</code> — khai cái nào app cũng khớp.</p>'
+              esc(nguoi.emailPhu) + '</code>. Khai cái nào app cũng khớp.</p>'
             : '') +
           (laQL
-            ? '<p class="ok">Đang có vai quản lý — không cần làm gì thêm.</p>'
+            ? '<p class="ok">Đang có vai quản lý. Không cần làm gì thêm.</p>'
             : '<p class="canh">Chưa có vai quản lý. Vào <b>Render → service → Environment</b>, ' +
               'thêm biến <code>' + (nguoi.email ? 'LARK_MANAGER_EMAILS' : 'LARK_MANAGER_IDS') +
               '</code> bằng chuỗi trên rồi <b>Save</b>. Nhiều người thì cách nhau bằng dấu phẩy.</p>') +

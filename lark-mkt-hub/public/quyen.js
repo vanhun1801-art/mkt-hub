@@ -99,10 +99,10 @@ function nhanDien(h) {
   /* 1. CÓ EMAIL — khoá chắc nhất, và là thứ hệ dùng đầu tiên lúc đăng nhập. */
   if (mail) {
     if (k && k.cach === 'email') {
-      return { loai: 'luc', chu: 'Đã khớp: ' + k.ten, mo: 'Khớp theo email — chắc nhất.' };
+      return { loai: 'luc', chu: 'Đã khớp: ' + k.ten, mo: 'Khớp theo email, cách chắc nhất.' };
     }
     return { loai: 'luc', chu: 'Khớp theo email',
-      mo: 'Người này đăng nhập bằng ' + mail + ' là quyền áp dụng đúng — hệ khớp email ' +
+      mo: 'Người này đăng nhập bằng ' + mail + ' là quyền áp dụng đúng, vì app khớp email ' +
           'trước tiên. Danh bạ các app chưa mang email nên không đối chiếu chính tả hộ ' +
           'được; soát lại địa chỉ bằng mắt cho chắc.' };
   }
@@ -110,12 +110,12 @@ function nhanDien(h) {
   /* 2. KHÔNG có email — chỉ còn cái tên, và đây mới là chỗ mong manh thật. */
   if (!k) {
     return { loai: 'do', chu: 'Chưa khớp ai',
-      mo: 'Dòng này KHÔNG có email và cũng không ai trùng tên — quyền chưa có tác dụng, ' +
-          'người đó rơi về mặc định (chỉ base mở cho cả phòng). Bấm Gán người để sửa.' };
+      mo: 'Dòng này KHÔNG có email và cũng không ai trùng tên, nên quyền chưa có tác dụng. ' +
+          'Người đó rơi về mặc định (chỉ base mở cho cả phòng). Bấm Gán người để sửa.' };
   }
   if (h.trungTen) {
     return { loai: 'do', chu: 'Trùng tên ' + h.trungTen + ' người',
-      mo: 'Không có email, mà lại có ' + h.trungTen + ' người cùng tên — hệ KHÔNG đoán, ' +
+      mo: 'Không có email, mà lại có ' + h.trungTen + ' người cùng tên. App không đoán, ' +
           'nên quyền chưa có tác dụng. Phải điền email.' };
   }
   return { loai: 'vang', chu: 'Chỉ khớp theo tên: ' + k.ten,
@@ -226,13 +226,13 @@ function veDanhSachQuyen() {
        * Checkbox thì tick vào lại thành MỌI KÊNH, ngược hẳn ý người khai. */
       thieu.map((c) => '<b>' + esc(c) + '</b>' +
         (kieu[c] ? ' <i>(' + esc(kieu[c]) + ')</i>' : '')).join(', ') +
-      '. Quyền tương ứng bật ở đây sẽ KHÔNG có tác dụng — thêm cột đúng tên và ' +
+      '. Quyền tương ứng bật ở đây sẽ KHÔNG có tác dụng. Thêm cột đúng tên và ' +
       'đúng kiểu trên Base rồi bấm Làm mới.</span></div>'
     : '') +
     '<div class="q-dau">' +
     '<div><b>' + ds.length + ' người đã khai quyền riêng</b>' +
       '<div class="kh-sub">Người chưa khai thì chỉ thấy base mở cho cả phòng (' + esc(tenChung) +
-      ') với vai nhân sự — xem danh sách ở cuối trang. Base khác phải cấp tên mới thấy.</div></div>' +
+      ') với vai nhân sự. Xem danh sách ở cuối trang. Base khác phải cấp tên mới thấy.</div></div>' +
     '<span class="grow"></span>' +
     '<a class="btn ghost nho" href="' + esc(d.larkUrl || '#') + '" target="_blank" rel="noreferrer">Mở bảng trong Lark</a>' +
     '<button class="btn primary" id="qThemNguoi">Thêm nhân sự</button>' +
@@ -250,7 +250,7 @@ function veDanhSachQuyen() {
     html += '<div class="canh-bao do" style="margin-top:12px"><span class="grow">' +
       '<b>' + chuaKhop.length + ' dòng chưa khớp được với ai trong Lark</b> (' +
       chuaKhop.map((h) => esc(h.nguoi || h.email)).join(', ') + '). ' +
-      'Quyền của những dòng này CHƯA có tác dụng — người đó đang ở mặc định, ' +
+      'Quyền của những dòng này CHƯA có tác dụng. Người đó đang ở mặc định, ' +
       'thấy các base mở cho cả phòng. ' +
       'Bấm <b>Gán người</b> rồi chọn đúng họ trong danh bạ.' +
       '</span></div>';
@@ -258,7 +258,7 @@ function veDanhSachQuyen() {
   const theoTen = ds.filter((h) => h.khop && h.khop.cach === 'ten').length;
   if (theoTen) {
     html += '<div class="canh-bao" style="margin-top:10px"><span class="grow">' +
-      theoTen + ' dòng đang khớp theo TÊN. Chạy được, nhưng đổi tên trong Lark là mất khớp — ' +
+      theoTen + ' dòng đang khớp theo TÊN. Chạy được, nhưng đổi tên trong Lark là mất khớp, ' +
       'nên chọn lại người từ danh bạ để app ghi đúng tài khoản.</span></div>';
   }
 
@@ -279,7 +279,7 @@ function veDanhSachQuyen() {
       '</div></div>';
   }
 
-  html += '<div class="q-ghi">Sửa xong có hiệu lực ngay — người đó chỉ cần tải lại trang. ' +
+  html += '<div class="q-ghi">Sửa xong có hiệu lực ngay, người đó chỉ cần tải lại trang. ' +
     'Muốn kiểm tra họ thấy gì thì bấm <b>Xem như</b>; đang xem hộ thì mọi thao tác ghi bị chặn.' +
     (d.env_quan_ly && d.env_quan_ly.length
       ? '<br>Người khai trong biến môi trường luôn giữ vai quản lý: ' + d.env_quan_ly.map(esc).join(', ') + '.'
@@ -307,7 +307,7 @@ function veLoiBang(d, base) {
     '<div class="q-ghi">Bảng gồm: Người · Email · open_id · Vai · Vị trí · Base được xem (id các base, ' +
     'cách nhau bằng dấu phẩy: ' + base.map((b) => esc(b.id)).join(', ') +
     '; ghi <code>*</code> là mọi base kể cả base thêm sau; bỏ trống là không base nào) · ' +
-    'Quản lý base (id các base mà người này làm quản lý — nấc giữa cho Lead một app) · ' +
+    'Quản lý base (id các base mà người này làm quản lý, nấc giữa cho Lead một app) · ' +
     'Xem toàn bộ base · Được tạo mới · Xem chi phí · ' +
     '<b>Xem tải người khác</b> (cột <b>Văn bản</b>, không phải Checkbox: các open_id cách nhau ' +
     'bằng dấu phẩy, <code>*</code> là cả phòng, bỏ trống là không ai).</div>';
@@ -342,10 +342,10 @@ function moFormQuyen(i, nguoiSan) {
   const dangKhop = h.khop
     ? '<div class="q-ghi-nho">Đang khớp với <b>' + esc(h.khop.ten) + '</b> (' +
       (h.khop.cach === 'email' ? 'theo email' : h.khop.cach === 'open_id' ? 'theo tài khoản' : 'theo tên') + ').</div>'
-    : '<div class="q-ghi-nho" style="color:var(--do)">Dòng này <b>chưa khớp được với ai</b> — ' +
-      'chọn đúng người ở đây rồi Lưu.</div>';
+    : '<div class="q-ghi-nho" style="color:var(--do)">Dòng này <b>chưa khớp được với ai</b>. ' +
+      'Chọn đúng người ở đây rồi Lưu.</div>';
   html += hang('Chọn từ danh bạ Lark',
-    '<select class="q-in" id="fNguoiMoi"><option value="">— chọn người —</option>' +
+    '<select class="q-in" id="fNguoiMoi"><option value="">Chọn người…</option>' +
     (d.danhBa || []).map((x) => '<option value="' + esc(x.id) + '" data-mail="' + esc(x.email || '') + '"' +
       (h.khop && h.khop.id === x.id ? ' selected' : '') + '>' + esc(x.ten) + '</option>').join('') + '</select>',
     'Chọn xong app điền đúng tên trong Lark và ghi nhận tài khoản của người đó.' + dangKhop);
@@ -354,13 +354,13 @@ function moFormQuyen(i, nguoiSan) {
     '" placeholder="Nguyễn Văn A">');
   html += hang('Email',
     '<input class="q-in" id="fMail" type="text" value="' + esc(h.email) + '" placeholder="email@rootytrip.com">',
-    'Email công ty hay email đăng nhập Lark đều được — app khớp cả hai. Bỏ trống thì phải nhận diện theo tên.');
+    'Email công ty hay email đăng nhập Lark đều được, app khớp cả hai. Bỏ trống thì phải nhận diện theo tên.');
 
   html += hang('Vị trí công việc',
-    '<select class="q-in" id="fViTri"><option value="">— chọn vị trí —</option>' +
+    '<select class="q-in" id="fViTri"><option value="">Chọn vị trí…</option>' +
     (d.viTri || []).map((v) => '<option value="' + esc(v.ten) + '"' + (h.viTri === v.ten ? ' selected' : '') +
       '>' + esc(v.ten) + '</option>').join('') + '</select>',
-    'Chọn vị trí là các ô bên dưới tự tick theo mẫu — sửa tay lại được.');
+    'Chọn vị trí là các ô bên dưới tự tick theo mẫu, sửa tay lại được.');
 
   /* Vai quản lý KHÔNG đặt ở đây nữa.
    *
@@ -391,7 +391,7 @@ function moFormQuyen(i, nguoiSan) {
   html += hang('Quyền thêm cho nhân sự',
     '<div class="q-nhom" id="fQuyen">' + QUYEN_CO.map((q) =>
       '<label class="q-ck"><input type="checkbox" data-q="' + q.k + '"' + (h[q.k] ? ' checked' : '') + '>' +
-      '<span>' + esc(q.ten) + '</span><small class="q-nhat">— ' + esc(q.mo) + '</small></label>').join('') +
+      '<span>' + esc(q.ten) + '</span><small class="q-nhat">· ' + esc(q.mo) + '</small></label>').join('') +
     '</div>');
 
   /* CHỌN TỪNG NGƯỜI, không phải một ô tick.
@@ -421,14 +421,14 @@ function moFormQuyen(i, nguoiSan) {
   html += hang('Xem tải của ai',
     '<label class="q-ck q-ck-manh"><input type="checkbox" id="fMoiXemTai"' +
       (h.moiXemTai ? ' checked' : '') + '>' +
-      '<span>Cả phòng</span><small class="q-nhat">— kể cả người vào sau này</small></label>' +
+      '<span>Cả phòng</span><small class="q-nhat">· kể cả người vào sau này</small></label>' +
     '<input class="q-in q-loc" id="fLocXemTai" type="text" placeholder="Lọc theo tên…">' +
     '<div class="q-nhom q-nhom-cuon" id="fXemTai">' +
     keLac.map((id) =>
       '<label class="q-ck" data-ten="' + esc(chuanTenQ(id)) + '">' +
       '<input type="checkbox" data-xt="' + esc(id) + '" checked>' +
       '<span><code>' + esc(id) + '</code></span>' +
-      '<small class="q-nhat" style="color:var(--do)">— đã kê nhưng không còn ' +
+      '<small class="q-nhat" style="color:var(--do)">· đã kê nhưng không còn ' +
       'trong danh bạ, quyền này không có tác dụng</small></label>').join('') +
     dbXT.map((x) =>
       '<label class="q-ck" data-ten="' + esc(chuanTenQ(x.ten)) + '">' +
@@ -449,32 +449,32 @@ function moFormQuyen(i, nguoiSan) {
     '<div class="q-nhom" id="fKenhSocial">'
       + '<small class="q-nhat">Đang nạp danh sách kênh…</small></div>',
     'Chỉ áp cho app <b>Social</b>: tick kênh nào thì thấy số liệu, bài đăng và bình luận '
-    + 'của đúng kênh đó. <b>Kênh không ai tick thì cả phòng đều xem được</b> — khác với '
+    + 'của đúng kênh đó. <b>Kênh không ai tick thì cả phòng đều xem được</b>, khác với '
     + 'kênh quảng cáo ở trên. Siết dần từng kênh, đừng khoá sạch một lượt.');
   html += hang('Kênh quảng cáo được xem',
     '<label class="q-ck q-ck-manh"><input type="checkbox" id="fMoiKenhQC"' +
       (h.moiKenhQC ? ' checked' : '') + '>' +
-      '<span>Mọi kênh</span><small class="q-nhat">— kể cả kênh nối thêm sau này</small></label>' +
+      '<span>Mọi kênh</span><small class="q-nhat">· kể cả kênh nối thêm sau này</small></label>' +
     '<div class="q-nhom" id="fKenhQC">' + KENH_QC.map((k) =>
       '<label class="q-ck"><input type="checkbox" data-kqc="' + esc(k) + '"' +
         ((h.kenhQC || []).includes(k) ? ' checked' : '') + '><span>' + esc(k) + '</span></label>').join('') +
     '</div>',
     'Chỉ áp cho app <b>Quản lý quảng cáo</b>: tick kênh nào thì thấy chi tiêu, quảng cáo, ' +
-    'cảnh báo và doanh thu của đúng kênh đó — và cũng chỉ bật/tắt được quảng cáo của kênh đó. ' +
+    'cảnh báo và doanh thu của đúng kênh đó, và cũng chỉ bật/tắt được quảng cáo của kênh đó. ' +
     '<b>Không tick gì thì không thấy kênh nào.</b> ' +
     'Giới hạn này áp cho cả quản lý: vai quản lý nói về việc được sửa cấu hình, ' +
     'không phải về việc theo dõi kênh của ai.');
 
   html += hang('Base được xem',
     '<label class="q-ck q-ck-manh"><input type="checkbox" id="fMoiBase"' + (h.moiBase ? ' checked' : '') + '>' +
-    '<span>Mọi base</span><small class="q-nhat">— kể cả base thêm vào sau này</small></label>' +
+    '<span>Mọi base</span><small class="q-nhat">· kể cả base thêm vào sau này</small></label>' +
     '<div class="q-nhom" id="fBase">' + base.map((b) =>
       '<label class="q-ck"><input type="checkbox" data-base="' + esc(b.id) + '"' +
         (h.base && h.base.includes(b.id) ? ' checked' : '') + '><span>' + esc(b.ten) + '</span>' +
-        (b.caPhong ? '<small class="q-nhat">— cả phòng đã thấy</small>' : '') + '</label>').join('') +
+        (b.caPhong ? '<small class="q-nhat">· cả phòng đã thấy</small>' : '') + '</label>').join('') +
     '</div>',
     'Tick base nào thì thấy đúng base đó. Không tick gì thì chỉ còn các base mở cho cả phòng ' +
-    '(đánh dấu ở trên) — bỏ tick là base biến khỏi panel của họ và API cũng chặn luôn.');
+    '(đánh dấu ở trên). Bỏ tick là base biến khỏi panel của họ và API cũng chặn luôn.');
 
   /* Nấc giữa giữa nhân sự và quản lý tổng: Lead phụ trách một app.
    * Không hiện khi Vai = Quản lý vì lúc đó đã là quản lý mọi base. */
@@ -484,7 +484,7 @@ function moFormQuyen(i, nguoiSan) {
         (h.quanLyBase && h.quanLyBase.includes(b.id) ? ' checked' : '') + '>' +
         '<span>' + esc(b.ten) + '</span></label>').join('') + '</div>',
     'Trong base đã tick, người này <b>là quản lý của base đó</b>: thấy mọi bản ghi, mọi số tiền, ' +
-    'thao tác được hết — như anh. Ngoài base đó vẫn là nhân sự: không thêm/xoá base, ' +
+    'thao tác được hết, như anh. Ngoài base đó vẫn là nhân sự: không thêm/xoá base, ' +
     'không sửa phân quyền, không Xem như. Tick ở đây thì base đó tự hiện trong panel của họ.');
 
   html += hang('Ghi chú', '<input class="q-in" id="fGhiChu" type="text" value="' + esc(h.ghiChu || '') +
@@ -569,7 +569,7 @@ function moFormQuyen(i, nguoiSan) {
         const ck = $('#fQuyen [data-q="' + q.k + '"]');
         if (ck) ck.checked = !!mau[q.k];
       });
-      toast('Đã áp mẫu vị trí ' + mau.ten + (mau.mo ? ' — ' + mau.mo : ''), '');
+      toast('Đã áp mẫu vị trí ' + mau.ten + (mau.mo ? ': ' + mau.mo : ''), '');
     };
   }
 }
@@ -600,7 +600,7 @@ async function napKenhSocialThat(email) {
     o.innerHTML = ds.map((k) => '<label class="q-ck"><input type="checkbox" data-ksocial="'
       + esc(k.id) + '"' + ((k.viewers || []).includes(mail) ? ' checked' : '') + '>'
       + '<span>' + esc(k.name || k.id) + '</span>'
-      + '<small class="q-nhat">— ' + esc(k.platform || '') + '</small></label>').join('');
+      + '<small class="q-nhat">· ' + esc(k.platform || '') + '</small></label>').join('');
   } catch (e) {
     /* Nhớ là đã hỏng. Không có ô tick nào thì lúc Lưu sẽ trông y hệt "người này
      * không được xem kênh nào" — im lặng bỏ qua là đúng, nhưng phải nói ra, kẻo
@@ -643,8 +643,8 @@ async function luuFormQuyen() {
   if (!chon.length && !hang.moiBase) {
     const soChung = (((S.quyen || {}).base) || []).filter((b) => b.caPhong).length;
     toast(soChung
-      ? 'Không tick base nào — người này chỉ còn ' + soChung + ' base mở cho cả phòng'
-      : 'Không tick base nào — người này vào app không thấy base nào', '');
+      ? 'Không tick base nào, người này chỉ còn ' + soChung + ' base mở cho cả phòng'
+      : 'Không tick base nào, người này vào app không thấy base nào', '');
   }
 
   const nut = $('#fLuu');
@@ -688,7 +688,7 @@ async function luuFormQuyen() {
 async function xoaDongQuyen(recordId) {
   try {
     await goi('/api/quyen?recordId=' + encodeURIComponent(recordId), { method: 'DELETE' });
-    toast('Đã xoá — người này trở về mặc định (chỉ base cả phòng)', 'luc');
+    toast('Đã xoá. Người này trở về mặc định (chỉ base cả phòng)', 'luc');
     await modalPhanQuyen();
     napHub();
   } catch (e) {

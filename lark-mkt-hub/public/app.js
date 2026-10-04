@@ -151,7 +151,7 @@ function doiChoApp(id, buoc) {
    rồi gửi xuống từng iframe module (cùng origin nhờ proxy) để vỏ và ruột không
    bao giờ lệch tone. 'auto' = bỏ data-theme, để CSS theo prefers-color-scheme.
    ============================================================ */
-const THEME = [['sang', 'Sáng'], ['toi', 'Tối'], ['auto', 'Theo hệ thống']];
+const THEME = [['sang', 'Sáng'], ['toi', 'Tối'], ['auto', 'Theo máy']];
 
 function docTheme() {
   // ?theme=toi|sang|auto — mở thẳng một tone, không ghi vào localStorage
@@ -526,7 +526,7 @@ function veBangTB() {
         cacMod.map(([id, ten]) => chip('mod', id, ten)).join('')}</div>` : ''}
     </div>
     <div class="tb-than">${than || '<div class="tb-trong">' +
-      (boBot ? 'Không có mục nào khớp bộ lọc.' : 'Không có gì cần bạn để mắt. Nhẹ người.') + '</div>'}</div>
+      (boBot ? 'Không có mục nào khớp bộ lọc.' : 'Không có gì cần bạn để mắt.') + '</div>'}</div>
     <div class="tb-chan">${boBot
       ? `Đang ẩn <b>${boBot}</b> mục cũ hơn. <button class="tb-xemhet" data-tbloc="ky" data-gt="all">Xem hết</button>`
       : 'Mốc thời gian là lúc diễn ra việc. Xử lý xong là mục tự mất.'}</div>`;
@@ -546,7 +546,7 @@ function veRail() {
   const nhanDayDu = (o) => {
     const t = o.title || o.ten;
     if (!o.badge) return t;
-    return t + '  —  ' + (o.badge > 99 ? '99+' : o.badge) + ' việc cần để mắt';
+    return t + ': ' + (o.badge > 99 ? '99+' : o.badge) + ' việc cần để mắt';
   };
 
   const item = (o) => `
@@ -580,8 +580,8 @@ function veRail() {
       on: hienTai === m.id,
       badge: demCanXuLy(m.id),
       dot: m.kieu === 'local' ? tt.trangThai : '',
-      dotTitle: nhan[0] + (tt.loi ? ' — ' + tt.loi : ''),
-      title: m.ten + (m.mo_ta ? ' — ' + m.mo_ta : '') + (m.kieu === 'local' ? '  [cổng ' + m.cong + ']' : ''),
+      dotTitle: nhan[0] + (tt.loi ? ': ' + tt.loi : ''),
+      title: m.ten + (m.mo_ta ? ' · ' + m.mo_ta : '') + (m.kieu === 'local' ? '  [cổng ' + m.cong + ']' : ''),
     });
   }).join('');
 
@@ -725,7 +725,7 @@ function phuLoi(o, mod) {
     '<img src="/ma-ket-sua-loi.jpg" width="240" height="240" alt="Ma-Két đang ngồi sửa"' +
     ' onerror="this.remove()">' +
     '<h2>Ma-Két đang cố gắng khắc phục sự cố</h2>' +
-    '<p>' + esc(mod.ten) + ' tạm thời chưa mở được. Bạn chờ một chút nhé — xong là tự vào lại.</p>' +
+    '<p>' + esc(mod.ten) + ' tạm thời chưa mở được. Bạn chờ một chút nhé, xong là tự vào lại.</p>' +
     '<p class="fl-dem">Đang thử lại…</p>' +
     '<button class="btn">Thử lại ngay</button>';
   o.wrap.appendChild(p);
@@ -2022,7 +2022,7 @@ function veHome() {
     } else {
       noi = xepTheoTang(r.the || [], m.id) +
         (r.cu ? '<div class="canh-bao" style="margin-top:12px"><span class="grow">Đang hiển thị số cũ (' +
-          gio(r.luc) + ') — lần đọc mới nhất lỗi: ' + esc(r.loi || '') + '</span></div>' : '');
+          gio(r.luc) + '). Lần đọc mới nhất lỗi: ' + esc(r.loi || '') + '</span></div>' : '');
     }
 
     /* Đếm trên CHÍNH chuỗi HTML vừa dựng, không tính lại bằng tay: bộ xếp tầng
@@ -2406,7 +2406,7 @@ function veBangXemNhu() {
   }
   document.body.classList.add('dang-xem-ho');
   el.innerHTML = '<b>Đang xem bằng mắt của ' + esc(S.xemNhu.ten) + '</b>' +
-    '<span class="ghi">chỉ xem — mọi thao tác ghi bị chặn</span>' +
+    '<span class="ghi">chỉ xem, mọi thao tác ghi bị chặn</span>' +
     '<button class="btn nho" id="btnThoatXemNhu">Thoát</button>';
 }
 
@@ -2514,7 +2514,7 @@ function modalCaiDat() {
     '<table class="bang"><thead><tr><th>Base</th><th>Kiểu</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>' +
     '<tbody>' + dong + '</tbody></table>',
     (S.quanLy ? '<button class="btn ghost" id="btnPhanQuyen">Phân quyền nhân sự</button>' : '') +
-    '<button class="btn ghost" id="btnKiemTra">Kiểm tra hệ thống</button>' +
+    '<button class="btn ghost" id="btnKiemTra">Tình trạng máy chủ</button>' +
     '<button class="btn ghost" data-close="1">Đóng</button>');
 
   const bkt = $('#btnKiemTra');
@@ -2535,7 +2535,7 @@ function modalCaiDat() {
         ' · <a href="https://open.larksuite.com/app/' + esc(t.app_id) + '/version/create"' +
         ' target="_blank" rel="noreferrer">mở trang phát hành</a></div>'
       : '<div class="kh-sub" style="margin-top:6px">Đang chạy bằng phiên <code>lark-cli</code> của máy này, ' +
-        'không qua app Lark — Availability không ảnh hưởng gì ở đây.</div>';
+        'không qua app Lark, nên Availability không ảnh hưởng gì ở đây.</div>';
 
     if (t.che_do !== 'api' || !t.id) {
       o.hidden = false;
@@ -2550,7 +2550,7 @@ function modalCaiDat() {
     o.innerHTML = '<div class="grow"><b>' + esc(t.ten || '') + '</b> · <code>' + esc(khoa) + '</code>' +
       '<div class="kh-sub">' + (t.la_quan_ly
         ? 'Đang có vai quản lý.'
-        : 'Chưa có vai quản lý — thêm chuỗi này vào biến ' + bien + ' trên Render rồi Save.') +
+        : 'Chưa có vai quản lý. Thêm chuỗi này vào biến ' + bien + ' trên Render rồi Save.') +
       '</div>' + khoiApp + '</div>' +
       '<button class="btn nho" data-copy-id="' + esc(khoa) + '">Copy</button>';
   }).catch(() => {});
@@ -2558,7 +2558,7 @@ function modalCaiDat() {
 
 /** Tự kiểm tra hệ thống: nói rõ đang thiếu quyền gì, ở đâu. */
 async function modalKiemTra() {
-  moModal('Kiểm tra hệ thống',
+  moModal('Tình trạng máy chủ',
     window.KX ? KX.bang(7, 2) : '<div class="trong"><span class="spin"></span> Đang hỏi từng base…</div>',
     '<button class="btn ghost" data-close="1">Đóng</button>');
   let d;
@@ -2575,11 +2575,11 @@ async function modalKiemTra() {
   let html = '<table class="bang"><tbody>' +
     dong('Chế độ', h.che_do === 'api' ? 'api (server chung)' : 'cli (máy cá nhân)') +
     (h.commit ? dong('Bản đang chạy', h.commit) : '') +
-    dong('App Lark đang chạy', h.app_id || '(không dùng app — chạy bằng lark-cli)',
+    dong('App Lark đang chạy', h.app_id || '(không dùng app, chạy bằng lark-cli)',
       h.che_do !== 'api' ? null : !!h.app_id) +
     (h.che_do === 'api' ? (
       dong('Tài khoản của bạn', h.toi ? h.toi.ten + '  ·  ' + h.toi.id : 'chưa đăng nhập', !!h.toi) +
-      dong('Vai quản lý', h.la_quan_ly ? 'có' : 'KHÔNG — dán open_id trên vào LARK_MANAGER_IDS', h.la_quan_ly) +
+      dong('Vai quản lý', h.la_quan_ly ? 'có' : 'KHÔNG. Dán open_id trên vào LARK_MANAGER_IDS', h.la_quan_ly) +
       dong('Số quản lý đang khai', String(h.so_quan_ly_dang_khai), h.so_quan_ly_dang_khai > 0) +
       dong('PUBLIC_URL', (h.public_url || '(trống)') + (h.public_url_khop ? '' : '  ≠  ' + h.host_that), h.public_url_khop) +
       dong('Khoá phiên (SESSION_SECRET)', h.co_session_secret ? 'có' : 'THIẾU', h.co_session_secret)
@@ -2590,7 +2590,7 @@ async function modalKiemTra() {
     const loi = m.loi || '';
     const ma = /9999167d/.test(loi) ? 'Thiếu quyền (scope) hoặc chưa Publish version'
       : /91403/.test(loi) ? 'App chưa được chia sẻ Base này'
-      : /Cannot find module|lark-cli/.test(loi) ? 'Đang gọi lark-cli — sai chế độ chạy'
+      : /Cannot find module|lark-cli/.test(loi) ? 'Đang gọi lark-cli, sai chế độ chạy'
       : '';
     return '<div class="the ' + (loi ? 'cao' : 'ok') + '">' +
       '<div class="nhan">' + esc(m.ten) + '</div>' +
@@ -2661,13 +2661,13 @@ function modalThem() {
     <div class="dong-form">
       <label>Link Lark Base</label><input type="url" id="fLark" placeholder="https://rootytrip2.sg.larksuite.com/base/...">
       <label>Bộ đọc chỉ số</label>
-      <select id="fKpi"><option value="">— chưa có —</option></select>
+      <select id="fKpi"><option value="">Chưa có</option></select>
     </div>
     <div class="dong-form">
       <label>Ai thấy</label>
       <select id="fCaPhong">
-        <option value="0">Kín — chỉ quản lý, cấp tên từng người sau</option>
-        <option value="1">Cả phòng — ai đăng nhập cũng thấy</option>
+        <option value="0">Kín: chỉ quản lý, cấp tên từng người sau</option>
+        <option value="1">Cả phòng: ai đăng nhập cũng thấy</option>
       </select>
     </div>
     <div class="kh-sub" style="margin-top:6px">Base mới nên để <b>Kín</b> cho tới khi dựng xong:
@@ -2715,7 +2715,7 @@ function modalThem() {
       const m = await goi('/api/modules', { method: 'POST', body: JSON.stringify(b) });
       dongModal();
       toast('Đã thêm "' + m.ten + '" vào panel' +
-        (m.caPhong ? ' — cả phòng thấy' : ' — đang kín, chỉ quản lý thấy'), 'luc');
+        (m.caPhong ? '. Cả phòng thấy' : '. Đang kín, chỉ quản lý thấy'), 'luc');
       await napHub();
       location.hash = m.kieu === 'lark' ? '#/tong-quan' : '#/m/' + m.id;
       napTongQuan(true);
@@ -2785,7 +2785,7 @@ async function doiCaPhong(id, caPhong) {
       method: 'PATCH', body: JSON.stringify({ caPhong: !!caPhong }),
     });
     toast(caPhong ? 'Đã mở "' + ten + '" cho cả phòng'
-                  : 'Đã đóng "' + ten + '" — chỉ quản lý và người được cấp tên thấy', 'luc');
+                  : 'Đã đóng "' + ten + '". Chỉ quản lý và người được cấp tên thấy', 'luc');
     await napHub();
     if (!$('#modalWrap').hidden) modalCaiDat('base');
   } catch (e) {
@@ -2884,7 +2884,7 @@ document.addEventListener('click', (e) => {
     e.preventDefault();
     navigator.clipboard.writeText(cp.getAttribute('data-copy-id'))
       .then(() => toast('Đã copy open_id', 'luc'))
-      .catch(() => toast('Không copy được — bấm giữ để chọn thủ công', 'do'));
+      .catch(() => toast('Không copy được. Bấm giữ để chọn thủ công.', 'do'));
     return;
   }
   const nn = e.target.closest('[data-lang-set]');

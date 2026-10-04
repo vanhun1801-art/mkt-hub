@@ -70,7 +70,7 @@
     'Đã hoàn thành': 'Completed',
     'Cần làm ngay': 'Do it now',
     'Thông tin': 'For your information',
-    'Không có gì cần bạn để mắt. Nhẹ người.': 'Nothing needs your attention. Enjoy.',
+    'Không có gì cần bạn để mắt.': 'Nothing needs your attention.',
     'Tự cập nhật từ dữ liệu các Base — xử lý xong là mục tự mất.':
       'Updated automatically from your Bases — an item disappears once handled.',
     'Lịch chờ duyệt kế hoạch': 'Schedule waiting for plan approval',
@@ -156,7 +156,7 @@
     'Tải lại': 'Reload',
     'Sáng': 'Light',
     'Tối': 'Dark',
-    'Theo hệ thống': 'System',
+    'Theo máy': 'Match device',
     'Tiếng Việt': 'Tiếng Việt',
     'English': 'English',
 
@@ -255,10 +255,12 @@
     'Chỉ quản lý và người được cấp tên': 'Managers and named people only',
     'Mọi base (kể cả base mới)': 'All bases (including new ones)',
     'Không base nào': 'No base',
-    '— kể cả base thêm vào sau này': '— including bases added later',
-    '— cả phòng đã thấy': '— whole team already sees it',
-    'Kín — chỉ quản lý, cấp tên từng người sau': 'Private — managers only, grant people later',
-    'Cả phòng — ai đăng nhập cũng thấy': 'Whole team — everyone signed in can see it',
+    '· kể cả base thêm vào sau này': '· including bases added later',
+    '· kể cả người vào sau này': '· including people who join later',
+    '· kể cả kênh nối thêm sau này': '· including channels connected later',
+    '· cả phòng đã thấy': '· whole team already sees it',
+    'Kín: chỉ quản lý, cấp tên từng người sau': 'Private: managers only, grant people later',
+    'Cả phòng: ai đăng nhập cũng thấy': 'Whole team: everyone signed in can see it',
     'Tùy chọn cho nhân sự': 'Staff options',
     'Quyền thêm': 'Extra rights',
     'Quyền thêm cho nhân sự': 'Extra rights for staff',
@@ -382,8 +384,8 @@
     'Tài khoản': 'Account',
     'Tên': 'Name',
     'Thiết lập chung': 'General settings',
-    'Máy cá nhân — dùng thẳng phiên lark-cli, không đăng nhập vào hub.':
-      'Personal machine — uses the lark-cli session directly, no hub sign-in.',
+    'Máy cá nhân: dùng thẳng phiên lark-cli, không đăng nhập vào hub.':
+      'Personal machine: uses the lark-cli session directly, no hub sign-in.',
     'Chưa đọc được tài khoản.': 'Could not read the account.',
     'Email phụ': 'Secondary email',
     'Mã Lark (open_id)': 'Lark ID (open_id)',
@@ -392,11 +394,11 @@
     'Chưa có video': 'No video yet',
     'Chưa có gì để phát': 'Nothing to play yet',
     'Lưu ý: tệp ở đây KHÔNG sống qua lần deploy': 'Heads-up: files here do NOT survive a deploy',
-    'Ổ đĩa của máy chủ là ổ tạm — mỗi lần deploy là dựng lại từ kho, nên video/ảnh tải lên qua đây sẽ mất. Muốn giữ lâu thì gắn đĩa lưu cho service, hoặc nhờ đưa tệp thẳng vào kho mã nguồn.':
-      'The server disk is ephemeral — every deploy rebuilds it from the repo, so video/images uploaded here are lost. To keep them, attach a persistent disk to the service, or have the file committed to the repo.',
+    'Ổ đĩa của máy chủ là ổ tạm: mỗi lần deploy là dựng lại từ kho, nên video/ảnh tải lên qua đây sẽ mất. Muốn giữ lâu thì gắn đĩa lưu cho service, hoặc nhờ đưa tệp thẳng vào kho mã nguồn.':
+      'The server disk is ephemeral: every deploy rebuilds it from the repo, so video/images uploaded here are lost. To keep them, attach a persistent disk to the service, or have the file committed to the repo.',
     'ổ tạm': 'ephemeral disk',
-    'Chưa đặt video hay ảnh nào — trang Tổng quan chỉ hiện bảng tin.':
-      'No video or image set — the Overview shows only the news column.',
+    'Chưa đặt video hay ảnh nào, nên trang Tổng quan chỉ hiện bảng tin. Bấm Thêm video hoặc ảnh để bắt đầu.':
+      'No video or image set, so the Overview shows only the news column. Use Add video or image to start.',
     'Tải lên': 'Upload',
     'Thêm video hoặc ảnh': 'Add video or image',
     'Đang tải lên…': 'Uploading…',
@@ -427,17 +429,18 @@
     'Bạn': 'You',
     '← Danh sách': '← Back to list',
     'Chọn từ danh bạ': 'Pick from directory',
-    '— chọn người —': '— pick a person —',
+    'Chưa có': 'None',
+    'Chưa có ai': 'No one yet',
     'Vị trí công việc': 'Job position',
     'Ghi chú': 'Note',
     'Đang lưu…': 'Saving…',
-    '— chọn vị trí —': '— pick a position —',
+    'Chọn vị trí…': 'Pick a position…',
     'Nhân sự': 'Staff',
     'Quản lý': 'Manager',
     'Được tạo mới': 'Can create',
     'Xem chi phí': 'See costs',
     'Xem như': 'View as',
-    'chỉ xem — mọi thao tác ghi bị chặn': 'view only — all writes are blocked',
+    'chỉ xem, mọi thao tác ghi bị chặn': 'view only, all writes are blocked',
     'Chỉ quản lý mở được phần Cài đặt': 'Only managers can open Settings',
     'Chỉ quản lý mở được phần Phân quyền': 'Only managers can open Permissions',
     'Chỉ quản lý được thao tác này.': 'Managers only.',
@@ -448,7 +451,8 @@
 
     /* --- cài đặt & kiểm tra --- */
     'Cài đặt · các base trong panel': 'Settings · bases in the panel',
-    'Kiểm tra hệ thống': 'System check',
+    'Tình trạng máy chủ': 'Server status',
+    'Vận hành': 'Operations',
     'Chung': 'General',
     'Nâng cao': 'Advanced',
     'Base trong panel': 'Bases in the panel',
@@ -515,7 +519,7 @@
     'Khai thêm một app hoặc một Lark Base vào panel.': 'Add another app or Lark Base to the panel.',
     'Áp cho lớp vỏ và cả ba app con. Mỗi người nhớ lựa chọn riêng trong máy mình.':
       'Applies to the shell and all three modules. Each person keeps their own choice.',
-    'Theo hệ thống là ăn theo cài đặt của máy.': 'System follows your machine setting.',
+    'Theo máy là sáng tối đổi theo cài đặt của điện thoại hay máy tính.': 'Match device follows the light or dark setting of your phone or computer.',
     'Ai mở được app là do Lark quyết (Availability). Ai thấy base nào là do anh quyết ở đây.':
       'Lark decides who can open the app (Availability). You decide who sees which base here.',
     'Danh sách từng người: vị trí, vai, base được xem, và app có nhận ra họ chưa.':
@@ -1229,8 +1233,8 @@
     [/^Đang đọc số liệu từ (\d+) base…$/, 'Reading data from $1 bases…'],
 
     /* --- lớp phủ khi app con chưa mở được --- */
-    [/^(.+) tạm thời chưa mở được\. Bạn chờ một chút nhé — xong là tự vào lại\.$/,
-      '$1 is not available right now. Hang on — it opens itself once it is back.'],
+    [/^(.+) tạm thời chưa mở được\. Bạn chờ một chút nhé, xong là tự vào lại\.$/,
+      '$1 is not available right now. Hang on, it opens itself once it is back.'],
     [/^Tự thử lại sau (\d+) giây$/, 'Retrying in $1s'],
 
     /* Dòng mô tả tệp của logo và của từng video: "<tên> · <cỡ> · tải lên <giờ>".
@@ -1238,15 +1242,15 @@
     [/^(.+ · .+) · tải lên (.+)$/, '$1 · uploaded $2'],
 
     /* --- nén video ngay trong trình duyệt trước khi tải lên --- */
-    [/^Video (\d+) MB — đang nén, chạy theo độ dài clip…$/,
-      'Video is $1 MB — compressing, takes as long as the clip'],
+    [/^Video (\d+) MB\. Đang nén, chạy theo độ dài clip…$/,
+      'Video is $1 MB. Compressing, takes as long as the clip'],
     [/^Đang nén (\d+)%$/, 'Compressing $1%'],
     [/^Nén xong: (\d+) MB → ([\d,.]+) MB$/, 'Compressed: $1 MB to $2 MB'],
-    [/^Clip dài (\d+) giây — nén xuống (\d+) MB thì hình sẽ nhoè\. Cắt ngắn clip rồi tải lại\.$/,
-      'The clip runs $1 seconds — squeezing it to $2 MB would look blurry. Trim it and upload again.'],
-    [/^Không nén được \((.+)\) — tải nguyên bản\.$/, 'Could not compress ($1) — uploading the original.'],
-    [/^Tệp nặng (\d+) MB — quá 60 MB\. Nén lại rồi tải lên\.$/,
-      'File is $1 MB — over the 60 MB limit. Compress it and upload again.'],
+    [/^Clip dài (\d+) giây\. Nén xuống (\d+) MB thì hình sẽ nhoè\. Cắt ngắn clip rồi tải lại\.$/,
+      'The clip runs $1 seconds. Squeezing it to $2 MB would look blurry. Trim it and upload again.'],
+    [/^Không nén được \((.+)\)\. Vẫn tải nguyên bản\.$/, 'Could not compress ($1). Uploading the original anyway.'],
+    [/^Tệp nặng (\d+) MB, quá 60 MB\. Nén lại rồi tải lên\.$/,
+      'File is $1 MB, over the 60 MB limit. Compress it and upload again.'],
 
     /* --- ô phát của trang Tổng quan: mỗi ô là video HOẶC ảnh --- */
     [/^Video (\d+) · phát đầu tiên$/, 'Video $1 · plays first'],
@@ -1262,8 +1266,8 @@
     [/^Đã đủ (\d+) ô$/, 'All $1 slots used'],
     [/^Đã thay ô (\d+)$/, 'Slot $1 replaced'],
     [/^Đã đủ (\d+) video\. Gỡ bớt một cái rồi thêm\.$/, 'All $1 slots used. Remove one first.'],
-    [/^Tệp nặng (\d+) MB — quá 60 MB\. Nén lại rồi tải lên\.$/,
-      'File is $1 MB — over the 60 MB limit. Compress it and upload again.'],
+    [/^Tệp nặng (\d+) MB, quá 60 MB\. Nén lại rồi tải lên\.$/,
+      'File is $1 MB, over the 60 MB limit. Compress it and upload again.'],
     [/^Chỉ nhận MP4 · WEBM · MOV · PNG · JPG · WEBP · GIF\.$/,
       'Only MP4 · WEBM · MOV · PNG · JPG · WEBP · GIF are accepted.'],
 
@@ -1343,8 +1347,8 @@
       'started by the hub · internal port $1 (not exposed)'],
     [/^(\d+) người đã khai quyền riêng · (\d+) người chưa khai \(đang ở mặc định: thấy đủ (\d+) base\)$/,
       '$1 with custom permissions · $2 not configured (default: all $3 bases)'],
-    [/^(\d+) dòng chưa khớp được với ai trong Lark — quyền đó chưa có tác dụng\.$/,
-      '$1 row(s) match nobody in Lark — those permissions have no effect.'],
+    [/^(\d+) dòng chưa khớp được với ai trong Lark, quyền đó chưa có tác dụng\.$/,
+      '$1 row(s) match nobody in Lark, those permissions have no effect.'],
     [/^Sửa quyền · (.+)$/, 'Edit permissions · $1'],
     [/^Đã khớp: (.+)$/, 'Matched: $1'],
     [/^(\d+) người đã khai quyền riêng$/, '$1 people with custom permissions'],
