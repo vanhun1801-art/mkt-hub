@@ -3,9 +3,9 @@ const path = require('path');
 
 /* App con "Khách hàng" — gom hồ sơ khách từ mọi kênh về một chỗ.
  *
- * Bản LOCAL: dữ liệu nằm trong du-lieu/ trên đĩa máy này, KHÔNG ghi gì lên
- * Lark Base. Anh Hùng 02/10/2026: "làm local anh xem". Khi nào xem xong và
- * chốt hình dạng thì mới chuyển kho lên Base. */
+ * Kho nằm hai nơi: `du-lieu/tho.json` trên đĩa để đọc cho nhanh, và một bản
+ * nén trên Lark Base để sống qua deploy (kho-base.js). Đĩa chỉ là bản sao —
+ * xoá đi lúc nào cũng được, khởi động lại là tự kéo về từ Base. */
 module.exports = {
   port: Number(process.env.PORT) || 5203,
   thuMucDuLieu: path.join(__dirname, 'du-lieu'),

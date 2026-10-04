@@ -310,68 +310,16 @@ const TOA_DO = {
   'séc': [15.5, 49.8], 'áo': [14.6, 47.5], 'bồ đào nha': [-8.2, 39.4],
   'hy lạp': [21.8, 39.1], 'brazil': [-51.9, -14.2], 'mexico': [-102.6, 23.6],
   'argentina': [-63.6, -38.4], 'chile': [-71.5, -35.7],
+  /* Thêm khi bản đồ tự kêu thiếu — cứ tên nào hiện ở dòng "Chưa có toạ độ
+   * cho" thì bổ sung vào đây, đừng để nó kêu mãi một cái tên. */
+  'romania': [24.97, 45.94], 'rumani': [24.97, 45.94],
 };
 const chuanNuoc = (s) => String(s || '').trim().toLowerCase();
 
-let banDo = null, daNapMap = false;
-function veBanDo() {
-  if (!TQ) return;
-  const ds = sx(TQ.nuoc);
-  const diem = [], thieuToaDo = [];
-  for (const [ten, n] of ds) {
-    const t = TOA_DO[chuanNuoc(ten)];
-    if (t) diem.push({ ten, n, lng: t[0], lat: t[1] });
-    else thieuToaDo.push(ten);
-  }
-  if (thieuToaDo.length) {
-    $('#canhBaoBanDo').innerHTML += '<br>Chưa có toạ độ cho: <b>' + thieuToaDo.join(', ')
-      + '</b> — vẫn đếm trong bảng bên dưới, chỉ là chưa chấm lên bản đồ.';
-  }
-  if (!diem.length) return;
+let banDo = null, daNapMap = false, KIEU_BD = 'tinh';
 
-  const ve = () => {
-    const max = Math.max(...diem.map((d) => d.n));
-    if (!banDo) {
-      banDo = new window.maplibregl.Map({
-        container: 'banDo',
-        style: 'https://tiles.openfreemap.org/styles/positron',
-        center: [60, 20], zoom: 1.1, attributionControl: true,
-      });
-      banDo.addControl(new window.maplibregl.NavigationControl({ showCompass: false }), 'top-right');
-    }
-    const them = () => {
-      if (banDo.getLayer('kh-tron')) { banDo.removeLayer('kh-tron'); banDo.removeLayer('kh-chu'); banDo.removeSource('kh'); }
-      banDo.addSource('kh', {
-        type: 'geojson',
-        data: {
-          type: 'FeatureCollection',
-          features: diem.map((d) => ({
-            type: 'Feature',
-            properties: { ten: d.ten, n: d.n, nhan: d.ten + ' · ' + so(d.n) },
-            geometry: { type: 'Point', coordinates: [d.lng, d.lat] },
-          })),
-        },
-      });
-      banDo.addLayer({
-        id: 'kh-tron', type: 'circle', source: 'kh',
-        paint: {
-          /* Bán kính theo CĂN BẬC HAI của số khách, không theo tỉ lệ thẳng:
-           * mắt người đọc vòng tròn theo DIỆN TÍCH, nên tỉ lệ thẳng sẽ thổi
-           * phồng nước đông lên gấp nhiều lần sự thật. */
-          'circle-radius': ['interpolate', ['linear'], ['sqrt', ['get', 'n']], 0, 4, Math.sqrt(max), 34],
-          'circle-color': '#289683', 'circle-opacity': .55,
-          'circle-stroke-width': 1.5, 'circle-stroke-color': '#289683',
-        },
-      });
-      banDo.addLayer({
-        id: 'kh-chu', type: 'symbol', source: 'kh',
-        layout: { 'text-field': ['get', 'nhan'], 'text-size': 11, 'text-offset': [0, 1.9], 'text-allow-overlap': false },
-        paint: { 'text-color': '#16302b', 'text-halo-color': '#ffffff', 'text-halo-width': 1.4 },
-      });
-    };
-    if (banDo.isStyleLoaded()) them(); else banDo.on('load', them);
-  };
-
+/** Nạp MapLibre một lần rồi gọi lại hàm vẽ. */
+function napMapLibre(ve) {
   if (daNapMap) { ve(); return; }
   daNapMap = true;
   const B = 'https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/';
@@ -381,11 +329,127 @@ function veBanDo() {
   const js = document.createElement('script');
   js.src = B + 'maplibre-gl.js';
   js.onload = ve;
-  js.onerror = () => { $('#banDo').innerHTML = '<div class="phu" style="padding:16px">Không tải được thư viện bản đồ. Bảng quốc gia bên dưới vẫn đọc được.</div>'; };
+  js.onerror = () => { $('#banDo').innerHTML = '<div class="phu" style="padding:16px">Không tải được thư viện bản đồ. Bảng bên dưới vẫn đọc được.</div>'; };
   document.head.appendChild(js);
 }
 
+/** Vẽ các chấm lên bản đồ. `diem` = [{ten, n, lng, lat}] */
+function chamLenBanDo(diem, { tam, phong }) {
+  const max = Math.max(...diem.map((d) => d.n), 1);
+  if (!banDo) {
+    banDo = new window.maplibregl.Map({
+      container: 'banDo',
+      style: 'https://tiles.openfreemap.org/styles/positron',
+      center: tam, zoom: phong, attributionControl: true,
+    });
+    banDo.addControl(new window.maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+  } else {
+    banDo.jumpTo({ center: tam, zoom: phong });
+  }
+  const them = () => {
+    if (banDo.getLayer('kh-tron')) { banDo.removeLayer('kh-tron'); banDo.removeLayer('kh-chu'); banDo.removeSource('kh'); }
+    banDo.addSource('kh', {
+      type: 'geojson',
+      data: {
+        type: 'FeatureCollection',
+        features: diem.map((d) => ({
+          type: 'Feature',
+          properties: { nhan: d.ten + ' · ' + so(d.n), n: d.n },
+          geometry: { type: 'Point', coordinates: [d.lng, d.lat] },
+        })),
+      },
+    });
+    banDo.addLayer({
+      id: 'kh-tron', type: 'circle', source: 'kh',
+      paint: {
+        /* Bán kính theo CĂN BẬC HAI: mắt đọc vòng tròn theo diện tích, tỉ lệ
+         * thẳng sẽ thổi phồng nơi đông lên gấp nhiều lần sự thật. */
+        'circle-radius': ['interpolate', ['linear'], ['sqrt', ['get', 'n']], 0, 4, Math.sqrt(max), 34],
+        'circle-color': '#289683', 'circle-opacity': .55,
+        'circle-stroke-width': 1.5, 'circle-stroke-color': '#289683',
+      },
+    });
+    banDo.addLayer({
+      id: 'kh-chu', type: 'symbol', source: 'kh',
+      layout: { 'text-field': ['get', 'nhan'], 'text-size': 11, 'text-offset': [0, 1.9], 'text-allow-overlap': false },
+      paint: { 'text-color': '#16302b', 'text-halo-color': '#ffffff', 'text-halo-width': 1.4 },
+    });
+  };
+  if (banDo.isStyleLoaded()) them(); else banDo.once('load', them);
+}
 
+function veBanDo() {
+  if (KIEU_BD === 'tinh') return veBanDoTinh();
+  return veBanDoTheGioi();
+}
+
+/* ---- Việt Nam theo tỉnh ----
+ * Dữ liệu là VÙNG PHỦ QUẢNG CÁO của Meta, không phải khách hàng. Khách thật
+ * không có tỉnh: ô thành phố của Tourwell rỗng 100%, và chỉ 149/16.754 khách
+ * dùng số cố định để suy ra mã vùng — quá ít để dựng gì. Ghi rõ lên đầu bản
+ * đồ, vì "Hà Nội 34.651" mà hiểu là 34.651 khách thì sai gấp hàng trăm lần. */
+async function veBanDoTinh() {
+  const tu = $('#kyTu').value, den = $('#kyDen').value;
+  const cb = $('#canhBaoBanDo');
+  if (!tu || !den) {
+    cb.innerHTML = 'Chọn một khoảng ngày — vùng phủ quảng cáo chỉ có số liệu theo ngày.';
+    return;
+  }
+  cb.innerHTML = 'Đang lấy vùng phủ quảng cáo từ Meta…';
+  let d;
+  try { d = await req('/api/quang-cao?tu=' + tu + '&den=' + den); }
+  catch (e) { cb.innerHTML = 'Không lấy được: ' + e.message; return; }
+
+  const diem = [], sot = [];
+  let khongRo = 0;
+  for (const t of (d.tinh || [])) {
+    /* Meta có một ô "Unknown" gom những lượt nó không định được vị trí. Đó
+     * KHÔNG phải tỉnh thiếu toạ độ — kêu "chưa có toạ độ cho Unknown" là bắt
+     * người đọc đi tìm một tỉnh không tồn tại. Đếm riêng và nói thẳng. */
+    if (/^(unknown|không rõ|khong ro)$/i.test(String(t.ten || '').trim())) { khongRo += t.tiepCan; continue; }
+    const v = window.TINH.tra(t.ten);
+    if (v) diem.push({ ten: v.ten, n: t.tiepCan, lng: v.lng, lat: v.lat });
+    else sot.push(t.ten);
+  }
+  const tong = diem.reduce((a, x) => a + x.n, 0);
+  cb.innerHTML = '<b>Đây là người ĐƯỢC QUẢNG CÁO TIẾP CẬN, không phải khách hàng.</b><br>'
+    + so(diem.length) + ' tỉnh thành · ' + so(tong) + ' lượt tiếp cận. '
+    + 'Khách hàng thật không có tỉnh thành: ô thành phố trên Tourwell rỗng 100%, '
+    + 'chỉ 149/16.754 khách dùng số cố định để suy ra mã vùng. '
+    + 'Dùng bản đồ này để chọn nơi nhắm quảng cáo, đừng dùng để nói về khách.'
+    + (khongRo ? ' Thêm ' + so(khongRo) + ' lượt Meta không định được vị trí, không chấm lên được.' : '')
+    + (sot.length ? '<br>Chưa có toạ độ cho: <b>' + sot.join(', ') + '</b>.' : '');
+
+  if (!diem.length) { $('#banDo').innerHTML = '<div class="phu" style="padding:16px">Không có số liệu tỉnh thành trong kỳ.</div>'; return; }
+  napMapLibre(() => chamLenBanDo(diem, { tam: [106.5, 16.2], phong: 4.6 }));
+  veThanh($('#bdNuoc'), diem.sort((a, b) => b.n - a.n).map((x) => [x.ten, x.n]), { tran: 25 });
+  const h = $('#bdNuoc').closest('.the');
+  if (h) { const t = h.querySelector('h2'); if (t) t.textContent = 'Lượt tiếp cận theo tỉnh'; }
+}
+
+/* ---- Thế giới theo quốc gia: đây mới là KHÁCH THẬT, nhưng chỉ 9% có nước ---- */
+function veBanDoTheGioi() {
+  if (!TQ) return;
+  const ds = sx(TQ.nuoc);
+  const diem = [], sot = [];
+  for (const [ten, n] of ds) {
+    const t = TOA_DO[chuanNuoc(ten)];
+    if (t) diem.push({ ten, n, lng: t[0], lat: t[1] });
+    else sot.push(ten);
+  }
+  const pc = (a, b) => (b ? Math.round((a / b) * 100) + '%' : '0%');
+  const thieu = TQ.tong - TQ.coNuoc;
+  $('#canhBaoBanDo').innerHTML =
+    '<b>Bản đồ này chỉ vẽ được ' + so(TQ.coNuoc) + ' / ' + so(TQ.tong) + ' hồ sơ</b> ('
+    + pc(TQ.coNuoc, TQ.tong) + ').<br>' + so(thieu)
+    + ' hồ sơ còn lại bỏ trống ô quốc gia trên Tourwell — không phải không có khách, mà là chưa ai điền.'
+    + (sot.length ? '<br>Chưa có toạ độ cho: <b>' + sot.join(', ') + '</b>.' : '');
+  if (!diem.length) return;
+  napMapLibre(() => chamLenBanDo(diem, { tam: [60, 20], phong: 1.1 }));
+  veThanh($('#bdNuoc'), ds, { tran: 40 });
+  const h = $('#bdNuoc').closest('.the');
+  if (h) { const t = h.querySelector('h2'); if (t) t.textContent = 'Khách theo quốc gia'; }
+}
 
 /* ---------------- tiền quảng cáo đổi lấy được gì ---------------- */
 async function napQuangCao() {
@@ -963,6 +1027,13 @@ $('#btnQuet').onclick = async () => {
   await req('/api/hoi-thoai?tu=' + tu + '&den=' + den + '&gioiHan=80', { method: 'POST' });
   hoiTienDoHT();
 };
+document.querySelectorAll("#segBanDo button").forEach((b) => {
+  b.onclick = () => {
+    KIEU_BD = b.dataset.bd;
+    document.querySelectorAll("#segBanDo button").forEach((x) => x.classList.toggle("dang", x === b));
+    veBanDo();
+  };
+});
 $('#oTim').oninput = () => { clearTimeout(henTim); henTim = setTimeout(timKiem, 220); };
 $('#locMuc').onchange = timKiem;
 $('#locDon').onchange = timKiem;

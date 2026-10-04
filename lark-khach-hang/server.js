@@ -21,6 +21,7 @@ const spn = require('./nguon/sanpham');
 const soc = require('./nguon/social');
 const tnp = require('./nguon/tacnghiep');
 const nguon = require('./nguon/tourwell');
+const khoBase = require('./kho-base');
 
 const PUBLIC = path.join(__dirname, 'public');
 const MIME = {
@@ -133,6 +134,13 @@ async function keoLai() {
       }));
       napTuDia();
       bao('xong sau ' + Math.round((Date.now() - dangKeo.bat) / 1000) + ' giây');
+      /* Cất lên Base NGAY sau khi kéo xong. Để lần sau — kể cả sau một lần
+       * deploy — khỏi phải kéo lại mười lăm phút. Cất hỏng thì chỉ ghi log,
+       * không làm hỏng lượt kéo vừa thành công. */
+      bao('đang cất kho lên Lark Base…');
+      bao(await khoBase.catLen(cfg.tepTho, 'kéo lúc ' + new Date().toISOString())
+        ? 'đã cất lên Base — lần sau khởi động chỉ mất ~35 giây'
+        : '! cất lên Base hỏng, kho chỉ còn trên đĩa (mất sau deploy)');
     } catch (e) {
       dangKeo.loi = String((e && e.message) || e);
       bao('HỎNG: ' + dangKeo.loi);
@@ -421,11 +429,29 @@ napTuDia();
  * không đứng im — nhưng PHẢI nói rõ cho người xem biết là đang kéo, nếu không
  * họ nhìn bảng vơi mà tưởng tháng này ít khách.
  *
- * Đây là cách tạm. Đúng ra kho phải nằm trên Lark Base như ô phát và logo của
- * hub, để deploy xong là có ngay. Ghi lại đây để lần sau khỏi phải nghĩ lại.
+ * Từ 04/10/2026 kho đã nằm trên Lark Base (xem kho-base.js), như ô phát và
+ * logo của hub — nên deploy xong là có ngay và lượt kéo mười lăm phút chỉ còn
+ * là đường lùi cuối cùng, không còn là việc thường ngày.
  */
-function tuKeoNeuCan() {
-  const cu = KHO.luc ? Date.now() - Date.parse(KHO.luc) : Infinity;
+async function tuKeoNeuCan() {
+  /* Thứ tự: đĩa → Base → Tourwell. Mỗi bậc đắt hơn bậc trước mười lần, nên
+   * chỉ xuống bậc dưới khi bậc trên không có.
+   *
+   *   đĩa      ~0 giây   nhưng mất sạch sau mỗi lần deploy (ổ Render là ổ tạm)
+   *   Base     ~35 giây  sống qua deploy
+   *   Tourwell ~15 phút  và nện vào trần 60 lượt/phút dùng chung với hai app khác
+   */
+  let cu = KHO.luc ? Date.now() - Date.parse(KHO.luc) : Infinity;
+  if (!KHO.ds.length) {
+    console.log('  đĩa trống — thử kéo kho từ Lark Base');
+    if (await khoBase.veDia(cfg.tepTho)) {
+      napTuDia();
+      cu = KHO.luc ? Date.now() - Date.parse(KHO.luc) : Infinity;
+      console.log('  lấy được từ Base: ' + KHO.ds.length + ' hồ sơ');
+    } else {
+      console.log('  Base cũng chưa có kho');
+    }
+  }
   if (KHO.ds.length && cu < cfg.hanCu) {
     console.log('  kho còn mới (' + Math.round(cu / 3600000) + ' giờ) — không kéo lại');
     return;
@@ -442,5 +468,5 @@ may.listen(cfg.port, '127.0.0.1', () => {
   console.log('');
   /* Chờ một nhịp rồi mới kéo: để máy chủ kịp nhận yêu cầu đầu tiên, không thì
    * người mở trang ngay lúc khởi động phải đợi cả lượt kéo. */
-  setTimeout(tuKeoNeuCan, 3000).unref();
+  setTimeout(() => { tuKeoNeuCan().catch((e) => console.error('  khởi động kho hỏng:', e.message)); }, 3000).unref();
 });

@@ -14,7 +14,7 @@
 <header class="dau">
   <div class="dau-trai">
     <h1>Khách hàng</h1>
-    <span class="nhan-local">bản local · không ghi Lark Base</span>
+    <span class="nhan-local">bản local · kho dùng chung trên Lark Base</span>
   </div>
   <div class="dau-phai">
     <span id="mocKeo" class="moc">—</span>
@@ -148,6 +148,10 @@
 
   <!-- ---------- BẢN ĐỒ ---------- -->
   <section class="man" id="man-ban-do">
+    <div class="seg" id="segBanDo" style="margin-bottom:12px">
+      <button data-bd="tinh" class="dang">Việt Nam theo tỉnh</button>
+      <button data-bd="the-gioi">Thế giới theo quốc gia</button>
+    </div>
     <div class="canh-bao" id="canhBaoBanDo"></div>
     <div id="banDo"></div>
     <div class="the" style="margin-top:14px">
@@ -234,6 +238,7 @@
   </div>
 </div>
 
+<script src="tinh-vn.js?v=__V__"></script>
 <script src="bieudo.js?v=__V__"></script>
 <script src="app.js?v=__V__"></script>
 </body>
