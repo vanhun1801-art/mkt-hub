@@ -91,6 +91,8 @@ const THA = [
   /\.av\b/, /\.av-/, /ava\b/, /caret/, /thumb/,
   /-ic\b/, /\.ic\b/, /kh-ic\b/, /^\.logo$/, /ota-api-logo/,
   /\.rail\.min /, /summary::before/,
+  // nhãn vẽ TRÊN bản đồ (ghi công bản đồ, tên điểm) — cỡ cố định theo bản đồ, không phải chữ đọc
+  /leaflet/, /\.bd-(ten|vung|so)\b/, /\.mh-diem\b/,
 ];
 const tha = (sel) => THA.some((r) => r.test(sel));
 
@@ -179,7 +181,15 @@ const apps = fs.readdirSync(goc).filter((d) => d.startsWith('lark-') &&
 ok('quét được nhiều app', apps.length >= 9, String(apps.length));
 
 for (const a of apps) {
-  const luat = docLuat(fs.readFileSync(path.join(goc, a, 'public', 'styles.css'), 'utf8'));
+  /* Đọc MỌI tệp CSS của app, không chỉ styles.css (04/10/2026): KOL có kol.css,
+   * form.css — chữ 11,5px ở đó lọt qua phép kiểm này. Bỏ khung-xuong.css (hình
+   * chờ, không có chữ) và in-lich.css (bản in giấy). styles.css đọc trước. */
+  const pub = path.join(goc, a, 'public');
+  const tepCss = fs.readdirSync(pub).filter((f) => f.endsWith('.css') && !/^(khung-xuong|in-lich)\.css$/.test(f))
+    // lớp vỏ: ios.css là lớp giao diện chung, cỡ chữ của nó đo trên màn thật (quét chữ <12px), không theo cặp luật
+    .filter((f) => !(a === 'lark-mkt-hub' && f === 'ios.css'))
+    .sort((x, y) => (x === 'styles.css' ? -1 : y === 'styles.css' ? 1 : x.localeCompare(y)));
+  const luat = docLuat(tepCss.map((f) => fs.readFileSync(path.join(pub, f), 'utf8')).join('\n'));
   const nen = new Map();   // selector -> cỡ khai NGOÀI khối điện thoại
   const dt = new Map();    // selector -> cỡ khai TRONG khối điện thoại
   for (const l of luat) {

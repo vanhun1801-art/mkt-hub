@@ -340,3 +340,21 @@ pre.tin { white-space: pre-wrap; background: var(--surface-3); border-radius: va
 .thung-rac > summary::-webkit-details-marker { display: none; }
 .thung-rac > summary::before { content: '▸ '; color: var(--text-3); }
 .thung-rac[open] > summary::before { content: '▾ '; }
+
+/* Điện thoại: chữ dưới 12px khó đọc — nâng mọi cỡ 11–11,5px của KOL lên 12px
+   (04/10/2026, soát toàn hệ; phép kiểm dien-thoai nay đọc cả kol.css). */
+@media (max-width: 640px) {
+  .dong-ht.dau { font-size: 12px; }
+  .buoc-o small { font-size: 12px; }
+  .viec-tiep .nhan { font-size: 12px; }
+  .bang th { font-size: 12px; }
+  .lt-moc .gio small { font-size: 12px; }
+  .lbk-moc .nhan-tt { font-size: 12px; }
+  .lt-the-ten small { font-size: 12px; }
+  .lt-the-ngay .nhan-tt { font-size: 12px; }
+  .lt-the-chan { font-size: 12px; }
+  .bang-bg td .nhan-tt { font-size: 12px; }
+  .thu-ck-dau { font-size: 12px; }
+  .bang tr.cs-nhom td { font-size: 12px; }
+  .nut-xoa-ht { font-size: 12px; }
+}

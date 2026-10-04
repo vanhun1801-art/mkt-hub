@@ -4284,3 +4284,15 @@ html[data-skin="ios"] .frame-loading .frame-lau {
   display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 14px; border-radius: 999px;
   background: var(--ios-the, #fff); box-shadow: 0 6px 24px rgba(0, 0, 0, .12); font-size: 13px; color: var(--ios-chu-2, #666);
 }
+
+/* CHỮ DƯỚI 12px TRÊN ĐIỆN THOẠI (04/10, soát toàn hệ sau lỗi cùng loại ở Báo
+   cáo / Khách hàng). Bộ test dien-thoai chỉ đọc styles.css của app, nên bỏ sót
+   các cỡ do lớp iOS đặt: nhãn trạng thái, thẻ kênh (Facebook · TikTok · Google
+   Ads), nhãn thẻ số và dòng so sánh ở Tổng quan, chữ ghi chú <small> — 10,8–11,5px.
+   Điện thoại nâng hết lên 12px. Chữ viết tắt trong ô ảnh đại diện, số trên huy
+   hiệu tròn và số trong thanh phân tầng 22px giữ cỡ nhỏ có chủ ý. */
+@media (max-width: 640px) {
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) :is(.tag, .chip, .nhan-tt, small, .nhom-base .the .lech, .nhom-base .the .nhan) {
+    font-size: 12px !important;
+  }
+}
