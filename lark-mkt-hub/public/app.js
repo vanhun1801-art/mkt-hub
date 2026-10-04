@@ -917,10 +917,14 @@ function keoIframeVeNeuLac(mod, o, rec, mo) {
 
 /* Giấu một khung app. Khung đang MỞ SẴN NGẦM (napTruoc) thì giấu bằng
  * visibility, không bằng display:none: app con nạp lần đầu trong khung có bề
- * ngang 0 sẽ chụp khung xương bề ngang 0 đè lên bản chụp tốt. */
+ * ngang 0 sẽ chụp khung xương bề ngang 0 đè lên bản chụp tốt.
+ * Giấu bằng LỚP .khung-ngam (styles.css: cả khung và MỌI con đều hidden
+ * !important), không bằng style.visibility trên riêng khung: visibility của con
+ * thắng của cha, và ios.css có luật ép khung xương lớp chờ `visible` — khung
+ * xương của app mở ngầm từng lộ ra nằm đè trang Tổng quan (anh Hùng 04/10). */
 function anKhung(x) {
   if (x.wrap.dataset.napTruoc === '1') {
-    x.wrap.hidden = false; x.wrap.style.visibility = 'hidden'; x.wrap.style.pointerEvents = 'none';
+    x.wrap.hidden = false; x.wrap.classList.add('khung-ngam');
   } else x.wrap.hidden = true;
 }
 
@@ -966,7 +970,7 @@ function moModule(id, rec, mo) {
   keoIframeVeNeuLac(mod, o, rec, mo);
   S.frames.forEach((x, k) => { if (k !== id) anKhung(x); });
   delete o.wrap.dataset.napTruoc;
-  o.wrap.style.visibility = ''; o.wrap.style.pointerEvents = '';
+  o.wrap.classList.remove('khung-ngam');
   o.wrap.hidden = false;
   document.title = mod.ten + ' · Marketing Hub';
   datTenMan(mod.ten);

@@ -295,6 +295,17 @@ group('Không vẽ HÌNH CHUNG khi app con đã có hình thật của nó');
     /KX\.man\(esc\(mod\.ten\), \{ the: 4, dong: 7 \}\)/.test(APPJS));
   ok('… và không còn thẻ chữ "Đang đọc dữ liệu từ Lark Base"',
     !/frame-cho/.test(APPJS));
+  /* Lỗi đã dính thật (04/10/2026, ảnh anh Hùng): khung của app MỞ SẴN NGẦM giấu
+   * bằng style.visibility trên riêng khung, nhưng ios.css ép khung xương lớp chờ
+   * `visible` — con thắng cha, bốn thẻ số + bảy dòng nằm đè trang Tổng quan.
+   * Khung ngầm phải giấu bằng lớp có !important cho MỌI con. */
+  {
+    const HUB_CSS = doc('public/styles.css');
+    ok('khung mở sẵn ngầm giấu bằng lớp .khung-ngam, không bằng style.visibility',
+      /classList\.add\('khung-ngam'\)/.test(APPJS) && !/wrap\.style\.visibility = 'hidden'/.test(APPJS));
+    ok('… và .khung-ngam ẩn cả mọi con bằng !important',
+      /\.khung-ngam \*[^{]*\{[^}]*visibility:\s*hidden\s*!important/.test(HUB_CSS));
+  }
   /* Cái bẫy đã dính thật: `lap(n || 4, …)` biến số 0 thành 4, nên xin "đừng vẽ
    * thẻ nào" vẫn ra bốn thẻ — sửa xong mà màn hình không đổi gì. */
   ok('số 0 nghĩa là KHÔNG vẽ, không phải "vẽ mặc định"',

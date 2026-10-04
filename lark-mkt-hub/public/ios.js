@@ -565,7 +565,7 @@
   let ketTu = 0;
   setInterval(() => {
     if (!document.body.classList.contains('mod-che')) { ketTu = 0; return; }
-    const f = [...document.querySelectorAll('#stage iframe')].find((x) => x.offsetParent);
+    const f = [...document.querySelectorAll('#stage iframe')].find((x) => x.offsetParent && !x.closest('.khung-ngam'));
     let coCua = true;
     try { const d = f && f.contentDocument; coCua = !!(d && [...d.querySelectorAll(CUA_KET)].some((e) => e.getClientRects().length)); } catch (_) {}
     if (coCua) { ketTu = 0; return; }
