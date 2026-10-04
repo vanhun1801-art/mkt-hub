@@ -370,6 +370,25 @@
       "bat": true,
       "caPhong": false,
       "_caPhong": "KHÔNG thêm mat-khau vào HUB_CA_PHONG. Quyền xem mật khẩu đã chia theo từng dòng; mở cả phòng chỉ nên là quyết định có chủ ý."
+    },
+    {
+      "id": "khach-hang",
+      "ten": "Khách hàng",
+      "mo_ta": "Hồ sơ khách · chân dung · ROAS theo kênh",
+      "icon": "kol",
+      "mau": "#289683",
+      "kieu": "local",
+      "thuMuc": "../lark-khach-hang",
+      "cong": 5190,
+      "lenh": [
+        "node",
+        "server.js"
+      ],
+      "an": [
+        "header.dau"
+      ],
+      "bat": true,
+      "caPhong": false
     }
   ]
 }

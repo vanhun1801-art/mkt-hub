@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Khách hàng · Rooty Trip</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css?v=__V__">
+</head>
+<body>
+
+<header class="dau">
+  <div class="dau-trai">
+    <h1>Khách hàng</h1>
+    <span class="nhan-local">bản local · không ghi Lark Base</span>
+  </div>
+  <div class="dau-phai">
+    <span id="mocKeo" class="moc">—</span>
+    <button id="btnKeo" class="btn">Kéo lại từ Tourwell</button>
+  </div>
+</header>
+
+<div id="tienDo" class="tien-do" hidden>
+  <div class="td-dau"><strong>Đang kéo dữ liệu</strong><span id="tdPhu"></span></div>
+  <pre id="tdLog"></pre>
+</div>
+
+<nav class="tabs">
+  <button class="tab dang" data-tab="tong-quan">Tổng quan</button>
+  <button class="tab" data-tab="ban-do">Bản đồ thế giới</button>
+  <button class="tab" data-tab="nhu-cau">Nhu cầu &amp; mùa</button>
+  <button class="tab" data-tab="chan-dung">Chân dung</button>
+  <button class="tab" data-tab="tra-cuu">Tra cứu</button>
+</nav>
+
+<main>
+  <!-- ---------- TỔNG QUAN ---------- -->
+  <section class="man dang" id="man-tong-quan">
+    <div class="loc">
+      <div class="seg" id="segKy"></div>
+      <div class="loc-ngay">
+        <input type="date" id="kyTu" title="Từ ngày">
+        <span>→</span>
+        <input type="date" id="kyDen" title="Đến ngày">
+      </div>
+      <div class="seg nho" id="segTheo">
+        <button data-theo="dat" class="dang">Theo ngày đặt</button>
+        <button data-theo="di">Theo ngày khởi hành</button>
+      </div>
+      <span id="ghiKy" class="moc"></span>
+    </div>
+    <div class="o-so" id="oSo"></div>
+
+    <div class="luoi-2">
+      <div class="the rong">
+        <h2>Doanh thu theo ngày</h2>
+        <p class="phu">Theo ngày đặt đơn. Rê chuột để xem từng ngày.</p>
+        <div id="bdNgay" class="bd-hop"></div>
+      </div>
+
+      <div class="the rong">
+        <h2>Tiền quảng cáo đổi lấy được gì <span class="nhan-ngoai">theo ngày đặt</span></h2>
+        <p class="phu">Chi phí lấy từ Meta và TikTok Ads, doanh thu lấy từ đơn Tourwell có nguồn tương ứng.</p>
+        <div id="bangQC"><div class="phu">Đang lấy số liệu quảng cáo…</div></div>
+        <div id="ghiQC" class="ghi-duoi"></div>
+      </div>
+
+      <div class="the rong">
+        <h2>Kênh nào ra tiền</h2>
+        <p class="phu">Xếp theo DOANH THU, không theo số đơn — một kênh nhiều đơn nhỏ có thể thua một kênh ít đơn lớn.</p>
+        <div id="bangKenh"></div>
+      </div>
+
+      <div class="the rong">
+        <h2>Khách đặt trước bao lâu</h2>
+        <p class="phu">Khoảng cách từ ngày đặt tới ngày khởi hành — cho biết quảng cáo phải chạy trước bao nhiêu ngày.</p>
+        <div id="bdDatTruoc"></div>
+        <div id="ghiDatTruoc" class="ghi-duoi"></div>
+      </div>
+
+      <div class="the">
+        <h2>Khách mới và khách quay lại <span class="nhan-ngoai">quay lại xét trọn đời</span></h2>
+        <p class="phu">Quay lại = đã mua từ hai lần trở lên.</p>
+        <div id="bdQuayLai"></div>
+        <div id="ghiQuayLai" class="ghi-duoi"></div>
+      </div>
+
+      <div class="the">
+        <h2>Sắp khởi hành <span class="nhan-ngoai">không theo bộ lọc</span></h2>
+        <p class="phu">Theo tháng, chỉ tính từ hôm nay trở đi — để biết tháng nào cần đẩy hàng.</p>
+        <div id="bdThangDi"></div>
+      </div>
+
+      <div class="the rong">
+        <h2>Đi tác nghiệp xong thì sao <span class="nhan-ngoai">tương quan, không phải ghi công</span></h2>
+        <p class="phu">Mỗi buổi ra hiện trường, bảy ngày sau các con số thế nào. Chỉ dùng để SO loại hình này với loại hình kia.</p>
+        <div id="bangTN"></div>
+        <div id="ghiTN" class="ghi-duoi"></div>
+      </div>
+
+      <div class="the rong">
+        <h2>Công sức tự nhiên đổi lấy được gì <span class="nhan-ngoai">từ app Social</span></h2>
+        <p class="phu">Bài đăng và live là phần không tốn tiền quảng cáo. Cột cuối mới là cột đáng nhìn.</p>
+        <div id="bangSocial"></div>
+        <div id="ghiSocial" class="ghi-duoi"></div>
+      </div>
+
+      <div class="the rong">
+        <h2>Bán rẻ hơn giá công bố bao nhiêu</h2>
+        <p class="phu">So giá bán thật mỗi khách với giá niêm yết trên app Sản phẩm.</p>
+        <div id="bangGia"></div>
+        <div id="ghiGia" class="ghi-duoi"></div>
+      </div>
+
+      <div class="the rong">
+        <h2>Khách ở tỉnh nào <span class="nhan-ngoai">người được quảng cáo tiếp cận</span></h2>
+        <p class="phu">Lấy từ Meta Ads. Đây là người ĐƯỢC TIẾP CẬN, không phải người đã mua — dùng để chọn nơi nhắm quảng cáo.</p>
+        <div id="bdTinh"></div>
+      </div>
+
+      <div class="the">
+        <h2>Danh sách remarketing <span class="nhan-ngoai">không theo bộ lọc</span></h2>
+        <p class="phu">Khách đã từng mua nhưng lâu không quay lại.</p>
+        <div id="dsRemar"></div>
+      </div>
+
+      <div class="the">
+        <h2>Doanh thu theo loại dịch vụ</h2>
+        <div id="bdLoaiTien"></div>
+      </div>
+
+      <div class="the">
+        <h2>Sản phẩm ra tiền nhiều nhất</h2>
+        <p class="phu">Chia đều tiền đơn cho các dịch vụ trong đơn đó.</p>
+        <div id="bdTourTien"></div>
+      </div>
+
+      <div class="the">
+        <h2>Chất lượng hồ sơ</h2>
+        <p class="phu">Hồ sơ nào tin được, hồ sơ nào còn thiếu gì — để không nhầm số liệu.</p>
+        <div id="bdMuc"></div>
+        <div id="ghiHuy" class="ghi-duoi"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ---------- BẢN ĐỒ ---------- -->
+  <section class="man" id="man-ban-do">
+    <div class="canh-bao" id="canhBaoBanDo"></div>
+    <div id="banDo"></div>
+    <div class="the" style="margin-top:14px">
+      <h2>Khách theo quốc gia</h2>
+      <div id="bdNuoc"></div>
+    </div>
+  </section>
+
+  <!-- ---------- NHU CẦU ---------- -->
+  <section class="man" id="man-nhu-cau">
+    <div class="luoi-2">
+      <div class="the">
+        <h2>Loại dịch vụ</h2>
+        <p class="phu">Khách mua nhóm hàng nào — tour ghép, khách sạn, combo, vé…</p>
+        <div id="bdLoai"></div>
+      </div>
+      <div class="the">
+        <h2>Tour bán chạy</h2>
+        <p class="phu">Đếm theo số lần dịch vụ xuất hiện trong đơn.</p>
+        <div id="bdTour"></div>
+      </div>
+      <div class="the">
+        <h2>Mùa đi</h2>
+        <p class="phu">Theo ngày khởi hành ghi trên đơn — cho biết khách đi vào tháng nào.</p>
+        <div id="bdThang"></div>
+      </div>
+      <div class="the">
+        <h2>Giới tính</h2>
+        <div id="bdGioi"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ---------- CHÂN DUNG ---------- -->
+  <section class="man" id="man-chan-dung">
+    <div class="canh-bao" id="cdGhi"></div>
+    <div class="seg" id="segNhanh" style="margin-bottom:14px">
+      <button data-nhanh="b2c" class="dang">Khách lẻ (B2C)</button>
+      <button data-nhanh="b2b">Đại lý &amp; đối tác (B2B)</button>
+    </div>
+    <div id="cdDs" class="cd-ds"></div>
+
+    <div class="the rong" style="margin-top:14px">
+      <h2>Khách hỏi gì, lo gì <span class="nhan-ngoai">lời khách nói, không phải mình đoán</span></h2>
+      <p class="phu">Quét hội thoại Facebook và TikTok, chỉ đếm tin do KHÁCH gõ — đã loại trả lời tự động của page.</p>
+      <div id="htNut"><button id="btnQuet" class="btn">Quét hội thoại trong kỳ</button></div>
+      <div id="htKq"></div>
+    </div>
+  </section>
+
+  <!-- ---------- TRA CỨU ---------- -->
+  <section class="man" id="man-tra-cuu">
+    <div class="thanh-tim">
+      <input id="oTim" type="search" placeholder="Gõ số điện thoại, tên khách, hoặc mã KH…" autocomplete="off">
+      <select id="locMuc">
+        <option value="">Mọi mức đầy đủ</option>
+        <option value="đủ">đủ</option>
+        <option value="có số">có số, chưa mua</option>
+        <option value="chỉ tên">chỉ có tên</option>
+      </select>
+      <select id="locDon">
+        <option value="">Mua hay chưa</option>
+        <option value="1">đã có đơn</option>
+        <option value="0">chưa có đơn</option>
+      </select>
+      <span id="soKq" class="moc"></span>
+    </div>
+    <div id="dsKq" class="ds-kq"></div>
+  </section>
+</main>
+
+<!-- ngăn hồ sơ -->
+<div id="ngan" class="ngan" hidden>
+  <div class="ngan-nen"></div>
+  <div class="ngan-hop">
+    <div class="ngan-dau">
+      <div>
+        <h2 id="hsTen">—</h2>
+        <div id="hsPhu" class="phu"></div>
+      </div>
+      <button id="hsDong" class="btn nho">Đóng</button>
+    </div>
+    <div id="hsThan" class="ngan-than"></div>
+  </div>
+</div>
+
+<script src="bieudo.js?v=__V__"></script>
+<script src="app.js?v=__V__"></script>
+</body>
+</html>

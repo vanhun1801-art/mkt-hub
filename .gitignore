@@ -17,6 +17,7 @@
 !lark-ads-manager/
 !lark-ota-manager/
 !lark-social/
+!lark-khach-hang/
 !lark-kpi/
 !lark-chinh-anh/
 !lark-quy-chi-phi/
@@ -97,3 +98,8 @@ lark-lich-tac-nghiep/du-lieu/
 
 # Dữ liệu AI nhận xét tuần/tháng: có bảng mã ẩn danh → tên thật, không đưa lên git.
 lark-bao-cao/ai/du-lieu/
+
+# App Khách hàng: kho dữ liệu kéo từ Tourwell (~12 MB, 16.600 khách + 16.600
+# đơn). KHÔNG commit — nó đổi mỗi lần kéo, nặng, và kéo lại được bất cứ lúc
+# nào. Trên Render app tự kéo lúc khởi động.
+lark-khach-hang/du-lieu/

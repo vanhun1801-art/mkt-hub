@@ -1,0 +1,11 @@
+{
+  "name": "lark-khach-hang",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Hồ sơ khách hàng gom từ Tourwell, Pancake, Meta/TikTok Ads, Social và Lịch tác nghiệp",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/chay-het.js"
+  }
+}
