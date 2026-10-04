@@ -912,7 +912,25 @@ async function nap() {
   TQ = d.tq;
   MKT = d.mkt;
   TRUOC = d.truoc || null;
-  if (!MKT) return;
+  /* Chưa có kho thì phải NÓI RA giữa màn hình, không để trang trắng.
+   *
+   * Hai mươi phút đầu sau mỗi lần deploy là lúc kho chưa kéo xong — mà đó
+   * cũng đúng là lúc người ta mở xem. Một trang trắng với mấy ô số 0 trông y
+   * như "tháng này không có khách", và đó là hiểu nhầm tệ nhất app này có thể
+   * gây ra. */
+  if (!MKT) {
+    const m = $('#oSo');
+    m.innerHTML = '';
+    const o = el('div', 'o manh');
+    o.style.gridColumn = '1 / -1';
+    o.appendChild(el('b', null, d.dangKeo ? 'Đang kéo dữ liệu từ Tourwell…' : 'Chưa có dữ liệu'));
+    o.appendChild(el('span', null, d.dangKeo
+      ? 'Mất chừng mười lăm phút, số liệu đầy dần lên — bấm F5 sau vài phút. '
+        + 'Các con số hiện giờ CHƯA ĐỦ, đừng dùng để quyết định gì.'
+      : (d.loi || 'Bấm "Kéo lại từ Tourwell" ở góc trên bên phải.')));
+    m.appendChild(o);
+    return;
+  }
   veTongQuan();
   napQuangCao().catch(() => {});
   napGia().catch(() => {});
