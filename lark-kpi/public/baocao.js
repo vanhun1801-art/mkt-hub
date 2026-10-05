@@ -261,7 +261,7 @@ function bcChiPhi(c) {
   t.appendChild(el('header', '',
     '<span class="cham-tron" style="background:#d4a017"></span>'
     + '<h3>Chi phí toàn phòng</h3>'
-    + '<span class="phu">quảng cáo + quỹ chi phí</span>'));
+    + '<span class="phu">tiền phòng đi về đâu — quảng cáo + quỹ chi phí</span>'));
 
   if (!c.doc) {
     t.appendChild(el('div', 'than', '<div class="canhbao chan"><div>'
@@ -481,6 +481,29 @@ async function bcNapXuHuong(o) {
  * chung thang với ROAS. Trong một dòng thì các tháng so được với nhau, đó là
  * phép so duy nhất bảng này hứa hẹn.
  */
+/* Dòng nào hiện trên biểu đồ. Nhớ giữa các lần vẽ để bỏ tích một đường rồi đổi
+ * khoảng thời gian không bị bật lại. Rỗng = hiện bốn dòng đầu (mặc định). */
+var BC_XH_AN = {}; // eslint-disable-line no-var
+
+const BC_XH_MAU = ['#2b5cff', '#12a150', '#e0245e', '#f59e0b', '#8b5cf6',
+  '#0ea5a0', '#64748b', '#d946ef'];
+
+/**
+ * BẢNG XU HƯỚNG — biểu đồ ĐƯỜNG nhiều đường chồng lên nhau.
+ *
+ * Bản trước vẽ mỗi chỉ số một dãy cột nhỏ, mỗi dòng một thang riêng. Đúng số
+ * nhưng mười hai cột xám xếp cạnh nhau trên tám dòng thì mắt không bám được vào
+ * đâu — nhìn ra một khối ô vuông chứ không nhìn ra xu hướng. Đường thì thấy
+ * ngay dốc lên hay dốc xuống, và chồng nhiều đường lên một khung mới so được
+ * "doanh thu rơi trong khi chi phí đứng yên".
+ *
+ * CHUẨN HOÁ VỀ % CỦA ĐỈNH CHÍNH NÓ. Chi phí 68 triệu không thể chung thang với
+ * ROAS 5,92 — chung thang thì ROAS dẹp thành đường kẻ sát đáy. Mỗi đường chia
+ * cho tháng cao nhất của chính nó, nên trục dọc đọc là "so với lúc đỉnh của
+ * chỉ số đó". Cái mất đi là không so được độ cao giữa hai đường; cái được là so
+ * được HÌNH DÁNG, mà xu hướng chính là hình dáng. Số thật vẫn in đủ ở bảng
+ * ngay dưới và hiện khi rê chuột.
+ */
 function bcXuHuong(x) {
   const t = el('div', 'the');
   const nhanThang = (th) => 'T' + Number(th.slice(5));
@@ -499,9 +522,21 @@ function bcXuHuong(x) {
   });
   t.appendChild(chon);
 
+  /* Mặc định hiện bốn dòng đầu. Tám đường cùng lúc thì rối hơn là rõ — người
+   * xem tự tích thêm dòng nào cần. */
+  const hien = (r, i) => (BC_XH_AN[r.nhan] === undefined ? i < 4 : !BC_XH_AN[r.nhan]);
+
+  const khung = el('div', 'bieu-do');
+  const veLai = () => {
+    khung.innerHTML = '';
+    khung.appendChild(bcXhDuong(x, hien));
+    khung.appendChild(bcXhChuThich(x, hien, veLai));
+  };
+  veLai();
+  t.appendChild(khung);
+
+  /* Bảng số thật — biểu đồ chỉ nói hình dáng, bảng nói con số. */
   const bang = el('div', 'xh');
-  /* Số cột do dữ liệu quyết định (3 · 6 · 12 tháng), nên lưới phải nhận từ JS
-   * chứ không viết cứng trong CSS. */
   bang.style.setProperty('--xh-n', x.thang.length);
   const dau = el('div', 'xh-hang xh-dau');
   dau.innerHTML = '<div class="xh-ten"></div>'
@@ -509,9 +544,8 @@ function bcXuHuong(x) {
     + '<div class="xh-lech">so tháng đầu có số</div>';
   bang.appendChild(dau);
 
-  x.dong.forEach((r) => {
-    const co = r.diem.filter((p) => p.so != null && p.so !== 0);
-    const max = Math.max(1, ...r.diem.map((p) => Math.abs(p.so || 0)));
+  x.dong.forEach((r, i) => {
+    const co = r.diem.filter((q) => q.so != null && q.so !== 0);
     /* Cần ÍT NHẤT HAI tháng có số mới nói được xu hướng. App Quảng cáo mới nối
      * từ T8, nên trong bảng tới T8 nó chỉ có đúng một điểm — lấy điểm đó làm cả
      * mốc đầu lẫn mốc cuối thì ra "▼ 0%", đọc như đứng yên trong khi thật ra là
@@ -524,29 +558,13 @@ function bcXuHuong(x) {
     }
     const mauLech = lech == null || r.trungTinh ? 'im' : (lech > 0 ? 'tot' : 'xau');
 
-    const h = el('div', 'xh-hang');
-    h.innerHTML = '<div class="xh-ten">' + esc(r.nhan) + '</div>'
-      + r.diem.map((pt, i) => {
-        /* Tháng KHÔNG ĐỌC ĐƯỢC vẽ ô gạch chéo, không vẽ cột cao 0 — cột thấp
-         * đọc thành "tháng đó làm kém", trong khi sự thật là chưa có số. */
-        if (pt.so == null) {
-          return '<div class="xh-o"><div class="xh-cot"><i class="trong"></i></div>'
-            + '<b class="trong">—</b></div>';
-        }
-        const cuoi = i === r.diem.length - 1;
-        /* Vạch mục tiêu nằm ngay trên cột, chỉ vẽ khi tháng đó có đặt mục tiêu. */
-        const vach = pt.mucTieu
-          ? '<u style="bottom:' + Math.min(100, (pt.mucTieu / max) * 100) + '%"></u>' : '';
-        return '<div class="xh-o" title="' + esc(nhanThang(pt.thang)) + ': '
-          + gon(pt.so) + (pt.mucTieu ? ' · mục tiêu ' + gon(pt.mucTieu) : '') + '">'
-          + '<div class="xh-cot">' + vach
-          + '<i class="' + (cuoi ? 'nay' : '') + '" style="height:'
-          + Math.max(2, (Math.abs(pt.so) / max) * 100) + '%"></i></div>'
-          + '<b' + (cuoi ? ' class="nay"' : '') + '>' + bcSo(pt.so, r.dinhDang) + '</b></div>';
-      }).join('')
-      /* Mốc so là tháng ĐẦU TIÊN CÓ SỐ, không phải tháng đầu bảng: app Quảng
-       * cáo mới có dữ liệu từ T8, lấy T4 làm mốc thì ra "+∞%". Nói rõ mốc nào
-       * trong tooltip, vì cùng một cột mà mỗi dòng có thể so từ tháng khác. */
+    const h = el('div', 'xh-hang' + (hien(r, i) ? ' sang' : ''));
+    h.innerHTML = '<div class="xh-ten"><i style="background:'
+      + (hien(r, i) ? BC_XH_MAU[i % BC_XH_MAU.length] : 'transparent') + '"></i>'
+      + esc(r.nhan) + '</div>'
+      + r.diem.map((pt, k) => '<div class="xh-o"><b'
+        + (k === r.diem.length - 1 ? ' class="nay"' : (pt.so == null ? ' class="trong"' : ''))
+        + '>' + (pt.so == null ? '—' : bcSo(pt.so, r.dinhDang)) + '</b></div>').join('')
       + '<div class="xh-lech ' + mauLech + '"' + (dauKy
         ? ' title="so ' + nhanThang(cuoiKy.thang) + ' với ' + nhanThang(dauKy.thang)
           + ' — tháng đầu tiên có số ở dòng này"' : '') + '>'
@@ -555,18 +573,100 @@ function bcXuHuong(x) {
       + '</div>';
     bang.appendChild(h);
   });
-  t.appendChild(el('div', 'bieu-do', ''));
-  t.lastChild.appendChild(bang);
+  khung.appendChild(bang);
 
-  const chu = ['<b>Mỗi dòng có thang riêng</b> — các tháng trong cùng một dòng so '
-    + 'được với nhau, chiều cao giữa các dòng thì không. Cột cuối là tháng đang xem. '
-    + 'Vạch ngang trên cột là mục tiêu tháng đó, chỉ hiện khi bộ luật KPI đã đặt.'];
+  const chu = ['Mỗi đường chia cho tháng cao nhất của chính nó, nên trục dọc đọc là '
+    + '<b>“so với lúc đỉnh của chỉ số đó”</b> — so được hình dáng giữa các đường, '
+    + 'không so được độ cao. Chi phí hàng chục triệu không thể chung thang với ROAS '
+    + 'một con số. Số thật nằm ở bảng ngay trên và hiện khi rê chuột lên điểm.'];
   if ((x.thieu || []).length) {
     chu.push('Tháng đọc thiếu base: ' + x.thieu.map((k) => nhanThang(k.thang)
       + ' (' + k.doc + '/' + k.tong + ')').join(', ') + '.');
   }
   t.appendChild(el('div', 'than nho nhat', chu.join(' ')));
   return t;
+}
+
+/** Khung SVG của biểu đồ đường. `hien(r,i)` quyết định đường nào được vẽ. */
+function bcXhDuong(x, hien) {
+  const W = 1000;
+  const H = 300;
+  const L = 44;
+  const R = 14;
+  const T = 14;
+  const B = 34;
+  const n = x.thang.length;
+  const cx = (i) => (n < 2 ? L : L + (i * (W - L - R)) / (n - 1));
+  const cy = (pt) => T + (1 - pt / 100) * (H - T - B);
+  const ve = [];
+
+  /* Lưới ngang bốn vạch. Nhãn là phần trăm của đỉnh, không phải số thật —
+   * ghi "% đỉnh" ngay trên trục để không ai đọc nhầm thành giá trị. */
+  [0, 25, 50, 75, 100].forEach((v) => {
+    const y = cy(v);
+    ve.push('<line x1="' + L + '" y1="' + y + '" x2="' + (W - R) + '" y2="' + y
+      + '" stroke="var(--vien-mem)" stroke-width="1"/>');
+    ve.push('<text x="' + (L - 8) + '" y="' + (y + 4) + '" text-anchor="end" '
+      + 'font-size="11" fill="var(--chu-nhat)">' + v + '%</text>');
+  });
+  x.thang.forEach((th, i) => {
+    ve.push('<text x="' + cx(i) + '" y="' + (H - 12) + '" text-anchor="middle" '
+      + 'font-size="11.5" fill="var(--chu-nhat)">T' + Number(th.slice(5)) + '</text>');
+  });
+
+  x.dong.forEach((r, i) => {
+    if (!hien(r, i)) return;
+    const mau = BC_XH_MAU[i % BC_XH_MAU.length];
+    const dinh = Math.max(0, ...r.diem.map((q) => Math.abs(q.so || 0)));
+    if (!dinh) return;
+    /* Tháng KHÔNG ĐỌC ĐƯỢC thì ĐỨT ĐƯỜNG, không nối thẳng qua. Nối qua là vẽ ra
+     * một đoạn dốc chưa từng xảy ra. */
+    const doan = [];
+    let cur = [];
+    r.diem.forEach((q, k) => {
+      if (q.so == null) { if (cur.length) doan.push(cur); cur = []; return; }
+      cur.push([cx(k), cy((Math.abs(q.so) / dinh) * 100)]);
+    });
+    if (cur.length) doan.push(cur);
+    doan.forEach((d) => {
+      if (d.length === 1) return;
+      ve.push('<polyline fill="none" stroke="' + mau + '" stroke-width="2.2" '
+        + 'stroke-linejoin="round" stroke-linecap="round" points="'
+        + d.map((q) => q[0] + ',' + q[1]).join(' ') + '"/>');
+    });
+    r.diem.forEach((q, k) => {
+      if (q.so == null) return;
+      const y = cy((Math.abs(q.so) / dinh) * 100);
+      ve.push('<circle cx="' + cx(k) + '" cy="' + y + '" r="3.2" fill="' + mau + '">'
+        + '<title>' + esc(r.nhan) + ' · T' + Number(x.thang[k].slice(5)) + ': '
+        + gon(q.so) + (q.mucTieu ? ' · mục tiêu ' + gon(q.mucTieu) : '') + '</title></circle>');
+    });
+  });
+
+  const o = el('div', 'xd');
+  /* KHÔNG dùng preserveAspectRatio="none": khung rộng 1150px mà viewBox 1000px
+   * thì mọi chữ trong SVG bị kéo ngang 15%, nhìn nhoè như lỗi phông. Để tỷ lệ
+   * mặc định và cho CSS tính chiều cao theo bề ngang. */
+  o.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" '
+    + 'role="img" aria-label="Xu hướng các chỉ số theo tháng">' + ve.join('') + '</svg>';
+  return o;
+}
+
+/** Chú thích kiêm nút bật/tắt từng đường. */
+function bcXhChuThich(x, hien, veLai) {
+  const o = el('div', 'xd-ct');
+  x.dong.forEach((r, i) => {
+    const bat = hien(r, i);
+    const cuoi = [...r.diem].reverse().find((q) => q.so != null);
+    const b = el('button', 'xd-nut' + (bat ? '' : ' tat'));
+    b.innerHTML = '<i style="background:' + BC_XH_MAU[i % BC_XH_MAU.length] + '"></i>'
+      + '<span>' + esc(r.nhan) + '</span>'
+      + '<b>' + (cuoi ? bcSo(cuoi.so, r.dinhDang) : '—') + '</b>';
+    b.title = bat ? 'Bấm để ẩn đường này' : 'Bấm để hiện đường này';
+    b.onclick = () => { BC_XH_AN[r.nhan] = bat; veLai(); };
+    o.appendChild(b);
+  });
+  return o;
 }
 
 /**

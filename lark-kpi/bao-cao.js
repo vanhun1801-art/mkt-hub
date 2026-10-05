@@ -1464,7 +1464,12 @@ function gomChiPhi(base) {
   };
   const qc = lay('quang-cao', 'Chi tiêu');
   const quy = lay('quy-chi-phi', 'Chi trong kỳ');
-  const dt = lay('quang-cao', 'Doanh thu từ QC');
+  /* KHÔNG lấy doanh thu vào khối này nữa. Khối này trả lời đúng MỘT câu: tiền
+   * của phòng đi về đâu. Đặt doanh thu ghi công cho quảng cáo cạnh tổng chi thì
+   * người đọc tự bắc cầu thành "phòng lãi bao nhiêu" — mà hai con số đó không
+   * so được: doanh thu ghi công chỉ là phần nền tảng quảng cáo tự nhận, còn chi
+   * thì gồm cả quỹ, tác nghiệp, KOL. Doanh thu vẫn còn nguyên trong khối Quảng
+   * cáo, đứng cạnh chi quảng cáo — đúng chỗ của nó. */
 
   /* Hạng mục chi — lấy thẳng bảng "Theo loại chi" của app Quỹ và bảng "Theo nền
    * tảng" của app Quảng cáo, gộp thành MỘT danh sách hạng mục của cả phòng.
@@ -1504,21 +1509,21 @@ function gomChiPhi(base) {
         ghi: tong ? Math.round((qc.so / tong) * 100) + '% tổng chi' : '' },
       { nhan: 'Chi từ quỹ', so: quy.so, dinhDang: 'vnd', lech: quy.lech, trungTinh: true,
         ghi: tong ? Math.round((quy.so / tong) * 100) + '% tổng chi' : '' },
-      /* Doanh thu ghi công được cho quảng cáo, KHÔNG phải doanh thu cả phòng —
-       * nên chỉ đặt cạnh chi quảng cáo, không chia cho tổng chi. */
-      { nhan: 'Doanh thu ghi công cho QC', so: dt ? dt.so : 0, dinhDang: 'vnd',
-        lech: dt ? dt.lech : null,
-        ghi: dt && dt.so ? '' : 'chưa ghi công được đơn nào' },
+      { nhan: 'Số hạng mục đã chi', so: hangMuc.length, dinhDang: 'so',
+        ghi: hangMuc.length ? 'lớn nhất: ' + hangMuc[0].nhan : '' },
+      { nhan: 'Hạng mục lớn nhất chiếm', so: tong && hangMuc.length
+        ? (hangMuc[0].so / tong) * 100 : 0, dinhDang: 'pt', trungTinh: true,
+        ghi: hangMuc.length ? hangMuc[0].nhan : '' },
     ],
     tron: {
-      nhan: 'Tiền phòng đi về đâu',
+      nhan: 'Tiền phòng đi về đâu — theo ví',
       giua: 'Tổng chi',
       phan: [{ nhan: 'Quảng cáo', so: qc.so }, { nhan: 'Quỹ chi phí', so: quy.so }]
         .filter((x) => x.so > 0),
     },
     hangMuc,
     bang: [
-      { tieuDe: 'Chi theo hạng mục — cả phòng',
+      { tieuDe: 'Chi theo hạng mục — tiền đi vào việc gì',
         cot: ['Hạng mục', 'Ví tiền', 'Số khoản', 'Số tiền', '% tổng chi'],
         soCot: [2, 3, 4],
         dong: hangMuc.map((x) => [x.nhan, x.vi, x.soKhoan == null ? '—' : x.soKhoan, x.so,
