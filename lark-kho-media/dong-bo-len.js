@@ -7,6 +7,7 @@
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
+const crypto = require('crypto');
 const { execFile } = require('child_process');
 const { DL, docMedia, docThe } = require('./chi-muc');
 
@@ -24,9 +25,14 @@ function dongGoi() {
   const items = d.items.map(i => [i.t, i.ten, i.duong.join('/'), i.loai, i.nam || 0, i.mod, i.tn || '']);
   const theCo = {}; for (const i of d.items) if (the[i.t]) theCo[i.t] = the[i.t];
   const tm = [...d.tm.entries()];
-  const goi = { phien: 1, luc: Date.now(), quetLuc: d.quetLuc, loaiNhayCam: d.loaiNhayCam, gop: d.gop, items, the: theCo, tm, lich: d.lich, dongNghia };
+  const goi = { phien: 1, luc: 0, quetLuc: d.quetLuc, loaiNhayCam: d.loaiNhayCam, gop: d.gop, items, the: theCo, tm, lich: d.lich, dongNghia };
+  /* Băm nội dung KHÔNG kể mốc giờ đóng gói: hai gói cùng dữ liệu thì cùng mã băm, dayLen() dựa
+     vào đó để khỏi đẩy lại 3 MB lên Drive mỗi 15 phút khi chẳng có gì mới. */
+  bamGoiCuoi = crypto.createHash('sha1').update(JSON.stringify(goi)).digest('hex');
+  goi.luc = Date.now();
   return zlib.gzipSync(Buffer.from(JSON.stringify(goi)), { level: 9 });
 }
+let bamGoiCuoi = '';
 
 function cli(args, cwd) {
   return new Promise((ok, loi) => execFile(process.execPath, [CLI, ...args, '--format', 'json'], { cwd, timeout: 180000, maxBuffer: 5e6 }, (e, out) => {
@@ -40,13 +46,15 @@ async function dayLen() {
   try { cfg = JSON.parse(fs.readFileSync(CAU_HINH, 'utf8')); } catch (e) {}
   if (!cfg.thuMuc) throw new Error('dong-bo.json chưa có thuMuc (thư mục Drive chứa gói chỉ mục)');
   const buf = dongGoi();
+  /* Cùng nội dung với lần đẩy trước (mã băm lưu trong dong-bo.json nên sống qua lần bật lại) → thôi */
+  if (cfg.file && cfg.bam === bamGoiCuoi) return { bytes: buf.length, file: cfg.file, boQua: true };
   const tam = path.join(DL, 'goi-chi-muc.json.gz');
   fs.writeFileSync(tam, buf);
   const args = ['drive', '+upload', '--file', path.basename(tam), '--name', 'kho-media-chi-muc.json.gz'];
   if (cfg.file) args.push('--file-token', cfg.file); else args.push('--folder-token', cfg.thuMuc);
   const r = await cli(args, DL);
   const token = r.file_token || (r.file && r.file.token) || cfg.file;
-  if (!cfg.file && token) { cfg.file = token; fs.writeFileSync(CAU_HINH, JSON.stringify(cfg, null, 2) + '\n'); }
+  if (token) { cfg.file = token; cfg.bam = bamGoiCuoi; fs.writeFileSync(CAU_HINH, JSON.stringify(cfg, null, 2) + '\n'); }
   return { bytes: buf.length, file: token };
 }
 

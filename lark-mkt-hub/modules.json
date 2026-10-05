@@ -379,6 +379,8 @@
       "mau": "#289683",
       "kieu": "local",
       "thuMuc": "../lark-khach-hang",
+      "_thuApi": "app Khách hàng không có /api/meta; /api/tong-quan là JSON nhẹ nhất (6ms cho 16 nghìn hồ sơ), đủ chứng minh JSON đi xuyên proxy",
+      "thuApi": "/api/tong-quan",
       "cong": 5190,
       "lenh": [
         "node",

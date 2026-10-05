@@ -611,6 +611,7 @@ td .phu { font-size: 11.5px; color: var(--ink-3); white-space: normal; margin-to
    --------------------------------------------------------------------- */
 @media (max-width: 640px) {
   .tab .badge { font-size: 12.5px; }                             /* 11 */
+  .nhom-id { font-size: 12.5px; }       /* 11 — đã ẩn từ 720px, giữ sàn cho đủ cặp luật */
   .fgroup > label { font-size: 12.5px; }                         /* 11 */
   .alert .a-kind { font-size: 12.5px; }                          /* 11 */
   .kpi .k-label { font-size: 13px; }                             /* 11.5 */

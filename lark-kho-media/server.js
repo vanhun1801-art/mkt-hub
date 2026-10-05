@@ -342,7 +342,10 @@ function henDayLen() {
   if (ONLINE || process.env.KHO_DAY_TAT === '1') return;
   clearTimeout(henDay);
   henDay = setTimeout(async () => {
-    try { const r = await dongBoLen.dayLen(); lanDay = Date.now(); console.log('Đã đẩy gói chỉ mục lên Drive (' + Math.round(r.bytes / 1024) + ' KB)'); }
+    try {
+      const r = await dongBoLen.dayLen(); lanDay = Date.now();
+      console.log(r.boQua ? 'Gói chỉ mục không đổi so với bản trên Drive — không đẩy lại' : 'Đã đẩy gói chỉ mục lên Drive (' + Math.round(r.bytes / 1024) + ' KB)');
+    }
     catch (e) { console.log('Đẩy gói chỉ mục lỗi:', e.message); }
   }, Math.max(60e3, lanDay + 10 * 60e3 - Date.now()));
 }

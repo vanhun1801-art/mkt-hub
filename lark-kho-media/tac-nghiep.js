@@ -18,6 +18,10 @@ const QUET_LAI = 3600e3, CUA_SO = 3 * 86400e3;
 
 let du = { lich: {}, thuMuc: {}, luc: 0 };
 try { du = JSON.parse(fs.readFileSync(FILE, 'utf8')); } catch (e) {}
+/* Nội dung lần ghi gần nhất (không kể mốc giờ). Lượt 15 phút mà Base và thư mục không đổi thì
+   KHÔNG ghi file: ghi là watchFile ở server.js nạp lại 97 nghìn media rồi đẩy gói 3 MB lên Drive —
+   bản Render lại tải về nạp lại — tất cả chỉ vì `luc` đổi (đo 05/10/2026: 53 lượt một đêm). */
+let noiDungCu = JSON.stringify({ lich: du.lich, thuMuc: du.thuMuc });
 
 const chu = v => typeof v === 'string' ? v : Array.isArray(v) ? v.map(chu).join(', ') : (v && typeof v === 'object' ? (v.name || v.text || '') : '');
 const ngay = v => { const t = Date.parse(chu(v)); return isNaN(t) ? 0 : t; };
@@ -82,9 +86,14 @@ async function dongBo() {
       }
     }
     du.lich = lich; du.luc = nay;
-    fs.writeFileSync(FILE + '.tmp', JSON.stringify(du));
-    fs.renameSync(FILE + '.tmp', FILE);
-    return { lich: Object.keys(lich).length, quet };
+    const noiDung = JSON.stringify({ lich: du.lich, thuMuc: du.thuMuc });
+    const doi = noiDung !== noiDungCu;
+    if (doi) {
+      fs.writeFileSync(FILE + '.tmp', JSON.stringify(du));
+      fs.renameSync(FILE + '.tmp', FILE);
+      noiDungCu = noiDung;
+    }
+    return { lich: Object.keys(lich).length, quet, doi };
   })().catch(e => { console.log('Đồng bộ lịch tác nghiệp lỗi:', e.message); return null; }).finally(() => { dang = null; });
   return dang;
 }
