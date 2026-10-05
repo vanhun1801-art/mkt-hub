@@ -2978,7 +2978,23 @@ function moKetQuaTourwell(tw, t, sq) {
   const coDon = !!tw.ma;
   const twImLang = !tw.ma && !tw.loi;         // tắt, hoặc bỏ qua vì không có chi phí
 
-  if (twImLang && !sq) return;                // chẳng có gì xảy ra, đừng làm phiền
+  /* Không có gì xảy ra thật thì đừng làm phiền — TRỪ khi lý do là "chưa có chi
+   * phí", vì đó là thứ người bấm cần biết để đi điền. */
+  if (twImLang && !sq && tw.bo !== 'khong-co-chi-phi') return;
+
+  /* CHƯA GHI CHI PHÍ THỰC TẾ: không tạo đơn, không ghi sổ quỹ — đúng, vì
+   * không ai dựng được một đơn 0 đồng. Nhưng phải NÓI RA.
+   *
+   * Bản trước im lặng tuyệt đối: bấm "Đã thanh toán" trên một lịch chưa điền
+   * chi phí thì màn hình không nhúc nhích, không đơn, không dòng sổ quỹ. Nhìn
+   * y như nút hỏng — anh Hùng báo "có vẻ lỗi" ngày 05/10/2026, và hai lịch
+   * đúng kiểu đó đang nằm trong sổ (HỘI CHỢ VIỆT HÀN 04/10, Khảo sát tour
+   * Jeep 02/10). Im lặng sau một cú bấm cố ý là một lỗi, dù máy chạy đúng. */
+  const chuaCoTien = (x) => x && x.bo === 'khong-co-chi-phi';
+  if (chuaCoTien(tw) || chuaCoTien(sq)) {
+    return toast('Đã đánh dấu thanh toán. Chưa tạo đơn Tourwell và chưa ghi sổ quỹ '
+      + 'vì lịch này chưa điền Chi phí thực tế — điền xong, bấm lại nút này.', 'err');
+  }
 
   /* Chỉ có sổ quỹ: cửa sổ gọn, không kê 5 việc Tourwell vì chẳng có đơn nào. */
   if (twImLang) {
