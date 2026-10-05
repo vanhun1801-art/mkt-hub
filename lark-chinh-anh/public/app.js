@@ -304,8 +304,8 @@
     const m = S.meta || {};
     const t = S.tong;
     $('#brandSub').textContent = t
-      ? `${n0(t.soBaoCao)} lô · ${n0(t.soAnh)} ảnh · ${n0(t.soVideo)} video · nhóm ${(m.nhom || {}).ten || '—'}`
-      : `nhóm nhận báo cáo: ${(m.nhom || {}).ten || 'chưa chọn'}`;
+      ? `${n0(t.soBaoCao)} lô · ${n0(t.soAnh)} ảnh · ${n0(t.soVideo)} video · nhóm ${tenCacNhom(m)}`
+      : `nhóm nhận báo cáo: ${tenCacNhom(m)}`;
   }
 
   async function napDs() {
@@ -434,7 +434,7 @@
           </div>
 
           <div class="sticky-actions">
-            <label class="oGui"><input type="checkbox" id="fGui"${S.form.gui ? ' checked' : ''}> Gửi tin về nhóm ${esc((m0.nhom || {}).ten || '—')}</label>
+            <label class="oGui"><input type="checkbox" id="fGui"${S.form.gui ? ' checked' : ''}> Gửi tin về ${esc(tenCacNhom(m0))}</label>
             <button class="btn primary" id="btnGui"${S.dangGui ? ' disabled' : ''}>${S.dangGui ? 'Đang gửi…' : 'Báo cáo ' + n0(S.form.muc.length) + ' mục'}</button>
           </div>
         </div>
@@ -810,7 +810,11 @@
       const noi = r.soMoi
         ? ('Đã ghi ' + r.soMoi + ' lô mới' + (cu ? ' và cập nhật ' + cu + ' lô cũ' : ''))
         : ('Đã cập nhật ' + cu + ' lô cũ');
-      if (f.gui && r.gui.ok) toast(noi + ', đã gửi nhóm ' + r.nhom.ten + '.');
+      /* Nói rõ ĐÃ vào nhóm nào. Gửi nhiều nhóm mà chỉ báo "đã gửi nhóm X" thì
+       * nhóm thứ hai trượt cũng không ai biết. */
+      const vaoNhom = (r.gui.daGui && r.gui.daGui.length)
+        ? r.gui.daGui.join(', ') : (r.nhom ? r.nhom.ten : 'nhóm');
+      if (f.gui && r.gui.ok) toast(noi + ', đã gửi ' + vaoNhom + '.');
       else if (f.gui) toast(noi + ', nhưng KHÔNG gửi được nhóm: ' + r.gui.loi, 'err');
       else toast(noi + ' (không gửi nhóm).');
       if (r.gui.canhBao) toast(r.gui.canhBao, 'err');
@@ -1142,13 +1146,13 @@
     $('#view').innerHTML = `
     <div class="grid g-2-1 dinh-tren">
       <div class="card">
-        <div class="card-head"><h3>Nhóm chat nhận báo cáo</h3><span class="sub">${esc((m.nhom || {}).ten || '—')}</span></div>
+        <div class="card-head"><h3>Nhóm chat nhận báo cáo</h3><span class="sub">${esc(tenCacNhom(m))}</span></div>
         <div class="card-body">
           ${veNguoiGui(m.nguoiGui)}
           ${ql ? `<div class="field full">
-            <label>Chọn nhóm</label>
-            <select id="cNhom"><option value="">— đang tải danh sách nhóm —</option></select>
-            <div class="hint" id="cNhomId">${esc((m.nhom || {}).id || '')}</div>
+            <label>Chọn nhóm — tích được nhiều nhóm</label>
+            <div class="ds-nhom" id="cNhom"><div class="hint">đang tải danh sách nhóm…</div></div>
+            <div class="hint">Mỗi lần báo cáo, tin gửi vào TẤT CẢ nhóm được tích.</div>
           </div>
           <div class="sticky-actions"><button class="btn primary" id="cLuu" disabled>Lưu nhóm</button></div>`
         : '<div class="empty">Chỉ quản lý đổi được nhóm nhận báo cáo.</div>'}
@@ -1203,30 +1207,57 @@
     </div></div>`;
   }
 
+  /** Tên các nhóm đang nhận báo cáo, viết gọn cho dòng phụ. */
+  function tenCacNhom(m) {
+    const ds = (m && m.dsNhom) || [];
+    if (!ds.length) return ((m && m.nhom) || {}).ten || '—';
+    if (ds.length <= 2) return ds.map((x) => x.ten).join(' + ');
+    return ds[0].ten + ' + ' + (ds.length - 1) + ' nhóm nữa';
+  }
+
   async function napNhom() {
+    const hop = $('#cNhom');
+    if (!hop) return;
     try {
       const r = await goi('/api/quan-ly/nhom');
-      const dang = (S.meta.nhom || {}).id;
-      const sel = $('#cNhom');
-      if (!sel) return;
-      sel.innerHTML = r.nhom.map((c) =>
-        `<option value="${esc(c.id)}"${c.id === dang ? ' selected' : ''}>${esc(c.ten || c.id)}</option>`).join('');
+      const dangChon = new Set(((S.meta.dsNhom || [])).map((x) => x.id));
+      /* Chưa lưu danh sách nào thì tích sẵn nhóm hiện hành, để bấm Lưu ngay cũng
+       * không vô tình bỏ mất nhóm đang dùng. */
+      if (!dangChon.size && (S.meta.nhom || {}).id) dangChon.add(S.meta.nhom.id);
+
+      /* Nhóm đang nhận báo cáo xếp lên đầu — phòng có gần 50 nhóm, không đưa lên
+       * thì phải cuộn đi tìm mới biết đang gửi vào đâu. */
+      const ds = r.nhom.slice().sort((a, b) =>
+        (dangChon.has(b.id) - dangChon.has(a.id)) || String(a.ten || '').localeCompare(String(b.ten || ''), 'vi'));
+
+      hop.innerHTML = ds.map((c) => `<label class="nhom-dong">
+        <input type="checkbox" value="${esc(c.id)}"${dangChon.has(c.id) ? ' checked' : ''}>
+        <span class="nhom-ten">${esc(c.ten || c.id)}</span>
+        <span class="nhom-id mono">${esc(c.id)}</span>
+      </label>`).join('') || '<div class="hint">Bot chưa ở trong nhóm nào.</div>';
+
       $('#cLuu').disabled = false;
-      sel.onchange = () => { $('#cNhomId').textContent = sel.value; };
       $('#cLuu').onclick = async () => {
-        const ten = sel.options[sel.selectedIndex].textContent;
+        const chon = [...hop.querySelectorAll('input:checked')].map((o) => ({
+          id: o.value,
+          ten: (o.parentNode.querySelector('.nhom-ten') || {}).textContent || o.value,
+        }));
+        if (!chon.length) return toast('Tích ít nhất một nhóm.', 'err');
         $('#cLuu').disabled = true;
         try {
-          const kq = await goiJSON('/api/quan-ly/nhom', { id: sel.value, ten });
+          const kq = await goiJSON('/api/quan-ly/nhom', { ds: chon });
           S.meta.nhom = kq.nhom;
-          toast('Báo cáo sẽ gửi về nhóm ' + kq.nhom.ten + '.');
+          S.meta.dsNhom = kq.ds || chon;
+          toast(kq.ds && kq.ds.length > 1
+            ? 'Báo cáo sẽ gửi về ' + kq.ds.length + ' nhóm: ' + kq.ds.map((x) => x.ten).join(', ') + '.'
+            : 'Báo cáo sẽ gửi về nhóm ' + kq.nhom.ten + '.');
           capNhatPhu();
+          ve();
         } catch (e) { toast(e.message, 'err'); }
         $('#cLuu').disabled = false;
       };
     } catch (e) {
-      const sel = $('#cNhom');
-      if (sel) sel.innerHTML = '<option value="">' + esc(e.message) + '</option>';
+      hop.innerHTML = '<div class="hint canh">' + esc(e.message) + '</div>';
     }
   }
 

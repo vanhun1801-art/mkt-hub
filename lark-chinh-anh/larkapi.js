@@ -251,11 +251,21 @@ async function guiTin({ chatId, userId, email, text, card, khoa }) {
 }
 
 /** Chế độ api không tra được "nhóm của người đang đăng nhập" — trả nhóm bot đang ở. */
+/** Mọi nhóm bot đang ở trong — lật hết trang, xem lý do ở lark.js cùng tên hàm. */
 async function dsNhom() {
+  const tat = [];
+  let tok = '';
   try {
-    const d = await call('GET', '/open-apis/im/v1/chats?page_size=100');
-    return (d.items || []).map((c) => ({ id: c.chat_id, ten: c.name, che_do: c.chat_mode }));
-  } catch (_) { return []; }
+    for (let i = 0; i < 20; i++) {
+      const d = await call('GET', '/open-apis/im/v1/chats?page_size=100'
+        + (tok ? '&page_token=' + encodeURIComponent(tok) : ''));
+      tat.push(...(d.items || []));
+      const tiep = d.has_more ? (d.page_token || '') : '';
+      if (!tiep || tiep === tok) break;
+      tok = tiep;
+    }
+  } catch (_) { /* trả về những gì đã lấy được */ }
+  return tat.map((c) => ({ id: c.chat_id, ten: c.name, che_do: c.chat_mode }));
 }
 
 

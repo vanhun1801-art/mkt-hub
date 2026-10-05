@@ -133,24 +133,42 @@ function nhomChat(d) {
 }
 
 /**
+ * TẤT CẢ nhóm nhận báo cáo — một báo cáo có thể phải vào nhiều nhóm.
+ *
+ * Anh Hiển nhờ đẩy thông báo sửa ảnh lên cả nhóm "CSKH - ẢNH,VIDEO" bên cạnh
+ * nhóm SỬA ẢNH (05/10/2026): Media kiểm ảnh ở một nhóm, CSKH lấy ảnh gửi khách ở
+ * nhóm khác. Bắt người chỉnh báo cáo hai lần là kiểu gì cũng có lần quên một bên.
+ *
+ * Lưu ở ô `chat_ds` dạng JSON [{id, ten}]. Chưa có ô đó thì lùi về cặp
+ * `chat_id`/`chat_ten` của bản một-nhóm — mọi cài đặt cũ vẫn chạy nguyên.
+ */
+function dsNhomChat(d) {
+  const c = (d && d.caiDat) || {};
+  const tho = String(c['chat_ds'] || '').trim();
+  if (tho) {
+    try {
+      const ds = JSON.parse(tho);
+      const sach = (Array.isArray(ds) ? ds : [])
+        .filter((x) => x && /^oc_[A-Za-z0-9]+$/.test(String(x.id || '')))
+        .map((x) => ({ id: String(x.id), ten: String(x.ten || x.id) }));
+      /* Bỏ trùng: chọn nhầm một nhóm hai lần là nhóm đó nhận hai tin giống hệt. */
+      const theoId = new Map(sach.map((x) => [x.id, x]));
+      if (theoId.size) return [...theoId.values()];
+    } catch (_) { /* ô hỏng thì lùi về cách cũ, đừng để cả app không gửi được */ }
+  }
+  const mot = nhomChat(d);
+  return mot.id ? [mot] : [];
+}
+
+/**
  * Gửi một tin vào nhóm. Thẻ trước, hỏng thì lùi về text thuần.
  *
  * Vì sao có đường lùi: schema thẻ là thứ Lark siết lại được bất cứ lúc nào, và khi
  * đó cả luồng báo cáo đứng. Báo cáo đã ghi vào Base rồi thì tin nhắn KHÔNG được
  * phép làm vỡ cả yêu cầu — nên hàm này không bao giờ throw, chỉ trả kết quả.
  */
-async function guiVeNhom({ chatId, card, text, khoa, baoCaoId, baoCaoIds }) {
-  /* Một tin có thể thuộc NHIỀU lô (một lần báo cáo nhiều mục) — nhật ký nối vào lô
-   * đầu, còn dấu "đã gửi" phải đóng cho TẤT CẢ, không thì các lô sau vẫn hiện
-   * "chưa gửi" trong khi nhóm đã nhận tin rồi. */
-  const ids = (baoCaoIds && baoCaoIds.length ? baoCaoIds : [baoCaoId]).filter(Boolean);
-  const baoCaoId1 = ids[0] || '';
-
-  if (!chatId) {
-    const r = { ok: false, loi: 'Chưa chọn nhóm chat — vào Cài đặt để chọn.' };
-    await store.ghiNhatKy({ chat: '', ok: false, noiDung: text, thongBao: r.loi, baoCaoId: baoCaoId1 });
-    return r;
-  }
+/** Gửi vào MỘT nhóm. Thẻ trước, thẻ hỏng thì lùi về chữ thuần. */
+async function guiMotNhom({ chatId, card, text, khoa }) {
   let r = await lark.guiTin({ chatId, card, khoa });
   if (!r.ok) {
     const dauTien = r.loi;
@@ -158,14 +176,67 @@ async function guiVeNhom({ chatId, card, text, khoa, baoCaoId, baoCaoIds }) {
     if (r.ok) r.canhBao = 'Thẻ bị từ chối nên đã gửi dạng chữ: ' + dauTien;
     else r.loi = dauTien + ' | text: ' + r.loi;
   }
-  await store.ghiNhatKy({
-    chat: chatId, ok: r.ok, msgId: r.msgId, noiDung: text,
-    thongBao: r.canhBao || r.loi || '', baoCaoId: baoCaoId1,
-  });
-  if (r.ok && ids.length) {
+  return r;
+}
+
+async function guiVeNhom({ chatId, chatIds, nhoms, card, text, khoa, baoCaoId, baoCaoIds }) {
+  /* Một tin có thể thuộc NHIỀU lô (một lần báo cáo nhiều mục) — nhật ký nối vào lô
+   * đầu, còn dấu "đã gửi" phải đóng cho TẤT CẢ, không thì các lô sau vẫn hiện
+   * "chưa gửi" trong khi nhóm đã nhận tin rồi. */
+  const ids = (baoCaoIds && baoCaoIds.length ? baoCaoIds : [baoCaoId]).filter(Boolean);
+  const baoCaoId1 = ids[0] || '';
+
+  /* Nhận cả ba dạng để chỗ gọi cũ không phải sửa: một chatId, mảng id, hoặc mảng
+   * {id, ten} (dạng này mới nói được TÊN nhóm nào hỏng). */
+  const dich = (nhoms && nhoms.length ? nhoms
+    : (chatIds && chatIds.length ? chatIds : [chatId]).filter(Boolean).map((x) => ({ id: x, ten: x })))
+    .filter((x) => x && x.id);
+
+  if (!dich.length) {
+    const r = { ok: false, loi: 'Chưa chọn nhóm chat — vào Cài đặt để chọn.' };
+    await store.ghiNhatKy({ chat: '', ok: false, noiDung: text, thongBao: r.loi, baoCaoId: baoCaoId1 });
+    return r;
+  }
+
+  const xong = [];
+  for (const n of dich) {
+    /* Khoá chống gửi trùng phải KHÁC NHAU theo nhóm. Dùng chung một khoá thì
+     * nhóm thứ hai bị Lark coi là gửi lại đúng tin cũ và nuốt mất — nhóm đó
+     * không nhận được gì mà app vẫn báo thành công. */
+    const khoaN = khoa ? khoa + '-' + n.id.slice(-8) : '';
+    const r = await guiMotNhom({ chatId: n.id, card, text, khoa: khoaN });
+    xong.push({ nhom: n, r });
+    await store.ghiNhatKy({
+      chat: n.id, ok: r.ok, msgId: r.msgId, noiDung: text,
+      thongBao: r.canhBao || r.loi || '', baoCaoId: baoCaoId1,
+    });
+  }
+
+  const duoc = xong.filter((x) => x.r.ok);
+  const hong = xong.filter((x) => !x.r.ok);
+
+  /* Đóng dấu "đã gửi" khi ÍT NHẤT MỘT nhóm nhận được: tin đã ra ngoài rồi, để
+   * cờ false là lô đó nằm mãi trong danh sách "chưa gửi" và có người gửi lại,
+   * thành hai tin ở nhóm đã nhận. Nhóm nào trượt thì nói rõ tên ở dưới. */
+  if (duoc.length && ids.length) {
     try { await store.danhDauDaGui(ids); } catch (e) { console.warn('[gui] ' + e.message); }
   }
-  return r;
+
+  const tenHong = hong.map((x) => x.nhom.ten || x.nhom.id).join(', ');
+  const canhBao = [
+    ...xong.filter((x) => x.r.canhBao).map((x) => (x.nhom.ten || x.nhom.id) + ': ' + x.r.canhBao),
+    ...(duoc.length && hong.length ? ['Chưa gửi được vào ' + tenHong + ' — ' + hong[0].r.loi] : []),
+  ].join(' · ');
+
+  return {
+    ok: duoc.length > 0,
+    msgId: (duoc[0] && duoc[0].r.msgId) || '',
+    loi: duoc.length ? '' : hong.map((x) => (x.nhom.ten || x.nhom.id) + ': ' + x.r.loi).join(' · '),
+    canhBao: canhBao || undefined,
+    soNhom: dich.length,
+    daGui: duoc.map((x) => x.nhom.ten || x.nhom.id),
+    truot: hong.map((x) => x.nhom.ten || x.nhom.id),
+  };
 }
 
 /* ---------------- lọc & tổng hợp ---------------- */
@@ -244,7 +315,8 @@ async function api(req, res, u) {
     const d = await store.tai();
     return ok(res, {
       user: nd, quanLy: laQuanLy(req), mode: cfg.mode,
-      baseUrl: cfg.baseUrl, nhom: nhomChat(d), nguoiGui: tinApp.nguoiGui(),
+      baseUrl: cfg.baseUrl, nhom: nhomChat(d), dsNhom: dsNhomChat(d),
+      nguoiGui: tinApp.nguoiGui(),
     });
   }
 
@@ -255,7 +327,7 @@ async function api(req, res, u) {
       tours: d.tours.filter((t) => t.dung !== false),
       toursAll: d.tours,
       loai: cfg.loai, hangMuc: cfg.hangMuc, trangThai: cfg.trangThai,
-      nhom: nhomChat(d), homNay: store.homNay(), baseUrl: cfg.baseUrl,
+      nhom: nhomChat(d), dsNhom: dsNhomChat(d), homNay: store.homNay(), baseUrl: cfg.baseUrl,
       /* Ai đứng tên gửi tin — hiện thẳng ra giao diện. Phòng có hai app Lark và
        * đã một lần suýt mời sai bot vào nhóm; để app tự khai ra là rẻ nhất. */
       nguoiGui: tinApp.nguoiGui(),
@@ -376,6 +448,7 @@ async function api(req, res, u) {
     const d2 = await store.tai(true);
     const dsBaoCao = ghi.map((g) => d2.baoCao.find((x) => x.id === g.id)).filter(Boolean);
     const nhom = nhomChat(d2);
+    const nhoms = dsNhomChat(d2);
 
     let gui = { ok: false, loi: 'Không gửi (người dùng chọn không gửi).' };
     if (b.gui !== false && dsBaoCao.length) {
@@ -386,7 +459,7 @@ async function api(req, res, u) {
         capNhat: dsBaoCao.length === 1 && !ghi[0].moi,
       });
       gui = await guiVeNhom({
-        chatId: nhom.id, card: soan.card, text: soan.text,
+        nhoms, card: soan.card, text: soan.text,
         khoa: 'bc-' + ghi.map((g) => g.id).join('-').slice(0, 30)
           + '-' + Date.now().toString(36).slice(-6),
         baoCaoIds: dsBaoCao.map((x) => x.id),
@@ -400,7 +473,8 @@ async function api(req, res, u) {
       ids: ghi.map((g) => g.id),
       nhom,
       baoCao: ghi.map((g) => d3.baoCao.find((x) => x.id === g.id)).filter(Boolean),
-      gui: { ok: gui.ok, loi: gui.loi || '', canhBao: gui.canhBao || '' },
+      gui: { ok: gui.ok, loi: gui.loi || '', canhBao: gui.canhBao || '',
+        daGui: gui.daGui || [], truot: gui.truot || [] },
     });
   }
 
@@ -433,13 +507,14 @@ async function api(req, res, u) {
     const d = await store.tai();
     const bc = d.baoCao.find((x) => x.id === b.id);
     if (!bc) return fail(res, 404, 'Không thấy báo cáo này.');
-    const nhom = nhomChat(d);
+    const nhoms = dsNhomChat(d);
     const soan = tin.soan(bc, { nguoiTen: nd ? nd.name : '', capNhat: bc.daGui });
     const gui = await guiVeNhom({
-      chatId: nhom.id, card: soan.card, text: soan.text,
+      nhoms, card: soan.card, text: soan.text,
       khoa: 'lai-' + bc.id + '-' + Date.now().toString(36).slice(-6), baoCaoId: bc.id,
     });
-    return ok(res, { gui: { ok: gui.ok, loi: gui.loi || '', canhBao: gui.canhBao || '' } });
+    return ok(res, { gui: { ok: gui.ok, loi: gui.loi || '', canhBao: gui.canhBao || '',
+      daGui: gui.daGui || [], truot: gui.truot || [] } });
   }
 
   /* ---------------- chỉ quản lý ---------------- */
@@ -465,7 +540,7 @@ async function api(req, res, u) {
     if (b.gui !== false && bc) {
       const soan = tin.soanNghiemThu(bc, { nguoiTen: nd ? nd.name : '' });
       gui = await guiVeNhom({
-        chatId: nhomChat(d).id, card: soan.card, text: soan.text,
+        nhoms: dsNhomChat(d), card: soan.card, text: soan.text,
         khoa: 'nt-' + b.id + '-' + Date.now().toString(36).slice(-6),
       });
     }
@@ -480,11 +555,30 @@ async function api(req, res, u) {
   if (p === '/api/quan-ly/nhom' && method === 'POST') {
     const loi = chanNeuKhongPhaiQuanLy(req); if (loi) throw loi;
     const b = await readBody(req);
-    if (!/^oc_[A-Za-z0-9]+$/.test(String(b.id || ''))) return fail(res, 400, 'chat_id phải dạng oc_…');
-    await store.ghiCaiDat('chat_id', b.id, 'Nhóm chat nhận báo cáo sản phẩm');
-    await store.ghiCaiDat('chat_ten', b.ten || '', 'Tên nhóm (chỉ để hiển thị)');
+
+    /* Nhận cả dạng cũ {id, ten} lẫn dạng mới {ds: [{id, ten}]} — bản giao diện cũ
+     * còn nằm trong cache trình duyệt vẫn đổi được nhóm, không văng lỗi khó hiểu. */
+    const vao = Array.isArray(b.ds) ? b.ds : (b.id ? [{ id: b.id, ten: b.ten }] : []);
+    const sach = [];
+    const daCo = new Set();
+    for (const x of vao) {
+      const id = String((x && x.id) || '');
+      if (!/^oc_[A-Za-z0-9]+$/.test(id)) return fail(res, 400, 'chat_id phải dạng oc_… — nhận được: ' + id);
+      if (daCo.has(id)) continue;
+      daCo.add(id);
+      sach.push({ id, ten: String((x && x.ten) || id) });
+    }
+    if (!sach.length) return fail(res, 400, 'Chọn ít nhất một nhóm.');
+
+    await store.ghiCaiDat('chat_ds', JSON.stringify(sach),
+      'Các nhóm nhận báo cáo sản phẩm (JSON). Nhiều nhóm thì tin gửi vào tất cả.');
+    /* Vẫn ghi cặp cũ: dòng đầu danh sách. Ai mở Base ra xem, hoặc bản code cũ bị
+     * triển khai lại, cũng còn một nhóm đúng để gửi chứ không rơi về mặc định. */
+    await store.ghiCaiDat('chat_id', sach[0].id, 'Nhóm chính (tương thích bản cũ)');
+    await store.ghiCaiDat('chat_ten', sach[0].ten, 'Tên nhóm chính (chỉ để hiển thị)');
+
     const d = await store.tai(true);
-    return ok(res, { nhom: nhomChat(d) });
+    return ok(res, { nhom: nhomChat(d), ds: dsNhomChat(d) });
   }
 
   if (p === '/api/quan-ly/tour' && method === 'POST') {
@@ -553,4 +647,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { server, loc, tongHop, thamSo, nhomChat, nguoiDaLam };
+module.exports = { server, loc, tongHop, thamSo, nhomChat, dsNhomChat, guiVeNhom, nguoiDaLam };

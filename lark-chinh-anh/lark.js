@@ -239,20 +239,44 @@ function timNguoi(q) {
 }
 
 /** Nhóm chat người đang đăng nhập tham gia — để quản lý chọn nhóm trong Cài đặt. */
-function dsNhom() {
+/**
+ * Mọi nhóm bot đang ở trong. PHẢI LẬT HẾT TRANG.
+ *
+ * Lark trả 20 nhóm một trang. Bản trước chỉ đọc trang đầu rồi thôi, nên bot ở 49
+ * nhóm mà ô chọn nhóm trong Cài đặt chỉ thấy 20 — nhóm "CSKH - ẢNH,VIDEO" nằm ở
+ * trang 3, tìm mãi không ra và trông y như bot chưa được mời vào (05/10/2026).
+ */
+function motTrangNhom(pageToken) {
   return new Promise((resolve) => {
-    execFile(process.execPath, [cfg.cliScript, 'im', '+chat-list', '--as', cfg.identity, '--format', 'json'],
+    const args = [cfg.cliScript, 'im', '+chat-list', '--as', cfg.identity, '--format', 'json'];
+    if (pageToken) args.push('--page-token', pageToken);
+    execFile(process.execPath, args,
       { timeout: 45000, cwd: __dirname, windowsHide: true, maxBuffer: 16 * 1024 * 1024 },
       (err, stdout) => {
         try {
           const raw = String(stdout || '');
           const j = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1));
-          resolve((j.data?.chats || [])
-            .filter((c) => c.chat_status === 'normal')
-            .map((c) => ({ id: c.chat_id, ten: c.name, che_do: c.chat_mode })));
-        } catch (_) { resolve([]); }
+          const d = j.data || {};
+          resolve({ chats: d.chats || [], tiep: d.has_more ? (d.page_token || '') : '' });
+        } catch (_) { resolve({ chats: [], tiep: '' }); }
       });
   });
+}
+
+async function dsNhom() {
+  const tat = [];
+  let tok = '';
+  /* Trần 20 vòng: 400 nhóm là quá đủ, và không bao giờ quay vô hạn nếu Lark trả
+   * has_more mãi mà page_token không đổi. */
+  for (let i = 0; i < 20; i++) {
+    const { chats, tiep } = await motTrangNhom(tok);
+    tat.push(...chats);
+    if (!tiep || tiep === tok) break;
+    tok = tiep;
+  }
+  return tat
+    .filter((c) => c.chat_status === 'normal')
+    .map((c) => ({ id: c.chat_id, ten: c.name, che_do: c.chat_mode }));
 }
 
 /* Chế độ api (deploy server chung): không có lark-cli trên máy đó, nên mọi file
