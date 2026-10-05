@@ -23,6 +23,8 @@ var BC_SS = 'truoc';  // eslint-disable-line no-var
 /* Số tháng của bảng xu hướng. Nhớ giữa các lần vẽ để đổi khoảng thời gian
  * không làm mất lựa chọn. */
 var BC_SO_THANG = 6; // eslint-disable-line no-var
+/* Trưởng phòng đang xem thử báo cáo của ai. Rỗng = xem bản đầy đủ của mình. */
+var BC_NHU = ''; // eslint-disable-line no-var
 const BC_KIEU_SS = [
   ['truoc', 'Kỳ liền trước'],
   ['thangtruoc', 'Cùng kỳ tháng trước'],
@@ -84,7 +86,8 @@ async function veBaoCao() {
   hop.innerHTML = '<div class="rong">đang đọc số từ '
     + (BC && BC.soApp ? BC.soApp + ' base' : 'các base') + '…</div>';
   try {
-    BC = await goi('bao-cao?tu=' + BC_KY.tu + '&den=' + BC_KY.den + '&ss=' + BC_SS);
+    BC = await goi('bao-cao?tu=' + BC_KY.tu + '&den=' + BC_KY.den + '&ss=' + BC_SS
+      + (BC_NHU ? '&nhu=' + encodeURIComponent(BC_NHU) : ''));
   } catch (e) { hop.innerHTML = '<div class="rong">' + esc(e.message) + '</div>'; return; }
 
   /* Dựng lại thanh lọc SAU khi có số. Nút "bấm lần hai để đi tới mốc đó" lấy
@@ -94,6 +97,7 @@ async function veBaoCao() {
   thanhLoc.replaceWith(thanhLoc = bcThanhLoc());
 
   hop.innerHTML = '';
+  if (BC.phamVi) hop.appendChild(bcDaiPhamVi(BC.phamVi));
   hop.appendChild(el('div', 'canhbao tin',
     '<div>Kỳ <b>' + ngay(BC.tu) + ' – ' + ngay(BC.den) + '</b> (' + BC.soNgay + ' ngày) · '
     + (BC.kyTruoc
@@ -109,9 +113,14 @@ async function veBaoCao() {
   /* Xu hướng đứng ĐẦU, trước cả chi phí: câu "đang lên hay đang xuống" phải
    * trả lời trước câu "tháng này bao nhiêu". Nhưng nó đọc sáu tháng mất mươi
    * giây, nên dựng chỗ trống rồi điền sau — không bắt cả báo cáo đứng chờ. */
-  const oXu = el('div');
-  hop.appendChild(oXu);
-  bcNapXuHuong(oXu);
+  /* Xu hướng là số của CẢ PHÒNG qua nhiều tháng — không lọc theo phạm vi được,
+   * nên người xem phạm vi hẹp thì bỏ hẳn khối này. Để lại là rò số của cả phòng
+   * ra đúng chỗ vừa công bố là chỉ trưởng phòng mới thấy. */
+  if (!BC.phamVi) {
+    const oXu = el('div');
+    hop.appendChild(oXu);
+    bcNapXuHuong(oXu);
+  }
 
   if (BC.chiPhi) hop.appendChild(bcChiPhi(BC.chiPhi));
   if (BC.tepMoi) hop.appendChild(bcTepMoi(BC.tepMoi));
@@ -441,6 +450,35 @@ function bcCot(c) {
     g.appendChild(el('div', 'ss-chan', 'Hiện 14 mục cao nhất trong ' + ds.length + ' mục.'));
   }
   return g;
+}
+
+/**
+ * Dải báo phạm vi — hiện khi báo cáo đang bị giới hạn vào một người.
+ *
+ * Phải nói THẲNG là đang xem bản rút gọn, kèm đúng những gì bị cắt. Không có
+ * dải này thì người đọc tưởng "lượt xem 2,03 triệu" là của cả phòng, trong khi
+ * đó là của sáu kênh mình phụ trách — lệch nhau một triệu lượt.
+ */
+function bcDaiPhamVi(pv) {
+  const o = el('div', 'canhbao canhBao');
+  const phan = [];
+  if (pv.soKenh) phan.push('<b>' + pv.soKenh + ' kênh</b> được phân công');
+  if ((pv.loaiViec || []).length) {
+    phan.push('việc loại <b>' + pv.loaiViec.map(esc).join(', ') + '</b>');
+  }
+  let nut = '';
+  if (BC_NHU) {
+    nut = ' <button class="nut nhe" id="pvThoi">Thôi xem thử</button>';
+  }
+  o.innerHTML = '<div>' + (BC_NHU ? 'Đang <b>xem thử</b> báo cáo của ' : 'Báo cáo của ')
+    + '<b>' + esc(pv.ten) + '</b>' + (pv.viTri ? ' · ' + esc(pv.viTri) : '') + '. '
+    + 'Chỉ gồm ' + (phan.length ? phan.join(' và ') + ', ' : '')
+    + 'và những khối đã mở cho người này. '
+    + '<b>Không phải số của cả phòng</b> — chi phí, tệp khách mới và xu hướng toàn '
+    + 'phòng chỉ trưởng phòng xem được.' + nut + '</div>';
+  const b = o.querySelector('#pvThoi');
+  if (b) b.onclick = () => { BC_NHU = ''; veBaoCao(); };
+  return o;
 }
 
 /**

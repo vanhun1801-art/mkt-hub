@@ -17,6 +17,7 @@ const crypto = require('crypto');
 const L = require('./luat');
 const { chamThang, chotDuoc } = require('./tinh');
 const store = require('./store');
+const PV = require('./pham-vi');
 const nguon = require('./nguon');
 const X = require('./xuat');
 const { laQuanLy } = require('./quyen');
@@ -122,7 +123,9 @@ function nguoiXem(req) {
      * trong render.yaml: trên server chung mọi người đều rơi xuống vai nhân sự
      * và sáu tab chỉ-quản-lý biến mất. */
     quanLy: laQuanLy(req),
-    ma: MA_CUA[id] || MA_CUA[ten] || '',
+    /* Thứ tự tra: biến môi trường trước (trưởng phòng khai tay được), rồi tới
+     * bản khai phạm vi — nó đã có tên đầy đủ của từng người sẵn rồi. */
+    ma: MA_CUA[id] || MA_CUA[ten] || PV.maTheoTen(ten),
   };
 }
 
@@ -233,7 +236,7 @@ async function api(req, res, u) {
       ten: 'Báo cáo & KPI', thang: ths, coLichSu: store.coLichSu(),
       thangCoSo: ths.filter(coSo),
       thangGoiY: ths.find(coSo) || ths[0] || '',
-      nguoiXem: { ten: nx.ten, quanLy: nx.quanLy, ma: nx.ma },
+      nguoiXem: { ten: nx.ten, quanLy: nx.quanLy, ma: nx.ma, coPhamVi: !!PV.cua(nx.ma) },
       /* Kho nằm ở đâu và có gì chưa ghi lên được — giao diện cần biết để nói
        * thật, thay vì để người dùng tin là đã lưu. */
       kho: store.trangThai(),
@@ -377,12 +380,37 @@ async function api(req, res, u) {
   /* ---------------- BÁO CÁO: gom mọi base ---------------- */
 
   if (p === '/api/bao-cao') {
-    if (!nx.quanLy) return fail(res, 403, 'Chỉ trưởng phòng xem được báo cáo toàn phòng');
+    /* NHÂN SỰ CŨNG XEM ĐƯỢC, nhưng chỉ phần đã khai cho mình. Chưa khai phạm vi
+     * thì chặn — và nói đúng lý do là "chưa khai", không phải "không có quyền":
+     * người đọc cần biết phải đi hỏi ai chứ không phải tưởng mình bị cấm. */
+    /* Trưởng phòng xem thử bằng `?nhu=<mã người>`. Không có đường này thì không
+     * ai kiểm được nhân sự thật ra nhìn thấy gì, và lỗi phạm vi chỉ lộ khi đã
+     * mở cho cả phòng. Nhân sự truyền tham số này cũng vô ích — mã của họ luôn
+     * bị ghi đè bằng mã của chính họ. */
+    const nhu = u.searchParams.get('nhu');
+    const pv = nx.quanLy ? (nhu ? PV.cua(nhu) : null) : PV.cua(nx.ma);
+    if (nx.quanLy && nhu && !pv) return fail(res, 404, 'Chưa khai phạm vi cho mã ' + nhu);
+    if (!nx.quanLy && !pv) {
+      return fail(res, 403, 'Chưa khai phạm vi báo cáo cho bạn — nhờ trưởng phòng '
+        + 'mở ở tab “Phân công kênh”.');
+    }
     const { tu, den } = khoangTu(u);
-    return ok(res, await baoCao.gomSoSanh(tu, den, nx, u.searchParams.get('ss'), docLuatCuaThang));
+    return ok(res, await baoCao.gomSoSanh(tu, den, nx, u.searchParams.get('ss'), docLuatCuaThang, pv));
   }
 
   /** Một tệp HTML hoàn chỉnh để gửi Sếp — mở ra in thẳng thành PDF được. */
+  if (p === '/api/pham-vi') {
+    if (!nx.quanLy) return fail(res, 403, 'Chỉ trưởng phòng xem được bảng phạm vi');
+    return ok(res, { khoi: PV.KHOI, nguoi: PV.tatCa(), tep: PV.TEP });
+  }
+
+  if (p === '/api/luu-pham-vi' && req.method === 'POST') {
+    if (!nx.quanLy) return fail(res, 403, 'Chỉ trưởng phòng sửa được phạm vi');
+    const b = await readBody(req);
+    if (!b.ma || !b.pv) return fail(res, 400, 'Thiếu mã người hoặc phạm vi');
+    return ok(res, { nguoi: PV.luu(b.ma, b.pv) });
+  }
+
   if (p === '/api/xu-huong') {
     /* Cùng dữ liệu tiền (chi phí, doanh thu, ROAS) với /api/bao-cao — cùng chốt. */
     if (!nx.quanLy) return fail(res, 403, 'Chỉ trưởng phòng xem được báo cáo toàn phòng');
@@ -393,8 +421,9 @@ async function api(req, res, u) {
 
   if (p === '/api/xuat-bao-cao') {
     if (!nx.quanLy) return fail(res, 403, 'Chỉ trưởng phòng xuất được báo cáo toàn phòng');
+    const pv = null;
     const { tu, den } = khoangTu(u);
-    const d = await baoCao.gomSoSanh(tu, den, nx, u.searchParams.get('ss'), docLuatCuaThang);
+    const d = await baoCao.gomSoSanh(tu, den, nx, u.searchParams.get('ss'), docLuatCuaThang, pv);
     /* Bản xuất tự đọc thêm xu hướng. Màn hình nạp nó sau khi trang đã hiện, còn
      * ở đây phải có sẵn trước khi dựng HTML — tệp gửi đi không tự gọi lại được.
      * Hỏng thì bỏ qua khối đó chứ đừng làm hỏng cả bản xuất. */
@@ -412,8 +441,9 @@ async function api(req, res, u) {
   /** Cùng số liệu, dạng CSV — cho ai cần bê sang bảng tính khác. */
   if (p === '/api/xuat-bao-cao-csv') {
     if (!nx.quanLy) return fail(res, 403, 'Chỉ trưởng phòng xuất được báo cáo toàn phòng');
+    const pv = null;
     const { tu, den } = khoangTu(u);
-    const d = await baoCao.gomSoSanh(tu, den, nx, u.searchParams.get('ss'), docLuatCuaThang);
+    const d = await baoCao.gomSoSanh(tu, den, nx, u.searchParams.get('ss'), docLuatCuaThang, pv);
     return send(res, 200, X.csvBaoCao(d), {
       'Content-Type': 'text/csv; charset=utf-8',
       'Content-Disposition': 'attachment; filename="'

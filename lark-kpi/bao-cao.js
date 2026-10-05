@@ -22,6 +22,7 @@ const http = require('http');
 const https = require('https');
 
 const MT = require('./muc-tieu');
+const PV = require('./pham-vi');
 const { CHI_SO_BAI, CHI_SO_LIVE } = require('./nguon');
 
 const APP = [
@@ -210,12 +211,48 @@ function kyTruoc(tu, den, kieu) {
   return { tu: iso(aTruoc), den: iso(bTruoc), soNgay: dai, kieu: 'truoc', nhan: KIEU_SS.truoc };
 }
 
+/* Cộng lại số tổng từ một tập dòng kênh. Dùng khi báo cáo bị giới hạn vào mấy
+ * kênh của một người — `tong` mà app Social trả về là của cả phòng. */
+const CONG_KENH = ['views', 'viewsOrganic', 'watchTime', 'reach', 'impressions',
+  'profileViews', 'likes', 'comments', 'shares', 'saves', 'engagement', 'clicks',
+  'messages', 'leads', 'posts', 'lives', 'followUp', 'followDown', 'followers'];
+
+function congKenh(ds) {
+  const t = {};
+  CONG_KENH.forEach((f) => { t[f] = ds.reduce((a, x) => a + so(x[f]), 0); });
+  t.followNet = t.followUp - t.followDown;
+  /* Trung bình phải chia cho mẫu số của CHÍNH tập này, không mượn của app. */
+  t.xemMoiBai = t.posts ? t.views / t.posts : 0;
+  t.tuongTacMoiBai = t.posts ? t.engagement / t.posts : 0;
+  t.leadTrenNghinXem = t.views ? (t.leads / t.views) * 1000 : 0;
+  return t;
+}
+
+/** Gộp các dòng kênh thành dòng nền tảng, giữ đúng hình dạng app Social trả. */
+function gopNenTang(ds) {
+  const m = new Map();
+  ds.forEach((k) => {
+    const o = m.get(k.platform) || { platform: k.platform };
+    CONG_KENH.forEach((f) => { o[f] = so(o[f]) + so(k[f]); });
+    o.followNet = so(o.followUp) - so(o.followDown);
+    m.set(k.platform, o);
+  });
+  return [...m.values()];
+}
+
 /* ================= SOCIAL ================= */
-async function docSocial(app, tu, den) {
+async function docSocial(app, tu, den, pv) {
   const d = await goi(app, '/api/tong-quan' + q(tu, den));
-  const t = d.tong || {};
-  const l = d.doi || {};
-  const nt = d.nenTang || [];
+  /* LỌC THEO KÊNH ĐƯỢC PHÂN CÔNG. Phải cộng LẠI từ các dòng kênh chứ không lấy
+   * `d.tong` rồi trừ bớt: `tong` đã gộp cả kênh của người khác, không gỡ ra
+   * được. App Social trả đủ số của từng kênh nên cộng lại là chính xác. */
+  const locKenh = pv && pv.kenh ? new Set(pv.kenh) : null;
+  const dsKenh = locKenh
+    ? (d.kenh || []).filter((k) => locKenh.has(k.platform + '|' + k.name))
+    : (d.kenh || []);
+  const t = locKenh ? congKenh(dsKenh) : (d.tong || {});
+  const l = locKenh ? {} : (d.doi || {});
+  const nt = locKenh ? gopNenTang(dsKenh) : (d.nenTang || []);
   /* `n(khoa)` gắn vào ô danh sách nền tảng có / không có con số đó — xem gopNen. */
   const n = (khoa) => gopNen(nt, khoa);
 
@@ -250,8 +287,9 @@ async function docSocial(app, tu, den) {
       { nhan: 'Lượt xem', so: so(t.views), dinhDang: 'so', lech: l.views, chinh: true, nen: n('views') },
       { nhan: 'Lượt hiển thị', so: so(t.impressions), dinhDang: 'so', lech: l.impressions, nen: n('impressions') },
       { nhan: 'Lượt tiếp cận', so: so(t.reach), dinhDang: 'so', lech: l.reach, nen: n('reach') },
-      { nhan: 'Follower toàn phòng', so: so(t.followers), dinhDang: 'so', chinh: true,
-        ghi: 'chốt mới nhất · cộng đủ ' + (d.kenh || []).length + ' kênh', nen: n('followers') },
+      { nhan: locKenh ? 'Follower các kênh của tôi' : 'Follower toàn phòng',
+        so: so(t.followers), dinhDang: 'so', chinh: true,
+        ghi: 'chốt mới nhất · cộng đủ ' + dsKenh.length + ' kênh', nen: n('followers') },
       { nhan: 'Follower tăng', so: so(t.followUp), dinhDang: 'so', lech: l.followUp,
         ghi: ghiFollow, nen: n('followUp') },
       { nhan: 'Follower giảm', so: so(t.followDown), dinhDang: 'so', lech: l.followDown,
@@ -277,7 +315,10 @@ async function docSocial(app, tu, den) {
       { nhan: 'Tương tác mỗi bài', so: so(t.tuongTacMoiBai), dinhDang: 'so' },
       { nhan: 'Lead / 1.000 lượt xem', so: so(t.leadTrenNghinXem), dinhDang: 'so2' },
     ],
-    chuoi: {
+    /* Biểu đồ theo ngày KHÔNG lọc được theo kênh: app Social chỉ trả tổng mỗi
+     * ngày, không tách kênh. Người xem phạm vi hẹp thì bỏ hẳn biểu đồ này, chứ
+     * vẽ đường của cả phòng dưới các ô đã lọc là nói dối bằng hình. */
+    chuoi: locKenh ? null : {
       nhan: 'Lượt xem & tương tác theo ngày',
       diem: (d.ngay || []).map((x) => ({ x: x.date, views: so(x.views), engagement: so(x.engagement) })),
       /* Tương tác đi TRỤC PHẢI: 33k đứng cạnh 729k trên cùng một thang thì nó
@@ -288,27 +329,28 @@ async function docSocial(app, tu, den) {
     tron: {
       nhan: 'Cơ cấu lượt xem theo nền tảng',
       giua: 'Lượt xem',
-      phan: (d.nenTang || []).map((x) => ({ nhan: x.platform, so: so(x.views) })).filter((x) => x.so),
+      phan: nt.map((x) => ({ nhan: x.platform, so: so(x.views) })).filter((x) => x.so),
     },
     bang: [
       { tieuDe: 'Theo nền tảng',
         cot: ['Nền tảng', 'Lượt xem', 'Hiển thị', 'Tương tác', 'Follower tăng', 'Bài', 'LIVE'],
         soCot: [1, 2, 3, 4, 5, 6],
-        dong: (d.nenTang || []).map((x) => [x.platform, so(x.views), so(x.impressions),
+        dong: nt.map((x) => [x.platform, so(x.views), so(x.impressions),
           so(x.engagement), so(x.followUp), so(x.posts), so(x.lives)]) },
-      { tieuDe: 'Theo kênh',
+      { tieuDe: locKenh ? 'Kênh tôi phụ trách' : 'Theo kênh',
         cot: ['Kênh', 'Nền tảng', 'Follower', 'Follower tăng', 'Lượt xem', 'Tương tác', 'Bài'],
         soCot: [2, 3, 4, 5, 6],
         /* Cột Follower đứng ngay cạnh cột tăng: kênh nào có tệp lớn mà cột tăng
          * để trống thì thấy ngay đó là kênh chưa đo được, không phải kênh chết. */
-        dong: (d.kenh || []).slice().sort((a, b) => so(b.followers) - so(a.followers))
+        dong: dsKenh.slice().sort((a, b) => so(b.followers) - so(a.followers))
           .map((k) => [k.name, k.platform, so(k.followers),
             so(k.followUp) || so(k.followDown) ? so(k.followUp) : '—',
             so(k.views), so(k.engagement), so(k.posts)]) },
       { tieuDe: 'Bài xem nhiều nhất',
         cot: ['Bài', 'Kênh', 'Lượt xem', 'Tương tác'],
         soCot: [2, 3],
-        dong: (d.topBai || []).slice(0, 15).map((b) => [
+        dong: (d.topBai || []).filter((b) => !locKenh
+          || locKenh.has((b.platform || '') + '|' + (b.channel || ''))).slice(0, 15).map((b) => [
           (b.title || '(không tiêu đề)').slice(0, 90), b.channel || b.platform || '',
           so(b.views), so(b.engagement)]) },
     ].filter((b) => b.dong.length),
@@ -345,9 +387,11 @@ function dungPheu(bac) {
  * lọt thỏm giữa hai mươi ô bài đăng và không ai đọc ra công của nó.
  *
  * Số vẫn lấy từ app Social (nó sở hữu bảng phiên LIVE) — chỉ trình bày riêng. */
-async function docLiveRieng(app, tu, den) {
+async function docLiveRieng(app, tu, den, pv) {
   const d = await goi(app, '/api/tong-quan' + q(tu, den));
-  const ds = d.live || [];
+  const locKenh = pv && pv.kenh ? new Set(pv.kenh) : null;
+  const ds = (d.live || []).filter((x) => !locKenh
+    || locKenh.has((x.platform || '') + '|' + (x.channel || '')));
   const cong = (f) => ds.reduce((a, x) => a + so(x[f]), 0);
   const phut = cong('minutes');
   const views = cong('views');
@@ -414,14 +458,43 @@ async function docLiveRieng(app, tu, den) {
   };
 }
 
+/** Dựng lại bộ chỉ số quảng cáo từ một tập dòng nền tảng. */
+function congQuangCao(ds) {
+  const c = (f) => ds.reduce((a, x) => a + so(x[f]), 0);
+  const spend = c('spend');
+  const imp = c('impressions');
+  const clicks = c('clicks');
+  const conv = c('conversions');
+  const rev = c('revenue');
+  return {
+    rows: c('rows'), spend, impressions: imp, clicks, conversions: conv, revenue: rev,
+    ctr: imp ? (clicks / imp) * 100 : 0,
+    cvr: clicks ? (conv / clicks) * 100 : 0,
+    cpc: clicks ? spend / clicks : 0,
+    cpm: imp ? (spend / imp) * 1000 : 0,
+    cpa: conv ? spend / conv : 0,
+    roas: spend ? rev / spend : 0,
+    /* Doanh thu toàn công ty KHÔNG chia theo nền tảng được — để trống chứ đừng
+     * gán hết cho một nền tảng. */
+    revenueCongTy: null, revenueNgoaiQuangCao: null, tyLeTuQuangCao: null,
+  };
+}
+
 /* ================= QUẢNG CÁO ================= */
-async function docQuangCao(app, tu, den) {
+async function docQuangCao(app, tu, den, pv) {
   const d = await goi(app, '/api/overview' + q(tu, den));
-  const k = d.kpi || {};
-  const l = d.delta || {};
+  /* Giới hạn vào mấy nền tảng được phân công thì phải DỰNG LẠI bộ chỉ số từ các
+   * dòng nền tảng, không lấy `kpi` của cả phòng. Các tỷ lệ (CTR, CPA, ROAS)
+   * cũng phải tính lại từ tử số và mẫu số mới, lấy nguyên tỷ lệ cũ là sai. */
+  const locNen = pv && pv.nenTangQc ? new Set(pv.nenTangQc) : null;
+  const dsNen = locNen
+    ? (d.byPlatform || []).filter((x) => locNen.has(x.platform))
+    : (d.byPlatform || []);
+  const k = locNen ? congQuangCao(dsNen) : (d.kpi || {});
+  const l = locNen ? {} : (d.delta || {});
   const canh = d.alerts || [];
   const nang = canh.filter((a) => a.level === 'high').length;
-  const n = (khoa) => gopNen(d.byPlatform || [], khoa);
+  const n = (khoa) => gopNen(dsNen, khoa);
   return {
     /* Phễu QUẢNG CÁO. Đây là phễu thật duy nhất ngoài LIVE: cùng một nền tảng
      * đo cả ba bậc, và chính nó quy công người đã nhấp thành người chuyển đổi.
@@ -563,9 +636,16 @@ async function docOta(app, tu, den) {
 }
 
 /* ================= BẢNG CÔNG VIỆC ================= */
-async function docCongViec(app, tu, den) {
+async function docCongViec(app, tu, den, pv) {
   const d = await goi(app, '/api/tasks');
-  const ds = d.tasks || [];
+  /* Lọc theo NGƯỜI rồi mới theo LOẠI VIỆC. Khớp tên đúng tuyệt đối — bảng này
+   * có cả "Nguyễn Long Khánh (Pinky)" lẫn "Huỳnh Chí Khanh", khớp mờ là gộp
+   * việc của hai người thành một. */
+  const ds = (d.tasks || []).filter((t) => {
+    if (pv && !(t.owner || []).some((u) => PV.laCuaNguoi(pv, u.name || u.id))) return false;
+    if (pv && pv.loaiViec && !pv.loaiViec.includes(nhanOf(t.workType))) return false;
+    return true;
+  });
   const a = new Date(tu + 'T00:00:00Z').getTime();
   const b = new Date(den + 'T23:59:59Z').getTime();
   const bay = Date.now();
@@ -640,7 +720,7 @@ async function docCongViec(app, tu, den) {
 }
 
 /* ================= LỊCH TÁC NGHIỆP ================= */
-async function docLich(app, tu, den) {
+async function docLich(app, tu, den, pv) {
   /* App Lịch trả luôn danh sách trong /api/meta (khoá `items`) và không nhận
    * from/to, nên lọc theo `start` ở đây. Bản đầu đoán các khoá `tong`/`choDuyet`
    * không tồn tại nên ô nào cũng ra 0 mà vẫn báo "đọc được" — im lặng sai còn
@@ -648,7 +728,10 @@ async function docLich(app, tu, den) {
   const d = await goi(app, '/api/meta');
   const it = (d.items || []).filter((x) => {
     const ng = String(x.start || '').slice(0, 10);
-    return ng && ng >= tu && ng <= den;
+    if (!ng || ng < tu || ng > den) return false;
+    if (pv && ![...(x.owner || []), ...(x.staff || [])]
+      .some((u) => PV.laCuaNguoi(pv, u.name || u.id))) return false;
+    return true;
   });
   const dem = (...tt) => it.filter((x) => tt.includes(nhanOf(x.status))).length;
   const huy = dem('Hủy lịch', 'Từ chối', 'Từ chối/Cần điều chỉnh');
@@ -1025,7 +1108,7 @@ async function docTheoKy(app, tu, den) {
  * một dòng trên bảng có thể gồm cả loạt. Gọi đúng tên là "việc", không gọi là
  * "video", rồi để người đọc tự biết cái mình đang đếm.
  */
-async function docHauKy(app, tu, den) {
+async function docHauKy(app, tu, den, pv) {
   const a = new Date(tu + 'T00:00:00Z').getTime();
   const b = new Date(den + 'T23:59:59Z').getTime();
 
@@ -1045,7 +1128,8 @@ async function docHauKy(app, tu, den) {
     const k = nhanOf(t.workType);
     return k === 'Edit Video' || k === 'Thiết kế' ? k : null;
   };
-  const hk = trongKy.filter(nhomHauKy);
+  const hk = trongKy.filter(nhomHauKy).filter((t) => !pv
+    || (t.owner || []).some((u) => PV.laCuaNguoi(pv, u.name || u.id)));
   const xong = (ds) => ds.filter((t) => nhanOf(t.status) === 'Hoàn thành');
   const video = hk.filter((t) => nhanOf(t.workType) === 'Edit Video');
   const thietKe = hk.filter((t) => nhanOf(t.workType) === 'Thiết kế');
@@ -1409,16 +1493,20 @@ async function xuHuong(denThang, soThang, docLuat) {
 
 /** @param {(thang:string)=>object|null} docLuat Đọc bộ luật một tháng — truyền
  *  từ server để tầng này không phải biết tới store, và phép thử khỏi cần Base. */
-async function gom(tu, den, nguoi, kieuSS, docLuat, chiApp) {
+async function gom(tu, den, nguoi, kieuSS, docLuat, chiApp, pv) {
   const truoc = kyTruoc(tu, den, kieuSS === 'khong' ? 'truoc' : kieuSS);
   /* `chiApp` giới hạn danh sách base phải đọc. Bảng xu hướng quét 6 tháng, đọc
    * đủ 9 app mỗi tháng là 54 lượt gọi và người dùng ngồi chờ cả phút — mà bảng
    * đó chỉ cần số của 4 app. */
-  const dsApp = chiApp ? APP.filter((x) => chiApp.includes(x.id)) : APP;
+  let dsApp = chiApp ? APP.filter((x) => chiApp.includes(x.id)) : APP;
+  /* PHẠM VI NGƯỜI XEM. Cắt danh sách base TRƯỚC khi gọi, không gọi đủ rồi mới
+   * giấu: gọi app mà người ta không được xem là vừa chậm vừa để số đó lọt vào
+   * bộ nhớ đệm của trình duyệt. */
+  if (pv) dsApp = dsApp.filter((x) => PV.choXem(pv, x.id));
   const base = await Promise.all(dsApp.map(async (app) => {
     const nen = { id: app.id, ten: app.ten, mo: app.mo, mau: app.mau };
     try {
-      const r = await BO_DOC[app.id]({ ...app, nguoi }, tu, den);
+      const r = await BO_DOC[app.id]({ ...app, nguoi }, tu, den, pv);
       return { ...nen, chay: true, bang: [], chuoi: null, tron: null, luuY: [], ...r };
     } catch (e) {
       return { ...nen, chay: false, loi: e.message, o: [], bang: [], chuoi: null, tron: null, luuY: [] };
@@ -1428,12 +1516,16 @@ async function gom(tu, den, nguoi, kieuSS, docLuat, chiApp) {
   const mt = docLuat ? MT.gomMucTieu(tu, den, docLuat) : null;
   if (mt) ganMucTieu(base, mt);
 
-  const cp = gomChiPhi(base);
+  /* Chi phí toàn phòng và tệp khách mới là số của CẢ PHÒNG — chỉ trưởng phòng
+   * xem. Mở cho nhân sự là để họ thấy ngân sách và kết quả của người khác. */
+  const cp = pv ? null : gomChiPhi(base);
   return {
     tu, den, kyTruoc: truoc, soNgay: truoc.soNgay,
     base, luc: Date.now(),
     chiPhi: cp,
-    tepMoi: gomTepMoi(base, cp && cp.doc ? cp.tong : 0),
+    phamVi: pv ? { ten: pv.ten, viTri: pv.viTri, soKenh: pv.kenh ? pv.kenh.length : 0,
+      khoi: pv.khoi, loaiViec: pv.loaiViec } : null,
+    tepMoi: pv ? null : gomTepMoi(base, cp && cp.doc ? cp.tong : 0),
     mucTieu: mt ? {
       coLuat: mt.coLuat, thieuLuat: mt.thieuLuat,
       tronThang: mt.tronThang, soKenh: mt.kenh.size,
@@ -1541,12 +1633,12 @@ function gomChiPhi(base) {
  * trả `lech`, ba app kia thì không — chỉ hiện lệch cho hai app thì báo cáo khập
  * khiễng, chỗ có chỗ không.
  */
-async function gomSoSanh(tu, den, nguoi, kieuSS, docLuat) {
+async function gomSoSanh(tu, den, nguoi, kieuSS, docLuat, pv) {
   /* TẮT SO SÁNH. Không phải chuyện ẩn vài cái mũi tên: bỏ so sánh thì khỏi phải
    * đọc lại toàn bộ 9 base cho kỳ trước, tức là nhanh gấp đôi. Ai chỉ cần xem
    * "tháng này ra sao" thì không nên phải chờ máy đọc cả tháng trước. */
   if (kieuSS === 'khong') {
-    const d = await gom(tu, den, nguoi, 'khong', docLuat);
+    const d = await gom(tu, den, nguoi, 'khong', docLuat, null, pv);
     /* Xoá sạch mức lệch, kể cả mức do app nguồn tự trả. Social và Quảng cáo gắn
      * sẵn `lech` theo cửa sổ của riêng chúng; để nguyên thì tắt so sánh xong vẫn
      * còn vài ô đeo mũi tên "▼ 3,9% so kỳ trước" — so với kỳ nào thì không ai
@@ -1563,10 +1655,10 @@ async function gomSoSanh(tu, den, nguoi, kieuSS, docLuat) {
   }
   const kt = kyTruoc(tu, den, kieuSS);
   const [nay, truoc] = await Promise.all([
-    gom(tu, den, nguoi, kieuSS, docLuat),
+    gom(tu, den, nguoi, kieuSS, docLuat, null, pv),
     /* Kỳ trước KHÔNG gắn mục tiêu: nó chỉ góp con số để so, còn mục tiêu của nó
      * lại là mục tiêu tháng khác — hiện lên là hai thang lẫn vào nhau. */
-    gom(kt.tu, kt.den, nguoi, kieuSS),
+    gom(kt.tu, kt.den, nguoi, kieuSS, null, null, pv),
   ]);
   nay.base.forEach((b) => {
     const bt = truoc.base.find((x) => x.id === b.id);
@@ -1596,7 +1688,7 @@ async function gomSoSanh(tu, den, nguoi, kieuSS, docLuat) {
   });
   /* Tính LẠI khối chi phí sau khi đã điền mức lệch: `gom()` dựng nó từ các ô
    * lúc chưa có `lech`, nên bản dựng trong đó luôn thiếu phần so sánh. */
-  nay.chiPhi = gomChiPhi(nay.base);
+  nay.chiPhi = pv ? null : gomChiPhi(nay.base);
   if (nay.chiPhi && nay.chiPhi.doc && truoc.chiPhi && truoc.chiPhi.doc) {
     nay.chiPhi.tongTruoc = truoc.chiPhi.tong;
     nay.chiPhi.o.forEach((o) => {

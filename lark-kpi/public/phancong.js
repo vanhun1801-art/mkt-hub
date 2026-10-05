@@ -49,6 +49,10 @@ async function vePhanCong() {
   }
 
   veLuoiPhanCong();
+  /* Khối phạm vi nối thêm vào cuối tab. Đặt chung tab vì hai bảng trả lời hai
+   * nửa của cùng một câu: lưới trên nói kênh nào tính điểm cho ai, khối dưới
+   * nói ai được nhìn thấy những gì. */
+  veKhoiPhamVi($('#noiDung'));
 }
 
 /** Bỏ mọi sửa dở (cả bộ nhớ lẫn nháp) rồi vẽ lại từ số máy chủ. */

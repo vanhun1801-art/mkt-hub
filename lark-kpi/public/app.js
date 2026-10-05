@@ -140,7 +140,10 @@ async function khoiDong() {
    * Hai nửa dùng đơn vị thời gian khác nhau (khoảng tuỳ ý vs tháng) nên không
    * gộp chung bộ lọc được; tách tab là cách nói rõ điều đó. */
   const tabs = [];
-  if (META.nguoiXem.quanLy) tabs.push(['baocao', 'Báo cáo']);
+  /* Nhân sự đã được khai phạm vi cũng vào được tab Báo cáo — chỉ thấy khối và
+   * kênh của mình. Chưa khai thì giấu tab, vì mở ra chỉ để báo lỗi thì thà
+   * đừng hiện. */
+  if (META.nguoiXem.quanLy || META.nguoiXem.coPhamVi) tabs.push(['baocao', 'Báo cáo']);
   tabs.push(['tiendo', 'Tiến độ KPI']);
   if (META.nguoiXem.quanLy) tabs.push(['tong', 'Tổng quan KPI']);
   tabs.push(['phieu', 'Phiếu KPI']);
@@ -161,6 +164,14 @@ async function khoiDong() {
   $('#tabs').onclick = (ev) => {
     const b = ev.target.closest('[data-tab]'); if (!b) return;
     TAB = b.dataset.tab;
+    [...$('#tabs').children].forEach((x) => x.classList.toggle('chon', x.dataset.tab === TAB));
+    ve();
+  };
+
+  /* Chuyển tab bằng mã — khối Phạm vi dùng để nhảy sang tab Báo cáo xem thử. */
+  window.doiTab = (k) => {
+    if (!tabs.some(([x]) => x === k)) return;
+    TAB = k;
     [...$('#tabs').children].forEach((x) => x.classList.toggle('chon', x.dataset.tab === TAB));
     ve();
   };
