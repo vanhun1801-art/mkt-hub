@@ -27,7 +27,14 @@ const DEFAULT = {
     clickMetric: 'clicks',
     tokenVinhVien: false, tokenHetHanLuc: '',
   },
-  tiktok: { enabled: false, accessToken: '', advertiserIds: [], conversionMetric: 'conversion' },
+  /* `appId` + `appSecret` để app tự đi lấy access token, thay vì bắt mở terminal
+     chạy `node ket-noi.js --tiktok`. Google đã làm được từ lâu; TikTok thì chưa,
+     nên mỗi lần token hết hạn là phải ra dòng lệnh — mà trên Render thì không có
+     dòng lệnh nào. Quan trọng hơn: lượt đổi token của TikTok trả về LUÔN danh
+     sách advertiser được uỷ quyền, nên lưu cả hai cùng lúc là hết cảnh token
+     đúng mà mã tài khoản khai sai. */
+  tiktok: { enabled: false, accessToken: '', advertiserIds: [], conversionMetric: 'conversion',
+    appId: '', appSecret: '' },
   googleSheet: { enabled: false, csvUrl: '', level: 'adgroup' },
   /* Google Ads API thật. Song song với googleSheet: chưa được Google duyệt
    * developer token thì đi đường Sheet, duyệt rồi thì bật cái này và tắt cái kia. */
@@ -242,6 +249,8 @@ const TRUONG = {
     ['accessToken', 'biMat'],
     ['advertiserIds', 'idSo'],
     ['conversionMetric', 'chiSo'],
+    ['appId', 'chuoi'],
+    ['appSecret', 'biMat'],
   ],
   googleAds: [
     ['clientId', 'chuoi'],
@@ -372,7 +381,9 @@ function bieuMau() {
     tiktok: {
       advertiserIds: (c.tiktok.advertiserIds || []).join(', '),
       conversionMetric: c.tiktok.conversionMetric || '',
+      appId: c.tiktok.appId || '',
       daCoAccessToken: !!c.tiktok.accessToken,
+      daCoAppSecret: !!c.tiktok.appSecret,
     },
     googleAds: {
       clientId: c.googleAds.clientId || '',

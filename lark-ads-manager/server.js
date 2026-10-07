@@ -35,6 +35,9 @@ const nhatKyGhi = require('./sync/nhatkyghi');
 const ghiDT = require('./sync/ghidoanhthu');
 const roasTinh = require('./sync/roas');
 const noiQC = require('./sync/noiquangcao');
+/* postJson dùng cho đường uỷ quyền TikTok — qua lớp http chung để token được che
+ * trong mọi thông báo lỗi, đừng gọi fetch trần. */
+const { postJson } = require('./sync/http');
 
 const T = cfg.tables;
 const PUBLIC = path.join(__dirname, 'public');
@@ -1684,6 +1687,69 @@ async function api(req, res, u) {
       ketnoi.writeSecrets({ googleAds: { refreshToken: d.refresh_token } });
       live.xoaCache();
       return ok(res, { ...ketnoi.status(), daLay: true });
+    }
+    return fail(res, 400, 'buoc phải là link hoặc doi');
+  }
+
+  /**
+   * Uỷ quyền TikTok ngay trong app — khỏi mở terminal.
+   *
+   * Google có đường này từ lâu, TikTok thì chưa, nên mỗi lần token hỏng là phải
+   * chạy `node ket-noi.js --tiktok` — mà trên server chung thì không có dòng
+   * lệnh nào để chạy. Ngày 07/10/2026 anh Hùng kẹt đúng chỗ đó.
+   *
+   * Cái được lớn nhất không phải tiện: lượt đổi token của TikTok trả về LUÔN
+   * danh sách advertiser đã uỷ quyền, nên app lưu token và mã tài khoản CÙNG
+   * một lúc. Hết cảnh token đúng mà ô "Mã tài khoản quảng cáo" khai một ID
+   * không nằm trong uỷ quyền — đúng lỗi 40105 đang gặp.
+   */
+  if (p === '/api/connect/tiktok-oauth' && method === 'POST') {
+    if (!laQuanLy(req)) return fail(res, 403, 'Chỉ vai quản lý mới đổi được kết nối');
+    const body = await readBody(req);
+    const tk = ketnoi.read().tiktok;
+    if (!tk.appId || !tk.appSecret) {
+      return fail(res, 400, 'Điền App ID và App Secret của TikTok rồi Lưu cấu hình trước đã. '
+        + 'Lấy ở business-api.tiktok.com → My Apps → app của mình → Basic Information.');
+    }
+    /* Phải khớp CHÍNH XÁC một trong các Advertiser redirect URLs khai trong app
+     * TikTok. 47124 là cái app này vẫn dùng và đã khai sẵn. */
+    const redirect = process.env.TIKTOK_REDIRECT || 'http://127.0.0.1:47124';
+
+    if (body.buoc === 'link') {
+      return ok(res, {
+        url: 'https://business-api.tiktok.com/portal/auth?' + new URLSearchParams({
+          app_id: tk.appId, state: 'rooty', redirect_uri: redirect,
+        }).toString(),
+        redirect,
+      });
+    }
+
+    if (body.buoc === 'doi') {
+      const dan = String(body.dan || '').trim();
+      // Nhận cả URL đầy đủ lẫn mỗi mã dán trần, giống đường Google.
+      const m = dan.match(/[?&]auth_code=([^&\s]+)/) || dan.match(/[?&]code=([^&\s]+)/);
+      const code = m ? decodeURIComponent(m[1]) : dan;
+      if (!code || /\s/.test(code)) return fail(res, 400, 'Chưa thấy auth_code trong chuỗi vừa dán');
+      let d;
+      try {
+        d = await postJson('https://business-api.tiktok.com/open_api/v1.3/oauth2/access_token/',
+          { app_id: tk.appId, secret: tk.appSecret, auth_code: code },
+          { label: 'TikTok oauth', retries: 1 });
+      } catch (e) { return fail(res, 400, e.message); }
+      if (Number(d.code) !== 0 || !d.data || !d.data.access_token) {
+        return fail(res, 400, `TikTok báo: (${d.code}) ${d.message || 'không rõ'}`
+          + '. Mã auth_code chỉ dùng được MỘT lần — bấm lấy link mới rồi làm lại. '
+          + `Và Redirect URL khai trong app TikTok phải đúng bằng ${redirect}.`);
+      }
+      const ids = (d.data.advertiser_ids || []).map(String).filter(Boolean);
+      if (!ids.length) {
+        return fail(res, 400, 'Lấy được token nhưng KHÔNG tài khoản nào được uỷ quyền. '
+          + 'Quay lại trang uỷ quyền và tick các tài khoản quảng cáo.');
+      }
+      /* Lưu token VÀ mã tài khoản cùng lúc: đây mới là chỗ chữa lỗi 40105. */
+      ketnoi.writeSecrets({ tiktok: { accessToken: d.data.access_token, advertiserIds: ids } });
+      live.xoaCache();
+      return ok(res, { ...ketnoi.status(), daLay: true, soTaiKhoan: ids.length, taiKhoan: ids });
     }
     return fail(res, 400, 'buoc phải là link hoặc doi');
   }

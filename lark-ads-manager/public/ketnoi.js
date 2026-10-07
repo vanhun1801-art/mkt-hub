@@ -58,6 +58,7 @@
     },
     tiktok: {
       nut: 'Điền Access Token TikTok',
+      ttOauth: true,
       fields: [
         { k: 'accessToken', l: 'Access Token', mat: true, full: true, ph: 'token dài hạn của TikTok Business',
           hint: 'Tạo app ở business-api.tiktok.com → chờ duyệt → uỷ quyền tài khoản quảng cáo → lấy token dài hạn.' },
@@ -65,6 +66,10 @@
           hint: 'Hiện ở trang uỷ quyền, hoặc góc trên TikTok Ads Manager. Nhiều tài khoản ngăn bằng dấu phẩy.' },
         { k: 'conversionMetric', l: 'Chỉ số chuyển đổi', ph: 'conversion',
           hint: 'conversion = tổng chuyển đổi · result = theo cột Kết quả của TikTok' },
+        { k: 'appId', l: 'TikTok App ID', ph: '7678987984670031892',
+          hint: 'business-api.tiktok.com → My Apps → app của mình → Basic Information' },
+        { k: 'appSecret', l: 'TikTok App Secret', mat: true, full: true,
+          hint: 'Cùng trang đó. Bấm Reset là có cái mới — TikTok chỉ cho xem một lần.' },
       ],
     },
     googleAds: {
@@ -217,6 +222,21 @@
           <div style="display:flex;gap:8px;margin-top:8px">
             <input data-gg-dan placeholder="dán URL trình duyệt nhảy tới (hoặc mã code)" style="flex:1;min-width:0;border:1px solid var(--line);border-radius:7px;padding:6px 9px;font:inherit">
             <button class="btn small ghost" data-gg-doi>Đổi lấy token</button>
+          </div></div>` : ''}
+        ${f.ttOauth ? `<div class="help" style="margin:12px 0 0">
+          <b>Access Token</b> ${bm.daCoAccessToken ? '<span class="tag good">đã lưu</span>' : '<span class="tag bad">chưa có</span>'} —
+          lưu App ID + App Secret trước, rồi bấm <b>Lấy link uỷ quyền</b>.
+          Trình duyệt sẽ nhảy tới <code>127.0.0.1:47124</code> và báo không kết nối được: đó là bình thường,
+          copy nguyên URL trên thanh địa chỉ rồi dán xuống ô dưới.
+          <br><b>Nhớ tick các tài khoản quảng cáo</b> ở trang uỷ quyền — app lấy luôn danh sách đó,
+          nên không còn cảnh token đúng mà mã tài khoản khai sai.
+          <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+            <button class="btn small ghost" data-tt-link>Lấy link uỷ quyền</button>
+            <a class="btn small primary" data-tt-mo hidden target="_blank" rel="noopener">Mở trang uỷ quyền TikTok</a>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <input data-tt-dan placeholder="dán URL trình duyệt nhảy tới (hoặc mã auth_code)" style="flex:1;min-width:0;border:1px solid var(--line);border-radius:7px;padding:6px 9px;font:inherit">
+            <button class="btn small ghost" data-tt-doi>Đổi lấy token</button>
           </div></div>` : ''}
         <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
           <button class="btn small primary" data-luu="${p.key}">Lưu cấu hình</button>
@@ -688,6 +708,39 @@
         toast('Đã lấy được refresh token', 'ok');
         render();
       } catch (e) { toast(e.message, 'err'); ggDoi.disabled = false; ggDoi.textContent = 'Đổi lấy token'; }
+    };
+
+    /* ---- TikTok: y hệt đường của Google ----
+     * Trước đây muốn lấy token TikTok phải mở terminal chạy `node ket-noi.js
+     * --tiktok` — mà trên server chung thì không có terminal nào. */
+    const ttLink = $('#view [data-tt-link]');
+    if (ttLink) ttLink.onclick = async () => {
+      ttLink.disabled = true;
+      try {
+        // App ID/Secret đang gõ dở phải lưu trước thì link mới đúng.
+        await api('/api/connect/secrets', { method: 'PUT', body: JSON.stringify(nhatForm('tiktok')) });
+        const r = await api('/api/connect/tiktok-oauth', { method: 'POST', body: JSON.stringify({ buoc: 'link' }) });
+        const a = $('#view [data-tt-mo]');
+        a.href = r.url; a.hidden = false;
+        window.open(r.url, '_blank', 'noopener');
+        toast('Tick các tài khoản rồi đồng ý, sau đó copy URL trên thanh địa chỉ dán xuống ô dưới', 'ok');
+      } catch (e) { toast(e.message, 'err'); }
+      ttLink.disabled = false;
+    };
+
+    const ttDoi = $('#view [data-tt-doi]');
+    if (ttDoi) ttDoi.onclick = async () => {
+      const dan = $('#view [data-tt-dan]').value.trim();
+      if (!dan) { toast('Chưa dán gì vào ô', 'err'); return; }
+      ttDoi.disabled = true; ttDoi.textContent = 'Đang đổi…';
+      try {
+        const r = await api('/api/connect/tiktok-oauth', { method: 'POST', body: JSON.stringify({ buoc: 'doi', dan }) });
+        /* Nói ra số tài khoản lấy được: đây là phần chữa lỗi 40105, và người
+         * dùng cần thấy nó đã xảy ra chứ không chỉ thấy chữ "xong". */
+        KQ_LUU.tiktok = null;
+        toast(`Đã lấy token và ${r.soTaiKhoan} tài khoản được uỷ quyền`, 'ok');
+        render();
+      } catch (e) { toast(e.message, 'err'); ttDoi.disabled = false; ttDoi.textContent = 'Đổi lấy token'; }
     };
   }
 
