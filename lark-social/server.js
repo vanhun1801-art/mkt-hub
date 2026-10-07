@@ -389,6 +389,14 @@ async function nhapTayNgay(ban) {
  */
 async function ghiLiveNgay(daDoc, ten, u, req) {
   const g = liveNgay.gop([daDoc]);
+  /* `xem=1` là XEM TRƯỚC: đọc tệp, trả về khoảng ngày và số tổng, KHÔNG ghi gì.
+   *
+   * Vì sao cần: LIVE Center đặt tên tệp bằng một khoảng năm vô nghĩa
+   * ("LIVE_58635-08-31_58715-01-24_..."), nên nhìn tên không biết tệp chứa
+   * tháng nào. Anh Hùng có ba bộ tệp trong Downloads tên gần giống hệt nhau.
+   * Tải nhầm bộ cũ không làm hỏng tháng mới (khác ngày, khác khoá), nhưng nó
+   * ghi đè tháng cũ bằng số cũ mà không ai hay. Cho nhìn trước rồi hãy ghi. */
+  const chiXem = u.searchParams.get('xem') === '1';
   const d = await store.tai();
   const chon = (u.searchParams.get('extId') || '').trim();
   const handle = liveNgay.handleTuTen(ten);
@@ -425,18 +433,52 @@ async function ghiLiveNgay(daDoc, ten, u, req) {
         : 'Không đoán được tệp này của kênh nào — chọn kênh rồi tải lại.',
     };
   }
+  /* Khoảng ngày lấy từ NỘI DUNG tệp, không từ tên tệp. */
+  const ngay = g.ds.map((x) => x.ngay).sort();
+  const cong = (f) => g.ds.reduce((a, x) => a + (Number(x[f]) || 0), 0);
+  const tomTat = {
+    theoNgay: true,
+    loai: daDoc.loai,
+    kenh: kenh.name,
+    extId: kenh.extId,
+    soNgay: g.ds.length,
+    tuNgay: ngay[0] || '',
+    denNgay: ngay[ngay.length - 1] || '',
+    boQuaNgayTrong: g.boQuaNgayTrong,
+    tong: {
+      soPhien: cong('soPhien'),
+      luotXem: cong('luotXem'),
+      thoiLuong: cong('thoiLuong'),
+      thich: cong('thich'),
+      kimCuong: cong('kimCuong'),
+    },
+  };
+  if (chiXem) return { ...tomTat, chiXem: true };
+
   const kq = await liveNgay.ghi({
     ds: g.ds, kenh, nguon: 'LIVE Center · ' + daDoc.loai, store, lark, cfg,
   });
   store.xoaCache();
-  return {
-    theoNgay: true,
-    loai: daDoc.loai,
-    kenh: kenh.name,
-    soNgay: g.ds.length,
-    boQuaNgayTrong: g.boQuaNgayTrong,
-    ...kq,
-  };
+
+  /* GHI NHẬT KÝ AI TẢI. Trước đây lượt tải tệp không để lại dấu vết nào — biết
+   * được lúc nào (cột Cập nhật của từng dòng) nhưng không biết ai. Số này đi
+   * thẳng vào KPI tính lương, nên phải truy được người. Nuốt mọi lỗi: tệp đã
+   * ghi vào Base rồi, không để một dòng nhật ký làm hỏng kết quả đó. */
+  const ai = await nguoiDung(req).catch(() => null);
+  store.ghiNhatKy({
+    platform: kenh.platform || 'TikTok',
+    from: tomTat.tuNgay,
+    to: tomTat.denNgay,
+    result: 'Thành công',
+    rowsLive: g.ds.length,
+    message: 'TẢI TỆP LIVE Center · ' + daDoc.loai + ' · kênh ' + kenh.name
+      + ' · ' + tomTat.tuNgay + ' → ' + tomTat.denNgay
+      + ' · ' + g.ds.length + ' ngày (thêm ' + kq.them + ', cập nhật ' + kq.capNhat + ')'
+      + ' · người tải: ' + ((ai && (ai.ten || ai.name || ai.email)) || 'không rõ')
+      + ' · tệp: ' + ten,
+  }).catch(() => {});
+
+  return { ...tomTat, ...kq };
 }
 
 async function ghiDsLive(ds, { channel = '', extId = '' } = {}) {

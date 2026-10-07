@@ -45,8 +45,13 @@
     body: JSON.stringify(body || {}),
   });
 
-  function moModal(html) {
-    $('#modal').innerHTML = html;
+  /* Nhận cả chuỗi HTML lẫn phần tử đã dựng sẵn. Bảng xem trước phải gắn sự kiện
+   * cho nút bên trong nên không dựng bằng chuỗi được. */
+  function moModal(noiDung) {
+    const o = $('#modal');
+    o.innerHTML = '';
+    if (noiDung instanceof Node) o.appendChild(noiDung);
+    else o.innerHTML = noiDung;
     $('#modalWrap').hidden = false;
   }
   const dongModal = () => { $('#modalWrap').hidden = true; $('#modal').innerHTML = ''; };
@@ -786,6 +791,77 @@
 
     /* Gửi thẳng byte của tệp, không bọc multipart: mỗi lượt đúng một tệp, mà
      * đọc multipart thì phải nuôi thêm một bộ phân tích nữa. */
+    /**
+     * Gửi một lượt tệp. `ghiThat=false` là XEM TRƯỚC — máy chủ đọc tệp rồi trả
+     * khoảng ngày và số tổng, chưa ghi gì.
+     */
+    async function guiLuot(fs, ghiThat, noi) {
+      const kq = [];
+      for (let i = 0; i < fs.length; i += 1) {
+        const f = fs[i];
+        noi((ghiThat ? 'Đang ghi ' : 'Đang đọc ') + (i + 1) + '/' + fs.length + '…');
+        const q = new URLSearchParams({ ten: f.name, extId: $('#dnKenh').value });
+        if (!ghiThat) q.set('xem', '1');
+        /* GỬI LẦN LƯỢT, không Promise.all: bốn tệp cùng ghi vào một bảng theo
+         * khoá, chạy song song là hai lượt cùng thấy "chưa có dòng này" rồi
+         * cùng tạo mới — ra hai dòng trùng khoá cho cùng một ngày. */
+        // eslint-disable-next-line no-await-in-loop
+        kq.push(await goi('/api/live/tai-tep?' + q.toString(), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/octet-stream' },
+          // eslint-disable-next-line no-await-in-loop
+          body: await f.arrayBuffer(),
+        }));
+      }
+      return kq;
+    }
+
+    /**
+     * Bảng XEM TRƯỚC — nói rõ tệp chứa khoảng ngày nào trước khi ghi.
+     *
+     * LIVE Center đặt tên tệp bằng một khoảng năm vô nghĩa
+     * ("LIVE_58635-08-31_58715-01-24_..."), nên nhìn tên không đoán được tháng.
+     * Ai tải vài lần là có mấy bộ tệp tên gần giống hệt nhau trong Downloads,
+     * và tải nhầm bộ cũ thì ghi đè số cũ lên tháng cũ mà không ai hay.
+     */
+    function bangXemTruoc(ds, chay) {
+      const co = ds.filter((r) => r.theoNgay);
+      if (!co.length) return null;
+      const tu = co.map((r) => r.tuNgay).filter(Boolean).sort();
+      const den = co.map((r) => r.denNgay).filter(Boolean).sort();
+      /* Mỗi tệp mang một nhóm cột khác nhau, nên lấy MAX chứ không cộng — cộng
+       * bốn tệp lại là nhân bốn lần cùng một con số. */
+      const dinh = (f) => Math.max(0, ...co.map((r) => (r.tong || {})[f] || 0));
+      const giay = dinh('thoiLuong');
+      const dong = (nhan, giaTri) => (giaTri
+        ? '<div class="xt-l"><span>' + nhan + '</span><b>' + giaTri + '</b></div>' : '');
+
+      const o = document.createElement('div');
+      o.innerHTML = '<div class="modal-head"><h3>Kiểm lại trước khi ghi</h3></div>'
+        + '<div class="modal-body"><div class="xt">'
+        + dong('Kênh', esc(co[0].kenh || ''))
+        + dong('Khoảng ngày trong tệp',
+          esc(tu[0] || '?') + ' → ' + esc(den[den.length - 1] || '?'))
+        /* Lấy số ngày LỚN NHẤT, không lấy của tệp đầu: mỗi tệp bỏ qua những
+         * ngày mà riêng nó toàn số 0, nên Rewards có thể báo 10 ngày trong khi
+         * Viewership báo 13. Số cần hiện là số ngày sẽ ghi vào Base. */
+        + dong('Số ngày có LIVE', Math.max(...co.map((r) => r.soNgay || 0)) + ' ngày')
+        + dong('Số phiên', dinh('soPhien') || '')
+        + dong('Lượt xem', dinh('luotXem') ? dinh('luotXem').toLocaleString('vi-VN') : '')
+        + dong('Thời lượng LIVE', giay
+          ? Math.floor(giay / 3600) + 'h ' + Math.round((giay % 3600) / 60) + 'm' : '')
+        + dong('Tệp đã đọc', co.map((r) => esc(r.loai)).join(' · '))
+        + '</div><p class="hint">Đối chiếu với màn hình LIVE Center rồi hãy ghi. '
+        + 'LIVE Center đặt tên tệp bằng khoảng năm vô nghĩa nên nhìn tên không '
+        + 'biết tháng nào — khoảng ngày ở trên đọc từ <b>bên trong tệp</b>. '
+        + 'Ngày nào đã có số sẽ bị <b>ghi đè</b> bằng số của tệp này.</p></div>'
+        + '<div class="modal-foot"><button class="btn" data-thoi>Thôi</button>'
+        + '<button class="btn primary" data-ghi>Ghi vào Base</button></div>';
+      o.querySelector('[data-ghi]').onclick = () => chay(true);
+      o.querySelector('[data-thoi]').onclick = () => chay(false);
+      return o;
+    }
+
     async function guiTep(ds) {
       const fs = [...(ds || [])].filter(Boolean);
       if (!fs.length) return;
@@ -800,29 +876,37 @@
         else if (tha) tha.innerHTML = '<b>' + t + '</b>';
       };
       if (nut) nut.disabled = true;
-      try {
-        const kq = [];
-        for (let i = 0; i < fs.length; i += 1) {
-          const f = fs[i];
-          noi(fs.length > 1 ? 'Đang đọc ' + (i + 1) + '/' + fs.length + '…' : 'Đang đọc…');
-          const q = new URLSearchParams({ ten: f.name, extId: $('#dnKenh').value });
-          /* GỬI LẦN LƯỢT, không Promise.all: bốn tệp cùng ghi vào một bảng theo
-           * khoá, chạy song song là hai lượt cùng thấy "chưa có dòng này" rồi
-           * cùng tạo mới — ra hai dòng trùng khoá cho cùng một ngày. */
-          // eslint-disable-next-line no-await-in-loop
-          kq.push(await goi('/api/live/tai-tep?' + q.toString(), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/octet-stream' },
-            // eslint-disable-next-line no-await-in-loop
-            body: await f.arrayBuffer(),
-          }));
-        }
-        if (kq.some((r) => r.theoNgay || r.canChonKenh)) baoNgay(kq);
-        else bao(kq[kq.length - 1]);
-      } catch (e) {
-        toast(e.message, 'err');
+      const traLai = () => {
         if (nut) { nut.disabled = false; nut.textContent = 'Đọc và ghi'; }
         else if (tha) tha.innerHTML = chu0;
+      };
+      try {
+        const xem = await guiLuot(fs, false, noi);
+        /* Tệp không phải bản xuất theo ngày (bảng phiên LIVE dán tay) thì không
+         * có gì để xem trước — máy chủ đã ghi luôn ở lượt này. */
+        if (!xem.some((r) => r.theoNgay)) {
+          if (xem.some((r) => r.canChonKenh)) baoNgay(xem);
+          else bao(xem[xem.length - 1]);
+          traLai();
+          return;
+        }
+        if (xem.some((r) => r.canChonKenh)) { baoNgay(xem); traLai(); return; }
+
+        const chay = async (dongY) => {
+          dongModal();
+          if (!dongY) { traLai(); return; }
+          if (nut) nut.disabled = true;
+          try {
+            baoNgay(await guiLuot(fs, true, noi));
+          } catch (e) { toast(e.message, 'err'); }
+          traLai();
+        };
+        const o = bangXemTruoc(xem, chay);
+        if (o) moModal(o);
+        else { baoNgay(await guiLuot(fs, true, noi)); traLai(); }
+      } catch (e) {
+        toast(e.message, 'err');
+        traLai();
       }
     }
 
