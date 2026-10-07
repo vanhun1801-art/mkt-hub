@@ -234,7 +234,23 @@
         return Number.isFinite(t) ? t : null;
       };
       const ds = c.providers.filter(hienKenh).filter((x) => x.sanSang || x.coToken);
-      if (!ds.length) return '';
+      /* Bản đầu trả '' ở đây — nghĩa là đúng lúc KHÔNG CÓ KÊNH NÀO, cái dải sinh
+       * ra để theo dõi lại biến mất. Trạng thái trắng cũng là một trạng thái sức
+       * khoẻ, và là trạng thái tệ nhất. */
+      if (!ds.length) {
+        return `<div class="card" style="margin-bottom:14px">
+          <div class="card-head"><h3>Sức khoẻ từng kênh</h3>
+            <span class="sub">không có kênh nào để theo dõi</span></div>
+          <div class="card-body">
+            <div class="help" style="border-color:var(--bad);color:var(--bad)">
+              <b>Không kênh nào đang nối.</b> App này không kéo được số từ Facebook, TikTok
+              hay Google Ads, và cũng không ghi gì lên Base.
+              ${c.oDiaTam ? 'Khối đỏ <b>ngay bên dưới</b> nói cách giữ token qua lần deploy.'
+                : 'Điền token ở các thẻ nền tảng bên dưới.'}
+            </div>
+          </div>
+        </div>`;
+      }
 
       const dong = (p) => {
         const plat = PLAT_OF[p.key] || p.label;
@@ -292,9 +308,18 @@
       // "Chưa nối kênh nào" phải xét theo có kênh nào SẴN SÀNG không, chứ không phải
       // theo việc file có trên đĩa hay không — trên Render cấu hình đến từ biến môi
       // trường nên không hề có file, mà kênh vẫn chạy ngon.
-      c.providers.some((p) => p.sanSang) ? '' : `<div class="help">
+      c.providers.some((p) => p.sanSang) ? '' : (c.oDiaTam ? `<div class="help" style="border-color:var(--bad);color:var(--bad)">
+      <b>Bản chạy trên server này không có token nào — và dán token ở đây sẽ mất ở lần deploy kế tiếp.</b>
+      Ổ đĩa của server là tạm; chỗ giữ được lâu dài là biến môi trường <code>ADS_CONNECT_JSON</code>,
+      mà biến đó hiện ${c.nguon === 'env' ? 'có nhưng không chứa token nào' : '<b>chưa được đặt</b>'}.
+      <br><b>Làm theo thứ tự này:</b>
+      <br>1. Mở app trên máy đã có token (máy anh Hùng), vào tab này, bấm <b>Lấy nội dung ADS_CONNECT_JSON</b>.
+      <br>2. Dán vào Render → service của hub → <b>Environment</b> → biến <code>ADS_CONNECT_JSON</code>.
+      <br>3. Deploy lại. Từ đó token sống qua mọi lần deploy.
+      <br><span class="sub">Chừng nào chưa làm bước này, việc kéo số về Base chỉ chạy khi máy cá nhân đang bật.</span>
+      </div>` : `<div class="help">
       Chưa nối kênh nào. Bấm <b>Điền thông tin</b> ở thẻ nền tảng bên dưới, dán token vào rồi <b>Lưu cấu hình</b> —
-      app tự tạo <b>${esc(c.file)}</b> hộ, không phải sửa file tay.</div>`}
+      app tự tạo <b>${esc(c.file)}</b> hộ, không phải sửa file tay.</div>`)}
     ${(() => {
       /* BỐN khả năng, MỘT băng. Bản trước tính hai băng độc lập rồi in cả hai,
        * nên hiện ra "SẼ MẤT" ngay cạnh "KHÔNG MẤT GÌ" — hai lời khuyên ngược

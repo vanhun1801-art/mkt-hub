@@ -276,6 +276,30 @@ function startScheduler(logFn = console.log) {
       } catch (e) {
         logFn('  [hẹn giờ] Tourwell LỖI  ' + e.message);
       }
+      /* CHẤM ĐIỂM SỨC KHOẺ ngay sau mỗi lượt — đừng để việc này nằm ngoài app.
+       *
+       * Đã trả giá: Google Ads chết ngày 23/09/2026 ("The provided client secret
+       * is invalid") và tới 07/10 anh Hùng mới thấy, tức IM 14 NGÀY. Module
+       * giam-sat.js có đủ phép kiểm, nhưng không ai gọi nó: nó từng là một tác vụ
+       * Windows trên máy cá nhân, và tác vụ ấy ngừng chạy từ 31/08 —
+       * trang-thai.json đứng im đúng từ ngày đó.
+       *
+       * Việc kiểm phải sống cùng app, không sống nhờ máy ai cả. Bọc try riêng:
+       * chấm điểm hỏng thì đồng bộ vẫn phải xong, và KHÔNG tính vào r.tong.loi để
+       * khỏi kích cơ chế thử lại sau 60 giây cho một việc không liên quan.
+       *
+       * chay() tự im nếu nhacNho.bat tắt — nó chỉ ghi trang-thai.json, và app đọc
+       * file đó để dựng băng sức khoẻ. */
+      try {
+        const giamSat = require('../giam-sat');
+        const tt = await giamSat.chay();
+        logFn(`  [hẹn giờ] chấm điểm sức khoẻ: ${tt.khoe ? 'mọi kênh bình thường'
+          : (tt.van_de || []).length + ' vấn đề — ' + tt.tomTat}`);
+        if (tt.guiLark) logFn(`  [hẹn giờ] nhắc Lark: ${tt.guiLark}`);
+      } catch (e) {
+        logFn('  [hẹn giờ] chấm điểm sức khoẻ LỖI  ' + e.message);
+      }
+
       if (r.tong.loi > 0 && !laLanThuHai) thuLai();
     } catch (e) {
       logFn(`  [hẹn giờ] đồng bộ${laLanThuHai ? ' (lần 2)' : ''} lỗi: ${e.message}`);

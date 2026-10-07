@@ -37,6 +37,54 @@ const cat = (s, n) => { s = String(s || ''); return s.length > n ? s.slice(0, n 
 const VIET_TAT = { Facebook: 'FB', TikTok: 'TT', 'Google Ads': 'GG' };
 const MUC = { high: '🔴', mid: '🟠', low: '🟡' };
 
+/**
+ * Khối SỨC KHOẺ ĐỒNG BỘ, đặt ngay đầu thẻ.
+ *
+ * Đã trả giá: Google Ads chết ngày 23/09/2026 ("The provided client secret is
+ * invalid") và tới 07/10 anh Hùng mới thấy — im 14 ngày. Trong 14 ngày đó bản tin
+ * 8:00 vẫn đi đều và vẫn trông bình thường, vì Facebook với TikTok không sao, mà
+ * bản tin thì chỉ nói chuyện chi tiêu.
+ *
+ * Một kênh chết quan trọng hơn mọi con số CPA bên dưới, nên nó đứng ĐẦU thẻ.
+ *
+ * Và nếu chính việc kiểm đã ngừng thì nói thẳng là KHÔNG BIẾT — kết quả kiểm cũ
+ * không phải tin tốt về đồng bộ, nó là tin xấu về việc kiểm.
+ */
+const FILE_TT = path.join(__dirname, 'trang-thai.json');
+const GIO_KIEM_COI_LA_CU = 8;
+
+function khoiSucKhoe(t = Date.now()) {
+  let tt = null;
+  try { tt = JSON.parse(fs.readFileSync(FILE_TT, 'utf8')); } catch (_) { tt = null; }
+  if (!tt || !tt.luc) {
+    return { tag: 'markdown', content:
+      '<font color="orange">**Chưa biết đồng bộ có khoẻ không** — chưa có lần chấm điểm nào.</font>' };
+  }
+  const gio = (t - Date.parse(tt.luc)) / 3600000;
+  if (!isFinite(gio) || gio > GIO_KIEM_COI_LA_CU) {
+    return { tag: 'markdown', content:
+      '<font color="orange">**Chưa biết đồng bộ có khoẻ không** — lần chấm điểm gần nhất đã '
+      + Math.round(gio) + ' giờ trước, tức chính việc kiểm đã ngừng. Đừng dựa vào số dưới đây.</font>' };
+  }
+  if (tt.khoe) return null;   // khoẻ thì im, đừng chiếm chỗ của số liệu
+
+  const nang = (tt.van_de || []).filter((v) => v.nang);
+  const nhe = (tt.van_de || []).filter((v) => !v.nang);
+  const dong = [];
+  nang.forEach((v) => dong.push('🔴 ' + cat(v.mo_ta, 120)));
+  nhe.slice(0, 3).forEach((v) => dong.push('🟠 ' + cat(v.mo_ta, 120)));
+  if (nhe.length > 3) dong.push('<font color="grey">+' + (nhe.length - 3) + ' vấn đề nhẹ khác</font>');
+
+  /* Kèm ngày mới nhất của từng kênh: đây là chỗ nhìn ra ngay kênh nào đứng hình. */
+  const mn = tt.moiNhat || {};
+  const ngayKenh = Object.keys(mn).filter((x) => x && x !== '(chưa gán)').sort()
+    .map((x) => x + ' ' + ddmm(mn[x])).join(' · ');
+
+  return { tag: 'markdown', content:
+    '<font color="red">**Đồng bộ đang có vấn đề**</font>\n' + dong.join('\n')
+    + (ngayKenh ? '\n<font color="grey">Số mới nhất trong Base: ' + ngayKenh + '</font>' : '') };
+}
+
 /** Dựng thẻ. `buoi` = 'sang' | 'toi'. `data` = bộ dữ liệu như màn hình Tổng quan. */
 function dung(M, data, buoi, t = Date.now()) {
   const homNay = ngayVN(t), homQua = ngayVN(t - NGAY);
@@ -53,6 +101,10 @@ function dung(M, data, buoi, t = Date.now()) {
   }
 
   const el = [];
+  /* Sức khoẻ trước, số liệu sau. Một kênh chết làm mọi con số bên dưới thành
+   * nửa sự thật, nên nó không được nằm ở cuối thẻ. */
+  const sk = khoiSucKhoe(t);
+  if (sk) { el.push(sk); el.push({ tag: 'hr' }); }
   el.push({ tag: 'markdown', content:
     '**Chi** ' + tien(k.spend) + (buoi === 'sang' ? pct(dt.spend) : '') +
     '  ·  **Chuyển đổi** ' + d(k.conversions) + (buoi === 'sang' ? pct(dt.conversions) : '') +
