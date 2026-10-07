@@ -315,6 +315,13 @@ const LAM_SACH = {
   },
 };
 
+/** Đánh dấu một khối vừa được nối lại. Dùng cho pancake/pancakePos/tourwell —
+ * ba khối này lưu bằng hàm riêng chứ không đi qua writeSecrets. */
+function danhDauNoi(cur, kenh) {
+  if (cur && cur[kenh]) cur[kenh].noiLuc = new Date().toISOString();
+  return cur;
+}
+
 /** Ghi vào file với quyền 0600 — token không để cho tài khoản khác trên máy đọc. */
 function ghiFile(cur) {
   fs.writeFileSync(FILE, JSON.stringify(cur, null, 2), { encoding: 'utf8', mode: 0o600 });
@@ -351,6 +358,19 @@ function writeSecrets(next = {}) {
 
   // Token Meta mới thì hạn cũ không còn đúng — xoá đi, server sẽ hỏi lại Meta.
   if (doi.includes('meta.accessToken')) { cur.meta.tokenVinhVien = false; cur.meta.tokenHetHanLuc = ''; }
+
+  /* NGÀY KẾT NỐI. Trước đây app không lưu, nên không ai trả lời được câu
+   * "token này cắm từ bao giờ" — mà đó là câu đầu tiên cần biết khi một kênh
+   * đứt. Chỉ ghi khi có BÍ MẬT đổi: sửa mã tài khoản hay chỉ số chuyển đổi thì
+   * ngày kết nối không đổi theo. */
+  const nay = new Date().toISOString();
+  Object.keys(TRUONG).forEach((kenh) => {
+    const coBiMatDoi = doi.some((x) => {
+      const [k, key] = x.split('.');
+      return k === kenh && LA_BI_MAT(kenh, key);
+    });
+    if (coBiMatDoi) cur[kenh].noiLuc = nay;
+  });
 
   ghiFile(cur);
   return { daDoi: doi };
@@ -480,7 +500,7 @@ function status() {
   const c = read();
   const exists = fs.existsSync(FILE);
   const ng = nguon();
-  return {
+  const ra = {
     fileTonTai: exists,
     file: cfg.connectFile,
     // 'file' = máy cá nhân · 'env' = server chung (ADS_CONNECT_JSON) · 'trong' = chưa khai
@@ -633,16 +653,86 @@ function status() {
       })(),
     ],
   };
+
+  /* ---- NGÀY KẾT NỐI và KHI NÀO PHẢI NỐI LẠI ----
+   *
+   * Anh Hùng, 07/10/2026: "ghi nhẹ ngày kết nối và ngày cần kết nối mới lại".
+   * Gắn ở một chỗ cho cả sáu kênh thay vì sửa sáu nơi rải rác — ít chỗ sai hơn,
+   * và thêm kênh mới sau này là tự có.
+   *
+   * Mỗi kênh một luật hạn KHÁC NHAU, và chỗ nào không biết thì nói là không
+   * biết. Đoán một ngày hết hạn còn tệ hơn để trống: người ta sẽ tin vào nó. */
+  const HAN = {
+    meta: () => ra.providers.find((x) => x.key === 'meta').hanToken,
+    tiktok: () => ({ vinhVien: true,
+      moTa: 'TikTok không công bố hạn cho token dài hạn. Chỉ mất khi bị thu hồi, '
+        + 'hoặc khi đổi App Secret.' }),
+    googleAds: () => ({ vinhVien: true,
+      moTa: 'Refresh token không hết hạn. Nhưng Google XOÁ OAuth client nếu 6 tháng '
+        + 'không dùng tới — app chạy đều thì không chạm tới mốc đó.' }),
+    googleSheet: () => ({ vinhVien: true, moTa: 'link CSV không hết hạn' }),
+    pancake: () => {
+      /* Hai loại token, hạn khác hẳn nhau. Cái cấp TÀI KHOẢN mới có hạn, và nó
+       * là JWT nên đọc được ngày chính xác. */
+      const h = hanJwt(c.pancake.userToken);
+      if (h) return { ...h, moTa: 'token cấp tài khoản (userToken) — Pancake cấp tối đa 90 ngày. '
+        + 'Token cấp page thì không hết hạn.' };
+      return { vinhVien: true, moTa: 'token cấp page không hết hạn; chưa khai token cấp tài khoản' };
+    },
+    pancakePos: () => ({ vinhVien: true, moTa: 'api_key không hết hạn' }),
+    tourwell: () => ({ vinhVien: true, moTa: 'token Open API không hết hạn' }),
+  };
+
+  [...ra.providers, ...ra.doLuong].forEach((x) => {
+    x.noiLuc = (c[x.key] && c[x.key].noiLuc) || null;
+    try { x.hanToken = (HAN[x.key] ? HAN[x.key]() : x.hanToken) || x.hanToken || null; }
+    catch (_) { /* giữ nguyên cái đang có, đừng làm vỡ cả status() vì một ô hạn */ }
+  });
+
+  return ra;
 }
 
 /** Diễn giải hạn token đã lưu thành thứ đọc được, kèm mức độ cần lo. */
+/**
+ * Hạn của token Pancake cấp TÀI KHOẢN (userToken).
+ *
+ * Đây là token DUY NHẤT trong cả hệ có hạn thật mà app tự đọc được: nó là JWT,
+ * claim `exp` nằm sẵn bên trong, giải ra là biết ngày hết hạn chính xác. Pancake
+ * cấp tối đa 90 ngày. Token cấp PAGE thì không hết hạn — đừng lẫn hai cái.
+ *
+ * Giải mã không cần thư viện và KHÔNG cần khoá bí mật: chỉ đọc phần payload.
+ * Hỏng thì trả null chứ đừng đoán — nói sai một ngày hết hạn còn tệ hơn không nói.
+ */
+function hanJwt(tok) {
+  const s = String(tok || '').trim();
+  const phan = s.split('.');
+  if (phan.length !== 3) return null;
+  try {
+    const than = JSON.parse(Buffer.from(phan[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8'));
+    const exp = Number(than.exp || 0);
+    if (!exp) return null;
+    const con = Math.floor((exp * 1000 - Date.now()) / 86400000);
+    const ngay = new Date(exp * 1000).toISOString().slice(0, 10);
+    if (con < 0) return { text: `ĐÃ HẾT HẠN ${ngay}`, muc: 'het', conLaiNgay: con, hetHanNgay: ngay };
+    /* Báo trước 30 ngày, không phải 10.
+     *
+     * Token Pancake cấp tài khoản sống tối đa 90 ngày và phải vào tận Pancake
+     * lấy lại — 10 ngày là quá sát, nhất là khi nó rơi vào kỳ nghỉ. Đo 07/10:
+     * token đang dùng hết hạn 01/11, còn 24 ngày, mà bảng vẫn ghi "không phải
+     * làm gì". Một hạn sắp tới mà im lặng thì theo dõi để làm gì. */
+    if (con <= 30) return { text: `còn ${con} ngày (hết ${ngay})`, muc: 'sapHet', conLaiNgay: con, hetHanNgay: ngay };
+    return { text: `còn ${con} ngày (hết ${ngay})`, muc: 'ok', conLaiNgay: con, hetHanNgay: ngay };
+  } catch (_) { return null; }
+}
+
 function hanToken(m) {
   if (!m.accessToken) return null;
   if (m.tokenVinhVien) return { text: 'không hết hạn', muc: 'ok' };
   if (!m.tokenHetHanLuc) return { text: 'chưa rõ hạn', muc: 'warn' };
   const con = Math.floor((Date.parse(m.tokenHetHanLuc + 'T00:00:00Z') - Date.now()) / 86400000);
   if (con < 0) return { text: `ĐÃ HẾT HẠN ${m.tokenHetHanLuc}`, muc: 'het', conLaiNgay: con };
-  if (con <= 10) return { text: `còn ${con} ngày (hết hạn ${m.tokenHetHanLuc})`, muc: 'sapHet', conLaiNgay: con };
+  // Cùng mốc 30 ngày với hanJwt — xem lý do ở đó.
+  if (con <= 30) return { text: `còn ${con} ngày (hết hạn ${m.tokenHetHanLuc})`, muc: 'sapHet', conLaiNgay: con, hetHanNgay: m.tokenHetHanLuc };
   return { text: `còn ${con} ngày (hết hạn ${m.tokenHetHanLuc})`, muc: 'ok', conLaiNgay: con };
 }
 
@@ -701,6 +791,9 @@ function writePancake(next = {}) {
   }
   if (next.enabled != null) p.enabled = !!next.enabled;
 
+  /* Ghi NGÀY KẾT NỐI: ba khối này lưu bằng hàm riêng nên không đi qua
+   * writeSecrets, thiếu dòng này là chúng không bao giờ có ngày. */
+  if (doi.length) danhDauNoi(cur, 'pancake');
   ghiFile(cur);
   return { daDoi: doi };
 }
@@ -774,6 +867,9 @@ function writePancakePos(next = {}) {
   }
   if (next.enabled != null) p.enabled = !!next.enabled;
 
+  /* Ghi NGÀY KẾT NỐI: ba khối này lưu bằng hàm riêng nên không đi qua
+   * writeSecrets, thiếu dòng này là chúng không bao giờ có ngày. */
+  if (doi.length) danhDauNoi(cur, 'pancakePos');
   ghiFile(cur);
   return { daDoi: doi };
 }
@@ -799,6 +895,9 @@ function writeTourwell(next = {}) {
     t.token = next.token.trim(); doi.push('tourwell.token');
   }
   cur.tourwell = t;
+  /* Ghi NGÀY KẾT NỐI: ba khối này lưu bằng hàm riêng nên không đi qua
+   * writeSecrets, thiếu dòng này là chúng không bao giờ có ngày. */
+  if (doi.length) danhDauNoi(cur, 'tourwell');
   ghiFile(cur);
   return { daDoi: doi };
 }

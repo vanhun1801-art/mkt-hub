@@ -305,69 +305,121 @@
         const t = Math.round((Date.parse(homNay) - Date.parse(ngay)) / 86400000);
         return Number.isFinite(t) ? t : null;
       };
-      const ds = c.providers.filter(hienKenh).filter((x) => x.sanSang || x.coToken);
-      /* Bản đầu trả '' ở đây — nghĩa là đúng lúc KHÔNG CÓ KÊNH NÀO, cái dải sinh
-       * ra để theo dõi lại biến mất. Trạng thái trắng cũng là một trạng thái sức
-       * khoẻ, và là trạng thái tệ nhất. */
+
+      /* SÁU kết nối, không phải ba.
+       *
+       * Anh Hùng, 07/10/2026: "đảm bảo các kết nối này không bao giờ bị ngắt".
+       * Ba kênh quảng cáo chỉ là một nửa — Pancake, POS và Tourwell đứt thì ROAS
+       * chết, mà trước giờ chúng không nằm trong dải theo dõi nào cả. Đúng hôm
+       * nay Pancake lỗi và không có gì báo. */
+      /* Hiện ĐỦ, kể cả cái chưa cấu hình.
+       *
+       * Bản đầu lọc bỏ những nguồn chưa có token — nhưng "Tourwell chưa nối"
+       * chính là thứ cần thấy nhất: thiếu nó thì có chi tiêu mà không có doanh
+       * thu, và ROAS thành vô nghĩa. Không thể đảm bảo một kết nối không đứt
+       * nếu nó còn chẳng nằm trong bảng. */
+      const ds = [...c.providers.filter(hienKenh), ...(c.doLuong || [])];
+
       if (!ds.length) {
         return `<div class="card" style="margin-bottom:14px">
-          <div class="card-head"><h3>Sức khoẻ từng kênh</h3>
-            <span class="sub">${nhanBanChay(c)}không có kênh nào để theo dõi</span></div>
+          <div class="card-head"><h3>Sức khoẻ kết nối</h3>
+            <span class="sub">${nhanBanChay(c)}không có kết nối nào để theo dõi</span></div>
           <div class="card-body">
             <div class="help" style="border-color:var(--bad);color:var(--bad)">
-              <b>Không kênh nào đang nối.</b> App này không kéo được số từ Facebook, TikTok
+              <b>Không kết nối nào đang nối.</b> App này không kéo được số từ Facebook, TikTok
               hay Google Ads, và cũng không ghi gì lên Base.
               ${c.oDiaTam ? 'Khối đỏ <b>ngay bên dưới</b> nói cách giữ token qua lần deploy.'
-                : 'Điền token ở các thẻ nền tảng bên dưới.'}
+                : 'Điền token ở mục <b>Cấu hình kết nối</b> bên dưới.'}
             </div>
           </div>
         </div>`;
       }
 
-      const dong = (p) => {
-        const plat = PLAT_OF[p.key] || p.label;
-        const ngay = moiNhat[plat] || null;
-        const tre = soNgayTre(ngay);
-        const han = p.hanToken;
+      /* Kênh quảng cáo thì có số trong Base để đối chiếu; Pancake/POS/Tourwell
+       * thì không — chúng là nguồn ĐO, không sinh dòng chi tiêu. Đừng bắt chúng
+       * trả lời một câu không dành cho chúng rồi tô đỏ. */
+      const LA_QUANG_CAO = ['meta', 'tiktok', 'googleAds', 'googleSheet'];
 
-        /* Việc cần làm — xếp theo mức gấp, chỉ in CÁI GẤP NHẤT. In cả bốn dòng
-         * thì lại thành khối chữ phải đọc, đúng cái đang muốn bỏ. */
+      const dong = (p) => {
+        const laQC = LA_QUANG_CAO.includes(p.key);
+        const plat = PLAT_OF[p.key] || p.label;
+        const ngay = laQC ? (moiNhat[plat] || null) : null;
+        const tre = soNgayTre(ngay);
+        const han = p.hanToken || null;
+
+        /* Việc cần làm — chỉ in CÁI GẤP NHẤT. In hết thì lại thành khối chữ
+         * phải đọc, đúng cái đang muốn bỏ. */
         let viec = '<span class="tag good">không phải làm gì</span>';
         if (!p.sanSang) viec = '<span class="tag bad">chưa cấu hình xong</span>';
-        else if (han && han.muc === 'het') viec = '<span class="tag bad">token hết hạn — dán token mới</span>';
+        else if (han && han.muc === 'het') viec = '<span class="tag bad">token hết hạn — nối lại ngay</span>';
         else if (!p.enabled) viec = '<span class="tag warn">đã cấu hình nhưng đang tắt</span>';
-        else if (han && han.muc === 'sapHet') viec = '<span class="tag warn">token sắp hết — chuẩn bị token mới</span>';
-        else if (tre == null) viec = '<span class="tag warn">chưa có số nào trong Base</span>';
-        else if (tre > 2) viec = `<span class="tag bad">số cũ ${tre} ngày — đồng bộ lại</span>`;
-        else if (tre === 2) viec = '<span class="tag warn">số trễ 2 ngày</span>';
+        else if (han && han.muc === 'sapHet') {
+          viec = `<span class="tag warn">nối lại trước ${dmy(han.hetHanNgay || '')}</span>`;
+        } else if (laQC && tre == null) viec = '<span class="tag warn">chưa có số nào trong Base</span>';
+        else if (laQC && tre > 2) viec = `<span class="tag bad">số cũ ${tre} ngày — đồng bộ lại</span>`;
+        else if (laQC && tre === 2) viec = '<span class="tag warn">số trễ 2 ngày</span>';
+
+        /* HẠN: ba trạng thái rất khác nhau, đừng gộp.
+         *   có ngày thật  → in ngày
+         *   biết là không hết hạn → nói thế, kèm lý do khi rê chuột
+         *   không biết → nói không biết */
+        let oHan;
+        if (!p.coToken) oHan = '<span class="tag bad">chưa có token</span>';
+        else if (han && han.text) oHan = `<span class="tag ${HAN_CLASS[han.muc] || ''}">${esc(han.text)}</span>`;
+        else if (han && han.vinhVien) {
+          oHan = `<span class="tag good" title="${esc(han.moTa || '')}">không hết hạn</span>`;
+        } else oHan = '<span class="sub">chưa rõ hạn</span>';
 
         return `<tr>
-          <!-- Thẻ kênh đã nói "Facebook" rồi, nhãn lại là "Facebook / Meta" —
-               in cả hai thành "Facebook Facebook / Meta". Chỉ thêm nhãn khi nó
-               nói thêm được điều gì (vd. Google Ads qua Sheet vs qua API). -->
           <td>${platTag(plat)}${p.label && p.label !== plat
             ? ` <span class="sub">${esc(p.label)}</span>` : ''}</td>
           <td>${p.enabled ? '<span class="tag good">bật</span>' : '<span class="tag">tắt</span>'}</td>
-          <td>${!p.coToken ? '<span class="tag bad">chưa có</span>'
-            : han ? `<span class="tag ${HAN_CLASS[han.muc] || ''}">${esc(han.text)}</span>`
-            : '<span class="tag good">đã có</span>'}</td>
-          <td>${p.soTaiKhoan ? esc(p.taiKhoan.join(', ')) : '<span class="sub">—</span>'}</td>
-          <td>${ngay ? `${dmy(ngay)}${tre ? ` <span class="sub">(${tre} ngày trước)</span>` : ' <span class="sub">(hôm nay)</span>'}`
-            : '<span class="sub">—</span>'}</td>
+          <td>${p.noiLuc ? dmy(String(p.noiLuc).slice(0, 10))
+            : '<span class="sub" title="App chỉ bắt đầu ghi ngày từ 07/10/2026 — token cắm trước đó không có mốc">chưa ghi</span>'}</td>
+          <td>${oHan}</td>
+          <td>${laQC
+            ? (ngay ? `${dmy(ngay)}${tre ? ` <span class="sub">(${tre} ngày trước)</span>` : ' <span class="sub">(hôm nay)</span>'}`
+              : '<span class="sub">—</span>')
+            : '<span class="sub">không sinh số</span>'}</td>
           <td>${viec}</td>
         </tr>`;
       };
 
+      /* Dòng nào CẦN LÀM GÌ ĐÓ thì đẩy lên đầu — bảng để liếc một cái là thấy
+       * việc, không phải để đọc từ trên xuống. */
+      /* Thứ tự gấp. Phải khớp CHÍNH XÁC với cột "Cần làm gì", nếu không dòng
+       * tóm tắt nói "mọi thứ bình thường" ngay trên một bảng đang có dòng đỏ —
+       * đúng lỗi bản đầu mắc với Google Ads "số cũ 14 ngày". */
+      const gap = (p) => {
+        if (!p.sanSang) return 0;
+        if (p.hanToken && p.hanToken.muc === 'het') return 1;
+        if (!p.enabled) return 2;
+        if (p.hanToken && p.hanToken.muc === 'sapHet') return 3;
+        if (LA_QUANG_CAO.includes(p.key)) {
+          const t = soNgayTre(moiNhat[PLAT_OF[p.key] || p.label] || null);
+          if (t == null || t >= 2) return 4;
+        }
+        return 9;
+      };
+      const xep = ds.slice().sort((a, b) => gap(a) - gap(b));
+
+      const canLam = ds.filter((x) => gap(x) < 9).length;
+
       return `<div class="card" style="margin-bottom:14px">
-        <div class="card-head"><h3>Sức khoẻ từng kênh</h3>
+        <div class="card-head"><h3>Sức khoẻ kết nối</h3>
           <span class="sub">${nhanBanChay(c)}${c.hengio.dangBat
             ? `đồng bộ tự chạy mỗi ${d.moiSoGio} giờ · Tourwell + ROAS mỗi 2 giờ`
             : 'hẹn giờ đang TẮT — mọi thứ phải bấm tay'}</span></div>
         <div class="card-body tight">
+          ${canLam ? `<div class="help" style="margin:0 0 10px;border-color:var(--warn);color:var(--warn)">
+            <b>${int(canLam)}/${int(ds.length)} kết nối cần anh làm gì đó</b> — xem cột cuối, đã đẩy lên đầu bảng.
+          </div>` : `<div class="help" style="margin:0 0 10px;border-color:var(--good);color:var(--good)">
+            <b>Cả ${int(ds.length)} kết nối đang bình thường.</b>
+          </div>`}
           <div class="tbl-wrap"><table class="tbl"><thead><tr>
-            <th>Kênh</th><th>Trạng thái</th><th>Token</th><th>Tài khoản</th>
+            <th>Kết nối</th><th>Trạng thái</th><th>Nối lúc</th><th>Hạn</th>
             <th>Số mới nhất trong Base</th><th>Cần làm gì</th>
-          </tr></thead><tbody>${ds.map(dong).join('')}</tbody></table></div>
+          </tr></thead><tbody>${xep.map(dong).join('')}</tbody></table></div>
         </div>
       </div>`;
     })();
@@ -446,7 +498,50 @@
          ngay dưới đây". Chỉ hiện khi ổ đĩa thật là ổ tạm. -->
     ${theGiuBen(c)}
 
-    <div class="grid g3">${c.providers.filter(hienKenh).map(providerCard).join('')}</div>
+    <!-- ================= CẤU HÌNH KẾT NỐI =================
+         Anh Hùng, 07/10/2026: gom sáu cấu hình thành MỘT cụm, rồi cuối cụm sinh
+         nội dung ADS_CONNECT_JSON.
+         Trước đây ba kênh quảng cáo nằm một chỗ, còn Pancake / POS / Tourwell
+         nằm tít dưới — mà nút lấy ADS_CONNECT_JSON lại chen vào GIỮA, nên bấm
+         xong rồi mới sửa tiếp ba cái dưới là chuỗi vừa lấy đã cũ. -->
+    <div class="card" style="margin-top:14px">
+      <div class="card-head"><h3>Cấu hình kết nối</h3>
+        <span class="sub">sáu nguồn · sửa xong thì lấy ADS_CONNECT_JSON ở cuối mục này</span></div>
+      <div class="card-body">
+        <div class="help">
+          <b>Ba nguồn trên</b> là nơi lấy số chi tiêu quảng cáo.
+          <b>Ba nguồn dưới</b> (Pancake · POS · Tourwell) là nơi lấy doanh thu để tính ROAS —
+          thiếu chúng thì có chi tiêu mà không có doanh thu.
+          <br>Sửa xong <b>tất cả</b> rồi mới bấm lấy ADS_CONNECT_JSON ở cuối mục, kẻo chuỗi lấy ra còn thiếu.
+        </div>
+      </div>
+    </div>
+
+    <div class="grid g3" style="margin-top:12px">${c.providers.filter(hienKenh).map(providerCard).join('')}</div>
+
+    ${thePancake(c)}
+
+    ${thePancakePos(c)}
+
+    ${theTourwell(c)}
+
+    <div class="card" style="margin-top:14px">
+      <div class="card-head"><h3>Sao lưu cấu hình vào ADS_CONNECT_JSON</h3>
+        <span class="sub">phòng khi ổ đĩa Render mất — đã từng mất token ba lần</span></div>
+      <div class="card-body">
+        <div class="help">
+          Token dán qua các thẻ bên dưới nằm trên ổ đĩa TẠM của Render, không phải chỗ
+          giữ lâu dài — dù có lần không mất qua vài lượt deploy, đó không phải điều
+          được đảm bảo, và đã từng mất thật ba lần trước đây. Bấm nút dưới để lấy đúng
+          nội dung dán vào biến môi trường <code>ADS_CONNECT_JSON</code> trên Render
+          (service này → <b>Environment</b>) — giữ được chắc chắn qua mọi lần deploy
+          hay đổi gói máy chủ sau này.
+        </div>
+        <button class="btn primary" id="btnXuatEnv">Lấy nội dung ADS_CONNECT_JSON</button>
+        <div id="xuatEnvKq" style="margin-top:12px"></div>
+      </div>
+    </div>
+
 
     <div class="card" style="margin-top:14px">
       <div class="card-head"><h3>Đồng bộ &amp; kiểm tra</h3>
@@ -515,29 +610,6 @@
         ${b.commit === 'local' ? '<span class="tag">máy cá nhân</span>' : ''}
       </div>`;
     })()}
-
-    <div class="card" style="margin-top:14px">
-      <div class="card-head"><h3>Sao lưu cấu hình vào ADS_CONNECT_JSON</h3>
-        <span class="sub">phòng khi ổ đĩa Render mất — đã từng mất token ba lần</span></div>
-      <div class="card-body">
-        <div class="help">
-          Token dán qua các thẻ bên dưới nằm trên ổ đĩa TẠM của Render, không phải chỗ
-          giữ lâu dài — dù có lần không mất qua vài lượt deploy, đó không phải điều
-          được đảm bảo, và đã từng mất thật ba lần trước đây. Bấm nút dưới để lấy đúng
-          nội dung dán vào biến môi trường <code>ADS_CONNECT_JSON</code> trên Render
-          (service này → <b>Environment</b>) — giữ được chắc chắn qua mọi lần deploy
-          hay đổi gói máy chủ sau này.
-        </div>
-        <button class="btn primary" id="btnXuatEnv">Lấy nội dung ADS_CONNECT_JSON</button>
-        <div id="xuatEnvKq" style="margin-top:12px"></div>
-      </div>
-    </div>
-
-    ${thePancake(c)}
-
-    ${thePancakePos(c)}
-
-    ${theTourwell(c)}
 
     <div class="card" style="margin-top:14px">
       <div class="card-head"><h3>Ghép ID nền tảng</h3>

@@ -100,7 +100,9 @@ console.log('— tab Kết nối: trạng thái TRẮNG cũng phải nói ra');
   const kn = doc('public/ketnoi.js');
   /* Bản đầu: dải "Sức khoẻ từng kênh" trả rỗng khi không có kênh nào — tức đúng
    * lúc tệ nhất thì cái dải sinh ra để theo dõi lại biến mất. */
-  t('không kênh nào vẫn vẽ dải sức khoẻ', /không có kênh nào để theo dõi/.test(kn));
+  /* Đổi tên 07/10/2026: dải giờ theo dõi cả sáu nguồn chứ không chỉ ba kênh
+   * quảng cáo, nên gọi là "kết nối". Điều phép kiểm giữ thì không đổi. */
+  t('không kết nối nào vẫn vẽ dải sức khoẻ', /không có kết nối nào để theo dõi/.test(kn));
   t('và nói rõ hệ quả: không ghi gì lên Base', /cũng không ghi gì lên Base/.test(kn));
   /* Dải đứng TRƯỚC khối đỏ trong luồng trang, nên phải trỏ XUỐNG. Bản đầu ghi
    * "phía trên" và trỏ vào chỗ không có gì — đúng loại lỗi đã mắc với băng gọi

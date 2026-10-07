@@ -178,7 +178,10 @@ console.log('— thẻ "Giữ cấu hình qua lần deploy" chỉ hiện khi câ
   /* Neo vào ĐÚNG lưới thẻ kênh, không neo vào `c.providers.filter(hienKenh)`:
    * từ 28/09 dải "Sức khoẻ từng kênh" ở đầu tab cũng lọc cùng danh sách đó, nên
    * indexOf bắt phải nó trước và phép kiểm này kêu oan. */
-  const kenh = kn.indexOf('<div class="grid g3">');
+  /* Neo vào tên lưới, không neo cả chuỗi thẻ: 07/10/2026 lưới được thêm
+   * style margin-top khi gom vào cụm "Cấu hình kết nối", và phép kiểm neo
+   * nguyên chuỗi đã kêu oan. */
+  const kenh = kn.indexOf('<div class="grid g3"');
   t('băng cảnh báo có trỏ xuống dưới', bang > 0);
   t('thẻ đứng ngay dưới băng, trước các thẻ kênh', the > 0 && the < kenh);
   t('nút mà băng gọi tên đúng là nút có thật',

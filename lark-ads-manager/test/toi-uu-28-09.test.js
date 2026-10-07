@@ -150,13 +150,16 @@ console.log('— việc 3: danh sách hội thoại có cột tiền, xếp theo
 console.log('— việc 4: tab Kết nối có dải sức khoẻ từng kênh');
 {
   const kn = doc('public/ketnoi.js');
-  t('có dải sức khoẻ kênh', /Sức khoẻ từng kênh/.test(kn));
+  // Đổi tên 07/10/2026: "từng kênh" -> "kết nối", vì giờ nó theo dõi cả sáu nguồn.
+  t('có dải sức khoẻ kết nối', /Sức khoẻ kết nối/.test(kn));
   t('mỗi kênh nói rõ CẦN LÀM GÌ', /Cần làm gì/.test(kn));
   /* Chỗ không biết thì ghi gạch. Tô xanh cho đẹp là đúng cái sai đã bỏ đi ở
    * băng "Đồng bộ đang khoẻ" hồi 18/09. */
   t('chưa có số thì nói chưa có, không tô xanh', /chưa có số nào trong Base/.test(kn));
   t('số cũ quá thì kêu', /số cũ \$\{tre\} ngày/.test(kn));
-  t('token hết hạn là việc gấp nhất', /token hết hạn — dán token mới/.test(kn));
+  /* Chữ đổi 07/10/2026: giờ nói "nối lại ngay", vì ba nguồn mới (Pancake,
+   * POS, Tourwell) không nối bằng cách dán token vào một ô. */
+  t('token hết hạn là việc gấp nhất', /token hết hạn — nối lại ngay/.test(kn));
   t('dải đứng TRƯỚC băng sức khoẻ cũ',
     kn.indexOf('${sucKhoeKenh}') < kn.indexOf('${bangSucKhoe}'));
   t('nói luôn nhịp Tourwell 2 giờ ở đầu tab', /Tourwell \+ ROAS mỗi 2 giờ/.test(kn));
