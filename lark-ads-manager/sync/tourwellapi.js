@@ -41,6 +41,17 @@ const GIAN_MS = Number(process.env.TOURWELL_GIAN_MS || 1500);
  * được; chờ hết mức này mà vẫn 429 thì báo ra chứ đừng treo im. */
 const CHO_429_MS = Number(process.env.TOURWELL_CHO_429_MS || 70000);
 
+/* Số ngày kéo LEAD lùi xa hơn ĐƠN. Xem ghi chú dài ở keoVeKho(). */
+const LUI_LEAD = Number(process.env.TOURWELL_LUI_LEAD || 14);
+
+/** 'YYYY-MM-DD' lùi n ngày. Trả nguyên chuỗi vào nếu không đọc được. */
+function luiNgay(ngay, n) {
+  const m = String(ngay || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m || !(n > 0)) return ngay;
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) - n * 86400000);
+  return d.toISOString().slice(0, 10);
+}
+
 const nghi = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /**
@@ -516,7 +527,26 @@ async function keoVeKho(conf, from, to, log = () => {}, laySdt = false) {
     log('  bỏ qua số điện thoại (15.948 khách ≈ 4 phút) — chỉ dùng khoá cứng mã lead');
   }
 
-  const lead = await docLead(conf, from, to, log, sdtTheoKH);
+  /* LEAD PHẢI KÉO LÙI XA HƠN ĐƠN.
+   *
+   * Lead luôn có TRƯỚC đơn — khách nhắn tin rồi mới chốt. Kéo cả hai cùng một
+   * khoảng nghĩa là đơn ở đầu khoảng chắc chắn mất lead của nó: đơn ngày 23/09
+   * mà lead sinh ngày 18/09 thì lead ấy nằm ngoài kho, và KHÔNG đường ghi công
+   * nào với tới được — cả POS, cả số điện thoại, cả tên khách đều phải đi qua
+   * lead. Trong roas.js đó là bộ đếm `leadKhongCoTrongXuat`.
+   *
+   * Lùi thêm LUI_LEAD ngày là lấp đúng chỗ đó. Đã đo trễ từ lead tới đơn là 0–3
+   * ngày, xa nhất 6, nên 14 ngày là thừa thãi an toàn.
+   *
+   * Giá: lead rẻ hơn đơn (ít trường hơn, ít trang hơn), thêm 14 ngày tốn chừng
+   * hai phút cho một lượt chạy mỗi 2 giờ. Đáng, vì mất một ghi công thì mất
+   * luôn, không lượt sau nào cứu.
+   *
+   * KHÔNG nới khoảng ĐƠN theo: đơn là thứ đắt, và đơn cũ thì lượt trước đã ghi
+   * lên Base rồi. */
+  const tuLead = luiNgay(from, LUI_LEAD);
+  if (tuLead !== from) log(`  lead kéo lùi tới ${tuLead} (sớm hơn đơn ${LUI_LEAD} ngày, vì lead luôn có trước đơn)`);
+  const lead = await docLead(conf, tuLead, to, log, sdtTheoKH);
   const don = await docDon(conf, from, to, log);
 
   /* LẤP SỐ ĐIỆN THOẠI CHO LEAD TỪ ĐƠN CỦA CÙNG KHÁCH — miễn phí, không thêm một
@@ -569,4 +599,6 @@ module.exports = {
   xepHang, GIAN_MS,
   docLead, docDon, banDoSdt, test, keoVeKho, ghepGhiChu, ghiGhiChuLead,
   MOC_DAU, MOC_CUOI,
+  // lộ ra để test được luật "lead kéo lùi xa hơn đơn" mà không phải gọi mạng
+  luiNgay, LUI_LEAD,
 };

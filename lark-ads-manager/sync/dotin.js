@@ -177,6 +177,25 @@ function danhGia({ kho = null, kq = null, data = null, conf = null } = {}) {
     }
   }
 
+  /* ---- 5b. GHÉP ĐƯỢC NHƯNG MẤT VÌ THIẾU LEAD ---- */
+  if (kq && kq.nhat) {
+    const n = kq.nhat;
+    if (n.leadKhongCoTrongXuat > 0) {
+      them(true, 'Có khoá cứng nhưng thiếu lead để dùng',
+        `${n.leadKhongCoTrongXuat} lead được đơn POS trỏ tới nhưng không có trong kho. `
+        + 'Lead luôn sinh TRƯỚC đơn, nên kéo lead cùng khoảng ngày với đơn là chắc chắn '
+        + 'hụt phần đầu khoảng. Mỗi lead hụt là một ghi công mất hẳn — không đường nào '
+        + 'cứu được, vì cả ba đường còn lại cũng phải đi qua lead.',
+        'Đã sửa: lượt kéo tự lùi lead sớm hơn đơn 14 ngày. Kéo lại một lượt là hết.');
+    }
+    if (n.nhapNhangPOS > 0) {
+      them(false, 'Đơn POS trỏ tới nhiều quảng cáo cùng lúc',
+        `${n.nhapNhangPOS} lead có từ hai mã quảng cáo trở lên trên đơn POS. `
+        + 'App KHÔNG chọn bừa một cái — thà bỏ còn hơn gán sai cho một quảng cáo.',
+        'Bình thường khi khách nhắn qua nhiều quảng cáo; không phải lỗi.');
+    }
+  }
+
   /* ---- 6. SỐ ĐÃ CŨ ---- */
   if (kho && kho.luc) {
     const gio = Math.round((Date.now() - Date.parse(kho.luc)) / 3600000);
