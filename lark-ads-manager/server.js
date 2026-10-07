@@ -29,6 +29,7 @@ const ghiBaseLuc = require('./sync/ghibaseluc');
 const roasCache = require('./sync/roascache');
 const ghiCongTuDong = require('./sync/ghicongtudong');
 const ghiKho = require('./sync/ghikho');
+const doTin = require('./sync/dotin');
 const keoNen = require('./sync/keonen');
 const dieuKhien = require('./sync/dieukhien');
 const doiChieu = require('./sync/doichieu');
@@ -1287,6 +1288,23 @@ async function api(req, res, u) {
    * vì kq có thể nặng (một dòng cho mỗi quảng cáo), không nên tải mỗi lần hỏi
    * trạng thái vặt.
    */
+  /**
+   * Những chỗ con số đang KHÔNG đáng tin, kèm lý do và việc phải làm.
+   *
+   * Mở cho mọi người xem, không khoá theo vai: ở đây không có token cũng
+   * không có tên khách hay số điện thoại nào — chỉ có đếm và ngày tháng. Và
+   * ai đọc số thì cũng cần biết số đó tin được tới đâu, không riêng quản lý.
+   */
+  if (p === '/api/roas/do-tin' && method === 'GET') {
+    const rc = roasCache.doc();
+    return ok(res, doTin.danhGia({
+      kho: khoRoas.doc(),
+      kq: rc && rc.kq,
+      data: await store.get(),
+      conf: ketnoi.read(),
+    }));
+  }
+
   if (p === '/api/roas/cache' && method === 'GET') {
     const c = roasCache.doc();
     /* Kèm nhịp hẹn giờ: màn hình cần nói được "tự tính lại mỗi N giờ, lượt kế

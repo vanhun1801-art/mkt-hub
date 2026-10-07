@@ -1329,7 +1329,58 @@ function doTuoiHtml(r) {
     + '<span class="sub">(' + t.day + ')</span> · ' + nhip + canh + '</div>';
 }
 
-const RS = { kq: null, dangChay: false };
+/**
+ * Khối "Độ tin của số": liệt kê chỗ nào đang không đáng tin và vì sao.
+ *
+ * Anh Hùng, 07/10/2026: "anh muốn biết tính chính xác của số liệu."
+ *
+ * Không chấm một điểm tổng kiểu "độ tin 72%". Một con số gộp nghe thì gọn nhưng
+ * che mất đúng phần người đọc cần thấy — 72% vì kho bị cắt, hay 72% vì một kênh
+ * chết, là hai tình huống phải xử lý khác hẳn nhau.
+ *
+ * Mặc định GẤP LẠI, chỉ hiện số mục nặng. Mở khối này ra mỗi lần vào trang thì
+ * nó thành tiếng ồn, và tiếng ồn thì người ta học cách bỏ qua.
+ */
+function doTinHtml(t) {
+  if (!t || !t.diem || !t.diem.length) {
+    return '<div class="help" style="border-color:var(--good);color:var(--good)">'
+      + '<b>Không thấy chỗ nào đáng ngờ.</b> Kho đầy đủ, các kênh đều có số mới, '
+      + 'không có dòng chi tiêu trùng.</div>';
+  }
+  var tt = t.tomTat || {};
+  var nang = t.diem.filter(function (x) { return x.nang; });
+  var nhe = t.diem.filter(function (x) { return !x.nang; });
+  var mau = nang.length ? 'var(--bad)' : 'var(--warn)';
+
+  var dong = function (x) {
+    return '<div style="margin:10px 0;padding-left:10px;border-left:2px solid '
+      + (x.nang ? 'var(--bad)' : 'var(--warn)') + '">'
+      + '<b>' + esc(x.ten) + '</b><br>'
+      + '<span class="sub">' + esc(x.chu) + '</span>'
+      + (x.lamGi ? '<br><span style="color:var(--muted)">→ ' + esc(x.lamGi) + '</span>' : '')
+      + '</div>';
+  };
+
+  /* Trần ghi công là con số trả lời thẳng câu "tin được bao nhiêu phần", nên
+   * đưa lên đầu chứ không để lẫn trong danh sách. */
+  var tran = (tt.tranGhiCong != null && tt.tranGhiCong < 50)
+    ? '<br>Trần ghi công hiện tại: <b>'
+      + String(tt.tranGhiCong).replace('.', ',') + '%</b> — dù ghép hoàn hảo cũng '
+      + 'không thể cao hơn, vì phần còn lại thiếu lead để bắt đầu.'
+    : '';
+
+  return '<details class="help" style="border-color:' + mau + '">'
+    + '<summary style="cursor:pointer;color:' + mau + '">'
+    + '<b>Độ tin của số: ' + nang.length + ' chỗ cần sửa'
+    + (nhe.length ? ', ' + nhe.length + ' chỗ nên biết' : '') + '</b>'
+    + ' <span class="sub">— bấm để xem</span></summary>'
+    + '<div style="margin-top:10px">' + tran
+    + nang.map(dong).join('') + nhe.map(dong).join('') + '</div>'
+    + '</details>';
+}
+
+
+const RS = { kq: null, dangChay: false, doTin: null };
 /* Trạng thái khối "Nối quảng cáo với lead" — giữ ngoài hàm vẽ để bấm Tìm xong,
  * đổi tab rồi quay lại vẫn còn danh sách, khỏi gọi Pancake lại. */
 const NQ = { kq: null, chon: new Set() };
@@ -1653,6 +1704,9 @@ async function roasVe() {
   // về — khỏi bắt bấm "Tính ROAS" chỉ để xem lại số đã có sẵn.
   if (tt.roasCacheLuc && !RS.kq) {
     try { RS.kq = await api('/api/roas/cache'); } catch (_) { /* vẫn còn nút Tính ROAS để thử tay */ }
+    /* Độ tin nạp RIÊNG và nuốt lỗi riêng: nó là phần phụ trợ, hỏng thì bảng
+     * ROAS vẫn phải hiện. Nhưng hỏng thì để trống chứ không bịa ra "mọi thứ ổn". */
+    try { RS.doTin = await api('/api/roas/do-tin'); } catch (_) { RS.doTin = null; }
   }
 
   const banXuat = (nhan, o) => (o
@@ -1834,6 +1888,7 @@ function roasBang() {
   const ng = r.nguon || {};
   el.innerHTML = `
     ${doTuoiHtml(r)}
+    ${doTinHtml(RS.doTin)}
     <div class="help">${dmy(r.from)} → ${dmy(r.to)} · cửa sổ ghi công ${r.cuaSo} ngày ·
       đọc ${int(ng.posDon)} đơn POS, ${int(ng.hoiThoai)} hội thoại,
       ${int(ng.lead)} lead, ${int(ng.don)} đơn Tourwell</div>
