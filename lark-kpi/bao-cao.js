@@ -269,7 +269,12 @@ async function docSocial(app, tu, den, pv) {
    * "+301.369 follower mới" — một con số bịa to hơn cả sự thật. Thà nói không đo
    * được. Ô "Follower toàn phòng" ở trên thì cộng đủ mọi kênh, vì đó là ảnh chụp
    * hiện tại chứ không phải mức tăng. */
-  const thieuDong = (d.nenTang || []).filter((x) => so(x.followers) > 0
+  /* Tính trên `nt` — bảng nền tảng ĐÃ LỌC theo kênh người xem phụ trách — chứ
+   * không trên `d.nenTang` của cả phòng. Bản trước lấy của cả phòng nên phiếu
+   * của Hằng (6 kênh Facebook + TikTok) vẫn ghi "chưa gồm Zalo OA", một nền
+   * tảng chị ấy không phụ trách, và đếm 448k follower TikTok của cả phòng thay
+   * vì 336k của bốn kênh chị ấy. */
+  const thieuDong = nt.filter((x) => so(x.followers) > 0
     && !so(x.followUp) && !so(x.followDown));
   const ghiFollow = thieuDong.length
     ? 'chưa gồm ' + thieuDong.map((x) => x.platform + ' ('
