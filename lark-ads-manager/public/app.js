@@ -1777,6 +1777,22 @@ function roasBang() {
       <div class="kpi"><div class="k-label">ROAS theo tiền đã thu</div><div class="k-value">${ty(r.tong.roasThu)}</div><div class="k-foot">${vnd(r.tong.thu)}</div></div>
     </div>
 
+    <!-- VÌ SAO BỐN Ô TRÊN CÙNG CÓ THỂ KHÁC KHỐI NÀY.
+         Anh Hùng, 07/10/2026: trên hiện 0đ, dưới hiện 329 triệu, "ghi lên Base
+         hay gì cũng không có đồng như nhau nè". Hai lý do, cả hai đều thật, và
+         trước đây màn hình không nói lý do nào. -->
+    <div class="help" style="margin-top:10px">
+      <b>Hai con số này đo hai thứ khác nhau — khác là bình thường, giống mới lạ.</b>
+      <br><b>1. Khác khoảng ngày.</b> Bốn ô trên cùng theo <b>bộ lọc ở đầu trang</b>;
+      khối này theo <b>khoảng của kho Tourwell</b> (${dmy(r.from)} → ${dmy(r.to)}).
+      Chọn "Tháng này" ở trên mà kho phủ từ tháng trước thì hai bên không thể bằng nhau.
+      <br><b>2. Khác thời điểm.</b> Khối này tính <b>tươi</b> ngay lúc chạy; bốn ô trên đọc
+      <b>bảng Sales trên Base</b> — mà Base chỉ đổi sau khi bước <i>ghi doanh thu lên Base</i>
+      của lượt đó chạy xong. Vừa tính xong mà chưa ghi thì trên vẫn là số cũ.
+      <br><span class="sub">Muốn hai bên khớp: đợi lượt ghi Base xong rồi bấm <b>Làm mới</b> ở đầu trang,
+      và chọn cùng khoảng ngày.</span>
+    </div>
+
     <h4 style="margin:18px 0 6px;font-size:1rem">Theo kênh</h4>
     <div style="overflow-x:auto">${table('rsKenh', [
       { key: 'nenTang', label: 'Kênh', render: (x) => platTag(x.nenTang) },

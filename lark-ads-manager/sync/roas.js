@@ -199,8 +199,11 @@ function tinh({ posRows = [], hoiThoaiRows = [], leadRows = [], donRows = [], da
         hoiThoaiId: hoiThoaiId || '',
       });
       o.don += 1;
-      o.tien += d.tien;
-      o.thu += d.thu;
+      /* ÉP SỐ. Một đơn thiếu ô tiền làm `o.tien` thành NaN, NaN lan ra tổng, rồi
+       * JSON.stringify biến NaN thành `null` — nên màn hình hiện trống chứ không
+       * báo gì, và không ai biết con số đã chết. Bắt được 07/10/2026 lúc soát. */
+      o.tien += Number(d.tien) || 0;
+      o.thu += Number(d.thu) || 0;
       o.treTong += tre;
       n += 1;
     });
@@ -497,7 +500,7 @@ function tinh({ posRows = [], hoiThoaiRows = [], leadRows = [], donRows = [], da
     }),
     donKhongGhep: {
       so: donRows.length - daDungDon.size,
-      tien: donRows.filter((d) => !daDungDon.has(d.ma)).reduce((a, d) => a + d.tien, 0),
+      tien: donRows.filter((d) => !daDungDon.has(d.ma)).reduce((a, d) => a + (Number(d.tien) || 0), 0),
     },
     /* Lý do "Khác" cho từng đơn — xem giải thích ở khối tính phía trên. */
     lyDoTheoDon: [...lyDoTheoDon.entries()].map(([ma, lyDo]) => ({ ma, lyDo, lyDoText: NHAN_LY_DO[lyDo] })),
