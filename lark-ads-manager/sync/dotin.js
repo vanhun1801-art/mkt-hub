@@ -50,9 +50,10 @@ function cachNgay(a, b) {
  * @param kq    kết quả roas.tinh() gần nhất (sync/roascache.doc().kq)
  * @param data  store.get() — ads + daily
  * @param conf  sync/ketnoi.read()
+ * @param benVung  sync/ketnoi.status().benVung — kênh nào sống sót qua deploy
  * @returns {{diem: Array, tomTat: object}}
  */
-function danhGia({ kho = null, kq = null, data = null, conf = null } = {}) {
+function danhGia({ kho = null, kq = null, data = null, conf = null, benVung = null } = {}) {
   const diem = [];
   const them = (nang, ten, chu, lamGi) => diem.push({ nang, ten, chu, lamGi });
 
@@ -194,6 +195,23 @@ function danhGia({ kho = null, kq = null, data = null, conf = null } = {}) {
         + 'App KHÔNG chọn bừa một cái — thà bỏ còn hơn gán sai cho một quảng cáo.',
         'Bình thường khi khách nhắn qua nhiều quảng cáo; không phải lỗi.');
     }
+  }
+
+  /* ---- 5c. CẤU HÌNH SẼ MẤT Ở LẦN DEPLOY TỚI ----
+   *
+   * Chuyện này đã xảy ra thật, nhiều lần, và mỗi lần là một buổi khai lại tay.
+   * Thẻ cảnh báo vốn chỉ nằm ở tab Kết nối — mà người mở app buổi sáng thì vào
+   * tab Doanh thu & ROAS trước. Nhắc ở đây nữa, vì mất cấu hình không phải
+   * chuyện của riêng tab cấu hình: mất là mọi con số dưới đây thành rỗng. */
+  if (benVung && benVung.canLo && (benVung.seMat || []).length) {
+    const ten = { meta: 'Facebook', tiktok: 'TikTok', googleAds: 'Google Ads',
+      googleSheet: 'Google Sheet', pancake: 'Pancake', pancakePos: 'Pancake POS' };
+    const ds = benVung.seMat.map((k) => ten[k] || k).join(', ');
+    them(true, 'Cấu hình sẽ mất ở lần deploy tới',
+      `${ds} đang nằm trên ổ đĩa tạm của server, chưa có trong biến ADS_CONNECT_JSON. `
+      + 'Deploy một cái là phải khai lại từ đầu, và mọi số dưới đây về rỗng cho tới khi khai xong.',
+      'Tab Kết nối & Đồng bộ → thẻ Giữ cấu hình qua lần deploy → Lấy nội dung ADS_CONNECT_JSON '
+      + '→ dán vào Environment của Render. Làm TRƯỚC khi deploy, không phải sau.');
   }
 
   /* ---- 6. SỐ ĐÃ CŨ ---- */

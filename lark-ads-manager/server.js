@@ -1302,6 +1302,7 @@ async function api(req, res, u) {
       kq: rc && rc.kq,
       data: await store.get(),
       conf: ketnoi.read(),
+      benVung: ketnoi.status().benVung,
     }));
   }
 

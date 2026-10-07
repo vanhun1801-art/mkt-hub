@@ -153,6 +153,33 @@ console.log('— HỘI THOẠI KHÔNG CÓ SỐ ĐIỆN THOẠI');
   t('10% thì không kêu', !co(it, 'Phần lớn hội thoại không để lại số điện thoại'));
 }
 
+console.log('— cấu hình sắp mất khi deploy: nhắc ở CẢ tab số liệu');
+{
+  /* Đã xảy ra thật nhiều lần: khai tay trên Render, deploy một cái là mất sạch.
+   * Thẻ cảnh báo vốn chỉ ở tab Kết nối, mà sáng ra người ta mở tab Doanh thu
+   * trước. Mất cấu hình không phải chuyện riêng của tab cấu hình — mất là mọi
+   * con số thành rỗng. */
+  const r = dt.danhGia({
+    kho: khoSach(), data: dataSach, conf: confSach,
+    benVung: { canLo: true, seMat: ['pancakePos', 'pancake'], khacNhau: [] },
+  });
+  const m = lay(r, 'Cấu hình sẽ mất ở lần deploy tới');
+  t('có nhắc', !!m, JSON.stringify(ten(r)));
+  t('xếp NẶNG', m.nang === true);
+  t('gọi tên kênh bằng tiếng người', /Pancake POS, Pancake/.test(m.chu), m.chu);
+  t('nói rõ hậu quả với số liệu', /mọi số dưới đây về rỗng/.test(m.chu));
+  /* Thứ tự mới là chỗ dễ sai: xuất TRƯỚC rồi mới deploy. */
+  t('nhấn đúng thứ tự', /TRƯỚC khi deploy, không phải sau/.test(m.lamGi));
+
+  const yen = dt.danhGia({
+    kho: khoSach(), data: dataSach, conf: confSach,
+    benVung: { canLo: false, seMat: [], khacNhau: [] },
+  });
+  t('không có gì sắp mất thì im', !co(yen, 'Cấu hình sẽ mất ở lần deploy tới'));
+  t('không truyền benVung cũng không vỡ',
+    !co(dt.danhGia({ kho: khoSach(), data: dataSach, conf: confSach }), 'Cấu hình sẽ mất ở lần deploy tới'));
+}
+
 console.log('— không có dữ liệu thì không vỡ, và không bịa');
 {
   const r = dt.danhGia({});
