@@ -1691,9 +1691,19 @@ async function api(req, res, u) {
       });
       const d = await r.json().catch(() => ({}));
       if (!d.refresh_token) {
-        return fail(res, 400, 'Google không trả refresh token: '
-          + (d.error_description || d.error || 'không rõ')
-          + '. Mã code chỉ dùng được một lần và hết hạn sau ~10 phút — bấm lấy link mới rồi làm lại.');
+        /* Nói đúng việc phải làm. Câu cũ luôn kết bằng "bấm lấy link mới rồi
+         * làm lại" — đúng cho mã code hết hạn, SAI cho secret không khớp, mà
+         * secret không khớp mới là ca đã làm kênh này chết từ 23/09/2026. Anh
+         * Hùng làm lại đúng các bước cũ nhiều lần mà không bao giờ xong, vì
+         * app chỉ sang chỗ không có lỗi. Xem giaiThich() ở sync/gads.js. */
+        const nc = { clientId: g.clientId, buoc: 'ma' };
+        const them = gads.giaiThich(d, nc)
+          || (gads.thieuRefreshToken(d)
+            ? 'Google nhận uỷ quyền nhưng không cấp refresh token — thường do tài khoản đã đồng ý từ trước. '
+              + 'Vào myaccount.google.com/permissions gỡ quyền của app rồi lấy link uỷ quyền lại.'
+            : 'Mã code chỉ dùng được một lần và hết hạn sau ~10 phút — bấm lấy link mới rồi làm lại.');
+        return fail(res, 400, 'Google không nhận: '
+          + (d.error_description || d.error || 'không rõ') + ' — ' + them);
       }
       ketnoi.writeSecrets({ googleAds: { refreshToken: d.refresh_token } });
       live.xoaCache();

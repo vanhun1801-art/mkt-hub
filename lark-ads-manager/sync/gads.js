@@ -37,6 +37,68 @@ const tuMicro = (v) => num(v) / 1000000;
 /* ---------------------------------------------------------------- OAuth */
 
 /**
+ * Dịch lỗi của Google sang câu nói đúng việc phải làm.
+ *
+ * VÌ SAO CÓ HÀM NÀY. Anh Hùng, 07/10/2026: "Google bị vấn đề, anh thực hiện như
+ * cũ cũng đâu có làm sao." Đúng là anh làm đúng các bước cũ — nhưng app bảo sai.
+ * Google trả `invalid_client` ("The provided client secret is invalid"), còn app
+ * nói thêm "mã code chỉ dùng được một lần và hết hạn sau ~10 phút, bấm lấy link
+ * mới rồi làm lại". Lời khuyên đó dành cho một lỗi KHÁC. Làm theo bao nhiêu lần
+ * cũng không bao giờ xong, vì mã code không phải chỗ sai.
+ *
+ * Chỗ sai là Client Secret đang lưu trong app không thuộc về Client ID này. Ô
+ * Secret ghi "đã lưu" nên trông như không cần đụng tới, và anh để trống đúng như
+ * dòng gợi ý "để trống nếu không đổi". Kênh này chết từ 23/09/2026.
+ *
+ * Google KHÔNG cho xem lại secret cũ — không có cách nào "tìm lại" nó. Phải vào
+ * đúng client đó, tạo secret MỚI, rồi dán vào app. Đổi secret không làm mất
+ * refresh token, vì token gắn với Client ID chứ không gắn với secret.
+ *
+ * @param d  thân JSON Google trả về
+ * @param {object} nc ngữ cảnh: { clientId, buoc: 'ma'|'lamMoi' }
+ * @returns {string} câu giải thích, hoặc '' nếu không nhận ra lỗi
+ */
+function giaiThich(d, nc = {}) {
+  const ma = String((d && d.error) || '');
+  const chi = String((d && d.error_description) || '');
+  const ca = (ma + ' ' + chi).toLowerCase();
+  /* Client ID là thông tin công khai (đang hiện sẵn trên màn hình) — nêu ra để
+   * anh biết phải vào ĐÚNG client nào trong Console, giữa nhiều client. */
+  const ten = nc.clientId ? ` (${String(nc.clientId).split('-')[0]}…)` : '';
+
+  if (/invalid_client|client secret is invalid|unauthorized_client/.test(ca)) {
+    return `Client Secret đang lưu trong app KHÔNG phải secret của Client ID này${ten}. `
+      + 'Lấy link mới rồi làm lại bao nhiêu lần cũng không đổi gì — mã code không phải chỗ sai. '
+      + 'Vào Google Cloud Console → Clients → mở đúng client đó → Client secrets → ADD SECRET, '
+      + 'copy ngay lúc nó hiện (Google chỉ cho xem một lần), rồi dán vào ô OAuth Client Secret ở đây và Lưu cấu hình. '
+      + 'Đổi secret KHÔNG làm mất refresh token.';
+  }
+  if (/redirect_uri_mismatch/.test(ca)) {
+    return 'Client này chưa khai địa chỉ nhận uỷ quyền. Vào Google Cloud Console → Clients → '
+      + `đúng client đó${ten} → Authorized redirect URIs → thêm http://127.0.0.1:47123 rồi Save.`;
+  }
+  if (/invalid_grant/.test(ca)) {
+    return nc.buoc === 'lamMoi'
+      ? 'Refresh token đã bị thu hồi hoặc hết hiệu lực — bấm "Lấy link uỷ quyền" rồi "Đổi lấy token" để cấp lại.'
+      : 'Mã code đã dùng rồi hoặc quá 10 phút. Bấm "Lấy link uỷ quyền" lấy link MỚI, đồng ý lại, '
+        + 'rồi dán URL mới — mỗi mã chỉ dùng được một lần.';
+  }
+  if (/invalid_scope/.test(ca)) {
+    return 'Client này chưa được bật quyền Google Ads API (scope adwords). Bật API trong Google Cloud Console rồi làm lại.';
+  }
+  return '';
+}
+
+/**
+ * Google trả 200 nhưng KHÔNG kèm refresh_token — không phải lỗi, nên không có
+ * `error` nào để dịch. Xảy ra khi thiếu `prompt=consent` và tài khoản đã đồng ý
+ * từ trước: Google coi là không cần cấp lại.
+ */
+function thieuRefreshToken(d) {
+  return !!(d && d.access_token && !d.refresh_token);
+}
+
+/**
  * Đổi refresh token thành access token (hạn 1 giờ). Không cache ra file: mỗi lần
  * đồng bộ gọi một lần là đủ, mà cache token ra đĩa thì thêm một chỗ rò bí mật.
  */
@@ -66,11 +128,12 @@ async function accessToken(conf) {
   const d = await r.json().catch(() => ({}));
   if (!r.ok || !d.access_token) {
     const chi = d.error_description || d.error || ('HTTP ' + r.status);
-    // refresh token bị thu hồi là ca hay gặp nhất: nói rõ cách sửa
-    const them = /invalid_grant/i.test(String(d.error || ''))
-      ? ' — refresh token đã bị thu hồi hoặc hết hiệu lực'
-      : '';
-    throw new Error(scrub('Google từ chối cấp access token: ' + chi + them));
+    /* Nói đúng việc phải làm, không chỉ chép lại câu tiếng Anh của Google. Xem
+     * ghi chú dài ở giaiThich(): lời khuyên sai còn tệ hơn không có lời khuyên,
+     * vì nó bắt người ta làm đi làm lại một việc không bao giờ xong. */
+    const them = giaiThich(d, { clientId: conf.clientId, buoc: 'lamMoi' });
+    throw new Error(scrub('Google từ chối cấp access token: ' + chi
+      + (them ? ' — ' + them : '')));
   }
   hideSecret(d.access_token);
   return d.access_token;
@@ -497,4 +560,5 @@ module.exports = {
   hanhDongChuyenDoi,
   PLATFORM, fetchRange, test, tokenInfo, accessToken, danhSachTaiKhoan, GAQL, API_VER_MAC,
   timQuangCao, nganSachChienDich, trangThaiChienDich, datTrangThai, datNganSach,
+  giaiThich, thieuRefreshToken,
 };
