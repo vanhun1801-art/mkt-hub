@@ -46,12 +46,45 @@ async function tinhGhiCong({ kho, from, to, ghi = () => {} }) {
     const c = ketnoi.read();
     let posRows = [];
     let htRows = [];
+    const hong = [];
+
+    /* HAI NGUỒN, HAI TRY RIÊNG.
+     *
+     * Trước đây cả POS lẫn Pancake nằm chung một try, nên một lỗi thoáng qua của
+     * bên nào cũng ném trước khi roasTinh.tinh() kịp chạy — mất luôn dữ liệu của
+     * bên còn lại, và cả lượt tính coi như bỏ. Đo thật 07/10/2026: Pancake trả
+     * "An error occurred. Please try again later." (bị chặn tần suất), POS vẫn
+     * sẵn sàng, mà kết quả là 0 đơn xác định được kênh.
+     *
+     * Với lượt hẹn giờ mỗi tiếng thì đó là một tiếng mất trắng vì một cú nấc.
+     * Giờ bên nào về được thì dùng bên đó; chỉ khi CẢ HAI cùng hỏng mới coi là
+     * lượt không biết gì (kq = null) và không đụng tới cột Kênh.
+     *
+     * An toàn vì lenKeHoach() vẫn giữ nguyên Kênh của dòng đã ghi công được khi
+     * lượt này không ghép lại được. Dòng mới chưa ghép được thì tạm mang 'Khác',
+     * và lượt sau đủ nguồn sẽ ghi đè — 'Khác' không nằm trong LA_KENH_QC nên
+     * không được bảo vệ, tức là tự lành. */
     if (c.pancakePos.enabled && pancakePos.danhSachGian(c.pancakePos).some((x) => x.apiKey)) {
-      posRows = (await pancakePos.fetchOrders(c.pancakePos, tu, den, () => {})).rows;
+      try {
+        posRows = (await pancakePos.fetchOrders(c.pancakePos, tu, den, () => {})).rows;
+      } catch (e) {
+        hong.push('POS: ' + e.message);
+        ghi('  ! không đọc được đơn POS lượt này — vẫn tính bằng hội thoại: ' + e.message);
+      }
     }
     for (const pg of (c.pancake.pages || []).filter((x) => x.pageId && x.token)) {
-      const r = await pancake.fetchConversations(pg, tu, den, () => {});
-      htRows = htRows.concat(r.rows);
+      try {
+        const r = await pancake.fetchConversations(pg, tu, den, () => {});
+        htRows = htRows.concat(r.rows);
+      } catch (e) {
+        hong.push('Pancake: ' + e.message);
+        ghi('  ! không đọc được hội thoại Pancake lượt này — vẫn tính bằng POS: ' + e.message);
+      }
+    }
+    /* Cả hai cùng hỏng thì không có gì để ghép — ném ra cho khối catch bên dưới
+     * xử lý như cũ, chứ đừng tính một kết quả rỗng rồi ghi 'Khác' cho tất cả. */
+    if (hong.length && !posRows.length && !htRows.length) {
+      throw new Error(hong.join(' · '));
     }
     kq = roasTinh.tinh({
       posRows, hoiThoaiRows: htRows,
@@ -61,7 +94,10 @@ async function tinhGhiCong({ kho, from, to, ghi = () => {} }) {
     // Cùng hình dạng với /api/roas/tinh (log/loi/nguon) — để cache ra được thì
     // client hiển thị y hệt dù số đến từ đâu (tay hay tự động).
     kq.log = [];
-    kq.loi = [];
+    /* Nguồn nào hỏng thì NÓI RA trên màn hình, đừng chỉ ghi vào log server.
+     * Khối ROAS hiện `r.loi` sẵn rồi — con số tính thiếu một nguồn mà trông y
+     * hệt con số đủ nguồn là kiểu sai không ai nhìn ra. */
+    kq.loi = hong.map((x) => 'Lượt này thiếu một nguồn — ' + x);
     kq.nguon = {
       posDon: posRows.length,
       hoiThoai: htRows.length,

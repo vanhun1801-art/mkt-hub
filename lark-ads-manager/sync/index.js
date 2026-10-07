@@ -242,15 +242,15 @@ function startScheduler(logFn = console.log) {
       // không còn cách nào biết kênh nào chết vì sao.
       (r.loi || []).forEach((m) => logFn(`  [hẹn giờ] LỖI  ${m}`));
 
-      /* Kéo lead + đơn Tourwell về kho, để ROAS không phải bấm tay.
+      /* BƯỚC 1 — kéo lead + đơn Tourwell về kho. ĐẮT nên có cửa 2 giờ.
        *
        * Đặt SAU phần đồng bộ chi tiêu và bọc try riêng: Tourwell hỏng thì chi tiêu
        * vẫn phải vào Base. Và KHÔNG tính vào r.tong.loi, vì đó là con số của việc
        * ghi vào Base — trộn vào sẽ kích cơ chế "thử lại sau 60 giây" cho một việc
        * chẳng liên quan.
        *
-       * Chỉ kéo khi kho đã cũ: mỗi lượt kéo là hàng trăm lời gọi API (Tourwell
-       * giới hạn 60 yêu cầu/phút), kéo lại mỗi giờ là phí và chậm. */
+       * Mỗi lượt kéo là hàng trăm lời gọi API (Tourwell giới hạn 60 yêu cầu/phút),
+       * đo thật 21 ngày ≈ 245 lời gọi ≈ 6 phút. Kéo lại mỗi giờ là phí và chậm. */
       try {
         const tw = ketnoi.read().tourwell;
         if (tw && tw.enabled && tw.host && tw.token) {
@@ -261,30 +261,46 @@ function startScheduler(logFn = console.log) {
               .toISOString().slice(0, 10);
             /* 21 ngày, không phải 60. Đo được: một lượt 60 ngày mất 1.077 giây
              * (~700 lời gọi) vì Tourwell trả 25 dòng/trang và mỗi trang mất ~11
-             * giây — 80 trang chỉ riêng đơn hàng. Lặp lại mỗi 6 giờ là bốn lần
-             * một ngày, phần lớn kéo lại dữ liệu không đổi.
+             * giây — 80 trang chỉ riêng đơn hàng.
              *
              * 21 ngày là đủ: đã đo trễ từ lead tới đơn là 0–3 ngày, xa nhất 6.
              * Muốn nạp lịch sử xa hơn thì bấm nút "Kéo lead & đơn 60 ngày". */
             const k = await tourwellApi.keoVeKho(tw, ngayVN(NGAY_LUI_TW), ngayVN(0), () => {});
             logFn(`  [hẹn giờ] Tourwell: ${k.lead ? k.lead.dong : 0} lead, `
               + `${k.don ? k.don.dong : 0} đơn (${(k.khoang || []).join(' → ')})`);
-
-            /* Kéo xong thì tự ghi công + ghi doanh thu lên Base ngay — không đợi
-             * ai bấm tay. Bọc try riêng: Tourwell về kho là chắc chắn dù bước
-             * này lỗi, và lỗi ở đây không thuộc "đồng bộ chi tiêu" nên không kích
-             * cơ chế thử lại sau 60 giây của r.tong.loi. */
-            try {
-              const gcq = await ghiCongTuDong.chay({ kho: khoRoas.doc(), from: '', to: '', ghi: logFn });
-              logFn(`  [hẹn giờ] tính ROAS + ghi Base xong: tạo ${gcq.taoMoi}, sửa ${gcq.capNhat}`
-              + ` (bảng ROAS đã lưu vào roas-cache.json, màn hình đọc thẳng từ đó)`);
-            } catch (e) {
-              logFn('  [hẹn giờ] ghi công LỖI  ' + e.message);
-            }
           }
         }
       } catch (e) {
         logFn('  [hẹn giờ] Tourwell LỖI  ' + e.message);
+      }
+
+      /* BƯỚC 2 — hội thoại + ROAS + ghi Base. RẺ nên chạy MỖI LƯỢT.
+       *
+       * Tách hẳn khỏi bước 1, và đây là thay đổi chính của 07/10/2026. Trước kia
+       * khối này nằm LỒNG trong nhánh kéo Tourwell, nên chỉ chạy đúng những lượt
+       * vừa kéo Tourwell xong. Ba ca làm nó không bao giờ chạy: Tourwell chưa
+       * khai trên máy đang dùng, kho còn tươi nên nhảy qua, và kho đến từ file
+       * Excel nhập tay (không có ai kéo Tourwell cả). Ca thứ ba đúng là ca anh
+       * Hùng làm hằng ngày — nên với anh thì mọi thứ đều là việc tay.
+       *
+       * Giờ chỉ cần CÓ KHO ĐƠN là chạy, kho đến từ đâu không quan trọng. Mỗi lượt
+       * này kéo hội thoại Pancake mới (đo: 30 ngày mất 31 giây), tính lại ROAS,
+       * lưu cache cho màn hình, ghi doanh thu lên Base và sao lưu lead + hội thoại.
+       *
+       * Bọc try riêng vì cùng lý do với bước 1: hỏng ở đây không được kéo theo
+       * phần đồng bộ chi tiêu, và không kích cơ chế thử lại sau 60 giây. */
+      try {
+        const kho = khoRoas.doc();
+        if (!kho || !kho.don || !kho.don.rows || !kho.don.rows.length) {
+          logFn('  [hẹn giờ] chưa có kho đơn hàng — bỏ qua tính ROAS '
+            + '(kéo Tourwell hoặc nhập file Excel một lần là từ đó tự chạy)');
+        } else {
+          const gcq = await ghiCongTuDong.chay({ kho, from: '', to: '', ghi: logFn });
+          logFn(`  [hẹn giờ] tính ROAS + ghi Base xong: tạo ${gcq.taoMoi}, sửa ${gcq.capNhat}`
+          + ' (bảng ROAS đã lưu vào roas-cache.json, màn hình đọc thẳng từ đó)');
+        }
+      } catch (e) {
+        logFn('  [hẹn giờ] tính ROAS LỖI  ' + e.message);
       }
       /* CHẤM ĐIỂM SỨC KHOẺ ngay sau mỗi lượt — đừng để việc này nằm ngoài app.
        *

@@ -1232,7 +1232,7 @@ function ghiCongLucHtml(tt) {
   }
   const luc = new Date(tt.luc).toLocaleString('vi-VN');
   return `<div class="help" style="margin-bottom:10px">
-    Ghi công quảng cáo lần cuối lúc <b>${luc}</b> (việc tay, không theo hẹn giờ) —
+    Ghi công quảng cáo lần cuối lúc <b>${luc}</b> (tự chạy theo hẹn giờ, từ 07/10/2026) —
     đơn phát sinh sau mốc này chưa chắc đã được xác minh Kênh.
   </div>`;
 }
@@ -1259,6 +1259,76 @@ function lyDoGhiCong(r) {
  *   POS        — đơn POS mang cả ad_id lẫn mã lead Tourwell. Khoá cứng.
  *   hội thoại  — ghép bằng số điện thoại. Yếu hơn. Đường duy nhất của TikTok.
  */
+/**
+ * Mốc thời gian -> "12 phút trước" kèm mức tươi.
+ *
+ * Con số tuyệt đối ("14:03:11") bắt người đọc tự trừ giờ trong đầu. Khoảng cách
+ * thì đọc phát hiểu ngay. Giữ cả hai: khoảng cách để liếc, giờ đầy đủ để đối
+ * chiếu khi cần.
+ *
+ * Ngưỡng bám theo NHỊP HẸN GIỜ THẬT, không gõ cứng: chạy mỗi 1 giờ thì 2 giờ là
+ * trễ, chạy mỗi 6 giờ thì 2 giờ vẫn bình thường. Gõ cứng một con số là nói sai
+ * với một nửa số cấu hình.
+ */
+function doTuoi(iso, moiSoGio) {
+  var t = Date.parse(iso || '');
+  if (!isFinite(t)) return { co: false, chu: 'chưa từng tính', muc: 'bad' };
+  var phut = Math.max(0, Math.round((Date.now() - t) / 60000));
+  var chu = phut < 2 ? 'vừa xong'
+    : phut < 60 ? phut + ' phút trước'
+      : phut < 1440 ? Math.round(phut / 60) + ' giờ trước'
+        : Math.round(phut / 1440) + ' ngày trước';
+  /* Chưa bật hẹn giờ thì không có nhịp nào để so — lấy 2 giờ làm mốc tạm, còn
+   * dải chữ bên ngoài sẽ nói rõ là đang KHÔNG tự chạy. */
+  var nhip = Number(moiSoGio) > 0 ? Number(moiSoGio) * 60 : 120;
+  var muc = phut <= nhip * 1.5 ? 'good' : phut <= nhip * 4 ? 'warn' : 'bad';
+  return { co: true, phut: phut, chu: chu, muc: muc,
+    day: new Date(t).toLocaleString('vi-VN') };
+}
+
+/**
+ * Dải một dòng ở đầu khối ROAS. Trả lời đúng ba câu anh Hùng phải tự hỏi mỗi
+ * lần mở app: số này cũ chưa, nó có tự cập nhật không, bao giờ có số mới.
+ */
+function doTuoiHtml(r) {
+  var h = (r && r.hengio) || {};
+  var moi = Number((r && r.moiSoGio) || 0);
+  var t = doTuoi(r && r.luc, moi);
+  var mau = t.muc === 'good' ? 'var(--good)' : t.muc === 'warn' ? 'var(--warn)' : 'var(--bad)';
+  var tuChay = !!h.dangBat && moi > 0;
+  var ke = h.lanKeTiep
+    ? new Date(h.lanKeTiep).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+    : '';
+
+  /* Đang tính dở thì nói thế. Để anh nhìn số cũ mà tưởng là số cuối cùng thì
+   * còn tệ hơn không hiện gì. */
+  if (r && r.dangChay) {
+    return '<div class="help" style="border-color:var(--warn);color:var(--warn)">'
+      + '<b>Đang tính lại…</b> số dưới đây là của lượt trước (' + t.chu + '). '
+      + 'Làm mới trang sau một lát.</div>';
+  }
+
+  var nhip = tuChay
+    ? 'tự tính lại mỗi <b>' + moi + ' giờ</b>'
+      + (ke ? ' · lượt kế tiếp khoảng <b>' + ke + '</b>' : '')
+    : '<b style="color:var(--warn)">chưa bật tự tính</b> — vào tab Kết nối &amp; Đồng bộ '
+      + 'đặt "Tự đồng bộ mỗi ... giờ"';
+
+  if (!t.co) {
+    return '<div class="help" style="border-color:var(--warn);color:var(--warn)">'
+      + '<b>Chưa từng tính ROAS.</b> ' + nhip + '</div>';
+  }
+  /* Cũ hơn hẳn nhịp đã đặt nghĩa là lượt tự chạy đang hỏng — nói thẳng, vì nếu
+   * không thì màn hình vẫn đầy số và trông như mọi thứ đều ổn. */
+  var canh = (t.muc === 'bad' && tuChay)
+    ? '<br><span style="color:var(--bad)">Cũ hơn hẳn nhịp đã đặt — nhiều khả năng '
+      + 'lượt tự chạy đang lỗi, xem nhật ký ở tab Kết nối &amp; Đồng bộ.</span>'
+    : '';
+  return '<div class="help" style="border-color:' + mau + '">'
+    + 'Số liệu tính <b style="color:' + mau + '">' + t.chu + '</b> '
+    + '<span class="sub">(' + t.day + ')</span> · ' + nhip + canh + '</div>';
+}
+
 const RS = { kq: null, dangChay: false };
 /* Trạng thái khối "Nối quảng cáo với lead" — giữ ngoài hàm vẽ để bấm Tìm xong,
  * đổi tab rồi quay lại vẫn còn danh sách, khỏi gọi Pancake lại. */
@@ -1763,7 +1833,7 @@ function roasBang() {
 
   const ng = r.nguon || {};
   el.innerHTML = `
-    ${r.luc ? `<div class="help">Tính lúc <b>${new Date(r.luc).toLocaleString('vi-VN')}</b></div>` : ''}
+    ${doTuoiHtml(r)}
     <div class="help">${dmy(r.from)} → ${dmy(r.to)} · cửa sổ ghi công ${r.cuaSo} ngày ·
       đọc ${int(ng.posDon)} đơn POS, ${int(ng.hoiThoai)} hội thoại,
       ${int(ng.lead)} lead, ${int(ng.don)} đơn Tourwell</div>

@@ -1289,7 +1289,14 @@ async function api(req, res, u) {
    */
   if (p === '/api/roas/cache' && method === 'GET') {
     const c = roasCache.doc();
-    return ok(res, c ? { luc: c.luc, ...c.kq } : { luc: null });
+    /* Kèm nhịp hẹn giờ: màn hình cần nói được "tự tính lại mỗi N giờ, lượt kế
+     * tiếp khoảng HH:MM". Thiếu nó thì chỉ đưa ra được một mốc trần, và người
+     * đọc phải tự trừ giờ trong đầu rồi tự đoán bao lâu nữa có số mới. */
+    const nhip = {
+      hengio: sync.schedulerState(), moiSoGio: Number(ketnoi.read().dongBo.moiSoGio || 0),
+      dangChay: !!sync.dangChay(),
+    };
+    return ok(res, c ? { luc: c.luc, ...nhip, ...c.kq } : { luc: null, ...nhip });
   }
 
   /**
