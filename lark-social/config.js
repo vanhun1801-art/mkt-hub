@@ -167,8 +167,27 @@ module.exports = {
         start: 'fld33FcDZQ',
         end: 'fldnSpuZgR',
         minutes: 'fldg9lkmvk',
+        /* HAI LOẠI SỐ, ĐỪNG TRỘN.
+         *
+         * Một phiên LIVE sinh ra hai bộ số khác hẳn nhau, và không nền tảng nào
+         * cho đủ cả hai:
+         *
+         *   LÚC ĐANG PHÁT — `peak` (người xem cao nhất cùng lúc). Facebook
+         *     không trả: cổng /live_videos có `live_views` thì đòi App Review,
+         *     còn `total_video_views_live` Meta trả null. Nên cột này của
+         *     Facebook phải nhập tay. TikTok thì ngược lại, LIVE Center cho đủ.
+         *
+         *   SAU KHI THÀNH BÀI ĐĂNG — phiên tắt rồi là một video của Trang, số
+         *     cứ chạy tiếp vì người xem lại. Facebook cho đủ ba mức dưới đây;
+         *     TikTok không có vì phiên của nó không thành bài.
+         *
+         * `views` giữ nguyên nghĩa cũ để không gãy chỗ nào đang đọc, và từ nay
+         * bằng `luotPhat` với Facebook. */
         views: 'fldVEJtJqa',
-        peak: 'fld4XnApl2',       // Người xem cao nhất
+        luotPhat: 'fldT0fmMIX',   // Lượt phát (bài đăng) — số lần video bắt đầu phát, gồm xem lại
+        xem3giay: 'fldp2hnl9l',   // Xem từ 3 giây — total_video_views
+        xemRieng: 'fldjYSzqBA',   // Người xem riêng — total_video_views_unique
+        peak: 'fld4XnApl2',       // Người xem cao nhất (lúc đang phát)
         comments: 'fldKimM0DG',
         likes: 'fldSU0jxYc',
         shares: 'fld1UxPhCI',
@@ -280,6 +299,14 @@ module.exports = {
          * clip hay được đăng lên nhiều trong sáu kênh, caption giống hệt nhau,
          * không có gợi ý kênh thì phép khớp bỏ qua cả hai cho an toàn. */
         kenh: 'fldY2xNCri',
+        /* LINK bài, giữ lại để khớp lần sau.
+         *
+         * Trước đây hàng chờ chỉ giữ caption, nên mọi lần thử lại đều phải dò
+         * bằng caption — mà caption thì hai bài giống nhau là bỏ cuộc. Link
+         * TikTok có ID video (/video/7691606470105779464) và link Facebook
+         * dạng số cũng có ID: khớp bằng ID thì không bao giờ nhầm. Mười mục
+         * TikTok kẹt trong hàng chờ là vì thiếu đúng cột này. */
+        link: 'fld6Yp7DLI',
         batLuc: 'fldTNTLhR1',     // Bắt lúc (text ISO)
         thuCuoi: 'fldqJxu5bc',    // Thử lần cuối (text ISO)
         soLan: 'fldhP9mVX9',      // Số lần thử

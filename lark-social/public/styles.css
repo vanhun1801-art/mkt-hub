@@ -257,6 +257,25 @@ table.tbl tfoot td { font-weight: 700; background: var(--panel-2); border-top: 2
   padding: 12px 14px; background: var(--panel); border-top: 1px solid var(--line);
 }
 
+/* ---------- dải nhắc "chưa ghi người đăng" ----------
+   Vàng chứ không đỏ: đây là việc còn thiếu, không phải lỗi hệ thống. */
+.nd-nhac { margin-bottom: 12px; border-color: var(--vang, #d98300); }
+.nd-ds { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.nd-hang {
+  display: grid; grid-template-columns: 92px 80px minmax(0, 1fr) 70px 150px;
+  gap: 10px; align-items: center; padding: 7px 10px; background: var(--panel); font-size: 12.5px;
+}
+.nd-ngay, .nd-nt { color: var(--ink-3); }
+.nd-ten { color: var(--ink); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nd-ten:hover { text-decoration: underline; }
+.nd-xem { text-align: right; font-variant-numeric: tabular-nums; }
+.nd-chon { font: inherit; font-size: 12.5px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); }
+@media (max-width: 760px) {
+  .nd-hang { grid-template-columns: 1fr 1fr; }
+  .nd-ten { grid-column: 1 / -1; white-space: normal; }
+  .nd-chon { grid-column: 1 / -1; }
+}
+
 /* ---------- bảng xem trước khi ghi tệp LIVE Center ----------
    Một cặp nhãn/giá trị mỗi dòng. Chỗ này người dùng đối chiếu với màn hình LIVE
    Center nên phải đọc được nhanh, không cần đẹp. */

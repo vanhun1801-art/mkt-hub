@@ -1267,6 +1267,64 @@ async function api(req, res, u) {
    */
   /* Danh sách tên cho ô "Tôi là" trong tiện ích. Để tiện ích hỏi thay vì chép cứng:
    * đổi người thì chỉ sửa biến môi trường, không phải cài lại tiện ích cho từng máy. */
+  /* ---------------- gán Người đăng bằng tay ----------------
+   *
+   * Tiện ích trình duyệt không bao giờ phủ hết: nó chỉ ghi được bài mà có người
+   * mở ra xem. Tháng 10 còn 25/57 bài không ai nhận, mà đây là số tính KPI.
+   * Nên phải có đường gán tay — và phải có chỗ NHÌN THẤY còn bao nhiêu bài
+   * thiếu, chứ danh sách nằm im thì không ai đi điền.
+   */
+  if (p === '/api/bai/thieu-nguoi-dang' && method === 'GET') {
+    const t = thamSo(u, await hanMucKenh(req));
+    const d = await store.tai();
+    const han = await hanMucKenh(req);
+    const hanId = han ? new Set(han.map((c) => c.id)) : null;
+    const trong = (x) => (!t.from || !x.date || x.date >= t.from)
+      && (!t.to || !x.date || x.date <= t.to);
+    const ds = (d.posts || []).filter((x) => !x.poster && trong(x)
+      && (!hanId || (x.channelIds || []).some((i) => hanId.has(i))));
+    return ok(res, {
+      nguoi: nguoiDang.NGUOI_DANG,
+      /* Sắp theo LƯỢT XEM giảm dần: bài nhiều người xem mà không ai nhận là
+       * chỗ lệch KPI nhiều nhất, điền trước cái đó. */
+      bai: ds.sort((a, b) => store.num(b.views) - store.num(a.views)).slice(0, 200)
+        .map((x) => ({
+          id: x.id, title: x.title, url: x.url, date: x.date,
+          platform: x.platform, channel: x.channel, views: x.views,
+        })),
+      tong: ds.length,
+    });
+  }
+
+  if (p === '/api/bai/nguoi-dang' && method === 'POST') {
+    const b = await readBody(req);
+    if (!b.id) return fail(res, 400, 'Thiếu mã bài');
+    const d = await store.tai();
+    const bai = (d.posts || []).find((x) => x.id === b.id);
+    if (!bai) return fail(res, 404, 'Không thấy bài này');
+    const han = await hanMucKenh(req);
+    if (han && !(bai.channelIds || []).some((i) => han.some((c) => c.id === i))) {
+      return fail(res, 403, 'Bài này thuộc kênh chưa giao cho bạn');
+    }
+    /* Chỉ nhận tên CÓ THẬT trong danh sách — cột trên Base là dạng chọn, tên lạ
+     * vừa bị Lark từ chối vừa có nguy cơ đẻ lựa chọn rác rồi KPI đếm thành một
+     * người mới. Chuỗi rỗng là XOÁ, dùng khi gán nhầm. */
+    const ten = String(b.nguoi || '').trim();
+    if (ten && !nguoiDang.NGUOI_DANG.includes(ten)) {
+      return fail(res, 400, 'Tên "' + ten + '" không có trong danh sách người đăng');
+    }
+    await lark.updateMany(store.T.post.id, { [b.id]: { [store.T.post.f.poster]: ten } });
+    store.xoaCache();
+    const ai = await nguoiDung(req).catch(() => null);
+    store.ghiNhatKy({
+      platform: bai.platform, result: 'Thành công', rowsPost: 1,
+      message: 'GÁN NGƯỜI ĐĂNG bằng tay · ' + (bai.title || '').slice(0, 60)
+        + ' → ' + (ten || '(xoá)') + ' · người gán: '
+        + ((ai && (ai.ten || ai.name || ai.email)) || 'không rõ'),
+    }).catch(() => {});
+    return ok(res, { id: b.id, nguoi: ten });
+  }
+
   if (p === '/api/nguoi-dang/nap' && method === 'GET') {
     const khoa = process.env.NGUOI_DANG_KEY || '';
     if (!khoa) return fail(res, 404, 'Chưa bật tính năng này');
@@ -1304,8 +1362,13 @@ async function api(req, res, u) {
     try {
       const chua = [...r.khongKhop, ...r.tenLa]
         .map((x) => (b.items || [])[x.viTri])
-        .filter((x) => x && x.van)
-        .map((x) => ({ nguoi: x.nguoi, van: x.van, nenTang: x.nenTang || 'Facebook', kenh: x.kenh }));
+        /* Nhận mục có caption HOẶC có link — link mang ID số thì khớp được mà
+         * không cần caption, trước đây lọc mất những mục như vậy. */
+        .filter((x) => x && (x.van || x.link))
+        .map((x) => ({
+          nguoi: x.nguoi, van: x.van, link: x.link,
+          nenTang: x.nenTang || 'Facebook', kenh: x.kenh,
+        }));
       choMoi = await choKhop.luu(chua);
     } catch (e) { choMoi = { loi: e.message }; }
     /* GHI NHẬT KÝ MỌI LƯỢT, kể cả lượt không ghi được bài nào.

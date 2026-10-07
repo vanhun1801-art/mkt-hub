@@ -68,6 +68,7 @@ async function nap() {
      * Chưa rõ thì thử cả hai nền tảng, xem khopLai(). */
     nenTang: store.sel(r.c[f.nenTang]) || '',
     kenh: store.clean(r.c[f.kenh]),
+    link: store.clean(r.c[f.link]),
   }));
 }
 
@@ -78,7 +79,10 @@ async function nap() {
  * { nguoi, van }. Mục đã có thì chỉ cộng số lần thử, không đẻ dòng mới.
  */
 async function luu(items, dsCho) {
-  const ds = Array.isArray(items) ? items.filter((x) => x && gonTen(x.nguoi) && x.van) : [];
+  /* Nhận mục có caption HOẶC có link — trước đây bắt buộc phải có caption, mà
+   * mục chỉ có link thì cũng khớp được bằng ID. */
+  const ds = Array.isArray(items)
+    ? items.filter((x) => x && gonTen(x.nguoi) && (x.van || x.link)) : [];
   if (!ds.length) return { them: 0, capNhat: 0 };
 
   const dang = dsCho || await nap();
@@ -98,6 +102,9 @@ async function luu(items, dsCho) {
     const cu = co.get(k);
     if (cu) {
       sua[cu.id] = { [f.thuCuoi]: luc, [f.soLan]: (cu.soLan || 0) + 1 };
+      /* Mục cũ chưa có link thì điền vào — lượt khớp sau đi được đường ID thay
+       * vì dò caption. Có link rồi thì để nguyên, đừng đè. */
+      if (x.link && !cu.link) sua[cu.id][f.link] = String(x.link).slice(0, 400);
       return;
     }
     moi.push({
@@ -108,6 +115,8 @@ async function luu(items, dsCho) {
        * định của khoa(), không thì gửi lại một bài là đẻ thêm dòng mới. */
       [f.nenTang]: x.nenTang || '',
       [f.kenh]: String(x.kenh || ''),
+      /* Giữ link để lần khớp sau đi bằng ID, không phải dò caption. */
+      [f.link]: String(x.link || '').slice(0, 400),
       [f.batLuc]: luc,
       [f.thuCuoi]: luc,
       [f.soLan]: 1,
@@ -143,19 +152,33 @@ async function khopLai(posts, kenhDS) {
    * để nằm chờ — khai tên vào Base và NGUOI_DANG_TEN xong là lượt sau tự ghi. */
   const hopLe = new Set(nguoiDang.NGUOI_DANG.map(gonTen));
 
+  /* Bảng tra theo ID link, dựng MỘT LẦN cho cả lượt. */
+  const tra = nguoiDang.banhTra(posts);
+
   dang.forEach((x) => {
     if (!hopLe.has(gonTen(x.nguoi))) return;
+    /* LINK TRƯỚC, CAPTION SAU. Link mang ID số thì chính xác tuyệt đối, còn
+     * caption thì hai bài mở đầu giống nhau là phải bỏ cuộc — đó là lý do bốn
+     * mục trong hàng chờ nằm mãi. Mục cũ không có link (cột mới thêm
+     * 07/10/2026) thì vẫn đi đường caption như trước. */
+    const idLink = x.link
+      ? (x.nenTang === 'TikTok'
+        ? nguoiDang.idTuLinkTikTok(x.link)
+        : nguoiDang.idTuLink(x.link))
+      : '';
+    const theoLink = idLink && tra[x.nenTang || 'Facebook']
+      ? tra[x.nenTang || 'Facebook'].get(idLink) : null;
     /* Chưa rõ nền tảng thì thử cả hai, và chỉ nhận khi ĐÚNG MỘT bên ra kết quả.
      * Hai bên cùng ra là bài được đăng lên cả hai nơi với cùng caption — không
      * biết mục này thuộc bài nào, thà để chờ còn hơn gán bừa. */
-    const p = x.nenTang
+    const p = theoLink || (x.nenTang
       ? nguoiDang.ghepTheoVan(x.van, posts, { nenTang: x.nenTang, kenh: x.kenh, kenhDS })
       : (() => {
         const ra = ['Facebook', 'TikTok']
           .map((nt) => nguoiDang.ghepTheoVan(x.van, posts, { nenTang: nt, kenh: x.kenh, kenhDS }))
           .filter(Boolean);
         return ra.length === 1 ? ra[0] : null;
-      })();
+      })());
     if (!p) {
       /* Quá hạn thì dừng thử, nhưng giữ dòng lại. */
       /* batLuc ghi theo giờ Việt Nam và không mang hậu tố múi giờ, nên phải

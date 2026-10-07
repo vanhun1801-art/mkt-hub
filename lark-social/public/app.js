@@ -423,6 +423,71 @@
 
   /* ---------------- tab: bài đăng ---------------- */
   let baiTheo = 'views';
+  /**
+   * DẢI NHẮC "còn bao nhiêu bài chưa ghi người đăng", kèm chỗ gán ngay.
+   *
+   * Tiện ích trình duyệt chỉ ghi được bài mà có người mở ra xem, nên không bao
+   * giờ phủ hết — tháng 10 còn 25/57 bài không ai nhận. Mà đây là số tính KPI:
+   * bài không có tên thì không vào phiếu của ai, và người đăng chịu thiệt mà
+   * không biết.
+   *
+   * Đặt ngay đầu tab Bài đăng chứ không làm tab riêng: tab riêng là chỗ không
+   * ai mở, còn ở đây thì mỗi lần xem bài là thấy.
+   */
+  async function veDaiNguoiDang(boc) {
+    let d;
+    try { d = await goi('/api/bai/thieu-nguoi-dang?' + truyVan()); }
+    catch (_) { return; }            // không có quyền hoặc lỗi: im lặng, đừng chắn màn
+    if (!d || !d.tong) return;
+
+    const o = document.createElement('div');
+    o.className = 'card nd-nhac';
+    const ve = () => {
+      o.innerHTML = '<div class="card-head"><h3>' + d.tong
+        + ' bài chưa ghi người đăng</h3>'
+        + '<span class="muted" style="margin-left:auto;font-size:12.5px">'
+        + 'bài không có tên thì không vào phiếu KPI của ai</span>'
+        + '<button class="btn" data-mo style="margin-left:10px">'
+        + (o.dataset.mo === '1' ? 'Thu lại' : 'Gán ngay') + '</button></div>'
+        + (o.dataset.mo === '1'
+          ? '<div class="card-body tight"><div class="nd-ds">'
+            + d.bai.map((x) => '<div class="nd-hang" data-id="' + esc(x.id) + '">'
+              + '<span class="nd-ngay">' + esc(x.date || '') + '</span>'
+              + '<span class="nd-nt">' + esc(x.platform || '') + '</span>'
+              + '<a class="nd-ten" href="' + esc(x.url || '#') + '" target="_blank" '
+              + 'rel="noopener">' + esc((x.title || '(không tiêu đề)').slice(0, 70)) + '</a>'
+              + '<span class="nd-xem">' + Number(x.views || 0).toLocaleString('vi-VN') + '</span>'
+              + '<select class="nd-chon"><option value="">— chọn người —</option>'
+              + (d.nguoi || []).map((n) => '<option>' + esc(n) + '</option>').join('')
+              + '</select></div>').join('')
+            + '</div><p class="hint">Sắp theo lượt xem giảm dần — bài nhiều người xem '
+            + 'mà không ai nhận là chỗ lệch KPI nhiều nhất. Bấm tiêu đề để mở bài '
+            + 'trên nền tảng mà đối chiếu.</p></div>'
+          : '');
+      const b = o.querySelector('[data-mo]');
+      if (b) b.onclick = () => { o.dataset.mo = o.dataset.mo === '1' ? '' : '1'; ve(); };
+      o.querySelectorAll('.nd-chon').forEach((sel) => {
+        sel.onchange = async () => {
+          const hang = sel.closest('.nd-hang');
+          const id = hang.dataset.id;
+          sel.disabled = true;
+          try {
+            await goiJSON('/api/bai/nguoi-dang', { id, nguoi: sel.value });
+            /* Gán xong thì BỎ HẲN dòng đó khỏi danh sách — để lại là người ta
+             * tưởng chưa ăn rồi chọn lần nữa. */
+            d.bai = d.bai.filter((x) => x.id !== id);
+            d.tong -= 1;
+            if (!d.tong) { o.remove(); return; }
+            ve();
+            toast('Đã gán', 'ok');
+          } catch (e) { sel.disabled = false; toast(e.message, 'err'); }
+        };
+      });
+    };
+    ve();
+    boc.insertBefore(o, boc.firstChild);
+  }
+
   async function veBai() {
     $('#view').innerHTML = window.KX ? KX.man('', { dau: false, the: 4, dong: 8 })
       : '<div class="loading">Đang nạp bài đăng…</div>';
@@ -475,6 +540,9 @@
       baiTheo = b.dataset.k;
       veBai();
     };
+    /* Dải nhắc nạp SAU khi bảng bài đã hiện — nó gọi thêm một lượt máy chủ,
+     * không để nó giữ cả tab lại chờ. */
+    veDaiNguoiDang($('#view'));
   }
 
   /* ---------------- tab: LIVE ---------------- */

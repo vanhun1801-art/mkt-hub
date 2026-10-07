@@ -39,16 +39,40 @@ function idTuLink(u) {
   return m ? m[1] : '';
 }
 
-/** Gom bài trong Base thành bảng tra theo ID link. Chỉ Facebook dùng được:
- * link TikTok không mang ID số đối chiếu được với Base. */
+/**
+ * Rút ID video từ link TikTok.
+ *
+ * Dạng thật: https://www.tiktok.com/@rootytrip.official/video/7691606470105779464?utm_…
+ * ID là số 19 chữ số sau /video/ — chính xác tuyệt đối, không phải đoán theo
+ * caption. Chú thích cũ ở đây ghi "link TikTok không mang ID số đối chiếu được
+ * với Base" là SAI: Base lưu nguyên link nên hai bên có chung cái ID đó. Vì
+ * hiểu nhầm này mà mọi mục TikTok phải đi đường caption, và 10/26 mục đang kẹt
+ * trong hàng chờ là TikTok.
+ */
+function idTuLinkTikTok(u) {
+  const m = /\/video\/(\d{6,})/.exec(String(u || ''));
+  return m ? m[1] : '';
+}
+
+/**
+ * Gom bài trong Base thành bảng tra theo ID link, TÁCH THEO NỀN TẢNG.
+ *
+ * Tách là bắt buộc: ID Facebook và ID TikTok đều là số dài, để chung một bảng
+ * thì về lý có thể đụng nhau, mà đụng là gán bài người này cho người kia.
+ */
 function banhTra(posts) {
-  const m = new Map();
+  const fb = new Map();
+  const tt = new Map();
   (posts || []).forEach((p) => {
-    if (p.platform !== 'Facebook') return;
-    const id = idTuLink(p.url);
-    if (id && !m.has(id)) m.set(id, p);
+    if (p.platform === 'Facebook') {
+      const id = idTuLink(p.url);
+      if (id && !fb.has(id)) fb.set(id, p);
+    } else if (p.platform === 'TikTok') {
+      const id = idTuLinkTikTok(p.url);
+      if (id && !tt.has(id)) tt.set(id, p);
+    }
   });
-  return m;
+  return { Facebook: fb, TikTok: tt };
 }
 
 /**
@@ -142,8 +166,13 @@ function ghep(items, posts, kenhDS) {
     const nenTang = (x && x.nenTang) || 'Facebook';
     /* Link trước, caption sau. Link chính xác tuyệt đối khi có ID số; còn dạng
      * pfbid thì phải nhờ caption. Link TikTok không có ID số nên chỉ còn caption. */
-    const id = nenTang === 'Facebook' ? idTuLink(x && x.link) : '';
-    const p = (id && tra.get(id))
+    /* Link trước, caption sau. Link có ID số thì chính xác tuyệt đối; dạng
+     * pfbid của Facebook mới phải nhờ caption. TikTok nay cũng đi đường ID. */
+    const id = nenTang === 'TikTok'
+      ? idTuLinkTikTok(x && x.link)
+      : idTuLink(x && x.link);
+    const bang = tra[nenTang];
+    const p = (id && bang && bang.get(id))
       || ghepTheoVan(x && x.van, posts, { nenTang, kenh: x && x.kenh, kenhDS });
     /* Trả kèm vị trí để tiện ích biết mục nào chưa ăn mà giữ lại gửi sau. Bài
      * vừa đăng chưa có trong Base — đồng bộ 6 tiếng một lượt mới kéo về. */
@@ -190,6 +219,6 @@ function gopTheoNguoi(bai) {
 }
 
 module.exports = {
-  NGUOI_DANG, idTuLink, banhTra, ghep, ghepTheoVan, locTheoKenh,
+  NGUOI_DANG, idTuLink, idTuLinkTikTok, banhTra, ghep, ghepTheoVan, locTheoKenh,
   gonVan, gonKenh, gopTheoNguoi, DAI_TOI_THIEU,
 };

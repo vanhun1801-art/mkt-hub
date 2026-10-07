@@ -92,8 +92,31 @@ t('người khác với người đang có thì GHI ĐÈ', () => {
   assert.strictEqual(r.capNhat[0].cu, 'Võ Hằng');
 });
 
-t('bảng tra bỏ qua bài không phải Facebook', () => {
-  assert.strictEqual(N.banhTra(BAI).has('333333333333'), false);
+t('bảng tra tách Facebook và TikTok thành hai ngăn', () => {
+  const tra = N.banhTra(BAI);
+  /* Tách là bắt buộc: ID hai bên đều là số dài, để chung một bảng thì về lý
+   * có thể đụng nhau, mà đụng là gán bài người này cho người kia. */
+  assert.strictEqual(tra.Facebook.has('111111111111'), true);
+  assert.strictEqual(tra.Facebook.has('333333333333'), false);
+  assert.strictEqual(tra.TikTok.has('333333333333'), true);
+});
+
+t('rút được ID video từ link TikTok', () => {
+  assert.strictEqual(
+    N.idTuLinkTikTok('https://www.tiktok.com/@rootytrip.official/video/7691606470105779464?utm_campaign=x'),
+    '7691606470105779464');
+  assert.strictEqual(N.idTuLinkTikTok('https://www.tiktok.com/@x'), '');
+});
+
+t('ghép bài TikTok bằng ID trong link, không cần caption', () => {
+  /* Trước đây TikTok chỉ khớp được bằng caption, nên hai clip cùng caption là
+   * bỏ cuộc — 10/26 mục kẹt trong hàng chờ vì lý do đó. */
+  const r = N.ghep([
+    { link: 'https://tiktok.com/@x/video/333333333333', nguoi: 'Phương Ái', nenTang: 'TikTok' },
+  ], BAI);
+  assert.strictEqual(r.capNhat.length, 1);
+  assert.strictEqual(r.capNhat[0].id, 'r3');
+  assert.strictEqual(r.capNhat[0].nguoi, 'Phương Ái');
 });
 
 console.log('\nnguoi-dang — khớp theo caption khi link là pfbid');
