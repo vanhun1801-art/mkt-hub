@@ -30,15 +30,23 @@ const scrub = (s) => {
 
 async function request(url, opts = {}) {
   const { method = 'GET', headers = {}, body, timeout = 60000, retries = 3, label = 'HTTP' } = opts;
+  /* `retries: 0` nghĩa là ĐỪNG THỬ LẠI, không phải đừng gọi.
+   *
+   * Bản cũ lấy thẳng số đó làm số vòng lặp, nên `retries: 0` không gọi lần nào,
+   * `last` còn undefined, và dòng `throw last` ở cuối ném ra ĐÚNG undefined.
+   * Bên gọi bắt được một thứ không có .message — câu lỗi biến mất sạch.
+   * Bắt được 07/10/2026 lúc dò vì sao Meta báo "API access blocked": mọi phép
+   * dò viết với retries 0 đều im lặng trả về "undefined". */
+  const lanThu = Math.max(1, Number(retries) || 0);
   let last;
-  for (let i = 0; i < retries; i++) {
+  for (let i = 0; i < lanThu; i++) {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), timeout);
     try {
       const res = await fetch(url, { method, headers, body, signal: ctrl.signal });
       const text = await res.text();
       // 429 / 5xx là lỗi tạm thời — chờ rồi thử lại
-      if ((res.status === 429 || res.status >= 500) && i < retries - 1) {
+      if ((res.status === 429 || res.status >= 500) && i < lanThu - 1) {
         last = new Error(`${label}: HTTP ${res.status}`);
         await wait(1500 * Math.pow(2, i));
         continue;
@@ -46,13 +54,14 @@ async function request(url, opts = {}) {
       return { status: res.status, ok: res.ok, text, headers: res.headers };
     } catch (e) {
       last = new Error(`${label}: ${scrub(e.message || e)}`);
-      if (i === retries - 1) throw last;
+      if (i === lanThu - 1) throw last;
       await wait(1200 * Math.pow(2, i));
     } finally {
       clearTimeout(timer);
     }
   }
-  throw last;
+  /* Không bao giờ ném undefined: bên gọi luôn phải đọc được .message. */
+  throw last || new Error(`${label}: không gọi được, không rõ lý do`);
 }
 
 /** GET rồi parse JSON. Lỗi HTTP kèm thân phản hồi đã che token. */

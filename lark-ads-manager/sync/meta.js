@@ -243,6 +243,50 @@ async function tokenInfo(conf) {
   } catch (_) { return null; }
 }
 
+/**
+ * Dịch lỗi "API access blocked" của Meta thành câu dùng được.
+ *
+ * Meta trả đúng ba chữ `API access blocked` cho MỌI lời gọi khi App bị chặn —
+ * không nói App nào, không nói vì sao, và thả nguyên chuỗi tiếng Anh đó lên màn
+ * hình thì người đọc tưởng app mình hỏng. Chặn này nằm ở cấp **App**, không phải
+ * token và cũng không phải tài khoản quảng cáo: token vẫn còn hạn, tài khoản vẫn
+ * chạy, chỉ cái Meta App đang bị hạn chế.
+ *
+ * Đã trả giá hai lần: 31/08/2026 (chữa bằng cách đổi sang App khác) và 07/10/2026
+ * (bản trên server vẫn giữ token của App cũ bị chặn, trong khi máy cá nhân đã đổi
+ * App từ lâu và chạy bình thường).
+ *
+ * Nên câu trả về phải nói được App NÀO — hỏi debug_token là ra, và debug_token
+ * thường vẫn trả lời được dù App bị chặn. Hỏi không được thì nói thẳng là không
+ * biết, đừng đoán tên App.
+ */
+async function giaiThichChan(conf, msg) {
+  const tho = String(msg || '');
+  if (!/API access blocked/i.test(tho)) return tho;
+  let ten = '';
+  try {
+    /* Tự gọi hideSecret: hàm này được gọi từ nhánh LỖI, mà nhánh lỗi có thể tới
+     * từ chỗ chưa kịp đăng ký bí mật — thiếu nó thì lời gọi hỏng và câu trả lời
+     * thành "không hỏi được App nào" dù hỏi được. */
+    hideSecret(conf.accessToken);
+    const ver = conf.apiVersion || 'v21.0';
+    const r = await getJson(`https://graph.facebook.com/${ver}/debug_token`
+      + `?input_token=${encodeURIComponent(conf.accessToken)}`
+      + `&access_token=${encodeURIComponent(conf.accessToken)}`,
+      { label: 'Meta debug_token (chẩn đoán chặn)', retries: 0 });
+    const d = (r && r.data) || {};
+    if (d.application || d.app_id) ten = `${d.application || ''} (id ${d.app_id || '?'})`.trim();
+  } catch (_) { /* hỏi không được thì thôi, không đoán */ }
+
+  return 'Meta chặn ở cấp ỨNG DỤNG, không phải token hay tài khoản quảng cáo. '
+    + (ten ? `Token này thuộc App ${ten} — chính App đó đang bị chặn. `
+      : 'Không hỏi được App nào vì Meta chặn cả lệnh kiểm token. ')
+    + 'Token vẫn còn hạn và tài khoản quảng cáo vẫn chạy bình thường. '
+    + 'Cách nhanh nhất là dùng token sinh từ một Meta App KHÁC không bị chặn '
+    + '(Business Settings → System Users → chọn user → Tạo mã → chọn App khác). '
+    + 'Chữa tận gốc thì vào developers.facebook.com/apps xem App đang bị báo gì.';
+}
+
 /** Kiểm tra token + quyền, không ghi gì. */
 async function test(conf) {
   if (!conf.accessToken) return { ok: false, message: 'Chưa có accessToken' };
@@ -257,13 +301,13 @@ async function test(conf) {
       + `&access_token=${encodeURIComponent(conf.accessToken)}`;
     try {
       const res = await getJson(url, { label: `Meta test ${acc}`, retries: 1 });
-      if (res.error) results.push({ account: acc, ok: false, message: scrub(res.error.message) });
+      if (res.error) results.push({ account: acc, ok: false, message: await giaiThichChan(conf, scrub(res.error.message)) });
       else results.push({
         account: acc, ok: true,
         name: res.name, currency: res.currency, timezone: res.timezone_name,
         status: res.account_status,
       });
-    } catch (e) { results.push({ account: acc, ok: false, message: scrub(e.message) }); }
+    } catch (e) { results.push({ account: acc, ok: false, message: await giaiThichChan(conf, scrub(e.message)) }); }
   }
   const info = await tokenInfo(conf);
   return { ok: results.every((r) => r.ok), results, token: info };
@@ -281,7 +325,7 @@ async function danhSachTaiKhoan(conf) {
     + '?fields=account_id,name,currency,account_status&limit=200'
     + `&access_token=${encodeURIComponent(conf.accessToken)}`,
     { label: 'Meta /me/adaccounts', retries: 1 });
-  if (r && r.error) throw new Error(scrub(r.error.message || 'Meta từ chối'));
+  if (r && r.error) throw new Error(await giaiThichChan(conf, scrub(r.error.message || 'Meta từ chối')));
   return (r.data || []).map((a) => ({
     id: String(a.account_id || '').replace(/^act_/, ''),
     name: a.name || '',
@@ -294,4 +338,5 @@ async function danhSachTaiKhoan(conf) {
 module.exports = {
   hanhDongChuyenDoi, TEN_HANH_DONG, nhomHanhDong,
   PLATFORM, fetchRange, test, tokenInfo, danhSachTaiKhoan, conversionsOf, actionTypesSeen,
+  giaiThichChan,
 };
