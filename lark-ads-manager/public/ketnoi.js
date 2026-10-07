@@ -61,8 +61,11 @@
       nut: 'Điền thông tin Google Ads API',
       fields: [
         { k: 'clientId', l: 'OAuth Client ID', full: true, ph: '…apps.googleusercontent.com',
-          hint: 'Google Cloud Console → Credentials → OAuth client ID → loại Desktop app. Thêm http://127.0.0.1:47123 vào Authorized redirect URIs.' },
-        { k: 'clientSecret', l: 'OAuth Client Secret', mat: true, full: true },
+          hint: 'Google Cloud Console → Clients → OAuth client ID. Loại Web application hay Desktop app đều chạy, miễn là có http://127.0.0.1:47123 trong Authorized redirect URIs.' },
+        { k: 'clientSecret', l: 'OAuth Client Secret', mat: true, full: true,
+          hint: 'Google KHÔNG cho xem lại secret cũ. Mất thì vào đúng client đó → Client secrets → '
+            + '+ Add secret, copy ngay lúc nó hiện (chỉ hiện một lần). Đổi secret KHÔNG làm mất Refresh Token, '
+            + 'vì token đó gắn với Client ID chứ không gắn với secret.' },
         { k: 'developerToken', l: 'Google Ads Developer Token', mat: true, full: true,
           hint: 'Google Ads → Công cụ → API Center. Mức Test chỉ đọc được tài khoản test; đọc tài khoản thật phải xin Basic Access.' },
         { k: 'loginCustomerId', l: 'Mã MCC (tài khoản quản lý)', ph: '993-620-5152',
