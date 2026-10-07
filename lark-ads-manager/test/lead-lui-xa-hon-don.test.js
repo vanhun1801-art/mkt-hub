@@ -102,5 +102,23 @@ console.log('— màn hình nói ra chỗ mất này, thay vì im');
   t('nêu rõ app không chọn bừa', /KHÔNG chọn bừa/.test(k.chu));
 }
 
+console.log('— nhật ký lượt chạy phải nói ra chỗ hụt');
+{
+  /* Đêm 07/10/2026 mất gần hai tiếng chỉ để biết rằng POS không ghép được KHÔNG
+   * phải vì chưa tới lượt chạy. Ba lượt liên tiếp ra đúng một con số, mà nhật ký
+   * không hé lộ nó hụt ở bước nào — dù roas.js đã đếm sẵn từng lý do. Một bộ đếm
+   * không ai đọc thì bằng không có. */
+  const s = require('fs').readFileSync(
+    require('path').join(__dirname, '..', 'sync', 'ghicongtudong.js'), 'utf8');
+  t('có in lý do hụt', /vì sao những đơn khác không ghép được/.test(s));
+  t('dịch leadKhongCoTrongXuat sang tiếng người', /lead KHÔNG CÓ trong kho/.test(s));
+  t('dịch nhapNhangPOS sang tiếng người', /không chọn bừa/.test(s));
+  /* Chỉ in lý do CÓ xảy ra — in cả dòng 0 là làm loãng nhật ký. */
+  t('chỉ in lý do khác 0', /filter\(\(\[, v\]\) => v > 0\)/.test(s));
+  t('không có lý do nào thì vẫn nói một câu', /mọi khoá đều dùng được/.test(s));
+  /* Và in luôn đếm nguồn: thiếu nguồn hay thiếu khoá là hai chuyện khác nhau. */
+  t('in cả số liệu nguồn', /nguồn lượt này/.test(s));
+}
+
 console.log(`\n${pass} pass · ${fail} fail`);
 process.exitCode = fail ? 1 : 0;

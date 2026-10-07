@@ -150,6 +150,41 @@ async function chay({ kho, from = '', to = '', ghi = () => {} }) {
   ghi('đang xác định kênh của từng đơn từ phép ghi công…');
   const { m: ghiCongTheoDon, kq } = await tinhGhiCong({ kho, from, to, ghi });
   ghi(`  ${ghiCongTheoDon.size} đơn xác định được kênh từ quảng cáo`);
+
+  /* IN RA VÌ SAO KHÔNG GHÉP ĐƯỢC, ngay trong nhật ký lượt chạy.
+   *
+   * Đêm 07/10/2026: đường POS dò ra 48 đơn, 29 có ad_id, 48 có mã lead — khoá
+   * cứng có đủ. Vậy mà ba lượt hẹn giờ liên tiếp vẫn ghi công đúng 17 đơn, toàn
+   * Facebook, POS không đóng góp dòng nào. Mất gần hai tiếng chỉ để biết rằng
+   * nó KHÔNG phải chuyện chờ lượt chạy.
+   *
+   * roas.js đã đếm sẵn từng lý do trong `nhat` — nhập nhằng POS, lead không có
+   * trong kho, số điện thoại không khớp... — nhưng không chỗ nào in ra, nên trên
+   * server chung không có cách nào biết lượt vừa rồi hụt ở bước nào. Một bộ đếm
+   * không ai đọc thì bằng không có.
+   *
+   * Chỉ in những lý do CÓ xảy ra: in cả dòng 0 là làm loãng nhật ký. */
+  if (kq && kq.nhat) {
+    const NHAN = {
+      nhapNhangPOS: 'lead trỏ tới nhiều quảng cáo trên đơn POS (bỏ, không chọn bừa)',
+      leadKhongCoTrongXuat: 'đơn POS trỏ tới lead KHÔNG CÓ trong kho (kéo lead lùi xa hơn là hết)',
+      nhapNhangHoiThoai: 'hội thoại mang nhiều mã quảng cáo (bỏ)',
+      sdtKhongKhopLead: 'số điện thoại trong hội thoại không khớp lead nào',
+      sdtNhieuLead: 'một số điện thoại khớp nhiều lead (bỏ)',
+      tenNhieuLead: 'tên khách khớp nhiều lead (bỏ)',
+      tenLechNgay: 'tên khách khớp nhưng lệch ngày quá xa (bỏ)',
+    };
+    const co = Object.entries(kq.nhat).filter(([, v]) => v > 0);
+    if (co.length) {
+      ghi('  vì sao những đơn khác không ghép được:');
+      co.forEach(([k, v]) => ghi(`    ${String(v).padStart(5)} · ${NHAN[k] || k}`));
+    } else {
+      ghi('  không có lý do hụt nào được ghi nhận — mọi khoá đều dùng được');
+    }
+    const n = kq.nguon || {};
+    ghi(`  nguồn lượt này: ${n.posDon || 0} đơn POS · ${n.hoiThoai || 0} hội thoại · `
+      + `${n.lead || 0} lead · ${n.don || 0} đơn Tourwell`);
+  }
   // Cache lại NGAY cả khi phần ghi Base bên dưới lỗi — số ROAS để xem vẫn đáng
   // có, tách bạch với việc ghi vào Base thật. kq null (Pancake/POS lỗi) thì bỏ
   // qua, giữ cache cũ thay vì xoá số đang có bằng một lượt hỏng.
