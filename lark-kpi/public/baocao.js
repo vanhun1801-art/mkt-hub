@@ -161,6 +161,10 @@ function bcThanhLoc() {
 
   than.appendChild(g1); than.appendChild(g2); than.appendChild(g3);
 
+  /* Bản rút gọn của một nhân sự KHÔNG có so sánh — máy chủ cũng đã bỏ, nên ẩn
+   * luôn nhóm nút này thay vì để nó bấm mà không có gì xảy ra. */
+  const anSoSanh = !!(BC && BC.phamVi);
+
   /* Chọn kỳ so sánh. Đặt ngay cạnh khoảng thời gian vì hai thứ này luôn đi đôi:
    * đổi khoảng mà không đổi mốc so thì mọi mũi tên ▲▼ đổi nghĩa mà không báo. */
   const gSS = el('div', 'loc-nhom');
@@ -208,7 +212,7 @@ function bcThanhLoc() {
       'báo cáo riêng khoảng ' + ngay(BC_KY.tu) + ' – ' + ngay(BC_KY.den)
       + ', không so sánh — bấm một mốc để bật lại'));
   }
-  than.appendChild(gSS);
+  if (!anSoSanh) than.appendChild(gSS);
 
   const g4 = el('div', 'loc-nhom grow');
   g4.innerHTML = '<label>&nbsp;</label>';

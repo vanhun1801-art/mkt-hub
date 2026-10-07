@@ -408,34 +408,63 @@ async function docLiveRieng(app, tu, den, pv) {
   const trong = (f) => (ds.length && ds.every((x) => so(x[f]) === 0)
     ? ds.length + '/' + ds.length + ' phiên ghi 0 — nhiều khả năng cột này chưa ai điền'
     : '');
+
+  /* ĐỘ PHỦ TỪNG CỘT. Đây là chỗ con số LIVE dễ bị đọc sai nhất: "lượt xem 31k"
+   * nghe như kết quả của cả 28 phiên, thật ra chỉ 11 phiên có nhập số, 17 phiên
+   * để trống. Ghi thẳng tỷ lệ lên ô, đừng giấu xuống dòng trung bình. */
+  const coSo = (f) => ds.filter((x) => so(x[f]) > 0).length;
+  const phu = (f) => {
+    const c = coSo(f);
+    if (!ds.length || c === ds.length) return '';
+    return c + '/' + ds.length + ' phiên có nhập số — '
+      + (ds.length - c) + ' phiên để trống, số thật cao hơn';
+  };
+  /* Cảnh báo về chất lượng số LIVE. App Social sở hữu bảng phiên; báo cáo chỉ
+   * nói ra những gì đếm được, không tự đoán vì sao thiếu. */
+  const luuY = [];
+  const thieuXem = ds.length - coSo('views');
+  if (thieuXem > 0) {
+    luuY.push('Chỉ ' + coSo('views') + '/' + ds.length + ' phiên có nhập lượt xem — '
+      + thieuXem + ' phiên để trống. Mọi con số cộng dồn bên dưới vì vậy THẤP HƠN '
+      + 'thực tế, không phải vì phiên đó không ai xem.');
+  }
+  const nt = [...new Set(ds.map((x) => x.platform).filter(Boolean))];
+  if (ds.length && !nt.includes('TikTok')) {
+    luuY.push('Không có phiên LIVE TikTok nào trong kỳ (' + (nt.join(', ') || 'không rõ nền tảng')
+      + ' thôi). Nếu đội có live TikTok thật thì phiên đó chưa vào hệ thống — '
+      + 'app Social chưa nối được LIVE của TikTok.');
+  }
+
   return {
+    luuY,
     o: [
-      { nhan: 'Số phiên LIVE', so: ds.length, dinhDang: 'so', chinh: true },
+      { nhan: 'Số phiên LIVE', so: ds.length, dinhDang: 'so', chinh: true,
+        ghi: nt.length ? nt.join(' · ') : '' },
       { nhan: 'Giờ lên sóng', so: phut / 60, dinhDang: 'so2', ghi: 'giờ' },
-      { nhan: 'Lượt xem', so: views, dinhDang: 'so' },
+      { nhan: 'Lượt xem', so: views, dinhDang: 'so', ghi: phu('views') },
       { nhan: 'Đỉnh cùng lúc', so: Math.max(0, ...ds.map((x) => so(x.peak))), dinhDang: 'so',
         ghi: trong('peak') || 'người xem cao nhất một phiên' },
-      { nhan: 'Bình luận', so: cong('comments'), dinhDang: 'so' },
+      { nhan: 'Bình luận', so: cong('comments'), dinhDang: 'so', ghi: phu('comments') },
       { nhan: 'Follow mới', so: cong('newFollows'), dinhDang: 'so', ghi: trong('newFollows') },
       { nhan: 'Tin nhắn', so: cong('messages'), dinhDang: 'so', ghi: trong('messages') },
-      { nhan: 'Lead', so: cong('leads'), dinhDang: 'so' },
-      { nhan: 'Đơn chốt', so: cong('orders'), dinhDang: 'so' },
+      { nhan: 'Lead', so: cong('leads'), dinhDang: 'so', ghi: phu('leads') },
+      { nhan: 'Đơn chốt', so: cong('orders'), dinhDang: 'so', ghi: phu('orders') },
       { nhan: 'Xem trung bình một phiên', so: coXem ? views / coXem : 0, dinhDang: 'so',
         ghi: coXem === ds.length ? '' : coXem + '/' + ds.length + ' phiên đã nhập lượt xem' },
       { nhan: 'Phút lên sóng mỗi phiên', so: ds.length ? phut / ds.length : 0, dinhDang: 'so' },
       { nhan: 'Tương tác trên 1.000 lượt xem', so: views ? (tuongTac / views) * 1000 : 0,
         dinhDang: 'so2' },
     ],
-    /* Phễu TRONG MỘT PHIÊN LIVE. Đủ điều kiện dựng phễu: người bình luận là
-     * người đang xem phiên đó, người để lại số cũng vậy — cùng một tập người,
-     * cùng một phiên, chứ không phải ba hệ đo khác nhau ghép lại. */
-    pheu: dungPheu([
-      { nhan: 'Lượt xem phiên', so: views },
-      { nhan: 'Người bình luận', so: cong('comments') },
-      { nhan: 'Lead để lại thông tin', so: cong('leads') },
-      { nhan: 'Đơn chốt', so: cong('orders') },
-    ]),
-    goc: 'lượt xem',
+    /* BỎ PHỄU LIVE.
+     *
+     * Lý thuyết thì phễu này hợp lệ — người bình luận đúng là người đang xem
+     * phiên đó. Nhưng số thật không cho phép: lượt xem chỉ có ở 11/28 phiên,
+     * bình luận 27/28, lead 10/28, đơn 6/28. Bốn bậc bốn tập phiên khác nhau,
+     * nên "cứ 2.555 lượt xem mới có 1 lead" là chia lượt xem của mười một phiên
+     * cho lead của mười phiên khác — đúng cái lỗi đã gỡ ở khối Tệp khách mới.
+     *
+     * Khi nào đội nhập đủ số cho mọi phiên thì mở lại — lúc đó bốn bậc mới
+     * cùng một tập. */
 
     /* DOANH THU LIVE chưa đưa vào — anh Hùng gác lại vì chưa rõ cơ chế ghi nhận:
      * cột doanh thu trong bảng phiên không nói rõ là đơn chốt ngay trên sóng hay
@@ -663,11 +692,29 @@ async function docCongViec(app, tu, den, pv) {
   const tt = gomTheo(ds, (t) => nhanOf(t.status) || '(trống)', []);
   const theoLoai = gomTheo(trongKy, (t) => nhanOf(t.workType) || '(chưa phân loại)', []);
   const theoNguoi = gomTheo(trongKy, (t) => (t.owner || []).map((u) => u.name).join(', ') || '(chưa giao)', []);
-  const coMinhChung = trongKy.filter((t) => (t.attachment || []).length || (t.fileKetQua || []).length
-    || t.linkKetQua || t.link).length;
+  const coMinhChungDs = trongKy.filter((t) => (t.attachment || []).length
+    || (t.fileKetQua || []).length || t.linkKetQua || t.link);
+  const coMinhChung = coMinhChungDs.length;
+
+  /* ĐẾM THEO LOẠI VIỆC ĐÃ XONG. Người làm hậu kỳ cần đúng một con số: tháng này
+   * tôi ra được bao nhiêu video. Bảng "theo loại" bên dưới đếm việc ĐẾN HẠN,
+   * gồm cả việc chưa xong — không dùng để báo sản lượng được. */
+  const xongTheoLoai = gomTheo(xong, (t) => nhanOf(t.workType) || '(chưa phân loại)', []);
+  const oSanLuong = xongTheoLoai
+    .slice().sort((a, b) => b._n - a._n)
+    .map((x) => ({
+      nhan: 'Đã xong · ' + x._k, so: x._n, dinhDang: 'so',
+      chinh: /video|thiết kế|design/i.test(x._k),
+    }));
+
+  /* Liên kết kết quả của một việc, ưu tiên link người ta tự điền. */
+  const linkCua = (t) => t.linkKetQua || t.link
+    || ((t.fileKetQua || [])[0] || {}).url || ((t.attachment || [])[0] || {}).url || '';
+  const ngayCua = (t) => (t.ngayGiaiQuyet ? msOf(t.ngayGiaiQuyet) : han(t));
   return {
     o: [
       { nhan: 'Đến hạn trong kỳ', so: trongKy.length, dinhDang: 'so', chinh: true },
+      ...oSanLuong,
       /* "% số việc", không phải "% đúng hạn" — xem chú thích ở khối Hậu kỳ: bảng
        * này không có ngày hoàn thành nên không ai kiểm được chuyện kịp hạn. */
       { nhan: 'Trong đó đã xong', so: xong.length, dinhDang: 'so',
@@ -714,6 +761,15 @@ async function docCongViec(app, tu, den, pv) {
       { tieuDe: 'Theo loại công việc',
         cot: ['Loại', 'Số việc'], soCot: [1],
         dong: theoLoai.sort((x, y) => y._n - x._n).map((x) => [x._k, x._n]) },
+      /* LIỆT KÊ CỤ THỂ VIỆC ĐÃ LÀM. Con số "33 việc đã xong" không chứng minh
+       * được gì khi trình ra; danh sách tên việc kèm link kết quả thì có. Đây
+       * cũng là thứ nhân sự cần nhất ở phiếu của mình. */
+      { tieuDe: 'Việc đã xong trong kỳ — liệt kê',
+        cot: ['Hạn', 'Việc', 'Loại', 'Chiến dịch', 'Kết quả'],
+        dong: xong.slice().sort((x, y) => ngayCua(y) - ngayCua(x)).slice(0, 60).map((t) => [
+          ngayCua(t) ? new Date(ngayCua(t)).toLocaleDateString('vi-VN') : '',
+          (t.title || '(không tên)').slice(0, 90), nhanOf(t.workType),
+          nhanOf(t.campaign), linkCua(t) ? 'có link' : '—']) },
       { tieuDe: 'Việc quá hạn',
         cot: ['Việc', 'Loại', 'Người', 'Hạn'],
         dong: quaHan.slice().sort((x, y) => han(x) - han(y)).slice(0, 30).map((t) => [
@@ -1639,6 +1695,12 @@ function gomChiPhi(base) {
  * khiễng, chỗ có chỗ không.
  */
 async function gomSoSanh(tu, den, nguoi, kieuSS, docLuat, pv) {
+  /* NHÂN SỰ KHÔNG SO SÁNH. Phiếu của một người đọc để biết tháng này mình làm
+   * được gì, không phải để bị đối chiếu với tháng trước — và mỗi mũi tên đỏ là
+   * một câu hỏi mà bản rút gọn không trả lời nổi ("giảm 60%" vì làm ít hơn hay
+   * vì tháng trước có chiến dịch?). Bỏ luôn ở tầng này cho chắc, đừng trông
+   * vào màn hình nhớ gửi `ss=khong`. */
+  if (pv) kieuSS = 'khong'; // eslint-disable-line no-param-reassign
   /* TẮT SO SÁNH. Không phải chuyện ẩn vài cái mũi tên: bỏ so sánh thì khỏi phải
    * đọc lại toàn bộ 9 base cho kỳ trước, tức là nhanh gấp đôi. Ai chỉ cần xem
    * "tháng này ra sao" thì không nên phải chờ máy đọc cả tháng trước. */
