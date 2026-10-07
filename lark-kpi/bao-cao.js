@@ -286,6 +286,40 @@ async function docSocial(app, tu, den, pv) {
    * không. Cột LIVE trong bảng "Theo nền tảng" thì giữ, vì ở đó nó trả lời câu
    * khác: nền tảng nào gánh phần live. */
 
+  /* BÀI CHÍNH NGƯỜI NÀY ĐĂNG.
+   *
+   * Số ở trên là của CẢ KÊNH — ba người Content dùng chung sáu kênh nên không
+   * tách thì phiếu ai cũng giống nhau. Phần này cộng từ TỪNG BÀI mà plugin
+   * "Người đăng" ghi tên người đó.
+   *
+   * HAI CƠ SỞ KHÁC NHAU, KHÔNG ĐƯỢC TRỪ NHAU: số kênh ở trên cộng từ bảng theo
+   * ngày (lượt xem phát sinh trong kỳ, gồm cả bài cũ), số này cộng lượt xem
+   * trọn đời của bài ĐĂNG trong kỳ. Nên để hai nhóm ô riêng, gọi rõ tên, chứ
+   * không gộp. */
+  const dsND = d.theoNguoiDang || [];
+  const oToi = [];
+  if (pv && pv.tenDang && dsND.length) {
+    const cua = new Set(pv.tenDang);
+    const toi = dsND.filter((x) => cua.has(x.nguoi));
+    const c = (f) => toi.reduce((a, x) => a + so(x[f]), 0);
+    const chuaGhi = dsND.find((x) => !x.nguoi);
+    const tongBai = dsND.reduce((a, x) => a + so(x.soBai), 0);
+    const ghiPhu = chuaGhi
+      ? so(chuaGhi.soBai) + '/' + tongBai + ' bài trong kỳ chưa ghi được người đăng'
+      : '';
+    oToi.push(
+      { nhan: 'Bài tôi đăng', so: c('soBai'), dinhDang: 'so', chinh: true, ghi: ghiPhu },
+      { nhan: 'Lượt xem bài tôi đăng', so: c('views'), dinhDang: 'so', chinh: true,
+        ghi: 'cộng trọn đời của bài đăng trong kỳ — khác cơ sở với ô Lượt xem ở trên' },
+      { nhan: 'Tương tác bài tôi đăng', so: c('engagement'), dinhDang: 'so' },
+      { nhan: 'Thích bài tôi đăng', so: c('likes'), dinhDang: 'so' },
+      { nhan: 'Bình luận bài tôi đăng', so: c('comments'), dinhDang: 'so' },
+      { nhan: 'Chia sẻ bài tôi đăng', so: c('shares'), dinhDang: 'so' },
+      { nhan: 'Xem trung bình mỗi bài tôi đăng',
+        so: c('soBai') ? c('views') / c('soBai') : 0, dinhDang: 'so' },
+    );
+  }
+
   return {
     luuY: d.luuY || [],
     o: [
@@ -319,6 +353,7 @@ async function docSocial(app, tu, den, pv) {
       { nhan: 'Xem trung bình mỗi bài', so: so(t.xemMoiBai), dinhDang: 'so' },
       { nhan: 'Tương tác mỗi bài', so: so(t.tuongTacMoiBai), dinhDang: 'so' },
       { nhan: 'Lead / 1.000 lượt xem', so: so(t.leadTrenNghinXem), dinhDang: 'so2' },
+      ...oToi,
     ],
     /* Biểu đồ theo ngày KHÔNG lọc được theo kênh: app Social chỉ trả tổng mỗi
      * ngày, không tách kênh. Người xem phạm vi hẹp thì bỏ hẳn biểu đồ này, chứ
@@ -351,6 +386,18 @@ async function docSocial(app, tu, den, pv) {
           .map((k) => [k.name, k.platform, so(k.followers),
             so(k.followUp) || so(k.followDown) ? so(k.followUp) : '—',
             so(k.views), so(k.engagement), so(k.posts)]) },
+      /* Ai đăng bao nhiêu — để người xem thấy phần của mình trong tổng của kênh,
+       * và thấy luôn bao nhiêu bài chưa ghi được người đăng. */
+      { tieuDe: 'Theo người đăng',
+        cot: ['Người đăng', 'Bài', 'Lượt xem', 'Tương tác', 'Thích', 'Bình luận', '% lượt xem'],
+        soCot: [1, 2, 3, 4, 5, 6],
+        dong: (() => {
+          const ds = d.theoNguoiDang || [];
+          const tong = ds.reduce((a, x) => a + so(x.views), 0);
+          return ds.map((x) => [x.nguoi || '(chưa ghi người đăng)', so(x.soBai), so(x.views),
+            so(x.engagement), so(x.likes), so(x.comments),
+            tong ? Math.round((so(x.views) / tong) * 1000) / 10 : 0]);
+        })() },
       { tieuDe: 'Bài xem nhiều nhất',
         cot: ['Bài', 'Kênh', 'Lượt xem', 'Tương tác'],
         soCot: [2, 3],

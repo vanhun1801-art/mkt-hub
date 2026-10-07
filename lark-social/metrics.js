@@ -187,6 +187,33 @@ function theoNenTang(rows, chotFollower) {
 }
 
 /** Bài tốt nhất theo một chỉ số. */
+/**
+ * Cộng số của các bài trong kỳ, nhóm theo người đăng.
+ *
+ * `poster` do extension trình duyệt ghi — Facebook không phát qua API (xem
+ * nguoi-dang.js). Nên độ phủ không bao giờ đủ 100%, và dòng tên rỗng chính là
+ * phần chưa ghi được.
+ */
+function gomNguoiDang(posts, { from, to, platforms, channels } = {}) {
+  const pset = platforms && platforms.length ? new Set(platforms) : null;
+  const cset = channels && channels.length ? new Set(channels) : null;
+  const m = new Map();
+  (posts || []).forEach((p) => {
+    if (from && p.date && p.date < from) return;
+    if (to && p.date && p.date > to) return;
+    if (pset && !pset.has(p.platform)) return;
+    if (cset && !cset.has(p.channelExtId) && !cset.has(p.channel)) return;
+    const k = p.poster || '';
+    const o = m.get(k) || { nguoi: k, soBai: 0, views: 0, engagement: 0,
+      likes: 0, comments: 0, shares: 0, saves: 0, clicks: 0 };
+    o.soBai += 1;
+    ['views', 'engagement', 'likes', 'comments', 'shares', 'saves', 'clicks']
+      .forEach((f) => { o[f] += num(p[f]); });
+    m.set(k, o);
+  });
+  return [...m.values()].sort((a, b) => b.views - a.views);
+}
+
 function topBai(posts, { from, to, platforms, channels, theo = 'views', n = 20 } = {}) {
   const pset = platforms && platforms.length ? new Set(platforms) : null;
   const cset = channels && channels.length ? new Set(channels) : null;
@@ -285,6 +312,17 @@ async function tongQuan({ from, to, platforms, channels } = {}) {
      * Trước đây /api/tong-quan bỏ hẳn khoá này, nên app KPI đọc LIVE chỉ thấy
      * Facebook — báo cáo tháng 9 hiện 28 phiên / 31k lượt xem trong khi TikTok
      * còn 34 phiên / 390k lượt xem nằm sẵn trong Base. */
+    /* GOM THEO NGƯỜI ĐĂNG — cộng từ TỪNG BÀI, không từ bảng số liệu ngày.
+     *
+     * Hai cơ sở khác nhau, phải nói rõ: `tong` ở trên cộng từ bảng theo ngày
+     * (lượt xem phát sinh trong kỳ, gồm cả bài đăng từ trước), còn đây cộng
+     * lượt xem TRỌN ĐỜI của những bài ĐĂNG trong kỳ. Tháng 9 chẳng hạn, cùng
+     * sáu kênh: cộng theo ngày ra 2,03tr, cộng theo bài ra 3,57tr.
+     *
+     * Bài chưa biết ai đăng gom vào một dòng tên rỗng — KHÔNG chia đều cho
+     * người khác và cũng không giấu đi: đây là số tính lương, thiếu thì phải
+     * thấy là thiếu. */
+    theoNguoiDang: gomNguoiDang(d.posts, { from: tu, to: den, platforms, channels }),
     liveNgay: (d.liveNgay || []).filter((l) => l.date >= tu && l.date <= den
       && (!platforms || !platforms.length || platforms.includes(l.platform)))
       .sort((a, b) => String(b.date).localeCompare(String(a.date))),
@@ -297,5 +335,5 @@ async function tongQuan({ from, to, platforms, channels } = {}) {
   };
 }
 
-module.exports = { agg, loc, followerChot, theoNgay, theoKenh, theoNenTang, topBai,
+module.exports = { agg, loc, followerChot, theoNgay, theoKenh, theoNenTang, topBai, gomNguoiDang,
   soKyTruoc, tongQuan, chia, luuYNenTang };

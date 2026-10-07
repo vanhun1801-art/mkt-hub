@@ -69,6 +69,7 @@ const MAC_DINH = {
   hang: {
     ten: 'Võ Thị Cẩm Hằng', viTri: 'Content',
     tenApp: ['Hằng', 'Võ Hằng'],
+    tenDang: ['Võ Hằng'],
     khoi: ['social', 'cong-viec', 'lich-tac-nghiep'],
     kenh: KENH_NOI_DUNG,
     loaiViec: null,
@@ -76,6 +77,10 @@ const MAC_DINH = {
   thu: {
     ten: 'Huỳnh Thị Anh Thư', viTri: 'Content',
     tenApp: ['Huỳnh Thị Anh Thư'],
+    /* Tên trong plugin Người đăng khác tên trong bộ luật KPI — anh Hùng xác
+     * nhận ngày 07/10/2026: "Phương Ái" là Thư, "Lý Thư Bạch" là Ngọc. KHÔNG
+     * suy từ tên: hai bên không giống nhau một chữ nào. */
+    tenDang: ['Phương Ái'],
     khoi: ['social', 'cong-viec', 'lich-tac-nghiep'],
     kenh: KENH_NOI_DUNG,
     loaiViec: null,
@@ -83,6 +88,7 @@ const MAC_DINH = {
   ngoc: {
     ten: 'Nguyễn Hồng Ngọc', viTri: 'Content',
     tenApp: ['Nguyễn Hồng Ngọc'],
+    tenDang: ['Lý Thư Bạch'],
     khoi: ['social', 'cong-viec', 'lich-tac-nghiep'],
     kenh: KENH_NOI_DUNG,
     loaiViec: null,
@@ -144,6 +150,10 @@ function cua(ma) {
     kenh: pv.kenh && pv.kenh.length ? pv.kenh : null,
     loaiViec: pv.loaiViec && pv.loaiViec.length ? pv.loaiViec : null,
     nenTangQc: pv.nenTangQc && pv.nenTangQc.length ? pv.nenTangQc : null,
+    /* Tên người này trong plugin "Người đăng" của app Social. Dùng để tách
+     * phần bài CHÍNH NGƯỜI NÀY ĐĂNG ra khỏi số của cả kênh — ba người Content
+     * dùng chung sáu kênh, không tách thì phiếu ai cũng giống nhau. */
+    tenDang: pv.tenDang && pv.tenDang.length ? pv.tenDang : null,
   };
 }
 
@@ -156,6 +166,7 @@ function luu(ma, pv) {
     tenApp: Array.isArray(pv.tenApp) ? pv.tenApp.filter(Boolean) : [],
     khoi: Array.isArray(pv.khoi) ? pv.khoi.filter((k) => KHOI.some((x) => x.id === k)) : [],
     kenh: Array.isArray(pv.kenh) ? pv.kenh.filter(Boolean) : null,
+    tenDang: Array.isArray(pv.tenDang) ? pv.tenDang.filter(Boolean) : null,
     loaiViec: Array.isArray(pv.loaiViec) ? pv.loaiViec.filter(Boolean) : null,
     nenTangQc: Array.isArray(pv.nenTangQc) ? pv.nenTangQc.filter(Boolean) : null,
   };
