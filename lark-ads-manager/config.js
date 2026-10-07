@@ -144,6 +144,52 @@ module.exports = {
         orderCode: 'fldyWhdTOa',   // ⚙️ Mã đơn Tourwell
       },
     },
+
+    /* ---- Hai bảng KHO, tạo 07/10/2026 ----------------------------------
+     * Anh Hùng: "bất kỳ thứ gì anh cũng muốn gắn đè lên base, nên là nhập file
+     * hay kéo về em đều đưa lên base giúp anh, đè lên nếu trùng".
+     *
+     * Lý do thật: kho lead/đơn/hội thoại nằm trong file JSON trên ổ đĩa TẠM của
+     * Render — mỗi lần deploy hoặc restart là mất sạch. Bấm "Kéo từ Tourwell",
+     * thấy số, sang hôm sau lại trống. Hai bảng này là bản gốc trên Base; file
+     * JSON chỉ còn là bộ nhớ đệm.
+     *
+     * Khoá đè: Lead = `Mã lead`, Hội thoại = `ID hội thoại`. Ghi lại lần nữa
+     * thì SỬA đúng dòng cũ, không sinh dòng trùng. */
+    lead: {
+      id: 'tblCy0RnWTou70Un',
+      name: 'Lead Tourwell',
+      f: {
+        ma: 'fld7hip1Y0',          // Mã lead (text) — KHOÁ ĐÈ
+        kh: 'fldbl1TzAK',          // Mã khách (text)
+        khach: 'fld2GT0mI4',       // Khách (text)
+        sdt: 'fld514zHA9',         // SĐT (text)
+        ngay: 'fldx61UWEh',        // Ngày tạo (datetime)
+        nguon: 'fldLb3k9u7',       // Nguồn (text)
+        trangThai: 'fldtcBoDEZ',   // Trạng thái (text)
+        donHang: 'fldeAgSbku',     // Đơn hàng (text)
+        maQC: 'fldeRBT7BG',        // Mã quảng cáo (text)
+        ghiChu: 'fldGQqn3he',      // Ghi chú (text)
+        capNhat: 'fld0dbqPF1',     // Cập nhật lúc (datetime)
+      },
+    },
+    hoiThoai: {
+      id: 'tblTxGFvp1dGlLD8',
+      name: 'Hội thoại quảng cáo',
+      f: {
+        id: 'fldjNP1eT9',          // ID hội thoại (text) — KHOÁ ĐÈ
+        ngay: 'fld28uMXdv',        // Ngày (datetime)
+        kenh: 'fldkxuftop',        // Kênh (text)
+        maQC: 'fldXM0YegS',        // Mã quảng cáo (text)
+        phanLoai: 'fldYpZpfOu',    // Phân loại (text)
+        viSao: 'fld0BrXGNb',       // Vì sao (text)
+        maDon: 'fldPbvss8p',       // Mã đơn (text)
+        doanhThu: 'fldrAbodFW',    // Doanh thu (number)
+        soTinNhan: 'fldZjRWpJg',   // Số tin nhắn (number)
+        khach: 'fldY81IwVh',       // Khách (text)
+        capNhat: 'fldphmZB3T',     // Cập nhật lúc (datetime)
+      },
+    },
   },
 
   // Nền tảng nhận biết được (khớp option select "🟢 Nền tảng")

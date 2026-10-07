@@ -10,12 +10,16 @@
  *
  * Vì sao lưu ra đĩa chứ không giữ trong bộ nhớ: người dùng đổi khoảng ngày, mở
  * lại tab, tính lại nhiều lượt — bắt nạp lại mỗi lần là không dùng được.
- * Vì sao KHÔNG ghi vào Base: đây là dữ liệu thô của một lần nạp, không phải sổ
- * sách; ghi vào Base là nhân đôi nguồn sự thật.
  *
- * Trên Render ổ đĩa là TẠM nên kho này mất sau mỗi lần deploy. Đó là lý do có
+ * Trên Render ổ đĩa là TẠM nên file này mất sau mỗi lần deploy. Đó là lý do có
  * `tuApi`: nguồn Excel mất là phải đi xuất file lại bằng tay, còn nguồn API thì
  * lượt hẹn giờ kế tiếp tự dựng lại, không cần ai làm gì.
+ *
+ * ĐÃ ĐỔI Ý 07/10/2026. Chỗ này từng ghi "KHÔNG ghi vào Base, vì ghi vào Base là
+ * nhân đôi nguồn sự thật". Lập luận đó đúng về nguyên tắc và sai trong thực tế:
+ * ổ đĩa tạm không phải nguồn sự thật nào cả, nó là chỗ mất dữ liệu. Anh Hùng:
+ * "anh hay ấn lại và không lưu lại". Từ nay sync/ghikho.js chép lead và hội
+ * thoại lên Base sau mỗi lượt, đè theo khoá — file này còn là bộ nhớ đệm.
  */
 const fs = require('fs');
 const path = require('path');

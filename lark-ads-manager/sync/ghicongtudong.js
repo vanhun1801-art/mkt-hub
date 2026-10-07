@@ -22,6 +22,7 @@ const ghiDT = require('./ghidoanhthu');
 const roasTinh = require('./roas');
 const ghiBaseLuc = require('./ghibaseluc');
 const roasCache = require('./roascache');
+const ghiKho = require('./ghikho');
 
 const T = cfg.tables;
 
@@ -151,7 +152,26 @@ async function chay({ kho, from = '', to = '', ghi = () => {} }) {
   if (kh.khongConNguon.length) {
     ghi(`  ! ${kh.khongConNguon.length} dòng trên Base không còn trong nguồn — KHÔNG xoá, tự xem lại`);
   }
-  return { ...tt, taoXong, kq };
+
+  /* SAO LƯU KHO lên Base — lead và hội thoại, đè theo khoá.
+   *
+   * Anh Hùng, 07/10/2026: "nhập file hay kéo về em đều đưa lên base giúp anh,
+   * đè lên nếu trùng… anh hay ấn lại và không lưu lại."
+   *
+   * Đặt ở ĐÂY chứ không ở từng nút, vì hàm này là chỗ duy nhất cả bốn đường
+   * đều đi qua: nút ghi tay, nút kéo API, nhập file Excel, và lượt hẹn giờ mỗi
+   * 2 giờ. Thêm vào từng nút là sớm muộn quên một nút.
+   *
+   * Đặt SAU bước ghi doanh thu, không phải trước: doanh thu là việc chính, sao
+   * lưu là việc kèm. ghiKho.chay() tự nuốt lỗi từng bảng nên không làm hỏng
+   * lượt này — nhưng có lỗi thì vẫn hiện ra trong nhật ký, không im. */
+  const khoBase = await ghiKho.chay({
+    leadRows: (kho.lead && kho.lead.rows) || [],
+    htRows: (kq && kq.hoiThoaiPhanLoai) || [],
+    ghi,
+  });
+
+  return { ...tt, taoXong, kq, khoBase };
 }
 
 /**

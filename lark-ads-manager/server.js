@@ -28,6 +28,7 @@ const khoRoas = require('./sync/khoroas');
 const ghiBaseLuc = require('./sync/ghibaseluc');
 const roasCache = require('./sync/roascache');
 const ghiCongTuDong = require('./sync/ghicongtudong');
+const ghiKho = require('./sync/ghikho');
 const keoNen = require('./sync/keonen');
 const dieuKhien = require('./sync/dieukhien');
 const doiChieu = require('./sync/doichieu');
@@ -790,6 +791,16 @@ async function api(req, res, u) {
       keoNen.dat({
         conf: null, from: '(cả kho)', to: '(cả kho)',
         chay: async (_c, _f, _t, ghi) => ghiCongTuDong.chay({ kho: moi, from: '', to: '', ghi }),
+      });
+    } else if (moi.lead && moi.lead.rows && moi.lead.rows.length) {
+      /* Chỉ có file LEAD, chưa có file đơn: vẫn phải sao lưu lead lên Base.
+       * Không gọi ghiCongTuDong.chay() được vì hàm đó ném khi kho không có đơn
+       * — và đúng là chưa có doanh thu nào để ghi. Nhưng lead thì có thật, và
+       * anh Hùng nói rõ "nhập file hay kéo về em đều đưa lên base". Chạy ở nền
+       * cho giống đường kia, để giao diện theo dõi bằng cùng một chỗ. */
+      keoNen.dat({
+        conf: null, from: '(chỉ lead)', to: '(chỉ lead)',
+        chay: async (_c, _f, _t, ghi) => ghiKho.chayLead({ leadRows: moi.lead.rows, ghi }),
       });
     }
     return ok(res, {
