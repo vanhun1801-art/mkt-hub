@@ -1149,6 +1149,25 @@
           <label><input type="checkbox" id="ppBat" ${p.enabled ? 'checked' : ''}> Bật đọc Pancake POS</label>
         </div>
 
+        <!-- DÒ GIAN HÀNG TỪ MỘT KHOÁ.
+             Nút "Dò tên gian hàng" cũ chỉ dò những dòng ĐÃ GÕ — chưa có dòng nào
+             thì nó không làm gì, mà đó đúng là lúc cần nó nhất. Anh Hùng, 07/10/2026:
+             "cái pos này không cho anh dò gian hàng, rồi nhập mấy cái vào nè".
+             Pancake POS trả danh sách shop cho /shops?api_key=… nên chỉ cần MỘT khoá
+             là liệt kê được, khỏi phải đi chép tay shop_id từ URL của 15 gian. -->
+        <div class="help" style="margin:0 0 12px">
+          <b>Chưa biết shop_id?</b> Dán <b>một</b> api_key bất kỳ rồi bấm dò —
+          app liệt kê các gian hàng khoá đó nhìn thấy, tick cái nào cần là nó điền sẵn shop_id.
+          Mỗi gian vẫn cần khoá riêng của nó, nhưng không phải tự đi tìm mã nữa.
+          <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+            <input id="ppKhoaDo" type="password" autocomplete="new-password" spellcheck="false"
+              placeholder="dán một api_key (32 ký tự hex)"
+              style="flex:1;min-width:220px;border:1px solid var(--line);border-radius:7px;padding:6px 9px;font:inherit">
+            <button class="btn small primary" id="ppDoGian">Dò gian hàng</button>
+          </div>
+          <div id="ppDoKq" style="margin-top:8px"></div>
+        </div>
+
         <div style="overflow-x:auto">
           <table class="tbl"><thead><tr>
             <th style="min-width:120px">shop_id</th><th style="min-width:150px">Tên gợi nhớ</th>
@@ -1160,7 +1179,7 @@
 
         <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
           <button class="btn ghost" id="ppThem">+ Thêm gian hàng</button>
-          <button class="btn ghost" id="ppDo">Dò tên gian hàng</button>
+          <button class="btn ghost" id="ppDo" title="Dò tên cho những dòng ĐÃ có khoá ở bảng trên">Dò tên các dòng đã khai</button>
           <button class="btn primary" id="ppLuu">Lưu cấu hình POS</button>
           <button class="btn ghost" id="ppTest" ${p.sanSang ? '' : 'disabled'}>Kiểm tra kết nối</button>
           <button class="btn primary" id="ppGhep" ${p.sanSang ? '' : 'disabled'}>Ghép 14 ngày</button>
@@ -1209,6 +1228,56 @@
 
     /* Dò tên: mỗi khoá chỉ thấy gian của chính nó, nên hỏi từng khoá một rồi điền
      * tên vào đúng dòng. Cũng là cách kiểm nhanh khoá có đúng gian không. */
+    nut('#ppDoGian', async (e) => {
+      const b = e.currentTarget; const cu = b.textContent;
+      const o = $('#ppKhoaDo');
+      const khoa = (o && o.value || '').trim();
+      const kq = $('#ppDoKq');
+      if (!khoa) { if (kq) kq.innerHTML = '<span style="color:var(--bad)">Chưa dán khoá nào</span>'; return; }
+      b.disabled = true; b.textContent = 'Đang dò…';
+      try {
+        const r = await api('/api/pancake-pos/shops', { method: 'POST', body: JSON.stringify({ apiKey: khoa }) });
+        const ds = r.rows || [];
+        if (!ds.length) {
+          kq.innerHTML = '<span style="color:var(--warn)">Khoá hợp lệ nhưng không thấy gian hàng nào.</span>';
+        } else {
+          /* Gian mà CHÍNH khoá này thuộc về thì điền luôn khoá — đỡ cho anh một
+           * lượt đi lấy lại thứ vừa dán. Các gian khác vẫn phải có khoá riêng. */
+          KS.ppKhoaDo = khoa;
+          KS.ppTimThay = ds;
+          kq.innerHTML = `<b>Thấy ${int(ds.length)} gian hàng.</b> Tick cái nào cần đọc:
+            <div style="display:flex;flex-direction:column;gap:4px;margin-top:8px">
+              ${ds.map((x, i) => `<label style="display:flex;gap:8px;align-items:center">
+                <input type="checkbox" data-pp-tick="${i}" checked>
+                <span><b>${esc(x.name || '(không tên)')}</b> <span class="sub">shop_id ${esc(x.shopId)}</span></span>
+              </label>`).join('')}
+            </div>
+            <button class="btn small primary" id="ppThemTick" style="margin-top:8px">Thêm vào bảng</button>`;
+          const them = $('#ppThemTick');
+          if (them) them.onclick = () => {
+            const chon = ds.filter((_, i) => {
+              const el = document.querySelector(`[data-pp-tick="${i}"]`);
+              return el && el.checked;
+            });
+            const dangCo = ppNhatBang().filter((x) => x.shopId || x.apiKey);
+            const maCo = new Set(dangCo.map((x) => String(x.shopId)));
+            chon.forEach((x) => {
+              if (maCo.has(String(x.shopId))) return;   // đã có thì đừng thêm trùng
+              dangCo.push({ shopId: String(x.shopId), ten: x.name || '',
+                /* Khoá vừa dán thuộc về gian nào thì điền vào đúng gian đó. */
+                apiKey: String(x.shopId) === String((ds[0] || {}).shopId) ? KS.ppKhoaDo : '' });
+            });
+            KS.ppShops = dangCo;
+            render();
+            toast(`Đã thêm ${chon.length} gian vào bảng — điền api_key cho từng gian rồi Lưu`, 'ok');
+          };
+        }
+      } catch (err) {
+        kq.innerHTML = `<span style="color:var(--bad)">${esc(err.message)}</span>`;
+      }
+      b.disabled = false; b.textContent = cu;
+    });
+
     nut('#ppDo', async (e) => {
       const b = e.currentTarget; const cu = b.textContent;
       b.disabled = true; b.textContent = 'Đang dò…';
