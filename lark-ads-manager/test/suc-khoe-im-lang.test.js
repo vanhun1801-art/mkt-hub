@@ -119,6 +119,16 @@ console.log('— tab Kết nối: trạng thái TRẮNG cũng phải nói ra');
   /* Máy cá nhân thì KHÔNG được doạ, vì ở đó dán token là đủ. */
   t('máy cá nhân vẫn giữ lời khuyên cũ', /app tự tạo/.test(kn));
   t('phân nhánh theo oDiaTam', /c\.oDiaTam \? /.test(kn));
+
+  /* 07/10/2026: anh Hùng sửa secret Google trên MỘT bản rồi đọc lỗi
+   * Facebook/TikTok của bản KIA. Hai bản trông giống hệt nhau trong hub mà cấu
+   * hình thì hoàn toàn riêng — màn hình phải nói đang xem bản nào. */
+  t('có nhãn bản đang chạy', /function nhanBanChay/.test(kn));
+  t('phân biệt server chung với máy cá nhân',
+    /server chung<\/span>/.test(kn) && /máy cá nhân<\/span>/.test(kn));
+  t('nói luôn cấu hình lấy từ đâu', /cấu hình lấy từ/.test(kn));
+  t('nhãn gắn vào CẢ khối trắng', (kn.match(/nhanBanChay\(c\)/g) || []).length >= 2,
+    String((kn.match(/nhanBanChay\(c\)/g) || []).length));
 }
 
 console.log(`\n${pass} pass · ${fail} fail`);

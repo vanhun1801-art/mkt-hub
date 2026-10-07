@@ -87,6 +87,24 @@
     },
   };
 
+  /**
+   * BẢN NÀO ĐANG CHẠY — máy cá nhân hay server chung.
+   *
+   * Hai bản trông giống hệt nhau trong hub, mà cấu hình thì hoàn toàn riêng: ổ
+   * đĩa Render là tạm nên token ở đó đến từ ADS_CONNECT_JSON, còn máy cá nhân
+   * đọc ket-noi.json. Ngày 07/10/2026 anh Hùng sửa secret Google trên một bản,
+   * rồi đọc lỗi Facebook/TikTok của bản kia, và không có gì trên màn hình nói
+   * cho biết đó là hai chỗ khác nhau.
+   */
+  function nhanBanChay(c) {
+    const nguon = c.nguon === 'env' ? 'biến ADS_CONNECT_JSON'
+      : c.nguon === 'file' ? 'tệp ' + (c.file || 'ket-noi.json')
+      : 'chưa có cấu hình';
+    return c.oDiaTam
+      ? `<span class="tag warn">server chung</span> cấu hình lấy từ ${esc(nguon)} · `
+      : `<span class="tag">máy cá nhân</span> cấu hình lấy từ ${esc(nguon)} · `;
+  }
+
   VIEW['ket-noi'] = async (view) => {
     const c = await api('/api/connect');
 
@@ -243,7 +261,7 @@
       if (!ds.length) {
         return `<div class="card" style="margin-bottom:14px">
           <div class="card-head"><h3>Sức khoẻ từng kênh</h3>
-            <span class="sub">không có kênh nào để theo dõi</span></div>
+            <span class="sub">${nhanBanChay(c)}không có kênh nào để theo dõi</span></div>
           <div class="card-body">
             <div class="help" style="border-color:var(--bad);color:var(--bad)">
               <b>Không kênh nào đang nối.</b> App này không kéo được số từ Facebook, TikTok
@@ -291,7 +309,7 @@
 
       return `<div class="card" style="margin-bottom:14px">
         <div class="card-head"><h3>Sức khoẻ từng kênh</h3>
-          <span class="sub">${c.hengio.dangBat
+          <span class="sub">${nhanBanChay(c)}${c.hengio.dangBat
             ? `đồng bộ tự chạy mỗi ${d.moiSoGio} giờ · Tourwell + ROAS mỗi 2 giờ`
             : 'hẹn giờ đang TẮT — mọi thứ phải bấm tay'}</span></div>
         <div class="card-body tight">
