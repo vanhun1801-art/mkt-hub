@@ -681,7 +681,12 @@ async function docCongViec(app, tu, den, pv) {
       { nhan: 'Đang tiến hành', so: ds.filter((t) => nhanOf(t.status) === 'Đang tiến hành').length, dinhDang: 'so' },
       { nhan: 'Chờ tiếp nhận', so: ds.filter((t) => nhanOf(t.status) === 'Chờ tiếp nhận').length, dinhDang: 'so' },
       { nhan: 'Chưa phân công', so: mo.filter((t) => !(t.owner || []).length).length, dinhDang: 'so', dao: true },
-      { nhan: 'Tổng việc trên bảng', so: ds.length, dinhDang: 'so' },
+      /* Khi đã lọc theo người thì ĐỔI TÊN Ô. "Tổng việc trên bảng" đọc như số
+       * việc của cả phòng, trong khi nó đang là số việc của riêng người này —
+       * Khánh thấy 95 và tưởng cả bảng chỉ có 95 việc, thật ra là 536. */
+      { nhan: pv ? 'Tổng việc của tôi trên bảng' : 'Tổng việc trên bảng',
+        so: ds.length, dinhDang: 'so',
+        ghi: pv && pv.loaiViec ? 'chỉ loại ' + pv.loaiViec.join(', ') : '' },
     ],
     /* Bảng việc chỉ cần ĐỊNH LƯỢNG: kỳ này làm được bao nhiêu việc, loại gì, ai
      * làm. Vành khuyên trạng thái đã bỏ (nó trả lời "việc đang nằm ở đâu" — câu
