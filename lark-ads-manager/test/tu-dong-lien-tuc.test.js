@@ -152,5 +152,35 @@ console.log('— một nguồn hỏng không được giết cả lượt');
   t('thiếu nguồn thì hiện lên khối ROAS', /Lượt này thiếu một nguồn/.test(s));
 }
 
+console.log('— nhắc "chưa bền" đặt ngay cạnh nút Lưu, không chỉ ở đầu trang');
+{
+  /* Anh Hùng, 07/10/2026: vừa khai lại 10 page Pancake trên server chung rồi hỏi
+   * "khi anh deploy có mất không, vì thêm khá mất thời gian".
+   *
+   * App VỐN ĐÃ biết câu trả lời — benVung() so vân tay giữa đĩa và biến môi
+   * trường, và băng đỏ "Đừng deploy trước khi làm việc này" ở ĐẦU trang nói đúng
+   * điều đó. Nhưng lúc gõ 10 page thì người ta ở tận cuối thẻ Pancake, cách băng
+   * ấy mấy màn hình cuộn. Cảnh báo đặt sai chỗ thì bằng không có. */
+  const s = doc('public/ketnoi.js');
+  t('có hàm nhắc', /const nhacChuaBen = \(c, key\) =>/.test(s));
+  t('gắn ở thẻ Pancake', /\$\{nhacChuaBen\(c, 'pancake'\)\}/.test(s));
+  t('gắn ở thẻ POS', /\$\{nhacChuaBen\(c, 'pancakePos'\)\}/.test(s));
+  t('gắn ở thẻ Tourwell', /\$\{nhacChuaBen\(c, 'tourwell'\)\}/.test(s));
+
+  /* Phải nằm SAU nút Lưu của chính thẻ đó — đó là cả lý do tồn tại của nó. */
+  t('đứng sau nút Lưu Pancake', s.indexOf("nhacChuaBen(c, 'pancake')") > s.indexOf('id="pcLuu"'));
+  t('đứng sau nút Lưu POS', s.indexOf("nhacChuaBen(c, 'pancakePos')") > s.indexOf('id="ppLuu"'));
+
+  /* Phân biệt hai ca: mất hẳn, và tụt về giá trị cũ. Ca thứ hai tệ hơn vì app
+   * vẫn chạy, chỉ chạy bằng thứ cũ, và không có gì báo. */
+  t('nói ca mất hẳn', /deploy là mất hẳn/.test(s));
+  t('nói ca tụt về giá trị cũ', /đang giữ giá trị CŨ/.test(s));
+
+  /* Trên máy cá nhân phải IM: ở đó không có deploy nào, nói "deploy là mất" là
+   * nói một điều không đúng hoàn cảnh. */
+  t('chỉ hiện khi ổ đĩa là ổ tạm', /if \(!c\.oDiaTam\) return '';/.test(s));
+  t('và chỉ hiện đúng kênh đang gặp', /if \(!\(b\.seMat \|\| \[\]\)\.includes\(key\)\) return '';/.test(s));
+}
+
 console.log(`\n${pass} pass · ${fail} fail`);
 process.exitCode = fail ? 1 : 0;

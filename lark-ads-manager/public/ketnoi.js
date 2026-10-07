@@ -125,13 +125,7 @@
 
     const HAN_CLASS = { ok: 'good', warn: 'warn', sapHet: 'warn', het: 'bad' };
 
-    /**
-     * In kết quả của lượt thử ngay sau khi lưu.
-     *
-     * Hỏng thì in NGUYÊN câu nền tảng trả về: từ 07/10/2026 câu đó đã được dịch
-     * thành lời chỉ đúng chỗ hỏng (Meta nói App nào bị chặn, TikTok nói tài khoản
-     * nào chưa uỷ quyền). Cắt ngắn là vứt mất phần đáng giá nhất.
-     */
+
     const kqLuuHtml = (key) => {
       const d = KQ_LUU[key];
       if (!d) return '';
@@ -941,6 +935,40 @@
    * thời `ad_id` (quảng cáo nào) và ghi chú "LU1998" (lead Tourwell nào), nên nối
    * được quảng cáo với doanh thu bằng KHOÁ CỨNG — không phải ghép theo số điện
    * thoại, không phải đoán theo ngày khi khách quay lại. */
+  /**
+   * In kết quả của lượt thử ngay sau khi lưu.
+   *
+   * Hỏng thì in NGUYÊN câu nền tảng trả về: từ 07/10/2026 câu đó đã được dịch
+   * thành lời chỉ đúng chỗ hỏng (Meta nói App nào bị chặn, TikTok nói tài khoản
+   * nào chưa uỷ quyền). Cắt ngắn là vứt mất phần đáng giá nhất.
+   */
+  /**
+   * Lời nhắc "cái vừa khai sẽ mất khi deploy", đặt NGAY CẠNH nút Lưu.
+   *
+   * Vì sao không dựa vào băng đỏ ở đầu trang: lúc khai Pancake 10 page thì
+   * người ta ở cuối thẻ, cách băng ấy mấy màn hình cuộn. Anh Hùng khai xong
+   * mới hỏi "deploy có mất không" — tức là băng kia đã không tới được người
+   * cần đọc. Cảnh báo đặt sai chỗ thì bằng không có.
+   *
+   * Chỉ hiện khi ổ đĩa THẬT là ổ tạm (server chung) và đúng kênh này đang nằm
+   * trong danh sách sẽ mất. Trên máy cá nhân thì im — ở đó không có deploy nào
+   * và nói "deploy là mất" là nói một điều không đúng hoàn cảnh.
+   */
+  const nhacChuaBen = (c, key) => {
+    if (!c.oDiaTam) return '';
+    const b = c.benVung || {};
+    if (!(b.seMat || []).includes(key)) return '';
+    const cu = (b.khacNhau || []).includes(key);
+    return `<div class="help" style="margin-top:10px;border-color:var(--bad);color:var(--bad)">
+      <b>Lưu rồi, nhưng chưa bền.</b> ${cu
+        ? 'Biến môi trường <code>ADS_CONNECT_JSON</code> đang giữ giá trị CŨ của kênh này — deploy xong app tụt về giá trị đó, và không có gì báo.'
+        : 'Kênh này chưa có trong biến môi trường <code>ADS_CONNECT_JSON</code> — deploy là mất hẳn, phải khai lại từ đầu.'}
+      <br>Cuộn lên thẻ <b>Giữ cấu hình qua lần deploy</b> ở đầu trang, bấm
+      <b>Lấy nội dung ADS_CONNECT_JSON</b>, dán vào Environment của Render —
+      <b>xong mới deploy</b>.
+    </div>`;
+  };
+
   function theTourwell(c) {
     const t = layDoLuong(c, 'tourwell');
     if (!t.key) return '';
@@ -999,6 +1027,7 @@
           <button class="btn ghost" id="twTest">Kiểm tra kết nối</button>
           <button class="btn ghost" id="twKeo">Kéo lead &amp; đơn 60 ngày</button>
         </div>
+        ${nhacChuaBen(c, 'tourwell')}
         ${t.thieu && t.thieu.length
           ? `<div class="help" style="border-color:var(--warn);color:var(--warn)">
                ${t.thieu.map(esc).join(' · ')}</div>` : ''}
@@ -1184,6 +1213,7 @@
           <button class="btn ghost" id="ppTest" ${p.sanSang ? '' : 'disabled'}>Kiểm tra kết nối</button>
           <button class="btn primary" id="ppGhep" ${p.sanSang ? '' : 'disabled'}>Ghép 14 ngày</button>
         </div>
+        ${nhacChuaBen(c, 'pancakePos')}
         ${p.thieu && p.thieu.length ? `<div class="help" style="margin-top:10px;border-color:var(--warn);color:var(--warn)">Còn thiếu: ${esc(p.thieu.join(' · '))}</div>` : ''}
         <div id="ppKetQua" style="margin-top:12px"></div>
       </div>
@@ -1646,6 +1676,7 @@
           <button class="btn ghost" id="pcTest" ${p.sanSang ? '' : 'disabled'}>Kiểm tra kết nối</button>
           <button class="btn primary" id="pcPhu" ${p.sanSang ? '' : 'disabled'}>Đếm phủ 14 ngày</button>
         </div>
+        ${nhacChuaBen(c, 'pancake')}
         ${p.thieu && p.thieu.length ? `<div class="help" style="margin-top:10px;border-color:var(--warn);color:var(--warn)">Còn thiếu: ${esc(p.thieu.join(' · '))}</div>` : ''}
         <div id="pcKetQua" style="margin-top:12px"></div>
       </div>
