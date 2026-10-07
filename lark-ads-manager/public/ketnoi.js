@@ -18,6 +18,16 @@
   const KENH_AN = ['googleSheet'];
   const hienKenh = (p) => !KENH_AN.includes(p.key) || p.enabled;
 
+  /* Kết quả thử NGAY SAU KHI LƯU, giữ ngoài hàm vẽ.
+   *
+   * Bản đầu chèn thẳng khối kết quả vào DOM rồi gọi render() — render() dựng
+   * lại cả trang nên khối vừa chèn biến mất ngay lập tức. Bắt được lúc chạy thử
+   * trên app thật, không phép kiểm nào thấy.
+   *
+   * Giữ ở đây thì nó sống qua mọi lần vẽ lại, và nằm trong THẺ KÊNH (luôn hiện)
+   * chứ không nằm trong biểu mẫu (bị gập lại sau khi lưu). */
+  const KQ_LUU = {};
+
   /* Nguồn chỉ-để-đo (Pancake) nằm ở `c.doLuong`, KHÔNG nằm trong `c.providers` —
    * xem chú thích trong sync/ketnoi.js status(). Hàm này chịu được cả bản server
    * cũ chưa có doLuong: khi đó trả về rỗng và thẻ Pancake đơn giản không hiện. */
@@ -110,6 +120,26 @@
 
     const HAN_CLASS = { ok: 'good', warn: 'warn', sapHet: 'warn', het: 'bad' };
 
+    /**
+     * In kết quả của lượt thử ngay sau khi lưu.
+     *
+     * Hỏng thì in NGUYÊN câu nền tảng trả về: từ 07/10/2026 câu đó đã được dịch
+     * thành lời chỉ đúng chỗ hỏng (Meta nói App nào bị chặn, TikTok nói tài khoản
+     * nào chưa uỷ quyền). Cắt ngắn là vứt mất phần đáng giá nhất.
+     */
+    const kqLuuHtml = (key) => {
+      const d = KQ_LUU[key];
+      if (!d) return '';
+      if (d.ok) {
+        const tk = (d.results || [])
+          .map((x) => esc(`${x.name || x.account}${x.currency ? ' · ' + x.currency : ''}`));
+        return `<div class="help" style="margin:0 0 10px;border-color:var(--good);color:var(--good)">
+          <b>Kết nối được.</b>${tk.length ? ' Đọc được: ' + tk.join(' · ') : ''}</div>`;
+      }
+      return `<div class="help" style="margin:0 0 10px;border-color:var(--bad);color:var(--bad)">
+        <b>Chưa kết nối được.</b> ${esc(d.message || 'không rõ lý do')}</div>`;
+    };
+
     const providerCard = (p) => {
       const dot = !p.sanSang ? 'bad' : p.enabled ? 'good' : 'warn';
       const trangThai = !p.sanSang ? 'Chưa cấu hình' : p.enabled ? 'Đang bật' : 'Đã cấu hình · đang tắt';
@@ -137,6 +167,7 @@
                 <span class="sub">đang dò…</span></div></div>
           </div>
           <div class="help" style="margin:0 0 10px;display:none" data-quyen-vi="${esc(p.key)}"></div>
+          ${kqLuuHtml(p.key)}
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
             <label style="display:flex;align-items:center;gap:6px;font-size:13px">
               <input type="checkbox" data-enable="${p.key}" ${p.enabled ? 'checked' : ''} ${p.sanSang ? '' : 'disabled'}> Bật kênh này
@@ -581,7 +612,27 @@
       try {
         const r = await api('/api/connect/secrets', { method: 'PUT', body: JSON.stringify(nhatForm(k)) });
         const p = (r.providers || []).find((x) => x.key === k) || {};
-        toast(p.sanSang ? 'Đã lưu — bấm Kiểm tra kết nối để thử' : 'Đã lưu, còn thiếu: ' + ((p.thieu || []).join(', ') || 'token hoặc mã tài khoản'), p.sanSang ? 'ok' : 'err');
+        if (!p.sanSang) {
+          toast('Đã lưu, còn thiếu: ' + ((p.thieu || []).join(', ') || 'token hoặc mã tài khoản'), 'err');
+          render();
+          return;
+        }
+        /* THỬ NGAY, ngay tại thẻ vừa dán.
+         *
+         * Bản trước chỉ nói "Đã lưu — bấm Kiểm tra kết nối để thử", rồi kết quả
+         * hiện trong một bảng tận cuối trang lẫn với ba kênh khác. Dán token là
+         * lúc người ta cần biết ĐÚNG MỘT điều: nó chạy chưa. Bắt đi hai bước nữa
+         * mới trả lời được câu đó là bắt sai chỗ. */
+        b.textContent = 'Đang thử…';
+        let dong = null;
+        try {
+          const kq = await api('/api/connect/test?kenh=' + encodeURIComponent(k), { method: 'POST', body: '{}' });
+          dong = (kq.rows || [])[0] || null;
+        } catch (e) { dong = { ok: false, message: e.message }; }
+        /* Cất vào kho RỒI mới render — render() dựng lại cả trang, chèn thẳng
+         * vào DOM trước đó là chèn xong mất ngay. */
+        KQ_LUU[k] = dong;
+        toast(dong && dong.ok ? 'Đã lưu và kết nối được' : 'Đã lưu nhưng chưa kết nối được', dong && dong.ok ? 'ok' : 'err');
         render();
       } catch (e) { toast(e.message, 'err'); b.disabled = false; b.textContent = old; }
     });

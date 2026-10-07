@@ -171,11 +171,21 @@ async function importCsv(text, { platform, level = 'ad', dryRun = false, tuTaoMo
   return res;
 }
 
-/** Kiểm tra kết nối từng kênh, không ghi gì. */
-async function testAll() {
+/**
+ * Kiểm tra kết nối, không ghi gì.
+ *
+ * @param {string} chiKenh  chỉ thử MỘT kênh ('meta' | 'tiktok' | 'googleAds' |
+ *   'googleSheet'). Bỏ trống = thử hết.
+ *
+ * Vì sao cần lọc: sau khi dán token xong, người ta chỉ muốn biết ĐÚNG kênh vừa
+ * dán có chạy không. Thử cả bốn kênh mất vài giây và trộn kết quả của ba kênh
+ * chẳng liên quan vào — nhìn xong vẫn phải đi tìm dòng của mình.
+ */
+async function testAll(chiKenh = '') {
   const conf = ketnoi.read();
   const out = [];
   for (const [key, { mod, label }] of Object.entries(ADAPTERS)) {
+    if (chiKenh && key !== chiKenh) continue;
     if (!conf[key]) { out.push({ kenh: key, label, ok: false, message: 'Chưa cấu hình' }); continue; }
     try { out.push({ kenh: key, label, ...(await mod.test(conf[key])) }); }
     catch (e) { out.push({ kenh: key, label, ok: false, message: e.message }); }

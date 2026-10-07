@@ -567,7 +567,10 @@ async function api(req, res, u) {
   }
 
   if (p === '/api/connect/test' && method === 'POST') {
-    return ok(res, { rows: await sync.testAll() });
+    /* ?kenh=tiktok → chỉ thử kênh đó. Dùng ngay sau khi dán token, để người dán
+     * biết kết quả tại chỗ thay vì phải đi bấm nút khác rồi dò trong bảng. */
+    const chi = String(u.searchParams.get('kenh') || '').trim();
+    return ok(res, { rows: await sync.testAll(chi) });
   }
 
   /* Điền token/ID ngay trong app. Token chỉ đi VÀO — mọi phản hồi dưới đây đều
