@@ -14,9 +14,6 @@
  */
 const fs = require('fs');
 const path = require('path');
-const { execFile } = require('child_process');
-
-const cfg = require('./config');
 const ketnoi = require('./sync/ketnoi');
 const live = require('./sync/live');
 const store = require('./store');
@@ -32,8 +29,15 @@ function caiDatNhac() {
   const c = ketnoi.read();
   const n = c.nhacNho || {};
   return {
-    bat: !!n.bat,                                   // mặc định TẮT — phải bật rõ ràng
-    nguoiNhan: n.nguoiNhan || '',                   // open_id, dạng ou_xxx
+    /* BẬT MẶC ĐỊNH từ 07/10/2026 — anh Hùng chốt "bật nhắn qua Lark khi có kênh
+     * chết". Trước đây mặc định TẮT và `nhacNho` còn chẳng có trong DEFAULT của
+     * ketnoi.js, nên nó tắt vĩnh viễn: Google Ads chết 14 ngày mà không ai hay.
+     * Muốn tắt thì đặt ADS_NHAC_TAT=1, hoặc nhacNho.bat = false trong cấu hình. */
+    bat: process.env.ADS_NHAC_TAT === '1' ? false : (n.bat == null ? true : !!n.bat),
+    /* KHÔNG cần khai open_id nữa. lark-chung/gui-anh-hung.js lo việc đó: trong hub
+     * thì gửi qua hub bằng bot Marketing Hub, chạy lẻ trên máy thì gửi bằng
+     * lark-cli. Bản cũ gọi lark-cli `--as user` nên trên Render không gửi được —
+     * mà Render mới là chỗ cần nó nhất. */
     imLangGio: Number(n.imLangGio || 12),
     treNgay: Number(n.treNgay || 2),                // nền tảng im bao nhiêu ngày thì coi là hỏng
   };
@@ -108,40 +112,90 @@ async function chamDiem() {
 }
 
 /* ---------------- nhắn vào Lark ---------------- */
-function nhanLark(nguoiNhan, text) {
-  return new Promise((resolve) => {
-    execFile(process.execPath, [
-      cfg.cliScript, 'im', '+messages-send',
-      '--user-id', nguoiNhan, '--text', text,
-      '--as', 'user', '--format', 'json',
-    ], { timeout: 45000, cwd: __dirname, windowsHide: true, maxBuffer: 8 * 1024 * 1024 },
-    (err, stdout, stderr) => {
-      const raw = String(stdout || '');
-      let ok = false;
-      try { ok = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1)).ok === true; } catch (_) {}
-      resolve({ ok, loi: ok ? null : (stderr || err?.message || raw).slice(0, 200) });
-    });
-  });
+
+/**
+ * Thẻ Lark báo sức khoẻ đồng bộ.
+ *
+ * Dùng THẺ chứ không phải chữ trần, và gửi qua cùng đường với bản tin 8:00
+ * (lark-chung/gui-anh-hung.js) — đường đó đã chạy thật từ 25/09 và tự biết
+ * open_id của anh Hùng ở cả hai môi trường.
+ *
+ * Nội dung phải trả lời được ba câu ngay trên màn hình khoá điện thoại:
+ * kênh nào chết, chết vì gì, và số trong Base dừng ở ngày nào.
+ */
+function dungThe(tt) {
+  const el = [];
+  if (tt.khoe) {
+    el.push({ tag: 'markdown', content: 'Mọi kênh đã kéo số bình thường trở lại.' });
+  } else {
+    const nang = (tt.van_de || []).filter((v) => v.nang);
+    const nhe = (tt.van_de || []).filter((v) => !v.nang);
+    /* `mo_ta` đã mở đầu bằng tên kênh ("Google Ads: ...") nên in thêm tên nữa là
+     * ra "Google Ads — Google Ads: ...". Cắt phần trùng, giữ đậm tên kênh. */
+    const than = (v) => {
+      const k = String(v.kenh || '');
+      const m = String(v.mo_ta || '');
+      return k && m.startsWith(k + ':') ? m.slice(k.length + 1).trim() : m;
+    };
+    el.push({ tag: 'markdown', content:
+      nang.map((v) => '🔴 **' + (v.kenh || '') + '** — ' + than(v)).join('\n')
+      + (nang.length && nhe.length ? '\n' : '')
+      + nhe.map((v) => '🟠 **' + (v.kenh || '') + '** — ' + than(v)).join('\n') });
+  }
+  const mn = tt.moiNhat || {};
+  const kenh = Object.keys(mn).filter((x) => x && x !== '(chưa gán)').sort();
+  if (kenh.length) {
+    el.push({ tag: 'hr' });
+    el.push({ tag: 'markdown', content: '**Số mới nhất trong Base**\n'
+      + kenh.map((x) => '· ' + x + ': ' + mn[x]).join('\n') });
+  }
+  el.push({ tag: 'markdown', content:
+    '<font color="grey">Mở app → tab <b>Kết nối & Đồng bộ</b> để xem và sửa.</font>' });
+  return {
+    config: { wide_screen_mode: true },
+    header: {
+      template: tt.khoe ? 'green' : (tt.coLoiNang ? 'red' : 'orange'),
+      title: { tag: 'plain_text',
+        content: tt.khoe ? 'Đồng bộ quảng cáo đã bình thường'
+          : (tt.coLoiNang ? 'Đồng bộ quảng cáo đang HỎNG' : 'Đồng bộ quảng cáo có vấn đề') },
+    },
+    elements: el,
+  };
+}
+
+/**
+ * Gửi. `cli` chỉ cần khi chạy lẻ ngoài hub; trong hub thì để trống cũng gửi được.
+ *
+ * KHOÁ CHỐNG GỬI TRÙNG dựng từ chữ ký tình trạng + ngày + giờ: lượt hẹn giờ chạy
+ * mỗi giờ và có cơ chế thử lại sau 60 giây, nên không có khoá là một vấn đề có
+ * thể thành hai tin nhắn giống hệt nhau.
+ */
+async function nhanLark(tt, cli) {
+  const guiAnhHung = require('../lark-chung/gui-anh-hung');
+  const gio = new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 13);
+  const khoa = 'qc-suc-khoe-' + gio + '-' + (chuKy(tt) || 'khoe');
+  try {
+    const r = await guiAnhHung.gui({ card: dungThe(tt), khoa, cli });
+    return { ok: !!r.ok, loi: r.ok ? null : String(r.loi || 'không rõ').slice(0, 200) };
+  } catch (e) { return { ok: false, loi: String(e.message || e).slice(0, 200) }; }
 }
 
 /** Chữ ký của tình trạng — để biết có phải vẫn đúng vấn đề cũ không. */
 const chuKy = (tt) => tt.van_de.map((v) => v.loai + ':' + v.kenh).sort().join(',');
 
+/* `soanTin` cũ (chữ trần) đã bỏ: từ 07/10/2026 nhắc đi bằng THẺ — xem dungThe().
+ * Giữ lại một bản rút gọn cho chỗ nào cần chữ thuần (log, hộp thoại). */
 function soanTin(tt) {
   if (tt.khoe) {
-    return '✅ Đồng bộ quảng cáo đã trở lại bình thường.\n'
-      + `Kênh đang chạy: ${tt.nenTangSong.join(', ') || '(không có)'}`;
+    return 'Đồng bộ quảng cáo đã trở lại bình thường. '
+      + `Kênh đang chạy: ${(tt.nenTangSong || []).join(', ') || '(không có)'}`;
   }
-  const dong = tt.van_de.map((v) => (v.nang ? '🔴 ' : '🟠 ') + v.mo_ta);
-  return '⚠️ Đồng bộ quảng cáo đang có vấn đề\n\n'
-    + dong.join('\n')
-    + '\n\nSố mới nhất trong Base:\n'
-    + Object.keys(tt.moiNhat).sort().map((p) => `· ${p}: ${tt.moiNhat[p]}`).join('\n')
-    + '\n\nApp: http://localhost:5176 → tab Kết nối & Đồng bộ';
+  return 'Đồng bộ quảng cáo đang có vấn đề: '
+    + (tt.van_de || []).map((v) => v.mo_ta).join(' | ');
 }
 
 /* ---------------- chạy ---------------- */
-async function chay({ imLang = false } = {}) {
+async function chay({ imLang = false, cli = null } = {}) {
   const tt = await chamDiem();
   const truoc = doc(FILE_TT, {});
   const nhac = caiDatNhac();
@@ -164,18 +218,18 @@ async function chay({ imLang = false } = {}) {
     nhacGanNhat: nen ? lyDo : (truoc.nhacGanNhat || null),
   };
 
-  if (nen && nhac.bat && nhac.nguoiNhan && !imLang) {
-    const kq = await nhanLark(nhac.nguoiNhan, soanTin(tt));
+  if (nen && nhac.bat && !imLang) {
+    const kq = await nhanLark(tt, cli);
     ra.guiLark = kq.ok ? 'đã gửi' : ('lỗi: ' + kq.loi);
   } else if (nen) {
-    ra.guiLark = nhac.bat ? 'chưa khai người nhận' : 'nhắc qua Lark đang TẮT';
+    ra.guiLark = nhac.bat ? 'bỏ qua (gọi ở chế độ im lặng)' : 'nhắc qua Lark đang TẮT';
   }
 
   ghi(FILE_TT, ra);
   return ra;
 }
 
-module.exports = { chay, chamDiem, soanTin, FILE_TT, caiDatNhac };
+module.exports = { chay, chamDiem, soanTin, dungThe, chuKy, FILE_TT, caiDatNhac };
 
 /* chạy trực tiếp: node giam-sat.js [--im-lang] */
 if (require.main === module) {

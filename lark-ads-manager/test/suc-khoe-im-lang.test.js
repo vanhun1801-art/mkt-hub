@@ -28,13 +28,15 @@ console.log('— bộ hẹn giờ phải TỰ chấm điểm, đừng chờ tác
 {
   const idx = doc('sync/index.js');
   t('lượt tự động có gọi giám sát', /require\('\.\.\/giam-sat'\)/.test(idx));
-  t('và gọi chay\\(\\) chứ không chỉ chamDiem', /giamSat\.chay\(\)/.test(idx));
+  /* Bắt theo TÊN HÀM, đừng neo vào cặp ngoặc rỗng: từ 07/10 nó nhận thêm tham
+   * số `cli`, và phép kiểm neo vào `chay()` trống đã kêu oan một lần. */
+  t('gọi chay() chứ không chỉ chamDiem', /giamSat\.chay\(/.test(idx));
   /* Chấm điểm hỏng thì đồng bộ vẫn phải xong — bọc try riêng. */
   t('bọc try riêng để không kéo sập lượt đồng bộ',
-    /try \{[\s\S]{0,400}giamSat\.chay\(\)[\s\S]{0,400}\} catch/.test(idx));
+    /try \{[\s\S]{0,700}giamSat\.chay\([\s\S]{0,400}\} catch/.test(idx));
   /* Và KHÔNG được tính vào r.tong.loi, kẻo kích cơ chế thử lại sau 60 giây cho
    * một việc chẳng liên quan tới ghi Base. */
-  const i = idx.indexOf('giamSat.chay()');
+  const i = idx.indexOf('giamSat.chay(');
   const sau = idx.slice(i, i + 600);
   t('không cộng vào bộ đếm lỗi đồng bộ', !/tong\.loi \+=|thuLai\(\)/.test(sau.split('} catch')[0]));
   t('ghi lại lý do trong chú thích', /im 14 ngày|IM 14 NGÀY/i.test(idx));

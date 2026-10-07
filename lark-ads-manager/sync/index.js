@@ -292,7 +292,11 @@ function startScheduler(logFn = console.log) {
        * file đó để dựng băng sức khoẻ. */
       try {
         const giamSat = require('../giam-sat');
-        const tt = await giamSat.chay();
+        /* Truyền `cli` để lúc chạy LẺ trên máy cá nhân (ngoài hub) vẫn gửi được
+         * thẻ Lark: gui-anh-hung.js ưu tiên đường hub, không có hub thì mới lùi
+         * về lark-cli, mà lùi được thì phải có hàm này. */
+        const larkMod = require('../lark');
+        const tt = await giamSat.chay({ cli: larkMod.cli || null });
         logFn(`  [hẹn giờ] chấm điểm sức khoẻ: ${tt.khoe ? 'mọi kênh bình thường'
           : (tt.van_de || []).length + ' vấn đề — ' + tt.tomTat}`);
         if (tt.guiLark) logFn(`  [hẹn giờ] nhắc Lark: ${tt.guiLark}`);
