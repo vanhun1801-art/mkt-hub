@@ -76,6 +76,54 @@ async function fetchRange(conf, from, to, log = () => {}) {
   return { rows: out };
 }
 
+/**
+ * Dịch lỗi của TikTok thành câu chỉ đúng chỗ hỏng.
+ *
+ * Phép kiểm hỏi CẢ NĂM tài khoản trong một lời gọi, nên chỉ cần một tài khoản
+ * chưa được uỷ quyền là TikTok từ chối cả lượt — và câu nó trả về,
+ * `(40105) Access token is incorrect or has been revoked`, nghe như token hỏng
+ * hoàn toàn. Hai chuyện rất khác nhau, mà cách xử lý cũng khác hẳn:
+ *   · token hỏng thật  → phải lấy token mới
+ *   · token còn tốt    → chỉ cần uỷ quyền thêm tài khoản đó, hoặc bỏ nó khỏi ô
+ *
+ * Đo 07/10/2026: token trên máy anh Hùng hỏi từng tài khoản một thì CẢ NĂM đều
+ * trả code 0 kèm tên. Nên khi hỏi gộp mà hỏng, phải hỏi lẻ rồi nói rõ cái nào.
+ */
+async function giaiThich(conf, advs, res, deps = {}) {
+  /* Cho tiêm getJson — cùng cách sync/doichieu.js vẫn làm. Module bắt getJson
+   * ngay lúc nạp bằng destructuring, nên không tiêm thì bộ test buộc phải gọi
+   * mạng thật, mà gọi mạng thật thì phép kiểm phụ thuộc token còn sống hay không. */
+  const gj = deps.getJson || getJson;
+  const ma = Number(res.code);
+  const goc = `(${res.code}) ${res.message}`;
+  if (ma !== 40105 && ma !== 40100 && ma !== 40001) return goc;
+
+  /* Hỏi lẻ từng tài khoản — chỉ vài lời gọi, và nó tách bạch được hai trường hợp. */
+  const tot = [];
+  const hong = [];
+  for (const adv of advs) {
+    try {
+      const q = new URLSearchParams({ advertiser_ids: JSON.stringify([adv]) });
+      const r = await gj(`${BASE}/advertiser/info/?${q}`, {
+        headers: { 'Access-Token': conf.accessToken }, label: 'TikTok dò lẻ', retries: 1,
+      });
+      if (Number(r.code) === 0 && ((r.data && r.data.list) || []).length) tot.push(adv);
+      else hong.push(adv);
+    } catch (_) { hong.push(adv); }
+  }
+
+  if (!tot.length) {
+    return goc + ' — token KHÔNG dùng được với tài khoản nào đang khai. '
+      + 'Thường là token sai, đã bị thu hồi, hoặc thuộc một TikTok App khác. '
+      + 'Lấy token mới: chạy `node ket-noi.js --tiktok` trên máy có cấu hình, '
+      + 'hoặc dán token vào ô Access Token rồi Lưu cấu hình.';
+  }
+  return goc + ` — nhưng token vẫn dùng được với ${tot.length}/${advs.length} tài khoản. `
+    + `Hỏng ở: ${hong.join(', ')}. Token KHÔNG sai — tài khoản đó chưa được uỷ quyền `
+    + 'cho app này. Vào trang uỷ quyền TikTok thêm nó vào, hoặc bỏ nó khỏi ô '
+    + '"Mã tài khoản quảng cáo".';
+}
+
 async function test(conf) {
   if (!conf.accessToken) return { ok: false, message: 'Chưa có accessToken' };
   hideSecret(conf.accessToken);
@@ -91,7 +139,7 @@ async function test(conf) {
       headers: { 'Access-Token': conf.accessToken },
       label: 'TikTok test', retries: 1,
     });
-    if (Number(res.code) !== 0) return { ok: false, message: `(${res.code}) ${res.message}` };
+    if (Number(res.code) !== 0) return { ok: false, message: await giaiThich(conf, advs, res) };
     return {
       ok: true,
       results: ((res.data && res.data.list) || []).map((a) => ({
@@ -102,4 +150,4 @@ async function test(conf) {
   } catch (e) { return { ok: false, message: e.message }; }
 }
 
-module.exports = { PLATFORM, fetchRange, test };
+module.exports = { PLATFORM, fetchRange, test, giaiThich };
