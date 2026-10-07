@@ -25,6 +25,9 @@ const CHUAN_KENH = ['Facebook', 'TikTok', 'Google Ads', 'Khác'];
 const CHUAN_TRANG_THAI = ['Đã chốt', 'Đang tư vấn', 'Hủy'];
 
 /** Kênh phải là một trong bốn option có sẵn; không rõ thì 'Khác'. */
+/** Ba kênh được coi là "đã ghi công được" — dùng để không hạ cấp dòng đã có. */
+const LA_KENH_QC = ['Facebook', 'TikTok', 'Google Ads'];
+
 function kenh(v) {
   const s = String(v == null ? '' : v).trim();
   if (CHUAN_KENH.includes(s)) return s;
@@ -102,10 +105,19 @@ function dongBase(don, ghiCong, F) {
  * @param ghiCongTheoDon  Map(mã đơn -> { platform, tenQC, maLead })
  * @param daCo      Map(mã đơn -> record_id) những dòng Base đã có
  */
-function lenKeHoach({ donRows = [], ghiCongTheoDon = new Map(), daCo = new Map(), F }) {
+/**
+ * @param {boolean} ghiCongHong  Phép ghi công KHÔNG chạy được lượt này (Pancake
+ *   hoặc POS lỗi). Khác hẳn với "chạy được nhưng không ghép ra gì": lượt hỏng
+ *   thì app KHÔNG BIẾT GÌ, nên không được phép viết 'Khác' đè lên cột Kênh của
+ *   bất kỳ dòng nào. Đo 07/10/2026: Pancake trả "An error occurred" ba lần liên
+ *   tiếp, mà lượt ghi công chạy mỗi 2 giờ — mỗi lượt như thế là một lượt xoá.
+ */
+function lenKeHoach({ donRows = [], ghiCongTheoDon = new Map(), daCo = new Map(), F,
+  ghiCongHong = false }) {
   const taoMoi = [];
   const capNhat = [];
   const boQua = [];
+  const giuKenh = [];
   const thay = new Set();
 
   donRows.forEach((don) => {
@@ -113,16 +125,45 @@ function lenKeHoach({ donRows = [], ghiCongTheoDon = new Map(), daCo = new Map()
     if (!ma) { boQua.push({ ly: 'không có mã đơn' }); return; }
     if (thay.has(ma)) { boQua.push({ ma, ly: 'trùng trong dữ liệu nguồn' }); return; }
     thay.add(ma);
-    const fields = dongBase(don, ghiCongTheoDon.get(ma), F);
+    const gc = ghiCongTheoDon.get(ma);
+    const fields = dongBase(don, gc, F);
     const rec = daCo.get(ma);
-    if (rec) capNhat.push({ record_id: rec, fields });
-    else taoMoi.push({ fields });
+    const cu = rec && typeof rec === 'object' ? rec : null;
+    const recId = cu ? cu.id : rec;
+
+    if (recId) {
+      /* KHÔNG HẠ CẤP một dòng đã ghi công được.
+       *
+       * Đã trả giá 07/10/2026: lượt ghi công chạy mỗi 2 giờ, mà lượt nào thiếu
+       * dữ liệu (Pancake lỗi, hoặc lead về không có số điện thoại) thì mọi đơn
+       * ra 'Khác' — và vì dòng nào cũng được ghi đè, một lượt kém xoá sạch kết
+       * quả của lượt tốt trước đó. Tháng 9 từ 19 đơn ghi công được còn 4.
+       *
+       * Luật: đã có kênh quảng cáo thật trên Base mà lượt này không ghép được,
+       * thì GIỮ NGUYÊN cả ô Kênh lẫn ô Ghi chú — giữ luôn ghi chú vì nó chứa tên
+       * quảng cáo và mã lead, bỏ đi là mất dấu vết. Ghép được thì vẫn ghi đè như
+       * thường: thông tin mới luôn thắng thông tin cũ. */
+      const dangCoKenhThat = cu && LA_KENH_QC.includes(String(cu.kenh || '').trim());
+      if (ghiCongHong || (dangCoKenhThat && !(gc && gc.platform))) {
+        delete fields[F.channel];
+        delete fields[F.note];
+        giuKenh.push(ma);
+      }
+      capNhat.push({ record_id: recId, fields });
+    } else {
+      /* Dòng mới mà lượt ghi công hỏng: để TRỐNG ô Kênh, đừng gắn 'Khác'.
+       * 'Khác' nghĩa là "đã xét và không phải quảng cáo" — một lượt hỏng chưa
+       * xét gì cả, nói 'Khác' là nói thay cho thứ mình không biết. Lượt sau
+       * chạy được sẽ điền vào. */
+      if (ghiCongHong) { delete fields[F.channel]; delete fields[F.note]; }
+      taoMoi.push({ fields });
+    }
   });
 
   // Dòng có trong Base mà nguồn không còn: BÁO ra, không tự xoá.
   const khongConNguon = [...daCo.keys()].filter((ma) => !thay.has(ma));
 
-  return { taoMoi, capNhat, boQua, khongConNguon };
+  return { taoMoi, capNhat, boQua, khongConNguon, giuKenh };
 }
 
 /** Tóm tắt để hiện trước khi ghi thật. */
@@ -133,8 +174,10 @@ function tomTat(kh) {
     capNhat: kh.capNhat.length,
     boQua: kh.boQua.length,
     khongConNguon: kh.khongConNguon.length,
+    giuKenh: (kh.giuKenh || []).length,
     tongTien: tien(kh.taoMoi) + tien(kh.capNhat),
   };
 }
 
-module.exports = { kenh, trangThai, gioBase, dongBase, lenKeHoach, tomTat, CHUAN_KENH, CHUAN_TRANG_THAI };
+module.exports = { kenh, trangThai, gioBase, dongBase, lenKeHoach, tomTat,
+  CHUAN_KENH, CHUAN_TRANG_THAI, LA_KENH_QC };

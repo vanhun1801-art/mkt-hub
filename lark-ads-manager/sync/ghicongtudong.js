@@ -118,9 +118,21 @@ async function chay({ kho, from = '', to = '', ghi = () => {} }) {
   // qua, giữ cache cũ thay vì xoá số đang có bằng một lượt hỏng.
   if (kq) roasCache.ghi(kq);
 
-  const kh = ghiDT.lenKeHoach({ donRows, ghiCongTheoDon, daCo, F });
+  /* `kq === null` nghĩa là tinhGhiCong() đã NÉM — Pancake/POS không trả lời.
+   * Khác hẳn "chạy được nhưng không ghép ra đơn nào". Lượt không biết gì thì
+   * không được viết gì vào cột Kênh. */
+  const ghiCongHong = !kq;
+  if (ghiCongHong) {
+    ghi('  ! lượt này KHÔNG tính được ghi công — sẽ giữ nguyên cột Kênh của mọi dòng, '
+      + 'không ghi "Khác" đè lên kết quả cũ');
+  }
+  const kh = ghiDT.lenKeHoach({ donRows, ghiCongTheoDon, daCo, F, ghiCongHong });
   const tt = ghiDT.tomTat(kh);
   ghi(`sẽ tạo ${kh.taoMoi.length} dòng, sửa ${kh.capNhat.length} dòng`);
+  if ((kh.giuKenh || []).length) {
+    ghi(`  giữ nguyên Kênh cho ${kh.giuKenh.length} đơn đã ghi công được từ lượt trước `
+      + '— lượt này không ghép lại được nên KHÔNG hạ xuống "Khác"');
+  }
   let taoXong = 0;
   for (let i = 0; i < kh.taoMoi.length; i += 200) {
     const lo = kh.taoMoi.slice(i, i + 200).map((x) => x.fields);
@@ -158,7 +170,20 @@ function banDoMaDon(rows, F) {
   (rows || []).forEach((r) => {
     const o = (r && r.c) || {};
     const ma = String(o[F.orderCode] || '').trim();
-    if (ma) m.set(ma, r.id);
+    if (!ma) return;
+    /* Mang theo KÊNH đang có, không chỉ record_id.
+     *
+     * lenKeHoach() cần biết dòng này đã ghi công được chưa, để một lượt thiếu dữ
+     * liệu không hạ nó xuống 'Khác'. Bản trước chỉ trả id nên không có gì để so,
+     * và mỗi lượt kém là xoá sạch kết quả của lượt tốt — tháng 9 từ 19 đơn ghi
+     * công được còn 4 (đo 07/10/2026).
+     *
+     * Ô Kênh là select nên Lark trả về mảng hoặc đối tượng, không phải chuỗi. */
+    const k = o[F.channel];
+    const kenh = Array.isArray(k)
+      ? String((k[0] && (k[0].text || k[0].name)) || k[0] || '')
+      : (k && typeof k === 'object' ? String(k.text || k.name || '') : String(k || ''));
+    m.set(ma, { id: r.id, kenh: kenh.trim() });
   });
   return m;
 }

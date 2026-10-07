@@ -519,6 +519,34 @@ async function keoVeKho(conf, from, to, log = () => {}, laySdt = false) {
   const lead = await docLead(conf, from, to, log, sdtTheoKH);
   const don = await docDon(conf, from, to, log);
 
+  /* LẤP SỐ ĐIỆN THOẠI CHO LEAD TỪ ĐƠN CỦA CÙNG KHÁCH — miễn phí, không thêm một
+   * lời gọi nào.
+   *
+   * Vì sao cần: lượt kéo ĐỊNH KỲ chạy với laySdt = false (quét 15.948 khách mất
+   * ~4 phút, xem ghi chú trên), nên lead về KHÔNG có số. Mà đường ghi công
+   * `hội thoại → lead → đơn` lại khoá bằng đúng số đó. Hậu quả đo được ngày
+   * 07/10/2026: tháng 9 chỉ còn 4/829 đơn ghi công được, ROAS tụt còn 0,08×.
+   *
+   * Bản đọc ĐƠN thì lại có sẵn `customer.phone` — 729/1000 đơn có số. Khách của
+   * lead và khách của đơn dùng chung mã `kh`, nên ghép lại là ra.
+   *
+   * Đo trên kho thật (1.000 lead có số đầy đủ để đối chiếu): lấp được 107 lead,
+   * và cả 107 đều TRÙNG KHỚP số thật — không sai cái nào. 107 cũng đúng bằng số
+   * lead đã ra đơn, tức là lấp trúng toàn bộ nhóm có thể sinh doanh thu.
+   *
+   * Chỉ lấp chỗ ĐANG TRỐNG: số lấy trực tiếp từ bản khách luôn đáng tin hơn. */
+  if (!sdtTheoKH) {
+    const tuDon = new Map();
+    don.rows.forEach((d) => {
+      if (d && d.kh && d.sdt && !tuDon.has(d.kh)) tuDon.set(d.kh, d.sdt);
+    });
+    let lap = 0;
+    lead.rows.forEach((l) => {
+      if (l && !l.sdt && l.kh && tuDon.has(l.kh)) { l.sdt = tuDon.get(l.kh); lap += 1; }
+    });
+    if (lap) log(`  lấp số điện thoại cho ${lap} lead từ đơn của cùng khách (không tốn lời gọi nào)`);
+  }
+
   const moi = kho.ghi({
     luc: new Date().toISOString(),
     tuApi: true,

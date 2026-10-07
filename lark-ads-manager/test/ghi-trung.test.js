@@ -43,7 +43,11 @@ console.log('— đọc mã đơn từ bản ghi Base, ĐÚNG hình dạng thậ
   ];
   const m = banDoMaDon(rows, F);
   t('đọc ra đủ mã', m.size === 2, String(m.size));
-  t('trỏ đúng record_id', m.get('RT16129') === 'rec1' && m.get('RT16130') === 'rec2');
+  /* Từ 07/10/2026 map mang theo CẢ kênh đang có, không chỉ record_id: lenKeHoach()
+   * cần nó để không hạ một dòng đã ghi công được xuống 'Khác'. */
+  t('trỏ đúng record_id', m.get('RT16129').id === 'rec1' && m.get('RT16130').id === 'rec2');
+  t('mang theo kênh đang có để không hạ cấp nhầm',
+    'kenh' in m.get('RT16129'), JSON.stringify(m.get('RT16129')));
 
   /* ĐÂY là phép kiểm quan trọng nhất của cả file. Bản hỏng đọc `r.fields` nên
    * với hình dạng thật thì map RỖNG — và map rỗng nghĩa là "chưa có gì trên
@@ -80,7 +84,24 @@ console.log('— mã đơn trùng trong chính Base: giữ MỘT record_id');
   ];
   const m = banDoMaDon(rows, F);
   t('ba dòng cùng mã chỉ ra một khoá', m.size === 1);
-  t('và giữ record_id cuối cùng đọc được', m.get('RT16129') === 'recC', m.get('RT16129'));
+  t('và giữ record_id cuối cùng đọc được', m.get('RT16129').id === 'recC',
+    JSON.stringify(m.get('RT16129')));
+}
+
+console.log('— ô Kênh của Lark là select: đọc được cả ba hình dạng');
+{
+  /* Lark trả select lúc là mảng, lúc là đối tượng, lúc là chuỗi — đọc hụt thì
+   * `kenh` ra rỗng, lớp chắn không hạ cấp coi như không có. */
+  const ba = banDoMaDon([
+    { id: 'r1', c: { [F.orderCode]: 'A1', [F.channel]: ['Facebook'] } },
+    { id: 'r2', c: { [F.orderCode]: 'A2', [F.channel]: { text: 'TikTok' } } },
+    { id: 'r3', c: { [F.orderCode]: 'A3', [F.channel]: 'Google Ads' } },
+    { id: 'r4', c: { [F.orderCode]: 'A4' } },
+  ], F);
+  t('mảng', ba.get('A1').kenh === 'Facebook', ba.get('A1').kenh);
+  t('đối tượng', ba.get('A2').kenh === 'TikTok', ba.get('A2').kenh);
+  t('chuỗi', ba.get('A3').kenh === 'Google Ads', ba.get('A3').kenh);
+  t('không có ô Kênh thì rỗng, không ra "undefined"', ba.get('A4').kenh === '', JSON.stringify(ba.get('A4').kenh));
 }
 
 console.log('— không còn chỗ nào đọc r.fields trong app');
