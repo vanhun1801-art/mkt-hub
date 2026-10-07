@@ -275,6 +275,19 @@ async function tongQuan({ from, to, platforms, channels } = {}) {
       && (!platforms || !platforms.length || platforms.includes(l.platform)))
       .sort((a, b) => String(b.start).localeCompare(String(a.start)))
       .slice(0, 50),
+    /* LIVE THEO NGÀY của TikTok — bản xuất LIVE Center nhân sự tải lên.
+     *
+     * Phải trả RIÊNG, không gộp vào `live`: mảng kia mỗi dòng là một PHIÊN có
+     * giờ bắt đầu và kết thúc, còn bảng này gộp theo NGÀY và một ngày có thể
+     * bốn phiên. Nhét một ngày vào một dòng phiên là nói dối về dữ liệu, và
+     * tien-live.js gắn doanh thu theo khung giờ sẽ vơ hết lead của cả ngày.
+     *
+     * Trước đây /api/tong-quan bỏ hẳn khoá này, nên app KPI đọc LIVE chỉ thấy
+     * Facebook — báo cáo tháng 9 hiện 28 phiên / 31k lượt xem trong khi TikTok
+     * còn 34 phiên / 390k lượt xem nằm sẵn trong Base. */
+    liveNgay: (d.liveNgay || []).filter((l) => l.date >= tu && l.date <= den
+      && (!platforms || !platforms.length || platforms.includes(l.platform)))
+      .sort((a, b) => String(b.date).localeCompare(String(a.date))),
     nenCoReach,
     thieuFollower,
     luuY: luuYNenTang(rows),

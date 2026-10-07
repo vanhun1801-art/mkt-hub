@@ -390,101 +390,148 @@ function dungPheu(bac) {
 async function docLiveRieng(app, tu, den, pv) {
   const d = await goi(app, '/api/tong-quan' + q(tu, den));
   const locKenh = pv && pv.kenh ? new Set(pv.kenh) : null;
-  const ds = (d.live || []).filter((x) => !locKenh
-    || locKenh.has((x.platform || '') + '|' + (x.channel || '')));
-  const cong = (f) => ds.reduce((a, x) => a + so(x[f]), 0);
-  const phut = cong('minutes');
-  const views = cong('views');
-  const tuongTac = cong('comments') + cong('likes') + cong('shares');
-  /* Trung bình phải chia cho SỐ PHIÊN CÓ SỐ, không phải mọi phiên. Phiên chưa
-   * nhập số mà vẫn nằm dưới mẫu thì "xem trung bình" tụt xuống một cách vô cớ. */
-  const coXem = ds.filter((x) => so(x.views) > 0).length;
-  const nenTang = gomTheo(ds, (x) => x.platform || '(không rõ)', ['views']);
+  const hop = (nenTang, kenh) => !locKenh || locKenh.has((nenTang || '') + '|' + (kenh || ''));
 
-  /* Cột nào cả 28 phiên đều ghi 0 thì gần như chắc chắn là KHÔNG AI ĐIỀN, chứ
-   * không phải phiên nào cũng thật sự bằng 0 (không lẽ 17 giờ lên sóng mà không
-   * một người nào bấm theo dõi). Base lưu 0 nên không phân biệt được bằng kiểu
-   * dữ liệu — nhưng nói thẳng nghi ngờ đó ra còn hơn để người đọc tin vào 0. */
-  const trong = (f) => (ds.length && ds.every((x) => so(x[f]) === 0)
-    ? ds.length + '/' + ds.length + ' phiên ghi 0 — nhiều khả năng cột này chưa ai điền'
-    : '');
+  /* HAI NGUỒN, HAI HÌNH DẠNG — và đó là lý do bản trước bỏ sót gần hết số LIVE.
+   *
+   * Facebook: mỗi dòng MỘT PHIÊN, có giờ bắt đầu và kết thúc, do API đồng bộ về.
+   * TikTok:   mỗi dòng MỘT NGÀY, từ bản xuất LIVE Center nhân sự tải lên — TikTok
+   *           không mở API cho LIVE, đã dò hết (xem lark-social/live-ngay.js).
+   *
+   * Bản trước chỉ đọc mảng phiên nên khối LIVE tháng 9 hiện 28 phiên / 31k lượt
+   * xem, trong khi TikTok còn 34 phiên / 390k lượt xem nằm sẵn trong Base. Mất
+   * 93% lượt xem LIVE của phòng.
+   *
+   * Gộp thì phải gộp đúng. Mấy chỗ KHÔNG cộng chung được:
+   *   - "Bình luận": Facebook đếm SỐ BÌNH LUẬN, TikTok đếm SỐ NGƯỜI bình luận.
+   *     Hai đơn vị khác nhau, nên tách ra hai ô chứ không cộng.
+   *   - Lead, đơn chốt, tin nhắn: chỉ Facebook có. Bản xuất LIVE Center không
+   *     có cột nào tương đương.
+   *   - Thích, chia sẻ, kim cương: chỉ TikTok có.
+   *   - "Đỉnh cùng lúc": lấy max, không cộng — hai nền tảng đạt đỉnh lúc khác nhau.
+   */
+  const dsFb = (d.live || []).filter((x) => hop(x.platform, x.channel));
+  const dsTt = (d.liveNgay || []).filter((x) => hop(x.platform, x.channel));
+  if (!dsFb.length && !dsTt.length) {
+    return { luuY: ['Không có phiên LIVE nào trong kỳ.'], o: [], bang: [] };
+  }
 
-  /* ĐỘ PHỦ TỪNG CỘT. Đây là chỗ con số LIVE dễ bị đọc sai nhất: "lượt xem 31k"
-   * nghe như kết quả của cả 28 phiên, thật ra chỉ 11 phiên có nhập số, 17 phiên
-   * để trống. Ghi thẳng tỷ lệ lên ô, đừng giấu xuống dòng trung bình. */
-  const coSo = (f) => ds.filter((x) => so(x[f]) > 0).length;
-  const phu = (f) => {
-    const c = coSo(f);
-    if (!ds.length || c === ds.length) return '';
-    return c + '/' + ds.length + ' phiên có nhập số — '
-      + (ds.length - c) + ' phiên để trống, số thật cao hơn';
+  const cFb = (f) => dsFb.reduce((a, x) => a + so(x[f]), 0);
+  const cTt = (f) => dsTt.reduce((a, x) => a + so(x[f]), 0);
+
+  const phienFb = dsFb.length;
+  const phienTt = cTt('soPhien');
+  const xemFb = cFb('views');
+  const xemTt = cTt('luotXem');
+  const phutFb = cFb('minutes');
+  const phutTt = cTt('thoiLuong') / 60;   // LIVE Center ghi bằng GIÂY
+
+  /* Độ phủ tính riêng cho Facebook: TikTok lấy từ bản xuất chính chủ nên ngày
+   * nào có dòng là có đủ số, không có chuyện để trống nửa vời. */
+  const coXemFb = dsFb.filter((x) => so(x.views) > 0).length;
+  const phuFb = (f, nhan) => {
+    const c = dsFb.filter((x) => so(x[f]) > 0).length;
+    if (!dsFb.length || c === dsFb.length) return nhan || '';
+    return (nhan ? nhan + ' · ' : '') + c + '/' + dsFb.length
+      + ' phiên Facebook có số — ' + (dsFb.length - c) + ' phiên để trống';
   };
-  /* Cảnh báo về chất lượng số LIVE. App Social sở hữu bảng phiên; báo cáo chỉ
-   * nói ra những gì đếm được, không tự đoán vì sao thiếu. */
+
+  const nen = [];
+  if (phienFb) nen.push('Facebook');
+  if (phienTt) nen.push('TikTok');
+
   const luuY = [];
-  const thieuXem = ds.length - coSo('views');
-  if (thieuXem > 0) {
-    luuY.push('Chỉ ' + coSo('views') + '/' + ds.length + ' phiên có nhập lượt xem — '
-      + thieuXem + ' phiên để trống. Mọi con số cộng dồn bên dưới vì vậy THẤP HƠN '
-      + 'thực tế, không phải vì phiên đó không ai xem.');
+  if (dsFb.length && coXemFb < dsFb.length) {
+    luuY.push('Facebook: chỉ ' + coXemFb + '/' + dsFb.length + ' phiên có lượt xem. '
+      + 'Không phải nhân sự quên nhập — API Facebook chỉ trả lượt xem cho một phần '
+      + 'phiên (cổng /live_videos có "live_views" thì đòi Meta duyệt App Review). '
+      + 'Nên lượt xem Facebook bên dưới THẤP HƠN thực tế.');
   }
-  const nt = [...new Set(ds.map((x) => x.platform).filter(Boolean))];
-  if (ds.length && !nt.includes('TikTok')) {
-    luuY.push('Không có phiên LIVE TikTok nào trong kỳ (' + (nt.join(', ') || 'không rõ nền tảng')
-      + ' thôi). Nếu đội có live TikTok thật thì phiên đó chưa vào hệ thống — '
-      + 'app Social chưa nối được LIVE của TikTok.');
+  if (!dsTt.length) {
+    luuY.push('Không có số LIVE TikTok trong kỳ. TikTok không mở API cho LIVE — '
+      + 'số chỉ về được khi nhân sự tải bản xuất LIVE Center lên app Social.');
+  } else {
+    luuY.push('TikTok đếm theo NGÀY (' + dsTt.length + ' ngày, ' + phienTt + ' phiên) '
+      + 'vì bản xuất LIVE Center gộp theo ngày — không tách được từng phiên. '
+      + 'Facebook thì đếm từng phiên.');
   }
+
+  const o = [
+    { nhan: 'Số phiên LIVE', so: phienFb + phienTt, dinhDang: 'so', chinh: true,
+      ghi: nen.length ? 'Facebook ' + phienFb + ' · TikTok ' + phienTt : '' },
+    { nhan: 'Lượt xem', so: xemFb + xemTt, dinhDang: 'so', chinh: true,
+      ghi: 'Facebook ' + gonSoNgan(xemFb) + ' · TikTok ' + gonSoNgan(xemTt) },
+    { nhan: 'Giờ lên sóng', so: (phutFb + phutTt) / 60, dinhDang: 'so2',
+      ghi: 'giờ · Facebook ' + Math.round(phutFb / 60) + 'h · TikTok ' + Math.round(phutTt / 60) + 'h' },
+    { nhan: 'Đỉnh cùng lúc', so: Math.max(0, ...dsFb.map((x) => so(x.peak)),
+      ...dsTt.map((x) => so(x.dinhDongThoi))), dinhDang: 'so',
+      ghi: 'người xem cao nhất — lấy mức cao nhất, không cộng hai nền tảng' },
+    { nhan: 'Follow mới', so: cFb('newFollows') + cTt('followerMoi'), dinhDang: 'so',
+      ghi: 'Facebook ' + cFb('newFollows') + ' · TikTok ' + cTt('followerMoi') },
+  ];
+
+  /* Ô CHỈ CÓ Ở MỘT NỀN TẢNG — gọi đúng tên kèm nền tảng, đừng để người đọc
+   * tưởng là số của cả hai. */
+  if (dsFb.length) {
+    o.push(
+      { nhan: 'Bình luận (Facebook)', so: cFb('comments'), dinhDang: 'so', ghi: phuFb('comments') },
+      { nhan: 'Tin nhắn (Facebook)', so: cFb('messages'), dinhDang: 'so', ghi: phuFb('messages') },
+      { nhan: 'Lead (Facebook)', so: cFb('leads'), dinhDang: 'so',
+        ghi: phuFb('leads', 'bản xuất TikTok không có cột lead') },
+      { nhan: 'Đơn chốt (Facebook)', so: cFb('orders'), dinhDang: 'so',
+        ghi: phuFb('orders', 'bản xuất TikTok không có cột đơn') },
+    );
+  }
+  if (dsTt.length) {
+    o.push(
+      { nhan: 'Người bình luận (TikTok)', so: cTt('nguoiBinhLuan'), dinhDang: 'so',
+        ghi: 'đếm NGƯỜI, khác ô bình luận Facebook đếm LƯỢT — không cộng chung' },
+      { nhan: 'Người xem riêng (TikTok)', so: cTt('nguoiXemRieng'), dinhDang: 'so',
+        ghi: 'Facebook không trả chỉ số này' },
+      { nhan: 'Thích (TikTok)', so: cTt('thich'), dinhDang: 'so' },
+      { nhan: 'Chia sẻ (TikTok)', so: cTt('chiaSe'), dinhDang: 'so' },
+    );
+  }
+  o.push(
+    { nhan: 'Xem trung bình một phiên',
+      so: (phienFb + phienTt) ? (xemFb + xemTt) / (phienFb + phienTt) : 0, dinhDang: 'so',
+      ghi: coXemFb < dsFb.length ? 'thấp hơn thực tế — còn phiên Facebook chưa có số' : '' },
+    { nhan: 'Phút lên sóng mỗi phiên',
+      so: (phienFb + phienTt) ? (phutFb + phutTt) / (phienFb + phienTt) : 0, dinhDang: 'so' },
+  );
 
   return {
     luuY,
-    o: [
-      { nhan: 'Số phiên LIVE', so: ds.length, dinhDang: 'so', chinh: true,
-        ghi: nt.length ? nt.join(' · ') : '' },
-      { nhan: 'Giờ lên sóng', so: phut / 60, dinhDang: 'so2', ghi: 'giờ' },
-      { nhan: 'Lượt xem', so: views, dinhDang: 'so', ghi: phu('views') },
-      { nhan: 'Đỉnh cùng lúc', so: Math.max(0, ...ds.map((x) => so(x.peak))), dinhDang: 'so',
-        ghi: trong('peak') || 'người xem cao nhất một phiên' },
-      { nhan: 'Bình luận', so: cong('comments'), dinhDang: 'so', ghi: phu('comments') },
-      { nhan: 'Follow mới', so: cong('newFollows'), dinhDang: 'so', ghi: trong('newFollows') },
-      { nhan: 'Tin nhắn', so: cong('messages'), dinhDang: 'so', ghi: trong('messages') },
-      { nhan: 'Lead', so: cong('leads'), dinhDang: 'so', ghi: phu('leads') },
-      { nhan: 'Đơn chốt', so: cong('orders'), dinhDang: 'so', ghi: phu('orders') },
-      { nhan: 'Xem trung bình một phiên', so: coXem ? views / coXem : 0, dinhDang: 'so',
-        ghi: coXem === ds.length ? '' : coXem + '/' + ds.length + ' phiên đã nhập lượt xem' },
-      { nhan: 'Phút lên sóng mỗi phiên', so: ds.length ? phut / ds.length : 0, dinhDang: 'so' },
-      { nhan: 'Tương tác trên 1.000 lượt xem', so: views ? (tuongTac / views) * 1000 : 0,
-        dinhDang: 'so2' },
-    ],
-    /* BỎ PHỄU LIVE.
-     *
-     * Lý thuyết thì phễu này hợp lệ — người bình luận đúng là người đang xem
-     * phiên đó. Nhưng số thật không cho phép: lượt xem chỉ có ở 11/28 phiên,
-     * bình luận 27/28, lead 10/28, đơn 6/28. Bốn bậc bốn tập phiên khác nhau,
-     * nên "cứ 2.555 lượt xem mới có 1 lead" là chia lượt xem của mười một phiên
-     * cho lead của mười phiên khác — đúng cái lỗi đã gỡ ở khối Tệp khách mới.
-     *
-     * Khi nào đội nhập đủ số cho mọi phiên thì mở lại — lúc đó bốn bậc mới
-     * cùng một tập. */
-
-    /* DOANH THU LIVE chưa đưa vào — anh Hùng gác lại vì chưa rõ cơ chế ghi nhận:
-     * cột doanh thu trong bảng phiên không nói rõ là đơn chốt ngay trên sóng hay
-     * đơn khách nhắn tin sau đó, nên cộng vào là cộng nhầm với doanh thu Quảng
-     * cáo và OTA. Khi nào chốt được luật ghi nhận thì mở lại ô này. */
+    o,
     cot: {
       nhan: 'Lượt xem LIVE theo nền tảng',
       don: 'so',
-      muc: nenTang.map((x) => ({ nhan: x._k, so: x.views })).filter((x) => x.so),
+      muc: [{ nhan: 'Facebook', so: xemFb }, { nhan: 'TikTok', so: xemTt }].filter((x) => x.so),
     },
     bang: [
-      { tieuDe: 'Phiên LIVE trong kỳ',
-        cot: ['Ngày', 'Kênh', 'Nền tảng', 'Phút', 'Lượt xem', 'Đỉnh', 'Bình luận', 'Follow mới', 'Đơn'],
-        soCot: [3, 4, 5, 6, 7, 8],
-        dong: ds.slice().sort((a, b) => String(b.start || '').localeCompare(String(a.start || '')))
+      { tieuDe: 'Phiên LIVE Facebook',
+        cot: ['Ngày', 'Kênh', 'Phút', 'Lượt xem', 'Bình luận', 'Lead', 'Đơn'],
+        soCot: [2, 3, 4, 5, 6],
+        dong: dsFb.slice().sort((a, b) => String(b.start || '').localeCompare(String(a.start || '')))
           .slice(0, 40).map((x) => [String(x.start || '').slice(0, 10), x.channel || '',
-            x.platform || '', so(x.minutes), so(x.views), so(x.peak), so(x.comments),
-            so(x.newFollows), so(x.orders)]) },
+            so(x.minutes), so(x.views) || '—', so(x.comments), so(x.leads), so(x.orders)]) },
+      { tieuDe: 'LIVE TikTok theo ngày',
+        cot: ['Ngày', 'Kênh', 'Phiên', 'Giờ', 'Lượt xem', 'Người xem riêng', 'Người bình luận', 'Follow mới'],
+        soCot: [2, 3, 4, 5, 6, 7],
+        dong: dsTt.slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))
+          .slice(0, 40).map((x) => [x.date || '', x.channel || '', so(x.soPhien),
+            Math.round((so(x.thoiLuong) / 3600) * 10) / 10, so(x.luotXem),
+            so(x.nguoiXemRieng), so(x.nguoiBinhLuan), so(x.followerMoi)]) },
     ].filter((b) => b.dong.length),
   };
+}
+
+/** Số rút gọn cho câu ghi chú: 390k, 1,2tr. */
+function gonSoNgan(v) {
+  const n = so(v);
+  if (n >= 1e6) return (Math.round(n / 1e5) / 10).toString().replace('.', ',') + 'tr';
+  if (n >= 1000) return Math.round(n / 1000) + 'k';
+  return String(n);
 }
 
 /** Dựng lại bộ chỉ số quảng cáo từ một tập dòng nền tảng. */
