@@ -582,6 +582,19 @@ async function soThatChoVideo(conf, token, ds, ten, canhBao) {
 const CHI_SO_LIVE = ['total_video_views', 'total_video_impressions',
   'total_video_reactions_by_type_total', 'total_video_stories_by_action_type'];
 
+/**
+ * Lấy thêm số cho một phiên từ /video_insights: cảm xúc, chia sẻ, bình luận.
+ *
+ * KHÔNG dùng để lấy lượt xem nữa — `total_video_views` ở đây là lượt xem từ 3
+ * giây, nhỏ hơn cột "Lượt xem" trong bản xuất của Trang khoảng ba lần. Lượt xem
+ * nay lấy ở node video (`views`), xem chú thích tại TRUONG_VIDEO. Vẫn giữ phép
+ * `Math.max` để trang nào không có `views` thì còn số này đỡ, chứ không để nó
+ * kéo con số đã đúng xuống thấp.
+ *
+ * @returns {boolean} đọc được insights hay không — để nơi gọi còn ĐẾM và báo.
+ *   Bản trước nuốt im mọi lỗi ở đây, nên 17/28 phiên tháng 9 không có số mà
+ *   nhật ký không một dòng nào nhắc tới.
+ */
 async function boSungTuVideo(conf, token, vid, row) {
   try {
     const hoi = async (ds) => getJson(g(conf) + '/' + vid + '/video_insights'
@@ -607,8 +620,12 @@ async function boSungTuVideo(conf, token, vid, row) {
       + '&access_token=' + encodeURIComponent(token),
       { label: 'Facebook live comments ' + vid, retries: 1 });
     row.comments = num(cm && cm.summary && cm.summary.total_count);
-  } catch (_) { /* một phiên thiếu số không đáng làm hỏng cả lượt */ }
-  return row;
+    if (ins && ins.error) return false;
+  } catch (_) {
+    /* Một phiên thiếu số không đáng làm hỏng cả lượt — nhưng phải ĐẾM được. */
+    return false;
+  }
+  return true;
 }
 
 /* Trường hỏi ở /videos. Thứ tự có ý: hai trường ĐẦU là dấu nhận ra một video
@@ -617,6 +634,19 @@ async function boSungTuVideo(conf, token, vid, row) {
  * vào bảng Phiên LIVE. */
 const TRUONG_VIDEO = [
   'live_status', 'broadcast_start_time',
+  /* `views` là "Lượt xem" theo nghĩa Meta đang dùng trong bản xuất của Trang —
+   * số lần video bắt đầu phát. Phải hỏi ở ĐÂY, trên node video, vì
+   * /video_insights không có chỉ số tương đương: chỉ số lớn nhất nó trả là
+   * `total_video_views` (lượt xem từ 3 giây), nhỏ hơn khoảng ba lần.
+   *
+   * Đo trên một phiên thật ngày 06/10: views 17.142 · total_video_views 5.612
+   * · post_views 5.612. Bản xuất Facebook của phòng cũng ghi theo cột đầu, nên
+   * trước đây app báo thấp hơn giấy tờ gần ba lần mà không ai biết vì sao.
+   *
+   * Và quan trọng hơn: trường này ĐỌC ĐƯỢC ở những phiên mà /video_insights
+   * trả lỗi. Tháng 9 có 17/28 phiên không lấy được insights nhưng `views` thì
+   * đủ cả 17. */
+  'views', 'post_views',
   'id', 'title', 'description', 'created_time', 'length', 'permalink_url',
 ];
 
@@ -647,6 +677,9 @@ async function liveTuVideo(conf, page, from, to, canhBao, ghiChu = []) {
   let truong = TRUONG_VIDEO.slice();
   const boTruong = [];
   const out = [];
+  /* Những phiên không lấy được insights — gom lại để báo một dòng ở cuối, chứ
+   * đừng mỗi phiên một cảnh báo. */
+  const hongInsights = [];
 
   const dungUrl = () => g(conf) + '/' + page.id + '/videos?limit=50'
     + '&since=' + from + '&until=' + to
@@ -712,7 +745,9 @@ async function liveTuVideo(conf, page, from, to, canhBao, ghiChu = []) {
         start: mocBatDau,
         end: '',
         minutes: v.length ? Math.round(num(v.length) / 60) : 0,
-        views: 0,
+        /* Ưu tiên `views` (lượt phát, khớp bản xuất của Trang). Trang nào Meta
+         * không cho trường đó thì rơi về `post_views` rồi mới tới insights. */
+        views: num(v.views) || num(v.post_views) || 0,
         peak: 0,          // /videos không có live_views — cột Đỉnh đành để trống
         comments: 0, likes: 0, shares: 0, newFollows: 0,
         url: v.permalink_url ? 'https://facebook.com' + v.permalink_url : '',
@@ -722,10 +757,27 @@ async function liveTuVideo(conf, page, from, to, canhBao, ghiChu = []) {
       if (Number.isFinite(t0) && row.minutes) {
         row.end = new Date(t0 + row.minutes * 60000).toISOString();
       }
-      await boSungTuVideo(conf, token, String(v.id), row);
+      const duoc = await boSungTuVideo(conf, token, String(v.id), row);
+      if (!duoc) hongInsights.push(d || String(v.id));
       out.push(row);
     }
     url = (res.paging && res.paging.next) || null;
+  }
+
+  /* NÓI RA KHI THIẾU SỐ. Lượt xem vẫn có (lấy ở node video) nhưng cảm xúc,
+   * chia sẻ của mấy phiên này thì không — im lặng là để người đọc tin vào một
+   * con số đã khuyết. */
+  if (hongInsights.length) {
+    ghiChu.push('Facebook · ' + ten + ': ' + hongInsights.length + '/' + out.length
+      + ' phiên LIVE không đọc được /video_insights (cảm xúc, chia sẻ để trống) — '
+      + hongInsights.slice(0, 6).join(', ')
+      + (hongInsights.length > 6 ? '…' : '') + '. Lượt xem vẫn lấy được từ node video.');
+  }
+  const khongXem = out.filter((r) => !r.views).length;
+  if (khongXem) {
+    canhBao.push('Facebook · ' + ten + ': ' + khongXem + '/' + out.length
+      + ' phiên LIVE không có lượt xem — Meta không trả cả `views` lẫn insights '
+      + 'cho những video đó (thường là phiên đã quá cũ hoặc đã gỡ).');
   }
   return out;
 }
