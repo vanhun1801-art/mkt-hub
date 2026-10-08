@@ -87,7 +87,31 @@ group('kho trên Base');
   ok('không đọc lời chào qua docKho() (nó chỉ giữ tệp đầu)',
     !/docKho\(\)/.test(doc));
   ok('Base hỏng thì trả mặc định chứ không ném',
-    /catch \(e\) \{ bao\(e\); return \{ \.\.\.CHAO_MAC_DINH \}; \}/.test(src));
+    /catch \(e\) \{ baoChao\(e\); return \{ \.\.\.CHAO_MAC_DINH \}; \}/.test(src));
+
+  /* ---- hai lỗi bắt được trên BẢN THẬT ngày 08/10/2026 ---- */
+
+  /* taiTep() cố tình vứt mọi đáp có content-type JSON, vì Lark có đường trả
+   * thân lỗi dạng JSON kèm mã HTTP 200. Luật đó đúng và phải giữ. Nhưng cất
+   * cấu hình dưới nhãn `application/json` là tự biến nó thành thứ không đọc
+   * lại được: tải về đúng nội dung rồi bị ném đi vì tưởng là lỗi. Trên Cài đặt
+   * nó hiện ra nguyên văn chuỗi JSON đúng, dưới tiêu đề "Không tải được". */
+  ok('KHÔNG cất cấu hình dưới nhãn application/json',
+    !/kieu: 'application\/json'/.test(ghi),
+    'taiTep() sẽ vứt nó đi vì tưởng là thân lỗi của Lark');
+  ok('nén trước khi cất, để ruột thành nhị phân', /zlib\.gzipSync/.test(ghi));
+  ok('đọc nhận cả bản nén lẫn bản chữ trần đã ghi trước đó',
+    /buf\[0\] === 0x1f && buf\[1\] === 0x8b/.test(doc));
+
+  /* Lời chào hỏng KHÔNG được làm ô phát báo động nhầm: dùng chung `loiCuoi`
+   * thì Cài đặt đóng dấu "ổ tạm" lên phần Video giới thiệu và báo "Không ghi
+   * lên Lark Base được", trong khi video vẫn nằm yên trên Base. */
+  ok('lời chào có ô báo lỗi RIÊNG, không dùng chung với ô phát',
+    /let loiChaoCuoi/.test(src) && /function loiChao\(/.test(src));
+  ok('docChao/ghiChao không đụng vào loiCuoi của ô phát',
+    !/loiCuoi/.test(doc) && !/loiCuoi/.test(ghi));
+  const SV = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+  ok('đầu API lời chào báo lỗi của chính nó', /phimKho\.loiChao\(\)/.test(SV));
 }
 
 group('trang và màn Cài đặt');

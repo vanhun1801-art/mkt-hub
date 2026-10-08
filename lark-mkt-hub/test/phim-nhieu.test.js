@@ -241,7 +241,12 @@ function donDuLieu() {
        * đệm" và tệp có lại. Bài này canh mấy quyết định của vòng đó. */
       const kho = fs.readFileSync(path.join(GOC, 'phim-kho.js'), 'utf8');
       const sv = fs.readFileSync(path.join(GOC, 'server.js'), 'utf8');
-      ok('có module kho lưu', /module\.exports = \{ co, loi, docKho, ghiKho, xoaKho, veDia/.test(kho));
+      /* Canh TỪNG TÊN chứ không canh nguyên văn cả dòng export: thêm một hàm
+       * mới vào module là dòng đó đổi, và bài thử đỏ vì một lý do chẳng liên
+       * quan gì tới ô phát. Đã dính đúng thế khi thêm loiChao() 08/10/2026. */
+      ok('có module kho lưu',
+        ['co', 'loi', 'docKho', 'ghiKho', 'xoaKho', 'veDia']
+          .every((h) => new RegExp('module\\.exports = \\{[^}]*\\b' + h + '\\b').test(kho)));
       ok('dùng chung Base với Phân quyền và Thông báo',
         /HUB_TB_BASE \|\| 'JhZtbxv0gamk5ys3Fr0luHnsgwG'/.test(kho));
       /* Ô đính kèm CỘNG DỒN: không gỡ tệp cũ thì mỗi lần thay là Base phình

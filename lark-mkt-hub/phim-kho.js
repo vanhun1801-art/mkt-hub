@@ -27,6 +27,7 @@
  */
 const fs = require('fs');
 const path = require('path');
+const zlib = require('zlib');
 const baseLark = require('./base-lark');
 
 /* Cùng Base với bảng Phân quyền và Thông báo — phòng chỉ phải chia sẻ MỘT
@@ -196,6 +197,16 @@ async function dongChao() {
   return null;
 }
 
+/* Lỗi RIÊNG của lời chào, không dùng chung `loiCuoi` với ô phát.
+ *
+ * Dùng chung một lần rồi hỏng ngay: lời chào đọc không được là Cài đặt đóng
+ * dấu "ổ tạm" lên phần Video giới thiệu và báo "Không ghi lên Lark Base được"
+ * — trong khi video vẫn nằm yên trên Base, không sao cả. Một lỗi nhỏ ở góc này
+ * đi báo động nhầm cho góc kia. */
+let loiChaoCuoi = '';
+function loiChao() { return loiChaoCuoi; }
+const baoChao = (e) => { loiChaoCuoi = e && e.message ? e.message : String(e || ''); return null; };
+
 /** Đọc cấu hình lời chào từ Base. Hỏng thì trả mặc định, KHÔNG ném. */
 async function docChao() {
   if (!B) return { ...CHAO_MAC_DINH };
@@ -208,9 +219,13 @@ async function docChao() {
     const t = await B.taiTep(d.recordId, t0.token);
     const buf = (t && t.buf) || (Buffer.isBuffer(t) ? t : null);
     if (!buf || !buf.length) return { ...CHAO_MAC_DINH };
-    loiCuoi = '';
-    return chuanChao(JSON.parse(buf.toString('utf8')));
-  } catch (e) { bao(e); return { ...CHAO_MAC_DINH }; }
+    /* Nhận cả hai dạng: nén (bản đang ghi) và chữ trần (bản 08/10/2026 ghi
+     * trước khi đổi sang nén). Đọc được thì đọc, đừng bắt ai vào Cài đặt bấm
+     * lại cho mình. Nhận ra bằng hai byte đầu của gzip, 1f 8b. */
+    const raw = (buf[0] === 0x1f && buf[1] === 0x8b) ? zlib.gunzipSync(buf) : buf;
+    loiChaoCuoi = '';
+    return chuanChao(JSON.parse(raw.toString('utf8')));
+  } catch (e) { baoChao(e); return { ...CHAO_MAC_DINH }; }
 }
 
 /** Ghi cấu hình lời chào lên Base. */
@@ -232,15 +247,31 @@ async function ghiChao(o) {
     for (const t of d.tep) {
       try { await B.goTep(rec, COT_TEP, t.token); } catch (_) { /* lỡ mất thì thôi */ }
     }
+    /* KHÔNG để kiểu `application/json`, dù ruột đúng là JSON.
+     *
+     * taiTep() cố tình vứt mọi đáp có content-type JSON, vì Lark có đường trả
+     * THÂN LỖI dạng JSON kèm mã HTTP 200 — không nhận ra bằng content-type thì
+     * một thông báo lỗi sẽ được ghi xuống đĩa thành "video". Luật ấy đúng và
+     * phải giữ.
+     *
+     * Hệ quả là tệp cấu hình này tự biến mình thành thứ không đọc lại được:
+     * tải về đúng nội dung rồi bị ném đi vì tưởng là lỗi. Trên Cài đặt ngày
+     * 08/10/2026 nó hiện ra nguyên văn — hai đường tải trả về đúng chuỗi
+     * {"kieu":"phim","tuChao":true,"chu":""} mà vẫn bị tính là hỏng.
+     *
+     * Nên NÉN rồi mới cất. Đổi nhãn sang text/plain cũng qua được, nhưng nhãn
+     * là thứ Lark có thể tự đặt lại theo ruột tệp, mà máy này không chạy được
+     * chế độ api để kiểm (App Secret chỉ nằm trên Render). Nén thì ruột thành
+     * nhị phân: không bộ dò nào gọi nó là JSON được nữa, nhãn nào cũng xong. */
     await B.dinhTep(rec, COT_TEP, {
-      ten: 'chao.json', kieu: 'application/json',
-      buf: Buffer.from(JSON.stringify(sach), 'utf8'),
+      ten: 'chao.json.gz', kieu: 'application/gzip',
+      buf: zlib.gzipSync(Buffer.from(JSON.stringify(sach), 'utf8')),
     });
     try { await B.ghi(rec, { [COT_LUC]: new Date().toISOString() }); } catch (_) {}
-    loiCuoi = '';
+    loiChaoCuoi = '';
     return true;
-  } catch (e) { bao(e); return false; }
+  } catch (e) { baoChao(e); return false; }
 }
 
-module.exports = { co, loi, docKho, ghiKho, xoaKho, veDia, docChao, ghiChao, chuanChao,
+module.exports = { co, loi, loiChao, docKho, ghiKho, xoaKho, veDia, docChao, ghiChao, chuanChao,
   CHAO_MAC_DINH, BASE, TABLE, KHOA_LOGO, KHOA_CHAO };

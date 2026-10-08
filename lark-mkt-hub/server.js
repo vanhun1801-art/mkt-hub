@@ -1205,7 +1205,7 @@ async function api(req, res, u) {
        * quá 500 bị cắt ở phía máy chủ, mà Cài đặt phải thấy đúng thứ được lưu
        * chứ không phải thứ vừa gõ. */
       return ok(res, Object.assign(phimKho.chuanChao(b), {
-        len, khoLoi: len ? '' : (phimKho.loi() || 'Không ghi được lên Base'),
+        len, khoLoi: len ? '' : (phimKho.loiChao() || 'Không ghi được lên Base'),
       }));
     }
     return loi(res, 405, 'Chỉ GET hoặc POST');
