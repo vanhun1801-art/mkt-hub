@@ -356,12 +356,25 @@ function khacNhau(cu, moi) {
 
 /**
  * Ghi (tạo mới hoặc đè) theo cột Khoá.
- *   tenBang  : 'daily' | 'post' | 'live'
- *   rows     : mảng object đã có sẵn field ID làm khoá
- *   layKhoa  : row -> chuỗi khoá
+ *   tenBang    : 'daily' | 'post' | 'live'
+ *   rows       : mảng object đã có sẵn field ID làm khoá
+ *   layKhoa    : row -> chuỗi khoá
+ *   giuSoDuong : mã các cột KHÔNG cho đè số dương bằng 0 — xem dưới.
  * Trả { them, sua, boQua }.
+ *
+ * VÌ SAO CÓ `giuSoDuong`. Những cột đo đếm của nền tảng chỉ tăng, không tụt về
+ * 0. Nên 0 ở đó luôn nghĩa là LẦN NÀY KHÔNG ĐO ĐƯỢC, chứ không phải "thật sự
+ * bằng 0" — đúng nếp đã theo ở mọi chỗ khác trong app.
+ *
+ * Chuyện thật 08/10/2026: Base bị HAI máy cùng ghi — máy cá nhân và server
+ * chung. Server chung kẹt ở bản cũ chưa biết đọc cột `views` của Meta, lượt
+ * đồng bộ của nó ghi 0 đè lên số đúng mà máy kia vừa ghi. Năm phiên LIVE
+ * Facebook ngày 04 và 06/10 về 0 lượt xem, trong khi Meta vẫn trả đủ số.
+ *
+ * Chỉ chặn đúng số 0. Số tụt mà còn dương thì vẫn ghi — nền tảng có hiệu chỉnh
+ * giảm, và lúc đó con số mới mới là con số đúng.
  */
-async function ghiTheoKhoa(tenBang, rows, layKhoa) {
+async function ghiTheoKhoa(tenBang, rows, layKhoa, giuSoDuong) {
   if (!rows.length) return { them: 0, sua: 0, boQua: 0 };
   const bang = T[tenBang];
   const cu = await lark.listAll(bang.id);
@@ -377,6 +390,9 @@ async function ghiTheoKhoa(tenBang, rows, layKhoa) {
     const co = theoKhoa.get(khoa);
     if (!co) { them.push(row); continue; }
     const doi = khacNhau(co.c, row);
+    (giuSoDuong || []).forEach((fid) => {
+      if (fid in doi && !num(doi[fid]) && num(co.c[fid]) > 0) delete doi[fid];
+    });
     if (Object.keys(doi).length) sua[co.id] = doi;
   }
 

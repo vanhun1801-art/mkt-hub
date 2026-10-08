@@ -277,6 +277,15 @@ function dongPost(row, kenhId) {
   return o;
 }
 
+/* Cột đo đếm của phiên LIVE: chỉ tăng, không bao giờ tụt về 0. Lượt đồng bộ nào
+ * trả 0 ở đây là lượt đó KHÔNG ĐO ĐƯỢC, nên đừng để nó xoá số đã có. Xem chú
+ * thích `giuSoDuong` ở store.ghiTheoKhoa(). */
+const COT_LIVE_GIU = (() => {
+  const f = store.T.live.f;
+  return [f.views, f.luotPhat, f.xem3giay, f.xemRieng, f.peak,
+    f.comments, f.likes, f.shares, f.newFollows].filter(Boolean);
+})();
+
 function dongLive(row, kenhId) {
   const f = store.T.live.f;
   const o = {
@@ -432,7 +441,7 @@ async function dongBo({ from, to, chi = '', napLai = false, log = () => {} } = {
   }
   if (r.lives.length) {
     const ds = r.lives.map((l) => dongLive(l, mapKenh[l.extId]));
-    kq.lives = await store.ghiTheoKhoa('live', ds, (x) => x[store.T.live.f.key]);
+    kq.lives = await store.ghiTheoKhoa('live', ds, (x) => x[store.T.live.f.key], COT_LIVE_GIU);
   }
 
   const giay = Math.round((Date.now() - batDau) / 1000);
