@@ -164,8 +164,13 @@ group('Khung xương phải khớp GIAO DIỆN THẬT, không phải hình chung
   ok('đo thẳng, KHÔNG chờ requestAnimationFrame (tab nền không chạy rAF)',
     !/requestAnimationFrame/.test(APPJS.slice(APPJS.indexOf('function doCaoThe('),
       APPJS.indexOf('function doCaoThe(') + 700)));
-  ok('nhớ cả băng cảnh báo và khối Cần xử lý',
-    /canhBao: cao\(/.test(APPJS) && /cxl: cao\(/.test(APPJS));
+  /* Băng "bộ lọc đang che N việc gấp" đã bỏ 08/10/2026 (anh Hùng: "này phụ
+   * thuộc bộ lọc nên cũng không cần cảnh báo đâu"), nên trí nhớ hình dạng
+   * cũng thôi đo nó. Hai khối còn phải nhớ là "Tải nhân sự" và "Cần xử lý
+   * ngay" — chừa hụt chỗ của chúng là trang vẫn giật lúc số về. */
+  ok('nhớ cả khối Tải nhân sự và khối Cần xử lý',
+    /tai: cao\(/.test(APPJS) && /cxl: cao\(/.test(APPJS));
+  ok('KHÔNG còn đo băng cảnh báo đã bỏ', !/canhBao: cao\(/.test(APPJS));
   ok('chừa đúng chiều cao đã nhớ', /min-height:' \+ /.test(APPJS));
   ok('dựng khung theo trí nhớ NGAY khi mở trang',
     APPJS.includes('veHomeXuong();') && APPJS.includes('veRailXuong();'));

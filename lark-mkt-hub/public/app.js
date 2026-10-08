@@ -1883,11 +1883,10 @@ function doCaoThe(body, the) {
   };
   const ghi = () => luuHinh({
     the,
-    /* Hai khối còn lại cũng phải chừa chỗ, nếu không trang vẫn nhảy ~250px lúc
-     * số về: băng "bộ lọc đang che N việc gấp" (có hay không tuỳ bộ lọc) và
-     * khối "Cần xử lý ngay" (cao theo số dòng, mà dòng thì cao thấp khác nhau
-     * — nhớ chiều cao thật vẫn đúng hơn là nhân số dòng với chiều cao đoán). */
-    canhBao: cao(body.querySelector(':scope > .canh-bao')),
+    /* Hai khối còn lại cũng phải chừa chỗ, nếu không trang vẫn nhảy lúc số về:
+     * "Tải nhân sự" và "Cần xử lý ngay" (cao theo số dòng, mà dòng thì cao
+     * thấp khác nhau — nhớ chiều cao thật vẫn đúng hơn là nhân số dòng với
+     * chiều cao đoán). */
     tai: cao(body.querySelector(':scope > .khoi-tai.co-so')),
     cxl: cao(body.querySelector(':scope > .khoi:not(.khoi-tai)')),
   });
@@ -1953,12 +1952,14 @@ function veHomeXuong() {
   return true;
 }
 
-/** Hai khối dưới lưới base: băng cảnh báo (nếu lần trước có) và "Cần xử lý ngay". */
+/** Hai khối dưới lưới base: "Tải nhân sự" và "Cần xử lý ngay". */
 function xuongDuoi(H) {
   if (!window.KX) return '';
-  return (H.canhBao ? '<div class="canh-bao kx-vung" style="min-height:' + H.canhBao + 'px">' +
-      KX.chu('46%') + '</div>' : '') +
-    khoiTaiNhanSu() +
+  /* Băng "bộ lọc đang che…" đã bỏ (xem veHome), nên khung xương cũng thôi
+   * chừa chỗ cho nó — chừa chỗ cho một khối không bao giờ tới thì trang hụt
+   * xuống đúng chừng ấy pixel lúc số về, y như cái giật mà khung xương sinh
+   * ra để tránh. */
+  return khoiTaiNhanSu() +
     '<section class="khoi kx-vung"' + (H.cxl ? ' style="min-height:' + H.cxl + 'px"' : '') + '>' +
     '<div class="khoi-head">' +
     '<span class="kh-ic" style="background:#fdeaec;color:#dc2b3d">' + icon('gap') + '</span>' +
@@ -2060,23 +2061,15 @@ function veHome() {
   });
   html += '<div class="luoi-base">' + khoiBase + '</div>';
 
-  /* --- việc gấp bị bộ lọc thời gian che đi --- */
-  if (choSo && HCu && HCu.canhBao && window.KX) {
-    html += '<div class="canh-bao kx-vung" style="min-height:' + HCu.canhBao + 'px">' +
-      KX.chu('46%') + '</div>';
-  } else if (tq.ngoaiKhoang) {
-    const chiTiet = (tq.modules || []).filter((r) => r.ngoaiKhoangNhan)
-      .map((r) => {
-        const mm = S.modules.find((x) => x.id === r.id);
-        return (mm ? mm.ten + ': ' : '') + r.ngoaiKhoangNhan;
-      }).join(' · ');
-    html += '<div class="canh-bao">' +
-      '<b>Bộ lọc đang che ' + tq.ngoaiKhoang + ' việc gấp</b>' +
-      '<span class="grow">' + esc(chiTiet) + '</span>' +
-      // "Toàn bộ" không nằm trong bảy mốc của nhân sự -> chỉ quản lý có nút này
-      (S.quanLy ? '<button class="btn nho" data-ky="all">Xem toàn bộ</button>' : '') +
-      '</div>';
-  }
+  /* Ở ĐÂY TỪNG CÓ băng "Bộ lọc đang che N việc gấp".
+   *
+   * Anh Hùng bỏ 08/10/2026: "này phụ thuộc bộ lọc nên cũng không cần cảnh báo
+   * đâu". Đúng — người ta vừa tự tay chọn khoảng thời gian, thì việc nằm ngoài
+   * khoảng ấy bị che là chuyện họ đã biết. Băng này nói lại điều hiển nhiên,
+   * mà lại chiếm một dải vàng chắn ngang giữa trang.
+   *
+   * Máy chủ vẫn trả `tq.ngoaiKhoang` — thẻ từng base vẫn dùng tới, và đổi
+   * máy chủ chỉ vì một khối giao diện bỏ đi là đổi nhầm chỗ. */
 
   /* --- tải nhân sự: ai làm gì ngày nào ---
    *

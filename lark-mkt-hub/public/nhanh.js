@@ -273,7 +273,15 @@ document.addEventListener('click', (e) => {
     e.preventDefault();
     const id = ct.getAttribute('data-mochitiet');
     dongModal();
-    moViec(S.cuaSo.modId, id);
+    /* Đi qua ĐƯỜNG BĂM chứ không gọi thẳng moModule(): router đã biết đọc
+     * `#/m/<id>?rec=recXXX`, và đi lối này thì nút Lùi của trình duyệt quay
+     * về Tổng quan đúng như mọi chỗ khác.
+     *
+     * Trước 08/10/2026 dòng này gọi `moViec(...)` — một hàm KHÔNG TỒN TẠI.
+     * Bấm nút là ném ReferenceError, mà vì dongModal() đã chạy trước nên cửa
+     * sổ vẫn đóng gọn gàng: nhìn y như vừa bấm xong, chỉ là không mở gì cả.
+     * Lỗi lặng kiểu này không ai báo, người ta chỉ bấm lại lần nữa. */
+    location.hash = '#/m/' + encodeURIComponent(S.cuaSo.modId) + '?rec=' + encodeURIComponent(id);
     return;
   }
 });

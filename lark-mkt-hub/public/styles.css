@@ -522,10 +522,12 @@ button { font: inherit; }
   border-radius: var(--r); box-shadow: var(--bong); overflow: hidden;
   transition: box-shadow .15s, border-color .15s;
 }
-/* Nhấc nhẹ khi rê chuột — thẻ nào cũng bấm được (mở app, mở ô số), nên nó phải
-   có phản hồi. Chỉ đổi bóng và viền, không dịch chuyển: sáu thẻ nhảy lên nhảy
-   xuống khi lướt chuột qua là rối mắt. */
-.nhom-base:hover { box-shadow: var(--bong-cao); border-color: var(--vien-dam); }
+/* KHÔNG đổi gì khi rê vào cả khối. Anh Hùng 08/10/2026: "không cần shadow khi
+   rê chuột vào cả khối thế này, các thành phần bên trong tương tác là được".
+   Bản thân khối không bấm được — thứ bấm được là từng ô số bên trong và nút
+   "Mở app" ở đầu khối, và chúng đã có phản hồi riêng. Cả khối sáng lên chỉ
+   hứa một cú bấm không có thật, lại làm sáu khối thay nhau nhấp nháy khi lướt
+   chuột ngang trang. */
 .nhom-base > .khoi-head { border-bottom: 1px solid var(--vien); padding: 10px 13px; }
 /* Số cột CỐ ĐỊNH, không `auto-fit`: auto-fit làm hàng cuối thiếu ô thì mấy ô
    còn lại giãn ra chiếm chỗ, nên cùng một base mà ô hàng trên nhỏ, ô hàng dưới
@@ -1274,8 +1276,24 @@ code { background: var(--trang-2); border: 1px solid var(--vien-mem); border-rad
 .tin-mot:hover { background: var(--trang-2); }
 .tin-mot:last-child { border-bottom: 0; }
 /* Đã đọc thì nhạt đi, KHÔNG giấu: bảng tin là chỗ tra lại, khác popup chặn
-   màn hình vốn đọc xong là biến mất. */
-.tin-mot.da-doc { opacity: .62; }
+   màn hình vốn đọc xong là biến mất.
+
+   Nhưng nhạt bằng `opacity` là nhạt CẢ DÒNG: tiêu đề, ngày, ảnh, thẻ phân
+   loại cùng mờ đi một lượt. Anh Hùng 08/10/2026: "khu vực này khi đã đọc rồi
+   khá chìm, anh nghĩ cần nổi lên sáng tí".
+
+   Nên bỏ hẳn opacity và phân biệt bằng NÉT CHỮ, đúng lối hộp thư: chưa đọc
+   thì tiêu đề đậm, đọc rồi thì về nét thường. Màu giữ nguyên full.
+
+   Đã thử cách hạ màu tiêu đề xuống mực phụ trước, rồi bỏ: đo dưới lớp iOS
+   (nền rgb(28,28,30)) nó ra 6,55:1, trong khi chính opacity .62 cũ cho 7,25:1
+   — tức là "sửa cho sáng lên" mà lại làm tiêu đề tối đi. Cách này cho tiêu đề
+   17,01:1 ở cả hai trạng thái, và ảnh, ngày, thẻ phân loại cũng thôi bị mờ
+   theo cả dòng.
+
+   Nhãn "mới" vẫn là dấu hiệu chính; nét chữ chỉ là lớp nhắc thứ hai, nên không
+   cần phải mờ tới mức kéo cả dòng chìm xuống. */
+.tin-mot.da-doc .tin-chu b { font-weight: 500; }
 .tin-anh {
   width: 46px; height: 46px; object-fit: cover; border-radius: 8px;
   background: var(--trang-2); display: block;
