@@ -16,6 +16,9 @@
   const esc = (s) => String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+  /* Ngày cho người đọc: 2026-10-01 → 01/10/2026 (chuỗi khác dạng thì giữ nguyên). */
+  const ngayVN = (s) => (/^\d{4}-\d{2}-\d{2}$/.test(String(s || ''))
+    ? String(s).split('-').reverse().join('/') : String(s == null ? '' : s));
 
   const LOP = {
     Facebook: 'fb', TikTok: 'tt', Instagram: 'ig', 'Zalo OA': 'za', 'Zalo Video': 'zv',
@@ -308,8 +311,8 @@
         (d.nenCoReach || []).length ? 'chỉ ' + d.nenCoReach.join(', ') + ' có tiếp cận' : '')
       + theKpi('Follower hiện có', gon(t.followers), d.doi.followers,
         t.soKenhThieuFollower
-          ? 'chưa gồm ' + t.soKenhThieuFollower + ' kênh chưa có mốc trước ' + d.den
-          : 'chốt gần nhất tính đến ' + d.den)
+          ? 'chưa gồm ' + t.soKenhThieuFollower + ' kênh chưa có mốc trước ' + ngayVN(d.den)
+          : 'chốt gần nhất tính đến ' + ngayVN(d.den))
       + theKpi('Follower tăng ròng', (t.followNet >= 0 ? '+' : '') + n0(t.followNet), d.doi.followNet)
       + theKpi('Tương tác', gon(t.engagement), d.doi.engagement)
       + theKpi('Tỷ lệ tương tác', pct(t.tyLeTuongTac), d.doi.tyLeTuongTac)
@@ -335,7 +338,7 @@
 
       + '<div class="grid g-2-1" style="margin-top:14px">'
       + '<div class="card"><div class="card-head"><h3>Lượt xem &amp; tiếp cận theo ngày</h3>'
-      + '<span class="sub">' + esc(d.tu) + ' → ' + esc(d.den) + '</span></div>'
+      + '<span class="sub">' + esc(ngayVN(d.tu)) + ' → ' + esc(ngayVN(d.den)) + '</span></div>'
       + '<div class="card-body"><div class="chart" id="chNgay"></div></div></div>'
       + '<div class="card"><div class="card-head"><h3>Tỷ trọng lượt xem</h3></div>'
       + '<div class="card-body" style="display:grid;place-items:center"><div id="chDonut"></div></div></div>'
@@ -387,7 +390,7 @@
     const d = S.du;
     $('#view').innerHTML = veChiBaoPhamVi()
       + '<div class="card"><div class="card-head"><h3>Số liệu theo kênh</h3>'
-      + '<span class="sub">' + esc(d.tu) + ' → ' + esc(d.den) + '</span>'
+      + '<span class="sub">' + esc(ngayVN(d.tu)) + ' → ' + esc(ngayVN(d.den)) + '</span>'
       + (S.quanLy ? '<button class="btn small" id="pqMo" style="margin-left:auto">'
         + 'Phân quyền xem kênh</button>' : '')
       + '</div>'
@@ -2189,7 +2192,7 @@
         : '')
 
       + '<div class="card" style="margin-top:14px"><div class="card-head"><h3>Theo nhãn</h3>'
-      + '<span class="sub">' + esc(S.from) + ' → ' + esc(S.to) + '</span>'
+      + '<span class="sub">' + esc(ngayVN(S.from)) + ' → ' + esc(ngayVN(S.to)) + '</span>'
       + (S.quanLy ? '<button class="btn small" id="nlThem" style="margin-left:auto">'
         + '＋ Thêm nhãn</button>' : '')
       + '</div>'

@@ -307,3 +307,10 @@ main { padding: 14px 18px 40px; }
 .td-nk > summary { cursor: pointer; color: var(--chu-2); font-size: 12.5px; }
 .td-nk[open] > summary { margin-bottom: 6px; }
 .tien-do .td-dau { margin-bottom: 4px; }
+@media (max-width: 640px) {
+  /* Bảng nhiều cột số: cột tên bị ép còn ~50px, mỗi chữ một dòng (soát 08/10/2026).
+     Giữ cột tên tối thiểu 96px, thu đệm ô; thừa thì bảng lướt ngang trong khung. */
+  .bang th, .bang td { padding-left: 5px; padding-right: 5px; }
+  .bang td:first-child { min-width: 96px; }
+  :has(> table.bang) { overflow-x: auto; }
+}

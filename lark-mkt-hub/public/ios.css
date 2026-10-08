@@ -4422,3 +4422,55 @@ html[data-skin="ios"]:not(#_):not(#__)[data-theme="toi"] body { background-color
   html[data-skin="ios"]:not(#_):not(#__):not([data-theme="sang"]) body { background-color: #0b0b0e !important; }
 }
 html[data-skin="ios"] :is(.ri-dot.chay, .ri-dot.ngoai) { display: none !important; }
+
+/* CHỮ ĐỎ / CAM DÙNG MÀU CHỮ, KHÔNG DÙNG MÀU TÔ (08/10/2026 — soát điện thoại).
+   --do / --vang của app trỏ về --ios-do / --ios-cam là màu TÔ: làm chữ thì cam
+   chỉ 1,98:1 (nhãn tin "Quan trọng"), đỏ 2,66:1 trên nền tối (số hụt của KPI).
+   - KPI, Kho media: --do gần như chỉ dùng làm chữ (số hụt, "Mới") → trỏ màu chữ.
+   - Nhãn mức tin ở trang chủ, băng lỗi kênh của Quảng cáo, viên giảm giá Sản phẩm. */
+html[data-skin="ios"]:not(#_):not(#__):is([data-app="kpi"], [data-app="kho-media"]) { --do: var(--ios-do-chu); }
+html[data-skin="ios"]:not(#_) .tin-muc.do { color: var(--ios-do-chu); }
+html[data-skin="ios"]:not(#_) .tin-muc.vang { color: var(--ios-cam-chu); }
+html[data-skin="ios"][data-app="quang-cao"] :is(.bang-loi b, .src .loi, span.loi) { color: var(--ios-do-chu); }
+html[data-skin="ios"][data-app="san-pham"] .chipGiam { color: var(--ios-do-chu); background: transparent; }
+
+/* ĐIỆN THOẠI · soát 08/10/2026 (lượt 2) */
+@media (max-width: 640px) {
+  /* Trang chủ: viên tên app bên phải dòng việc ép chữ thành cột hẹp ("Vượt ngân
+     sách tháng: …" 4 dòng). Viên xuống hàng dưới, thẳng với chữ. */
+  html[data-skin="ios"]:not([data-app]) .viec-dong { flex-wrap: wrap; }
+  html[data-skin="ios"]:not([data-app]) .viec-dong .noi { flex: 1 1 calc(100% - 30px); }
+  html[data-skin="ios"]:not([data-app]) .viec-dong .mod { margin-left: 18px; }
+  /* Quảng cáo: viên nguồn số ("Trực tiếp · Facebook, TikTok · Google Ads lỗi")
+     dài hơn chỗ trống, chữ canh giữa nên bị cắt mất CẢ HAI đầu. Canh trái, cắt
+     đuôi bằng "…" — vẫn đọc được chữ đầu. */
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="quang-cao"] #srcChip {
+    display: block !important; flex: 1 1 auto; min-width: 0; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; text-align: left;
+  }
+}
+html[data-skin="ios"][data-app="quang-cao"] .bang-loi .bl-ly summary { font-family: var(--ios-font, system-ui, sans-serif); }
+/* Quảng cáo: "Xem chi tiết →" trong chân thẻ số bị ép thành cột một chữ mỗi dòng
+   (điện thoại, cả máy tính khi thẻ hẹp). Nút giữ một dòng, thiếu chỗ thì xuống hàng. */
+html[data-skin="ios"][data-app="quang-cao"] .kpi .k-foot { flex-wrap: wrap; }
+html[data-skin="ios"][data-app="quang-cao"] .kpi .k-foot > .link-btn { white-space: nowrap; flex: none; margin-left: 0 !important; }
+/* Lịch tác nghiệp: thanh đầu dính dùng --mac-nen, mà trên điện thoại biến này
+   không có bản tối → dải tab thành kính SÁNG giữa nền tối khi cuộn (soát 08/10). */
+html[data-skin="ios"]:not(#_):not(#__):not(#___)[data-app="lich-tac-nghiep"][data-theme="toi"] body > header.topbar {
+  background: color-mix(in srgb, var(--ios-nen) 78%, transparent) !important;
+}
+@media (prefers-color-scheme: dark) {
+  html[data-skin="ios"]:not(#_):not(#__):not(#___)[data-app="lich-tac-nghiep"]:not([data-theme="sang"]) body > header.topbar {
+    background: color-mix(in srgb, var(--ios-nen) 78%, transparent) !important;
+  }
+}
+/* --mac-nen (nền đặc của thanh dính, tiêu đề làn Kanban…) chỉ được khai trong
+   khối máy tính → điện thoại rơi về #f5f5f7 kể cả ở nền tối. Khai cho điện thoại,
+   khớp nền phẳng của trang (sáng #eef0f5 · tối #0b0b0e). */
+@media (max-width: 640px) {
+  html[data-skin="ios"]:not(#_) { --mac-nen: #eef0f5; }
+  html[data-skin="ios"]:not(#_)[data-theme="toi"] { --mac-nen: #0b0b0e; }
+}
+@media (max-width: 640px) and (prefers-color-scheme: dark) {
+  html[data-skin="ios"]:not(#_):not([data-theme="sang"]) { --mac-nen: #0b0b0e; }
+}

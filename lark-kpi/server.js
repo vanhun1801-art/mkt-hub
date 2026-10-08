@@ -293,7 +293,7 @@ async function api(req, res, u) {
     return ok(res, {
       the: [
         { chinh: true, nhan: 'Đạt mục tiêu', so: tb, dinhDang: 'pt',
-          ghi: 'tháng ' + th + (duDu.length ? ' · ' + duDu.length + ' người đã chấm đủ' : '') },
+          ghi: 'tháng ' + thangDoc(th) + (duDu.length ? ' · ' + duDu.length + ' người đã chấm đủ' : '') },
         { nhan: 'Chưa chấm xong', so: thieu.length, dinhDang: 'so',
           muc: thieu.length ? 'vua' : 'ok',
           ghi: thieu.length ? thieu.slice(0, 3).map((n) => n.ten).join(', ') : '' },
