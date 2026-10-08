@@ -361,10 +361,23 @@ async function docSocial(app, tu, den, pv) {
       { nhan: 'Tương tác mỗi bài', so: so(t.tuongTacMoiBai), dinhDang: 'so' },
       { nhan: 'Lead / 1.000 lượt xem', so: so(t.leadTrenNghinXem), dinhDang: 'so2' },
       ...oToi,
-    ],
+    /* TÁCH HAI NHÓM khi người xem có phạm vi riêng.
+     *
+     * Trước đây hai mươi tám ô nằm chung một lưới, mà chúng đến từ hai nguồn
+     * khác hẳn nhau: nhóm kênh lấy từ bảng số liệu theo ngày (gồm cả bài cũ),
+     * nhóm "tôi đăng" cộng từ từng bài đăng trong kỳ. Trộn chung thì người đọc
+     * tự trừ số này cho số kia — mà trừ là sai.
+     *
+     * Kết quả của chính mình đặt TRƯỚC: người mở phiếu của mình muốn biết mình
+     * làm được gì, số của cả kênh chỉ là bối cảnh. */
+    ].map((o) => (pv && pv.tenDang
+      ? { ...o, nhom: /tôi đăng/.test(o.nhan) ? 'toi' : 'kenh' }
+      : o)),
     /* Biểu đồ theo ngày KHÔNG lọc được theo kênh: app Social chỉ trả tổng mỗi
      * ngày, không tách kênh. Người xem phạm vi hẹp thì bỏ hẳn biểu đồ này, chứ
      * vẽ đường của cả phòng dưới các ô đã lọc là nói dối bằng hình. */
+    /* Số kênh người này phụ trách — tiêu đề nhóm cần để ghi "· 6 kênh". */
+    soKenhCuaToi: locKenh ? dsKenh.length : 0,
     chuoi: locKenh ? null : {
       nhan: 'Lượt xem & tương tác theo ngày',
       diem: (d.ngay || []).map((x) => ({ x: x.date, views: so(x.views), engagement: so(x.engagement) })),

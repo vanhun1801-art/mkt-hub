@@ -852,6 +852,60 @@ function bcTepMoi(m) {
   return t;
 }
 
+/* Tên và lời dẫn của từng nhóm ô. Khai ở một chỗ để tiêu đề và câu giải thích
+ * không bao giờ lệch nhau. */
+const BC_NHOM = {
+  toi: {
+    ten: 'Kết quả của tôi',
+    mo: 'cộng từ từng bài có tên tôi ở cột Người đăng',
+  },
+  kenh: {
+    ten: 'Số chung của các kênh tôi phụ trách',
+    mo: 'của cả kênh, gồm bài mọi người đăng và cả bài đăng từ trước',
+  },
+};
+
+/**
+ * Vẽ dãy ô, tách nhóm nếu các ô có khai `nhom`.
+ *
+ * Vì sao phải tách: nhóm "của tôi" và nhóm "cả kênh" đến từ hai nguồn khác
+ * hẳn nhau — một bên cộng từng bài đăng trong kỳ, một bên lấy bảng số liệu
+ * theo ngày (gồm cả bài cũ). Để chung một lưới thì người đọc tự trừ số này cho
+ * số kia, mà trừ là sai hoàn toàn.
+ */
+function bcLuoiO(t, ds, b) {
+  const o = ds || [];
+  if (!o.length) return;
+  if (!o.some((x) => x.nhom)) {
+    const luoi = el('div', 'o-luoi');
+    o.forEach((x) => luoi.appendChild(bcO(x)));
+    t.appendChild(luoi);
+    return;
+  }
+  /* Thứ tự cố định: của mình trước, cả kênh sau. Người mở phiếu của mình muốn
+   * biết mình làm được gì; số của kênh chỉ là bối cảnh. */
+  ['toi', 'kenh'].forEach((k) => {
+    const ds2 = o.filter((x) => x.nhom === k);
+    if (!ds2.length) return;
+    const n = BC_NHOM[k] || { ten: k, mo: '' };
+    const soKenh = (b && b.soKenhCuaToi) || 0;
+    t.appendChild(el('div', 'nhom-o',
+      '<h4>' + esc(n.ten) + '</h4><span>' + esc(n.mo)
+      + (k === 'kenh' && soKenh ? ' · ' + soKenh + ' kênh' : '') + '</span>'));
+    const luoi = el('div', 'o-luoi');
+    ds2.forEach((x) => luoi.appendChild(bcO(x)));
+    t.appendChild(luoi);
+  });
+  /* Ô không thuộc nhóm nào thì vẫn phải hiện — bỏ sót một ô còn tệ hơn xếp nó
+   * vào nhầm chỗ. */
+  const con = o.filter((x) => !x.nhom);
+  if (con.length) {
+    const luoi = el('div', 'o-luoi');
+    con.forEach((x) => luoi.appendChild(bcO(x)));
+    t.appendChild(luoi);
+  }
+}
+
 function bcKhoi(b) {
   const t = el('div', 'the');
   t.appendChild(el('header', '',
@@ -878,9 +932,7 @@ function bcKhoi(b) {
       + '</ul></div></div>'));
   }
 
-  const luoi = el('div', 'o-luoi');
-  (b.o || []).forEach((o) => luoi.appendChild(bcO(o)));
-  t.appendChild(luoi);
+  bcLuoiO(t, b.o, b);
 
   /* Biểu đồ so sánh kỳ trước — đặt ngay dưới dãy ô, trước biểu đồ theo ngày:
    * "tháng này khác tháng trước chỗ nào" là câu hỏi đến trước "diễn biến trong
