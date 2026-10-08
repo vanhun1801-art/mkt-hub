@@ -980,12 +980,16 @@ function bcLuoiO(t, ds, b) {
     t.appendChild(luoi);
     return;
   }
-  /* Thứ tự cố định: của mình trước, cả kênh sau. Người mở phiếu của mình muốn
-   * biết mình làm được gì; số của kênh chỉ là bối cảnh. */
-  ['toi', 'kenh'].forEach((k) => {
+  /* THỨ TỰ NHÓM LẤY THEO THỨ TỰ Ô ĐẦU TIÊN CỦA NHÓM, không cắm cứng danh sách.
+   * Bản trước chỉ biết hai nhóm 'toi' và 'kenh' của khối Social, nên khối nào
+   * khai nhóm khác là nhóm đó rơi hết xuống phần "không thuộc nhóm nào" ở cuối.
+   * Khối tự khai tên nhóm trong `b.nhomO`; không khai thì tra BC_NHOM. */
+  const thuTu = [];
+  o.forEach((x) => { if (x.nhom && !thuTu.includes(x.nhom)) thuTu.push(x.nhom); });
+  thuTu.forEach((k) => {
     const ds2 = o.filter((x) => x.nhom === k);
     if (!ds2.length) return;
-    const n = BC_NHOM[k] || { ten: k, mo: '' };
+    const n = ((b && b.nhomO) || {})[k] || BC_NHOM[k] || { ten: k, mo: '' };
     const soKenh = (b && b.soKenhCuaToi) || 0;
     t.appendChild(el('div', 'nhom-o',
       '<h4>' + esc(n.ten) + '</h4><span>' + esc(n.mo)

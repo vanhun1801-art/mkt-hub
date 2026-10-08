@@ -604,6 +604,21 @@ async function docLiveRieng(app, tu, den, pv) {
       so: (phienFb + phienTt) ? Math.round((phutFb + phutTt) / (phienFb + phienTt)) : 0,
       dinhDang: 'so' },
   );
+
+  /* XẾP Ô THÀNH BỐN NHÓM. Mười bốn ô dàn một hàng ngang bằng nhau thì không gì
+   * nói ô nào là kết quả, ô nào là chi tiết — anh Hùng gọi đúng tên bệnh ngày
+   * 08/10/2026: "khó coi do phân cấp thông tin". Chia nhóm là cách rẻ nhất để
+   * nói ra thứ bậc mà không phải bỏ số nào. */
+  const NHOM = {
+    'Số phiên LIVE': 'quyMo', 'Lượt xem': 'quyMo', 'Giờ lên sóng': 'quyMo',
+    'Người xem': 'nguoiXem', 'Đỉnh cùng lúc': 'nguoiXem',
+    'Xem trung bình một phiên': 'nguoiXem', 'Phút lên sóng mỗi phiên': 'nguoiXem',
+    'Bình luận': 'tuongTac', 'Thích': 'tuongTac', 'Chia sẻ': 'tuongTac',
+    'Follow mới': 'tuongTac',
+    'Tin nhắn (Facebook)': 'raDon', 'Lead (Facebook)': 'raDon', 'Đơn chốt (Facebook)': 'raDon',
+  };
+  const oNhom = o.map((x) => ({ ...x, nhom: NHOM[x.nhan] || 'khac' }));
+
   /* PHIÊN FACEBOOK GỌI ĐÚNG TÊN. Bản trước chỉ có ngày và kênh, nên đọc xong
    * không biết phiên nào là buổi nào — mà tên phiên chính là thứ người dẫn
    * live nhớ. Cột "Địa điểm" ghép sang Lịch tác nghiệp đã duyệt, xem
@@ -620,7 +635,15 @@ async function docLiveRieng(app, tu, den, pv) {
 
   return {
     luuY,
-    o,
+    o: oNhom,
+    nhomO: {
+      quyMo: { ten: 'Quy mô', mo: 'Facebook và TikTok cộng lại' },
+      nguoiXem: { ten: 'Người xem', mo: 'bao nhiêu người, xem bao lâu' },
+      tuongTac: { ten: 'Tương tác', mo: 'người xem làm gì trong phiên' },
+      raDon: { ten: 'Ra đơn — chỉ Facebook',
+        mo: 'gắn từ Tourwell theo khung giờ phiên, nên là phép ĐOÁN' },
+      khac: { ten: 'Khác', mo: '' },
+    },
     /* Hai mảng này KHÔNG phải để hiện ra — ganDiaDiemLive() dùng chúng để điền
      * cột Địa điểm, vì khối LIVE và khối Lịch tác nghiệp đọc hai app khác nhau
      * và chỉ gặp nhau sau khi cả hai đã xong. */
