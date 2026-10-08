@@ -326,15 +326,22 @@ async function docSocial(app, tu, den, pv) {
       { nhan: 'Lượt xem', so: so(t.views), dinhDang: 'so', lech: l.views, chinh: true, nen: n('views') },
       { nhan: 'Lượt hiển thị', so: so(t.impressions), dinhDang: 'so', lech: l.impressions, nen: n('impressions') },
       { nhan: 'Lượt tiếp cận', so: so(t.reach), dinhDang: 'so', lech: l.reach, nen: n('reach') },
-      { nhan: locKenh ? 'Follower các kênh của tôi' : 'Follower toàn phòng',
-        so: so(t.followers), dinhDang: 'so', chinh: true,
-        ghi: 'chốt mới nhất · cộng đủ ' + dsKenh.length + ' kênh', nen: n('followers') },
+      /* TĂNG RÒNG đứng trước và là ô CHÍNH, không phải ô tổng follower.
+       *
+       * Tổng follower là ảnh chụp TRỌN ĐỜI — đổi khoảng đo từ một tuần sang cả
+       * tháng thì nó vẫn y nguyên 1,10 triệu. Để nó làm ô chính trong một báo
+       * cáo theo kỳ là mời người đọc nhìn vào con số duy nhất không nói gì về
+       * kỳ đó. Thứ đo được công của kỳ là tăng ròng, giảm, và tiếp cận. */
+      { nhan: 'Follower tăng ròng', so: so(t.followNet), dinhDang: 'so', chinh: true,
+        lech: l.followNet, ghi: ghiFollow, nen: n('followNet') },
       { nhan: 'Follower tăng', so: so(t.followUp), dinhDang: 'so', lech: l.followUp,
         ghi: ghiFollow, nen: n('followUp') },
       { nhan: 'Follower giảm', so: so(t.followDown), dinhDang: 'so', lech: l.followDown,
         dao: true, ghi: ghiFollow, nen: n('followDown') },
-      { nhan: 'Follower tăng ròng', so: so(t.followNet), dinhDang: 'so', lech: l.followNet,
-        ghi: ghiFollow, nen: n('followNet') },
+      { nhan: locKenh ? 'Tổng follower các kênh của tôi' : 'Tổng follower toàn phòng',
+        so: so(t.followers), dinhDang: 'so',
+        ghi: 'ảnh chụp trọn đời, KHÔNG đổi theo khoảng đo · cộng đủ '
+          + dsKenh.length + ' kênh', nen: n('followers') },
       { nhan: 'Tương tác', so: so(t.engagement), dinhDang: 'so', lech: l.engagement, nen: n('engagement') },
       { nhan: 'Thích', so: so(t.likes), dinhDang: 'so', lech: l.likes, nen: n('likes') },
       { nhan: 'Bình luận', so: so(t.comments), dinhDang: 'so', lech: l.comments, nen: n('comments') },
