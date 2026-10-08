@@ -75,4 +75,21 @@ function ganLoc(chonSan, hanMuc) {
   return chonSan.filter((x) => cho.has(x));
 }
 
-module.exports = { tachEmail, xemDuoc, kenhCuaNguoi, gioiHan, ganLoc };
+/**
+ * Bộ lọc dòng số liệu theo hạn mức kênh. Trả về một hàm nhận dòng, trả true/false.
+ *
+ * SO BẰNG `channelExtId`, KHÔNG BẰNG record id. `gioiHan()` ở trên trả về mảng
+ * CHUỖI extId; ba chỗ trong server.js từng viết `new Set(han.map((c) => c.id))`
+ * lên mảng chuỗi đó, ra `Set([undefined])`, và mọi dòng đều rớt. Trưởng phòng
+ * không bị giới hạn nên không thấy gì bất thường — tab LIVE của nhân sự trắng
+ * trơn suốt hai tuần, tới 08/10/2026 anh Hùng ngồi vào máy Khánh mới lộ.
+ *
+ * Gom vào đây để chỉ còn MỘT chỗ biết cách so, thay vì ba chỗ tự viết lại.
+ */
+function boLocKenh(han) {
+  if (!han) return () => true;
+  const cho = new Set(han);
+  return (x) => cho.has(x && x.channelExtId);
+}
+
+module.exports = { tachEmail, xemDuoc, kenhCuaNguoi, gioiHan, ganLoc, boLocKenh };

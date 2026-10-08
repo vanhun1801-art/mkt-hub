@@ -226,4 +226,56 @@ t('máy chủ XOÁ HẲN con số tiền, không chỉ giấu cột', () => {
   assert.ok(ui.includes("...(S.xemTien ? [{ t: 'Quà (USD)'"), 'cột Quà (USD) có điều kiện');
 });
 
+console.log('\nphạm vi — lọc dòng số liệu theo kênh');
+
+/* Dòng số liệu thật mang CẢ HAI khoá: `channelIds` là record id của bảng Kênh,
+   `channelExtId` là id của nền tảng. gioiHan() trả về extId, nên phải so với
+   channelExtId. Dựng cả hai khoá trong dữ liệu thử để bài test bắt được đúng
+   lỗi so nhầm khoá. */
+const dongSo = (extId) => ({ channelExtId: extId, channelIds: ['recXXX'], luotXem: 1 });
+
+t('lọc theo extId, không theo record id', () => {
+  const loc = pv.boLocKenh(['ext-a', 'ext-b']);
+  assert.strictEqual(loc(dongSo('ext-a')), true);
+  assert.strictEqual(loc(dongSo('ext-c')), false);
+});
+
+t('không giới hạn thì cho qua hết', () => {
+  const loc = pv.boLocKenh(null);
+  assert.strictEqual(loc(dongSo('bat-ky')), true);
+  assert.strictEqual(loc({}), true);
+});
+
+t('hạn mức RỖNG nghĩa là không kênh nào, không phải mọi kênh', () => {
+  /* Người chưa được khai ở kênh nào thì thấy trắng — đúng. Nhầm chỗ này thành
+     "rỗng = không lọc" là mở sạch số của cả phòng cho người ngoài. */
+  const loc = pv.boLocKenh([]);
+  assert.strictEqual(loc(dongSo('ext-a')), false);
+});
+
+t('dòng không gắn kênh thì không lọt qua hạn mức', () => {
+  const loc = pv.boLocKenh(['ext-a']);
+  assert.strictEqual(loc({ luotXem: 9 }), false);
+  assert.strictEqual(loc(null), false);
+});
+
+t('đi hết một vòng: Khánh được khai kênh nào thì thấy đúng kênh ấy', () => {
+  /* Lỗi thật 08/10/2026: tab LIVE trên máy Khánh trắng trơn trong khi máy
+     trưởng phòng đủ số. Nguyên nhân là server gọi `han.map((c) => c.id)` lên
+     mảng CHUỖI extId, ra Set([undefined]) nên mọi dòng đều rớt. Bài test này
+     đi đúng đường đó: gioiHan() → boLocKenh() → lọc dòng. */
+  const channels = [
+    { id: 'rec1', extId: 'ext-tt1', name: 'Rooty Trip', viewers: 'khanh@x.com, sep@x.com' },
+    { id: 'rec2', extId: 'ext-tt2', name: 'Cuộc sống', viewers: 'khanh@x.com, sep@x.com' },
+    { id: 'rec3', extId: 'ext-tt3', name: 'Vi Vu', viewers: 'sep@x.com' },
+  ];
+  const han = pv.gioiHan(channels, { email: 'khanh@x.com' }, false);
+  assert.deepStrictEqual(han, ['ext-tt1', 'ext-tt2'], 'gioiHan trả về extId dạng chuỗi');
+
+  const ds = [dongSo('ext-tt1'), dongSo('ext-tt2'), dongSo('ext-tt3')];
+  assert.strictEqual(ds.filter(pv.boLocKenh(han)).length, 2, 'Khánh thấy hai kênh');
+  assert.strictEqual(ds.filter(pv.boLocKenh(pv.gioiHan(channels, { email: 'sep@x.com' }, true)))
+    .length, 3, 'trưởng phòng thấy cả ba');
+});
+
 console.log('\n' + so + ' phép thử đạt' + (process.exitCode ? ' — CÓ LỖI' : '') + '\n');

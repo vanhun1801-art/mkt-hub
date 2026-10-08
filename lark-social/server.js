@@ -642,8 +642,8 @@ async function api(req, res, u) {
      * CHỌN trên thanh lọc, còn cái này là phần họ được phép thấy. Đây là chốt
      * phân quyền, phải lấy đúng cái sau. */
     const hanLive = await hanMucKenh(req);
-    const hanId = hanLive ? new Set(hanLive.map((c) => c.id)) : null;
-    const hopKenh = (x) => !hanId || (x.channelIds || []).some((id) => hanId.has(id));
+    /* So bằng extId — xem phamVi.boLocKenh(). */
+    const hopKenh = phamVi.boLocKenh(hanLive);
     const liveFb = (d.lives || []).filter((l) => trongKhoang(String(l.start || '').slice(0, 10)) && hopKenh(l));
     const liveTt = (d.liveNgay || []).filter((l) => trongKhoang(l.date) && hopKenh(l));
     const liveNhan = nhan.gopLiveTheoNhan(liveFb, liveTt, ds);
@@ -948,7 +948,9 @@ async function api(req, res, u) {
     const d = await store.tai();
     const pset = t.platforms.length ? new Set(t.platforms) : null;
     const han = await hanMucKenh(req);
-    const choPhep = han ? new Set(han.map((c) => c.id)) : null;
+    /* Lọc theo kênh được phép — xem phamVi.boLocKenh() về chuyện so nhầm
+     * khoá từng làm tab LIVE của nhân sự trắng trơn. */
+    const duocXemKenh = phamVi.boLocKenh(han);
     /* Người không được xem tiền thì XOÁ HẲN con số khỏi phản hồi, không chỉ
      * giấu cột. Giấu ở giao diện thì mở tab Network của trình duyệt là đọc
      * được — mà thứ phải giấu ở đây là doanh thu. */
@@ -967,9 +969,12 @@ async function api(req, res, u) {
     return ok(res, {
       xemTien: tien,
       dsNhan: nhanChon,
+      /* Phiên LIVE trước đây KHÔNG lọc theo kênh — chỉ bảng theo ngày mới lọc.
+       * Hai bảng cùng là số LIVE của cùng những kênh ấy, không có lý do một
+       * bảng siết còn một bảng mở. */
       live: d.lives
         .filter((l) => (!l.date || (l.date >= t.from && l.date <= t.to))
-          && (!pset || pset.has(l.platform)))
+          && (!pset || pset.has(l.platform)) && duocXemKenh(l))
         .sort((a, b) => String(b.start).localeCompare(String(a.start)))
         .map(ganNhan)
         .map(loc),
@@ -977,8 +982,7 @@ async function api(req, res, u) {
        * phải trả riêng; gộp vào mảng `live` là lẫn phiên với ngày. */
       liveNgay: d.liveNgay
         .filter((l) => l.date >= t.from && l.date <= t.to
-          && (!pset || pset.has(l.platform))
-          && (!choPhep || (l.channelIds || []).some((id) => choPhep.has(id))))
+          && (!pset || pset.has(l.platform)) && duocXemKenh(l))
         .sort((a, b) => String(b.date).localeCompare(String(a.date)))
         .map(ganNhanNgay)
         .map(loc),
@@ -1291,11 +1295,11 @@ async function api(req, res, u) {
     const t = thamSo(u, await hanMucKenh(req));
     const d = await store.tai();
     const han = await hanMucKenh(req);
-    const hanId = han ? new Set(han.map((c) => c.id)) : null;
+    const trongPhamVi = phamVi.boLocKenh(han);
     const trong = (x) => (!t.from || !x.date || x.date >= t.from)
       && (!t.to || !x.date || x.date <= t.to);
     const ds = (d.posts || []).filter((x) => !x.poster && trong(x)
-      && (!hanId || (x.channelIds || []).some((i) => hanId.has(i))));
+      && trongPhamVi(x));
     return ok(res, {
       nguoi: nguoiDang.NGUOI_DANG,
       /* Sắp theo LƯỢT XEM giảm dần: bài nhiều người xem mà không ai nhận là
