@@ -863,12 +863,12 @@
      * Gửi một lượt tệp. `ghiThat=false` là XEM TRƯỚC — máy chủ đọc tệp rồi trả
      * khoảng ngày và số tổng, chưa ghi gì.
      */
-    async function guiLuot(fs, ghiThat, noi) {
+    async function guiLuot(fs, ghiThat, noi, extId) {
       const kq = [];
       for (let i = 0; i < fs.length; i += 1) {
         const f = fs[i];
         noi((ghiThat ? 'Đang ghi ' : 'Đang đọc ') + (i + 1) + '/' + fs.length + '…');
-        const q = new URLSearchParams({ ten: f.name, extId: $('#dnKenh').value });
+        const q = new URLSearchParams({ ten: f.name, extId });
         if (!ghiThat) q.set('xem', '1');
         /* GỬI LẦN LƯỢT, không Promise.all: bốn tệp cùng ghi vào một bảng theo
          * khoá, chạy song song là hai lượt cùng thấy "chưa có dòng này" rồi
@@ -933,6 +933,10 @@
     async function guiTep(ds) {
       const fs = [...(ds || [])].filter(Boolean);
       if (!fs.length) return;
+      /* ĐỌC KÊNH NGAY BÂY GIỜ, không đọc lúc gửi. Bảng xem trước thay hẳn nội
+       * dung modal nên ô chọn kênh biến mất; bấm "Ghi vào Base" rồi mới đi tìm
+       * `#dnKenh` là ra null và nổ "Cannot read properties of null". */
+      const extId = ($('#dnKenh') || {}).value || '';
       /* Nhân sự KHÔNG có nút "Đọc và ghi" — họ thả tệp là gửi luôn. Nên chỗ báo
        * tiến độ phải chịu được việc không có nút; bản trước không chịu được và
        * thả tệp là nổ ngay ("Cannot set properties of null"). */
@@ -949,7 +953,7 @@
         else if (tha) tha.innerHTML = chu0;
       };
       try {
-        const xem = await guiLuot(fs, false, noi);
+        const xem = await guiLuot(fs, false, noi, extId);
         /* Tệp không phải bản xuất theo ngày (bảng phiên LIVE dán tay) thì không
          * có gì để xem trước — máy chủ đã ghi luôn ở lượt này. */
         if (!xem.some((r) => r.theoNgay)) {
@@ -964,14 +968,17 @@
           dongModal();
           if (!dongY) { traLai(); return; }
           if (nut) nut.disabled = true;
+          /* Modal đã đóng nên chỗ báo tiến độ cũ không còn ai nhìn thấy. Bốn
+           * tệp ghi lần lượt mất cả chục giây — im lặng thì tưởng bấm hụt. */
+          toast('Đang ghi ' + fs.length + ' tệp vào Base…');
           try {
-            baoNgay(await guiLuot(fs, true, noi));
+            baoNgay(await guiLuot(fs, true, noi, extId));
           } catch (e) { toast(e.message, 'err'); }
           traLai();
         };
         const o = bangXemTruoc(xem, chay);
         if (o) moModal(o);
-        else { baoNgay(await guiLuot(fs, true, noi)); traLai(); }
+        else { baoNgay(await guiLuot(fs, true, noi, extId)); traLai(); }
       } catch (e) {
         toast(e.message, 'err');
         traLai();

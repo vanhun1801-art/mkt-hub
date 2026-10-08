@@ -695,4 +695,18 @@ t('thiếu appId hoặc redirect thì nói rõ thiếu gì', () => {
   assert.throws(() => zalo.linkCapQuyen({ appId: '1' }, ''), /chuyển hướng/);
 });
 
+t('bảng LIVE Center đọc kênh TRƯỚC khi mở bảng xem trước', () => {
+  /* Lỗi thật anh Hùng gặp 08/10/2026: thả bốn tệp .zip của TikTok LIVE Center,
+     bảng xem trước hiện đúng, bấm "Ghi vào Base" thì nổ "Cannot read properties
+     of null (reading 'value')". Bảng xem trước THAY nội dung modal nên ô chọn
+     kênh `#dnKenh` không còn trong trang; tới lúc ghi thật mới đi tìm nó là ra
+     null. Nên `guiLuot` phải NHẬN extId qua tham số, không tự tra DOM. */
+  const ui = require('fs').readFileSync(require.resolve('../public/app.js'), 'utf8');
+  const i = ui.indexOf('async function guiLuot(');
+  assert.ok(i > 0, 'không tìm thấy guiLuot');
+  assert.ok(ui.includes('guiLuot(fs, ghiThat, noi, extId)'), 'guiLuot phải nhận extId');
+  const than = ui.slice(i, ui.indexOf('bangXemTruoc', i));
+  assert.ok(!than.includes('dnKenh'), 'guiLuot còn tự tra #dnKenh trong DOM');
+});
+
 console.log('\n' + so + ' phép thử đạt' + (process.exitCode ? ' — CÓ LỖI' : '') + '\n');
