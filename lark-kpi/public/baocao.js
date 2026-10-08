@@ -25,6 +25,10 @@ var BC_SS = 'truoc';  // eslint-disable-line no-var
 var BC_SO_THANG = 6; // eslint-disable-line no-var
 /* Trưởng phòng đang xem thử báo cáo của ai. Rỗng = xem bản đầy đủ của mình. */
 var BC_NHU = ''; // eslint-disable-line no-var
+/* Danh sách người đã khai phạm vi, để dựng nút chuyển vai. Đọc MỘT LẦN rồi giữ
+ * lại — nó không đổi giữa các lần vẽ, mà mỗi lần vẽ gọi lại là thêm một lượt
+ * chờ trước khi thanh lọc hiện ra. */
+var BC_DS_VAI = null; // eslint-disable-line no-var
 const BC_KIEU_SS = [
   ['truoc', 'Kỳ liền trước'],
   ['thangtruoc', 'Cùng kỳ tháng trước'],
@@ -69,7 +73,16 @@ function bcSo(v, kieu) {
  * nổ ReferenceError — giờ để chung một chỗ cho cả tệp dùng. */
 const ngay = (s) => String(s || '').split('-').reverse().join('/');
 
+/* Nạp danh sách vai một lần. Hỏng thì bỏ qua — mất nút chuyển vai còn hơn
+ * mất cả tab Báo cáo. */
+async function bcNapVai() {
+  if (BC_DS_VAI || !META.nguoiXem.quanLy) return;
+  try { BC_DS_VAI = (await goi('pham-vi')).nguoi || {}; }
+  catch (_) { BC_DS_VAI = {}; }
+}
+
 async function veBaoCao() {
+  await bcNapVai();
   if (!BC_KY) { const m = bcMoc(); BC_KY = { tu: m[0].tu, den: m[0].den, ma: m[0].ma }; }
   const g = el('div');
   let thanhLoc = bcThanhLoc();
@@ -213,6 +226,37 @@ function bcThanhLoc() {
       + ', không so sánh — bấm một mốc để bật lại'));
   }
   if (!anSoSanh) than.appendChild(gSS);
+
+  /* CHUYỂN VAI — chỉ trưởng phòng thấy.
+   *
+   * Trước đây muốn xem phiếu của một người phải sang tab Phân công kênh, kéo
+   * xuống khối Phạm vi, bấm "Xem thử" từng người. Soát sáu người là sáu lần đi
+   * vòng. Nút ngay đây thì đổi vai mà không rời màn hình, và quan trọng hơn:
+   * nhắc trưởng phòng rằng mỗi người nhìn thấy một bản khác nhau. */
+  if (META.nguoiXem.quanLy) {
+    const gV = el('div', 'loc-nhom');
+    gV.innerHTML = '<label>Xem như</label>';
+    const seg = el('div', 'seg');
+    const them = (ma, nhan, title) => {
+      const b = el('button', 'seg-nut' + (BC_NHU === ma ? ' chon' : ''), nhan);
+      if (title) b.title = title;
+      b.onclick = () => { if (BC_NHU !== ma) { BC_NHU = ma; veBaoCao(); } };
+      seg.appendChild(b);
+    };
+    them('', 'Cả phòng', 'Bản đầy đủ của trưởng phòng — có chi phí, xu hướng, mọi kênh');
+    if (BC_DS_VAI) {
+      Object.keys(BC_DS_VAI).forEach((ma) => {
+        const v = BC_DS_VAI[ma];
+        if (!(v.khoi || []).length) return;   // chưa khai phạm vi thì không có gì để xem
+        /* Hiện TÊN GỌI ngắn chứ không tên đầy đủ: sáu nút tên đầy đủ là tràn
+         * hết thanh lọc. Tên đầy đủ để ở tooltip. */
+        const ngan = String(v.ten || ma).split(' ').slice(-1)[0];
+        them(ma, ngan, (v.ten || ma) + (v.viTri ? ' · ' + v.viTri : ''));
+      });
+    }
+    gV.appendChild(seg);
+    than.appendChild(gV);
+  }
 
   const g4 = el('div', 'loc-nhom grow');
   g4.innerHTML = '<label>&nbsp;</label>';
