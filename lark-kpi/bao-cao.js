@@ -512,6 +512,22 @@ async function docLiveRieng(app, tu, den, pv) {
   if (phienFb) nen.push('Facebook');
   if (phienTt) nen.push('TikTok');
 
+  /* Gom lượt xem theo TỪNG KÊNH, ghi kèm nền tảng vào tên để hai kênh trùng
+   * tên ở hai nơi không lẫn vào nhau — "Rooty Trip Phú Quốc" có cả trên
+   * Facebook lẫn TikTok. */
+  const mKenh = new Map();
+  const congKenhLive = (nt, ten, xem, phien) => {
+    if (!ten) return;
+    const k = nt + ' · ' + ten;
+    const o2 = mKenh.get(k) || { nhan: k, so: 0, phien: 0 };
+    o2.so += so(xem);
+    o2.phien += so(phien);
+    mKenh.set(k, o2);
+  };
+  dsFb.forEach((x) => congKenhLive('Facebook', x.channel, x.views, 1));
+  dsTt.forEach((x) => congKenhLive('TikTok', x.channel, x.luotXem, x.soPhien));
+  const theoKenhLive = [...mKenh.values()].sort((a, b) => b.so - a.so);
+
   const luuY = [];
   if (dsFb.length && coXemFb < dsFb.length) {
     luuY.push('Facebook: chỉ ' + coXemFb + '/' + dsFb.length + ' phiên có lượt xem. '
@@ -545,14 +561,24 @@ async function docLiveRieng(app, tu, den, pv) {
   /* Ô CHỈ CÓ Ở MỘT NỀN TẢNG — gọi đúng tên kèm nền tảng, đừng để người đọc
    * tưởng là số của cả hai. */
   if (dsFb.length) {
-    o.push(
-      { nhan: 'Bình luận (Facebook)', so: cFb('comments'), dinhDang: 'so', ghi: phuFb('comments') },
-      { nhan: 'Tin nhắn (Facebook)', so: cFb('messages'), dinhDang: 'so', ghi: phuFb('messages') },
-      { nhan: 'Lead (Facebook)', so: cFb('leads'), dinhDang: 'so',
-        ghi: phuFb('leads', 'bản xuất TikTok không có cột lead') },
-      { nhan: 'Đơn chốt (Facebook)', so: cFb('orders'), dinhDang: 'so',
-        ghi: phuFb('orders', 'bản xuất TikTok không có cột đơn') },
-    );
+    o.push({ nhan: 'Bình luận (Facebook)', so: cFb('comments'), dinhDang: 'so',
+      ghi: phuFb('comments') });
+    /* TIN NHẮN · LEAD · ĐƠN CHỐT chỉ hiện ở bản của trưởng phòng.
+     *
+     * Ba cột đó KHÔNG phải nền tảng trả về — tien-live.js tự gắn từ Tourwell
+     * theo khung giờ phiên, tức là đoán: lead nào rơi vào lúc đang live thì
+     * tính cho phiên đó. Đoán ở mức toàn phòng thì còn dùng để nhìn xu hướng,
+     * nhưng đặt vào phiếu của người dẫn live là biến một phép đoán thành thành
+     * tích hay lỗi của riêng họ. Anh Hùng bỏ, và đúng. */
+    if (!pv) {
+      o.push(
+        { nhan: 'Tin nhắn (Facebook)', so: cFb('messages'), dinhDang: 'so', ghi: phuFb('messages') },
+        { nhan: 'Lead (Facebook)', so: cFb('leads'), dinhDang: 'so',
+          ghi: phuFb('leads', 'bản xuất TikTok không có cột lead') },
+        { nhan: 'Đơn chốt (Facebook)', so: cFb('orders'), dinhDang: 'so',
+          ghi: phuFb('orders', 'bản xuất TikTok không có cột đơn') },
+      );
+    }
   }
   if (dsTt.length) {
     o.push(
@@ -580,7 +606,19 @@ async function docLiveRieng(app, tu, den, pv) {
       don: 'so',
       muc: [{ nhan: 'Facebook', so: xemFb }, { nhan: 'TikTok', so: xemTt }].filter((x) => x.so),
     },
+    /* TÁCH THEO TỪNG KÊNH, không chỉ theo nền tảng. Người dẫn live cần biết
+     * mình lên sóng ở kênh nào được bao nhiêu — "Facebook 31k" gộp ba trang
+     * lại thì không nói được kênh nào đang chạy tốt. */
+    thanh: {
+      nhan: 'Lượt xem LIVE theo kênh',
+      don: 'so',
+      muc: theoKenhLive,
+    },
     bang: [
+      { tieuDe: 'LIVE theo kênh',
+        cot: ['Nền tảng · Kênh', 'Số phiên', 'Lượt xem'],
+        soCot: [1, 2],
+        dong: theoKenhLive.map((x) => [x.nhan, x.phien, x.so]) },
       { tieuDe: 'Phiên LIVE Facebook',
         cot: ['Ngày', 'Kênh', 'Phút', 'Lượt xem', 'Bình luận', 'Lead', 'Đơn'],
         soCot: [2, 3, 4, 5, 6],
@@ -968,9 +1006,18 @@ async function docLich(app, tu, den, pv) {
         ghi: soBuoiCoGio === it.length
           ? 'giờ'
           : 'giờ · ' + soBuoiCoGio + '/' + it.length + ' buổi đã có giờ kết thúc' },
-      { nhan: 'Chi phí thực tế', so: cong('costActual'), dinhDang: 'vnd', trungTinh: true },
-      { nhan: 'Dự toán', so: cong('costPlan'), dinhDang: 'vnd' },
-      { nhan: 'Chênh dự toán', so: cong('costActual') - cong('costPlan'), dinhDang: 'vnd', dao: true },
+      /* Người đi tác nghiệp chỉ thấy DỰ TOÁN. Chi thực tế và chênh dự toán là
+       * việc của người duyệt chi — đặt vào phiếu của người đi là bắt họ chịu
+       * trách nhiệm về một con số họ không quyết. Anh Hùng chốt 08/10/2026. */
+      ...(pv ? [] : [
+        { nhan: 'Chi phí thực tế', so: cong('costActual'), dinhDang: 'vnd', trungTinh: true },
+      ]),
+      { nhan: pv ? 'Chi phí dự kiến' : 'Dự toán', so: cong('costPlan'), dinhDang: 'vnd',
+        trungTinh: true },
+      ...(pv ? [] : [
+        { nhan: 'Chênh dự toán', so: cong('costActual') - cong('costPlan'),
+          dinhDang: 'vnd', dao: true },
+      ]),
       { nhan: 'Có báo cáo sau buổi', so: it.filter((x) => x.reportAfter || x.report).length, dinhDang: 'so' },
       { nhan: 'Số địa điểm đã đến', so: dd.length, dinhDang: 'so',
         ghi: chuaGhiDd ? chuaGhiDd + '/' + it.length + ' buổi chưa ghi địa điểm' : '' },
@@ -993,16 +1040,23 @@ async function docLich(app, tu, den, pv) {
     },
     bang: [
       { tieuDe: 'Theo địa điểm',
-        cot: ['Địa điểm', 'Số buổi', 'Chi phí thực tế'], soCot: [1, 2],
+        cot: pv ? ['Địa điểm', 'Số buổi'] : ['Địa điểm', 'Số buổi', 'Chi phí thực tế'],
+        soCot: [1, 2],
         dong: dd.slice().sort((x, y) => y._n - x._n)
-          .map((x) => [x._k, x._n, so(x.costActual)]) },
+          .map((x) => (pv ? [x._k, x._n] : [x._k, x._n, so(x.costActual)])) },
       { tieuDe: 'Buổi tác nghiệp trong kỳ',
-        cot: ['Ngày', 'Nội dung', 'Địa điểm', 'Trạng thái', 'Người', 'Chi phí'],
-        soCot: [5],
+        cot: pv
+          ? ['Ngày', 'Nội dung', 'Địa điểm', 'Trạng thái', 'Chi phí dự kiến']
+          : ['Ngày', 'Nội dung', 'Địa điểm', 'Trạng thái', 'Người', 'Chi phí'],
+        soCot: [pv ? 4 : 5],
         dong: it.slice().sort((x, y) => String(x.start).localeCompare(String(y.start)))
-          .slice(0, 40).map((x) => [String(x.start || '').slice(0, 10),
-            x.title || '(không tên)', nhanOf(x.diaDiem) || '—', nhanOf(x.status),
-            (x.owner || x.staff || []).map((u) => u.name || u.id).join(', '), so(x.costActual)]) },
+          .slice(0, 40).map((x) => (pv
+            ? [String(x.start || '').slice(0, 10), x.title || '(không tên)',
+              nhanOf(x.diaDiem) || '—', nhanOf(x.status), so(x.costPlan)]
+            : [String(x.start || '').slice(0, 10), x.title || '(không tên)',
+              nhanOf(x.diaDiem) || '—', nhanOf(x.status),
+              (x.owner || x.staff || []).map((u) => u.name || u.id).join(', '),
+              so(x.costActual)])) },
     ].filter((x) => x.dong.length),
   };
 }
