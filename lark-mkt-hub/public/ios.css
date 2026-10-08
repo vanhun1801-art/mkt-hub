@@ -4404,3 +4404,21 @@ html[data-skin="ios"]:not(#_):not(#__):not(#___):not(#____) .modal > .modal-x { 
      xuống nửa màn (soát 08/10/2026). Đứng một dòng, lướt tới là đọc được. */
   html[data-skin="ios"]:not(#_):not(#__)[data-app] :is(.filters, .loc, .loc-hang) > :is(span, small, .moc) { flex: none !important; white-space: nowrap !important; }
 }
+
+/* ==========================================================================
+   TẦNG MÀU NỀN TỐI + THANH BÊN GỌN (08/10/2026 — anh Hùng duyệt bản thử
+   taste-skill: "cấp màu sắc giữa nền và thành phần rõ ràng và đồng nhất hơn").
+   - Nền tối: đen dịu #0b0b0e, PHẲNG, thay đen tuyệt đối #000 / #050507 và hai
+     quầng gradient xanh-lục trên máy tính. Ba tầng nền → thẻ #1c1c1e → ô
+     #2c2c2e cách đều nhau, thẻ nổi lên rõ mà không gắt.
+   - Thanh bên: chấm xanh "base đang chạy" ở cả 15 dòng là trang trí — luôn
+     xanh thì không nói gì. Chỉ hiện chấm khi base KHÔNG ổn (lỗi, tắt, đang
+     khởi động); số việc đỏ đứng một mình, dễ đọc hơn.
+   ========================================================================== */
+html[data-skin="ios"]:not(#_):not(#__)[data-theme="toi"] { --ios-nen: #0b0b0e; --mac-nen-cua-so: #0b0b0e; }
+html[data-skin="ios"]:not(#_):not(#__)[data-theme="toi"] body { background-color: #0b0b0e !important; }
+@media (prefers-color-scheme: dark) {
+  html[data-skin="ios"]:not(#_):not(#__):not([data-theme="sang"]) { --ios-nen: #0b0b0e; --mac-nen-cua-so: #0b0b0e; }
+  html[data-skin="ios"]:not(#_):not(#__):not([data-theme="sang"]) body { background-color: #0b0b0e !important; }
+}
+html[data-skin="ios"] :is(.ri-dot.chay, .ri-dot.ngoai) { display: none !important; }
