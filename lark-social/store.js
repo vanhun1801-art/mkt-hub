@@ -215,6 +215,10 @@ function docLive(r) {
     end: r.c[f.end] || null,
     minutes: num(r.c[f.minutes]),
     views: num(r.c[f.views]),
+    /* Ba cột "sau khi thành bài đăng" — xem chú thích ở config.tables.live.f. */
+    luotPhat: num(r.c[f.luotPhat]),
+    xem3giay: num(r.c[f.xem3giay]),
+    xemRieng: num(r.c[f.xemRieng]),
     peak: num(r.c[f.peak]),
     comments: num(r.c[f.comments]),
     likes: num(r.c[f.likes]),

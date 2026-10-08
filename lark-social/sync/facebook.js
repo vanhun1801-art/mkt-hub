@@ -579,7 +579,15 @@ async function soThatChoVideo(conf, token, ds, ten, canhBao) {
  * (reactions_by_type cho đủ loại cảm xúc, comments.summary đếm thẳng) nên chỉ
  * lấy phần share.
  */
-const CHI_SO_LIVE = ['total_video_views', 'total_video_impressions',
+/* Chỉ số hỏi ở /video_insights.
+ *
+ * ĐÃ BỎ `total_video_impressions`: Meta trả "(#100) The value must be a valid
+ * insights metric". Và vì Meta báo lỗi cho CẢ CỤM chứ không bỏ riêng cái nó
+ * không biết, một chỉ số sai là hỏng cả lượt hỏi — mà bản dự phòng
+ * `slice(0, 3)` lại vẫn chứa đúng cái sai đó. Hậu quả: đường này CHƯA BAO GIỜ
+ * trả về gì, nên cảm xúc và chia sẻ của mọi phiên LIVE đều bằng 0 suốt từ lúc
+ * viết. Đo lại ngày 07/10 trên phiên thật: bỏ nó ra là cả bốn chỉ số về đủ. */
+const CHI_SO_LIVE = ['total_video_views', 'total_video_views_unique',
   'total_video_reactions_by_type_total', 'total_video_stories_by_action_type'];
 
 /**
@@ -604,11 +612,27 @@ async function boSungTuVideo(conf, token, vid, row) {
     /* MỘT CHỈ SỐ HỎNG LÀ HỎNG CẢ LƯỢT HỎI — Meta trả lỗi cho cả request chứ
      * không bỏ riêng cái nó không biết. Nên hỏng thì hỏi lại bằng bộ cũ, thà
      * mất mỗi cột Chia sẻ còn hơn mất sạch số của phiên đó. */
+    /* Hỏng thì BỎ ĐÚNG CÁI META CHÊ rồi hỏi lại, chứ không cắt bừa mấy phần
+     * tử đầu — cắt bừa thì cái sai vẫn ở trong cụm và lần hai hỏng y lần một. */
     let ins = await hoi(CHI_SO_LIVE);
-    if (ins && ins.error) ins = await hoi(CHI_SO_LIVE.slice(0, 3));
+    for (let lan = 0; lan < 3 && ins && ins.error; lan++) {
+      const m = RE_TRUONG_HONG.exec(String(ins.error.message || ''));
+      const hong = m && (m[1] || m[2] || m[3]);
+      const con = hong ? CHI_SO_LIVE.filter((x) => x !== hong) : CHI_SO_LIVE.slice(0, 2);
+      if (!con.length) break;
+      // eslint-disable-next-line no-await-in-loop
+      ins = await hoi(con);
+      if (!hong) break;
+    }
     ((ins && ins.data) || []).forEach((m) => {
       const v = ((m.values || [])[0] || {}).value;
-      if (m.name === 'total_video_views') row.views = Math.max(row.views, num(v));
+      if (m.name === 'total_video_views') {
+        row.xem3giay = num(v);
+        /* Chỉ nâng `views` khi node video không cho `luotPhat` — không để chỉ
+         * số 3 giây kéo con số đã đúng xuống thấp. */
+        row.views = Math.max(row.views, num(v));
+      }
+      if (m.name === 'total_video_views_unique') row.xemRieng = num(v);
       if (m.name === 'total_video_reactions_by_type_total' && v && typeof v === 'object') {
         row.likes = Object.values(v).reduce((s, x) => s + num(x), 0);
       }
@@ -745,8 +769,14 @@ async function liveTuVideo(conf, page, from, to, canhBao, ghiChu = []) {
         start: mocBatDau,
         end: '',
         minutes: v.length ? Math.round(num(v.length) / 60) : 0,
-        /* Ưu tiên `views` (lượt phát, khớp bản xuất của Trang). Trang nào Meta
-         * không cho trường đó thì rơi về `post_views` rồi mới tới insights. */
+        /* HAI LOẠI SỐ. `luotPhat` là cột "Lượt xem" trong bản xuất của Trang —
+         * số lần video bắt đầu phát, tính cả người xem lại sau khi phiên tắt.
+         * `xem3giay` là chỉ số cũ app vẫn dùng, nhỏ hơn khoảng ba lần.
+         * `peak` (người xem cao nhất LÚC ĐANG PHÁT) Facebook không trả — để
+         * trống cho người nhập tay, đừng điền bừa bằng số nào khác. */
+        luotPhat: num(v.views) || num(v.post_views) || 0,
+        xem3giay: 0,
+        xemRieng: 0,
         views: num(v.views) || num(v.post_views) || 0,
         peak: 0,          // /videos không có live_views — cột Đỉnh đành để trống
         comments: 0, likes: 0, shares: 0, newFollows: 0,

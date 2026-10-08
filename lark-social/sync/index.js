@@ -285,7 +285,12 @@ function dongLive(row, kenhId) {
     [f.platform]: row.platform,
     [f.extId]: String(row.liveId),
     [f.minutes]: num(row.minutes),
+    /* `views` giữ nghĩa cũ để mọi chỗ đang đọc không gãy; ba cột dưới tách rõ
+     * hai loại số — xem chú thích ở config.tables.live.f. */
     [f.views]: num(row.views),
+    [f.luotPhat]: num(row.luotPhat),
+    [f.xem3giay]: num(row.xem3giay),
+    [f.xemRieng]: num(row.xemRieng),
     [f.peak]: num(row.peak),
     [f.comments]: num(row.comments),
     [f.likes]: num(row.likes),
