@@ -1549,11 +1549,26 @@ async function docHauKy(app, tu, den, pv) {
     );
   }
   if (ca) {
+    /* LỌC THEO NGƯỜI. Bản trước lấy thẳng số tổng của app Chỉnh ảnh, nên phiếu
+     * riêng của một người vẫn hiện sản lượng của cả tổ — đúng lỗi đã sửa ở
+     * khối Bảng công việc. App nay trả kèm `theoNguoi`, dùng nó khi có phạm vi. */
+    const rieng = pv ? (ca.theoNguoi || []).filter((x) => PV.laCuaNguoi(pv, x.ten)) : null;
+    const g = (chung, khoaRieng) => (rieng
+      ? rieng.reduce((a, x) => a + so(x[khoaRieng]), 0) : dem(chung));
+    /* Số NGÀY không cộng được giữa nhiều người — hai người cùng làm một ngày thì
+     * cộng lại thành hai. Lọc một người thì lấy thẳng, nhiều người thì lấy số
+     * của cả tổ và nói rõ. */
+    const ngayAnh = rieng && rieng.length === 1 ? so(rieng[0].ngayCoAnh) : dem(ca.soNgayCoAnh);
+    const nguon = rieng ? 'app Chỉnh ảnh · phần của tôi' : 'từ app Chỉnh ảnh';
     o.push(
-      { nhan: 'Lô sản phẩm đã báo', so: dem(ca.soBaoCao), dinhDang: 'so', ghi: 'từ app Chỉnh ảnh' },
-      { nhan: 'Ảnh đã chỉnh', so: dem(ca.soAnh), dinhDang: 'so', ghi: 'từ app Chỉnh ảnh' },
-      { nhan: 'Video đã dựng (có nghiệm thu)', so: dem(ca.soVideo), dinhDang: 'so',
-        ghi: 'từ app Chỉnh ảnh' },
+      { nhan: 'Lô sản phẩm đã báo', so: g(ca.soBaoCao, 'lo'), dinhDang: 'so', ghi: nguon },
+      { nhan: 'Ngày có chỉnh ảnh', so: ngayAnh, dinhDang: 'so',
+        ghi: rieng && rieng.length > 1 ? 'của cả tổ — số ngày không cộng theo người được'
+          : 'ngày thật sự có ảnh về' },
+      { nhan: 'Ảnh đã chỉnh', so: g(ca.soAnh, 'anh'), dinhDang: 'so', chinh: true,
+        ghi: ngayAnh ? Math.round(g(ca.soAnh, 'anh') / ngayAnh) + ' ảnh một ngày' : nguon },
+      { nhan: 'Video khách đã dựng', so: g(ca.soVideo, 'video'), dinhDang: 'so', chinh: true,
+        ghi: nguon },
       { nhan: 'Chờ nghiệm thu', so: dem(ca.choNghiemThu), dinhDang: 'so', dao: true,
         muc: dem(ca.choNghiemThu) ? 'vua' : 'ok' },
       { nhan: 'Đã nghiệm thu đạt', so: dem(ca.dat), dinhDang: 'so' },

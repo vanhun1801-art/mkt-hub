@@ -275,15 +275,75 @@ function nguoiDaLam(ds) {
   return [...m.values()].sort((a, b) => a.ten.localeCompare(b.ten));
 }
 
+/* Email đã tra, giữ trong RAM — một lô nhiều người thì khỏi gọi danh bạ lại. */
+const KHO_EMAIL = new Map();
+
+/**
+ * NHẮN RIÊNG kết quả nghiệm thu cho người đã làm lô đó.
+ *
+ * Anh Hùng 08/10/2026: "đạt hay không đạt thì chỉ cần gửi tin nhắn riêng cho
+ * bạn Trường là được". Trước đó mọi kết quả đều bắn vào nhóm chung — khen thì
+ * không sao, nhưng trả về sửa trước mặt cả nhóm là chuyện không cần thiết.
+ *
+ * Nhắn theo EMAIL chứ không theo open_id của Base: xem chú thích ở
+ * lark.emailTheoOpenId(). Nhắn hụt thì LÙI VỀ NHÓM chứ không im — người làm
+ * phải biết lô bị trả lại, mất tin là lô nằm đó không ai sửa.
+ */
+async function guiRiengNghiemThu(bc, { nguoiTen, d }) {
+  const soan = tin.soanNghiemThu(bc, { nguoiTen });
+  const ds = (bc.nguoiLam || []).filter((x) => x && x.id);
+  const xong = [];
+  const truot = [];
+  for (const u of ds) {
+    if (!KHO_EMAIL.has(u.id)) {
+      // eslint-disable-next-line no-await-in-loop
+      KHO_EMAIL.set(u.id, await lark.emailTheoOpenId(u.id, u.name || ''));
+    }
+    const email = KHO_EMAIL.get(u.id);
+    if (!email) { truot.push((u.name || u.id) + ': không tra được email công ty'); continue; }
+    // eslint-disable-next-line no-await-in-loop
+    const r = await lark.guiTin({
+      email, card: soan.card, text: soan.text,
+      khoa: 'ntr-' + bc.id + '-' + email.split('@')[0] + '-' + Date.now().toString(36).slice(-6),
+    });
+    if (r.ok) xong.push(u.name || email); else truot.push((u.name || email) + ': ' + String(r.loi || '').slice(0, 120));
+    // eslint-disable-next-line no-await-in-loop
+    await store.ghiNhatKy({
+      chat: 'riêng:' + email, ok: r.ok, msgId: r.msgId, noiDung: soan.text,
+      thongBao: r.loi || '', baoCaoId: bc.id,
+    });
+  }
+  if (xong.length) {
+    return { ok: true, duong: 'riêng', nguoi: xong,
+      loi: truot.length ? 'Không nhắn được: ' + truot.join(' · ') : '' };
+  }
+  const g = await guiVeNhom({
+    nhoms: dsNhomChat(d), card: soan.card, text: soan.text,
+    khoa: 'nt-' + bc.id + '-' + Date.now().toString(36).slice(-6), baoCaoId: bc.id,
+  });
+  return { ...g, duong: 'nhóm',
+    loi: g.loi || (ds.length
+      ? 'Không nhắn riêng được (' + truot.join(' · ') + ') nên đã gửi vào nhóm.'
+      : 'Lô chưa ghi người làm nên gửi vào nhóm.') };
+}
+
 function tongHop(ds) {
   const s = {
     soBaoCao: ds.length, soAnh: 0, soVideo: 0,
     choNghiemThu: 0, dat: 0, canSua: 0, chuaGui: 0,
     theoNguoi: {}, theoTour: {},
   };
+  /* SỐ NGÀY CÓ VIỆC, không phải số lô. Một ngày có thể báo mấy lô, nên đếm lô
+   * thì không trả lời được câu "tháng này bạn ấy ngồi chỉnh ảnh mấy ngày".
+   * Đếm theo NGÀY LÀM của lô, và chỉ tính ngày lô đó thật sự có ảnh (hoặc có
+   * video) — lô chỉ có video mà tính vào ngày có ảnh là thổi số lên. */
+  const ngayAnh = new Set();
+  const ngayVideo = new Set();
   ds.forEach((b) => {
     s.soAnh += b.soAnh || 0;
     s.soVideo += b.soVideo || 0;
+    if (b.ngay && (b.soAnh || 0) > 0) ngayAnh.add(b.ngay);
+    if (b.ngay && (b.soVideo || 0) > 0) ngayVideo.add(b.ngay);
     if (b.trangThai === 'Đạt') s.dat++;
     else if (b.trangThai === 'Cần sửa lại') s.canSua++;
     else s.choNghiemThu++;
@@ -292,15 +352,23 @@ function tongHop(ds) {
      * Đếm một lần thì không thấy ai đang gánh (bài học từ trang Lịch chung của hub). */
     (b.nguoiLam.length ? b.nguoiLam : [{ id: '', name: 'Chưa ghi người' }]).forEach((u) => {
       const k = u.name || u.id;
-      const o = s.theoNguoi[k] || (s.theoNguoi[k] = { ten: k, id: u.id, lo: 0, anh: 0, video: 0, canSua: 0 });
+      const o = s.theoNguoi[k] || (s.theoNguoi[k] = { ten: k, id: u.id, lo: 0, anh: 0, video: 0,
+        canSua: 0, _ngayAnh: new Set(), _ngayVideo: new Set() });
       o.lo++; o.anh += b.soAnh || 0; o.video += b.soVideo || 0;
+      if (b.ngay && (b.soAnh || 0) > 0) o._ngayAnh.add(b.ngay);
+      if (b.ngay && (b.soVideo || 0) > 0) o._ngayVideo.add(b.ngay);
       if (b.trangThai === 'Cần sửa lại') o.canSua++;
     });
     const kt = b.tour || '(chưa ghi Tour)';
     const ot = s.theoTour[kt] || (s.theoTour[kt] = { ten: kt, lo: 0, anh: 0, video: 0 });
     ot.lo++; ot.anh += b.soAnh || 0; ot.video += b.soVideo || 0;
   });
-  s.theoNguoi = Object.values(s.theoNguoi).sort((a, b) => b.lo - a.lo);
+  s.soNgayCoAnh = ngayAnh.size;
+  s.soNgayCoVideo = ngayVideo.size;
+  s.theoNguoi = Object.values(s.theoNguoi)
+    .map(({ _ngayAnh, _ngayVideo, ...o }) => ({ ...o,
+      ngayCoAnh: _ngayAnh.size, ngayCoVideo: _ngayVideo.size }))
+    .sort((a, b) => b.lo - a.lo);
   s.theoTour = Object.values(s.theoTour).sort((a, b) => b.lo - a.lo);
   return s;
 }
@@ -536,15 +604,12 @@ async function api(req, res, u) {
     });
     const d = await store.tai(true);
     const bc = d.baoCao.find((x) => x.id === b.id);
-    let gui = { ok: false, loi: 'Không gửi.' };
+    let gui = { ok: false, loi: 'Không gửi.', duong: '' };
     if (b.gui !== false && bc) {
-      const soan = tin.soanNghiemThu(bc, { nguoiTen: nd ? nd.name : '' });
-      gui = await guiVeNhom({
-        nhoms: dsNhomChat(d), card: soan.card, text: soan.text,
-        khoa: 'nt-' + b.id + '-' + Date.now().toString(36).slice(-6),
-      });
+      gui = await guiRiengNghiemThu(bc, { nguoiTen: nd ? nd.name : '', d });
     }
-    return ok(res, { baoCao: bc, gui: { ok: gui.ok, loi: gui.loi || '' } });
+    return ok(res, { baoCao: bc,
+      gui: { ok: gui.ok, loi: gui.loi || '', duong: gui.duong || '', nguoi: gui.nguoi || [] } });
   }
 
   if (p === '/api/quan-ly/nhom' && method === 'GET') {
@@ -618,6 +683,8 @@ async function api(req, res, u) {
 
     return ok(res, {
       soBaoCao: s.soBaoCao, soAnh: s.soAnh, soVideo: s.soVideo,
+      soNgayCoAnh: s.soNgayCoAnh, soNgayCoVideo: s.soNgayCoVideo,
+      theoNguoi: s.theoNguoi,
       choNghiemThu: s.choNghiemThu, dat: s.dat, canSua: s.canSua, chuaGui: s.chuaGui,
       nguoi: s.theoNguoi.length, ngoaiKhoang: ngoai.length, canXuLy,
       tu: t.tu, den: t.den, nhom: nhomChat(d).ten, baseUrl: cfg.baseUrl,

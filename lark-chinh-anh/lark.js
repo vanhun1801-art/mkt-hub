@@ -238,6 +238,39 @@ function timNguoi(q) {
   });
 }
 
+/**
+ * EMAIL CÔNG TY của một người, tra theo open_id trong ô Người làm của Base.
+ *
+ * Dùng để nhắn riêng. open_id là RIÊNG THEO TỪNG APP, nên mã lấy từ Base không
+ * đưa thẳng cho app gửi tin được — Lark trả `99992361 open_id cross app`, đã
+ * thử ngày 08/10/2026 với đúng mã của Trường. Email thì chung cho cả tenant.
+ *
+ * Chế độ cli phải đi đường TÌM KIẾM theo tên, vì `contact +get-user` không trả
+ * email (đã thử: chỉ ra mỗi tên), chỉ `+search-user` mới có `enterprise_email`.
+ *
+ * KHỚP BẰNG open_id, KHÔNG BẰNG TÊN. Tìm theo tên là bắt buộc, nhưng chỉ nhận
+ * kết quả khi open_id trả về TRÙNG KHÍT mã trên lô. Phòng có "Nguyễn Long
+ * Khánh" và "Huỳnh Chí Khanh" — gửi nhầm kết quả nghiệm thu cho người khác là
+ * chuyện không rút lại được.
+ */
+function emailTheoOpenId(openId, ten) {
+  return new Promise((resolve) => {
+    const tu = String(ten || '').trim();
+    if (!openId || !tu) return resolve('');
+    execFile(process.execPath, [cfg.cliScript, 'contact', '+search-user',
+      '--query', tu, '--as', 'user', '--format', 'json'],
+    { timeout: 30000, cwd: __dirname, windowsHide: true, maxBuffer: 16 * 1024 * 1024 },
+    (err, stdout) => {
+      try {
+        const raw = String(stdout || '');
+        const j = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1));
+        const u = ((j.data && j.data.users) || []).find((x) => x.open_id === openId);
+        resolve((u && (u.enterprise_email || u.email)) || '');
+      } catch (_) { resolve(''); }
+    });
+  });
+}
+
 /** Nhóm chat người đang đăng nhập tham gia — để quản lý chọn nhóm trong Cài đặt. */
 /**
  * Mọi nhóm bot đang ở trong. PHẢI LẬT HẾT TRANG.
@@ -284,4 +317,4 @@ async function dsNhom() {
  * để không phải sửa từng chỗ gọi (store.js, quyen.js, sync/*.js...). */
 module.exports = cfg.mode === 'api'
   ? require('./larkapi')
-  : { cli, whoami, listAll, getRecord, createRecord, createMany, updateRecord, updateMany, deleteRecords, guiTin, dsNhom, timNguoi };
+  : { cli, whoami, listAll, getRecord, createRecord, createMany, updateRecord, updateMany, deleteRecords, guiTin, dsNhom, timNguoi, emailTheoOpenId };

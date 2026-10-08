@@ -987,7 +987,19 @@
     };
   }
 
-  function moNghiemThu(id) {
+  /* Nói ĐÚNG tin đã đi đường nào. Kết quả nghiệm thu nay nhắn riêng cho người
+ * làm, chỉ lùi về nhóm khi không tra được email — mà quản lý cần biết nó đã đi
+ * đường nào, nếu không thì tưởng cả nhóm đã thấy trong khi chỉ mình Trường
+ * thấy, hoặc ngược lại. */
+function chuGui(g) {
+  if (!g || !g.ok) return '';
+  if (g.duong === 'riêng') {
+    return ' · đã nhắn riêng ' + ((g.nguoi || []).join(', ') || 'người làm');
+  }
+  return ' · đã báo nhóm';
+}
+
+function moNghiemThu(id) {
     const b = S.ds.find((x) => x.id === id);
     if (!b) return;
     moModal(`
@@ -1014,7 +1026,7 @@
         <div class="note info">${esc(b.hangMuc.join(' · '))} · ${b.soAnh ? n0(b.soAnh) + ' ảnh' : ''}${b.soVideo ? ' ' + n0(b.soVideo) + ' video' : ''} · ${esc(b.nguoiLam.map((u) => u.name).join(', ') || 'chưa ghi người')}</div>
       </div>
       <div class="modal-foot">
-        <label class="oGui"><input type="checkbox" id="mGui" checked> Gửi kết quả về nhóm</label>
+        <label class="oGui"><input type="checkbox" id="mGui" checked> Nhắn kết quả cho người làm</label>
         <button class="btn primary" id="mLuu">Lưu nghiệm thu</button>
       </div>`);
 
@@ -1034,8 +1046,8 @@
         const r = await goiJSON('/api/quan-ly/nghiem-thu', {
           id, trangThai: kq, nhanXet: nx, gui: $('#mGui').checked,
         });
-        toast('Đã nghiệm thu: ' + kq + (r.gui.ok ? ' · đã báo nhóm' : ''));
-        if ($('#mGui').checked && !r.gui.ok) toast('Không gửi được nhóm: ' + r.gui.loi, 'err');
+        toast('Đã nghiệm thu: ' + kq + chuGui(r.gui));
+        if ($('#mGui').checked && !r.gui.ok) toast('Không gửi được: ' + r.gui.loi, 'err');
         dongModal();
         await napDs();
       } catch (e2) {
@@ -1122,8 +1134,9 @@
           id, trangThai: dat ? 'Đạt' : 'Cần sửa lại', nhanXet: nx, gui: true,
         });
         toast((dat ? 'Đã duyệt: ' : 'Đã trả về sửa: ') + (r.baoCao ? r.baoCao.thuMuc : '')
-          + (r.gui.ok ? ' · đã báo nhóm' : ''));
-        if (!r.gui.ok) toast('Không gửi được nhóm: ' + r.gui.loi, 'err');
+          + chuGui(r.gui));
+        if (!r.gui.ok) toast('Không gửi được: ' + r.gui.loi, 'err');
+        else if (r.gui.loi) toast(r.gui.loi, 'err');
         /* Bỏ khỏi hàng đợi ngay, không đợi nạp lại — quản lý đang xem liên tục
          * nhiều lô, chờ một vòng gọi Base là mất nhịp. */
         S.hangDoi = S.hangDoi.filter((x) => x.id !== id);

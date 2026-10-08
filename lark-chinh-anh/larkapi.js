@@ -276,12 +276,29 @@ async function dsNhom() {
  */
 async function timNguoi() { return []; }
 
+/**
+ * EMAIL CÔNG TY theo open_id — bản chế độ api. Xem chú thích ở lark.js.
+ *
+ * Ở đây tra thẳng được theo mã vì open_id trong Base do CHÍNH app này đọc ra,
+ * nên cùng một không gian mã với tenant token đang cầm. Không phải đi vòng qua
+ * tìm kiếm theo tên như bản cli.
+ */
+async function emailTheoOpenId(openId) {
+  if (!openId) return '';
+  try {
+    const d = await call('GET', '/contact/v3/users/' + encodeURIComponent(openId)
+      + '?user_id_type=open_id');
+    const u = (d && d.user) || {};
+    return u.enterprise_email || u.email || '';
+  } catch (_) { return ''; }
+}
+
 /** Chế độ api không có "người đang đăng nhập" — danh tính đến từ phiên đăng nhập. */
 async function whoami() { return null; }
 const cli = async () => { throw new Error('Chế độ api không dùng lark-cli'); };
 
 module.exports = {
   cli, whoami, listAll, getRecord, createRecord, createMany,
-  updateRecord, updateMany, deleteRecords, guiTin, dsNhom, timNguoi,
+  updateRecord, updateMany, deleteRecords, guiTin, dsNhom, timNguoi, emailTheoOpenId,
   tenantToken, call,
 };
