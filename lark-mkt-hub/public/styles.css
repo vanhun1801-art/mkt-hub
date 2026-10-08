@@ -1197,6 +1197,28 @@ code { background: var(--trang-2); border: 1px solid var(--vien-mem); border-rad
  * đó thành hai vệt đen rõ mồn một giữa một cái thẻ trắng — anh Hùng khoanh đỏ
  * đúng chỗ này. Để nền trùng màu thẻ thì phần thừa đọc như lề, không ai thấy. */
 .tin-phim { background: var(--trang); position: relative; overflow: hidden; aspect-ratio: 16 / 9; }
+
+/* Ô CHỮ — thay ô phát khi quản lý chọn "hiện chữ" trong Cài đặt.
+   Chiếm đúng chỗ của ô phát (cùng tỉ lệ 16/9) nên bật tắt qua lại không làm
+   cột tin bên cạnh nhảy. Căn giữa theo chiều dọc, lề rộng: ô này cố ý TRỐNG,
+   đó là điểm của nó — anh Hùng muốn "nội dung text cho nó nhẹ". */
+.tin-chao {
+  background: var(--trang); aspect-ratio: 16 / 9;
+  display: flex; flex-direction: column; justify-content: center;
+  gap: 10px; padding: 24px 32px; min-width: 0;
+}
+.tin-chao-loi {
+  margin: 0; font-size: 26px; line-height: 1.3; font-weight: 650;
+  color: var(--chu); letter-spacing: -.01em;
+  /* Lời chào dài thì xuống dòng và cắt ở 4 dòng — tràn ra ngoài sẽ đẩy méo
+     cả khối. Máy chủ đã chặn ở 500 ký tự, đây là lớp đỡ thứ hai. */
+  display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;
+  overflow: hidden; overflow-wrap: anywhere; text-wrap: balance;
+}
+.tin-chao-ngay { margin: 0; font-size: 13px; color: var(--chu-nhat); }
+/* Phần điện thoại của ô chữ nằm trong KHỐI @media ĐẦU TIÊN của tệp này, không
+   phải ở đây — test mobile-vo chỉ đọc khối đầu tiên, thêm một khối riêng đứng
+   trước nó là đỏ 16 phép thử. Đã dính một lần. */
 /* HAI thẻ video chồng lên nhau, và CẮT THẲNG giữa chúng.
  *
  * Ba lần vá mới ra được chỗ này, ghi lại để đừng ai "cải tiến" ngược lại:
@@ -1969,6 +1991,12 @@ input.cd-in-nho { width: 72px; }
 .rail-nen { display: none; }
 
 @media (max-width: 640px) {
+  /* Ô chữ của bảng tin: trên điện thoại nó nằm TRÊN cột tin chứ không nằm
+     cạnh, nên bỏ tỉ lệ 16/9 để nó cao đúng bằng chữ — giữ tỉ lệ là chừa một
+     mảng trống gần nửa màn hình trước khi thấy được tin nào. */
+  .tin-chao { aspect-ratio: auto; padding: 18px 16px; }
+  .tin-chao-loi { font-size: 20px; -webkit-line-clamp: 3; }
+
   /* hộp nhắc đăng ký lịch làm việc (nhac-lich.js) */
   .bb-hop.nl-hop { max-width: 100%; }
   .nl-chan { flex-wrap: wrap; }

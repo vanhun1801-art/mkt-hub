@@ -1256,6 +1256,22 @@ function dongViecHtml(v, tenModule) {
 let TIN = { phim: null, ds: null };
 let TIN_THU = 0;   // số lần đọc lại khối tin khi máy chủ vừa dậy trả rỗng (xem veKhoiTin)
 
+/**
+ * Quên bảng tin đã nạp, để lần vẽ sau đọc lại từ máy chủ. Cài đặt gọi hàm này
+ * sau khi đổi lời chào.
+ *
+ * Phải là MỘT HÀM, không để bên kia tự gán: `TIN` khai bằng `let` nên nó không
+ * nằm trên `window`, mà caidat.js lại thử `if (window.TIN)` — điều kiện đó
+ * luôn sai, nên lệnh làm mới không bao giờ chạy và sửa lời chào xong quay ra
+ * Tổng quan vẫn thấy cái cũ. Không báo lỗi gì cả, chỉ là không có tác dụng.
+ */
+function quenKhoiTin() {
+  TIN = { phim: null, ds: null };
+  TIN_THU = 0;
+  const o = document.getElementById('khoiTin');
+  if (o) o.dataset.xong = '';
+}
+
 /* Trang đã từng có cú bấm nào chưa.
  *
  * Trình duyệt chỉ đòi MỘT cử chỉ cho cả trang, không phải mỗi thẻ video một
@@ -1309,6 +1325,42 @@ function veTinXuong() {
   return true;
 }
 
+/**
+ * Ô chữ bên trái bảng tin — thay cho ô phát khi quản lý chọn "hiện chữ".
+ *
+ * Anh Hùng 08/10/2026: "đôi khi anh muốn hiển thị nội dung text cho nó nhẹ,
+ * như chào buổi sáng, chào buổi chiều gì đó". Anh chốt làm CẢ HAI đường:
+ *
+ *   gõ nội dung riêng  -> hiện đúng chữ đã gõ
+ *   để trống + tự chào -> app tự đổi theo buổi, kèm tên người đang đăng nhập
+ *
+ * Để trống mà cũng tắt tự chào thì vẫn còn ngày tháng — ô rỗng hoàn toàn trông
+ * như khối hỏng, mà đây là chỗ đầu tiên người ta nhìn vào khi mở trang.
+ */
+function oChaoHtml(chao) {
+  const g = new Date();
+  const h = g.getHours();
+  /* Mốc theo nhịp làm việc của phòng, không theo đồng hồ thiên văn: 11 giờ là
+   * lúc người ta nghĩ tới bữa trưa, 18 giờ là lúc tan làm. */
+  const buoi = h < 11 ? 'sáng' : h < 18 ? 'chiều' : 'tối';
+  const toi = (S.hub && S.hub.toi && S.hub.toi.ten) || '';
+  /* Chỉ lấy TÊN, bỏ họ: "Chào buổi sáng, Lê Văn Hùng" nghe như giấy mời họp. */
+  const ten = toi ? toi.replace(/\s*\(.*?\)\s*/g, ' ').trim().split(/\s+/).pop() : '';
+
+  const chuRieng = String(chao.chu || '').trim();
+  const loi = chuRieng
+    || (chao.tuChao !== false ? 'Chào buổi ' + buoi + (ten ? ', ' + ten : '') : '');
+
+  /* Tên thứ viết đủ ở riêng ô này, không dùng mảng THU viết tắt của dải nhiệt:
+   * "T5 · 08/10/2026" hợp với một lưới dày đặc, còn đây là một lời chào. */
+  const THU_DU = ['Chủ nhật', 'Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy'];
+  const ngay = THU_DU[g.getDay()] + ' · ' + dmy(d2s(g));
+  return '<div class="tin-chao">' +
+    (loi ? '<p class="tin-chao-loi">' + esc(loi) + '</p>' : '') +
+    '<p class="tin-chao-ngay">' + esc(ngay) + '</p>' +
+    '</div>';
+}
+
 async function veKhoiTin() {
   const o = document.getElementById('khoiTin');
   if (!o) return;
@@ -1325,11 +1377,14 @@ async function veKhoiTin() {
      * như trang bị lỗi. */
     veTinXuong();
     TIN.cho = true;
-    const [phim, tin] = await Promise.all([
+    const [phim, tin, chao] = await Promise.all([
       goi('/api/video-gt-tin').catch(() => ({ co: false, loi: true })),
       goi('/api/tb-app/tin').catch(() => ({ ds: [], loi: true })),
+      /* Lời chào hỏng thì lặng lẽ quay về ô phát — mất một lời chào không đáng
+       * để cả khối tin trắng ra. */
+      goi('/api/bang-tin-chao').catch(() => ({ kieu: 'phim' })),
     ]);
-    TIN = { phim, ds: tin.ds || [] };
+    TIN = { phim, ds: tin.ds || [], chao };
     /* Máy chủ vừa dậy (Render gói Free ngủ 15 phút; hub vừa khởi động lại) thì
      * lần đọc đầu có thể lỗi hoặc rỗng. Trước đây khối "đọc một lần rồi giữ" nên
      * giữ luôn "Chưa có thông báo nào." cho tới khi người ta tự tải lại trang —
@@ -1347,11 +1402,16 @@ async function veKhoiTin() {
       return;
     }
   }
-  const coPhim = TIN.phim && TIN.phim.co;
+  /* Ô bên trái có BA hình dạng, và lời chào thắng ô phát khi được bật: anh Hùng
+   * chọn "hiện chữ" nghĩa là lúc này anh không muốn video, chứ không phải muốn
+   * cả hai chồng nhau. */
+  const chao = TIN.chao || {};
+  const laChu = chao.kieu === 'chu';
+  const coPhim = !laChu && !!(TIN.phim && TIN.phim.co);
   try {
-    localStorage.setItem('hub.tin.hinh', coPhim ? 'phim' : TIN.ds.length ? 'tin' : '');
+    localStorage.setItem('hub.tin.hinh', laChu ? 'chu' : coPhim ? 'phim' : TIN.ds.length ? 'tin' : '');
   } catch (_) {}
-  if (!coPhim && !TIN.ds.length) { o.innerHTML = ''; o.dataset.xuong = ''; return; }
+  if (!laChu && !coPhim && !TIN.ds.length) { o.innerHTML = ''; o.dataset.xuong = ''; return; }
 
   /* Vẽ MỘT LẦN rồi thôi: lần vẽ lại sau của trang chủ không được đụng vào thẻ
    * video đang chạy. */
@@ -1397,7 +1457,8 @@ async function veKhoiTin() {
   };
 
   o.innerHTML = '<section class="khoi khoi-tin">' +
-    '<div class="tin-luoi' + (coPhim ? '' : ' khong-phim') + '">' +
+    '<div class="tin-luoi' + (coPhim || laChu ? '' : ' khong-phim') + '">' +
+      (laChu ? oChaoHtml(chao) : '') +
       (coPhim
         /* `autoplay loop muted playsinline` là ĐÚNG BỐN thuộc tính trình duyệt
          * đòi để được tự chạy — thiếu `muted` là Chrome chặn thẳng và chặn im

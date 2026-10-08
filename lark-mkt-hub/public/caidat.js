@@ -210,9 +210,16 @@ function veCdThuongHieu(el) {
      * Anh Hùng: "anh có một video thế này, em có thể cho anh tuỳ chỉnh ở ô Nhận
      * diện thương hiệu". Đặt ở đây chứ không đẻ ra một mục mới: nó cùng một
      * loại việc với logo — bộ mặt của hub, quản lý đặt một lần cho cả phòng. */
+    /* Ô bên trái bảng tin: chiếu video hay hiện chữ. Đặt NGAY TRÊN phần video
+     * vì nó quyết định phần video bên dưới có được dùng hay không — đọc từ
+     * trên xuống là hiểu, chứ để dưới thì người ta tải video lên xong mới phát
+     * hiện ra nó đang bị tắt. */
+    '<div class="cd-muc-nho">Ô bên trái bảng tin</div>' +
+    '<div id="cdChao">' + cdCho('220px') + '</div>' +
     '<div class="cd-muc-nho">Video giới thiệu</div>' +
     '<div id="cdPhim">' + cdCho('200px') + '</div>';
   napCdLogo();
+  napCdChao();
   napCdPhim();
 }
 
@@ -324,6 +331,97 @@ function veCdToi(el) {
       };
     }
   }).catch(() => {});
+}
+
+/* ---------------- Ô bên trái bảng tin: video hay chữ ----------------
+ *
+ * Anh Hùng 08/10/2026: "ngoài hiển thị hình video ra, đôi khi anh muốn hiển thị
+ * nội dung text cho nó nhẹ, như chào buổi sáng, chào buổi chiều gì đó". Anh
+ * chốt làm CẢ HAI đường, không bắt chọn một:
+ *
+ *   để trống ô nội dung  -> app tự chào theo buổi, kèm tên người đang xem
+ *   gõ nội dung riêng    -> hiện đúng chữ đã gõ
+ *
+ * Nên "Tự chào theo buổi" KHÔNG phải công tắc loại trừ: nó chỉ quyết định lúc
+ * ô nội dung để trống thì hiện gì. Dòng mô tả dưới ô nhập nói rõ điều đó, vì
+ * nhìn hai thứ điều khiển cạnh nhau rất dễ tưởng chúng chọi nhau.
+ */
+async function napCdChao() {
+  const o = $('#cdChao');
+  if (!o) return;
+  let c = { kieu: 'phim', tuChao: true, chu: '' };
+  try { c = await goi('/api/bang-tin-chao'); } catch (_) {}
+  const laChu = c.kieu === 'chu';
+
+  o.innerHTML =
+    cdHang('Hiện gì ở ô bên trái', 'Chiếu video thì dùng phần Video giới thiệu bên dưới.',
+      '<div class="seg seg-nho" id="cdChaoKieu">' +
+        '<button data-kieu="phim" class="' + (laChu ? '' : 'on') + '">Chiếu video</button>' +
+        '<button data-kieu="chu" class="' + (laChu ? 'on' : '') + '">Hiện chữ</button>' +
+      '</div>') +
+    (laChu
+      ? cdHang('Tự chào theo buổi',
+        'Sáng · chiều · tối, kèm tên người đang xem. Chỉ dùng khi ô nội dung bên dưới để trống.',
+        '<label class="q-ck"><input type="checkbox" id="cdChaoTu"' +
+          (c.tuChao !== false ? ' checked' : '') + '><span>Bật</span></label>') +
+        '<div class="cd-hang"><div class="cd-hang-tx" style="flex:1">' +
+          '<b><label for="cdChaoChu">Nội dung riêng</label></b>' +
+          '<p>Để trống thì dùng lời chào tự động ở trên. Tối đa 500 ký tự.</p>' +
+          '<textarea class="q-in" id="cdChaoChu" rows="3" maxlength="500" ' +
+            'placeholder="Ví dụ: Tuần này cả phòng tập trung cho bộ ảnh Tết nhé" ' +
+            'style="margin-top:6px">' + esc(c.chu || '') + '</textarea>' +
+          '<div class="cd-nhan" id="cdChaoBao"></div>' +
+        '</div></div>'
+      : '');
+
+  const luu = async (moi) => {
+    /* Ghi lên Base mất khoảng NĂM GIÂY (đo thật 4,6s: gỡ tệp cũ rồi đính tệp
+     * mới). Không báo gì trong năm giây đó thì bấm xong trông y như không ăn,
+     * và người ta bấm lại — đúng cái bẫy của nút "Mở chi tiết" vừa sửa sáng
+     * nay. Nên vừa nói đang làm gì, vừa CHẶN lượt bấm thứ hai.
+     *
+     * Chặn bằng một lá cờ chứ không bằng `button.disabled`: lớp dịch ngôn ngữ
+     * dựng lại nội dung khối này để đổi chữ, nên thuộc tính DOM đặt tay bay
+     * mất ngay sau đó — đã đo, bấm xong 80ms là nút hết khoá. Lá cờ nằm ngoài
+     * DOM nên không ai dựng lại được nó. */
+    if (S.cdChaoDangLuu) return;
+    S.cdChaoDangLuu = true;
+    const bao = $('#cdChaoBao');
+    if (bao) bao.textContent = 'Đang lưu lên Lark Base…';
+    try {
+      const d = await goi('/api/bang-tin-chao', { method: 'POST', body: JSON.stringify(moi) });
+      /* Nói thật khi Base từ chối: ghi hỏng mà im lặng thì anh Hùng gõ xong,
+       * đóng Cài đặt, và chỉ phát hiện ra vào lần deploy sau. */
+      if (d && d.khoLoi) { toast('Lưu lên Base hỏng: ' + d.khoLoi, 'do'); }
+      else if (bao) bao.textContent = 'Đã lưu';
+      /* Trang Tổng quan vẽ khối tin MỘT LẦN rồi giữ, nên phải bảo nó quên đi
+       * để lần mở sau đọc lại — không thì sửa xong quay ra vẫn thấy cái cũ. */
+      if (typeof quenKhoiTin === 'function') quenKhoiTin();
+    } catch (e) {
+      toast(e.message, 'do');
+      if (bao) bao.textContent = '';
+    } finally {
+      S.cdChaoDangLuu = false;
+    }
+  };
+
+  const seg = $('#cdChaoKieu');
+  if (seg) {
+    seg.onclick = async (e) => {
+      const b = e.target.closest('button[data-kieu]');
+      if (!b) return;
+      await luu({ kieu: b.dataset.kieu, tuChao: c.tuChao !== false, chu: c.chu || '' });
+      napCdChao();          // vẽ lại: đổi kiểu là đổi luôn những ô hiện ra
+    };
+  }
+  const tu = $('#cdChaoTu');
+  if (tu) tu.onchange = () => luu({ kieu: 'chu', tuChao: tu.checked, chu: $('#cdChaoChu').value });
+  const chu = $('#cdChaoChu');
+  if (chu) {
+    /* Lưu khi RỜI ô, không lưu theo từng phím: mỗi lần gõ là một lượt ghi lên
+     * Base, mà Base có trần tần suất dùng chung với mọi app của phòng. */
+    chu.onchange = () => luu({ kieu: 'chu', tuChao: $('#cdChaoTu').checked, chu: chu.value });
+  }
 }
 
 /* ---------------- Video giới thiệu ----------------

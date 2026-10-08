@@ -1188,6 +1188,29 @@ async function api(req, res, u) {
     return traTep(req, res, fs.readFileSync(t.duong), t.mime);
   }
 
+  /**
+   * Lời chào của ô bên trái bảng tin.
+   *
+   * GET mở cho mọi người đã đăng nhập — cả phòng đều nhìn thấy ô này, nên ai
+   * cũng phải đọc được nó. POST chỉ quản lý: đây là chữ hiện ra trước mặt cả
+   * phòng, không phải thiết lập riêng của từng người.
+   */
+  if (p === '/api/bang-tin-chao') {
+    if (m === 'GET') return ok(res, await phimKho.docChao());
+    if (m === 'POST') {
+      if (await chiQuanLy(req, res)) return;
+      const b = await docBody(req);
+      const len = await phimKho.ghiChao(b);
+      /* Trả về bản ĐÃ CHUẨN HOÁ chứ không trả lại nguyên cái vừa nhận: chữ dài
+       * quá 500 bị cắt ở phía máy chủ, mà Cài đặt phải thấy đúng thứ được lưu
+       * chứ không phải thứ vừa gõ. */
+      return ok(res, Object.assign(phimKho.chuanChao(b), {
+        len, khoLoi: len ? '' : (phimKho.loi() || 'Không ghi được lên Base'),
+      }));
+    }
+    return loi(res, 405, 'Chỉ GET hoặc POST');
+  }
+
   if (p === '/api/video-gt-tin' && m === 'GET') {
     const ds = dsPhim().map((t) => {
       const st = fs.statSync(t.duong);

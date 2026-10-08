@@ -47,6 +47,19 @@ const COT_LUC = 'Cập nhật';
  * báo lỗi Lark ra Cài đặt — dùng lại nguyên, không chép thêm một bản. */
 const KHOA_LOGO = 'logo';
 
+/* Khoá của hàng LỜI CHÀO. Anh Hùng 08/10/2026: "ngoài hiển thị hình video ra,
+ * đôi khi anh muốn hiển thị nội dung text cho nó nhẹ, như chào buổi sáng, chào
+ * buổi chiều gì đó".
+ *
+ * Bảng này chỉ có ba cột — Ô, Tệp, Cập nhật — không có cột nào chứa được một
+ * đoạn văn bản tự do. Nên lời chào cất thành một tệp JSON nhỏ trong chính cột
+ * đính kèm, y như ô phát và logo.
+ *
+ * CÓ THỂ thêm một cột "Giá trị" vào Base cho gọn hơn, nhưng đó là đổi cấu trúc
+ * Base của phòng — việc phải hỏi trước. Dùng đính kèm thì không đụng gì tới
+ * bảng đang có, và dùng lại nguyên bộ gỡ-tệp-cũ / báo-lỗi-Lark sẵn ở đây. */
+const KHOA_CHAO = 'chao';
+
 const B = TABLE ? baseLark.bang(BASE, TABLE, COT_TEP) : null;
 
 /* Lỗi lần chạm Base gần nhất. Cài đặt đọc cái này để nói thật với người dùng
@@ -64,8 +77,8 @@ async function docKho() {
   const ra = new Map();
   for (const d of ds) {
     const raw = String(d[COT_O] || '').trim();
-    const o = raw === KHOA_LOGO ? KHOA_LOGO : Number(raw);
-    if (o !== KHOA_LOGO && !(o >= 1 && o <= 5)) continue;
+    const o = (raw === KHOA_LOGO || raw === KHOA_CHAO) ? raw : Number(raw);
+    if (o !== KHOA_LOGO && o !== KHOA_CHAO && !(o >= 1 && o <= 5)) continue;
     const tep = baseLark.docOTep(d[COT_TEP])[0] || null;
     ra.set(o, { recordId: d.recordId, tep });
   }
@@ -147,4 +160,87 @@ async function veDia(tepCua, ghiDia) {
   } catch (e) { bao(e); return { ok: false, lyDo: loiCuoi }; }
 }
 
-module.exports = { co, loi, docKho, ghiKho, xoaKho, veDia, BASE, TABLE, KHOA_LOGO };
+/* ---------------------------------------------------------------------------
+ * LỜI CHÀO của ô bên trái bảng tin
+ * -------------------------------------------------------------------------*/
+
+/** Hình dạng mặc định — cũng là thứ trả về khi Base chưa có gì hoặc đang lỗi. */
+const CHAO_MAC_DINH = { kieu: 'phim', tuChao: true, chu: '' };
+
+/** Chuẩn hoá: dữ liệu đọc từ Base có thể cũ, thiếu trường, hoặc sai kiểu. */
+function chuanChao(o) {
+  const v = o && typeof o === 'object' ? o : {};
+  return {
+    kieu: v.kieu === 'chu' ? 'chu' : 'phim',
+    tuChao: v.tuChao !== false,
+    /* Cắt ở 500: ô này là một lời chào, không phải chỗ dán cả thông báo. Dài
+     * quá thì nó tràn khỏi khung và đẩy cột tin bên cạnh méo đi. */
+    chu: String(v.chu == null ? '' : v.chu).slice(0, 500),
+  };
+}
+
+/**
+ * Dòng lời chào trên Base, kèm ĐỦ danh sách tệp đính kèm.
+ *
+ * Không dùng docKho() cho việc này: nó chỉ giữ lại tệp ĐẦU TIÊN của mỗi dòng
+ * (`docOTep(...)[0]`), mà ô đính kèm của Lark thì cộng dồn. Khi có nhiều bản
+ * chồng nhau thì tệp đầu tiên là bản CŨ NHẤT — đọc nó ra là đọc nhầm, và ghi
+ * thì chỉ gỡ được một bản mỗi lượt nên chồng mãi không hết.
+ */
+async function dongChao() {
+  const ds = await B.docHet();
+  for (const d of ds) {
+    if (String(d[COT_O] || '').trim() !== KHOA_CHAO) continue;
+    return { recordId: d.recordId, tep: baseLark.docOTep(d[COT_TEP]) || [] };
+  }
+  return null;
+}
+
+/** Đọc cấu hình lời chào từ Base. Hỏng thì trả mặc định, KHÔNG ném. */
+async function docChao() {
+  if (!B) return { ...CHAO_MAC_DINH };
+  try {
+    const d = await dongChao();
+    /* Lấy tệp CUỐI — bản ghi sau cùng được đính thêm vào cuối, nên nó mới là
+     * cấu hình đang có hiệu lực. Lấy tệp đầu là đọc ra bản cũ nhất. */
+    const t0 = d && d.tep.length ? d.tep[d.tep.length - 1] : null;
+    if (!t0 || !t0.token) return { ...CHAO_MAC_DINH };
+    const t = await B.taiTep(d.recordId, t0.token);
+    const buf = (t && t.buf) || (Buffer.isBuffer(t) ? t : null);
+    if (!buf || !buf.length) return { ...CHAO_MAC_DINH };
+    loiCuoi = '';
+    return chuanChao(JSON.parse(buf.toString('utf8')));
+  } catch (e) { bao(e); return { ...CHAO_MAC_DINH }; }
+}
+
+/** Ghi cấu hình lời chào lên Base. */
+async function ghiChao(o) {
+  if (!B) return false;
+  const sach = chuanChao(o);
+  try {
+    let d = await dongChao();
+    if (!d) {
+      const kho = await docKho();
+      const rec0 = await dongCua(kho, KHOA_CHAO);
+      d = { recordId: rec0, tep: [] };
+    }
+    const rec = d.recordId;
+    /* Gỡ MỌI tệp cũ, không chỉ tệp đầu — ô đính kèm CỘNG DỒN. Gỡ đúng một bản
+     * mỗi lượt thì khi đã lỡ chồng ba bản, mỗi lần ghi là gỡ một thêm một:
+     * chồng mãi không hết. Đã gặp đúng ba bản chồng nhau sau một loạt bấm
+     * nhanh, và lượt đọc sau đó trả về cấu hình của mấy phút trước. */
+    for (const t of d.tep) {
+      try { await B.goTep(rec, COT_TEP, t.token); } catch (_) { /* lỡ mất thì thôi */ }
+    }
+    await B.dinhTep(rec, COT_TEP, {
+      ten: 'chao.json', kieu: 'application/json',
+      buf: Buffer.from(JSON.stringify(sach), 'utf8'),
+    });
+    try { await B.ghi(rec, { [COT_LUC]: new Date().toISOString() }); } catch (_) {}
+    loiCuoi = '';
+    return true;
+  } catch (e) { bao(e); return false; }
+}
+
+module.exports = { co, loi, docKho, ghiKho, xoaKho, veDia, docChao, ghiChao, chuanChao,
+  CHAO_MAC_DINH, BASE, TABLE, KHOA_LOGO, KHOA_CHAO };
