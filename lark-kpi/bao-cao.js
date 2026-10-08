@@ -1006,18 +1006,18 @@ async function docLich(app, tu, den, pv) {
         ghi: soBuoiCoGio === it.length
           ? 'giờ'
           : 'giờ · ' + soBuoiCoGio + '/' + it.length + ' buổi đã có giờ kết thúc' },
-      /* Người đi tác nghiệp chỉ thấy DỰ TOÁN. Chi thực tế và chênh dự toán là
-       * việc của người duyệt chi — đặt vào phiếu của người đi là bắt họ chịu
-       * trách nhiệm về một con số họ không quyết. Anh Hùng chốt 08/10/2026. */
-      ...(pv ? [] : [
-        { nhan: 'Chi phí thực tế', so: cong('costActual'), dinhDang: 'vnd', trungTinh: true },
-      ]),
-      { nhan: pv ? 'Chi phí dự kiến' : 'Dự toán', so: cong('costPlan'), dinhDang: 'vnd',
-        trungTinh: true },
-      ...(pv ? [] : [
-        { nhan: 'Chênh dự toán', so: cong('costActual') - cong('costPlan'),
-          dinhDang: 'vnd', dao: true },
-      ]),
+      /* Ba ô tiền hiện cho MỌI NGƯỜI, kể cả bản rút gọn — anh Hùng chốt
+       * 08/10/2026. Người đi tác nghiệp cần thấy mình tiêu so với dự kiến ra
+       * sao, chứ không chỉ biết con số được duyệt rồi thôi.
+       *
+       * Tên gọi thống nhất giữa hai bản. Trước đó bản trưởng phòng ghi "Dự
+       * toán" còn bản nhân sự ghi "Chi phí dự kiến" cho cùng một cột Base —
+       * hai tên cho một số là chỗ sinh tranh cãi khi hai bên đối chiếu. */
+      { nhan: 'Chi phí dự kiến', so: cong('costPlan'), dinhDang: 'vnd', trungTinh: true },
+      { nhan: 'Chi phí thực tế', so: cong('costActual'), dinhDang: 'vnd', trungTinh: true },
+      { nhan: 'Chênh dự kiến', so: cong('costActual') - cong('costPlan'),
+        dinhDang: 'vnd', dao: true,
+        ghi: cong('costActual') > cong('costPlan') ? 'tiêu quá dự kiến' : 'tiêu dưới dự kiến' },
       { nhan: 'Có báo cáo sau buổi', so: it.filter((x) => x.reportAfter || x.report).length, dinhDang: 'so' },
       { nhan: 'Số địa điểm đã đến', so: dd.length, dinhDang: 'so',
         ghi: chuaGhiDd ? chuaGhiDd + '/' + it.length + ' buổi chưa ghi địa điểm' : '' },
@@ -1040,23 +1040,19 @@ async function docLich(app, tu, den, pv) {
     },
     bang: [
       { tieuDe: 'Theo địa điểm',
-        cot: pv ? ['Địa điểm', 'Số buổi'] : ['Địa điểm', 'Số buổi', 'Chi phí thực tế'],
-        soCot: [1, 2],
+        cot: ['Địa điểm', 'Số buổi', 'Chi phí thực tế'], soCot: [1, 2],
         dong: dd.slice().sort((x, y) => y._n - x._n)
-          .map((x) => (pv ? [x._k, x._n] : [x._k, x._n, so(x.costActual)])) },
+          .map((x) => [x._k, x._n, so(x.costActual)]) },
       { tieuDe: 'Buổi tác nghiệp trong kỳ',
-        cot: pv
-          ? ['Ngày', 'Nội dung', 'Địa điểm', 'Trạng thái', 'Chi phí dự kiến']
-          : ['Ngày', 'Nội dung', 'Địa điểm', 'Trạng thái', 'Người', 'Chi phí'],
-        soCot: [pv ? 4 : 5],
+        /* Để CẢ HAI cột tiền cạnh nhau: xem một buổi mà chỉ thấy một con số
+         * thì không biết nó vượt hay dưới dự kiến. */
+        cot: ['Ngày', 'Nội dung', 'Địa điểm', 'Trạng thái', 'Người', 'Dự kiến', 'Thực tế'],
+        soCot: [5, 6],
         dong: it.slice().sort((x, y) => String(x.start).localeCompare(String(y.start)))
-          .slice(0, 40).map((x) => (pv
-            ? [String(x.start || '').slice(0, 10), x.title || '(không tên)',
-              nhanOf(x.diaDiem) || '—', nhanOf(x.status), so(x.costPlan)]
-            : [String(x.start || '').slice(0, 10), x.title || '(không tên)',
-              nhanOf(x.diaDiem) || '—', nhanOf(x.status),
-              (x.owner || x.staff || []).map((u) => u.name || u.id).join(', '),
-              so(x.costActual)])) },
+          .slice(0, 40).map((x) => [String(x.start || '').slice(0, 10),
+            x.title || '(không tên)', nhanOf(x.diaDiem) || '—', nhanOf(x.status),
+            (x.owner || x.staff || []).map((u) => u.name || u.id).join(', '),
+            so(x.costPlan), so(x.costActual)]) },
     ].filter((x) => x.dong.length),
   };
 }
