@@ -509,44 +509,36 @@ function bcCot(c) {
     return g;
   }
   const max = Math.max(1, ...ds.map((x) => x.so));
-  /* HAI CHỈ SỐ CẠNH NHAU, MỖI CHỈ SỐ MỘT THANG. Lượt xem 148k và bình luận 929
-   * chung một thang thì cột bình luận còn chưa tới một điểm ảnh. Con số in trên
-   * đầu cột mới là dữ liệu; cột chỉ để so nền tảng này với nền tảng kia TRONG
-   * CÙNG một chỉ số, nên thang riêng là đúng chứ không phải mẹo. */
+  /* CHỈ SỐ THỨ HAI KHÔNG VẼ THÀNH CỘT, chỉ ghi số dưới chân.
+   *
+   * Bản trước vẽ hai cột cạnh nhau, mỗi cột một thang riêng. Về lý thì chặt —
+   * mỗi thang so một chỉ số — nhưng nhìn vào thì cột "889 bình luận" cao hơn
+   * cột "69k lượt xem", và anh Hùng hỏi đúng câu phải hỏi: "vài trăm bình luận
+   * sao cột cao hơn 60k được". Một hình vẽ sai thì lời giải thích dán bên dưới
+   * không cứu được. Giờ CHỈ lượt xem có cột, cùng một thang, không lừa mắt ai;
+   * bình luận thành con số đặt dưới tên nền tảng. */
   const cap = (c.cap || []).length === 2 ? c.cap : null;
-  const max2 = cap ? Math.max(1, ...ds.map((x) => so0(x.so2))) : 1;
-  const cao = (v, m) => Math.max(3, Math.round((so0(v) / m) * 130));
+  const cao = (v) => Math.max(3, Math.round((so0(v) / max) * 130));
 
-  const hang = el('div', 'ct-ds' + (cap ? ' ct-cap' : ''));
+  const hang = el('div', 'ct-ds');
   ds.slice(0, 14).forEach((x, i) => {
     const o = el('div', 'ct-cot');
     const mau = window.Charts ? Charts.colorFor(x.nhan, i) : '#2b5cff';
-    if (cap) {
-      o.innerHTML = '<div class="ct-doi">'
-        + '<u><b>' + bcSo(x.so, c.don || 'so') + '</b>'
-        /* Chiều cao tính thẳng ra px chứ không dùng %: ô bọc cột không có
-         * chiều cao xác định (nó co theo nhãn bên dưới), nên % sẽ rơi về auto
-         * và mọi cột dẹp bằng nhau. */
-        + '<i style="height:' + cao(x.so, max) + 'px;background:' + mau + '"></i></u>'
-        + '<u><b>' + bcSo(so0(x.so2), c.don || 'so') + '</b>'
-        + '<i class="nhat" style="height:' + cao(x.so2, max2) + 'px;background:' + mau + '"></i></u>'
-        + '</div><span>' + esc(x.nhan) + '</span>';
-      o.title = x.nhan + ' — ' + cap[0] + ': ' + gon(x.so) + ' · ' + cap[1] + ': ' + gon(so0(x.so2));
-    } else {
-      o.innerHTML = '<b>' + bcSo(x.so, c.don || 'so') + '</b>'
-        + '<i style="height:' + cao(x.so, max) + 'px;background:' + mau + '"></i>'
-        + '<span>' + esc(x.nhan) + '</span>';
-      o.title = x.nhan + ': ' + gon(x.so);
-    }
+    o.innerHTML = '<b>' + bcSo(x.so, c.don || 'so') + '</b>'
+      /* Chiều cao tính thẳng ra px chứ không dùng %: ô bọc cột không có chiều
+       * cao xác định (nó co theo nhãn bên dưới), nên % sẽ rơi về auto và mọi
+       * cột dẹp bằng nhau. */
+      + '<i style="height:' + cao(x.so) + 'px;background:' + mau + '"></i>'
+      + '<span>' + esc(x.nhan)
+      + (cap ? '<em>' + bcSo(so0(x.so2), c.don || 'so') + ' ' + esc(cap[1].toLowerCase())
+        + '</em>' : '')
+      + '</span>';
+    o.title = x.nhan + ': ' + gon(x.so)
+      + (cap ? ' · ' + cap[1] + ': ' + gon(so0(x.so2)) : '');
     hang.appendChild(o);
   });
   g.appendChild(hang);
-  if (cap) {
-    g.appendChild(el('div', 'ct-chu',
-      '<span><i></i>' + esc(cap[0]) + '</span>'
-      + '<span><i class="nhat"></i>' + esc(cap[1]) + '</span>'
-      + '<em>mỗi chỉ số một thang riêng</em>'));
-  }
+  if (cap) g.appendChild(el('div', 'ss-chan', 'Cột vẽ theo ' + esc(cap[0].toLowerCase()) + '.'));
   if (ds.length > 14) {
     g.appendChild(el('div', 'ss-chan', 'Hiện 14 mục cao nhất trong ' + ds.length + ' mục.'));
   }

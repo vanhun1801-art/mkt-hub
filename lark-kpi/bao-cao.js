@@ -608,16 +608,26 @@ async function docLiveRieng(app, tu, den, pv) {
   /* XẾP Ô THÀNH BỐN NHÓM. Mười bốn ô dàn một hàng ngang bằng nhau thì không gì
    * nói ô nào là kết quả, ô nào là chi tiết — anh Hùng gọi đúng tên bệnh ngày
    * 08/10/2026: "khó coi do phân cấp thông tin". Chia nhóm là cách rẻ nhất để
-   * nói ra thứ bậc mà không phải bỏ số nào. */
+   * nói ra thứ bậc mà không phải bỏ số nào.
+   *
+   * Chia theo CÂU HỎI, không theo nguồn số: phòng phát bao nhiêu · có bao
+   * nhiêu người xem · họ làm gì · có ra đơn không. Bản trước xếp "Phút lên
+   * sóng mỗi phiên" vào nhóm Người xem, mà nó là chuyện mình phát chứ không
+   * phải chuyện người ta xem — anh Hùng bảo "cần logic hơn", đúng. */
   const NHOM = {
-    'Số phiên LIVE': 'quyMo', 'Lượt xem': 'quyMo', 'Giờ lên sóng': 'quyMo',
-    'Người xem': 'nguoiXem', 'Đỉnh cùng lúc': 'nguoiXem',
-    'Xem trung bình một phiên': 'nguoiXem', 'Phút lên sóng mỗi phiên': 'nguoiXem',
+    'Số phiên LIVE': 'quyMo', 'Giờ lên sóng': 'quyMo', 'Phút lên sóng mỗi phiên': 'quyMo',
+    'Lượt xem': 'nguoiXem', 'Người xem': 'nguoiXem', 'Đỉnh cùng lúc': 'nguoiXem',
+    'Xem trung bình một phiên': 'nguoiXem',
     'Bình luận': 'tuongTac', 'Thích': 'tuongTac', 'Chia sẻ': 'tuongTac',
     'Follow mới': 'tuongTac',
     'Tin nhắn (Facebook)': 'raDon', 'Lead (Facebook)': 'raDon', 'Đơn chốt (Facebook)': 'raDon',
   };
-  const oNhom = o.map((x) => ({ ...x, nhom: NHOM[x.nhan] || 'khac' }));
+  /* Trong mỗi nhóm cũng xếp theo thứ tự ĐỌC, không theo thứ tự dựng: số lớn
+   * trước, số dẫn xuất sau. Thứ tự khai trong NHOM chính là thứ tự đó. */
+  const THU_TU = Object.keys(NHOM);
+  const viTri = (n) => { const i = THU_TU.indexOf(n); return i < 0 ? 999 : i; };
+  const oNhom = o.map((x) => ({ ...x, nhom: NHOM[x.nhan] || 'khac' }))
+    .sort((x, y) => viTri(x.nhan) - viTri(y.nhan));
 
   /* PHIÊN FACEBOOK GỌI ĐÚNG TÊN. Bản trước chỉ có ngày và kênh, nên đọc xong
    * không biết phiên nào là buổi nào — mà tên phiên chính là thứ người dẫn

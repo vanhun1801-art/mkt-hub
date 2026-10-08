@@ -494,31 +494,12 @@ tr.phu td { background: var(--trang-2); }
   text-align: center; word-break: break-word;
 }
 
-/* Hai chỉ số cạnh nhau trong cùng một nhóm — xem chú thích ở bcCot().
-   Cột thứ hai nhạt hơn để nhìn một cái là biết nó là chỉ số khác, chứ không
-   phải cùng một thứ đo ở chỗ khác. */
-.ct-cap .ct-cot { min-width: 96px; }
-.ct-doi { display: flex; align-items: flex-end; gap: 6px; }
-.ct-doi > u {
-  text-decoration: none; display: flex; flex-direction: column; align-items: center;
-  min-width: 34px;
+/* Chỉ số phụ đi kèm tên nền tảng, KHÔNG vẽ thành cột — xem chú thích ở
+   bcCot(). Cột thứ hai từng cao hơn cột chính vì thang riêng, nhìn là sai. */
+.ct-cot > span > em {
+  display: block; font-style: normal; margin-top: 2px;
+  font-size: 12px; color: var(--chu-nhat);
 }
-.ct-doi > u > b {
-  font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums;
-  padding-bottom: 4px; white-space: nowrap; color: var(--chu);
-}
-.ct-doi > u > i { display: block; width: 100%; max-width: 40px; border-radius: 4px 4px 0 0; }
-.ct-doi > u > i.nhat { opacity: .42; }
-.ct-chu {
-  display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center;
-  margin-top: 8px; font-size: 12px; color: var(--chu-nhat);
-}
-.ct-chu span { display: inline-flex; align-items: center; gap: 5px; }
-.ct-chu i {
-  width: 10px; height: 10px; border-radius: 3px; background: var(--xanh); display: block;
-}
-.ct-chu i.nhat { opacity: .42; }
-.ct-chu em { font-style: normal; opacity: .75; }
 
 /* Dòng chưa đo được: để trống thanh, đừng vẽ một vạch 0 trông như "đo được, bằng 0". */
 .tn-hang.tn-trong .tn-ten { opacity: .75; }
@@ -835,6 +816,89 @@ input.ghi-cham::placeholder { color: var(--chu-nhat); font-style: italic; }
      .logo.
    Nới cỡ ở đó là làm méo hộp chứ không giúp ai đọc được gì.
    --------------------------------------------------------------------- */
+/* ==========================================================================
+   CHUẨN TRÌNH BÀY CỦA TAB BÁO CÁO (08/10/2026)
+   --------------------------------------------------------------------------
+   Anh Hùng: "không có tiêu chuẩn trình bày báo cáo, không có khung an toàn,
+   không có gu như iOS". Đúng cả ba. Trước đó mỗi phần tự chọn lề: dãy ô dán
+   sát mép, biểu đồ thụt 13px, bảng dán mép, khối chữ em mới thêm thì không
+   thụt tí nào. Nhìn xuống một khối là thấy bốn mép trái khác nhau.
+
+   Ba luật, áp cho mọi thứ nằm trong một khối báo cáo:
+
+   1. KHUNG AN TOÀN 16px. Mọi phần tử con thụt vào đúng 16px hai bên. Bảng vẫn
+      tràn hết bề ngang (bảng tràn mép là đúng, nó cần chỗ), nhưng CHỮ trong ô
+      đầu và ô cuối vẫn nằm trên đúng mép 16px ấy.
+   2. NHỊP DỌC 8 · 16 · 24. Không có con số lẻ nào khác.
+   3. Ô SỐ LÀ THẺ RỜI, không phải ô bảng. Bản trước dán liền nhau thành một
+      lưới kín, nên nhóm có 3 ô trong hàng 5 cột để lại một mảng trống trông
+      như vỡ layout. Thẻ rời có khe thì hàng thiếu ô là chuyện bình thường.
+      Đây cũng chính là cách iOS xếp thẻ.
+   ========================================================================== */
+
+:root {
+  --bc-le: 16px;          /* khung an toàn */
+  --bc-khe: 10px;         /* khe giữa các thẻ */
+  --bc-bo: 12px;          /* bo góc thẻ số */
+}
+
+/* --- dãy ô --- */
+.o-luoi {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(188px, 1fr));
+  grid-auto-rows: 1fr;
+  gap: var(--bc-khe);
+  padding: 0 var(--bc-le) var(--bc-le);
+}
+/* PHÂN TẦNG BẰNG NỀN, KHÔNG BẰNG VIỀN. Lớp iOS cố ý ép viền ô thành trong
+   suốt — thẻ gạch viền là lối Material, không phải lối iOS. iOS tách tầng bằng
+   một mặt nền hơi sáng hơn mặt dưới nó. `--ios-o` là đúng mặt ấy khi có lớp
+   iOS; không có thì rơi về `--trang-2`, vốn cũng là mặt phụ của bảng màu gốc. */
+.o {
+  background: var(--ios-o, var(--trang-2)); padding: 12px 14px 13px;
+  border: 0; border-radius: var(--bc-bo);
+  box-shadow: none;
+  display: flex; flex-direction: column;
+}
+.o .nhan {
+  font-size: 11px; color: var(--chu-nhat); font-weight: 650;
+  text-transform: uppercase; letter-spacing: .04em; line-height: 1.35;
+}
+.o .so {
+  font-size: 23px; font-weight: 700; letter-spacing: -.022em; margin-top: 3px;
+  font-variant-numeric: tabular-nums; line-height: 1.15;
+}
+.o .ghi { font-size: 12px; padding-top: 4px; color: var(--chu-nhat); line-height: 1.45; }
+/* Ô chính không đổi nền nữa — nền khác màu giữa các thẻ rời trông như lỗi.
+   Nhấn bằng CỠ SỐ, đúng lối iOS. */
+.o.chinh { background: var(--ios-o, var(--trang-2)); }
+.o.chinh .so { font-size: 29px; }
+
+/* --- tiêu đề nhóm ô --- */
+.nhom-o {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  padding: 16px var(--bc-le) 8px;
+}
+.nhom-o > h4 {
+  margin: 0; font-size: 12px; font-weight: 700; letter-spacing: .03em;
+  text-transform: none; color: var(--chu);
+}
+.nhom-o > span { font-size: 12px; color: var(--chu-nhat); }
+
+/* --- biểu đồ --- */
+.bieu-do { padding: 8px var(--bc-le) var(--bc-le); }
+
+/* --- khối chữ gập "giới hạn số liệu" --- */
+.luu-y-gap { margin: 0; padding: 10px var(--bc-le) 0; }
+
+/* --- bảng: tràn mép, nhưng chữ vẫn đứng trên mép 16px --- */
+.bang-cuon th:first-child, .bang-cuon td:first-child { padding-left: var(--bc-le); }
+.bang-cuon th:last-child, .bang-cuon td:last-child { padding-right: var(--bc-le); }
+.bang-cuon { margin-bottom: 4px; }
+
+/* --- dòng tiêu đề của bảng --- */
+.than.nho.nhat { padding: 16px var(--bc-le) 8px; }
+
+
 @media (max-width: 640px) {
   .o .nhan { font-size: 12.5px; }                                /* 10 */
   .o-nen { font-size: 12.5px; }                                  /* 10.5 */
