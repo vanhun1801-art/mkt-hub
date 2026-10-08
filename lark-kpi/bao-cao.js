@@ -906,11 +906,20 @@ async function docCongViec(app, tu, den, pv) {
    * trong kỳ" là để người đọc hiểu sang một nghĩa mà số không đo được. */
   const trongKy = ds.filter((t) => { const x = han(t); return x >= a && x <= b; });
   const xong = trongKy.filter((t) => nhanOf(t.status) === 'Hoàn thành');
-  const mo = ds.filter((t) => !DONG.has(nhanOf(t.status)));
+  /* MỌI Ô ĐỀU ĐỌC TRONG KỲ, không đọc cả bảng.
+   *
+   * Bản trước tính "việc đang mở", "quá hạn", "đang tiến hành", "chờ tiếp nhận"
+   * trên TOÀN BỘ bảng từ đầu năm, trong khi mấy ô còn lại tính theo bộ lọc thời
+   * gian. Hai thước đo trong cùng một dãy ô, không chú thích. Phiếu của Khánh
+   * tháng 10 vì thế hiện "3 việc đang mở" kèm một việc gắn cờ trễ deadline từ
+   * tháng 9, còn trong tháng 10 bạn ấy chỉ có 2 việc mở và không trễ cái nào.
+   * Anh Hùng bắt đúng chỗ này 08/10/2026. */
+  const mo = trongKy.filter((t) => !DONG.has(nhanOf(t.status)));
   const quaHan = mo.filter((t) => han(t) && han(t) < bay);
   const tt = gomTheo(ds, (t) => nhanOf(t.status) || '(trống)', []);
   const theoLoai = gomTheo(trongKy, (t) => nhanOf(t.workType) || '(chưa phân loại)', []);
   const theoNguoi = gomTheo(trongKy, (t) => (t.owner || []).map((u) => u.name).join(', ') || '(chưa giao)', []);
+  const dem = (s) => trongKy.filter((t) => nhanOf(t.status) === s).length;
   const coMinhChungDs = trongKy.filter((t) => (t.attachment || []).length
     || (t.fileKetQua || []).length || t.linkKetQua || t.link);
   const coMinhChung = coMinhChungDs.length;
@@ -927,9 +936,10 @@ async function docCongViec(app, tu, den, pv) {
     }));
 
   /* Liên kết kết quả của một việc, ưu tiên link người ta tự điền. */
-  const linkCua = (t) => t.linkKetQua || t.link
-    || ((t.fileKetQua || [])[0] || {}).url || ((t.attachment || [])[0] || {}).url || '';
-  const ngayCua = (t) => (t.ngayGiaiQuyet ? msOf(t.ngayGiaiQuyet) : han(t));
+  /* `ngayGiaiQuyet` có trong Base nhưng gần như không ai điền — đo ngày
+   * 08/10/2026: 1/97 việc của Khánh có ô này. Nên "đếm theo ngày bấm hoàn
+   * thành" chưa làm được, và mọi ô ở đây đếm theo MỐC DEADLINE. Anh Hùng xác
+   * nhận cách đếm đó đúng với cách phòng đang làm việc. */
   return {
     o: [
       { nhan: 'Đến hạn trong kỳ', so: trongKy.length, dinhDang: 'so', chinh: true },
@@ -942,17 +952,20 @@ async function docCongViec(app, tu, den, pv) {
         ghi: trongKy.length ? Math.round((coMinhChung / trongKy.length) * 100) + '% số việc' : '' },
       { nhan: 'Việc đang mở', so: mo.length, dinhDang: 'so' },
       { nhan: 'Quá hạn', so: quaHan.length, dinhDang: 'so', muc: quaHan.length ? 'cao' : 'ok', dao: true },
-      { nhan: 'Gắn cờ trễ deadline', so: ds.filter((t) => nhanOf(t.status) === 'Trễ deadline').length,
-        dinhDang: 'so', muc: 'vua', dao: true },
-      { nhan: 'Đang tiến hành', so: ds.filter((t) => nhanOf(t.status) === 'Đang tiến hành').length, dinhDang: 'so' },
-      { nhan: 'Chờ tiếp nhận', so: ds.filter((t) => nhanOf(t.status) === 'Chờ tiếp nhận').length, dinhDang: 'so' },
-      { nhan: 'Chưa phân công', so: mo.filter((t) => !(t.owner || []).length).length, dinhDang: 'so', dao: true },
-      /* Khi đã lọc theo người thì ĐỔI TÊN Ô. "Tổng việc trên bảng" đọc như số
-       * việc của cả phòng, trong khi nó đang là số việc của riêng người này —
-       * Khánh thấy 95 và tưởng cả bảng chỉ có 95 việc, thật ra là 536. */
-      { nhan: pv ? 'Tổng việc của tôi trên bảng' : 'Tổng việc trên bảng',
-        so: ds.length, dinhDang: 'so',
-        ghi: pv && pv.loaiViec ? 'chỉ loại ' + pv.loaiViec.join(', ') : '' },
+      { nhan: 'Đang tiến hành', so: dem('Đang tiến hành'), dinhDang: 'so' },
+      { nhan: 'Chờ tiếp nhận', so: dem('Chờ tiếp nhận'), dinhDang: 'so' },
+      /* HAI Ô CHỈ HIỆN KHI CÓ CHUYỆN. Cả hai đếm thứ đáng lo; bằng 0 là tin
+       * mừng, mà tin mừng thì không cần một ô riêng — để đó chỉ làm dãy ô dài
+       * thêm. Khác "chưa đo được": đây là đã đếm và đếm ra không có. */
+      ...(dem('Trễ deadline')
+        ? [{ nhan: 'Gắn cờ trễ deadline', so: dem('Trễ deadline'), dinhDang: 'so',
+          muc: 'vua', dao: true }] : []),
+      ...(mo.filter((t) => !(t.owner || []).length).length
+        ? [{ nhan: 'Chưa phân công', so: mo.filter((t) => !(t.owner || []).length).length,
+          dinhDang: 'so', dao: true }] : []),
+      /* Ô "Tổng việc trên bảng" đã bỏ — anh Hùng 08/10/2026: "không cần thể
+       * hiện tổng số việc vì đang tính theo bộ lọc bên trên". Đúng: nó là con
+       * số duy nhất trong dãy không theo bộ lọc, đứng đó chỉ gây so nhầm. */
     ],
     /* Bảng việc chỉ cần ĐỊNH LƯỢNG: kỳ này làm được bao nhiêu việc, loại gì, ai
      * làm. Vành khuyên trạng thái đã bỏ (nó trả lời "việc đang nằm ở đâu" — câu
@@ -980,15 +993,10 @@ async function docCongViec(app, tu, den, pv) {
       { tieuDe: 'Theo loại công việc',
         cot: ['Loại', 'Số việc'], soCot: [1],
         dong: theoLoai.sort((x, y) => y._n - x._n).map((x) => [x._k, x._n]) },
-      /* LIỆT KÊ CỤ THỂ VIỆC ĐÃ LÀM. Con số "33 việc đã xong" không chứng minh
-       * được gì khi trình ra; danh sách tên việc kèm link kết quả thì có. Đây
-       * cũng là thứ nhân sự cần nhất ở phiếu của mình. */
-      { tieuDe: 'Việc đã xong trong kỳ — liệt kê',
-        cot: ['Hạn', 'Việc', 'Loại', 'Chiến dịch', 'Kết quả'],
-        dong: xong.slice().sort((x, y) => ngayCua(y) - ngayCua(x)).slice(0, 60).map((t) => [
-          ngayCua(t) ? new Date(ngayCua(t)).toLocaleDateString('vi-VN') : '',
-          (t.title || '(không tên)').slice(0, 90), nhanOf(t.workType),
-          nhanOf(t.campaign), linkCua(t) ? 'có link' : '—']) },
+      /* Bảng "Việc đã xong trong kỳ — liệt kê" đã bỏ. Anh Hùng 08/10/2026:
+       * minh chứng thì đã có sẵn trong Base rồi, không cần chép lại vào báo
+       * cáo — sáu mươi dòng tên việc đẩy mọi thứ khác xuống dưới màn hình. Ô
+       * "Có minh chứng" vẫn còn để biết tỷ lệ. */
       { tieuDe: 'Việc quá hạn',
         cot: ['Việc', 'Loại', 'Người', 'Hạn'],
         dong: quaHan.slice().sort((x, y) => han(x) - han(y)).slice(0, 30).map((t) => [
