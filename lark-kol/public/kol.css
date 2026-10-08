@@ -376,3 +376,12 @@ pre.tin { white-space: pre-wrap; background: var(--surface-3); border-radius: va
 .link-nho { font-size: 12px; margin-right: 6px; }
 @media (max-width: 1280px) { .bg-tren { grid-template-columns: repeat(4, minmax(0, 1fr)); } .bg-o.rong { grid-column: span 2; } .bg-tren .nut-x { justify-self: end; } }
 @media (max-width: 640px) { .bg-tren { grid-template-columns: repeat(2, minmax(0, 1fr)); } .bg-o.rong { grid-column: 1 / -1; } .bg-k.on { flex-basis: 100%; } }
+
+/* Nâng cỡ chữ của khối bàn giao, ĐỂ RIÊNG Ở ĐÂY chứ không gộp vào khối nâng
+   chung phía trên: khối ấy nằm TRƯỚC chỗ khai .bg-o, mà hai luật cùng độ ưu
+   tiên thì luật đứng sau thắng — nâng ở trên là nâng hụt, mà phép kiểm
+   dien-thoai chỉ quét tên chọn nên vẫn báo đạt. */
+@media (max-width: 640px) {
+  .bg-o { font-size: 12px; }
+  .bg-nhan { font-size: 12px; }
+}
