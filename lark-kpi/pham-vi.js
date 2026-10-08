@@ -16,17 +16,20 @@
  * và 55 việc. Khớp theo "khanh" thì gộp việc của người này vào phiếu người kia.
  * Nên mỗi người phải khai thẳng những cái tên xuất hiện ở các app khác.
  *
- * Bản khai mặc định dưới đây dựng theo đúng mô tả của anh Hùng ngày 05/10/2026.
- * Trưởng phòng sửa được ở tab "Phân công kênh" và bản sửa ghi xuống tệp. Để
- * trong code làm MẶC ĐỊNH là cố ý: tệp `du-lieu/` không lên git và mất sau mỗi
- * lần deploy, nên nếu chỉ có tệp thì lên server chung mọi người mất sạch phạm
- * vi. Khi nào chuyển hẳn sang Base thì bỏ phần mặc định này đi.
+ * NƠI LƯU: bảng "Phạm vi báo cáo" trên Lark Base. Trước đây ghi vào
+ * `du-lieu/pham-vi-bao-cao.json`, mà thư mục đó không lên git và đĩa Render bị
+ * xoá mỗi lần deploy — nghĩa là mọi chỉnh sửa của trưởng phòng biến mất ở lần
+ * deploy kế tiếp, lặng lẽ, không báo gì.
+ *
+ * Bản `MAC_DINH` dưới đây giữ lại làm NỀN: dựng theo mô tả của anh Hùng ngày
+ * 05/10/2026, dùng để gieo bảng Base lần đầu, và để đỡ khi Base không đọc được.
+ * Thêm người mới thì khai ở đây, lần nạp sau Base sẽ phủ lên phần đã sửa.
  */
 
-const fs = require('fs');
-const path = require('path');
+const cfg = require('./config');
+const lark = require('./lark');
 
-const TEP = path.join(__dirname, 'du-lieu', 'pham-vi-bao-cao.json');
+const T = cfg.bang.phamVi;
 
 /** Tất cả khối báo cáo có thể mở cho một người. */
 const KHOI = [
@@ -112,23 +115,114 @@ const MAC_DINH = {
   },
 };
 
-const docTep = () => {
-  try { return JSON.parse(fs.readFileSync(TEP, 'utf8')); } catch (_) { return {}; }
+/* Bản khai đọc từ Base, giữ trong RAM. Mọi phép ĐỌC phải đồng bộ: tầng báo cáo
+ * gọi `cua()` ở giữa vòng dựng số và `laCuaNguoi()` trong vòng lặp từng dòng —
+ * biến chúng thành async là phải sửa cả chuỗi gọi, cho một bảng sáu dòng. Nên
+ * nạp một lần lúc khởi động, rồi nạp lại sau mỗi lần lưu. */
+let KHO = null;
+let NGUON = 'mặc định';
+let LOI = '';
+
+/* Các cột danh sách lưu bằng TEXT, mỗi mục một dòng. Không dùng ô chọn nhiều:
+ * thêm một khối mới trong mã sẽ phải nhớ thêm lựa chọn trên Base, quên một chỗ
+ * là ghi hỏng mà không báo. */
+const dong = (v) => String(v || '').split('\n').map((x) => x.trim()).filter(Boolean);
+const viet = (a) => (Array.isArray(a) ? a.filter(Boolean).join('\n') : '');
+
+const chu = (v) => {
+  if (v == null) return '';
+  if (Array.isArray(v)) return v.map((x) => (x && x.text) || x || '').join('');
+  return typeof v === 'object' ? (v.text || '') : String(v);
 };
 
-function ghiTep(d) {
-  fs.mkdirSync(path.dirname(TEP), { recursive: true });
-  fs.writeFileSync(TEP, JSON.stringify(d, null, 2), 'utf8');
+/** Một dòng Base → bản khai. */
+function tuDong(c) {
+  const lay = (k) => chu(c[T.f[k]]);
+  return {
+    ten: lay('ten'),
+    viTri: lay('viTri'),
+    khoi: dong(lay('khoi')),
+    kenh: dong(lay('kenh')),
+    tenApp: dong(lay('tenApp')),
+    loaiViec: dong(lay('loaiViec')),
+    tenDang: dong(lay('tenDang')),
+    nenTangQc: dong(lay('nenTangQc')),
+  };
 }
 
-/** Bản khai đang dùng: mặc định trong code, phủ bằng bản sửa trong tệp. */
+/** Bản khai → các ô của một dòng Base. */
+function raDong(ma, pv) {
+  const f = T.f;
+  return {
+    [f.ma]: ma,
+    [f.ten]: String(pv.ten || ''),
+    [f.viTri]: String(pv.viTri || ''),
+    [f.khoi]: viet(pv.khoi),
+    [f.kenh]: viet(pv.kenh),
+    [f.tenApp]: viet(pv.tenApp),
+    [f.loaiViec]: viet(pv.loaiViec),
+    [f.tenDang]: viet(pv.tenDang),
+    [f.nenTangQc]: viet(pv.nenTangQc),
+    [f.capNhat]: new Date().toISOString().slice(0, 19).replace('T', ' '),
+  };
+}
+
+/** Gieo bản mặc định lên Base lần đầu, khi bảng còn trống. */
+async function gieo() {
+  await lark.createMany(T.id, Object.keys(MAC_DINH).map((ma) => raDong(ma, MAC_DINH[ma])));
+}
+
+/**
+ * Nạp bản khai từ Base vào RAM. Gọi một lần lúc khởi động, trước khi mở cổng.
+ *
+ * Base hỏng thì rơi về bản mặc định trong mã — thà chạy với phạm vi gốc còn hơn
+ * chặn sạch nhân sự khỏi tab Báo cáo. Nhưng phải NÓI RA là đang chạy bản mặc
+ * định: lúc đó mọi chỉnh sửa của trưởng phòng không có hiệu lực, và im lặng thì
+ * đúng là cái bẫy đã dính với bản ghi tệp.
+ */
+async function nap(lanHai) {
+  if (!cfg.dungBase) { KHO = null; NGUON = 'mặc định'; return { nguon: NGUON }; }
+  try {
+    const rows = await lark.listAll(T.id);
+    const ra = {};
+    rows.forEach((r) => {
+      const ma = chu((r.c || {})[T.f.ma]).trim();
+      if (!ma) return;
+      ra[ma] = { ...tuDong(r.c), _id: r.id };
+    });
+    /* Bảng trống (vừa tạo) thì gieo bản mặc định rồi đọc lại — để trống nghĩa là
+     * không một nhân sự nào xem được tab Báo cáo. Chỉ thử MỘT lần: gieo hỏng mà
+     * cứ gọi lại là vòng lặp vô tận. */
+    if (!Object.keys(ra).length && !lanHai) {
+      await gieo();
+      return nap(true);
+    }
+    KHO = Object.keys(ra).length ? ra : null;
+    NGUON = KHO ? 'base' : 'mặc định';
+    LOI = '';
+    return { nguon: NGUON, nguoi: Object.keys(ra).length };
+  } catch (e) {
+    KHO = null;
+    NGUON = 'mặc định';
+    LOI = 'Không đọc được bảng Phạm vi báo cáo: ' + e.message;
+    return { nguon: NGUON, loi: LOI };
+  }
+}
+
+/**
+ * Bản khai đang dùng: mặc định trong mã làm nền, dòng Base phủ lên.
+ * Giữ lớp nền để người mới khai trong mã vẫn có phạm vi ngay, chưa cần ai vào
+ * Base bấm thêm dòng.
+ */
 function tatCa() {
-  const sua = docTep();
   const ra = {};
   Object.keys(MAC_DINH).forEach((ma) => { ra[ma] = { ...MAC_DINH[ma] }; });
-  Object.keys(sua).forEach((ma) => { ra[ma] = { ...(ra[ma] || {}), ...sua[ma] }; });
+  if (KHO) Object.keys(KHO).forEach((ma) => { ra[ma] = { ...(ra[ma] || {}), ...KHO[ma] }; });
   return ra;
 }
+
+/** Đang đọc phạm vi từ đâu — giao diện phải nói ra khi còn chạy bản mặc định. */
+const trangThai = () => ({ nguon: NGUON, loi: LOI, baseUrl: cfg.baseUrl, bang: T.id });
 
 /**
  * Phạm vi của một người, dạng tầng báo cáo dùng được.
@@ -157,20 +251,30 @@ function cua(ma) {
   };
 }
 
-/** Lưu bản sửa của một người. Trả về bản khai mới của cả phòng. */
-function luu(ma, pv) {
-  const sua = docTep();
-  sua[ma] = {
+/**
+ * Lưu bản sửa của một người xuống Base. Trả về bản khai mới của cả phòng.
+ *
+ * Ghi thẳng rồi nạp lại, không ghi đệm: bảng sáu dòng, một lượt ghi chưa tới
+ * một giây, còn đệm thì sinh ra cảnh màn hình báo đã lưu mà Base chưa có —
+ * với thứ quyết định ai xem được gì thì cảnh đó không chấp nhận được.
+ */
+async function luu(ma, pv) {
+  if (!cfg.dungBase) throw new Error('Chưa nối Lark Base nên không lưu được phạm vi');
+  const sach = (a) => (Array.isArray(a) ? a.map((x) => String(x).trim()).filter(Boolean) : []);
+  const o = raDong(ma, {
     ten: pv.ten,
     viTri: pv.viTri,
-    tenApp: Array.isArray(pv.tenApp) ? pv.tenApp.filter(Boolean) : [],
-    khoi: Array.isArray(pv.khoi) ? pv.khoi.filter((k) => KHOI.some((x) => x.id === k)) : [],
-    kenh: Array.isArray(pv.kenh) ? pv.kenh.filter(Boolean) : null,
-    tenDang: Array.isArray(pv.tenDang) ? pv.tenDang.filter(Boolean) : null,
-    loaiViec: Array.isArray(pv.loaiViec) ? pv.loaiViec.filter(Boolean) : null,
-    nenTangQc: Array.isArray(pv.nenTangQc) ? pv.nenTangQc.filter(Boolean) : null,
-  };
-  ghiTep(sua);
+    tenApp: sach(pv.tenApp),
+    khoi: sach(pv.khoi).filter((k) => KHOI.some((x) => x.id === k)),
+    kenh: sach(pv.kenh),
+    tenDang: sach(pv.tenDang),
+    loaiViec: sach(pv.loaiViec),
+    nenTangQc: sach(pv.nenTangQc),
+  });
+  const cu = KHO && KHO[ma];
+  if (cu && cu._id) await lark.updateMany(T.id, { [cu._id]: o });
+  else await lark.createRecord(T.id, o);
+  await nap();
   return tatCa();
 }
 
@@ -209,6 +313,6 @@ function laCuaNguoi(pv, t) {
 }
 
 module.exports = {
-  KHOI, KHOI_RIENG_QUAN_LY, MAC_DINH, tatCa, cua, luu, choXem, laCuaNguoi,
-  maTheoTen, TEP,
+  KHOI, KHOI_RIENG_QUAN_LY, MAC_DINH, nap, tatCa, cua, luu, choXem, laCuaNguoi,
+  maTheoTen, trangThai,
 };

@@ -51,6 +51,31 @@ module.exports = {
   dungBase: !!BASE_TOKEN,
 
   bang: {
+    /* PHẠM VI BÁO CÁO — ai nhìn thấy khối nào, kênh nào.
+     *
+     * Trước đây nằm ở `du-lieu/pham-vi-bao-cao.json`, mà thư mục đó không lên
+     * git và đĩa của Render thì mất sau mỗi lần deploy — nghĩa là mọi chỉnh sửa
+     * của trưởng phòng biến mất sau lần deploy kế tiếp. Chuyển hẳn sang Base.
+     *
+     * Các cột dạng danh sách lưu bằng TEXT, mỗi mục một dòng. Không dùng ô chọn
+     * nhiều: thêm một khối mới trong mã sẽ phải nhớ thêm lựa chọn trên Base,
+     * quên một chỗ là ghi hỏng — đã dính đúng lỗi đó ở cột Người đăng. */
+    phamVi: {
+      id: 'tblHTDIXxf9anaAR',
+      ten: 'Phạm vi báo cáo',
+      f: {
+        ma: 'fldP0JKdjl',             // Mã người (text) — khoá
+        ten: 'fldBpi72mx',            // Tên
+        viTri: 'fld5i6ecfD',          // Vị trí
+        khoi: 'fldboBJTMW',           // Khối được xem (mỗi dòng một mã khối)
+        kenh: 'fld1SyjU38',           // Kênh được xem (mỗi dòng "Nền tảng|Tên kênh")
+        tenApp: 'fldxsh1wAq',         // Tên ở app khác (mỗi dòng một tên)
+        loaiViec: 'fldv2Txv4N',       // Loại việc
+        tenDang: 'fldCsVYdwZ',        // Tên người đăng (plugin app Social)
+        nenTangQc: 'fldYG9BQxs',      // Nền tảng quảng cáo
+        capNhat: 'fldWoLR0m9',        // Cập nhật lúc
+      },
+    },
     goc: {
       id: 'tblDJLNyDWINb0yM',
       ten: 'Tháng — bản gốc',

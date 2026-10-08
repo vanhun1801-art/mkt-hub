@@ -35,10 +35,13 @@ async function veKhoiPhamVi(boc) {
   Object.keys(PV.nguoi).forEach((ma) => bang.appendChild(pvHang(ma, PV.nguoi[ma], boc)));
   o.appendChild(bang);
 
-  o.appendChild(el('div', 'than nho nhat',
-    'Bản sửa ghi vào tệp <code>' + esc(PV.tep || '') + '</code>. '
-    + 'Tệp này <b>không lên git và mất sau mỗi lần deploy</b> — khi đó phạm vi quay '
-    + 'về bản mặc định khai sẵn trong mã. Chuyển hẳn sang Base là việc còn lại.'));
+  const kho = PV.kho || {};
+  o.appendChild(el('div', 'than nho nhat', kho.nguon === 'base'
+    ? 'Bản sửa ghi thẳng vào bảng <b>Phạm vi báo cáo</b> trên Lark Base, nên còn '
+      + 'nguyên sau mỗi lần deploy. '
+      + (kho.baseUrl ? '<a href="' + esc(kho.baseUrl) + '" target="_blank">Mở Base</a>' : '')
+    : '<b>Đang chạy bản mặc định khai trong mã — sửa ở đây sẽ không lưu được.</b> '
+      + esc(kho.loi || 'Chưa nối được Lark Base.')));
 }
 
 function pvHang(ma, pv, boc) {
@@ -121,6 +124,23 @@ function pvBangSua(ma, pv) {
   iLoai.value = (pv.loaiViec || []).join(', ');
   iLoai.placeholder = 'Edit Video, Thiết kế';
   nhomChu.appendChild(iLoai);
+
+  /* Hai ô này trước đây chỉ khai trong mã, màn hình không gửi lên. Giờ Base là
+   * nơi giữ bản thật nên không gửi nghĩa là XOÁ — phải cho sửa ngay tại đây. */
+  nhomChu.appendChild(el('h4', '', 'Tên trong plugin Người đăng <em>app Social</em>'));
+  const iDang = el('input');
+  iDang.value = (pv.tenDang || []).join(', ');
+  iDang.placeholder = 'Võ Hằng';
+  nhomChu.appendChild(iDang);
+  nhomChu.appendChild(el('div', 'than nho nhat',
+    'Tên gắn trên từng bài ở app Social, thường khác tên trong bộ luật KPI. '
+    + 'Dùng để tách bài <b>chính người này đăng</b> khỏi số chung của cả kênh.'));
+
+  nhomChu.appendChild(el('h4', '', 'Chỉ các nền tảng quảng cáo <em>bỏ trống = mọi nền tảng</em>'));
+  const iQc = el('input');
+  iQc.value = (pv.nenTangQc || []).join(', ');
+  iQc.placeholder = 'Google Ads';
+  nhomChu.appendChild(iQc);
   o.appendChild(nhomChu);
 
   const nut = el('div', 'pv-luu');
@@ -138,6 +158,8 @@ function pvBangSua(ma, pv) {
           khoi: [...chon.khoi],
           kenh: [...chon.kenh],
           loaiViec: tach(iLoai.value),
+          tenDang: tach(iDang.value),
+          nenTangQc: tach(iQc.value),
         },
       });
       PV_MO = null;

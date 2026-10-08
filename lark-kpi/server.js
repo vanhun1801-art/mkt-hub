@@ -401,14 +401,14 @@ async function api(req, res, u) {
   /** Một tệp HTML hoàn chỉnh để gửi Sếp — mở ra in thẳng thành PDF được. */
   if (p === '/api/pham-vi') {
     if (!nx.quanLy) return fail(res, 403, 'Chỉ trưởng phòng xem được bảng phạm vi');
-    return ok(res, { khoi: PV.KHOI, nguoi: PV.tatCa(), tep: PV.TEP });
+    return ok(res, { khoi: PV.KHOI, nguoi: PV.tatCa(), kho: PV.trangThai() });
   }
 
   if (p === '/api/luu-pham-vi' && req.method === 'POST') {
     if (!nx.quanLy) return fail(res, 403, 'Chỉ trưởng phòng sửa được phạm vi');
     const b = await readBody(req);
     if (!b.ma || !b.pv) return fail(res, 400, 'Thiếu mã người hoặc phạm vi');
-    return ok(res, { nguoi: PV.luu(b.ma, b.pv) });
+    return ok(res, { nguoi: await PV.luu(b.ma, b.pv), kho: PV.trangThai() });
   }
 
   if (p === '/api/xu-huong') {
@@ -1032,6 +1032,11 @@ const server = http.createServer((req, res) => {
   try { r = await store.nap(); }
   catch (e) { r = { nguon: 'tep', thang: 0, loi: e.message }; }
 
+  /* Phạm vi báo cáo cũng nằm trên Base và cũng được đọc đồng bộ — nạp cùng chỗ
+   * với kho. Mở cổng trước khi nạp xong thì mấy giây đầu nhân sự vào sẽ thấy
+   * phạm vi mặc định thay vì phạm vi trưởng phòng đã sửa. */
+  const rpv = await PV.nap();
+
   server.listen(PORT, BIND, () => {
     console.log('Báo cáo & KPI  →  http://localhost:' + PORT);
     const t = store.trangThai();
@@ -1044,5 +1049,8 @@ const server = http.createServer((req, res) => {
     } else {
       console.log('  ⚠ kho rỗng — nửa KPI sẽ trống, nửa Báo cáo vẫn chạy');
     }
+    if (rpv.nguon === 'base') console.log('  phạm vi báo cáo: Lark Base · ' + rpv.nguoi + ' người');
+    else console.log('  ⚠ phạm vi báo cáo: bản mặc định trong mã'
+      + (rpv.loi ? ' — ' + rpv.loi : '') + ' (sửa trên màn hình sẽ không lưu được)');
   });
 })();
