@@ -1643,10 +1643,12 @@ body.dang-xem-ho .app { height: calc(100vh - 34px); margin-top: 34px; }
   padding: 10px 8px 5px; display: flex; align-items: center; gap: 7px;
 }
 .tb-n {
-  background: currentColor; color: #fff; border-radius: 999px;
+  /* Viên đếm mang màu của nhóm: nền là màu nhóm pha nhạt, chữ là chính màu
+     nhóm (kế thừa từ .tb-nhom). Bản cũ viết `background: currentColor; color:
+     #fff` — currentColor lại chính là #fff vừa đặt, nên viên thành trắng trên
+     trắng: số đếm biến mất ở nền sáng, lộ thành viên trắng trống ở nền tối. */
+  background: color-mix(in srgb, currentColor 16%, transparent); border-radius: 999px;
   padding: 0 7px; font-size: 10.5px; line-height: 16px;
-  /* chữ trắng trên nền đúng màu nhóm: dùng shadow trong để lấy lại màu chữ */
-  -webkit-text-fill-color: #fff;
 }
 
 .tb-o {

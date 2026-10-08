@@ -1616,3 +1616,12 @@ option.xu-khong { color: var(--t3); }
   .xu-chip b { font-size: 12.5px; }                              /* 11 */
   .xu-phu { font-size: 13px; }                                   /* 11.5 */
 }
+
+/* Chân cửa sổ trên điện thoại (soát 08/10/2026): hai dòng hướng dẫn chung hàng
+   với nút Gửi duyệt bị bóp thành hai cột chữ li ti bảy dòng. Cho chữ chiếm trọn
+   hàng, nút xuống dưới. */
+@media (max-width: 640px) {
+  #mdFoot { flex-wrap: wrap; row-gap: 6px; }
+  #mdFoot > .mini { flex: 1 1 100%; margin: 0 !important; }
+  #mdFoot > .btn:first-of-type { margin-left: auto; }
+}

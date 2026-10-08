@@ -950,9 +950,14 @@ async function moHoSo(khoa) {
 let henTd = 0;
 async function theoDoiKeo() {
   const d = await req('/api/tien-do');
-  $('#tienDo').hidden = !d.dangChay && !d.dong.length;
+  /* Soát 08/10/2026: trước đây cả nhật ký kỹ thuật (giờ, đường API, mã 429)
+   * đổ thẳng ra đầu trang và ở lại sau khi kéo xong. Giờ chỉ một dòng tình
+   * trạng; nhật ký thu vào "Xem nhật ký kỹ thuật". Kéo xong êm thì khối tự ẩn,
+   * chỉ ở lại khi hỏng để người ta biết mà báo. */
+  $('#tienDo').hidden = !d.dangChay && !d.loi;
   $('#tdLog').textContent = d.dong.join('\n');
-  $('#tdPhu').textContent = d.dangChay ? 'đang chạy…' : (d.loi ? 'hỏng: ' + d.loi : 'xong');
+  const trang = (String(d.dong[d.dong.length - 1] || '').match(/trang (\d+)/) || [])[1];
+  $('#tdPhu').textContent = d.dangChay ? (trang ? 'đã tới trang ' + trang + '…' : 'đang chạy…') : (d.loi ? 'hỏng: ' + d.loi : 'xong');
   $('#btnKeo').disabled = d.dangChay;
   if (d.dangChay) { clearTimeout(henTd); henTd = setTimeout(theoDoiKeo, 2000); }
   else { await nap(); }

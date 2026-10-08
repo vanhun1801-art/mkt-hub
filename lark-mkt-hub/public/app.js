@@ -489,7 +489,7 @@ function veBangTB() {
   const veNhom = (arr) => ['gap', 'can', 'tin'].map((k) => {
     const g = arr.filter((x) => x.muc === k);
     if (!g.length) return '';
-    return `<div class="tb-nhom" style="color:${MUC_TB[k].mau}">${MUC_TB[k].nhan}
+    return `<div class="tb-nhom" style="color:var(--tb-chu-${k}, ${MUC_TB[k].mau})">${MUC_TB[k].nhan}
       <span class="tb-n">${g.length}</span></div>` + g.map(dong).join('');
   }).join('');
 

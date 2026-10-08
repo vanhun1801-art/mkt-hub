@@ -823,3 +823,35 @@
   const bat = () => new MutationObserver(lich).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'hidden', 'style', 'open'] });
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bat); else bat();
 })();
+
+/* DẢI TAB KHÔNG ĐƯỢC KHUẤT (08/10/2026 — soát tổng thể). Thanh đầu một hàng
+ * (27/09, anh Hùng: "cho ngang hàng") để dải tab chung hàng với cụm nút. App
+ * nhiều tab thì tab cuối bị mép mờ nuốt mất: KPI ở 1280px khuất "Mục tiêu &
+ * thử luật", "Soát & chốt"; Quảng cáo khuất từ "Dữ liệu theo ngày" — người ta
+ * không biết là còn tab để lướt. Hai nấc, chỉ bật khi thật sự tràn:
+ *   1. ios-tab-chat: giấu viên tên người (#meChip) — thông tin phụ, tên đã có
+ *      ở lớp vỏ — nhường chỗ cho tab;
+ *   2. ios-tab-xuong: vẫn tràn thì dải tab xuống một hàng riêng, đủ mặt tab. */
+(() => {
+  if (document.documentElement.getAttribute('data-skin') !== 'ios') return;
+  const de = document.documentElement;
+  const tran = (t) => t.scrollWidth > t.clientWidth + 2;
+  let hen = 0;
+  function kiem() {
+    hen = 0;
+    if (!de.classList.contains('ios-gop-tab') || innerWidth <= 640) { de.classList.remove('ios-tab-chat', 'ios-tab-xuong'); return; }
+    const t = document.querySelector('body > header.topbar > .tabs');
+    if (!t || !t.children.length) return;
+    de.classList.remove('ios-tab-chat', 'ios-tab-xuong');
+    if (!tran(t)) return;
+    de.classList.add('ios-tab-chat');
+    if (tran(t)) de.classList.add('ios-tab-xuong');
+  }
+  const lich = () => { if (!hen) hen = requestAnimationFrame(kiem); };
+  const bat = () => {
+    lich();
+    addEventListener('resize', lich);
+    new MutationObserver(lich).observe(document.body, { childList: true, subtree: true });
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bat); else bat();
+})();

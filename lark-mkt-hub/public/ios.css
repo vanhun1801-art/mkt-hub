@@ -4373,3 +4373,34 @@ html[data-skin="ios"][data-app="chinh-anh"] .ng-chip button,
 html[data-skin="ios"]:is([data-app="san-pham"], [data-app="mat-khau"]) .o.chinh .so,
 html[data-skin="ios"][data-app="san-pham"] .nhan.duytri,
 html[data-skin="ios"][data-app="khach-hang"] .o .ss.tot { color: var(--ios-xanh-chu); }
+
+/* TIÊU ĐỀ NHÓM TRONG BẢNG THÔNG BÁO (08/10/2026 — soát tổng thể). Màu nhóm
+   trong app.js là màu TÔ (cam #d98300 làm chữ trên nền trắng chỉ 2,6:1). Chữ
+   tiêu đề nhóm và viên đếm dùng màu CHỮ của bộ giao diện, đổi theo sáng/tối;
+   chấm tròn đầu dòng vẫn giữ màu tô. */
+html[data-skin="ios"] {
+  --tb-chu-gap: var(--ios-do-chu); --tb-chu-can: var(--ios-cam-chu); --tb-chu-tin: var(--ios-xanh-chu);
+}
+
+/* DẢI TAB KHÔNG ĐƯỢC KHUẤT (08/10/2026) — lớp do ios-app.js bật khi dải tab
+   của thanh đầu một hàng bị tràn. Nấc 1 giấu viên tên người; nấc 2 cho dải tab
+   xuống hàng riêng ngay dưới, cụm nút giữ hàng trên. */
+@media (min-width: 641px) {
+  html[data-skin="ios"]:not(#_).ios-gop-tab.ios-tab-chat body > header.topbar #meChip { display: none !important; }
+  html[data-skin="ios"]:not(#_):not(#__).ios-gop-tab.ios-tab-xuong body > header.topbar { flex-wrap: wrap !important; row-gap: 8px; }
+  html[data-skin="ios"]:not(#_):not(#__).ios-gop-tab.ios-tab-xuong body > header.topbar > .tabs { order: 9; flex: 1 1 100% !important; }
+}
+@media (min-width: 641px) {
+  /* đã xuống hàng riêng mà vẫn hụt (Quảng cáo 9 tab ở 1280px hụt ~70px): thu đệm tab */
+  html[data-skin="ios"]:not(#_):not(#__).ios-gop-tab.ios-tab-xuong body > header.topbar > .tabs > :not(.ios-lens) { padding-left: 8px !important; padding-right: 8px !important; }
+}
+
+/* OTA: nút ✕ dính góc phải cửa sổ (lark-ota-manager styles.css) — khối chung
+   phía trên ép .modal-x inline-flex, làm margin-left:auto mất tác dụng. */
+html[data-skin="ios"]:not(#_):not(#__):not(#___):not(#____) .modal > .modal-x { display: flex !important; margin: 10px 12px -38px auto !important; }
+@media (max-width: 640px) {
+  /* Chữ trơn trong dải lọc lướt ngang (vd "Tháng này: 01/10 → 31/10" của Khách
+     hàng): không được co — co lại là thành cột 40px cao ~290px, đẩy thẻ số
+     xuống nửa màn (soát 08/10/2026). Đứng một dòng, lướt tới là đọc được. */
+  html[data-skin="ios"]:not(#_):not(#__)[data-app] :is(.filters, .loc, .loc-hang) > :is(span, small, .moc) { flex: none !important; white-space: nowrap !important; }
+}

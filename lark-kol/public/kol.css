@@ -243,6 +243,9 @@ pre.tin { white-space: pre-wrap; background: var(--surface-3); border-radius: va
 @media (max-width: 760px) {
   /* ba thẻ số nằm một hàng — chồng dọc thì chiếm nửa màn hình điện thoại */
   .ct-dau > div { min-width: 0 !important; }
+  /* …nhưng tên KOL thì chiếm trọn một hàng phía trên: chung hàng với ba thẻ số
+     là tên bị ép thành cột hẹp bốn dòng, nhãn thẻ số gãy từng chữ (soát 08/10). */
+  .ct-dau > div { flex: 1 1 100% !important; }
   .luoi-tong { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
   .luoi-tong .o-so { padding: 8px 10px; }
   .luoi-tong .o-so .so { font-size: 16px; }

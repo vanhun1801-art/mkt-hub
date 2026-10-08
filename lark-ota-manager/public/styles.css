@@ -552,3 +552,12 @@ tfoot th { text-transform: none; letter-spacing: 0; font-size: 13px; color: var(
   .api-cho-status { font-size: 12.5px; }                         /* 11 */
   .api-cho-card p { font-size: 13px; }                           /* 11.5 */
 }
+
+/* Nút ✕ cố định ở góc cửa sổ: dính trên cùng khi cuộn nội dung dài. */
+.modal { position: relative; }
+.modal > .modal-x {
+  position: sticky; top: 10px; z-index: 2; display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; margin: 10px 12px -38px auto; padding: 0;
+  border: 0; border-radius: 50%; background: var(--line-soft); color: var(--ink); cursor: pointer; font-size: 13px;
+}
+.modal > .modal-x + h3 { padding-right: 52px; }

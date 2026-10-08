@@ -988,7 +988,9 @@ async function napLai() {
 
 /* ========================================================= cửa sổ ====== */
 function moModal(html) {
-  $('#modal').innerHTML = html;
+  /* Nút ✕ cố định ở góc mọi cửa sổ (soát 08/10/2026): trên điện thoại cửa sổ
+   * chi tiết booking dài, nút Đóng nằm tít cuối — phải cuộn hết mới thoát được. */
+  $('#modal').innerHTML = '<button type="button" class="modal-x" data-dong aria-label="Đóng">✕</button>' + html;
   $('#modalWrap').hidden = false;
   hubChe(true);
 }

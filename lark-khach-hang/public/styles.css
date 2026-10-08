@@ -302,3 +302,8 @@ main { padding: 14px 18px 40px; }
   .cd .chip { font-size: 12px; }
   .o .ss { font-size: 12px; }
 }
+
+/* Nhật ký kỹ thuật thu gọn dưới dòng tình trạng (soát 08/10/2026). */
+.td-nk > summary { cursor: pointer; color: var(--chu-2); font-size: 12.5px; }
+.td-nk[open] > summary { margin-bottom: 6px; }
+.tien-do .td-dau { margin-bottom: 4px; }
