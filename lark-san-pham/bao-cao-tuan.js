@@ -101,7 +101,7 @@ async function dung({ moi = false } = {}) {
   const { ds, dsNhatKy } = await kho.tatCa({ moi });
   const nay = Date.now();
   const ban = ds.filter((p) => BAN.test(p.trangThai));
-  const ten = (p) => (p.ma ? p.ma + ' — ' : '') + p.ten;
+  const ten = (p) => (p.ma ? p.ma + ' · ' : '') + p.ten;
   const khoi = [];
 
   const gap = [];
@@ -121,7 +121,7 @@ async function dung({ moi = false } = {}) {
   if (thieu.length) {
     khoi.push({
       ten: 'Thiếu mục bắt buộc (' + thieu.length + '/' + ban.length + ' sản phẩm đang bán)',
-      dong: thieu.slice(0, 12).map((x) => ten(x.p) + ' — thiếu ' + x.t.join(', ')).concat(thieu.length > 12 ? ['… và ' + (thieu.length - 12) + ' sản phẩm nữa (xem tab Cần bổ sung)'] : []),
+      dong: thieu.slice(0, 12).map((x) => ten(x.p) + ': thiếu ' + x.t.join(', ')).concat(thieu.length > 12 ? ['… và ' + (thieu.length - 12) + ' sản phẩm nữa (xem tab Cần bổ sung)'] : []),
     });
   }
 
@@ -130,7 +130,7 @@ async function dung({ moi = false } = {}) {
   if (hong.length) {
     const theoLink = new Map();
     for (const p of ban) for (const m of p.media || []) if (m.link) theoLink.set(m.link, (theoLink.get(m.link) || '') || (p.ma + ' · ' + m.ten));
-    khoi.push({ ten: 'Link media khách không mở được (' + hong.length + '/' + links.length + ')', dong: hong.slice(0, 10).map((h) => (theoLink.get(h.u) || h.u) + ' — ' + h.ly) });
+    khoi.push({ ten: 'Link media khách không mở được (' + hong.length + '/' + links.length + ')', dong: hong.slice(0, 10).map((h) => (theoLink.get(h.u) || h.u) + ': ' + h.ly) });
   }
 
   /* thay đổi TỪ KỲ TRƯỚC (dấu 'Báo cáo tuần …' gần nhất), chưa có kỳ nào thì 7 ngày */
@@ -194,7 +194,7 @@ async function gui({ lark, danhDau = true, toi = null } = {}) {
   const bc = await dung({ moi: true });
   const { dsNhatKy } = await kho.tatCa();
   const n = toi && (toi.id || toi.email) ? { userId: toi.id, email: toi.email, ten: toi.ten } : nguoiNhan(dsNhatKy);
-  if (!n) return { ok: false, loi: 'Chưa có người nhận — quản lý bấm "Gửi báo cáo cho tôi" trong tab Quản lý một lần' };
+  if (!n) return { ok: false, loi: 'Chưa có người nhận. Quản lý bấm "Gửi báo cáo cho tôi" trong tab Quản lý một lần' };
   const r = await k.gui(Object.assign(denCua(n), { card: theLark(bc, urlApp()), khoa: 'bc-sp-' + (kyVN() || tuanVN()) + (danhDau ? '' : '-' + Date.now()) }));
   const gio = require('./nhatky').gioBase(Date.now());
   const F = cfg.f.nhatKy;

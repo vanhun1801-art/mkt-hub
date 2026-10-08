@@ -94,16 +94,14 @@ function luuYNenTang(rows) {
   const co = new Set(rows.map((r) => r.platform));
   const ra = [];
   if (co.has('TikTok')) {
-    ra.push('TikTok: API chỉ trả tổng lượt xem trọn đời của mỗi video, không có số theo ngày. '
-      + 'Cột của một ngày là tổng đời của các video ĐĂNG ngày đó, không phải lượt xem phát sinh trong ngày.');
-    ra.push('TikTok: cột Hiển thị và Tiếp cận luôn trống vì kênh đang nối bằng Display API — '
-      + 'nó chỉ cho lượt xem, thích, bình luận, chia sẻ và follower hiện tại. Muốn có hai cột đó '
-      + 'phải nối bằng TikTok Business API.');
+    ra.push('TikTok: số của một ngày là tổng lượt xem trọn đời của các video đăng ngày đó, '
+      + 'không phải lượt xem phát sinh trong ngày.');
+    ra.push('TikTok: cột Hiển thị và Tiếp cận trống vì kênh nối bằng Display API, '
+      + 'loại này không trả hai số đó. Cần TikTok Business API mới có.');
   }
   if (co.has('Facebook')) {
-    ra.push('Facebook: "Tiếp cận" đếm người, "Hiển thị" đếm lần — một người xem ba lần '
-      + 'thì tiếp cận +1 còn hiển thị +3. Dòng nào ghi trước ngày nối lại chỉ số này '
-      + 'thì cột tiếp cận trống; chạy "Nạp lại từ đầu" để dựng lại.');
+    ra.push('Facebook: "Tiếp cận" đếm người, "Hiển thị" đếm lần (một người xem ba lần: '
+      + 'tiếp cận +1, hiển thị +3). Dòng cũ thiếu tiếp cận thì chạy "Nạp lại từ đầu".');
   }
   if (co.has('Instagram')) {
     ra.push('Instagram: API không còn trả follower theo ngày, chỉ chốt được tại lúc đồng bộ.');

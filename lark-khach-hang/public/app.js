@@ -149,7 +149,7 @@ function veTongQuan() {
        * Màu đi theo Ý NGHĨA, không đi theo dấu cộng trừ. */
       const hay = ss.bang ? null : (tốt === false ? !ss.len : ss.len);
       const m = el('em', 'ss' + (hay == null ? '' : (hay ? ' tot' : ' xau')),
-        (ss.len ? '▲ ' : ss.bang ? '— ' : '▼ ') + Math.abs(ss.pc) + '% so kỳ trước');
+        (ss.len ? '▲ ' : ss.bang ? '= ' : '▼ ') + Math.abs(ss.pc) + '% so với kỳ trước');
       o.appendChild(m);
     }
     if (duoi) o.appendChild(el('i', null, duoi));
@@ -200,10 +200,11 @@ function veTongQuan() {
    * đây là một dải liên tục, xếp lại là mất hình dạng phân bố ---- */
   const BAC = ['Trong 3 ngày', '4–7 ngày', '1–2 tuần', '2–4 tuần', '1–2 tháng', 'Trên 2 tháng'];
   BD.veCot($('#bdDatTruoc'),
-    BAC.filter((b) => m.datTruoc[b]).map((b) => ({ nhan: b, giaTri: m.datTruoc[b] })), { dinhDang: so });
+    /* Khoá bậc dùng gạch "–" (máy chủ trả đúng khoá đó); lúc hiện đổi sang gạch ngắn. */
+    BAC.filter((b) => m.datTruoc[b]).map((b) => ({ nhan: b.replace('–', '-'), giaTri: m.datTruoc[b] })), { dinhDang: so });
   $('#ghiDatTruoc').textContent = m.datTruocGiua == null ? ''
     : 'Một nửa số khách đặt trong vòng ' + m.datTruocGiua + ' ngày trước khi đi. '
-      + 'Trung bình ' + m.datTruocTB + ' ngày — cao hơn vì vài khách đặt trước rất xa kéo lên.';
+      + 'Trung bình ' + m.datTruocTB + ' ngày, cao hơn do vài khách đặt rất sớm.';
 
   /* ---- quay lại ---- */
   veThanh($('#bdQuayLai'), [
@@ -211,7 +212,7 @@ function veTongQuan() {
     ['Khách quay lại', m.khachQuayLai],
   ], { tran: 2 });
   $('#ghiQuayLai').textContent = 'Khách quay lại mang về ' + tien(m.doanhThuQuayLai)
-    + ' — ' + pc(m.doanhThuQuayLai, m.doanhThu) + ' tổng doanh thu, dù chỉ chiếm '
+    + ', bằng ' + pc(m.doanhThuQuayLai, m.doanhThu) + ' tổng doanh thu, dù chỉ chiếm '
     + pc(m.khachQuayLai, m.khachMua) + ' số người mua.';
 
   /* ---- doanh thu theo ngày: ĐƯỜNG ---- */
@@ -262,7 +263,7 @@ function veTongQuan() {
   $('#canhBaoBanDo').innerHTML =
     '<b>Bản đồ này chỉ vẽ được ' + so(d.coNuoc) + ' / ' + so(d.tong) + ' hồ sơ</b> ('
     + pc(d.coNuoc, d.tong) + ').<br>' + so(thieu)
-    + ' hồ sơ còn lại bỏ trống ô quốc gia trên Tourwell — không phải không có khách, mà là chưa ai điền.';
+    + ' hồ sơ còn lại chưa điền ô quốc gia trên Tourwell.';
 }
 
 /* ---------------- bản đồ thế giới ---------------- */
@@ -392,7 +393,7 @@ async function veBanDoTinh() {
   const tu = $('#kyTu').value, den = $('#kyDen').value;
   const cb = $('#canhBaoBanDo');
   if (!tu || !den) {
-    cb.innerHTML = 'Chọn một khoảng ngày — vùng phủ quảng cáo chỉ có số liệu theo ngày.';
+    cb.innerHTML = 'Chọn một khoảng ngày: vùng phủ quảng cáo chỉ có số liệu theo ngày.';
     return;
   }
   cb.innerHTML = 'Đang lấy vùng phủ quảng cáo từ Meta…';
@@ -412,12 +413,10 @@ async function veBanDoTinh() {
     else sot.push(t.ten);
   }
   const tong = diem.reduce((a, x) => a + x.n, 0);
-  cb.innerHTML = '<b>Đây là người ĐƯỢC QUẢNG CÁO TIẾP CẬN, không phải khách hàng.</b><br>'
-    + so(diem.length) + ' tỉnh thành · ' + so(tong) + ' lượt tiếp cận. '
-    + 'Khách hàng thật không có tỉnh thành: ô thành phố trên Tourwell rỗng 100%, '
-    + 'chỉ 149/16.754 khách dùng số cố định để suy ra mã vùng. '
-    + 'Dùng bản đồ này để chọn nơi nhắm quảng cáo, đừng dùng để nói về khách.'
-    + (khongRo ? ' Thêm ' + so(khongRo) + ' lượt Meta không định được vị trí, không chấm lên được.' : '')
+  cb.innerHTML = '<b>Người được quảng cáo tiếp cận, không phải khách hàng</b> · '
+    + so(diem.length) + ' tỉnh thành · ' + so(tong) + ' lượt tiếp cận.<br>'
+    + 'Dùng để chọn nơi nhắm quảng cáo. Khách thật chưa có tỉnh thành (ô thành phố trên Tourwell rỗng 100%).'
+    + (khongRo ? ' Thêm ' + so(khongRo) + ' lượt Meta không rõ vị trí, không chấm lên được.' : '')
     + (sot.length ? '<br>Chưa có toạ độ cho: <b>' + sot.join(', ') + '</b>.' : '');
 
   if (!diem.length) { $('#banDo').innerHTML = '<div class="phu" style="padding:16px">Không có số liệu tỉnh thành trong kỳ.</div>'; return; }
@@ -442,7 +441,7 @@ function veBanDoTheGioi() {
   $('#canhBaoBanDo').innerHTML =
     '<b>Bản đồ này chỉ vẽ được ' + so(TQ.coNuoc) + ' / ' + so(TQ.tong) + ' hồ sơ</b> ('
     + pc(TQ.coNuoc, TQ.tong) + ').<br>' + so(thieu)
-    + ' hồ sơ còn lại bỏ trống ô quốc gia trên Tourwell — không phải không có khách, mà là chưa ai điền.'
+    + ' hồ sơ còn lại chưa điền ô quốc gia trên Tourwell.'
     + (sot.length ? '<br>Chưa có toạ độ cho: <b>' + sot.join(', ') + '</b>.' : '');
   if (!diem.length) return;
   napMapLibre(() => chamLenBanDo(diem, { tam: [60, 20], phong: 1.1 }));
@@ -457,7 +456,7 @@ async function napQuangCao() {
   const hop = $('#bangQC');
   if (!tu || !den) {
     hop.innerHTML = '';
-    hop.appendChild(el('div', 'phu', 'Chọn một khoảng ngày để so chi phí với doanh thu — "Toàn bộ" thì không so được vì quảng cáo chỉ có số liệu theo ngày.'));
+    hop.appendChild(el('div', 'phu', 'Chọn một khoảng ngày để so chi phí với doanh thu. Quảng cáo chỉ có số liệu theo ngày nên "Toàn bộ" không so được.'));
     $('#ghiQC').textContent = '';
     return;
   }
@@ -489,12 +488,19 @@ async function napQuangCao() {
   }
 
   const ghi = [];
-  ghi.push('Ghép theo ô "Nguồn" mà sales điền trên Tourwell — nguồn ghi sai thì con số này sai theo.');
+  ghi.push('Ghép theo ô "Nguồn" sales điền trên Tourwell, ghi sai nguồn thì số sai theo.');
   if (d.khongGhep && d.khongGhep.length) {
     ghi.push('Không có chi phí quảng cáo: ' + d.khongGhep.join(', ')
-      + ' — để trống chứ không chia đều chi phí sang, vì chia đều là mọi ô đều có số và mọi số đều sai.');
+      + '. Để trống, không chia đều chi phí sang.');
   }
-  if (d.loi && d.loi.length) ghi.push('⚠ ' + d.loi.join(' · '));
+  /* Lỗi kênh quảng cáo là câu kỹ thuật dài (vd lỗi access token tiếng Anh của
+   * Google): ở đây chỉ cần biết kênh nào thiếu số và sửa ở đâu. */
+  if (d.loi && d.loi.length) {
+    ghi.push('⚠ ' + d.loi.map((x) => {
+      const kenh = String(x).split(':')[0].trim();
+      return kenh && kenh.length < 30 ? kenh + ' chưa đọc được số (sửa ở app Quảng cáo, tab Kết nối & Đồng bộ)' : x;
+    }).join(' · '));
+  }
   $('#ghiQC').textContent = ghi.join(' ');
 
   /* Tỉnh thành: THANH NGANG chứ không cột đứng — tên tỉnh dài, cột đứng là
@@ -544,13 +550,12 @@ async function napGia() {
   const g = ['So được ' + so(d.khop) + ' / ' + so(tongDV) + ' lượt dịch vụ ('
     + (tongDV ? Math.round(d.khop * 100 / tongDV) : 0) + '%).'];
   if (d.boQuaGop) {
-    g.push('Bỏ qua ' + so(d.boQuaGop) + ' lượt nằm trong đơn gộp nhiều dịch vụ — không biết dịch vụ nào '
-      + 'chiếm bao nhiêu tiền, chia đều thì ra con số sai (thử rồi: mọi sản phẩm đều hiện "rẻ hơn 60%").');
+    g.push('Bỏ qua ' + so(d.boQuaGop) + ' lượt trong đơn gộp nhiều dịch vụ, vì không tách được tiền từng dịch vụ.');
   }
   if (d.khongKhop) {
     g.push('Còn ' + so(d.khongKhop) + ' lượt không khớp được tên với app Sản phẩm'
       + (d.chuaKhop && d.chuaKhop.length
-        ? ' — hay gặp nhất: ' + d.chuaKhop.slice(0, 4).map((x) => '"' + x.ten.slice(0, 34) + '" (' + x.so + ')').join(', ')
+        ? ', hay gặp nhất: ' + d.chuaKhop.slice(0, 4).map((x) => '"' + x.ten.slice(0, 34) + '" (' + x.so + ')').join(', ')
         : '') + '. Thêm mã sản phẩm vào tên dịch vụ trên Tourwell là khớp được ngay.');
   }
   ghi.textContent = g.join(' ');
@@ -599,10 +604,9 @@ async function napSocial() {
   const g = ['Số liệu tự nhiên của ' + so(ds.length) + ' kênh.'];
   if (cao.length) {
     g.push('⚠ ' + cao.map((k) => k.kenh).join(', ')
-      + ' có hơn trăm nghìn lượt xem mà KHÔNG một tin nhắn nào — xem nhiều không có nghĩa là ra khách.');
+      + ' có hơn trăm nghìn lượt xem mà không có tin nhắn nào: xem nhiều chưa chắc ra khách.');
   }
-  g.push('Đây là tương quan theo ngày, không phải ghi công: hôm nào đăng nhiều mà cũng nhiều đơn '
-    + 'thì chỉ có nghĩa hai việc cùng xảy ra.');
+  g.push('Đây là tương quan theo ngày, không phải ghi công.');
   $('#ghiSocial').textContent = g.join(' ');
 }
 
@@ -642,8 +646,7 @@ async function napTacNghiep() {
   t.appendChild(tb); hop.appendChild(t);
 
   $('#ghiTN').textContent = 'Trung bình mỗi buổi, trong 7 ngày kể từ ngày tác nghiệp. '
-    + 'Các cửa sổ 7 ngày CHỒNG LÊN NHAU nên không cộng lại được, và không đọc là "một buổi đem về ngần này" — '
-    + 'chỉ so loại hình này với loại hình kia. Mùa vụ và quảng cáo chạy song song đều ảnh hưởng, app chưa tách ra được.';
+    + 'Các cửa sổ 7 ngày chồng lên nhau nên không cộng lại được. Mùa vụ và quảng cáo chạy song song vẫn ảnh hưởng tới số.';
 }
 
 /* ---------------- chân dung ---------------- */
@@ -657,8 +660,8 @@ const TA = {
   'Nhóm bạn': 'Ba tới tám người, không trẻ em. Quyết nhanh, hay chọn tour ghép.',
   'Đoàn lớn': 'Trên tám người. Ít khách nhưng mỗi đơn rất lớn.',
   'Đi một mình': 'Một khách. Thường là khách công tác hoặc đi lẻ ghép đoàn.',
-  'Có mua, chưa rõ số khách': 'Đơn khách sạn và vé lẻ — không có dòng "Người lớn" nên không đếm được ai đi cùng ai.',
-  'Chưa phát sinh': 'Có hồ sơ nhưng chưa đơn nào. Đây là nhóm để đánh thức, không phải nhóm để phân tích.',
+  'Có mua, chưa rõ số khách': 'Đơn khách sạn và vé lẻ, không có dòng "Người lớn" nên không đếm được số người đi.',
+  'Chưa phát sinh': 'Có hồ sơ nhưng chưa có đơn. Nhóm cần đánh thức.',
   'Đại lý ruột': 'Đặt đều, doanh thu lớn. Nhóm phải giữ bằng mọi giá.',
   'Đại lý thường': 'Đặt vài lần. Nhóm có thể đẩy lên thành đại lý ruột.',
   'Đại lý mới / thử việc': 'Mới một hai đơn. Chưa biết có ở lại hay không.',
@@ -671,10 +674,9 @@ function veChanDung() {
   const t = CD.tong && CD.tong[NHANH];
   $('#cdGhi').innerHTML = CD.tong
     ? '<b>Chia theo nhóm khách ghi trên Tourwell.</b> '
-      + 'Khách lẻ ' + so(CD.tong.b2c.khach) + ' người · ' + tien(CD.tong.b2c.tien) + ' — '
+      + 'Khách lẻ ' + so(CD.tong.b2c.khach) + ' người · ' + tien(CD.tong.b2c.tien) + '. '
       + 'Đại lý &amp; đối tác ' + so(CD.tong.b2b.khach) + ' người · ' + tien(CD.tong.b2b.tien) + '.<br>'
-      + 'Mỗi nhóm chỉ gồm những gì ĐO ĐƯỢC từ đơn hàng. Thu nhập, nghề nghiệp, động cơ và nỗi sợ '
-      + 'không có trong dữ liệu — phần đó phải hỏi người, và sẽ để riêng khi bổ sung.'
+      + 'Số liệu chỉ lấy từ đơn hàng, chưa có thu nhập, nghề nghiệp hay động cơ mua.'
     : '';
 
   const hop = $('#cdDs'); hop.innerHTML = '';
@@ -868,7 +870,7 @@ async function timKiem() {
   const q = $('#oTim').value.trim();
   const p = new URLSearchParams({ q, muc: $('#locMuc').value, coDon: $('#locDon').value, so: '60' });
   const d = await req('/api/tim?' + p);
-  $('#soKq').textContent = so(d.tong) + ' hồ sơ' + (d.tong > d.ds.length ? ' — hiện ' + d.ds.length + ' đầu' : '');
+  $('#soKq').textContent = so(d.tong) + ' hồ sơ' + (d.tong > d.ds.length ? ' · hiện ' + d.ds.length + ' đầu tiên' : '');
   const hop = $('#dsKq'); hop.innerHTML = '';
   if (!d.ds.length) { hop.appendChild(el('div', 'phu', 'Không có hồ sơ nào khớp.')); return; }
   for (const o of d.ds) {
@@ -939,7 +941,7 @@ async function moHoSo(khoa) {
     const dv = (d.dichVu || []).map((s) => s.ten).filter(Boolean).join(' · ') || d.ma;
     const di = (d.dichVu || []).map((s) => s.di).filter(Boolean)[0];
     dong(ngay + (d.nguon ? ' · ' + d.nguon : ''),
-      dv + (d.tien ? '  —  ' + tien(d.tien) : '') + (di ? '\nKhởi hành ' + di.slice(0, 10).split('-').reverse().join('/') : ''));
+      dv + (d.tien ? ' · ' + tien(d.tien) : '') + (di ? '\nKhởi hành ' + di.slice(0, 10).split('-').reverse().join('/') : ''));
   }
   k3.appendChild(mo);
 
@@ -963,6 +965,7 @@ async function theoDoiKeo() {
   else { await nap(); }
 }
 
+const ngayVN = (s) => (s ? String(s).slice(0, 10).split('-').reverse().join('/') : '…');
 async function nap() {
   const g = { tu: $('#kyTu').value, den: $('#kyDen').value };
   const q = new URLSearchParams({ tu: g.tu, den: g.den, theo: THEO });
@@ -970,9 +973,9 @@ async function nap() {
   veSegKy();
   const nhan = (KY.find((x) => x.k === KY_DANG) || {}).ten || 'khoảng tự chọn';
   $('#ghiKy').textContent = (g.tu || g.den)
-    ? nhan + ': ' + (g.tu || '…') + ' → ' + (g.den || '…')
+    ? nhan + ': ' + ngayVN(g.tu) + ' → ' + ngayVN(g.den)
       + ' · tính theo ' + (THEO === 'di' ? 'ngày khởi hành' : 'ngày đặt')
-      + (d.truoc ? ' · so với ' + d.truoc.ky.tu + ' → ' + d.truoc.ky.den : '')
+      + (d.truoc ? ' · so với ' + ngayVN(d.truoc.ky.tu) + ' → ' + ngayVN(d.truoc.ky.den) : '')
     : 'Toàn bộ lịch sử · tính theo ' + (THEO === 'di' ? 'ngày khởi hành' : 'ngày đặt');
   $('#mocKeo').textContent = d.luc
     ? 'kéo lúc ' + new Date(d.luc).toLocaleString('vi-VN')
@@ -994,8 +997,8 @@ async function nap() {
     o.style.gridColumn = '1 / -1';
     o.appendChild(el('b', null, d.dangKeo ? 'Đang kéo dữ liệu từ Tourwell…' : 'Chưa có dữ liệu'));
     o.appendChild(el('span', null, d.dangKeo
-      ? 'Mất chừng mười lăm phút, số liệu đầy dần lên — bấm F5 sau vài phút. '
-        + 'Các con số hiện giờ CHƯA ĐỦ, đừng dùng để quyết định gì.'
+      ? 'Mất khoảng 15 phút, số liệu đầy dần lên, bấm F5 sau vài phút. '
+        + 'Số hiện giờ chưa đủ, chưa dùng để quyết định được.'
       : (d.loi || 'Bấm "Kéo lại từ Tourwell" ở góc trên bên phải.')));
     m.appendChild(o);
     return;

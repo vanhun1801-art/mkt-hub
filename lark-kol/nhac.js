@@ -39,11 +39,11 @@ function kenhGui() {
   const n = cfg.nhac;
   if (n.appId && n.appSecret && n.email) {
     if (!tinApp) tinApp = require('../lark-chung/tin-lark').tao({ appId: n.appId, appSecret: n.appSecret, apiHost: cfg.apiHost, tenApp: 'Marketing Hub' });
-    return { ten: 'App ' + n.appId + ' → ' + n.email, gui: (text, khoa) => tinApp.gui({ email: n.email, text, khoa }) };
+    return { ten: 'Bot Marketing Hub → ' + n.email, gui: (text, khoa) => tinApp.gui({ email: n.email, text, khoa }) };
   }
   if (cfg.mode === 'cli') {
     return {
-      ten: 'Bot lark-cli → người đang đăng nhập lark-cli',
+      ten: 'Bot Lark → tài khoản đang đăng nhập trên máy này',
       gui: async (text) => {
         const u = await kho.lark.whoami();
         if (!u || !u.id) return { ok: false, loi: 'lark-cli chưa đăng nhập' };
@@ -71,7 +71,7 @@ function tinMoc(nhom, ht, kol) {
   const khach = nhom.map((x) => (x.loaiKhach && x.soLuong ? x.soLuong + ' ' + x.loaiKhach.toLowerCase() : '')).filter(Boolean).join(' + ');
   const dau = [
     'Nhắc hẹn KOL · ' + T.hhmm(h.gioHen) + ' ' + T.ddmm(h.gioHen),
-    tenGon(h.ten) + ' — ' + (kol ? kol.ten : '?') + ' (' + (ht.ma || '') + ')',
+    tenGon(h.ten) + ' · ' + (kol ? kol.ten : '?') + ' (' + (ht.ma || '') + ')',
     h.diemHen ? 'Điểm hẹn: ' + h.diemHen : '',
     khach ? 'Khách: ' + khach : '',
     h.nhaCungCap ? 'Nhà cung cấp: ' + h.nhaCungCap : '',
@@ -104,7 +104,7 @@ function banTinSang(dl, now) {
     !['Huỷ', 'Hoàn tất'].includes(h.buoc));
   const cho = dl.hopTac.filter((h) => h.buoc === 'Chờ BGĐ duyệt' && h.trinhLuc && now - h.trinhLuc > 2 * T.NGAY);
   if (sap.length) dong.push('Sắp đi (3 ngày tới): ' + sap.map((h) => (kolTen.get(h.kol) || h.ma) + ' ' + T.ddmm(h.batDau) +
-    (T.viTri(h.buoc) < 4 ? ' — CHƯA XÁC NHẬN (' + h.buoc + ')' : '')).join('; '));
+    (T.viTri(h.buoc) < 4 ? ' · chưa xác nhận (' + h.buoc + ')' : '')).join('; '));
   if (cho.length) dong.push('Chờ BGĐ duyệt quá 2 ngày: ' + cho.map((h) => kolTen.get(h.kol) || h.ma).join('; '));
   if (tre.length) dong.push('Bàn giao quá hạn đăng (' + tre.length + '): ' + tre.slice(0, 8).map((x) => htTen(x.b.hopTac) + ' · ' + x.b.ten).join('; '));
   if (do7.length) dong.push('Đến hạn nhập số bài đăng (' + do7.length + '): ' + do7.slice(0, 8).map((x) => htTen(x.b.hopTac) + ' · ' + x.b.ten +

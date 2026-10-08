@@ -235,7 +235,7 @@ function vePhieu(p) {
     tu: p.tuNgay,
     den: p.denNgay,
     nhan: loai === 'ngay' ? K.veNgayThu(p.tuNgay)
-      : K.veNgay(p.tuNgay) + ' – ' + K.veNgay(p.denNgay),
+      : K.veNgay(p.tuNgay) + ' → ' + K.veNgay(p.denNgay),
     nguoi: p.nguoi,
     email: p.email,
     tenNguoi: p.tenNguoi,
@@ -399,7 +399,7 @@ async function api(req, res, u) {
   const m = req.method;
   const toi = await aiGoi(req);
   if (toi.giaLap && m !== 'GET') {
-    return loi(res, 403, 'Đang xem thử vai nhân sự — chế độ chỉ xem, không lưu được.', 'XEM_THU');
+    return loi(res, 403, 'Đang xem thử vai nhân sự. Chỉ xem, không lưu được.', 'XEM_THU');
   }
 
   /* QUẢN LÝ XEM NHƯ MỘT NHÂN SỰ (?nhu=<email|open_id>) — anh Hùng 03/10: "cho
@@ -415,7 +415,7 @@ async function api(req, res, u) {
    */
   const nhu = await xemNhuAi(toi, q);
   if (nhu && m !== 'GET') {
-    return loi(res, 403, 'Đang xem như ' + nhu.ten + ' — chế độ chỉ xem, không ghi được. ' +
+    return loi(res, 403, 'Đang xem như ' + nhu.ten + '. Chỉ xem, không ghi được. ' +
       'Bấm "Tôi (quản lý)" ở góc phải để quay về.', 'XEM_NHU');
   }
 
@@ -616,7 +616,7 @@ async function api(req, res, u) {
    * được, vì báo cáo đứng tên ai thì người đó phải là người gõ. */
   if (p === '/api/phieu' && m === 'POST') {
     if (!toi.id && !toi.email) {
-      return loi(res, 401, 'Chưa nhận ra anh/chị là ai — thử đăng nhập lại.', 'KHONG_RO_NGUOI');
+      return loi(res, 401, 'Chưa nhận ra anh/chị là ai. Thử đăng nhập lại.', 'KHONG_RO_NGUOI');
     }
     const b = await docThan(req);
     const loai = ['ngay', 'tuan', 'thang'].includes(b.loaiKy) ? b.loaiKy : 'ngay';
@@ -633,7 +633,7 @@ async function api(req, res, u) {
     const nop = b.nop !== false;
     /* Anh Hùng 30/09: báo cáo TUẦN phải có video — lưu nháp thì không đòi. */
     if (loai === 'tuan' && nop && !String(b.linkVideo || '').trim()) {
-      return loi(res, 400, 'Báo cáo tuần cần link video — quay video báo cáo rồi dán link vào ô "Link video".', 'THIEU_VIDEO');
+      return loi(res, 400, 'Báo cáo tuần cần link video. Quay video báo cáo rồi dán link vào ô "Link video".', 'THIEU_VIDEO');
     }
 
     try {
@@ -809,7 +809,7 @@ async function api(req, res, u) {
     const ten = String(b.ten || '').trim().slice(0, 180);
     const buf = Buffer.from(String(b.du || ''), 'base64');
     if (!ten || !buf.length) return loi(res, 400, 'Chưa có tệp.', 'THIEU_TEP');
-    if (buf.length > 20 * 1024 * 1024) return loi(res, 413, 'Tệp quá 20MB — nén lại hoặc để trên Drive rồi dán link.', 'TEP_LON');
+    if (buf.length > 20 * 1024 * 1024) return loi(res, 413, 'Tệp quá 20MB. Nén lại, hoặc để trên Drive rồi dán link.', 'TEP_LON');
     const k = K.kyThang(Number(b.moc) > 0 ? Number(b.moc) : Date.now());
     const ma = kho.maPhieu('thang', k.tu, kho.khoaNguoi(toi));
     let ph = (await kho.dsPhieu({ loaiKy: 'thang' }, true)).find((x) => x.ma === ma);

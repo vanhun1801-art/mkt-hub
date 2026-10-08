@@ -174,7 +174,7 @@ console.log('— nhắc "chưa bền" đặt ngay cạnh nút Lưu, không chỉ
   /* Phân biệt hai ca: mất hẳn, và tụt về giá trị cũ. Ca thứ hai tệ hơn vì app
    * vẫn chạy, chỉ chạy bằng thứ cũ, và không có gì báo. */
   t('nói ca mất hẳn', /deploy là mất hẳn/.test(s));
-  t('nói ca tụt về giá trị cũ', /đang giữ giá trị CŨ/.test(s));
+  t('nói ca tụt về giá trị cũ', /đang giữ giá trị cũ/.test(s));
 
   /* Trên máy cá nhân phải IM: ở đó không có deploy nào, nói "deploy là mất" là
    * nói một điều không đúng hoàn cảnh. */

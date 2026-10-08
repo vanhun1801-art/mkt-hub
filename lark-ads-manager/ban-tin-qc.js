@@ -58,12 +58,12 @@ function khoiSucKhoe(t = Date.now()) {
   try { tt = JSON.parse(fs.readFileSync(FILE_TT, 'utf8')); } catch (_) { tt = null; }
   if (!tt || !tt.luc) {
     return { tag: 'markdown', content:
-      '<font color="orange">**Chưa biết đồng bộ có khoẻ không** — chưa có lần chấm điểm nào.</font>' };
+      '<font color="orange">**Chưa biết đồng bộ có khoẻ không**: chưa có lần kiểm nào.</font>' };
   }
   const gio = (t - Date.parse(tt.luc)) / 3600000;
   if (!isFinite(gio) || gio > GIO_KIEM_COI_LA_CU) {
     return { tag: 'markdown', content:
-      '<font color="orange">**Chưa biết đồng bộ có khoẻ không** — lần chấm điểm gần nhất đã '
+      '<font color="orange">**Chưa biết đồng bộ có khoẻ không**: lần kiểm gần nhất đã '
       + Math.round(gio) + ' giờ trước, tức chính việc kiểm đã ngừng. Đừng dựa vào số dưới đây.</font>' };
   }
   if (tt.khoe) return null;   // khoẻ thì im, đừng chiếm chỗ của số liệu

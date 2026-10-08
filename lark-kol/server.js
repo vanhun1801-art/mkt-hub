@@ -256,7 +256,7 @@ function dichLoiBase(e) {
       (cfg.appId || 'Marketing Hub (cli_aa1a8ae21a78ded2)') + ' với quyền Quản lý.';
   }
   if (/800010407|does not match the expected input shape/i.test(m)) {
-    return /email/i.test(m) ? 'Email chưa đúng dạng (ví dụ ten@gmail.com) — Base không nhận.' : 'Có ô nhập sai định dạng, Base không nhận: ' + ((/"hint":\s*"([^"]+)"/.exec(m) || [])[1] || m.slice(0, 200));
+    return /email/i.test(m) ? 'Email chưa đúng dạng (ví dụ ten@gmail.com), Base không nhận.' : 'Có ô nhập sai định dạng, Base không nhận: ' + ((/"hint":\s*"([^"]+)"/.exec(m) || [])[1] || m.slice(0, 200));
   }
   if (/1254291|1254036|99991400|800004135|limited|rate/i.test(m)) return 'Base đang bận, thử lại sau vài giây.';
   if (/timeout|timed out|ETIMEDOUT|ECONNRESET|EAI_AGAIN/i.test(m)) return 'Không nối được tới Lark, thử lại.';
@@ -623,7 +623,7 @@ async function api(req, res, u) {
     const dl = await kho.tatCa({ moi: true });
     const htGoc = dl.hopTac.find((h) => h.id === r[1]);
     if (!htGoc) return loi(res, 404, 'Không thấy hợp tác');
-    if (bang === 'hangMuc' && htGoc.chotLuc) return loi(res, 409, 'Bảng kê đã chốt ' + T.ddmm(htGoc.chotLuc) + ' — bấm "Mở chốt" để sửa');
+    if (bang === 'hangMuc' && htGoc.chotLuc) return loi(res, 409, 'Bảng kê đã chốt ' + T.ddmm(htGoc.chotLuc) + '. Bấm "Mở chốt" để sửa');
     if (bang === 'banGiao') {
       /* Ghi "Nhập số 7N/30N lúc" khi số của mốc đó vừa đổi — bản tin sáng dựa vào nó để thôi nhắc. */
       const cu = new Map(dl.banGiao.map((x) => [x.id, x]));
@@ -661,9 +661,9 @@ async function api(req, res, u) {
     const LY = { daDuyet: 'BGĐ duyệt', tuChoi: 'BGĐ yêu cầu sửa', daGui: 'gửi từ Lark Mail', kolXacNhan: 'KOL xác nhận',
       taoDichVu: 'tạo tour Tourwell', hoanTat: 'hoàn tất', huy: 'huỷ', doiBuoc: 'đổi tay', lui: 'lùi bước' };
     if (viec === 'chot' || viec === 'moChot') {
-      if (viec === 'chot' && !g.hm.some((h) => h.tinhTrang !== 'Huỷ')) return loi(res, 409, 'Bảng kê còn trống — chưa chốt được');
+      if (viec === 'chot' && !g.hm.some((h) => h.tinhTrang !== 'Huỷ')) return loi(res, 409, 'Bảng kê còn trống nên chưa chốt được');
       if (viec === 'chot' && g.hm.some((h) => h.hinhThuc === 'Công ty chi' && h.donGiaChi == null && h.loaiKhach !== 'Em bé')) {
-        return loi(res, 409, 'Còn dòng "Công ty chi" chưa có đơn giá — điền đủ rồi chốt');
+        return loi(res, 409, 'Còn dòng "Công ty chi" chưa có đơn giá. Điền đủ rồi chốt');
       }
       const o = viec === 'chot' ? { chotLuc: now } : { chotLuc: null };
       o.lichSu = T.noiLichSu(g.ht.lichSu, T.dongLichSu(g.ht.buoc, g.ht.buoc, viec === 'chot' ? 'chốt bảng kê ' + T.tien(T.tongHopTac(g.hm).tienCongTy) + 'đ' : 'mở chốt bảng kê', now));
@@ -725,7 +725,7 @@ async function api(req, res, u) {
       await mail.guiMail({ den: b.den, cc: b.cc, tieuDe: b.tieuDe, html: b.html, gui: b.gui === true });
       return json(res, { ok: true, daGui: b.gui === true });
     }
-    if (!dt || !dong.length) return loi(res, 400, 'Chưa có dòng nào của đối tác "' + dt + '" — điền cột Đối tác trong bảng kê trước');
+    if (!dt || !dong.length) return loi(res, 400, 'Chưa có dòng nào của đối tác "' + dt + '". Điền cột Đối tác trong bảng kê trước');
     if (m === 'GET') {
       const e = EM.xinFoc({ ...g, hm: dong, doiTac, tenDoiTac: dt }, cfg.mail);
       return json(res, { ...e, cc: doiTac ? doiTac.cc : '', from: cfg.mail.from || (cfg.mode === 'api' ? 'cmo@rootytrip.com' : '(hộp thư chính)'), doiTac });
@@ -891,7 +891,7 @@ async function api(req, res, u) {
 
   /* ----- nhắc ----- */
   if (p === '/api/nhac/thu' && m === 'POST') {
-    const kq = await nhac.guiTin('Tin thử từ app KOL — nhắc hẹn đang chạy. Trước mỗi giờ hẹn ' +
+    const kq = await nhac.guiTin('Tin thử từ app KOL: nhắc hẹn đang chạy. Trước mỗi giờ hẹn ' +
       cfg.nhac.truocPhut + ' phút anh sẽ nhận tin như thế này.', 'kol-thu-' + now);
     return kq.ok ? json(res, { ok: true }) : loi(res, 502, kq.loi);
   }

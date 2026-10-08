@@ -430,6 +430,7 @@ table.tbl tfoot td { font-weight: 700; background: var(--panel-2); border-top: 2
   margin-top: 5px; font-family: ui-monospace, monospace; font-size: 11.5px;
   color: var(--chu-nhat); overflow-wrap: anywhere;
 }
+.bang-loi .bl-ly summary { cursor: pointer; font-family: inherit; }
 .bang-loi .bl-lam { margin-top: 6px; }
 .bang-loi .btn { flex: 0 0 auto; }
 

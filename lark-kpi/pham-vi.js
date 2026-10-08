@@ -33,13 +33,13 @@ const T = cfg.bang.phamVi;
 
 /** Tất cả khối báo cáo có thể mở cho một người. */
 const KHOI = [
-  { id: 'social', ten: 'Social — bài đăng', mo: 'lượt xem, follower, tương tác theo kênh' },
+  { id: 'social', ten: 'Social · bài đăng', mo: 'lượt xem, follower, tương tác theo kênh' },
   { id: 'live', ten: 'LIVE', mo: 'phiên phát trực tiếp' },
   { id: 'quang-cao', ten: 'Quảng cáo', mo: 'chi tiêu, chuyển đổi, ROAS' },
   { id: 'ota', ten: 'Booking OTA', mo: 'đơn và doanh thu các sàn' },
   { id: 'cong-viec', ten: 'Bảng công việc', mo: 'việc đến hạn và đã xong' },
   { id: 'lich-tac-nghiep', ten: 'Lịch tác nghiệp', mo: 'buổi tác nghiệp, giờ, địa điểm' },
-  { id: 'chinh-anh', ten: 'Hậu kỳ — ảnh & video', mo: 'edit video, thiết kế, nghiệm thu' },
+  { id: 'chinh-anh', ten: 'Hậu kỳ ảnh & video', mo: 'edit video, thiết kế, nghiệm thu' },
   { id: 'kol', ten: 'KOL', mo: 'bài KOL, lượt xem, chi phí' },
   { id: 'quy-chi-phi', ten: 'Quỹ chi phí', mo: 'các khoản chi' },
 ];

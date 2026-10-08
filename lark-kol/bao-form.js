@@ -14,7 +14,7 @@ const urlHub = () => (process.env.PUBLIC_URL || process.env.HUB_URL || 'https://
 
 function the(T, ht, kol, tv) {
   const khach = [ht.nguoiLon ? ht.nguoiLon + ' người lớn' : '', ht.treEm ? ht.treEm + ' trẻ em' : '', ht.emBe ? ht.emBe + ' em bé' : ''].filter(Boolean).join(' · ') || '—';
-  const chuyen = ht.batDau ? T.ddmm(ht.batDau) + (ht.ketThuc && T.ddmm(ht.ketThuc) !== T.ddmm(ht.batDau) ? ' – ' + T.ddmm(ht.ketThuc) : '') : 'chưa có ngày';
+  const chuyen = ht.batDau ? T.ddmm(ht.batDau) + (ht.ketThuc && T.ddmm(ht.ketThuc) !== T.ddmm(ht.batDau) ? ' → ' + T.ddmm(ht.ketThuc) : '') : 'chưa có ngày';
   const thieuAnh = tv.filter((x) => !(x.anhGiay || []).length).length;
   const dong = tv.map((x, i) => (i + 1) + '. **' + x.ten + '**' + (x.vaiTro === 'Trưởng đoàn' ? ' (trưởng đoàn)' : '') + ' · ' + (x.nhomKhach || 'Người lớn') +
     ' · ' + (x.loaiGiay || 'giấy tờ') + ' · ' + ((x.anhGiay || []).length ? (x.anhGiay.length + ' ảnh') : '<font color="orange">chưa có ảnh</font>')).join('\n');
@@ -29,7 +29,7 @@ function the(T, ht, kol, tv) {
       ...(ht.bayDen || ht.bayVe ? [{ tag: 'div', fields: [o('Chuyến bay đến', ht.bayDen), o('Chuyến bay về', ht.bayVe)] }] : []),
       { tag: 'markdown', content: '**Thành viên đoàn**\n' + (dong || '—') },
       ...(ht.yeuCauDacBiet ? [{ tag: 'markdown', content: '**Yêu cầu đặc biệt:** ' + ht.yeuCauDacBiet }] : []),
-      ...(thieuAnh ? [{ tag: 'note', elements: [{ tag: 'plain_text', content: thieuAnh + ' người chưa gửi ảnh giấy tờ — nhắc KOL mở lại link form để bổ sung.' }] }] : []),
+      ...(thieuAnh ? [{ tag: 'note', elements: [{ tag: 'plain_text', content: thieuAnh + ' người chưa gửi ảnh giấy tờ. Nhắc KOL mở lại link form để bổ sung.' }] }] : []),
       { tag: 'action', actions: [{ tag: 'button', type: 'primary', text: { tag: 'plain_text', content: 'Mở hợp tác' }, url: urlHub() + '/#/m/kol?rec=' + encodeURIComponent(ht.id) }] },
     ],
   };

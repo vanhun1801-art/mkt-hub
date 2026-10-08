@@ -245,7 +245,7 @@ async function guiTin({ chatId, userId, email, text, card, khoa }) {
     return { ok: true, msgId: d.message_id || '' };
   } catch (e) {
     const them = /230002|230013|not in the chat/i.test(e.message)
-      ? ' — bot của app chưa được thêm vào nhóm này.' : '';
+      ? '. Bot của app chưa được thêm vào nhóm này.' : '';
     return { ok: false, loi: (e.message + them).slice(0, 400) };
   }
 }

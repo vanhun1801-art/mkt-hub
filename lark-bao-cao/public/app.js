@@ -226,7 +226,7 @@ function kyTheoLoc(ma) {
     const moc = ma === 'tuan-truoc' ? nay - 7 * NGAY_MS : nay;
     const t = mocTuan(moc);
     return Object.assign({ ky: 'tuan', moc: t.tu + 3600000 }, t,
-      { nhan: veNgay(t.tu) + ' – ' + veNgay(t.den) });
+      { nhan: veNgay(t.tu) + ' → ' + veNgay(t.den) });
   }
   if (ma === 'nam-nay') {
     const p = phanRa(nay);
@@ -334,8 +334,8 @@ async function nap() {
     b.className = 'bang-xem-nhu';
     b.textContent = META.toi.xemNhu
       ? 'Đang xem như ' + META.toi.ten + (META.toi.viTri ? ' · ' + META.toi.viTri : '') +
-        ' — đúng những gì họ thấy. Chỉ xem: mọi nút nộp/sửa đều tắt.'
-      : 'Đang XEM THỬ vai nhân sự (' + META.toi.ten + ') — chỉ xem, mọi nút lưu/nộp đều bị chặn.';
+        '. Chỉ xem, nút nộp và sửa đều tắt.'
+      : 'Đang xem thử vai nhân sự (' + META.toi.ten + '). Chỉ xem, nút lưu và nộp đều tắt.';
     b.style.cssText = 'background:var(--orange-bg);color:var(--orange-text);padding:8px 14px;font-size:13px;font-weight:600;text-align:center';
     if (META.toi.xemNhu) {
       const nut = document.createElement('button');
@@ -449,7 +449,7 @@ async function veManPhieu(el, loaiKy) {
 function theKy(loaiKy) {
   const p = DU.phieu;
   const nhan = loaiKy === 'ngay' ? veNgayThu(DU.ky.tu)
-    : loaiKy === 'tuan' ? veNgay(DU.ky.tu) + ' – ' + veNgay(DU.ky.den)
+    : loaiKy === 'tuan' ? veNgay(DU.ky.tu) + ' → ' + veNgay(DU.ky.den)
       : 'Tháng ' + p2(phanRa(DU.ky.tu).thang) + '/' + phanRa(DU.ky.tu).nam;
   /* Mỗi chỗ nói MỘT việc, không nhắc lại nhau: nhãn này chỉ nói đã nộp hay
    * chưa, dòng dưới nói mốc giờ, còn kết luận đúng hạn hay muộn thì để note màu
@@ -484,7 +484,7 @@ function cauHan(d) {
       (p.soLanNop > 1 ? ' · sửa ' + (p.soLanNop - 1) + ' lần' : '');
   }
   return Date.now() > d.han
-    ? 'đã quá hạn — nộp bây giờ vẫn ghi nhận nhưng đánh dấu là trễ'
+    ? 'đã quá hạn · nộp bây giờ vẫn được ghi nhận, đánh dấu trễ'
     : 'còn hạn';
 }
 
@@ -510,7 +510,7 @@ function theBang(d) {
     : !VIEC.chay
       ? khoiBao('do', 'Không nối được Bảng công việc',
         (VIEC.ly || '') + (VIEC.cong ? ' (cổng ' + VIEC.cong + ')' : '') +
-        ' — vẫn gõ thẳng tên công việc vào ô bên dưới được.')
+        '. Bạn vẫn gõ thẳng tên công việc vào ô bên dưới được.')
       : !VIEC.ds.length
         ? khoiBao('cam', 'Không có đầu việc nào',
           'Bảng công việc hiện không giao việc nào cho ' + (VIEC.cuaAi || 'anh/chị') +
@@ -656,7 +656,7 @@ function daiSoSanh(t) {
     'padding-top:9px;margin-top:3px"';
   if (!s.coDuLieu) {
     return '<div class="nho phu" ' + vach + '>' + esc(s.nhan) +
-      ' chưa có báo cáo nào — chưa so được.</div>';
+      ' chưa có báo cáo nào nên chưa so được.</div>';
   }
   const m = (nhan, gt, mau) => '<span class="m ' + (mau || '') + '">' +
     esc(nhan) + ' <b>' + esc(gt) + '</b></span>';
@@ -781,8 +781,8 @@ function soKy(d) {
     ? '<div class="ai-nx"><div class="ai-nx-dau">🤖 Nhận xét và gợi ý từ Marketing Hub AI</div>' +
       '<div class="ai-nx-chu">' + mdSangHtml(aiChu) + '</div>' +
       '<div class="nho" style="margin-top:6px">AI chỉ nhận xét và gợi ý, không chấm điểm.</div></div>'
-    : '<div class="cho-ai">Nhận xét và gợi ý từ Marketing Hub AI sẽ có ở đây — ' +
-      (loaiK === 'thang' ? 'chạy lúc 8:30 và 14:00 ngày 29, 30 hằng tháng.' : 'chạy lúc 8:30 và 14:00 Thứ 7, cho tuần vừa khép.') +
+    : '<div class="cho-ai">Nhận xét của Marketing Hub AI sẽ hiện ở đây, ' +
+      (loaiK === 'thang' ? 'lúc 8:30 và 14:00 ngày 29, 30 hằng tháng.' : 'lúc 8:30 và 14:00 Thứ 7 cho tuần vừa qua.') +
       '</div>';
 
   const dung = t.theoNgay.filter((n) => n.trangThaiHan !== 'tre').length;
@@ -809,8 +809,8 @@ function soKy(d) {
  */
 function phanBoThoiGian(t) {
   if (!t.theoNhom.length) {
-    return '<p class="phu">Chưa có dòng việc nào trong kỳ — nộp báo cáo từng ngày ' +
-      'trước, phần này tự cộng lại.</p>';
+    return '<p class="phu">Chưa có dòng việc nào trong kỳ. Nộp báo cáo ngày, ' +
+      'phần này sẽ tự cộng.</p>';
   }
   const tong = Math.max(1, t.tongPhut);
   const lonNhat = Math.max(1, t.theoNhom[0].phut);
@@ -874,8 +874,8 @@ function bangNgay(t) {
       '<p class="phu">Đang mở…</p></div></details>')).join('') + '</div>' +
     (chiTN.length
       ? '<p class="nho" style="margin:8px 0 0">Ngày đi tác nghiệp đã nộp ' +
-        '<b>Báo cáo sau tác nghiệp</b> thì không cần báo cáo ngày — app tự đọc ' +
-        'sang, không tính là thiếu.</p>'
+        '<b>Báo cáo sau tác nghiệp</b> thì không cần báo cáo ngày, ' +
+        'không tính là thiếu.</p>'
       : '') +
     (t.ngayThieu.length
       ? '<p class="nho" style="margin:10px 0 0">Chưa nộp: ' +
@@ -1062,7 +1062,7 @@ document.addEventListener('change', async (e) => {
   const tep = [...e.target.files];
   for (let i = 0; i < tep.length; i++) {
     const f = tep[i];
-    if (f.size > 20 * 1024 * 1024) { toast('"' + f.name + '" quá 20MB — nén lại hoặc để trên Drive rồi dán link', 'do'); continue; }
+    if (f.size > 20 * 1024 * 1024) { toast('"' + f.name + '" quá 20MB. Nén lại, hoặc để trên Drive rồi dán link.', 'do'); continue; }
     if (tt) tt.textContent = 'Đang tải ' + (i + 1) + '/' + tep.length + ': ' + f.name + '…';
     try {
       const du = await new Promise((ok, hong) => {
@@ -1080,7 +1080,7 @@ document.addEventListener('change', async (e) => {
 document.addEventListener('click', async (e) => {
   const b = e.target && e.target.closest && e.target.closest('[data-xoa-tep]');
   if (!b) return;
-  if (!confirm('Xoá tệp này khỏi báo cáo tháng?')) return;
+  if (!confirm('Xoá tệp này khỏi báo cáo tháng? Không khôi phục được.')) return;
   b.disabled = true;
   try {
     await goi('api/tep/xoa', { method: 'POST', body: JSON.stringify({ recId: b.dataset.rec, token: b.dataset.xoaTep }) });
@@ -1096,7 +1096,7 @@ function theLuu(d) {
    * chủ trả 403, hiện toast đỏ liên tục. */
   if (chiXem()) {
     return '<div class="the"><div class="the-than"><span class="nho">' +
-      'Đang xem như ' + esc(META.toi.ten) + ' — chỉ xem, không nộp hay sửa được.' +
+      'Đang xem như ' + esc(META.toi.ten) + '. Chỉ xem, không nộp hay sửa được.' +
       '</span></div></div>';
   }
   return '<div class="the"><div class="the-than" ' +
@@ -1241,7 +1241,7 @@ function ganHang() {
         if (g && [...nhom.options].some((x) => x.value === g)) {
           nhom.value = g;
           nhom.classList.add('doan');
-          nhom.title = 'Nhóm do máy đoán từ Bảng công việc — sửa được';
+          nhom.title = 'Nhóm đoán theo Bảng công việc, sửa được';
         } else {
           nhom.classList.remove('doan');
           nhom.title = '';
@@ -1347,7 +1347,7 @@ function moNopSanPham(maViec, ten, op) {
     '<form method="dialog" class="hn-than">' +
       '<div class="hn-dau"><div class="hn-nhan">Nộp sản phẩm</div>' +
         '<div class="hn-ten">' + esc(ten) + '</div>' +
-        '<div class="nho">Tiến độ 100% — nộp link hoặc tệp sản phẩm để việc bên Bảng công việc chuyển Hoàn thành.</div></div>' +
+        '<div class="nho">Tiến độ 100%. Nộp link hoặc tệp sản phẩm để việc bên Bảng công việc chuyển Hoàn thành.</div></div>' +
       '<label class="hn-o"><span>Link kết quả</span><input id="hnLink" type="url" placeholder="https://drive.google.com/…"></label>' +
       '<label class="hn-o"><span>Tệp sản phẩm</span><input id="hnTep" type="file" multiple></label>' +
       '<label class="hn-o"><span>Ghi chú cho người order <i class="nho">(không bắt buộc)</i></span><textarea id="hnNote" rows="2"></textarea></label>' +
@@ -1378,11 +1378,11 @@ function moNopSanPham(maViec, ten, op) {
         body: JSON.stringify({ maViec, link, note: $('#hnNote', hop).value.trim() }),
       });
       const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error((d.loi || d.error || 'Không nộp được') + (d.goiY ? ' — ' + d.goiY : ''));
+      if (!r.ok) throw new Error((d.loi || d.error || 'Không nộp được') + (d.goiY ? '. ' + d.goiY : ''));
       if (op) op.dataset.kq = '1';
       hop.close();
-      toast(d.giaiQuyet ? 'Đã nộp sản phẩm — việc trễ hạn nên giữ nhãn trễ, chờ nghiệm thu.'
-        : 'Đã nộp sản phẩm — việc bên Bảng công việc đã chuyển Hoàn thành.', 'xanh');
+      toast(d.giaiQuyet ? 'Đã nộp sản phẩm. Việc trễ hạn nên giữ nhãn trễ, chờ nghiệm thu.'
+        : 'Đã nộp sản phẩm. Việc bên Bảng công việc đã chuyển Hoàn thành.', 'xanh');
     } catch (e) {
       msg.textContent = e.message;
     } finally { nut.disabled = false; }
@@ -1495,7 +1495,7 @@ async function luu(nop) {
     clearTimeout(henTL);
     BAN = false;
     if (nop && khoa) nhapHuy(khoa);     // máy chủ đã nhận bản sửa — nháp trên máy hết việc
-    toast(nop ? 'Đã nộp — ' + r.veHan : 'Đã lưu nháp',
+    toast(nop ? 'Đã nộp · ' + r.veHan : 'Đã lưu nháp',
       nop && r.cham && r.cham.trangThai === 'tre' ? '' : 'xanh');
     await ve();
   } catch (e) {
@@ -1529,7 +1529,7 @@ function henTuLuu() {
      * máy để tải lại trang không mất phần đang sửa. */
     const k = khoaSua();
     if (k && $('#btnNop')) nhapHen(k, () => { const v = layNhapSua(); return JSON.stringify(v) === GOC_SUA ? null : { phieu: v }; });
-    return ttTuLuu('Có thay đổi — bấm "Cập nhật báo cáo" để lưu');
+    return ttTuLuu('Có thay đổi. Bấm "Cập nhật báo cáo" để lưu');
   }
   if (!tuLuuDuoc()) return;
   SUA++;
@@ -1550,7 +1550,7 @@ async function tuLuu(roiTrang) {
     const g = new Date();
     ttTuLuu('Đã tự lưu nháp · ' + String(g.getHours()).padStart(2, '0') + ':' + String(g.getMinutes()).padStart(2, '0'));
   } catch (e) {
-    ttTuLuu('Chưa tự lưu được — ' + e.message + '. Tự thử lại sau 15 giây', true);
+    ttTuLuu('Chưa tự lưu được: ' + e.message + '. Tự thử lại sau 15 giây', true);
     henTL = setTimeout(() => tuLuu(), 15000);
   } finally {
     dangTL = false;
@@ -1592,7 +1592,7 @@ function khoiPhucSua() {
   }
   /* Bản khôi phục CHƯA được gửi — vẫn phải bấm "Cập nhật báo cáo". */
   BAN = true;
-  ttTuLuu('Có thay đổi — bấm "Cập nhật báo cáo" để lưu');
+  ttTuLuu('Có thay đổi. Bấm "Cập nhật báo cáo" để lưu');
   const o = $('#ttKhoiPhuc');
   if (!o) return;
   o.innerHTML = baoKhoiPhuc(n.luc, 'phieu');
@@ -1623,7 +1623,7 @@ async function veDaNop(el) {
   const t = kyTheoLoc(DN_LOC);
   const d = await goi('/api/danh-sach?tu=' + t.tu + '&den=' + t.den + '&moi=1');
   el.innerHTML = '<div class="the"><div class="the-dau"><h2>Báo cáo đã nộp</h2>' +
-    '<span class="nho">' + veNgay(d.tu) + ' – ' + veNgay(d.den) + '</span>' +
+    '<span class="nho">' + veNgay(d.tu) + ' → ' + veNgay(d.den) + '</span>' +
     '<div class="lon"></div>' + thanhKy('dn', DN_LOC) + '</div>' +
     '<div class="the-than khit">' + (d.ds.length
       ? '<p class="nho" style="margin:0 0 8px">Bấm một dòng để xem lại đã báo cáo gì.</p>' +
@@ -1640,7 +1640,7 @@ async function veDaNop(el) {
           '<td>' + (p.daNop ? esc(veLuc(p.nopLuc)) : '<span class="nhan-tt cam">Nháp</span>') + '</td>' +
           '<td>' + nhanHan(p) + '</td>' +
         '</tr>').join('') + '</tbody></table></div>'
-      : rong('Chưa có phiếu nào', 'Khoảng ' + veNgay(d.tu) + ' – ' + veNgay(d.den) +
+      : rong('Chưa có phiếu nào', 'Khoảng ' + veNgay(d.tu) + ' → ' + veNgay(d.den) +
           ' không có báo cáo nào. Thử đổi khoảng thời gian ở trên.')) +
     '</div></div>';
 
@@ -1836,21 +1836,21 @@ function moNguoi(n, nhanKy) {
         '</div></div>')).join('') + '</div>' +
         (dongSoNguoi(n).some((x) => x.laTN)
           ? '<p class="nho" style="margin:8px 0 0">Ngày đi tác nghiệp đã nộp ' +
-            '<b>Báo cáo sau tác nghiệp</b> thì không cần báo cáo ngày — không tính là thiếu.</p>'
+            '<b>Báo cáo sau tác nghiệp</b> thì không cần báo cáo ngày, không tính là thiếu.</p>'
           : '')
       /* Lọc cả năm thì sổ chỉ liệt kê phiếu tổng kết tuần/tháng. Chưa ai nộp
        * tổng kết mà vẫn có báo cáo ngày thì phải nói ra đường đi tiếp, không
        * để người xem tưởng cả năm người ta không làm gì. */
       : (n.soPhieu
         ? rong('Chưa có phiếu tổng kết trong kỳ',
-          n.soPhieu + ' báo cáo ngày đã nộp — chọn "Tháng này" hoặc "Tuần này" để mở từng ngày.')
+          n.soPhieu + ' báo cáo ngày đã nộp. Chọn "Tháng này" hoặc "Tuần này" để mở từng ngày.')
         : rong('Chưa có phiếu nào trong kỳ'))) +
     theY('Nhận định theo luật', n.y, n.diem) +
     (n.ai
       ? '<div class="ai-nx"><div class="ai-nx-dau">🤖 Nhận xét và gợi ý từ Marketing Hub AI</div>' +
         '<div class="ai-nx-chu">' + mdSangHtml(n.ai) + '</div></div>'
-      : '<p class="nho">Chưa có nhận xét AI cho kỳ này — tuần chạy 8:30 &amp; 14:00 Thứ 7, ' +
-        'tháng 8:30 &amp; 14:00 ngày 29–30.</p>');
+      : '<p class="nho">Chưa có nhận xét AI cho kỳ này. Tuần: 8:30 &amp; 14:00 Thứ 7. ' +
+        'Tháng: 8:30 &amp; 14:00 ngày 29, 30.</p>');
 
   moSo(n.ten, nhanKy, than);
 
@@ -2035,8 +2035,8 @@ async function veVuongMac(el) {
     '<span class="nho">90 ngày gần đây · ' + ds.length + ' mục' +
       (soCho ? ' · <b style="color:var(--orange-text)">' + soCho + ' đang chờ</b>' : '') + '</span></div>' +
     '<div class="the-than">' +
-      '<div class="nho" style="margin-bottom:10px">Ghi vào ô <b>"Cần hỗ trợ & vấn đề gặp phải"</b> khi nộp báo cáo — ' +
-        'quản lý nhận ngay và phản hồi cho bạn tại đây và qua tin nhắn Lark.</div>' +
+      '<div class="nho" style="margin-bottom:10px">Ghi vào ô <b>"Cần hỗ trợ & vấn đề gặp phải"</b> khi nộp báo cáo. ' +
+        'Quản lý nhận ngay và trả lời bạn ở đây, kèm tin nhắn Lark.</div>' +
       (ds.length ? '<div class="ht-ds">' + ds.map(muc).join('') + '</div>'
         : rong('Bạn chưa nêu vướng mắc nào', 'Khi gặp khó, ghi vào ô "Cần hỗ trợ" trong phiếu báo cáo.')) +
     '</div></div>';
@@ -2100,7 +2100,7 @@ async function veCanHoTro(el) {
     const tac = s === 'xong'
       ? '<div class="ht-tac"><div class="ht-nut-nhom">' + nut(x, 'mo-lai', 'Mở lại', true) + '</div></div>'
       : '<div class="ht-tac">' +
-          oSoan(x.recId, coNhap ? nh.md : x.ghiChu, 'Ghi chú cách xử lý / lý do chưa xử lý được — dán văn bản có định dạng được, nhân sự nhận đúng như vậy') +
+          oSoan(x.recId, coNhap ? nh.md : x.ghiChu, 'Cách xử lý, hoặc lý do chưa xử lý được. Nhân sự nhận đúng nội dung này.') +
           /* Chỉ báo "khôi phục" khi bản nháp lấy từ máy (sau tải lại trang). Vẽ
            * lại trong cùng phiên thì chữ vẫn nằm đó như chưa từng đi đâu. */
           (coNhap && nh.may ? '<div style="margin:4px 0 6px">' + baoKhoiPhuc(nh.luc, x.recId) + '</div>' : '') +
@@ -2123,7 +2123,7 @@ async function veCanHoTro(el) {
       pill('chua', 'Chưa xong') + pill('xong', 'Đã xử lý') + pill('tat-ca', 'Tất cả') +
     '</div>' + thanhKy('ht', HT_KYLOC) + '</div>' +
     '<div class="the-than">' +
-      '<div class="nho" style="margin-bottom:10px">Bấm <b>Đã xử lý</b> hoặc <b>Chưa xử lý được</b> — bot Marketing Hub ' +
+      '<div class="nho" style="margin-bottom:10px">Bấm <b>Đã xử lý</b> hoặc <b>Chưa xử lý được</b>, bot Marketing Hub ' +
         'sẽ nhắn riêng cho người nêu kèm ghi chú của bạn.</div>' +
       (ds.length ? '<div class="ht-ds">' + ds.map(muc).join('') + '</div>'
         : (d.ds.length
@@ -2167,7 +2167,7 @@ async function veCanHoTro(el) {
           bao: b.dataset.tt !== 'mo-lai' }) });
         HT_NHAP.delete(rec); nhapHuy(htKhoa(rec));   // máy chủ đã nhận ghi chú — nháp hết việc
         const chu = { xong: 'Đã ghi nhận xử lý', 'chua-duoc': 'Đã ghi chưa xử lý được', 'mo-lai': 'Đã mở lại' }[r.trangThai];
-        if (r.bao && !r.bao.ok) toast(chu + ' — nhưng chưa nhắn được cho ' + r.nguoi + ': ' + r.bao.loi, 'do');
+        if (r.bao && !r.bao.ok) toast(chu + ', nhưng chưa nhắn được cho ' + r.nguoi + ': ' + r.bao.loi, 'do');
         else toast(chu + (r.bao && r.bao.ok ? ' · đã nhắn cho ' + r.nguoi : ''));
         veCanHoTro(el);
       } catch (e) { toast('Không lưu được: ' + e.message, 'do'); b.disabled = false; }
@@ -2235,7 +2235,7 @@ function veKhoiTin() {
   const hop = (ten, id, on) => '<label style="display:flex;gap:8px;align-items:center;margin-bottom:6px">' +
     '<input type="checkbox" id="' + id + '"' + (on ? ' checked' : '') + '> ' + esc(ten) + '</label>';
   return '<div class="the"><div class="the-dau"><h2>Gửi thông báo khi nộp báo cáo ngày</h2>' +
-      '<span class="nho">' + (TL.tatCung ? 'Máy chủ đang TẮT CỨNG (BAO_CAO_TIN_NHOM=0)'
+      '<span class="nho">' + (TL.tatCung ? 'Máy chủ đang tắt hẳn việc gửi'
         : TL_TIN_BAN ? 'có chỉnh chưa lưu' : (t.bat ? 'đang bật' : 'đang tắt')) + '</span>' +
       tlBaoKP('tin', TL_TIN_BAN) +
       '<div class="lon"></div>' +
@@ -2260,14 +2260,14 @@ function veKhoiTin() {
             (t.nguoiNhan.length ? t.nguoiNhan.map((u, i) =>
               '<span class="nhan-tt xam" style="margin:0 6px 6px 0;display:inline-flex;gap:6px;align-items:center">' +
                 esc(u.ten || u.openId) + ' <a href="#" data-bo="' + i + '" title="Bỏ">✕</a></span>').join('')
-              : '<div class="nho" style="margin-bottom:6px">Chưa có ai — chọn bên dưới.</div>') +
+              : '<div class="nho" style="margin-bottom:6px">Chưa có ai. Chọn bên dưới.</div>') +
             '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">' +
               (coToi ? '<button class="btn nho mo" id="tnThemToi">+ Tôi</button>' : '') +
               (nhan.length ? '<select id="tnChon"><option value="">+ Thêm người…</option>' +
                 nhan.map((u) => '<option value="' + esc(u.openId) + '">' + esc(u.ten) + '</option>').join('') +
                 '</select>' : '') +
             '</div></div>' : '') +
-        '<div class="nho" style="margin:14px 0 4px">Mẫu tiêu đề — <code>{ten}</code> tên người, <code>{ngay}</code> ngày báo cáo</div>' +
+        '<div class="nho" style="margin:14px 0 4px">Mẫu tiêu đề: <code>{ten}</code> là tên người, <code>{ngay}</code> là ngày báo cáo</div>' +
         '<input id="tnTieuDe" value="' + esc(t.tieuDe) + '" style="width:100%;max-width:340px;margin-bottom:12px">' +
         hop('Tag người gửi', 'tnTag', t.tagNguoi) +
         hop('Hiện bảng Công việc | Tiến độ', 'tnBang', t.hienBang) +
@@ -2277,11 +2277,11 @@ function veKhoiTin() {
         '<div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border)">' +
           '<label style="display:flex;gap:8px;align-items:center;margin-bottom:8px;font-weight:600">' +
             '<input type="checkbox" id="tnHT"' + (t.baoHoTro ? ' checked' : '') + '> Báo ngay khi có vướng mắc mới</label>' +
-          '<div class="nho" style="margin-bottom:6px">Nhắn riêng cho — mỗi khi phiếu nộp có ô "Cần hỗ trợ" mới hoặc đổi nội dung</div>' +
+          '<div class="nho" style="margin-bottom:6px">Nhắn riêng cho những người này khi ô "Cần hỗ trợ" có nội dung mới hoặc được sửa</div>' +
           (t.nhanHoTro.length ? t.nhanHoTro.map((u, i) =>
             '<span class="nhan-tt xam" style="margin:0 6px 6px 0;display:inline-flex;gap:6px;align-items:center">' +
               esc(u.ten || u.openId) + ' <a href="#" data-bo-ht="' + i + '" title="Bỏ">✕</a></span>').join('')
-            : '<div class="nho" style="margin-bottom:6px;color:var(--orange-text)">Chưa có ai nhận — vướng mắc sẽ không được báo.</div>') +
+            : '<div class="nho" style="margin-bottom:6px;color:var(--orange-text)">Chưa có ai nhận nên vướng mắc sẽ không được báo.</div>') +
           '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">' +
             (TL.toi && TL.toi.openId && !t.nhanHoTro.some((x) => x.openId === TL.toi.openId)
               ? '<button class="btn nho mo" id="tnHTToi">+ Tôi</button>' : '') +
@@ -2337,7 +2337,7 @@ function batKhoiTin(el) {
       TL.tin = r.tin; TL_TIN_BAN = false;
       if (TL_KP) TL_KP.tin = null;
       nhapNgay(TL_KHOA, tlNhap);          // bỏ phần tin khỏi nháp, giữ phần chuẩn nếu còn
-      toast('Đã lưu — áp từ lần nộp báo cáo tiếp theo');
+      toast('Đã lưu. Áp dụng từ lần nộp báo cáo tiếp theo');
       veThietLap(el);
     } catch (er) { toast('Lưu hỏng: ' + er.message, 'do'); e.target.disabled = false; }
   };
@@ -2430,7 +2430,7 @@ async function veThietLap(el) {
             chip(sl.nhom.includes('*'), a + ' data-sln="*"', 'mọi nhóm') +
             nhomChon.map((nh) => chip(sl.nhom.includes(nh), a + ' data-sln="' + esc(nh) + '"', nh)).join('') +
           '</div></div>';
-      }).join('') : '<div class="nho" style="margin-bottom:8px">Chưa đặt chỉ tiêu sản lượng — chỉ chấm phân bổ thời gian.</div>') +
+      }).join('') : '<div class="nho" style="margin-bottom:8px">Chưa đặt chỉ tiêu sản lượng, chỉ chấm phân bổ thời gian.</div>') +
       '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">' +
         '<button class="btn nho mo tl-them-sl" ' + dv + '>+ Thêm chỉ tiêu</button>' +
         (v.sanLuong.length > 1
@@ -2462,7 +2462,7 @@ async function veThietLap(el) {
         nhomChon.map((nh) => chip(c.nhomPhu.includes(nh), 'data-phu="' + esc(nh) + '"', nh)).join('') +
       '</div>' +
       '<div class="nho" style="margin-bottom:12px">"' + esc(TL.nhomBo.join(', ')) +
-        '" không tính vào chuẩn — máy hỏng, mất điện không phải lỗi phân bổ.</div>' +
+        '" không tính vào chuẩn vì không phải lỗi phân bổ.</div>' +
       /* Lời nhắn ngắn ở cuối thẻ — anh Hùng 30/09: "đơn giản thôi". */
       '<div class="nho" style="margin:14px 0 6px">Lời nhắn cuối thẻ</div>' +
       [['tot', '✅ Tốt'], ['luuY', '⚠️ Cần lưu ý'], ['lech', '⚠️ Lệch nhiều'], ['tre', '⏰ Nộp trễ'],
@@ -2571,7 +2571,7 @@ async function veThietLap(el) {
       TL.chuan = r.chuan; TL_BAN = false;
       if (TL_KP) TL_KP.chuan = null;
       nhapNgay(TL_KHOA, tlNhap);          // bỏ phần chuẩn khỏi nháp, giữ phần tin nếu còn
-      toast('Đã lưu chuẩn — áp từ lần nộp báo cáo tiếp theo');
+      toast('Đã lưu chuẩn. Áp dụng từ lần nộp báo cáo tiếp theo');
       veThietLap(el);
     } catch (er) { toast('Lưu hỏng: ' + er.message, 'do'); e.target.disabled = false; }
   };

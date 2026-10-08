@@ -59,10 +59,10 @@ console.log('— đường uỷ quyền trên server');
   t('lấy danh sách advertiser từ lượt đổi token', /d\.data\.advertiser_ids/.test(than));
   t('lưu cả token lẫn advertiserIds', /accessToken: d\.data\.access_token, advertiserIds: ids/.test(than));
   t('không có tài khoản nào thì báo, không lưu im lặng',
-    /KHÔNG tài khoản nào được uỷ quyền/.test(than));
+    /không tài khoản nào được uỷ quyền/.test(than));
 
   /* auth_code dùng một lần — nói trước thì đỡ một vòng hoang mang. */
-  t('nhắc auth_code chỉ dùng một lần', /chỉ dùng được MỘT lần/.test(than));
+  t('nhắc auth_code chỉ dùng một lần', /chỉ dùng được một lần/.test(than));
   t('nhắc redirect phải khớp', /Redirect URL khai trong app TikTok phải đúng bằng/.test(than));
   /* Gọi qua lớp http chung để token được che trong mọi thông báo lỗi. */
   t('dùng postJson của lớp http chung, không fetch trần', /await postJson\('https:\/\/business-api/.test(than));

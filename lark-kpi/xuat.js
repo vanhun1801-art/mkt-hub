@@ -245,7 +245,7 @@ function svgTron(tr, size = 150) {
  */
 function thanhLuu(tenTep, duongCsv) {
   return '<div class="thanh-luu">'
-    + '<div class="tl-tx"><b>Lưu lại</b><span>tệp này tự chứa — gửi mail hay mở máy khác đều đủ</span></div>'
+    + '<div class="tl-tx"><b>Lưu lại</b><span>tệp tự chứa, gửi mail hay mở máy khác vẫn đủ</span></div>'
     + '<button type="button" class="tl-nut chinh" onclick="window.print()">'
     + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"'
     + ' stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="6" y="14" width="12" height="7"/>'
@@ -470,12 +470,11 @@ function chuMucTieu(m) {
   if (!m.coLuat.length) {
     return '<br><b>Chưa đặt mục tiêu</b> cho '
       + m.thieuLuat.map((x) => 'tháng ' + x.slice(5)).join(', ')
-      + ' — các ô không có vạch mục tiêu vì bộ luật KPI tháng đó chưa lập, '
-      + 'không phải vì mục tiêu bằng 0.';
+      + ' nên các ô không có vạch mục tiêu.';
   }
   let t = '<br>Mục tiêu lấy từ bộ luật KPI '
     + m.coLuat.map((x) => 'tháng ' + x.slice(5)).join(' + ')
-    + ' (' + m.soKenh + ' kênh) — cùng bộ luật dùng để chấm lương.';
+    + ' (' + m.soKenh + ' kênh), cùng bộ luật chấm lương.';
   if (!m.tronThang) {
     t += ' Khoảng đang xem không trọn tháng nên <b>mục tiêu đã chia theo số ngày</b>.';
   }
@@ -555,8 +554,8 @@ function trangBaoCao(d, nx, logo) {
           + '</div><div class="sp-lech ' + m + '">' + (x.lech > 0 ? '▲ ' : '▼ ') + pt
           + '</div></div>';
       }).join('')
-      + '</div><p class="ghi-bd"><b>Mỗi ô có thang riêng</b> — hai cột trong cùng một ô '
-      + 'so được với nhau, chiều cao giữa các ô thì không.</p></div>';
+      + '</div><p class="ghi-bd"><b>Mỗi ô có thang riêng</b>: chỉ so hai cột trong cùng ô, '
+      + 'không so chiều cao giữa các ô.</p></div>';
   };
 
   /* Thanh xếp hạng (hạng mục chi, theo người, theo địa điểm). */
@@ -600,8 +599,8 @@ function trangBaoCao(d, nx, logo) {
         + '<b>' + soDep(x.so, 'so') + '</b><span>' + hEsc(x.nhan) + '</span></div>'
         + (x.moiMot ? '<div class="ph-g">cứ ' + x.moiMot.toLocaleString('vi-VN') + ' '
           + hEsc(goc || '') + ' mới có 1</div>' : '') + '</div>').join('')
-      + '<p class="ghi-bd">Bề rộng thu hẹp đều theo thứ bậc, <b>không tỷ lệ với con số</b> — '
-      + 'bậc đầu và bậc cuối chênh nhau tới mấy trăm nghìn lần.</p></div>';
+      + '<p class="ghi-bd">Bề rộng thu hẹp đều theo thứ bậc, <b>không tỷ lệ với con số</b>. '
+      + 'Số thật in trên từng dải.</p></div>';
   };
 
   const bang = (b) => {
@@ -666,7 +665,7 @@ function trangBaoCao(d, nx, logo) {
     return '<section class="base"><header>'
       + '<span class="cham-tron" style="background:#0ea5a0"></span>'
       + '<b>Tệp khách hàng tiếp cận mới</b>'
-      + '<span class="mo">các phép đo rời rạc — không phải các chặng của một phễu</span></header>'
+      + '<span class="mo">các ô đo riêng rẽ, không phải các chặng của một phễu</span></header>'
       + '<div class="luoi">' + (m.o || []).map(o).join('') + '</div>'
       /* Khối này KHÔNG còn phễu: các ô là phép đo rời rạc trên những tập người
        * khác nhau (tiếp cận chỉ có ở Facebook+Instagram, tin nhắn hầu hết là
@@ -683,7 +682,7 @@ function trangBaoCao(d, nx, logo) {
     return '<section class="base"><header>'
       + '<span class="cham-tron" style="background:#f59e0b"></span>'
       + '<b>Xu hướng ' + x.thang.length + ' tháng</b><span class="mo">'
-      + nt(x.thang[0]) + ' – ' + nt(x.thang[x.thang.length - 1]) + '</span></header>'
+      + nt(x.thang[0]) + ' → ' + nt(x.thang[x.thang.length - 1]) + '</span></header>'
       + '<table class="xh"><thead><tr><th>Chỉ số</th>'
       + x.thang.map((th) => '<th class="r">' + nt(th) + '</th>').join('')
       + '<th class="r">so tháng đầu có số</th></tr></thead><tbody>'
@@ -707,8 +706,8 @@ function trangBaoCao(d, nx, logo) {
           + '</td></tr>';
       }).join('')
       + '</tbody></table>'
-      + '<p class="ghi-bd">Cột lệch so với tháng ĐẦU TIÊN CÓ SỐ của từng dòng, '
-      + 'không phải tháng đầu bảng — app nào mới nối thì mấy tháng đầu còn trống.</p>'
+      + '<p class="ghi-bd">Cột lệch so với tháng đầu tiên có số của từng dòng, '
+      + 'không phải tháng đầu bảng.</p>'
       + '</section>';
   };
 
@@ -720,29 +719,29 @@ function trangBaoCao(d, nx, logo) {
       ? luuY(b) + '<div class="luoi">' + (b.o || []).map(o).join('') + '</div>'
         + capCot(b.soSanh, 'Thay đổi so với kỳ trước')
         + hinhKhoi(b) + bieuDo(b) + (b.bang || []).map(bang).join('')
-      : '<p class="loi">Không đọc được số liệu — ' + hEsc(b.loi) + '</p>')
+      : '<p class="loi">Không đọc được số liệu: ' + hEsc(b.loi) + '</p>')
     + '</section>').join('');
 
   return '<!doctype html><html lang="vi"><head><meta charset="utf-8">'
     + '<meta name="viewport" content="width=device-width,initial-scale=1">'
-    + '<title>Báo cáo Marketing ' + ngay(d.tu) + ' – ' + ngay(d.den) + '</title>'
+    + '<title>Báo cáo Marketing ' + ngay(d.tu) + ' → ' + ngay(d.den) + '</title>'
     + '<style>' + CSS_BC + CSS_LUU + '</style></head><body><div class="trang">'
     + thanhLuu(ten, 'xuat-bao-cao-csv?tu=' + d.tu + '&den=' + d.den)
     + '<div class="dau">' + logo + '<div>'
     + '<h1>Báo cáo Marketing</h1>'
-    + '<div class="ky">Kỳ <b>' + ngay(d.tu) + ' – ' + ngay(d.den) + '</b> (' + d.soNgay + ' ngày)'
+    + '<div class="ky">Kỳ <b>' + ngay(d.tu) + ' → ' + ngay(d.den) + '</b> (' + d.soNgay + ' ngày)'
     /* `kyTruoc` là null khi người xem tắt so sánh — bản xuất phải chịu được, nếu
      * không thì bấm Xuất báo cáo lúc đang tắt so sánh là nổ trang trắng. */
     + (d.kyTruoc ? ' · so với ' + (d.kyTruoc.nhan || 'kỳ trước') + ' '
-      + ngay(d.kyTruoc.tu) + ' – ' + ngay(d.kyTruoc.den) : ' · không so với kỳ nào') + '<br>'
+      + ngay(d.kyTruoc.tu) + ' → ' + ngay(d.kyTruoc.den) : ' · không so với kỳ nào') + '<br>'
     + '<b>' + d.soChay + '/' + d.soApp + '</b> base đọc được · <b>' + d.soO + '</b> chỉ số'
     + chuMucTieu(d.mucTieu)
     + '</div></div></div>'
     + khoi
     + '<div class="chan">Xuất lúc ' + new Date(d.luc).toLocaleString('vi-VN')
-    + ' bởi ' + hEsc(nx.ten) + ' · Marketing Hub — Báo cáo &amp; KPI.<br>'
-    + 'Số liệu đọc trực tiếp từ các base tại thời điểm xuất; base nào không đọc được đã ghi rõ. '
-    + 'Mỗi ô ghi kèm nền tảng nào có số và nền tảng nào chưa — một tổng không nói được điều đó.'
+    + ' bởi ' + hEsc(nx.ten) + ' · Marketing Hub · Báo cáo &amp; KPI.<br>'
+    + 'Số liệu đọc từ các base lúc xuất; base nào không đọc được đã ghi rõ. '
+    + 'Mỗi ô ghi kèm nền tảng nào có số, nền tảng nào chưa.'
     + '</div></div></body></html>';
 }
 
@@ -811,7 +810,7 @@ const CSS_VB = ':root{--vien:#e3e8f0;--mem:#eef1f6;--chu:#1a2233;--mo:#5b6779;--
 function voVanBan(o) {
   return '<!doctype html><html lang="vi"><head><meta charset="utf-8">'
     + '<meta name="viewport" content="width=device-width,initial-scale=1">'
-    + '<title>' + hEsc(o.tieuDe) + ' — ' + hEsc(o.ky) + '</title>'
+    + '<title>' + hEsc(o.tieuDe) + ' · ' + hEsc(o.ky) + '</title>'
     + '<style>' + CSS_VB + CSS_LUU + '</style></head><body><div class="ngoai">'
     + thanhLuu(o.tenTep, o.csv)
     + '<div class="to">'
@@ -821,14 +820,13 @@ function voVanBan(o) {
     + '<h1>' + hEsc(o.tieuDe) + '</h1>'
     + '<div class="ky">Kỳ đánh giá: <b>' + hEsc(o.ky) + '</b> · '
     + (o.chot ? 'đã chốt ngày ' + new Date(o.chot.luc).toLocaleDateString('vi-VN')
-      : '<span class="nh canh">bản nháp — tháng chưa chốt</span>') + '</div>'
+      : '<span class="nh canh">bản nháp, tháng chưa chốt</span>') + '</div>'
     + o.than
     + (o.kyTen || '')
     + '<div class="chan-tr">Kết xuất lúc ' + new Date().toLocaleString('vi-VN')
-    + ' bởi ' + hEsc(o.nx.ten) + ' · Marketing Hub — Báo cáo &amp; KPI.<br>'
+    + ' bởi ' + hEsc(o.nx.ten) + ' · Marketing Hub · Báo cáo &amp; KPI.<br>'
     + 'Điểm tính lương = Σ (điểm tiêu chí × trọng số). % hoàn thành = điểm tính lương ÷ tổng trọng số. '
-    + 'Tiêu chí không có nguồn số liệu được loại khỏi mẫu số và ghi rõ “chưa đo được”, '
-    + 'không tính thành 0.</div>'
+    + 'Tiêu chí chưa có nguồn số liệu được loại khỏi mẫu số và ghi “chưa đo được”, không tính là 0.</div>'
     + '</div></div></body></html>';
 }
 
@@ -919,9 +917,9 @@ function vanBanNguoi(ng, kq, th, nx, logo) {
 
   const canh = thieu.length
     ? '<h2>Lưu ý</h2><p>Phiếu này còn <b>' + thieu.length + '</b> mục chưa có điểm ('
-      + thieu.map((x) => hEsc(x.ten)).join(' · ') + '). Các mục đó đang tính 0 khi cộng tổng, '
-      + 'nên <b>% hoàn thành ở trên là mức thấp nhất có thể</b> và sẽ tăng khi chấm đủ. '
-      + 'Tháng chưa chốt được khi còn mục chưa chấm.</p>'
+      + thieu.map((x) => hEsc(x.ten)).join(' · ') + '), đang tính 0 nên '
+      + '<b>% hoàn thành ở trên là mức thấp nhất</b> và sẽ tăng khi chấm đủ. '
+      + 'Chấm đủ mới chốt được tháng.</p>'
     : '';
 
   return voVanBan({
@@ -991,7 +989,7 @@ function vanBanPhong(kq, th, nx, logo) {
     + '</tbody></table>';
 
   const b3 = (kq.chan || []).length
-    ? '<h2>3. Mục còn chặn — chưa đủ điều kiện chốt</h2><table><thead><tr>'
+    ? '<h2>3. Mục còn chặn, chưa đủ điều kiện chốt</h2><table><thead><tr>'
       + '<th style="width:38%">Ở đâu</th><th>Cần làm gì</th></tr></thead><tbody>'
       + kq.chan.map((x) => '<tr><td>' + hEsc(x.o) + '</td><td>' + hEsc(x.viec) + '</td></tr>').join('')
       + '</tbody></table>'
@@ -1035,7 +1033,7 @@ function csvBaoCao(d) {
     ['Base', 'Chỉ số', 'Giá trị', 'Đơn vị', '% so kỳ trước', 'Nền tảng có số', 'Nền tảng chưa có'],
   ];
   d.base.forEach((b) => {
-    if (!b.chay) { r.push([b.ten, 'KHÔNG ĐỌC ĐƯỢC', b.loi]); return; }
+    if (!b.chay) { r.push([b.ten, 'không đọc được', b.loi]); return; }
     (b.o || []).forEach((o) => r.push([b.ten, o.nhan, o.so,
       o.dinhDang === 'vnd' ? 'VND' : o.dinhDang === 'pt' ? '%' : o.dinhDang === 'x' ? 'lần' : '',
       o.lech == null || !Number.isFinite(o.lech) ? '' : Math.round(o.lech * 10) / 10,
@@ -1044,13 +1042,13 @@ function csvBaoCao(d) {
   });
   d.base.forEach((b) => {
     (b.bang || []).forEach((bg) => {
-      r.push([], [b.ten.toUpperCase() + ' — ' + bg.tieuDe.toUpperCase()], bg.cot);
+      r.push([], [b.ten.toUpperCase() + ' · ' + bg.tieuDe.toUpperCase()], bg.cot);
       bg.dong.forEach((x) => r.push(x));
     });
     /* Chuỗi theo ngày cũng đưa vào: đây là thứ người ta hay cần nhất khi mở
      * sang Excel — để tự vẽ lại biểu đồ theo ý mình. */
     if (b.chuoi && b.chuoi.diem.length) {
-      r.push([], [b.ten.toUpperCase() + ' — ' + b.chuoi.nhan.toUpperCase()],
+      r.push([], [b.ten.toUpperCase() + ' · ' + b.chuoi.nhan.toUpperCase()],
         ['Ngày', ...b.chuoi.duong.map((l) => l.label)]);
       b.chuoi.diem.forEach((p) => r.push([p.x, ...b.chuoi.duong.map((l) => p[l.key])]));
     }

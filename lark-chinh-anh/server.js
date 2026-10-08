@@ -193,7 +193,7 @@ async function guiVeNhom({ chatId, chatIds, nhoms, card, text, khoa, baoCaoId, b
     .filter((x) => x && x.id);
 
   if (!dich.length) {
-    const r = { ok: false, loi: 'Chưa chọn nhóm chat — vào Cài đặt để chọn.' };
+    const r = { ok: false, loi: 'Chưa chọn nhóm chat. Vào Cài đặt để chọn.' };
     await store.ghiNhatKy({ chat: '', ok: false, noiDung: text, thongBao: r.loi, baoCaoId: baoCaoId1 });
     return r;
   }
@@ -225,7 +225,7 @@ async function guiVeNhom({ chatId, chatIds, nhoms, card, text, khoa, baoCaoId, b
   const tenHong = hong.map((x) => x.nhom.ten || x.nhom.id).join(', ');
   const canhBao = [
     ...xong.filter((x) => x.r.canhBao).map((x) => (x.nhom.ten || x.nhom.id) + ': ' + x.r.canhBao),
-    ...(duoc.length && hong.length ? ['Chưa gửi được vào ' + tenHong + ' — ' + hong[0].r.loi] : []),
+    ...(duoc.length && hong.length ? ['Chưa gửi được vào ' + tenHong + ': ' + hong[0].r.loi] : []),
   ].join(' · ');
 
   return {
@@ -450,7 +450,7 @@ async function api(req, res, u) {
        * chặn ở server chứ không chỉ ở form: bỏ trống là không lưu, không gửi. */
       const nhanXetAnh = String(m.nhanXetAnh == null ? '' : m.nhanXetAnh).trim();
       if (!nhanXetAnh) {
-        return fail(res, 400, o('chưa viết nhận xét ảnh — phần này bắt buộc, nhóm đọc để biết ảnh có gì.'));
+        return fail(res, 400, o('chưa viết nhận xét ảnh. Phần này bắt buộc, nhóm đọc để biết ảnh có gì.'));
       }
       if (nhanXetAnh.length > 2000) {
         return fail(res, 400, o('nhận xét ảnh dài quá 2000 ký tự.'));
@@ -479,7 +479,7 @@ async function api(req, res, u) {
        * rõ trùng với mục nào. */
       if (daThay.has(khoa)) {
         return fail(res, 400, o('trùng Tour + Loại + ngày' + (hdv ? ' + HDV' : '') + ' với mục ' + (daThay.get(khoa) + 1)
-          + ' — hai thư mục cùng lô thì gộp link vào một mục, hoặc đổi Loại/ngày.'));
+          + '. Hai thư mục cùng lô thì gộp link vào một mục, hoặc đổi Loại/ngày.'));
       }
       daThay.set(khoa, k);
 
@@ -628,7 +628,7 @@ async function api(req, res, u) {
     const daCo = new Set();
     for (const x of vao) {
       const id = String((x && x.id) || '');
-      if (!/^oc_[A-Za-z0-9]+$/.test(id)) return fail(res, 400, 'chat_id phải dạng oc_… — nhận được: ' + id);
+      if (!/^oc_[A-Za-z0-9]+$/.test(id)) return fail(res, 400, 'chat_id phải dạng oc_…, đang nhận: ' + id);
       if (daCo.has(id)) continue;
       daCo.add(id);
       sach.push({ id, ten: String((x && x.ten) || id) });
@@ -670,13 +670,13 @@ async function api(req, res, u) {
       ...ds.filter((b) => b.trangThai === 'Cần sửa lại'), ...ngoai,
     ].map((b) => ({
       muc: 'gap',
-      tieuDe: b.thuMuc + ' — cần sửa lại',
+      tieuDe: b.thuMuc + ' · cần sửa lại',
       phu: (b.nhanXet || 'chưa ghi nhận xét') + ' · '
         + (b.nguoiLam.map((u) => u.name).join(', ') || 'chưa ghi người'),
       the: [b.tour, b.loai].filter(Boolean),
     })).concat(ds.filter((b) => !b.daGui).map((b) => ({
       muc: 'vua',
-      tieuDe: b.thuMuc + ' — chưa gửi nhóm',
+      tieuDe: b.thuMuc + ' · chưa gửi nhóm',
       phu: 'đã ghi Base nhưng nhóm chat chưa nhận được tin',
       the: [b.tour, b.loai].filter(Boolean),
     })));

@@ -69,7 +69,7 @@
         { k: 'appId', l: 'TikTok App ID', ph: '7678987984670031892',
           hint: 'business-api.tiktok.com → My Apps → app của mình → Basic Information' },
         { k: 'appSecret', l: 'TikTok App Secret', mat: true, full: true,
-          hint: 'Cùng trang đó. Bấm Reset là có cái mới — TikTok chỉ cho xem một lần.' },
+          hint: 'Cùng trang đó. Bấm Reset là có cái mới, TikTok chỉ cho xem một lần.' },
       ],
     },
     googleAds: {
@@ -78,9 +78,8 @@
         { k: 'clientId', l: 'OAuth Client ID', full: true, ph: '…apps.googleusercontent.com',
           hint: 'Google Cloud Console → Clients → OAuth client ID. Loại Web application hay Desktop app đều chạy, miễn là có http://127.0.0.1:47123 trong Authorized redirect URIs.' },
         { k: 'clientSecret', l: 'OAuth Client Secret', mat: true, full: true,
-          hint: 'Google KHÔNG cho xem lại secret cũ. Mất thì vào đúng client đó → Client secrets → '
-            + '+ Add secret, copy ngay lúc nó hiện (chỉ hiện một lần). Đổi secret KHÔNG làm mất Refresh Token, '
-            + 'vì token đó gắn với Client ID chứ không gắn với secret.' },
+          hint: 'Google không cho xem lại secret cũ. Mất thì vào đúng client đó → Client secrets → '
+            + '+ Add secret, copy ngay lúc nó hiện (chỉ hiện một lần). Đổi secret không làm mất Refresh Token.' },
         { k: 'developerToken', l: 'Google Ads Developer Token', mat: true, full: true,
           hint: 'Google Ads → Công cụ → API Center. Mức Test chỉ đọc được tài khoản test; đọc tài khoản thật phải xin Basic Access.' },
         { k: 'loginCustomerId', l: 'Mã MCC (tài khoản quản lý)', ph: '993-620-5152',
@@ -150,7 +149,7 @@
         </div>
         <div class="card-body">
           ${han && (han.muc === 'het' || han.muc === 'sapHet') ? `<div class="help" style="margin:0 0 12px;border-color:var(--${han.muc === 'het' ? 'bad' : 'warn'});color:var(--${han.muc === 'het' ? 'bad' : 'warn'})">
-            <b>${han.muc === 'het' ? 'Token đã hết hạn' : 'Token sắp hết hạn'}</b> — ${esc(han.text)}.
+            <b>${han.muc === 'het' ? 'Token đã hết hạn' : 'Token sắp hết hạn'}</b>: ${esc(han.text)}.
             Bấm <b>Sửa cấu hình</b> bên dưới rồi dán token mới vào.</div>` : ''}
           ${(p.thieu || []).length ? `<div class="help" style="margin:0 0 12px">
             <b>Còn thiếu:</b> ${p.thieu.map((x) => `<code>${esc(x)}</code>`).join(' · ')}.
@@ -205,8 +204,8 @@
       return `<div class="kn-form" data-form="${p.key}" hidden>
         <div class="form-grid">${f.fields.map(o).join('')}</div>
         ${f.oauth ? `<div class="help" style="margin:12px 0 0">
-          <b>Refresh Token</b> ${bm.daCoRefreshToken ? '<span class="tag good">đã lưu</span>' : '<span class="tag bad">chưa có</span>'} —
-          lưu Client ID + Secret trước, rồi bấm <b>Lấy link uỷ quyền</b>.
+          <b>Refresh Token</b> ${bm.daCoRefreshToken ? '<span class="tag good">đã lưu</span>' : '<span class="tag bad">chưa có</span>'}.
+          Lưu Client ID + Secret trước, rồi bấm <b>Lấy link uỷ quyền</b>.
           Trình duyệt sẽ nhảy tới <code>127.0.0.1:47123</code> và báo không kết nối được: đó là bình thường,
           copy nguyên URL trên thanh địa chỉ rồi dán xuống ô dưới.
           <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
@@ -218,12 +217,11 @@
             <button class="btn small ghost" data-gg-doi>Đổi lấy token</button>
           </div></div>` : ''}
         ${f.ttOauth ? `<div class="help" style="margin:12px 0 0">
-          <b>Access Token</b> ${bm.daCoAccessToken ? '<span class="tag good">đã lưu</span>' : '<span class="tag bad">chưa có</span>'} —
-          lưu App ID + App Secret trước, rồi bấm <b>Lấy link uỷ quyền</b>.
+          <b>Access Token</b> ${bm.daCoAccessToken ? '<span class="tag good">đã lưu</span>' : '<span class="tag bad">chưa có</span>'}.
+          Lưu App ID + App Secret trước, rồi bấm <b>Lấy link uỷ quyền</b>.
           Trình duyệt sẽ nhảy tới <code>127.0.0.1:47124</code> và báo không kết nối được: đó là bình thường,
           copy nguyên URL trên thanh địa chỉ rồi dán xuống ô dưới.
-          <br><b>Nhớ tick các tài khoản quảng cáo</b> ở trang uỷ quyền — app lấy luôn danh sách đó,
-          nên không còn cảnh token đúng mà mã tài khoản khai sai.
+          <br><b>Nhớ tick các tài khoản quảng cáo</b> ở trang uỷ quyền, app lấy luôn danh sách đó.
           <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
             <button class="btn small ghost" data-tt-link>Lấy link uỷ quyền</button>
             <a class="btn small primary" data-tt-mo hidden target="_blank" rel="noopener">Mở trang uỷ quyền TikTok</a>
@@ -260,19 +258,19 @@
       /* Không tô xanh, cũng không tô đỏ chuyện đồng bộ: mình KHÔNG BIẾT đồng bộ
        * thế nào. Cái biết chắc là việc kiểm đã ngừng. */
       ? `<div class="help" style="border-color:var(--warn);color:var(--warn)">
-           <b>Chưa biết đồng bộ có khoẻ không</b> — lần chấm gần nhất cách đây
+           <b>Chưa biết đồng bộ có khoẻ không</b>: lần kiểm gần nhất cách đây
            ${esc(noiLau(gioCu))} (${esc(new Date(sk.luc).toLocaleString('vi-VN'))}),
-           mà tác vụ này lẽ ra chạy mỗi 3 giờ. Tức là chính việc kiểm đã ngừng.
-           <div style="margin-top:6px">Kết quả CŨ lúc đó: ${sk.khoe ? 'khoẻ' : 'có vấn đề'} ·
-           số mới nhất ${esc(Object.entries(sk.moiNhat || {}).map(([k, v]) => k + ' ' + v).join(' · '))}
-           — đừng dựa vào mấy số này để kết luận hôm nay.</div>
+           lẽ ra chạy mỗi 3 giờ. Tức là chính việc kiểm đã ngừng.
+           <div style="margin-top:6px">Kết quả cũ lúc đó: ${sk.khoe ? 'khoẻ' : 'có vấn đề'} ·
+           số mới nhất ${esc(Object.entries(sk.moiNhat || {}).map(([k, v]) => k + ' ' + v).join(' · '))}.
+           Đừng dựa vào mấy số này để kết luận hôm nay.</div>
          </div>`
       : sk.khoe
       ? `<div class="help" style="border-color:var(--good);color:var(--good)">
-           <b>Đồng bộ đang khoẻ</b> — kiểm lúc ${esc(new Date(sk.luc).toLocaleString('vi-VN'))}.
+           <b>Đồng bộ đang khoẻ</b> · kiểm lúc ${esc(new Date(sk.luc).toLocaleString('vi-VN'))}.
            Số mới nhất: ${esc(Object.entries(sk.moiNhat || {}).map(([k, v]) => k + ' ' + v).join(' · '))}</div>`
       : `<div class="help" style="border-color:var(--${sk.coLoiNang ? 'bad' : 'warn'});color:var(--${sk.coLoiNang ? 'bad' : 'warn'})">
-           <b>${sk.coLoiNang ? 'Đồng bộ đang hỏng' : 'Đồng bộ có vấn đề'}</b> — kiểm lúc ${esc(new Date(sk.luc).toLocaleString('vi-VN'))}
+           <b>${sk.coLoiNang ? 'Đồng bộ đang hỏng' : 'Đồng bộ có vấn đề'}</b> · kiểm lúc ${esc(new Date(sk.luc).toLocaleString('vi-VN'))}
            <ul style="margin:6px 0 0;padding-left:18px">
              ${(sk.vanDe || []).map((v) => `<li>${v.nang ? '🔴' : '🟠'} ${esc(v.mo_ta)}</li>`).join('')}
            </ul>
@@ -345,12 +343,12 @@
          * phải đọc, đúng cái đang muốn bỏ. */
         let viec = '<span class="tag good">không phải làm gì</span>';
         if (!p.sanSang) viec = '<span class="tag bad">chưa cấu hình xong</span>';
-        else if (han && han.muc === 'het') viec = '<span class="tag bad">token hết hạn — nối lại ngay</span>';
+        else if (han && han.muc === 'het') viec = '<span class="tag bad">token hết hạn, nối lại ngay</span>';
         else if (!p.enabled) viec = '<span class="tag warn">đã cấu hình nhưng đang tắt</span>';
         else if (han && han.muc === 'sapHet') {
           viec = `<span class="tag warn">nối lại trước ${dmy(han.hetHanNgay || '')}</span>`;
         } else if (laQC && tre == null) viec = '<span class="tag warn">chưa có số nào trong Base</span>';
-        else if (laQC && tre > 2) viec = `<span class="tag bad">số cũ ${tre} ngày — đồng bộ lại</span>`;
+        else if (laQC && tre > 2) viec = `<span class="tag bad">số cũ ${tre} ngày, đồng bộ lại</span>`;
         else if (laQC && tre === 2) viec = '<span class="tag warn">số trễ 2 ngày</span>';
 
         /* HẠN: ba trạng thái rất khác nhau, đừng gộp.
@@ -369,7 +367,7 @@
             ? ` <span class="sub">${esc(p.label)}</span>` : ''}</td>
           <td>${p.enabled ? '<span class="tag good">bật</span>' : '<span class="tag">tắt</span>'}</td>
           <td>${p.noiLuc ? dmy(String(p.noiLuc).slice(0, 10))
-            : '<span class="sub" title="App chỉ bắt đầu ghi ngày từ 07/10/2026 — token cắm trước đó không có mốc">chưa ghi</span>'}</td>
+            : '<span class="sub" title="App ghi ngày nối từ 07/10/2026, token nối trước đó không có mốc">chưa ghi</span>'}</td>
           <td>${oHan}</td>
           <td>${laQC
             ? (ngay ? `${dmy(ngay)}${tre ? ` <span class="sub">(${tre} ngày trước)</span>` : ' <span class="sub">(hôm nay)</span>'}`
@@ -403,10 +401,10 @@
         <div class="card-head"><h3>Sức khoẻ kết nối</h3>
           <span class="sub">${nhanBanChay(c)}${c.hengio.dangBat
             ? `đồng bộ tự chạy mỗi ${d.moiSoGio} giờ · Tourwell + ROAS mỗi 2 giờ`
-            : 'hẹn giờ đang TẮT — mọi thứ phải bấm tay'}</span></div>
+            : 'hẹn giờ đang tắt, mọi thứ phải bấm tay'}</span></div>
         <div class="card-body tight">
           ${canLam ? `<div class="help" style="margin:0 0 10px;border-color:var(--warn);color:var(--warn)">
-            <b>${int(canLam)}/${int(ds.length)} kết nối cần anh làm gì đó</b> — xem cột cuối, đã đẩy lên đầu bảng.
+            <b>${int(canLam)}/${int(ds.length)} kết nối cần xử lý.</b> Xem cột cuối, các dòng này nằm đầu bảng.
           </div>` : `<div class="help" style="margin:0 0 10px;border-color:var(--good);color:var(--good)">
             <b>Cả ${int(ds.length)} kết nối đang bình thường.</b>
           </div>`}
@@ -427,17 +425,17 @@
       // theo việc file có trên đĩa hay không — trên Render cấu hình đến từ biến môi
       // trường nên không hề có file, mà kênh vẫn chạy ngon.
       c.providers.some((p) => p.sanSang) ? '' : (c.oDiaTam ? `<div class="help" style="border-color:var(--bad);color:var(--bad)">
-      <b>Bản chạy trên server này không có token nào — và dán token ở đây sẽ mất ở lần deploy kế tiếp.</b>
-      Ổ đĩa của server là tạm; chỗ giữ được lâu dài là biến môi trường <code>ADS_CONNECT_JSON</code>,
-      mà biến đó hiện ${c.nguon === 'env' ? 'có nhưng không chứa token nào' : '<b>chưa được đặt</b>'}.
+      <b>Bản trên server này chưa có token nào, và token dán ở đây sẽ mất ở lần deploy kế tiếp.</b>
+      Chỗ giữ lâu dài là biến môi trường <code>ADS_CONNECT_JSON</code>,
+      hiện ${c.nguon === 'env' ? 'có nhưng không chứa token nào' : '<b>chưa được đặt</b>'}.
       <br><b>Làm theo thứ tự này:</b>
       <br>1. Mở app trên máy đã có token (máy anh Hùng), vào tab này, bấm <b>Lấy nội dung ADS_CONNECT_JSON</b>.
       <br>2. Dán vào Render → service của hub → <b>Environment</b> → biến <code>ADS_CONNECT_JSON</code>.
-      <br>3. Deploy lại. Từ đó token sống qua mọi lần deploy.
+      <br>3. Deploy lại.
       <br><span class="sub">Chừng nào chưa làm bước này, việc kéo số về Base chỉ chạy khi máy cá nhân đang bật.</span>
       </div>` : `<div class="help">
-      Chưa nối kênh nào. Bấm <b>Điền thông tin</b> ở thẻ nền tảng bên dưới, dán token vào rồi <b>Lưu cấu hình</b> —
-      app tự tạo <b>${esc(c.file)}</b> hộ, không phải sửa file tay.</div>`)}
+      Chưa nối kênh nào. Bấm <b>Điền thông tin</b> ở thẻ nền tảng bên dưới, dán token vào rồi <b>Lưu cấu hình</b>,
+      app tự tạo <b>${esc(c.file)}</b>.</div>`)}
     ${(() => {
       /* BỐN khả năng, MỘT băng. Bản trước tính hai băng độc lập rồi in cả hai,
        * nên hiện ra "SẼ MẤT" ngay cạnh "KHÔNG MẤT GÌ" — hai lời khuyên ngược
@@ -447,8 +445,8 @@
         googleSheet: 'Google Sheet', pancake: 'Pancake', pancakePos: 'Pancake POS' };
       const list = (a) => (a || []).map((k) => ten[k] || k).join(', ');
       const cachXuLy = 'Bấm <b>Lấy nội dung ADS_CONNECT_JSON</b> ngay dưới đây, copy, '
-        + 'rồi dán vào biến <code>ADS_CONNECT_JSON</code> trong Environment của Render — '
-        + '<b>xong mới deploy</b>.';
+        + 'dán vào biến <code>ADS_CONNECT_JSON</code> trong Environment của Render, '
+        + '<b>rồi mới deploy</b>.';
 
       // 1. Có kênh sẽ mất, hoặc sẽ bị tụt về giá trị cũ
       if (b && b.canLo && b.dangChay.length) {
@@ -456,9 +454,8 @@
         const hanh = (b.seMat || []).filter((k) => !cu.includes(k));
         return `<div class="help" style="border-color:var(--bad);color:var(--bad)">
           <b>Đừng deploy trước khi làm việc này.</b>
-          ${cu.length ? `<br>${esc(list(cu))}: biến môi trường đang giữ <b>giá trị CŨ</b>.
-            Deploy xong app tụt về giá trị đó — kênh vẫn còn nhưng chạy bằng token cũ,
-            và không có gì báo.` : ''}
+          ${cu.length ? `<br>${esc(list(cu))}: biến môi trường đang giữ <b>giá trị cũ</b>.
+            Deploy xong, kênh sẽ chạy lại bằng token cũ mà không báo gì.` : ''}
           ${hanh.length ? `<br>${esc(list(hanh))}: chưa có trong biến môi trường, deploy là <b>mất hẳn</b>.` : ''}
           ${b.seCon.length ? `<br><span style="color:var(--muted)">Giữ được: ${esc(list(b.seCon))}.</span>` : ''}
           <br>${cachXuLy}</div>`;
@@ -504,7 +501,7 @@
       <div class="card-body">
         <div class="help">
           <b>Ba nguồn trên</b> là nơi lấy số chi tiêu quảng cáo.
-          <b>Ba nguồn dưới</b> (Pancake · POS · Tourwell) là nơi lấy doanh thu để tính ROAS —
+          <b>Ba nguồn dưới</b> (Pancake · POS · Tourwell) là nơi lấy doanh thu để tính ROAS,
           thiếu chúng thì có chi tiêu mà không có doanh thu.
           <br>Sửa xong <b>tất cả</b> rồi mới bấm lấy ADS_CONNECT_JSON ở cuối mục, kẻo chuỗi lấy ra còn thiếu.
         </div>
@@ -521,15 +518,12 @@
 
     <div class="card" style="margin-top:14px">
       <div class="card-head"><h3>Sao lưu cấu hình vào ADS_CONNECT_JSON</h3>
-        <span class="sub">phòng khi ổ đĩa Render mất — đã từng mất token ba lần</span></div>
+        <span class="sub">giữ token qua mọi lần deploy</span></div>
       <div class="card-body">
         <div class="help">
-          Token dán qua các thẻ bên dưới nằm trên ổ đĩa TẠM của Render, không phải chỗ
-          giữ lâu dài — dù có lần không mất qua vài lượt deploy, đó không phải điều
-          được đảm bảo, và đã từng mất thật ba lần trước đây. Bấm nút dưới để lấy đúng
-          nội dung dán vào biến môi trường <code>ADS_CONNECT_JSON</code> trên Render
-          (service này → <b>Environment</b>) — giữ được chắc chắn qua mọi lần deploy
-          hay đổi gói máy chủ sau này.
+          Token dán ở các thẻ phía trên nằm trên ổ đĩa tạm của Render, có thể mất khi deploy.
+          Bấm nút dưới, dán nội dung vào biến môi trường <code>ADS_CONNECT_JSON</code> trên Render
+          (service này → <b>Environment</b>) để giữ lâu dài.
         </div>
         <button class="btn primary" id="btnXuatEnv">Lấy nội dung ADS_CONNECT_JSON</button>
         <div id="xuatEnvKq" style="margin-top:12px"></div>
@@ -543,20 +537,19 @@
           ? `tự chạy mỗi ${d.moiSoGio} giờ · lượt kế tiếp khoảng ${c.hengio.lanKeTiep ? new Date(c.hengio.lanKeTiep).toLocaleTimeString('vi-VN') : '—'}`
           : 'hẹn giờ đang tắt'}</span></div>
       <div class="card-body">
-        <div class="help">Mỗi lượt ghi lại <b>${d.soNgayLui} ngày gần nhất</b>, không chỉ hôm nay — vì
-          Meta/TikTok/Google còn khai báo lại chuyển đổi trong vài ngày. Khoá ghi là
-          (quảng cáo × ngày) nên chạy lại bao nhiêu lần cũng không nhân dòng.</div>
+        <div class="help">Mỗi lượt ghi lại <b>${d.soNgayLui} ngày gần nhất</b>, vì nền tảng còn cập nhật
+          chuyển đổi trong vài ngày. Chạy lại nhiều lần cũng không nhân dòng.</div>
         <!-- Ba việc anh Hùng vào tab này để làm, bấm được ngay. Bản trước chúng
              nằm lẫn dưới bốn ô số kỹ thuật. -->
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
           <button class="btn primary" id="kSyncAll">⟳ Đồng bộ tất cả kênh đang bật</button>
           <button class="btn ghost" id="kTest">Kiểm tra kết nối</button>
           <button class="btn ghost" id="kQuyenGhi">Dò lại quyền bật/tắt</button>
-          <button class="btn ghost" id="kPreviewAll">Xem trước — chưa ghi gì</button>
+          <button class="btn ghost" id="kPreviewAll">Xem trước (chưa ghi gì)</button>
         </div>
 
         <details class="lui" style="margin-top:14px">
-          <summary>Tuỳ chọn nâng cao — nhịp đồng bộ, tự tạo bản ghi, nhập file CSV</summary>
+          <summary>Tuỳ chọn nâng cao: nhịp đồng bộ, tự tạo bản ghi, nhập file CSV</summary>
           <div class="form-grid" style="margin-top:8px">
             <div class="field"><label>Ghi lại bao nhiêu ngày gần nhất</label>
               <input type="number" id="oNgay" min="1" max="90" value="${d.soNgayLui}">
@@ -568,11 +561,11 @@
               <input type="checkbox" id="oKhiKhoiDong" ${d.khiKhoiDong ? 'checked' : ''}> Đồng bộ ngay khi bật server</label></div>
             <div class="field full"><label>
               <input type="checkbox" id="oTaoMoi" ${d.tuTaoMoi ? 'checked' : ''}> Tự tạo chiến dịch / nhóm / quảng cáo chưa có trong Base</label>
-              <span class="hint">Nên để TẮT lần đầu, xem trước rồi ghép tay để không nhân đôi dữ liệu cũ</span></div>
+              <span class="hint">Nên để tắt lần đầu, xem trước rồi ghép tay để không nhân đôi dữ liệu cũ</span></div>
           </div>
           <button class="btn ghost" id="kSave">Lưu tuỳ chọn</button>
 
-          <div class="help" style="margin-top:14px"><b>Nhập từ file CSV</b> — đường lùi khi một nền tảng
+          <div class="help" style="margin-top:14px"><b>Nhập từ file CSV</b>: đường lùi khi một nền tảng
             không gọi được API. Export báo cáo từ Ads Manager (có cột Ngày + Chi phí + tên quảng cáo)
             rồi chọn file ở đây; app tự nhận cột theo tên tiếng Việt hoặc tiếng Anh.</div>
           <div class="form-grid">
@@ -638,8 +631,8 @@
     const missing = rows.filter((r) => !r.extId).length;
     $('#kMapping').innerHTML = `
       <div class="help" style="margin:14px 14px 0">${missing
-        ? `<b>${missing}/${rows.length}</b> bản ghi chưa có ID nền tảng. Lần đồng bộ đầu app sẽ tự khớp theo tên và điền hộ; chỉ những cái tên không khớp/trùng nhau mới cần ghép tay ở đây (dán ID từ Ads Manager).`
-        : `Toàn bộ ${rows.length} bản ghi đã có ID nền tảng — đồng bộ sẽ khớp chính xác theo ID.`}</div>
+        ? `<b>${missing}/${rows.length}</b> bản ghi chưa có ID nền tảng. Lần đồng bộ đầu app tự khớp theo tên; tên không khớp hoặc trùng thì dán ID từ Ads Manager vào đây.`
+        : `Cả ${rows.length} bản ghi đã có ID nền tảng, đồng bộ sẽ khớp chính xác theo ID.`}</div>
       ${table('kMap', [
         { key: 'loai', label: 'Loại', render: (r) => `<span class="tag">${esc(r.loai)}</span>` },
         { key: 'name', label: 'Tên trong Base', cls: 'name', render: (r) => `<b>${esc(r.name)}</b><span class="sub-line">${esc(r.ctx)}</span>` },
@@ -820,7 +813,7 @@
     const oId = key === 'meta' ? 'kn-meta-accountIds' : 'kn-googleAds-customerIds';
     const dangChon = ($('#' + oId).value || '').split(/[\s,;]+/).filter(Boolean);
     o.innerHTML = `<div class="help" style="margin:12px 0 0">
-      <b>Thấy ${rows.length} tài khoản</b> — tick cái nào cần lấy số:
+      <b>Thấy ${rows.length} tài khoản.</b> Tick tài khoản cần lấy số:
       <div style="display:flex;flex-direction:column;gap:4px;margin-top:8px">
         ${rows.map((r) => `<label style="display:flex;align-items:center;gap:7px;font-size:12.5px">
           <input type="checkbox" data-tk-id="${esc(r.id)}" ${dangChon.includes(String(r.id)) ? 'checked' : ''}>
@@ -832,7 +825,7 @@
       const chon = [...o.querySelectorAll('[data-tk-id]')].filter((x) => x.checked).map((x) => x.dataset.tkId);
       if (!chon.length) { toast('Chưa tick tài khoản nào', 'err'); return; }
       $('#' + oId).value = chon.join(', ');
-      toast('Đã điền — nhớ bấm Lưu cấu hình', 'ok');
+      toast('Đã điền, nhớ bấm Lưu cấu hình', 'ok');
     };
   }
 
@@ -863,7 +856,7 @@
         <div class="help">
           Token điền qua giao diện nằm trên <b>ổ đĩa tạm</b> của server, deploy là mất.
           Bấm nút dưới để lấy nội dung, dán vào biến môi trường <code>ADS_CONNECT_JSON</code> của Render,
-          rồi mới deploy. Làm một lần là xong cho tới khi anh thêm hoặc đổi token.
+          rồi mới deploy. Thêm hoặc đổi token thì làm lại.
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn primary" id="gbLay">Lấy nội dung ADS_CONNECT_JSON</button>
@@ -892,15 +885,15 @@
             { key: 'key', label: 'Kênh', cls: 'name', render: (x) => `<b>${esc(x.key)}</b><span class="sub-line">${esc(x.loai)}</span>` },
             { key: 'enabled', label: 'Bật', render: (x) => (x.enabled ? '<span class="tag good">bật</span>' : '<span class="tag">tắt</span>') },
             { key: 'coToken', label: 'Thông tin', render: (x) => (x.coToken
-              ? '<span class="tag good">CÓ</span>' : '<span class="tag bad">TRỐNG</span>') },
+              ? '<span class="tag good">có</span>' : '<span class="tag bad">trống</span>') },
             { key: 'soTaiKhoan', label: 'Tài khoản', num: true, render: (x) => (x.soTaiKhoan ? int(x.soTaiKhoan) : '—') },
             { key: 'thieu', label: 'Còn thiếu', render: (x) => ((x.thieu || []).length ? esc(x.thieu.join(', ')) : '—') },
           ], r.kenh || [])}
           ${coRong ? `<div class="help" style="border-color:var(--bad);color:var(--bad);margin-top:10px">
-            <b>${int(r.rong.length)} kênh TRỐNG trong chuỗi này: ${esc(r.rong.join(', '))}.</b>
-            Nếu kênh nào trong số đó anh đã khai ở nơi khác thì dán chuỗi này lên là <b>ĐÈ MẤT</b> nó.
+            <b>${int(r.rong.length)} kênh trống trong chuỗi này: ${esc(r.rong.join(', '))}.</b>
+            Kênh nào đã khai ở nơi khác thì dán chuỗi này lên sẽ <b>xoá mất</b>.
             Khai đủ ở đây trước, rồi lấy lại.</div>` : `<div class="help" style="border-color:var(--good);color:var(--good);margin-top:10px">
-            Không kênh nào trống — dán chuỗi này lên là giữ được đủ.</div>`}
+            Không kênh nào trống, dán chuỗi này lên là giữ đủ.</div>`}
           <textarea id="gbText" readonly rows="4" style="width:100%;margin-top:10px;font-family:ui-monospace,monospace;font-size:.78rem"
             >${esc(r.noiDung)}</textarea>
           <div class="help" style="margin-top:8px">
@@ -917,12 +910,12 @@
     nut('#gbCopy', async () => {
       try {
         await navigator.clipboard.writeText(KS.envNoiDung || '');
-        toast('Đã copy — sang Render dán vào ADS_CONNECT_JSON', 'ok');
+        toast('Đã copy. Sang Render dán vào ADS_CONNECT_JSON', 'ok');
       } catch (_) {
         // Một số trình duyệt chặn clipboard trong iframe; chọn sẵn để người dùng Ctrl+C
         const t = $('#gbText');
         if (t) { t.focus(); t.select(); }
-        toast('Trình duyệt chặn clipboard — đã chọn sẵn, bấm Ctrl+C', 'err');
+        toast('Trình duyệt chặn clipboard. Đã chọn sẵn, bấm Ctrl+C', 'err');
       }
     });
 
@@ -961,11 +954,11 @@
     const cu = (b.khacNhau || []).includes(key);
     return `<div class="help" style="margin-top:10px;border-color:var(--bad);color:var(--bad)">
       <b>Lưu rồi, nhưng chưa bền.</b> ${cu
-        ? 'Biến môi trường <code>ADS_CONNECT_JSON</code> đang giữ giá trị CŨ của kênh này — deploy xong app tụt về giá trị đó, và không có gì báo.'
-        : 'Kênh này chưa có trong biến môi trường <code>ADS_CONNECT_JSON</code> — deploy là mất hẳn, phải khai lại từ đầu.'}
+        ? 'Biến môi trường <code>ADS_CONNECT_JSON</code> đang giữ giá trị cũ của kênh này. Deploy xong, kênh sẽ chạy lại bằng token cũ mà không báo gì.'
+        : 'Kênh này chưa có trong biến môi trường <code>ADS_CONNECT_JSON</code>, deploy là mất hẳn, phải khai lại từ đầu.'}
       <br>Cuộn lên thẻ <b>Giữ cấu hình qua lần deploy</b> ở đầu trang, bấm
-      <b>Lấy nội dung ADS_CONNECT_JSON</b>, dán vào Environment của Render —
-      <b>xong mới deploy</b>.
+      <b>Lấy nội dung ADS_CONNECT_JSON</b>, dán vào Environment của Render,
+      <b>rồi mới deploy</b>.
     </div>`;
   };
 
@@ -975,7 +968,7 @@
     return `
     <div class="card" style="margin-top:14px">
       <div class="card-head">
-        <h3>Tourwell API — lead &amp; đơn hàng</h3>
+        <h3>Tourwell API · lead &amp; đơn hàng</h3>
         <span class="sub">thay cho việc xuất Excel bằng tay mỗi tháng</span>
       </div>
       <div class="card-body">
@@ -986,7 +979,7 @@
         <div class="help" style="border-color:var(--warn);color:var(--warn)">
           <b>Lấy token ở đúng chỗ.</b> Token Open API nằm ở
           <code>Cấu hình → Quản lý tài khoản</code>, trên tài khoản tên
-          <b>Api Official</b> (email <code>api@admin.com</code>) — <b>không phải</b> ở màn hình
+          <b>Api Official</b> (email <code>api@admin.com</code>), <b>không phải</b> ở màn hình
           <code>API Key</code>. Màn hình API Key chỉ có danh mục <code>pancake</code>, đó là chỗ
           dành cho tích hợp Pancake, không dùng để đọc dữ liệu.
           <br>Token này <b>không có hạn dùng</b>.
@@ -996,13 +989,13 @@
           <label>Địa chỉ Tourwell của công ty</label>
           <input id="twHost" value="${esc(t.host || '')}" placeholder="rootytrip.tourwell.net">
           <div class="hint">Gõ tên miền là đủ, không cần https.${t.tuEnv && t.tuEnv.host
-            ? ' <b>Đang lấy từ biến môi trường TOURWELL_BASE_URL</b> — cách này sống sót qua mỗi lần deploy, gõ vào đây chỉ để ghi đè.'
+            ? ' <b>Đang lấy từ biến môi trường TOURWELL_BASE_URL</b> (giữ được qua deploy). Gõ vào đây chỉ để ghi đè.'
             : ''}</div>
         </div>
         <div class="field full">
           <label>Token Open API</label>
           <input id="twToken" type="password" autocomplete="off"
-            placeholder="${t.coToken ? 'đã có — để trống là giữ nguyên' : 'dán token vào đây'}">
+            placeholder="${t.coToken ? 'đã có, để trống là giữ nguyên' : 'dán token vào đây'}">
           <div style="margin-top:4px">${t.coToken
             ? '<span class="tag good">đã có token</span>'
             : '<span class="tag warn">chưa có token</span>'}
@@ -1014,12 +1007,11 @@
         </div>
 
         <div class="help" style="border-color:var(--warn);color:var(--warn)">
-          <b>Ghi ghi chú ngược sang Tourwell — đang TẮT.</b> Bật lên thì app sẽ ghi tên quảng
-          cáo và nền tảng vào ô <i>Ghi chú</i> của từng lead, để sales nhìn thấy khách đến từ
-          quảng cáo nào ngay trong Tourwell. Nó <b>sửa bản ghi mà sales đang đọc</b>, nên
-          phải anh Hùng quyết mới bật. App luôn nối thêm vào ghi chú cũ, không bao giờ đè.
+          <b>Ghi chú ngược sang Tourwell.</b> Khi bật, app ghi tên quảng cáo và nền tảng vào ô
+          <i>Ghi chú</i> của từng lead để sales thấy khách đến từ quảng cáo nào. Việc này
+          <b>sửa bản ghi sales đang đọc</b>, nên anh Hùng quyết mới bật. App chỉ nối thêm, không đè ghi chú cũ.
           <br>Trạng thái hiện tại: ${t.ghiNguoc
-            ? '<b>ĐANG BẬT</b>' : '<b>đang tắt</b>'}
+            ? '<b>đang bật</b>' : '<b>đang tắt</b>'}
         </div>
 
         <div class="row" style="gap:8px;margin-top:10px;flex-wrap:wrap">
@@ -1097,19 +1089,19 @@
       const dong = (r.log || []).map(esc).join('<br>');
       if (r.dangChay) {
         return `<b>Đang kéo…</b> ${r.giay || 0} giây`
-          + '<br><span class="sub">Chạy ở nền — đóng tab cũng không sao, quay lại bấm '
+          + '<br><span class="sub">Chạy ở nền, đóng tab cũng không sao. Quay lại bấm '
           + 'Kéo lead &amp; đơn là thấy tiến độ.</span>'
           + (dong ? `<div style="margin-top:6px;font-size:12px">${dong}</div>` : '');
       }
       if (r.loi) return `<b style="color:var(--bad)">Lỗi:</b> ${esc(r.loi)}`
         + (dong ? `<div style="margin-top:6px;font-size:12px">${dong}</div>` : '');
       const k = r.kq || {};
-      return `<b>Đã kéo xong</b> ${esc((r.khoang || []).join(' → '))} — ${r.giay || 0} giây.`
+      return `<b>Đã kéo xong</b> ${esc((r.khoang || []).map(dmy).join(' → '))} · ${r.giay || 0} giây.`
         + `<br>Lead: <b>${k.lead ? k.lead.dong : 0}</b> dòng`
-        + (k.lead && k.lead.tu ? ` (${esc(k.lead.tu)} → ${esc(k.lead.den)})` : '')
+        + (k.lead && k.lead.tu ? ` (${esc(dmy(k.lead.tu))} → ${esc(dmy(k.lead.den))})` : '')
         + `<br>Đơn: <b>${k.don ? k.don.dong : 0}</b> dòng`
         + (k.don ? ` · tổng ${Number(k.don.tongTien || 0).toLocaleString('vi-VN')}đ` : '')
-        + (k.coSdt === false ? '<br><span class="sub">Không lấy số điện thoại — chỉ dùng khoá cứng mã lead.</span>' : '')
+        + (k.coSdt === false ? '<br><span class="sub">Không lấy số điện thoại, chỉ dùng khoá cứng mã lead.</span>' : '')
         + '<br>Sang tab <b>Doanh thu &amp; ROAS</b>, chọn khoảng ngày rồi bấm Tính ROAS.';
     };
 
@@ -1130,7 +1122,7 @@
       bao('Đang đặt việc…');
       try {
         const r = await api('/api/roas/keo-api', { method: 'POST', body: '{}' });
-        if (r.daChay) bao('Đã có một lượt đang chạy — hiện tiến độ của lượt đó.<br>' + veTienDo(r));
+        if (r.daChay) bao('Đã có một lượt đang chạy, dưới đây là tiến độ của lượt đó.<br>' + veTienDo(r));
         else bao(veTienDo(r));
         if (r.dangChay) dangHoi = setTimeout(hoiTienDo, 2000);
       } catch (e) { bao(esc(e.message), true); }
@@ -1146,7 +1138,7 @@
         <td><input data-pp="shopId" value="${esc(x.shopId || '')}" placeholder="100087658" style="width:100%"></td>
         <td><input data-pp="ten" value="${esc(x.ten || '')}" placeholder="TikTok Rooty Trip" style="width:100%"></td>
         <td><input data-pp="apiKey" type="password" autocomplete="off"
-             placeholder="${x.coKhoa ? 'đã có — để trống là giữ nguyên' : 'dán api_key của gian này'}" style="width:100%">
+             placeholder="${x.coKhoa ? 'đã có, để trống là giữ nguyên' : 'dán api_key của gian này'}" style="width:100%">
           <div style="margin-top:4px">${x.coKhoa
             ? '<span class="tag good">đã có khoá</span>'
             : '<span class="tag warn">chưa có khoá</span>'}</div></td>
@@ -1156,21 +1148,21 @@
     return `
     <div class="card" style="margin-top:14px">
       <div class="card-head">
-        <h3>Pancake POS — đơn hàng &amp; mã lead Tourwell</h3>
+        <h3>Pancake POS · đơn hàng &amp; mã lead Tourwell</h3>
         <span class="sub">nối quảng cáo với doanh thu bằng khoá cứng</span>
       </div>
       <div class="card-body">
         <div class="help">
-          Mỗi đơn POS mang <code>ad_id</code> và ghi chú <code>LU1998</code> — tức mã lead Tourwell.
+          Mỗi đơn POS mang <code>ad_id</code> và ghi chú <code>LU1998</code> (mã lead Tourwell).
           Nhờ vậy nối được quảng cáo với doanh thu <b>không cần ghép theo số điện thoại</b>.
         </div>
         <div class="help" style="border-color:var(--warn);color:var(--warn)">
-          <b>Mỗi gian hàng một khoá riêng.</b> Ở Pancake POS mỗi page là một gian hàng riêng —
-          công ty đang có 15 gian. Khoá của gian này gọi sang gian kia sẽ bị từ chối
-          (<em>“Cửa hàng không tồn tại”</em>), nên muốn đọc gian nào thì phải tạo khoá <b>trong chính gian đó</b>.
+          <b>Mỗi gian hàng một khoá riêng.</b> Ở Pancake POS mỗi page là một gian hàng
+          (công ty đang có 15 gian). Khoá gian này gọi sang gian kia sẽ bị từ chối
+          (<em>“Cửa hàng không tồn tại”</em>), nên phải tạo khoá <b>trong chính gian đó</b>.
           <br><b>Lấy khoá:</b> mở gian hàng → <code>Cấu hình</code> → <code>Nâng cao</code> →
           <code>Tích hợp bên thứ 3</code> → tab <code>API Key</code> → <b>+ Thêm mới</b>.
-          <br><b>Lấy shop_id:</b> nhìn URL khi đang mở gian đó —
+          <br><b>Lấy shop_id:</b> nhìn URL khi đang mở gian đó:
           <code>pos.pancake.vn/shop/<b>100087658</b>/overview</code>
         </div>
 
@@ -1185,9 +1177,9 @@
              Pancake POS trả danh sách shop cho /shops?api_key=… nên chỉ cần MỘT khoá
              là liệt kê được, khỏi phải đi chép tay shop_id từ URL của 15 gian. -->
         <div class="help" style="margin:0 0 12px">
-          <b>Chưa biết shop_id?</b> Dán <b>một</b> api_key bất kỳ rồi bấm dò —
-          app liệt kê các gian hàng khoá đó nhìn thấy, tick cái nào cần là nó điền sẵn shop_id.
-          Mỗi gian vẫn cần khoá riêng của nó, nhưng không phải tự đi tìm mã nữa.
+          <b>Chưa biết shop_id?</b> Dán <b>một</b> api_key bất kỳ rồi bấm dò,
+          app liệt kê các gian khoá đó thấy được, tick gian nào là điền sẵn shop_id.
+          Mỗi gian vẫn cần khoá riêng.
           <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
             <input id="ppKhoaDo" type="password" autocomplete="new-password" spellcheck="false"
               placeholder="dán một api_key (32 ký tự hex)"
@@ -1208,7 +1200,7 @@
 
         <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
           <button class="btn ghost" id="ppThem">+ Thêm gian hàng</button>
-          <button class="btn ghost" id="ppDo" title="Dò tên cho những dòng ĐÃ có khoá ở bảng trên">Dò tên các dòng đã khai</button>
+          <button class="btn ghost" id="ppDo" title="Dò tên cho những dòng đã có khoá ở bảng trên">Dò tên các dòng đã khai</button>
           <button class="btn primary" id="ppLuu">Lưu cấu hình POS</button>
           <button class="btn ghost" id="ppTest" ${p.sanSang ? '' : 'disabled'}>Kiểm tra kết nối</button>
           <button class="btn primary" id="ppGhep" ${p.sanSang ? '' : 'disabled'}>Ghép 14 ngày</button>
@@ -1299,7 +1291,7 @@
             });
             KS.ppShops = dangCo;
             render();
-            toast(`Đã thêm ${chon.length} gian vào bảng — điền api_key cho từng gian rồi Lưu`, 'ok');
+            toast(`Đã thêm ${chon.length} gian vào bảng. Điền api_key cho từng gian rồi Lưu`, 'ok');
           };
         }
       } catch (err) {
@@ -1326,7 +1318,7 @@
               ten = thay.name || ten;
               ghi = String(thay.shopId) === String(x.shopId)
                 ? `khoá đúng gian ${thay.shopId}`
-                : `KHOÁ NÀY THUỘC GIAN ${thay.shopId}, không phải ${x.shopId}`;
+                : `khoá này thuộc gian ${thay.shopId}, không phải ${x.shopId}`;
               if (String(thay.shopId) !== String(x.shopId)) x.shopId = thay.shopId;
             }
           } catch (err) { ghi = err.message; }
@@ -1346,7 +1338,7 @@
       try {
         const r = await goiLuu();
         const pp = layDoLuong(r, 'pancakePos');
-        toast(pp.sanSang ? 'Đã lưu — bấm Kiểm tra kết nối' : 'Đã lưu, còn thiếu: ' + ((pp.thieu || []).join(', ')),
+        toast(pp.sanSang ? 'Đã lưu, bấm Kiểm tra kết nối để thử' : 'Đã lưu, còn thiếu: ' + ((pp.thieu || []).join(', ')),
           pp.sanSang ? 'ok' : 'err');
         render();
       } catch (err) { toast(err.message, 'err'); b.disabled = false; b.textContent = cu; }
@@ -1371,7 +1363,7 @@
             { key: 'viDuLead', label: 'Ví dụ', render: (x) => (x.viDuLead ? `<code>${esc(x.viDuLead)}</code>` : '—') },
           ], r.results)}</div></div>`;
         }
-        toast(r.ok ? 'Đọc được' : 'Có gian lỗi — xem bảng', r.ok ? 'ok' : 'err');
+        toast(r.ok ? 'Đọc được' : 'Có gian lỗi, xem bảng', r.ok ? 'ok' : 'err');
       } catch (err) { toast(err.message, 'err'); }
       b.disabled = false; b.textContent = cu;
     });
@@ -1393,13 +1385,13 @@
               <b>${int(t.coMaLead)}</b> có mã lead Tourwell (${phanTram(tyLead, 0)}) ·
               <b>${int(r.theoAd.soLeadDuyNhat)}</b> lead khác nhau.
               ${t.coTien
-                ? `<br><b>${int(t.coTien)} đơn POS có tiền</b> — tổng ${vnd(t.tienPOS)}. Trước đây POS luôn 0đ, nên chỗ này đã đổi.`
-                : '<br>Không đơn POS nào có tiền — đúng như đã kiểm, POS là vỏ rỗng. Doanh thu lấy từ Tourwell.'}
+                ? `<br><b>${int(t.coTien)} đơn POS có tiền</b>, tổng ${vnd(t.tienPOS)}.`
+                : '<br>Không đơn POS nào có tiền. Doanh thu lấy từ Tourwell.'}
             </div>
             ${bangGhep(r.ghep)}
             <h4 style="margin:18px 0 6px;font-size:1rem">Mã lead → quảng cáo</h4>
             <div class="help">Bảng này ghép thẳng với cột <b>Mã lead</b> trong bản xuất Excel của Tourwell.
-              ${lv.nhapNhang ? `<br><b style="color:var(--warn)">${int(lv.nhapNhang)} lead có nhiều ad_id khác nhau</b> — không quy về một quảng cáo được.` : ''}
+              ${lv.nhapNhang ? `<br><b style="color:var(--warn)">${int(lv.nhapNhang)} lead có nhiều ad_id khác nhau</b>, không quy về một quảng cáo được.` : ''}
               ${lv.khongCoAd ? ` · ${int(lv.khongCoAd)} lead không có ad_id.` : ''}</div>
             <div style="overflow-x:auto">${table('ppLead', [
               { key: 'leadMa', label: 'Mã lead', cls: 'name', render: (x) => `<b>${esc(x.leadMa)}</b>` },
@@ -1447,8 +1439,8 @@
         render: (x) => (x.giaMoiLead == null ? '—' : vnd(x.giaMoiLead)) },
       { key: 'cvNenTang', label: 'Nền tảng báo', num: true, render: (x) => int(x.cvNenTang) },
     ], g.rows.slice(0, 60))}</div>
-    <div class="help"><b>Giá / lead</b> là chi tiêu chia cho số lead Tourwell khác nhau — không chia cho
-    số đơn POS, vì một lead có thể có nhiều đơn POS và chia theo đơn sẽ làm giá rẻ đi một cách sai.</div>`;
+    <div class="help"><b>Giá / lead</b> là chi tiêu chia cho số lead Tourwell khác nhau, không chia cho
+    số đơn POS (một lead có thể có nhiều đơn, chia theo đơn sẽ ra giá rẻ sai).</div>`;
   }
 
   function bangGhep(g) {
@@ -1456,7 +1448,7 @@
     const pl = g.phanLoai || { dem: {} };
     const TEN_CAP = {
       'quang-cao': 'từng quảng cáo', nhom: 'từng nhóm quảng cáo',
-      'chien-dich': 'từng chiến dịch', 'lan-lon': 'LẪN LỘN nhiều cấp', 'chua-ro': 'chưa rõ',
+      'chien-dich': 'từng chiến dịch', 'lan-lon': 'lẫn lộn nhiều cấp', 'chua-ro': 'chưa rõ',
     };
     /* Phán quyết "có tin được bảng không" phải xét KHỐI LƯỢNG, không xét số ID.
      *
@@ -1482,11 +1474,11 @@
         <b>${int(pl.dem.khongKhop || 0)}</b> không khớp gì (trên ${int(pl.tong || 0)} ID khác nhau).
         ${pl.viDuKhongKhop && pl.viDuKhongKhop.length
           ? `<br>Ví dụ ID không khớp: <code>${pl.viDuKhongKhop.map(esc).join('</code> <code>')}</code>
-             — những ID này chưa có bản ghi nào trong Base mang nó.` : ''}
+             (chưa có bản ghi nào trong Base mang các ID này).` : ''}
         ${capLanLon
-          ? '<br><b>Chưa nên tin bảng dưới.</b> Cấp lẫn lộn thì chi tiêu bị gán sang bản ghi khác — sai, chứ không phải thiếu.'
+          ? '<br><b>Chưa nên tin bảng dưới.</b> Cấp lẫn lộn thì chi tiêu bị gán sang bản ghi khác, tức là sai chứ không chỉ thiếu.'
           : tyKhongKhop > 0.15
-            ? `<br><b>Dùng bảng dưới có dè dặt.</b> Các ID không khớp mang ${phanTram(tyKhongKhop)} hội thoại — phần đó không có giá.`
+            ? `<br><b>Dùng bảng dưới có dè dặt.</b> Các ID không khớp mang ${phanTram(tyKhongKhop)} hội thoại, phần đó không có giá.`
             : `<br><b>Bảng dưới dùng được.</b> Cấp rõ ràng, và các ID không khớp chỉ mang ${phanTram(tyKhongKhop)} hội thoại.`}
       </div>
 
@@ -1499,11 +1491,11 @@
         const ty = dl.tyLeHoiThoai || 0;
         return `<div class="help" style="${ty > 0.15
           ? 'border-color:var(--warn);color:var(--warn)' : 'border-color:var(--rule)'}">
-          <b>Các ID không khớp mang ${int(dl.hoiThoai)} hội thoại</b> — ${phanTram(ty)} tổng số,
+          <b>Các ID không khớp mang ${int(dl.hoiThoai)} hội thoại</b> (${phanTram(ty)} tổng số),
           trong đó ${int(dl.coSdt)} có số điện thoại${dl.soDon ? ` và ${int(dl.soDon)} đơn POS` : ''}.
           ${ty > 0.15
-            ? '<br>Đủ lớn để đáng truy: chi tiêu của những quảng cáo này không nằm trong Base, nên phần chuyển đổi đó hiện không có giá.'
-            : '<br>Nhỏ, bỏ qua được — nhưng vẫn nên biết là có.'}
+            ? '<br>Đủ lớn để đáng truy: chi tiêu của các quảng cáo này không nằm trong Base nên chuyển đổi của chúng chưa có giá.'
+            : '<br>Nhỏ, bỏ qua được.'}
           ${dl.nangNhat && dl.nangNhat.length ? `<br>Nặng nhất: ${dl.nangNhat
             .map((x) => `<code>${esc(x.adId)}</code> ${int(x.hoiThoai)} hội thoại`).join(' · ')}` : ''}
         </div>`;
@@ -1512,7 +1504,7 @@
       <div class="help" style="${tyChiMu > 0.3 ? 'border-color:var(--warn);color:var(--warn)' : ''}">
         Chi tiêu trong khoảng: <b>${vnd(g.chiTongKhoang)}</b>.
         Không ghép được với hội thoại nào: <b>${vnd(g.chiKhongGhep)}</b>
-        (${phanTram(tyChiMu, 0)}) — phần tiền này đang chạy mà không đo được.
+        (${phanTram(tyChiMu, 0)}), phần tiền này đang chạy mà không đo được.
       </div>
 
       ${(() => {
@@ -1540,20 +1532,18 @@
         return `
           <details style="margin-top:10px" open>
             <summary style="cursor:pointer;font-weight:600">
-              Tiền đang mù nằm ở đâu — ${int(ke.length)} quảng cáo
+              Tiền chưa đo được nằm ở đâu · ${int(ke.length)} quảng cáo
             </summary>
             <div class="help" style="margin-top:8px;border-color:var(--good);color:var(--good)">
-              <b>Phần lớn con số trên KHÔNG phải hỏng đo đạc.</b>
-              Phép ghép chạy theo <i>quảng cáo × ngày</i>, nên ngày nào quảng cáo chạy mà
-              không ai nhắn tin thì ngày đó cũng bị tính là không ghép được.
-              <br>Ngày không ai nhắn: <b>${vnd(vi['ngay-trong'] || 0)}</b> — bình thường, không phải lỗi.
-              <br>Mù thật sự: <b>${vnd(muThat)}</b>
+              <b>Phần lớn con số trên không phải lỗi đo.</b>
+              Phép ghép chạy theo <i>quảng cáo × ngày</i>, nên ngày quảng cáo chạy mà
+              không ai nhắn tin cũng bị tính là không ghép được.
+              <br>Ngày không ai nhắn: <b>${vnd(vi['ngay-trong'] || 0)}</b>, bình thường.
+              <br>Thật sự chưa đo được: <b>${vnd(muThat)}</b>
               (chưa gắn ID nền tảng ${vnd(vi['thieu-id'] || 0)} ·
-               không hội thoại nào mang ID ${vnd(vi.mu || 0)})
-              — chỉ phần này mới đáng xem tiếp.
-              <br>Ba lý do thường gặp, phải tra mới biết là cái nào:
-              kênh không đi qua Pancake (Google Ads), page chưa nối,
-              hoặc hội thoại có xảy ra mà Pancake không gắn ad_id vào.
+               không hội thoại nào mang ID ${vnd(vi.mu || 0)}). Chỉ phần này đáng xem tiếp.
+              <br>Lý do thường gặp: kênh không đi qua Pancake (Google Ads), page chưa nối,
+              hoặc Pancake không gắn ad_id vào hội thoại.
             </div>
             <div class="help" style="margin-top:8px">Theo nền tảng: ${dongNT}</div>
             <div style="overflow-x:auto">
@@ -1603,7 +1593,7 @@
       ], g.rows.slice(0, 60))}</div>`}
       ${g.rows.length > 60 ? `<div class="help">Hiện 60 dòng chi tiêu cao nhất trên tổng ${int(g.rows.length)} dòng.</div>` : ''}
       ${g.soDongKhongGhep ? `<div class="help" style="border-color:var(--warn);color:var(--warn)">
-        <b>${int(g.soDongKhongGhep)} dòng chưa ghép được</b> — Pancake có hội thoại mang ID đó nhưng Base không có
+        <b>${int(g.soDongKhongGhep)} dòng chưa ghép được</b>: Pancake có hội thoại mang ID đó nhưng Base chưa có
         bản ghi nào mang ID ấy. Dán ID vào bảng <b>Ghép ID nền tảng</b> bên dưới, hoặc bật
         <b>Tự tạo chiến dịch / nhóm / quảng cáo</b> rồi đồng bộ để app tạo hộ.</div>` : ''}`;
   }
@@ -1622,7 +1612,7 @@
         </select></td>
         <td><input data-pc="label" value="${esc(x.label || '')}" placeholder="Rooty Trip Phú Quốc" style="width:100%"></td>
         <td><input data-pc="token" type="password" autocomplete="off"
-             placeholder="${x.coToken ? 'đã có — để trống là giữ nguyên' : 'dán Page Access Token'}" style="width:100%">
+             placeholder="${x.coToken ? 'đã có, để trống là giữ nguyên' : 'dán Page Access Token'}" style="width:100%">
           <div style="margin-top:4px">${x.coToken
             ? '<span class="tag good">đã có token</span>'
             : '<span class="tag warn">chưa có token</span>'}</div></td>
@@ -1632,14 +1622,14 @@
     return `
     <div class="card" style="margin-top:14px">
       <div class="card-head">
-        <h3>Pancake — hội thoại &amp; ID quảng cáo</h3>
+        <h3>Pancake · hội thoại &amp; ID quảng cáo</h3>
         <span class="sub">nguồn duy nhất biết khách đến từ quảng cáo nào</span>
       </div>
       <div class="card-body">
         <div class="help">
           Mỗi page một <b>Page Access Token</b> riêng, lấy ở <b>Pancake chat (pages.fm) → mở page → Cài đặt → Công cụ</b>.
           Token này <b>không hết hạn</b>, khai một lần là chạy mãi.
-          <br>Đừng lẫn với khoá ở <code>pos.pancake.vn</code> — bên đó là Pancake POS (đơn hàng), không đọc được hội thoại.
+          <br>Đừng lẫn với khoá ở <code>pos.pancake.vn</code>: đó là Pancake POS (đơn hàng), không đọc được hội thoại.
         </div>
 
         <div class="field full" style="margin-bottom:10px">
@@ -1648,15 +1638,15 @@
 
         <div class="form-grid">
           <div class="field full">
-            <label>Token cấp tài khoản <span class="hint">— chỉ dùng để dò page_id, không bắt buộc</span></label>
+            <label>Token cấp tài khoản <span class="hint">· chỉ dùng để dò page_id, không bắt buộc</span></label>
             <input id="pcUserToken" type="password" autocomplete="off"
-              placeholder="${p.coUserToken ? 'đã có — để trống là giữ nguyên' : 'Pancake → ảnh đại diện → Cài đặt cá nhân → API Access Token'}">
-            <span class="hint">page_id không hiện rõ ở đâu trong giao diện Pancake, mà khai sai một chữ số là mọi lệnh sau đó báo 401 mà không nói vì sao. Dán token này rồi bấm Dò để máy đọc hộ. Token cấp tài khoản hết hạn sau tối đa 90 ngày — nhưng token cấp page đã lấy được thì vẫn sống.</span>
+              placeholder="${p.coUserToken ? 'đã có, để trống là giữ nguyên' : 'Pancake → ảnh đại diện → Cài đặt cá nhân → API Access Token'}">
+            <span class="hint">Khai sai page_id là báo lỗi 401. Dán token này rồi bấm Dò để app đọc đúng page_id. Token này hết hạn sau tối đa 90 ngày, token page đã lấy vẫn dùng được.</span>
           </div>
           <div class="field full">
-            <label>Tag tính là đơn chốt <span class="hint">— ngăn bằng dấu phẩy</span></label>
+            <label>Tag tính là đơn chốt <span class="hint">· ngăn bằng dấu phẩy</span></label>
             <input id="pcTagChot" value="${esc((p.tagChot || []).join(', '))}" placeholder="Chốt">
-            <span class="hint">Tag nào Pancake tự đánh dấu <code>is_lead_event</code> thì luôn được tính, không cần khai ở đây.</span>
+            <span class="hint">Tag có <code>is_lead_event</code> luôn được tính, không cần khai.</span>
           </div>
         </div>
 
@@ -1739,7 +1729,7 @@
           pageId: x.pageId, platform: x.platform, label: x.label,
           coToken: !!(cuMap.get(String(x.pageId)) || {}).coToken,
         }));
-        toast(`Thấy ${(r.rows || []).length} page — xoá dòng nào không dùng rồi dán token cho các page còn lại`, 'ok');
+        toast(`Thấy ${(r.rows || []).length} page. Xoá dòng không dùng rồi dán token cho các page còn lại`, 'ok');
         render();
       } catch (err) { toast(err.message, 'err'); b.disabled = false; b.textContent = cu; }
     });
@@ -1750,7 +1740,7 @@
       try {
         const r = await goiLuu();
         const pp = layDoLuong(r, 'pancake');
-        toast(pp.sanSang ? 'Đã lưu — bấm Kiểm tra kết nối' : 'Đã lưu, còn thiếu: ' + ((pp.thieu || []).join(', ') || 'token'),
+        toast(pp.sanSang ? 'Đã lưu, bấm Kiểm tra kết nối để thử' : 'Đã lưu, còn thiếu: ' + ((pp.thieu || []).join(', ') || 'token'),
           pp.sanSang ? 'ok' : 'err');
         render();
       } catch (err) { toast(err.message, 'err'); b.disabled = false; b.textContent = cu; }
@@ -1770,7 +1760,7 @@
           { key: 'coAdIds', label: 'Có ad_ids', num: true, render: (x) => (x.ok ? `${x.coAdIds}/${x.mau}` : '—') },
           { key: 'coSdt', label: 'Có SĐT', num: true, render: (x) => (x.ok ? `${x.coSdt}/${x.mau}` : '—') },
         ], r.results || [])}</div></div>`;
-        toast(r.ok ? 'Cả ' + (r.results || []).length + ' page đọc được' : 'Có page lỗi — xem bảng', r.ok ? 'ok' : 'err');
+        toast(r.ok ? 'Cả ' + (r.results || []).length + ' page đọc được' : 'Có page lỗi, xem bảng', r.ok ? 'ok' : 'err');
       } catch (err) { toast(err.message, 'err'); }
       b.disabled = false; b.textContent = cu;
     });
@@ -1794,8 +1784,8 @@
               Pancake: <b>${int(r.tong.hoiThoai)}</b> hội thoại, <b>${int(r.tong.coAd)}</b> có ad_ids, <b>${int(r.tong.coSdt)}</b> có SĐT.
               Nền tảng báo <b>${int(tongCv)}</b> chuyển đổi.
               ${lech
-                ? `<br><b>Lệch ${int(thieu)}</b> — khả năng quảng cáo đang dẫn tin nhắn về page chưa khai ở đây.`
-                : '<br>Khớp — các page đã khai phủ gần hết lượng quảng cáo.'}
+                ? `<br><b>Lệch ${int(thieu)}</b>: có thể quảng cáo đang dẫn tin nhắn về page chưa khai ở đây.`
+                : '<br>Khớp: các page đã khai phủ gần hết lượng quảng cáo.'}
             </div>
             ${table('pcPhu', [
               { key: 'label', label: 'Page', cls: 'name', render: (x) => `<b>${esc(x.label || x.pageId)}</b>` },
@@ -1806,7 +1796,7 @@
             ], r.theoPage || [])}
             <div class="help" style="margin-top:10px">Theo quảng cáo: <b>${int((r.theoAd || {}).rows ? r.theoAd.rows.length : 0)}</b> dòng (quảng cáo × ngày)${
               (r.theoAd || {}).khongCoAd ? ` · ${int(r.theoAd.khongCoAd)} hội thoại không mang ad_ids (khách vào từ tự nhiên hoặc nguồn khác)` : ''}${
-              (r.theoAd || {}).trungAd ? ` · ${int(r.theoAd.trungAd)} hội thoại mang nhiều ad_ids nên được tính cho mọi ad — tổng theo ad sẽ lớn hơn tổng thật` : ''}</div>
+              (r.theoAd || {}).trungAd ? ` · ${int(r.theoAd.trungAd)} hội thoại mang nhiều ad_ids nên được tính cho mọi ad, tổng theo ad sẽ lớn hơn tổng thật` : ''}</div>
             ${bangGhep(r.ghep)}
           </div></div>`;
       } catch (err) { toast(err.message, 'err'); }
@@ -1884,14 +1874,14 @@
         const r = await api('/api/connect/xuat-env', { method: 'POST', body: '{}' });
         const rongHtml = (r.rong || []).length
           ? `<div class="help" style="border-color:var(--warn);color:var(--warn)">
-               Kênh CHƯA có token trong chuỗi này: <b>${r.rong.map(esc).join(', ')}</b>.
-               Nếu Render đang có token riêng cho kênh đó mà không nằm trong danh sách
-               này, dán chuỗi bên dưới lên sẽ XOÁ MẤT token đó — kiểm lại trước khi dán.
+               Kênh chưa có token trong chuỗi này: <b>${r.rong.map(esc).join(', ')}</b>.
+               Nếu Render đang giữ token của các kênh đó, dán chuỗi bên dưới lên sẽ xoá mất.
+               Kiểm lại trước khi dán.
              </div>` : '';
         $('#xuatEnvKq').innerHTML = `
           ${rongHtml}
-          <div class="help">Dán TOÀN BỘ chuỗi dưới đây vào biến <code>ADS_CONNECT_JSON</code>
-            trên Render (service này → Environment → sửa giá trị → Save) —
+          <div class="help">Dán toàn bộ chuỗi dưới đây vào biến <code>ADS_CONNECT_JSON</code>
+            trên Render (service này → Environment → sửa giá trị → Save).
             ${int(r.kenh.filter((x) => x.coToken).length)} kênh đang có thông tin.</div>
           <textarea readonly style="width:100%;height:140px;font-family:monospace;font-size:12px" id="xuatEnvTa">${esc(r.noiDung)}</textarea>
           <button class="btn ghost" id="btnSaoChepEnv" style="margin-top:8px">Sao chép</button>
@@ -2055,7 +2045,7 @@
       ];
       return `<div class="card" style="margin-top:12px">
         <div class="card-head">
-          <h3>${esc(k.label)} <span class="sub">${k.dryRun ? 'xem trước — chưa ghi gì' : 'đã ghi vào Base'}</span></h3>
+          <h3>${esc(k.label)} <span class="sub">${k.dryRun ? 'xem trước, chưa ghi gì' : 'đã ghi vào Base'}</span></h3>
           <span class="tag ${k.dryRun ? '' : 'good'}">${k.layDuoc} dòng lấy được</span>
         </div>
         <div class="card-body">
@@ -2079,10 +2069,10 @@
             ], k.actionTypes.slice(0, 15))}</details>` : ''}
 
           ${(k.xungDotId || []).length ? `<div class="help" style="border-color:var(--bad);color:var(--bad)">
-            ${k.xungDotId.length} trường hợp nhiều ID nền tảng cùng đòi gắn vào một bản ghi — đã bỏ qua để không ghi sai:
+            ${k.xungDotId.length} trường hợp nhiều ID nền tảng cùng gắn vào một bản ghi, đã bỏ qua để không ghi sai:
             ${esc(k.xungDotId.map((x) => x.doiTuong).join(', '))}</div>` : ''}
 
-          ${chuaGhepRows.length ? `<h4 style="margin:14px 0 8px">Chưa ghép được ${chuaGhepRows.length} đối tượng — ${k.dongBoQua} dòng số bị bỏ</h4>
+          ${chuaGhepRows.length ? `<h4 style="margin:14px 0 8px">Chưa ghép được ${chuaGhepRows.length} đối tượng · ${k.dongBoQua} dòng số bị bỏ</h4>
             <div class="help">Ghép tay ở bảng "Ghép ID nền tảng" phía dưới (dán ID vào đúng bản ghi), hoặc bật <b>Tự tạo</b> để app tạo mới.</div>
             ${table('kChua', [
               { key: 'loai', label: 'Loại', render: (x) => `<span class="tag warn">${esc(x.loai)}</span>` },
@@ -2110,7 +2100,7 @@
             ], k.chiTiet.taoMoi)}` : ''}
 
           ${k.soChiCoTrongBase ? `<h4 style="margin:14px 0 8px">Có trong Base nhưng nền tảng không báo (${k.soChiCoTrongBase})</h4>
-            <div class="help">App KHÔNG tự xoá. Thường là số nhập tay sai ngày, hoặc quảng cáo đã tắt — anh tự kiểm rồi sửa ở tab Dữ liệu theo ngày.</div>
+            <div class="help">App không tự xoá. Thường là số nhập tay sai ngày hoặc quảng cáo đã tắt; kiểm rồi sửa ở tab Dữ liệu theo ngày.</div>
             ${table('kOnly', [
               { key: 'date', label: 'Ngày', render: (x) => dmy(x.date) },
               { key: 'adName', label: 'Quảng cáo', cls: 'name' },

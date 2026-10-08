@@ -82,7 +82,7 @@ const sachHtml = (h) => String(h || '').replace(/<(script|style|iframe|object|em
 async function ghiChuKy(html, lang = 'vi') {
   const k = lang === 'en' ? 'en' : 'vi';
   const h = sachHtml(html);
-  if (h.length > 60000) throw Object.assign(new Error('Chữ ký quá nặng (' + Math.round(h.length / 1000) + ' KB) — thường do ảnh dán thẳng vào. Dùng ảnh có đường link (https) thay vì ảnh dán.'), { http: 400 });
+  if (h.length > 60000) throw Object.assign(new Error('Chữ ký quá nặng (' + Math.round(h.length / 1000) + ' KB), thường do ảnh dán thẳng vào. Dùng ảnh có đường link (https) thay vì ảnh dán.'), { http: 400 });
   const r = await docDong(KHOA_CK[k]);
   const f = { 'Khoá': KHOA_CK[k], 'Giá trị': h, 'Ghi chú': 'Chữ ký HTML ' + (k === 'en' ? 'tiếng Anh' : 'tiếng Việt') + ' gắn cuối email gửi từ Hub (sửa trong app KOL)' };
   if (r) await lark.updateRecord(r.record_id, f, BANG); else await lark.createRecord(f, BANG);
@@ -131,10 +131,10 @@ async function doiToken(than) {
 async function nhanCode(code, state) {
   const het = choState.get(state);
   choState.delete(state);
-  if (!het || het < Date.now()) throw new Error('Liên kết kết nối đã hết hạn — bấm "Kết nối hộp thư" lại.');
+  if (!het || het < Date.now()) throw new Error('Liên kết kết nối đã hết hạn. Bấm "Kết nối hộp thư" lại.');
   const d = await doiToken({ grant_type: 'authorization_code', code, redirect_uri: goiLai() });
   if (!/mail:user_mailbox\.message:send/.test(d.scope || '')) throw new Error('Lark chưa cấp quyền gửi thư (scope nhận được: ' + (d.scope || 'trống') + '). Kiểm quyền User token của app Marketing Hub đã phát hành chưa.');
-  if (!d.refresh_token) throw new Error('Lark không trả refresh token — thiếu quyền offline_access.');
+  if (!d.refresh_token) throw new Error('Lark không trả refresh token vì thiếu quyền offline_access.');
   const u = await (await fetch(cfg.apiHost + '/open-apis/authen/v1/user_info', { headers: { Authorization: 'Bearer ' + d.access_token } })).json();
   const email = (u.data && (u.data.enterprise_email || u.data.email)) || '';
   access = { token: d.access_token, het: Date.now() + (d.expires_in - 120) * 1000 };
@@ -144,10 +144,10 @@ async function nhanCode(code, state) {
 async function tokenGui() {
   if (access && access.het > Date.now()) return access.token;
   const p = await napPhien();
-  if (!p) throw Object.assign(new Error('Chưa kết nối hộp thư — bấm "Kết nối hộp thư" trong khung email rồi đăng nhập Lark bằng tài khoản giữ hộp thư gửi.'), { http: 424 });
+  if (!p) throw Object.assign(new Error('Chưa kết nối hộp thư. Bấm "Kết nối hộp thư" trong khung email rồi đăng nhập Lark bằng tài khoản giữ hộp thư gửi.'), { http: 424 });
   let d;
   try { d = await doiToken({ grant_type: 'refresh_token', refresh_token: p.refresh }); } catch (e) {
-    throw Object.assign(new Error('Phiên hộp thư đã hết hạn hoặc bị thu hồi — bấm "Kết nối hộp thư" lại. (' + e.message + ')'), { http: 424 });
+    throw Object.assign(new Error('Phiên hộp thư đã hết hạn hoặc bị thu hồi. Bấm "Kết nối hộp thư" lại. (' + e.message + ')'), { http: 424 });
   }
   access = { token: d.access_token, het: Date.now() + (d.expires_in - 120) * 1000 };
   await luuPhien({ ...p, quyen: d.scope || p.quyen || '', refresh: d.refresh_token || p.refresh, hetRefresh: d.refresh_token_expires_in ? Date.now() + d.refresh_token_expires_in * 1000 : p.hetRefresh });
@@ -235,9 +235,9 @@ async function nhap({ tu, den, cc, tieuDe, html, ten, dinhKem }) {
   throw Object.assign(new Error(
     'Chưa lưu nháp được vào hộp thư nào (' + thu.join(', ') + '). '
     + (p.includes(QUYEN_SUA)
-      ? 'Phiên ĐÃ có quyền ' + QUYEN_SUA + ', nên nhiều khả năng tài khoản đã kết nối ('
+      ? 'Phiên đã có quyền ' + QUYEN_SUA + ', nên nhiều khả năng tài khoản đã kết nối ('
         + ((phien && phien.email) || '?') + ') không phải chủ hộp thư đó.'
-      : 'Phiên hiện tại CHƯA có quyền ' + QUYEN_SUA + ' — vào Cài đặt → Kết nối hộp thư, '
+      : 'Phiên hiện tại chưa có quyền ' + QUYEN_SUA + '. Vào Cài đặt → Kết nối hộp thư, '
         + 'Ngắt kết nối rồi Kết nối lại.')
     + ' Lark nói: ' + (loiCuoi ? loiCuoi.message : ''),
   ), { http: 424 });
@@ -258,7 +258,7 @@ async function guiKemTep(t) {
     await guiNhap(n.hop, n.draftId);
   } catch (e) {
     throw Object.assign(new Error('Đã lưu nháp nhưng chưa gửi được: ' + e.message
-      + ' — mở Lark Mail, lá thư đang nằm trong mục Nháp.'), { http: e.http || 502 });
+      + '. Mở Lark Mail, lá thư đang nằm trong mục Nháp.'), { http: e.http || 502 });
   }
   return n;
 }
@@ -290,9 +290,9 @@ async function goiDoc(duong) {
   const d = await r.json().catch(() => ({ code: r.status, msg: 'HTTP ' + r.status }));
   if (d.code !== 0) {
     const e = new Error(/99991679|99991672|scope|permission/i.test(String(d.msg) + d.code)
-      ? 'Phiên hộp thư chưa có quyền đọc thư — bấm Ngắt kết nối rồi Kết nối hộp thư lại để cấp quyền đọc.'
+      ? 'Phiên hộp thư chưa có quyền đọc thư. Bấm Ngắt kết nối rồi Kết nối hộp thư lại để cấp quyền đọc.'
       : 'Lark Mail: ' + (d.msg || d.code) + ' (mã ' + d.code + ')' +
-        (d.error && d.error.field_violations ? ' — ' + d.error.field_violations.map((f) => f.field + ': ' + (f.description || f.value || '')).join('; ') : ''));
+        (d.error && d.error.field_violations ? ': ' + d.error.field_violations.map((f) => f.field + ': ' + (f.description || f.value || '')).join('; ') : ''));
     e.code = d.code; throw e;
   }
   return d.data || {};

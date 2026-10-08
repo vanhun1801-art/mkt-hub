@@ -67,11 +67,10 @@ function giaiThich(d, nc = {}) {
   const ten = nc.clientId ? ` (${String(nc.clientId).split('-')[0]}…)` : '';
 
   if (/invalid_client|client secret is invalid|unauthorized_client/.test(ca)) {
-    return `Client Secret đang lưu trong app KHÔNG phải secret của Client ID này${ten}. `
-      + 'Lấy link mới rồi làm lại bao nhiêu lần cũng không đổi gì — mã code không phải chỗ sai. '
+    return `Client Secret đang lưu không phải secret của Client ID này${ten}, nên lấy link mới làm lại cũng không đổi gì. `
       + 'Vào Google Cloud Console → Clients → mở đúng client đó → Client secrets → ADD SECRET, '
-      + 'copy ngay lúc nó hiện (Google chỉ cho xem một lần), rồi dán vào ô OAuth Client Secret ở đây và Lưu cấu hình. '
-      + 'Đổi secret KHÔNG làm mất refresh token.';
+      + 'copy ngay lúc nó hiện (Google chỉ cho xem một lần), dán vào ô OAuth Client Secret rồi Lưu cấu hình. '
+      + 'Đổi secret không làm mất refresh token.';
   }
   if (/redirect_uri_mismatch/.test(ca)) {
     return 'Client này chưa khai địa chỉ nhận uỷ quyền. Vào Google Cloud Console → Clients → '
@@ -79,9 +78,9 @@ function giaiThich(d, nc = {}) {
   }
   if (/invalid_grant/.test(ca)) {
     return nc.buoc === 'lamMoi'
-      ? 'Refresh token đã bị thu hồi hoặc hết hiệu lực — bấm "Lấy link uỷ quyền" rồi "Đổi lấy token" để cấp lại.'
-      : 'Mã code đã dùng rồi hoặc quá 10 phút. Bấm "Lấy link uỷ quyền" lấy link MỚI, đồng ý lại, '
-        + 'rồi dán URL mới — mỗi mã chỉ dùng được một lần.';
+      ? 'Refresh token đã bị thu hồi hoặc hết hiệu lực. Bấm "Lấy link uỷ quyền" rồi "Đổi lấy token" để cấp lại.'
+      : 'Mã code đã dùng rồi hoặc quá 10 phút. Bấm "Lấy link uỷ quyền" lấy link mới, đồng ý lại, '
+        + 'rồi dán URL mới (mỗi mã chỉ dùng được một lần).';
   }
   if (/invalid_scope/.test(ca)) {
     return 'Client này chưa được bật quyền Google Ads API (scope adwords). Bật API trong Google Cloud Console rồi làm lại.';
@@ -107,7 +106,7 @@ async function accessToken(conf) {
   /* KHÔNG bảo chạy dòng lệnh: bản đang dùng chạy trên Render, ở đó không có dòng
    * lệnh nào để gõ. Chỉ vào đúng nút trong giao diện. */
   if (!conf.refreshToken) {
-    throw new Error('Chưa có refresh token — vào tab Kết nối & Đồng bộ, thẻ Google Ads, '
+    throw new Error('Chưa có refresh token. Vào tab Kết nối & Đồng bộ, thẻ Google Ads, '
       + 'bấm "Lấy link uỷ quyền" rồi "Đổi lấy token"');
   }
   hideSecret(conf.clientSecret);
@@ -133,7 +132,7 @@ async function accessToken(conf) {
      * vì nó bắt người ta làm đi làm lại một việc không bao giờ xong. */
     const them = giaiThich(d, { clientId: conf.clientId, buoc: 'lamMoi' });
     throw new Error(scrub('Google từ chối cấp access token: ' + chi
-      + (them ? ' — ' + them : '')));
+      + (them ? (/[.!?]$/.test(String(chi)) ? ' ' : '. ') + them : '')));
   }
   hideSecret(d.access_token);
   return d.access_token;
@@ -260,7 +259,7 @@ async function fetchRange(conf, from, to, log = () => {}) {
       const e = res.error;
       if (Number(e.code) === 404 || /not found/i.test(String(e.message || ''))) {
         throw new Error('Phiên bản API ' + ((conf && conf.apiVersion) || API_VER_MAC) +
-          ' không còn — khai apiVersion mới trong ket-noi.json (Google khai tử sau ~1 năm).');
+          ' không còn dùng được. Khai apiVersion mới trong ket-noi.json (Google bỏ bản cũ sau ~1 năm).');
       }
       throw new Error(scrub(`Google Ads báo lỗi (${e.code || '?'}): ${e.message || 'không rõ'}`));
     }
@@ -297,7 +296,7 @@ async function fetchRange(conf, from, to, log = () => {}) {
 async function test(conf) {
   if (!conf.clientId || !conf.clientSecret) return { ok: false, message: 'Chưa khai clientId/clientSecret' };
   if (!conf.refreshToken) {
-    return { ok: false, message: 'Chưa có refresh token — bấm "Lấy link uỷ quyền" ở thẻ này' };
+    return { ok: false, message: 'Chưa có refresh token. Bấm "Lấy link uỷ quyền" ở thẻ này' };
   }
   if (!conf.developerToken) return { ok: false, message: 'Chưa có developerToken (xin ở Google Ads API Center)' };
   const accounts = (conf.customerIds || []).map(cid).filter(Boolean);

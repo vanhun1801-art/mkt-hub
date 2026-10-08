@@ -90,9 +90,9 @@ function duocLam(ht, viec) {
   const i = viTri(ht.buoc);
   const can = {
     /* anh Hùng 23/09: chốt bảng kê xong mới trình BGĐ — BGĐ duyệt đúng con số cuối. */
-    trinhBgd: () => (i > 1 ? 'Đã qua bước trình duyệt' : !ht.chotLuc ? 'Chưa chốt bảng kê — chốt xong mới trình BGĐ' : ''),
+    trinhBgd: () => (i > 1 ? 'Đã qua bước trình duyệt' : !ht.chotLuc ? 'Chưa chốt bảng kê. Chốt xong mới trình BGĐ' : ''),
     daDuyet: () => (i === 1 ? '' : 'Chỉ duyệt khi đang Chờ BGĐ duyệt'),
-    guiThuMoi: () => (i >= 2 && i <= 3 ? '' : i < 2 ? 'BGĐ chưa duyệt — chưa gửi thư mời được' : 'Đã qua bước mời'),
+    guiThuMoi: () => (i >= 2 && i <= 3 ? '' : i < 2 ? 'BGĐ chưa duyệt nên chưa gửi thư mời được' : 'Đã qua bước mời'),
     kolXacNhan: () => (i === 3 ? '' : 'Chỉ xác nhận sau khi đã gửi thư mời'),
     taoDichVu: () => (i === 4 ? '' : i < 4 ? 'KOL chưa xác nhận' : 'Đã tạo tour Tourwell'),
     baoCao: () => (i >= 7 ? '' : 'Chưa tới bước bàn giao'),
@@ -160,8 +160,8 @@ function canhBaoKhach(ht) {
   const nl = so(ht.nguoiLon), te = so(ht.treEm), eb = so(ht.emBe);
   if (nl + te + eb === 0) return 'Chưa có khách nào';
   if (nl === 0) return 'Chưa có người lớn nào';
-  if (nl + te + eb > 15) return 'Tổng ' + (nl + te + eb) + ' khách — nhiều bất thường cho một chuyến KOL, kiểm lại';
-  if (te > nl * 4) return te + ' trẻ em cho ' + nl + ' người lớn — kiểm lại có gõ nhầm không';
+  if (nl + te + eb > 15) return 'Tổng ' + (nl + te + eb) + ' khách, nhiều bất thường cho một chuyến KOL. Kiểm lại';
+  if (te > nl * 4) return te + ' trẻ em cho ' + nl + ' người lớn. Kiểm lại có gõ nhầm không';
   return '';
 }
 

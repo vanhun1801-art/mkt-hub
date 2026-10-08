@@ -16,7 +16,7 @@ t('có tab Dữ liệu Lark', /data-tab="lark">Dữ liệu Lark/.test(html));
 t('có nút Nhập booking OTA', /id="btnNhapBooking"/.test(html));
 t('không còn tab Thiết lập cũ', !/data-tab="thietlap"/.test(html));
 t('Lark Base được ghi là nguồn dữ liệu gốc', /nguồn dữ liệu gốc duy nhất/i.test(app));
-t('API chỉ là điểm chờ', /API OTA — điểm chờ cho tương lai/.test(app));
+t('API chỉ là điểm chờ', /API OTA · chờ kết nối sau/.test(app));
 t('trạng thái API là Chưa được cấp API', /Chưa được cấp API/.test(app));
 t('không còn khối Tùy chọn đồng bộ API', !/Tùy chọn đồng bộ/.test(app));
 t('có tự đọc lại Lark định kỳ', /function tuDongDocLark/.test(app));

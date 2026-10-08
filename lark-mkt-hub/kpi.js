@@ -141,7 +141,9 @@ async function congViec(mod, khoang, nguoi) {
     id: t.id,
     muc: 'cao',
     tieuDe: t.title || '(không tên)',
-    phu: 'Quá hạn ' + soNgay(now - han(t)) + ' ngày · ' + (ten(t.owner) || 'chưa phân công'),
+    /* "Quá hạn 0 ngày" đọc như chưa quá hạn: hạn vừa qua trong ngày thì nói thẳng. */
+    phu: (soNgay(now - han(t)) ? 'Quá hạn ' + soNgay(now - han(t)) + ' ngày' : 'Quá hạn hôm nay') +
+      ' · ' + (ten(t.owner) || 'chưa phân công'),
     the: [t.priority, t.workType].map(nhan).filter(Boolean),
   }));
   chuaPhanCong.slice(0, 4).forEach((t) => canXuLy.push({
@@ -502,7 +504,7 @@ async function ota(mod, khoang, nguoi) {
     id: /^rec/.test(b.id || '') ? b.id : '',
     muc: 'cao',
     tieuDe: (b.tenKhach || '(chưa có tên khách)') + ' · ' + (b.maBooking || ''),
-    phu: b.canXuLyChuoi + ' · ' + (b.ngayDi ? 'đi ' + b.ngayDi : 'chưa có ngày đi') + ' · ' + b.kenh,
+    phu: b.canXuLyChuoi + ' · ' + (b.ngayDi ? 'đi ' + String(b.ngayDi).slice(0, 10).split('-').reverse().join('/') : 'chưa có ngày đi') + ' · ' + b.kenh,
     the: [b.kenh].filter(Boolean),
   }));
 
@@ -512,7 +514,7 @@ async function ota(mod, khoang, nguoi) {
     canXuLy.unshift({
       id: '', muc: 'cao',
       tieuDe: 'App Booking OTA chưa ghi được vào Lark Base',
-      phu: (ds.loi || 'đang lưu tạm ở hàng đợi cục bộ') + ' — mở base OTA, tab Thiết lập',
+      phu: (ds.loi || 'Booking đang lưu tạm trên máy chủ') + '. Mở base OTA, tab Thiết lập.',
       the: [],
     });
   } else if (ds.quyenGhi === false) {
@@ -521,10 +523,10 @@ async function ota(mod, khoang, nguoi) {
      * vì lúc booking thật đầu tiên về mới biết thì đã muộn. */
     canXuLy.unshift({
       id: '', muc: 'cao',
-      tieuDe: 'App Booking OTA chưa có quyền GHI vào Base',
-      phu: 'đọc thì được, ghi thì không — booking mới sẽ nằm lại hàng đợi cục bộ' +
-        (ds.chuaDay ? ' (đang có ' + ds.chuaDay + ' booking chờ)' : '') +
-        '. Mở Base → Chia sẻ → nâng lên "Có thể chỉnh sửa".',
+      tieuDe: 'App Booking OTA chưa có quyền ghi vào Base',
+      phu: 'Booking mới sẽ phải chờ trên máy chủ' +
+        (ds.chuaDay ? ' (đang chờ ' + ds.chuaDay + ')' : '') +
+        '. Cách sửa: mở Base → Chia sẻ → chọn "Có thể chỉnh sửa".',
       the: [],
     });
   } else if (ds.chuaDay) {
@@ -534,8 +536,8 @@ async function ota(mod, khoang, nguoi) {
     canXuLy.unshift({
       id: '', muc: 'cao',
       tieuDe: ds.chuaDay + ' booking mới chưa đẩy được lên Base',
-      phu: 'đọc Base thì được nhưng ghi thì không — thường là tài khoản chỉ có quyền Xem. ' +
-        'Mở base OTA, tab Thiết lập để xem lý do và bấm Đẩy hàng đợi vào Base.',
+      phu: 'Thường do tài khoản chỉ có quyền Xem trên Base. ' +
+        'Mở base OTA, tab Thiết lập, bấm Đẩy hàng đợi vào Base.',
       the: [],
     });
   }

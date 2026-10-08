@@ -671,7 +671,7 @@ function nap() {
       'đây là note, không phải câu văn');
 
     const nhieu = ve('dải note khi nộp muộn', 'noteY(' + JSON.stringify([
-      { nhom: 'han', muc: 'canh', chu: 'Nộp muộn — trễ 3 giờ.', vi: 'lý do gì đó' },
+      { nhom: 'han', muc: 'canh', chu: 'Nộp muộn, trễ 3 giờ.', vi: 'lý do gì đó' },
       { nhom: 'co-cau', muc: 'luu-y', chu: 'Edit video chiếm 80%.', vi: '' },
     ]) + ')');
     ok('nộp muộn vẫn hiện, và hiện một mình', (nhieu.match(/class="nd nd-/g) || []).length === 1 &&

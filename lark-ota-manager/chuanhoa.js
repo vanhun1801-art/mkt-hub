@@ -450,7 +450,7 @@ function chuanHoa(kenhId, payload) {
     nguon.tongKhach = '(người lớn + trẻ em)';
   } else if (tongKhach != null && cong > 0 && tongKhach !== cong) {
     canhBao.push('OTA gửi tổng ' + tongKhach + ' khách nhưng người lớn + trẻ em = ' + cong +
-      ' — giữ nguyên số của OTA, cần đối chiếu lại.');
+      '. Đã giữ số của OTA, cần đối chiếu lại.');
   }
 
   const tienTe = (chu(g('tienTe')) || 'VND').toUpperCase();
@@ -498,7 +498,7 @@ function chuanHoa(kenhId, payload) {
     thucNhan = lamTron(tongTien * (1 - kenh.hoaHong / 100), 'VND');
     nguonThucNhan = 'uoc-tinh';
     hoaHongUocTinh = true;
-    nguon.thucNhan = '(ước tính: tổng tiền − ' + kenh.hoaHong + '% — không map được sản phẩm)';
+    nguon.thucNhan = '(ước tính: tổng tiền − ' + kenh.hoaHong + '%, chưa map được sản phẩm)';
   }
 
   /* Hoa hồng = phần OTA GIỮ LẠI, giữ theo nguyên tệ của tổng tiền (nó là hiệu
@@ -514,7 +514,7 @@ function chuanHoa(kenhId, payload) {
   } else if (hoaHong == null && tongTien != null) {
     hoaHong = lamTron((tongTien * kenh.hoaHong) / 100, tienTe);
     hoaHongUocTinh = true;
-    nguon.hoaHong = '(ước tính ' + kenh.hoaHong + '% — OTA không trả)';
+    nguon.hoaHong = '(ước tính ' + kenh.hoaHong + '%, OTA không gửi)';
   }
 
   /* ĐỐI CHIẾU — chỗ giữ tiền cho công ty.
@@ -531,18 +531,18 @@ function chuanHoa(kenhId, payload) {
 
   if (tongTien != null && !laVnd) {
     canhBao.push(nguonThucNhan === 'bang-gia'
-      ? 'OTA bán bằng ' + tienTe + ', nhưng thực nhận lấy từ bảng giá NET nên doanh thu ' +
-        'vẫn là VNĐ chính xác. Riêng ô "tổng tiền" giữ nguyên tệ, không quy đổi.'
-      : 'Booking tính bằng ' + tienTe + ' mà chưa map được sản phẩm trong bảng giá, nên app ' +
-        'KHÔNG tính được doanh thu VNĐ. Bổ sung sản phẩm vào bảng giá là hết cảnh báo này.');
+      ? 'OTA bán bằng ' + tienTe + '. Thực nhận lấy từ bảng giá NET nên doanh thu ' +
+        'vẫn đúng bằng VNĐ; ô "tổng tiền" giữ nguyên tệ.'
+      : 'Booking tính bằng ' + tienTe + ' và chưa map được sản phẩm trong bảng giá, nên chưa ' +
+        'tính được doanh thu VNĐ. Thêm sản phẩm vào bảng giá để hết cảnh báo.');
   }
   if (bg.loi === 'trung') {
     canhBao.push('Tên tour khớp nhiều sản phẩm trong bảng giá (' + (bg.ungVien || []).join(' / ') +
-      ') — app không chọn bừa. Sửa luật nhận diện trong gia.js cho rõ ràng hơn.');
+      '). App không tự chọn, cần sửa luật nhận diện trong Bảng giá cho rõ hơn.');
   }
   if (lechBangGia != null) {
-    canhBao.push('OTA báo trả lệch ' + lechBangGia.toLocaleString('vi-VN') + 'đ so với bảng giá NET ' +
-      '— đối chiếu lại trước khi chốt thanh toán.');
+    canhBao.push('OTA báo trả lệch ' + lechBangGia.toLocaleString('vi-VN') + 'đ so với bảng giá NET, ' +
+      'cần đối chiếu lại trước khi chốt thanh toán.');
   }
 
   const booking = {
@@ -582,8 +582,8 @@ function chuanHoa(kenhId, payload) {
   };
 
   if (!booking.maBooking) {
-    canhBao.push('Không tìm thấy mã booking trong payload — đây là khoá chống trùng, ' +
-      'thiếu nó thì mỗi lần OTA gửi lại là tạo thêm một dòng.');
+    canhBao.push('Không thấy mã booking. Thiếu mã thì mỗi lần OTA gửi lại sẽ ' +
+      'tạo thêm một dòng trùng.');
   }
 
   booking.canXuLy = coCanXuLy(booking);
@@ -626,7 +626,7 @@ function coCanXuLy(b) {
       // cờ ĐỎ vì đây là tiền: OTA trả thiếu, hoặc map sai sản phẩm, hoặc bảng giá cũ
       const d = Math.abs(b.lechBangGia).toLocaleString('vi-VN');
       co.push({ muc: 'cao', nhan: b.lechBangGia > 0
-        ? '⚠️ OTA trả THIẾU ' + d + 'đ so với bảng giá'
+        ? '⚠️ OTA trả thiếu ' + d + 'đ so với bảng giá'
         : '⚠️ OTA trả cao hơn bảng giá ' + d + 'đ' });
     }
     if (b.bangGiaLoi === 'trung') {
@@ -655,11 +655,11 @@ function coCanXuLy(b) {
      * tuổi cao hơn 1m4 phải tính giá người lớn — app không suy ra được từ payload,
      * nên nhắc hướng dẫn viên đo tại điểm đón. */
     if ((b.treEm || 0) > 0) {
-      co.push({ muc: 'vua', nhan: '⚠️ Trẻ em — xác nhận chiều cao 1m–1m4' });
+      co.push({ muc: 'vua', nhan: '⚠️ Trẻ em: xác nhận chiều cao 1m đến 1m4' });
     }
   }
 
-  if (!co.length) co.push({ muc: 'ok', nhan: dong ? '— ' + b.trangThai : '✅ Đủ thông tin' });
+  if (!co.length) co.push({ muc: 'ok', nhan: dong ? b.trangThai : '✅ Đủ thông tin' });
   return co;
 }
 

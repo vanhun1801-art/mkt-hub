@@ -63,7 +63,7 @@ function khoi(T, h, kol, ls) {
   /* thanh tiến độ: ● đã qua · ◉ bước hiện tại · ○ chưa tới */
   const thanh = cuoi.den === 'Huỷ' ? '✕ Đã huỷ' : BUOC.map((b, i) => (i < vt ? '●' : i === vt ? '◉' : '○')).join(' ') + '   ' + (vt + 1) + '/' + BUOC.length;
   const khach = [h.nguoiLon ? h.nguoiLon + ' NL' : '', h.treEm ? h.treEm + ' TE' : '', h.emBe ? h.emBe + ' em bé' : ''].filter(Boolean).join(' + ');
-  const chuyen = h.batDau ? T.ddmm(h.batDau) + (h.ketThuc && h.ketThuc !== h.batDau ? ' – ' + T.ddmm(h.ketThuc) : '') : 'chưa có ngày';
+  const chuyen = h.batDau ? T.ddmm(h.batDau) + (h.ketThuc && h.ketThuc !== h.batDau ? ' → ' + T.ddmm(h.ketThuc) : '') : 'chưa có ngày';
   return [
     { tag: 'markdown', content: '**' + (kol ? kol.ten : h.kolTen || '?') + '**  ·  ' + (h.ma || '') + (lui ? '  ·  <font color="red">lùi bước</font>' : '') },
     { tag: 'markdown', content: '<font color="grey">' + dau.tu + '</font>  →  **' + cuoi.den + '**\n' + thanh },
@@ -118,7 +118,7 @@ async function xa() {
       const h = (dl.hopTac || []).find((x) => x.id === id) || { ma: id };
       const kol = kolTheoId.get(h.kol);
       const dau = ls[0], cuoi = ls[ls.length - 1];
-      const ngay = h.batDau ? ' · đi ' + T.ddmm(h.batDau) + (h.ketThuc ? '–' + T.ddmm(h.ketThuc) : '') : '';
+      const ngay = h.batDau ? ' · đi ' + T.ddmm(h.batDau) + (h.ketThuc ? ' → ' + T.ddmm(h.ketThuc) : '') : '';
       return '• ' + (kol ? kol.ten : h.kolTen || '?') + ' (' + (h.ma || '') + ')' + ngay + '\n   ' + dau.tu + ' → ' + cuoi.den +
         (cuoi.ly ? '  (' + cuoi.ly + ')' : '');
     });

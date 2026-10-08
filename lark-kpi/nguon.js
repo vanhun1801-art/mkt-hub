@@ -70,13 +70,13 @@ function goi(url, giay = 20) {
       let s = '';
       res.on('data', (c) => { s += c; });
       res.on('end', () => {
-        if (res.statusCode >= 400) return tu(new Error('HTTP ' + res.statusCode + ' — ' + s.slice(0, 120)));
-        try { giai(JSON.parse(s)); } catch (_) { tu(new Error('Không phải JSON: ' + s.slice(0, 120))); }
+        if (res.statusCode >= 400) return tu(new Error('HTTP ' + res.statusCode + ': ' + s.slice(0, 120)));
+        try { giai(JSON.parse(s)); } catch (_) { tu(new Error('Dữ liệu trả về không đọc được: ' + s.slice(0, 120))); }
       });
     });
     req.on('error', (e) => tu(new Error(e.code === 'ECONNREFUSED'
       ? 'app chưa chạy (' + url.split('/api')[0] + ')' : e.message)));
-    req.setTimeout(giay * 1000, () => { req.destroy(new Error('quá ' + giay + ' giây')); });
+    req.setTimeout(giay * 1000, () => { req.destroy(new Error('quá ' + giay + ' giây chưa trả lời')); });
   });
 }
 
@@ -153,7 +153,7 @@ async function docTuApp(thang, luat, khoangRieng) {
       const nt = NEN_TANG[chuan(t.kenh)];
       const laLive = chuan(t.loai) === 'live' || !!CHI_SO_LIVE[t.chiSo];
 
-      if (!nt) { ghi(tc.nguon, t.kenh, null, 'thieu', 'Nền tảng này không có trong app Social — xuất file từ nền tảng rồi tải lên', 'file'); return; }
+      if (!nt) { ghi(tc.nguon, t.kenh, null, 'thieu', 'Nền tảng này không có trong app Social. Xuất file từ nền tảng rồi tải lên', 'file'); return; }
       if (loiApp.social) { ghi(tc.nguon, 'Social', null, 'loi', loiApp.social, 'noi'); return; }
 
       if (laLive) {
@@ -171,11 +171,9 @@ async function docTuApp(thang, luat, khoangRieng) {
         if (!o) {
           return liveTheoKenh.size === 0
             ? ghi(tc.nguon, 'Social · LIVE', null, 'thieu',
-              'Chưa nối nguồn LIVE — cả tháng không kênh nào có phiên nào. '
-              + 'LIVE của TikTok/Instagram không có API, phải nhập tay ở app Social → Nhập tay', 'tay')
+              'Cả tháng chưa kênh nào có phiên LIVE. Nhập tay ở app Social → Nhập tay', 'tay')
             : ghi(tc.nguon, 'Social · LIVE', null, 'thieu',
-              'Các kênh khác có phiên LIVE trong tháng, riêng kênh này không — '
-              + 'nếu đúng là không live thì đây là số 0 thật, không phải thiếu nguồn', 'base');
+              'Kênh khác có LIVE, riêng kênh này không. Nếu đúng là không live thì đây là số 0 thật', 'base');
         }
         return ghi(tc.nguon, 'Social · LIVE (' + o.soPhien + ' phiên)', o[truong], 'lay-duoc');
       }
@@ -183,14 +181,14 @@ async function docTuApp(thang, luat, khoangRieng) {
       const k = kenhTheoTen.get(chuan(nt) + '|' + chuan(t.tenKenh));
       const truong = CHI_SO_BAI[t.chiSo];
       if (!truong) return ghi(tc.nguon, 'Social', null, 'thieu', 'Bộ luật gọi tên chỉ số "' + t.chiSo + '" mà app Social không có', 'luat');
-      if (!k) return ghi(tc.nguon, 'Social', null, 'thieu', 'Base Social chưa có kênh "' + t.tenKenh + '" (' + nt + ') — thêm kênh rồi đồng bộ', 'base');
+      if (!k) return ghi(tc.nguon, 'Social', null, 'thieu', 'Base Social chưa có kênh "' + t.tenKenh + '" (' + nt + '). Thêm kênh rồi đồng bộ', 'base');
       /* Số từ nền tảng là số THÔ: chưa qua luật bù view, chưa nhân hệ số
        * Bán hàng / Tương tác. Cột kết quả trong Excel là số ĐÃ qua hai bước đó,
        * nên hai con số không cùng nghĩa. Đánh dấu để giao diện cảnh báo, đừng
        * lặng lẽ thay số thô vào công thức tính lương. */
       const thoBoc = ['view', 'reach', 'impression'].includes(t.chiSo);
       return ghi(tc.nguon, 'Social · ' + k.platform, Number(k[truong]) || 0, 'lay-duoc',
-        thoBoc ? 'số thô — chưa áp luật bù view và hệ số nội dung' : '');
+        thoBoc ? 'số thô, chưa áp luật bù view và hệ số nội dung' : '');
     });
   });
 
@@ -200,10 +198,10 @@ async function docTuApp(thang, luat, khoangRieng) {
     if (tc.nguon && tc.nguon.kieu === 'chiSo' && tc.nguon.ma) donLe.add(tc.nguon.ma);
   }));
   for (const ma of donLe) {
-    if (ma.startsWith('seo.')) ghi(ma, 'Search Console / GA4', null, 'thieu', 'Google không mở API cho app này — xuất file rồi tải lên', 'file');
-    else if (ma.startsWith('kol.')) ghi(ma, 'KOL', null, 'thieu', 'Không nền tảng nào đo — người phụ trách tự nhập', 'tay');
-    else if (ma.startsWith('ads.')) ghi(ma, 'App Quản lý quảng cáo', null, 'thieu', 'App đã chạy, chỉ chưa nối vào phần KPI', 'noi');
-    else if (ma.startsWith('ota.')) ghi(ma, 'App Booking OTA', null, 'thieu', 'App đã chạy, chỉ chưa nối vào phần KPI', 'noi');
+    if (ma.startsWith('seo.')) ghi(ma, 'Search Console / GA4', null, 'thieu', 'Google không cho lấy tự động. Xuất file rồi tải lên', 'file');
+    else if (ma.startsWith('kol.')) ghi(ma, 'KOL', null, 'thieu', 'Không nền tảng nào đo, người phụ trách tự nhập', 'tay');
+    else if (ma.startsWith('ads.')) ghi(ma, 'App Quản lý quảng cáo', null, 'thieu', 'App đã có, KPI chưa đọc sang', 'noi');
+    else if (ma.startsWith('ota.')) ghi(ma, 'App Booking OTA', null, 'thieu', 'App đã có, KPI chưa đọc sang', 'noi');
     else ghi(ma, '', null, 'thieu', 'Bộ luật chưa khai nguồn cho chỉ số này', 'luat');
   }
 

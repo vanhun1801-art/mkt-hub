@@ -443,7 +443,7 @@ function phanBoHtml(nhom) {
     '<div class="pbVach">' + co.map(({ tang, ds }) =>
       '<button class="pbKhuc" data-toi-tang="' + tang.id + '"' +
       ' style="flex:' + ds.length + ';background:' + tang.mau + '"' +
-      ' title="' + esc(tang.ten + ' — ' + ds.length + ' sản phẩm') + '">' +
+      ' title="' + esc(tang.ten + ' · ' + ds.length + ' sản phẩm') + '">' +
       (ds.length / tong > 0.08 ? ds.length : '') + '</button>').join('') + '</div>' +
     '<div class="pbChu">' + co.map(({ tang, ds }) =>
       '<button class="pbMuc" data-toi-tang="' + tang.id + '">' +
@@ -556,11 +556,10 @@ function bangDayHtml() {
     .sort((a, b) => (a.lichCho[0].ngayApDung || 0) - (b.lichCho[0].ngayApDung || 0));
 
   let html = phanBoHtml(nhom);
-  html += '<p class="dan">Mỗi sản phẩm nằm ở đúng một tầng. “Sắp ra mắt” đứng trên cùng vì ' +
-    'việc phải làm là kịp nội dung cho ngày mở bán.' +
+  html += '<p class="dan">Mỗi sản phẩm nằm ở một tầng. “Sắp ra mắt” đứng đầu để kịp nội dung ' +
+    'cho ngày mở bán.' +
     (choCapNhat.length
-      ? ' Băng đó kèm luôn những mã đã có đang chờ cập nhật, nên các mã này hiện hai lần: ' +
-        'một ở trên cùng, một ở tầng của chúng.'
+      ? ' Mã đã có đang chờ cập nhật hiện hai lần: ở trên cùng và ở tầng của nó.'
       : '') +
     (laQuanLy() ? ' Đổi tầng của một sản phẩm ở tab Quản lý hoặc trong ngăn chi tiết.' : '') +
     '</p>';
@@ -587,7 +586,7 @@ function bangDayHtml() {
         ? '<div class="cnDau">' +
             '<span class="tangIcon">🔄</span><b>Cập nhật trên mã đã có</b>' +
             '<span class="dem">' + themCapNhat.length + '</span>' +
-            '<span class="tangMo">Mã cũ, chỉ đổi nội dung — không phải sản phẩm mới</span>' +
+            '<span class="tangMo">Mã cũ, chỉ đổi nội dung, không phải sản phẩm mới</span>' +
           '</div>' +
           '<div class="tangLuoi">' + themCapNhat.map(theDayHtml).join('') + '</div>'
         : '') +
@@ -595,8 +594,8 @@ function bangDayHtml() {
   }
   const ngung = S.ds.filter((p) => p.trangThai === 'Ngừng bán').length;
   if (ngung) {
-    html += '<p class="dan">' + ngung + ' sản phẩm đã ngừng bán không nằm trong bảng này — ' +
-      'tra ở tab Danh mục.</p>';
+    html += '<p class="dan">' + ngung + ' sản phẩm đã ngừng bán không nằm trong bảng này. ' +
+      'Tra ở tab Danh mục.</p>';
   }
   return html;
 }
@@ -789,7 +788,7 @@ function lichHtml() {
       '<label>Sản phẩm<select name="sanPham" required>' +
       '<option value="">— chọn —</option>' +
       sp.map((p) => '<option value="' + esc(p.id) + '"' + (v.sanPham === p.id ? ' selected' : '') +
-        ' data-no-i18n>' + esc((p.ma ? p.ma + ' — ' : '') + p.ten) + '</option>').join('') +
+        ' data-no-i18n>' + esc((p.ma ? p.ma + ' · ' : '') + p.ten) + '</option>').join('') +
       '</select></label>' +
       '<label>Cột cần đổi<select name="cot" required>' +
       '<option value="">— chọn —</option>' +
@@ -941,7 +940,7 @@ function hinhBanDoHtml() {
   return '<details class="khoi-hinh"' + (S.hinhMo ? ' open' : '') + '><summary><b>Hình bản đồ</b> <span class="phu">' +
     (S.hinh === undefined ? 'đang đọc…' : soRieng + ' hình đã tải lên · PNG/WebP nền trong, app tự cắt viền và nén') + '</span></summary>' +
     '<div class="nhom-hinh-tieu">Điểm đến</div><div class="luoi-hinh">' + ds.filter((o) => o.nhom === 'diem').map(o1).join('') + '</div>' +
-    '<div class="nhom-hinh-tieu">Phương tiện — mỗi loại nhiều mẫu, các chiếc trên bản đồ lần lượt dùng từng mẫu</div><div class="luoi-hinh">' + ds.filter((o) => o.nhom === 'xe').map(o1).join('') + '</div>' +
+    '<div class="nhom-hinh-tieu">Phương tiện · mỗi loại có nhiều mẫu, bản đồ dùng lần lượt từng mẫu</div><div class="luoi-hinh">' + ds.filter((o) => o.nhom === 'xe').map(o1).join('') + '</div>' +
     '</details>';
 }
 
@@ -1050,7 +1049,7 @@ function giaVonHtml() {
     '<tr><td data-no-i18n>' + esc(x.ten) + '</td>' +
     '<td>' + esc(x.nhom || '') + '</td>' +
     '<td>' + esc(x.kieu || '') + '</td>' +
-    '<td>' + (x.tuKhach ? x.tuKhach + '–' + (x.denKhach || '') + ' khách' : 'mọi bậc') + '</td>' +
+    '<td>' + (x.tuKhach ? x.tuKhach + (x.denKhach ? ' → ' + x.denKhach : '+') + ' khách' : 'mọi bậc') + '</td>' +
     '<td class="sp-num">' + tien(x.donGia) + '</td></tr>').join('');
 
   /* KHÔNG dùng khoiHtml: hàm đó escape nội dung vì nó phục vụ khối chữ dài có
@@ -1147,7 +1146,7 @@ function veSo(p) {
   if (!p) { so.classList.remove('mo'); S.moId = ''; ve(); return; }
   S.moId = p.id;
   so.classList.add('mo');
-  $('#soTieuDe').textContent = (p.ma ? p.ma + ' — ' : '') + p.ten;
+  $('#soTieuDe').textContent = (p.ma ? p.ma + ' · ' : '') + p.ten;
   $('#soPhu').textContent = [p.nhom, p.thoiLuong, p.khoiHanh].filter(Boolean).join(' · ');
 
   const oNho = (k, v) => (v ? '<div class="oNho"><div class="k">' + esc(k) + '</div>' +
@@ -1176,7 +1175,7 @@ function veSo(p) {
 
   /* --- giá --- */
   h += '<section class="muc"><h4>Giá công bố' + (ql ? '<span class="suaDuoc">sửa được</span>' : '') +
-    '</h4><p class="dan" style="margin:0 0 8px">Giá Kinh doanh công bố, CHƯA trừ khuyến mãi. ' +
+    '</h4><p class="dan" style="margin:0 0 8px">Giá Kinh doanh công bố, chưa trừ khuyến mãi. ' +
     'Mức giảm khai ở bảng Chính sách &amp; Khuyến mãi trên Base.</p>';
   if (ql) {
     const oSo = (k, nhan, v) => '<div class="oNho"><div class="k">' + esc(nhan) + '</div>' +
@@ -1189,7 +1188,7 @@ function veSo(p) {
       oNgay('hieuLucTu', 'Hiệu lực từ', p.hieuLucTu) + oNgay('hieuLucDen', 'Hiệu lực đến', p.hieuLucDen) +
       '</div>' +
       '<textarea class="oSua oChu" rows="2" data-sua="ghiChuGia" data-id="' + esc(p.id) + '"' +
-      ' placeholder="Ghi chú giá — dùng khi giá không cố định" data-no-i18n>' +
+      ' placeholder="Ghi chú giá, dùng khi giá không cố định" data-no-i18n>' +
       esc(p.ghiChuGia || '') + '</textarea>';
   } else {
     h += '<div class="doi">' +
@@ -1320,7 +1319,7 @@ function veSo(p) {
   /* --- lịch đổi đang chờ của chính sản phẩm này --- */
   if (p.lichCho && p.lichCho.length) {
     h += '<section class="muc"><h4>Sắp đổi</h4><div class="noi canh">' +
-      p.lichCho.map((x) => '· ' + esc(x.cot) + ' — từ ' + esc(veNgay(x.ngayApDung)))
+      p.lichCho.map((x) => '· ' + esc(x.cot) + ' từ ' + esc(veNgay(x.ngayApDung)))
         .join(XUONG) +
       (laQuanLy() ? XUONG + '(đặt và huỷ ở tab Quản lý)' : '') +
       '</div></section>';
@@ -1469,7 +1468,7 @@ document.addEventListener('click', async (ev) => {
     if (!ev.isTrusted) return;
     const b = ev.target; if (b.disabled) return;
     b.disabled = true; const cu = b.textContent; b.textContent = 'Đang gửi…';
-    try { const r = await guiJson('/api/bao-cao-tuan', {}); toast('Đã gửi báo cáo vào Lark cho ' + (r.nguoiNhan || 'bạn') + ' — từ giờ nhận mỗi sáng thứ Hai và thứ Năm.', 'ok'); }
+    try { const r = await guiJson('/api/bao-cao-tuan', {}); toast('Đã gửi báo cáo vào Lark cho ' + (r.nguoiNhan || 'bạn') + '. Từ giờ nhận mỗi sáng thứ Hai và thứ Năm.', 'ok'); }
     catch (e) { toast(e.message, 'err'); }
     finally { b.disabled = false; b.textContent = cu; }
     return;
@@ -1569,7 +1568,7 @@ document.addEventListener('click', async (ev) => {
     /* Nút này nằm trong <summary>; không chặn thì một cú bấm vừa huỷ vừa gập
        khối lại, và người dùng không thấy kết quả mình vừa gây ra. */
     ev.preventDefault();
-    if (!window.confirm('Huỷ dòng lịch này?')) return;
+    if (!window.confirm('Huỷ dòng lịch này? Sản phẩm sẽ không tự đổi theo dòng này nữa.')) return;
     try {
       await guiJson('/api/lich/' + huy.dataset.huyLich + '/huy', {});
       await napLich();
@@ -1622,7 +1621,7 @@ document.addEventListener('click', async (ev) => {
       const s = window.getSelection();
       s.removeAllRanges();
       s.addRange(r);
-      toast('Không chép tự động được — chữ đã được bôi sẵn, bấm Ctrl+C.', 'err');
+      toast('Không chép tự động được. Chữ đã được bôi sẵn, bấm Ctrl+C.', 'err');
     }
   }
 });

@@ -227,7 +227,7 @@ console.log('— giao diện và server: những chắn không được bỏ');
    * cái màn hình dùng để kiểm trước khi quyết. */
   t('xem trước không đòi token Tourwell', /!body\.xemTruoc && \(!tw\.enabled/.test(than));
 
-  t('giao diện hỏi lại trước khi ghi', /TOURWELL THẬT/.test(app));
+  t('giao diện hỏi lại trước khi ghi', /Tourwell thật/.test(app));
   t('gọi xem trước trước khi gọi ghi', app.indexOf('xemTruoc: true') > 0);
   t('nhắc số chỉ đổi sau lượt kéo sau', /lượt kéo Tourwell kế tiếp/.test(sv));
   /* Kho nhập từ Excel không có apiId — bấm ghi sẽ hỏng hết. Phải chặn từ giao diện.

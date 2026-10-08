@@ -328,7 +328,7 @@ function xinFoc({ ht, kol, kenh, hm, bg, doiTac, tenDoiTac }, cfg) {
   const tra = bg.filter((b) => b.trangThai !== 'Huỷ' && String(b.traDoiTac || '').trim().toLowerCase() === tenDoiTac.toLowerCase());
   const tongKenh = (kenh || []).filter((k) => !k.reup).reduce((s, k) => s + (k.theoDoi || 0), 0);
   const html = [
-    P('Kính gửi ' + esc((doiTac && doiTac.lienHe) || 'Quý đối tác') + ' — ' + esc(tenDoiTac) + ','),
+    P('Kính gửi ' + esc((doiTac && doiTac.lienHe) || 'Quý đối tác') + ' (' + esc(tenDoiTac) + '),'),
     P('Rooty Trip Phú Quốc đang chuẩn bị chuyến trải nghiệm cùng KOL <b>' + esc(kol.ten) + '</b>' +
       (tongTheoDoiChu(tongKenh)) + ' từ ' + khoang(ht) + '. Rooty Trip Phú Quốc trân trọng gửi đến ' + esc(tenDoiTac) + ' đề xuất hợp tác truyền thông: ' + esc(tenDoiTac) +
       ' đồng hành tài trợ (FOC) các dịch vụ dưới đây, đổi lại là các quyền lợi truyền thông cho thương hiệu trên kênh của KOL.'),
@@ -357,7 +357,7 @@ function baoCaoDoiTac({ ht, kol, kenh, bg, doiTac, tenDoiTac }) {
   const bai = bg.filter((b) => b.trangThai !== 'Huỷ' && String(b.traDoiTac || '').trim().toLowerCase() === tenDoiTac.toLowerCase());
   const th = (c) => '<th style="' + O + 'background:' + XANH + ';color:#fff">' + c + '</th>';
   const html = [
-    P('Kính gửi ' + esc((doiTac && doiTac.lienHe) || 'Quý đối tác') + ' — ' + esc(tenDoiTac) + ','),
+    P('Kính gửi ' + esc((doiTac && doiTac.lienHe) || 'Quý đối tác') + ' (' + esc(tenDoiTac) + '),'),
     P('Rooty Trip Phú Quốc cảm ơn ' + esc(tenDoiTac) + ' đã đồng hành cùng chuyến trải nghiệm của KOL <b>' + esc(kol.ten) + '</b> (' + khoang(ht) + '). Kết quả các nội dung dành cho ' + esc(tenDoiTac) + ':'),
     '<table style="border-collapse:collapse;font-size:13px"><tr>' + th('Nội dung') + th('Kênh') + th('Ngày đăng') + th('Lượt xem') + th('Tương tác') + '</tr>' +
       bai.map((b) => '<tr><td style="' + O + '">' + tenVaLink(b) + '</td><td style="' + O + '">' +

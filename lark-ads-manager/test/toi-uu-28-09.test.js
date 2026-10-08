@@ -159,12 +159,12 @@ console.log('— việc 4: tab Kết nối có dải sức khoẻ từng kênh')
   t('số cũ quá thì kêu', /số cũ \$\{tre\} ngày/.test(kn));
   /* Chữ đổi 07/10/2026: giờ nói "nối lại ngay", vì ba nguồn mới (Pancake,
    * POS, Tourwell) không nối bằng cách dán token vào một ô. */
-  t('token hết hạn là việc gấp nhất', /token hết hạn — nối lại ngay/.test(kn));
+  t('token hết hạn là việc gấp nhất', /token hết hạn, nối lại ngay/.test(kn));
   t('dải đứng TRƯỚC băng sức khoẻ cũ',
     kn.indexOf('${sucKhoeKenh}') < kn.indexOf('${bangSucKhoe}'));
   t('nói luôn nhịp Tourwell 2 giờ ở đầu tab', /Tourwell \+ ROAS mỗi 2 giờ/.test(kn));
   /* Hẹn giờ tắt thì phải nói thẳng, vì lúc đó mọi con số trên trang đều là số cũ. */
-  t('hẹn giờ tắt thì nói rõ phải bấm tay', /hẹn giờ đang TẮT — mọi thứ phải bấm tay/.test(kn));
+  t('hẹn giờ tắt thì nói rõ phải bấm tay', /hẹn giờ đang tắt, mọi thứ phải bấm tay/.test(kn));
 }
 
 console.log(`\n${pass} pass · ${fail} fail`);

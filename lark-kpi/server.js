@@ -65,6 +65,8 @@ function send(res, code, body, headers = {}) {
 }
 const ok = (res, body) => send(res, 200, body);
 const fail = (res, code, message) => send(res, code, { error: message });
+/* "2026-07" → "7/2026" cho câu báo lỗi người đọc thấy. */
+const thangDoc = (t) => (/^\d{4}-\d{2}$/.test(String(t)) ? Number(String(t).slice(5)) + '/' + String(t).slice(0, 4) : String(t));
 
 function readBody(req) {
   return new Promise((giai, tu) => {
@@ -212,8 +214,8 @@ async function daLuu(body) {
     return body;
   } catch (e) {
     return Object.assign({}, body, {
-      khoLoi: 'Đã lưu trên máy chủ này nhưng CHƯA ghi được lên Lark Base: ' + e.message
-        + ' — số sẽ mất khi server khởi động lại. Thử thao tác lại.',
+      khoLoi: 'Chưa ghi được lên Lark Base (' + e.message + '). '
+        + 'Số sẽ mất khi máy chủ khởi động lại, hãy thử lại.',
     });
   }
 }
@@ -247,7 +249,7 @@ async function api(req, res, u) {
   if (p === '/api/thang') {
     const th = u.searchParams.get('thang') || store.danhSachThang()[0];
     const kq = tinhThang(th);
-    if (!kq) return fail(res, 404, 'Chưa có dữ liệu tháng ' + th);
+    if (!kq) return fail(res, 404, 'Chưa có dữ liệu tháng ' + thangDoc(th));
     return ok(res, loc(kq, nx));
   }
 
@@ -309,7 +311,7 @@ async function api(req, res, u) {
   if (p === '/api/luat') {
     const th = u.searchParams.get('thang') || store.danhSachThang()[0];
     const t = store.thang(th);
-    if (!t) return fail(res, 404, 'Chưa có dữ liệu tháng ' + th);
+    if (!t) return fail(res, 404, 'Chưa có dữ liệu tháng ' + thangDoc(th));
     if (!nx.quanLy) return fail(res, 403, 'Chỉ trưởng phòng xem được bộ luật');
     return ok(res, { thang: th, luat: t.luat, daSuaLuat: t.daSuaLuat, soat: L.soat(t.luat) });
   }
@@ -319,7 +321,7 @@ async function api(req, res, u) {
     const body = await readBody(req);
     const th = body.thang || store.danhSachThang()[0];
     const t = store.thang(th);
-    if (!t) return fail(res, 404, 'Chưa có dữ liệu tháng ' + th);
+    if (!t) return fail(res, 404, 'Chưa có dữ liệu tháng ' + thangDoc(th));
     const truoc = tinhThang(th);
     const luatMoi = apSua(t.luat, body.sua);
     const sau = tinhThang(th, luatMoi);
@@ -365,7 +367,7 @@ async function api(req, res, u) {
     if (!nx.quanLy) return fail(res, 403, 'Chỉ trưởng phòng chốt được');
     const b = await readBody(req);
     const kq = tinhThang(b.thang);
-    if (!kq) return fail(res, 404, 'Chưa có dữ liệu tháng ' + b.thang);
+    if (!kq) return fail(res, 404, 'Chưa có dữ liệu tháng ' + thangDoc(b.thang));
     if (!kq.chotDuoc) return fail(res, 400, 'Còn ' + kq.soChan + ' mục chặn, chưa chốt được');
     return ok(res, await daLuu(store.chot(b.thang, kq, nx.ten)));
   }
@@ -391,8 +393,8 @@ async function api(req, res, u) {
     const pv = nx.quanLy ? (nhu ? PV.cua(nhu) : null) : PV.cua(nx.ma);
     if (nx.quanLy && nhu && !pv) return fail(res, 404, 'Chưa khai phạm vi cho mã ' + nhu);
     if (!nx.quanLy && !pv) {
-      return fail(res, 403, 'Chưa khai phạm vi báo cáo cho bạn — nhờ trưởng phòng '
-        + 'mở ở tab “Phân công kênh”.');
+      return fail(res, 403, 'Bạn chưa được khai phạm vi báo cáo. Nhờ trưởng phòng '
+        + 'khai ở tab “Phân công kênh”.');
     }
     const { tu, den } = khoangTu(u);
     return ok(res, await baoCao.gomSoSanh(tu, den, nx, u.searchParams.get('ss'), docLuatCuaThang, pv));
@@ -471,7 +473,7 @@ async function api(req, res, u) {
     if (!nx.quanLy) return fail(res, 403, 'Chỉ trưởng phòng xem được bảng phân công');
     const th = u.searchParams.get('thang') || store.danhSachThang()[0];
     const t = store.thang(th);
-    if (!t) return fail(res, 404, 'Chưa có dữ liệu tháng ' + th);
+    if (!t) return fail(res, 404, 'Chưa có dữ liệu tháng ' + thangDoc(th));
     const luat = t.luat;
 
     /* Ai ăn theo kênh thì bảng phân bổ của họ mới có tác dụng. HÂN và HÙNG chấm
@@ -537,10 +539,10 @@ async function api(req, res, u) {
     const b = await readBody(req);
     if (!b.thang || !b.phanBo) return fail(res, 400, 'Thiếu tháng hoặc bảng phân công');
     const t = store.thang(b.thang);
-    if (!t) return fail(res, 404, 'Chưa có dữ liệu tháng ' + b.thang);
+    if (!t) return fail(res, 404, 'Chưa có dữ liệu tháng ' + thangDoc(b.thang));
     /* Tháng đã chốt là số đã đi vào bảng lương. Sửa phân công lúc này là đổi
      * điểm của người ta sau khi đã trả tiền. */
-    if (t.chot) return fail(res, 409, 'Tháng này đã chốt — bỏ chốt ở tab “Soát & chốt” trước');
+    if (t.chot) return fail(res, 409, 'Tháng này đã chốt. Bỏ chốt ở tab “Soát & chốt” trước');
 
     const luat = JSON.parse(JSON.stringify(t.luat));
     const hopLe = new Set((luat.nhom || []).map((n) => L.khoaNhom(n)));
@@ -574,7 +576,7 @@ async function api(req, res, u) {
     if (!nx.quanLy) return fail(res, 403, 'Chỉ trưởng phòng xem được');
     const th = u.searchParams.get('thang') || store.danhSachThang()[0];
     const t = store.thang(th);
-    if (!t) return fail(res, 404, 'Chưa có dữ liệu tháng ' + th);
+    if (!t) return fail(res, 404, 'Chưa có dữ liệu tháng ' + thangDoc(th));
     const r = await nguon.docTuApp(th, t.luat);
     /* Kèm số đang dùng để thấy đổ về sẽ đổi cái gì — đừng bắt người ta bấm rồi
      * mới biết mình vừa ghi đè lên số nào. */
@@ -587,8 +589,8 @@ async function api(req, res, u) {
     const b = await readBody(req);
     const th = b.thang || store.danhSachThang()[0];
     const t = store.thang(th);
-    if (!t) return fail(res, 404, 'Chưa có dữ liệu tháng ' + th);
-    if (t.chot) return fail(res, 400, 'Tháng này đã chốt — bỏ chốt trước khi đổ số mới');
+    if (!t) return fail(res, 404, 'Chưa có dữ liệu tháng ' + thangDoc(th));
+    if (t.chot) return fail(res, 400, 'Tháng này đã chốt. Bỏ chốt trước khi đổ số mới');
     const r = await nguon.docTuApp(th, t.luat);
     const n = store.luuSoLieu(th, r.soLieu, 'app');
     return ok(res, await daLuu({ ghi: n, dem: r.dem, loiApp: r.loiApp }));
@@ -599,8 +601,8 @@ async function api(req, res, u) {
     const b = await readBody(req);
     const th = b.thang || store.danhSachThang()[0];
     const t = store.thang(th);
-    if (!t) return fail(res, 404, 'Chưa có dữ liệu tháng ' + th);
-    if (t.chot) return fail(res, 400, 'Tháng này đã chốt — bỏ chốt trước khi nạp số mới');
+    if (!t) return fail(res, 404, 'Chưa có dữ liệu tháng ' + thangDoc(th));
+    if (t.chot) return fail(res, 400, 'Tháng này đã chốt. Bỏ chốt trước khi nạp số mới');
     const doc = nguon.tachBang(b.noiDung);
     if (doc.loi) return fail(res, 400, doc.loi);
     const g = nguon.ghepFile(doc.hang, t.luat);
@@ -630,7 +632,7 @@ async function api(req, res, u) {
     const tang = Number(u.searchParams.get('tang'));
     const heSoTang = Number.isFinite(tang) ? tang : 0.1;
     const t = store.thang(th);
-    if (!t) return fail(res, 404, 'Chưa có dữ liệu tháng ' + th);
+    if (!t) return fail(res, 404, 'Chưa có dữ liệu tháng ' + thangDoc(th));
 
     const truoc = store.danhSachThang().filter((x) => x < th).sort().reverse().slice(0, soThang);
     const ds = [];
@@ -808,7 +810,7 @@ async function api(req, res, u) {
   if (p === '/api/tien-do') {
     const th = u.searchParams.get('thang') || store.danhSachThang()[0];
     const t = store.thang(th);
-    if (!t) return fail(res, 404, 'Chưa có dữ liệu tháng ' + th);
+    if (!t) return fail(res, 404, 'Chưa có dữ liệu tháng ' + thangDoc(th));
 
     const kh = nguon.khoang(th);
     const soNgay = Number(kh.den.slice(8));
@@ -898,7 +900,7 @@ async function api(req, res, u) {
     const th = u.searchParams.get('thang') || store.danhSachThang()[0];
     const kieu = u.searchParams.get('kieu') || 'phong';
     const kq0 = tinhThang(th);
-    if (!kq0) return fail(res, 404, 'Chưa có dữ liệu tháng ' + th);
+    if (!kq0) return fail(res, 404, 'Chưa có dữ liệu tháng ' + thangDoc(th));
     const kq = loc(kq0, nx);
     const logo = await X.logoHtml(store.THU_MUC);
     let html; let ten;
@@ -928,7 +930,7 @@ async function api(req, res, u) {
     const th = u.searchParams.get('thang') || store.danhSachThang()[0];
     const kieu = u.searchParams.get('kieu') || 'phong';
     const kq0 = tinhThang(th);
-    if (!kq0) return fail(res, 404, 'Chưa có dữ liệu tháng ' + th);
+    if (!kq0) return fail(res, 404, 'Chưa có dữ liệu tháng ' + thangDoc(th));
     const kq = loc(kq0, nx);
     const nhan = 'Tháng ' + Number(th.slice(5)) + '-' + th.slice(0, 4);
     let ten; let dong;
@@ -959,15 +961,15 @@ async function api(req, res, u) {
     } else {
       ten = 'KPI phòng Marketing ' + nhan;
       dong = [['Báo cáo KPI phòng Marketing', nhan,
-        kq.chot ? 'đã chốt ' + new Date(kq.chot.luc).toLocaleString('vi-VN') : 'CHƯA CHỐT'], []];
+        kq.chot ? 'đã chốt ' + new Date(kq.chot.luc).toLocaleString('vi-VN') : 'chưa chốt'], []];
       const cot = [];
       kq.nguoi.forEach((ng) => ng.tieuChi.forEach((tc) => {
         if (!cot.some((c) => c.ma === tc.ma)) cot.push({ ma: tc.ma, ten: tc.ten });
       }));
-      dong.push(['Người', 'Vị trí', ...cot.map((c) => c.ten), 'Tổng trọng số', 'ĐIỂM TÍNH LƯƠNG', 'Đủ dữ liệu']);
+      dong.push(['Người', 'Vị trí', ...cot.map((c) => c.ten), 'Tổng trọng số', 'Điểm tính lương', 'Đủ dữ liệu']);
       kq.nguoi.forEach((ng) => dong.push([ng.ten, ng.viTri,
         ...cot.map((c) => { const tc = ng.tieuChi.find((x) => x.ma === c.ma); return tc ? (tc.chuaCo ? '' : tc.diem) : ''; }),
-        ng.tongTrongSo, ng.tong, ng.dayDu ? 'có' : 'THIẾU']));
+        ng.tongTrongSo, ng.tong, ng.dayDu ? 'có' : 'thiếu']));
       dong.push([], ['Điểm từng nhóm kênh']);
       dong.push(['Nhóm kênh', 'Tiêu chí', 'Kết quả', 'Mục tiêu', '% đạt', 'Tỷ trọng', 'Điểm', 'Điểm nhóm']);
       kq.nhom.forEach((n) => n.tieuChi.forEach((tc, i) => dong.push([n.ten, tc.ten,
@@ -975,7 +977,7 @@ async function api(req, res, u) {
         tc.boQua ? '' : tc.datMucTieu, tc.boQua ? 0 : tc.tyTrong, tc.diem,
         i === 0 ? n.diem : ''])));
       if ((kq.chan || []).length) {
-        dong.push([], ['Mục chặn — tháng này chưa đủ điều kiện chốt']);
+        dong.push([], ['Mục chặn: tháng này chưa đủ điều kiện chốt']);
         kq.chan.forEach((x) => dong.push([x.o, x.viec]));
       }
     }

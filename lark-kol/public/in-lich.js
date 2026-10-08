@@ -166,7 +166,7 @@
     const soNgay = ngay.length;
     const khoang = !soNgay ? '' : EN() ? soNgay + (soNgay > 1 ? ' days ' + (soNgay - 1) + (soNgay > 2 ? ' nights' : ' night') : ' day')
       : soNgay + ' ngày' + (soNgay > 1 ? ' ' + (soNgay - 1) + ' đêm' : '');
-    const tuDen = soNgay ? (soNgay > 1 ? ngayChu(ngay[0]) + ' – ' : '') + ngayChu(ngay[soNgay - 1], true) : '';
+    const tuDen = soNgay ? (soNgay > 1 ? ngayChu(ngay[0]) + ' → ' : '') + ngayChu(ngay[soNgay - 1], true) : '';
     const doan = (EN() ? [[ht.nguoiLon, 'adult', 'adults'], [ht.treEm, 'child', 'children'], [ht.emBe, 'infant', 'infants']]
       : [[ht.nguoiLon, 'người lớn', 'người lớn'], [ht.treEm, 'trẻ em', 'trẻ em'], [ht.emBe, 'em bé', 'em bé']])
       .filter(([n]) => n > 0).map(([n, a, b]) => n + ' ' + (n > 1 ? b : a)).join(' · ');
@@ -330,7 +330,7 @@
     while (Date.now() < het && !$$('.leaflet-tile').every((a) => a.complete)) await cho(300);
     if (document.fonts && document.fonts.ready) await document.fonts.ready;
     tt(S.tongTo + ' tờ A4 ngang' + (S.chuaGio ? ' · ' + S.chuaGio + ' mốc chưa có giờ hẹn' : '') +
-      (EN() && S.thieuEn && S.thieuEn.length ? ' · ' + S.thieuEn.length + ' mốc chưa có tên tiếng Anh — bấm vào chữ trên tờ để sửa, hoặc điền Tên tiếng Anh ở Base Sản phẩm' : '') +
+      (EN() && S.thieuEn && S.thieuEn.length ? ' · ' + S.thieuEn.length + ' mốc chưa có tên tiếng Anh. Bấm vào chữ trên tờ để sửa, hoặc điền Tên tiếng Anh ở Base Sản phẩm' : '') +
       ' · bấm Lưu PDF rồi chọn "Lưu dưới dạng PDF"');
     $('#ilIn').disabled = false;
   }

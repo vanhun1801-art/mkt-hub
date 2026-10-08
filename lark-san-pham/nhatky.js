@@ -149,7 +149,7 @@ function dungTin(dsLog, theTheoId, soNgay = 14, tran = 12) {
     const nhieuSP = rs.length > 1;
     const tieuDe = nhieuSP
       ? rs.length + ' sản phẩm đổi ' + dau.cot.toLowerCase()
-      : ten(dau) + ' — đổi ' + dau.cot.toLowerCase();
+      : ten(dau) + ': đổi ' + dau.cot.toLowerCase();
 
     /* Thân tin xếp từ NHẬN RA TOUR NÀO xuống ĐỔI CÁI GÌ. Đảo lại thì người đọc
        gặp "900.000đ → 800.000đ" trước khi kịp biết đang nói về tour nào. */

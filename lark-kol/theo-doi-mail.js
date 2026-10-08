@@ -109,7 +109,7 @@ async function kiem(bao, now = Date.now()) {
   if (cfg.mode !== 'cli') {
     const H = require('./ho-thu');
     const p = await H.napPhien().catch(() => null);
-    if (!p) { trangThai.loi = 'Chưa kết nối hộp thư — kết nối trong khung email để app đọc được thư trả lời'; return []; }
+    if (!p) { trangThai.loi = 'Chưa kết nối hộp thư. Kết nối trong khung email để app đọc được thư trả lời'; return []; }
   }
   trangThai.lanCuoi = now;
   const dl = await kho.tatCa({ moi: true });
@@ -150,8 +150,8 @@ async function kiem(bao, now = Date.now()) {
           }
           if (bao) {
             await bao('Email trả lời · ' + ai + ' (' + ht.ma + ' · ' + (kolTen.get(ht.kol) || '') + ')\n\n"' + r.noiDung.slice(0, 300) + '"\n\n'
-              + (tuXacNhan ? 'App đã tự chuyển sang "KOL đã xác nhận" — việc tiếp theo: tạo tour trên Tourwell, điền mã RT. Nhầm thì bấm Lùi bước.'
-                : tuDuyet ? 'App đã tự chuyển sang "BGĐ đã duyệt" — việc tiếp theo: soạn thư mời KOL. Nhầm thì bấm Lùi bước.'
+              + (tuXacNhan ? 'App đã tự chuyển sang "KOL đã xác nhận". Việc tiếp theo: tạo tour trên Tourwell, điền mã RT. Nhầm thì bấm Lùi bước.'
+                : tuDuyet ? 'App đã tự chuyển sang "BGĐ đã duyệt". Việc tiếp theo: soạn thư mời KOL. Nhầm thì bấm Lùi bước.'
                 : 'Mở app KOL bấm ' + (loai === 'bgd' ? '"BGĐ đã duyệt" hoặc "BGĐ yêu cầu sửa"' : '"KOL đã xác nhận"') + '.'), 'kol-tl-' + ht.id + '-' + r.luc);
           }
           trangThai.daBao++;

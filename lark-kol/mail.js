@@ -96,7 +96,7 @@ async function guiMail(m) {
         '" rồi bấm đồng ý trên trang Lark mở ra, sau đó gửi lại. Email đang soạn chưa đi đâu cả.'), { http: 424 });
     }
     if (/not logged in|no user|token.*(expired|invalid)/i.test(s)) {
-      throw Object.assign(new Error('Phiên lark-cli của anh đã hết hạn — chạy lark-cli auth login rồi gửi lại.'), { http: 424 });
+      throw Object.assign(new Error('Phiên đăng nhập Lark trên máy đã hết hạn. Chạy lark-cli auth login rồi gửi lại.'), { http: 424 });
     }
     throw e;
   } finally {

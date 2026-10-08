@@ -53,8 +53,8 @@ function chiMotPhieu(phieu, dong, boiCanh = {}) {
 
   /* ---- 1. đúng hạn ---- */
   if (phieu.trangThaiHan === 'tre') {
-    them('han', MUC.canh, (phieu.nopBu ? 'Nộp bù — ' : 'Nộp muộn — ') + phieu.veHan
-      .replace(/^Nộp bù — /, '') + '.',
+    them('han', MUC.canh, (phieu.nopBu ? 'Nộp bù, ' : 'Nộp muộn, ') + phieu.veHan
+      .replace(/^Nộp bù · /, '') + '.',
       'Quy định là nộp cuối kỳ; muộn thì số liệu tới tay quản lý sau khi đã cần dùng.');
   } else if (phieu.trangThaiHan === 'thieu') {
     them('han', MUC.canh, 'Chưa nộp và đã quá hạn.');
@@ -69,9 +69,9 @@ function chiMotPhieu(phieu, dong, boiCanh = {}) {
     const thieu = Math.max(0, (phieu.dinhMuc || 0) - (phieu.tongPhut || 0));
     them('thoi-luong', MUC.luu_y,
       'Mới khai ' + phieu.phanTram + '% định mức, còn ' + K.vePhut(thieu) + ' chưa vào đâu.',
-      'Có thể là quên khai, cũng có thể là thật sự trống việc — hai chuyện đó cần trả lời khác nhau.');
+      'Có thể là quên khai, cũng có thể là trống việc thật. Cần hỏi lại cho rõ.');
   } else if (phieu.phanTram > 130) {
-    them('thoi-luong', MUC.luu_y, 'Khai ' + phieu.phanTram + '% định mức — vượt khá xa một ca.',
+    them('thoi-luong', MUC.luu_y, 'Khai ' + phieu.phanTram + '% định mức, vượt khá xa một ca.',
       'Làm thêm giờ đều đặn là dấu hiệu việc dồn, không phải dấu hiệu chăm.');
   } else {
     them('thoi-luong', MUC.tot, 'Thời lượng khai ' + phieu.phanTram + '% định mức, cân với ca làm.');

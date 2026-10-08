@@ -248,7 +248,7 @@ function dongHt(h) {
   const kq = h.kq || {};
   return '<button class="dong-ht" data-ht="' + h.id + '">' +
     '<div class="c-kol"><b>' + e(h.kolTen || '(chưa gắn KOL)') + '</b> <span class="phu">' + e(h.ma) + '</span>' + thanhBuoc(h.buoc) + '</div>' +
-    '<div><div>' + (h.batDau ? ddmm(h.batDau) + ' – ' + ddmm(h.ketThuc || h.batDau) : '<span class="phu">Chưa chốt ngày</span>') + '</div><div class="phu">' + e(khach(h)) + '</div></div>' +
+    '<div><div>' + (h.batDau ? ddmm(h.batDau) + ' → ' + ddmm(h.ketThuc || h.batDau) : '<span class="phu">Chưa chốt ngày</span>') + '</div><div class="phu">' + e(khach(h)) + '</div></div>' +
     '<div class="so"><div class="tien">' + tien(kq.tienCongTy) + 'đ</div><div class="phu">quy đổi ' + tien(kq.giaTriQuyDoi) + 'đ</div></div>' +
     '<div class="so"><div class="tien">' + (kq.camKet ? (kq.daDang || 0) + '/' + kq.camKet : '<span class="phu">—</span>') + '</div><div class="phu">' +
       (kq.xem ? tien(kq.xem) + ' xem' : kq.camKet ? 'chưa có số' : 'chưa có bàn giao') + '</div></div>' +
@@ -427,8 +427,8 @@ const YEU_CAU_MAU = 'Nhắc tên Rooty Trip Phú Quốc trong video (voice + hì
 function canhBaoKhach(nl, te, eb) {
   if (nl + te + eb === 0) return 'Chưa có khách nào';
   if (nl === 0) return 'Chưa có người lớn nào';
-  if (nl + te + eb > 15) return 'Tổng ' + (nl + te + eb) + ' khách — nhiều bất thường cho một chuyến KOL, kiểm lại';
-  if (te > nl * 4) return te + ' trẻ em cho ' + nl + ' người lớn — kiểm lại có gõ nhầm không';
+  if (nl + te + eb > 15) return 'Tổng ' + (nl + te + eb) + ' khách, nhiều bất thường cho một chuyến KOL. Kiểm lại';
+  if (te > nl * 4) return te + ' trẻ em cho ' + nl + ' người lớn. Kiểm lại có gõ nhầm không';
   return '';
 }
 
@@ -448,7 +448,7 @@ function moTaoHopTac(kolId) {
     '<div id="thKol"></div>' +
     '<h3 class="muc">Chuyến đi</h3><div class="luoi-form">' +
     '<label>Người lớn (≥1m40)<input class="in-o" type="number" min="0" max="30" id="thNL" value="2"></label>' +
-    '<label>Trẻ em (1m–1m39)<input class="in-o" type="number" min="0" max="30" id="thTE" value="0"></label>' +
+    '<label>Trẻ em (1m đến 1m39)<input class="in-o" type="number" min="0" max="30" id="thTE" value="0"></label>' +
     '<label>Em bé (&lt;1m)<input class="in-o" type="number" min="0" max="30" id="thEB" value="0"></label>' +
     '<label>Ngày bắt đầu<input class="in-o" type="date" id="thTu"></label>' +
     '<label>Ngày kết thúc<input class="in-o" type="date" id="thDen"></label>' +
@@ -550,8 +550,8 @@ function veChiTiet(man, id, con) {
   const kol = kolCua(ht.kol);
   const i = BUOC.indexOf(ht.buoc);
   man.innerHTML = '<div class="ct-dau"><div style="flex:1;min-width:240px"><div class="phu"><a href="#/tong-quan">Hợp tác</a> / ' + e(ht.ma) +
-    ' <button type="button" class="nut-xoa-ht" id="xoaHt" title="Nhập nhầm? Chuyển hợp tác này vào Thùng rác — khôi phục được ở cuối trang Hợp tác">Xoá</button></div><h1>' + e(kol.ten || '(chưa gắn KOL)') + '</h1>' +
-    '<div class="phu">' + (ht.batDau ? ddmm(ht.batDau) + ' – ' + ddmm(ht.ketThuc) + '/' + vn(ht.ketThuc || ht.batDau).y : 'Chưa chốt ngày') + ' · ' + e(khach(ht)) + '</div></div>' +
+    ' <button type="button" class="nut-xoa-ht" id="xoaHt" title="Nhập nhầm? Chuyển vào Thùng rác, khôi phục được ở cuối trang Hợp tác">Xoá</button></div><h1>' + e(kol.ten || '(chưa gắn KOL)') + '</h1>' +
+    '<div class="phu">' + (ht.batDau ? ddmm(ht.batDau) + ' → ' + ddmm(ht.ketThuc) + '/' + vn(ht.ketThuc || ht.batDau).y : 'Chưa chốt ngày') + ' · ' + e(khach(ht)) + '</div></div>' +
     '<div class="luoi-tong" style="flex:2;min-width:320px">' +
     '<div class="o-so"><div class="nhan">Chi phí công ty</div><div class="so">' + tien(ht.kq.tienCongTy) + '</div></div>' +
     '<div class="o-so"><div class="nhan">Giá trị quy đổi</div><div class="so">' + tien(ht.kq.giaTriQuyDoi) + '</div>' + (ht.kq.thieuGia ? '<div class="duoi">' + ht.kq.thieuGia + ' dòng FOC thiếu giá công bố</div>' : '') + '</div>' +
@@ -594,7 +594,7 @@ async function xoaHopTac(ht) {
 function htmlThungRac() {
   const ds = S.dl.thungRac || [];
   if (!ds.length) return '';
-  return '<details class="thung-rac"><summary><h3 class="muc" style="display:inline">Thùng rác · ' + ds.length + '</h3> <span class="nho">hợp tác đã xoá — bấm để xem, khôi phục</span></summary>' +
+  return '<details class="thung-rac"><summary><h3 class="muc" style="display:inline">Thùng rác · ' + ds.length + '</h3> <span class="nho">hợp tác đã xoá · bấm để xem hoặc khôi phục</span></summary>' +
     '<div class="the"><div class="the-than khit cuon"><table class="bang"><thead><tr><th>Mã</th><th class="w-ten">KOL</th><th>Bước lúc xoá</th><th>Có</th><th>Xoá lúc</th><th></th></tr></thead><tbody>' +
     ds.map((h) => '<tr><td>' + e(h.ma) + '</td><td class="w-ten">' + e(h.kolTen || '(chưa gắn KOL)') + '</td><td>' + e(h.buoc) + '</td><td class="nho">' +
       [h.soHangMuc && h.soHangMuc + ' dòng bảng kê', h.soBanGiao && h.soBanGiao + ' bàn giao', h.soThanhVien && h.soThanhVien + ' thành viên'].filter(Boolean).join(', ') +
@@ -654,8 +654,8 @@ async function lamViec(ht, viec, nut) {
   const b = { viec };
   if (viec === 'chot') {
     /* chỉ chặn khi chính bảng kê đang sửa — tab Thông tin / Bàn giao gõ dở thì nháp tự giữ qua lượt vẽ lại */
-    if (S.sua && S.sua.ban && S.sua.nhap === 'kol.nhap.bk.' + ht.id) return toast('Bảng kê đang sửa chưa lưu — bấm Lưu bảng kê trước', true);
-    if (!(await hoi({ tieuDe: 'Chốt bảng kê', noiDung: 'Chốt ' + tien(ht.kq.tienCongTy) + 'đ chi phí công ty (giá trị quy đổi ' + tien(ht.kq.giaTriQuyDoi) + 'đ) để trình Ban Giám Đốc? Sau khi chốt, bảng kê khoá lại — cần sửa thì bấm Mở chốt.', nut: 'Chốt bảng kê' }))) return;
+    if (S.sua && S.sua.ban && S.sua.nhap === 'kol.nhap.bk.' + ht.id) return toast('Bảng kê còn thay đổi chưa lưu. Bấm Lưu bảng kê trước.', true);
+    if (!(await hoi({ tieuDe: 'Chốt bảng kê', noiDung: 'Chốt ' + tien(ht.kq.tienCongTy) + 'đ chi phí công ty (giá trị quy đổi ' + tien(ht.kq.giaTriQuyDoi) + 'đ) để trình Ban Giám Đốc? Chốt xong bảng kê bị khoá, muốn sửa phải bấm Mở chốt.', nut: 'Chốt bảng kê' }))) return;
   } else if (viec === 'moChot') {
     if (!(await hoi({ tieuDe: 'Mở chốt bảng kê', noiDung: BUOC.indexOf(ht.buoc) >= 1 ? 'Bảng kê đã trình BGĐ. Sửa xong nhớ chốt lại và gửi lại email cho BGĐ.' : 'Mở để sửa bảng kê. Sửa xong chốt lại rồi mới trình BGĐ.', nut: 'Mở chốt' }))) return;
   } else if (viec === 'lui') {
@@ -679,7 +679,7 @@ async function lamViec(ht, viec, nut) {
   if (nut) nut.disabled = true;
   try {
     const r = await api('/api/hop-tac/' + ht.id + '/buoc', b);
-    await nap(true); toast(viec === 'chot' ? 'Đã chốt bảng kê — bây giờ soạn email trình BGĐ' : viec === 'moChot' ? 'Đã mở chốt bảng kê' : (viec === 'lui' ? 'Đã lùi về: ' : 'Đã chuyển: ') + r.buoc); ve();
+    await nap(true); toast(viec === 'chot' ? 'Đã chốt bảng kê. Giờ soạn email trình BGĐ' : viec === 'moChot' ? 'Đã mở chốt bảng kê' : (viec === 'lui' ? 'Đã lùi về: ' : 'Đã chuyển: ') + r.buoc); ve();
   } catch (err) { toast(err.message, true); if (nut) nut.disabled = false; }
 }
 
@@ -694,7 +694,7 @@ function moLinkForm(ht, link) {
   const ten = /^\(KOL chưa điền\)$/.test(kol.ten || '') ? '' : (kol.tenGoi || kol.ten || '');
   let lang = kol.quocGia && kol.quocGia !== 'Việt Nam' ? 'en' : 'vi';
   const ve = () => {
-    moModal('Form điền thông tin · ' + ht.ma, '<p class="nho" style="margin:0 0 10px">Gửi link này cho KOL (Zalo, KakaoTalk, email…). KOL điền liên hệ, kênh, chuyến bay và <b>danh sách thành viên</b> (CCCD / hộ chiếu, ngày cấp, ngày sinh) — dữ liệu tự vào Base, số người lớn / trẻ em / em bé tự cập nhật, bot báo anh khi KOL gửi.</p>' +
+    moModal('Form điền thông tin · ' + ht.ma, '<p class="nho" style="margin:0 0 10px">Gửi link này cho KOL (Zalo, KakaoTalk, email…). KOL điền liên hệ, kênh, chuyến bay và <b>danh sách thành viên</b> (CCCD / hộ chiếu, ngày cấp, ngày sinh). Số khách tự cập nhật, bot báo anh khi KOL gửi.</p>' +
       '<div class="hang-nut" style="margin-bottom:8px"><input class="in-o" id="lfLink" readonly value="' + e(link) + '" style="flex:1;min-width:260px"><button class="btn chinh" id="lfChep">Chép link</button>' +
       '<a class="btn" href="' + e(link) + '" target="_blank" rel="noopener">Mở form</a></div>' +
       '<div class="hang-nut" style="margin:14px 0 6px"><b>Tin nhắn soạn sẵn</b><div class="lon"></div>' + [['vi', 'Tiếng Việt'], ['en', 'English']].map(([k, t]) =>
@@ -707,7 +707,7 @@ function moLinkForm(ht, link) {
     $$('[data-lf]').forEach((b) => { b.onclick = () => { lang = b.dataset.lf; ve(); }; });
     $('#lfMoi').onclick = async () => {
       if (!(await hoi({ tieuDe: 'Tạo link mới?', noiDung: 'Link cũ sẽ không mở được nữa. Dùng khi lỡ gửi nhầm người.', nut: 'Tạo link mới' }))) return;
-      try { const r = await api('/api/hop-tac/' + ht.id + '/form', { moi: true }); link = r.link; ht.maForm = r.ma; ve(); toast('Đã tạo link mới — link cũ đã thôi dùng'); } catch (err) { toast(err.message, true); }
+      try { const r = await api('/api/hop-tac/' + ht.id + '/form', { moi: true }); link = r.link; ht.maForm = r.ma; ve(); toast('Đã tạo link mới. Link cũ không mở được nữa'); } catch (err) { toast(err.message, true); }
     };
   };
   ve();
@@ -737,7 +737,7 @@ function veThongTin(than, ht) {
   const lichSu = String(ht.lichSu || '').split('\n').filter(Boolean).reverse();
   than.innerHTML = '<div class="the"><div class="the-dau"><h2>Chuyến đi</h2><span class="goi-y" id="ttCanh"></span><div class="lon"></div><button class="btn chinh nho" id="luuTT">Lưu</button></div><div class="the-than"><div class="luoi-form">' +
     '<label>Người lớn (≥1m40)<input class="in-o" type="number" min="0" max="30" data-k="nguoiLon" value="' + (ht.nguoiLon || 0) + '"></label>' +
-    '<label>Trẻ em (1m–1m39)<input class="in-o" type="number" min="0" max="30" data-k="treEm" value="' + (ht.treEm || 0) + '"></label>' +
+    '<label>Trẻ em (1m đến 1m39)<input class="in-o" type="number" min="0" max="30" data-k="treEm" value="' + (ht.treEm || 0) + '"></label>' +
     '<label>Em bé (&lt;1m)<input class="in-o" type="number" min="0" max="30" data-k="emBe" value="' + (ht.emBe || 0) + '"></label>' +
     '<label>Ngày bắt đầu<input class="in-o" type="date" data-k="batDau" value="' + ngayIn(ht.batDau) + '"></label>' +
     '<label>Ngày kết thúc<input class="in-o" type="date" data-k="ketThuc" value="' + ngayIn(ht.ketThuc) + '"></label>' +
@@ -813,7 +813,7 @@ function veThongTin(than, ht) {
     $('#ttForm').disabled = false;
   };
   $('#doiBuoc').onchange = async (ev) => {
-    if (!(await hoi({ tieuDe: 'Nhảy thẳng tới bước', noiDung: 'Chuyển "' + ht.buoc + '" sang "' + ev.target.value + '"? Chỉ dùng khi sửa sai — các nút Việc tiếp theo tự ghi ngày trình, ngày duyệt…; nhảy tay thì không. Bấm nhầm một bước thì dùng nút Lùi bước.', nut: 'Chuyển' }))) { ev.target.value = ht.buoc; return; }
+    if (!(await hoi({ tieuDe: 'Nhảy thẳng tới bước', noiDung: 'Chuyển "' + ht.buoc + '" sang "' + ev.target.value + '"? Nhảy tay sẽ không ghi ngày trình, ngày duyệt như các nút Việc tiếp theo. Chỉ dùng khi sửa sai; bấm nhầm một bước thì dùng Lùi bước.', nut: 'Chuyển' }))) { ev.target.value = ht.buoc; return; }
     try { await api('/api/hop-tac/' + ht.id + '/buoc', { viec: 'doiBuoc', buoc: ev.target.value }); await nap(true); ve(); } catch (err) { toast(err.message, true); }
   };
 }
@@ -902,15 +902,15 @@ async function ganBanDo(goc) {
     const chu = $('[data-bdc="' + el.id + '"]', goc || document);
     if (!chu) continue;
     if (!r.soDiem) {
-      chu.innerHTML = '<span class="nho">Chưa đặt được mốc nào lên bản đồ — ghi Điểm hẹn (VinWonders, Bãi Sao…) hoặc dán link Google Maps vào Điểm hẹn.</span>';
+      chu.innerHTML = '<span class="nho">Chưa có mốc nào trên bản đồ. Ghi Điểm hẹn (VinWonders, Bãi Sao…) hoặc dán link Google Maps vào ô đó.</span>';
       continue;
     }
     chu.innerHTML = nhan.map((t, i) => (r.theoNgay && r.theoNgay[i]
       ? '<a class="bd-ngay n' + (i % 5) + '" href="' + e(r.theoNgay[i]) + '" target="_blank" rel="noopener" title="Mở lộ trình ngày này trên Google Maps">' + t + '</a>'
       : '<span class="bd-ngay n' + (i % 5) + '">' + t + '</span>')).join('') +
       (r.caChuyen && r.caChuyen.length ? r.caChuyen.map((c, i) => '<a class="btn nho" href="' + e(c.link) + '" target="_blank" rel="noopener">' +
-        (r.caChuyen.length > 1 ? 'Hành trình ' + c.tu + '–' + c.den : 'Mở cả hành trình') + ' trên Google Maps</a>').join('') : '') +
-      (r.ok ? '<span class="nho">bấm ngày để xem riêng ngày đó</span>' : '<span class="nho">không tải được bản đồ — đang hiện sơ đồ vẽ tay</span>') +
+        (r.caChuyen.length > 1 ? 'Hành trình ' + c.tu + ' → ' + c.den : 'Mở cả hành trình') + ' trên Google Maps</a>').join('') : '') +
+      (r.ok ? '<span class="nho">bấm ngày để xem riêng ngày đó</span>' : '<span class="nho">không tải được bản đồ, đang hiện sơ đồ vẽ tay</span>') +
       (r.chuaRo.length ? '<span class="nho" title="' + e(r.chuaRo.join('; ')) + '">· ' + r.chuaRo.length + ' mốc chưa rõ vị trí</span>' : '');
   }
 }
@@ -980,9 +980,9 @@ function veBangKe(than, ht) {
       '<button class="btn nho" id="bkLuu"' + (S.sua.ban ? '' : ' disabled') + '>Lưu bảng kê</button>' +
       '<button class="btn chinh nho" data-viec="chot"' + (ds.length ? '' : ' disabled') + '>Chốt bảng kê</button>') + '</div>' +
       '<div class="the-than khit cuon"><datalist id="dsDoiTac">' + dsDoiTac().map((x) => '<option value="' + e(x) + '">').join('') + '</datalist>' +
-      '<table class="bang"><thead><tr><th>Ngày</th><th>Nhóm</th><th>Khoản mục</th><th title="Nơi cung cấp dịch vụ (Sun World, Vinpearl, nhà hàng…). Bắt buộc với dòng FOC — app gom theo đối tác để soạn email đề xuất">Đối tác</th><th>Loại khách</th>' +
+      '<table class="bang"><thead><tr><th>Ngày</th><th>Nhóm</th><th>Khoản mục</th><th title="Nơi cung cấp dịch vụ (Sun World, Vinpearl, nhà hàng…). Bắt buộc với dòng FOC để app soạn email đề xuất theo đối tác">Đối tác</th><th>Loại khách</th>' +
       '<th class="so">SL</th><th class="so">Đêm/Lượt</th><th title="Ai trả tiền dòng này: Công ty chi = Rooty Trip trả · FOC đối tác = đối tác tài trợ, công ty 0đ · KOL tự trả = không tính vào chi phí">Hình thức</th><th title="Tiến độ xin tài trợ với đối tác: Chưa đề xuất → Đã gửi đề xuất → Đối tác đồng ý (FOC, 0đ) / Đối tác từ chối (chuyển về Công ty chi)">Hợp tác FOC</th><th class="so">Đơn giá chi</th><th class="so">Giá công bố</th>' +
-      '<th class="so">Thành tiền</th><th>Giờ hẹn</th><th>Điểm hẹn</th><th title="Tích thì bot nhắn anh trước giờ hẹn (kèm tin soạn sẵn gửi KOL). Cần có Giờ hẹn">Bot nhắc</th><th title="Đánh dấu dòng còn nghi ngờ (giá, số khách…) — dòng tô vàng và đếm ở trang Hợp tác cho khỏi quên">Cần kiểm</th><th title="Diễn biến trong chuyến: Chờ = chưa tới · Đã xong = KOL đã dùng dịch vụ · Có sự cố = trục trặc, cần xử lý · Huỷ = bỏ, không tính tiền">Tình trạng</th><th></th></tr></thead><tbody>' +
+      '<th class="so">Thành tiền</th><th>Giờ hẹn</th><th>Điểm hẹn</th><th title="Tích thì bot nhắn anh trước giờ hẹn (kèm tin soạn sẵn gửi KOL). Cần có Giờ hẹn">Bot nhắc</th><th title="Đánh dấu dòng còn nghi ngờ (giá, số khách…). Dòng được tô vàng và đếm ở trang Hợp tác">Cần kiểm</th><th title="Diễn biến trong chuyến: Chờ = chưa tới · Đã xong = KOL đã dùng dịch vụ · Có sự cố = trục trặc, cần xử lý · Huỷ = bỏ, không tính tiền">Tình trạng</th><th></th></tr></thead><tbody>' +
       ds.map((h, i) => '<tr data-i="' + i + '" class="' + (h.kiemLai ? 'kiem' : '') + (h.tinhTrang === 'Huỷ' ? ' huy' : '') + '">' +
         '<td><input class="in-o" type="date" data-f="ngay" value="' + ngayIn(h.ngay) + '"></td>' +
         '<td><select class="in-o" data-f="nhom">' + opt(NHOM, h.nhom, true) + '</select></td>' +
@@ -993,7 +993,7 @@ function veBangKe(than, ht) {
         '<td><input class="in-o" type="number" min="0" data-f="demLuot" value="' + (h.demLuot ?? 1) + '"></td>' +
         '<td><select class="in-o" data-f="hinhThuc">' + opt(HINH_THUC, h.hinhThuc) + '</select></td>' +
         '<td><select class="in-o foc-' + (MAU_FOC[h.xinFoc] || '') + (h.hinhThuc !== 'FOC đối tác' && FOC_CHO.includes(h.xinFoc) ? ' lech' : '') + '" data-f="xinFoc" title="' +
-          (h.hinhThuc !== 'FOC đối tác' && FOC_CHO.includes(h.xinFoc) ? 'Dòng Công ty chi mà vẫn đang xin FOC — chọn lại Hình thức hoặc đặt Không áp dụng' : '') + '">' + opt(XIN_FOC, h.xinFoc || 'Không áp dụng') + '</select></td>' +
+          (h.hinhThuc !== 'FOC đối tác' && FOC_CHO.includes(h.xinFoc) ? 'Dòng Công ty chi mà vẫn đang xin FOC. Chọn lại Hình thức hoặc đặt Không áp dụng' : '') + '">' + opt(XIN_FOC, h.xinFoc || 'Không áp dụng') + '</select></td>' +
         '<td><input class="in-o" type="number" min="0" step="1000" data-f="donGiaChi" value="' + (h.donGiaChi ?? '') + '"' + (h.hinhThuc === 'Công ty chi' ? '' : ' disabled') + '></td>' +
         '<td><input class="in-o" type="number" min="0" step="1000" data-f="giaCongBo" value="' + (h.giaCongBo ?? '') + '" placeholder="' + (h.hinhThuc === 'FOC đối tác' && h.loaiKhach !== 'Em bé' ? 'thiếu' : '') + '"></td>' +
         '<td class="so tt">' + (h.hinhThuc === 'Công ty chi' ? tien(thanhTien(h)) : '<span class="nho">' + (h.hinhThuc === 'FOC đối tác' ? 'FOC' : 'KOL trả') + '</span>') + '</td>' +
@@ -1095,7 +1095,7 @@ async function moXinFoc(ht) {
       return '<tr><td><b>' + e(ten) + '</b></td><td>' + e([...new Set(ds.map((h) => tenGon(h.ten)))].join('; ')) + '</td><td>' + tt.map((x) => nhanTT(x, MAU_FOC[x])).join(' ') +
         (ds[0].xinFocLuc ? '<div class="nho">gửi ' + ddmm(ds[0].xinFocLuc) + '</div>' : '') + '</td><td class="nho">' + e((d && d.email) || 'chưa có') + '</td>' +
         '<td><button class="btn nho chinh" data-dt="' + e(ten) + '">Soạn email</button></td></tr>';
-    }).join('') + '</tbody></table><div class="nho" style="margin-top:10px">Đối tác phản hồi xong thì đổi cột Hợp tác FOC trong bảng kê sang "Đối tác đồng ý" / "Đối tác từ chối" — hình thức chi tự đổi theo.</div>'
+    }).join('') + '</tbody></table><div class="nho" style="margin-top:10px">Đối tác phản hồi xong thì đổi cột Hợp tác FOC trong bảng kê sang "Đối tác đồng ý" / "Đối tác từ chối", hình thức chi sẽ tự đổi theo.</div>'
     : '<div class="bao cam">Chưa dòng nào có tên đối tác. Điền cột Đối tác (Sun World, Vinpearl, nhà hàng…) trong bảng kê trước.</div>', '', true);
   hop.onclick = (ev) => { const b = ev.target.closest('[data-dt]'); if (b) moEmail(ht, 'xin-foc', b.dataset.dt); };
 }
@@ -1396,7 +1396,7 @@ function veBanGiaoHt(than, ht) {
       doiTacBg.map((d) => '<button class="btn nho" data-bcdt="' + e(d) + '">Báo cáo cho ' + e(d) + '</button>').join('') +
       '<button class="btn nho" id="bgThem">Thêm sản phẩm</button>' +
       '<button class="btn chinh nho" id="bgLuu"' + (S.sua.ban ? '' : ' disabled') + '>Lưu</button></div>' +
-      (kenh.length ? '' : '<div class="the-than"><div class="bao cam" style="margin:0">KOL này chưa khai kênh nào — mở tab Thông tin → Sửa KOL để thêm, rồi chọn kênh đăng ở đây.</div></div>') +
+      (kenh.length ? '' : '<div class="the-than"><div class="bao cam" style="margin:0">KOL này chưa có kênh nào. Thêm ở tab Thông tin → Sửa KOL, rồi chọn kênh đăng ở đây.</div></div>') +
       '<div class="the-than"><datalist id="dsDtBg">' + dsDoiTac().map((x) => '<option value="' + e(x) + '">').join('') + '</datalist>' +
       (ds.length ? '' : '<div class="nho">Chưa có sản phẩm nào — bấm Thêm sản phẩm.</div>') +
       ds.map((b, i) => { const tt = b.tt || {}; const lk = b._lk || {};
@@ -1512,7 +1512,7 @@ async function moEmail(ht, loai, dt, lang) {
   toast('Đang soạn email…');
   $$('[data-em]').forEach((x) => { x.disabled = true; });
   try {
-    m = await Promise.race([api(duong), new Promise((_, loi) => setTimeout(() => loi(new Error('Máy chủ chưa trả nội dung email sau 40 giây — có thể Lark đang bắt chờ vì gọi quá nhịp. Thử lại sau ít phút.')), 40000))]);
+    m = await Promise.race([api(duong), new Promise((_, loi) => setTimeout(() => loi(new Error('Chờ 40 giây chưa có nội dung email, có thể Lark đang quá tải. Thử lại sau ít phút.')), 40000))]);
   } catch (err) { return toast(err.message, true); }
   finally { $$('[data-em]').forEach((x) => { x.disabled = false; }); }
   $('#toast').hidden = true;
@@ -1521,16 +1521,16 @@ async function moEmail(ht, loai, dt, lang) {
   const hop = moModal(TEN_EMAIL[loai] + (dt ? ' · ' + dt : ''), (m.chan ? '<div class="bao cam">' + e(m.chan) + '</div>' : '') +
     (S.meta.mail.mode === 'api' ? (S.meta.mail.hopThu && S.meta.mail.hopThu.ketNoi
       ? '<div class="bao xanh" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span>Gửi từ <b>' + e(S.meta.mail.from) + '</b> bằng tài khoản đã kết nối <b>' + e(S.meta.mail.hopThu.email) + '</b>. Thư đang soạn tự giữ trên máy, gửi là đi thẳng.' +
-        (S.meta.mail.hopThu.docDuoc ? ' App tự đọc thư trả lời mỗi 10 phút.' : ' <b>Chưa có quyền đọc thư trả lời</b> — bấm Ngắt kết nối rồi Kết nối hộp thư lại.')
+        (S.meta.mail.hopThu.docDuoc ? ' App tự đọc thư trả lời mỗi 10 phút.' : ' <b>Chưa có quyền đọc thư trả lời</b>. Bấm Ngắt kết nối rồi Kết nối hộp thư lại.')
         /* Quyền LƯU NHÁP thêm ngày 25/09/2026. Phiên kết nối trước đó không có
          * nó, nên lưu nháp và đính kèm tệp sẽ hỏng — nói ra ở đây để thấy
          * trước khi bấm, thay vì bấm rồi mới nhận câu lỗi. */
-        + (S.meta.mail.hopThu.nhapDuoc ? ' Đính kèm tệp: được.' : ' <b>Chưa đính kèm tệp được</b> — ngắt rồi kết nối lại để cấp thêm quyền.')
+        + (S.meta.mail.hopThu.nhapDuoc ? ' Đính kèm tệp: được.' : ' <b>Chưa đính kèm tệp được</b>. Ngắt rồi kết nối lại để cấp thêm quyền.')
         /* Bày thẳng chuỗi quyền Lark ĐÃ cấp. Lúc hỏng mà không thấy nó thì phải
          * đoán giữa "chưa cấp quyền" và "cấp rồi nhưng sai hộp thư" — hai bệnh,
          * hai cách chữa, mà đoán sai là mất một vòng thử. */
         + (S.meta.mail.hopThu.quyen ? '<div class="nho mo" style="word-break:break-all">Quyền Lark đã cấp: ' + esc(S.meta.mail.hopThu.quyen) + '</div>' : '') + '</span><div class="lon"></div><button class="btn nho" id="emNgat">Ngắt kết nối</button></div>'
-      : '<div class="bao cam" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span>Chưa kết nối hộp thư. Bấm <b>Kết nối hộp thư</b>, đăng nhập Lark bằng tài khoản giữ hộp thư <b>' + e(S.meta.mail.from) + '</b> và đồng ý quyền gửi thư — làm một lần.</span><div class="lon"></div>' +
+      : '<div class="bao cam" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span>Chưa kết nối hộp thư. Bấm <b>Kết nối hộp thư</b>, đăng nhập Lark bằng tài khoản giữ hộp thư <b>' + e(S.meta.mail.from) + '</b> và đồng ý quyền gửi thư. Chỉ cần làm một lần.</span><div class="lon"></div>' +
         '<a class="btn chinh nho" id="emKetNoi" href="' + e(((window.__HUB__ && window.__HUB__.prefix) || '') + '/api/mail/ket-noi') + '" target="_blank" rel="noopener">Kết nối hộp thư</a></div>') : '') +
     (loai === 'xin-foc' && !m.den ? '<div class="bao cam">Chưa có email của ' + e(dt) + '. Điền vào ô Gửi — app nhớ cho lần sau.</div>' : '') +
     (m.coLang ? '<div class="hang-nut" style="margin-bottom:8px"><span class="nho">Ngôn ngữ thư</span>' + [['vi', 'Tiếng Việt'], ['en', 'English']].map(([k, t]) =>
@@ -1552,7 +1552,7 @@ async function moEmail(ht, loai, dt, lang) {
       const r = await api(duong, b);
       if (r.daGui) { clearTimeout(henNhap); try { localStorage.removeItem(khNhap); } catch (_) {} }
       dongModal(); await nap(true);
-      toast(r.daGui ? 'Đã gửi' + (r.buoc ? '. Bước: ' + r.buoc : '') : 'Đã lưu nháp trong Lark Mail' + (coBuoc ? ' — gửi xong bấm "Đã gửi từ Lark Mail"' : '')); ve();
+      toast(r.daGui ? 'Đã gửi' + (r.buoc ? '. Bước: ' + r.buoc : '') : 'Đã lưu nháp trong Lark Mail' + (coBuoc ? '. Gửi xong bấm "Đã gửi từ Lark Mail"' : '')); ve();
     } catch (err) { toast(err.message, true); $$('.hop-chan .btn', hop).forEach((x) => { x.disabled = false; }); }
   };
   $('#emGui').onclick = () => goi(true);
@@ -1588,11 +1588,11 @@ async function moEmail(ht, loai, dt, lang) {
   $$('[data-lang]', hop).forEach((b) => { b.onclick = () => { if (b.dataset.lang !== m.lang) moEmail(ht, loai, dt, b.dataset.lang); }; });
   /* chữ ký (bản trên Hub): xem trước + sửa bằng cách dán từ Lark Mail */
   if ($('#emCkXem')) {
-    const veCk = (h) => { $('#emCkXem').innerHTML = h || '<span class="canh">Chưa có chữ ký — thư sẽ đi không có chữ ký. Bấm Sửa chữ ký để dán.</span>'; };
+    const veCk = (h) => { $('#emCkXem').innerHTML = h || '<span class="canh">Chưa có chữ ký, thư sẽ gửi đi không kèm chữ ký. Bấm Sửa chữ ký để dán.</span>'; };
     const ckLang = m.lang === 'en' ? 'en' : 'vi';
     if (ckLang === 'en') $('.thu-ck-dau span').textContent = 'Chữ ký tiếng Anh';
     api('/api/mail/chu-ky?lang=' + ckLang).then((r) => { if (r.html || ckLang === 'vi') return veCk(r.html);
-      $('#emCkXem').innerHTML = '<span class="canh">Chưa có chữ ký tiếng Anh — thư sẽ dùng chữ ký tiếng Việt. Bấm Sửa chữ ký để dán bản tiếng Anh.</span>'; }).catch(() => veCk(''));
+      $('#emCkXem').innerHTML = '<span class="canh">Chưa có chữ ký tiếng Anh, thư sẽ dùng chữ ký tiếng Việt. Bấm Sửa chữ ký để dán bản tiếng Anh.</span>'; }).catch(() => veCk(''));
     $('#emCk').onclick = () => {
       const cu = $('#emCkXem').querySelector('.canh') ? '' : $('#emCkXem').innerHTML;
       const vung = document.createElement('div');
@@ -1628,7 +1628,7 @@ async function moEmail(ht, loai, dt, lang) {
     const html = $('#emThan').innerHTML, chu = $('#emThan').innerText;
     try {
       await navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }), 'text/plain': new Blob([chu], { type: 'text/plain' }) })]);
-      toast('Đã chép nội dung — dán vào Lark Mail (tiêu đề: ' + $('#emTd').value.slice(0, 40) + '…)');
+      toast('Đã chép nội dung. Dán vào Lark Mail (tiêu đề: ' + $('#emTd').value.slice(0, 40) + '…)');
     } catch (_) { chep(chu); }
   };
   if ($('#emDaGui')) $('#emDaGui').onclick = async () => {
@@ -1709,7 +1709,7 @@ function veDongThoiGian(than, ht, trongCt) {
       if (v === null) return;
       const ms = tuChuoi(v);
       if (!ms) return toast('Chưa chọn giờ', true);
-      try { for (const id of ids) await api('/api/hang-muc/' + id, { gioHen: ms, ngay: dauNgay(ms), nhacHen: true }); await nap(true); ve(); toast('Đã đặt giờ — bot sẽ nhắc trước ' + S.meta.nhac.truocPhut + ' phút'); } catch (err) { toast(err.message, true); }
+      try { for (const id of ids) await api('/api/hang-muc/' + id, { gioHen: ms, ngay: dauNgay(ms), nhacHen: true }); await nap(true); ve(); toast('Đã đặt giờ. Bot sẽ nhắc trước ' + S.meta.nhac.truocPhut + ' phút'); } catch (err) { toast(err.message, true); }
       return;
     }
     const tt = ev.target.closest('[data-tt]');
@@ -1742,7 +1742,7 @@ function theChuyen(h, on, now) {
   return '<button type="button" class="lt-the' + (on ? ' on' : '') + '" data-chon="' + h.id + '">' +
     '<div class="lt-the-dau"><span class="lt-avt">' + e(((tat[0] || '?')[0] + (tat.length > 1 ? tat[tat.length - 1][0] : '')).toUpperCase()) + '</span>' +
       '<div class="lt-the-ten"><b>' + e(h.kolTen || h.ma) + '</b><small>' + e([h.ma, k.quocGia].filter(Boolean).join(' · ')) + '</small></div></div>' +
-    '<div class="lt-the-ngay">' + (di ? ddmm(di) + (soNgay > 1 ? ' – ' + ddmm(ve) : '') + ' · ' + soNgay + 'N' + (soNgay > 1 ? (soNgay - 1) + 'Đ' : '') : 'Chưa có ngày đi') +
+    '<div class="lt-the-ngay">' + (di ? ddmm(di) + (soNgay > 1 ? ' → ' + ddmm(ve) : '') + ' · ' + soNgay + 'N' + (soNgay > 1 ? (soNgay - 1) + 'Đ' : '') : 'Chưa có ngày đi') +
       (thoi ? nhanTT(thoi, mauThoi) : '') + '</div>' +
     '<div class="lt-the-tien"><i style="width:' + phan + '%"></i></div>' +
     '<div class="lt-the-chan"><span>' + (hm.length ? xong + '/' + hm.length + ' mốc xong' : 'Chưa có mốc') + '</span><span>' + e(h.buoc) + '</span></div>' +
@@ -1770,7 +1770,7 @@ function veLichTrinh(man, htId) {
     if (c) return di('#/lich-trinh?ht=' + c.dataset.chon);
     if (ev.target.id === 'thuNhac') {
       ev.target.disabled = true;
-      try { await api('/api/nhac/thu', {}); toast('Đã gửi tin thử — kiểm tra Lark'); S.meta = await api('/api/meta'); } catch (err) { toast(err.message, true); }
+      try { await api('/api/nhac/thu', {}); toast('Đã gửi tin thử. Kiểm tra Lark'); S.meta = await api('/api/meta'); } catch (err) { toast(err.message, true); }
       ev.target.disabled = false;
     }
   };
@@ -1948,8 +1948,8 @@ function veDichVu(man) {
     '<div class="the-than khit cuon"><table class="bang"><thead><tr><th>Đối tác</th><th>Loại</th><th>Email</th><th>Người liên hệ</th><th>SĐT</th><th></th></tr></thead><tbody>' +
     (locDt.slice(0, soDong).map((d) => '<tr><td><b>' + e(d.ten) + '</b>' + (d.maTw ? ' <span class="nho">TW ' + e(d.maTw) + '</span>' : '') + '</td><td>' + e(d.loai) + '</td><td>' + e(d.email || '—') +
       (d.cc ? '<div class="nho">CC ' + e(d.cc) + '</div>' : '') + '</td><td>' + e(d.lienHe) + '</td><td>' + e(d.sdt) + '</td><td><button class="btn nho" data-dt="' + d.id + '">Sửa</button></td></tr>').join('') ||
-      '<tr><td colspan="6" class="nho" style="padding:16px">' + (dsDt.length ? 'Không có đối tác khớp bộ lọc.' : 'Chưa có đối tác — bấm "Cập nhật từ Tourwell" để lấy danh sách nhà cung cấp.') + '</td></tr>') +
-    (locDt.length > soDong ? '<tr><td colspan="6" class="nho" style="padding:10px 12px">Còn ' + (locDt.length - soDong) + ' đối tác — gõ ô tìm để thu hẹp.</td></tr>' : '') +
+      '<tr><td colspan="6" class="nho" style="padding:16px">' + (dsDt.length ? 'Không có đối tác khớp bộ lọc.' : 'Chưa có đối tác. Bấm "Cập nhật từ Tourwell" để lấy danh sách nhà cung cấp.') + '</td></tr>') +
+    (locDt.length > soDong ? '<tr><td colspan="6" class="nho" style="padding:10px 12px">Còn ' + (locDt.length - soDong) + ' đối tác. Gõ ô tìm để thu hẹp.</td></tr>' : '') +
     '</tbody></table></div></div>' +
     '<div class="the"><div class="the-dau"><h2>Dịch vụ tự khai · ' + ds.length + '</h2><span class="nho">dịch vụ không có trên Tourwell / Base Sản phẩm</span><div class="lon"></div><button class="btn nho" id="dvMoi">Thêm dịch vụ</button></div>' +
     '<div class="the-than khit cuon"><table class="bang"><thead><tr>' +
@@ -1963,7 +1963,7 @@ function veDichVu(man) {
   $('#dvMoi').onclick = () => moDichVu(null);
   $('#dtNhap').onclick = async (ev) => {
     const nut = ev.target;
-    if (!(await hoi({ tieuDe: 'Cập nhật đối tác từ Tourwell', noiDung: 'Lấy danh sách nhà cung cấp trên Tourwell (khoảng 450, mất chừng 20 giây). Đối tác mới được thêm; đối tác đã có chỉ được điền ô còn trống — email, người liên hệ anh đã sửa giữ nguyên.', nut: 'Cập nhật' }))) return;
+    if (!(await hoi({ tieuDe: 'Cập nhật đối tác từ Tourwell', noiDung: 'Lấy danh sách nhà cung cấp trên Tourwell (khoảng 450, mất chừng 20 giây). Đối tác mới được thêm. Đối tác đã có chỉ được điền ô còn trống, email và người liên hệ anh đã sửa giữ nguyên.', nut: 'Cập nhật' }))) return;
     nut.disabled = true; nut.textContent = 'Đang lấy từ Tourwell…';
     try { const r = await api('/api/doi-tac/nhap-tourwell', {}); await nap(true); toast('Tourwell: thêm ' + r.them + ', cập nhật ' + r.capNhat + ' đối tác'); ve(); }
     catch (err) { toast(err.message, true); nut.disabled = false; nut.textContent = 'Cập nhật từ Tourwell'; }
@@ -1979,7 +1979,7 @@ function moDoiTac(id) {
   const hop = moModal(id ? d.ten : 'Thêm đối tác', '<div class="luoi-form">' +
     '<label class="rong">Tên đối tác<input class="in-o" data-k="ten" value="' + e(d.ten) + '"></label>' +
     o('loai', 'Loại dịch vụ', '', 'Khách sạn, Nhà hàng…') + o('email', 'Email', 'email', 'nhận thư đề xuất hợp tác') + o('cc', 'CC', '', 'cách nhau bằng dấu phẩy') +
-    o('lienHe', 'Người liên hệ', '', 'Chị Lan — Marketing') + o('sdt', 'SĐT') +
+    o('lienHe', 'Người liên hệ', '', 'Chị Lan · Marketing') + o('sdt', 'SĐT') +
     '<label class="rong">Ghi chú<textarea class="in" data-k="ghiChu">' + e(d.ghiChu) + '</textarea></label></div>' +
     (d.maTw ? '<div class="nho" style="margin-top:8px">Mã nhà cung cấp Tourwell: ' + e(d.maTw) + '</div>' : ''),
   '<button class="btn mo" data-dong>Đóng</button><button class="btn chinh" id="dtLuu">Lưu</button>', false, { khoa: 'doi-tac.' + (id || 'moi') });

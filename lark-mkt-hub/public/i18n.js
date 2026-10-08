@@ -170,6 +170,9 @@
     'Chưa phân công': 'Unassigned',
     'Việc đang mở': 'Open tasks',
     'Quá hạn': 'Overdue',
+    'Base này chưa có số tóm tắt. Mở app để xem chi tiết.': 'No summary numbers for this base yet. Open the app for details.',
+    'App Booking OTA chưa có quyền ghi vào Base': 'Booking OTA app cannot write to the Base yet',
+    'Thường do tài khoản chỉ có quyền Xem trên Base. Mở base OTA, tab Thiết lập, bấm Đẩy hàng đợi vào Base.': 'Usually the account only has View access. Open the OTA base, Settings tab, press Push queue to Base.',
     'Đang tiến hành': 'In progress',
     'Sắp tới hạn (48h)': 'Due soon (48h)',
     'Chờ tiếp nhận': 'Awaiting pickup',
@@ -295,18 +298,18 @@
     'Quý này': 'This quarter',
     'Xuất báo cáo': 'Export report',
     'Tải thẳng bảng số cho Excel': 'Download the raw figures for Excel',
-    'Mở tệp báo cáo hoàn chỉnh — trong đó có nút Lưu PDF, tải HTML, tải CSV':
-      'Opens the full report — it has Save as PDF, download HTML and download CSV inside',
+    'Mở tệp báo cáo đầy đủ, có nút lưu PDF, tải HTML, tải CSV':
+      'Opens the full report, with Save as PDF, download HTML and download CSV',
 
     /* --- tiêu đề các thẻ --- */
     'Tính đến hôm nay': 'As of today',
     '% kết quả công việc theo người': 'Work completion by person',
     '% đạt mục tiêu theo kênh': 'Target attainment by channel',
     'Chi tiết từng chỉ số của từng kênh': 'Every metric of every channel',
-    'Mốc theo tuần — theo người': 'Weekly milestones — by person',
-    'Mốc theo tuần — theo kênh': 'Weekly milestones — by channel',
+    'Mốc theo tuần · theo người': 'Weekly milestones · by person',
+    'Mốc theo tuần · theo kênh': 'Weekly milestones · by channel',
     'Sức khoẻ phòng': 'Team health',
-    'Mạnh yếu hệ thống': 'Systemic strengths and weaknesses',
+    'Mạnh yếu chung': 'Overall strengths and weaknesses',
     'Theo nhân sự': 'By person',
     'Tăng trưởng theo kênh': 'Growth by channel',
     'Điểm tính lương': 'Payroll score',
@@ -572,7 +575,7 @@
     'Nhân sự: tất cả': 'Staff: all',
     'Thời gian: tất cả': 'Period: all',
     'Thiếu deadline': 'No deadline',
-    'Đang tiến hành — toàn cảnh': 'In progress — everyone',
+    'Việc đang tiến hành': 'Tasks in progress',
     'Ngày cụ thể': 'Specific date',
     'Ngày mai': 'Tomorrow',
     'Hôm qua': 'Yesterday',
@@ -874,10 +877,10 @@
     'Chỉ đẩy khi Kinh doanh yêu cầu hoặc vào mùa': 'Push only on a Sales request or in season',
     'Không chạy truyền thông lúc này': 'No marketing right now',
     'Cần quản lý xếp mức ưu tiên': 'A manager needs to set the priority',
-    'Mỗi sản phẩm nằm ở đúng một tầng. \u201cSắp ra mắt\u201d đứng trên cùng vì việc phải làm là kịp nội dung cho ngày mở bán.':
-      'Each product sits in exactly one tier. \u201cLaunching soon\u201d comes first because the job is getting content ready in time.',
-    'Mỗi sản phẩm nằm ở đúng một tầng. \u201cSắp ra mắt\u201d đứng trên cùng vì việc phải làm là kịp nội dung cho ngày mở bán. Đổi tầng của một sản phẩm ở tab Quản lý hoặc trong ngăn chi tiết.':
-      'Each product sits in exactly one tier. \u201cLaunching soon\u201d comes first because the job is getting content ready in time. Change a product\u2019s tier on the Manage tab or in the detail panel.',
+    'Mỗi sản phẩm nằm ở một tầng. \u201cSắp ra mắt\u201d đứng đầu để kịp nội dung cho ngày mở bán.':
+      'Each product sits in one tier. \u201cLaunching soon\u201d comes first so content is ready for launch day.',
+    'Mỗi sản phẩm nằm ở một tầng. \u201cSắp ra mắt\u201d đứng đầu để kịp nội dung cho ngày mở bán. Đổi tầng của một sản phẩm ở tab Quản lý hoặc trong ngăn chi tiết.':
+      'Each product sits in one tier. \u201cLaunching soon\u201d comes first so content is ready for launch day. Change a product\u2019s tier on the Manage tab or in the detail panel.',
     'theo báo giá': 'by quotation',
     'chưa có giá': 'no price yet',
 
@@ -895,7 +898,7 @@
     'Xếp loại': 'Tier',
     'sửa được': 'editable',
     'Trạng thái kinh doanh': 'Business status',
-    'Ghi chú giá — dùng khi giá không cố định': 'Price note — for when the price is not fixed',
+    'Ghi chú giá, dùng khi giá không cố định': 'Price note, for when the price is not fixed',
 
     /* hai mức giá (22/09/2026) */
     'Giá khách thực trả': 'What the guest pays',
@@ -935,6 +938,7 @@
     'Đã đặt lịch.': 'Scheduled.',
     'Đã huỷ.': 'Cancelled.',
     'Huỷ dòng lịch này?': 'Cancel this scheduled change?',
+    'Huỷ dòng lịch này? Sản phẩm sẽ không tự đổi theo dòng này nữa.': 'Cancel this scheduled change? The product will no longer change on this date.',
     'Số thì gõ số trần (900000). Ngày thì YYYY-MM-DD. Chọn thì gõ đúng tên lựa chọn.':
       'Numbers plain (900000). Dates as YYYY-MM-DD. For a choice, type the option name exactly.',
     'Nguồn, lý do đổi…': 'Source, reason for the change…',
@@ -943,7 +947,7 @@
     'Giảm': 'Discount',
     'Khách trả': 'Guest pays',
     'đã trừ vào giá hiển thị': 'already taken off the shown price',
-    'Giá Kinh doanh công bố, CHƯA trừ khuyến mãi. Mức giảm khai ở bảng Chính sách & Khuyến mãi trên Base.':
+    'Giá Kinh doanh công bố, chưa trừ khuyến mãi. Mức giảm khai ở bảng Chính sách & Khuyến mãi trên Base.':
       'The list price from Sales, BEFORE any offer. Discounts are entered in the Policies & Offers table on the Base.',
     'Giai đoạn áp dụng hoặc ưu đãi sắp kết thúc. Rà lại với Kinh doanh trước khi chạy tiếp.':
       'The applicable period or the offer is ending. Check with Sales before running it again.',
@@ -1221,8 +1225,8 @@
     [/^Đã chọn (\d+)$/, '$1 selected'],
     [/^Đã đặt cho (\d+) sản phẩm\.$/, 'Applied to $1 products.'],
     [/^ưu đãi hết (\d{2}\/\d{2}\/\d{4})$/, 'offer ends $1'],
-    [/^(\d+) sản phẩm đã ngừng bán không nằm trong bảng này — tra ở tab Danh mục\.$/,
-      '$1 discontinued products are not on this board — look them up on the Catalogue tab.'],
+    [/^(\d+) sản phẩm đã ngừng bán không nằm trong bảng này\. Tra ở tab Danh mục\.$/,
+      '$1 discontinued products are not on this board. Look them up on the Catalogue tab.'],
     [/^(\d+) sản phẩm · đọc lúc (.+)$/, '$1 products · read at $2'],
     [/^trẻ em ([\d.,]+)đ$/, 'child $1đ'],
     [/^thiếu: (.+)$/, 'missing: $1'],
@@ -1365,6 +1369,9 @@
     [/^Tải của bạn · (\d+) lượt$/, 'Your load · $1 assignments'],
     [/^(\d+) người · (\d+) lượt$/, '$1 people · $2 assignments'],
     [/^Quá hạn (\d+) ngày · (.+)$/, 'Overdue $1 days · $2'],
+    [/^Quá hạn hôm nay · (.+)$/, 'Overdue today · $1'],
+    [/^Booking mới sẽ phải chờ trên máy chủ(?: \(đang chờ (\d+)\))?\. Cách sửa: mở Base → Chia sẻ → chọn "Có thể chỉnh sửa"\.$/,
+      'New bookings will wait on the server. Fix: open the Base → Share → choose "Can edit".'],
     [/^Bộ lọc đang che (\d+) việc gấp$/, 'Filter is hiding $1 urgent items'],
     [/^(\d+) việc quá hạn từ trước khoảng lọc$/, '$1 overdue tasks from before this range'],
     [/^(\d+) lịch chờ duyệt \/ có nguy cơ ngoài khoảng lọc$/,
@@ -1381,7 +1388,7 @@
     [/^Mở app (.+)$/, 'Open $1'],
     /* Dòng so sánh dưới mỗi thẻ số của Quảng cáo / Social. Trước đây chỉ dịch
      * riêng chữ 'kỳ trước' nên cả cụm không bao giờ khớp — nó là MỘT text node. */
-    [/^(.+) vs kỳ trước$/, '$1 vs previous period'],
+    [/^(.+) (?:vs|so) kỳ trước$/, '$1 vs previous period'],
     [/^(.+) của (.+) toàn công ty$/, '$1 of $2 company-wide'],
     [/^(.+): (\d+) việc quá hạn từ trước khoảng lọc$/,
       '$1: $2 overdue tasks from before this range'],

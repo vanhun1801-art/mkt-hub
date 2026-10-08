@@ -376,7 +376,7 @@ function verdict(m, target, t) {
 
 /** Điểm sức khoẻ 0–100 của một chiến dịch trong kỳ. */
 function health(m, target, t) {
-  if (m.spend <= 0) return { score: null, label: '— Không chạy' };
+  if (m.spend <= 0) return { score: null, label: 'Không chạy' };
   let score = 100;
   if (target > 0 && m.conversions > 0) score -= Math.min(60, Math.max(0, (m.cpa / target - 1) * 100));
   if (m.conversions === 0) score -= 60;
@@ -388,6 +388,10 @@ function health(m, target, t) {
 }
 
 const fmtVnd = (n) => Math.round(n).toLocaleString('vi-VN') + 'đ';
+
+/* Ngày YYYY-MM-DD -> dd/mm/yyyy cho chữ hiển thị. Không đúng dạng thì trả nguyên. */
+const fmtNgay = (d) => (/^\d{4}-\d{2}-\d{2}$/.test(String(d || ''))
+  ? `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}` : String(d == null ? '' : d));
 
 /* Số lẻ theo quy ước TIẾNG VIỆT: phẩy là dấu thập phân.
  *
@@ -447,12 +451,12 @@ function alerts(data, t = readTargets()) {
      * không, đọc lên tưởng nền tảng đã chặn hoặc sắp chặn. */
     if (c.budget > 0) {
       const { pct, vuotNhip } = nhipNganSach(thang.spend, c.budget, ngayDaQua, soNgayTrongThang);
-      const nhip = `Tháng này mới qua ${ngayDaQua}/${soNgayTrongThang} ngày `
-        + `(${fmtSo((ngayDaQua / soNgayTrongThang) * 100, 0)}%) mà đã tiêu ${fmtSo(pct, 0)}% ngân sách — `
+      const nhip = `Tháng mới qua ${ngayDaQua}/${soNgayTrongThang} ngày `
+        + `(${fmtSo((ngayDaQua / soNgayTrongThang) * 100, 0)}%) mà đã tiêu ${fmtSo(pct, 0)}% ngân sách, `
         + `nhanh gấp ${fmtSo(vuotNhip, 1)} lần nhịp đều.`;
       const soSanh = `Đã chi ${fmtVnd(thang.spend)} trong tháng ${today.slice(5, 7)}/${today.slice(0, 4)} `
         + `/ ${fmtVnd(c.budget)} ngân sách tháng khai trong Base (${fmtSo(pct)}%). `
-        + 'Đây là ô KẾ HOẠCH, không phải giới hạn trên nền tảng — nền tảng vẫn chạy bình thường.';
+        + 'Ô này là kế hoạch, không phải giới hạn trên nền tảng, quảng cáo vẫn chạy.';
       if (pct >= 100) {
         push('high', 'budget', `Vượt ngân sách tháng: ${c.name}`, soSanh, { type: 'campaign', id: c.id });
       } else if (pct >= t.budgetWarnPct) {
@@ -468,7 +472,7 @@ function alerts(data, t = readTargets()) {
       }
     } else if (c.status === 'Đang chạy') {
       push('low', 'budget', `Chưa khai ngân sách dự kiến: ${c.name}`,
-        'Chiến dịch đang chạy nhưng ô "Ngân sách dự kiến" trong Base để trống — không có gì để đối chiếu kế hoạch',
+        'Chiến dịch đang chạy nhưng ô "Ngân sách dự kiến" trong Base để trống nên chưa đối chiếu được.',
         { type: 'campaign', id: c.id });
     }
 
@@ -506,7 +510,7 @@ function alerts(data, t = readTargets()) {
       push('mid', 'data', `Chưa có dữ liệu: ${a.name}`, `Quảng cáo thuộc "${a.campaignName}" chưa có dòng hiệu suất nào`, { type: 'ad', id: a.id });
     } else if (last < deadline) {
       push('mid', 'data', `Thiếu số liệu: ${a.name}`,
-        `Dữ liệu mới nhất ${last} — trễ ${store.daysBetween(last, today)} ngày`, { type: 'ad', id: a.id });
+        `Dữ liệu mới nhất ${fmtNgay(last)}, trễ ${store.daysBetween(last, today)} ngày`, { type: 'ad', id: a.id });
     }
   });
 
@@ -515,7 +519,7 @@ function alerts(data, t = readTargets()) {
     .filter(([, rs]) => rs.length > 1);
   trung.forEach(([, rs]) => {
     push('mid', 'data', `Nhập trùng: ${rs[0].adName}`,
-      `Ngày ${rs[0].date} có ${rs.length} dòng (${rs.map((r) => fmtVnd(r.spend)).join(' + ')}) — số đang bị cộng dồn cả hai`,
+      `Ngày ${fmtNgay(rs[0].date)} có ${rs.length} dòng (${rs.map((r) => fmtVnd(r.spend)).join(' + ')}), tổng đang cộng cả hai`,
       { type: 'daily-dup', id: rs[0].id });
   });
 
@@ -523,7 +527,7 @@ function alerts(data, t = readTargets()) {
   const orphan = data.daily.filter((d) => d.orphan);
   if (orphan.length) {
     push('mid', 'data', `${orphan.length} dòng chưa gắn quảng cáo`,
-      `Tổng ${fmtVnd(orphan.reduce((s, r) => s + r.spend, 0))} không vào được chiến dịch nào (ngày: ${[...new Set(orphan.map((o) => o.date))].join(', ')})`,
+      `Tổng ${fmtVnd(orphan.reduce((s, r) => s + r.spend, 0))} không vào được chiến dịch nào (ngày: ${[...new Set(orphan.map((o) => o.date))].map(fmtNgay).join(', ')})`,
       { type: 'daily-orphan' });
   }
 
@@ -538,10 +542,10 @@ function alerts(data, t = readTargets()) {
     const target = cpaTarget(t, a.platform);
     if (m.conversions === 0) {
       push('high', 'perf', `Không ra chuyển đổi: ${a.name}`,
-        `7 ngày (${from}→${to}) chi ${fmtVnd(m.spend)}, 0 chuyển đổi`, { type: 'ad', id: a.id });
+        `7 ngày (${fmtNgay(from)} → ${fmtNgay(to)}) chi ${fmtVnd(m.spend)}, 0 chuyển đổi`, { type: 'ad', id: a.id });
     } else if (target > 0 && m.cpa > target * 1.3) {
       push('mid', 'perf', `CPA cao: ${a.name}`,
-        `CPA 7 ngày ${fmtVnd(m.cpa)} vs mục tiêu ${fmtVnd(target)} (+${Math.round((m.cpa / target - 1) * 100)}%)`, { type: 'ad', id: a.id });
+        `CPA 7 ngày ${fmtVnd(m.cpa)} so với mục tiêu ${fmtVnd(target)} (+${Math.round((m.cpa / target - 1) * 100)}%)`, { type: 'ad', id: a.id });
     }
     if (m.ctr < t.ctrMin && m.impressions > 1000) {
       push('low', 'perf', `CTR thấp: ${a.name}`,
@@ -559,7 +563,7 @@ function alerts(data, t = readTargets()) {
        * nền tảng đang trục trặc. */
       push('low', 'lech', `Base ghi "${a.approval}" nhưng quảng cáo vẫn chạy: ${a.name}`,
         `Ô trạng thái trong Base là "${a.approval}", trong khi 7 ngày qua vẫn phát sinh `
-        + `${fmtVnd(m.spend)} — tức trên nền tảng nó đang chạy. Sửa ô trong Base cho khớp.`,
+        + `${fmtVnd(m.spend)}, tức trên nền tảng vẫn đang chạy. Sửa ô trong Base cho khớp.`,
         { type: 'ad', id: a.id });
     }
   });
@@ -570,7 +574,7 @@ function alerts(data, t = readTargets()) {
   const avg = prev7.length ? agg(prev7).spend / new Set(prev7.map((d) => d.date)).size : 0;
   if (avg > 0 && lastDay.spend > avg * (1 + t.spendSpikePct / 100)) {
     push('mid', 'spike', 'Chi tiêu tăng đột biến',
-      `Ngày ${to} chi ${fmtVnd(lastDay.spend)} vs trung bình 7 ngày ${fmtVnd(avg)} (+${Math.round((lastDay.spend / avg - 1) * 100)}%)`, { type: 'day', id: to });
+      `Ngày ${fmtNgay(to)} chi ${fmtVnd(lastDay.spend)} so với trung bình 7 ngày ${fmtVnd(avg)} (+${Math.round((lastDay.spend / avg - 1) * 100)}%)`, { type: 'day', id: to });
   }
 
   const order = { high: 0, mid: 1, low: 2 };

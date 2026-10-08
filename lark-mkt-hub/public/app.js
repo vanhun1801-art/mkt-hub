@@ -1182,7 +1182,7 @@ function theHtml(t, moduleId, lopTang = '') {
     const soLech = p0 >= 10 ? Math.round(p0) : Math.round(p0 * 10) / 10;
     lech = '<div class="lech ' + (t.lech === 0 ? '' : tot ? 'tot' : 'xau') + '">' +
       (t.lech > 0 ? '+' : t.lech < 0 ? '−' : '') +
-      String(soLech).replace('.', ',') + '% vs kỳ trước</div>';
+      String(soLech).replace('.', ',') + '% so kỳ trước</div>';
   }
   const dai = t.dinhDang === 'vnd' && Math.abs(Number(t.so) || 0) >= 1000000 ? ' dai' : '';
   /* Ô bằng 0 và không có mức nghiêm trọng thì làm MỜ đi. Bảng Tổng quan hiện có
@@ -2071,7 +2071,7 @@ function veHome() {
       // hình của CHÍNH base này ở lần mở trước, không phải hình trung bình
       noi = window.KX ? KX.theTheo(hinhCu.get(m.id)) : '';
     } else if (!r) {
-      noi = '<div class="trong">Base này chưa có bộ đọc chỉ số. Mở app để xem chi tiết, hoặc khai <code>kpi</code> trong <code>modules.json</code>.</div>';
+      noi = '<div class="trong">Base này chưa có số tóm tắt. Mở app để xem chi tiết.</div>';
     } else if (r.dangNap) {
       /* Máy chủ hết hạn chờ base này ở lượt đọc nguội, VẪN đang đọc phía sau.
        * Đây KHÔNG phải lỗi — giữ khung xương như lúc chưa có số, tuyệt đối

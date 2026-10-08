@@ -79,16 +79,15 @@ function veLuoiPhanCong() {
   const coKenh = PC.nguoi.filter((n) => n.anTheoKenh);
 
   g.appendChild(el('div', 'canhbao tin', '<div>'
-    + '<b>Đây là chỗ áp chỉ số lên người.</b> Mục tiêu và tỷ trọng của mỗi kênh nằm ở tab '
-    + '“Mục tiêu &amp; thử luật” — ai làm cũng như nhau. Còn bảng này quyết định '
-    + '<b>ai gánh kênh nào</b>. Một ô là phần trăm kênh đó đóng vào phần “'
+    + 'Bảng này quyết định <b>ai gánh kênh nào</b>; mục tiêu và tỷ trọng từng kênh đặt ở tab '
+    + '“Mục tiêu &amp; thử luật”. Một ô là phần trăm kênh đó đóng vào phần “'
     + esc((coKenh[0] || {}).tenTieuChi || 'Hiệu quả công việc chính') + '” của người đó.'
     + '</div>'));
 
   if (PC.daChot) {
     g.appendChild(el('div', 'canhbao canhBao', '<div><b>Tháng này đã chốt.</b> '
-      + 'Số đã đi vào bảng lương — sửa phân công lúc này là đổi điểm sau khi đã trả tiền. '
-      + 'Bỏ chốt ở tab “Soát &amp; chốt” trước nếu thật sự cần sửa.</div>'));
+      + 'Sửa phân công lúc này là đổi điểm đã tính lương. '
+      + 'Nếu thật sự cần, bỏ chốt ở tab “Soát &amp; chốt” trước.</div>'));
   }
 
   if (PC_KHOI_PHUC) g.appendChild(nhapThongBao(PC_KHOI_PHUC, pcBoSua));
@@ -114,7 +113,7 @@ function pcKhoiSoat() {
   const chung = PC.nhom.filter((n) => pcAiGiu(n.khoa).length > 1);
 
   the.appendChild(el('header', '', '<h3>Soát phân công</h3>'
-    + '<span class="phu">tính lại ngay mỗi lần sửa ô</span>'));
+    + '<span class="phu">tính lại ngay khi sửa ô</span>'));
 
   const luoi = el('div', 'o-luoi');
   const oo = (nhan, so, ghi, lop) => luoi.appendChild(el('div', 'o' + (lop ? ' ' + lop : ''),
@@ -136,19 +135,17 @@ function pcKhoiSoat() {
 
   if (lechTong.length) {
     coGi = true;
-    than.appendChild(el('div', 'canhbao chan', '<div><b>Tỷ trọng không cộng đủ 100%</b> — '
+    than.appendChild(el('div', 'canhbao chan', '<div><b>Tỷ trọng không cộng đủ 100%:</b> '
       + lechTong.map((n) => esc(n.ten) + ' <b>' + Math.round(pcTongNguoi(n.ma) * 100) + '%</b>').join(' · ')
-      + '. Thiếu thì người đó mất phần điểm tương ứng, thừa thì được cộng thêm. '
-      + 'Chưa sửa xong thì không lưu được.</div>'));
+      + '. Sửa cho đủ 100% mới lưu được.</div>'));
   }
 
   if (chung.length) {
     coGi = true;
     than.appendChild(el('div', 'canhbao canhBao', '<div>'
       + '<b>' + chung.length + ' kênh có từ hai người cùng nhận.</b> '
-      + 'Cùng một lượt view sẽ cho điểm nhiều người. '
-      + 'Chuyện này có thể đúng (bàn giao, làm chung) nhưng phải là quyết định, không phải lỗi chép.'
-      + '<ul class="luu-y">' + chung.map((n) => '<li>' + esc(n.ten) + ' — '
+      + 'Một lượt view sẽ cho điểm nhiều người. Kiểm lại nếu không phải bàn giao hay làm chung.'
+      + '<ul class="luu-y">' + chung.map((n) => '<li>' + esc(n.ten) + ': '
         + pcAiGiu(n.khoa).map((x) => esc(x.ten) + ' ' + Math.round(PC_SUA[x.ma][n.khoa] * 100) + '%').join(' · ')
         + '</li>').join('') + '</ul></div>'));
   }
@@ -157,7 +154,7 @@ function pcKhoiSoat() {
     coGi = true;
     than.appendChild(el('div', 'canhbao canhBao', '<div>'
       + '<b>' + moCoiCoSo.length + ' kênh đang có số liệu nhưng không ai nhận.</b> '
-      + 'Số chạy về hằng ngày mà không vào KPI của ai — kênh tụt cũng không ai chịu trách nhiệm.'
+      + 'Số của các kênh này không vào KPI của ai.'
       + '<ul class="luu-y">' + moCoiCoSo.map((n) => '<li>' + esc(n.ten) + '</li>').join('')
       + '</ul></div>'));
   }
@@ -217,7 +214,7 @@ function pcKhoiLuoi(coKenh) {
       h += '<td class="so"><input class="pc-o" type="number" min="0" max="100" step="1"'
         + ' value="' + (v ? Math.round(v * 100) : '') + '" placeholder="—"'
         + ' data-ng="' + esc(ng.ma) + '" data-khoa="' + esc(n.khoa) + '"'
-        + ' aria-label="' + esc(ng.ten + ' — ' + n.ten) + '"></td>';
+        + ' aria-label="' + esc(ng.ten + ' · ' + n.ten) + '"></td>';
     });
     h += '<td class="so pc-tong-kenh"></td><td class="pc-ai nho"></td>';
     tr.innerHTML = h;
@@ -237,9 +234,8 @@ function pcKhoiLuoi(coKenh) {
   the.appendChild(kh);
 
   the.appendChild(el('div', 'than nho nhat',
-    'Tỷ trọng ở đây là phần trăm <b>bên trong</b> tiêu chí “Hiệu quả công việc chính”, '
-    + 'không phải phần trăm lương. Ví dụ tiêu chí đó có trọng số 0,7 — một kênh 40% nghĩa là '
-    + 'kênh đó đóng 0,28 điểm khi đạt đủ mục tiêu.'));
+    'Tỷ trọng là phần trăm <b>bên trong</b> tiêu chí “Hiệu quả công việc chính”, không phải phần trăm lương. '
+    + 'Ví dụ tiêu chí có trọng số 0,7 thì kênh 40% đóng 0,28 điểm khi đạt đủ mục tiêu.'));
 
   /* Một trình nghe cho cả bảng, không gắn từng ô: 21 × 5 ô là hơn trăm trình
    * nghe, và vẽ lại bảng là phải gắn lại hết. */
@@ -296,7 +292,7 @@ function pcCapNhatTong() {
   if (luu) {
     luu.disabled = !co || lech || PC.daChot;
     luu.textContent = co ? 'Lưu phân công' : 'Chưa sửa gì';
-    luu.title = PC.daChot ? 'Tháng đã chốt — bỏ chốt trước'
+    luu.title = PC.daChot ? 'Tháng đã chốt, bỏ chốt trước'
       : lech ? 'Còn người chưa đủ 100%' : 'Ghi vào bộ luật của tháng này';
   }
   if (bo) bo.disabled = !co;
@@ -313,8 +309,7 @@ async function pcLuu() {
   if (!confirm('Ghi bảng phân công vào bộ luật tháng '
     + Number(THANG.slice(5)) + '/' + THANG.slice(0, 4) + '?\n\n'
     + 'Điểm của ' + n + ' người sẽ tính lại theo phân công mới.\n'
-    + 'Bộ luật gốc nhập từ Excel không bị mất — bỏ sửa luật ở tab “Mục tiêu & thử luật” '
-    + 'là quay lại được.')) return;
+    + 'Bộ luật gốc từ Excel vẫn giữ, bỏ sửa luật ở tab “Mục tiêu & thử luật” để quay lại.')) return;
   try {
     await goi('luu-phan-cong', { method: 'POST', body: JSON.stringify({ thang: THANG, phanBo: PC_SUA }) });
     bao('Đã lưu phân công');
@@ -337,9 +332,8 @@ function pcKhoiNgoai() {
     return the;
   }
   the.appendChild(el('div', 'than nho mo',
-    'Mấy bạn này chấm bằng <b>chỉ số riêng</b> (SEO · Ads · OTA · KOL) chứ không gộp từ kênh, '
-    + 'nên không có cột trong bảng trên. Bảng kênh của họ nếu có cũng bị bỏ qua khi tính. '
-    + 'Sửa tiêu chí của họ ở tab “Mục tiêu &amp; thử luật”.'));
+    'Những người này chấm bằng <b>chỉ số riêng</b> (SEO · Ads · OTA · KOL), không có cột trong bảng trên. '
+    + 'Sửa tiêu chí ở tab “Mục tiêu &amp; thử luật”.'));
   const t = el('table');
   t.innerHTML = '<thead><tr><th>Nhân sự</th><th>Vị trí</th><th>Chấm bằng gì</th></tr></thead>'
     + '<tbody>' + ngoai.map((n) => '<tr><td><b>' + esc(n.ten) + '</b></td>'

@@ -32,9 +32,8 @@ async function veTienDo() {
   g.appendChild(el('div', 'canhbao tin',
     '<div><b>Số đọc thẳng từ các app, không phải số đã chốt.</b> '
     + 'Tính đến hết ngày ' + Number(TD.denHomNay.slice(8)) + '/' + Number(TD.thang.slice(5))
-    + ' — đã đi ' + Math.round(TD.nhipChuan * 100) + '% thời gian của tháng. '
-    + 'Phần view là <b>số thô</b>: chưa áp luật bù view và hệ số Bán hàng/Tương tác, '
-    + 'nên cao hơn số dùng để chốt lương.</div>'));
+    + ', đã qua ' + Math.round(TD.nhipChuan * 100) + '% tháng. '
+    + 'View là <b>số thô</b>, chưa áp luật bù view và hệ số Bán hàng/Tương tác nên cao hơn số chốt lương.</div>'));
 
   /* --- ô tổng --- */
   const co = cuoi.nguoi.filter((n) => n.phanTram != null);
@@ -42,7 +41,7 @@ async function veTienDo() {
   const kip = co.filter((n) => n.phanTram >= TD.nhipChuan).length;
   const t0 = el('div', 'the');
   t0.appendChild(el('header', '', '<h3>Tính đến hôm nay</h3>'
-    + '<span class="phu">đọc lại mỗi lần mở tab · ' + new Date(TD.capNhat).toLocaleTimeString('vi-VN') + '</span>'));
+    + '<span class="phu">cập nhật lúc ' + new Date(TD.capNhat).toLocaleTimeString('vi-VN') + '</span>'));
   const luoi = el('div', 'o-luoi');
   const oo = (nhan, so, ghi, lop) => luoi.appendChild(el('div', 'o' + (lop ? ' ' + lop : ''),
     '<div class="nhan">' + nhan + '</div><div class="so">' + so + '</div>'
@@ -78,17 +77,16 @@ async function veTienDo() {
   b1.appendChild(tb1);
   t1.appendChild(el('div', 'bang-cuon')).appendChild(b1);
   t1.appendChild(el('div', 'than nho nhat',
-    'Cột “Đo được” là phần trăm trọng số thực sự lấy được số. Dưới 100% nghĩa là còn nguồn '
-    + 'chưa nối (Ads · OTA · Thiết kế · SEO · KOL). % đạt chỉ tính trên phần đo được, '
-    + 'không suy ra cho phần còn thiếu — nên “chưa đo được” khác hẳn “đạt 0%”.'));
+    '“Đo được” là phần trọng số đã có số; dưới 100% là còn nguồn chưa nối (Ads · OTA · Thiết kế · SEO · KOL). '
+    + '% đạt chỉ tính trên phần đo được, nên “chưa đo được” khác “đạt 0%”.'));
   g.appendChild(t1);
 
   /* --- mốc tuần theo người --- */
-  g.appendChild(bangMoc('Mốc theo tuần — theo người', 'nguoi', (m) => m.nguoi,
+  g.appendChild(bangMoc('Mốc theo tuần · theo người', 'nguoi', (m) => m.nguoi,
     (x) => x.ten, (x) => x.phanTram));
 
   /* --- mốc tuần theo kênh --- */
-  g.appendChild(bangMoc('Mốc theo tuần — theo kênh', 'nhom', (m) => m.nhom,
+  g.appendChild(bangMoc('Mốc theo tuần · theo kênh', 'nhom', (m) => m.nhom,
     (x) => x.ten, (x) => x.phanTram));
 
   /* --- theo kênh, hôm nay --- */
@@ -147,7 +145,7 @@ function xepKenh(ds) {
 function bangMoc(tieuDe, khoaHang, layDs, layTen, layPt) {
   const the = el('div', 'the');
   the.appendChild(el('header', '', '<h3>' + esc(tieuDe) + '</h3>'
-    + '<span class="phu">luỹ kế từ đầu tháng đến hết mốc · so với nhịp chuẩn cùng mốc</span>'));
+    + '<span class="phu">luỹ kế từ đầu tháng · so với nhịp chuẩn cùng mốc</span>'));
   const cuoi = TD.moc[TD.moc.length - 1] || {};
   const hang = layDs(cuoi) || [];
   if (!hang.length) {

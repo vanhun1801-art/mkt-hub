@@ -79,7 +79,9 @@ async function chamDiem() {
     if (tre > treNgay) {
       vanDe.push({
         loai: 'du-lieu', nang: false, kenh: p,
-        mo_ta: `${p}: số mới nhất trong Base là ${m || '(chưa có)'} — trễ ${tre} ngày`,
+        mo_ta: m
+          ? `${p}: số mới nhất trong Base là ${m.slice(8, 10)}/${m.slice(5, 7)}/${m.slice(0, 4)}, trễ ${tre} ngày`
+          : `${p}: chưa có số nào trong Base`,
       });
     }
   });

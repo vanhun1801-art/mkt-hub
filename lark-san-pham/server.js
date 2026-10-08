@@ -203,7 +203,7 @@ function tongQuan(ds) {
   const canXuLy = [
     ...hetHan.map((p) => ({
       id: p.id,
-      tieuDe: (p.ma ? p.ma + ' — ' : '') + p.ten,
+      tieuDe: (p.ma ? p.ma + ' · ' : '') + p.ten,
       phu: p.tinhTrang + (p.conLai != null ? ' · còn ' + p.conLai + ' ngày' : '') +
         (p.hieuLucDen ? ' (đến ' + veNgay(p.hieuLucDen) + ')' : ''),
       the: [p.nhom].filter(Boolean),
@@ -219,7 +219,7 @@ function tongQuan(ds) {
     })),
     ...thieu.map((p) => ({
       id: p.id,
-      tieuDe: (p.ma ? p.ma + ' — ' : '') + p.ten,
+      tieuDe: (p.ma ? p.ma + ' · ' : '') + p.ten,
       phu: 'hồ sơ thiếu: ' + p.thieu,
       the: [p.nhom].filter(Boolean),
       muc: 'thap',
@@ -399,7 +399,7 @@ async function api(req, res, u) {
        lộ trước cả những thay đổi chưa tới ngày công bố. */
     if (!toi.quanLy) return loi(res, 403, 'Chỉ quản lý xem được lịch đổi thông tin.');
     const { ds, dsLich } = await kho.tatCa();
-    const ten = new Map(ds.map((x) => [x.id, (x.ma ? x.ma + ' — ' : '') + x.ten]));
+    const ten = new Map(ds.map((x) => [x.id, (x.ma ? x.ma + ' · ' : '') + x.ten]));
     return json(res, {
       ds: dsLich.map((r) => Object.assign({}, r, {
         sanPhamTen: r.spIds.map((id) => ten.get(id)).filter(Boolean).join(', '),
@@ -594,7 +594,7 @@ async function api(req, res, u) {
     const the = new Map(ds.map((x) => {
       const g = x.giaSauGiam || {};
       return [x.id, {
-        ten: (x.ma ? x.ma + ' — ' : '') + x.ten,
+        ten: (x.ma ? x.ma + ' · ' : '') + x.ten,
         tenEn: x.tenEn || '',
         nhom: x.nhom || '',
         thoiLuong: x.thoiLuong || '',

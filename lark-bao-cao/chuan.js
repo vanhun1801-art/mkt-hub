@@ -42,7 +42,7 @@ const MAC_DINH = {
     luuY: 'Chú ý hiệu suất công việc và cải thiện thêm nhé',
     lech: 'Tập trung hơn vào việc chính để cải thiện hiệu suất nhé',
     tre: 'Chú ý sắp xếp thời gian để gửi báo cáo đúng hạn nhé',
-    loiMay: 'Có {phut} phút lỗi máy / mất điện — cân đối lại công việc nhé',
+    loiMay: 'Có {phut} phút lỗi máy / mất điện, cân đối lại công việc nhé',
   },
   viTri: {
     Editor: {
@@ -290,7 +290,7 @@ function veCau(kq) {
       (s.tuApp ? ' (app Chỉnh ảnh)' : '') + (s.ok ? '' : ' ✗'));
   }
   if (kq.boPhut) phan.push('lỗi máy/mất điện ' + kq.boPhut + ' phút, không tính');
-  return NHAN[kq.muc] + ' · ' + kq.viTri + ' — ' + phan.join(' · ');
+  return NHAN[kq.muc] + ' · ' + kq.viTri + ': ' + phan.join(' · ');
 }
 
 /* ---------------- số từ app Chỉnh ảnh ---------------- */

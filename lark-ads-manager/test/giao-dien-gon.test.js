@@ -118,7 +118,7 @@ console.log('— nhập Excel còn, nhưng là đường lùi');
   t('nói rõ là đường lùi', /đường lùi khi API Tourwell không dùng được/.test(app));
   /* Nhập file THAY kho đang có — kể cả kho vừa tự kéo. Không nói ra thì người
    * dùng nhập một file cũ rồi không hiểu vì sao số lùi lại. */
-  t('cảnh báo file sẽ thay kho đang có', /THAY kho đang có/.test(app));
+  t('cảnh báo file sẽ thay kho đang có', /sẽ thay kho đang có/.test(app));
   t('có nút kéo lại ngay trên tab Doanh thu', app.includes('id="rsKeo"'));
   /* Phép kéo giờ nằm trong MỘT hàm dùng chung (keoTourwell), vì khối "Lead từ
    * quảng cáo" ở Tổng quan cũng cần nó — trước đây chỗ đó chỉ biết in ra ba bước
@@ -234,7 +234,7 @@ console.log('— xác nhận trước khi ghi phải in đủ số để quyết
   t('xác nhận ngân sách in số cũ và số mới', /vnd\(nsCu\)/.test(khoiNS) && /vnd\(moi\)/.test(khoiNS));
   t('và in phần trăm thay đổi', /pctDoi/.test(khoiNS));
   t('và in ngân sách đặt ở CẤP nào', /cấp:/.test(khoiNS));
-  t('và gọi đúng tên: lệnh TIÊU TIỀN', /TIÊU TIỀN/.test(khoiNS));
+  t('và gọi đúng tên: lệnh tiêu tiền thật', /tiền chi tiêu thật/.test(khoiNS));
   /* Google đặt ngân sách ở campaign_budget — resource riêng mà nhiều chiến dịch
    * chia nhau được. Đổi tưởng một, thật ra đổi cả nhóm. */
   t('cảnh báo khi ngân sách dùng chung nhiều chiến dịch', /dùng chung cho/.test(khoiNS));

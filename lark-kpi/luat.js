@@ -130,7 +130,7 @@ function soat(luat) {
         if (!daThay.has(k)) chan(ten, 'Được phân bổ vào nhóm không tồn tại: ' + k);
       });
     } else if (Object.keys(pb).length) {
-      canh(ten, 'Có bảng phân bổ kênh nhưng không có tiêu chí nào ăn theo kênh — bảng này bị bỏ qua');
+      canh(ten, 'Có bảng phân bổ kênh nhưng không có tiêu chí nào ăn theo kênh, nên bảng bị bỏ qua');
     }
   });
 
@@ -184,11 +184,11 @@ function soat(luat) {
     const k = khoaNhom(n);
     const ai = nguoiTheoNhom.get(k) || [];
     if (!ai.length) {
-      canh(k, 'Không ai phụ trách kênh này — số liệu của nó không vào KPI của ai');
+      canh(k, 'Không ai phụ trách kênh này, số liệu không vào KPI của ai');
     } else if (ai.length > 1) {
       canh(k, ai.length + ' người cùng phụ trách ('
         + ai.map((x) => x.ten + ' ' + pt(x.w)).join(' · ')
-        + ') — mỗi lượt view được tính điểm ' + ai.length + ' lần');
+        + '), mỗi lượt view được tính điểm ' + ai.length + ' lần');
     }
   });
 

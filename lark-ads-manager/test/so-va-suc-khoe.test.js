@@ -81,7 +81,7 @@ console.log('— "đang khoẻ" phải là kết luận về HÔM NAY, không ph
    * không biết đồng bộ thế nào, nó chỉ biết việc kiểm đã ngừng. */
   t('quá cũ thì nói "chưa biết"', /Chưa biết đồng bộ có khoẻ không/.test(kn));
   t('và nói rõ chính việc kiểm đã ngừng', /chính việc kiểm đã ngừng/.test(kn));
-  t('và dặn đừng dựa vào số cũ', /đừng dựa vào mấy số này/.test(kn));
+  t('và dặn đừng dựa vào số cũ', /Đừng dựa vào mấy số này/.test(kn));
 
   /* Nhánh "quá cũ" phải đứng TRƯỚC nhánh khoẻ/hỏng, nếu không nó không bao giờ
    * chạy tới — đúng loại lỗi thứ tự điều kiện. */

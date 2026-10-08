@@ -349,7 +349,7 @@
     const mat = S.form.muc.filter((m) => m.tourId && !tourCua(m)).length;
     if (S.tab === 'bao-cao') veForm();
     toast(mat
-      ? 'Danh mục Tour vừa đổi — ' + mat + ' mục mất Tour đã chọn, chọn lại giúp em.'
+      ? 'Danh mục Tour vừa đổi, ' + mat + ' mục mất Tour đã chọn. Chọn lại giúp em.'
       : 'Danh mục Tour vừa đổi, đã cập nhật.', mat ? 'err' : 'ok');
   }
 
@@ -427,7 +427,7 @@
         <div class="card-body">
           <div id="dsMuc">${S.form.muc.map((m, i) => veMuc(m, i)).join('')}</div>
 
-          ${trung.length ? `<div class="note">Mục ${trung.map(([a, b]) => (a + 1) + ' trùng mục ' + (b + 1)).join('; ')} — cùng Tour, Loại và ngày. Gộp link vào một mục, hoặc đổi Loại/ngày.</div>` : ''}
+          ${trung.length ? `<div class="note">Mục ${trung.map(([a, b]) => (a + 1) + ' trùng mục ' + (b + 1)).join('; ')}: cùng Tour, Loại và ngày. Gộp link vào một mục, hoặc đổi Loại/ngày.</div>` : ''}
 
           <div class="them-muc">
             <button class="btn ghost" id="btnThemMuc">Thêm mục</button>
@@ -519,7 +519,7 @@
           <label>Nhận xét ảnh <b class="buoc">*</b></label>
           <textarea data-f="nhanXetAnh" rows="3"
             placeholder="Góc máy, màu, chỗ đã sửa, chỗ cần lưu ý…">${esc(m.nhanXetAnh)}</textarea>
-          <div class="hint">Gửi kèm vào nhóm để Media kiểm và CSKH gửi khách — bắt buộc.</div>
+          <div class="hint">Bắt buộc. Gửi kèm vào nhóm để Media kiểm và CSKH gửi khách.</div>
         </div>
 
         <div class="field full">
@@ -529,7 +529,7 @@
         </div>
       </div>
 
-      ${cu ? `<div class="note info"><div>Lô này đã có báo cáo ${esc(cu.daGui ? 'và đã gửi nhóm' : 'nhưng chưa gửi nhóm')} — bấm Báo cáo sẽ cập nhật dòng đó, không tạo dòng mới.</div></div>` : ''}
+      ${cu ? `<div class="note info"><div>Lô này đã có báo cáo ${esc(cu.daGui ? 'và đã gửi nhóm' : 'nhưng chưa gửi nhóm')}. Bấm Báo cáo sẽ cập nhật dòng đó, không tạo dòng mới.</div></div>` : ''}
     </section>`;
   }
 
@@ -570,7 +570,7 @@
     }
     if (g.loi) { o.innerHTML = '<div class="ng-trong canh">' + esc(g.loi) + '</div>'; return; }
     o.innerHTML = ds.length ? nut
-      : '<div class="ng-trong">không thấy ai khớp — thử gõ có dấu, hoặc gõ ít chữ hơn</div>';
+      : '<div class="ng-trong">không thấy ai khớp. Thử gõ có dấu, hoặc gõ ít chữ hơn</div>';
   }
 
   /**
@@ -770,7 +770,7 @@
     const trung = mucTrungNhau();
     if (trung.length) {
       return toast('Mục ' + trung.map(([a, b]) => (a + 1) + ' trùng mục ' + (b + 1)).join('; ')
-        + ' — cùng Tour, Loại và ngày.', 'err');
+        + ': cùng Tour, Loại và ngày.', 'err');
     }
 
     for (let i = 0; i < f.muc.length; i++) {
@@ -788,7 +788,7 @@
       /* Nhận xét ảnh bắt buộc — server cũng chặn, đây chỉ để báo sớm cho đỡ mất
        * công gõ xong rồi mới biết. */
       if (!String(m.nhanXetAnh || '').trim()) {
-        return toast(o + 'viết nhận xét ảnh đã — nhóm đọc phần này để biết ảnh có gì.', 'err');
+        return toast(o + 'cần viết nhận xét ảnh. Nhóm đọc phần này để biết ảnh có gì.', 'err');
       }
     }
 
@@ -815,7 +815,7 @@
       const vaoNhom = (r.gui.daGui && r.gui.daGui.length)
         ? r.gui.daGui.join(', ') : (r.nhom ? r.nhom.ten : 'nhóm');
       if (f.gui && r.gui.ok) toast(noi + ', đã gửi ' + vaoNhom + '.');
-      else if (f.gui) toast(noi + ', nhưng KHÔNG gửi được nhóm: ' + r.gui.loi, 'err');
+      else if (f.gui) toast(noi + ', nhưng chưa gửi được vào nhóm: ' + r.gui.loi, 'err');
       else toast(noi + ' (không gửi nhóm).');
       if (r.gui.canhBao) toast(r.gui.canhBao, 'err');
 
@@ -1163,9 +1163,9 @@ function moNghiemThu(id) {
         <div class="card-body">
           ${veNguoiGui(m.nguoiGui)}
           ${ql ? `<div class="field full">
-            <label>Chọn nhóm — tích được nhiều nhóm</label>
+            <label>Chọn nhóm (tích được nhiều nhóm)</label>
             <div class="ds-nhom" id="cNhom"><div class="hint">đang tải danh sách nhóm…</div></div>
-            <div class="hint">Mỗi lần báo cáo, tin gửi vào TẤT CẢ nhóm được tích.</div>
+            <div class="hint">Mỗi lần báo cáo, tin gửi vào mọi nhóm được tích.</div>
           </div>
           <div class="sticky-actions"><button class="btn primary" id="cLuu" disabled>Lưu nhóm</button></div>`
         : '<div class="empty">Chỉ quản lý đổi được nhóm nhận báo cáo.</div>'}
@@ -1201,7 +1201,7 @@ function moNghiemThu(id) {
           await napMeta(true);
           ve();
           toast(vanTayTour(S.meta) === truoc
-            ? 'Danh mục không đổi — app đang khớp Base.'
+            ? 'Danh mục không đổi, app đang khớp Base.'
             : 'Đã đọc lại danh mục từ Base.');
         } catch (e) { toast(e.message, 'err'); bt.disabled = false; }
       };
@@ -1215,8 +1215,8 @@ function moNghiemThu(id) {
     /* Bọc trong MỘT div: .note là flex container, để text trần thì mỗi thẻ con
      * thành một flex item và cả dòng gãy vụn ra. */
     return `<div class="note ${dung ? 'info' : ''}"><div>
-      Tin gửi bằng bot <b>${esc(g.ten)}</b>${g.appId ? ' · <span class="mono">' + esc(g.appId) + '</span>' : ''} — phải mời đúng bot này vào nhóm.
-      ${dung ? '' : '<br>Chưa khai <span class="mono">ANH_TIN_APP_SECRET</span> nên đang dùng bot của lark-cli, <b>KHÁC</b> bot <b>' + esc((g.nen || {}).ten || '') + '</b> · <span class="mono">' + esc((g.nen || {}).appId || '') + '</span> mà anh muốn.'}
+      Tin gửi bằng bot <b>${esc(g.ten)}</b>${g.appId ? ' · <span class="mono">' + esc(g.appId) + '</span>' : ''}. Phải mời đúng bot này vào nhóm.
+      ${dung ? '' : '<br>Chưa khai <span class="mono">ANH_TIN_APP_SECRET</span> nên đang gửi bằng bot trên máy này, <b>khác</b> bot <b>' + esc((g.nen || {}).ten || '') + '</b> · <span class="mono">' + esc((g.nen || {}).appId || '') + '</span> mà anh muốn.'}
     </div></div>`;
   }
 

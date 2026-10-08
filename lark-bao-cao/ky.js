@@ -129,7 +129,7 @@ function kyTuan(ms, batDauThu = LUAT.tuanBatDauThu) {
   const lui = (thu - batDauThu + 7) % 7;
   const tu = d - lui * NGAY;
   const den = tu + 7 * NGAY - 1;
-  return { loai: 'tuan', tu, den, nhan: veNgay(tu) + ' – ' + veNgay(den) };
+  return { loai: 'tuan', tu, den, nhan: veNgay(tu) + ' → ' + veNgay(den) };
 }
 
 function kyThang(ms) {
@@ -220,7 +220,7 @@ function veLanNop(cham) {
   if (cham.trangThai === 'dung-han') return 'Đúng hạn';
   if (cham.trangThai === 'chua-toi-han') return 'Chưa tới hạn';
   if (cham.trangThai === 'thieu') return 'Chưa nộp, đã quá hạn';
-  return (cham.bu ? 'Nộp bù — ' : '') + veTre(cham.treMs);
+  return (cham.bu ? 'Nộp bù · ' : '') + veTre(cham.treMs);
 }
 
 /** "trễ 2 ngày 3 giờ" — nói bằng đơn vị người đọc hiểu ngay. */

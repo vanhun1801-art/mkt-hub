@@ -63,7 +63,7 @@ async function goiKienNhan(duong, bao = () => {}) {
        * là phí — hai chuyện khác nhau, đừng dùng chung một con số. */
       const doi = quaTan ? 60000 + lan * 30000 : 5000 + lan * 5000;
       bao('  ' + (quaTan ? 'nghẽn tần suất (429)' : 'mạng chập: ' + m.slice(0, 40))
-        + ' — đợi ' + Math.round(doi / 1000) + ' giây rồi đi tiếp');
+        + ', đợi ' + Math.round(doi / 1000) + ' giây rồi đi tiếp');
       await cho(doi);
     }
   }
@@ -98,7 +98,7 @@ async function duyet(duong, bao = () => {}, luuDo = null) {
 
     const dau = lo.map((x) => x && (x.code || x.id)).join(',');
     if (dau && dau === dauTruoc) {
-      bao('! ' + duong + ': trang ' + trang + ' trùng hệt trang trước — phân trang không chạy, DỪNG ở '
+      bao('! ' + duong + ': trang ' + trang + ' trùng hệt trang trước, phân trang không chạy, dừng ở '
         + ra.length + ' dòng');
       break;
     }
@@ -114,7 +114,7 @@ async function duyet(duong, bao = () => {}, luuDo = null) {
       if (luuDo) { try { luuDo(ra); } catch (_) {} }
     }
     if (lo.length < MOI_TRANG) break;
-    if (trang === TRAN_TRANG) bao('! ' + duong + ': DỪNG Ở ' + TRAN_TRANG + ' TRANG — có thể còn thiếu');
+    if (trang === TRAN_TRANG) bao('! ' + duong + ': dừng ở trang ' + TRAN_TRANG + ', có thể còn thiếu');
     await cho(GIAN_MS);
   }
   bao(duong + ': xong, ' + ra.length + ' dòng');

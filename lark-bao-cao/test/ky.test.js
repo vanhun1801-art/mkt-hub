@@ -78,7 +78,7 @@ group('Kỳ tuần — Thứ 7 tới Thứ 6, đúng thẻ nhắc anh Hùng gử
     K.veNgay(t.tu) === '12/09/2026', 'đang ra: ' + K.veNgay(t.tu));
   ok('và kết thúc Thứ 6 18/09', K.veNgay(t.den) === '18/09/2026',
     'đang ra: ' + K.veNgay(t.den));
-  ok('nhãn tuần đọc được', t.nhan === '12/09/2026 – 18/09/2026', 'đang ra: ' + t.nhan);
+  ok('nhãn tuần đọc được', t.nhan === '12/09/2026 → 18/09/2026', 'đang ra: ' + t.nhan);
 
   /* Thứ 6 11/09 phải rơi vào tuần TRƯỚC (05/09 – 11/09) — đúng cái tuần mà Hằng
    * và Hân khai trong nhóm. Đây là câu kiểm bắt lỗi lệch một ngày. */
@@ -215,7 +215,7 @@ group('veLanNop — một câu duy nhất, dùng chung mọi màn');
   ok('trễ thì nói trễ bao lâu',
     K.veLanNop(K.chamHan(kn, han + 3 * K.GIO)) === 'trễ 3 giờ');
   ok('nộp bù thì gọi đúng tên',
-    /^Nộp bù — trễ 5 ngày/.test(K.veLanNop(K.chamHan(kn, han + 5 * K.NGAY))),
+    /^Nộp bù · trễ 5 ngày/.test(K.veLanNop(K.chamHan(kn, han + 5 * K.NGAY))),
     'đang ra: ' + K.veLanNop(K.chamHan(kn, han + 5 * K.NGAY)));
   ok('chưa nộp mà còn hạn', K.veLanNop(K.chamHan(kn, null, han - K.GIO)) === 'Chưa tới hạn');
   ok('chưa nộp và quá hạn',

@@ -91,13 +91,13 @@ async function gui({ chatId, userId, email, text, card, khoa }) {
     let loi = 'Lark ' + d.code + ': ' + (d.msg || 'lỗi không rõ');
     if ([230002, 230013].includes(d.code) || /out of the chat|not in the chat/i.test(d.msg || '')) {
       loi = 'Bot "' + cfg.tinAppTen + '" (' + cfg.tinAppId + ') chưa ở trong hội thoại này'
-        + ' — mời bot vào nhóm (hoặc mở app cho người nhận) rồi gửi lại. (' + loi + ')';
+        + '. Mời bot vào nhóm (hoặc mở app cho người nhận) rồi gửi lại. (' + loi + ')';
     } else if (d.code === 99992361) {
-      loi = 'open_id này thuộc app khác — open_id là riêng theo từng app. Dùng email'
+      loi = 'open_id này thuộc app khác (mỗi app có open_id riêng). Dùng email'
         + ' hoặc lấy lại open_id bằng chính app "' + cfg.tinAppTen + '". (' + loi + ')';
     } else if (d.code === 99991672) {
       loi = 'App "' + cfg.tinAppTen + '" chưa được bật scope im:message, hoặc đã bật mà '
-        + 'CHƯA phát hành version mới, trong Developer Console. (' + loi + ')';
+        + 'chưa phát hành version mới, trong Developer Console. (' + loi + ')';
     }
     return { ok: false, loi: loi.slice(0, 400) };
   } catch (e) {

@@ -86,7 +86,7 @@ t('nêu cả hai kênh', el.innerHTML.includes('Google Ads') && el.innerHTML.inc
 t('dựng hai băng riêng', (el.innerHTML.match(/class="bang-loi"/g) || []).length === 2);
 
 console.log('— chip cũng phải nói, không chỉ tooltip');
-t('chip in tên kênh lỗi', /LỖI<\/span>/.test(src) && /loi\.map\(\(x\) => x\.platform\)/.test(src));
+t('chip in tên kênh lỗi', / lỗi<\/span>/.test(src) && /loi\.map\(\(x\) => x\.platform\)/.test(src));
 t('vẫn giữ chi tiết trong tooltip', /el\.title = /.test(src));
 
 console.log('— CSS của băng dùng token có sẵn, không màu tự gõ');

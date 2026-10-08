@@ -204,7 +204,7 @@ function dungTheHoTro(p) {
     '',
     sachMd(String(p.noi || '').trim().slice(0, 1200)),
     '',
-    'Xử lý ở app Báo cáo → tab **Cần hỗ trợ** — người nêu sẽ nhận phản hồi của bạn.',
+    'Xử lý ở app Báo cáo → tab **Cần hỗ trợ**. Người nêu sẽ nhận phản hồi của bạn.',
   ];
   return {
     config: { wide_screen_mode: true },

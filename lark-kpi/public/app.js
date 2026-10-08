@@ -120,13 +120,13 @@ function nhapThongBao(luc, boDi) {
 async function khoiDong() {
   try {
     META = await goi('meta');
-  } catch (e) { $('#noiDung').innerHTML = '<div class="rong">Không nối được server: ' + esc(e.message) + '</div>'; return; }
+  } catch (e) { $('#noiDung').innerHTML = '<div class="rong">Không nối được máy chủ: ' + esc(e.message) + '</div>'; return; }
 
   $('#meChip').textContent = META.nguoiXem.ten + (META.nguoiXem.quanLy ? ' · trưởng phòng' : '');
   const sel = $('#selThang');
   const coSo = new Set(META.thangCoSo || META.thang);
   sel.innerHTML = META.thang.map((t) => '<option value="' + t + '">Tháng ' + Number(t.slice(5)) + '/' + t.slice(0, 4)
-    + (coSo.has(t) ? '' : ' — chưa có số liệu') + '</option>').join('');
+    + (coSo.has(t) ? '' : ' · chưa có số liệu') + '</option>').join('');
   THANG = META.thangGoiY || META.thang[0] || '';
   sel.value = THANG;
   sel.onchange = () => { THANG = sel.value; SUA = { mucTieu: {}, tyTrong: {} }; THU = null; TD = null; TQ = null; napThang(); };
@@ -215,11 +215,8 @@ var KHO_RONG = false;   // eslint-disable-line no-var
 
 /** Màn giải thích cho các tab KPI khi kho rỗng — nói rõ vì sao và cần làm gì. */
 function veKhoRong() {
-  $('#noiDung').innerHTML = '<div class="rong">Chưa có số KPI trên bản chạy này.<br>'
-    + 'Mã nguồn và bộ luật có sẵn, nhưng điểm từng người nằm trong <code>du-lieu/</code> — '
-    + 'thư mục đó cố ý không lên GitHub vì gắn với lương, và ổ đĩa của server chung '
-    + 'cũng là ổ tạm nên có tải lên cũng mất sau lần deploy sau.<br><br>'
-    + '<b>Tab “Báo cáo” vẫn chạy đủ</b> — nó đọc thẳng từ năm app con, không cần kho này.'
+  $('#noiDung').innerHTML = '<div class="rong">Chưa có số KPI trên bản chạy này.<br><br>'
+    + '<b>Tab “Báo cáo” vẫn dùng đủ</b>, vì đọc thẳng từ các app con.'
     + '</div>';
 }
 
@@ -275,19 +272,15 @@ function taiVe(duong) {
  */
 const NG_CACH = {
   base: { ten: 'Nhập tại base nguồn', mau: 'canh',
-    mo: 'Số này lấy tự động được, chỉ là base nguồn chưa có dòng đó. '
-      + 'Vào đúng base thêm/sửa rồi bấm Làm mới — không cần tải file gì cả.' },
+    mo: 'Base nguồn chưa có dòng này. Thêm hoặc sửa trong base rồi bấm Làm mới.' },
   file: { ten: 'Tải file lên đây', mau: 'canh',
-    mo: 'Nền tảng không mở API nên không có cách nào lấy tự động. '
-      + 'Xuất file từ nền tảng rồi dán vào ô ở khối “Tải file lên” bên dưới.' },
+    mo: 'Nền tảng không có API. Xuất file từ nền tảng rồi dán vào khối “Tải file lên” bên dưới.' },
   tay: { ten: 'Người phụ trách tự chấm', mau: 'im',
-    mo: 'Không nền tảng nào đo được thứ này. Chấm tay ở tab “Phiếu KPI”, nhớ ghi lý do.' },
+    mo: 'Không nền tảng nào đo được. Chấm tay ở tab “Phiếu KPI” và ghi lý do.' },
   noi: { ten: 'Chờ nối app', mau: 'chan',
-    mo: 'App nguồn đã chạy trong Hub, chỉ là phần KPI chưa đọc sang. '
-      + 'Đây là việc của người dựng app, không phải việc nhập liệu.' },
+    mo: 'App nguồn đã có trong Hub nhưng KPI chưa đọc sang. Không cần nhập gì, chờ nối app.' },
   luat: { ten: 'Sai ở bộ luật', mau: 'chan',
-    mo: 'Không phải thiếu số — bộ luật đang gọi tên một chỉ số hoặc một kênh không tồn tại. '
-      + 'Sửa ở tab “Mục tiêu & thử luật”.' },
+    mo: 'Bộ luật gọi tên một chỉ số hoặc kênh không tồn tại. Sửa ở tab “Mục tiêu & thử luật”.' },
 };
 
 async function veNguon() {
@@ -323,10 +316,10 @@ async function veNguon() {
   /* --- khối 1: đổ tự động --- */
   const t1 = el('div', 'the');
   t1.appendChild(el('header', '', '<h3>Số máy tự lấy được</h3>'
-    + '<span class="phu">' + layDuoc.length + ' chỉ số · đọc thẳng từ base của các app</span>'));
+    + '<span class="phu">' + layDuoc.length + ' chỉ số · từ base của các app</span>'));
   const than1 = el('div', 'than');
   Object.entries(r.loiApp || {}).forEach(([app, loi]) =>
-    than1.appendChild(el('div', 'canhbao chan', '<b>App ' + esc(app) + ' không gọi được</b> — ' + esc(loi))));
+    than1.appendChild(el('div', 'canhbao chan', '<b>App ' + esc(app) + ' không gọi được:</b> ' + esc(loi))));
   if (DATA.chot) {
     than1.appendChild(el('div', 'canhbao canhBao',
       '<b>Tháng này đã chốt.</b> Bỏ chốt ở tab “Soát & chốt” trước khi đổ số mới.'));
@@ -338,9 +331,8 @@ async function veNguon() {
   const veKhong = layDuoc.filter((x) => x.so === 0 && x.dangDung != null && x.dangDung > 0);
   if (veKhong.length) {
     than1.appendChild(el('div', 'canhbao chan',
-      '<b>' + veKhong.length + ' chỉ số đang có số sẽ bị đổ về 0</b> — app nguồn chưa đo được '
-      + 'các chỉ số này (thường là lead và follow). Đổ về là mất số thật đang dùng. '
-      + 'Nên nối đủ nguồn trước, hoặc tải file cho phần thiếu.'));
+      '<b>' + veKhong.length + ' chỉ số đang có số sẽ bị đổ về 0.</b> App nguồn chưa đo được '
+      + 'các chỉ số này (thường là lead và follow). Nối đủ nguồn hoặc tải file cho phần thiếu trước khi đổ.'));
   }
 
   const hang1 = el('div', 'nut-hang');
@@ -349,9 +341,9 @@ async function veNguon() {
   nutDo.onclick = async () => {
     const doi = layDuoc.filter((x) => x.dangDung != null && Math.abs(x.dangDung - x.so) > 0.5).length;
     if (!confirm('Ghi ' + layDuoc.length + ' số vào tháng này?\n\n'
-      + (doi ? doi + ' chỉ số sẽ ĐỔI so với số đang dùng.\n' : '')
+      + (doi ? doi + ' chỉ số sẽ đổi so với số đang dùng.\n' : '')
       + (veKhong.length ? '⚠ ' + veKhong.length + ' chỉ số đang có số sẽ bị đổ về 0.\n' : '')
-      + '\nSố gốc nhập từ Excel không bị mất — bấm “Về số gốc” là quay lại được.')) return;
+      + '\nSố gốc từ Excel vẫn giữ, bấm “Về số gốc” để quay lại.')) return;
     try {
       const kq = await goi('dong-bo', { method: 'POST', body: JSON.stringify({ thang: THANG }) });
       bao('Đã ghi ' + kq.ghi + ' số'); await napThang(); ve();
@@ -420,12 +412,11 @@ async function veNguon() {
   /* --- tải file --- */
   const t2 = el('div', 'the');
   t2.appendChild(el('header', '', '<h3>Tải file lên</h3>'
-    + '<span class="phu">cho nền tảng không có API: YouTube · Douyin · Xiaohongshu · SEO · KOL</span>'));
+    + '<span class="phu">YouTube · Douyin · Xiaohongshu · SEO · KOL</span>'));
   const than2 = el('div', 'than');
   than2.appendChild(el('p', 'mo nho',
-    'Dán thẳng từ Excel hoặc mở tệp CSV. Cần ba cột: <b>Kênh · Chỉ số · Giá trị</b>. '
-    + 'Nhận theo TÊN cột nên thứ tự cột thế nào cũng được, và đọc được cả số kiểu Việt '
-    + '(1.234.567) lẫn kiểu Anh (1,234,567).'));
+    'Dán từ Excel hoặc mở tệp CSV có ba cột <b>Kênh · Chỉ số · Giá trị</b>, thứ tự cột tuỳ ý. '
+    + 'Đọc được cả 1.234.567 lẫn 1,234,567.'));
   const oFile = el('input'); oFile.type = 'file'; oFile.accept = '.csv,.tsv,.txt'; oFile.setAttribute('aria-label', 'Chọn tệp số liệu (CSV)');
   oFile.style.marginBottom = '8px';
   const oText = el('textarea');
@@ -462,7 +453,7 @@ async function veNguon() {
       d.khop.slice(0, 20).forEach((x) => ketQua.appendChild(el('div', 'nho',
         '✓ ' + esc(x.kenh) + ' · ' + esc(x.chiSo) + ' = ' + gon(x.giaTri) + ' → <b>' + esc(x.ma) + '</b>')));
       d.truot.slice(0, 10).forEach((x) => ketQua.appendChild(el('div', 'nho mo',
-        '✗ ' + esc(x.kenh) + ' · ' + esc(x.chiSo) + ' — không có tiêu chí nào khớp')));
+        '✗ ' + esc(x.kenh) + ' · ' + esc(x.chiSo) + ': không khớp tiêu chí nào')));
       nutNap.disabled = !d.khop.length || !!DATA.chot;
     } catch (e) { bao(e.message, true); }
   };
@@ -525,8 +516,8 @@ async function veTongQuan() {
 
   /* --- 2. điểm yếu hệ thống --- */
   const t2 = el('div', 'the');
-  t2.appendChild(el('header', '', '<h3>Mạnh yếu hệ thống</h3>'
-    + '<span class="phu">gộp mọi kênh, mọi tháng — không phải lỗi của riêng ai</span>'));
+  t2.appendChild(el('header', '', '<h3>Mạnh yếu chung</h3>'
+    + '<span class="phu">gộp mọi kênh, mọi tháng · không quy cho riêng ai</span>'));
   const b2 = el('table');
   b2.innerHTML = '<thead><tr><th>Loại tiêu chí</th><th class="so">Đạt trung bình</th>'
     + '<th class="so">Số lần chấm</th><th class="so">Dưới 50%</th><th class="so">Vượt 200%</th><th></th></tr></thead>';
@@ -544,9 +535,8 @@ async function veTongQuan() {
   b2.appendChild(tb2);
   t2.appendChild(el('div', 'bang-cuon')).appendChild(b2);
   t2.appendChild(el('div', 'than nho mo',
-    'Cột “Dưới 50%” đếm số lần một loại tiêu chí bị hụt quá nửa mục tiêu, tính trên mọi kênh mọi tháng. '
-    + 'Con số lớn ở đây là điểm yếu của cả phòng hoặc mục tiêu đặt sai — đừng quy cho một cá nhân. '
-    + 'Cột “Vượt 200%” ngược lại: mục tiêu nhiều khả năng đặt quá thấp.'));
+    '“Dưới 50%” cao: điểm yếu của cả phòng hoặc mục tiêu đặt sai. '
+    + '“Vượt 200%” cao: mục tiêu có thể đặt quá thấp.'));
   g.appendChild(t2);
 
   /* --- 3. theo người --- */
@@ -589,7 +579,7 @@ async function veTongQuan() {
   /* --- 4. tăng trưởng theo kênh --- */
   const t4 = el('div', 'the');
   t4.appendChild(el('header', '', '<h3>Tăng trưởng theo kênh</h3>'
-    + '<span class="phu">điểm nhóm từng tháng · mũi tên là so với tháng liền trước</span>'));
+    + '<span class="phu">điểm nhóm từng tháng · mũi tên so với tháng trước</span>'));
   const b4 = el('table');
   b4.innerHTML = '<thead><tr><th>Kênh</th>'
     + TQ.thang.map((th) => '<th class="so">' + nhan(th) + '</th>').join('') + '<th>Diễn biến</th></tr></thead>';
@@ -655,7 +645,7 @@ function vePhieu() {
     : 'kieu=phong&thang=' + THANG;
   const nutXuat = el('button', 'btn chinh small',
     DATA.chiMinh ? 'Xuất phiếu của tôi' : 'Xuất văn bản KPI phòng');
-  nutXuat.title = 'Văn bản có logo và khối ký — mở ra bấm Ctrl+P là ra PDF';
+  nutXuat.title = 'Văn bản có logo và chỗ ký · bấm Ctrl+P để lưu PDF';
   nutXuat.onclick = () => window.open('api/xuat-kpi?' + q, '_blank');
   const nutCsv = el('button', 'btn small', 'CSV');
   nutCsv.title = 'Bảng số thô để bê sang Excel';
@@ -726,7 +716,7 @@ function bangChamTay() {
   const thieu = hang.filter((x) => x.tc.chuaCo).length;
   the.appendChild(el('header', '', '<h3>Điểm chấm tay</h3>'
     + '<span class="phu">' + (thieu
-      ? '<span class="nhan-o chan">còn ' + thieu + ' mục chưa chấm</span> — tháng chưa chốt được'
+      ? '<span class="nhan-o chan">còn ' + thieu + ' mục chưa chấm</span> · chưa chốt được tháng'
       : '<span class="nhan-o ok">đã chấm đủ</span>') + '</span>'));
 
   if (!hang.length) {
@@ -735,9 +725,8 @@ function bangChamTay() {
   }
 
   const than = el('div', 'than nho nhat');
-  than.innerHTML = 'Thang điểm <b>0 – 2</b>: 1,0 là làm đúng yêu cầu, dưới 1 là chưa đạt, '
-    + 'trên 1 là vượt. Ghi chú tự lưu khi rời ô — nên viết một câu vì sao chấm mức đó, '
-    + 'vì phiếu KPI xuất ra có in kèm.';
+  than.innerHTML = 'Thang <b>0 → 2</b>: 1,0 là đạt yêu cầu, dưới 1 là chưa đạt, trên 1 là vượt. '
+    + 'Ghi một câu lý do; ghi chú tự lưu khi rời ô và in kèm phiếu KPI.';
   the.appendChild(than);
 
   /* GOM THEO NGƯỜI, không phải một danh sách phẳng.
@@ -762,7 +751,7 @@ function bangChamTay() {
 
   const t = el('table', 'bang-cham');
   t.innerHTML = '<thead><tr><th>Tiêu chí</th><th class="so">Điểm</th>'
-    + '<th>Ghi chú — vì sao chấm mức này</th><th>Người chấm</th></tr></thead>';
+    + '<th>Ghi chú: vì sao chấm mức này</th><th>Người chấm</th></tr></thead>';
   const tb = el('tbody');
   theoNguoi.forEach((o) => {
     const tr = el('tr', 'hang-nguoi');
@@ -780,12 +769,12 @@ function bangChamTay() {
           + ' step="0.1" min="0" max="2" placeholder="—"'
           + ' value="' + (tc.chuaCo ? '' : tc.diem) + '"'
           + ' data-ng="' + esc(o.ng.ma) + '" data-tc="' + esc(tc.ma) + '"'
-          + ' aria-label="' + esc(o.ng.ten + ' — ' + tc.ten) + '"></td>'
+          + ' aria-label="' + esc(o.ng.ten + ' · ' + tc.ten) + '"></td>'
         + '<td><input class="ghi-cham" type="text" maxlength="500"'
           + ' placeholder="' + (tc.chuaCo ? 'chấm điểm rồi ghi lý do' : 'chưa có ghi chú') + '"'
           + ' value="' + esc(tc.ghiChu || '') + '"'
           + ' data-ng="' + esc(o.ng.ma) + '" data-tc="' + esc(tc.ma) + '"'
-          + ' aria-label="' + esc('Ghi chú ' + o.ng.ten + ' — ' + tc.ten) + '"></td>'
+          + ' aria-label="' + esc('Ghi chú ' + o.ng.ten + ' · ' + tc.ten) + '"></td>'
         + '<td class="nhat nho">' + esc(tc.boi || 'người phụ trách') + '</td>';
       tb.appendChild(r);
     });
@@ -815,7 +804,7 @@ function bangChamTay() {
 
 /* ---- cửa sổ chuỗi tính của một người ---- */
 function moPhieu(ng) {
-  $('#modalTieuDe').textContent = ng.ten + ' — tháng ' + Number(THANG.slice(5)) + '/' + THANG.slice(0, 4);
+  $('#modalTieuDe').textContent = ng.ten + ' · tháng ' + Number(THANG.slice(5)) + '/' + THANG.slice(0, 4);
   const b = el('div');
 
   const t1 = el('table');
@@ -900,7 +889,7 @@ async function veThu() {
    * Mở ra mà không biết mình đang nhìn cái gì thì màn hình có đẹp cũng vô ích. */
   g.appendChild(el('div', 'canhbao tin', '<div>'
     + '<b>Tab này để làm gì:</b> đặt <b>mục tiêu tháng</b> cho từng kênh, và '
-    + '<b>thử trước</b> xem đổi mục tiêu thì điểm của ai đổi bao nhiêu — trước khi chốt.'
+    + '<b>thử trước</b> xem điểm của ai đổi bao nhiêu trước khi chốt.'
     + '<ul class="luu-y">'
     + '<li><b>Mục tiêu</b> là con số kênh phải đạt (ví dụ 5.000.000 lượt xem). '
     + 'Đạt đủ mục tiêu = 100%.</li>'
@@ -909,9 +898,8 @@ async function veThu() {
     + '<li><b>Thử luật</b> = sửa thử rồi nhìn cột bên phải: điểm cả phòng '
     + '<b>trước → sau</b>. Sửa xong thấy ai bị tụt quá thì chỉnh lại.</li>'
     + '</ul>'
-    + '<b>KHÔNG có gì bị ghi xuống cho tới khi bấm “Lưu bộ luật”.</b> '
-    + 'Cứ sửa thoải mái để xem thử. Chưa lưu thì trình duyệt này giữ bản nháp '
-    + '(theo tháng), mở lại là thấy — bấm “Bỏ” ở dòng báo khôi phục để quay về số đã lưu.'
+    + '<b>Chưa bấm “Lưu bộ luật” thì chưa ghi gì.</b> '
+    + 'Bản nháp được giữ trên trình duyệt này theo tháng; bấm “Bỏ” ở dòng khôi phục để về số đã lưu.'
     + '</div>'));
   const oGoiY = el('div');
   g.appendChild(oGoiY);
@@ -1075,7 +1063,7 @@ async function veGoiY(hop, trai) {
           if (v != null) { i.value = v; i.classList.add('doi'); }
         });
         trai.dispatchEvent(new Event('input', { bubbles: true }));
-        bao('Đã điền ' + ds.length + ' mục tiêu — xem cột “trước → sau” rồi mới lưu');
+        bao('Đã điền ' + ds.length + ' mục tiêu. Xem cột “trước → sau” rồi mới lưu');
       };
       bang.appendChild(nut);
     } catch (e) { bang.innerHTML = '<div class="canhbao chan">' + esc(e.message) + '</div>'; }
@@ -1111,8 +1099,8 @@ function veKetQuaThu(hop, r) {
   const chan = (r.soatSau || []).filter((x) => x.muc === 'chan');
   const than = el('div', 'than');
   if (chan.length) {
-    than.appendChild(el('div', 'canhbao chan', '<b>Bộ luật đang có ' + chan.length + ' lỗi chặn</b> — chưa lưu được.'));
-    chan.slice(0, 5).forEach((x) => than.appendChild(el('div', 'nho mo', '· ' + esc(x.o) + ' — ' + esc(x.viec))));
+    than.appendChild(el('div', 'canhbao chan', '<b>Bộ luật đang có ' + chan.length + ' lỗi chặn</b>, chưa lưu được.'));
+    chan.slice(0, 5).forEach((x) => than.appendChild(el('div', 'nho mo', '· ' + esc(x.o) + ': ' + esc(x.viec))));
   } else {
     than.appendChild(el('div', 'canhbao canhBao', 'Bộ luật hợp lệ. Lưu là áp cho tháng này.'));
   }
@@ -1146,19 +1134,14 @@ async function veSoat() {
   const g = el('div');
 
   g.appendChild(el('div', 'canhbao tin', '<div>'
-    + '<b>Tab này để làm gì:</b> bước CUỐI CÙNG của một tháng. Soát xem còn gì thiếu, '
-    + 'rồi <b>chốt</b> — sau khi chốt thì điểm tháng đó đóng băng.'
+    + '<b>Tab này để làm gì:</b> bước cuối của tháng. Soát còn gì thiếu rồi <b>chốt</b> để khoá điểm.'
     + '<ul class="luu-y">'
-    + '<li><b>Mục chặn</b> (đỏ) là thứ bắt buộc phải xong mới chốt được — thường là '
-    + 'còn người chưa được chấm tay.</li>'
-    + '<li><b>Cảnh báo</b> (vàng) thì vẫn chốt được, nhưng nên xem: ví dụ hai người '
-    + 'cùng phụ trách một kênh.</li>'
-    + '<li><b>Chốt</b> = chụp lại toàn bộ điểm của tháng và khoá lại. Sau đó có ai sửa '
-    + 'mục tiêu hay đổ lại số thì <b>điểm đã chốt vẫn không đổi</b>.</li>'
+    + '<li><b>Mục chặn</b> (đỏ) phải xong mới chốt được, thường là còn người chưa được chấm tay.</li>'
+    + '<li><b>Cảnh báo</b> (vàng) vẫn chốt được nhưng nên xem, ví dụ hai người cùng phụ trách một kênh.</li>'
+    + '<li><b>Chốt</b> khoá toàn bộ điểm của tháng. Sau đó sửa mục tiêu hay đổ lại số thì '
+    + '<b>điểm đã chốt vẫn không đổi</b>.</li>'
     + '</ul>'
-    + '<b>Vì sao cần chốt:</b> file Excel cũ không có bước này, nên một tháng đã trả lương '
-    + 'rồi vẫn âm thầm đổi số khi ai đó sửa công thức phía trên — và không ai biết. '
-    + 'Chốt nhầm thì bấm “Bỏ chốt” được, nhưng phải cố ý bấm.'
+    + 'Chốt nhầm thì bấm “Bỏ chốt”.'
     + '</div>'));
 
   /* --- cảnh báo tháng đang xem --- */
@@ -1169,11 +1152,11 @@ async function veSoat() {
   const chan = DATA.chan || [];
   const canh = [...(DATA.canhBaoLuat || []), ...(DATA.canhBao || []).filter((x) => x.muc === 'canhBao')];
   if (!chan.length && !canh.length) than1.appendChild(el('div', 'mo', 'Không có gì phải soát.'));
-  chan.slice(0, 40).forEach((x) => than1.appendChild(el('div', 'canhbao chan', '<b>' + esc(x.o) + '</b> — ' + esc(x.viec))));
-  gopCanh(canh).slice(0, 40).forEach((x) => than1.appendChild(el('div', 'canhbao canhBao', '<b>' + esc(x.o) + '</b> — ' + esc(x.viec))));
+  chan.slice(0, 40).forEach((x) => than1.appendChild(el('div', 'canhbao chan', '<b>' + esc(x.o) + ':</b> ' + esc(x.viec))));
+  gopCanh(canh).slice(0, 40).forEach((x) => than1.appendChild(el('div', 'canhbao canhBao', '<b>' + esc(x.o) + ':</b> ' + esc(x.viec))));
 
   const nut = el('div', '');
-  const bChot = el('button', 'btn chinh', DATA.chot ? 'Đã chốt — bỏ chốt' : 'Chốt tháng này');
+  const bChot = el('button', 'btn chinh', DATA.chot ? 'Bỏ chốt' : 'Chốt tháng này');
   bChot.disabled = !DATA.chot && !DATA.chotDuoc;
   /* Chốt đóng băng con số dùng để trả lương nên phải hỏi lại. Trong lúc dựng app
    * đã có một bản chốt bị ghi mà không ai chủ ý bấm — một cú chạm nhầm không được
@@ -1200,7 +1183,7 @@ async function veSoat() {
   /* --- đối chiếu 8 tháng --- */
   const the2 = el('div', 'the');
   the2.appendChild(el('header', '', '<h3>Đã trả lương → app tính lại</h3>'
-    + '<span class="phu">điểm lịch sử chỉ để tham chiếu, không dùng tính lại lương đã trả</span>'));
+    + '<span class="phu">chỉ để tham chiếu, không tính lại lương đã trả</span>'));
   the2.appendChild(el('div', 'than', window.KX ? KX.log(4) : '<span class="mo">đang tính…</span>'));
   g.appendChild(the2);
 
@@ -1235,9 +1218,8 @@ async function veSoat() {
   the2.appendChild(el('div', 'bang-cuon')).appendChild(t);
   const chuThich = el('div', 'than nho mo',
     tong + ' ô · ' + (tong - lech) + ' khớp · ' + lech + ' lệch. '
-    + 'Ô hiện hai số là ô lệch: số mờ ở trên là điểm đã trả lương, số đậm ở dưới là app tính lại. '
-    + 'Mọi ô lệch đều do Excel bỏ trống ô mục tiêu nên cho 0 điểm mà vẫn giữ tỷ trọng; '
-    + 'bộ luật của app chặn việc lưu tiêu chí không có mục tiêu nên không tái diễn.');
+    + 'Ô lệch hiện hai số: số mờ là điểm đã trả lương, số đậm là app tính lại. '
+    + 'Lệch do Excel bỏ trống mục tiêu; app không cho lưu tiêu chí thiếu mục tiêu.');
   the2.appendChild(chuThich);
 }
 

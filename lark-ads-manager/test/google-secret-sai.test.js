@@ -40,7 +40,7 @@ console.log('— secret không khớp: ca đã làm kênh chết 14 ngày');
   t('chỉ đúng chỗ tạo secret mới', /ADD SECRET/.test(s));
   t('nhắc Google chỉ cho xem một lần', /chỉ cho xem một lần/.test(s));
   /* Quan trọng với anh: đổi secret không phải làm lại toàn bộ uỷ quyền. */
-  t('trấn an refresh token vẫn còn', /KHÔNG làm mất refresh token/.test(s));
+  t('trấn an refresh token vẫn còn', /không làm mất refresh token/.test(s));
   /* Nêu Client ID để vào đúng client giữa nhiều client. ID là thông tin công
    * khai, đang hiện sẵn trên màn hình — không phải bí mật. */
   t('nêu client nào', /944289178542/.test(s));

@@ -292,14 +292,14 @@ function dungThe({ elements, header }, { nguoiTen }) {
 /** Thẻ thông báo kết quả nghiệm thu — gửi tiếp vào cùng nhóm. */
 function soanNghiemThu(bc, { nguoiTen = '' } = {}) {
   const dat = bc.trangThai === 'Đạt';
-  const text = (dat ? 'Đã nghiệm thu ĐẠT' : 'Yêu cầu SỬA LẠI') + ': ' + (bc.thuMuc || '')
+  const text = (dat ? 'Đã nghiệm thu: đạt' : 'Yêu cầu sửa lại') + ': ' + (bc.thuMuc || '')
     + (bc.nhanXet ? '\nNhận xét: ' + bc.nhanXet : '')
     + (nguoiTen ? '\nNgười nghiệm thu: ' + nguoiTen : '')
     + '\nNgười chỉnh: ' + tenNguoi(bc, '');
 
   const elements = [{
     tag: 'div',
-    text: md(dat ? '**Đạt** — sản phẩm được duyệt.' : '**Cần sửa lại** — nhờ bạn chỉnh và báo cáo lại.'),
+    text: md(dat ? '**Đạt**. Sản phẩm được duyệt.' : '**Cần sửa lại**. Nhờ bạn chỉnh rồi báo cáo lại.'),
   }, {
     tag: 'div',
     fields: [

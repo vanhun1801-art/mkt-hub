@@ -110,7 +110,7 @@ console.log('— Klook: hoa hồng THẬT do OTA trả, không ước tính');
   t('không thiếu SĐT / điểm đón / ngày đi',
     !/Chưa có/.test(H.chuoiCanXuLy(booking.canXuLy)), H.chuoiCanXuLy(booking.canXuLy));
   t('chỉ còn cờ nhắc xác nhận chiều cao trẻ em',
-    H.chuoiCanXuLy(booking.canXuLy) === '⚠️ Trẻ em — xác nhận chiều cao 1m–1m4',
+    H.chuoiCanXuLy(booking.canXuLy) === '⚠️ Trẻ em: xác nhận chiều cao 1m đến 1m4',
     H.chuoiCanXuLy(booking.canXuLy));
 }
 
@@ -270,14 +270,14 @@ console.log('— bảng giá NET: phát hiện OTA trả thiếu');
   // bảng giá: 2 × 650.000 = 1.300.000. OTA báo trả đúng ⇒ không lệch
   let r = H.chuanHoa('klook', { ...base, total_amount: 1530000, net_amount: 1300000 });
   t('OTA trả đúng bảng giá ⇒ không lệch', r.booking.lechBangGia === null, String(r.booking.lechBangGia));
-  t('không có cờ tiền', !H.chuoiCanXuLy(r.booking.canXuLy).includes('THIẾU'),
+  t('không có cờ tiền', !H.chuoiCanXuLy(r.booking.canXuLy).includes('trả thiếu'),
     H.chuoiCanXuLy(r.booking.canXuLy));
 
   // OTA báo trả 1.100.000 ⇒ thiếu 200.000
   r = H.chuanHoa('klook', { ...base, total_amount: 1530000, net_amount: 1100000 });
   t('OTA trả thiếu 200.000 ⇒ lech = 200000', r.booking.lechBangGia === 200000, String(r.booking.lechBangGia));
-  t('cờ ĐỎ "OTA trả THIẾU 200.000đ"',
-    H.chuoiCanXuLy(r.booking.canXuLy).includes('OTA trả THIẾU 200.000đ'),
+  t('cờ ĐỎ "OTA trả thiếu 200.000đ"',
+    H.chuoiCanXuLy(r.booking.canXuLy).includes('OTA trả thiếu 200.000đ'),
     H.chuoiCanXuLy(r.booking.canXuLy));
   t('mức cần xử lý là cao', H.mucCanXuLy(r.booking.canXuLy) === 'cao');
   t('doanh thu vẫn ghi theo BẢNG GIÁ, không theo số OTA báo thiếu',

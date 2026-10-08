@@ -139,11 +139,11 @@ async function keoLai() {
        * không làm hỏng lượt kéo vừa thành công. */
       bao('đang cất kho lên Lark Base…');
       bao(await khoBase.catLen(cfg.tepTho, 'kéo lúc ' + new Date().toISOString())
-        ? 'đã cất lên Base — lần sau khởi động chỉ mất ~35 giây'
-        : '! cất lên Base hỏng, kho chỉ còn trên đĩa (mất sau deploy)');
+        ? 'đã cất lên Base, lần sau khởi động chỉ mất ~35 giây'
+        : '! cất lên Base hỏng, kho chỉ còn trên máy chủ (mất khi cập nhật app)');
     } catch (e) {
       dangKeo.loi = String((e && e.message) || e);
-      bao('HỎNG: ' + dangKeo.loi);
+      bao('Hỏng: ' + dangKeo.loi);
     } finally { dangKeo.xong = true; }
   })();
   return dangKeo;

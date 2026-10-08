@@ -32,7 +32,7 @@ function danhSachO() {
   let diem = [];
   try { diem = require(path.join(BD, 'diem.js')).DIEM.map((d) => ({ ma: d.id, ten: d.ten, nhom: 'diem' })); } catch (_) { /* không có bản đồ */ }
   const xe = XE.flatMap(([ma, ten, n]) => Array.from({ length: n }, (_, i) => ({
-    ma: i ? ma + '-' + (i + 1) : ma, ten: ten + (i ? ' — mẫu ' + (i + 1) : ''), nhom: 'xe',
+    ma: i ? ma + '-' + (i + 1) : ma, ten: ten + (i ? ' · mẫu ' + (i + 1) : ''), nhom: 'xe',
   })));
   oDem = [...diem, ...xe];
   return oDem;

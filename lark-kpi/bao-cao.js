@@ -28,7 +28,7 @@ const { CHI_SO_BAI, CHI_SO_LIVE } = require('./nguon');
 const APP = [
   { id: 'social', ten: 'Social', mo: 'TikTok · Facebook · Instagram · Zalo OA',
     mau: '#d62976', url: process.env.KPI_URL_SOCIAL || 'http://localhost:5178' },
-  { id: 'live', ten: 'LIVE', mo: 'Phiên phát trực tiếp — TikTok · Facebook',
+  { id: 'live', ten: 'LIVE', mo: 'Phiên phát trực tiếp · TikTok · Facebook',
     mau: '#e0245e', url: process.env.KPI_URL_SOCIAL || 'http://localhost:5178' },
   { id: 'quang-cao', ten: 'Quảng cáo', mo: 'Meta · TikTok · Google',
     mau: '#ff7d00', url: process.env.KPI_URL_ADS || 'http://localhost:5176' },
@@ -40,7 +40,7 @@ const APP = [
     mau: '#00b96b', url: process.env.KPI_URL_LICH || 'http://localhost:5174' },
   { id: 'quy-chi-phi', ten: 'Quỹ chi phí', mo: 'Sổ quỹ tạm ứng · quyết toán',
     mau: '#d4a017', url: process.env.KPI_URL_QUY || 'http://localhost:5182' },
-  { id: 'chinh-anh', ten: 'Hậu kỳ — ảnh & video', mo: 'Edit video · thiết kế · nghiệm thu',
+  { id: 'chinh-anh', ten: 'Hậu kỳ ảnh & video', mo: 'Edit video · thiết kế · nghiệm thu',
     mau: '#e0529c', url: process.env.KPI_URL_ANH || 'http://localhost:5181' },
   { id: 'kol', ten: 'KOL', mo: 'Mời · đi tour · bàn giao bài',
     mau: '#8b5cf6', url: process.env.KPI_URL_KOL || 'http://localhost:5186' },
@@ -86,15 +86,15 @@ function goi(app, duong, giay = 30) {
          * thứ người đọc cần biết để đi sửa. */
         if (res.statusCode >= 400) {
           let vi = '';
-          try { const d = JSON.parse(s); vi = d && d.error ? ' — ' + d.error : ''; }
-          catch (_) { vi = s ? ' — ' + s.slice(0, 120) : ''; }
+          try { const d = JSON.parse(s); vi = d && d.error ? ': ' + d.error : ''; }
+          catch (_) { vi = s ? ': ' + s.slice(0, 120) : ''; }
           return tu(new Error('HTTP ' + res.statusCode + vi));
         }
-        try { giai(JSON.parse(s)); } catch (_) { tu(new Error('trả về không phải JSON')); }
+        try { giai(JSON.parse(s)); } catch (_) { tu(new Error('dữ liệu trả về không đọc được')); }
       });
     });
     req.on('error', (e) => tu(new Error(e.code === 'ECONNREFUSED' ? 'app chưa chạy' : e.message)));
-    req.setTimeout(giay * 1000, () => { req.destroy(new Error('quá ' + giay + ' giây')); });
+    req.setTimeout(giay * 1000, () => { req.destroy(new Error('quá ' + giay + ' giây chưa trả lời')); });
   });
 }
 
@@ -279,7 +279,7 @@ async function docSocial(app, tu, den, pv) {
   const ghiFollow = thieuDong.length
     ? 'chưa gồm ' + thieuDong.map((x) => x.platform + ' ('
       + Math.round(so(x.followers) / 1000) + 'k follower)').join(', ')
-      + ' — nền tảng không trả số tăng giảm theo ngày'
+      + ' vì nền tảng không trả số tăng giảm theo ngày'
     : '';
   /* Ô "Số phiên LIVE" đã chuyển hẳn sang khối LIVE. Để lại đây thì hai khối cùng
    * báo một con số, và người đọc phải tự đoán hai chỗ có phải cùng một thứ
@@ -310,7 +310,7 @@ async function docSocial(app, tu, den, pv) {
     oToi.push(
       { nhan: 'Bài tôi đăng', so: c('soBai'), dinhDang: 'so', chinh: true, ghi: ghiPhu },
       { nhan: 'Lượt xem bài tôi đăng', so: c('views'), dinhDang: 'so', chinh: true,
-        ghi: 'cộng trọn đời của bài đăng trong kỳ — khác cơ sở với ô Lượt xem ở trên' },
+        ghi: 'trọn đời của bài đăng trong kỳ · không trừ được với ô Lượt xem ở trên' },
       { nhan: 'Tương tác bài tôi đăng', so: c('engagement'), dinhDang: 'so' },
       { nhan: 'Thích bài tôi đăng', so: c('likes'), dinhDang: 'so' },
       { nhan: 'Bình luận bài tôi đăng', so: c('comments'), dinhDang: 'so' },
@@ -340,7 +340,7 @@ async function docSocial(app, tu, den, pv) {
         dao: true, ghi: ghiFollow, nen: n('followDown') },
       { nhan: locKenh ? 'Tổng follower các kênh của tôi' : 'Tổng follower toàn phòng',
         so: so(t.followers), dinhDang: 'so',
-        ghi: 'ảnh chụp trọn đời, KHÔNG đổi theo khoảng đo · cộng đủ '
+        ghi: 'tổng hiện tại, không đổi theo khoảng đo · cộng đủ '
           + dsKenh.length + ' kênh', nen: n('followers') },
       { nhan: 'Tương tác', so: so(t.engagement), dinhDang: 'so', lech: l.engagement, nen: n('engagement') },
       { nhan: 'Thích', so: so(t.likes), dinhDang: 'so', lech: l.likes, nen: n('likes') },
@@ -539,25 +539,18 @@ async function docLiveRieng(app, tu, den, pv) {
 
   const luuY = [];
   if (dsFb.length && coXemFb < dsFb.length) {
-    luuY.push('Facebook: chỉ ' + coXemFb + '/' + dsFb.length + ' phiên có lượt xem. '
-      + 'Không phải nhân sự quên nhập — API Facebook chỉ trả lượt xem cho một phần '
-      + 'phiên (cổng /live_videos có "live_views" thì đòi Meta duyệt App Review). '
-      + 'Nên lượt xem Facebook bên dưới THẤP HƠN thực tế.');
+    luuY.push('Facebook: chỉ ' + coXemFb + '/' + dsFb.length + ' phiên có lượt xem '
+      + 'vì Facebook chỉ trả số cho một phần phiên, nên lượt xem Facebook thấp hơn thực tế.');
   }
   if (!dsTt.length) {
-    luuY.push('Không có số LIVE TikTok trong kỳ. TikTok không mở API cho LIVE — '
-      + 'số chỉ về được khi nhân sự tải bản xuất LIVE Center lên app Social.');
+    luuY.push('Không có số LIVE TikTok trong kỳ. Tải bản xuất LIVE Center lên app Social để có số.');
   } else {
-    luuY.push('TikTok đếm theo NGÀY (' + dsTt.length + ' ngày, ' + phienTt + ' phiên) '
-      + 'vì bản xuất LIVE Center gộp theo ngày — không tách được từng phiên. '
-      + 'Facebook thì đếm từng phiên.');
+    luuY.push('TikTok đếm theo ngày (' + dsTt.length + ' ngày, ' + phienTt + ' phiên) '
+      + 'vì LIVE Center gộp theo ngày; Facebook đếm từng phiên.');
   }
   if (dsFb.some((x) => so(x.peak) > 0)) {
-    luuY.push('"Xem cùng lúc" của Facebook lấy từ trường live_audience_count trên '
-      + 'node video — Meta KHÔNG ghi tài liệu cho trường này, nên chưa rõ nó là '
-      + 'đỉnh cùng lúc hay số tại lúc tắt sóng. Đọc như "cỡ bao nhiêu người xem '
-      + 'lúc đang phát", đừng đọc như đỉnh đã xác nhận. Đỉnh của TikTok thì là '
-      + 'đỉnh thật, lấy từ bản xuất LIVE Center.');
+    luuY.push('"Xem cùng lúc" của Facebook là số ước lượng lúc đang phát, chưa chắc là đỉnh. '
+      + 'Đỉnh của TikTok là số thật từ LIVE Center.');
   }
 
   const o = [
@@ -581,7 +574,7 @@ async function docLiveRieng(app, tu, den, pv) {
      * ngay dưới, chứ không nhét vào dòng chú thích của ô. */
     { nhan: 'Bình luận', so: cFb('comments') + cTt('nguoiBinhLuan'), dinhDang: 'so' },
     { nhan: 'Người xem', so: cFb('xemRieng') + cTt('nguoiXemRieng'), dinhDang: 'so',
-      ghi: 'cộng theo phiên — ai xem hai phiên tính hai lần' },
+      ghi: 'cộng theo phiên, ai xem hai phiên tính hai lần' },
     { nhan: 'Thích', so: cFb('likes') + cTt('thich'), dinhDang: 'so' },
     { nhan: 'Chia sẻ', so: cFb('shares') + cTt('chiaSe'), dinhDang: 'so' },
   ];
@@ -691,10 +684,10 @@ async function docLiveRieng(app, tu, den, pv) {
       quyMo: { ten: 'Quy mô', mo: 'Facebook và TikTok cộng lại' },
       nguoiXem: { ten: 'Người xem', mo: 'bao nhiêu người, xem bao lâu' },
       chatLuong: { ten: 'Chất lượng xem',
-        mo: 'ngồi lại bao lâu — lượt xem thô không nói được điều này' },
+        mo: 'người xem ngồi lại bao lâu' },
       tuongTac: { ten: 'Tương tác', mo: 'người xem làm gì trong phiên' },
-      raDon: { ten: 'Ra đơn — chỉ Facebook',
-        mo: 'gắn từ Tourwell theo khung giờ phiên, nên là phép ĐOÁN' },
+      raDon: { ten: 'Ra đơn · chỉ Facebook',
+        mo: 'ước đoán: gắn từ Tourwell theo khung giờ phiên' },
       khac: { ten: 'Khác', mo: '' },
     },
     /* Hai mảng này KHÔNG phải để hiện ra — ganDiaDiemLive() dùng chúng để điền
@@ -726,7 +719,7 @@ async function docLiveRieng(app, tu, den, pv) {
         nhan: x.nhan,
         so: x.luc,
         vi: x.luc == null
-          ? 'chưa đo được — ' + gonSoNgan(so(x.bai)) + ' sau khi thành bài đăng'
+          ? 'chưa đo được · ' + gonSoNgan(so(x.bai)) + ' sau khi thành bài đăng'
           : x.phien + ' phiên',
       })),
     },
@@ -736,7 +729,7 @@ async function docLiveRieng(app, tu, den, pv) {
        * Facebook hiện KHÔNG cho con số đó, nên 79k của Facebook không so thẳng
        * được với 69k của TikTok. Để dưới dạng bảng chứ không phải dải cảnh báo:
        * nó là số liệu, không phải lời than. */
-      { tieuDe: 'Hai loại lượt xem — theo từng kênh',
+      { tieuDe: 'Hai loại lượt xem theo kênh',
         cot: ['Nền tảng · Kênh', 'Phiên', 'Tại thời điểm LIVE', 'Sau khi thành bài đăng',
           'Người xem'],
         soCot: [1, 2, 3, 4],
@@ -749,8 +742,8 @@ async function docLiveRieng(app, tu, den, pv) {
         cot: ['Nền tảng', 'Cách đếm', 'Số'],
         soCot: [2],
         dong: [
-          ['Facebook', 'đếm LƯỢT bình luận', cFb('comments')],
-          ['TikTok', 'đếm NGƯỜI có bình luận', cTt('nguoiBinhLuan')],
+          ['Facebook', 'đếm lượt bình luận', cFb('comments')],
+          ['TikTok', 'đếm người có bình luận', cTt('nguoiBinhLuan')],
         ],
       }] : []),
       /* Bảng "LIVE theo kênh" cũ đã bỏ: nó lặp lại đúng những cột của bảng
@@ -771,7 +764,7 @@ async function docLiveRieng(app, tu, den, pv) {
         cot: ['Ngày', 'Kênh', 'Phiên', 'Giờ', 'Lượt xem', 'Người xem',
           'Người bình luận', 'Follow mới', 'Địa điểm'],
         soCot: [2, 3, 4, 5, 6, 7],
-        dong: ngayTt2.slice(0, 40).map((x) => [x.date || '', x.channel || '', so(x.soPhien),
+        dong: ngayTt2.slice(0, 40).map((x) => [x.date ? gioPhut(x.date) : '', x.channel || '', so(x.soPhien),
           Math.round((so(x.thoiLuong) / 3600) * 10) / 10, so(x.luotXem),
           so(x.nguoiXemRieng), so(x.nguoiBinhLuan), so(x.followerMoi), '—']) },
     ].filter((b) => b.dong.length),
@@ -839,12 +832,12 @@ async function docQuangCao(app, tu, den, pv) {
       { nhan: 'Doanh thu từ QC', so: so(k.revenue), dinhDang: 'vnd', lech: l.revenue,
         ghi: so(k.revenue) ? 'đơn ghi công được cho quảng cáo' : 'chưa ghi công được đơn nào' },
       { nhan: 'ROAS', so: so(k.roas), dinhDang: 'x', lech: l.roas,
-        ghi: 'mỗi đồng chi ra thu về' },
+        ghi: 'doanh thu trên mỗi đồng chi' },
       /* Ba ô đặt doanh thu quảng cáo vào bối cảnh công ty. App Ads đã tính sẵn;
        * thiếu chúng thì "157 triệu" đọc lên như toàn bộ doanh thu của phòng. */
       { nhan: 'Doanh thu toàn công ty', so: so(k.revenueCongTy), dinhDang: 'vnd',
-        ghi: 'mọi nguồn, để đặt cạnh mà so' },
-      { nhan: 'Doanh thu NGOÀI quảng cáo', so: so(k.revenueNgoaiQuangCao), dinhDang: 'vnd' },
+        ghi: 'mọi nguồn, để so sánh' },
+      { nhan: 'Doanh thu ngoài quảng cáo', so: so(k.revenueNgoaiQuangCao), dinhDang: 'vnd' },
       { nhan: 'Phần doanh thu đến từ QC', so: so(k.tyLeTuQuangCao), dinhDang: 'pt',
         ghi: 'trên doanh thu toàn công ty' },
       { nhan: 'Doanh thu mỗi chuyển đổi', so: so(k.conversions) ? so(k.revenue) / so(k.conversions) : 0,
@@ -1398,12 +1391,11 @@ async function docKol(app, tu, den) {
    * khác rồi kết luận nhầm về hiệu quả. */
   const luuY = [];
   if (dangKy.length && !htKy.length) {
-    luuY.push('Kỳ này có bài KOL lên sóng nhưng không hợp tác nào khởi hành — '
-      + 'tiền cho những bài này đã chi ở kỳ trước, nên khối này chưa tính được giá mỗi lượt xem.');
+    luuY.push('Có bài KOL lên sóng nhưng không hợp tác nào khởi hành trong kỳ. '
+      + 'Tiền đã chi ở kỳ trước nên chưa tính được giá mỗi lượt xem.');
   }
   if (htKy.length && !dangKy.length) {
-    luuY.push('Kỳ này có hợp tác khởi hành nhưng chưa bài nào lên sóng — '
-      + 'chi phí đã phát sinh, kết quả sẽ rơi vào kỳ sau.');
+    luuY.push('Có hợp tác khởi hành nhưng chưa bài nào lên sóng. Kết quả sẽ rơi vào kỳ sau.');
   }
   if (dangKy.length && !coSo.length) {
     luuY.push('Chưa bài nào tới mốc đo 7 ngày hoặc chưa ai nhập số, nên lượt xem '
@@ -1417,7 +1409,7 @@ async function docKol(app, tu, den) {
       { nhan: 'Lượt xem 7 ngày', so: xem7, dinhDang: 'so', chinh: true, ghi: ghiSo },
       { nhan: 'Tương tác 7 ngày', so: tt7, dinhDang: 'so', ghi: ghiSo },
       { nhan: 'Tệp theo dõi chạm tới', so: tepTheoDoi, dinhDang: 'so',
-        ghi: kenhDaDang.size + ' kênh đã đăng · là quy mô tiếp cận, không phải số người đã xem' },
+        ghi: kenhDaDang.size + ' kênh đã đăng · quy mô tiếp cận, không phải số người xem' },
       /* Hai ô trung bình cũng chỉ hiện khi có mẫu số thật. Không có bài nào đã
        * đo mà vẫn in "0 lượt xem mỗi bài" thì người đọc hiểu là bài KOL không ai
        * xem, trong khi sự thật là chưa tới ngày đo. */
@@ -1541,10 +1533,10 @@ async function docHauKy(app, tu, den, pv) {
        * kiểm được. */
       { nhan: 'Tỷ lệ hoàn thành', so: hk.length ? (xong(hk).length / hk.length) * 100 : 0,
         dinhDang: 'pt', ghi: xong(hk).length + '/' + hk.length
-          + ' việc đến hạn đã báo xong · bảng không ghi ngày hoàn thành nên không rõ có kịp hạn không' },
+          + ' việc đến hạn đã báo xong · chưa rõ có kịp hạn' },
       { nhan: 'Có file hoặc link kết quả', so: hk.filter(coKetQua).length, dinhDang: 'so',
         ghi: hk.length ? Math.round((hk.filter(coKetQua).length / hk.length) * 100)
-          + '% số việc — phần còn lại báo xong nhưng không đính sản phẩm' : '' },
+          + '% số việc · số còn lại không đính sản phẩm' : '' },
       { nhan: 'Người làm hậu kỳ', so: theoNguoi.length, dinhDang: 'so' },
     );
   }
@@ -1563,7 +1555,7 @@ async function docHauKy(app, tu, den, pv) {
     o.push(
       { nhan: 'Lô sản phẩm đã báo', so: g(ca.soBaoCao, 'lo'), dinhDang: 'so', ghi: nguon },
       { nhan: 'Ngày có chỉnh ảnh', so: ngayAnh, dinhDang: 'so',
-        ghi: rieng && rieng.length > 1 ? 'của cả tổ — số ngày không cộng theo người được'
+        ghi: rieng && rieng.length > 1 ? 'của cả tổ, không tách theo người được'
           : 'ngày thật sự có ảnh về' },
       { nhan: 'Ảnh đã chỉnh', so: g(ca.soAnh, 'anh'), dinhDang: 'so', chinh: true,
         ghi: ngayAnh ? Math.round(g(ca.soAnh, 'anh') / ngayAnh) + ' ảnh một ngày' : nguon },
@@ -1578,16 +1570,14 @@ async function docHauKy(app, tu, den, pv) {
 
   const luuY = [];
   if (cv) {
-    luuY.push('Số việc KHÔNG bằng số video: một dòng "Edit Video" trên Bảng công việc '
-      + 'có thể là một video, cũng có thể là cả loạt. Đây là số VIỆC hậu kỳ đã xong.');
+    luuY.push('Đây là số việc, không phải số video: một việc "Edit Video" có thể là cả loạt video.');
   }
   if (ca && !dem(ca.soBaoCao)) {
-    luuY.push('App Chỉnh ảnh & Edit video chưa có phiếu nào trong kỳ — sáu ô nghiệm thu '
-      + 'bên dưới bằng 0 vì chưa ai lập phiếu, không phải vì không có sản phẩm. '
-      + 'Nghiệm thu chất lượng vẫn đang nằm ngoài hệ thống.');
+    luuY.push('App Chỉnh ảnh & Edit video chưa có phiếu nào trong kỳ, nên các ô nghiệm thu '
+      + 'bằng 0 vì chưa ai lập phiếu, không phải vì không có sản phẩm.');
   }
-  if (!ca) luuY.push('Không đọc được app Chỉnh ảnh — chỉ còn số từ Bảng công việc.');
-  if (!cv) luuY.push('Không đọc được Bảng công việc — chỉ còn số nghiệm thu của app Chỉnh ảnh.');
+  if (!ca) luuY.push('Không đọc được app Chỉnh ảnh, chỉ còn số từ Bảng công việc.');
+  if (!cv) luuY.push('Không đọc được Bảng công việc, chỉ còn số nghiệm thu của app Chỉnh ảnh.');
 
   return {
     luuY,
@@ -1822,7 +1812,7 @@ function gomTepMoi(base, tongChi) {
     { nhan: 'Lượt tiếp cận', chinh: true,
       g: congNguon([{ ten: 'Social', v: lay('social', 'Lượt tiếp cận') }]),
       do: phuSong('social', 'Lượt tiếp cận'),
-      ghi: 'số lần nội dung hiện ra trước một người — chưa phải số người' },
+      ghi: 'số lần hiện ra trước một người, chưa phải số người' },
     { nhan: 'Người theo dõi mới (ròng)', chinh: true,
       g: congNguon([{ ten: 'Social', v: lay('social', 'Follower tăng ròng') },
         { ten: 'LIVE', v: lay('live', 'Follow mới') }]),
@@ -1849,7 +1839,7 @@ function gomTepMoi(base, tongChi) {
       ghi: 'đơn có thật trên sàn Klook · WAUG · GetYourGuide…' },
     { nhan: 'Chuyển đổi quảng cáo ghi nhận',
       g: congNguon([{ ten: 'Quảng cáo', v: lay('quang-cao', 'Chuyển đổi') }]),
-      ghi: 'nền tảng quảng cáo tự đếm — trùng một phần với booking OTA, không cộng dồn' },
+      ghi: 'nền tảng tự đếm, trùng một phần với booking OTA nên không cộng dồn' },
     { nhan: 'Đơn chốt trên sóng LIVE',
       g: congNguon([{ ten: 'LIVE', v: lay('live', 'Đơn chốt') }]) },
   ];
@@ -1876,11 +1866,11 @@ function gomTepMoi(base, tongChi) {
     if (tdMoi && tdMoi.so > 0) {
       o.push({ nhan: 'Chi phòng chia đều mỗi người theo dõi mới', so: tongChi / tdMoi.so,
         dinhDang: 'vnd', dao: true,
-        ghi: 'tỷ số thô — phần lớn tiền quảng cáo chạy để bán tour, không phải để kéo follow' });
+        ghi: 'tỷ số thô, vì phần lớn tiền quảng cáo dùng để bán tour' });
     }
     if (lead && lead.so > 0) {
       o.push({ nhan: 'Chi phòng chia đều mỗi lead', so: tongChi / lead.so,
-        dinhDang: 'vnd', dao: true, ghi: 'tỷ số thô — chỉ tính lead Social và LIVE đã ghi nhận' });
+        dinhDang: 'vnd', dao: true, ghi: 'tỷ số thô, chỉ tính lead Social và LIVE đã ghi nhận' });
     }
   }
 
@@ -2116,14 +2106,14 @@ function gomChiPhi(base) {
         ghi: hangMuc.length ? hangMuc[0].nhan : '' },
     ],
     tron: {
-      nhan: 'Tiền phòng đi về đâu — theo ví',
+      nhan: 'Chi theo ví',
       giua: 'Tổng chi',
       phan: [{ nhan: 'Quảng cáo', so: qc.so }, { nhan: 'Quỹ chi phí', so: quy.so }]
         .filter((x) => x.so > 0),
     },
     hangMuc,
     bang: [
-      { tieuDe: 'Chi theo hạng mục — tiền đi vào việc gì',
+      { tieuDe: 'Chi theo hạng mục',
         cot: ['Hạng mục', 'Ví tiền', 'Số khoản', 'Số tiền', '% tổng chi'],
         soCot: [2, 3, 4],
         dong: hangMuc.map((x) => [x.nhan, x.vi, x.soKhoan == null ? '—' : x.soKhoan, x.so,

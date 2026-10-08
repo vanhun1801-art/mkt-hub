@@ -700,7 +700,7 @@ function cheTien(b) {
   const ra = { ...b };
   TRUONG_TIEN.forEach((k) => { delete ra[k]; });
   ra.canXuLy = (b.canXuLy || []).filter((c) => !CO_TIEN.test(c.nhan));
-  if (!ra.canXuLy.length) ra.canXuLy = [{ muc: 'ok', nhan: b.dong ? '— ' + b.trangThai : '✅ Đủ thông tin' }];
+  if (!ra.canXuLy.length) ra.canXuLy = [{ muc: 'ok', nhan: b.dong ? b.trangThai : '✅ Đủ thông tin' }];
   ra.canXuLyChuoi = ra.canXuLy.map((c) => c.nhan).join(' · ');
   ra.muc = ra.canXuLy.some((c) => c.muc === 'cao') ? 'cao'
     : ra.canXuLy.some((c) => c.muc === 'vua') ? 'vua' : 'ok';

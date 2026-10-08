@@ -130,16 +130,16 @@ async function veBaoCao() {
    * trong báo cáo đang thiếu số thật, và im lặng ở đó là để người ta đọc một
    * con số đã khuyết mà tưởng là đủ. */
   hop.appendChild(el('div', 'bc-dong-ky',
-    'Kỳ <b>' + ngay(BC.tu) + ' – ' + ngay(BC.den) + '</b> (' + BC.soNgay + ' ngày)'
+    'Kỳ <b>' + ngay(BC.tu) + ' → ' + ngay(BC.den) + '</b> (' + BC.soNgay + ' ngày)'
     + (BC.kyTruoc
       ? ' · so với ' + esc(BC.kyTruoc.nhan || 'kỳ trước') + ' '
-        + ngay(BC.kyTruoc.tu) + ' – ' + ngay(BC.kyTruoc.den)
+        + ngay(BC.kyTruoc.tu) + ' → ' + ngay(BC.kyTruoc.den)
       : ' · không so với kỳ nào')
     + bcChuMucTieu()));
   if (BC.soChay < BC.soApp) {
     hop.appendChild(el('div', 'canhbao canhBao',
-      '<div><b>' + (BC.soApp - BC.soChay) + '/' + BC.soApp + ' base không đọc được</b> — '
-      + 'những khối đó đang thiếu số, không phải bằng 0.</div>'));
+      '<div><b>' + (BC.soApp - BC.soChay) + '/' + BC.soApp + ' base không đọc được.</b> '
+      + 'Các khối đó đang thiếu số, không phải bằng 0.</div>'));
   }
 
   /* Chi phí đứng TRƯỚC các base: tiền của phòng đi ra hai app khác nhau, và
@@ -223,7 +223,7 @@ function bcThanhLoc() {
     const b = el('button', 'seg-nut' + (dangChon ? ' chon' : ''), nhan);
     b.title = diToi
       ? 'Bấm lần nữa để xem thẳng báo cáo của ' + nhan.toLowerCase()
-        + ' (' + ngay(BC.kyTruoc.tu) + ' – ' + ngay(BC.kyTruoc.den) + '), không so sánh'
+        + ' (' + ngay(BC.kyTruoc.tu) + ' → ' + ngay(BC.kyTruoc.den) + '), không so sánh'
       : 'So với ' + nhan.toLowerCase();
     b.onclick = () => {
       if (diToi) {
@@ -243,8 +243,8 @@ function bcThanhLoc() {
   gSS.appendChild(segSS);
   if (BC_SS === 'khong') {
     gSS.appendChild(el('span', 'seg-ghi',
-      'báo cáo riêng khoảng ' + ngay(BC_KY.tu) + ' – ' + ngay(BC_KY.den)
-      + ', không so sánh — bấm một mốc để bật lại'));
+      'báo cáo riêng khoảng ' + ngay(BC_KY.tu) + ' → ' + ngay(BC_KY.den)
+      + ', không so sánh · bấm một mốc để bật lại'));
   }
   if (!anSoSanh) than.appendChild(gSS);
 
@@ -264,7 +264,7 @@ function bcThanhLoc() {
       b.onclick = () => { if (BC_NHU !== ma) { BC_NHU = ma; veBaoCao(); } };
       seg.appendChild(b);
     };
-    them('', 'Cả phòng', 'Bản đầy đủ của trưởng phòng — có chi phí, xu hướng, mọi kênh');
+    them('', 'Cả phòng', 'Bản đầy đủ: chi phí, xu hướng, mọi kênh');
     if (BC_DS_VAI) {
       Object.keys(BC_DS_VAI).forEach((ma) => {
         const v = BC_DS_VAI[ma];
@@ -283,7 +283,7 @@ function bcThanhLoc() {
   g4.innerHTML = '<label>&nbsp;</label>';
   const hang = el('div', 'nut-hang');
   const nutXuat = el('button', 'btn chinh', 'Xuất báo cáo');
-  nutXuat.title = 'Mở tệp báo cáo hoàn chỉnh — trong đó có nút Lưu PDF, tải HTML, tải CSV';
+  nutXuat.title = 'Mở tệp báo cáo đầy đủ, có nút lưu PDF, tải HTML, tải CSV';
   nutXuat.onclick = () => window.open('api/xuat-bao-cao?tu=' + BC_KY.tu + '&den=' + BC_KY.den + '&ss=' + BC_SS, '_blank');
   /* Lối tắt cho ai chỉ cần số để bê sang bảng tính, khỏi mở tệp báo cáo ra rồi
    * mới bấm nút CSV trong đó. */
@@ -339,12 +339,12 @@ function bcChiPhi(c) {
   t.appendChild(el('header', '',
     '<span class="cham-tron" style="background:#d4a017"></span>'
     + '<h3>Chi phí toàn phòng</h3>'
-    + '<span class="phu">tiền phòng đi về đâu — quảng cáo + quỹ chi phí</span>'));
+    + '<span class="phu">quảng cáo + quỹ chi phí</span>'));
 
   if (!c.doc) {
     t.appendChild(el('div', 'than', '<div class="canhbao chan"><div>'
-      + '<b>Chưa cộng được tổng chi phí</b> — không đọc được ' + esc((c.thieu || []).join(' và '))
-      + '. Cộng một nửa rồi gọi là tổng chi phí phòng thì sai còn tệ hơn là để trống.'
+      + '<b>Chưa cộng được tổng chi phí</b> vì không đọc được ' + esc((c.thieu || []).join(' và '))
+      + '.'
       + '</div></div>'));
     return t;
   }
@@ -410,7 +410,7 @@ function bcThanhNgang(ds, tieuDe, tong, don) {
   g.appendChild(hang);
   if (ds.length > 14) {
     g.appendChild(el('div', 'ss-chan', 'Còn ' + (ds.length - 14)
-      + ' mục nhỏ hơn — xem đủ ở bảng bên dưới.'));
+      + ' mục nhỏ hơn, xem ở bảng bên dưới.'));
   }
   return g;
 }
@@ -484,11 +484,8 @@ function bcSoSanh(ds, tieuDe, nhanTruoc) {
   });
   g.appendChild(luoi);
   g.appendChild(el('div', 'ss-chan',
-    '<b>Mỗi ô có thang riêng</b> — hai cột trong cùng một ô so được với nhau, '
-    + 'còn chiều cao giữa các ô thì không (lượt xem hàng triệu đứng cạnh bình luận '
-    + 'hàng chục, chung thang thì cột nhỏ dẹp thành vạch kẻ). Số thật in trên đầu '
-    + 'từng cột · xanh = tốt lên · đỏ = xấu đi · <b>xám = không có chiều tốt xấu</b> '
-    + '(tổng tiền đã chi: giảm có thể là tiết kiệm, cũng có thể là ngừng chạy)'));
+    '<b>Mỗi ô có thang riêng</b>: chỉ so hai cột trong cùng ô, không so chiều cao giữa các ô. '
+    + 'Xanh = tốt lên · đỏ = xấu đi · xám = không có chiều tốt xấu (như tổng tiền đã chi).'));
   return g;
 }
 
@@ -642,7 +639,7 @@ function bcXuHuong(x) {
   t.appendChild(el('header', '',
     '<span class="cham-tron" style="background:#f59e0b"></span>'
     + '<h3>Xu hướng ' + x.thang.length + ' tháng</h3>'
-    + '<span class="phu">' + nhanThang(x.thang[0]) + ' – '
+    + '<span class="phu">' + nhanThang(x.thang[0]) + ' → '
     + nhanThang(x.thang[x.thang.length - 1]) + '</span>'));
 
   const chon = el('div', 'than nho');
@@ -699,7 +696,7 @@ function bcXuHuong(x) {
         + '>' + (pt.so == null ? '—' : bcSo(pt.so, r.dinhDang)) + '</b></div>').join('')
       + '<div class="xh-lech ' + mauLech + '"' + (dauKy
         ? ' title="so ' + nhanThang(cuoiKy.thang) + ' với ' + nhanThang(dauKy.thang)
-          + ' — tháng đầu tiên có số ở dòng này"' : '') + '>'
+          + ', tháng đầu tiên có số ở dòng này"' : '') + '>'
       + (lech == null ? '—'
         : (lech > 0 ? '▲ +' : '▼ ') + (Math.round(lech * 10) / 10).toString().replace('.', ',') + '%')
       + '</div>';
@@ -707,10 +704,8 @@ function bcXuHuong(x) {
   });
   khung.appendChild(bang);
 
-  const chu = ['Mỗi đường chia cho tháng cao nhất của chính nó, nên trục dọc đọc là '
-    + '<b>“so với lúc đỉnh của chỉ số đó”</b> — so được hình dáng giữa các đường, '
-    + 'không so được độ cao. Chi phí hàng chục triệu không thể chung thang với ROAS '
-    + 'một con số. Số thật nằm ở bảng ngay trên và hiện khi rê chuột lên điểm.'];
+  const chu = ['Trục dọc là <b>% so với tháng cao nhất của từng chỉ số</b>: so hình dáng '
+    + 'giữa các đường, không so độ cao. Số thật ở bảng trên và khi rê chuột lên điểm.'];
   if ((x.thieu || []).length) {
     chu.push('Tháng đọc thiếu base: ' + x.thieu.map((k) => nhanThang(k.thang)
       + ' (' + k.doc + '/' + k.tong + ')').join(', ') + '.');
@@ -817,10 +812,9 @@ function bcChuMucTieu() {
   }
   let t = '<br>Mục tiêu lấy từ bộ luật KPI '
     + m.coLuat.map((x) => 'tháng ' + x.slice(5)).join(' + ')
-    + ' (' + m.soKenh + ' kênh) — cùng bộ luật đang dùng để chấm lương.';
+    + ' (' + m.soKenh + ' kênh), cùng bộ luật chấm lương.';
   if (!m.tronThang) {
-    t += ' Khoảng đang xem không trọn tháng nên <b>mục tiêu đã chia theo số ngày</b>, '
-      + 'giả định công việc rải đều trong tháng.';
+    t += ' Khoảng đang xem không trọn tháng nên <b>mục tiêu đã chia theo số ngày</b>.';
   }
   if (m.thieuLuat.length) {
     t += ' Chưa có bộ luật cho ' + m.thieuLuat.map((x) => 'tháng ' + x.slice(5)).join(', ')
@@ -906,11 +900,7 @@ function bcPheu(ds, goc) {
   });
   g.appendChild(kh);
   g.appendChild(el('div', 'ss-chan',
-    'Bề rộng các dải thu hẹp đều theo thứ bậc, <b>không tỷ lệ với con số</b> — '
-    + 'bậc đầu và bậc cuối chênh nhau quá xa, vẽ đúng tỷ lệ thì dải cuối mỏng đến '
-    + 'mức không nhìn thấy. Số thật in trên từng dải. <b>Các bậc ở đây cùng một '
-    + 'tập người và cùng một hệ đo</b> nên tỷ lệ giữa chúng mới có nghĩa — báo cáo '
-    + 'chỉ dựng phễu ở những chỗ đạt điều kiện đó.'));
+    'Bề rộng dải theo thứ bậc, <b>không tỷ lệ với con số</b>. Số thật in trên từng dải.'));
   return g;
 }
 
@@ -927,11 +917,8 @@ function bcTepMoi(m) {
     + '<h3>Tệp khách hàng tiếp cận mới</h3>'
     + '<span class="phu">gộp từ Social · LIVE · Quảng cáo · KOL · OTA</span>'));
   t.appendChild(el('div', 'than nho',
-    'Đây là các phép đo <b>rời rạc</b>, không phải các chặng của một phễu: lượt '
-    + 'tiếp cận chỉ đo được ở Facebook và Instagram, tin nhắn hầu hết là Zalo OA, '
-    + 'còn booking đến từ chợ của các sàn OTA và không có trường nguồn marketing '
-    + 'nào nối về đây. <b>Đừng chia bậc này cho bậc kia</b> — mỗi ô ghi rõ chỗ nào '
-    + 'đo được. Ô nào không app nào đo được thì để trống chứ không hiện 0.'));
+    'Các ô đo <b>riêng rẽ</b>, không phải các chặng của một phễu, nên '
+    + '<b>đừng chia ô này cho ô kia</b>. Ô trống là chưa app nào đo được.'));
   const luoi = el('div', 'o-luoi');
   (m.o || []).forEach((o) => luoi.appendChild(bcO(o)));
   t.appendChild(luoi);
@@ -1009,8 +996,8 @@ function bcKhoi(b) {
 
   if (!b.chay) {
     t.appendChild(el('div', 'than', '<div class="canhbao chan"><div>'
-      + '<b>Không đọc được số liệu</b> — ' + esc(b.loi) + '. '
-      + 'Ô của base này để trống chứ không hiện 0, vì 0 và “không đọc được” là hai chuyện khác nhau.'
+      + '<b>Không đọc được số liệu:</b> ' + esc(b.loi) + '. '
+      + 'Các ô của base này để trống, không phải bằng 0.'
       + '</div></div>'));
     return t;
   }

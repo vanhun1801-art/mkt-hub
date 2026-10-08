@@ -159,7 +159,7 @@ async function doDanhMuc(ds, { id, ten, bi, cot }) {
   });
   return {
     ok: !!map.ten, tableId, fields: map, thieu,
-    loi: map.ten ? '' : 'Bảng "' + ten + '" không có cột tên — không nối link được',
+    loi: map.ten ? '' : 'Bảng "' + ten + '" không có cột tên, chưa nối link được',
   };
 }
 

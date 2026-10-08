@@ -285,9 +285,8 @@ function veBookingMoi() {
   let html = '';
   if (d.epNguon) {
     html += `<div class="canhbao"><div class="noi">
-      <b>Đang xem HÀNG ĐỢI CỤC BỘ, không phải Lark Base</b>
-      <p>Lark Base vẫn đọc được bình thường — đây là lựa chọn của bạn để soi booking nào
-      chưa đẩy lên Base được. <a href="#" id="veBase">Quay lại xem Base</a></p>
+      <b>Đang xem hàng đợi cục bộ, không phải Lark Base</b>
+      <p>Dùng để soi booking chưa đẩy lên Base được. <a href="#" id="veBase">Quay lại xem Base</a></p>
     </div></div>`;
   /* `S.meta &&` không thừa: mọi chỗ khác trong file đều có, riêng chỗ này quên.
    * Mở app TRONG lớp vỏ thì lớp vỏ đẩy khoảng thời gian chung xuống ngay khi
@@ -298,8 +297,8 @@ function veBookingMoi() {
   } else if (d.nguon === 'base' && ((S.meta && S.meta.chuaDay) || 0) > 0) {
     html += `<div class="canhbao"><div class="noi">
       <b>${soVn(S.meta.chuaDay)} booking chưa đẩy được lên Base</b>
-      <p>Chúng vẫn nằm an toàn trong hàng đợi cục bộ, nhưng ổ đĩa Render là tạm nên sẽ mất
-      sau lần deploy tới. <a href="#" id="xemHangDoi">Xem hàng đợi</a> ·
+      <p>Chúng đang nằm trong hàng đợi cục bộ và sẽ mất khi app cập nhật.
+      <a href="#" id="xemHangDoi">Xem hàng đợi</a> ·
       quản lý bấm <b>Đẩy hàng đợi vào Base</b> ở tab Dữ liệu Lark.</p>
     </div></div>`;
   }
@@ -312,10 +311,10 @@ function veBookingMoi() {
   const n = (S.meta && S.meta.nhapBooking) || {};
   const linkNhap = n.url || (S.meta && S.meta.baseUrl) || '';
   html += `<div class="nhap-mot-lan">
-    <div><span class="nhap-kicker">LUỒNG ĐANG DÙNG</span>
+    <div><span class="nhap-kicker">Luồng đang dùng</span>
       <b>Nhập booking đúng một lần trong Lark</b>
-      <p>OTA chưa cấp API: nhân viên nhập tại view <b>${esc(n.viewName || 'Nhập booking OTA')}</b>.
-        OTA Manager tự đọc bảng <b>Bookings</b>, tính thống kê và cảnh báo — không nhập lại ở đây.</p></div>
+      <p>Nhập tại view <b>${esc(n.viewName || 'Nhập booking OTA')}</b>. App tự đọc bảng <b>Bookings</b>
+        để thống kê và cảnh báo.</p></div>
     ${linkNhap ? `<a class="btn primary" href="${esc(linkNhap)}" target="_blank" rel="noreferrer">+ ${n.laForm ? 'Mở form nhập booking' : 'Mở Lark để nhập'}</a>` : ''}
   </div>`;
 
@@ -333,7 +332,7 @@ function veBookingMoi() {
         <button data-sap="nhanLuc" class="${S.loc.sap === 'nhanLuc' ? 'on' : ''}">Mới nhập vào Lark</button>
       </div>
       <span class="manh">${S.loc.sap === 'ngayDi'
-        ? 'hôm nay lên đầu, rồi mai, mốt… tour đã chạy xuống cuối; cùng ngày thì theo giờ đón'
+        ? 'gần nhất lên đầu, tour đã chạy xuống cuối, cùng ngày xếp theo giờ đón'
         : 'booking vừa được nhập vào Lark xếp trước'}</span>
     </div>
     ${veBangBooking(rows)}
@@ -384,11 +383,9 @@ function veThongKe() {
 
   if (t.lechBangGia) {
     html += `<div class="canhbao xau"><div class="noi">
-      <b>${soVn(t.lechBangGia)} booking có số OTA báo trả LỆCH bảng giá NET — tổng lệch ${vnd(t.tienLech)}</b>
-      <p>Số dương là OTA trả <b>thiếu</b> so với hợp đồng. Ba nguyên nhân có thể:
-      OTA trả sai, app map sai sản phẩm, hoặc bảng giá trong app đã cũ.
-      Lọc cột "Thông tin cần xử lý" ở màn Booking mới để xem từng booking rồi đối chiếu
-      với báo cáo thanh toán của OTA.</p>
+      <b>${soVn(t.lechBangGia)} booking OTA báo trả lệch bảng giá NET · tổng lệch ${vnd(t.tienLech)}</b>
+      <p>Số dương là OTA trả <b>thiếu</b>. Có thể do OTA trả sai, map sai sản phẩm hoặc bảng giá đã cũ.
+      Xem cột "Thông tin cần xử lý" ở tab Booking mới rồi đối chiếu với báo cáo thanh toán của OTA.</p>
     </div></div>`;
   }
 
@@ -396,35 +393,33 @@ function veThongKe() {
     html += `<div class="canhbao"><div class="noi">
       <b>${soVn(t.chuaMapSanPham)} booking chưa map được sản phẩm trong bảng giá${
         t.khongCoDoanhThu ? `, trong đó ${soVn(t.khongCoDoanhThu)} booking chưa tính được doanh thu` : ''}</b>
-      <p>Doanh thu ở trên còn khuyết đúng bằng số booking đó. Bổ sung sản phẩm (hoặc thêm
-      tên gọi khác của tour) vào bảng giá ở tab <b>Dữ liệu Lark</b> là hết — không cần deploy lại.</p>
+      <p>Doanh thu ở trên chưa gồm các booking này. Thêm sản phẩm (hoặc tên gọi khác của tour)
+      vào bảng giá ở tab <b>Dữ liệu Lark</b> để tính đủ.</p>
     </div></div>`;
   }
 
   if (t.ngoaiTe) {
     html += `<div class="canhbao"><div class="noi">
       <b>${soVn(t.ngoaiTe)} booking OTA bán bằng ${esc(t.dsNgoaiTe.join(' / '))}</b>
-      <p><b>Doanh thu thực nhận vẫn ĐÚNG và ĐỦ</b> — nó lấy từ bảng giá NET nên luôn là VNĐ,
-      không phụ thuộc OTA bán bằng tiền gì. Chỉ hai ô <i>Tổng tiền booking</i> và
-      <i>Hoa hồng OTA</i> là không cộng các booking này, vì đó là số của OTA theo nguyên tệ
-      và app không tự quy đổi tỷ giá.</p>
+      <p><b>Doanh thu thực nhận vẫn đủ</b> vì lấy từ bảng giá NET bằng VNĐ. Riêng <i>Tổng tiền booking</i>
+      và <i>Hoa hồng OTA</i> chưa cộng các booking này vì app không tự quy đổi tỷ giá.</p>
     </div></div>`;
   }
 
   if (t.hoaHongUocTinh) {
     html += `<div class="canhbao"><div class="noi">
-      <b>${soVn(t.hoaHongUocTinh)} booking có hoa hồng ƯỚC TÍNH theo % cấu hình</b>
-      <p>OTA không trả số hoa hồng thật cho những booking này. Số hoa hồng và thực nhận
-      ở trên là con số tạm — đối chiếu với báo cáo thanh toán của OTA trước khi chốt sổ.</p>
+      <b>${soVn(t.hoaHongUocTinh)} booking có hoa hồng ước tính theo % cấu hình</b>
+      <p>OTA không gửi số hoa hồng thật nên hoa hồng và thực nhận ở trên là số tạm.
+      Đối chiếu với báo cáo thanh toán của OTA trước khi chốt sổ.</p>
     </div></div>`;
   }
 
   /* ---- lead time / thời gian đặt trước ---- */
   const nhomDatTruoc = [
     { ten: 'Cùng ngày', so: (t.datTruocNhom || {}).cungNgay || 0 },
-    { ten: '1–3 ngày', so: (t.datTruocNhom || {}).motDenBa || 0 },
-    { ten: '4–7 ngày', so: (t.datTruocNhom || {}).bonDenBay || 0 },
-    { ten: '8–14 ngày', so: (t.datTruocNhom || {}).tamDenMuoiBon || 0 },
+    { ten: '1-3 ngày', so: (t.datTruocNhom || {}).motDenBa || 0 },
+    { ten: '4-7 ngày', so: (t.datTruocNhom || {}).bonDenBay || 0 },
+    { ten: '8-14 ngày', so: (t.datTruocNhom || {}).tamDenMuoiBon || 0 },
     { ten: 'Trên 14 ngày', so: (t.datTruocNhom || {}).trenMuoiBon || 0 },
   ];
   const maxDatTruoc = Math.max(1, ...nhomDatTruoc.map((x) => x.so));
@@ -484,7 +479,7 @@ function veThongKe() {
       <h2>Thông tin còn thiếu <span class="phu">gom theo loại, trong khoảng đang lọc</span></h2>
       <div class="khoi-than"><div class="pills">${tk.canXuLy.map((c) =>
         `<span class="chip ${/SĐT|điểm đón|ngày đi|tên khách|chưa xác nhận/i.test(c.nhan) ? 'xau' : 'canh'}">
-          ${esc(c.nhan)} — ${soVn(c.so)}</span>`).join('')}</div></div>
+          ${esc(c.nhan)} · ${soVn(c.so)}</span>`).join('')}</div></div>
     </div>`;
   }
 
@@ -549,7 +544,7 @@ function veDuLieuLark() {
   const dmTour = (m.danhMuc && m.danhMuc.tour) || [];
   const quyenChu = L.quyenGhi === true ? 'Đọc & cập nhật' : L.quyenGhi === false ? 'Chỉ đọc' : 'Đang kiểm tra';
   const quyenGhiChu = L.quyenGhi === false
-    ? 'Đủ cho quy trình nhập trực tiếp tại Lark'
+    ? 'Đủ để nhập tại Lark'
     : L.quyenGhi === true ? 'Có thể cập nhật một số trường vận hành' : 'Không ảnh hưởng việc xem số liệu';
 
   const nutNhap = formUrl
@@ -560,7 +555,7 @@ function veDuLieuLark() {
 
   if (m.nguon === 'hang-doi') {
     html += `<div class="canhbao"><div class="noi">
-      <b>Đang soi hàng đợi kỹ thuật — đây không phải nguồn báo cáo chính thức</b>
+      <b>Đang xem hàng đợi kỹ thuật, không phải nguồn báo cáo chính thức</b>
       <p>Booking vận hành phải lấy từ bảng <b>Bookings</b> trong Lark Base.
         <a href="#" id="veBase">Quay lại Lark Base</a></p>
     </div></div>`;
@@ -568,32 +563,29 @@ function veDuLieuLark() {
 
   if (!L.ok) {
     html += `<div class="canhbao xau"><div class="noi">
-      <b>Chưa đọc được Lark Base — chưa thể lấy Bookings làm nguồn dữ liệu gốc</b>
+      <b>Chưa đọc được Lark Base nên chưa có dữ liệu Bookings</b>
       <p>${esc(gonLoi(L.loi || m.loi || 'Kiểm tra lại quyền chia sẻ và cấu hình Base.'))}</p>
       <p>Dữ liệu ở hàng đợi cục bộ chỉ là tạm thời, không dùng để chốt báo cáo.</p>
     </div></div>`;
   } else if (L.quyenGhi === false) {
     html += `<div class="canhbao lark-doc"><div class="noi">
-      <b>Đã đọc được Lark Base ở chế độ chỉ đọc — phù hợp với luồng nhập tại Lark</b>
-      <p>Nhân viên vẫn nhập booking trực tiếp trong view <b>${esc(formTen)}</b>; OTA Manager đọc,
-        thống kê và cảnh báo bình thường. Chỉ các thao tác sửa booking ngay trong OTA Manager được ẩn.</p>
+      <b>App đang có quyền chỉ đọc Lark Base</b>
+      <p>Nhập booking, thống kê và cảnh báo vẫn chạy bình thường. Chỉ ẩn nút sửa booking trong app.</p>
     </div></div>`;
   }
 
   if ((m.chuaDay || 0) > 0) {
     html += `<div class="canhbao"><div class="noi">
       <b>${soVn(m.chuaDay)} booking đang nằm trong hàng đợi kỹ thuật, chưa có trong Lark</b>
-      <p>Luồng nhập tay hiện tại không tạo hàng đợi này. Đây thường là dữ liệu thử hoặc webhook cũ;
-        chỉ đẩy lên Base sau khi đã kiểm tra để tránh trùng booking.</p>
+      <p>Thường là dữ liệu thử hoặc webhook cũ. Kiểm tra trước khi đẩy lên Base để tránh trùng booking.</p>
     </div></div>`;
   }
 
   html += `<section class="lark-hero ${L.ok ? 'ok' : 'loi'}">
     <div class="lark-hero-copy">
-      <span class="nhap-kicker">NGUỒN DỮ LIỆU GỐC DUY NHẤT</span>
+      <span class="nhap-kicker">Nguồn dữ liệu gốc duy nhất</span>
       <h2>Lark Base · ${esc(L.tableTen || hd.tenBang || 'Bookings')}</h2>
-      <p>OTA có booking → nhân viên nhập <b>một lần</b> vào Lark → OTA Manager tự đọc,
-        hiện Booking mới, tính thống kê và cảnh báo. Không nhập lại trong Marketing Hub.</p>
+      <p>Nhân viên nhập mỗi booking <b>một lần</b> vào Lark. Booking mới, thống kê và cảnh báo trong app đều đọc từ bảng này.</p>
     </div>
     <div class="lark-hero-actions">
       ${nutNhap}
@@ -602,13 +594,13 @@ function veDuLieuLark() {
   </section>`;
 
   html += `<div class="khoi">
-    <h2>Luồng vận hành hiện tại <span class="phu">dùng được ngay, không chờ API</span></h2>
+    <h2>Luồng vận hành hiện tại</h2>
     <div class="khoi-than">
       <div class="luong-du-lieu">
         <div class="luong-buoc"><span>1</span><b>OTA có booking</b><small>Klook · KKday · GYG · Trip.com · WAUG · MRT · Viator</small></div>
         <div class="luong-buoc nhan"><span>2</span><b>Nhân viên nhập 1 lần</b><small>View “${esc(formTen)}” trong Lark</small></div>
-        <div class="luong-buoc goc"><span>3</span><b>Lark Bookings</b><small>Nguồn dữ liệu chuẩn duy nhất</small></div>
-        <div class="luong-buoc tu-dong"><span>4</span><b>OTA Manager tự xử lý</b><small>Booking mới · thống kê · lead time · cảnh báo</small></div>
+        <div class="luong-buoc goc"><span>3</span><b>Lark Bookings</b><small>Nguồn dữ liệu chuẩn</small></div>
+        <div class="luong-buoc tu-dong"><span>4</span><b>App tự xử lý</b><small>Booking mới · thống kê · lead time · cảnh báo</small></div>
       </div>
     </div>
   </div>`;
@@ -623,7 +615,7 @@ function veDuLieuLark() {
   ];
 
   html += `<div class="khoi">
-    <h2>Tình trạng dữ liệu Lark <span class="phu">kiểm tra nguồn gốc trước khi xem báo cáo</span></h2>
+    <h2>Tình trạng dữ liệu Lark <span class="phu">kiểm tra trước khi xem báo cáo</span></h2>
     <div class="khoi-than">
       <div class="suc-khoe-grid">${tinhTrang.map((x) => `<div class="suc-khoe-card ${x.muc}">
         <span>${esc(x.nhan)}</span><b>${esc(x.so)}</b><small>${esc(x.ghi)}</small>
@@ -637,8 +629,8 @@ function veDuLieuLark() {
       </div>
       ${canThemVanHanh.length
         ? `<div class="cot-van-hanh-note ${L.quyenGhi === false ? 'xau' : ''}"><b>Còn thiếu: ${canThemVanHanh.map((x) => esc(x.ten)).join(' · ')}</b><span>${L.quyenGhi === false
-            ? 'Ứng dụng đang chỉ có quyền xem nên chưa thể tạo cột.'
-            : 'Nút “Tạo cột vận hành” chỉ thêm cột chưa có; không đổi dữ liệu, công thức hay cột hiện tại.'}</span></div>`
+            ? 'App chỉ có quyền xem nên chưa tạo được cột.'
+            : 'Nút “Tạo cột vận hành” chỉ thêm cột còn thiếu, không đổi dữ liệu hay công thức.'}</span></div>`
         : `<div class="cot-van-hanh-note tot"><b>Đã đủ 3 cột vận hành</b><span>Giờ đón · Ghi chú khách · Sales đã nhận</span></div>`}
     </div>
   </div>`;
@@ -653,49 +645,49 @@ function veDuLieuLark() {
     { ten: 'Gross VND', nguon: 'Công thức Lark' },
     { ten: 'Hoa hồng OTA', nguon: 'Danh mục OTA + công thức' },
     { ten: 'Doanh thu thu về', nguon: 'Danh mục Tour + công thức' },
-    { ten: 'Lead time', nguon: 'OTA Manager tính từ Ngày đặt → Ngày đi' },
-    { ten: 'Báo cáo ngày / tháng', nguon: 'OTA Manager tổng hợp' },
-    { ten: 'Cảnh báo thiếu dữ liệu', nguon: 'OTA Manager kiểm tra' },
+    { ten: 'Lead time', nguon: 'Ngày đi − Ngày đặt' },
+    { ten: 'Báo cáo ngày / tháng', nguon: 'App tổng hợp' },
+    { ten: 'Cảnh báo thiếu dữ liệu', nguon: 'App kiểm tra' },
   ];
 
   html += `<div class="khoi">
-    <h2>Form “${esc(formTen)}” <span class="phu">ngắn gọn cho nhân viên, không kéo ngang bảng nhiều cột</span></h2>
+    <h2>Form “${esc(formTen)}” <span class="phu">chỉ các cột nhân viên cần nhập</span></h2>
     <div class="khoi-than">
       <div class="form-lark-grid">
         <div class="form-lark-cot">
           <h3>Nhân viên nhập</h3>
-          <p>Chỉ các thông tin có trên booking OTA. Thiếu SĐT hoặc điểm đón vẫn lưu, OTA Manager sẽ bật cảnh báo.</p>
+          <p>Thông tin có trên booking OTA. Thiếu SĐT hoặc điểm đón vẫn lưu được, app sẽ cảnh báo.</p>
           <div class="tag-list">${cotNhap.map((x) => `<span>${esc(x)}</span>`).join('')}</div>
         </div>
         <div class="form-lark-cot auto">
-          <h3>Hệ thống tự xử lý</h3>
-          <p>Không đưa các cột này vào form nhập để tránh nhân viên phải tính hoặc nhập lại.</p>
+          <h3>App tự tính</h3>
+          <p>Các cột này không có trong form, nhân viên không cần nhập.</p>
           <div class="auto-list">${tuDong.map((x) => `<div><b>${esc(x.ten)}</b><small>${esc(x.nguon)}</small></div>`).join('')}</div>
         </div>
       </div>
       <div class="form-lark-foot">
         <div>${n.laForm
-          ? `Nút phía trên đang mở thẳng link form đã cấu hình.`
-          : `Nút phía trên đang mở Lark Base; vào view <b>${esc(formTen)}</b> để nhập. Có thể gắn link form trực tiếp ở phần nâng cao bên dưới.`}</div>
+          ? `Nút này mở thẳng form nhập.`
+          : `Nút này mở Lark Base, vào view <b>${esc(formTen)}</b> để nhập. Muốn mở thẳng form, xem phần Thiết lập nâng cao bên dưới.`}</div>
         ${nutNhap}
       </div>
     </div>
   </div>`;
 
   html += `<div class="khoi">
-    <h2>Danh mục chuẩn <span class="phu">sửa tại Lark, không sửa code</span></h2>
+    <h2>Danh mục chuẩn <span class="phu">sửa tại Lark</span></h2>
     <div class="khoi-than">
       <div class="danh-muc-grid">
         <article class="danh-muc-card">
-          <span class="nhap-kicker">DANH MỤC OTA</span>
+          <span class="nhap-kicker">Danh mục OTA</span>
           <h3>${soVn(dmOta.length)} kênh đang đọc</h3>
-          <p>Chuẩn hoá tên kênh, mã OTA, nguyên tệ và tỷ lệ hoa hồng.</p>
+          <p>Tên kênh, mã OTA, nguyên tệ và tỷ lệ hoa hồng.</p>
           ${S.perm.chiPhi ? `<div class="pills">${dmOta.map((k) => `<span class="chip">${esc(k.ten)} · ${k.hoaHong == null ? '—' : k.hoaHong + '%'}</span>`).join('')}</div>` : ''}
         </article>
         <article class="danh-muc-card">
-          <span class="nhap-kicker">DANH MỤC TOUR</span>
+          <span class="nhap-kicker">Danh mục Tour</span>
           <h3>${soVn(dmTour.length)} tour / sản phẩm</h3>
-          <p>Chuẩn hoá tour và giá thu về người lớn / trẻ em để báo cáo doanh thu luôn khớp Base.</p>
+          <p>Tên tour và giá thu về người lớn / trẻ em, dùng để tính doanh thu.</p>
           <div class="pills"><span class="chip ${m.nguonGia === 'danh-muc' ? 'tot' : 'canh'}">${m.nguonGia === 'danh-muc' ? 'Đang dùng dữ liệu Lark' : 'Đang dùng dữ liệu dự phòng'}</span></div>
         </article>
       </div>
@@ -709,7 +701,7 @@ function veDuLieuLark() {
       <div class="chi-tiet-than">
         <div class="bang-gia-toolbar">
           <div><b>${m.nguonGia === 'danh-muc' ? 'Giá đang đọc trực tiếp từ Danh mục Tour trên Lark' : 'Đang dùng bảng giá dự phòng'}</b>
-            <small>${duocSuaGia ? 'Sửa tại đây sẽ cập nhật lại Lark Base.' : 'Muốn sửa trực tiếp cần quyền quản lý + quyền ghi Lark và nguồn giá Danh mục Tour.'}</small></div>
+            <small>${duocSuaGia ? 'Sửa tại đây sẽ cập nhật lại Lark Base.' : 'Cần quyền quản lý và quyền ghi Lark để sửa giá tại đây.'}</small></div>
           ${duocSuaGia ? `<button class="btn primary" id="btnThemGia">+ Thêm sản phẩm</button>` : ''}
         </div>
         ${bg.map((ban) => `<h4>${ban.nguon === 'danh-muc' ? 'Đang hiệu lực từ Danh mục Tour' : 'Hiệu lực từ ' + ngayDay(ban.hieuLuc)}</h4>
@@ -728,25 +720,24 @@ function veDuLieuLark() {
     <summary>Kiểm tra chi tiết cấu trúc bảng “${esc(hd.tenBang || 'Bookings')}”
       <span>${cotDaCo}/${tongCot} cột đã nhận diện${canThem.length ? ' · ' + canThem.length + ' cột nên thêm' : ''}</span></summary>
     <div class="chi-tiet-than">
-      <p class="manh">OTA Manager dò cột theo tên, không phụ thuộc thứ tự. Cột công thức chỉ đọc, không bị app ghi đè.</p>
+      <p class="manh">App dò cột theo tên, không theo thứ tự. Cột công thức chỉ đọc, app không ghi đè.</p>
       <div class="bang-boc"><table>
         <thead><tr><th>Tên cột</th><th>Kiểu cột</th><th>Vai trò</th><th>Tình trạng</th></tr></thead>
         <tbody>${cot.map((c) => `<tr><td class="dam">${esc(c.ten)}</td><td>${esc(c.kieu)}</td>
-          <td>${c.chiDoc ? '<span class="chip">Hệ thống tự tính / chỉ đọc</span>' : c.batBuoc ? '<span class="chip xau">Nhập bắt buộc</span>' : '<span class="manh">Dữ liệu nhập</span>'}</td>
+          <td>${c.chiDoc ? '<span class="chip">Tự tính / chỉ đọc</span>' : c.batBuoc ? '<span class="chip xau">Nhập bắt buộc</span>' : '<span class="manh">Dữ liệu nhập</span>'}</td>
           <td>${c.daCo ? '<span class="chip tot">Đã có</span>' : c.tuyChon ? '<span class="chip canh">Nên thêm</span>' : '<span class="chip xau">Còn thiếu</span>'}</td></tr>`).join('')}</tbody>
       </table></div>
     </div>
   </details></div>`;
 
   html += `<div class="khoi api-cho-khoi">
-    <h2>API OTA — điểm chờ cho tương lai <span class="phu">không ảnh hưởng quy trình đang chạy</span></h2>
+    <h2>API OTA · chờ kết nối sau <span class="phu">không ảnh hưởng cách nhập hiện tại</span></h2>
     <div class="khoi-than">
-      <div class="api-cho-note"><b>Hiện tại: OTA → nhân viên nhập Lark → Bookings.</b>
-        Khi một kênh được cấp API, chỉ thay bước đầu thành <b>API → Bookings</b>; Booking mới, thống kê và báo cáo phía sau giữ nguyên.</div>
+      <div class="api-cho-note">Khi một kênh được cấp API, booking sẽ đi thẳng <b>API → Bookings</b>, không cần nhập tay. Thống kê và báo cáo giữ nguyên.</div>
       <div class="api-cho-grid">${apiOta.map((k) => `<article class="api-cho-card ${k.daCauHinh ? 'co-key' : ''}">
         <div><span class="ota-api-logo">${esc(k.ten.slice(0, 2).toUpperCase())}</span>
-          <div><h3>${esc(k.ten)}</h3><p>Hiện tại: nhập tại Lark Base</p></div></div>
-        <span class="api-cho-status ${k.daCauHinh ? 'co-key' : ''}">${k.daCauHinh ? 'Có credential · chờ bật' : 'Chưa được cấp API'}</span>
+          <div><h3>${esc(k.ten)}</h3><p>Đang nhập tay tại Lark</p></div></div>
+        <span class="api-cho-status ${k.daCauHinh ? 'co-key' : ''}">${k.daCauHinh ? 'Đã có khoá API · chờ bật' : 'Chưa được cấp API'}</span>
         <div class="api-duong"><span>Tương lai</span><b>API → Bookings</b></div>
       </article>`).join('')}</div>
     </div>
@@ -756,11 +747,10 @@ function veDuLieuLark() {
     <summary>Thiết lập nâng cao cho quản lý <span>không cần làm để vận hành hằng ngày</span></summary>
     <div class="chi-tiet-than">
       <p><b>Mở thẳng form:</b> tạo link chia sẻ của view/form “${esc(formTen)}”, rồi khai biến
-        <code>OTA_INPUT_FORM_URL</code> trên Render. Nếu chưa khai, nút Nhập booking mở Base hiện tại.</p>
-      <p><b>Tự cập nhật:</b> OTA Manager kiểm tra Lark mỗi ${Math.round(((m.tuDongLark || {}).moiMs || 60000) / 1000)} giây khi màn hình đang mở.
+        <code>OTA_INPUT_FORM_URL</code> trên máy chủ. Chưa khai thì nút Nhập booking mở Lark Base.</p>
+      <p><b>Tự cập nhật:</b> app đọc lại Lark mỗi ${Math.round(((m.tuDongLark || {}).moiMs || 60000) / 1000)} giây khi màn hình đang mở.
         Có thể đổi bằng <code>OTA_AUTO_REFRESH_MS</code>, tối thiểu 30.000 ms.</p>
-      <p><b>API/Webhook:</b> hạ tầng nhận dữ liệu vẫn được giữ trong backend để dùng sau này,
-        nhưng không phải bước bắt buộc và không còn là trọng tâm của giao diện.</p>
+      <p><b>API/Webhook:</b> phần nhận booking tự động vẫn giữ sẵn cho sau này, hiện chưa cần dùng.</p>
     </div>
   </details></div>`;
 
@@ -1028,8 +1018,8 @@ function chiTiet(b) {
             : b.nguonThucNhan ? ' <span class="chip canh">' + esc(NGUON_TN[b.nguonThucNhan] || '') + '</span>' : ''))}
         ${b.thucNhanOta != null ? dong('Số OTA tự báo', tien(b.thucNhanOta, b.tienTe)) : ''}
         ${b.lechBangGia ? dong('Chênh lệch bảng giá',
-          '<b class="lech">' + vnd(b.lechBangGia) + '</b> — ' +
-          (b.lechBangGia > 0 ? 'OTA báo trả THIẾU so với bảng giá' : 'OTA báo trả cao hơn bảng giá')) : ''}` : ''}
+          '<b class="lech">' + vnd(b.lechBangGia) + '</b> · ' +
+          (b.lechBangGia > 0 ? 'OTA báo trả thiếu so với bảng giá' : 'OTA báo trả cao hơn bảng giá')) : ''}` : ''}
         ${dong('Nhập vào Lark lúc', gioPhut(b.nhanLuc))}
         ${dong('Cần xử lý', veCo(b))}
       </dl>
@@ -1037,8 +1027,8 @@ function chiTiet(b) {
       ${!S.perm.duocSua ? `<p class="manh" style="margin-top:20px">Bạn chỉ được xem, không được sửa
         booking. Quản lý cấp quyền trong bảng <b>Phân quyền app</b> của Marketing Hub.</p>` : `
       <h4 style="margin:20px 0 10px">Sửa phần OTA không trả</h4>
-      <p class="manh" style="margin-top:0">Mã booking và số tiền là dữ liệu của OTA — app không cho
-        sửa tay để còn đối chiếu được với báo cáo thanh toán.</p>
+      <p class="manh" style="margin-top:0">Mã booking và số tiền giữ nguyên theo OTA để đối chiếu
+        với báo cáo thanh toán.</p>
       <div class="suaform">
         <label>Số điện thoại<input type="text" id="sSdt" value="${esc(b.sdt)}"></label>
         <label>Email<input type="text" id="sEmail" value="${esc(b.email)}"></label>
@@ -1105,11 +1095,11 @@ async function thuMapping(kenhId) {
       v == null || v === '' ? '<span class="chip xau">trống</span>' : esc(String(v))}</td>
       <td class="manh">${esc(d.nguon[k] || '—')}</td></tr>`;
     moModal(`
-      <h3>Thử mapping — ${esc(kenhId)}</h3>
+      <h3>Thử mapping · ${esc(kenhId)}</h3>
       <div class="modal-than">
         <p style="margin-top:0;color:var(--ink-2)">Chạy payload mẫu qua bộ chuẩn hoá,
-          <b>không ghi gì</b>. Cột cuối cho biết mỗi trường lấy từ khoá nào trong payload —
-          trường nào <span class="chip xau">trống</span> thì thêm tên khoá thật của OTA vào
+          <b>không ghi gì</b>. Cột cuối cho biết mỗi trường lấy từ khoá nào trong payload.
+          Trường nào <span class="chip xau">trống</span> thì thêm tên khoá thật của OTA vào
           <code>chuanhoa.js → KENH_ALIAS.${esc(kenhId)}</code>.</p>
         <div class="bang-boc"><table>
           <thead><tr><th>Trường</th><th>Giá trị đọc được</th><th>Lấy từ</th></tr></thead>
@@ -1152,7 +1142,7 @@ function formGiaHtml(d = {}) {
     <label>Sản phẩm<input id="giaTen" value="${esc(d.ten || '')}" placeholder="Tên tour / sản phẩm"></label>
     <label>Người lớn<input id="giaNl" type="number" min="0" step="1000" value="${d.nguoiLon == null ? '' : Number(d.nguoiLon)}"></label>
     <label>Trẻ em<input id="giaTe" type="number" min="0" step="1000" value="${d.treEm == null ? '' : Number(d.treEm)}"></label>
-    <label class="gia-luat">Luật nhận diện<textarea id="giaLuat" rows="3" placeholder="(cano / speedboat / 3dao) VÀ (captreo / cablecar) — loại nếu có: 4dao / 4island">${esc(d.luat || '')}</textarea></label>
+    <label class="gia-luat">Luật nhận diện<textarea id="giaLuat" rows="3" placeholder="(cano / speedboat / 3dao) VÀ (captreo / cablecar) · loại nếu có: 4dao / 4island">${esc(d.luat || '')}</textarea></label>
     <label class="gia-check"><input id="giaDangBan" type="checkbox" ${d.dangBan === false ? '' : 'checked'}> Đang bán / đang áp dụng</label>
   </div>`;
 }
@@ -1245,14 +1235,14 @@ function ganSuKienView() {
     b.onclick = () => {
       navigator.clipboard.writeText(b.dataset.copyEnv || '')
         .then(() => { b.textContent = 'Đã copy'; setTimeout(() => { b.textContent = 'Copy tên biến'; }, 1500); })
-        .catch(() => toast('Không copy được — chọn tên biến rồi Ctrl+C', 'xau'));
+        .catch(() => toast('Không copy được. Chọn tên biến rồi bấm Ctrl+C', 'xau'));
     };
   });
   $$('button[data-copy]', el).forEach((b) => {
     b.onclick = () => {
       navigator.clipboard.writeText(b.dataset.copy)
         .then(() => { b.textContent = 'Đã copy'; setTimeout(() => { b.textContent = 'Copy'; }, 1500); })
-        .catch(() => toast('Không copy được — bấm giữ để chọn rồi Ctrl+C', 'xau'));
+        .catch(() => toast('Không copy được. Bấm giữ để chọn rồi bấm Ctrl+C', 'xau'));
     };
   });
   $$('button[data-thu]', el).forEach((b) => { b.onclick = () => thuMapping(b.dataset.thu); });
@@ -1274,7 +1264,7 @@ function ganSuKienView() {
     bLuoc.disabled = true;
     try {
       const d = await goi('/api/luoc-do', { method: 'POST' });
-      toast(d.ok ? 'Đã nối Base — đủ cột bắt buộc' : (d.loi || 'Chưa nối được Base'), d.ok ? 'tot' : 'xau');
+      toast(d.ok ? 'Đã nối Base, đủ cột bắt buộc' : (d.loi || 'Chưa nối được Base'), d.ok ? 'tot' : 'xau');
       await napLai();
     } catch (e) { toast(e.message, 'xau'); } finally { bLuoc.disabled = false; }
   };
@@ -1284,7 +1274,7 @@ function ganSuKienView() {
     const so = Number(bTaoCot.dataset.so || 0);
     const dongY = window.confirm(
       `Tạo ${so} cột vận hành còn thiếu trong bảng Bookings?\n\n` +
-      'Hệ thống chỉ thêm Giờ đón, Ghi chú khách và Sales đã nhận nếu chưa có. ' +
+      'App chỉ thêm Giờ đón, Ghi chú khách và Sales đã nhận nếu chưa có. ' +
       'Không sửa dữ liệu, công thức hoặc cột hiện tại.'
     );
     if (!dongY) return;

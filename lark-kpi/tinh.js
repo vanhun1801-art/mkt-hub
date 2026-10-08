@@ -45,7 +45,7 @@ function chamNhom(nhom, soLieu, canhBao) {
       ma: t.ma, ten: t.ten || t.ma, nguon: t.nguon,
       mucTieu: t.mucTieu, ketQua: null,
       datMucTieu: null, tyTrong: 0, tyTrongGoc: t.tyTrong, diem: 0,
-      boQua: true, lyDo: 'Không có nguồn số liệu — tỷ trọng đã chia lại cho tiêu chí khác',
+      boQua: true, lyDo: 'Không có nguồn số liệu, tỷ trọng đã chia lại cho tiêu chí khác',
     });
     canhBao.push({
       muc: 'canhBao', o: ten + ' · ' + (t.ten || t.ma),
@@ -78,12 +78,12 @@ function chamNhom(nhom, soLieu, canhBao) {
     if (dat > L.NGUONG.cao) {
       canhBao.push({
         muc: 'canhBao', o: ten + ' · ' + (t.ten || t.ma),
-        viec: 'Đạt ' + pt(dat) + ' mục tiêu — mục tiêu ' + gon(t.mucTieu) + ' có vẻ đặt quá thấp',
+        viec: 'Đạt ' + pt(dat) + ' mục tiêu, mục tiêu ' + gon(t.mucTieu) + ' có vẻ đặt quá thấp',
       });
     } else if (dat < L.NGUONG.thap) {
       canhBao.push({
         muc: 'canhBao', o: ten + ' · ' + (t.ten || t.ma),
-        viec: 'Chỉ đạt ' + pt(dat) + ' mục tiêu — kiểm tra lại nguồn số liệu hoặc mục tiêu',
+        viec: 'Chỉ đạt ' + pt(dat) + ' mục tiêu. Kiểm tra lại nguồn số liệu hoặc mục tiêu',
       });
     }
   });
@@ -126,7 +126,7 @@ function diemTheoKenh(nguoi, banNhom, canhBao) {
   if (tyTrongMat > 0) {
     canhBao.push({
       muc: 'canhBao', o: nguoi.ten || nguoi.ma,
-      viec: pt(tyTrongMat) + ' tỷ trọng kênh không chấm được — điểm của người này bị thiếu đúng phần đó',
+      viec: pt(tyTrongMat) + ' tỷ trọng kênh không chấm được, điểm của người này bị thiếu đúng phần đó',
     });
   }
   chiTiet.sort((a, b) => b.tyTrong - a.tyTrong);

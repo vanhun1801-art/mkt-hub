@@ -1008,9 +1008,9 @@ async function api(req, res, u) {
           if (m.nganSachNgay != null) muc = { ...m, cap: 'chiến dịch' };
         }
         if (!muc) {
-          return fail(res, 400, `Quảng cáo "${qc.name}" không có ngân sách NGÀY ở cả nhóm `
-            + 'lẫn chiến dịch — nó đang dùng ngân sách trọn đời (lifetime budget). '
-            + 'Loại đó app chưa đổi được, phải sửa trên Facebook.');
+          return fail(res, 400, `Quảng cáo "${qc.name}" không có ngân sách ngày ở cả nhóm `
+            + 'lẫn chiến dịch, đang dùng ngân sách trọn đời (lifetime budget). '
+            + 'Loại này app chưa đổi được, phải sửa trên Facebook.');
         }
 
         const cu = muc.nganSachNgay / heSo;
@@ -1062,8 +1062,7 @@ async function api(req, res, u) {
         if (truoc.nganSachNgay == null) {
           return fail(res, 400, `Nhóm "${truoc.ten}" không giữ ngân sách riêng`
             + `${truoc.kieuNganSach === 'BUDGET_MODE_INFINITE' ? ' (ngân sách đặt ở cấp chiến dịch)' : ''}`
-            + ' — nên không có số nào ở đây để đổi. Sửa ngân sách chiến dịch đó trên TikTok Ads Manager. '
-            + 'App cố ý không xin quyền đổi chiến dịch vì nhóm quyền đó kèm cả tạo và xoá chiến dịch.');
+            + ', nên không có số nào ở đây để đổi. Sửa ngân sách chiến dịch đó trên TikTok Ads Manager.');
         }
         const cu = truoc.nganSachNgay;
         if (!laLam) {
@@ -1425,7 +1424,7 @@ async function api(req, res, u) {
     const body = await readBody(req);
     const ds = Array.isArray(body.capDoi) ? body.capDoi : [];
     if (!ds.length) return fail(res, 400, 'Chưa chọn cặp nào để nối');
-    if (ds.length > 200) return fail(res, 400, 'Mỗi lượt tối đa 200 cặp — chia nhỏ ra cho dễ kiểm lại');
+    if (ds.length > 200) return fail(res, 400, 'Mỗi lượt tối đa 200 cặp, chia nhỏ ra cho dễ kiểm lại');
 
     const c = ketnoi.read();
     const tw = c.tourwell || {};
@@ -1433,7 +1432,7 @@ async function api(req, res, u) {
      * được chuỗi sắp ghi là chặn nhầm chỗ, và người dùng mất đúng cái màn hình
      * dùng để kiểm trước khi quyết. */
     if (!body.xemTruoc && (!tw.enabled || !tw.host || !tw.token)) {
-      return fail(res, 400, 'Tourwell API chưa bật hoặc chưa có token — bật ở tab Kết nối & Đồng bộ.');
+      return fail(res, 400, 'Tourwell API chưa bật hoặc chưa có token. Bật ở tab Kết nối & Đồng bộ.');
     }
     const ai = await nguoiDung(req);
     const nguoiNoi = (ai && ai.name) || '';
@@ -1451,7 +1450,7 @@ async function api(req, res, u) {
       /* Không ghi đè quyết định đã có. */
       const daCo = noiQC.docMaQC(x.ghiChuCu);
       if (daCo && daCo !== adId) {
-        ra.push({ ...dong, ok: false, vi: `Lead này đã được nối với quảng cáo ${daCo} — không ghi đè` });
+        ra.push({ ...dong, ok: false, vi: `Lead này đã nối với quảng cáo ${daCo}, không ghi đè` });
         continue;
       }
       const than = noiQC.thanGhiChu({
@@ -1534,9 +1533,9 @@ async function api(req, res, u) {
       /* Trường hợp dễ nhầm nhất: gian có khoá, "Kiểm tra kết nối" báo OK, nhưng ô
        * Bật đọc chưa tích. Không nói rõ thì người dùng tưởng đã đo bằng khoá cứng
        * trong khi ROAS đang rơi hết về khoá số điện thoại. */
-      loi.push('Gian hàng POS đã có khoá nhưng ô "Bật đọc Pancake POS" chưa tích — '
-        + 'ROAS đang bỏ qua khoá cứng và chỉ ghép theo số điện thoại. Tích ô đó rồi Lưu cấu hình POS.');
-    } else loi.push('Pancake POS chưa có khoá gian hàng nào — thiếu hẳn đường khoá cứng');
+      loi.push('Gian hàng POS đã có khoá nhưng ô "Bật đọc Pancake POS" chưa tích, '
+        + 'nên ROAS đang chỉ ghép theo số điện thoại. Tích ô đó rồi Lưu cấu hình POS.');
+    } else loi.push('Pancake POS chưa có khoá gian hàng nào, nên chưa ghép được theo khoá cứng');
     for (const pg of (c.pancake.pages || []).filter((x) => x.pageId && x.token)) {
       try {
         const r = await pancake.fetchConversations(pg, from, to, (m) => log.push(m));
@@ -1725,11 +1724,11 @@ async function api(req, res, u) {
         const nc = { clientId: g.clientId, buoc: 'ma' };
         const them = gads.giaiThich(d, nc)
           || (gads.thieuRefreshToken(d)
-            ? 'Google nhận uỷ quyền nhưng không cấp refresh token — thường do tài khoản đã đồng ý từ trước. '
+            ? 'Google nhận uỷ quyền nhưng không cấp refresh token, thường do tài khoản đã đồng ý từ trước. '
               + 'Vào myaccount.google.com/permissions gỡ quyền của app rồi lấy link uỷ quyền lại.'
-            : 'Mã code chỉ dùng được một lần và hết hạn sau ~10 phút — bấm lấy link mới rồi làm lại.');
+            : 'Mã code chỉ dùng được một lần và hết hạn sau ~10 phút. Bấm lấy link mới rồi làm lại.');
         return fail(res, 400, 'Google không nhận: '
-          + (d.error_description || d.error || 'không rõ') + ' — ' + them);
+          + (d.error_description || d.error || 'không rõ') + '. ' + them);
       }
       ketnoi.writeSecrets({ googleAds: { refreshToken: d.refresh_token } });
       live.xoaCache();
@@ -1785,12 +1784,12 @@ async function api(req, res, u) {
       } catch (e) { return fail(res, 400, e.message); }
       if (Number(d.code) !== 0 || !d.data || !d.data.access_token) {
         return fail(res, 400, `TikTok báo: (${d.code}) ${d.message || 'không rõ'}`
-          + '. Mã auth_code chỉ dùng được MỘT lần — bấm lấy link mới rồi làm lại. '
+          + '. Mã auth_code chỉ dùng được một lần, bấm lấy link mới rồi làm lại. '
           + `Và Redirect URL khai trong app TikTok phải đúng bằng ${redirect}.`);
       }
       const ids = (d.data.advertiser_ids || []).map(String).filter(Boolean);
       if (!ids.length) {
-        return fail(res, 400, 'Lấy được token nhưng KHÔNG tài khoản nào được uỷ quyền. '
+        return fail(res, 400, 'Lấy được token nhưng không tài khoản nào được uỷ quyền. '
           + 'Quay lại trang uỷ quyền và tick các tài khoản quảng cáo.');
       }
       /* Lưu token VÀ mã tài khoản cùng lúc: đây mới là chỗ chữa lỗi 40105. */
@@ -1841,7 +1840,7 @@ async function api(req, res, u) {
       const data = await store.get();
       const list = { campaign: data.campaigns, group: data.groups, ad: data.ads }[body.type];
       const clash = list.find((x) => x.extId === extId && x.id !== body.recordId);
-      if (clash) return fail(res, 409, `ID "${extId}" đang gắn ở "${clash.name}" — bỏ ở đó trước đã`);
+      if (clash) return fail(res, 409, `ID "${extId}" đang gắn ở "${clash.name}", bỏ ở đó trước đã`);
     }
     await lark.updateRecord(spec[0], body.recordId, { [spec[1]]: extId });
     xoaDem();

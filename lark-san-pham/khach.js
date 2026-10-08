@@ -90,7 +90,7 @@ async function xuLy(req, res, u, { gui, json, banDo }) {
     /* điền sẵn tiêu đề + mô tả để Zalo / Messenger / Facebook hiện thẻ xem trước khi dán link */
     const o = tr ? hamKhach(tr) : null;
     const gia = o ? (o.sauGiamNL ?? o.giaNL) : null;
-    const tieuDe = o ? o.ten + ' — Rooty Trip Phú Quốc' : 'Tour Rooty Trip Phú Quốc';
+    const tieuDe = o ? o.ten + ' · Rooty Trip Phú Quốc' : 'Tour Rooty Trip Phú Quốc';
     const moTa = o ? [gia ? 'Chỉ từ ' + tien(gia) + '/người lớn' : '', o.thoiLuong, o.khoiHanh, o.noiBat[0] || ''].filter(Boolean).join(' · ') : 'Tour không có hoặc đã ngừng bán';
     html = html.split('{{TIEU_DE}}').join(esc(tieuDe)).split('{{MO_TA}}').join(esc(moTa)).split('{{MA}}').join(esc(mTrang[1]));
     gui(res, tr ? 200 : 404, html, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Hub-Khong-Chen': '1' });

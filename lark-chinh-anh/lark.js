@@ -204,7 +204,7 @@ function guiTin({ chatId, userId, email, text, card, khoa }) {
         let loi = String((j && (j.error?.message || j.message)) || stderr || err?.message || raw);
         /* Nói thẳng nguyên nhân hay gặp nhất, thay vì để người dùng đọc mã lỗi Lark. */
         if (/230002|230013|out of the chat|not in the chat/i.test(loi)) {
-          loi = 'Bot của app chưa được thêm vào nhóm này — mời bot vào nhóm rồi gửi lại. (' + loi.slice(0, 200) + ')';
+          loi = 'Bot của app chưa được thêm vào nhóm này. Mời bot vào nhóm rồi gửi lại. (' + loi.slice(0, 200) + ')';
         } else if (/missing_scope|send_as_user/i.test(loi)) {
           loi = 'Thiếu quyền gửi tin của Lark app. (' + loi.slice(0, 200) + ')';
         }

@@ -27,9 +27,8 @@ async function veKhoiPhamVi(boc) {
   }
 
   o.appendChild(el('div', 'than nho',
-    'Nhân sự mở tab Báo cáo sẽ chỉ thấy đúng những khối và kênh tích ở đây. '
-    + 'Chi phí toàn phòng, tệp khách mới và xu hướng <b>luôn chỉ trưởng phòng thấy</b>. '
-    + 'Ai chưa khai thì tab Báo cáo không hiện ra với họ.'));
+    'Mỗi người chỉ thấy các khối và kênh được tích; ai chưa khai thì không thấy tab Báo cáo. '
+    + 'Chi phí, tệp khách mới và xu hướng <b>chỉ trưởng phòng thấy</b>.'));
 
   const bang = el('div', 'pv-ds');
   Object.keys(PV.nguoi).forEach((ma) => bang.appendChild(pvHang(ma, PV.nguoi[ma], boc)));
@@ -37,10 +36,9 @@ async function veKhoiPhamVi(boc) {
 
   const kho = PV.kho || {};
   o.appendChild(el('div', 'than nho nhat', kho.nguon === 'base'
-    ? 'Bản sửa ghi thẳng vào bảng <b>Phạm vi báo cáo</b> trên Lark Base, nên còn '
-      + 'nguyên sau mỗi lần deploy. '
+    ? 'Bản sửa lưu vào bảng <b>Phạm vi báo cáo</b> trên Lark Base. '
       + (kho.baseUrl ? '<a href="' + esc(kho.baseUrl) + '" target="_blank">Mở Base</a>' : '')
-    : '<b>Đang chạy bản mặc định khai trong mã — sửa ở đây sẽ không lưu được.</b> '
+    : '<b>Đang dùng bản mặc định, sửa ở đây sẽ không lưu được.</b> '
       + esc(kho.loi || 'Chưa nối được Lark Base.')));
 }
 
@@ -52,7 +50,7 @@ function pvHang(ma, pv, boc) {
     + '<div class="pv-khoi">'
     + ((pv.khoi || []).length
       ? (pv.khoi || []).map((k) => '<span class="pv-the">' + esc(tenKhoi(k)) + '</span>').join('')
-      : '<span class="pv-the trong">chưa khai — không thấy tab Báo cáo</span>')
+      : '<span class="pv-the trong">chưa khai · không thấy tab Báo cáo</span>')
     + ((pv.kenh || []).length
       ? '<span class="pv-the kenh">' + pv.kenh.length + ' kênh</span>' : '')
     + ((pv.loaiViec || []).length
@@ -116,8 +114,8 @@ function pvBangSua(ma, pv) {
   nhomChu.appendChild(iTen);
   nhomChu.appendChild(el('div', 'than nho nhat',
     'Dùng để lọc việc và buổi tác nghiệp của đúng người này. '
-    + '<b>Khớp đúng từng chữ</b> — bảng công việc có cả "Nguyễn Long Khánh (Pinky)" '
-    + 'lẫn "Huỳnh Chí Khanh", gõ thiếu là lấy nhầm việc của người khác.'));
+    + '<b>Gõ đúng từng chữ</b>, gõ thiếu là lấy nhầm việc người khác '
+    + '(vd "Nguyễn Long Khánh (Pinky)" và "Huỳnh Chí Khanh").'));
 
   nhomChu.appendChild(el('h4', '', 'Chỉ các loại việc <em>bỏ trống = mọi loại</em>'));
   const iLoai = el('input');
