@@ -358,3 +358,21 @@ pre.tin { white-space: pre-wrap; background: var(--surface-3); border-radius: va
   .bang tr.cs-nhom td { font-size: 12px; }
   .nut-xoa-ht { font-size: 12px; }
 }
+
+/* ---- bàn giao từng hợp tác: mỗi sản phẩm một thẻ, mỗi kênh một link (08/10) ---- */
+.bg-the { border: 1px solid var(--border); border-radius: var(--r-lg); padding: 10px 12px; margin-bottom: 10px; background: var(--surface); }
+.bg-the.tre { border-color: var(--red); box-shadow: 0 0 0 1px var(--red-bg) inset; }
+.bg-tren { display: grid; grid-template-columns: minmax(130px, 1fr) minmax(200px, 2fr) 110px 64px minmax(120px, 1fr) 140px 130px 140px auto 28px; gap: 8px; align-items: end; }
+.bg-o { display: flex; flex-direction: column; gap: 3px; min-width: 0; font-size: 11.5px; color: var(--text-3); }
+.bg-o .in-o { width: 100%; min-width: 0; }
+.bg-hop { flex-direction: row; gap: 10px; padding-bottom: 8px; white-space: nowrap; }
+.bg-hop label { display: inline-flex; align-items: center; gap: 4px; color: var(--text-2); font-size: 12.5px; }
+.bg-tren .nut-x { align-self: center; }
+.bg-kenh { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); }
+.bg-nhan { font-size: 11.5px; color: var(--text-3); margin-right: 2px; }
+.bg-k { display: inline-flex; align-items: center; gap: 6px; }
+.bg-k.on { flex: 1 1 360px; }
+.bg-k .in-o { flex: 1; min-width: 180px; }
+.link-nho { font-size: 12px; margin-right: 6px; }
+@media (max-width: 1280px) { .bg-tren { grid-template-columns: repeat(4, minmax(0, 1fr)); } .bg-o.rong { grid-column: span 2; } .bg-tren .nut-x { justify-self: end; } }
+@media (max-width: 640px) { .bg-tren { grid-template-columns: repeat(2, minmax(0, 1fr)); } .bg-o.rong { grid-column: 1 / -1; } .bg-k.on { flex-basis: 100%; } }

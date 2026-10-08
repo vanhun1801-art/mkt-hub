@@ -151,6 +151,13 @@ function bangBanGiao(bg, kenh, lang = 'vi') {
     Object.entries(theoLoai).map(([l, n]) => String(n).padStart(2, '0') + ' ' + esc(N.loai(l).toLowerCase())).join(', ') + ')</td></tr></table>';
 }
 
+/* Tên bài + link: bài đăng nhiều kênh thì mỗi kênh một link (cột "Link theo kênh", dòng "TikTok · X | url") */
+function tenVaLink(b) {
+  const ds = String(b.linkKenh || '').split('\n').map((d) => { const i = d.lastIndexOf(' | '); return i > 0 ? { nhan: d.slice(0, i).trim(), url: d.slice(i + 3).trim() } : null; }).filter((x) => x && x.url);
+  if (!ds.length) return b.link ? '<a href="' + esc(b.link) + '">' + esc(b.ten) + '</a>' : esc(b.ten);
+  return esc(b.ten) + '<br>' + ds.map((l) => '<a href="' + esc(l.url) + '">' + esc(l.nhan.split(' · ')[0] || 'Link') + '</a>').join(' · ');
+}
+
 function khoiKenh(kenh) {
   if (!kenh.length) return P('Kênh: chưa khai');
   return '<p style="margin:0 0 4px">Kênh:</p>' + kenh.map((k) =>
@@ -282,7 +289,7 @@ function thuMoiEn({ ht, kol, kenh, hm, bg }, cfg, tenEn = {}) {
 function baoCao({ ht, kol, hm, bg }, cfg) {
   const k = T.ketQua(ht, hm, bg);
   const bai = bg.filter((b) => b.trangThai === 'Đã đăng');
-  const dong = bai.map((b) => '<tr><td style="' + O + '">' + (b.link ? '<a href="' + esc(b.link) + '">' + esc(b.ten) + '</a>' : esc(b.ten)) +
+  const dong = bai.map((b) => '<tr><td style="' + O + '">' + tenVaLink(b) +
     '</td><td style="' + O + 'text-align:center">' + (b.ngayDang ? T.ddmm(b.ngayDang) : '') + '</td><td style="' + O + 'text-align:right">' +
     tien(T.xemMoiNhat(b)) + '</td><td style="' + O + 'text-align:right">' + tien((b.thich30 != null ? b.thich30 : b.thich7) || 0) +
     '</td><td style="' + O + 'text-align:right">' + tien((b.binhLuan30 != null ? b.binhLuan30 : b.binhLuan7) || 0) + '</td></tr>').join('');
@@ -353,7 +360,7 @@ function baoCaoDoiTac({ ht, kol, kenh, bg, doiTac, tenDoiTac }) {
     P('Kính gửi ' + esc((doiTac && doiTac.lienHe) || 'Quý đối tác') + ' — ' + esc(tenDoiTac) + ','),
     P('Rooty Trip Phú Quốc cảm ơn ' + esc(tenDoiTac) + ' đã đồng hành cùng chuyến trải nghiệm của KOL <b>' + esc(kol.ten) + '</b> (' + khoang(ht) + '). Kết quả các nội dung dành cho ' + esc(tenDoiTac) + ':'),
     '<table style="border-collapse:collapse;font-size:13px"><tr>' + th('Nội dung') + th('Kênh') + th('Ngày đăng') + th('Lượt xem') + th('Tương tác') + '</tr>' +
-      bai.map((b) => '<tr><td style="' + O + '">' + (b.link ? '<a href="' + esc(b.link) + '">' + esc(b.ten) + '</a>' : esc(b.ten)) + '</td><td style="' + O + '">' +
+      bai.map((b) => '<tr><td style="' + O + '">' + tenVaLink(b) + '</td><td style="' + O + '">' +
         esc(tenKenhDang(b, kenh).join(', ')) + '</td><td style="' + O + 'text-align:center">' + (b.ngayDang ? T.ddmm(b.ngayDang) : 'chưa đăng') + '</td><td style="' + O + 'text-align:right">' +
         tien(T.xemMoiNhat(b)) + '</td><td style="' + O + 'text-align:right">' +
         tien(['thich', 'binhLuan', 'chiaSe', 'luu'].reduce((s, k) => s + ((b[k + '30'] != null ? b[k + '30'] : b[k + '7']) || 0), 0)) + '</td></tr>').join('') + '</table>',

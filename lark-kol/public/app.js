@@ -1351,13 +1351,36 @@ function cacLoai(ht) {
 }
 
 /* ---------------- Bàn giao (của một chuyến) ---------------- */
+/* ---------------- link bài theo từng kênh (08/10) ----------------
+ * Base giữ ở cột "Link theo kênh", mỗi dòng "TikTok · Mẹ ZinZon | https://…" (đọc được ngay trên Base).
+ * Cột "Link bài" cũ vẫn ghi link ĐẦU TIÊN — các chỗ chỉ cần một link (bảng số, báo cáo cũ) không phải đổi. */
+const nhanKenh = (k) => (k.nenTang || '') + ' · ' + (k.ten || '');
+function dongLinkKenh(b) {
+  return String(b.linkKenh || '').split('\n').map((d) => { const i = d.lastIndexOf(' | '); return i > 0 ? { nhan: d.slice(0, i).trim(), url: d.slice(i + 3).trim() } : null; })
+    .filter((x) => x && x.url);
+}
+/** {id kênh: url} cho ô sửa; link cũ một ô thì gán cho kênh đầu tiên đã chọn */
+function linkTheoKenh(b, kenh) {
+  const m = {};
+  for (const d of dongLinkKenh(b)) { const k = kenh.find((x) => nhanKenh(x) === d.nhan); if (k) m[k.id] = d.url; }
+  if (!Object.keys(m).length && b.link) { const id = (b.kenhDang || [])[0]; if (id) m[id] = b.link; }
+  return m;
+}
+/** mọi link của một bài để HIỆN: [{nhan, url}] — có Link theo kênh thì lấy đó, không thì link cũ */
+function linksCua(b) {
+  const ds = dongLinkKenh(b);
+  return ds.length ? ds : b.link ? [{ nhan: '', url: b.link }] : [];
+}
+const nutLinks = (b, lop) => linksCua(b).map((l) => '<a class="' + (lop || 'btn nho') + '" href="' + e(l.url) + '" target="_blank" rel="noopener" title="' + e(l.url) + '">' +
+  e(l.nhan ? l.nhan.split(' · ')[0] : 'Mở bài') + '</a>').join(' ');
+
 function veBanGiaoHt(than, ht) {
   const goc = S.dl.banGiao.filter((b) => b.hopTac === ht.id);
   /* Kênh đăng chọn thẳng từ các kênh đã khai của KOL — không gõ lại. */
   const kenh = S.dl.kenh.filter((k) => k.kol === ht.kol);
   /* Nháp (02/10): như Bảng kê — danh sách đang sửa giữ trên máy theo hợp tác, lưu xong thì xoá. */
   const kh = 'kol.nhap.bg.' + ht.id;
-  S.sua = { ban: false, ds: goc.map((b) => ({ ...b, kenhDang: [...(b.kenhDang || [])] })), nhap: kh };
+  S.sua = { ban: false, ds: goc.map((b) => ({ ...b, kenhDang: [...(b.kenhDang || [])], _lk: linkTheoKenh(b, kenh) })), nhap: kh };
   const nhap = nhapDoc(kh);
   if (nhap && Array.isArray(nhap.dl)) {
     if (JSON.stringify(nhap.dl) !== JSON.stringify(S.sua.ds)) S.sua = { ban: true, ds: nhap.dl, nhap: kh, khoiPhuc: nhap.at };
@@ -1365,6 +1388,7 @@ function veBanGiaoHt(than, ht) {
   }
   const veLai = () => {
     const ds = S.sua.ds;
+    ds.forEach((b) => { if (!b._lk) b._lk = linkTheoKenh(b, kenh); });   // nháp cũ chưa có link theo kênh
     if (S.sua.ban) giuSua();
     const dang = ds.map((b, i) => [b, i]).filter(([b]) => b.trangThai === 'Đã đăng');
     const doiTacBg = [...new Set(goc.map((b) => String(b.traDoiTac || '').trim()).filter(Boolean))];
@@ -1373,27 +1397,33 @@ function veBanGiaoHt(than, ht) {
       '<button class="btn nho" id="bgThem">Thêm sản phẩm</button>' +
       '<button class="btn chinh nho" id="bgLuu"' + (S.sua.ban ? '' : ' disabled') + '>Lưu</button></div>' +
       (kenh.length ? '' : '<div class="the-than"><div class="bao cam" style="margin:0">KOL này chưa khai kênh nào — mở tab Thông tin → Sửa KOL để thêm, rồi chọn kênh đăng ở đây.</div></div>') +
-      '<div class="the-than khit cuon"><datalist id="dsDtBg">' + dsDoiTac().map((x) => '<option value="' + e(x) + '">').join('') + '</datalist><table class="bang"><thead><tr>' +
-      '<th>Chủ đề</th><th>Sản phẩm</th><th>Loại</th><th>Kênh đăng</th><th class="so">SL</th><th>Trả cho đối tác</th><th>Hạn đăng</th><th>Trạng thái</th>' +
-      '<th>Ngày đăng</th><th>Link bài</th><th title="Đủ gắn thẻ + hashtag">Thẻ</th><th title="Có nhắc tên + CTA">CTA</th><th></th></tr></thead><tbody>' +
-      ds.map((b, i) => { const tt = b.tt || {}; return '<tr data-i="' + i + '"' + (tt.ma === 'tre' ? ' class="kiem"' : '') + '>' +
-        '<td><input class="in-o" data-f="chuDe" value="' + e(b.chuDe) + '" style="min-width:120px"></td>' +
-        '<td><input class="in-o" data-f="ten" value="' + e(b.ten) + '"></td>' +
-        '<td><select class="in-o" data-f="loai">' + opt(LOAI_BG, b.loai, true) + '</select></td>' +
-        '<td><div class="chip-ds" style="min-width:200px">' + (kenh.map((k) => '<button class="chip-chon' + ((b.kenhDang || []).includes(k.id) ? ' on' : '') + '" data-kd="' + k.id + '" title="' + e(k.link || '') + '">' +
-          e(k.nenTang) + ' · ' + e(k.ten) + (k.reup ? ' (re-up)' : '') + '</button>').join('') || '<span class="nho">' + e((b.nenTang || []).join(', ') || '—') + '</span>') + '</div></td>' +
-        '<td><input class="in-o" type="number" min="1" data-f="soLuong" value="' + (b.soLuong ?? 1) + '"></td>' +
-        '<td><input class="in-o" data-f="traDoiTac" list="dsDtBg" value="' + e(b.traDoiTac) + '" placeholder="—" style="min-width:120px"></td>' +
-        '<td><input class="in-o" type="date" data-f="hanDang" value="' + ngayIn(b.hanDang) + '"></td>' +
-        '<td><select class="in-o" data-f="trangThai">' + opt(TT_BG, b.trangThai || 'Chưa làm') + '</select></td>' +
-        '<td><input class="in-o" type="date" data-f="ngayDang" value="' + ngayIn(b.ngayDang) + '"></td>' +
-        '<td><input class="in-o" data-f="link" value="' + e(b.link) + '" placeholder="https://" style="min-width:160px"></td>' +
-        '<td style="text-align:center"><input type="checkbox" data-f="theTag"' + (b.theTag ? ' checked' : '') + '></td>' +
-        '<td style="text-align:center"><input type="checkbox" data-f="cta"' + (b.cta ? ' checked' : '') + '></td>' +
-        '<td><button class="nut-x" data-xoa="' + i + '">×</button></td></tr>'; }).join('') + '</tbody></table></div></div>' +
+      '<div class="the-than"><datalist id="dsDtBg">' + dsDoiTac().map((x) => '<option value="' + e(x) + '">').join('') + '</datalist>' +
+      (ds.length ? '' : '<div class="nho">Chưa có sản phẩm nào — bấm Thêm sản phẩm.</div>') +
+      ds.map((b, i) => { const tt = b.tt || {}; const lk = b._lk || {};
+        const o = (nhan, html, lop) => '<label class="bg-o' + (lop ? ' ' + lop : '') + '"><span>' + nhan + '</span>' + html + '</label>';
+        return '<div class="bg-the' + (tt.ma === 'tre' ? ' tre' : '') + '" data-i="' + i + '"><div class="bg-tren">' +
+          o('Chủ đề', '<input class="in-o" data-f="chuDe" value="' + e(b.chuDe) + '">') +
+          o('Sản phẩm', '<input class="in-o" data-f="ten" value="' + e(b.ten) + '">', 'rong') +
+          o('Loại', '<select class="in-o" data-f="loai">' + opt(LOAI_BG, b.loai, true) + '</select>', 'hep') +
+          o('SL', '<input class="in-o" type="number" min="1" data-f="soLuong" value="' + (b.soLuong ?? 1) + '">', 'so') +
+          o('Trả cho đối tác', '<input class="in-o" data-f="traDoiTac" list="dsDtBg" value="' + e(b.traDoiTac) + '" placeholder="—">') +
+          o('Hạn đăng', '<input class="in-o" type="date" data-f="hanDang" value="' + ngayIn(b.hanDang) + '">', 'ngay') +
+          o('Trạng thái', '<select class="in-o" data-f="trangThai">' + opt(TT_BG, b.trangThai || 'Chưa làm') + '</select>', 'hep') +
+          o('Ngày đăng', '<input class="in-o" type="date" data-f="ngayDang" value="' + ngayIn(b.ngayDang) + '">', 'ngay') +
+          '<div class="bg-o bg-hop"><label title="Đủ gắn thẻ + hashtag"><input type="checkbox" data-f="theTag"' + (b.theTag ? ' checked' : '') + '> Thẻ</label>' +
+            '<label title="Có nhắc tên + CTA"><input type="checkbox" data-f="cta"' + (b.cta ? ' checked' : '') + '> CTA</label></div>' +
+          '<button class="nut-x" data-xoa="' + i + '" title="Bỏ sản phẩm này">×</button></div>' +
+          '<div class="bg-kenh"><span class="bg-nhan">Kênh đăng &amp; link bài</span>' +
+          (kenh.map((k) => { const on = (b.kenhDang || []).includes(k.id);
+            return '<div class="bg-k' + (on ? ' on' : '') + '"><button type="button" class="chip-chon' + (on ? ' on' : '') + '" data-kd="' + k.id + '" title="' + (on ? 'Bỏ kênh này' : 'Chọn đăng trên kênh này') + '">' +
+              e(nhanKenh(k)) + (k.reup ? ' (re-up)' : '') + '</button>' +
+              (on ? '<input class="in-o" data-lk="' + k.id + '" value="' + e(lk[k.id] || '') + '" placeholder="Dán link bài trên ' + e(k.nenTang || 'kênh này') + '" inputmode="url">' +
+                (lk[k.id] ? '<a class="btn nho" href="' + e(lk[k.id]) + '" target="_blank" rel="noopener">Mở</a>' : '') : '') + '</div>'; }).join('') ||
+            '<span class="nho">' + e((b.nenTang || []).join(', ') || 'KOL chưa khai kênh') + '</span>') + '</div></div>'; }).join('') +
+      '</div></div>' +
       (dang.length ? '<div class="the"><div class="the-dau"><h2>Số liệu bài đăng</h2></div><div class="the-than khit cuon"><table class="bang"><thead><tr><th>Bài</th><th>Mốc</th>' +
         ['Xem', 'Thích', 'Bình luận', 'Chia sẻ', 'Lưu'].map((c) => '<th class="so">' + c + '</th>').join('') + '<th>Nhập lúc</th></tr></thead><tbody>' +
-        dang.map(([b, i]) => ['7', '30'].map((moc) => '<tr data-i="' + i + '"><td>' + (moc === '7' ? (b.link ? '<a href="' + e(b.link) + '" target="_blank" rel="noopener">' + e(b.ten) + '</a>' : e(b.ten)) +
+        dang.map(([b, i]) => ['7', '30'].map((moc) => '<tr data-i="' + i + '"><td>' + (moc === '7' ? e(b.ten) + (linksCua(b).length ? '<div>' + nutLinks(b, 'link-nho') + '</div>' : '') +
           '<div class="nho">đăng ' + ddmm(b.ngayDang) + '</div>' : '') + '</td><td>' + moc + ' ngày' + (b.ngayDang ? '<div class="nho">từ ' + ddmm(dauNgay(b.ngayDang) + +moc * NGAY_MS) + '</div>' : '') + '</td>' +
           ['xem', 'thich', 'binhLuan', 'chiaSe', 'luu'].map((k) => '<td><input class="in-o" type="number" min="0" data-f="' + k + moc + '" value="' + (b[k + moc] ?? '') + '" style="min-width:90px"></td>').join('') +
           '<td class="nho">' + (b['nhap' + moc] ? ddmm(b['nhap' + moc]) : '') + '</td></tr>').join('')).join('') + '</tbody></table></div></div>' : '');
@@ -1407,7 +1437,10 @@ function veBanGiaoHt(than, ht) {
       $('#bgLuu').disabled = true;
       try {
         await api('/api/hop-tac/' + ht.id + '/ban-giao', { ds: ds.map((b) => {
-          const { tt, hopTac, nhap7, nhap30, ...r } = b;
+          const { tt, hopTac, nhap7, nhap30, _lk, ...r } = b;
+          /* link theo kênh: chỉ kênh đang chọn, theo thứ tự kênh của KOL; "Link bài" = link đầu tiên */
+          const lks = kenh.filter((k) => (r.kenhDang || []).includes(k.id) && (_lk || {})[k.id]).map((k) => ({ nhan: nhanKenh(k), url: _lk[k.id] }));
+          if (kenh.length) { r.linkKenh = lks.map((l) => l.nhan + ' | ' + l.url).join('\n'); r.link = lks.length ? lks[0].url : (r.kenhDang || []).length ? '' : r.link; }   // chưa chọn kênh: giữ link cũ
           if (!r.hanDang) r.hanDang = null; if (!r.ngayDang) r.ngayDang = null;
           /* Nền tảng suy từ kênh đã chọn — bảng số liệu và các app khác vẫn lọc theo nền tảng được. */
           const nt = [...new Set((r.kenhDang || []).map((id) => (kenh.find((k) => k.id === id) || {}).nenTang).filter(Boolean))];
@@ -1420,7 +1453,13 @@ function veBanGiaoHt(than, ht) {
   };
   than.oninput = than.onchange = (ev) => {
     if (!S.sua) return;   // bảng đã lưu + vẽ lại: sự kiện change muộn của ô vừa mất focus thì bỏ
-    const tr = ev.target.closest('tr[data-i]'); const f = ev.target.dataset.f;
+    const tr = ev.target.closest('[data-i]');
+    /* ô link của một kênh */
+    if (tr && ev.target.dataset.lk) {
+      const b = S.sua.ds[+tr.dataset.i]; b._lk = { ...(b._lk || {}), [ev.target.dataset.lk]: ev.target.value.trim() };
+      S.sua.ban = true; $('#bgLuu').disabled = false; giuSua(); return;
+    }
+    const f = ev.target.dataset.f;
     if (!tr || !f) return;
     const b = S.sua.ds[+tr.dataset.i]; const x = ev.target;
     b[f] = x.type === 'checkbox' ? x.checked : x.type === 'number' ? (x.value === '' ? null : Number(x.value)) : x.type === 'date' ? tuChuoi(x.value) : x.value;
@@ -1434,7 +1473,7 @@ function veBanGiaoHt(than, ht) {
     if (!S.sua) return;
     if (ev.target.closest('[data-bo-nhap]')) { nhapBo(kh); S.sua = null; return veBanGiaoHt(than, ht); }
     const kd = ev.target.closest('[data-kd]');
-    if (kd) { const b = S.sua.ds[+kd.closest('tr').dataset.i]; const s = new Set(b.kenhDang || []); s.has(kd.dataset.kd) ? s.delete(kd.dataset.kd) : s.add(kd.dataset.kd); b.kenhDang = [...s]; S.sua.ban = true; return veLai(); }
+    if (kd) { const b = S.sua.ds[+kd.closest('[data-i]').dataset.i]; const s = new Set(b.kenhDang || []); s.has(kd.dataset.kd) ? s.delete(kd.dataset.kd) : s.add(kd.dataset.kd); b.kenhDang = [...s]; S.sua.ban = true; return veLai(); }
     const x = ev.target.closest('[data-xoa]');
     if (x) { S.sua.ds.splice(+x.dataset.xoa, 1); S.sua.ban = true; veLai(); }
   };
@@ -1753,7 +1792,7 @@ function htmlNhapNhanh(ds) {
     return '<div class="the nn-the" data-bg="' + b.id + '" data-moc="' + moc + '"><div class="the-than">' +
       '<div class="nn-dau"><div><b>' + e(ht.kolTen || '') + '</b> <span class="nho">' + e(ht.ma || '') + '</span><div>' + e(b.ten) + '</div>' +
       '<div class="nho">đăng ' + ddmm(b.ngayDang) + ' · số ' + moc + ' ngày (từ ' + tu + ')' + (moc === '30' && b.xem7 != null ? ' · mốc 7 ngày: ' + tien(b.xem7) + ' xem' : '') + '</div></div>' +
-      (b.link ? '<a class="btn nho" href="' + e(b.link) + '" target="_blank" rel="noopener">Mở bài</a>' : '') + '</div>' +
+      (linksCua(b).length ? '<div class="hang-nut">' + nutLinks(b) + '</div>' : '') + '</div>' +
       (b.link ? '' : '<label class="nn-link">Link bài<input class="in-o" data-o="link" placeholder="Dán link bài để lần sau mở nhanh"></label>') +
       '<div class="nn-so">' + SO_BAI.map(([k, n]) => '<label>' + n + '<input class="in-o" type="number" min="0" inputmode="numeric" data-o="' + k + moc + '" placeholder="' +
         (moc === '30' && b[k + '7'] != null ? tien(b[k + '7']) : '') + '"></label>').join('') +
@@ -1788,7 +1827,7 @@ function htmlBangBg(ds) {
       '<td>' + e(tenKenhBg(b)) + '</td>' +
       '<td>' + (b.ngayDang ? 'đăng ' + ddmm(b.ngayDang) : 'hạn ' + ddmm(b.hanDang)) + '</td>' +
       '<td>' + nhanTT(b.tt.nhan, mau[b.tt.ma]) + '</td>' +
-      '<td class="giua">' + (b.link ? '<a class="btn nho" href="' + e(b.link) + '" target="_blank" rel="noopener" title="' + e(b.link) + '">Mở bài</a>' : '<span class="phu">chưa có</span>') + '</td>' +
+      '<td class="giua">' + (linksCua(b).length ? nutLinks(b) : '<span class="phu">chưa có</span>') + '</td>' +
       '<td class="giua">' + (s.moc ? '<span class="nhan-tt">' + s.moc + 'N</span>' : '') + '</td>' +
       o(s.xem) + o(s.thich) + o(s.binhLuan) + o(s.chiaSe) + o(s.luu) +
       '<td class="so"><b>' + (s.tuongTac == null ? '<span class="phu">–</span>' : tien(s.tuongTac)) + '</b></td>' +

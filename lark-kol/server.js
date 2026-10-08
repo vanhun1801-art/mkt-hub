@@ -357,7 +357,7 @@ const COT = {
     'hinhThuc', 'donGiaChi', 'giaCongBo', 'vat', 'nhaCungCap', 'tinhTrang', 'nhacHen', 'tinNhan', 'kiemLai', 'ghiChu', 'xinFoc', 'tourwellId'],
   banGiao: ['id', 'ten', 'chuDe', 'loai', 'nenTang', 'soLuong', 'hanDang', 'trangThai', 'ngayDang', 'link', 'theTag', 'cta',
     'xem7', 'thich7', 'binhLuan7', 'chiaSe7', 'luu7', 'xem30', 'thich30', 'binhLuan30', 'chiaSe30', 'luu30', 'ghiChu',
-    'kenhDang', 'traDoiTac'],
+    'kenhDang', 'traDoiTac', 'linkKenh'],
   doiTac: ['ten', 'email', 'cc', 'lienHe', 'sdt', 'ghiChu', 'loai', 'maTw'],
 };
 

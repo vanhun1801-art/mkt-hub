@@ -90,6 +90,8 @@ const BANG = {
     theTag: ['Đủ gắn thẻ + hashtag', 'b'], cta: ['Có nhắc tên + CTA', 'b'],
     ...SO_DO(7), ...SO_DO(30), ghiChu: ['Ghi chú', 't'],
     kenhDang: ['Kênh đăng', 'L'], traDoiTac: ['Trả cho đối tác', 't'],
+    /* mỗi dòng "TikTok · Mẹ ZinZon | https://…" — một bài đăng nhiều kênh thì mỗi kênh một link (08/10) */
+    linkKenh: ['Link theo kênh', 't'],
   },
 };
 
