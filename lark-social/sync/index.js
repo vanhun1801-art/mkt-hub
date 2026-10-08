@@ -283,6 +283,7 @@ function dongPost(row, kenhId) {
 const COT_LIVE_GIU = (() => {
   const f = store.T.live.f;
   return [f.views, f.luotPhat, f.xem3giay, f.xemRieng, f.peak,
+    f.xem10s, f.xem30s, f.xem60s, f.tongGioXem, f.xemTbGiay, f.hienThi,
     f.comments, f.likes, f.shares, f.newFollows].filter(Boolean);
 })();
 
@@ -301,6 +302,12 @@ function dongLive(row, kenhId) {
     [f.xem3giay]: num(row.xem3giay),
     [f.xemRieng]: num(row.xemRieng),
     [f.peak]: num(row.peak),
+    [f.xem10s]: num(row.xem10s),
+    [f.xem30s]: num(row.xem30s),
+    [f.xem60s]: num(row.xem60s),
+    [f.tongGioXem]: num(row.tongGioXem),
+    [f.xemTbGiay]: num(row.xemTbGiay),
+    [f.hienThi]: num(row.hienThi),
     [f.comments]: num(row.comments),
     [f.likes]: num(row.likes),
     [f.shares]: num(row.shares),

@@ -586,6 +586,37 @@ async function docLiveRieng(app, tu, den, pv) {
     { nhan: 'Chia sẻ', so: cFb('shares') + cTt('chiaSe'), dinhDang: 'so' },
   ];
 
+  /* CHẤT LƯỢNG XEM — thêm 08/10/2026.
+   *
+   * Lượt xem thô không nói được một phiên có ăn hay không. Phiên 06/10 có 22k
+   * lượt xem mà xem trung bình 10 giây: phần lớn là người lướt ngang bảng tin,
+   * video tự chạy, đếm thành một lượt. "Xem từ 30 giây" mới là người ngồi lại.
+   *
+   * Chỉ Facebook có ba mốc 10/30/60 giây (đọc từ /video_insights). Bản xuất
+   * LIVE Center của TikTok chỉ có thời gian xem trung bình, nên ô "Xem trung
+   * bình" cộng được cả hai còn ba ô kia ghi rõ là của Facebook. */
+  const xemTb = () => {
+    /* Trung bình có trọng số theo LƯỢT XEM, không lấy trung bình của trung
+     * bình: phiên 22k lượt và phiên 3k lượt không cân bằng nhau. */
+    const cap = [...dsFb.map((x) => [so(x.xemTbGiay), so(x.views)]),
+      ...dsTt.map((x) => [so(x.xemTrungBinh), so(x.luotXem)])].filter((p) => p[0] > 0);
+    const mau = cap.reduce((a, p) => a + p[1], 0);
+    return mau ? Math.round(cap.reduce((a, p) => a + p[0] * p[1], 0) / mau) : 0;
+  };
+  if (cFb('xem10s') || cTt('xemTrungBinh')) {
+    o.push(
+      { nhan: 'Xem trung bình mỗi lượt', so: xemTb(), dinhDang: 'so', ghi: 'giây' },
+      ...(cFb('xem10s') ? [
+        { nhan: 'Xem từ 10 giây', so: cFb('xem10s'), dinhDang: 'so', ghi: 'Facebook' },
+        { nhan: 'Xem từ 30 giây', so: cFb('xem30s'), dinhDang: 'so', ghi: 'Facebook' },
+        { nhan: 'Xem trên 1 phút', so: cFb('xem60s'), dinhDang: 'so', ghi: 'Facebook' },
+        { nhan: 'Tổng giờ người ta đã xem', so: cFb('tongGioXem') / 3600, dinhDang: 'gio',
+          ghi: 'Facebook' },
+        { nhan: 'Hiển thị', so: cFb('hienThi'), dinhDang: 'so', ghi: 'Facebook' },
+      ] : []),
+    );
+  }
+
   /* TIN NHẮN · LEAD · ĐƠN CHỐT chỉ hiện ở bản của trưởng phòng.
    *
    * Ba cột đó KHÔNG phải nền tảng trả về — tien-live.js tự gắn từ Tourwell theo
@@ -604,7 +635,7 @@ async function docLiveRieng(app, tu, den, pv) {
   o.push(
     /* LÀM TRÒN. Lượt xem là số người, không có 0,43 người; phút lên sóng lẻ
      * tới hai chữ số thập phân cũng không nói thêm được gì. */
-    { nhan: 'Xem trung bình một phiên',
+    { nhan: 'Lượt xem mỗi phiên',
       so: (phienFb + phienTt) ? Math.round((xemFb + xemTt) / (phienFb + phienTt)) : 0,
       dinhDang: 'so' },
     { nhan: 'Phút lên sóng mỗi phiên',
@@ -624,7 +655,10 @@ async function docLiveRieng(app, tu, den, pv) {
   const NHOM = {
     'Số phiên LIVE': 'quyMo', 'Giờ lên sóng': 'quyMo', 'Phút lên sóng mỗi phiên': 'quyMo',
     'Lượt xem': 'nguoiXem', 'Người xem': 'nguoiXem', 'Đỉnh cùng lúc': 'nguoiXem',
-    'Xem trung bình một phiên': 'nguoiXem',
+    'Lượt xem mỗi phiên': 'nguoiXem',
+    'Xem trung bình mỗi lượt': 'chatLuong', 'Xem từ 10 giây': 'chatLuong',
+    'Xem từ 30 giây': 'chatLuong', 'Xem trên 1 phút': 'chatLuong',
+    'Tổng giờ người ta đã xem': 'chatLuong', 'Hiển thị': 'chatLuong',
     'Bình luận': 'tuongTac', 'Thích': 'tuongTac', 'Chia sẻ': 'tuongTac',
     'Follow mới': 'tuongTac',
     'Tin nhắn (Facebook)': 'raDon', 'Lead (Facebook)': 'raDon', 'Đơn chốt (Facebook)': 'raDon',
@@ -656,6 +690,8 @@ async function docLiveRieng(app, tu, den, pv) {
     nhomO: {
       quyMo: { ten: 'Quy mô', mo: 'Facebook và TikTok cộng lại' },
       nguoiXem: { ten: 'Người xem', mo: 'bao nhiêu người, xem bao lâu' },
+      chatLuong: { ten: 'Chất lượng xem',
+        mo: 'ngồi lại bao lâu — lượt xem thô không nói được điều này' },
       tuongTac: { ten: 'Tương tác', mo: 'người xem làm gì trong phiên' },
       raDon: { ten: 'Ra đơn — chỉ Facebook',
         mo: 'gắn từ Tourwell theo khung giờ phiên, nên là phép ĐOÁN' },
@@ -725,12 +761,12 @@ async function docLiveRieng(app, tu, den, pv) {
        * thấy ngay phiên 22k lượt xem chỉ có 266 người xem lúc đang phát. */
       { tieuDe: 'Phiên LIVE Facebook',
         cot: ['Bắt đầu', 'Tên phiên', 'Kênh', 'Phút', 'Lượt xem', 'Xem cùng lúc',
-          'Người xem', 'Bình luận', 'Thích', 'Địa điểm'],
-        soCot: [3, 4, 5, 6, 7, 8],
+          'Xem từ 30 giây', 'Xem TB (giây)', 'Bình luận', 'Thích', 'Địa điểm'],
+        soCot: [3, 4, 5, 6, 7, 8, 9],
         dong: phienFb2.slice(0, 40).map((x) => [gioPhut(x.start),
           x.title || '(không đặt tên)', x.channel || '', so(x.minutes),
-          so(x.views) || '—', so(x.peak) || '—', so(x.xemRieng) || '—',
-          so(x.comments), so(x.likes), '—']) },
+          so(x.views) || '—', so(x.peak) || '—', so(x.xem30s) || '—',
+          so(x.xemTbGiay) || '—', so(x.comments), so(x.likes), '—']) },
       { tieuDe: 'LIVE TikTok theo ngày',
         cot: ['Ngày', 'Kênh', 'Phiên', 'Giờ', 'Lượt xem', 'Người xem',
           'Người bình luận', 'Follow mới', 'Địa điểm'],

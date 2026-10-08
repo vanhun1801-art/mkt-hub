@@ -220,6 +220,13 @@ function docLive(r) {
     xem3giay: num(r.c[f.xem3giay]),
     xemRieng: num(r.c[f.xemRieng]),
     peak: num(r.c[f.peak]),
+    /* Chất lượng xem — xem chú thích ở config.tables.live.f. */
+    xem10s: num(r.c[f.xem10s]),
+    xem30s: num(r.c[f.xem30s]),
+    xem60s: num(r.c[f.xem60s]),
+    tongGioXem: num(r.c[f.tongGioXem]),
+    xemTbGiay: num(r.c[f.xemTbGiay]),
+    hienThi: num(r.c[f.hienThi]),
     comments: num(r.c[f.comments]),
     likes: num(r.c[f.likes]),
     shares: num(r.c[f.shares]),

@@ -579,25 +579,26 @@ async function soThatChoVideo(conf, token, ds, ten, canhBao) {
  * (reactions_by_type cho đủ loại cảm xúc, comments.summary đếm thẳng) nên chỉ
  * lấy phần share.
  */
-/* Chỉ số hỏi ở /video_insights.
- *
- * ĐÃ BỎ `total_video_impressions`: Meta trả "(#100) The value must be a valid
- * insights metric". Và vì Meta báo lỗi cho CẢ CỤM chứ không bỏ riêng cái nó
- * không biết, một chỉ số sai là hỏng cả lượt hỏi — mà bản dự phòng
- * `slice(0, 3)` lại vẫn chứa đúng cái sai đó. Hậu quả: đường này CHƯA BAO GIỜ
- * trả về gì, nên cảm xúc và chia sẻ của mọi phiên LIVE đều bằng 0 suốt từ lúc
- * viết. Đo lại ngày 07/10 trên phiên thật: bỏ nó ra là cả bốn chỉ số về đủ. */
+/* Bộ chỉ số dự phòng, CHỈ dùng khi lượt hỏi không-tham-số thất bại. Bốn cái này
+ * là bốn cái Meta chắc chắn nhận qua tham số `metric`. */
 const CHI_SO_LIVE = ['total_video_views', 'total_video_views_unique',
   'total_video_reactions_by_type_total', 'total_video_stories_by_action_type'];
 
 /**
- * Lấy thêm số cho một phiên từ /video_insights: cảm xúc, chia sẻ, bình luận.
+ * Lấy thêm số cho một phiên từ /video_insights.
  *
- * KHÔNG dùng để lấy lượt xem nữa — `total_video_views` ở đây là lượt xem từ 3
- * giây, nhỏ hơn cột "Lượt xem" trong bản xuất của Trang khoảng ba lần. Lượt xem
- * nay lấy ở node video (`views`), xem chú thích tại TRUONG_VIDEO. Vẫn giữ phép
- * `Math.max` để trang nào không có `views` thì còn số này đỡ, chứ không để nó
- * kéo con số đã đúng xuống thấp.
+ * HỎI KHÔNG KÈM `metric`, lấy trọn bản mặc định.
+ *
+ * Vì sao: Meta trả về khoảng năm mươi chỉ số khi không truyền `metric`, nhưng
+ * PHẦN LỚN trong số đó lại bị từ chối nếu hỏi đích danh — "(#100) The value
+ * must be a valid insights metric". Thử ngày 08/10/2026: thêm
+ * `total_video_10s_views` và năm chỉ số chất lượng xem khác vào tham số là cả
+ * cụm hỏng. Tệ hơn, câu lỗi đó KHÔNG nêu tên chỉ số nào sai, nên vòng dò bên
+ * dưới không biết bỏ cái gì và tụt về hai chỉ số đầu — mất luôn cảm xúc và
+ * chia sẻ của mọi phiên. (Lần ấy số cũ còn nguyên là nhờ `giuSoDuong` trong
+ * store.ghiTheoKhoa chặn không cho 0 ghi đè.)
+ *
+ * Lấy trọn bản mặc định thì vừa đủ chỉ số, vừa hết chuyện dò tên.
  *
  * @returns {boolean} đọc được insights hay không — để nơi gọi còn ĐẾM và báo.
  *   Bản trước nuốt im mọi lỗi ở đây, nên 17/28 phiên tháng 9 không có số mà
@@ -606,24 +607,14 @@ const CHI_SO_LIVE = ['total_video_views', 'total_video_views_unique',
 async function boSungTuVideo(conf, token, vid, row) {
   try {
     const hoi = async (ds) => getJson(g(conf) + '/' + vid + '/video_insights'
-      + '?metric=' + encodeURIComponent(ds.join(','))
-      + '&access_token=' + encodeURIComponent(token),
+      + (ds ? '?metric=' + encodeURIComponent(ds.join(',')) + '&' : '?')
+      + 'access_token=' + encodeURIComponent(token),
     { label: 'Facebook video_insights ' + vid, retries: 1 });
-    /* MỘT CHỈ SỐ HỎNG LÀ HỎNG CẢ LƯỢT HỎI — Meta trả lỗi cho cả request chứ
-     * không bỏ riêng cái nó không biết. Nên hỏng thì hỏi lại bằng bộ cũ, thà
-     * mất mỗi cột Chia sẻ còn hơn mất sạch số của phiên đó. */
-    /* Hỏng thì BỎ ĐÚNG CÁI META CHÊ rồi hỏi lại, chứ không cắt bừa mấy phần
-     * tử đầu — cắt bừa thì cái sai vẫn ở trong cụm và lần hai hỏng y lần một. */
-    let ins = await hoi(CHI_SO_LIVE);
-    for (let lan = 0; lan < 3 && ins && ins.error; lan++) {
-      const m = RE_TRUONG_HONG.exec(String(ins.error.message || ''));
-      const hong = m && (m[1] || m[2] || m[3]);
-      const con = hong ? CHI_SO_LIVE.filter((x) => x !== hong) : CHI_SO_LIVE.slice(0, 2);
-      if (!con.length) break;
-      // eslint-disable-next-line no-await-in-loop
-      ins = await hoi(con);
-      if (!hong) break;
-    }
+
+    let ins = await hoi(null);
+    /* Trang nào không cho đọc trọn bản thì lùi về bộ bốn chỉ số chắc chắn nhận. */
+    if (ins && ins.error) ins = await hoi(CHI_SO_LIVE);
+
     ((ins && ins.data) || []).forEach((m) => {
       const v = ((m.values || [])[0] || {}).value;
       if (m.name === 'total_video_views') {
@@ -639,10 +630,22 @@ async function boSungTuVideo(conf, token, vid, row) {
       if (m.name === 'total_video_stories_by_action_type' && v && typeof v === 'object') {
         row.shares = num(v.share);
       }
+      /* CHẤT LƯỢNG XEM. Lượt xem thô không nói được một phiên có ăn hay không:
+       * phiên 06/10 có 22k lượt xem mà xem trung bình 9,6 giây, tức phần lớn là
+       * người lướt ngang. Mấy chỉ số dưới mới phân biệt người xem thật. */
+      if (m.name === 'total_video_10s_views') row.xem10s = num(v);
+      if (m.name === 'total_video_30s_views') row.xem30s = num(v);
+      if (m.name === 'total_video_60s_excludes_shorter_views') row.xem60s = num(v);
+      /* Hai cột này Meta trả bằng MILI GIÂY. Ghi xuống Base bằng giây — cả
+       * bảng đang dùng giây, để lẫn hai đơn vị là chỗ sinh lỗi về sau. */
+      if (m.name === 'total_video_view_total_time') row.tongGioXem = Math.round(num(v) / 1000);
+      if (m.name === 'total_video_avg_time_watched') row.xemTbGiay = Math.round(num(v) / 1000);
+      if (m.name === 'total_video_impressions_organic') row.hienThi = num(v);
     });
+
     const cm = await getJson(g(conf) + '/' + vid + '/comments?summary=true&limit=0'
       + '&access_token=' + encodeURIComponent(token),
-      { label: 'Facebook live comments ' + vid, retries: 1 });
+    { label: 'Facebook live comments ' + vid, retries: 1 });
     row.comments = num(cm && cm.summary && cm.summary.total_count);
     if (ins && ins.error) return false;
   } catch (_) {
@@ -793,6 +796,7 @@ async function liveTuVideo(conf, page, from, to, canhBao, ghiChu = []) {
         views: num(v.views) || num(v.post_views) || 0,
         peak: num(v.live_audience_count),   // xem chú thích ở TRUONG_VIDEO
         comments: 0, likes: 0, shares: 0, newFollows: 0,
+        xem10s: 0, xem30s: 0, xem60s: 0, tongGioXem: 0, xemTbGiay: 0, hienThi: 0,
         url: v.permalink_url ? 'https://facebook.com' + v.permalink_url : '',
         source: NGUON,
       };

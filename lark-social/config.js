@@ -187,7 +187,17 @@ module.exports = {
         luotPhat: 'fldT0fmMIX',   // Lượt phát (bài đăng) — số lần video bắt đầu phát, gồm xem lại
         xem3giay: 'fldp2hnl9l',   // Xem từ 3 giây — total_video_views
         xemRieng: 'fldjYSzqBA',   // Người xem riêng — total_video_views_unique
-        peak: 'fld4XnApl2',       // Người xem cao nhất (lúc đang phát)
+        peak: 'fld4XnApl2',
+      /* CHẤT LƯỢNG XEM — thêm 08/10/2026. Lượt xem thô không nói được phiên
+       * có hay không: phiên 06/10 có 22k lượt xem mà xem trung bình 9,6 giây.
+       * Sáu cột này đọc từ /video_insights, đường vẫn chạy, không cần xin
+       * Meta duyệt gì. TikTok chỉ có xemTbGiay (bản xuất LIVE Center). */
+      xem10s: 'fldesNfU0X',      // xem từ 10 giây
+      xem30s: 'fldgqoqwOJ',      // xem từ 30 giây
+      xem60s: 'fldUXOuL4D',      // xem trên 1 phút
+      tongGioXem: 'fld1YsUrn1',  // tổng thời gian xem, tính bằng GIÂY
+      xemTbGiay: 'fld5hlWOiU',   // xem trung bình mỗi lượt, GIÂY
+      hienThi: 'fldKcl8NLB',     // số lần hiển thị (organic)       // Người xem cao nhất (lúc đang phát)
         comments: 'fldKimM0DG',
         likes: 'fldSU0jxYc',
         shares: 'fld1UxPhCI',
