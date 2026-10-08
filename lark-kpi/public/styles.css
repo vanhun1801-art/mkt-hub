@@ -208,6 +208,26 @@ main { padding: 18px var(--le) 60px; }
 /* Lời cảnh báo giới hạn số liệu do chính app nguồn khai. */
 .luu-y { margin: 5px 0 0; padding-left: 18px; font-size: 12px; line-height: 1.6; }
 .luu-y li { margin: 2px 0; }
+
+/* Gập lại: giới hạn số liệu là thứ tra khi cần, không phải thứ đọc mỗi lần mở.
+   Xem chú thích ở bcKhoi() trong baocao.js. */
+.luu-y-gap { margin: 6px 0 2px; }
+.luu-y-gap > summary {
+  cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; color: var(--chu-nhat); padding: 2px 0;
+}
+.luu-y-gap > summary::-webkit-details-marker { display: none; }
+.luu-y-gap > summary::before { content: '▸'; font-size: 11px; transition: transform .15s; }
+.luu-y-gap[open] > summary::before { transform: rotate(90deg); }
+.luu-y-gap > summary:hover { color: var(--chu-mo); }
+.luu-y-gap .luu-y { color: var(--chu-nhat); }
+
+/* Dòng kỳ đang xem — chữ nền, không phải lời cảnh báo. */
+.bc-dong-ky {
+  font-size: 12px; color: var(--chu-nhat); line-height: 1.6; margin: 0 0 10px;
+}
+.bc-dong-ky b { color: var(--chu-mo); font-weight: 650; }
+.pv-dai { font-size: 12.5px; }
 .o.tot .so { color: var(--luc); }
 .o.xau .so { color: var(--do); }
 .o.im .so { color: var(--chu-nhat); font-weight: 600; opacity: .55; }

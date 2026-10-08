@@ -97,12 +97,18 @@ function soDep(v, kieu) {
   if (kieu === 'pt') return (Math.round(v * 10) / 10).toString().replace('.', ',') + '%';
   if (kieu === 'x') return (Math.round(v * 100) / 100).toString().replace('.', ',') + 'x';
   if (kieu === 'so2') return (Math.round(v * 100) / 100).toLocaleString('vi-VN');
+  /* Giờ lên sóng: 19h58, không phải 19,96 — xem bcSo() trong public/baocao.js. */
+  if (kieu === 'gio') {
+    const g = Math.floor(v);
+    const ph = Math.round((v - g) * 60);
+    return (ph === 60 ? g + 1 : g) + 'h' + (ph === 60 ? 0 : ph).toString().padStart(2, '0');
+  }
   return Math.round(v).toLocaleString('vi-VN');
 }
 
 function gonSo(v, kieu) {
   if (v == null || !Number.isFinite(v)) return '—';
-  if (kieu === 'pt' || kieu === 'x' || kieu === 'so2') return soDep(v, kieu);
+  if (kieu === 'pt' || kieu === 'x' || kieu === 'so2' || kieu === 'gio') return soDep(v, kieu);
   const a = Math.abs(v);
   const rut = (n, d) => (Math.round(v / n * 10) / 10).toString().replace('.', ',') + d;
   if (kieu === 'vnd') {

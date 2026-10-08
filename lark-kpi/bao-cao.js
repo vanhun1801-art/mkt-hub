@@ -501,12 +501,6 @@ async function docLiveRieng(app, tu, den, pv) {
   /* Độ phủ tính riêng cho Facebook: TikTok lấy từ bản xuất chính chủ nên ngày
    * nào có dòng là có đủ số, không có chuyện để trống nửa vời. */
   const coXemFb = dsFb.filter((x) => so(x.views) > 0).length;
-  const phuFb = (f, nhan) => {
-    const c = dsFb.filter((x) => so(x[f]) > 0).length;
-    if (!dsFb.length || c === dsFb.length) return nhan || '';
-    return (nhan ? nhan + ' · ' : '') + c + '/' + dsFb.length
-      + ' phiên Facebook có số — ' + (dsFb.length - c) + ' phiên để trống';
-  };
 
   const nen = [];
   if (phienFb) nen.push('Facebook');
@@ -547,60 +541,76 @@ async function docLiveRieng(app, tu, den, pv) {
   const o = [
     { nhan: 'Số phiên LIVE', so: phienFb + phienTt, dinhDang: 'so', chinh: true,
       ghi: nen.length ? 'Facebook ' + phienFb + ' · TikTok ' + phienTt : '' },
+    /* HAI NỀN TẢNG ĐANG ĐO HAI THỨ KHÁC NHAU, và ô tổng này cộng chúng lại.
+     * TikTok đếm lượt xem TRONG PHIÊN. Facebook chỉ trả số của video đã tắt
+     * sóng, tức là có cả người bấm xem lại hôm sau. Không che chuyện đó sau một
+     * con số đẹp — ghi thẳng vào dòng dưới ô, và bảng "Lượt xem đo theo cách
+     * nào" bên dưới nói kỹ hơn. */
     { nhan: 'Lượt xem', so: xemFb + xemTt, dinhDang: 'so', chinh: true,
-      ghi: 'Facebook ' + gonSoNgan(xemFb) + ' · TikTok ' + gonSoNgan(xemTt) },
-    { nhan: 'Giờ lên sóng', so: (phutFb + phutTt) / 60, dinhDang: 'so2',
-      ghi: 'giờ · Facebook ' + Math.round(phutFb / 60) + 'h · TikTok ' + Math.round(phutTt / 60) + 'h' },
+      ghi: 'Facebook ' + gonSoNgan(xemFb) + ' (có cả xem lại) · TikTok '
+        + gonSoNgan(xemTt) + ' (trong phiên)' },
+    { nhan: 'Giờ lên sóng', so: (phutFb + phutTt) / 60, dinhDang: 'gio' },
     { nhan: 'Đỉnh cùng lúc', so: Math.max(0, ...dsFb.map((x) => so(x.peak)),
-      ...dsTt.map((x) => so(x.dinhDongThoi))), dinhDang: 'so',
-      ghi: 'người xem cao nhất — lấy mức cao nhất, không cộng hai nền tảng' },
-    { nhan: 'Follow mới', so: cFb('newFollows') + cTt('followerMoi'), dinhDang: 'so',
-      ghi: 'Facebook ' + cFb('newFollows') + ' · TikTok ' + cTt('followerMoi') },
+      ...dsTt.map((x) => so(x.dinhDongThoi))), dinhDang: 'so' },
+    { nhan: 'Follow mới', so: cFb('newFollows') + cTt('followerMoi'), dinhDang: 'so' },
+    /* BÌNH LUẬN GỘP HAI NỀN TẢNG — anh Hùng chốt 08/10/2026. Hai bên đếm hai
+     * đơn vị khác nhau (Facebook đếm LƯỢT, TikTok đếm NGƯỜI), nên con số gộp
+     * là con số xấp xỉ. Phần tách nằm ở bảng "Bình luận tách theo nền tảng"
+     * ngay dưới, chứ không nhét vào dòng chú thích của ô. */
+    { nhan: 'Bình luận', so: cFb('comments') + cTt('nguoiBinhLuan'), dinhDang: 'so' },
+    { nhan: 'Người xem', so: cFb('xemRieng') + cTt('nguoiXemRieng'), dinhDang: 'so',
+      ghi: 'cộng theo phiên — ai xem hai phiên tính hai lần' },
+    { nhan: 'Thích', so: cFb('likes') + cTt('thich'), dinhDang: 'so' },
+    { nhan: 'Chia sẻ', so: cFb('shares') + cTt('chiaSe'), dinhDang: 'so' },
   ];
 
-  /* Ô CHỈ CÓ Ở MỘT NỀN TẢNG — gọi đúng tên kèm nền tảng, đừng để người đọc
-   * tưởng là số của cả hai. */
-  if (dsFb.length) {
-    o.push({ nhan: 'Bình luận (Facebook)', so: cFb('comments'), dinhDang: 'so',
-      ghi: phuFb('comments') });
-    /* TIN NHẮN · LEAD · ĐƠN CHỐT chỉ hiện ở bản của trưởng phòng.
-     *
-     * Ba cột đó KHÔNG phải nền tảng trả về — tien-live.js tự gắn từ Tourwell
-     * theo khung giờ phiên, tức là đoán: lead nào rơi vào lúc đang live thì
-     * tính cho phiên đó. Đoán ở mức toàn phòng thì còn dùng để nhìn xu hướng,
-     * nhưng đặt vào phiếu của người dẫn live là biến một phép đoán thành thành
-     * tích hay lỗi của riêng họ. Anh Hùng bỏ, và đúng. */
-    if (!pv) {
-      o.push(
-        { nhan: 'Tin nhắn (Facebook)', so: cFb('messages'), dinhDang: 'so', ghi: phuFb('messages') },
-        { nhan: 'Lead (Facebook)', so: cFb('leads'), dinhDang: 'so',
-          ghi: phuFb('leads', 'bản xuất TikTok không có cột lead') },
-        { nhan: 'Đơn chốt (Facebook)', so: cFb('orders'), dinhDang: 'so',
-          ghi: phuFb('orders', 'bản xuất TikTok không có cột đơn') },
-      );
-    }
-  }
-  if (dsTt.length) {
+  /* TIN NHẮN · LEAD · ĐƠN CHỐT chỉ hiện ở bản của trưởng phòng.
+   *
+   * Ba cột đó KHÔNG phải nền tảng trả về — tien-live.js tự gắn từ Tourwell theo
+   * khung giờ phiên, tức là đoán: lead nào rơi vào lúc đang live thì tính cho
+   * phiên đó. Đoán ở mức toàn phòng thì còn dùng để nhìn xu hướng, nhưng đặt
+   * vào phiếu của người dẫn live là biến một phép đoán thành thành tích hay lỗi
+   * của riêng họ. Anh Hùng bỏ, và đúng. */
+  if (dsFb.length && !pv) {
     o.push(
-      { nhan: 'Người bình luận (TikTok)', so: cTt('nguoiBinhLuan'), dinhDang: 'so',
-        ghi: 'đếm NGƯỜI, khác ô bình luận Facebook đếm LƯỢT — không cộng chung' },
-      { nhan: 'Người xem riêng (TikTok)', so: cTt('nguoiXemRieng'), dinhDang: 'so',
-        ghi: 'Facebook không trả chỉ số này' },
-      { nhan: 'Thích (TikTok)', so: cTt('thich'), dinhDang: 'so' },
-      { nhan: 'Chia sẻ (TikTok)', so: cTt('chiaSe'), dinhDang: 'so' },
+      { nhan: 'Tin nhắn (Facebook)', so: cFb('messages'), dinhDang: 'so' },
+      { nhan: 'Lead (Facebook)', so: cFb('leads'), dinhDang: 'so' },
+      { nhan: 'Đơn chốt (Facebook)', so: cFb('orders'), dinhDang: 'so' },
     );
   }
+
   o.push(
+    /* LÀM TRÒN. Lượt xem là số người, không có 0,43 người; phút lên sóng lẻ
+     * tới hai chữ số thập phân cũng không nói thêm được gì. */
     { nhan: 'Xem trung bình một phiên',
-      so: (phienFb + phienTt) ? (xemFb + xemTt) / (phienFb + phienTt) : 0, dinhDang: 'so',
-      ghi: coXemFb < dsFb.length ? 'thấp hơn thực tế — còn phiên Facebook chưa có số' : '' },
+      so: (phienFb + phienTt) ? Math.round((xemFb + xemTt) / (phienFb + phienTt)) : 0,
+      dinhDang: 'so' },
     { nhan: 'Phút lên sóng mỗi phiên',
-      so: (phienFb + phienTt) ? (phutFb + phutTt) / (phienFb + phienTt) : 0, dinhDang: 'so' },
+      so: (phienFb + phienTt) ? Math.round((phutFb + phutTt) / (phienFb + phienTt)) : 0,
+      dinhDang: 'so' },
   );
+  /* PHIÊN FACEBOOK GỌI ĐÚNG TÊN. Bản trước chỉ có ngày và kênh, nên đọc xong
+   * không biết phiên nào là buổi nào — mà tên phiên chính là thứ người dẫn
+   * live nhớ. Cột "Địa điểm" ghép sang Lịch tác nghiệp đã duyệt, xem
+   * ganDiaDiemLive(). */
+  const phienFb2 = dsFb.slice()
+    .sort((a, b) => String(b.start || '').localeCompare(String(a.start || '')));
+  const ngayTt2 = dsTt.slice()
+    .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+
+  const gioPhut = (s) => {
+    const t = String(s || '');
+    return t.slice(8, 10) + '/' + t.slice(5, 7) + (t.length > 12 ? ' ' + t.slice(11, 16) : '');
+  };
 
   return {
     luuY,
     o,
+    /* Hai mảng này KHÔNG phải để hiện ra — ganDiaDiemLive() dùng chúng để điền
+     * cột Địa điểm, vì khối LIVE và khối Lịch tác nghiệp đọc hai app khác nhau
+     * và chỉ gặp nhau sau khi cả hai đã xong. */
+    _phienFb: phienFb2.map((x) => ({ start: x.start, end: x.end, ten: x.title || '' })),
+    _ngayTt: ngayTt2.map((x) => x.date || ''),
     cot: {
       nhan: 'Lượt xem LIVE theo nền tảng',
       don: 'so',
@@ -615,23 +625,45 @@ async function docLiveRieng(app, tu, den, pv) {
       muc: theoKenhLive,
     },
     bang: [
+      /* ĐO THEO CÁCH NÀO. Anh Hùng hỏi 08/10/2026: "đánh giá hiệu quả live thì
+       * đánh giá số tại thời điểm mới đúng". Đúng — và bảng này nói ra rằng
+       * Facebook hiện KHÔNG cho con số đó, nên 79k của Facebook không so thẳng
+       * được với 69k của TikTok. Để dưới dạng bảng chứ không phải dải cảnh báo:
+       * nó là số liệu, không phải lời than. */
+      { tieuDe: 'Lượt xem đo theo cách nào',
+        cot: ['Nền tảng', 'Trong lúc phát', 'Tính cả xem lại', 'Người xem'],
+        soCot: [1, 2, 3],
+        dong: [
+          ...(phienTt ? [['TikTok · bản xuất LIVE Center', xemTt, '—', cTt('nguoiXemRieng')]] : []),
+          ...(phienFb ? [['Facebook · API video', '—', xemFb, cFb('xemRieng')]] : []),
+        ] },
+      ...(phienFb && phienTt ? [{
+        tieuDe: 'Bình luận tách theo nền tảng',
+        cot: ['Nền tảng', 'Cách đếm', 'Số'],
+        soCot: [2],
+        dong: [
+          ['Facebook', 'đếm LƯỢT bình luận', cFb('comments')],
+          ['TikTok', 'đếm NGƯỜI có bình luận', cTt('nguoiBinhLuan')],
+        ],
+      }] : []),
       { tieuDe: 'LIVE theo kênh',
         cot: ['Nền tảng · Kênh', 'Số phiên', 'Lượt xem'],
         soCot: [1, 2],
         dong: theoKenhLive.map((x) => [x.nhan, x.phien, x.so]) },
       { tieuDe: 'Phiên LIVE Facebook',
-        cot: ['Ngày', 'Kênh', 'Phút', 'Lượt xem', 'Bình luận', 'Lead', 'Đơn'],
-        soCot: [2, 3, 4, 5, 6],
-        dong: dsFb.slice().sort((a, b) => String(b.start || '').localeCompare(String(a.start || '')))
-          .slice(0, 40).map((x) => [String(x.start || '').slice(0, 10), x.channel || '',
-            so(x.minutes), so(x.views) || '—', so(x.comments), so(x.leads), so(x.orders)]) },
+        cot: ['Bắt đầu', 'Tên phiên', 'Kênh', 'Phút', 'Lượt xem', 'Người xem',
+          'Bình luận', 'Thích', 'Địa điểm'],
+        soCot: [3, 4, 5, 6, 7],
+        dong: phienFb2.slice(0, 40).map((x) => [gioPhut(x.start),
+          x.title || '(không đặt tên)', x.channel || '', so(x.minutes),
+          so(x.views) || '—', so(x.xemRieng) || '—', so(x.comments), so(x.likes), '—']) },
       { tieuDe: 'LIVE TikTok theo ngày',
-        cot: ['Ngày', 'Kênh', 'Phiên', 'Giờ', 'Lượt xem', 'Người xem riêng', 'Người bình luận', 'Follow mới'],
+        cot: ['Ngày', 'Kênh', 'Phiên', 'Giờ', 'Lượt xem', 'Người xem',
+          'Người bình luận', 'Follow mới', 'Địa điểm'],
         soCot: [2, 3, 4, 5, 6, 7],
-        dong: dsTt.slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))
-          .slice(0, 40).map((x) => [x.date || '', x.channel || '', so(x.soPhien),
-            Math.round((so(x.thoiLuong) / 3600) * 10) / 10, so(x.luotXem),
-            so(x.nguoiXemRieng), so(x.nguoiBinhLuan), so(x.followerMoi)]) },
+        dong: ngayTt2.slice(0, 40).map((x) => [x.date || '', x.channel || '', so(x.soPhien),
+          Math.round((so(x.thoiLuong) / 3600) * 10) / 10, so(x.luotXem),
+          so(x.nguoiXemRieng), so(x.nguoiBinhLuan), so(x.followerMoi), '—']) },
     ].filter((b) => b.dong.length),
   };
 }
@@ -995,6 +1027,12 @@ async function docLich(app, tu, den, pv) {
   });
 
   return {
+    /* Không hiện ra — ganDiaDiemLive() dùng để ghép phiên LIVE với buổi tác
+     * nghiệp đã duyệt, lấy ra địa điểm. */
+    _buoi: it.map((x) => ({
+      start: x.start, end: x.end, title: x.title || '',
+      diaDiem: nhanOf(x.diaDiem) || '', trangThai: nhanOf(x.status) || '',
+    })),
     o: [
       { nhan: 'Buổi tác nghiệp', so: it.length, dinhDang: 'so', chinh: true },
       { nhan: 'Đã hoàn tất', so: dem('Đã hoàn tất'), dinhDang: 'so',
@@ -1440,6 +1478,100 @@ async function docHauKy(app, tu, den, pv) {
   };
 }
 
+/**
+ * GHÉP PHIÊN LIVE VỚI BUỔI TÁC NGHIỆP ĐÃ DUYỆT, để lấy ĐỊA ĐIỂM.
+ *
+ * Anh Hùng 08/10/2026: "dữ liệu live sẽ có tính liên kết với lịch tác nghiệp đã
+ * được duyệt có địa điểm đó em". Đúng: phiên LIVE nào cũng xuất phát từ một
+ * buổi đã đăng ký, và buổi đó mới là chỗ ghi địa điểm. Nền tảng không trả địa
+ * điểm, và sẽ không bao giờ trả.
+ *
+ * GHÉP THEO KHUNG GIỜ, KHÔNG THEO TÊN. Tên phiên do người dẫn tự gõ lúc lên
+ * sóng ("Show Symphony of the sea Phú Quốc 🧜‍♀️"), tên buổi do người đăng ký gõ
+ * từ hôm trước ("Live/stream SOTS bãi biển + KOTS") — hai người, hai lúc, không
+ * khớp chữ nào. Giờ thì khớp được: phiên nằm trong khoảng buổi.
+ *
+ * KHÔNG ĐOÁN KHI CÓ HAI BUỔI CÙNG TRÙNG GIỜ. Ngày 04/10 có buổi Vinwonders
+ * 10:00–19:30 và buổi Sân bay 18:00–20:30 chồng nhau; phiên 19:07 rơi vào cả
+ * hai. Lấy bừa một cái là gán sai địa điểm cho một phiên thật, nên chỉ chọn khi
+ * tên buổi có chữ trùng với tên phiên; còn lại thì ghi ra cả hai và để người
+ * đọc tự nhận. Thà nói "không chắc" hơn là nói sai một cách gọn gàng.
+ */
+function ganDiaDiemLive(base) {
+  const live = base.find((x) => x.id === 'live');
+  const lich = base.find((x) => x.id === 'lich-tac-nghiep');
+  if (!live || !live.chay || !lich || !lich.chay) return;
+  const buoi = (lich._buoi || []).filter((x) => x.diaDiem);
+  if (!buoi.length) return;
+
+  const moc = (s) => Date.parse(s);
+  /* Buổi chưa nộp báo cáo thì chưa có giờ kết thúc. Cho nó BỐN TIẾNG, bằng một
+   * buổi thường. Trước đó cho mười hai tiếng và hoá ra quá rộng: buổi Hòn Thơm
+   * 12:00 ngày 06/10 nuốt luôn phiên LIVE lúc 20:34 ở Sunset Town, làm cột địa
+   * điểm ra "Sunset Town hoặc Hòn Thơm" trong khi thừa dữ kiện để biết chắc. */
+  const khung = buoi.map((b) => {
+    const a = moc(b.start);
+    let k = moc(b.end);
+    if (!Number.isFinite(k) || k <= a) k = Number.isFinite(a) ? a + 4 * 36e5 : NaN;
+    return { ...b, a, k };
+  }).filter((b) => Number.isFinite(b.a));
+
+  /* Chữ dùng để so tên: bỏ dấu, bỏ ký tự lạ. Tên buổi hay bị chèn dấu "/" để
+   * né bộ lọc của nền tảng ("Liv/estr/eam", "Lives/tream") nên phải bỏ luôn. */
+  const chu = (t) => String(t || '').toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    /* Bỏ dấu gạch chéo và dấu chấm mà KHÔNG thay bằng khoảng trắng: người đăng
+     * ký cố tình chèn chúng vào giữa từ để né bộ lọc của nền tảng, nên
+     * "Liv/estr/eam" và "Lives/tream" phải ghép lại thành "livestream" chứ
+     * không tách thành ba mẩu vô nghĩa. */
+    .replace(/[/.]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ').trim();
+  const TU_BO = new Set(['live', 'livestream', 'stream', 'show', 'phu', 'quoc',
+    'tour', 'quay', 'chup', 'tac', 'nghiep', 'media', 'va']);
+  const tuKhoa = (t) => [...new Set(chu(t).split(' ')
+    .filter((w) => w.length > 2 && !TU_BO.has(w)))];
+  /* So theo CHỨA NHAU, không bằng nhau: buổi ghi "Vinwonder", phiên ghi
+   * "Vinwonders" — khác đúng một chữ s mà so bằng thì trượt. */
+  const trungTu = (a, b) => a.some((x) => b.some((y) => (x === y)
+    || (x.length >= 4 && y.length >= 4 && (x.includes(y) || y.includes(x)))));
+
+  const timDiaDiem = (batDau, ketThuc, tenPhien) => {
+    const a = moc(batDau);
+    if (!Number.isFinite(a)) return '';
+    const k = Number.isFinite(moc(ketThuc)) ? moc(ketThuc) : a;
+    const trung = khung.filter((b) => a <= b.k && k >= b.a);
+    if (!trung.length) return '';
+    if (trung.length === 1) return trung[0].diaDiem;
+    /* Nhiều buổi chồng giờ: chọn buổi có từ khoá trùng tên phiên. */
+    const tp = tuKhoa(tenPhien);
+    const hop = trung.filter((b) => trungTu(tuKhoa(b.title), tp));
+    if (hop.length === 1) return hop[0].diaDiem;
+    const ds = [...new Set((hop.length ? hop : trung).map((b) => b.diaDiem))];
+    return ds.length === 1 ? ds[0] : ds.join(' hoặc ');
+  };
+
+  const bangFb = (live.bang || []).find((b) => b.tieuDe === 'Phiên LIVE Facebook');
+  if (bangFb) {
+    (live._phienFb || []).forEach((p, i) => {
+      if (!bangFb.dong[i]) return;
+      const dd = timDiaDiem(p.start, p.end, p.ten);
+      bangFb.dong[i][bangFb.dong[i].length - 1] = dd || '—';
+    });
+  }
+
+  /* TikTok gộp theo NGÀY nên không ghép được từng phiên. Ghi ra mọi địa điểm
+   * có buổi trong ngày đó — nói đúng mức mình biết, không hơn. */
+  const bangTt = (live.bang || []).find((b) => b.tieuDe === 'LIVE TikTok theo ngày');
+  if (bangTt) {
+    (live._ngayTt || []).forEach((ng, i) => {
+      if (!bangTt.dong[i] || !ng) return;
+      const ds = [...new Set(buoi.filter((b) => String(b.start || '').slice(0, 10) === ng)
+        .map((b) => b.diaDiem))];
+      bangTt.dong[i][bangTt.dong[i].length - 1] = ds.length ? ds.join(' · ') : '—';
+    });
+  }
+}
+
 const BO_DOC = {
   social: docSocial,
   'quang-cao': docQuangCao,
@@ -1745,6 +1877,9 @@ async function gom(tu, den, nguoi, kieuSS, docLuat, chiApp, pv) {
   /* MỤC TIÊU — gắn sau khi mọi base đã đọc xong, vì nó sửa thẳng vào các ô. */
   const mt = docLuat ? MT.gomMucTieu(tu, den, docLuat) : null;
   if (mt) ganMucTieu(base, mt);
+  /* Ghép địa điểm từ Lịch tác nghiệp vào bảng phiên LIVE. Phải chạy SAU
+   * Promise.all: hai khối đọc hai app khác nhau, trước đó chưa gặp nhau. */
+  ganDiaDiemLive(base);
 
   /* Chi phí toàn phòng và tệp khách mới là số của CẢ PHÒNG — chỉ trưởng phòng
    * xem. Mở cho nhân sự là để họ thấy ngân sách và kết quả của người khác. */

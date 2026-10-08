@@ -66,6 +66,14 @@ function bcSo(v, kieu) {
   }
   if (kieu === 'pt') return (Math.round(v * 10) / 10).toString().replace('.', ',') + '%';
   if (kieu === 'x') return (Math.round(v * 100) / 100).toString().replace('.', ',') + 'x';
+  /* Giờ lên sóng đọc bằng giờ và phút, không phải 19,96. Dạng thập phân buộc
+   * người đọc tự nhân 0,96 với 60 — và nhìn qua thì tưởng số bị lỗi. */
+  if (kieu === 'gio') {
+    const g = Math.floor(v);
+    const ph = Math.round((v - g) * 60);
+    const g2 = ph === 60 ? g + 1 : g;
+    return g2.toLocaleString('vi-VN') + 'h' + (ph === 60 ? 0 : ph).toString().padStart(2, '0');
+  }
   return gon(v);
 }
 
@@ -111,15 +119,25 @@ async function veBaoCao() {
 
   hop.innerHTML = '';
   if (BC.phamVi) hop.appendChild(bcDaiPhamVi(BC.phamVi));
-  hop.appendChild(el('div', 'canhbao tin',
-    '<div>Kỳ <b>' + ngay(BC.tu) + ' – ' + ngay(BC.den) + '</b> (' + BC.soNgay + ' ngày) · '
+  /* DÒNG NHỎ, KHÔNG PHẢI DẢI CẢNH BÁO. Kỳ đang xem và chuyện mục tiêu là thông
+   * tin nền — đọc một lần là nhớ, mà bản trước đóng khung nó như một lời cảnh
+   * báo ngay trên đầu mỗi lần mở. Anh Hùng bảo bỏ 08/10/2026.
+   *
+   * Chỉ còn ĐÚNG MỘT trường hợp kêu lên: có base không đọc được. Lúc đó vài ô
+   * trong báo cáo đang thiếu số thật, và im lặng ở đó là để người ta đọc một
+   * con số đã khuyết mà tưởng là đủ. */
+  hop.appendChild(el('div', 'bc-dong-ky',
+    'Kỳ <b>' + ngay(BC.tu) + ' – ' + ngay(BC.den) + '</b> (' + BC.soNgay + ' ngày)'
     + (BC.kyTruoc
-      ? 'so với <b>' + esc(BC.kyTruoc.nhan || 'kỳ trước') + '</b> '
-        + ngay(BC.kyTruoc.tu) + ' – ' + ngay(BC.kyTruoc.den) + ' · '
-      : '<b>không so với kỳ nào</b> · ')
-    + '<b>' + BC.soChay + '/' + BC.soApp + '</b> base đọc được. '
-    + 'Số đọc trực tiếp từ các base tại thời điểm mở.'
-    + bcChuMucTieu() + '</div>'));
+      ? ' · so với ' + esc(BC.kyTruoc.nhan || 'kỳ trước') + ' '
+        + ngay(BC.kyTruoc.tu) + ' – ' + ngay(BC.kyTruoc.den)
+      : ' · không so với kỳ nào')
+    + bcChuMucTieu()));
+  if (BC.soChay < BC.soApp) {
+    hop.appendChild(el('div', 'canhbao canhBao',
+      '<div><b>' + (BC.soApp - BC.soChay) + '/' + BC.soApp + ' base không đọc được</b> — '
+      + 'những khối đó đang thiếu số, không phải bằng 0.</div>'));
+  }
 
   /* Chi phí đứng TRƯỚC các base: tiền của phòng đi ra hai app khác nhau, và
    * câu "tháng này phòng tiêu bao nhiêu" là câu Sếp hỏi đầu tiên. */
@@ -508,9 +526,9 @@ function bcCot(c) {
  * đó là của sáu kênh mình phụ trách — lệch nhau một triệu lượt.
  */
 function bcDaiPhamVi(pv) {
-  const o = el('div', 'canhbao canhBao');
+  const o = el('div', 'canhbao tin pv-dai');
   const phan = [];
-  if (pv.soKenh) phan.push('<b>' + pv.soKenh + ' kênh</b> được phân công');
+  if (pv.soKenh) phan.push('<b>' + pv.soKenh + ' kênh</b>');
   if ((pv.loaiViec || []).length) {
     phan.push('việc loại <b>' + pv.loaiViec.map(esc).join(', ') + '</b>');
   }
@@ -518,12 +536,13 @@ function bcDaiPhamVi(pv) {
   if (BC_NHU) {
     nut = ' <button class="nut nhe" id="pvThoi">Thôi xem thử</button>';
   }
-  o.innerHTML = '<div>' + (BC_NHU ? 'Đang <b>xem thử</b> báo cáo của ' : 'Báo cáo của ')
-    + '<b>' + esc(pv.ten) + '</b>' + (pv.viTri ? ' · ' + esc(pv.viTri) : '') + '. '
-    + 'Chỉ gồm ' + (phan.length ? phan.join(' và ') + ', ' : '')
-    + 'và những khối đã mở cho người này. '
-    + '<b>Không phải số của cả phòng</b> — chi phí, tệp khách mới và xu hướng toàn '
-    + 'phòng chỉ trưởng phòng xem được.' + nut + '</div>';
+  /* MỘT DÒNG, KHÔNG PHẢI MỘT ĐOẠN. Bản trước giải thích cả năm câu ngay trên
+   * đầu báo cáo, đọc một lần là biết rồi mà lần nào mở cũng phải lướt qua —
+   * anh Hùng bảo bỏ 08/10/2026. Giữ lại đúng ba thứ: đang xem báo cáo của ai,
+   * phạm vi rộng bằng nào, và đường thoát. */
+  o.innerHTML = '<div>' + (BC_NHU ? 'Xem thử báo cáo của ' : 'Báo cáo của ')
+    + '<b>' + esc(pv.ten) + '</b>' + (pv.viTri ? ' · ' + esc(pv.viTri) : '')
+    + (phan.length ? ' · ' + phan.join(' · ') : '') + nut + '</div>';
   const b = o.querySelector('#pvThoi');
   if (b) b.onclick = () => { BC_NHU = ''; veBaoCao(); };
   return o;
@@ -764,10 +783,10 @@ function bcChuMucTieu() {
   const m = BC && BC.mucTieu;
   if (!m) return '';
   if (!m.coLuat.length) {
-    return '<br><b>Chưa đặt mục tiêu</b> cho '
-      + m.thieuLuat.map((x) => 'tháng ' + x.slice(5)).join(', ')
-      + ' — các ô không có vạch mục tiêu vì bộ luật KPI tháng đó chưa lập, '
-      + 'không phải vì mục tiêu bằng 0.';
+    /* Gọn lại còn một mệnh đề. Lý do dài ("không phải vì mục tiêu bằng 0") đã
+     * nằm trong chính chữ "chưa đặt" — nói thêm là nói thừa. */
+    return ' · chưa đặt mục tiêu cho '
+      + m.thieuLuat.map((x) => 'tháng ' + x.slice(5)).join(', ');
   }
   let t = '<br>Mục tiêu lấy từ bộ luật KPI '
     + m.coLuat.map((x) => 'tháng ' + x.slice(5)).join(' + ')
@@ -969,11 +988,16 @@ function bcKhoi(b) {
    * gỡ mọi chỉ số đếm người duy nhất nên Facebook không có lượt tiếp cận. Đây là
    * nguồn đáng tin nhất về "vì sao ô này trống", nên chép nguyên chứ không tự
    * đoán lại ở tầng này. */
+  /* THU LẠI, KHÔNG BỎ. Mấy dòng này giải thích vì sao một ô trống hay vì sao
+   * hai nền tảng không cộng chung được — bỏ hẳn là mất chỗ duy nhất trả lời
+   * câu đó. Nhưng mở sẵn thì mỗi khối đội thêm một khối chữ đỏ trước cả dãy
+   * số, và anh Hùng bảo bỏ 08/10/2026. Nên gập lại: ai cần thì bấm. */
   if ((b.luuY || []).length) {
-    t.appendChild(el('div', 'than', '<div class="canhbao tin"><div>'
-      + '<b>Giới hạn số liệu của ' + esc(b.ten) + '</b><ul class="luu-y">'
-      + b.luuY.map((x) => '<li>' + esc(x) + '</li>').join('')
-      + '</ul></div></div>'));
+    const g = el('details', 'luu-y-gap');
+    g.innerHTML = '<summary>Giới hạn số liệu của ' + esc(b.ten)
+      + ' (' + b.luuY.length + ')</summary><ul class="luu-y">'
+      + b.luuY.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ul>';
+    t.appendChild(g);
   }
 
   bcLuoiO(t, b.o, b);
