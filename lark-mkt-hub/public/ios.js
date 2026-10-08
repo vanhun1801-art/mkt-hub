@@ -716,7 +716,7 @@
     const dn = o.closest('[data-nhan]');
     if (dn && gon(dn.getAttribute('data-nhan'))) return gon(dn.getAttribute('data-nhan'));
     const truoc = o.previousElementSibling;
-    const dau = truoc && !truoc.matches(O) ? gon(String(truoc.innerText || '').split(/ — | – |\(/)[0]) : '';
+    const dau = truoc && !truoc.matches(O) ? gon(String(truoc.innerText || '').split(/ — | – |\(|: /)[0]) : '';
     if (dau && dau.length < 40) return dau;
     // ô trong bảng: tên cột (th cùng vị trí)
     const td = o.closest('td');

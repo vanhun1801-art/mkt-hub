@@ -4474,3 +4474,58 @@ html[data-skin="ios"]:not(#_):not(#__):not(#___)[data-app="lich-tac-nghiep"][dat
 @media (max-width: 640px) and (prefers-color-scheme: dark) {
   html[data-skin="ios"]:not(#_):not([data-theme="sang"]) { --mac-nen: #0b0b0e; }
 }
+
+/* KPI · "chỗ trắng chỗ đen lạ lùng" (anh Hùng 08/10/2026).
+   1. Luật chung ".o-nen { border-style: solid }" (dòng ~2067) áp cho CẢ BỐN cạnh,
+      trong khi .o-nen chỉ có vạch trên: dòng "FB 159k · TikTok 46k…" thành một hộp
+      có viền như ô nhập — trắng viền xám ở nền sáng, đen viền sáng ở nền tối.
+      Trả về đúng một vạch mảnh phía trên.
+   2. Thẻ "chính" bị ép mặt thẻ đặc (--ios-the, khối chuyển màu → mặt phẳng) nên
+      đứng trắng/đen giữa hàng thẻ xám trong. Cùng một mặt với các thẻ khác; thẻ
+      chính đã nổi nhờ số to hơn. */
+html[data-skin="ios"]:not(#_):not(#__)[data-app="kpi"] .o-nen {
+  border-width: 1px 0 0 !important; border-style: solid !important; border-radius: 0 !important;
+  background: transparent !important; padding: 6px 0 0 !important;
+}
+html[data-skin="ios"]:not(#_):not(#__)[data-app="kpi"] .o.chinh { background-color: var(--ios-o) !important; }
+/* Băng .canhbao có BA mức nhưng luật "băng lỗi" (mục 5) tô đỏ hết: khung giới
+   thiệu "Tab này để làm gì", ghi chú nguồn số (.tin) thành mảng đỏ thẫm ở nền
+   tối; nhắc nhở (.canhBao) đỏ y như mục chặn chốt (.chan). Trả về đúng nghĩa:
+   thông tin trung tính · nhắc nhở cam · chặn đỏ. */
+html[data-skin="ios"]:not(#_)[data-app] .canhbao.tin { background: var(--ios-o) !important; color: var(--ios-chu-2) !important; }
+html[data-skin="ios"]:not(#_)[data-app] .canhbao.canhBao { background: var(--ios-cam-nhat) !important; }
+
+/* ==========================================================================
+   NHỊP CHUYỂN ĐỘNG ĐỒNG BỘ (08/10/2026 — anh Hùng: "chuyển động mượt mà và
+   hiệu ứng tốt đồng bộ"). Đo cả 15 app: nút 0,14s ease-out, viền tab lò xo
+   0,5s đã thống nhất; còn hở ba chỗ:
+   1. Ô nhập không có chuyển tiếp: viền xanh + quầng bật "cụp" khi bấm vào.
+   2. Thẻ ở Quỹ, Sản phẩm, Tài khoản, Khách hàng không có chuyển tiếp khi rê/nhấn.
+   3. Đổi tab trong app: nội dung mới thay "phụp" (xem ios-app.js · ios-doi-tab).
+   ========================================================================== */
+html[data-skin="ios"] :is(input:not([type=checkbox]):not([type=radio]):not([type=range]), select, textarea) {
+  transition: border-color .14s ease-out, box-shadow .14s ease-out, background-color .14s ease-out;
+}
+html[data-skin="ios"][data-app] :is(.card, .the, .o, .tile, .kpi, .stat, .o-so, .the-sp, .dcard, .wcard) {
+  transition: background-color .14s ease-out, box-shadow .18s ease-out, transform .14s ease-out;
+}
+@keyframes ios-tab-vao { from { opacity: .5; } to { opacity: 1; } }
+html[data-skin="ios"] .ios-doi-tab { animation: ios-tab-vao .16s ease-out; }
+
+/* Giảm chuyển động (cài đặt Trợ năng của máy): một luật cuối thay cho các khối
+   rời rạc — mọi hiệu ứng thành tức thời, vẫn bắn animationend/transitionend. */
+@media (prefers-reduced-motion: reduce) {
+  html[data-skin="ios"] *, html[data-skin="ios"] *::before, html[data-skin="ios"] *::after {
+    animation-duration: .01ms !important; animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important; scroll-behavior: auto !important;
+  }
+}
+/* (tiếp) chữ đỏ của băng lỗi kênh: luật #bangKenhLoi … thắng luật trên → đẩy ưu tiên. */
+html[data-skin="ios"]:not(#_):not(#__)[data-app="quang-cao"] :is(#bangKenhLoi .bang-loi b, .bang-loi b, .src .loi, span.loi) { color: var(--ios-do-chu) !important; }
+/* KPI: liên kết "Mở Base" trong ghi chú chỉ cao 16px → vùng bấm 32px, không đổi dáng chữ. */
+html[data-skin="ios"][data-app="kpi"] :is(.canhbao, .than) a[target="_blank"]:not(.btn) { display: inline-block; padding: 8px 4px; margin: -8px 0; }
+/* Chỉnh ảnh: viên tên người nền tối — chữ xanh sáng trên nền xanh pha chỉ 4,08:1 → nền xám trung tính. */
+html[data-skin="ios"][data-app="chinh-anh"][data-theme="toi"] .ng-chip { background: var(--ios-o); }
+@media (prefers-color-scheme: dark) { html[data-skin="ios"][data-app="chinh-anh"]:not([data-theme="sang"]) .ng-chip { background: var(--ios-o); } }
+/* Kho media: nhãn "Mới" chữ trắng trên --brand 3,91:1 → nền xanh đậm hơn. */
+html[data-skin="ios"][data-app="kho-media"] .o .ghim.ai { background: var(--ios-xanh-dam, #1f4ae0); }

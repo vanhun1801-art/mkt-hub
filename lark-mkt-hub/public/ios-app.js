@@ -749,7 +749,7 @@
     const dn = o.closest('[data-nhan]');
     if (dn && gon(dn.getAttribute('data-nhan'))) return gon(dn.getAttribute('data-nhan'));
     const truoc = o.previousElementSibling;
-    const dau = truoc && !truoc.matches(O) ? gon(String(truoc.innerText || '').split(/ — | – |\(/)[0]) : '';
+    const dau = truoc && !truoc.matches(O) ? gon(String(truoc.innerText || '').split(/ — | – |\(|: /)[0]) : '';
     if (dau && dau.length < 40) return dau;
     // ô trong bảng: tên cột (th cùng vị trí)
     const td = o.closest('td');
@@ -854,4 +854,24 @@
     new MutationObserver(lich).observe(document.body, { childList: true, subtree: true });
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bat); else bat();
+})();
+
+/* ĐỔI TAB MƯỢT (08/10/2026 — anh Hùng: "chuyển động mượt mà, hiệu ứng đồng bộ").
+ * Bấm một tab ở thanh đầu thì nội dung mới thay "phụp". Cho vùng nội dung một
+ * nhịp mờ → rõ 0,16s (CSS .ios-doi-tab). CHỈ đổi độ trong, không xê dịch: anh
+ * từng chỉ ra chuyện "nhảy nhảy khi bấm tab". Vùng nội dung = khối main / #man /
+ * #view / #noiDung đang hiện và không chứa chính dải tab. */
+(() => {
+  if (document.documentElement.getAttribute('data-skin') !== 'ios') return;
+  const VUNG = 'main, #man, #view, #noiDung, #noi-dung, .man.dang, #content';
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest && e.target.closest('.topbar .tabs > *, .topbar > .pills > *, .tabsbar .tabs > *, nav.tabs > *');
+    if (!t || t.classList.contains('ios-lens')) return;
+    requestAnimationFrame(() => {
+      const v = [...document.querySelectorAll(VUNG)].find((x) => x.getClientRects().length && !x.contains(t));
+      if (!v) return;
+      v.classList.remove('ios-doi-tab'); void v.offsetWidth; v.classList.add('ios-doi-tab');
+      v.addEventListener('animationend', () => v.classList.remove('ios-doi-tab'), { once: true });
+    });
+  }, true);
 })();

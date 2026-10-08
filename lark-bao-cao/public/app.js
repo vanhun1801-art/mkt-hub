@@ -2268,7 +2268,7 @@ function veKhoiTin() {
                 '</select>' : '') +
             '</div></div>' : '') +
         '<div class="nho" style="margin:14px 0 4px">Mẫu tiêu đề: <code>{ten}</code> là tên người, <code>{ngay}</code> là ngày báo cáo</div>' +
-        '<input id="tnTieuDe" value="' + esc(t.tieuDe) + '" style="width:100%;max-width:340px;margin-bottom:12px">' +
+        '<input id="tnTieuDe" aria-label="Mẫu tiêu đề" value="' + esc(t.tieuDe) + '" style="width:100%;max-width:340px;margin-bottom:12px">' +
         hop('Tag người gửi', 'tnTag', t.tagNguoi) +
         hop('Hiện bảng Công việc | Tiến độ', 'tnBang', t.hienBang) +
         hop('Hiện dòng Đánh giá cuối thẻ (theo chuẩn bên dưới)', 'tnDG', t.hienDanhGia) +
