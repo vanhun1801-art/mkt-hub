@@ -671,6 +671,19 @@ const TRUONG_VIDEO = [
    * trả lỗi. Tháng 9 có 17/28 phiên không lấy được insights nhưng `views` thì
    * đủ cả 17. */
   'views', 'post_views',
+  /* NGƯỜI XEM CÙNG LÚC — con số DUY NHẤT của Facebook thuộc về lúc đang phát.
+   *
+   * Tìm ra ngày 08/10/2026 sau khi đã loại hết đường khác: `/live_videos` (có
+   * `live_views`) đòi Meta duyệt App Review, và thử bằng cả token system user
+   * lẫn token cá nhân của anh Hùng đều bị chặn; `/video_insights` trả về gần
+   * năm mươi chỉ số nhưng tất cả đều là số trọn đời của video sau khi tắt
+   * sóng. Riêng trường này đọc được ngay trên node video, không cần xin gì.
+   *
+   * META KHÔNG GHI TÀI LIỆU CHO NÓ, nên không biết chắc là ĐỈNH cùng lúc hay
+   * số tại lúc tắt sóng. Đo trên 16 phiên thật: ra 61–660, bằng 3,5–18,3% số
+   * người xem riêng — đúng tầm của một con số "cùng lúc". Đã ghi vào phần
+   * giới hạn số liệu của khối LIVE để không ai đọc nó như đỉnh đã xác nhận. */
+  'live_audience_count',
   'id', 'title', 'description', 'created_time', 'length', 'permalink_url',
 ];
 
@@ -778,7 +791,7 @@ async function liveTuVideo(conf, page, from, to, canhBao, ghiChu = []) {
         xem3giay: 0,
         xemRieng: 0,
         views: num(v.views) || num(v.post_views) || 0,
-        peak: 0,          // /videos không có live_views — cột Đỉnh đành để trống
+        peak: num(v.live_audience_count),   // xem chú thích ở TRUONG_VIDEO
         comments: 0, likes: 0, shares: 0, newFollows: 0,
         url: v.permalink_url ? 'https://facebook.com' + v.permalink_url : '',
         source: NGUON,

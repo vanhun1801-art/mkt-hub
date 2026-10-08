@@ -552,6 +552,13 @@ async function docLiveRieng(app, tu, den, pv) {
       + 'vì bản xuất LIVE Center gộp theo ngày — không tách được từng phiên. '
       + 'Facebook thì đếm từng phiên.');
   }
+  if (dsFb.some((x) => so(x.peak) > 0)) {
+    luuY.push('"Xem cùng lúc" của Facebook lấy từ trường live_audience_count trên '
+      + 'node video — Meta KHÔNG ghi tài liệu cho trường này, nên chưa rõ nó là '
+      + 'đỉnh cùng lúc hay số tại lúc tắt sóng. Đọc như "cỡ bao nhiêu người xem '
+      + 'lúc đang phát", đừng đọc như đỉnh đã xác nhận. Đỉnh của TikTok thì là '
+      + 'đỉnh thật, lấy từ bản xuất LIVE Center.');
+  }
 
   const o = [
     { nhan: 'Số phiên LIVE', so: phienFb + phienTt, dinhDang: 'so', chinh: true,
@@ -713,13 +720,17 @@ async function docLiveRieng(app, tu, den, pv) {
       /* Bảng "LIVE theo kênh" cũ đã bỏ: nó lặp lại đúng những cột của bảng
        * trên, chỉ khác là dồn hai loại lượt xem vào một. Hai bảng gần giống
        * nhau đặt cạnh nhau là chỗ người đọc phải so xem khác nhau ở đâu. */
+      /* "Xem cùng lúc" đứng NGAY SAU "Lượt xem" là cố ý: đó là hai con số nói
+       * về hai thời điểm khác nhau của cùng một phiên, và đặt cạnh nhau thì
+       * thấy ngay phiên 22k lượt xem chỉ có 266 người xem lúc đang phát. */
       { tieuDe: 'Phiên LIVE Facebook',
-        cot: ['Bắt đầu', 'Tên phiên', 'Kênh', 'Phút', 'Lượt xem', 'Người xem',
-          'Bình luận', 'Thích', 'Địa điểm'],
-        soCot: [3, 4, 5, 6, 7],
+        cot: ['Bắt đầu', 'Tên phiên', 'Kênh', 'Phút', 'Lượt xem', 'Xem cùng lúc',
+          'Người xem', 'Bình luận', 'Thích', 'Địa điểm'],
+        soCot: [3, 4, 5, 6, 7, 8],
         dong: phienFb2.slice(0, 40).map((x) => [gioPhut(x.start),
           x.title || '(không đặt tên)', x.channel || '', so(x.minutes),
-          so(x.views) || '—', so(x.xemRieng) || '—', so(x.comments), so(x.likes), '—']) },
+          so(x.views) || '—', so(x.peak) || '—', so(x.xemRieng) || '—',
+          so(x.comments), so(x.likes), '—']) },
       { tieuDe: 'LIVE TikTok theo ngày',
         cot: ['Ngày', 'Kênh', 'Phiên', 'Giờ', 'Lượt xem', 'Người xem',
           'Người bình luận', 'Follow mới', 'Địa điểm'],
