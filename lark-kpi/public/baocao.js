@@ -77,6 +77,9 @@ function bcSo(v, kieu) {
   return gon(v);
 }
 
+/* Số an toàn: null và chuỗi ("chưa đo được") về 0 để còn tính chiều cao cột. */
+const so0 = (v) => (Number.isFinite(v) ? v : 0);
+
 /* Ngày kiểu Việt. Trước đây khai bên trong veBaoCao(), nên thanh lọc gọi tới là
  * nổ ReferenceError — giờ để chung một chỗ cho cả tệp dùng. */
 const ngay = (s) => String(s || '').split('-').reverse().join('/');
@@ -383,16 +386,24 @@ function bcChiPhi(c) {
 function bcThanhNgang(ds, tieuDe, tong, don) {
   const g = el('div', 'ss');
   g.appendChild(el('h4', 'ss-tieu', esc(tieuDe)));
-  const max = Math.max(1, ...ds.map((x) => x.so));
-  const t = tong || ds.reduce((a, x) => a + x.so, 0);
+  /* `so == null` nghĩa là CHƯA ĐO ĐƯỢC, khác hẳn 0. Dòng đó để trống thanh và
+   * không góp vào mẫu số của cột %, vì tính nó như 0 thì mọi kênh còn lại được
+   * thổi phồng tỷ trọng. Dùng cho "lượt xem tại thời điểm LIVE": Facebook chưa
+   * trả được con số đó, mà kênh Facebook thì vẫn phải nằm trong danh sách. */
+  const coSo = ds.filter((x) => Number.isFinite(x.so));
+  const max = Math.max(1, ...coSo.map((x) => x.so));
+  const t = tong || coSo.reduce((a, x) => a + x.so, 0);
   const hang = el('div', 'tn-ds');
   ds.slice(0, 14).forEach((x) => {
     const r = el('div', 'tn-hang');
-    r.innerHTML = '<div class="tn-ten">' + esc(x.nhan)
+    const co = Number.isFinite(x.so);
+    r.innerHTML = '<div class="tn-ten' + (x.vi ? ' tn-doi' : '') + '">' + esc(x.nhan)
       + (x.vi ? '<em>' + esc(x.vi) + '</em>' : '') + '</div>'
-      + '<div class="tn-ray"><i style="width:' + ((x.so / max) * 100) + '%"></i></div>'
-      + '<div class="tn-so">' + bcSo(x.so, don || 'vnd') + '</div>'
-      + '<div class="tn-pt">' + (t ? Math.round((x.so / t) * 100) : 0) + '%</div>';
+      + '<div class="tn-ray">' + (co ? '<i style="width:' + ((x.so / max) * 100) + '%"></i>' : '') + '</div>'
+      + '<div class="tn-so">' + (co ? bcSo(x.so, don || 'vnd') + '</div>'
+        + '<div class="tn-pt">' + (t ? Math.round((x.so / t) * 100) : 0) + '%</div>'
+        : '—</div><div class="tn-pt"></div>');
+    if (!co) r.classList.add('tn-trong');
     if (x.soKhoan != null) r.title = x.soKhoan + ' khoản';
     hang.appendChild(r);
   });
@@ -498,20 +509,44 @@ function bcCot(c) {
     return g;
   }
   const max = Math.max(1, ...ds.map((x) => x.so));
-  const hang = el('div', 'ct-ds');
+  /* HAI CHỈ SỐ CẠNH NHAU, MỖI CHỈ SỐ MỘT THANG. Lượt xem 148k và bình luận 929
+   * chung một thang thì cột bình luận còn chưa tới một điểm ảnh. Con số in trên
+   * đầu cột mới là dữ liệu; cột chỉ để so nền tảng này với nền tảng kia TRONG
+   * CÙNG một chỉ số, nên thang riêng là đúng chứ không phải mẹo. */
+  const cap = (c.cap || []).length === 2 ? c.cap : null;
+  const max2 = cap ? Math.max(1, ...ds.map((x) => so0(x.so2))) : 1;
+  const cao = (v, m) => Math.max(3, Math.round((so0(v) / m) * 130));
+
+  const hang = el('div', 'ct-ds' + (cap ? ' ct-cap' : ''));
   ds.slice(0, 14).forEach((x, i) => {
     const o = el('div', 'ct-cot');
-    o.innerHTML = '<b>' + bcSo(x.so, c.don || 'so') + '</b>'
-      /* Chiều cao tính thẳng ra px chứ không dùng %: ô bọc cột không có chiều
-       * cao xác định (nó co theo nhãn bên dưới), nên % sẽ rơi về auto và mọi
-       * cột dẹp bằng nhau. */
-      + '<i style="height:' + Math.max(3, Math.round((x.so / max) * 130)) + 'px;'
-      + 'background:' + (window.Charts ? Charts.colorFor(x.nhan, i) : '#2b5cff') + '"></i>'
-      + '<span>' + esc(x.nhan) + '</span>';
-    o.title = x.nhan + ': ' + gon(x.so);
+    const mau = window.Charts ? Charts.colorFor(x.nhan, i) : '#2b5cff';
+    if (cap) {
+      o.innerHTML = '<div class="ct-doi">'
+        + '<u><b>' + bcSo(x.so, c.don || 'so') + '</b>'
+        /* Chiều cao tính thẳng ra px chứ không dùng %: ô bọc cột không có
+         * chiều cao xác định (nó co theo nhãn bên dưới), nên % sẽ rơi về auto
+         * và mọi cột dẹp bằng nhau. */
+        + '<i style="height:' + cao(x.so, max) + 'px;background:' + mau + '"></i></u>'
+        + '<u><b>' + bcSo(so0(x.so2), c.don || 'so') + '</b>'
+        + '<i class="nhat" style="height:' + cao(x.so2, max2) + 'px;background:' + mau + '"></i></u>'
+        + '</div><span>' + esc(x.nhan) + '</span>';
+      o.title = x.nhan + ' — ' + cap[0] + ': ' + gon(x.so) + ' · ' + cap[1] + ': ' + gon(so0(x.so2));
+    } else {
+      o.innerHTML = '<b>' + bcSo(x.so, c.don || 'so') + '</b>'
+        + '<i style="height:' + cao(x.so, max) + 'px;background:' + mau + '"></i>'
+        + '<span>' + esc(x.nhan) + '</span>';
+      o.title = x.nhan + ': ' + gon(x.so);
+    }
     hang.appendChild(o);
   });
   g.appendChild(hang);
+  if (cap) {
+    g.appendChild(el('div', 'ct-chu',
+      '<span><i></i>' + esc(cap[0]) + '</span>'
+      + '<span><i class="nhat"></i>' + esc(cap[1]) + '</span>'
+      + '<em>mỗi chỉ số một thang riêng</em>'));
+  }
   if (ds.length > 14) {
     g.appendChild(el('div', 'ss-chan', 'Hiện 14 mục cao nhất trong ' + ds.length + ' mục.'));
   }

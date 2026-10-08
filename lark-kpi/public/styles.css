@@ -494,6 +494,37 @@ tr.phu td { background: var(--trang-2); }
   text-align: center; word-break: break-word;
 }
 
+/* Hai chỉ số cạnh nhau trong cùng một nhóm — xem chú thích ở bcCot().
+   Cột thứ hai nhạt hơn để nhìn một cái là biết nó là chỉ số khác, chứ không
+   phải cùng một thứ đo ở chỗ khác. */
+.ct-cap .ct-cot { min-width: 96px; }
+.ct-doi { display: flex; align-items: flex-end; gap: 6px; }
+.ct-doi > u {
+  text-decoration: none; display: flex; flex-direction: column; align-items: center;
+  min-width: 34px;
+}
+.ct-doi > u > b {
+  font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums;
+  padding-bottom: 4px; white-space: nowrap; color: var(--chu);
+}
+.ct-doi > u > i { display: block; width: 100%; max-width: 40px; border-radius: 4px 4px 0 0; }
+.ct-doi > u > i.nhat { opacity: .42; }
+.ct-chu {
+  display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center;
+  margin-top: 8px; font-size: 12px; color: var(--chu-nhat);
+}
+.ct-chu span { display: inline-flex; align-items: center; gap: 5px; }
+.ct-chu i {
+  width: 10px; height: 10px; border-radius: 3px; background: var(--xanh); display: block;
+}
+.ct-chu i.nhat { opacity: .42; }
+.ct-chu em { font-style: normal; opacity: .75; }
+
+/* Dòng chưa đo được: để trống thanh, đừng vẽ một vạch 0 trông như "đo được, bằng 0". */
+.tn-hang.tn-trong .tn-ten { opacity: .75; }
+.tn-hang.tn-trong .tn-ray { background: transparent; border: 1px dashed var(--vien-mem); }
+.tn-hang.tn-trong .tn-so { color: var(--chu-nhat); }
+
 /* ---- phễu: dải thu hẹp dần, không trục số ----
    Bề rộng chia đều theo thứ bậc là CỐ Ý, không phải làm ẩu: bậc đầu và bậc cuối
    chênh nhau mấy trăm nghìn lần, vẽ đúng tỷ lệ thì dải cuối mỏng dưới một pixel.
@@ -525,6 +556,10 @@ tr.phu td { background: var(--trang-2); }
 .tn-pt { min-width: 32px; }
 .tn-ten { color: var(--chu-mo); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tn-ten em { font-style: normal; color: var(--chu-nhat); font-size: 11px; margin-left: 7px; }
+/* Ghi chú dài thì xuống dòng, đừng cắt cụt: dòng "chưa đo được — 79k sau khi
+   thành bài đăng" mà bị ba chấm thì mất đúng phần giải thích. */
+.tn-ten.tn-doi { white-space: normal; }
+.tn-ten.tn-doi em { display: block; margin-left: 0; margin-top: 1px; line-height: 1.35; }
 .tn-ray { height: 16px; background: var(--vien-mem); border-radius: 3px; overflow: hidden; }
 .tn-ray > i { display: block; height: 100%; background: var(--xanh); border-radius: 3px; }
 .tn-so { text-align: right; font-variant-numeric: tabular-nums; font-weight: 650; }

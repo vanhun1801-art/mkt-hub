@@ -509,18 +509,33 @@ async function docLiveRieng(app, tu, den, pv) {
   /* Gom lượt xem theo TỪNG KÊNH, ghi kèm nền tảng vào tên để hai kênh trùng
    * tên ở hai nơi không lẫn vào nhau — "Rooty Trip Phú Quốc" có cả trên
    * Facebook lẫn TikTok. */
+  /* HAI LOẠI SỐ GIỮ RIÊNG, KHÔNG DỒN VÀO MỘT CỘT.
+   *
+   * `luc` là lượt xem TẠI THỜI ĐIỂM PHÁT — chỉ TikTok có, vì bản xuất LIVE
+   * Center là số của chính phiên live.
+   * `bai` là lượt xem SAU KHI THÀNH BÀI ĐĂNG — chỉ Facebook có, vì API chỉ trả
+   * số của video đã tắt sóng, gồm cả người bấm xem lại hôm sau.
+   *
+   * Để `null` khi nền tảng không trả, KHÔNG để 0: cộng chúng vào một cột rồi
+   * xếp hạng là so hai thước đo khác nhau, mà nhìn vào thì tưởng cùng một thứ.
+   * Anh Hùng bắt đúng chỗ này 08/10/2026. */
   const mKenh = new Map();
-  const congKenhLive = (nt, ten, xem, phien) => {
+  const congKenhLive = (nt, ten, luc, bai, nguoi, phien) => {
     if (!ten) return;
     const k = nt + ' · ' + ten;
-    const o2 = mKenh.get(k) || { nhan: k, so: 0, phien: 0 };
-    o2.so += so(xem);
+    const o2 = mKenh.get(k) || { nhan: k, nenTang: nt, phien: 0, nguoi: 0, luc: null, bai: null };
+    if (luc != null) o2.luc = so(o2.luc) + so(luc);
+    if (bai != null) o2.bai = so(o2.bai) + so(bai);
+    o2.nguoi += so(nguoi);
     o2.phien += so(phien);
     mKenh.set(k, o2);
   };
-  dsFb.forEach((x) => congKenhLive('Facebook', x.channel, x.views, 1));
-  dsTt.forEach((x) => congKenhLive('TikTok', x.channel, x.luotXem, x.soPhien));
-  const theoKenhLive = [...mKenh.values()].sort((a, b) => b.so - a.so);
+  dsFb.forEach((x) => congKenhLive('Facebook', x.channel, null, x.views, x.xemRieng, 1));
+  dsTt.forEach((x) => congKenhLive('TikTok', x.channel, x.luotXem, null, x.nguoiXemRieng, x.soPhien));
+  /* Xếp theo số LỚN NHẤT mà kênh đó có, dù là loại nào — để kênh chưa đo được
+   * số tại thời điểm vẫn nằm đúng tầm vóc của nó chứ không rơi xuống đáy. */
+  const theoKenhLive = [...mKenh.values()]
+    .sort((a, b) => Math.max(so(b.luc), so(b.bai)) - Math.max(so(a.luc), so(a.bai)));
 
   const luuY = [];
   if (dsFb.length && coXemFb < dsFb.length) {
@@ -611,18 +626,33 @@ async function docLiveRieng(app, tu, den, pv) {
      * và chỉ gặp nhau sau khi cả hai đã xong. */
     _phienFb: phienFb2.map((x) => ({ start: x.start, end: x.end, ten: x.title || '' })),
     _ngayTt: ngayTt2.map((x) => x.date || ''),
+    /* Biểu đồ nền tảng mang HAI chỉ số, mỗi chỉ số một thang riêng: 148k lượt
+     * xem và 929 bình luận chung một thang thì cột bình luận thành một vạch
+     * không nhìn ra. Con số in trên đầu mỗi cột mới là dữ liệu, cột chỉ để so
+     * Facebook với TikTok trong cùng một chỉ số. */
     cot: {
-      nhan: 'Lượt xem LIVE theo nền tảng',
+      nhan: 'LIVE theo nền tảng',
       don: 'so',
-      muc: [{ nhan: 'Facebook', so: xemFb }, { nhan: 'TikTok', so: xemTt }].filter((x) => x.so),
+      cap: ['Lượt xem', 'Bình luận'],
+      muc: [
+        ...(phienFb ? [{ nhan: 'Facebook', so: xemFb, so2: cFb('comments') }] : []),
+        ...(phienTt ? [{ nhan: 'TikTok', so: xemTt, so2: cTt('nguoiBinhLuan') }] : []),
+      ],
     },
-    /* TÁCH THEO TỪNG KÊNH, không chỉ theo nền tảng. Người dẫn live cần biết
-     * mình lên sóng ở kênh nào được bao nhiêu — "Facebook 31k" gộp ba trang
-     * lại thì không nói được kênh nào đang chạy tốt. */
+    /* THANH THEO KÊNH ĐỌC SỐ TẠI THỜI ĐIỂM PHÁT — anh Hùng chốt 08/10/2026.
+     * Kênh nào nền tảng chưa trả số đó thì để TRỐNG kèm chữ "chưa đo được",
+     * chứ không mượn tạm số bài đăng cho đủ thanh: mượn một lần là từ đó không
+     * ai còn phân biệt được hai loại số nữa. */
     thanh: {
-      nhan: 'Lượt xem LIVE theo kênh',
+      nhan: 'Lượt xem tại thời điểm LIVE, theo kênh',
       don: 'so',
-      muc: theoKenhLive,
+      muc: theoKenhLive.map((x) => ({
+        nhan: x.nhan,
+        so: x.luc,
+        vi: x.luc == null
+          ? 'chưa đo được — ' + gonSoNgan(so(x.bai)) + ' sau khi thành bài đăng'
+          : x.phien + ' phiên',
+      })),
     },
     bang: [
       /* ĐO THEO CÁCH NÀO. Anh Hùng hỏi 08/10/2026: "đánh giá hiệu quả live thì
@@ -630,13 +660,14 @@ async function docLiveRieng(app, tu, den, pv) {
        * Facebook hiện KHÔNG cho con số đó, nên 79k của Facebook không so thẳng
        * được với 69k của TikTok. Để dưới dạng bảng chứ không phải dải cảnh báo:
        * nó là số liệu, không phải lời than. */
-      { tieuDe: 'Lượt xem đo theo cách nào',
-        cot: ['Nền tảng', 'Trong lúc phát', 'Tính cả xem lại', 'Người xem'],
-        soCot: [1, 2, 3],
-        dong: [
-          ...(phienTt ? [['TikTok · bản xuất LIVE Center', xemTt, '—', cTt('nguoiXemRieng')]] : []),
-          ...(phienFb ? [['Facebook · API video', '—', xemFb, cFb('xemRieng')]] : []),
-        ] },
+      { tieuDe: 'Hai loại lượt xem — theo từng kênh',
+        cot: ['Nền tảng · Kênh', 'Phiên', 'Tại thời điểm LIVE', 'Sau khi thành bài đăng',
+          'Người xem'],
+        soCot: [1, 2, 3, 4],
+        dong: theoKenhLive.map((x) => [x.nhan, x.phien,
+          x.luc == null ? 'chưa đo được' : x.luc,
+          x.bai == null ? 'không áp dụng' : x.bai,
+          x.nguoi || '—']) },
       ...(phienFb && phienTt ? [{
         tieuDe: 'Bình luận tách theo nền tảng',
         cot: ['Nền tảng', 'Cách đếm', 'Số'],
@@ -646,10 +677,9 @@ async function docLiveRieng(app, tu, den, pv) {
           ['TikTok', 'đếm NGƯỜI có bình luận', cTt('nguoiBinhLuan')],
         ],
       }] : []),
-      { tieuDe: 'LIVE theo kênh',
-        cot: ['Nền tảng · Kênh', 'Số phiên', 'Lượt xem'],
-        soCot: [1, 2],
-        dong: theoKenhLive.map((x) => [x.nhan, x.phien, x.so]) },
+      /* Bảng "LIVE theo kênh" cũ đã bỏ: nó lặp lại đúng những cột của bảng
+       * trên, chỉ khác là dồn hai loại lượt xem vào một. Hai bảng gần giống
+       * nhau đặt cạnh nhau là chỗ người đọc phải so xem khác nhau ở đâu. */
       { tieuDe: 'Phiên LIVE Facebook',
         cot: ['Bắt đầu', 'Tên phiên', 'Kênh', 'Phút', 'Lượt xem', 'Người xem',
           'Bình luận', 'Thích', 'Địa điểm'],
@@ -1546,8 +1576,18 @@ function ganDiaDiemLive(base) {
     const tp = tuKhoa(tenPhien);
     const hop = trung.filter((b) => trungTu(tuKhoa(b.title), tp));
     if (hop.length === 1) return hop[0].diaDiem;
-    const ds = [...new Set((hop.length ? hop : trung).map((b) => b.diaDiem))];
-    return ds.length === 1 ? ds[0] : ds.join(' hoặc ');
+    const con = hop.length ? hop : trung;
+    const ds = [...new Set(con.map((b) => b.diaDiem))];
+    if (ds.length === 1) return ds[0];
+    /* Không phân được bằng tên thì lấy KHUNG HẸP NHẤT, với điều kiện nó hẹp hơn
+     * hẳn — buổi quay khách sạn kéo từ trưa 06/10 sang chiều 07/10 trùm lên mọi
+     * phiên live trong khoảng đó, trong khi buổi Sunset Town 16:30–21:00 mới là
+     * buổi sinh ra phiên 20:34. Khung dài gấp đôi trở lên thì coi là khung nền,
+     * không phải khung của phiên này. Chênh ít thì vẫn ghi ra cả hai. */
+    const sapXep = con.slice().sort((a, b) => (a.k - a.a) - (b.k - b.a));
+    const hep = sapXep[0]; const ke = sapXep[1];
+    if (hep && ke && (hep.k - hep.a) * 2 <= (ke.k - ke.a)) return hep.diaDiem;
+    return ds.join(' hoặc ');
   };
 
   const bangFb = (live.bang || []).find((b) => b.tieuDe === 'Phiên LIVE Facebook');
