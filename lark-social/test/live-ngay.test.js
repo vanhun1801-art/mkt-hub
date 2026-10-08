@@ -57,7 +57,7 @@ t('đọc được tệp Viewership, giữ đúng ngày', () => {
     [NGAY(6), '29444', '25670', '647', '26', '902', '530'],
   ]);
   const r = LN.docMot(b, 'x_rootytrip.official_Viewership.csv');
-  assert.strictEqual(r.loai, 'Viewership');
+  assert.strictEqual(r.loai, 'Số liệu người xem');
   assert.strictEqual(r.ds.length, 1);
   /* Ngày là thứ bộ đọc cũ đánh rơi — không có nó thì số rơi vào hư không mà
      bảng vẫn trông bình thường. */
@@ -94,7 +94,7 @@ t('đọc được ZIP — đúng thứ người dùng tải về', () => {
   const trong = csv([['Date', 'Diamonds', 'USD'], [NGAY(6), '80', '32']]);
   const z = zipHoa('LIVE_x_rootytrip.official_Rewards.csv', trong);
   const r = LN.docMot(z, 'LIVE_x_rootytrip.official_Rewards.zip');
-  assert.strictEqual(r.loai, 'Rewards');
+  assert.strictEqual(r.loai, 'Phần thưởng');
   assert.strictEqual(r.ds[0].kimCuong, 80);
   assert.strictEqual(r.ds[0].usd, 32);
 });
@@ -112,7 +112,7 @@ t('gộp bốn tệp về một dòng mỗi ngày', () => {
   const w = LN.docMot(csv([['Date', 'Diamonds', 'USD'], [NGAY(6), '80', '32']]), 'a_Rewards.csv');
   const g = LN.gop([v, a, e, w]);
   assert.strictEqual(g.ds.length, 1, 'bốn tệp cùng một ngày thì ra MỘT dòng');
-  assert.deepStrictEqual(g.loai.sort(), ['Activity', 'Engagement', 'Rewards', 'Viewership']);
+  assert.deepStrictEqual(g.loai.sort(), ['Hoạt động', 'Phần thưởng', 'Số liệu người xem', 'Tương tác']);
   const r = g.ds[0];
   assert.strictEqual(r.luotXem, 29444);
   assert.strictEqual(r.soPhien, 2);
@@ -154,6 +154,66 @@ t('số có dấu phẩy ngăn nghìn vẫn đọc đúng', () => {
 t('ô có dấu phẩy bên trong nháy kép không làm lệch cột', () => {
   assert.deepStrictEqual(LN.tachDong('"a,b","c"'), ['a,b', 'c']);
   assert.deepStrictEqual(LN.tachDong('"x""y","z"'), ['x"y', 'z']);
+});
+
+t('bản xuất TIẾNG VIỆT đọc được đủ cột, không ra dòng toàn số 0', () => {
+  /* Lỗi thật anh Hùng gặp 08/10/2026 với kênh "Cuộc sống tại Phú Quốc".
+     LIVE Center dịch tiêu đề cột theo ngôn ngữ tài khoản — chỉ "Date" và "USD"
+     giữ tiếng Anh. Tệp tiếng Việt đọc ra ngày hợp lệ nên app nhận, nhưng mọi
+     cột số đều lạ nên thành 0; riêng USD trúng tên nên một ngày sống sót với
+     đúng một con số. Bảy ngày LIVE vào Base thành một dòng rỗng, màn hình vẫn
+     báo ghi thành công. */
+  const v = LN.docMot(csv([
+    ['Date', 'Lượt xem', 'Người xem duy nhất', 'Người xem tích cực',
+      'Thời lượng xem trung bình', 'Số người xem đồng thời cao nhất',
+      'Số người xem đồng thời trung bình'],
+    [NGAY(6), '448', '404', '19', '42', '27', '7'],
+  ]), 'LIVE_1_2_lifeinphuquocvn_Số liệu người xem.csv');
+  assert.strictEqual(v.loai, 'Số liệu người xem');
+  assert.strictEqual(v.soCot, 6, 'phải đọc đủ sáu cột số');
+  assert.deepStrictEqual(v.cotLa, [], 'không còn cột nào lạ');
+  assert.strictEqual(v.ds[0].luotXem, 448);
+  assert.strictEqual(v.ds[0].dinhDongThoi, 27);
+
+  const a = LN.docMot(csv([['Date', 'Thời lượng LIVE', 'Tổng số phiên LIVE'],
+    [NGAY(6), '4181', '2']]), 'a_Hoạt động.csv');
+  assert.strictEqual(a.ds[0].thoiLuong, 4181);
+  assert.strictEqual(a.ds[0].soPhien, 2);
+
+  const e = LN.docMot(csv([['Date', 'Người gửi quà tặng', 'Follower mới',
+    'Người xem đã bình luận', 'Lượt thích', 'Lượt chia sẻ'],
+  [NGAY(6), '0', '10', '8', '1257', '4']]), 'a_Tương tác.csv');
+  assert.strictEqual(e.ds[0].thich, 1257);
+  assert.strictEqual(e.ds[0].followerMoi, 10);
+
+  const w = LN.docMot(csv([['Date', 'Kim cương', 'USD'], [NGAY(6), '4', '1']]),
+    'a_Phần thưởng.csv');
+  assert.strictEqual(w.ds[0].kimCuong, 4, 'Kim cương trước đây rơi mất, chỉ USD sống');
+});
+
+t('đoán được kênh cả khi tên tệp dịch sang tiếng Việt', () => {
+  assert.strictEqual(
+    LN.handleTuTen('LIVE_58717-10-20_58734-03-25_lifeinphuquocvn_Hoạt động.zip'),
+    'lifeinphuquocvn',
+  );
+  assert.strictEqual(
+    LN.handleTuTen('LIVE_1_2_abc.def_Số liệu người xem.zip'), 'abc.def',
+  );
+  /* Bản tiếng Anh vẫn phải chạy — hai kênh của cùng một phòng ra hai thứ tiếng. */
+  assert.strictEqual(
+    LN.handleTuTen('LIVE_58723-04-12_58734-03-25_rootytrip.official_Viewership.zip'),
+    'rootytrip.official',
+  );
+});
+
+t('tệp hiểu được ngày nhưng KHÔNG hiểu cột số nào thì nêu tên cột lạ', () => {
+  /* Để máy chủ từ chối ghi. Ghi vào Base toàn số 0 thì bảng vẫn trông bình
+     thường mà số thì mất — không ai phát hiện ra cho tới lúc đối chiếu tay. */
+  const r = LN.docMot(csv([['Date', 'Doanh thu', 'Số đơn'], [NGAY(6), '5', '3']]),
+    'la-hoac.csv');
+  assert.ok(r.ds.length > 0, 'vẫn đọc ra ngày');
+  assert.strictEqual(r.soCot, 0, 'không cột số nào hiểu được');
+  assert.deepStrictEqual(r.cotLa, ['doanh thu', 'số đơn']);
 });
 
 console.log('\n' + so + ' phép thử đạt\n');

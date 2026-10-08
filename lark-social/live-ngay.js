@@ -31,43 +31,64 @@
 const { moZip, laZip } = require('../lark-chung/xlsx-doc');
 
 /* Tên cột (viết thường) → tên trường. Mỗi khoá nói rõ nó thuộc bản xuất nào để
- * sau này thêm cột mới còn biết đặt vào đâu. */
+ * sau này thêm cột mới còn biết đặt vào đâu.
+ *
+ * CÓ HAI BẢN NGÔN NGỮ. LIVE Center xuất tiêu đề cột theo ngôn ngữ của người
+ * đang đăng nhập, nên hai kênh của cùng một phòng ra hai bộ tiêu đề khác nhau.
+ * Chỉ "Date" và "USD" là giữ nguyên tiếng Anh ở cả hai bản — và đúng chỗ đó đã
+ * gây ra lỗi 08/10/2026: tệp tiếng Việt của kênh "Cuộc sống tại Phú Quốc" đọc
+ * được ngày nên app nhận tệp, nhưng mọi cột số đều lạ nên ghi vào Base toàn số
+ * 0, riêng USD trúng tên nên sống sót. Bảy ngày LIVE thành một dòng rỗng. */
 const COT = {
   /* trục chung */
   date: 'ngay',
   ngày: 'ngay',
 
-  /* Viewership */
+  /* Viewership · Số liệu người xem */
   views: 'luotXem',
+  'lượt xem': 'luotXem',
   'unique viewers': 'nguoiXemRieng',
+  'người xem duy nhất': 'nguoiXemRieng',
   'active viewers': 'nguoiXemTuongTac',
+  'người xem tích cực': 'nguoiXemTuongTac',
   'average watch duration': 'xemTrungBinh',
+  'thời lượng xem trung bình': 'xemTrungBinh',
   'peak concurrent viewers': 'dinhDongThoi',
+  'số người xem đồng thời cao nhất': 'dinhDongThoi',
   'average concurrent viewers': 'trungBinhDongThoi',
+  'số người xem đồng thời trung bình': 'trungBinhDongThoi',
 
-  /* Activity */
+  /* Activity · Hoạt động */
   'live duration': 'thoiLuong',
+  'thời lượng live': 'thoiLuong',
   'total live streams': 'soPhien',
+  'tổng số phiên live': 'soPhien',
 
-  /* Engagement */
+  /* Engagement · Tương tác */
   gifters: 'nguoiTangQua',
+  'người gửi quà tặng': 'nguoiTangQua',
   'new followers': 'followerMoi',
+  'follower mới': 'followerMoi',
   'viewers who commented': 'nguoiBinhLuan',
+  'người xem đã bình luận': 'nguoiBinhLuan',
   likes: 'thich',
+  'lượt thích': 'thich',
   shares: 'chiaSe',
+  'lượt chia sẻ': 'chiaSe',
 
-  /* Rewards */
+  /* Rewards · Phần thưởng */
   diamonds: 'kimCuong',
+  'kim cương': 'kimCuong',
   usd: 'usd',
 };
 
 /* Bản xuất nào nhận ra nhờ cột nào — chỉ để nói lại cho người dùng biết họ vừa
  * tải cái gì lên, không dùng để quyết định đọc. */
 const NHAN_DANG = [
-  ['Viewership', 'luotXem'],
-  ['Activity', 'thoiLuong'],
-  ['Engagement', 'thich'],
-  ['Rewards', 'kimCuong'],
+  ['Số liệu người xem', 'luotXem'],
+  ['Hoạt động', 'thoiLuong'],
+  ['Tương tác', 'thich'],
+  ['Phần thưởng', 'kimCuong'],
 ];
 
 const chuanCot = (s) => String(s || '').replace(/^﻿/, '').trim().toLowerCase();
@@ -123,7 +144,10 @@ const soCua = (v) => {
 
 /**
  * Đọc một tệp (ZIP, CSV hay TSV) thành các dòng theo ngày.
- * @returns { loai, ds: [{ ngay, ...số }], soCot }  — ds rỗng nghĩa là không nhận ra
+ * @returns { loai, ds, soCot, cotLa }  — ds rỗng nghĩa là không nhận ra tệp.
+ * `soCot` là số cột SỐ đọc được, `cotLa` là những tiêu đề không hiểu. Phải trả
+ * cả hai ra ngoài: tệp đọc được ngày mà không đọc được cột số nào thì phải TỪ CHỐI,
+ * chứ ghi vào Base toàn số 0 thì bảng vẫn trông bình thường mà số thì mất.
  */
 function docMot(buf, ten) {
   let than = buf;
@@ -136,11 +160,11 @@ function docMot(buf, ten) {
   }
   const chu = Buffer.isBuffer(than) ? than.toString('utf8') : String(than);
   const dong = chu.replace(/^﻿/, '').trim().split(/\r?\n/).filter(Boolean);
-  if (dong.length < 2) return { loai: '', ds: [], soCot: 0, ten: tenThat };
+  if (dong.length < 2) return { loai: '', ds: [], soCot: 0, cotLa: [], ten: tenThat };
 
   const tieuDe = tachDong(dong[0]).map(chuanCot);
   const map = tieuDe.map((c) => COT[c] || '');
-  if (!map.includes('ngay')) return { loai: '', ds: [], soCot: 0, ten: tenThat };
+  if (!map.includes('ngay')) return { loai: '', ds: [], soCot: 0, cotLa: tieuDe, ten: tenThat };
 
   const ds = [];
   for (let i = 1; i < dong.length; i += 1) {
@@ -154,7 +178,8 @@ function docMot(buf, ten) {
     if (r.ngay) ds.push(r);
   }
   const loai = (NHAN_DANG.find(([, k]) => map.includes(k)) || ['Không rõ'])[0];
-  return { loai, ds, soCot: map.filter(Boolean).length - 1, ten: tenThat };
+  const cotLa = tieuDe.filter((c, j) => c && !map[j]);
+  return { loai, ds, soCot: map.filter(Boolean).length - 1, cotLa, ten: tenThat };
 }
 
 /**
@@ -194,7 +219,13 @@ function handleTuTen(ten) {
    * trước ("LIVE_58550-10-15_58632-12-04_…"), gạch dưới lọt vào là nuốt luôn
    * mấy cụm ấy và ra "1_2_abc.def". Handle TikTok có gạch dưới thì đoán hụt —
    * mà đoán hụt nghĩa là người dùng tự chọn kênh, tức là an toàn. */
-  const m = /_([A-Za-z0-9.]{3,30})_(Viewership|Activity|Engagement|Rewards)\b/i.exec(String(ten || ''));
+  /* Tên tệp cũng dịch theo ngôn ngữ tài khoản: "_Hoạt động.zip" thay vì
+   * "_Activity.zip". Thiếu bản tiếng Việt thì không đoán được kênh, nhân sự phải
+   * tự chọn — chọn nhầm là số vào nhầm kênh. */
+  const duoi = 'Viewership|Activity|Engagement|Rewards'
+    + '|Số liệu người xem|Hoạt động|Tương tác|Phần thưởng';
+  const m = new RegExp('_([A-Za-z0-9.]{3,30})_(' + duoi + ')(?=[._]|$)', 'i')
+    .exec(String(ten || '').replace(/\.(zip|csv|tsv|txt)$/i, ''));
   return m ? m[1].toLowerCase() : '';
 }
 

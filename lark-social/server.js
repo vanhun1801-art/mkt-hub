@@ -1060,6 +1060,19 @@ async function api(req, res, u) {
      * ngày — đã thử với tệp thật. Dòng không ngày thì ghi vào bảng Phiên LIVE
      * là số rơi vào hư không mà bảng vẫn trông bình thường. Nhận ra sớm ở đây. */
     const theoNgay = liveNgay.docMot(buf, ten);
+    /* ĐỌC ĐƯỢC NGÀY MÀ KHÔNG ĐỌC ĐƯỢC CỘT SỐ NÀO THÌ TỪ CHỐI, đừng ghi.
+     *
+     * Lỗi thật 08/10/2026: LIVE Center dịch tiêu đề cột theo ngôn ngữ tài khoản,
+     * chỉ "Date" và "USD" giữ tiếng Anh. Tệp tiếng Việt vào đây đọc ra bảy ngày
+     * hợp lệ, cột số thì lạ hết nên thành 0 — Base nhận một dòng rỗng, màn hình
+     * báo "ghi thành công", và bảy ngày LIVE biến mất không một lời nào. */
+    if (theoNgay.ds.length && theoNgay.soCot < 1) {
+      const e = new Error('Đọc được ngày nhưng không hiểu cột số nào trong “' + ten
+        + '”. Các cột lạ: ' + (theoNgay.cotLa || []).join(' · ')
+        + '. Chưa ghi gì vào Base — báo lại để bổ sung tên cột.');
+      e.code = 400;
+      throw e;
+    }
     if (theoNgay.ds.length) return ok(res, await ghiLiveNgay(theoNgay, ten, u, req));
 
     /* Đường ghi bảng PHIÊN LIVE vẫn chỉ quản lý: đó là bảng gắn doanh thu, và
