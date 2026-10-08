@@ -2078,9 +2078,18 @@ function veHome() {
       '</div>';
   }
 
-  /* --- tải nhân sự: ai làm gì ngày nào — công cụ của QUẢN LÝ (nhân viên không cần
-   * soi lịch cả phòng; bớt một khối dài trên màn của họ) --- */
-  const taiHtml = S.quanLy ? khoiTaiNhanSu() : '';
+  /* --- tải nhân sự: ai làm gì ngày nào ---
+   *
+   * Quản lý thấy cả lưới. Nhân sự thấy ĐÚNG MỘT DÒNG của mình, nhãn tự đổi
+   * thành "Tải của tôi". Máy chủ cắt rồi mới gửi xuống (lichchung.js), nên ở
+   * đây chỉ còn việc vẽ — không có gì để lộ, và cũng không được lọc lại ở đây.
+   *
+   * Trước 08/10/2026 dòng này là `S.quanLy ? khoiTaiNhanSu() : ''`. Máy chủ
+   * vẫn cắt theo người, vẫn đặt cờ `chiMinh`, vẫn có phép thử "nhân sự không
+   * thấy ngày nghỉ của đồng nghiệp" — nhưng khối không bao giờ được vẽ, nên
+   * cả nhánh "Tải của tôi" là mã chết chưa ai từng nhìn thấy. Anh Hùng chốt
+   * cho hiện: người ta nhìn được đỉnh tải của chính mình thì tự giãn việc. */
+  const taiHtml = khoiTaiNhanSu();
 
   /* --- cần xử lý ngay (gộp mọi base), cuộn trong khối --- */
   const cxl = tq.canXuLy || [];
@@ -2254,8 +2263,14 @@ function khoiTaiNhanSu() {
 
   /* `co-so` = bản CÓ số liệu. Phép đo chiều cao chỉ được nhìn vào bản này, chứ
    * đo trúng bản đang chờ thì lần sau nó chừa chỗ theo chính nó — sai dần. */
+  /* Nhân sự chưa có việc nào trong kỳ thì lưới rỗng tuếch: chỉ còn thước ngày,
+   * không một hàng nào. Nói ra một câu còn hơn để người ta nhìn khoảng trống
+   * rồi tưởng khối hỏng. Quản lý gần như không gặp cảnh này nên trước đây
+   * không ai thấy. */
   return '<section class="khoi khoi-tai co-so">' + head + '<div class="khoi-body">' +
-    (S.xem === 'ngay' ? lichTheoNgay(d) : daiNhiet(d, dinhCao)) +
+    (!d.hang.length
+      ? '<div class="trong">Không có việc nào trong khoảng này.</div>'
+      : S.xem === 'ngay' ? lichTheoNgay(d) : daiNhiet(d, dinhCao)) +
     '</div></section>';
 }
 
@@ -2323,7 +2338,10 @@ function lichTheoNgay(d) {
 
     h += '<section class="khoi ngay-khoi' + (n === homNay ? ' nay' : '') + '">' +
       '<div class="khoi-head"><div><h2>' + THU[t.getDay()] + ' · ' + dmy(n) + '</h2>' +
-      '<div class="kh-sub">' + (d.theoNgay[n] || 0) + ' lượt · ' + theoNguoi.length + ' người</div></div></div>' +
+      /* "· 1 người" trên lịch của chính mình đọc như cả phòng hôm đó có mỗi
+       * một người đi làm — bỏ hẳn khi chỉ còn dòng của mình. */
+      '<div class="kh-sub">' + (d.theoNgay[n] || 0) + ' lượt' +
+        (d.chiMinh ? '' : ' · ' + theoNguoi.length + ' người') + '</div></div></div>' +
       '<div class="khoi-body ngay-body">' +
       theoNguoi.map((x) => '<div class="ng-dong' + (x.ds.length >= NGUONG_QUA_TAI ? ' qua-tai' : '') + '">' +
         '<div class="ng-ten">' + esc(x.ten) + '<span class="ng-n">' + x.ds.length + '</span>' +
