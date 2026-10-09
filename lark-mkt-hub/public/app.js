@@ -922,10 +922,32 @@ function keoIframeVeNeuLac(mod, o, rec, mo) {
  * !important), không bằng style.visibility trên riêng khung: visibility của con
  * thắng của cha, và ios.css có luật ép khung xương lớp chờ `visible` — khung
  * xương của app mở ngầm từng lộ ra nằm đè trang Tổng quan (anh Hùng 04/10). */
-function anKhung(x) {
-  if (x.wrap.dataset.napTruoc === '1') {
-    x.wrap.hidden = false; x.wrap.classList.add('khung-ngam');
-  } else x.wrap.hidden = true;
+function anKhung(x, dan) {
+  const an = () => {
+    if (x.wrap.dataset.napTruoc === '1') {
+      x.wrap.hidden = false; x.wrap.classList.add('khung-ngam');
+    } else x.wrap.hidden = true;
+  };
+  if (dan) roiDan(x.wrap, an); else an();
+}
+
+/* CHUYỂN APP HOÀ TAN (09/10/2026, hệ chuyển động chung — anh Hùng: "đóng đi
+ * cũng phải chỉn chu"). Trang đang xem không tắt phụp: giữ thêm 0,2s nằm dưới,
+ * mờ dần (.ios-roi trong ios.css) trong lúc trang mới hiện lên ở trên, rồi mới
+ * ẩn thật. Không chụp/nhân bản được vì mỗi app là một iframe riêng. Quay lại
+ * đúng trang đó giữa chừng thì huyRoi() huỷ lệnh ẩn. */
+function roiDan(el, an) {
+  const dangHien = el && !el.hidden && !el.classList.contains('khung-ngam');
+  if (!dangHien || document.documentElement.getAttribute('data-skin') !== 'ios' ||
+    matchMedia('(prefers-reduced-motion: reduce)').matches) { an(); return; }
+  clearTimeout(el._roi);
+  el.classList.add('ios-roi');
+  el._roi = setTimeout(() => { el.classList.remove('ios-roi'); el._roi = 0; an(); }, 200);
+}
+function huyRoi(el) {
+  if (!el) return;
+  clearTimeout(el._roi); el._roi = 0;
+  el.classList.remove('ios-roi');
 }
 
 /* MỞ SẴN NGẦM (04/10/2026, anh Hùng: "tối ưu giao diện và các thứ để nhanh
@@ -958,8 +980,9 @@ function moModule(id, rec, mo) {
   }
 
   S.view = id;
-  $('#pageHome').hidden = true;
+  roiDan($('#pageHome'), () => { if (S.view !== 'home') $('#pageHome').hidden = true; });
   const o = khungCuaModule(mod, rec, mo);
+  huyRoi(o.wrap);
   /* Khung đã dựng từ trước thì đổi src để app con mở đúng bản ghi / đúng màn.
    * Chỉ làm khi CÓ rec hoặc mo — không thì mỗi lần chuyển tab lại nạp lại app
    * con từ đầu. */
@@ -968,7 +991,7 @@ function moModule(id, rec, mo) {
     if (o.iframe.getAttribute('src') !== moi) o.iframe.setAttribute('src', moi);
   }
   keoIframeVeNeuLac(mod, o, rec, mo);
-  S.frames.forEach((x, k) => { if (k !== id) anKhung(x); });
+  S.frames.forEach((x, k) => { if (k !== id) anKhung(x, true); });
   delete o.wrap.dataset.napTruoc;
   o.wrap.classList.remove('khung-ngam');
   o.wrap.hidden = false;
@@ -979,8 +1002,9 @@ function moModule(id, rec, mo) {
 
 function moHome() {
   S.view = 'home';
+  huyRoi($('#pageHome'));
   $('#pageHome').hidden = false;
-  S.frames.forEach(anKhung);
+  S.frames.forEach((x) => anKhung(x, true));
   document.title = 'Marketing Hub · Rooty Trip';
   datTenMan('Tổng quan chung');
   veRail();

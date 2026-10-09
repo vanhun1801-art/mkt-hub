@@ -5268,6 +5268,34 @@ html[data-skin="ios"]:not(#_):not(#__):not(#___)[data-app="khach-hang"] .ngan.io
 @keyframes cd-tich { 0% { scale: .82; } 60% { scale: 1.08; } 100% { scale: 1; } }
 html[data-skin="ios"] input:is([type="checkbox"], [type="radio"]).cd-tich { animation: cd-tich .32s var(--cd-vao); }
 
+/* 8. CỬA SỔ ĐỤC MỘT MÀU (máy tính). Trước: hộp trong 94%, danh sách xổ 84% →
+   thẻ, nhãn, ảnh phía sau lấp ló xuyên qua, đầu/thân/chân cửa sổ mỗi chỗ một
+   tông (anh Hùng: "màu chưa đồng nhất"). Nay nền đặc: hộp = --ios-the, lớp nổi
+   nhỏ = --kinh-bang; đầu/chân hộp cùng màu thân, chỉ ngăn bằng đường mảnh.
+   .ios-hop-dac do ios.js / ios-app.js gắn lúc cửa sổ mở. Điện thoại giữ nguyên
+   (đã đục sẵn; Cài đặt kiểu iOS cố ý nền xám + khối trắng). */
+@media (min-width: 641px) {
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) :is(.ios-hop-dac, .drawer, .modal-box, .modal-wrap > .modal, .tb-panel, .xn-hop, .ngan-hop, .bb-hop) {
+    background-color: var(--ios-the) !important;
+    -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+  }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) :is(.ios-hop-dac, .drawer, .modal-box, .modal-wrap > .modal, .xn-hop, .ngan-hop) > :is(.modal-head, .modal-foot, .drawer-head, .drawer-foot, .xn-dau, .ngan-dau, .hop-dau, .hop-chan, .md-dau, .md-chan, header, footer) {
+    background-color: var(--ios-the) !important; background-image: none !important;
+  }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) :is(.dd-panel, .pk-panel, .ng-pop, .dd-panel-pick, .as-panel, .viewas-panel, .goi-y, .goi-y-ng, .ng-goiy) {
+    background-color: var(--kinh-bang) !important;
+    -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+  }
+}
+
+/* 9. CHUYỂN APP HOÀ TAN: trang vừa rời mờ đi bên dưới trong lúc trang mới hiện
+   lên ở trên (app.js roiDan) */
+@keyframes cd-roi { to { opacity: 0; } }
+html[data-skin="ios"]:not(#_):not(#__):not([data-app]) .stage > .page.ios-roi {
+  z-index: 0; pointer-events: none; animation: cd-roi .2s var(--cd-ra) forwards !important;
+}
+html[data-skin="ios"]:not(#_):not(#__):not([data-app]) .stage:has(> .page.ios-roi) > .page:not(.ios-roi) { z-index: 1; }
+
 @media (prefers-reduced-motion: reduce) {
   html[data-skin="ios"] details::details-content { transition: none !important; }
   html[data-skin="ios"] :is(.ios-doi-tab, .pk-panel, .goi-y, .goi-y-ng, .ng-goiy, .ng-pop, .ngan > *, input.cd-tich) { animation: none !important; }

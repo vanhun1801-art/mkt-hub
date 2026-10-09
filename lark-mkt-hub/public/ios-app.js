@@ -735,11 +735,26 @@
     c.addEventListener('animationend', (ev) => { if (ev.target === c) go(); });
     setTimeout(go, 320);
   }
+  /* CỬA SỔ ĐỤC MỘT MÀU (09/10/2026, anh Hùng: "cửa sổ hiện lên còn lỗi chỗ
+   * màu chưa đồng nhất"): thân hộp từng trong 94% nên thẻ/nhãn phía sau lấp ló
+   * xuyên qua, mỗi vùng một tông. Mỗi app đặt tên hộp một kiểu → đánh dấu hộp
+   * lúc mở (.ios-hop-dac), ios.css tô nền đặc. Lớp phủ kín màn thì hộp là con
+   * lớn nhất; lớp nổi nhỏ (danh sách xổ…) đã có nền riêng thì bỏ qua. */
+  const NHO = '.ng-pop, .goi-y, .goi-y-ng, .ng-goiy, .pk-panel, .mask, .scrim, .modal-mask, .modal-nen, .ios-nen-so';
+  function danhDauHop(e) {
+    if (e.matches(NHO)) return;
+    const q = e.getBoundingClientRect();
+    if (q.width >= innerWidth * 0.9 && q.height >= innerHeight * 0.9) {
+      let hop = null, dt = 0;
+      for (const x of e.children) { const k = x.getBoundingClientRect(); if (k.width * k.height > dt && k.width < innerWidth * 0.98) { dt = k.width * k.height; hop = x; } }
+      if (hop && !hop.matches(NHO)) hop.classList.add('ios-hop-dac');
+    } else e.classList.add('ios-hop-dac');
+  }
   function quet() {
     document.querySelectorAll(HOP).forEach((e) => {
       if (e.closest('.ios-bong-dong') || (e.parentElement && e.parentElement.closest(HOP))) return;
       const s = getComputedStyle(e);
-      if (thay(e, s)) dangMo.set(e, { hien: s.display, lop: e.className, kieu: e.getAttribute('style'), cha: e.parentNode, ke: e.nextSibling });
+      if (thay(e, s)) { if (!dangMo.has(e)) danhDauHop(e); dangMo.set(e, { hien: s.display, lop: e.className, kieu: e.getAttribute('style'), cha: e.parentNode, ke: e.nextSibling }); }
       else if (dangMo.has(e)) { const r = dangMo.get(e); dangMo.delete(e); if (s.display === 'none' || e.hidden) dong(e, r); }
     });
     dangMo.forEach((r, e) => { if (!e.isConnected) { dangMo.delete(e); if (!thayThe(e, r)) dong(e, r); } });
