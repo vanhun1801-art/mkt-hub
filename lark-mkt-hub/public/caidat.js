@@ -604,12 +604,19 @@ async function napCdPhim() {
        *
        * Anh Hùng: "làm tool giảm dung lượng video đủ dùng". Máy không có
        * ffmpeg và kho giữ luật không dùng thư viện ngoài, nên dùng bộ mã hoá
-       * sẵn có của trình duyệt — xem nenPhim(). Ảnh thì bỏ qua, ảnh vốn nhẹ.
+       * sẵn có của trình duyệt — xem nenPhim(). Ảnh thì nén riêng bằng nenAnh() ngay dưới.
        *
        * Nén chạy theo thời gian thật nên PHẢI báo tiến độ: clip 26 giây là 26
        * giây nhìn màn hình, không nói gì thì ai cũng tưởng treo. */
       let than = f;
       let kieuGui = f.type;
+      /* Ảnh làm ô phát: nén về WEBP ≤ 450 KB, cạnh dài 1920 (ô phát rộng cả
+       * màn trên máy tính). Trước đây bỏ qua — một ảnh PNG 2 MB tải lại mỗi
+       * lần mở trang chủ. */
+      if (/^image\//.test(f.type)) {
+        try { than = await nenAnh(f, 450 * 1024, 1920); } catch (_) { than = f; }
+        kieuGui = than.type || f.type;
+      }
       if (/^video\//.test(f.type) && f.size > PHIM_MB_DICH * 1024 * 1024) {
         toast('Video ' + Math.round(f.size / 1048576) + ' MB. Đang nén, chạy theo độ dài clip…');
         const kq = await nenPhim(f, {
@@ -1577,15 +1584,18 @@ async function nenPhim(tep, tuyChon) {
  * trong mà ép sang JPEG là nền đen. Trình duyệt nào không mã hoá được WEBP thì
  * lùi về JPEG.
  */
-async function nenAnh(f, gioiHan) {
-  const MUC = gioiHan || 1024 * 1024;
+async function nenAnh(f, gioiHan, canh) {
+  /* 09/10/2026: hạ 1 MB → 300 KB. Ảnh chụp điện thoại 1600px ở WEBP q.85 chỉ
+   * ~200–300 KB mà nhìn không khác; 1 MB là trần quá rộng, bảng tin tải 14 ảnh
+   * 150–770 KB cho mấy ô 48px. */
+  const MUC = gioiHan || 300 * 1024;
   const kieu = f.type || '';
   if (!/^image\//.test(kieu) || /svg|gif/.test(kieu)) return f;
   if (f.size <= MUC) return f;
   if (!window.createImageBitmap || !document.createElement('canvas').toBlob) return f;
 
   const anh = await createImageBitmap(f);
-  const CANH = 1600;
+  const CANH = canh || 1600;
   const ti = Math.min(1, CANH / Math.max(anh.width, anh.height));
   const w = Math.max(1, Math.round(anh.width * ti));
   const h = Math.max(1, Math.round(anh.height * ti));

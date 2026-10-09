@@ -276,7 +276,7 @@ function veTepTb(tb) {
   return '<div class="bb-tep">' + ds.map((x) => {
     if (laAnh(x)) {
       return '<a class="bb-tep-anh" href="' + duong(x) + '" target="_blank" rel="noopener"' +
-        ' data-ten="' + esc(x.ten) + '"><img src="' + duong(x) + '" alt="' + esc(x.ten) + '"></a>';
+        ' data-ten="' + esc(x.ten) + '"><img loading="lazy" decoding="async" src="' + duong(x) + '" alt="' + esc(x.ten) + '"></a>';
     }
     /* Video phát ngay tại chỗ, tràn viền như ảnh.
      *

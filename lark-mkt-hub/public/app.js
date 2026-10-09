@@ -1449,7 +1449,7 @@ async function veKhoiTin() {
       '</div>' +
       (coAnh
         ? (anh
-          ? '<img class="tin-anh" src="/api/tb-app/tep/' + encodeURIComponent(t.recordId) + '/' +
+          ? '<img class="tin-anh" loading="lazy" decoding="async" src="/api/tb-app/tep/' + encodeURIComponent(t.recordId) + '/' +
             encodeURIComponent(anh.token) + '" alt="">'
           : '<span class="tin-anh tin-anh-trong"></span>')
         : '') +

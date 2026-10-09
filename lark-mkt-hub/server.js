@@ -581,12 +581,15 @@ const DEM_TEP_TRAN = 24 * 1024 * 1024;   // ~24 MB, đủ vài chục ảnh đã
  *
  * `Accept-Ranges` phải nói ra, nếu không trình duyệt còn chẳng buồn hỏi.
  */
-function traTep(req, res, buf, kieu) {
+function traTep(req, res, buf, kieu, coDinh) {
   const chung = {
     'Content-Type': kieu || 'application/octet-stream',
     /* Tệp đính kèm không đổi nội dung theo token, nhưng là thứ riêng của phòng
-     * — để `private` để proxy dọc đường không giữ lại bản sao. */
-    'Cache-Control': 'private, max-age=3600',
+     * — để `private` để proxy dọc đường không giữ lại bản sao.
+     * `coDinh`: địa chỉ gắn chặt với nội dung (token tệp Lark, hay ?v=mốc sửa
+     * của ảnh/video giới thiệu) → giữ một năm, không hỏi lại (09/10/2026: trước
+     * đó mỗi lần mở app tải lại 2–5 MB ảnh chỉ vì hết hạn 1 giờ / no-store). */
+    'Cache-Control': coDinh ? 'private, max-age=31536000, immutable' : 'private, max-age=3600',
     'Accept-Ranges': 'bytes',
   };
   const xin = String(req.headers.range || '');
@@ -1185,7 +1188,7 @@ async function api(req, res, u) {
     if (m === 'HEAD') {
       return send(res, 200, '', { 'Content-Type': t.mime, 'Accept-Ranges': 'bytes' });
     }
-    return traTep(req, res, fs.readFileSync(t.duong), t.mime);
+    return traTep(req, res, fs.readFileSync(t.duong), t.mime, !!u.searchParams.get('v'));
   }
 
   /**
@@ -1758,7 +1761,7 @@ async function api(req, res, u) {
     const sanCo = demTep.get(token);
     if (sanCo) {
       sanCo.at = Date.now();
-      return traTep(req, res, sanCo.buf, sanCo.kieu);
+      return traTep(req, res, sanCo.buf, sanCo.kieu, true);
     }
 
     try {
@@ -1776,7 +1779,7 @@ async function api(req, res, u) {
           MIME[duoi] || kieu || 'application/octet-stream';
       }
       nhoTep(token, t.buf, kieu);
-      return traTep(req, res, t.buf, kieu);
+      return traTep(req, res, t.buf, kieu, true);
     } catch (e) {
       return loi(res, 400, e.message);
     }
