@@ -290,7 +290,11 @@
       L = Math.min(L, b.left); R = Math.max(R, b.right);
     });
     if (!isFinite(L)) return;
-    const tr = Math.round(L) + 'px', ph = Math.round(vw - R) + 'px';
+    /* Cột nội dung không trải tới mép phải (bên phải còn một cột thật, VD sổ
+     * chi tiết của Báo cáo mở ra): thanh đầu vẫn trải cả hai cột → mép phải
+     * lấy bằng mép trái. Trước đó đo ra 500px → dải tab bị ép, cắt chữ. */
+    const ph0 = goc.getBoundingClientRect().right < vw - 40 ? L : vw - R;
+    const tr = Math.round(L) + 'px', ph = Math.round(ph0) + 'px';
     if (html.style.getPropertyValue('--cot-trai') !== tr) html.style.setProperty('--cot-trai', tr);
     if (html.style.getPropertyValue('--cot-phai') !== ph) html.style.setProperty('--cot-phai', ph);
   }

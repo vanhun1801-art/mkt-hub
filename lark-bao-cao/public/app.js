@@ -728,6 +728,9 @@ function moSo(tieuDe, phu, than) {
 function dongSo() {
   document.body.classList.remove('so-mo');
   SO_MO = false;
+  /* Đóng sổ thì bỏ tô dòng đang chọn — sổ đã đóng mà một dòng vẫn tô đậm thì
+   * đọc như vẫn đang chọn ai đó. */
+  $$('tr.dang-chon').forEach((x) => x.classList.remove('dang-chon'));
   capNhatNutSo();
 }
 

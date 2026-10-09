@@ -5084,3 +5084,27 @@ html[data-skin="ios"]:not(#_):not(#__)[data-app="cong-viec"] .xn > .xn-o { flex:
 .ios-mung.giam svg, .ios-mung.giam .ios-mung-gon { animation: none; }
 .ios-mung.giam svg path { animation: none; stroke-dashoffset: 0; }
 
+/* ==========================================================================
+   BÁO CÁO · TOÀN PHÒNG KHI MỞ SỔ BÊN PHẢI (09/10/2026). Anh Hùng: "giao diện
+   báo cáo nhân sự đang bị lỗi". Bấm một người → cột nội dung còn ~690px:
+   năm ô số rơi 3+2 lệch, tiêu đề cột gãy dòng ("Thời / lượng"), cột "Đáng chú
+   ý nhất" gãy 3 dòng làm mỗi hàng cao gấp ba. (Dải tab bị cắt là lỗi đo cột ở
+   ios-app.js, sửa ở đó.)
+   ========================================================================== */
+@media (min-width: 901px) {
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] body.so-mo .luoi-so { grid-template-columns: repeat(auto-fit, minmax(116px, 1fr)) !important; gap: 10px !important; }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] body.so-mo .o-so { padding: 12px 13px !important; min-width: 0; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___)[data-app="bao-cao"] body.so-mo .o-so .so { font-size: 20px !important; white-space: nowrap; }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] body.so-mo .o-so .nhan { font-size: 12px !important; line-height: 1.3; }
+  /* sổ bên phải đã kể chi tiết người đang chọn → cột "Đáng chú ý nhất" nhường
+     chỗ, tên người đứng một dòng */
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] body.so-mo .bang-xem.bam-duoc :is(th, td):nth-child(7) { display: none; }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] body.so-mo .bang-xem.bam-duoc td:nth-child(2) b { white-space: nowrap; }
+}
+html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] .bang-xem th { white-space: nowrap; }
+html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] .bang-xem td.so-o { white-space: nowrap; }
+/* điện thoại: ô số lẻ cuối cùng (338 giờ…) nằm trơ nửa hàng → trải hết hàng */
+@media (max-width: 640px) {
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] .luoi-so > .o-so:last-child:nth-child(odd) { grid-column: 1 / -1; }
+}
+
