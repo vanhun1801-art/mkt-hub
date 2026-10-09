@@ -942,29 +942,32 @@
   }, { passive: false, capture: true });
 })();
 
-/* MỪNG XONG VIỆC: thông báo thành công của app con → nhờ lớp vỏ (ios.js,
- * window.__iosMung) bật hiệu ứng giữa CẢ màn chứ không chỉ trong khung nhúng.
- * Các app gọi thông báo mỗi nơi một kiểu: phần lớn #toasts > .toast, Báo cáo
- * và KOL dùng một #toast duy nhất đổi chữ. Lớp lỗi: err / do / xau / loi. */
+/* THÔNG BÁO KIỂU DYNAMIC ISLAND: mọi thông báo của app con → nhờ lớp vỏ
+ * (ios.js, window.__iosDao) vẽ viên giữa mép trên CẢ màn, còn ô thông báo
+ * riêng của app thì ẩn (html.ios-dao-thay). Các app gọi thông báo ba kiểu:
+ *   #toasts > .toast   (phần lớn app; lớp err/do/xau là lỗi)
+ *   #toast dùng lại    (Báo cáo, KOL, Lịch làm việc: hidden; Kho media: .hien)
+ *   #doc               (KPI: hidden, lớp .loi là lỗi) */
 (() => {
   let goi = null;
-  try { goi = parent !== window && parent.__iosMung ? parent.__iosMung : null; } catch (_) {}
+  try { goi = parent !== window && parent.__iosDao ? parent.__iosDao : null; } catch (_) {}
   if (!goi) return;
-  const LOI = /(^|\s)(do|err|loi|xau|error)(\s|$)/;
-  const xet = (n) => {
-    if (!n || n.nodeType !== 1 || n.hidden || LOI.test(n.className)) return;
-    /* viên đảo của lớp vỏ thay thông báo này → ẩn để không hiện hai lần */
-    if (goi(n.textContent)) n.classList.add('ios-da-mung');
-  };
+  document.documentElement.classList.add('ios-dao-thay');
+  const hien = (e) => !e.hidden && (!e.classList.contains('toast') || e.id !== 'toast' || e.classList.contains('hien'));
+  const mot = (e) => { if (e && hien(e)) goi(e.textContent, e.className); };
   const bat = () => {
-    new MutationObserver((ds) => ds.forEach((d) => {
-      const t = d.target;
-      if (d.type === 'childList') {
-        if (t.id === 'toasts') d.addedNodes.forEach(xet);
-        else if (t.id === 'toast') xet(t);
-        else d.addedNodes.forEach((n) => { if (n.id === 'toast') xet(n); });
-      } else if (d.type === 'attributes' && t.id === 'toast' && !t.hidden) xet(t);
-    })).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });
+    new MutationObserver((ds) => {
+      const xet = new Set();
+      ds.forEach((d) => {
+        const t = d.target.nodeType === 1 ? d.target : d.target.parentElement;
+        if (!t) return;
+        if (d.type === 'childList' && t.id === 'toasts') { d.addedNodes.forEach((n) => { if (n.nodeType === 1) mot(n); }); return; }
+        const o = t.closest && t.closest('#toast, #doc');
+        if (o) xet.add(o);
+        d.addedNodes && d.addedNodes.forEach((n) => { if (n.nodeType === 1 && (n.id === 'toast' || n.id === 'doc')) xet.add(n); });
+      });
+      xet.forEach(mot);
+    }).observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['hidden', 'class'] });
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bat); else bat();
 })();

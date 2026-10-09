@@ -5047,48 +5047,69 @@ html[data-skin="ios"]:not(#_):not(#__)[data-app="cong-viec"] .xn > .xn-o { flex:
 }
 
 /* ==========================================================================
-   HIỆU ỨNG MỪNG XONG VIỆC — KIỂU DYNAMIC ISLAND (09/10/2026, ios.js →
-   window.__iosMung). Viên đen mờ kính trồi ra giữa mép trên, giãn ngang bằng
-   lò xo, tick xanh tự vẽ, chữ hiện sau; thu về rồi bay lên tan. Không chặn bấm.
+   THÔNG BÁO KIỂU DYNAMIC ISLAND (09/10/2026, ios.js → window.__iosDao)
+   Mọi thông báo của hub + app con: viên đen mờ kính trồi ra giữa mép trên,
+   giãn ngang bằng lò xo, biểu tượng theo loại (tick xanh / chấm than đỏ / vòng
+   xoay / chữ i), chữ hiện sau; thu về rồi bay lên tan. Câu dài → hộp nhiều dòng.
    ========================================================================== */
+html.ios-dao-thay :is(#toasts, #toast, #doc.doc) { display: none !important; }
 .ios-dao {
-  position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 10px); z-index: 2147482000;
-  transform: translate(-50%, -8px) scale(.6); opacity: 0; pointer-events: none;
+  /* trải hết bề ngang rồi canh giữa bằng flex: left:50% thì hộp chỉ còn nửa màn
+     để giãn — câu dài trên điện thoại bị bó 190px, gãy 4 dòng */
+  position: fixed; left: 0; right: 0; top: calc(env(safe-area-inset-top, 0px) + 10px); z-index: 2147482000;
+  display: flex; justify-content: center;
+  transform: translateY(-8px) scale(.6); opacity: 0; pointer-events: none;
   transition: transform .5s cubic-bezier(.34, 1.45, .5, 1), opacity .22s ease;
 }
-.ios-dao.mo { transform: translate(-50%, 0) scale(1); opacity: 1; }
-.ios-dao.thu { transform: translate(-50%, -14px) scale(.7); opacity: 0; transition: transform .45s cubic-bezier(.5, 0, .75, 0), opacity .35s ease .08s; }
+.ios-dao.mo { transform: none; opacity: 1; }
+.ios-dao.thu { transform: translateY(-14px) scale(.7); opacity: 0; transition: transform .45s cubic-bezier(.5, 0, .75, 0), opacity .35s ease .08s; }
 .ios-dao-vien {
-  display: flex; align-items: center; gap: 10px; height: 40px; box-sizing: border-box;
-  max-width: 40px; overflow: hidden; padding: 0 6px; border-radius: 999px; white-space: nowrap;
+  display: flex; align-items: center; gap: 10px; min-height: 40px; box-sizing: border-box;
+  max-width: 40px; overflow: hidden; padding: 6px; border-radius: 22px; white-space: nowrap;
   background: rgba(14, 14, 16, .92); color: #f5f5f7;
   -webkit-backdrop-filter: blur(20px) saturate(160%); backdrop-filter: blur(20px) saturate(160%);
   box-shadow: 0 10px 30px -8px rgba(0, 0, 0, .45), inset 0 0 0 .5px rgba(255, 255, 255, .12);
-  font: 600 14px/1 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  font: 600 14px/1.35 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
   transition: max-width .55s cubic-bezier(.3, 1.25, .45, 1) .08s, padding .55s cubic-bezier(.3, 1.25, .45, 1) .08s;
 }
-.ios-dao.mo .ios-dao-vien { max-width: min(460px, calc(100vw - 32px)); padding: 0 18px 0 6px; }
-.ios-dao.thu .ios-dao-vien { max-width: 40px; padding: 0 6px; transition-duration: .3s; transition-delay: 0s; }
+.ios-dao.mo .ios-dao-vien { max-width: min(460px, calc(100vw - 32px)); padding: 6px 18px 6px 6px; }
+.ios-dao.thu .ios-dao-vien { max-width: 40px; padding: 6px; transition-duration: .3s; transition-delay: 0s; }
+/* câu dài: hộp bo tròn nhiều dòng (tối đa 4), chữ không cắt cụt giữa chừng */
+.ios-dao.dai .ios-dao-vien { white-space: normal; }
+.ios-dao.dai.mo .ios-dao-vien { max-width: min(520px, calc(100vw - 24px)); padding: 8px 18px 8px 6px; }
+.ios-dao.dai .ios-dao-chu { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; font-weight: 500; font-size: 13.5px; }
 .ios-dao-tick {
   flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
   background: #30d158; box-shadow: 0 0 0 0 rgba(48, 209, 88, .55);
 }
-.ios-dao.mo .ios-dao-tick { animation: ios-dao-nhip 1.1s ease-out .35s; }
-.ios-dao-tick path {
-  fill: none; stroke: #fff; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round;
-  stroke-dasharray: 20; stroke-dashoffset: 20;
+.ios-dao.loi .ios-dao-tick { background: #ff453a; }
+/* giao diện tối: viên đen hoà vào nền → nâng lên xám than + viền sáng mảnh */
+html[data-theme="toi"] .ios-dao-vien { background: rgba(48, 48, 52, .94); box-shadow: 0 12px 34px -8px rgba(0, 0, 0, .7), inset 0 0 0 .5px rgba(255, 255, 255, .22); }
+@media (prefers-color-scheme: dark) { html:not([data-theme="sang"]) .ios-dao-vien { background: rgba(48, 48, 52, .94); box-shadow: 0 12px 34px -8px rgba(0, 0, 0, .7), inset 0 0 0 .5px rgba(255, 255, 255, .22); } }
+.ios-dao.tin .ios-dao-tick { background: #0a84ff; }
+.ios-dao.dang .ios-dao-tick { background: rgba(255, 255, 255, .12); }
+.ios-dao-tick svg { overflow: visible; }
+.ios-dao-tick path { fill: none; stroke: #fff; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.ios-dao-tick circle { fill: #fff; }
+.ios-dao-tick path.ve { stroke-dasharray: 20; stroke-dashoffset: 20; }
+.ios-dao.mo .ios-dao-tick path.ve { animation: ios-dao-ve .34s cubic-bezier(.65, 0, .35, 1) .28s forwards; }
+.ios-dao.ok.mo .ios-dao-tick { animation: ios-dao-nhip 1.1s ease-out .35s; }
+.ios-dao.loi.mo .ios-dao-tick svg { animation: ios-dao-lac .5s ease .3s; }
+.ios-dao-xoay {
+  width: 16px; height: 16px; border-radius: 50%; box-sizing: border-box;
+  border: 2.2px solid rgba(255, 255, 255, .25); border-top-color: #fff; animation: ios-dao-quay .8s linear infinite;
 }
-.ios-dao.mo .ios-dao-tick path { animation: ios-dao-ve .34s cubic-bezier(.65, 0, .35, 1) .28s forwards; }
 .ios-dao-chu { overflow: hidden; text-overflow: ellipsis; opacity: 0; transform: translateX(-6px); transition: opacity .3s ease .3s, transform .4s ease .3s; }
 .ios-dao.mo .ios-dao-chu { opacity: 1; transform: none; }
 .ios-dao.thu .ios-dao-chu { opacity: 0; transition-delay: 0s; transition-duration: .15s; }
 @keyframes ios-dao-ve { to { stroke-dashoffset: 0; } }
 @keyframes ios-dao-nhip { 0% { box-shadow: 0 0 0 0 rgba(48, 209, 88, .55); } 100% { box-shadow: 0 0 0 10px rgba(48, 209, 88, 0); } }
-/* thông báo nhỏ thường lệ đã được viên đảo thay → ẩn */
-.ios-da-mung { display: none !important; }
+@keyframes ios-dao-lac { 0%, 100% { transform: none; } 25% { transform: rotate(-14deg); } 60% { transform: rotate(10deg); } }
+@keyframes ios-dao-quay { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) {
   .ios-dao, .ios-dao-vien, .ios-dao-chu { transition-duration: .01ms !important; }
-  .ios-dao-tick path { stroke-dashoffset: 0 !important; animation: none !important; }
+  .ios-dao-tick path.ve { stroke-dashoffset: 0 !important; animation: none !important; }
+  .ios-dao-tick, .ios-dao-tick svg { animation: none !important; }
 }
 
 /* ==========================================================================
