@@ -217,28 +217,39 @@ html[data-theme="toi"] #moApp .ma-ten { color: #f2f2f7; }
   (function () {
     var en = false;
     try { var l = localStorage.getItem('hub.lang') || ''; en = l ? l === 'en' : /^en/i.test(navigator.language || ''); } catch (e) {}
+    /* Sức khoẻ, thói quen giữ sức khoẻ, mẹo làm việc hiệu quả (anh Hùng 09/10). */
     var ds = en ? [
       'Feeling tense? Stand up and walk around for a minute.',
-      'Take care of your health, and life gets brighter.',
-      'Drink a glass of water. Your body will thank you.',
-      'Rest your eyes: look 6 metres away for 20 seconds.',
-      'Roll your shoulders and take a deep breath.',
-      'One thing at a time is enough.',
-      'Thank a teammate today. Small words go a long way.',
-      'A short break often brings the best ideas.'
+      'Every 20 minutes, look 6 metres away for 20 seconds to rest your eyes.',
+      'Sip water through the day, before you feel thirsty.',
+      'Sit up straight, feet flat, screen at eye level.',
+      'Stand and stretch every hour; your back will thank you.',
+      'Breathe in for 4, hold for 4, out for 6. Calm in a minute.',
+      'Sleep 7 to 8 hours: tomorrow’s focus starts tonight.',
+      'Do your hardest task first, while your mind is fresh.',
+      'Work in 25-minute blocks, then take a 5-minute break.',
+      'Mute notifications while you focus; check messages in batches.',
+      'Write down 3 priorities before you start the day.',
+      'If a task takes under 2 minutes, do it now.',
+      'Break big tasks into small steps, then start with the first.',
+      'Tidy your desk at day’s end so tomorrow starts lighter.'
     ] : [
       'Nếu thấy căng thẳng, hãy đứng lên đi lại một chút.',
+      'Cứ 20 phút, nhìn xa 6 mét trong 20 giây để mắt được nghỉ.',
+      'Uống nước rải đều trong ngày, đừng đợi khát mới uống.',
+      'Ngồi thẳng lưng, chân chạm sàn, màn hình ngang tầm mắt.',
+      'Mỗi giờ đứng dậy vươn vai một lần, lưng sẽ nhẹ hẳn.',
+      'Hít vào 4 nhịp, giữ 4 nhịp, thở ra 6 nhịp: một phút là bình tĩnh lại.',
+      'Ngủ đủ 7–8 tiếng: sự tập trung ngày mai bắt đầu từ tối nay.',
+      'Ăn trưa đúng giờ, đừng vừa ăn vừa nhìn màn hình.',
       'Giữ gìn sức khoẻ, để cuộc sống thêm vui vẻ.',
-      'Uống một ngụm nước nhé, cơ thể sẽ cảm ơn bạn.',
-      'Cho mắt nghỉ: nhìn ra xa 20 giây rồi làm tiếp.',
-      'Thả lỏng vai, hít một hơi thật sâu.',
-      'Mỗi lúc một việc là đủ rồi.',
-      'Hôm nay nhớ cảm ơn một đồng đội nhé.',
-      'Nghỉ ngắn một chút, ý tưởng hay thường đến lúc đó.',
-      'Ngồi thẳng lưng, mỉm cười một cái nào.',
-      'Làm chậm mà chắc vẫn hơn vội mà sai.',
-      'Chúc bạn một ngày làm việc nhẹ nhàng.',
-      'Xong việc nhớ về sớm, nghỉ ngơi cho tốt nhé.'
+      'Làm việc khó nhất vào đầu ngày, lúc đầu óc còn minh mẫn.',
+      'Làm tập trung 25 phút, nghỉ 5 phút, lặp lại.',
+      'Tắt thông báo khi cần tập trung, gom tin nhắn lại xem một lượt.',
+      'Ghi ra 3 việc quan trọng nhất trước khi bắt đầu ngày mới.',
+      'Việc gì dưới 2 phút thì làm luôn, đừng để dồn.',
+      'Việc lớn thì chia nhỏ, bắt đầu từ bước đầu tiên.',
+      'Cuối ngày dọn bàn và ghi việc mai, sáng hôm sau vào việc nhanh hơn.'
     ];
     var cu = -1, i;
     try { cu = +(localStorage.getItem('hub.loiNhan') || -1); } catch (e) {}
