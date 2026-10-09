@@ -1061,3 +1061,57 @@
     setTimeout(() => e.classList.remove('cd-tich'), 360);
   }, true);
 })();
+
+/* GỢI Ý CUỘN (09/10/2026, anh Hùng duyệt ở trang thử): thanh cuộn đã ẩn, nên
+ * vùng còn nội dung khuất thì MÉP mờ dần — dưới còn thì mép dưới mờ, đã cuộn
+ * xuống thì mép trên mờ, tới cuối thì hết. Chỉ vùng cỡ vừa/nhỏ (danh sách, thân
+ * cửa sổ, cột bên phải): vùng cao ≥ 75% màn thường là cả trang, hay có thanh
+ * nút dính đáy — mờ đi là khó bấm. Vùng có phần tử dính (tiêu đề bảng…) thì
+ * không mờ mép trên. Bỏ qua ô nhập. Có cùng bản ở ios.js / ios-app.js. */
+(() => {
+  if (window.__cdMep) return;
+  window.__cdMep = true;
+  const BO = 'textarea, select, input, iframe, .ios-dao, .ios-dao *, [data-khong-mep], [data-khong-mep] *';
+  const dang = new Set();
+  function ve(e) {
+    const con = e.scrollHeight - e.clientHeight - e.scrollTop;
+    e.style.setProperty('--cd-tren', !e._cdDinh && e.scrollTop > 2 ? '24px' : '0px');
+    e.style.setProperty('--cd-duoi', con > 2 ? '32px' : '0px');
+  }
+  function coDinh(e) {
+    const ds = e.querySelectorAll('*');
+    if (ds.length > 600) return true;
+    for (const x of ds) { const p = getComputedStyle(x).position; if (p === 'sticky' || p === 'fixed') return true; }
+    return false;
+  }
+  function quet() {
+    const H = innerHeight;
+    dang.forEach((e) => { if (!e.isConnected) dang.delete(e); });
+    document.querySelectorAll('body *').forEach((e) => {
+      if (e.scrollHeight <= e.clientHeight + 8 || e.clientHeight < 60) {
+        if (dang.has(e)) { dang.delete(e); e.classList.remove('cd-mep'); }
+        return;
+      }
+      if (dang.has(e)) { ve(e); return; }
+      if (e.matches(BO) || e.clientHeight >= H * 0.75) return;
+      const oy = getComputedStyle(e).overflowY;
+      if (oy !== 'auto' && oy !== 'scroll') return;
+      e._cdDinh = coDinh(e);
+      dang.add(e); e.classList.add('cd-mep'); ve(e);
+    });
+  }
+  /* Quét đọc kích thước mọi phần tử → giới hạn: chờ yên 400ms, tối đa một lần
+   * mỗi 1,5s, để app có chữ đổi liên tục (đồng hồ, tiến độ) không bị giật. */
+  let hen = 0, lanCuoi = 0;
+  const henQuet = () => {
+    if (hen) return;                      // đã hẹn rồi: không dời mãi khi trang đổi liên tục
+    hen = setTimeout(() => { hen = 0; lanCuoi = Date.now(); quet(); }, Math.max(400, 1500 - (Date.now() - lanCuoi)));
+  };
+  document.addEventListener('scroll', (ev) => { const e = ev.target; if (e && e.nodeType === 1 && dang.has(e)) ve(e); }, { capture: true, passive: true });
+  addEventListener('resize', henQuet);
+  const bat = () => {
+    henQuet();
+    new MutationObserver(henQuet).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'hidden', 'open'] });
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bat); else bat();
+})();

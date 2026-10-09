@@ -5311,3 +5311,13 @@ html[data-skin="ios"], html[data-skin="ios"]:not(#_):not(#__):not(#___) * { scro
 html[data-skin="ios"]::-webkit-scrollbar,
 html[data-skin="ios"] *::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; background: transparent !important; }
 
+/* GỢI Ý CUỘN (09/10/2026): vùng còn nội dung khuất thì mép mờ dần (ios.js /
+   ios-app.js gắn .cd-mep và đặt --cd-tren / --cd-duoi theo vị trí cuộn) */
+@property --cd-tren { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@property --cd-duoi { syntax: "<length>"; inherits: false; initial-value: 0px; }
+html[data-skin="ios"] .cd-mep {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 var(--cd-tren), #000 calc(100% - var(--cd-duoi)), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 var(--cd-tren), #000 calc(100% - var(--cd-duoi)), transparent 100%);
+  transition: --cd-tren .25s ease, --cd-duoi .25s ease;
+}
+

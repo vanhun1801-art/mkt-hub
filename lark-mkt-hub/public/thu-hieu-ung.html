@@ -56,6 +56,14 @@
   .muc-mau > div { padding: 0 14px 14px; font-size: 14px; line-height: 1.5; color: var(--ios-chu-2, #6e6e73); }
   .tich-mau { display: flex; gap: 16px; margin-top: 12px; flex-wrap: wrap; font-size: 14px; }
   .tich-mau label { display: flex; align-items: center; gap: 7px; cursor: pointer; }
+  /* mẫu Gợi ý cuộn (hiệu ứng là của ios.js, đã áp cho app) */
+  .cuon-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .cuon-2 h3 { font-size: 12.5px; font-weight: 600; margin: 0 0 8px; color: var(--ios-chu-2, #6e6e73); text-transform: uppercase; letter-spacing: .04em; }
+  .ds-cuon { height: 230px; overflow-y: auto; border-radius: 14px; background: var(--ios-o, rgba(118,118,128,.12)); padding: 4px 0; }
+  .ds-cuon div { padding: 10px 14px; font-size: 14px; border-bottom: .5px solid var(--ios-o-2, rgba(118,118,128,.24)); }
+  .ds-cuon div:last-child { border-bottom: 0; }
+  .ds-cuon div small { display: block; font-size: 12px; color: var(--ios-chu-2, #6e6e73); }
+  @media (max-width: 560px) { .cuon-2 { grid-template-columns: 1fr; } }
   .giua { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
   @media (max-width: 900px) {
     .luoi { grid-template-columns: 1fr; }
@@ -94,6 +102,15 @@
           <button class="btn tron" aria-label="Làm mới">↻</button>
         </div>
         <div class="the-mau" role="button" tabindex="0"><i></i><div><b>Bảng công việc</b><small>4 việc cần xử lý</small></div></div>
+      </section>
+
+      <section class="khoi">
+        <h2>Gợi ý cuộn</h2>
+        <p class="phu">Thanh cuộn đã ẩn. Bên trái: mép còn nội dung thì mờ dần, cuộn tới cuối thì hết mờ, đã cuộn xuống thì mép trên mờ theo. Cuộn thử cả hai để so sánh. Đã áp cho mọi danh sách, cửa sổ, cột bên phải của hub và 15 app.</p>
+        <div class="cuon-2">
+          <div><h3>Có vệt mờ</h3><div class="ds-cuon"><div>Content Tour đoàn<small>Việc 1 / 14</small></div><div>Plan SEO thị trường Inbound<small>Việc 2 / 14</small></div><div>Thiết kế cờ<small>Việc 3 / 14</small></div><div>Thay đổi ngôn ngữ mẫu thiết kế<small>Việc 4 / 14</small></div><div>Kết nối Base Lịch làm việc<small>Việc 5 / 14</small></div><div>CLIP TOUR ĐOÀN 2<small>Việc 6 / 14</small></div><div>Setup 4 kênh OTA<small>Việc 7 / 14</small></div><div>CLIP KHÁCH ĐOÀN 3<small>Việc 8 / 14</small></div><div>Kế hoạch tác nghiệp Rạch Vẹm<small>Việc 9 / 14</small></div><div>Chỉnh chương trình ngày 1 CT3<small>Việc 10 / 14</small></div><div>Bài đăng Times Corner<small>Việc 11 / 14</small></div><div>Báo cáo khách đoàn<small>Việc 12 / 14</small></div><div>Name card cho Mr Hiền<small>Việc 13 / 14</small></div><div>Thiết kế dán xe 45C<small>Việc 14 / 14</small></div></div></div>
+          <div><h3>Không có</h3><div class="ds-cuon" data-khong-mep><div>Content Tour đoàn<small>Việc 1 / 14</small></div><div>Plan SEO thị trường Inbound<small>Việc 2 / 14</small></div><div>Thiết kế cờ<small>Việc 3 / 14</small></div><div>Thay đổi ngôn ngữ mẫu thiết kế<small>Việc 4 / 14</small></div><div>Kết nối Base Lịch làm việc<small>Việc 5 / 14</small></div><div>CLIP TOUR ĐOÀN 2<small>Việc 6 / 14</small></div><div>Setup 4 kênh OTA<small>Việc 7 / 14</small></div><div>CLIP KHÁCH ĐOÀN 3<small>Việc 8 / 14</small></div><div>Kế hoạch tác nghiệp Rạch Vẹm<small>Việc 9 / 14</small></div><div>Chỉnh chương trình ngày 1 CT3<small>Việc 10 / 14</small></div><div>Bài đăng Times Corner<small>Việc 11 / 14</small></div><div>Báo cáo khách đoàn<small>Việc 12 / 14</small></div><div>Name card cho Mr Hiền<small>Việc 13 / 14</small></div><div>Thiết kế dán xe 45C<small>Việc 14 / 14</small></div></div></div>
+        </div>
       </section>
 
       <section class="khoi">
