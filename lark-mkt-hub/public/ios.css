@@ -5041,3 +5041,46 @@ html[data-skin="ios"]:not(#_):not(#__)[data-app="cong-viec"] .xn > .xn-o { flex:
   html[data-skin="ios"]:not(#_):not(#__)[data-app="cong-viec"] .xn-o > .xn-nut { grid-column: 1; grid-row: auto; justify-content: flex-start; }
 }
 
+/* ==========================================================================
+   HIỆU ỨNG MỪNG XONG VIỆC (09/10/2026, ios.js → window.__iosMung)
+   Vòng xanh thương hiệu nảy lên, vòng gợn lan ra, dấu tick tự vẽ, pháo giấy
+   nhỏ toả ra rồi rơi nhẹ. Không chặn bấm; giảm chuyển động thì chỉ hiện tick.
+   ========================================================================== */
+.ios-mung {
+  position: fixed; inset: 0; z-index: 2147482000; pointer-events: none;
+  display: grid; place-items: center; transition: opacity .38s ease;
+}
+.ios-mung.tan { opacity: 0; }
+.ios-mung-o { position: relative; width: 76px; height: 76px; }
+.ios-mung svg {
+  position: relative; z-index: 2; display: block; border-radius: 50%;
+  background: linear-gradient(135deg, #34b39b, #289683 55%, #1f7d6d);
+  box-shadow: 0 14px 34px -10px rgba(40, 150, 131, .65), inset 0 1px 0 rgba(255, 255, 255, .35);
+  animation: ios-mung-nay .55s cubic-bezier(.18, .9, .25, 1.35) both;
+}
+.ios-mung svg circle { fill: none; stroke: rgba(255, 255, 255, .28); stroke-width: 2; }
+.ios-mung svg path {
+  fill: none; stroke: #fff; stroke-width: 4.2; stroke-linecap: round; stroke-linejoin: round;
+  stroke-dasharray: 34; stroke-dashoffset: 34; animation: ios-mung-ve .38s cubic-bezier(.65, 0, .35, 1) .22s forwards;
+}
+.ios-mung-gon {
+  position: absolute; inset: 0; border-radius: 50%; border: 2px solid rgba(40, 150, 131, .55);
+  animation: ios-mung-gon .8s cubic-bezier(.2, .7, .3, 1) .12s both;
+}
+.ios-mung-o > i {
+  position: absolute; left: 50%; top: 50%; width: 7px; height: 11px; margin: -5.5px 0 0 -3.5px; border-radius: 2px;
+  background: var(--m); opacity: 0; z-index: 1;
+  animation: ios-mung-phao .9s cubic-bezier(.15, .7, .3, 1) calc(.18s + var(--t)) forwards;
+}
+.ios-mung-o > i:nth-child(3n) { width: 6px; height: 6px; border-radius: 50%; }
+@keyframes ios-mung-nay { 0% { transform: scale(.3); opacity: 0; } 60% { opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes ios-mung-ve { to { stroke-dashoffset: 0; } }
+@keyframes ios-mung-gon { 0% { transform: scale(1); opacity: 0; } 20% { opacity: 1; } 100% { transform: scale(2.3); opacity: 0; } }
+@keyframes ios-mung-phao {
+  0% { opacity: 1; transform: translate(0, 0) rotate(0) scale(.6); }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--x), calc(var(--y) + 26px)) rotate(var(--r)) scale(1); }
+}
+.ios-mung.giam svg, .ios-mung.giam .ios-mung-gon { animation: none; }
+.ios-mung.giam svg path { animation: none; stroke-dashoffset: 0; }
+
