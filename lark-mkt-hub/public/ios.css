@@ -4963,3 +4963,9 @@ html[data-skin="ios"] .bb-phu, .bb-phu { overscroll-behavior: contain; }
   .bb-tep { margin-left: -18px !important; margin-right: -18px !important; }
   .bb-ten { font-size: 18px !important; }
 }
+
+/* Thanh chọn kỳ (.hub-seg) và mọi dải lọc: nút đang chọn đã tô xanh đặc, thấu kính
+   kính mờ trượt phía sau (rgba trắng 14%) lộ thành viền sáng bao quanh nút ở giao diện
+   tối (anh Hùng 09/10: "nút bị trắng đi"). Dải lọc chỉ dùng một cách báo chọn: tô xanh. */
+html[data-skin="ios"]:not(#_):not(#__) :is(.hub-seg, .filters .seg, .filters .pills, .loc-bar .seg, .loc .seg, .loc-hang .seg, section#filters .seg) > .ios-lens { display: none !important; }
+html[data-skin="ios"]:not(#_):not(#__) .hub-seg > :is(.on, .chon) { box-shadow: none !important; }
