@@ -875,3 +875,41 @@
     });
   }, true);
 })();
+
+/* CỬA SỔ MỞ THÌ NỀN ĐỨNG YÊN (09/10/2026, anh Hùng: "khi các cửa sổ này hiện
+ * lên, việc lăn chuột hay cảm ứng bên dưới không bị ảnh hưởng"). body.bb-chan chỉ
+ * khoá <body>, mà vùng cuộn thật là #pageHome / app con / danh sách → cú lăn
+ * chuột, cú vuốt vẫn trôi xuống trang nền. Khi có cửa sổ đang mở: chỉ cho cuộn
+ * phần tử CUỘN ĐƯỢC nằm trong chính cửa sổ, và chỉ khi nó còn chỗ để cuộn theo
+ * hướng đó; mọi trường hợp khác chặn hẳn. */
+(() => {
+  if (window.__KHOA_CUON__) return; window.__KHOA_CUON__ = true;
+  const LOP = '.bb-phu, #modalWrap:not([hidden]), .modal-wrap:not([hidden]):not(.hidden), .modal.on, .modal.open, .drawer.on, .drawer.open, .phu-man, .md.on, .xt.on, .xt.mo, .mask.on, .scrim.open, [role="dialog"][aria-modal="true"]';
+  const hien = (e) => !!(e && e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden');
+  const dangMo = () => [...document.querySelectorAll(LOP)].filter(hien);
+  const cuonDuoc = (el, dy, dx) => {
+    for (let a = el; a && a !== document.body && a !== document.documentElement; a = a.parentElement) {
+      const s = getComputedStyle(a);
+      if (dy && /auto|scroll/.test(s.overflowY) && a.scrollHeight > a.clientHeight + 1) {
+        if ((dy < 0 && a.scrollTop > 0) || (dy > 0 && a.scrollTop + a.clientHeight < a.scrollHeight - 1)) return true;
+      }
+      if (dx && /auto|scroll/.test(s.overflowX) && a.scrollWidth > a.clientWidth + 1) {
+        if ((dx < 0 && a.scrollLeft > 0) || (dx > 0 && a.scrollLeft + a.clientWidth < a.scrollWidth - 1)) return true;
+      }
+    }
+    return false;
+  };
+  const xet = (e, dy, dx) => {
+    const ds = dangMo();
+    if (!ds.length) return;
+    const trong = ds.some((k) => k.contains(e.target));
+    if (!trong || !cuonDuoc(e.target, dy, dx)) e.preventDefault();
+  };
+  addEventListener('wheel', (e) => xet(e, e.deltaY, e.deltaX), { passive: false, capture: true });
+  let y0 = 0, x0 = 0;
+  addEventListener('touchstart', (e) => { const t = e.touches[0]; y0 = t.clientY; x0 = t.clientX; }, { passive: true, capture: true });
+  addEventListener('touchmove', (e) => {
+    const t = e.touches[0];
+    xet(e, y0 - t.clientY, x0 - t.clientX);
+  }, { passive: false, capture: true });
+})();

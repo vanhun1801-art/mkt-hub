@@ -4950,3 +4950,16 @@ html[data-skin="ios"][data-app="khach-hang"] #segKy::-webkit-scrollbar { display
   html[data-skin="ios"]:not(#_):not(#__):not(#___) .cd-dt .cd-base > .cd-ic { flex: 0 0 32px !important; margin: 0 !important; }
   html[data-skin="ios"]:not(#_):not(#__):not(#___) .cd-dt .cd-base > .cd-base-tx { flex: 1 1 calc(100% - 60px) !important; }
 }
+
+/* Hộp thông báo bắt buộc đọc (tbapp.js): link dài không xuống dòng → hộp (con flex,
+   min-width:auto) giãn rộng hơn màn, tiêu đề/chữ/ảnh tràn ra ngoài khung. */
+html[data-skin="ios"] .bb-phu, .bb-phu { overscroll-behavior: contain; }
+.bb-hop { min-width: 0; max-width: min(560px, 100%) !important; box-sizing: border-box; overflow-x: hidden; overscroll-behavior: contain; }
+.bb-hop :is(.bb-ten, .bb-noi, .bb-noi p, a) { overflow-wrap: anywhere; word-break: break-word; }
+.bb-hop img { max-width: 100%; }
+@media (max-width: 640px) {
+  .bb-phu { padding: 16px 12px calc(16px + env(safe-area-inset-bottom, 0px)) !important; }
+  .bb-hop { padding: 18px 18px 14px !important; max-height: calc(100dvh - 32px) !important; }
+  .bb-tep { margin-left: -18px !important; margin-right: -18px !important; }
+  .bb-ten { font-size: 18px !important; }
+}
