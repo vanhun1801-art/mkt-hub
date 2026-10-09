@@ -4713,3 +4713,76 @@ html[data-skin="ios"][data-app="khach-hang"] #segKy::-webkit-scrollbar { display
   /* .rail là khối flex dọc: nội dung dài hơn màn thì các khối con co lại — thẻ tài khoản bị bẹp, ảnh đại diện lòi ra. Không co, để cả khối cuộn. */
   html[data-skin="ios"]:not(#_):not(#__):not([data-app]) body.rail-mo .rail > * { flex-shrink: 0 !important; }
 }
+
+/* ==========================================================================
+   MÀN ĐIỆN THOẠI GỌN (09/10/2026 — anh Hùng: "tối ưu không gian trên mobile…
+   cho hiển thị sạch sẽ, gọn gàng, dễ hiểu").
+   ========================================================================== */
+@media (max-width: 640px) {
+  /* 1·4. Thanh lọc (mặc định Tháng này) ẩn ở mọi màn — kể cả Bảng công việc.
+     Nút phễu trên thanh tiêu đề (ios.js) bật lớp ios-hien-loc để hiện lại. Dải
+     "Lọc ▾" của thugon.js cũng thôi hiện. Khối lọc NẰM TRONG nội dung (Quỹ: chọn
+     tháng của sổ; Tài khoản: nhóm tài khoản; Kho media: loại ảnh) giữ nguyên. */
+  html[data-skin="ios"]:not(.ios-hien-loc):not(#_):not(#__):not(#___):not([data-app]) .loc-bar,
+  html[data-skin="ios"]:not(.ios-hien-loc):not(#_):not(#__):not(#___):not([data-app="mat-khau"])[data-app] :is(.filters, .filters-dash, .filters-work, section#filters, .loc-hang),
+  html[data-skin="ios"]:not(.ios-hien-loc):not(#_):not(#__):not(#___)[data-app="khach-hang"] .man > .loc,
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .tg-thanh { display: none !important; }
+
+  /* Nút phễu: cùng dáng nút làm mới; chấm xanh khi đang lọc khác mặc định */
+  html[data-skin="ios"] .ios-nut-loc { position: relative; }
+  html[data-skin="ios"] .ios-nut-loc svg { width: 21px; height: 21px; }
+  html[data-skin="ios"] .ios-nut-loc.on { background: var(--ios-o) !important; border-radius: 999px; }
+  html[data-skin="ios"] .ios-nut-loc .ios-loc-cham {
+    position: absolute; top: 7px; right: 7px; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--ios-xanh); box-shadow: 0 0 0 2px var(--mac-nen, #eef0f5);
+  }
+
+  /* 1·2. Trang chủ: dòng phụ "15 base · 105 việc cần xử lý · cập nhật vừa xong"
+     và các dòng đếm dưới tiêu đề khối ("105 việc · đang hiện 40 việc gấp nhất",
+     "8 người · 101 lượt…") — chữ của máy, không phải của người dùng app. */
+  html[data-skin="ios"]:not([data-app]) #homeSub,
+  html[data-skin="ios"]:not([data-app]) .khoi-head .kh-sub { display: none !important; }
+
+  /* 3. Dải nhiệt: bỏ thang màu và chú thích (tác nghiệp · OFF nghỉ · ½ nửa ca);
+     giữ nút chuyển Dải nhiệt / Theo ngày. */
+  html[data-skin="ios"]:not([data-app]) :is(.thang-do, .chu-thich) { display: none !important; }
+
+  /* 6. Báo cáo: "Tự lưu nháp khi có thay đổi" — app tự lưu, không cần nói. */
+  html[data-skin="ios"][data-app="bao-cao"] #ttTuLuu { display: none !important; }
+
+  /* 7. Dòng kỳ dài dưới bộ lọc (KPI "Kỳ 01/10/2026 → 31/10/2026 (31 ngày) · so
+     với kỳ liền trước…", Quảng cáo "Số liệu 01/10 → 31/10 (31 ngày) · kỳ trước…")
+     lặp lại đúng thứ bộ lọc vừa nói — ẩn cùng bộ lọc. */
+  html[data-skin="ios"]:not(.ios-hien-loc):not(#_):not(#__)[data-app="kpi"] .bc-dong-ky,
+  html[data-skin="ios"]:not(.ios-hien-loc):not(#_):not(#__)[data-app="quang-cao"] main#view > .help:first-child { display: none !important; }
+
+  /* 5. Góc bo đồng bộ: thẻ và khối 16px (trước lẫn 10/12/14/16/18px giữa các
+     app), ô nhập 10px, nút bo tròn hai đầu. Nút chọn mốc của KPI ("3 tháng ·
+     6 tháng · 12 tháng") đang góc vuông 0px — ô chọn thành khối xanh vuông. */
+  html[data-skin="ios"]:not(#_):not(#__)[data-app] :is(.card, .the, .o, .o-so, .kpi, .khoi, .dash-block, .bang, .theDay, .phanBo, .ds-tk, .help, .note, .tien-do, .bang-loi, .nhap-mot-lan, section.muc, details.tang, .sapDoi):not(button) { border-radius: 16px !important; }
+  html[data-skin="ios"]:not(#_):not(#__):not([data-app]) :is(.khoi, .nhom-base) { border-radius: 16px !important; }
+  html[data-skin="ios"]:not(#_):not(#__) :is(input:not([type=checkbox]):not([type=radio]):not([type=range]), select, textarea) { border-radius: 10px !important; }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="kpi"] .seg-nut { border-radius: 999px !important; }
+}
+
+/* NÚT TRÒN TRÊN THANH TIÊU ĐỀ (09/10/2026, anh Hùng: "các nút bị dẹp dọc, không tròn").
+   Thanh một hàng (tiêu đề + nút): nút được phép co theo flex nên bề ngang co còn
+   bề cao giữ → bầu dục dọc. Nút không co, luôn vuông 1:1. Nút lọc (ios.js) đứng
+   ngay trước nút làm mới, cùng phía phải. */
+@media (max-width: 640px) {
+  html[data-skin="ios"]:not(#_):not(#__) .mob-nut { flex: 0 0 auto !important; aspect-ratio: 1 / 1; border-radius: 50% !important; padding: 0 !important; display: grid; place-items: center; }
+  html[data-skin="ios"]:not(#_):not(#__) .mob-bar > .ios-nut-loc { order: 2; margin-left: 12px; }
+  html[data-skin="ios"]:not(#_):not(#__) .mob-bar > .ios-nut-loc:not([hidden]) + #btnMobLamMoi { margin-left: 8px; }
+  html[data-skin="ios"]:not(#_):not(#__) .mob-bar > .ios-nut-loc[hidden] { display: none !important; }
+  html[data-skin="ios"]:not(#_):not(#__) .mob-bar.thu > .ios-nut-loc { position: relative; z-index: 1; }
+}
+@media (max-width: 640px) {
+  /* thanh thu gọn: tiêu đề giữa phải chừa chỗ cho HAI nút bên phải (lọc + làm mới) */
+  html[data-skin="ios"]:not(#_):not(#__) .mob-bar.thu:has(> .ios-nut-loc:not([hidden])) .mob-ten { left: 96px !important; right: 96px !important; }
+  /* Khách hàng: hộp "Đang kéo dữ liệu… đang chạy" chỉ hiện khi đồng bộ hỏng (app tự kéo định kỳ) */
+  html[data-skin="ios"][data-app="khach-hang"] #tienDo:not(.loi) { display: none !important; }
+}
+@media (max-width: 640px) {
+  /* hai luật cũ đặt bề ngang 34px và bề cao 40px khác nhau → bầu dục; ép cùng 36px */
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .mob-nut { width: 36px !important; height: 36px !important; min-width: 36px !important; min-height: 36px !important; }
+}

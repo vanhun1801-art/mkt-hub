@@ -794,3 +794,69 @@
   const bat = () => new MutationObserver(lich).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'hidden', 'style', 'open'] });
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bat); else bat();
 })();
+
+/* NÚT LỌC TRÊN THANH TIÊU ĐỀ ĐIỆN THOẠI (09/10/2026). Anh Hùng: "các tùy chọn
+ * lọc thường để mặc định tháng này nên các bộ lọc hiển thị cũng chưa thật sự cần
+ * thiết… Bảng công việc thì bỏ lọc luôn". Trên điện thoại thanh lọc của mọi màn
+ * ẩn (ios.css · "MÀN ĐIỆN THOẠI GỌN"), nhưng không mất hẳn: một nút phễu cạnh nút
+ * làm mới bật/tắt thanh lọc của màn đang xem (lớp ios-hien-loc trên <html> của
+ * lớp vỏ hoặc của app con trong iframe). Đang lọc khác "Tháng này" thì nút có
+ * chấm xanh — để không ai đọc nhầm số tháng trước là số tháng này. */
+(() => {
+  if (document.documentElement.getAttribute('data-skin') !== 'ios') return;
+  const LOC = '.loc-bar, .filters, .filters-dash, .filters-work, section#filters, .loc-hang, [data-app="khach-hang"] .man > .loc';
+  const mq = window.matchMedia('(max-width: 640px)');
+  const taiLieu = () => {
+    const home = document.getElementById('pageHome');
+    if (home && !home.hidden) return document;
+    const f = [...document.querySelectorAll('#stage iframe')].find((x) => x.offsetParent && !x.closest('.khung-ngam'));
+    try { return f && f.contentDocument; } catch (_) { return null; }
+  };
+  const khoiLoc = (d) => [...d.querySelectorAll(LOC)].filter((k) =>
+    !k.closest('[hidden]') && !(k.closest('[data-app="mat-khau"]') || d.documentElement.getAttribute('data-app') === 'mat-khau'));
+  /* Có đang lọc khác mặc định không: mốc thời gian đang chọn không phải "Tháng
+   * này", hoặc một ô chọn đã đổi khỏi lựa chọn đầu, hoặc ô tìm có chữ. */
+  const khacMacDinh = (ds) => ds.some((k) => {
+    const moc = k.querySelector('.seg .on, .seg .chon, .hub-seg .on, .pills .on');
+    if (moc && !/^(Tháng này|This month)$/i.test((moc.textContent || '').trim())) return true;
+    if ([...k.querySelectorAll('select')].some((s) => s.selectedIndex > 0)) return true;
+    return [...k.querySelectorAll('input[type="search"], input[type="text"]')].some((i) => (i.value || '').trim());
+  });
+
+  let nut = null;
+  function dung() {
+    const bar = document.querySelector('.mob-bar');
+    const lamMoi = document.getElementById('btnMobLamMoi');
+    if (!bar || !lamMoi || nut) return;
+    nut = document.createElement('button');
+    nut.type = 'button';
+    nut.className = 'mob-nut ios-nut-loc';
+    nut.setAttribute('aria-label', 'Bộ lọc');
+    nut.setAttribute('aria-pressed', 'false');
+    nut.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+      '<path d="M4 5h16l-6.2 7.4V19l-3.6-1.8v-4.8z"></path></svg><i class="ios-loc-cham" hidden></i>';
+    bar.insertBefore(nut, lamMoi);
+    nut.addEventListener('click', () => {
+      const d = taiLieu();
+      if (!d) return;
+      const mo = !d.documentElement.classList.contains('ios-hien-loc');
+      d.documentElement.classList.toggle('ios-hien-loc', mo);
+      nut.setAttribute('aria-pressed', String(mo));
+      if (mo) { const k = khoiLoc(d)[0]; if (k) k.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+    });
+  }
+  function xet() {
+    if (!mq.matches) { if (nut) nut.hidden = true; return; }
+    dung();
+    if (!nut) return;
+    const d = taiLieu();
+    const ds = d ? khoiLoc(d) : [];
+    nut.hidden = !ds.length;
+    const mo = !!(d && d.documentElement.classList.contains('ios-hien-loc'));
+    nut.setAttribute('aria-pressed', String(mo));
+    nut.classList.toggle('on', mo);
+    nut.querySelector('.ios-loc-cham').hidden = !khacMacDinh(ds);
+  }
+  const bat = () => { xet(); setInterval(xet, 1200); addEventListener('hashchange', () => setTimeout(xet, 400)); };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bat); else bat();
+})();

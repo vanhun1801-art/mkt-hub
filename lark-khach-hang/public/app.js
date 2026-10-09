@@ -957,6 +957,7 @@ async function theoDoiKeo() {
    * trạng; nhật ký thu vào "Xem nhật ký kỹ thuật". Kéo xong êm thì khối tự ẩn,
    * chỉ ở lại khi hỏng để người ta biết mà báo. */
   $('#tienDo').hidden = !d.dangChay && !d.loi;
+  $('#tienDo').classList.toggle('loi', !!d.loi);   // điện thoại chỉ hiện hộp khi hỏng (ios.css)
   $('#tdLog').textContent = d.dong.join('\n');
   const trang = (String(d.dong[d.dong.length - 1] || '').match(/trang (\d+)/) || [])[1];
   $('#tdPhu').textContent = d.dangChay ? (trang ? 'đã tới trang ' + trang + '…' : 'đang chạy…') : (d.loi ? 'hỏng: ' + d.loi : 'xong');
