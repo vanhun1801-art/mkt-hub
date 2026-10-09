@@ -4695,3 +4695,21 @@ html[data-skin="ios"][data-app="khach-hang"] #segKy::-webkit-scrollbar { display
   html[data-skin="ios"]:not(#_):not(#__) .cd-dt .cd-lui { white-space: nowrap !important; }
   html[data-skin="ios"] .cd-dt #cdTenTrang { max-width: none; text-align: center; padding-right: 24px; }
 }
+
+/* MÀN CÁ NHÂN CUỘN CẢ TRANG (09/10/2026, anh Hùng: "khi cuộn lên thì nó cuộn một
+   khúc dưới thôi, anh muốn cuộn lên cả trang"). Thay khối 27/09 ở trên (chỉ danh
+   sách app cuộn): tiêu đề lớn, thẻ tài khoản, nhóm Thông báo/Cài đặt và danh sách
+   app cuộn chung một khối như Cài đặt của iOS; ios.js chỉ chặn vuốt quá đầu/cuối. */
+@media (max-width: 640px) {
+  html[data-skin="ios"]:not(#_):not(#__):not(#___):not([data-app]) body.rail-mo .rail {
+    overflow-y: auto !important; touch-action: pan-y !important; overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch; padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___):not([data-app]) body.rail-mo .rail > .rail-nav {
+    flex: none !important; overflow: visible !important; max-height: none !important; padding-bottom: 0 !important;
+  }
+}
+@media (max-width: 640px) {
+  /* .rail là khối flex dọc: nội dung dài hơn màn thì các khối con co lại — thẻ tài khoản bị bẹp, ảnh đại diện lòi ra. Không co, để cả khối cuộn. */
+  html[data-skin="ios"]:not(#_):not(#__):not([data-app]) body.rail-mo .rail > * { flex-shrink: 0 !important; }
+}

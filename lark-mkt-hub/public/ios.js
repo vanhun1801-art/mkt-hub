@@ -148,8 +148,12 @@
     rail.addEventListener('touchstart', (e) => { y0 = e.touches[0].clientY; }, { passive: true });
     rail.addEventListener('touchmove', (e) => {
       if (innerWidth > 640 || !document.body.classList.contains('rail-mo')) return;
-      const ds = e.target.closest('.rail-nav');
-      if (!ds || ds.scrollHeight <= ds.clientHeight + 1) { e.preventDefault(); return; }
+      /* 09/10/2026, anh Hùng: "cuộn lên cả trang vậy mới ổn hơn" — CẢ màn Cá
+       * nhân cuộn một khối (tiêu đề, thẻ tài khoản, nhóm Cài đặt, danh sách app)
+       * như Cài đặt của iOS. Chỉ chặn cú vuốt quá đầu/cuối để trang phía sau
+       * không nảy theo. */
+      const ds = rail;
+      if (ds.scrollHeight <= ds.clientHeight + 1) { e.preventDefault(); return; }
       const dy = e.touches[0].clientY - y0;
       const dinh = ds.scrollTop <= 0, day = ds.scrollTop + ds.clientHeight >= ds.scrollHeight - 1;
       if ((dy > 0 && dinh) || (dy < 0 && day)) e.preventDefault();
