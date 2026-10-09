@@ -4571,3 +4571,127 @@ html[data-skin="ios"][data-app="khach-hang"] #segKy::-webkit-scrollbar { display
 @media (min-width: 1700px) {
   html[data-skin="ios"][data-app="bao-cao"] main#man, html[data-skin="ios"][data-app="chinh-anh"] main#view { max-width: 1440px; margin-left: auto !important; margin-right: auto !important; width: 100%; }
 }
+
+/* ==========================================================================
+   CÀI ĐẶT TRÊN ĐIỆN THOẠI = CÀI ĐẶT CỦA iOS (09/10/2026, anh Hùng: "thay vì
+   làm kiểu như máy tính thì nên làm như cài đặt của iOS, có nhiều cửa sổ vào
+   trong"). Cấu trúc do caidat.js dựng (.cd-dt: trang gốc + trang con chồng nhau).
+   ========================================================================== */
+@media (max-width: 640px) {
+  /* Hộp toàn màn hình, nền xám nhóm như iOS; trượt nhẹ lên khi mở */
+  html[data-skin="ios"]:not(#_):not(#__):not(#___):not(#____) .modal-wrap > .modal.cd-toan {
+    position: fixed !important; inset: 0 !important; width: 100% !important; max-width: none !important;
+    height: 100dvh !important; max-height: none !important; margin: 0 !important; border-radius: 0 !important;
+    background: var(--mac-nen, #f2f2f7) !important; box-shadow: none !important;
+    display: flex !important; flex-direction: column; overflow: hidden !important;
+    padding-top: env(safe-area-inset-top, 0px);
+    animation: cd-len .32s cubic-bezier(.32, .72, 0, 1) both !important;
+  }
+  @keyframes cd-len { from { transform: translateY(32px); opacity: 0; } to { transform: none; opacity: 1; } }
+  /* Thanh đầu của hộp: chỉ còn nút ✕ nổi góc phải (tiêu đề nằm trong trang) */
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .modal.cd-toan > .modal-head {
+    position: absolute !important; top: env(safe-area-inset-top, 0px); right: 0; z-index: 5;
+    border: 0 !important; background: transparent !important; padding: 8px 12px !important;
+  }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .modal.cd-toan > .modal-head > h3 { display: none; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .modal.cd-toan > .modal-body {
+    flex: 1 1 auto; min-height: 0; padding: 0 !important; overflow: hidden !important; position: relative;
+  }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .modal.cd-toan > .modal-foot:has(> .cd-chan-ghi:empty) { display: none !important; }
+
+  /* Hai trang chồng nhau, trượt ngang như điều hướng iOS */
+  html[data-skin="ios"] .cd.cd-dt { display: block !important; position: absolute; inset: 0; overflow: hidden; }
+  html[data-skin="ios"] .cd-dt > .cd-man {
+    position: absolute; inset: 0; overflow-y: auto; overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch; background: var(--mac-nen, #f2f2f7);
+    transition: transform .38s cubic-bezier(.32, .72, 0, 1), opacity .38s ease;
+    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  }
+  html[data-skin="ios"] .cd-dt > .cd-con { transform: translateX(100%); box-shadow: -8px 0 24px rgba(0, 0, 0, .08); }
+  html[data-skin="ios"] .cd-dt[data-trang="con"] > .cd-con { transform: none; }
+  html[data-skin="ios"] .cd-dt[data-trang="con"] > .cd-goc { transform: translateX(-28%); opacity: .6; }
+
+  /* Trang gốc */
+  html[data-skin="ios"] .cd-dt .cd-to { font-size: 34px; font-weight: 700; letter-spacing: -.02em; margin: 12px 16px 10px; }
+  html[data-skin="ios"]:not(#_):not(#__) .cd-dt .cd-nav {
+    display: block !important; border: 0 !important; background: transparent !important; padding: 0 !important;
+    overflow: visible !important; width: auto !important; max-width: none !important;
+  }
+  html[data-skin="ios"] .cd-dt .cd-tim { padding: 0 16px 6px; }
+  html[data-skin="ios"]:not(#_):not(#__) .cd-dt .cd-tim input {
+    width: 100% !important; height: 36px !important; min-height: 36px !important; border: 0 !important; border-radius: 10px !important;
+    background: var(--ios-o) !important; padding: 0 12px !important; font-size: 16px !important;
+  }
+  html[data-skin="ios"]:not(#_):not(#__) .cd-dt .cd-nhom {
+    display: block !important; font-size: 13px !important; font-weight: 400 !important; color: var(--ios-chu-2) !important;
+    text-transform: uppercase; letter-spacing: .02em; margin: 22px 32px 7px !important; padding: 0 !important;
+  }
+  html[data-skin="ios"] .cd-dt .cd-khoi { margin: 0 16px; border-radius: 12px; overflow: hidden; background: var(--ios-the); }
+  html[data-skin="ios"]:not(#_):not(#__) .cd-dt .cd-item {
+    display: flex !important; align-items: center; gap: 12px; width: 100% !important; min-height: 46px; margin: 0 !important;
+    padding: 0 14px 0 16px !important; border: 0 !important; border-radius: 0 !important; background: transparent !important;
+    color: var(--ios-chu) !important; text-align: left; position: relative; white-space: normal !important; flex: none !important;
+  }
+  html[data-skin="ios"] .cd-dt .cd-item + .cd-item::before {
+    content: ""; position: absolute; top: 0; left: 57px; right: 0; height: .5px; background: var(--ios-vach);
+  }
+  html[data-skin="ios"]:not(#_):not(#__) .cd-dt .cd-item:active { background: var(--ios-o) !important; opacity: 1 !important; }
+  html[data-skin="ios"]:not(#_):not(#__) .cd-dt .cd-ic {
+    flex: none; width: 29px !important; height: 29px !important; border-radius: 7px !important; color: #fff !important;
+    display: grid; place-items: center;
+  }
+  html[data-skin="ios"] .cd-dt .cd-ic svg { width: 18px; height: 18px; }
+  html[data-skin="ios"] .cd-dt .cd-tx { flex: 1; min-width: 0; }
+  html[data-skin="ios"]:not(#_):not(#__) .cd-dt .cd-tx b { font-size: 17px !important; font-weight: 400 !important; }
+  html[data-skin="ios"] .cd-dt .cd-chev { color: var(--ios-chu-3); font-size: 24px; line-height: 1; margin-top: -2px; }
+
+  /* Trang con: thanh điều hướng "‹ Cài đặt · Tên trang" */
+  html[data-skin="ios"] .cd-dt .cd-thanh {
+    position: sticky; top: 0; z-index: 3; height: 48px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+    padding: 0 56px 0 4px; background: color-mix(in srgb, var(--mac-nen, #f2f2f7) 85%, transparent);
+    -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
+  }
+  html[data-skin="ios"]:not(#_):not(#__) .cd-dt .cd-lui {
+    justify-self: start; display: inline-flex; align-items: center; gap: 2px; height: 44px !important; min-height: 44px !important;
+    border: 0 !important; background: transparent !important; color: var(--ios-xanh-chu) !important; font-size: 17px !important;
+    padding: 0 8px !important; box-shadow: none !important;
+  }
+  html[data-skin="ios"] .cd-dt .cd-lui span { font-size: 30px; line-height: 1; margin-top: -3px; }
+  html[data-skin="ios"] .cd-dt #cdTenTrang { font-size: 17px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 56vw; }
+  html[data-skin="ios"]:not(#_):not(#__) .cd-dt .cd-noi { padding: 4px 16px 0 !important; max-height: none !important; overflow: visible !important; }
+  html[data-skin="ios"] .cd-dt .cd-noi > .cd-dau { display: none; }
+
+  /* Nội dung trang con: nhóm bo góc như iOS. .cd-muc-nho là tiêu đề nhóm, các
+     .cd-hang liền nhau thành một khối có vạch mảnh thụt lề. */
+  html[data-skin="ios"]:not(#_):not(#__) .cd-dt .cd-muc-nho {
+    font-size: 13px !important; font-weight: 400 !important; color: var(--ios-chu-2) !important; text-transform: uppercase;
+    letter-spacing: .02em; margin: 22px 16px 7px !important;
+  }
+  html[data-skin="ios"]:not(#_):not(#__) .cd-dt .cd-hang {
+    background: var(--ios-the); margin: 0 !important; padding: 11px 16px !important; border: 0 !important;
+    min-height: 46px; align-items: center; position: relative; border-radius: 0;
+  }
+  html[data-skin="ios"] .cd-dt .cd-hang + .cd-hang::before {
+    content: ""; position: absolute; top: 0; left: 16px; right: 0; height: .5px; background: var(--ios-vach);
+  }
+  html[data-skin="ios"] .cd-dt .cd-hang:not(.cd-hang + .cd-hang) { border-top-left-radius: 12px; border-top-right-radius: 12px; }
+  html[data-skin="ios"] .cd-dt .cd-hang:not(:has(+ .cd-hang)) { border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; }
+  html[data-skin="ios"]:not(#_):not(#__) .cd-dt .cd-hang-tx b { font-size: 17px !important; font-weight: 400 !important; }
+  html[data-skin="ios"] .cd-dt .cd-hang-tx p { font-size: 13px; color: var(--ios-chu-2); margin-top: 3px; }
+}
+@media (max-width: 640px) {
+  /* .cd có lề âm (-16px -18px) để tràn sát mép hộp trên máy tính; ở điện thoại
+     lề đó kéo cả trang gốc lệch lên trên và sang trái, tiêu đề lớn bị cắt. */
+  html[data-skin="ios"]:not(#_):not(#__) .cd.cd-dt { margin: 0 !important; min-height: 0 !important; }
+  /* Thông báo tới nhân sự: tiêu đề tin một hàng riêng, cụm nút (Ai đã xem · Xem
+     thử · Sửa · Xoá) xuống hàng dưới — trước đó chữ bị ép thành cột 60px. */
+  html[data-skin="ios"] .cd-dt .bb-dong { flex-wrap: wrap; }
+  html[data-skin="ios"] .cd-dt .bb-dong-noi { flex: 1 1 calc(100% - 60px); }
+  html[data-skin="ios"] .cd-dt .bb-dong-nut { flex: 1 1 100%; justify-content: flex-start; }
+}
+@media (max-width: 640px) {
+  /* Thanh điều hướng trang con: tên trang dài ("Thông báo tới nhân sự") ép nút "‹ Cài đặt" xuống 2 dòng → nút giữ một dòng, tên co lại và cắt "…". */
+  html[data-skin="ios"] .cd-dt .cd-thanh { grid-template-columns: max-content minmax(0, 1fr) !important; column-gap: 4px; }
+  html[data-skin="ios"]:not(#_):not(#__) .cd-dt .cd-lui { white-space: nowrap !important; }
+  html[data-skin="ios"] .cd-dt #cdTenTrang { max-width: none; text-align: center; padding-right: 24px; }
+}

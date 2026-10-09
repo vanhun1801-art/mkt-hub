@@ -103,10 +103,71 @@ function cdMucCuaToi() {
     .filter((g) => g.ds.length);
 }
 
+/* ---------------- Cài đặt trên điện thoại: kiểu Cài đặt của iOS ----------------
+ *
+ * Anh Hùng 09/10/2026: "điều chỉnh các cửa sổ Setting, thay vì làm kiểu như máy
+ * tính thì nên làm như cài đặt của iOS, có nhiều cửa sổ vào trong, 1 kiểu trình
+ * bày". Máy tính giữ hai cột (danh mục trái · nội dung phải). Điện thoại:
+ *   trang gốc  — tiêu đề lớn, ô tìm, các nhóm dòng bo góc: ô biểu tượng màu ·
+ *                tên · dấu ›
+ *   trang con  — bấm một dòng là trượt vào từ phải, thanh trên có "‹ Cài đặt";
+ *                bấm đó hoặc vuốt từ mép trái là trượt ra.
+ * Hai trang là hai lớp chồng nhau trong cùng một hộp toàn màn hình, nên nội dung
+ * trang con vẫn vẽ bằng đúng các hàm veCd… như máy tính — một nguồn, hai cách bày. */
+const cdDT = () => window.matchMedia('(max-width: 640px)').matches;
+/* Màu ô biểu tượng như iOS: mỗi loại việc một màu, nhìn là nhận ra trước khi đọc. */
+const CD_MAU = {
+  toi: '#0a84ff', base: '#34c759', quyen: '#5856d6', 'thong-bao': '#ff3b30',
+  'tai-khoan': '#8e8e93', 'thuong-hieu': '#ff2d55', 'kiem-tra': '#636366', log: '#636366',
+};
+function cdMau(k) {
+  if (CD_MAU[k]) return CD_MAU[k];
+  if (String(k).indexOf('app:') === 0) {
+    const m = (S.modules || []).find((x) => 'app:' + x.id === k);
+    if (m && m.mau) return m.mau;
+  }
+  return '#ff9500';
+}
+function cdTenMuc(k) {
+  for (const g of cdNhom()) for (const m of g.ds) if (m.k === k) return m.ten;
+  return 'Cài đặt';
+}
+/** Trượt vào trang con (điện thoại). */
+function cdVao(k) {
+  const k0 = $('#cdDt');
+  if (!k0) return;
+  const t = $('#cdTenTrang');
+  if (t) t.textContent = cdTenMuc(k);
+  const con = k0.querySelector('.cd-con');
+  if (con) con.scrollTop = 0;
+  k0.setAttribute('data-trang', 'con');
+}
+function cdRa() {
+  const k0 = $('#cdDt');
+  if (k0) k0.setAttribute('data-trang', 'goc');
+}
+
 function modalCaiDat(mucDau) {
   S.cdMuc = mucDau || S.cdMuc || 'chung';
   const duoc = cdMucCuaToi().flatMap((g) => g.ds.map((m) => m.k));
   if (!duoc.includes(S.cdMuc)) S.cdMuc = duoc[0] || 'chung';
+  if (cdDT()) {
+    moModal('Cài đặt',
+      '<div class="cd cd-dt" id="cdDt" data-trang="' + (mucDau ? 'con' : 'goc') + '">' +
+        '<section class="cd-man cd-goc"><h2 class="cd-to">Cài đặt</h2><nav class="cd-nav" id="cdNav"></nav></section>' +
+        '<section class="cd-man cd-con" aria-live="polite">' +
+          '<div class="cd-thanh"><button type="button" class="cd-lui" data-cd-lui>' +
+            '<span aria-hidden="true">‹</span> Cài đặt</button>' +
+            '<b id="cdTenTrang">' + esc(cdTenMuc(S.cdMuc)) + '</b></div>' +
+          '<div class="cd-noi" id="cdNoi"></div>' +
+        '</section>' +
+      '</div>',
+      '<span class="cd-chan-ghi" id="cdChanGhi"></span>', true);
+    $('.modal').classList.add('cd-toan');
+    veCdNav();
+    veCdNoi();
+    return;
+  }
   moModal('Cài đặt',
     '<div class="cd">' +
       '<nav class="cd-nav" id="cdNav"></nav>' +
@@ -135,6 +196,23 @@ function ganCdTim() {
 
 function veCdNav() {
   const nhom = cdMucCuaToi();
+  if ($('#cdDt')) {
+    /* Điện thoại: nhóm dòng bo góc kiểu iOS, mỗi dòng có dấu › dẫn vào trang con. */
+    $('#cdNav').innerHTML =
+      '<div class="cd-tim"><input id="cdTim" type="search" placeholder="Tìm thiết lập" value="' +
+        esc(S.cdTim || '') + '"></div>' +
+      (nhom.length ? '' : '<div class="cd-tim-trong">Không có mục nào khớp.</div>') +
+      nhom.map((g) =>
+        '<div class="cd-nhom">' + esc(g.nhom) + '</div><div class="cd-khoi">' +
+        g.ds.map((m) =>
+          '<button class="cd-item" data-cd="' + m.k + '">' +
+          '<span class="cd-ic" style="background:' + esc(cdMau(m.k)) + '">' + icon(m.ic) + '</span>' +
+          '<span class="cd-tx"><b>' + esc(m.ten) + '</b></span>' +
+          '<span class="cd-chev" aria-hidden="true">›</span></button>').join('') +
+        '</div>').join('');
+    ganCdTim();
+    return;
+  }
   $('#cdNav').innerHTML =
     '<div class="cd-tim"><input id="cdTim" placeholder="Tìm thiết lập…" value="' +
       esc(S.cdTim || '') + '"></div>' +
@@ -1886,12 +1964,15 @@ async function veCdLog(el, id) {
 
 /* ---------------- điều hướng trong Cài đặt ---------------- */
 document.addEventListener('click', (e) => {
+  if (e.target.closest('[data-cd-lui]')) { e.preventDefault(); cdRa(); return; }
   const m = e.target.closest('[data-cd]');
   if (m) {
     e.preventDefault();
     S.cdMuc = m.getAttribute('data-cd');
-    veCdNav();
+    /* Điện thoại: danh sách gốc không cần vẽ lại (không có dòng "đang chọn"). */
+    if (!$('#cdDt')) veCdNav();
     veCdNoi();
+    cdVao(S.cdMuc);
     return;
   }
   const lg = e.target.closest('[data-cdlog]');
@@ -1899,7 +1980,40 @@ document.addEventListener('click', (e) => {
     e.preventDefault();
     S.cdMuc = 'log';
     S.cdLog = lg.getAttribute('data-cdlog');
-    veCdNav();
+    if (!$('#cdDt')) veCdNav();
     veCdNoi();
+    cdVao('log');
   }
 });
+
+/* Vuốt từ mép trái để quay lại, như iOS: trang con đi theo ngón tay, thả quá
+ * 1/3 bề ngang (hoặc vuốt nhanh) thì về trang gốc, không thì bật lại chỗ cũ. */
+(() => {
+  let x0 = 0, y0 = 0, t0 = 0, keo = false, con = null;
+  document.addEventListener('touchstart', (e) => {
+    const k0 = $('#cdDt');
+    if (!k0 || k0.getAttribute('data-trang') !== 'con') return;
+    const t = e.touches[0];
+    if (t.clientX > 28) return;
+    con = k0.querySelector('.cd-con');
+    if (!con || !con.contains(e.target)) return;
+    x0 = t.clientX; y0 = t.clientY; t0 = Date.now(); keo = true;
+  }, { passive: true });
+  document.addEventListener('touchmove', (e) => {
+    if (!keo || !con) return;
+    const t = e.touches[0];
+    const dx = Math.max(0, t.clientX - x0);
+    if (Math.abs(t.clientY - y0) > 40 && dx < 20) { keo = false; return; }
+    con.style.transition = 'none';
+    con.style.transform = 'translateX(' + dx + 'px)';
+  }, { passive: true });
+  document.addEventListener('touchend', (e) => {
+    if (!keo || !con) return;
+    keo = false;
+    const dx = Math.max(0, (e.changedTouches[0] || {}).clientX - x0);
+    const nhanh = dx > 40 && Date.now() - t0 < 250;
+    con.style.transition = '';
+    con.style.transform = '';
+    if (dx > con.clientWidth / 3 || nhanh) cdRa();
+  });
+})();

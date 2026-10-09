@@ -2553,6 +2553,7 @@ async function napTongQuan(refresh) {
 /* ---------------- modal ---------------- */
 function moModal(tieuDe, thanHtml, chanHtml, rong) {
   $('.modal').classList.toggle('rong', !!rong);   // bảng nhiều cột thì nới hộp thoại
+  $('.modal').classList.remove('cd-toan');        // Cài đặt điện thoại (caidat.js) tự gắn lại sau khi mở
   $('#mdTitle').textContent = tieuDe;
   $('#mdBody').innerHTML = thanHtml;
   $('#mdFoot').innerHTML = chanHtml || '<button class="btn ghost" data-close="1">Đóng</button>';
