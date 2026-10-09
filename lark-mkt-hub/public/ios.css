@@ -4969,3 +4969,33 @@ html[data-skin="ios"] .bb-phu, .bb-phu { overscroll-behavior: contain; }
    tối (anh Hùng 09/10: "nút bị trắng đi"). Dải lọc chỉ dùng một cách báo chọn: tô xanh. */
 html[data-skin="ios"]:not(#_):not(#__) :is(.hub-seg, .filters .seg, .filters .pills, .loc-bar .seg, .loc .seg, .loc-hang .seg, section#filters .seg) > .ios-lens { display: none !important; }
 html[data-skin="ios"]:not(#_):not(#__) .hub-seg > :is(.on, .chon) { box-shadow: none !important; }
+
+/* Cửa sổ ở GIỮA màn (drawer, modal-box, xt-box) không bám mép dưới nữa → bỏ lề an
+   toàn đáy của dienthoai.css (iPhone ~34px) — trước thành khoảng trống dưới nút Đóng.
+   Nút tệp (Xem · Tải về · Xoá): <a> và <button> cùng một dáng, chữ canh giữa. */
+@media (max-width: 640px) {
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) :is(.drawer, .modal-box, .xt-box) { padding-bottom: 0 !important; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .attacts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .attbtn {
+    display: inline-flex !important; align-items: center; justify-content: center; height: 32px !important; min-height: 32px !important;
+    padding: 0 14px !important; border-radius: 999px !important; font-size: 14px !important; line-height: 1 !important; text-decoration: none;
+  }
+}
+@media (max-width: 640px) {
+  /* Đầu ngăn chi tiết việc (Bảng công việc): cụm nút (Xem bản gọn · Xoá · ✕) chiếm chỗ
+     bên phải nên tiêu đề bị ép 3 dòng, hai viên trạng thái/hạn xếp chồng mỗi viên một
+     dòng. Cụm nút lên một hàng trên cùng, tiêu đề + các viên trải trọn bề ngang. */
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) #drawer > .drawer-head { flex-direction: column-reverse !important; align-items: stretch !important; gap: 6px !important; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) #drawer .drawer-head-actions { justify-content: flex-end; flex-wrap: nowrap; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) #drawer .drawer-head-main { min-width: 0; width: 100%; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) #dStage { flex-direction: row !important; flex-wrap: wrap !important; align-items: center; gap: 6px !important; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) #dStage > * { flex: none !important; width: auto !important; }
+}
+@media (max-width: 640px) {
+  html[data-skin="ios"]:not(#_):not(#__):not(#___):not(#____) #drawer > .drawer-head { display: flex !important; grid-template-columns: none !important; }
+  /* ô chọn tệp gốc của trình duyệt ("Chọn tệp · Không có tệp nào được chọn") → viên nút gọn */
+  html[data-skin="ios"]:not(#_):not(#__) #drawer input[type=file] { font-size: 14px !important; color: var(--ios-chu-2); max-width: 100%; }
+  html[data-skin="ios"]:not(#_):not(#__) #drawer input[type=file]::file-selector-button {
+    border: 0; border-radius: 999px; background: var(--ios-o); color: var(--ios-xanh-chu); font: 600 14px var(--ios-font, system-ui); padding: 7px 14px; margin-right: 10px; cursor: pointer;
+  }
+}
