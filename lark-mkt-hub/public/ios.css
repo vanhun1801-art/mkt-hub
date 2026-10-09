@@ -4786,3 +4786,12 @@ html[data-skin="ios"][data-app="khach-hang"] #segKy::-webkit-scrollbar { display
   /* hai luật cũ đặt bề ngang 34px và bề cao 40px khác nhau → bầu dục; ép cùng 36px */
   html[data-skin="ios"]:not(#_):not(#__):not(#___) .mob-nut { width: 36px !important; height: 36px !important; min-width: 36px !important; min-height: 36px !important; }
 }
+
+/* NÚT ĐỨNG YÊN KHI CUỘN (09/10/2026, anh Hùng: "cuộn lên cái nút nên cùng vị trí,
+   không nên nhảy"). Thu gọn thì tiêu đề thành position:absolute, thoát khỏi hàng →
+   không còn gì đẩy hai nút sang phải, chúng trôi từ x=298 về x=28. Nút đầu tiên
+   bên phải tự đẩy bằng margin-left:auto, nên vị trí như nhau ở cả hai trạng thái. */
+@media (max-width: 640px) {
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .mob-bar > .ios-nut-loc:not([hidden]),
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .mob-bar > .ios-nut-loc[hidden] + #btnMobLamMoi { margin-left: auto !important; }
+}
