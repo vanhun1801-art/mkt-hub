@@ -1115,3 +1115,60 @@
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bat); else bat();
 })();
+
+/* BẢNG THÀNH THẺ TRÊN ĐIỆN THOẠI (09/10/2026, nguyên tắc "điện thoại không kéo
+ * ngang nội dung" — anh Hùng: "kéo ngang với nội dung trang báo cáo vẫn còn
+ * tồn"). Bảng chỉ đọc mà rộng hơn khung → mỗi dòng thành một thẻ, mỗi ô kèm tên
+ * cột (data-nhan lấy từ tiêu đề). Ngoại lệ có chủ ý: bảng lưới hai chiều (tiêu
+ * đề đa số là ngày/thứ, VD lịch người × ngày) giữ kéo ngang; bảng có ô nhập (form báo cáo) đã có
+ * bố cục riêng. Quét lại khi bảng vẽ lại; lên máy tính thì trả về bảng thường. */
+(() => {
+  if (window.__iosTheBang) return;
+  window.__iosTheBang = true;
+  const mq = matchMedia('(max-width: 640px)');
+  function nhanCot(t) {
+    const tr = t.tHead && t.tHead.rows[t.tHead.rows.length - 1];
+    if (!tr) return null;
+    const ds = [];
+    for (const th of tr.cells) { const n = Math.max(1, th.colSpan || 1); for (let i = 0; i < n; i++) ds.push((th.innerText || '').replace(/\s+/g, ' ').trim()); }
+    return ds;
+  }
+  function lam() {
+    document.querySelectorAll('table.ios-the-bang, table.ios-bang-vua').forEach((t) => { if (!mq.matches || !t.isConnected) t.classList.remove('ios-the-bang', 'ios-bang-vua'); });
+    if (!mq.matches) return;
+    document.querySelectorAll('table').forEach((t) => {
+      if (!t.getClientRects().length || t.closest('.ios-giu-bang')) return;
+      const nhan = nhanCot(t);
+      if (!nhan || nhan.length > 16) return;
+      /* bảng 1–2 cột mà tràn: chỉ vì độ rộng tối thiểu của app → cho vừa khung */
+      if (nhan.length < 3) {
+        const cha2 = t.parentElement;
+        if (cha2 && t.scrollWidth > cha2.clientWidth + 4) t.classList.add('ios-bang-vua');
+        return;
+      }
+      /* lưới hai chiều (lịch người × ngày): đa số tiêu đề là số ngày / thứ → giữ */
+      if (nhan.filter((x) => /^(\d{1,2}|T[2-7]|CN|\d{1,2}\s*(T[2-7]|CN))$/i.test(x)).length >= nhan.length / 2) return;
+      if (t.querySelector('tbody input:not([type="checkbox"]), tbody select, tbody textarea')) return;
+      const cha = t.parentElement;
+      const tran = t.classList.contains('ios-the-bang') || (cha && t.scrollWidth > cha.clientWidth + 4) || t.getBoundingClientRect().right > innerWidth + 2;
+      if (!tran) return;
+      for (const tb of t.tBodies) for (const tr of tb.rows) {
+        let i = 0;
+        for (const td of tr.cells) {
+          const n = nhan[i] || '';
+          if (td.getAttribute('data-nhan') !== n) td.setAttribute('data-nhan', n);
+          i += Math.max(1, td.colSpan || 1);
+        }
+      }
+      t.classList.add('ios-the-bang');
+    });
+  }
+  let hen = 0;
+  const henLam = () => { if (hen) return; hen = setTimeout(() => { hen = 0; try { lam(); } catch (_) {} }, 250); };
+  const bat = () => {
+    henLam();
+    new MutationObserver(henLam).observe(document.body, { childList: true, subtree: true });
+    mq.addEventListener ? mq.addEventListener('change', henLam) : mq.addListener(henLam);
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bat); else bat();
+})();

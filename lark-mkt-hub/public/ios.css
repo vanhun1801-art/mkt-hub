@@ -5336,7 +5336,7 @@ html[data-skin="ios"] .cd-mep {
 html[data-skin="ios"]:not(#_):not(#__) :is(input:is([type="text"], [type="date"], [type="datetime-local"], [type="time"], [type="month"], [type="week"], [type="number"], [type="url"], [type="email"], [type="tel"], [type="password"], :not([type])):not([placeholder^="Tìm"]):not([placeholder^="tìm"]):not(.ios-o-tron), select) {
   border-radius: 10px !important;
 }
-html[data-skin="ios"]:not(#_):not(#__) textarea { border-radius: 12px !important; }
+html[data-skin="ios"]:not(#_):not(#__):not(#___):not(#____) textarea { border-radius: 12px !important; }
 
 /* SELECT: mũi tên riêng (chevron mảnh) thay mũi tên gốc */
 html[data-skin="ios"]:not(#_):not(#__) select:not([multiple]):not([size]) {
@@ -5429,5 +5429,38 @@ html[data-skin="ios"]:not(#_):not(#__) :is(.dd-opt, .pk-row, .goi-y > *, .goi-y-
 html[data-skin="ios"]:not(#_):not(#__) :is(.dd-panel, .pk-panel, .goi-y, .ng-goiy) :is(input[type="search"], input[type="text"]) { border-radius: 10px !important; }
 
 /* NÚT ĐOẠN trong thanh lọc: tròn như rãnh và viên trượt chỉ báo (trước 8px) */
-html[data-skin="ios"]:not(#_):not(#__) :is(.seg, .hub-seg) > :is(button, a) { border-radius: 999px !important; }
+html[data-skin="ios"]:not(#_):not(#__):not(#___) :is(:is(.seg, .hub-seg) > :is(button, a), .seg-nut) { border-radius: 999px !important; }
+
+/* ==========================================================================
+   BẢNG THÀNH THẺ TRÊN ĐIỆN THOẠI (09/10/2026; ios-app.js gắn .ios-the-bang và
+   data-nhan). Mỗi dòng một thẻ, ô đầu làm tiêu đề thẻ, các ô sau "tên cột —
+   giá trị" canh hai bên. Vùng bọc bảng thôi cuộn ngang.
+   ========================================================================== */
+@media (max-width: 640px) {
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) table.ios-the-bang,
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) table.ios-the-bang > tbody { display: block !important; width: 100% !important; min-width: 0 !important; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) table.ios-the-bang > thead { display: none !important; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) :has(> table.ios-the-bang) { overflow-x: visible !important; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) table.ios-the-bang > tbody > tr {
+    display: grid !important; grid-template-columns: minmax(0, 1fr); gap: 2px; padding: 12px 14px !important;
+    border-bottom: .5px solid var(--ios-o-2, rgba(118, 118, 128, .24)) !important; background: transparent;
+  }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) table.ios-the-bang > tbody > tr:last-child { border-bottom: 0 !important; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) table.ios-the-bang > tbody > tr > td {
+    display: flex !important; align-items: baseline; justify-content: space-between; gap: 12px;
+    padding: 3px 0 !important; border: 0 !important; text-align: right !important; white-space: normal !important;
+    min-width: 0 !important; width: auto !important; max-width: none !important; font-size: 14px;
+  }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) table.ios-the-bang > tbody > tr > td::before {
+    content: attr(data-nhan); flex: 0 0 auto; max-width: 48%; text-align: left;
+    color: var(--ios-chu-2, #6e6e73); font-size: 13px; font-weight: 500;
+  }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) table.ios-the-bang > tbody > tr > td:is([data-nhan=""], :not([data-nhan]))::before { display: none; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) table.ios-the-bang > tbody > tr > td:is([data-nhan=""], :not([data-nhan])) { justify-content: flex-start; text-align: left !important; }
+  /* ô đầu = tiêu đề thẻ */
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) table.ios-the-bang > tbody > tr > td:first-child { font-weight: 600; font-size: 15px; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) table.ios-the-bang > tbody > tr > td > * { min-width: 0; }
+  /* bảng 1–2 cột tràn chỉ vì độ rộng tối thiểu của app: cho vừa khung */
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) table.ios-bang-vua { min-width: 0 !important; width: 100% !important; }
+}
 
