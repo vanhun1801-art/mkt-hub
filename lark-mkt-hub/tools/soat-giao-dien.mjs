@@ -37,7 +37,7 @@ const DO = `(() => {
   const W = document.documentElement.clientWidth, dt = W <= 640;
   const loi = [], canh = [];
   const ten = (e) => (e.id ? '#' + e.id : '') + (typeof e.className === 'string' && e.className.trim() ? '.' + e.className.trim().split(/\\s+/).slice(0, 2).join('.') : (e.id ? '' : e.tagName.toLowerCase()));
-  const DAI = /(^|\\s)(tabs|pills|seg|hub-seg|chips?|loc-bar|loc|filters|ios-tabbar|thanh-ky|cxl-loc|day|tg-dong)(\\s|$)/;
+  const DAI = /(^|\\s)(tabs|pills|seg|hub-seg|chips?|loc-bar|loc|filters|cal-filters|ios-tabbar|thanh-ky|cxl-loc|day|tg-dong|board)(\\s|$)/;
   /* lưới hai chiều (người × ngày / tháng): tiêu đề cột đa số là ngày, thứ, tháng */
   const NGAY = /^(\\d{1,2}|T\\d{1,2}|CN|\\d{1,2}\\s*(T[2-7]|CN)|\\d{1,2}\\/\\d{1,2})$/i;
   const luoi = (e) => { const t = e.querySelector('table');
@@ -73,7 +73,7 @@ async function chay(kho) {
   const hoSo = fs.mkdtempSync(path.join(os.tmpdir(), 'soat-'));
   const chrome = spawn(CHROME, ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--hide-scrollbars', '--mute-audio',
     '--lang=vi', '--remote-debugging-port=' + port, '--user-data-dir=' + hoSo, '--window-size=' + kho.w + ',' + kho.h, 'about:blank'], { stdio: 'ignore' });
-  let ws, seq = 0; const cho = new Map(); let loiJs = [];
+  let ws, seq = 0; const cho = new Map(); let loiJs = []; const chanGhi = [];
   const gui = (method, params = {}, sessionId) => { const id = ++seq; ws.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }));
     return new Promise((ok, no) => { cho.set(id, { ok, no }); setTimeout(() => { if (cho.has(id)) { cho.delete(id); no(new Error('hết giờ ' + method)); } }, 60000); }); };
   try {
@@ -81,11 +81,20 @@ async function chay(kho) {
     ws = new WebSocket(ver.webSocketDebuggerUrl); await new Promise((r) => ws.addEventListener('open', r));
     ws.addEventListener('message', (ev) => { const m = JSON.parse(ev.data);
       if (m.id && cho.has(m.id)) { const c = cho.get(m.id); cho.delete(m.id); m.error ? c.no(new Error(m.error.message)) : c.ok(m.result); }
+      if (m.method === 'Fetch.requestPaused') {
+        const p = m.params, doc = /^(GET|HEAD|OPTIONS)$/.test(p.request.method);
+        gui(doc ? 'Fetch.continueRequest' : 'Fetch.failRequest', doc ? { requestId: p.requestId } : { requestId: p.requestId, errorReason: 'BlockedByClient' }, m.sessionId).catch(() => {});
+        if (!doc) chanGhi.push(p.request.method + ' ' + p.request.url.replace(/^https?:\/\/[^/]+/, '').slice(0, 80));
+      }
       if (m.method === 'Runtime.exceptionThrown') { const d = m.params.exceptionDetails; loiJs.push(((d.exception || {}).description || d.text || '').split('\n')[0].slice(0, 160) + (d.url ? ' @ ' + d.url.replace(/^https?:\/\/[^/]+/, '').split('?')[0] + ':' + (d.lineNumber + 1) : '')); } });
     const { targetId } = await gui('Target.createTarget', { url: 'about:blank' });
     const { sessionId: S } = await gui('Target.attachToTarget', { targetId, flatten: true });
     const g = (m, p) => gui(m, p, S);
     await g('Page.enable'); await g('Runtime.enable');
+    /* CHẶN GHI ở tầng trình duyệt: mọi yêu cầu khác GET/HEAD (POST, PUT, PATCH,
+     * DELETE…) của trang và mọi iframe đều bị huỷ — dữ liệu Lark là thật. Không
+     * bọc fetch trong trang: thư viện bản đồ từ chối hàm fetch bị bọc. */
+    await g('Fetch.enable', { patterns: [{ urlPattern: '*', requestStage: 'Request' }] });
     const dt = kho.w <= 640;
     await g('Emulation.setDeviceMetricsOverride', { width: kho.w, height: kho.h, deviceScaleFactor: 1, mobile: dt });
     if (dt) await g('Emulation.setTouchEmulationEnabled', { enabled: true });
@@ -112,7 +121,33 @@ async function chay(kho) {
       if (thamSo.anh) { fs.mkdirSync(thamSo.anh, { recursive: true }); const a = await g('Page.captureScreenshot', { format: 'png' });
         fs.writeFileSync(path.join(thamSo.anh, kho.ten + '-' + id + '.png'), Buffer.from(a.data, 'base64')); }
       ket.push({ app: id, ...r, js: loiJs.splice(0) });
+
+      /* TỪNG TAB của app (Kanban, Lịch, Thống kê…): bấm qua và đo lại. Bấm tab chỉ
+       * đổi màn xem; tab có chữ thao tác thì bỏ. Mọi lệnh ghi đã bị chặn ở tầng
+       * trình duyệt (Fetch, xem trên). Tắt bằng --khong-tab. */
+      if (thamSo['khong-tab'] !== undefined) continue;
+      const KHUNG = '[...document.querySelectorAll("iframe")].find(x=>x.offsetParent&&(x.getAttribute("src")||"").includes("/m/' + id + '/"))';
+      const TAB = '.topbar .tabs > .tab, .topbar > .pills > .pill, nav.tabs > .tab, .tabsbar .tabs > .tab, .topbar .tabs > button, .topbar-left .tabs > button';
+      const dsTab = await danhGia('(()=>{const f=' + KHUNG + ';if(!f)return "[]";' +
+        'return JSON.stringify([...f.contentDocument.querySelectorAll(' + JSON.stringify(TAB) + ')].filter(e=>e.getClientRects().length).map(e=>(e.textContent||"").replace(/\\s+/g," ").trim().slice(0,30)))})()').catch(() => '[]');
+      const tabs = JSON.parse(dsTab);
+      for (let k = 1; k < Math.min(tabs.length, 10); k++) {
+        if (/đồng bộ|xuất|xoá|xóa|nộp|gửi|duyệt|đăng xuất|kéo lại/i.test(tabs[k])) continue;
+        await danhGia('(()=>{const f=' + KHUNG + ';const e=[...f.contentDocument.querySelectorAll(' + JSON.stringify(TAB) + ')].filter(e=>e.getClientRects().length)[' + k + '];if(e)e.click();return 1})()').catch(() => 0);
+        await sleep(1500);
+        for (let i = 0; i < 20; i++) {
+          const xong = await danhGia('(()=>{const f=' + KHUNG + ';const d=f&&f.contentDocument;return !!d&&!d.querySelector(".kx, .kx-vung, [data-kx-xem], [aria-busy=\\"true\\"]")})()').catch(() => true);
+          if (xong) break;
+          await sleep(500);
+        }
+        await sleep(600);
+        let rt;
+        try { rt = JSON.parse(await danhGia('(async()=>{const f=' + KHUNG + ';return f.contentWindow.eval(' + JSON.stringify(DO) + ');})()')); }
+        catch (e) { rt = { loi: ['không đo được: ' + e.message], canh: [], nCanh: 0 }; }
+        ket.push({ app: id + ' › ' + tabs[k], ...rt, js: loiJs.splice(0) });
+      }
     }
+    if (chanGhi.length) ket.push({ app: '(đã chặn ' + chanGhi.length + ' lệnh ghi)', loi: [], canh: [...new Set(chanGhi)].slice(0, 5), nCanh: 0, js: [] });
     return ket;
   } finally { try { chrome.kill(); } catch (_) {} }
 }

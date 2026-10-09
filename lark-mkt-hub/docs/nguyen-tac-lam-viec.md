@@ -13,6 +13,9 @@ Lớp giao diện chung nằm ở `public/ios.css`, `public/ios.js` (lớp vỏ)
   - Chỉ được cuộn ngang ở hai loại chỗ:
     - dải tab, dải nút lọc, dải chip;
     - bảng lưới hai chiều mà tiêu đề cột là ngày hoặc thứ (lịch người × ngày, lưới xếp hạng).
+    - bảng Kanban: cột trạng thái xếp ngang, nhưng vuốt dừng đúng từng cột như lật trang, cột trống thì ẩn.
+  - Bảng có ô nhập tới 9 cột cũng thành thẻ: tên cột ở trên, ô nhập trải hết bề ngang. Bảng tính sửa tại ô nhiều cột hơn (Bảng công việc › Bảng) là việc của máy tính, nên tab đó ẩn trên điện thoại.
+  - Biểu đồ cột tới 8 cột phải co vừa màn. Từ 9 cột trở lên mới cho vuốt ngang.
 - Không thu phóng được. Ô nhập có chữ 16px, để iPhone không tự phóng to khi chạm vào.
 - Giao diện kiểu ứng dụng chứ không kiểu website:
   - tiêu đề lớn nằm bên trái, không nhảy vào giữa khi cuộn;
@@ -87,7 +90,7 @@ Nút tròn phải tròn thật: rộng bằng cao, không được dẹp.
 ## 7. Quy trình mỗi lần sửa
 
 1. Sửa xong thì tự soát. Không bắt anh tự kiểm.
-   - `node tools/soat-giao-dien.mjs` soát hub và 15 app ở điện thoại và máy tính, sáng và tối. Nó báo:
+   - `node tools/soat-giao-dien.mjs` soát hub và 15 app, kể cả từng tab bên trong, ở điện thoại và máy tính, sáng và tối. Mọi lệnh ghi đều bị chặn ở tầng trình duyệt. Nó báo:
      - kéo ngang;
      - lỗi JS;
      - bo góc lệch thang;

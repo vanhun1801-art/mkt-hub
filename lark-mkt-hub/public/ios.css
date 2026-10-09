@@ -5430,6 +5430,8 @@ html[data-skin="ios"]:not(#_):not(#__) :is(.dd-panel, .pk-panel, .goi-y, .ng-goi
 
 /* NÚT ĐOẠN trong thanh lọc: tròn như rãnh và viên trượt chỉ báo (trước 8px) */
 html[data-skin="ios"]:not(#_):not(#__):not(#___) :is(:is(.seg, .hub-seg) > :is(button, a), .seg-nut) { border-radius: 999px !important; }
+/* nút nhẹ của KPI, nút "Toàn màn hình" nổi trên bản đồ KOL: tròn như mọi nút */
+html[data-skin="ios"]:not(#_):not(#__):not(#___) :is([data-app="kpi"] .nut, [data-app="kol"] .bd-phong-nut) { border-radius: 999px !important; }
 
 /* ==========================================================================
    BẢNG THÀNH THẺ TRÊN ĐIỆN THOẠI (09/10/2026; ios-app.js gắn .ios-the-bang và
@@ -5447,7 +5449,7 @@ html[data-skin="ios"]:not(#_):not(#__):not(#___) :is(:is(.seg, .hub-seg) > :is(b
   }
   html[data-skin="ios"]:not(#_):not(#__):not(#___) table.ios-the-bang > tbody > tr:last-child { border-bottom: 0 !important; }
   html[data-skin="ios"]:not(#_):not(#__):not(#___) table.ios-the-bang > tbody > tr > td {
-    display: flex !important; align-items: baseline; justify-content: space-between; gap: 12px;
+    display: flex !important; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 12px;
     padding: 3px 0 !important; border: 0 !important; text-align: right !important; white-space: normal !important;
     min-width: 0 !important; width: auto !important; max-width: none !important; font-size: 14px;
   }
@@ -5459,7 +5461,23 @@ html[data-skin="ios"]:not(#_):not(#__):not(#___) :is(:is(.seg, .hub-seg) > :is(b
   html[data-skin="ios"]:not(#_):not(#__):not(#___) table.ios-the-bang > tbody > tr > td:is([data-nhan=""], :not([data-nhan])) { justify-content: flex-start; text-align: left !important; }
   /* ô đầu = tiêu đề thẻ */
   html[data-skin="ios"]:not(#_):not(#__):not(#___) table.ios-the-bang > tbody > tr > td:first-child { font-weight: 600; font-size: 15px; }
-  html[data-skin="ios"]:not(#_):not(#__):not(#___) table.ios-the-bang > tbody > tr > td > * { min-width: 0; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) table.ios-the-bang > tbody > tr > td > * { min-width: 0; max-width: 100%; }
+  /* ô có ô nhập: tên cột ở trên, ô nhập trải hết bề ngang thẻ */
+  html[data-skin="ios"]:not(#_):not(#__):not(#___):not(#____) table.ios-the-bang > tbody > tr > td:has(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+    flex-direction: column; align-items: stretch; text-align: left !important; gap: 4px;
+  }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) table.ios-the-bang > tbody > tr > td :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) { width: 100% !important; max-width: none !important; }
+  /* Bảng công việc: dải 6 thẻ số thành lưới 3 cột thay vì kéo ngang */
+  html[data-skin="ios"]:not(#_):not(#__):not(#___)[data-app="cong-viec"] #stats.stats { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)); overflow: visible !important; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___)[data-app="cong-viec"] #stats.stats > .stat { min-width: 0 !important; }
+  /* KPI: biểu đồ cột theo tháng ≤ 8 cột co vừa thẻ (trước: mỗi cột tối thiểu 54px
+     → 7 tháng tràn, phải vuốt); từ 9 cột trở lên mới cho vuốt */
+  html[data-skin="ios"]:not(#_):not(#__):not(#___)[data-app="kpi"] .cot-thang:not(:has(> .cot:nth-child(9))) { gap: 6px !important; overflow-x: visible !important; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___)[data-app="kpi"] .cot-thang:not(:has(> .cot:nth-child(9))) > .cot { min-width: 0 !important; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___)[data-app="kpi"] .cot-thang .cot-phu { font-size: 10.5px !important; white-space: nowrap; }
+  /* Kanban: cột trạng thái lật từng trang như iPhone, không trượt lưng chừng */
+  html[data-skin="ios"]:not(#_):not(#__):not(#___)[data-app="cong-viec"] #board.board { scroll-snap-type: x mandatory; scroll-padding-inline: 16px; overscroll-behavior-x: contain; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___)[data-app="cong-viec"] #board.board > .col { flex: 0 0 86% !important; scroll-snap-align: start; scroll-snap-stop: always; }
   /* bảng 1–2 cột tràn chỉ vì độ rộng tối thiểu của app: cho vừa khung */
   html[data-skin="ios"]:not(#_):not(#__):not(#___) table.ios-bang-vua { min-width: 0 !important; width: 100% !important; }
 }

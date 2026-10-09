@@ -1148,7 +1148,9 @@
       }
       /* lưới hai chiều (lịch người × ngày): đa số tiêu đề là số ngày / thứ → giữ */
       if (nhan.filter((x) => /^(\d{1,2}|T[2-7]|CN|\d{1,2}\s*(T[2-7]|CN))$/i.test(x)).length >= nhan.length / 2) return;
-      if (t.querySelector('tbody input:not([type="checkbox"]), tbody select, tbody textarea')) return;
+      /* bảng có ô nhập: chỉ đổi khi ít cột (phiếu chấm KPI…); bảng tính nhiều cột
+       * sửa tại ô (Bảng công việc › Bảng) là việc của máy tính — tab đó ẩn trên điện thoại */
+      if (t.querySelector('tbody input:not([type="checkbox"]), tbody select, tbody textarea') && nhan.length > 9) return;
       const cha = t.parentElement;
       const tran = t.classList.contains('ios-the-bang') || (cha && t.scrollWidth > cha.clientWidth + 4) || t.getBoundingClientRect().right > innerWidth + 2;
       if (!tran) return;
@@ -1190,6 +1192,16 @@
     if (!mq.matches) return;
     const an = (e) => { if (e && !e.classList.contains('ios-an-dt')) e.classList.add('ios-an-dt'); };
     document.querySelectorAll('button, a.btn, .btn').forEach((e) => { const t = chu(e); if (t.length < 26 && NUT_MAY_TINH.test(t)) an(e); });
+    /* Bảng công việc › Bảng: bảng tính 11 cột sửa tại ô — trên điện thoại dùng Kanban/danh sách */
+    if (document.documentElement.getAttribute('data-app') === 'cong-viec') {
+      document.querySelectorAll('.topbar .tabs > .tab, .topbar .tabs > button').forEach((e) => { if (chu(e) === 'Bảng') an(e); });
+      /* Kanban: cột trạng thái trống ("0 · Không có công việc") chiếm trọn một
+       * trang vuốt — bỏ, trang đầu là cột có việc */
+      document.querySelectorAll('.board > .col').forEach((c) => {
+        const n = c.querySelector('.col-head .n');
+        if (n && n.textContent.trim() === '0') an(c); else c.classList.remove('ios-an-dt');
+      });
+    }
     /* nhóm việc rỗng (số 0) ở Bảng công việc: tiêu đề + giải thích + "không có
      * việc nào" chiếm nửa màn mà không cho biết thêm gì */
     document.querySelectorAll('.queue').forEach((q) => {
