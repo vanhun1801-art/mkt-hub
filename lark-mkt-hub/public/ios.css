@@ -4893,3 +4893,60 @@ html[data-skin="ios"][data-app="khach-hang"] #segKy::-webkit-scrollbar { display
         để Safari cũ không còn lý do phóng to khi chạm vào ô. */
   html[data-skin="ios"]:not(#_):not(#__):not(#___) :is(input:not([type=checkbox]):not([type=radio]):not([type=range]), select, textarea) { font-size: 16px !important; }
 }
+
+/* CÀI ĐẶT ĐIỆN THOẠI · UX từng trang (09/10/2026, anh Hùng: "tối ưu UX và UI
+   trên di động chỗ cài đặt"). */
+@media (max-width: 640px) {
+  /* Base trong panel: mỗi base một thẻ cao ~215px, nút "Ẩn" rớt dòng riêng.
+     Gọn lại: biểu tượng + tên cùng hàng, các nút một hàng viên nhỏ lướt ngang. */
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .cd-dt .cd-base {
+    display: grid !important; grid-template-columns: 32px minmax(0, 1fr); column-gap: 10px; row-gap: 8px;
+    align-items: center; padding: 12px 14px !important; border-radius: 16px !important; margin-bottom: 8px !important;
+    background: var(--ios-the) !important; border: 0 !important;
+  }
+  html[data-skin="ios"] .cd-dt .cd-base > .cd-ic { width: 32px !important; height: 32px !important; border-radius: 9px !important; margin: 0 !important; }
+  html[data-skin="ios"] .cd-dt .cd-base > .cd-base-tx { grid-column: 2; }
+  html[data-skin="ios"]:not(#_):not(#__) .cd-dt .cd-base-tx b { font-size: 15px !important; font-weight: 600; }
+  html[data-skin="ios"] .cd-dt .cd-base-tx p { font-size: 12.5px !important; }
+  html[data-skin="ios"] .cd-dt .cd-base > :not(.cd-ic):not(.cd-base-tx) { grid-column: 1 / -1; }
+  html[data-skin="ios"]:not(#_):not(#__) .cd-dt .cd-base .thao-tac {
+    display: flex !important; flex-wrap: nowrap !important; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 !important;
+  }
+  html[data-skin="ios"] .cd-dt .cd-base .thao-tac::-webkit-scrollbar { display: none; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .cd-dt .cd-base .thao-tac .btn {
+    flex: none; height: 32px !important; min-height: 32px !important; padding: 0 12px !important;
+    font-size: 14px !important; border-radius: 999px !important; white-space: nowrap;
+  }
+
+  /* Hàng có điều khiển ngắn (VI/EN, sáng/tối, công tắc, viên trạng thái) giữ
+     cùng hàng với nhãn như mọi trang cài đặt — luật xuống dòng hôm trước chỉ cho
+     hàng có nhiều nút / ảnh. */
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .cd-dt .cd-hang:has(> .cd-hang-dk > :only-child:is(.seg, .chip, .sw, .switch)) { flex-wrap: nowrap !important; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .cd-dt .cd-hang:has(> .cd-hang-dk > :only-child:is(.seg, .chip, .sw, .switch)) .cd-hang-tx { flex: 1 1 0 !important; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .cd-dt .cd-hang:has(> .cd-hang-dk > :only-child:is(.seg, .chip, .sw, .switch)) .cd-hang-dk { flex: 0 0 auto !important; justify-content: flex-end !important; }
+
+  /* Tình trạng máy chủ: thẻ từng base là ô xám to một cột → lưới 2 cột thẻ
+     trắng như mọi khối khác trong Cài đặt. */
+  html[data-skin="ios"]:not(#_):not(#__) .cd-dt .cd-luoi-base { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .cd-dt .cd-luoi-base > * { background: var(--ios-the) !important; border-radius: 14px !important; padding: 10px 12px !important; min-width: 0; }
+  html[data-skin="ios"] .cd-dt .cd-luoi-base > * :is(b, .so, strong) { font-size: 20px !important; }
+
+  /* Nút lưu / nút chính cuối trang con: bề ngang trọn, dễ chạm như iOS/Android */
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .cd-dt .cd-noi > .btn.primary,
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .cd-dt .cd-hang-dk > .btn.primary:only-child { width: 100%; justify-content: center; height: 44px !important; }
+}
+@media (max-width: 640px) {
+  /* nút chọn VI/EN, sáng/tối: lề âm -14px + bề ngang bị bóp 56px → nút tràn, bị cắt mép phải */
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .cd-dt .cd-hang-dk > .seg { margin: 0 !important; width: auto !important; flex: none !important; display: inline-flex !important; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .cd-dt .cd-hang-dk > .seg > button { flex: none !important; min-width: 40px; }
+  /* Base trong panel: hai viên trạng thái (Đang chạy · Kín) nằm cạnh nhau dưới tên, không kéo hết bề ngang */
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .cd-dt .cd-base { display: flex !important; flex-wrap: wrap; align-items: center; gap: 8px 8px; }
+  html[data-skin="ios"] .cd-dt .cd-base > .cd-base-tx { flex: 1 1 calc(100% - 42px); min-width: 0; }
+  html[data-skin="ios"] .cd-dt .cd-base > .chip { flex: none; width: auto !important; margin: 0 !important; }
+  html[data-skin="ios"] .cd-dt .cd-base > .chip:first-of-type { margin-left: 42px !important; }
+  html[data-skin="ios"] .cd-dt .cd-base > .thao-tac { flex: 1 1 100%; min-width: 0; }
+}
+@media (max-width: 640px) {
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .cd-dt .cd-base > .cd-ic { flex: 0 0 32px !important; margin: 0 !important; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .cd-dt .cd-base > .cd-base-tx { flex: 1 1 calc(100% - 60px) !important; }
+}
