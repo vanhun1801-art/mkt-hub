@@ -5003,3 +5003,41 @@ html[data-skin="ios"]:not(#_):not(#__) .hub-seg > :is(.on, .chon) { box-shadow: 
 /* Nút Xoá tệp (Bảng công việc): chữ đỏ dùng màu CHỮ của bộ giao diện, đọc rõ ở
    cả nền sáng lẫn tối (trước --red-text của app, ở nền tối chỉ ~3:1). */
 html[data-skin="ios"]:not(#_):not(#__) .attbtn.del { color: var(--ios-do-chu) !important; }
+
+/* ==========================================================================
+   LỚP PHỦ LẠ + XEM NHANH (09/10/2026). Anh Hùng: "khi cửa sổ hiện lên thì phía
+   sau làm mờ và đen đi tí". Cửa sổ "Xem nhanh" (bấm ô số ở Bảng công việc) mở
+   ra mà phía sau vẫn sắc nét, thanh menu lớp vỏ vẫn sáng. ios-app.js nay nhận
+   diện mọi lớp phủ theo hình (fixed, kín màn, nền bán trong) và gắn
+   .ios-nen-la → cùng độ tối + mờ như mọi cửa sổ khác, lớp vỏ cũng tối theo.
+   ========================================================================== */
+html[data-skin="ios"]:not(#_):not(#__):not(#___) :is(.ios-nen-la, .xn-lop) {
+  background-color: rgba(0, 0, 0, .32) !important;
+  -webkit-backdrop-filter: blur(6px) saturate(120%) !important; backdrop-filter: blur(6px) saturate(120%) !important;
+  box-shadow: none !important;
+}
+html[data-skin="ios"]:not(#_):not(#__) .xn-lop { animation: ios-xn-nen .22s ease both; }
+html[data-skin="ios"]:not(#_):not(#__) .xn-lop > .xn-hop { animation: ios-xn-hop .26s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes ios-xn-nen { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ios-xn-hop { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
+
+/* Hàng trong Xem nhanh: nút "Nhắc" / "Giao theo đề xuất" đứng một dòng riêng,
+   to như nút chính, lệch trái — nhìn như rơi khỏi hàng. Nay: tên + thẻ bên
+   trái, nút gọn canh giữa bên phải cùng hàng. */
+html[data-skin="ios"]:not(#_):not(#__)[data-app="cong-viec"] .xn-o:has(> .xn-nut) {
+  display: grid !important; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; row-gap: 5px; align-items: center;
+}
+html[data-skin="ios"]:not(#_):not(#__)[data-app="cong-viec"] .xn-o > .xn-nut {
+  grid-column: 2; grid-row: 1 / span 2; margin: 0 !important; flex-wrap: nowrap; justify-content: flex-end;
+}
+html[data-skin="ios"]:not(#_):not(#__):not(#___)[data-app="cong-viec"] .xn-o > .xn-nut > .btn {
+  height: 30px !important; min-height: 30px !important; padding: 0 14px !important; font-size: 13px !important; border-radius: 999px !important;
+}
+/* Hàng không được co: .xn là cột flex cuộn, trên điện thoại (hộp thấp) các hàng
+   bị nén thấp hơn nội dung → tên, thẻ, nút đè chồng lên nhau. */
+html[data-skin="ios"]:not(#_):not(#__)[data-app="cong-viec"] .xn > .xn-o { flex: 0 0 auto !important; }
+@media (max-width: 640px) {
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="cong-viec"] .xn-o:has(> .xn-nut) { grid-template-columns: minmax(0, 1fr); }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="cong-viec"] .xn-o > .xn-nut { grid-column: 1; grid-row: auto; justify-content: flex-start; }
+}
+

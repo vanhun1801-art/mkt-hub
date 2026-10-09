@@ -501,10 +501,34 @@
   const cheLai = () => { clearTimeout(henChe); henChe = setTimeout(() => baoChe(true), 480); };
   document.addEventListener('transitionend', () => baoChe(true), true);
   document.addEventListener('animationend', () => baoChe(true), true);
+  /* LỚP PHỦ LẠ (09/10/2026): danh sách CUA_SO chỉ biết tên lớp đã khai, nên cửa
+   * sổ mới của app con (VD "Xem nhanh" .xn-lop ở Bảng công việc) mở ra mà lớp
+   * vỏ không tối, không mờ. Nhận diện theo HÌNH chứ không theo tên: phần tử
+   * fixed, phủ gần kín màn, có nền màu (bán trong suốt) và đang hiện, nằm sát
+   * body (2 tầng). Lớp phủ đậm (xem ảnh toàn màn, nền > 60%) vẫn báo lớp vỏ
+   * nhưng không bị đổi màu nền. */
+  function nenLa() {
+    let thay = false;
+    const xet = (e) => {
+      if (thay || !e || e.nodeType !== 1 || e.id === 'moApp') return;
+      const s = getComputedStyle(e);
+      if (s.position !== 'fixed' || s.display === 'none' || s.visibility === 'hidden' || +s.opacity < 0.05) return;
+      const r = e.getBoundingClientRect();
+      if (r.width < innerWidth * 0.95 || r.height < innerHeight * 0.95) return;
+      const m = /rgba?\(\s*\d+,\s*\d+,\s*\d+(?:,\s*([\d.]+))?\)/.exec(s.backgroundColor);
+      const al = m ? (m[1] == null ? 1 : +m[1]) : 0;
+      if (al < 0.08 || al >= 0.97) return;
+      if (al <= 0.6) e.classList.add('ios-nen-la');
+      thay = true;
+    };
+    for (const c of document.body.children) { xet(c); if (thay) break; for (const d of c.children) { xet(d); if (thay) break; } }
+    return thay;
+  }
   function baoChe(lai) {
     if (lai !== true) cheLai();
     let mo = false;
     document.querySelectorAll(CUA_SO).forEach((e) => { if (!mo && !e.closest('.ios-bong-dong') && e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden' && (+getComputedStyle(e).opacity > 0.05 || (e.getAnimations && e.getAnimations().some((a) => a.playState === 'running')))) mo = true; });
+    if (!mo) mo = nenLa();
     if (mo === daChe) return;
     daChe = mo;
     /* Thanh cuộn của trang nằm NGOÀI lớp phủ tối (fixed không phủ được rãnh cuộn)
