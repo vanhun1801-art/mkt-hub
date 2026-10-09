@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Thử hiệu ứng · Marketing Hub</title>
+<link rel="icon" type="image/png" href="/logo-app-32.png">
+<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/ios.css">
+<script>
+/* Trang thử hoạt ảnh (anh Hùng 09/10/2026: "có nơi nào để anh test các hoạt
+ * ảnh này hết không"). Chỉ bấm để XEM — không gọi máy chủ, không ghi dữ liệu.
+ * Dùng đúng ios.css + ios.js của hub nên thấy y như trong app. */
+(function () {
+  var h = document.documentElement;
+  h.setAttribute('data-skin', 'ios');
+  try { var th = localStorage.getItem('hub.theme'); if (th === 'sang' || th === 'toi') h.setAttribute('data-theme', th); } catch (e) {}
+})();
+</script>
+<style>
+  body { margin: 0; min-height: 100vh; background: var(--mac-nen, #eef0f5); }
+  html[data-theme="toi"] body { background: #0b0b0e; }
+  @media (prefers-color-scheme: dark) { html:not([data-theme="sang"]) body { background: #0b0b0e; } }
+  .tu { max-width: 1080px; margin: 0 auto; padding: calc(env(safe-area-inset-top, 0px) + 72px) 20px 48px; }
+  .tu h1 { font-size: 28px; margin: 0 0 6px; letter-spacing: -.02em; }
+  .tu > p { margin: 0 0 22px; color: var(--ios-chu-2, #6e6e73); font-size: 14px; }
+  .luoi { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 20px; align-items: start; }
+  .khoi { background: var(--ios-the, #fff); border-radius: 18px; padding: 18px; margin-bottom: 20px; box-shadow: 0 1px 2px rgba(0, 0, 0, .04); }
+  .khoi h2 { font-size: 17px; margin: 0 0 4px; }
+  .khoi .phu { margin: 0 0 14px; color: var(--ios-chu-2, #6e6e73); font-size: 13px; line-height: 1.45; }
+  .nut { display: flex; flex-wrap: wrap; gap: 8px; }
+  .nut .btn { min-height: 36px; }
+  .may { position: sticky; top: 72px; }
+  .khung-dt {
+    width: 340px; height: 660px; border-radius: 44px; overflow: hidden; background: #000;
+    box-shadow: 0 0 0 10px #1c1c1e, 0 0 0 11px #3a3a3c, 0 30px 60px -20px rgba(0, 0, 0, .45); margin: 12px auto 20px;
+  }
+  .khung-dt iframe { width: 100%; height: 100%; border: 0; display: block; }
+  /* ios.js dựng thanh tab / thanh đầu của hub trên mọi trang có nó — trang thử không cần */
+  .ios-tabbar, .mob-bar, .ios-nut-loc { display: none !important; }
+  .giua { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+  @media (max-width: 900px) {
+    .luoi { grid-template-columns: 1fr; }
+    .may { position: static; }
+    .khung-dt { width: min(320px, 100%); height: 620px; }
+    .tu { padding-top: calc(env(safe-area-inset-top, 0px) + 64px); }
+  }
+</style>
+</head>
+<body>
+<div class="tu">
+  <h1>Thử hiệu ứng</h1>
+  <p>Bấm để xem từng hoạt ảnh đúng như trong app. Trang này chỉ để xem: không gửi, không lưu gì.</p>
+
+  <div class="luoi">
+    <div>
+      <section class="khoi">
+        <h2>Thông báo</h2>
+        <p class="phu">Viên kiểu Dynamic Island giữa mép trên. Mọi thông báo của hub và 15 app đều hiện thế này.</p>
+        <div class="nut">
+          <button class="btn" data-dao="Đã nộp báo cáo ngày" data-lop="luc">Thành công</button>
+          <button class="btn" data-dao="Không lưu được: máy chủ không phản hồi" data-lop="do">Lỗi</button>
+          <button class="btn" data-dao="Đang tải lên…" data-lop="">Đang xử lý</button>
+          <button class="btn" data-dao="Có 3 việc mới được giao cho bạn" data-lop="">Thông tin</button>
+          <button class="btn" data-dao="Đã gửi thông báo cho cả phòng. Mọi người sẽ nhận tin Lark trong vài phút, ai chưa mở app sẽ thấy ở lần mở kế tiếp." data-lop="luc">Câu dài</button>
+          <button class="btn" id="nutNoiTiep">Tải lên rồi xong</button>
+        </div>
+      </section>
+
+      <section class="khoi">
+        <h2>Cửa sổ</h2>
+        <p class="phu">Cửa sổ hiện lên thì phía sau tối và mờ đi, cuộn phía dưới bị khoá.</p>
+        <div class="nut"><button class="btn" id="nutCuaSo">Mở cửa sổ mẫu</button></div>
+      </section>
+
+      <section class="khoi">
+        <h2>Giao diện</h2>
+        <p class="phu">Đổi sáng/tối cho trang này và khung điện thoại bên cạnh (không đổi cài đặt của anh).</p>
+        <div class="nut">
+          <button class="btn" data-theme-thu="sang">Sáng</button>
+          <button class="btn" data-theme-thu="toi">Tối</button>
+        </div>
+      </section>
+    </div>
+
+    <div class="may khoi">
+      <h2>Màn mở app</h2>
+      <p class="phu">Logo nổi lên, thanh tải có vệt sáng, lời nhắn sức khoẻ đổi mỗi lần. Màn chỉ tan khi nội dung đã nạp đủ.</p>
+      <div class="khung-dt"><iframe id="khungMo" title="Màn mở app" loading="lazy"></iframe></div>
+      <div class="giua">
+        <button class="btn" id="nutPhatLai">Phát lại</button>
+        <a class="btn" href="/" target="_blank" rel="noopener">Mở hub ở tab mới</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-wrap" id="modalWrap" hidden>
+  <div class="modal-mask" data-close="1"></div>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mdTitle">
+    <div class="modal-head">
+      <h3 id="mdTitle">Cửa sổ mẫu</h3>
+      <button class="btn icon ghost" data-close="1" title="Đóng">×</button>
+    </div>
+    <div class="modal-body">
+      <p>Phía sau đang tối và mờ đi. Thử cuộn hoặc vuốt bên ngoài: trang phía dưới đứng yên.</p>
+      <p>Bấm ra ngoài, bấm ×, hoặc phím Esc để đóng.</p>
+    </div>
+    <div class="modal-foot"><button class="btn" data-close="1">Đóng</button></div>
+  </div>
+</div>
+
+<script src="/ios.js"></script>
+<script>
+(function () {
+  var $ = function (s) { return document.querySelector(s); };
+  var dao = function (chu, lop) { if (window.__iosDao) window.__iosDao(chu, lop); };
+  document.querySelectorAll('[data-dao]').forEach(function (b) {
+    b.onclick = function () { dao(b.dataset.dao, b.dataset.lop); };
+  });
+  $('#nutNoiTiep').onclick = function () {
+    dao('Đang tải lên ảnh-tour.jpg…', '');
+    setTimeout(function () { dao('Đã tải lên ảnh-tour.jpg', 'luc'); }, 1800);
+  };
+
+  var w = $('#modalWrap');
+  var dong = function () { w.hidden = true; };
+  $('#nutCuaSo').onclick = function () { w.hidden = false; };
+  w.addEventListener('click', function (e) { if (e.target.closest('[data-close]')) dong(); });
+  addEventListener('keydown', function (e) { if (e.key === 'Escape' && !w.hidden) dong(); });
+
+  var theme = document.documentElement.getAttribute('data-theme') || '';
+  var phat = function () { $('#khungMo').src = '/?theme=' + (theme || 'sang') + '&thu=' + Date.now(); };
+  $('#nutPhatLai').onclick = phat;
+  document.querySelectorAll('[data-theme-thu]').forEach(function (b) {
+    b.onclick = function () { theme = b.dataset.themeThu; document.documentElement.setAttribute('data-theme', theme); phat(); };
+  });
+  phat();
+})();
+</script>
+</body>
+</html>
