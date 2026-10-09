@@ -5113,3 +5113,41 @@ html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] .bang-xem td.so-o { w
   html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] .luoi-so > .o-so:last-child:nth-child(odd) { grid-column: 1 / -1; }
 }
 
+/* ==========================================================================
+   KHÁCH HÀNG: DẢI TAB + CĂN GIỮA MÀN RỘNG (09/10/2026, soát 15 app ở 1440 và
+   2700px). Dải tab là một băng xám phẳng trải hết bề ngang, chữ dính mép trái,
+   tab đang chọn KHÔNG phân biệt được (nền trong suốt); màn rộng thì cả trang
+   giãn 2400px trong khi mọi app khác dừng ở 1520px canh giữa.
+   ========================================================================== */
+html[data-skin="ios"]:not(#_):not(#__)[data-app="khach-hang"] body > nav.tabs {
+  width: max-content; max-width: calc(100% - 36px); box-sizing: border-box;
+  margin: 12px max(18px, calc((100% - 1520px) / 2)) 0 !important;
+  padding: 3px !important; border-radius: 999px !important; gap: 2px !important;
+  background: var(--ios-o) !important; overflow-x: auto; scrollbar-width: none;
+}
+html[data-skin="ios"]:not(#_):not(#__)[data-app="khach-hang"] body > nav.tabs > .tab {
+  border: 0 !important; border-radius: 999px !important; padding: 6px 14px !important;
+  font-weight: 500; color: var(--ios-chu) !important; white-space: nowrap; background: transparent !important;
+  transition: background .2s ease, box-shadow .2s ease;
+}
+html[data-skin="ios"]:not(#_):not(#__):not(#___)[data-app="khach-hang"] body > nav.tabs > .tab.dang {
+  background: var(--ios-the) !important; font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .12), 0 0 0 .5px rgba(0, 0, 0, .04) !important;
+}
+html[data-skin="ios"]:not(#_):not(#__)[data-app="khach-hang"] body > :is(main, #tienDo) {
+  margin-left: max(18px, calc((100% - 1520px) / 2)) !important; margin-right: max(18px, calc((100% - 1520px) / 2)) !important;
+}
+html[data-skin="ios"]:not(#_):not(#__)[data-app="khach-hang"] body > main { padding-left: 0 !important; padding-right: 0 !important; }
+/* hộp "Đang kéo dữ liệu": một dòng gọn, nhật ký kỹ thuật thu về chữ nhỏ bên phải */
+html[data-skin="ios"]:not(#_):not(#__)[data-app="khach-hang"] #tienDo:not([hidden]) {
+  display: flex !important; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 14px !important;
+}
+html[data-skin="ios"]:not(#_):not(#__)[data-app="khach-hang"] #tienDo .td-dau { margin: 0 !important; }
+html[data-skin="ios"]:not(#_):not(#__)[data-app="khach-hang"] #tienDo .td-nk { margin-left: auto; }
+html[data-skin="ios"]:not(#_):not(#__)[data-app="khach-hang"] #tienDo .td-nk[open] { flex-basis: 100%; margin-left: 0; }
+html[data-skin="ios"]:not(#_):not(#__)[data-app="khach-hang"] #tienDo .td-nk > summary { font-size: 12px !important; }
+@media (max-width: 640px) {
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="khach-hang"] body > nav.tabs { margin: 10px 12px 0 !important; max-width: calc(100% - 24px); }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="khach-hang"] body > :is(main, #tienDo) { margin-left: 12px !important; margin-right: 12px !important; }
+}
+
