@@ -5321,3 +5321,113 @@ html[data-skin="ios"] .cd-mep {
   transition: --cd-tren .25s ease, --cd-duoi .25s ease;
 }
 
+/* ==========================================================================
+   Ô NHẬP & BẢNG CHỌN THEO NGÔN NGỮ CHUNG (09/10/2026). Anh Hùng: "tải file,
+   chọn ngày, cửa sổ lựa chọn… ngôn ngữ thiết kế của em chưa chạm tới; góc bo
+   cũng phải chỉn chu". Đo 15 app: ô ngày/select bo 8px, ô nhiều dòng 10px,
+   nút đoạn trong thanh lọc 8px nằm trong rãnh bo tròn; nút "Chọn tệp", mũi tên
+   select, biểu tượng lịch còn kiểu gốc trình duyệt; bảng chọn tự làm mỗi app
+   một bán kính. Thang bo từ đây:
+     ô nhập 1 dòng · select · ô ngày   10px
+     ô nhiều dòng · ô tải tệp          12px
+     bảng chọn nổi (danh sách, lịch)   14px, dòng chọn bên trong 9px
+     nút, nút đoạn, ô tìm kiếm         tròn (999px)
+   ========================================================================== */
+html[data-skin="ios"]:not(#_):not(#__) :is(input:is([type="text"], [type="date"], [type="datetime-local"], [type="time"], [type="month"], [type="week"], [type="number"], [type="url"], [type="email"], [type="tel"], [type="password"], :not([type])):not([placeholder^="Tìm"]):not([placeholder^="tìm"]):not(.ios-o-tron), select) {
+  border-radius: 10px !important;
+}
+html[data-skin="ios"]:not(#_):not(#__) textarea { border-radius: 12px !important; }
+
+/* SELECT: mũi tên riêng (chevron mảnh) thay mũi tên gốc */
+html[data-skin="ios"]:not(#_):not(#__) select:not([multiple]):not([size]) {
+  -webkit-appearance: none; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5l3 3 3-3' fill='none' stroke='%238e8e93' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important; background-position: right 11px center !important; background-size: 12px 12px !important;
+  padding-right: 30px !important; cursor: pointer;
+}
+/* Trình duyệt hỗ trợ select tuỳ biến (Chrome 135+): danh sách bật ra cũng theo
+   bảng chọn nổi chung; trình duyệt cũ giữ danh sách gốc (đã theo sáng/tối). */
+@supports (appearance: base-select) {
+  html[data-skin="ios"]:not(#_):not(#__) select:not([multiple]):not([size]) { appearance: base-select; display: inline-flex; align-items: center; }
+  html[data-skin="ios"] select::picker-icon { display: none; }
+  html[data-skin="ios"] select::picker(select) {
+    appearance: base-select; border: .5px solid rgba(0, 0, 0, .08); border-radius: 14px; padding: 6px;
+    background: var(--kinh-bang); color: var(--ios-chu);
+    box-shadow: 0 16px 40px -12px rgba(0, 0, 0, .28), 0 2px 6px rgba(0, 0, 0, .06);
+    max-height: min(360px, 60vh); margin-block: 6px;
+    opacity: 0; translate: 0 -6px; scale: .97;
+    transition: opacity .2s var(--cd-ra), translate .2s var(--cd-ra), scale .2s var(--cd-ra), display .2s allow-discrete, overlay .2s allow-discrete;
+  }
+  html[data-skin="ios"] select:open::picker(select) {
+    opacity: 1; translate: 0 0; scale: 1;
+    transition: opacity .26s var(--cd-vao), translate .26s var(--cd-vao), scale .26s var(--cd-vao), display .26s allow-discrete, overlay .26s allow-discrete;
+  }
+  @starting-style { html[data-skin="ios"] select:open::picker(select) { opacity: 0; translate: 0 -6px; scale: .97; } }
+  html[data-skin="ios"] select option { padding: 8px 10px; border-radius: 9px; font-size: 14px; }
+  html[data-skin="ios"] select option:hover, html[data-skin="ios"] select option:focus-visible { background: var(--ios-o); outline: none; }
+  html[data-skin="ios"] select option:checked { font-weight: 600; background: transparent; }
+  html[data-skin="ios"] select option::checkmark { color: var(--ios-xanh); }
+  html[data-theme="toi"] select::picker(select) { border-color: rgba(255, 255, 255, .1); }
+  @media (prefers-color-scheme: dark) { html:not([data-theme="sang"]) select::picker(select) { border-color: rgba(255, 255, 255, .1); } }
+}
+
+/* SELECT CHỌN NHIỀU (VD "Chiến dịch" ở Quản lý quảng cáo): từng bị ép cao 32px
+   nên chỉ lộ một dòng như hộp vỡ → danh sách gọn ~3 dòng, mục đã chọn tô xanh */
+html[data-skin="ios"]:not(#_):not(#__):not(#___) select:is([multiple], [size]:not([size="1"])) {
+  height: auto !important; min-height: 92px; max-height: 128px; padding: 4px !important;
+  border-radius: 12px !important; background-image: none !important; overflow-y: auto;
+}
+html[data-skin="ios"]:not(#_):not(#__) select:is([multiple], [size]:not([size="1"])) option {
+  padding: 6px 10px; border-radius: 8px; margin: 1px 0; font-size: 13.5px; background: transparent !important; color: var(--ios-chu);
+}
+html[data-skin="ios"]:not(#_):not(#__) select:is([multiple], [size]:not([size="1"])) option:checked {
+  background: linear-gradient(color-mix(in srgb, var(--ios-xanh) 16%, transparent), color-mix(in srgb, var(--ios-xanh) 16%, transparent)) !important;
+  color: var(--ios-xanh); font-weight: 600;
+}
+
+/* Ô NGÀY / GIỜ: biểu tượng lịch cùng nét với chevron, có vùng bấm bo tròn */
+html[data-skin="ios"] input:is([type="date"], [type="datetime-local"], [type="time"], [type="month"], [type="week"])::-webkit-calendar-picker-indicator {
+  cursor: pointer; opacity: 1; width: 16px; height: 16px; padding: 3px; border-radius: 7px; margin-left: 4px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='%238e8e93' stroke-width='1.4' stroke-linecap='round'%3E%3Crect x='2.5' y='3.5' width='11' height='10' rx='2.5'/%3E%3Cpath d='M2.5 6.8h11M5.5 2v2.6M10.5 2v2.6'/%3E%3C/svg%3E") center / 16px 16px no-repeat;
+  transition: background-color .16s var(--cd-deu);
+}
+html[data-skin="ios"] input[type="time"]::-webkit-calendar-picker-indicator {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='%238e8e93' stroke-width='1.4' stroke-linecap='round'%3E%3Ccircle cx='8' cy='8' r='5.8'/%3E%3Cpath d='M8 4.8V8l2.2 1.4'/%3E%3C/svg%3E");
+}
+html[data-skin="ios"] input::-webkit-calendar-picker-indicator:hover { background-color: var(--ios-o); }
+
+/* Ô SỐ: bỏ mũi tên lên/xuống gốc (gõ số, cuộn không đổi giá trị) */
+html[data-skin="ios"] input[type="number"]::-webkit-inner-spin-button,
+html[data-skin="ios"] input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+html[data-skin="ios"] input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+
+/* Ô TẢI TỆP: thành vùng thả tệp bo 12px viền chấm, nút "Chọn tệp" là viên
+   xanh như mọi nút phụ — thay nút xám gốc trình duyệt */
+html[data-skin="ios"]:not(#_):not(#__) input[type="file"] {
+  box-sizing: border-box; width: 100%; max-width: 100%; padding: 6px 10px 6px 6px !important; border-radius: 12px !important;
+  border: 1px dashed var(--ios-o-2, rgba(118, 118, 128, .36)) !important; background: transparent !important;
+  font-size: 13px; color: var(--ios-chu-2, #6e6e73); cursor: pointer;
+  transition: border-color .16s var(--cd-deu), background-color .16s var(--cd-deu);
+}
+html[data-skin="ios"]:not(#_):not(#__) input[type="file"]:hover { border-color: var(--ios-xanh) !important; background: color-mix(in srgb, var(--ios-xanh) 5%, transparent) !important; }
+html[data-skin="ios"] input[type="file"]::file-selector-button {
+  border: 0; border-radius: 999px; padding: 7px 14px; margin-right: 10px; cursor: pointer;
+  background: var(--ios-o); color: var(--ios-xanh); font: 600 13px/1.2 inherit; font-family: inherit;
+  transition: background-color .16s var(--cd-deu), scale .13s var(--cd-deu);
+}
+html[data-skin="ios"] input[type="file"]::file-selector-button:hover { background: var(--ios-o-2, rgba(118, 118, 128, .24)); }
+html[data-skin="ios"] input[type="file"]:active::file-selector-button { scale: .96; }
+
+/* BẢNG CHỌN TỰ LÀM của các app (danh sách xổ, chọn người, lịch chọn ngày, gợi
+   ý tìm kiếm): cùng bán kính 14, cùng bóng, dòng chọn bên trong bo 9 */
+html[data-skin="ios"]:not(#_):not(#__):not(#___) :is(.dd-panel, .pk-panel, .ng-pop, .dd-panel-pick, .as-panel, .viewas-panel, .goi-y, .goi-y-ng, .ng-goiy) {
+  border-radius: 14px !important; border: .5px solid rgba(0, 0, 0, .08) !important;
+  box-shadow: 0 16px 40px -12px rgba(0, 0, 0, .28), 0 2px 6px rgba(0, 0, 0, .06) !important;
+}
+html[data-theme="toi"][data-skin="ios"]:not(#_):not(#__):not(#___) :is(.dd-panel, .pk-panel, .ng-pop, .dd-panel-pick, .as-panel, .viewas-panel, .goi-y, .goi-y-ng, .ng-goiy) { border-color: rgba(255, 255, 255, .1) !important; }
+html[data-skin="ios"]:not(#_):not(#__) :is(.dd-opt, .pk-row, .goi-y > *, .goi-y-ng > *, .ng-goiy > *, .as-panel button, .viewas-panel button) { border-radius: 9px !important; }
+html[data-skin="ios"]:not(#_):not(#__) :is(.dd-panel, .pk-panel, .goi-y, .ng-goiy) :is(input[type="search"], input[type="text"]) { border-radius: 10px !important; }
+
+/* NÚT ĐOẠN trong thanh lọc: tròn như rãnh và viên trượt chỉ báo (trước 8px) */
+html[data-skin="ios"]:not(#_):not(#__) :is(.seg, .hub-seg) > :is(button, a) { border-radius: 999px !important; }
+
