@@ -102,7 +102,10 @@ html[data-theme="sang"] #moApp { background: #eef0f5; }
   background: radial-gradient(circle at 46% 44%, var(--ma-quang) 0, transparent 22%), radial-gradient(circle at 56% 56%, var(--ma-quang-2) 0, transparent 26%);
   animation: ma-no 1.4s cubic-bezier(.2, .8, .2, 1) both;
 }
-#moApp .ma-khoi { position: relative; display: flex; flex-direction: column; align-items: center; gap: 18px; }
+/* Cả cụm (logo → lời nhắn, cao ~220px) mới là thứ cần nằm giữa màn; lưới chỉ
+ * canh khối logo + tên (145px) vì thanh và lời nhắn đặt tuyệt đối bên dưới →
+ * dời lên nửa phần chênh (38px). Ảnh khởi động iOS vẽ theo cùng độ dời. */
+#moApp .ma-khoi { position: relative; display: flex; flex-direction: column; align-items: center; gap: 18px; transform: translateY(-38px); }
 #moApp .ma-o { position: relative; width: 104px; height: 104px; }
 /* hai vòng sáng lan ra sau logo như gợn nước */
 #moApp .ma-o::before, #moApp .ma-o::after {
