@@ -150,8 +150,13 @@ group('Đóng mở ngăn kéo');
   ok('chọn base xong thì tự đóng (hashchange)',
     /addEventListener\('hashchange',\s*\(\)\s*=>\s*moNganKeo\(false\)\)/.test(JS));
   ok('Escape đóng được', /e\.key === 'Escape'[^;]*moNganKeo\(false\)/.test(JS));
-  ok('mở Cài đặt thì đóng ngăn kéo', /#btnSettings'\)\.onclick[^\n]*moNganKeo\(false\)/.test(JS));
-  ok('mở Thêm base thì đóng ngăn kéo', /#btnAdd'\)\.onclick[^\n]*moNganKeo\(false\)/.test(JS));
+  /* 09/10/2026 (anh Hùng: "thoát ra trong cài đặt thì lại văng ra màn hình tổng
+   * quan thì hơi kỳ"): trên máy tính vẫn đóng ngăn kéo; trên điện thoại cửa sổ
+   * phủ toàn màn nên giữ màn Cá nhân bên dưới, đóng cửa sổ là về đúng chỗ. */
+  ok('dongNganTrenMay chỉ đóng ngăn kéo trên máy tính',
+    /dongNganTrenMay\s*=\s*\(\)\s*=>\s*\{\s*if \(innerWidth > 640\) moNganKeo\(false\);/.test(JS));
+  ok('mở Cài đặt thì đóng ngăn kéo (máy tính)', /#btnSettings'\)\.onclick[^\n]*dongNganTrenMay\(\)/.test(JS));
+  ok('mở Thêm base thì đóng ngăn kéo (máy tính)', /#btnAdd'\)\.onclick[^\n]*dongNganTrenMay\(\)/.test(JS));
 }
 
 group('Tên màn trên thanh trên cùng');
