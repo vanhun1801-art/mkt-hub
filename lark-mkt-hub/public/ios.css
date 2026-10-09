@@ -4529,3 +4529,45 @@ html[data-skin="ios"][data-app="chinh-anh"][data-theme="toi"] .ng-chip { backgro
 @media (prefers-color-scheme: dark) { html[data-skin="ios"][data-app="chinh-anh"]:not([data-theme="sang"]) .ng-chip { background: var(--ios-o); } }
 /* Kho media: nhãn "Mới" chữ trắng trên --brand 3,91:1 → nền xanh đậm hơn. */
 html[data-skin="ios"][data-app="kho-media"] .o .ghim.ai { background: var(--ios-xanh-dam, #1f4ae0); }
+
+/* ==========================================================================
+   ĐÁP ỨNG MỌI CỠ MÀN (09/10/2026 — skill responsive-layout-builder: thử ở
+   320 · 375 · 768 · 1024 · 1280+ · 1920). Trước đây chỉ soát 390/820/1280/1440.
+   ========================================================================== */
+/* 320–360px (iPhone SE, Android nhỏ) */
+@media (max-width: 360px) {
+  /* Thanh tab: ở 390px nhãn được tràn để đọc trọn "Lịch tác nghiệp"; tới 320px
+     nhãn đó tràn sang ô "Báo cáo" bên cạnh → cho xuống tối đa 2 dòng. */
+  html[data-skin="ios"]:not(#_):not(#__) .ios-tabbar span:not(.ios-so) {
+    white-space: normal; text-align: center; line-height: 1.05; overflow: hidden;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  }
+  /* Quỹ: lưới thẻ số 1fr 1fr không co dưới con số dài nhất ("11.236.196 đ") →
+     cột phải bị cắt. Màn hẹp thì một cột. */
+  html[data-skin="ios"][data-app="quy-chi-phi"] .tong { grid-template-columns: minmax(0, 1fr) !important; }
+}
+@media (max-width: 640px) {
+  html[data-skin="ios"][data-app="quy-chi-phi"] .tong { grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); }
+  /* Social: đầu thẻ (tiêu đề · khoảng ngày · nút Phân quyền) xuống hàng thay vì cắt chữ nút. */
+  html[data-skin="ios"][data-app="social"] .card-head { flex-wrap: wrap; row-gap: 6px; }
+}
+/* Khách hàng: dải chọn kỳ (Hôm nay … Toàn bộ, 10 nút) không xuống dòng → cả trang
+   tràn ngang ở 768/1024px. Dải tự lướt ngang trong khung của nó. */
+html[data-skin="ios"][data-app="khach-hang"] #segKy { max-width: 100%; overflow-x: auto; scrollbar-width: none; flex-wrap: nowrap; }
+html[data-skin="ios"][data-app="khach-hang"] #segKy::-webkit-scrollbar { display: none; }
+/* Báo cáo ở tablet (641–1100px): hai dải tab + viên "Quản lý" + Hướng dẫn +
+   Xuất CSV chung một hàng → tab bị cắt ("Th…", "Cần hỗ t…"), viên đè lên tab
+   "Thiết lập". Phần tử đệm .lon thành chỗ ngắt dòng: nút ở trên, tab ở dưới. */
+@media (min-width: 641px) and (max-width: 1100px) {
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] body > header.topbar { flex-wrap: wrap !important; row-gap: 8px; }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] body > header.topbar > :not(.pills):not(.lon) { order: 0; }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] body > header.topbar > #chipToi { margin-left: auto; }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] body > header.topbar > .lon { order: 1; flex: 1 1 100% !important; height: 0; display: block !important; }
+  html[data-skin="ios"]:not(#_):not(#__)[data-app="bao-cao"] body > header.topbar > .pills { order: 2; flex: 0 1 auto; }
+}
+/* Màn rất rộng (≥1700px): form nhập giãn trọn 1600px+, ô nhập dài cả nghìn
+   pixel — mắt phải lia quá xa. Báo cáo công việc và Chỉnh ảnh giới hạn nội dung
+   1440px, canh giữa; các app bảng số giữ trọn bề ngang. */
+@media (min-width: 1700px) {
+  html[data-skin="ios"][data-app="bao-cao"] main#man, html[data-skin="ios"][data-app="chinh-anh"] main#view { max-width: 1440px; margin-left: auto !important; margin-right: auto !important; width: 100%; }
+}
