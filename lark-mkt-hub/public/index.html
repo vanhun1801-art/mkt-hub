@@ -164,6 +164,15 @@ html[data-theme="sang"] #moApp { background: #eef0f5; }
 #moApp .ma-dau { z-index: 2; }
 @keyframes ma-lia { from { transform: translateX(-50px); } to { transform: translateX(170px); } }
 @keyframes ma-chop { from { opacity: .6; transform: scale(.85); } to { opacity: 1; transform: scale(1.12); } }
+/* Lời nhắn nhẹ dưới thanh (anh Hùng 09/10): mỗi lần mở / tải lại một câu khác,
+ * chọn ngẫu nhiên, không lặp câu vừa thấy. Chữ nhỏ, xám, hiện sau thanh. */
+#moApp .ma-loi {
+  position: absolute; left: 50%; top: calc(104px + 18px + 40px + 6px + 18px); width: 300px; margin-left: -150px;
+  text-align: center; font: 500 13px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  color: #6e6e73; text-wrap: balance; animation: ma-hien .6s ease .95s both;
+}
+@media (prefers-color-scheme: dark) { html:not([data-theme="sang"]) #moApp .ma-loi { color: #a1a1a6; } }
+html[data-theme="toi"] #moApp .ma-loi { color: #a1a1a6; }
 @media (prefers-color-scheme: dark) { html:not([data-theme="sang"]) #moApp .ma-thanh { background: rgba(255, 255, 255, .1); } }
 html[data-theme="toi"] #moApp .ma-thanh { background: rgba(255, 255, 255, .1); }
 @media (prefers-color-scheme: dark) { html:not([data-theme="sang"]) #moApp .ma-ten { color: #f2f2f7; } }
@@ -174,7 +183,7 @@ html[data-theme="toi"] #moApp .ma-ten { color: #f2f2f7; }
 /* kết thúc: logo phóng to lướt về phía người xem, cả màn tan — như iOS mở app */
 #moApp.xong { opacity: 0; visibility: hidden; pointer-events: none; }
 #moApp.xong .ma-logo { animation: ma-ra .5s cubic-bezier(.5, 0, .75, 0) forwards; }
-#moApp.xong :is(.ma-ten, .ma-phu, .ma-cham) { animation: ma-tat .25s ease forwards; }
+#moApp.xong :is(.ma-ten, .ma-phu, .ma-loi, .ma-cham) { animation: ma-tat .25s ease forwards; }
 #moApp.xong .ma-o::before, #moApp.xong .ma-o::after { animation: none; opacity: 0; }
 @keyframes ma-no { 0% { transform: scale(.2); opacity: 0; } 55% { opacity: 1; } 100% { transform: scale(1); opacity: .75; } }
 @keyframes ma-len {
@@ -198,11 +207,45 @@ html[data-theme="toi"] #moApp .ma-ten { color: #f2f2f7; }
     <div class="ma-o"><div class="ma-logo"><img src="/logo-app-180.png?v=BUILD" alt="" width="104" height="104" decoding="sync"></div></div>
     <div class="ma-ten">Marketing Hub</div>
     <div class="ma-phu"><div class="ma-thanh"><div class="ma-chay"><i class="ma-dau"></i></div></div></div>
+    <div class="ma-loi" id="maLoi"></div>
   </div>
 </div>
 <script>
 (function () {
   var el = document.getElementById('moApp'), t0 = Date.now(), xong = false;
+  /* Lời nhắn nhẹ: một câu mỗi lần mở, không trùng câu lần trước. */
+  (function () {
+    var en = false;
+    try { var l = localStorage.getItem('hub.lang') || ''; en = l ? l === 'en' : /^en/i.test(navigator.language || ''); } catch (e) {}
+    var ds = en ? [
+      'Feeling tense? Stand up and walk around for a minute.',
+      'Take care of your health, and life gets brighter.',
+      'Drink a glass of water. Your body will thank you.',
+      'Rest your eyes: look 6 metres away for 20 seconds.',
+      'Roll your shoulders and take a deep breath.',
+      'One thing at a time is enough.',
+      'Thank a teammate today. Small words go a long way.',
+      'A short break often brings the best ideas.'
+    ] : [
+      'Nếu thấy căng thẳng, hãy đứng lên đi lại một chút.',
+      'Giữ gìn sức khoẻ, để cuộc sống thêm vui vẻ.',
+      'Uống một ngụm nước nhé, cơ thể sẽ cảm ơn bạn.',
+      'Cho mắt nghỉ: nhìn ra xa 20 giây rồi làm tiếp.',
+      'Thả lỏng vai, hít một hơi thật sâu.',
+      'Mỗi lúc một việc là đủ rồi.',
+      'Hôm nay nhớ cảm ơn một đồng đội nhé.',
+      'Nghỉ ngắn một chút, ý tưởng hay thường đến lúc đó.',
+      'Ngồi thẳng lưng, mỉm cười một cái nào.',
+      'Làm chậm mà chắc vẫn hơn vội mà sai.',
+      'Chúc bạn một ngày làm việc nhẹ nhàng.',
+      'Xong việc nhớ về sớm, nghỉ ngơi cho tốt nhé.'
+    ];
+    var cu = -1, i;
+    try { cu = +(localStorage.getItem('hub.loiNhan') || -1); } catch (e) {}
+    do { i = Math.floor(Math.random() * ds.length); } while (i === cu && ds.length > 1);
+    try { localStorage.setItem('hub.loiNhan', String(i)); } catch (e) {}
+    var o = document.getElementById('maLoi'); if (o) o.textContent = ds[i];
+  })();
   /* Thanh tiến trình: `dich` là mức đã thật sự đạt (nhích dần khi chờ, 1 khi nội
    * dung đủ); thanh hiện chạy mượt về `dich` nhưng không vượt nhịp thời gian tối
    * thiểu 1,45s — máy nhanh vẫn thấy thanh đầy dần, không giật một phát. Đầy rồi
