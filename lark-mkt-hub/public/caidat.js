@@ -61,7 +61,7 @@ function cdNhom() {
       /* Đặt cạnh Phân quyền vì cùng một loại việc: tác động tới màn hình của
        * người khác. Khác Phân quyền ở chỗ nó tác động NGAY và CHẶN. */
       { k: 'thong-bao', ten: 'Thông báo tới nhân sự', ic: 'chuong',
-        mo: 'Popup chặn màn hình, buộc đọc mới dùng app tiếp',
+        mo: 'Thông báo cả phòng phải đọc trước khi dùng app',
         tu: 'popup thông báo bắt buộc đọc gấp phổ biến nhắc cả phòng', ql: true },
       /* Cửa vào cho người KHÔNG có Lark. Đặt ngay dưới Phân quyền vì duyệt xong
        * là phải sang đó cấp base cho họ — duyệt không tự cho quyền gì cả. */
@@ -76,9 +76,9 @@ function cdNhom() {
     })) },
     { nhom: 'Nâng cao', ds: [
       { k: 'kiem-tra', ten: 'Tình trạng máy chủ', ic: 'may',
-        mo: 'Hỏi từng base xem đọc được gì · địa chỉ công khai, app Lark, bản đang chạy',
+        mo: 'Base nào đang đọc được, bản đang chạy',
         tu: 'url link app id build commit chế độ chạy render hệ thống kiểm tra', ql: true },
-      { k: 'log', ten: 'Log app con', ic: 'may', mo: 'Xem stderr thật của app con', ql: true },
+      { k: 'log', ten: 'Log app con', ic: 'may', mo: 'Nhật ký lỗi của từng app', ql: true },
     ] },
   ];
 }
@@ -156,8 +156,8 @@ function modalCaiDat(mucDau) {
       '<div class="cd cd-dt" id="cdDt" data-trang="' + (mucDau ? 'con' : 'goc') + '">' +
         '<section class="cd-man cd-goc"><h2 class="cd-to">Cài đặt</h2><nav class="cd-nav" id="cdNav"></nav></section>' +
         '<section class="cd-man cd-con" aria-live="polite">' +
-          '<div class="cd-thanh"><button type="button" class="cd-lui" data-cd-lui>' +
-            '<span aria-hidden="true">‹</span> Cài đặt</button>' +
+          '<div class="cd-thanh"><button type="button" class="cd-lui" data-cd-lui aria-label="Quay lại Cài đặt">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg></button>' +
             '<b id="cdTenTrang">' + esc(cdTenMuc(S.cdMuc)) + '</b></div>' +
           '<div class="cd-noi" id="cdNoi"></div>' +
         '</section>' +
@@ -205,10 +205,10 @@ function veCdNav() {
       nhom.map((g) =>
         '<div class="cd-nhom">' + esc(g.nhom) + '</div><div class="cd-khoi">' +
         g.ds.map((m) =>
-          '<button class="cd-item" data-cd="' + m.k + '">' +
-          '<span class="cd-ic" style="background:' + esc(cdMau(m.k)) + '">' + icon(m.ic) + '</span>' +
-          '<span class="cd-tx"><b>' + esc(m.ten) + '</b></span>' +
-          '<span class="cd-chev" aria-hidden="true">›</span></button>').join('') +
+          '<button class="cd-item" data-cd="' + m.k + '" style="--mau:' + esc(cdMau(m.k)) + '">' +
+          '<span class="cd-ic">' + icon(m.ic) + '</span>' +
+          '<span class="cd-tx"><b>' + esc(m.ten) + '</b>' + (m.mo ? '<small>' + esc(m.mo) + '</small>' : '') + '</span>' +
+          '<span class="cd-chev" aria-hidden="true"></span></button>').join('') +
         '</div>').join('');
     ganCdTim();
     return;

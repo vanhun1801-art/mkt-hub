@@ -4795,3 +4795,64 @@ html[data-skin="ios"][data-app="khach-hang"] #segKy::-webkit-scrollbar { display
   html[data-skin="ios"]:not(#_):not(#__):not(#___) .mob-bar > .ios-nut-loc:not([hidden]),
   html[data-skin="ios"]:not(#_):not(#__):not(#___) .mob-bar > .ios-nut-loc[hidden] + #btnMobLamMoi { margin-left: auto !important; }
 }
+
+/* CÀI ĐẶT ĐIỆN THOẠI · PHONG CÁCH RIÊNG (09/10/2026, anh Hùng: "vẫn quá giống
+   iOS, cần chỉnh lại mang phong cách giống thôi"). Giữ cách tổ chức (danh sách
+   nhóm → trang con trượt vào) nhưng bỏ các dấu hiệu riêng của iOS:
+   - ô biểu tượng màu ĐẶC → ô màu nhạt + nét màu (kiểu thanh bên của Hub);
+   - tiêu đề 34px · nhóm CHỮ HOA xám → tiêu đề 26px · nhóm chữ thường đậm vừa;
+   - dòng chỉ có tên → tên + một dòng mô tả ngắn (đọc là biết vào làm gì);
+   - "‹ Cài đặt" chữ xanh, tiêu đề canh giữa → nút tròn ← như nút ⟳ của app,
+     tiêu đề canh trái cạnh nút. */
+@media (max-width: 640px) {
+  html[data-skin="ios"] .cd-dt .cd-to { font-size: 26px !important; letter-spacing: -.01em; margin: 14px 20px 12px !important; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .cd-dt .cd-nhom,
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .cd-dt .cd-muc-nho {
+    text-transform: none !important; letter-spacing: 0 !important; font-size: 13px !important; font-weight: 600 !important;
+    color: var(--ios-chu-2) !important; margin: 20px 20px 8px !important;
+  }
+  html[data-skin="ios"] .cd-dt .cd-khoi { border-radius: 16px; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .cd-dt .cd-item { min-height: 60px; padding: 10px 14px !important; gap: 12px; align-items: center; }
+  html[data-skin="ios"] .cd-dt .cd-item + .cd-item::before { left: 14px !important; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .cd-dt .cd-ic {
+    width: 36px !important; height: 36px !important; border-radius: 11px !important;
+    background: color-mix(in srgb, var(--mau, #8e8e93) 16%, transparent) !important; color: var(--mau, #8e8e93) !important;
+  }
+  html[data-skin="ios"] .cd-dt .cd-ic svg { width: 19px !important; height: 19px !important; }
+  html[data-skin="ios"] .cd-dt .cd-tx { display: flex; flex-direction: column; gap: 2px; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .cd-dt .cd-tx b { font-size: 15px !important; font-weight: 600 !important; }
+  html[data-skin="ios"] .cd-dt .cd-tx small {
+    font-size: 12.5px; line-height: 1.35; color: var(--ios-chu-2);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  /* mũi tên mảnh vẽ bằng viền, thay ký tự › của iOS */
+  html[data-skin="ios"] .cd-dt .cd-chev {
+    flex: none; width: 7px; height: 7px; margin-right: 4px; font-size: 0;
+    border-top: 1.8px solid var(--ios-chu-3); border-right: 1.8px solid var(--ios-chu-3); transform: rotate(45deg);
+  }
+  /* trang con: nút tròn ← + tiêu đề canh trái */
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .cd-dt .cd-thanh {
+    display: flex !important; align-items: center; gap: 10px; height: 56px; padding: 0 60px 0 14px !important;
+  }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .cd-dt .cd-lui {
+    width: 36px !important; height: 36px !important; min-height: 36px !important; padding: 0 !important; flex: none;
+    border-radius: 50% !important; display: grid !important; place-items: center;
+    background: var(--ios-o) !important; color: var(--ios-chu) !important;
+  }
+  html[data-skin="ios"] .cd-dt .cd-lui svg { width: 18px; height: 18px; }
+  html[data-skin="ios"]:not(#_):not(#__) .cd-dt #cdTenTrang {
+    font-size: 18px !important; font-weight: 700 !important; text-align: left !important; padding: 0 !important;
+    flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  /* hàng thiết lập trong trang con: cỡ chữ của app, không phải 17px của iOS */
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .cd-dt .cd-hang { border-radius: 0; }
+  html[data-skin="ios"] .cd-dt .cd-hang:not(.cd-hang + .cd-hang) { border-top-left-radius: 16px !important; border-top-right-radius: 16px !important; }
+  html[data-skin="ios"] .cd-dt .cd-hang:not(:has(+ .cd-hang)) { border-bottom-left-radius: 16px !important; border-bottom-right-radius: 16px !important; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .cd-dt .cd-hang-tx b { font-size: 15px !important; font-weight: 600 !important; }
+  /* đóng (✕) cùng cỡ nút tròn ← */
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .modal.cd-toan > .modal-head { padding: 10px 14px !important; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .modal.cd-toan > .modal-head .btn {
+    width: 36px !important; height: 36px !important; min-height: 36px !important; padding: 0 !important; border-radius: 50% !important;
+    background: var(--ios-o) !important; font-size: 18px !important;
+  }
+}

@@ -124,6 +124,9 @@
     /* Thông báo chặn màn hình */
     'Thông báo tới nhân sự': 'Announcements',
     'Popup chặn màn hình, buộc đọc mới dùng app tiếp': 'Full-screen popup people must read before continuing',
+    'Thông báo cả phòng phải đọc trước khi dùng app': 'Team notices people must read before using the app',
+    'Base nào đang đọc được, bản đang chạy': 'Which bases are readable, which build is running',
+    'Nhật ký lỗi của từng app': 'Error log of each app',
     'Tôi đã đọc': 'I have read this',
     'Soạn thông báo': 'New announcement',
     'Sửa thông báo': 'Edit announcement',

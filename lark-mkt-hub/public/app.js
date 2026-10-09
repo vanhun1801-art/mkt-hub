@@ -3140,10 +3140,14 @@ window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && document.body.classList.contains('rail-mo')) moNganKeo(false);
 });
 
-$('#btnAdd').onclick = () => { moNganKeo(false); modalThem(); };
+/* Điện thoại: KHÔNG đóng màn Cá nhân trước khi mở cửa sổ (09/10/2026, anh Hùng:
+ * "thoát ra trong cài đặt thì lại văng ra màn hình tổng quan thì hơi kỳ"). Cửa sổ
+ * phủ toàn màn, đóng nó là về đúng màn Cá nhân đã mở. Máy tính vẫn đóng ngăn kéo. */
+const dongNganTrenMay = () => { if (innerWidth > 640) moNganKeo(false); };
+$('#btnAdd').onclick = () => { dongNganTrenMay(); modalThem(); };
 /* Gọi qua hàm bọc, không gán thẳng: bản Cài đặt mới nằm ở caidat.js (nạp sau file
  * này) và ghi đè modalCaiDat — gán thẳng là giữ mãi bản cũ đã bắt được lúc nạp. */
-$('#btnSettings').onclick = () => { moNganKeo(false); modalCaiDat(); };
+$('#btnSettings').onclick = () => { dongNganTrenMay(); modalCaiDat(); };
 /**
  * MỘT nút Làm mới cho cả ứng dụng.
  *
