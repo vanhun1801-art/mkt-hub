@@ -848,7 +848,6 @@
     'Hiếu (bố mẹ, con)': 'Bereavement (3 days)',
     'Nghỉ kết hôn': 'Wedding leave',
     'Phòng Marketing': 'Marketing team',
-    'Ứng dụng phòng ban Marketing': 'Marketing team app',
     'Tháng sau': 'Next month',
     'Về lịch của tôi': 'Back to my schedule',
     'Ghi chú cho quản lý / HCNS': 'Note for manager / HR',

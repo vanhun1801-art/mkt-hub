@@ -126,23 +126,36 @@ html[data-theme="sang"] #moApp { background: #eef0f5; }
   color: #1c1c1e; animation: ma-chu .7s cubic-bezier(.2, .8, .2, 1) .5s both;
 }
 #moApp .ma-phu {
-  position: absolute; left: -120px; right: -120px; top: calc(104px + 18px + 33px); text-align: center; white-space: nowrap;
-  animation: ma-hien .6s ease .8s both;
+  position: absolute; left: 50%; top: calc(104px + 18px + 40px); width: 156px; margin-left: -78px;
+  animation: ma-hien .5s ease .7s both;
 }
-/* nhãn phụ: viên kính mảnh, chấm màu thương hiệu dẫn chữ — đọc như một nhãn,
- * không phải dòng chữ xám lửng lơ dưới tên */
-#moApp .ma-phu span {
-  display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px 5px 10px; border-radius: 999px;
-  font: 600 12.5px/1.2 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
-  letter-spacing: .01em; color: #48484a;
-  background: rgba(255, 255, 255, .7); box-shadow: inset 0 0 0 .5px rgba(0, 0, 0, .08), 0 4px 14px -6px rgba(30, 90, 200, .25);
+/* THANH TIẾN TRÌNH (anh Hùng 09/10: "hiển thị thanh tiến trình có màu sắc, load
+ * tí hiệu ứng ánh sáng"). Rãnh mảnh; phần đã chạy là dải màu thương hiệu có
+ * quầng sáng, một vệt sáng lướt qua liên tục. Độ dài theo --tien (0..1): script
+ * dưới nhích dần tới 90% trong lúc chờ, nội dung đủ thì chạy nốt 100% rồi tan. */
+#moApp .ma-thanh {
+  position: relative; height: 5px; border-radius: 999px; overflow: hidden;
+  background: rgba(60, 60, 67, .12);
 }
-#moApp .ma-phu span::before {
-  content: ""; width: 6px; height: 6px; border-radius: 50%;
-  background: linear-gradient(135deg, #3d8bff, #1fc7a0); box-shadow: 0 0 6px rgba(31, 199, 160, .7);
+#moApp .ma-chay {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 100%; border-radius: inherit;
+  transform-origin: 0 50%; transform: scaleX(var(--tien, .06));
+  background: linear-gradient(90deg, #3d8bff, #22b8d6 55%, #1fc7a0);
+  box-shadow: 0 0 10px rgba(34, 184, 214, .65);
 }
-@media (prefers-color-scheme: dark) { html:not([data-theme="sang"]) #moApp .ma-phu span { color: #d1d1d6; background: rgba(255, 255, 255, .07); box-shadow: inset 0 0 0 .5px rgba(255, 255, 255, .14); } }
-html[data-theme="toi"] #moApp .ma-phu span { color: #d1d1d6; background: rgba(255, 255, 255, .07); box-shadow: inset 0 0 0 .5px rgba(255, 255, 255, .14); }
+#moApp .ma-chay::after {      /* vệt sáng lướt */
+  content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 40%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .85), transparent);
+  animation: ma-lia 1.15s ease-in-out infinite;
+}
+#moApp .ma-phu::after {       /* quầng sáng mềm toả dưới thanh */
+  content: ""; position: absolute; left: 10%; right: 10%; top: -6px; height: 17px; border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(34, 184, 214, .35), transparent); filter: blur(4px);
+  z-index: -1; pointer-events: none;
+}
+@keyframes ma-lia { from { transform: translateX(-110%); } to { transform: translateX(260%); } }
+@media (prefers-color-scheme: dark) { html:not([data-theme="sang"]) #moApp .ma-thanh { background: rgba(255, 255, 255, .1); } }
+html[data-theme="toi"] #moApp .ma-thanh { background: rgba(255, 255, 255, .1); }
 @media (prefers-color-scheme: dark) { html:not([data-theme="sang"]) #moApp .ma-ten { color: #f2f2f7; } }
 html[data-theme="toi"] #moApp .ma-ten { color: #f2f2f7; }
 #moApp .ma-cham { display: flex; gap: 6px; opacity: 0; margin-top: 18px; animation: ma-hien .4s ease 1.6s both; }
@@ -174,20 +187,33 @@ html[data-theme="toi"] #moApp .ma-ten { color: #f2f2f7; }
   <div class="ma-khoi">
     <div class="ma-o"><div class="ma-logo"><img src="/logo-app-180.png?v=BUILD" alt="" width="104" height="104" decoding="sync"></div></div>
     <div class="ma-ten">Marketing Hub</div>
-    <div class="ma-phu"><span>Ứng dụng phòng ban Marketing</span></div>
+    <div class="ma-phu"><div class="ma-thanh"><div class="ma-chay"></div></div></div>
   </div>
 </div>
 <script>
 (function () {
   var el = document.getElementById('moApp'), t0 = Date.now(), xong = false;
-  function an() {
-    if (xong) return; xong = true;
-    var cho = Math.max(0, 1450 - (Date.now() - t0));     // đủ thời gian xem trọn màn mở (~1,45s)
-    setTimeout(function () {
-      el.classList.add('xong'); window.__moAppXong = Date.now() - t0;
-      setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 600);
-    }, cho);
+  /* Thanh tiến trình: `dich` là mức đã thật sự đạt (nhích dần khi chờ, 1 khi nội
+   * dung đủ); thanh hiện chạy mượt về `dich` nhưng không vượt nhịp thời gian tối
+   * thiểu 1,45s — máy nhanh vẫn thấy thanh đầy dần, không giật một phát. Đầy rồi
+   * mới tan. */
+  var dich = .06, hien = 0, sanSang = false;
+  function ve() {
+    if (xong) return;
+    var tg = Math.min(1, (Date.now() - t0) / 1450);
+    hien += (Math.min(dich, Math.max(tg, .06)) - hien) * .14;
+    if (sanSang && tg >= 1 && hien > .995) hien = 1;
+    el.style.setProperty('--tien', hien.toFixed(3));
+    if (hien === 1) { xong = true; setTimeout(tan, 160); return; }
+    requestAnimationFrame(ve);
   }
+  function tan() {
+    el.classList.add('xong'); window.__moAppXong = Date.now() - t0;
+    setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 600);
+  }
+  function dat(v) { dich = v; }
+  function an() { if (sanSang) return; sanSang = true; dat(1); }
+  requestAnimationFrame(ve);
   /* Chỉ tan khi nội dung THẬT đã hiện đủ (anh Hùng: "khi hiện lên thì nội dung bên
      trong đã load full rồi mới tạo cảm giác không trễ"):
      - đang ở Tổng quan: trang đã nạp và không còn khung xương nào trong #pageHome;
@@ -205,7 +231,8 @@ html[data-theme="toi"] #moApp .ma-ten { color: #f2f2f7; }
     catch (e) { return true; }
   }
   window.__anMoApp = an;
-  (function soi() { if (xong) return; if (du()) an(); else setTimeout(soi, 120); })();
+  /* chưa đủ thì nhích dần, chậm lại khi gần 90% — không bao giờ tự đầy */
+  (function soi() { if (sanSang) return; if (du()) an(); else { dat(dich + (.9 - dich) * .07); setTimeout(soi, 120); } })();
   setTimeout(an, 8000);
 })();
 </script>
