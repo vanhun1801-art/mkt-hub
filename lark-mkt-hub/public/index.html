@@ -89,49 +89,79 @@
      không hiện khi chuyển giữa các app con. -->
 <style>
 #moApp {
-  position: fixed; inset: 0; z-index: 2147483000; display: grid; place-items: center;
-  background: #eef0f5; transition: opacity .42s ease, visibility 0s linear .42s;
+  position: fixed; inset: 0; z-index: 2147483000; display: grid; place-items: center; overflow: hidden;
+  background: #eef0f5; transition: opacity .5s ease, visibility 0s linear .5s;
+  --ma-quang: rgba(51, 112, 255, .30); --ma-quang-2: rgba(0, 185, 107, .22);
 }
-@media (prefers-color-scheme: dark) { html:not([data-theme="sang"]) #moApp { background: #0b0b0e; } }
-html[data-theme="toi"] #moApp { background: #0b0b0e; }
+@media (prefers-color-scheme: dark) { html:not([data-theme="sang"]) #moApp { background: #0b0b0e; --ma-quang: rgba(51, 112, 255, .38); --ma-quang-2: rgba(0, 185, 107, .26); } }
+html[data-theme="toi"] #moApp { background: #0b0b0e; --ma-quang: rgba(51, 112, 255, .38); --ma-quang-2: rgba(0, 185, 107, .26); }
 html[data-theme="sang"] #moApp { background: #eef0f5; }
-#moApp .ma-khoi { display: flex; flex-direction: column; align-items: center; gap: 18px; }
+/* quầng màu thương hiệu toả ra từ tâm rồi lặng xuống thành nền dịu */
+#moApp::before {
+  content: ""; position: absolute; left: 50%; top: 50%; width: 140vmax; height: 140vmax; margin: -70vmax 0 0 -70vmax;
+  background: radial-gradient(circle at 46% 44%, var(--ma-quang) 0, transparent 22%), radial-gradient(circle at 56% 56%, var(--ma-quang-2) 0, transparent 26%);
+  animation: ma-no 1.4s cubic-bezier(.2, .8, .2, 1) both;
+}
+#moApp .ma-khoi { position: relative; display: flex; flex-direction: column; align-items: center; gap: 18px; }
+#moApp .ma-o { position: relative; width: 104px; height: 104px; }
+/* hai vòng sáng lan ra sau logo như gợn nước */
+#moApp .ma-o::before, #moApp .ma-o::after {
+  content: ""; position: absolute; inset: 0; border-radius: 30px; border: 2px solid rgba(51, 140, 255, .55);
+  animation: ma-gon 1.2s cubic-bezier(.2, .7, .3, 1) .35s both;
+}
+#moApp .ma-o::after { animation-delay: .55s; border-color: rgba(0, 185, 140, .45); }
 #moApp .ma-logo {
-  position: relative; width: 104px; height: 104px; border-radius: 26px; overflow: hidden;
-  box-shadow: 0 18px 40px -12px rgba(30, 90, 200, .45), 0 0 0 .5px rgba(0, 0, 0, .06);
-  animation: ma-len .62s cubic-bezier(.2, .9, .25, 1.15) both;
+  position: relative; z-index: 1; width: 104px; height: 104px; border-radius: 26px; overflow: hidden;
+  box-shadow: 0 22px 48px -14px rgba(30, 90, 200, .55), 0 0 0 .5px rgba(0, 0, 0, .06);
+  animation: ma-len .8s cubic-bezier(.18, .9, .22, 1.2) both;
 }
 #moApp .ma-logo img { display: block; width: 100%; height: 100%; }
-#moApp .ma-logo::after {      /* vệt sáng lướt qua mặt kính một lần */
+#moApp .ma-logo::after {      /* vệt sáng lướt qua mặt kính */
   content: ""; position: absolute; inset: -40%; transform: translateX(-120%) rotate(20deg);
-  background: linear-gradient(90deg, transparent 40%, rgba(255, 255, 255, .55) 50%, transparent 60%);
-  animation: ma-loe 1.1s ease .45s both;
+  background: linear-gradient(90deg, transparent 40%, rgba(255, 255, 255, .6) 50%, transparent 60%);
+  animation: ma-loe 1s ease .6s both;
 }
 #moApp .ma-ten {
-  font: 650 17px/1.2 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
-  letter-spacing: -.01em; color: #1c1c1e; opacity: 0; animation: ma-chu .5s ease .28s both;
+  font: 700 19px/1.2 -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif;
+  color: #1c1c1e; animation: ma-chu .7s cubic-bezier(.2, .8, .2, 1) .5s both;
+}
+#moApp .ma-phu {
+  position: absolute; left: -120px; right: -120px; top: calc(104px + 18px + 26px); text-align: center; white-space: nowrap;
+  font: 500 13px/1.2 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  color: #8e8e93; letter-spacing: .02em; animation: ma-hien .6s ease .8s both;
 }
 @media (prefers-color-scheme: dark) { html:not([data-theme="sang"]) #moApp .ma-ten { color: #f2f2f7; } }
 html[data-theme="toi"] #moApp .ma-ten { color: #f2f2f7; }
-#moApp .ma-cham { display: flex; gap: 6px; opacity: 0; animation: ma-chu .4s ease .9s both; }
+#moApp .ma-cham { display: flex; gap: 6px; opacity: 0; margin-top: 18px; animation: ma-hien .4s ease 1.6s both; }
 #moApp .ma-cham i { width: 6px; height: 6px; border-radius: 50%; background: #8e8e93; animation: ma-nhip 1s ease-in-out infinite; }
 #moApp .ma-cham i:nth-child(2) { animation-delay: .15s; } #moApp .ma-cham i:nth-child(3) { animation-delay: .3s; }
+/* kết thúc: logo phóng to lướt về phía người xem, cả màn tan — như iOS mở app */
 #moApp.xong { opacity: 0; visibility: hidden; pointer-events: none; }
-#moApp.xong .ma-logo { animation: ma-ra .42s cubic-bezier(.4, 0, .2, 1) forwards; }
-@keyframes ma-len { from { transform: scale(.82); opacity: 0; } to { transform: none; opacity: 1; } }
+#moApp.xong .ma-logo { animation: ma-ra .5s cubic-bezier(.5, 0, .75, 0) forwards; }
+#moApp.xong :is(.ma-ten, .ma-phu, .ma-cham) { animation: ma-tat .25s ease forwards; }
+#moApp.xong .ma-o::before, #moApp.xong .ma-o::after { animation: none; opacity: 0; }
+@keyframes ma-no { 0% { transform: scale(.2); opacity: 0; } 55% { opacity: 1; } 100% { transform: scale(1); opacity: .75; } }
+@keyframes ma-len {
+  0% { transform: scale(.55) rotate(-10deg); opacity: 0; filter: blur(8px); }
+  60% { transform: scale(1.07) rotate(2deg); opacity: 1; filter: blur(0); }
+  100% { transform: none; opacity: 1; filter: none; }
+}
+@keyframes ma-gon { 0% { transform: scale(1); opacity: 0; } 15% { opacity: 1; } 100% { transform: scale(1.9); opacity: 0; } }
 @keyframes ma-loe { to { transform: translateX(120%) rotate(20deg); } }
-@keyframes ma-chu { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes ma-chu { from { opacity: 0; letter-spacing: .32em; filter: blur(4px); } to { opacity: 1; letter-spacing: -.01em; filter: none; } }
+@keyframes ma-hien { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @keyframes ma-nhip { 0%, 100% { opacity: .3; } 50% { opacity: 1; } }
-@keyframes ma-ra { to { transform: scale(1.18); opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { #moApp, #moApp * { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+@keyframes ma-ra { to { transform: scale(2.4); opacity: 0; filter: blur(6px); } }
+@keyframes ma-tat { to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { #moApp, #moApp *, #moApp::before { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
 </style>
 </head>
 <body>
 <div id="moApp" aria-hidden="true">
   <div class="ma-khoi">
-    <div class="ma-logo"><img src="/logo-app-180.png?v=BUILD" alt="" width="104" height="104" decoding="sync"></div>
+    <div class="ma-o"><div class="ma-logo"><img src="/logo-app-180.png?v=BUILD" alt="" width="104" height="104" decoding="sync"></div></div>
     <div class="ma-ten">Marketing Hub</div>
-    <div class="ma-cham"><i></i><i></i><i></i></div>
+    <div class="ma-phu">Rooty Trip · Phòng Marketing</div>
   </div>
 </div>
 <script>
@@ -139,17 +169,31 @@ html[data-theme="toi"] #moApp .ma-ten { color: #f2f2f7; }
   var el = document.getElementById('moApp'), t0 = Date.now(), xong = false;
   function an() {
     if (xong) return; xong = true;
-    var cho = Math.max(0, 900 - (Date.now() - t0));      // đủ thời gian xem logo nổi lên
+    var cho = Math.max(0, 1450 - (Date.now() - t0));     // đủ thời gian xem trọn màn mở (~1,45s)
     setTimeout(function () {
-      el.classList.add('xong');
+      el.classList.add('xong'); window.__moAppXong = Date.now() - t0;
       setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 600);
     }, cho);
   }
-  /* Trang chủ vẽ xong số đầu tiên (khung xương đã thay bằng số thật) hoặc trang
-     nạp xong — cái nào tới trước; tối đa 4 giây thì tự tan để không chặn người dùng. */
+  /* Chỉ tan khi nội dung THẬT đã hiện đủ (anh Hùng: "khi hiện lên thì nội dung bên
+     trong đã load full rồi mới tạo cảm giác không trễ"):
+     - đang ở Tổng quan: trang đã nạp và không còn khung xương nào trong #pageHome;
+     - mở thẳng một app: khung của app đã bỏ lớp chờ và trong app không còn khung xương.
+     Trần 8 giây để mạng/máy chủ chậm không chặn người dùng mãi (ba chấm nhịp báo
+     đang chờ). */
+  function du() {
+    if (document.readyState !== 'complete') return false;
+    var home = document.getElementById('pageHome');
+    if (home && !home.hidden) return !!home.querySelector('.khoi, .nhom-base') && !home.querySelector('.kx, .kx-vung');
+    var f = [].slice.call(document.querySelectorAll('#stage iframe')).filter(function (x) { return x.offsetParent && !x.closest('.khung-ngam'); })[0];
+    if (!f) return false;
+    if (f.parentNode.querySelector('.frame-loading')) return false;
+    try { var d = f.contentDocument; return !!(d && d.readyState === 'complete' && !d.querySelector('.kx, .kx-vung, [data-kx-xem]')); }
+    catch (e) { return true; }
+  }
   window.__anMoApp = an;
-  window.addEventListener('load', an);
-  setTimeout(an, 4000);
+  (function soi() { if (xong) return; if (du()) an(); else setTimeout(soi, 120); })();
+  setTimeout(an, 8000);
 })();
 </script>
 
