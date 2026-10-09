@@ -26,6 +26,9 @@ Lớp giao diện chung nằm ở `public/ios.css`, `public/ios.js` (lớp vỏ)
   - thẻ hướng dẫn thao tác trên máy tính: ẩn;
   - nhóm rỗng (số 0): ẩn;
   - dòng giải thích dài dưới tiêu đề khối, chữ "rê chuột": ẩn.
+  - đoạn chữ nhỏ (≤ 12,5px) dài từ 3 dòng: ẩn, trừ khi nằm trong cửa sổ, form hay mục thu gọn;
+  - nhóm có số 0 kèm câu "Không có… / Chưa có…": ẩn;
+  - hộp báo lỗi kết nối: chỉ giữ dòng báo lỗi và nút sửa.
 
   Gặp màn mới thì tự áp đúng tinh thần đó, không đợi anh chỉ từng chỗ.
 - Soát ở các khổ 320, 375, 390 và 430px, cả giao diện sáng lẫn tối.

@@ -451,7 +451,7 @@
    * mới cùng khoá thì trả lại đúng chỗ ngay nhịp vẽ đầu tiên. */
   const CUON_NGANG = '.topbar .tabs, .tabsbar .tabs, .topbar > .pills, .filters, .filters-dash, .filters-work, .cal-filters, .loc, .loc-hang, .cxl-loc, .fgroup > .pills, .fgroup > .seg';
   const choCuon = new Map();
-  const khoaCuon = (d) => (d.id || '') + '|' + String(d.className).replace(/\s*(ios-\S+|on|tg-dong)/g, '') + '|' + (d.parentElement ? (d.parentElement.id || d.parentElement.className) : '');
+  const khoaCuon = (d) => (d.id || '') + '|' + String(d.className).replace(/\s*(ios-\S+|on|tg-dong)\b/g, '') + '|' + (d.parentElement ? (d.parentElement.id || d.parentElement.className) : '');
   document.addEventListener('scroll', (e) => {
     const d = e.target;
     if (d && d.matches && d.matches(CUON_NGANG)) { choCuon.set(khoaCuon(d), d.scrollLeft); d.__iosDaGiu = true; }
@@ -1196,6 +1196,31 @@
       const n = q.querySelector('.queue-n');
       if (n && n.textContent.trim() === '0') an(q); else q.classList.remove('ios-an-dt');
     });
+    /* nhóm có số 0 + câu "Không có… / Không còn… / Chưa có…" (Lịch tác nghiệp…):
+     * cùng lý do như nhóm rỗng ở Bảng công việc */
+    document.querySelectorAll('body *').forEach((e) => {
+      if (e.children.length || e.closest('.ios-an-dt, [role="dialog"], .modal, .drawer')) return;
+      const t = (e.textContent || '').trim();
+      if (t.length > 70 || !/^(không có|không còn|chưa có)/i.test(t)) return;
+      const g = e.parentElement;
+      if (!g || g === document.body) return;
+      const coSo0 = [...g.querySelectorAll('*')].some((x) => x !== e && !x.children.length && x.textContent.trim() === '0');
+      if (coSo0 && g.getBoundingClientRect().height < 200) an(g);
+    });
+    /* đoạn chữ nhỏ (≤ 12.5px) dài ≥ 3 dòng: giải thích cách tính, chú thích — đọc
+     * trên máy tính; ngoài cửa sổ, form, danh sách việc */
+    document.querySelectorAll('p, div, span, small').forEach((e) => {
+      if (e.classList.contains('ios-an-dt') || e.closest('.ios-an-dt, [role="dialog"], .modal, .drawer, form, label, details, .ios-dao, table, li, button, a')) return;
+      if ([...e.children].some((x) => !/^(B|STRONG|EM|I|SPAN|BR|A|CODE)$/.test(x.tagName))) return;
+      const t = (e.textContent || '').trim();
+      if (t.length < 90) return;
+      const s = getComputedStyle(e);
+      const co = parseFloat(s.fontSize), dong = parseFloat(s.lineHeight) || co * 1.35;
+      if (co > 12.5 || e.getBoundingClientRect().height < dong * 2.6) return;
+      an(e);
+    });
+    /* hộp lỗi kết nối (Quảng cáo): giữ dòng báo lỗi, bỏ hướng dẫn kỹ thuật */
+    document.querySelectorAll('.bang-loi :is(.bl-lam, .bl-ly)').forEach(an);
     /* thẻ hướng dẫn nhập booking trong Lark (Booking OTA): việc làm trên máy tính */
     document.querySelectorAll('.nhap-kicker').forEach((k) => {
       let c = k.parentElement;
