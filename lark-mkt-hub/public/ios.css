@@ -5194,3 +5194,83 @@ html[data-skin="ios"] :is(.btn, button, [role="button"], .tab, .pill) { -webkit-
   .ios-gon { display: none; }
 }
 
+/* ==========================================================================
+   HỆ CHUYỂN ĐỘNG CHUNG (09/10/2026). Anh Hùng: "đóng lại, mở ra, chạm… từ chuột
+   tới cảm ứng đều mượt mà và đồng bộ; đóng đi cũng phải chỉn chu". Soát ra 15
+   đường cong + hơn 20 thời lượng khác nhau, và nhiều thứ chỉ có hiệu ứng mở.
+   Từ đây mọi chuyển động mới dùng MỘT bộ nhịp:
+     vào  .26–.42s  --cd-vao   giảm tốc mềm, nảy rất nhẹ
+     ra   .2–.26s   --cd-ra    tăng tốc, gọn (đóng nhanh hơn mở — như iOS)
+     trượt          --cd-truot cho ngăn/cột/khối co giãn
+     trạng thái .16s --cd-deu  rê chuột, đổi màu
+   ========================================================================== */
+html[data-skin="ios"] {
+  --cd-vao: cubic-bezier(.2, .9, .25, 1.05);
+  --cd-ra: cubic-bezier(.4, 0, 1, 1);
+  --cd-truot: cubic-bezier(.32, .72, 0, 1);
+  --cd-deu: cubic-bezier(.2, .8, .2, 1);
+  interpolate-size: allow-keywords;
+}
+
+/* 1. LỚP NỔI NHỎ (danh sách xổ, bộ chọn ngày, gợi ý tìm kiếm): mở = hiện dần +
+   trượt xuống 6px + phóng từ 97%; đóng = bản sao thu/mờ (ios.js/ios-app.js) */
+@keyframes cd-noi-vao { from { opacity: 0; translate: 0 -6px; scale: .97; } to { opacity: 1; translate: 0 0; scale: 1; } }
+html[data-skin="ios"]:not(#_):not(#__) :is(.pk.mo > .pk-panel, .goi-y:not([hidden]), .goi-y-ng:not([hidden]), .ng-goiy:not([hidden]), .ng-pop:not(.ios-thay-the)):not(.ios-bong-dong) {
+  animation: cd-noi-vao .26s var(--cd-vao) both; transform-origin: top center;
+}
+/* bóng đóng của lớp nổi nhỏ: thu lên chứ không rơi xuống như cửa sổ */
+html[data-skin="ios"]:not(#_):not(#__):not(#___) :is(.pk-panel, .goi-y, .goi-y-ng, .ng-goiy, .ng-pop).ios-bong-dong {
+  animation: cd-noi-ra .2s var(--cd-ra) forwards !important; pointer-events: none;
+}
+@keyframes cd-noi-ra { to { opacity: 0; translate: 0 -4px; scale: .97; } }
+
+/* 2. MỤC THU GỌN (<details>): mở ra trượt dài xuống + hiện dần, đóng lại thu lên
+   mượt — trước chỉ xoay mũi tên, nội dung bật/tắt cụt. Trình duyệt chưa hỗ trợ
+   ::details-content thì bỏ qua, vẫn mở/đóng bình thường. */
+html[data-skin="ios"] details::details-content {
+  block-size: 0; overflow-y: clip; opacity: 0;
+  transition: content-visibility .26s allow-discrete, opacity .2s var(--cd-ra), block-size .26s var(--cd-truot);
+}
+html[data-skin="ios"] details[open]::details-content {
+  block-size: auto; opacity: 1;
+  transition: content-visibility .38s allow-discrete, opacity .3s var(--cd-deu) .05s, block-size .38s var(--cd-truot);
+}
+
+/* 3. ĐỔI TAB TRONG APP: nội dung mới hiện từ 0 và nhích lên 6px (trước: từ mờ
+   50%, 0,16s — đọc như nhấp nháy) */
+@keyframes ios-tab-vao { from { opacity: 0; translate: 0 6px; } to { opacity: 1; translate: 0 0; } }
+html[data-skin="ios"]:not(#_):not(#__) .ios-doi-tab { animation: ios-tab-vao .3s var(--cd-vao) both; }
+
+/* 4. CHUYỂN APP TRONG HUB: app giữ sẵn ở chế độ ngầm (.khung-ngam) khi hiện lại
+   cũng diễn hiệu ứng vào — trước chỉ app mở lần đầu mới có */
+html[data-skin="ios"]:not(#_):not(#__):not([data-app]) .stage > .page:not([hidden]):not(.khung-ngam) { animation: ios-vao .38s var(--cd-vao) both; }
+
+/* 5. CỘT BÊN PHẢI (sổ chi tiết Báo cáo, Sản phẩm, Tài khoản): mở/đóng cùng một
+   nhịp trượt, nội dung trong cột hiện sau khi cột đã mở */
+html[data-skin="ios"]:not(#_):not(#__)[data-app] #so {
+  transition: flex-basis .38s var(--cd-truot), width .38s var(--cd-truot), border-left-width .38s var(--cd-truot) !important;
+}
+html[data-skin="ios"]:not(#_):not(#__)[data-app] #so > * { transition: opacity .2s var(--cd-ra); }
+html[data-skin="ios"]:not(#_):not(#__)[data-app] :is(body.so-mo #so, #so.mo) > * { transition: opacity .3s var(--cd-deu) .12s; }
+html[data-skin="ios"]:not(#_):not(#__)[data-app] :is(body:not(.so-mo) #so:not(.mo)) > * { opacity: 0; }
+
+/* 6. NGĂN KÉO KHÁCH HÀNG: nền tối hiện dần, hộp trượt vào từ phải; đóng thì
+   trượt ra phải (bóng đóng của ios-app.js) */
+@keyframes cd-nen-vao { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cd-ngan-vao { from { translate: 100% 0; } to { translate: 0 0; } }
+@keyframes cd-ngan-ra { to { translate: 100% 0; } }
+html[data-skin="ios"]:not(#_):not(#__)[data-app="khach-hang"] .ngan:not([hidden]):not(.ios-bong-dong) > .ngan-nen { animation: cd-nen-vao .3s var(--cd-deu) both; }
+html[data-skin="ios"]:not(#_):not(#__)[data-app="khach-hang"] .ngan:not([hidden]):not(.ios-bong-dong) > .ngan-hop { animation: cd-ngan-vao .42s var(--cd-truot) both; }
+html[data-skin="ios"]:not(#_):not(#__):not(#___)[data-app="khach-hang"] .ngan.ios-bong-dong > .ngan-hop { animation: cd-ngan-ra .26s var(--cd-ra) forwards !important; }
+
+/* 7. Ô TICK / NÚT CHỌN: đổi trạng thái thì nảy nhẹ (ios.js gắn .cd-tich lúc đổi,
+   không diễn khi danh sách vẽ lại) */
+@keyframes cd-tich { 0% { scale: .82; } 60% { scale: 1.08; } 100% { scale: 1; } }
+html[data-skin="ios"] input:is([type="checkbox"], [type="radio"]).cd-tich { animation: cd-tich .32s var(--cd-vao); }
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-skin="ios"] details::details-content { transition: none !important; }
+  html[data-skin="ios"] :is(.ios-doi-tab, .pk-panel, .goi-y, .goi-y-ng, .ng-goiy, .ng-pop, .ngan > *, input.cd-tich) { animation: none !important; }
+  html[data-skin="ios"] #so, html[data-skin="ios"] #so > * { transition: none !important; }
+}
+

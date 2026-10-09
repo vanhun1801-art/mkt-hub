@@ -43,6 +43,19 @@
   .the-mau i { width: 30px; height: 30px; border-radius: 9px; background: linear-gradient(135deg, #3d8bff, #1fc7a0); flex: none; }
   .the-mau b { font-size: 14px; } .the-mau small { display: block; font-size: 12px; color: var(--ios-chu-2, #6e6e73); }
   .tron { width: 40px; height: 40px; padding: 0 !important; border-radius: 50% !important; font-size: 18px; }
+  /* mẫu cho mục Mở và đóng */
+  .pk { position: relative; display: inline-block; }
+  .pk-panel { display: none; position: absolute; left: 0; top: calc(100% + 6px); z-index: 20; min-width: 200px; padding: 6px;
+    background: var(--ios-the, #fff); border-radius: 14px; box-shadow: 0 12px 32px -8px rgba(0,0,0,.25), 0 0 0 .5px rgba(0,0,0,.06); }
+  .pk.mo > .pk-panel { display: block; }
+  .pk-panel button { display: block; width: 100%; text-align: left; padding: 9px 12px; border: 0; background: none; border-radius: 9px; font: inherit; color: inherit; cursor: pointer; }
+  .pk-panel button:hover { background: var(--ios-o, rgba(118,118,128,.12)); }
+  .muc-mau { border-radius: 14px; background: var(--ios-o, rgba(118,118,128,.12)); margin-top: 10px; max-width: 520px; }
+  .muc-mau > summary { padding: 12px 14px; cursor: pointer; font-weight: 600; list-style: none; }
+  .muc-mau > summary::-webkit-details-marker { display: none; }
+  .muc-mau > div { padding: 0 14px 14px; font-size: 14px; line-height: 1.5; color: var(--ios-chu-2, #6e6e73); }
+  .tich-mau { display: flex; gap: 16px; margin-top: 12px; flex-wrap: wrap; font-size: 14px; }
+  .tich-mau label { display: flex; align-items: center; gap: 7px; cursor: pointer; }
   .giua { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
   @media (max-width: 900px) {
     .luoi { grid-template-columns: 1fr; }
@@ -81,6 +94,23 @@
           <button class="btn tron" aria-label="Làm mới">↻</button>
         </div>
         <div class="the-mau" role="button" tabindex="0"><i></i><div><b>Bảng công việc</b><small>4 việc cần xử lý</small></div></div>
+      </section>
+
+      <section class="khoi">
+        <h2>Mở và đóng</h2>
+        <p class="phu">Cùng một nhịp cho cả app: mở ra mềm và giảm tốc, đóng lại nhanh gọn hơn lúc mở. Danh sách xổ, mục thu gọn, ô tick.</p>
+        <div class="nut">
+          <div class="pk" id="pkMau"><button class="btn" id="pkNut">Chọn nhân sự ▾</button>
+            <div class="pk-panel"><button>Bùi Việt Đạt</button><button>Hằng</button><button>Nguyễn Hồng Ngọc</button></div></div>
+        </div>
+        <details class="muc-mau"><summary>Mục thu gọn: bấm để mở / đóng</summary>
+          <div>Nội dung trượt dài xuống khi mở và thu lên khi đóng, chữ hiện dần sau khi khung đã mở. Trước đây chỉ bật/tắt cụt.</div></details>
+        <div class="tich-mau">
+          <label><input type="checkbox" checked> Đúng hạn</label>
+          <label><input type="checkbox"> Trễ</label>
+          <label><input type="radio" name="k" checked> Tuần này</label>
+          <label><input type="radio" name="k"> Tháng này</label>
+        </div>
       </section>
 
       <section class="khoi">
@@ -139,6 +169,11 @@
     setTimeout(function () { dao('Đã tải lên ảnh-tour.jpg', 'luc'); }, 1800);
   };
 
+
+  var pk = $('#pkMau');
+  $('#pkNut').onclick = function (e) { e.stopPropagation(); pk.classList.toggle('mo'); };
+  pk.querySelectorAll('.pk-panel button').forEach(function (b) { b.onclick = function () { $('#pkNut').textContent = b.textContent + ' ▾'; pk.classList.remove('mo'); }; });
+  document.addEventListener('click', function (e) { if (!pk.contains(e.target)) pk.classList.remove('mo'); });
 
   var w = $('#modalWrap');
   var dong = function () { w.hidden = true; };

@@ -638,8 +638,22 @@
  * thì để nguyên, không nhân đôi. */
 (function () {
   if (document.documentElement.getAttribute('data-skin') !== 'ios') return;
-  const HOP = '.modal, .modal-wrap, .md, .xt, .phu-man, .hop, .mask, .scrim, .modal-mask, .modal-nen, .ios-nen-so, [role="dialog"]';
+  /* 09/10/2026 (hệ chuyển động chung): thêm cả lớp nổi nhỏ — danh sách xổ,
+   * bộ chọn ngày, gợi ý tìm kiếm, ngăn kéo Khách hàng — để đóng cũng mờ/thu
+   * dần như cửa sổ, không biến mất cụt. */
+  const HOP = '.modal, .modal-wrap, .md, .xt, .phu-man, .hop, .mask, .scrim, .modal-mask, .modal-nen, .ios-nen-so, [role="dialog"], ' +
+    '.ng-pop, .goi-y, .goi-y-ng, .ng-goiy, .pk-panel, .ngan';
   const dangMo = new Map();
+  /* Bị THAY bằng bản mới cùng loại ngay tại chỗ (VD lịch chọn ngày vẽ lại khi
+   * sang tháng): không phải đóng → không để bóng mờ, và bản mới không diễn lại
+   * hiệu ứng mở (.ios-thay-the). */
+  const thayThe = (e, r) => {
+    const lop = String(r.lop || '').split(/\s+/)[0];
+    if (!lop || !r.cha || !r.cha.isConnected) return false;
+    const moi = [...r.cha.children].find((x) => x !== e && x.classList.contains(lop));
+    if (moi) moi.classList.add('ios-thay-the');
+    return !!moi;
+  };
   const thay = (e, s) => s.display !== 'none' && s.visibility !== 'hidden' && e.getClientRects().length > 0;   // KHÔNG xét opacity: lúc vừa mở hộp còn đang hiện dần từ 0
   function dong(e, r) {
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -674,7 +688,7 @@
       if (thay(e, s)) dangMo.set(e, { hien: s.display, lop: e.className, kieu: e.getAttribute('style'), cha: e.parentNode, ke: e.nextSibling });
       else if (dangMo.has(e)) { const r = dangMo.get(e); dangMo.delete(e); if (s.display === 'none' || e.hidden) dong(e, r); }
     });
-    dangMo.forEach((r, e) => { if (!e.isConnected) { dangMo.delete(e); dong(e, r); } });
+    dangMo.forEach((r, e) => { if (!e.isConnected) { dangMo.delete(e); if (!thayThe(e, r)) dong(e, r); } });
   }
   new MutationObserver(() => { try { quet(); } catch (_) {} })
     .observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ['class', 'hidden', 'style', 'open'] });
@@ -1012,4 +1026,16 @@
     };
     addEventListener('pointerup', tha, true); addEventListener('pointercancel', tha, true);
   }, { capture: true, passive: true });
+})();
+
+/* Ô tick / nút chọn đổi trạng thái → nảy nhẹ (.cd-tich, hệ chuyển động chung). */
+(() => {
+  if (window.__cdTich) return;
+  window.__cdTich = true;
+  addEventListener('change', (ev) => {
+    const e = ev.target;
+    if (!e || e.tagName !== 'INPUT' || (e.type !== 'checkbox' && e.type !== 'radio')) return;
+    e.classList.remove('cd-tich'); void e.offsetWidth; e.classList.add('cd-tich');
+    setTimeout(() => e.classList.remove('cd-tich'), 360);
+  }, true);
 })();
