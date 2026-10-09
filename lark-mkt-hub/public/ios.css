@@ -4570,6 +4570,11 @@ html[data-skin="ios"][data-app="khach-hang"] #segKy::-webkit-scrollbar { display
    1440px, canh giữa; các app bảng số giữ trọn bề ngang. */
 @media (min-width: 1700px) {
   html[data-skin="ios"][data-app="bao-cao"] main#man, html[data-skin="ios"][data-app="chinh-anh"] main#view { max-width: 1440px; margin-left: auto !important; margin-right: auto !important; width: 100%; }
+  /* Lề của app là --le = (bề ngang − 1520)/2, tính theo CẢ màn — cộng thêm
+   * khung 1440 canh giữa ở trên là bóp HAI LẦN: màn 2600px còn ~360px nội dung
+   * (anh Hùng chụp trên Lark desktop 09/10, bảng báo cáo "Edi", "1:" cắt chữ).
+   * Trong khung 1440 thì lề cố định. */
+  html[data-skin="ios"]:not(#_)[data-app="bao-cao"] main#man, html[data-skin="ios"]:not(#_)[data-app="chinh-anh"] main#view { padding-left: 24px !important; padding-right: 24px !important; }
 }
 
 /* ==========================================================================
