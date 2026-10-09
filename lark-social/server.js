@@ -404,7 +404,9 @@ async function ghiLiveNgay(daDoc, ten, u, req) {
    * tìm: lọc sau thì tên tệp vẫn trỏ được sang kênh người khác rồi mới bị chặn,
    * mà lúc ấy thông báo lại thành "không tìm thấy kênh" nghe như lỗi hệ thống. */
   const han = await hanMucKenh(req);
-  const dsKenh = han || d.channels;
+  /* hanMucKenh() trả về mảng CHUỖI extId, không phải mảng kênh — phải đổi kiểu
+   * trước khi đem find(). Xem phamVi.kenhTrongPhamVi(). */
+  const dsKenh = phamVi.kenhTrongPhamVi(d.channels, han);
   const kenh = chon
     ? dsKenh.find((c) => c.extId === chon)
     : dsKenh.find((c) => String(c.handle || '').toLowerCase() === handle)

@@ -92,4 +92,26 @@ function boLocKenh(han) {
   return (x) => cho.has(x && x.channelExtId);
 }
 
-module.exports = { tachEmail, xemDuoc, kenhCuaNguoi, gioiHan, ganLoc, boLocKenh };
+/**
+ * Đổi phạm vi (mảng extId mà gioiHan trả về) thành danh sách KÊNH thật.
+ *
+ * boLocKenh() so theo `channelExtId` nên chỉ dùng được cho BÀI và PHIÊN — những
+ * thứ trỏ tới kênh. Khi cần chính các dòng KÊNH (để chọn một kênh mà ghi vào)
+ * thì phải đổi kiểu, và đó là chỗ đã hỏng thật: đường tải tệp LIVE Center viết
+ * `dsKenh.find((c) => c.extId === chon)` ngay trên mảng CHUỖI, nên `c.extId`
+ * luôn undefined, không kênh nào khớp, và MỌI nhân sự tải tệp đều nhận
+ * "Tệp này của kênh chưa giao cho bạn" — kể cả kênh đã giao đúng cho họ.
+ * Trưởng phòng không bị giới hạn nên không ai thấy.
+ *
+ * So cả extId lẫn id vì gioiHan() lấy `c.extId || c.id`: kênh chưa có ID nền
+ * tảng thì nó góp id vào danh sách.
+ */
+function kenhTrongPhamVi(channels, han) {
+  if (!han) return channels || [];
+  const cho = new Set(han.map(String));
+  return (channels || []).filter((c) => cho.has(String(c.extId)) || cho.has(String(c.id)));
+}
+
+module.exports = {
+  tachEmail, xemDuoc, kenhCuaNguoi, gioiHan, ganLoc, boLocKenh, kenhTrongPhamVi,
+};

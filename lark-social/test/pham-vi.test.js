@@ -304,4 +304,57 @@ t('mọi chốt phạm vi kênh đều gọi boLocKenh', () => {
     'có ' + soChan + ' chỗ chặn theo kênh nhưng chỉ ' + soLoc + ' chỗ gọi boLocKenh');
 });
 
+
+t('đổi phạm vi thành danh sách KÊNH thật, không để nguyên mảng chuỗi', () => {
+  /* Đây là lỗi anh Khánh gặp ngày 09/10: giao kênh rồi mà tải tệp LIVE Center
+     vẫn báo "Tệp này của kênh chưa giao cho bạn".
+     gioiHan() trả về mảng CHUỖI extId, mà đường tải tệp viết
+     `dsKenh.find((c) => c.extId === chon)` ngay trên mảng ấy — `c.extId` luôn
+     undefined nên không kênh nào khớp. Trưởng phòng không bị giới hạn (han=null)
+     nên mọi lần thử đều qua, không ai thấy. */
+  const kenh = [
+    { id: 'rec1', extId: 'tt-01', name: 'Rooty Trip', handle: 'rootytrip.official' },
+    { id: 'rec2', extId: 'tt-02', name: 'Vi Vu', handle: 'vivupq' },
+    { id: 'rec3', extId: '', name: 'Kênh chưa có ID nền tảng' },
+  ];
+  const ra = pv.kenhTrongPhamVi(kenh, ['tt-01']);
+  assert.strictEqual(ra.length, 1);
+  assert.strictEqual(ra[0].name, 'Rooty Trip');
+  /* Và phải tìm được bằng handle — đúng phép mà đường tải tệp dùng. */
+  assert.ok(ra.find((c) => c.handle === 'rootytrip.official'),
+    'tìm theo handle phải ra, nếu không thì tải tệp lại báo chưa giao kênh');
+});
+
+t('kênh chưa có ID nền tảng thì khớp bằng id, vì gioiHan lấy extId || id', () => {
+  const kenh = [{ id: 'rec3', extId: '', name: 'Chưa có ID' }];
+  const han = pv.gioiHan(
+    [{ id: 'rec3', extId: '', name: 'Chưa có ID', viewers: 'a@x.com' }],
+    { email: 'a@x.com' }, false,
+  );
+  assert.deepStrictEqual(han, ['rec3'], 'gioiHan góp id khi thiếu extId');
+  assert.strictEqual(pv.kenhTrongPhamVi(kenh, han).length, 1);
+});
+
+t('quản lý (không giới hạn) thì thấy hết, không phải lọc gì', () => {
+  const kenh = [{ id: 'a', extId: 'x' }, { id: 'b', extId: 'y' }];
+  assert.strictEqual(pv.kenhTrongPhamVi(kenh, null).length, 2);
+  /* Giao rồi mà không trúng kênh nào thì ra rỗng — đóng, không mở toang. */
+  assert.strictEqual(pv.kenhTrongPhamVi(kenh, ['z']).length, 0);
+  assert.strictEqual(pv.kenhTrongPhamVi(kenh, []).length, 0);
+});
+
+t('đường tải tệp LIVE phải dùng kenhTrongPhamVi, không find thẳng trên phạm vi', () => {
+  /* Chốt bằng mã nguồn: viết lại find() trên mảng chuỗi là lỗi im lặng — nhân
+     sự bị chặn, trưởng phòng không thấy gì, và phải đợi có người báo. */
+  const src = require('fs').readFileSync(
+    require('path').join(__dirname, '..', 'server.js'), 'utf8');
+  const i = src.indexOf('async function ghiLiveNgay(');
+  assert.ok(i > 0, 'phải có hàm ghiLiveNgay');
+  const than = src.slice(i, i + 2000);
+  assert.ok(than.includes('phamVi.kenhTrongPhamVi(d.channels, han)'),
+    'phải đổi phạm vi thành kênh thật trước khi tìm');
+  assert.ok(!/const dsKenh = han \|\| d\.channels/.test(than),
+    'không được dùng thẳng mảng extId làm danh sách kênh');
+});
+
 console.log('\n' + so + ' phép thử đạt' + (process.exitCode ? ' — CÓ LỖI' : '') + '\n');
