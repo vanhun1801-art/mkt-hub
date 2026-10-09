@@ -126,10 +126,23 @@ html[data-theme="sang"] #moApp { background: #eef0f5; }
   color: #1c1c1e; animation: ma-chu .7s cubic-bezier(.2, .8, .2, 1) .5s both;
 }
 #moApp .ma-phu {
-  position: absolute; left: -120px; right: -120px; top: calc(104px + 18px + 26px); text-align: center; white-space: nowrap;
-  font: 500 13px/1.2 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
-  color: #8e8e93; letter-spacing: .02em; animation: ma-hien .6s ease .8s both;
+  position: absolute; left: -120px; right: -120px; top: calc(104px + 18px + 33px); text-align: center; white-space: nowrap;
+  animation: ma-hien .6s ease .8s both;
 }
+/* nhãn phụ: viên kính mảnh, chấm màu thương hiệu dẫn chữ — đọc như một nhãn,
+ * không phải dòng chữ xám lửng lơ dưới tên */
+#moApp .ma-phu span {
+  display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px 5px 10px; border-radius: 999px;
+  font: 600 12.5px/1.2 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  letter-spacing: .01em; color: #48484a;
+  background: rgba(255, 255, 255, .7); box-shadow: inset 0 0 0 .5px rgba(0, 0, 0, .08), 0 4px 14px -6px rgba(30, 90, 200, .25);
+}
+#moApp .ma-phu span::before {
+  content: ""; width: 6px; height: 6px; border-radius: 50%;
+  background: linear-gradient(135deg, #3d8bff, #1fc7a0); box-shadow: 0 0 6px rgba(31, 199, 160, .7);
+}
+@media (prefers-color-scheme: dark) { html:not([data-theme="sang"]) #moApp .ma-phu span { color: #d1d1d6; background: rgba(255, 255, 255, .07); box-shadow: inset 0 0 0 .5px rgba(255, 255, 255, .14); } }
+html[data-theme="toi"] #moApp .ma-phu span { color: #d1d1d6; background: rgba(255, 255, 255, .07); box-shadow: inset 0 0 0 .5px rgba(255, 255, 255, .14); }
 @media (prefers-color-scheme: dark) { html:not([data-theme="sang"]) #moApp .ma-ten { color: #f2f2f7; } }
 html[data-theme="toi"] #moApp .ma-ten { color: #f2f2f7; }
 #moApp .ma-cham { display: flex; gap: 6px; opacity: 0; margin-top: 18px; animation: ma-hien .4s ease 1.6s both; }
@@ -161,7 +174,7 @@ html[data-theme="toi"] #moApp .ma-ten { color: #f2f2f7; }
   <div class="ma-khoi">
     <div class="ma-o"><div class="ma-logo"><img src="/logo-app-180.png?v=BUILD" alt="" width="104" height="104" decoding="sync"></div></div>
     <div class="ma-ten">Marketing Hub</div>
-    <div class="ma-phu">Rooty Trip · Phòng Marketing</div>
+    <div class="ma-phu"><span>Ứng dụng phòng ban Marketing</span></div>
   </div>
 </div>
 <script>
