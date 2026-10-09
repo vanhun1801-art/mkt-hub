@@ -1039,8 +1039,11 @@ async function api(req, res, u) {
     const d = await store.tai();
     const dong = (d.liveNgay || []).find((x) => x.id === String(b.id || ''));
     if (!dong) return fail(res, 404, 'Không có dòng này');
+    /* So bằng extId — xem phamVi.boLocKenh(). Cùng lỗi với chỗ gán người đăng:
+     * so `c.id` trên mảng chuỗi thì điều kiện luôn đúng và nhân sự nào gắn nhãn
+     * cũng ăn 403. */
     const han = await hanMucKenh(req);
-    if (han && !(dong.channelIds || []).some((id) => han.some((c) => c.id === id))) {
+    if (!phamVi.boLocKenh(han)(dong)) {
       return fail(res, 403, 'Ngày này thuộc kênh chưa giao cho bạn');
     }
     /* Chỉ nhận tên nhãn CÓ THẬT — gõ sai thì thà bỏ còn hơn đẻ nhãn ma. */
@@ -1319,8 +1322,13 @@ async function api(req, res, u) {
     const d = await store.tai();
     const bai = (d.posts || []).find((x) => x.id === b.id);
     if (!bai) return fail(res, 404, 'Không thấy bài này');
+    /* So bằng extId — xem phamVi.boLocKenh(). Bản trước viết
+     * `han.some((c) => c.id === i)` trên mảng CHUỖI extId, nên `c.id` luôn là
+     * undefined và điều kiện luôn đúng: MỌI nhân sự bấm gán tên đều ăn 403,
+     * kể cả bài của đúng kênh mình phụ trách. Trưởng phòng không bị giới hạn
+     * nên không ai thấy — y hệt chỗ tab LIVE trắng trơn hôm 08/10. */
     const han = await hanMucKenh(req);
-    if (han && !(bai.channelIds || []).some((i) => han.some((c) => c.id === i))) {
+    if (!phamVi.boLocKenh(han)(bai)) {
       return fail(res, 403, 'Bài này thuộc kênh chưa giao cho bạn');
     }
     /* Chỉ nhận tên CÓ THẬT trong danh sách — cột trên Base là dạng chọn, tên lạ

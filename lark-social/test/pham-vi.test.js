@@ -278,4 +278,30 @@ t('đi hết một vòng: Khánh được khai kênh nào thì thấy đúng kê
     .length, 3, 'trưởng phòng thấy cả ba');
 });
 
+t('không còn chỗ nào so hạn mức kênh bằng record id', () => {
+  /* hanMucKenh() trả về mảng CHUỖI extId. Viết `han.some((c) => c.id === i)`
+     lên mảng chuỗi thì `c.id` luôn undefined, điều kiện luôn đúng, và mọi
+     nhân sự ăn 403 — trưởng phòng không bị giới hạn nên không ai thấy.
+
+     Đã dính BA lần: tab LIVE trắng trơn, gắn nhãn LIVE theo ngày, và gán người
+     đăng cho bài. Mọi chỗ nay phải đi qua phamVi.boLocKenh(). */
+  const src = require('fs').readFileSync(require.resolve('../server'), 'utf8');
+  const ma = src.split('\n')
+    .filter((d) => !/^\s*(\*|\/\*|\/\/)/.test(d))
+    .join('\n');
+  const xau = ma.match(/han\w*\.some\(\([^)]*\)\s*=>\s*\w+\.id\s*===/g) || [];
+  assert.deepStrictEqual(xau, [], 'còn chỗ so bằng .id trên mảng extId');
+
+  const xau2 = ma.match(/han\w*\.map\(\([^)]*\)\s*=>\s*\w+\.id\)/g) || [];
+  assert.deepStrictEqual(xau2, [], 'còn chỗ map .id trên mảng extId');
+});
+
+t('mọi chốt phạm vi kênh đều gọi boLocKenh', () => {
+  const src = require('fs').readFileSync(require.resolve('../server'), 'utf8');
+  const soChan = (src.match(/chưa giao cho bạn/g) || []).length;
+  const soLoc = (src.match(/phamVi\.boLocKenh\(/g) || []).length;
+  assert.ok(soLoc >= soChan,
+    'có ' + soChan + ' chỗ chặn theo kênh nhưng chỉ ' + soLoc + ' chỗ gọi boLocKenh');
+});
+
 console.log('\n' + so + ' phép thử đạt' + (process.exitCode ? ' — CÓ LỖI' : '') + '\n');
