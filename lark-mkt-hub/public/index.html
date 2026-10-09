@@ -145,24 +145,27 @@ html[data-theme="sang"] #moApp { background: #eef0f5; }
   background: linear-gradient(90deg, #3d8bff, #22b8d6 55%, #1fc7a0);
   clip-path: inset(0 calc((1 - var(--tien, .06)) * 100%) 0 0 round 999px);
 }
-#moApp .ma-chay::after {      /* vệt sáng lướt: dải mềm, rộng, không viền cứng */
-  content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 64px;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, .22) 30%, rgba(255, 255, 255, .7) 50%, rgba(255, 255, 255, .22) 70%, rgba(255, 255, 255, 0));
-  animation: ma-lia 1.6s cubic-bezier(.45, 0, .55, 1) infinite;
+/* vệt sáng lướt — HAI vệt nối đuôi, nhanh và sáng (anh Hùng: "nên có sự dồn
+ * dập như bản 1"), vẫn là dải gradient mềm không viền cứng */
+#moApp .ma-chay::before, #moApp .ma-chay::after {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 46px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, .35) 30%, rgba(255, 255, 255, .95) 50%, rgba(255, 255, 255, .35) 70%, rgba(255, 255, 255, 0));
+  animation: ma-lia .95s cubic-bezier(.5, 0, .5, 1) infinite;
 }
+#moApp .ma-chay::before { width: 30px; opacity: .6; animation-delay: -.48s; }
 /* đầu thanh: đốm sáng mềm hình bầu dục, lấp lánh (đổi độ sáng + nở nhẹ); nằm
  * trong .ma-chay nên bị cắt đúng mép phần đã chạy, không lem ra rãnh trống */
 #moApp .ma-dau {
   position: absolute; top: -3px; bottom: -3px; width: 30px; margin-left: -27px;
   left: calc(var(--tien, .06) * 100%); pointer-events: none;
   background: radial-gradient(ellipse 15px 4.5px at 24px 50%, rgba(255, 255, 255, .95), rgba(255, 255, 255, .45) 40%, rgba(255, 255, 255, 0) 100%);
-  animation: ma-chop 1.1s ease-in-out infinite alternate;
+  animation: ma-chop .45s ease-in-out infinite alternate;
 }
 /* vài đốm lấp lánh mềm, rải không đều trên dải màu, sáng lên lần lượt */
 #moApp .ma-thanh::before, #moApp .ma-thanh::after {
   content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 1;
   clip-path: inset(0 calc((1 - var(--tien, .06)) * 100%) 0 0);
-  animation: ma-lap 1.8s ease-in-out infinite;
+  animation: ma-lap .9s ease-in-out infinite;
 }
 #moApp .ma-thanh::before {
   background:
@@ -173,10 +176,10 @@ html[data-theme="sang"] #moApp { background: #eef0f5; }
   background:
     radial-gradient(ellipse 4px 1.8px at 36% 55%, rgba(255, 255, 255, .85), rgba(255, 255, 255, 0)),
     radial-gradient(ellipse 5px 2px at 81% 50%, rgba(255, 255, 255, .9), rgba(255, 255, 255, 0));
-  animation-delay: -.9s;
+  animation-delay: -.45s;
 }
 #moApp .ma-dau { z-index: 2; }
-@keyframes ma-lia { from { transform: translateX(-64px); } to { transform: translateX(170px); } }
+@keyframes ma-lia { from { transform: translateX(-50px); } to { transform: translateX(170px); } }
 @keyframes ma-chop { from { opacity: .6; transform: scale(.85); } to { opacity: 1; transform: scale(1.12); } }
 @keyframes ma-lap { 0%, 100% { opacity: .15; } 50% { opacity: 1; } }
 @media (prefers-color-scheme: dark) { html:not([data-theme="sang"]) #moApp .ma-thanh { background: rgba(255, 255, 255, .1); } }
