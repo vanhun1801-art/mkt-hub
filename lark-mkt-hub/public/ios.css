@@ -4999,3 +4999,7 @@ html[data-skin="ios"]:not(#_):not(#__) .hub-seg > :is(.on, .chon) { box-shadow: 
     border: 0; border-radius: 999px; background: var(--ios-o); color: var(--ios-xanh-chu); font: 600 14px var(--ios-font, system-ui); padding: 7px 14px; margin-right: 10px; cursor: pointer;
   }
 }
+
+/* Nút Xoá tệp (Bảng công việc): chữ đỏ dùng màu CHỮ của bộ giao diện, đọc rõ ở
+   cả nền sáng lẫn tối (trước --red-text của app, ở nền tối chỉ ~3:1). */
+html[data-skin="ios"]:not(#_):not(#__) .attbtn.del { color: var(--ios-do-chu) !important; }

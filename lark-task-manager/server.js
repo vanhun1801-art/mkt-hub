@@ -182,12 +182,16 @@ async function themVaoBaoCao(req, task) {
  * Cùng luật với việc của phòng: chỉ người nhận (hoặc quản lý) thao tác; Hoàn
  * thành phải có minh chứng (link hoặc tệp). Ghi vào Base công ty qua LP.ghi. */
 async function hanhDongLienPhong(req, res, url, action, task) {
-  if (!(await requireOwnTask(res, task, req))) return;
+  /* Tài liệu kèm yêu cầu ("File đính kèm") là của NGƯỜI GIAO — người giao (hoặc
+   * quản lý) tải lên được; mọi thao tác khác vẫn là của người nhận. */
+  const dinhKem = action === 'upload' && url.searchParams.get('cot') !== 'ket-qua';
+  if (dinhKem) {
+    if (!(await laNguoiOrder(task, req)) && !(await isManager(req))) {
+      return json(res, { error: 'Tài liệu kèm yêu cầu do người giao thêm.', code: 'NOT_YOUR_TASK' }, 403);
+    }
+  } else if (!(await requireOwnTask(res, task, req))) return;
   const gio = chuoiGioVN(new Date());
   if (action === 'upload') {
-    if (url.searchParams.get('cot') !== 'ket-qua') {
-      return json(res, { error: 'Tài liệu kèm của người giao thêm ở app Giao việc công ty.', code: 'FIELD_LOCKED' }, 403);
-    }
     const name = decodeURIComponent(req.headers['x-file-name'] || '') || 'file';
     const safe = name.replace(/[\\/:*?"<>|]/g, '_').slice(-120);
     const buf = await readRawBody(req, 60 * 1024 * 1024);
@@ -196,7 +200,7 @@ async function hanhDongLienPhong(req, res, url, action, task) {
     const absDir = path.join(__dirname, '.tmp', slug);
     fs.mkdirSync(absDir, { recursive: true });
     fs.writeFileSync(path.join(absDir, safe), buf);
-    try { await LP.taiLen(lark, task, './.tmp/' + slug + '/' + safe); }
+    try { await LP.taiLen(lark, task, './.tmp/' + slug + '/' + safe, dinhKem); }
     finally { try { fs.rmSync(absDir, { recursive: true, force: true }); } catch (_) {} }
     return json(res, { ok: true, name: safe, size: buf.length });
   }
@@ -1685,16 +1689,24 @@ async function api(req, res, url) {
     if (!rec) {
       const lp = await LP.tim(lark, id);
       if (lp) {
-        if (!(await requireOwnTask(res, lp, req))) return;
         const tk = url.searchParams.get('token') || '';
         if (!/^[A-Za-z0-9]+$/.test(tk)) return json(res, { error: 'Tham số không hợp lệ' }, 400);
-        if (url.searchParams.get('cot') !== 'ket-qua') return json(res, { error: 'Tài liệu của người giao — gỡ ở app Giao việc công ty.' }, 403);
-        await LP.goTep(lark, lp, tk);
+        const laDinhKem = url.searchParams.get('cot') !== 'ket-qua';
+        /* Tài liệu kèm: người giao gỡ; File kết quả: người nhận gỡ. */
+        if (laDinhKem) {
+          if (!(await laNguoiOrder(lp, req)) && !(await isManager(req))) {
+            return json(res, { error: 'Tài liệu kèm yêu cầu do người giao gỡ.', code: 'NOT_YOUR_TASK' }, 403);
+          }
+        } else if (!(await requireOwnTask(res, lp, req))) return;
+        await LP.goTep(lark, lp, tk, laDinhKem);
         return json(res, { ok: true });
       }
     }
     if (!rec) return json(res, { error: 'Không tìm thấy công việc' }, 404);
-    if (!(await requireOwnTask(res, toTask(rec), req))) return;
+    /* Người order gỡ được tài liệu MÌNH gửi kèm (ô "Tệp đính kèm") — cùng luật với
+     * đường tải lên. File kết quả vẫn chỉ người phụ trách / quản lý. */
+    const goDinhKemCuaOrder = url.searchParams.get('cot') !== 'ket-qua' && await laNguoiOrder(toTask(rec), req);
+    if (!goDinhKemCuaOrder && !(await requireOwnTask(res, toTask(rec), req))) return;
 
     const token = url.searchParams.get('token') || '';
     if (!/^[A-Za-z0-9]+$/.test(token)) return json(res, { error: 'Tham số không hợp lệ' }, 400);

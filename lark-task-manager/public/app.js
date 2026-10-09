@@ -3443,7 +3443,7 @@ function khoiTep(t, nhan, att, cot, xoaDuoc, khiTrong) {
     if (xoaDuoc) {
       const xoa = el('button', 'attbtn del', 'Xoá');
       xoa.onclick = async () => {
-        if (!confirm('Xoá tệp "' + (a.name || '') + '"?')) return;
+        if (!confirm('Xoá tệp "' + (a.name || '') + '"? Tệp bị gỡ khỏi việc này, không khôi phục được.')) return;
         xoa.disabled = true;
         try {
           await req('/api/tasks/' + t.id + '/attachment?token=' + encodeURIComponent(a.token) +
@@ -3583,7 +3583,11 @@ function buildStaffDrawer(b, t, o) {
     oLink.appendChild(moTaCoLink(t.link));
     yc.than.appendChild(oLink);
   }
-  yc.than.appendChild(khoiTep(t, 'Tài liệu kèm', t.attachment, '', false, 'Không có tệp kèm.'));
+  /* Tài liệu kèm là của người order: ai vừa order vừa phụ trách (hoặc quản lý) thì
+   * gỡ được tệp mình đã gửi (anh Hùng 09/10/2026: "tải tệp lên thì không có lựa
+   * chọn xoá tệp đã tải lên"). Máy chủ cùng luật: laNguoiOrder / isManager. */
+  const laOrder = (t.requester || []).some((u) => u.id === me);
+  yc.than.appendChild(khoiTep(t, 'Tài liệu kèm', t.attachment, '', laOrder || S.isManager, 'Không có tệp kèm.'));
   b.appendChild(yc.the);
 
   /* ---------- 4. Sản phẩm của bạn ---------- */
@@ -3649,8 +3653,12 @@ function buildOrderDrawer(b, t, o) {
     oLink.appendChild(moTaCoLink(t.link));
     yc.than.appendChild(oLink);
   }
-  yc.than.appendChild(khoiTep(t, 'Tài liệu bạn gửi kèm', t.attachment, '', false,
+  /* Người order gửi thêm / gỡ tài liệu kèm ngay đây (anh Hùng 02/10/2026: "anh
+   * chưa thể tải lên các tệp từ đây nữa"). Việc liên phòng: vào "File đính kèm"
+   * của Base công ty; việc của phòng: ô "Tệp đính kèm". */
+  yc.than.appendChild(khoiTep(t, 'Tài liệu bạn gửi kèm', t.attachment, '', true,
     'Bạn không gửi tệp nào kèm theo.'));
+  yc.than.appendChild(oTaiLen(t, ''));
   b.appendChild(yc.the);
 
   // Thẻ 2: tình trạng & sản phẩm (chỉ đọc)
@@ -3746,7 +3754,7 @@ function attachmentField(t, canUpload) {
     if (canUpload) {
       const xoa = el('button', 'attbtn del', 'Xoá');
       xoa.onclick = async () => {
-        if (!confirm('Xoá tệp "' + (a.name || '') + '" khỏi công việc này?')) return;
+        if (!confirm('Xoá tệp "' + (a.name || '') + '"? Tệp bị gỡ khỏi việc này, không khôi phục được.')) return;
         xoa.disabled = true;
         try {
           await req('/api/tasks/' + t.id + '/attachment?token=' + encodeURIComponent(a.token), { method: 'DELETE' });

@@ -58,7 +58,7 @@ const F = {
 /* Tên cột để GHI (lệnh ghi của Base nhận tên cột). */
 const TEN = {
   trangThai: 'Trạng thái', ketQua: 'Kết quả', ghiChu: 'Ghi chú/ hướng xử lý tiếp theo',
-  fileKetQua: 'File kết quả', capNhatCuoi: 'Ngày cập nhật cuối',
+  fileKetQua: 'File kết quả', capNhatCuoi: 'Ngày cập nhật cuối', dinhKem: 'File đính kèm',
   noiDung: 'Nội dung giao việc', deadline: 'Deadline', uuTien: 'Mức độ ưu tiên',
 };
 /* Bộ ưu tiên GỐC của Base công ty — người giao sửa bằng đúng bộ này. */
@@ -337,12 +337,15 @@ async function suaNguoiGiao(lark, v, o, gioVN) {
   quen();
 }
 
-const taiLen = async (lark, v, relPath) => {
-  await lark.uploadAttachment(v.nguonRec, TEN.fileKetQua, relPath, NGUON.table, NGUON.base);
+/* `dinhKem` = true: "File đính kèm" (tài liệu NGƯỜI GIAO gửi kèm yêu cầu) thay vì
+ * "File kết quả" (sản phẩm người nhận nộp). Người giao gửi thêm tài liệu ngay trên
+ * app (anh Hùng 02/10/2026: "anh chưa thể tải lên các tệp từ đây nữa"). */
+const taiLen = async (lark, v, relPath, dinhKem) => {
+  await lark.uploadAttachment(v.nguonRec, dinhKem ? TEN.dinhKem : TEN.fileKetQua, relPath, NGUON.table, NGUON.base);
   quen();
 };
-const goTep = async (lark, v, token) => {
-  await lark.removeAttachment(v.nguonRec, TEN.fileKetQua, token, NGUON.table, NGUON.base);
+const goTep = async (lark, v, token, dinhKem) => {
+  await lark.removeAttachment(v.nguonRec, dinhKem ? TEN.dinhKem : TEN.fileKetQua, token, NGUON.table, NGUON.base);
   quen();
 };
 const taiVe = (lark, v, token, slug) => lark.downloadAttachment(v.nguonRec, token, slug, NGUON.table, NGUON.base);
