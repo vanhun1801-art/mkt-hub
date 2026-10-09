@@ -3746,14 +3746,7 @@ html[data-skin="ios"]:not(#_):not(#__):not([data-app]) body.mod-che :is(.rail, .
   filter: brightness(.68) blur(3px) saturate(.9) !important; pointer-events: none;
 }
 
-/* CHẠM: nút đứng yên — chỉ nhạt đi như iOS (các luật :active phía trên đã đổi
-   từ co/nảy sang nhạt). KHÔNG đặt transform:none chung cho mọi nút: nút canh
-   giữa bằng transform (nút mở rộng menu, nút lịch trong ô ngày) sẽ dịch chỗ
-   ngay lúc nhấn → thả chuột lệch ra ngoài → cú bấm bị mất. */
-html[data-skin="ios"]:not(#_):not(#__) :is(.btn, button, .tab, .pill, .tb-chip, .cxl-chip, .cd-item, .seg > button, .hub-seg > button, .ios-tabbar > *, .mob-nut, .ios-tao, .rail-item):active:not(:disabled) {
-  opacity: .62; transition: opacity 0s !important;
-}
-html[data-skin="ios"]:not(#_):not(#__) :is(.card.bam-duoc, .wcard, .ord-card, .dcard, .nhom-base .the.bam-duoc, .tile, .tb-o, .theDay, .lt-the):active { filter: brightness(.96); transition: filter 0s !important; }
+/* CHẠM: xem mục "NÚT BẤM KIỂU MỚI" cuối tệp (09/10/2026) — thay luật nhạt 62% cũ. */
 
 /* Thanh menu THU GỌN (desktop) — anh Hùng 27/09: "thu lại không cần hiện số, và
    các nút kia chỉnh lại". Luật đồng cỡ số đếm (display:inline-block !important)
@@ -5172,5 +5165,32 @@ html[data-skin="ios"]:not(#_):not(#__)[data-app="khach-hang"] #tienDo .td-nk > s
 @media (max-width: 640px) {
   html[data-skin="ios"]:not(#_):not(#__)[data-app="khach-hang"] body > nav.tabs { margin: 10px 12px 0 !important; max-width: calc(100% - 24px); }
   html[data-skin="ios"]:not(#_):not(#__)[data-app="khach-hang"] body > :is(main, #tienDo) { margin-left: 12px !important; margin-right: 12px !important; }
+}
+
+/* NÚT BẤM KIỂU MỚI (09/10/2026; ios.js / ios-app.js gắn .ios-nhan / .ios-tha /
+   .ios-gon). Thay luật "nhạt đi 62%" cũ. Không đặt transition lên trạng thái
+   thường — chỉ trong lúc nhấn/thả — để không đè hiệu ứng riêng của từng nút. */
+@property --ios-gon-r { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@property --ios-gon-a { syntax: "<number>"; inherits: false; initial-value: 0; }
+html[data-skin="ios"]:not(#_):not(#__):not(#___) .ios-nhan {
+  scale: var(--ios-nhan-s, .955); filter: brightness(.92); opacity: 1 !important;
+  transition: scale .13s cubic-bezier(.2, .8, .4, 1), filter .1s ease !important;
+}
+html[data-skin="ios"]:not(#_):not(#__):not(#___) .ios-tha {
+  transition: scale .5s cubic-bezier(.34, 1.56, .64, 1), filter .25s ease !important;
+}
+html[data-skin="ios"]:not(#_):not(#__):not(#___) :is(.ios-nhan, .ios-tha):active { opacity: 1 !important; }
+html[data-skin="ios"] :is(.btn, button, [role="button"], .tab, .pill) { -webkit-tap-highlight-color: transparent; }
+/* gợn sáng từ chỗ chạm (nút chính): lớp phủ cố định đúng khung nút (ios.js tạo) */
+.ios-gon {
+  position: fixed; z-index: 2147481000; pointer-events: none; overflow: hidden; scale: var(--ios-nhan-s, .955);
+  background-image: radial-gradient(circle at var(--ios-gon-x, 50%) var(--ios-gon-y, 50%),
+    rgba(255, 255, 255, var(--ios-gon-a)) 0, rgba(255, 255, 255, calc(var(--ios-gon-a) * .4)) calc(var(--ios-gon-r) * .7), rgba(255, 255, 255, 0) var(--ios-gon-r)) !important;
+  animation: ios-gon-loang .6s cubic-bezier(.2, .7, .3, 1) forwards;
+}
+@keyframes ios-gon-loang { 0% { --ios-gon-r: 0px; --ios-gon-a: .45; } 100% { --ios-gon-r: 260px; --ios-gon-a: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) :is(.ios-nhan, .ios-tha) { scale: none; transition: filter .1s ease !important; }
+  .ios-gon { display: none; }
 }
 

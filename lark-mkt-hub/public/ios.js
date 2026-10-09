@@ -965,3 +965,51 @@
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bat); else bat();
 })();
+/* NÚT BẤM KIỂU MỚI (09/10/2026, anh Hùng duyệt ở trang thử hiệu ứng): nhấn thì
+ * thu nhỏ nhẹ + tối nhẹ, thả ra nảy về bằng lò xo; nút chính có gợn sáng toả từ
+ * chỗ chạm. Dùng thuộc tính `scale` riêng (không đụng `transform`) nên nút canh
+ * giữa bằng transform không dịch chỗ — lỗi làm bản co/nảy cũ bị bỏ. Gắn lớp
+ * bằng pointerdown, giữ tối thiểu 140ms để chạm nhanh trên điện thoại vẫn thấy.
+ * Vật to (thẻ, ô rộng) co ít hơn để không "nhảy". Có cùng bản ở ios.js / ios-app.js. */
+(() => {
+  if (window.__iosNhan) return;
+  window.__iosNhan = true;
+  const NUT = '.btn, button, [role="button"], .tab, .pill, .tb-chip, .cxl-chip, .cd-item, .ios-tabbar > *, .mob-nut, .ios-tao, .rail-item, ' +
+    '.card.bam-duoc, .wcard, .ord-card, .dcard, .nhom-base .the.bam-duoc, .tile, .tb-o, .theDay, .lt-the, a.btn, label.btn';
+  const CHINH = '.btn.primary, .btn-primary, .btn.chinh, button.primary, .ios-tao';
+  const BO = 'input, textarea, select, [contenteditable], .ios-dao, [data-khong-nhan], .ios-lens';
+  const anim = (e) => { e.classList.remove('ios-tha'); void e.offsetWidth; };
+  addEventListener('pointerdown', (ev) => {
+    if (ev.button > 0) return;
+    const t = ev.target;
+    if (!t || !t.closest || t.closest(BO)) return;
+    const e = t.closest(NUT);
+    if (!e || e.disabled || e.getAttribute('aria-disabled') === 'true') return;
+    const r = e.getBoundingClientRect();
+    if (r.width < 8 || r.height < 8) return;
+    const to = Math.max(r.width, r.height);
+    e.style.setProperty('--ios-nhan-s', to > 320 ? '.985' : to > 160 ? '.97' : '.955');
+    anim(e);
+    e.classList.add('ios-nhan');
+    if (e.matches(CHINH)) {
+      /* Gợn sáng là một lớp phủ cố định đúng khung nút (bo theo góc nút), không
+       * phải ảnh nền: nền gradient của nút chính đè mất ảnh nền, còn phần tử con
+       * hay overflow:hidden thì làm lệch/cắt huy hiệu. */
+      const s = getComputedStyle(e), g = document.createElement('div');
+      g.className = 'ios-gon';
+      g.style.cssText = 'left:' + r.left + 'px;top:' + r.top + 'px;width:' + r.width + 'px;height:' + r.height + 'px;border-radius:' + s.borderRadius +
+        ';--ios-gon-x:' + (ev.clientX - r.left) + 'px;--ios-gon-y:' + (ev.clientY - r.top) + 'px';
+      document.body.appendChild(g);
+      setTimeout(() => g.remove(), 650);
+    }
+    const t0 = Date.now();
+    const tha = () => {
+      removeEventListener('pointerup', tha, true); removeEventListener('pointercancel', tha, true);
+      setTimeout(() => {
+        e.classList.remove('ios-nhan'); e.classList.add('ios-tha');
+        setTimeout(() => e.classList.remove('ios-tha'), 560);
+      }, Math.max(0, 140 - (Date.now() - t0)));
+    };
+    addEventListener('pointerup', tha, true); addEventListener('pointercancel', tha, true);
+  }, { capture: true, passive: true });
+})();

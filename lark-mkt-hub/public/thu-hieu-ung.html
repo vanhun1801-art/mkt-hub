@@ -38,40 +38,11 @@
   .khung-dt iframe { width: 100%; height: 100%; border: 0; display: block; }
   /* ios.js dựng thanh tab / thanh đầu của hub trên mọi trang có nó — trang thử không cần */
   .ios-tabbar, .mob-bar, .ios-nut-loc { display: none !important; }
-  /* ---- NÚT BẤM: so sánh kiểu hiện tại và kiểu mới (chỉ trên trang này) ----
-   Kiểu mới dùng thuộc tính `scale` riêng (không đụng `transform`) nên nút đang
-   canh giữa bằng transform không bị dịch chỗ lúc nhấn — lý do bản co/nảy cũ bị
-   bỏ. Lớp .nhan gắn bằng pointerdown và giữ tối thiểu 140ms, để chạm nhanh trên
-   điện thoại vẫn thấy được phản hồi (:active trên iOS gần như không kịp hiện). */
-  .so-sanh { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  .so-sanh > div { border: 1px dashed var(--ios-o-2, rgba(118,118,128,.36)); border-radius: 14px; padding: 12px; }
-  .so-sanh h3 { font-size: 12.5px; font-weight: 600; margin: 0 0 10px; color: var(--ios-chu-2, #6e6e73); text-transform: uppercase; letter-spacing: .04em; }
-  .so-sanh .nut { margin-bottom: 10px; }
-  .the-mau { display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 14px; background: var(--ios-o, rgba(118,118,128,.12)); cursor: pointer; user-select: none; -webkit-user-select: none; }
+  /* thẻ mẫu cho mục Nút bấm (hiệu ứng nhấn là của ios.js, áp cho cả app) */
+  .the-mau { display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 14px; background: var(--ios-o, rgba(118,118,128,.12)); cursor: pointer; user-select: none; -webkit-user-select: none; max-width: 360px; }
   .the-mau i { width: 30px; height: 30px; border-radius: 9px; background: linear-gradient(135deg, #3d8bff, #1fc7a0); flex: none; }
   .the-mau b { font-size: 14px; } .the-mau small { display: block; font-size: 12px; color: var(--ios-chu-2, #6e6e73); }
-  .the-mau.cu:active { filter: brightness(.96); }
   .tron { width: 40px; height: 40px; padding: 0 !important; border-radius: 50% !important; font-size: 18px; }
-
-  html[data-skin="ios"] .tu .moi:not(#a):not(#b):not(#c) {
-    opacity: 1 !important; -webkit-tap-highlight-color: transparent;
-    transition: scale .5s cubic-bezier(.34, 1.56, .64, 1), filter .25s ease !important;
-  }
-  html[data-skin="ios"] .tu .moi.nhan:not(#a):not(#b):not(#c) {
-    scale: .955; filter: brightness(.9) saturate(1.05);
-    transition: scale .13s cubic-bezier(.2, .8, .4, 1), filter .1s ease !important;
-  }
-  html[data-skin="ios"] .tu .the-mau.moi.nhan:not(#a):not(#b):not(#c) { scale: .975; }
-  html[data-skin="ios"] .tu .moi:active:not(#a):not(#b):not(#c) { opacity: 1 !important; }
-  /* gợn sáng từ chỗ chạm — chỉ nút chính */
-  .moi.gon { position: relative; overflow: hidden; isolation: isolate; }
-  .moi.gon .gon-o {
-    position: absolute; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; pointer-events: none;
-    background: radial-gradient(circle, rgba(255,255,255,.55), rgba(255,255,255,0) 70%);
-    animation: gon-loang .6s cubic-bezier(.2, .7, .3, 1) forwards; z-index: -1;
-  }
-  @keyframes gon-loang { from { transform: scale(0); opacity: 1; } to { transform: scale(18); opacity: 0; } }
-  @media (max-width: 560px) { .so-sanh { grid-template-columns: 1fr; } }
   .giua { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
   @media (max-width: 900px) {
     .luoi { grid-template-columns: 1fr; }
@@ -103,27 +74,13 @@
 
       <section class="khoi">
         <h2>Nút bấm</h2>
-        <p class="phu">Nhấn giữ rồi thả để so sánh. Kiểu mới: thu nhỏ nhẹ + tối nhẹ khi nhấn, thả ra nảy về; nút chính có gợn sáng từ chỗ chạm. Chỉ có trên trang này, chưa áp cho app.</p>
-        <div class="so-sanh">
-          <div>
-            <h3>Hiện tại</h3>
-            <div class="nut">
-              <button class="btn">Huỷ</button>
-              <button class="btn primary">Nộp báo cáo</button>
-              <button class="btn tron" aria-label="Làm mới">↻</button>
-            </div>
-            <div class="the-mau cu"><i></i><div><b>Bảng công việc</b><small>4 việc cần xử lý</small></div></div>
-          </div>
-          <div>
-            <h3>Kiểu mới</h3>
-            <div class="nut">
-              <button class="btn moi">Huỷ</button>
-              <button class="btn primary moi gon">Nộp báo cáo</button>
-              <button class="btn tron moi" aria-label="Làm mới">↻</button>
-            </div>
-            <div class="the-mau moi"><i></i><div><b>Bảng công việc</b><small>4 việc cần xử lý</small></div></div>
-          </div>
+        <p class="phu">Nhấn giữ rồi thả: nút thu nhỏ nhẹ và tối đi, thả ra nảy về; nút chính có gợn sáng toả từ chỗ chạm. Đã áp cho mọi nút và thẻ bấm được của hub và 15 app.</p>
+        <div class="nut" style="margin-bottom:12px">
+          <button class="btn">Huỷ</button>
+          <button class="btn primary">Nộp báo cáo</button>
+          <button class="btn tron" aria-label="Làm mới">↻</button>
         </div>
+        <div class="the-mau" role="button" tabindex="0"><i></i><div><b>Bảng công việc</b><small>4 việc cần xử lý</small></div></div>
       </section>
 
       <section class="khoi">
@@ -182,24 +139,6 @@
     setTimeout(function () { dao('Đã tải lên ảnh-tour.jpg', 'luc'); }, 1800);
   };
 
-
-  /* Nút kiểu mới: .nhan khi nhấn, giữ tối thiểu 140ms; gợn sáng ở chỗ chạm */
-  document.querySelectorAll('.moi').forEach(function (b) {
-    var t0 = 0, hen = 0;
-    var tha = function () {
-      var con = Math.max(0, 140 - (Date.now() - t0));
-      clearTimeout(hen); hen = setTimeout(function () { b.classList.remove('nhan'); }, con);
-    };
-    b.addEventListener('pointerdown', function (e) {
-      t0 = Date.now(); clearTimeout(hen); b.classList.add('nhan');
-      if (b.classList.contains('gon')) {
-        var r = b.getBoundingClientRect(), g = document.createElement('span');
-        g.className = 'gon-o'; g.style.left = (e.clientX - r.left) + 'px'; g.style.top = (e.clientY - r.top) + 'px';
-        b.appendChild(g); setTimeout(function () { g.remove(); }, 650);
-      }
-    });
-    ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (k) { b.addEventListener(k, tha); });
-  });
 
   var w = $('#modalWrap');
   var dong = function () { w.hidden = true; };
