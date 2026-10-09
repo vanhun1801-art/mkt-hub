@@ -2340,7 +2340,10 @@ const server = http.createServer(async (req, res) => {
     const moCong = p === '/healthz'
       || /^\/m\/kol\/(f\/[a-f0-9]{32}|api\/form\/[a-f0-9]{32}(\/anh\/rec\w+)?|form\.(js|css)|ma-vung\.js|api\/logo)$/.test(p)
       || (p === '/api/logo' && (req.method === 'GET' || req.method === 'HEAD'))
-      || (anhCong.includes(p) && (req.method === 'GET' || req.method === 'HEAD'));
+      || (anhCong.includes(p) && (req.method === 'GET' || req.method === 'HEAD'))
+      /* Ảnh khởi động iOS (chỉ logo trên nền phẳng): iPhone tải lúc "thêm vào màn hình
+       * chính" / lúc mở app, khi chưa có phiên đăng nhập. */
+      || (/^\/khoi-dong\/\d{3}x\d{3}@[23]-(sang|toi)\.png$/.test(p) && (req.method === 'GET' || req.method === 'HEAD'));
     if (!moCong) {
       const nguoiCong = auth.sessionUser(req);
       if (!nguoiCong) return auth.requireLogin(res, u);
