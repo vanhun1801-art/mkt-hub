@@ -900,42 +900,36 @@
 })();
 
 /* HIỆU ỨNG MỪNG KHI XONG VIỆC (09/10/2026). Anh Hùng: "khi nộp thành công cái
- * gì đó thì có một hiệu ứng được không". Thông báo thành công của hub hoặc của
- * bất kỳ app con nào (ios-app.js gọi lên window.__iosMung) mà nói đã NỘP / GỬI
- * / DUYỆT / HOÀN THÀNH → giữa màn bật một vòng xanh thương hiệu, dấu tick tự
- * vẽ, pháo giấy nhỏ toả ra, ~1 giây rồi tan. Không chặn bấm (pointer-events
- * none). Lưu/xoá/sao chép thường ngày KHÔNG mừng — mừng mọi thứ là nhàm. */
+ * gì đó thì có một hiệu ứng được không"; bản đầu (vòng tick + pháo giấy giữa
+ * màn) bị chê "không phù hợp, chưa hiện đại" → nay kiểu Dynamic Island: một
+ * viên đen trồi ra giữa mép trên, giãn ngang như lò xo, tick xanh tự vẽ cạnh
+ * chính câu thông báo, giữ ~2 giây rồi thu lại. Viên này THAY thông báo nhỏ
+ * thường lệ (không hiện hai lần). Thông báo thành công của hub hoặc app con
+ * (ios-app.js gọi lên window.__iosMung) mà nói đã NỘP / GỬI / DUYỆT / HOÀN
+ * THÀNH mới bật; lưu/xoá/sao chép thường ngày không bật. */
 (() => {
   if (window.__iosMung) return;
   const DUNG = /(^|\s)(đã\s+)?(nộp|gửi|duyệt|hoàn thành|hoàn tất|chốt|đăng ký|giao việc|giao cho|tiếp nhận)|thành công/i;
   const BO = /không|lỗi|chưa|thất bại|huỷ|hủy|xoá|xóa|từ chối|thử lại|đang /i;
-  let lan = 0;
+  let lan = 0, dang = null;
   function mung(chu) {
-    chu = String(chu || '').trim();
+    chu = String(chu || '').replace(/\s+/g, ' ').trim();
     if (!chu || !DUNG.test(chu) || BO.test(chu)) return false;
-    if (Date.now() - lan < 1800) return false;
+    if (Date.now() - lan < 1200) return true;          // trùng nhịp: vẫn nuốt thông báo, không bật lại
     lan = Date.now();
-    try { if (navigator.vibrate) navigator.vibrate(14); } catch (_) {}
-    const giam = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    try { if (navigator.vibrate) navigator.vibrate(12); } catch (_) {}
+    if (dang) dang.remove();
     const o = document.createElement('div');
-    o.className = 'ios-mung' + (giam ? ' giam' : '');
-    o.setAttribute('aria-hidden', 'true');
-    let hat = '';
-    if (!giam) {
-      const MAU = ['#289683', '#1fc7a0', '#3d8bff', '#ffc53d', '#ff7a59', '#9b8cff'];
-      for (let i = 0; i < 18; i++) {
-        const goc = (i / 18) * Math.PI * 2 + (i % 2 ? .12 : -.08);
-        const xa = 70 + (i * 37 % 46);
-        hat += '<i style="--x:' + Math.round(Math.cos(goc) * xa) + 'px;--y:' + Math.round(Math.sin(goc) * xa) +
-          'px;--r:' + (i * 67 % 360) + 'deg;--m:' + MAU[i % MAU.length] + ';--t:' + (i % 3) * 40 + 'ms"></i>';
-      }
-    }
-    o.innerHTML = '<div class="ios-mung-o"><span class="ios-mung-gon"></span>' +
-      '<svg viewBox="0 0 52 52" width="76" height="76"><circle cx="26" cy="26" r="24"/><path d="M15 27.5l7.2 7.2L37.5 19"/></svg>' +
-      hat + '</div>';
+    o.className = 'ios-dao';
+    o.setAttribute('role', 'status');
+    o.innerHTML = '<div class="ios-dao-vien"><span class="ios-dao-tick"><svg viewBox="0 0 24 24" width="16" height="16">' +
+      '<path d="M6 12.5l4 4L18 8.5"/></svg></span><span class="ios-dao-chu"></span></div>';
+    o.querySelector('.ios-dao-chu').textContent = chu;
     document.body.appendChild(o);
-    setTimeout(() => o.classList.add('tan'), giam ? 700 : 1050);
-    setTimeout(() => o.remove(), giam ? 1000 : 1450);
+    dang = o;
+    requestAnimationFrame(() => requestAnimationFrame(() => o.classList.add('mo')));
+    setTimeout(() => { o.classList.remove('mo'); o.classList.add('thu'); }, 2300);
+    setTimeout(() => { o.remove(); if (dang === o) dang = null; }, 2900);
     return true;
   }
   window.__iosMung = mung;
@@ -944,7 +938,7 @@
   const nhin = (n) => {
     if (!n || n.nodeType !== 1) return;
     if (!/(^|\s)toast(\s|$)/.test(n.className) || /(^|\s)(do|err|loi|xau|error)(\s|$)/.test(n.className)) return;
-    mung(n.textContent);
+    if (mung(n.textContent)) n.classList.add('ios-da-mung');
   };
   const bat = () => {
     const h = document.getElementById('toasts');

@@ -953,7 +953,8 @@
   const LOI = /(^|\s)(do|err|loi|xau|error)(\s|$)/;
   const xet = (n) => {
     if (!n || n.nodeType !== 1 || n.hidden || LOI.test(n.className)) return;
-    goi(n.textContent);
+    /* viên đảo của lớp vỏ thay thông báo này → ẩn để không hiện hai lần */
+    if (goi(n.textContent)) n.classList.add('ios-da-mung');
   };
   const bat = () => {
     new MutationObserver((ds) => ds.forEach((d) => {
