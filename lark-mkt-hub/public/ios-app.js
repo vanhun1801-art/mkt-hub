@@ -1172,3 +1172,43 @@
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bat); else bat();
 })();
+
+/* GỌN ĐIỆN THOẠI (09/10/2026, anh Hùng: "mobile cần rút gọn các cái không cần
+ * thiết như bộ lọc… cứ tư duy đó mà cải thiện"). Điện thoại chỉ giữ thứ người
+ * ta dùng khi cầm máy; việc của máy tính (xuất tệp, chép sang sheet, kết nối,
+ * hướng dẫn nhập) và phần trống chỉ chiếm chỗ. Gắn .ios-an-dt (ios.css ẩn ở
+ * ≤ 640px); lên máy tính gỡ ra. Danh sách theo CHỮ trên nút vì mỗi app đặt tên
+ * lớp một kiểu. Xem docs/nguyen-tac-lam-viec.md mục 1. */
+(() => {
+  if (window.__iosGonDt) return;
+  window.__iosGonDt = true;
+  const mq = matchMedia('(max-width: 640px)');
+  const NUT_MAY_TINH = /^(xuất csv|xuất báo cáo|xuất excel|tải excel|sheet hcns|chép khối ngày|hướng dẫn|kết nối|mở base|mở lark để nhập)$/i;
+  const chu = (e) => (e.textContent || '').replace(/[\u{1F300}-\u{1FAFF}☀-➿]/gu, '').replace(/\s+/g, ' ').trim();
+  function lam() {
+    document.querySelectorAll('.ios-an-dt').forEach((e) => { if (!mq.matches) e.classList.remove('ios-an-dt'); });
+    if (!mq.matches) return;
+    const an = (e) => { if (e && !e.classList.contains('ios-an-dt')) e.classList.add('ios-an-dt'); };
+    document.querySelectorAll('button, a.btn, .btn').forEach((e) => { const t = chu(e); if (t.length < 26 && NUT_MAY_TINH.test(t)) an(e); });
+    /* nhóm việc rỗng (số 0) ở Bảng công việc: tiêu đề + giải thích + "không có
+     * việc nào" chiếm nửa màn mà không cho biết thêm gì */
+    document.querySelectorAll('.queue').forEach((q) => {
+      const n = q.querySelector('.queue-n');
+      if (n && n.textContent.trim() === '0') an(q); else q.classList.remove('ios-an-dt');
+    });
+    /* thẻ hướng dẫn nhập booking trong Lark (Booking OTA): việc làm trên máy tính */
+    document.querySelectorAll('.nhap-kicker').forEach((k) => {
+      let c = k.parentElement;
+      while (c && c !== document.body && getComputedStyle(c).backgroundColor === 'rgba(0, 0, 0, 0)') c = c.parentElement;
+      if (c && c !== document.body && c.getBoundingClientRect().height < 260) an(c);
+    });
+  }
+  let hen = 0;
+  const henLam = () => { if (hen) return; hen = setTimeout(() => { hen = 0; try { lam(); } catch (_) {} }, 200); };
+  const bat = () => {
+    henLam();
+    new MutationObserver(henLam).observe(document.body, { childList: true, subtree: true, characterData: true });
+    mq.addEventListener ? mq.addEventListener('change', henLam) : mq.addListener(henLam);
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bat); else bat();
+})();

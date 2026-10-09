@@ -20,6 +20,14 @@ Lớp giao diện chung nằm ở `public/ios.css`, `public/ios.js` (lớp vỏ)
   - bộ lọc ẩn sau nút phễu;
   - không bày dòng phụ hay chú thích thừa.
 - Cài đặt đi theo kiểu iOS: nhiều trang con trượt vào trong, nút ← quay về đúng trang trước.
+- **Điện thoại chỉ giữ thứ người ta dùng khi cầm máy.** Mọi thứ khác giấu đi hoặc ẩn hẳn (module "gọn điện thoại" trong ios-app.js gắn `.ios-an-dt`):
+  - bộ lọc: giấu sau nút phễu;
+  - nút việc của máy tính (Xuất CSV, Xuất báo cáo, Tải Excel, Sheet HCNS, Chép khối ngày, Hướng dẫn, Kết nối, Mở Base): ẩn;
+  - thẻ hướng dẫn thao tác trên máy tính: ẩn;
+  - nhóm rỗng (số 0): ẩn;
+  - dòng giải thích dài dưới tiêu đề khối, chữ "rê chuột": ẩn.
+
+  Gặp màn mới thì tự áp đúng tinh thần đó, không đợi anh chỉ từng chỗ.
 - Soát ở các khổ 320, 375, 390 và 430px, cả giao diện sáng lẫn tối.
 
 ## 2. Bo góc (thang cố định)

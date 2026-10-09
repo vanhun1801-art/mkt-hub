@@ -5464,3 +5464,17 @@ html[data-skin="ios"]:not(#_):not(#__):not(#___) :is(:is(.seg, .hub-seg) > :is(b
   html[data-skin="ios"]:not(#_):not(#__):not(#___) table.ios-bang-vua { min-width: 0 !important; width: 100% !important; }
 }
 
+/* ==========================================================================
+   GỌN ĐIỆN THOẠI (09/10/2026; ios-app.js gắn .ios-an-dt cho nút việc-máy-tính,
+   nhóm việc rỗng, thẻ hướng dẫn nhập). Thêm: các dòng giải thích dài dưới tiêu
+   đề khối — đọc một lần trên máy tính là đủ, trên điện thoại chỉ đẩy số liệu
+   xuống dưới màn.
+   ========================================================================== */
+@media (max-width: 640px) {
+  html[data-skin="ios"]:not(#_):not(#__):not(#___) .ios-an-dt { display: none !important; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___)[data-app="cong-viec"] .queue-hint { display: none !important; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___)[data-app="ota"] .khoi-thanh .manh { display: none !important; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___)[data-app="san-pham"] :is(p.dan, .tangMo) { display: none !important; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___)[data-app="khach-hang"] .the > :is(p.phu, .ghi-duoi) { display: none !important; }
+}
+
