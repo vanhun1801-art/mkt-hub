@@ -5302,3 +5302,12 @@ html[data-skin="ios"]:not(#_):not(#__):not([data-app]) .stage:has(> .page.ios-ro
   html[data-skin="ios"] #so, html[data-skin="ios"] #so > * { transition: none !important; }
 }
 
+/* ==========================================================================
+   ẨN MỌI THANH CUỘN (09/10/2026, anh Hùng: "bỏ toàn bộ thanh trượt lên trượt
+   xuống trên ứng dụng"). Chỉ ẩn THANH, vẫn cuộn bằng chuột, bàn di, vuốt, phím.
+   Đè mọi luật thanh cuộn cũ (mảnh, tô rãnh khi có cửa sổ…) ở hub và 15 app.
+   ========================================================================== */
+html[data-skin="ios"], html[data-skin="ios"]:not(#_):not(#__):not(#___) * { scrollbar-width: none !important; -ms-overflow-style: none; }
+html[data-skin="ios"]::-webkit-scrollbar,
+html[data-skin="ios"] *::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; background: transparent !important; }
+
