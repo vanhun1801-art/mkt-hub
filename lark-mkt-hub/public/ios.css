@@ -4967,6 +4967,22 @@ html[data-skin="ios"] .bb-phu, .bb-phu { overscroll-behavior: contain; }
    tối (anh Hùng 09/10: "nút bị trắng đi"). Dải lọc chỉ dùng một cách báo chọn: tô xanh. */
 html[data-skin="ios"]:not(#_):not(#__) :is(.hub-seg, .filters .seg, .filters .pills, .loc-bar .seg, .loc .seg, .loc-hang .seg, section#filters .seg) > .ios-lens { display: none !important; }
 html[data-skin="ios"]:not(#_):not(#__) .hub-seg > :is(.on, .chon) { box-shadow: none !important; }
+/* …và cách báo chọn đó phải có ở MỌI khổ màn (10/10/2026, anh Hùng chụp KPI ›
+   Báo cáo: "chọn mà nó không hiểu"). Luật tô xanh trước chỉ nằm trong khối điện
+   thoại, nên trên máy tính dải lọc vừa mất thấu kính vừa không tô gì: chọn Tuần
+   này / Khánh mà nhìn không ra đang chọn ô nào. */
+/* Thanh chọn dạng đoạn KHÔNG có thấu kính (VD Khách hàng › Bản đồ, Chân dung):
+   ô đang chọn là viên nền nổi như nút đoạn iOS — trước luật chung làm mọi ô
+   trong suốt nên ô chọn không khác gì ô thường. */
+html[data-skin="ios"]:not(#_):not(#__):not(#___) .seg:not(.ios-co-lens) > :is(.on, .chon, .is-active, .dang, [aria-pressed="true"], [aria-selected="true"]) {
+  background: var(--ios-the) !important; color: var(--ios-chu) !important; font-weight: 600 !important; border-radius: 999px !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .12), 0 0 0 .5px rgba(0, 0, 0, .04) !important;
+}
+html[data-skin="ios"]:not(#_):not(#__):not(#___) :is(.hub-seg, .filters .seg, .filters .pills, .loc-bar .seg, .loc .seg, .loc-hang .seg, section#filters .seg) > :is(.on, .chon, .is-active, .dang, [aria-pressed="true"], [aria-selected="true"]) {
+  background: var(--ios-xanh) !important; color: #fff !important; font-weight: 600 !important;
+  border-radius: 999px !important; box-shadow: 0 1px 3px color-mix(in srgb, var(--ios-xanh) 35%, transparent) !important;
+  transition: background-color .16s var(--cd-deu, ease), color .16s var(--cd-deu, ease);
+}
 
 /* Cửa sổ ở GIỮA màn (drawer, modal-box, xt-box) không bám mép dưới nữa → bỏ lề an
    toàn đáy của dienthoai.css (iPhone ~34px) — trước thành khoảng trống dưới nút Đóng.

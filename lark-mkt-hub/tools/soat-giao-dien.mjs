@@ -64,6 +64,23 @@ const DO = `(() => {
     } else if ((tag === 'BUTTON' || e.classList.contains('btn')) && b.height >= 24 && b.height <= 48 && s.backgroundColor !== 'rgba(0, 0, 0, 0)' && r < b.height / 2 - 1 && !e.closest('.ng-pop, .pk-panel, .dd-panel, table, .ios-lens, .rail, .ios-tabbar, .cd-dt'))
       canh.push('nút không tròn (bo ' + r + 'px, cao ' + Math.round(b.height) + '): ' + ten(e));
   });
+  /* THANH CHỌN phải cho thấy ô đang chọn (anh Hùng 10/10: "chọn mà nó không
+   * hiểu"): có thấu kính trượt đang hiện, hoặc ô chọn khác nền / khác bóng với ô
+   * thường. Chỉ đậm chữ thôi thì không đủ. */
+  document.querySelectorAll('.seg, .pills, .hub-seg, .tabs, nav.tabs, .cal-modes').forEach((c) => {
+    if (!c.getClientRects().length) return;
+    const nut = [...c.children].filter((x) => x.matches('button, a, .pill, .tab, .seg-nut') && x.getClientRects().length);
+    if (nut.length < 2) return;
+    const chon = nut.find((x) => x.matches('.on, .chon, .dang, .active, .is-active, [aria-pressed="true"], [aria-selected="true"]'));
+    if (!chon) return;
+    const lens = c.querySelector(':scope > .ios-lens');
+    const ls = lens && getComputedStyle(lens);
+    if (ls && ls.display !== 'none' && ls.visibility !== 'hidden' && +ls.opacity > .05 && lens.getBoundingClientRect().width > 4) return;
+    const thuong = nut.find((x) => x !== chon);
+    const a = getComputedStyle(chon), b2 = getComputedStyle(thuong);
+    if (a.backgroundColor === b2.backgroundColor && a.boxShadow === b2.boxShadow && a.backgroundImage === b2.backgroundImage)
+      loi.push('thanh chọn không hiện ô đang chọn: ' + ten(c) + ' ("' + (chon.textContent || '').trim().slice(0, 16) + '")');
+  });
   const gon = (a) => [...new Set(a)];
   return JSON.stringify({ loi: gon(loi).slice(0, 12), canh: gon(canh).slice(0, 12), nCanh: gon(canh).length });
 })()`;

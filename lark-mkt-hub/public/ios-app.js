@@ -1249,3 +1249,48 @@
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bat); else bat();
 })();
+
+/* CỬA SỔ GIỮA CẢ MÀN (10/10/2026, anh Hùng: "cửa sổ nên cân theo thông báo cho
+ * vào giữa"). Viên thông báo canh giữa cả cửa sổ trình duyệt, còn hộp của app
+ * con chỉ canh giữa KHUNG app (bên phải thanh menu) → lệch phải ~nửa bề ngang
+ * thanh menu. Hộp nằm trong iframe nên không ra ngoài khung được: đo vị trí
+ * khung trong màn của lớp vỏ rồi dời hộp (thuộc tính `translate`, không đụng
+ * `transform` của hiệu ứng mở) cho tâm hộp trùng tâm màn; hộp rộng thì dời tối
+ * đa tới sát mép khung (chừa 12px). Chỉ máy tính; điện thoại khung đã kín màn. */
+(() => {
+  if (window.__iosGiua) return;
+  window.__iosGiua = true;
+  let khung = null;
+  try { khung = window.frameElement; } catch (_) {}
+  if (!khung) return;
+  const HOP = '.ios-hop-dac, .drawer.open, .drawer.on, .modal-box, .modal-wrap > .modal, .xn-hop, .ngan-hop';
+  function can() {
+    let vo;
+    try { vo = parent.innerWidth; } catch (_) { return; }
+    const lechKhung = khung.getBoundingClientRect().left;
+    document.querySelectorAll(HOP).forEach((h) => {
+      if (innerWidth <= 640 || !h.getClientRects().length) { if (h.style.translate) h.style.removeProperty('translate'); return; }
+      const cu = parseFloat((h.style.translate || '0').split(' ')[0]) || 0;
+      const r = h.getBoundingClientRect();
+      if (r.width >= innerWidth - 24 || r.width < 120) return;       // kín khung / quá nhỏ: để nguyên
+      const tamGoc = r.left - cu + r.width / 2;                         // tâm khi chưa dời
+      const tamMuon = vo / 2 - lechKhung;                               // tâm màn, quy về toạ độ khung
+      let dx = tamMuon - tamGoc;
+      const trai = r.left - cu + dx, phai = trai + r.width;
+      if (trai < 12) dx += 12 - trai;
+      if (phai > innerWidth - 12) dx -= phai - (innerWidth - 12);
+      dx = Math.round(dx);
+      const moi = dx ? dx + 'px 0' : '';
+      if ((h.style.translate || '') !== moi) { if (moi) h.style.setProperty('translate', moi); else h.style.removeProperty('translate'); }
+    });
+  }
+  let hen = 0;
+  const henCan = () => { if (hen) return; hen = requestAnimationFrame(() => { hen = 0; try { can(); } catch (_) {} }); };
+  const bat = () => {
+    new MutationObserver(henCan).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'hidden', 'open'] });
+    addEventListener('resize', henCan);
+    try { parent.addEventListener('resize', henCan); } catch (_) {}
+    henCan();
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bat); else bat();
+})();
