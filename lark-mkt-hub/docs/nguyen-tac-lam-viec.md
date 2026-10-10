@@ -65,6 +65,7 @@ Nút tròn phải tròn thật: rộng bằng cao, không được dẹp.
 ## 4. Cửa sổ, bảng chọn, thông báo
 
 - Cửa sổ hiện lên thì phía sau tối khoảng 32% và mờ đi, kể cả thanh menu của lớp vỏ. Phía dưới bị khoá cuộn.
+  - Nền phía sau phải **một màu liền**: vùng thanh menu và vùng app cùng một công thức (tối 32%, mờ 6px, đậm màu 1.2). Mỗi vùng chỉ có một lớp tối; lớp thừa chuyển trong suốt (`.ios-nen-thua`). Không gắn thêm filter làm tối riêng cho thanh menu.
 - Hộp cửa sổ trên máy tính canh giữa **cả màn hình**, thẳng hàng với viên thông báo, chứ không phải giữa khung app. Phần này do module "cửa sổ giữa cả màn" trong ios-app.js làm.
 - Thanh chọn (dải lọc, nút đoạn, tab) luôn cho thấy ô đang chọn: viên trượt, hoặc ô tô xanh đặc ở dải lọc, hoặc viên nền nổi ở nút đoạn. Chỉ đậm chữ thôi thì không đủ. Công cụ soát báo lỗi nếu thiếu.
 - Hộp cửa sổ có nền đặc một màu: đầu, thân và chân cùng màu, chỉ ngăn bằng đường mảnh. Không dùng nền trong suốt, vì nội dung phía sau sẽ xuyên qua.

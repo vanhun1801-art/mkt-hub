@@ -5512,3 +5512,19 @@ html[data-skin="ios"]:not(#_):not(#__):not(#___) :is([data-app="kpi"] .nut, [dat
   html[data-skin="ios"]:not(#_):not(#__):not(#___)[data-app="khach-hang"] .the > :is(p.phu, .ghi-duoi) { display: none !important; }
 }
 
+/* ==========================================================================
+   NỀN SAU CỬA SỔ MỘT MÀU (10/10/2026, anh Hùng: "khoảng nền vẫn còn chênh lệch
+   2 mảng… xử lý toàn diện"). Đo: vùng thanh menu 165, vùng app 80 — app bật hai
+   lớp tối chồng nhau, thanh menu lại mờ kiểu khác (3px, nhạt màu .9). Nay:
+   - app chỉ một lớp tối (ios-app.js gắn .ios-nen-thua cho lớp thừa);
+   - thanh menu, thanh đầu, thanh tab của lớp vỏ mờ đúng công thức của lớp phủ
+     trong app: tối 32% + mờ 6px + đậm màu 1.2.
+   ========================================================================== */
+html[data-skin="ios"]:not(#_):not(#__):not(#___):not(#____) .ios-nen-thua {
+  background-color: transparent !important; background-image: none !important;
+  -webkit-backdrop-filter: none !important; backdrop-filter: none !important; box-shadow: none !important;
+}
+html[data-skin="ios"]:not(#_):not(#__):not(#___):not([data-app]) body.mod-che :is(.rail, .mob-bar, .ios-tabbar, .page-head) {
+  filter: blur(6px) saturate(1.2) !important;
+}
+

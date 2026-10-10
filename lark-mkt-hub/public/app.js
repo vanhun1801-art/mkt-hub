@@ -3239,8 +3239,12 @@ window.addEventListener('message', (ev) => {
   if (d && d.hub === 'che') {
     const mo = !!d.mo;
     document.body.classList.toggle('mod-che', mo);
+    /* Độ tối + mờ của thanh menu do ios.css lo (body.mod-che): một lớp tối 32%
+     * chung cho cả màn. Từng có thêm filter brightness(.6) gắn thẳng vào #rail →
+     * thanh menu tối gấp đôi vùng app (đo 53 so với 166, anh Hùng 10/10: "nền
+     * còn chênh lệch 2 mảng"). Gỡ cả dấu cũ nếu còn. */
     const r = document.getElementById('rail');
-    if (r) r.style.filter = mo ? 'brightness(.6) saturate(.9)' : '';
+    if (r && r.style.filter) r.style.filter = '';
     return;
   }
   /* App con vừa dựng xong DOM (shim bắn 'xin-loc' ngay ở DOMContentLoaded).

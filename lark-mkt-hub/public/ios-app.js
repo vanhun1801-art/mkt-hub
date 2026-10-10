@@ -1294,3 +1294,35 @@
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bat); else bat();
 })();
+
+/* MỘT LỚP TỐI DUY NHẤT (10/10/2026, anh Hùng: "khoảng nền vẫn còn chênh lệch 2
+ * mảng"). Nhiều app bật cùng lúc lớp nền của cửa sổ VÀ lớp nền của ngăn kéo
+ * (VD Lịch tác nghiệp: .modal.on + .mask.on), mỗi lớp tối 32% → vùng app tối
+ * gần gấp đôi vùng thanh menu (đo: 80 so với 165). Khi có từ hai lớp phủ kín màn
+ * cùng hiện, chỉ lớp chứa hộp cửa sổ giữ màu; lớp nền rỗng còn lại trong suốt
+ * (.ios-nen-thua). */
+(() => {
+  if (window.__iosMotLop) return;
+  window.__iosMotLop = true;
+  const NEN = '.mask, .scrim, .modal-mask, .modal-nen, .modal, .modal-wrap, .md, .xt, .phu-man, .xn-lop, .xn-nen, .ngan, .ios-nen-la, .ck-sua, .hop-nen';
+  function lam() {
+    const W = innerWidth, H = innerHeight;
+    const hien = [...document.querySelectorAll(NEN)].filter((e) => {
+      if (e.closest('.ios-bong-dong')) return false;
+      const s = getComputedStyle(e);
+      if (s.display === 'none' || s.visibility === 'hidden' || +s.opacity < .05) return false;
+      const r = e.getBoundingClientRect();
+      return r.width >= W * .9 && r.height >= H * .9;
+    });
+    const coHop = hien.filter((e) => [...e.children].some((c) => { const r = c.getBoundingClientRect(); return r.width > 80 && r.height > 60; }));
+    hien.forEach((e) => e.classList.toggle('ios-nen-thua', hien.length > 1 && coHop.length > 0 && !coHop.includes(e)));
+    document.querySelectorAll('.ios-nen-thua').forEach((e) => { if (!hien.includes(e)) e.classList.remove('ios-nen-thua'); });
+  }
+  let hen = 0;
+  const henLam = () => { if (hen) return; hen = requestAnimationFrame(() => { hen = 0; try { lam(); } catch (_) {} }); };
+  const bat = () => {
+    new MutationObserver(henLam).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'hidden', 'style'] });
+    henLam();
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bat); else bat();
+})();
