@@ -23,6 +23,7 @@ const kho = require('../kho');
 const CH = require('../chuan');
 const LL = require('../lich-lam');
 const TN = require('../tac-nghiep');
+const NK = require('./nhat-ky');
 
 const loai = process.argv[2] === 'thang' ? 'thang' : 'tuan';
 const iMoc = process.argv.indexOf('--moc');
@@ -123,6 +124,9 @@ const catChu = (s, n) => { const t = String(s || '').replace(/\s+/g, ' ').trim()
   if (fs.existsSync(tepCu)) {
     fs.renameSync(tepCu, path.join(THU_MUC, 'cu-ket-qua-' + ten + '-' + Date.now() + '.json'));
   }
+  /* Để lại dấu: lượt này đã gom xong dữ liệu. Nếu không có dấu 'ghi' theo sau
+   * thì ai/soat.js biết lượt ấy bỏ dở — xem chú thích ở ai/nhat-ky.js. */
+  NK.ghi({ loai, ky: ten, buoc: 'chuan-bi', soNguoi: nguoi.length });
   console.log(JSON.stringify({ tepDuLieu, tepMa: path.join(THU_MUC, 'ma-' + ten + '.json'),
     tepKetQua: path.join(THU_MUC, 'ket-qua-' + ten + '.json'), soNguoi: nguoi.length, ky: K.veNgay(k.tu) + ' – ' + K.veNgay(den) }));
 })().catch((e) => { console.error('HỎNG: ' + e.message); process.exit(1); });

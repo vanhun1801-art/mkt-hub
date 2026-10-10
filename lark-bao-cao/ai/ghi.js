@@ -15,6 +15,8 @@ const cfg = require('../config');
 const K = require('../ky');
 const kho = require('../kho');
 const lark = require('../lark');
+const path = require('path');
+const NK = require('./nhat-ky');
 
 const [tepKq, tepMa] = process.argv.slice(2);
 if (!tepKq || !tepMa) { console.error('Cách dùng: node ai/ghi.js <kết quả> <mã>'); process.exit(1); }
@@ -63,5 +65,6 @@ if (!tepKq || !tepMa) { console.error('Cách dùng: node ai/ghi.js <kết quả>
     ghi++;
     console.log('đã ghi ' + x.ma + ' → ' + ai.ten);
   }
+  NK.ghi({ loai, ky: path.basename(tepMa).replace(/^ma-|\.json$/g, ''), buoc: 'ghi', soNguoi: ghi });
   console.log('xong: ' + ghi + ' người');
 })().catch((e) => { console.error('HỎNG: ' + e.message); process.exit(1); });

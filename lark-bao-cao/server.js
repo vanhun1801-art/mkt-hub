@@ -902,6 +902,11 @@ async function api(req, res, u) {
     /* "Không" không phải lời cầu cứu — xem K.canHoTroThat(). */
     /* Chỉ vướng mắc CHƯA xử lý (rà 01/10) — đã xử lý mà vẫn đếm là "cần người gỡ" sai. */
     const hoTro = ds.filter((x) => K.canHoTroThat(x.canHoTro) && !x.hoTroXong);
+    /* Đọc thẳng từ tệp, không gọi script con: trang Tổng quan phải trả lời
+     * nhanh, mà soát chỉ là đọc vài tệp nhỏ trong ai/du-lieu. Hỏng thì coi như
+     * không có lượt nào bỏ dở — đừng để một tệp nhật ký lỗi làm sập cả trang. */
+    let aiBoDo = [];
+    try { aiBoDo = require('./ai/soat').boDo(); } catch (_) { aiBoDo = []; }
 
     const the = [
       { chinh: true, nhan: 'Phiếu đã nộp', so: daNop.length, dinhDang: 'so',
@@ -917,7 +922,20 @@ async function api(req, res, u) {
       the,
       /* Việc cần xử lý: mỗi lời "cần hỗ trợ" là một việc thật có người đang
        * chờ. Đưa lên danh sách chung của trang Tổng quan. */
-      canXuLy: hoTro.slice(0, 8).map((x) => ({
+      canXuLy: [
+        /* LƯỢT AI BỎ DỞ cũng là việc cần xử lý. Lượt chạy theo lịch là một
+         * phiên không ai ngồi xem: ngày 10/10/2026 lượt 8:30 Thứ 7 gom xong dữ
+         * liệu rồi đứng im ở bước viết tệp, Base không có gì, và không ai biết
+         * suốt hai tuần vì một lượt treo thì KHÔNG TỰ BÁO ĐƯỢC. Đẩy lên đây để
+         * nó hiện ngay trang Tổng quan của hub. */
+        ...aiBoDo.map((x) => ({
+          id: 'ai-' + x.ky,
+          tieuDe: 'Nhận xét AI ' + (x.loai === 'tuan' ? 'tuần' : 'tháng') + ' '
+            + x.ngay + ': ' + x.ketAt,
+          muc: 'cao',
+          nhan: 'AI bỏ dở',
+        })),
+      ].concat(hoTro.slice(0, 8).map((x) => ({
         id: x.id,
         /* `tieuDe`, KHÔNG phải `ten`: trang Tổng quan của lớp vỏ đọc đúng khoá
          * này (app.js — `esc(v.tieuDe)`). Đặt sai tên thì việc vẫn được đếm mà
@@ -930,8 +948,8 @@ async function api(req, res, u) {
           String(x.canHoTro || '').replace(/\s+/g, ' ').trim().slice(0, 90),
         muc: 'vua',
         nhan: 'Cần hỗ trợ',
-      })),
-      canXuLyTong: hoTro.length,
+      }))),
+      canXuLyTong: hoTro.length + aiBoDo.length,
       tong: daNop.length,
       khoang: '',
     });
