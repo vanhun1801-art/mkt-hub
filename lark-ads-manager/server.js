@@ -22,6 +22,7 @@ const gads = require('./sync/gads');
 const { xepHanhDong, gomTrungLap } = require('./sync/metrics-hanhdong');
 const pancake = require('./sync/pancake');
 const pancakePos = require('./sync/pancakepos');
+const tinNhan = require('./sync/tinnhan');
 const tourwell = require('./sync/tourwell');
 const tourwellApi = require('./sync/tourwellapi');
 const khoRoas = require('./sync/khoroas');
@@ -649,6 +650,19 @@ async function api(req, res, u) {
   }
 
   /** Tag của page, kèm cờ is_lead_event — để chọn tag nào tính là đơn chốt. */
+  /* TIN NHẮN KHÁCH THEO KÊNH — khối Social của Báo cáo & KPI đọc đường này.
+   * Đặt ở app Quảng cáo vì nối Pancake nằm sẵn ở đây; dựng thêm một mối nối
+   * nữa bên app Social là hai chỗ cùng giữ token, lệch nhau lúc nào không hay.
+   * Chỉ ĐỌC, không ghi gì vào Base. */
+  if (p === '/api/tin-nhan' && method === 'GET') {
+    const tu = u.searchParams.get('tu') || '';
+    const den = u.searchParams.get('den') || '';
+    if (!tu || !den) return fail(res, 400, 'Thiếu tu/den');
+    try {
+      return ok(res, await tinNhan.gomTinNhan(ketnoi.read().pancake, tu, den));
+    } catch (e) { return fail(res, 400, e.message); }
+  }
+
   if (p === '/api/pancake/tags' && method === 'POST') {
     const body = await readBody(req);
     const conf = ketnoi.read().pancake;

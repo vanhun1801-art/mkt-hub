@@ -243,6 +243,21 @@ function gopNenTang(ds) {
 /* ================= SOCIAL ================= */
 async function docSocial(app, tu, den, pv) {
   const d = await goi(app, '/api/tong-quan' + q(tu, den));
+
+  /* TIN NHẮN KHÁCH — đọc từ app Quảng cáo, nơi đã nối sẵn Pancake.
+   *
+   * Anh Hùng 10/10/2026 xin hai số: tin nhắn từ kênh tự nhiên (chỉ trưởng
+   * phòng xem) và tin nhắn Sale đã gắn thẻ, tính là lead (ai cũng xem).
+   *
+   * Hỏng thì BỎ QUA khối này chứ đừng làm đổ cả báo cáo Social: Pancake là
+   * nguồn thứ ba, token của nó hết hạn theo chu kỳ riêng, và mất mấy ô tin
+   * nhắn còn hơn mất sạch số lượt xem. Cho 90 giây vì lượt gom nguội phải
+   * phân trang qua cả chục nghìn hội thoại; app kia nhớ kết quả 10 phút. */
+  const appQc = APP.find((x) => x.id === 'quang-cao');
+  const tn = appQc
+    ? await goi({ ...appQc, nguoi: app.nguoi }, '/api/tin-nhan?tu=' + tu + '&den=' + den, 90)
+      .catch(() => null)
+    : null;
   /* LỌC THEO KÊNH ĐƯỢC PHÂN CÔNG. Phải cộng LẠI từ các dòng kênh chứ không lấy
    * `d.tong` rồi trừ bớt: `tong` đã gộp cả kênh của người khác, không gỡ ra
    * được. App Social trả đủ số của từng kênh nên cộng lại là chính xác. */
@@ -348,8 +363,58 @@ async function docSocial(app, tu, den, pv) {
     ? (d.topBai || []).filter((b) => new Set(pv.tenDang).has(b.poster))
     : null;
 
+  /* Gộp tin nhắn theo đúng phạm vi kênh của người xem. Khoá ghép là
+   * "Nền tảng|Tên kênh" — cùng khoá mà bảng Phân công kênh đang dùng. */
+  /* KHỚP TÊN KÊNH BỎ DẤU. Pancake ghi "Rooty Trip Phu Quoc" cho Instagram còn
+   * app Social ghi "Rooty Trip Phú Quốc" — cùng một kênh, hai cách gõ. Nền
+   * tảng thì vẫn so KHỚP ĐÚNG; trong một nền tảng không có hai kênh chỉ khác
+   * nhau mỗi dấu, nên bỏ dấu ở đây không gây nhầm kênh. */
+  const khoaKenh = (nen, ten) => (nen || '') + '|' + String(ten || '').trim().toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ');
+  const locKenhChuan = pv && pv.kenh
+    ? new Set(pv.kenh.map((k) => khoaKenh(k.split('|')[0], k.split('|').slice(1).join('|'))))
+    : null;
+  /* Tài khoản Pancake của công ty có cả page của bên khác (Cục Xôi, Như House,
+   * WhatsApp của từng sale…). Chỉ nhận page khớp với bảng Kênh của app Social,
+   * nếu không thì phần "chưa nối" kể ra một loạt page chẳng liên quan. */
+  const kenhPhong = new Set(dsKenh.map((k) => khoaKenh(k.platform, k.name)));
+  const laKenhCuaMinh = (x) => kenhPhong.has(khoaKenh(x.platform, x.channel))
+    && (!locKenhChuan || locKenhChuan.has(khoaKenh(x.platform, x.channel)));
+  const tnDong = tn && Array.isArray(tn.rows) ? tn.rows.filter(laKenhCuaMinh) : [];
+  const cTn = (f) => tnDong.reduce((a, x) => a + so(x[f]), 0);
+  const coTn = tnDong.length > 0;
+
+  /* NÓI RA KÊNH NÀO CHƯA NỐI. Kênh chưa có token Pancake mà để 0 thì đọc như
+   * "không ai nhắn", trong khi sự thật là chưa đọc được — đúng cái nếp "0 khác
+   * chưa đo được" của cả app. */
+  const luuYTn = [];
+  if (tn) {
+    const thieu = (tn.chuaNoi || []).filter(laKenhCuaMinh);
+    if (thieu.length) {
+      luuYTn.push('Chưa đọc được tin nhắn của ' + thieu.length + ' kênh: '
+        + thieu.slice(0, 6).map((x) => x.platform + ' · ' + x.channel).join(', ')
+        + (thieu.length > 6 ? '…' : '')
+        + '. Mấy kênh này cần dán token page trong Cài đặt app Quảng cáo — Pancake '
+        + 'không cho xin tự động với page TikTok, Instagram, Zalo. Số của chúng '
+        + 'KHÔNG phải 0, mà là chưa đọc được.');
+    }
+    if (tn.hanToken) {
+      const conLai = Math.round((Date.parse(tn.hanToken) - Date.now()) / 86400000);
+      if (conLai <= 30) {
+        luuYTn.push('Token Pancake hết hạn ngày '
+          + tn.hanToken.split('-').reverse().join('/')
+          + (conLai >= 0 ? ' (còn ' + conLai + ' ngày)' : ' (ĐÃ HẾT HẠN)')
+          + '. Hết hạn thì mọi ô tin nhắn ngừng cập nhật — lấy token mới trong '
+          + 'Pancake, mục Cài đặt cá nhân → API Access Token.');
+      }
+    }
+  } else if (APP.find((x) => x.id === 'quang-cao')) {
+    luuYTn.push('Không đọc được tin nhắn từ Pancake lần này, nên mấy ô trò chuyện '
+      + 'và lead để trống. Các số còn lại của Social không bị ảnh hưởng.');
+  }
+
   return {
-    luuY: d.luuY || [],
+    luuY: [...(d.luuY || []), ...luuYTn],
     o: [
       { nhan: 'Lượt xem', so: so(t.views), dinhDang: 'so', lech: l.views, chinh: true, nen: n('views') },
       { nhan: 'Lượt hiển thị', so: so(t.impressions), dinhDang: 'so', lech: l.impressions, nen: n('impressions') },
@@ -378,7 +443,32 @@ async function docSocial(app, tu, den, pv) {
       { nhan: 'Xem hồ sơ', so: so(t.profileViews), dinhDang: 'so', lech: l.profileViews, nen: n('profileViews') },
       { nhan: 'Click liên kết', so: so(t.clicks), dinhDang: 'so', lech: l.clicks, nen: n('clicks') },
       { nhan: 'Tin nhắn', so: so(t.messages), dinhDang: 'so', lech: l.messages, nen: n('messages') },
-      { nhan: 'Lead', so: so(t.leads), dinhDang: 'so', lech: l.leads, nen: n('leads') },
+      /* BA Ô DƯỚI LẤY TỪ PANCAKE, đơn vị là CUỘC TRÒ CHUYỆN chứ không phải tin
+       * nhắn — ô "Tin nhắn" ngay trên là số tin nền tảng tự đếm, và thực tế chỉ
+       * Zalo OA trả (141 tin tháng 10, ba nền tảng kia để trống). Hai thứ khác
+       * đơn vị, nên gọi khác tên chứ không gộp.
+       *
+       * "Tự nhiên" = hội thoại KHÔNG gắn quảng cáo. Chỉ trưởng phòng xem, theo
+       * đúng lời anh Hùng 10/10/2026. */
+      ...(coTn ? [
+        { nhan: 'Cuộc trò chuyện', so: cTn('soHoiThoai'), dinhDang: 'so', chinh: true,
+          ghi: 'khách nhắn vào kênh trong kỳ' },
+        ...(pv ? [] : [
+          { nhan: 'Trò chuyện tự nhiên', so: cTn('tuNhien'), dinhDang: 'so',
+            ghi: 'không đến từ quảng cáo' },
+          { nhan: 'Trò chuyện từ quảng cáo', so: cTn('tuQuangCao'), dinhDang: 'so',
+            trungTinh: true },
+        ]),
+      ] : []),
+      /* LEAD = hội thoại Sale đã gắn thẻ. Trước đây ô này lấy `t.leads` của app
+       * Social, mà không nền tảng nào trả số đó nên nó bằng 0 suốt. */
+      ...(coTn
+        ? [{ nhan: 'Lead', so: cTn('lead'), dinhDang: 'so', chinh: true,
+          ghi: 'hội thoại Sale đã gắn thẻ' }]
+        : [{ nhan: 'Lead', so: so(t.leads), dinhDang: 'so', lech: l.leads, nen: n('leads') }]),
+      ...(coTn ? [{ nhan: 'Có số điện thoại', so: cTn('coSdt'), dinhDang: 'so',
+        ghi: cTn('soHoiThoai')
+          ? Math.round((cTn('coSdt') / cTn('soHoiThoai')) * 100) + '% số cuộc trò chuyện' : '' }] : []),
       { nhan: 'Số bài đăng', so: so(t.posts), dinhDang: 'so', lech: l.posts, nen: n('posts') },
       /* KHÔNG dùng `tyLeTuongTac` của app Social ở tầng tổng: mẫu số là tổng
        * reach, mà Facebook không trả reach nên tỷ lệ vọt lên 294%. Ở đây lấy mẫu
@@ -458,6 +548,17 @@ async function docSocial(app, tu, den, pv) {
           .map((k) => [k.name, k.platform, so(k.followers),
             so(k.followUp) || so(k.followDown) ? so(k.followUp) : '—',
             so(k.views), so(k.engagement), so(k.posts)]) },
+      ...(coTn ? [{
+        tieuDe: 'Tin nhắn khách, theo kênh',
+        cot: pv
+          ? ['Kênh', 'Nền tảng', 'Cuộc trò chuyện', 'Lead', 'Có SĐT']
+          : ['Kênh', 'Nền tảng', 'Cuộc trò chuyện', 'Tự nhiên', 'Từ quảng cáo', 'Lead', 'Có SĐT'],
+        soCot: pv ? [2, 3, 4] : [2, 3, 4, 5, 6],
+        dong: tnDong.slice().sort((a, b) => so(b.soHoiThoai) - so(a.soHoiThoai)).map((x) => (pv
+          ? [x.channel, x.platform, so(x.soHoiThoai), so(x.lead), so(x.coSdt)]
+          : [x.channel, x.platform, so(x.soHoiThoai), so(x.tuNhien), so(x.tuQuangCao),
+            so(x.lead), so(x.coSdt)])),
+      }] : []),
       /* Ai đăng bao nhiêu — để người xem thấy phần của mình trong tổng của kênh,
        * và thấy luôn bao nhiêu bài chưa ghi được người đăng. */
       { tieuDe: 'Theo người đăng',

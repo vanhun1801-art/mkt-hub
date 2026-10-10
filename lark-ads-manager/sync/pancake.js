@@ -33,6 +33,13 @@ const NEN_TANG = {
   facebook: 'Facebook', fb: 'Facebook', page: 'Facebook',
   tiktok: 'TikTok', tiktok_business: 'TikTok',
   instagram: 'Instagram', zalo: 'Zalo', whatsapp: 'WhatsApp',
+  /* Tên nhóm mà /pages thật sự trả về. Thiếu bốn khoá này thì chuanNenTang trả
+   * nguyên chuỗi thô và bảng page hiện "tiktok_business_messaging" thay vì
+   * "TikTok" — đo ngày 10/10/2026, cả TikTok, Instagram, WhatsApp đều dính. */
+  tiktok_business_messaging: 'TikTok',
+  instagram_official: 'Instagram',
+  whatsapp_official: 'WhatsApp',
+  zalo_oa: 'Zalo',
 };
 
 function chuanNenTang(v) {
@@ -56,6 +63,7 @@ const TIEN_TO = [
   [/^waba[_-]/i, 'WhatsApp'],
   [/^ttm[_-]/i, 'TikTok'],
   [/^zalo[_-]/i, 'Zalo'],
+  [/^zl[_-]/i, 'Zalo'],
 ];
 
 function doanNenTang(pageId, tuApi) {
