@@ -248,29 +248,32 @@ group('Khung xương phải khớp GIAO DIỆN THẬT, không phải hình chung
   ok('lưới nhiều cột KHÔNG trùng tên với .kx-cot',
     /class="kx-nhieu-cot"/.test(KXJS) && /\.kx-nhieu-cot\s*\{/.test(CSS_SACH));
 
-  /* Chín app con không được dùng CHUNG một hình: đo trên màn thật thì Bảng công
-   * việc là ba cột, KPI là lưới ô nhỏ, Chỉnh ảnh là hai cột. */
+  /* 10/10/2026, anh Hùng: "nghiêm túc xem lại các dạng màn hình và vẽ lại vị
+   * trí thật chính xác, chụp màn hình và vẽ lại". Khung xương nhịp sơn đầu
+   * KHÔNG còn vẽ tay bằng KX.man (hình trung bình, lệch màn thật) mà là BẢN
+   * CHỤP màn thật của từng app (KX.chup trên màn đã tải xong, khổ 1440px), nhúng
+   * thẳng vào index.html: giữ đúng thẻ + lớp CSS của app, chữ thay bằng thanh
+   * xám. Kiểm: mỗi app một bản chụp riêng, có thanh .kx, mang lớp bố cục THẬT
+   * của app, và không lọt chữ thật nào (chỉ thẻ + thanh xám). */
   const hinh = {};
   for (const ten of APP) {
     const h = fs.readFileSync(path.join(CHA, ten, 'public', 'index.html'), 'utf8');
-    const i = h.search(/<div class="kx-(man|lich) kx-vung"/);
-    hinh[ten] = i < 0 ? '' : h.slice(i, i + 4000).replace(/\s+/g, '');
+    const i = h.search(/<div class="kx-chup kx-vung"/);
+    hinh[ten] = i < 0 ? '' : h.slice(i, h.indexOf('\n', i));
   }
-  ok('Bảng công việc dựng ba cột việc', /kx-nhieu-cot/.test(hinh['lark-task-manager']));
-  ok('KPI dựng lưới ô số nhỏ', /kx-luoi-nho/.test(hinh['lark-kpi']));
-  ok('Chỉnh ảnh dựng hai cột', /kx-2cot/.test(hinh['lark-chinh-anh']));
-  /* 27/09/2026: Lịch tác nghiệp MỞ ở tab Tổng quan (ô số + hàng đợi | phân bổ),
-   * không phải tab Lịch — khung lưới lịch cũ là hình của một màn khác, anh Hùng
-   * thấy "khung xương chưa thật sự chính xác". Tương tự KOL: ô số + danh sách,
-   * không phải một khối xám khổng lồ. */
-  ok('Lịch tác nghiệp dựng ô số + hai cột như tab Tổng quan',
-    /kx-man-the/.test(hinh['lark-lich-tac-nghiep']) && /kx-2cot/.test(hinh['lark-lich-tac-nghiep']));
-  {
-    const kol = fs.readFileSync(path.join(CHA, 'lark-kol', 'public', 'index.html'), 'utf8');
-    ok('KOL dựng ô số + danh sách', /kx-man-the/.test(kol) && /kx-man-bang/.test(kol));
-  }
+  const chuaChup = APP.filter((t) => !hinh[t]);
+  ok('khung xương nhịp đầu là bản chụp màn thật', chuaChup.length === 0, chuaChup.join(', '));
+  const itThanh = APP.filter((t) => hinh[t] && (hinh[t].match(/class="kx"/g) || []).length < 15);
+  ok('bản chụp có đủ thanh xám', itThanh.length === 0, itThanh.join(', '));
+  const loChu = APP.filter((t) => {
+    const trong = hinh[t].replace(/^<div[^>]*>/, '').replace(/<[^>]+>/g, '').trim();
+    return trong.length > 0;
+  });
+  ok('bản chụp không lọt chữ thật nào', loChu.length === 0, loChu.join(', '));
+  ok('Bảng công việc mang lớp bố cục thật (thẻ số, hàng đợi)', /class="kpi/.test(hinh['lark-task-manager']) && /queue/.test(hinh['lark-task-manager']));
+  ok('Lịch tác nghiệp mang lớp bố cục thật', !/kx-man/.test(hinh['lark-lich-tac-nghiep']) && /<div class="[a-z]/.test(hinh['lark-lich-tac-nghiep'].slice(60)));
   const soKhac = new Set(Object.values(hinh)).size;
-  ok('chín app KHÔNG dùng chung một hình', soKhac >= 7, soKhac + ' hình khác nhau');
+  ok('các app KHÔNG dùng chung một hình', soKhac === APP.length, soKhac + ' hình khác nhau');
 }
 
 group('Không vẽ HÌNH CHUNG khi app con đã có hình thật của nó');
@@ -405,7 +408,7 @@ group('Chín app con dùng đúng MỘT bản khung xương');
     const html = fs.readFileSync(path.join(CHA, ten, 'public', 'index.html'), 'utf8');
     if (!/khung-xuong\.css/.test(html)) thieuLink.push(ten);
     if (!/<script[^>]+khung-xuong\.js/.test(html)) thieuJs.push(ten);
-    if (!/class="kx-man|class="kx-lich/.test(html)) thieuThan.push(ten);
+    if (!/class="kx-man|class="kx-lich|class="kx-chup/.test(html)) thieuThan.push(ten);
     /* Nạp sau app.js thì lúc app vẽ lần đầu chưa có KX — mọi chỗ chờ lặng lẽ
      * rơi về đường lùi chữ, và không ai thấy gì sai để mà đi sửa. */
     const iKx = html.indexOf('khung-xuong.js');

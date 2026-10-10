@@ -243,6 +243,19 @@ Hai cái bẫy đã dính thật khi làm:
 Lớp vỏ cũng bỏ lớp phủ iframe **ngay khi app con dựng xong DOM** (không đợi `load`): app con
 đã có khung xương của chính nó, giữ thêm lớp phủ là hai lớp khung xương chồng nhau.
 
+### Nhịp sơn đầu = bản chụp màn thật (10/10/2026)
+
+Anh Hùng: *"nghiêm túc xem lại các dạng màn hình và vẽ lại vị trí thật chính xác, chụp
+ảnh màn hình và vẽ lại"*. Khung xương nằm sẵn trong `index.html` của 13 app (lần mở đầu
+tiên trên một máy, khi localStorage chưa có bản chụp) không còn vẽ tay bằng `KX.man`
+nữa, mà là **bản `KX.chup()` của chính màn đầu đã tải xong**, đo ở khổ 1440px với giao
+diện iOS: đúng thẻ, đúng lớp, đúng vị trí; chữ thay bằng thanh xám, không lọt chữ thật.
+Bọc trong `<div class="kx-chup kx-vung">` nên bộ chụp coi đó vẫn là khung xương và chụp
+lại bản mới khi màn thật vẽ xong. Đổi bố cục màn đầu của app nào thì chụp lại bản đó
+(cách làm: mở app trên hub, chờ tải xong, chạy `KX.chup(document.querySelector('[data-kx-nho]'))`
+trong khung app rồi thay dòng `kx-chup` trong `index.html`). Bảng dưới là cách cũ, giữ để
+tra lịch sử.
+
 ### Mười app con, mười hình khác nhau
 
 Hình của từng app **đo trên màn thật của nó**, không bịa:

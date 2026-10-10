@@ -90,7 +90,7 @@ async function chay(kho) {
   const hoSo = fs.mkdtempSync(path.join(os.tmpdir(), 'soat-'));
   const chrome = spawn(CHROME, ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--hide-scrollbars', '--mute-audio',
     '--lang=vi', '--remote-debugging-port=' + port, '--user-data-dir=' + hoSo, '--window-size=' + kho.w + ',' + kho.h, 'about:blank'], { stdio: 'ignore' });
-  let ws, seq = 0; const cho = new Map(); let loiJs = []; const chanGhi = [];
+  let ws, seq = 0; const cho = new Map(); let loiJs = []; const chanGhi = []; let soCuaSo = 0;
   const gui = (method, params = {}, sessionId) => { const id = ++seq; ws.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }));
     return new Promise((ok, no) => { cho.set(id, { ok, no }); setTimeout(() => { if (cho.has(id)) { cho.delete(id); no(new Error('hết giờ ' + method)); } }, 60000); }); };
   try {
@@ -163,7 +163,32 @@ async function chay(kho) {
         catch (e) { rt = { loi: ['không đo được: ' + e.message], canh: [], nCanh: 0 }; }
         ket.push({ app: id + ' › ' + tabs[k], ...rt, js: loiJs.splice(0) });
       }
+
+      /* CỬA SỔ: mở form tạo mới (nút + của app) rồi kiểm theo nguyên tắc mục 4:
+       * hộp nền đặc · phía sau đúng MỘT lớp tối · (máy tính) hộp giữa cả màn ·
+       * lớp vỏ tối thanh menu bằng lớp tối chung, không filter riêng. Chỉ mở
+       * form để xem; lệnh ghi đã bị chặn ở tầng trình duyệt. */
+      const coTao = await danhGia('(()=>{const f=' + KHUNG + ';const ds=f?[...f.contentDocument.querySelectorAll(".ios-tao, button, .btn")].filter(x=>x.getClientRects().length):[];const b=ds.find(x=>x.classList.contains("ios-tao"))||ds.find(x=>{const t=(x.textContent||"").replace(/\s+/g," ").trim();return t.length<30&&/^([+＋]\s*\S|thêm |tạo )/i.test(t)&&!/dòng|mục|kênh|khối|lark/i.test(t)});if(!b||/lark/i.test(b.textContent+" "+(b.title||""))||b.tagName==="A")return false;b.click();return true})()').catch(() => false);
+      if (coTao) {
+        await sleep(1500);
+        const CUA = '(()=>{const f=' + KHUNG + ';const w=f.contentWindow,d=f.contentDocument;const loi=[];' +
+          'const hop=[...d.querySelectorAll(".ios-hop-dac, .drawer.open, .drawer.on, .modal-box")].find(x=>x.getClientRects().length&&x.getBoundingClientRect().width>120);' +
+          'if(!hop)return JSON.stringify({loi:[],canh:["nút + không mở cửa sổ (hoặc mở kiểu khác)"],nCanh:1});' +
+          'const s=w.getComputedStyle(hop);const m=/rgba?\\(([^)]+)\\)/.exec(s.backgroundColor);const a=m?(m[1].split(",")[3]===undefined?1:+m[1].split(",")[3]):1;' +
+          'if(w.innerWidth>640&&a<.99)loi.push("hộp cửa sổ trong suốt ("+s.backgroundColor+")");' +
+          'const W=w.innerWidth,H=w.innerHeight;const nen=[...d.querySelectorAll("body *")].filter(e=>{const c=w.getComputedStyle(e);if(c.display==="none"||c.visibility==="hidden"||+c.opacity<.05||e.classList.contains("ios-nen-thua")||e.closest(".ios-bong-dong"))return false;const r=e.getBoundingClientRect();if(r.width<W*.9||r.height<H*.9)return false;const mm=/rgba\\(0, 0, 0, ([\\d.]+)\\)/.exec(c.backgroundColor);return mm&&+mm[1]>.05});' +
+          'if(nen.length>1)loi.push("phía sau có "+nen.length+" lớp tối chồng nhau: "+nen.map(e=>"."+String(e.className).split(" ")[0]).join(", "));' +
+          'if(W>640){const r=hop.getBoundingClientRect();const L=f.getBoundingClientRect().left;const lech=Math.round(L+r.left+r.width/2-innerWidth/2);const cham=r.left<14||r.right>W-14;if(Math.abs(lech)>6&&!cham)loi.push("hộp lệch tâm màn "+lech+"px")}' +
+          'if(!document.body.classList.contains("mod-che"))loi.push("lớp vỏ không tối thanh menu khi app mở cửa sổ");' +
+          'const rail=document.getElementById("rail");if(rail&&rail.style.filter)loi.push("thanh menu có filter riêng: "+rail.style.filter);' +
+          'return JSON.stringify({loi,canh:[],nCanh:0})})()';
+        let rc;
+        try { rc = JSON.parse(await danhGia(CUA)); } catch (e) { rc = { loi: ['không đo được cửa sổ: ' + e.message], canh: [], nCanh: 0 }; }
+        soCuaSo++;
+        ket.push({ app: id + ' › cửa sổ tạo mới', ...rc, js: loiJs.splice(0) });
+      }
     }
+    ket.push({ app: '(đã mở và kiểm ' + soCuaSo + ' cửa sổ)', loi: [], canh: [], nCanh: 0, js: [], tom: true });
     if (chanGhi.length) ket.push({ app: '(đã chặn ' + chanGhi.length + ' lệnh ghi)', loi: [], canh: [...new Set(chanGhi)].slice(0, 5), nCanh: 0, js: [] });
     return ket;
   } finally { try { chrome.kill(); } catch (_) {} }
@@ -180,6 +205,7 @@ for (const { k, r } of tatCa) {
   for (const x of r) {
     const loi = [...x.loi, ...x.js.map((m) => 'lỗi JS: ' + m)];
     soLoi += loi.length; soCanh += x.nCanh || 0;
+    if (x.tom) { console.log('  ' + x.app); continue; }
     if (!loi.length && !x.canh.length) continue;
     console.log('  ' + x.app);
     loi.forEach((m) => console.log('    ✖ ' + m));
