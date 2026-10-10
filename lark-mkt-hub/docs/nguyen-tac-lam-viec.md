@@ -106,3 +106,11 @@ Nút tròn phải tròn thật: rộng bằng cao, không được dẹp.
    - không bấm Lưu, Gửi, Nộp, Duyệt, Xoá, Đồng bộ;
    - muốn xoá hay ghi đè dữ liệu thật thì gửi danh sách để anh duyệt trước.
 6. Báo cáo kết quả bằng tiếng Việt, ngắn gọn: đã làm gì, đã kiểm thế nào, còn gì chưa làm.
+
+## 8. Ai xuất được tệp
+
+Anh Hùng (10/10/2026): nhân sự xuất được báo cáo, nhưng **xuất đúng phần của mình**.
+
+- Bản xuất đi qua **cùng một phép tính phạm vi** với màn hình, để tệp luôn khớp với bản người ta vừa nhìn. Chặn cứng thì người ta chụp màn hình gửi đi, mà ảnh chụp không có mốc đo lường lẫn ghi chú giới hạn số liệu.
+- Bản rút gọn phải **tự khai là của ai**: tên người trên tiêu đề, một dòng "không phải số của cả phòng", và tên người trong tên tệp. Tệp rời khỏi app là không còn thanh lọc, không còn dải phạm vi.
+- Số của **cả phòng** (chi phí, doanh thu, ROAS, tệp khách mới, xu hướng nhiều tháng) không được lọt vào bản rút gọn — kể cả khi bản xuất tự đọc thêm, vì đường đó không đi qua chốt của màn hình.

@@ -381,6 +381,27 @@ async function api(req, res, u) {
 
   /* ---------------- BÁO CÁO: gom mọi base ---------------- */
 
+  /**
+   * PHẠM VI CỦA LƯỢT GỌI NÀY — dùng chung cho xem trên màn hình và cho ba đường
+   * xuất tệp, để ba chỗ không bao giờ lệch nhau.
+   *
+   * Trưởng phòng: không giới hạn, hoặc xem thử một người bằng `?nhu=<mã>`.
+   * Nhân sự: luôn là phạm vi của chính họ, truyền `nhu` cũng vô ích.
+   *
+   * Chưa khai phạm vi thì chặn, và nói đúng lý do là "chưa khai" chứ không phải
+   * "không có quyền": người đọc cần biết phải đi hỏi ai.
+   */
+  function phamViCuaLuot(url, n) {
+    const nhu = url.searchParams.get('nhu');
+    const pv = n.quanLy ? (nhu ? PV.cua(nhu) : null) : PV.cua(n.ma);
+    if (n.quanLy && nhu && !pv) return { loi: 'Chưa khai phạm vi cho mã ' + nhu, ma: 404 };
+    if (!n.quanLy && !pv) {
+      return { loi: 'Bạn chưa được khai phạm vi báo cáo. Nhờ trưởng phòng khai ở '
+        + 'tab “Phân công kênh”.', ma: 403 };
+    }
+    return { pv };
+  }
+
   if (p === '/api/bao-cao') {
     /* NHÂN SỰ CŨNG XEM ĐƯỢC, nhưng chỉ phần đã khai cho mình. Chưa khai phạm vi
      * thì chặn — và nói đúng lý do là "chưa khai", không phải "không có quyền":
@@ -389,15 +410,10 @@ async function api(req, res, u) {
      * ai kiểm được nhân sự thật ra nhìn thấy gì, và lỗi phạm vi chỉ lộ khi đã
      * mở cho cả phòng. Nhân sự truyền tham số này cũng vô ích — mã của họ luôn
      * bị ghi đè bằng mã của chính họ. */
-    const nhu = u.searchParams.get('nhu');
-    const pv = nx.quanLy ? (nhu ? PV.cua(nhu) : null) : PV.cua(nx.ma);
-    if (nx.quanLy && nhu && !pv) return fail(res, 404, 'Chưa khai phạm vi cho mã ' + nhu);
-    if (!nx.quanLy && !pv) {
-      return fail(res, 403, 'Bạn chưa được khai phạm vi báo cáo. Nhờ trưởng phòng '
-        + 'khai ở tab “Phân công kênh”.');
-    }
+    const r = phamViCuaLuot(u, nx);
+    if (r.loi) return fail(res, r.ma, r.loi);
     const { tu, den } = khoangTu(u);
-    return ok(res, await baoCao.gomSoSanh(tu, den, nx, u.searchParams.get('ss'), docLuatCuaThang, pv));
+    return ok(res, await baoCao.gomSoSanh(tu, den, nx, u.searchParams.get('ss'), docLuatCuaThang, r.pv));
   }
 
   /** Một tệp HTML hoàn chỉnh để gửi Sếp — mở ra in thẳng thành PDF được. */
@@ -421,35 +437,54 @@ async function api(req, res, u) {
     return ok(res, await baoCao.xuHuong(den, so, docLuatCuaThang));
   }
 
+  /* NHÂN SỰ XUẤT ĐƯỢC, nhưng xuất ĐÚNG PHẦN CỦA MÌNH — anh Hùng chốt
+   * 10/10/2026. Đi qua cùng một phép tính phạm vi với màn hình, nên bản tệp
+   * luôn khớp với bản họ vừa nhìn. Chặn cứng như trước thì người ta chụp màn
+   * hình gửi đi, mà ảnh chụp thì không có mốc đo lường lẫn ghi chú giới hạn
+   * số liệu — tệ hơn là cho xuất. */
   if (p === '/api/xuat-bao-cao') {
-    if (!nx.quanLy) return fail(res, 403, 'Chỉ trưởng phòng xuất được báo cáo toàn phòng');
-    const pv = null;
+    const r0 = phamViCuaLuot(u, nx);
+    if (r0.loi) return fail(res, r0.ma, r0.loi);
+    const pv = r0.pv;
     const { tu, den } = khoangTu(u);
     const d = await baoCao.gomSoSanh(tu, den, nx, u.searchParams.get('ss'), docLuatCuaThang, pv);
     /* Bản xuất tự đọc thêm xu hướng. Màn hình nạp nó sau khi trang đã hiện, còn
      * ở đây phải có sẵn trước khi dựng HTML — tệp gửi đi không tự gọi lại được.
-     * Hỏng thì bỏ qua khối đó chứ đừng làm hỏng cả bản xuất. */
-    const soThang = Number(u.searchParams.get('xh')) || 6;
-    try {
-      d.xuHuong = await baoCao.xuHuong(String(den).slice(0, 7), soThang, docLuatCuaThang);
-    } catch (e) { d.xuHuong = null; }
+     * Hỏng thì bỏ qua khối đó chứ đừng làm hỏng cả bản xuất.
+     *
+     * BẢN RÚT GỌN THÌ KHÔNG ĐÍNH XU HƯỚNG. Xu hướng là chi phí, doanh thu và
+     * ROAS của CẢ PHÒNG qua sáu tháng — màn hình đã bỏ khối này với người xem
+     * phạm vi hẹp, mà tệp xuất lại đọc thẳng từ hàm nên không qua chốt ấy. Để
+     * nguyên là mở cho nhân sự đúng thứ vừa công bố là chỉ trưởng phòng xem. */
+    if (!pv) {
+      const soThang = Number(u.searchParams.get('xh')) || 6;
+      try {
+        d.xuHuong = await baoCao.xuHuong(String(den).slice(0, 7), soThang, docLuatCuaThang);
+      } catch (e) { d.xuHuong = null; }
+    }
     const html = X.trangBaoCao(d, nx, await X.logoHtml(store.THU_MUC));
     return send(res, 200, html, {
       'Content-Type': 'text/html; charset=utf-8',
-      'Content-Disposition': 'inline; filename="bao-cao-marketing.html"',
+      'Content-Disposition': 'inline; filename="'
+        + encodeURIComponent('bao-cao-marketing' + (pv ? '-' + pv.ma : '')) + '.html"',
     });
   }
 
   /** Cùng số liệu, dạng CSV — cho ai cần bê sang bảng tính khác. */
   if (p === '/api/xuat-bao-cao-csv') {
-    if (!nx.quanLy) return fail(res, 403, 'Chỉ trưởng phòng xuất được báo cáo toàn phòng');
-    const pv = null;
+    const r0 = phamViCuaLuot(u, nx);
+    if (r0.loi) return fail(res, r0.ma, r0.loi);
+    const pv = r0.pv;
     const { tu, den } = khoangTu(u);
     const d = await baoCao.gomSoSanh(tu, den, nx, u.searchParams.get('ss'), docLuatCuaThang, pv);
     return send(res, 200, X.csvBaoCao(d), {
       'Content-Type': 'text/csv; charset=utf-8',
+      /* Tên tệp mang TÊN NGƯỜI khi là bản rút gọn. Hai tệp cùng tên mà một
+       * cái là số cả phòng, một cái là số của một người, nằm cạnh nhau trong
+       * thư mục Tải về thì không ai phân biệt nổi. */
       'Content-Disposition': 'attachment; filename="'
-        + encodeURIComponent('Bao cao Marketing ' + tu + ' den ' + den) + '.csv"',
+        + encodeURIComponent('Bao cao Marketing ' + (pv ? pv.ten + ' ' : '')
+          + tu + ' den ' + den) + '.csv"',
     });
   }
 

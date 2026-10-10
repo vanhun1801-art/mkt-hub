@@ -302,6 +302,8 @@ const CSS_BC = ':root{--vien:#e3e8f0;--mem:#eef1f6;--chu:#1a2233;--mo:#5b6779;--
   + '.dau h1{font-size:21px;margin:0 0 3px;letter-spacing:-.01em}'
   + '.ky{color:var(--mo);font-size:12.5px;line-height:1.6}'
   + '.ky b{color:var(--chu)}'
+  + '.pv-ban{margin:3px 0 5px;font-size:12.5px;color:var(--chu);font-weight:600}'
+  + '.pv-ban b{font-weight:700}'
 
   /* --- khối một base --- */
   + '.base{background:#fff;border:1px solid var(--vien);border-radius:12px;margin-bottom:16px;'
@@ -486,7 +488,12 @@ function chuMucTieu(m) {
 
 function trangBaoCao(d, nx, logo) {
   const ngay = (s) => s.split('-').reverse().join('/');
-  const ten = 'Bao cao Marketing ' + d.tu + ' den ' + d.den;
+  /* BẢN RÚT GỌN PHẢI TỰ KHAI LÀ CỦA AI, ngay trên tiêu đề và trong tên tệp.
+   * Nhân sự nay xuất được phần của mình (10/10/2026). Tệp rời khỏi app là
+   * không còn thanh lọc, không còn dải phạm vi — người nhận chỉ thấy "Báo cáo
+   * Marketing" rồi đọc con số như số của cả phòng. */
+  const pv = d.phamVi;
+  const ten = 'Bao cao Marketing ' + (pv ? pv.ten + ' ' : '') + d.tu + ' den ' + d.den;
 
   /* Dòng "ai đóng góp vào con số này". Không có nó thì "Lượt tiếp cận 15k" đọc
    * lên như số toàn phòng, trong khi chỉ Instagram trả về chỉ số đó. */
@@ -724,11 +731,16 @@ function trangBaoCao(d, nx, logo) {
 
   return '<!doctype html><html lang="vi"><head><meta charset="utf-8">'
     + '<meta name="viewport" content="width=device-width,initial-scale=1">'
-    + '<title>Báo cáo Marketing ' + ngay(d.tu) + ' → ' + ngay(d.den) + '</title>'
+    + '<title>Báo cáo Marketing' + (pv ? ' · ' + hEsc(pv.ten) : '')
+    + ' ' + ngay(d.tu) + ' → ' + ngay(d.den) + '</title>'
     + '<style>' + CSS_BC + CSS_LUU + '</style></head><body><div class="trang">'
     + thanhLuu(ten, 'xuat-bao-cao-csv?tu=' + d.tu + '&den=' + d.den)
     + '<div class="dau">' + logo + '<div>'
-    + '<h1>Báo cáo Marketing</h1>'
+    + '<h1>Báo cáo Marketing' + (pv ? ' · ' + hEsc(pv.ten) : '') + '</h1>'
+    + (pv ? '<div class="pv-ban">Bản của <b>' + hEsc(pv.ten) + '</b>'
+      + (pv.viTri ? ' · ' + hEsc(pv.viTri) : '')
+      + (pv.soKenh ? ' · ' + pv.soKenh + ' kênh' : '')
+      + ' — không phải số của cả phòng.</div>' : '')
     + '<div class="ky">Kỳ <b>' + ngay(d.tu) + ' → ' + ngay(d.den) + '</b> (' + d.soNgay + ' ngày)'
     /* `kyTruoc` là null khi người xem tắt so sánh — bản xuất phải chịu được, nếu
      * không thì bấm Xuất báo cáo lúc đang tắt so sánh là nổ trang trắng. */
@@ -1026,7 +1038,9 @@ const lamCsv = (dong) => '﻿' + dong.map((d) => d.map(oCsv).join(',')).join('\r
  */
 function csvBaoCao(d) {
   const r = [
-    ['Báo cáo Marketing', d.tu + ' đến ' + d.den, d.soNgay + ' ngày'],
+    ['Báo cáo Marketing' + (d.phamVi ? ' · ' + d.phamVi.ten : ''),
+      d.tu + ' đến ' + d.den, d.soNgay + ' ngày'],
+    ...(d.phamVi ? [['Bản rút gọn của', d.phamVi.ten, 'không phải số của cả phòng']] : []),
     ['So với kỳ trước', d.kyTruoc ? d.kyTruoc.tu + ' đến ' + d.kyTruoc.den : 'không so sánh'],
     ['Base đọc được', d.soChay + '/' + d.soApp], [],
     ['CHỈ SỐ TỔNG'], [],
