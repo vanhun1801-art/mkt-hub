@@ -114,3 +114,18 @@ Anh Hùng (10/10/2026): nhân sự xuất được báo cáo, nhưng **xuất đ
 - Bản xuất đi qua **cùng một phép tính phạm vi** với màn hình, để tệp luôn khớp với bản người ta vừa nhìn. Chặn cứng thì người ta chụp màn hình gửi đi, mà ảnh chụp không có mốc đo lường lẫn ghi chú giới hạn số liệu.
 - Bản rút gọn phải **tự khai là của ai**: tên người trên tiêu đề, một dòng "không phải số của cả phòng", và tên người trong tên tệp. Tệp rời khỏi app là không còn thanh lọc, không còn dải phạm vi.
 - Số của **cả phòng** (chi phí, doanh thu, ROAS, tệp khách mới, xu hướng nhiều tháng) không được lọt vào bản rút gọn — kể cả khi bản xuất tự đọc thêm, vì đường đó không đi qua chốt của màn hình.
+
+### Tệp báo cáo xuất ra (10/10/2026)
+
+- Đầu tệp chỉ giữ **thông tin cơ bản**: kỳ đo, số ngày, số kênh, và so với kỳ nào nếu có bật so sánh. Không đếm base đọc được, không đếm số chỉ số, không giải thích mục tiêu. Bản rút gọn giữ thêm đúng một dòng "không phải số của cả phòng".
+- **Không đưa khối "Giới hạn số liệu" vào tệp.** Trên màn hình nó gập lại, ai cần thì bấm; trong tệp in ra thì không gập được nên mỗi khối đội thêm một hộp chữ dài trước cả dãy số.
+- Biểu đồ thanh xếp hạng **hẹp lại** (tối đa 520px), không trải hết bề ngang trang.
+- Chân tệp là **chữ ký của ứng dụng**, một dòng: `Xuất lúc <giờ> <ngày> · Marketing Hub · phát triển bởi Lê Văn Hùng`.
+
+### Tệp báo cáo xuất ra (10/10/2026)
+
+- **Khổ A4 dọc.** Trang rộng 780px, bằng đúng một mặt A4 trừ lề, nên xem trên màn sao thì in ra vậy. Dãy ô ba cột; không có chỗ nào kéo ngang.
+- Đầu tệp chỉ giữ **thông tin cơ bản**: kỳ đo, số ngày, số kênh, và so với kỳ nào nếu đang bật so sánh. Không đếm base đọc được, không đếm số chỉ số, không giải thích mục tiêu. Tên người ở ngay trên tiêu đề là đủ để biết bản của ai.
+- **Không đưa khối "Giới hạn số liệu" vào tệp.** Trên màn hình nó gập lại, ai cần thì bấm; trong tệp in ra không gập được nên mỗi khối đội thêm một hộp chữ dài trước cả dãy số.
+- Biểu đồ thanh xếp hạng **hẹp lại** (tối đa 520px), không trải hết bề ngang trang.
+- Chân tệp là **chữ ký của ứng dụng**, một dòng: `Xuất lúc <giờ> <ngày> · Marketing Hub · phát triển bởi Lê Văn Hùng`.

@@ -291,7 +291,11 @@ const CSS_BC = ':root{--vien:#e3e8f0;--mem:#eef1f6;--chu:#1a2233;--mo:#5b6779;--
   + '*{box-sizing:border-box}'
   + 'body{margin:0;background:#f4f6fa;color:var(--chu);'
   + 'font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}'
-  + '.trang{max-width:1120px;margin:0 auto;padding:20px 22px 60px}'
+  /* BỀ NGANG BẰNG ĐÚNG MỘT TRANG A4 DỌC (210mm trừ lề, còn ~190mm ≈ 718px,
+     cộng padding là 780px). Anh Hùng chốt 10/10/2026: tệp phải đọc được ở
+     khổ A4 dọc. Để 1120px thì trên màn nhìn thoáng nhưng in ra là một bản
+     khác hẳn — chữ co lại, cột dồn sang trang sau. Nay xem sao in vậy. */
+  + '.trang{max-width:780px;margin:0 auto;padding:18px 20px 52px}'
 
   /* --- đầu trang --- */
   + '.dau{display:flex;align-items:center;gap:18px;padding:18px 20px;background:#fff;'
@@ -302,8 +306,6 @@ const CSS_BC = ':root{--vien:#e3e8f0;--mem:#eef1f6;--chu:#1a2233;--mo:#5b6779;--
   + '.dau h1{font-size:21px;margin:0 0 3px;letter-spacing:-.01em}'
   + '.ky{color:var(--mo);font-size:12.5px;line-height:1.6}'
   + '.ky b{color:var(--chu)}'
-  + '.pv-ban{margin:3px 0 5px;font-size:12.5px;color:var(--chu);font-weight:600}'
-  + '.pv-ban b{font-weight:700}'
 
   /* --- khối một base --- */
   + '.base{background:#fff;border:1px solid var(--vien);border-radius:12px;margin-bottom:16px;'
@@ -315,7 +317,9 @@ const CSS_BC = ':root{--vien:#e3e8f0;--mem:#eef1f6;--chu:#1a2233;--mo:#5b6779;--
   + '.cham-tron{width:9px;height:9px;border-radius:50%;display:inline-block;flex:0 0 auto}'
 
   /* --- ô số --- */
-  + '.luoi{display:grid;grid-template-columns:repeat(6,1fr)}'
+  /* BA CỘT, không phải sáu. Sáu ô trên bề ngang A4 dọc thì mỗi ô còn 118px,
+     nhãn xuống bốn dòng và con số dính vào nhau. */
+  + '.luoi{display:grid;grid-template-columns:repeat(3,1fr)}'
   + '.o{padding:11px 13px 12px;box-shadow:0 0 0 1px var(--mem);display:flex;flex-direction:column;'
   + 'break-inside:avoid;min-width:0}'
   + '.o .nhan{font-size:9.5px;color:var(--nhat);font-weight:700;text-transform:uppercase;'
@@ -330,13 +334,9 @@ const CSS_BC = ':root{--vien:#e3e8f0;--mem:#eef1f6;--chu:#1a2233;--mo:#5b6779;--
   + '.o .nen .thieu{font-style:italic;opacity:.8}.o .nen.trong{font-style:italic}'
 
   /* --- lưu ý của app nguồn --- */
-  + '.ly{margin:12px 16px 0;padding:10px 13px;background:#fbfcfe;border:1px solid var(--mem);'
-  + 'border-radius:9px;font-size:11.5px;color:var(--mo);break-inside:avoid}'
-  + '.ly b{color:var(--chu);font-size:12px}'
-  + '.ly ul{margin:5px 0 0;padding-left:17px}.ly li{margin:2px 0;line-height:1.5}'
 
   /* --- biểu đồ --- */
-  + '.bd{display:grid;grid-template-columns:1fr 230px;gap:18px;padding:14px 16px 8px;'
+  + '.bd{display:grid;grid-template-columns:1fr 210px;gap:14px;padding:12px 14px 8px;'
   + 'align-items:start;break-inside:avoid}'
   + '.bd h3{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--nhat);'
   + 'font-weight:700;margin:0 0 7px}'
@@ -376,13 +376,15 @@ const CSS_BC = ':root{--vien:#e3e8f0;--mem:#eef1f6;--chu:#1a2233;--mo:#5b6779;--
   + '.sp-lech.tot{color:var(--luc)}.sp-lech.xau{color:var(--do)}.sp-lech.im{color:var(--nhat)}'
   + '.ghi-bd{margin:8px 0 0;font-size:10px;color:var(--nhat);line-height:1.5}'
   /* ---- thanh xếp hạng ---- */
-  + '.tn{margin:14px 0 4px}.tn h3{margin:0 0 8px;font-size:11px;letter-spacing:.05em;'
+  /* Khung hẹp lại: trải hết bề ngang A4 thì thanh dài lê thê mà cột tên lại
+     chật, nhìn loãng. Xem ảnh anh Hùng gửi 10/10/2026. */
+  + '.tn{margin:12px 0 4px;max-width:520px}.tn h3{margin:0 0 7px;font-size:11px;letter-spacing:.05em;'
   + 'text-transform:uppercase;color:var(--nhat)}'
-  + '.tn-h{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(30px,2fr) 74px 34px;'
-  + 'gap:8px;align-items:center;font-size:11px;padding:2px 0;break-inside:avoid}'
+  + '.tn-h{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(30px,1.3fr) 64px 30px;'
+  + 'gap:7px;align-items:center;font-size:11px;padding:1px 0;break-inside:avoid}'
   + '.tn-t{color:var(--mo);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
   + '.tn-t em{font-style:normal;color:var(--nhat);font-size:10px;margin-left:5px}'
-  + '.tn-r{height:13px;background:var(--mem);border-radius:3px;overflow:hidden}'
+  + '.tn-r{height:11px;background:var(--mem);border-radius:3px;overflow:hidden}'
   + '.tn-r i{display:block;height:100%;background:var(--xanh);border-radius:3px}'
   + '.tn-s{text-align:right;font-variant-numeric:tabular-nums;font-weight:650}'
   + '.tn-p{text-align:right;font-variant-numeric:tabular-nums;color:var(--nhat);font-size:10px}'
@@ -439,7 +441,7 @@ const CSS_BC = ':root{--vien:#e3e8f0;--mem:#eef1f6;--chu:#1a2233;--mo:#5b6779;--
      một mặt A4 ngang chỉ chứa ~700px, trình duyệt không tránh ngắt được nên nó
      đẩy sang trang mới rồi vẫn cắt, để lại nửa trang trắng. Chỉ tránh ngắt ở
      đơn vị nhỏ: một ô, một hàng bảng, một biểu đồ. */
-  + '@page{size:A4 landscape;margin:10mm}'
+  + '@page{size:A4 portrait;margin:12mm}'
   + '@media print{'
   + 'body{background:#fff;font-size:11.5px}'
   + '.trang{max-width:none;width:100%;padding:0}'
@@ -455,8 +457,9 @@ const CSS_BC = ':root{--vien:#e3e8f0;--mem:#eef1f6;--chu:#1a2233;--mo:#5b6779;--
   + '.svg-duong{height:190px}'
   + '.chan{break-inside:avoid}'
   + '}'
-  + '@media(max-width:1000px){.luoi{grid-template-columns:repeat(4,1fr)}.bd{grid-template-columns:1fr}}'
-  + '@media(max-width:640px){.luoi{grid-template-columns:repeat(2,1fr)}}';
+  /* Khổ hẹp hơn A4 (xem trên điện thoại): hai cột rồi một cột. */
+  + '@media(max-width:700px){.luoi{grid-template-columns:repeat(2,1fr)}.bd{grid-template-columns:1fr}}'
+  + '@media(max-width:430px){.luoi{grid-template-columns:1fr}}';
 
 const TAT_NEN = { Facebook: 'FB', Instagram: 'IG', TikTok: 'TikTok', 'Zalo OA': 'Zalo', YouTube: 'YT' };
 const tatNen = (x) => TAT_NEN[x] || x;
@@ -465,26 +468,6 @@ const tatNen = (x) => TAT_NEN[x] || x;
  * Báo cáo tổng hợp — một tệp HTML tự chứa, không phụ thuộc máy chủ.
  * Mở ra bấm Lưu PDF là thành tệp gửi Sếp.
  */
-/** Một dòng nói mục tiêu lấy từ đâu — giống hệt câu trên màn hình, để bản in
- *  và bản xem không nói hai chuyện khác nhau. */
-function chuMucTieu(m) {
-  if (!m) return '';
-  if (!m.coLuat.length) {
-    return '<br><b>Chưa đặt mục tiêu</b> cho '
-      + m.thieuLuat.map((x) => 'tháng ' + x.slice(5)).join(', ')
-      + ' nên các ô không có vạch mục tiêu.';
-  }
-  let t = '<br>Mục tiêu lấy từ bộ luật KPI '
-    + m.coLuat.map((x) => 'tháng ' + x.slice(5)).join(' + ')
-    + ' (' + m.soKenh + ' kênh), cùng bộ luật chấm lương.';
-  if (!m.tronThang) {
-    t += ' Khoảng đang xem không trọn tháng nên <b>mục tiêu đã chia theo số ngày</b>.';
-  }
-  if (m.thieuLuat.length) {
-    t += ' Chưa có bộ luật cho ' + m.thieuLuat.map((x) => 'tháng ' + x.slice(5)).join(', ') + '.';
-  }
-  return t;
-}
 
 function trangBaoCao(d, nx, logo) {
   const ngay = (s) => s.split('-').reverse().join('/');
@@ -642,9 +625,9 @@ function trangBaoCao(d, nx, logo) {
   /* Lưu ý của chính app nguồn về giới hạn số liệu của nó. Chép nguyên, không tự
    * diễn giải lại — app sở hữu chỉ số biết rõ nhất vì sao nó trống, và Sếp đọc
    * báo cáo cần thấy giới hạn đó chứ không chỉ thấy một ô bằng 0. */
-  const luuY = (b) => (!(b.luuY || []).length ? ''
-    : '<div class="ly"><b>Giới hạn số liệu</b><ul>'
-      + b.luuY.map((x) => '<li>' + hEsc(x) + '</li>').join('') + '</ul></div>');
+  /* KHỐI "Giới hạn số liệu" KHÔNG VÀO BẢN XUẤT (10/10/2026). Trên màn hình nó
+   * gập lại, ai cần thì bấm; trong tệp in ra thì không gập được, nên mỗi khối
+   * đội thêm một hộp chữ dài trước cả dãy số. Lời giải thích vẫn còn ở app. */
 
   /* CHI PHÍ TOÀN PHÒNG. Bản xuất trước không có khối này — bản in thiếu hẳn
    * phần tiền, trong khi đó là thứ Sếp đọc trước tiên. */
@@ -723,7 +706,7 @@ function trangBaoCao(d, nx, logo) {
     + '<header><span class="cham-tron" style="background:' + hEsc(b.mau) + '"></span>'
     + '<b>' + hEsc(b.ten) + '</b><span class="mo">' + hEsc(b.mo) + '</span></header>'
     + (b.chay
-      ? luuY(b) + '<div class="luoi">' + (b.o || []).map(o).join('') + '</div>'
+      ? '<div class="luoi">' + (b.o || []).map(o).join('') + '</div>'
         + capCot(b.soSanh, 'Thay đổi so với kỳ trước')
         + hinhKhoi(b) + bieuDo(b) + (b.bang || []).map(bang).join('')
       : '<p class="loi">Không đọc được số liệu: ' + hEsc(b.loi) + '</p>')
@@ -736,24 +719,28 @@ function trangBaoCao(d, nx, logo) {
     + '<style>' + CSS_BC + CSS_LUU + '</style></head><body><div class="trang">'
     + thanhLuu(ten, 'xuat-bao-cao-csv?tu=' + d.tu + '&den=' + d.den)
     + '<div class="dau">' + logo + '<div>'
+    /* ĐẦU BÁO CÁO CHỈ GIỮ THÔNG TIN CƠ BẢN: kỳ đo và phạm vi kênh. Anh Hùng
+     * chốt 10/10/2026. Bản trước còn đếm base đọc được, đếm số chỉ số và cả
+     * đoạn giải thích mục tiêu — ba thứ ấy là chuyện vận hành của app, người
+     * nhận tệp không dùng tới, mà lại chiếm đúng chỗ dễ đọc nhất. */
     + '<h1>Báo cáo Marketing' + (pv ? ' · ' + hEsc(pv.ten) : '') + '</h1>'
-    + (pv ? '<div class="pv-ban">Bản của <b>' + hEsc(pv.ten) + '</b>'
-      + (pv.viTri ? ' · ' + hEsc(pv.viTri) : '')
-      + (pv.soKenh ? ' · ' + pv.soKenh + ' kênh' : '')
-      + ' — không phải số của cả phòng.</div>' : '')
-    + '<div class="ky">Kỳ <b>' + ngay(d.tu) + ' → ' + ngay(d.den) + '</b> (' + d.soNgay + ' ngày)'
-    /* `kyTruoc` là null khi người xem tắt so sánh — bản xuất phải chịu được, nếu
-     * không thì bấm Xuất báo cáo lúc đang tắt so sánh là nổ trang trắng. */
-    + (d.kyTruoc ? ' · so với ' + (d.kyTruoc.nhan || 'kỳ trước') + ' '
-      + ngay(d.kyTruoc.tu) + ' → ' + ngay(d.kyTruoc.den) : ' · không so với kỳ nào') + '<br>'
-    + '<b>' + d.soChay + '/' + d.soApp + '</b> base đọc được · <b>' + d.soO + '</b> chỉ số'
-    + chuMucTieu(d.mucTieu)
+    + '<div class="ky">Kỳ <b>' + ngay(d.tu) + ' → ' + ngay(d.den) + '</b> · '
+    + d.soNgay + ' ngày'
+    + (pv && pv.soKenh ? ' · ' + pv.soKenh + ' kênh' : '')
+    /* `kyTruoc` là null khi người xem tắt so sánh. Có so sánh thì PHẢI nói so
+     * với cái gì: mũi tên tăng giảm trong tệp không tự giải thích được. */
+    + (d.kyTruoc ? ' · so với ' + hEsc(d.kyTruoc.nhan || 'kỳ trước') + ' '
+      + ngay(d.kyTruoc.tu) + ' → ' + ngay(d.kyTruoc.den) : '')
+    + '</div>'
+    /* Không còn dòng "không phải số của cả phòng" (anh Hùng chốt 10/10/2026).
+     * Tên người đã nằm ngay trên tiêu đề và trong tên tệp, nói thêm một câu
+     * nữa là thừa. */
     + '</div></div></div>'
     + khoi
+    /* CHỮ KÝ CỦA ỨNG DỤNG, đúng một dòng. Hai câu giải thích cũ đã bỏ cùng
+     * với khối giới hạn số liệu. */
     + '<div class="chan">Xuất lúc ' + new Date(d.luc).toLocaleString('vi-VN')
-    + ' bởi ' + hEsc(nx.ten) + ' · Marketing Hub · Báo cáo &amp; KPI.<br>'
-    + 'Số liệu đọc từ các base lúc xuất; base nào không đọc được đã ghi rõ. '
-    + 'Mỗi ô ghi kèm nền tảng nào có số, nền tảng nào chưa.'
+    + ' · Marketing Hub · phát triển bởi Lê Văn Hùng'
     + '</div></div></body></html>';
 }
 
@@ -1040,7 +1027,7 @@ function csvBaoCao(d) {
   const r = [
     ['Báo cáo Marketing' + (d.phamVi ? ' · ' + d.phamVi.ten : ''),
       d.tu + ' đến ' + d.den, d.soNgay + ' ngày'],
-    ...(d.phamVi ? [['Bản rút gọn của', d.phamVi.ten, 'không phải số của cả phòng']] : []),
+    ...(d.phamVi ? [['Bản rút gọn của', d.phamVi.ten, '']] : []),
     ['So với kỳ trước', d.kyTruoc ? d.kyTruoc.tu + ' đến ' + d.kyTruoc.den : 'không so sánh'],
     ['Base đọc được', d.soChay + '/' + d.soApp], [],
     ['CHỈ SỐ TỔNG'], [],
