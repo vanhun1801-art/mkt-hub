@@ -320,6 +320,34 @@ async function docSocial(app, tu, den, pv) {
     );
   }
 
+  /* BẢNG BÊN DƯỚI CŨNG PHẢI LÀ SỐ CỦA NGƯỜI ĐÓ — anh Hùng chốt 10/10/2026.
+   *
+   * Dãy ô đã tách "của tôi" và "của cả kênh" từ trước, nhưng ba bảng bên dưới
+   * (theo nền tảng, theo kênh, bài xem nhiều nhất) vẫn đọc số của CẢ KÊNH. Mở
+   * phiếu ra thì phần trên nói chuyện của mình, phần dưới nói chuyện của người
+   * khác, mà không gì phân biệt. Bảng "Theo người đăng" thì GIỮ NGUYÊN: nó là
+   * chỗ duy nhất thấy được phần của mình nằm đâu trong tổng của kênh. */
+  const toiND = pv && pv.tenDang
+    ? (dsND.filter((x) => new Set(pv.tenDang).has(x.nguoi)))
+    : null;
+  /* Gộp các mảnh của nhiều tên đăng (một người có thể khai hai tên) theo khoá. */
+  const gopManh = (lay, khoa) => {
+    const m = new Map();
+    (toiND || []).forEach((ng) => (lay(ng) || []).forEach((x) => {
+      const k = khoa(x);
+      const o = m.get(k) || { ...x, soBai: 0, views: 0, engagement: 0, likes: 0, comments: 0, shares: 0 };
+      ['soBai', 'views', 'engagement', 'likes', 'comments', 'shares']
+        .forEach((f) => { o[f] = so(o[f]) + so(x[f]); });
+      m.set(k, o);
+    }));
+    return [...m.values()];
+  };
+  const toiNen = toiND ? gopManh((x) => x.nenTang, (x) => x.platform || '') : null;
+  const toiKenh = toiND ? gopManh((x) => x.kenh, (x) => (x.platform || '') + '|' + (x.channel || '')) : null;
+  const toiBai = toiND
+    ? (d.topBai || []).filter((b) => new Set(pv.tenDang).has(b.poster))
+    : null;
+
   return {
     luuY: d.luuY || [],
     o: [
@@ -392,12 +420,36 @@ async function docSocial(app, tu, den, pv) {
       phan: nt.map((x) => ({ nhan: x.platform, so: so(x.views) })).filter((x) => x.so),
     },
     bang: [
-      { tieuDe: 'Theo nền tảng',
+      /* Bản CÁ NHÂN: cộng từ bài mang tên người đó. Không có cột Hiển thị và
+       * Follower tăng — hai số đó là của cả kênh, nền tảng không chia theo
+       * người đăng, nên đặt vào bảng cá nhân là gán công của kênh cho một
+       * người. */
+      ...(toiNen ? [{
+        tieuDe: 'Bài tôi đăng, theo nền tảng',
+        cot: ['Nền tảng', 'Bài', 'Lượt xem', 'Tương tác', 'Thích', 'Bình luận'],
+        soCot: [1, 2, 3, 4, 5],
+        dong: toiNen.slice().sort((a, b) => so(b.views) - so(a.views))
+          .map((x) => [x.platform || '', so(x.soBai), so(x.views), so(x.engagement),
+            so(x.likes), so(x.comments)]),
+      }] : [{
+        tieuDe: 'Theo nền tảng',
         cot: ['Nền tảng', 'Lượt xem', 'Hiển thị', 'Tương tác', 'Follower tăng', 'Bài', 'LIVE'],
         soCot: [1, 2, 3, 4, 5, 6],
         dong: nt.map((x) => [x.platform, so(x.views), so(x.impressions),
-          so(x.engagement), so(x.followUp), so(x.posts), so(x.lives)]) },
-      { tieuDe: locKenh ? 'Kênh tôi phụ trách' : 'Theo kênh',
+          so(x.engagement), so(x.followUp), so(x.posts), so(x.lives)]),
+      }]),
+      ...(toiKenh ? [{
+        tieuDe: 'Bài tôi đăng, theo kênh',
+        cot: ['Kênh', 'Nền tảng', 'Bài', 'Lượt xem', 'Tương tác', 'Thích'],
+        soCot: [2, 3, 4, 5],
+        dong: toiKenh.slice().sort((a, b) => so(b.views) - so(a.views))
+          .map((x) => [x.channel || '', x.platform || '', so(x.soBai), so(x.views),
+            so(x.engagement), so(x.likes)]),
+      }] : []),
+      /* Bảng kênh của CẢ KÊNH vẫn giữ, kể cả ở phiếu cá nhân: cột Follower và
+       * Follower tăng chỉ có ở đây, và người phụ trách kênh cần thấy tệp của
+       * kênh mình lớn bao nhiêu. Tên bảng nói rõ đây là số của cả kênh. */
+      { tieuDe: locKenh ? 'Cả kênh tôi phụ trách' : 'Theo kênh',
         cot: ['Kênh', 'Nền tảng', 'Follower', 'Follower tăng', 'Lượt xem', 'Tương tác', 'Bài'],
         soCot: [2, 3, 4, 5, 6],
         /* Cột Follower đứng ngay cạnh cột tăng: kênh nào có tệp lớn mà cột tăng
@@ -418,11 +470,11 @@ async function docSocial(app, tu, den, pv) {
             so(x.engagement), so(x.likes), so(x.comments),
             tong ? Math.round((so(x.views) / tong) * 1000) / 10 : 0]);
         })() },
-      { tieuDe: 'Bài xem nhiều nhất',
+      { tieuDe: toiBai ? 'Bài tôi đăng, xem nhiều nhất' : 'Bài xem nhiều nhất',
         cot: ['Bài', 'Kênh', 'Lượt xem', 'Tương tác'],
         soCot: [2, 3],
-        dong: (d.topBai || []).filter((b) => !locKenh
-          || locKenh.has((b.platform || '') + '|' + (b.channel || ''))).slice(0, 15).map((b) => [
+        dong: (toiBai || (d.topBai || []).filter((b) => !locKenh
+          || locKenh.has((b.platform || '') + '|' + (b.channel || '')))).slice(0, 15).map((b) => [
           (b.title || '(không tiêu đề)').slice(0, 90), b.channel || b.platform || '',
           so(b.views), so(b.engagement)]) },
     ].filter((b) => b.dong.length),

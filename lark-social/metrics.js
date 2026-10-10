@@ -203,10 +203,29 @@ function gomNguoiDang(posts, { from, to, platforms, channels } = {}) {
     if (cset && !cset.has(p.channelExtId) && !cset.has(p.channel)) return;
     const k = p.poster || '';
     const o = m.get(k) || { nguoi: k, soBai: 0, views: 0, engagement: 0,
-      likes: 0, comments: 0, shares: 0, saves: 0, clicks: 0 };
+      likes: 0, comments: 0, shares: 0, saves: 0, clicks: 0,
+      /* TÁCH THEO NỀN TẢNG VÀ THEO KÊNH ngay tại đây.
+       *
+       * Báo cáo cá nhân cần biết "bài TÔI đăng rơi vào kênh nào", chứ con số
+       * của cả kênh thì ba người Content dùng chung sáu kênh, phiếu ai cũng
+       * giống nhau. Gom ở đây vì chỗ này đã duyệt qua từng bài một lần rồi;
+       * bắt app KPI tự gom thì nó phải xin cả kho bài về. */
+      nenTang: {}, kenh: {} };
     o.soBai += 1;
     ['views', 'engagement', 'likes', 'comments', 'shares', 'saves', 'clicks']
       .forEach((f) => { o[f] += num(p[f]); });
+    const cong = (kho2, khoa, them) => {
+      if (!khoa) return;
+      const x = kho2[khoa] || (kho2[khoa] = { ...them, soBai: 0, views: 0, engagement: 0,
+        likes: 0, comments: 0, shares: 0 });
+      x.soBai += 1;
+      ['views', 'engagement', 'likes', 'comments', 'shares'].forEach((f) => { x[f] += num(p[f]); });
+    };
+    cong(o.nenTang, p.platform, { platform: p.platform });
+    /* Khoá kênh có kèm nền tảng: "Rooty Trip Phú Quốc" có cả trên Facebook lẫn
+     * TikTok, gom chung một khoá là cộng nhầm hai kênh làm một. */
+    cong(o.kenh, (p.platform || '') + '|' + (p.channel || ''),
+      { platform: p.platform, channel: p.channel });
     m.set(k, o);
   });
   return [...m.values()].sort((a, b) => b.views - a.views);
@@ -295,7 +314,9 @@ async function tongQuan({ from, to, platforms, channels } = {}) {
     ngay: theoNgay(rows, tu, den),
     kenh: theoKenh(rows, d.channels, chotTheoKenh),
     nenTang: theoNenTang(rows, chot),
-    topBai: topBai(d.posts, { ...f, from: tu, to: den, theo: 'views', n: 20 }),
+    /* Lấy rộng hơn mức màn hình cần (20): báo cáo cá nhân còn lọc tiếp theo
+     * người đăng, lấy sát quá thì một người chỉ còn vài bài. */
+    topBai: topBai(d.posts, { ...f, from: tu, to: den, theo: 'views', n: 80 }),
     live: d.lives.filter((l) => (!l.date || (l.date >= tu && l.date <= den))
       && (!platforms || !platforms.length || platforms.includes(l.platform)))
       .sort((a, b) => String(b.start).localeCompare(String(a.start)))
@@ -320,7 +341,10 @@ async function tongQuan({ from, to, platforms, channels } = {}) {
      * Bài chưa biết ai đăng gom vào một dòng tên rỗng — KHÔNG chia đều cho
      * người khác và cũng không giấu đi: đây là số tính lương, thiếu thì phải
      * thấy là thiếu. */
-    theoNguoiDang: gomNguoiDang(d.posts, { from: tu, to: den, platforms, channels }),
+    theoNguoiDang: gomNguoiDang(d.posts, { from: tu, to: den, platforms, channels })
+      .map((x) => ({ ...x,
+        nenTang: Object.values(x.nenTang || {}),
+        kenh: Object.values(x.kenh || {}) })),
     liveNgay: (d.liveNgay || []).filter((l) => l.date >= tu && l.date <= den
       && (!platforms || !platforms.length || platforms.includes(l.platform)))
       .sort((a, b) => String(b.date).localeCompare(String(a.date))),
