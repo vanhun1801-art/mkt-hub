@@ -376,9 +376,13 @@ pre.tin { white-space: pre-wrap; background: var(--surface-3); border-radius: va
 .bg-k { display: inline-flex; align-items: center; gap: 6px; }
 .bg-k.on { flex: 1 1 360px; }
 .bg-k .in-o { flex: 1; min-width: 180px; }
+/* SL 2 thì hai ô link xếp dọc dưới cùng một kênh */
+.bg-k.on { align-items: flex-start; }
+.bg-lks { flex: 1; display: grid; gap: 6px; min-width: 0; }
+.bg-lk { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .link-nho { font-size: 12px; margin-right: 6px; }
 @media (max-width: 1280px) { .bg-tren { grid-template-columns: repeat(4, minmax(0, 1fr)); } .bg-o.rong { grid-column: span 2; } .bg-tren .nut-x { justify-self: end; } }
-@media (max-width: 640px) { .bg-tren { grid-template-columns: repeat(2, minmax(0, 1fr)); } .bg-o.rong { grid-column: 1 / -1; } .bg-k.on { flex-basis: 100%; } }
+@media (max-width: 640px) { .bg-tren { grid-template-columns: repeat(2, minmax(0, 1fr)); } .bg-o.rong { grid-column: 1 / -1; } .bg-k.on { flex-basis: 100%; flex-wrap: wrap; } .bg-k .in-o { min-width: 0; } .bg-lks { flex-basis: 100%; } }
 
 /* Nâng cỡ chữ của khối bàn giao, ĐỂ RIÊNG Ở ĐÂY chứ không gộp vào khối nâng
    chung phía trên: khối ấy nằm TRƯỚC chỗ khai .bg-o, mà hai luật cùng độ ưu

@@ -155,7 +155,11 @@ function bangBanGiao(bg, kenh, lang = 'vi') {
 function tenVaLink(b) {
   const ds = String(b.linkKenh || '').split('\n').map((d) => { const i = d.lastIndexOf(' | '); return i > 0 ? { nhan: d.slice(0, i).trim(), url: d.slice(i + 3).trim() } : null; }).filter((x) => x && x.url);
   if (!ds.length) return b.link ? '<a href="' + esc(b.link) + '">' + esc(b.ten) + '</a>' : esc(b.ten);
-  return esc(b.ten) + '<br>' + ds.map((l) => '<a href="' + esc(l.url) + '">' + esc(l.nhan.split(' · ')[0] || 'Link') + '</a>').join(' · ');
+  /* SL 2 thì một kênh hai link: đánh số "Instagram 1 · Instagram 2" */
+  const dem = {}; const thu = {};
+  ds.forEach((l) => { dem[l.nhan] = (dem[l.nhan] || 0) + 1; });
+  return esc(b.ten) + '<br>' + ds.map((l) => { thu[l.nhan] = (thu[l.nhan] || 0) + 1;
+    return '<a href="' + esc(l.url) + '">' + esc((l.nhan.split(' · ')[0] || 'Link') + (dem[l.nhan] > 1 ? ' ' + thu[l.nhan] : '')) + '</a>'; }).join(' · ');
 }
 
 function khoiKenh(kenh) {

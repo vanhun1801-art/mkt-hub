@@ -1359,20 +1359,26 @@ function dongLinkKenh(b) {
   return String(b.linkKenh || '').split('\n').map((d) => { const i = d.lastIndexOf(' | '); return i > 0 ? { nhan: d.slice(0, i).trim(), url: d.slice(i + 3).trim() } : null; })
     .filter((x) => x && x.url);
 }
-/** {id kênh: url} cho ô sửa; link cũ một ô thì gán cho kênh đầu tiên đã chọn */
+/** {id kênh: [url, …]} cho ô sửa — SL 2 thì một kênh có hai link (12/10, mỗi link một dòng cùng nhãn kênh);
+ *  link cũ một ô thì gán cho kênh đầu tiên đã chọn */
 function linkTheoKenh(b, kenh) {
   const m = {};
-  for (const d of dongLinkKenh(b)) { const k = kenh.find((x) => nhanKenh(x) === d.nhan); if (k) m[k.id] = d.url; }
-  if (!Object.keys(m).length && b.link) { const id = (b.kenhDang || [])[0]; if (id) m[id] = b.link; }
+  for (const d of dongLinkKenh(b)) { const k = kenh.find((x) => nhanKenh(x) === d.nhan); if (k) (m[k.id] = m[k.id] || []).push(d.url); }
+  if (!Object.keys(m).length && b.link) { const id = (b.kenhDang || [])[0]; if (id) m[id] = [b.link]; }
   return m;
 }
+/** nháp cũ giữ một chuỗi cho mỗi kênh: đổi thành mảng */
+const mangLk = (x) => (Array.isArray(x) ? x : x ? [x] : []);
 /** mọi link của một bài để HIỆN: [{nhan, url}] — có Link theo kênh thì lấy đó, không thì link cũ */
 function linksCua(b) {
   const ds = dongLinkKenh(b);
   return ds.length ? ds : b.link ? [{ nhan: '', url: b.link }] : [];
 }
-const nutLinks = (b, lop) => linksCua(b).map((l) => '<a class="' + (lop || 'btn nho') + '" href="' + e(l.url) + '" target="_blank" rel="noopener" title="' + e(l.url) + '">' +
-  e(l.nhan ? l.nhan.split(' · ')[0] : 'Mở bài') + '</a>').join(' ');
+const nutLinks = (b, lop) => { const ds = linksCua(b); const dem = {}; const thu = {};
+  ds.forEach((l) => { dem[l.nhan] = (dem[l.nhan] || 0) + 1; });
+  return ds.map((l) => { thu[l.nhan] = (thu[l.nhan] || 0) + 1;
+    return '<a class="' + (lop || 'btn nho') + '" href="' + e(l.url) + '" target="_blank" rel="noopener" title="' + e(l.url) + '">' +
+      e((l.nhan ? l.nhan.split(' · ')[0] : 'Mở bài') + (dem[l.nhan] > 1 ? ' ' + thu[l.nhan] : '')) + '</a>'; }).join(' '); };
 
 function veBanGiaoHt(than, ht) {
   const goc = S.dl.banGiao.filter((b) => b.hopTac === ht.id);
@@ -1417,8 +1423,10 @@ function veBanGiaoHt(than, ht) {
           (kenh.map((k) => { const on = (b.kenhDang || []).includes(k.id);
             return '<div class="bg-k' + (on ? ' on' : '') + '"><button type="button" class="chip-chon' + (on ? ' on' : '') + '" data-kd="' + k.id + '" title="' + (on ? 'Bỏ kênh này' : 'Chọn đăng trên kênh này') + '">' +
               e(nhanKenh(k)) + (k.reup ? ' (re-up)' : '') + '</button>' +
-              (on ? '<input class="in-o" data-lk="' + k.id + '" value="' + e(lk[k.id] || '') + '" placeholder="Dán link bài trên ' + e(k.nenTang || 'kênh này') + '" inputmode="url">' +
-                (lk[k.id] ? '<a class="btn nho" href="' + e(lk[k.id]) + '" target="_blank" rel="noopener">Mở</a>' : '') : '') + '</div>'; }).join('') ||
+              (on ? (() => { const ds = mangLk(lk[k.id]); const n = Math.max(1, Math.min(20, +b.soLuong || 1), ds.filter(Boolean).length);
+                return '<div class="bg-lks">' + Array.from({ length: n }, (_, j) => '<div class="bg-lk"><input class="in-o" data-lk="' + k.id + '" data-lj="' + j + '" value="' + e(ds[j] || '') +
+                  '" placeholder="Dán link bài' + (n > 1 ? ' ' + (j + 1) : '') + ' trên ' + e(k.nenTang || 'kênh này') + '" inputmode="url">' +
+                  (ds[j] ? '<a class="btn nho" href="' + e(ds[j]) + '" target="_blank" rel="noopener">Mở</a>' : '') + '</div>').join('') + '</div>'; })() : '') + '</div>'; }).join('') ||
             '<span class="nho">' + e((b.nenTang || []).join(', ') || 'KOL chưa khai kênh') + '</span>') + '</div></div>'; }).join('') +
       '</div></div>' +
       (dang.length ? '<div class="the"><div class="the-dau"><h2>Số liệu bài đăng</h2></div><div class="the-than khit cuon"><table class="bang"><thead><tr><th>Bài</th><th>Mốc</th>' +
@@ -1439,7 +1447,7 @@ function veBanGiaoHt(than, ht) {
         await api('/api/hop-tac/' + ht.id + '/ban-giao', { ds: ds.map((b) => {
           const { tt, hopTac, nhap7, nhap30, _lk, ...r } = b;
           /* link theo kênh: chỉ kênh đang chọn, theo thứ tự kênh của KOL; "Link bài" = link đầu tiên */
-          const lks = kenh.filter((k) => (r.kenhDang || []).includes(k.id) && (_lk || {})[k.id]).map((k) => ({ nhan: nhanKenh(k), url: _lk[k.id] }));
+          const lks = kenh.filter((k) => (r.kenhDang || []).includes(k.id)).flatMap((k) => mangLk((_lk || {})[k.id]).filter(Boolean).map((url) => ({ nhan: nhanKenh(k), url })));
           if (kenh.length) { r.linkKenh = lks.map((l) => l.nhan + ' | ' + l.url).join('\n'); r.link = lks.length ? lks[0].url : (r.kenhDang || []).length ? '' : r.link; }   // chưa chọn kênh: giữ link cũ
           if (!r.hanDang) r.hanDang = null; if (!r.ngayDang) r.ngayDang = null;
           /* Nền tảng suy từ kênh đã chọn — bảng số liệu và các app khác vẫn lọc theo nền tảng được. */
@@ -1456,7 +1464,9 @@ function veBanGiaoHt(than, ht) {
     const tr = ev.target.closest('[data-i]');
     /* ô link của một kênh */
     if (tr && ev.target.dataset.lk) {
-      const b = S.sua.ds[+tr.dataset.i]; b._lk = { ...(b._lk || {}), [ev.target.dataset.lk]: ev.target.value.trim() };
+      const b = S.sua.ds[+tr.dataset.i]; const id = ev.target.dataset.lk; const ds = [...mangLk((b._lk || {})[id])];
+      ds[+ev.target.dataset.lj || 0] = ev.target.value.trim();
+      b._lk = { ...(b._lk || {}), [id]: Array.from(ds, (x) => x || '') };
       S.sua.ban = true; $('#bgLuu').disabled = false; giuSua(); return;
     }
     const f = ev.target.dataset.f;
@@ -1465,7 +1475,7 @@ function veBanGiaoHt(than, ht) {
     b[f] = x.type === 'checkbox' ? x.checked : x.type === 'number' ? (x.value === '' ? null : Number(x.value)) : x.type === 'date' ? tuChuoi(x.value) : x.value;
     if (f === 'trangThai' && b.trangThai === 'Đã đăng' && !b.ngayDang) b.ngayDang = Date.now();
     S.sua.ban = true; $('#bgLuu').disabled = false;
-    if (ev.type === 'change' && f === 'trangThai') veLai(); else giuSua();
+    if (ev.type === 'change' && (f === 'trangThai' || f === 'soLuong')) veLai(); else giuSua();   // SL đổi thì số ô link đổi theo
   };
   than.onclick = (ev) => {
     const bc = ev.target.closest('[data-bcdt]');
