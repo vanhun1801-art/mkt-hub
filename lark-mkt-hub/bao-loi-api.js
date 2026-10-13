@@ -10,7 +10,10 @@
  *   - lỗi đầu tiên → chờ 45 giây gom các lỗi đi kèm (một sự cố thường nổ một chùm) →
  *     MỘT thẻ;
  *   - cùng một khoá (app · dịch vụ · kiểu lỗi · mã) đã báo thì im 60 phút, chỉ đếm; hết
- *     60 phút mà vẫn lỗi thì báo lại kèm "lặp lại N lần".
+ *     60 phút mà vẫn lỗi thì báo lại kèm "lặp lại N lần";
+ *   - lỗi MẠNG (hết giờ chờ, DNS…) chỉ nổ MỘT lần thì chưa nhắn: máy chập chờn một nhịp
+ *     rồi tự nối lại là chuyện thường (13/10 07:52 nhắn một thẻ UND_ERR_CONNECT_TIMEOUT
+ *     mà Lark vẫn sống). Trong 15 phút lặp lại thì mới nhắn, đếm cả lần trước.
  *
  * NGƯỜI NHẬN: open_id DƯỚI APP MARKETING HUB lấy từ bảng Phân quyền (cột open_id hub tự
  * vá khi người đó đăng nhập) — tìm theo tên HUB_BAO_LOI_TEN (mặc định "Lê Văn Hùng"),
@@ -22,7 +25,7 @@ const canh = require('../lark-chung/canh-api');
 const nhip = require('./nhip');
 
 const KHOA = crypto.randomBytes(24).toString('hex');
-const GOM_MS = 45 * 1000, IM_MS = 60 * 60 * 1000;
+const GOM_MS = 45 * 1000, IM_MS = 60 * 60 * 1000, NGHI_MS = 15 * 60 * 1000;
 const TEN = process.env.HUB_BAO_LOI_TEN || 'Lê Văn Hùng';
 const LECH = 7 * 3600000;
 
@@ -54,6 +57,7 @@ function goiY(s) {
 let guiTin = null, tenApp = (id) => id, docQuyen = null, urlHub = 'https://mkt-hub-w6hi.onrender.com';
 const cho = new Map();                                    // khoá → nhóm đang gom
 const daBao = new Map();                                  // khoá → { luc, dem }
+const nghi = new Map();                                   // khoá lỗi mạng mới nổ một lần → lúc
 const ganDay = [];                                        // 100 sự kiện gần nhất cho trang xem
 let hen = null;
 
@@ -68,7 +72,12 @@ function nhan(s) {
   if (cu && s.luc - cu.luc < IM_MS) { cu.dem++; return; }
   const g = cho.get(k);
   if (g) { g.dem++; g.cuoi = s.luc; g.duong.add(s.duong); if (s.loi) g.loi = s.loi; }
-  else cho.set(k, { s, dem: 1, dau: s.luc, cuoi: s.luc, duong: new Set([s.duong]), loi: s.loi, lapLai: cu ? cu.dem : 0 });
+  else {
+    const truoc = nghi.get(k);
+    const coTruoc = truoc && s.luc - truoc < NGHI_MS;
+    nghi.delete(k);
+    cho.set(k, { s, dem: coTruoc ? 2 : 1, dau: coTruoc ? truoc : s.luc, cuoi: s.luc, duong: new Set([s.duong]), loi: s.loi, lapLai: cu ? cu.dem : 0 });
+  }
   if (!hen) hen = setTimeout(xa, GOM_MS);
 }
 
@@ -108,10 +117,15 @@ async function nguoiNhan() {
 
 async function xa() {
   hen = null;
-  const nhom = [...cho.values()];
-  cho.clear();
-  if (!nhom.length) return;
   const luc = Date.now();
+  const nhom = [];
+  for (const [k, g] of cho) {
+    if (g.s.kieu === 'mang' && g.dem < 2 && !g.lapLai) nghi.set(k, g.dau);
+    else nhom.push(g);
+  }
+  cho.clear();
+  for (const [k, t] of nghi) if (luc - t > NGHI_MS) nghi.delete(k);
+  if (!nhom.length) return;
   nhom.forEach((g) => daBao.set(khoaCua(g.s), { luc, dem: 0 }));
   const card = theLoi(nhom);
   await canh.imLang(async () => {
