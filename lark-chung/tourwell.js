@@ -149,10 +149,14 @@ async function goi(method, duong, than) {
       r = await fetch(cf.host + duong, {
         method,
         /* Tourwell là hệ của bên khác, chậm hay treo là chuyện mình không nắm được.
-         * Không đặt hạn thì Node chờ 300 giây, và cả luồng đồng bộ đứng theo. 30
-         * giây là rộng cho một lời gọi đơn, mà vẫn đủ sớm để báo ra là hỏng. */
+         * Không đặt hạn thì Node chờ 300 giây, và cả luồng đồng bộ đứng theo.
+         *
+         * 60 giây chứ không phải 30: đồng hồ hạn này chạy TỪ LÚC GỌI fetch, mà bộ
+         * bọc canh-api còn xếp hàng xin lượt bên trong fetch (tới 16 giây ở hub,
+         * cộng 20 giây khi Tourwell báo sắp hết lượt, xem nhip-lark.js). Để 30 thì
+         * lời gọi có thể bị huỷ trước khi kịp đi. */
         signal: (typeof AbortSignal !== 'undefined' && AbortSignal.timeout
-          ? AbortSignal.timeout(30000) : undefined),
+          ? AbortSignal.timeout(60000) : undefined),
         headers: {
           Authorization: 'Bearer ' + cf.token,
           Accept: 'application/json',

@@ -95,6 +95,13 @@ function boc() {
         phat({ host: u.hostname, duong: gonDuong(u.pathname), pt: phuongThuc, kieu: 'mang', loi: giauBiMat((c && (c.code || c.message)) || (e && (e.name === 'AbortError' || e.name === 'TimeoutError') ? 'hết giờ chờ' : e && e.message)) });
         throw e;
       }
+      /* Tourwell báo còn bao nhiêu lượt trong phút này (cộng cả nơi khác dùng
+       * chung token). Ghi lại để lời gọi sau tự chậm khi sắp cạn. */
+      try {
+        if (nhip.ghiTourwell && nhip.loaiHanMuc && nhip.loaiHanMuc(u.hostname) === 'tourwell') {
+          nhip.ghiTourwell(r.status === 429 ? 0 : r.headers.get('x-ratelimit-remaining'));
+        }
+      } catch (_) { /* bỏ */ }
       try {
         const kieuTho = r.headers && r.headers.get && r.headers.get('content-type') || '';
         const coThe = /json/i.test(kieuTho) && /open\.(larksuite\.com|feishu\.cn)$|graph\.facebook\.com$|business-api\.tiktok\.com$/.test(u.hostname);

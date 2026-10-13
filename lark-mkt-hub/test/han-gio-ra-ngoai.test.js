@@ -16,7 +16,7 @@
  * Mốc chọn theo VIỆC, không chọn một số chung:
  *   · gọi Lark, gọi danh bạ, đổi token   20 giây  (bình thường dưới 1 giây)
  *   · tải tệp lên Lark                  120 giây  (ảnh vài MB qua mạng chậm)
- *   · gọi Tourwell                       30 giây  (hệ của bên khác)
+ *   · gọi Tourwell                       60 giây  (hệ của bên khác, gồm cả giờ chờ lượt)
  *
  * Quá hạn thì ném TimeoutError, mà câu lỗi của nó có chữ "timeout" nên
  * laTamThoi() nhận ra là lỗi tạm thời — tức là vẫn được thử lại đàng hoàng,

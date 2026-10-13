@@ -67,10 +67,42 @@ function hoiHub(loai) {
  * Chờ tới lượt mình. Trả về số mili giây đã chờ (0 là đi ngay) — chỉ để phép
  * thử soi, chỗ gọi không cần dùng.
  */
+/* TOURWELL TỰ BÁO CÒN BAO NHIÊU LƯỢT (13/10/2026).
+ *
+ * 14:31 13/10 Render vẫn ăn 429 dù hub trên đó đã xếp hàng ở 50/phút. Hạn mức
+ * 60/phút tính theo tài khoản đứng tên token, mà token ấy còn được dùng ở chỗ
+ * hub không thấy: máy anh Hùng chạy một hub riêng, và mọi hệ khác dùng chung
+ * tài khoản "Api Official". Đồng hồ ở một hub không đếm được lượt của nơi khác.
+ *
+ * Nhưng mỗi câu trả lời của Tourwell đều kèm `x-ratelimit-remaining`, là con số
+ * đã cộng đủ mọi nơi. Nên đọc nó: còn ít thì tự chậm lại trước khi gọi tiếp.
+ * Cái này chạy cả khi không có hub. */
+let twConLai = null;
+let twLuc = 0;
+function ghiTourwell(conLai) {
+  const n = Number(conLai);
+  if (!Number.isFinite(n)) return;
+  twConLai = n; twLuc = Date.now();
+}
+/** Phải chờ thêm bao lâu vì Tourwell báo sắp hết lượt. */
+function choThemTourwell(bayGio) {
+  const now = Number.isFinite(bayGio) ? bayGio : Date.now();
+  if (twConLai == null || now - twLuc > 60000) return 0;
+  if (twConLai <= 3) return 20000;
+  if (twConLai <= 10) return 5000;
+  return 0;
+}
+
 async function xinLuot(host) {
   const loai = loaiHanMuc(host);
-  if (!bat() || !loai) return 0;
-  if (Date.now() < nghiToi) return 0;
+  if (!loai) return 0;
+  let them = 0;
+  if (loai === 'tourwell') {
+    them = choThemTourwell();
+    if (them) { twConLai = null; await ngu(them); }
+  }
+  if (!bat()) return them;
+  if (Date.now() < nghiToi) return them;
 
   const d = await hoiHub(loai);
   if (!d || typeof d.cho !== 'number' || !Number.isFinite(d.cho)) {
@@ -86,4 +118,4 @@ async function xinLuot(host) {
   return cho;
 }
 
-module.exports = { xinLuot, thuocHanMuc, loaiHanMuc, bat };
+module.exports = { xinLuot, thuocHanMuc, loaiHanMuc, bat, ghiTourwell, choThemTourwell };

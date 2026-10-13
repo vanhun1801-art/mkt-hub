@@ -13,7 +13,9 @@
  *     60 phút mà vẫn lỗi thì báo lại kèm "lặp lại N lần";
  *   - lỗi MẠNG (hết giờ chờ, DNS…) chỉ nổ MỘT lần thì chưa nhắn: máy chập chờn một nhịp
  *     rồi tự nối lại là chuyện thường (13/10 07:52 nhắn một thẻ UND_ERR_CONNECT_TIMEOUT
- *     mà Lark vẫn sống). Trong 15 phút lặp lại thì mới nhắn, đếm cả lần trước.
+ *     mà Lark vẫn sống). Trong 15 phút lặp lại thì mới nhắn, đếm cả lần trước;
+ *   - 429 (gọi quá dày) cũng vậy: app nào cũng đã tự chờ rồi gọi lại, một lần lẻ
+ *     là đã tự khỏi (14:31 13/10 Tourwell). Lặp lại thì mới đáng nhắn.
  *
  * NGƯỜI NHẬN: open_id DƯỚI APP MARKETING HUB lấy từ bảng Phân quyền (cột open_id hub tự
  * vá khi người đó đăng nhập) — tìm theo tên HUB_BAO_LOI_TEN (mặc định "Lê Văn Hùng"),
@@ -120,7 +122,7 @@ async function xa() {
   const luc = Date.now();
   const nhom = [];
   for (const [k, g] of cho) {
-    if (g.s.kieu === 'mang' && g.dem < 2 && !g.lapLai) nghi.set(k, g.dau);
+    if ((g.s.kieu === 'mang' || g.s.status === 429) && g.dem < 2 && !g.lapLai) nghi.set(k, g.dau);
     else nhom.push(g);
   }
   cho.clear();

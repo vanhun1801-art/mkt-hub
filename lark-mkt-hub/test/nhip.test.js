@@ -122,6 +122,14 @@ const ok = (dieu, ten) => {
   ok(!khach.thuocHanMuc('graph.facebook.com'), 'Facebook thì không — hạn mức khác');
   ok(await khach.xinLuot('graph.facebook.com') === 0, 'và không tốn một lượt hỏi nào');
   ok(khach.loaiHanMuc('rootytrip.tourwell.net') === 'tourwell', 'Tourwell xin ở đồng hồ riêng');
+  /* 14:31 13/10: hạn mức tính cả lượt của nơi khác, hub không đếm được. Đọc con
+     số Tourwell tự báo thì đếm được. */
+  khach.ghiTourwell('40');
+  ok(khach.choThemTourwell() === 0, 'Tourwell còn nhiều lượt thì không chờ thêm');
+  khach.ghiTourwell('2');
+  ok(khach.choThemTourwell() >= 15000, 'Tourwell báo sắp hết lượt thì tự chậm lại');
+  ok(khach.choThemTourwell(Date.now() + 61000) === 0, 'con số cũ quá một phút thì bỏ, không chậm oan');
+  khach.ghiTourwell('40');
   const twA = await khach.xinLuot('rootytrip.tourwell.net');
   const twB = await khach.xinLuot('rootytrip.tourwell.net');
   ok(twA === 0 && twB >= nhip.TW_KHOANG - 50,
