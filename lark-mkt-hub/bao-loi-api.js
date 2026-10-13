@@ -175,7 +175,7 @@ function xuLy(req, res, p) {
    * trên mọi lời gọi Lark của mười hai app con nên phải rẻ nhất có thể. */
   if (p === '/_noi-bo/nhip') {
     res.writeHead(200, { 'content-type': 'application/json' });
-    res.end(JSON.stringify(nhip.xin()));
+    res.end(JSON.stringify(/[?&]loai=tourwell/.test(req.url || '') ? nhip.xinTourwell() : nhip.xin()));
     return true;
   }
   const tran = p === '/_noi-bo/gui-tin' ? 200000 : 8192;

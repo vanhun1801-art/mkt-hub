@@ -77,15 +77,27 @@ const ok = (dieu, ten) => {
   const tt = nhip.tinhTrang();
   ok(tt.tong > 0 && tt.qps === nhip.QPS, 'có số liệu để trang Kiểm tra hệ thống soi');
 
+  /* ---------------- đồng hồ Tourwell (429 lúc 08:18 13/10) ---------------- */
+  nhip.datLaiTourwell();
+  nhip.datLai();
+  const twCho = [];
+  for (let i = 0; i < 80; i += 1) { const r = nhip.xinTourwell(t0); if (!r.tran) twCho.push(r.cho); }
+  ok(twCho.filter((x) => x < 60000).length <= 60,
+    'Tourwell: một phút không cho quá 60 lượt, dù bao nhiêu app cùng xin');
+  ok(twCho.length < 80, 'Tourwell: xếp quá trần chờ thì trả "đi đi" chứ không giữ app con mãi');
+  ok(nhip.xin(t0).cho === 0, 'Tourwell xếp hàng dài cũng không làm Lark phải chờ');
+  nhip.datLaiTourwell();
+
   /* ---------------- phía app con, qua HTTP thật ---------------- */
   const KHOA = 'khoa-kiem-thu';
   nhip.datLai();
   const may = http.createServer((req, res) => {
-    if (req.url !== '/_noi-bo/nhip' || req.headers['x-hub-khoa'] !== KHOA) {
+    const [duong, q] = req.url.split('?');
+    if (duong !== '/_noi-bo/nhip' || req.headers['x-hub-khoa'] !== KHOA) {
       res.writeHead(404); return res.end();
     }
     res.writeHead(200, { 'content-type': 'application/json' });
-    res.end(JSON.stringify(nhip.xin()));
+    res.end(JSON.stringify(q === 'loai=tourwell' ? nhip.xinTourwell() : nhip.xin()));
   });
   await new Promise((r) => may.listen(0, '127.0.0.1', r));
   const cong = may.address().port;
@@ -109,6 +121,11 @@ const ok = (dieu, ten) => {
   ok(khach.thuocHanMuc('open.larksuite.com'), 'Lark thì phải xin lượt');
   ok(!khach.thuocHanMuc('graph.facebook.com'), 'Facebook thì không — hạn mức khác');
   ok(await khach.xinLuot('graph.facebook.com') === 0, 'và không tốn một lượt hỏi nào');
+  ok(khach.loaiHanMuc('rootytrip.tourwell.net') === 'tourwell', 'Tourwell xin ở đồng hồ riêng');
+  const twA = await khach.xinLuot('rootytrip.tourwell.net');
+  const twB = await khach.xinLuot('rootytrip.tourwell.net');
+  ok(twA === 0 && twB >= nhip.TW_KHOANG - 50,
+    'hai lượt Tourwell liền nhau thì lượt sau chờ đủ nhịp (' + twB + 'ms)');
 
   /* Mười hai app con cùng xin một lúc, đúng cảnh 11:21 ngày 25/09. */
   const batDau = Date.now();

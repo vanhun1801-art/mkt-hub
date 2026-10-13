@@ -86,4 +86,35 @@ function datLai() {
   Object.keys(dem).forEach((k) => { dem[k] = 0; });
 }
 
-module.exports = { xin, tinhTrang, datLai, QPS, KHOANG, TRAN_CHO };
+/* ============================================================================
+ * ĐỒNG HỒ THỨ HAI: TOURWELL (13/10/2026)
+ * ============================================================================
+ * 08:18 13/10, Khách hàng (kéo /customers) và Quảng cáo (kéo /leads) cùng ăn 429.
+ * Mỗi app ĐÃ tự giãn nhịp (1,4 và 1,5 giây, tức 40 đến 43 lượt/phút), nhưng
+ * Tourwell chặn ở 60/phút cho CẢ tài khoản, nên hai app chạy cùng lúc là vượt.
+ * Cùng một căn bệnh với Lark ngày 25/09, nên chữa cùng một cách: một mốc dùng
+ * chung ở hub. Đặt 50/phút để chừa chỗ cho người bấm tay trên web Tourwell.
+ *
+ * Được chờ lâu hơn Lark (15 giây): Tourwell chỉ có những việc kéo nền chạy dài,
+ * không có người ngồi đợi từng lời gọi, và chờ 15 giây vẫn rẻ hơn ăn 429 rồi
+ * phải nằm im cả phút. Không được lâu hơn nữa: lark-chung/tourwell.js tự huỷ lời
+ * gọi sau 30 giây, mà giờ xếp hàng ở đây bị tính vào đó.
+ */
+const TW_KHOANG = Math.ceil(60000 / Math.max(1, Number(process.env.HUB_NHIP_TOURWELL_PHUT || 50)));
+const TW_TRAN_CHO = Math.max(0, Number(process.env.HUB_NHIP_TOURWELL_TRAN_CHO || 15000));
+let twMoc = 0;
+const twDem = { ngay: 0, cho: 0, tran: 0 };
+
+function xinTourwell(bayGio) {
+  const now = Number.isFinite(bayGio) ? bayGio : Date.now();
+  const moc = Math.max(now, twMoc);
+  const cho = moc - now;
+  if (cho > TW_TRAN_CHO) { twDem.tran += 1; return { cho: 0, tran: true }; }
+  twMoc = moc + TW_KHOANG;
+  twDem[cho > 0 ? 'cho' : 'ngay'] += 1;
+  return { cho, tran: false };
+}
+
+function datLaiTourwell() { twMoc = 0; Object.keys(twDem).forEach((k) => { twDem[k] = 0; }); }
+
+module.exports = { xin, tinhTrang, datLai, QPS, KHOANG, TRAN_CHO, xinTourwell, datLaiTourwell, TW_KHOANG, TW_TRAN_CHO };

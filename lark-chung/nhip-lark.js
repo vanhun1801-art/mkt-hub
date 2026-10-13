@@ -29,6 +29,9 @@ const NGHI_MS = 60 * 1000;
 const HONG_TOI_DA = 3;
 
 const LARK = /^open\.(larksuite\.com|feishu\.cn)$/;
+/* Tourwell có hạn mức riêng (60/phút cho cả tài khoản), xin lượt ở đồng hồ thứ
+ * hai của hub. Xem cuối lark-mkt-hub/nhip.js. */
+const TOURWELL = /(^|\.)tourwell\.net$/;
 
 let soHong = 0;
 let nghiToi = 0;
@@ -36,16 +39,17 @@ const ngu = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const bat = () => Boolean(URL_NHIP && KHOA);
 
-/** Máy chủ này có nằm dưới hạn mức dùng chung của app Lark không. */
-const thuocHanMuc = (host) => LARK.test(String(host || ''));
+/** Máy chủ này nằm dưới hạn mức dùng chung nào: 'lark', 'tourwell' hay không gì cả. */
+const loaiHanMuc = (host) => LARK.test(String(host || '')) ? 'lark' : TOURWELL.test(String(host || '')) ? 'tourwell' : '';
+const thuocHanMuc = (host) => Boolean(loaiHanMuc(host));
 
-function hoiHub() {
+function hoiHub(loai) {
   return new Promise((xong) => {
     let da = false;
     const tra = (v) => { if (!da) { da = true; xong(v); } };
     let req;
     try {
-      req = http.request(URL_NHIP, { method: 'GET', headers: { 'x-hub-khoa': KHOA } }, (res) => {
+      req = http.request(URL_NHIP + (loai === 'tourwell' ? '?loai=tourwell' : ''), { method: 'GET', headers: { 'x-hub-khoa': KHOA } }, (res) => {
         let s = '';
         res.on('data', (d) => { s += d; if (s.length > 4096) req.destroy(); });
         res.on('end', () => {
@@ -64,10 +68,11 @@ function hoiHub() {
  * thử soi, chỗ gọi không cần dùng.
  */
 async function xinLuot(host) {
-  if (!bat() || !thuocHanMuc(host)) return 0;
+  const loai = loaiHanMuc(host);
+  if (!bat() || !loai) return 0;
   if (Date.now() < nghiToi) return 0;
 
-  const d = await hoiHub();
+  const d = await hoiHub(loai);
   if (!d || typeof d.cho !== 'number' || !Number.isFinite(d.cho)) {
     soHong += 1;
     if (soHong >= HONG_TOI_DA) { nghiToi = Date.now() + NGHI_MS; soHong = 0; }
@@ -76,9 +81,9 @@ async function xinLuot(host) {
   soHong = 0;
   /* Chặn trên ngay tại đây nữa: hub lỗi mà trả về một con số khổng lồ thì
    * không được phép làm treo app con. */
-  const cho = Math.min(Math.max(0, d.cho), 5000);
+  const cho = Math.min(Math.max(0, d.cho), loai === 'tourwell' ? 16000 : 5000);
   if (cho > 0) await ngu(cho);
   return cho;
 }
 
-module.exports = { xinLuot, thuocHanMuc, bat };
+module.exports = { xinLuot, thuocHanMuc, loaiHanMuc, bat };
