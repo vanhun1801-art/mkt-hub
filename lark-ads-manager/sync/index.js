@@ -215,6 +215,12 @@ const TUOI_KHO_GIO = Number(process.env.TOURWELL_TUOI_GIO || 2);
 /* Số ngày lùi cho lượt kéo ĐỊNH KỲ. Lần nạp đầu vẫn dùng 60 ngày qua nút bấm. */
 const NGAY_LUI_TW = Number(process.env.TOURWELL_NGAY_LUI || 21);
 
+/** Lỗi loại thử lại bao nhiêu lần cũng vậy: sai khoá, hết hạn, thiếu quyền, chưa khai. */
+function loiKhongTuKhoi(loi) {
+  return /client secret|invalid_client|invalid_grant|access token|token.{0,20}(hết hạn|expired|invalid|không hợp lệ)|\b40[13]\b|unauthori|forbidden|permission|thiếu quyền|blocked|Chưa có cấu hình/i
+    .test(String(loi || ''));
+}
+
 function startScheduler(logFn = console.log) {
   stopScheduler();
   const conf = ketnoi.read();
@@ -229,18 +235,27 @@ function startScheduler(logFn = console.log) {
    * động mạng ra ngoài chưa sẵn, hoặc lúc deploy hai bản app còn chồng nhau nên
    * hai lượt đồng bộ đâm nhau khi ghi. Khoá ghi là (quảng cáo × ngày) nên chạy
    * lại KHÔNG nhân dòng — cứ thử lại đúng một lần là sạch, khỏi cần ai nhìn. */
-  const tick = async (laLanThuHai = false) => {
+  /* LẦN 2 CHỈ CHẠY LẠI KÊNH HỎNG, VÀ CHỈ KHI LỖI CÓ THỂ TỰ KHỎI (13/10/2026).
+   *
+   * Trước kia lần 2 chạy lại CẢ lượt, kể cả kéo ~2.900 hội thoại Pancake. Google
+   * Ads chết vì sai client secret từ 23/09 nên giờ nào cũng "còn lỗi", tức giờ nào
+   * cũng kéo Pancake hai lần cách nhau ba phút. 15:06 13/10 Pancake trả 429 mười
+   * lần đúng ở lần 2 đó. Sai secret, token hết hạn, thiếu quyền thì thử lại sau
+   * 60 giây cũng y nguyên, chỉ tốn thêm hạn mức của kênh khác. */
+  const tick = async (laLanThuHai = false, chiKenh = null) => {
     if (!laLanThuHai) nextAt = new Date(Date.now() + ms).toISOString();
-    const thuLai = () => {
-      logFn('  [hẹn giờ] còn lỗi — tự thử lại sau 60 giây');
-      setTimeout(() => tick(true), 60 * 1000);
+    const thuLai = (kenh) => {
+      logFn('  [hẹn giờ] còn lỗi — tự thử lại sau 60 giây' + (kenh ? ' (chỉ ' + kenh.join(', ') + ')' : ''));
+      setTimeout(() => tick(true, kenh), 60 * 1000);
     };
     try {
-      const r = await run({});
+      const r = await run(chiKenh ? { providers: chiKenh } : {});
       logFn(`  [hẹn giờ] đồng bộ${laLanThuHai ? ' (lần 2)' : ''} xong: +${r.tong.taoMoi} dòng mới, ~${r.tong.capNhat} cập nhật, ${r.tong.loi} lỗi`);
       // In hẳn nội dung từng lỗi. Chỉ in con số thì trên server chung (Render)
       // không còn cách nào biết kênh nào chết vì sao.
       (r.loi || []).forEach((m) => logFn(`  [hẹn giờ] LỖI  ${m}`));
+      if (laLanThuHai) return;
+      const hongTamThoi = (r.ketQua || []).filter((x) => !x.ok && !loiKhongTuKhoi(x.loi)).map((x) => x.kenh);
 
       /* BƯỚC 1 — kéo lead + đơn Tourwell về kho. ĐẮT nên có cửa 2 giờ.
        *
@@ -330,10 +345,10 @@ function startScheduler(logFn = console.log) {
         logFn('  [hẹn giờ] chấm điểm sức khoẻ LỖI  ' + e.message);
       }
 
-      if (r.tong.loi > 0 && !laLanThuHai) thuLai();
+      if (hongTamThoi.length) thuLai(hongTamThoi);
     } catch (e) {
       logFn(`  [hẹn giờ] đồng bộ${laLanThuHai ? ' (lần 2)' : ''} lỗi: ${e.message}`);
-      if (!laLanThuHai) thuLai();
+      if (!laLanThuHai) thuLai(null);
     }
   };
   timer = setInterval(tick, ms);
@@ -351,7 +366,7 @@ function stopScheduler() {
 
 const schedulerState = () => ({ dangBat: !!timer, lanKeTiep: nextAt });
 
-module.exports = {
+module.exports = { loiKhongTuKhoi,
   run, importCsv, testAll, history, schedulerState,
   /* Xuất ra để giao diện nói ĐÚNG nhịp tự kéo, thay vì gõ cứng "6 giờ" và "21
    * ngày" vào HTML rồi nói sai khi ai đó đổi biến môi trường. */
