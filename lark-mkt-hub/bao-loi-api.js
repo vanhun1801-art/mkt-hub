@@ -30,6 +30,7 @@ const KHOA = crypto.randomBytes(24).toString('hex');
 const GOM_MS = 45 * 1000, IM_MS = 60 * 60 * 1000, NGHI_MS = 15 * 60 * 1000;
 const TEN = process.env.HUB_BAO_LOI_TEN || 'Lê Văn Hùng';
 const LECH = 7 * 3600000;
+const MAY = process.env.RENDER ? 'Render (bản cả phòng dùng)' : 'máy ' + require('os').hostname() + ' (hub chạy tại chỗ)';
 
 const DICH_VU = [
   [/open\.(larksuite\.com|feishu\.cn)$/, 'Lark Open API'],
@@ -78,7 +79,7 @@ function nhan(s) {
     const truoc = nghi.get(k);
     const coTruoc = truoc && s.luc - truoc < NGHI_MS;
     nghi.delete(k);
-    cho.set(k, { s, dem: coTruoc ? 2 : 1, dau: coTruoc ? truoc : s.luc, cuoi: s.luc, duong: new Set([s.duong]), loi: s.loi, lapLai: cu ? cu.dem : 0 });
+    cho.set(k, { s, dem: coTruoc ? 2 : 1, dau: coTruoc ? truoc : s.luc, cuoi: s.luc, duong: new Set([s.duong]), loi: s.loi, lapLai: cu ? cu.dem : 0, coTruoc: Boolean(coTruoc) });
   }
   if (!hen) hen = setTimeout(xa, GOM_MS);
 }
@@ -99,6 +100,9 @@ function theLoi(nhom) {
     const gy = goiY(s);
     if (gy) el.push({ tag: 'note', elements: [{ tag: 'plain_text', content: gy }] });
   });
+  /* Ghi rõ máy nào báo: hub chạy cả trên Render lẫn máy anh Hùng, cùng một bot
+   * nhắn, nhìn thẻ không biết lỗi ở đâu thì không biết phải đi sửa chỗ nào. */
+  el.push({ tag: 'note', elements: [{ tag: 'plain_text', content: 'Báo từ: ' + MAY } ] });
   el.push({ tag: 'action', actions: [{ tag: 'button', type: 'primary', text: { tag: 'plain_text', content: 'Mở Marketing Hub' }, url: urlHub + '/#/' }] });
   const soApp = new Set(nhom.map((g) => g.s.app)).size;
   return {
@@ -122,7 +126,12 @@ async function xa() {
   const luc = Date.now();
   const nhom = [];
   for (const [k, g] of cho) {
-    if ((g.s.kieu === 'mang' || g.s.status === 429) && g.dem < 2 && !g.lapLai) nghi.set(k, g.dau);
+    /* "Một lần" tính theo THỜI GIAN chứ không theo số lời gọi: 11:36 14/10 một nhịp
+     * mạng chập làm hỏng cùng lúc hai lời gọi đang chạy song song, đếm ra "2 lần"
+     * mà thật ra vẫn chỉ là một nhịp. Chùm lỗi gói gọn trong một phút, lại chưa
+     * từng nổ trước đó, thì vẫn coi là một nhịp. */
+    const motNhip = !g.coTruoc && g.cuoi - g.dau < 60000;
+    if ((g.s.kieu === 'mang' || g.s.status === 429) && motNhip && !g.lapLai) nghi.set(k, g.dau);
     else nhom.push(g);
   }
   cho.clear();
