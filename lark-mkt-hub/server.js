@@ -167,10 +167,15 @@ function tuHang(hang) {
  * Người này có được xem base đó không. Nhận cả object module (để đọc `caPhong`)
  * lẫn id trần cho những chỗ gọi cũ.
  */
+/* Base khách công ty (người ngoài phòng) được vào mà không cần cấp quyền.
+ * Anh Hùng chốt 14/10/2026: ai đăng nhập cũng thấy Bảng công việc, và trong đó
+ * chỉ thấy việc có tên mình. App con tự lọc theo người (x-hub-khach). */
+const MO_CHO_KHACH = ['cong-viec'];
+
 function duocXem(q, mod) {
   const m = typeof mod === 'string' ? (timMod(mod) || { id: mod, caPhong: false }) : mod;
   if (!q) return true;                          // chưa xác thực (chế độ cli)
-  if (q.khach) return false;                    // khách công ty: không base nào, kể cả base cả phòng
+  if (q.khach) return MO_CHO_KHACH.includes(m.id);   // khách công ty: chỉ base mở cho khách, KHÔNG gồm base cả phòng
   if (q.quanLy || q.moiBase) return true;
   if (q.base && q.base.includes(m.id)) return true;   // được cấp riêng
   if (laQLBase(q, m)) return true;              // Lead phụ trách base thì đương nhiên xem được
@@ -357,6 +362,7 @@ function nguoiKemQuyen(nguoi, q, mod) {
   const ql = mod ? laQLBase(q, mod) : !!(q && q.quanLy);
   return Object.assign({}, nguoi, {
     quanLy: ql,
+    khach: !!(q && q.khach),
     toanBo: ql || !!(q && q.toanBo),
     /* Quyền hẹp "Xem tải người khác" — chỉ lichChung() đọc tới.
      *
@@ -824,7 +830,9 @@ function xoaLogo() {
 /* Khách công ty chỉ đi được mấy đường này: đủ để vẽ trang chào và nhận logo.
  * Liệt kê đường ĐƯỢC đi chứ không liệt kê đường bị cấm: route thêm sau này mặc
  * định kín với khách, không ai phải nhớ chặn từng cái. */
-const DUONG_CHO_KHACH = new Set(['/healthz', '/api/hub', '/api/logo', '/api/loi-giao-dien']);
+const DUONG_CHO_KHACH = new Set(['/healthz', '/api/hub', '/api/logo', '/api/loi-giao-dien',
+  /* chuông thông báo: chỉ hỏi những base khách được vào, mỗi base tự lọc theo người */
+  '/api/thong-bao', '/api/thong-bao/doc']);
 
 async function api(req, res, u) {
   const p = u.pathname;
@@ -2427,6 +2435,7 @@ const server = http.createServer(async (req, res) => {
       nguoi.toanBo = ql || q.toanBo;
       nguoi.taoMoi = ql || q.taoMoi;
       nguoi.chiPhi = ql || q.chiPhi;
+      nguoi.khach = !!q.khach;
     }
     /* Chạy trên máy cá nhân thì không có phiên đăng nhập, nhưng người ngồi trước
      * máy chính là quản lý — phải nói rõ cho app con, nếu không nó tưởng nhân sự

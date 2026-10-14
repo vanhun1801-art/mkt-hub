@@ -4877,6 +4877,17 @@ async function napNhap() {
   }
 }
 
+/**
+ * Tìm việc cho link ?rec=: trong việc của mình, rồi trong việc mình đã order.
+ * Người giao việc liên phòng (thường ở phòng khác) chỉ có việc ở danh sách
+ * order. Link từ Base công ty mang mã bản ghi gốc, còn ở đây mỗi người nhận
+ * là một bản `<mã gốc>x<đuôi>`, nên khớp cả tiền tố.
+ */
+function timViecTheoMa(rec) {
+  const ds = [...(S.tasks || []), ...(S.orders || [])];
+  return ds.find((x) => x.id === rec) || ds.find((x) => String(x.id).startsWith(rec + 'x')) || null;
+}
+
 /** Nạp việc mình đã gửi order (tab "Việc tôi order"). */
 async function napOrders(force) {
   try {
@@ -5503,7 +5514,7 @@ function setupChrome() {
     const tv = new URLSearchParams(location.search);
     const rec = tv.get('rec');
     if (rec) {
-      const t = (S.tasks || []).find((x) => x.id === rec);
+      const t = timViecTheoMa(rec);
       /* ?mo=trao-doi: bấm "Mở trao đổi" trên thẻ Lark -> mở thẳng tab chat. */
       if (t && tv.get('mo') === 'trao-doi') DT_TAB = 'chat';
       if (t) openDrawer(t);
@@ -5531,7 +5542,7 @@ window.addEventListener('message', (ev) => {
     const bao = (loai) => {
       try { parent.postMessage({ hub: loai, rec: d.rec }, location.origin); } catch (e) {}
     };
-    const t = (S.tasks || []).find((x) => x.id === d.rec);
+    const t = timViecTheoMa(d.rec);
     if (t) { openDrawer(t); bao('opened'); return; }
     // App vừa mở còn đang nạp Base -> im lặng, hub sẽ gửi lại sau 1s.
     // Chỉ khi đã có dữ liệu mà vẫn không thấy thì mới báo là ngoài phạm vi.

@@ -588,6 +588,8 @@ function quyenHub(req, ten) {
 const xemToanBo = (req) => quyenHub(req, 'x-hub-perm-toan-bo');
 /** Nhân sự bị chặn tạo việc mới. */
 const khongDuocTao = (req) => quyenHub(req, 'x-hub-perm-khong-tao');
+/** Khách công ty: người ngoài phòng MKT, hub cho vào để thấy đúng việc có tên mình. */
+const laKhach = (req) => quyenHub(req, 'x-hub-khach');
 
 const DONG_HAN = ['Hoàn thành', 'Hủy'];
 const TRE = 'Trễ deadline';
@@ -1025,6 +1027,26 @@ async function requireOwnTask(res, task, req) {
   return false;
 }
 
+/**
+ * Người đang xem có được ĐỌC việc này không (bình luận, báo cáo ngày, tệp).
+ *
+ * Từ 14/10/2026 cả công ty đăng nhập được Marketing Hub, nên các đường đọc
+ * theo mã việc phải tự kiểm người: biết mã bản ghi là chưa đủ. Được đọc khi là
+ * quản lý, được "Xem toàn bộ", hoặc có tên trong việc (phụ trách, hỗ trợ,
+ * người order / người giao việc liên phòng). Trả về false là đã trả lời 403/404.
+ */
+async function requireXemViec(res, id, req) {
+  if (await isManager(req) || xemToanBo(req)) return true;
+  const me = await whoAmI(req);
+  const rec = (await getRecords()).find((r) => r.record_id === id);
+  const t = rec ? toTask(rec) : await LP.tim(lark, id);
+  if (!t) { json(res, { error: 'Không tìm thấy công việc' }, 404); return false; }
+  const co = (arr) => (arr || []).some((u) => u && me && u.id === me.id);
+  if (co(t.owner) || co(t.helper) || co(t.requester)) return true;
+  json(res, { error: 'Đây không phải công việc của bạn.', code: 'NOT_YOUR_TASK' }, 403);
+  return false;
+}
+
 function collectPeople(tasks) {
   const m = new Map();
   for (const t of tasks) {
@@ -1064,7 +1086,9 @@ async function api(req, res, url) {
        * được cấp "Xem toàn bộ", mới thấy danh bạ đầy đủ. */
       people: (manager || xemToanBo(req)) ? collectPeople(allTasks) : collectPeople(tasks),
       // người app được cấp quyền dùng (Developer Console → phạm vi khả dụng)
-      scopePeople: (cache.scope || []).map((p) => {
+      /* Phạm vi app nay là CẢ CÔNG TY: khách không cần (và không được) cầm cả
+       * danh bạ công ty kèm email. Người phòng vẫn dùng để chọn người hỗ trợ. */
+      scopePeople: laKhach(req) ? [] : (cache.scope || []).map((p) => {
         const trongBang = collectPeople(allTasks).find((x) => x.id === p.id);
         return { id: p.id, name: trongBang ? trongBang.name : p.name, email: p.email || '' };
       }),
@@ -1555,6 +1579,7 @@ async function api(req, res, url) {
   const mBC = p.match(/^\/api\/tasks\/(rec[A-Za-z0-9]+)\/bao-cao$/);
   if (mBC && req.method === 'GET') {
     const id = mBC[1];
+    if (!(await requireXemViec(res, id, req))) return;
     const recs = await getRecords();
     const rec = recs.find((r) => r.record_id === id) ||
       (await LP.docHet(lark)).find((v) => v.id === id);   // việc liên phòng cũng có báo cáo ngày
@@ -1599,6 +1624,7 @@ async function api(req, res, url) {
     const CF = cfg.commentFields;
 
     if (req.method === 'GET') {
+      if (!(await requireXemViec(res, id, req))) return;
       /* Việc liên phòng đã lưu về Base phòng: trao đổi lúc còn là việc liên phòng
        * được ghi theo mã liên phòng — vẫn hiện tiếp ở bản lưu về. */
       const recCmt = (cache.records || []).find((r) => r.record_id === id);
@@ -1955,8 +1981,18 @@ async function api(req, res, url) {
      * "sửa cái gì của việc nào" ngay trên hàng đợi, khỏi bấm vào từng cái. */
     const tasks = (await getRecords()).map(toTask);
     const ten = new Map(tasks.map((t) => [t.id, t.title]));
+    /* Nhân sự chỉ thấy yêu cầu của chính mình hoặc yêu cầu trên việc mình có
+     * tên. Trước đây ai cũng đọc được cả hàng đợi, kèm mã việc để lần tiếp. */
+    let dsXem = ds;
+    if (!(await isManager(req)) && !xemToanBo(req)) {
+      const me = await whoAmI(req);
+      const coTen = new Set(tasks.filter((t) => me && [...(t.owner || []), ...(t.helper || []), ...(t.requester || [])]
+        .some((u) => u && u.id === me.id)).map((t) => t.id));
+      dsXem = ds.filter((r) => (me && (r.sender || []).some((u) => u && u.id === me.id)) ||
+        r.taskIds.some((id) => coTen.has(id)));
+    }
     return json(res, {
-      requests: ds.map((r) => Object.assign({}, r, {
+      requests: dsXem.map((r) => Object.assign({}, r, {
         taskTitle: r.taskIds.map((id) => ten.get(id)).filter(Boolean)[0] || r.content || '',
       })),
     });
@@ -1977,7 +2013,11 @@ async function api(req, res, url) {
     if (body.taskTitle) cells[RF.content.name] = String(body.taskTitle);
     /* Người gửi PHẢI được ghi, không chờ client tự khai: thiếu ô này thì quản lý
      * mở yêu cầu ra không biết hỏi lại ai. */
-    const nguoiGui = body.senderId || ((await whoAmI(req)) || {}).id;
+    /* Nhân sự chỉ gửi yêu cầu cho việc mình có tên, và người gửi là chính mình:
+     * senderId trong thân chỉ quản lý mới được đặt hộ. */
+    if (!(await requireXemViec(res, body.taskId, req))) return;
+    const ql = await isManager(req);
+    const nguoiGui = (ql && body.senderId) || ((await whoAmI(req)) || {}).id;
     if (nguoiGui) cells[RF.sender.name] = [{ id: nguoiGui }];
     cells[RF.handled.name] = false;
 
@@ -2005,6 +2045,7 @@ async function api(req, res, url) {
     if (!/^rec[A-Za-z0-9]+$/.test(recordId) || !/^[A-Za-z0-9]+$/.test(token)) {
       return json(res, { error: 'Tham số không hợp lệ' }, 400);
     }
+    if (!(await requireXemViec(res, recordId, req))) return;
     const slug = 'att-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
     let dir = null;
     try {
@@ -2096,7 +2137,11 @@ async function api(req, res, url) {
       const body = await readBody(req);
 
       // Vai trò nhân sự: chỉ sửa được các trường của mình, không đặt trạng thái của admin
-      if (url.searchParams.get('role') === 'staff') {
+      /* Khoá này trước đây chỉ chạy khi trình duyệt tự gửi ?role=staff, bỏ tham
+       * số là nhân sự đổi được người order, deadline 2, hay đặt "Hủy". Giờ máy
+       * chủ tự áp cho mọi người không phải quản lý; quản lý ở bản gọn vẫn gửi
+       * ?role=staff để tự khoá mình như cũ. */
+      if (url.searchParams.get('role') === 'staff' || !(await isManager(req))) {
         const bad = Object.keys(body).filter((k) => !cfg.staffEditable.includes(k));
         if (bad.length) {
           return json(res, {

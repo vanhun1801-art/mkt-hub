@@ -27,13 +27,26 @@ const SECRET = 'kiem-thu-khach';
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'hub-khach-'));
 const fMod = path.join(tmp, 'modules.json');
 const fQuyen = path.join(tmp, 'quyen.json');
+const CONG_ECHO = congTrong();
+
+/* "Bảng công việc" giả: trả lại header danh tính proxy gửi xuống, để đo app con
+ * có biết người này là khách không. */
+fs.writeFileSync(path.join(tmp, 'server.js'), [
+  'require("http").createServer((q, r) => {',
+  '  r.writeHead(200, { "Content-Type": "application/json" });',
+  '  if (q.url === "/api/thong-bao") return r.end(JSON.stringify({ items: [] }));',
+  '  r.end(JSON.stringify({ khach: q.headers["x-hub-khach"] || "", khongTao: q.headers["x-hub-perm-khong-tao"] || "",',
+  '    ql: q.headers["x-hub-user-manager"] || "" }));',
+  '}).listen(' + CONG_ECHO + ');',
+].join(String.fromCharCode(10)));
 
 const nhom = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'du-lieu', 'nhom-mkt.json'), 'utf8')).nguoi;
 const TEN_NHOM = nhom[0].ten;
 
 fs.writeFileSync(fMod, JSON.stringify({
   modules: [
-    { id: 'cong-viec', ten: 'Bảng công việc', kieu: 'lark', larkUrl: 'https://x/1', caPhong: true },
+    { id: 'cong-viec', ten: 'Bảng công việc', kieu: 'local', thuMuc: tmp, cong: CONG_ECHO },
+    { id: 'lich', ten: 'Lịch tác nghiệp', kieu: 'lark', larkUrl: 'https://x/1', caPhong: true },
     { id: 'kin', ten: 'Base kín', kieu: 'lark', larkUrl: 'https://x/2' },
   ],
 }, null, 2));
@@ -56,7 +69,7 @@ const env = Object.assign({}, process.env, {
   LARK_MANAGER_EMAILS: 'quanly@rootytrip.com',
   HUB_MODULES_FILE: fMod,
   HUB_QUYEN_FILE: fQuyen,
-  HUB_AUTOSTART: '0',
+  HUB_AUTOSTART: '1',
 });
 
 function kyPhien(mail, ten) {
@@ -86,18 +99,32 @@ const ids = (h) => (h.modules || []).map((x) => x.id).sort().join(',');
 
     const hK = await hubCua(...KHACH);
     ghi(hK.khach === true, '/api/hub báo khach cho người ngoài phòng');
-    ghi((hK.modules || []).length === 0, 'khách không thấy base nào, kể cả base cả phòng', ids(hK));
+    ghi(ids(hK) === 'cong-viec', 'khách chỉ thấy Bảng công việc, không thấy base cả phòng khác', ids(hK));
     ghi(hK.quanLy === false, 'khách không phải quản lý');
 
     for (const p of ['/api/danh-ba', '/api/anh-dai-dien', '/api/tb-app', '/api/tb-app/tin',
-      '/api/bang-tin-chao', '/api/tongquan', '/api/lich-chung', '/api/thong-bao', '/api/toi',
+      '/api/bang-tin-chao', '/api/tongquan', '/api/lich-chung', '/api/toi',
       '/api/lich-cua-so', '/api/duong-chua-co']) {
       const r = await fetch(G + p, { headers: { cookie: kyPhien(...KHACH) } });
       ghi(r.status === 403, 'khách bị chặn ' + p, String(r.status));
     }
     {
-      const r = await fetch(G + '/m/cong-viec/', { headers: { cookie: kyPhien(...KHACH) }, redirect: 'manual' });
-      ghi(r.status === 403, 'khách gõ tay /m/cong-viec/ bị chặn', String(r.status));
+      const r = await fetch(G + '/m/lich/', { headers: { cookie: kyPhien(...KHACH) }, redirect: 'manual' });
+      ghi(r.status === 403, 'khách gõ tay /m/lich/ (base cả phòng) bị chặn', String(r.status));
+    }
+    {
+      const r = await fetch(G + '/m/cong-viec/api/thu', { headers: { cookie: kyPhien(...KHACH), 'x-hub-khach': '' } });
+      const d = r.ok ? await r.json() : {};
+      ghi(d.khach === '1' && d.khongTao === '1' && d.ql === '',
+        'Bảng công việc nhận khách: x-hub-khach, không tạo việc, không quản lý', JSON.stringify(d));
+      const r2 = await fetch(G + '/api/thong-bao', { headers: { cookie: kyPhien(...KHACH) } });
+      ghi(r2.status === 200, 'khách vẫn có chuông thông báo', String(r2.status));
+    }
+    {
+      // người phòng gửi kèm header giả cũng không thành khách (proxy xoá header client tự gửi)
+      const r = await fetch(G + '/m/cong-viec/api/thu', { headers: { cookie: kyPhien('quanly@rootytrip.com', 'QL'), 'x-hub-khach': '1' } });
+      const d = r.ok ? await r.json() : {};
+      ghi(d.khach === '', 'header x-hub-khach do client tự gửi bị xoá', JSON.stringify(d));
     }
     {
       const r = await fetch(G + '/api/logo', { headers: { cookie: kyPhien(...KHACH) } });
@@ -105,14 +132,14 @@ const ids = (h) => (h.modules || []).map((x) => x.id).sort().join(',');
     }
 
     const hN = await hubCua('nguoinhom@rootytrip.com', TEN_NHOM);
-    ghi(!hN.khach && ids(hN) === 'cong-viec', 'người ở nhóm Phòng MKT vẫn thấy base cả phòng', ids(hN));
+    ghi(!hN.khach && ids(hN) === 'lich', 'người ở nhóm Phòng MKT vẫn thấy base cả phòng', ids(hN));
     {
       const r = await fetch(G + '/api/thong-bao', { headers: { cookie: kyPhien('nguoinhom@rootytrip.com', TEN_NHOM) } });
       ghi(r.status === 200, 'người phòng vẫn gọi được /api/thong-bao', String(r.status));
     }
 
     const hD = await hubCua('codong@rootytrip.com', 'Phòng khác có dòng');
-    ghi(!hD.khach && ids(hD).includes('kin'), 'người phòng khác có dòng phân quyền theo đúng dòng đó', ids(hD));
+    ghi(!hD.khach && ids(hD) === 'kin,lich', 'người phòng khác có dòng phân quyền theo đúng dòng đó', ids(hD));
 
     const hT = await hubCua('mao@rootytrip.com', 'Trùng Tên Quản Lý');
     ghi(hT.khach === true && hT.quanLy === false, 'trùng tên dòng quản lý đã gắn email: không nhận dòng đó');

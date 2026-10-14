@@ -558,7 +558,8 @@ function veRail() {
       ${o.dot ? '<span class="ri-dot ' + o.dot + '" title="' + esc(o.dotTitle || '') + '"></span>' : ''}
     </a>`;
 
-  let html = item({
+  /* Khách công ty không có trang Tổng quan: số liệu ở đó là của cả phòng. */
+  let html = S.hub && S.hub.khach ? '' : item({
     id: '', href: '#/tong-quan', icon: 'tong-quan', ten: 'Tổng quan chung',
     mau: '#2b5cff', on: hienTai === 'home',
   });
@@ -2914,6 +2915,13 @@ async function doiCaPhong(id, caPhong) {
 
 /* ---------------- router ---------------- */
 function dinhTuyen() {
+  /* Khách công ty chỉ có những base được mở cho khách (Bảng công việc), không
+   * có Tổng quan, Cài đặt hay Phân quyền: đường nào khác cũng đưa về base đầu. */
+  if (S.hub && S.hub.khach) {
+    const dau = (S.modules || [])[0];
+    const hk = location.hash.replace(/^#/, '');
+    if (dau && !/^\/m\/[^?]+/.test(hk)) { location.hash = '#/m/' + dau.id; return; }
+  }
   const h = location.hash.replace(/^#/, '') || '/tong-quan';
   // #/m/<id> hoặc #/m/<id>?rec=recXXX (bấm từ một thông báo -> mở luôn bản ghi)
   const mm = /^\/m\/([^?]+)(?:\?(.*))?$/.exec(h);
@@ -3350,7 +3358,17 @@ async function khoiDongVo() {
   }
   /* Khách công ty (người ngoài phòng Marketing): máy chủ đã chặn mọi base và mọi
    * đường dữ liệu, nên không nạp gì thêm, chỉ vẽ trang chào. */
-  if (S.hub && S.hub.khach) { veKhach(); return; }
+  if (S.hub && S.hub.khach) {
+    /* Không base nào mở cho khách thì chỉ còn trang chào. Có thì vào thẳng base
+     * đó; chỉ nạp những thứ khách gọi được (danh sách base, chuông thông báo),
+     * Tổng quan, bảng tin và lịch là của phòng nên không nạp. */
+    if (!(S.modules || []).length) { veKhach(); return; }
+    dinhTuyen();
+    napThongBao();
+    setInterval(() => { if (!document.hidden) napHub().catch(() => {}); }, 10000);
+    setInterval(() => { if (!document.hidden) napThongBao(); }, 120000);
+    return;
+  }
   dinhTuyen();
   napTongQuan();
 

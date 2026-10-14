@@ -148,7 +148,7 @@ const nhuNhau = (a, b) => a.length === b.length && a.every((x, i) => x === b[i])
     /* Từ 14/10/2026 cả công ty đăng nhập được: người ngoài phòng (không dòng
      * phân quyền, không ở nhóm) là khách, KHÔNG thấy cả base mở cho cả phòng. */
     const khach = await panelCua('nguoila@rootytrip.com', 'Chưa khai quyền');
-    ghi(khach.length === 0, 'người ngoài phòng không thấy base nào, kể cả base cả phòng', khach.join(','));
+    ghi(nhuNhau(khach, ['cong-viec']), 'người ngoài phòng chỉ thấy Bảng công việc, không thấy base cả phòng khác', khach.join(','));
 
     /* ---- Danh bạ của màn Phân quyền phải gom từ MỌI app ----
      * Lỗi đã gặp: danh bạ chỉ hỏi đúng app Bảng công việc, nên người chỉ có

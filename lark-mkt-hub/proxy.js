@@ -327,7 +327,7 @@ function chuyenTiep(req, res, mod, duongDan, nguoi) {
   delete opts.headers['x-hub-user-email'];
   delete opts.headers['x-hub-user-email-phu'];
   ['x-hub-user-manager','x-hub-perm-toan-bo','x-hub-perm-khong-tao','x-hub-perm-chi-phi',
-    'x-hub-perm-kenh']
+    'x-hub-perm-kenh', 'x-hub-khach']
     .forEach((h) => { delete opts.headers[h]; });
   if (nguoi && nguoi.id) {
     opts.headers['x-hub-user-id'] = nguoi.id;
@@ -347,6 +347,8 @@ function chuyenTiep(req, res, mod, duongDan, nguoi) {
     if (nguoi.toanBo) opts.headers['x-hub-perm-toan-bo'] = '1';
     if (nguoi.taoMoi === false) opts.headers['x-hub-perm-khong-tao'] = '1';
     if (nguoi.chiPhi) opts.headers['x-hub-perm-chi-phi'] = '1';
+    // khách công ty (ngoài phòng MKT): app con giấu danh bạ và mọi thứ ngoài việc của họ
+    if (nguoi.khach) opts.headers['x-hub-khach'] = '1';
     /* Chỉ gửi khi hub THẬT SỰ có gì để nói. Không gửi = app con hiểu "chưa ai
      * khai gì" và không giới hạn; gửi '-' = khai rõ "không kênh nào". Hai chuyện
      * khác hẳn nhau. */
@@ -514,6 +516,7 @@ function headerNguoi(nguoi) {
   if (nguoi.toanBo) h['x-hub-perm-toan-bo'] = '1';
   if (nguoi.taoMoi === false) h['x-hub-perm-khong-tao'] = '1';
   if (nguoi.chiPhi) h['x-hub-perm-chi-phi'] = '1';
+  if (nguoi.khach) h['x-hub-khach'] = '1';
   if (nguoi.kenhQC) h['x-hub-perm-kenh'] = nguoi.kenhQC;
   return h;
 }

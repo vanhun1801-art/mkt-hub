@@ -137,6 +137,7 @@ Anh Hùng (10/10/2026): nhân sự xuất được báo cáo, nhưng **xuất đ
 
 - Phạm vi app Lark đã mở cho cả công ty, nên đăng nhập được không còn nghĩa là người phòng MKT.
 - Người phòng MKT là người có dòng trong bảng Phân quyền, hoặc ở nhóm chat "Phòng MKT", hoặc là quản lý khai bằng env, hoặc là tài khoản mật khẩu đã được duyệt.
-- Ai ngoài các diện đó là **khách công ty**: không thấy base nào, kể cả base mở cho cả phòng, chỉ thấy trang chào. Máy chủ chỉ cho khách đi các đường trong `DUONG_CHO_KHACH` (server.js), route mới mặc định kín với khách.
-- Anh Hùng chốt: khách sẽ được thấy **việc liên quan tới họ** (việc giao cho họ, việc họ giao cho MKT, link việc được gửi). Phần này làm sau, khi đã vá các chỗ hở trong app Bảng công việc.
+- Ai ngoài các diện đó là **khách công ty**. Anh Hùng chốt: không cần cấp gì, đăng nhập xong là vào thẳng **Bảng công việc** và chỉ thấy việc có tên mình (phụ trách, hỗ trợ, việc mình order hay giao liên phòng). Khách không có Tổng quan, bảng tin, lịch, và không tạo việc mới.
+- Base mở cho khách khai ở `MO_CHO_KHACH` (server.js). Base "cả phòng" KHÔNG mở cho khách. Máy chủ chỉ cho khách đi các đường trong `DUONG_CHO_KHACH`, route mới mặc định kín với khách.
+- Hub báo app con bằng header `x-hub-khach`. App con không được đưa cho khách danh bạ công ty hay dữ liệu của việc không có tên họ.
 - Khớp dòng phân quyền theo tên chỉ nhận dòng chưa gắn email/open_id, và người đó phải ở nhóm "Phòng MKT".
