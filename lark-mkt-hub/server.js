@@ -124,12 +124,14 @@ async function quyenCua(nguoi) {
   /* KHÁCH CÔNG TY. Từ 14/10/2026 app mở cho cả công ty đăng nhập, nên đăng nhập
    * được không còn nghĩa là người phòng MKT. Ai không có dòng phân quyền, không
    * ở nhóm chat "Phòng MKT", không phải quản lý khai bằng env, cũng không phải
-   * tài khoản mật khẩu quản lý đã duyệt -> khách: không thấy base nào (kể cả base
-   * mở cho cả phòng), không tạo được việc. */
+   * tài khoản mật khẩu quản lý đã duyệt -> khách: chỉ thấy base trong
+   * MO_CHO_KHACH (không gồm base cả phòng). Tạo việc thì ĐƯỢC (anh Hùng chốt
+   * 14/10/2026): việc nhân sự tạo là một order "Chờ tiếp nhận" gửi phòng MKT,
+   * người order khoá là chính họ, quản lý phân công sau. */
   if (!hang && !envQL && nguoi.kieu !== 'mk') {
     let trongNhom = false;
     try { trongNhom = await nhomLark.laThanhVien(nguoi); } catch (_) { trongNhom = false; }
-    if (!trongNhom) return Object.assign(mac, { khach: true, base: [], taoMoi: false, chiPhi: false });
+    if (!trongNhom) return Object.assign(mac, { khach: true, base: [], taoMoi: true, chiPhi: false });
   }
   // Base lỗi/hết hạn token: người phòng mở hết còn hơn khoá cả phòng ra ngoài.
   // Khách đã dừng ở trên nên nhánh này không mở gì cho người ngoài phòng.

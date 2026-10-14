@@ -115,8 +115,8 @@ const ids = (h) => (h.modules || []).map((x) => x.id).sort().join(',');
     {
       const r = await fetch(G + '/m/cong-viec/api/thu', { headers: { cookie: kyPhien(...KHACH), 'x-hub-khach': '' } });
       const d = r.ok ? await r.json() : {};
-      ghi(d.khach === '1' && d.khongTao === '1' && d.ql === '',
-        'Bảng công việc nhận khách: x-hub-khach, không tạo việc, không quản lý', JSON.stringify(d));
+      ghi(d.khach === '1' && d.khongTao === '' && d.ql === '',
+        'Bảng công việc nhận khách: x-hub-khach, được tạo việc (order), không quản lý', JSON.stringify(d));
       const r2 = await fetch(G + '/api/thong-bao', { headers: { cookie: kyPhien(...KHACH) } });
       ghi(r2.status === 200, 'khách vẫn có chuông thông báo', String(r2.status));
     }
