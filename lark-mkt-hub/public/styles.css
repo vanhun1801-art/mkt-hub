@@ -2181,3 +2181,21 @@ input.cd-in-nho { width: 72px; }
 .frame-loading .frame-cho > span:not(.spin) { color: var(--chu-mo, #888); font-size: 13px; }
 .frame-loading .frame-cho .spin { margin-bottom: 2px; }
 @keyframes frame-cho-hien { from { opacity: 0; transform: translate(-50%, -46%); } to { opacity: 1; transform: translate(-50%, -50%); } }
+
+/* ---------- trang chào khách công ty (veKhach trong app.js) ----------
+ * Nền đặc phủ kín: phía sau là lớp vỏ hub rỗng, không được xuyên qua. */
+.khach-trang {
+  position: fixed; inset: 0; z-index: 900;
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px; background: var(--nen); overflow-y: auto;
+}
+.khach-the {
+  width: 100%; max-width: 420px; padding: 28px 24px;
+  background: var(--trang); border: 1px solid var(--vien); border-radius: var(--r);
+  box-shadow: var(--bong); text-align: center; color: var(--chu);
+}
+.khach-logo { width: 56px; height: 56px; border-radius: var(--r); object-fit: contain; }
+.khach-the h1 { margin: 12px 0 4px; font-size: 20px; }
+.khach-the .khach-ten { margin: 0 0 14px; color: var(--chu-mo); font-weight: 600; }
+.khach-the p { margin: 0 0 10px; line-height: 1.5; color: var(--chu-mo); overflow-wrap: anywhere; }
+.khach-the .btn { display: inline-flex; margin-top: 8px; text-decoration: none; }

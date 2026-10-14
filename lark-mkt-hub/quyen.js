@@ -261,10 +261,20 @@ async function cuaNguoi(nguoi) {
   const theoId = nguoi.id ? ds.find((r) => r.openId && r.openId === nguoi.id) : null;
   if (theoId) return theoId;
 
+  /* Từ 14/10/2026 cả công ty đăng nhập được, nên khớp theo tên phải chặt lại:
+   * người phòng khác trùng tên với một dòng "Quản lý" không được nhận dòng đó.
+   *   - chỉ nhận dòng CHƯA gắn email/open_id (dòng đã gắn là của người khác);
+   *   - tài khoản mật khẩu tự đặt tên khi đăng ký, nên không bao giờ khớp tên;
+   *   - người đó phải ở trong nhóm chat "Phòng MKT". */
+  if (nguoi.kieu === 'mk') return null;
   const ten = chuanTen(nguoi.name);
   if (!ten) return null;
   const trungTen = ds.filter((r) => chuanTen(r.nguoi) === ten);
   if (trungTen.length !== 1) return null;      // trùng tên nhiều dòng thì không đoán
+  if (trungTen[0].email || trungTen[0].openId) return null;
+  let trongNhom = false;
+  try { trongNhom = await require('./nhom-lark').laThanhVien(nguoi); } catch (_) { trongNhom = false; }
+  if (!trongNhom) return null;
 
   vaDanhTinh(trungTen[0], nguoi).catch(() => {});
   return trungTen[0];

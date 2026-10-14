@@ -203,4 +203,25 @@ function khopDanhBa(danhBa, nhom) {
   return { ids, thieu, trungTen };
 }
 
-module.exports = { CHAT_ID, TEN_NHOM, FILE_LUU, chuanTen, gomNguoi, khopDanhBa, thanhVien };
+/**
+ * Người đang đăng nhập có ở trong nhóm phòng không.
+ *
+ * Từ 14/10/2026 cả công ty đăng nhập được, nên "đăng nhập được" không còn
+ * nghĩa là "người phòng MKT". Đây là một trong các cách hub nhận ra người phòng.
+ *
+ * Đọc được từ Lark thì khớp theo open_id (cùng một app nên id trùng khít, và hai
+ * người trùng tên ở phòng khác không lọt vào). Chỉ khi phải dùng bản lưu (chỉ có
+ * tên) mới khớp theo tên.
+ */
+async function laThanhVien(nguoi) {
+  if (!nguoi) return false;
+  const kq = await thanhVien();
+  const ds = kq.nguoi || [];
+  if (kq.nguon === 'lark' && ds.some((x) => x.id)) {
+    return !!nguoi.id && ds.some((x) => x.id === nguoi.id);
+  }
+  const ten = chuanTen(nguoi.name);
+  return !!ten && ds.some((x) => chuanTen(x.ten) === ten);
+}
+
+module.exports = { CHAT_ID, TEN_NHOM, FILE_LUU, chuanTen, gomNguoi, khopDanhBa, thanhVien, laThanhVien };

@@ -137,11 +137,18 @@ const nhuNhau = (a, b) => a.length === b.length && a.every((x, i) => x === b[i])
     ghi(nhuNhau(kin, ['cong-viec', 'lich', 'quang-cao']),
       'được cấp base kín thì thấy base kín + base cả phòng', kin.join(','));
 
-    /* Người chưa có dòng nào trong bảng: mặc định chỉ base cả phòng. Trước đây
-     * họ thấy sạch mọi base, kể cả base vừa dựng xong. */
-    const la = await panelCua('nguoila@rootytrip.com', 'Chưa khai quyền');
-    ghi(nhuNhau(la, chung), 'người chưa khai quyền chỉ thấy base cả phòng', la.join(','));
+    /* Người chưa có dòng nào trong bảng nhưng ở nhóm chat "Phòng MKT": mặc
+     * định chỉ base cả phòng. Trước đây họ thấy sạch mọi base, kể cả base vừa
+     * dựng xong. Khoá Lark là giả nên hub dùng bản lưu nhóm (khớp theo tên). */
+    const tenNhom = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'du-lieu', 'nhom-mkt.json'), 'utf8')).nguoi[0].ten;
+    const la = await panelCua('nguoinhom@rootytrip.com', tenNhom);
+    ghi(nhuNhau(la, chung), 'người phòng chưa khai quyền chỉ thấy base cả phòng', la.join(','));
     ghi(!la.includes('base-moi'), 'base mới dựng KHÔNG tự hiện cho người chưa khai');
+
+    /* Từ 14/10/2026 cả công ty đăng nhập được: người ngoài phòng (không dòng
+     * phân quyền, không ở nhóm) là khách, KHÔNG thấy cả base mở cho cả phòng. */
+    const khach = await panelCua('nguoila@rootytrip.com', 'Chưa khai quyền');
+    ghi(khach.length === 0, 'người ngoài phòng không thấy base nào, kể cả base cả phòng', khach.join(','));
 
     /* ---- Danh bạ của màn Phân quyền phải gom từ MỌI app ----
      * Lỗi đã gặp: danh bạ chỉ hỏi đúng app Bảng công việc, nên người chỉ có

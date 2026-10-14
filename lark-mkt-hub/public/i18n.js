@@ -23,6 +23,12 @@
     'Marketing Hub': 'Marketing Hub',
     'Rooty Trip Phú Quốc': 'Rooty Trip Phu Quoc',
     'Tổng quan chung': 'Overview',
+    /* --- trang chào khách công ty (veKhach trong app.js) --- */
+    'Tài khoản của bạn ở ngoài phòng Marketing nên chưa được mở base nào.':
+      'Your account is outside the Marketing team, so no bases are open to you yet.',
+    'Cần xem việc hay dữ liệu nào, bạn nhắn quản lý phòng Marketing để được cấp quyền.':
+      'To see a task or data, message a Marketing manager to get access.',
+    'Đăng xuất': 'Sign out',
     /* --- lớp giao diện iOS (ios.js): thanh tab điện thoại, màn Cá nhân --- */
     'Công việc': 'Tasks',
     'Cá nhân': 'Profile',

@@ -2537,6 +2537,28 @@ async function napHub() {
   if (!S.tq && S.view === 'home') veHome();
 }
 
+/* Trang chào cho khách công ty. Phủ kín màn hình, nền đặc: phía sau là lớp vỏ
+ * rỗng của hub, để lộ ra chỉ làm người ta tưởng app hỏng. */
+function veKhach() {
+  if ($('#khachTrang')) return;
+  const toi = (S.hub && S.hub.toi) || {};
+  const el = document.createElement('div');
+  el.id = 'khachTrang';
+  el.className = 'khach-trang';
+  el.innerHTML =
+    '<div class="khach-the">' +
+      '<img class="khach-logo" src="/logo-app-180.png" alt="">' +
+      '<h1>Marketing Hub</h1>' +
+      (toi.ten ? '<p class="khach-ten">' + esc(toi.ten) + '</p>' : '') +
+      '<p>Tài khoản của bạn ở ngoài phòng Marketing nên chưa được mở base nào.</p>' +
+      '<p>Cần xem việc hay dữ liệu nào, bạn nhắn quản lý phòng Marketing để được cấp quyền.</p>' +
+      '<a class="btn" href="/auth/logout">Đăng xuất</a>' +
+    '</div>';
+  document.body.appendChild(el);
+  // màn mở app chờ trang Tổng quan vẽ xong, mà khách không có trang đó
+  if (window.__anMoApp) window.__anMoApp();
+}
+
 let dangNapTQ = false;
 let henXinLai = 0;   // hẹn xin lại khi có base còn dở (xem cuối hàm)
 
@@ -3326,6 +3348,9 @@ async function khoiDongVo() {
       esc(e.message) + '</span></div>';
     return;
   }
+  /* Khách công ty (người ngoài phòng Marketing): máy chủ đã chặn mọi base và mọi
+   * đường dữ liệu, nên không nạp gì thêm, chỉ vẽ trang chào. */
+  if (S.hub && S.hub.khach) { veKhach(); return; }
   dinhTuyen();
   napTongQuan();
 

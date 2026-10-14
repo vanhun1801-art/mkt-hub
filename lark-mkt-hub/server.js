@@ -116,12 +116,24 @@ async function quyenCua(nguoi) {
   if (!nguoi || cfg.mode !== 'api') return Object.assign(mac, { moiBase: true });
   let hang = null;
   let bang = [];
-  // Base lỗi/hết hạn token: mở hết còn hơn khoá cả phòng ra ngoài, nhưng phải
-  // là ĐÚNG nhánh lỗi — chưa khai dòng nào là chuyện khác, xem dưới.
+  let loiBang = false;
   try {
     hang = await quyen.cuaNguoi(nguoi);
     bang = await quyen.docTatCa();
-  } catch (e) { return Object.assign(mac, { moiBase: true, loiBang: true }); }
+  } catch (e) { loiBang = true; }
+  /* KHÁCH CÔNG TY. Từ 14/10/2026 app mở cho cả công ty đăng nhập, nên đăng nhập
+   * được không còn nghĩa là người phòng MKT. Ai không có dòng phân quyền, không
+   * ở nhóm chat "Phòng MKT", không phải quản lý khai bằng env, cũng không phải
+   * tài khoản mật khẩu quản lý đã duyệt -> khách: không thấy base nào (kể cả base
+   * mở cho cả phòng), không tạo được việc. */
+  if (!hang && !envQL && nguoi.kieu !== 'mk') {
+    let trongNhom = false;
+    try { trongNhom = await nhomLark.laThanhVien(nguoi); } catch (_) { trongNhom = false; }
+    if (!trongNhom) return Object.assign(mac, { khach: true, base: [], taoMoi: false, chiPhi: false });
+  }
+  // Base lỗi/hết hạn token: người phòng mở hết còn hơn khoá cả phòng ra ngoài.
+  // Khách đã dừng ở trên nên nhánh này không mở gì cho người ngoài phòng.
+  if (loiBang) return Object.assign(mac, { moiBase: true, loiBang: true });
   const kenhQC = quyen.kenhQuangCaoCua(hang, bang);
   if (!hang) return Object.assign(mac, { kenhQC });
   return Object.assign(tuHang(hang), {
@@ -158,6 +170,7 @@ function tuHang(hang) {
 function duocXem(q, mod) {
   const m = typeof mod === 'string' ? (timMod(mod) || { id: mod, caPhong: false }) : mod;
   if (!q) return true;                          // chưa xác thực (chế độ cli)
+  if (q.khach) return false;                    // khách công ty: không base nào, kể cả base cả phòng
   if (q.quanLy || q.moiBase) return true;
   if (q.base && q.base.includes(m.id)) return true;   // được cấp riêng
   if (laQLBase(q, m)) return true;              // Lead phụ trách base thì đương nhiên xem được
@@ -808,9 +821,22 @@ function xoaLogo() {
   }
 }
 
+/* Khách công ty chỉ đi được mấy đường này: đủ để vẽ trang chào và nhận logo.
+ * Liệt kê đường ĐƯỢC đi chứ không liệt kê đường bị cấm: route thêm sau này mặc
+ * định kín với khách, không ai phải nhớ chặn từng cái. */
+const DUONG_CHO_KHACH = new Set(['/healthz', '/api/hub', '/api/logo', '/api/loi-giao-dien']);
+
 async function api(req, res, u) {
   const p = u.pathname;
   const m = req.method;
+
+  if (cfg.mode === 'api' && !DUONG_CHO_KHACH.has(p) && auth.sessionUser(req)) {
+    const { q: qKhach, xemNhu: nhuKhach } = await aiDangXem(req);
+    if (qKhach.khach && !nhuKhach) {
+      return send(res, 403, JSON.stringify({ error: 'Tài khoản này ở ngoài phòng Marketing nên chưa mở mục này.', code: 'KHACH' }),
+        { 'Content-Type': 'application/json; charset=utf-8' });
+    }
+  }
 
   /* Ảnh đại diện Lark của cả phòng: bảng TÊN (chuẩn hoá) → đường ảnh CDN Lark.
    * ios.js / ios-app.js thay ô tròn chữ viết tắt bằng ảnh thật. Chỉ đọc. */
@@ -846,6 +872,8 @@ async function api(req, res, u) {
       // đang xem hộ: vẫn cho thoát chế độ này nên client cần biết mình thật là quản lý
       quanLyThat: !!(quanLyThat || q.quanLy || cfg.mode !== 'api'),
       xemNhu: xemNhu ? { ten: xemNhu.name, email: xemNhu.email || null } : null,
+      // khách công ty: người ngoài phòng Marketing, client vẽ trang chào thay hub
+      khach: !!(q.khach && !xemNhu),
       toi: nguoi ? { ten: nguoi.name, email: nguoi.email || null, quanLy: q.quanLy } : null,
       // panel chỉ hiện base người này được xem
       modules: danhSach().filter((x) => duocXem(q, x))

@@ -132,3 +132,11 @@ Anh Hùng (10/10/2026): nhân sự xuất được báo cáo, nhưng **xuất đ
 - **Không đưa khối "Giới hạn số liệu" vào tệp.** Trên màn hình nó gập lại, ai cần thì bấm; trong tệp in ra không gập được nên mỗi khối đội thêm một hộp chữ dài trước cả dãy số.
 - Biểu đồ thanh xếp hạng **hẹp lại** (tối đa 520px), không trải hết bề ngang trang.
 - Chân tệp là **chữ ký của ứng dụng**, một dòng: `Xuất lúc <giờ> <ngày> · Marketing Hub · phát triển bởi Lê Văn Hùng`.
+
+## 9. Người ngoài phòng Marketing (14/10/2026)
+
+- Phạm vi app Lark đã mở cho cả công ty, nên đăng nhập được không còn nghĩa là người phòng MKT.
+- Người phòng MKT là người có dòng trong bảng Phân quyền, hoặc ở nhóm chat "Phòng MKT", hoặc là quản lý khai bằng env, hoặc là tài khoản mật khẩu đã được duyệt.
+- Ai ngoài các diện đó là **khách công ty**: không thấy base nào, kể cả base mở cho cả phòng, chỉ thấy trang chào. Máy chủ chỉ cho khách đi các đường trong `DUONG_CHO_KHACH` (server.js), route mới mặc định kín với khách.
+- Anh Hùng chốt: khách sẽ được thấy **việc liên quan tới họ** (việc giao cho họ, việc họ giao cho MKT, link việc được gửi). Phần này làm sau, khi đã vá các chỗ hở trong app Bảng công việc.
+- Khớp dòng phân quyền theo tên chỉ nhận dòng chưa gắn email/open_id, và người đó phải ở nhóm "Phòng MKT".
