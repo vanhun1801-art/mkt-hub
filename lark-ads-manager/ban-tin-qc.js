@@ -204,11 +204,11 @@ function bat(dep) {
     dang = true;
     try {
       const r = await chay(dep, { buoi, t });
-      if (r.ok) {
+      if (r.ok || r.boQua) {
         da[buoi] = ngay;
         try { fs.mkdirSync(path.dirname(FILE), { recursive: true }); fs.writeFileSync(FILE, JSON.stringify(da)); } catch (_) { /* ổ tạm */ }
       }
-      console.log('[BẢN TIN QC]', buoi, r.ok ? 'đã gửi · chi ' + r.chi + ' · ' + r.chuyenDoi + ' CĐ' : 'LỖI ' + r.loi);
+      console.log('[BẢN TIN QC]', buoi, r.ok ? 'đã gửi · chi ' + r.chi + ' · ' + r.chuyenDoi + ' CĐ' : (r.boQua ? 'bỏ qua: ' : 'LỖI ') + r.loi);
     } catch (e) { console.error('[BẢN TIN QC]', e.message); } finally { dang = false; }
   };
   setTimeout(thu1, 2 * 60 * 1000);

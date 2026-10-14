@@ -41,7 +41,10 @@ function kenhGui() {
     if (!tinApp) tinApp = require('../lark-chung/tin-lark').tao({ appId: n.appId, appSecret: n.appSecret, apiHost: cfg.apiHost, tenApp: 'Marketing Hub' });
     return { ten: 'Bot Marketing Hub → ' + n.email, gui: (text, khoa) => tinApp.gui({ email: n.email, text, khoa }) };
   }
-  if (cfg.mode === 'cli') {
+  /* Chạy trong hub trên máy (có HUB_GUI_TIN_URL) thì KHÔNG gửi bằng bot lark-cli:
+   * bản Render đã nhắc bằng bot Marketing Hub, gửi thêm ở đây là anh Hùng nhận hai
+   * lần (14/10/2026). Chạy lẻ ngoài hub, hoặc đặt LARK_GUI_QUA_CLI=1, thì vẫn gửi. */
+  if (cfg.mode === 'cli' && (!process.env.HUB_GUI_TIN_URL || process.env.LARK_GUI_QUA_CLI === '1')) {
     return {
       ten: 'Bot Lark → tài khoản đang đăng nhập trên máy này',
       gui: async (text) => {
@@ -56,7 +59,11 @@ function kenhGui() {
 }
 async function guiTin(text, khoa) {
   const k = kenhGui();
-  if (!k) return { ok: false, loi: 'Chưa khai kênh gửi tin (KOL_TIN_APP_ID/SECRET + KOL_NHAC_EMAIL)' };
+  if (!k) {
+    return { ok: false, loi: process.env.HUB_GUI_TIN_URL && cfg.mode === 'cli'
+      ? 'Máy này không gửi, để bản Render gửi bằng bot Marketing Hub (đặt LARK_GUI_QUA_CLI=1 nếu muốn máy này gửi)'
+      : 'Chưa khai kênh gửi tin (KOL_TIN_APP_ID/SECRET + KOL_NHAC_EMAIL)' };
+  }
   trangThai.kenh = k.ten;
   const r = await k.gui(text, khoa);
   trangThai.lanCuoi = Date.now();

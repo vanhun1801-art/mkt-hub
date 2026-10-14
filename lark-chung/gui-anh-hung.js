@@ -34,8 +34,16 @@ async function gui({ card, khoa, cli }) {
   let r = null;
   if (process.env.HUB_GUI_TIN_URL && process.env.HUB_KHOA_NOI_BO) {
     r = await quaHub(card, khoa);
-    /* hub trên máy thường không có khoá app → nó trả lỗi, thử tiếp bằng lark-cli */
+    /* Hub trên máy không có khoá app Marketing Hub nên trả lỗi. TRƯỚC 14/10/2026
+     * chỗ này lùi về bot lark-cli, mà bản trên Render cũng chạy đúng những việc
+     * ấy và gửi bằng bot Marketing Hub, nên anh Hùng nhận MỖI THẺ HAI LẦN (bản tin
+     * quảng cáo 8:00, việc KOL) từ hai bot. Giờ Render là nơi gửi duy nhất; máy
+     * nào muốn tự gửi khi Render chết thì đặt LARK_GUI_QUA_CLI=1. */
     if (r.ok || !cli) return r;
+    if (/chưa có khoá app/.test(String(r.loi || '')) && process.env.LARK_GUI_QUA_CLI !== '1') {
+      /* boQua: người gọi coi như đã xong phần mình, đừng thử lại mỗi mười phút */
+      return { ok: false, boQua: true, loi: 'máy này không gửi, để bản Render gửi bằng bot Marketing Hub' };
+    }
   }
   if (!cli) return { ok: false, loi: 'không chạy trong hub và không có lark-cli để gửi' };
   try {
