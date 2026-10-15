@@ -115,12 +115,22 @@ const sachMd = (s) => String(s || '').replace(/([*_~`\[\]])/g, '\\$1');
  *
  * Anh Hùng (30/09): liệt kê thành BẢNG tên việc + tiến độ, BỎ dòng thời lượng.
  */
+/* Thẻ tăng ca đổi đúng chữ "Ngày" trong mẫu thành "Tăng ca" (📋 BCCV Ngày → ⏱️ BCCV
+ * Tăng ca). Mẫu quản lý tự sửa mà không có chữ đó thì gắn "Tăng ca · " lên đầu,
+ * để cả nhóm không đọc nhầm thành báo cáo ngày lần hai. */
+function tieuDeThe(mau, tangCa) {
+  if (!tangCa) return mau;
+  if (/BCCV Ngày/.test(mau)) return mau.replace('📋', '⏱️').replace('BCCV Ngày', 'BCCV Tăng ca');
+  return 'Tăng ca · ' + mau;
+}
+
 function dungThe(t, { thu = false, mau = TIN_MAC_DINH } = {}) {
   const c = t.cham || {};
   const dung = c.trangThai === 'dung-han';
   /* Anh Hùng (30/09): trễ phải có tính răn đe — ⏰ quá hiền. Còi 🚨 + chữ đỏ
    * đậm viết hoa để cả nhóm nhìn là thấy ngay. */
-  const han = dung ? '✅ Đúng hạn'
+  /* Phiếu tăng ca không có hạn nộp: làm thêm lúc nào thì báo lúc đó. */
+  const han = t.tangCa ? '' : dung ? '✅ Đúng hạn'
     : "🚨 <font color='red'>**" + K.veLanNop(c).toUpperCase() + '**</font>';
   const dong = (t.dong || []).filter((d) => String(d.congViec || '').trim());
   const dau = [
@@ -132,7 +142,7 @@ function dungThe(t, { thu = false, mau = TIN_MAC_DINH } = {}) {
     /* Thứ tự anh Hùng chốt 30/09: Người gửi → Số lượng đầu công việc → Nộp lúc.
      * Ngày báo cáo đã lên tiêu đề nên không còn dòng riêng. */
     '**Số lượng đầu công việc:** ' + dong.length,
-    '**Nộp lúc:** ' + gioVN(t.nopLuc) + ' · ' + han,
+    '**Nộp lúc:** ' + gioVN(t.nopLuc) + (han ? ' · ' + han : ''),
   ];
   const bang = dong.length && mau.hienBang !== false
     ? [hang('**Công việc**', '**Tiến độ**', true)]
@@ -149,7 +159,7 @@ function dungThe(t, { thu = false, mau = TIN_MAC_DINH } = {}) {
         tag: 'plain_text',
         /* Anh Hùng chốt 30/09: "BCCV Ngày - Tên - Ngày" (BCCV = báo cáo công
          * việc; Ngày cuối là NGÀY BÁO CÁO, không phải ngày nộp). */
-        content: (thu ? '[THỬ] ' : '') + String(mau.tieuDe || TIN_MAC_DINH.tieuDe)
+        content: (thu ? '[THỬ] ' : '') + tieuDeThe(String(mau.tieuDe || TIN_MAC_DINH.tieuDe), t.tangCa)
           .replace(/\{ten\}/g, t.ten || 'Không rõ').replace(/\{ngay\}/g, K.veNgay(t.ngayMs)),
       },
     },
@@ -246,6 +256,7 @@ async function baoHoTro(dep, nguoi, loaiKy, r, noi, laThat) {
 /** Lấy dữ liệu tin từ kết quả kho.luuNgay(). */
 function tuKetQua(nguoi, r) {
   return {
+    tangCa: !!r.tangCa,
     ten: nguoi.ten,
     openId: nguoi.id,
     ngayMs: r.ky.tu,
@@ -305,7 +316,9 @@ async function baoNop(dep, nguoi, r) {
     }
     const t = tuKetQua(nguoi, r);
     /* Đánh giá theo chuẩn vị trí — dòng cuối thẻ. Hỏng thì bỏ dòng, không bỏ tin. */
-    if (dep.danhGia) {
+    /* Đánh giá theo chuẩn vị trí là phép đo cả một NGÀY làm, không áp cho riêng
+     * phần tăng ca. */
+    if (dep.danhGia && !r.tangCa) {
       const CH = require('./chuan');
       const chuan = await CH.doc();
       if (tin.hienDanhGia) {

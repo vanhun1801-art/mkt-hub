@@ -170,6 +170,24 @@ function maPhieu(loaiKy, tuMs, nguoiId) {
   return loaiKy + '-' + moc + '-' + (nguoiId || 'khuyet');
 }
 
+/* ---------------- phiếu tăng ca (15/10/2026) ----------------
+ *
+ * Trước đây mỗi người mỗi ngày chỉ có MỘT phiếu. Nộp báo cáo ngày xong, tối
+ * tăng ca rồi chọn Ca "Khác" để báo phần làm thêm thì thật ra là SỬA lại phiếu
+ * ngày: không có bản ghi tăng ca, và lần nộp thứ hai thì không báo nhóm (đo
+ * được: Danh Minh Trường 10/10 nộp 12:03, 23:32 gộp thêm thành 540 phút).
+ *
+ * Anh Hùng chốt: phiếu tăng ca RIÊNG, báo nhóm riêng, nhưng PHÚT cộng chung vào
+ * ngày. Nên:
+ *   - mã = mã phiếu ngày + "-tc", Loại kỳ vẫn là Ngày, Ca là "Tăng ca";
+ *   - chỗ ĐẾM NGÀY và CHẤM HẠN (lọc loaiKy 'ngay') không thấy phiếu tăng ca, kẻo
+ *     một ngày đếm thành hai phiếu;
+ *   - chỗ CỘNG PHÚT thì cộng thêm phiếu tăng ca đã nộp của cùng người, cùng ngày.
+ * Tìm theo mã hay liệt kê không lọc loại kỳ thì vẫn thấy phiếu tăng ca. */
+const DUOI_TC = '-tc';
+const laTangCa = (x) => !!x && String(x.ma || '').endsWith(DUOI_TC);
+const maPhieuNgay = (tuMs, nguoi, ca) => maPhieu('ngay', tuMs, khoaNguoi(nguoi)) + (ca === 'tangCa' ? DUOI_TC : '');
+
 /* ---------------- đọc ---------------- */
 
 async function dsPhieu(loc = {}, force) {
@@ -178,6 +196,24 @@ async function dsPhieu(loc = {}, force) {
   if (loc.nguoi) ds = ds.filter((x) => cungNguoi(x, loc.nguoi));
   if (loc.tu) ds = ds.filter((x) => x.denNgay >= loc.tu);
   if (loc.den) ds = ds.filter((x) => x.tuNgay <= loc.den);
+  if (loc.chiTangCa) ds = ds.filter(laTangCa);
+  else if (loc.loaiKy === 'ngay' && !loc.kemTangCa) {
+    /* Phiếu ngày: bỏ phiếu tăng ca ra, nhưng cộng phút của nó vào phiếu ngày
+     * cùng người cùng ngày. Trả BẢN SAO, không sửa vào đệm của docTat(). */
+    const tc = new Map();
+    for (const x of ds) {
+      if (!laTangCa(x) || x.trangThai !== C.trangThaiPhieu.daNop) continue;
+      const k = x.ma.slice(0, -DUOI_TC.length);
+      tc.set(k, (tc.get(k) || 0) + (Number(x.tongPhut) || 0));
+    }
+    ds = ds.filter((x) => !laTangCa(x)).map((x) => {
+      const them = tc.get(x.ma);
+      if (!them) return x;
+      const tong = (Number(x.tongPhut) || 0) + them;
+      return Object.assign({}, x, { tongPhut: tong, phutTangCa: them,
+        phanTram: x.dinhMuc > 0 ? Math.round((tong / x.dinhMuc) * 100) : x.phanTram });
+    });
+  }
   return ds.sort((a, b) => b.tuNgay - a.tuNgay);
 }
 
@@ -228,12 +264,12 @@ function oNguoi(map, nguoi) {
  */
 async function luuNgay(dau) {
   const k = K.kyNgay(dau.ngayMs);
-  return trongKhoa(maPhieu('ngay', k.tu, khoaNguoi(dau.nguoi)), () => luuNgayTrong(dau));
+  return trongKhoa(maPhieuNgay(k.tu, dau.nguoi, dau.ca), () => luuNgayTrong(dau));
 }
 
 async function luuNgayTrong({ nguoi, ngayMs, ca, dinhMucTay, dong, nhanDinh, keHoach, canHoTro, linkVideo, nop }) {
   const k = K.kyNgay(ngayMs);
-  const ma = maPhieu('ngay', k.tu, khoaNguoi(nguoi));
+  const ma = maPhieuNgay(k.tu, nguoi, ca);
   const dm = K.dinhMuc(ca, dinhMucTay);
   const sach = (dong || [])
     .filter((d) => (d.congViec || '').trim() || asSo(d.phut) > 0)
@@ -289,6 +325,7 @@ async function luuNgayTrong({ nguoi, ngayMs, ca, dinhMucTay, dong, nhanDinh, keH
   await ghiDong(ma, k.tu, nguoi, sach);
   xoaDem();
   return { ma, phieu, tong: g, ky: k, cham, dong: sach, soLanNop: kyLuat && kyLuat.o[F.phieu.soLanNop.id],
+    tangCa: ca === 'tangCa',
     /* So với vướng mắc của LẦN NỘP trước — bản nháp tự lưu đã ghi sẵn ô này,
      * so với nó thì lúc Nộp luôn thành "không đổi" và quản lý không được báo. */
     canHoTroCu: (daNopCu && cuPhieu.canHoTro) || '' };
@@ -403,7 +440,11 @@ async function tongHop(loaiKy, mocMs, nguoi, force, denToiDa) {
   const den = denToiDa == null ? k.den : Math.min(k.den, denToiDa);
   const phieuNgay = (await dsPhieu({ loaiKy: 'ngay', nguoi, tu: k.tu, den }, force))
     .filter((p) => p.trangThai === C.trangThaiPhieu.daNop);
-  const dong = await dsDong({ maPhieu: phieuNgay.map((p) => p.ma) }, force);
+  /* Phút tăng ca cộng chung vào kỳ (anh Hùng 15/10/2026), nhưng phiếu tăng ca
+   * KHÔNG tính là một ngày đã nộp: soPhieuNgay và ngayThieu vẫn chỉ đếm phiếu ngày. */
+  const phieuTC = (await dsPhieu({ loaiKy: 'ngay', chiTangCa: true, nguoi, tu: k.tu, den }, force))
+    .filter((p) => p.trangThai === C.trangThaiPhieu.daNop);
+  const dong = await dsDong({ maPhieu: phieuNgay.concat(phieuTC).map((p) => p.ma) }, force);
 
   const dm = phieuNgay.reduce((s, p) => s + (p.dinhMuc || 0), 0);
   const g = K.gop(dong.map((d) => ({ nhom: d.nhom, phut: d.phut })), dm);
@@ -490,9 +531,9 @@ async function luuTongHopTrong({ nguoi, loaiKy, mocMs, nhanDinh, keHoach, canHoT
 }
 
 /** Một phiếu kèm dòng việc — dùng khi mở lại phiếu để sửa. */
-async function motPhieu(loaiKy, mocMs, nguoi, force) {
+async function motPhieu(loaiKy, mocMs, nguoi, force, ca) {
   const k = K.ky(loaiKy, mocMs);
-  const ma = maPhieu(loaiKy, k.tu, khoaNguoi(nguoi));
+  const ma = loaiKy === 'ngay' ? maPhieuNgay(k.tu, nguoi, ca) : maPhieu(loaiKy, k.tu, khoaNguoi(nguoi));
   const p = (await dsPhieu({}, force)).find((x) => x.ma === ma) || null;
   const dong = p ? await dsDong({ maPhieu: ma }) : [];
   return { ma, ky: k, phieu: p, dong };
@@ -500,6 +541,6 @@ async function motPhieu(loaiKy, mocMs, nguoi, force) {
 
 module.exports = {
   asText, asMs, asSo, asLink, asTick, doiRa, locO, cungNguoi,
-  maPhieu, khoaNguoi, trongKhoa, dsPhieu, dsDong, motPhieu,
+  maPhieu, khoaNguoi, trongKhoa, dsPhieu, dsDong, motPhieu, laTangCa, DUOI_TC,
   luuNgay, luuTongHop, tongHop, xoaDem,
 };

@@ -166,7 +166,9 @@ module.exports = {
    * trị lạ chứ không tự thêm. Gom vào đây để không ai gõ tay ở chỗ khác. */
   chon: {
     loaiKy: { ngay: 'Ngày', tuan: 'Tuần', thang: 'Tháng' },
-    ca: { ngay: 'Cả ngày', nua: 'Nửa ngày', khac: 'Khác' },
+    /* tangCa (15/10/2026): phiếu RIÊNG cho phần làm thêm sau giờ, không đè phiếu
+     * ngày. Xem kho.js, chỗ DUOI_TC. */
+    ca: { ngay: 'Cả ngày', nua: 'Nửa ngày', khac: 'Khác', tangCa: 'Tăng ca' },
     trangThaiPhieu: { nhap: 'Nháp', daNop: 'Đã nộp' },
     dungHan: { 'dung-han': 'Đúng hạn', tre: 'Trễ', thieu: 'Thiếu' },
     hoTro: { chua: 'Chưa xử lý', xong: 'Đã xử lý', 'chua-duoc': 'Chưa xử lý được' },

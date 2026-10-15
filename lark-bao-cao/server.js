@@ -240,6 +240,9 @@ function vePhieu(p) {
     email: p.email,
     tenNguoi: p.tenNguoi,
     ca: p.ca,
+    /* Phiếu tăng ca (kho.js, DUOI_TC): không chấm hạn, phút đã cộng vào ngày. */
+    tangCa: kho.laTangCa(p),
+    phutTangCa: p.phutTangCa || 0,
     dinhMuc: p.dinhMuc,
     tongPhut: p.tongPhut,
     tongGio: K.vePhut(p.tongPhut),
@@ -509,6 +512,7 @@ async function api(req, res, u) {
   if (p === '/api/phieu' && m === 'GET') {
     let ai = nguoiXem(toi, q, nhu);
     let loaiXem = loaiKy(), mocXem = moc();
+    let caXem = q.get('ca') === 'tangCa' ? 'tangCa' : '';
     /* Quản lý mở phiếu của nhân sự từ Toàn phòng (01/10): đi theo MÃ PHIẾU, lấy
      * người + kỳ từ chính phiếu — khỏi đoán phiếu lập theo open_id hay email. */
     const maXem = (q.get('ma') || '').trim();
@@ -518,10 +522,12 @@ async function api(req, res, u) {
       if (!ph) return loi(res, 404, 'Không thấy phiếu này.');
       ai = { id: ph.nguoi || '', email: ph.email || '', ten: ph.tenNguoi || '' };
       loaiXem = vePhieu(ph).loaiKy; mocXem = ph.tuNgay + 3600000;
+      caXem = kho.laTangCa(ph) ? 'tangCa' : '';
     }
-    const d = await kho.motPhieu(loaiXem, mocXem, ai, q.get('moi') === '1');
+    const d = await kho.motPhieu(loaiXem, mocXem, ai, q.get('moi') === '1', caXem);
     const ra = {
       ma: d.ma,
+      tangCa: caXem === 'tangCa',
       ky: d.ky,
       nhan: d.ky.loai === 'ngay' ? K.veNgayThu(d.ky.tu) : d.ky.nhan,
       han: K.hanNop(d.ky),
@@ -664,11 +670,12 @@ async function api(req, res, u) {
         han: K.hanNop(r.ky),
         cham: r.cham,
         soLanNop: r.soLanNop,
-        nopBu: !!(r.cham && r.cham.bu),
+        nopBu: !r.tangCa && !!(r.cham && r.cham.bu),
+        tangCa: !!r.tangCa,
         /* Dùng đúng câu chung của ky.js — viết lại ở đây là sớm muộn hai chỗ
          * nói khác nhau, mà chỗ này lại là câu người dùng đọc ngay sau khi bấm
          * Nộp. Bản trước tự ghép nên mất luôn chữ "Nộp bù". */
-        veHan: r.cham ? K.veLanNop(r.cham) : 'Đã lưu nháp',
+        veHan: !r.cham ? 'Đã lưu nháp' : r.tangCa ? 'tăng ca, phút cộng vào ngày ' + K.veNgay(r.ky.tu) : K.veLanNop(r.cham),
       });
     } catch (e) {
       return loi(res, 502, dichLoiBase(e), maLoiBase(e));
@@ -871,6 +878,8 @@ async function api(req, res, u) {
       loaiKy: q.get('ky') || undefined,
       nguoi: caPhong ? null : nguoiXem(toi, q, nhu),
       tu, den,
+      /* Danh sách để xem lại: phải thấy cả phiếu tăng ca. */
+      kemTangCa: true,
     }, q.get('moi') === '1');
     return json(res, { tu, den, caPhong, ds: ds.map(vePhieu) });
   }

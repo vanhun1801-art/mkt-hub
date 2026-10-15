@@ -21,6 +21,9 @@ const esc = (s) => String(s == null ? '' : s)
 let META = null;
 let MAN = 'ngay';
 let MOC = Date.now();
+/* 'tangCa' khi đang mở phiếu TĂNG CA của ngày MOC (15/10/2026). Phiếu riêng, mã
+ * riêng: đổi ô Ca sang "Tăng ca" là mở phiếu đó, không sửa phiếu ngày. */
+let CA_XEM = '';
 let DU = null;      // phiếu đang mở
 let VIEC = null;    // { chay, ds } — đầu việc từ Tracking
 let BAN = false;    // có thay đổi chưa lưu
@@ -428,7 +431,8 @@ async function ve() {
    ================================================================== */
 
 async function veManPhieu(el, loaiKy) {
-  DU = await goi('/api/phieu?ky=' + loaiKy + '&moc=' + MOC + '&moi=1');
+  DU = await goi('/api/phieu?ky=' + loaiKy + '&moc=' + MOC + '&moi=1' +
+    (loaiKy === 'ngay' && CA_XEM ? '&ca=' + CA_XEM : ''));
   if (loaiKy === 'ngay') {
     VIEC = await goi('/api/viec-cua-toi?moc=' + DU.ky.tu).catch((e) => { if (e && e.cu) throw e; return { chay: false, ds: [] }; });
   }
@@ -461,6 +465,7 @@ function theKy(loaiKy) {
 
   return '<div class="the"><div class="the-dau" data-buoc="' + buoc + '">' +
     '<h2>' + esc(nhan) + '</h2>' + tt +
+    (DU.tangCa ? '<span class="nhan-tt tim">Tăng ca</span>' : '') +
     '<div class="lon"></div>' +
     '<button class="btn nho mo" id="btnLui">‹</button>' +
     (loaiKy === 'ngay'
@@ -469,7 +474,10 @@ function theKy(loaiKy) {
     '<button class="btn nho" id="btnNay">Hiện tại</button>' +
     '</div>' +
     '<div class="the-than phu" style="padding:10px 16px">' +
-      'Hạn nộp <b>' + esc(veLuc(DU.han)) + '</b> · ' + esc(cauHan(DU)) +
+      (DU.tangCa
+        ? 'Phiếu tăng ca không có hạn nộp. Phút ở đây cộng vào ngày ' + esc(veNgay(DU.ky.tu)) + '.' +
+          (DU.phieu && DU.phieu.daNop ? ' Đã nộp ' + esc(veLuc(DU.phieu.nopLuc)) + '.' : '')
+        : 'Hạn nộp <b>' + esc(veLuc(DU.han)) + '</b> · ' + esc(cauHan(DU))) +
       /* Nhận định nạp sau (một lượt gọi riêng) nên chừa sẵn chỗ ngay đây. */
       '<div class="nd-note" id="ndNote"></div>' +
     '</div></div>';
@@ -502,7 +510,7 @@ function cauHan(d) {
  */
 function theBang(d) {
   const dong = d.dong.length ? d.dong : [dongTrong()];
-  const ca = (d.phieu && d.phieu.ca) || 'Cả ngày';
+  const ca = d.tangCa ? 'Tăng ca' : (d.phieu && d.phieu.ca) || 'Cả ngày';
 
   /* Ba trạng thái khác nhau, và gộp chúng lại là cách chắc chắn để người dùng
    * hiểu sai: hỏng đường truyền · nối được nhưng không ai giao việc · có việc. */
@@ -1177,11 +1185,12 @@ function gan(loaiKy) {
   const buoc = Number(dau && dau.dataset.buoc) || 0;
   /* Đổi kỳ trước đây vẽ lại luôn, mất trắng những gì đang gõ mà không hỏi —
    * nay lưu nháp trước rồi mới đổi. */
-  $('#btnLui').onclick = async () => { await luuTruocKhiDi(); doiMoc(-1, loaiKy, buoc); };
-  $('#btnToi').onclick = async () => { await luuTruocKhiDi(); doiMoc(1, loaiKy, buoc); };
-  $('#btnNay').onclick = async () => { await luuTruocKhiDi(); MOC = mocNay(loaiKy); ve(); };
+  /* Đổi ngày thì về phiếu ngày: tăng ca là việc của đúng một tối, không đi theo. */
+  $('#btnLui').onclick = async () => { await luuTruocKhiDi(); CA_XEM = ''; doiMoc(-1, loaiKy, buoc); };
+  $('#btnToi').onclick = async () => { await luuTruocKhiDi(); CA_XEM = ''; doiMoc(1, loaiKy, buoc); };
+  $('#btnNay').onclick = async () => { await luuTruocKhiDi(); CA_XEM = ''; MOC = mocNay(loaiKy); ve(); };
   const cn = $('#chonNgay');
-  if (cn) cn.onchange = async () => { await luuTruocKhiDi(); MOC = tuISO(cn.value); ve(); };
+  if (cn) cn.onchange = async () => { await luuTruocKhiDi(); CA_XEM = ''; MOC = tuISO(cn.value); ve(); };
 
   const bSo = $('#btnSo');
   if (bSo) {
@@ -1200,7 +1209,19 @@ function gan(loaiKy) {
 
   if (loaiKy !== 'ngay') return;
 
-  $('#chonCa').onchange = () => { BAN = true; hienDmTay(); tinhLai(); };
+  $('#chonCa').onchange = async (e) => {
+    const sel = e.target;
+    const muonTC = sel.value === 'tangCa';
+    if (muonTC === !!DU.tangCa) { BAN = true; hienDmTay(); tinhLai(); return; }
+    /* Qua lại giữa phiếu ngày và phiếu tăng ca là ĐỔI PHIẾU. Trả ô Ca về giá trị
+     * cũ trước khi lưu: tự lưu đọc Ca từ ô này, để nguyên thì các dòng của phiếu
+     * đang mở bị ghi nhầm sang phiếu kia. */
+    const moi = sel.value;
+    sel.value = DU.tangCa ? 'tangCa' : ((META.ca.find((c) => c.ten === (DU.phieu && DU.phieu.ca)) || {}).ma || 'ngay');
+    await luuTruocKhiDi();
+    CA_XEM = moi === 'tangCa' ? 'tangCa' : '';
+    ve();
+  };
   $('#dmTay').oninput = () => { BAN = true; tinhLai(); };
   hienDmTay();
 
@@ -1634,14 +1655,15 @@ async function veDaNop(el) {
         '<th class="so-o">Thời lượng</th><th class="so-o">Định mức</th>' +
         '<th>Nộp lúc</th><th>Hạn</th></tr></thead><tbody>' +
         d.ds.map((p) => '<tr data-xem-ky="' + esc(p.loaiKy) + '" data-xem-moc="' +
-            (p.tu + 3600000) + '" data-xem-nhan="' + esc(p.nhan) + '">' +
+            (p.tu + 3600000) + '" data-xem-nhan="' + esc(p.nhan) + '"' +
+            (p.tangCa ? ' data-xem-tc="1"' : '') + '>' +
           '<td>' + esc(p.nhan) + '</td>' +
-          '<td><span class="nhan-tt xam">' +
-            esc(p.loaiKy === 'ngay' ? 'Ngày' : p.loaiKy === 'tuan' ? 'Tuần' : 'Tháng') + '</span></td>' +
+          '<td><span class="nhan-tt ' + (p.tangCa ? 'tim' : 'xam') + '">' +
+            esc(p.tangCa ? 'Tăng ca' : p.loaiKy === 'ngay' ? 'Ngày' : p.loaiKy === 'tuan' ? 'Tuần' : 'Tháng') + '</span></td>' +
           '<td class="so-o">' + esc(p.tongGio) + '</td>' +
           '<td class="so-o">' + (p.phanTram == null ? '—' : p.phanTram + '%') + '</td>' +
           '<td>' + (p.daNop ? esc(veLuc(p.nopLuc)) : '<span class="nhan-tt cam">Nháp</span>') + '</td>' +
-          '<td>' + nhanHan(p) + '</td>' +
+          '<td>' + (p.tangCa ? '—' : nhanHan(p)) + '</td>' +
         '</tr>').join('') + '</tbody></table></div>'
       : rong('Chưa có phiếu nào', 'Khoảng ' + veNgay(d.tu) + ' → ' + veNgay(d.den) +
           ' không có báo cáo nào. Thử đổi khoảng thời gian ở trên.')) +
@@ -1656,11 +1678,12 @@ async function veDaNop(el) {
     tr.onclick = async () => {
       const loai = tr.dataset.xemKy;
       const nhan = tr.dataset.xemNhan;
-      moSo(nhan, loai === 'ngay' ? 'Báo cáo ngày' : loai === 'tuan' ? 'Báo cáo tuần' : 'Báo cáo tháng',
-        '<p class="phu">Đang mở…</p>');
+      const tc = tr.dataset.xemTc === '1';
+      const ten = tc ? 'Báo cáo tăng ca' : loai === 'ngay' ? 'Báo cáo ngày' : loai === 'tuan' ? 'Báo cáo tuần' : 'Báo cáo tháng';
+      moSo(nhan, ten, '<p class="phu">Đang mở…</p>');
       try {
-        const chiTiet = await goi('/api/phieu?ky=' + loai + '&moc=' + tr.dataset.xemMoc);
-        moSo(nhan, loai === 'ngay' ? 'Báo cáo ngày' : loai === 'tuan' ? 'Báo cáo tuần' : 'Báo cáo tháng',
+        const chiTiet = await goi('/api/phieu?ky=' + loai + '&moc=' + tr.dataset.xemMoc + (tc ? '&ca=tangCa' : ''));
+        moSo(nhan, ten,
           chiTietPhieu(chiTiet) +
           /* Phiếu tuần/tháng không có dòng việc của riêng nó — số là máy cộng từ
            * các ngày. Nên kèm luôn phần tổng hợp, khỏi phải sang tab khác. */

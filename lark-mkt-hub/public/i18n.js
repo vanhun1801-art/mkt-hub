@@ -785,6 +785,9 @@
     'Website': 'Website',
     'Nội dung': 'Content',
     'Khác': 'Other',
+    /* --- Báo cáo công việc: phiếu tăng ca (15/10/2026) --- */
+    'Tăng ca': 'Overtime',
+    'Báo cáo tăng ca': 'Overtime report',
     'Operate': 'Operate',
 
     /* --- LỖ HỔNG TÌM ĐƯỢC BẰNG CÁCH QUÉT DOM THẬT ---
@@ -1302,6 +1305,10 @@
     [/^Quá hạn (\d+) ngày$/, 'Overdue $1 days'],
     [/^quá hạn (\d+) ngày$/, 'overdue $1 days'],
     [/^Còn (\d+) ngày · (.+)$/, '$1 days left · $2'],
+    [/^Phiếu tăng ca không có hạn nộp\. Phút ở đây cộng vào ngày (\S+)\.$/,
+      'Overtime reports have no deadline. These minutes add to $1.'],
+    [/^Phiếu tăng ca không có hạn nộp\. Phút ở đây cộng vào ngày (\S+)\. Đã nộp (.+)\.$/,
+      'Overtime reports have no deadline. These minutes add to $1. Submitted $2.'],
     [/^hạn (.+)$/, 'due $1'],
     [/^(\d+) mục$/, '$1 items'],
     [/^(\d+) việc$/, '$1 tasks'],

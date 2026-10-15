@@ -34,6 +34,9 @@ const CA = {
   ngay: { ten: 'Cả ngày', phut: 480 },
   nua: { ten: 'Nửa ngày', phut: 240 },
   khac: { ten: 'Khác', phut: 0 },   // tự khai, lấy từ ô `dinhMucTay`
+  /* Phiếu tăng ca không có định mức riêng: phút của nó cộng vào ngày, đo theo
+   * định mức của phiếu ngày (anh Hùng 15/10/2026). */
+  tangCa: { ten: 'Tăng ca', phut: 0 },
 };
 
 const TEN_THU = ['', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'];
@@ -241,6 +244,7 @@ function veTre(ms) {
 
 /** Định mức phút của một phiếu ngày. `khac` thì lấy số người tự khai. */
 function dinhMuc(ca, dinhMucTay) {
+  if (ca === 'tangCa') return 0;
   const c = CA[ca] || CA[LUAT.caMacDinh];
   if (c.phut) return c.phut;
   const n = Number(dinhMucTay);
