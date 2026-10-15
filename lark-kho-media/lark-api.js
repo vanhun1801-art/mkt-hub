@@ -39,6 +39,14 @@ async function goi(duong, { method = 'GET', headers = {}, body, huy } = {}) {
       r = await fetch(H + duong, { method, body, headers: Object.assign({ Authorization: 'Bearer ' + await token(lan > 0 && r && r.status === 401) }, headers), signal: ac.signal });
     } finally { clearTimeout(hen); }
     if (r.status === 429 || r.status >= 500 || r.status === 401) { try { await r.arrayBuffer(); } catch (e) {} await new Promise(ok => setTimeout(ok, 400 * (lan + 1))); continue; }
+    /* Lark báo "gọi quá dày" bằng HTTP 400 + mã 99991400 (15/10/2026, thẻ lỗi 13:25:
+       preview_download nổ 3 lần). Trước đây không thử lại → ô ảnh trống. Đọc thử bản sao
+       của thân; không phải mã bận thì trả nguyên Response chưa đọc. */
+    if (r.status === 400 && lan < 2) {
+      let ma = 0;
+      try { ma = (await r.clone().json()).code; } catch (e) {}
+      if (MA_BAN.includes(ma)) { await new Promise(ok => setTimeout(ok, 1200 * (lan + 1))); continue; }
+    }
     return r;
   }
   return r;
@@ -58,7 +66,27 @@ async function docJson(duong, opt) {
 async function docBuf(duong, opt) { const r = await goi(duong, opt); return { r, buf: r.ok ? Buffer.from(await r.arrayBuffer()) : null }; }
 
 /* ---- các việc cụ thể ---- */
-const anh = (t, co) => docBuf('/open-apis/drive/v1/medias/' + t + '/preview_download?bus_type=' + encodeURIComponent(co) + '&preview_type=1');
+/* Ảnh thu nhỏ đi qua hàng đợi riêng, tối đa 3 lời gọi cùng lúc. Mở lưới là trình duyệt xin
+   vài chục ảnh MỘT LÚC; đồng hồ nhịp chung của hub chỉ cho xếp hàng 4 giây rồi thả đi luôn,
+   nên phần dư vẫn ập vào Lark cùng lúc và ăn 99991400. Ảnh đã nằm trong đệm RAM của server
+   thì không đi qua đây. */
+const ANH_SONG_SONG = 3;
+let anhDangChay = 0;
+const anhCho = [];
+function xepAnh(viec) {
+  return new Promise((xong, hong) => {
+    const chay = () => {
+      anhDangChay++;
+      Promise.resolve().then(viec).then(xong, hong).finally(() => {
+        anhDangChay--;
+        const tiep = anhCho.shift();
+        if (tiep) tiep();
+      });
+    };
+    if (anhDangChay < ANH_SONG_SONG) chay(); else anhCho.push(chay);
+  });
+}
+const anh = (t, co) => xepAnh(() => docBuf('/open-apis/drive/v1/medias/' + t + '/preview_download?bus_type=' + encodeURIComponent(co) + '&preview_type=1'));
 
 /* Bản MP4 1080p Lark chuyển mã: phải hỏi preview_result lấy `version` trước. Nhớ version 6 giờ. */
 const banXem = new Map();

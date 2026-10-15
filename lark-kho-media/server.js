@@ -311,6 +311,7 @@ function chuyenLuong(r, res, ct, tenLuu) {
 /* Ảnh thu nhỏ ~100 KB/ảnh: giữ tối đa 40 MB gần nhất (RAM bản online chia với hub + 12 app);
    trình duyệt còn tự nhớ 7 ngày nhờ Cache-Control, nên lượt xem lại không tới đây. */
 const anhRam = new Map(); let anhRamCo = 0;
+const anhDangLay = new Map();   // khoá ảnh → Promise đang lấy từ Lark (gộp lời gọi trùng)
 function nhoAnh(k, x) {
   anhRam.set(k, x); anhRamCo += x.buf.length;
   while (anhRamCo > 40 * 1024 * 1024 && anhRam.size) { const [k0, v0] = anhRam.entries().next().value; anhRam.delete(k0); anhRamCo -= v0.buf.length; }
@@ -496,7 +497,16 @@ http.createServer(async (req, res) => {
       const khoa = a[1] + '-' + co;
       let x = anhRam.get(khoa);
       if (!x) {
-        try { const { r, buf } = await larkApi.anh(a[1], co); if (buf) x = { buf, ct: r.headers.get('content-type') || 'image/png' }; } catch (e) {}
+        /* Hai người (hoặc hai thẻ) cùng xin một ảnh chưa có trong đệm: chung một lời gọi Lark. */
+        let p = anhDangLay.get(khoa);
+        if (!p) {
+          p = larkApi.anh(a[1], co)
+            .then(({ r, buf }) => (buf ? { buf, ct: r.headers.get('content-type') || 'image/png' } : null))
+            .catch(() => null)
+            .finally(() => anhDangLay.delete(khoa));
+          anhDangLay.set(khoa, p);
+        }
+        x = await p;
         if (x) nhoAnh(khoa, x);
       }
       if (!x) { res.writeHead(404); return res.end(); }
