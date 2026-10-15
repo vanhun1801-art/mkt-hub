@@ -619,6 +619,7 @@ body.so-mo #so {
   font-size: 12px; color: var(--text-2);
 }
 .ct-dau .m b { color: var(--text); font-variant-numeric: tabular-nums; }
+.ct-dau .m.tim b { color: var(--purple-text); }   /* ô Tăng ca của một người */
 .ct-o { margin-top: 11px; }
 .ct-chu {
   white-space: pre-wrap; margin-top: 3px; padding: 8px 10px;

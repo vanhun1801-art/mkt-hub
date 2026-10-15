@@ -1762,7 +1762,8 @@ async function veToanPhong(el) {
       '<div class="lon"></div>' + thanhKy('tp', TP_LOC) +
       '</div><div class="the-than khit cuon">' + (co
       ? '<table class="bang-xem bam-duoc"><thead><tr><th style="width:52px">Điểm</th><th>Người</th>' +
-        '<th class="so-o">Phiếu</th><th class="so-o">Thời lượng</th><th class="so-o">Định mức</th>' +
+        '<th class="so-o">Phiếu</th><th class="so-o">Thời lượng</th>' +
+        '<th class="so-o" title="Đã cộng trong Thời lượng">Tăng ca</th><th class="so-o">Định mức</th>' +
         '<th>Nhịp nộp</th><th>Đáng chú ý nhất</th></tr></thead><tbody>' +
         ds.map((n, i) => '<tr class="mo-duoc" data-i="' + i + '">' +
           '<td><span class="diem ' + mauDiem(n.diem) + '">' + n.diem + '</span></td>' +
@@ -1770,6 +1771,7 @@ async function veToanPhong(el) {
             (n.soThieu ? ' <span class="nhan-tt do">thiếu ' + n.soThieu + ' ngày</span>' : '') + '</td>' +
           '<td class="so-o">' + n.soPhieu + '</td>' +
           '<td class="so-o">' + esc(n.tongGio) + '</td>' +
+          '<td class="so-o">' + (n.soTangCa ? esc(n.gioTangCa) + ' · ' + n.soTangCa + ' lần' : '—') + '</td>' +
           '<td class="so-o">' + (n.phanTram == null ? '—' : n.phanTram + '%') + '</td>' +
           '<td>' + veNhipNop(n.kl) + '</td>' +
           '<td class="phu">' + esc(n.motCau) + '</td>' +
@@ -1815,7 +1817,7 @@ function dongSoNguoi(n) {
   const tn = n.ngayTacNghiep || [];
   const coTN = new Set(tn.map((x) => x.ms));
   const ps = (n.phieu || []).map((p) =>
-    (p.loaiKy === 'ngay' && coTN.has(p.tu) ? { ...p, coTN: true } : p));
+    (p.loaiKy === 'ngay' && !p.tangCa && coTN.has(p.tu) ? { ...p, coTN: true } : p));
   const them = tn.filter((x) => !x.daNopNgay)
     .map((x) => ({ laTN: true, tu: x.ms, nhan: x.nhan, tieuDe: x.tieuDe }));
   return ps.concat(them).sort((a, b) => a.tu - b.tu);
@@ -1832,6 +1834,7 @@ function moNguoi(n, nhanKy) {
       chip('Điểm', String(n.diem), n.diem >= 85 ? 'xanh' : n.diem >= 60 ? 'cam' : 'do') +
       chip('Phiếu', String(n.soPhieu)) +
       chip('Thời lượng', n.tongGio) +
+      (n.soTangCa ? chip('Tăng ca', n.gioTangCa + ' · ' + n.soTangCa + ' lần', 'tim') : '') +
       chip('Định mức', n.phanTram == null ? '—' : n.phanTram + '%') +
       (kl ? chip('Đúng hạn', kl.soDungHan + (kl.tyLeDung == null ? '' : ' · ' + kl.tyLeDung + '%'),
         kl.tyLeDung == null ? '' : kl.tyLeDung >= 80 ? 'xanh' : 'cam') : '') +
@@ -1854,11 +1857,13 @@ function moNguoi(n, nhanKy) {
             '<span class="nhan-tt xanh">đã báo cáo tác nghiệp</span>' +
           '</div>'
         : '<div class="nk-d"><div class="nk-sum" data-ql-ky="' + esc(p.loaiKy) + '" data-ql-ma="' + esc(p.ma) +
+            (p.tangCa ? '" data-ql-tc="1' : '') +
             '" data-ql-moc="' + (p.tu + 3600000) + '" data-ql-nhan="' + esc(p.nhan) + '">' +
           '<span class="nk-ten">' + esc(p.nhan) + '</span>' +
-          '<span class="nk-so">' + loaiTen(p.loaiKy) + ' · ' + esc(p.tongGio) + '</span>' +
+          '<span class="nk-so">' + (p.tangCa ? 'Tăng ca' : loaiTen(p.loaiKy)) + ' · ' + esc(p.tongGio) + '</span>' +
           (p.coTN ? '<span class="nhan-tt xam">có tác nghiệp</span>' : '') +
-          (p.daNop ? nhanHan(p) : '<span class="nhan-tt cam">Nháp</span>') +
+          (p.tangCa ? '<span class="nhan-tt tim">tăng ca</span>'
+            : p.daNop ? nhanHan(p) : '<span class="nhan-tt cam">Nháp</span>') +
         '</div></div>')).join('') + '</div>' +
         (dongSoNguoi(n).some((x) => x.laTN)
           ? '<p class="nho" style="margin:8px 0 0">Ngày đi tác nghiệp đã nộp ' +
@@ -1886,7 +1891,7 @@ function moNguoi(n, nhanKy) {
     r.onclick = async () => {
       const loai = r.dataset.qlKy;
       const nhan = r.dataset.qlNhan;
-      const phu = n.ten + ' · Báo cáo ' + loaiTen(loai).toLowerCase();
+      const phu = n.ten + ' · Báo cáo ' + (r.dataset.qlTc === '1' ? 'tăng ca' : loaiTen(loai).toLowerCase());
       moSo(nhan, phu, '<p class="phu">Đang mở…</p>');
       try {
         const ct = await goi('/api/phieu?ky=' + loai + '&moc=' + r.dataset.qlMoc +

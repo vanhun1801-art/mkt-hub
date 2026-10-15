@@ -1171,6 +1171,10 @@ async function api(req, res, u) {
     const phieuNgay = (await kho.dsPhieu({ loaiKy: 'ngay', tu: k.tu, den: k.den }, moi))
       .filter((x) => x.trangThai === cfg.chon.trangThaiPhieu.daNop);
     const dongKy = await kho.dsDong({ tu: k.tu, den: k.den }, false);
+    /* Phiếu tăng ca đã nộp (15/10/2026): phút đã nằm trong Thời lượng (dongKy lấy
+     * mọi dòng trong kỳ), nhưng quản lý cần thấy riêng ai tăng ca, bao nhiêu. */
+    const phieuTC = (await kho.dsPhieu({ loaiKy: 'ngay', chiTangCa: true, tu: k.tu, den: k.den }, moi))
+      .filter((x) => x.trangThai === cfg.chon.trangThaiPhieu.daNop);
     const dsLichTP = await LL.docHet();
     const dsTNTP = await TN.docHet();
     const batDauHT = await ngayHeThongBatDau(moi);
@@ -1197,6 +1201,8 @@ async function api(req, res, u) {
         tongPhut: gop.tongPhut, dinhMuc, phanTram: gop.phanTram,
         canHoTro: n.ps.map((x) => x.canHoTro).filter(Boolean).join(' · '),
       };
+      const tcHo = phieuTC.filter((x) => kho.cungNguoi(x, n));
+      const phutTC = tcHo.reduce((s, x) => s + (Number(x.tongPhut) || 0), 0);
       const tnNgay = TN.ngayDaBaoCao(dsTNTP, { ten: n.ten });
       const bc = {
         /* `tuThieu` chứ không phải k.tu: lọc cả năm thì không đếm ngược về
@@ -1211,6 +1217,7 @@ async function api(req, res, u) {
         ten: n.ten, id: n.id, email: n.email,
         soPhieu: n.ps.length, tongPhut: gop.tongPhut, tongGio: K.vePhut(gop.tongPhut),
         phanTram: gop.phanTram, soThieu: bc.ngayThieu.length,
+        soTangCa: tcHo.length, phutTangCa: phutTC, gioTangCa: K.vePhut(phutTC),
         diem: ND.chamDiem(y), motCau: ND.motCau(y), y,
         /* Nhận xét AI là của ĐÚNG kỳ đang xem. Lọc cả năm thì KHÔNG có — và
          * phải để rỗng chứ không lấy đại phiếu tháng 1 (nó cũng bắt đầu đúng
@@ -1228,9 +1235,13 @@ async function api(req, res, u) {
           ? phieuKy.filter((x) => kho.cungNguoi(x, n)).sort((a, b) => a.tuNgay - b.tuNgay)
           : [
             ...phieuKy.filter((x) => x.tuNgay === k.tu && kho.cungNguoi(x, n)),
-            ...n.ps.slice().sort((a, b) => a.tuNgay - b.tuNgay),
+            /* Phiếu tăng ca đứng ngay sau phiếu ngày cùng ngày (sort ổn định). */
+            ...n.ps.concat(tcHo).sort((a, b) => a.tuNgay - b.tuNgay || kho.laTangCa(a) - kho.laTangCa(b)),
           ]).map(vePhieu).map((p) => ({
-          ma: p.ma, loaiKy: p.loaiKy, tu: p.tu, nhan: p.nhan, tongGio: p.tongGio, daNop: p.daNop,
+          ma: p.ma, loaiKy: p.loaiKy, tu: p.tu, nhan: p.nhan, daNop: p.daNop, tangCa: p.tangCa,
+          /* Dòng phiếu ngày chỉ ghi giờ của RIÊNG ngày đó: dòng tăng ca đứng ngay
+           * dưới, ghi cả phần đã cộng thì người đọc cộng hai dòng ra số trùng. */
+          tongGio: p.phutTangCa ? K.vePhut((p.tongPhut || 0) - p.phutTangCa) : p.tongGio,
           nopLuc: p.nopLuc, trangThaiHan: p.trangThaiHan, veHan: p.veHan,
         })),
         /* Ngày đi tác nghiệp, để sổ bên phải nói ra chứ không trừ thầm — anh
