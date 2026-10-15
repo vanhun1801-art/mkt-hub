@@ -3443,7 +3443,11 @@ html[data-skin="ios"]:not(#_) .dr-khoi { gap: 12px !important; }
 html[data-skin="ios"]:not(#_):not(#__) .drawer {
   top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; margin: auto !important;
   width: min(760px, calc(100vw - 32px)) !important; max-width: none !important; min-width: 0 !important;
-  height: fit-content !important; max-height: min(88vh, 940px) !important;
+  /* Cao CỐ ĐỊNH, không fit-content (15/10/2026, anh Hùng: "mặc định các cửa sổ
+   * với kích thước rộng vầy, hạn chế việc lúc dài lúc ngắn"): đổi tab Thông tin
+   * · Trao đổi · Báo cáo mà khung co giãn theo nội dung là nhảy cả cửa sổ. Nội
+   * dung dài hơn thì cuộn trong thân khung. */
+  height: min(88vh, 940px) !important; max-height: min(88vh, 940px) !important;
   border-radius: 18px !important; border: 0 !important;
   transform: translateY(2%) scale(.96) !important; opacity: 0; visibility: hidden;
   transition: transform .22s cubic-bezier(.4, 0, 1, 1), opacity .22s cubic-bezier(.4, 0, 1, 1), visibility 0s linear .22s !important;
@@ -3462,7 +3466,7 @@ html[data-skin="ios"]:not(#_) :is(.mask, .scrim) {
   -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
 }
 @media (max-width: 640px) {
-  html[data-skin="ios"]:not(#_):not(#__) .drawer { width: calc(100vw - 24px) !important; max-height: calc(100dvh - 120px) !important; }
+  html[data-skin="ios"]:not(#_):not(#__) .drawer { width: calc(100vw - 24px) !important; height: calc(100dvh - 120px) !important; max-height: calc(100dvh - 120px) !important; }
 }
 
 /* Ngăn Sổ (Báo cáo, Sản phẩm) GIỮ kiểu trượt ngang của chính app (28/09, anh
@@ -3996,7 +4000,7 @@ html[data-skin="ios"]:not(#_):not(#__) .frm .sec-title:first-child { margin-top:
     opacity: 0 !important; transform: translateY(24px) !important; pointer-events: none !important;
   }
   /* cửa sổ trong app con: chừa đáy an toàn, bo đủ 4 góc */
-  html[data-skin="ios"]:not(#_):not(#__):not(#___)[data-app] .drawer { max-height: calc(100dvh - 96px) !important; }
+  html[data-skin="ios"]:not(#_):not(#__):not(#___)[data-app] .drawer { height: calc(100dvh - 96px) !important; max-height: calc(100dvh - 96px) !important; }
 }
 
 /* Lịch tác nghiệp: thanh đầu (dải tab + nút) CỐ ĐỊNH khi cuộn như Bảng công

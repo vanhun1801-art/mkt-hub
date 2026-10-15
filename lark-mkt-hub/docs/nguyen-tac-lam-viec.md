@@ -68,6 +68,7 @@ Nút tròn phải tròn thật: rộng bằng cao, không được dẹp.
   - Nền phía sau phải **một màu liền**: vùng thanh menu và vùng app cùng một công thức (tối 32%, mờ 6px, đậm màu 1.2). Mỗi vùng chỉ có một lớp tối; lớp thừa chuyển trong suốt (`.ios-nen-thua`). Không gắn thêm filter làm tối riêng cho thanh menu.
 - Hộp cửa sổ trên máy tính canh giữa **cả màn hình**, thẳng hàng với viên thông báo, chứ không phải giữa khung app. Phần này do module "cửa sổ giữa cả màn" trong ios-app.js làm.
 - Thanh chọn (dải lọc, nút đoạn, tab) luôn cho thấy ô đang chọn: viên trượt, hoặc ô tô xanh đặc ở dải lọc, hoặc viên nền nổi ở nút đoạn. Chỉ đậm chữ thôi thì không đủ. Công cụ soát báo lỗi nếu thiếu.
+- Khung chi tiết (`.drawer`, như ô việc của Bảng công việc, ô lịch của Lịch tác nghiệp) có **kích thước cố định** (15/10/2026): rộng `min(760px, 100vw - 32px)`, cao `min(88vh, 940px)`, điện thoại cao `100dvh - 96/120px`. Đổi tab Thông tin · Trao đổi · Báo cáo thì cửa sổ không co giãn; nội dung dài thì cuộn trong thân khung. Không dùng `height: fit-content`.
 - Hộp cửa sổ có nền đặc một màu: đầu, thân và chân cùng màu, chỉ ngăn bằng đường mảnh. Không dùng nền trong suốt, vì nội dung phía sau sẽ xuyên qua.
 - Mọi thông báo là viên kiểu Dynamic Island ở giữa mép trên (`__iosDao`), không dùng ô thông báo riêng của từng app.
   - Thành công: tick xanh. Lỗi: chấm than đỏ, giữ lâu hơn. Đang xử lý: vòng xoay. Thông tin: chữ i.
