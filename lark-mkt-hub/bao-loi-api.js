@@ -131,7 +131,11 @@ async function xa() {
      * mà thật ra vẫn chỉ là một nhịp. Chùm lỗi gói gọn trong một phút, lại chưa
      * từng nổ trước đó, thì vẫn coi là một nhịp. */
     const motNhip = !g.coTruoc && g.cuoi - g.dau < 60000;
-    if ((g.s.kieu === 'mang' || g.s.status === 429) && motNhip && !g.lapLai) nghi.set(k, g.dau);
+    /* Lỗi nội bộ của máy chủ Lark (mã 800100001 "internal_error", 13:36 15/10 ở Bảng
+     * công việc) cũng là loại tự hết: một nhịp lẻ thì chưa nhắn. */
+    const tamThoi = g.s.kieu === 'mang' || g.s.status === 429 || g.s.status >= 500 ||
+      /internal[_ ]error/i.test(String(g.loi || g.s.loi || ''));
+    if (tamThoi && motNhip && !g.lapLai) nghi.set(k, g.dau);
     else nhom.push(g);
   }
   cho.clear();

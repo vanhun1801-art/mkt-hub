@@ -78,7 +78,12 @@ function giaiThich(d, nc = {}) {
   }
   if (/invalid_grant/.test(ca)) {
     return nc.buoc === 'lamMoi'
-      ? 'Refresh token đã bị thu hồi hoặc hết hiệu lực. Bấm "Lấy link uỷ quyền" rồi "Đổi lấy token" để cấp lại.'
+      /* 15/10/2026: token cấp cho Render ngày 07/10 chết đúng ngày 14/10. Ứng dụng OAuth còn ở
+       * chế độ "Testing" thì Google chỉ cho refresh token sống 7 ngày, cấp lại bao nhiêu lần cũng
+       * vậy. Nói ra cách chữa gốc, không chỉ bảo cấp lại. */
+      ? 'Refresh token đã bị thu hồi hoặc hết hiệu lực. Nếu cứ khoảng 7 ngày lại hỏng: ứng dụng OAuth trên Google Cloud '
+        + 'còn ở chế độ Testing (Google chỉ cho token sống 7 ngày). Vào Google Auth Platform → Audience → '
+        + 'Publish app, rồi bấm "Lấy link uỷ quyền" và "Đổi lấy token" để cấp lại một lần.'
       : 'Mã code đã dùng rồi hoặc quá 10 phút. Bấm "Lấy link uỷ quyền" lấy link mới, đồng ý lại, '
         + 'rồi dán URL mới (mỗi mã chỉ dùng được một lần).';
   }
