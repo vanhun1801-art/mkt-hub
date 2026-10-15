@@ -7,6 +7,25 @@ const cfg = require('./config');
 const PP = require('./phanphoi');
 const ppdoc = require('./ppdoc');
 const LP = require('./lien-phong');   // việc liên phòng ban — chỉ đọc (01/10/2026)
+const RW = require('./rooty-workspace');   // trao đổi việc liên phòng = luồng của Rooty Workspace (15/10/2026)
+
+/* Email Lark của người đang thao tác — hub gửi xuống qua header (đã mã hoá URI). Rooty
+ * Workspace nhận diện người bằng email, không bằng open_id (open_id riêng theo từng app). */
+function emailToi(req) {
+  const h = (req && req.headers) || {};
+  for (const k of ['x-hub-user-email', 'x-hub-user-email-phu']) {
+    if (!h[k]) continue;
+    try { const v = decodeURIComponent(h[k]).trim(); if (v) return v; } catch (_) { /* bỏ */ }
+  }
+  return process.env.RW_EMAIL_MAY || '';   // chạy lẻ trên máy, không qua hub
+}
+
+/* Mã GV-… của việc liên phòng (cả bản đã lưu về Base phòng, theo mã liên phòng). */
+async function maRW(id, maLP) {
+  if (!RW.bat()) return '';
+  const lp = await LP.tim(lark, maLP || id).catch(() => null);
+  return (lp && /^[A-Z]{2}-\d+$/.test(lp.nguonMa || '') && lp.nguonMa) || '';
+}
 // cli: dùng phiên lark-cli của máy · api: gọi thẳng Open API bằng app credentials
 const lark = cfg.mode === 'api' ? require('./larkapi') : require('./lark');
 const auth = require('./auth');
@@ -1646,7 +1665,24 @@ async function api(req, res, url) {
       /* Kèm luôn ai đã đọc tới đâu — gửi chung một lượt với bình luận, không
        * mở thêm một đường gọi nữa. Tab Trao đổi vốn nạp lại định kỳ, tách làm
        * hai lượt là nhân đôi số lần ra vào Base cho đúng một màn hình. */
-      return json(res, { comments: list, daXem: await docDaXem(id, maLPCmt) });
+      /* Việc liên phòng: luồng tin là của Rooty Workspace. Tin cũ chỉ có trong Hub (trước
+       * 15/10) vẫn hiện, xếp chung theo giờ. Bên kia hỏng thì vẫn trả phần của Hub, kèm câu
+       * báo, chứ không để cả tab trắng. */
+      const ma = await maRW(id, maLPCmt);
+      let rw = null;
+      if (ma) {
+        const me = await whoAmI(req);
+        try {
+          const ds = await RW.traoDoi(ma, { id: me && me.id, name: me && me.name, email: emailToi(req) },
+            { moi: url.searchParams.get('moi') === '1' });
+          list.push(...ds);
+          list.sort((a, b) => new Date(a.at || 0) - new Date(b.at || 0));
+          rw = { ma };
+        } catch (e) {
+          rw = { ma, loi: e.message };
+        }
+      }
+      return json(res, { comments: list, daXem: await docDaXem(id, maLPCmt), rw });
     }
 
     if (req.method === 'POST') {
@@ -1667,6 +1703,22 @@ async function api(req, res, url) {
       if (noiDung.length > 2000) return json(res, { error: 'Bình luận quá dài (tối đa 2000 ký tự)' }, 400);
 
       const me = await whoAmI(req);
+
+      /* Việc liên phòng có mã GV: gửi thẳng vào Rooty Workspace, mang tên người gửi.
+       * Không ghi bản sao vào bảng Bình luận, không tự báo Lark — bên kia đã báo
+       * người liên quan, báo thêm ở đây là mỗi tin hai thông báo. */
+      const ma = await maRW(id, rec ? asText(rec.cells[F.maLienPhong.id]).trim() : '');
+      if (ma) {
+        try {
+          await RW.gui(ma, emailToi(req), noiDung);
+        } catch (e) {
+          /* 423: người này còn bài bắt buộc đọc quá hạn bên Rooty Workspace — câu bên kia
+           * trả đã nói rõ phải làm gì, đưa nguyên. */
+          return json(res, { error: e.message, code: e.code || 'RW' }, e.status >= 400 && e.status < 500 ? e.status : 502);
+        }
+        return json(res, { ok: true, rw: { ma }, bao: { ten: [], gui: 0, hong: 0, rw: true } });
+      }
+
       const cells = {};
       cells[CF.content.name] = noiDung;
       /* Việc liên phòng nằm ở Base KHÁC — ô liên kết không trỏ sang được, nên

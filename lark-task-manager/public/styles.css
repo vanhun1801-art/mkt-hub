@@ -1833,6 +1833,7 @@ body.col-resizing, body.col-resizing * { cursor: col-resize !important; user-sel
 .dt-chat .cmt-new { border-top: 1px solid var(--border); padding-top: 10px; margin-top: 6px; }
 .dt-chat .cmt-input { resize: none; }
 .dt-chat .cmt-goi-y { margin-top: 4px; }
+.cmt-goi-y.cmt-goi-y-loi { color: var(--red-text); }   /* Rooty Workspace không đọc được */
 
 /* Tab Lịch sử: dòng thời gian */
 .ls-ds { display: flex; flex-direction: column; position: relative; padding-left: 4px; }

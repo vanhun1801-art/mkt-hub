@@ -28,7 +28,9 @@
  *   - "Kết quả": link của từng người, mỗi người một dòng "Tên: link"
  *   - tệp sản phẩm: cột "File kết quả" (Claude THÊM cột này 01/10, chỉ thêm mới)
  * Không chép việc sang Base Tracking, không sửa cột nào khác của Base công ty.
- * Trao đổi lưu ở bảng Bình luận của phòng (cột "Việc liên phòng" = mã việc).
+ * Trao đổi: từ 15/10/2026 là CHÍNH luồng tin của Rooty Workspace qua API của anh Đạt
+ * (rooty-workspace.js, theo mã GV-… ở cột STT). Tin cũ hơn nằm ở bảng Bình luận của phòng
+ * (cột "Việc liên phòng" = mã việc) vẫn hiện chung. Không có RW_KEY thì như cũ.
  *
  * Mã việc của từng người = record_id gốc + "x" + đuôi open_id — vẫn là chuỗi
  * chữ-số nên đi lọt mọi đường /api/tasks/rec… sẵn có.

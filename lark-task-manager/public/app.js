@@ -4139,6 +4139,14 @@ async function napBinhLuan(t, list, im) {
   try {
     const d = await req('/api/tasks/' + t.id + '/comments');
     t._cmts = d.comments;
+    /* Việc liên phòng đã nối Rooty Workspace (15/10/2026): một luồng tin chung hai bên. */
+    const goiY = list.parentElement && list.parentElement.querySelector('.cmt-goi-y');
+    if (goiY && d.rw) {
+      goiY.textContent = d.rw.loi
+        ? 'Chưa đọc được trao đổi bên Rooty Workspace: ' + d.rw.loi
+        : 'Chung một luồng với Rooty Workspace (' + d.rw.ma + '): nhắn ở đây thì bên đó thấy y vậy, bên đó báo Lark cho người liên quan.';
+      goiY.classList.toggle('cmt-goi-y-loi', !!d.rw.loi);
+    }
     const b = list.closest('.drawer-body');
     if (b && b._datSo) b._datSo('chat', d.comments.length);
     /* Nạp lại định kỳ: không có gì mới thì khỏi vẽ lại (giữ chỗ đang cuộn). */
