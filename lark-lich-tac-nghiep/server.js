@@ -201,7 +201,9 @@ function nguoiTuHeader(req) {
   const ten = req.headers['x-hub-user-name'];
   let deco = id;
   try { deco = ten ? decodeURIComponent(ten) : id; } catch (_) { deco = ten || id; }
-  return { id: String(id), name: String(deco), quanLy };
+  let email = '';
+  try { email = decodeURIComponent(req.headers['x-hub-user-email'] || '').toLowerCase(); } catch (_) { email = ''; }
+  return { id: String(id), name: String(deco), quanLy, email };
 }
 
 async function whoAmI() {
@@ -652,6 +654,7 @@ async function taoDonTourwell(recId, item) {
 const soQuy = require('./so-quy');
 const { doanDiaDiem, doanLoaiHinh } = require('./public/phan-loai');
 const xuat = require('./xuat');
+const traoDoi = require('./trao-doi');
 const { layLogo } = require('../lark-chung/logo');
 /* Nơi giữ bản logo tải về lần trước. Nằm ngoài kho mã (xem .gitignore): đây là
  * bản tạm của một tệp mà hub mới là chủ. */
@@ -1461,6 +1464,42 @@ async function api(req, res, url) {
     } finally {
       if (dir) { try { fs.rmSync(dir, { recursive: true, force: true }); } catch (_) {} }
     }
+  }
+
+  /* --- trao đổi trong lịch (trao-doi.js) ---
+   * Đọc: quản lý, người được "Xem toàn bộ", hoặc người có tên trong lịch.
+   * Nhắn và đánh dấu đã xem: quản lý hoặc người có tên trong lịch. */
+  const mTD = p.match(/^\/api\/items\/(rec[A-Za-z0-9]+)\/(trao-doi|da-xem)$/);
+  if (mTD) {
+    const id = mTD[1];
+    const rec = await findRecord(id);
+    if (!rec) return json(res, { error: 'Không tìm thấy lịch tác nghiệp' }, 404);
+    const item = toItem(rec);
+    const me = await whoAmI();
+    const ql = await isManager();
+    const coTen = !!(me && ownedBy(item, me.id));
+    if (!(ql || coTen || (req.method === 'GET' && qToanBo()))) {
+      return json(res, { error: 'Đây không phải lịch tác nghiệp của bạn.', code: 'NOT_YOURS' }, 403);
+    }
+    if (mTD[2] === 'trao-doi' && req.method === 'GET') {
+      const [comments, daXem] = await Promise.all([traoDoi.docTin(lark, id), traoDoi.docDaXem(lark, id)]);
+      return json(res, { comments, daXem });
+    }
+    if (!me) return json(res, { error: 'Chưa biết bạn là ai, mở app qua Marketing Hub.' }, 401);
+    if (mTD[2] === 'da-xem' && req.method === 'POST') {
+      return json(res, await traoDoi.ghiDaXem(lark, id, me));
+    }
+    if (mTD[2] === 'trao-doi' && req.method === 'POST') {
+      const body = await readBody(req);
+      const noiDung = String(body.content || '').trim();
+      if (!noiDung) return json(res, { error: 'Chưa nhập nội dung' }, 400);
+      if (noiDung.length > 2000) return json(res, { error: 'Tin dài quá 2000 ký tự, chia làm vài tin nhé.' }, 400);
+      const result = await traoDoi.ghiTin(lark, id, me, noiDung);
+      const nhan = traoDoi.gopNguoiNhan(item, await traoDoi.quanLyLich(lark), me);
+      const bao = await traoDoi.baoTraoDoi(lark, item, me, noiDung, nhan);
+      return json(res, { ok: true, result, bao: { ten: bao.gui, hong: bao.hong } });
+    }
+    return json(res, { error: 'Không hỗ trợ' }, 405);
   }
 
   /* --- sửa / xoá --- */

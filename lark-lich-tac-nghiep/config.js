@@ -134,6 +134,24 @@ module.exports = {
    * thẳng app. Đặt bằng biến môi trường HUB_URL trên Render. */
   hubUrl: process.env.HUB_URL || '',
 
+  /* Trao đổi trong từng lịch (trao-doi.js). Hai bảng tạo 15/10/2026, liên kết
+   * MỘT CHIỀU sang bảng lịch nên bảng lịch không mọc cột mới. Id lấy từ
+   * +field-list, không đoán. */
+  traoDoi: {
+    tableId: process.env.LARK_TB_TRAODOI || 'tbl2pxzsP2Rw1TTQ',
+    noiDung:   { id: 'fldDMQJSYY', name: 'Nội dung' },
+    lich:      { id: 'fldAWmK55Y', name: 'Lịch' },
+    nguoiViet: { id: 'flduBQ3Arf', name: 'Người viết' },
+    thoiGian:  { id: 'fldLkUiUTg', name: 'Thời gian' },
+  },
+  daXem: {
+    tableId: process.env.LARK_TB_DAXEM || 'tblALStOzYw5tr4q',
+    khoa:   { id: 'fldPSR2GPz', name: 'Khoá' },
+    lich:   { id: 'fldHLaVcC7', name: 'Lịch' },
+    nguoi:  { id: 'fld5JjaFfu', name: 'Người xem' },
+    xemToi: { id: 'fldMa6v9YG', name: 'Xem tới' },
+  },
+
   cliScript: process.env.LARK_CLI_SCRIPT || resolveCliScript(),
   cacheTtlMs: 20000,
 

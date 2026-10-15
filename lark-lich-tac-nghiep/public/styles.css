@@ -1625,3 +1625,84 @@ option.xu-khong { color: var(--t3); }
   #mdFoot > .mini { flex: 1 1 100%; margin: 0 !important; }
   #mdFoot > .btn:first-of-type { margin-left: auto; }
 }
+
+/* ==========================================================================
+   TRAO ĐỔI TRONG LỊCH (15/10/2026) — cùng lối với Bảng công việc
+   ========================================================================== */
+.dt-tabs {
+  display: flex; gap: 4px; border-bottom: 1px solid var(--line);
+  position: sticky; top: -16px; z-index: 5; background: var(--surface);
+  margin: -16px -18px 14px; padding: 8px 14px 0;
+}
+.dt-tab {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 12px; border: 0; background: transparent; cursor: pointer;
+  font: inherit; font-size: 13.5px; font-weight: 550; color: var(--t2);
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.dt-tab:hover { color: var(--t1); }
+.dt-tab.on { color: var(--blue-t); border-bottom-color: var(--primary); }
+.dt-n {
+  font-size: 11px; font-weight: 700; min-width: 18px; text-align: center;
+  padding: 1px 6px; border-radius: 9px; background: var(--gray-bg); color: var(--t2);
+}
+.dt-n:empty { display: none; }
+.dt-tab.on .dt-n { background: var(--blue-bg); color: var(--blue-t); }
+.dt-pane.hidden { display: none; }
+
+/* Tab Trao đổi: khung chat chiếm hết chiều cao, ô nhắn dính đáy. */
+.dr-body.dt-dang-chat { display: flex; flex-direction: column; overflow: hidden; padding-bottom: 14px; }
+.dr-body > .dt-chat { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.dt-chat .cmt-khoi { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+.cmt-list {
+  display: flex; flex-direction: column; gap: 8px;
+  max-height: 300px; overflow-y: auto;
+  padding: 10px; border: 1px solid var(--line); border-radius: var(--r);
+  background: var(--surface-2);
+}
+.dt-chat .cmt-list { flex: 1; min-height: 0; max-height: none; border: 0; background: transparent; padding: 6px 2px; }
+.cmt-load { font-size: 13px; color: var(--t2); text-align: center; padding: 10px; }
+.cmt { display: flex; gap: 9px; align-items: flex-start; max-width: 86%; }
+.cmt.cua-toi { align-self: flex-end; }
+.cmt.dang-gui { opacity: .55; }
+.cmt-body {
+  flex: 0 1 auto; min-width: 0;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--r-lg); padding: 7px 11px;
+}
+.cmt.cua-toi .cmt-body { background: var(--blue-bg); border-color: var(--primary-border); }
+.cmt-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 2px; }
+.cmt-who { font-size: 12.5px; font-weight: 600; color: var(--t1); }
+.cmt-at { font-size: 11.5px; color: var(--t3); }
+.cmt-txt { font-size: 13.5px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--t1); }
+.cmt-ngay {
+  align-self: center; font-size: 12px; color: var(--t2);
+  background: var(--gray-bg); border: 1px solid var(--line);
+  padding: 2px 10px; border-radius: 10px; margin: 6px 0 2px;
+}
+.cmt-daxem { align-self: flex-end; font-size: 12px; color: var(--t2); margin: 2px 2px 4px; }
+.cmt-daxem.chua { color: var(--t3); }
+.cmt-daxem:empty { display: none; }
+
+.cmt-new { display: flex; gap: 8px; align-items: flex-end; margin-top: 10px; }
+.dt-chat .cmt-new { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 6px; }
+.cmt-input {
+  flex: 1; min-width: 0; padding: 8px 11px; border-radius: var(--r);
+  border: 1px solid var(--line); background: var(--surface);
+  color: var(--t1); font: inherit; font-size: 14px; outline: none;
+  resize: none; min-height: 42px; max-height: 140px; line-height: 1.5;
+}
+.cmt-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(43, 92, 255, .16); }
+.cmt-new .btn { flex: 0 0 auto; }
+.cmt-goi-y { margin-top: 4px; }
+
+/* Ô chat cuối phiếu đi tác nghiệp */
+.phieu-td { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.phieu-td .phieu-nhan { margin-bottom: 8px; }
+
+@media (max-width: 640px) {
+  .cmt-input { font-size: 16px; }   /* iPhone không tự phóng to khi chạm ô nhập */
+  .cmt { max-width: 94%; }
+  .dr-body.dt-dang-chat { min-height: min(520px, 70vh); }
+}

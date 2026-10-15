@@ -1945,10 +1945,12 @@ function laPhuTrach(t) {
   return !!(v && (t.owner || []).some((u) => u.id === v.id));
 }
 
-function openItem(id) {
+/** `mo` = 'trao-doi': mở thẳng vào ô chat (nút "Mở trao đổi" trên thẻ Lark). */
+function openItem(id, mo) {
   const t = S.items.find((x) => x.id === id);
   if (!t) return;
-  if (chiXem(t)) return moPhieuDi(id);
+  DT_TAB = mo === 'trao-doi' ? 'chat' : 'info';
+  if (chiXem(t)) return moPhieuDi(id, mo === 'trao-doi');
   S.sel = t;
   S.draft = {};
   renderDrawer();
@@ -1963,6 +1965,7 @@ function closeDrawer() {
   $('#mask').classList.remove('on');
   S.sel = null;
   S.draft = {};
+  dungNapTraoDoi();
 }
 
 const dv = (k) => (k in S.draft ? S.draft[k] : S.sel[k]);
@@ -2457,6 +2460,7 @@ function renderDrawer() {
 
   h += '</div>';
   $('#drBody').innerHTML = h;
+  ganTabTraoDoi(t);
 
   // Đầu ô nhuốm màu theo giai đoạn — nhìn là biết lịch đang ở đâu trong quy trình
   const dh = bad ? 'dong' : t.status === 'Từ chối/Cần điều chỉnh' ? 'sua'
@@ -3098,6 +3102,7 @@ function closeModal() {
     if (NEW.__id) toast('Lịch đã lưu nháp trong Base (Đang lên kế hoạch) — mở lại để sửa tiếp hoặc gửi duyệt', 'ok');
   }
   $('#modal').classList.remove('on');
+  dungNapTraoDoi();   // phiếu đi tác nghiệp có ô chat
   delete $('#modal').dataset.nhapKhoa;   // cửa sổ dùng chung — lần mở sau tự gắn lại
 }
 
@@ -3109,7 +3114,7 @@ function closeModal() {
  * Vì vậy phiếu này CỐ Ý không có một nút thao tác nào — chỉ có nút X để thoát.
  * Muốn sửa thì vào thẻ ở các bước bên dưới.
  */
-function moPhieuDi(id) {
+function moPhieuDi(id, moTraoDoi) {
   const t = S.items.find((x) => x.id === id);
   if (!t) return;
 
@@ -3210,6 +3215,7 @@ function moPhieuDi(id) {
         : t.status === 'Đã hoàn tất' ? 'Chuyến đi đã hoàn tất, giữ lại để đối chiếu cuối tháng.'
         : 'Lịch đã đóng — chỉ còn để tra cứu.') + '</div>' +
     '</div>';
+  ganTraoDoiVaoPhieu(t, moTraoDoi);
   $('#mdBody').onclick = null;
   /* Bảng thông tin cố ý không có nút nào. Ngoại lệ duy nhất: lịch đã duyệt mà
    * quá mốc thì đây là CỬA DUY NHẤT người phụ trách mở được — thẻ của lịch đã
@@ -4711,8 +4717,9 @@ document.addEventListener('keydown', (e) => {
     // danh bạ chỉ để mở rộng ô chọn người, thiếu cũng không chặn gì — tải sau
     taiDanhBa().then(() => { if (!S.sel) render(); });
     // ?rec=recXXX -> mở luôn ô chi tiết (deep link từ hub hoặc từ Lark)
-    const rec = new URLSearchParams(location.search).get('rec');
-    if (rec && (S.items || []).some((x) => x.id === rec)) openItem(rec);
+    const tv = new URLSearchParams(location.search);
+    const rec = tv.get('rec');
+    if (rec && (S.items || []).some((x) => x.id === rec)) openItem(rec, tv.get('mo'));
     if (!S.me) {
       toast('Chưa đăng nhập lark-cli — chạy: lark-cli auth login', 'err');
     }
@@ -4747,3 +4754,253 @@ window.addEventListener('message', (ev) => {
   if (d.hub === 'tab' && d.v) { S.tab = d.v; render(); }
 });
 
+
+/* ==========================================================================
+   TRAO ĐỔI TRONG LỊCH (15/10/2026) — chép cách làm của Bảng công việc
+   ==========================================================================
+   Anh Hùng: "thêm phần trao đổi như bên ứng dụng Tracking cho nó tiện".
+   Ô chi tiết (drawer) có hai tab Chi tiết · Trao đổi. Phiếu đi tác nghiệp (bản
+   chỉ xem) không có tab nên ô chat nằm cuối phiếu. Máy chủ: trao-doi.js.
+
+   Ô chat dựng MỘT LẦN cho mỗi lịch rồi gắn lại sau mỗi lần renderDrawer():
+   tự lưu nháp vẽ lại cả drawer, dựng lại ô chat là mất chữ đang gõ.
+*/
+let DT_TAB = 'info';
+const TD = { id: null, el: null, hen: 0, dau: '', dauXem: '', ds: [], dx: [], dangDanhDau: false, daVe: false };
+
+const coTenTrongLich = (t) => {
+  const v = viewer();
+  return !!(v && [...(t.owner || []), ...(t.staff || [])].some((u) => u.id === v.id));
+};
+/** Ai thấy ô chat: quản lý, người "Xem toàn bộ", người có tên trong lịch. Máy chủ chốt y hệt. */
+const xemDuocTraoDoi = (t) => MGR() || !!(S.perm && S.perm.toanBo) || coTenTrongLich(t);
+/** Ai nhắn được: quản lý hoặc người có tên trong lịch, và không đang "xem như". */
+const nhanDuocTraoDoi = (t) => !PREVIEW() && (MGR() || coTenTrongLich(t));
+
+function gioPhutVN(iso) {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const x = new Date(d.getTime() + LECH_VN);
+  return pad(x.getUTCHours()) + ':' + pad(x.getUTCMinutes());
+}
+function ngayVNChu(iso) {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const x = new Date(d.getTime() + LECH_VN);
+  return pad(x.getUTCDate()) + '/' + pad(x.getUTCMonth() + 1) + '/' + x.getUTCFullYear();
+}
+
+/** Ô chat của một lịch: dựng lần đầu, các lần sau trả lại đúng phần tử cũ. */
+function khungTraoDoi(t) {
+  if (TD.id === t.id && TD.el) return TD.el;
+  dungNapTraoDoi();
+  // dau = null chứ không phải '': lịch chưa có tin nào cũng ra dấu '', trùng là không vẽ
+  Object.assign(TD, { id: t.id, dau: null, dauXem: null, ds: [], dx: [], dangDanhDau: false, daVe: false });
+  const k = el('div', 'cmt-khoi ios-khong-nhap');
+  k.innerHTML = '<div class="cmt-list"><div class="cmt-load">Đang tải trao đổi…</div></div>';
+  if (nhanDuocTraoDoi(t)) {
+    const moi = el('div', 'cmt-new');
+    moi.innerHTML = '<textarea class="cmt-input" rows="2" placeholder="Nhắn cho người trong lịch và quản lý…"></textarea>' +
+      '<button class="btn primary sm cmt-gui">Gửi</button>';
+    k.appendChild(moi);
+    k.appendChild(el('div', 'cmt-goi-y mini muted', 'Gửi xong sẽ báo Lark cho người trong lịch và quản lý.'));
+    const o = moi.querySelector('textarea');
+    const khoaNhap = 'lich.tin-do.' + t.id;
+    try { o.value = localStorage.getItem(khoaNhap) || ''; } catch (_) {}
+    o.addEventListener('input', () => { try { localStorage.setItem(khoaNhap, o.value); } catch (_) {} });
+    o.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); guiTraoDoi(t, o); }
+    });
+    moi.querySelector('.cmt-gui').onclick = () => guiTraoDoi(t, o);
+  }
+  TD.el = k;
+  napTraoDoi(t, true);
+  return k;
+}
+
+function dungNapTraoDoi() {
+  if (TD.hen) clearInterval(TD.hen);
+  TD.hen = 0;
+}
+/** Nạp lại 15 giây một lần khi ô chat đang hiện; ô chat rời trang thì tự thôi. */
+function batNapTraoDoi(t) {
+  dungNapTraoDoi();
+  TD.hen = setInterval(() => {
+    if (!TD.el || !TD.el.isConnected || TD.id !== t.id) return dungNapTraoDoi();
+    if (document.hidden || !TD.el.offsetParent) return;
+    napTraoDoi(t, true);
+  }, 15000);
+}
+
+function bongBong(c, cuaToi) {
+  const u = (c.author || [])[0] || { name: '?' };
+  const b = el('div', 'cmt' + (cuaToi ? ' cua-toi' : '') + (c.dangGui ? ' dang-gui' : ''));
+  b.innerHTML = (cuaToi ? '' : avatar(u, 26)) +
+    '<div class="cmt-body"><div class="cmt-head"><span class="cmt-who">' + esc(cuaToi ? 'Bạn' : u.name) + '</span>' +
+    '<span class="cmt-at">' + esc(c.dangGui ? 'đang gửi…' : gioPhutVN(c.at)) + '</span></div>' +
+    '<div class="cmt-txt">' + esc(c.content) + '</div></div>';
+  return b;
+}
+
+function veTraoDoi() {
+  const list = TD.el && TD.el.querySelector('.cmt-list');
+  if (!list) return;
+  const v = viewer();
+  const sat = list.scrollHeight - list.scrollTop - list.clientHeight < 40;
+  list.innerHTML = '';
+  if (!TD.ds.length) {
+    list.appendChild(el('div', 'cmt-load', 'Chưa có trao đổi nào. Cần hỏi gì về lịch này thì nhắn ở đây.'));
+  }
+  let ngay = '';
+  TD.ds.forEach((c) => {
+    const n = c.at ? ngayVNChu(c.at) : '';
+    if (n && n !== ngay) { ngay = n; list.appendChild(el('div', 'cmt-ngay', esc(n))); }
+    list.appendChild(bongBong(c, !!(v && (c.author || []).some((u) => u.id === v.id))));
+  });
+  list.appendChild(el('div', 'cmt-daxem'));
+  veDaXem();
+  if (sat || !TD.daVe) list.scrollTop = list.scrollHeight;
+  TD.daVe = true;
+  const n = $('#dtN');
+  if (n) n.textContent = TD.ds.filter((c) => !c.dangGui).length || '';
+}
+
+/** "✓✓ đã xem" — chỉ dưới tin cuối cùng, khi tin đó là của mình. */
+function veDaXem() {
+  const o = TD.el && TD.el.querySelector('.cmt-daxem');
+  if (!o) return;
+  const v = viewer();
+  const cuoi = TD.ds[TD.ds.length - 1];
+  const laCuaToi = !!(cuoi && !cuoi.dangGui && v && (cuoi.author || []).some((u) => u.id === v.id));
+  if (!laCuaToi) { o.textContent = ''; o.className = 'cmt-daxem'; o.title = ''; return; }
+  const moc = new Date(cuoi.at || 0).getTime();
+  const da = TD.dx.filter((x) => x.id !== v.id && new Date(x.at).getTime() >= moc);
+  o.className = 'cmt-daxem' + (da.length ? '' : ' chua');
+  o.textContent = !da.length ? 'Chưa ai xem'
+    : da.length === 1 ? '✓✓ ' + da[0].name + ' đã xem ' + gioPhutVN(da[0].at)
+    : '✓✓ ' + da.length + ' người đã xem';
+  o.title = da.map((x) => x.name + ' · ' + gioPhutVN(x.at)).join(', ');
+}
+
+async function napTraoDoi(t, im) {
+  try {
+    const d = await api('/api/items/' + encodeURIComponent(t.id) + '/trao-doi');
+    if (TD.id !== t.id) return;
+    const ds = d.comments || [];
+    const dx = d.daXem || [];
+    const dau = ds.map((c) => c.id).join(',');
+    const dauXem = dx.map((x) => x.id + '@' + x.at).join(',');
+    TD.dx = dx;
+    if (dau !== TD.dau) { TD.ds = ds; TD.dau = dau; veTraoDoi(); }
+    else if (dauXem !== TD.dauXem) veDaXem();
+    TD.dauXem = dauXem;
+    danhDauDaXem(t);
+  } catch (e) {
+    if (!im) toast('Không tải được trao đổi: ' + e.message, 'err');
+    const list = TD.el && TD.el.querySelector('.cmt-list');
+    if (list && !TD.ds.length) list.innerHTML = '<div class="cmt-load">Chưa tải được trao đổi. Thử mở lại lịch.</div>';
+  }
+}
+
+/** Báo "tôi đã xem tới bây giờ" khi có tin của người khác mới hơn mốc của mình, và ô chat đang hiện. */
+function danhDauDaXem(t) {
+  const v = viewer();
+  if (!v || PREVIEW() || TD.dangDanhDau || !TD.el || !TD.el.offsetParent || !nhanDuocTraoDoi(t)) return;
+  const toi = TD.dx.find((x) => x.id === v.id);
+  const moc = toi ? new Date(toi.at).getTime() : 0;
+  const moi = TD.ds.some((c) => !c.dangGui && !(c.author || []).some((u) => u.id === v.id) &&
+    new Date(c.at || 0).getTime() > moc);
+  if (!moi) return;
+  TD.dangDanhDau = true;
+  api('/api/items/' + encodeURIComponent(t.id) + '/da-xem', { method: 'POST', body: '{}' })
+    .then((r) => {
+      const at = (r && r.at) || new Date().toISOString();
+      TD.dx = TD.dx.filter((x) => x.id !== v.id).concat([{ id: v.id, name: v.name, at }]);
+    })
+    .catch(() => {})
+    .finally(() => { TD.dangDanhDau = false; });
+}
+
+async function guiTraoDoi(t, o) {
+  const noiDung = o.value.trim();
+  if (!noiDung) return;
+  const v = viewer() || {};
+  const tam = { id: 'tam-' + Date.now(), content: noiDung, author: [{ id: v.id, name: v.name }], at: new Date().toISOString(), dangGui: true };
+  TD.ds = TD.ds.concat([tam]);
+  o.value = '';
+  try { localStorage.removeItem('lich.tin-do.' + t.id); } catch (_) {}
+  veTraoDoi();
+  const list = TD.el.querySelector('.cmt-list');
+  list.scrollTop = list.scrollHeight;
+  try {
+    const r = await api('/api/items/' + encodeURIComponent(t.id) + '/trao-doi', {
+      method: 'POST', body: JSON.stringify({ content: noiDung }),
+    });
+    const bao = (r && r.bao) || {};
+    if ((bao.hong || []).length) toast('Đã gửi tin, nhưng chưa báo Lark được cho: ' + bao.hong.join(', '), 'err');
+    TD.dau = null;
+    await napTraoDoi(t, true);
+  } catch (e) {
+    TD.ds = TD.ds.filter((c) => c !== tam);
+    veTraoDoi();
+    o.value = noiDung;
+    toast('Chưa gửi được: ' + e.message, 'err');
+  }
+}
+
+/** Gắn hai tab vào drawer sau khi renderDrawer() vẽ xong phần chi tiết. */
+function ganTabTraoDoi(t) {
+  const body = $('#drBody');
+  if (!body) return;
+  body.classList.remove('dt-dang-chat');
+  if (!xemDuocTraoDoi(t)) { DT_TAB = 'info'; return; }
+  const info = el('div', 'dt-pane dt-info');
+  while (body.firstChild) info.appendChild(body.firstChild);
+  const bar = el('div', 'dt-tabs');
+  bar.innerHTML = '<button type="button" class="dt-tab" data-dttab="info">Chi tiết</button>' +
+    '<button type="button" class="dt-tab" data-dttab="chat">Trao đổi <span class="dt-n" id="dtN"></span></button>';
+  const chat = el('div', 'dt-pane dt-chat');
+  chat.appendChild(khungTraoDoi(t));
+  body.appendChild(bar);
+  body.appendChild(info);
+  body.appendChild(chat);
+  bar.querySelectorAll('.dt-tab').forEach((b) => { b.onclick = () => chonTab(t, b.dataset.dttab); });
+  const n = $('#dtN');
+  if (n) n.textContent = TD.ds.filter((c) => !c.dangGui).length || '';
+  chonTab(t, DT_TAB);
+}
+
+function chonTab(t, ma) {
+  DT_TAB = ma === 'chat' ? 'chat' : 'info';
+  const body = $('#drBody');
+  if (!body) return;
+  body.querySelectorAll('.dt-tab').forEach((b) => b.classList.toggle('on', b.dataset.dttab === DT_TAB));
+  const info = body.querySelector('.dt-info');
+  const chat = body.querySelector('.dt-chat');
+  if (info) info.classList.toggle('hidden', DT_TAB === 'chat');
+  if (chat) chat.classList.toggle('hidden', DT_TAB !== 'chat');
+  body.classList.toggle('dt-dang-chat', DT_TAB === 'chat');
+  if (DT_TAB === 'chat') {
+    const list = TD.el && TD.el.querySelector('.cmt-list');
+    if (list) list.scrollTop = list.scrollHeight;
+    napTraoDoi(t, true);
+    batNapTraoDoi(t);
+    const o = TD.el && TD.el.querySelector('.cmt-input');
+    if (o && !('ontouchstart' in window)) setTimeout(() => o.focus(), 50);
+  } else {
+    dungNapTraoDoi();
+  }
+}
+
+/** Phiếu đi tác nghiệp (bản chỉ xem): ô chat nằm cuối phiếu. */
+function ganTraoDoiVaoPhieu(t, moThang) {
+  if (!xemDuocTraoDoi(t)) return;
+  const phieu = $('#mdBody .phieu');
+  if (!phieu) return;
+  const khoi = el('div', 'phieu-td');
+  khoi.innerHTML = '<div class="phieu-nhan">Trao đổi</div>';
+  khoi.appendChild(khungTraoDoi(t));
+  phieu.appendChild(khoi);
+  batNapTraoDoi(t);
+  if (moThang) setTimeout(() => khoi.scrollIntoView({ block: 'start' }), 80);
+}
