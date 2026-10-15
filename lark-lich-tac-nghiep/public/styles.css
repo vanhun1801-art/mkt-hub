@@ -1648,7 +1648,9 @@ option.xu-khong { color: var(--t3); }
 }
 .dt-n:empty { display: none; }
 .dt-tab.on .dt-n { background: var(--blue-bg); color: var(--blue-t); }
-.dt-pane.hidden { display: none; }
+/* !important: `.dr-body > .dt-chat { display: flex }` ở dưới cùng độ ưu tiên và viết
+ * sau, không có nó thì tab Chi tiết vẫn lòi ô chat ra bên dưới. */
+.dt-pane.hidden { display: none !important; }
 
 /* Tab Trao đổi: khung chat chiếm hết chiều cao, ô nhắn dính đáy. */
 .dr-body.dt-dang-chat { display: flex; flex-direction: column; overflow: hidden; padding-bottom: 14px; }
