@@ -98,6 +98,8 @@ async function chay(kho) {
     ws = new WebSocket(ver.webSocketDebuggerUrl); await new Promise((r) => ws.addEventListener('open', r));
     ws.addEventListener('message', (ev) => { const m = JSON.parse(ev.data);
       if (m.id && cho.has(m.id)) { const c = cho.get(m.id); cho.delete(m.id); m.error ? c.no(new Error(m.error.message)) : c.ok(m.result); }
+      /* hộp alert/confirm của app làm đứng mọi lệnh đo → bấm Huỷ ngay */
+      if (m.method === 'Page.javascriptDialogOpening') gui('Page.handleJavaScriptDialog', { accept: false }, m.sessionId).catch(() => {});
       if (m.method === 'Fetch.requestPaused') {
         const p = m.params, doc = /^(GET|HEAD|OPTIONS)$/.test(p.request.method);
         gui(doc ? 'Fetch.continueRequest' : 'Fetch.failRequest', doc ? { requestId: p.requestId } : { requestId: p.requestId, errorReason: 'BlockedByClient' }, m.sessionId).catch(() => {});
@@ -122,6 +124,7 @@ async function chay(kho) {
     await g('Page.navigate', { url: HUB + '/' }); await sleep(9000);
     ket.push({ app: 'hub', ...JSON.parse(await danhGia(DO)), js: loiJs.splice(0) });
     for (const id of DS) {
+      if (thamSo.tiendo !== undefined) process.stderr.write(kho.ten + ' › ' + id + '\n');
       await g('Page.navigate', { url: HUB + '/#/m/' + id }); await sleep(4000);
       /* chờ app dựng xong dữ liệu thật: khung xương (bản chụp lần trước) còn hiện
        * thì đo nhầm vào ảnh tạm. Tối đa 20 giây. */
@@ -150,14 +153,15 @@ async function chay(kho) {
       const tabs = JSON.parse(dsTab);
       for (let k = 1; k < Math.min(tabs.length, 10); k++) {
         if (/đồng bộ|xuất|xoá|xóa|nộp|gửi|duyệt|đăng xuất|kéo lại/i.test(tabs[k])) continue;
-        await danhGia('(()=>{const f=' + KHUNG + ';const e=[...f.contentDocument.querySelectorAll(' + JSON.stringify(TAB) + ')].filter(e=>e.getClientRects().length)[' + k + '];if(e)e.click();return 1})()').catch(() => 0);
+        /* bấm theo TÊN tab: app có thể chèn thêm tab khi đổi màn (Social thêm "Nhập tay") */
+        await danhGia('(()=>{const f=' + KHUNG + ';const e=[...f.contentDocument.querySelectorAll(' + JSON.stringify(TAB) + ')].find(e=>e.getClientRects().length&&(e.textContent||"").replace(/\\s+/g," ").trim().slice(0,30)===' + JSON.stringify(tabs[k]) + ');if(e)e.click();return 1})()').catch(() => 0);
         await sleep(1500);
         for (let i = 0; i < 20; i++) {
           const xong = await danhGia('(()=>{const f=' + KHUNG + ';const d=f&&f.contentDocument;return !!d&&!d.querySelector(".kx, .kx-vung, [data-kx-xem], [aria-busy=\\"true\\"]")})()').catch(() => true);
           if (xong) break;
           await sleep(500);
         }
-        await sleep(600);
+        await sleep(1100);   // thấu kính chỉ báo tab còn đang trượt tới chỗ mới
         let rt;
         try { rt = JSON.parse(await danhGia('(async()=>{const f=' + KHUNG + ';return f.contentWindow.eval(' + JSON.stringify(DO) + ');})()')); }
         catch (e) { rt = { loi: ['không đo được: ' + e.message], canh: [], nCanh: 0 }; }
@@ -198,7 +202,7 @@ const KHO = [{ ten: 'dien-thoai', w: 390, h: 844, toi: true }, { ten: 'may-tinh'
 if (!CHROME) { console.error('Không tìm thấy Chrome. Truyền --chrome=đường-dẫn.'); process.exit(2); }
 try { await fetch(HUB + '/'); } catch (_) { console.error('Hub chưa chạy ở ' + HUB); process.exit(2); }
 console.log('Soát ' + (DS.length + 1) + ' màn × ' + KHO.length + ' khổ…');
-const tatCa = await Promise.all(KHO.map((k) => chay(k).then((r) => ({ k, r }))));
+const tatCa = await Promise.all(KHO.map((k) => chay(k).then((r) => ({ k, r }), (e) => ({ k, r: [{ app: '(dừng giữa chừng)', loi: ['công cụ soát dừng: ' + e.message], canh: [], nCanh: 0, js: [] }] }))));
 let soLoi = 0, soCanh = 0;
 for (const { k, r } of tatCa) {
   console.log('\n== ' + k.ten + ' (' + k.w + '×' + k.h + (k.toi ? ', tối' : ', sáng') + ')');

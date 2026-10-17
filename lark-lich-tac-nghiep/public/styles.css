@@ -1707,4 +1707,6 @@ option.xu-khong { color: var(--t3); }
   .cmt-input { font-size: 16px; }   /* iPhone không tự phóng to khi chạm ô nhập */
   .cmt { max-width: 94%; }
   .dr-body.dt-dang-chat { min-height: min(520px, 70vh); }
+  .dt-n { font-size: 12px; }   /* chữ dưới 12px khó đọc trên điện thoại */
+  .cmt-at { font-size: 12px; }
 }
