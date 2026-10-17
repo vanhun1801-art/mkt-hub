@@ -101,4 +101,58 @@ t('không bài nào đo được lượt xem thì trả null, không trả 0', (
   assert.strictEqual(r[0].xem, null, 'null = không đo được, khác hẳn 0 = không ai xem');
 });
 
+console.log('\nnội dung — lượt bấm của bài ảnh');
+
+t('bài ảnh không đo được lượt xem thì vẫn có trung vị lượt bấm', () => {
+  /* Vì sao cần: 553 bài ảnh Facebook không có lượt xem lẫn tiếp cận ở mức bài.
+     Trước khi có cột này, dòng "Ảnh" của bảng Dạng bài nào ăn chỉ còn mỗi chữ
+     "không đo được" — không so được bài ảnh với bài ảnh. */
+  const ds = [
+    { type: 'Ảnh', views: 0, clicks: 100, engagement: 10 },
+    { type: 'Ảnh', views: 0, clicks: 300, engagement: 20 },
+    { type: 'Ảnh', views: 0, clicks: 1007, engagement: 30 },
+  ];
+  const r = nd.theoNhom(ds, (p) => p.type, { toiThieu: 3 });
+  assert.strictEqual(r[0].xem, null, 'lượt xem vẫn là không đo được');
+  assert.strictEqual(r[0].bam, 300, 'trung vị lượt bấm');
+  assert.strictEqual(r[0].soCoBam, 3);
+});
+
+t('nền tảng không trả lượt bấm thì trả null, không trả 0', () => {
+  /* Instagram, TikTok và Zalo không có chỉ số này. Trả 0 thì bảng đọc thành
+     "đo rồi, không ai bấm" — nói sai y như chuyện lượt xem. */
+  const ds = [
+    { type: 'Video', views: 900, engagement: 10 },
+    { type: 'Video', views: 900, clicks: null, engagement: 20 },
+    { type: 'Video', views: 900, engagement: 30 },
+  ];
+  const r = nd.theoNhom(ds, (p) => p.type, { toiThieu: 3 });
+  assert.strictEqual(r[0].bam, null);
+  assert.strictEqual(r[0].soCoBam, 0);
+});
+
+t('bài chưa đo được không kéo trung vị lượt bấm xuống', () => {
+  const ds = [
+    { type: 'Ảnh', views: 0, clicks: 400, engagement: 10 },
+    { type: 'Ảnh', views: 0, engagement: 20 },
+    { type: 'Ảnh', views: 0, clicks: 600, engagement: 30 },
+  ];
+  const r = nd.theoNhom(ds, (p) => p.type, { toiThieu: 3 });
+  assert.strictEqual(r[0].bam, 500, 'chỉ hai bài có số mới vào mẫu');
+  assert.strictEqual(r[0].soCoBam, 2);
+});
+
+t('bấm bằng 0 là số thật, phải vào mẫu', () => {
+  /* Phân biệt "ô trống" với "số 0": bài Facebook đo được mà không ai bấm thì 0
+     là kết quả thật, giấu nó đi là làm đẹp số liệu. */
+  const ds = [
+    { type: 'Ảnh', views: 0, clicks: 0, engagement: 10 },
+    { type: 'Ảnh', views: 0, clicks: 0, engagement: 20 },
+    { type: 'Ảnh', views: 0, clicks: 60, engagement: 30 },
+  ];
+  const r = nd.theoNhom(ds, (p) => p.type, { toiThieu: 3 });
+  assert.strictEqual(r[0].soCoBam, 3);
+  assert.strictEqual(r[0].bam, 0);
+});
+
 console.log('\n' + so + ' phép thử đạt' + (process.exitCode ? ' — CÓ LỖI' : '') + '\n');

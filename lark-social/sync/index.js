@@ -267,6 +267,10 @@ function dongPost(row, kenhId) {
     [f.fullWatchRate]: num(row.fullWatchRate),
     [f.source]: row.source,
   };
+  /* CHƯA ĐO ĐƯỢC THÌ ĐỂ TRỐNG, không ghi 0. Instagram, TikTok và Zalo không trả
+   * lượt bấm ở mức bài; ghi 0 cho chúng thì ô trong bảng đọc như "không ai bấm",
+   * và bài ảnh Facebook có số thật bị xếp lẫn vào đám đó. */
+  if (row.clicks != null) o[f.clicks] = num(row.clicks);
   const t = store.gioVeBase(row.publishedAt);
   if (t) o[f.publishedAt] = t;
   /* Tỷ lệ tương tác: tính ở đây, không nhờ formula của Base — cùng lý do với app
@@ -276,6 +280,12 @@ function dongPost(row, kenhId) {
   if (kenhId) o[f.channel] = [{ id: kenhId }];
   return o;
 }
+
+/* Lượt bấm CHỈ TĂNG, như cột của phiên LIVE. Lý do riêng ở đây: khi Meta gỡ một
+ * metric mức bài, baiCuaPage() bỏ CẢ khối insights rồi hỏi lại — lượt đó mọi bài
+ * về với clicks = 0. Không chặn thì một lần Meta trở chứng là xoá sạch con số
+ * duy nhất mà bài ảnh có. Xem giuSoDuong ở store.ghiTheoKhoa(). */
+const COT_POST_GIU = [store.T.post.f.clicks].filter(Boolean);
 
 /* Cột đo đếm của phiên LIVE: chỉ tăng, không bao giờ tụt về 0. Lượt đồng bộ nào
  * trả 0 ở đây là lượt đó KHÔNG ĐO ĐƯỢC, nên đừng để nó xoá số đã có. Xem chú
@@ -444,7 +454,7 @@ async function dongBo({ from, to, chi = '', napLai = false, log = () => {} } = {
 
   if (r.posts.length) {
     const ds = r.posts.map((p) => dongPost(p, mapKenh[p.extId]));
-    kq.posts = await store.ghiTheoKhoa('post', ds, (x) => x[store.T.post.f.key]);
+    kq.posts = await store.ghiTheoKhoa('post', ds, (x) => x[store.T.post.f.key], COT_POST_GIU);
   }
   if (r.lives.length) {
     const ds = r.lives.map((l) => dongLive(l, mapKenh[l.extId]));

@@ -95,7 +95,7 @@ function theoNhom(posts, layNhom, { toiThieu = 3 } = {}) {
   posts.forEach((p) => {
     const k = layNhom(p);
     if (!k) return;
-    if (!m.has(k)) m.set(k, { xem: [], tt: [], tyLe: [], soBai: 0 });
+    if (!m.has(k)) m.set(k, { xem: [], bam: [], tt: [], tyLe: [], soBai: 0 });
     const o = m.get(k);
     o.soBai++;
     /* CHỈ BÀI CÓ LƯỢT XEM mới được vào mẫu.
@@ -105,6 +105,10 @@ function theoNhom(posts, layNhom, { toiThieu = 3 } = {}) {
      * "Bài viết — 0 lượt xem" như thể không ai đọc. Đó là nói sai: không phải
      * không ai xem, mà là không đo được. */
     if (num(p.views) > 0) o.xem.push(num(p.views));
+    /* Lối thoát cho nhóm Ảnh và Bài viết: không đo được lượt xem, nhưng Meta
+     * vẫn trả lượt bấm. Thiếu cột này thì cả hai nhóm nằm im ở "—" và không ai
+     * so được bài ảnh với bài ảnh. Chỉ nhận ô CÓ số — trống là chưa đo. */
+    if (p.clicks != null) o.bam.push(num(p.clicks));
     o.tt.push(num(p.engagement));
     const mau = num(p.reach) || num(p.views);
     if (mau) o.tyLe.push(num(p.engagement) / mau);
@@ -115,6 +119,8 @@ function theoNhom(posts, layNhom, { toiThieu = 3 } = {}) {
       soBai: o.soBai,
       soCoXem: o.xem.length,
       xem: o.xem.length ? Math.round(trungVi(o.xem)) : null,
+      soCoBam: o.bam.length,
+      bam: o.bam.length ? Math.round(trungVi(o.bam)) : null,
       tuongTac: Math.round(trungVi(o.tt)),
       tyLeTuongTac: trungVi(o.tyLe),
       du: o.soBai >= toiThieu,

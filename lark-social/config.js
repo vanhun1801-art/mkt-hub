@@ -129,6 +129,10 @@ module.exports = {
         shares: 'fldzQdIzo5',
         saves: 'fldX4AwTnK',
         engagement: 'fldObq3u9I',
+        /* post_clicks của Meta. Bài ẢNH và bài CHỮ không còn lượt xem lẫn tiếp
+         * cận ở mức bài — đây là chỉ số đếm người duy nhất chúng còn, nên thiếu
+         * cột này là 553 bài ảnh nằm im ở 0 như thể không ai xem. */
+        clicks: 'fld7Go6Zxh',
         avgWatch: 'fldxmGtwAX',   // Thời gian xem TB (giây)
         fullWatchRate: 'fld9JMP8OL', // Tỷ lệ xem hết (0..1)
         engRate: 'fld1XhQdGE',

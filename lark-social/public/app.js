@@ -517,8 +517,8 @@
       + '<div class="card"><div class="card-head">'
       + '<h3>Bài đăng</h3>'
       + '<div class="seg" id="segTheo">'
-      + [['views', 'Lượt xem'], ['engagement', 'Tương tác'], ['comments', 'Bình luận'],
-        ['fullWatchRate', 'Xem hết']].map(([k, t]) =>
+      + [['views', 'Lượt xem'], ['clicks', 'Lượt bấm'], ['engagement', 'Tương tác'],
+        ['comments', 'Bình luận'], ['fullWatchRate', 'Xem hết']].map(([k, t]) =>
         '<button data-k="' + k + '"' + (baiTheo === k ? ' class="on"' : '') + '>' + t + '</button>').join('')
       + '</div></div><div class="card-body tight">'
       + bangGon([
@@ -527,12 +527,19 @@
           + '<span class="sub-line">' + esc(x.channel || '') + ' · ' + esc(x.date || '') + '</span>' },
         { t: 'Nền tảng', v: (x) => theTag(x.platform) },
         { t: 'Loại', v: (x) => esc(x.type || '') },
-        { t: 'Xem', num: 1, v: (x) => n0(x.views) },
-        { t: 'Tiếp cận', num: 1, v: (x) => n0(x.reach) },
+        /* Dấu gạch, không phải số 0. Bài ảnh và bài chữ của Facebook không còn
+         * lượt xem lẫn tiếp cận ở mức bài — in 0 ra là nói sai rằng không ai
+         * thấy bài, trong khi có bài thu cả nghìn lượt bấm. */
+        { t: 'Xem', num: 1, v: (x) => (x.views ? n0(x.views) : '—') },
+        { t: 'Tiếp cận', num: 1, v: (x) => (x.reach ? n0(x.reach) : '—') },
+        /* Với bài ảnh thì đây là cột đếm người DUY NHẤT còn số. Trống = Meta
+         * không trả cho nền tảng đó, khác với 0. */
+        { t: 'Bấm', num: 1, v: (x) => (x.clicks == null ? '—' : n0(x.clicks)) },
         { t: 'Thích', num: 1, v: (x) => n0(x.likes) },
         { t: 'B.luận', num: 1, v: (x) => n0(x.comments) },
         { t: 'Chia sẻ', num: 1, v: (x) => n0(x.shares) },
-        { t: 'Tỷ lệ TT', num: 1, v: (x) => pct(x.engRate || (x.reach || x.views ? x.engagement / (x.reach || x.views) : 0)) },
+        { t: 'Tỷ lệ TT', num: 1, v: (x) => ((x.reach || x.views)
+          ? pct(x.engRate || x.engagement / (x.reach || x.views)) : '—') },
         { t: 'Xem hết', num: 1, v: (x) => (x.fullWatchRate ? pct(x.fullWatchRate) : '—') },
         { t: 'Xem TB', num: 1, v: (x) => (x.avgWatch ? n1(x.avgWatch) + 's' : '—') },
       ], r.bai)
@@ -1821,8 +1828,11 @@
         { t: 'Dạng', name: 1, v: (x) => esc(x.ten) },
         { t: 'Bài', num: 1, v: (x) => n0(x.soBai) },
         { t: 'Xem (trung vị)', num: 1, v: (x) => (x.xem == null ? '<span style="color:var(--ink-3)">không đo được</span>' : n0(x.xem)) },
+        /* Dạng Ảnh và Bài viết không có lượt xem — cột này là thứ duy nhất so
+         * được chúng với nhau, nên để ngay cạnh cột Xem. */
+        { t: 'Bấm (trung vị)', num: 1, v: (x) => (x.bam == null ? '—' : n0(x.bam)) },
         { t: 'Tương tác', num: 1, v: (x) => n0(x.tuongTac) },
-        { t: 'Tỷ lệ TT', num: 1, v: (x) => pct(x.tyLeTuongTac) },
+        { t: 'Tỷ lệ TT', num: 1, v: (x) => (x.tyLeTuongTac ? pct(x.tyLeTuongTac) : '—') },
       ], d.theoLoai.filter((x) => x.du))
       + '</div></div>'
       + '<div class="card"><div class="card-head"><h3>Hashtag kéo người xem</h3>'

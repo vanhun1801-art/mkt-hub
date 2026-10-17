@@ -143,3 +143,12 @@ Anh Hùng (10/10/2026): nhân sự xuất được báo cáo, nhưng **xuất đ
 - Base mở cho khách khai ở `MO_CHO_KHACH` (server.js). Base "cả phòng" KHÔNG mở cho khách. Máy chủ chỉ cho khách đi các đường trong `DUONG_CHO_KHACH`, route mới mặc định kín với khách.
 - Hub báo app con bằng header `x-hub-khach`. App con không được đưa cho khách danh bạ công ty hay dữ liệu của việc không có tên họ.
 - Khớp dòng phân quyền theo tên chỉ nhận dòng chưa gắn email/open_id, và người đó phải ở nhóm "Phòng MKT".
+
+## 10. Bài đăng dạng ảnh (17/10/2026)
+
+- Bài ảnh **có** được ghi nhận: Facebook qua `/posts` (`status_type` = `added_photos`), Instagram qua `media_type` = `IMAGE`/`CAROUSEL_ALBUM`, Zalo gộp trong "Bài viết". TikTok thì **không** — app chỉ gọi `/video/list/`, mà anh Hùng xác nhận phòng chưa đăng dạng ảnh trên TikTok.
+- Meta đã gỡ lượt xem và lượt tiếp cận ở **mức bài**. Video lấy bù được ở node video; ảnh và bài chữ thì không có đường nào. Đừng đi tìm lại, đã thử từng chỉ số trên sáu phiên bản API.
+- Chỉ số đếm người duy nhất mà bài ảnh còn là **`post_clicks`** — cột "Lượt bấm" (`fld7Go6Zxh`) của bảng Bài đăng, thêm ngày 17/10/2026.
+- Quy tắc của cột này, giống mọi cột khác trong hub: **ô trống = chưa đo được, số 0 = đo rồi và bằng 0.** Instagram, TikTok, Zalo không trả chỉ số này nên ô của chúng trống vĩnh viễn — `dongPost()` bỏ hẳn cột thay vì ghi 0. Khi Meta không trả thì `sync/facebook.js` gán `null`, không gán 0.
+- "Lượt bấm" nằm trong `COT_POST_GIU`: một lượt đồng bộ trả 0 **không được** xoá số dương đã có. Lý do: khi Meta gỡ một metric, `baiCuaPage()` bỏ cả khối insights rồi hỏi lại, nên cả lượt về 0.
+- Trên giao diện, bảng Bài đăng và bảng "Dạng bài nào ăn" in **dấu gạch** chứ không in số 0 cho lượt xem, tiếp cận và tỷ lệ tương tác khi không đo được. Bảng Bài đăng xếp hạng được theo "Lượt bấm" để so bài ảnh với bài ảnh.

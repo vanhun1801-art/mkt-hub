@@ -163,6 +163,10 @@ function docBai(r) {
     shares: num(r.c[f.shares]),
     saves: num(r.c[f.saves]),
     engagement: num(r.c[f.engagement]),
+    /* GIỮ NGUYÊN Ô TRỐNG. num() biến trống thành 0, mà 0 đọc là "đo rồi, không
+     * ai bấm" — khác hẳn "chưa đo được". Instagram, TikTok và Zalo không trả
+     * lượt bấm ở mức bài nên ô của chúng trống vĩnh viễn. */
+    clicks: r.c[f.clicks] == null ? null : num(r.c[f.clicks]),
     avgWatch: num(r.c[f.avgWatch]),
     fullWatchRate: num(r.c[f.fullWatchRate]),
     nhanBu: clean(r.c[f.labels]),

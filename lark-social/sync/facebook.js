@@ -440,7 +440,10 @@ async function baiCuaPage(conf, page, from, to, tran, canhBao) {
         impressions: 0,
         likes, comments: cmts, shares, saves: 0,
         engagement: likes + cmts + shares,
-        clicks: ins.post_clicks || 0,
+        /* Null khi Meta không trả, KHÔNG phải 0 — nhánh dự phòng ở trên bỏ cả
+         * khối insights, mà với bài ảnh thì đây là con số đếm người duy nhất
+         * còn lại. Ghi 0 vào đó là xoá mất thứ mình vừa mới đi tìm. */
+        clicks: 'post_clicks' in ins ? ins.post_clicks : null,
         /* Meta trả mili giây, bảng ghi giây. */
         avgWatch: 0,
         fullWatchRate: views ? xemHet / views : 0,
