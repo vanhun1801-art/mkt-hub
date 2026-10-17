@@ -950,6 +950,60 @@ function htmlLichBk(ds, ht, chiDanhSach) {
     '<div id="bkLichDs">' + dsHtml + '</div></div></div>';
 }
 
+/* Bảng kê dạng danh sách (anh Hùng 17/10: bảng 18 cột khó nắm từng hạng mục, thao tác lôi thôi).
+ * Mỗi dòng là một thẻ gọn: giờ · tên · đối tác · khách · hình thức · thành tiền. Bấm vào thì mở khung sửa đủ ô.
+ * Nhóm theo ngày, mỗi ngày có tổng chi riêng. Các ô vẫn mang data-f, nên bộ xử lý nhập giữ nguyên. */
+const khachChu = (h) => (h.soLuong ? h.soLuong + ' ' + String(h.loaiKhach || 'khách').toLowerCase() : '') +
+  (h.soLuong && Number(h.demLuot) > 1 ? ' × ' + h.demLuot + (h.nhom === 'Lưu trú' ? ' đêm' : ' lượt') : '');
+function tomHm(h) {
+  const foc = h.hinhThuc === 'FOC đối tác';
+  const chip = [
+    foc ? nhanTT(h.xinFoc && h.xinFoc !== 'Không áp dụng' ? 'FOC · ' + h.xinFoc.toLowerCase() : 'FOC', MAU_FOC[h.xinFoc] || 'xanh') : '',
+    h.hinhThuc === 'KOL tự trả' ? nhanTT('KOL tự trả') : '',
+    h.hinhThuc !== 'FOC đối tác' && FOC_CHO.includes(h.xinFoc) ? nhanTT('lệch: công ty chi mà đang xin FOC', 'do') : '',
+    foc && !h.nhaCungCap ? nhanTT('thiếu đối tác', 'do') : '',
+    h.kiemLai ? nhanTT('cần kiểm', 'cam') : '',
+    h.tinhTrang && h.tinhTrang !== 'Chờ' ? nhanTT(h.tinhTrang, { 'Đã xong': 'xanh', 'Có sự cố': 'do' }[h.tinhTrang] || '') : '',
+    h.nhacHen ? '<span class="bkn-nhac" title="Bot nhắc trước giờ hẹn">nhắc</span>' : '',
+  ].join('');
+  const tien2 = h.hinhThuc === 'Công ty chi' ? '<b>' + tien(thanhTien(h)) + 'đ</b>'
+    : foc && !quyDoi(h) && h.loaiKhach !== 'Em bé' ? '<span class="bkn-thieu">thiếu giá công bố</span>'
+    : '<span class="nho">' + (foc ? 'quy đổi ' + tien(quyDoi(h)) : 'không tính') + '</span>';
+  return '<span class="bkn-gio">' + (h.gioHen ? hhmm(h.gioHen) : '--:--') + '</span>' +
+    '<span class="bkn-ten"><b>' + e(h.ten || '(chưa đặt tên)') + '</b>' +
+      '<span class="bkn-phu">' + e([h.nhaCungCap, khachChu(h), h.diemHen].filter(Boolean).join(' · ') || h.nhom || '') + '</span>' +
+      (chip ? '<span class="bkn-chip">' + chip + '</span>' : '') + '</span>' +
+    '<span class="bkn-tien">' + tien2 + '</span><span class="bkn-mui" aria-hidden="true"></span>';
+}
+function chiHm(h, i) {
+  const o = (nhan, ruot, lop, goiY) => '<label class="bkn-o' + (lop ? ' ' + lop : '') + '"' + (goiY ? ' title="' + e(goiY) + '"' : '') + '><span>' + nhan + '</span>' + ruot + '</label>';
+  const lech = h.hinhThuc !== 'FOC đối tác' && FOC_CHO.includes(h.xinFoc);
+  return '<div class="bkn-luoi">' +
+    o('Khoản mục', '<input class="in-o" data-f="ten" value="' + e(h.ten) + '" title="' + e((h.maDv ? '[' + h.maDv + '] ' : '') + (h.ghiChu || '')) + '">', 'rong') +
+    o('Đối tác', '<input class="in-o' + (h.hinhThuc === 'FOC đối tác' && !h.nhaCungCap ? ' thieu' : '') + '" data-f="nhaCungCap" list="dsDoiTac" value="' + e(h.nhaCungCap) + '" placeholder="' + (h.hinhThuc === 'FOC đối tác' ? 'cần đối tác' : 'Sun World, nhà hàng…') + '">', 'rong-dt',
+      'Nơi cung cấp dịch vụ. Bắt buộc với dòng FOC để app soạn email đề xuất theo đối tác') +
+    o('Nhóm', '<select class="in-o" data-f="nhom">' + opt(NHOM, h.nhom, true) + '</select>') +
+    o('Ngày', '<input class="in-o" type="date" data-f="ngay" value="' + ngayIn(h.ngay) + '">') +
+    o('Giờ hẹn', '<input class="in-o" type="datetime-local" data-f="gioHen" value="' + gioIn(h.gioHen) + '">', 'rong-dt') +
+    o('Điểm hẹn', '<input class="in-o" data-f="diemHen" value="' + e(h.diemHen) + '" placeholder="tên nơi hoặc link Google Maps">', 'rong') +
+    o('Loại khách', '<select class="in-o" data-f="loaiKhach">' + opt(LOAI_KHACH, h.loaiKhach, true) + '</select>') +
+    o('Số lượng', '<input class="in-o" type="number" min="0" data-f="soLuong" value="' + (h.soLuong ?? '') + '">') +
+    o('Đêm / lượt', '<input class="in-o" type="number" min="0" data-f="demLuot" value="' + (h.demLuot ?? 1) + '">') +
+    o('Hình thức', '<select class="in-o" data-f="hinhThuc">' + opt(HINH_THUC, h.hinhThuc) + '</select>', '',
+      'Công ty chi: Rooty Trip trả · FOC đối tác: đối tác tài trợ, công ty 0đ · KOL tự trả: không tính vào chi phí') +
+    o('Hợp tác FOC', '<select class="in-o foc-' + (MAU_FOC[h.xinFoc] || '') + (lech ? ' lech' : '') + '" data-f="xinFoc">' + opt(XIN_FOC, h.xinFoc || 'Không áp dụng') + '</select>', '',
+      'Chưa đề xuất → Đã gửi đề xuất → Đối tác đồng ý (0đ) hoặc Đối tác từ chối (chuyển về Công ty chi)') +
+    o('Đơn giá chi', '<input class="in-o" type="number" min="0" step="1000" data-f="donGiaChi" value="' + (h.donGiaChi ?? '') + '"' + (h.hinhThuc === 'Công ty chi' ? '' : ' disabled placeholder="0"') + '>') +
+    o('Giá công bố', '<input class="in-o" type="number" min="0" step="1000" data-f="giaCongBo" value="' + (h.giaCongBo ?? '') + '" placeholder="' + (h.hinhThuc === 'FOC đối tác' && h.loaiKhach !== 'Em bé' ? 'cần để quy đổi FOC' : '') + '">') +
+    o('Tình trạng', '<select class="in-o" data-f="tinhTrang">' + opt(TT_HM, h.tinhTrang || 'Chờ') + '</select>', '',
+      'Chờ: chưa tới · Đã xong: KOL đã dùng · Có sự cố: cần xử lý · Huỷ: bỏ, không tính tiền') +
+    '<div class="bkn-o bkn-hop rong">' +
+      '<label title="Bot nhắn anh trước giờ hẹn, kèm tin soạn sẵn gửi KOL. Cần có Giờ hẹn"><input type="checkbox" data-f="nhacHen"' + (h.nhacHen ? ' checked' : '') + '> Bot nhắc trước giờ hẹn</label>' +
+      '<label title="Dòng được tô vàng và đếm ở trang Hợp tác"><input type="checkbox" data-f="kiemLai"' + (h.kiemLai ? ' checked' : '') + '> Cần kiểm lại</label>' +
+      '<button type="button" class="btn nho bkn-xoa" data-xoa="' + i + '">Xoá dòng</button></div>' +
+    '</div>';
+}
+
 function veBangKe(than, ht) {
   const goc = S.dl.hangMuc.filter((h) => h.hopTac === ht.id).sort((a, b) => (a.ngay || 9e15) - (b.ngay || 9e15) || (a.gioHen || 0) - (b.gioHen || 0));
   /* Nháp (02/10): các dòng đang sửa giữ trên máy theo hợp tác — tải lại / Hub nạp lại iframe vẫn còn.
@@ -961,10 +1015,28 @@ function veBangKe(than, ht) {
     if (JSON.stringify(nhap.dl) !== JSON.stringify(S.sua.ds)) S.sua = { ban: true, ds: nhap.dl, nhap: kh, khoiPhuc: nhap.at };
     else nhapBo(kh);
   }
+  S.sua.mo = new Set();   // dòng đang mở khung sửa (giữ theo đối tượng, vẽ lại vẫn mở)
   const tong = () => {
     const song = S.sua.ds.filter((k) => k.tinhTrang !== 'Huỷ');
     return { tt: song.reduce((s, h) => s + thanhTien(h), 0), qd: song.reduce((s, h) => s + quyDoi(h), 0),
       foc: song.filter((h) => h.hinhThuc === 'FOC đối tác').reduce((s, h) => s + quyDoi(h), 0) };
+  };
+  /* Việc còn dở của bảng kê, đếm ngay trên đầu: dòng FOC chưa gửi đề xuất, thiếu đối tác, cần kiểm. */
+  const canhBao = () => {
+    const song = S.sua.ds.filter((h) => h.tinhTrang !== 'Huỷ');
+    const n = (f) => song.filter(f).length;
+    const chuaGui = n((h) => h.hinhThuc === 'FOC đối tác' && h.xinFoc === 'Chưa đề xuất');
+    const thieuDt = n((h) => h.hinhThuc === 'FOC đối tác' && !h.nhaCungCap);
+    const kiem = n((h) => h.kiemLai);
+    return [chuaGui ? nhanTT(chuaGui + ' dòng FOC chưa gửi đề xuất', 'cam') : '', thieuDt ? nhanTT(thieuDt + ' dòng FOC thiếu đối tác', 'do') : '',
+      kiem ? nhanTT(kiem + ' dòng cần kiểm', 'cam') : ''].join('') || (song.length ? nhanTT('Đủ thông tin', 'xanh') : '');
+  };
+  const capTong = () => {
+    const t = tong();
+    $('#bkTong').textContent = tien(t.tt) + 'đ';
+    $('#bkFocQd').textContent = tien(t.foc) + 'đ';
+    $('#bkQd').textContent = tien(t.qd) + 'đ';
+    $('#bkCanh').innerHTML = canhBao();
   };
   const veLai = () => {
     const ds = S.sua.ds;
@@ -972,46 +1044,45 @@ function veBangKe(than, ht) {
     const choXin = [...new Set(ds.filter((h) => FOC_CHO.includes(h.xinFoc)).map((h) => h.nhaCungCap).filter(Boolean))];
     const chot = !!ht.chotLuc;
     if (S.sua.ban) giuSua();
+    const soDong = ds.filter((h) => h.tinhTrang !== 'Huỷ').length;
+    const nhomNgay = [];
+    ds.map((h, i) => i).sort((x, y) => { const a1 = ds[x], b1 = ds[y];
+      return (dauNgay(a1.gioHen || a1.ngay) || 9e15) - (dauNgay(b1.gioHen || b1.ngay) || 9e15) || (a1.gioHen || 9e15) - (b1.gioHen || 9e15) || x - y; })
+      .forEach((i) => { const h = ds[i]; const d = h.gioHen || h.ngay ? dauNgay(h.gioHen || h.ngay) : 0;
+        let g = nhomNgay.find((x) => x.d === d);
+        if (!g) { const tt = d && vn(d); g = { d, nhan: d ? THU[tt.thu] + ', ' + p2(tt.d) + '/' + p2(tt.m) : 'Chưa xếp ngày', ds: [], tt: 0 }; nhomNgay.push(g); }
+        g.ds.push(i); if (h.tinhTrang !== 'Huỷ') g.tt += thanhTien(h); });
     than.innerHTML = (S.sua.khoiPhuc ? baoNhap(S.sua.khoiPhuc) : '') + '<div class="bk-luoi"><div style="min-width:0">' +
       (chot ?'<div class="bao xanh" style="display:flex;gap:10px;align-items:center"><b>Đã chốt ' + ddmm(ht.chotLuc) + ' ' + hhmm(ht.chotLuc) + '</b><span>Chi phí công ty ' + tien(t.tt) + 'đ · sẵn sàng trình BGĐ</span><div class="lon"></div><button class="btn nho" data-viec="moChot">Mở chốt để sửa</button></div>' : '') +
-      '<div class="the' + (chot ? ' da-chot' : '') + '"><div class="the-dau"><h2>Bảng kê chi phí · ' + ds.filter((h) => h.tinhTrang !== 'Huỷ').length + ' dòng</h2><div class="lon"></div>' +
-      '<button class="btn nho" id="bkFoc">Đề xuất hợp tác FOC' + (choXin.length ? ' · ' + choXin.length + ' đối tác' : '') + '</button>' +
-      (chot ? '' : '<button class="btn chinh nho" id="bkSp">Lấy từ Base Sản phẩm</button><button class="btn nho" id="bkChon">Thêm từ danh mục</button><button class="btn nho" id="bkThem">Dòng tự nhập</button>' +
-      '<button class="btn nho" id="bkLuu"' + (S.sua.ban ? '' : ' disabled') + '>Lưu bảng kê</button>' +
+      '<div class="the bkn' + (chot ? ' da-chot' : '') + '"><div class="the-dau"><h2>Bảng kê · ' + soDong + ' dòng</h2><div class="lon"></div>' +
+      '<button class="btn nho" id="bkFoc">Đề xuất FOC' + (choXin.length ? ' · ' + choXin.length + ' đối tác' : '') + '</button>' +
+      (chot ? '' : '<button class="btn nho" id="bkLuu"' + (S.sua.ban ? '' : ' disabled') + '>Lưu</button>' +
       '<button class="btn chinh nho" data-viec="chot"' + (ds.length ? '' : ' disabled') + '>Chốt bảng kê</button>') + '</div>' +
-      '<div class="the-than khit cuon"><datalist id="dsDoiTac">' + dsDoiTac().map((x) => '<option value="' + e(x) + '">').join('') + '</datalist>' +
-      '<table class="bang"><thead><tr><th>Ngày</th><th>Nhóm</th><th>Khoản mục</th><th title="Nơi cung cấp dịch vụ (Sun World, Vinpearl, nhà hàng…). Bắt buộc với dòng FOC để app soạn email đề xuất theo đối tác">Đối tác</th><th>Loại khách</th>' +
-      '<th class="so">SL</th><th class="so">Đêm/Lượt</th><th title="Ai trả tiền dòng này: Công ty chi = Rooty Trip trả · FOC đối tác = đối tác tài trợ, công ty 0đ · KOL tự trả = không tính vào chi phí">Hình thức</th><th title="Tiến độ xin tài trợ với đối tác: Chưa đề xuất → Đã gửi đề xuất → Đối tác đồng ý (FOC, 0đ) / Đối tác từ chối (chuyển về Công ty chi)">Hợp tác FOC</th><th class="so">Đơn giá chi</th><th class="so">Giá công bố</th>' +
-      '<th class="so">Thành tiền</th><th>Giờ hẹn</th><th>Điểm hẹn</th><th title="Tích thì bot nhắn anh trước giờ hẹn (kèm tin soạn sẵn gửi KOL). Cần có Giờ hẹn">Bot nhắc</th><th title="Đánh dấu dòng còn nghi ngờ (giá, số khách…). Dòng được tô vàng và đếm ở trang Hợp tác">Cần kiểm</th><th title="Diễn biến trong chuyến: Chờ = chưa tới · Đã xong = KOL đã dùng dịch vụ · Có sự cố = trục trặc, cần xử lý · Huỷ = bỏ, không tính tiền">Tình trạng</th><th></th></tr></thead><tbody>' +
-      ds.map((h, i) => '<tr data-i="' + i + '" class="' + (h.kiemLai ? 'kiem' : '') + (h.tinhTrang === 'Huỷ' ? ' huy' : '') + '">' +
-        '<td><input class="in-o" type="date" data-f="ngay" value="' + ngayIn(h.ngay) + '"></td>' +
-        '<td><select class="in-o" data-f="nhom">' + opt(NHOM, h.nhom, true) + '</select></td>' +
-        '<td><input class="in-o" data-f="ten" value="' + e(h.ten) + '" title="' + e((h.maDv ? '[' + h.maDv + '] ' : '') + (h.ghiChu || '')) + '"></td>' +
-        '<td><input class="in-o' + (h.hinhThuc === 'FOC đối tác' && !h.nhaCungCap ? ' thieu' : '') + '" data-f="nhaCungCap" list="dsDoiTac" value="' + e(h.nhaCungCap) + '" placeholder="' + (h.hinhThuc === 'FOC đối tác' ? 'cần đối tác' : '—') + '"></td>' +
-        '<td><select class="in-o" data-f="loaiKhach">' + opt(LOAI_KHACH, h.loaiKhach, true) + '</select></td>' +
-        '<td><input class="in-o" type="number" min="0" data-f="soLuong" value="' + (h.soLuong ?? '') + '"></td>' +
-        '<td><input class="in-o" type="number" min="0" data-f="demLuot" value="' + (h.demLuot ?? 1) + '"></td>' +
-        '<td><select class="in-o" data-f="hinhThuc">' + opt(HINH_THUC, h.hinhThuc) + '</select></td>' +
-        '<td><select class="in-o foc-' + (MAU_FOC[h.xinFoc] || '') + (h.hinhThuc !== 'FOC đối tác' && FOC_CHO.includes(h.xinFoc) ? ' lech' : '') + '" data-f="xinFoc" title="' +
-          (h.hinhThuc !== 'FOC đối tác' && FOC_CHO.includes(h.xinFoc) ? 'Dòng Công ty chi mà vẫn đang xin FOC. Chọn lại Hình thức hoặc đặt Không áp dụng' : '') + '">' + opt(XIN_FOC, h.xinFoc || 'Không áp dụng') + '</select></td>' +
-        '<td><input class="in-o" type="number" min="0" step="1000" data-f="donGiaChi" value="' + (h.donGiaChi ?? '') + '"' + (h.hinhThuc === 'Công ty chi' ? '' : ' disabled') + '></td>' +
-        '<td><input class="in-o" type="number" min="0" step="1000" data-f="giaCongBo" value="' + (h.giaCongBo ?? '') + '" placeholder="' + (h.hinhThuc === 'FOC đối tác' && h.loaiKhach !== 'Em bé' ? 'thiếu' : '') + '"></td>' +
-        '<td class="so tt">' + (h.hinhThuc === 'Công ty chi' ? tien(thanhTien(h)) : '<span class="nho">' + (h.hinhThuc === 'FOC đối tác' ? 'FOC' : 'KOL trả') + '</span>') + '</td>' +
-        '<td><input class="in-o" type="datetime-local" data-f="gioHen" value="' + gioIn(h.gioHen) + '"></td>' +
-        '<td><input class="in-o" data-f="diemHen" value="' + e(h.diemHen) + '"></td>' +
-        '<td style="text-align:center"><input type="checkbox" data-f="nhacHen"' + (h.nhacHen ? ' checked' : '') + '></td>' +
-        '<td style="text-align:center"><input type="checkbox" data-f="kiemLai"' + (h.kiemLai ? ' checked' : '') + '></td>' +
-        '<td><select class="in-o" data-f="tinhTrang">' + opt(TT_HM, h.tinhTrang || 'Chờ') + '</select></td>' +
-        '<td><button class="nut-x" data-xoa="' + i + '" title="Xoá dòng">×</button></td></tr>').join('') +
-      '</tbody><tfoot><tr><td colspan="11">Chi phí công ty</td><td class="so" id="bkTong">' + tien(t.tt) + '</td><td colspan="6"><span class="nho" id="bkQd">' + chuQd(t.foc, t.qd) + '</span></td></tr></tfoot></table></div></div>' +
+      '<div class="bkn-tong"><div><span>Chi phí công ty</span><b id="bkTong">' + tien(t.tt) + 'đ</b></div>' +
+        '<div><span>FOC quy đổi</span><b id="bkFocQd">' + tien(t.foc) + 'đ</b></div>' +
+        '<div><span>Tổng quy đổi</span><b id="bkQd">' + tien(t.qd) + 'đ</b></div>' +
+        '<div class="bkn-canh" id="bkCanh">' + canhBao() + '</div></div>' +
+      '<div class="the-than"><datalist id="dsDoiTac">' + dsDoiTac().map((x) => '<option value="' + e(x) + '">').join('') + '</datalist>' +
+      (ds.length ? '<div class="bkn-cong"><button type="button" class="btn nho" data-mo-het>' + (S.sua.mo.size ? 'Thu gọn hết' : 'Mở hết để sửa') + '</button></div>' : '') +
+      nhomNgay.map((g) => '<section class="bkn-ngay"><div class="bkn-ngay-dau"><b>' + g.nhan + '</b><span>' + g.ds.length + ' dòng</span>' +
+          (g.tt ? '<span class="bkn-ngay-tien">' + tien(g.tt) + 'đ</span>' : '') + '</div>' +
+        g.ds.map((i) => { const h = ds[i]; const mo = S.sua.mo.has(h);
+          return '<div class="bkn-dong' + (mo ? ' mo' : '') + (h.kiemLai ? ' kiem' : '') + (h.tinhTrang === 'Huỷ' ? ' huy' : '') + '" data-i="' + i + '">' +
+            '<div class="bkn-tom" role="button" tabindex="0" aria-expanded="' + mo + '" data-mo="' + i + '">' + tomHm(h) + '</div>' +
+            '<div class="bkn-chi"' + (mo ? '' : ' inert') + '><div>' + chiHm(h, i) + '</div></div></div>'; }).join('') + '</section>').join('') +
+      (ds.length ? '' : '<div class="nho" style="padding:18px 4px">Chưa có dòng nào. Thường lấy từ tour có sẵn trong Base Sản phẩm, phát sinh thì thêm dòng tự nhập.</div>') +
+      (chot ? '' : '<div class="bkn-them"><span>Thêm dòng</span><button class="btn chinh nho" id="bkSp">Từ Base Sản phẩm</button><button class="btn nho" id="bkChon">Từ danh mục</button><button class="btn nho" id="bkThem">Tự nhập</button></div>') +
+      '</div></div>' +
       (goc.some((h) => h.ghiChu) ? '<div class="the"><div class="the-dau"><h2>Ghi chú dòng</h2></div><div class="the-than">' + goc.filter((h) => h.ghiChu).map((h) =>
         '<div style="margin-bottom:6px"><b>' + e(h.ten) + ':</b> <span class="nho">' + e(h.ghiChu) + '</span></div>').join('') + '</div></div>' : '') +
       '</div><div id="bkLich">' + htmlLichBk(ds, ht) + '</div></div>';
     setTimeout(() => ganBanDo(than), 0);
     /* Đã chốt: khoá mọi ô, chỉ còn xem (mở chốt ở băng phía trên). */
-    if (chot) { $$('.da-chot input, .da-chot select, .da-chot .nut-x', than).forEach((x) => { x.disabled = true; }); $('#bkLich').innerHTML = htmlLichBk(ds, ht); }
+    if (chot) { $$('.da-chot input, .da-chot select, .da-chot .bkn-xoa', than).forEach((x) => { x.disabled = true; }); $('#bkLich').innerHTML = htmlLichBk(ds, ht); }
     if (chot) { $('#bkFoc').onclick = () => moXinFoc(ht); return; }
-    $('#bkThem').onclick = () => { ds.push({ ten: '', nhom: 'Khác', ngay: ht.batDau || 0, loaiKhach: 'Người lớn', soLuong: ht.nguoiLon || 1, demLuot: 1, hinhThuc: 'Công ty chi', xinFoc: 'Không áp dụng', tinhTrang: 'Chờ', nguonDv: 'Nhập tay' }); S.sua.ban = true; veLai(); };
+    $('#bkThem').onclick = () => { const h = { ten: '', nhom: 'Khác', ngay: ht.batDau || 0, loaiKhach: 'Người lớn', soLuong: ht.nguoiLon || 1, demLuot: 1, hinhThuc: 'Công ty chi', xinFoc: 'Không áp dụng', tinhTrang: 'Chờ', nguonDv: 'Nhập tay' };
+      ds.push(h); S.sua.mo.add(h); S.sua.ban = true; veLai();
+      const o = $('.bkn-dong.mo [data-f="ten"]', than); if (o) { o.closest('.bkn-dong').scrollIntoView({ block: 'center', behavior: 'smooth' }); o.focus({ preventScroll: true }); } };
     $('#bkChon').onclick = () => moChonDichVu(ht, (moi) => { ds.push(...moi); S.sua.ban = true; veLai(); });
     $('#bkSp').onclick = () => moChonSanPham(ht, (moi) => { ds.push(...moi); S.sua.ban = true; veLai(); });
     $('#bkFoc').onclick = () => moXinFoc(ht);
@@ -1025,7 +1096,7 @@ function veBangKe(than, ht) {
   };
   than.oninput = than.onchange = (ev) => {
     if (!S.sua) return;   // bảng đã lưu + vẽ lại: sự kiện change muộn của ô vừa mất focus thì bỏ
-    const tr = ev.target.closest('tr[data-i]');
+    const tr = ev.target.closest('[data-i]');
     const f = ev.target.dataset.f;
     if (!tr || !f) return;
     const h = S.sua.ds[+tr.dataset.i];
@@ -1049,11 +1120,9 @@ function veBangKe(than, ht) {
     /* Ô gõ (chữ, số) KHÔNG vẽ lại cả bảng — mất con trỏ và nuốt cú bấm sang ô kế.
      * Chỉ cập nhật ô Thành tiền + dòng tổng + cột lịch trình. Chọn / tích / ngày thì vẽ lại được. */
     if (ev.type === 'change' && (x.tagName === 'SELECT' || x.type === 'checkbox' || x.type === 'date' || x.type === 'datetime-local')) return veLai();
-    const td = $('td.tt', tr);
-    if (td && h.hinhThuc === 'Công ty chi') td.textContent = tien(thanhTien(h));
-    const t = tong();
-    $('#bkTong').textContent = tien(t.tt);
-    $('#bkQd').textContent = chuQd(t.foc, t.qd);
+    const tom = $('.bkn-tom', tr);
+    if (tom) tom.innerHTML = tomHm(h);
+    capTong();
     if ($('#bkLichDs')) $('#bkLichDs').innerHTML = htmlLichBk(S.sua.ds, ht, true);
     $('#bkLuu').disabled = false;
     giuSua();
@@ -1061,13 +1130,38 @@ function veBangKe(than, ht) {
   than.onclick = async (ev) => {
     if (!S.sua) return;
     if (ev.target.closest('[data-bo-nhap]')) { nhapBo(kh); S.sua = null; return veBangKe(than, ht); }
+    if (ev.target.closest('[data-mo-het]')) {
+      const dong = S.sua.mo.size === 0;
+      S.sua.mo = new Set(dong ? S.sua.ds : []);
+      $$('.bkn-dong', than).forEach((d) => moDong(d, dong));
+      ev.target.closest('[data-mo-het]').textContent = dong ? 'Thu gọn hết' : 'Mở hết để sửa';
+      return;
+    }
+    const tom = ev.target.closest('[data-mo]');
+    if (tom) {
+      const h = S.sua.ds[+tom.dataset.mo];
+      const mo = !S.sua.mo.has(h);
+      if (mo) S.sua.mo.add(h); else S.sua.mo.delete(h);
+      return moDong(tom.closest('.bkn-dong'), mo);
+    }
     const x = ev.target.closest('[data-xoa]');
     if (!x) return;
     const h = S.sua.ds[+x.dataset.xoa];
     if (h.id && !(await hoi({ tieuDe: 'Xoá dòng', noiDung: '"' + (h.ten || '') + '" sẽ bị xoá khỏi Base khi bấm Lưu bảng kê.', nut: 'Xoá dòng', nguy: true }))) return;
     S.sua.ds.splice(+x.dataset.xoa, 1); S.sua.ban = true; veLai();
   };
+  than.onkeydown = (ev) => {
+    if ((ev.key === 'Enter' || ev.key === ' ') && ev.target.matches('.bkn-tom')) { ev.preventDefault(); ev.target.click(); }
+  };
   veLai();
+}
+/* Mở / đóng khung sửa của một dòng: chuyển động cả hai chiều (grid-template-rows 0fr ↔ 1fr). */
+function moDong(d, mo) {
+  if (!d) return;
+  d.classList.toggle('mo', mo);
+  $('.bkn-tom', d).setAttribute('aria-expanded', mo);
+  const chi = $('.bkn-chi', d);
+  if (mo) chi.removeAttribute('inert'); else chi.setAttribute('inert', '');
 }
 const chuQd = (foc, qd) => 'FOC quy đổi ' + tien(foc) + ' · tổng quy đổi ' + tien(qd);
 function choGhiHm(h) {
