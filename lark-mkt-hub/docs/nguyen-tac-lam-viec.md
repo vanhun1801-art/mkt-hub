@@ -15,6 +15,7 @@ Lớp giao diện chung nằm ở `public/ios.css`, `public/ios.js` (lớp vỏ)
     - bảng lưới hai chiều mà tiêu đề cột là ngày hoặc thứ (lịch người × ngày, lưới xếp hạng).
     - bảng Kanban: cột trạng thái xếp ngang, nhưng vuốt dừng đúng từng cột như lật trang, cột trống thì ẩn.
   - Bảng có ô nhập tới 9 cột cũng thành thẻ: tên cột ở trên, ô nhập trải hết bề ngang. Bảng tính sửa tại ô nhiều cột hơn (Bảng công việc › Bảng) là việc của máy tính, nên tab đó ẩn trên điện thoại.
+  - Danh sách hạng mục có nhiều ô sửa (bảng kê KOL, 17/10/2026) không dàn thành bảng nhiều cột, kể cả trên máy tính. Mỗi dòng là một thẻ gọn chỉ hiện thứ cần nắm (giờ, tên, đối tác, khách, trạng thái, tiền); bấm vào mới mở khung sửa có tên từng ô. Nhóm theo ngày, tổng và việc còn dở đặt trên đầu.
   - Biểu đồ cột tới 8 cột phải co vừa màn. Từ 9 cột trở lên mới cho vuốt ngang.
 - Không thu phóng được. Ô nhập có chữ 16px, để iPhone không tự phóng to khi chạm vào.
 - Giao diện kiểu ứng dụng chứ không kiểu website:
