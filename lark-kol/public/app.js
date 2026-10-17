@@ -1163,6 +1163,9 @@ function moDong(d, mo) {
   const chi = $('.bkn-chi', d);
   if (mo) chi.removeAttribute('inert'); else chi.setAttribute('inert', '');
 }
+/* Tên đối tác gõ tay hay lệch hoa/thường ("Vinpearl" / "VinPearl"): coi là một, giữ cách viết gặp đầu. */
+const cungDt = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
+const dsDtGop = (ds) => { const m = new Map(); for (const x of ds) { const t = String(x || '').trim(); if (t && !m.has(t.toLowerCase())) m.set(t.toLowerCase(), t); } return [...m.values()]; };
 const chuQd = (foc, qd) => 'FOC quy đổi ' + tien(foc) + ' · tổng quy đổi ' + tien(qd);
 function choGhiHm(h) {
   const o = {};
@@ -1180,10 +1183,10 @@ async function moXinFoc(ht) {
     return;
   }
   const hm = S.dl.hangMuc.filter((h) => h.hopTac === ht.id && h.tinhTrang !== 'Huỷ');
-  const dt = [...new Set(hm.map((h) => h.nhaCungCap).filter(Boolean))];
+  const dt = dsDtGop(hm.map((h) => h.nhaCungCap));
   const hop = moModal('Đề xuất hợp tác FOC', dt.length ? '<table class="bang"><thead><tr><th>Đối tác</th><th>Dịch vụ</th><th>Trạng thái</th><th>Email</th><th></th></tr></thead><tbody>' +
     dt.map((ten) => {
-      const ds = hm.filter((h) => h.nhaCungCap === ten);
+      const ds = hm.filter((h) => cungDt(h.nhaCungCap, ten));
       const tt = [...new Set(ds.map((h) => h.xinFoc || 'Không áp dụng'))];
       const d = S.dl.doiTac.find((x) => x.ten.toLowerCase() === ten.toLowerCase());
       return '<tr><td><b>' + e(ten) + '</b></td><td>' + e([...new Set(ds.map((h) => tenGon(h.ten)))].join('; ')) + '</td><td>' + tt.map((x) => nhanTT(x, MAU_FOC[x])).join(' ') +
@@ -1590,8 +1593,8 @@ function veEmail(than, ht) {
     (dt ? ' data-dt="' + e(dt) + '"' : '') + '>Soạn</button></div>';
   const hm = S.dl.hangMuc.filter((h) => h.hopTac === ht.id && h.tinhTrang !== 'Huỷ');
   const bg = S.dl.banGiao.filter((b) => b.hopTac === ht.id);
-  const dtFoc = [...new Set(hm.map((h) => h.nhaCungCap).filter(Boolean))];
-  const dtBg = [...new Set(bg.map((b) => String(b.traDoiTac || '').trim()).filter(Boolean))];
+  const dtFoc = dsDtGop(hm.map((h) => h.nhaCungCap));
+  const dtBg = dsDtGop(bg.map((b) => b.traDoiTac));
   const kyHieu = (ms, tl) => (ms ? 'Đã gửi ' + ddmm(ms) + ' ' + hhmm(ms) : 'Chưa gửi') + (tl ? ' · đã có trả lời' : '');
   than.innerHTML = '<div class="the"><div class="the-dau"><h2>Ban Giám Đốc &amp; KOL</h2></div><div class="the-than"><div class="the-email">' +
     o('de-xuat', 'Trình Ban Giám Đốc', kyHieu(ht.trinhLuc, ht.bgdTraLoi)) +
@@ -1599,9 +1602,9 @@ function veEmail(than, ht) {
     o('bao-cao', 'Báo cáo kết quả cho BGĐ', ht.kq.daDang + '/' + ht.kq.camKet + ' sản phẩm đã đăng') + '</div></div></div>' +
     '<div class="the"><div class="the-dau"><h2>Đối tác</h2></div><div class="the-than">' +
     (dtFoc.length || dtBg.length ? '<div class="the-email">' +
-      dtFoc.map((d) => { const ds = hm.filter((h) => h.nhaCungCap === d); const tt = [...new Set(ds.map((h) => h.xinFoc || 'Không áp dụng'))].join(', ');
+      dtFoc.map((d) => { const ds = hm.filter((h) => cungDt(h.nhaCungCap, d)); const tt = [...new Set(ds.map((h) => h.xinFoc || 'Không áp dụng'))].join(', ');
         return o('xin-foc', 'Đề xuất hợp tác · ' + d, tt + (ds[0].xinFocLuc ? ' · gửi ' + ddmm(ds[0].xinFocLuc) : ''), d); }).join('') +
-      dtBg.map((d) => o('bao-cao-doi-tac', 'Báo cáo cho ' + d, bg.filter((b) => String(b.traDoiTac || '').trim() === d).length + ' sản phẩm trả đối tác', d)).join('') + '</div>'
+      dtBg.map((d) => o('bao-cao-doi-tac', 'Báo cáo cho ' + d, bg.filter((b) => cungDt(b.traDoiTac, d)).length + ' sản phẩm trả đối tác', d)).join('') + '</div>'
       : '<div class="nho">Điền cột Đối tác trong bảng kê (hợp tác FOC) hoặc "Trả cho đối tác" ở tab Bàn giao để soạn thư cho đối tác.</div>') +
     '</div></div>';
   than.onclick = (ev) => { const b = ev.target.closest('[data-em]'); if (b) moEmail(ht, b.dataset.em, b.dataset.dt); };
@@ -1650,6 +1653,9 @@ async function moEmail(ht, loai, dt, lang) {
     '<button class="btn chinh" id="emGui"' + (m.chan || !guiDuoc ? ' disabled' : '') + '>Gửi ngay</button>', true);
   const goi = async (gui) => {
     const b = { den: $('#emDen').value, cc: $('#emCc').value, tieuDe: $('#emTd').value, html: $('#emThan').innerHTML, gui, lang: m.lang || 'vi' };
+    const sai = String(b.den + ',' + b.cc).split(/[,;\s]+/).filter(Boolean).filter((x) => !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x));
+    if (gui && !b.den.trim()) { toast('Chưa có người nhận. Điền email vào ô Gửi.', true); return $('#emDen').focus(); }
+    if (gui && sai.length) { toast('Email chưa đúng dạng: ' + sai.join(', '), true); return; }
     if (gui && !(await hoi({ tieuDe: 'Gửi email', noiDung: '"' + b.tieuDe + '" tới ' + b.den + (b.cc ? ' (CC ' + b.cc + ')' : '') + '. Gửi đi là không thu hồi được.', nut: 'Gửi ngay' }))) return;
     $$('.hop-chan .btn', hop).forEach((x) => { x.disabled = true; });
     try {
@@ -1669,7 +1675,18 @@ async function moEmail(ht, loai, dt, lang) {
   const khNhap = 'kol.thu.' + ht.id + '.' + loai + '.' + (dt || '') + '.' + (m.lang || 'vi');
   let nhap = null;
   try { nhap = JSON.parse(localStorage.getItem(khNhap) || 'null'); } catch (_) {}
-  if (nhap && Date.now() - nhap.at < 14 * 864e5) {
+  const vanTay = (x) => { let h = 0; for (const c of String(x || '')) h = (h * 31 + c.charCodeAt(0)) | 0; return h; };
+  const mau = vanTay(m.tieuDe + m.html);
+  const doiMau = nhap && nhap.mau != null && nhap.mau !== mau;
+  if (nhap && Date.now() - nhap.at < 14 * 864e5 && doiMau) {
+    const bao = document.createElement('div');
+    bao.className = 'bao cam';
+    bao.innerHTML = 'Nội dung gốc đã đổi từ lúc anh soạn dở (' + new Date(nhap.at).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) +
+      '), nên đang hiện bản mới. <button type="button" class="btn nho" id="emMoNhap">Mở bản soạn dở</button>';
+    const dau = $('.thu-dau', hop);
+    dau.parentElement.insertBefore(bao, dau);
+    $('#emMoNhap').onclick = () => { $('#emDen').value = nhap.den || ''; $('#emCc').value = nhap.cc || ''; $('#emTd').value = nhap.tieuDe || ''; $('#emThan').innerHTML = nhap.html || ''; bao.remove(); };
+  } else if (nhap && Date.now() - nhap.at < 14 * 864e5) {
     $('#emDen').value = nhap.den || ''; $('#emCc').value = nhap.cc || ''; $('#emTd').value = nhap.tieuDe || ''; $('#emThan').innerHTML = nhap.html || '';
     const bao = document.createElement('div');
     bao.className = 'bao xanh';
@@ -1685,7 +1702,7 @@ async function moEmail(ht, loai, dt, lang) {
     if (ev && ev.target) ev.target.dispatchEvent(new CustomEvent('ios-nhap-xong', { bubbles: true }));
     clearTimeout(henNhap);
     henNhap = setTimeout(() => {
-      try { localStorage.setItem(khNhap, JSON.stringify({ at: Date.now(), den: $('#emDen').value, cc: $('#emCc').value, tieuDe: $('#emTd').value, html: $('#emThan').innerHTML })); } catch (_) {}
+      try { localStorage.setItem(khNhap, JSON.stringify({ at: Date.now(), mau, den: $('#emDen').value, cc: $('#emCc').value, tieuDe: $('#emTd').value, html: $('#emThan').innerHTML })); } catch (_) {}
     }, 500);
   };
   ['#emDen', '#emCc', '#emTd', '#emThan'].forEach((x) => { const o = $(x); if (o) o.addEventListener('input', giuNhap); });

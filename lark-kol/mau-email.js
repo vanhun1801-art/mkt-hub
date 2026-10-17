@@ -338,7 +338,7 @@ function xinFoc({ ht, kol, kenh, hm, bg, doiTac, tenDoiTac }, cfg) {
       ' đồng hành tài trợ (FOC) các dịch vụ dưới đây, đổi lại là các quyền lợi truyền thông cho thương hiệu trên kênh của KOL.'),
     '<table style="border-collapse:collapse;font-size:13px;margin:6px 0 10px"><tr>' +
       ['Ngày', 'Dịch vụ', 'Số khách'].map((c) => '<th style="' + O + 'background:' + XANH + ';color:#fff">' + c + '</th>').join('') + '</tr>' +
-      [...gom.values()].map((x) => '<tr><td style="' + O + '">' + (x.ngay ? T.ddmm(x.ngay) + (x.gio ? ' ' + T.hhmm(x.gio) : '') : '') + '</td><td style="' + O + '">' +
+      [...gom.values()].map((x) => '<tr><td style="' + O + '">' + (x.ngay ? T.ddmm(x.ngay) + (x.gio && T.hhmm(x.gio) !== '00:00' ? ' ' + T.hhmm(x.gio) : '') : '') + '</td><td style="' + O + '">' +
         esc(x.ten) + '</td><td style="' + O + '">' + esc(x.khach.join(' + ')) + '</td></tr>').join('') + '</table>',
     H('Kênh của KOL'),
     (kenh || []).filter((k) => !k.reup).map((k) => '<p style="margin:0 0 2px;padding-left:14px">' + esc(k.nenTang) + ': ' +

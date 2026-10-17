@@ -710,6 +710,21 @@ async function api(req, res, u) {
   }
 
   /* ----- email đề xuất hợp tác FOC: một đối tác một thư, gom mọi dòng của đối tác đó ----- */
+  /* Bảng kê ghi "Times Corner", danh bạ đối tác ghi "KS TIMES CORNER": vẫn là một nơi. */
+  function timDoiTac(ds, ten) {
+    const cung = (s) => String(s || '').trim().toLowerCase() === ten.toLowerCase();
+    const dung = ds.find((x) => cung(x.ten));
+    if (dung && dung.email) return dung;
+    const goc = (s) => ' ' + String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/gi, 'd').toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ').replace(/ (ks|khach san|nha hang|resort|hotel|cong ty|cty) /g, ' ').trim() + ' ';
+    const k = goc(ten).trim();
+    if (k.length < 4) return dung || null;
+    const khop = ds.filter((x) => { const g = goc(x.ten); return g.trim().length >= 4 && (g.includes(' ' + k + ' ') || (' ' + k + ' ').includes(g)); });
+    /* tên đúng mà chưa có email ("GRAND BAY") thì lấy dòng gần tên có email ("KS GRAND BAY"), miễn là duy nhất */
+    const coEmail = khop.filter((x) => x.email);
+    if (dung) return coEmail.length === 1 ? coEmail[0] : dung;
+    return khop.length === 1 ? khop[0] : coEmail.length === 1 ? coEmail[0] : null;
+  }
   if ((r = /^\/api\/hop-tac\/(rec\w+)\/email\/(xin-foc|bao-cao-doi-tac)$/.exec(p))) {
     const dt = String(u.searchParams.get('dt') || '').trim();
     const dl = await kho.tatCa({ moi: m === 'POST' });
@@ -717,7 +732,7 @@ async function api(req, res, u) {
     if (!g) return loi(res, 404, 'Không thấy hợp tác');
     const cung = (s) => String(s || '').trim().toLowerCase() === dt.toLowerCase();
     const dong = g.hm.filter((h) => cung(h.nhaCungCap) && h.tinhTrang !== 'Huỷ');
-    const doiTac = dl.doiTac.find((x) => cung(x.ten)) || null;
+    const doiTac = timDoiTac(dl.doiTac, dt);
     if (r[2] === 'bao-cao-doi-tac') {
       if (!dt || !g.bg.some((b) => cung(b.traDoiTac))) return loi(res, 400, 'Chưa có sản phẩm bàn giao nào ghi "Trả cho đối tác" = "' + dt + '"');
       if (m === 'GET') return json(res, { ...EM.baoCaoDoiTac({ ...g, doiTac, tenDoiTac: dt }), cc: doiTac ? doiTac.cc : '', from: cfg.mail.from || (cfg.mode === 'api' ? 'cmo@rootytrip.com' : '(hộp thư chính)') });
