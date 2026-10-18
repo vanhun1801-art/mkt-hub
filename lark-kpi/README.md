@@ -132,11 +132,29 @@ sửa hai chỗ. Ở đây chỉ có một: `nguoi.tieuChi[].nguon.kieu` quyết
 từ đâu — `kenh`, `chiSo`, hay `tay`.
 
 ```
-nhom[]   kênh × loại nội dung → tiêu chí { mục tiêu, tỷ trọng, mã nguồn số liệu }
-nguoi[]  tiêu chí tính lương { trọng số, nguồn } + bảng phân bổ tỷ trọng kênh
+nhom[]   kênh × loại nội dung → tiêu chí { mục tiêu, tỷ trọng, mã nguồn số liệu, dao }
+nguoi[]  tiêu chí tính lương { trọng số, nguồn, mục tiêu, dao } + bảng phân bổ tỷ trọng kênh
 heSo     hệ số quy đổi theo mục đích nội dung (Bán hàng 1,0 · Tương tác 0,2)
 buView   { bật, chiaNguong, tyLeChoPhep }
 ```
+
+### `dao` — chỉ số thấp mới tốt
+
+CPA, CPC, chi phí, tỷ lệ huỷ, số việc quá hạn đi ngược mọi chỉ số còn lại. Mục
+tiêu CPA 20.000đ mà đạt 10.000đ là làm tốt gấp đôi, nhưng `kết quả ÷ mục tiêu`
+ra 50% và TRỪ điểm. Khai `dao: true` thì công thức lật thành `mục tiêu ÷ kết
+quả`.
+
+Kết quả **bằng 0** không phải "tốt vô hạn" — CPA bằng 0 nghĩa là chưa tiêu đồng
+nào hoặc chưa có đơn nào. Tiêu chí đó bị loại khỏi nhóm kèm cảnh báo, chứ không
+cho điểm vô cực làm hỏng cả bảng lương.
+
+### `chiSo` có mục tiêu và không có mục tiêu
+
+Tiêu chí `kieu: 'chiSo'` **có** `mucTieu` thì điểm là tỷ lệ đạt. **Không có** thì
+con số đổ về đã là tỷ lệ sẵn — tám tháng nhập từ Excel khai kiểu đó (SEO 0,95
+nghĩa là đạt 95%), nên đường cũ phải giữ nguyên, nếu không là tính lại sai cả
+tám tháng đã trả lương.
 
 ## Bốn chốt chặn
 

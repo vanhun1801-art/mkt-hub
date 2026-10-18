@@ -97,7 +97,12 @@ function theNhomMucTieu(tenNhom, ds, layO) {
         '<td class="mt-kenh">' + (i === 0
           ? '<b>' + esc(x.tenKenh) + '</b><span class="sub-line">' + esc(x.n.loai || '') + '</span>'
           : '') + '</td>'
-        + '<td>' + esc(c.ten) + '</td>'
+        /* Chỉ số thấp-là-tốt phải nói ra ngay cạnh tên, không để ở chú thích
+         * cuối bảng: người đặt mục tiêu CPA mà tưởng cao là tốt thì đặt ngược
+         * cả con số, và bảng vẫn trông hợp lý. */
+        + '<td>' + esc(c.ten)
+        + (c.dao ? ' <span class="nhan-o im" title="Đạt thấp hơn mục tiêu là tốt">thấp là tốt</span>' : '')
+        + '</td>'
         + '<td class="so mo">' + (dn
           ? (dn.boQua ? '<span class="nhan-o im">chưa đo</span>' : gon(dn.ketQua))
           : '—') + '</td>'

@@ -365,7 +365,8 @@ function moTieuChi(n, tc, banNhom) {
       const t = el('table');
       t.innerHTML = '<thead><tr><th>Chỉ số</th><th class="so">Đang có</th>'
         + '<th class="so">Mục tiêu</th><th class="so">% đạt</th><th class="so">Tỷ trọng</th></tr></thead>'
-        + '<tbody>' + ct.map((x) => '<tr><td>' + esc(x.ten) + '</td>'
+        + '<tbody>' + ct.map((x) => '<tr><td>' + esc(x.ten)
+          + (x.dao ? ' <span class="nhan-o im">thấp là tốt</span>' : '') + '</td>'
           + '<td class="so">' + (x.boQua ? '<span class="nhan-o im">chưa đo được</span>' : gon(x.ketQua)) + '</td>'
           + '<td class="so nhat">' + gon(x.mucTieu) + '</td>'
           + '<td class="so">' + ptLon(x.boQua ? null : x.datMucTieu) + '</td>'

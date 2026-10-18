@@ -61,13 +61,46 @@ function chamNhom(nhom, soLieu, canhBao) {
   let diem = 0;
   doDuoc.forEach((t) => {
     const kq = soLieu[t.nguon];
-    const dat = t.mucTieu > 0 ? kq / t.mucTieu : 0;
+    /* CHỈ SỐ THẤP MỚI TỐT thì phải LẬT CÔNG THỨC.
+     *
+     * Anh Hùng 18/10/2026 chốt chấm Hùng bằng CPA — chi phí cho một đơn. Mục
+     * tiêu CPA 20.000đ mà đạt 10.000đ là làm tốt gấp đôi, nhưng công thức
+     * `kết quả ÷ mục tiêu` lại ra 50% và trừ điểm. Cùng loại với CPC, chi phí,
+     * tỷ lệ huỷ, số việc quá hạn.
+     *
+     * Tiêu chí dạng này khai `dao: true`, và điểm là `mục tiêu ÷ kết quả`.
+     *
+     * Kết quả BẰNG 0 thì không chia được, mà cũng không có nghĩa là "tốt vô
+     * hạn": CPA bằng 0 nghĩa là chưa tiêu đồng nào hoặc chưa có đơn nào. Trả
+     * null để tầng trên xếp vào "chưa đo được" thay vì cho điểm vô cực. */
+    let dat;
+    if (t.dao) {
+      dat = (t.mucTieu > 0 && kq > 0) ? t.mucTieu / kq : null;
+    } else {
+      dat = t.mucTieu > 0 ? kq / t.mucTieu : 0;
+    }
+    if (dat == null) {
+      ra.push({
+        ma: t.ma, ten: t.ten || t.ma, nguon: t.nguon,
+        mucTieu: t.mucTieu, ketQua: kq, dao: true,
+        datMucTieu: null, tyTrong: 0, tyTrongGoc: t.tyTrong, diem: 0,
+        boQua: true,
+        lyDo: kq === 0
+          ? 'Kết quả bằng 0 nên không tính được tỷ lệ cho chỉ số thấp-là-tốt'
+          : 'Chưa đặt mục tiêu',
+      });
+      canhBao.push({
+        muc: 'canhBao', o: ten + ' · ' + (t.ten || t.ma),
+        viec: 'Chỉ số thấp-là-tốt mà kết quả bằng 0 — chưa chấm được, đã loại khỏi nhóm',
+      });
+      return;
+    }
     const tyTrong = t.tyTrong / tongDoDuoc;   // chia lại về tổng 100%
     const d = tyTrong * dat;
     diem += d;
     ra.push({
       ma: t.ma, ten: t.ten || t.ma, nguon: t.nguon,
-      mucTieu: t.mucTieu, ketQua: kq,
+      mucTieu: t.mucTieu, ketQua: kq, dao: !!t.dao,
       datMucTieu: dat, tyTrong, tyTrongGoc: t.tyTrong, diem: d,
       boQua: false,
     });
@@ -78,7 +111,10 @@ function chamNhom(nhom, soLieu, canhBao) {
     if (dat > L.NGUONG.cao) {
       canhBao.push({
         muc: 'canhBao', o: ten + ' · ' + (t.ten || t.ma),
-        viec: 'Đạt ' + pt(dat) + ' mục tiêu, mục tiêu ' + gon(t.mucTieu) + ' có vẻ đặt quá thấp',
+        /* Với chỉ số thấp-là-tốt thì "đặt quá thấp" là nói ngược — mục tiêu
+         * CPA dễ nghĩa là đặt quá CAO. */
+        viec: 'Đạt ' + pt(dat) + ' mục tiêu, mục tiêu ' + gon(t.mucTieu)
+          + (t.dao ? ' có vẻ đặt quá cao (chỉ số này thấp mới tốt)' : ' có vẻ đặt quá thấp'),
       });
     } else if (dat < L.NGUONG.thap) {
       canhBao.push({
@@ -169,13 +205,31 @@ function chamThang(luat, soLieu, chamTay, thang) {
         ghi = theoKenh.chiTiet.length + ' kênh';
       } else if (kieu === 'chiSo') {
         const v = soLieu[t.nguon.ma];
-        if (soHopLe(v)) diem = v;
-        else {
+        if (!soHopLe(v)) {
           diem = null;
           canhBao.push({
             muc: 'chan', o: (ng.ten || ng.ma) + ' · ' + (t.ten || t.ma),
             viec: 'Chưa có số cho chỉ số "' + t.nguon.ma + '"',
           });
+        } else if (soHopLe(t.mucTieu) && t.mucTieu > 0) {
+          /* CÓ MỤC TIÊU thì điểm là TỶ LỆ ĐẠT, không phải con số thô.
+           *
+           * Tám tháng nhập từ Excel khai `chiSo` mà không có mục tiêu: ô đó đã
+           * là tỷ lệ sẵn (SEO 0,95 nghĩa là đạt 95%), nên vẫn giữ đường cũ.
+           * Còn chỉ số đổ về từ app là số thật — CPA 22.400 đồng — lấy thẳng
+           * làm điểm thì điểm người đó thành 22.400 lần trọng số.
+           *
+           * `dao` cho chỉ số thấp-là-tốt: CPA, CPC, chi phí. */
+          diem = t.dao ? (v > 0 ? t.mucTieu / v : null) : v / t.mucTieu;
+          if (diem == null) {
+            canhBao.push({
+              muc: 'canhBao', o: (ng.ten || ng.ma) + ' · ' + (t.ten || t.ma),
+              viec: 'Chỉ số thấp-là-tốt mà kết quả bằng 0 — chưa chấm được',
+            });
+          }
+          ghi = gon(v) + ' / mục tiêu ' + gon(t.mucTieu) + (t.dao ? ' (thấp hơn là tốt)' : '');
+        } else {
+          diem = v;
         }
       } else if (kieu === 'tay') {
         const v = tay[t.ma];

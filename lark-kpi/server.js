@@ -1010,6 +1010,10 @@ async function api(req, res, u) {
           tieuChi: (n.tieuChi || []).map((tc) => ({
             ten: tc.ten, ketQua: tc.ketQua, mucTieu: tc.mucTieu,
             datMucTieu: tc.datMucTieu, boQua: !!tc.boQua, tyTrong: tc.tyTrong,
+            /* Chiều của chỉ số phải đi kèm con số. Thiếu nó thì "CPA 22.400 ·
+             * đạt 89%" đọc ra là chưa đạt, trong khi đó là tiêu ít hơn dự
+             * tính — tức là tốt. */
+            dao: !!tc.dao,
           })),
         })),
       });
