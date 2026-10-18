@@ -94,6 +94,12 @@ function goi(url, giay = 20) {
   });
 }
 
+/** Danh sách bài của một khoảng, lấy thẳng từ app Social. */
+async function layBai(tu, den) {
+  const r = await goi(DIA_CHI.social + '/api/bai?from=' + tu + '&to=' + den + '&n=100000', 120);
+  return (r && r.bai) || [];
+}
+
 /** Ngày đầu và cuối của một tháng 'YYYY-MM'. */
 function khoang(thang) {
   const [y, m] = thang.split('-').map(Number);
@@ -106,7 +112,7 @@ function khoang(thang) {
  * @returns { soLieu, nhatKy: [{ma, nguon, so, trangThai, ghi}] }
  *   trangThai: 'lay-duoc' | 'thieu' | 'loi'
  */
-async function docTuApp(thang, luat, khoangRieng) {
+async function docTuApp(thang, luat, khoangRieng, kho) {
   /* `khoangRieng` cho phép đọc một lát cắt ngắn hơn tháng — dùng cho tiến độ
    * theo tuần: cùng bộ luật, chỉ đổi cửa sổ thời gian. */
   const { tu, den } = khoangRieng && khoangRieng.tu && khoangRieng.den
@@ -156,10 +162,21 @@ async function docTuApp(thang, luat, khoangRieng) {
    */
   let dsBai = null;
   if (!loiApp.social) {
-    try {
-      const r = await goi(DIA_CHI.social + '/api/bai?from=' + tu + '&to=' + den + '&n=100000', 90);
-      dsBai = (r && r.bai) || [];
-    } catch (e) { loiApp.bai = e.message; }
+    /* Màn Tiến độ gọi hàm này một lần cho MỖI MỐC TUẦN — cùng một tháng, chỉ
+     * khác ngày kết thúc. Danh sách bài của cả tháng nặng vài MB, kéo lại từng
+     * mốc là tốn gấp mấy lần cho đúng một bộ dữ liệu. Nên người gọi đưa sẵn
+     * danh sách của cả tháng vào `kho`, ở đây chỉ cắt theo ngày. */
+    if (kho && kho.bai) {
+      dsBai = kho.bai.filter((p) => {
+        const d = (p.publishedAt || p.date || '').slice(0, 10);
+        return !d || (d >= tu && d <= den);
+      });
+    } else {
+      try {
+        const r = await goi(DIA_CHI.social + '/api/bai?from=' + tu + '&to=' + den + '&n=100000', 90);
+        dsBai = (r && r.bai) || [];
+      } catch (e) { loiApp.bai = e.message; }
+    }
   }
 
   /* Cộng bài theo kênh, và theo kênh × người đăng. Hai bảng dựng một lượt. */
@@ -188,10 +205,19 @@ async function docTuApp(thang, luat, khoangRieng) {
    * App Quảng cáo đã gom sẵn theo kênh (`/api/tin-nhan`) với luật "có thẻ của
    * Sale là lead" — dùng lại đúng con số đó thay vì tự định nghĩa lần hai. */
   let tinNhan = null;
-  try {
-    const r = await goi(DIA_CHI['quang-cao'] + '/api/tin-nhan?tu=' + tu + '&den=' + den, 120);
-    tinNhan = r || null;
-  } catch (e) { loiApp.tinNhan = e.message; }
+  /* Pancake phải phân trang từng trang nên một lượt gom mất hàng chục giây.
+   * Màn Tiến độ hỏi nhiều mốc tuần, mỗi mốc một khoảng khác nhau nên bộ nhớ
+   * đệm bên app Quảng cáo không đỡ được. Cho người gọi nhớ hộ theo khoảng. */
+  const khoaTn = tu + '|' + den;
+  if (kho && kho.tinNhan && kho.tinNhan.has(khoaTn)) {
+    tinNhan = kho.tinNhan.get(khoaTn);
+  } else {
+    try {
+      const r = await goi(DIA_CHI['quang-cao'] + '/api/tin-nhan?tu=' + tu + '&den=' + den, 180);
+      tinNhan = r || null;
+    } catch (e) { loiApp.tinNhan = e.message; }
+    if (kho && kho.tinNhan) kho.tinNhan.set(khoaTn, tinNhan);
+  }
   const leadTheoKenh = new Map();
   ((tinNhan && tinNhan.rows) || []).forEach((r) => {
     leadTheoKenh.set(chuan(r.platform) + '|' + chuan(r.channel),
@@ -559,6 +585,6 @@ function ghepFile(bang, luat) {
  * Khớp kênh là chỗ đã từng sai một lần (điền view TikTok vào ô Facebook vì tên
  * kênh trùng nhau) — chỉ được có MỘT bản luật khớp trong cả app. */
 module.exports = {
-  docTuApp, tachBang, ghepFile, doSo, khoang, DIA_CHI,
+  docTuApp, layBai, tachBang, ghepFile, doSo, khoang, DIA_CHI,
   tach, chuan, NEN_TANG, CHI_SO_BAI, CHI_SO_LIVE,
 };

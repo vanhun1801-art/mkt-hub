@@ -39,9 +39,12 @@ function gon(n) {
 let META = null;
 let THANG = '';
 let DATA = null;           // kết quả tháng đang xem
-let TAB = 'phieu';
+let TAB = 'kpi';
 let SUA = { mucTieu: {}, tyTrong: {} };   // bộ sửa đang thử
 let THU = null;            // kết quả thử luật
+/* Bấm Làm mới thì lượt gọi tiến độ SAU ĐÓ phải đi vòng qua chỗ nhớ của máy
+ * chủ, nếu không thì bấm xong vẫn thấy đúng con số cũ. */
+let TD_MOI = false;
 
 async function goi(duong, opts) {
   const r = await fetch('api/' + duong, Object.assign({ headers: { 'Content-Type': 'application/json' } }, opts));
@@ -169,7 +172,7 @@ async function khoiDong() {
   sel.onchange = () => { THANG = sel.value; SUA = { mucTieu: {}, tyTrong: {} }; THU = null; TD = null; TQ = null; napThang(); };
   /* Làm mới phải xoá cả hai bộ nhớ đệm phía trình duyệt, không thì bấm xong vẫn
    * thấy số cũ của tab Tiến độ và Tổng quan — người dùng tưởng app treo. */
-  $('#btnLamMoi').onclick = () => { TD = null; TQ = null; napThang(); };
+  $('#btnLamMoi').onclick = () => { TD = null; TQ = null; TD_MOI = true; napThang(); };
 
   /* App có HAI nửa, xếp theo đúng thứ tự đó:
    *   BÁO CÁO — gom mọi base theo khoảng thời gian, xuất tệp gửi Sếp
@@ -181,9 +184,10 @@ async function khoiDong() {
    * kênh của mình. Chưa khai thì giấu tab, vì mở ra chỉ để báo lỗi thì thà
    * đừng hiện. */
   if (META.nguoiXem.quanLy || META.nguoiXem.coPhamVi) tabs.push(['baocao', 'Báo cáo']);
-  tabs.push(['tiendo', 'Tiến độ KPI']);
-  if (META.nguoiXem.quanLy) tabs.push(['tong', 'Tổng quan KPI']);
-  tabs.push(['phieu', 'Phiếu KPI']);
+  /* MỘT tab KPI, không còn bốn. Tiến độ, phiếu, xu hướng và chốt là bốn câu hỏi
+   * về CÙNG một tháng của CÙNG những người — tách tab chỉ bắt người đọc tự ghép
+   * lại trong đầu. Xem chú thích ở veKPI(). */
+  tabs.push(['kpi', 'KPI']);
   if (META.nguoiXem.quanLy) {
     /* "Phân công" đứng ngay trước "Mục tiêu & thử luật" vì hai tab này là hai
      * tầng của cùng một bộ luật: phân công quyết định AI gánh kênh nào, mục
@@ -193,7 +197,7 @@ async function khoiDong() {
      * người bên Bảng công việc (dịch là "Assign" — đúng nghĩa bên đó). Trùng
      * chuỗi thì tab này ăn nhầm bản dịch của app khác. */
     tabs.push(['nguon', 'Nguồn số liệu'], ['phancong', 'Phân công kênh'],
-      ['thu', 'Mục tiêu & thử luật'], ['soat', 'Soát & chốt']);
+      ['thu', 'Mục tiêu & thử luật']);
   }
   TAB = tabs[0][0];
   $('#tabs').innerHTML = tabs.map(([k, t]) =>
@@ -277,13 +281,10 @@ function ve() {
   if (TAB === 'baocao') return veBaoCao();
   /* Mọi tab KPI đều ăn theo DATA của một tháng; kho rỗng thì không có gì để vẽ. */
   if (KHO_RONG) return veKhoRong();
-  if (TAB === 'tiendo') veTienDo();
-  else if (TAB === 'tong') veTongQuan();
-  else if (TAB === 'phieu') vePhieu();
+  if (TAB === 'kpi') veKPI();
   else if (TAB === 'nguon') veNguon();
   else if (TAB === 'phancong') vePhanCong();
-  else if (TAB === 'thu') veThu();
-  else veSoat();
+  else veThu();
 }
 
 /* Tải một tệp do server sinh ra. Dùng thẻ <a download> chứ không fetch rồi tạo
@@ -521,11 +522,23 @@ async function veNguon() {
  * đưa vào đường xu hướng là vẽ ra một cú sụp không có thật. */
 let TQ = null;
 async function veTongQuan() {
+  const g = await dungTongQuan();
+  if (!g) return;
+  $('#noiDung').innerHTML = '';
+  $('#noiDung').appendChild(g);
+}
+
+/** Dựng khối Tổng quan nhiều tháng và trả về. */
+async function dungTongQuan(oCho) {
+  /* Xem chú thích `oCho` ở dungTienDo(): tab KPI xếp nhiều khối chồng nhau nên
+   * khối nạp sau không được phép ghi đè cả màn. */
+  const cho = (h) => { if (oCho) oCho.innerHTML = h; else $('#noiDung').innerHTML = h; };
   if (!TQ) {
-    $('#noiDung').innerHTML = '<div class="rong">đang dựng tổng quan…</div>';
+    cho('<div class="rong">đang dựng tổng quan…</div>');
     try { TQ = await goi('tong-quan-kpi'); }
-    catch (e) { $('#noiDung').innerHTML = '<div class="rong">' + esc(e.message) + '</div>'; return; }
+    catch (e) { cho('<div class="rong">' + esc(e.message) + '</div>'); return null; }
   }
+  if (oCho) oCho.innerHTML = '';
   const g = el('div');
   const nhan = (th) => 'T' + Number(th.slice(5));
 
@@ -656,12 +669,58 @@ async function veTongQuan() {
   t4.appendChild(el('div', 'bang-cuon')).appendChild(b4);
   g.appendChild(t4);
 
+  return g;
+}
+
+/**
+ * TAB KPI — bốn màn cũ gộp thành một trang.
+ *
+ * Anh Hùng 18/10/2026: "nên gom thành 1 tab duy nhất, nơi anh có thể xem tiến
+ * độ KPI của từng thành viên, KPI của các chỉ số đang theo dõi, các kênh, phiếu
+ * KPI xuất ra".
+ *
+ * Trước đây một câu hỏi phải đi bốn tab mới trả lời xong: Tiến độ cho biết bạn
+ * ấy đang mấy %, Phiếu KPI cho biết điểm tính lương, Phân công cho biết bạn ấy
+ * gánh kênh nào, Soát & chốt cho biết còn thiếu gì. Bốn màn bốn con số, và
+ * không màn nào nối được chúng lại.
+ *
+ * Thứ tự trên trang đi từ "đang thế nào" tới "làm gì tiếp":
+ *   1. tiến độ so nhịp chuẩn — bấm một người là bung ra chỉ số đang gán
+ *   2. điểm tính lương và chấm tay
+ *   3. xu hướng nhiều tháng (chỉ trưởng phòng)
+ *   4. soát và chốt (chỉ trưởng phòng)
+ */
+async function veKPI() {
+  const g = el('div');
+  const khoi = await dungTienDo();
+  if (!khoi) return;                       // dungTienDo đã tự in lỗi ra màn
+  g.appendChild(khoi);
+  g.appendChild(dungPhieu());
+
   $('#noiDung').innerHTML = '';
   $('#noiDung').appendChild(g);
+
+  /* Hai khối dưới gọi mạng riêng. Gắn SAU khi trang đã hiện, để phần tiến độ —
+   * thứ người ta mở app để xem — không phải chờ chúng. */
+  if (!DATA.chiMinh) {
+    const oCho = el('div');
+    g.appendChild(oCho);
+    const tq = await dungTongQuan(oCho);
+    if (tq) g.appendChild(tq);
+    const so = dungSoat();
+    g.appendChild(so);
+    await bangDoiChieu(so);
+  }
 }
 
 /* ---------------- tab 1: phiếu KPI ---------------- */
 function vePhieu() {
+  $('#noiDung').innerHTML = '';
+  $('#noiDung').appendChild(dungPhieu());
+}
+
+/** Dựng khối Phiếu KPI và trả về — tab KPI xếp nó chồng dưới khối Tiến độ. */
+function dungPhieu() {
   const g = el('div');
 
   if (DATA.chiMinh) {
@@ -731,8 +790,7 @@ function vePhieu() {
   /* chấm tay ngay tại đây — trưởng phòng khỏi phải mở từng phiếu */
   if (!DATA.chiMinh) g.appendChild(bangChamTay());
 
-  $('#noiDung').innerHTML = '';
-  $('#noiDung').appendChild(g);
+  return g;
 }
 
 /**
@@ -1168,6 +1226,17 @@ function veKetQuaThu(hop, r) {
 
 /* ---------------- tab 3: soát & đối chiếu ---------------- */
 async function veSoat() {
+  const g = dungSoat();
+  $('#noiDung').innerHTML = '';
+  $('#noiDung').appendChild(g);
+  await bangDoiChieu(g);
+}
+
+/**
+ * Dựng khối Soát & chốt và trả về. Bảng đối chiếu 8 tháng cũ gọi mạng riêng
+ * nên tách thành bangDoiChieu(), gắn vào sau khi khối đã lên màn hình.
+ */
+function dungSoat() {
   const g = el('div');
 
   g.appendChild(el('div', 'canhbao tin', '<div>'
@@ -1218,14 +1287,16 @@ async function veSoat() {
   g.appendChild(the1);
 
   /* --- đối chiếu 8 tháng --- */
+  return g;
+}
+
+/** Bảng "đã trả lương → app tính lại", gắn thêm vào cuối khối soát. */
+async function bangDoiChieu(g) {
   const the2 = el('div', 'the');
   the2.appendChild(el('header', '', '<h3>Đã trả lương → app tính lại</h3>'
     + '<span class="phu">chỉ để tham chiếu, không tính lại lương đã trả</span>'));
   the2.appendChild(el('div', 'than', window.KX ? KX.log(4) : '<span class="mo">đang tính…</span>'));
   g.appendChild(the2);
-
-  $('#noiDung').innerHTML = '';
-  $('#noiDung').appendChild(g);
 
   let dc;
   try { dc = await goi('doi-chieu'); } catch (e) { the2.lastChild.textContent = e.message; return; }

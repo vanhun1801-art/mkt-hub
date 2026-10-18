@@ -202,6 +202,10 @@ function chamThang(luat, soLieu, chamTay, thang) {
         diem, diemTinhLuong: luong, ghi,
         chuaCo: !soHopLe(diem),
         boi: (t.nguon || {}).boi || '',
+        /* Mã chỉ số lấy số từ đâu, ví dụ `ads.donHang`. Màn KPI bày nó ra khi
+         * bấm vào một người: không nói rõ nguồn thì "chưa đo được" là một lời
+         * than, nói rõ thì nó thành một việc có địa chỉ để đi sửa. */
+        nguonMa: (t.nguon || {}).ma || '',
       });
     });
 

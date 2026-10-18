@@ -21,11 +21,35 @@ var TD = null;   // eslint-disable-line no-var
 var TD_KENH = ''; // eslint-disable-line no-var — kênh đang mở ở bảng chi tiết
 
 async function veTienDo() {
+  const g = await dungTienDo();
+  if (!g) return;
+  $('#noiDung').innerHTML = '';
+  $('#noiDung').appendChild(g);
+}
+
+/**
+ * Dựng khối Tiến độ và TRẢ VỀ, không tự ghi lên màn hình.
+ *
+ * Tách ra vì tab KPI gộp bốn màn cũ vào một trang: tiến độ, phiếu, chấm tay,
+ * chốt. Mỗi màn phải dựng được thành một khối rồi xếp chồng, thay vì màn nào
+ * cũng giành lấy #noiDung cho riêng mình.
+ */
+async function dungTienDo(oCho) {
+  /* `oCho` là chỗ để báo "đang tải". Mặc định là cả màn hình, nhưng tab KPI
+   * xếp nhiều khối chồng nhau nên phải đưa một ô riêng — nếu không, khối nạp
+   * sau sẽ ghi đè lên toàn bộ những khối đã vẽ xong trước nó. */
+  const cho = (h) => {
+    if (oCho) oCho.innerHTML = h; else $('#noiDung').innerHTML = h;
+  };
   if (!TD || TD._thang !== THANG) {
-    $('#noiDung').innerHTML = '<div class="rong">đang đọc số mới từ các app…</div>';
-    try { TD = await goi('tien-do?thang=' + encodeURIComponent(THANG)); TD._thang = THANG; }
-    catch (e) { $('#noiDung').innerHTML = '<div class="rong">' + esc(e.message) + '</div>'; return; }
+    cho('<div class="rong">đang đọc số mới từ các app…</div>');
+    try {
+      TD = await goi('tien-do?thang=' + encodeURIComponent(THANG) + (TD_MOI ? '&moi=1' : ''));
+      TD._thang = THANG; TD_MOI = false;
+    }
+    catch (e) { cho('<div class="rong">' + esc(e.message) + '</div>'); return null; }
   }
+  if (oCho) oCho.innerHTML = '';
   const g = el('div');
   const cuoi = TD.moc[TD.moc.length - 1] || { nguoi: [], nhom: [] };
 
@@ -64,15 +88,26 @@ async function veTienDo() {
   b1.innerHTML = '<thead><tr><th>Người</th><th class="so">% đạt</th><th>So với nhịp</th>'
     + '<th class="so">Chênh nhịp</th><th class="so">Đo được</th></tr></thead>';
   const tb1 = el('tbody');
+  const banNhom = new Map((cuoi.nhom || []).map((x) => [x.khoa, x]));
   cuoi.nguoi.forEach((n) => {
     const d = n.phanTram == null ? null : n.phanTram - TD.nhipChuan;
-    tb1.appendChild(el('tr', '', '<td><b>' + esc(n.ten) + '</b></td>'
+    const tr = el('tr', 'bam');
+    tr.innerHTML = '<td><b>' + esc(n.ten) + '</b></td>'
       + '<td class="so">' + ptLon(n.phanTram) + '</td>'
       + '<td style="min-width:150px">' + (thanhPt(n.phanTram, TD.nhipChuan) || '<span class="nhat nho">—</span>') + '</td>'
       + '<td class="so">' + (d == null ? '—'
         : '<span class="lech ' + (d >= 0 ? 'len' : 'xuong') + '">'
           + (d >= 0 ? '▲ +' : '▼ ') + Math.round(Math.abs(d) * 100) + '%</span>') + '</td>'
-      + '<td class="so nhat">' + Math.round(n.doPhu * 100) + '%</td>'));
+      + '<td class="so nhat">' + Math.round(n.doPhu * 100) + '%'
+      + ' <span class="mo nho">xem chỉ số ›</span></td>';
+    /* Bấm một người là bung ra đúng những chỉ số đang chấm cho bạn ấy. Trước
+     * đây câu "vì sao bạn này 33%" phải đi ba màn mới trả lời được. */
+    tr.onclick = () => {
+      const cu = tb1.querySelector('tr.phu[data-ng="' + CSS.escape(n.ma) + '"]');
+      if (cu) { cu.remove(); return; }
+      tr.after(dongChiTietNguoi(n, banNhom));
+    };
+    tb1.appendChild(tr);
   });
   b1.appendChild(tb1);
   t1.appendChild(el('div', 'bang-cuon')).appendChild(b1);
@@ -123,8 +158,7 @@ async function veTienDo() {
   /* --- bảng phẳng: mọi chỉ số của mọi kênh --- */
   g.appendChild(bangChiSo(cuoi.nhom));
 
-  $('#noiDung').innerHTML = '';
-  $('#noiDung').appendChild(g);
+  return g;
 }
 
 /** Đạt cao lên trên; kênh chưa đo được xuống cuối chứ không lẫn vào nhóm 0%. */
@@ -201,6 +235,109 @@ function xuHuong(day) {
   if (Math.abs(d) < 0.03) return '<span class="nhat">bám nhịp</span>';
   return '<span class="lech ' + (d > 0 ? 'len' : 'xuong') + '">'
     + (d > 0 ? '▲ bứt lên ' : '▼ chậm lại ') + Math.round(Math.abs(d) * 100) + '%</span>';
+}
+
+/**
+ * Dòng bung ra dưới một NGƯỜI: toàn bộ thứ đang chấm cho bạn ấy.
+ *
+ * Anh Hùng 18/10/2026: "ấn vào tiến độ của thành viên thì nó hiện ra các chỉ số
+ * chi tiết đang được gán cho bạn".
+ *
+ * Ba khối, đúng ba kiểu nguồn mà bộ luật có:
+ *   - kênh  : bạn ấy gánh kênh nào, tỷ trọng bao nhiêu, kênh đó đang mấy %,
+ *             và mở tiếp ra từng chỉ số với mục tiêu, kết quả
+ *   - chỉ số: chấm thẳng bằng một con số của app khác (Ads, KOL, Thiết kế)
+ *   - tay   : HCNS hoặc trưởng phòng chấm
+ *
+ * Tiêu chí CHƯA ĐO ĐƯỢC phải nói rõ thiếu ở đâu chứ không ghi 0 — nếu không thì
+ * nhìn vào tưởng bạn ấy làm không ra gì, trong khi thật ra app chưa lấy được số.
+ */
+function dongChiTietNguoi(n, banNhom) {
+  const tr = el('tr', 'phu');
+  tr.dataset.ng = n.ma;
+  const td = el('td');
+  td.colSpan = 5;
+
+  const tc = n.tieuChi || [];
+  const theoKenh = tc.filter((x) => x.kieu === 'kenh');
+  const theoChiSo = tc.filter((x) => x.kieu === 'chiSo');
+  const theoTay = tc.filter((x) => x.kieu === 'tay');
+
+  /* --- tiêu chí nào tạo nên điểm của người này --- */
+  const tTc = el('table');
+  tTc.innerHTML = '<thead><tr><th>Tiêu chí tính lương</th><th>Lấy số từ đâu</th>'
+    + '<th class="so">Trọng số</th><th class="so">Tình trạng</th></tr></thead>'
+    + '<tbody>' + tc.map((x) => {
+      const nguon = x.kieu === 'kenh'
+        ? (n.kenh || []).length + ' kênh bên dưới'
+        : (x.kieu === 'tay'
+          ? (x.boi === 'HCNS' ? 'HCNS chấm tay' : 'Trưởng phòng chấm tay')
+          : (x.nguonMa ? '<code>' + esc(x.nguonMa) + '</code>' : 'chưa khai nguồn'));
+      return '<tr><td>' + esc(x.ten) + '</td>'
+        + '<td class="nhat">' + nguon + '</td>'
+        + '<td class="so nhat">' + Math.round((x.trongSo || 0) * 100) + '%</td>'
+        + '<td class="so">' + (x.chuaCo
+          ? '<span class="nhan-o im">chưa có số</span>'
+          : '<span class="nhan-o ok">đã có số</span>') + '</td></tr>';
+    }).join('') + '</tbody>';
+  td.appendChild(el('div', 'than nho nhat', 'Tiêu chí đang gán cho ' + esc(n.ten)));
+  td.appendChild(tTc);
+
+  /* --- kênh và từng chỉ số của kênh --- */
+  if (theoKenh.length) {
+    const ds = (n.kenh || []).slice().sort((a, b) => (b.tyTrong || 0) - (a.tyTrong || 0));
+    td.appendChild(el('div', 'than nho nhat', 'Kênh đang gánh'));
+    if (!ds.length) {
+      td.appendChild(el('div', 'than nhat',
+        'Chưa phân kênh nào cho ' + esc(n.ten) + '. Khai ở tab Phân công kênh.'));
+    } else {
+      const tK = el('table');
+      tK.innerHTML = '<thead><tr><th>Kênh</th><th class="so">Tỷ trọng</th>'
+        + '<th class="so">Kênh đạt</th><th>Chỉ số của kênh</th></tr></thead>';
+      const tbK = el('tbody');
+      ds.forEach((k) => {
+        const nh = banNhom.get(k.khoa);
+        const ct = (nh && nh.tieuChi) || [];
+        const doDuoc = ct.filter((x) => !x.boQua);
+        const tomTat = ct.length
+          /* Chỉ số chưa đo được phải NÓI RA là chưa đo, không để trơ cái tên.
+           * Tên đứng một mình đọc như "có chỉ số này mà bằng 0". */
+          ? ct.map((x) => '<span class="nhan-o ' + (x.boQua ? 'im' : (x.datMucTieu >= TD.nhipChuan ? 'ok' : 'chan')) + '">'
+              + esc(x.ten) + (x.boQua ? ' · chưa đo được' : ' ' + Math.round((x.datMucTieu || 0) * 100) + '%') + '</span>').join(' ')
+          : '<span class="nhat">bộ luật không khai chỉ số nào</span>';
+        tbK.appendChild(el('tr', '', '<td class="dai">' + esc(k.ten || k.khoa) + '</td>'
+          + '<td class="so nhat">' + Math.round((k.tyTrong || 0) * 100) + '%</td>'
+          + '<td class="so">' + ptLon(k.boQua ? null : k.diemNhom) + '</td>'
+          + '<td>' + tomTat + (ct.length
+            ? '<div class="nho nhat">' + doDuoc.length + '/' + ct.length + ' chỉ số đo được</div>' : '') + '</td>'));
+      });
+      tK.appendChild(tbK);
+      td.appendChild(tK);
+    }
+  }
+
+  /* --- chỉ số rời và chấm tay, gộp làm một bảng "còn thiếu gì" --- */
+  const con = [...theoChiSo, ...theoTay].filter((x) => x.chuaCo);
+  if (con.length) {
+    td.appendChild(el('div', 'than nho nhat', 'Chưa có số — ' + con.length + ' mục'));
+    td.appendChild(el('div', 'than nhat', con.map((x) => esc(x.ten) + ' ('
+      + (x.kieu === 'tay'
+        ? (x.boi === 'HCNS' ? 'chờ HCNS chấm' : 'chờ trưởng phòng chấm')
+        : 'chưa nối nguồn ' + (x.nguonMa || '')) + ')').join(' · ')));
+  }
+
+  const nut = el('button', 'btn small', 'Xuất phiếu của ' + n.ten);
+  nut.title = 'Phiếu KPI dạng văn bản, có logo và chỗ ký';
+  nut.onclick = (ev) => {
+    ev.stopPropagation();
+    window.open('api/xuat-kpi?kieu=nguoi&ma=' + encodeURIComponent(n.ma) + '&thang=' + THANG, '_blank');
+  };
+  const hang = el('div', 'than');
+  hang.appendChild(nut);
+  td.appendChild(hang);
+
+  tr.appendChild(td);
+  return tr;
 }
 
 /** Dòng bung ra dưới một kênh: từng chỉ số của kênh đó. */

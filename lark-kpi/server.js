@@ -236,6 +236,9 @@ function thangConThieu(dsDaCo) {
   return ra;
 }
 
+/* Kết quả màn Tiến độ, nhớ theo tháng × người xem. Xem chú thích ở /api/tien-do. */
+const DEM_TIEN_DO = new Map();
+
 async function daLuu(body) {
   try {
     await store.day();
@@ -899,6 +902,21 @@ async function api(req, res, u) {
     const t = store.thang(th);
     if (!t) return fail(res, 404, 'Chưa có dữ liệu tháng ' + thangDoc(th));
 
+    /* NHỚ KẾT QUẢ MỘT LÚC.
+     *
+     * Một lượt dựng màn này phải gom Pancake cho TỪNG MỐC TUẦN, mà mỗi lượt gom
+     * phải phân trang từng trang nên mất hàng chục giây — đo được 61 giây cho
+     * một lần mở. Màn này lại là màn mặc định, ai vào app cũng gặp đầu tiên.
+     *
+     * Nhớ 5 phút là đủ: số của các app con không đổi nhanh hơn thế, và màn hình
+     * luôn in "cập nhật lúc …" nên không ai hiểu nhầm là số tức thời. Bấm Làm
+     * mới thì gửi `moi=1` để đi vòng qua chỗ nhớ. */
+    const khoaTd = th + '|' + (nx.quanLy ? 'ql' : nx.ma);
+    if (u.searchParams.get('moi') !== '1') {
+      const cu = DEM_TIEN_DO.get(khoaTd);
+      if (cu && Date.now() - cu.luc < 5 * 60 * 1000) return ok(res, cu.body);
+    }
+
     const kh = nguon.khoang(th);
     const soNgay = Number(kh.den.slice(8));
     const homNay = new Date().toISOString().slice(0, 10);
@@ -913,9 +931,17 @@ async function api(req, res, u) {
     }
     if (!moc.length || moc[moc.length - 1] !== denHomNay) moc.push(denHomNay);
 
+    /* Kéo danh sách bài của CẢ THÁNG đúng một lần rồi cắt theo từng mốc. Trước
+     * đây mỗi mốc kéo lại một bản vài MB, và lượt mở màn Tiến độ mất 77 giây. */
+    const kho = { bai: null, tinNhan: new Map() };
+    try {
+      const rb = await nguon.layBai(kh.tu, kh.den);
+      kho.bai = rb;
+    } catch (_) { kho.bai = null; }
+
     const kq = [];
     for (const den of moc) {
-      const r = await nguon.docTuApp(th, t.luat, { tu: kh.tu, den });
+      const r = await nguon.docTuApp(th, t.luat, { tu: kh.tu, den }, kho);
       /* Số nào không đổ về được thì lấy số đang lưu — nếu không, mọi tiêu chí
        * nhập tay đều thành "không đo được" và bức tranh sai hẳn. */
       const sl = Object.assign({}, r.soLieu);
@@ -946,6 +972,23 @@ async function api(req, res, u) {
           ma: ng.ma, ten: ng.ten,
           phanTram: wPhu > 0 ? d / wPhu : null,
           doPhu: w > 0 ? wPhu / w : 0,
+          /* CHI TIẾT ĐANG GÁN CHO NGƯỜI NÀY — anh Hùng 18/10/2026: bấm vào một
+           * người là phải thấy ngay bạn ấy đang được chấm bằng những chỉ số nào.
+           *
+           * Trước đây muốn biết điều đó phải đi ba màn: Tiến độ xem %, Phân công
+           * xem kênh nào của ai, Phiếu KPI xem chuỗi tính. Ba màn ba con số, và
+           * không màn nào trả lời được câu "vì sao bạn này 33%". */
+          tieuChi: ng.tieuChi.map((x) => ({
+            ma: x.ma, ten: x.ten, kieu: x.kieu, trongSo: x.trongSo,
+            diem: x.diem, chuaCo: !!x.chuaCo,
+            boi: x.boi || '', nguonMa: x.nguonMa || '',
+          })),
+          /* Kênh kèm KHOÁ, để giao diện tra sang bảng nhóm lấy từng chỉ số —
+           * không nhân bản dữ liệu, một chỗ sửa là cả hai nơi đúng. */
+          kenh: (ng.kenh || []).map((k) => ({
+            khoa: k.khoa, ten: k.ten, tyTrong: k.tyTrong,
+            diemNhom: k.diemNhom, boQua: !!k.boQua,
+          })),
         };
       });
       const ngay = Number(den.slice(8));
@@ -969,14 +1012,16 @@ async function api(req, res, u) {
       });
     }
 
-    return ok(res, {
+    const body = {
       thang: th, soNgay, ngayDaQua, denHomNay,
       nhipChuan: ngayDaQua / soNgay,
       moc: kq,
       capNhat: Date.now(),
       chiMinh: !nx.quanLy,
       loc: nx.quanLy ? null : nx.ma,
-    });
+    };
+    DEM_TIEN_DO.set(khoaTd, { luc: Date.now(), body });
+    return ok(res, body);
   }
 
   /* ---------------- xuất phiếu KPI dạng văn bản ----------------
