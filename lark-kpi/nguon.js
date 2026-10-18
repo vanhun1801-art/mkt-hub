@@ -45,7 +45,29 @@ const CHI_SO_BAI = {
   reach: 'reach', engagement: 'engagement', comment: 'comments',
   share: 'shares', save: 'saves', click: 'clicks', message: 'messages',
   post: 'posts', impression: 'impressions',
+  /* LƯỢT XEM TÁCH THEO MỤC ĐÍCH BÀI.
+   *
+   * Anh Hùng 18/10/2026: *"view thì để tính kết quả KPI sẽ là tính view của
+   * video bán hàng hay video tương tác"*. Một lượt xem bài bán tour không cùng
+   * giá trị với một lượt xem bài giải trí, nên gộp chung rồi chấm là chấm sai
+   * — và sai lệch về đúng phía người đăng nhiều bài tương tác.
+   *
+   * Tháng 10/2026 đo được: Hằng 40 bài bán hàng / 13 tương tác, còn Ngọc 6 /
+   * 47. Gộp chung thì hai người nhìn như nhau.
+   *
+   * `viewQuyDoi` nhân hệ số của bộ luật (Bán hàng ×1,0 · Tương tác ×0,2) —
+   * chính con số mà cột kết quả của file Excel vẫn dùng.
+   */
+  viewBanHang: 'viewBanHang',
+  viewTuongTac: 'viewTuongTac',
+  viewQuyDoi: 'viewQuyDoi',
+  baiBanHang: 'baiBanHang',
+  baiTuongTac: 'baiTuongTac',
 };
+
+/* Nhãn mục đích trong Base, so không dấu. */
+const LA_BAN_HANG = /^ban hang/;
+const LA_TUONG_TAC = /^tuong tac/;
 const CHI_SO_LIVE = {
   liveView: 'views', liveFollow: 'newFollows', liveComment: 'comments',
   liveLike: 'likes', liveShare: 'shares', livePeak: 'peak', liveMinute: 'minutes',
@@ -182,13 +204,36 @@ async function docTuApp(thang, luat, khoangRieng, kho) {
   /* Cộng bài theo kênh, và theo kênh × người đăng. Hai bảng dựng một lượt. */
   const baiTheoKenh = new Map();
   const CONG = ['views', 'reach', 'impressions', 'engagement', 'comments', 'shares', 'saves'];
+  const THEO_MUC_DICH = ['viewBanHang', 'viewTuongTac', 'viewQuyDoi',
+    'baiBanHang', 'baiTuongTac', 'baiChuaPhanLoai'];
+  /* Hệ số quy đổi theo mục đích, lấy từ chính bộ luật của tháng. Không chép
+   * cứng 1,0 / 0,2 vào đây: đổi hệ số là quyết định của quản lý, và nó phải
+   * đổi ở MỘT chỗ rồi mọi nơi theo. */
+  const heSo = (luat.heSo && luat.heSo.macDinh) || {};
+  const heSoBan = Number.isFinite(Number(heSo['Bán hàng'])) ? Number(heSo['Bán hàng']) : 1;
+  const heSoTt = Number.isFinite(Number(heSo['Tương tác'])) ? Number(heSo['Tương tác']) : 0.2;
+
   const gomBai = (khoa, p) => {
-    const o = baiTheoKenh.get(khoa) || { soBai: 0, clicks: null };
+    const o = baiTheoKenh.get(khoa)
+      || { soBai: 0, clicks: null, viewBanHang: 0, viewTuongTac: 0, viewQuyDoi: 0,
+        baiBanHang: 0, baiTuongTac: 0, baiChuaPhanLoai: 0 };
     o.soBai += 1;
     CONG.forEach((f) => { o[f] = (o[f] || 0) + (Number(p[f]) || 0); });
     /* Lượt bấm: chỉ Facebook trả, và ô trống nghĩa là chưa đo được. Cộng ô
      * trống thành 0 là biến "chưa đo" thành "không ai bấm". */
     if (p.clicks != null) o.clicks = (o.clicks || 0) + Number(p.clicks);
+
+    /* BÀI CHƯA GẮN NHÃN KHÔNG ĐƯỢC ĐOÁN BỪA. Xếp nó vào Tương tác là trừ oan
+     * 80% lượt xem; xếp vào Bán hàng là cho không. Đếm riêng rồi nói ra. */
+    const md = chuan(p.mucDich);
+    const v = Number(p.views) || 0;
+    if (LA_BAN_HANG.test(md)) {
+      o.baiBanHang += 1; o.viewBanHang += v; o.viewQuyDoi += v * heSoBan;
+    } else if (LA_TUONG_TAC.test(md)) {
+      o.baiTuongTac += 1; o.viewTuongTac += v; o.viewQuyDoi += v * heSoTt;
+    } else {
+      o.baiChuaPhanLoai += 1;
+    }
     baiTheoKenh.set(khoa, o);
   };
   (dsBai || []).forEach((p) => {
@@ -314,7 +359,7 @@ async function docTuApp(thang, luat, khoangRieng, kho) {
           if (!phan) return;
           o = o || { soBai: 0, clicks: null };
           o.soBai += phan.soBai;
-          CONG.forEach((f) => { o[f] = (o[f] || 0) + (phan[f] || 0); });
+          CONG.concat(THEO_MUC_DICH).forEach((f) => { o[f] = (o[f] || 0) + (phan[f] || 0); });
           if (phan.clicks != null) o.clicks = (o.clicks || 0) + phan.clicks;
         });
         nhan = 'Social · ' + nt + ' · bài của ' + tens.join(', ');
@@ -377,6 +422,8 @@ async function docTuApp(thang, luat, khoangRieng, kho) {
         view: 'views', reach: 'reach', impression: 'impressions',
         engagement: 'engagement', comment: 'comments', share: 'shares',
         save: 'saves', click: 'clicks', post: 'soBai',
+        viewBanHang: 'viewBanHang', viewTuongTac: 'viewTuongTac',
+        viewQuyDoi: 'viewQuyDoi', baiBanHang: 'baiBanHang', baiTuongTac: 'baiTuongTac',
       };
       const truong = TU_BAI[t.chiSo];
       if (!truong) {
@@ -390,13 +437,27 @@ async function docTuApp(thang, luat, khoangRieng, kho) {
         return ghi(tc.nguon, nhan, null, 'thieu',
           'Nền tảng không trả chỉ số này ở mức bài', 'file');
       }
-      /* Số từ nền tảng là số THÔ: chưa qua luật bù view, chưa nhân hệ số
-       * Bán hàng / Tương tác. Cột kết quả trong Excel là số ĐÃ qua hai bước đó,
-       * nên hai con số không cùng nghĩa. Đánh dấu để giao diện cảnh báo, đừng
-       * lặng lẽ thay số thô vào công thức tính lương. */
-      const thoBoc = ['view', 'reach', 'impression'].includes(t.chiSo);
-      return ghi(tc.nguon, nhan + ' (' + o.soBai + ' bài)', Number(v) || 0, 'lay-duoc',
-        thoBoc ? 'số thô, chưa áp luật bù view và hệ số nội dung' : '');
+      /* Số từ nền tảng là số THÔ: chưa nhân hệ số Bán hàng / Tương tác. Cột
+       * kết quả trong Excel là số ĐÃ qua bước đó, nên hai con số không cùng
+       * nghĩa. Nói ra để đừng lặng lẽ thay số thô vào công thức tính lương —
+       * và chỉ ra luôn chỉ số đã quy đổi để dùng thay. */
+      const theoMd = ['viewBanHang', 'viewTuongTac', 'viewQuyDoi', 'baiBanHang', 'baiTuongTac']
+        .includes(t.chiSo);
+      let chu = '';
+      if (t.chiSo === 'view') {
+        chu = 'số THÔ, gộp cả bài bán hàng lẫn bài tương tác.'
+          + ' Dùng `viewQuyDoi` nếu muốn áp hệ số Bán hàng/Tương tác';
+      } else if (['reach', 'impression'].includes(t.chiSo)) {
+        chu = 'số thô, chưa áp hệ số nội dung';
+      }
+      /* Bài chưa gắn nhãn mục đích thì KHÔNG vào con số quy đổi. Phải kêu, vì
+       * nhìn vào chỉ thấy một số nhỏ hơn chứ không thấy phần bị bỏ ra. */
+      if (theoMd && o.baiChuaPhanLoai) {
+        chu = o.baiChuaPhanLoai + '/' + o.soBai + ' bài chưa gắn nhãn Bán hàng hay '
+          + 'Tương tác nên không được tính. Gắn ở app Social → Bài đăng'
+          + (chu ? ' · ' + chu : '');
+      }
+      return ghi(tc.nguon, nhan + ' (' + o.soBai + ' bài)', Number(v) || 0, 'lay-duoc', chu);
     });
   });
 

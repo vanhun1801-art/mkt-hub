@@ -90,6 +90,40 @@ với tệp.
 Tất cả đều là hàm thuần nên chạy lại được 8 tháng cũ để đối chiếu — xem
 `doi-chieu.js`.
 
+## Chỉ số của bài: thô, tách theo mục đích, hay đã quy đổi
+
+Mã nguồn của một tiêu chí có dạng `Kênh|Tên kênh|Loại#chỉ số`, và phần thứ TƯ là
+tuỳ chọn — **mã người đăng**: `FB|Rooty Trip Phú Quốc|Bài viết|thu#view`. Có nó
+thì chỉ tính bài mang tên người đó, tra qua bảng `tenDang` ở `pham-vi.js` chứ
+không suy từ tên (tên trong plugin Người đăng không giống tên trong bộ luật một
+chữ nào: "Phương Ái" là Thư, "Lý Thư Bạch" là Ngọc).
+
+Bốn cách đọc lượt xem, chọn bằng tên chỉ số:
+
+| Chỉ số | Nghĩa |
+|---|---|
+| `view` | tổng thô, gộp mọi dạng bài — dùng cho báo cáo, KHÔNG nên dùng chấm KPI |
+| `viewBanHang` | chỉ bài gắn nhãn Bán hàng |
+| `viewTuongTac` | chỉ bài gắn nhãn Tương tác |
+| `viewQuyDoi` | `viewBanHang × hệ số + viewTuongTac × hệ số` — số cùng nghĩa với cột kết quả của Excel |
+
+Hệ số lấy từ `luat.heSo.macDinh` (Bán hàng ×1,0 · Tương tác ×0,2), không chép
+cứng trong mã. Còn `baiBanHang` và `baiTuongTac` đếm số bài.
+
+**Bài chưa gắn nhãn mục đích không được đoán bừa** — xếp vào Tương tác là trừ oan
+80% lượt xem, xếp vào Bán hàng là cho không. Chúng bị loại khỏi mọi con số quy
+đổi, và màn Nguồn số liệu ghi rõ bao nhiêu bài bị loại.
+
+Vì sao phải tách, bằng số thật tháng 10/2026 trên trang Rooty Trip:
+
+```
+view thô      Ngọc 123.354  ·  Hằng  74.821   → Ngọc dẫn
+view quy đổi  Ngọc  31.495  ·  Hằng  62.577   → Hằng dẫn, gấp đôi
+```
+
+Ngọc đăng 27 bài tương tác / 6 bán hàng, Hằng 4 / 7. Gộp chung rồi chấm là chấm
+sai, và sai đúng về phía người đăng nhiều bài tương tác.
+
 ## Bộ luật
 
 Mọi người dùng **chung một hình dạng**. Trong Excel có hai kiểu bảng chắp vào
@@ -374,11 +408,8 @@ báo cáo gửi Sếp thì sai còn khó chịu hơn là không có.
 
 - Đổi `store.js` sang Lark Base để cả phòng dùng chung
 - Nối nốt app Quảng cáo / OTA / Công việc vào `nguon.js` (mới có Social)
-- **Số đổ về là số THÔ** — chưa qua luật bù view và hệ số Bán hàng/Tương tác, nên
-  không cùng nghĩa với cột kết quả của Excel. Phải áp hai bước đó trong lớp thu
-  số liệu trước khi số live thay được số cũ. Cần dữ liệu từng bài + nhãn mục đích
-- Gắn nhãn **Bán hàng / Tương tác** cho từng bài: máy đoán, người duyệt ngoại lệ.
-  Phải đo độ chính xác của luật đoán trên dữ liệu 8 tháng trước khi cho chấm thật
+- Luật **bù view** (`bu-view.js`) chưa được áp trong lớp thu số liệu — mới có hệ
+  số Bán hàng/Tương tác
 - Quyền: hiện nhận diện qua header của hub; cần khai `KPI_QUAN_LY` và
   `KPI_MA_NGUOI` (map id Lark → mã người trong bộ luật) khi chạy thật
 - Danh mục chỉ số theo nền tảng: hiện bộ luật chỉ chấm 6 chỉ số (view, follow,

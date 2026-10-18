@@ -152,3 +152,12 @@ Anh Hùng (10/10/2026): nhân sự xuất được báo cáo, nhưng **xuất đ
 - Quy tắc của cột này, giống mọi cột khác trong hub: **ô trống = chưa đo được, số 0 = đo rồi và bằng 0.** Instagram, TikTok, Zalo không trả chỉ số này nên ô của chúng trống vĩnh viễn — `dongPost()` bỏ hẳn cột thay vì ghi 0. Khi Meta không trả thì `sync/facebook.js` gán `null`, không gán 0.
 - "Lượt bấm" nằm trong `COT_POST_GIU`: một lượt đồng bộ trả 0 **không được** xoá số dương đã có. Lý do: khi Meta gỡ một metric, `baiCuaPage()` bỏ cả khối insights rồi hỏi lại, nên cả lượt về 0.
 - Trên giao diện, bảng Bài đăng và bảng "Dạng bài nào ăn" in **dấu gạch** chứ không in số 0 cho lượt xem, tiếp cận và tỷ lệ tương tác khi không đo được. Bảng Bài đăng xếp hạng được theo "Lượt bấm" để so bài ảnh với bài ảnh.
+
+## 11. Chấm KPI bằng số nào (18/10/2026)
+
+- **Kho KPI mở được tháng mới ngay trên app.** Anh Hùng dừng nhập Excel từ tháng 9/2026; trước đó kho chỉ nhận tháng do bản nhập Excel sinh ra nên tháng 9 và tháng 10 không tồn tại, mà màn Tiến độ vẫn lặng lẽ bày số tháng 7 ra như số hiện tại. Thiếu tháng thì app phải **mời mở**, không được im.
+- **Chỉ số đếm được trên bài thì lấy từ bảng Bài đăng, không lấy từ dòng ngày.** Dòng ngày của TikTok do app tự tính bằng chênh lệch giữa hai lần đồng bộ, ngày nào không chạy là ngày đó bằng 0 — đã làm bốn kênh TikTok hiện 0% kèm chú thích "đã đo được", trừ oan hai người suốt bốn tháng.
+- **Lượt xem để chấm KPI là lượt xem ĐÃ QUY ĐỔI theo mục đích bài**, không phải lượt xem thô. Bán hàng ×1,0 · Tương tác ×0,2, hệ số lấy từ bộ luật. Bài chưa gắn nhãn thì bị loại và app phải nói ra bao nhiêu bài bị loại — đoán bừa là trừ oan 80% hoặc cho không.
+- **Người cùng giữ một kênh thì chấm theo tên người đăng trên từng bài**, không chia theo tỷ trọng kênh. Tra bằng bảng `tenDang`, tuyệt đối không suy từ tên: "Phương Ái" là Thư, "Lý Thư Bạch" là Ngọc.
+- **Tab KPI xếp theo CHỈ SỐ → KÊNH → NGƯỜI.** Chỉ số của doanh nghiệp đứng trước, KPI từng người là phần phụ. Mốc tuần phải có số tuyệt đối ("hết ngày 7 cần 1,88tr, đang có 597k"), không chỉ phần trăm.
+- **Đổi tab thì giữ chiều cao cũ và đưa về đầu trang.** Để trang co lại là thanh cuộn biến mất, nội dung xê ngang, và vị trí cuộn bị kẹp về 0 một cách khó đoán.
