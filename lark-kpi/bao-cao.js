@@ -490,7 +490,13 @@ async function docSocial(app, tu, den, pv) {
      * làm được gì, số của cả kênh chỉ là bối cảnh. */
     ].map((o) => (pv && pv.tenDang
       ? { ...o, nhom: /tôi đăng/.test(o.nhan) ? 'toi' : 'kenh' }
-      : o)),
+      : o))
+      /* XẾP NHÓM "CỦA TÔI" LÊN TRƯỚC. Chú thích ngay trên đã nói phải thế từ
+       * lâu, nhưng mảng vẫn giữ nguyên thứ tự cũ — mà giao diện xếp nhóm theo
+       * thứ tự ô ĐẦU TIÊN của nhóm. Nên Thư mở báo cáo ra là gặp "Lượt xem
+       * 722.070" của cả phòng trước, số 230.430 của chính mình nằm tít dưới.
+       * Anh Hùng bắt được đúng chỗ này ngày 18/10/2026. */
+      .sort((a, b) => (a.nhom === 'toi' ? 0 : 1) - (b.nhom === 'toi' ? 0 : 1)),
     /* Biểu đồ theo ngày KHÔNG lọc được theo kênh: app Social chỉ trả tổng mỗi
      * ngày, không tách kênh. Người xem phạm vi hẹp thì bỏ hẳn biểu đồ này, chứ
      * vẽ đường của cả phòng dưới các ô đã lọc là nói dối bằng hình. */
@@ -559,18 +565,48 @@ async function docSocial(app, tu, den, pv) {
           : [x.channel, x.platform, so(x.soHoiThoai), so(x.tuNhien), so(x.tuQuangCao),
             so(x.lead), so(x.coSdt)])),
       }] : []),
-      /* Ai đăng bao nhiêu — để người xem thấy phần của mình trong tổng của kênh,
-       * và thấy luôn bao nhiêu bài chưa ghi được người đăng. */
-      { tieuDe: 'Theo người đăng',
+      /* AI ĐĂNG BAO NHIÊU — và chỉ của chính người đang xem.
+       *
+       * Anh Hùng 18/10/2026: *"khi anh xem thì anh xem tất cả, còn Hằng xem,
+       * Thư xem, Ngọc xem thì chỉ thấy số liệu có tên của họ thôi"*. Bản trước
+       * cố ý để nguyên cả bốn dòng, lý do khi đó là "để thấy phần của mình nằm
+       * đâu trong tổng" — nhưng nó cũng có nghĩa Thư mở báo cáo ra là thấy số
+       * của Hằng và của Ngọc. So sánh giữa các bạn là việc của trưởng phòng.
+       *
+       * Tỷ lệ phần trăm vẫn tính trên TỔNG CỦA CẢ PHÒNG, kể cả khi chỉ hiện
+       * một dòng — nếu không thì dòng duy nhất ấy luôn là 100%, đọc ra thành
+       * "mình làm hết". */
+      { tieuDe: pv && pv.tenDang ? 'Bài mang tên tôi' : 'Theo người đăng',
         cot: ['Người đăng', 'Bài', 'Lượt xem', 'Tương tác', 'Thích', 'Bình luận', '% lượt xem'],
         soCot: [1, 2, 3, 4, 5, 6],
         dong: (() => {
           const ds = d.theoNguoiDang || [];
           const tong = ds.reduce((a, x) => a + so(x.views), 0);
-          return ds.map((x) => [x.nguoi || '(chưa ghi người đăng)', so(x.soBai), so(x.views),
-            so(x.engagement), so(x.likes), so(x.comments),
-            tong ? Math.round((so(x.views) / tong) * 1000) / 10 : 0]);
+          const cua = pv && pv.tenDang ? new Set(pv.tenDang) : null;
+          return ds.filter((x) => !cua || cua.has(x.nguoi))
+            .map((x) => [x.nguoi || '(chưa ghi người đăng)', so(x.soBai), so(x.views),
+              so(x.engagement), so(x.likes), so(x.comments),
+              tong ? Math.round((so(x.views) / tong) * 1000) / 10 : 0]);
         })() },
+      /* KÊNH × NGƯỜI ĐĂNG — bảng trưởng phòng hỏi nhiều nhất: trên kênh này ai
+       * đang gánh. Chỉ dựng cho người xem được cả phòng; với nhân sự thì nó
+       * trùng hẳn với bảng "Bài tôi đăng, theo kênh" ở trên. */
+      ...(!pv ? [{
+        tieuDe: 'Kênh × người đăng',
+        cot: ['Kênh', 'Nền tảng', 'Người đăng', 'Bài', 'Lượt xem', 'Tương tác'],
+        soCot: [3, 4, 5],
+        dong: (() => {
+          const hang = [];
+          (d.theoNguoiDang || []).forEach((ng) => (ng.kenh || []).forEach((k) => {
+            hang.push([k.channel || '', k.platform || '', ng.nguoi || '(chưa ghi người đăng)',
+              so(k.soBai), so(k.views), so(k.engagement)]);
+          }));
+          /* Xếp theo kênh rồi theo lượt xem: cùng một kênh thì các dòng người
+           * đứng liền nhau, mới so được ai gánh bao nhiêu. */
+          return hang.sort((a, b) => String(a[0]).localeCompare(String(b[0]), 'vi')
+            || b[4] - a[4]);
+        })(),
+      }] : []),
       { tieuDe: toiBai ? 'Bài tôi đăng, xem nhiều nhất' : 'Bài xem nhiều nhất',
         cot: ['Bài', 'Kênh', 'Lượt xem', 'Tương tác'],
         soCot: [2, 3],
