@@ -116,6 +116,42 @@ function nhapThongBao(luc, boDi) {
   return d;
 }
 
+/**
+ * MỜI MỞ THÁNG CÒN THIẾU.
+ *
+ * Vì sao phải mời chứ không im: kho KPI trước đây chỉ nhận tháng do bản nhập
+ * Excel sinh ra. Anh Hùng dừng nhập Excel từ tháng 9/2026, thế là tháng 9 và
+ * tháng 10 không tồn tại — mà app không báo gì cả, nó lặng lẽ nhảy về tháng
+ * gần nhất CÓ SỐ rồi bày số tháng 7 ra như số hiện tại. Nửa KPI chết hai tháng
+ * mà nhìn vào vẫn thấy bình thường.
+ */
+function moiMoThang() {
+  const thieu = (META.thangThieu || []).filter(Boolean);
+  if (!thieu.length || !META.nguoiXem.quanLy) return;
+  const doc = (t) => 'tháng ' + Number(t.slice(5)) + '/' + t.slice(0, 4);
+  const d = el('div', 'canhbao',
+    '<div>Chưa mở <b>' + esc(thieu.map(doc).join(' · ')) + '</b>. '
+    + 'Mở tháng là chép bộ luật của tháng gần nhất sang; số liệu để trắng cho '
+    + 'các app con đổ về.</div>');
+  const nut = el('button', 'btn nho');
+  nut.textContent = 'Mở ' + thieu.map(doc).join(' và ');
+  nut.onclick = async () => {
+    nut.disabled = true; nut.textContent = 'đang mở…';
+    try {
+      /* Mở TUẦN TỰ, không song song: mỗi tháng chép bộ luật của tháng liền
+       * trước, nên tháng 10 phải đợi tháng 9 xong mới có cái để chép. */
+      for (const t of thieu) await goi('tao-thang', { method: 'POST', body: JSON.stringify({ thang: t }) });
+      location.reload();
+    } catch (e) {
+      nut.disabled = false; nut.textContent = 'Thử lại';
+      bao('Không mở được: ' + e.message, true);
+    }
+  };
+  d.appendChild(nut);
+  const neo = document.querySelector('.tabsbar') || $('#noiDung');
+  neo.parentNode.insertBefore(d, neo);
+}
+
 /* ---------------- khởi động ---------------- */
 async function khoiDong() {
   try {
@@ -129,6 +165,7 @@ async function khoiDong() {
     + (coSo.has(t) ? '' : ' · chưa có số liệu') + '</option>').join('');
   THANG = META.thangGoiY || META.thang[0] || '';
   sel.value = THANG;
+  moiMoThang();
   sel.onchange = () => { THANG = sel.value; SUA = { mucTieu: {}, tyTrong: {} }; THU = null; TD = null; TQ = null; napThang(); };
   /* Làm mới phải xoá cả hai bộ nhớ đệm phía trình duyệt, không thì bấm xong vẫn
    * thấy số cũ của tab Tiến độ và Tổng quan — người dùng tưởng app treo. */

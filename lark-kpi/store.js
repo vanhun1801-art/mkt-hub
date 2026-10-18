@@ -183,9 +183,44 @@ function luu(th) {
 const lichSu = () => KHO.goc;
 const suaTay = () => KHO.sua;
 
-/** Danh sách tháng có dữ liệu, mới nhất trước. */
+/**
+ * Danh sách tháng có dữ liệu, mới nhất trước.
+ *
+ * Gộp CẢ HAI tầng. Tám tháng đầu năm vào bằng đường nhập Excel nên chỉ có ở
+ * tầng gốc; từ tháng 10/2026 anh Hùng dừng nhập Excel, tháng mới mở thẳng trên
+ * app nên chỉ có ở tầng sửa. Chỉ đọc tầng gốc thì tháng mới mở xong là biến
+ * mất khỏi ô chọn tháng — đúng lỗi làm nửa KPI đứng im hai tháng liền.
+ */
 function danhSachThang() {
-  return Object.keys(lichSu().thang).sort().reverse();
+  return [...new Set([...Object.keys(lichSu().thang), ...Object.keys(suaTay().thang)])]
+    .sort().reverse();
+}
+
+/**
+ * Mở một tháng mới, chép bộ luật từ tháng gần nhất đã có.
+ *
+ * Chỉ chép BỘ LUẬT — mục tiêu, tỷ trọng, phân công. Không chép số liệu, không
+ * chép điểm chấm tay, không chép dấu chốt: tháng mới phải trắng, số đổ về từ
+ * các app con.
+ *
+ * Tháng mới nằm hẳn ở tầng sửa, không có bản gốc Excel. Nên `luatGoc` của nó
+ * chính là bộ luật vừa chép — "về lại bản gốc" ở tháng này nghĩa là về lại lúc
+ * mới mở, chứ không phải về một bảng Excel nào.
+ */
+function taoThang(th, tuThang) {
+  if (lichSu().thang[th] || suaTay().thang[th]) return { loi: 'Tháng này đã có rồi' };
+  const nguon = tuThang || danhSachThang()[0];
+  const goc = thang(nguon);
+  if (!goc || !goc.luat) return { loi: 'Không có tháng nào để chép bộ luật sang' };
+  const s = suaTay();
+  s.thang[th] = {
+    luat: JSON.parse(JSON.stringify(goc.luat)),
+    moTuApp: true,
+    chepTu: nguon,
+    moLuc: new Date().toISOString(),
+  };
+  luu(th);
+  return { thang: th, chepTu: nguon };
 }
 
 /**
@@ -194,13 +229,20 @@ function danhSachThang() {
  * nên luôn quay về được số gốc để đối chiếu.
  */
 function thang(th) {
-  const goc = lichSu().thang[th];
-  if (!goc) return null;
   const sua = suaTay().thang[th] || {};
+  /* Tháng mở thẳng trên app không có bản gốc Excel — đọc được bằng tầng sửa.
+   * Chặn ở đây theo kiểu "không gốc thì không có tháng" là chính chỗ khiến
+   * không ai mở nổi tháng 9 và tháng 10. */
+  const goc = lichSu().thang[th] || (sua.luat ? { luat: sua.luat } : null);
+  if (!goc) return null;
   return {
     thang: th,
     luat: sua.luat || goc.luat,
-    daSuaLuat: !!sua.luat,
+    /* Tháng mở thẳng trên app luôn có sua.luat, nhưng đó là bộ luật GỐC của nó
+     * chứ không phải một bản sửa — gắn nhãn "đã sửa luật" cho nó là nói sai. */
+    daSuaLuat: !!sua.luat && !sua.moTuApp,
+    moTuApp: !!sua.moTuApp,
+    chepTu: sua.chepTu || '',
     luatGoc: goc.luat,
     soLieu: Object.assign({}, goc.soLieu, sua.soLieu || {}),
     chamTay: gopChamTay(goc.chamTay, sua.chamTay),
@@ -291,6 +333,11 @@ function luuLuat(th, luat) {
 /** Trả bộ luật của tháng về đúng bản nhập từ Excel. */
 function boSuaLuat(th) {
   const s = suaTay();
+  /* Tháng không có bản gốc Excel thì sua.luat CHÍNH LÀ bộ luật của nó. Xoá đi
+   * là tháng biến mất khỏi app, cuốn theo mọi điểm đã chấm. */
+  if (s.thang[th] && s.thang[th].moTuApp) {
+    return { loi: 'Tháng này mở trên app, không có bản Excel nào để quay về' };
+  }
   if (s.thang[th]) { delete s.thang[th].luat; luu(th); }
   return true;
 }
@@ -335,7 +382,7 @@ async function nhapLenBase(goc, sua) {
 module.exports = {
   THU_MUC, F_LICH_SU, F_SUA,
   nap, day, trangThai, nhapLenBase,
-  danhSachThang, thang, luuChamTay, luuGhiChuCham, luuLuat, boSuaLuat, chot, boChot,
+  danhSachThang, taoThang, thang, luuChamTay, luuGhiChuCham, luuLuat, boSuaLuat, chot, boChot,
   luuSoLieu, boSoLieu,
   coLichSu: () => !!Object.keys(KHO.goc.thang).length,
 };

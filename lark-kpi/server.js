@@ -208,6 +208,34 @@ function apSua(luat, sua) {
  * nhất để mất một tháng điểm mà không ai biết, nhất là trên server chung nơi
  * tệp trên đĩa bay sau mỗi lần deploy.
  */
+/**
+ * Tháng hiện tại theo giờ Việt Nam.
+ *
+ * Render chạy UTC. Lấy tháng theo giờ máy chủ thì suốt bảy tiếng đầu ngày 1 của
+ * mỗi tháng, app vẫn tưởng đang ở tháng trước và không mời mở tháng mới.
+ */
+function thangHienTai() {
+  const d = new Date(Date.now() + 7 * 3600 * 1000);
+  return d.toISOString().slice(0, 7);
+}
+
+/** Những tháng chưa mở, tính từ tháng gần nhất đã có tới tháng này. */
+function thangConThieu(dsDaCo) {
+  const co = new Set(dsDaCo);
+  const nay = thangHienTai();
+  const cuoi = dsDaCo[0];
+  if (!cuoi || cuoi >= nay) return [];
+  const ra = [];
+  let [y, m] = cuoi.split('-').map(Number);
+  for (let i = 0; i < 36; i += 1) {
+    m += 1; if (m > 12) { m = 1; y += 1; }
+    const th = y + '-' + String(m).padStart(2, '0');
+    if (th > nay) break;
+    if (!co.has(th)) ra.push(th);
+  }
+  return ra;
+}
+
 async function daLuu(body) {
   try {
     await store.day();
@@ -238,12 +266,36 @@ async function api(req, res, u) {
       ten: 'Báo cáo & KPI', thang: ths, coLichSu: store.coLichSu(),
       thangCoSo: ths.filter(coSo),
       thangGoiY: ths.find(coSo) || ths[0] || '',
+      /* Tháng đang sống và những tháng còn thiếu tính tới nó. Giao diện cần cả
+       * hai để mời mở tháng thay vì âm thầm bày tháng cũ ra như số hiện tại —
+       * chính chỗ đã giấu việc nửa KPI đứng im suốt tháng 9 và tháng 10. */
+      thangNay: thangHienTai(),
+      thangThieu: thangConThieu(ths),
       nguoiXem: { ten: nx.ten, quanLy: nx.quanLy, ma: nx.ma, coPhamVi: !!PV.cua(nx.ma) },
       /* Kho nằm ở đâu và có gì chưa ghi lên được — giao diện cần biết để nói
        * thật, thay vì để người dùng tin là đã lưu. */
       kho: store.trangThai(),
       nguon: store.trangThai().nguon === 'base' ? 'Lark Base — KPI Marketing' : 'du-lieu/lich-su-2026.json',
     });
+  }
+
+  /**
+   * MỞ MỘT THÁNG MỚI.
+   *
+   * Trước đây không có đường này: kho chỉ nhận tháng do bản nhập Excel sinh ra,
+   * nên khi anh Hùng dừng nhập Excel thì nửa KPI đứng hẳn — tháng 9 và tháng 10
+   * không tồn tại, mà màn Tiến độ vẫn lặng lẽ bày số tháng 7 ra như số hiện tại.
+   *
+   * Bộ luật chép từ tháng gần nhất; số liệu để trắng cho các app con đổ về.
+   */
+  if (p === '/api/tao-thang' && req.method === 'POST') {
+    if (!nx.quanLy) return fail(res, 403, 'Chỉ trưởng phòng mở được tháng mới');
+    const b = await readBody(req);
+    const th = String(b.thang || '');
+    if (!/^\d{4}-\d{2}$/.test(th)) return fail(res, 400, 'Tháng phải có dạng YYYY-MM');
+    const kq = store.taoThang(th, b.chepTu);
+    if (kq.loi) return fail(res, 400, kq.loi);
+    return ok(res, await daLuu(kq));
   }
 
   if (p === '/api/thang') {
