@@ -267,19 +267,29 @@ function dongChiTietNguoi(n, banNhom) {
   const tTc = el('table');
   tTc.innerHTML = '<thead><tr><th>Tiêu chí tính lương</th><th>Lấy số từ đâu</th>'
     + '<th class="so">Trọng số</th><th class="so">Tình trạng</th></tr></thead>'
-    + '<tbody>' + tc.map((x) => {
+    + '<tbody>' + tc.map((x, i) => {
       const nguon = x.kieu === 'kenh'
         ? (n.kenh || []).length + ' kênh bên dưới'
         : (x.kieu === 'tay'
           ? (x.boi === 'HCNS' ? 'HCNS chấm tay' : 'Trưởng phòng chấm tay')
           : (x.nguonMa ? '<code>' + esc(x.nguonMa) + '</code>' : 'chưa khai nguồn'));
-      return '<tr><td>' + esc(x.ten) + '</td>'
+      return '<tr class="bam" data-tc="' + i + '"><td><b>' + esc(x.ten) + '</b></td>'
         + '<td class="nhat">' + nguon + '</td>'
         + '<td class="so nhat">' + Math.round((x.trongSo || 0) * 100) + '%</td>'
         + '<td class="so">' + (x.chuaCo
           ? '<span class="nhan-o im">chưa có số</span>'
-          : '<span class="nhan-o ok">đã có số</span>') + '</td></tr>';
+          : '<span class="nhan-o ok">đã có số</span>')
+        + ' <span class="mo nho">›</span></td></tr>';
     }).join('') + '</tbody>';
+  /* Bấm một tiêu chí là mở cửa sổ: "Hiệu quả công việc chính" bày từng chỉ số
+   * của từng kênh, ba tiêu chí chấm tay bày NỘI DUNG ĐÁNH GIÁ. Anh Hùng chốt
+   * 18/10/2026 — trước đó không có đường nào xem được lý do chấm. */
+  tTc.addEventListener('click', (ev) => {
+    const tr = ev.target.closest('[data-tc]');
+    if (!tr) return;
+    ev.stopPropagation();
+    moTieuChi(n, tc[Number(tr.dataset.tc)], banNhom);
+  });
   td.appendChild(el('div', 'than nho nhat', 'Tiêu chí đang gán cho ' + esc(n.ten)));
   td.appendChild(tTc);
 

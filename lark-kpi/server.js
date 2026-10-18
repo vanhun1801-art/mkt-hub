@@ -982,6 +982,9 @@ async function api(req, res, u) {
             ma: x.ma, ten: x.ten, kieu: x.kieu, trongSo: x.trongSo,
             diem: x.diem, chuaCo: !!x.chuaCo,
             boi: x.boi || '', nguonMa: x.nguonMa || '',
+            /* Lý do chấm tay. Cửa sổ chi tiết của tiêu chí chấm tay bày chính
+             * nó — con số 0,8 không giải trình được, câu "vì sao 0,8" thì có. */
+            ghiChu: ((t.ghiChuCham || {})[ng.ma] || {})[x.ma] || '',
           })),
           /* Kênh kèm KHOÁ, để giao diện tra sang bảng nhóm lấy từng chỉ số —
            * không nhân bản dữ liệu, một chỗ sửa là cả hai nơi đúng. */

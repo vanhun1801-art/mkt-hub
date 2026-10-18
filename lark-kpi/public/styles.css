@@ -917,3 +917,27 @@ input.ghi-cham::placeholder { color: var(--chu-nhat); font-style: italic; }
   .tn-ten em { font-size: 12.5px; }                              /* 11 */
   .tn-pt { font-size: 12.5px; }                                  /* 11.5 */
 }
+
+/* ---- lưới biểu đồ nhỏ: tăng trưởng từng kênh ----
+   Mười sáu kênh chồng lên một khung thì không ai dò được đường nào của ai, nên
+   mỗi kênh một ô riêng, chung một thang 0 → 150% để hai ô cạnh nhau so được. */
+.luoi-sparkline {
+  display: grid; gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+}
+.o-spark {
+  border: 1px solid var(--vien-mem); border-radius: var(--r-nho);
+  padding: 8px 10px; background: var(--trang-2);
+}
+.spark-ten {
+  font-size: 12px; color: var(--chu-mo); margin-bottom: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.spark { display: block; width: 100%; height: 42px; color: var(--chu-nhat); }
+.spark-duong { fill: none; stroke: var(--xanh, #2b5cff); stroke-width: 1.6; }
+.spark-moc { stroke: var(--vien-mem); stroke-width: 1; stroke-dasharray: 3 3; }
+.spark-cham { fill: var(--xanh, #2b5cff); }
+.spark-chan { font-size: 12px; margin-top: 2px; }
+
+/* Hàng nhịp chuẩn đứng đầu bảng kênh làm thước đo, không phải một kênh. */
+tr.nhip > td { background: var(--trang-2); font-size: 12.5px; }

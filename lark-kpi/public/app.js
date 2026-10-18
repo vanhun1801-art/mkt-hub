@@ -691,25 +691,38 @@ async function dungTongQuan(oCho) {
  *   4. soát và chốt (chỉ trưởng phòng)
  */
 async function veKPI() {
-  const g = el('div');
   const khoi = await dungTienDo();
   if (!khoi) return;                       // dungTienDo đã tự in lỗi ra màn
-  g.appendChild(khoi);
-  g.appendChild(dungPhieu());
+  const cuoi = TD.moc[TD.moc.length - 1] || { nguoi: [], nhom: [] };
+
+  const g = el('div');
+  g.appendChild(el('div', 'canhbao tin',
+    '<div><b>Số đọc thẳng từ các app, không phải số đã chốt.</b> '
+    + 'Tính đến hết ngày ' + Number(TD.denHomNay.slice(8)) + '/' + Number(TD.thang.slice(5))
+    + ', đã qua ' + Math.round(TD.nhipChuan * 100) + '% tháng. '
+    + 'View là <b>số thô</b>, chưa áp luật bù view và hệ số Bán hàng/Tương tác.</div>'));
+
+  /* CHỈ SỐ trước, KÊNH sau, NGƯỜI cuối. Xem chú thích đầu kpi.js. */
+  g.appendChild(theChiSoPhong(cuoi));
+  g.appendChild(theKenh(cuoi));
+  g.appendChild(theNguoi(cuoi));
+  if (!DATA.chiMinh) g.appendChild(bangChamTay());
 
   $('#noiDung').innerHTML = '';
   $('#noiDung').appendChild(g);
 
-  /* Hai khối dưới gọi mạng riêng. Gắn SAU khi trang đã hiện, để phần tiến độ —
-   * thứ người ta mở app để xem — không phải chờ chúng. */
+  /* Khối nhiều tháng gọi mạng riêng — gắn sau, để phần của tháng này hiện ngay. */
   if (!DATA.chiMinh) {
     const oCho = el('div');
     g.appendChild(oCho);
-    const tq = await dungTongQuan(oCho);
-    if (tq) g.appendChild(tq);
-    const so = dungSoat();
-    g.appendChild(so);
-    await bangDoiChieu(so);
+    if (!TQ) {
+      oCho.innerHTML = '<div class="rong">đang dựng phần nhiều tháng…</div>';
+      try { TQ = await goi('tong-quan-kpi'); } catch (e) {
+        oCho.innerHTML = '<div class="rong">' + esc(e.message) + '</div>'; return;
+      }
+    }
+    oCho.innerHTML = '';
+    g.appendChild(theNhieuThang());
   }
 }
 
