@@ -941,3 +941,37 @@ input.ghi-cham::placeholder { color: var(--chu-nhat); font-style: italic; }
 
 /* Hàng nhịp chuẩn đứng đầu bảng kênh làm thước đo, không phải một kênh. */
 tr.nhip > td { background: var(--trang-2); font-size: 12.5px; }
+
+/* Chừa sẵn chỗ cho thanh cuộn. Không chừa thì mỗi lần đổi tab, trang cao hơn
+   một màn thành thấp hơn, thanh cuộn biến mất và CẢ NỘI DUNG xê ngang đúng bề
+   rộng của nó — nhìn ra thành giật. */
+html { scrollbar-gutter: stable; }
+
+/* ---- lưới đặt mục tiêu, gom theo nhóm ---- */
+.nhom-mt { padding: 0; margin-bottom: 10px; }
+.nhom-mt > summary {
+  display: flex; align-items: center; gap: 10px; cursor: pointer;
+  padding: 11px 14px; list-style: none; border-bottom: 1px solid var(--vien-mem);
+}
+.nhom-mt > summary::-webkit-details-marker { display: none; }
+.nhom-mt > summary::before {
+  content: '▸'; color: var(--chu-nhat); font-size: 11px; transition: transform .12s;
+}
+.nhom-mt[open] > summary::before { transform: rotate(90deg); }
+.nhom-mt > summary .mt-ten { font-weight: 650; font-size: 13.5px; }
+.nhom-mt > summary .phu { margin-left: auto; }
+
+/* Vạch ngăn giữa hai cụm kênh — mắt cần biết cụm này hết ở đâu. */
+.bang-mt tr.dau-kenh > td { border-top: 1px solid var(--vien); }
+.bang-mt tr.dau-kenh:first-child > td { border-top: 0; }
+/* Dòng phụ dưới tên: tên kênh và loại nội dung, vị trí dưới tên người. PHẢI
+   xuống dòng — dính liền nhau thì đọc ra "Rooty Trip Phú QuốcBài viết", một
+   chuỗi không có nghĩa. Lớp này vốn là của app Social; app này dùng mà quên
+   khai, nên mọi dòng phụ vừa thêm đều hiện lẫn vào dòng chính.
+   Để 12px chứ không 11,5px: dưới 12px là phải có luật nâng cho điện thoại. */
+.sub-line { display: block; font-size: 12px; font-weight: 400; color: var(--chu-nhat); }
+.bang-mt .mt-kenh { min-width: 150px; }
+.bang-mt tr.mt-tong > td { background: var(--trang-2); font-size: 12.5px; }
+.bang-mt tr.mt-tong.lech > td { background: var(--do-nhat); }
+.bang-mt input.so { width: 110px; }
+.bang-mt input.o-ty { width: 72px; }

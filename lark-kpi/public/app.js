@@ -204,8 +204,10 @@ async function khoiDong() {
     '<button class="tab' + (k === TAB ? ' chon' : '') + '" data-tab="' + k + '">' + t + '</button>').join('');
   $('#tabs').onclick = (ev) => {
     const b = ev.target.closest('[data-tab]'); if (!b) return;
+    if (b.dataset.tab === TAB) return;   // bấm lại tab đang mở thì đừng dựng lại
     TAB = b.dataset.tab;
     [...$('#tabs').children].forEach((x) => x.classList.toggle('chon', x.dataset.tab === TAB));
+    doiTrang();
     ve();
   };
 
@@ -214,6 +216,7 @@ async function khoiDong() {
     if (!tabs.some(([x]) => x === k)) return;
     TAB = k;
     [...$('#tabs').children].forEach((x) => x.classList.toggle('chon', x.dataset.tab === TAB));
+    doiTrang();
     ve();
   };
 
@@ -272,6 +275,34 @@ async function napThang() {
     + ' · ' + DATA.nguoi.length + ' người · ' + s
     + (DATA.daSuaLuat ? ' · bộ luật đã sửa' : '');
   ve();
+}
+
+/**
+ * ĐỔI TAB MÀ TRANG KHÔNG NHẢY.
+ *
+ * Anh Hùng 18/10/2026: "khi anh ấn nhảy tab khá lung tung". Đúng là lung tung,
+ * và vì hai chuyện cùng lúc:
+ *
+ * 1. Tab KPI cao gần 4.000px, tab Nguồn số liệu lúc đang tải chỉ cao bằng màn
+ *    hình. Bấm sang là trang co lại còn một màn, thanh cuộn biến mất, cả nội
+ *    dung xê ngang đúng bề rộng thanh cuộn; số liệu về thì trang bung ra, xê
+ *    ngược lại. Mắt đọc ra thành giật hai nhịp.
+ * 2. Trang co lại kéo theo vị trí cuộn bị kẹp về 0 — không phải app chủ ý đưa
+ *    về đầu, mà là hệ quả. Nên có lúc về đầu, có lúc đứng lưng chừng, tuỳ tab
+ *    mới cao bao nhiêu. Chính chỗ "tuỳ" đó làm nó khó đoán.
+ *
+ * Nên: giữ nguyên chiều cao cũ trong lúc tab mới dựng, và luôn chủ động đưa về
+ * đầu trang. Đưa về đầu là đúng với tab — mỗi tab là một màn mới, không phải
+ * phần tiếp theo của màn cũ.
+ */
+let giuCaoHen;
+function doiTrang() {
+  const n = $('#noiDung');
+  const cao = n.offsetHeight;
+  if (cao > 240) n.style.minHeight = Math.min(cao, 1600) + 'px';
+  clearTimeout(giuCaoHen);
+  giuCaoHen = setTimeout(() => { n.style.minHeight = ''; }, 1400);
+  window.scrollTo({ top: 0 });
 }
 
 function ve() {
@@ -1057,27 +1088,40 @@ async function veThu() {
    * đã sửa, nhìn vào không biết mình đang thử cái gì. */
   const oSua = (loai, k, mau) => (k in SUA[loai] ? SUA[loai][k] : mau);
 
-  luat.nhom.forEach((n) => {
-    const khoa = [n.kenh, n.tenKenh, n.loai].join('|');
-    const the = el('div', 'the');
-    the.appendChild(el('header', '', '<h3>' + esc([n.kenh, n.tenKenh, n.loai].filter(Boolean).join(' · ')) + '</h3>'));
-    const t = el('table');
-    t.innerHTML = '<thead><tr><th>Tiêu chí</th><th class="so">Mục tiêu</th><th class="so">Tỷ trọng</th><th class="so">Kết quả</th></tr></thead>';
-    const tb = el('tbody');
-    n.tieuChi.forEach((tc) => {
-      const k = khoa + '#' + tc.ma;
-      const dn = (DATA.nhom.find((x) => x.khoa === khoa) || { tieuChi: [] }).tieuChi.find((x) => x.ma === tc.ma);
-      tb.appendChild(el('tr', '', '<td>' + esc(tc.ten) + '</td>'
-        + '<td class="so"><input class="so' + (k in SUA.mucTieu ? ' doi' : '') + '" type="number" step="any" value="'
-        + oSua('mucTieu', k, tc.mucTieu) + '" data-loai="mucTieu" data-k="' + esc(k) + '"></td>'
-        + '<td class="so"><input class="so' + (k in SUA.tyTrong ? ' doi' : '') + '" type="number" step="0.05" min="0" max="1" value="'
-        + (Math.round(oSua('tyTrong', k, tc.tyTrong) * 1000) / 1000) + '" data-loai="tyTrong" data-k="' + esc(k) + '"></td>'
-        + '<td class="so mo">' + (dn ? gon(dn.ketQua) : '—') + '</td>'));
-    });
-    t.appendChild(tb);
-    the.appendChild(el('div', '')).appendChild(t);
-    trai.appendChild(the);
+  /* Thanh chọn cách gom. Hai cách trả lời hai câu khác nhau: "nhóm công việc"
+   * cho biết mảng nội dung đang đặt mục tiêu thế nào, "kênh" cho biết một nền
+   * tảng đang gánh bao nhiêu. Nhớ lựa chọn lại cho lần sau. */
+  const oLuoi = el('div');
+  let gom = (function () {
+    try { return localStorage.getItem('kpi-gom-mt') || 'viec'; } catch (_) { return 'viec'; }
+  }());
+  const thanh = el('div', 'nut-hang');
+  thanh.style.marginBottom = '10px';
+  thanh.appendChild(el('span', 'nhat nho', 'Gom theo'));
+  const seg = el('div', 'seg');
+  [['viec', 'Nhóm công việc'], ['kenh', 'Kênh']].forEach(([k, t]) => {
+    const b = el('button', gom === k ? 'on' : '', t);
+    b.dataset.g = k;
+    seg.appendChild(b);
   });
+  thanh.appendChild(seg);
+  trai.appendChild(thanh);
+  trai.appendChild(oLuoi);
+
+  const veLuoi = () => {
+    dungLuoiMucTieu(oLuoi, luat, gom, (loai, k, mac) => oSua(loai, k, mac));
+    oLuoi.querySelectorAll('input[data-k]').forEach((i) => {
+      if (i.dataset.k in SUA[i.dataset.loai]) i.classList.add('doi');
+    });
+  };
+  seg.onclick = (ev) => {
+    const b = ev.target.closest('[data-g]'); if (!b || b.dataset.g === gom) return;
+    gom = b.dataset.g;
+    try { localStorage.setItem('kpi-gom-mt', gom); } catch (_) { /* chế độ riêng tư */ }
+    [...seg.children].forEach((x) => x.classList.toggle('on', x.dataset.g === gom));
+    veLuoi();
+  };
+  veLuoi();
 
   luoi.appendChild(trai);
   luoi.appendChild(phai);
@@ -1087,9 +1131,15 @@ async function veThu() {
 
   trai.addEventListener('input', (ev) => {
     const i = ev.target.closest('input.so'); if (!i) return;
-    const v = Number(i.value);
+    let v = Number(i.value);
+    /* Ô tỷ trọng gõ bằng phần trăm, bộ luật lưu 0..1. Đổi ngay ở đây, một chỗ
+     * duy nhất — để lọt một con số 35 vào bộ luật là tỷ trọng thành 3.500%. */
+    if (i.dataset.loai === 'tyTrong') v /= 100;
     if (Number.isFinite(v)) SUA[i.dataset.loai][i.dataset.k] = v;
     i.classList.add('doi');
+    if (i.dataset.loai === 'tyTrong') {
+      tinhLaiTongTy(trai, String(i.dataset.k).split('#')[0]);
+    }
     nhapGhi(khoaThu, lechGoc() ? SUA : null);
     clearTimeout(veThu._t); veThu._t = setTimeout(chayThu, 350);
   });
