@@ -573,6 +573,55 @@ function taiTheoNgay(ownerIds) {
   }
   return map;
 }
+
+/** Nhóm người thường làm một Loại công việc: suy từ lịch sử (ai từng/đang được gán
+ *  loại đó), xếp theo số việc giảm dần. Dùng để gợi ý người + dải nhiệt khi CHƯA
+ *  chọn Phụ trách chính. */
+function nguoiTheoLoai(workType) {
+  if (!workType) return [];
+  const dem = new Map();
+  for (const t of S.tasks || []) {
+    if (t.workType !== workType) continue;
+    for (const u of t.owner || []) {
+      if (!u || !u.id) continue;
+      const e = dem.get(u.id) || { id: u.id, name: u.name, n: 0 };
+      e.n += 1; dem.set(u.id, e);
+    }
+  }
+  return [...dem.values()].sort((a, b) => b.n - a.n);
+}
+
+/** Dữ liệu dải nhiệt cho ô Deadline của form tạo/sửa việc.
+ *  - Đã chọn Phụ trách chính -> lịch của người đó.
+ *  - Chưa chọn nhưng có Loại công việc -> NHÓM dự kiến; mỗi ngày lấy người RẢNH
+ *    NHẤT trong nhóm (để biết ngày nào xếp được việc và ai làm). */
+function dulieuDaiNhiet(t) {
+  const ow = (t.owner || []).filter((u) => u && u.id);
+  if (ow.length) {
+    const map = taiTheoNgay(ow.map((u) => u.id));
+    return {
+      bat: true,
+      tieuDe: 'Lịch của ' + ow.map((u) => u.name).join(', '),
+      ngay: (y, m, d) => ({ load: map[y + '-' + m + '-' + d] || 0, who: null }),
+    };
+  }
+  const team = nguoiTheoLoai(t.workType).slice(0, 6);   // nhóm dự kiến theo loại việc
+  if (!team.length) return { bat: false };
+  const per = team.map((p) => ({ map: taiTheoNgay([p.id]) }));
+  /* KHÔNG lộ tên ai sẽ nhận — chỉ cho biết ngày đó còn người rảnh để nhận việc.
+   * `load` = tải của người RẢNH NHẤT trong nhóm (0 = còn người hoàn toàn trống). */
+  return {
+    bat: true,
+    nhom: true,
+    tieuDe: 'Nhóm ' + t.workType,
+    ngay: (y, m, d) => {
+      const key = y + '-' + m + '-' + d;
+      let min = Infinity;
+      for (const x of per) { const l = x.map[key] || 0; if (l < min) min = l; }
+      return { load: min === Infinity ? 0 : min, who: null };
+    },
+  };
+}
 /* Hai khái niệm khác nhau, đừng lẫn:
  *  - laTreTheoHan: đã trễ hạn, kể cả đã nộp sản phẩm  -> quyết định NÚT nào hiện.
  *  - isOverdue:    đã trễ mà chưa nộp                 -> quyết định còn nằm trong
@@ -2532,10 +2581,22 @@ function ngayInput(value, onChange, opts) {
     const nay = vnParts(new Date());
     if (!xem) xem = { y: (chon || nay).y, m: (chon || nay).m };
 
-    // Dải nhiệt tải việc của nhân sự (nếu form truyền vào): tô ngày nào đang bận.
-    const tai = opts && typeof opts.tai === 'function' ? (opts.tai() || {}) : null;
+    // Dải nhiệt tải việc (nếu form truyền vào): tô ngày bận của người phụ trách,
+    // hoặc — khi chưa chọn người — của nhóm dự kiến theo Loại công việc.
+    const DN = opts && typeof opts.dulieu === 'function' ? opts.dulieu() : null;
+    const heat = DN && DN.bat ? DN : null;
     const NGUONG_TAI = 4;   // >= 4 việc/ngày = quá tải (cùng ngưỡng với hub)
-    const taiNgay = (y, m, d) => (tai ? (tai[y + '-' + m + '-' + d] || 0) : 0);
+    const oNgay = (y, m, d) => (heat ? (heat.ngay(y, m, d) || { load: 0, who: null }) : { load: 0, who: null });
+    // 3 ngày nguội gần nhất (load < 2) — vừa để gợi ý vừa để tô viền ánh sáng trên lịch.
+    const goiNgay = [];
+    if (heat) {
+      const d0g = new Date();
+      for (let i = 1; i <= 30 && goiNgay.length < 3; i++) {
+        const p = vnParts(new Date(d0g.getTime() + i * 86400000));
+        if ((oNgay(p.y, p.m, p.d).load || 0) < 2) goiNgay.push(p);
+      }
+    }
+    const laGoi = (y, m, d) => goiNgay.some((g) => g.y === y && g.m === m && g.d === d);
 
     const dau = el('div', 'ng-dau');
     const lui = el('button', 'ng-dh', '‹'); lui.type = 'button';
@@ -2559,12 +2620,17 @@ function ngayInput(value, onChange, opts) {
     for (let d = 1; d <= soNgay; d++) {
       const laNay = nay.y === xem.y && nay.m === xem.m && nay.d === d;
       const laChon = chon && chon.y === xem.y && chon.m === xem.m && chon.d === d;
-      const load = taiNgay(xem.y, xem.m, d);
+      const info = oNgay(xem.y, xem.m, d);
+      const load = info.load || 0;
       let cls = 'ng-o' + (laChon ? ' chon' : '') + (laNay ? ' nay' : '');
-      if (tai && load) cls += load >= NGUONG_TAI ? ' tai-cao' : ' tai-vua';
+      if (heat && load) cls += load >= NGUONG_TAI ? ' tai-cao' : ' tai-vua';
+      if (heat && laGoi(xem.y, xem.m, d)) cls += ' goi';   // ngày gợi ý: viền ánh sáng chạy
       const o = el('button', cls, String(d));
       o.type = 'button';
-      if (tai && load) { o.title = 'Nhân sự đang gánh ' + load + ' việc hôm này'; o.appendChild(el('span', 'ng-tai', String(load))); }
+      if (heat && load) {
+        o.title = heat.nhom ? 'Ngày này cả nhóm đều kín lịch' : 'Nhân sự đang gánh ' + load + ' việc hôm này';
+        o.appendChild(el('span', 'ng-tai', String(load)));
+      }
       o.onclick = () => {
         const g = chon || { H: 9, M: 0 };    // chưa đặt giờ thì lấy 09:00 cho khỏi ra 00:00
         dat(vnISO({ y: xem.y, m: xem.m, d, H: g.H, M: g.M }));
@@ -2574,32 +2640,36 @@ function ngayInput(value, onChange, opts) {
     }
     pop.appendChild(luoi);
 
-    // Gợi ý theo dải nhiệt: ngày tô màu là nhân sự đang bận; liệt kê vài ngày
-    // nguội gần nhất (bấm chọn luôn). Chỉ hiện khi form truyền dải nhiệt vào.
-    if (tai) {
+    // Gợi ý theo dải nhiệt: tô ngày bận; liệt kê vài ngày nguội gần nhất (bấm chọn
+    // luôn). Khi chưa chọn người, dải nhiệt là của NHÓM dự kiến theo Loại công việc,
+    // mỗi gợi ý kèm tên người đang rảnh để tự xếp lịch.
+    if (heat) {
       const gbox = el('div', 'ng-goi');
-      gbox.appendChild(el('div', 'ng-goi-txt', 'Ngày tô màu là nhân sự đang bận. Gợi ý deadline vào ngày nguội gần nhất:'));
-      const d0 = new Date();
+      gbox.appendChild(el('div', 'ng-goi-txt',
+        (heat.tieuDe ? heat.tieuDe + ' — ' : '') + 'gợi ý deadline vào ngày gần nhất còn người nhận:'));
       const THU = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
-      let found = 0;
-      for (let i = 1; i <= 30 && found < 3; i++) {
-        const p = vnParts(new Date(d0.getTime() + i * 86400000));
-        const load = taiNgay(p.y, p.m, p.d);
-        if (load >= 2) continue;    // nguội = 0–1 việc
-        found++;
+      if (!goiNgay.length) gbox.appendChild(el('div', 'ng-goi-txt', 'Nhóm này đang kín lịch 30 ngày tới.'));
+      for (const p of goiNgay) {
+        const info = oNgay(p.y, p.m, p.d);
         const thu = THU[new Date(Date.UTC(p.y, p.m - 1, p.d)).getUTCDay()];
-        const dong = el('button', 'ng-goi-dong');
-        dong.type = 'button';
-        dong.appendChild(el('span', 'ng-goi-ngay', p2(p.d) + '/' + p2(p.m) + ' · ' + thu));
-        dong.appendChild(el('span', 'ng-goi-tai', load ? load + ' việc' : 'đang trống'));
-        dong.onclick = () => {
-          const g = chon || { H: 17, M: 0 };
-          dat(vnISO({ y: p.y, m: p.m, d: p.d, H: g.H, M: g.M }));
-          ve();
-        };
+        const dong = el('div', 'ng-goi-dong');
+        const left = el('div', 'ng-goi-info');
+        left.appendChild(el('span', 'ng-goi-ngay', p2(p.d) + '/' + p2(p.m) + ' · ' + thu));
+        // Nhóm: chỉ cho biết còn người nhận, KHÔNG nêu tên. Một người: trống / N việc.
+        const phu = heat.nhom ? 'có người nhận việc' : (info.load ? info.load + ' việc' : 'đang trống');
+        left.appendChild(el('span', 'ng-goi-tai', phu));
+        dong.appendChild(left);
+        // Hai mốc deadline chính: 11:00 sáng hoặc 16:00 chiều — bấm là chốt luôn.
+        const gioRow = el('div', 'ng-goi-gio');
+        [[11, '11:00'], [16, '16:00']].forEach(([H, lbl]) => {
+          const gb = el('button', 'ng-goi-gb', lbl);
+          gb.type = 'button';
+          gb.onclick = () => { dat(vnISO({ y: p.y, m: p.m, d: p.d, H, M: 0 })); ve(); };
+          gioRow.appendChild(gb);
+        });
+        dong.appendChild(gioRow);
         gbox.appendChild(dong);
       }
-      if (!found) gbox.appendChild(el('div', 'ng-goi-txt', 'Nhân sự này đang kín lịch 30 ngày tới.'));
       pop.appendChild(gbox);
     }
 
@@ -2631,7 +2701,16 @@ function ngayInput(value, onChange, opts) {
     hang.appendChild(selG);
     hang.appendChild(el('span', 'ng-hai', ':'));
     hang.appendChild(selP);
-    hang.appendChild(el('span', 'ng-24', '24 giờ · giờ VN'));
+    // Hai mốc deadline chính: 11:00 sáng / 16:00 chiều — đặt nhanh cho ngày đang chọn.
+    [[11, '11:00'], [16, '16:00']].forEach(([H, lbl]) => {
+      const qb = el('button', 'ng-gio-nhanh', lbl); qb.type = 'button';
+      qb.onclick = () => {
+        const c = (iso ? vnParts(iso) : null) || { y: xem.y, m: xem.m, d: nay.d };
+        dat(vnISO({ y: c.y, m: c.m, d: c.d, H, M: 0 }));
+        ve();
+      };
+      hang.appendChild(qb);
+    });
     pop.appendChild(hang);
 
     const chan = el('div', 'ng-chan');
@@ -3288,7 +3367,7 @@ function buildDrawer() {
   const r4 = el('div', 'row2');
   r4.appendChild(field('Ngày bắt đầu', ngayInput(t.startAt, (v) => set('startAt', v))));
   r4.appendChild(field('Deadline 1', ngayInput(t.deadline1, (v) => set('deadline1', v), {
-    tai: () => taiTheoNgay((t.owner || []).map((u) => u.id)),
+    dulieu: () => dulieuDaiNhiet(t),
   })));
   b.appendChild(r4);
 
@@ -3388,7 +3467,7 @@ function buildCreateForm(b, t, o) {
   fStart.appendChild(el('div', 'ro-note', 'Mặc định là thời điểm tạo việc.'));
   r2.appendChild(fStart);
   r2.appendChild(field('Deadline *', ngayInput(t.deadline1, (v) => set('deadline1', v), {
-    tai: () => taiTheoNgay((t.owner || []).map((u) => u.id)),
+    dulieu: () => dulieuDaiNhiet(t),
   })));
   b.appendChild(r2);
 
