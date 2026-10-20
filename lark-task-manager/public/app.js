@@ -2574,26 +2574,32 @@ function ngayInput(value, onChange, opts) {
     }
     pop.appendChild(luoi);
 
-    // Gợi ý theo dải nhiệt: ngày đỏ là nhân sự đang bận; chỉ ra ngày nguội gần nhất.
+    // Gợi ý theo dải nhiệt: ngày tô màu là nhân sự đang bận; liệt kê vài ngày
+    // nguội gần nhất (bấm chọn luôn). Chỉ hiện khi form truyền dải nhiệt vào.
     if (tai) {
-      let goi = null;
-      const d0 = new Date();
-      for (let i = 1; i <= 21 && !goi; i++) {
-        const p = vnParts(new Date(d0.getTime() + i * 86400000));
-        if (taiNgay(p.y, p.m, p.d) < 2) goi = p;    // nguội = 0–1 việc
-      }
       const gbox = el('div', 'ng-goi');
-      gbox.appendChild(el('span', 'ng-goi-txt', 'Ngày đỏ: nhân sự đang bận (≥ ' + NGUONG_TAI + ' việc).'));
-      if (goi) {
-        const gb = el('button', 'ng-goi-nut', 'Chọn ngày nguội ' + p2(goi.d) + '/' + p2(goi.m));
-        gb.type = 'button';
-        gb.onclick = () => {
+      gbox.appendChild(el('div', 'ng-goi-txt', 'Ngày tô màu là nhân sự đang bận. Gợi ý deadline vào ngày nguội gần nhất:'));
+      const d0 = new Date();
+      const THU = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+      let found = 0;
+      for (let i = 1; i <= 30 && found < 3; i++) {
+        const p = vnParts(new Date(d0.getTime() + i * 86400000));
+        const load = taiNgay(p.y, p.m, p.d);
+        if (load >= 2) continue;    // nguội = 0–1 việc
+        found++;
+        const thu = THU[new Date(Date.UTC(p.y, p.m - 1, p.d)).getUTCDay()];
+        const dong = el('button', 'ng-goi-dong');
+        dong.type = 'button';
+        dong.appendChild(el('span', 'ng-goi-ngay', p2(p.d) + '/' + p2(p.m) + ' · ' + thu));
+        dong.appendChild(el('span', 'ng-goi-tai', load ? load + ' việc' : 'đang trống'));
+        dong.onclick = () => {
           const g = chon || { H: 17, M: 0 };
-          dat(vnISO({ y: goi.y, m: goi.m, d: goi.d, H: g.H, M: g.M }));
+          dat(vnISO({ y: p.y, m: p.m, d: p.d, H: g.H, M: g.M }));
           ve();
         };
-        gbox.appendChild(gb);
+        gbox.appendChild(dong);
       }
+      if (!found) gbox.appendChild(el('div', 'ng-goi-txt', 'Nhân sự này đang kín lịch 30 ngày tới.'));
       pop.appendChild(gbox);
     }
 
@@ -5687,6 +5693,28 @@ function setupChrome() {
      * này: thiết lập TÌM ở Cài đặt, còn giao diện vẫn ở đây, không dựng lại
      * hai bản. Chỉ quản lý mở được — nhân sự bấm vào cũng chỉ nhận 403. */
     if (tv.get('mo') === 'phan-phoi' && S.isManager) openPhanPhoi();
+
+    /* ?tab=dash|work|order|board|table -> mở thẳng một tab (link demo theo vai). */
+    const tab = tv.get('tab');
+    if (tab && document.querySelector('.tab[data-view="' + tab + '"]')) {
+      S.view = tab;
+      S.viewChosen = true;
+      document.querySelectorAll('.tab').forEach((x) => x.classList.toggle('is-active', x.dataset.view === tab));
+      render();
+    }
+    /* ?nhu=<tên> -> quản lý xem NHƯ nhân sự đó (trải nghiệm vai Người triển khai). */
+    const nhu = tv.get('nhu');
+    if (nhu && S.isManager) {
+      const low = nhu.toLowerCase();
+      const ng = (S.meta.people || []).find((p) => (p.name || '').toLowerCase() === low)
+        || (S.meta.people || []).find((p) => (p.name || '').toLowerCase().includes(low));
+      if (ng) {
+        S.viewAs = ng; S.who = ng; S.view = 'work'; S.viewChosen = true; S.wf.lane = '';
+        applyRoleChrome();
+        document.querySelectorAll('.tab').forEach((x) => x.classList.toggle('is-active', x.dataset.view === 'work'));
+        render();
+      }
+    }
   } catch (e) {
     toast('Không tải được dữ liệu: ' + (e && e.message), true);
   }
