@@ -276,10 +276,13 @@ async function docTuApp(thang, luat, khoangRieng, kho) {
     const pv = PV.cua(maNguoi) || (PV.MAC_DINH || {})[maNguoi];
     return ((pv && pv.tenDang) || []).map(chuan);
   };
-  /* Gộp phiên LIVE theo kênh — app Social trả danh sách từng phiên. */
+  /* Gộp phiên LIVE theo kênh — app Social trả danh sách từng phiên. Khoá PHẢI
+   * có nền tảng, cùng lý do với `kenhTheoTen` ở trên: tháng 10/2026 khoá chỉ
+   * có tên kênh nên 23 phiên LIVE Facebook của "Rooty Trip Phú Quốc" bị tính
+   * luôn cho LIVE TikTok cùng tên — TikTok không có phiên nào. */
   const liveTheoKenh = new Map();
   (social && social.live ? social.live : []).forEach((l) => {
-    const k = chuan(l.channel || l.channelName || '');
+    const k = chuan(l.platform) + '|' + chuan(l.channel || l.channelName || '');
     const o = liveTheoKenh.get(k) || { views: 0, newFollows: 0, comments: 0, likes: 0, shares: 0, peak: 0, minutes: 0, soPhien: 0 };
     ['views', 'newFollows', 'comments', 'likes', 'shares', 'minutes'].forEach((x) => { o[x] += Number(l[x]) || 0; });
     o.peak = Math.max(o.peak, Number(l.peak) || 0);
@@ -316,7 +319,7 @@ async function docTuApp(thang, luat, khoangRieng, kho) {
       if (loiApp.social) { ghi(tc.nguon, 'Social', null, 'loi', loiApp.social, 'noi'); return; }
 
       if (laLive) {
-        const o = liveTheoKenh.get(chuan(t.tenKenh));
+        const o = liveTheoKenh.get(chuan(nt) + '|' + chuan(t.tenKenh));
         const truong = CHI_SO_LIVE[t.chiSo];
         if (!truong) return ghi(tc.nguon, 'Social · LIVE', null, 'thieu', 'Bộ luật gọi tên chỉ số LIVE "' + t.chiSo + '" mà app Social không có', 'luat');
         /* Phân biệt hai chuyện mà bản trước gộp làm một:
@@ -327,12 +330,21 @@ async function docTuApp(thang, luat, khoangRieng, kho) {
          *   - Có kênh khác live mà kênh này không → đây mới là số 0 thật.
          * Bản trước lúc nào cũng ghi "kênh này chưa có phiên LIVE nào", đọc lên
          * thành "bạn đó không live" trong khi sự thật là chưa ai nối nguồn. */
+        const coLiveNenTang = [...liveTheoKenh.keys()].some((x) => x.startsWith(chuan(nt) + '|'));
         if (!o) {
-          return liveTheoKenh.size === 0
+          return !coLiveNenTang
             ? ghi(tc.nguon, 'Social · LIVE', null, 'thieu',
-              'Cả tháng chưa kênh nào có phiên LIVE. Nhập tay ở app Social → Nhập tay', 'tay')
+              'Cả kỳ chưa kênh ' + nt + ' nào có phiên LIVE. Nhập tay ở app Social → Nhập tay', 'tay')
             : ghi(tc.nguon, 'Social · LIVE', null, 'thieu',
               'Kênh khác có LIVE, riêng kênh này không. Nếu đúng là không live thì đây là số 0 thật', 'base');
+        }
+        /* Facebook không trả người theo dõi mới của phiên LIVE: 23 phiên tháng
+         * 10 đều ghi 0. Có người xem mà không ai theo dõi thêm suốt cả tháng là
+         * nền tảng không đo, không phải kết quả — cùng luật với `follow`. */
+        if (truong === 'newFollows' && !o.newFollows && o.views > 0) {
+          return ghi(tc.nguon, 'Social · LIVE (' + o.soPhien + ' phiên)', null, 'thieu',
+            'Các phiên LIVE có người xem nhưng không ghi nhận người theo dõi mới nào'
+            + ' — nền tảng chưa trả số này, chưa đo được', 'tay');
         }
         return ghi(tc.nguon, 'Social · LIVE (' + o.soPhien + ' phiên)', o[truong], 'lay-duoc');
       }
@@ -366,7 +378,12 @@ async function docTuApp(thang, luat, khoangRieng, kho) {
         /* Kênh có bài nhưng không bài nào mang tên người này: đó là số 0 THẬT
          * (tháng này bạn ấy không đăng kênh đó), khác hẳn kênh chưa có bài nào. */
         if (!o && baiTheoKenh.get(khoaKenh)) {
+          /* Phải điền 0 cho từng ô cộng được. Bản trước chỉ có soBai nên ô view
+           * đọc ra undefined, rơi vào "nền tảng không trả chỉ số này" và bị loại
+           * khỏi nhóm — người không đăng bài lại được chia tỷ trọng sang follow
+           * với lead của cả kênh (Ngọc · FB MICE tháng 10/2026). */
           o = { soBai: 0, clicks: null };
+          CONG.concat(THEO_MUC_DICH).forEach((f) => { o[f] = 0; });
         }
       }
 

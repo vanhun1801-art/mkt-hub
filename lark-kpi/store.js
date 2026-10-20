@@ -303,10 +303,14 @@ function luuGhiChuCham(th, maNguoi, maTieuChi, chu) {
  * quay lại được số ban đầu nếu đổ nhầm.
  * @param nguon nhãn cho biết số này ở đâu ra ('app' | 'file' | 'tay')
  */
-function luuSoLieu(th, soLieu, nguon) {
+function luuSoLieu(th, soLieu, nguon, boKhoa) {
   const s = suaTay();
   const t = s.thang[th] || (s.thang[th] = {});
   t.soLieu = Object.assign({}, t.soLieu, soLieu || {});
+  /* Ô nguồn vừa báo CHƯA ĐO ĐƯỢC thì bỏ số cũ đi. Chỉ gộp đè thì số của lần
+   * đổ trước nằm lì ở đó: follow TikTok tháng 10/2026 đã lỡ ghi 0, sau khi lớp
+   * nguồn biết nói "chưa đo được" thì con 0 ấy vẫn được chấm như kết quả thật. */
+  (boKhoa || []).forEach((k) => { if (!(k in (soLieu || {}))) delete t.soLieu[k]; });
   const g = t.nhatKySo || (t.nhatKySo = []);
   g.unshift({ luc: Date.now(), nguon: nguon || 'tay', so: Object.keys(soLieu || {}).length });
   t.nhatKySo = g.slice(0, 20);

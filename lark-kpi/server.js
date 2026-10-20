@@ -682,7 +682,10 @@ async function api(req, res, u) {
     if (!t) return fail(res, 404, 'Chưa có dữ liệu tháng ' + thangDoc(th));
     if (t.chot) return fail(res, 400, 'Tháng này đã chốt. Bỏ chốt trước khi đổ số mới');
     const r = await nguon.docTuApp(th, t.luat);
-    const n = store.luuSoLieu(th, r.soLieu, 'app');
+    /* Bỏ số cũ ở ô nguồn nói là chưa đo được. Trừ hai loại: app con lỗi (tắt
+     * máy một lúc không phải lý do xoá số đã có) và ô vốn chỉ vào bằng tải tệp. */
+    const boKhoa = r.nhatKy.filter((x) => x.trangThai === 'thieu' && x.cach !== 'file').map((x) => x.ma);
+    const n = store.luuSoLieu(th, r.soLieu, 'app', boKhoa);
     return ok(res, await daLuu({ ghi: n, dem: r.dem, loiApp: r.loiApp }));
   }
 
