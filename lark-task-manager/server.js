@@ -1124,6 +1124,7 @@ async function api(req, res, url) {
         proofRequiredFor: cfg.proofRequiredFor,
         // việc đã trễ: nhân sự bấm "Giải quyết" chứ không tự đặt Hoàn thành
         chanHoanThanhKhiTre: cfg.chanHoanThanhKhiTre !== false,
+        gioNghiemThu: cfg.gioNghiemThu || 36,   // mốc 1,5 ngày để nghiệm thu/chỉnh sửa
       },
       requestParts: (function () {
         const raw = requestFieldCache && requestFieldCache.find((x) => x.id === cfg.requestFields.parts.id);
@@ -1420,7 +1421,7 @@ async function api(req, res, url) {
 
   /* ---- luồng làm việc của Phụ trách chính (theo tài liệu Training) ---- */
 
-  const mAct = p.match(/^\/api\/tasks\/(rec[A-Za-z0-9]+)\/(start|complete|upload|giai-quyet)$/);
+  const mAct = p.match(/^\/api\/tasks\/(rec[A-Za-z0-9]+)\/(start|complete|upload|giai-quyet|nop|tra-ve)$/);
   if (mAct && req.method === 'POST') {
     const id = mAct[1];
     const action = mAct[2];
@@ -1446,7 +1447,12 @@ async function api(req, res, url) {
     const cotTep = url.searchParams.get('cot') === 'ket-qua' ? 'ket-qua' : 'dinh-kem';
     const nguoiOrderDinhTep = action === 'upload' && cotTep === 'dinh-kem' &&
       await laNguoiOrder(task, req);
-    if (!nguoiOrderDinhTep && !(await requireOwnTask(res, task, req))) return;
+    /* Người order được nghiệm thu (complete) hoặc trả về chỉnh sửa (tra-ve) việc
+     * mình đặt, nhưng chỉ khi editor đã nộp sản phẩm (daGiaiQuyet). Các đường khác
+     * vẫn chỉ của quản lý và người phụ trách. */
+    const nguoiOrderNghiemThu = (action === 'complete' || action === 'tra-ve') &&
+      task.daGiaiQuyet && await laNguoiOrder(task, req);
+    if (!nguoiOrderDinhTep && !nguoiOrderNghiemThu && !(await requireOwnTask(res, task, req))) return;
 
     if (action === 'upload') {
       const name = decodeURIComponent(req.headers['x-file-name'] || '') || 'file';
@@ -1483,6 +1489,21 @@ async function api(req, res, url) {
       return json(res, { ok: true, status: 'Đang tiến hành' });
     }
 
+    /* Người order (hoặc quản lý) nghiệm thu THẤY CHƯA ĐẠT → trả về để editor sửa.
+     * Bỏ cờ "đã nộp" để việc rời làn "chờ nghiệm thu", chuyển "Làm lại". */
+    if (action === 'tra-ve') {
+      const b2 = await readBody(req);
+      const patch2 = { status: 'Làm lại', daGiaiQuyet: false };
+      if (b2.note) patch2.note = String(b2.note);     // ghi góp ý vào ô Ghi chú
+      await lark.updateRecord(id, toCells(patch2));
+      applyLocal(rec, patch2);
+      if (task.maLienPhong) dongBoDi(task.maLienPhong, { status: 'Làm lại' }).catch(() => {});
+      baoTin((task.owner || []).map((u) => u.id),
+        'Việc "' + (task.title || '') + '" cần chỉnh sửa theo góp ý của người order.' +
+        (b2.note ? XD + 'Góp ý: ' + String(b2.note) : '') + duoiTin());
+      return json(res, { ok: true, status: 'Làm lại' });
+    }
+
     /* complete & giai-quyet: cả hai đều bắt buộc có minh chứng (tệp hoặc link) */
     const body = await readBody(req);
     const patch = {};
@@ -1490,16 +1511,6 @@ async function api(req, res, url) {
     if (body.linkKetQua) patch.linkKetQua = String(body.linkKetQua);
     if (body.link) patch.link = String(body.link);
     if (body.note) patch.note = String(body.note);
-
-    /* "Giải quyết" chỉ dành cho việc đã trễ. Việc còn hạn thì nộp bằng Hoàn thành
-     * như thường — không đánh dấu "Đã giải quyết", vì dấu đó là bằng chứng của
-     * một lần trễ. Nói trước cả phép kiểm minh chứng: bấm sai nút thì biết ngay. */
-    if (action === 'giai-quyet' && !laTreTheoHan(task)) {
-      return json(res, {
-        error: 'Việc chưa quá hạn — hãy bấm Hoàn thành như bình thường',
-        code: 'NOT_LATE',
-      }, 422);
-    }
 
     /* Minh chứng = có sản phẩm ở BẤT KỲ ô nào. Vẫn tính cả 'Link' và 'Tệp đính
      * kèm' cũ để những việc nộp từ trước không bị chặn ngược. */
@@ -1519,28 +1530,31 @@ async function api(req, res, url) {
       }, 422);
     }
 
-    /* ---- Giải quyết: dành cho việc ĐÃ TRỄ ----
-     * Nộp sản phẩm để việc rời khỏi hàng đợi quá hạn, nhưng TRẠNG THÁI KHÔNG ĐỔI —
-     * cuối tháng vẫn đếm được ai trễ. `Ngày giải quyết` đóng băng "trễ mấy ngày",
-     * số đó không mất đi kể cả sau này quản lý đóng việc.
+    /* ---- Nộp sản phẩm · chờ nghiệm thu ----
+     * Editor bấm "Đã gửi sản phẩm" (action 'nop') hoặc việc trễ bấm "Giải quyết"
+     * (action 'giai-quyet', giữ cho tương thích): đánh dấu `daGiaiQuyet` để việc
+     * vào làn "Đã nộp · chờ nghiệm thu", nhưng TRẠNG THÁI KHÔNG ĐỔI — việc trễ vẫn
+     * đếm được là trễ, việc đúng hạn vẫn "Đang tiến hành" cho tới khi được nghiệm
+     * thu. `Ngày giải quyết` làm mốc 1,5 ngày (và đóng băng "trễ mấy ngày").
      */
-    if (action === 'giai-quyet') {
-      /* Nộp lại lần hai thì chỉ cập nhật sản phẩm; giữ Ngày giải quyết của lần đầu
-       * để con số "trễ mấy ngày" không bị dịch đi. */
+    if (action === 'nop' || action === 'giai-quyet') {
+      /* Nộp lại lần hai thì chỉ cập nhật sản phẩm; giữ Ngày giải quyết của lần đầu. */
       Object.assign(patch, { daGiaiQuyet: true });
       if (!task.ngayGiaiQuyet) patch.ngayGiaiQuyet = new Date().toISOString();
       await lark.updateRecord(id, toCells(patch));
       applyLocal(rec, patch);
+      const tre = laTreTheoHan(task);
       baoTin((task.requester || []).map((u) => u.id),
-        'Việc "' + (task.title || '') + '" đã nộp sản phẩm (trễ so với deadline).' + XD +
-        'Trạng thái trễ được giữ lại để thống kê; mời bạn nghiệm thu.' + duoiTin());
+        'Việc "' + (task.title || '') + '" đã nộp sản phẩm' + (tre ? ' (trễ so với deadline)' : '') + '.' + XD +
+        'Mời bạn nghiệm thu' + (tre ? '; trạng thái trễ được giữ lại để thống kê' : '') + '.' + duoiTin());
       const baoCaoGQ = await themVaoBaoCao(req, task);
       return json(res, { ok: true, daGiaiQuyet: true, status: task.status, baoCao: baoCaoGQ });
     }
 
     /* Việc đã quá hạn thì NHÂN SỰ không tự chuyển Hoàn thành — phải bấm "Giải
-     * quyết". Quản lý vẫn đóng được, vì họ mới là người kết luận. */
-    if (cfg.chanHoanThanhKhiTre && !(await isManager(req)) && laTreTheoHan(task)) {
+     * quyết". Quản lý vẫn đóng được, vì họ mới là người kết luận. Người order
+     * nghiệm thu việc đã nộp cũng được chốt Hoàn thành kể cả việc trễ. */
+    if (cfg.chanHoanThanhKhiTre && !(await isManager(req)) && !nguoiOrderNghiemThu && laTreTheoHan(task)) {
       return json(res, {
         error: task.daGiaiQuyet
           ? 'Việc này đã nộp sản phẩm và đang chờ nghiệm thu — nhân sự không tự đóng được'

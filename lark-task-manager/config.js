@@ -247,6 +247,11 @@ module.exports = {
   // Chuyển sang trạng thái này bắt buộc phải có Tệp đính kèm hoặc Link kết quả
   proofRequiredFor: 'Hoàn thành',
 
+  /* Sau khi editor nộp sản phẩm (đánh dấu "Đã giải quyết"), mốc tối đa để Người
+   * order nghiệm thu / editor chỉnh sửa: 1,5 ngày = 36 giờ. Chỉ để CẢNH BÁO trong
+   * app (đếm ngược, tô đỏ khi quá), không tự đổi trạng thái. */
+  gioNghiemThu: 36,
+
   /* Việc đã quá hạn: nhân sự KHÔNG được tự đặt Hoàn thành nữa. Họ bấm "Giải quyết"
    * — nộp sản phẩm, việc rời khỏi hàng đợi quá hạn, nhưng TRẠNG THÁI KHÔNG ĐỔI để
    * cuối tháng vẫn đếm được ai trễ. Quản lý muốn đóng hẳn thì tự đặt Hoàn thành. */

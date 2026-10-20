@@ -629,6 +629,22 @@ body.col-resizing, body.col-resizing * { cursor: col-resize !important; user-sel
 .ord-sp.co::before { background: #2f9e5f; }
 .ord-rate { font-size: 12px; font-weight: 600; color: var(--orange-text, #b0862f); }
 .ord-empty { text-align: center; color: var(--text-2); padding: 44px 0; font-size: 14px; }
+.ord-han { font-size: 11.5px; font-weight: 600; color: var(--orange-text, #b0862f); margin-left: auto; }
+.ord-han.qua { color: var(--red-text); }
+.ord-sec-nt .ord-card { border-color: var(--orange, #ff8800); }
+
+/* khối nghiệm thu trong drawer người order */
+.nt-box { border: 1.5px solid var(--orange, #ff8800); border-radius: 12px; padding: 14px 16px;
+  margin: 4px 0 8px; background: var(--orange-bg, rgba(255,136,0,.08)); display: flex; flex-direction: column; gap: 10px; }
+.nt-title { font-weight: 700; font-size: 14px; }
+.nt-han { font-size: 12.5px; font-weight: 600; color: var(--orange-text, #b0862f); }
+.nt-han.qua { color: var(--red-text); }
+.nt-gy { width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px;
+  font: inherit; font-size: 16px; background: var(--surface); color: var(--text); resize: vertical; }
+.nt-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.nt-row .btn { flex: 1; min-width: 140px; justify-content: center; }
+.btn-warn { background: transparent; border-color: var(--border); color: var(--red-text); }
+.btn-warn:hover { background: var(--red-bg); border-color: var(--red); }
 
 /* ---------------- thanh chọn nhiều ---------------- */
 .bulkbar {
@@ -1982,6 +1998,17 @@ body.col-resizing, body.col-resizing * { cursor: col-resize !important; user-sel
 .ng-o:hover { background: var(--surface-3); }
 .ng-o.nay { box-shadow: inset 0 0 0 1px var(--blue); color: var(--blue); font-weight: 650; }
 .ng-o.chon, .ng-o.chon:hover { background: var(--blue); color: #fff; font-weight: 650; }
+/* dải nhiệt tải việc: ngày bận tô ấm, kèm số việc nhỏ ở góc */
+.ng-o { position: relative; }
+.ng-o.tai-vua { background: var(--orange-bg, rgba(255,136,0,.14)); }
+.ng-o.tai-cao { background: var(--red-bg, rgba(245,74,69,.16)); color: var(--red-text); font-weight: 650; }
+.ng-o.chon.tai-vua, .ng-o.chon.tai-cao { background: var(--blue); color: #fff; }
+.ng-tai { position: absolute; top: 1px; right: 3px; font-size: 8.5px; font-weight: 700; opacity: .8; }
+.ng-goi { margin-top: 9px; padding: 8px 10px; border-radius: 9px; background: var(--surface-3);
+  font-size: 12px; color: var(--text-2); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ng-goi-nut { border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  border-radius: 999px; padding: 4px 11px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.ng-goi-nut:hover { border-color: var(--blue); color: var(--blue-text); }
 
 .ng-gio {
   display: flex; align-items: center; gap: 5px; flex-wrap: wrap;

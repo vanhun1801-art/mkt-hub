@@ -71,23 +71,23 @@ const LANES = [
     hint: 'Việc của người khác, bạn được thêm vào cột Người hỗ trợ.',
     empty: 'Bạn không hỗ trợ việc nào.' },
   { key: 'doing', title: 'Đang tiến hành',
-    hint: 'Đính sản phẩm hoặc dán link kết quả trước khi chuyển Hoàn thành.',
+    hint: 'Đính sản phẩm hoặc dán link kết quả trước khi bấm Đã gửi sản phẩm.',
     empty: 'Bạn chưa bắt đầu việc nào.' },
   { key: 'late', title: 'Đang trễ deadline',
     hint: 'Đã bị đánh dấu trễ. Ưu tiên xử lý và báo người order.',
     empty: 'Không có việc nào bị đánh dấu trễ.' },
-  /* Nộp xong là xong phần của nhân sự -> ẨN HẲN khỏi "Việc của tôi".
-   * Vẫn tìm lại được bằng ô tìm kiếm khi cần nộp lại file cuối. */
-  { key: 'daNop', title: 'Đã nộp · chờ nghiệm thu', chiKhiTim: true,
-    hint: 'Đã trễ nhưng đã nộp sản phẩm. Trạng thái trễ được giữ để thống kê; đợi người order hoặc quản lý nghiệm thu.',
+  /* Đã gửi sản phẩm, đang đợi người order nghiệm thu. Hiện thường xuyên để
+   * editor theo dõi việc còn treo (và mốc 1,5 ngày chỉnh sửa). */
+  { key: 'daNop', title: 'Đã gửi · chờ nghiệm thu',
+    hint: 'Đã gửi sản phẩm cho người order. Đợi nghiệm thu; nếu bị trả về sẽ chuyển sang Cần làm lại.',
     empty: 'Không có việc nào đang chờ nghiệm thu.' },
   { key: 'done', title: 'Đã hoàn thành', onlyWhenFiltered: true,
     hint: 'Đã nộp kết quả — chờ hoặc đã có chấm điểm.',
     empty: 'Chưa có việc nào hoàn thành.' },
 ];
 
-/* Năm thẻ đếm ở đầu trang */
-const COUNTERS = ['new', 'doing', 'late', 'redo', 'done'];
+/* Các thẻ đếm ở đầu trang */
+const COUNTERS = ['new', 'doing', 'daNop', 'late', 'redo', 'done'];
 
 const LANE_BY_KEY = Object.fromEntries(LANES.map((l) => [l.key, l]));
 
@@ -532,8 +532,47 @@ function nhanGiaiQuyet(t) {
   const ngay = Math.floor((startOfDay(gq) - startOfDay(dl)) / 86400000);
   return ngay > 0 ? 'Đã giải quyết · trễ ' + ngay + ' ngày' : 'Đã giải quyết';
 }
+
+/** Mốc nghiệm thu/chỉnh sửa = Ngày gửi sản phẩm + gioNghiemThu (mặc định 1,5 ngày).
+ *  Trả {han, conGio, qua} hoặc null nếu chưa gửi sản phẩm. */
+function hanChinhSua(t) {
+  if (!t.daGiaiQuyet || !t.ngayGiaiQuyet) return null;
+  const gq = new Date(t.ngayGiaiQuyet);
+  if (isNaN(gq.getTime())) return null;
+  const gio = (S.meta && S.meta.rules && S.meta.rules.gioNghiemThu) || 36;
+  const han = new Date(gq.getTime() + gio * 3600000);
+  const conMs = han.getTime() - Date.now();
+  return { han, conGio: conMs / 3600000, qua: conMs < 0 };
+}
+/** Nhãn đếm ngược cho việc đang chờ nghiệm thu; null nếu không áp dụng. */
+function nhanHanChinhSua(t) {
+  const h = hanChinhSua(t);
+  if (!h) return null;
+  const doiGio = (g) => (g >= 24 ? (Math.round(g / 24 * 10) / 10) + ' ngày' : Math.round(g) + ' giờ');
+  return h.qua
+    ? { txt: 'Quá hạn chỉnh sửa ' + doiGio(-h.conGio), qua: true }
+    : { txt: 'Còn ' + doiGio(h.conGio) + ' để nghiệm thu', qua: false };
+}
 /** Cấu hình luật từ server (meta.rules) — thiếu thì coi như đang bật. */
 const cfg0 = () => ({ chanTre: !S.meta || !S.meta.rules || S.meta.rules.chanHoanThanhKhiTre !== false });
+
+/** Dải nhiệt tải việc: đếm số việc chưa đóng theo ngày deadline cho (các) nhân sự.
+ *  Trả {"y-m-d": số việc}. Chỉ quản lý có đủ S.tasks để tính thật. */
+function taiTheoNgay(ownerIds) {
+  const ids = new Set((ownerIds || []).filter(Boolean));
+  const map = {};
+  if (!ids.size) return map;
+  for (const t of S.tasks || []) {
+    if (isClosed(t)) continue;
+    if (!(t.owner || []).some((u) => ids.has(u.id))) continue;
+    const d = t.deadline ? parseDate(t.deadline) : null;
+    if (!d) continue;
+    const p = vnParts(d);
+    const key = p.y + '-' + p.m + '-' + p.d;
+    map[key] = (map[key] || 0) + 1;
+  }
+  return map;
+}
 /* Hai khái niệm khác nhau, đừng lẫn:
  *  - laTreTheoHan: đã trễ hạn, kể cả đã nộp sản phẩm  -> quyết định NÚT nào hiện.
  *  - isOverdue:    đã trễ mà chưa nộp                 -> quyết định còn nằm trong
@@ -885,17 +924,17 @@ function workCard(t, lane) {
   /* Việc đã trễ: nhân sự KHÔNG tự đặt Hoàn thành (trễ rồi thì phải chịu), nhưng
    * vẫn phải có chỗ nộp sản phẩm — nút "Giải quyết". Quản lý thì vẫn đóng được. */
   const treCanGQ = !S.isManager && cfg0().chanTre && laTreTheoHan(t);
+  /* Chủ việc GỬI sản phẩm chờ nghiệm thu, không tự chốt Hoàn thành nữa —
+   * nghiệm thu là của người order (tab "Việc đã order") hoặc quản lý. */
   const primary = {
     new:  { label: '▶ Bắt đầu làm', run: () => startTask(t) },
-    doing: { label: '✓ Hoàn thành', run: () => openDone(t) },
+    doing: { label: '✓ Đã gửi sản phẩm', run: () => openDone(t) },
     late:  treCanGQ
-      ? { label: daGiaiQuyet(t) ? '↥ Nộp lại sản phẩm' : '↥ Giải quyết · nộp sản phẩm',
+      ? { label: daGiaiQuyet(t) ? '↥ Gửi lại sản phẩm' : '↥ Gửi sản phẩm · giải quyết',
           run: () => openDone(t, 'giai-quyet') }
-      : { label: '✓ Hoàn thành', run: () => openDone(t) },
-    redo:  { label: '↻ Nộp lại',    run: () => openDone(t) },
-    daNop: treCanGQ
-      ? { label: '↥ Nộp lại sản phẩm', run: () => openDone(t, 'giai-quyet') }
-      : { label: '✓ Nghiệm thu · đóng việc', run: () => openDone(t) },
+      : { label: '✓ Đã gửi sản phẩm', run: () => openDone(t) },
+    redo:  { label: '↻ Gửi lại sản phẩm', run: () => openDone(t) },
+    daNop: { label: '↥ Gửi lại sản phẩm', run: () => openDone(t) },
   }[lane];
 
   if (primary) {
@@ -932,8 +971,13 @@ async function startTask(t) {
 
 /* --- modal Hoàn thành --- */
 function openDone(t, kieu) {
-  S.doneKieu = kieu === 'giai-quyet' ? 'giai-quyet' : 'complete';
+  // 'nop' = gửi sản phẩm chờ nghiệm thu (mặc định cho editor); 'giai-quyet' = việc trễ
+  // (cùng cơ chế); 'complete' = chốt Hoàn thành thẳng (quản lý).
+  S.doneKieu = kieu === 'giai-quyet' ? 'giai-quyet' : (kieu === 'complete' ? 'complete' : 'nop');
+  const laNop = S.doneKieu !== 'complete';
   S.modalTask = t;
+  $('#doneEyebrow').textContent = laNop ? 'Gửi sản phẩm · chờ nghiệm thu' : 'Nghiệm thu · đóng việc';
+  $('#doneSubmit').textContent = laNop ? 'Gửi sản phẩm' : 'Xác nhận hoàn thành';
   $('#doneTaskName').textContent = t.title || '(chưa có tên)';
   $('#doneLink').value = t.linkKetQua || '';
   $('#doneNote').value = '';
@@ -974,7 +1018,9 @@ function openDone(t, kieu) {
     co.textContent = 'Đã có minh chứng: ' + phan.join(' · ');
   } else {
     co.className = 'md-proof warn';
-    co.textContent = 'Cần dán link hoặc đính tệp sản phẩm trước khi hoàn thành.';
+    co.textContent = laNop
+      ? 'Cần dán link hoặc đính tệp sản phẩm trước khi gửi.'
+      : 'Cần dán link hoặc đính tệp sản phẩm trước khi hoàn thành.';
   }
   $('#mDone').dataset.nhapKhoa = t.id;   // nháp tại máy riêng từng việc (nhap-chung.js)
   openModal('mDone');
@@ -1004,8 +1050,8 @@ async function submitDone() {
     msg.textContent = 'Đang cập nhật trạng thái…';
     const link = $('#doneLink').value.trim();
     const note = $('#doneNote').value.trim();
-    const laGQ = S.doneKieu === 'giai-quyet';
-    const kq = await req('/api/tasks/' + t.id + '/' + (laGQ ? 'giai-quyet' : 'complete'), {
+    const laNop = S.doneKieu === 'nop' || S.doneKieu === 'giai-quyet';
+    const kq = await req('/api/tasks/' + t.id + '/' + S.doneKieu, {
       method: 'POST',
       body: JSON.stringify({
         linkKetQua: link || undefined, note: note || undefined,
@@ -1022,9 +1068,9 @@ async function submitDone() {
         : bc.bo === 'da-nop' ? ' Báo cáo hôm nay đã nộp — vào Báo cáo công việc cập nhật nếu cần.' : '';
     toast((t.lienPhong
       ? 'Đã gửi kết quả sang Giao việc công ty' + (kq && kq.luuVe ? ' và lưu về Base phòng.' : '.')
-      : laGQ
-        ? 'Đã nộp sản phẩm. Việc rời khỏi danh sách quá hạn, nhưng trạng thái trễ được giữ lại.'
-        : 'Đã hoàn thành. Hệ thống sẽ gửi thẻ chấm điểm cho người order.') + duoiBC);
+      : laNop
+        ? 'Đã gửi sản phẩm. Đang chờ người order nghiệm thu.'
+        : 'Đã hoàn thành. Người order sẽ nhận thẻ chấm điểm.') + duoiBC);
     await refresh(true);
   } catch (e) {
     msg.textContent = '';
@@ -2440,7 +2486,7 @@ function field(label, node) {
  * @param {string|null} value  mốc hiện tại (ISO)
  * @param {(iso:string|null)=>void} onChange
  */
-function ngayInput(value, onChange) {
+function ngayInput(value, onChange, opts) {
   const boc = el('div', 'ng');
   const inp = el('input');
   inp.type = 'text';
@@ -2486,6 +2532,11 @@ function ngayInput(value, onChange) {
     const nay = vnParts(new Date());
     if (!xem) xem = { y: (chon || nay).y, m: (chon || nay).m };
 
+    // Dải nhiệt tải việc của nhân sự (nếu form truyền vào): tô ngày nào đang bận.
+    const tai = opts && typeof opts.tai === 'function' ? (opts.tai() || {}) : null;
+    const NGUONG_TAI = 4;   // >= 4 việc/ngày = quá tải (cùng ngưỡng với hub)
+    const taiNgay = (y, m, d) => (tai ? (tai[y + '-' + m + '-' + d] || 0) : 0);
+
     const dau = el('div', 'ng-dau');
     const lui = el('button', 'ng-dh', '‹'); lui.type = 'button';
     const toi = el('button', 'ng-dh', '›'); toi.type = 'button';
@@ -2508,8 +2559,12 @@ function ngayInput(value, onChange) {
     for (let d = 1; d <= soNgay; d++) {
       const laNay = nay.y === xem.y && nay.m === xem.m && nay.d === d;
       const laChon = chon && chon.y === xem.y && chon.m === xem.m && chon.d === d;
-      const o = el('button', 'ng-o' + (laChon ? ' chon' : '') + (laNay ? ' nay' : ''), String(d));
+      const load = taiNgay(xem.y, xem.m, d);
+      let cls = 'ng-o' + (laChon ? ' chon' : '') + (laNay ? ' nay' : '');
+      if (tai && load) cls += load >= NGUONG_TAI ? ' tai-cao' : ' tai-vua';
+      const o = el('button', cls, String(d));
       o.type = 'button';
+      if (tai && load) { o.title = 'Nhân sự đang gánh ' + load + ' việc hôm này'; o.appendChild(el('span', 'ng-tai', String(load))); }
       o.onclick = () => {
         const g = chon || { H: 9, M: 0 };    // chưa đặt giờ thì lấy 09:00 cho khỏi ra 00:00
         dat(vnISO({ y: xem.y, m: xem.m, d, H: g.H, M: g.M }));
@@ -2518,6 +2573,29 @@ function ngayInput(value, onChange) {
       luoi.appendChild(o);
     }
     pop.appendChild(luoi);
+
+    // Gợi ý theo dải nhiệt: ngày đỏ là nhân sự đang bận; chỉ ra ngày nguội gần nhất.
+    if (tai) {
+      let goi = null;
+      const d0 = new Date();
+      for (let i = 1; i <= 21 && !goi; i++) {
+        const p = vnParts(new Date(d0.getTime() + i * 86400000));
+        if (taiNgay(p.y, p.m, p.d) < 2) goi = p;    // nguội = 0–1 việc
+      }
+      const gbox = el('div', 'ng-goi');
+      gbox.appendChild(el('span', 'ng-goi-txt', 'Ngày đỏ: nhân sự đang bận (≥ ' + NGUONG_TAI + ' việc).'));
+      if (goi) {
+        const gb = el('button', 'ng-goi-nut', 'Chọn ngày nguội ' + p2(goi.d) + '/' + p2(goi.m));
+        gb.type = 'button';
+        gb.onclick = () => {
+          const g = chon || { H: 17, M: 0 };
+          dat(vnISO({ y: goi.y, m: goi.m, d: goi.d, H: g.H, M: g.M }));
+          ve();
+        };
+        gbox.appendChild(gb);
+      }
+      pop.appendChild(gbox);
+    }
 
     const hang = el('div', 'ng-gio');
     hang.appendChild(el('span', 'ng-nhan', 'Giờ'));
@@ -3203,7 +3281,9 @@ function buildDrawer() {
 
   const r4 = el('div', 'row2');
   r4.appendChild(field('Ngày bắt đầu', ngayInput(t.startAt, (v) => set('startAt', v))));
-  r4.appendChild(field('Deadline 1', ngayInput(t.deadline1, (v) => set('deadline1', v))));
+  r4.appendChild(field('Deadline 1', ngayInput(t.deadline1, (v) => set('deadline1', v), {
+    tai: () => taiTheoNgay((t.owner || []).map((u) => u.id)),
+  })));
   b.appendChild(r4);
 
   b.appendChild(field('Deadline 2', ngayInput(t.deadline2, (v) => set('deadline2', v))));
@@ -3301,7 +3381,9 @@ function buildCreateForm(b, t, o) {
   const fStart = field('Ngày bắt đầu', ngayInput(t.startAt, (v) => set('startAt', v)));
   fStart.appendChild(el('div', 'ro-note', 'Mặc định là thời điểm tạo việc.'));
   r2.appendChild(fStart);
-  r2.appendChild(field('Deadline *', ngayInput(t.deadline1, (v) => set('deadline1', v))));
+  r2.appendChild(field('Deadline *', ngayInput(t.deadline1, (v) => set('deadline1', v), {
+    tai: () => taiTheoNgay((t.owner || []).map((u) => u.id)),
+  })));
   b.appendChild(r2);
 
   b.appendChild(field('Link brief / tư liệu', textInput(t.link, (v) => set('link', v), 'url')));
@@ -3515,13 +3597,20 @@ function buildStaffDrawer(b, t, o) {
     datNut(bt);
   } else if (laChinh && (stage === 'doing' || stage === 'redo' || stage === 'late' || stage === 'daNop')) {
     const treGQ = !S.isManager && cfg0().chanTre && laTreTheoHan(t);
-    const bt = el('button', 'btn btn-primary sg-nut',
-      treGQ
-        ? (daGiaiQuyet(t) ? '↥  Nộp lại sản phẩm' : '↥  Nộp sản phẩm · giải quyết việc trễ')
-        : stage === 'redo' ? '↻  Nộp lại · Hoàn thành' : '✓  Hoàn thành công việc');
+    const nhan = stage === 'daNop' ? '↥  Gửi lại sản phẩm'
+      : treGQ ? (daGiaiQuyet(t) ? '↥  Gửi lại sản phẩm' : '↥  Gửi sản phẩm · giải quyết việc trễ')
+      : stage === 'redo' ? '↻  Gửi lại sản phẩm'
+      : '✓  Đã gửi sản phẩm';
+    const bt = el('button', 'btn btn-primary sg-nut', nhan);
     bt.onclick = () => { closeDrawer(); openDone(t, treGQ ? 'giai-quyet' : ''); };
     datNut(bt);
-    if (!coMinhChung(t)) hero.appendChild(el('div', 'sg-nho', 'Cần link hoặc tệp sản phẩm — nộp ngay trong cửa sổ Hoàn thành.'));
+    if (stage === 'daNop') {
+      const hc = nhanHanChinhSua(t);
+      hero.appendChild(el('div', 'sg-nho', 'Đã gửi sản phẩm, đang chờ người order nghiệm thu.'
+        + (hc ? ' ' + hc.txt + '.' : '')));
+    } else if (!coMinhChung(t)) {
+      hero.appendChild(el('div', 'sg-nho', 'Cần link hoặc tệp sản phẩm — đính ngay trong cửa sổ Gửi sản phẩm.'));
+    }
   } else if (!laChinh && stage !== 'done') {
     hero.appendChild(el('div', 'sg-nho', 'Bạn là ' + (myRole === 'helper' ? 'người hỗ trợ' : 'người order') +
       ' — phụ trách chính là người cập nhật trạng thái.'));
@@ -3683,6 +3772,9 @@ function buildOrderDrawer(b, t, o) {
     'Chưa có sản phẩm nộp.'));
   b.appendChild(tt.the);
 
+  // Editor đã gửi sản phẩm & chưa đóng → mời người order nghiệm thu
+  if (t.daGiaiQuyet && !isClosed(t)) b.appendChild(nghiemThuBox(t));
+
   // trao đổi vẫn mở (đọc + gửi bình luận), không phải sửa việc
   b.appendChild(khoiBinhLuan(t));
 
@@ -3695,6 +3787,52 @@ function buildOrderDrawer(b, t, o) {
   adj.onclick = () => { closeDrawer(); openAdjust(t); };
   dc.appendChild(adj);
   b.appendChild(dc);
+}
+
+/** Khối nghiệm thu cho người order: xem sản phẩm xong thì Đạt hoặc Cần chỉnh sửa. */
+function nghiemThuBox(t) {
+  const box = el('div', 'nt-box');
+  box.appendChild(el('div', 'nt-title', 'Editor đã gửi sản phẩm — mời bạn nghiệm thu'));
+  const h = nhanHanChinhSua(t);
+  if (h) box.appendChild(el('div', 'nt-han' + (h.qua ? ' qua' : ''), h.txt));
+  const ta = el('textarea', 'nt-gy');
+  ta.placeholder = 'Góp ý nếu cần chỉnh sửa (tuỳ chọn)…';
+  ta.rows = 2;
+  box.appendChild(ta);
+  const row = el('div', 'nt-row');
+  const dat = el('button', 'btn btn-primary', '✓ Nghiệm thu đạt');
+  dat.onclick = () => nghiemThuDat(t);
+  const sua = el('button', 'btn btn-warn', '✗ Cần chỉnh sửa');
+  sua.onclick = () => canChinhSua(t, ta.value.trim());
+  row.appendChild(dat);
+  row.appendChild(sua);
+  box.appendChild(row);
+  return box;
+}
+
+/** Nghiệm thu đạt → chốt Hoàn thành (thẻ chấm điểm của Base tự gửi như hiện nay). */
+async function nghiemThuDat(t) {
+  if (!confirm('Nghiệm thu đạt và đóng việc "' + (t.title || '') + '"?\n\nViệc chuyển Hoàn thành; sau đó bạn nhận thẻ chấm điểm chất lượng.')) return;
+  try {
+    await req('/api/tasks/' + t.id + '/complete', { method: 'POST', body: JSON.stringify({}) });
+    toast('Đã nghiệm thu. Việc chuyển Hoàn thành; bạn sẽ nhận thẻ chấm điểm.');
+    closeDrawer();
+    await refresh(true);
+  } catch (e) { toast('Lỗi: ' + (e.message || e), true); }
+}
+
+/** Cần chỉnh sửa → trả về editor (chuyển "Làm lại"), kèm góp ý. */
+async function canChinhSua(t, gopY) {
+  if (!confirm('Trả việc "' + (t.title || '') + '" về cho editor chỉnh sửa?\n\nViệc chuyển sang Cần làm lại.')) return;
+  try {
+    await req('/api/tasks/' + t.id + '/tra-ve', {
+      method: 'POST',
+      body: JSON.stringify({ note: gopY || undefined }),
+    });
+    toast('Đã trả về để chỉnh sửa. Việc chuyển sang Cần làm lại.');
+    closeDrawer();
+    await refresh(true);
+  } catch (e) { toast('Lỗi: ' + (e.message || e), true); }
 }
 
 const laAnh = (n) => /\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(n || '');
@@ -4757,6 +4895,8 @@ function orderCard(t) {
   foot.appendChild(sp);
 
   if (t.rating) foot.appendChild(el('span', 'ord-rate', '★'.repeat(t.rating) + ' ' + t.rating + '/5'));
+  const hc = nhanHanChinhSua(t);
+  if (hc && !isClosed(t)) foot.appendChild(el('span', 'ord-han' + (hc.qua ? ' qua' : ''), hc.txt));
   c.appendChild(foot);
 
   c.addEventListener('click', () => openDrawer(t));
@@ -4773,11 +4913,27 @@ function renderOrders() {
       S.orders.length ? 'Không có việc khớp bộ lọc.' : 'Bạn chưa gửi order công việc nào.'));
     return;
   }
-  // nhóm theo trạng thái để nhìn nhanh "đang thế nào rồi"
+  // Lên đầu: việc editor đã gửi sản phẩm, đang chờ CHÍNH MÌNH nghiệm thu
+  const cho = list.filter((t) => t.daGiaiQuyet && !isClosed(t));
+  const conLai = list.filter((t) => !(t.daGiaiQuyet && !isClosed(t)));
+  if (cho.length) {
+    const sec = el('div', 'ord-sec ord-sec-nt');
+    const h = el('div', 'ord-sec-head');
+    const pill = el('span', 'pill'); pill.style.background = '#ff8800';
+    h.appendChild(pill);
+    h.appendChild(el('strong', '', 'Chờ bạn nghiệm thu'));
+    h.appendChild(el('span', 'n', String(cho.length)));
+    sec.appendChild(h);
+    const grid = el('div', 'ord-grid');
+    for (const t of sortTasks(cho)) grid.appendChild(orderCard(t));
+    sec.appendChild(grid);
+    box.appendChild(sec);
+  }
+  // nhóm phần còn lại theo trạng thái để nhìn nhanh "đang thế nào rồi"
   const order = S.meta.statusOrder || [];
   const rank = (s) => { const i = order.indexOf(s); return i < 0 ? 99 : i; };
   const groups = new Map();
-  for (const t of list) {
+  for (const t of conLai) {
     const k = t.status || 'Chưa đặt trạng thái';
     if (!groups.has(k)) groups.set(k, []);
     groups.get(k).push(t);
