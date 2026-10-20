@@ -2005,20 +2005,59 @@ body.col-resizing, body.col-resizing * { cursor: col-resize !important; user-sel
 .ng-o.chon.tai-vua, .ng-o.chon.tai-cao { background: var(--blue); color: #fff; }
 .ng-tai { position: absolute; top: 1px; right: 3px; font-size: 8.5px; font-weight: 700; opacity: .8; }
 
-/* Ngày được gợi ý: một đốm sáng LẤP LÁNH chạy men theo viền ô vuông (không xoay). */
-.ng-o.goi { color: var(--blue-text); font-weight: 650; border-radius: 8px;
-  box-shadow: inset 0 0 0 1px rgba(47,111,214,.45); }
-.ng-o.goi::after {
+/* Ngày được gợi ý: nhiều kiểu hiệu ứng để chọn, bật bằng body[data-fx=...].
+ * Mặc định 'tho' (viền thở). Đổi bằng ?fx=tho|dom|quet|aurora|cham. */
+.ng-o.goi { color: var(--blue-text); font-weight: 650; border-radius: 8px; position: relative; }
+
+/* tho — viền thở: sáng lên nhẹ rồi dịu, không chuyển động vòng (êm nhất) */
+body[data-fx="tho"] .ng-o.goi { animation: fxTho 1.9s ease-in-out infinite; }
+@keyframes fxTho {
+  0%, 100% { box-shadow: inset 0 0 0 1px rgba(47,111,214,.4), 0 0 2px 0 rgba(47,111,214,.2); }
+  50% { box-shadow: inset 0 0 0 1.4px var(--blue), 0 0 8px 1px rgba(47,111,214,.5); }
+}
+
+/* dom — một đốm sáng lấp lánh chạy men viền ô vuông */
+body[data-fx="dom"] .ng-o.goi { box-shadow: inset 0 0 0 1px rgba(47,111,214,.45); }
+body[data-fx="dom"] .ng-o.goi::after {
   content: ''; position: absolute; width: 5px; height: 5px; border-radius: 50%;
   background: #e2f2ff; box-shadow: 0 0 6px 2px rgba(150,200,255,.95), 0 0 2px 0 #fff;
   offset-path: inset(0 round 8px); offset-distance: 0%; pointer-events: none;
-  animation: ngGoiChay 2.3s linear infinite, ngGoiNhay 1.15s ease-in-out infinite;
+  animation: fxChay 2.3s linear infinite, fxNhay 1.15s ease-in-out infinite;
 }
-@keyframes ngGoiChay { to { offset-distance: 100%; } }
-@keyframes ngGoiNhay { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+@keyframes fxChay { to { offset-distance: 100%; } }
+@keyframes fxNhay { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+
+/* quet — một vệt sáng quét chéo qua ô theo nhịp */
+body[data-fx="quet"] .ng-o.goi { overflow: hidden; box-shadow: inset 0 0 0 1px rgba(47,111,214,.5); }
+body[data-fx="quet"] .ng-o.goi::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(115deg, transparent 32%, rgba(200,228,255,.55) 50%, transparent 68%);
+  transform: translateX(-130%); animation: fxQuet 2.6s ease-in-out infinite;
+}
+@keyframes fxQuet { 0% { transform: translateX(-130%); } 55%, 100% { transform: translateX(130%); } }
+
+/* aurora — viền gradient thương hiệu dịch nhẹ (teal + xanh), không xoay */
+body[data-fx="aurora"] .ng-o.goi::after {
+  content: ''; position: absolute; inset: -1px; border-radius: 9px; padding: 1.6px; pointer-events: none;
+  background: linear-gradient(120deg, #289683, #2f6fd6, #7fd0ff, #289683); background-size: 300% 300%;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor; mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); mask-composite: exclude;
+  animation: fxAurora 4s ease infinite;
+}
+@keyframes fxAurora { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+
+/* cham — một chấm sáng ở góc, thở nhẹ (tối giản) */
+body[data-fx="cham"] .ng-o.goi { box-shadow: inset 0 0 0 1px rgba(47,111,214,.4); }
+body[data-fx="cham"] .ng-o.goi::after {
+  content: ''; position: absolute; top: 2px; right: 2px; width: 5px; height: 5px; border-radius: 50%;
+  background: #bfe3ff; box-shadow: 0 0 5px 1px rgba(150,200,255,.9); pointer-events: none;
+  animation: fxCham 1.3s ease-in-out infinite;
+}
+@keyframes fxCham { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(.5); opacity: .45; } }
+
 @media (prefers-reduced-motion: reduce) {
-  .ng-o.goi::after { animation: none; display: none; }
-  .ng-o.goi { box-shadow: inset 0 0 0 1.5px var(--blue); }
+  .ng-o.goi { animation: none !important; box-shadow: inset 0 0 0 1.5px var(--blue); }
+  .ng-o.goi::after { animation: none !important; display: none; }
 }
 
 .ng-goi { margin-top: 9px; padding: 9px 11px; border-radius: 9px; background: var(--surface-3);

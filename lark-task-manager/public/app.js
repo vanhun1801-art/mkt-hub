@@ -574,9 +574,25 @@ function taiTheoNgay(ownerIds) {
   return map;
 }
 
+/** Dải nhiệt theo LOẠI công việc: đếm số việc cùng loại (chưa đóng) tới hạn mỗi
+ *  ngày — ngày nào dồn nhiều việc cùng loại thì "nóng". Dùng khi đã chọn Loại
+ *  nhưng chưa chọn Phụ trách chính (người thường chọn sau). */
+function taiTheoNgayLoai(workType) {
+  const map = {};
+  if (!workType) return map;
+  for (const t of S.tasks || []) {
+    if (t.workType !== workType || isClosed(t)) continue;
+    const d = t.deadline ? parseDate(t.deadline) : null;
+    if (!d) continue;
+    const p = vnParts(d);
+    const key = p.y + '-' + p.m + '-' + p.d;
+    map[key] = (map[key] || 0) + 1;
+  }
+  return map;
+}
+
 /** Nhóm người thường làm một Loại công việc: suy từ lịch sử (ai từng/đang được gán
- *  loại đó), xếp theo số việc giảm dần. Dùng để gợi ý người + dải nhiệt khi CHƯA
- *  chọn Phụ trách chính. */
+ *  loại đó), xếp theo số việc giảm dần. (Giữ lại cho các tiện ích khác.) */
 function nguoiTheoLoai(workType) {
   if (!workType) return [];
   const dem = new Map();
@@ -605,21 +621,17 @@ function dulieuDaiNhiet(t) {
       ngay: (y, m, d) => ({ load: map[y + '-' + m + '-' + d] || 0, who: null }),
     };
   }
-  const team = nguoiTheoLoai(t.workType).slice(0, 6);   // nhóm dự kiến theo loại việc
-  if (!team.length) return { bat: false };
-  const per = team.map((p) => ({ map: taiTheoNgay([p.id]) }));
-  /* KHÔNG lộ tên ai sẽ nhận — chỉ cho biết ngày đó còn người rảnh để nhận việc.
-   * `load` = tải của người RẢNH NHẤT trong nhóm (0 = còn người hoàn toàn trống). */
+  /* Chưa chọn người (người thường chọn sau) nhưng đã chọn Loại công việc:
+   * hiện ngay DẢI NHIỆT CỦA LOẠI đó = số việc cùng loại tới hạn mỗi ngày. Ngày
+   * nào dồn nhiều việc cùng loại thì tô nóng, để biết ngày nào đang kẹt lịch loại
+   * này; KHÔNG lộ tên ai. */
+  if (!t.workType) return { bat: false };
+  const map = taiTheoNgayLoai(t.workType);
   return {
     bat: true,
     nhom: true,
-    tieuDe: 'Nhóm ' + t.workType,
-    ngay: (y, m, d) => {
-      const key = y + '-' + m + '-' + d;
-      let min = Infinity;
-      for (const x of per) { const l = x.map[key] || 0; if (l < min) min = l; }
-      return { load: min === Infinity ? 0 : min, who: null };
-    },
+    tieuDe: 'Dải nhiệt loại ' + t.workType,
+    ngay: (y, m, d) => ({ load: map[y + '-' + m + '-' + d] || 0, who: null }),
   };
 }
 /* Hai khái niệm khác nhau, đừng lẫn:
@@ -2645,8 +2657,7 @@ function ngayInput(value, onChange, opts) {
     // mỗi gợi ý kèm tên người đang rảnh để tự xếp lịch.
     if (heat) {
       const gbox = el('div', 'ng-goi');
-      gbox.appendChild(el('div', 'ng-goi-txt',
-        (heat.tieuDe ? heat.tieuDe + ' — ' : '') + 'gợi ý deadline vào ngày gần nhất còn người nhận:'));
+      gbox.appendChild(el('div', 'ng-goi-txt', 'Gợi ý đặt deadline vào các thời gian trống bên dưới'));
       const THU = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
       if (!goiNgay.length) gbox.appendChild(el('div', 'ng-goi-txt', 'Nhóm này đang kín lịch 30 ngày tới.'));
       for (const p of goiNgay) {
@@ -2655,8 +2666,10 @@ function ngayInput(value, onChange, opts) {
         const dong = el('div', 'ng-goi-dong');
         const left = el('div', 'ng-goi-info');
         left.appendChild(el('span', 'ng-goi-ngay', p2(p.d) + '/' + p2(p.m) + ' · ' + thu));
-        // Nhóm: chỉ cho biết còn người nhận, KHÔNG nêu tên. Một người: trống / N việc.
-        const phu = heat.nhom ? 'có người nhận việc' : (info.load ? info.load + ' việc' : 'đang trống');
+        // Theo loại: số việc cùng loại ngày đó. Theo người: tải của người đó.
+        const phu = heat.nhom
+          ? (info.load ? info.load + ' việc cùng loại' : 'trống cho loại này')
+          : (info.load ? info.load + ' việc' : 'đang trống');
         left.appendChild(el('span', 'ng-goi-tai', phu));
         dong.appendChild(left);
         // Hai mốc deadline chính: 11:00 sáng hoặc 16:00 chiều — bấm là chốt luôn.
@@ -5761,6 +5774,8 @@ function setupChrome() {
     setInterval(poll, 25000);
     // ?rec=recXXX -> mở luôn ô chi tiết việc đó (deep link từ hub hoặc từ Lark)
     const tv = new URLSearchParams(location.search);
+    // ?fx=tho|dom|quet|aurora|cham -> chọn hiệu ứng ngày gợi ý (mặc định 'tho')
+    document.body.dataset.fx = tv.get('fx') || 'tho';
     const rec = tv.get('rec');
     if (rec) {
       const t = timViecTheoMa(rec);

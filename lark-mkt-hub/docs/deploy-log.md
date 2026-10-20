@@ -7,3 +7,6 @@ Render tự build lại từ `main`). Mỗi dòng: ngày · nội dung chính đ
   → người order/quản lý nghiệm thu), mốc chỉnh sửa 1,5 ngày, tab "Việc đã order",
   và gợi ý deadline theo Loại công việc (dải nhiệt + mốc giờ 11:00/16:00). Lưu ý:
   push Lark "mời nghiệm thu" cần một automation trên Base (cột "Đã giải quyết").
+- 2026-10-20 (2) · Gợi ý deadline: hiện màu dải nhiệt ngay khi chọn Loại công việc
+  (đếm việc cùng loại tới hạn mỗi ngày, chưa cần chọn người); hiệu ứng ngày gợi ý
+  mặc định "viền thở" (đổi bằng ?fx=tho|dom|quet|aurora|cham); câu gợi ý gọn lại.
