@@ -3402,6 +3402,7 @@ async function khoiDongVo() {
   }
   dinhTuyen();
   napTongQuan();
+  if (window.HubActionReminder) window.HubActionReminder.start();
 
   /* Trạng thái module 10s/lần; chỉ số 60s/lần (và khi quay lại tab).
    *

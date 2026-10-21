@@ -48,3 +48,10 @@ Render tự build lại từ `main`). Mỗi dòng: ngày · nội dung chính đ
 - Kiểm tra bộ thử Bot, quyền nghiệm thu, nhắc tay; không gửi tin trong unit test.
 
 - Kiểm tra dữ liệu thật: cảnh báo nhanh ưu tiên kỳ hiện tại, tách các việc có hạn từ tháng trước thành tồn cũ cần rà soát.
+
+## 2026-10-21 · Hiệu ứng lời nhắc hành động trong Hub
+
+- Bản thử chỉ tài khoản đã chọn pilot Bot: thẻ nổi có mascot Marketing Hub, hiệu ứng vào nhẹ, ba nhóm Cần xử lý / Nghiệm thu / Đang thực hiện; mỗi việc có bước tiếp theo và link mở đúng task.
+- Thu gọn thành nút Việc cần làm, nhắc sau 15 phút theo tài khoản/trình duyệt. Cập nhật mỗi phút, việc xử lý xong tự rời danh sách. Không bật lời nhắc tự động trong lúc nhập liệu hoặc mở cửa sổ; ẩn khi chi tiết module/bảng tin bắt buộc đang mở.
+- Link #/nhac-viec mở thẻ thử. Không gửi thêm Lark và không thay đổi việc chỉ vì hiển thị lời nhắc. Tôn trọng reduced-motion, mobile 390px, màu giao diện Hub.
+- Kiểm tra service pilot, phân loại/loại việc đã đóng, phạm vi manager; QA desktop/mobile: chuyển nhóm, hẹn nhắc, nhớ sau reload, dữ liệu đã xử lý biến mất.

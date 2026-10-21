@@ -141,6 +141,36 @@ function create({ store, send, getTasks, url, now = Date.now, log = console.erro
       });
     } catch (e) { log('[Bot nghiệm thu] ' + e.message); } finally { busy = false; }
   }
+  async function quick(me) {
+    const cfg = await store.read();
+    // Bản hiệu ứng đang thử: chỉ tài khoản đã chọn pilot được nhận dữ liệu.
+    if (cfg.mode !== 'pilot' || !cfg.pilot || cfg.pilot.id !== me.id) return { enabled: false };
+    const time = now(), tasks = await getTasks();
+    const active = canhBao(tasks, time).filter(x => !x.old);
+    const pending = tasks.filter(choDuyet).sort((a, b) => (Date.parse(b.ngayGiaiQuyet) || 0) - (Date.parse(a.ngayGiaiQuyet) || 0));
+    const work = active.map(x => ({
+      id: x.t.id, kind: x.late ? 'late' : x.t.status === 'Làm lại' ? 'redo' : x.priority === 1 ? 'soon' : 'doing',
+      title: x.t.title || '(chưa có tên)', person: (x.t.owner || []).map(u => u.name).join(', ') || 'Chưa phân công',
+      why: x.late ? 'Đã quá hạn, chưa nộp sản phẩm' : x.priority === 1 ? 'Đến hạn trong 24 giờ' : x.t.status || 'Đang thực hiện',
+      action: nguoi(x.t.owner).includes(me.id) ? x.action
+        : 'Nhắc người phụ trách ' + x.action.charAt(0).toLowerCase() + x.action.slice(1), deadline: x.han || null,
+      url: url + '/#/m/cong-viec?rec=' + encodeURIComponent(x.t.id),
+    }));
+    const review = pending.map(t => ({ id: t.id, kind: 'review', title: t.title || '(chưa có tên)',
+      person: (t.owner || []).map(u => u.name).join(', ') || 'Chưa phân công',
+      why: 'Đã nộp sản phẩm, chờ nghiệm thu', action: 'Kiểm tra sản phẩm, chọn Nghiệm thu đạt hoặc ghi góp ý để chỉnh sửa.',
+      url: urlTask(url, t), deadline: null,
+    }));
+    // Mỗi việc xuất hiện một lần; việc đã nộp không lẫn vào làn trễ cần làm tiếp.
+    const items = [...work.filter(x => x.kind === 'late'), ...review,
+      ...work.filter(x => x.kind !== 'late')];
+    return { enabled: true, accountKey: hash(me.id), scope: 'Phòng Marketing',
+      counts: { late: work.filter(x => x.kind === 'late').length, review: review.length,
+        soon: work.filter(x => x.kind === 'soon').length, doing: work.filter(x => x.kind === 'doing' || x.kind === 'redo').length },
+      total: items.length, items,
+      signature: hash(JSON.stringify(items.map(x => [x.id, x.kind, x.deadline, x.title, x.person, x.why, x.action]))),
+    };
+  }
   async function preview(me) {
     const tasks = await getTasks();
     return { settings: await store.read(), cards: [theNghiemThu(tasks.filter(t => nguoi(t.requester).includes(me.id)), url, { demo: true, now: now() }), theCanhBao(tasks, url, now())] };
@@ -155,6 +185,6 @@ function create({ store, send, getTasks, url, now = Date.now, log = console.erro
       return { ok: true, sent: sent.length, recipient: me.name, mode: 'pilot' };
     });
   }
-  return { submission, tick, preview, demo, stop: () => serial(() => store.write({ mode: 'off', pilot: null })) };
+  return { submission, tick, preview, quick, demo, stop: () => serial(() => store.write({ mode: 'off', pilot: null })) };
 }
 module.exports = { choDuyet, gioVN, canhBao, theNghiemThu, theCanhBao, storage, create };

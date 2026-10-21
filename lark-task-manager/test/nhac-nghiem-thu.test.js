@@ -104,7 +104,7 @@ test('Endpoint gửi thử bắt buộc quản lý, lấy người nhận từ p
   const b = s.indexOf("  if (p === '/api/my-orders'", a);
   async function run({ manager = true, guest = false, method = 'POST' } = {}) {
     let delivered = null, preview = 0; const response = {};
-    const ctx = vm.createContext({ p: '/api/bot-nghiem-thu', req: { method }, res: response,
+    const ctx = vm.createContext({ p: '/api/bot-nghiem-thu', req: { method }, res: response, url: new URL('https://hub.example/api/bot-nghiem-thu'),
       requireManager: async () => { if (!manager) Object.assign(response, { status: 403 }); return manager; },
       laKhach: () => guest, whoAmI: async () => ({ id: 'session-hung', name: 'Hùng' }),
       json: (_r, data, status = 200) => Object.assign(response, { status, data }),
@@ -129,4 +129,19 @@ test('Cảnh báo nhanh ưu tiên kỳ hiện tại, tách tồn cũ khỏi danh
   assert.match(card, /1 việc trễ trong tháng/);
   assert.match(card, /Tồn cũ cần rà soát: 1/);
   assert(!card.includes('recMay'));
+});
+test('Nhắc trong ứng dụng chỉ tài khoản pilot, trễ chưa nộp và nghiệm thu không bị lặp', async () => {
+  const f = fixture();
+  assert.equal((await f.service.quick({ id: 'other' })).enabled, false);
+  const d = await f.service.quick({ id: 'hung' });
+  assert.equal(d.enabled, true); assert.equal(d.counts.late, 1); assert.equal(d.counts.review, 1);
+  assert.equal(new Set(d.items.map(x => x.id)).size, d.items.length);
+  assert.equal(d.items[0].kind, 'late');
+  assert.equal(d.items[1].kind, 'review');
+  assert.match(d.items[1].url, /mo=nghiem-thu/);
+  const before = d.signature;
+  f.setTasks([{ ...pending, status: 'Hoàn thành' }]);
+  const after = await f.service.quick({ id: 'hung' });
+  assert.equal(after.items.length, 0); assert.notEqual(after.signature, before);
+  await f.service.stop(); assert.equal((await f.service.quick({ id: 'hung' })).enabled, false);
 });

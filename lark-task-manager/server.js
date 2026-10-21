@@ -1282,7 +1282,8 @@ async function api(req, res, url) {
     if (!(await requireManager(res, req))) return;
     const me = await whoAmI(req);
     if (!me) return json(res, { error: 'Cần đăng nhập Lark.' }, 401);
-    if (req.method === 'GET') return json(res, await botNghiemThu.preview(me));
+    if (req.method === 'GET') return json(res, url.searchParams.get('view') === 'quick'
+      ? await botNghiemThu.quick(me) : await botNghiemThu.preview(me));
     const body = await readBody(req);
     if (body.action === 'stop') { await botNghiemThu.stop(); return json(res, { ok: true }); }
     if (body.action !== 'demo' || !/^[a-zA-Z0-9-]{16,80}$/.test(body.requestId || '')) {
