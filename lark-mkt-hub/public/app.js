@@ -565,7 +565,7 @@ function veRail() {
   });
 
 
-  if (!(S.hub && S.hub.khach) && !S.xemNhu) html += item({ id: 'ghi-chu', href: '#/ghi-chu', icon: 'ghi-chu', ten: 'Ghi chú', mau: '#ae851e', on: hienTai === 'ghi-chu' });
+  if (!(S.hub && S.hub.khach) && !S.xemNhu) html += item({ id: 'ghi-chu', href: '#/ghi-chu', icon: 'ghi-chu', ten: 'Ghi chú', mau: '#2b5cff', on: hienTai === 'ghi-chu' });
   const dsBat = S.modules.filter((m) => m.bat);
   html += '<div class="rail-group">Base đang quản lý</div>';
   html += dsBat.map((m) => {

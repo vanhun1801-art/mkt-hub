@@ -18,3 +18,7 @@ Render tự build lại từ `main`). Mỗi dòng: ngày · nội dung chính đ
 - 2026-10-21 (3) · Không gian Ghi chú cá nhân: thư mục, tìm kiếm, ghim, checklist,
   biên bản họp và khôi phục ghi chú. Lưu bền trên kho Lark của Hub theo tài khoản;
   tạo công việc thật từ nội dung đã chọn, liên kết về ghi chú gốc, chống tạo trùng.
+
+- 2026-10-21 (4) · Đồng bộ giao diện Ghi chú với Hub: bỏ logo/tiêu đề thương hiệu,
+  chân trang và trạng thái lưu lặp; dùng cùng palette/phông chữ sáng tối, nút
+  xanh và thẻ bo góc. Gọn thao tác tạo mới, cải thiện bố cục điện thoại.
