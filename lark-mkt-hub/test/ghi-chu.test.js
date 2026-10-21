@@ -75,3 +75,20 @@ test('HTTP boundary denies view-as, guest, missing session and cross-site writes
   for(const i of [{...identity,xemNhu:{id:'bob'}},{...identity,q:{khach:true}},{...identity,nguoi:null}]){identity=i;assert.ok((await context.handler(req,{},url)).status>=400);}
   identity={nguoi:user,q:{quanLy:true},xemNhu:null};assert.equal((await context.handler({method:'PATCH',headers:{host:'hub.example',origin:'https://evil.example','sec-fetch-site':'cross-site'}},{},url)).status,403);
 });
+
+test('a delayed Base attachment listing cannot roll back an acknowledged revision', async () => {
+  let stored=notes.defaults();
+  const storage={read:async()=>notes.defaults(),write:async(k,d)=>{stored=clone(d);}};
+  const service=notes.createService({storage});
+  const first=await service.save(user,0,content());assert.equal(first.version,1);
+  const next=content();next.notes[0].body='<p>Tiếp tục viết</p>';
+  const second=await service.save(user,1,next);assert.equal(second.version,2);assert.equal(stored.notes[0].body,'<p>Tiếp tục viết</p>');
+});
+test('unchanged attachment tokens do not repeatedly download or decompress private snapshots', async () => {
+  const owner=notes.ownerKey(user);let token='first',version=1,downloads=0;
+  const B={docHet:async()=>[{recordId:'row','Ô':'ghi-chu:'+owner,'Tệp':[{name:'ghi-chu.json.gz',file_token:token}]}],taiTep:async()=>{downloads++;return {buf:zlib.gzipSync(Buffer.from(JSON.stringify({...notes.defaults(),...content(),owner,version})))}}};
+  const storage=notes.createLarkStorage(B);
+  const a=await storage.read(owner);a.notes[0].title='Changed local object';
+  const b=await storage.read(owner);assert.equal(downloads,1);assert.equal(b.notes[0].title,'Nội dung riêng');
+  token='second';version=2;assert.equal((await storage.read(owner)).version,2);assert.equal(downloads,2);
+});

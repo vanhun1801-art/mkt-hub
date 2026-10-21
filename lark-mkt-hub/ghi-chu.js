@@ -71,6 +71,7 @@ function createLarkStorage(B = baseLark.bang(
   process.env.HUB_GHI_CHU_BASE || process.env.HUB_PHIM_BASE || process.env.HUB_TB_BASE || 'JhZtbxv0gamk5ys3Fr0luHnsgwG',
   process.env.HUB_GHI_CHU_TABLE || process.env.HUB_PHIM_TABLE || 'tbl1rcw5ES34EeEY', 'Tệp')) {
   const key = (owner) => 'ghi-chu:' + owner;
+  const snapshots = new Map();
   async function row(owner) {
     const rows = (await B.docHet()).filter((r) => String(r['Ô'] || '') === key(owner));
     if (rows.length > 1) throw error(503, 'Kho ghi chú có hai bản trùng. Cần quản lý kiểm tra trước khi lưu tiếp.');
@@ -84,11 +85,16 @@ function createLarkStorage(B = baseLark.bang(
       if (!attachments.length) return defaults(); // dòng tạo lần đầu nhưng chưa upload
       const file = attachments.filter((f) => f.ten === 'ghi-chu.json.gz').pop();
       if (!file) throw error(503, 'Không nhận dạng được tệp ghi chú. Giữ nguyên bản đang có.');
+      const cached = snapshots.get(owner);
+      if (cached && cached.token === file.token) return copy(cached.doc);
       const bytes = await B.taiTep(r.recordId, file.token);
       const raw = zlib.gunzipSync(bytes.buf, { maxOutputLength: 1200000 });
       const d = JSON.parse(raw.toString('utf8'));
       if (d.owner !== owner || !Number.isInteger(d.version) || d.version < 0) throw error(503, 'Dữ liệu không thuộc không gian ghi chú này.');
-      return { ...d, ...validate(d) };
+      const doc = { ...d, ...validate(d) };
+      snapshots.set(owner, { token: file.token, doc: copy(doc) });
+      if (snapshots.size > 60) snapshots.delete(snapshots.keys().next().value);
+      return doc;
     },
     async write(owner, doc) {
       let r = await row(owner);
@@ -124,8 +130,11 @@ function createService({ storage = createLarkStorage(), taskCall, publicUrl = ''
   };
   async function read(key, force = false) {
     const c = latest.get(key);
-    if (!force && c && Date.now() - c.at < 20000) return copy(c.doc);
+    if (!force && c && Date.now() - c.at < 5000) return copy(c.doc);
     const doc = await storage.read(key);
+    // Metadata on Base can lag a successful attachment write. Never regress a
+    // revision already acknowledged by this process.
+    if (c && c.doc.version > doc.version) return copy(c.doc);
     latest.set(key, { doc: copy(doc), at: Date.now() });
     // không giữ vô hạn nội dung riêng của những phiên đã đóng
     if (latest.size > 60) latest.delete(latest.keys().next().value);
@@ -139,7 +148,7 @@ function createService({ storage = createLarkStorage(), taskCall, publicUrl = ''
   }
   const visible = (doc) => ({ version: doc.version, folders: doc.folders, notes: doc.notes, refs: doc.refs || [] });
   return {
-    async load(user) { const key = ownerKey(user); return { ...visible(await read(key, true)), cacheKey: key }; },
+    async load(user) { const key = ownerKey(user); return lock(key, async () => ({ ...visible(await read(key)), cacheKey: key })); },
     async save(user, version, data) {
       const key = ownerKey(user);
       const clean = validate(data);

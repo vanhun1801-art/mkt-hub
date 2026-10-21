@@ -27,3 +27,8 @@ Render tự build lại từ `main`). Mỗi dòng: ngày · nội dung chính đ
   và màn soạn riêng, điều hướng Quay lại, nhóm ghi chú theo ngày, thanh công cụ
   dưới, định dạng Aa và menu tuỳ chọn dạng bảng trượt. Giữ luồng tạo việc và
   tự động lưu; điều chỉnh chiều cao theo vùng nhìn khi bàn phím xuất hiện.
+
+- 2026-10-21 (6) · Sửa đồng bộ Ghi chú: tự nhận thay đổi mỗi 6 giây/khi quay
+  lại trang, thử lại sau lỗi kết nối, gộp thay đổi giữa các thiết bị và giữ bản
+  riêng khi cùng sửa một trường. Bản nháp theo cửa sổ, cập nhật ô soạn đang
+  mở mà giữ vị trí con trỏ; giảm tải lại tệp Base và chống lùi revision.

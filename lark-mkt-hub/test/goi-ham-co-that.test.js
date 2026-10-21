@@ -154,6 +154,9 @@ function gomKhaiBao(s, vao) {
   /* Rút gọn trong object literal: `{ oSo(a, b) { … } }` — khung-xuong.js dựng
    * cả bộ khung xương theo lối này. */
   for (const m of s.matchAll(/(?:^|[{,])\s*([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/g)) them(m[1]);
+  // Class methods/getters use the same method syntax without an object comma.
+  // Count declarations here; dotted method calls remain outside this scanner.
+  for (const m of s.matchAll(/(?:^|\n)\s*(?:(?:async|static|get|set)\s+)*([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/g)) them(m[1]);
   for (const m of s.matchAll(/(?:const|let|var)\s*\{([^}]*)\}/g)) {
     m[1].split(',').forEach((x) => them(x.split(':').pop().trim()));
   }

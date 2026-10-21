@@ -25,3 +25,23 @@ khoản khác khi họ mở Link. Request ID và bản ghi pending được lưu
 mất kết nối thì tìm theo Link nguồn, không POST lại một cách mù quáng.
 
 Kiểm tra không ghi Lark: `node --test test/ghi-chu.test.js`.
+
+## Đồng bộ khi đang dùng
+
+Trang đang mở kiểm tra thay đổi mỗi 6 giây, đồng bộ ngay khi trở lại tab hoặc
+khôi phục mạng. Các tab cùng tài khoản báo phiên bản cho nhau qua BroadcastChannel
+(không truyền nội dung ghi chú). Thay đổi được gửi sau 1,2 giây ngừng gõ hoặc tối
+đa khoảng 5 giây gõ liên tục; lỗi tạm thời tự thử lại với thời gian chờ tăng dần.
+
+Đối chiếu ba bản (bản đã xác nhận, bản đang soạn, bản máy chủ) để gộp các ghi chú
+khác nhau hoặc các trường khác nhau. Nếu cùng một trường được sửa khác nhau ở
+hai nơi, giữ nguyên bản máy chủ và tạo một bản giữ lại cho phần cục bộ. Bản nháp
+có baseline được lưu theo tài khoản và cửa sổ; bản cũ không có baseline được
+khôi phục thận trọng bằng bản giữ lại. Không bắt tải lại/ghi đè khi gặp HTTP 409.
+
+Kho Base đọc lại danh sách tệp nhưng chỉ tải/giải nén khi token thay đổi, dùng
+bộ đệm máy chủ 5 giây. Một phiên bản đã xác nhận không được lùi về phiên bản
+cũ nếu danh sách đính kèm của Lark cập nhật chậm. Bộ đệm không phải nguồn dữ liệu
+bền; thành công chỉ được xác nhận sau khi ghi Base xong.
+
+Kiểm thử đồng bộ: `node --test test/ghi-chu-sync.test.js test/ghi-chu.test.js`.

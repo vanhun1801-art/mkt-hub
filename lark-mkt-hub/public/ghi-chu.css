@@ -263,3 +263,5 @@ html,body{margin:0;min-height:100%}
   #rn-error,#rn-recovery{margin:4px 12px 8px;font-size:12px;padding:10px 12px;max-height:120px;overflow:auto}
   @media(prefers-reduced-motion:no-preference){#rooty-notes .mobile-menu{animation:notes-sheet-in .2s ease-out}@keyframes notes-sheet-in{from{transform:translateY(25%);opacity:.5}to{transform:translateY(0);opacity:1}}}
 }
+
+#rn-sync-details{margin:8px 0;overflow-wrap:anywhere}#rn-sync-details summary{cursor:pointer}#rn-sync-detail-text{display:block;margin-top:5px;font-size:12px}
