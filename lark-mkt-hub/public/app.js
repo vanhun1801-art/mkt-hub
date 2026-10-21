@@ -1467,6 +1467,10 @@ async function veKhoiTin() {
           '<span class="tin-muc ' + (mucLop[t.mucDo] || '') + '">' + esc(t.mucDo || 'Tin') + '</span>' +
           (t.daDoc ? '' : '<span class="tin-moi">mới</span>') +
           '<span class="grow"></span>' +
+          /* Tạo việc ngay từ tin (21/10/2026). Máy tính: hiện khi rê vào dòng
+           * cho cột tin khỏi rối. Màn cảm ứng không rê được nên luôn hiện. */
+          '<button type="button" class="tin-tao" data-tao-tin="' + esc(t.recordId) + '"' +
+            ' title="Tạo công việc từ tin này">+ Tạo việc</button>' +
           '<span class="tin-ngay">' + (t.tuNgay ? esc(ngayGonTin(t.tuNgay)) : '') + '</span>' +
         '</div>' +
         '<b>' + esc(t.tieuDe || '(không tiêu đề)') + '</b>' +
@@ -1544,7 +1548,12 @@ async function veKhoiTin() {
    * nút "Tôi đã đọc". Anh Hùng: "mình có bắt buộc họ xem rồi" — popup chặn màn
    * hình đã làm việc đó, còn đây chỉ là chỗ đọc lại. */
   o.querySelectorAll('[data-tin]').forEach((el) => {
-    el.onclick = () => {
+    el.onclick = (e) => {
+      if (e.target.closest('[data-tao-tin]')) {
+        const t = (TIN.ds || []).find((x) => x.recordId === el.dataset.tin);
+        if (t) taoViecTuTin(t);
+        return;
+      }
       const t = (TIN.ds || []).find((x) => x.recordId === el.dataset.tin);
       if (t && typeof xemTinTb === 'function') xemTinTb(t);
     };
@@ -2947,6 +2956,14 @@ function dinhTuyen() {
     return;
   }
   if (ml) { moModule(decodeURIComponent(ml[1])); return; }
+  /* #/tin/<mã>: đường về một tin của phòng, nằm trong ô Link của việc tạo từ
+   * tin. Mở Tổng quan rồi bật đúng tin đó lên đọc. */
+  if (duong.startsWith('/tin/')) {
+    const ma = decodeURIComponent(duong.slice(5));
+    location.hash = '#/tong-quan';
+    if (typeof moTinTheoMa === 'function') moTinTheoMa(ma);
+    return;
+  }
   if (mm) {
     const q = new URLSearchParams(mm[2] || '');
     moModule(decodeURIComponent(mm[1]), q.get('rec'), q.get('mo'));

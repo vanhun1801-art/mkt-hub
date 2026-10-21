@@ -2438,3 +2438,30 @@ body[data-fx="cham"] .ng-o.goi::after {
   border: 1px solid var(--border); background: var(--surface);
   color: var(--text); font-size: 13px; font-family: inherit; outline: none;
 }
+
+/* Thẻ "Trích từ tin" (21/10/2026): việc tạo từ Tin của phòng giữ đường về tin
+   gốc thay vì chép chữ. Bấm cả thẻ là mở tin. Thẻ nhỏ bo 14px theo thang chung. */
+.tin-nguon {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 10px 12px; margin: 0 0 10px; text-align: left; cursor: pointer;
+  font: inherit; color: var(--text);
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 14px;
+  transition: border-color var(--cd-deu, .16s ease), background var(--cd-deu, .16s ease);
+}
+.tin-nguon:hover { border-color: var(--border-2); background: var(--surface-3); }
+.tin-nguon-anh { flex: 0 0 auto; width: 52px; height: 52px; border-radius: 10px; overflow: hidden; background: var(--surface-3); }
+.tin-nguon-anh:empty { display: none; }
+.tin-nguon-anh img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.tin-nguon-chu { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.tin-nguon-dau { font-size: 12px; font-weight: 600; color: var(--blue-text); }
+.tin-nguon-chu b {
+  font-size: 14px; line-height: 1.4; font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tin-nguon-trich {
+  font-size: 12.5px; color: var(--text-2); line-height: 1.45;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tin-nguon-trich:empty { display: none; }
+.tin-nguon.mat { cursor: default; }
+.tin-nguon.mat .tin-nguon-chu b { color: var(--text-3); font-weight: 500; }

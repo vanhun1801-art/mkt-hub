@@ -107,7 +107,9 @@ function veTbApp() {
          * — người ta đã bị popup chặn màn hình bắt đọc một lần rồi, bắt xác
          * nhận lần nữa là phiền vô ích. */
         (TB.chiDoc
-          ? '<button class="btn primary" id="tbThuDong">Đóng</button>'
+          ? (tb.recordId && !TB.khongTao
+            ? '<button class="btn ghost" id="tbTaoViec">Tạo việc từ tin này</button>' : '') +
+            '<button class="btn primary" id="tbThuDong">Đóng</button>'
           : '<button class="btn primary" id="tbDoc"' + (khoa ? ' disabled' : '') + '>Tôi đã đọc</button>' +
             (TB.thu ? '<button class="btn ghost" id="tbThuDong">Đóng xem thử</button>' : '')) +
       '</div>' +
@@ -145,7 +147,112 @@ function veTbApp() {
   if (oDoc) oDoc.onclick = () => (TB.thu ? dongXemThu() : xacNhanTb(tb));
   const oThu = document.getElementById('tbThuDong');
   if (oThu) oThu.onclick = dongXemThu;
+  const oTao = document.getElementById('tbTaoViec');
+  if (oTao) oTao.onclick = () => { dongXemThu(); taoViecTuTin(tb); };
 }
+
+/**
+ * Tạo việc từ một tin của phòng (anh Hùng 21/10/2026: tin hay dẫn tới việc,
+ * muốn bấm là ra việc với đủ thông tin, khỏi nhập lại).
+ *
+ * Lớp vỏ không tự ghi gì lên Base. Nó mở Bảng công việc rồi gửi sang tiêu đề,
+ * nội dung và tệp của tin; app đó dựng form "Tạo công việc mới" đã điền sẵn.
+ * Người ta chọn loại việc, deadline, người làm rồi tự bấm tạo, đúng quy tắc
+ * của app.
+ *
+ * Tệp do LỚP VỎ tải rồi gửi nguyên tệp qua postMessage. App con không tự tải
+ * được: trong khung của nó, đường /api/... bị chuyển về máy chủ của chính app
+ * đó và trả 404.
+ *
+ * Khung có thể đang nạp dở nên lớp vỏ nhắc lại mỗi giây cho tới khi app báo
+ * đã nhận (tối đa 20 lần). App nhận trùng thì bỏ qua theo mã lượt.
+ */
+function taoViecTuTin(tb) {
+  const mod = (S.modules || []).find((m) => m.id === 'cong-viec' && m.kieu !== 'lark');
+  if (!mod) { toast('Tài khoản này chưa mở Bảng công việc.', 'do'); return; }
+  /* Không chép chữ của tin vào việc (anh Hùng 21/10/2026: "nên ở dạng trích
+   * xuất từ tin, ấn vào ra bảng tin ấy thay vì hiện như text"). Ô "Link brief"
+   * giữ đường về đúng tin (#/tin/<mã>); app công việc nhận ra đường đó và vẽ
+   * thành thẻ "Trích từ tin", bấm là mở tin gốc. Ô chi tiết chỉ một câu dẫn,
+   * người giao việc ghi thêm yêu cầu riêng nếu cần. */
+  const goi = {
+    hub: 'tao-tu-tin',
+    ma: String(Date.now()),
+    title: String(tb.tieuDe || '').trim() || 'Việc từ tin của phòng',
+    detail: 'Thực hiện theo tin của phòng ở thẻ "Trích từ tin" bên dưới.',
+    link: location.origin + '/#/tin/' + encodeURIComponent(tb.recordId),
+    tep: [],
+    soTep: (tb.tep || []).length,
+  };
+
+  location.hash = '#/m/' + mod.id;
+
+  /* Tải tệp song song với lúc khung nạp. Quá 8 giây thì gửi phần đã có. */
+  const lay = (tb.tep || []).map(async (x) => {
+    try {
+      const r = await fetch('/api/tb-app/tep/' + encodeURIComponent(tb.recordId) + '/' + encodeURIComponent(x.token));
+      if (!r.ok) return;
+      const b = await r.blob();
+      goi.tep.push(new File([b], x.ten || 'tep', { type: b.type || x.kieu || '' }));
+    } catch (_) {}
+  });
+  const cho = Promise.race([Promise.all(lay), new Promise((r) => setTimeout(r, 8000))]);
+
+  cho.then(() => {
+    let lan = 0;
+    let hen = 0;
+    const xong = () => { clearInterval(hen); window.removeEventListener('message', nhan); };
+    const nhan = (ev) => {
+      if (ev.origin === location.origin && ev.data && ev.data.hub === 'tao-tu-tin-ok' && ev.data.ma === goi.ma) xong();
+    };
+    window.addEventListener('message', nhan);
+    const nhac = () => {
+      if (++lan > 20) { xong(); return; }
+      const f = S.frames.get(mod.id);
+      if (!f || !f.iframe) return;
+      try { f.iframe.contentWindow.postMessage(goi, location.origin); } catch (_) {}
+    };
+    hen = setInterval(nhac, 1000);
+    nhac();
+  });
+}
+
+/* Thẻ "Trích từ tin" trong app công việc hỏi lớp vỏ qua đây (cùng origin nên
+ * gọi thẳng parent.hubTin). Tin còn trên bảng tin thì lấy ngay trong máy; tin
+ * đã hết hạn hiển thị thì đọc riêng từ máy chủ. */
+const tinDaDoc = new Map();
+async function layTinTheoMa(ma) {
+  const coSan = (TIN.ds || []).find((x) => x.recordId === ma);
+  if (coSan) return coSan;
+  if (tinDaDoc.has(ma)) return tinDaDoc.get(ma);
+  const hua = fetch('/api/tb-app/tin/' + encodeURIComponent(ma))
+    .then((r) => (r.ok ? r.json() : null))
+    .then((j) => (j && j.tin) || null)
+    .catch(() => null);
+  tinDaDoc.set(ma, hua);
+  const kq = await hua;
+  if (!kq) tinDaDoc.delete(ma);              // lỗi mạng thì lần sau hỏi lại
+  return kq;
+}
+async function moTinTheoMa(ma) {
+  const t = await layTinTheoMa(ma);
+  if (!t) { toast('Không còn tin này trên bảng Thông báo.', 'do'); return; }
+  xemTinTb(t, { khongTao: true });
+}
+window.hubTin = {
+  lay: async (ma) => {
+    const t = await layTinTheoMa(ma);
+    if (!t) return null;
+    const anh = (t.tep || []).find((x) => /^image\//.test(x.kieu || '') || /\.(png|jpe?g|gif|webp)$/i.test(x.ten || ''));
+    return {
+      tieuDe: t.tieuDe || '', mucDo: t.mucDo || 'Tin',
+      ngay: t.tuNgay ? ngayTb(t.tuNgay) : '',
+      trich: String(t.noiDung || '').replace(/\s+/g, ' ').slice(0, 140),
+      anh: anh ? '/api/tb-app/tep/' + encodeURIComponent(t.recordId) + '/' + encodeURIComponent(anh.token) : '',
+    };
+  },
+  mo: (ma) => moTinTheoMa(ma),
+};
 
 /**
  * Xem trước đúng thứ nhân sự sẽ thấy.
@@ -156,8 +263,10 @@ function veTbApp() {
  * duy nhất để biết nó trông ra sao là gửi thật cho cả phòng.
  */
 /** Mở một tin để ĐỌC LẠI: không băng xem thử, không nút xác nhận, Escape đóng. */
-function xemTinTb(tb) {
+function xemTinTb(tb, tuy) {
   TB.chiDoc = true;
+  /* Mở từ thẻ "Trích từ tin" của một việc: việc đã có rồi, khỏi mời tạo nữa. */
+  TB.khongTao = !!(tuy && tuy.khongTao);
   xemThuTb(tb);
 }
 

@@ -4359,6 +4359,7 @@ html[data-skin="ios"][data-app="kpi"] .pt.xau { color: var(--ios-do-chu); }
    chỗ nào dùng xanh làm CHỮ phải gọi đích danh. Nền sáng cũng được lợi:
    #1f4ae0 rõ hơn #2b5cff trên nền nhạt (4,35 → 6+). */
 html[data-skin="ios"] .tin-muc:not(.vang):not(.do),
+html[data-skin="ios"] .tin-tao:not(:hover),
 html[data-skin="ios"][data-app="quang-cao"] .link-btn,
 html[data-skin="ios"][data-app="quang-cao"] .hd-o.info .hd-so,
 html[data-skin="ios"][data-app="social"] td.name > a,

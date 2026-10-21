@@ -1356,6 +1356,17 @@ code { background: var(--trang-2); border: 1px solid var(--vien-mem); border-rad
   font-size: 11px; color: var(--chu-nhat);
   font-variant-numeric: tabular-nums; width: 38px; text-align: right; flex: 0 0 auto;
 }
+/* "+ Tạo việc" trên từng dòng tin (21/10/2026). Máy tính: chỉ hiện khi rê vào
+   dòng hoặc khi bấm Tab tới, để cột tin vẫn gọn. Màn cảm ứng: luôn hiện. */
+.tin-tao {
+  font: inherit; font-size: 11px; font-weight: 600; line-height: 20px; height: 20px;
+  padding: 0 9px; border-radius: 999px; border: 0; cursor: pointer; white-space: nowrap;
+  background: var(--xanh-nhat); color: var(--xanh); flex: 0 0 auto;
+  opacity: 0; transition: opacity var(--cd-deu, .16s ease), background var(--cd-deu, .16s ease);
+}
+.tin-mot:hover .tin-tao, .tin-tao:focus-visible { opacity: 1; }
+.tin-tao:hover { background: var(--xanh); color: #fff; }
+@media (hover: none) { .tin-tao { opacity: 1; } }
 
 @media (min-width: 1700px) {
   .tin-luoi { grid-template-columns: 560px minmax(0, 1fr); }
@@ -2140,6 +2151,7 @@ input.cd-in-nho { width: 72px; }
   .ng-nghi { font-size: 12.5px; }                                /* 11 */
   .tin-muc, .tin-moi { font-size: 12.5px; }                      /* 10 */
   .tin-ngay { font-size: 12.5px; }                               /* 11 */
+  .tin-tao { font-size: 12.5px; }                                /* 11 */
   .cd-nhom { font-size: 12.5px; }                                /* 11 */
   .tb-nhom { font-size: 12.5px; }                                /* 10.5 */
   .tb-n { font-size: 12.5px; }                                   /* 10.5 */

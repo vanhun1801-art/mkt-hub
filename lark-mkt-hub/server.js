@@ -1344,6 +1344,25 @@ async function api(req, res, u) {
    * Khác hẳn /api/tb-app: đường kia trả những cái CÒN PHẢI ĐỌC để chặn màn
    * hình, đọc xong là biến mất. Bảng tin thì để xem lại, nên đọc rồi vẫn còn —
    * chỉ đánh dấu "đã đọc" để phân biệt cái mới. */
+  /* MỘT tin theo mã, kể cả tin đã hết hạn hiển thị (21/10/2026). Việc tạo từ
+   * tin giữ thẻ "Trích từ tin", bấm vào phải mở được tin gốc dù nó đã rời bảng
+   * tin từ lâu. Chỉ đọc. Khách công ty không tới được: đường này không nằm
+   * trong DUONG_CHO_KHACH. */
+  if (p.startsWith('/api/tb-app/tin/') && m === 'GET') {
+    const ma = decodeURIComponent(p.slice('/api/tb-app/tin/'.length));
+    let het = [];
+    try { het = await tbApp.docTatCa(); } catch (e) { return loi(res, 502, e.message); }
+    const tb = het.find((x) => x.recordId === ma);
+    if (!tb) return loi(res, 404, 'Không còn tin này trên bảng Thông báo.');
+    return ok(res, {
+      tin: {
+        recordId: tb.recordId, tieuDe: tb.tieuDe, noiDung: tb.noiDung, mucDo: tb.mucDo,
+        nhanNut: tb.nhanNut, lienKet: tb.lienKet, tuNgay: tb.tuNgay, denNgay: tb.denNgay,
+        tep: tb.tep || [],
+      },
+    });
+  }
+
   if (p === '/api/tb-app/tin' && m === 'GET') {
     const { nguoi: nguoiTin, xemNhu: nhuTin, q: qTin } = await aiDangXem(req);
     const id = (nguoiTin && nguoiTin.id) || '';

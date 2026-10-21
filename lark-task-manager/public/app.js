@@ -3389,7 +3389,8 @@ function buildDrawer() {
   b.appendChild(field('Người hỗ trợ', peopleDropdown(t.helper, (v) => set('helper', v), 'Chọn người hỗ trợ…')));
   b.appendChild(field('Người order', onePersonInput(t.requester, (v) => set('requester', v))));
   b.appendChild(field('Kênh phân phối', optionsDropdown(o.channel, t.channel, (v) => set('channel', v), 'Chọn kênh…')));
-  b.appendChild(field('Link tài liệu / tracking (của người order)',
+  if (maTinTuLink(t.link)) b.appendChild(field('Tin gốc', theTinNguon(t.link)));
+  else b.appendChild(field('Link tài liệu / tracking (của người order)',
     textInput(t.link, (v) => set('link', v), 'url')));
   b.appendChild(field('Link kết quả (nhân sự nộp)',
     textInput(t.linkKetQua, (v) => set('linkKetQua', v), 'url')));
@@ -3484,7 +3485,9 @@ function buildCreateForm(b, t, o) {
   })));
   b.appendChild(r2);
 
-  b.appendChild(field('Link brief / tư liệu', textInput(t.link, (v) => set('link', v), 'url')));
+  /* Tạo từ tin: thẻ tin thay cho ô link, khỏi để lộ một đường dẫn dài. */
+  if (maTinTuLink(t.link)) b.appendChild(field('Tin gốc', theTinNguon(t.link)));
+  else b.appendChild(field('Link brief / tư liệu', textInput(t.link, (v) => set('link', v), 'url')));
   b.appendChild(oTepViecMoi());
 
   const note = el('textarea');
@@ -3519,6 +3522,59 @@ function buildCreateForm(b, t, o) {
 
 /* Biến URL trong mô tả thành link bấm được. Yêu cầu của người order hay có
  * link Drive/Figma dán giữa đoạn văn — để dạng chữ thì phải bôi đen copy tay. */
+/* ---------- Thẻ "Trích từ tin" (21/10/2026) ----------
+ * Việc tạo từ "Tin của phòng" không chép chữ của tin. Ô link giữ đường về tin
+ * (…/#/tin/<mã>), và chỗ nào hiện ô link thì vẽ thành thẻ: ảnh, tiêu đề, ngày,
+ * một dòng trích. Bấm vào là lớp vỏ mở đúng tin đó lên đọc (anh Hùng: "ấn vào
+ * ra bảng tin ấy thay vì là hiện như text").
+ * Lớp vỏ cùng origin nên gọi thẳng parent.hubTin. Mở app riêng (không có lớp
+ * vỏ) thì bấm thẻ là mở trang hub ở tab mới. */
+function maTinTuLink(link) {
+  const m = /#\/tin\/([^\s#?/]+)\s*$/.exec(String(link || ''));
+  return m ? decodeURIComponent(m[1]) : '';
+}
+function hubTin() {
+  try { return parent !== window && parent.hubTin ? parent.hubTin : null; } catch (_) { return null; }
+}
+function theTinNguon(link) {
+  const ma = maTinTuLink(link);
+  const the = el('button', 'tin-nguon');
+  the.type = 'button';
+  the.title = 'Mở tin này';
+  const anh = el('span', 'tin-nguon-anh');
+  const chu = el('span', 'tin-nguon-chu');
+  const dau = el('span', 'tin-nguon-dau', 'Trích từ tin của phòng');
+  const ten = el('b', '', 'Đang lấy tin…');
+  const trich = el('span', 'tin-nguon-trich', '');
+  chu.appendChild(dau); chu.appendChild(ten); chu.appendChild(trich);
+  the.appendChild(anh); the.appendChild(chu);
+  the.onclick = (e) => {
+    e.preventDefault();
+    const h = hubTin();
+    if (h) h.mo(ma);
+    else window.open(link, '_blank', 'noopener');
+  };
+  const h = hubTin();
+  if (!h) { ten.textContent = 'Mở tin trên Marketing Hub'; return the; }
+  h.lay(ma).then((t) => {
+    if (!t) { ten.textContent = 'Tin này không còn trên bảng Thông báo'; the.classList.add('mat'); return; }
+    ten.textContent = t.tieuDe || '(không tiêu đề)';
+    dau.textContent = 'Trích từ tin' + (t.ngay ? ' · ' + t.ngay : '');
+    trich.textContent = t.trich || '';
+    if (t.anh) {
+      const img = el('img');
+      img.src = t.anh; img.alt = ''; img.loading = 'lazy';
+      img.onerror = () => img.remove();
+      anh.appendChild(img);
+    }
+  }).catch(() => { ten.textContent = 'Chưa lấy được tin'; });
+  return the;
+}
+/** Ô link chỉ đọc: trỏ về tin thì vẽ thẻ tin, còn lại như cũ. */
+function oLinkDoc(link) {
+  return maTinTuLink(link) ? theTinNguon(link) : moTaCoLink(link);
+}
+
 function moTaCoLink(text) {
   const box = el('div', 'd-desc');
   const re = /(https?:\/\/[^\s<>"')\]]+)/g;
@@ -3766,8 +3822,8 @@ function buildStaffDrawer(b, t, o) {
   else yc.than.appendChild(el('div', 'd-desc trong-nhe', 'Người order chưa ghi chi tiết yêu cầu.'));
   if (t.link) {
     const oLink = el('div', 'field');
-    oLink.appendChild(el('label', '', 'Link tài liệu của người order'));
-    oLink.appendChild(moTaCoLink(t.link));
+    oLink.appendChild(el('label', '', maTinTuLink(t.link) ? 'Tin gốc' : 'Link tài liệu của người order'));
+    oLink.appendChild(oLinkDoc(t.link));
     yc.than.appendChild(oLink);
   }
   /* Tài liệu kèm là của người order: ai vừa order vừa phụ trách (hoặc quản lý) thì
@@ -3836,8 +3892,8 @@ function buildOrderDrawer(b, t, o) {
   else yc.than.appendChild(el('div', 'd-desc trong-nhe', 'Chưa ghi chi tiết yêu cầu.'));
   if (t.link) {
     const oLink = el('div', 'field');
-    oLink.appendChild(el('label', '', 'Link tài liệu / tracking'));
-    oLink.appendChild(moTaCoLink(t.link));
+    oLink.appendChild(el('label', '', maTinTuLink(t.link) ? 'Tin gốc' : 'Link tài liệu / tracking'));
+    oLink.appendChild(oLinkDoc(t.link));
     yc.than.appendChild(oLink);
   }
   /* Người order gửi thêm / gỡ tài liệu kèm ngay đây (anh Hùng 02/10/2026: "anh
@@ -5787,6 +5843,7 @@ function setupChrome() {
      * này: thiết lập TÌM ở Cài đặt, còn giao diện vẫn ở đây, không dựng lại
      * hai bản. Chỉ quản lý mở được — nhân sự bấm vào cũng chỉ nhận 403. */
     if (tv.get('mo') === 'phan-phoi' && S.isManager) openPhanPhoi();
+    if (CHO_TAO_TU_TIN) moTaoTuTin(CHO_TAO_TU_TIN);
 
     /* ?tab=dash|work|order|board|table -> mở thẳng một tab (link demo theo vai). */
     const tab = tv.get('tab');
@@ -5816,6 +5873,32 @@ function setupChrome() {
 })();
 
 /* ============================================================
+   Tạo việc từ "Tin của phòng" (21/10/2026)
+   Anh Hùng: tin của phòng hay dẫn tới việc (đăng bài, làm theo quy định), nên
+   bấm "Tạo việc" ở bảng tin là ra form đã điền sẵn, khỏi gõ lại.
+   Lớp vỏ gửi sang tiêu đề, nội dung và nguyên tệp của tin (nó tự tải, vì ở
+   đây đường /api/ của lớp vỏ không tới được). Lớp vỏ nhắc lại tới khi nhận
+   được "tao-tu-tin-ok"; mã lượt giúp không mở form hai lần.
+   Chỉ điền form. Việc chỉ lên Base khi người ta tự bấm "Tạo công việc".
+   ============================================================ */
+let CHO_TAO_TU_TIN = null;
+let MA_TAO_TU_TIN = '';
+function moTaoTuTin(goi) {
+  CHO_TAO_TU_TIN = null;
+  if (!goi || !goi.title) return;
+  if (!S.perm || !S.perm.taoMoi) { toast('Tài khoản này chưa được tạo việc.', true); return; }
+
+  const nhap = { title: goi.title, detail: goi.detail || '' };
+  if (goi.link) nhap.link = goi.link;
+  openDrawer(null, nhap);
+  const tep = (goi.tep || []).filter((f) => f && f.size <= TEP_TOI_DA);
+  if (tep.length) { S.tepMoi = tep; buildDrawer(); }
+  if ((goi.soTep || 0) > tep.length) {
+    toast('Có ' + (goi.soTep - tep.length) + ' tệp của tin chưa lấy về được. Đính thêm tay ở ô Tệp đính kèm.', true);
+  }
+}
+
+/* ============================================================
    Nghe lệnh từ Marketing Hub (lớp vỏ)
    Trang Tổng quan của hub bấm vào một việc -> hub nhờ app này mở ô chi tiết
    đúng việc đó. Hub không sửa dữ liệu trực tiếp, mọi quy tắc vẫn ở trong app.
@@ -5833,6 +5916,14 @@ window.addEventListener('message', (ev) => {
     // App vừa mở còn đang nạp Base -> im lặng, hub sẽ gửi lại sau 1s.
     // Chỉ khi đã có dữ liệu mà vẫn không thấy thì mới báo là ngoài phạm vi.
     if ((S.tasks || []).length) bao('khong-thay');
+  }
+
+  if (d.hub === 'tao-tu-tin' && d.ma) {
+    try { parent.postMessage({ hub: 'tao-tu-tin-ok', ma: d.ma }, location.origin); } catch (_) {}
+    if (d.ma === MA_TAO_TU_TIN) return;     // lượt nhắc lại của lần đã nhận
+    MA_TAO_TU_TIN = d.ma;
+    if (S.meta) moTaoTuTin(d);
+    else CHO_TAO_TU_TIN = d;                // còn đang nạp Base: boot() mở sau
   }
 
   if (d.hub === 'tab' && d.v) {

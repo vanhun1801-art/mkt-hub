@@ -472,6 +472,9 @@
     /* --- bảng tin trên trang Tổng quan --- */
     'Tin của phòng': 'Team news',
     'mới': 'new',
+    '+ Tạo việc': '+ New task',
+    'Tạo công việc từ tin này': 'Create a task from this news',
+    'Tạo việc từ tin này': 'Create task from this news',
 
     /* --- thẻ Báo cáo & KPI --- */
     'Đạt mục tiêu': 'Target attainment',
