@@ -144,38 +144,122 @@ html,body{margin:0;min-height:100%}
   #rooty-notes .header-actions{gap:12px}
   #rooty-notes .page-heading h1{font-size:28px}
 }
+/* Điện thoại dùng các màn riêng theo cách điều hướng của iOS Notes. */
+#rooty-notes .mobile-nav,#rooty-notes .mobile-heading,#rooty-notes .mobile-bottom,#rooty-notes .mobile-only,#rooty-notes .mobile-formatbar{display:none}
+#rooty-notes .mobile-menu{width:360px}
+#rooty-notes .menu-group:has(> [hidden]):not(:has(> :not([hidden]))){display:none}
+#rooty-notes .menu-group{background:var(--n-side);border-radius:14px;overflow:hidden;margin:14px 0}
+#rooty-notes .menu-group button{display:flex;align-items:center;gap:12px;width:100%;padding:14px 16px;text-align:left;font-size:16px;min-height:48px}
+#rooty-notes .menu-group button+button{border-top:.5px solid var(--n-line)}
+#rooty-notes .menu-group button:hover{background:var(--n-input)}
+#rooty-notes .destructive{color:light-dark(#c4261a,#ff6961)}
+#rooty-notes .sheet-close{display:block;width:100%;font-size:17px;font-weight:600;border-radius:14px;padding:14px;background:var(--n-side);color:var(--n-accent-text)}
+#rooty-notes .sheet-grip{width:34px;height:5px;background:var(--n-line);border-radius:5px;margin:-10px auto 20px}
 @media(max-width:600px){
-  #rooty-notes .nw{height:auto;min-height:100dvh;padding:16px 12px 20px;gap:14px}
-  #rooty-notes .appbar{align-items:flex-start;gap:10px}
-  #rooty-notes .header-actions{flex-wrap:wrap;gap:6px 10px;max-width:68%}
-  #rn-global-save{font-size:10px;order:2;width:100%;max-width:none}
-  #rooty-notes .page-heading h1{font-size:26px}
-  #rooty-notes .subtitle{font-size:11px}
-  #rooty-notes .header-actions .action{min-height:36px;font-size:12px}
-  #rooty-notes .layout{display:block;border-radius:16px;flex:initial}
-  #rooty-notes .folders{display:block;padding:8px}
-  #rooty-notes #rn-folders{gap:3px}
-  #rooty-notes .folder{min-height:36px;padding:7px 9px}
-  #rooty-notes .folder-footer{justify-content:space-between;padding-top:5px}
-  #rooty-notes .notelist{border-right:0;border-bottom:1px solid var(--n-line);padding:14px 12px}
-  #rooty-notes .list-head{padding-bottom:12px}
-  #rooty-notes .new-actions{padding:10px 0}
-  #rooty-notes .note-items{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;max-height:210px;overflow:auto}
-  #rooty-notes .list-section{grid-column:1/-1;padding:4px 8px}
-  #rooty-notes .empty-list{grid-column:1/-1;padding:16px 10px}
-  #rooty-notes .note-row{min-width:0;padding:10px}
-  #rooty-notes .workspace{overflow:visible;min-height:320px}
-  #rooty-notes .blank-editor{min-height:320px;padding:32px 20px}
-  #rooty-notes .blank-editor h3{font-size:17px}
-  #rooty-notes .editorbar{padding:10px;gap:8px}
-  #rooty-notes .tools{gap:0}
-  #rooty-notes .icon-btn,#rooty-notes .tool-text{min-width:34px;min-height:36px;padding:6px}
-  #rooty-notes .divider{margin:0 2px}
-  #rooty-notes .page{padding:20px 18px 28px}
-  #rooty-notes .note-title{font-size:24px}
-  #rooty-notes .editor,#rooty-notes .search input,#rooty-notes .dialog input,#rooty-notes .dialog textarea,#rooty-notes .dialog select{font-size:16px}
-  #rooty-notes .overlay{align-items:flex-end;padding:24px 0 0}
-  #rooty-notes .dialog{width:100%;border-radius:20px 20px 0 0;padding:22px 20px calc(24px + env(safe-area-inset-bottom));max-height:95dvh;overflow:auto}
+  #rooty-notes{--n-accent:light-dark(#997000,#ffd60a)!important;--n-accent-text:light-dark(#997000,#ffd60a)!important;--n-soft:light-dark(#fff5cf,#3b3212)!important;position:relative;-webkit-tap-highlight-color:transparent}
+  #rooty-notes button{touch-action:manipulation}
+  #rooty-notes .nw{height:var(--n-viewport,100dvh);min-height:180px;padding:0;gap:0;overflow:hidden;position:relative}
+  #rooty-notes .appbar{display:none}
+  #rooty-notes .mobile-nav{display:flex;align-items:center;justify-content:space-between;gap:4px;min-height:48px;padding:2px 12px;flex-shrink:0;background:var(--n-canvas)}
+  #rooty-notes .mobile-back{display:flex;align-items:center;gap:2px;max-width:58%;font-size:17px;color:var(--n-accent-text);padding:6px 0;min-height:44px;text-align:left}
+  #rooty-notes .mobile-back svg{width:22px;height:22px}
+  #rooty-notes .mobile-back span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #rooty-notes .mobile-nav-actions{display:flex;align-items:center;gap:2px;margin-left:auto}
+  #rooty-notes .mobile-icon{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:8px;color:var(--n-accent-text);font-size:22px;font-weight:500}
+  #rooty-notes .mobile-icon svg{width:24px;height:24px}
+  #rooty-notes .mobile-done{font-size:17px;font-weight:600;color:var(--n-accent-text);padding:8px;min-height:44px}
+  #rn-mobile-status{font-size:10px;line-height:1.2;color:var(--n-muted);text-align:center;max-width:120px}
+  #rooty-notes .mobile-heading{display:block;padding:2px 20px 14px;background:var(--n-canvas);flex-shrink:0}
+  #rooty-notes .mobile-heading h1{font-size:34px;line-height:1.13;letter-spacing:-.03em;font-weight:700;margin:0;overflow-wrap:anywhere}
+  #rooty-notes .layout{display:flex;flex-direction:column;flex:1;min-height:0;border-radius:0;box-shadow:none;background:var(--n-canvas);overflow:hidden}
+  #rooty-notes .folders,#rooty-notes .notelist,#rooty-notes .workspace{display:none}
+  #rooty-notes[data-screen=folders] .folders{display:block}
+  #rooty-notes[data-screen=list] .notelist{display:flex}
+  #rooty-notes[data-screen=editor] .workspace,#rooty-notes[data-screen=tasks] .workspace{display:block}
+  #rooty-notes[data-screen=editor] .mobile-heading,#rooty-notes[data-screen=editor] .mobile-bottom,#rooty-notes[data-screen=tasks] .mobile-bottom{display:none}
+  #rooty-notes[data-screen=editor] .mobile-nav,#rooty-notes[data-screen=editor] .layout{background:var(--n-bg)}
+  #rooty-notes .folders{flex:1;min-height:0;overflow:auto;padding:4px 20px 20px;background:transparent;border:0}
+  #rooty-notes .folders .eyebrow{display:none}
+  #rooty-notes #rn-folders{display:block;background:var(--n-bg);border-radius:12px;overflow:hidden}
+  #rooty-notes .folder{width:100%;display:flex;align-items:center;gap:12px;min-height:52px;padding:12px 16px;font-size:17px;border-radius:0;color:var(--n-text);background:var(--n-bg);position:relative}
+  #rooty-notes #rn-folders .folder+.folder::before{content:'';position:absolute;top:0;left:48px;right:0;height:.5px;background:var(--n-line)}
+  #rooty-notes .folder.on{background:var(--n-bg);color:var(--n-text);font-weight:400}
+  #rooty-notes .folder svg{width:23px;height:23px;color:var(--n-accent-text)}
+  #rooty-notes .folder .number{font-size:16px;color:var(--n-muted)}
+  #rooty-notes .folder::after{content:'›';font-size:24px;line-height:1;color:var(--n-muted);opacity:.6;margin-left:3px}
+  #rooty-notes .folder-footer{display:block;margin-top:22px;padding:0;border-radius:12px;overflow:hidden}
+  #rooty-notes .folder-footer .folder{font-size:17px;color:var(--n-text)}
+  #rooty-notes .folder-footer .add-folder{display:none}
+  #rooty-notes .notelist{flex:1;min-height:0;padding:0 20px;border:0;background:transparent;overflow:hidden}
+  #rooty-notes .list-head,#rooty-notes .new-actions{display:none}
+  #rooty-notes .search{min-height:38px;padding:8px 10px;border-radius:10px;background:var(--n-input);margin-bottom:18px}
+  #rooty-notes .search svg{width:18px;height:18px}
+  #rooty-notes .search input{font-size:17px;line-height:22px}
+  #rooty-notes .note-items{display:block;max-height:none;flex:1;min-height:0;overflow:auto;padding-bottom:12px;overscroll-behavior:contain}
+  #rooty-notes .list-section{font-size:20px;font-weight:700;color:var(--n-text);letter-spacing:-.02em;padding:4px 0 10px}
+  #rooty-notes .list-section:not(:first-child){padding-top:22px}
+  #rooty-notes .note-row{display:block;min-height:96px;border-radius:0;background:var(--n-bg);padding:13px 16px;margin:0;position:relative}
+  #rooty-notes .list-section+.note-row{border-radius:12px 12px 0 0}
+  #rooty-notes .note-row:has(+.list-section),#rooty-notes .note-row:last-child{border-radius:0 0 12px 12px}
+  #rooty-notes .list-section+.note-row:has(+.list-section),#rooty-notes .list-section+.note-row:last-child{border-radius:12px}
+  #rooty-notes .note-row+.note-row::before{content:'';position:absolute;left:16px;right:0;top:0;height:.5px;background:var(--n-line)}
+  #rooty-notes .note-row.on,#rooty-notes .note-row:hover{background:var(--n-bg)}
+  #rooty-notes .note-row.on strong{color:var(--n-text)}
+  #rooty-notes .note-row strong{font-size:17px;font-weight:600;line-height:1.3}
+  #rooty-notes .note-row p{font-size:15px;line-height:1.3;margin:4px 0}
+  #rooty-notes .note-row small{font-size:12px;line-height:1.4;gap:5px}
+  #rooty-notes .empty-list{font-size:16px;padding:56px 20px;color:var(--n-muted)}
+  #rooty-notes .mobile-bottom{display:flex;align-items:center;justify-content:space-between;min-height:54px;padding:3px 12px calc(3px + env(safe-area-inset-bottom,0px));flex-shrink:0;background:var(--n-canvas)}
+  #rooty-notes .mobile-bottom #rn-mobile-count{font-size:12px;color:var(--n-muted);text-align:center;flex:1}
+  #rooty-notes .mobile-bottom #rn-mobile-folder-new[hidden]+#rn-mobile-count{padding-left:44px}
+  #rooty-notes .workspace{flex:1;min-height:0;overflow:hidden;position:relative}
+  #rooty-notes #rn-editor-view{height:100%;display:flex;flex-direction:column}
+  #rooty-notes .page{order:0;flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;width:100%;max-width:none;margin:0;padding:6px 20px 24px;scroll-padding-bottom:32px}
+  #rooty-notes .note-meta{text-align:center;font-size:12px;color:var(--n-muted);padding-bottom:8px}
+  #rooty-notes .note-title{font-size:28px;font-weight:700;line-height:1.2;letter-spacing:-.02em;margin:6px 0 12px;min-height:36px;resize:none}
+  #rooty-notes .editor:focus-visible,#rooty-notes .note-title:focus-visible{outline:none}
+  #rooty-notes .note-title::placeholder{color:var(--n-muted)}
+  #rooty-notes .note-props{display:none;background:var(--n-side);border-radius:10px;padding:10px;gap:8px;margin-bottom:16px}
+  #rooty-notes[data-details=open] .note-props{display:flex}
+  #rooty-notes .folder-select,#rooty-notes .tag-input{font-size:16px;min-height:36px}
+  #rooty-notes .editor{font-size:17px;line-height:1.65;min-height:calc(var(--n-viewport,100dvh) - 290px);padding-bottom:20px;caret-color:var(--n-accent-text)}
+  #rooty-notes .editor h3{font-size:19px;margin:20px 0 8px}
+  #rooty-notes .editor input[type=checkbox]{width:20px;height:20px;accent-color:var(--n-accent);margin-right:10px}
+  #rooty-notes .editorbar{order:3;display:flex;justify-content:flex-start;flex-wrap:nowrap;gap:16px;flex-shrink:0;min-height:54px;padding:4px 16px calc(4px + env(safe-area-inset-bottom,0px));border:0;background:var(--n-side)}
+  #rooty-notes .editorbar .mobile-only{display:inline-flex}
+  #rooty-notes .editorbar .tools{flex:1;display:flex;gap:12px}
+  #rooty-notes .editorbar .tools>:not(#rn-checklist){display:none}
+  #rooty-notes .editorbar #rn-checklist{padding:8px;min-width:44px;min-height:44px;color:var(--n-accent-text)}
+  #rooty-notes .editorbar #rn-checklist svg{width:25px;height:25px}
+  #rooty-notes #rn-create-task{display:none}
+  #rooty-notes .mobile-formatbar{order:2;display:flex;align-items:center;gap:8px;flex-shrink:0;padding:4px 20px;background:var(--n-side);border-bottom:.5px solid var(--n-line)}
+  #rooty-notes .mobile-formatbar button{font-size:19px;min-height:44px;min-width:48px;border-radius:8px;font-weight:600;color:var(--n-text)}
+  #rooty-notes .mobile-formatbar button:hover{background:var(--n-input)}
+  #rooty-notes .mobile-formatbar svg{width:22px;height:22px}
+  #rooty-notes .links-header,#rooty-notes #rn-linked{display:none}
+  #rooty-notes.has-task-links .links-header{display:flex}
+  #rooty-notes.has-task-links #rn-linked{display:block}
+  #rooty-notes .selection-banner{font-size:13px;gap:8px;padding:10px}
+  #rooty-notes .selection-banner>span{display:none}
+  #rooty-notes .selection-banner button{width:100%;text-align:left;min-height:32px}
+  #rooty-notes .taskboard{height:100%;overflow:auto;padding:12px 20px}
+  #rooty-notes .taskboard h2,#rooty-notes #rn-back{display:none}
+  #rooty-notes .task-card{background:var(--n-bg);border-radius:12px}
+  #rooty-notes .task-card strong{font-size:16px}
+  #rooty-notes .task-card small{font-size:13px}
+  #rooty-notes .overlay{height:var(--n-viewport,100dvh);bottom:auto;align-items:flex-end;padding:14px 0 0;background:#0006;backdrop-filter:blur(6px)}
+  #rooty-notes .dialog{width:100%;border-radius:20px 20px 0 0;padding:24px 20px calc(20px + env(safe-area-inset-bottom,0px));max-height:calc(var(--n-viewport,100dvh) - 14px);overflow:auto}
+  #rooty-notes .dialog h2{font-size:23px}
+  #rooty-notes .dialog-sub{font-size:14px}
+  #rooty-notes .dialog label{font-size:14px;margin-top:18px}
+  #rooty-notes .dialog input,#rooty-notes .dialog select,#rooty-notes .dialog textarea{font-size:16px;padding:12px;min-height:44px}
   #rooty-notes .two{grid-template-columns:1fr}
-  #rooty-notes .notice{bottom:20px;font-size:12px}
+  #rooty-notes .action{color:light-dark(#fff,#1c1c1e);min-height:44px;font-size:16px}
+  #rooty-notes .secondary{min-height:44px;font-size:16px}
+  #rooty-notes .mobile-menu{background:var(--n-canvas);padding-top:24px}
+  #rooty-notes .mobile-menu h2{font-size:19px;text-align:center;margin-bottom:16px}
+  #rooty-notes .menu-group svg{width:21px;height:21px}
+  #rooty-notes .notice{bottom:70px;font-size:13px;text-align:center}
+  #rn-error,#rn-recovery{margin:4px 12px 8px;font-size:12px;padding:10px 12px;max-height:120px;overflow:auto}
+  @media(prefers-reduced-motion:no-preference){#rooty-notes .mobile-menu{animation:notes-sheet-in .2s ease-out}@keyframes notes-sheet-in{from{transform:translateY(25%);opacity:.5}to{transform:translateY(0);opacity:1}}}
 }

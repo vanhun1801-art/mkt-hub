@@ -22,3 +22,8 @@ Render tự build lại từ `main`). Mỗi dòng: ngày · nội dung chính đ
 - 2026-10-21 (4) · Đồng bộ giao diện Ghi chú với Hub: bỏ logo/tiêu đề thương hiệu,
   chân trang và trạng thái lưu lặp; dùng cùng palette/phông chữ sáng tối, nút
   xanh và thẻ bo góc. Gọn thao tác tạo mới, cải thiện bố cục điện thoại.
+
+- 2026-10-21 (5) · Ghi chú điện thoại theo cách dùng iPhone: thư mục, danh sách
+  và màn soạn riêng, điều hướng Quay lại, nhóm ghi chú theo ngày, thanh công cụ
+  dưới, định dạng Aa và menu tuỳ chọn dạng bảng trượt. Giữ luồng tạo việc và
+  tự động lưu; điều chỉnh chiều cao theo vùng nhìn khi bàn phím xuất hiện.
