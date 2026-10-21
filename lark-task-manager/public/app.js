@@ -1023,8 +1023,8 @@ async function moViecKhac(x) {
 /**
  * Gõ tên rồi Enter là có việc con (anh Hùng 21/10/2026: "cho cái khung sẵn để
  * chữ là thêm task"). Không qua form: việc con nhận sẵn chiến dịch, loại việc,
- * ưu tiên, hạn và NGƯỜI PHỤ TRÁCH của việc lớn. Người phụ trách phải có ngay,
- * vì việc chưa có chủ sẽ bị bộ tự phân phối (quetPhanPhoi) giao cho người khác.
+ * ưu tiên và hạn của việc lớn. Để trống người phụ trách cho đến khi được chọn
+ * trong form chi tiết; việc con không tham gia tự phân phối.
  * Cần đổi gì thì bấm vào việc con mà sửa như việc thường.
  */
 async function taoNhanhViecCon(cha, ten) {
@@ -1033,7 +1033,6 @@ async function taoNhanhViecCon(cha, ten) {
   if (S.isManager) {
     if (cha.campaign) body.campaign = cha.campaign;
     if ((cha.channel || []).length) body.channel = cha.channel.slice();
-    if ((cha.owner || []).length) body.owner = cha.owner.map((u) => ({ id: u.id }));
     if (S.meta && S.meta.me) body.requester = [{ id: S.meta.me.id }];
   }
   const kq = await req('/api/tasks', { method: 'POST', body: JSON.stringify(body) });
@@ -1064,7 +1063,7 @@ function ganViecConMoi(cha, kq, body) {
     id, title: body.title, parent: [cha.id], status: 'Chờ tiếp nhận',
     priority: body.priority || null, workType: body.workType || null, campaign: body.campaign || cha.campaign || null,
     startAt: body.startAt, deadline1: body.deadline1 || null, deadline: body.deadline1 || null,
-    owner: nguoi(body.owner || (S.isManager ? [] : (S.meta && S.meta.me ? [S.meta.me] : []))),
+    owner: nguoi(body.owner),
     helper: [], requester: nguoi(body.requester || (S.meta && S.meta.me ? [S.meta.me] : [])),
     channel: body.channel || [], attachment: [], fileKetQua: [],
   });
@@ -1115,7 +1114,7 @@ function khoiViecCon(t) {
     tt.style.setProperty('--vc-mau', mau);
     h.appendChild(tt);
     const ai = (x.owner || []).map((u) => u.name).filter(Boolean)[0];
-    if (ai) h.appendChild(el('span', 'vc-ai', ai));
+    h.appendChild(el('span', 'vc-ai', ai || 'Chưa phân công'));
     const dl = deadlineTag(x);
     if (dl) h.appendChild(dl);
     h.title = 'Mở việc con này';
@@ -3684,7 +3683,7 @@ function buildCreateForm(b, t, o) {
     dong.appendChild(el('span', 'vc-cha-nhan', 'Việc con của'));
     dong.appendChild(el('b', '', (cha && cha.title) || t.tenCha || 'việc lớn'));
     b.appendChild(dong);
-    if (!isMgr) b.appendChild(el('div', 'ro-note', 'Việc con giao cho chính bạn. Bấm "Bắt đầu làm" khi bắt tay vào.'));
+    if (!isMgr) b.appendChild(el('div', 'ro-note', 'Việc con chưa có người phụ trách. Quản lý sẽ phân công trong phần chi tiết.'));
   }
 
   /* Đang mở lại bản nháp: phải nói rõ đây không phải form trắng, và cho đường ra

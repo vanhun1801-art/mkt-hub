@@ -60,6 +60,8 @@ const chuaGiao = (t) => !(t.owner || []).length;
  * cứng ở đây, để đổi tên trạng thái trên Base thì sửa một chỗ.
  */
 function canPhanPhoi(t, cauHinh) {
+  // Việc con được phân công trong form chi tiết, không tự giao khi vừa Enter.
+  if ((t.parent || []).length) return false;
   if (dong(t) || !chuaGiao(t)) return false;
   const ds = (cauHinh && cauHinh.chung && cauHinh.chung.trangThai) || [];
   return !ds.length || ds.includes(nhan(t.status));

@@ -1309,8 +1309,8 @@ async function api(req, res, url) {
 
     /* VIỆC CON (21/10/2026). Chỉ một việc cha, và việc cha phải là việc thật của
      * phòng (không nháp, không liên phòng). Nhân sự chỉ chia được việc mình đang
-     * phụ trách hay hỗ trợ; việc con khi đó giao luôn cho chính họ, vì chia việc
-     * của mình ra là để tự theo dõi từng phần. Quản lý chia được mọi việc. */
+     * phụ trách hay hỗ trợ. Không tự gán người tạo làm người phụ trách việc con;
+     * quản lý phân công sau trong form chi tiết. Quản lý chia được mọi việc. */
     let tenCha = '';
     if (body.parent != null) {
       const idCha = (Array.isArray(body.parent) ? body.parent : [body.parent])
@@ -1326,7 +1326,6 @@ async function api(req, res, url) {
         if (!manager) {
           const coTen = me && [...(cha.owner || []), ...(cha.helper || [])].some((u) => u && u.id === me.id);
           if (!coTen) return json(res, { error: 'Chỉ người phụ trách việc lớn mới chia được việc con.' }, 403);
-          body.owner = [{ id: me.id }];
         }
         body.parent = [idCha];
         tenCha = cha.title || '';
@@ -1362,9 +1361,7 @@ async function api(req, res, url) {
      * thẳng là "việc đã tạo nhưng tệp chưa đính" thay vì im lặng nuốt tệp. */
     const idMoi = idMoiTuNhap || (result && result.record_id_list || [])[0] || null;
 
-    if (!manager && body.parent) {
-      /* Nhân sự tự chia việc của mình: việc con đã có chủ, không cần ai phân công. */
-    } else if (!manager) {
+    if (!manager) {
       // nhân sự đặt việc → báo quản lý vào phân công
       baoTin(cfg.loadManagerIds(),
         'Có yêu cầu công việc mới: "' + body.title + '"' +
