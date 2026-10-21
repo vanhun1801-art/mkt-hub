@@ -31,6 +31,8 @@ function theNghiemThu(tasks, url, { demo = false, moc = '', now = Date.now() } =
   return the(title, 'orange', elements);
 }
 function canhBao(tasks, now) {
+  const vn = new Date(now + LECH);
+  const dauThang = Date.UTC(vn.getUTCFullYear(), vn.getUTCMonth(), 1) - LECH;
   return tasks.filter(t => !dong(t) && !t.daGiaiQuyet && !t.lienPhong).map(t => {
     const han = Date.parse(t.deadline || t.deadline1) || 0;
     const late = t.status === 'Trễ deadline' || (han > 0 && han < now);
@@ -41,24 +43,27 @@ function canhBao(tasks, now) {
       : t.status === 'Chờ tiếp nhận' ? 'Tiếp nhận việc, kiểm tra yêu cầu và xác nhận thời điểm bắt đầu.'
       : soon ? 'Ưu tiên hoàn tất và nộp sản phẩm trước hạn; báo vướng mắc ngay nếu có.'
       : 'Cập nhật tiến độ, nêu bước tiếp theo và thời gian dự kiến bàn giao.';
-    return { t, han, late, priority, action };
+    return { t, han, late, old: han > 0 && han < dauThang, priority, action };
   }).filter(x => x.late || x.priority < 3 || ['Đang tiến hành', 'Chờ tiếp nhận'].includes(x.t.status))
-    .sort((a, b) => a.priority - b.priority || (a.han || Infinity) - (b.han || Infinity));
+    .sort((a, b) => Number(a.old) - Number(b.old) || a.priority - b.priority || (a.han || Infinity) - (b.han || Infinity));
 }
 function theCanhBao(tasks, url, now = Date.now()) {
-  const list = canhBao(tasks, now);
+  const all = canhBao(tasks, now);
+  const list = all.filter(x => !x.old);
+  const old = all.filter(x => x.old);
   const late = list.filter(x => x.late).length;
-  const elements = [chu('**Bản thử riêng cho quản lý · dữ liệu toàn phòng hiện tại**\n' + late + ' việc quá hạn chưa nộp · ' + (list.length - late) + ' việc cần theo dõi.'), chu('**Ưu tiên hôm nay:** xử lý việc trễ trước, sau đó việc sắp đến hạn và việc cần làm lại.')];
-  if (!list.length) elements.push(chu('Hiện không có việc cần cảnh báo.'));
+  const elements = [chu('**Bản thử riêng cho quản lý · dữ liệu toàn phòng hiện tại**\n' + late + ' việc trễ trong tháng chưa nộp · ' + (list.length - late) + ' việc cần theo dõi.'), chu('**Ưu tiên hôm nay:** xử lý việc trễ trước, sau đó việc sắp đến hạn và việc cần làm lại.')];
+  if (!list.length) elements.push(chu('Hiện không có việc trong kỳ cần cảnh báo nhanh.'));
   for (const x of list.slice(0, 5)) {
     const t = x.t;
     const han = x.han ? new Date(x.han).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour12: false }) : 'chưa có deadline';
-    elements.push({ tag: 'hr' }, chu((x.late ? '🔴 ' : '🟠 ') + '**' + md(t.title || '(chưa có tên)') + '**\nPhụ trách: ' + md((t.owner || []).map(u => u.name).join(', ') || 'chưa gán') + '\nHạn: ' + md(han) + '\n**Việc cần làm:** ' + x.action));
+    elements.push({ tag: 'hr' }, chu((x.late ? '🔴 ' : '🟠 ') + '**' + md(t.title || '(chưa có tên)') + '**\nPhụ trách: ' + md((t.owner || []).map(u => u.name).join(', ') || 'chưa gán') + '\nHạn: ' + md(han) + '\n**Việc cần làm:** Yêu cầu người phụ trách ' + x.action.charAt(0).toLowerCase() + x.action.slice(1)));
     elements.push(nut('Mở việc & xử lý', url + '/#/m/cong-viec?rec=' + encodeURIComponent(t.id)));
   }
   if (list.length > 5) elements.push(chu('Còn **' + (list.length - 5) + '** việc khác cần theo dõi trong Bảng công việc.'));
+  if (old.length) elements.push(chu('**Tồn cũ cần rà soát: ' + old.length + ' việc có hạn từ tháng trước.** Kiểm tra để nghiệm thu, đóng hoặc cập nhật tình trạng; không trộn vào danh sách ưu tiên trong tháng.'));
   elements.push(chu('Đây là gợi ý hành động từ trạng thái và deadline. Bot không tự đổi deadline hoặc tạo thêm công việc.'));
-  return the('[THỬ] Cần hành động · ' + late + ' việc trễ deadline', 'red', elements);
+  return the('[THỬ] Cần hành động · ' + late + ' việc trễ trong tháng', 'red', elements);
 }
 
 // Một dòng cấu hình + các dấu gửi trong kho cấu hình Base. Không lưu trên ổ tạm Render.

@@ -120,3 +120,13 @@ test('Endpoint gửi thử bắt buộc quản lý, lấy người nhận từ p
   }
   const get = await run({ method: 'GET' }); assert.equal(get.preview, 1); assert.equal(get.delivered, null);
 });
+
+test('Cảnh báo nhanh ưu tiên kỳ hiện tại, tách tồn cũ khỏi danh sách hành động', () => {
+  const old = { ...working, id: 'recMay', deadline: '2026-05-01T17:00:00+07:00' };
+  const data = [old, working];
+  assert.equal(N.canhBao(data, now)[0].t.id, working.id);
+  const card = JSON.stringify(N.theCanhBao(data, 'https://hub.example', now));
+  assert.match(card, /1 việc trễ trong tháng/);
+  assert.match(card, /Tồn cũ cần rà soát: 1/);
+  assert(!card.includes('recMay'));
+});

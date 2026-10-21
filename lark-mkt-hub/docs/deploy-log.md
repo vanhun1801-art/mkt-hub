@@ -46,3 +46,5 @@ Render tự build lại từ `main`). Mỗi dòng: ngày · nội dung chính đ
 - Mẫu cảnh báo quản lý: ưu tiên việc quá hạn chưa nộp, đến hạn 24h, làm lại và đang thực hiện; nêu bước cần làm + nút mở đúng việc. Chỉ demo, không tự nhắc nhân sự.
 - Cấu hình và dấu gửi lưu ở kho cấu hình Base (Ô bot-cong-viec:v1 / bot-cv-gui); UUID chống gửi trùng và chỉ báo gửi thành công khi Lark xác nhận. Deep link nghiệm thu mở đúng drawer Order.
 - Kiểm tra bộ thử Bot, quyền nghiệm thu, nhắc tay; không gửi tin trong unit test.
+
+- Kiểm tra dữ liệu thật: cảnh báo nhanh ưu tiên kỳ hiện tại, tách các việc có hạn từ tháng trước thành tồn cũ cần rà soát.
