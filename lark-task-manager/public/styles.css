@@ -2498,14 +2498,33 @@ body[data-fx="cham"] .ng-o.goi::after {
 .vc-dong.dong .vc-ten { color: var(--text-3); text-decoration: line-through; text-decoration-color: var(--text-4); }
 .vc-ai { flex: 0 0 auto; font-size: 12.5px; color: var(--text-2); max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .vc-an { font-size: 12.5px; color: var(--text-3); margin: 6px 8px 0; }
+/* Ô gõ nhanh việc con: một dòng như danh sách, bấm vào là gõ được ngay. */
 .vc-them {
-  align-self: flex-start;
-  margin-top: 8px; padding: 0 14px; height: 34px; border-radius: 999px;
-  border: 1px dashed var(--border-2); background: transparent; color: var(--blue-text);
-  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
-  transition: background var(--cd-deu, .16s ease);
+  display: flex; align-items: center; gap: 10px; margin: 2px 0 0; padding: 0 8px;
+  min-height: 40px; border: 1px dashed var(--border-2); border-radius: 10px;
+  transition: border-color var(--cd-deu, .16s ease), background var(--cd-deu, .16s ease);
 }
-.vc-them:hover { background: var(--blue-bg); }
+.vc-them:focus-within { border-style: solid; border-color: var(--blue); background: var(--surface); }
+.vc-them.dang { opacity: .6; }
+.vc-them-dau { flex: 0 0 auto; width: 9px; text-align: center; font-weight: 700; color: var(--blue-text); }
+.kh-than .vc-them input {
+  flex: 1; min-width: 0; width: auto; height: 38px; padding: 0; margin: 0;
+  border: 0; background: transparent; box-shadow: none; outline: none;
+  font: inherit; font-size: 14px; color: var(--text);
+}
+.vc-them input::placeholder { color: var(--text-3); }
+/* Lớp iOS tô nền cho mọi ô nhập (độ ưu tiên :not(#_)…); ô này nằm trong khung
+   viền đứt của nó rồi nên phải trong suốt, không thì thành hai lớp khung. */
+html:not(#_):not(#__):not(#___) .kh-than .vc-them input {
+  background: transparent !important; border: 0 !important; box-shadow: none !important;
+  border-radius: 0 !important; padding: 0 !important;
+}
+/* Trạng thái việc con: chữ màu theo trạng thái trên nền nhạt cùng màu. */
+.vc-tt {
+  flex: 0 0 auto; font-size: 12px; font-weight: 600; line-height: 20px; padding: 0 8px;
+  border-radius: 999px; white-space: nowrap; color: var(--text);
+  background: color-mix(in srgb, var(--vc-mau, #8f959e) 18%, transparent);
+}
 
 .vc-cha {
   display: flex; align-items: center; gap: 10px; width: 100%; margin: 0 0 12px;
@@ -2519,4 +2538,7 @@ body[data-fx="cham"] .ng-o.goi::after {
 .vc-cha-nhan { flex: 0 0 auto; font-size: 12px; font-weight: 600; color: var(--blue-text); }
 .vc-cha b { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .vc-cha-so { flex: 0 0 auto; font-size: 12.5px; color: var(--text-2); font-variant-numeric: tabular-nums; }
-@media (max-width: 640px) { .vc-ai { display: none; } }
+@media (max-width: 640px) {
+  .vc-ai { display: none; }
+  .kh-than .vc-them input { font-size: 16px; }
+}

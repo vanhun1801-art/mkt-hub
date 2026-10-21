@@ -166,7 +166,9 @@ Anh Hùng (10/10/2026): nhân sự xuất được báo cáo, nhưng **xuất đ
 
 - **Việc con dùng ô "Parent items" có sẵn của Base**, chỉ một tầng: việc con không chia tiếp. Việc cha chỉ ghi lúc tạo, không đường sửa nào đổi được.
 - **Không bày việc con ra ngoài.** Ngoài danh sách chỉ có mũi tên ↳ trước tên việc con và viên "2/5" sau tên việc lớn (đỏ khi có việc con trễ, xanh khi xong hết). Kanban và Bảng gom việc con vào việc lớn. Việc của tôi, Order và Lịch vẫn hiện việc con như việc thường, vì người được giao tìm việc của mình ở đó.
-- Danh sách việc con, thanh tiến độ và nút "+ Thêm việc con" nằm trong ô chi tiết của việc lớn. Việc con có dòng "Thuộc việc lớn" để quay về.
+- Trong ô chi tiết của việc lớn: thanh tiến độ, rồi mỗi việc con một dòng có **tên và trạng thái** (kèm người làm, hạn), bấm vào là mở chi tiết việc con. Dưới cùng là **ô gõ sẵn** "Thêm việc con": gõ tên rồi Enter là tạo, không qua form. Việc con có dòng "Thuộc việc lớn" để quay về.
+- Việc con gõ nhanh nhận sẵn chiến dịch, loại việc, ưu tiên, hạn và **người phụ trách của việc lớn**. Chưa có người phụ trách thì bộ tự phân phối sẽ giao cho người khác, nên không được để trống.
+- Việc con là bản ghi bình thường: thông báo giao việc (ghi rõ "việc con … thuộc việc lớn …"), làm lại, nộp, nghiệm thu, nhắc hạn, tự phân phối đều chạy như việc thường.
 - Tiến độ do máy chủ đếm trên toàn bộ việc của phòng, nên đúng cả khi người xem không thấy hết việc con.
 - Quản lý chia được mọi việc. Nhân sự chỉ chia được việc mình phụ trách hoặc hỗ trợ, và việc con khi đó giao cho chính họ.
 - **Việc tạo từ "Tin của phòng" không chép chữ của tin.** Ô link giữ `#/tin/<mã>`, app vẽ thành thẻ "Trích từ tin" (ảnh, tiêu đề, ngày, một dòng trích), bấm vào là mở đúng tin. Ảnh và tệp của tin vẫn đi theo vào ô Tệp đính kèm.

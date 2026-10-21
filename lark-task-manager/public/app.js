@@ -977,12 +977,23 @@ function moViecKhac(x) {
   closeDrawer();
   setTimeout(() => openDrawer(x), 60);
 }
-function themViecCon(t) {
-  const nhap = { parent: [t.id], tenCha: t.title || '' };
-  for (const k of ['campaign', 'workType', 'priority']) if (t[k]) nhap[k] = t[k];
-  if (S.isManager && (t.channel || []).length) nhap.channel = t.channel.slice();
-  closeDrawer();
-  setTimeout(() => openDrawer(null, nhap), 60);
+/**
+ * Gõ tên rồi Enter là có việc con (anh Hùng 21/10/2026: "cho cái khung sẵn để
+ * chữ là thêm task"). Không qua form: việc con nhận sẵn chiến dịch, loại việc,
+ * ưu tiên, hạn và NGƯỜI PHỤ TRÁCH của việc lớn. Người phụ trách phải có ngay,
+ * vì việc chưa có chủ sẽ bị bộ tự phân phối (quetPhanPhoi) giao cho người khác.
+ * Cần đổi gì thì bấm vào việc con mà sửa như việc thường.
+ */
+async function taoNhanhViecCon(cha, ten) {
+  const body = { title: ten, parent: [cha.id], startAt: new Date().toISOString() };
+  for (const k of ['workType', 'priority', 'deadline1']) if (cha[k]) body[k] = cha[k];
+  if (S.isManager) {
+    if (cha.campaign) body.campaign = cha.campaign;
+    if ((cha.channel || []).length) body.channel = cha.channel.slice();
+    if ((cha.owner || []).length) body.owner = cha.owner.map((u) => ({ id: u.id }));
+    if (S.meta && S.meta.me) body.requester = [{ id: S.meta.me.id }];
+  }
+  return req('/api/tasks', { method: 'POST', body: JSON.stringify(body) });
 }
 
 /** Khối "Việc con" / "Thuộc việc lớn" trong ô chi tiết. Không có gì để nói thì null. */
@@ -1007,6 +1018,7 @@ function khoiViecCon(t) {
   if (!c.tong && !ds.length && !chia) return null;
 
   const k = theKhoi('Việc con', 'viec-con');
+  k.the.dataset.vc = t.id;
   if (c.tong) {
     k.dau.appendChild(el('span', 'vc-so', c.xong + '/' + c.tong + ' xong'));
     const thanh = el('div', 'vc-thanh');
@@ -1015,33 +1027,73 @@ function khoiViecCon(t) {
     thanh.appendChild(day);
     k.than.appendChild(thanh);
   }
+  /* Mỗi dòng: chấm màu · tên · TRẠNG THÁI · người làm · hạn. Bấm là mở việc con. */
   const list = el('div', 'vc-ds');
   for (const x of ds) {
     const h = el('button', 'vc-dong' + (isClosed(x) ? ' dong' : ''));
     h.type = 'button';
+    const mau = STATUS_HUE[x.status] || '#8f959e';
     const cham = el('span', 'vc-cham');
-    cham.style.background = STATUS_HUE[x.status] || '#8f959e';
-    cham.title = x.status || '';
+    cham.style.background = mau;
     h.appendChild(cham);
     h.appendChild(el('span', 'vc-ten', x.title || '(chưa có tên)'));
+    const tt = el('span', 'vc-tt', x.status || 'Chưa đặt');
+    tt.style.setProperty('--vc-mau', mau);
+    h.appendChild(tt);
     const ai = (x.owner || []).map((u) => u.name).filter(Boolean)[0];
     if (ai) h.appendChild(el('span', 'vc-ai', ai));
     const dl = deadlineTag(x);
     if (dl) h.appendChild(dl);
+    h.title = 'Mở việc con này';
     h.onclick = () => moViecKhac(x);
     list.appendChild(h);
   }
   if (ds.length) k.than.appendChild(list);
   const an = c.tong - ds.filter((x) => x.status !== 'Hủy').length;
   if (an > 0) k.than.appendChild(el('div', 'vc-an', 'Và ' + an + ' việc con của người khác.'));
-  if (!c.tong && !ds.length) k.than.appendChild(el('div', 'vc-an', 'Chia việc này thành các phần nhỏ để theo dõi tiến độ.'));
+
   if (chia) {
-    const nut = el('button', 'vc-them', '+ Thêm việc con');
-    nut.type = 'button';
-    nut.onclick = () => themViecCon(t);
-    k.than.appendChild(nut);
+    const o = el('form', 'vc-them');
+    const dau = el('span', 'vc-them-dau', '+');
+    const inp = el('input');
+    inp.type = 'text';
+    inp.maxLength = 200;
+    inp.placeholder = 'Thêm việc con, gõ tên rồi Enter';
+    inp.setAttribute('aria-label', 'Tên việc con mới');
+    inp.classList.add('ios-khong-nhap');
+    o.appendChild(dau);
+    o.appendChild(inp);
+    o.onsubmit = async (e) => {
+      e.preventDefault();
+      const ten = inp.value.trim();
+      if (!ten || inp.disabled) return;
+      inp.disabled = true;
+      o.classList.add('dang');
+      try {
+        await taoNhanhViecCon(t, ten);
+        await refresh(true);
+        veLaiViecCon(t.id, true);
+      } catch (err) {
+        toast('Chưa thêm được việc con: ' + err.message, true);
+        inp.disabled = false;
+        o.classList.remove('dang');
+        inp.focus();
+      }
+    };
+    k.than.appendChild(o);
   }
   return k.the;
+}
+/** Vẽ lại riêng khối việc con của việc đang mở (sau khi thêm), giữ chỗ con trỏ. */
+function veLaiViecCon(idViec, focus) {
+  const cu = document.querySelector('#drawer [data-vc="' + idViec + '"]');
+  if (!cu || !S.editing || S.editing.id !== idViec) return;
+  const moi = viecTheoMa(idViec);
+  if (moi) S.editing.con = moi.con;
+  const k = khoiViecCon(S.editing);
+  if (!k) return;
+  cu.replaceWith(k);
+  if (focus) { const i = k.querySelector('.vc-them input'); if (i) i.focus(); }
 }
 /** Gắn khối việc con vào ô chi tiết, ngay sau thẻ đầu (hoặc lên đầu). */
 function ganKhoiViecCon(b, t, sauThe) {

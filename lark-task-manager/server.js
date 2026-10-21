@@ -1311,6 +1311,7 @@ async function api(req, res, url) {
      * phòng (không nháp, không liên phòng). Nhân sự chỉ chia được việc mình đang
      * phụ trách hay hỗ trợ; việc con khi đó giao luôn cho chính họ, vì chia việc
      * của mình ra là để tự theo dõi từng phần. Quản lý chia được mọi việc. */
+    let tenCha = '';
     if (body.parent != null) {
       const idCha = (Array.isArray(body.parent) ? body.parent : [body.parent])
         .map((x) => (typeof x === 'string' ? x : x && x.id)).filter(Boolean)[0];
@@ -1328,6 +1329,7 @@ async function api(req, res, url) {
           body.owner = [{ id: me.id }];
         }
         body.parent = [idCha];
+        tenCha = cha.title || '';
       }
     }
 
@@ -1370,7 +1372,9 @@ async function api(req, res, url) {
         XD + 'Cần phân công người phụ trách.' + duoiTin());
     } else if (body.owner) {
       baoTin((body.owner || []).map((u) => (typeof u === 'string' ? u : u.id)),
-        'Bạn được giao việc mới: "' + body.title + '"' + duoiTin());
+        (tenCha
+          ? 'Bạn được giao việc con: "' + body.title + '"' + XD + 'Thuộc việc lớn: "' + tenCha + '"'
+          : 'Bạn được giao việc mới: "' + body.title + '"') + duoiTin());
     }
     return json(res, { ok: true, id: idMoi, result, role: manager ? 'manager' : 'staff' });
   }
