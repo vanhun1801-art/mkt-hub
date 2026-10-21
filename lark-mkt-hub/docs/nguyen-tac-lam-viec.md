@@ -161,3 +161,12 @@ Anh Hùng (10/10/2026): nhân sự xuất được báo cáo, nhưng **xuất đ
 - **Người cùng giữ một kênh thì chấm theo tên người đăng trên từng bài**, không chia theo tỷ trọng kênh. Tra bằng bảng `tenDang`, tuyệt đối không suy từ tên: "Phương Ái" là Thư, "Lý Thư Bạch" là Ngọc.
 - **Tab KPI xếp theo CHỈ SỐ → KÊNH → NGƯỜI.** Chỉ số của doanh nghiệp đứng trước, KPI từng người là phần phụ. Mốc tuần phải có số tuyệt đối ("hết ngày 7 cần 1,88tr, đang có 597k"), không chỉ phần trăm.
 - **Đổi tab thì giữ chiều cao cũ và đưa về đầu trang.** Để trang co lại là thanh cuộn biến mất, nội dung xê ngang, và vị trí cuộn bị kẹp về 0 một cách khó đoán.
+
+## 12. Việc lớn, việc con và việc tạo từ tin (21/10/2026)
+
+- **Việc con dùng ô "Parent items" có sẵn của Base**, chỉ một tầng: việc con không chia tiếp. Việc cha chỉ ghi lúc tạo, không đường sửa nào đổi được.
+- **Không bày việc con ra ngoài.** Ngoài danh sách chỉ có mũi tên ↳ trước tên việc con và viên "2/5" sau tên việc lớn (đỏ khi có việc con trễ, xanh khi xong hết). Kanban và Bảng gom việc con vào việc lớn. Việc của tôi, Order và Lịch vẫn hiện việc con như việc thường, vì người được giao tìm việc của mình ở đó.
+- Danh sách việc con, thanh tiến độ và nút "+ Thêm việc con" nằm trong ô chi tiết của việc lớn. Việc con có dòng "Thuộc việc lớn" để quay về.
+- Tiến độ do máy chủ đếm trên toàn bộ việc của phòng, nên đúng cả khi người xem không thấy hết việc con.
+- Quản lý chia được mọi việc. Nhân sự chỉ chia được việc mình phụ trách hoặc hỗ trợ, và việc con khi đó giao cho chính họ.
+- **Việc tạo từ "Tin của phòng" không chép chữ của tin.** Ô link giữ `#/tin/<mã>`, app vẽ thành thẻ "Trích từ tin" (ảnh, tiêu đề, ngày, một dòng trích), bấm vào là mở đúng tin. Ảnh và tệp của tin vẫn đi theo vào ô Tệp đính kèm.

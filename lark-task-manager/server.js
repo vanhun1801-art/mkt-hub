@@ -484,12 +484,15 @@ function chuoiGioVN(d) {
     ' ' + pad(vn.getUTCHours()) + ':' + pad(vn.getUTCMinutes()) + ':00';
 }
 
-function toCells(patch) {
+function toCells(patch, tuy) {
   const out = {};
   for (const key of Object.keys(patch)) {
     const val = patch[key];
     const f = F[key];
     if (!f || f.readOnly) continue;
+    /* Việc cha chỉ ghi lúc TẠO việc (POST /api/tasks đã kiểm quyền). Mọi đường
+     * sửa khác đi qua đây đều bỏ qua nó. */
+    if (key === 'parent' && !(tuy && tuy.choCha)) continue;
     switch (f.type) {
       case 'select':
         out[f.name] = val ? String(val) : null;
@@ -519,6 +522,11 @@ function toCells(patch) {
       case 'rating':
         out[f.name] = val === '' || val == null ? null : Number(val);
         break;
+      case 'link':
+        out[f.name] = (Array.isArray(val) ? val : val ? [val] : [])
+          .map((x) => ({ id: typeof x === 'string' ? x : x && x.id }))
+          .filter((x) => x.id);
+        break;
       default:
         out[f.name] = val == null ? null : String(val);
         break;
@@ -527,12 +535,36 @@ function toCells(patch) {
   return out;
 }
 
+/**
+ * Tiến độ việc con, gắn vào việc cha: { tong, xong, tre }.
+ *
+ * Đếm trên TOÀN BỘ việc của phòng chứ không trên phần người này xem được:
+ * nhân sự phụ trách việc lớn chưa chắc thấy việc con giao cho người khác, mà
+ * vẫn cần biết việc lớn đã xong mấy phần. Chỉ đưa ra con số, không đưa việc.
+ * Việc con đã Huỷ không tính.
+ */
+function ganTienDoCon(tasks, tatCa) {
+  const dem = new Map();
+  const bayGio = Date.now();
+  for (const c of tatCa) {
+    const cha = (c.parent || [])[0];
+    if (!cha || c.status === 'Hủy') continue;
+    const d = dem.get(cha) || { tong: 0, xong: 0, tre: 0 };
+    d.tong++;
+    if (c.status === 'Hoàn thành') d.xong++;
+    else if (c.deadline && new Date(c.deadline).getTime() < bayGio) d.tre++;
+    dem.set(cha, d);
+  }
+  for (const t of tasks) if (dem.has(t.id)) t.con = dem.get(t.id);
+  return tasks;
+}
+
 /** Ghi giá trị mới vào cache cục bộ, giữ đúng dạng của record-list. */
 function applyLocal(rec, patch) {
   for (const key of Object.keys(patch)) {
     const val = patch[key];
     const f = F[key];
-    if (!f || f.readOnly) continue;
+    if (!f || f.readOnly || key === 'parent') continue;
     switch (f.type) {
       case 'select':
         rec.cells[f.id] = val ? [String(val)] : null;
@@ -1207,7 +1239,7 @@ async function api(req, res, url) {
      * gì phải đợi việc của người khác được giao xong. */
     quetPhanPhoi().catch(() => {});
     const viecPhong = records.map(toTask);
-    let tasks = await visibleFor(viecPhong, req);
+    let tasks = ganTienDoCon(await visibleFor(viecPhong, req), viecPhong);
     /* ?lienPhong=1: CHỈ giao diện Bảng công việc xin thêm việc liên phòng ban
      * (chỉ đọc, từ Base Giao việc công ty). Bốn app khác đọc chung đường này
      * nên mặc định giữ nguyên — số liệu của chúng không bị cộng thêm. */
@@ -1230,8 +1262,9 @@ async function api(req, res, url) {
     const me = await whoAmI(req);
     if (!me) return json(res, { tasks: [], fetchedAt: cache.at });
     const records = await getRecords(url.searchParams.get('refresh') === '1');
-    let tasks = records.map(toTask)
-      .filter((t) => (t.requester || []).some((u) => u && u.id === me.id));
+    const tatCaViec = records.map(toTask);
+    let tasks = ganTienDoCon(tatCaViec
+      .filter((t) => (t.requester || []).some((u) => u && u.id === me.id)), tatCaViec);
     /* Việc liên phòng do chính mình giao (chỉ đọc) — xem cùng chỗ với việc đã order. */
     if (url.searchParams.get('lienPhong') === '1') {
       const tatCa = records.map(toTask);
@@ -1274,6 +1307,30 @@ async function api(req, res, url) {
       body.status = 'Chờ tiếp nhận';
     }
 
+    /* VIỆC CON (21/10/2026). Chỉ một việc cha, và việc cha phải là việc thật của
+     * phòng (không nháp, không liên phòng). Nhân sự chỉ chia được việc mình đang
+     * phụ trách hay hỗ trợ; việc con khi đó giao luôn cho chính họ, vì chia việc
+     * của mình ra là để tự theo dõi từng phần. Quản lý chia được mọi việc. */
+    if (body.parent != null) {
+      const idCha = (Array.isArray(body.parent) ? body.parent : [body.parent])
+        .map((x) => (typeof x === 'string' ? x : x && x.id)).filter(Boolean)[0];
+      if (!idCha) delete body.parent;
+      else {
+        const recCha = (await getRecords(false)).find((r) => r.record_id === idCha);
+        if (!recCha) return json(res, { error: 'Không thấy việc lớn để gắn việc con.' }, 404);
+        const cha = toTask(recCha);
+        if ((cha.parent || []).length) {
+          return json(res, { error: 'Việc này đã là việc con, không chia tiếp được nữa.' }, 400);
+        }
+        if (!manager) {
+          const coTen = me && [...(cha.owner || []), ...(cha.helper || [])].some((u) => u && u.id === me.id);
+          if (!coTen) return json(res, { error: 'Chỉ người phụ trách việc lớn mới chia được việc con.' }, 403);
+          body.owner = [{ id: me.id }];
+        }
+        body.parent = [idCha];
+      }
+    }
+
     if (!body.title) return json(res, { error: 'Thiếu tên công việc' }, 400);
     if (!body.startAt) body.startAt = new Date().toISOString();
 
@@ -1282,7 +1339,7 @@ async function api(req, res, url) {
      * hoặc khi nó vẫn còn là "Nháp". */
     if (!body.status || body.status === cfg.trangThaiNhap) body.status = 'Chờ tiếp nhận';
 
-    const cells = toCells(body);
+    const cells = toCells(body, { choCha: true });
     let result;
     let idMoiTuNhap = null;
 
@@ -1303,7 +1360,9 @@ async function api(req, res, url) {
      * thẳng là "việc đã tạo nhưng tệp chưa đính" thay vì im lặng nuốt tệp. */
     const idMoi = idMoiTuNhap || (result && result.record_id_list || [])[0] || null;
 
-    if (!manager) {
+    if (!manager && body.parent) {
+      /* Nhân sự tự chia việc của mình: việc con đã có chủ, không cần ai phân công. */
+    } else if (!manager) {
       // nhân sự đặt việc → báo quản lý vào phân công
       baoTin(cfg.loadManagerIds(),
         'Có yêu cầu công việc mới: "' + body.title + '"' +

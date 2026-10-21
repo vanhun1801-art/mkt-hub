@@ -2465,3 +2465,58 @@ body[data-fx="cham"] .ng-o.goi::after {
 .tin-nguon-trich:empty { display: none; }
 .tin-nguon.mat { cursor: default; }
 .tin-nguon.mat .tin-nguon-chu b { color: var(--text-3); font-weight: 500; }
+
+/* ==========================================================================
+   VIỆC CON (21/10/2026)
+   Ngoài danh sách chỉ có mũi tên ↳ trước tên việc con và viên "2/5" sau tên
+   việc lớn. Mọi thứ khác nằm trong ô chi tiết.
+   ========================================================================== */
+.ten-con { color: var(--text-3); margin-right: 4px; font-weight: 500; }
+.vien-con {
+  display: inline-block; vertical-align: 1px; margin-left: 6px;
+  font-size: 12px; font-weight: 600; line-height: 18px; padding: 0 7px;
+  border-radius: 999px; background: var(--surface-3); color: var(--text-2);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.vien-con.xong { background: var(--green-bg); color: var(--green-text); }
+.vien-con.tre { background: var(--red-bg); color: var(--red-text); }
+
+.kh-viec-con .kh-dau { display: flex; align-items: center; gap: 8px; }
+.vc-so { margin-left: auto; font-size: 12.5px; font-weight: 600; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.vc-thanh { height: 6px; border-radius: 999px; background: var(--surface-3); overflow: hidden; margin: 2px 0 10px; }
+.vc-thanh span { display: block; height: 100%; border-radius: 999px; background: var(--green); transition: width var(--cd-truot, .3s ease); }
+.vc-ds { display: flex; flex-direction: column; gap: 2px; }
+.vc-dong {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 40px;
+  padding: 6px 8px; border: 0; border-radius: 9px; background: transparent;
+  font: inherit; color: var(--text); text-align: left; cursor: pointer;
+  transition: background var(--cd-deu, .16s ease);
+}
+.vc-dong:hover { background: var(--surface-3); }
+.vc-cham { flex: 0 0 auto; width: 9px; height: 9px; border-radius: 50%; }
+.vc-ten { flex: 1; min-width: 0; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vc-dong.dong .vc-ten { color: var(--text-3); text-decoration: line-through; text-decoration-color: var(--text-4); }
+.vc-ai { flex: 0 0 auto; font-size: 12.5px; color: var(--text-2); max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vc-an { font-size: 12.5px; color: var(--text-3); margin: 6px 8px 0; }
+.vc-them {
+  align-self: flex-start;
+  margin-top: 8px; padding: 0 14px; height: 34px; border-radius: 999px;
+  border: 1px dashed var(--border-2); background: transparent; color: var(--blue-text);
+  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: background var(--cd-deu, .16s ease);
+}
+.vc-them:hover { background: var(--blue-bg); }
+
+.vc-cha {
+  display: flex; align-items: center; gap: 10px; width: 100%; margin: 0 0 12px;
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: 14px;
+  background: var(--surface-2); font: inherit; color: var(--text); text-align: left; cursor: pointer;
+  transition: border-color var(--cd-deu, .16s ease);
+}
+.vc-cha:hover:not(:disabled) { border-color: var(--border-2); }
+.vc-cha:disabled { cursor: default; }
+.vc-cha-tao { cursor: default; }
+.vc-cha-nhan { flex: 0 0 auto; font-size: 12px; font-weight: 600; color: var(--blue-text); }
+.vc-cha b { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vc-cha-so { flex: 0 0 auto; font-size: 12.5px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+@media (max-width: 640px) { .vc-ai { display: none; } }

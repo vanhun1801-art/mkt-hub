@@ -165,7 +165,9 @@ module.exports = {
      * hàng đợi "phải hối". Hai cột này giữ vai đó — tick được cả trong Base. */
     daGiaiQuyet:   { id: 'fldhYDnqUx', name: 'Đã giải quyết',  type: 'checkbox' },
     ngayGiaiQuyet: { id: 'fldFy0vF7l', name: 'Ngày giải quyết', type: 'datetime' },
-    parent:     { id: 'fld80gHPbr', name: 'Parent items',      type: 'link',       readOnly: true },
+    /* Việc cha (cơ chế việc mẹ – việc con của Base). Mở ghi từ 21/10/2026 để tạo
+     * việc con ngay trong app; chỉ ghi lúc TẠO, không cho dời việc con sang cha khác. */
+    parent:     { id: 'fld80gHPbr', name: 'Parent items',      type: 'link' },
     /* Việc LIÊN PHÒNG đã hoàn thành được lưu về Base phòng (01/10/2026): ô này giữ
      * mã việc gốc (record_id công ty + đuôi người nhận) — chống tạo trùng, và để
      * app ẩn bản liên phòng khi đã có bản trong Base phòng. */
@@ -272,7 +274,7 @@ module.exports = {
   /* ---- Form đặt việc ---- */
   // Trường ai cũng điền được khi tạo việc — đúng bộ trường của Form
   // "Yêu cầu công việc" trong tài liệu Training.
-  staffCreatable: ['title', 'detail', 'workType', 'priority', 'startAt', 'deadline1', 'link', 'note'],
+  staffCreatable: ['title', 'detail', 'workType', 'priority', 'startAt', 'deadline1', 'link', 'note', 'parent'],
 
   // Trường phân công / phân loại cấp phòng — chỉ quản lý thấy và điền
   managerOnlyFields: ['campaign', 'owner', 'helper', 'channel', 'flow', 'rating', 'deadline2', 'requester'],

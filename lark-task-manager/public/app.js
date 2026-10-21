@@ -924,7 +924,131 @@ function dauLP(t) {
 function veTen(tag, cls, t) {
   const x = el(tag, cls, t.title || '(chưa có tên)');
   if (t.lienPhong || t.maLienPhong) x.appendChild(dauLP(t));
+  /* Việc con: một mũi tên nhỏ trước tên, rê vào thấy tên việc lớn. Việc lớn:
+   * viên "2/5" sau tên. Ngoài danh sách chỉ có vậy, phần còn lại nằm trong ô
+   * chi tiết (anh Hùng 21/10/2026: không muốn rối giao diện bên ngoài). */
+  if (idCha(t)) {
+    const cha = viecTheoMa(idCha(t));
+    const m = el('span', 'ten-con', '↳');
+    m.title = 'Việc con' + (cha ? ' của: ' + cha.title : '');
+    x.insertBefore(m, x.firstChild);
+  }
+  const vc = vienCon(t);
+  if (vc) x.appendChild(vc);
   return x;
+}
+
+/* ==========================================================================
+   VIỆC CON (21/10/2026)
+   Anh Hùng: việc lớn cấu thành từ các việc con, kiểu Asana; dùng cơ chế việc
+   cha – con có sẵn của Base (ô "Parent items"). Chỉ một tầng: việc con không
+   chia tiếp. Tiến độ { tong, xong, tre } do máy chủ đếm trên toàn bộ việc của
+   phòng (ganTienDoCon), nên đúng cả khi người xem không thấy hết việc con.
+   ========================================================================== */
+const idCha = (t) => ((t && t.parent) || [])[0] || '';
+function viecTheoMa(id) {
+  if (!id) return null;
+  return (S.tasks || []).find((x) => x.id === id) || (S.orders || []).find((x) => x.id === id) || null;
+}
+/** Việc con người này xem được, xếp theo hạn. */
+function conCua(t) {
+  const m = new Map();
+  for (const x of [...(S.tasks || []), ...(S.orders || [])]) if (idCha(x) === t.id) m.set(x.id, x);
+  return [...m.values()].sort((a, b) => String(a.deadline || '9').localeCompare(String(b.deadline || '9')));
+}
+/** Viên "2/5" cạnh tên việc lớn. Có việc con trễ thì đỏ, xong hết thì xanh. */
+function vienCon(t) {
+  const c = t && t.con;
+  if (!c || !c.tong) return null;
+  const v = el('span', 'vien-con' + (c.xong === c.tong ? ' xong' : c.tre ? ' tre' : ''),
+    c.xong + '/' + c.tong);
+  v.title = c.tong + ' việc con · xong ' + c.xong + (c.tre ? ' · trễ ' + c.tre : '');
+  return v;
+}
+/** Ai chia được việc này thành việc con. */
+function chiaDuoc(t) {
+  if (!t || t.isNew || t.lienPhong || idCha(t) || S.viewAs) return false;
+  if (S.isManager) return true;
+  if (!S.perm || !S.perm.taoMoi) return false;
+  const me = S.meta && S.meta.me && S.meta.me.id;
+  return !!me && [...(t.owner || []), ...(t.helper || [])].some((u) => u && u.id === me);
+}
+function moViecKhac(x) {
+  closeDrawer();
+  setTimeout(() => openDrawer(x), 60);
+}
+function themViecCon(t) {
+  const nhap = { parent: [t.id], tenCha: t.title || '' };
+  for (const k of ['campaign', 'workType', 'priority']) if (t[k]) nhap[k] = t[k];
+  if (S.isManager && (t.channel || []).length) nhap.channel = t.channel.slice();
+  closeDrawer();
+  setTimeout(() => openDrawer(null, nhap), 60);
+}
+
+/** Khối "Việc con" / "Thuộc việc lớn" trong ô chi tiết. Không có gì để nói thì null. */
+function khoiViecCon(t) {
+  if (!t || t.isNew || t.lienPhong) return null;
+
+  if (idCha(t)) {
+    const cha = viecTheoMa(idCha(t));
+    const hang = el('button', 'vc-cha');
+    hang.type = 'button';
+    hang.appendChild(el('span', 'vc-cha-nhan', 'Thuộc việc lớn'));
+    hang.appendChild(el('b', '', cha ? cha.title : 'Việc lớn bạn chưa được xem'));
+    if (cha && cha.con) hang.appendChild(el('span', 'vc-cha-so', cha.con.xong + '/' + cha.con.tong + ' xong'));
+    if (cha) hang.onclick = () => moViecKhac(cha);
+    else hang.disabled = true;
+    return hang;
+  }
+
+  const ds = conCua(t);
+  const c = t.con || { tong: ds.filter((x) => x.status !== 'Hủy').length, xong: ds.filter((x) => x.status === 'Hoàn thành').length, tre: 0 };
+  const chia = chiaDuoc(t);
+  if (!c.tong && !ds.length && !chia) return null;
+
+  const k = theKhoi('Việc con', 'viec-con');
+  if (c.tong) {
+    k.dau.appendChild(el('span', 'vc-so', c.xong + '/' + c.tong + ' xong'));
+    const thanh = el('div', 'vc-thanh');
+    const day = el('span', '');
+    day.style.width = Math.round((c.xong / c.tong) * 100) + '%';
+    thanh.appendChild(day);
+    k.than.appendChild(thanh);
+  }
+  const list = el('div', 'vc-ds');
+  for (const x of ds) {
+    const h = el('button', 'vc-dong' + (isClosed(x) ? ' dong' : ''));
+    h.type = 'button';
+    const cham = el('span', 'vc-cham');
+    cham.style.background = STATUS_HUE[x.status] || '#8f959e';
+    cham.title = x.status || '';
+    h.appendChild(cham);
+    h.appendChild(el('span', 'vc-ten', x.title || '(chưa có tên)'));
+    const ai = (x.owner || []).map((u) => u.name).filter(Boolean)[0];
+    if (ai) h.appendChild(el('span', 'vc-ai', ai));
+    const dl = deadlineTag(x);
+    if (dl) h.appendChild(dl);
+    h.onclick = () => moViecKhac(x);
+    list.appendChild(h);
+  }
+  if (ds.length) k.than.appendChild(list);
+  const an = c.tong - ds.filter((x) => x.status !== 'Hủy').length;
+  if (an > 0) k.than.appendChild(el('div', 'vc-an', 'Và ' + an + ' việc con của người khác.'));
+  if (!c.tong && !ds.length) k.than.appendChild(el('div', 'vc-an', 'Chia việc này thành các phần nhỏ để theo dõi tiến độ.'));
+  if (chia) {
+    const nut = el('button', 'vc-them', '+ Thêm việc con');
+    nut.type = 'button';
+    nut.onclick = () => themViecCon(t);
+    k.than.appendChild(nut);
+  }
+  return k.the;
+}
+/** Gắn khối việc con vào ô chi tiết, ngay sau thẻ đầu (hoặc lên đầu). */
+function ganKhoiViecCon(b, t, sauThe) {
+  const k = khoiViecCon(t);
+  if (!k) return;
+  const moc = sauThe ? b.children[1] || null : b.firstChild;
+  b.insertBefore(k, moc);
 }
 
 function workCard(t, lane) {
@@ -3347,8 +3471,8 @@ function buildDrawer() {
 
   if (isNew) return buildCreateForm(b, t, o);
   if (t.lienPhong && !orderRO) { buildStaffDrawer(b, t, o); return chiaTab(b, t); }
-  if (orderRO) { buildOrderDrawer(b, t, o); return chiaTab(b, t); }   // người order: chỉ xem
-  if (staff) { buildStaffDrawer(b, t, o); return chiaTab(b, t); }
+  if (orderRO) { buildOrderDrawer(b, t, o); ganKhoiViecCon(b, t, true); return chiaTab(b, t); }   // người order: chỉ xem
+  if (staff) { buildStaffDrawer(b, t, o); ganKhoiViecCon(b, t, true); return chiaTab(b, t); }
 
   /* ---- chế độ quản lý: sửa mọi trường ---- */
   b.appendChild(field('Tên công việc *', textInput(t.title, (v) => set('title', v))));
@@ -3405,6 +3529,7 @@ function buildDrawer() {
   b.appendChild(khoiTep(t, 'File kết quả', t.fileKetQua, 'ket-qua', true, 'Nhân sự chưa nộp file nào.'));
   b.appendChild(oTaiLen(t, 'ket-qua'));
   b.appendChild(khoiBinhLuan(t));
+  ganKhoiViecCon(b, t, false);
   chiaTab(b, t);
 }
 
@@ -3415,6 +3540,17 @@ function buildDrawer() {
  */
 function buildCreateForm(b, t, o) {
   const isMgr = !!S.isManager;
+
+  /* Đang tạo việc con: nói rõ thuộc việc lớn nào. Chi tiết yêu cầu không bắt
+   * buộc, vì việc con thường chỉ cần một cái tên. */
+  if (idCha(t)) {
+    const cha = viecTheoMa(idCha(t));
+    const dong = el('div', 'vc-cha vc-cha-tao');
+    dong.appendChild(el('span', 'vc-cha-nhan', 'Việc con của'));
+    dong.appendChild(el('b', '', (cha && cha.title) || t.tenCha || 'việc lớn'));
+    b.appendChild(dong);
+    if (!isMgr) b.appendChild(el('div', 'ro-note', 'Việc con giao cho chính bạn. Bấm "Bắt đầu làm" khi bắt tay vào.'));
+  }
 
   /* Đang mở lại bản nháp: phải nói rõ đây không phải form trắng, và cho đường ra
    * ngay cạnh — nếu không người dùng tưởng app tự điền bừa. */
@@ -3440,9 +3576,11 @@ function buildCreateForm(b, t, o) {
     };
     bang.appendChild(bo);
     b.appendChild(bang);
-  } else {
+  } else if (!idCha(t) && !maTinTuLink(t.link)) {
     /* Form trắng: nếu đang còn nháp thì phải cho thấy, không thì người dùng soạn
-     * lại từ đầu một việc mình đã soạn dở hôm qua. Nạp sau để form hiện ra ngay. */
+     * lại từ đầu một việc mình đã soạn dở hôm qua. Nạp sau để form hiện ra ngay.
+     * Form đã điền sẵn (việc con, việc tạo từ tin) thì thôi: bấm nhầm vào nháp
+     * là mất luôn phần đã điền. */
     const cho = el('div', 'nhap-bang hidden');
     b.appendChild(cho);
     req('/api/nhap').then((d) => {
@@ -3469,7 +3607,7 @@ function buildCreateForm(b, t, o) {
   const detail = el('textarea');
   detail.value = t.detail || '';
   detail.oninput = () => set('detail', detail.value);
-  b.appendChild(field('Chi tiết yêu cầu *', detail));
+  b.appendChild(field(idCha(t) ? 'Chi tiết yêu cầu' : 'Chi tiết yêu cầu *', detail));
 
   const r1 = el('div', 'row2');
   r1.appendChild(field('Loại công việc *', selectInput(t.workType, o.workType, (v) => set('workType', v))));
@@ -4741,7 +4879,7 @@ async function saveDrawer() {
       if (S.nhapId) payload.tuNhap = S.nhapId;
 
       if (!payload.title) throw new Error('Cần nhập tên công việc');
-      if (!payload.detail) throw new Error('Cần nhập chi tiết yêu cầu');
+      if (!payload.detail && !payload.parent) throw new Error('Cần nhập chi tiết yêu cầu');
       if (!payload.workType) throw new Error('Cần chọn loại công việc');
       if (!payload.deadline1) throw new Error('Cần chọn deadline');
 
@@ -4758,7 +4896,9 @@ async function saveDrawer() {
       const hong = await taiTepViecMoi(kq && kq.id);
       S.tepMoi = [];
 
-      toast(S.isManager
+      const laCon = !!payload.parent;
+      toast(laCon ? 'Đã thêm việc con'
+        : S.isManager
         ? 'Đã tạo công việc mới' + (soTep ? ' · ' + (soTep - hong.length) + '/' + soTep + ' tệp' : '')
         : 'Đã gửi yêu cầu công việc. Quản lý sẽ phân công người phụ trách.');
       if (hong.length) {
@@ -4767,6 +4907,11 @@ async function saveDrawer() {
       }
       closeDrawer();
       await refresh(true);
+      /* Thêm xong việc con thì quay về việc lớn, thấy ngay nó nằm trong danh sách. */
+      if (laCon) {
+        const cha = viecTheoMa(payload.parent[0]);
+        if (cha) openDrawer(cha);
+      }
     } else {
       if (!Object.keys(S.dirty).length) { toast('Không có thay đổi nào'); btn.disabled = false; return; }
       const suffix = isStaffMode() ? '?role=staff' : '';
@@ -5155,7 +5300,12 @@ function render() {
     const isBoard = S.view === 'board';
     $('#board').classList.toggle('hidden', !isBoard);
     $('#table').classList.toggle('hidden', isBoard);
-    if (isBoard) renderBoard(list); else renderTable(list);
+    /* Kanban và Bảng gom việc con vào việc lớn (viên "2/5" cạnh tên), khỏi một
+     * việc chiếm năm thẻ. Việc của tôi, Order, Lịch vẫn hiện việc con như việc
+     * thường, vì đó là chỗ người được giao tìm việc của mình. */
+    const coTrongDs = new Set(S.tasks.map((x) => x.id));
+    const gon = list.filter((x) => !(idCha(x) && coTrongDs.has(idCha(x))));
+    if (isBoard) renderBoard(gon); else renderTable(gon);
   }
 
   const n = S.selected.size;
