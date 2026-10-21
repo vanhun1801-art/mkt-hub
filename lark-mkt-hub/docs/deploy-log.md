@@ -10,3 +10,7 @@ Render tự build lại từ `main`). Mỗi dòng: ngày · nội dung chính đ
 - 2026-10-20 (2) · Gợi ý deadline: hiện màu dải nhiệt ngay khi chọn Loại công việc
   (đếm việc cùng loại tới hạn mỗi ngày, chưa cần chọn người); hiệu ứng ngày gợi ý
   mặc định "viền thở" (đổi bằng ?fx=tho|dom|quet|aurora|cham); câu gợi ý gọn lại.
+- 2026-10-21 · Việc con: Enter tạo nhanh với người phụ trách để trống, hiện
+  "Chưa phân công"; không tự phân phối hoặc gán người tạo. Bấm việc con để mở
+  form chi tiết đầy đủ và chọn người làm. Mã thay đổi: 4ed6cfe. Đã kiểm tra 7
+  tình huống của luồng này và 10 bộ kiểm thử không cần Lark thật.
