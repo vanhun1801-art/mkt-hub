@@ -564,7 +564,7 @@ function bang(baseToken, tableId, tenCotTep) {
   const larkUrl = 'https://rootytrip2.sg.larksuite.com/base/' + baseToken + '?table=' + tableId;
 
   return { goi, cli, cliArgs, tenCot, idCot, docHet, locCotThat, ghi, tao, xoa,
-    dinhTep, goTep, taiTep, docTepCua, larkUrl };
+    dinhTep, goTep, taiTep, docTepCua, upMedia, larkUrl };
 }
 
 module.exports = { laApi, tenantToken, timLarkCli, cli, bang, docOTep };

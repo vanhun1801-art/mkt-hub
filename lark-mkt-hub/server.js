@@ -22,6 +22,7 @@ const lich = require('./lichchung');
 const auth = require('./auth');
 const quyen = require('./quyen');
 const phimKho = require('./phim-kho');
+const ghiChu = require('./ghi-chu');
 const viTri = require('./vi-tri');
 const { chuyenTiep, goiJson } = require('./proxy');
 const tbApp = require('./thongbao-app');
@@ -513,7 +514,7 @@ function tinh(res, duongDan, truyVan) {
   if (!f.startsWith(PUBLIC) || !st || !st.isFile()) {
     return send(res, 404, 'Không có ' + p, { 'Content-Type': 'text/plain; charset=utf-8' });
   }
-  const laTrangChu = path.basename(f) === 'index.html';
+  const laTrangChu = ['index.html', 'ghi-chu.html'].includes(path.basename(f));
   const tep = docTinh(f, laTrangChu, st.mtimeMs);
   const body = tep.body;
   /* Trang chủ KHÔNG được nằm trong cache: nó là nơi duy nhất giữ số bản của mọi
@@ -836,9 +837,72 @@ const DUONG_CHO_KHACH = new Set(['/healthz', '/api/hub', '/api/logo', '/api/loi-
   /* chuông thông báo: chỉ hỏi những base khách được vào, mỗi base tự lọc theo người */
   '/api/thong-bao', '/api/thong-bao/doc']);
 
+// Ghi chú không dùng danh tính xem hộ, kể cả thao tác đọc.
+const khoGhiChu = ghiChu.createService({
+  publicUrl: cfg.publicUrl || process.env.RENDER_EXTERNAL_URL || 'https://mkt-hub-w6hi.onrender.com',
+  taskCall: async (ctx, path, opts) => {
+    const mod = timMod('cong-viec');
+    if (!mod || !duocXem(ctx.q, mod)) throw loiKhach('Chưa được mở Bảng công việc.', 403);
+    const result = await goiJson(mod, path, { ...opts, nguoi: nguoiKemQuyen(ctx.user, ctx.q, mod), timeoutMs: 30000 });
+    if (opts.method === 'POST') { kpi.xoaCache(mod.id); lich.xoaCache(); }
+    return result;
+  },
+});
+async function nguCanhGhiChu(req) {
+  const { nguoi, q, xemNhu } = await aiDangXem(req);
+  if (xemNhu) throw loiKhach('Ghi chú riêng tư không mở trong chế độ Xem như. Anh thoát chế độ này trước nhé.', 403);
+  if (q && q.khach) throw loiKhach('Mục này dành cho phòng Marketing.', 403);
+  const user = nguoi || (cfg.mode !== 'api' ? { id: 'local', name: 'Local', kieu: 'local' } : null);
+  if (!user || !user.id) throw loiKhach('Anh đăng nhập lại để mở ghi chú.', 401);
+  const mod = timMod('cong-viec');
+  const canAssign = !!(mod && duocXem(q, mod) && laQLBase(q, mod));
+  return { user, q, canAssign, canCreate: !!(mod && duocXem(q, mod) && (canAssign || !q || q.taoMoi !== false)) };
+}
+async function apiGhiChu(req, res, u) {
+  try {
+    const ctx = await nguCanhGhiChu(req);
+    if (!['GET', 'HEAD'].includes(req.method)) {
+      const origin = req.headers.origin;
+      const allowed = [cfg.publicUrl];
+      let valid = !origin; // non-browser clients still require the authenticated cookie
+      try { valid = valid || new URL(origin).host === req.headers.host || allowed.some(x => x && new URL(x).origin === origin); } catch (_) {}
+      if (!valid || req.headers['sec-fetch-site'] === 'cross-site') throw loiKhach('Yêu cầu không đến từ Marketing Hub.', 403);
+    }
+    const path = u.pathname;
+    if (path === '/api/ghi-chu' && req.method === 'GET') return ok(res, await khoGhiChu.load(ctx.user));
+    if (path === '/api/ghi-chu' && req.method === 'PATCH') {
+      const b = await docBody(req);
+      return ok(res, await khoGhiChu.save(ctx.user, b.version, b.data));
+    }
+    if (path === '/api/ghi-chu/meta' && req.method === 'GET') {
+      let meta = {}, warning = '';
+      if (ctx.canCreate) {
+        try { meta = await goiJson(timMod('cong-viec'), '/api/meta', { nguoi: nguoiKemQuyen(ctx.user, ctx.q, timMod('cong-viec')), timeoutMs: 30000 }); }
+        catch (_) { ctx.canCreate = false; warning = 'Bảng công việc chưa sẵn sàng. Anh vẫn có thể viết ghi chú.'; }
+      }
+      return ok(res, { canCreate: ctx.canCreate, canAssign: ctx.canAssign, people: ctx.canAssign ? (meta.scopePeople || []).concat(meta.people || []) : [], options: meta.options || {}, warning });
+    }
+    if (path === '/api/ghi-chu/tasks' && req.method === 'POST') return ok(res, await khoGhiChu.createTask(ctx, await docBody(req)));
+    if (path === '/api/ghi-chu/tasks' && req.method === 'GET') {
+      const doc = await khoGhiChu.load(ctx.user);
+      const refs = doc.refs;
+      if (!refs.length) return ok(res, { tasks: [] });
+      const mod = timMod('cong-viec');
+      if (!mod || !duocXem(ctx.q, mod)) return ok(res, { tasks: refs.map(r => ({ ...r, status: 'Chưa có quyền xem công việc' })) });
+      const opt = { nguoi: nguoiKemQuyen(ctx.user, ctx.q, mod), timeoutMs: 30000 };
+      const [tasks, orders] = await Promise.all([goiJson(mod, '/api/tasks', opt), goiJson(mod, '/api/my-orders', opt)]);
+      const all = [...(tasks.tasks || []), ...(orders.tasks || [])];
+      return ok(res, { tasks: refs.map(r => { const t = all.find(t => t.id === r.id); return t ? { ...r, title: t.title, status: t.status, owner: (t.owner || []).map(p => p.name || '').join(', '), due: t.deadline1 } : { ...r, status: 'Không còn trong phạm vi xem' }; }) });
+    }
+    return loi(res, 404, 'Không có thao tác ghi chú này.');
+  } catch (e) { return send(res, e.http || 503, { error: e.message, code: e.code || '' }); }
+}
+
 async function api(req, res, u) {
   const p = u.pathname;
   const m = req.method;
+
+  if (p === '/api/ghi-chu' || p.startsWith('/api/ghi-chu/')) return apiGhiChu(req, res, u);
 
   if (cfg.mode === 'api' && !DUONG_CHO_KHACH.has(p) && auth.sessionUser(req)) {
     const { q: qKhach, xemNhu: nhuKhach } = await aiDangXem(req);

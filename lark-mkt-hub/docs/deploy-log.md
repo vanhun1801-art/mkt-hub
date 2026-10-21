@@ -14,3 +14,7 @@ Render tự build lại từ `main`). Mỗi dòng: ngày · nội dung chính đ
   "Chưa phân công"; không tự phân phối hoặc gán người tạo. Bấm việc con để mở
   form chi tiết đầy đủ và chọn người làm. Mã thay đổi: 4ed6cfe. Đã kiểm tra 7
   tình huống của luồng này và 10 bộ kiểm thử không cần Lark thật.
+
+- 2026-10-21 (3) · Không gian Ghi chú cá nhân: thư mục, tìm kiếm, ghim, checklist,
+  biên bản họp và khôi phục ghi chú. Lưu bền trên kho Lark của Hub theo tài khoản;
+  tạo công việc thật từ nội dung đã chọn, liên kết về ghi chú gốc, chống tạo trùng.

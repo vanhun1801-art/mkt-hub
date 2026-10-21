@@ -14,6 +14,7 @@ const IC = (d, extra = '') =>
   'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + extra + '</svg>';
 
 const ICONS = {
+  'ghi-chu': IC('<rect x="5" y="3" width="15" height="18" rx="2"/><path d="M9 8h7M9 12h7M9 16h4M3 7h4M3 12h4M3 17h4"/>'),
   /* Tổng quan: 4 khối như một bảng điều khiển */
   'tong-quan': IC(
     '<rect x="3.5" y="3.5" width="7" height="7" rx="2"/>' +

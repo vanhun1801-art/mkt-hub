@@ -565,6 +565,7 @@ function veRail() {
   });
 
 
+  if (!(S.hub && S.hub.khach) && !S.xemNhu) html += item({ id: 'ghi-chu', href: '#/ghi-chu', icon: 'ghi-chu', ten: 'Ghi chú', mau: '#ae851e', on: hienTai === 'ghi-chu' });
   const dsBat = S.modules.filter((m) => m.bat);
   html += '<div class="rail-group">Base đang quản lý</div>';
   html += dsBat.map((m) => {
@@ -968,6 +969,18 @@ function napTruoc() {
     o.wrap.dataset.napTruoc = '1';
     anKhung(o);
   }, 2500 + i * 6000));
+}
+
+function moGhiChu(note) {
+  if (S.xemNhu) { moHome(); toast('Thoát Xem như để mở ghi chú riêng.', 'do'); return; }
+  S.view = 'ghi-chu';
+  $('#pageHome').hidden = true;
+  const url = '/ghi-chu.html?v=' + encodeURIComponent((S.hub && S.hub.ver) || '') + (note ? '&note=' + encodeURIComponent(note) : '');
+  const o = khungCuaModule({ id: 'ghi-chu', ten: 'Ghi chú', kieu: 'noi-bo', url });
+  S.frames.forEach((x, k) => { if (k !== 'ghi-chu') anKhung(x, true); });
+  huyRoi(o.wrap); o.wrap.classList.remove('khung-ngam'); o.wrap.hidden = false;
+  if (note) o.iframe.contentWindow.postMessage({ hub: 'ghi-chu', note }, location.origin);
+  document.title = 'Ghi chú · Marketing Hub'; datTenMan('Ghi chú'); veRail();
 }
 
 function moModule(id, rec, mo) {
@@ -2937,6 +2950,7 @@ function dinhTuyen() {
   const ml = /^\/lark\/(.+)$/.exec(h);
   // #/lich-chung  hoặc  #/lich-chung?xem=ngay  (chia chuỗi, không dùng regex)
   const [duong, truyVan] = h.split('?');
+  if (duong === '/ghi-chu') { moGhiChu(new URLSearchParams(truyVan || '').get('note')); return; }
   if (duong === '/lich-chung') {                 // link cũ: lịch giờ nằm trong Tổng quan
     const x = new URLSearchParams(truyVan || '').get('xem');
     if (x === 'luoi' || x === 'ngay') S.xem = x;
