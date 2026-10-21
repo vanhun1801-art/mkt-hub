@@ -34,6 +34,7 @@ const VIEC_LAU_NHOM = [
   'pancake',      // hội thoại và đơn POS — pancake, pancake-pos
   'sync',         // đồng bộ chi tiêu mọi kênh rồi ghi Base
   'import-csv',
+  'bot-nghiem-thu', // đọc Base + gửi hai thẻ Lark + ghi dấu gửi, có thể hơn 30 giây
   /* App Social đặt tên đường dẫn bằng tiếng Việt nên không lọt danh sách trên,
    * và mỗi lượt đồng bộ 6 kênh TikTok + 3 Page Facebook chạy vài phút — hub cắt
    * ở 30 giây, người dùng thấy "Module không trả lời trong 30s" trong khi việc

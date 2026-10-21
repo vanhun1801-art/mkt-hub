@@ -38,3 +38,11 @@ Render tự build lại từ `main`). Mỗi dòng: ngày · nội dung chính đ
 - Bảng công việc: tab “Order & nghiệm thu”, chọn “Chờ nghiệm thu · toàn phòng” để xem việc đã nộp do bất kỳ người order nào trong base giao, gồm cả việc quá hạn/tháng trước.
 - Hiện người order, sản phẩm và dùng luồng nghiệm thu đạt / trả về chỉnh sửa hiện có. Chỉ quản lý base được mở thêm phạm vi; quyền xem toàn bộ và khách giữ nguyên.
 - Kiểm tra: 8 kiểm thử nghiệm thu/quyền, 7 kiểm tra việc con; bộ kiểm tra khách Hub và tham chiếu hàm; kiểm tra UI desktop/390px với dữ liệu giả.
+
+## 2026-10-21 · Thử Bot nhắc nghiệm thu và cảnh báo hành động
+
+- Tab Order & nghiệm thu → Bot nhắc việc: xem hai mẫu dữ liệu thật, gửi thử riêng tài khoản quản lý đang đăng nhập. Gửi xong chọn tài khoản đó làm người nhận thử; chưa gửi tới các người order khác. Có nút Tắt nhắc thử.
+- Pilot: báo ngay khi có sản phẩm nộp cho người nhận thử, nhắc lại 08:00 và 17:00 giờ Việt Nam nếu còn chờ nghiệm thu. Lịch chạy trên Render, bù trong 30 phút nếu tiến trình vừa khởi động.
+- Mẫu cảnh báo quản lý: ưu tiên việc quá hạn chưa nộp, đến hạn 24h, làm lại và đang thực hiện; nêu bước cần làm + nút mở đúng việc. Chỉ demo, không tự nhắc nhân sự.
+- Cấu hình và dấu gửi lưu ở kho cấu hình Base (Ô bot-cong-viec:v1 / bot-cv-gui); UUID chống gửi trùng và chỉ báo gửi thành công khi Lark xác nhận. Deep link nghiệm thu mở đúng drawer Order.
+- Kiểm tra bộ thử Bot, quyền nghiệm thu, nhắc tay; không gửi tin trong unit test.

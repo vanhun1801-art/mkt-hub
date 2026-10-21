@@ -2552,3 +2552,10 @@ html:not(#_):not(#__):not(#___) .kh-than .vc-them input {
   #orderFilters #oScope { width: 100%; }
   #orderFilters:has(#oScope:not(.hidden))::before { display: none; }
 }
+
+.bot-review-box { width: min(760px, 96vw); max-height: 90dvh; overflow-y: auto; }
+.bot-review-card { border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin: 12px 0; }
+.bot-review-card h4 { margin: 0 0 12px; color: var(--primary, #315dff); }
+.bot-review-card p { white-space: pre-wrap; line-height: 1.6; }
+.bot-review-card .btn { margin: 0 8px 8px 0; }
+#botReviewStatus { white-space: pre-wrap; line-height: 1.6; }

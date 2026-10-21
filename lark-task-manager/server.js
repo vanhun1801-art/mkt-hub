@@ -32,6 +32,24 @@ const auth = require('./auth');
 const { dungBaoCao } = require('./baocao');
 const { themLuaChon } = require('./campaign');
 const nhapMod = require('./nhap');
+const botNhac = require('./nhac-nghiem-thu');
+const botStore = botNhac.storage(require('../lark-mkt-hub/base-lark').bang(
+  process.env.HUB_PHIM_BASE || process.env.HUB_TB_BASE || 'JhZtbxv0gamk5ys3Fr0luHnsgwG',
+  process.env.HUB_PHIM_TABLE || 'tbl1rcw5ES34EeEY', 'Tệp'));
+const botNghiemThu = botNhac.create({
+  store: botStore,
+  getTasks: async () => (await getRecords(true)).map(toTask),
+  url: (process.env.HUB_URL || cfg.publicUrl || 'https://mkt-hub-w6hi.onrender.com').replace(/\/+$/, ''),
+  // Gửi có xác nhận + UUID chống trùng; không dùng sendCard() vốn trả false khi lỗi.
+  send: async ({ userId, card, khoa }) => {
+    if (cfg.mode !== 'api') throw new Error('Gửi thử bằng bot Marketing Hub trên bản online.');
+    const d = await lark.call('POST', '/open-apis/im/v1/messages?receive_id_type=open_id', {
+      body: { receive_id: userId, msg_type: 'interactive', content: JSON.stringify(card), uuid: khoa }, retries: 1,
+    });
+    return { ok: true, msgId: d && d.message_id };
+  },
+});
+
 
 const F = cfg.fields;
 const BY_KEY = Object.entries(F);
@@ -1258,6 +1276,22 @@ async function api(req, res, url) {
   /* Việc TÔI đã order: trả các việc mà mình là Người order, bất kể có phụ trách
    * hay không. Lọc ngay trên server nên nhân sự cũng thấy được việc mình đặt mà
    * không phải nới quyền của /api/tasks (4 app khác đọc chung endpoint đó). */
+  // Gửi thử luôn lấy người nhận từ phiên đăng nhập, không nhận ID do client chỉ định.
+  if (p === '/api/bot-nghiem-thu' && ['GET', 'POST'].includes(req.method)) {
+    if (laKhach(req)) return json(res, { error: 'Chỉ quản lý được thử Bot.' }, 403);
+    if (!(await requireManager(res, req))) return;
+    const me = await whoAmI(req);
+    if (!me) return json(res, { error: 'Cần đăng nhập Lark.' }, 401);
+    if (req.method === 'GET') return json(res, await botNghiemThu.preview(me));
+    const body = await readBody(req);
+    if (body.action === 'stop') { await botNghiemThu.stop(); return json(res, { ok: true }); }
+    if (body.action !== 'demo' || !/^[a-zA-Z0-9-]{16,80}$/.test(body.requestId || '')) {
+      return json(res, { error: 'Yêu cầu gửi thử không hợp lệ.' }, 400);
+    }
+    try { return json(res, await botNghiemThu.demo(me, body.requestId)); }
+    catch (e) { return json(res, { error: 'Chưa hoàn tất gửi thử: ' + e.message }, 502); }
+  }
+
   if (p === '/api/my-orders' && req.method === 'GET') {
     const me = await whoAmI(req);
     if (!me) return json(res, { tasks: [], fetchedAt: cache.at });
@@ -1609,9 +1643,8 @@ async function api(req, res, url) {
       await lark.updateRecord(id, toCells(patch));
       applyLocal(rec, patch);
       const tre = laTreTheoHan(task);
-      baoTin((task.requester || []).map((u) => u.id),
-        'Việc "' + (task.title || '') + '" đã nộp sản phẩm' + (tre ? ' (trễ so với deadline)' : '') + '.' + XD +
-        'Mời bạn nghiệm thu' + (tre ? '; trạng thái trễ được giữ lại để thống kê' : '') + '.' + duoiTin());
+      if (!task.daGiaiQuyet) botNghiemThu.submission({ ...task, ...patch, nhacVong: Date.now() })
+        .catch((e) => console.error('[Bot nghiệm thu] báo nộp sản phẩm: ' + e.message));
       const baoCaoGQ = await themVaoBaoCao(req, task);
       return json(res, { ok: true, daGiaiQuyet: true, status: task.status, baoCao: baoCaoGQ });
     }
@@ -2586,4 +2619,8 @@ server.listen(cfg.port, BIND, () => {
    * đường cộng lại: có người mở app thì đúng hẹn, không ai mở thì việc chờ tới
    * lần mở tiếp theo. Chậm, chứ không sai. */
   setInterval(() => { quetPhanPhoi().catch(() => {}); }, 60000).unref();
+  if (cfg.mode === 'api' && process.env.RENDER) {
+    setTimeout(() => botNghiemThu.tick(), 15000).unref();
+    setInterval(() => botNghiemThu.tick(), 60000).unref();
+  }
 });

@@ -110,6 +110,21 @@
   </div>
 </section>
 
+<!-- Thử Bot chỉ gửi cho tài khoản quản lý đang đăng nhập. -->
+<div id="mBotReview" class="modal" role="dialog" aria-modal="true" aria-labelledby="botReviewTitle">
+  <div class="modal-box bot-review-box">
+    <h3 id="botReviewTitle">Bot nhắc việc · Gửi thử riêng</h3>
+    <p class="modal-note">Gửi 2 mẫu cho tài khoản đang đăng nhập: chờ nghiệm thu và cảnh báo cần hành động. Sau khi gửi thử, chỉ tài khoản này nhận nhắc nghiệm thu lúc 08:00 và 17:00 (giờ Việt Nam).</p>
+    <p id="botReviewStatus" role="status"></p>
+    <div id="botReviewPreview"></div>
+    <div class="modal-foot">
+      <button class="btn" id="botReviewClose">Đóng</button>
+      <button class="btn" id="botReviewStop">Tắt nhắc thử</button>
+      <button class="btn btn-primary" id="botReviewSend">Gửi 2 mẫu cho tôi</button>
+    </div>
+  </div>
+</div>
+
 <!-- ======== MODAL: PHÂN CÔNG ======== -->
 <div id="mAssign" class="modal">
   <div class="modal-box">
@@ -243,6 +258,7 @@
     <select id="oStatus" class="sel"><option value="">Trạng thái: tất cả</option></select>
     <select id="oDue" class="sel"><option value="">Thời gian: tất cả</option></select>
     <label class="chk"><input type="checkbox" id="oHideDone"> Ẩn việc đã đóng</label>
+    <button id="oBot" class="btn hidden">Bot nhắc việc</button>
     <button id="oClear" class="btn btn-ghost">Xoá lọc</button>
     <span class="grow"></span>
     <span id="oCount" class="muted"></span>

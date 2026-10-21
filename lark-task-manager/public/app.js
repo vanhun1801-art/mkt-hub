@@ -5546,6 +5546,7 @@ async function refresh(force) {
 function applyRoleChrome() {
   const me = S.meta.me;
   $('#oScope').classList.toggle('hidden', !S.isManager);
+  $('#oBot').classList.toggle('hidden', !S.isManager);
   if (!S.isManager) S.orderScope = 'mine';
   $('#oScope').value = S.orderScope;
   const reviewCount = S.orders.filter((t) => !t.lienPhong && t.daGiaiQuyet && !isClosed(t)).length;
@@ -5934,6 +5935,14 @@ function setupChrome() {
 
   // bộ lọc tab "Việc tôi order"
   const bindO = (sel, key) => { const e = $(sel); if (e) e.onchange = () => { S.of[key] = e.value; render(); }; };
+  $('#oBot').onclick = openBotReview;
+  $('#botReviewClose').onclick = () => closeModal('mBotReview');
+  $('#botReviewSend').onclick = sendBotReview;
+  $('#botReviewStop').onclick = async () => {
+    try { await req('/api/bot-nghiem-thu', { method: 'POST', body: JSON.stringify({ action: 'stop' }) });
+      $('#botReviewStatus').textContent = 'Đã tắt nhắc thử. Không gửi cho người khác.';
+    } catch (e) { $('#botReviewStatus').textContent = e.message; }
+  };
   $('#oScope').onchange = () => {
     S.orderScope = S.isManager && $('#oScope').value === 'review' ? 'review' : 'mine';
     // Mở hàng chờ phải thấy cả việc nộp từ tháng trước, không giữ bộ lọc cũ.
@@ -6150,6 +6159,16 @@ function setupChrome() {
     const tv = new URLSearchParams(location.search);
     // ?fx=tho|dom|quet|aurora|cham -> chọn hiệu ứng ngày gợi ý (mặc định 'tho')
     document.body.dataset.fx = tv.get('fx') || 'tho';
+    if (tv.get('mo') === 'nghiem-thu') {
+      S.view = 'order'; S.viewChosen = true;
+      if (S.isManager) S.orderScope = 'review';
+      S.of.due = ''; S.of.status = ''; S.of.owner = ''; S.of.campaign = ''; S.of.workType = '';
+      S.filters.q = ''; $('#search').value = '';
+      applyRoleChrome(); syncFilterInputs();
+      document.querySelectorAll('.tab').forEach(x => x.classList.toggle('is-active', x.dataset.view === 'order'));
+      render();
+    }
+    if (tv.get('mo') === 'bot-nhac' && S.isManager) openBotReview();
     const rec = tv.get('rec');
     if (rec) {
       const t = timViecTheoMa(rec);
@@ -6453,4 +6472,42 @@ async function luuPhanPhoi(duong, body, loi, method) {
     $('#ppMsg').textContent = '';
     toast(loi + ': ' + e.message, true);
   }
+}
+
+
+let botDemoRequestId = '';
+async function openBotReview() {
+  openModal('mBotReview');
+  $('#botReviewSend').disabled = true;
+  $('#botReviewStatus').textContent = 'Đang lấy dữ liệu mới và mẫu thẻ…';
+  $('#botReviewPreview').replaceChildren();
+  botDemoRequestId = '';
+  try {
+    const d = await req('/api/bot-nghiem-thu');
+    $('#botReviewStatus').textContent = d.settings.mode === 'off' ? 'Đang tắt nhắc thử.'
+      : d.settings.pilot ? 'Chế độ thử · chỉ gửi cho ' + d.settings.pilot.name + ' · 08:00 và 17:00.'
+      : 'Chưa bật gửi. Mẫu nghiệm thu dùng việc do bạn order; mẫu cảnh báo dùng việc toàn phòng.';
+    for (const card of d.cards) {
+      const box = el('div', 'bot-review-card');
+      box.appendChild(el('h4', '', card.header.title.content));
+      for (const part of card.elements) {
+        if (part.text) box.appendChild(el('p', '', part.text.content.replace(/\*\*/g, '').replace(/\\([*_~`[\]<>])/g, '$1')));
+        if (part.actions) for (const action of part.actions) {
+          const a = el('a', 'btn', action.text.content); a.href = action.url; a.target = '_blank'; a.rel = 'noopener'; box.appendChild(a);
+        }
+      }
+      $('#botReviewPreview').appendChild(box);
+    }
+    $('#botReviewSend').disabled = false;
+  } catch (e) { $('#botReviewStatus').textContent = 'Không nạp được mẫu: ' + e.message; }
+}
+async function sendBotReview() {
+  const b = $('#botReviewSend'); b.disabled = true;
+  if (!botDemoRequestId) botDemoRequestId = crypto.randomUUID();
+  $('#botReviewStatus').textContent = 'Đang gửi 2 mẫu qua Bot Marketing Hub…';
+  try {
+    const d = await req('/api/bot-nghiem-thu', { method: 'POST', body: JSON.stringify({ action: 'demo', requestId: botDemoRequestId }) });
+    $('#botReviewStatus').textContent = 'Lark đã xác nhận 2 mẫu gửi riêng cho ' + d.recipient + '. Nhắc thử 08:00 và 17:00; chưa gửi người khác.';
+  } catch (e) { $('#botReviewStatus').textContent = e.message + ' Bấm gửi lại để tiếp tục, mẫu đã gửi sẽ không gửi trùng.'; }
+  b.disabled = false;
 }
