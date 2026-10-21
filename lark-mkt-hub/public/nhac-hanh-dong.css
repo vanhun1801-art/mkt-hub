@@ -1,54 +1,37 @@
-/* Lời nhắc riêng: không chặn nội dung, dùng màu và nhân vật của Hub. */
-.action-reminder { position: fixed; right: 24px; bottom: 24px; z-index: 45; max-width: calc(100vw - 32px); color: var(--chu, #202734); font-family: inherit; }
+/* Một thanh gọi hành động. DOM ổn định; chỉ chuyển kích thước/opacity khi mở. */
+.action-reminder {
+  position: fixed; right: 20px; bottom: 20px; z-index: 45;
+  width: 44px; height: 44px; border-radius: 22px;
+  background: var(--trang, #fff); color: var(--chu, #202734);
+  border: 1px solid var(--vien, #e4e7ef); box-shadow: 0 4px 20px #1b2b4b16;
+  font-family: inherit; overflow: hidden;
+  transition: width .3s cubic-bezier(.2,.8,.2,1), height .3s cubic-bezier(.2,.8,.2,1), border-radius .3s, box-shadow .3s;
+}
 .action-reminder[hidden], body.mod-che .action-reminder,
-body:has(#tbPhu) .action-reminder, body:has(#nlPhu) .action-reminder,
-body:has(#modalWrap:not([hidden])) .action-reminder { display: none !important; }
-.ar-chip { display: flex; align-items: center; gap: 10px; padding: 10px 14px 10px 10px; border: 1px solid var(--vien, #e4e7ef); border-radius: 24px; color: inherit; background: var(--trang, #fff); box-shadow: 0 8px 30px #20325120; cursor: pointer; text-align: left; animation: ar-enter .48s cubic-bezier(.2,.8,.2,1) both; }
-.ar-mascot { object-fit: contain; border-radius: 12px; flex-shrink: 0; background: #ecfffc; }
-.ar-chip-copy { display: flex; flex-direction: column; gap: 3px; }
-.ar-chip-copy b { font-size: 13px; font-weight: 700; }
-.ar-chip-copy small { font-size: 11px; color: var(--chu-mo, #697386); }
-.ar-chip-count { display: grid; place-items: center; min-width: 25px; height: 25px; padding: 0 6px; border-radius: 20px; font-size: 12px; background: #edf1ff; color: #2b5cff; font-weight: 700; }
-.ar-panel { width: 420px; max-width: calc(100vw - 32px); background: var(--trang, #fff); border: 1px solid var(--vien, #e4e7ef); border-radius: 22px; box-shadow: 0 16px 60px #1b2b4b25, 0 2px 6px #1b2b4b09; overflow: hidden; animation: ar-enter .5s cubic-bezier(.16,1,.3,1) both; }
-.ar-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 16px 8px; }
-.ar-heading { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.ar-heading .ar-mascot { width: 40px; height: 40px; animation: ar-hello 1.6s ease-in-out 2; }
-.ar-eyebrow { font-size: 9px; letter-spacing: .08em; color: var(--chu-mo, #788194); }
-.ar-panel h2 { font-size: 15px; font-weight: 700; margin: 3px 0 0; line-height: 1.4; }
-.ar-close { width: 30px; height: 30px; border-radius: 50%; border: 0; background: var(--nen, #f2f3f7); color: var(--chu-mo, #697386); cursor: pointer; font-size: 23px; flex-shrink: 0; }
-.ar-summary { padding: 0 16px; margin: 4px 0 12px; font-size: 11px; color: var(--chu-mo, #697386); }
-.ar-tabs { display: flex; gap: 3px; margin: 0 14px 10px; padding: 3px; border-radius: 11px; background: var(--nen, #f2f3f7); }
-.ar-tab { flex: 1; padding: 7px 5px; border: 0; background: transparent; color: var(--chu-mo, #697386); font-size: 11px; font-weight: 550; border-radius: 8px; cursor: pointer; white-space: nowrap; }
-.ar-tab.on { background: var(--trang, #fff); color: var(--xanh, #2b5cff); box-shadow: 0 1px 5px #1b2b4b13; }
-.ar-list { max-height: min(49dvh, 420px); overflow-y: auto; overscroll-behavior: contain; padding: 0 14px; scrollbar-width: thin; }
-.ar-item { padding: 12px 0; border-bottom: 1px solid var(--vien, #e4e7ef); }
-.ar-item:last-child { border: 0; }
-.ar-item-top { display: flex; gap: 8px; align-items: baseline; }
-.ar-item-top b { font-size: 12.5px; line-height: 1.5; font-weight: 650; overflow-wrap: anywhere; }
-.ar-dot { height: 7px; width: 7px; flex-shrink: 0; border-radius: 50%; background: #2b5cff; }
-.ar-late .ar-dot { background: #f24b53; box-shadow: 0 0 0 3px #f24b5314; animation: ar-pulse 1.4s ease-out 2; }
-.ar-review .ar-dot, .ar-soon .ar-dot { background: #e7a52b; }
-.ar-person { display: block; padding-left: 15px; margin-top: 3px; color: var(--chu-mo, #697386); font-size: 10.5px; line-height: 1.5; }
-.ar-next { margin: 7px 0 6px 15px; font-size: 11px; line-height: 1.55; color: var(--chu, #333c4d); }
-.ar-task-link { margin-left: 15px; display: inline-flex; padding: 6px 0; color: var(--xanh, #2b5cff); text-decoration: none; font-size: 11px; font-weight: 650; }
-.ar-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; background: var(--nen, #f7f8fa); }
-.ar-foot button { border: 0; cursor: pointer; font-size: 11px; background: transparent; color: var(--chu-mo, #697386); padding: 6px 0; }
-.ar-foot .ar-more { color: var(--xanh, #2b5cff); font-weight: 650; }
-.ar-empty { font-size: 12px; color: var(--chu-mo, #697386); padding: 20px 5px; text-align: center; }
-.action-reminder :focus-visible { outline: 2px solid var(--xanh, #2b5cff); outline-offset: 3px; }
-@keyframes ar-enter { from { opacity: 0; transform: translateY(18px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
-@keyframes ar-hello { 0%,100% { transform: rotate(0); } 25% { transform: rotate(-7deg); } 60% { transform: rotate(5deg); } }
-@keyframes ar-pulse { 0% { box-shadow: 0 0 0 0 #f24b5333; } 100% { box-shadow: 0 0 0 8px #f24b5300; } }
+body:has(#moApp) .action-reminder, body:has(#tbPhu) .action-reminder,
+body:has(#nlPhu) .action-reminder, body:has(#modalWrap:not([hidden])) .action-reminder { display: none !important; }
+.action-reminder.is-peeking { width: min(438px, calc(100vw - 32px)); height: 66px; border-radius: 20px; box-shadow: 0 8px 32px #1b2b4b1c; }
+.ar-mascot-button { position: absolute; left: 0; top: 0; width: 42px; height: 42px; padding: 5px; border: 0; background: transparent; cursor: pointer; transition: top .3s, left .3s; }
+.is-peeking .ar-mascot-button { left: 6px; top: 11px; }
+.ar-mascot { width: 32px; height: 32px; display: block; border-radius: 10px; object-fit: contain; }
+.ar-unread { position: absolute; top: 4px; right: 3px; height: 6px; width: 6px; border: 1.5px solid var(--trang, #fff); background: var(--xanh, #2b5cff); border-radius: 50%; transition: opacity .2s; }
+.has-late .ar-unread { background: #ef535b; }
+.is-peeking .ar-unread { opacity: 0; }
+.ar-copy { position: absolute; left: 54px; top: 14px; right: 130px; display: flex; flex-direction: column; gap: 4px; opacity: 0; transform: translateX(5px); pointer-events: none; transition: opacity .15s, transform .25s; }
+.ar-copy b { font-size: 12px; font-weight: 650; white-space: nowrap; }
+.ar-copy span { font-size: 10.5px; line-height: 1.4; color: var(--chu-mo, #697386); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ar-check { position: absolute; right: 32px; top: 17px; height: 30px; padding: 0 11px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; background: var(--xanh, #2b5cff); color: white; font-size: 11px; font-weight: 600; text-decoration: none; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .15s; }
+.ar-close { position: absolute; right: 3px; top: 20px; width: 26px; height: 26px; padding: 0; border: 0; color: var(--chu-mo, #697386); background: transparent; font-size: 19px; cursor: pointer; opacity: 0; pointer-events: none; transition: opacity .15s; }
+.is-peeking .ar-copy, .is-peeking .ar-check, .is-peeking .ar-close { opacity: 1; transform: none; transition-delay: .09s; }
+.is-peeking .ar-check, .is-peeking .ar-close { pointer-events: auto; }
+.action-reminder :focus-visible { outline: 2px solid var(--xanh, #2b5cff); outline-offset: -2px; }
 @media (max-width: 640px) {
-  .action-reminder { right: 12px; bottom: calc(82px + env(safe-area-inset-bottom)); max-width: calc(100vw - 24px); }
-  .ar-panel { width: calc(100vw - 24px); max-width: none; border-radius: 22px; }
-  .ar-list { max-height: 43dvh; }
-  .ar-item-top b { font-size: 13px; }
-  .ar-person { font-size: 11px; }
-  .ar-task-link, .ar-foot button { min-height: 44px; align-items: center; }
-  .ar-close { min-width: 44px; min-height: 44px; }
-  .ar-tab { min-height: 40px; }
+  .action-reminder { right: 12px; bottom: calc(78px + env(safe-area-inset-bottom)); }
+  .action-reminder.is-peeking { width: calc(100vw - 24px); height: 68px; }
+  .ar-copy { left: 49px; right: 121px; top: 15px; }
+  .ar-copy b { font-size: 11px; }
+  .ar-copy span { font-size: 10px; }
+  .ar-check { right: 31px; padding: 0 8px; font-size: 10.5px; min-height: 44px; top: 11px; }
+  .ar-close { min-height: 44px; top: 11px; }
 }
-@media (prefers-reduced-motion: reduce) {
-  .action-reminder *, .ar-late .ar-dot { animation: none !important; transition: none !important; }
-}
+@media (prefers-reduced-motion: reduce) { .action-reminder, .action-reminder * { transition: none !important; } }

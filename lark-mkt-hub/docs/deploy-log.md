@@ -55,3 +55,9 @@ Render tự build lại từ `main`). Mỗi dòng: ngày · nội dung chính đ
 - Thu gọn thành nút Việc cần làm, nhắc sau 15 phút theo tài khoản/trình duyệt. Cập nhật mỗi phút, việc xử lý xong tự rời danh sách. Không bật lời nhắc tự động trong lúc nhập liệu hoặc mở cửa sổ; ẩn khi chi tiết module/bảng tin bắt buộc đang mở.
 - Link #/nhac-viec mở thẻ thử. Không gửi thêm Lark và không thay đổi việc chỉ vì hiển thị lời nhắc. Tôn trọng reduced-motion, mobile 390px, màu giao diện Hub.
 - Kiểm tra service pilot, phân loại/loại việc đã đóng, phạm vi manager; QA desktop/mobile: chuyển nhóm, hẹn nhắc, nhớ sau reload, dữ liệu đã xử lý biến mất.
+
+## 2026-10-21 · Thu gọn lời nhắc thành lời gọi kiểm tra công việc
+
+- Bỏ toàn bộ bảng danh sách nổi, ba tab và hiệu ứng rung/nhấp nháy. Thay bằng một thanh nhỏ: câu nhắc theo ưu tiên + Kiểm tra ngay. CTA mở màn công việc cần xử lý/nghiệm thu hiện có.
+- DOM giữ nguyên khi polling; chuyển kích thước và opacity bằng CSS, tự thu sau 9 giây, chờ khi người dùng hover/focus. Không chạy lại animation mỗi phút.
+- Chờ Hub nạp xong và người dùng rảnh trước khi nhắc. Tối thiểu một giờ giữa các lời nhắc tự động; đóng để hoãn một giờ. Bản thử tiếp tục chỉ tài khoản pilot.

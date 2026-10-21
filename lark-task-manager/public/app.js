@@ -6168,6 +6168,11 @@ function setupChrome() {
       document.querySelectorAll('.tab').forEach(x => x.classList.toggle('is-active', x.dataset.view === 'order'));
       render();
     }
+    if (tv.get('mo') === 'can-xu-ly' && S.isManager) {
+      S.view = 'dash'; S.viewChosen = true;
+      document.querySelectorAll('.tab').forEach(x => x.classList.toggle('is-active', x.dataset.view === 'dash'));
+      render();
+    }
     if (tv.get('mo') === 'bot-nhac' && S.isManager) openBotReview();
     const rec = tv.get('rec');
     if (rec) {
