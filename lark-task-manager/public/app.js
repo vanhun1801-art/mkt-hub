@@ -19,6 +19,8 @@ const S = {
   // `moc` là điều kiện phụ của hai thẻ Quá hạn / Hạn hôm nay — ghép AND với `due`,
   // không ghi đè bộ lọc thời gian người dùng đang đặt.
   filters: { campaign: '', workType: '', owner: '', priority: '', status: '', due: MAC_DINH_DUE, dueDate: '', moc: '', hideDone: false, q: '' },
+  orderScope: 'mine',
+  ordersError: '',
   orders: [],                // việc mình đã gửi order (tab "Việc tôi order")
   of: { campaign: '', workType: '', owner: '', status: '', due: MAC_DINH_DUE, dueDate: '', hideDone: false },   // bộ lọc tab order
   sort: { key: 'deadline', dir: 'asc' },
@@ -4158,7 +4160,9 @@ function buildOrderDrawer(b, t, o) {
     b.appendChild(sv.the);
   }
   // Thẻ 1: yêu cầu mình đã đặt (chỉ đọc)
-  const yc = theKhoi('Yêu cầu bạn đã đặt');
+  const yc = theKhoi('Nội dung yêu cầu');
+  yc.than.appendChild(el('div', 'ro-note', 'Người order: ' +
+    ((t.requester || []).map((u) => u.name).join(', ') || 'chưa có')));
   if (t.lienPhong) { /* đã có ô sửa ở trên — không lặp lại bản chỉ đọc */ }
   else if (t.detail) yc.than.appendChild(moTaCoLink(t.detail));
   else yc.than.appendChild(el('div', 'd-desc trong-nhe', 'Chưa ghi chi tiết yêu cầu.'));
@@ -4171,8 +4175,8 @@ function buildOrderDrawer(b, t, o) {
   /* Người order gửi thêm / gỡ tài liệu kèm ngay đây (anh Hùng 02/10/2026: "anh
    * chưa thể tải lên các tệp từ đây nữa"). Việc liên phòng: vào "File đính kèm"
    * của Base công ty; việc của phòng: ô "Tệp đính kèm". */
-  yc.than.appendChild(khoiTep(t, 'Tài liệu bạn gửi kèm', t.attachment, '', true,
-    'Bạn không gửi tệp nào kèm theo.'));
+  yc.than.appendChild(khoiTep(t, 'Tài liệu yêu cầu', t.attachment, '', true,
+    'Chưa có tài liệu kèm theo.'));
   yc.than.appendChild(oTaiLen(t, ''));
   b.appendChild(yc.the);
 
@@ -4206,6 +4210,7 @@ function buildOrderDrawer(b, t, o) {
 
   // hành động duy nhất của người order: gửi yêu cầu điều chỉnh
   if (t.lienPhong) return;   // việc liên phòng: người giao tự sửa ngay ở trên
+  if (S.isManager) return; // quản lý dùng Sửa đầy đủ khi cần điều chỉnh
   const dc = el('div', 'sd-dc');
   dc.appendChild(el('div', 'sd-dc-txt',
     'Cần đổi deadline, nội dung hay thông tin của việc này? Gửi yêu cầu điều chỉnh — Admin sẽ xử lý, đừng tự sửa.'));
@@ -4238,10 +4243,10 @@ function nghiemThuBox(t) {
 
 /** Nghiệm thu đạt → chốt Hoàn thành (thẻ chấm điểm của Base tự gửi như hiện nay). */
 async function nghiemThuDat(t) {
-  if (!confirm('Nghiệm thu đạt và đóng việc "' + (t.title || '') + '"?\n\nViệc chuyển Hoàn thành; sau đó bạn nhận thẻ chấm điểm chất lượng.')) return;
+  if (!confirm('Nghiệm thu đạt và đóng việc "' + (t.title || '') + '"?\n\nViệc chuyển Hoàn thành; thẻ chấm điểm được gửi cho người order.')) return;
   try {
     await req('/api/tasks/' + t.id + '/complete', { method: 'POST', body: JSON.stringify({}) });
-    toast('Đã nghiệm thu. Việc chuyển Hoàn thành; bạn sẽ nhận thẻ chấm điểm.');
+    toast('Đã nghiệm thu. Việc chuyển Hoàn thành; thẻ chấm điểm được gửi cho người order.');
     closeDrawer();
     await refresh(true);
   } catch (e) { toast('Lỗi: ' + (e.message || e), true); }
@@ -5267,7 +5272,10 @@ function setupFilters() {
 function filterOrders() {
   const f = S.of;
   const q = (S.filters.q || '').trim().toLowerCase();
-  let list = S.orders.slice();
+  const review = S.isManager && S.orderScope === 'review';
+  let list = S.orders.filter((t) => review
+    ? !t.lienPhong && t.daGiaiQuyet && !isClosed(t)
+    : (t.requester || []).some((u) => u.id === (S.meta.me || {}).id));
   if (f.campaign) list = list.filter((t) => t.campaign === f.campaign);
   if (f.workType) list = list.filter((t) => t.workType === f.workType);
   if (f.status) list = list.filter((t) => t.status === f.status);
@@ -5277,7 +5285,7 @@ function filterOrders() {
   if (q) {
     list = list.filter((t) =>
       [t.title, t.detail, t.campaign, t.workType, t.status]
-        .concat((t.owner || []).map((u) => u.name)).join(' ').toLowerCase().includes(q));
+        .concat((t.owner || []).map((u) => u.name), (t.requester || []).map((u) => u.name)).join(' ').toLowerCase().includes(q));
   }
   return list;
 }
@@ -5314,6 +5322,10 @@ function orderCard(t) {
     who.appendChild(av);
   } else who.appendChild(el('span', 'muted', 'chưa gán'));
   foot.appendChild(who);
+  if (S.isManager && S.orderScope === 'review') {
+    foot.appendChild(el('span', 'ord-lbl', 'Order: ' +
+      ((t.requester || []).map((u) => u.name).join(', ') || 'chưa có')));
+  }
 
   // "Sản phẩm" = File kết quả + Link kết quả (deliverable của nhân sự)
   const nFile = (t.fileKetQua || []).length;
@@ -5340,13 +5352,20 @@ function renderOrders() {
   const box = $('#orderList');
   box.innerHTML = '';
   const list = filterOrders();
-  $('#oCount').textContent = 'Hiển thị ' + list.length + ' / ' + S.orders.length + ' việc bạn đã order';
+  const review = S.isManager && S.orderScope === 'review';
+  const total = S.orders.filter((t) => review
+    ? !t.lienPhong && t.daGiaiQuyet && !isClosed(t)
+    : (t.requester || []).some((u) => u.id === (S.meta.me || {}).id)).length;
+  $('#oCount').textContent = 'Hiển thị ' + list.length + ' / ' + total +
+    (review ? ' việc chờ nghiệm thu trong phòng' : ' việc bạn đã order');
+  if (S.ordersError) box.appendChild(el('div', 'ord-empty',
+    'Không cập nhật được danh sách: ' + S.ordersError + '. Bấm Làm mới để thử lại.'));
   if (!list.length) {
     box.appendChild(el('div', 'ord-empty',
-      S.orders.length ? 'Không có việc khớp bộ lọc.' : 'Bạn chưa gửi order công việc nào.'));
+      total ? 'Không có việc khớp bộ lọc.' : (review ? 'Không có việc nào đang chờ nghiệm thu trong phòng.' : 'Bạn chưa gửi order công việc nào.')));
     return;
   }
-  // Lên đầu: việc editor đã gửi sản phẩm, đang chờ CHÍNH MÌNH nghiệm thu
+  // Lên đầu: sản phẩm chờ nghiệm thu trong phạm vi đang chọn.
   const cho = list.filter((t) => t.daGiaiQuyet && !isClosed(t));
   const conLai = list.filter((t) => !(t.daGiaiQuyet && !isClosed(t)));
   if (cho.length) {
@@ -5490,13 +5509,14 @@ function timViecTheoMa(rec) {
   return ds.find((x) => x.id === rec) || ds.find((x) => String(x.id).startsWith(rec + 'x')) || null;
 }
 
-/** Nạp việc mình đã gửi order (tab "Việc tôi order"). */
+/** Việc mình order và, với quản lý, sản phẩm chờ nghiệm thu trong base. */
 async function napOrders(force) {
   try {
-    const d = await req('/api/my-orders?lienPhong=1' + (force ? '&refresh=1' : ''));
+    const d = await req('/api/my-orders?lienPhong=1&nghiemThu=1' + (force ? '&refresh=1' : ''));
     S.orders = (d && d.tasks) || [];
-  } catch (_) {
-    S.orders = [];
+    S.ordersError = '';
+  } catch (e) {
+    S.ordersError = e.message || String(e);
   }
 }
 
@@ -5525,6 +5545,13 @@ async function refresh(force) {
 /** Ẩn/hiện các phần chỉ dành cho quản lý. */
 function applyRoleChrome() {
   const me = S.meta.me;
+  $('#oScope').classList.toggle('hidden', !S.isManager);
+  if (!S.isManager) S.orderScope = 'mine';
+  $('#oScope').value = S.orderScope;
+  const reviewCount = S.orders.filter((t) => !t.lienPhong && t.daGiaiQuyet && !isClosed(t)).length;
+  $('#oScope').options[1].textContent = 'Chờ nghiệm thu · toàn phòng (' + reviewCount + ')';
+  document.querySelector('[data-view="order"]').textContent = S.isManager
+    ? 'Order & nghiệm thu' : 'Việc đã order';
 
   // Nhân sự: chip tĩnh. Quản lý: chip là nút chuyển vai.
   $('#meChip').classList.toggle('hidden', !!S.isManager);
@@ -5907,6 +5934,13 @@ function setupChrome() {
 
   // bộ lọc tab "Việc tôi order"
   const bindO = (sel, key) => { const e = $(sel); if (e) e.onchange = () => { S.of[key] = e.value; render(); }; };
+  $('#oScope').onchange = () => {
+    S.orderScope = S.isManager && $('#oScope').value === 'review' ? 'review' : 'mine';
+    // Mở hàng chờ phải thấy cả việc nộp từ tháng trước, không giữ bộ lọc cũ.
+    S.of = { campaign: '', workType: '', owner: '', status: '', due: '', dueDate: '', hideDone: false };
+    S.filters.q = ''; $('#search').value = '';
+    syncFilterInputs(); render();
+  };
   bindO('#oCampaign', 'campaign');
   bindO('#oWorkType', 'workType');
   bindO('#oStatus', 'status');
@@ -5917,7 +5951,7 @@ function setupChrome() {
   };
   if ($('#oHideDone')) $('#oHideDone').onchange = () => { S.of.hideDone = $('#oHideDone').checked; render(); };
   if ($('#oClear')) $('#oClear').onclick = () => {
-    S.of = { campaign: '', workType: '', owner: '', status: '', due: MAC_DINH_DUE, dueDate: '', hideDone: false };
+    S.of = { campaign: '', workType: '', owner: '', status: '', due: S.orderScope === 'review' ? '' : MAC_DINH_DUE, dueDate: '', hideDone: false };
     $('#search').value = ''; S.filters.q = '';
     syncFilterInputs();
     render();

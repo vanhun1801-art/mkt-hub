@@ -32,3 +32,9 @@ Render tự build lại từ `main`). Mỗi dòng: ngày · nội dung chính đ
   lại trang, thử lại sau lỗi kết nối, gộp thay đổi giữa các thiết bị và giữ bản
   riêng khi cùng sửa một trường. Bản nháp theo cửa sổ, cập nhật ô soạn đang
   mở mà giữ vị trí con trỏ; giảm tải lại tệp Base và chống lùi revision.
+
+## 2026-10-21 · Hàng chờ nghiệm thu cho quản lý
+
+- Bảng công việc: tab “Order & nghiệm thu”, chọn “Chờ nghiệm thu · toàn phòng” để xem việc đã nộp do bất kỳ người order nào trong base giao, gồm cả việc quá hạn/tháng trước.
+- Hiện người order, sản phẩm và dùng luồng nghiệm thu đạt / trả về chỉnh sửa hiện có. Chỉ quản lý base được mở thêm phạm vi; quyền xem toàn bộ và khách giữ nguyên.
+- Kiểm tra: 8 kiểm thử nghiệm thu/quyền, 7 kiểm tra việc con; bộ kiểm tra khách Hub và tham chiếu hàm; kiểm tra UI desktop/390px với dữ liệu giả.

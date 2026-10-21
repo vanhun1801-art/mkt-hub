@@ -2545,3 +2545,10 @@ html:not(#_):not(#__):not(#___) .kh-than .vc-them input {
 /* Đi giữa việc lớn và việc con (moViecKhac): thân và đầu cửa sổ trượt ngang
    bên trong cửa sổ. Cắt phần trượt ra ngoài để không lòi qua mép bo góc. */
 #drawer { overflow: clip; }
+
+/* Phạm vi nghiệm thu cần đủ chỗ cho tên và số việc trên điện thoại. */
+#orderFilters #oScope { width: 300px; max-width: 100%; }
+@media (max-width: 640px) {
+  #orderFilters #oScope { width: 100%; }
+  #orderFilters:has(#oScope:not(.hidden))::before { display: none; }
+}

@@ -1263,8 +1263,13 @@ async function api(req, res, url) {
     if (!me) return json(res, { tasks: [], fetchedAt: cache.at });
     const records = await getRecords(url.searchParams.get('refresh') === '1');
     const tatCaViec = records.map(toTask);
-    let tasks = ganTienDoCon(tatCaViec
-      .filter((t) => (t.requester || []).some((u) => u && u.id === me.id)), tatCaViec);
+    // Chỉ quản lý của base này được nhận thêm việc người khác giao để nghiệm thu.
+    // Quyền chỉ xem toàn bộ không bao gồm quyền nghiệm thu.
+    const review = url.searchParams.get('nghiemThu') === '1' &&
+      !laKhach(req) && await isManager(req);
+    let tasks = ganTienDoCon(tatCaViec.filter((t) =>
+      (t.requester || []).some((u) => u && u.id === me.id) ||
+      (review && t.daGiaiQuyet && !DONG_HAN.includes(t.status))), tatCaViec);
     /* Việc liên phòng do chính mình giao (chỉ đọc) — xem cùng chỗ với việc đã order. */
     if (url.searchParams.get('lienPhong') === '1') {
       const tatCa = records.map(toTask);
@@ -1559,7 +1564,7 @@ async function api(req, res, url) {
       applyLocal(rec, patch2);
       if (task.maLienPhong) dongBoDi(task.maLienPhong, { status: 'Làm lại' }).catch(() => {});
       baoTin((task.owner || []).map((u) => u.id),
-        'Việc "' + (task.title || '') + '" cần chỉnh sửa theo góp ý của người order.' +
+        'Việc "' + (task.title || '') + '" cần chỉnh sửa theo góp ý của người nghiệm thu.' +
         (b2.note ? XD + 'Góp ý: ' + String(b2.note) : '') + duoiTin());
       return json(res, { ok: true, status: 'Làm lại' });
     }
