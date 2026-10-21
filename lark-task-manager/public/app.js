@@ -973,9 +973,52 @@ function chiaDuoc(t) {
   const me = S.meta && S.meta.me && S.meta.me.id;
   return !!me && [...(t.owner || []), ...(t.helper || [])].some((u) => u && u.id === me);
 }
-function moViecKhac(x) {
-  closeDrawer();
-  setTimeout(() => openDrawer(x), 60);
+/**
+ * Đi giữa việc lớn và việc con NGAY TRONG cửa sổ đang mở, kiểu đẩy trang của
+ * iOS (anh Hùng 21/10/2026: "hiệu ứng chuyển vào trong liền lạc về tư duy công
+ * việc mẹ đến việc con"). Vào việc con: trang cũ lùi sang trái, việc con trượt
+ * vào từ phải. Về việc lớn: ngược lại. Không đóng rồi mở lại cửa sổ, để mắt
+ * thấy mình đang đi SÂU vào cùng một việc chứ không sang việc khác.
+ *
+ * Vào việc con thì quản lý được mở thẳng form sửa: thường là vừa gõ tên xong,
+ * vào để đặt người làm, hạn, chi tiết.
+ */
+let dangDiViec = false;
+async function moViecKhac(x) {
+  if (dangDiViec || !x) return;
+  const cu = S.editing;
+  const lui = !!(cu && idCha(cu) === x.id);
+  /* Còn thay đổi chưa gửi của việc đang mở thì gửi nốt, như lúc đóng cửa sổ. */
+  if (cu && !cu.isNew && Object.keys(S.dirty || {}).length) tuLuuViec().then(() => render()).catch(() => {});
+  const giam = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const lop = () => [$('#drawer .drawer-head-main'), $('#drawerBody')].filter(Boolean);
+  dangDiViec = true;
+  try {
+    let ra = [];
+    if (!giam) {
+      ra = lop().map((e) => e.animate(
+        [{ transform: 'none', opacity: 1 }, { transform: 'translateX(' + (lui ? '14%' : '-14%') + ')', opacity: 0 }],
+        { duration: 180, easing: 'cubic-bezier(.4, 0, 1, 1)', fill: 'forwards' }));
+      /* Tab bị ẩn hay máy đang bận thì hiệu ứng có thể không chạy hết: đừng để
+       * việc chuyển trang chờ nó mãi. */
+      await Promise.race([
+        Promise.all(ra.map((a) => a.finished.catch(() => {}))),
+        new Promise((r) => setTimeout(r, 260)),
+      ]);
+    }
+    DT_TAB = 'info';
+    openDrawer(x);
+    if (!lui && idCha(x) && S.isManager && !S.suaDayDu) { S.suaDayDu = true; buildDrawer(); }
+    $('#drawerBody').scrollTop = 0;
+    ra.forEach((a) => a.cancel());
+    if (!giam) {
+      lop().forEach((e) => e.animate(
+        [{ transform: 'translateX(' + (lui ? '-24%' : '24%') + ')', opacity: 0 }, { transform: 'none', opacity: 1 }],
+        { duration: 360, easing: 'cubic-bezier(.32, .72, 0, 1)' }));
+    }
+  } finally {
+    dangDiViec = false;
+  }
 }
 /**
  * Gõ tên rồi Enter là có việc con (anh Hùng 21/10/2026: "cho cái khung sẵn để
@@ -993,7 +1036,38 @@ async function taoNhanhViecCon(cha, ten) {
     if ((cha.owner || []).length) body.owner = cha.owner.map((u) => ({ id: u.id }));
     if (S.meta && S.meta.me) body.requester = [{ id: S.meta.me.id }];
   }
-  return req('/api/tasks', { method: 'POST', body: JSON.stringify(body) });
+  const kq = await req('/api/tasks', { method: 'POST', body: JSON.stringify(body) });
+  return { kq, body };
+}
+
+/**
+ * Sau khi tạo: bảo đảm việc con nằm trong S.tasks và mang đúng việc cha.
+ *
+ * Ngay sau lượt ghi, danh sách Lark trả về có lúc chưa kịp có ô "Parent items"
+ * của bản ghi mới (hoặc chưa có bản ghi). Khi đó dòng việc con không hiện và
+ * anh Hùng gõ xong không có gì để bấm vào (21/10/2026). Nên gắn tay một bản
+ * tạm; lượt đọc sau của app sẽ thay bằng bản thật.
+ */
+function ganViecConMoi(cha, kq, body) {
+  const id = kq && kq.id;
+  if (!id) return;
+  const coSan = (S.tasks || []).find((x) => x.id === id);
+  if (coSan) {
+    if (!idCha(coSan)) coSan.parent = [cha.id];
+    return;
+  }
+  const nguoi = (ds) => (ds || []).map((u) => {
+    const ai = (S.meta && S.meta.people || []).find((p) => p.id === u.id);
+    return { id: u.id, name: ai ? ai.name : (S.meta && S.meta.me && S.meta.me.id === u.id ? S.meta.me.name : '') };
+  });
+  S.tasks.push({
+    id, title: body.title, parent: [cha.id], status: 'Chờ tiếp nhận',
+    priority: body.priority || null, workType: body.workType || null, campaign: body.campaign || cha.campaign || null,
+    startAt: body.startAt, deadline1: body.deadline1 || null, deadline: body.deadline1 || null,
+    owner: nguoi(body.owner || (S.isManager ? [] : (S.meta && S.meta.me ? [S.meta.me] : []))),
+    helper: [], requester: nguoi(body.requester || (S.meta && S.meta.me ? [S.meta.me] : [])),
+    channel: body.channel || [], attachment: [], fileKetQua: [],
+  });
 }
 
 /** Khối "Việc con" / "Thuộc việc lớn" trong ô chi tiết. Không có gì để nói thì null. */
@@ -1070,8 +1144,17 @@ function khoiViecCon(t) {
       inp.disabled = true;
       o.classList.add('dang');
       try {
-        await taoNhanhViecCon(t, ten);
-        await refresh(true);
+        const { kq, body } = await taoNhanhViecCon(t, ten);
+        await refresh(true).catch(() => {});
+        ganViecConMoi(t, kq, body);
+        /* Tiến độ: lượt đọc vừa rồi có thể chưa đếm việc con mới. */
+        const ds = conCua(t).filter((x) => x.status !== 'Hủy');
+        const c = t.con || {};
+        if (!c.tong || c.tong < ds.length) {
+          t.con = { tong: ds.length, xong: ds.filter((x) => x.status === 'Hoàn thành').length, tre: c.tre || 0 };
+          const goc = viecTheoMa(t.id);
+          if (goc) goc.con = t.con;
+        }
         veLaiViecCon(t.id, true);
       } catch (err) {
         toast('Chưa thêm được việc con: ' + err.message, true);
@@ -1089,7 +1172,7 @@ function veLaiViecCon(idViec, focus) {
   const cu = document.querySelector('#drawer [data-vc="' + idViec + '"]');
   if (!cu || !S.editing || S.editing.id !== idViec) return;
   const moi = viecTheoMa(idViec);
-  if (moi) S.editing.con = moi.con;
+  if (moi && moi.con) S.editing.con = moi.con;
   const k = khoiViecCon(S.editing);
   if (!k) return;
   cu.replaceWith(k);

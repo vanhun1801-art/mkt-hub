@@ -2542,3 +2542,6 @@ html:not(#_):not(#__):not(#___) .kh-than .vc-them input {
   .vc-ai { display: none; }
   .kh-than .vc-them input { font-size: 16px; }
 }
+/* Đi giữa việc lớn và việc con (moViecKhac): thân và đầu cửa sổ trượt ngang
+   bên trong cửa sổ. Cắt phần trượt ra ngoài để không lòi qua mép bo góc. */
+#drawer { overflow: clip; }

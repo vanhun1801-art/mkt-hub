@@ -167,6 +167,8 @@ Anh Hùng (10/10/2026): nhân sự xuất được báo cáo, nhưng **xuất đ
 - **Việc con dùng ô "Parent items" có sẵn của Base**, chỉ một tầng: việc con không chia tiếp. Việc cha chỉ ghi lúc tạo, không đường sửa nào đổi được.
 - **Không bày việc con ra ngoài.** Ngoài danh sách chỉ có mũi tên ↳ trước tên việc con và viên "2/5" sau tên việc lớn (đỏ khi có việc con trễ, xanh khi xong hết). Kanban và Bảng gom việc con vào việc lớn. Việc của tôi, Order và Lịch vẫn hiện việc con như việc thường, vì người được giao tìm việc của mình ở đó.
 - Trong ô chi tiết của việc lớn: thanh tiến độ, rồi mỗi việc con một dòng có **tên và trạng thái** (kèm người làm, hạn), bấm vào là mở chi tiết việc con. Dưới cùng là **ô gõ sẵn** "Thêm việc con": gõ tên rồi Enter là tạo, không qua form. Việc con có dòng "Thuộc việc lớn" để quay về.
+- **Đi vào việc con ngay trong cửa sổ đang mở**, kiểu đẩy trang iOS: việc lớn lùi sang trái, việc con trượt vào từ phải; bấm "Thuộc việc lớn" thì trượt ngược lại. Không đóng rồi mở lại cửa sổ. Quản lý vào việc con là gặp ngay form sửa để đặt người làm, hạn, chi tiết.
+- Gõ xong việc con là dòng của nó phải hiện và bấm được ngay, kể cả khi Lark chưa kịp trả ô "Parent items" của bản ghi mới (app gắn tạm, lượt đọc sau thay bằng bản thật).
 - Việc con gõ nhanh nhận sẵn chiến dịch, loại việc, ưu tiên, hạn và **người phụ trách của việc lớn**. Chưa có người phụ trách thì bộ tự phân phối sẽ giao cho người khác, nên không được để trống.
 - Việc con là bản ghi bình thường: thông báo giao việc (ghi rõ "việc con … thuộc việc lớn …"), làm lại, nộp, nghiệm thu, nhắc hạn, tự phân phối đều chạy như việc thường.
 - Tiến độ do máy chủ đếm trên toàn bộ việc của phòng, nên đúng cả khi người xem không thấy hết việc con.
