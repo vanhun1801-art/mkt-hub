@@ -1653,7 +1653,10 @@ async function moEmail1(ht, loai, dt, lang) {
     '<span>CC</span><input class="in-o" id="emCc" value="' + e(m.cc || '') + '" placeholder="cách nhau bằng dấu phẩy"><span>Tiêu đề</span><input class="in-o" id="emTd" value="' + e(m.tieuDe) + '"></div>' +
     '<div class="thu-than" id="emThan" contenteditable="true">' + m.html + '</div>' +
     (S.meta.mail.mode === 'api' ? '<div class="thu-ck"><div class="thu-ck-dau"><span>Chữ ký</span><button type="button" class="btn nho" id="emCk">Sửa chữ ký</button></div><div id="emCkXem" class="nho">Đang tải…</div></div>' : ''),
-  '<span class="nho" style="margin-right:auto">Sửa trực tiếp trong khung. ' + (S.meta.mail.mode === 'api' ? 'Chữ ký bên dưới được gắn cuối thư khi gửi.' : 'Chữ ký Lark Mail tự thêm khi gửi.') + '</span>' +
+  /* Nút Gửi khoá thì lý do nằm NGAY cạnh nút (26/10/2026: dải cam ở đầu cửa sổ cuộn là mất,
+   * anh Hùng thấy nút mờ mà không biết vì sao). Chưa chốt bảng kê thì có nút đi tới đó. */
+  (m.chan ? '<span class="em-chan">' + e(m.chan) + (/bảng kê/i.test(m.chan) ? ' <button type="button" class="btn nho" id="emDiBk">Mở Bảng kê</button>' : '') + '</span>'
+    : '<span class="nho" style="margin-right:auto">Sửa trực tiếp trong khung. ' + (S.meta.mail.mode === 'api' ? 'Chữ ký bên dưới được gắn cuối thư khi gửi.' : 'Chữ ký Lark Mail tự thêm khi gửi.') + '</span>') +
     (coBuoc ? '<button class="btn" id="emDaGui"' + (m.chan ? ' disabled' : '') + '>Đã gửi từ Lark Mail</button>' : '') +
     '<button class="btn" id="emChep" title="Chép tiêu đề + nội dung (giữ bảng) để dán vào Lark Mail">Chép nội dung</button>' +
     '<button class="btn chinh" id="emGui"' + (m.chan || !guiDuoc ? ' disabled' : '') + '>Gửi ngay</button>', true);
@@ -1672,6 +1675,7 @@ async function moEmail1(ht, loai, dt, lang) {
     } catch (err) { toast(err.message, true); $$('.hop-chan .btn', hop).forEach((x) => { x.disabled = false; }); }
   };
   $('#emGui').onclick = () => goi(true);
+  if ($('#emDiBk')) $('#emDiBk').onclick = () => { dongModal(); di('#/ht/' + ht.id + '/bang-ke'); };
 
   /* NHÁP THƯ TỰ ĐỘNG (28/09). Anh Hùng: "bỏ luôn các nút nháp còn lại, tất cả
    * đều có cơ chế tự lưu nháp". Thay cho nút "Lưu nháp" (nháp trong Lark Mail):

@@ -72,6 +72,7 @@ Nút tròn phải tròn thật: rộng bằng cao, không được dẹp.
 - Khung chi tiết (`.drawer`, như ô việc của Bảng công việc, ô lịch của Lịch tác nghiệp) có **kích thước cố định** (15/10/2026): rộng `min(760px, 100vw - 32px)`, cao `min(88vh, 940px)`, điện thoại cao `100dvh - 96/120px`. Đổi tab Thông tin · Trao đổi · Báo cáo thì cửa sổ không co giãn; nội dung dài thì cuộn trong thân khung. Không dùng `height: fit-content`.
 - Hộp cửa sổ có nền đặc một màu: đầu, thân và chân cùng màu, chỉ ngăn bằng đường mảnh. Không dùng nền trong suốt, vì nội dung phía sau sẽ xuyên qua.
 - **Hộp cửa sổ không cao quá màn** (26/10/2026, email trình BGĐ của KOL khuất nút Gửi): đầu và chân (nút Gửi, Lưu…) luôn đứng yên trong màn, chỉ phần thân cuộn. Một hộp chỉ một vùng cuộn: khung con bên trong không tự cuộn riêng, vì nó giữ mất cú lăn chuột.
+- **Nút bị khoá phải nói lý do ngay cạnh nút** (26/10/2026, "không ấn gửi ngay được"): dòng giải thích đặt sát nút, không chỉ ở đầu cửa sổ (cuộn là mất). Có việc cần làm trước thì kèm nút dẫn tới chỗ đó.
 - Mọi thông báo là viên kiểu Dynamic Island ở giữa mép trên (`__iosDao`), không dùng ô thông báo riêng của từng app.
   - Thành công: tick xanh. Lỗi: chấm than đỏ, giữ lâu hơn. Đang xử lý: vòng xoay. Thông tin: chữ i.
 - Ô tải tệp, ô ngày, select, ô số, bảng chọn tự làm của từng app đều theo kiểu chung, không để lộ kiểu gốc của trình duyệt.
