@@ -885,13 +885,24 @@ async function apiGhiChu(req, res, u) {
     if (path === '/api/ghi-chu/tasks' && req.method === 'POST') return ok(res, await khoGhiChu.createTask(ctx, await docBody(req)));
     if (path === '/api/ghi-chu/tasks' && req.method === 'GET') {
       const doc = await khoGhiChu.load(ctx.user);
-      const refs = doc.refs;
-      if (!refs.length) return ok(res, { tasks: [] });
+      const refs = (doc.refs || []).slice();
       const mod = timMod('cong-viec');
       if (!mod || !duocXem(ctx.q, mod)) return ok(res, { tasks: refs.map(r => ({ ...r, status: 'Chưa có quyền xem công việc' })) });
       const opt = { nguoi: nguoiKemQuyen(ctx.user, ctx.q, mod), timeoutMs: 30000 };
       const [tasks, orders] = await Promise.all([goiJson(mod, '/api/tasks', opt), goiJson(mod, '/api/my-orders', opt)]);
       const all = [...(tasks.tasks || []), ...(orders.tasks || [])];
+      /* Việc tạo bằng form thật của Bảng công việc (26/10/2026) không đi qua
+       * createTask nên không có trong refs: nhận theo ô Link trỏ về ghi chú
+       * CỦA CHÍNH người này (#/ghi-chu?note=<mã>). Chỉ trong phạm vi việc họ
+       * xem được, nên không lộ việc của ai khác. */
+      const cuaToi = new Set((doc.notes || []).map(n => n.id));
+      for (const t of all) {
+        const m = /#\/ghi-chu\?note=([^&\s#]+)/.exec(String(t.link || ''));
+        let ma = '';
+        try { ma = m ? decodeURIComponent(m[1]) : ''; } catch (_) { ma = ''; }
+        if (ma && cuaToi.has(ma) && !refs.some(r => r.id === t.id)) refs.push({ id: t.id, note: ma, title: t.title });
+      }
+      if (!refs.length) return ok(res, { tasks: [] });
       return ok(res, { tasks: refs.map(r => { const t = all.find(t => t.id === r.id); return t ? { ...r, title: t.title, status: t.status, owner: (t.owner || []).map(p => p.name || '').join(', '), due: t.deadline1 } : { ...r, status: 'Không còn trong phạm vi xem' }; }) });
     }
     return loi(res, 404, 'Không có thao tác ghi chú này.');

@@ -2214,3 +2214,10 @@ input.cd-in-nho { width: 72px; }
 .khach-the .khach-ten { margin: 0 0 14px; color: var(--chu-mo); font-weight: 600; }
 .khach-the p { margin: 0 0 10px; line-height: 1.5; color: var(--chu-mo); overflow-wrap: anywhere; }
 .khach-the .btn { display: inline-flex; margin-top: 8px; text-decoration: none; }
+
+/* Ghi chú trên điện thoại tự có thanh điều hướng kiểu iOS ("‹ Thư mục" + tiêu đề
+   lớn đổi theo thư mục). Thanh tiêu đề của hub chồng lên trên thành hai tiêu
+   đề lớn, nên ẩn khi đang xem Ghi chú (26/10/2026). */
+@media (max-width: 640px) {
+  html:not(#_):not(#__) body.xem-ghi-chu .mob-bar { display: none !important; }
+}

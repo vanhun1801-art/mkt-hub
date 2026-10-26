@@ -168,8 +168,6 @@ function veTbApp() {
  * đã nhận (tối đa 20 lần). App nhận trùng thì bỏ qua theo mã lượt.
  */
 function taoViecTuTin(tb) {
-  const mod = (S.modules || []).find((m) => m.id === 'cong-viec' && m.kieu !== 'lark');
-  if (!mod) { toast('Tài khoản này chưa mở Bảng công việc.', 'do'); return; }
   /* Không chép chữ của tin vào việc (anh Hùng 21/10/2026: "nên ở dạng trích
    * xuất từ tin, ấn vào ra bảng tin ấy thay vì hiện như text"). Ô "Link brief"
    * giữ đường về đúng tin (#/tin/<mã>); app công việc nhận ra đường đó và vẽ
@@ -181,16 +179,31 @@ function taoViecTuTin(tb) {
     title: String(tb.tieuDe || '').trim() || 'Việc từ tin của phòng',
     detail: 'Thực hiện theo tin của phòng ở thẻ "Trích từ tin" bên dưới.',
     link: location.origin + '/#/tin/' + encodeURIComponent(tb.recordId),
-    tep: [],
-    soTep: (tb.tep || []).length,
   };
+  moFormTaoViec(goi, (tb.tep || []).map((x) => ({
+    url: '/api/tb-app/tep/' + encodeURIComponent(tb.recordId) + '/' + encodeURIComponent(x.token),
+    ten: x.ten, kieu: x.kieu,
+  })));
+}
+
+/**
+ * Mở form "Tạo công việc mới" THẬT của Bảng công việc, điền sẵn theo `goi`
+ * ({ title, detail, link }). Dùng chung cho tạo việc từ Tin của phòng và từ
+ * Ghi chú (26/10/2026: Ghi chú bỏ cửa sổ tạo việc riêng, đi đúng cơ chế này).
+ * `dsTep` là tệp cần tải về rồi đính sẵn ({ url, ten, kieu }), có thể rỗng.
+ */
+function moFormTaoViec(goiVao, dsTep) {
+  const mod = (S.modules || []).find((m) => m.id === 'cong-viec' && m.kieu !== 'lark');
+  if (!mod) { toast('Tài khoản này chưa mở Bảng công việc.', 'do'); return false; }
+  dsTep = dsTep || [];
+  const goi = Object.assign({}, goiVao, { hub: 'tao-tu-tin', ma: String(Date.now()), tep: [], soTep: dsTep.length });
 
   location.hash = '#/m/' + mod.id;
 
   /* Tải tệp song song với lúc khung nạp. Quá 8 giây thì gửi phần đã có. */
-  const lay = (tb.tep || []).map(async (x) => {
+  const lay = dsTep.map(async (x) => {
     try {
-      const r = await fetch('/api/tb-app/tep/' + encodeURIComponent(tb.recordId) + '/' + encodeURIComponent(x.token));
+      const r = await fetch(x.url);
       if (!r.ok) return;
       const b = await r.blob();
       goi.tep.push(new File([b], x.ten || 'tep', { type: b.type || x.kieu || '' }));
@@ -239,6 +252,13 @@ async function moTinTheoMa(ma) {
   if (!t) { toast('Không còn tin này trên bảng Thông báo.', 'do'); return; }
   xemTinTb(t, { khongTao: true });
 }
+/* Ghi chú (trang con cùng origin) gọi parent.hubTaoViec({ title, detail, link }). */
+window.hubTaoViec = (goi) => moFormTaoViec({
+  title: String((goi && goi.title) || '').slice(0, 200),
+  detail: String((goi && goi.detail) || '').slice(0, 4000),
+  link: /^https?:\/\//.test((goi && goi.link) || '') ? goi.link : '',
+}, []);
+
 window.hubTin = {
   lay: async (ma) => {
     const t = await layTinTheoMa(ma);

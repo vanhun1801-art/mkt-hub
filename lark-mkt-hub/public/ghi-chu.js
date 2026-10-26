@@ -99,7 +99,8 @@
   catch(e){if(!silent)toast('Chưa cập nhật được công việc: '+e.message);}
  }
  function openNote(id){const n=data.notes.find(n=>n.id===id);if(!n){toast('Ghi chú này không có trong tài khoản của anh.');return;}folder=n.deleted?'trash':n.folder;choose(id);}
- function toast(text){clearTimeout(timer);$('#rn-toast').textContent=text;$('#rn-toast').hidden=false;timer=setTimeout(()=>$('#rn-toast').hidden=true,2800);}
+ /* Thông báo đi qua viên Dynamic Island của hub như mọi app con (docs/nguyen-tac-lam-viec.md mục 4); ô riêng chỉ dùng khi mở trang ngoài hub. */
+ function toast(text,loai){let dao=null;try{dao=parent!==window&&parent.__iosDao?parent.__iosDao:null;}catch(_){}if(dao&&dao(text,loai||''))return;clearTimeout(timer);$('#rn-toast').textContent=text;$('#rn-toast').hidden=false;timer=setTimeout(()=>$('#rn-toast').hidden=true,2800);}
  const current=()=>data.notes.find(n=>n.id===selected);
  const fmt=s=>new Intl.DateTimeFormat('vi-VN',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',timeZone:'Asia/Ho_Chi_Minh'}).format(new Date(s));
  function folders(){const alive=data.notes.filter(n=>!n.deleted);$('#rn-folders').innerHTML=[{id:'all',name:'Tất cả ghi chú',icon:'notebook'},...data.folders].map(f=>'<button type="button" class="folder '+(folder===f.id?'on':'')+'" data-folder="'+esc(f.id)+'"><i data-lucide="'+esc(f.icon)+'" aria-hidden="true"></i><span class="folder-name">'+esc(f.name)+'</span><span class="number">'+alive.filter(n=>f.id==='all'||n.folder===f.id).length+'</span></button>').join('');$('#rn-trash').classList.toggle('on',folder==='trash');$('#rn-taskcount').textContent=data.tasks.length;}
@@ -168,7 +169,24 @@
  function updateNote(){fitTitle();const n=current();if(!n)return;n.title=$('#rn-title').value;n.body=$('#rn-body').innerHTML;n.tags=$('#rn-tags').value;n.updated=stamp();persist();folders();list();icons();mobileChrome();}
  function choose(id){selected=id;render();mobileState('editor');}
  function addNote(meeting){if(taskBusy)return;if(!data.folders.length||blocked){toast(blocked?'Anh giữ bản nháp và tải lại dữ liệu trước nhé.':'Đang tải ghi chú, anh đợi một chút nhé.');return;}folder=meeting?'meet':folder==='all'||folder==='trash'?'quick':folder;const n={id:uid(),folder,title:meeting?'Cuộc họp mới':'',body:meeting?'<h3>Thông tin cuộc họp</h3><p>Thời gian: </p><p>Người tham gia: </p><h3>Nội dung trao đổi</h3><p><br></p><h3>Kết luận</h3><p><br></p><h3>Các việc cần triển khai</h3><p><br></p>':'',tags:meeting?'#CuộcHọp':'',updated:stamp(),pinned:false};data.notes.unshift(n);selected=n.id;query='';$('#rn-search').value='';persist();render();mobileState('editor');$('#rn-title').focus();$('#rn-title').select();}
- function showTask(task){if(task){window.parent.location.hash='#/m/cong-viec?rec='+encodeURIComponent(task.id);return;}if(!meta.canCreate){toast('Anh chưa có quyền tạo việc hoặc Bảng công việc đang tải.');return;}if(taskRequest&&taskRequest.noteId!==selected){toast('Có một lượt tạo việc chưa xác định kết quả. Anh mở lại ghi chú trước để kiểm tra.');return;}const n=task?data.notes.find(n=>n.id===task.note):current();if(!n)return;taskNote=n.id;dialogReturn=phone.matches?$('#rn-more'):document.activeElement;$('#rn-modal-title').textContent=task?'Chi tiết công việc':'Tạo công việc';$('#rn-task-submit').textContent=task?'Lưu thay đổi':'Tạo công việc';$('#rn-task-title').value=task?.title||(snippet.trim().split('\n')[0].slice(0,200))||n.title;$('#rn-task-detail').value=task?.detail||snippet||'';$('#rn-owner').value=task?.owner||'';$('#rn-due').value=task?.due||'';$('#rn-priority').value=meta.options.priority?.find(x=>x.includes('Trung bình'))||meta.options.priority?.[0]||'🟡 Trung bình';$('#rn-type').value=task?.type||'Content';$('#rn-source').innerHTML='Từ ghi chú: <button type="button" data-source="'+esc(n.id)+'">'+esc(n.title||'Chưa đặt tên')+' ↗</button>';if(taskRequest){$('#rn-task-title').value=taskRequest.title;$('#rn-task-detail').value=taskRequest.detail;$('#rn-modal-title').textContent='Kiểm tra lượt tạo việc đã gửi';$('#rn-task-submit').textContent='Kiểm tra kết quả';}$('#rn-task-modal').hidden=false;$('#rn-task-title').focus();}
+ /* Tạo việc đi đúng cơ chế chung của hub (26/10/2026): mở form THẬT của Bảng
+  * công việc, điền sẵn tên và nội dung, ô Link giữ đường về ghi chú này. Bảng
+  * công việc vẽ đường đó thành thẻ "Từ ghi chú"; việc tạo xong tự hiện dưới
+  * ghi chú (máy chủ khớp theo Link). Cửa sổ tạo việc riêng bên dưới chỉ còn
+  * dùng khi mở trang Ghi chú ngoài hub. */
+ function taoViecQuaHub(){
+  let mo=null;try{mo=parent!==window&&parent.hubTaoViec?parent.hubTaoViec:null;}catch(_){}
+  const n=current();if(!mo||!n)return false;
+  const doan=snippet.trim();
+  const ten=(doan.split('\n')[0].slice(0,200))||n.title||'Việc từ ghi chú';
+  /* Giữ xuống dòng giữa các đoạn và gạch đầu dòng; textContent trần dính liền cả đoạn. */
+  const coDong=String(n.body||'').replace(/<li[^>]*>/gi,'\n- ').replace(/<(br|\/p|\/div|\/h\d|\/ul|\/ol)[^>]*>/gi,'\n');
+  const noiDung=doan||plain(coDong).replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim().slice(0,1500)||n.title||'';
+  if(mo({title:ten,detail:noiDung,link:location.origin+'/#/ghi-chu?note='+encodeURIComponent(n.id)})===false)return true;
+  snippet='';$('#rn-selection').hidden=true;$('#rn-more-modal').hidden=true;
+  return true;
+ }
+ function showTask(task){if(task){window.parent.location.hash='#/m/cong-viec?rec='+encodeURIComponent(task.id);return;}if(!meta.canCreate){toast('Anh chưa có quyền tạo việc hoặc Bảng công việc đang tải.');return;}if(!taskRequest&&taoViecQuaHub())return;if(taskRequest&&taskRequest.noteId!==selected){toast('Có một lượt tạo việc chưa xác định kết quả. Anh mở lại ghi chú trước để kiểm tra.');return;}const n=task?data.notes.find(n=>n.id===task.note):current();if(!n)return;taskNote=n.id;dialogReturn=phone.matches?$('#rn-more'):document.activeElement;$('#rn-modal-title').textContent=task?'Chi tiết công việc':'Tạo công việc';$('#rn-task-submit').textContent=task?'Lưu thay đổi':'Tạo công việc';$('#rn-task-title').value=task?.title||(snippet.trim().split('\n')[0].slice(0,200))||n.title;$('#rn-task-detail').value=task?.detail||snippet||'';$('#rn-owner').value=task?.owner||'';$('#rn-due').value=task?.due||'';$('#rn-priority').value=meta.options.priority?.find(x=>x.includes('Trung bình'))||meta.options.priority?.[0]||'🟡 Trung bình';$('#rn-type').value=task?.type||'Content';$('#rn-source').innerHTML='Từ ghi chú: <button type="button" data-source="'+esc(n.id)+'">'+esc(n.title||'Chưa đặt tên')+' ↗</button>';if(taskRequest){$('#rn-task-title').value=taskRequest.title;$('#rn-task-detail').value=taskRequest.detail;$('#rn-modal-title').textContent='Kiểm tra lượt tạo việc đã gửi';$('#rn-task-submit').textContent='Kiểm tra kết quả';}$('#rn-task-modal').hidden=false;$('#rn-task-title').focus();}
  function closeTask(){if(taskBusy)return;$('#rn-task-modal').hidden=true;dialogReturn?.focus();}
  function selection(){const s=window.getSelection();if(s&&s.rangeCount&&$('#rn-body').contains(s.getRangeAt(0).commonAncestorContainer)){snippet=s.toString().trim();$('#rn-selection').hidden=!snippet;}}
  root.addEventListener('click',e=>{const f=e.target.closest('[data-folder]');if(f){folder=f.dataset.folder;const ns=data.notes.filter(n=>!n.deleted&&(folder==='all'||n.folder===folder));selected=ns[0]?.id||null;query='';$('#rn-search').value='';render();mobileState('list');return;}const n=e.target.closest('[data-note]');if(n){choose(n.dataset.note);return;}const t=e.target.closest('[data-task]');if(t){showTask(data.tasks.find(t=>t.id===e.target.closest('[data-task]').dataset.task));return;}const s=e.target.closest('[data-source]');if(s){closeTask();const n=data.notes.find(n=>n.id===s.dataset.source);folder=n.deleted?'trash':n.folder;choose(n.id);return;}const cmd=e.target.closest('[data-cmd]');if(cmd){$('#rn-body').focus();document.execCommand(cmd.dataset.cmd,false,null);updateNote();}});
@@ -218,7 +236,7 @@
  document.addEventListener('visibilitychange',()=>{if(document.hidden){if(sync?.dirty){backup();if(!taskBusy)flush().catch(()=>{});}}else catchUp();});
  window.addEventListener('online',catchUp);
  window.addEventListener('focus',catchUp);
- window.addEventListener('message',e=>{if(e.origin!==location.origin||e.source!==parent)return;if(e.data?.hub==='theme'){syncHubAppearance(e.data.v);}if(e.data?.hub==='ghi-chu'&&data.folders.length)openNote(e.data.note);});
+ window.addEventListener('message',e=>{if(e.origin!==location.origin||e.source!==parent)return;if(e.data?.hub==='theme'){syncHubAppearance(e.data.v);}if(e.data?.hub==='ghi-chu'&&data.folders.length)openNote(e.data.note);if(e.data?.hub==='ghi-chu-hien'&&data.folders.length)refreshTasks(true);});
  function isVisible(){try{return !document.hidden&&(!window.frameElement||window.frameElement.getClientRects().length>0);}catch(_){return !document.hidden;}}
  async function catchUp(){
   if(!isVisible()||taskBusy)return;
@@ -233,7 +251,7 @@
  setInterval(catchUp,6000);
  async function loadMeta(){
   lastMeta=Date.now();
-  try{meta=await api('/meta');const people=[...new Map(meta.people.map(p=>[p.id,p])).values()];$('#rn-owner').innerHTML='<option value="">Chưa phân công</option>'+people.map(p=>'<option value="'+esc(p.id)+'">'+esc(p.name||p.id)+'</option>').join('');$('#rn-owner').disabled=!meta.canAssign;for(const [id,key,fallback] of [['rn-priority','priority',['🟡 Trung bình']],['rn-type','workType',['Content']]]){$('#'+id).innerHTML=(meta.options[key]?.length?meta.options[key]:fallback).map(v=>'<option>'+esc(v)+'</option>').join('');}if(current())$('#rn-create-task').disabled=!!current().deleted||!meta.canCreate;mobileChrome();}catch(_){}
+  try{meta=await api('/meta');const people=[...new Map(meta.people.map(p=>[p.id,p])).values()];$('#rn-owner').innerHTML='<option value="">Chưa phân công</option>'+people.map(p=>'<option value="'+esc(p.id)+'">'+esc(p.name||p.id)+'</option>').join('');$('#rn-owner').disabled=!meta.canAssign;for(const [id,key,fallback] of [['rn-priority','priority',['🟡 Trung bình']],['rn-type','workType',['Content']]]){$('#'+id).innerHTML=(meta.options[key]?.length?meta.options[key]:fallback).map(v=>'<option value="'+esc(v)+'">'+esc(v)+'</option>').join('');}if(current())$('#rn-create-task').disabled=!!current().deleted||!meta.canCreate;mobileChrome();}catch(_){}
  }
  async function loadNotes(){
   if(loading||sync)return;loading=true;
@@ -254,4 +272,37 @@
   }catch(e){syncError(e);label('Chưa kết nối · sẽ tự thử lại');}finally{loading=false;}
  }
  loadNotes();
+})();
+
+/* Cửa sổ của Ghi chú (tạo việc, thư mục mới, bảng tuỳ chọn) mở/đóng bằng thuộc
+ * tính hidden, nên đóng là tắt phụp. Nguyên tắc chung: cái gì mở có hiệu ứng thì
+ * đóng cũng có (docs/nguyen-tac-lam-viec.md mục 3). Đoạn này không đụng logic:
+ * thấy hidden vừa được gắn lên một .overlay thì gỡ tạm ra, chạy hiệu ứng đóng
+ * (.dang-dong, 0,22s trong ghi-chu.css) rồi mới ẩn thật. 26/10/2026. */
+(() => {
+  const DONG_MS = 220;
+  const giam = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const dangDong = new WeakSet();
+  const ob = new MutationObserver((ds) => {
+    for (const d of ds) {
+      const o = d.target;
+      if (!o.classList || !o.classList.contains('overlay') || dangDong.has(o)) continue;
+      const vuaAn = o.hidden && d.oldValue === null;
+      if (!vuaAn || giam()) continue;
+      dangDong.add(o);
+      o.hidden = false;
+      o.classList.add('dang-dong');
+      setTimeout(() => {
+        o.hidden = true;
+        o.classList.remove('dang-dong');
+        /* ios-app.js đo lại "còn cửa sổ nào mở không" khi một hiệu ứng kết thúc;
+         * hiệu ứng đóng kết thúc lúc hộp CHƯA ẩn nên nó đo ra "còn mở" và lớp vỏ
+         * tối thêm nửa giây. Nhắc nó đo lại ngay sau khi ẩn thật. */
+        document.dispatchEvent(new Event('transitionend'));
+        /* bỏ đánh dấu SAU lượt quan sát của chính lần gắn hidden này */
+        setTimeout(() => dangDong.delete(o), 0);
+      }, DONG_MS);
+    }
+  });
+  document.querySelectorAll('#rooty-notes .overlay').forEach((o) => ob.observe(o, { attributes: true, attributeFilter: ['hidden'], attributeOldValue: true }));
 })();

@@ -1,5 +1,3 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&display=optional");
-
 /* Ghi chú: cùng bảng màu, chữ và khoảng lề với lớp vỏ Marketing Hub.
    JS nhận token từ Hub; light-dark là dự phòng khi mở trang riêng. */
 :root{color-scheme:light dark}
@@ -156,7 +154,8 @@ html,body{margin:0;min-height:100%}
 #rooty-notes .sheet-close{display:block;width:100%;font-size:17px;font-weight:600;border-radius:14px;padding:14px;background:var(--n-side);color:var(--n-accent-text)}
 #rooty-notes .sheet-grip{width:34px;height:5px;background:var(--n-line);border-radius:5px;margin:-10px auto 20px}
 @media(max-width:600px){
-  #rooty-notes{--n-accent:light-dark(#997000,#ffd60a)!important;--n-accent-text:light-dark(#997000,#ffd60a)!important;--n-soft:light-dark(#fff5cf,#3b3212)!important;position:relative;-webkit-tap-highlight-color:transparent}
+  /* Bỏ màu vàng kiểu Apple Notes (26/10/2026): Ghi chú dùng màu nhấn của hub như mọi app. */
+  #rooty-notes{position:relative;-webkit-tap-highlight-color:transparent}
   #rooty-notes button{touch-action:manipulation}
   #rooty-notes .nw{height:var(--n-viewport,100dvh);min-height:180px;padding:0;gap:0;overflow:hidden;position:relative}
   #rooty-notes .appbar{display:none}
@@ -275,3 +274,64 @@ html,body{margin:0;min-height:100%}
   #rooty-notes .folder-select{font-size:12.5px}
   #rooty-notes .links-header span{font-size:12.5px}
 }
+
+/* ==========================================================================
+   THEO KHUÔN CHUNG CỦA HUB (26/10/2026, anh Hùng: "chỉnh theo style tổng thể
+   ứng dụng của mình và cho nó hoạt động như cơ chế bên mình").
+   Ghi chú nay nạp cùng lớp chung với app con (ios.css, ios-app.js, i18n.js,
+   dienthoai.css; xem đầu ghi-chu.html). Phần dưới (1) trả lại dáng riêng cho
+   những ô mà ios.css tô như ô nhập thường, (2) đưa bo góc, nền cửa sổ, nhịp
+   chuyển động về thang trong docs/nguyen-tac-lam-viec.md.
+   Độ ưu tiên :not(#_)… và !important để thắng luật chung của ios.css.
+   ========================================================================== */
+html[data-app="ghi-chu"]:not(#_):not(#__):not(#___) #rn-title{
+  background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;
+  padding:0!important;height:auto;min-height:36px!important;font-size:26px!important;line-height:1.3!important;font-weight:700!important}
+html[data-app="ghi-chu"]:not(#_):not(#__):not(#___) #rn-tags{
+  background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;
+  padding:0!important;height:auto!important;min-height:0!important;font-size:12.5px!important}
+/* Ô tìm: khung tròn là vỏ .search, ô nhập bên trong trong suốt (khỏi hai lớp khung). */
+#rooty-notes .search{border-radius:999px;padding:0 12px;min-height:34px}
+html[data-app="ghi-chu"]:not(#_):not(#__):not(#___) #rn-search{
+  background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;
+  padding:0!important;height:34px!important;min-height:0!important;font-size:13px!important}
+html[data-app="ghi-chu"]:not(#_):not(#__):not(#___) #rn-move{font-size:12.5px!important}
+
+/* Thang bo góc: nút, chip, ô tìm tròn; nút biểu tượng tròn thật (rộng bằng cao);
+   thẻ nhỏ 14px; khối lớn 18px. */
+#rooty-notes .action,#rooty-notes .secondary,#rooty-notes .new-actions button,
+#rooty-notes .selection-banner button,#rooty-notes .mobile-done{border-radius:999px}
+#rooty-notes .icon-btn,#rooty-notes .tool-text{border-radius:999px;width:34px;height:34px;min-width:34px;min-height:34px;padding:0}
+#rooty-notes .note-row,#rooty-notes .task-card,#rooty-notes .selection-banner,
+#rn-error,#rn-recovery{border-radius:14px}
+#rooty-notes .layout{border-radius:18px}
+#rooty-notes .dialog textarea{border-radius:12px}
+
+/* Cửa sổ: nền phía sau tối 32%, mờ 6px, đậm màu 1.2 (cùng công thức với lớp
+   vỏ, hub tự tối phần menu qua __HUB__.che). Hộp nền đặc, canh giữa.
+   Mở 0,32s --cd-vao; đóng 0,22s --cd-ra (lớp .dang-dong do ghi-chu.js gắn). */
+#rooty-notes .overlay{background:rgba(0,0,0,.32);-webkit-backdrop-filter:blur(6px) saturate(1.2);backdrop-filter:blur(6px) saturate(1.2);
+  align-items:center;animation:rn-nen-vao .32s var(--cd-vao,ease-out) both}
+#rooty-notes .overlay>.dialog{animation:rn-hop-vao .32s var(--cd-vao,ease-out) both}
+#rooty-notes .overlay.dang-dong{animation:rn-nen-ra .22s var(--cd-ra,ease-in) both}
+#rooty-notes .overlay.dang-dong>.dialog{animation:rn-hop-ra .22s var(--cd-ra,ease-in) both}
+@keyframes rn-nen-vao{from{opacity:0}to{opacity:1}}
+@keyframes rn-nen-ra{from{opacity:1}to{opacity:0}}
+@keyframes rn-hop-vao{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes rn-hop-ra{from{opacity:1;transform:none}to{opacity:0;transform:translateY(6px) scale(.98)}}
+@media(max-width:600px){
+  #rooty-notes .overlay{align-items:flex-end}
+  #rooty-notes .overlay>.dialog{animation-name:rn-tam-vao}
+  #rooty-notes .overlay.dang-dong>.dialog{animation-name:rn-tam-ra}
+  @keyframes rn-tam-vao{from{transform:translateY(100%)}to{transform:none}}
+  @keyframes rn-tam-ra{from{transform:none}to{transform:translateY(100%)}}
+  html[data-app="ghi-chu"]:not(#_):not(#__):not(#___) #rn-search{font-size:16px!important}
+  /* Trong hub, thanh tab kính của hub nằm đè mép dưới. Ghi chú có thanh dưới
+     cố định riêng (ghi chú mới, số ghi chú) nên cả khung phải dừng phía trên
+     thanh tab, khác app con vốn cho nội dung cuộn ra sau thanh. */
+  html.trong-hub #rooty-notes .nw{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+  /* Lớp chung đặt kính lúp nổi tuyệt đối trên điện thoại; ở đây nó nằm trong hàng. */
+  html[data-app="ghi-chu"]:not(#_):not(#__):not(#___) #rooty-notes .search svg{position:static!important;transform:none!important}
+  html[data-app="ghi-chu"]:not(#_):not(#__):not(#___) #rn-tags{font-size:16px!important}
+}
+@media(prefers-reduced-motion:reduce){#rooty-notes .overlay,#rooty-notes .overlay>.dialog{animation:none!important}}

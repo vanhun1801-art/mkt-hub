@@ -3657,7 +3657,7 @@ function buildDrawer() {
   b.appendChild(field('Người hỗ trợ', peopleDropdown(t.helper, (v) => set('helper', v), 'Chọn người hỗ trợ…')));
   b.appendChild(field('Người order', onePersonInput(t.requester, (v) => set('requester', v))));
   b.appendChild(field('Kênh phân phối', optionsDropdown(o.channel, t.channel, (v) => set('channel', v), 'Chọn kênh…')));
-  if (maTinTuLink(t.link)) b.appendChild(field('Tin gốc', theTinNguon(t.link)));
+  if (laLinkNguon(t.link)) b.appendChild(field(nhanNguon(t.link), theNguon(t.link)));
   else b.appendChild(field('Link tài liệu / tracking (của người order)',
     textInput(t.link, (v) => set('link', v), 'url')));
   b.appendChild(field('Link kết quả (nhân sự nộp)',
@@ -3720,7 +3720,7 @@ function buildCreateForm(b, t, o) {
     };
     bang.appendChild(bo);
     b.appendChild(bang);
-  } else if (!idCha(t) && !maTinTuLink(t.link)) {
+  } else if (!idCha(t) && !laLinkNguon(t.link)) {
     /* Form trắng: nếu đang còn nháp thì phải cho thấy, không thì người dùng soạn
      * lại từ đầu một việc mình đã soạn dở hôm qua. Nạp sau để form hiện ra ngay.
      * Form đã điền sẵn (việc con, việc tạo từ tin) thì thôi: bấm nhầm vào nháp
@@ -3768,7 +3768,7 @@ function buildCreateForm(b, t, o) {
   b.appendChild(r2);
 
   /* Tạo từ tin: thẻ tin thay cho ô link, khỏi để lộ một đường dẫn dài. */
-  if (maTinTuLink(t.link)) b.appendChild(field('Tin gốc', theTinNguon(t.link)));
+  if (laLinkNguon(t.link)) b.appendChild(field(nhanNguon(t.link), theNguon(t.link)));
   else b.appendChild(field('Link brief / tư liệu', textInput(t.link, (v) => set('link', v), 'url')));
   b.appendChild(oTepViecMoi());
 
@@ -3852,9 +3852,47 @@ function theTinNguon(link) {
   }).catch(() => { ten.textContent = 'Chưa lấy được tin'; });
   return the;
 }
-/** Ô link chỉ đọc: trỏ về tin thì vẽ thẻ tin, còn lại như cũ. */
+/* Việc tạo từ Ghi chú (26/10/2026) cũng đi qua form này, ô link giữ
+ * …/#/ghi-chu?note=<mã>. Ghi chú là riêng tư nên thẻ không đọc được nội dung:
+ * chỉ mời mở ghi chú gốc; ai không phải người viết thì Ghi chú tự báo. */
+function maGhiChuTuLink(link) {
+  const m = /#\/ghi-chu\?note=([^&\s#]+)/.exec(String(link || ''));
+  if (!m) return '';
+  try { return decodeURIComponent(m[1]); } catch (_) { return ''; }
+}
+const laLinkNguon = (link) => !!(maTinTuLink(link) || maGhiChuTuLink(link));
+const nhanNguon = (link) => (maTinTuLink(link) ? 'Tin gốc' : 'Ghi chú gốc');
+const theNguon = (link) => (maTinTuLink(link) ? theTinNguon(link) : theGhiChuNguon(link));
+function theGhiChuNguon(link) {
+  const ma = maGhiChuTuLink(link);
+  const the = el('button', 'tin-nguon tu-ghi-chu');
+  the.type = 'button';
+  the.title = 'Mở ghi chú gốc';
+  const chu = el('span', 'tin-nguon-chu');
+  chu.appendChild(el('span', 'tin-nguon-dau', 'Từ ghi chú'));
+  chu.appendChild(el('b', '', 'Mở ghi chú gốc'));
+  the.appendChild(el('span', 'tin-nguon-anh'));
+  the.appendChild(chu);
+  the.onclick = (e) => {
+    e.preventDefault();
+    try {
+      if (parent !== window) {
+        /* Đóng ô chi tiết trước: lớp vỏ đang tối cả màn vì nó (__HUB__.che), sang
+         * Ghi chú mà không đóng thì màn hình tối kẹt. closeDrawer cũng gửi nốt
+         * phần chưa lưu. */
+        if (S.editing) closeDrawer();
+        parent.location.hash = '#/ghi-chu?note=' + encodeURIComponent(ma);
+        return;
+      }
+    } catch (_) {}
+    window.open(link, '_blank', 'noopener');
+  };
+  return the;
+}
+
+/** Ô link chỉ đọc: trỏ về tin hay ghi chú thì vẽ thẻ nguồn, còn lại như cũ. */
 function oLinkDoc(link) {
-  return maTinTuLink(link) ? theTinNguon(link) : moTaCoLink(link);
+  return laLinkNguon(link) ? theNguon(link) : moTaCoLink(link);
 }
 
 function moTaCoLink(text) {
@@ -4104,7 +4142,7 @@ function buildStaffDrawer(b, t, o) {
   else yc.than.appendChild(el('div', 'd-desc trong-nhe', 'Người order chưa ghi chi tiết yêu cầu.'));
   if (t.link) {
     const oLink = el('div', 'field');
-    oLink.appendChild(el('label', '', maTinTuLink(t.link) ? 'Tin gốc' : 'Link tài liệu của người order'));
+    oLink.appendChild(el('label', '', laLinkNguon(t.link) ? nhanNguon(t.link) : 'Link tài liệu của người order'));
     oLink.appendChild(oLinkDoc(t.link));
     yc.than.appendChild(oLink);
   }
@@ -4176,7 +4214,7 @@ function buildOrderDrawer(b, t, o) {
   else yc.than.appendChild(el('div', 'd-desc trong-nhe', 'Chưa ghi chi tiết yêu cầu.'));
   if (t.link) {
     const oLink = el('div', 'field');
-    oLink.appendChild(el('label', '', maTinTuLink(t.link) ? 'Tin gốc' : 'Link tài liệu / tracking'));
+    oLink.appendChild(el('label', '', laLinkNguon(t.link) ? nhanNguon(t.link) : 'Link tài liệu / tracking'));
     oLink.appendChild(oLinkDoc(t.link));
     yc.than.appendChild(oLink);
   }

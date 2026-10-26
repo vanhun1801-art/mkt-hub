@@ -181,3 +181,15 @@ Anh Hùng (10/10/2026): nhân sự xuất được báo cáo, nhưng **xuất đ
 - Lời nhắc kiểm tra việc (`nhac-hanh-dong.*`, viên linh vật góc dưới) theo đủ thang chung: chữ từ 12px, nút tròn, màu theo biến, mở theo `--cd-vao` 0,36s, đóng theo `--cd-ra` 0,22s. Các phần xếp hàng tự co, không đặt toạ độ cứng, để chữ không bị nút đè. Điện thoại chỉ giữ câu số liệu ("3 việc trễ hạn cần kiểm tra."), tối đa hai dòng.
 - Chữ trên lời nhắc không gọi "anh": quản lý nào cũng thấy nó.
 - Nút dẫn sang app con phải đi được cả khi app con đã mở sẵn. Lớp vỏ không nạp lại khung nên `?mo=` không được đọc lần nữa; khi đó nhắn lệnh `{ hub: 'mo', v }` sang, app con xử lý bằng `moTheoLenh()`.
+
+## 14. Trang nội bộ của hub cũng theo khuôn app con (26/10/2026)
+
+Anh Hùng: "chỉnh theo style tổng thể ứng dụng của mình và cho nó hoạt động như cơ chế bên mình" (về Ghi chú).
+
+- Trang nào của hub chạy trong khung mà không đi qua `proxy.js` (như `ghi-chu.html`) thì tự gắn đủ lớp chung y như proxy gắn cho app con: `data-app`, `data-skin`, `trong-hub`, `window.__HUB__.che`, sáng/tối theo hub, `i18n.js`, `dienthoai.css`, `ios.css`, `ios-app.js`.
+- Thông báo đi qua viên Dynamic Island của hub (`parent.__iosDao`), không dùng ô riêng.
+- Tạo việc từ bất kỳ đâu (Tin của phòng, Ghi chú…) đều mở **form thật của Bảng công việc**, điền sẵn, ô Link giữ đường về nguồn; Bảng công việc vẽ thành thẻ nguồn ("Tin gốc", "Ghi chú gốc"). Không dựng form tạo việc thứ hai.
+- `<option>` phải có `value` gốc: i18n dịch chữ hiển thị, không được làm đổi giá trị gửi lên Base.
+- Dữ liệu người dùng (nội dung ghi chú, tên thư mục tự đặt, tiêu đề) khai vào danh sách bỏ qua của i18n.
+- Trang có thanh dưới cố định riêng thì trong hub trên điện thoại phải dừng phía trên thanh tab kính; trang có thanh điều hướng riêng thì ẩn thanh tiêu đề điện thoại của hub (`body.xem-ghi-chu .mob-bar`), không để hai tiêu đề lớn chồng nhau.
+- Màu nhấn là màu của hub; không dùng màu riêng kiểu app khác (đã bỏ màu vàng Apple Notes).

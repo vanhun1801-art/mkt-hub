@@ -18,7 +18,21 @@ Upload snapshot mới trước rồi thay ô đính kèm; lỗi ghi không gỡ 
 chặn việc hai tab ghi đè nhau. Bản chưa đồng bộ được giữ riêng theo tài khoản
 trong trình duyệt, có nút tải bản nháp khi gặp lỗi/xung đột.
 
-Tạo việc dùng API và quyền của Bảng công việc, mặc định không gửi người phụ
+**Từ 26/10/2026, trong hub:** "Tạo công việc" và "Tạo từ đoạn này" mở form THẬT
+của Bảng công việc (`parent.hubTaoViec`, cùng đường với tạo việc từ Tin của
+phòng), điền sẵn tên và nội dung, ô Link là `…/#/ghi-chu?note=<mã>`. Bảng công
+việc vẽ Link đó thành thẻ "Từ ghi chú"; `GET /api/ghi-chu/tasks` nhận thêm mọi
+việc có Link trỏ về ghi chú của chính người đó, nên việc tạo xong tự hiện dưới
+ghi chú. Mỗi lần mở lại Ghi chú, hub nhắn `{ hub: 'ghi-chu-hien' }` để trang đọc
+lại danh sách việc. Cửa sổ tạo việc riêng bên dưới chỉ còn dùng khi mở trang
+ngoài hub.
+
+Trang nạp cùng lớp chung với app con (ios.css, ios-app.js, i18n.js,
+dienthoai.css, `__HUB__.che`) ngay trong `ghi-chu.html`, vì nó không đi qua
+proxy.js. Thông báo đi qua viên Dynamic Island của hub. Nội dung, tiêu đề, tên
+thư mục tự đặt không bị i18n dịch.
+
+(Cách cũ, vẫn giữ cho trang mở ngoài hub:) Tạo việc dùng API và quyền của Bảng công việc, mặc định không gửi người phụ
 trách. Người order do máy chủ xác định. Công việc có Link về ghi chú gốc; bấm
 công việc trong ghi chú mở form thật để sửa tiếp. Không sao chép ghi chú sang tài
 khoản khác khi họ mở Link. Request ID và bản ghi pending được lưu trước POST;

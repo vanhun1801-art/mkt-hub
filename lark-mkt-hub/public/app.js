@@ -974,12 +974,17 @@ function napTruoc() {
 function moGhiChu(note) {
   if (S.xemNhu) { moHome(); toast('Thoát Xem như để mở ghi chú riêng.', 'do'); return; }
   S.view = 'ghi-chu';
-  $('#pageHome').hidden = true;
+  document.body.classList.add('xem-ghi-chu');
+  /* Rời Tổng quan bằng hiệu ứng như khi mở app con (moModule), không tắt phụp. */
+  roiDan($('#pageHome'), () => { if (S.view !== 'home') $('#pageHome').hidden = true; });
   const url = '/ghi-chu.html?v=' + encodeURIComponent((S.hub && S.hub.ver) || '') + (note ? '&note=' + encodeURIComponent(note) : '');
   const o = khungCuaModule({ id: 'ghi-chu', ten: 'Ghi chú', kieu: 'noi-bo', url });
   S.frames.forEach((x, k) => { if (k !== 'ghi-chu') anKhung(x, true); });
   huyRoi(o.wrap); o.wrap.classList.remove('khung-ngam'); o.wrap.hidden = false;
   if (note) o.iframe.contentWindow.postMessage({ hub: 'ghi-chu', note }, location.origin);
+  /* Mỗi lần quay lại: Ghi chú đọc lại danh sách việc (việc vừa tạo ở Bảng công
+   * việc từ ghi chú này phải hiện ngay dưới ghi chú). */
+  try { o.iframe.contentWindow.postMessage({ hub: 'ghi-chu-hien' }, location.origin); } catch (_) {}
   document.title = 'Ghi chú · Marketing Hub'; datTenMan('Ghi chú'); veRail();
 }
 
@@ -994,6 +999,7 @@ function moModule(id, rec, mo) {
   }
 
   S.view = id;
+  document.body.classList.remove('xem-ghi-chu');
   roiDan($('#pageHome'), () => { if (S.view !== 'home') $('#pageHome').hidden = true; });
   const o = khungCuaModule(mod, rec, mo);
   huyRoi(o.wrap);
@@ -1015,6 +1021,7 @@ function moModule(id, rec, mo) {
 }
 
 function moHome() {
+  document.body.classList.remove('xem-ghi-chu');
   S.view = 'home';
   huyRoi($('#pageHome'));
   $('#pageHome').hidden = false;
