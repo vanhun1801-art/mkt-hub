@@ -1611,7 +1611,13 @@ function veEmail(than, ht) {
 }
 
 const TEN_EMAIL = { 'de-xuat': 'Email trình Ban Giám Đốc', 'thu-moi': 'Thư mời KOL', 'bao-cao': 'Báo cáo kết quả', 'xin-foc': 'Đề xuất hợp tác FOC', 'bao-cao-doi-tac': 'Báo cáo cho đối tác' };
+/* Lỗi lúc dựng khung thư (không phải lỗi máy chủ) trước đây làm viên "Đang soạn email…" quay mãi (26/10):
+ * bắt lại, báo bằng chữ để biết đường sửa. */
 async function moEmail(ht, loai, dt, lang) {
+  try { return await moEmail1(ht, loai, dt, lang); }
+  catch (err) { console.error(err); toast('Không mở được khung soạn thư: ' + err.message, true); }
+}
+async function moEmail1(ht, loai, dt, lang) {
   const duong = '/api/hop-tac/' + ht.id + '/email/' + loai + (dt ? '?dt=' + encodeURIComponent(dt) : lang ? '?lang=' + lang : '');
   let m;
   /* bấm Soạn phải thấy ngay có chuyện đang xảy ra (anh Hùng 25/09: "nút không ấn được" — thật ra đang chờ máy chủ);
@@ -1636,7 +1642,7 @@ async function moEmail(ht, loai, dt, lang) {
         /* Bày thẳng chuỗi quyền Lark ĐÃ cấp. Lúc hỏng mà không thấy nó thì phải
          * đoán giữa "chưa cấp quyền" và "cấp rồi nhưng sai hộp thư" — hai bệnh,
          * hai cách chữa, mà đoán sai là mất một vòng thử. */
-        + (S.meta.mail.hopThu.quyen ? '<div class="nho mo" style="word-break:break-all">Quyền Lark đã cấp: ' + esc(S.meta.mail.hopThu.quyen) + '</div>' : '') + '</span><div class="lon"></div><button class="btn nho" id="emNgat">Ngắt kết nối</button></div>'
+        + (S.meta.mail.hopThu.quyen ? '<div class="nho mo" style="word-break:break-all">Quyền Lark đã cấp: ' + e(S.meta.mail.hopThu.quyen) + '</div>' : '') + '</span><div class="lon"></div><button class="btn nho" id="emNgat">Ngắt kết nối</button></div>'
       : '<div class="bao cam" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span>Chưa kết nối hộp thư. Bấm <b>Kết nối hộp thư</b>, đăng nhập Lark bằng tài khoản giữ hộp thư <b>' + e(S.meta.mail.from) + '</b> và đồng ý quyền gửi thư. Chỉ cần làm một lần.</span><div class="lon"></div>' +
         '<a class="btn chinh nho" id="emKetNoi" href="' + e(((window.__HUB__ && window.__HUB__.prefix) || '') + '/api/mail/ket-noi') + '" target="_blank" rel="noopener">Kết nối hộp thư</a></div>') : '') +
     (loai === 'xin-foc' && !m.den ? '<div class="bao cam">Chưa có email của ' + e(dt) + '. Điền vào ô Gửi — app nhớ cho lần sau.</div>' : '') +
