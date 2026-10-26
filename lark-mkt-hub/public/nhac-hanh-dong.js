@@ -33,6 +33,17 @@
     const n = (data.counts && data.counts.chat) || 0;
     const moi = (data.chat || [])[0];
     if (!n || !moi) return null;
+    /* Nhiều hội thoại: mở danh sách các việc có tin chưa đọc (mỗi dòng có viên
+     * "N tin mới"), anh Hùng: "khi ấn vào thì không biết hội thoại nào chưa xem".
+     * Một hội thoại: mở thẳng tab Trao đổi của việc đó. */
+    const soViec = (data.chat || []).length;
+    if (soViec > 1) {
+      return {
+        ngan: n + ' tin nhắn chưa đọc',
+        dai: n + ' tin nhắn chưa đọc ở ' + soViec + (soViec >= 5 ? '+' : '') + ' việc',
+        target: '#/m/cong-viec?mo=tin-chua-doc',
+      };
+    }
     return {
       ngan: n + ' tin nhắn chưa đọc',
       dai: n + ' tin nhắn chưa đọc' + (moi.nguoi ? ' · ' + moi.nguoi + (moi.trich ? ': ' + moi.trich : '') : ''),

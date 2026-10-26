@@ -2565,3 +2565,17 @@ html:not(#_):not(#__):not(#___) .kh-than .vc-them input {
 .vc-dong.vc-moi { animation: vc-moi 1.6s var(--cd-deu, ease) both; }
 @keyframes vc-moi { from { background: var(--blue-bg); } to { background: transparent; } }
 @media (prefers-reduced-motion: reduce) { .vc-dong.vc-moi { animation: none; } }
+
+/* Tin Trao đổi chưa đọc (26/10/2026): viên "N tin mới" cạnh tên việc ở mọi tab,
+   và vạch "Tin mới" trong tab Trao đổi trước tin chưa đọc đầu tiên. */
+.vien-tin {
+  display: inline-block; vertical-align: 1px; margin-left: 6px;
+  font-size: 12px; font-weight: 650; line-height: 18px; padding: 0 8px;
+  border-radius: 999px; background: var(--blue); color: #fff; white-space: nowrap;
+}
+.cmt-moi {
+  display: flex; align-items: center; gap: 10px; margin: 10px 0 6px;
+  font-size: 12px; font-weight: 650; color: var(--blue-text);
+}
+.cmt-moi::before, .cmt-moi::after { content: ""; flex: 1; height: 1px; background: var(--blue-text); opacity: .35; }
+.xn-tin { font-size: 13px; color: var(--text-2); margin: 2px 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

@@ -937,8 +937,44 @@ function veTen(tag, cls, t) {
   }
   const vc = vienCon(t);
   if (vc) x.appendChild(vc);
+  const vt = vienTin(t);
+  if (vt) x.appendChild(vt);
   return x;
 }
+
+/* ==========================================================================
+   TIN TRAO ĐỔI CHƯA ĐỌC (26/10/2026)
+   Anh Hùng: "khi ấn vào thì không biết hội thoại nào chưa xem". Máy chủ đếm
+   (/api/tin-chua-doc, cùng phép đếm với lời nhắc của hub); app gắn viên
+   "N tin mới" cạnh tên việc ở mọi tab, và vạch "Tin mới" trong Trao đổi.
+   ========================================================================== */
+async function napChuaDoc() {
+  try {
+    const d = await req('/api/tin-chua-doc');
+    S.chuaDoc = new Map((d.ds || []).map((x) => [x.id, x]));
+  } catch (_) { if (!S.chuaDoc) S.chuaDoc = new Map(); }
+}
+function vienTin(t) {
+  const x = S.chuaDoc && t && S.chuaDoc.get(t.id);
+  if (!x || !x.n) return null;
+  const v = el('span', 'vien-tin', x.n + ' tin mới');
+  v.title = (x.nguoi ? x.nguoi + ': ' : '') + (x.trich || '') + ' (mở tab Trao đổi để đọc)';
+  return v;
+}
+/** Danh sách các việc có tin chưa đọc; bấm một dòng là mở thẳng tab Trao đổi. */
+function moTinChuaDoc() {
+  const ds = [...(S.chuaDoc || new Map()).values()].sort((a, b) => b.at - a.at)
+    .map((x) => timViecTheoMa(x.id)).filter(Boolean);
+  if (ds.length === 1) { DT_TAB = 'chat'; openDrawer(ds[0]); return; }
+  moDanhSachNhanh('tin', 'Tin nhắn chưa đọc', ds, { tab: 'chat', giuThuTu: true });
+}
+const msGioTin = (v) => {
+  if (v == null || v === '') return 0;
+  if (typeof v === 'number') return v;
+  if (/^\d+$/.test(String(v))) return Number(v);
+  const n = new Date(v).getTime();
+  return Number.isFinite(n) ? n : 0;
+};
 
 /* ==========================================================================
    VIỆC CON (21/10/2026)
@@ -1896,8 +1932,9 @@ async function nhacNhanh(t, nut) {
   }
 }
 
-function moDanhSachNhanh(key, tieuDe, items) {
-  const ds = (items || []).slice().sort((a, b) => {
+function moDanhSachNhanh(key, tieuDe, items, tuy) {
+  tuy = tuy || {};
+  const ds = tuy.giuThuTu ? (items || []).slice() : (items || []).slice().sort((a, b) => {
     const x = a.deadline ? new Date(a.deadline).getTime() : Infinity;
     const y = b.deadline ? new Date(b.deadline).getTime() : Infinity;
     return x - y;
@@ -1918,6 +1955,11 @@ function moDanhSachNhanh(key, tieuDe, items) {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); dong.onclick(); }
     };
     dong.appendChild(veTen('div', 'xn-ten', t));
+    /* Danh sách tin chưa đọc: ai nhắn gì, ngay dưới tên việc. */
+    const tinMoi = tuy.tab === 'chat' && S.chuaDoc && S.chuaDoc.get(t.id);
+    if (tinMoi && (tinMoi.nguoi || tinMoi.trich)) {
+      dong.appendChild(el('div', 'xn-tin', (tinMoi.nguoi ? tinMoi.nguoi + ': ' : '') + (tinMoi.trich || '')));
+    }
     const meta = el('div', 'xn-meta');
     if (t.priority) meta.appendChild(el('span', 'tag ' + priClass(t.priority), plainLabel(t.priority)));
     if (t.workType) meta.appendChild(el('span', 'tag', t.workType));
@@ -1929,7 +1971,7 @@ function moDanhSachNhanh(key, tieuDe, items) {
     const ai = (t.owner || []).map((u) => u.name).join(', ');
     meta.appendChild(el('span', 'tag', ai || 'Chưa phân công'));
     dong.appendChild(meta);
-    dong.onclick = () => { dongXemNhanh(); openDrawer(t); };
+    dong.onclick = () => { dongXemNhanh(); if (tuy.tab) DT_TAB = tuy.tab; openDrawer(t); };
 
     /* Hành động ngay tại dòng, không bắt mở drawer rồi mới làm được. Đặt trong
      * một khối riêng ngoài nút `dong` vì nút lồng trong nút là HTML không hợp lệ
@@ -4796,6 +4838,15 @@ async function napBinhLuan(t, list, im) {
       return;
     }
     const meId = S.meta.me && S.meta.me.id;
+    /* Vạch "Tin mới": chụp mốc "đã xem" của mình MỘT LẦN lúc mở việc, trước khi
+     * app ghi mốc mới, để vạch còn đứng đúng chỗ suốt lúc đang đọc. Chỉ vẽ khi
+     * máy chủ báo việc này có tin chưa đọc (việc cũ chưa từng mở thì khỏi vạch
+     * trên tin đầu tiên). */
+    if (t._mocTinMoi === undefined) {
+      const cua = (d.daXem || []).find((x) => x.id === meId);
+      t._mocTinMoi = S.chuaDoc && S.chuaDoc.has(t.id) ? (cua ? msGioTin(cua.at) : 0) : null;
+    }
+    let vachMoi = null;
     let ngayTruoc = '';
     for (const c of d.comments) {
       const ngay = c.at ? fmtDate(c.at) : '';
@@ -4804,10 +4855,17 @@ async function napBinhLuan(t, list, im) {
         ngayTruoc = ngay;
       }
       const tacGia = c.author && c.author[0] && c.author[0].id;
+      if (!vachMoi && t._mocTinMoi !== null && tacGia !== meId && msGioTin(c.at) > t._mocTinMoi) {
+        vachMoi = el('div', 'cmt-moi', 'Tin mới');
+        list.appendChild(vachMoi);
+      }
       list.appendChild(bongBong(c, !!meId && tacGia === meId));
     }
     veDaXem(list, d.comments, d.daXem || [], meId);
-    if (!im || oCuoi) list.scrollTop = list.scrollHeight;
+    /* Lần đầu mở: đưa vạch "Tin mới" lên gần đầu khung thay vì cuộn xuống đáy,
+     * để đọc từ tin chưa đọc đầu tiên. */
+    if (!im && vachMoi) list.scrollTop = Math.max(0, vachMoi.offsetTop - list.offsetTop - 12);
+    else if (!im || oCuoi) list.scrollTop = list.scrollHeight;
     /* Mình vừa NHÌN THẤY những tin này — đánh dấu. Chỉ gọi khi có tin của
      * NGƯỜI KHÁC mới hơn mốc đã ghi, chứ không gọi mỗi nhịp nạp lại: tab này
      * tự nạp đều đặn, gọi theo nhịp đó là mỗi người mở một tab thành vài chục
@@ -4874,6 +4932,7 @@ function danhDauDaXem(t, cmts, daXem, meId) {
   if (t._dangDanhDau) return;
   t._dangDanhDau = true;
   req('/api/tasks/' + t.id + '/da-xem', { method: 'POST' })
+    .then(() => { if (S.chuaDoc && S.chuaDoc.delete(t.id)) render(); })   // thẻ việc thôi báo "tin mới"
     .catch(() => {})                 // dấu đã xem hỏng thì thôi, đừng phá tab
     .finally(() => { t._dangDanhDau = false; });
 }
@@ -5570,7 +5629,7 @@ async function napOrders(force) {
 }
 
 async function refresh(force) {
-  await Promise.all([loadAll(force), napNhap(), napOrders(force)]);
+  await Promise.all([loadAll(force), napNhap(), napOrders(force), napChuaDoc()]);
 
   S.isManager = S.meta.role === 'manager';
   // Tùy chọn quản lý cấp riêng cho nhân sự này (bảng Phân quyền app của hub)
@@ -5865,6 +5924,7 @@ async function poll(epTaiLai) {
     const d = await req('/api/tasks?lienPhong=1' + (epTaiLai ? '&refresh=1' : ''));
     S.tasks = d.tasks;
     S.fetchedAt = d.fetchedAt || Date.now();
+    await napChuaDoc();
     notifyNew();
     updateBadge();
     if (!S.editing && !document.querySelector('.modal.open')) render();
@@ -6294,6 +6354,7 @@ function moTheoLenh(mo) {
     render();
   }
   if (mo === 'bot-nhac' && S.isManager) openBotReview();
+  if (mo === 'tin-chua-doc') moTinChuaDoc();
 }
 
 /* ============================================================

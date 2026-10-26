@@ -1341,6 +1341,16 @@ async function api(req, res, url) {
    * hay không. Lọc ngay trên server nên nhân sự cũng thấy được việc mình đặt mà
    * không phải nới quyền của /api/tasks (4 app khác đọc chung endpoint đó). */
   // Gửi thử luôn lấy người nhận từ phiên đăng nhập, không nhận ID do client chỉ định.
+  /* Tin Trao đổi chưa đọc của người đang xem, theo từng việc (26/10/2026). App
+   * dùng để gắn viên "N tin mới" lên thẻ việc và vạch "Tin mới" trong Trao đổi;
+   * anh Hùng: "khi ấn vào thì không biết hội thoại nào chưa xem". Chỉ đọc. */
+  if (p === '/api/tin-chua-doc' && req.method === 'GET') {
+    const me = await whoAmI(req);
+    if (!me) return json(res, { tong: 0, ds: [] });
+    try { return json(res, await tinChuaDoc(me, (await getRecords()).map(toTask))); }
+    catch (e) { return json(res, { tong: 0, ds: [], loi: e.message }); }
+  }
+
   if (p === '/api/bot-nghiem-thu' && ['GET', 'POST'].includes(req.method)) {
     if (laKhach(req)) return json(res, { error: 'Chỉ quản lý được thử Bot.' }, 403);
     if (!(await requireManager(res, req))) return;

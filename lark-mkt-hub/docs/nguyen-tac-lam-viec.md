@@ -185,6 +185,7 @@ Anh Hùng (10/10/2026): nhân sự xuất được báo cáo, nhưng **xuất đ
 - Chữ trên lời nhắc không gọi "anh": quản lý nào cũng thấy nó.
 - Nút dẫn sang app con phải đi được cả khi app con đã mở sẵn. Lớp vỏ không nạp lại khung nên `?mo=` không được đọc lần nữa; khi đó nhắn lệnh `{ hub: 'mo', v }` sang, app con xử lý bằng `moTheoLenh()`.
 - Lời nhắc có thêm **tin Trao đổi chưa đọc** (26/10/2026): tin của người khác, mới hơn mốc "đã xem" của chính mình, trên việc còn mở mà mình phụ trách / hỗ trợ / order, trong 14 ngày. Thứ tự: việc trễ hạn → tin chưa đọc → chờ duyệt → sắp đến hạn; có cả việc trễ lẫn tin thì tin là liên kết phụ cùng dòng. Bấm là mở thẳng tab Trao đổi của việc có tin mới nhất (lệnh `{ hub: 'open', rec, mo: 'trao-doi' }`). Chỉ đọc; mở tab Trao đổi thì app tự ghi "đã xem" như cũ.
+- Trong Bảng công việc, việc có tin chưa đọc mang viên **"N tin mới"** cạnh tên ở mọi tab; tab Trao đổi có vạch **"Tin mới"** trước tin chưa đọc đầu tiên và mở ra ngay chỗ đó. Lời nhắc có từ hai hội thoại trở lên thì mở danh sách "Tin nhắn chưa đọc" (mỗi dòng ghi ai nhắn gì), một hội thoại thì mở thẳng (anh Hùng: "khi ấn vào thì không biết hội thoại nào chưa xem").
 
 ## 14. Trang nội bộ của hub cũng theo khuôn app con (26/10/2026)
 
