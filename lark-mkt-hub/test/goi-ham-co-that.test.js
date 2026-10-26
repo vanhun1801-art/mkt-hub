@@ -61,6 +61,7 @@ const CUA_TRINH_DUYET = new Set([
   'KeyboardEvent', 'DOMParser', 'XMLHttpRequest', 'IntlDateTimeFormat', 'btoa', 'atob',
   'structuredClone', 'reportError', 'getSelection', 'print', 'focus', 'blur',
   'MediaRecorder', 'createImageBitmap',
+  'Path2D', 'ClipboardItem', 'EventSource', 'Notification',
 ]);
 
 /**
@@ -110,13 +111,16 @@ function chiLayMa(s) {
          * gọi bên trong nó biến mất khỏi phép quét. */
         if (c === '`' && s[i] === '$' && s[i + 1] === '{') {
           giu(s[i]); giu(s[i + 1]); i += 2;
+          /* Ruột `${…}` là mã, nhưng có thể chứa chuỗi mẫu lồng (`${x ? `<b>Sales (…)</b>` : ''}`):
+           * cắt ra rồi dọn đệ quy, nếu không chữ HTML trong chuỗi lồng bị coi là lời gọi hàm. */
+          const dau = i;
           let sau = 1;
           while (i < s.length && sau > 0) {
             if (s[i] === '{') sau++;
             if (s[i] === '}') sau--;
-            if (sau > 0) giu(s[i]);
             i++;
           }
+          for (const k of chiLayMa(s.slice(dau, i - 1))) giu(k);
           giu('}');
           continue;
         }
@@ -149,6 +153,8 @@ function chiLayMa(s) {
 function gomKhaiBao(s, vao) {
   const them = (n) => { if (/^[A-Za-z_$][\w$]*$/.test(n)) vao.add(n); };
   for (const m of s.matchAll(/(?:^|\n)\s*(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/g)) them(m[1]);
+  // hàm tự gọi có tên: `(async function boot() { … })()`, tên đó gọi lại được bên trong
+  for (const m of s.matchAll(/\bfunction\s*\*?\s*([A-Za-z_$][\w$]*)\s*\(/g)) them(m[1]);
   for (const m of s.matchAll(/(?:^|\n)\s*(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=/g)) them(m[1]);
   for (const m of s.matchAll(/([A-Za-z_$][\w$]*)\s*[:=]\s*(?:async\s*)?(?:function|\([^)]*\)\s*=>|[A-Za-z_$][\w$]*\s*=>)/g)) them(m[1]);
   /* Rút gọn trong object literal: `{ oSo(a, b) { … } }` — khung-xuong.js dựng
@@ -160,7 +166,8 @@ function gomKhaiBao(s, vao) {
   for (const m of s.matchAll(/(?:const|let|var)\s*\{([^}]*)\}/g)) {
     m[1].split(',').forEach((x) => them(x.split(':').pop().trim()));
   }
-  for (const m of s.matchAll(/\(([^)]*)\)\s*=>/g)) {
+  /* `[^()]` chứ không `[^)]`: `new Promise((ok, hong) =>` mà lấy từ ngoặc ngoài thì ra "(ok". */
+  for (const m of s.matchAll(/\(([^()]*)\)\s*=>/g)) {
     m[1].split(',').forEach((x) => them(x.trim().split(/[=\s]/)[0]));
   }
   for (const m of s.matchAll(/function\s*[A-Za-z_$\w]*\s*\(([^)]*)\)/g)) {
@@ -218,6 +225,41 @@ if (nhanh) {
     'bấm xong không mở gì cả — đúng lỗi của 08/10/2026');
   ok('và không còn gọi moViec()', !/\bmoViec\s*\(/.test(nhanh.sach));
 }
+
+/* App con (26/10/2026). Nút "Soạn" email của KOL kẹt ở "Đang soạn email…" suốt
+ * một tháng: app.js gọi `esc(…)` mà hàm đó chỉ có ở mau-email.js phía máy chủ.
+ * Dòng ấy chỉ chạy khi hộp thư cmo@ đã kết nối, tức là chỉ trên Hub, nên mở thử
+ * trên máy không bao giờ thấy. Phép quét bên trên chỉ soi public/ của hub.
+ *
+ * Mỗi app con một rổ riêng: tệp của nó + các tệp hub chèn vào nó (ios-app.js,
+ * nhap-chung.js…), vì những tệp đó chạy chung trang và khai được tên dùng chung.
+ * Tệp được trang công khai riêng nạp (form.js của KOL) vẫn nằm trong rổ: cùng
+ * thư mục, khai báo trùng thì cũng không làm phép quét báo oan. */
+const GOC = path.join(__dirname, '..', '..');
+/* CHỈ các tệp proxy.js chèn vào app con, không phải cả public/ của hub: hub có
+ * `esc` riêng của nó, gom chung thì đúng lỗi của KOL lại lọt qua. */
+const CHEN = [...fs.readFileSync(path.join(__dirname, '..', 'proxy.js'), 'utf8').matchAll(/src="\/([\w.-]+\.js)/g)].map((m) => m[1]);
+ok('đọc được danh sách tệp hub chèn vào app con', CHEN.includes('ios-app.js'), CHEN.join(', '));
+const khaiHub = new Set();
+for (const o of nguon) if (CHEN.includes(o.f)) gomKhaiBao(o.sach, khaiHub);
+const appCon = fs.readdirSync(GOC).filter((d) => d.startsWith('lark-') && d !== 'lark-mkt-hub' &&
+  fs.existsSync(path.join(GOC, d, 'public')));
+const thieuApp = [];
+for (const a of appCon) {
+  const pub = path.join(GOC, a, 'public');
+  const ds = fs.readdirSync(pub).filter((f) => f.endsWith('.js') && !/\.min\.js$/.test(f))
+    .map((f) => ({ f, sach: chiLayMa(fs.readFileSync(path.join(pub, f), 'utf8')) }));
+  const khaiApp = new Set(khaiHub);
+  for (const o of ds) gomKhaiBao(o.sach, khaiApp);
+  for (const o of ds) {
+    const goi = new Set();
+    for (const m of o.sach.matchAll(/(^|[^\w$.])([a-zA-Z_$][\w$]*)\s*\(/g)) goi.add(m[2]);
+    const thieu = [...goi].filter((n) =>
+      !khaiApp.has(n) && !TU_KHOA.has(n) && !CUA_TRINH_DUYET.has(n) && !(n in globalThis));
+    if (thieu.length) thieuApp.push(a + '/' + o.f + ': ' + thieu.join(', '));
+  }
+}
+ok('app con: mọi lời gọi đều trỏ tới một hàm có thật (' + appCon.length + ' app)', thieuApp.length === 0, thieuApp.join('\n        '));
 
 console.log('\n' + (fail ? '\x1b[31m' : '\x1b[32m') + pass + ' pass · ' + fail + ' fail\x1b[0m');
 if (fail) console.log(fails.map((x) => ' - ' + x).join('\n'));
