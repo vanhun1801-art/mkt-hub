@@ -2579,3 +2579,20 @@ html:not(#_):not(#__):not(#___) .kh-than .vc-them input {
 }
 .cmt-moi::before, .cmt-moi::after { content: ""; flex: 1; height: 1px; background: var(--blue-text); opacity: .35; }
 .xn-tin { font-size: 13px; color: var(--text-2); margin: 2px 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Khối "Tin nhắn chưa đọc" đầu Tổng quan / Việc của tôi (26/10/2026). */
+.tcd .dash-head { display: flex; align-items: center; gap: 10px; }
+.tcd-so { margin-left: auto; font-size: 12.5px; font-weight: 600; color: var(--blue-text); }
+.tcd-ds { display: flex; flex-direction: column; padding: 4px 8px 8px; }
+.tcd-dong {
+  display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 10px; text-align: left;
+  border: 0; border-radius: 12px; background: transparent; font: inherit; color: var(--text); cursor: pointer;
+  transition: background var(--cd-deu, .16s ease);
+}
+.tcd-dong + .tcd-dong { border-top: 1px solid var(--border); border-radius: 0; }
+.tcd-dong:hover { background: var(--surface-3); border-radius: 12px; }
+.tcd-chu { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.tcd-ten { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tcd-trich { font-size: 13px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tcd-mo { flex: 0 0 auto; font-size: 13px; font-weight: 600; color: var(--blue-text); }
+@media (max-width: 640px) { .tcd-mo { display: none; } }

@@ -961,6 +961,48 @@ function vienTin(t) {
   v.title = (x.nguoi ? x.nguoi + ': ' : '') + (x.trich || '') + ' (mở tab Trao đổi để đọc)';
   return v;
 }
+/**
+ * Khối "Tin nhắn chưa đọc" đứng ĐẦU màn Tổng quan và Việc của tôi (26/10/2026).
+ * Anh Hùng bấm "Kiểm tra ngay" trên lời nhắc mà "đâu biết nào chưa xem": viên
+ * "N tin mới" trên thẻ nằm lẫn giữa mấy chục thẻ. Khối này gom đủ: việc nào,
+ * ai nhắn, nhắn gì; bấm là mở tab Trao đổi. Không có tin chưa đọc thì ẩn hẳn.
+ */
+function veKhoiTinChuaDoc() {
+  const ds = [...(S.chuaDoc || new Map()).values()].sort((a, b) => b.at - a.at);
+  const tong = ds.reduce((s2, x) => s2 + (x.n || 0), 0);
+  for (const id of ['tcdDash', 'tcdWork']) {
+    const k = document.getElementById(id);
+    if (!k) continue;
+    k.classList.toggle('hidden', !ds.length);
+    if (!ds.length) continue;
+    const dau = ds.map((x) => x.id + '@' + x.at + '#' + x.n).join('|');
+    if (k._dau === dau) continue;           // không đổi thì khỏi vẽ lại
+    k._dau = dau;
+    k.querySelector('.tcd-so').textContent = tong + ' tin · ' + ds.length + ' việc';
+    const hop = k.querySelector('.tcd-ds');
+    hop.innerHTML = '';
+    for (const x of ds) {
+      const t = timViecTheoMa(x.id);
+      const dong = el('button', 'tcd-dong');
+      dong.type = 'button';
+      const chu = el('span', 'tcd-chu');
+      const ten = el('span', 'tcd-ten', x.title || (t && t.title) || '(chưa có tên)');
+      ten.appendChild(el('span', 'vien-tin', x.n + ' tin mới'));
+      chu.appendChild(ten);
+      chu.appendChild(el('span', 'tcd-trich', (x.nguoi ? x.nguoi + ': ' : '') + (x.trich || '')));
+      dong.appendChild(chu);
+      dong.appendChild(el('span', 'tcd-mo', 'Mở trao đổi ›'));
+      dong.onclick = () => {
+        const v = timViecTheoMa(x.id);
+        if (!v) { toast('Việc này không còn trong phạm vi bạn xem.', true); return; }
+        DT_TAB = 'chat';
+        openDrawer(v);
+      };
+      hop.appendChild(dong);
+    }
+  }
+}
+
 /** Danh sách các việc có tin chưa đọc; bấm một dòng là mở thẳng tab Trao đổi. */
 function moTinChuaDoc() {
   const ds = [...(S.chuaDoc || new Map()).values()].sort((a, b) => b.at - a.at)
@@ -5515,6 +5557,7 @@ function renderOrders() {
 
 /* =======================  render root  ======================= */
 function render() {
+  veKhoiTinChuaDoc();
   const isDash = S.view === 'dash';
   const isWork = S.view === 'work';
   const isCal  = S.view === 'cal';
