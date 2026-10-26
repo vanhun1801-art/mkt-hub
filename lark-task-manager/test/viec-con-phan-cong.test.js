@@ -43,14 +43,15 @@ function check(name, cb) { cb(); pass++; console.log('  PASS ' + name); }
   const toCells = vm.runInNewContext('(' + fn(sv, 'toCells') + ')', {
     F: cfg.fields, chuoiGioVN: (d) => d.toISOString(),
   });
-  async function post(manager, owner) {
+  async function post(manager, owner, them = {}) {
     const body = { title: 'Việc con mới', parent: ['cha'] };
     if (owner) body.owner = owner;
     let written;
     const context = vm.createContext({
       p: '/api/tasks', req: { method: 'POST' }, res: {},
-      readBody: async () => body, whoAmI: async () => ({ id: 'nguoi-lam' }),
-      isManager: async () => manager, khongDuocTao: () => false, cfg,
+      readBody: async () => body, whoAmI: async () => ({ id: them.toi || 'nguoi-lam' }),
+      isManager: async () => manager, khongDuocTao: () => !!them.khongTao, cfg,
+      laKhach: () => !!them.khach, visibleFor: async (ts) => (them.khongThay ? [] : ts),
       getRecords: async () => [{ ...cha, record_id: cha.id }], toTask: (r) => r,
       toCells, cache: { at: 1 }, baoTin: () => {}, XD: '\n', duoiTin: () => '',
       json: (_res, data, status = 200) => ({ data, status }),
@@ -70,6 +71,23 @@ function check(name, cb) { cb(); pass++; console.log('  PASS ' + name); }
       assert.equal(written[cfg.fields.parent.name][0].id, 'cha');
     });
   }
+  /* 26/10/2026, anh Hùng: việc con mở cho tất cả người trong phòng. */
+  const nguoiKhac = await post(false, null, { toi: 'nguoi-khac' });
+  check('Nhân sự không có tên trong việc lớn vẫn chia được (xem được là chia được)', () => {
+    assert.equal(nguoiKhac.response.status, 200);
+  });
+  const tatTao = await post(false, null, { toi: 'nguoi-khac', khongTao: true });
+  check('Bị tắt "Được tạo mới" vẫn thêm được việc con', () => {
+    assert.equal(tatTao.response.status, 200);
+  });
+  const khongThay = await post(false, null, { toi: 'nguoi-khac', khongThay: true });
+  check('Không xem được việc lớn thì không chia', () => {
+    assert.equal(khongThay.response.status, 403);
+  });
+  const khach = await post(false, null, { toi: 'khach', khach: true });
+  check('Khách công ty vẫn chỉ chia việc có tên mình', () => {
+    assert.equal(khach.response.status, 403);
+  });
   const explicit = await post(true, [{ id: 'da-chon' }]);
   check('Quản lý vẫn chọn người làm qua form thường được', () => {
     assert.equal(explicit.written[cfg.fields.owner.name][0].id, 'da-chon');

@@ -971,6 +971,9 @@ function vienCon(t) {
 function chiaDuoc(t) {
   if (!t || t.isNew || t.lienPhong || idCha(t) || S.viewAs) return false;
   if (S.isManager) return true;
+  /* Người trong phòng: mọi việc mình mở được, kể cả người bị tắt "Được tạo mới"
+   * (tắt đó chỉ chặn việc lớn mới). 26/10/2026, anh Hùng: "anh muốn tất cả". */
+  if (S.perm && S.perm.chiaViec) return true;
   if (!S.perm || !S.perm.taoMoi) return false;
   const me = S.meta && S.meta.me && S.meta.me.id;
   return !!me && [...(t.owner || []), ...(t.helper || [])].some((u) => u && u.id === me);

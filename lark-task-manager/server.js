@@ -1210,7 +1210,9 @@ async function api(req, res, url) {
       me,
       role: manager ? 'manager' : 'staff',
       // quản lý cấp riêng cho nhân sự này trong bảng "Phân quyền app" của hub
-      perm: { toanBo: manager || xemToanBo(req), taoMoi: manager || !khongDuocTao(req) },
+      /* chiaViec (26/10/2026, anh Hùng: "anh muốn tất cả"): mọi người trong phòng chia
+       * được việc con ở mọi việc mình mở xem được. Khách công ty chỉ chia việc có tên mình. */
+      perm: { toanBo: manager || xemToanBo(req), taoMoi: manager || !khongDuocTao(req), chiaViec: manager || !laKhach(req) },
       options: collectOptions(fields),
       /* Danh bạ để chọn Người hỗ trợ. Nhân sự thường KHÔNG được thấy cả phòng —
        * chỉ những người có mặt trong việc của chính họ. Quản lý, hoặc nhân sự
@@ -1399,7 +1401,10 @@ async function api(req, res, url) {
     const me = await whoAmI(req);
     const manager = await isManager(req);
 
-    if (!manager && khongDuocTao(req)) {
+    /* Bị tắt "Được tạo mới" thì không mở việc lớn mới, nhưng vẫn thêm được việc con
+     * vào việc mình xem được (26/10/2026: việc con mở cho tất cả). */
+    const laViecCon = body.parent != null && !laKhach(req);
+    if (!manager && khongDuocTao(req) && !laViecCon) {
       return json(res, {
         error: 'Quản lý chưa mở quyền tạo việc mới cho bạn.',
         code: 'CREATE_BLOCKED',
@@ -1429,7 +1434,9 @@ async function api(req, res, url) {
     /* VIỆC CON (21/10/2026). Chỉ một việc cha, và việc cha phải là việc thật của
      * phòng (không nháp, không liên phòng). Nhân sự chỉ chia được việc mình đang
      * phụ trách hay hỗ trợ. Không tự gán người tạo làm người phụ trách việc con;
-     * quản lý phân công sau trong form chi tiết. Quản lý chia được mọi việc. */
+     * quản lý phân công sau trong form chi tiết. Quản lý chia được mọi việc.
+     * 26/10/2026: mọi người trong phòng chia được mọi việc họ xem được (anh Hùng:
+     * "anh muốn tất cả"). Riêng khách công ty vẫn chỉ chia việc có tên mình. */
     let tenCha = '';
     if (body.parent != null) {
       const idCha = (Array.isArray(body.parent) ? body.parent : [body.parent])
@@ -1442,9 +1449,12 @@ async function api(req, res, url) {
         if ((cha.parent || []).length) {
           return json(res, { error: 'Việc này đã là việc con, không chia tiếp được nữa.' }, 400);
         }
-        if (!manager) {
+        if (!manager && laKhach(req)) {
           const coTen = me && [...(cha.owner || []), ...(cha.helper || [])].some((u) => u && u.id === me.id);
           if (!coTen) return json(res, { error: 'Chỉ người phụ trách việc lớn mới chia được việc con.' }, 403);
+        } else if (!manager) {
+          const thay = (await visibleFor([cha], req)).length > 0;
+          if (!thay) return json(res, { error: 'Bạn chưa xem được việc lớn này nên chưa chia việc con được.' }, 403);
         }
         body.parent = [idCha];
         tenCha = cha.title || '';
