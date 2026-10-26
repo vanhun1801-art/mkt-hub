@@ -475,6 +475,8 @@
     '+ Tạo việc': '+ New task',
     'Tạo công việc từ tin này': 'Create a task from this news',
     'Tạo việc từ tin này': 'Create task from this news',
+    'Kiểm tra công việc nhé': 'Time to check your tasks',
+    'Kiểm tra ngay': 'Check now',
 
     /* --- thẻ Báo cáo & KPI --- */
     'Đạt mục tiêu': 'Target attainment',

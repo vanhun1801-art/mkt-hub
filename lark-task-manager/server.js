@@ -1404,7 +1404,8 @@ async function api(req, res, url) {
     if (!manager) {
       // nhân sự đặt việc → báo quản lý vào phân công
       baoTin(cfg.loadManagerIds(),
-        'Có yêu cầu công việc mới: "' + body.title + '"' +
+        (tenCha ? 'Có việc con mới cần phân công: "' + body.title + '"' + XD + 'Thuộc việc lớn: "' + tenCha + '"'
+          : 'Có yêu cầu công việc mới: "' + body.title + '"') +
         (me ? XD + 'Người order: ' + me.name : '') +
         XD + 'Cần phân công người phụ trách.' + duoiTin());
     } else if (body.owner) {

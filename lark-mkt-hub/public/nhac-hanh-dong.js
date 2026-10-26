@@ -26,7 +26,7 @@
   }
   function summary(data) {
     if (data.counts.late) return { text: data.counts.late + ' việc trễ hạn cần kiểm tra.', target: '#/m/cong-viec?mo=can-xu-ly' };
-    if (data.counts.review) return { text: data.counts.review + ' sản phẩm đang chờ anh duyệt.', target: '#/m/cong-viec?mo=nghiem-thu' };
+    if (data.counts.review) return { text: data.counts.review + ' sản phẩm đang chờ duyệt.', target: '#/m/cong-viec?mo=nghiem-thu' };
     if (data.counts.soon) return { text: data.counts.soon + ' việc sắp đến hạn.', target: '#/m/cong-viec?mo=can-xu-ly' };
     return { text: 'Kiểm tra tiến độ công việc hôm nay nhé.', target: '#/m/cong-viec?mo=can-xu-ly' };
   }
@@ -77,10 +77,23 @@
     mascot.appendChild(pic); mascot.appendChild(el('span', 'ar-unread'));
     mascot.onclick = () => state.peeking ? settle() : peek(true);
     const copy = el('div', 'ar-copy'); copy.id = 'arNudgeCopy'; copy.setAttribute('aria-live', 'polite'); copy.setAttribute('aria-hidden', 'true');
-    copy.appendChild(el('b', '', 'Anh kiểm tra công việc nhé'));
+    copy.appendChild(el('b', '', 'Kiểm tra công việc nhé'));
     const hint = el('span'); copy.appendChild(hint);
     const cta = el('a', 'ar-check', 'Kiểm tra ngay'); cta.tabIndex = -1; cta.setAttribute('aria-hidden', 'true');
-    cta.onclick = () => { save({ snoozeUntil: Date.now() + 60 * MINUTE }); settle(); };
+    cta.onclick = (e) => {
+      save({ snoozeUntil: Date.now() + 60 * MINUTE }); settle();
+      /* App công việc đã mở sẵn thì lớp vỏ không nạp lại khung, nên ?mo= trong
+       * đường dẫn không được đọc lần nữa: bấm lần hai không đi tới đâu. Khi đó
+       * mở app rồi nhắn thẳng lệnh sang (app nghe hub: 'mo'). */
+      const mo = /[?&]mo=([^&]+)/.exec(cta.getAttribute('href') || '');
+      const khung = typeof S !== 'undefined' && S.frames && S.frames.get('cong-viec');
+      if (!mo || !khung || !khung.iframe) return;
+      e.preventDefault();
+      location.hash = '#/m/cong-viec';
+      setTimeout(() => {
+        try { khung.iframe.contentWindow.postMessage({ hub: 'mo', v: decodeURIComponent(mo[1]) }, location.origin); } catch (_) {}
+      }, 60);
+    };
     const close = el('button', 'ar-close', '×'); close.type = 'button'; close.tabIndex = -1; close.setAttribute('aria-hidden', 'true');
     close.setAttribute('aria-label', 'Để sau, tạm ẩn lời nhắc một giờ'); close.onclick = later;
     root.append(mascot, copy, cta, close);

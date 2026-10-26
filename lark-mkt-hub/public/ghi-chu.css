@@ -265,3 +265,13 @@ html,body{margin:0;min-height:100%}
 }
 
 #rn-sync-details{margin:8px 0;overflow-wrap:anywhere}#rn-sync-details summary{cursor:pointer}#rn-sync-detail-text{display:block;margin-top:5px;font-size:12px}
+
+/* Điện thoại: chữ từ 12px trở lên (docs/nguyen-tac-lam-viec.md, test
+   dien-thoai). Năm chỗ dưới đây khai 11px ở bản máy tính. 26/10/2026. */
+@media(max-width:600px){
+  #rooty-notes .number{font-size:12.5px}
+  #rooty-notes .add-folder{font-size:12.5px}
+  #rooty-notes .new-actions button{font-size:12.5px}
+  #rooty-notes .folder-select{font-size:12.5px}
+  #rooty-notes .links-header span{font-size:12.5px}
+}

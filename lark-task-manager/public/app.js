@@ -1116,7 +1116,8 @@ function khoiViecCon(t) {
     tt.style.setProperty('--vc-mau', mau);
     h.appendChild(tt);
     const ai = (x.owner || []).map((u) => u.name).filter(Boolean)[0];
-    h.appendChild(el('span', 'vc-ai', ai || 'Chưa phân công'));
+    h.appendChild(el('span', 'vc-ai' + (ai ? '' : ' chua'), ai || 'Chưa phân công'));
+    h.dataset.id = x.id;
     const dl = deadlineTag(x);
     if (dl) h.appendChild(dl);
     h.title = 'Mở việc con này';
@@ -1156,7 +1157,10 @@ function khoiViecCon(t) {
           const goc = viecTheoMa(t.id);
           if (goc) goc.con = t.con;
         }
-        veLaiViecCon(t.id, true);
+        veLaiViecCon(t.id, true, kq && kq.id);
+        /* Anh Hùng: "Enter xong thì hệ thống oke và cho anh ấn vào task đó tiếp".
+         * Báo đã xong, và dòng mới sáng lên để biết bấm vào đâu. */
+        toast('Đã thêm "' + ten + '". Bấm vào để chọn người làm và chi tiết.');
       } catch (err) {
         toast('Chưa thêm được việc con: ' + err.message, true);
         inp.disabled = false;
@@ -1169,7 +1173,7 @@ function khoiViecCon(t) {
   return k.the;
 }
 /** Vẽ lại riêng khối việc con của việc đang mở (sau khi thêm), giữ chỗ con trỏ. */
-function veLaiViecCon(idViec, focus) {
+function veLaiViecCon(idViec, focus, idMoi) {
   const cu = document.querySelector('#drawer [data-vc="' + idViec + '"]');
   if (!cu || !S.editing || S.editing.id !== idViec) return;
   const moi = viecTheoMa(idViec);
@@ -1177,6 +1181,10 @@ function veLaiViecCon(idViec, focus) {
   const k = khoiViecCon(S.editing);
   if (!k) return;
   cu.replaceWith(k);
+  if (idMoi) {
+    const dong = k.querySelector('.vc-dong[data-id="' + idMoi + '"]');
+    if (dong) dong.classList.add('vc-moi');
+  }
   if (focus) { const i = k.querySelector('.vc-them input'); if (i) i.focus(); }
 }
 /** Gắn khối việc con vào ô chi tiết, ngay sau thẻ đầu (hoặc lên đầu). */
@@ -6159,21 +6167,7 @@ function setupChrome() {
     const tv = new URLSearchParams(location.search);
     // ?fx=tho|dom|quet|aurora|cham -> chọn hiệu ứng ngày gợi ý (mặc định 'tho')
     document.body.dataset.fx = tv.get('fx') || 'tho';
-    if (tv.get('mo') === 'nghiem-thu') {
-      S.view = 'order'; S.viewChosen = true;
-      if (S.isManager) S.orderScope = 'review';
-      S.of.due = ''; S.of.status = ''; S.of.owner = ''; S.of.campaign = ''; S.of.workType = '';
-      S.filters.q = ''; $('#search').value = '';
-      applyRoleChrome(); syncFilterInputs();
-      document.querySelectorAll('.tab').forEach(x => x.classList.toggle('is-active', x.dataset.view === 'order'));
-      render();
-    }
-    if (tv.get('mo') === 'can-xu-ly' && S.isManager) {
-      S.view = 'dash'; S.viewChosen = true;
-      document.querySelectorAll('.tab').forEach(x => x.classList.toggle('is-active', x.dataset.view === 'dash'));
-      render();
-    }
-    if (tv.get('mo') === 'bot-nhac' && S.isManager) openBotReview();
+    moTheoLenh(tv.get('mo'));
     const rec = tv.get('rec');
     if (rec) {
       const t = timViecTheoMa(rec);
@@ -6240,6 +6234,27 @@ function moTaoTuTin(goi) {
   }
 }
 
+/** Đi thẳng tới một màn theo lệnh ?mo= (lúc khởi động) hoặc lệnh của lớp vỏ. */
+function moTheoLenh(mo) {
+  if (!mo) return;
+  if (S.editing) closeDrawer();
+  if (mo === 'nghiem-thu') {
+    S.view = 'order'; S.viewChosen = true;
+    if (S.isManager) S.orderScope = 'review';
+    S.of.due = ''; S.of.status = ''; S.of.owner = ''; S.of.campaign = ''; S.of.workType = '';
+    S.filters.q = ''; $('#search').value = '';
+    applyRoleChrome(); syncFilterInputs();
+    document.querySelectorAll('.tab').forEach(x => x.classList.toggle('is-active', x.dataset.view === 'order'));
+    render();
+  }
+  if (mo === 'can-xu-ly' && S.isManager) {
+    S.view = 'dash'; S.viewChosen = true;
+    document.querySelectorAll('.tab').forEach(x => x.classList.toggle('is-active', x.dataset.view === 'dash'));
+    render();
+  }
+  if (mo === 'bot-nhac' && S.isManager) openBotReview();
+}
+
 /* ============================================================
    Nghe lệnh từ Marketing Hub (lớp vỏ)
    Trang Tổng quan của hub bấm vào một việc -> hub nhờ app này mở ô chi tiết
@@ -6267,6 +6282,10 @@ window.addEventListener('message', (ev) => {
     if (S.meta) moTaoTuTin(d);
     else CHO_TAO_TU_TIN = d;                // còn đang nạp Base: boot() mở sau
   }
+
+  /* Lời nhắc của lớp vỏ ("Kiểm tra ngay") khi app đã mở sẵn: lớp vỏ không nạp
+   * lại khung nên ?mo= không được đọc lại, phải nhắn sang. */
+  if (d.hub === 'mo' && d.v && S.meta) moTheoLenh(d.v);
 
   if (d.hub === 'tab' && d.v) {
     S.view = d.v;

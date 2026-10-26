@@ -1357,7 +1357,10 @@ code { background: var(--trang-2); border: 1px solid var(--vien-mem); border-rad
   font-variant-numeric: tabular-nums; width: 38px; text-align: right; flex: 0 0 auto;
 }
 /* "+ Tạo việc" trên từng dòng tin (21/10/2026). Máy tính: chỉ hiện khi rê vào
-   dòng hoặc khi bấm Tab tới, để cột tin vẫn gọn. Màn cảm ứng: luôn hiện. */
+   dòng hoặc khi bấm Tab tới, để cột tin vẫn gọn.
+   Điện thoại và màn cảm ứng: ẩn hẳn (anh Hùng 26/10/2026: chữ "Tạo việc" bày
+   ngoài danh sách trông chưa đẹp). Chạm vào tin là mở cửa sổ đọc, trong đó đã
+   có nút "Tạo việc từ tin này". */
 .tin-tao {
   font: inherit; font-size: 11px; font-weight: 600; line-height: 20px; height: 20px;
   padding: 0 9px; border-radius: 999px; border: 0; cursor: pointer; white-space: nowrap;
@@ -1366,7 +1369,7 @@ code { background: var(--trang-2); border: 1px solid var(--vien-mem); border-rad
 }
 .tin-mot:hover .tin-tao, .tin-tao:focus-visible { opacity: 1; }
 .tin-tao:hover { background: var(--xanh); color: #fff; }
-@media (hover: none) { .tin-tao { opacity: 1; } }
+@media (hover: none), (max-width: 640px) { .tin-tao { display: none; } }
 
 @media (min-width: 1700px) {
   .tin-luoi { grid-template-columns: 560px minmax(0, 1fr); }

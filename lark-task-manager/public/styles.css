@@ -2559,3 +2559,9 @@ html:not(#_):not(#__):not(#___) .kh-than .vc-them input {
 .bot-review-card p { white-space: pre-wrap; line-height: 1.6; }
 .bot-review-card .btn { margin: 0 8px 8px 0; }
 #botReviewStatus { white-space: pre-wrap; line-height: 1.6; }
+/* Việc con chưa có người làm: chữ nhạt nghiêng, khỏi đọc nhầm thành tên người. */
+.vc-ai.chua { color: var(--text-3); font-style: italic; }
+/* Dòng việc con vừa gõ xong: nền xanh nhạt rồi tan dần, để biết bấm vào đâu. */
+.vc-dong.vc-moi { animation: vc-moi 1.6s var(--cd-deu, ease) both; }
+@keyframes vc-moi { from { background: var(--blue-bg); } to { background: transparent; } }
+@media (prefers-reduced-motion: reduce) { .vc-dong.vc-moi { animation: none; } }

@@ -174,3 +174,10 @@ Anh Hùng (10/10/2026): nhân sự xuất được báo cáo, nhưng **xuất đ
 - Tiến độ do máy chủ đếm trên toàn bộ việc của phòng, nên đúng cả khi người xem không thấy hết việc con.
 - Quản lý chia được mọi việc. Nhân sự chỉ chia được việc mình phụ trách hoặc hỗ trợ, và việc con khi đó giao cho chính họ.
 - **Việc tạo từ "Tin của phòng" không chép chữ của tin.** Ô link giữ `#/tin/<mã>`, app vẽ thành thẻ "Trích từ tin" (ảnh, tiêu đề, ngày, một dòng trích), bấm vào là mở đúng tin. Ảnh và tệp của tin vẫn đi theo vào ô Tệp đính kèm.
+
+## 13. Lời nhắc kiểm tra việc và nút trên điện thoại (26/10/2026)
+
+- **Nút phụ trên từng dòng danh sách thì không bày ra trên điện thoại.** Ví dụ "+ Tạo việc" ở bảng tin: máy tính hiện khi rê chuột, điện thoại và màn cảm ứng thì ẩn. Thao tác đó vẫn có trong cửa sổ mở ra khi chạm vào dòng ("Tạo việc từ tin này").
+- Lời nhắc kiểm tra việc (`nhac-hanh-dong.*`, viên linh vật góc dưới) theo đủ thang chung: chữ từ 12px, nút tròn, màu theo biến, mở theo `--cd-vao` 0,36s, đóng theo `--cd-ra` 0,22s. Các phần xếp hàng tự co, không đặt toạ độ cứng, để chữ không bị nút đè. Điện thoại chỉ giữ câu số liệu ("3 việc trễ hạn cần kiểm tra."), tối đa hai dòng.
+- Chữ trên lời nhắc không gọi "anh": quản lý nào cũng thấy nó.
+- Nút dẫn sang app con phải đi được cả khi app con đã mở sẵn. Lớp vỏ không nạp lại khung nên `?mo=` không được đọc lần nữa; khi đó nhắn lệnh `{ hub: 'mo', v }` sang, app con xử lý bằng `moTheoLenh()`.
