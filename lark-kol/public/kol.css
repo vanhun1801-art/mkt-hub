@@ -445,3 +445,11 @@ pre.tin { white-space: pre-wrap; background: var(--surface-3); border-radius: va
   .bkn-nhac { font-size: 12px; }
 }
 .bkn-thieu { font-size: 12.5px; color: var(--orange-text); }
+
+/* CỬA SỔ KHÔNG CAO QUÁ MÀN (26/10/2026, anh Hùng: "không cuộn xuống được, không ấn gửi được").
+   Email trình BGĐ dài hơn màn, thân thư lại tự cuộn riêng và nuốt cú lăn chuột, nên nút
+   Gửi nằm khuất dưới đáy. Giờ: đầu và chân cửa sổ đứng yên, chỉ phần giữa cuộn, một chỗ cuộn duy nhất. */
+.hop { display: flex; flex-direction: column; max-height: calc(100dvh - 48px); }
+.hop-dau, .hop-chan { flex: none; }
+.hop-than { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.hop-than .thu-than { max-height: none; overflow: visible; }
