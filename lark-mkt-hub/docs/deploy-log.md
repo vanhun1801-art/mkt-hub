@@ -61,3 +61,8 @@ Render tự build lại từ `main`). Mỗi dòng: ngày · nội dung chính đ
 - Bỏ toàn bộ bảng danh sách nổi, ba tab và hiệu ứng rung/nhấp nháy. Thay bằng một thanh nhỏ: câu nhắc theo ưu tiên + Kiểm tra ngay. CTA mở màn công việc cần xử lý/nghiệm thu hiện có.
 - DOM giữ nguyên khi polling; chuyển kích thước và opacity bằng CSS, tự thu sau 9 giây, chờ khi người dùng hover/focus. Không chạy lại animation mỗi phút.
 - Chờ Hub nạp xong và người dùng rảnh trước khi nhắc. Tối thiểu một giờ giữa các lời nhắc tự động; đóng để hoãn một giờ. Bản thử tiếp tục chỉ tài khoản pilot.
+
+## 2026-10-26 · Tin Trao đổi chưa đọc trong lời nhắc và Bảng công việc
+
+- Lời nhắc có thêm "N tin nhắn chưa đọc" (83307cb). Bảng công việc: viên "N tin mới" trên thẻ, vạch "Tin mới" trong Trao đổi, danh sách hội thoại chưa đọc (53c0ceb), khối "Tin nhắn chưa đọc" đứng đầu Tổng quan và Việc của tôi (3db4aa3).
+- Dòng này để Render deploy: 3db4aa3 chỉ đụng lark-task-manager/.
