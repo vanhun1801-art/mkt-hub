@@ -24,11 +24,52 @@
       /^(INPUT|TEXTAREA|IFRAME)$/.test((document.activeElement || {}).tagName || '') ||
       !!((document.activeElement || {}).isContentEditable);
   }
+  /* Tin Trao đổi chưa đọc (26/10/2026, anh Hùng: "hiện lên các tin nhắn chưa
+   * đọc nữa"). Máy chủ đếm sẵn (counts.chat) và gửi kèm việc có tin mới nhất
+   * (chat[0]); bấm là mở thẳng tab Trao đổi của việc đó. Thứ tự ưu tiên: việc
+   * trễ hạn → tin chưa đọc → chờ duyệt → sắp đến hạn. Có cả việc trễ lẫn tin
+   * chưa đọc thì tin thành liên kết phụ đứng sau, cùng một dòng. */
+  function tinChuaDoc(data) {
+    const n = (data.counts && data.counts.chat) || 0;
+    const moi = (data.chat || [])[0];
+    if (!n || !moi) return null;
+    return {
+      ngan: n + ' tin nhắn chưa đọc',
+      dai: n + ' tin nhắn chưa đọc' + (moi.nguoi ? ' · ' + moi.nguoi + (moi.trich ? ': ' + moi.trich : '') : ''),
+      target: '#/m/cong-viec?rec=' + encodeURIComponent(moi.id) + '&mo=trao-doi',
+    };
+  }
   function summary(data) {
-    if (data.counts.late) return { text: data.counts.late + ' việc trễ hạn cần kiểm tra.', target: '#/m/cong-viec?mo=can-xu-ly' };
+    const tin = tinChuaDoc(data);
+    if (data.counts.late) {
+      return tin
+        ? { text: data.counts.late + ' việc trễ hạn', target: '#/m/cong-viec?mo=can-xu-ly', phu: tin }
+        : { text: data.counts.late + ' việc trễ hạn cần kiểm tra.', target: '#/m/cong-viec?mo=can-xu-ly' };
+    }
+    if (tin) return { text: tin.dai, target: tin.target };
     if (data.counts.review) return { text: data.counts.review + ' sản phẩm đang chờ duyệt.', target: '#/m/cong-viec?mo=nghiem-thu' };
     if (data.counts.soon) return { text: data.counts.soon + ' việc sắp đến hạn.', target: '#/m/cong-viec?mo=can-xu-ly' };
     return { text: 'Kiểm tra tiến độ công việc hôm nay nhé.', target: '#/m/cong-viec?mo=can-xu-ly' };
+  }
+  /* Đi tới đích của lời nhắc. App công việc đã mở sẵn thì lớp vỏ không nạp lại
+   * khung, nên ?mo= / ?rec= trong đường dẫn không được đọc lần nữa: bấm lần hai
+   * không đi tới đâu. Khi đó mở app rồi nhắn thẳng lệnh sang. */
+  function diToi(e, href) {
+    save({ snoozeUntil: Date.now() + 60 * MINUTE }); settle();
+    const khung = typeof S !== 'undefined' && S.frames && S.frames.get('cong-viec');
+    if (!khung || !khung.iframe) return;          // chưa có khung: để đường dẫn tự mở
+    const q = new URLSearchParams((href.split('?')[1]) || '');
+    const rec = q.get('rec'), mo = q.get('mo');
+    if (!rec && !mo) return;
+    e.preventDefault();
+    location.hash = '#/m/cong-viec';
+    setTimeout(() => {
+      const w = khung.iframe.contentWindow;
+      try {
+        if (rec) w.postMessage({ hub: 'open', rec, mo }, location.origin);
+        else w.postMessage({ hub: 'mo', v: mo }, location.origin);
+      } catch (_) {}
+    }, 60);
   }
   function remove() {
     clearTimeout(state.hideTimer); clearTimeout(state.idleTimer);
@@ -40,7 +81,7 @@
     state.root.classList.remove('is-peeking');
     state.refs.mascot.setAttribute('aria-expanded', 'false');
     state.refs.copy.setAttribute('aria-hidden', 'true');
-    state.refs.cta.tabIndex = -1; state.refs.close.tabIndex = -1;
+    state.refs.cta.tabIndex = -1; state.refs.close.tabIndex = -1; state.refs.phu.tabIndex = -1;
     state.refs.cta.setAttribute('aria-hidden', 'true'); state.refs.close.setAttribute('aria-hidden', 'true');
   }
   function later() {
@@ -62,7 +103,7 @@
     state.root.classList.add('is-peeking');
     state.refs.mascot.setAttribute('aria-expanded', 'true');
     state.refs.copy.setAttribute('aria-hidden', 'false');
-    state.refs.cta.tabIndex = 0; state.refs.close.tabIndex = 0;
+    state.refs.cta.tabIndex = 0; state.refs.close.tabIndex = 0; state.refs.phu.tabIndex = 0;
     state.refs.cta.setAttribute('aria-hidden', 'false'); state.refs.close.setAttribute('aria-hidden', 'false');
     save({ lastShown: Date.now(), signature: state.data.signature, snoozeUntil: 0 });
     armHide(); return true;
@@ -78,22 +119,13 @@
     mascot.onclick = () => state.peeking ? settle() : peek(true);
     const copy = el('div', 'ar-copy'); copy.id = 'arNudgeCopy'; copy.setAttribute('aria-live', 'polite'); copy.setAttribute('aria-hidden', 'true');
     copy.appendChild(el('b', '', 'Kiểm tra công việc nhé'));
-    const hint = el('span'); copy.appendChild(hint);
+    /* Dòng số liệu: chữ chính + (khi có) liên kết phụ "· N tin nhắn chưa đọc". */
+    const dong = el('span', 'ar-dong'); const hint = el('span', 'ar-chu');
+    const phu = el('a', 'ar-phu'); phu.hidden = true; phu.tabIndex = -1;
+    phu.onclick = (e) => diToi(e, phu.getAttribute('href') || '');
+    dong.append(hint, phu); copy.appendChild(dong);
     const cta = el('a', 'ar-check', 'Kiểm tra ngay'); cta.tabIndex = -1; cta.setAttribute('aria-hidden', 'true');
-    cta.onclick = (e) => {
-      save({ snoozeUntil: Date.now() + 60 * MINUTE }); settle();
-      /* App công việc đã mở sẵn thì lớp vỏ không nạp lại khung, nên ?mo= trong
-       * đường dẫn không được đọc lần nữa: bấm lần hai không đi tới đâu. Khi đó
-       * mở app rồi nhắn thẳng lệnh sang (app nghe hub: 'mo'). */
-      const mo = /[?&]mo=([^&]+)/.exec(cta.getAttribute('href') || '');
-      const khung = typeof S !== 'undefined' && S.frames && S.frames.get('cong-viec');
-      if (!mo || !khung || !khung.iframe) return;
-      e.preventDefault();
-      location.hash = '#/m/cong-viec';
-      setTimeout(() => {
-        try { khung.iframe.contentWindow.postMessage({ hub: 'mo', v: decodeURIComponent(mo[1]) }, location.origin); } catch (_) {}
-      }, 60);
-    };
+    cta.onclick = (e) => diToi(e, cta.getAttribute('href') || '');
     const close = el('button', 'ar-close', '×'); close.type = 'button'; close.tabIndex = -1; close.setAttribute('aria-hidden', 'true');
     close.setAttribute('aria-label', 'Để sau, tạm ẩn lời nhắc một giờ'); close.onclick = later;
     root.append(mascot, copy, cta, close);
@@ -101,7 +133,7 @@
     root.addEventListener('pointerleave', () => { if (state.peeking) armHide(); });
     root.addEventListener('focusin', () => clearTimeout(state.hideTimer));
     root.addEventListener('focusout', () => { if (state.peeking) armHide(); });
-    state.root = root; state.refs = { mascot, copy, hint, cta, close }; document.body.appendChild(root);
+    state.root = root; state.refs = { mascot, copy, hint, phu, cta, close }; document.body.appendChild(root);
   }
   function update() {
     if (!state.data || !state.data.total || !allowed()) { remove(); return; }
@@ -109,7 +141,16 @@
     // Không dựng lại thẻ khi polling: không mất focus và không chạy lại animation.
     if (state.refs.hint.textContent !== s.text) state.refs.hint.textContent = s.text;
     state.refs.cta.setAttribute('href', s.target);
-    state.refs.mascot.setAttribute('title', s.text);
+    const phu = state.refs.phu;
+    phu.hidden = !s.phu;
+    if (s.phu) {
+      const chu = ' · ' + s.phu.ngan;
+      if (phu.textContent !== chu) phu.textContent = chu;
+      phu.setAttribute('href', s.phu.target);
+      phu.title = s.phu.dai;
+    }
+    state.refs.mascot.setAttribute('title', s.text + (s.phu ? ' · ' + s.phu.ngan : ''));
+    state.root.classList.toggle('has-chat', !!(state.data.counts && state.data.counts.chat));
     state.root.classList.toggle('has-late', !!state.data.counts.late);
   }
   function idlePeek(manual) {

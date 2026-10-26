@@ -921,6 +921,68 @@ async function ghiDaXem(taskId, laLienPhong, nguoi) {
   }
 }
 
+/**
+ * Tin Trao đổi CHƯA ĐỌC của một người (26/10/2026, anh Hùng: lời nhắc kiểm tra
+ * việc "hiện lên các tin nhắn chưa đọc nữa").
+ *
+ * Chưa đọc = tin của NGƯỜI KHÁC, giờ gửi mới hơn mốc "đã xem" của chính người
+ * này trên việc đó (bảng Trao đổi · đã xem, cùng mốc mà tab Trao đổi ghi khi
+ * mở). Chỉ tính việc còn mở mà người này phụ trách, hỗ trợ hoặc là người
+ * order, và tin trong 14 ngày gần đây: việc cũ chưa từng mở tab Trao đổi thì
+ * không dồn thành một con số vô nghĩa. Chỉ đọc, không ghi gì.
+ * Đệm 60 giây theo người; mở tab Trao đổi (POST da-xem) thì xoá đệm của người đó.
+ */
+const demChuaDoc = new Map();
+const msGio = (v) => {
+  if (v == null || v === '') return 0;
+  if (typeof v === 'number') return v;
+  if (/^\d+$/.test(String(v))) return Number(v);
+  const t = Date.parse(v);
+  return Number.isFinite(t) ? t : 0;
+};
+async function tinChuaDoc(me, tasks) {
+  if (!me || !me.id) return { tong: 0, ds: [] };
+  const daDem = demChuaDoc.get(me.id);
+  if (daDem && Date.now() - daDem.at < 60000) return daDem.kq;
+  const CF = cfg.commentFields;
+  const coTen = (t) => [...(t.owner || []), ...(t.helper || []), ...(t.requester || [])].some((u) => u && u.id === me.id);
+  const viec = new Map(tasks.filter((t) => !DONG_HAN.includes(t.status) && coTen(t)).map((t) => [t.id, t]));
+  if (!viec.size) { demChuaDoc.set(me.id, { at: Date.now(), kq: { tong: 0, ds: [] } }); return { tong: 0, ds: [] }; }
+  const [cmts, xem] = await Promise.all([
+    lark.listAllRecords(cfg.commentTableId),
+    lark.listAllRecords(cfg.daXemTableId).catch(() => []),
+  ]);
+  const idLink = (v) => (Array.isArray(v) ? v.map((x) => (x && (x.record_ids ? x.record_ids[0] : x.id)) || x).filter(Boolean) : []);
+  const moc = new Map();
+  for (const r of xem) {
+    if ((asUsers(r.cells[DF.nguoi.id])[0] || {}).id !== me.id) continue;
+    const at = msGio(r.cells[DF.xemToi.id]);
+    for (const id of idLink(r.cells[DF.task.id])) moc.set(id, Math.max(moc.get(id) || 0, at));
+  }
+  const tu = Date.now() - 14 * 86400000;
+  const theoViec = new Map();
+  for (const r of cmts) {
+    const tg = asUsers(r.cells[CF.author.id])[0];
+    if (!tg || tg.id === me.id) continue;
+    const at = msGio(r.cells[CF.at.id]);
+    if (!at || at < tu) continue;
+    for (const id of idLink(r.cells[CF.task.id])) {
+      if (!viec.has(id) || at <= (moc.get(id) || 0)) continue;
+      const o = theoViec.get(id) || { id, title: viec.get(id).title || '(chưa có tên)', n: 0, at: 0, nguoi: '', trich: '' };
+      o.n++;
+      if (at > o.at) {
+        o.at = at; o.nguoi = tg.name || '';
+        o.trich = asText(r.cells[CF.content.id]).replace(/\s+/g, ' ').trim().slice(0, 90);
+      }
+      theoViec.set(id, o);
+    }
+  }
+  const ds = [...theoViec.values()].sort((a, b) => b.at - a.at);
+  const kq = { tong: ds.reduce((s, x) => s + x.n, 0), ds };
+  demChuaDoc.set(me.id, { at: Date.now(), kq });
+  return kq;
+}
+
 /** Đuôi tin nhắn: link mở app. */
 const duoiTin = () => (cfg.publicUrl ? XD + cfg.publicUrl : '');
 
@@ -1282,8 +1344,25 @@ async function api(req, res, url) {
     if (!(await requireManager(res, req))) return;
     const me = await whoAmI(req);
     if (!me) return json(res, { error: 'Cần đăng nhập Lark.' }, 401);
-    if (req.method === 'GET') return json(res, url.searchParams.get('view') === 'quick'
-      ? await botNghiemThu.quick(me) : await botNghiemThu.preview(me));
+    if (req.method === 'GET' && url.searchParams.get('view') === 'quick') {
+      const kq = await botNghiemThu.quick(me);
+      /* Thêm tin Trao đổi chưa đọc vào lời nhắc (26/10/2026). Đếm hỏng thì lời
+       * nhắc vẫn chạy với phần việc, không gãy cả lời nhắc vì phần tin. */
+      if (kq && kq.enabled) {
+        try {
+          const tin = await tinChuaDoc(me, (await getRecords()).map(toTask));
+          kq.counts.chat = tin.tong;
+          kq.chat = tin.ds.slice(0, 5).map((x) => ({ id: x.id, title: x.title, n: x.n, nguoi: x.nguoi, trich: x.trich, at: x.at }));
+          kq.total += tin.tong;
+          kq.signature = kq.signature + ':' + require('crypto').createHash('sha1')
+            .update(tin.ds.map((x) => x.id + '@' + x.at + '#' + x.n).join('|')).digest('hex').slice(0, 12);
+        } catch (e) {
+          kq.counts.chat = 0; kq.chat = [];
+        }
+      }
+      return json(res, kq);
+    }
+    if (req.method === 'GET') return json(res, await botNghiemThu.preview(me));
     const body = await readBody(req);
     if (body.action === 'stop') { await botNghiemThu.stop(); return json(res, { ok: true }); }
     if (body.action !== 'demo' || !/^[a-zA-Z0-9-]{16,80}$/.test(body.requestId || '')) {
@@ -1746,7 +1825,9 @@ async function api(req, res, url) {
       const coTen = me && [...lp.owner, ...lp.requester].some((u) => u.id === me.id);
       if (!coTen && !(await requireOwnTask(res, lp, req))) return;
     } else if (!(await requireOwnTask(res, toTask(rec), req))) return;
-    return json(res, await ghiDaXem(id, !!lp, me));
+    const daGhi = await ghiDaXem(id, !!lp, me);
+    if (me) demChuaDoc.delete(me.id);     // vừa đọc: lời nhắc tin chưa đọc phải đếm lại
+    return json(res, daGhi);
   }
 
   /* ---- bình luận ---- */

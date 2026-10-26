@@ -181,6 +181,7 @@ Anh Hùng (10/10/2026): nhân sự xuất được báo cáo, nhưng **xuất đ
 - Lời nhắc kiểm tra việc (`nhac-hanh-dong.*`, viên linh vật góc dưới) theo đủ thang chung: chữ từ 12px, nút tròn, màu theo biến, mở theo `--cd-vao` 0,36s, đóng theo `--cd-ra` 0,22s. Các phần xếp hàng tự co, không đặt toạ độ cứng, để chữ không bị nút đè. Điện thoại chỉ giữ câu số liệu ("3 việc trễ hạn cần kiểm tra."), tối đa hai dòng.
 - Chữ trên lời nhắc không gọi "anh": quản lý nào cũng thấy nó.
 - Nút dẫn sang app con phải đi được cả khi app con đã mở sẵn. Lớp vỏ không nạp lại khung nên `?mo=` không được đọc lần nữa; khi đó nhắn lệnh `{ hub: 'mo', v }` sang, app con xử lý bằng `moTheoLenh()`.
+- Lời nhắc có thêm **tin Trao đổi chưa đọc** (26/10/2026): tin của người khác, mới hơn mốc "đã xem" của chính mình, trên việc còn mở mà mình phụ trách / hỗ trợ / order, trong 14 ngày. Thứ tự: việc trễ hạn → tin chưa đọc → chờ duyệt → sắp đến hạn; có cả việc trễ lẫn tin thì tin là liên kết phụ cùng dòng. Bấm là mở thẳng tab Trao đổi của việc có tin mới nhất (lệnh `{ hub: 'open', rec, mo: 'trao-doi' }`). Chỉ đọc; mở tab Trao đổi thì app tự ghi "đã xem" như cũ.
 
 ## 14. Trang nội bộ của hub cũng theo khuôn app con (26/10/2026)
 

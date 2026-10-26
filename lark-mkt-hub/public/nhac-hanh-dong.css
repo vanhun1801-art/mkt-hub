@@ -52,8 +52,8 @@ body:has(#nlPhu) .action-reminder, body:has(#modalWrap:not([hidden])) .action-re
   transition: opacity .14s var(--cd-ra, ease-in), transform .22s var(--cd-ra, ease-in);
 }
 .ar-copy b { font-size: 13.5px; font-weight: 650; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ar-copy span { font-size: 12.5px; line-height: 1.35; color: var(--chu-mo); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.has-late .ar-copy span { color: var(--do); }
+.ar-copy > span { font-size: 12.5px; line-height: 1.35; color: var(--chu-mo); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
 
 .ar-check {
   flex: 0 0 auto; height: 34px; padding: 0 14px;
@@ -81,7 +81,7 @@ body:has(#nlPhu) .action-reminder, body:has(#modalWrap:not([hidden])) .action-re
   .action-reminder.is-peeking { width: calc(100vw - 24px); height: 72px; }
   /* Điện thoại chật: bỏ câu chào, giữ đúng câu số liệu và cho xuống hai dòng. */
   .ar-copy b { display: none; }
-  .ar-copy span {
+  .ar-copy > span {
     font-size: 13.5px; font-weight: 600; white-space: normal;
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
   }
@@ -89,3 +89,16 @@ body:has(#nlPhu) .action-reminder, body:has(#modalWrap:not([hidden])) .action-re
   .ar-close { flex-basis: 44px; width: 44px; height: 44px; }
 }
 @media (prefers-reduced-motion: reduce) { .action-reminder, .action-reminder * { transition: none !important; } }
+
+/* Dòng số liệu có thể kèm liên kết phụ "· N tin nhắn chưa đọc" (26/10/2026). */
+.ar-dong { display: block; min-width: 0; font-size: 12.5px; line-height: 1.35; color: var(--chu-mo); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.has-late .ar-dong .ar-chu { color: var(--do); }
+.ar-phu { color: var(--xanh); font-weight: 600; text-decoration: none; }
+.ar-phu:hover { text-decoration: underline; }
+.ar-phu[hidden] { display: none; }
+@media (max-width: 640px) {
+  .ar-dong {
+    font-size: 13.5px; font-weight: 600; white-space: normal;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  }
+}

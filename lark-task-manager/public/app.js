@@ -6307,6 +6307,8 @@ window.addEventListener('message', (ev) => {
       try { parent.postMessage({ hub: loai, rec: d.rec }, location.origin); } catch (e) {}
     };
     const t = timViecTheoMa(d.rec);
+    /* Lời nhắc "tin nhắn chưa đọc" mở thẳng tab Trao đổi (d.mo = 'trao-doi'). */
+    if (t && d.mo === 'trao-doi') DT_TAB = 'chat';
     if (t) { openDrawer(t); bao('opened'); return; }
     // App vừa mở còn đang nạp Base -> im lặng, hub sẽ gửi lại sau 1s.
     // Chỉ khi đã có dữ liệu mà vẫn không thấy thì mới báo là ngoài phạm vi.
