@@ -1119,6 +1119,23 @@ async function napChuaDoc() {
     S.chuaDoc = new Map((d.ds || []).map((x) => [x.id, x]));
   } catch (_) { if (!S.chuaDoc) S.chuaDoc = new Map(); }
 }
+/**
+ * Thẻ có tin chưa đọc thì nháy sáng vài cái (anh Hùng 27/10/2026).
+ *
+ * Chỉ nháy khi SỐ tin đổi, không nháy mỗi lần vẽ lại: danh sách tự làm mới vài
+ * chục giây một lần, nháy theo thì cả màn hình chớp liên tục và không ai nhìn
+ * được nữa. Nhớ theo cặp "mã việc + số tin" nên tin mới tới là nháy tiếp.
+ */
+const DA_NHAY = new Set();
+function nhayTinMoi(c, t) {
+  const x = S.chuaDoc && t && S.chuaDoc.get(t.id);
+  if (!x || !x.n) return;
+  const khoa = t.id + ':' + x.n;
+  if (DA_NHAY.has(khoa)) return;
+  DA_NHAY.add(khoa);
+  c.classList.add('nhay-tin');
+}
+
 function vienTin(t) {
   const x = S.chuaDoc && t && S.chuaDoc.get(t.id);
   if (!x || !x.n) return null;
@@ -1592,10 +1609,17 @@ function theTrongNhanh(the) {
 function donDauKeoThe() {
   KEO_THE = null;
   document.body.classList.remove('dang-keo-the');
+  /* Xấp giấy mồ côi: lượt kéo trước có thể đứt mà không ai dọn (thẻ bị vẽ lại
+   * dưới chân nó, tab mất nét, trình duyệt nuốt mất pointerup). Để sót thì nó
+   * nằm đè lên màn hình và không bấm được gì nữa. */
+  document.querySelectorAll('.keo-bong:not(.bay-ve)').forEach((x) => x.remove());
   document.querySelectorAll('.wcard.dang-keo, .wcard.theo-cha, .wcard.nhan-con,'
-    + ' .wcard.chan-con, .wcard.tha-duoc, .wcard.tha-khong')
-    .forEach((x) => x.classList.remove('dang-keo', 'theo-cha', 'nhan-con',
-      'chan-con', 'tha-duoc', 'tha-khong'));
+    + ' .wcard.chan-con, .wcard.tha-duoc, .wcard.tha-khong, .wcard.nhuong-cho')
+    .forEach((x) => {
+      x.classList.remove('dang-keo', 'theo-cha', 'nhan-con', 'chan-con',
+        'tha-duoc', 'tha-khong', 'nhuong-cho');
+      delete x.dataset.nhan;
+    });
 }
 
 /**
@@ -1617,62 +1641,267 @@ function soiChoTha(theNguon) {
 }
 
 /** Gắn tay nắm kéo và chỗ thả cho một thẻ việc ngoài danh sách chính. */
+/* ==========================================================================
+   KÉO THEO NGÓN TAY (27/10/2026)
+
+   Bản đầu dùng cơ chế kéo sẵn của trình duyệt (draggable + dragstart). Nó chỉ
+   cho MỘT tấm ảnh tĩnh của MỘT thẻ bay theo con trỏ, nên kéo một việc lớn đang
+   có con thì mấy việc con chỉ mờ đi tại chỗ. Anh Hùng: "ấn kéo hiệu ứng nó
+   không thật sự cho anh cảm nhận được anh cầm cả khối việc đó kéo đi".
+
+   Nên tự làm bằng pointer events: cả xấp việc bám theo ngón tay, có độ trễ và
+   hơi nghiêng theo chiều đang kéo; chỗ sắp thả tách ra nhường một khe. Đổi lại
+   còn được hai thứ mà cơ chế cũ không có: kéo được trên điện thoại (cảm ứng
+   không bắn sự kiện kéo HTML5), và trang tự cuộn khi rê tới mép.
+   ========================================================================== */
+
+const NGUONG_KEO = 6;      // px: dưới ngưỡng này vẫn tính là một cú bấm
+let KEO = null;            // lượt kéo đang chạy
+
+/** Dựng cái xấp giấy bay theo ngón tay: thẻ đang cầm trên cùng, con thò ra sau. */
+function dungBongKeo(the, nhanh) {
+  const r = the.getBoundingClientRect();
+  const b = el('div', 'keo-bong');
+  b.style.width = r.width + 'px';
+  const lop = (x, i) => {
+    const c = x.cloneNode(true);
+    c.classList.remove('dang-keo', 'theo-cha', 'nhan-con', 'chan-con', 'tha-duoc', 'tha-khong', 'vua-mo', 'dang-cup');
+    c.classList.add('keo-lop');
+    c.style.setProperty('--i', i);
+    b.appendChild(c);
+  };
+  lop(the, 0);
+  /* Chỉ thò ra hai tờ: nhiều hơn thì cái xấp che mất danh sách bên dưới, mà
+   * người ta cũng không đếm được bằng mắt — còn lại nói bằng số. */
+  nhanh.slice(0, 2).forEach((x, i) => lop(x, i + 1));
+  if (nhanh.length > 2) {
+    b.appendChild(el('span', 'keo-them', '+' + (nhanh.length - 2) + ' việc nữa'));
+  }
+  document.body.appendChild(b);
+  return b;
+}
+
+/** Thẻ việc nằm dưới một điểm trên màn hình. Bóng không chắn vì nó không bắt chuột. */
+function theDuoiDiem(x, y) {
+  const el0 = document.elementFromPoint(x, y);
+  const the = el0 && el0.closest ? el0.closest('#lanes .wcard[data-id]') : null;
+  if (!the || the.classList.contains('dang-keo') || the.classList.contains('theo-cha')) return null;
+  const t = viecTheoMa(the.dataset.id);
+  return t ? { the, t } : null;
+}
+
+/** Mỗi khung hình: đuổi theo ngón tay, nghiêng theo chiều đi, cuộn khi tới mép. */
+function veBongKeo() {
+  const k = KEO;
+  if (!k) return;
+  /* Mỗi tờ đuổi theo tờ đứng trước nó, tờ đầu đuổi theo ngón tay. Vì vậy cả
+   * xấp trôi thành một cái đuôi chứ không phải một khối cứng dán chặt vào con
+   * trỏ (anh Hùng 27/10/2026: "các việc nhỏ không trôi theo").
+   *
+   * Hệ số đuổi để thấp và biên nghiêng hẹp: kéo nhanh mà đuổi gấp thì cái xấp
+   * giật từng nhịp — "hiệu ứng vừa phải, đừng rung quá". */
+  k.lop.forEach((l, i) => {
+    if (i === 0) {
+      /* Tờ đang cầm BÁM DÍNH ngón tay, không đuổi theo. Cho nó trễ một nhịp
+       * thì người kéo mất cảm giác cầm được thứ mình đang cầm (anh Hùng
+       * 27/10/2026: "chỉ theo thao tác của chuột hoặc cảm ứng, tạo cảm giác
+       * người dùng kiểm soát được nó"). Độ trễ chỉ dành cho mấy tờ phía sau. */
+      l.x = k.dichX;
+      l.y = k.dichY;
+    } else {
+      l.x += (k.lop[i - 1].x + 7 - l.x) * 0.26;
+      l.y += (k.lop[i - 1].y + 9 - l.y) * 0.26;
+    }
+    /* Nghiêng rất nhẹ theo quãng vừa đi. Lấy bước nhảy từng khung hình làm góc
+     * thì đó là số nhiễu và thẻ rung lập bập. */
+    const muonGoc = Math.max(-3, Math.min(3, (l.x - l.truocX) * 0.5));
+    l.truocX = l.x;
+    l.goc += (muonGoc - l.goc) * 0.14;
+    l.el.style.transform = 'translate3d(' + Math.round(l.x) + 'px,' + Math.round(l.y)
+      + 'px,0) rotate(' + l.goc.toFixed(2) + 'deg)';
+  });
+  if (k.them) {
+    const cuoi = k.lop[k.lop.length - 1];
+    k.them.style.transform = 'translate3d(' + Math.round(cuoi.x + k.rong - 110) + 'px,'
+      + Math.round(cuoi.y + k.cao - 6) + 'px,0)';
+  }
+
+  /* Rê tới sát mép thì trang tự chạy, không thì việc nằm ngoài màn hình là
+   * không bao giờ thả vào được. Càng sát mép càng nhanh. */
+  const cao = window.innerHeight;
+  const tren = k.conY - 70;
+  const duoi = k.conY - (cao - 70);
+  if (tren < 0) window.scrollBy(0, Math.max(-16, tren / 7));
+  else if (duoi > 0) window.scrollBy(0, Math.min(16, duoi / 7));
+
+  k.raf = requestAnimationFrame(veBongKeo);
+}
+
+/** Chấm lại chỗ đang nhắm tới sau mỗi lần ngón tay nhúc nhích. */
+function nhamChoTha() {
+  const k = KEO;
+  const moi = theDuoiDiem(k.conX, k.conY);
+  if (moi && k.dich && moi.the === k.dich.the) return;
+  if (k.dich) {
+    k.dich.the.classList.remove('nhan-con', 'chan-con');
+    delete k.dich.the.dataset.nhan;
+  }
+  dongKhe();
+  k.dich = moi;
+  if (!moi) return;
+  const ok = nhanConDuoc(moi.t, k.t);
+  moi.the.dataset.nhan = ok ? 'Thả vào đây' : viSaoKhongNhan(moi.t, k.t);
+  moi.the.classList.toggle('nhan-con', ok);
+  moi.the.classList.toggle('chan-con', !ok);
+  /* Khe chỉ mở khi ngón tay DỪNG lại trên một thẻ. Mở ngay thì lướt qua năm
+   * thẻ là năm lần cả danh sách nhấp nhô — anh Hùng 27/10/2026: "kéo đang
+   * nhảy lung tung". Dừng lại nhắm mới là lúc cần thấy chỗ việc sẽ rơi vào. */
+  if (!ok) return;
+  k.hen = setTimeout(() => {
+    if (!KEO || KEO.dich !== moi) return;
+    const sau = moi.the.nextElementSibling;
+    if (sau && sau.classList.contains('wcard')) sau.classList.add('nhuong-cho');
+  }, 160);
+}
+
+/** Đóng cái khe đang mở (nếu có) và huỷ hẹn mở khe còn treo. */
+function dongKhe() {
+  const k = KEO;
+  if (!k) return;
+  clearTimeout(k.hen);
+  if (k.dich) {
+    const sau = k.dich.the.nextElementSibling;
+    if (sau) sau.classList.remove('nhuong-cho');
+  }
+}
+
+/** Đưa cái xấp về một chỗ rồi dẹp nó đi. */
+function hangCanhBong(k, toi, mo) {
+  const b = k.bong;
+  /* Đánh dấu đang bay về: donDauKeoThe() chạy ngay sau đây và nó dọn mọi xấp
+   * còn sót — không chừa cái này ra thì hiệu ứng bay về bị cắt đứt. */
+  b.classList.add('bay-ve');
+  if (k.them) k.them.style.opacity = '0';
+  /* Cả xấp khép lại thành một chồng rồi mới về đích: từng tờ bay mỗi nơi một
+   * kiểu thì nhìn như rơi vãi. */
+  k.lop.forEach((l, i) => {
+    l.el.style.transition = 'transform .22s cubic-bezier(.2,.7,.3,1), opacity .22s ease';
+    l.el.style.transform = 'translate3d(' + Math.round(toi.x + i * 3) + 'px,'
+      + Math.round(toi.y + i * 4) + 'px,0) rotate(0deg)';
+    if (mo) l.el.style.opacity = '0';
+  });
+  setTimeout(() => b.remove(), 240);
+}
+
+function ketThucKeo(thaThat) {
+  const k = KEO;
+  if (!k) return;
+  clearTimeout(k.hen);
+  KEO = null;
+  cancelAnimationFrame(k.raf);
+  document.removeEventListener('keydown', k.phim, true);
+  const dich = k.dich;
+  const nhan = thaThat && dich && nhanConDuoc(dich.t, k.t);
+  if (nhan) {
+    const r = dich.the.getBoundingClientRect();
+    hangCanhBong(k, { x: r.left + 18, y: r.bottom - 6 }, true);
+  } else {
+    /* Không thả được thì cái xấp bay về đúng chỗ nó đứng — người kéo thấy ngay
+     * là không có gì thay đổi, không phải đi tìm xem việc mình vừa cầm đâu rồi. */
+    const r = k.the.getBoundingClientRect();
+    hangCanhBong(k, { x: r.left, y: r.top }, false);
+  }
+  donDauKeoThe();
+  if (nhan) gomVaoViec(dich.t, k.t);
+  /* gomVaoViec() tự vẽ lại; không thả được thì phải tự trả nợ những lượt làm
+   * mới đã bị hoãn trong lúc kéo. */
+  else if (k.noVe) render();
+}
+
+/** Gắn tay nắm kéo và chỗ thả cho một thẻ việc ngoài danh sách chính. */
 function ganKeoThe(c, t) {
-  if (!keoGomDuoc()) return;
-
-  /* Mọi thẻ đều là chỗ thả, kể cả thẻ không nhấc đi được: một việc lớn đang
-   * có con chính là chỗ hay được thả vào nhất. */
-  c.ondragover = (e) => {
-    if (!KEO_THE || KEO_THE.id === t.id) return;
-    const ok = nhanConDuoc(t, KEO_THE);
-    e.preventDefault();
-    e.dataTransfer.dropEffect = ok ? 'move' : 'none';
-    c.dataset.nhan = ok ? 'Thả vào đây' : viSaoKhongNhan(t, KEO_THE);
-    c.classList.toggle('nhan-con', ok);
-    c.classList.toggle('chan-con', !ok);
-  };
-  /* dragleave bắn cả khi con trỏ đi qua chữ bên trong thẻ — bỏ qua những lần đó,
-   * không thì viền nhấp nháy theo từng chữ. */
-  c.ondragleave = (e) => {
-    if (e.relatedTarget && c.contains(e.relatedTarget)) return;
-    c.classList.remove('nhan-con', 'chan-con');
-  };
-  c.ondrop = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const con = KEO_THE;
-    c.classList.remove('nhan-con', 'chan-con');
-    if (!con || !nhanConDuoc(t, con)) return;
-    donDauKeoThe();
-    gomVaoViec(t, con);
-  };
-
-  if (!nhacDiDuoc(t)) return;
+  if (!keoGomDuoc() || !nhacDiDuoc(t)) return;
 
   const nam = el('span', 'wc-nam');
   nam.title = 'Kéo thả vào một việc khác để gom vào việc đó';
   nam.setAttribute('aria-hidden', 'true');
-  nam.draggable = true;
   nam.onclick = (e) => { e.stopPropagation(); e.preventDefault(); };
-  nam.ondragstart = (e) => {
+
+  nam.onpointerdown = (e) => {
+    if (e.button != null && e.button !== 0) return;     // chuột phải, chuột giữa
     e.stopPropagation();
-    donDauKeoThe();
-    KEO_THE = t;
-    c.classList.add('dang-keo');
-    document.body.classList.add('dang-keo-the');
-    try { e.dataTransfer.setData('text/plain', t.id); } catch (_) {}
-    e.dataTransfer.effectAllowed = 'move';
-    /* Ảnh kéo là cả THẺ chứ không phải mỗi tay nắm — kéo một dấu sáu chấm bé tí
-     * thì không biết mình đang mang cái gì đi. */
-    try { e.dataTransfer.setDragImage(c, 24, 22); } catch (_) {}
-    /* Đang mang theo cả nhánh thì nói ra bằng số, vì ảnh kéo chỉ vẽ được một
-     * thẻ: "kèm 3 việc con" đứng ngay dưới con trỏ suốt lượt kéo. */
-    const nhanh = theTrongNhanh(c);
-    c.dataset.mang = nhanh.length ? 'kèm ' + nhanh.length + ' việc con' : '';
-    soiChoTha(c);
+    e.preventDefault();
+    const r = c.getBoundingClientRect();
+    const dat = {
+      t, the: c, con: e.pointerId,
+      x0: e.clientX, y0: e.clientY,
+      lech: { x: r.left - e.clientX, y: r.top - e.clientY },
+      chay: false,
+    };
+    try { nam.setPointerCapture(e.pointerId); } catch (_) {}
+
+    const di = (ev) => {
+      if (ev.pointerId !== dat.con) return;
+      if (!dat.chay) {
+        if (Math.abs(ev.clientX - dat.x0) + Math.abs(ev.clientY - dat.y0) < NGUONG_KEO) return;
+        if (!batDauKeo(dat)) return;
+      }
+      KEO.conX = ev.clientX;
+      KEO.conY = ev.clientY;
+      KEO.dichX = ev.clientX + KEO.lech.x;
+      KEO.dichY = ev.clientY + KEO.lech.y;
+      nhamChoTha();
+    };
+    const xong = (ev) => {
+      if (ev.pointerId !== dat.con) return;
+      nam.removeEventListener('pointermove', di);
+      nam.removeEventListener('pointerup', xong);
+      nam.removeEventListener('pointercancel', huy);
+      if (dat.chay) ketThucKeo(ev.type === 'pointerup');
+    };
+    const huy = xong;
+    nam.addEventListener('pointermove', di);
+    nam.addEventListener('pointerup', xong);
+    nam.addEventListener('pointercancel', huy);
   };
-  nam.ondragend = donDauKeoThe;
+
   c.insertBefore(nam, c.firstChild);
+}
+
+/** Ngón tay đã đi quá ngưỡng: nhấc cả nhánh lên. */
+function batDauKeo(dat) {
+  /* Thẻ có thể đã bị vẽ lại dưới chân mình giữa lúc bấm xuống và lúc ngón tay
+   * đi quá ngưỡng. Thẻ mồ côi thì mọi số đo của nó bằng 0 và cái xấp dựng ra
+   * sẽ rỗng không — thà bỏ lượt kéo. */
+  if (!dat.the.isConnected || !dat.the.getBoundingClientRect().width) return false;
+  donDauKeoThe();
+  const nhanh = theTrongNhanh(dat.the);
+  dat.chay = true;
+  KEO_THE = dat.t;
+  const o = dat.the.getBoundingClientRect();
+  const bong = dungBongKeo(dat.the, nhanh);
+  const x0 = dat.x0 + dat.lech.x, y0 = dat.y0 + dat.lech.y;
+  KEO = Object.assign({}, dat, {
+    nhanh, bong,
+    rong: o.width, cao: o.height,
+    /* Mỗi tờ giữ vị trí riêng: cả xấp khởi hành từ đúng chỗ thẻ đang nằm rồi
+     * mới tản ra thành đuôi, chứ không nhảy phịch ra giữa màn hình. */
+    lop: [...bong.querySelectorAll('.keo-lop')].map((e2) => ({ el: e2, x: x0, y: y0, truocX: x0, goc: 0 })),
+    them: bong.querySelector('.keo-them'),
+    dichX: x0, dichY: y0,
+    conX: dat.x0, conY: dat.y0, dich: null,
+  });
+  dat.the.classList.add('dang-keo');
+  document.body.classList.add('dang-keo-the');
+  /* Escape bỏ lượt kéo: đang cầm một nhánh mà đổi ý thì phải có đường lùi. */
+  /* Đặt chỗ ngay, đừng chờ khung hình đầu tiên: chưa có transform thì cả xấp
+   * nằm ở góc trên bên trái màn hình, và người kéo thấy nó nhoáng một cái. */
+  KEO.lop.forEach((l) => { l.el.style.transform = 'translate3d(' + Math.round(x0) + 'px,' + Math.round(y0) + 'px,0)'; });
+  KEO.phim = (ev) => { if (ev.key === 'Escape') { ev.preventDefault(); ketThucKeo(false); } };
+  document.addEventListener('keydown', KEO.phim, true);
+  soiChoTha(dat.the);
+  KEO.raf = requestAnimationFrame(veBongKeo);
+  return true;
 }
 
 /**
@@ -1959,6 +2188,7 @@ function workCard(t, lane) {
     else if (d <= 3) c.classList.add('soon');
   }
 
+  nhayTinMoi(c, t);
   const main = el('div', 'wcard-main');
   main.appendChild(veTen('div', 'wcard-title', t));
 
@@ -6227,6 +6457,10 @@ function renderOrders() {
 
 /* =======================  render root  ======================= */
 function render() {
+  /* Đang cầm một nhánh trên tay thì chưa vẽ lại: vẽ lại là thay sạch thẻ dưới
+   * con trỏ, lượt kéo đứt giữa chừng và cái xấp kẹt lại trên màn hình. Lượt
+   * làm mới tự động nào rơi vào đây thì ghi nợ, thả tay xong vẽ bù. */
+  if (KEO) { KEO.noVe = true; return; }
   veKhoiTinChuaDoc();
   const isDash = S.view === 'dash';
   const isWork = S.view === 'work';

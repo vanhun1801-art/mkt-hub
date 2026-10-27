@@ -2598,13 +2598,58 @@ body.dang-keo-the .wcard-title { cursor: inherit; }
 .wcard.tha-khong { opacity: .4; }
 /* Nhánh đi theo thẻ đang kéo: mờ như nó, vì nó cũng đang được mang đi. */
 .wcard.theo-cha { opacity: .4; }
-.wcard.dang-keo::after {
-  content: attr(data-mang); position: absolute; right: 10px; bottom: 7px;
-  font-size: 12px; font-weight: 600; line-height: 1.5;
-  padding: 1px 9px; border-radius: 999px; pointer-events: none;
-  background: var(--surface-3); color: var(--text-2);
+/* ---- Cái xấp việc bay theo ngón tay (27/10/2026) ----
+   Cơ chế kéo của trình duyệt chỉ cho một ảnh tĩnh của một thẻ, nên phần này tự
+   làm: thẻ đang cầm trên cùng, việc con thò ra phía sau như một xấp giấy. */
+.keo-bong {
+  position: fixed; top: 0; left: 0; z-index: 90;
+  pointer-events: none; will-change: transform;
 }
-.wcard.dang-keo[data-mang=""]::after { content: none; }
+/* Vị trí từng tờ do veBongKeo() đặt mỗi khung hình — tờ sau đuổi theo tờ trước
+   nên cả xấp trôi thành một cái đuôi. CSS chỉ lo hình dáng và thứ tự chồng. */
+.keo-bong .keo-lop {
+  position: absolute; top: 0; left: 0; width: 100%;
+  /* Tắt hiệu ứng trượt mà .wcard thường có: bản sao thừa hưởng nó thì mỗi
+     khung hình trình duyệt lại nội suy thêm một lần nữa chồng lên chỗ mình
+     vừa đặt — cái xấp trôi lờ đờ sau con trỏ, và lần đầu nó trượt từ góc trên
+     màn hình xuống (anh Hùng 27/10/2026: "bay từ trên màn hình bay xuống"). */
+  transition: none;
+  border-bottom: 0; border-radius: var(--r-md, 10px);
+  background: var(--surface); box-shadow: 0 12px 28px rgba(0, 0, 0, .3);
+  z-index: calc(9 - var(--i));
+  opacity: calc(1 - var(--i) * .22);
+}
+.keo-bong .keo-lop .wcard-actions, .keo-bong .keo-lop .wc-nam { visibility: hidden; }
+.keo-bong .keo-them {
+  position: absolute; top: 0; left: 0; z-index: 10;
+  font-size: 12px; font-weight: 600; line-height: 1.5;
+  padding: 1px 9px; border-radius: 999px;
+  background: var(--surface-3); color: var(--text-2);
+  transition: opacity .18s ease;
+}
+/* Chỗ sắp nhận mở ra một khe: việc con sẽ nằm đúng chỗ đó. Khe chỉ mở khi
+   ngón tay dừng lại nhắm (xem nhamChoTha), không mở khi lướt ngang qua. */
+.wcard.nhuong-cho { transform: translateY(8px); }
+.wcard { transition: background .12s, transform var(--cd-truot, .22s ease); }
+@media (prefers-reduced-motion: reduce) {
+  .wcard.nhuong-cho { transform: none; }
+}
+/* ---- Thẻ có tin chưa đọc nháy sáng vài cái (27/10/2026) ----
+   Ba nhịp rồi thôi: nháy mãi thì thành đèn báo động, nhìn một lúc là hết thấy. */
+@keyframes wc-nhay {
+  0%, 100% { background: var(--surface); box-shadow: inset 2px 0 0 0 transparent; }
+  50%      { background: var(--blue-bg); box-shadow: inset 2px 0 0 0 var(--blue); }
+}
+.wcard.nhay-tin { animation: wc-nhay .62s ease-in-out 3; }
+@media (prefers-reduced-motion: reduce) {
+  /* Không nháy, nhưng vẫn phải phân biệt được — giữ nguyên vệt xanh bên trái. */
+  .wcard.nhay-tin { animation: none; box-shadow: inset 2px 0 0 0 var(--blue); }
+}
+
+/* Đang kéo thì không cho chọn chữ, kéo qua đoạn mô tả là bôi đen cả trang. */
+body.dang-keo-the { user-select: none; -webkit-user-select: none; }
+/* Tay nắm phải nuốt cú chạm, không thì ngón tay kéo làm cuộn trang. */
+.wc-nam { touch-action: none; }
 .wc-gap.trong { cursor: default; pointer-events: none; }
 /* Đang kéo thì không cho bấm gấp: nhánh biến mất giữa chừng là mất chỗ thả. */
 body.dang-keo-the .wc-gap { pointer-events: none; }

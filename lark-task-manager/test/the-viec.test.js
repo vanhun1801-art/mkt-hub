@@ -82,16 +82,49 @@ test('theTrongNhanh đọc đúng nhánh nằm dưới một thẻ', () => {
   assert.ok(!theTrongNhanh(the[0]).includes(the[3]), 'nhánh dừng ở thẻ gốc kế tiếp');
 });
 
-test('kéo việc lớn thì nhánh mờ theo và nói rõ mang bao nhiêu việc', () => {
-  const k = layHam('ganKeoThe');
-  assert.ok(/theTrongNhanh\(c\)/.test(k), 'lúc nhấc lên phải biết nhánh gồm những gì');
-  assert.ok(/việc con/.test(k) && /dataset\.mang/.test(k),
-    'ảnh kéo chỉ vẽ được một thẻ nên phải nói bằng chữ là còn mang theo mấy việc');
-  assert.ok(/\.wcard\.theo-cha \{ opacity/.test(CSS), 'nhánh đi theo phải mờ như thẻ đang kéo');
-  const d = layHam('donDauKeoThe');
-  for (const lop of ['theo-cha', 'tha-duoc', 'tha-khong']) {
-    assert.ok(d.includes(lop), 'dọn xong phải sạch lớp ' + lop + ', không thì lượt kéo sau dính lại');
+test('kéo việc lớn thì cầm cả xấp, không phải một tờ', () => {
+  const b = layHam('batDauKeo');
+  assert.ok(/theTrongNhanh\(dat\.the\)/.test(b), 'lúc nhấc lên phải biết nhánh gồm những gì');
+  assert.ok(/dungBongKeo\(dat\.the, nhanh\)/.test(b), 'cả nhánh phải đi vào cái xấp bay theo ngón tay');
+  const d = layHam('dungBongKeo');
+  assert.ok(/nhanh\.slice\(0, 2\)/.test(d), 'thò ra hai tờ, nhiều hơn thì che mất danh sách');
+  assert.ok(/việc nữa/.test(d), 'quá hai việc con thì phần còn lại nói bằng số');
+  /* Tờ sau đuổi theo tờ trước nên cả xấp trôi thành cái đuôi, chứ không dán
+   * cứng vào con trỏ — anh Hùng: "các việc nhỏ không trôi theo". */
+  const v = layHam('veBongKeo');
+  assert.ok(/k\.lop\.forEach/.test(v), 'mỗi tờ phải có đường đi riêng');
+  /* Tờ đang cầm bám DÍNH con trỏ: trễ một nhịp là mất cảm giác kiểm soát. */
+  assert.ok(/l\.x = k\.dichX;/.test(v) && /l\.y = k\.dichY;/.test(v),
+    'tờ đầu phải đặt thẳng vào chỗ con trỏ, không được đuổi theo');
+  assert.ok(/k\.lop\[i - 1\]\.x \+ 7 - l\.x\) \* 0\.26/.test(v),
+    'chỉ mấy tờ phía sau mới đuổi, để thành cái đuôi');
+  assert.ok(/Math\.max\(-3, Math\.min\(3,/.test(v), 'biên nghiêng 3 độ, vừa phải');
+  assert.ok(/\.keo-bong \.keo-lop \{[^}]*transition: none/.test(CSS),
+    'bản sao không được thừa hưởng hiệu ứng trượt của .wcard — thừa hưởng thì nó trôi lờ đờ sau con trỏ và lần đầu trượt từ góc màn hình xuống');
+  assert.ok(/KEO\.lop\.forEach\(\(l\) => \{ l\.el\.style\.transform/.test(layHam('batDauKeo')),
+    'phải đặt chỗ ngay, không thì khung đầu tiên cả xấp nằm ở góc trên bên trái');
+  assert.ok(/\.wcard\.theo-cha \{ opacity/.test(CSS), 'chỗ cũ của nhánh mờ đi, giữ chỗ');
+  const dd = layHam('donDauKeoThe');
+  for (const lop of ['theo-cha', 'tha-duoc', 'tha-khong', 'nhuong-cho']) {
+    assert.ok(dd.includes(lop), 'dọn xong phải sạch lớp ' + lop + ', không thì lượt kéo sau dính lại');
   }
+});
+
+test('kéo bằng ngón tay: có ngưỡng, có đường lùi, có tự cuộn', () => {
+  const g = layHam('ganKeoThe');
+  assert.ok(/onpointerdown/.test(g), 'phải dùng pointer events — cảm ứng không bắn sự kiện kéo HTML5');
+  assert.ok(!/draggable/.test(g) && !/dataTransfer/.test(g), 'không còn dựa vào cơ chế kéo của trình duyệt');
+  assert.ok(/NGUONG_KEO/.test(g), 'chưa quá ngưỡng thì vẫn là một cú bấm, không phải cú kéo');
+  assert.ok(/setPointerCapture/.test(g), 'bắt con trỏ, không thì rê nhanh là tuột');
+  const b = layHam('batDauKeo');
+  assert.ok(/Escape/.test(b), 'đang cầm một nhánh mà đổi ý thì phải có đường lùi');
+  const v = layHam('veBongKeo');
+  assert.ok(/window\.scrollBy/.test(v), 'rê tới mép thì trang tự chạy');
+  assert.ok(/rotate\(/.test(v), 'nghiêng theo chiều đang kéo');
+  assert.ok(/\.wc-nam \{ touch-action: none/.test(CSS),
+    'tay nắm phải nuốt cú chạm, không thì ngón tay kéo làm cuộn trang');
+  /* Thả hụt thì cái xấp phải bay về chỗ cũ, không được biến mất tại chỗ. */
+  assert.ok(/hangCanhBong\(k, \{ x: r\.left, y: r\.top \}, false\)/.test(layHam('ketThucKeo')));
 });
 
 /* ---- 4. thu gọn có chuyển động ---- */
@@ -118,8 +151,19 @@ test('vừa nhấc thẻ lên là chấm sẵn thả vào đâu được', () =>
     'phải hỏi đúng cái luật mà lúc thả sẽ hỏi, không được đoán kiểu khác');
   assert.ok(/tha-duoc/.test(s) && /tha-khong/.test(s));
   assert.ok(/theo-cha/.test(s), 'nhánh đang mang đi thì không phải chỗ thả');
-  assert.ok(/soiChoTha\(c\)/.test(layHam('ganKeoThe')), 'phải gọi lúc bắt đầu kéo');
+  assert.ok(/soiChoTha\(dat\.the\)/.test(layHam('batDauKeo')), 'phải gọi lúc bắt đầu kéo');
   assert.ok(/\.wcard\.tha-khong \{ opacity/.test(CSS), 'chỗ không nhận thì lùi lại');
+  /* Chỗ đang nhắm tới mở một khe, và chỉ mở khi nó thật sự nhận. */
+  const n = layHam('nhamChoTha');
+  assert.ok(/nhanConDuoc\(moi\.t, k\.t\)/.test(n), 'hỏi đúng cái luật lúc thả sẽ hỏi');
+  assert.ok(/if \(!ok\) return;/.test(n), 'không nhận thì không mở khe, đỡ hứa hão');
+  /* Khe mở trễ: mở ngay thì lướt qua năm thẻ là năm lần danh sách nhấp nhô. */
+  assert.ok(/setTimeout\(\(\) => \{[\s\S]*nhuong-cho[\s\S]*\}, 160\)/.test(n),
+    'khe chỉ mở khi ngón tay dừng lại nhắm');
+  assert.ok(/KEO\.dich !== moi\) return/.test(n), 'đổi đích trước khi hết hẹn thì bỏ, không mở nhầm chỗ');
+  assert.ok(/clearTimeout\(k\.hen\)/.test(layHam('dongKhe')) && /clearTimeout\(k\.hen\)/.test(layHam('ketThucKeo')),
+    'hẹn mở khe phải huỷ được, không thì khe bật ra sau khi đã thả xong');
+  assert.ok(/\.wcard\.nhuong-cho \{ transform: translateY/.test(CSS));
 });
 
 /* ---- 6. bỏ nút Yêu cầu điều chỉnh khỏi thẻ ---- */
@@ -132,4 +176,30 @@ test('thẻ ngoài danh sách không còn nút Yêu cầu điều chỉnh', () =
   /* Câu chỉ đường ở đầu làn phải chỉ tới chỗ nút đang đứng thật. */
   const hint = SRC.match(/hint: 'Đọc kỹ yêu cầu[^']*'/)[0];
   assert.ok(/mở việc ra/.test(hint), 'câu gợi ý không được chỉ tới một nút không còn trên thẻ');
+});
+
+/* ---- 7. thẻ có tin chưa đọc nháy sáng (27/10/2026) ---- */
+test('tin chưa đọc thì thẻ nháy vài cái, và chỉ nháy khi số tin đổi', () => {
+  const ma = [layHam('nhayTinMoi'), 'return nhayTinMoi;'].join('\n');
+  const lop = [];
+  const the = { classList: { add: (x) => lop.push(x) } };
+  const S = { chuaDoc: new Map([['v1', { n: 2 }], ['v2', { n: 0 }]]) };
+  const nhay = new Function('S', 'DA_NHAY', ma)(S, new Set());
+
+  nhay(the, { id: 'v1' });
+  assert.deepStrictEqual(lop, ['nhay-tin'], 'có tin chưa đọc thì nháy');
+  nhay(the, { id: 'v1' });
+  assert.strictEqual(lop.length, 1, 'vẽ lại mà số tin không đổi thì thôi, không nháy nữa');
+  S.chuaDoc.set('v1', { n: 3 });
+  nhay(the, { id: 'v1' });
+  assert.strictEqual(lop.length, 2, 'thêm tin mới thì nháy tiếp');
+  nhay(the, { id: 'v2' });
+  nhay(the, { id: 'v3' });
+  assert.strictEqual(lop.length, 2, 'không có tin chưa đọc thì không nháy');
+
+  assert.ok(/nhayTinMoi\(c, t\)/.test(layHam('workCard')), 'phải gắn vào thẻ');
+  assert.ok(/\.wcard\.nhay-tin \{ animation: wc-nhay [^;]*3; \}/.test(CSS),
+    'ba nhịp rồi thôi — nháy mãi thì thành đèn báo động');
+  assert.ok(/reduce\) \{\s*\/\*[^*]*\*\/\s*\.wcard\.nhay-tin \{ animation: none; box-shadow/.test(CSS),
+    'xin bớt chuyển động thì không nháy, nhưng vẫn phải phân biệt được');
 });
