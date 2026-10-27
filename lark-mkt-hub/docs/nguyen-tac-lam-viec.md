@@ -215,3 +215,19 @@ Anh Hùng: "anh muốn lôi các công việc con đó vào một công việc l
 - **Máy chủ là nơi chặn thật.** Base không canh gì cả — ô `Parent items` ghi gì vào cũng được, kể cả vòng tròn A→B→A. `canhDoiCha()` canh: tự làm cha của mình, vòng tròn, quá 3 cấp (tính cả độ dày của nhánh đang bị nhấc đi), việc liên phòng, và quyền xem việc lớn đích. Giao diện chỉ *chiếu* bộ luật đó để viền không mọc sai chỗ.
 - **Mũi tên đầu tên việc con vẽ theo cấp**: một mũi tên ↳ cho cấp 2, hai mũi tên ↳↳ cho cấp 3. Nhìn đầu dòng là biết đang ở sâu bao nhiêu.
 - **Thứ tự người kéo tay cất ở `lark-task-manager/thu-tu-con.json`** trên máy chủ (đã gitignore vì là dữ liệu chạy). Bảng Công việc còn đúng 24 cột, không có cột số nào rảnh. Thứ tự chỉ sống qua deploy khi **gắn đĩa cho Render** hoặc **thêm một cột "Thứ tự" vào Base** — chưa chốt. Mọi lối vào đi qua `doc()`/`ghi()` trong `thu-tu-con.js`, đổi chỗ cất chỉ phải sửa hai hàm đó.
+
+## 17. Cây việc trong danh sách, và cái thẻ việc (27/10/2026)
+
+Anh Hùng: "cần chỉnh đầu tiên là cách sắp xếp, sau đó cho phép thu gọn task lớn lại dễ nhìn", rồi sáu điều chốt tiếp cho thẻ việc.
+
+- **Việc con nằm liền dưới việc lớn, không rải theo hạn.** Danh sách chính dựng thành cây (`xepCay()` trong `public/app.js`): các việc gốc vẫn xếp theo thứ tự cũ — quá hạn trước, rồi hạn gần, rồi ưu tiên — còn con nằm ngay dưới cha theo thứ tự người kéo tay. Thẻ con thụt vào theo cấp.
+- **Con ngồi theo cha kể cả khi khác cột trạng thái**, và lúc đó mang thêm một nhãn ghi làn thật của nó ("Đang tiến hành" chẳng hạn). Anh Hùng chọn cách này để nhìn được trọn cây, chấp nhận việc số trên 5 thẻ đếm đầu trang đếm theo trạng thái thật nên có thể lệch với số thẻ nhìn thấy trong một làn. Số ngay trên đầu làn vẫn đúng bằng số thẻ trong làn đó.
+- **Việc lớn không hiện ra thì con tự đứng làm gốc** — cha của người khác, cha bị hủy, hay cha bị bộ lọc cắt đi. Nhờ vậy bấm một thẻ đếm để lọc thì danh sách tự trở về phẳng, không kéo theo những việc không khớp bộ lọc.
+- **Vòng tròn cha–con phải vẽ ra được.** Base không canh nên A→B→A là dữ liệu ghi được thật. `theGoc()` và `xepCay()` đều có chặn vòng, và vòng vét cuối `xepCay()` bảo đảm không việc nào biến mất khỏi màn hình mà không ai biết vì sao.
+- **Thu gọn nhớ theo từng việc lớn**, cất ở `localStorage` khoá `tracking.gapViec`. Gấp thì cả nhánh cụp lên rồi mới vẽ lại (`--cd-ra`, 0,22s); mở thì nhánh trượt xuống lệch nhau 40ms một thẻ (`--cd-vao`). Mũi tên **xoay** chứ không đổi ký tự — đổi ký tự thì nó nhảy. Máy xin bớt chuyển động thì làm ngay, không chờ hiệu ứng.
+- **Bấm vào đâu trên thẻ cũng mở chi tiết**, không bắt nhắm đúng dòng tiêu đề. Nút, ô nhập và tay nắm kéo giữ việc của mình.
+- **Việc con cũng chia nhỏ thêm được** tới trần 3 cấp. Hàng "Thuộc việc lớn" và khối "Việc con" là hai hàm riêng (`hangViecLon()` và `khoiViecCon()`); gộp làm một thì hàm thoát ngay sau hàng đầu và việc con không bao giờ có ô "Thêm việc con".
+- **Kéo việc lớn thì cả nhánh đi theo, và phải nhìn thấy là nó đi theo.** Nhánh mờ đi cùng thẻ đang kéo, và thẻ ghi "kèm 3 việc con" — ảnh kéo của trình duyệt chỉ vẽ được một thẻ nên phải nói bằng chữ.
+- **Vừa nhấc thẻ lên là biết thả vào đâu được.** `soiChoTha()` chấm trước mọi thẻ: chỗ nhận được sáng lên với vệt xanh bên trái, chỗ không nhận lùi lại còn 40% đậm. Nó hỏi đúng `nhanConDuoc()` mà lúc thả sẽ hỏi, không được đoán kiểu khác.
+- **Ngoài danh sách, mỗi thẻ chỉ còn một nút** — việc cần làm tiếp theo. "Yêu cầu điều chỉnh" đã rời khỏi thẻ, vẫn nằm trong ô chi tiết, chỗ người ta đọc kỹ rồi mới xin đổi. Câu chỉ đường ở đầu làn phải chỉ tới chỗ nút đang đứng thật.
+- **Khổ hẹp (từ 980px) thẻ xếp dọc**, nên nút thu gọn và tay nắm kéo neo tuyệt đối vào góc trái; để mặc thì mỗi cái chiếm trọn một dòng phía trên tên việc. Trên điện thoại nút thu gọn nới vùng bấm lên 40px bằng một ô vô hình, không nới chỗ nó chiếm.

@@ -453,6 +453,9 @@ body { display: flex; flex-direction: column; overflow: hidden; }
   transition: background .12s;
 }
 .wcard:last-child { border-bottom: 0; }
+/* Cả thẻ là chỗ bấm mở chi tiết (27/10/2026), không riêng dòng tiêu đề. */
+.wcard { cursor: pointer; }
+.wcard-actions { cursor: default; }
 .wcard:hover { background: var(--surface-2); }
 .lane-l-done .wcard-title { color: var(--text-2); }
 .wcard.late { border-left-color: var(--red); }
@@ -2553,6 +2556,62 @@ body.dang-keo-the .wcard-title { cursor: inherit; }
 .wcard.chan-con::after { background: var(--red); }
 .lanes-mach { font-size: 12px; color: var(--text-3); margin: 0 0 10px; }
 
+/* ---- Cây việc trong danh sách + thu gọn việc lớn (27/10/2026) ----
+   Việc con thụt vào theo cấp. Không kẻ vạch dọc: mũi tên ↳ trước tên đã nói rõ
+   đây là việc con, thêm vạch nữa thì làn bắt đầu rối. */
+.wcard-con.cap-2 { padding-left: 38px; }
+.wcard-con.cap-3 { padding-left: 60px; }
+.wc-gap {
+  flex: 0 0 auto; width: 20px; height: 20px; padding: 0; margin-top: -1px;
+  font: inherit; font-size: 13px; line-height: 20px; text-align: center;
+  background: none; border: 0; border-radius: var(--r-sm);
+  color: var(--text-2); cursor: pointer;
+  transition: color .12s, background var(--cd-deu, .16s ease);
+}
+.wc-gap:hover { color: var(--text); background: var(--surface-3); }
+/* Đang gấp thì mũi tên đậm hơn: dưới nó còn việc mà không ai nhìn thấy. */
+.wc-gap[aria-expanded="false"] { color: var(--blue-text); }
+/* Mũi tên xoay chứ không đổi ký tự — đổi ký tự thì nó nhảy, xoay thì nó kể
+   được chuyện vừa mở hay vừa đóng. */
+.wc-gap > span { display: block; transition: transform var(--cd-truot, .22s ease); }
+.wc-gap.cup > span { transform: rotate(-90deg); }
+
+/* Nhánh trượt ra khi mở, cụp lên khi đóng. Đóng nhanh hơn mở, đúng nhịp Hub. */
+@keyframes wc-xoe {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes wc-cup {
+  from { opacity: 1; max-height: 220px; }
+  to   { opacity: 0; max-height: 0; padding-top: 0; padding-bottom: 0; border-bottom-width: 0; }
+}
+.wcard.vua-mo { animation: wc-xoe var(--cd-vao, .3s) ease both; animation-delay: var(--tre, 0ms); }
+.wcard.dang-cup { overflow: hidden; animation: wc-cup var(--cd-ra, .22s) ease both; }
+@media (prefers-reduced-motion: reduce) {
+  .wcard.vua-mo, .wcard.dang-cup { animation: none; }
+  .wc-gap > span { transition: none; }
+}
+
+/* Vừa nhấc thẻ lên là thấy ngay thả vào đâu được: chỗ nhận sáng lên, chỗ không
+   nhận lùi lại. Trước đây phải rê qua từng thẻ mới biết. */
+.wcard.tha-duoc { background: var(--surface-2); box-shadow: inset 2px 0 0 0 var(--blue); }
+.wcard.tha-khong { opacity: .4; }
+/* Nhánh đi theo thẻ đang kéo: mờ như nó, vì nó cũng đang được mang đi. */
+.wcard.theo-cha { opacity: .4; }
+.wcard.dang-keo::after {
+  content: attr(data-mang); position: absolute; right: 10px; bottom: 7px;
+  font-size: 12px; font-weight: 600; line-height: 1.5;
+  padding: 1px 9px; border-radius: 999px; pointer-events: none;
+  background: var(--surface-3); color: var(--text-2);
+}
+.wcard.dang-keo[data-mang=""]::after { content: none; }
+.wc-gap.trong { cursor: default; pointer-events: none; }
+/* Đang kéo thì không cho bấm gấp: nhánh biến mất giữa chừng là mất chỗ thả. */
+body.dang-keo-the .wc-gap { pointer-events: none; }
+
+/* Làn thật của một việc con đang ngồi nhờ làn của việc lớn. */
+.tag-lan { background: var(--blue-bg); color: var(--blue-text); }
+
 .vc-cha-boc { display: flex; align-items: stretch; gap: 6px; }
 .vc-cha-boc > .vc-cha { flex: 1; min-width: 0; }
 .vc-doi-cha {
@@ -2682,3 +2741,32 @@ html:not(#_):not(#__):not(#___) .kh-than .vc-them input {
 .tcd-trich { font-size: 13px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tcd-mo { flex: 0 0 auto; font-size: 13px; font-weight: 600; color: var(--blue-text); }
 @media (max-width: 640px) { .tcd-mo { display: none; } }
+
+/* Khổ hẹp: thẻ xếp dọc (.wcard thành cột từ 980px), nên nút thu gọn và tay nắm
+   kéo phải neo vào góc trái — để mặc thì mỗi cái chiếm trọn một dòng phía trên
+   tên việc, nhìn như hai ô trống. Thẻ chừa lề trái đúng bằng chỗ chúng đứng. */
+@media (max-width: 980px) {
+  .wcard { padding-left: 32px; }
+  .wcard-con.cap-2 { padding-left: 54px; }
+  .wcard-con.cap-3 { padding-left: 76px; }
+  .wc-gap.trong { display: none; }
+  .wc-gap:not(.trong) { position: absolute; left: 5px; top: 10px; }
+  .wc-nam {
+    position: absolute; left: 8px; top: 12px;
+    width: 14px; height: 20px; min-height: 0; align-self: auto; opacity: .55;
+  }
+  /* Có nút thu gọn thì tay nắm xuống dưới nó, không chồng lên nhau. */
+  .wcard:has(.wc-gap:not(.trong)) .wc-nam { top: 36px; }
+}
+
+/* Điện thoại: thụt ít lại, không thì tên việc cấp 3 chỉ còn một nhúm chữ.
+   Nút thu gọn nới vùng bấm cho vừa ngón tay bằng một ô vô hình rộng hơn, chứ
+   không nới chỗ nó chiếm — chữ bên cạnh giữ nguyên vị trí. */
+@media (max-width: 640px) {
+  .wcard-con.cap-2 { padding-left: 48px; }
+  .wcard-con.cap-3 { padding-left: 62px; }
+  .wc-gap:not(.trong)::after {
+    content: ''; position: absolute; top: 50%; left: 50%;
+    width: 40px; height: 40px; transform: translate(-50%, -50%);
+  }
+}

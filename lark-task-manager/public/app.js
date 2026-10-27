@@ -27,6 +27,7 @@ const S = {
   colW: {},                  // độ rộng cột bảng do người dùng kéo, nhớ ở localStorage
   selected: new Set(),
   collapsed: {},             // lane key -> true
+  gapViec: {},               // id việc lớn đã thu gọn -> true, nhớ ở localStorage
   editing: null,
   dirty: {},
   modalTask: null,           // task đang xử lý trong modal
@@ -41,6 +42,8 @@ const S = {
 };
 
 try { S.colW = JSON.parse(localStorage.getItem('tracking.colW') || '{}') || {}; } catch (e) { S.colW = {}; }
+try { S.gapViec = JSON.parse(localStorage.getItem('tracking.gapViec') || '{}') || {}; } catch (e) { S.gapViec = {}; }
+function luuGapViec() { try { localStorage.setItem('tracking.gapViec', JSON.stringify(S.gapViec)); } catch (e) {} }
 
 const CLOSED = ['Hoàn thành', 'Hủy'];
 
@@ -64,7 +67,9 @@ const AVATAR_HUES = [
 /* Các làn việc — góc nhìn người triển khai */
 const LANES = [
   { key: 'new', title: 'Công việc mới',
-    hint: 'Đọc kỹ yêu cầu. Đủ thông tin thì bấm Bắt đầu làm; thiếu/sai thì gửi Yêu cầu điều chỉnh.',
+    /* "Mở việc ra rồi" vì nút Yêu cầu điều chỉnh đã rời khỏi thẻ (27/10/2026) —
+     * câu chỉ đường phải chỉ tới chỗ nút đang đứng thật. */
+    hint: 'Đọc kỹ yêu cầu. Đủ thông tin thì bấm Bắt đầu làm; thiếu/sai thì mở việc ra rồi gửi Yêu cầu điều chỉnh.',
     empty: 'Không có việc mới nào đang chờ bạn.' },
   { key: 'redo', title: 'Cần làm lại',
     hint: 'Người order trả về. Sửa sản phẩm, cập nhật lại tệp/link rồi nộp lại.',
@@ -796,6 +801,148 @@ function laneSort(list) {
   });
 }
 
+/* ==========================================================================
+   CÂY VIỆC TRONG DANH SÁCH (27/10/2026)
+
+   Trước đây danh sách phẳng: việc con rơi vào đúng chỗ mà hạn của nó rơi, nên
+   cha một nơi con một nẻo, chỉ còn mũi tên ↳ để nhận ra. Anh Hùng: "cần chỉnh
+   đầu tiên là cách sắp xếp, sau đó cho phép thu gọn task lớn lại dễ nhìn".
+
+   Giờ việc con ngồi cùng làn với việc lớn của nó, kể cả khi trạng thái của nó
+   thuộc làn khác — lúc đó thẻ con mang thêm một nhãn ghi làn thật của nó, để
+   không ai hiểu nhầm là nó đã đổi trạng thái. Số đếm trên đầu làn vẫn đếm theo
+   trạng thái thật, nên có thể lệch với số thẻ nhìn thấy trong làn; anh Hùng đã
+   chọn như vậy để nhìn được trọn cây.
+   ========================================================================== */
+
+/**
+ * Việc lớn ngoài cùng mà `t` nép vào, trong phạm vi những việc ĐANG hiện.
+ * Cha không hiện ra (người khác làm, đã hủy, bị bộ lọc cắt đi) thì `t` tự đứng
+ * làm gốc. `daQua` chặn vòng tròn cha–con: Base không canh nên dữ liệu có thể
+ * có A→B→A, và một vòng như vậy đủ treo cả trang.
+ */
+function theGoc(t, hien, who) {
+  const daQua = new Set();
+  let cur = t;
+  while (!daQua.has(cur.id)) {
+    daQua.add(cur.id);
+    const cha = hien.get(idCha(cur));
+    if (!cha || laneOf(cha, who) == null) return cur;
+    cur = cha;
+  }
+  return cur;
+}
+
+/**
+ * Xếp một làn thành cây: gốc theo thứ tự cũ (quá hạn trước, rồi hạn gần, rồi ưu
+ * tiên), con nằm ngay dưới cha theo thứ tự anh tự kéo. Trả về dãy phẳng đã kèm
+ * cấp, để chỗ vẽ chỉ việc đi một vòng.
+ */
+function xepCay(items) {
+  const trong = new Map(items.map((t) => [t.id, t]));
+  const conTheo = new Map();
+  const gocDs = [];
+  for (const t of items) {
+    const c = idCha(t);
+    if (c && trong.has(c)) {
+      if (!conTheo.has(c)) conTheo.set(c, []);
+      conTheo.get(c).push(t);
+    } else gocDs.push(t);
+  }
+  const ra = [];
+  const daXep = new Set();
+  /* Nhánh đang gấp: đánh dấu đã xử lý xuống tận đáy nhưng không vẽ. Thiếu bước
+   * này thì vòng vét cuối hàm tưởng chúng bị bỏ sót và đẩy hết xuống cuối làn —
+   * gấp lại thành ra hất việc con ra khỏi cây. */
+  const bo = (t) => {
+    if (daXep.has(t.id)) return;
+    daXep.add(t.id);
+    for (const x of conTheo.get(t.id) || []) bo(x);
+  };
+  const dat = (t, cap) => {
+    if (daXep.has(t.id)) return;      // vòng tròn dữ liệu
+    daXep.add(t.id);
+    const con = conTheo.get(t.id) || [];
+    ra.push({ t, cap, soCon: con.length });
+    if (!con.length) return;
+    if (S.gapViec[t.id]) { for (const x of con) bo(x); return; }
+    for (const x of xepTheoThuTuCon(con, t.id)) dat(x, cap + 1);
+  };
+  for (const t of laneSort(gocDs)) dat(t, 1);
+  /* Việc kẹt trong một vòng tròn không có gốc nào với tới: vẫn phải hiện ra,
+   * không thì nó biến mất khỏi app mà không ai biết vì sao. */
+  for (const t of items) if (!daXep.has(t.id)) ra.push({ t, cap: 1, soCon: 0 });
+  return ra;
+}
+
+/** Một thẻ trong cây: thụt vào theo cấp, có nút gấp, có nhãn làn thật nếu cần. */
+function theTrongCay(o, laneKey, who) {
+  const laneThat = laneOf(o.t, who);
+  /* Nút trên thẻ đi theo trạng thái THẬT của việc chứ không theo làn nó ngồi:
+   * một việc đang tiến hành nép dưới việc lớn ở làn "Công việc mới" vẫn phải có
+   * nút của việc đang làm. */
+  const c = workCard(o.t, laneThat || laneKey);
+  if (o.cap > 1) c.classList.add('wcard-con', 'cap-' + Math.min(o.cap, 3));
+  if (laneThat && laneThat !== laneKey && LANE_BY_KEY[laneThat]) {
+    const meta = c.querySelector('.wcard-meta');
+    const ten = LANE_BY_KEY[laneThat].title;
+    const n = el('span', 'tag tag-lan', ten);
+    n.title = 'Việc này đang ở "' + ten + '". Nó nằm đây vì là việc con của việc lớn phía trên.';
+    if (meta) meta.insertBefore(n, meta.firstChild);
+  }
+  c.insertBefore(nutGap(o), c.firstChild);
+  return c;
+}
+
+/** Máy đang xin bớt chuyển động thì mọi hiệu ứng dưới đây đổi sang làm ngay. */
+function itChuyenDong() {
+  return !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+}
+
+/**
+ * Nút thu gọn đầu thẻ. Thẻ không mang con vẫn chừa chỗ, để tên việc thẳng hàng.
+ *
+ * Mũi tên XOAY chứ không đổi ký tự, và nhánh trượt ra / cụp vào thay vì biến
+ * mất tức thì (anh Hùng 27/10/2026: "dạng chuyển động mượt hơn"). Mở theo nhịp
+ * --cd-vao, đóng nhanh hơn theo --cd-ra, đúng nhịp chung của Hub.
+ */
+function nutGap(o) {
+  if (!o.soCon) return el('span', 'wc-gap trong');
+  const dangGap = !!S.gapViec[o.t.id];
+  const b = el('button', 'wc-gap' + (dangGap ? ' cup' : ''));
+  b.type = 'button';
+  b.appendChild(el('span', '', '▾'));
+  b.title = (dangGap ? 'Mở ra ' : 'Thu gọn ') + o.soCon + ' việc con';
+  b.setAttribute('aria-expanded', dangGap ? 'false' : 'true');
+  b.onclick = (e) => {
+    e.stopPropagation();
+    const xong = () => { luuGapViec(); render(); };
+    if (dangGap) {
+      delete S.gapViec[o.t.id];
+      xong();
+      /* Nhánh vừa hiện ra: đánh dấu để nó trượt xuống, lệch nhau một nhịp nhỏ
+       * cho giống một tờ giấy mở ra chứ không phải ba thẻ nảy lên cùng lúc. */
+      if (itChuyenDong()) return;
+      const the = document.querySelector('#lanes .wcard[data-id="' + o.t.id + '"]');
+      if (!the) return;
+      theTrongNhanh(the).forEach((x, i) => {
+        x.style.setProperty('--tre', (i * 40) + 'ms');
+        x.classList.add('vua-mo');
+      });
+      return;
+    }
+    const the = e.target.closest('.wcard');
+    const nhanh = the ? theTrongNhanh(the) : [];
+    S.gapViec[o.t.id] = true;
+    if (!nhanh.length || itChuyenDong()) { xong(); return; }
+    /* Cụp xong mới vẽ lại: vẽ ngay thì nhánh biến mất trước khi kịp thấy gì. */
+    b.classList.add('cup');
+    for (const x of nhanh) x.classList.add('dang-cup');
+    setTimeout(xong, 220);
+  };
+  return b;
+}
+
 /* =======================  render: 5 thẻ đếm  ======================= */
 function renderCounters() {
   const box = $('#flowstrip');
@@ -839,8 +986,12 @@ function renderLanes(list) {
 
   const groups = {};
   for (const l of LANES) groups[l.key] = [];
+  /* Thẻ ngồi theo làn của việc lớn ngoài cùng, không theo làn của chính nó —
+   * có vậy cả cây mới nằm liền một khối. Việc Hủy/Tạm dừng vẫn ẩn như cũ. */
+  const hien = new Map(list.map((t) => [t.id, t]));
   for (const t of list) {
-    const k = laneOf(t, who);
+    if (laneOf(t, who) == null) continue;
+    const k = laneOf(theGoc(t, hien, who), who);
     if (groups[k]) groups[k].push(t);
   }
 
@@ -889,7 +1040,7 @@ function renderLanes(list) {
   }
 
   for (const def of LANES) {
-    const items = laneSort(groups[def.key]);
+    const items = xepCay(groups[def.key]);
     // Làn rỗng: giữ "Công việc mới" và "Đang tiến hành" để nhân sự biết mình đang trống,
     // nhưng khi đã chọn một thẻ đếm thì chỉ hiện đúng làn đó
     const keepEmpty = !S.wf.lane && (def.key === 'new' || def.key === 'doing');
@@ -915,7 +1066,7 @@ function renderLanes(list) {
 
     const body = el('div', 'lane-items');
     if (!items.length) body.appendChild(el('div', 'lane-empty', def.empty));
-    for (const t of items) body.appendChild(workCard(t, def.key));
+    for (const o of items) body.appendChild(theTrongCay(o, def.key, who));
     lane.appendChild(body);
 
     box.appendChild(lane);
@@ -1126,18 +1277,22 @@ function namDuoiViec(id, goc) {
  * Con chưa có trong dãy đã kéo xuống cuối, vẫn xếp theo hạn giữa chúng: việc
  * mới chia ra không được chen lên đầu và xô lệch thứ tự vừa đặt.
  */
-function conCua(t) {
-  const m = new Map();
-  for (const x of [...(S.tasks || []), ...(S.orders || [])]) if (idCha(x) === t.id) m.set(x.id, x);
-  const ds = [...m.values()].sort((a, b) => String(a.deadline || '9').localeCompare(String(b.deadline || '9')));
-  const tt = (S.thuTuCon || {})[t.id];
-  if (!tt || !tt.length) return ds;
+function xepTheoThuTuCon(ds, idChaCua) {
+  const base = ds.slice().sort((a, b) =>
+    String(a.deadline || '9').localeCompare(String(b.deadline || '9')));
+  const tt = (S.thuTuCon || {})[idChaCua];
+  if (!tt || !tt.length) return base;
   const viTri = new Map(tt.map((id, i) => [id, i]));
-  return ds.sort((a, b) => {
+  return base.sort((a, b) => {
     const x = viTri.has(a.id) ? viTri.get(a.id) : Infinity;
     const y = viTri.has(b.id) ? viTri.get(b.id) : Infinity;
     return x - y;
   });
+}
+function conCua(t) {
+  const m = new Map();
+  for (const x of [...(S.tasks || []), ...(S.orders || [])]) if (idCha(x) === t.id) m.set(x.id, x);
+  return xepTheoThuTuCon([...m.values()], t.id);
 }
 /** Viên "2/5" cạnh tên việc lớn. Có việc con trễ thì đỏ, xong hết thì xanh. */
 function vienCon(t) {
@@ -1411,18 +1566,59 @@ async function gomVaoViec(cha, con) {
   }
 }
 
+/** Cấp của một thẻ đọc từ chính lớp CSS của nó. Thẻ gốc không mang lớp cap-*. */
+function capCuaThe(x) {
+  const m = x.className.match(/\bcap-(\d)\b/);
+  return m ? Number(m[1]) : 1;
+}
+
+/**
+ * Các thẻ nằm trong nhánh của một thẻ, đọc theo thứ tự trên màn hình.
+ * Cây đã được xepCay() rải phẳng đúng thứ tự nên mọi thẻ sâu hơn đứng liền
+ * ngay sau nó chính là nhánh của nó.
+ */
+function theTrongNhanh(the) {
+  const ra = [];
+  const cap = capCuaThe(the);
+  let n = the.nextElementSibling;
+  while (n && n.classList.contains('wcard') && capCuaThe(n) > cap) {
+    ra.push(n);
+    n = n.nextElementSibling;
+  }
+  return ra;
+}
+
 /** Dọn mọi dấu kéo còn sót — dragend không phải lúc nào cũng bắn. */
 function donDauKeoThe() {
   KEO_THE = null;
   document.body.classList.remove('dang-keo-the');
-  document.querySelectorAll('.wcard.dang-keo, .wcard.nhan-con, .wcard.chan-con')
-    .forEach((x) => x.classList.remove('dang-keo', 'nhan-con', 'chan-con'));
+  document.querySelectorAll('.wcard.dang-keo, .wcard.theo-cha, .wcard.nhan-con,'
+    + ' .wcard.chan-con, .wcard.tha-duoc, .wcard.tha-khong')
+    .forEach((x) => x.classList.remove('dang-keo', 'theo-cha', 'nhan-con',
+      'chan-con', 'tha-duoc', 'tha-khong'));
+}
+
+/**
+ * Lúc vừa nhấc một thẻ lên: chấm trước mọi thẻ còn lại thả được hay không, và
+ * làm mờ cả nhánh đang bị mang theo.
+ *
+ * Trước đây phải rê qua từng thẻ mới biết thẻ đó có nhận không — kéo một nhánh
+ * dày đi tìm chỗ đậu thành ra mò mẫm. Anh Hùng 27/10/2026: "có hiệu ứng gợi ý
+ * kéo được vào cái nào", và "nắm đầu việc lớn kéo thì các việc con cũng theo".
+ */
+function soiChoTha(theNguon) {
+  for (const x of theTrongNhanh(theNguon)) x.classList.add('theo-cha');
+  for (const x of document.querySelectorAll('#lanes .wcard[data-id]')) {
+    if (x === theNguon || x.classList.contains('theo-cha')) continue;
+    const t = viecTheoMa(x.dataset.id);
+    if (!t) continue;
+    x.classList.add(nhanConDuoc(t, KEO_THE) ? 'tha-duoc' : 'tha-khong');
+  }
 }
 
 /** Gắn tay nắm kéo và chỗ thả cho một thẻ việc ngoài danh sách chính. */
 function ganKeoThe(c, t) {
   if (!keoGomDuoc()) return;
-  c.dataset.id = t.id;
 
   /* Mọi thẻ đều là chỗ thả, kể cả thẻ không nhấc đi được: một việc lớn đang
    * có con chính là chỗ hay được thả vào nhất. */
@@ -1469,6 +1665,11 @@ function ganKeoThe(c, t) {
     /* Ảnh kéo là cả THẺ chứ không phải mỗi tay nắm — kéo một dấu sáu chấm bé tí
      * thì không biết mình đang mang cái gì đi. */
     try { e.dataTransfer.setDragImage(c, 24, 22); } catch (_) {}
+    /* Đang mang theo cả nhánh thì nói ra bằng số, vì ảnh kéo chỉ vẽ được một
+     * thẻ: "kèm 3 việc con" đứng ngay dưới con trỏ suốt lượt kéo. */
+    const nhanh = theTrongNhanh(c);
+    c.dataset.mang = nhanh.length ? 'kèm ' + nhanh.length + ' việc con' : '';
+    soiChoTha(c);
   };
   nam.ondragend = donDauKeoThe;
   c.insertBefore(nam, c.firstChild);
@@ -1583,11 +1784,17 @@ function chuanTim(s) {
     .replace(/đ/gi, 'd').toLowerCase().trim();
 }
 
-/** Khối "Việc con" / "Thuộc việc lớn" trong ô chi tiết. Không có gì để nói thì null. */
-function khoiViecCon(t) {
-  if (!t || t.isNew || t.lienPhong) return null;
-
-  if (idCha(t)) {
+/**
+ * Hàng "Thuộc việc lớn" trong ô chi tiết, chỉ có ở việc con.
+ *
+ * Tách khỏi khoiViecCon() ngày 27/10/2026: trước đây hai thứ chung một hàm và
+ * hàm thoát ngay sau hàng này, nên một việc con không bao giờ có khối "Việc
+ * con" của riêng nó — tức là không chia nhỏ thêm được, dù trần đã nới lên 3
+ * cấp. Anh Hùng: "nếu có 3 level thì sub-task cũng có thể tạo thêm task con".
+ */
+function hangViecLon(t) {
+  if (!t || t.isNew || t.lienPhong || !idCha(t)) return null;
+  {
     const cha = viecTheoMa(idCha(t));
     const hang = el('button', 'vc-cha');
     hang.type = 'button';
@@ -1612,6 +1819,11 @@ function khoiViecCon(t) {
     boc.appendChild(nut);
     return boc;
   }
+}
+
+/** Khối "Việc con" trong ô chi tiết. Không có gì để nói thì null. */
+function khoiViecCon(t) {
+  if (!t || t.isNew || t.lienPhong) return null;
 
   const ds = conCua(t);
   const c = t.con || { tong: ds.filter((x) => x.status !== 'Hủy').length, xong: ds.filter((x) => x.status === 'Hoàn thành').length, tre: 0 };
@@ -1721,16 +1933,25 @@ function veLaiViecCon(idViec, focus, idMoi) {
   }
   if (focus) { const i = k.querySelector('.vc-them input'); if (i) i.focus(); }
 }
-/** Gắn khối việc con vào ô chi tiết, ngay sau thẻ đầu (hoặc lên đầu). */
+/**
+ * Gắn hàng "Thuộc việc lớn" rồi khối "Việc con" vào ô chi tiết, ngay sau thẻ
+ * đầu (hoặc lên đầu). Một việc con có cả hai: nó thuộc về ai, và nó chia nhỏ
+ * ra những gì.
+ */
 function ganKhoiViecCon(b, t, sauThe) {
-  const k = khoiViecCon(t);
-  if (!k) return;
   const moc = sauThe ? b.children[1] || null : b.firstChild;
-  b.insertBefore(k, moc);
+  for (const k of [hangViecLon(t), khoiViecCon(t)]) if (k) b.insertBefore(k, moc);
 }
 
 function workCard(t, lane) {
   const c = el('div', 'wcard');
+  c.dataset.id = t.id;
+  /* Bấm vào đâu trên thẻ cũng mở chi tiết, không bắt nhắm đúng dòng tiêu đề
+   * (27/10/2026, anh Hùng). Nút, ô nhập và tay nắm kéo giữ việc của mình. */
+  c.onclick = (e) => {
+    if (e.target.closest('button, a, input, select, textarea, label, .wc-nam')) return;
+    openDrawer(t);
+  };
   ganKeoThe(c, t);
   const d = daysLeft(t.deadline);
   if (!isClosed(t) && d != null) {
@@ -1739,9 +1960,7 @@ function workCard(t, lane) {
   }
 
   const main = el('div', 'wcard-main');
-  const title = veTen('div', 'wcard-title', t);
-  title.onclick = () => openDrawer(t);
-  main.appendChild(title);
+  main.appendChild(veTen('div', 'wcard-title', t));
 
   if (t.detail) {
     main.appendChild(el('div', 'wcard-sub', t.detail.replace(/\s+/g, ' ').slice(0, 150)));
@@ -1805,12 +2024,9 @@ function workCard(t, lane) {
     const b = el('button', 'btn btn-primary', primary.label);
     b.onclick = primary.run;
     acts.appendChild(b);
-    /* Việc liên phòng: điều chỉnh trao đổi với người giao ở tab Trao đổi. */
-    if (!t.lienPhong) {
-      const a = el('button', 'btn', 'Yêu cầu điều chỉnh');
-      a.onclick = () => openAdjust(t);
-      acts.appendChild(a);
-    }
+    /* "Yêu cầu điều chỉnh" đã rời khỏi thẻ (27/10/2026, anh Hùng): ngoài danh
+     * sách mỗi thẻ chỉ còn một nút — việc cần làm tiếp theo. Nút đó vẫn nằm
+     * trong ô chi tiết, chỗ người ta đọc kỹ rồi mới xin đổi. */
   } else {
     const b = el('button', 'btn', 'Xem chi tiết');
     b.onclick = () => openDrawer(t);
