@@ -167,7 +167,7 @@ Anh Hùng (10/10/2026): nhân sự xuất được báo cáo, nhưng **xuất đ
 
 ## 12. Việc lớn, việc con và việc tạo từ tin (21/10/2026)
 
-- **Việc con dùng ô "Parent items" có sẵn của Base**, chỉ một tầng: việc con không chia tiếp. Việc cha chỉ ghi lúc tạo, không đường sửa nào đổi được.
+- **Việc con dùng ô "Parent items" có sẵn của Base**, sâu tối đa **3 cấp** (27/10/2026, trước đó chỉ một tầng và việc cha chỉ ghi được lúc tạo). Xem mục 16.
 - **Không bày việc con ra ngoài.** Ngoài danh sách chỉ có mũi tên ↳ trước tên việc con và viên "2/5" sau tên việc lớn (đỏ khi có việc con trễ, xanh khi xong hết). Kanban và Bảng gom việc con vào việc lớn. Việc của tôi, Order và Lịch vẫn hiện việc con như việc thường, vì người được giao tìm việc của mình ở đó.
 - Trong ô chi tiết của việc lớn: thanh tiến độ, rồi mỗi việc con một dòng có **tên và trạng thái** (kèm người làm, hạn), bấm vào là mở chi tiết việc con. Dưới cùng là **ô gõ sẵn** "Thêm việc con": gõ tên rồi Enter là tạo, không qua form. Việc con có dòng "Thuộc việc lớn" để quay về.
 - **Đi vào việc con ngay trong cửa sổ đang mở**, kiểu đẩy trang iOS: việc lớn lùi sang trái, việc con trượt vào từ phải; bấm "Thuộc việc lớn" thì trượt ngược lại. Không đóng rồi mở lại cửa sổ. Quản lý vào việc con là gặp ngay form sửa để đặt người làm, hạn, chi tiết.
@@ -202,3 +202,16 @@ Anh Hùng: "chỉnh theo style tổng thể ứng dụng của mình và cho nó
 ## 15. Tab mở đầu của Bảng công việc (27/10/2026)
 
 - Ai mở Bảng công việc cũng vào **"Việc của tôi"** trước, kể cả quản lý. Tổng quan vẫn còn, bấm vào tab là tới. Link có `?tab=` hoặc lệnh `?mo=` thì vẫn đi thẳng tới màn được chỉ.
+
+## 16. Gom việc con bằng cách kéo thả, sâu tối đa 3 cấp (27/10/2026)
+
+Anh Hùng: "anh muốn lôi các công việc con đó vào một công việc lớn khác, kiểu di chuyển linh hoạt thứ tự nó đi với nhau", rồi "Em giúp anh cho tối đa là 3 cấp độ" và "khi mà kéo việc không có việc con vào việc đồng cấp thì việc bị kéo vào thì sẽ thành việc con".
+
+- **Trần là 3 cấp.** Con số nằm ở `CAP_TOI_DA` trong `lark-task-manager/server.js` và lặp lại trong `public/app.js`; bài `test/keo-gom.test.js` cột hai bên lại, lệch là đỏ. Việc ở cấp 3 không chia tiếp được, kể cả bằng ô "Thêm việc con".
+- **Kéo bằng tay nắm, không kéo cả dòng.** Cả thẻ việc và cả dòng việc con đều là nút mở việc; thứ vừa bấm-để-mở vừa kéo-để-xếp thì trên điện thoại chạm nào cũng thành kéo. Tay nắm sáu chấm chỉ hiện khi rê chuột vào hoặc khi bàn phím chạm tới.
+- **Hai cử chỉ khác nhau.** Trong khối "Việc con" của một việc lớn: kéo để **đổi thứ tự**. Ngoài danh sách chính: kéo một thẻ thả vào thẻ khác để **gom** nó thành việc con của thẻ đó — thả vào việc đồng cấp thì chính việc được thả vào trở thành việc lớn.
+- **Lúc kéo, mỗi thẻ tự nói nó có nhận hay không**: viền xanh kèm "Thả vào đây", hoặc viền đỏ kèm lý do ("Sẽ thành cấp 4, quá 3", "Đây là việc con của nó", "Việc liên phòng", "Đã nằm trong việc này"). Viền trong (`inset box-shadow`) chứ không `border`, nếu không cả làn nhích lên nhích xuống theo con trỏ. Trong lúc kéo thì tắt nút trên thẻ: thả trượt tay trúng "Đã gửi sản phẩm" là một tai nạn.
+- **Nút "Chuyển" trong ô chi tiết vẫn giữ.** Điện thoại không kéo được (cảm ứng không bắn sự kiện kéo HTML5), và **tách** một việc ra khỏi việc lớn thì không có thẻ nào để thả vào. Danh sách trong nút đó dùng đúng bộ luật của viền xanh, không mời chọn chỗ mà kéo tay vào sẽ bị chặn.
+- **Máy chủ là nơi chặn thật.** Base không canh gì cả — ô `Parent items` ghi gì vào cũng được, kể cả vòng tròn A→B→A. `canhDoiCha()` canh: tự làm cha của mình, vòng tròn, quá 3 cấp (tính cả độ dày của nhánh đang bị nhấc đi), việc liên phòng, và quyền xem việc lớn đích. Giao diện chỉ *chiếu* bộ luật đó để viền không mọc sai chỗ.
+- **Mũi tên đầu tên việc con vẽ theo cấp**: một mũi tên ↳ cho cấp 2, hai mũi tên ↳↳ cho cấp 3. Nhìn đầu dòng là biết đang ở sâu bao nhiêu.
+- **Thứ tự người kéo tay cất ở `lark-task-manager/thu-tu-con.json`** trên máy chủ (đã gitignore vì là dữ liệu chạy). Bảng Công việc còn đúng 24 cột, không có cột số nào rảnh. Thứ tự chỉ sống qua deploy khi **gắn đĩa cho Render** hoặc **thêm một cột "Thứ tự" vào Base** — chưa chốt. Mọi lối vào đi qua `doc()`/`ghi()` trong `thu-tu-con.js`, đổi chỗ cất chỉ phải sửa hai hàm đó.
