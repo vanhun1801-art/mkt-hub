@@ -1351,6 +1351,10 @@ async function api(req, res, u) {
       den: kq.to || null,
       cuaSo: kq.cuaSo || null,
       cauNoi: kq.cauNoi || null,
+      /* Lỗi Pancake của lượt ghi công. Thiếu nó thì token page hết hiệu lực
+       * (27/10/2026: "access_token renewed") hiện thành "0 hội thoại" trơn,
+       * đọc như không ai nhắn, trong khi sự thật là không đọc được. */
+      loiPancake: (kq.loi || []).filter((x) => /Pancake/.test(x)),
       tongCong: ds.length,
       chuyenDoi: dem['chuyen-doi'],
       tiemNang: dem['tiem-nang'],

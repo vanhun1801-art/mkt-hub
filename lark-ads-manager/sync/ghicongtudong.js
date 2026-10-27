@@ -77,7 +77,8 @@ async function tinhGhiCong({ kho, from, to, ghi = () => {} }) {
         const r = await pancake.fetchConversations(pg, tu, den, () => {});
         htRows = htRows.concat(r.rows);
       } catch (e) {
-        hong.push('Pancake: ' + e.message);
+        // Kèm tên page: mười page cùng lỗi thì mười dòng y hệt nhau, không biết page nào
+        hong.push('Pancake (' + (pg.label || pg.pageId) + '): ' + e.message);
         ghi('  ! không đọc được hội thoại Pancake lượt này — vẫn tính bằng POS: ' + e.message);
       }
     }

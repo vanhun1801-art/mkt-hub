@@ -142,7 +142,8 @@ console.log('— một nguồn hỏng không được giết cả lượt');
    * kia kịp dùng. Với lượt hẹn giờ mỗi tiếng, đó là một tiếng mất trắng vì một
    * cú nấc của Pancake. */
   t('POS có try riêng', /hong\.push\('POS: '/.test(s));
-  t('Pancake có try riêng', /hong\.push\('Pancake: '/.test(s));
+  // 27/10/2026: dòng lỗi kèm tên page, "Pancake (<page>): ..."
+  t('Pancake có try riêng', /hong\.push\('Pancake (: '|\(' \+)/.test(s));
   t('một bên hỏng vẫn tính bằng bên kia',
     /vẫn tính bằng hội thoại/.test(s) && /vẫn tính bằng POS/.test(s));
   t('cả hai cùng hỏng mới coi là không biết gì',

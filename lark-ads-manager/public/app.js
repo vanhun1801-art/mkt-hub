@@ -620,6 +620,15 @@ function leadO(hoiThoaiD) {
     không kèm số điện thoại (đo 28/09/2026), vì khách nhắn xong chuyển sang Zalo.
     Muốn đo hết phải sửa ở chỗ tạo lead, app không tự bịa ra được.
   </div>` : '';
+  /* Pancake không đọc được thì nói ngay đầu khối, kèm tên page và cách chữa.
+   * Không có dòng này thì lượt hỏng hiện "0 hội thoại", trông như không ai nhắn. */
+  const loiPc = [...new Set(T.loiPancake || [])];
+  const doiToken = loiPc.some((x) => /renewed|access_token/i.test(x));
+  const canhPc = loiPc.length ? `<div class="help" style="border-color:var(--bad);color:var(--bad);margin-bottom:10px">
+    <b>Lượt này không đọc được hội thoại Pancake</b>, nên các ô dưới đây đang thiếu.
+    ${doiToken ? 'Pancake đã cấp token mới cho page, token đang lưu không dùng được nữa. Lấy token mới trong Pancake (Cài đặt page) rồi dán lại ở tab <b>Kết nối &amp; Đồng bộ</b>.' : ''}
+    <span class="sub">${loiPc.map((x) => esc(x.replace(/^Lượt này thiếu một nguồn — /, ''))).join('<br>')}</span>
+  </div>` : '';
   const the = (nhom, nhan, n, cls) => `<div class="kpi" style="cursor:pointer" data-nhom="${nhom}" onclick="window.__moHoiThoai('${nhom}')">
     <div class="k-label">${nhan}</div>
     <div class="k-value"><span class="tag ${cls}">${int(n)}</span></div>
@@ -629,6 +638,7 @@ function leadO(hoiThoaiD) {
     <div class="card-head"><h3>Lead từ quảng cáo (hội thoại Pancake)</h3>
       <span class="sub">${T.luc ? 'tính lúc ' + new Date(T.luc).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : ''}</span></div>
     <div class="card-body">
+      ${canhPc}
       <div class="help">
         <b>Số ước lượng</b> theo việc khách có để lại số điện thoại và có ra đơn hay không.
         ${int(T.tongCong)} hội thoại có gắn quảng cáo. ${kyChay}
