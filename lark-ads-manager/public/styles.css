@@ -518,3 +518,52 @@ table.tbl tfoot td { font-weight: 700; background: var(--panel-2); border-top: 2
   .stat-row .s-label { font-size: 13px; }                        /* 11.5 */
   .bang-loi .bl-ly { font-size: 13px; }                          /* 11.5 */
 }
+
+/* ---------------------------------------------------------------------------
+   BẢNG THÀNH THẺ TRÊN ĐIỆN THOẠI
+   ---------------------------------------------------------------------------
+   Nguyên tắc mục 1 (lark-mkt-hub/docs/nguyen-tac-lam-viec.md): điện thoại không
+   kéo ngang nội dung. Bảng từ 4 cột trở lên không thể vừa khung 322px, nên
+   table() trong app.js dựng sẵn lớp `ios-the-bang` và `data-nhan` cho từng ô.
+
+   Trong hub, ios.css có luật chung cho đúng hai thứ đó nên bảng ở đây trông y
+   hệt bảng thẻ của mọi app khác — luật chung đè luật dưới đây vì nó viết bằng
+   chuỗi :not(#_) rất nặng cân. Phần dưới là bản dự phòng cho lúc app chạy MỘT
+   MÌNH ở cổng 5176, lúc đó không có ios.css nào cả.
+
+   Bộ chọn kèm cả `.tbl` là cố ý: `table.tbl td.name` đặt min-width 200px, nặng
+   cân hơn `table.ios-the-bang td`, nên thiếu `.tbl` là ô tên vẫn giữ bề ngang
+   cũ ngay trong thẻ.
+   --------------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  .tbl-wrap:has(> table.ios-the-bang) { overflow-x: visible; }
+  table.tbl.ios-the-bang,
+  table.tbl.ios-the-bang > tbody,
+  table.tbl.ios-the-bang > tfoot { display: block; width: 100%; min-width: 0; }
+  table.tbl.ios-the-bang > thead { display: none; }
+  table.tbl.ios-the-bang > tbody > tr,
+  table.tbl.ios-the-bang > tfoot > tr {
+    display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px;
+    padding: 12px 14px; border-bottom: 1px solid var(--line-soft);
+  }
+  table.tbl.ios-the-bang > tbody > tr:last-child { border-bottom: 0; }
+  table.tbl.ios-the-bang > tbody > tr > td,
+  table.tbl.ios-the-bang > tfoot > tr > td {
+    display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
+    gap: 2px 12px; padding: 3px 0; border: 0; text-align: right; white-space: normal;
+    min-width: 0; width: auto; max-width: none; font-size: 14px;
+  }
+  table.tbl.ios-the-bang > tbody > tr > td::before,
+  table.tbl.ios-the-bang > tfoot > tr > td::before {
+    content: attr(data-nhan); flex: 0 0 auto; max-width: 48%; text-align: left;
+    color: var(--ink-3); font-size: 13px; font-weight: 500;
+  }
+  /* ô gộp cả dòng (bảng rỗng) không có tên cột → không in nhãn trống */
+  table.tbl.ios-the-bang > tbody > tr > td:not([data-nhan])::before { display: none; }
+  table.tbl.ios-the-bang > tbody > tr > td:not([data-nhan]) { justify-content: flex-start; text-align: left; }
+  /* ô đầu = tiêu đề thẻ */
+  table.tbl.ios-the-bang > tbody > tr > td:first-child { font-weight: 600; font-size: 15px; }
+  table.tbl.ios-the-bang > tbody > tr > td > * { min-width: 0; max-width: 100%; }
+  /* dòng tổng: nền riêng cho tách khỏi dãy thẻ phía trên */
+  table.tbl.ios-the-bang > tfoot > tr { background: var(--panel-2); border-top: 2px solid var(--line); border-bottom: 0; }
+}

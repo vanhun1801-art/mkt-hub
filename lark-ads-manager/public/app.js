@@ -116,6 +116,18 @@ function qs() {
 /* ---------------- bảng có sắp xếp ---------------- */
 /**
  * cols: [{ key, label, num, cls, render(row), sortVal(row), foot(rows) }]
+ *
+ * ĐIỆN THOẠI: bảng từ 4 cột trở lên vẽ thẳng ra dạng THẺ (nguyên tắc mục 1 —
+ * điện thoại không kéo ngang nội dung). Mỗi ô mang sẵn `data-nhan` là tên cột và
+ * bảng mang sẵn lớp `ios-the-bang`, đúng hai thứ mà luật chung trong ios.css chờ
+ * — nên trong hub bảng của app này trông y hệt bảng thẻ của mọi app khác.
+ *
+ * Vì sao app tự gắn chứ không để ios-app.js gắn như trước: ios-app.js đo bề
+ * ngang rồi mới gắn, mà đo thì phải đợi 250ms sau lần vẽ cuối. Khối "ROAS từng
+ * quảng cáo" vẽ xong muộn (sau ba lời gọi API nối tiếp), nên bộ quét giao diện
+ * bắt gặp hai bảng 599px và 848px nằm trong khung 322px — người dùng cũng gặp
+ * đúng cảnh đó trong khoảnh khắc ấy. Gắn ngay lúc dựng HTML thì không còn khe
+ * nào để lọt. ios-app.js vẫn chạy như cũ và vẫn gỡ lớp này khi lên máy tính.
  */
 function table(id, cols, rows, opts = {}) {
   const sort = S.sort[id] || opts.sort || {};
@@ -138,12 +150,15 @@ function table(id, cols, rows, opts = {}) {
   }).join('');
   const body = rows.length ? rows.map((r) => `<tr${opts.rowAttrs ? ' ' + opts.rowAttrs(r) : ''}>${cols.map((c) => {
     const v = c.render ? c.render(r) : esc(r[c.key]);
-    return `<td class="${c.num ? 'num' : ''} ${c.cls || ''}">${v}</td>`;
+    return `<td class="${c.num ? 'num' : ''} ${c.cls || ''}" data-nhan="${esc(c.label)}">${v}</td>`;
   }).join('')}</tr>`).join('')
     : `<tr><td colspan="${cols.length}"><div class="empty">${esc(opts.empty || 'Không có dữ liệu')}</div></td></tr>`;
   const foot = opts.footer && rows.length
-    ? `<tfoot><tr>${cols.map((c) => `<td class="${c.num ? 'num' : ''}">${c.foot ? c.foot(rows) : ''}</td>`).join('')}</tr></tfoot>` : '';
-  return `<div class="tbl-wrap"><table class="tbl ${opts.cls || ''}"><thead><tr>${th}</tr></thead><tbody>${body}</tbody>${foot}</table></div>`;
+    ? `<tfoot><tr>${cols.map((c) => `<td class="${c.num ? 'num' : ''}" data-nhan="${esc(c.label)}">${c.foot ? c.foot(rows) : ''}</td>`).join('')}</tr></tfoot>` : '';
+  /* 4 cột trở lên thì chắc chắn không vừa khung 322px của điện thoại → thẻ. Ba
+   * cột vẫn vừa, giữ nguyên bảng cho dễ so hàng. */
+  const theDt = cols.length >= 4 ? ' ios-the-bang' : '';
+  return `<div class="tbl-wrap"><table class="tbl ${opts.cls || ''}${theDt}"><thead><tr>${th}</tr></thead><tbody>${body}</tbody>${foot}</table></div>`;
 }
 
 document.addEventListener('click', (e) => {
@@ -1915,7 +1930,7 @@ function roasBang() {
     </div>
 
     <h4 style="margin:18px 0 6px;font-size:1rem">Theo kênh</h4>
-    <div style="overflow-x:auto">${table('rsKenh', [
+    ${table('rsKenh', [
       { key: 'nenTang', label: 'Kênh', render: (x) => platTag(x.nenTang) },
       { key: 'spendKy', label: 'Chi tiêu cả kỳ', num: true, render: (x) => vnd(x.spendKy) },
       { key: 'phu', label: 'Phủ', num: true, render: (x) => phanTram(x.phu, 0) },
@@ -1923,10 +1938,10 @@ function roasBang() {
       { key: 'thu', label: 'Đã thu', num: true, render: (x) => vnd(x.thu) },
       { key: 'don', label: 'Đơn', num: true, render: (x) => int(x.don) },
       { key: 'roas', label: 'ROAS', num: true, render: (x) => `<span class="tag ${mauRoas(x.roas)}">${ty(x.roas)}</span>` },
-    ], r.theoKenh)}</div>
+    ], r.theoKenh)}
 
     <h4 style="margin:18px 0 6px;font-size:1rem">Theo từng quảng cáo</h4>
-    <div style="overflow-x:auto">${table('rsAd', [
+    ${table('rsAd', [
       { key: 'ten', label: 'Quảng cáo', cls: 'name', render: (x) => (x.coTrongBase
         ? `<b>${esc(x.ten)}</b><span class="sub-line">${esc(x.adId)}</span>`
         : `<span class="tag warn">chưa có trong Base</span> <code>${esc(x.adId)}</code>`) },
@@ -1940,7 +1955,7 @@ function roasBang() {
       { key: 'tien', label: 'Doanh thu', num: true, render: (x) => `<b>${vnd(x.tien)}</b>` },
       { key: 'roas', label: 'ROAS', num: true, render: (x) => `<span class="tag ${mauRoas(x.roas)}">${ty(x.roas)}</span>` },
       { key: 'treTB', label: 'Trễ TB', num: true, render: (x) => (x.treTB == null ? '—' : x.treTB + ' ngày') },
-    ], r.rows, { sort: { key: 'tien', dir: 'desc' }, empty: 'Không ghép được dòng nào' })}</div>
+    ], r.rows, { sort: { key: 'tien', dir: 'desc' }, empty: 'Không ghép được dòng nào' })}
 
     <div class="help" style="margin-top:12px">
       <b>Đọc con số này cho đúng.</b> ROAS chia cho <b>toàn bộ</b> chi tiêu của kênh, nhưng doanh thu
