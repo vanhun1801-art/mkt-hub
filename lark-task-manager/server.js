@@ -791,6 +791,22 @@ const TRE = 'Trễ deadline';
 /** Việc TRỄ so với hạn: deadline đã qua theo NGÀY và việc còn mở.
  * Không quan tâm đã nộp hay chưa — "đã trễ" là chuyện không xoá được, và chốt
  * chặn nhân sự tự đóng việc phải dựa vào đây. */
+/**
+ * Người order CHÍNH LÀ người làm — không còn ai đứng ngoài để nghiệm thu.
+ *
+ * Đúng khi MỌI người order đều có tên trong danh sách người làm. Order một
+ * người mà hai người làm thì vẫn tính (người order không đứng ngoài); order hai
+ * người mà chỉ một người trong đó làm thì KHÔNG, vì người kia vẫn phải duyệt.
+ * Việc liên phòng loại ra: người giao ở bên công ty, nghiệm thu là của họ.
+ */
+function tuGiaoTuLam(t) {
+  if (!t || t.lienPhong || t.maLienPhong) return false;
+  const order = (t.requester || []).filter((u) => u && u.id);
+  const lam = (t.owner || []).filter((u) => u && u.id);
+  if (!order.length || !lam.length) return false;
+  return order.every((u) => lam.some((o) => o.id === u.id));
+}
+
 function laTreTheoHan(t) {
   if (DONG_HAN.includes(t.status)) return false;
   /* Automation trong Base tự đặt "Trễ deadline" sau deadline 2 tiếng, tức nó biết
@@ -1895,6 +1911,15 @@ async function api(req, res, url) {
       }, 422);
     }
 
+    /* Người order CHÍNH LÀ người làm thì không có ai để nghiệm thu: bắt nộp rồi
+     * chờ là bắt người ta tự duyệt việc của chính mình, một vòng rỗng (anh Hùng
+     * 27/10/2026). Bấm một cái là Hoàn thành luôn.
+     *
+     * Không áp dụng cho việc LIÊN PHÒNG (người giao ở bên công ty, nghiệm thu
+     * thuộc về họ) và không áp dụng cho việc đã TRỄ — luật "trễ thì nhân sự
+     * không tự đóng" là chuyện thời hạn, không phải chuyện nghiệm thu. */
+    const tuChotDuoc = tuGiaoTuLam(task) && !laTreTheoHan(task);
+
     /* ---- Nộp sản phẩm · chờ nghiệm thu ----
      * Editor bấm "Đã gửi sản phẩm" (action 'nop') hoặc việc trễ bấm "Giải quyết"
      * (action 'giai-quyet', giữ cho tương thích): đánh dấu `daGiaiQuyet` để việc
@@ -1902,7 +1927,7 @@ async function api(req, res, url) {
      * đếm được là trễ, việc đúng hạn vẫn "Đang tiến hành" cho tới khi được nghiệm
      * thu. `Ngày giải quyết` làm mốc 1,5 ngày (và đóng băng "trễ mấy ngày").
      */
-    if (action === 'nop' || action === 'giai-quyet') {
+    if ((action === 'nop' || action === 'giai-quyet') && !tuChotDuoc) {
       /* Nộp lại lần hai thì chỉ cập nhật sản phẩm; giữ Ngày giải quyết của lần đầu. */
       Object.assign(patch, { daGiaiQuyet: true });
       if (!task.ngayGiaiQuyet) patch.ngayGiaiQuyet = new Date().toISOString();
@@ -1939,10 +1964,14 @@ async function api(req, res, url) {
         .catch((e) => console.error('  [liên phòng] đồng bộ đi hỏng: ' + e.message));
     }
 
-    // báo người order vào nghiệm thu & chấm điểm
-    baoTin((task.requester || []).map((u) => u.id),
-      'Việc "' + (task.title || '') + '" đã hoàn thành.' + XD +
-      'Mời bạn nghiệm thu và chấm điểm.' + duoiTin());
+    /* Báo người order vào nghiệm thu & chấm điểm. Người order chính là người
+     * làm thì thôi: không ai cần nhắn cho chính mình rằng việc mình vừa đóng
+     * đã xong. */
+    if (!tuGiaoTuLam(task)) {
+      baoTin((task.requester || []).map((u) => u.id),
+        'Việc "' + (task.title || '') + '" đã hoàn thành.' + XD +
+        'Mời bạn nghiệm thu và chấm điểm.' + duoiTin());
+    }
 
     const baoCao = await themVaoBaoCao(req, task);
     return json(res, { ok: true, status: patch.status, baoCao });

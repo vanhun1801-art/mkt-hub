@@ -2539,7 +2539,17 @@ body[data-fx="cham"] .ng-o.goi::after {
 }
 .wcard:hover .wc-nam, .wcard:focus-within .wc-nam { opacity: .7; }
 .wc-nam:active { cursor: grabbing; }
-.wcard.dang-keo { opacity: .4; }
+/* Nhấc lên là chỗ cũ TRỐNG, không phải một bản mờ nằm lại (anh Hùng
+   27/10/2026: "khi anh cầm lên thì vị trí task đó phải trống"). Giữ nguyên
+   chiều cao để danh sách không giật, kẻ viền đứt báo đây là chỗ nó vừa rời. */
+.wcard.dang-keo {
+  background: var(--surface-2);
+  outline: 2px dashed var(--border-2); outline-offset: -5px;
+}
+/* Chừa tay nắm ra: ngón tay đang "giữ" nó, mà visibility:hidden thì phần tử
+   thôi nhận sự kiện — ẩn nó đi là có nguy cơ rụng luôn lượt kéo. */
+.wcard.dang-keo > *:not(.wc-nam) { visibility: hidden; }
+.wcard.dang-keo .wc-nam { opacity: 0; }
 /* Đang kéo thì tắt nút trên thẻ: thả trúng "Đã gửi sản phẩm" là một tai nạn. */
 body.dang-keo-the .wcard-actions { pointer-events: none; }
 body.dang-keo-the .wcard-title { cursor: inherit; }
@@ -2594,10 +2604,21 @@ body.dang-keo-the .wcard-title { cursor: inherit; }
 
 /* Vừa nhấc thẻ lên là thấy ngay thả vào đâu được: chỗ nhận sáng lên, chỗ không
    nhận lùi lại. Trước đây phải rê qua từng thẻ mới biết. */
-.wcard.tha-duoc { background: var(--surface-2); box-shadow: inset 2px 0 0 0 var(--blue); }
-.wcard.tha-khong { opacity: .4; }
-/* Nhánh đi theo thẻ đang kéo: mờ như nó, vì nó cũng đang được mang đi. */
-.wcard.theo-cha { opacity: .4; }
+/* Chỗ thả được: viền đứt quanh cả thẻ, như một cái ô đang mở chờ nhận. Viền
+   ĐẶC (nhan-con) để dành cho chỗ đang nhắm tới — đứt là "có thể", đặc là "sẽ".
+   outline chứ không border: outline không chiếm chỗ nên danh sách không xê. */
+.wcard.tha-duoc {
+  background: var(--surface-2);
+  outline: 2px dashed var(--blue); outline-offset: -4px;
+}
+.wcard.nhan-con, .wcard.chan-con { outline: none; }
+.wcard.tha-khong { opacity: .32; }
+/* Nhánh đi theo thì CỤP LẠI chứ không nằm cứng tại chỗ: nó đang ở trên tay,
+   không còn ở trong danh sách nữa. Thả hụt thì nó trượt ra lại (vua-mo). */
+.wcard.theo-cha { overflow: hidden; animation: wc-cup var(--cd-ra, .22s) ease both; }
+@media (prefers-reduced-motion: reduce) {
+  .wcard.theo-cha { animation: none; display: none; }
+}
 /* ---- Cái xấp việc bay theo ngón tay (27/10/2026) ----
    Cơ chế kéo của trình duyệt chỉ cho một ảnh tĩnh của một thẻ, nên phần này tự
    làm: thẻ đang cầm trên cùng, việc con thò ra phía sau như một xấp giấy. */
@@ -2815,3 +2836,15 @@ html:not(#_):not(#__):not(#___) .kh-than .vc-them input {
     width: 40px; height: 40px; transform: translate(-50%, -50%);
   }
 }
+
+/* ---- Nút nộp việc LIÊN PHÒNG mang màu riêng (27/10/2026) ----
+   Bấm nút này là ghi sang Base của công ty, không phải nộp trong phòng. Hai
+   việc khác nhau thì nút đừng giống nhau. Tím để khỏi đụng xanh (nộp trong
+   phòng), đỏ (trễ) và cam (cảnh báo) đang dùng ở chỗ khác. */
+.btn.btn-primary.btn-lp {
+  background: var(--purple);
+  border-color: var(--purple);
+  color: #fff;
+}
+.btn.btn-primary.btn-lp:hover { filter: brightness(1.08); }
+.btn.btn-primary.btn-lp:disabled { opacity: .55; }

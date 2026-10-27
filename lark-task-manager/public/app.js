@@ -534,6 +534,18 @@ const isClosed = (t) => CLOSED.includes(t.status);
 /* Đã giải quyết = đã nộp sản phẩm dù trễ: rời khỏi hàng đợi quá hạn, nhưng TRẠNG
  * THÁI vẫn giữ nguyên để cuối tháng còn thống kê được ai trễ. */
 const daGiaiQuyet = (t) => !!t.daGiaiQuyet;
+/**
+ * Người order CHÍNH LÀ người làm — không còn ai đứng ngoài để nghiệm thu, nên
+ * bỏ luôn bước đó (anh Hùng 27/10/2026). Bản chiếu của tuGiaoTuLam() bên máy
+ * chủ: máy chủ vẫn là nơi quyết định, bên này chỉ để gọi đúng tên cái nút.
+ */
+function tuGiaoTuLam(t) {
+  if (!t || t.lienPhong || t.maLienPhong) return false;
+  const order = (t.requester || []).filter((u) => u && u.id);
+  const lam = (t.owner || []).filter((u) => u && u.id);
+  if (!order.length || !lam.length) return false;
+  return order.every((u) => lam.some((o) => o.id === u.id));
+}
 
 /** "Đã giải quyết · trễ 6 ngày" — tính theo Ngày giải quyết, không theo hôm nay. */
 function nhanGiaiQuyet(t) {
@@ -1811,7 +1823,17 @@ function ketThucKeo(thaThat) {
     const r = k.the.getBoundingClientRect();
     hangCanhBong(k, { x: r.left, y: r.top }, false);
   }
+  /* Nhánh đã cụp lại lúc nhấc lên; đặt tay xuống thì nó phải trượt ra lại chứ
+   * không bật về đột ngột. */
+  const nhanh = nhan ? [] : (k.nhanh || []);
   donDauKeoThe();
+  if (!itChuyenDong()) {
+    nhanh.forEach((x, i) => {
+      if (!x.isConnected) return;
+      x.style.setProperty('--tre', (i * 40) + 'ms');
+      x.classList.add('vua-mo');
+    });
+  }
   if (nhan) gomVaoViec(dich.t, k.t);
   /* gomVaoViec() tự vẽ lại; không thả được thì phải tự trả nợ những lượt làm
    * mới đã bị hoãn trong lúc kéo. */
@@ -2239,19 +2261,26 @@ function workCard(t, lane) {
   const treCanGQ = !S.isManager && cfg0().chanTre && laTreTheoHan(t);
   /* Chủ việc GỬI sản phẩm chờ nghiệm thu, không tự chốt Hoàn thành nữa —
    * nghiệm thu là của người order (tab "Việc đã order") hoặc quản lý. */
+  /* Tự order cho chính mình thì nộp xong là xong — gọi đúng tên việc sắp xảy
+   * ra, không hứa một bước nghiệm thu không có thật (anh Hùng 27/10/2026). */
+  const tuChot = tuGiaoTuLam(t) && !laTreTheoHan(t);
+  const nhanNop = tuChot ? '✓ Hoàn thành' : '✓ Đã gửi sản phẩm';
   const primary = {
     new:  { label: '▶ Bắt đầu làm', run: () => startTask(t) },
-    doing: { label: '✓ Đã gửi sản phẩm', run: () => openDone(t) },
+    doing: { label: nhanNop, run: () => openDone(t) },
     late:  treCanGQ
       ? { label: daGiaiQuyet(t) ? '↥ Gửi lại sản phẩm' : '↥ Gửi sản phẩm · giải quyết',
           run: () => openDone(t, 'giai-quyet') }
-      : { label: '✓ Đã gửi sản phẩm', run: () => openDone(t) },
-    redo:  { label: '↻ Gửi lại sản phẩm', run: () => openDone(t) },
+      : { label: nhanNop, run: () => openDone(t) },
+    redo:  { label: tuChot ? '↻ Làm lại xong' : '↻ Gửi lại sản phẩm', run: () => openDone(t) },
     daNop: { label: '↥ Gửi lại sản phẩm', run: () => openDone(t) },
   }[lane];
 
   if (primary) {
-    const b = el('button', 'btn btn-primary', primary.label);
+    /* Việc liên phòng mang màu riêng: bấm nút này là ghi sang Base của công ty,
+     * không phải nộp trong phòng — hai việc khác nhau thì nút đừng giống nhau
+     * (anh Hùng 27/10/2026). */
+    const b = el('button', 'btn btn-primary' + (t.lienPhong ? ' btn-lp' : ''), primary.label);
     b.onclick = primary.run;
     acts.appendChild(b);
     /* "Yêu cầu điều chỉnh" đã rời khỏi thẻ (27/10/2026, anh Hùng): ngoài danh
@@ -2285,9 +2314,16 @@ function openDone(t, kieu) {
   // (cùng cơ chế); 'complete' = chốt Hoàn thành thẳng (quản lý).
   S.doneKieu = kieu === 'giai-quyet' ? 'giai-quyet' : (kieu === 'complete' ? 'complete' : 'nop');
   const laNop = S.doneKieu !== 'complete';
+  /* Tự order cho chính mình: nộp xong là đóng luôn, nên đừng nói "chờ nghiệm
+   * thu" — chẳng ai chờ ai cả (anh Hùng 27/10/2026). */
+  const tuChot = laNop && tuGiaoTuLam(t) && !laTreTheoHan(t);
   S.modalTask = t;
-  $('#doneEyebrow').textContent = laNop ? 'Gửi sản phẩm · chờ nghiệm thu' : 'Nghiệm thu · đóng việc';
-  $('#doneSubmit').textContent = laNop ? 'Gửi sản phẩm' : 'Xác nhận hoàn thành';
+  $('#doneEyebrow').textContent = !laNop ? 'Nghiệm thu · đóng việc'
+    : (tuChot ? 'Hoàn thành · bạn tự order việc này' : 'Gửi sản phẩm · chờ nghiệm thu');
+  $('#doneSubmit').textContent = laNop ? (tuChot ? 'Hoàn thành' : 'Gửi sản phẩm') : 'Xác nhận hoàn thành';
+  /* Nút trong cửa sổ mang cùng màu với nút trên thẻ: cùng một hành động thì
+   * cùng một màu, dù bấm ở đâu. */
+  $('#doneSubmit').classList.toggle('btn-lp', !!t.lienPhong);
   $('#doneTaskName').textContent = t.title || '(chưa có tên)';
   $('#doneLink').value = t.linkKetQua || '';
   $('#doneNote').value = '';

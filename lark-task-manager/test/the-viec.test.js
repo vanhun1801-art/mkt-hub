@@ -103,7 +103,16 @@ test('kéo việc lớn thì cầm cả xấp, không phải một tờ', () => 
     'bản sao không được thừa hưởng hiệu ứng trượt của .wcard — thừa hưởng thì nó trôi lờ đờ sau con trỏ và lần đầu trượt từ góc màn hình xuống');
   assert.ok(/KEO\.lop\.forEach\(\(l\) => \{ l\.el\.style\.transform/.test(layHam('batDauKeo')),
     'phải đặt chỗ ngay, không thì khung đầu tiên cả xấp nằm ở góc trên bên trái');
-  assert.ok(/\.wcard\.theo-cha \{ opacity/.test(CSS), 'chỗ cũ của nhánh mờ đi, giữ chỗ');
+  /* Nhấc lên là chỗ cũ phải TRỐNG, không để lại một bản mờ nằm đó. */
+  assert.ok(/\.wcard\.dang-keo \{[^}]*outline: 2px dashed/.test(CSS),
+    'chỗ thẻ vừa rời đi là một ô trống kẻ viền đứt, giữ nguyên chiều cao để danh sách không giật');
+  assert.ok(/\.wcard\.dang-keo > \*:not\(\.wc-nam\) \{ visibility: hidden/.test(CSS),
+    'nội dung thẻ nguồn phải biến mất — nhưng chừa tay nắm, ngón tay đang giữ nó');
+  assert.ok(/\.wcard\.theo-cha \{[^}]*animation: wc-cup/.test(CSS),
+    'nhánh đi theo thì cụp lại, không nằm cứng tại chỗ');
+  assert.ok(/const nhanh = nhan \? \[\] : \(k\.nhanh \|\| \[\]\);/.test(layHam('ketThucKeo'))
+    && /classList\.add\('vua-mo'\)/.test(layHam('ketThucKeo')),
+    'thả hụt thì nhánh trượt ra lại, không bật về đột ngột');
   const dd = layHam('donDauKeoThe');
   for (const lop of ['theo-cha', 'tha-duoc', 'tha-khong', 'nhuong-cho']) {
     assert.ok(dd.includes(lop), 'dọn xong phải sạch lớp ' + lop + ', không thì lượt kéo sau dính lại');
@@ -153,6 +162,11 @@ test('vừa nhấc thẻ lên là chấm sẵn thả vào đâu được', () =>
   assert.ok(/theo-cha/.test(s), 'nhánh đang mang đi thì không phải chỗ thả');
   assert.ok(/soiChoTha\(dat\.the\)/.test(layHam('batDauKeo')), 'phải gọi lúc bắt đầu kéo');
   assert.ok(/\.wcard\.tha-khong \{ opacity/.test(CSS), 'chỗ không nhận thì lùi lại');
+  /* Đứt là "có thể thả", đặc là "sẽ thả vào đây" — hai mức phải khác nhau. */
+  assert.ok(/\.wcard\.tha-duoc \{[^}]*outline: 2px dashed var\(--blue\)/.test(CSS),
+    'chỗ thả được kẻ viền đứt quanh cả thẻ, như một cái ô đang mở chờ nhận');
+  assert.ok(/\.wcard\.nhan-con, \.wcard\.chan-con \{ outline: none/.test(CSS),
+    'chỗ đang nhắm tới bỏ viền đứt đi, không chồng hai kiểu viền lên nhau');
   /* Chỗ đang nhắm tới mở một khe, và chỉ mở khi nó thật sự nhận. */
   const n = layHam('nhamChoTha');
   assert.ok(/nhanConDuoc\(moi\.t, k\.t\)/.test(n), 'hỏi đúng cái luật lúc thả sẽ hỏi');

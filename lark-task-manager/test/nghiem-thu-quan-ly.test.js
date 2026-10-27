@@ -79,7 +79,11 @@ async function action(manager, requester, method) {
     XD: '\n', duoiTin: () => '', laTreTheoHan: () => true,
     themVaoBaoCao: async () => ({}),
   });
-  vm.runInContext(fn(sv, 'laNguoiOrder') + '\n' + fn(sv, 'requireOwnTask'), ctx);
+  /* Nhánh action gọi tuGiaoTuLam() từ 27/10/2026 (bỏ nghiệm thu khi người order
+   * chính là người làm). Nạp mã THẬT của nó chứ không viết hàm giả — hàm giả
+   * thì bài này vẫn xanh dù luật bên kia đã hỏng. */
+  vm.runInContext(fn(sv, 'laNguoiOrder') + '\n' + fn(sv, 'requireOwnTask')
+    + '\n' + fn(sv, 'tuGiaoTuLam'), ctx);
   await vm.runInContext('(async () => {\n' + sv.slice(actionStart, actionEnd) + '\n})()', ctx);
   return { ...response, written };
 }

@@ -247,3 +247,20 @@ Anh Hùng, sau khi dùng thử bản kéo đầu tiên: "ấn kéo hiệu ứng 
 - **Đang kéo thì `render()` hoãn lại** và ghi nợ, thả tay xong vẽ bù. Vẽ lại giữa lúc kéo là thay sạch thẻ dưới con trỏ, lượt kéo đứt và cái xấp kẹt lại trên màn hình — lỗi này đã xảy ra thật khi làm. `donDauKeoThe()` cũng dọn mọi xấp mồ côi, trừ cái đang bay về.
 - **Thẻ có tin chưa đọc nháy sáng ba nhịp** rồi thôi, và chỉ nháy lại khi SỐ tin đổi (nhớ theo cặp "mã việc + số tin"). Danh sách tự làm mới vài chục giây một lần; nháy theo mỗi lượt vẽ thì cả màn hình chớp liên tục. Máy xin bớt chuyển động thì không nháy nhưng vẫn giữ vệt xanh bên trái để phân biệt.
 - **Khối "Việc con" trong ô chi tiết vẫn dùng cơ chế cũ** để kéo đổi thứ tự, nên chỗ đó trên điện thoại vẫn chưa kéo được. Chưa chuyển vì anh Hùng chưa yêu cầu.
+
+## 19. Nhấc việc lên, và bỏ nghiệm thu khi tự order tự làm (27/10/2026)
+
+- **Nhấc lên là chỗ cũ TRỐNG.** Anh Hùng: "khi anh cầm lên thì vị trí task đó phải trống". Thẻ nguồn giữ nguyên chiều cao (để danh sách không giật) nhưng ẩn hết nội dung và kẻ viền đứt — một ô trống đánh dấu chỗ nó vừa rời. Chừa tay nắm ra: `visibility: hidden` làm phần tử thôi nhận sự kiện, ẩn nó là có nguy cơ rụng luôn lượt kéo.
+- **Nhánh con cụp lại, không nằm cứng tại chỗ** — nó đang ở trên tay chứ không còn trong danh sách. Thả hụt thì nhánh trượt ra lại chứ không bật về đột ngột.
+- **Hai mức gợi ý chỗ thả.** Viền **đứt** quanh thẻ = "thả vào đây được"; viền **đặc** = "sẽ thả vào đây" (chỗ đang nhắm). Dùng `outline` chứ không `border`: outline không chiếm chỗ nên danh sách không xê dịch. Chỗ không nhận lùi xuống 32% đậm.
+- **Người order chính là người làm thì bỏ bước nghiệm thu**, hoàn thành luôn. Anh Hùng: "nếu việc người order giống với người phụ trách thì không cần bước nghiệm thu mà hoàn thành luôn". Bắt nộp rồi chờ là bắt người ta tự duyệt việc của chính mình. Luật ở `tuGiaoTuLam()`, có bản giống hệt ở hai bên và bài `test/tu-giao-tu-lam.test.js` chạy cả hai trên cùng bộ việc.
+  - Đúng khi **mọi** người order đều có tên trong danh sách người làm. Order một người mà hai người làm thì vẫn tính; order hai người mà chỉ một người trong đó làm thì không, vì người kia còn phải duyệt.
+  - **Không** áp dụng cho việc liên phòng (người giao ở bên công ty) và việc đã **trễ** — "trễ thì nhân sự không tự đóng" là chuyện thời hạn, không phải chuyện nghiệm thu.
+  - Nút gọi đúng tên việc sắp xảy ra: "✓ Hoàn thành" thay vì "✓ Đã gửi sản phẩm", và không nhắn cho chính mình rằng việc mình vừa đóng đã xong.
+- **Nút nộp việc liên phòng mang màu riêng** (`--purple`): bấm nó là ghi sang Base của công ty, không phải nộp trong phòng. Hai việc khác nhau thì nút đừng giống nhau. Nút trong cửa sổ nộp cùng màu — cùng một hành động thì cùng một màu, dù bấm ở đâu.
+
+### Soát đồng bộ hai Base (27/10/2026, chỉ đọc)
+
+Đọc 97 việc-người từ 60 bản ghi gốc của Base "Giao việc công ty"; trạng thái tổng bên đó **khớp hết** với bảng "Liên phòng · tiến độ" của phòng, đọc hai lần ra cùng số. Cột cũng còn nguyên: Base công ty đủ 9/9, bảng tiến độ đủ 7/7 cột mà đường ghi gọi tới — đây là chỗ hay hỏng âm thầm, vì Base nhận lệnh ghi rồi lặng lẽ bỏ qua trường lạ.
+
+Nhưng **mới 1/97 việc-người có dòng tiến độ riêng**, nên luật tổng hợp gần như chưa chạy thật: "khớp hết" ở đây mới chứng minh đường ĐỌC đúng, chưa chứng minh đường GHI. Đường ghi chỉ kiểm được bằng một lượt ghi thật, mà dữ liệu này là của công ty nên phải do anh Hùng bấm.
