@@ -200,6 +200,10 @@ async function loadAll(refresh) {
   S.meta = meta;
   S.tasks = tasks.tasks;
   S.fetchedAt = tasks.fetchedAt || Date.now();
+  /* Thứ tự việc con do người kéo. Hỏng thì bỏ qua và xếp theo hạn như cũ —
+   * mất thứ tự tay là khó chịu, còn chặn cả trang vì nó thì vô lý. */
+  try { S.thuTuCon = (await req('/api/thu-tu-con' + q)).thuTu || {}; }
+  catch (_) { S.thuTuCon = S.thuTuCon || {}; }
   /* Yêu cầu điều chỉnh chỉ quản lý xử lý, nên chỉ quản lý mới phải tải.
    * Đọc vai thẳng từ meta vừa nhận, KHÔNG dùng S.isManager: cờ đó được gán ở
    * bước vẽ, tức là sau hàm này — lần nạp đầu nó vẫn còn false và danh sách
@@ -824,6 +828,13 @@ function renderCounters() {
 function renderLanes(list) {
   const box = $('#lanes');
   box.innerHTML = '';
+  /* Tay nắm kéo ẩn tới khi rê chuột vào thẻ, nên phải nói ra một lần ở đây —
+   * không thì không ai biết là kéo được (anh Hùng 27/10/2026). */
+  if (keoGomDuoc() && list.length > 1) {
+    box.appendChild(el('div', 'lanes-mach',
+      'Kéo tay nắm bên trái một việc rồi thả vào việc khác để gom nó thành việc con của việc đó. '
+      + 'Chia sâu tối đa ' + CAP_TOI_DA + ' cấp.'));
+  }
   const who = S.who && S.who.id;
 
   const groups = {};
@@ -931,8 +942,11 @@ function veTen(tag, cls, t) {
    * chi tiết (anh Hùng 21/10/2026: không muốn rối giao diện bên ngoài). */
   if (idCha(t)) {
     const cha = viecTheoMa(idCha(t));
-    const m = el('span', 'ten-con', '↳');
-    m.title = 'Việc con' + (cha ? ' của: ' + cha.title : '');
+    /* Một mũi tên cho cấp 2, hai mũi tên cho cấp 3 — nhìn đầu dòng là biết
+     * mình đang ở sâu bao nhiêu, không phải mở ra mới biết (27/10/2026). */
+    const cap = capCuaViec(t);
+    const m = el('span', 'ten-con' + (cap > 2 ? ' sau' : ''), '↳'.repeat(Math.max(1, cap - 1)));
+    m.title = 'Việc con cấp ' + cap + (cha ? ' · thuộc: ' + cha.title : '');
     x.insertBefore(m, x.firstChild);
   }
   const vc = vienCon(t);
@@ -1030,11 +1044,100 @@ function viecTheoMa(id) {
   if (!id) return null;
   return (S.tasks || []).find((x) => x.id === id) || (S.orders || []).find((x) => x.id === id) || null;
 }
-/** Việc con người này xem được, xếp theo hạn. */
+/* ---- TẦNG VIỆC: TỐI ĐA 3 CẤP (27/10/2026) ----
+   Anh Hùng: "Em giúp anh cho tối đa là 3 cấp độ". Con số này phải khớp với
+   CAP_TOI_DA bên server.js — lệch nhau thì viền xanh mọc ở chỗ máy chủ sẽ từ
+   chối, người ta kéo xong mới ăn lỗi. Bài test/keo-gom.test.js cột hai bên.
+
+   Mọi phép đếm tầng dưới đây đều chặn vòng: Base không canh gì cả, ô liên kết
+   ghi bừa là được A→B→A, và một vòng lặp không lối ra thì treo cả trang. */
+const CAP_TOI_DA = 3;
+
+/** Gộp S.tasks và S.orders theo id — hai mảng chồng nhau, cùng việc nằm cả hai. */
+function moiViec() {
+  const m = new Map();
+  for (const x of [...(S.tasks || []), ...(S.orders || [])]) if (!m.has(x.id)) m.set(x.id, x);
+  return m;
+}
+
+/** Việc này ở cấp mấy — 1 là việc gốc, 3 là sâu nhất. */
+function capCuaViec(t) {
+  if (!t) return 1;
+  const kho = moiViec();
+  const da = new Set([t.id]);
+  let n = 1;
+  let p = idCha(t);
+  while (p) {
+    if (da.has(p)) return CAP_TOI_DA + 1;
+    da.add(p);
+    n++;
+    if (n > CAP_TOI_DA) return n;
+    const x = kho.get(p);
+    p = x ? idCha(x) : '';
+  }
+  return n;
+}
+
+/** Cây dưới việc này dày mấy cấp — 1 là việc không có con. */
+function caoCuaViec(t) {
+  if (!t) return 1;
+  const con = new Map();
+  for (const x of moiViec().values()) {
+    if (x.status === 'Hủy') continue;
+    const c = idCha(x);
+    if (!c) continue;
+    if (!con.has(c)) con.set(c, []);
+    con.get(c).push(x.id);
+  }
+  const di = (k, dang) => {
+    if (dang.has(k) || dang.size > CAP_TOI_DA) return 1;
+    dang.add(k);
+    let h = 1;
+    for (const x of (con.get(k) || [])) h = Math.max(h, 1 + di(x, dang));
+    dang.delete(k);
+    return h;
+  };
+  return di(t.id, new Set());
+}
+
+/** `id` có nằm trong cây dưới `goc` không — chặn thả một việc vào con của nó. */
+function namDuoiViec(id, goc) {
+  const kho = moiViec();
+  const x = kho.get(id);
+  const da = new Set();
+  let p = x ? idCha(x) : '';
+  while (p) {
+    if (p === goc) return true;
+    if (da.has(p)) return false;
+    da.add(p);
+    const y = kho.get(p);
+    p = y ? idCha(y) : '';
+  }
+  return false;
+}
+
+/**
+ * Việc con người này xem được.
+ *
+ * Mặc định xếp theo HẠN. Nhưng nếu anh Hùng đã tự kéo thứ tự cho việc lớn này
+ * thì thứ tự tay thắng — hai việc cùng hạn thì chỉ có người mới nói được cái
+ * nào làm trước (27/10/2026).
+ *
+ * Con chưa có trong dãy đã kéo xuống cuối, vẫn xếp theo hạn giữa chúng: việc
+ * mới chia ra không được chen lên đầu và xô lệch thứ tự vừa đặt.
+ */
 function conCua(t) {
   const m = new Map();
   for (const x of [...(S.tasks || []), ...(S.orders || [])]) if (idCha(x) === t.id) m.set(x.id, x);
-  return [...m.values()].sort((a, b) => String(a.deadline || '9').localeCompare(String(b.deadline || '9')));
+  const ds = [...m.values()].sort((a, b) => String(a.deadline || '9').localeCompare(String(b.deadline || '9')));
+  const tt = (S.thuTuCon || {})[t.id];
+  if (!tt || !tt.length) return ds;
+  const viTri = new Map(tt.map((id, i) => [id, i]));
+  return ds.sort((a, b) => {
+    const x = viTri.has(a.id) ? viTri.get(a.id) : Infinity;
+    const y = viTri.has(b.id) ? viTri.get(b.id) : Infinity;
+    return x - y;
+  });
 }
 /** Viên "2/5" cạnh tên việc lớn. Có việc con trễ thì đỏ, xong hết thì xanh. */
 function vienCon(t) {
@@ -1047,7 +1150,9 @@ function vienCon(t) {
 }
 /** Ai chia được việc này thành việc con. */
 function chiaDuoc(t) {
-  if (!t || t.isNew || t.lienPhong || idCha(t) || S.viewAs) return false;
+  if (!t || t.isNew || t.lienPhong || S.viewAs) return false;
+  /* Chia tiếp được tới cấp 3, không còn chặn cứng ở một tầng (27/10/2026). */
+  if (capCuaViec(t) >= CAP_TOI_DA) return false;
   if (S.isManager) return true;
   /* Người trong phòng: mọi việc mình mở được, kể cả người bị tắt "Được tạo mới"
    * (tắt đó chỉ chặn việc lớn mới). 26/10/2026, anh Hùng: "anh muốn tất cả". */
@@ -1152,6 +1257,332 @@ function ganViecConMoi(cha, kq, body) {
   });
 }
 
+/* ==========================================================================
+ * KÉO ĐỔI THỨ TỰ VIỆC CON, VÀ CHUYỂN SANG VIỆC LỚN KHÁC   (27/10/2026)
+ *
+ * Anh Hùng: "anh muốn lôi các công việc con đó vào một công việc lớn khác,
+ * kiểu di chuyển linh hoạt thứ tự nó đi với nhau".
+ *
+ * Hai việc khác hẳn nhau nên làm bằng hai cử chỉ khác nhau, cố ý:
+ *
+ *   ĐỔI THỨ TỰ  — kéo thả trong danh sách. Nhanh, thấy ngay, sai thì kéo lại.
+ *   ĐỔI VIỆC LỚN — bấm nút, chọn trong danh sách. Đây là đổi chỗ ở của một
+ *                  việc, người khác sẽ thấy nó biến mất khỏi việc lớn cũ, nên
+ *                  không để nó xảy ra chỉ vì tay trượt một cái.
+ *
+ * Kéo bằng TAY NẮM riêng, không kéo cả dòng: cả dòng là nút mở việc con, mà
+ * một phần tử vừa bấm-để-mở vừa kéo-để-xếp thì trên điện thoại gần như không
+ * mở nổi — chạm nào cũng thành kéo.
+ * ========================================================================== */
+
+/** Gắn tay nắm kéo cho một dòng việc con. */
+function ganKeoCon(h, x, cha) {
+  const nam = el('span', 'vc-nam');
+  nam.title = 'Kéo để đổi thứ tự';
+  nam.setAttribute('aria-hidden', 'true');
+  nam.draggable = true;
+  /* Chặn click nổi lên dòng: bấm vào tay nắm không được mở việc con. */
+  nam.onclick = (e) => { e.stopPropagation(); e.preventDefault(); };
+  nam.ondragstart = (e) => {
+    e.stopPropagation();
+    /* Dọn dấu của lượt kéo trước. `dragend` thường bắn, nhưng không phải lúc
+     * nào cũng bắn (thả ra ngoài cửa sổ, kéo bị huỷ giữa chừng). Còn sót một
+     * dòng mang .dang-keo thì lượt sau nhặt nhầm dòng đó làm thứ đang kéo, và
+     * thả vào đâu cũng không đúng chỗ. */
+    [...h.parentNode.children].forEach((c) => c.classList.remove('dang-keo', 'tren', 'duoi'));
+    h.classList.add('dang-keo');
+    try { e.dataTransfer.setData('text/plain', x.id); } catch (_) {}
+    e.dataTransfer.effectAllowed = 'move';
+    /* Ảnh kéo là cả DÒNG chứ không phải mỗi tay nắm — kéo một dấu ba gạch bé
+     * tí thì không biết mình đang mang cái gì đi. */
+    try { e.dataTransfer.setDragImage(h, 20, 14); } catch (_) {}
+  };
+  nam.ondragend = () => {
+    h.classList.remove('dang-keo');
+    [...h.parentNode.children].forEach((c) => c.classList.remove('tren', 'duoi'));
+  };
+  h.insertBefore(nam, h.firstChild);
+
+  h.ondragover = (e) => {
+    const list = h.parentNode;
+    const keo = list.querySelector('.dang-keo');
+    if (!keo || keo === h) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    /* Thả lên nửa trên thì chèn TRƯỚC, nửa dưới thì chèn SAU. Vạch sáng cho
+     * biết nó sắp rơi vào đâu — không có vạch thì phải thả ra mới biết. */
+    const o = h.getBoundingClientRect();
+    const tren = (e.clientY - o.top) < o.height / 2;
+    [...list.children].forEach((c) => c.classList.remove('tren', 'duoi'));
+    h.classList.add(tren ? 'tren' : 'duoi');
+  };
+  h.ondragleave = () => h.classList.remove('tren', 'duoi');
+  h.ondrop = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const list = h.parentNode;
+    const keo = list.querySelector('.dang-keo');
+    const tren = h.classList.contains('tren');
+    [...list.children].forEach((c) => c.classList.remove('tren', 'duoi'));
+    if (!keo || keo === h) return;
+    list.insertBefore(keo, tren ? h : h.nextSibling);
+    const ids = [...list.children].map((c) => c.dataset.id).filter(Boolean);
+    /* Vẽ lại ngay theo thứ tự mới, đừng đợi máy chủ: người ta vừa thả tay là
+     * muốn thấy nó nằm đúng chỗ. Máy chủ hỏng thì nói ra và trả về như cũ. */
+    S.thuTuCon = Object.assign({}, S.thuTuCon, { [cha.id]: ids });
+    try {
+      await req('/api/tasks/' + encodeURIComponent(cha.id) + '/thu-tu-con',
+        { method: 'PUT', body: JSON.stringify({ ids }) });
+    } catch (err) {
+      toast('Không lưu được thứ tự: ' + err.message, 'do');
+      try { S.thuTuCon = (await req('/api/thu-tu-con')).thuTu || {}; } catch (_) {}
+      buildDrawer();
+    }
+  };
+}
+
+/* ---- Kéo thẳng một thẻ việc thả vào thẻ khác (27/10/2026) ----
+ * Anh Hùng: "không kiểu kéo việc này hoặc việc con gom vào task lớn hoặc task
+ * hiện có". Nút "Chuyển" vẫn giữ chứ không bỏ: điện thoại không kéo được
+ * (HTML5 drag không bắn trên cảm ứng), và TáCH một việc ra khỏi việc lớn thì
+ * không có thẻ nào để thả vào.
+ *
+ * Thẻ nằm rải ở nhiều làn khác nhau nên không dò được "cái đang kéo" bằng
+ * .dang-keo trong cùng một hộp như việc con — phải nhớ ra biến này. */
+let KEO_THE = null;
+
+/** Có đủ quyền để kéo gom việc không — quyết định có hiện tay nắm hay không. */
+function keoGomDuoc() {
+  if (S.viewAs) return false;
+  return !!(S.isManager || (S.perm && (S.perm.chiaViec || S.perm.taoMoi)));
+}
+
+/** Việc này có nhấc đi gắn chỗ khác được không. */
+function nhacDiDuoc(t) {
+  if (!t || t.isNew || t.lienPhong || t.status === 'Hủy') return false;
+  /* Việc đang có con VẪN nhấc đi được — cả nhánh đi theo nó. Chỉ là nó chỉ
+   * lọt vào được những chỗ còn đủ chỗ cho cả nhánh (27/10/2026). */
+  return keoGomDuoc();
+}
+
+/**
+ * Việc `con` có thả vào việc `cha` được không.
+ *
+ * Đây là bản chiếu của canhDoiCha() bên máy chủ. Máy chủ vẫn là nơi chặn
+ * thật; cái này chỉ để viền sáng không mọc ở chỗ thả vào sẽ bị từ chối.
+ */
+function nhanConDuoc(cha, con) {
+  if (!cha || !con || cha.id === con.id) return false;
+  if (cha.isNew || con.isNew) return false;
+  if (idCha(con) === cha.id) return false;            // đã nằm trong đó rồi
+  if (cha.lienPhong || con.lienPhong) return false;   // bên công ty quản lý
+  if (cha.status === 'Hủy' || con.status === 'Hủy') return false;
+  if (namDuoiViec(cha.id, con.id)) return false;      // thả vào con của chính nó
+  /* Cấp của việc đích cộng độ dày của cả nhánh đang kéo phải nằm trong 3 cấp. */
+  if (capCuaViec(cha) + caoCuaViec(con) > CAP_TOI_DA) return false;
+  return S.isManager || chiaDuoc(cha);
+}
+
+/** Vì sao không thả vào đây được — nói ngay trên thẻ thay vì lặng im. */
+function viSaoKhongNhan(cha, con) {
+  if (idCha(con) === cha.id) return 'Đã nằm trong việc này';
+  if (cha.lienPhong || con.lienPhong) return 'Việc liên phòng';
+  if (cha.status === 'Hủy' || con.status === 'Hủy') return 'Việc đã huỷ';
+  if (namDuoiViec(cha.id, con.id)) return 'Đây là việc con của nó';
+  const sau = capCuaViec(cha) + caoCuaViec(con);
+  if (sau > CAP_TOI_DA) {
+    return caoCuaViec(con) > 1
+      ? 'Cả nhánh sẽ thành ' + sau + ' cấp, quá ' + CAP_TOI_DA
+      : 'Sẽ thành cấp ' + sau + ', quá ' + CAP_TOI_DA;
+  }
+  return 'Bạn chưa chia được việc này';
+}
+
+/** Gom `con` vào `cha` rồi vẽ lại. */
+async function gomVaoViec(cha, con) {
+  try {
+    await req('/api/tasks/' + encodeURIComponent(con.id),
+      { method: 'PATCH', body: JSON.stringify({ parent: [cha.id] }) });
+    toast('Đã gom “' + (con.title || 'việc') + '” vào “' + (cha.title || 'việc lớn') + '”', 'xanh');
+    await loadAll(true);
+    render();
+  } catch (err) {
+    toast(err.message, 'do');
+  }
+}
+
+/** Dọn mọi dấu kéo còn sót — dragend không phải lúc nào cũng bắn. */
+function donDauKeoThe() {
+  KEO_THE = null;
+  document.body.classList.remove('dang-keo-the');
+  document.querySelectorAll('.wcard.dang-keo, .wcard.nhan-con, .wcard.chan-con')
+    .forEach((x) => x.classList.remove('dang-keo', 'nhan-con', 'chan-con'));
+}
+
+/** Gắn tay nắm kéo và chỗ thả cho một thẻ việc ngoài danh sách chính. */
+function ganKeoThe(c, t) {
+  if (!keoGomDuoc()) return;
+  c.dataset.id = t.id;
+
+  /* Mọi thẻ đều là chỗ thả, kể cả thẻ không nhấc đi được: một việc lớn đang
+   * có con chính là chỗ hay được thả vào nhất. */
+  c.ondragover = (e) => {
+    if (!KEO_THE || KEO_THE.id === t.id) return;
+    const ok = nhanConDuoc(t, KEO_THE);
+    e.preventDefault();
+    e.dataTransfer.dropEffect = ok ? 'move' : 'none';
+    c.dataset.nhan = ok ? 'Thả vào đây' : viSaoKhongNhan(t, KEO_THE);
+    c.classList.toggle('nhan-con', ok);
+    c.classList.toggle('chan-con', !ok);
+  };
+  /* dragleave bắn cả khi con trỏ đi qua chữ bên trong thẻ — bỏ qua những lần đó,
+   * không thì viền nhấp nháy theo từng chữ. */
+  c.ondragleave = (e) => {
+    if (e.relatedTarget && c.contains(e.relatedTarget)) return;
+    c.classList.remove('nhan-con', 'chan-con');
+  };
+  c.ondrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const con = KEO_THE;
+    c.classList.remove('nhan-con', 'chan-con');
+    if (!con || !nhanConDuoc(t, con)) return;
+    donDauKeoThe();
+    gomVaoViec(t, con);
+  };
+
+  if (!nhacDiDuoc(t)) return;
+
+  const nam = el('span', 'wc-nam');
+  nam.title = 'Kéo thả vào một việc khác để gom vào việc đó';
+  nam.setAttribute('aria-hidden', 'true');
+  nam.draggable = true;
+  nam.onclick = (e) => { e.stopPropagation(); e.preventDefault(); };
+  nam.ondragstart = (e) => {
+    e.stopPropagation();
+    donDauKeoThe();
+    KEO_THE = t;
+    c.classList.add('dang-keo');
+    document.body.classList.add('dang-keo-the');
+    try { e.dataTransfer.setData('text/plain', t.id); } catch (_) {}
+    e.dataTransfer.effectAllowed = 'move';
+    /* Ảnh kéo là cả THẺ chứ không phải mỗi tay nắm — kéo một dấu sáu chấm bé tí
+     * thì không biết mình đang mang cái gì đi. */
+    try { e.dataTransfer.setDragImage(c, 24, 22); } catch (_) {}
+  };
+  nam.ondragend = donDauKeoThe;
+  c.insertBefore(nam, c.firstChild);
+}
+
+/**
+ * Cửa sổ chọn việc lớn mới cho một việc con.
+ * Chỉ hiện việc KHÔNG phải con của ai, không phải chính nó, không liên phòng.
+ */
+function moChonViecLon(con) {
+  /* Gộp qua Map theo id: S.tasks và S.orders chồng nhau, cùng một việc nằm ở
+   * cả hai thì danh sách hiện nó hai lần — đã thấy "KOL Ấn Độ 1M" ra hai dòng
+   * giống hệt, không ai biết nên bấm dòng nào.
+   *
+   * Bỏ việc LIÊN PHÒNG khỏi danh sách đích: việc đó do bên công ty quản lý,
+   * gắn con của phòng vào là tạo một quan hệ chỉ Hub nhìn thấy. */
+  const gop = new Map();
+  for (const x of [...(S.tasks || []), ...(S.orders || [])]) {
+    if (gop.has(x.id) || x.id === con.id || x.isNew) continue;
+    /* Cùng một bộ luật với viền xanh lúc kéo thả — danh sách này không được
+     * mời anh chọn một chỗ mà kéo tay vào thì bị chặn. Giữ lại đúng việc lớn
+     * đang chứa nó để còn hiện nhãn "đang ở đây". */
+    const dangODay = !!idCha(con) && x.id === idCha(con);
+    if (!dangODay && !nhanConDuoc(x, con)) continue;
+    gop.set(x.id, x);
+  }
+  const dsGoc = [...gop.values()];
+
+  const than = el('div', 'cvl');
+  const chaCu = idCha(con) ? viecTheoMa(idCha(con)) : null;
+  than.appendChild(el('div', 'cvl-dau',
+    'Đang chuyển: ' + (con.title || '(chưa có tên)') +
+    (chaCu ? '  ·  hiện thuộc: ' + chaCu.title : '  ·  hiện chưa thuộc việc lớn nào')));
+
+  const o = el('input');
+  o.type = 'search';
+  o.placeholder = 'Gõ tên việc lớn để tìm';
+  o.className = 'cvl-tim ios-khong-nhap';
+  o.setAttribute('aria-label', 'Tìm việc lớn');
+  than.appendChild(o);
+
+  const ds = el('div', 'cvl-ds');
+  than.appendChild(ds);
+
+  const chuyen = async (idMoi) => {
+    ds.querySelectorAll('button').forEach((b) => { b.disabled = true; });
+    try {
+      await req('/api/tasks/' + encodeURIComponent(con.id), {
+        method: 'PATCH', body: JSON.stringify({ parent: idMoi ? [idMoi] : [] }),
+      });
+      dongXemNhanh();
+      toast(idMoi ? 'Đã chuyển sang việc lớn mới' : 'Đã tách khỏi việc lớn', 'xanh');
+      await loadAll(true);
+      render();
+    } catch (err) {
+      ds.querySelectorAll('button').forEach((b) => { b.disabled = false; });
+      toast(err.message, 'do');
+    }
+  };
+
+  const ve = () => {
+    const q = chuanTim(o.value);
+    ds.innerHTML = '';
+    if (chaCu) {
+      const b = el('button', 'cvl-o cvl-tach', 'Tách ra, không thuộc việc lớn nào');
+      b.type = 'button';
+      b.onclick = () => chuyen('');
+      ds.appendChild(b);
+    }
+    const loc = dsGoc.filter((x) => !q || chuanTim(x.title || '').includes(q)).slice(0, 60);
+    if (!loc.length) { ds.appendChild(el('div', 'queue-empty', 'Không có việc lớn nào khớp.')); return; }
+    for (const x of loc) {
+      const b = el('button', 'cvl-o' + (chaCu && x.id === chaCu.id ? ' dang' : ''));
+      b.type = 'button';
+      b.appendChild(el('span', 'cvl-ten', x.title || '(chưa có tên)'));
+      const c = x.con;
+      if (c && c.tong) b.appendChild(el('span', 'cvl-so', c.xong + '/' + c.tong));
+      if (chaCu && x.id === chaCu.id) b.appendChild(el('span', 'cvl-nhan', 'đang ở đây'));
+      else b.onclick = () => chuyen(x.id);
+      if (chaCu && x.id === chaCu.id) b.disabled = true;
+      ds.appendChild(b);
+    }
+  };
+  o.oninput = ve;
+  ve();
+
+  /* Dùng lại đúng lớp phủ của "xem nhanh" (.xn-lop) thay vì dựng kiểu cửa sổ
+   * thứ hai: cùng nền đặc, cùng cách đóng, cùng nhịp — anh Hùng đã chốt cửa sổ
+   * trong app chỉ có một dáng. */
+  dongXemNhanh();
+  const lop = el('div', 'xn-lop');
+  lop.id = 'xnLop';
+  const hop = el('div', 'xn-hop');
+  const dau = el('div', 'xn-dau');
+  dau.appendChild(el('b', '', 'Chuyển sang việc lớn khác'));
+  dau.appendChild(el('span', 'xn-n', dsGoc.length + ' việc lớn'));
+  const nutX = el('button', 'xn-x', '✕');
+  nutX.type = 'button';
+  nutX.onclick = dongXemNhanh;
+  dau.appendChild(nutX);
+  hop.appendChild(dau);
+  hop.appendChild(than);
+  lop.appendChild(hop);
+  lop.onclick = (e) => { if (e.target === lop) dongXemNhanh(); };
+  document.body.appendChild(lop);
+  setTimeout(() => o.focus(), 40);
+}
+
+/** Bỏ dấu + thường hoá, để gõ "tourdeks" cũng ra "THIẾT KẾ TOURDEKS". */
+function chuanTim(s) {
+  return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/đ/gi, 'd').toLowerCase().trim();
+}
+
 /** Khối "Việc con" / "Thuộc việc lớn" trong ô chi tiết. Không có gì để nói thì null. */
 function khoiViecCon(t) {
   if (!t || t.isNew || t.lienPhong) return null;
@@ -1165,7 +1596,21 @@ function khoiViecCon(t) {
     if (cha && cha.con) hang.appendChild(el('span', 'vc-cha-so', cha.con.xong + '/' + cha.con.tong + ' xong'));
     if (cha) hang.onclick = () => moViecKhac(cha);
     else hang.disabled = true;
-    return hang;
+    /* Chuyển sang việc lớn khác: nút RIÊNG bên cạnh, không nhét vào trong hàng
+     * — cả hàng vốn là nút mở việc lớn, lồng nút vào nút là HTML sai và trình
+     * duyệt tháo ra mất. Cùng mức quyền với chia việc con. */
+    /* Ai chia được việc lớn thì chuyển được con của nó. Không hỏi chiaDuoc(t):
+     * t đang LÀ việc con nên hàm đó luôn trả false — hỏi nó là không ai ngoài
+     * quản lý thấy nút này. */
+    if (!S.isManager && !(cha && chiaDuoc(cha))) return hang;
+    const boc = el('div', 'vc-cha-boc');
+    boc.appendChild(hang);
+    const nut = el('button', 'vc-doi-cha', 'Chuyển');
+    nut.type = 'button';
+    nut.title = 'Chuyển việc này sang một việc lớn khác, hoặc tách ra';
+    nut.onclick = (e) => { e.stopPropagation(); moChonViecLon(t); };
+    boc.appendChild(nut);
+    return boc;
   }
 
   const ds = conCua(t);
@@ -1183,6 +1628,10 @@ function khoiViecCon(t) {
     thanh.appendChild(day);
     k.than.appendChild(thanh);
   }
+  /* Kéo đổi thứ tự và chuyển sang việc lớn khác: cùng một mức quyền như chia
+   * việc con. Ai chia được thì xếp được — không đẻ thêm một loại quyền nữa. */
+  const xepDuoc = chia;
+
   /* Mỗi dòng: chấm màu · tên · TRẠNG THÁI · người làm · hạn. Bấm là mở việc con. */
   const list = el('div', 'vc-ds');
   for (const x of ds) {
@@ -1203,9 +1652,13 @@ function khoiViecCon(t) {
     if (dl) h.appendChild(dl);
     h.title = 'Mở việc con này';
     h.onclick = () => moViecKhac(x);
+    if (xepDuoc) ganKeoCon(h, x, t);
     list.appendChild(h);
   }
   if (ds.length) k.than.appendChild(list);
+  if (xepDuoc && ds.length > 1) {
+    k.than.appendChild(el('div', 'vc-mach', 'Kéo để đổi thứ tự. Bấm giữ tay nắm rồi thả vào chỗ muốn đặt.'));
+  }
   const an = c.tong - ds.filter((x) => x.status !== 'Hủy').length;
   if (an > 0) k.than.appendChild(el('div', 'vc-an', 'Và ' + an + ' việc con của người khác.'));
 
@@ -1278,6 +1731,7 @@ function ganKhoiViecCon(b, t, sauThe) {
 
 function workCard(t, lane) {
   const c = el('div', 'wcard');
+  ganKeoThe(c, t);
   const d = daysLeft(t.deadline);
   if (!isClosed(t) && d != null) {
     if (d < 0) c.classList.add('late');

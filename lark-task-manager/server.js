@@ -8,6 +8,7 @@ const PP = require('./phanphoi');
 const ppdoc = require('./ppdoc');
 const LP = require('./lien-phong');   // việc liên phòng ban — chỉ đọc (01/10/2026)
 const RW = require('./rooty-workspace');   // trao đổi việc liên phòng = luồng của Rooty Workspace (15/10/2026)
+const TTC = require('./thu-tu-con');   // thứ tự việc con do người kéo (27/10/2026)
 
 /* Email Lark của người đang thao tác — hub gửi xuống qua header (đã mã hoá URI). Rooty
  * Workspace nhận diện người bằng email, không bằng open_id (open_id riêng theo từng app). */
@@ -575,6 +576,130 @@ function ganTienDoCon(tasks, tatCa) {
   }
   for (const t of tasks) if (dem.has(t.id)) t.con = dem.get(t.id);
   return tasks;
+}
+
+/* ==========================================================================
+   TẦNG VIỆC — TỐI ĐA 3 CẤP (27/10/2026)
+   Anh Hùng: "Em giúp anh cho tối đa là 3 cấp độ". Trước đó chỉ cho một tầng.
+   Base không canh gì cả — ô `Parent items` ghi gì vào cũng được, kể cả một
+   vòng tròn A→B→A — nên mọi phép đếm tầng ở đây đều có chặn vòng, không bao
+   giờ được phép chạy mãi.
+   ========================================================================== */
+const CAP_TOI_DA = 3;
+
+/** Bản đồ id → id cha. Việc đã huỷ không tính là con của ai. */
+function banDoCha(tatCa) {
+  const m = new Map();
+  for (const x of tatCa) {
+    if (x.status === 'Hủy') continue;
+    const c = (x.parent || [])[0];
+    if (c) m.set(x.id, c);
+  }
+  return m;
+}
+
+/** Việc này đang ở cấp mấy — 1 là việc gốc. Gặp vòng thì trả số quá ngưỡng. */
+function capCua(id, cha) {
+  let n = 1;
+  let p = cha.get(id);
+  const da = new Set([id]);
+  while (p) {
+    if (da.has(p)) return CAP_TOI_DA + 1;
+    da.add(p);
+    n++;
+    if (n > CAP_TOI_DA) return n;
+    p = cha.get(p);
+  }
+  return n;
+}
+
+/** Cây dưới một việc dày mấy cấp — 1 là việc không có con. */
+function caoCua(id, tatCa) {
+  const con = new Map();
+  for (const x of tatCa) {
+    if (x.status === 'Hủy') continue;
+    const c = (x.parent || [])[0];
+    if (!c) continue;
+    if (!con.has(c)) con.set(c, []);
+    con.get(c).push(x.id);
+  }
+  const di = (k, dang) => {
+    if (dang.has(k) || dang.size > CAP_TOI_DA) return 1;
+    dang.add(k);
+    let h = 1;
+    for (const x of (con.get(k) || [])) h = Math.max(h, 1 + di(x, dang));
+    dang.delete(k);
+    return h;
+  };
+  return di(id, new Set());
+}
+
+/** `id` có nằm trong cây dưới `goc` không — chặn thả một việc vào con của nó. */
+function namDuoi(id, goc, cha) {
+  let p = cha.get(id);
+  const da = new Set();
+  while (p) {
+    if (p === goc) return true;
+    if (da.has(p)) return false;
+    da.add(p);
+    p = cha.get(p);
+  }
+  return false;
+}
+
+/**
+ * Canh một lần DỜI việc con sang việc lớn khác (27/10/2026).
+ *
+ * Lúc TẠO việc con đã có bộ canh riêng ở nhánh POST. Nhưng dời một việc đã có
+ * thì khác hẳn, vì việc đó có thể đang là cha của việc khác — và Base không tự
+ * chặn gì cả: `Parent items` chỉ là một ô liên kết, ghi gì vào cũng được. Ghi
+ * bừa thì được một vòng tròn A→B→A, và mọi chỗ đếm tiến độ con sẽ chạy mãi.
+ *
+ * Trả null nếu hợp lệ, hoặc { error, code, status } để gửi thẳng cho người dùng.
+ *
+ * @param conHienTai  task đang bị dời (đã toTask)
+ * @param idChaMoi    id việc lớn đích, hoặc '' để tách ra khỏi việc lớn
+ */
+async function canhDoiCha(conHienTai, idChaMoi, req, tatCa) {
+  if (!idChaMoi) return null;                       // tách ra ngoài: luôn được
+  if (idChaMoi === conHienTai.id) {
+    return { error: 'Một việc không thể là việc lớn của chính nó.', code: 'TU_LAM_CHA', status: 400 };
+  }
+  const cha = tatCa.find((x) => x.id === idChaMoi);
+  if (!cha) return { error: 'Không thấy việc lớn để chuyển sang.', code: 'KHONG_CO_CHA', status: 404 };
+
+  const bdCha = banDoCha(tatCa);
+  /* Thả một việc vào chính việc con của nó là tạo vòng tròn: từ đó mọi phép
+   * đếm tiến độ con sẽ chạy mãi và không ai gỡ ra được từ giao diện. */
+  if (namDuoi(idChaMoi, conHienTai.id, bdCha)) {
+    return { error: 'Không gắn một việc vào việc con của chính nó được.',
+      code: 'VONG_TRON', status: 400 };
+  }
+  /* Cấp của việc lớn đích, cộng độ dày của cả cây đang bị nhấc đi, phải nằm
+   * trong CAP_TOI_DA. Kéo một việc đã có con thì cả nhánh đi theo nó. */
+  const capCha = capCua(idChaMoi, bdCha);
+  const cao = caoCua(conHienTai.id, tatCa);
+  if (capCha + cao > CAP_TOI_DA) {
+    const vi = cao > 1
+      ? 'Việc này đang có việc con nên dày ' + cao + ' cấp; thả vào đây sẽ thành ' + (capCha + cao) + ' cấp.'
+      : 'Việc lớn bạn chọn đang ở cấp ' + capCha + '; thả vào sẽ thành cấp ' + (capCha + 1) + '.';
+    return { error: vi + ' Công việc chỉ chia sâu tối đa ' + CAP_TOI_DA + ' cấp.',
+      code: 'QUA_SAU', status: 400 };
+  }
+  if (cha.lienPhong) {
+    return { error: 'Việc liên phòng do bên công ty quản lý, không nhận việc con của phòng.',
+      code: 'CHA_LIEN_PHONG', status: 400 };
+  }
+  /* Quyền: quản lý chuyển được mọi việc; người khác phải XEM ĐƯỢC việc lớn
+   * đích, nếu không là gắn việc của mình vào một chỗ mình không nhìn thấy. */
+  if (!(await isManager(req))) {
+    const thay = (await visibleFor([cha], req)).length > 0;
+    if (!thay) {
+      return { error: 'Bạn chưa xem được việc lớn này nên chưa chuyển sang đó được.',
+        code: 'KHONG_THAY_CHA', status: 403 };
+    }
+  }
+  return null;
 }
 
 /** Ghi giá trị mới vào cache cục bộ, giữ đúng dạng của record-list. */
@@ -1453,11 +1578,14 @@ async function api(req, res, url) {
         .map((x) => (typeof x === 'string' ? x : x && x.id)).filter(Boolean)[0];
       if (!idCha) delete body.parent;
       else {
-        const recCha = (await getRecords(false)).find((r) => r.record_id === idCha);
-        if (!recCha) return json(res, { error: 'Không thấy việc lớn để gắn việc con.' }, 404);
-        const cha = toTask(recCha);
-        if ((cha.parent || []).length) {
-          return json(res, { error: 'Việc này đã là việc con, không chia tiếp được nữa.' }, 400);
+        const dsTatCa = (await getRecords(false)).map(toTask);
+        const cha = dsTatCa.find((x) => x.id === idCha);
+        if (!cha) return json(res, { error: 'Không thấy việc lớn để gắn việc con.' }, 404);
+        /* Chia tiếp được tới cấp CAP_TOI_DA, không phải chỉ một tầng như trước
+         * (27/10/2026). Việc đã ở cấp sâu nhất thì hết chỗ chia. */
+        if (capCua(idCha, banDoCha(dsTatCa)) >= CAP_TOI_DA) {
+          return json(res, { error: 'Việc này đã ở cấp ' + CAP_TOI_DA +
+            ' — sâu nhất rồi, không chia nhỏ thêm được.' }, 400);
         }
         if (!manager && laKhach(req)) {
           const coTen = me && [...(cha.owner || []), ...(cha.helper || [])].some((u) => u && u.id === me.id);
@@ -1586,6 +1714,43 @@ async function api(req, res, url) {
     await lark.deleteRecords([id]);
     cache.at = 0;
     return json(res, { ok: true, xoa: id });
+  }
+
+  /* ------------------------------------------------------------------------
+   * THỨ TỰ VIỆC CON do người kéo (27/10/2026)
+   *
+   * Tách khỏi PATCH của việc vì nó không sửa việc nào cả — nó nói "dưới việc
+   * lớn này, các con xếp theo đúng dãy này". Một lời gọi cho cả nhóm, không
+   * phải mỗi con một lượt ghi.
+   * --------------------------------------------------------------------- */
+  if (p === '/api/thu-tu-con' && req.method === 'GET') {
+    const ds = (await getRecords(false)).map(toTask);
+    const cha = new Set(ds.map((x) => (x.parent || [])[0]).filter(Boolean));
+    const ra = {};
+    for (const id of cha) { const tt = TTC.cua(id); if (tt.length) ra[id] = tt; }
+    return json(res, { thuTu: ra });
+  }
+
+  {
+    const m = /^\/api\/tasks\/([^/]+)\/thu-tu-con$/.exec(p);
+    if (m && req.method === 'PUT') {
+      const idCha = decodeURIComponent(m[1]);
+      const body = await readBody(req);
+      const tatCa = (await getRecords(false)).map(toTask);
+      const cha = tatCa.find((x) => x.id === idCha);
+      if (!cha) return json(res, { error: 'Không thấy việc lớn' }, 404);
+      /* Xếp lại thứ tự là đổi thứ người khác nhìn thấy, nên phải xem được việc
+       * lớn đó — cùng một mức quyền như lúc chuyển cha. */
+      if (!(await isManager(req)) && !(await visibleFor([cha], req)).length) {
+        return json(res, { error: 'Bạn chưa xem được việc lớn này.' }, 403);
+      }
+      /* Chỉ nhận id THẬT SỰ là con của việc lớn này. Gửi kèm id lạ thì danh
+       * sách thứ tự phình ra bằng rác và không ai lần ra được từ đâu. */
+      const conThat = new Set(tatCa.filter((x) => (x.parent || [])[0] === idCha).map((x) => x.id));
+      const ids = (Array.isArray(body.ids) ? body.ids : []).filter((x) => conThat.has(x));
+      const ok = TTC.dat(idCha, ids);
+      return json(res, { ok, so: ids.length, boQua: (body.ids || []).length - ids.length });
+    }
   }
 
   if (p === '/api/tasks/bulk' && req.method === 'PATCH') {
@@ -2454,6 +2619,23 @@ async function api(req, res, url) {
             if (UT[body.priority]) lpGiao.uuTienGoc = UT[body.priority];
           }
         }
+      }
+
+      /* DỜI VIỆC CON SANG VIỆC LỚN KHÁC (27/10/2026). `parent` nằm ngoài
+       * staffEditable nên chỉ quản lý tới được đây, nhưng vẫn phải canh: Base
+       * không chặn gì, ghi bừa là thành vòng tròn A→B→A. */
+      if (body.parent !== undefined) {
+        const idChaMoi = (Array.isArray(body.parent) ? body.parent : [body.parent])
+          .map((x) => (typeof x === 'string' ? x : x && x.id)).filter(Boolean)[0] || '';
+        const tatCa = (await getRecords(false)).map(toTask);
+        const xau = await canhDoiCha(toTask(rec0), idChaMoi, req, tatCa);
+        if (xau) return json(res, { error: xau.error, code: xau.code }, xau.status);
+        body.parent = idChaMoi ? [idChaMoi] : [];
+        /* Thứ tự tay bám theo CHA: rời cha cũ thì bỏ khỏi danh sách cũ, vào cha
+         * mới thì xếp cuối. Không dọn thì id cũ nằm lại và cha cũ xếp theo một
+         * danh sách có con ma. */
+        TTC.goKhoiMoiCha(id);
+        if (idChaMoi) TTC.themVaoCuoi(idChaMoi, id);
       }
 
       const cells = toCells(body);

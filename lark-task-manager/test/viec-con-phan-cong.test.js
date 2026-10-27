@@ -14,6 +14,13 @@ const fn = (src, name) => {
   assert(start >= 0, name);
   return src.slice(start, src.indexOf('\n}', start) + 2);
 };
+/* Nhánh POST canh số cấp (tối đa 3, 27/10/2026) nên cần mấy hàm đếm tầng.
+ * Lấy mã thật của server.js ra chạy chứ không viết hàm giả — hàm giả thì bài
+ * này vẫn xanh dù luật 3 cấp bên kia đã hỏng. */
+const TANG = vm.runInNewContext(
+  sv.slice(sv.indexOf('const CAP_TOI_DA ='), sv.indexOf('/**\n * Canh một lần DỜI'))
+  + '\n({ CAP_TOI_DA, banDoCha, capCua, caoCua, namDuoi })', {});
+
 const cha = { id: 'cha', title: 'Việc lớn', owner: [{ id: 'nguoi-lam' }],
   helper: [], parent: [], workType: 'Content', priority: 'Cao',
   campaign: 'Operate', deadline1: '2026-11-01T10:00:00Z' };
@@ -47,7 +54,7 @@ function check(name, cb) { cb(); pass++; console.log('  PASS ' + name); }
     const body = { title: 'Việc con mới', parent: ['cha'] };
     if (owner) body.owner = owner;
     let written;
-    const context = vm.createContext({
+    const context = vm.createContext(Object.assign({}, TANG, {
       p: '/api/tasks', req: { method: 'POST' }, res: {},
       readBody: async () => body, whoAmI: async () => ({ id: them.toi || 'nguoi-lam' }),
       isManager: async () => manager, khongDuocTao: () => !!them.khongTao, cfg,
@@ -58,7 +65,7 @@ function check(name, cb) { cb(); pass++; console.log('  PASS ' + name); }
       lark: { createRecord: async (cells) => {
         written = cells; return { record_id_list: ['con'] };
       } },
-    });
+    }));
     const response = await vm.runInContext('(async () => {\n' + sv.slice(start, end) + '\n})()', context);
     return { response, written };
   }

@@ -2477,6 +2477,9 @@ body[data-fx="cham"] .ng-o.goi::after {
    việc lớn. Mọi thứ khác nằm trong ô chi tiết.
    ========================================================================== */
 .ten-con { color: var(--text-3); margin-right: 4px; font-weight: 500; }
+/* Cấp 3: hai mũi tên. Bóp sát lại để "↳↳" đọc ra một dấu chứ không ra hai
+   chữ rời, và không đẩy tên việc đi xa thêm (27/10/2026). */
+.ten-con.sau { letter-spacing: -2px; padding-right: 2px; }
 .vien-con {
   display: inline-block; vertical-align: 1px; margin-left: 6px;
   font-size: 12px; font-weight: 600; line-height: 18px; padding: 0 7px;
@@ -2503,6 +2506,84 @@ body[data-fx="cham"] .ng-o.goi::after {
 .vc-dong.dong .vc-ten { color: var(--text-3); text-decoration: line-through; text-decoration-color: var(--text-4); }
 .vc-ai { flex: 0 0 auto; font-size: 12.5px; color: var(--text-2); max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .vc-an { font-size: 12.5px; color: var(--text-3); margin: 6px 8px 0; }
+
+/* ---- Kéo đổi thứ tự việc con, và chuyển sang việc lớn khác (27/10/2026) ----
+   Tay nắm riêng chứ không kéo cả dòng: cả dòng là nút mở việc con, mà một thứ
+   vừa bấm-để-mở vừa kéo-để-xếp thì trên điện thoại chạm nào cũng thành kéo. */
+.vc-nam {
+  flex: 0 0 auto; width: 16px; align-self: stretch; cursor: grab;
+  background: radial-gradient(circle, var(--text-4) 1.1px, transparent 1.2px) 0 0 / 5px 5px;
+  opacity: 0; transition: opacity var(--cd-deu, .16s ease);
+}
+/* Chỉ hiện khi rê vào dòng — sáu chấm xám trên mọi dòng làm danh sách rối.
+   Bàn phím chạm tới thì cũng phải thấy. */
+.vc-dong:hover .vc-nam, .vc-dong:focus-within .vc-nam { opacity: .75; }
+.vc-nam:active { cursor: grabbing; }
+.vc-dong.dang-keo { opacity: .4; }
+/* Vạch báo chỗ sắp thả. Dùng outline chứ không border: border làm dòng cao
+   thêm 2px và cả danh sách nhích lên nhích xuống theo con trỏ. */
+.vc-dong.tren { box-shadow: inset 0 2px 0 0 var(--blue, #2b5cff); }
+.vc-dong.duoi { box-shadow: inset 0 -2px 0 0 var(--blue, #2b5cff); }
+.vc-mach { font-size: 12px; color: var(--text-3); margin: 8px 8px 0; }
+
+/* ---- Kéo một thẻ việc thả vào thẻ khác để gom thành việc con (27/10/2026) ----
+   Cùng tay nắm sáu chấm như việc con, để hai chỗ kéo trong app trông như một
+   thứ. Thẻ là nút mở việc nên vẫn không kéo cả thẻ — chỉ kéo tay nắm. */
+.wc-nam {
+  flex: 0 0 auto; width: 16px; align-self: stretch; min-height: 30px; cursor: grab;
+  background: radial-gradient(circle, var(--text-4) 1.1px, transparent 1.2px) 0 0 / 5px 5px;
+  opacity: 0; transition: opacity var(--cd-deu, .16s ease);
+}
+.wcard:hover .wc-nam, .wcard:focus-within .wc-nam { opacity: .7; }
+.wc-nam:active { cursor: grabbing; }
+.wcard.dang-keo { opacity: .4; }
+/* Đang kéo thì tắt nút trên thẻ: thả trúng "Đã gửi sản phẩm" là một tai nạn. */
+body.dang-keo-the .wcard-actions { pointer-events: none; }
+body.dang-keo-the .wcard-title { cursor: inherit; }
+/* Viền trong chứ không border: border làm thẻ cao thêm 2px và cả làn nhích theo
+   con trỏ. Xanh là thả được, đỏ là không — kèm chữ nói vì sao. */
+.wcard.nhan-con { background: var(--surface-3); box-shadow: inset 0 0 0 2px var(--blue); }
+.wcard.chan-con { box-shadow: inset 0 0 0 2px var(--red); }
+.wcard.nhan-con::after, .wcard.chan-con::after {
+  content: attr(data-nhan); position: absolute; right: 10px; bottom: 7px;
+  font-size: 12px; font-weight: 600; line-height: 1.5;
+  padding: 1px 9px; border-radius: 999px; color: #fff; pointer-events: none;
+}
+.wcard.nhan-con::after { background: var(--blue); }
+.wcard.chan-con::after { background: var(--red); }
+.lanes-mach { font-size: 12px; color: var(--text-3); margin: 0 0 10px; }
+
+.vc-cha-boc { display: flex; align-items: stretch; gap: 6px; }
+.vc-cha-boc > .vc-cha { flex: 1; min-width: 0; }
+.vc-doi-cha {
+  flex: 0 0 auto; align-self: center; padding: 6px 12px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--surface-2);
+  font: inherit; font-size: 13px; color: var(--text-2); cursor: pointer;
+  transition: background var(--cd-deu, .16s ease), color var(--cd-deu, .16s ease);
+}
+.vc-doi-cha:hover { background: var(--surface-3); color: var(--text); }
+
+/* Cửa sổ chọn việc lớn mới */
+.cvl { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.cvl-dau { font-size: 13px; color: var(--text-2); }
+.cvl-tim {
+  width: 100%; padding: 9px 12px; border-radius: 9px;
+  border: 1px solid var(--line); background: var(--surface); font: inherit; font-size: 14px;
+  color: var(--text);
+}
+.cvl-ds { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; min-height: 0; }
+.cvl-o {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 40px;
+  padding: 7px 10px; border: 0; border-radius: 9px; background: transparent;
+  font: inherit; color: var(--text); text-align: left; cursor: pointer;
+  transition: background var(--cd-deu, .16s ease);
+}
+.cvl-o:hover:not(:disabled) { background: var(--surface-3); }
+.cvl-o:disabled { cursor: default; opacity: .75; }
+.cvl-ten { flex: 1; min-width: 0; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cvl-so { flex: 0 0 auto; font-size: 12.5px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.cvl-nhan { flex: 0 0 auto; font-size: 12px; color: var(--text-3); }
+.cvl-tach { color: var(--text-2); border-bottom: 1px solid var(--line); border-radius: 9px 9px 0 0; }
 /* Ô gõ nhanh việc con: một dòng như danh sách, bấm vào là gõ được ngay. */
 .vc-them {
   display: flex; align-items: center; gap: 10px; margin: 2px 0 0; padding: 0 8px;

@@ -8,3 +8,6 @@ quyen-*.json
 *.log
 .tmp/
 node_modules/
+
+# Thu tu viec con do nguoi keo - du lieu chay, moi may mot khac
+thu-tu-con.json
