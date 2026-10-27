@@ -94,6 +94,8 @@ const THA = [
   // nhãn vẽ TRÊN bản đồ (ghi công bản đồ, tên điểm) và nhãn trục biểu đồ cột
   // (.bd-truc, .bd-nhan của Khách hàng — anh Hùng muốn biểu đồ gọn) — cỡ cố định theo hình
   /leaflet/, /\.bd-(ten|vung|so|truc|nhan)\b/, /\.mh-diem\b/,
+  // số việc nhỏ ở góc ô ngày (dải nhiệt tải việc, Bảng công việc): nâng là đè lên số ngày
+  /\.ng-tai\b/,
 ];
 const tha = (sel) => THA.some((r) => r.test(sel));
 

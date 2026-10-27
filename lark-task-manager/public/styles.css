@@ -2334,6 +2334,11 @@ body[data-fx="cham"] .ng-o.goi::after {
 @media (max-width: 640px) {
   .ord-status { font-size: 12px; }
   .ord-lbl { font-size: 12.5px; }
+  /* hạn trên thẻ order và khung gợi ý ngày của ô chọn hạn (27/10/2026) */
+  .ord-han { font-size: 12.5px; }
+  .ng-goi-txt { font-size: 12.5px; }
+  .ng-goi-tai { font-size: 12px; }
+  .ng-gio-nhanh { font-size: 12.5px; }
 }
 /* Khung "Có bản nháp chưa lưu" (lớp vỏ iOS) thuộc form ở tab Thông tin —
    tab Trao đổi / Báo cáo không hiện nó (anh Hùng 01/10/2026). */

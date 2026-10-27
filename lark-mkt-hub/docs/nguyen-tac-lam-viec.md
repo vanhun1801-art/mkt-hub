@@ -198,3 +198,7 @@ Anh Hùng: "chỉnh theo style tổng thể ứng dụng của mình và cho nó
 - Dữ liệu người dùng (nội dung ghi chú, tên thư mục tự đặt, tiêu đề) khai vào danh sách bỏ qua của i18n.
 - Trang có thanh dưới cố định riêng thì trong hub trên điện thoại phải dừng phía trên thanh tab kính; trang có thanh điều hướng riêng thì ẩn thanh tiêu đề điện thoại của hub (`body.xem-ghi-chu .mob-bar`), không để hai tiêu đề lớn chồng nhau.
 - Màu nhấn là màu của hub; không dùng màu riêng kiểu app khác (đã bỏ màu vàng Apple Notes).
+
+## 15. Tab mở đầu của Bảng công việc (27/10/2026)
+
+- Ai mở Bảng công việc cũng vào **"Việc của tôi"** trước, kể cả quản lý. Tổng quan vẫn còn, bấm vào tab là tới. Link có `?tab=` hoặc lệnh `?mo=` thì vẫn đi thẳng tới màn được chỉ.

@@ -5734,8 +5734,7 @@ function applyRoleChrome() {
   // Ai cũng đặt việc được nên ai cũng có tab "Việc tôi order"
   const choPhep = S.isManager ? null : (xemHet ? ['work', 'order', 'board', 'table'] : ['work', 'order']);
   if (choPhep && !choPhep.includes(S.view)) S.view = 'work';
-  // Quản lý mở app là vào Tổng quan trước
-  if (S.isManager && !S.viewChosen) S.view = 'dash';
+  // Ai mở app cũng vào "Việc của tôi" trước, quản lý cũng vậy (anh Hùng, 27/10/2026)
   document.querySelectorAll('.tab').forEach((x) => x.classList.toggle('is-active', x.dataset.view === S.view));
 }
 
