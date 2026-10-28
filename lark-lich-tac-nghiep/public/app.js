@@ -1797,6 +1797,8 @@ const MONTHS = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Th�
                 'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'];
 
 function viewCalendar() {
+  /* mở thẳng tab Lịch thì có lượt vẽ trước khi dữ liệu về, lúc đó S.cal chưa được gán */
+  if (!S.cal) { const n = new Date(); S.cal = { y: n.getFullYear(), m: n.getMonth() }; }
   const { y, m } = S.cal;
   const q = S.f.q.trim().toLowerCase();
   const src = S.items.filter((t) => {

@@ -719,6 +719,7 @@ function theThanhVien(ht) {
   const trangThai = ht.formDienLuc ? nhanTT('KOL đã điền ' + ddmm(ht.formDienLuc) + ' ' + hhmm(ht.formDienLuc), 'xanh')
     : ht.maForm ? nhanTT('Đã tạo link ' + (ht.formGuiLuc ? ddmm(ht.formGuiLuc) : '') + ' · chờ KOL điền', 'cam') : nhanTT('Chưa gửi form');
   return '<div class="the"><div class="the-dau"><h2>Thành viên đoàn · ' + tv.length + '</h2>' + trangThai + '<div class="lon"></div>' +
+    '<a class="btn nho" href="' + e(((window.__HUB__ && window.__HUB__.prefix) || '') + '/in-doan.html?ht=' + ht.id) + '" target="_blank" rel="noopener" title="Thông tin KOL, kênh, danh sách hành khách và lưu ý, lưu PDF hoặc tải Excel gửi khách sạn, nhà hàng, tour">Xuất cho đối tác</a>' +
     '<button class="btn nho chinh" id="ttForm">' + (ht.maForm ? 'Link form cho KOL' : 'Tạo form điền thông tin') + '</button></div>' +
     (tv.length ? '<div class="the-than khit cuon"><table class="bang"><thead><tr><th>#</th><th class="w-ten">Họ tên</th><th>Nhóm</th><th>Giới tính</th><th>Ngày sinh</th><th>Quốc tịch</th>' +
       '<th>Giấy tờ</th><th>Số</th><th>Ngày cấp</th><th>Hết hạn</th><th>Ảnh</th><th>SĐT</th></tr></thead><tbody>' +
@@ -1811,6 +1812,7 @@ function veDongThoiGian(than, ht, trongCt) {
     htmlBanDo(moc.filter((g) => g[0].gioHen || g[0].ngay).map((g) => ({ ngay: dauNgay(g[0].gioHen || g[0].ngay), gio: g[0].gioHen, ten: tenGon(g[0].ten), h: g[0] })), false) +
     '</div></div><div class="the" style="min-width:0"><div class="the-dau"><h2>Các mốc</h2><div class="lon"></div>' +
     (moc.length ? '<a class="btn nho chinh" href="' + e(((window.__HUB__ && window.__HUB__.prefix) || '') + '/in-lich.html?ht=' + ht.id) + '" target="_blank" rel="noopener" title="Bản lịch trình có bản đồ và logo Rooty Trip, lưu PDF gửi KOL">Xuất PDF cho KOL</a>' : '') +
+    '<a class="btn nho" href="' + e(((window.__HUB__ && window.__HUB__.prefix) || '') + '/in-doan.html?ht=' + ht.id) + '" target="_blank" rel="noopener" title="Thông tin KOL, danh sách hành khách và lưu ý cho khách sạn, nhà hàng, tour">Xuất cho đối tác</a>' +
     '</div><div class="the-than">' +
     (moc.length ? '' : '<div class="bao">Chưa có hạng mục nào. Thêm ở tab Bảng kê, đặt Giờ hẹn cho từng mốc.</div>') +
     cacNgay.map((d) => { const ds = moc.filter((g) => dauNgay(g[0].gioHen || g[0].ngay) === d); const t = vn(d);

@@ -186,9 +186,9 @@ ok('quét được nhiều app', apps.length >= 9, String(apps.length));
 for (const a of apps) {
   /* Đọc MỌI tệp CSS của app, không chỉ styles.css (04/10/2026): KOL có kol.css,
    * form.css — chữ 11,5px ở đó lọt qua phép kiểm này. Bỏ khung-xuong.css (hình
-   * chờ, không có chữ) và in-lich.css (bản in giấy). styles.css đọc trước. */
+   * chờ, không có chữ), in-lich.css và in-doan.css (bản in giấy). styles.css đọc trước. */
   const pub = path.join(goc, a, 'public');
-  const tepCss = fs.readdirSync(pub).filter((f) => f.endsWith('.css') && !/^(khung-xuong|in-lich)\.css$/.test(f))
+  const tepCss = fs.readdirSync(pub).filter((f) => f.endsWith('.css') && !/^(khung-xuong|in-lich|in-doan)\.css$/.test(f))
     // lớp vỏ: ios.css là lớp giao diện chung, cỡ chữ của nó đo trên màn thật (quét chữ <12px), không theo cặp luật
     .filter((f) => !(a === 'lark-mkt-hub' && f === 'ios.css'))
     .sort((x, y) => (x === 'styles.css' ? -1 : y === 'styles.css' ? 1 : x.localeCompare(y)));

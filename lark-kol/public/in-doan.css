@@ -1,0 +1,90 @@
+/* Trang in thông tin đoàn gửi đối tác tiếp nhận (khách sạn, nhà hàng, tour). Khổ A4 dọc, chữ chảy
+ * tự nhiên sang tờ sau khi danh sách khách dài. Luôn nền sáng như trang in lịch trình: tệp gửi ra
+ * ngoài, không theo kiểu tối của app. Tiền tố id- để không đụng CSS chung hub chèn vào trang con. */
+:root {
+  --id-chinh: #289a87;
+  --id-chinh-nhat: #e8f4f1;
+  --id-than: #3a3a3c;
+  --id-phu: #6b7280;
+  --id-vien: #e5e7eb;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: #e9ecef; color: var(--id-than); }
+body { font-family: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+/* thanh công cụ, chỉ trên màn hình */
+.id-thanh { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 16px; justify-content: space-between; flex-wrap: wrap;
+  padding: 10px 20px; background: #fff; border-bottom: 1px solid var(--id-vien); font-size: 13px; }
+.id-thanh-trai { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; min-width: 0; }
+.id-thanh-trai span { color: var(--id-phu); }
+.id-thanh-phai { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.id-thanh-phai label { display: inline-flex; align-items: center; gap: 6px; }
+.id-thanh-phai select { font: inherit; padding: 6px 8px; border: 1px solid var(--id-vien); border-radius: 10px; background: #fff; max-width: 220px; }
+.id-thanh button { font: 600 14px/1 inherit; font-family: inherit; padding: 10px 18px; border: 0; border-radius: 999px; background: var(--id-chinh); color: #fff; cursor: pointer; }
+.id-thanh button.phu { background: var(--id-chinh-nhat); color: var(--id-chinh); }
+.id-thanh button:disabled { opacity: .5; cursor: progress; }
+#idSach { display: flex; flex-direction: column; align-items: center; padding: 24px 12px 60px; }
+.id-loi { max-width: 560px; padding: 16px 20px; border-radius: 14px; background: #fff4e5; color: #8a4b00; }
+
+/* ---------- tờ A4 dọc ---------- */
+.id-to { width: 210mm; min-height: 297mm; background: #fff; box-shadow: 0 4px 24px rgba(0, 0, 0, .12); padding: 14mm 14mm 12mm; }
+.id-dau { display: flex; align-items: center; gap: 14px; padding-bottom: 5mm; border-bottom: 1.5px solid var(--id-chinh-nhat); }
+.id-logo { height: 11mm; width: auto; display: block; }
+.id-chu-logo { font-weight: 800; font-size: 22px; color: var(--id-chinh); letter-spacing: -.02em; }
+.id-chu-logo i { font-style: normal; color: var(--id-than); }
+.id-dau-phai { margin-left: auto; text-align: right; font-size: 10.5px; color: var(--id-phu); line-height: 1.5; }
+.id-dau-phai b { display: block; font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--id-chinh); }
+.id-tieu-de { margin: 7mm 0 1mm; font-size: 22px; font-weight: 800; letter-spacing: -.01em; line-height: 1.25; }
+.id-tieu-de em { font-style: normal; color: var(--id-chinh); }
+.id-khoang { font-size: 12px; color: var(--id-phu); }
+.id-gui { display: inline-block; margin-top: 3mm; padding: 4px 12px; border-radius: 999px; background: var(--id-chinh-nhat); color: var(--id-chinh); font-size: 11px; font-weight: 600; }
+
+.id-muc { margin-top: 7mm; break-inside: avoid; }
+.id-muc.dai { break-inside: auto; }
+.id-h3 { margin: 0 0 2.5mm; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--id-chinh); }
+.id-luoi { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0 6mm; }
+.id-o { padding: 2.2mm 0; border-top: 1px dashed var(--id-vien); font-size: 12px; line-height: 1.5; min-width: 0; overflow-wrap: anywhere; }
+.id-o.rong { grid-column: 1 / -1; }
+.id-o small { display: block; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; color: var(--id-phu); margin-bottom: .5mm; }
+.id-mui { color: var(--id-phu); }
+
+.id-bang { width: 100%; border-collapse: collapse; font-size: 10.5px; line-height: 1.4; }
+.id-bang th { text-align: left; font-weight: 600; font-size: 9px; letter-spacing: .06em; text-transform: uppercase; color: var(--id-phu);
+  padding: 1.6mm 1.6mm; border-bottom: 1.2px solid var(--id-chinh-nhat); background: #f7faf9; }
+.id-bang td { padding: 1.8mm 1.6mm; border-bottom: 1px solid var(--id-vien); vertical-align: top; overflow-wrap: break-word; }
+/* bảng hành khách: chỉ ô họ tên được xuống dòng, các ô ngắn (nhóm, quốc tịch, số giấy) giữ một dòng */
+.id-khach td:not(.ten), .id-khach th { white-space: nowrap; }
+.id-khach .ten .id-nhan { margin-left: 0; display: table; margin-top: .6mm; }
+.id-bang tr { break-inside: avoid; }
+.id-bang thead { display: table-header-group; }
+.id-bang .so { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.id-bang a { color: var(--id-chinh); text-decoration: none; }
+.id-nhan { display: inline-block; margin-left: 4px; padding: 0 6px; border-radius: 999px; background: var(--id-chinh-nhat); color: var(--id-chinh); font-size: 9px; font-weight: 600; white-space: nowrap; }
+.id-tong { margin-top: 2mm; font-size: 10.5px; color: var(--id-phu); }
+
+.id-luu-y { margin: 0; padding: 3mm 4mm 3mm 8mm; border-radius: 12px; background: var(--id-chinh-nhat); font-size: 12px; line-height: 1.6; }
+.id-luu-y li { margin: .6mm 0; }
+.id-chan { margin-top: 9mm; padding-top: 3mm; border-top: 1px solid var(--id-vien); display: flex; justify-content: space-between; gap: 12px; font-size: 9.5px; color: var(--id-phu); }
+.id-chan b { color: var(--id-chinh); font-weight: 600; }
+
+[contenteditable]:hover { outline: 1px dashed rgba(40, 154, 135, .5); outline-offset: 2px; }
+[contenteditable]:focus { outline: 1.5px solid var(--id-chinh); outline-offset: 2px; }
+
+@page { size: A4 portrait; margin: 10mm 0; }
+@media print {
+  html, body { background: #fff; }
+  .id-thanh { display: none; }
+  #idSach { display: block; padding: 0; }
+  .id-to { box-shadow: none; min-height: 0; padding-top: 4mm; padding-bottom: 0; }
+  [contenteditable]:hover, [contenteditable]:focus { outline: none; }
+}
+/* màn hẹp: tờ co theo bề ngang, không kéo ngang trang */
+@media screen and (max-width: 820px) {
+  .id-thanh { padding: 10px 16px; }
+  #idSach { padding: 16px 0 40px; }
+  .id-to { width: 100%; min-height: 0; padding: 18px 16px; box-shadow: none; }
+  .id-luoi { grid-template-columns: 1fr 1fr; }
+  .id-bang-boc { overflow-x: auto; }
+  .id-thanh-phai select { font-size: 16px; }
+}

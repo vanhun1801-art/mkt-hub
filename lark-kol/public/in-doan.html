@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thông tin đoàn KOL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="/in-doan.css?v=BUILD">
+</head>
+<body>
+<div class="id-thanh">
+  <div class="id-thanh-trai"><b>Thông tin đoàn cho đối tác</b><span id="idTrangThai">Đang tải…</span></div>
+  <div class="id-thanh-phai">
+    <label>Gửi cho <select id="idDoiTac"><option value="">Tất cả dịch vụ</option></select></label>
+    <label><input type="checkbox" id="idKenh" checked> Kênh KOL</label>
+    <label><input type="checkbox" id="idGiay" checked> Số giấy tờ</label>
+    <button type="button" class="phu" id="idCsv" disabled>Tải danh sách khách (Excel)</button>
+    <button type="button" id="idIn" disabled>Lưu PDF</button>
+  </div>
+</div>
+<div id="idSach"></div>
+<script src="/in-doan.js?v=BUILD"></script>
+</body>
+</html>
