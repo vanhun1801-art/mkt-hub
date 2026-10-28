@@ -116,10 +116,10 @@ lark.listen(0, '127.0.0.1', () => {
       ok('người nhận và cc giữ nguyên', d.j && d.j.thu.cc[0].email === 'c@khach.vn');
 
       console.log('\nLuật tự đặt không lẫn giữa người');
-      await goi('/api/luat', 'tk-hung', { method: 'POST', body: { email: 'a@khach.vn', ngan: 'tu-dong' } });
+      await goi('/api/luat', 'tk-hung', { method: 'POST', body: { email: 'a@khach.vn', ngan: 'don' } });
       const sau1 = await goi('/api/thu', 'tk-hung');
       const sauLan = await goi('/api/luat', 'tk-lan', { method: 'POST', body: { email: 'z@z.vn', ngan: 'biet' } });
-      ok('luật anh Hùng có tác dụng với anh', sau1.j.thu[0].ngan === 'tu-dong', sau1.j.thu[0].ngan);
+      ok('luật anh Hùng có tác dụng với anh', sau1.j.thu[0].ngan === 'don', sau1.j.thu[0].ngan);
       ok('luật chị Lan không có luật của anh Hùng', sauLan.j && !('a@khach.vn' in sauLan.j.luat), JSON.stringify(sauLan.j));
 
       console.log('\nGhi lên Lark');

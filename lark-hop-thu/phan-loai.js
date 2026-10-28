@@ -3,24 +3,27 @@
  * Xếp thư vào ngăn bằng LUẬT: người gửi + tiêu đề. Hàm thuần, không gọi mạng,
  * để test được và để phần lớn thư không phải tốn một lượt AI.
  *
- * Bốn ngăn, xếp theo việc người đọc phải làm chứ không theo nguồn thư:
- *   xu-ly  Cần xử lý — đề xuất xin duyệt, thư hỏi cần trả lời
- *   sep    Sếp giao  — thư từ Ban giám đốc (giao việc, phản hồi đề xuất)
- *   biet   Để biết   — UNC, hoá đơn, đơn đặt dịch vụ, thông báo chung
- *   tu-dong Tự động  — mã xác nhận, thư quảng cáo, sự kiện, thư máy gửi
+ * Ba ngăn, xếp theo việc người đọc phải làm chứ không theo nguồn thư
+ * (anh Hùng 28/10/2026: bốn ngăn cũ "không biết phải làm gì"):
+ *   xu-ly  Cần trả lời   — thư người thật viết: đề xuất, Ban giám đốc, khách hỏi
+ *   don    Đơn khách đặt — form đặt dịch vụ trên web, booking mới của khách sạn
+ *   biet   Chỉ để đọc    — UNC, hoá đơn, thông báo, mã xác nhận, thư máy gửi
+ * Thư Ban giám đốc nằm trong "Cần trả lời" và mang cờ `sep` để giao diện gắn nhãn.
  *
  * Thứ tự ưu tiên: luật người dùng tự đặt > luật cài sẵn > AI > "xu-ly".
- * Thư không luật nào nhận mà chưa có AI thì vào "Cần xử lý": để sót một thư
- * cần duyệt trong ngăn "Để biết" tệ hơn nhiều so với chiều ngược lại.
+ * Thư không luật nào nhận mà chưa có AI thì vào "Cần trả lời": để sót một thư
+ * cần duyệt trong ngăn "Chỉ để đọc" tệ hơn nhiều so với chiều ngược lại.
  */
 
 const NGAN = [
-  { id: 'xu-ly', ten: 'Cần xử lý' },
-  { id: 'sep', ten: 'Sếp giao' },
-  { id: 'biet', ten: 'Để biết' },
-  { id: 'tu-dong', ten: 'Tự động' },
+  { id: 'xu-ly', ten: 'Cần trả lời' },
+  { id: 'don', ten: 'Đơn khách đặt' },
+  { id: 'biet', ten: 'Chỉ để đọc' },
 ];
 const LA_NGAN = new Set(NGAN.map((n) => n.id));
+/* Ngăn của bản cũ còn nằm trong luật tay và bộ đệm AI đã lưu. */
+const NGAN_CU = { sep: 'xu-ly', 'tu-dong': 'biet' };
+const chuan = (id) => (LA_NGAN.has(id) ? id : NGAN_CU[id] || '');
 
 const bo = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
   .replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
@@ -32,12 +35,12 @@ function luatCaiSan(cfg) {
   return [
     {
       ten: 'Mã xác nhận',
-      ngan: 'tu-dong',
+      ngan: 'biet',
       khop: (t) => /\b(otp|ma xac (nhan|thuc|minh)|ma dang nhap|xac minh (lan )?dang nhap|verification code|security code|login verification|account verification|mat khau mot lan|secure link)\b/.test(t.tieuDe),
     },
     {
       ten: 'Ban giám đốc',
-      ngan: 'sep',
+      ngan: 'xu-ly',
       khop: (t) => sep.has(t.email),
     },
     {
@@ -60,7 +63,7 @@ function luatCaiSan(cfg) {
       /* Form đặt dịch vụ trên website, booking mới của khách sạn: khách đang
        * chờ người liên hệ lại. */
       ten: 'Khách đặt dịch vụ',
-      ngan: 'xu-ly',
+      ngan: 'don',
       khop: (t) => /\b(dat dich vu|service booking|booking moi|don booking moi|loi nhan moi)\b/.test(t.tieuDe) ||
         /бронирован/.test(t.tieuDe),
     },
@@ -71,7 +74,7 @@ function luatCaiSan(cfg) {
     },
     {
       ten: 'Thư máy gửi',
-      ngan: 'tu-dong',
+      ngan: 'biet',
       /* Tìm trong phần trước @: "ads-account-noreply@", "noreply-ebooking@",
        * "automated@airbnb.com" đều là máy gửi. */
       khop: (t) => /(no-?reply|do-?not-?reply|automated|notifications?|mailer-daemon|newsletter|feedback|discover)/
@@ -83,12 +86,18 @@ function luatCaiSan(cfg) {
 /**
  * Xếp một thư. `tay` = luật người dùng đặt theo địa chỉ gửi ({ email: ngan }),
  * `ai` = kết quả AI đã có trong bộ đệm (có thể rỗng).
- * Trả { ngan, nguon: 'tay'|'luat'|'ai'|'mac-dinh', lyDo }.
+ * Trả { ngan, nguon: 'tay'|'luat'|'ai'|'mac-dinh', lyDo, sep }.
+ * `sep` = thư từ Ban giám đốc, để giao diện gắn nhãn.
  */
-function xep(thu, { cfg, tay = {}, ai = null, minh = [] } = {}) {
+function xep(thu, opts = {}) {
   const email = String((thu.tu && thu.tu.email) || '').toLowerCase();
-  if (tay[email] && LA_NGAN.has(tay[email])) {
-    return { ngan: tay[email], nguon: 'tay', lyDo: 'Luật anh đặt cho ' + email };
+  const sep = new Set((opts.cfg && opts.cfg.sep) || []).has(email);
+  return Object.assign(xepNgan(thu, email, opts), { sep });
+}
+
+function xepNgan(thu, email, { cfg, tay = {}, ai = null, minh = [] }) {
+  if (chuan(tay[email])) {
+    return { ngan: chuan(tay[email]), nguon: 'tay', lyDo: 'Luật anh đặt cho ' + email };
   }
   /* Thư tự gửi cho mình (bản đề xuất mình trình, bản lưu) không phải việc cần
    * làm. Đặt sau luật tay: ai muốn khác thì đặt luật cho chính địa chỉ đó. */
@@ -101,8 +110,8 @@ function xep(thu, { cfg, tay = {}, ai = null, minh = [] } = {}) {
   for (const l of luatCaiSan(cfg)) {
     if (l.khop(t)) return { ngan: l.ngan, nguon: 'luat', lyDo: l.ten };
   }
-  if (ai && LA_NGAN.has(ai.ngan)) return { ngan: ai.ngan, nguon: 'ai', lyDo: 'AI xếp' };
-  return { ngan: 'xu-ly', nguon: 'mac-dinh', lyDo: 'Chưa luật nào nhận' };
+  if (ai && chuan(ai.ngan)) return { ngan: chuan(ai.ngan), nguon: 'ai', lyDo: 'AI xếp' };
+  return { ngan: 'xu-ly', nguon: 'mac-dinh', lyDo: '' };
 }
 
-module.exports = { NGAN, LA_NGAN, xep, luatCaiSan, boDau: bo };
+module.exports = { NGAN, LA_NGAN, xep, luatCaiSan, chuanNgan: chuan, boDau: bo };

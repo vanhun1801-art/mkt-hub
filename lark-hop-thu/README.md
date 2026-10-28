@@ -2,21 +2,26 @@
 
 App con thứ 16 của Marketing Hub (id `hop-thu`, cổng 5204). Gom mọi hộp thư người dùng được cấp quyền (hộp chính + hộp chung như `sales@`, `marketing@`, `cmo@`, các hộp `pito@`) vào một danh sách, xếp theo việc phải làm.
 
-## Bốn ngăn
+## Ba ngăn (28/10/2026)
+
+Bốn ngăn cũ (Cần xử lý, Sếp giao, Để biết, Tự động) làm người dùng "không biết phải làm gì", nên gọn lại còn ba, đặt tên theo việc phải làm:
 
 | Ngăn | Vào đây |
 |---|---|
-| Cần xử lý | đề xuất xin duyệt, khách đặt dịch vụ, thư hỏi cần trả lời, thư lạ chưa luật nào nhận |
-| Sếp giao | thư từ Ban giám đốc (`HOP_THU_SEP`) |
-| Để biết | UNC, hoá đơn, bản lưu Tourwell, thông báo chung, thư mình tự gửi |
-| Tự động | mã xác nhận, thư máy gửi, quảng cáo |
+| Cần trả lời | đề xuất xin duyệt, thư Ban giám đốc (`HOP_THU_SEP`, gắn nhãn "Ban giám đốc"), khách tự viết hỏi, thư lạ chưa luật nào nhận |
+| Đơn khách đặt | form đặt dịch vụ trên web, booking mới của khách sạn. Ở đầu "Cần trả lời" có một dòng gom "N đơn khách đặt" dẫn sang đây |
+| Chỉ để đọc | UNC, hoá đơn, bản lưu Tourwell, thông báo chung, thư mình tự gửi, mã xác nhận, thư máy gửi, quảng cáo |
 
-Thứ tự xếp: luật anh tự đặt (nút Chuyển ngăn) > luật cài sẵn (`phan-loai.js`) > AI > Cần xử lý. Thư không ai nhận thì vào Cần xử lý: sót một đề xuất trong ngăn "Để biết" tệ hơn chiều ngược lại.
+Ngăn "Hẹn lại" chỉ hiện khi có thư đang hẹn. Số trên ngăn là thư chưa đọc.
+
+Thứ tự xếp: luật anh tự đặt (Thêm › Chuyển sang ngăn khác) > luật cài sẵn (`phan-loai.js`) > AI > Cần trả lời. Thư không ai nhận thì vào Cần trả lời: sót một đề xuất trong ngăn "Chỉ để đọc" tệ hơn chiều ngược lại. Luật tay và kết quả AI đã lưu từ bản bốn ngăn vẫn dùng được (`sep` → Cần trả lời, `tu-dong` → Chỉ để đọc).
+
+Trong thư chỉ có ba nút có chữ: **Trả lời**, **Giao việc**, **Xong** (chuyển vào Lưu trữ, có Hoàn tác). Nhắc lại sau, chuyển ngăn, gắn sao, đánh dấu chưa đọc nằm trong nút **⋯ Thêm**. Không bày lý do xếp ngăn ra giao diện.
 
 ## AI (Claude)
 
 - Khoá `ANTHROPIC_API_KEY` ở `lark-hop-thu/.env` (mẫu: `.env.example`). Thiếu khoá thì app vẫn chạy, chỉ tắt tóm tắt và viết nháp.
-- Mở thư ở ngăn Cần xử lý / Sếp giao thì tự tóm tắt; ngăn khác bấm "Tóm tắt". Kết quả cất ở `du-lieu/ai.json`, mở lại không tốn thêm lượt.
+- Mở thư ở ngăn Cần trả lời thì tự tóm tắt; ngăn khác bấm "Tóm tắt". Câu tóm tắt hiện luôn ở dòng hai của thư trong danh sách. Kết quả cất ở `du-lieu/ai.json`, mở lại không tốn thêm lượt.
 - Thư luật không nhận được xếp nhanh cả loạt bằng một lượt gọi (chỉ người gửi + tiêu đề).
 - Gọi thẳng HTTP (`ai.js`), không qua gói npm: cả repo không có dependency và Render build rỗng.
 - Thư là dữ liệu từ ngoài: nằm trong thẻ `<thu>`, AI không có công cụ nào, kết quả chỉ là chữ bày ra.

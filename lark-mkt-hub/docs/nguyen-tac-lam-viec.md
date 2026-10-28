@@ -311,3 +311,15 @@ Anh Hùng: "cho anh chỉnh trên file PDF này hết các vị trí đi, nhiề
 
 - **Trang in sửa được ở mọi chỗ trước khi lưu PDF.** Cả tờ là một vùng sửa chữ; rê chuột (hoặc chạm) vào dòng bảng, ô thông tin, câu lưu ý hay tên mục thì hiện nút đưa lên, đưa xuống, thêm dòng, xoá. Có Hoàn tác và Bản gốc. Bản đã sửa cất trên máy theo hợp tác + lựa chọn trên thanh công cụ, mở lại vẫn còn (30 ngày). Mẫu: `lark-kol/public/in-doan.*`.
 - **Trang in không nhận lớp giao diện chung của hub.** Tệp gửi khách sạn, đối tác luôn nền sáng, bảng giữ là bảng. Trang tự khai `<meta name="hub-trang-in">`, `proxy.js` khi đó chỉ chèn phần sửa đường dẫn, bỏ `dienthoai.css`, `ios.css`, `ios-app.js` (đã có lần tờ thông tin đoàn hiện nền đen, đầu bảng đen).
+
+## 22. Mở app ra là biết phải làm gì (28/10/2026)
+
+Anh Hùng (về Hộp thư): "cái giao diện này anh không biết phải làm gì luôn ấy em".
+
+- **Ngăn, tab, bộ lọc đặt tên theo việc người dùng phải làm**, không theo cách app phân loại. "Cần trả lời", "Chỉ để đọc" chứ không "Tự động", "Để biết".
+- **Không quá 3–4 ngăn.** Ngăn trống thì ẩn (như "Hẹn lại" chỉ hiện khi có thư đang hẹn).
+- **Số trên ngăn là số việc còn phải làm** (thư chưa đọc), không phải tổng cả cũ lẫn mới. "117" làm người ta nản và không biết hôm nay còn bao nhiêu.
+- **Hàng chục bản ghi giống hệt nhau (form tự động, đơn đặt) gom thành một dòng** dẫn sang ngăn riêng, không để chôn mất thứ người thật viết.
+- **Không bày chữ kỹ thuật ra giao diện**: lý do xếp, tên luật, "Chưa luật nào nhận". Chỉ bày thứ người đọc dùng được.
+- **Việc chính có nút có chữ (tối đa 3), việc phụ cất vào nút ⋯ Thêm.** Một dãy nút chỉ có hình là người dùng phải đoán từng cái.
+- **Danh sách dài (hộp thư, kênh, người) chọn bằng một nút mở menu**, không bày thành dải chip tràn khỏi màn.

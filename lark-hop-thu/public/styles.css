@@ -116,6 +116,8 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 .chip[aria-pressed="true"] { background: var(--xanh-nhat); color: var(--xanh); border-color: var(--xanh); }
 .chip .so { margin-left: 4px; color: var(--chu-3); }
 .chip[aria-pressed="true"] .so { color: inherit; }
+.chon-hop { display: inline-flex; align-items: center; gap: 4px; padding-right: 8px; }
+.chon-hop svg { width: 14px; height: 14px; }
 
 /* ---------- hai cột ---------- */
 .than-trang { flex: 1; min-height: 0; display: flex; gap: 14px; padding: 0 18px 18px; }
@@ -153,6 +155,13 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 .nhan.hop { color: var(--tim); background: color-mix(in srgb, var(--tim) 12%, transparent); }
 .nhan.lam { color: var(--cam); background: color-mix(in srgb, var(--cam) 13%, transparent); }
 .nhan.sao { color: var(--cam); background: none; padding: 0; }
+.nhan.sep { color: var(--xanh); background: var(--xanh-nhat); font-weight: 600; }
+
+/* Dòng gom đơn khách đặt ở đầu "Cần trả lời": bấm là sang ngăn Đơn khách đặt. */
+.dong.gom { background: var(--xanh-nhat); border-color: color-mix(in srgb, var(--xanh) 35%, transparent); }
+.dong.gom .nguoi { color: var(--xanh); font-weight: 650; }
+.dong.gom .gio { color: var(--xanh); }
+.dong.gom .td { color: var(--chu-2); font-size: 12.5px; }
 
 .da-luu {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
@@ -178,6 +187,7 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 }
 .doc-dau .ve { display: none; }
 .hang-nut { display: flex; gap: 6px; flex: 1; justify-content: flex-end; flex-wrap: wrap; }
+.hang-nut .nut svg { width: 16px; height: 16px; }
 .doc-than { flex: 1; min-height: 0; overflow-y: auto; padding: 18px 20px 24px; }
 .doc-than h2 { font-size: 18px; line-height: 1.35; margin: 0 0 10px; letter-spacing: -.2px; }
 .ai-gui { display: flex; flex-wrap: wrap; gap: 4px 12px; color: var(--chu-2); font-size: 13px; margin-bottom: 14px; }
@@ -230,6 +240,7 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
   padding: 8px 10px; border-radius: 9px; font-size: 13.5px;
 }
 .menu-noi button:hover { background: var(--mat-2); }
+.menu-noi button .so { float: right; margin-left: 16px; color: var(--chu-3); font-variant-numeric: tabular-nums; }
 .menu-noi button[aria-checked="true"] { color: var(--xanh); font-weight: 600; }
 .menu-noi .ghi { font-size: 12px; color: var(--chu-3); padding: 6px 10px 4px; }
 .menu-noi hr { border: 0; border-top: 1px solid var(--vien); margin: 4px 0; }
@@ -283,11 +294,16 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
   .tim input, .soan textarea { font-size: 16px; }
   .dai-ngan { padding: 8px 12px 0; }
   .dai-hop { padding: 8px 12px 8px; }
-  /* Tám nút tròn phải vừa 320px mà không cuộn ngang: 32px, khe 4px. */
+  /* Nút về, ba nút có chữ và nút Thêm phải vừa 320px mà không cuộn ngang. */
   .doc-dau { padding: 8px 10px; }
   .doc-dau .nut-tron { width: 32px; height: 32px; }
-  .hang-nut { justify-content: space-between; flex-wrap: nowrap; gap: 4px; }
+  .hang-nut { flex-wrap: nowrap; gap: 4px; }
+  .hang-nut .nut { padding: 6px 12px; }
   .hop-chan .nut { flex: 1; justify-content: center; }
+}
+
+@media (max-width: 400px) {
+  .hang-nut .nut svg { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

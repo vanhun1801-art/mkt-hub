@@ -80,9 +80,9 @@ const THU = {
     { hop: 'sales@rootytrip.com', id: 'b', tu: { ten: 'Agoda', email: 'x@agoda.com' }, tieuDe: 'Ưu đãi' },
   ];
   const ghi3 = [];
-  const x = await ai.xepNhanh(ds, { fetchFn: fetchGia(traLoiAi({ ket: [{ i: 0, ngan: 'xu-ly' }, { i: 1, ngan: 'tu-dong' }, { i: 7, ngan: 'biet' }] }), ghi3) });
+  const x = await ai.xepNhanh(ds, { fetchFn: fetchGia(traLoiAi({ ket: [{ i: 0, ngan: 'xu-ly' }, { i: 1, ngan: 'don' }, { i: 7, ngan: 'biet' }] }), ghi3) });
   ok('một lượt gọi cho cả loạt', ghi3.length === 1);
-  ok('ghép đúng thư theo số dòng', x.length === 2 && x[0].thu.id === 'a' && x[1].ngan === 'tu-dong');
+  ok('ghép đúng thư theo số dòng', x.length === 2 && x[0].thu.id === 'a' && x[1].ngan === 'don');
   ok('số dòng không có thật bị bỏ', !x.some((y) => !y.thu));
   ok('danh sách rỗng không gọi API', (await ai.xepNhanh([], { fetchFn: () => { throw new Error('không được gọi'); } })).length === 0);
 

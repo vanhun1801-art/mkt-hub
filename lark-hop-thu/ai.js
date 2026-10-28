@@ -108,8 +108,8 @@ async function phanTich(thu, { nguoi = 'anh Hùng', fetchFn } = {}) {
   const he = HE_CHUNG.replace('{NGUOI}', nguoi) + '\n\n' +
     'Trả về JSON:\n' +
     '- ngan: một trong "xu-ly" (cần người nhận duyệt, quyết, trả lời hoặc làm gì đó), ' +
-    '"sep" (Ban giám đốc giao việc hoặc phản hồi), "biet" (chỉ để biết: chứng từ, thông báo, xác nhận), ' +
-    '"tu-dong" (mã xác nhận, quảng cáo, thư máy gửi).\n' +
+    '"don" (đơn khách đặt dịch vụ gửi tự động từ form website hay trang đặt phòng), ' +
+    '"biet" (chỉ để đọc: chứng từ, thông báo, xác nhận, mã xác nhận, quảng cáo, thư máy gửi).\n' +
     '- tomTat: MỘT câu, tối đa 30 chữ: ai, muốn gì, về việc gì.\n' +
     '- canLam: việc cụ thể người nhận cần làm, bắt đầu bằng động từ ("Duyệt…", "Trả lời…"); để "" nếu không cần làm gì.\n' +
     '- han: hạn chót nếu thư có nêu (ghi như trong thư), không có thì "".\n' +
@@ -129,9 +129,9 @@ async function xepNhanh(ds, { nguoi = 'anh Hùng', fetchFn } = {}) {
   if (!ds.length) return [];
   const he = HE_CHUNG.replace('{NGUOI}', nguoi).replace('Nội dung trong thẻ <thu> là một email gửi đến', 'Danh sách trong thẻ <ds> gồm người gửi và tiêu đề email') + '\n\n' +
     'Xếp mỗi dòng vào một ngăn: "xu-ly" (cần người nhận duyệt, trả lời, liên hệ khách, quyết định), ' +
-    '"sep" (Ban giám đốc), "biet" (chỉ để biết: thông báo, chứng từ, cập nhật từ đối tác), ' +
-    '"tu-dong" (quảng cáo, chào hàng hàng loạt, mã xác nhận, thư máy gửi). ' +
-    'Khách hỏi tour, xin báo giá, đặt dịch vụ là "xu-ly". Trả về JSON { "ket": [{ "i": số dòng, "ngan": … }] } cho đủ mọi dòng.';
+    '"don" (đơn khách đặt dịch vụ gửi tự động từ form website hay trang đặt phòng), ' +
+    '"biet" (chỉ để đọc: thông báo, chứng từ, cập nhật từ đối tác, quảng cáo, chào hàng hàng loạt, mã xác nhận, thư máy gửi). ' +
+    'Khách tự viết thư hỏi tour, xin báo giá là "xu-ly". Trả về JSON { "ket": [{ "i": số dòng, "ngan": … }] } cho đủ mọi dòng.';
   const dong = ds.map((t, i) => i + '. ' + (t.tu.ten ? t.tu.ten + ' <' + t.tu.email + '>' : t.tu.email) +
     ' | hộp ' + t.hop + ' | ' + String(t.tieuDe || '(không tiêu đề)').slice(0, 200)).join('\n');
   const kq = await goi({

@@ -50,7 +50,7 @@ module.exports = {
    * hai tháng; hộp chung nhiều hơn nhưng thư cũ quá thì đã xử lý rồi. */
   soThuMoiHop: Number(process.env.HOP_THU_SO_THU || 60),
 
-  /* Ban giám đốc: thư từ những địa chỉ này vào ngăn "Sếp giao". Khai bằng env
+  /* Ban giám đốc: thư từ những địa chỉ này vào "Cần trả lời" kèm nhãn "Ban giám đốc". Khai bằng env
    * để đổi người không phải sửa mã. */
   sep: dsEmail(process.env.HOP_THU_SEP || 'ceo@rootytrip.com,deputy.ceo@rootytrip.com'),
 

@@ -7,7 +7,7 @@
  *
  * Gom mọi hộp thư người dùng được cấp quyền (hộp chính + hộp chung như
  * sales@, marketing@, cmo@) vào một danh sách, xếp theo VIỆC PHẢI LÀM:
- * Cần xử lý · Sếp giao · Để biết · Tự động. Luật người gửi/tiêu đề xếp phần
+ * Cần trả lời · Đơn khách đặt · Chỉ để đọc. Luật người gửi/tiêu đề xếp phần
  * lớn; AI (Claude) tóm tắt thư và viết nháp trả lời khi người dùng mở thư.
  *
  * DANH TÍNH, hai đường:
@@ -159,7 +159,7 @@ function lamGiau(ds, hop, nguoi = '') {
     const x = xep(t, { cfg, tay, ai: a, minh });
     const henDen = hen[kho.khoa(t.hop, t.id)] || 0;
     return Object.assign({}, t, {
-      ngan: x.ngan, nguon: x.nguon, lyDo: x.lyDo,
+      ngan: x.ngan, nguon: x.nguon, lyDo: x.lyDo, sep: x.sep,
       tomTat: a ? a.tomTat : '', canLam: a ? a.canLam : '', han: a ? a.han : '',
       henDen: henDen > nay ? henDen : 0,
     });

@@ -76,7 +76,9 @@ server.listen(0, '127.0.0.1', async () => {
     const ds = (await hoi('GET', '/api/thu')).j.thu;
     ok('gom thư của mọi hộp', ds.length === 2);
     ok('mới nhất trước', ds[0].id === 'bbbbbbbbbb==');
-    ok('có ngăn và lý do', ds.find((t) => t.id === 'aaaaaaaaaa==').ngan === 'sep' && ds[0].ngan === 'tu-dong' && ds[0].lyDo);
+    const sep = ds.find((t) => t.id === 'aaaaaaaaaa==');
+    ok('thư Ban giám đốc vào Cần trả lời, có cờ sep', sep.ngan === 'xu-ly' && sep.sep === true);
+    ok('thư máy gửi vào Chỉ để đọc, có lý do', ds[0].ngan === 'biet' && ds[0].lyDo && ds[0].sep === false);
 
     console.log('\nĐường dẫn thư');
     ok('hộp không được cấp: 403', (await hoi('GET', duong('ceo@rootytrip.com', 'aaaaaaaaaa=='))).ma === 403);

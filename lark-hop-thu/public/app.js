@@ -120,12 +120,17 @@ function veMoc() {
   $('#moc').textContent = 'Đọc lúc ' + new Date(S.luc).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
 }
 
+const dem = (id) => S.thu.filter((t) => !S.daLuu.has(khoa(t)) && hienTrong(t, id) && khopLoc(t)).length;
+
 function veNgan() {
   const nav = $('#dsNgan');
-  const ds = S.ngan.concat([{ id: 'hen', ten: 'Hẹn lại' }]);
-  const dem = (id) => S.thu.filter((t) => !S.daLuu.has(khoa(t)) && hienTrong(t, id) && khopLoc(t)).length;
+  /* "Hẹn lại" chỉ hiện khi có thư đang hẹn: ngăn trống là thêm một chữ phải đoán nghĩa. */
+  const ds = S.ngan.concat(dem('hen') || S.loc.ngan === 'hen' ? [{ id: 'hen', ten: 'Hẹn lại' }] : []);
+  /* Số trên ngăn là thư CHƯA ĐỌC, như app thư trên điện thoại: "117" cả cũ
+   * lẫn mới thì không biết hôm nay còn bao nhiêu việc. Ngăn Hẹn lại đếm hết. */
+  const chuaDoc = (id) => S.thu.filter((t) => !S.daLuu.has(khoa(t)) && hienTrong(t, id) && khopLoc(t) && t.chuaDoc).length;
   nav.innerHTML = ds.map((n) => {
-    const so = dem(n.id);
+    const so = n.id === 'hen' ? dem(n.id) : chuaDoc(n.id);
     return '<button role="tab" data-ngan="' + n.id + '" aria-selected="' + (S.loc.ngan === n.id) + '">' +
       esc(n.ten) + (so ? '<span class="so">' + so + '</span>' : '') + '</button>';
   }).join('') + '<span class="vien-truot"></span>';
@@ -140,31 +145,43 @@ function datVienTruot() {
   v.style.width = b.offsetWidth + 'px';
 }
 
+/* Chọn hộp thư: một nút, bấm mới bày danh sách. Tám hộp bày thành một dải
+ * chip thì tràn khỏi màn và nhiều hộp trùng tên "pito@". */
 function veHop() {
   const box = $('#dsHop');
   if (S.hop.length < 2) { box.hidden = true; return; }
   box.hidden = false;
-  const dem = (email) => S.thu.filter((t) => (!email || t.hop === email) && t.chuaDoc && !t.henDen).length;
-  const nut = (email, ten) => {
-    const so = dem(email);
-    return '<button class="chip" data-hop="' + esc(email) + '" aria-pressed="' + (S.loc.hop === email) + '">' +
-      esc(ten) + (so ? '<span class="so">' + so + '</span>' : '') + '</button>';
+  const ten = S.loc.hop ? tenHop(S.loc.hop) : 'Mọi hộp thư';
+  box.innerHTML = '<button class="chip chon-hop" data-viec="chon-hop" aria-haspopup="menu" aria-pressed="' + Boolean(S.loc.hop) + '">' +
+    '<span data-no-i18n>' + esc(ten) + '</span>' +
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>';
+}
+function menuHop(nut) {
+  const chuaDoc = (email) => S.thu.filter((t) => (!email || t.hop === email) && t.chuaDoc && !t.henDen).length;
+  const dong = (email, ten) => {
+    const so = chuaDoc(email);
+    return '<button role="menuitemradio" aria-checked="' + (S.loc.hop === email) + '" data-hop="' + esc(email) + '">' +
+      '<span' + (email ? ' data-no-i18n' : '') + '>' + esc(ten) + '</span>' + (so ? '<span class="so">' + so + '</span>' : '') + '</button>';
   };
-  box.innerHTML = nut('', 'Tất cả hộp') + S.hop.map((h) => nut(h.email, tenHop(h.email) + (h.chinh ? ' (chính)' : ''))).join('');
+  moMenu(nut, '<div class="ghi">Số bên phải là thư chưa đọc</div>' + dong('', 'Mọi hộp thư') +
+    S.hop.map((h) => dong(h.email, h.email)).join(''), (b) => { S.loc.hop = b.dataset.hop; ve(); }, 'trai');
 }
 
 function dongThu(t) {
   const k = khoa(t);
   if (S.daLuu.has(k)) {
-    return '<div class="da-luu" data-k="' + esc(k) + '"><span>Đã lưu trữ: ' + esc(t.tieuDe || '(không tiêu đề)') +
-      '</span><button data-hoan="' + esc(k) + '">Hoàn tác</button></div>';
+    return '<div class="da-luu" data-k="' + esc(k) + '"><span>Đã xong, thư vào Lưu trữ: <span data-no-i18n>' + esc(t.tieuDe || '(không tiêu đề)') +
+      '</span></span><button data-hoan="' + esc(k) + '">Hoàn tác</button></div>';
   }
   const phu = [];
-  if (S.hop.length > 1 && !S.loc.hop) phu.push('<span class="nhan hop">' + esc(tenHop(t.hop)) + '</span>');
+  if (t.sep) phu.push('<span class="nhan sep">Ban giám đốc</span>');
+  if (S.hop.length > 1 && !S.loc.hop) phu.push('<span class="nhan hop" data-no-i18n>' + esc(tenHop(t.hop)) + '</span>');
   if (t.sao) phu.push('<span class="nhan sao" aria-label="Có gắn sao">★</span>');
   if (t.henDen) phu.push('<span class="nhan lam">' + esc(gioHen(t.henDen)) + '</span>');
   else if (t.canLam) phu.push('<span class="nhan lam">Cần làm</span>');
-  const dong2 = t.tomTat || t.canLam || t.lyDo || '';
+  /* Dòng hai là câu tóm tắt của AI. Không có thì để trống, không in lý do
+   * xếp ngăn: chữ kiểu "Chưa luật nào nhận" chỉ có nghĩa với người viết app. */
+  const dong2 = t.tomTat || t.canLam || '';
   return '<button class="dong' + (t.chuaDoc ? ' chua-doc' : '') + '" data-k="' + esc(k) + '"' +
     (S.chon === k ? ' aria-current="true"' : '') + '>' +
     '<span class="cham"></span>' +
@@ -175,6 +192,13 @@ function dongThu(t) {
     '</button>';
 }
 
+const TRONG = {
+  'xu-ly': 'Không còn thư nào cần trả lời.',
+  don: 'Không có đơn khách đặt nào đang chờ.',
+  biet: 'Không có thư nào.',
+  hen: 'Chưa hẹn nhắc thư nào.',
+};
+
 function veDs() {
   const box = $('#ds');
   const ds = S.thu.filter((t) => hienTrong(t, S.loc.ngan) && khopLoc(t));
@@ -183,9 +207,19 @@ function veDs() {
     h += '<div class="bao-nho">Chưa đọc được ' + S.loi.length + ' hộp: ' +
       S.loi.map((x) => esc(x.hop)).join(', ') + '. Bấm đọc lại để thử lần nữa.</div>';
   }
+  /* Đơn khách đặt gom thành một dòng ở đầu "Cần trả lời": nhắc là có đơn,
+   * mà không để hàng chục form giống hệt nhau chôn mất thư người thật viết. */
+  const soDon = S.loc.ngan === 'xu-ly' ? dem('don') : 0;
+  if (soDon) {
+    const moi = S.thu.filter((t) => hienTrong(t, 'don') && khopLoc(t) && t.chuaDoc).length;
+    h += '<button class="dong gom" data-ngan="don">' +
+      '<span class="cham"></span><span class="nguoi">'+ soDon + ' đơn khách đặt</span>' +
+      '<span class="gio">' + (moi ? moi + ' chưa đọc' : '') + '</span>' +
+      '<span class="td">Form đặt dịch vụ và booking mới. Bấm để xem từng đơn.</span></button>';
+  }
   if (!ds.length) {
     h += '<div class="trong">' + (S.loc.tim ? 'Không thư nào khớp "' + esc(S.loc.tim) + '".' :
-      S.loc.ngan === 'hen' ? 'Chưa hẹn nhắc thư nào.' : 'Ngăn này trống.') + '</div>';
+      TRONG[S.loc.ngan] || 'Không có thư nào.') + '</div>';
   } else h += ds.map(dongThu).join('');
   box.innerHTML = h;
 }
@@ -219,7 +253,7 @@ async function mo(k) {
     veDoc();
     if (t.chuaDoc) danhDau(t, { daDoc: true }, true);
     const aiDu = d.ai && !d.ai.chiXep;
-    if (S.ai && !aiDu && (t.ngan === 'xu-ly' || t.ngan === 'sep')) phanTich();
+    if (S.ai && !aiDu && t.ngan === 'xu-ly') phanTich();
   } catch (e) {
     if (S.chon !== k) return;
     $('#docThan').innerHTML = '<div class="loi-hop"><b>Không mở được thư</b>' + esc(e.message) + '</div>';
@@ -238,15 +272,13 @@ function dongDoc() {
 const IC = {
   traLoi: '<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 6 6v4"/>',
   viec: '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8.5 12l2.5 2.5 4.5-5"/>',
-  hen: '<circle cx="12" cy="13" r="7.5"/><path d="M12 9.5V13l2.5 1.5M9 2.5h6"/>',
-  ngan: '<path d="M3 7l3-3h12l3 3v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M3 7h18M9 12h6"/>',
-  sao: '<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/>',
-  chuaDoc: '<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3.5 6.5L12 13l8.5-6.5"/>',
-  luu: '<rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M5 9v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9M10 13h4"/>',
 };
-const nutTron = (viec, ic, nhan, bat) =>
-  '<button class="nut-tron' + (bat ? ' bat' : '') + '" data-viec="' + viec + '" title="' + nhan + '" aria-label="' + nhan + '">' +
-  '<svg viewBox="0 0 24 24" aria-hidden="true">' + ic + '</svg></button>';
+/* Ba việc hay làm nhất có chữ hẳn hoi; các việc còn lại cất vào "Thêm". */
+const nutChu = (viec, ic, nhan, lop = '') =>
+  '<button class="nut ' + lop + '" data-viec="' + viec + '">' +
+  '<svg viewBox="0 0 24 24" aria-hidden="true">' + ic + '</svg><span>' + nhan + '</span></button>';
+const IC_THEM = '<circle cx="5.5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="18.5" cy="12" r="1.4"/>';
+const IC_XONG = '<path d="M5 12.5l4.5 4.5L19 7.5"/>';
 
 function veDoc() {
   const d = S.ct;
@@ -254,13 +286,11 @@ function veDoc() {
   const t = d.thu;
   const tom = S.thu.find((x) => khoa(x) === S.chon) || {};
   $('#hangNut').innerHTML =
-    nutTron('tra-loi', IC.traLoi, 'Trả lời') +
-    nutTron('viec', IC.viec, 'Giao thành việc') +
-    nutTron('hen', IC.hen, tom.henDen ? 'Đổi giờ hẹn' : 'Hẹn nhắc lại', Boolean(tom.henDen)) +
-    nutTron('ngan', IC.ngan, 'Chuyển ngăn') +
-    nutTron('sao', IC.sao, tom.sao ? 'Bỏ sao' : 'Gắn sao', tom.sao) +
-    nutTron('chua-doc', IC.chuaDoc, 'Đánh dấu chưa đọc') +
-    nutTron('luu', IC.luu, 'Lưu trữ');
+    nutChu('tra-loi', IC.traLoi, 'Trả lời') +
+    nutChu('viec', IC.viec, 'Giao việc') +
+    nutChu('luu', IC_XONG, 'Xong', 'chinh') +
+    '<button class="nut-tron" data-viec="them" title="Thêm" aria-label="Thêm" aria-haspopup="menu">' +
+    '<svg viewBox="0 0 24 24" aria-hidden="true">' + IC_THEM + '</svg></button>';
 
   const nguoi = (n) => esc(n.ten ? n.ten + ' <' + n.email + '>' : n.email);
   let h = '<h2 data-no-i18n>' + esc(t.tieuDe || '(không tiêu đề)') + '</h2>' +
@@ -269,7 +299,8 @@ function veDoc() {
     (t.cc.length ? '<span>CC ' + t.cc.map(nguoi).join(', ') + '</span>' : '') +
     '<span>' + esc(t.ngay) + '</span>' +
     '<span class="nhan hop">' + esc(t.hop) + '</span>' +
-    '<span class="nhan">' + esc(tenNgan(tom.ngan)) + ' · ' + esc(tom.lyDo || '') + '</span></div>';
+    (tom.sep ? '<span class="nhan sep">Ban giám đốc</span>' : '') +
+    (tom.henDen ? '<span class="nhan lam">Hẹn ' + esc(gioHen(tom.henDen)) + '</span>' : '') + '</div>';
   if (t.canhBao) h += '<div class="canh-bao">Lark đánh dấu thư này có dấu hiệu rủi ro. Kiểm tra người gửi trước khi bấm link hay trả lời.</div>';
   h += '<div id="theAi">' + theAi() + '</div>';
   h += '<div class="noi-dung" data-no-i18n>' + linkHoa(t.noiDung || (t.trich ? '' : '(Thư không có nội dung chữ)')) + '</div>';
@@ -443,22 +474,24 @@ function dongHop() {
 
 /* ---------------- menu nổi ---------------- */
 
-function moMenu(nut, html, xuLy) {
+let henDongMenu = 0;
+function moMenu(nut, html, xuLy, canh) {
   const m = $('#menuNoi');
+  clearTimeout(henDongMenu);      // menu trước đang đóng dở thì đừng để nó ẩn luôn menu mới
   m.innerHTML = html;
   m.classList.remove('dong-lai');
   m.hidden = false;
   const r = nut.getBoundingClientRect();
   const w = m.offsetWidth;
   m.style.top = Math.min(r.bottom + 6, innerHeight - m.offsetHeight - 8) + 'px';
-  m.style.left = Math.max(8, Math.min(r.right - w, innerWidth - w - 8)) + 'px';
+  m.style.left = Math.max(8, Math.min(canh === 'trai' ? r.left : r.right - w, innerWidth - w - 8)) + 'px';
   m.onclick = (e) => { const b = e.target.closest('button'); if (b) { dongMenu(); xuLy(b); } };
 }
 function dongMenu() {
   const m = $('#menuNoi');
   if (m.hidden || m.classList.contains('dong-lai')) return;
   m.classList.add('dong-lai');
-  setTimeout(() => { m.hidden = true; m.classList.remove('dong-lai'); }, 200);
+  henDongMenu = setTimeout(() => { m.hidden = true; m.classList.remove('dong-lai'); }, 200);
 }
 
 function mocHen() {
@@ -572,10 +605,8 @@ $('#dsNgan').addEventListener('click', (e) => {
   $('#cotDs').scrollTop = 0;
 });
 $('#dsHop').addEventListener('click', (e) => {
-  const b = e.target.closest('[data-hop]');
-  if (!b) return;
-  S.loc.hop = b.dataset.hop;
-  ve();
+  const b = e.target.closest('[data-viec="chon-hop"]');
+  if (b) menuHop(b);
 });
 $('#oTim').addEventListener('input', (e) => { S.loc.tim = e.target.value; veNgan(); veDs(); });
 $('#btnLamMoi').addEventListener('click', () => napThu(true).catch((e) => bao(e.message, 'loi')));
@@ -584,6 +615,8 @@ $('#btnVe').addEventListener('click', dongDoc);
 $('#ds').addEventListener('click', (e) => {
   const h = e.target.closest('[data-hoan]');
   if (h) { hoanTac(h.dataset.hoan); return; }
+  const g = e.target.closest('[data-ngan]');
+  if (g) { S.loc.ngan = g.dataset.ngan; veNgan(); veDs(); $('#cotDs').scrollTop = 0; return; }
   const d = e.target.closest('.dong');
   if (d) mo(d.dataset.k);
 });
@@ -613,19 +646,38 @@ $('#cotDoc').addEventListener('click', (e) => {
   else if (v === 'ai-viet') aiViet($('#oSoan').value.trim() || 'Trả lời phù hợp với nội dung thư');
   else if (v === 'luu-nhap') luuNhap();
   else if (v === 'gui') hoiGui();
-  else if (v === 'hen') {
-    const ds = mocHen();
-    moMenu(b, '<div class="ghi">Ẩn thư tới lúc</div>' +
-      ds.map(([n, ms]) => '<button data-den="' + ms + '">' + esc(n) + '</button>').join('') +
-      (t.henDen ? '<hr><button data-den="0">Bỏ hẹn</button>' : ''),
-    (x) => hen(t, Number(x.dataset.den)));
-  } else if (v === 'ngan') {
-    moMenu(b, '<div class="ghi">Thư từ ' + esc(t.tu.email) + ' luôn vào</div>' +
-      S.ngan.map((n) => '<button role="menuitemradio" aria-checked="' + (t.ngan === n.id) + '" data-ngan="' + n.id + '">' + esc(n.ten) + '</button>').join('') +
-      (t.nguon === 'tay' ? '<hr><button data-ngan="">Bỏ luật, để app tự xếp</button>' : ''),
-    (x) => chuyenNgan(t, x.dataset.ngan || null));
-  }
+  else if (v === 'them') menuThem(b, t);
 });
+
+/* Menu "Thêm" của một thư. Hẹn và chuyển ngăn mở tiếp menu con ngay tại nút,
+ * đợi menu trước trượt ra xong rồi mới mở. */
+function menuThem(nut, t) {
+  const sau = (f) => setTimeout(f, 210);
+  moMenu(nut,
+    '<button data-lam="hen">' + (t.henDen ? 'Đổi giờ nhắc lại' : 'Nhắc lại sau') + '</button>' +
+    '<button data-lam="ngan">Chuyển sang ngăn khác</button>' +
+    '<button data-lam="sao">' + (t.sao ? 'Bỏ gắn sao' : 'Gắn sao') + '</button>' +
+    '<button data-lam="chua-doc">Đánh dấu chưa đọc</button>',
+  (x) => {
+    const lam = x.dataset.lam;
+    if (lam === 'hen') sau(() => menuHen(nut, t));
+    else if (lam === 'ngan') sau(() => menuNgan(nut, t));
+    else if (lam === 'sao') danhDau(t, { sao: !t.sao });
+    else if (lam === 'chua-doc') { danhDau(t, { daDoc: false }); dongDoc(); }
+  });
+}
+function menuHen(nut, t) {
+  moMenu(nut, '<div class="ghi">Cất thư đi, tới lúc này thư quay lại</div>' +
+    mocHen().map(([n, ms]) => '<button data-den="' + ms + '">' + esc(n) + '</button>').join('') +
+    (t.henDen ? '<hr><button data-den="0">Bỏ hẹn</button>' : ''),
+  (x) => hen(t, Number(x.dataset.den)));
+}
+function menuNgan(nut, t) {
+  moMenu(nut, '<div class="ghi">Từ nay thư của <span data-no-i18n>' + esc(t.tu.email) + '</span> luôn vào</div>' +
+    S.ngan.map((n) => '<button role="menuitemradio" aria-checked="' + (t.ngan === n.id) + '" data-ngan="' + n.id + '">' + esc(n.ten) + '</button>').join('') +
+    (t.nguon === 'tay' ? '<hr><button data-ngan="">Để app tự xếp như trước</button>' : ''),
+  (x) => chuyenNgan(t, x.dataset.ngan || null));
+}
 $('#cotDoc').addEventListener('input', (e) => { if (e.target.id === 'oSoan') capNhatNutGui(); });
 
 $('#hopGuiHuy').addEventListener('click', dongHop);
@@ -633,7 +685,7 @@ $('#hopGuiOk').addEventListener('click', () => { const f = hopOk; dongHop(); if 
 $('#hopGui').addEventListener('click', (e) => { if (e.target.id === 'hopGui') dongHop(); });
 
 document.addEventListener('click', (e) => {
-  if (!e.target.closest('#menuNoi') && !e.target.closest('[data-viec="hen"],[data-viec="ngan"]')) dongMenu();
+  if (!e.target.closest('#menuNoi') && !e.target.closest('[data-viec="them"],[data-viec="chon-hop"]')) dongMenu();
 });
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
