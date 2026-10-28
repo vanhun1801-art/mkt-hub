@@ -273,3 +273,23 @@ Anh Hùng: "không cần hiện các thanh công cụ định dạng, nhưng ki�
 - Không đặt chữ mờ gợi ý hay dòng chú thích hướng dẫn phím tắt trong ô ("không cần note luôn cho hiện đại").
 - Base chỉ có chữ thuần nên định dạng lưu bằng dấu kiểu Markdown (`**đậm**`, `*nghiêng*`, `<u>gạch chân</u>`, bảng `| a | b |`), mở trên Base vẫn đọc được. Thẻ việc ngoài danh sách thì hiện chữ trơn, bỏ dấu.
 - Bảng trong ô vừa bề ngang, chữ tự xuống dòng, không kéo ngang. Tab chuyển sang ô kế, Tab ở ô cuối thêm một hàng.
+
+## 21. Dấu phiên bản tệp tĩnh, và phân cấp kiểu bảng lớp (28/10/2026)
+
+### Dấu `?v=` phải tính lại, không tính một lần lúc khởi động
+
+Anh Hùng: "bản local em làm đúng ý anh, còn trên đây anh thấy chưa làm được việc đó" — trên hub vẫn là bản cũ dù máy chủ đã phục vụ tệp mới.
+
+Nguyên nhân: `VAN_TAY` trong `lark-task-manager/server.js` tính **một lần lúc khởi động**. `index.html` không được cache nên luôn mới, nhưng nó mang dấu cũ, trình duyệt xin đúng địa chỉ cũ, mà địa chỉ đó đã được đánh dấu `immutable, max-age` một năm từ lần trước — **người dùng kẹt ở bản cũ vĩnh viễn** cho tới khi khởi động lại máy chủ. Trên Render mỗi lần deploy là một lần khởi động nên không lộ; chạy trên máy thì lộ ngay.
+
+Nay `vanTay()` đọc mtime + kích thước thư mục `public` mỗi lần phục vụ `index.html` (nhớ lại 2 giây). Sửa tệp là dấu đổi, không phải khởi động lại. Rẻ hơn đọc hết nội dung, mà sửa tệp thì cả hai đều đổi.
+
+**Các app con khác vẫn tính một lần lúc khởi động** — ai sửa app nào thì mang cách này sang app đó.
+
+### Phân cấp nhìn như bảng lớp của Photoshop/Figma
+
+Anh Hùng: "em tham khảo kiểu layer của các ứng dụng AI, PS để hiểu phân cấp anh muốn sắp xếp".
+
+- **Một vạch dọc cho mỗi tầng phía trên**, vạch trong cùng có **móc ngang** chỉ vào tên việc. Nhìn vạch là đọc được ngay việc này nằm trong cái gì, không phải đếm độ thụt bằng mắt.
+- **Việc con cuối nhánh thì vạch dừng ở chỗ móc**, không thòng xuống — thòng xuống là trông như còn việc nữa ở dưới mà thật ra hết rồi.
+- Chỗ đặt vạch tính từ biến `--noi-goc` / `--noi-buoc` trên `.lane-items`, khai riêng cho máy tính, khổ hẹp và điện thoại. Ba khổ có ba mức thụt khác nhau; quên một khổ là vạch rơi vào giữa chữ.
