@@ -293,14 +293,24 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 .tep { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
 
 /* ---------- soạn trả lời ---------- */
-.soan { margin-top: 20px; border-top: 1px solid var(--vien); padding-top: 14px; }
-.soan .goi-y { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
-.soan textarea {
-  width: 100%; min-height: 120px; resize: vertical; font: inherit; font-size: 14px; color: var(--chu);
-  background: var(--mat-2); border: 1px solid var(--vien); border-radius: 12px; padding: 10px 12px; outline: none;
+/* Ô soạn ghim ở đáy khung đọc: thân thư cuộn phía trên, ô này đứng yên.
+ * Ô chữ gọn 2 dòng, bấm vào thì nở ra để viết dài; gợi ý nằm một hàng vuốt ngang. */
+.doc-soan {
+  flex: none; border-top: 1px solid var(--vien); background: var(--mat);
+  padding: 10px 16px 12px; box-shadow: 0 -6px 16px -12px rgba(0, 0, 0, .25);
 }
+.doc-soan[hidden] { display: none; }
+.soan { margin: 0; }
+.soan .goi-y { display: flex; gap: 6px; margin-bottom: 8px; overflow-x: auto; }
+.soan .goi-y .nut { flex: none; padding: 5px 12px; font-size: 12.5px; }
+.soan textarea {
+  width: 100%; height: 58px; min-height: 58px; max-height: 40vh; resize: none; font: inherit; font-size: 14px; color: var(--chu);
+  background: var(--mat-2); border: 1px solid var(--vien); border-radius: 12px; padding: 9px 12px; outline: none;
+  transition: height .26s var(--vao), border-color .16s, background .16s;
+}
+.soan textarea:focus, .soan textarea.co-chu { height: 150px; }
 .soan textarea:focus { border-color: var(--xanh); background: var(--mat); }
-.soan .chan-soan { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.soan .chan-soan { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
 .soan label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--chu-2); cursor: pointer; }
 .soan .ly-do { font-size: 12.5px; color: var(--chu-3); }
 

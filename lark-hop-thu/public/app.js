@@ -207,17 +207,27 @@ function veNgan() {
     const lop = n.id === 'viec' && soTre ? ' so-' + (coDo ? 'do' : 'vang') : '';
     return '<button role="tab" data-ngan="' + n.id + '" aria-selected="' + (S.loc.ngan === n.id && !S.loc.nhom) + '">' +
       esc(n.ten) + (so ? '<span class="so' + lop + '">' + so + '</span>' : '') + '</button>';
-  }).join('') + '<span class="vien-truot"></span>';
+  }).join('');
+  /* Viên trượt dựng MỘT lần rồi giữ lại: dựng mới mỗi lần vẽ là nó lại trượt
+   * từ mép trái sang ô đang chọn, nhìn như giao diện nhảy (anh Hùng 28/10/2026). */
+  nav.appendChild(vienTruot);
   datVienTruot();
 }
+const vienTruot = Object.assign(document.createElement('span'), { className: 'vien-truot' });
+let vienDaDat = false;
 function datVienTruot() {
   const nav = $('#dsNgan');
   const b = nav.querySelector('[aria-selected="true"]');
-  const v = nav.querySelector('.vien-truot');
-  if (!b || !v) return;
-  v.style.left = b.offsetLeft + 'px';
-  v.style.width = b.offsetWidth + 'px';
+  if (!b) { vienTruot.style.opacity = '0'; return; }
+  /* Lần đầu đặt thẳng vào chỗ, không trượt. */
+  if (!vienDaDat) vienTruot.style.transition = 'none';
+  vienTruot.style.opacity = '';
+  vienTruot.style.left = b.offsetLeft + 'px';
+  vienTruot.style.width = b.offsetWidth + 'px';
+  if (!vienDaDat) { void vienTruot.offsetWidth; vienTruot.style.transition = ''; vienDaDat = true; }
 }
+/* Chữ trên ngăn đổi cỡ (dịch sang tiếng Anh, phông nạp muộn) thì đặt lại viên. */
+if (window.ResizeObserver) new ResizeObserver(() => datVienTruot()).observe($('#dsNgan'));
 
 /* Chọn hộp thư: một nút, bấm mới bày danh sách. Tám hộp bày thành một dải
  * chip thì tràn khỏi màn và nhiều hộp trùng tên "pito@". */
@@ -430,6 +440,8 @@ async function mo(k) {
   cot.hidden = false;
   $('#hangNut').innerHTML = '';
   $('#docThan').innerHTML = '<div class="xuong"><i></i><i style="height:200px"></i></div>';
+  $('#docThan').dataset.k = '';
+  if ($('#docSoan').dataset.k !== k) { $('#docSoan').hidden = true; $('#docSoan').innerHTML = ''; $('#docSoan').dataset.k = ''; }
   try {
     const d = await api(duongThu(t));
     if (S.chon !== k) return;
@@ -449,6 +461,8 @@ async function mo(k) {
  * cột đứng yên; điện thoại thì cột đọc ẩn hẳn. */
 function veDocTrong() {
   $('#hangNut').innerHTML = '';
+  const o = $('#docSoan');
+  o.hidden = true; o.innerHTML = ''; o.dataset.k = '';
   $('#docThan').innerHTML = '<div class="doc-trong">' +
     '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3.5 6.5L12 13l8.5-6.5"/></svg>' +
     '<b>Chọn một thư bên trái để đọc</b><span>Trả lời, giao việc hay đánh dấu xong ngay trên thư.</span></div>';
@@ -514,9 +528,11 @@ function veDoc() {
   if (t.tep.length) {
     h += '<div class="tep" data-no-i18n>' + t.tep.map((x) => '<span class="nhan">📎 ' + esc(x.ten) + '</span>').join('') + '</div>';
   }
-  h += veSoan(tom.daGui);
+  const cuon = $('#docThan').dataset.k === S.chon ? $('#docThan').scrollTop : 0;
   $('#docThan').innerHTML = h;
-  $('#docThan').scrollTop = 0;
+  $('#docThan').dataset.k = S.chon;
+  ganSoan(tom.daGui);
+  $('#docThan').scrollTop = cuon;           // vẽ lại cùng thư (gắn sao, AI xong) thì giữ chỗ đang đọc
   capNhatNutGui();
 }
 
@@ -585,16 +601,34 @@ const MAU_NHAC = [
 
 /* daGui: thư của chính anh đang chờ hồi âm, ô soạn thành ô "nhắc lại" gửi cho
  * mọi người nhận ban đầu (tick sẵn Trả lời tất cả). */
-function veSoan(daGui) {
+function veGoiY(daGui) {
   const a = S.ct && S.ct.ai;
   const goiY = a && !a.chiXep && Array.isArray(a.goiY) ? a.goiY : [];
   const mau = daGui ? MAU_NHAC : MAU;
-  return '<div class="soan" id="soan">' +
-    '<div class="goi-y">' +
-    mau.map((m, i) => '<button class="nut" data-mau="' + i + '">' + esc(m.nhan) + '</button>').join('') +
+  return mau.map((m, i) => '<button class="nut" data-mau="' + i + '">' + esc(m.nhan) + '</button>').join('') +
     goiY.map((g) => '<button class="nut ai" data-no-i18n data-goi-y="' + esc(g) + '">✦ ' + esc(g) + '</button>').join('') +
-    (S.ai ? '<button class="nut ai" data-viec="ai-viet">✦ AI viết theo ý trong ô</button>' : '') +
-    '</div>' +
+    (S.ai ? '<button class="nut ai" data-viec="ai-viet">✦ AI viết theo ý trong ô</button>' : '');
+}
+
+/**
+ * Ô soạn ghim ở đáy khung đọc. Chỉ dựng lại khi đổi sang thư khác: veDoc()
+ * chạy lại sau mỗi lần gắn sao, tóm tắt AI… mà dựng lại ô soạn là mất chữ
+ * đang gõ. Cùng thư thì chỉ thay hàng gợi ý.
+ */
+function ganSoan(daGui) {
+  const o = $('#docSoan');
+  o.hidden = false;
+  if (o.dataset.k === S.chon && $('#oSoan')) {
+    $('#soan .goi-y').innerHTML = veGoiY(daGui);
+    return;
+  }
+  o.dataset.k = S.chon;
+  o.innerHTML = veSoan(daGui);
+}
+
+function veSoan(daGui) {
+  return '<div class="soan" id="soan">' +
+    '<div class="goi-y">' + veGoiY(daGui) + '</div>' +
     '<textarea id="oSoan" placeholder="' + (daGui ? 'Viết lời nhắc gửi lại cho người nhận' : 'Viết trả lời') + '"></textarea>' +
     '<div class="chan-soan">' +
     '<label><input type="checkbox" id="tatCa"' + (daGui ? ' checked' : '') + '> Trả lời tất cả</label>' +
@@ -609,6 +643,7 @@ function capNhatNutGui() {
   const o = $('#oSoan');
   if (!o) return;
   const trong = !o.value.trim();
+  o.classList.toggle('co-chu', !trong);      // có chữ thì ô giữ cỡ lớn cả khi bấm ra ngoài
   $('#btnGui').disabled = trong;
   $('#btnNhap').disabled = trong;
   $('#lyDoGui').textContent = trong ? 'Viết nội dung trước khi gửi' : '';
@@ -1051,7 +1086,7 @@ $('#cotDoc').addEventListener('click', (e) => {
   }
   if (b.dataset.goiY) { aiViet(b.dataset.goiY); return; }
   const v = b.dataset.viec;
-  if (v === 'tra-loi') { $('#oSoan').scrollIntoView({ behavior: 'smooth', block: 'center' }); $('#oSoan').focus({ preventScroll: true }); }
+  if (v === 'tra-loi') $('#oSoan').focus();
   else if (v === 'viec') giaoViec(t);
   else if (v === 'sao') danhDau(t, { sao: !t.sao });
   else if (v === 'chua-doc') { danhDau(t, { daDoc: false }); dongDoc(); }
