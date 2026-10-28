@@ -26,8 +26,10 @@ const fs = require('fs');
 const path = require('path');
 const cfg = require('./config');
 const thu = require('./thu');
+const mapi = require('./mail-api');
 const kho = require('./kho');
 const ai = require('./ai');
+const chinhTa = require('./chinh-ta');
 const { NGAN, LA_NGAN, xep } = require('./phan-loai');
 
 const BIND = process.env.BIND || '127.0.0.1';
@@ -89,7 +91,7 @@ function aiGoi(req) {
   const quaHub = ['x-hub-user-id', 'x-hub-user-email', 'x-hub-user-name'].some((k) => k in h);
   if (!quaHub) {
     const motMinh = process.env.HUB !== '1' && ['127.0.0.1', 'localhost', '::1'].includes(BIND);
-    return { quaHub: false, motMinh, ten: '', emails: [], tk: '', khoa: '' };
+    return { quaHub: false, motMinh, ten: '', emails: [], tk: '', khoa: '', nguoi: '' };
   }
   /* Token chỉ có nghĩa khi đi kèm open_id: hub luôn gửi cả hai. */
   const id = String(h['x-hub-user-id'] || '');
@@ -98,6 +100,9 @@ function aiGoi(req) {
     quaHub: true,
     tk,
     khoa: tk ? 'u:' + id : '',
+    /* Sổ riêng (luật, hẹn, đã xong, sao, nhóm) theo NGƯỜI, kể cả trên máy chủ
+     * máy: cùng một người mở ở máy cá nhân hay trên Render thấy cùng một sổ. */
+    nguoi: id ? 'u:' + id : '',
     ten: de(h['x-hub-user-name']),
     emails: [de(h['x-hub-user-email']), de(h['x-hub-user-email-phu'])]
       .map((x) => x.trim().toLowerCase()).filter(Boolean),
@@ -134,36 +139,93 @@ async function docHet(n, ep) {
   if (!ep && c && c.ds && Date.now() - c.luc < DEM_MS) return c;
   const hop = await cacHop(n);
   const loiHop = [];
-  const phan = await songSong(hop.map((h) => async () => {
-    try { return await thu.danhSach(h.email, cfg.soThuMoiHop, n.tk); } catch (e) {
+  /* Hộp đến và Đã gửi đọc cùng lúc (cùng một hàng đợi 6 lượt), không nối
+   * đuôi nhau, để thêm thư mục Đã gửi không làm trang mở chậm gấp đôi. */
+  const viec = hop.map((h) => async () => {
+    try { return { den: await thu.danhSach(h.email, cfg.soThuMoiHop, n.tk) }; } catch (e) {
       /* Token hết giữa chừng thì cả trang phải mời nối lại, không lặng lẽ
        * thành tám hộp trống. */
       if (e instanceof thu.LoiChuaNoi) throw e;
       loiHop.push({ hop: h.email, loi: e.message });
-      return [];
+      return { den: [] };
+    }
+  }).concat(hop.map((h) => async () => {
+    /* Thư mục Đã gửi: để biết thư nào mình đã trả lời, và thư nào mình gửi
+     * đi mà bên kia chưa hồi âm. Hỏng thì thôi, Hộp đến vẫn hiện. */
+    try { return { gui: await thu.danhSach(h.email, cfg.soThuGuiMoiHop, n.tk, 'SENT') }; } catch (e) {
+      if (e instanceof thu.LoiChuaNoi) throw e;
+      return { gui: [] };
     }
   }));
-  const moi = { luc: Date.now(), ds: [].concat(...phan), loi: loiHop };
+  const kq = await songSong(viec, 6);
+  const phan = kq.map((x) => x.den || []);
+  const daGui = kq.map((x) => x.gui || []);
+  const moi = { luc: Date.now(), ds: [].concat(...phan), gui: [].concat(...daGui), loi: loiHop };
   dsDem.set(n.khoa, moi);
   return moi;
 }
 
-/** Gắn ngăn, kết quả AI đã có, hẹn nhắc lên từng thư. */
+const NGAY_CHO = 21;                                   // thư gửi đi quá 21 ngày thì thôi theo dõi
+const msNgay = (s) => { const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d):(\d\d)/.exec(s || ''); return m ? Date.UTC(+m[1], m[2] - 1, +m[3], m[4] - 7, +m[5]) : 0; };
+
+/**
+ * Ghép Hộp đến với Đã gửi theo chuỗi thư (cùng hộp + thread_id):
+ *   - thư đến đã có thư mình gửi SAU nó trong cùng chuỗi → đã trả lời;
+ *   - thư mình gửi gần nhất của một chuỗi mà chưa có thư đến nào sau nó → đang chờ người khác.
+ */
+function ghepChuoi(den, gui) {
+  const cuoiGui = new Map(), cuoiDen = new Map();
+  const k = (t) => t.hop + '|' + t.chuoi;
+  for (const g of gui) if (g.chuoi && (!cuoiGui.has(k(g)) || cuoiGui.get(k(g)).ngay < g.ngay)) cuoiGui.set(k(g), g);
+  for (const t of den) if (t.chuoi && (!cuoiDen.has(k(t)) || cuoiDen.get(k(t)).ngay < t.ngay)) cuoiDen.set(k(t), t);
+  const daTraLoi = new Set(den.filter((t) => t.chuoi && cuoiGui.has(k(t)) && cuoiGui.get(k(t)).ngay >= t.ngay).map((t) => t.hop + '|' + t.id));
+  const tu = Date.now() - NGAY_CHO * 86400e3;
+  const cho = [...cuoiGui.values()]
+    .filter((g) => msNgay(g.ngay) >= tu && !(cuoiDen.has(k(g)) && cuoiDen.get(k(g)).ngay > g.ngay))
+    .sort((a, b) => (a.ngay < b.ngay ? -1 : 1))
+    .map((g) => ({ hop: g.hop, id: g.id, chuoi: g.chuoi, ngay: g.ngay, tieuDe: g.tieuDe }));
+  return { daTraLoi, cho };
+}
+
+/** Gắn ngăn, kết quả AI đã có, hẹn nhắc và trạng thái riêng lên từng thư. */
 function lamGiau(ds, hop, nguoi = '') {
   const tay = kho.luat(nguoi);
   const hen = kho.hen(nguoi);
+  const tt = kho.tt(nguoi);
   const minh = [hopChinh(hop)].concat(cfg.cuaMinh).filter(Boolean);
   const nay = Date.now();
   return ds.map((t) => {
     const a = kho.layAi(t.hop, t.id);
     const x = xep(t, { cfg, tay, ai: a, minh });
     const henDen = hen[kho.khoa(t.hop, t.id)] || 0;
+    /* Đã đọc / sao / xong là của riêng người này, không lấy từ nhãn Lark (hộp
+     * chung: người khác mở thư trên Lark không làm thư "đã đọc" với mình,
+     * ngoại trừ lúc mình chưa từng đụng tới thư đó). */
+    const r = tt[kho.khoa(t.hop, t.id)] || {};
     return Object.assign({}, t, {
+      chuaDoc: r.d === 1 ? false : r.d === 0 ? true : Boolean(t.chuaDoc),
+      sao: Boolean(r.s), xong: r.x || 0,
       ngan: x.ngan, nguon: x.nguon, lyDo: x.lyDo, sep: x.sep,
       tomTat: a ? a.tomTat : '', canLam: a ? a.canLam : '', han: a ? a.han : '',
       henDen: henDen > nay ? henDen : 0,
     });
   }).sort((a, b) => (a.ngay < b.ngay ? 1 : a.ngay > b.ngay ? -1 : 0));
+}
+
+/**
+ * Chữ ký gắn vào thư trả lời: bản người dùng đã đặt; chưa đặt thì gợi ý từ
+ * chữ ký Lark Mail (máy có lark-cli), không có nữa thì tên + hộp chính.
+ */
+const goiYChuKy = new Map();
+async function layChuKy(n) {
+  const daDat = kho.chuKy(n.nguoi);
+  if (typeof daDat === 'string') return daDat;
+  if (goiYChuKy.has(n.nguoi)) return goiYChuKy.get(n.nguoi);
+  const hop = await cacHop(n);
+  const lark = n.tk ? '' : await thu.chuKyLark(hopChinh(hop)).catch(() => '');
+  const goiY = lark || [n.ten, hopChinh(hop)].filter(Boolean).join('\n');
+  goiYChuKy.set(n.nguoi, goiY);
+  return goiY;
 }
 
 /* ---------------- tệp tĩnh ---------------- */
@@ -231,6 +293,7 @@ async function api(req, res, url) {
       ? 'Hộp thư đang nối với tài khoản Lark ' + (quyen.chu || '(chưa rõ)') + '. Chỉ chủ tài khoản đó mở được.'
       : 'App chỉ mở được qua Marketing Hub.', { khongPhaiChu: true });
   }
+  await kho.nap(n.nguoi, n.khoa);
 
   if (p === '/api/hop' && m === 'GET') {
     const hop = await cacHop(n);
@@ -240,7 +303,55 @@ async function api(req, res, url) {
   if (p === '/api/thu' && m === 'GET') {
     const d = await docHet(n, url.searchParams.get('lam') === '1');
     const hop = await cacHop(n);
-    return json(res, { luc: d.luc, thu: lamGiau(d.ds, hop, n.khoa), loi: d.loi });
+    const { daTraLoi, cho } = ghepChuoi(d.ds, d.gui || []);
+    const ds = lamGiau(d.ds, hop, n.nguoi).map((t) => (daTraLoi.has(t.hop + '|' + t.id) ? Object.assign(t, { daTraLoi: true }) : t));
+    return json(res, { luc: d.luc, thu: ds, cho, nhom: kho.nhom(n.nguoi), loi: d.loi });
+  }
+
+  /* Chữ ký: lần đầu gợi ý từ Lark Mail (máy có lark-cli), sau đó là bản người dùng tự sửa. */
+  if (p === '/api/chu-ky' && m === 'GET') {
+    const daDat = typeof kho.chuKy(n.nguoi) === 'string';
+    return json(res, { chuKy: await layChuKy(n), daDat });
+  }
+  if (p === '/api/chu-ky' && m === 'POST') {
+    const b = await docThan(req);
+    kho.datChuKy(String(b.chuKy || ''), n.nguoi);
+    return json(res, { ok: true, chuKy: kho.chuKy(n.nguoi) });
+  }
+
+  /* Nhóm việc theo dõi: giao diện gửi cả danh sách, máy chủ kiểm khuôn rồi cất. */
+  if (p === '/api/nhom' && m === 'POST') {
+    const b = await docThan(req);
+    const ds = Array.isArray(b.nhom) ? b.nhom.slice(0, 50) : null;
+    if (!ds) return loi(res, 400, 'Danh sách nhóm không hợp lệ');
+    const sach = ds.map((g) => ({
+      id: String(g.id || '').slice(0, 40),
+      ten: String(g.ten || '').trim().slice(0, 80) || 'Nhóm chưa đặt tên',
+      luc: Number(g.luc) || Date.now(),
+      chuoi: (Array.isArray(g.chuoi) ? g.chuoi : []).slice(0, 100).map((c) => ({
+        hop: String(c.hop || '').toLowerCase().slice(0, 120), chuoi: String(c.chuoi || '').slice(0, 200),
+        td: String(c.td || '').slice(0, 200),
+      })).filter((c) => c.hop && c.chuoi),
+    })).filter((g) => /^[\w-]{4,40}$/.test(g.id));
+    kho.datNhom(sach, n.nguoi);
+    return json(res, { ok: true, nhom: sach });
+  }
+
+  /* Thêm vào lịch Lark của chính người đang dùng. */
+  if (p === '/api/lich' && m === 'POST') {
+    if (process.env.HOP_THU_CHI_DOC === '1') return loi(res, 423, 'Đang ở chế độ chỉ đọc, không tạo lịch');
+    const b = await docThan(req);
+    const batDau = Number(b.batDau), ketThuc = Number(b.ketThuc);
+    const tieuDe = String(b.tieuDe || '').trim().slice(0, 200);
+    if (!tieuDe) return loi(res, 400, 'Sự kiện chưa có tên');
+    if (!batDau || !ketThuc || ketThuc <= batDau) return loi(res, 400, 'Giờ kết thúc phải sau giờ bắt đầu');
+    try {
+      const kq = await thu.taoLich({ tieuDe, batDau, ketThuc, moTa: String(b.moTa || '').slice(0, 3000) }, n.tk);
+      return json(res, { ok: true, kq });
+    } catch (e) {
+      if (e instanceof mapi.LoiQuyenLich) return loi(res, 409, e.message, { canQuyenLich: true });
+      throw e;
+    }
   }
 
   /* Xếp nhanh bằng AI những thư luật không nhận. Giao diện gọi sau khi nạp
@@ -249,7 +360,7 @@ async function api(req, res, url) {
     if (!ai.coKhoa()) return json(res, { xep: 0, khongKhoa: true });
     const d = await docHet(n, false);
     const hop = await cacHop(n);
-    const can = lamGiau(d.ds, hop, n.khoa).filter((t) => t.nguon === 'mac-dinh' && !kho.layAi(t.hop, t.id)).slice(0, 80);
+    const can = lamGiau(d.ds, hop, n.nguoi).filter((t) => t.nguon === 'mac-dinh' && !kho.layAi(t.hop, t.id)).slice(0, 80);
     if (!can.length) return json(res, { xep: 0 });
     const kq = await ai.xepNhanh(can, { nguoi: quyen.n.ten || 'anh Hùng' });
     kho.datAiNhieu(kq.map((x) => ({ hop: x.thu.hop, id: x.thu.id, v: { ngan: x.ngan, chiXep: true } })));
@@ -261,8 +372,8 @@ async function api(req, res, url) {
     const email = String(b.email || '').trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+$/.test(email)) return loi(res, 400, 'Địa chỉ gửi không hợp lệ');
     if (b.ngan && !LA_NGAN.has(b.ngan)) return loi(res, 400, 'Ngăn không hợp lệ');
-    kho.datLuat(email, b.ngan || null, n.khoa);
-    return json(res, { ok: true, luat: kho.luat(n.khoa) });
+    kho.datLuat(email, b.ngan || null, n.nguoi);
+    return json(res, { ok: true, luat: kho.luat(n.nguoi) });
   }
 
   const mt = /^\/api\/thu\/([^/]+)\/([^/]+)(?:\/([a-z-]+))?$/.exec(p);
@@ -272,14 +383,15 @@ async function api(req, res, url) {
   const viec = mt[3] || '';
 
   /* Chế độ chỉ đọc cho lúc soát giao diện: dữ liệu Lark là thư thật của công
-   * ty, công cụ soát không được đổi nhãn hay gửi thư nào. */
-  if (process.env.HOP_THU_CHI_DOC === '1' && (viec === 'doi' || viec === 'tra-loi')) {
-    return loi(res, 423, 'Đang ở chế độ chỉ đọc, không đổi gì trên Lark Mail');
+   * ty, công cụ soát không được gửi thư nào. (Đổi trạng thái chỉ ghi sổ riêng,
+   * mà chế độ này sổ chỉ nằm trên máy.) */
+  if (process.env.HOP_THU_CHI_DOC === '1' && viec === 'tra-loi') {
+    return loi(res, 423, 'Đang ở chế độ chỉ đọc, không gửi gì lên Lark Mail');
   }
 
   if (!viec && m === 'GET') {
     const t = await thu.doc(k.hop, k.id, n.tk);
-    return json(res, { thu: t, ai: kho.layAi(k.hop, k.id), hen: kho.hen(n.khoa)[kho.khoa(k.hop, k.id)] || 0 });
+    return json(res, { thu: t, ai: kho.layAi(k.hop, k.id), hen: kho.hen(n.nguoi)[kho.khoa(k.hop, k.id)] || 0 });
   }
 
   if (viec === 'phan-tich' && m === 'POST') {
@@ -298,28 +410,50 @@ async function api(req, res, url) {
     return json(res, { chu });
   }
 
+  /* Đổi trạng thái: CHỈ ghi sổ riêng của người này, không đụng nhãn hay thư
+   * mục trên Lark Mail (anh Hùng 28/10/2026: hộp chung còn người khác dùng). */
   if (viec === 'doi' && m === 'POST') {
     const b = await docThan(req);
-    const them = [], bo = [];
-    let thuMuc = '';
-    if (b.daDoc === true) bo.push('UNREAD');
-    if (b.daDoc === false) them.push('UNREAD');
-    if (b.sao === true) them.push('FLAGGED');
-    if (b.sao === false) bo.push('FLAGGED');
-    if (b.luuTru === true) thuMuc = 'archive';
-    if (b.luuTru === false) thuMuc = 'inbox';
-    if (!them.length && !bo.length && !thuMuc) return loi(res, 400, 'Không có thay đổi nào');
-    await thu.doi(k.hop, [k.id], { them, bo, thuMuc }, n.tk);
-    quenDs(n);                           // lần đọc sau lấy lại từ Lark
-    return json(res, { ok: true });
+    const doi = {};
+    if (typeof b.daDoc === 'boolean') doi.daDoc = b.daDoc;
+    if (typeof b.sao === 'boolean') doi.sao = b.sao;
+    if (typeof b.xong === 'boolean') doi.xong = b.xong;
+    if (!Object.keys(doi).length) return loi(res, 400, 'Không có thay đổi nào');
+    return json(res, { ok: true, tt: kho.datTT(k.hop, k.id, doi, n.nguoi) });
   }
 
   if (viec === 'hen' && m === 'POST') {
     const b = await docThan(req);
     const den = Number(b.den) || 0;
     if (den && den < Date.now()) return loi(res, 400, 'Giờ hẹn đã qua');
-    kho.datHen(k.hop, k.id, den || null, n.khoa);
+    kho.datHen(k.hop, k.id, den || null, n.nguoi);
     return json(res, { ok: true });
+  }
+
+  /* Xem trước: đúng thân thư sẽ đi (phần viết + chữ ký + trích thư gốc), người
+   * nhận, tiêu đề, và các lỗi chữ soát được. Không ghi gì lên Lark. */
+  if (viec === 'xem-truoc' && m === 'POST') {
+    const b = await docThan(req);
+    const chu = String(b.chu || '').trim();
+    if (!chu) return loi(res, 400, 'Thư trả lời đang trống');
+    const g = await thu.doc(k.hop, k.id, n.tk);
+    const tatCa = b.tatCa === true;
+    const nhan = [g.tu].concat(tatCa ? g.den : []).filter((x) => x.email && x.email !== k.hop);
+    const cc = tatCa ? g.cc.filter((x) => x.email && x.email !== k.hop) : [];
+    const motLan = (ds) => ds.filter((x, i) => ds.findIndex((y) => y.email === x.email) === i);
+    const chuKy = b.coChuKy === false ? '' : await layChuKy(n);
+    const esc =(s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const html = thu.thanThu(chu, chuKy) +
+      '<div style="margin-top:18px;color:#666;font-size:13px">Vào ' + esc(g.ngay) + ', ' + esc(g.tu.ten || g.tu.email) + ' đã viết:</div>' +
+      '<blockquote style="margin:6px 0 0;border-left:2px solid #ccc;padding-left:10px;color:#666;font-size:13px;white-space:pre-wrap">' +
+      esc(String(g.noiDung || '').slice(0, 3000)) + '</blockquote>';
+    let loiChu = chinhTa.soat(chu);
+    let aiSoat = false;
+    if (ai.coKhoa() && b.soatAi !== false) {
+      try { loiChu = chinhTa.gopAi(chu, loiChu, await ai.soatChinhTa(chu)); aiSoat = true; } catch (_) { /* AI hỏng vẫn còn bộ soát trên máy */ }
+    }
+    const tieuDe = /^(re|trả lời|tl)\s*:/i.test(g.tieuDe || '') ? g.tieuDe : 'Re: ' + (g.tieuDe || '');
+    return json(res, { tu: k.hop, den: motLan(nhan), cc: motLan(cc), tieuDe, html, chuKy, loi: loiChu, aiSoat });
   }
 
   if (viec === 'tra-loi' && m === 'POST') {
@@ -327,7 +461,8 @@ async function api(req, res, url) {
     const chu = String(b.chu || '').trim();
     if (!chu) return loi(res, 400, 'Thư trả lời đang trống');
     if (chu.length > 20000) return loi(res, 400, 'Thư trả lời quá dài');
-    const kq = await thu.traLoi(k.hop, k.id, chu, { gui: b.gui === true, tatCa: b.tatCa === true }, n.tk);
+    const chuKy = b.coChuKy === false ? '' : await layChuKy(n);
+    const kq =await thu.traLoi(k.hop, k.id, chu, { gui: b.gui === true, tatCa: b.tatCa === true, chuKy }, n.tk);
     quenDs(n);
     return json(res, { ok: true, daGui: b.gui === true, kq });
   }
@@ -357,4 +492,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { server, aiGoi, lamGiau };
+module.exports = { server, aiGoi, lamGiau, ghepChuoi };

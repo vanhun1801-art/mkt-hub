@@ -23,7 +23,9 @@ const THU = [
 ];
 const gia = {
   cacHop: async () => [{ email: 'hunglv@rootytrip.com', chinh: true }, { email: 'sales@rootytrip.com', chinh: false }],
-  danhSach: async (hop) => THU.filter((t) => t.hop === hop),
+  danhSach: async (hop, max, tk, thuMuc = 'INBOX') => (thuMuc === 'INBOX' ? THU.filter((t) => t.hop === hop) : []),
+  chuKyLark: async () => 'Lê Văn Hùng\nP : 0344',
+  thanThu: (chu, chuKy) => '<p>' + chu + '</p>' + (chuKy ? '<div>' + chuKy + '</div>' : ''),
   doc: async (hop, id) => Object.assign({ den: [], cc: [], noiDung: 'x', trich: '', tep: [] }, THU.find((t) => t.id === id)),
   doi: async (...a) => { goi.push(['doi', ...a]); return {}; },
   traLoi: async (...a) => { goi.push(['traLoi', ...a]); return { draft_id: 'd1' }; },
@@ -98,23 +100,26 @@ server.listen(0, '127.0.0.1', async () => {
     goi.length = 0;
     ok('thư trống: 400, không gọi Lark', (await hoi('POST', duong('hunglv@rootytrip.com', 'aaaaaaaaaa==', 'tra-loi'), { than: { chu: '  ' } })).ma === 400 && !goi.length);
 
-    console.log('\nĐổi nhãn, lưu trữ');
+    console.log('\nXong, đã đọc, sao: chỉ ghi sổ riêng, Lark Mail giữ nguyên');
+    const thuA = async () => (await hoi('GET', '/api/thu')).j.thu.find((t) => t.id === 'aaaaaaaaaa==');
     goi.length = 0;
-    await hoi('POST', duong('hunglv@rootytrip.com', 'aaaaaaaaaa==', 'doi'), { than: { luuTru: true } });
-    ok('lưu trữ = chuyển sang archive, không xoá', goi[0][3].thuMuc === 'archive');
-    goi.length = 0;
-    await hoi('POST', duong('hunglv@rootytrip.com', 'aaaaaaaaaa==', 'doi'), { than: { luuTru: false } });
-    ok('hoàn tác = về inbox', goi[0][3].thuMuc === 'inbox');
-    goi.length = 0;
+    await hoi('POST', duong('hunglv@rootytrip.com', 'aaaaaaaaaa==', 'doi'), { than: { xong: true } });
+    ok('xong: không gọi Lark', !goi.length);
+    ok('xong: thư mang dấu xong', (await thuA()).xong > 0);
+    await hoi('POST', duong('hunglv@rootytrip.com', 'aaaaaaaaaa==', 'doi'), { than: { xong: false } });
+    ok('hoàn tác: hết dấu xong', (await thuA()).xong === 0);
     await hoi('POST', duong('hunglv@rootytrip.com', 'aaaaaaaaaa==', 'doi'), { than: { daDoc: true, sao: true } });
-    ok('đã đọc + gắn sao', goi[0][3].bo.includes('UNREAD') && goi[0][3].them.includes('FLAGGED'));
+    const a2 = await thuA();
+    ok('đã đọc + gắn sao trong app, Lark không bị gọi', !a2.chuaDoc && a2.sao && !goi.length);
+    await hoi('POST', duong('hunglv@rootytrip.com', 'aaaaaaaaaa==', 'doi'), { than: { daDoc: false } });
+    ok('đánh dấu chưa đọc trong app', (await thuA()).chuaDoc === true);
+    ok('thay đổi lạ: 400', (await hoi('POST', duong('hunglv@rootytrip.com', 'aaaaaaaaaa==', 'doi'), { than: { luuTru: true } })).ma === 400);
 
     console.log('\nChế độ chỉ đọc (lúc soát)');
     process.env.HOP_THU_CHI_DOC = '1';
     goi.length = 0;
     const g1 = await hoi('POST', duong('hunglv@rootytrip.com', 'aaaaaaaaaa==', 'tra-loi'), { than: { chu: 'Dạ', gui: true } });
-    const g2 = await hoi('POST', duong('hunglv@rootytrip.com', 'aaaaaaaaaa==', 'doi'), { than: { daDoc: true } });
-    ok('gửi và đổi nhãn đều bị chặn, Lark không bị gọi', g1.ma === 423 && g2.ma === 423 && !goi.length);
+    ok('gửi bị chặn, Lark không bị gọi', g1.ma === 423 && !goi.length);
     delete process.env.HOP_THU_CHI_DOC;
 
     console.log('\nLuật và hẹn');
@@ -125,6 +130,52 @@ server.listen(0, '127.0.0.1', async () => {
     await hoi('POST', duong('hunglv@rootytrip.com', 'aaaaaaaaaa==', 'hen'), { than: { den } });
     ok('hẹn lại ghi giờ hẹn', (await hoi('GET', '/api/thu')).j.thu.find((t) => t.id === 'aaaaaaaaaa==').henDen === den);
     ok('giờ hẹn đã qua bị từ chối', (await hoi('POST', duong('hunglv@rootytrip.com', 'aaaaaaaaaa==', 'hen'), { than: { den: 1000 } })).ma === 400);
+
+    console.log('\nThư đã gửi: đã trả lời, đang chờ người khác');
+    const { ghepChuoi } = require('../server');
+    const homNay = new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10);
+    const DEN = [
+      { hop: 'h@x', id: 'd1', chuoi: 'c1', ngay: homNay + ' 08:00' },
+      { hop: 'h@x', id: 'd2', chuoi: 'c2', ngay: homNay + ' 09:00' },
+      { hop: 'h@x', id: 'd3', chuoi: 'c3', ngay: homNay + ' 11:00' },
+    ];
+    const gui = [
+      { hop: 'h@x', id: 'g1', chuoi: 'c1', ngay: homNay + ' 08:30', tieuDe: 'Re: một' },   // trả lời d1
+      { hop: 'h@x', id: 'g3', chuoi: 'c3', ngay: homNay + ' 10:00', tieuDe: 'Báo giá' },  // bên kia đã hồi âm lúc 11:00
+      { hop: 'h@x', id: 'g4', chuoi: 'c4', ngay: homNay + ' 07:00', tieuDe: 'Mời hợp tác' }, // chưa ai hồi âm
+      { hop: 'k@x', id: 'g5', chuoi: 'c2', ngay: homNay + ' 10:00', tieuDe: 'Khác hộp' },   // khác hộp, không tính cho d2
+      { hop: 'h@x', id: 'g6', chuoi: 'c6', ngay: '2026-01-01 08:00', tieuDe: 'Cũ quá' },
+    ];
+    const gc = ghepChuoi(DEN, gui);
+    ok('thư đến có thư mình gửi sau nó: đã trả lời', gc.daTraLoi.has('h@x|d1') && !gc.daTraLoi.has('h@x|d2') && !gc.daTraLoi.has('h@x|d3'));
+    ok('đang chờ: chỉ chuỗi chưa ai hồi âm, trong 21 ngày', gc.cho.map((x) => x.id).sort().join() === 'g1,g4,g5', JSON.stringify(gc.cho.map((x) => x.id)));
+
+    console.log('\nChữ ký, xem trước, soát chữ');
+    const ck = await hoi('GET', '/api/chu-ky');
+    ok('chưa đặt: gợi ý từ chữ ký Lark', ck.j.chuKy === 'Lê Văn Hùng\nP : 0344' && ck.j.daDat === false);
+    goi.length = 0;
+    const xt = await hoi('POST', duong('hunglv@rootytrip.com', 'aaaaaaaaaa==', 'xem-truoc'), { than: { chu: 'em đã nhận dc ạ' } });
+    ok('xem trước có chữ ký và trích thư gốc', /Lê Văn Hùng/.test(xt.j.html) && /blockquote/.test(xt.j.html), xt.s.slice(0, 200));
+    ok('xem trước gửi tới đúng người gửi thư gốc', xt.j.den.length === 1 && xt.j.den[0].email === 'ceo@rootytrip.com');
+    ok('xem trước soát được lỗi', xt.j.loi.some((x) => x.sai === 'dc' && x.sua === 'được') && xt.j.loi.some((x) => x.sua === 'E'));
+    ok('xem trước không gọi Lark ghi gì', !goi.some((x) => x[0] !== 'doc'));
+    await hoi('POST', '/api/chu-ky', { than: { chuKy: 'Hùng · MKT' } });
+    ok('đặt chữ ký riêng', (await hoi('GET', '/api/chu-ky')).j.chuKy === 'Hùng · MKT');
+    goi.length = 0;
+    await hoi('POST', duong('hunglv@rootytrip.com', 'aaaaaaaaaa==', 'tra-loi'), { than: { chu: 'Dạ', coChuKy: false } });
+    ok('bỏ chữ ký cho một thư', goi[0] && goi[0][4].chuKy === '');
+    goi.length = 0;
+    await hoi('POST', duong('hunglv@rootytrip.com', 'aaaaaaaaaa==', 'tra-loi'), { than: { chu: 'Dạ' } });
+    ok('mặc định gửi kèm chữ ký đã đặt', goi[0] && goi[0][4].chuKy === 'Hùng · MKT');
+
+    console.log('\nNhóm theo dõi');
+    const nh = await hoi('POST', '/api/nhom', { than: { nhom: [
+      { id: 'nhom-pito', ten: '  Hợp tác PITO  ', chuoi: [{ hop: 'HUNGLV@rootytrip.com', chuoi: 'c1', td: 'PITO' }, { hop: '', chuoi: 'x' }] },
+      { id: '<script>', ten: 'x' },
+    ] } });
+    ok('cất nhóm: bỏ mã lạ, bỏ chuỗi hỏng, chuẩn hoá hộp', nh.j.nhom.length === 1 && nh.j.nhom[0].ten === 'Hợp tác PITO' &&
+      nh.j.nhom[0].chuoi.length === 1 && nh.j.nhom[0].chuoi[0].hop === 'hunglv@rootytrip.com');
+    ok('danh sách thư trả kèm nhóm', (await hoi('GET', '/api/thu')).j.nhom[0].id === 'nhom-pito');
 
     console.log('\nThiếu khoá AI');
     const p = await hoi('POST', duong('hunglv@rootytrip.com', 'aaaaaaaaaa==', 'phan-tich'), { than: {} });

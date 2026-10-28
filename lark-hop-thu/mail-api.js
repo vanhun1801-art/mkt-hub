@@ -14,19 +14,22 @@
  *   GET  user_mailboxes/<hộp>/messages/<mã>                (thân thư base64url)
  *   POST user_mailboxes/<hộp>/messages/batch_modify
  *   POST user_mailboxes/<hộp>/drafts {raw: EML base64url} → drafts/<mã>/send
+ *   POST calendar/v4/calendars/primary → calendars/<mã>/events  (Thêm vào lịch)
  */
 const cfg = require('./config');
 
 /** Token hết hạn, bị thu hồi, hoặc app chưa được cấp quyền mail: phải nối lại. */
 class LoiToken extends Error {}
+/** Token còn sống nhưng chưa có quyền lịch: mời người dùng cho phép thêm. */
+class LoiQuyenLich extends Error {}
 
 const MA_TOKEN = new Set([99991663, 99991664, 99991665, 99991668, 99991677, 20005, 20026, 20037]);
 const MA_THIEU_QUYEN = new Set([99991672, 99991679, 99991676]);
 const TRANSIENT = /timeout|timed out|ETIMEDOUT|ECONNRESET|ECONNREFUSED|EAI_AGAIN|ENOTFOUND|socket hang up|EPIPE|fetch failed|aborted/i;
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function goiMot(tk, method, duong, { query, body } = {}) {
-  const url = cfg.apiHost + '/open-apis/mail/v1/' + duong + (query ? '?' + new URLSearchParams(query) : '');
+async function goiMot(tk, method, duong, { query, body, goc = 'mail/v1/' } = {}) {
+  const url = cfg.apiHost + '/open-apis/' + goc + duong + (query ? '?' + new URLSearchParams(query) : '');
   const r = await fetch(url, {
     method,
     headers: Object.assign({ Authorization: 'Bearer ' + tk },
@@ -39,6 +42,9 @@ async function goiMot(tk, method, duong, { query, body } = {}) {
   if (d.code !== 0) {
     if (MA_TOKEN.has(d.code) || r.status === 401) {
       throw new LoiToken('Phiên nối hộp thư đã hết. Bấm Nối hộp thư để nối lại.');
+    }
+    if (MA_THIEU_QUYEN.has(d.code) && goc.startsWith('calendar')) {
+      throw new LoiQuyenLich('Marketing Hub chưa được phép thêm lịch cho anh/chị.');
     }
     if (MA_THIEU_QUYEN.has(d.code)) {
       throw new LoiToken('App Marketing Hub chưa được cấp đủ quyền đọc thư. Báo quản lý cấp quyền mail rồi nối lại.');
@@ -105,11 +111,11 @@ async function cacHop(tk) {
 }
 
 /** Giống `+triage --format data --labels`: { messages: [{ message_id, date, from, subject, labels, … }] } */
-async function triage(tk, hop, max) {
+async function triage(tk, hop, max, thuMuc = 'INBOX') {
   const ids = [];
   let page = '';
   while (ids.length < max) {
-    const q = { folder_id: 'INBOX', page_size: String(Math.min(20, max - ids.length)) };
+    const q = { folder_id: thuMuc, page_size: String(Math.min(20, max - ids.length)) };
     if (page) q.page_token = page;
     const d = await goi(tk, 'GET', hopDuong(hop) + '/messages', { query: q });
     ids.push(...(d.items || []));
@@ -229,4 +235,25 @@ async function traLoi(tk, hop, id, htmlMoi, { gui = false, tatCa = false } = {})
   return Object.assign({ draft_id: draftId }, s);
 }
 
-module.exports = { LoiToken, cacHop, triage, message, modify, traLoi, dungTraLoi, ngayVN, giaiMime, tachDsDiaChi };
+/* ---------------- lịch ---------------- */
+
+/** Tạo một sự kiện trên lịch chính của người dùng. Thời điểm là mili giây. */
+async function taoLich(tk, { tieuDe, moTa = '', batDau, ketThuc }) {
+  const c = await goi(tk, 'POST', 'calendars/primary', { goc: 'calendar/v4/', body: {} });
+  const lich = (((c.calendars || [])[0] || {}).calendar || {}).calendar_id;
+  if (!lich) throw new Error('Lark chưa trả lịch chính của anh/chị');
+  const d = await goi(tk, 'POST', 'calendars/' + encodeURIComponent(lich) + '/events', {
+    goc: 'calendar/v4/',
+    ghi: true,
+    body: {
+      summary: tieuDe,
+      description: moTa,
+      start_time: { timestamp: String(Math.floor(batDau / 1000)) },
+      end_time: { timestamp: String(Math.floor(ketThuc / 1000)) },
+      reminders: [{ minutes: 30 }],
+    },
+  });
+  return { event_id: (d.event || {}).event_id || '', app_link: (d.event || {}).app_link || '' };
+}
+
+module.exports = { LoiToken, LoiQuyenLich, taoLich, cacHop, triage, message, modify, traLoi, dungTraLoi, ngayVN, giaiMime, tachDsDiaChi };

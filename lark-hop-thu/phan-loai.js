@@ -68,6 +68,15 @@ function luatCaiSan(cfg) {
         /бронирован/.test(t.tieuDe),
     },
     {
+      /* Thư tự động của nền tảng đặt phòng, quảng cáo, mạng xã hội: không ai
+       * chờ người nhận trả lời. Booking mới đã được luật "Khách đặt dịch vụ"
+       * ở trên nhận trước. Xếp sau "Đề xuất xin duyệt" để đối tác thật viết
+       * từ gmail không bị nhầm. */
+      ten: 'Thư từ nền tảng',
+      ngan: 'biet',
+      khop: (t) => /@([\w-]+\.)*(expedia(group)?|trip|ctrip|agoda|booking|airbnb|traveloka|klook|google|youtube|facebookmail|meta|instagram|tiktok|bytedance|zalo|larksuite|feishu|gohost|hotelia|mustgo|linkedin|canva|shopee|lazada)\.(com|vn|net|io)$/.test(t.email),
+    },
+    {
       ten: 'Thông báo chung',
       ngan: 'biet',
       khop: (t) => /^(thong bao|tb)\b/.test(t.tieuDeGoc) || /\[tb tu dong\]/.test(t.tieuDe),

@@ -112,11 +112,11 @@ function tachNguoi(s) {
   return { ten: '', email: e };
 }
 
-/** Tóm tắt thư trong Hộp đến của một hộp, mới nhất trước. */
-async function danhSach(hop, max = cfg.soThuMoiHop, tk = '') {
-  const d = tk ? await quaApi(() => mapi.triage(tk, hop, max))
+/** Tóm tắt thư trong một thư mục (mặc định Hộp đến) của một hộp, mới nhất trước. */
+async function danhSach(hop, max = cfg.soThuMoiHop, tk = '', thuMuc = 'INBOX') {
+  const d = tk ? await quaApi(() => mapi.triage(tk, hop, max, thuMuc))
     : await cli(['mail', '+triage', ...U, '--mailbox', hop, '--max', String(max),
-      '--format', 'data', '--labels', '--filter', JSON.stringify({ folder_id: 'INBOX' })]);
+      '--format', 'data', '--labels', '--filter', JSON.stringify({ folder_id: thuMuc })]);
   return (d.messages || []).map((m) => {
     const nhan = String(m.labels || '').split(',').map((x) => x.trim()).filter(Boolean);
     return {
@@ -219,16 +219,56 @@ function veHtml(chu) {
     .map((doan) => '<p>' + esc(doan).replace(/\n/g, '<br>') + '</p>').join('');
 }
 
+/** Chữ ký người dùng đặt trong app (chữ thường) → khối HTML cuối thư. */
+function veChuKy(chuKy) {
+  const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const dong = String(chuKy || '').trim().split('\n').map((d) => esc(d.trim()));
+  if (!dong.join('')) return '';
+  return '<div class="hop-thu-chu-ky" style="margin-top:16px;padding-top:8px;border-top:1px solid #ddd;color:#555;font-size:13px">' +
+    dong.join('<br>') + '</div>';
+}
+
+/** Thân thư đi: phần viết + chữ ký. Xem trước và gửi dùng chung một hàm. */
+const thanThu = (chu, chuKy) => veHtml(chu) + veChuKy(chuKy);
+
+/**
+ * Chữ ký mặc định trên Lark Mail của một hộp, để gợi ý lần đầu. Chỉ đường
+ * lark-cli có lệnh này, và Lark chỉ trả bản xem trước một dòng: tách lại
+ * thành dòng theo các mốc quen thuộc (P :, E :, |).
+ */
+async function chuKyLark(hop) {
+  if (!coCli()) return '';
+  const d = await cli(['mail', '+signature', ...U, '--from', hop]).catch(() => null);
+  const ds = (d && d.signatures) || [];
+  const k = ds.find((x) => x.is_reply_default) || ds.find((x) => x.is_send_default) || ds[0];
+  if (!k) return '';
+  return String(k.content_preview || '').replace(/&nbsp;/g, ' ').replace(/\[image\]/g, '').replace(/-{3,}/g, '')
+    .replace(/\s+([PETMW]\s*:)/g, '\n$1')
+    .replace(/(\p{Lu}{2,})\s+(\p{Lu}\p{Ll})/gu, '$1\n$2')       // "…PHÚ QUỐC Lê Văn Hùng": tên công ty viết hoa hết
+    .split('\n').map((x) => x.replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n');
+}
+
+/** Thêm một sự kiện vào lịch Lark của người dùng. Thời điểm là mili giây. */
+async function taoLich(sk, tk = '') {
+  if (tk) return quaApi(() => mapi.taoLich(tk, sk));
+  const iso = (ms) => new Date(ms + 7 * 3600e3).toISOString().slice(0, 16) + '+07:00';
+  return cli(['calendar', '+create', ...U, '--summary', sk.tieuDe, '--start', iso(sk.batDau), '--end', iso(sk.ketThuc),
+    '--description', sk.moTa || ''], { ghi: true });
+}
+
 /**
  * Trả lời một thư. Mặc định LƯU NHÁP; `gui: true` mới gửi đi.
- * `tatCa`: trả lời tất cả (giữ To/CC của thư gốc).
+ * `tatCa`: trả lời tất cả (giữ To/CC của thư gốc). `chuKy`: chữ ký đặt trong app.
  */
-async function traLoi(hop, id, chu, { gui = false, tatCa = false } = {}, tk = '') {
-  if (tk) return quaApi(() => mapi.traLoi(tk, hop, id, veHtml(chu), { gui, tatCa }));
+async function traLoi(hop, id, chu, { gui = false, tatCa = false, chuKy = '' } = {}, tk = '') {
+  const html = thanThu(chu, chuKy);
+  if (tk) return quaApi(() => mapi.traLoi(tk, hop, id, html, { gui, tatCa }));
+  /* --no-signature: chữ ký đã nằm trong thân (đúng bản người dùng vừa xem
+   * trước), không để lark-cli chèn thêm chữ ký thứ hai. */
   const a = ['mail', tatCa ? '+reply-all' : '+reply', ...U, '--mailbox', hop,
-    '--message-id', id, '--body', veHtml(chu)];
+    '--message-id', id, '--body', html, '--no-signature'];
   if (gui) a.push('--confirm-send');
   return cli(a, { ghi: true });
 }
 
-module.exports = { LoiChuaNoi, loiGon, coCli, cacHop, danhSach, doc, doi, traLoi, tachNguoi, veHtml, htmlSangChu, tachTrich };
+module.exports = { LoiChuaNoi, loiGon, coCli, cacHop, danhSach, doc, doi, traLoi, tachNguoi, veHtml, veChuKy, thanThu, chuKyLark, taoLich, htmlSangChu, tachTrich };

@@ -24,11 +24,11 @@
 </header>
 
 <!-- Khuôn cố định hai phần (anh Hùng 28/10/2026: "giao diện nhảy tùm lum"):
-     trái là danh sách, phải là nội dung thư. Trên máy tính cả hai luôn đứng
-     yên chỗ, chưa chọn thư thì phần phải hiện lời mời; điện thoại thì phần
+     trái là danh sách, phải là nội dung thư. Vách giữa kéo được để đổi tỷ lệ;
+     mỗi phần đóng lại được bằng nút trên đầu khung đọc. Điện thoại thì phần
      phải trượt vào khi mở thư. -->
 <div class="than-trang">
-  <section class="cot-trai" aria-label="Danh sách thư">
+  <section class="cot-trai" id="cotTrai" aria-label="Danh sách thư">
     <div class="dau-trai">
       <nav class="dai-ngan" id="dsNgan" role="tablist" aria-label="Ngăn thư"></nav>
       <div class="dai-hop" id="dsHop" aria-label="Lọc theo hộp thư"></div>
@@ -38,25 +38,48 @@
     </main>
   </section>
 
+  <div class="vach" id="vach" role="separator" aria-orientation="vertical" tabindex="0"
+       aria-label="Kéo để đổi độ rộng danh sách, bấm đúp để về mặc định"><i></i></div>
+
   <aside id="cotDoc" aria-label="Nội dung thư" hidden>
     <div class="doc-dau">
       <button id="btnVe" class="nut-tron ve" aria-label="Về danh sách">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
       </button>
+      <button id="btnThuDs" class="nut-tron thu-ds" title="Ẩn danh sách" aria-label="Ẩn danh sách" aria-pressed="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><path d="M9.5 4.5v15"/></svg>
+      </button>
       <div class="hang-nut" id="hangNut"></div>
+      <button id="btnDongDoc" class="nut-tron dong-doc" title="Đóng khung đọc" aria-label="Đóng khung đọc">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
     </div>
     <div class="doc-than" id="docThan"></div>
   </aside>
 </div>
 
-<!-- Hộp xác nhận gửi: nói rõ thư đi tới đâu trước khi gửi. -->
+<!-- Xem trước khi gửi: đúng bản người nhận sẽ đọc, soát chữ, rồi mới gửi. -->
 <div class="nen-hop" id="hopGui" hidden>
-  <div class="hop-xn" role="dialog" aria-modal="true" aria-labelledby="hopGuiTieu">
-    <div class="hop-dau"><b id="hopGuiTieu">Gửi thư trả lời?</b></div>
+  <div class="hop-xn rong" role="dialog" aria-modal="true" aria-labelledby="hopGuiTieu">
+    <div class="hop-dau"><b id="hopGuiTieu">Xem trước khi gửi</b></div>
     <div class="hop-than" id="hopGuiThan"></div>
     <div class="hop-chan">
-      <button class="nut phu" id="hopGuiHuy">Chưa gửi</button>
+      <span class="ly-do" id="hopGuiLyDo"></span>
+      <button class="nut phu" id="hopGuiHuy">Sửa tiếp</button>
       <button class="nut chinh" id="hopGuiOk">Gửi ngay</button>
+    </div>
+  </div>
+</div>
+
+<!-- Hộp nhỏ dùng chung: thêm vào lịch, đặt tên nhóm, sửa chữ ký. -->
+<div class="nen-hop" id="hopNho" hidden>
+  <div class="hop-xn" role="dialog" aria-modal="true" aria-labelledby="hopNhoTieu">
+    <div class="hop-dau"><b id="hopNhoTieu"></b></div>
+    <div class="hop-than" id="hopNhoThan"></div>
+    <div class="hop-chan">
+      <span class="ly-do" id="hopNhoLyDo"></span>
+      <button class="nut phu" id="hopNhoHuy">Đóng</button>
+      <button class="nut chinh" id="hopNhoOk">Lưu</button>
     </div>
   </div>
 </div>

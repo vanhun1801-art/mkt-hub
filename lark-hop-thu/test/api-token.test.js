@@ -4,7 +4,7 @@
  * bằng x-hub-thu-token). Dựng một Lark giả trên máy để soát:
  *   - dữ liệu ra đúng hình dạng như khi đọc bằng lark-cli;
  *   - hai người không thấy thư của nhau, luật tự đặt không lẫn sang nhau;
- *   - Lưu trữ gửi đúng ARCHIVED, trả lời dựng EML có In-Reply-To;
+ *   - Xong / đã đọc chỉ ghi sổ riêng, không gọi batch_modify; trả lời dựng EML có In-Reply-To;
  *   - token hết hạn thì 503 kèm cờ mời nối lại.
  */
 const fs = require('fs');
@@ -125,9 +125,8 @@ lark.listen(0, '127.0.0.1', () => {
       console.log('\nGhi lên Lark');
       ghiNhan.length = 0;
       await goi('/api/thu/' + encodeURIComponent('hunglv@rootytrip.com') + '/thuHung00000001/doi', 'tk-hung',
-        { method: 'POST', body: { luuTru: true, daDoc: true } });
-      const md = ghiNhan.find((x) => /batch_modify/.test(x.p));
-      ok('Lưu trữ gửi ARCHIVED và bỏ UNREAD', md && md.body.add_folder === 'ARCHIVED' && md.body.remove_label_ids[0] === 'UNREAD', JSON.stringify(md));
+        { method: 'POST', body: { xong: true, daDoc: true } });
+      ok('Xong và đã đọc không đổi gì trên Lark Mail', !ghiNhan.some((x) => /batch_modify/.test(x.p)), JSON.stringify(ghiNhan.map((x) => x.p)));
 
       ghiNhan.length = 0;
       const nhap = await goi('/api/thu/' + encodeURIComponent('hunglv@rootytrip.com') + '/thuHung00000001/tra-loi', 'tk-hung',

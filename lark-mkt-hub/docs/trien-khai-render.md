@@ -65,6 +65,11 @@ Thiếu một quyền thì trang hỏi quyền của Lark báo **20027**. Redire
 môi trường mới: cookie nối hộp thư mã hoá bằng khoá dẫn từ `SESSION_SECRET` (đổi
 `SESSION_SECRET` là mọi người phải nối lại).
 
+**Thêm vào lịch** (từ 28/10/2026) cần thêm hai quyền người dùng, cũng phải
+Create Version → Publish: `calendar:calendar:read`, `calendar:calendar.event:create`.
+Hub chỉ xin hai quyền này khi người dùng bấm "Cho phép" lúc thêm lịch lần đầu
+(`/auth/noi-thu?them=lich`), nên app chưa được cấp thì Nối hộp thư vẫn chạy.
+
 ### A2. Chia sẻ MỌI base cho app
 
 Đây là bước hay sót nhất. App phải là thành viên **quyền chỉnh sửa** của:

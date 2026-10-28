@@ -60,6 +60,10 @@ ok('mã xác minh Trip.com (người gửi không có chữ noreply)',
 ok('noreply nằm giữa địa chỉ', ngan('ads-account-noreply@google.com', 'Chấp nhận lời mời truy cập') === 'biet');
 ok('automated@airbnb.com', ngan('automated@airbnb.com', 'Chúng tôi đã gửi khoản chi trả') === 'biet');
 ok('mailer-daemon', ngan('mailer-daemon@larksuite.com', 'Message was bounced back') === 'biet');
+ok('thư nền tảng (Expedia, Trip.com) chỉ để đọc', ngan('partner@expediagroup.com', 'Your email was updated yesterday') === 'biet' &&
+  ngan('ebooking@trip.com', 'Bạn nhận được lời mời tham gia Trip.com eBooking') === 'biet');
+ok('booking mới từ nền tảng vẫn là đơn', ngan('noreply@agoda.com', '[Booking mới] Superior 29/10') === 'don');
+ok('khách viết từ gmail không bị coi là nền tảng', ngan('khach@gmail.com', 'Travel to Phu Quoc') === 'xu-ly');
 
 console.log('\nThứ tự ưu tiên');
 ok('luật tay thắng luật cài sẵn',

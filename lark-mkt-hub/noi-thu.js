@@ -43,6 +43,11 @@ const SCOPE = [
   'offline_access',
 ];
 
+/* Xin THÊM khi người dùng bấm "Thêm vào lịch" lần đầu (?them=lich), không xin
+ * ngay từ đầu: app chưa được cấp quyền lịch thì Lark chặn cả trang hỏi quyền
+ * (20027) và không ai nối được hộp thư nữa. */
+const SCOPE_LICH = ['calendar:calendar:read', 'calendar:calendar.event:create'];
+
 const HAN_GOI = 20000;
 const han = () => AbortSignal.timeout(HAN_GOI);
 
@@ -101,12 +106,12 @@ function xoaCookie(res) {
 const hostTaiKhoan = () => cfg.apiHost.replace('://open.', '://accounts.');
 const redirectUri = () => cfg.publicUrl + '/auth/callback';
 
-function urlHoiQuyen(next) {
+function urlHoiQuyen(next, them = '') {
   const q = new URLSearchParams({
     client_id: cfg.appId,
     redirect_uri: redirectUri(),
     response_type: 'code',
-    scope: SCOPE.join(' '),
+    scope: SCOPE.concat(them === 'lich' ? SCOPE_LICH : []).join(' '),
     state: 'thu:' + next,
   });
   return hostTaiKhoan() + '/open-apis/authen/v1/authorize?' + q.toString();
@@ -213,4 +218,4 @@ function ngat(req, res, nguoi) {
   xoaCookie(res);
 }
 
-module.exports = { COOKIE, SCOPE, urlHoiQuyen, nhanCode, tokenCho, ngat, _ma: ma, _mo: mo, _ram: ram };
+module.exports = { COOKIE, SCOPE, SCOPE_LICH, urlHoiQuyen, nhanCode, tokenCho, ngat, _ma: ma, _mo: mo, _ram: ram };

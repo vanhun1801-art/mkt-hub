@@ -323,3 +323,11 @@ Anh Hùng (về Hộp thư): "cái giao diện này anh không biết phải là
 - **Không bày chữ kỹ thuật ra giao diện**: lý do xếp, tên luật, "Chưa luật nào nhận". Chỉ bày thứ người đọc dùng được.
 - **Việc chính có nút có chữ (tối đa 3), việc phụ cất vào nút ⋯ Thêm.** Một dãy nút chỉ có hình là người dùng phải đoán từng cái.
 - **Danh sách dài (hộp thư, kênh, người) chọn bằng một nút mở menu**, không bày thành dải chip tràn khỏi màn.
+
+## 23. Dữ liệu chung, khuôn hai phần, việc chờ lâu (28/10/2026, Hộp thư)
+
+- **Phân loại, đánh dấu trong app không được đổi dữ liệu gốc dùng chung** (anh Hùng: "việc phân loại của anh trên ứng dụng thì không nên tác động đến email thật vì cũng có người khác sử dụng"). Xong, đã đọc, sao, chuyển ngăn, nhóm theo dõi là sổ riêng từng người, cất trên Base của Hub, không cất trên ổ Render.
+- **Màn danh sách + chi tiết là khuôn hai phần cố định** ("giao diện nhảy tùm lum"): cột trái rộng cố định, cột phải luôn có mặt (chưa chọn thì hiện lời mời). Mở, đóng một bản ghi không làm cột nào co giãn. Vách giữa **kéo được** để đổi tỷ lệ, mỗi phần **đóng được**; nút điều khiển rõ ràng nằm trên đầu khung chi tiết.
+- **Việc chờ lâu phải tự nổi lên**: vàng khi chờ 1 ngày, đỏ và nhịp sáng khi từ 3 ngày. Chỉ những việc gần đây mới nhấp nháy; việc đã quá lâu gom một dòng, bấm mới mở. Cái gì cũng nháy thì không còn gì nổi bật.
+- **Gửi ra ngoài (thư, tin) luôn qua bản xem trước**: đúng bản bên nhận thấy, có soát chính tả, sửa từng chỗ hoặc sửa hết, rồi mới gửi.
+- **Gói một bản ghi sang app khác (giao việc từ thư) phải đọc hiểu được mà không cần mở nguồn**: tên sạch, ai gửi, nội dung chính (cả phần chuyển tiếp), bỏ chữ ký, ký tự rác, link dài, kèm thẻ dẫn về nguồn.

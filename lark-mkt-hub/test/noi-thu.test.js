@@ -76,6 +76,10 @@ lark.listen(0, '127.0.0.1', async () => {
       && u.searchParams.get('scope').includes('offline_access'));
     ok('state đánh dấu lượt nối thư', u.searchParams.get('state') === 'thu:/#/m/hop-thu');
     ok('dùng client_id (OAuth v2)', u.searchParams.get('client_id') === 'cli_thu');
+    ok('mặc định KHÔNG xin quyền lịch', !/calendar/.test(u.searchParams.get('scope')));
+    const ul = new URL(noi.urlHoiQuyen('/#/m/hop-thu', 'lich'));
+    ok('?them=lich xin thêm quyền lịch, vẫn đủ quyền mail', /calendar:calendar\.event:create/.test(ul.searchParams.get('scope')) &&
+      ul.searchParams.get('scope').includes('mail:user_mailbox.message:send'));
 
     console.log('\nNhận code');
     const r0 = resGia();

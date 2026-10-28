@@ -600,7 +600,7 @@ async function handle(req, res, url) {
         'Đăng xuất, đăng nhập lại bằng Lark rồi bấm Nối hộp thư.</div>' +
         '<p class="duoi"><a href="' + esc(next) + '">Quay lại</a></p>', 400);
     }
-    return redirect(res, noiThu.urlHoiQuyen(next));
+    return redirect(res, noiThu.urlHoiQuyen(next, url.searchParams.get('them') === 'lich' ? 'lich' : ''));
   }
 
   if (p === '/auth/callback' && String(url.searchParams.get('state') || '').startsWith('thu:')) {

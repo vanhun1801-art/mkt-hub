@@ -49,6 +49,8 @@ module.exports = {
   /* Số thư đọc mỗi hộp mỗi lần. Hộp chính anh Hùng ~5 thư/tuần, 60 là hơn
    * hai tháng; hộp chung nhiều hơn nhưng thư cũ quá thì đã xử lý rồi. */
   soThuMoiHop: Number(process.env.HOP_THU_SO_THU || 60),
+  /* Thư mục Đã gửi chỉ cần đủ để biết thư nào đã trả lời, thư nào đang chờ. */
+  soThuGuiMoiHop: Number(process.env.HOP_THU_SO_THU_GUI || 30),
 
   /* Ban giám đốc: thư từ những địa chỉ này vào "Cần trả lời" kèm nhãn "Ban giám đốc". Khai bằng env
    * để đổi người không phải sửa mã. */
