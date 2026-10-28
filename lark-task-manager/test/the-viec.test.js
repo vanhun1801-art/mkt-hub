@@ -196,7 +196,7 @@ test('thẻ ngoài danh sách không còn nút Yêu cầu điều chỉnh', () =
 test('tin chưa đọc thì thẻ thở chậm cho tới khi đọc, cùng nhịp đồng hồ', () => {
   const ma = [layHam('nhayTinMoi'), 'return nhayTinMoi;'].join('\n');
   const S = { chuaDoc: new Map([['v1', { n: 2 }], ['v2', { n: 0 }]]) };
-  const nhay = new Function('S', 'NHIP_THO', ma)(S, 2800);
+  const nhay = new Function('S', 'NHIP_THO', ma)(S, 3200);
   const tao = () => {
     const lop = [], bien = {};
     return { lop, bien, classList: { add: (x) => lop.push(x) }, style: { setProperty: (k, v) => { bien[k] = v; } } };
@@ -206,7 +206,7 @@ test('tin chưa đọc thì thẻ thở chậm cho tới khi đọc, cùng nhị
   nhay(a, { id: 'v1' });
   assert.deepStrictEqual(a.lop, ['co-tin'], 'có tin chưa đọc thì thẻ sáng');
   const tre = parseInt(a.bien['--tho-tre'], 10);
-  assert.ok(tre <= 0 && tre > -2800, 'độ trễ âm theo đồng hồ, vẽ lại không giật về đầu nhịp');
+  assert.ok(tre <= 0 && tre > -3200, 'độ trễ âm theo đồng hồ, vẽ lại không giật về đầu nhịp');
   for (const id of ['v2', 'v3']) {
     const b = tao();
     nhay(b, { id });
@@ -214,7 +214,7 @@ test('tin chưa đọc thì thẻ thở chậm cho tới khi đọc, cùng nhị
   }
 
   assert.ok(/nhayTinMoi\(c, t\)/.test(layHam('workCard')), 'phải gắn vào thẻ');
-  assert.ok(/::after \{[^}]*animation: wc-tho 2\.8s ease-in-out infinite;[^}]*var\(--tho-tre/.test(CSS),
+  assert.ok(/::after \{[^}]*animation: wc-tho 3\.2s [^;]*infinite;[^}]*var\(--tho-tre/.test(CSS),
     'thở chậm lặp mãi, theo độ trễ JS đặt');
   assert.ok(/reduce\) \{[^}]*\}[^]*?co-tin[^{]*::after \{ animation: none; opacity: \.6; \}/.test(CSS),
     'xin bớt chuyển động thì đứng yên, nhưng vẫn phải phân biệt được');

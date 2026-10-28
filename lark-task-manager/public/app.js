@@ -1154,7 +1154,7 @@ async function napChuaDoc() {
  * đầu và giật một cái. Nên đặt độ trễ âm theo đồng hồ: thẻ nào vẽ lúc nào cũng
  * đứng đúng chỗ trong nhịp, mọi thẻ thở cùng nhau.
  */
-const NHIP_THO = 2800;   // khớp 2.8s của wc-tho trong styles.css
+const NHIP_THO = 3200;   // khớp 3.2s của wc-tho trong styles.css
 function nhayTinMoi(c, t) {
   const x = S.chuaDoc && t && S.chuaDoc.get(t.id);
   if (!x || !x.n) return;
