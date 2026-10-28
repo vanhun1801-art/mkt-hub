@@ -520,6 +520,7 @@ function veDoc() {
     '<span id="lienQuan" class="lien-quan"></span></div>';
   if (t.canhBao) h += '<div class="canh-bao">Lark đánh dấu thư này có dấu hiệu rủi ro. Kiểm tra người gửi trước khi bấm link hay trả lời.</div>';
   h += '<div id="theAi">' + theAi() + '</div>';
+  h += '<div id="vungDich" class="vung-dich"></div>';
   h += '<div class="noi-dung" data-no-i18n>' + linkHoa(t.noiDung || (t.trich ? '' : '(Thư không có nội dung chữ)')) + '</div>';
   if (t.trich) {
     h += '<button class="nut mo-trich" data-viec="trich" aria-expanded="false">Thư trước</button>' +
@@ -532,6 +533,7 @@ function veDoc() {
   $('#docThan').innerHTML = h;
   $('#docThan').dataset.k = S.chon;
   ganSoan(tom.daGui);
+  nutDich(t);
   $('#docThan').scrollTop = cuon;           // vẽ lại cùng thư (gắn sao, AI xong) thì giữ chỗ đang đọc
   capNhatNutGui();
 }
@@ -632,6 +634,7 @@ function veSoan(daGui) {
     '<textarea id="oSoan" placeholder="' + (daGui ? 'Viết lời nhắc gửi lại cho người nhận' : 'Viết trả lời') + '"></textarea>' +
     '<div class="chan-soan">' +
     '<label><input type="checkbox" id="tatCa"' + (daGui ? ' checked' : '') + '> Trả lời tất cả</label>' +
+    '<label title="Anh viết tiếng Việt, app dịch sang tiếng Anh, xem trước rồi mới gửi"><input type="checkbox" id="guiAnh"> Gửi bằng tiếng Anh</label>' +
     '<span class="sp"></span>' +
     '<span class="ly-do" id="lyDoGui"></span>' +
     '<button class="nut" data-viec="luu-nhap" id="btnNhap">Lưu nháp</button>' +
@@ -680,6 +683,112 @@ async function luuNhap() {
   finally { capNhatNutGui(); }
 }
 
+/* ---------------- dịch ----------------
+ * Anh Hùng 28/10/2026: dịch thư tiếng nước ngoài sang tiếng Việt, và soạn
+ * tiếng Việt rồi gửi bản tiếng Anh. Dùng bộ dịch có sẵn trong Chrome
+ * (Translator API: chạy trên máy, thư không rời máy). Trình duyệt không có thì
+ * nhờ máy chủ (Claude, cần khoá). Lần đầu một cặp ngôn ngữ Chrome có thể tải
+ * gói dịch vài giây. */
+
+const boDich = new Map();
+let boNhanDien = null;
+
+async function doanNgonNgu(chu) {
+  const s = String(chu || '').slice(0, 1200);
+  /* Tiếng Việt khi chữ có dấu chiếm phần đáng kể: một thư tiếng Anh nhắc
+   * "Phú Quốc" vài lần vẫn là thư tiếng Anh. */
+  const chuCai = (s.match(/\p{L}/gu) || []).length || 1;
+  const coDau = (s.match(/[ăâđêôơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹáàãéèíìóòõúùýđ]/gi) || []).length;
+  if (coDau / chuCai > 0.06) return 'vi';
+  if ('LanguageDetector' in self) {
+    try {
+      const quaGio = new Promise((_, loi) => setTimeout(() => loi(new Error('quá giờ')), 3000));
+      if (!boNhanDien) boNhanDien = LanguageDetector.create();
+      const r = (await Promise.race([(await Promise.race([boNhanDien, quaGio])).detect(s), quaGio]))[0];
+      if (r && r.confidence > 0.5 && r.detectedLanguage !== 'und') return r.detectedLanguage.split('-')[0];
+    } catch (_) { boNhanDien = null; }
+  }
+  if (/[Ѐ-ӿ]/.test(s)) return 'ru';
+  if (/[가-힯]/.test(s)) return 'ko';
+  if (/[぀-ヿ]/.test(s)) return 'ja';
+  if (/[一-鿿]/.test(s)) return 'zh';
+  if (/[฀-๿]/.test(s)) return 'th';
+  return /[a-z]{3,}/i.test(s) ? 'en' : 'vi';
+}
+
+async function dichTrenMay(chu, tu, den) {
+  if (!('Translator' in self) || !tu || tu === den) return null;
+  const k = tu + '>' + den;
+  if (!boDich.has(k)) {
+    /* Trình duyệt nào không tải được gói dịch thì create() treo mãi (đã gặp ở
+     * trình duyệt nhúng): quá 30 giây thì thôi, rơi xuống máy chủ. */
+    const quaGio = new Promise((_, loi) => setTimeout(() => loi(new Error('Trình duyệt chưa tải được gói dịch')), 30000));
+    boDich.set(k, Promise.race([Translator.create({ sourceLanguage: tu, targetLanguage: den }), quaGio])
+      .catch((e) => { boDich.delete(k); throw e; }));
+  }
+  const may = await boDich.get(k);
+  /* Dịch từng đoạn: giữ xuống dòng, và không đưa cả lá thư dài vào một lượt. */
+  const doan = String(chu).split(/(\n{2,})/);
+  const ra = [];
+  for (const d of doan) ra.push(d.trim() && !/^\n+$/.test(d) ? await may.translate(d) : d);
+  return ra.join('');
+}
+
+async function dich(chu, den, tu) {
+  const nguon = tu || await doanNgonNgu(chu);
+  if (nguon === den) return chu;
+  try { const r = await dichTrenMay(chu, nguon, den); if (r != null) return r; } catch (_) { /* rơi xuống máy chủ */ }
+  return (await api('dich', { body: { chu, den } })).chu;
+}
+
+/* Bản dịch đã có, theo thư: { ngu, td, than, xemGoc } */
+const banDich = new Map();
+
+async function nutDich(t) {
+  const k = S.chon;
+  const ngu = await doanNgonNgu((t.tieuDe || '') + '\n' + (t.noiDung || ''));
+  if (S.chon !== k) return;
+  const o = $('#vungDich');
+  if (!o) return;
+  const bd = banDich.get(k);
+  if (ngu === 'vi' && !bd) { o.innerHTML = ''; return; }
+  /* Thư tiếng nước ngoài thì ô soạn tự tick "Gửi bằng tiếng Anh". */
+  const guiAnh = $('#guiAnh');
+  if (guiAnh && !guiAnh.dataset.daDoi && ngu !== 'vi') guiAnh.checked = true;
+  if (bd && bd.than) { veBanDich(); return; }
+  o.innerHTML = '<button class="nut dich" data-viec="dich"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h9M8.5 3v2M6 5c0 4 3 7 6 8M11 5c0 3-3 7-7 9"/><path d="M13 21l4-9 4 9M14.5 18h5"/></svg>' +
+    '<span>Dịch sang tiếng Việt</span></button>';
+}
+
+function veBanDich() {
+  const bd = banDich.get(S.chon);
+  const o = $('#vungDich');
+  if (!o || !bd) return;
+  o.innerHTML = '<div class="ban-dich">' +
+    '<div class="dau-dich"><b>Bản dịch tiếng Việt</b><button class="lien" data-viec="xem-goc">' + (bd.xemGoc ? 'Xem bản dịch' : 'Xem bản gốc') + '</button></div>' +
+    (bd.xemGoc ? '' : (bd.td ? '<div class="td-dich" data-no-i18n>' + esc(bd.td) + '</div>' : '') +
+      '<div class="noi-dung" data-no-i18n>' + linkHoa(bd.than) + '</div>') + '</div>';
+  /* Đang xem bản dịch thì ẩn thân gốc, đỡ phải đọc hai lần. */
+  const goc = $('#docThan > .noi-dung');
+  if (goc) goc.hidden = !bd.xemGoc;
+}
+
+async function dichThu() {
+  const k = S.chon;
+  const t = S.ct && S.ct.thu;
+  if (!t) return;
+  const o = $('#vungDich');
+  o.innerHTML = '<div class="ban-dich cho">Đang dịch… Lần đầu dịch một ngôn ngữ, trình duyệt tải gói dịch mất ít giây.</div>';
+  try {
+    const ngu = await doanNgonNgu((t.tieuDe || '') + '\n' + (t.noiDung || ''));
+    const [td, than] = await Promise.all([dich(t.tieuDe || '', 'vi', ngu), dich(t.noiDung || '', 'vi', ngu)]);
+    banDich.set(k, { ngu, td, than, xemGoc: false });
+    if (S.chon === k) veBanDich();
+  } catch (e) {
+    if (S.chon === k) o.innerHTML = '<div class="ban-dich cho"><span>' + esc(e.message) + '</span><button class="nut" data-viec="dich">Thử lại</button></div>';
+  }
+}
+
 /* ---------------- xem trước khi gửi ----------------
  * Anh Hùng 28/10/2026: "nhấn gửi thì cho xem hình thức trước, tự soát được
  * chính tả rồi mới gửi". Bấm Gửi chỉ mở bản xem trước: đúng thân thư sẽ đi
@@ -694,18 +803,31 @@ function hoiGui() {
   const chu = o.value.trim();
   if (!chu) return;
   const t = S.ct.thu;
-  banXem = { t, chu, tatCa: $('#tatCa').checked, coChuKy: banXem && banXem.t === t ? banXem.coChuKy : true };
-  $('#hopGuiThan').innerHTML = '<div class="xuong"><i></i><i style="height:220px"></i></div>';
+  const tiengAnh = Boolean($('#guiAnh') && $('#guiAnh').checked);
+  banXem = { t, chu, chuViet: chu, tiengAnh, tatCa: $('#tatCa').checked, coChuKy: banXem && banXem.t === t ? banXem.coChuKy : true };
+  $('#hopGuiThan').innerHTML = (tiengAnh ? '<div class="ban-dich cho">Đang dịch sang tiếng Anh…</div>' : '') +
+    '<div class="xuong"><i></i><i style="height:220px"></i></div>';
   $('#hopGuiLyDo').textContent = '';
   moHop(guiThat);
-  napXemTruoc();
+  if (!tiengAnh) { napXemTruoc(); return; }
+  /* Soạn tiếng Việt, gửi tiếng Anh: dịch trước, bản xem trước là bản tiếng Anh. */
+  const b = banXem;
+  $('#hopGuiOk').disabled = true;
+  dich(chu, 'en', 'vi').then((en) => {
+    if (banXem !== b) return;
+    b.chu = en;
+    napXemTruoc();
+  }).catch((e) => {
+    if (banXem !== b) return;
+    $('#hopGuiThan').innerHTML = '<div class="loi-hop"><b>Chưa dịch được sang tiếng Anh</b>' + esc(e.message) + '</div>';
+  });
 }
 
 async function napXemTruoc() {
   const b = banXem;
   $('#hopGuiOk').disabled = true;
   try {
-    const kq = await api(duongThu(b.t, 'xem-truoc'), { body: { chu: b.chu, tatCa: b.tatCa, coChuKy: b.coChuKy } });
+    const kq = await api(duongThu(b.t, 'xem-truoc'), { body: { chu: b.chu, tatCa: b.tatCa, coChuKy: b.coChuKy, ngonNgu: b.tiengAnh ? 'en' : 'vi' } });
     if (banXem !== b) return;
     b.kq = kq;
     veXemTruoc();
@@ -722,6 +844,10 @@ function veXemTruoc() {
     '<dt>Tới</dt><dd>' + (ds(kq.den) || '<span class="loi-chu">Chưa có người nhận</span>') + '</dd>' +
     (kq.cc.length ? '<dt>CC</dt><dd>' + ds(kq.cc) + '</dd>' : '') +
     '<dt>Tiêu đề</dt><dd>' + esc(kq.tieuDe) + '</dd></dl>';
+  if (b.tiengAnh) {
+    h += '<div class="xt-anh">Gửi bản tiếng Anh, dịch từ chữ anh viết. Muốn sửa câu chữ thì bấm Sửa tiếp và sửa bản tiếng Việt.' +
+      '<details><summary>Bản tiếng Việt anh viết</summary><div class="trich" data-no-i18n>' + esc(b.chuViet) + '</div></details></div>';
+  }
   if (kq.loi.length) {
     h += '<div class="xt-soat"><div class="xt-soat-dau"><b>' + kq.loi.length + ' chỗ nên sửa</b>' +
       (kq.aiSoat ? '<span class="mo">Claude đã soát cùng</span>' : '') +
@@ -754,7 +880,7 @@ function suaChu(ds) {
   }
   b.chu = s;
   const o = $('#oSoan');
-  if (o && S.ct && S.ct.thu === b.t) { o.value = s; capNhatNutGui(); }
+  if (o && S.ct && S.ct.thu === b.t && !b.tiengAnh) { o.value = s; capNhatNutGui(); }
   napXemTruoc();
 }
 
@@ -1092,6 +1218,8 @@ $('#cotDoc').addEventListener('click', (e) => {
   else if (v === 'chua-doc') { danhDau(t, { daDoc: false }); dongDoc(); }
   else if (v === 'luu') luuTru(t);
   else if (v === 'phan-tich') phanTich();
+  else if (v === 'dich') dichThu();
+  else if (v === 'xem-goc') { const bd = banDich.get(S.chon); if (bd) { bd.xemGoc = !bd.xemGoc; veBanDich(); } }
   else if (v === 'trich') {
     const mo = b.getAttribute('aria-expanded') !== 'true';
     b.setAttribute('aria-expanded', String(mo));
@@ -1370,18 +1498,36 @@ function anPhan(phan) {
   v.addEventListener('pointerdown', (e) => {
     if (laHep()) return;
     dangKeo = true;
-    v.setPointerCapture(e.pointerId);
+    try { v.setPointerCapture(e.pointerId); } catch (_) {}
     document.body.classList.add('dang-keo');
   });
+  /* Kéo sát mép trái thì đóng danh sách, sát mép phải thì đóng khung đọc
+   * (anh Hùng 28/10/2026). Lúc tay còn đang kéo, phần sắp đóng mờ đi để
+   * biết trước; thả tay mới đóng, và độ rộng đã lưu giữ nguyên để mở lại. */
+  const MEP = 160;
+  let sapAn = '';
+  const rongCu = () => docRong();
   v.addEventListener('pointermove', (e) => {
     if (!dangKeo) return;
-    datRong(e.clientX - $('#cotTrai').getBoundingClientRect().left);
+    const trai = $('#cotTrai').getBoundingClientRect().left;
+    const w = e.clientX - trai;
+    sapAn = w < MEP ? 'ds' : e.clientX > innerWidth - MEP ? 'doc' : '';
+    document.body.classList.toggle('sap-an-ds', sapAn === 'ds');
+    document.body.classList.toggle('sap-an-doc', sapAn === 'doc');
+    if (!sapAn) datRong(w);
     datVienTruot();
   });
   const tha = () => {
     if (!dangKeo) return;
     dangKeo = false;
-    document.body.classList.remove('dang-keo');
+    document.body.classList.remove('dang-keo', 'sap-an-ds', 'sap-an-doc');
+    if (sapAn) {
+      datRong(rongCu());
+      if (sapAn === 'doc') { S.chon = ''; S.ct = null; veDs(); veDocTrong(); }
+      anPhan(sapAn);
+      sapAn = '';
+      return;
+    }
     ghiRong(parseInt($('#cotTrai').style.width, 10) || 0);
   };
   v.addEventListener('pointerup', tha);
@@ -1418,6 +1564,8 @@ function menuNgan(nut, t) {
   (x) => chuyenNgan(t, x.dataset.ngan || null));
 }
 $('#cotDoc').addEventListener('input', (e) => { if (e.target.id === 'oSoan') capNhatNutGui(); });
+/* Anh tự đổi ô "Gửi bằng tiếng Anh" thì app thôi tự tick theo ngôn ngữ thư. */
+$('#cotDoc').addEventListener('change', (e) => { if (e.target.id === 'guiAnh') e.target.dataset.daDoi = '1'; });
 
 $('#hopGuiHuy').addEventListener('click', dongHop);
 $('#hopGuiOk').addEventListener('click', () => { const f = hopOk; dongHop(); if (f) f(); });

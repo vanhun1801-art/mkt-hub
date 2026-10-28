@@ -354,6 +354,17 @@ async function api(req, res, url) {
     return json(res, { ok: true, nhom: sach });
   }
 
+  /* Dịch dự phòng (giao diện dùng bộ dịch của trình duyệt trước). */
+  if (p === '/api/dich' && m === 'POST') {
+    const b = await docThan(req);
+    const chu = String(b.chu || '').trim();
+    if (!chu) return loi(res, 400, 'Không có chữ để dịch');
+    if (!ai.coKhoa()) {
+      return loi(res, 409, 'Trình duyệt này chưa dịch được và app chưa có khoá Claude. Mở Marketing Hub bằng Google Chrome bản mới để dịch ngay trên máy.', { khongKhoa: true });
+    }
+    return json(res, { chu: await ai.dich(chu, b.den === 'en' ? 'en' : 'vi') });
+  }
+
   /* Thêm vào lịch Lark của chính người đang dùng. */
   if (p === '/api/lich' && m === 'POST') {
     if (process.env.HOP_THU_CHI_DOC === '1') return loi(res, 423, 'Đang ở chế độ chỉ đọc, không tạo lịch');
@@ -467,9 +478,11 @@ async function api(req, res, url) {
       '<div style="margin-top:18px;color:#666;font-size:13px">Vào ' + esc(g.ngay) + ', ' + esc(g.tu.ten || g.tu.email) + ' đã viết:</div>' +
       '<blockquote style="margin:6px 0 0;border-left:2px solid #ccc;padding-left:10px;color:#666;font-size:13px;white-space:pre-wrap">' +
       esc(String(g.noiDung || '').slice(0, 3000)) + '</blockquote>';
-    let loiChu = chinhTa.soat(chu);
+    /* Bản tiếng Anh (dịch từ chữ anh viết): luật soát là luật tiếng Việt, không áp. */
+    const tiengAnh = b.ngonNgu === 'en';
+    let loiChu = tiengAnh ? [] : chinhTa.soat(chu);
     let aiSoat = false;
-    if (ai.coKhoa() && b.soatAi !== false) {
+    if (ai.coKhoa() && b.soatAi !== false && !tiengAnh) {
       try { loiChu = chinhTa.gopAi(chu, loiChu, await ai.soatChinhTa(chu)); aiSoat = true; } catch (_) { /* AI hỏng vẫn còn bộ soát trên máy */ }
     }
     const tieuDe = /^(re|trả lời|tl)\s*:/i.test(g.tieuDe || '') ? g.tieuDe : 'Re: ' + (g.tieuDe || '');

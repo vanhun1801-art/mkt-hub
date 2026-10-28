@@ -457,6 +457,8 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 .dang-keo, .dang-keo * { cursor: col-resize !important; user-select: none !important; }
 .cot-trai { transition: width .3s var(--vao), opacity .26s var(--vao), margin .3s var(--vao); }
 .dang-keo .cot-trai { transition: none; }
+/* Đang kéo sát mép: phần sắp đóng mờ đi. */
+.sap-an-ds .cot-trai, .sap-an-doc #cotDoc { opacity: .35; transition: opacity .16s; }
 .an-ds .cot-trai {
   width: 0 !important; opacity: 0; margin-right: -14px; pointer-events: none; overflow: hidden;
   transition: width .24s var(--ra), opacity .2s var(--ra), margin .24s var(--ra);
@@ -501,6 +503,21 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 .xt-chan-giay label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
 .lien { border: 0; background: none; color: var(--xanh); cursor: pointer; padding: 2px 0; font-weight: 500; }
 .hop-chan .ly-do { margin-right: auto; align-self: center; font-size: 12.5px; color: var(--chu-3); }
+
+/* Dịch */
+.vung-dich:empty { display: none; }
+.vung-dich { margin-bottom: 12px; }
+.nut.dich svg { width: 16px; height: 16px; }
+.ban-dich {
+  border-radius: 14px; padding: 12px 14px; background: color-mix(in srgb, var(--xanh) 6%, var(--mat));
+  border: 1px solid color-mix(in srgb, var(--xanh) 22%, transparent);
+}
+.ban-dich.cho { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--chu-2); font-size: 13px; }
+.dau-dich { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; font-size: 12.5px; color: var(--xanh); }
+.td-dich { font-weight: 600; margin-bottom: 8px; }
+.xt-anh { font-size: 13px; color: var(--chu-2); margin-bottom: 12px; }
+.xt-anh summary { cursor: pointer; color: var(--xanh); margin-top: 6px; }
+.xt-anh .trich { margin-top: 6px; white-space: pre-wrap; background: var(--mat-2); border-radius: 12px; padding: 10px 12px; color: var(--chu); }
 
 /* Hộp nhỏ: lịch, nhóm, chữ ký */
 #hopNhoThan input[type="text"], #hopNhoThan input[type="date"], #hopNhoThan input[type="time"], #hopNhoThan select {

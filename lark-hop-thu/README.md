@@ -33,6 +33,13 @@ Hộp chung có nhiều người dùng, nên **Xong, đã đọc, chưa đọc, 
 
 Bấm Gửi chỉ mở **xem trước**: người nhận, tiêu đề, đúng tờ thư sẽ đi (phần viết + chữ ký + trích thư gốc) và các chỗ chữ nên sửa (`chinh-ta.js`: viết tắt, dấu cách, chữ lặp, đầu câu; có khoá Claude thì soát thêm lỗi dấu). Sửa từng chỗ hoặc Sửa hết, rồi mới **Gửi ngay**. Chữ ký đặt trong app (lần đầu gợi ý từ chữ ký Lark Mail), bỏ được cho từng thư. lark-cli gửi kèm `--no-signature` để không bị hai chữ ký.
 
+## Dịch
+
+- Thư tiếng nước ngoài có nút **Dịch sang tiếng Việt** (tiêu đề + thân), bấm "Xem bản gốc" để đổi qua lại.
+- Ô soạn có **Gửi bằng tiếng Anh**: anh viết tiếng Việt, bấm Gửi thì app dịch sang tiếng Anh và bày bản xem trước tiếng Anh (kèm bản tiếng Việt gốc) rồi mới gửi. Thư đến không phải tiếng Việt thì ô này tự tick.
+- Dịch bằng bộ dịch có sẵn trong Google Chrome (Translator API, chạy trên máy, thư không rời máy; lần đầu mỗi cặp ngôn ngữ tải gói vài giây). Trình duyệt không có thì nhờ máy chủ dịch bằng Claude (`/api/dich`, cần `ANTHROPIC_API_KEY`). API dịch của Lark trả 404 trên Lark quốc tế nên không dùng được.
+- Đã thử: trình duyệt nhúng của Claude desktop có Translator nhưng không tải được gói, app chờ 30 giây rồi báo lý do.
+
 ## Nối với app khác
 
 - **Giao việc** → form tạo việc của Bảng công việc; ô link về thư, Bảng công việc vẽ thành thẻ "Email gốc".

@@ -185,6 +185,10 @@ server.listen(0, '127.0.0.1', async () => {
     const p = await hoi('POST', duong('hunglv@rootytrip.com', 'aaaaaaaaaa==', 'phan-tich'), { than: {} });
     ok('tóm tắt trả 409 kèm cờ, app vẫn chạy', p.ma === 409 && p.j.khongKhoa === true);
     ok('xếp AI im lặng bỏ qua', (await hoi('POST', '/api/xep-ai', { than: {} })).j.xep === 0);
+    const dk = await hoi('POST', '/api/dich', { than: { chu: 'Hello', den: 'vi' } });
+    ok('dịch dự phòng không khoá: 409 nói rõ dùng Chrome', dk.ma === 409 && dk.j.khongKhoa && /Chrome/.test(dk.j.error));
+    const xtEn = await hoi('POST', duong('hunglv@rootytrip.com', 'aaaaaaaaaa==', 'xem-truoc'), { than: { chu: 'Thanks, ok', ngonNgu: 'en' } });
+    ok('bản tiếng Anh không bị luật tiếng Việt bắt lỗi', xtEn.ma === 200 && xtEn.j.loi.length === 0);
 
     console.log('\nTrang');
     const tc = await hoi('GET', '/');
