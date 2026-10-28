@@ -2104,7 +2104,10 @@ async function api(req, res, url) {
         const me0 = await whoAmI(req);
         const coTen = me0 && [...lpCmt.owner, ...lpCmt.requester].some((u) => u.id === me0.id);
         if (!coTen && !(await requireOwnTask(res, lpCmt, req))) return;
-      } else if (!(await requireOwnTask(res, toTask(rec), req))) return;
+      } else if (!(await laNguoiOrder(toTask(rec), req)) &&
+        !(await requireOwnTask(res, toTask(rec), req))) return;
+      /* Người order nhắn được: việc "Chờ tiếp nhận" chưa ai phụ trách, người order
+       * là người duy nhất có tên — chặn thì tab Trao đổi mở ra mà không gõ được. */
 
       const body = await readBody(req);
       const noiDung = String(body.content || '').trim();
