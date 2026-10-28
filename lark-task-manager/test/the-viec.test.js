@@ -192,30 +192,32 @@ test('thẻ ngoài danh sách không còn nút Yêu cầu điều chỉnh', () =
   assert.ok(/mở việc ra/.test(hint), 'câu gợi ý không được chỉ tới một nút không còn trên thẻ');
 });
 
-/* ---- 7. thẻ có tin chưa đọc nháy sáng (27/10/2026) ---- */
-test('tin chưa đọc thì thẻ nháy vài cái, và chỉ nháy khi số tin đổi', () => {
+/* ---- 7. thẻ có tin chưa đọc sáng lên tắt xuống (27/10, đổi 28/10/2026) ---- */
+test('tin chưa đọc thì thẻ thở chậm cho tới khi đọc, cùng nhịp đồng hồ', () => {
   const ma = [layHam('nhayTinMoi'), 'return nhayTinMoi;'].join('\n');
-  const lop = [];
-  const the = { classList: { add: (x) => lop.push(x) } };
   const S = { chuaDoc: new Map([['v1', { n: 2 }], ['v2', { n: 0 }]]) };
-  const nhay = new Function('S', 'DA_NHAY', ma)(S, new Set());
+  const nhay = new Function('S', 'NHIP_THO', ma)(S, 2800);
+  const tao = () => {
+    const lop = [], bien = {};
+    return { lop, bien, classList: { add: (x) => lop.push(x) }, style: { setProperty: (k, v) => { bien[k] = v; } } };
+  };
 
-  nhay(the, { id: 'v1' });
-  assert.deepStrictEqual(lop, ['nhay-tin'], 'có tin chưa đọc thì nháy');
-  nhay(the, { id: 'v1' });
-  assert.strictEqual(lop.length, 1, 'vẽ lại mà số tin không đổi thì thôi, không nháy nữa');
-  S.chuaDoc.set('v1', { n: 3 });
-  nhay(the, { id: 'v1' });
-  assert.strictEqual(lop.length, 2, 'thêm tin mới thì nháy tiếp');
-  nhay(the, { id: 'v2' });
-  nhay(the, { id: 'v3' });
-  assert.strictEqual(lop.length, 2, 'không có tin chưa đọc thì không nháy');
+  const a = tao();
+  nhay(a, { id: 'v1' });
+  assert.deepStrictEqual(a.lop, ['co-tin'], 'có tin chưa đọc thì thẻ sáng');
+  const tre = parseInt(a.bien['--tho-tre'], 10);
+  assert.ok(tre <= 0 && tre > -2800, 'độ trễ âm theo đồng hồ, vẽ lại không giật về đầu nhịp');
+  for (const id of ['v2', 'v3']) {
+    const b = tao();
+    nhay(b, { id });
+    assert.strictEqual(b.lop.length, 0, 'không có tin chưa đọc thì thẻ thường');
+  }
 
   assert.ok(/nhayTinMoi\(c, t\)/.test(layHam('workCard')), 'phải gắn vào thẻ');
-  assert.ok(/\.wcard\.nhay-tin \{ animation: wc-nhay [^;]*3; \}/.test(CSS),
-    'ba nhịp rồi thôi — nháy mãi thì thành đèn báo động');
-  assert.ok(/reduce\) \{\s*\/\*[^*]*\*\/\s*\.wcard\.nhay-tin \{ animation: none; box-shadow/.test(CSS),
-    'xin bớt chuyển động thì không nháy, nhưng vẫn phải phân biệt được');
+  assert.ok(/::after \{[^}]*animation: wc-tho 2\.8s ease-in-out infinite;[^}]*var\(--tho-tre/.test(CSS),
+    'thở chậm lặp mãi, theo độ trễ JS đặt');
+  assert.ok(/reduce\) \{[^}]*\}[^]*?co-tin[^{]*::after \{ animation: none; opacity: \.6; \}/.test(CSS),
+    'xin bớt chuyển động thì đứng yên, nhưng vẫn phải phân biệt được');
 });
 
 /* ---- 8. phân cấp nhìn như bảng lớp Photoshop/Figma (28/10/2026) ---- */

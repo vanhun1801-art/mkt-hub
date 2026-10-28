@@ -2703,20 +2703,34 @@ body.dang-keo-the .wcard-title { cursor: inherit; }
 @media (prefers-reduced-motion: reduce) {
   .wcard.nhuong-cho { transform: none; }
 }
-/* ---- Thẻ có tin chưa đọc nháy sáng vài cái (27/10/2026) ----
-   Ba nhịp rồi thôi: nháy mãi thì thành đèn báo động, nhìn một lúc là hết thấy. */
-@keyframes wc-nhay {
-  50% { background: var(--blue-bg); }
+/* ---- Thẻ có tin chưa đọc sáng lên tắt xuống, chậm và nhẹ (28/10/2026) ----
+   Anh Hùng: "nháy nhẹ, chậm, nổi bật, lúc ẩn lúc hiện". Thay kiểu ba nhịp
+   nhanh rồi thôi của 27/10: lướt qua là mất. Giờ thở đều 2,8 giây một nhịp
+   cho tới khi mở Trao đổi đọc tin.
+   - Lớp sáng là ::after nằm giữa nền thẻ và chữ (isolation + z-index -1), chỉ
+     đổi opacity nên chữ không bị phủ mờ và máy không phải vẽ lại cả thẻ.
+   - Nhịp tính theo đồng hồ (JS đặt animation-delay âm), danh sách vẽ lại vài
+     chục giây một lần mà thẻ không giật về đầu nhịp.
+   - Lớp iOS của hub đè nền thẻ và ẩn vệt ::before, nên phải nêu cả html[data-skin]. */
+@keyframes wc-tho { 0%, 100% { opacity: .15; } 50% { opacity: 1; } }
+@keyframes wc-tho-vach { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
+:is(html, html[data-skin]) .wcard.co-tin { isolation: isolate; }
+:is(html, html[data-skin]) .wcard.co-tin:not(.nhan-con):not(.chan-con)::after {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  border-radius: inherit;
+  background: var(--blue-bg);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--blue) 35%, transparent),
+              inset 0 0 22px color-mix(in srgb, var(--blue) 22%, transparent);
+  animation: wc-tho 2.8s ease-in-out infinite;
+  animation-delay: var(--tho-tre, 0s);
 }
-.wcard.nhay-tin { animation: wc-nhay .62s ease-in-out 3; }
-/* Nháy xong vẫn phải nhận ra: còn tin chưa đọc thì giữ nền xanh nhạt và vệt
-   xanh bên trái, đọc xong (mở tab Trao đổi) là trả về thẻ thường (28/10/2026).
-   Lớp iOS của hub đè nền thẻ và ẩn vệt ::before, nên phải nêu cả html[data-skin]. */
-:is(html, html[data-skin]) .wcard.co-tin { background: color-mix(in srgb, var(--blue-bg) 55%, var(--surface)); }
-:is(html, html[data-skin]) .wcard.co-tin::before { display: block; opacity: 1; }
-:is(html, html[data-skin]) .wcard.co-tin:hover { background: var(--blue-bg); }
+:is(html, html[data-skin]) .wcard.co-tin::before {
+  display: block; z-index: 1; animation: wc-tho-vach 2.8s ease-in-out infinite; animation-delay: var(--tho-tre, 0s);
+}
 @media (prefers-reduced-motion: reduce) {
-  .wcard.nhay-tin { animation: none; }
+  /* Không thở, nhưng vẫn phải nhận ra: đứng yên ở mức sáng vừa. */
+  :is(html, html[data-skin]) .wcard.co-tin:not(.nhan-con):not(.chan-con)::after { animation: none; opacity: .6; }
+  :is(html, html[data-skin]) .wcard.co-tin::before { animation: none; opacity: 1; }
 }
 
 /* Đang kéo thì không cho chọn chữ, kéo qua đoạn mô tả là bôi đen cả trang. */
