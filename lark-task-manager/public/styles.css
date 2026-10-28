@@ -2606,19 +2606,32 @@ body.dang-keo-the .wcard-title { cursor: inherit; }
 /* Đường nối dọc kiểu bảng lớp Photoshop/Figma (28/10/2026). Một vạch cho mỗi
    tầng phía trên; vạch trong cùng có móc ngang chỉ vào tên việc. Nhìn vạch là
    đọc được ngay việc này nằm trong cái gì, không phải đếm độ thụt. */
-.lane-items { --noi-goc: 25px; --noi-buoc: 22px; }
+/* 28/10/2026 chiều, anh Hùng vẽ lại: nét LIỀN, đậm vừa, mọc ra từ dưới nút gấp
+   của việc lớn (.wc-noi-cha), mỗi việc con một nhánh ngang ngay hàng TÊN việc
+   (├), con cuối bo góc (╰) rồi dừng. Trước đó vạch mảnh màu viền, móc ở giữa
+   thẻ, nhìn như nét đứt không biết dẫn từ đâu. --moc-y là độ cao hàng tên. */
+.lane-items { --noi-goc: 25px; --noi-buoc: 22px; --moc-y: 23px; --noi-mau: color-mix(in srgb, var(--text) 30%, transparent); }
 .wc-noi {
-  position: absolute; top: 0; bottom: 0; width: 1px; pointer-events: none;
+  position: absolute; top: 0; bottom: 0; width: 1.5px; pointer-events: none;
   left: calc(var(--noi-goc) + (var(--i) - 1) * var(--noi-buoc));
-  background: var(--border-2);
+  background: var(--noi-mau); border-radius: 1px;
 }
 .wc-noi.trong::after {
-  content: ''; position: absolute; left: 0; top: 50%;
-  width: 11px; height: 1px; background: var(--border-2);
+  content: ''; position: absolute; left: 0; top: calc(var(--moc-y) - .75px);
+  width: 20px; height: 1.5px; background: var(--noi-mau); border-radius: 1px;
 }
-/* Việc con cuối nhánh: vạch dừng ở chỗ móc. Thòng xuống dưới là trông như còn
-   việc nữa ở bên dưới mà thật ra hết rồi. */
-.wcard-con.cuoi-nhanh .wc-noi.trong { bottom: 50%; }
+/* Đoạn mọc từ việc lớn: bắt đầu ngay dưới nút gấp, chạy tới mép dưới thẻ. */
+.wc-noi.wc-noi-cha { top: calc(var(--moc-y) + 12px); }
+/* Việc con cuối nhánh: vạch dừng ở hàng tên và bo góc sang phải. Thòng xuống
+   dưới là trông như còn việc nữa ở bên dưới mà thật ra hết rồi. */
+.wcard-con.cuoi-nhanh .wc-noi.trong {
+  bottom: auto; height: calc(var(--moc-y) - 6px);
+}
+.wcard-con.cuoi-nhanh .wc-noi.trong::after {
+  top: auto; bottom: -6px; height: 7.5px; width: 20px;
+  background: none; border: solid var(--noi-mau); border-width: 0 0 1.5px 1.5px;
+  border-radius: 0 0 0 7px; left: 0; box-sizing: border-box;
+}
 .wc-gap {
   flex: 0 0 auto; width: 20px; height: 20px; padding: 0; margin-top: -1px;
   font: inherit; font-size: 13px; line-height: 20px; text-align: center;

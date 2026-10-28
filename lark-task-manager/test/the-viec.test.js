@@ -228,8 +228,13 @@ test('mỗi tầng một vạch nối, vạch trong cùng có móc chỉ vào t�
   assert.ok(/o\.cuoi && !o\.soCon/.test(t), 'con cuối nhánh thì vạch dừng ở chỗ móc');
   assert.ok(/\.wc-noi \{[^}]*left: calc\(var\(--noi-goc\)/.test(CSS),
     'chỗ đặt vạch tính từ biến, để khổ hẹp chỉnh một chỗ là xong');
-  assert.ok(/\.wc-noi\.trong::after \{[^}]*width: 11px/.test(CSS), 'móc ngang chỉ vào tên việc');
-  assert.ok(/\.wcard-con\.cuoi-nhanh \.wc-noi\.trong \{ bottom: 50%/.test(CSS));
+  assert.ok(/\.wc-noi\.trong::after \{[^}]*top: calc\(var\(--moc-y\)/.test(CSS), 'móc ngang ngay hàng tên việc');
+  assert.ok(/\.wcard-con\.cuoi-nhanh \.wc-noi\.trong \{[^}]*height: calc\(var\(--moc-y\)/.test(CSS),
+    'con cuối: vạch dừng ở hàng tên');
+  assert.ok(/border-radius: 0 0 0 7px/.test(CSS), 'con cuối bo góc sang tên việc');
+  /* Nét mọc từ dưới nút gấp của việc lớn đang mở (anh Hùng vẽ 28/10/2026). */
+  assert.ok(/o\.soCon && !S\.gapViec\[o\.t\.id\]/.test(t) && /wc-noi-cha/.test(t), 'việc lớn đang mở có nét dẫn xuống');
+  assert.ok(/\.wc-noi\.wc-noi-cha \{ top: calc\(var\(--moc-y\)/.test(CSS), 'nét bắt đầu ngay dưới nút gấp');
   /* Ba khổ màn hình, ba mức thụt — vạch phải đi theo, không thì nó rơi giữa chữ. */
   assert.strictEqual((CSS.match(/--noi-goc:/g) || []).length, 3,
     'phải khai --noi-goc cho cả máy tính, khổ hẹp và điện thoại');

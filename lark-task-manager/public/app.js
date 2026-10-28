@@ -910,6 +910,14 @@ function theTrongCay(o, laneKey, who) {
      * xuống dưới — thòng xuống là trông như còn việc nữa ở dưới. */
     if (o.cuoi && !o.soCon) c.classList.add('cuoi-nhanh');
   }
+  /* Việc lớn đang mở: nét liền chạy từ dưới nút gấp xuống mép thẻ, nối thẳng
+   * vào vạch của việc con bên dưới. Không có đoạn này thì vạch con mọc lơ lửng
+   * từ mép thẻ con, không thấy nó dẫn ra từ đâu (anh Hùng 28/10/2026). */
+  if (o.soCon && !S.gapViec[o.t.id] && o.cap < 3) {
+    const v = el('span', 'wc-noi wc-noi-cha');
+    v.style.setProperty('--i', o.cap);
+    c.appendChild(v);
+  }
   if (laneThat && laneThat !== laneKey && LANE_BY_KEY[laneThat]) {
     const meta = c.querySelector('.wcard-meta');
     const ten = LANE_BY_KEY[laneThat].title;

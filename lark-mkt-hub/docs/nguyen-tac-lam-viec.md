@@ -293,6 +293,7 @@ Anh Hùng: "em tham khảo kiểu layer của các ứng dụng AI, PS để hi�
 
 - **Một vạch dọc cho mỗi tầng phía trên**, vạch trong cùng có **móc ngang** chỉ vào tên việc. Nhìn vạch là đọc được ngay việc này nằm trong cái gì, không phải đếm độ thụt bằng mắt.
 - **Việc con cuối nhánh thì vạch dừng ở chỗ móc**, không thòng xuống — thòng xuống là trông như còn việc nữa ở dưới mà thật ra hết rồi.
+- **Nét kiểu cây thư mục, anh Hùng vẽ lại 28/10/2026:** nét LIỀN, đậm vừa (chữ 30%, dày 1,5px), **mọc ra ngay dưới nút gấp của việc lớn đang mở** (`.wc-noi-cha`) rồi chạy xuống. Mỗi việc con một nhánh ngang ngay **hàng tên việc** (`--moc-y`), không phải giữa thẻ. Con cuối bo góc sang tên rồi dừng. Kiểu cũ là vạch mảnh màu viền, móc ở giữa thẻ, mọc lơ lửng từ mép thẻ con, nhìn như nét đứt không biết dẫn từ đâu.
 - Chỗ đặt vạch tính từ biến `--noi-goc` / `--noi-buoc` trên `.lane-items`, khai riêng cho máy tính, khổ hẹp và điện thoại. Ba khổ có ba mức thụt khác nhau; quên một khổ là vạch rơi vào giữa chữ.
 
 ## 20. Tệp in gửi ra ngoài (28/10/2026)
