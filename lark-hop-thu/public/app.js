@@ -260,13 +260,22 @@ async function mo(k) {
   }
 }
 
+/* Phần bên phải khi chưa chọn thư. Máy tính luôn bày phần này để khuôn hai
+ * cột đứng yên; điện thoại thì cột đọc ẩn hẳn. */
+function veDocTrong() {
+  $('#hangNut').innerHTML = '';
+  $('#docThan').innerHTML = '<div class="doc-trong">' +
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3.5 6.5L12 13l8.5-6.5"/></svg>' +
+    '<b>Chọn một thư bên trái để đọc</b><span>Trả lời, giao việc hay đánh dấu xong ngay trên thư.</span></div>';
+}
+
 function dongDoc() {
   const cot = $('#cotDoc');
   S.chon = ''; S.ct = null;
   veDs();
-  if (!laHep()) { cot.hidden = true; return; }
+  if (!laHep()) { veDocTrong(); return; }
   cot.classList.add('dong-lai');
-  setTimeout(() => { if (!S.chon) { cot.hidden = true; cot.classList.remove('dong-lai'); } }, 240);
+  setTimeout(() => { if (!S.chon) { cot.hidden = true; cot.classList.remove('dong-lai'); veDocTrong(); } }, 240);
 }
 
 const IC = {
@@ -571,28 +580,80 @@ async function chuyenNgan(t, ngan) {
   } catch (e) { bao(e.message, 'loi'); }
 }
 
+/* ---------------- gói thư thành việc ----------------
+ * Anh Hùng 28/10/2026: giao việc từ thư chuyển tiếp chỉ ra chữ ký công ty và
+ * dòng "Chuyển tiếp:", phần thư thật nằm khuất trong "Thư trước". Việc phải
+ * đọc hiểu được mà không cần mở thư: tên sạch, ai gửi, thư gốc nói gì, và
+ * một thẻ "Email gốc" bấm về đúng thư (Bảng công việc vẽ từ ô link). */
+
+const TIEN_TO = /^((tr[aả] l[oờ]i|re|fw|fwd|tl|chuy[eể]n ti[eế]p|forward(ed)?)\s*:\s*)+/i;
+const boTienTo = (s) => String(s || '').replace(TIEN_TO, '').trim();
+
+/* Dòng chữ ký công ty lặp ở cuối mọi thư nội bộ: bỏ khỏi phần trích. */
+const CHU_KY_CTY = [/^your trip\.? our passion/i, /^dẫn đầu du lịch phú quốc/i, /^-{2,}\s*$/];
+
+function lamSach(chu) {
+  return String(chu || '')
+    /* Thư quảng cáo nhét cả dòng ký tự vô hình để đẩy phần xem trước: bỏ hẳn. */
+    .replace(/[­͏​-‏⁠﻿]/g, '')
+    .split('\n')
+    .map((d) => d.replace(/\s+$/, ''))
+    .filter((d) => !CHU_KY_CTY.some((r) => r.test(d.trim())))
+    .join('\n')
+    /* Link theo dõi dài cả trăm ký tự chỉ là nhiễu trong việc. */
+    .replace(/https?:\/\/[^\s)>\]]{70,}/g, (u) => { try { return new URL(u).origin + '/…'; } catch (_) { return '(link)'; } })
+    .replace(/^[ \t ]+$/gm, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+/** Tách đầu thư chuyển tiếp ("Từ:", "Tiêu đề:"…) ra khỏi phần thân. */
+function tachChuyenTiep(chu) {
+  const dong = lamSach(chu).split('\n');
+  const dau = {};
+  const than = [];
+  for (const d of dong) {
+    const m = /^\s*(từ|from|tiêu đề|subject|ngày|date|đến|to|cc)\s*:\s*(.+)$/i.exec(d);
+    if (m && than.join('').trim() === '') {
+      const k = m[1].toLowerCase();
+      dau[/từ|from/.test(k) ? 'tu' : /tiêu đề|subject/.test(k) ? 'td' : /ngày|date/.test(k) ? 'ngay' : 'khac'] = m[2].trim();
+      continue;
+    }
+    if (/^-{3,}.*(chuyển tiếp|forwarded|original message).*-{3,}$/i.test(d.trim())) continue;
+    than.push(d);
+  }
+  return { dau, than: than.join('\n').replace(/\n{3,}/g, '\n\n').trim() };
+}
+
+function goiViecTuThu(t, th, a) {
+  const tu = th.tu.ten ? th.tu.ten + ' <' + th.tu.email + '>' : th.tu.email;
+  const coAi = a && !a.chiXep;
+  const loiNhan = lamSach(th.noiDung);
+  const goc = th.trich ? tachChuyenTiep(th.trich) : null;
+  const laChuyenTiep = /^(fw|fwd|chuy[eể]n ti[eế]p|forward)/i.test(String(th.tieuDe || '').trim());
+
+  const ds = [];
+  if (coAi && a.canLam) ds.push('Cần làm: ' + a.canLam);
+  if (coAi && a.han) ds.push('Hạn trong thư: ' + a.han);
+  if (coAi && a.tomTat) ds.push('Tóm tắt: ' + a.tomTat);
+  if (ds.length) ds.push('');
+  ds.push('Email: ' + (boTienTo(th.tieuDe) || '(không tiêu đề)'));
+  ds.push((laChuyenTiep ? 'Người chuyển tiếp: ' : 'Người gửi: ') + tu + ' · ' + th.ngay + ' · hộp ' + th.hop);
+  if (loiNhan) ds.push('', laChuyenTiep ? 'Lời nhắn kèm:' : 'Nội dung:', loiNhan.slice(0, 900));
+  if (goc && goc.than) {
+    ds.push('', laChuyenTiep ? 'Thư được chuyển tiếp' + (goc.dau.tu ? ' (từ ' + goc.dau.tu + ')' : '') + ':' : 'Thư trước đó:');
+    ds.push(goc.than.slice(0, laChuyenTiep ? 1500 : 600));
+  }
+  const ten = (coAi && a.canLam) || boTienTo(th.tieuDe) || (goc && goc.dau.td) || 'Việc từ email';
+  const q = new URLSearchParams({ rec: t.hop + '~' + t.id, td: boTienTo(th.tieuDe).slice(0, 120), tu: th.tu.ten || th.tu.email });
+  return { title: ten, detail: ds.join('\n').slice(0, 3000), link: location.origin + '/#/m/hop-thu?' + q.toString() };
+}
+
 function giaoViec(t) {
   let mo = null;
   try { mo = parent !== window && parent.hubTaoViec ? parent.hubTaoViec : null; } catch (_) {}
   if (!mo) { bao('Mở app trong Marketing Hub để giao việc', 'loi'); return; }
-  const a = S.ct && S.ct.ai;
-  const dau = [];
-  if (a && !a.chiXep) {
-    if (a.canLam) dau.push('Cần làm: ' + a.canLam);
-    if (a.han) dau.push('Hạn trong thư: ' + a.han);
-    if (a.tomTat) dau.push(a.tomTat);
-  }
-  const th = S.ct.thu;
-  const detail = dau.concat([
-    'Thư từ ' + (th.tu.ten ? th.tu.ten + ' <' + th.tu.email + '>' : th.tu.email) + ', ' + th.ngay + ', hộp ' + th.hop + '.',
-    '',
-    String(th.noiDung || '').trim().slice(0, 1500),
-  ]).join('\n');
-  mo({
-    title: (a && !a.chiXep && a.canLam) || th.tieuDe || 'Việc từ email',
-    detail,
-    link: location.origin + '/#/m/hop-thu?rec=' + encodeURIComponent(t.hop + '~' + t.id),
-  });
+  mo(goiViecTuThu(t, S.ct.thu, S.ct && S.ct.ai));
 }
 
 /* ---------------- sự kiện ---------------- */
@@ -699,10 +760,12 @@ addEventListener('resize', datVienTruot);
 
 (async function batDau() {
   $('#ds').innerHTML = '<div class="xuong">' + '<i></i>'.repeat(6) + '</div>';
+  veDocTrong();
   try {
     await napHop();
     await napThu(false);
   } catch (e) {
+    document.body.classList.add('khong-doc');      // chưa đọc được hộp nào thì không bày khung đọc trống
     $('#ds').innerHTML = '<div class="loi-hop"><b>' +
       (e.khongPhaiChu ? 'Không mở được hộp thư'
         : e.noiDuoc ? 'Chưa nối hộp thư'

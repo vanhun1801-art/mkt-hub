@@ -23,13 +23,20 @@
   </button>
 </header>
 
-<nav class="dai-ngan" id="dsNgan" role="tablist" aria-label="Ngăn thư"></nav>
-<div class="dai-hop" id="dsHop" aria-label="Lọc theo hộp thư"></div>
-
+<!-- Khuôn cố định hai phần (anh Hùng 28/10/2026: "giao diện nhảy tùm lum"):
+     trái là danh sách, phải là nội dung thư. Trên máy tính cả hai luôn đứng
+     yên chỗ, chưa chọn thư thì phần phải hiện lời mời; điện thoại thì phần
+     phải trượt vào khi mở thư. -->
 <div class="than-trang">
-  <main id="cotDs" aria-label="Danh sách thư">
-    <div id="ds" class="ds"></div>
-  </main>
+  <section class="cot-trai" aria-label="Danh sách thư">
+    <div class="dau-trai">
+      <nav class="dai-ngan" id="dsNgan" role="tablist" aria-label="Ngăn thư"></nav>
+      <div class="dai-hop" id="dsHop" aria-label="Lọc theo hộp thư"></div>
+    </div>
+    <main id="cotDs">
+      <div id="ds" class="ds"></div>
+    </main>
+  </section>
 
   <aside id="cotDoc" aria-label="Nội dung thư" hidden>
     <div class="doc-dau">

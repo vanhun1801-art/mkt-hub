@@ -4903,9 +4903,43 @@ function maGhiChuTuLink(link) {
   if (!m) return '';
   try { return decodeURIComponent(m[1]); } catch (_) { return ''; }
 }
-const laLinkNguon = (link) => !!(maTinTuLink(link) || maGhiChuTuLink(link));
-const nhanNguon = (link) => (maTinTuLink(link) ? 'Tin gốc' : 'Ghi chú gốc');
-const theNguon = (link) => (maTinTuLink(link) ? theTinNguon(link) : theGhiChuNguon(link));
+/* Việc giao từ Hộp thư (28/10/2026): ô link giữ …/#/m/hop-thu?rec=<hộp~mã>
+ * &td=<tiêu đề>&tu=<người gửi>. Thẻ bày tiêu đề và người gửi lấy ngay trong
+ * link, bấm là lớp vỏ mở Hộp thư đúng thư đó. */
+function thuTuLink(link) {
+  const m = /#\/m\/hop-thu\?([^\s#]+)/.exec(String(link || ''));
+  if (!m) return null;
+  const q = new URLSearchParams(m[1]);
+  return q.get('rec') ? { rec: q.get('rec'), td: q.get('td') || '', tu: q.get('tu') || '' } : null;
+}
+function theThuNguon(link) {
+  const t = thuTuLink(link);
+  const the = el('button', 'tin-nguon tu-email');
+  the.type = 'button';
+  the.title = 'Mở email gốc trong Hộp thư';
+  const chu = el('span', 'tin-nguon-chu');
+  chu.appendChild(el('span', 'tin-nguon-dau', 'Từ email' + (t.tu ? ' · ' + t.tu : '')));
+  chu.appendChild(el('b', '', t.td || 'Mở email gốc'));
+  chu.appendChild(el('span', 'tin-nguon-trich', 'Bấm để mở thư trong Hộp thư'));
+  the.appendChild(el('span', 'tin-nguon-anh'));
+  the.appendChild(chu);
+  the.onclick = (e) => {
+    e.preventDefault();
+    try {
+      if (parent !== window) {
+        if (S.editing) closeDrawer();      // như thẻ ghi chú: đóng ô chi tiết để lớp tối của hub không kẹt
+        parent.location.hash = '#/m/hop-thu?rec=' + encodeURIComponent(t.rec);
+        return;
+      }
+    } catch (_) {}
+    window.open(link, '_blank', 'noopener');
+  };
+  return the;
+}
+
+const laLinkNguon = (link) => !!(maTinTuLink(link) || maGhiChuTuLink(link) || thuTuLink(link));
+const nhanNguon = (link) => (maTinTuLink(link) ? 'Tin gốc' : thuTuLink(link) ? 'Email gốc' : 'Ghi chú gốc');
+const theNguon = (link) => (maTinTuLink(link) ? theTinNguon(link) : thuTuLink(link) ? theThuNguon(link) : theGhiChuNguon(link));
 function theGhiChuNguon(link) {
   const ma = maGhiChuTuLink(link);
   const the = el('button', 'tin-nguon tu-ghi-chu');
