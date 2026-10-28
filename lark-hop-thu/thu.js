@@ -1,0 +1,184 @@
+'use strict';
+/**
+ * Lớp đọc/ghi Lark Mail qua lark-cli (danh tính user của máy này).
+ *
+ * Mọi lệnh đi qua `cli()`. Không lệnh nào ở đây xoá thư: "Lưu trữ" là chuyển
+ * thư sang thư mục ARCHIVED, chuyển ngược lại được. Gửi thư chỉ xảy ra trong
+ * `traLoi({ gui: true })`, và máy chủ chỉ gọi nó sau khi người dùng bấm Gửi
+ * trong hộp xác nhận.
+ */
+const { execFile } = require('child_process');
+const cfg = require('./config');
+
+const TRANSIENT = /timeout|timed out|ETIMEDOUT|ECONNRESET|ECONNREFUSED|EAI_AGAIN|ENOTFOUND|socket hang up|EPIPE|99991400|"type":\s*"network"/i;
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function cliOnce(args, { timeout = 60000 } = {}) {
+  return new Promise((resolve, reject) => {
+    execFile(process.execPath, [cfg.cliScript, ...args],
+      { timeout, maxBuffer: 64 * 1024 * 1024, windowsHide: true },
+      (err, stdout, stderr) => {
+        const raw = (stdout || '').trim();
+        let json = null;
+        const s = raw.indexOf('{'), e = raw.lastIndexOf('}');
+        if (s >= 0 && e > s) { try { json = JSON.parse(raw.slice(s, e + 1)); } catch (_) {} }
+        if (json && json.ok === false) {
+          return reject(new Error((json.error && json.error.message) || JSON.stringify(json.error || json)));
+        }
+        if (err && !json) return reject(new Error('lark-cli lỗi: ' + String(stderr || err.message || '').slice(0, 800)));
+        if (!json) return reject(new Error('Không đọc được phản hồi của lark-cli'));
+        /* Lệnh API trả { ok, data }; +triage --format data trả thẳng đối tượng. */
+        resolve('data' in json && 'ok' in json ? (json.data || {}) : json);
+      });
+  });
+}
+
+async function cli(args, opts = {}) {
+  let last;
+  for (let i = 0; i < 3; i++) {
+    try { return await cliOnce(args, opts); } catch (e) {
+      last = e;
+      /* Lệnh ghi không thử lại: gửi thư hai lần còn tệ hơn báo lỗi một lần. */
+      if (opts.ghi || i === 2 || !TRANSIENT.test(e.message)) throw e;
+      await wait(400 * Math.pow(2, i));
+    }
+  }
+  throw last;
+}
+
+const U = ['--as', 'user'];
+
+/** Hộp thư người đang đăng nhập lark-cli được cấp quyền: hộp chính + hộp chung. */
+async function cacHop() {
+  const d = await cli(['mail', 'user_mailboxes', 'accessible_mailboxes', ...U,
+    '--params', JSON.stringify({ user_mailbox_id: 'me' })]);
+  return (d.accessible_mailboxes || []).map((h) => ({
+    email: String(h.email_address || '').toLowerCase(),
+    chinh: h.email_type === 'USER_PRIMARY',
+  })).filter((h) => h.email);
+}
+
+/** "Tên <a@b.c>" → { ten, email } */
+function tachNguoi(s) {
+  const m = /^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$/.exec(String(s || ''));
+  if (m) return { ten: m[1].trim(), email: m[2].trim().toLowerCase() };
+  const e = String(s || '').trim().toLowerCase();
+  return { ten: '', email: e };
+}
+
+/** Tóm tắt thư trong Hộp đến của một hộp, mới nhất trước. */
+async function danhSach(hop, max = cfg.soThuMoiHop) {
+  const d = await cli(['mail', '+triage', ...U, '--mailbox', hop, '--max', String(max),
+    '--format', 'data', '--labels', '--filter', JSON.stringify({ folder_id: 'INBOX' })]);
+  return (d.messages || []).map((m) => {
+    const nhan = String(m.labels || '').split(',').map((x) => x.trim()).filter(Boolean);
+    return {
+      hop,
+      id: m.message_id,
+      chuoi: m.thread_id || '',
+      ngay: m.date || '',
+      tu: tachNguoi(m.from),
+      tieuDe: m.subject || '',
+      chuaDoc: nhan.includes('UNREAD'),
+      sao: nhan.includes('FLAGGED'),
+      nhan,
+    };
+  });
+}
+
+const THUC_THE = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
+
+/**
+ * HTML thư → chữ có xuống dòng. Bản chữ thuần Lark trả về dồn cả thư thành
+ * một khối không xuống dòng, nên tự chuyển từ HTML: thẻ khối thành dòng mới,
+ * ô bảng ngăn bằng " | ", link giữ địa chỉ. Kết quả vẫn là CHỮ, giao diện
+ * không bao giờ chèn HTML của thư.
+ */
+function htmlSangChu(html) {
+  let s = String(html || '')
+    .replace(/<(style|script|head|title)[\s\S]*?<\/\1>/gi, '')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<a\b[^>]*href="(https?:[^"]+)"[^>]*>([\s\S]*?)<\/a>/gi, (m, u, chu) => {
+      const c = chu.replace(/<[^>]+>/g, '').trim();
+      return c && !c.includes(u) && !u.includes(c) ? c + ' (' + u + ')' : (c || u);
+    })
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<li\b[^>]*>/gi, '\n- ')
+    .replace(/<\/(td|th)>/gi, ' | ')
+    .replace(/<\/tr>/gi, '\n')
+    .replace(/<\/?(p|div|table|h[1-6]|ul|ol|blockquote|section|article|header|footer)\b[^>]*>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (m, k) => {
+      if (k[0] === '#') {
+        const n = k[1] === 'x' || k[1] === 'X' ? parseInt(k.slice(2), 16) : parseInt(k.slice(1), 10);
+        return Number.isFinite(n) && n > 0 && n < 0x110000 ? String.fromCodePoint(n) : '';
+      }
+      return THUC_THE[k.toLowerCase()] != null ? THUC_THE[k.toLowerCase()] : m;
+    });
+  s = s.replace(/ /g, ' ').replace(/[ \t]+/g, ' ')
+    .split('\n').map((d) => d.trim().replace(/\s*\|\s*$/, '')).join('\n')
+    .replace(/\n{3,}/g, '\n\n').trim();
+  return s;
+}
+
+/* Chỗ bắt đầu phần trích thư cũ: Lark, Gmail, Outlook, blockquote. */
+const MOC_TRICH = /<div\b[^>]*(class="[^"]*(history-quote-wrapper|gmail_quote)|id="(divRplyFwdMsg|appendonsend)")|<blockquote\b/i;
+
+/** Tách thư thành phần mới viết và phần trích thư cũ. */
+function tachTrich(html) {
+  const h = String(html || '');
+  const m = MOC_TRICH.exec(h);
+  if (!m) return { moi: htmlSangChu(h), trich: '' };
+  return { moi: htmlSangChu(h.slice(0, m.index)), trich: htmlSangChu(h.slice(m.index)) };
+}
+
+/** Một thư đầy đủ, dạng chữ (giao diện không bao giờ chèn HTML của thư). */
+async function doc(hop, id) {
+  const d = await cli(['mail', '+message', ...U, '--mailbox', hop, '--message-id', id]);
+  const phan = d.body_html ? tachTrich(d.body_html) : { moi: String(d.body_plain_text || d.body_preview || ''), trich: '' };
+  const nguoi = (x) => ({ ten: (x && x.name) || '', email: String((x && x.mail_address) || '').toLowerCase() });
+  return {
+    hop,
+    id: d.message_id || id,
+    chuoi: d.thread_id || '',
+    ngay: d.date_formatted || '',
+    tu: nguoi(d.head_from),
+    den: (d.to || []).map(nguoi),
+    cc: (d.cc || []).map(nguoi),
+    tieuDe: d.subject || '',
+    noiDung: phan.moi,
+    trich: phan.trich,
+    tep: (d.attachments || []).map((a) => ({ ten: a.filename || a.name || 'tệp', co: a.size || 0 })),
+    nhan: d.label_ids || [],
+    canhBao: d.security_level && Object.keys(d.security_level).length ? d.security_level : null,
+  };
+}
+
+/** Đổi nhãn / thư mục. Tất cả đều hoàn tác được. */
+async function doi(hop, ids, { them = [], bo = [], thuMuc = '' } = {}) {
+  const a = ['mail', '+message-modify', ...U, '--mailbox', hop, '--message-ids', ids.join(',')];
+  if (them.length) a.push('--add-label-ids', them.join(','));
+  if (bo.length) a.push('--remove-label-ids', bo.join(','));
+  if (thuMuc) a.push('--add-folder', thuMuc);
+  return cli(a, { ghi: true });
+}
+
+/** Chữ người gõ → HTML đơn giản, đã thoát ký tự. */
+function veHtml(chu) {
+  const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return String(chu || '').trim().split(/\n{2,}/)
+    .map((doan) => '<p>' + esc(doan).replace(/\n/g, '<br>') + '</p>').join('');
+}
+
+/**
+ * Trả lời một thư. Mặc định LƯU NHÁP; `gui: true` mới gửi đi.
+ * `tatCa`: trả lời tất cả (giữ To/CC của thư gốc).
+ */
+async function traLoi(hop, id, chu, { gui = false, tatCa = false } = {}) {
+  const a = ['mail', tatCa ? '+reply-all' : '+reply', ...U, '--mailbox', hop,
+    '--message-id', id, '--body', veHtml(chu)];
+  if (gui) a.push('--confirm-send');
+  return cli(a, { ghi: true });
+}
+
+module.exports = { cacHop, danhSach, doc, doi, traLoi, tachNguoi, veHtml, htmlSangChu, tachTrich };

@@ -391,6 +391,27 @@
       ],
       "bat": true,
       "caPhong": false
+    },
+    {
+      "id": "hop-thu",
+      "ten": "Hộp thư",
+      "mo_ta": "Lark Mail · xếp ngăn · trả lời nhanh · giao việc",
+      "icon": "hop-thu",
+      "mau": "#289683",
+      "kieu": "local",
+      "thuMuc": "../lark-hop-thu",
+      "_thuApi": "đọc thư cần đúng chủ hộp thư; /api/suc-khoe là cửa duy nhất không cần danh tính, đủ chứng minh JSON đi xuyên proxy",
+      "thuApi": "/api/suc-khoe",
+      "cong": 5204,
+      "lenh": [
+        "node",
+        "server.js"
+      ],
+      "an": [
+        "header.topbar > .brand"
+      ],
+      "bat": true,
+      "caPhong": false
     }
   ]
 }

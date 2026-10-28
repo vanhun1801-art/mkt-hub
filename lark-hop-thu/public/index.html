@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hộp thư · Rooty Trip</title>
+<link rel="stylesheet" href="styles.css?v=BUILD">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="logo" aria-hidden="true">✉</div>
+    <div class="ten">Hộp thư</div>
+  </div>
+  <div class="tim">
+    <input id="oTim" type="search" placeholder="Tìm người gửi, tiêu đề" autocomplete="off" aria-label="Tìm thư">
+  </div>
+  <span class="sp"></span>
+  <span id="moc" class="moc"></span>
+  <button id="btnLamMoi" class="nut-tron" title="Đọc lại từ Lark Mail" aria-label="Đọc lại từ Lark Mail">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6"/></svg>
+  </button>
+</header>
+
+<nav class="dai-ngan" id="dsNgan" role="tablist" aria-label="Ngăn thư"></nav>
+<div class="dai-hop" id="dsHop" aria-label="Lọc theo hộp thư"></div>
+
+<div class="than-trang">
+  <main id="cotDs" aria-label="Danh sách thư">
+    <div id="ds" class="ds"></div>
+  </main>
+
+  <aside id="cotDoc" aria-label="Nội dung thư" hidden>
+    <div class="doc-dau">
+      <button id="btnVe" class="nut-tron ve" aria-label="Về danh sách">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+      <div class="hang-nut" id="hangNut"></div>
+    </div>
+    <div class="doc-than" id="docThan"></div>
+  </aside>
+</div>
+
+<!-- Hộp xác nhận gửi: nói rõ thư đi tới đâu trước khi gửi. -->
+<div class="nen-hop" id="hopGui" hidden>
+  <div class="hop-xn" role="dialog" aria-modal="true" aria-labelledby="hopGuiTieu">
+    <div class="hop-dau"><b id="hopGuiTieu">Gửi thư trả lời?</b></div>
+    <div class="hop-than" id="hopGuiThan"></div>
+    <div class="hop-chan">
+      <button class="nut phu" id="hopGuiHuy">Chưa gửi</button>
+      <button class="nut chinh" id="hopGuiOk">Gửi ngay</button>
+    </div>
+  </div>
+</div>
+
+<div class="menu-noi" id="menuNoi" hidden></div>
+<div id="toasts" aria-live="polite"></div>
+
+<script src="app.js?v=BUILD"></script>
+</body>
+</html>

@@ -28,6 +28,7 @@
 !lark-ban-do/
 !lark-kho-media/
 !lark-mat-khau/
+!lark-hop-thu/
 
 # mã dùng chung giữa các app (Tourwell…)
 !lark-chung/
@@ -52,6 +53,8 @@ lark-kpi/du-lieu/
 lark-kol/du-lieu/
 # Chỉ mục Drive (123k đường dẫn, có tên người/đoàn) + ảnh thu nhỏ + file gốc tải về — chỉ ở máy
 lark-kho-media/du-lieu/
+# Bộ đệm tóm tắt AI có nội dung email, luật xếp ngăn và hẹn nhắc riêng của chủ hộp thư
+lark-hop-thu/du-lieu/
 
 # ---- rác ----
 **/node_modules/
