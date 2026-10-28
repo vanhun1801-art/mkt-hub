@@ -112,3 +112,15 @@ test('form tạo việc và form quản lý dùng ô soạn, bản chỉ đọc 
   assert.ok(!/moTaCoLink\(t\.detail\)/.test(SRC), 'chi tiết chỉ đọc phải qua moTaDinhDang');
   assert.ok(HTML.indexOf('soan-chu.js') < HTML.indexOf('/app.js'), 'soan-chu.js phải nạp trước app.js');
 });
+
+test('thiếu soan-chu.js thì app vẫn chạy: không gọi thẳng SoanChu ngoài hàm có rào', () => {
+  const SRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  /* Gọi SoanChu.x() thẳng trong lúc vẽ thẻ mà tệp tải hụt (trang mở dở lúc deploy)
+   * là ReferenceError, cả danh sách việc không vẽ được và không bấm được gì. */
+  const dong = SRC.split('\n').filter((d) => /SoanChu\./.test(d));
+  for (const d of dong) {
+    assert.ok(/coSoanChu\(\)/.test(d) || /box\.innerHTML = SoanChu\.sangHtml/.test(d), 'gọi SoanChu không có rào: ' + d.trim());
+  }
+  assert.ok(/function moTaDinhDang\(text\) \{\s*if \(!coSoanChu\(\)\) return moTaCoLink\(text\);/.test(SRC));
+  assert.ok(/function coSoanChu\(/.test(SRC), 'coSoanChu phải là function để gọi được trước dòng khai báo');
+});

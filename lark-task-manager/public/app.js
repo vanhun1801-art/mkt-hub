@@ -1044,7 +1044,7 @@ function renderLanes(list) {
       const main = el('div', 'wcard-main');
       main.appendChild(el('div', 'wcard-title', n.title || '(chưa đặt tên)'));
       if (n.detail) {
-        main.appendChild(el('div', 'wcard-sub', SoanChu.chuTho(n.detail).slice(0, 150)));
+        main.appendChild(el('div', 'wcard-sub', chuThoChiTiet(n.detail).slice(0, 150)));
       }
       const meta = el('div', 'wcard-meta');
       meta.appendChild(el('span', 'tag tag-nhap', 'Nháp'));
@@ -2230,7 +2230,7 @@ function workCard(t, lane) {
   main.appendChild(veTen('div', 'wcard-title', t));
 
   if (t.detail) {
-    main.appendChild(el('div', 'wcard-sub', SoanChu.chuTho(t.detail).slice(0, 150)));
+    main.appendChild(el('div', 'wcard-sub', chuThoChiTiet(t.detail).slice(0, 150)));
   }
 
   const meta = el('div', 'wcard-meta');
@@ -3797,7 +3797,7 @@ function tableRow(t) {
   tr.appendChild(tdt);
 
   // Chi tiết (rút gọn một dòng, xem đầy đủ trong cửa sổ chi tiết)
-  const det = SoanChu.chuTho(t.detail);
+  const det = chuThoChiTiet(t.detail);
   const tdd2 = el('td', 'c-detail cell-ell', det || '—');
   tdd2.title = det;
   tr.appendChild(tdd2);
@@ -4929,12 +4929,24 @@ function oLinkDoc(link) {
 
 /* Ô soạn chi tiết yêu cầu có định dạng: Ctrl+B/I/U, dán bảng Excel. Không bày
  * thanh công cụ (anh Hùng 28/10/2026). Chuyển đổi nằm ở soan-chu.js. */
+/* Thiếu soan-chu.js (trang mở dở lúc Render đang deploy, tệp tải hụt) thì lùi về
+ * ô chữ thường, chứ không để một lỗi ở đây làm đứng cả app. */
+function coSoanChu() { return typeof window.SoanChu === 'object' && !!window.SoanChu; }
+function chuThoChiTiet(s) {
+  return coSoanChu() ? SoanChu.chuTho(s) : String(s || '').replace(/\s+/g, ' ').trim();
+}
+
 function oChiTiet(t) {
-  return SoanChu.taoOSoan(t.detail || '', (md) => set('detail', md));
+  if (coSoanChu()) return SoanChu.taoOSoan(t.detail || '', (md) => set('detail', md));
+  const o = el('textarea');
+  o.value = t.detail || '';
+  o.oninput = () => set('detail', o.value);
+  return o;
 }
 
 /** Chi tiết yêu cầu chỉ đọc: giữ đậm, nghiêng, gạch chân, bảng và link bấm được. */
 function moTaDinhDang(text) {
+  if (!coSoanChu()) return moTaCoLink(text);
   const box = el('div', 'd-desc');
   box.innerHTML = SoanChu.sangHtml(text, { link: true });
   return box;
