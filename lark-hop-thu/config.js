@@ -51,6 +51,10 @@ module.exports = {
   soThuMoiHop: Number(process.env.HOP_THU_SO_THU || 60),
   /* Thư mục Đã gửi chỉ cần đủ để biết thư nào đã trả lời, thư nào đang chờ. */
   soThuGuiMoiHop: Number(process.env.HOP_THU_SO_THU_GUI || 30),
+  /* Nhịp đọc sau (server.js, docSau): đủ sâu để hộp đông như sales@ cũng phủ
+   * được khoảng một tháng. */
+  soThuDu: Number(process.env.HOP_THU_SO_THU_DU || 200),
+  soThuGuiDu: Number(process.env.HOP_THU_SO_THU_GUI_DU || 60),
 
   /* Ban giám đốc: thư từ những địa chỉ này vào "Cần trả lời" kèm nhãn "Ban giám đốc". Khai bằng env
    * để đổi người không phải sửa mã. */

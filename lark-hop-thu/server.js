@@ -134,15 +134,30 @@ async function songSong(viec, tran = 4) {
   return kq;
 }
 
-async function docHet(n, ep) {
+/*
+ * Đọc hai nhịp (anh Hùng 28/10/2026: "cảm thấy không đầy đủ thư"): 60 thư
+ * mới nhất mỗi hộp chỉ phủ được vài ngày ở hộp đông như sales@. Nên nhịp đầu
+ * đọc 60 thư để trang hiện ngay, rồi đọc tiếp tới soThuDu thư mỗi hộp ở phía
+ * sau; giao diện hỏi lại bằng ?du=1 và vẽ đè khi xong. Bản đầy đủ giữ lâu hơn.
+ */
+const DEM_DU_MS = 5 * 60000;
+const sauDang = new Map();
+function docSau(n) {
+  if (!sauDang.has(n.khoa)) {
+    sauDang.set(n.khoa, docHet(n, true, cfg.soThuDu, cfg.soThuGuiDu).finally(() => sauDang.delete(n.khoa)));
+  }
+  return sauDang.get(n.khoa);
+}
+
+async function docHet(n, ep, max = cfg.soThuMoiHop, maxGui = cfg.soThuGuiMoiHop) {
   const c = dsDem.get(n.khoa);
-  if (!ep && c && c.ds && Date.now() - c.luc < DEM_MS) return c;
+  if (!ep && c && c.ds && c.max >= max && Date.now() - c.luc < (c.du ? DEM_DU_MS : DEM_MS)) return c;
   const hop = await cacHop(n);
   const loiHop = [];
   /* Hộp đến và Đã gửi đọc cùng lúc (cùng một hàng đợi 6 lượt), không nối
    * đuôi nhau, để thêm thư mục Đã gửi không làm trang mở chậm gấp đôi. */
   const viec = hop.map((h) => async () => {
-    try { return { den: await thu.danhSach(h.email, cfg.soThuMoiHop, n.tk) }; } catch (e) {
+    try { return { den: await thu.danhSach(h.email, max, n.tk) }; } catch (e) {
       /* Token hết giữa chừng thì cả trang phải mời nối lại, không lặng lẽ
        * thành tám hộp trống. */
       if (e instanceof thu.LoiChuaNoi) throw e;
@@ -152,7 +167,7 @@ async function docHet(n, ep) {
   }).concat(hop.map((h) => async () => {
     /* Thư mục Đã gửi: để biết thư nào mình đã trả lời, và thư nào mình gửi
      * đi mà bên kia chưa hồi âm. Hỏng thì thôi, Hộp đến vẫn hiện. */
-    try { return { gui: await thu.danhSach(h.email, cfg.soThuGuiMoiHop, n.tk, 'SENT') }; } catch (e) {
+    try { return { gui: await thu.danhSach(h.email, maxGui, n.tk, 'SENT') }; } catch (e) {
       if (e instanceof thu.LoiChuaNoi) throw e;
       return { gui: [] };
     }
@@ -160,7 +175,7 @@ async function docHet(n, ep) {
   const kq = await songSong(viec, 6);
   const phan = kq.map((x) => x.den || []);
   const daGui = kq.map((x) => x.gui || []);
-  const moi = { luc: Date.now(), ds: [].concat(...phan), gui: [].concat(...daGui), loi: loiHop };
+  const moi = { luc: Date.now(), ds: [].concat(...phan), gui: [].concat(...daGui), loi: loiHop, max, du: max >= cfg.soThuDu };
   dsDem.set(n.khoa, moi);
   return moi;
 }
@@ -301,11 +316,13 @@ async function api(req, res, url) {
   }
 
   if (p === '/api/thu' && m === 'GET') {
-    const d = await docHet(n, url.searchParams.get('lam') === '1');
+    const muonDu = url.searchParams.get('du') === '1';
+    const d = muonDu ? await docSau(n) : await docHet(n, url.searchParams.get('lam') === '1');
+    if (!d.du && !muonDu) docSau(n).catch((e) => console.error('[hop-thu] đọc sâu hỏng:', e.message));
     const hop = await cacHop(n);
     const { daTraLoi, cho } = ghepChuoi(d.ds, d.gui || []);
     const ds = lamGiau(d.ds, hop, n.nguoi).map((t) => (daTraLoi.has(t.hop + '|' + t.id) ? Object.assign(t, { daTraLoi: true }) : t));
-    return json(res, { luc: d.luc, thu: ds, cho, nhom: kho.nhom(n.nguoi), loi: d.loi });
+    return json(res, { luc: d.luc, thu: ds, cho, nhom: kho.nhom(n.nguoi), loi: d.loi, du: Boolean(d.du) });
   }
 
   /* Chữ ký: lần đầu gợi ý từ Lark Mail (máy có lark-cli), sau đó là bản người dùng tự sửa. */
@@ -438,7 +455,10 @@ async function api(req, res, url) {
     if (!chu) return loi(res, 400, 'Thư trả lời đang trống');
     const g = await thu.doc(k.hop, k.id, n.tk);
     const tatCa = b.tatCa === true;
-    const nhan = [g.tu].concat(tatCa ? g.den : []).filter((x) => x.email && x.email !== k.hop);
+    /* Thư của chính mình (đang chờ bên kia hồi âm): nhắc lại thì gửi cho những
+     * người nhận ban đầu, giống mail-api.dungTraLoi. */
+    const thuMinh = g.tu.email === k.hop;
+    const nhan = (thuMinh ? g.den : [g.tu].concat(tatCa ? g.den : [])).filter((x) => x.email && x.email !== k.hop);
     const cc = tatCa ? g.cc.filter((x) => x.email && x.email !== k.hop) : [];
     const motLan = (ds) => ds.filter((x, i) => ds.findIndex((y) => y.email === x.email) === i);
     const chuKy = b.coChuKy === false ? '' : await layChuKy(n);

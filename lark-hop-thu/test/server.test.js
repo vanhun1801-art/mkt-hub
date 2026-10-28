@@ -77,6 +77,10 @@ server.listen(0, '127.0.0.1', async () => {
     console.log('\nDanh sách');
     const ds = (await hoi('GET', '/api/thu')).j.thu;
     ok('gom thư của mọi hộp', ds.length === 2);
+    const nhip1 = (await hoi('GET', '/api/thu?lam=1')).j;
+    const nhip2 = (await hoi('GET', '/api/thu?du=1')).j;
+    ok('đọc hai nhịp: nhịp đầu chưa đủ, ?du=1 trả bản đủ', nhip1.du === false && nhip2.du === true && nhip2.thu.length === 2);
+    ok('sau khi đủ, lần đọc thường dùng luôn bản đủ', (await hoi('GET', '/api/thu')).j.du === true);
     ok('mới nhất trước', ds[0].id === 'bbbbbbbbbb==');
     const sep = ds.find((t) => t.id === 'aaaaaaaaaa==');
     ok('thư Ban giám đốc vào Cần trả lời, có cờ sep', sep.ngan === 'xu-ly' && sep.sep === true);

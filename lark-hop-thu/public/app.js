@@ -126,10 +126,31 @@ async function napThu(ep) {
     S.nhom = d.nhom || [];
     ve();
     if (ep) bao('Đã đọc lại hộp thư', 'ok');
+    if (!d.du) napDu();
   } finally {
     S.dangNap = false;
     $('#btnLamMoi').classList.remove('quay');
   }
+}
+
+/* Nhịp hai: máy chủ đang đọc thêm tới 200 thư mỗi hộp. Chờ xong rồi vẽ đè,
+ * giữ nguyên ngăn, ô tìm và thư đang mở; nút đọc lại quay trong lúc chờ. */
+let dangNapDu = false;
+async function napDu() {
+  if (dangNapDu) return;
+  dangNapDu = true;
+  $('#btnLamMoi').classList.add('quay');
+  $('#moc').textContent = 'Đang đọc thêm thư cũ…';
+  try {
+    const d = await api('thu?du=1');
+    S.thu = d.thu; S.loi = d.loi || []; S.luc = d.luc;
+    S.cho = (d.cho || []).map((g) => Object.assign({ daGui: true, tu: { ten: 'Anh gửi', email: g.hop } }, g));
+    S.nhom = d.nhom || [];
+    const cuon = $('#cotDs').scrollTop;
+    ve();
+    $('#cotDs').scrollTop = cuon;
+  } catch (_) { veMoc(); }
+  finally { dangNapDu = false; $('#btnLamMoi').classList.remove('quay'); }
 }
 
 /* Xếp bằng AI những thư luật chưa nhận, chạy nền sau khi danh sách đã hiện. */
@@ -458,9 +479,9 @@ function veDoc() {
   if (!d) return;
   const t = d.thu;
   const tom = timThu(S.chon) || {};
-  /* Thư anh gửi (đang chờ hồi âm) không có Trả lời hay Xong: việc còn lại là
-   * giao cho ai theo, gom vào nhóm, hẹn lịch. */
-  $('#hangNut').innerHTML = (tom.daGui ? '' : nutChu('tra-loi', IC.traLoi, 'Trả lời')) +
+  /* Thư anh gửi (đang chờ hồi âm): nút "Nhắc lại" mở ô soạn gửi tiếp cho
+   * những người nhận ban đầu; không có Xong vì thư không nằm trong Hộp đến. */
+  $('#hangNut').innerHTML = nutChu('tra-loi', IC.traLoi, tom.daGui ? 'Nhắc lại' : 'Trả lời') +
     nutChu('viec', IC.viec, 'Giao việc') +
     (tom.daGui ? '' : nutChu('luu', IC_XONG, 'Xong', 'chinh')) +
     '<button class="nut-tron" data-viec="them" title="Thêm" aria-label="Thêm" aria-haspopup="menu">' +
@@ -493,7 +514,7 @@ function veDoc() {
   if (t.tep.length) {
     h += '<div class="tep" data-no-i18n>' + t.tep.map((x) => '<span class="nhan">📎 ' + esc(x.ten) + '</span>').join('') + '</div>';
   }
-  if (!tom.daGui) h += veSoan();
+  h += veSoan(tom.daGui);
   $('#docThan').innerHTML = h;
   $('#docThan').scrollTop = 0;
   capNhatNutGui();
@@ -557,18 +578,26 @@ const MAU = [
   { nhan: 'Cần bổ sung', chu: 'Anh/chị bổ sung giúp tôi thêm thông tin sau để tôi xem xét:\n- [..]' },
 ];
 
-function veSoan() {
+const MAU_NHAC = [
+  { nhan: 'Nhắc nhẹ', chu: 'Anh/chị xem giúp em thư bên dưới và phản hồi khi tiện nhé. Em cảm ơn.' },
+  { nhan: 'Hỏi tiến độ', chu: 'Em hỏi thăm tiến độ việc này ạ. Anh/chị cần em bổ sung gì thì báo em nhé.' },
+];
+
+/* daGui: thư của chính anh đang chờ hồi âm, ô soạn thành ô "nhắc lại" gửi cho
+ * mọi người nhận ban đầu (tick sẵn Trả lời tất cả). */
+function veSoan(daGui) {
   const a = S.ct && S.ct.ai;
   const goiY = a && !a.chiXep && Array.isArray(a.goiY) ? a.goiY : [];
+  const mau = daGui ? MAU_NHAC : MAU;
   return '<div class="soan" id="soan">' +
     '<div class="goi-y">' +
-    MAU.map((m, i) => '<button class="nut" data-mau="' + i + '">' + esc(m.nhan) + '</button>').join('') +
+    mau.map((m, i) => '<button class="nut" data-mau="' + i + '">' + esc(m.nhan) + '</button>').join('') +
     goiY.map((g) => '<button class="nut ai" data-no-i18n data-goi-y="' + esc(g) + '">✦ ' + esc(g) + '</button>').join('') +
     (S.ai ? '<button class="nut ai" data-viec="ai-viet">✦ AI viết theo ý trong ô</button>' : '') +
     '</div>' +
-    '<textarea id="oSoan" placeholder="Viết trả lời"></textarea>' +
+    '<textarea id="oSoan" placeholder="' + (daGui ? 'Viết lời nhắc gửi lại cho người nhận' : 'Viết trả lời') + '"></textarea>' +
     '<div class="chan-soan">' +
-    '<label><input type="checkbox" id="tatCa"> Trả lời tất cả</label>' +
+    '<label><input type="checkbox" id="tatCa"' + (daGui ? ' checked' : '') + '> Trả lời tất cả</label>' +
     '<span class="sp"></span>' +
     '<span class="ly-do" id="lyDoGui"></span>' +
     '<button class="nut" data-viec="luu-nhap" id="btnNhap">Lưu nháp</button>' +
@@ -1016,7 +1045,7 @@ $('#cotDoc').addEventListener('click', (e) => {
   const b = e.target.closest('button');
   if (!b || !t || !S.ct) return;
   if (b.dataset.mau != null) {
-    const m = MAU[+b.dataset.mau];
+    const m = (t.daGui ? MAU_NHAC : MAU)[+b.dataset.mau];
     if (S.ai) aiViet(m.nhan + ': ' + m.chu); else { $('#oSoan').value = m.chu; capNhatNutGui(); $('#oSoan').focus(); }
     return;
   }
