@@ -264,3 +264,12 @@ Anh Hùng, sau khi dùng thử bản kéo đầu tiên: "ấn kéo hiệu ứng 
 Đọc 97 việc-người từ 60 bản ghi gốc của Base "Giao việc công ty"; trạng thái tổng bên đó **khớp hết** với bảng "Liên phòng · tiến độ" của phòng, đọc hai lần ra cùng số. Cột cũng còn nguyên: Base công ty đủ 9/9, bảng tiến độ đủ 7/7 cột mà đường ghi gọi tới — đây là chỗ hay hỏng âm thầm, vì Base nhận lệnh ghi rồi lặng lẽ bỏ qua trường lạ.
 
 Nhưng **mới 1/97 việc-người có dòng tiến độ riêng**, nên luật tổng hợp gần như chưa chạy thật: "khớp hết" ở đây mới chứng minh đường ĐỌC đúng, chưa chứng minh đường GHI. Đường ghi chỉ kiểm được bằng một lượt ghi thật, mà dữ liệu này là của công ty nên phải do anh Hùng bấm.
+
+## 20. Ô soạn chữ dài: định dạng không cần thanh công cụ (28/10/2026)
+
+Anh Hùng: "không cần hiện các thanh công cụ định dạng, nhưng kiểu sẽ thông minh và hiện đại tối giản".
+
+- Ô soạn chữ dài (như "Chi tiết yêu cầu" của Bảng công việc) nhận Ctrl+B in đậm, Ctrl+I in nghiêng, Ctrl+U gạch chân, và dán được bảng từ Excel, Google Sheets thành bảng thật. Không bày thanh nút định dạng.
+- Không đặt chữ mờ gợi ý hay dòng chú thích hướng dẫn phím tắt trong ô ("không cần note luôn cho hiện đại").
+- Base chỉ có chữ thuần nên định dạng lưu bằng dấu kiểu Markdown (`**đậm**`, `*nghiêng*`, `<u>gạch chân</u>`, bảng `| a | b |`), mở trên Base vẫn đọc được. Thẻ việc ngoài danh sách thì hiện chữ trơn, bỏ dấu.
+- Bảng trong ô vừa bề ngang, chữ tự xuống dòng, không kéo ngang. Tab chuyển sang ô kế, Tab ở ô cuối thêm một hàng.

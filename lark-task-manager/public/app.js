@@ -1029,7 +1029,7 @@ function renderLanes(list) {
       const main = el('div', 'wcard-main');
       main.appendChild(el('div', 'wcard-title', n.title || '(chưa đặt tên)'));
       if (n.detail) {
-        main.appendChild(el('div', 'wcard-sub', n.detail.replace(/\s+/g, ' ').slice(0, 150)));
+        main.appendChild(el('div', 'wcard-sub', SoanChu.chuTho(n.detail).slice(0, 150)));
       }
       const meta = el('div', 'wcard-meta');
       meta.appendChild(el('span', 'tag tag-nhap', 'Nháp'));
@@ -2215,7 +2215,7 @@ function workCard(t, lane) {
   main.appendChild(veTen('div', 'wcard-title', t));
 
   if (t.detail) {
-    main.appendChild(el('div', 'wcard-sub', t.detail.replace(/\s+/g, ' ').slice(0, 150)));
+    main.appendChild(el('div', 'wcard-sub', SoanChu.chuTho(t.detail).slice(0, 150)));
   }
 
   const meta = el('div', 'wcard-meta');
@@ -3782,7 +3782,7 @@ function tableRow(t) {
   tr.appendChild(tdt);
 
   // Chi tiết (rút gọn một dòng, xem đầy đủ trong cửa sổ chi tiết)
-  const det = (t.detail || '').trim();
+  const det = SoanChu.chuTho(t.detail);
   const tdd2 = el('td', 'c-detail cell-ell', det || '—');
   tdd2.title = det;
   tr.appendChild(tdd2);
@@ -4644,10 +4644,7 @@ function buildDrawer() {
   /* ---- chế độ quản lý: sửa mọi trường ---- */
   b.appendChild(field('Tên công việc *', textInput(t.title, (v) => set('title', v))));
 
-  const detail = el('textarea');
-  detail.value = t.detail || '';
-  detail.oninput = () => set('detail', detail.value);
-  b.appendChild(field('Chi tiết yêu cầu', detail));
+  b.appendChild(field('Chi tiết yêu cầu', oChiTiet(t)));
 
   const r1 = el('div', 'row2');
   r1.appendChild(field('Trạng thái', selectInput(t.status, o.status, (v) => set('status', v))));
@@ -4771,10 +4768,7 @@ function buildCreateForm(b, t, o) {
 
   b.appendChild(field('Tên công việc *', textInput(t.title, (v) => set('title', v))));
 
-  const detail = el('textarea');
-  detail.value = t.detail || '';
-  detail.oninput = () => set('detail', detail.value);
-  b.appendChild(field(idCha(t) ? 'Chi tiết yêu cầu' : 'Chi tiết yêu cầu *', detail));
+  b.appendChild(field(idCha(t) ? 'Chi tiết yêu cầu' : 'Chi tiết yêu cầu *', oChiTiet(t)));
 
   const r1 = el('div', 'row2');
   r1.appendChild(field('Loại công việc *', selectInput(t.workType, o.workType, (v) => set('workType', v))));
@@ -4933,6 +4927,19 @@ function moTaCoLink(text) {
     i = m.index + m[1].length;
   }
   if (i < text.length) box.appendChild(document.createTextNode(text.slice(i)));
+/* Ô soạn chi tiết yêu cầu có định dạng: Ctrl+B/I/U, dán bảng Excel. Không bày
+ * thanh công cụ (anh Hùng 28/10/2026). Chuyển đổi nằm ở soan-chu.js. */
+function oChiTiet(t) {
+  return SoanChu.taoOSoan(t.detail || '', (md) => set('detail', md));
+}
+
+/** Chi tiết yêu cầu chỉ đọc: giữ đậm, nghiêng, gạch chân, bảng và link bấm được. */
+function moTaDinhDang(text) {
+  const box = el('div', 'd-desc');
+  box.innerHTML = SoanChu.sangHtml(text, { link: true });
+  return box;
+}
+
   return box;
 }
 
@@ -5161,7 +5168,7 @@ function buildStaffDrawer(b, t, o) {
 
   /* ---------- 3. Cần làm gì (chỉ đọc) ---------- */
   const yc = theKhoi('Cần làm gì');
-  if (t.detail) yc.than.appendChild(moTaCoLink(t.detail));
+  if (t.detail) yc.than.appendChild(moTaDinhDang(t.detail));
   else yc.than.appendChild(el('div', 'd-desc trong-nhe', 'Người order chưa ghi chi tiết yêu cầu.'));
   if (t.link) {
     const oLink = el('div', 'field');
@@ -5233,7 +5240,7 @@ function buildOrderDrawer(b, t, o) {
   yc.than.appendChild(el('div', 'ro-note', 'Người order: ' +
     ((t.requester || []).map((u) => u.name).join(', ') || 'chưa có')));
   if (t.lienPhong) { /* đã có ô sửa ở trên — không lặp lại bản chỉ đọc */ }
-  else if (t.detail) yc.than.appendChild(moTaCoLink(t.detail));
+  else if (t.detail) yc.than.appendChild(moTaDinhDang(t.detail));
   else yc.than.appendChild(el('div', 'd-desc trong-nhe', 'Chưa ghi chi tiết yêu cầu.'));
   if (t.link) {
     const oLink = el('div', 'field');

@@ -733,6 +733,39 @@ body.col-resizing, body.col-resizing * { cursor: col-resize !important; user-sel
 .field input:hover, .field select:hover, .field textarea:hover { border-color: var(--border-2); }
 .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--blue); }
 .field textarea { min-height: 96px; resize: vertical; line-height: 1.55; }
+
+/* Ô soạn chi tiết yêu cầu (soan-chu.js): như ô nhiều dòng, nhưng giữ được đậm,
+ * nghiêng, gạch chân và bảng dán từ Excel. Tự cao theo chữ, không cuộn riêng
+ * (một hộp chỉ một vùng cuộn). */
+.soan-chu {
+  min-height: 140px; padding: 9px 11px; border-radius: 12px;
+  border: 1px solid var(--border); background: var(--surface);
+  color: var(--text); font-size: 13px; line-height: 1.55; font-family: inherit;
+  white-space: pre-wrap; overflow-wrap: anywhere; outline: none; cursor: text;
+  transition: border-color .12s, box-shadow .16s, background-color .16s;
+}
+.soan-chu:hover { border-color: var(--border-2); }
+.soan-chu:focus { border-color: var(--blue); }
+.soan-chu.trong::before { content: attr(data-goi-y); color: var(--text-3); pointer-events: none; float: left; height: 0; }
+html[data-skin="ios"] .soan-chu { background-color: var(--ios-o); border-color: transparent; color: var(--ios-chu); }
+html[data-skin="ios"] .soan-chu:focus {
+  border-color: var(--ios-xanh); background-color: var(--ios-the); box-shadow: 0 0 0 3px var(--ios-xanh-nhat);
+}
+html[data-skin="ios"] .soan-chu.trong::before { color: var(--ios-chu-3); }
+@media (max-width: 640px) { .soan-chu { font-size: 16px; } }
+
+/* Bảng trong chi tiết yêu cầu: vừa bề ngang, chữ tự xuống dòng, không kéo ngang. */
+.sc-bang {
+  width: 100%; border-collapse: collapse; table-layout: auto; margin: 6px 0;
+  font-size: .94em; line-height: 1.45; white-space: normal;
+}
+.sc-bang th, .sc-bang td {
+  border: 1px solid var(--border-2); padding: 5px 8px; text-align: left; vertical-align: top;
+  overflow-wrap: anywhere; min-width: 2.5em;
+}
+.sc-bang th { background: var(--surface-2); font-weight: 650; }
+html[data-skin="ios"] .sc-bang th, html[data-skin="ios"] .sc-bang td { border-color: var(--ios-vach-dam); }
+html[data-skin="ios"] .soan-chu .sc-bang th { background: var(--ios-the); }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
 /* ==========================================================================
