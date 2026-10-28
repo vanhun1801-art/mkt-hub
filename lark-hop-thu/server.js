@@ -10,9 +10,13 @@
  * Cần xử lý · Sếp giao · Để biết · Tự động. Luật người gửi/tiêu đề xếp phần
  * lớn; AI (Claude) tóm tắt thư và viết nháp trả lời khi người dùng mở thư.
  *
- * DANH TÍNH: thư đọc bằng lark-cli đang đăng nhập trên máy này (chế độ cli).
- * Qua hub, chỉ người có email trùng chủ hộp thư chính mới mở được; người khác
- * nhận 403 kèm lời giải thích. Không có nhánh "người lạ thấy thư của chủ máy".
+ * DANH TÍNH, hai đường:
+ *   - Bản chạy chung: hub gửi user_access_token CỦA CHÍNH người đang xem qua
+ *     header x-hub-thu-token (người đó đã bấm Nối hộp thư). Ai cũng chỉ thấy
+ *     hộp mình được cấp; bộ đệm, luật, hẹn nhắc tách theo người.
+ *   - Máy cá nhân: thư đọc bằng lark-cli đang đăng nhập trên máy. Qua hub, chỉ
+ *     người có email trùng chủ hộp thư chính mới mở được; người khác nhận 403.
+ *     Không có nhánh "người lạ thấy thư của chủ máy".
  *
  * KHÔNG XOÁ THƯ. Lưu trữ = chuyển sang ARCHIVED, hoàn tác được. Gửi thư chỉ
  * xảy ra ở POST …/tra-loi với gui:true, giao diện chỉ gọi sau hộp xác nhận.
@@ -60,11 +64,14 @@ function docThan(req, tran = 256 * 1024) {
 
 /* ---------------- hộp thư được cấp ---------------- */
 
-let hopDem = { luc: 0, ds: null };
-async function cacHop() {
-  if (hopDem.ds && Date.now() - hopDem.luc < 10 * 60000) return hopDem.ds;
-  const ds = await thu.cacHop();
-  hopDem = { luc: Date.now(), ds };
+/* Bộ đệm theo NGƯỜI: khoá '' là chủ máy (lark-cli), còn lại là open_id hub
+ * gửi xuống cùng token. Không bao giờ để người này nhận danh sách của người kia. */
+const hopDem = new Map();
+async function cacHop(n) {
+  const c = hopDem.get(n.khoa);
+  if (c && Date.now() - c.luc < 10 * 60000) return c.ds;
+  const ds = await thu.cacHop(n.tk);
+  hopDem.set(n.khoa, { luc: Date.now(), ds });
   return ds;
 }
 const hopChinh = (ds) => (ds.find((h) => h.chinh) || ds[0] || {}).email || '';
@@ -82,10 +89,15 @@ function aiGoi(req) {
   const quaHub = ['x-hub-user-id', 'x-hub-user-email', 'x-hub-user-name'].some((k) => k in h);
   if (!quaHub) {
     const motMinh = process.env.HUB !== '1' && ['127.0.0.1', 'localhost', '::1'].includes(BIND);
-    return { quaHub: false, motMinh, ten: '', emails: [] };
+    return { quaHub: false, motMinh, ten: '', emails: [], tk: '', khoa: '' };
   }
+  /* Token chỉ có nghĩa khi đi kèm open_id: hub luôn gửi cả hai. */
+  const id = String(h['x-hub-user-id'] || '');
+  const tk = id ? String(h['x-hub-thu-token'] || '') : '';
   return {
     quaHub: true,
+    tk,
+    khoa: tk ? 'u:' + id : '',
     ten: de(h['x-hub-user-name']),
     emails: [de(h['x-hub-user-email']), de(h['x-hub-user-email-phu'])]
       .map((x) => x.trim().toLowerCase()).filter(Boolean),
@@ -96,15 +108,17 @@ function aiGoi(req) {
 async function laChu(req) {
   const n = aiGoi(req);
   if (!n.quaHub) return { ok: n.motMinh, n };
-  const ds = await cacHop();
+  if (n.tk) return { ok: true, n };            // token của chính người này
+  const ds = await cacHop(n);
   const chu = hopChinh(ds);
   return { ok: Boolean(chu) && n.emails.includes(chu), n, chu };
 }
 
 /* ---------------- danh sách thư ---------------- */
 
-let dsDem = { luc: 0, ds: null, loi: [] };
+const dsDem = new Map();
 const DEM_MS = 60000;
+const quenDs = (n) => { const c = dsDem.get(n.khoa); if (c) c.luc = 0; };
 
 async function songSong(viec, tran = 4) {
   const kq = new Array(viec.length);
@@ -115,24 +129,29 @@ async function songSong(viec, tran = 4) {
   return kq;
 }
 
-async function docHet(ep) {
-  if (!ep && dsDem.ds && Date.now() - dsDem.luc < DEM_MS) return dsDem;
-  const hop = await cacHop();
+async function docHet(n, ep) {
+  const c = dsDem.get(n.khoa);
+  if (!ep && c && c.ds && Date.now() - c.luc < DEM_MS) return c;
+  const hop = await cacHop(n);
   const loiHop = [];
   const phan = await songSong(hop.map((h) => async () => {
-    try { return await thu.danhSach(h.email); } catch (e) {
+    try { return await thu.danhSach(h.email, cfg.soThuMoiHop, n.tk); } catch (e) {
+      /* Token hết giữa chừng thì cả trang phải mời nối lại, không lặng lẽ
+       * thành tám hộp trống. */
+      if (e instanceof thu.LoiChuaNoi) throw e;
       loiHop.push({ hop: h.email, loi: e.message });
       return [];
     }
   }));
-  dsDem = { luc: Date.now(), ds: [].concat(...phan), loi: loiHop };
-  return dsDem;
+  const moi = { luc: Date.now(), ds: [].concat(...phan), loi: loiHop };
+  dsDem.set(n.khoa, moi);
+  return moi;
 }
 
 /** Gắn ngăn, kết quả AI đã có, hẹn nhắc lên từng thư. */
-function lamGiau(ds, hop) {
-  const tay = kho.luat();
-  const hen = kho.hen();
+function lamGiau(ds, hop, nguoi = '') {
+  const tay = kho.luat(nguoi);
+  const hen = kho.hen(nguoi);
   const minh = [hopChinh(hop)].concat(cfg.cuaMinh).filter(Boolean);
   const nay = Date.now();
   return ds.map((t) => {
@@ -190,11 +209,11 @@ function tinh(res, duong, truyVan) {
 const LA_ID = /^[A-Za-z0-9+/=_-]{8,256}$/;
 
 /** Kiểm hộp + mã thư trong đường dẫn: hộp phải là hộp được cấp. */
-async function thuTuDuong(res, hopRaw, idRaw) {
+async function thuTuDuong(res, n, hopRaw, idRaw) {
   let hop, id;
   try { hop = decodeURIComponent(hopRaw).toLowerCase(); id = decodeURIComponent(idRaw); } catch (_) {}
   if (!hop || !id || !LA_ID.test(id)) { loi(res, 400, 'Mã thư không hợp lệ'); return null; }
-  const ds = await cacHop();
+  const ds = await cacHop(n);
   if (!ds.some((h) => h.email === hop)) { loi(res, 403, 'Hộp thư này không nằm trong các hộp anh được cấp quyền'); return null; }
   return { hop, id };
 }
@@ -206,6 +225,7 @@ async function api(req, res, url) {
   if (p === '/api/suc-khoe') return json(res, { ok: true });
 
   const quyen = await laChu(req);
+  const n = quyen.n;
   if (!quyen.ok) {
     return loi(res, 403, quyen.n.quaHub
       ? 'Hộp thư đang nối với tài khoản Lark ' + (quyen.chu || '(chưa rõ)') + '. Chỉ chủ tài khoản đó mở được.'
@@ -213,23 +233,23 @@ async function api(req, res, url) {
   }
 
   if (p === '/api/hop' && m === 'GET') {
-    const hop = await cacHop();
+    const hop = await cacHop(n);
     return json(res, { hop, chinh: hopChinh(hop), ngan: NGAN, ai: ai.coKhoa(), model: cfg.ai.model });
   }
 
   if (p === '/api/thu' && m === 'GET') {
-    const d = await docHet(url.searchParams.get('lam') === '1');
-    const hop = await cacHop();
-    return json(res, { luc: d.luc, thu: lamGiau(d.ds, hop), loi: d.loi });
+    const d = await docHet(n, url.searchParams.get('lam') === '1');
+    const hop = await cacHop(n);
+    return json(res, { luc: d.luc, thu: lamGiau(d.ds, hop, n.khoa), loi: d.loi });
   }
 
   /* Xếp nhanh bằng AI những thư luật không nhận. Giao diện gọi sau khi nạp
    * danh sách; mỗi thư chỉ xếp một lần vì kết quả nằm trong bộ đệm. */
   if (p === '/api/xep-ai' && m === 'POST') {
     if (!ai.coKhoa()) return json(res, { xep: 0, khongKhoa: true });
-    const d = await docHet(false);
-    const hop = await cacHop();
-    const can = lamGiau(d.ds, hop).filter((t) => t.nguon === 'mac-dinh' && !kho.layAi(t.hop, t.id)).slice(0, 80);
+    const d = await docHet(n, false);
+    const hop = await cacHop(n);
+    const can = lamGiau(d.ds, hop, n.khoa).filter((t) => t.nguon === 'mac-dinh' && !kho.layAi(t.hop, t.id)).slice(0, 80);
     if (!can.length) return json(res, { xep: 0 });
     const kq = await ai.xepNhanh(can, { nguoi: quyen.n.ten || 'anh Hùng' });
     kho.datAiNhieu(kq.map((x) => ({ hop: x.thu.hop, id: x.thu.id, v: { ngan: x.ngan, chiXep: true } })));
@@ -241,13 +261,13 @@ async function api(req, res, url) {
     const email = String(b.email || '').trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+$/.test(email)) return loi(res, 400, 'Địa chỉ gửi không hợp lệ');
     if (b.ngan && !LA_NGAN.has(b.ngan)) return loi(res, 400, 'Ngăn không hợp lệ');
-    kho.datLuat(email, b.ngan || null);
-    return json(res, { ok: true, luat: kho.luat() });
+    kho.datLuat(email, b.ngan || null, n.khoa);
+    return json(res, { ok: true, luat: kho.luat(n.khoa) });
   }
 
   const mt = /^\/api\/thu\/([^/]+)\/([^/]+)(?:\/([a-z-]+))?$/.exec(p);
   if (!mt) return loi(res, 404, 'Không có đường này');
-  const k = await thuTuDuong(res, mt[1], mt[2]);
+  const k = await thuTuDuong(res, n, mt[1], mt[2]);
   if (!k) return;
   const viec = mt[3] || '';
 
@@ -258,13 +278,13 @@ async function api(req, res, url) {
   }
 
   if (!viec && m === 'GET') {
-    const t = await thu.doc(k.hop, k.id);
-    return json(res, { thu: t, ai: kho.layAi(k.hop, k.id), hen: kho.hen()[kho.khoa(k.hop, k.id)] || 0 });
+    const t = await thu.doc(k.hop, k.id, n.tk);
+    return json(res, { thu: t, ai: kho.layAi(k.hop, k.id), hen: kho.hen(n.khoa)[kho.khoa(k.hop, k.id)] || 0 });
   }
 
   if (viec === 'phan-tich' && m === 'POST') {
     if (!ai.coKhoa()) return loi(res, 409, 'Chưa có khoá Claude API', { khongKhoa: true });
-    const t = await thu.doc(k.hop, k.id);
+    const t = await thu.doc(k.hop, k.id, n.tk);
     const kq = await ai.phanTich(t, { nguoi: quyen.n.ten || 'anh Hùng' });
     kho.datAi(k.hop, k.id, kq);
     return json(res, { ai: kho.layAi(k.hop, k.id) });
@@ -273,7 +293,7 @@ async function api(req, res, url) {
   if (viec === 'nhap' && m === 'POST') {
     if (!ai.coKhoa()) return loi(res, 409, 'Chưa có khoá Claude API', { khongKhoa: true });
     const b = await docThan(req);
-    const t = await thu.doc(k.hop, k.id);
+    const t = await thu.doc(k.hop, k.id, n.tk);
     const chu = await ai.vietNhap(t, String(b.yDinh || ''), { nguoi: quyen.n.ten || 'Lê Văn Hùng' });
     return json(res, { chu });
   }
@@ -289,8 +309,8 @@ async function api(req, res, url) {
     if (b.luuTru === true) thuMuc = 'archive';
     if (b.luuTru === false) thuMuc = 'inbox';
     if (!them.length && !bo.length && !thuMuc) return loi(res, 400, 'Không có thay đổi nào');
-    await thu.doi(k.hop, [k.id], { them, bo, thuMuc });
-    dsDem.luc = 0;                       // lần đọc sau lấy lại từ Lark
+    await thu.doi(k.hop, [k.id], { them, bo, thuMuc }, n.tk);
+    quenDs(n);                           // lần đọc sau lấy lại từ Lark
     return json(res, { ok: true });
   }
 
@@ -298,7 +318,7 @@ async function api(req, res, url) {
     const b = await docThan(req);
     const den = Number(b.den) || 0;
     if (den && den < Date.now()) return loi(res, 400, 'Giờ hẹn đã qua');
-    kho.datHen(k.hop, k.id, den || null);
+    kho.datHen(k.hop, k.id, den || null, n.khoa);
     return json(res, { ok: true });
   }
 
@@ -307,8 +327,8 @@ async function api(req, res, url) {
     const chu = String(b.chu || '').trim();
     if (!chu) return loi(res, 400, 'Thư trả lời đang trống');
     if (chu.length > 20000) return loi(res, 400, 'Thư trả lời quá dài');
-    const kq = await thu.traLoi(k.hop, k.id, chu, { gui: b.gui === true, tatCa: b.tatCa === true });
-    dsDem.luc = 0;
+    const kq = await thu.traLoi(k.hop, k.id, chu, { gui: b.gui === true, tatCa: b.tatCa === true }, n.tk);
+    quenDs(n);
     return json(res, { ok: true, daGui: b.gui === true, kq });
   }
 
@@ -326,7 +346,7 @@ const server = http.createServer(async (req, res) => {
   } catch (e) {
     if (e.chiTiet) console.error('[hop-thu]', url.pathname, e.chiTiet);
     if (res.headersSent) return;
-    if (thu.LoiChuaNoi && e instanceof thu.LoiChuaNoi) return loi(res, 503, e.message, { chuaNoi: true });
+    if (thu.LoiChuaNoi && e instanceof thu.LoiChuaNoi) return loi(res, 503, e.message, { chuaNoi: true, noiDuoc: Boolean(e.noiDuoc) });
     loi(res, e instanceof ai.LoiAi ? 502 : 500, e.message || String(e));
   }
 });

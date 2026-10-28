@@ -1185,6 +1185,17 @@
     'Không mở được thư': 'Could not open the message',
     'Không mở được hộp thư': 'Could not open the mailbox',
     'Chưa đọc được Lark Mail': 'Could not read Lark Mail',
+    'Hộp thư chưa mở được ở đây': 'The mailbox can’t open here yet',
+    'Chưa nối hộp thư': 'Mailbox not connected',
+    'Nối hộp thư': 'Connect mailbox',
+    'Hộp thư chưa được nối với tài khoản Lark của anh/chị. Bấm Nối hộp thư, đăng nhập Lark và cho phép đọc thư là xong.':
+      'Your mailbox isn’t connected to your Lark account yet. Tap Connect mailbox, sign in to Lark and allow mail access.',
+    'Phiên nối hộp thư đã hết. Bấm Nối hộp thư để nối lại.':
+      'The mailbox connection has expired. Tap Connect mailbox to connect again.',
+    'App Marketing Hub chưa được cấp đủ quyền đọc thư. Báo quản lý cấp quyền mail rồi nối lại.':
+      'Marketing Hub doesn’t have mail access yet. Ask a manager to grant mail permissions, then connect again.',
+    'Phiên đăng nhập Lark trên máy chạy app đã hết hạn. Đăng nhập lại lark-cli rồi tải lại trang.':
+      'The Lark sign-in on the computer running this app has expired. Sign in to lark-cli again, then reload the page.',
     '(không tiêu đề)': '(no subject)',
     '(Thư không có nội dung chữ)': '(No text in this message)',
     'Lark đánh dấu thư này có dấu hiệu rủi ro. Kiểm tra người gửi trước khi bấm link hay trả lời.': 'Lark flagged this message as risky. Check the sender before clicking links or replying.',

@@ -164,6 +164,7 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 .trong { text-align: center; color: var(--chu-3); padding: 48px 12px; }
 .loi-hop { padding: 16px; border-radius: 14px; background: var(--mat); border: 1px solid var(--vien); color: var(--chu-2); }
 .loi-hop b { color: var(--chu); display: block; margin-bottom: 4px; }
+.loi-hop .nut { display: flex; margin-top: 12px; }
 .bao-nho { color: var(--cam); font-size: 12.5px; padding: 0 2px 8px; }
 
 .xuong { display: flex; flex-direction: column; gap: 6px; }

@@ -23,18 +23,20 @@ Thứ tự xếp: luật anh tự đặt (nút Chuyển ngăn) > luật cài s�
 
 ## An toàn
 
-- Đọc bằng lark-cli của máy này. Qua Hub chỉ người có email trùng chủ hộp thư chính mới mở được; người khác nhận 403.
+- Hai đường đọc thư:
+  - **Bản chạy chung (Render):** mỗi người bấm **Nối hộp thư** một lần. Hub xin quyền đọc thư của chính người đó (OAuth, `lark-mkt-hub/noi-thu.js`), giữ refresh token trong cookie `hub_thu` đã mã hoá, rồi chuyển access token xuống app này qua header `x-hub-thu-token`. App gọi thẳng OpenAPI Mail (`mail-api.js`), không cất token. Mỗi người chỉ thấy các hộp mình được cấp; bộ đệm, luật tự đặt, hẹn nhắc tách theo người.
+  - **Máy cá nhân:** đọc bằng lark-cli của máy. Qua Hub chỉ người có email trùng chủ hộp thư chính mới mở được; người khác nhận 403.
 - Không có nút xoá. Lưu trữ = chuyển sang ARCHIVED, có Hoàn tác.
 - Trả lời mặc định lưu nháp. Gửi phải qua hộp xác nhận ghi rõ người nhận và hộp gửi; máy chủ chỉ gửi khi nhận đúng `gui: true`.
 - `HOP_THU_CHI_DOC=1`: chặn mọi lệnh đổi nhãn, gửi thư. Dùng khi soát giao diện (cấu hình `hop-thu-xem` trong `.claude/launch.json`).
 
-## Chưa làm
+## Điều kiện để Nối hộp thư chạy trên Render
 
-Mỗi người trong phòng đọc hộp thư của chính mình khi Hub chạy trên Render. Việc này cần app Marketing Hub (`cli_aa1a8ae21a78ded2`) được cấp quyền `mail:*` trong Developer Console, phát hành bản mới, rồi thêm bước "Nối hộp thư" lưu token từng người. Hiện app chỉ chạy trên máy đã đăng nhập lark-cli.
+App Marketing Hub (`cli_aa1a8ae21a78ded2`) phải được cấp 7 quyền mail cùng `offline_access` trong Developer Console rồi **phát hành version** (danh sách ở `lark-mkt-hub/docs/trien-khai-render.md`, mục A1b). Thiếu thì trang hỏi quyền của Lark báo lỗi 20027.
 
 ## Chạy
 
 ```
 node server.js          # http://localhost:5204
-node test/chay-het.js   # 4 bộ, không đụng thư thật
+node test/chay-het.js   # 6 bộ, không đụng thư thật
 ```

@@ -10,6 +10,7 @@
 const { execFile } = require('child_process');
 const fs = require('fs');
 const cfg = require('./config');
+const mapi = require('./mail-api');
 
 /**
  * Máy này không đọc được Lark Mail: không có lark-cli (bản chạy chung trên
@@ -56,10 +57,15 @@ function cliOnce(args, { timeout = 60000 } = {}) {
   });
 }
 
+/** Máy này có lark-cli để đọc thư bằng phiên của chủ máy không. */
+const coCli = () => fs.existsSync(cfg.cliScript);
+
 async function cli(args, opts = {}) {
-  if (!fs.existsSync(cfg.cliScript)) {
-    throw new LoiChuaNoi('Hộp thư chỉ đọc được trên máy đã đăng nhập Lark của chủ hộp thư. ' +
-      'Bản chạy chung chưa có bước nối hộp thư cho từng người.');
+  if (!coCli()) {
+    const e = new LoiChuaNoi('Hộp thư chưa được nối với tài khoản Lark của anh/chị. ' +
+      'Bấm Nối hộp thư, đăng nhập Lark và cho phép đọc thư là xong.');
+    e.noiDuoc = true;
+    throw e;
   }
   let last;
   for (let i = 0; i < 3; i++) {
@@ -75,10 +81,23 @@ async function cli(args, opts = {}) {
 
 const U = ['--as', 'user'];
 
+/**
+ * `tk` ở mọi hàm dưới: user_access_token hub chuyển xuống (bản chạy chung).
+ * Có thì đọc thư của CHÍNH người đó qua OpenAPI; không có thì dùng lark-cli
+ * của máy như trước. Lỗi token thành LoiChuaNoi để giao diện mời nối lại.
+ */
+async function quaApi(fn) {
+  try { return await fn(); } catch (e) {
+    if (e instanceof mapi.LoiToken) { const l = new LoiChuaNoi(e.message); l.noiDuoc = true; throw l; }
+    throw e;
+  }
+}
+
 /** Hộp thư người đang đăng nhập lark-cli được cấp quyền: hộp chính + hộp chung. */
-async function cacHop() {
-  const d = await cli(['mail', 'user_mailboxes', 'accessible_mailboxes', ...U,
-    '--params', JSON.stringify({ user_mailbox_id: 'me' })]);
+async function cacHop(tk) {
+  const d = tk ? await quaApi(() => mapi.cacHop(tk))
+    : await cli(['mail', 'user_mailboxes', 'accessible_mailboxes', ...U,
+      '--params', JSON.stringify({ user_mailbox_id: 'me' })]);
   return (d.accessible_mailboxes || []).map((h) => ({
     email: String(h.email_address || '').toLowerCase(),
     chinh: h.email_type === 'USER_PRIMARY',
@@ -94,9 +113,10 @@ function tachNguoi(s) {
 }
 
 /** Tóm tắt thư trong Hộp đến của một hộp, mới nhất trước. */
-async function danhSach(hop, max = cfg.soThuMoiHop) {
-  const d = await cli(['mail', '+triage', ...U, '--mailbox', hop, '--max', String(max),
-    '--format', 'data', '--labels', '--filter', JSON.stringify({ folder_id: 'INBOX' })]);
+async function danhSach(hop, max = cfg.soThuMoiHop, tk = '') {
+  const d = tk ? await quaApi(() => mapi.triage(tk, hop, max))
+    : await cli(['mail', '+triage', ...U, '--mailbox', hop, '--max', String(max),
+      '--format', 'data', '--labels', '--filter', JSON.stringify({ folder_id: 'INBOX' })]);
   return (d.messages || []).map((m) => {
     const nhan = String(m.labels || '').split(',').map((x) => x.trim()).filter(Boolean);
     return {
@@ -160,8 +180,9 @@ function tachTrich(html) {
 }
 
 /** Một thư đầy đủ, dạng chữ (giao diện không bao giờ chèn HTML của thư). */
-async function doc(hop, id) {
-  const d = await cli(['mail', '+message', ...U, '--mailbox', hop, '--message-id', id]);
+async function doc(hop, id, tk = '') {
+  const d = tk ? await quaApi(() => mapi.message(tk, hop, id))
+    : await cli(['mail', '+message', ...U, '--mailbox', hop, '--message-id', id]);
   const phan = d.body_html ? tachTrich(d.body_html) : { moi: String(d.body_plain_text || d.body_preview || ''), trich: '' };
   const nguoi = (x) => ({ ten: (x && x.name) || '', email: String((x && x.mail_address) || '').toLowerCase() });
   return {
@@ -182,7 +203,8 @@ async function doc(hop, id) {
 }
 
 /** Đổi nhãn / thư mục. Tất cả đều hoàn tác được. */
-async function doi(hop, ids, { them = [], bo = [], thuMuc = '' } = {}) {
+async function doi(hop, ids, { them = [], bo = [], thuMuc = '' } = {}, tk = '') {
+  if (tk) return quaApi(() => mapi.modify(tk, hop, ids, { them, bo, thuMuc }));
   const a = ['mail', '+message-modify', ...U, '--mailbox', hop, '--message-ids', ids.join(',')];
   if (them.length) a.push('--add-label-ids', them.join(','));
   if (bo.length) a.push('--remove-label-ids', bo.join(','));
@@ -201,11 +223,12 @@ function veHtml(chu) {
  * Trả lời một thư. Mặc định LƯU NHÁP; `gui: true` mới gửi đi.
  * `tatCa`: trả lời tất cả (giữ To/CC của thư gốc).
  */
-async function traLoi(hop, id, chu, { gui = false, tatCa = false } = {}) {
+async function traLoi(hop, id, chu, { gui = false, tatCa = false } = {}, tk = '') {
+  if (tk) return quaApi(() => mapi.traLoi(tk, hop, id, veHtml(chu), { gui, tatCa }));
   const a = ['mail', tatCa ? '+reply-all' : '+reply', ...U, '--mailbox', hop,
     '--message-id', id, '--body', veHtml(chu)];
   if (gui) a.push('--confirm-send');
   return cli(a, { ghi: true });
 }
 
-module.exports = { LoiChuaNoi, loiGon, cacHop, danhSach, doc, doi, traLoi, tachNguoi, veHtml, htmlSangChu, tachTrich };
+module.exports = { LoiChuaNoi, loiGon, coCli, cacHop, danhSach, doc, doi, traLoi, tachNguoi, veHtml, htmlSangChu, tachTrich };

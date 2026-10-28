@@ -334,8 +334,14 @@ function chuyenTiep(req, res, mod, duongDan, nguoi) {
   delete opts.headers['x-hub-user-email'];
   delete opts.headers['x-hub-user-email-phu'];
   ['x-hub-user-manager','x-hub-perm-toan-bo','x-hub-perm-khong-tao','x-hub-perm-chi-phi',
-    'x-hub-perm-kenh', 'x-hub-khach']
+    'x-hub-perm-kenh', 'x-hub-khach', 'x-hub-thu-token']
     .forEach((h) => { delete opts.headers[h]; });
+  /* Cookie nối hộp thư chỉ hub mở được; app con không cần thấy nó. */
+  if (opts.headers.cookie) {
+    opts.headers.cookie = String(opts.headers.cookie).split(';')
+      .filter((c) => c.trim().split('=')[0] !== 'hub_thu').join(';').trim();
+    if (!opts.headers.cookie) delete opts.headers.cookie;
+  }
   if (nguoi && nguoi.id) {
     opts.headers['x-hub-user-id'] = nguoi.id;
     opts.headers['x-hub-user-name'] = encodeURIComponent(nguoi.name || nguoi.id);
@@ -360,6 +366,8 @@ function chuyenTiep(req, res, mod, duongDan, nguoi) {
      * khai gì" và không giới hạn; gửi '-' = khai rõ "không kênh nào". Hai chuyện
      * khác hẳn nhau. */
     if (nguoi.kenhQC) opts.headers['x-hub-perm-kenh'] = nguoi.kenhQC;
+    // token đọc thư của chính người này (chỉ app Hộp thư, xem noi-thu.js)
+    if (nguoi.thuToken && mod.id === 'hop-thu') opts.headers['x-hub-thu-token'] = nguoi.thuToken;
   }
 
   const upstream = http.request(opts, (r) => {
@@ -368,6 +376,10 @@ function chuyenTiep(req, res, mod, duongDan, nguoi) {
     delete headers['transfer-encoding'];
 
     if (headers['set-cookie']) headers['set-cookie'] = suaCookie([].concat(headers['set-cookie']), mod);
+    /* Hub có thể đã đặt cookie trên chính phản hồi này (làm mới token hộp
+     * thư). writeHead với set-cookie của app con sẽ đè mất, nên gộp lại. */
+    const cuaHub = res.getHeader && res.getHeader('set-cookie');
+    if (cuaHub && headers['set-cookie']) headers['set-cookie'] = [].concat(cuaHub, headers['set-cookie']);
     if (headers.location && headers.location[0] === '/' && headers.location.slice(0, 2) !== '//') {
       headers.location = tienTo(mod) + headers.location;
     }

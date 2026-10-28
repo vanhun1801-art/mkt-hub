@@ -5,9 +5,14 @@
  *   luat.json  luật anh tự đặt: "thư từ địa chỉ này luôn vào ngăn X"
  *   hen.json   thư hẹn nhắc lại: ẩn khỏi ngăn tới giờ hẹn
  *
+ * Luật và hẹn là của TỪNG người: bản chạy chung có nhiều người dùng, mỗi
+ * người một cặp tệp luat-<mã>.json / hen-<mã>.json. Khoá '' (chủ máy) giữ
+ * tên tệp cũ để dữ liệu đã có trên máy anh Hùng không mất.
+ *
  * Ghi qua tệp tạm rồi đổi tên, để tắt máy giữa chừng không để lại tệp hỏng.
  */
 const fs = require('fs');
+const crypto = require('crypto');
 const path = require('path');
 const cfg = require('./config');
 
@@ -31,6 +36,8 @@ function ghi(ten) {
 }
 
 const khoa = (hop, id) => hop + '|' + id;
+const cua = (ten, nguoi) => (nguoi
+  ? ten + '-' + crypto.createHash('sha256').update(String(nguoi)).digest('hex').slice(0, 16) : ten);
 
 /* Bộ đệm AI không phình mãi: giữ 2000 thư gần nhất là đủ cho mọi hộp. */
 const TRAN_AI = 2000;
@@ -50,18 +57,20 @@ module.exports = {
     ghi('ai');
   },
 
-  luat: () => doc('luat'),
-  datLuat(email, ngan) {
-    const d = doc('luat');
+  luat: (nguoi = '') => doc(cua('luat', nguoi)),
+  datLuat(email, ngan, nguoi = '') {
+    const t = cua('luat', nguoi);
+    const d = doc(t);
     if (ngan) d[email] = ngan; else delete d[email];
-    ghi('luat');
+    ghi(t);
   },
 
-  hen: () => doc('hen'),
-  datHen(hop, id, den) {
-    const d = doc('hen');
+  hen: (nguoi = '') => doc(cua('hen', nguoi)),
+  datHen(hop, id, den, nguoi = '') {
+    const t = cua('hen', nguoi);
+    const d = doc(t);
     if (den) d[khoa(hop, id)] = den; else delete d[khoa(hop, id)];
-    ghi('hen');
+    ghi(t);
   },
 
   /* Chỉ cho test: quên bộ nhớ đệm để đọc lại từ tệp. */

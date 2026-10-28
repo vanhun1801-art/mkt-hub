@@ -652,8 +652,19 @@ addEventListener('resize', datVienTruot);
     await napThu(false);
   } catch (e) {
     $('#ds').innerHTML = '<div class="loi-hop"><b>' +
-      (e.khongPhaiChu ? 'Không mở được hộp thư' : e.chuaNoi ? 'Hộp thư chưa mở được ở đây' : 'Chưa đọc được Lark Mail') +
-      '</b>' + esc(e.message) + '</div>';
+      (e.khongPhaiChu ? 'Không mở được hộp thư'
+        : e.noiDuoc ? 'Chưa nối hộp thư'
+          : e.chuaNoi ? 'Hộp thư chưa mở được ở đây' : 'Chưa đọc được Lark Mail') +
+      '</b>' + esc(e.message) +
+      (e.noiDuoc ? '<button class="nut chinh" id="btnNoiThu">Nối hộp thư</button>' : '') + '</div>';
+    /* Trang hỏi quyền của Lark không mở được trong khung iframe: đi ở cửa sổ
+     * ngoài cùng, xong Lark đưa về đúng Hộp thư trong hub. */
+    const nut = $('#btnNoiThu');
+    if (nut) nut.onclick = () => {
+      let tren = window;
+      try { tren = window.top; void tren.location.href; } catch (_) { tren = window; }
+      tren.location.href = '/auth/noi-thu?next=' + encodeURIComponent('/' + (tren === window ? '#/m/hop-thu' : tren.location.hash || '#/m/hop-thu'));
+    };
     return;
   }
   /* Mở thẳng một thư: ?rec=<hộp>~<mã> (việc giao từ email dẫn về đây). */

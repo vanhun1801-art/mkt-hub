@@ -47,6 +47,24 @@ vào nhóm chat SỬA ẢNH bằng danh tính bot của app này. Thiếu scope 
 hành version) thì Lark trả `99991672`, báo cáo vẫn ghi được vào Base nhưng nhóm không
 nhận tin. **Và phải mời bot của app vào chính nhóm đó**, nếu không thì `230002/230013`.
 
+### A1b. Quyền đọc thư cho app Hộp thư (thêm 28/10/2026)
+
+Mỗi người bấm **Nối hộp thư** trong app Hộp thư thì hub xin các quyền dưới đây bằng
+tài khoản Lark của chính người đó (`noi-thu.js`). App phải được cấp trước, ở dạng
+**quyền người dùng** (user token scopes), rồi **Create Version → Publish**:
+
+```
+mail:user_mailbox:readonly               mail:user_mailbox.message:readonly
+mail:user_mailbox.message.subject:read   mail:user_mailbox.message.address:read
+mail:user_mailbox.message.body:read      mail:user_mailbox.message:modify
+mail:user_mailbox.message:send           offline_access
+```
+
+Thiếu một quyền thì trang hỏi quyền của Lark báo **20027**. Redirect URL dùng chung
+`<PUBLIC_URL>/auth/callback` đã khai cho đăng nhập, không phải thêm. Không cần biến
+môi trường mới: cookie nối hộp thư mã hoá bằng khoá dẫn từ `SESSION_SECRET` (đổi
+`SESSION_SECRET` là mọi người phải nối lại).
+
 ### A2. Chia sẻ MỌI base cho app
 
 Đây là bước hay sót nhất. App phải là thành viên **quyền chỉnh sửa** của:

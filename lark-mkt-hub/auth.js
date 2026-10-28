@@ -12,6 +12,7 @@ const crypto = require('crypto');
 const cfg = require('./config');
 const taiKhoan = require('./tai-khoan');
 const chanTs = require('./chan-tan-suat');
+const noiThu = require('./noi-thu');
 
 const COOKIE = 'hub_session';
 
@@ -583,6 +584,43 @@ async function handle(req, res, url) {
       '<div class="xong">Quản lý sẽ xem và duyệt. Được duyệt rồi thì đăng nhập ' +
       'bằng email và mật khẩu vừa đặt.</div>' +
       '<p class="duoi"><a href="/auth/login">Về trang đăng nhập</a></p>');
+  }
+
+  /* ---------------- nối hộp thư Lark (app Hộp thư) ----------------
+   * Bước riêng, sau đăng nhập: xin thêm quyền đọc thư của CHÍNH người này.
+   * Xem noi-thu.js. */
+  if (p === '/auth/noi-thu' || p === '/auth/ngat-thu') {
+    const nguoi = sessionUser(req);
+    if (!nguoi) return requireLogin(res, url);
+    const next = duongDanNoiBo(url.searchParams.get('next') || '/#/m/hop-thu');
+    if (p === '/auth/ngat-thu') { noiThu.ngat(req, res, nguoi); return redirect(res, next); }
+    if (nguoi.kieu === 'mk') {
+      return trang(res, 'Nối hộp thư · ' + cfg.ten, dauTrang('Chưa nối được hộp thư', '') +
+        '<div class="loi">Tài khoản đăng nhập bằng mật khẩu không nối được hộp thư Lark. ' +
+        'Đăng xuất, đăng nhập lại bằng Lark rồi bấm Nối hộp thư.</div>' +
+        '<p class="duoi"><a href="' + esc(next) + '">Quay lại</a></p>', 400);
+    }
+    return redirect(res, noiThu.urlHoiQuyen(next));
+  }
+
+  if (p === '/auth/callback' && String(url.searchParams.get('state') || '').startsWith('thu:')) {
+    const next = duongDanNoiBo(String(url.searchParams.get('state')).slice(4));
+    const nguoi = sessionUser(req);
+    if (!nguoi) return requireLogin(res, url);
+    const code = url.searchParams.get('code');
+    const loiTrang = (cau) => trang(res, 'Nối hộp thư · ' + cfg.ten, dauTrang('Chưa nối được hộp thư', '') +
+      '<div class="loi">' + esc(cau) + '</div>' +
+      '<p class="duoi"><a href="/auth/noi-thu?next=' + encodeURIComponent(next) + '">Thử lại</a><br>' +
+      '<a href="' + esc(next) + '">Quay lại</a></p>', 400);
+    /* Bấm "Từ chối" ở trang Lark thì về đây không có code. */
+    if (!code) return loiTrang('Anh/chị chưa cho phép Marketing Hub đọc thư, nên hộp thư chưa được nối.');
+    try {
+      const cau = await noiThu.nhanCode(res, code, nguoi);
+      if (cau) return loiTrang(cau);
+      return redirect(res, next);
+    } catch (e) {
+      return loiTrang('Lark chưa cấp quyền: ' + String(e.message || e));
+    }
   }
 
   if (p === '/auth/callback') {

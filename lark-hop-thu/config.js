@@ -39,6 +39,9 @@ module.exports = {
   cliScript: process.env.LARK_CLI_SCRIPT ||
     path.join(npmRoot, '@larksuite/cli/scripts/run.js'),
 
+  /* Bản chạy chung đọc thư qua OpenAPI bằng token từng người (mail-api.js). */
+  apiHost: process.env.LARK_API_HOST || 'https://open.larksuite.com',
+
   /* Thư mục dữ liệu chạy (bộ đệm tóm tắt AI, luật tự đặt, hẹn nhắc). Có nội
    * dung thư nên đã gitignore, giống du-lieu/ của KPI và KOL. */
   duLieu: process.env.HOP_THU_DU_LIEU || path.join(__dirname, 'du-lieu'),

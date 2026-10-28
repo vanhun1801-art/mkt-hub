@@ -46,7 +46,8 @@ server.listen(0, '127.0.0.1', async () => {
   for (const [ten, h] of [['chạy một mình', {}], ['qua hub', { 'x-hub-user-id': 'ou_1', 'x-hub-user-email': 'hunglv%40rootytrip.com' }]]) {
     const r = await goi('/api/thu', h);
     ok(ten + ': 503 kèm cờ chuaNoi', r.ma === 503 && r.j && r.j.chuaNoi === true, r.s.slice(0, 200));
-    ok(ten + ': câu nói lý do', /chỉ đọc được trên máy đã đăng nhập Lark/.test(r.j && r.j.error));
+    ok(ten + ': câu nói lý do', /chưa được nối với tài khoản Lark/.test(r.j && r.j.error));
+    ok(ten + ': cờ mời nối hộp thư', r.j && r.j.noiDuoc === true);
     ok(ten + ': không lộ đường dẫn hay stack', !/run\.js|node_modules|node:internal|khong-co-lark-cli/.test(r.s));
   }
   ok('cửa thử sức khoẻ của hub vẫn 200', (await goi('/api/suc-khoe')).ma === 200);

@@ -20,6 +20,7 @@ const bot = require('./bot');
 const gioVN = require('./gio-vn');
 const lich = require('./lichchung');
 const auth = require('./auth');
+const noiThu = require('./noi-thu');
 const quyen = require('./quyen');
 const phimKho = require('./phim-kho');
 const ghiChu = require('./ghi-chu');
@@ -2537,6 +2538,13 @@ const server = http.createServer(async (req, res) => {
      * máy chính là quản lý — phải nói rõ cho app con, nếu không nó tưởng nhân sự
      * và cắt bớt bộ lọc. Không có id thì proxy cũng không gửi header danh tính. */
     const vai = nguoi || { quanLy: cfg.mode !== 'api', toanBo: cfg.mode !== 'api' };
+    /* Hộp thư đọc thư bằng token của CHÍNH người đang đăng nhập (đã bấm Nối
+     * hộp thư). Đang "xem bằng mắt" người khác thì không gửi: token nằm trong
+     * cookie của quản lý, không phải của người đang được xem. */
+    if (mod.id === 'hop-thu' && cfg.mode === 'api' && nguoi && !xemNhu) {
+      const that = auth.sessionUser(req);
+      if (that && that.id === nguoi.id) nguoi.thuToken = await noiThu.tokenCho(req, res, that);
+    }
     return chuyenTiep(req, res, mod, mm[2] + (u.search || ''), vai);
   }
 
