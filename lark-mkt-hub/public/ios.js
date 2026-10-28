@@ -884,7 +884,12 @@
     const mo = !!(d && d.documentElement.classList.contains('ios-hien-loc'));
     nut.setAttribute('aria-pressed', String(mo));
     nut.classList.toggle('on', mo);
-    nut.querySelector('.ios-loc-cham').hidden = !khacMacDinh(ds);
+    /* Chấm báo "đang lọc khác mặc định" không phải lúc nào cũng có: nút lọc
+     * dựng ở nhiều chỗ, có bản không kèm chấm. Vòng này chạy lại mỗi 1,2 giây
+     * nên thiếu một lần kiểm là trang nổ lỗi liên tục (bộ quét bắt được ở màn
+     * KPI, 28/10/2026). */
+    const cham = nut.querySelector('.ios-loc-cham');
+    if (cham) cham.hidden = !khacMacDinh(ds);
   }
   const bat = () => { xet(); setInterval(xet, 1200); addEventListener('hashchange', () => setTimeout(xet, 400)); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bat); else bat();

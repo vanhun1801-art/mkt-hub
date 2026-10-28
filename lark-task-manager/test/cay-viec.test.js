@@ -160,3 +160,14 @@ test('chỗ vẽ dùng xepCay và nhớ nút gấp vào máy', () => {
   assert.ok(/workCard\(o\.t, laneThat \|\| laneKey\)/.test(tc),
     'nút trên thẻ phải theo trạng thái thật, không theo làn nó ngồi');
 });
+
+test('đánh dấu con cuối nhánh, để vạch nối biết chỗ dừng', () => {
+  const ds = cay();
+  const { xepCay } = dung(ds);
+  const theo = new Map(xepCay(ds).map((o) => [o.t.id, o.cuoi]));
+  /* A1 có B1, B2 — B2 là con cuối. B1 có mỗi C1 nên C1 cũng là con cuối. */
+  assert.strictEqual(theo.get('B2'), true, 'B2 là con cuối của A1');
+  assert.strictEqual(theo.get('C1'), true, 'C1 là con cuối của B1');
+  assert.strictEqual(theo.get('B1'), false, 'B1 còn B2 đứng sau');
+  assert.strictEqual(theo.get('A1'), false, 'việc gốc không phải con của ai');
+});

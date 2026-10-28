@@ -217,3 +217,28 @@ test('tin chưa đọc thì thẻ nháy vài cái, và chỉ nháy khi số tin 
   assert.ok(/reduce\) \{\s*\/\*[^*]*\*\/\s*\.wcard\.nhay-tin \{ animation: none; box-shadow/.test(CSS),
     'xin bớt chuyển động thì không nháy, nhưng vẫn phải phân biệt được');
 });
+
+/* ---- 8. phân cấp nhìn như bảng lớp Photoshop/Figma (28/10/2026) ---- */
+test('mỗi tầng một vạch nối, vạch trong cùng có móc chỉ vào tên việc', () => {
+  const t = layHam('theTrongCay');
+  assert.ok(/for \(let i = 1; i < sau; i\+\+\)/.test(t), 'một vạch cho mỗi tầng phía trên');
+  assert.ok(/'wc-noi' \+ \(i === sau - 1 \? ' trong' : ''\)/.test(t), 'vạch trong cùng đánh dấu riêng');
+  assert.ok(/o\.cuoi && !o\.soCon/.test(t), 'con cuối nhánh thì vạch dừng ở chỗ móc');
+  assert.ok(/\.wc-noi \{[^}]*left: calc\(var\(--noi-goc\)/.test(CSS),
+    'chỗ đặt vạch tính từ biến, để khổ hẹp chỉnh một chỗ là xong');
+  assert.ok(/\.wc-noi\.trong::after \{[^}]*width: 11px/.test(CSS), 'móc ngang chỉ vào tên việc');
+  assert.ok(/\.wcard-con\.cuoi-nhanh \.wc-noi\.trong \{ bottom: 50%/.test(CSS));
+  /* Ba khổ màn hình, ba mức thụt — vạch phải đi theo, không thì nó rơi giữa chữ. */
+  assert.strictEqual((CSS.match(/--noi-goc:/g) || []).length, 3,
+    'phải khai --noi-goc cho cả máy tính, khổ hẹp và điện thoại');
+});
+
+test('dấu phiên bản tệp tĩnh tính lại mỗi lần, không phải một lần lúc khởi động', () => {
+  const SV = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+  assert.ok(!/const VAN_TAY = \(\(\) =>/.test(SV),
+    'tính một lần lúc khởi động là cái bẫy: sửa tệp mà không khởi động lại thì người dùng kẹt ở bản cũ vĩnh viễn (địa chỉ cũ được đánh dấu giữ một năm)');
+  assert.ok(/function vanTay\(\)/.test(SV) && /split\('__V__'\)\.join\(vanTay\(\)\)/.test(SV),
+    'index.html phải lấy dấu tính tại chỗ');
+  assert.ok(/st\.mtimeMs/.test(SV) && /st\.size/.test(SV),
+    'đọc mtime + kích thước, rẻ hơn đọc hết nội dung mà sửa tệp là cả hai đều đổi');
+});

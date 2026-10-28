@@ -2599,11 +2599,26 @@ body.dang-keo-the .wcard-title { cursor: inherit; }
 .wcard.chan-con::after { background: var(--red); }
 .lanes-mach { font-size: 12px; color: var(--text-3); margin: 0 0 10px; }
 
-/* ---- Cây việc trong danh sách + thu gọn việc lớn (27/10/2026) ----
-   Việc con thụt vào theo cấp. Không kẻ vạch dọc: mũi tên ↳ trước tên đã nói rõ
-   đây là việc con, thêm vạch nữa thì làn bắt đầu rối. */
+/* ---- Cây việc trong danh sách + thu gọn việc lớn (27/10/2026) ---- */
 .wcard-con.cap-2 { padding-left: 38px; }
 .wcard-con.cap-3 { padding-left: 60px; }
+
+/* Đường nối dọc kiểu bảng lớp Photoshop/Figma (28/10/2026). Một vạch cho mỗi
+   tầng phía trên; vạch trong cùng có móc ngang chỉ vào tên việc. Nhìn vạch là
+   đọc được ngay việc này nằm trong cái gì, không phải đếm độ thụt. */
+.lane-items { --noi-goc: 25px; --noi-buoc: 22px; }
+.wc-noi {
+  position: absolute; top: 0; bottom: 0; width: 1px; pointer-events: none;
+  left: calc(var(--noi-goc) + (var(--i) - 1) * var(--noi-buoc));
+  background: var(--border-2);
+}
+.wc-noi.trong::after {
+  content: ''; position: absolute; left: 0; top: 50%;
+  width: 11px; height: 1px; background: var(--border-2);
+}
+/* Việc con cuối nhánh: vạch dừng ở chỗ móc. Thòng xuống dưới là trông như còn
+   việc nữa ở bên dưới mà thật ra hết rồi. */
+.wcard-con.cuoi-nhanh .wc-noi.trong { bottom: 50%; }
 .wc-gap {
   flex: 0 0 auto; width: 20px; height: 20px; padding: 0; margin-top: -1px;
   font: inherit; font-size: 13px; line-height: 20px; text-align: center;
@@ -2848,6 +2863,7 @@ html:not(#_):not(#__):not(#___) .kh-than .vc-them input {
   .wcard { padding-left: 32px; }
   .wcard-con.cap-2 { padding-left: 54px; }
   .wcard-con.cap-3 { padding-left: 76px; }
+  .lane-items { --noi-goc: 41px; --noi-buoc: 22px; }
   .wc-gap.trong { display: none; }
   .wc-gap:not(.trong) { position: absolute; left: 5px; top: 10px; }
   .wc-nam {
@@ -2864,6 +2880,7 @@ html:not(#_):not(#__):not(#___) .kh-than .vc-them input {
 @media (max-width: 640px) {
   .wcard-con.cap-2 { padding-left: 48px; }
   .wcard-con.cap-3 { padding-left: 62px; }
+  .lane-items { --noi-goc: 40px; --noi-buoc: 14px; }
   .wc-gap:not(.trong)::after {
     content: ''; position: absolute; top: 50%; left: 50%;
     width: 40px; height: 40px; transform: translate(-50%, -50%);

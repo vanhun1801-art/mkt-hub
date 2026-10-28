@@ -2788,18 +2788,38 @@ const PUBLIC_DIR = path.join(__dirname, 'public');
  * Rieng index.html van no-store: no la noi duy nhat giu so ban cua cac tep
  * kia, giu ban cu la xin dung nhung tep cu, va ca co che thanh vo nghia.
  */
-const VAN_TAY = (() => {
+/*
+ * Van tay tinh LAI moi lan phuc vu index.html, khong phai mot lan luc khoi dong.
+ *
+ * Tinh mot lan la cai bay: sua tep xong ma khong khoi dong lai may chu thi
+ * index.html van phat dau cu, trinh duyet xin dung dia chi cu, va dia chi do
+ * da duoc danh dau "giu mot nam" tu lan truoc - nguoi dung ket o ban cu VINH
+ * VIEN. Anh Hung 28/10/2026: "ban local em lam dung y anh, con tren day anh
+ * thay chua lam duoc viec do" - dung canh nay.
+ *
+ * Doc mtime + kich thuoc thay vi doc het noi dung: re hon nhieu, ma file sua
+ * thi ca hai deu doi. Nho lai 2 giay de mot lan mo trang khong quet thu muc
+ * nhieu lan.
+ */
+let vtNho = { luc: 0, dau: '' };
+function vanTay() {
+  const gio = Date.now();
+  if (vtNho.dau && gio - vtNho.luc < 2000) return vtNho.dau;
   const h = require('crypto').createHash('sha1');
   try {
     fs.readdirSync(PUBLIC_DIR).sort().forEach((f) => {
-      try { h.update(fs.readFileSync(path.join(PUBLIC_DIR, f))); } catch (_) {}
+      try {
+        const st = fs.statSync(path.join(PUBLIC_DIR, f));
+        h.update(f + ':' + Math.round(st.mtimeMs) + ':' + st.size + ';');
+      } catch (_) {}
     });
-  } catch (_) { h.update(String(Date.now())); }
-  return h.digest('hex').slice(0, 10);
-})();
+  } catch (_) { h.update(String(gio)); }
+  vtNho = { luc: gio, dau: h.digest('hex').slice(0, 10) };
+  return vtNho.dau;
+}
 const soBan = (u) => /[?&]v=/.test(String(u || ''));
 const capNhatSoBan = (rel, buf) =>
-  /index\.html$/.test(rel) ? Buffer.from(buf.toString('utf8').split('__V__').join(VAN_TAY), 'utf8') : buf;
+  /index\.html$/.test(rel) ? Buffer.from(buf.toString('utf8').split('__V__').join(vanTay()), 'utf8') : buf;
 const cacheTinh = (rel, u) =>
   !/index\.html$/.test(rel) && soBan(u) ? 'public, max-age=31536000, immutable' : 'no-store';
 

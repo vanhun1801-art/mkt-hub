@@ -871,14 +871,15 @@ function xepCay(items) {
     daXep.add(t.id);
     for (const x of conTheo.get(t.id) || []) bo(x);
   };
-  const dat = (t, cap) => {
+  const dat = (t, cap, cuoi) => {
     if (daXep.has(t.id)) return;      // vòng tròn dữ liệu
     daXep.add(t.id);
     const con = conTheo.get(t.id) || [];
-    ra.push({ t, cap, soCon: con.length });
+    ra.push({ t, cap, soCon: con.length, cuoi: !!cuoi });
     if (!con.length) return;
     if (S.gapViec[t.id]) { for (const x of con) bo(x); return; }
-    for (const x of xepTheoThuTuCon(con, t.id)) dat(x, cap + 1);
+    const ds = xepTheoThuTuCon(con, t.id);
+    ds.forEach((x, k) => dat(x, cap + 1, k === ds.length - 1));
   };
   for (const t of laneSort(gocDs)) dat(t, 1);
   /* Việc kẹt trong một vòng tròn không có gốc nào với tới: vẫn phải hiện ra,
@@ -894,7 +895,21 @@ function theTrongCay(o, laneKey, who) {
    * một việc đang tiến hành nép dưới việc lớn ở làn "Công việc mới" vẫn phải có
    * nút của việc đang làm. */
   const c = workCard(o.t, laneThat || laneKey);
-  if (o.cap > 1) c.classList.add('wcard-con', 'cap-' + Math.min(o.cap, 3));
+  if (o.cap > 1) {
+    c.classList.add('wcard-con', 'cap-' + Math.min(o.cap, 3));
+    /* Đường nối dọc như bảng lớp của Photoshop/Figma: một vạch cho mỗi tầng
+     * phía trên, vạch trong cùng có móc ngang chỉ vào tên việc. Nhìn vạch là
+     * đọc được ngay nó nằm trong cái gì (anh Hùng 28/10/2026). */
+    const sau = Math.min(o.cap, 3);
+    for (let i = 1; i < sau; i++) {
+      const v = el('span', 'wc-noi' + (i === sau - 1 ? ' trong' : ''));
+      v.style.setProperty('--i', i);
+      c.appendChild(v);
+    }
+    /* Con cuối cùng và không còn con của nó: vạch dừng ở chỗ móc, không thòng
+     * xuống dưới — thòng xuống là trông như còn việc nữa ở dưới. */
+    if (o.cuoi && !o.soCon) c.classList.add('cuoi-nhanh');
+  }
   if (laneThat && laneThat !== laneKey && LANE_BY_KEY[laneThat]) {
     const meta = c.querySelector('.wcard-meta');
     const ten = LANE_BY_KEY[laneThat].title;
@@ -4912,6 +4927,19 @@ function oLinkDoc(link) {
   return laLinkNguon(link) ? theNguon(link) : moTaCoLink(link);
 }
 
+/* Ô soạn chi tiết yêu cầu có định dạng: Ctrl+B/I/U, dán bảng Excel. Không bày
+ * thanh công cụ (anh Hùng 28/10/2026). Chuyển đổi nằm ở soan-chu.js. */
+function oChiTiet(t) {
+  return SoanChu.taoOSoan(t.detail || '', (md) => set('detail', md));
+}
+
+/** Chi tiết yêu cầu chỉ đọc: giữ đậm, nghiêng, gạch chân, bảng và link bấm được. */
+function moTaDinhDang(text) {
+  const box = el('div', 'd-desc');
+  box.innerHTML = SoanChu.sangHtml(text, { link: true });
+  return box;
+}
+
 function moTaCoLink(text) {
   const box = el('div', 'd-desc');
   const re = /(https?:\/\/[^\s<>"')\]]+)/g;
@@ -4927,19 +4955,6 @@ function moTaCoLink(text) {
     i = m.index + m[1].length;
   }
   if (i < text.length) box.appendChild(document.createTextNode(text.slice(i)));
-/* Ô soạn chi tiết yêu cầu có định dạng: Ctrl+B/I/U, dán bảng Excel. Không bày
- * thanh công cụ (anh Hùng 28/10/2026). Chuyển đổi nằm ở soan-chu.js. */
-function oChiTiet(t) {
-  return SoanChu.taoOSoan(t.detail || '', (md) => set('detail', md));
-}
-
-/** Chi tiết yêu cầu chỉ đọc: giữ đậm, nghiêng, gạch chân, bảng và link bấm được. */
-function moTaDinhDang(text) {
-  const box = el('div', 'd-desc');
-  box.innerHTML = SoanChu.sangHtml(text, { link: true });
-  return box;
-}
-
   return box;
 }
 
