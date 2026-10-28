@@ -249,3 +249,18 @@ test('dấu phiên bản tệp tĩnh tính lại mỗi lần, không phải mộ
   assert.ok(/st\.mtimeMs/.test(SV) && /st\.size/.test(SV),
     'đọc mtime + kích thước, rẻ hơn đọc hết nội dung mà sửa tệp là cả hai đều đổi');
 });
+
+/* ---- 9. tab Order chuyển được sang kiểu danh sách (28/10/2026) ---- */
+test('tab Order: mặc định lưới, chuyển được sang danh sách như Việc của tôi', () => {
+  const HTML = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+  assert.ok(/id="oKieu"[^]*data-kieu="luoi"[^]*data-kieu="ds"/.test(HTML), 'có nút Lưới / Danh sách');
+  assert.ok(/S\.ordKieu = 'luoi';/.test(SRC), 'mặc định là kiểu lưới hiện tại');
+  assert.ok(/localStorage\.getItem\('tracking\.ordKieu'\)/.test(SRC), 'nhớ lựa chọn của từng người');
+  const ve = layHam('veNhomOrder');
+  assert.ok(/S\.ordKieu !== 'ds'/.test(ve) && /orderCard\(t\)/.test(ve), 'kiểu lưới vẫn dùng thẻ ô cũ');
+  assert.ok(/'lane ord-lane'/.test(ve) && /orderDong\(t\)/.test(ve), 'kiểu danh sách dùng làn + dòng');
+  const d = layHam('orderDong');
+  assert.ok(/'wcard ord-dong'/.test(d), 'dòng cùng khuôn .wcard với Việc của tôi');
+  assert.ok(/nhayTinMoi\(c, t\)/.test(d), 'có tin chưa đọc thì dòng cũng sáng');
+  assert.ok(/openDrawer\(t\)/.test(d), 'bấm dòng là mở chi tiết');
+});

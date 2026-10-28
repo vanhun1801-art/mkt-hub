@@ -635,6 +635,28 @@ body.col-resizing, body.col-resizing * { cursor: col-resize !important; user-sel
 .ord-han { font-size: 11.5px; font-weight: 600; color: var(--orange-text, #b0862f); margin-left: auto; }
 .ord-han.qua { color: var(--red-text); }
 .ord-sec-nt .ord-card { border-color: var(--orange, #ff8800); }
+/* Nút chuyển kiểu xem Lưới / Danh sách của tab Order (28/10/2026). Lớp iOS
+   của hub tự vẽ .seg; đây là bản dự phòng khi mở app lẻ ngoài hub. */
+.ord-kieu { display: inline-flex; flex: 0 0 auto; gap: 2px; padding: 2px; border-radius: var(--r-pill, 999px); background: var(--surface-3); }
+.ord-kieu button {
+  border: 0; background: transparent; font: inherit; font-size: 12.5px; font-weight: 600;
+  color: var(--text-2); padding: 5px 12px; border-radius: var(--r-pill, 999px); cursor: pointer;
+  transition: background var(--cd-deu, .16s ease), color var(--cd-deu, .16s ease);
+}
+.ord-kieu button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow-1); }
+/* Kiểu danh sách: làn xếp sát nhau như Việc của tôi, dòng việc chừa cột phải
+   cho trạng thái và sản phẩm. */
+.order-list.kieu-ds { gap: 0; }
+.ord-dong .ord-ben {
+  flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
+  max-width: 220px; text-align: right;
+}
+.ord-dong .ord-ben .ord-sp, .ord-dong .ord-ben .ord-han { margin-left: 0; }
+@media (max-width: 980px) {
+  .ord-dong .ord-ben { flex-direction: row; flex-wrap: wrap; align-items: center; max-width: none; text-align: left; }
+  /* Dòng order không có tay nắm kéo, khỏi chừa lề trái cho nó. */
+  .wcard.ord-dong { padding-left: 16px; }
+}
 
 /* khối nghiệm thu trong drawer người order */
 .nt-box { border: 1.5px solid var(--orange, #ff8800); border-radius: 12px; padding: 14px 16px;
@@ -2560,7 +2582,6 @@ body[data-fx="cham"] .ng-o.goi::after {
    thêm 2px và cả danh sách nhích lên nhích xuống theo con trỏ. */
 .vc-dong.tren { box-shadow: inset 0 2px 0 0 var(--blue, #2b5cff); }
 .vc-dong.duoi { box-shadow: inset 0 -2px 0 0 var(--blue, #2b5cff); }
-.vc-mach { font-size: 12px; color: var(--text-3); margin: 8px 8px 0; }
 
 /* ---- Kéo một thẻ việc thả vào thẻ khác để gom thành việc con (27/10/2026) ----
    Cùng tay nắm sáu chấm như việc con, để hai chỗ kéo trong app trông như một

@@ -287,6 +287,15 @@ Nay `vanTay()` đọc mtime + kích thước thư mục `public` mỗi lần ph�
 
 **Các app con khác vẫn tính một lần lúc khởi động** — ai sửa app nào thì mang cách này sang app đó.
 
+### Tab Order & nghiệm thu: hai kiểu xem (28/10/2026)
+
+Anh Hùng: "mặc định thì là giao diện hiện tại, nhưng cho chuyển sang giao diện như Việc của tôi".
+
+- Nút **Lưới / Danh sách** cuối thanh lọc. **Mặc định Lưới** (thẻ ô như cũ). Mỗi người nhớ lựa chọn của mình trên máy mình (`localStorage` khoá `tracking.ordKieu`), không ghi gì lên Base.
+- Kiểu Danh sách dùng đúng khuôn của Việc của tôi: làn có đầu bấm thu gọn, dòng `.wcard`. Dòng **không có nút làm việc** vì người xem là người order; bấm là mở chi tiết. Cột phải ghi sản phẩm, sao chấm, hạn chỉnh sửa. Có tin chưa đọc thì dòng cũng sáng lên mờ đi như thẻ ở Việc của tôi.
+- Trên điện thoại hub giấu thanh lọc nên không có nút chuyển; kiểu đã chọn trên máy đó vẫn giữ.
+- Chữ mới phải có khoá trong `lark-mkt-hub/public/i18n.js` ("Lưới", câu gợi ý của làn Chờ nghiệm thu).
+
 ### Phân cấp nhìn như bảng lớp của Photoshop/Figma
 
 Anh Hùng: "em tham khảo kiểu layer của các ứng dụng AI, PS để hiểu phân cấp anh muốn sắp xếp".

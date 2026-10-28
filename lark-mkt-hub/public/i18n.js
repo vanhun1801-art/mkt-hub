@@ -117,6 +117,11 @@
     'Tuỳ chỉnh': 'Custom',
     'Tùy chỉnh': 'Custom',
     'Tháng tiếp theo': 'Next month',
+    /* Bảng công việc · tab Order: chuyển kiểu xem (28/10/2026) */
+    'Lưới': 'Grid',
+    'Xem dạng thẻ ô': 'Card grid view',
+    'Xem dạng danh sách như Việc của tôi': 'List view, like My tasks',
+    'Người làm đã nộp sản phẩm. Mở việc ra xem rồi nghiệm thu hoặc yêu cầu sửa.': 'The assignee has submitted. Open the task to review, then approve or ask for changes.',
     '7 ngày': '7 days',
     '14 ngày': '14 days',
     '30 ngày': '30 days',

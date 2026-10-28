@@ -44,6 +44,11 @@ const S = {
 try { S.colW = JSON.parse(localStorage.getItem('tracking.colW') || '{}') || {}; } catch (e) { S.colW = {}; }
 try { S.gapViec = JSON.parse(localStorage.getItem('tracking.gapViec') || '{}') || {}; } catch (e) { S.gapViec = {}; }
 function luuGapViec() { try { localStorage.setItem('tracking.gapViec', JSON.stringify(S.gapViec)); } catch (e) {} }
+/* Tab Order: kiểu xem "luoi" (thẻ ô, mặc định) hoặc "ds" (danh sách như Việc
+ * của tôi). Mỗi người nhớ lựa chọn của mình trên máy mình (anh Hùng 28/10/2026). */
+S.ordKieu = 'luoi';
+S.ordGap = {};
+try { if (localStorage.getItem('tracking.ordKieu') === 'ds') S.ordKieu = 'ds'; } catch (e) {}
 
 const CLOSED = ['Hoàn thành', 'Hủy'];
 
@@ -2141,9 +2146,8 @@ function khoiViecCon(t) {
     list.appendChild(h);
   }
   if (ds.length) k.than.appendChild(list);
-  if (xepDuoc && ds.length > 1) {
-    k.than.appendChild(el('div', 'vc-mach', 'Kéo để đổi thứ tự. Bấm giữ tay nắm rồi thả vào chỗ muốn đặt.'));
-  }
+  /* Dòng mách "Kéo để đổi thứ tự..." đã bỏ (anh Hùng 28/10/2026): tay nắm tự
+   * nói được, rê vào có chú thích. */
   const an = c.tong - ds.filter((x) => x.status !== 'Hủy').length;
   if (an > 0) k.than.appendChild(el('div', 'vc-an', 'Và ' + an + ' việc con của người khác.'));
 
@@ -6478,6 +6482,11 @@ function orderCard(t) {
 function renderOrders() {
   const box = $('#orderList');
   box.innerHTML = '';
+  box.classList.toggle('kieu-ds', S.ordKieu === 'ds');
+  for (const b of document.querySelectorAll('#oKieu button')) {
+    b.classList.toggle('on', b.dataset.kieu === S.ordKieu);
+    b.setAttribute('aria-pressed', b.dataset.kieu === S.ordKieu ? 'true' : 'false');
+  }
   const list = filterOrders();
   const review = S.isManager && S.orderScope === 'review';
   const total = S.orders.filter((t) => review
@@ -6495,19 +6504,7 @@ function renderOrders() {
   // Lên đầu: sản phẩm chờ nghiệm thu trong phạm vi đang chọn.
   const cho = list.filter((t) => t.daGiaiQuyet && !isClosed(t));
   const conLai = list.filter((t) => !(t.daGiaiQuyet && !isClosed(t)));
-  if (cho.length) {
-    const sec = el('div', 'ord-sec ord-sec-nt');
-    const h = el('div', 'ord-sec-head');
-    const pill = el('span', 'pill'); pill.style.background = '#ff8800';
-    h.appendChild(pill);
-    h.appendChild(el('strong', '', 'Chờ bạn nghiệm thu'));
-    h.appendChild(el('span', 'n', String(cho.length)));
-    sec.appendChild(h);
-    const grid = el('div', 'ord-grid');
-    for (const t of sortTasks(cho)) grid.appendChild(orderCard(t));
-    sec.appendChild(grid);
-    box.appendChild(sec);
-  }
+  if (cho.length) veNhomOrder(box, 'Chờ bạn nghiệm thu', '#ff8800', cho, true);
   // nhóm phần còn lại theo trạng thái để nhìn nhanh "đang thế nào rồi"
   const order = S.meta.statusOrder || [];
   const rank = (s) => { const i = order.indexOf(s); return i < 0 ? 99 : i; };
@@ -6518,18 +6515,87 @@ function renderOrders() {
     groups.get(k).push(t);
   }
   for (const k of [...groups.keys()].sort((a, b) => rank(a) - rank(b))) {
-    const sec = el('div', 'ord-sec');
+    veNhomOrder(box, k, STATUS_HUE[k] || '#8f959e', groups.get(k), false);
+  }
+}
+
+/**
+ * Một nhóm việc của tab Order. Kiểu "luoi": thẻ ô như cũ. Kiểu "ds": làn có
+ * đầu bấm thu gọn và từng dòng việc, giống hệt Việc của tôi, để người order
+ * nhìn dọc một mạch cả chục việc (anh Hùng 28/10/2026).
+ */
+function veNhomOrder(box, ten, mau, ds, nt) {
+  if (S.ordKieu !== 'ds') {
+    const sec = el('div', 'ord-sec' + (nt ? ' ord-sec-nt' : ''));
     const h = el('div', 'ord-sec-head');
-    const pill = el('span', 'pill'); pill.style.background = STATUS_HUE[k] || '#8f959e';
+    const pill = el('span', 'pill'); pill.style.background = mau;
     h.appendChild(pill);
-    h.appendChild(el('strong', '', k));
-    h.appendChild(el('span', 'n', String(groups.get(k).length)));
+    h.appendChild(el('strong', '', ten));
+    h.appendChild(el('span', 'n', String(ds.length)));
     sec.appendChild(h);
     const grid = el('div', 'ord-grid');
-    for (const t of sortTasks(groups.get(k))) grid.appendChild(orderCard(t));
+    for (const t of sortTasks(ds)) grid.appendChild(orderCard(t));
     sec.appendChild(grid);
     box.appendChild(sec);
+    return;
   }
+  const gap = !!S.ordGap[ten];
+  const lane = el('div', 'lane ord-lane' + (gap ? ' collapsed' : ''));
+  for (const k of ['--dot', '--g1', '--g2', '--g3']) lane.style.setProperty(k, mau);
+  const head = el('div', 'lane-head');
+  head.appendChild(el('strong', '', ten));
+  head.appendChild(el('span', 'lh-n', String(ds.length)));
+  if (nt) head.appendChild(el('span', 'lh-hint', 'Người làm đã nộp sản phẩm. Mở việc ra xem rồi nghiệm thu hoặc yêu cầu sửa.'));
+  head.appendChild(el('span', 'lh-caret', gap ? '▸' : '▾'));
+  head.onclick = () => { S.ordGap[ten] = !gap; render(); };
+  lane.appendChild(head);
+  const body = el('div', 'lane-items');
+  for (const t of sortTasks(ds)) body.appendChild(orderDong(t));
+  lane.appendChild(body);
+  box.appendChild(lane);
+}
+
+/** Một dòng việc kiểu danh sách: cùng khuôn .wcard với Việc của tôi. Không có
+ * nút làm việc vì người xem là người order; bấm vào là mở chi tiết. */
+function orderDong(t) {
+  const c = el('div', 'wcard ord-dong');
+  c.dataset.id = t.id;
+  nhayTinMoi(c, t);
+  const main = el('div', 'wcard-main');
+  main.appendChild(veTen('div', 'wcard-title', t));
+  if (t.detail) main.appendChild(el('div', 'wcard-sub', chuThoChiTiet(t.detail).slice(0, 150)));
+  const meta = el('div', 'wcard-meta');
+  if (t.priority) meta.appendChild(el('span', 'tag ' + priClass(t.priority), plainLabel(t.priority)));
+  if (t.workType) meta.appendChild(el('span', 'tag', t.workType));
+  if (t.campaign) meta.appendChild(el('span', 'tag', t.campaign));
+  const dl = deadlineTag(t);
+  if (dl) meta.appendChild(dl);
+  const nguoi = (t.owner || []).map((u) => u.name).join(', ');
+  meta.appendChild(el('span', 'tag', 'Phụ trách: ' + (nguoi || 'chưa gán')));
+  if (S.isManager && S.orderScope === 'review') {
+    meta.appendChild(el('span', 'tag', 'Order: ' + ((t.requester || []).map((u) => u.name).join(', ') || 'chưa có')));
+  }
+  main.appendChild(meta);
+  c.appendChild(main);
+
+  const ben = el('div', 'ord-ben');
+  const st = el('span', 'ord-status', t.status || 'Chưa đặt');
+  st.style.background = STATUS_HUE[t.status] || '#8f959e';
+  ben.appendChild(st);
+  const nFile = (t.fileKetQua || []).length;
+  const hasLink = !!(t.linkKetQua || t.link);
+  const parts = [];
+  if (nFile) parts.push(nFile + ' tệp');
+  if (hasLink) parts.push('link');
+  ben.appendChild(el('span', 'ord-sp' + (parts.length ? ' co' : ''),
+    parts.length ? 'Sản phẩm: ' + parts.join(' + ') : 'Chưa có sản phẩm'));
+  if (t.rating) ben.appendChild(el('span', 'ord-rate', '★'.repeat(t.rating) + ' ' + t.rating + '/5'));
+  const hc = nhanHanChinhSua(t);
+  if (hc && !isClosed(t)) ben.appendChild(el('span', 'ord-han' + (hc.qua ? ' qua' : ''), hc.txt));
+  c.appendChild(ben);
+
+  c.addEventListener('click', () => openDrawer(t));
+  return c;
 }
 
 /* =======================  render root  ======================= */
@@ -7091,6 +7157,13 @@ function setupChrome() {
     render();
   };
   if ($('#oHideDone')) $('#oHideDone').onchange = () => { S.of.hideDone = $('#oHideDone').checked; render(); };
+  for (const b of document.querySelectorAll('#oKieu button')) {
+    b.onclick = () => {
+      S.ordKieu = b.dataset.kieu;
+      try { localStorage.setItem('tracking.ordKieu', S.ordKieu); } catch (e) {}
+      render();
+    };
+  }
   if ($('#oClear')) $('#oClear').onclick = () => {
     S.of = { campaign: '', workType: '', owner: '', status: '', due: S.orderScope === 'review' ? '' : MAC_DINH_DUE, dueDate: '', hideDone: false };
     $('#search').value = ''; S.filters.q = '';
