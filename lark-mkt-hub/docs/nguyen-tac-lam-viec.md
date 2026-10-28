@@ -293,3 +293,10 @@ Anh Hùng: "em tham khảo kiểu layer của các ứng dụng AI, PS để hi�
 - **Một vạch dọc cho mỗi tầng phía trên**, vạch trong cùng có **móc ngang** chỉ vào tên việc. Nhìn vạch là đọc được ngay việc này nằm trong cái gì, không phải đếm độ thụt bằng mắt.
 - **Việc con cuối nhánh thì vạch dừng ở chỗ móc**, không thòng xuống — thòng xuống là trông như còn việc nữa ở dưới mà thật ra hết rồi.
 - Chỗ đặt vạch tính từ biến `--noi-goc` / `--noi-buoc` trên `.lane-items`, khai riêng cho máy tính, khổ hẹp và điện thoại. Ba khổ có ba mức thụt khác nhau; quên một khổ là vạch rơi vào giữa chữ.
+
+## 20. Tệp in gửi ra ngoài (28/10/2026)
+
+Anh Hùng: "cho anh chỉnh trên file PDF này hết các vị trí đi, nhiều cái ko đúng ý anh".
+
+- **Trang in sửa được ở mọi chỗ trước khi lưu PDF.** Cả tờ là một vùng sửa chữ; rê chuột (hoặc chạm) vào dòng bảng, ô thông tin, câu lưu ý hay tên mục thì hiện nút đưa lên, đưa xuống, thêm dòng, xoá. Có Hoàn tác và Bản gốc. Bản đã sửa cất trên máy theo hợp tác + lựa chọn trên thanh công cụ, mở lại vẫn còn (30 ngày). Mẫu: `lark-kol/public/in-doan.*`.
+- **Trang in không nhận lớp giao diện chung của hub.** Tệp gửi khách sạn, đối tác luôn nền sáng, bảng giữ là bảng. Trang tự khai `<meta name="hub-trang-in">`, `proxy.js` khi đó chỉ chèn phần sửa đường dẫn, bỏ `dienthoai.css`, `ios.css`, `ios-app.js` (đã có lần tờ thông tin đoàn hiện nền đen, đầu bảng đen).

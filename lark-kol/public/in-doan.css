@@ -68,8 +68,17 @@ body { font-family: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', sans
 .id-chan { margin-top: 9mm; padding-top: 3mm; border-top: 1px solid var(--id-vien); display: flex; justify-content: space-between; gap: 12px; font-size: 9.5px; color: var(--id-phu); }
 .id-chan b { color: var(--id-chinh); font-weight: 600; }
 
-[contenteditable]:hover { outline: 1px dashed rgba(40, 154, 135, .5); outline-offset: 2px; }
-[contenteditable]:focus { outline: 1.5px solid var(--id-chinh); outline-offset: 2px; }
+/* chỉnh tờ: cả tờ sửa chữ được; thứ đang rê chuột vào có viền đứt, nút nổi ở góc phải trên */
+.id-to[contenteditable] { outline: none; cursor: text; }
+.id-dang-chon { outline: 1px dashed rgba(40, 154, 135, .7); outline-offset: 2px; }
+.id-cong { position: absolute; z-index: 20; display: flex; gap: 4px; padding: 3px; border-radius: 999px; background: #fff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .18); }
+.id-cong[hidden] { display: none; }
+.id-cong button { width: 26px; height: 26px; padding: 0; border: 0; border-radius: 999px; background: var(--id-chinh-nhat); color: var(--id-chinh);
+  font: 700 15px/1 inherit; font-family: inherit; cursor: pointer; transition: transform .16s; }
+.id-cong button:hover { transform: scale(1.08); }
+.id-cong button.xoa { background: #fdecea; color: #c0392b; }
+.id-thanh button[hidden] { display: none; }
 
 @page { size: A4 portrait; margin: 10mm 0; }
 @media print {
@@ -77,7 +86,8 @@ body { font-family: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', sans
   .id-thanh { display: none; }
   #idSach { display: block; padding: 0; }
   .id-to { box-shadow: none; min-height: 0; padding-top: 4mm; padding-bottom: 0; }
-  [contenteditable]:hover, [contenteditable]:focus { outline: none; }
+  .id-cong { display: none !important; }
+  .id-dang-chon { outline: none; }
 }
 /* màn hẹp: tờ co theo bề ngang, không kéo ngang trang */
 @media screen and (max-width: 820px) {

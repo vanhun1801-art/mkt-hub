@@ -11,6 +11,7 @@
    ========================================================================== */
 (function () {
   const $ = (s, g = document) => g.querySelector(s);
+  const $$ = (s, g = document) => [...g.querySelectorAll(s)];
   const e = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   const p2 = (n) => String(n).padStart(2, '0');
   const VN = 7 * 3600000, NGAY_MS = 86400000;
@@ -105,8 +106,8 @@
     const bangDv = dv.length ? '<div class="id-bang-boc"><table class="id-bang"><thead><tr><th>Ngày</th><th>Giờ</th><th>Dịch vụ</th>' + (S.doiTac ? '' : '<th>Đối tác</th>') + '<th>Khách</th><th>Điểm hẹn</th></tr></thead><tbody>' +
       dv.map((g) => { const h = g[0]; const d = h.gioHen || h.ngay;
         return '<tr><td class="so">' + (d ? THU[vn(d).thu] + ' ' + ddmm(d) : '') + '</td><td class="so">' + (h.gioHen ? hhmm(h.gioHen) : '') + '</td>' +
-          '<td contenteditable>' + e(tenGon(h.ten)) + (h.nhom === 'Lưu trú' && h.demLuot ? ' <span class="id-mui">· ' + h.demLuot + ' đêm</span>' : '') + '</td>' +
-          (S.doiTac ? '' : '<td>' + e(h.nhaCungCap || '') + '</td>') + '<td>' + e(khachCua(g)) + '</td><td contenteditable>' + e(boLink(h.diemHen)) + '</td></tr>'; }).join('') +
+          '<td>' + e(tenGon(h.ten)) + (h.nhom === 'Lưu trú' && h.demLuot ? ' <span class="id-mui">· ' + h.demLuot + ' đêm</span>' : '') + '</td>' +
+          (S.doiTac ? '' : '<td>' + e(h.nhaCungCap || '') + '</td>') + '<td>' + e(khachCua(g)) + '</td><td>' + e(boLink(h.diemHen)) + '</td></tr>'; }).join('') +
       '</tbody></table></div>' : '<div class="id-mui" style="font-size:12px">Chưa có dịch vụ nào trong bảng kê' + (S.doiTac ? ' của ' + e(S.doiTac) : '') + '.</div>';
 
     /* khổ dọc chỉ đủ chỗ cho 9 cột: loại giấy đi chung ô với số, cột trống cả đoàn (hết hạn, SĐT) thì bỏ */
@@ -121,9 +122,9 @@
       (tongKhach && tongKhach !== tv.length ? '<div class="id-tong">Danh sách có ' + tv.length + ' người, đoàn khai ' + tongKhach + ' khách.</div>' : '')
       : '<div class="id-mui" style="font-size:12px">KOL chưa điền danh sách đoàn.</div>';
 
-    $('#idSach').innerHTML = '<section class="id-to">' +
+    const to = '<section class="id-to" contenteditable spellcheck="false">' +
       '<div class="id-dau">' + logoHtml + '<div class="id-dau-phai"><b>Thông tin đoàn</b>' + e([ht.maTourwell && 'Mã đặt chỗ ' + ht.maTourwell, ht.ma].filter(Boolean).join(' · ')) + '</div></div>' +
-      '<h1 class="id-tieu-de" contenteditable>Đoàn KOL <em>' + e(ten) + '</em></h1>' +
+      '<h1 class="id-tieu-de">Đoàn KOL <em>' + e(ten) + '</em></h1>' +
       '<div class="id-khoang">' + e([khoang, tuDen, doan].filter(Boolean).join(' · ')) + '</div>' +
       (S.doiTac ? '<div class="id-gui">Gửi ' + e(S.doiTac) + '</div>' : '') +
 
@@ -146,12 +147,19 @@
       '</div>' +
 
       '<div class="id-muc dai"><h3 class="id-h3">' + (S.doiTac ? 'Dịch vụ đặt tại ' + e(S.doiTac) : 'Dịch vụ đã đặt') + '</h3>' + bangDv + '</div>' +
-      '<div class="id-muc dai"><h3 class="id-h3">Danh sách hành khách · ' + tv.length + '</h3>' + bangKhach + '</div>' +
-      '<div class="id-muc"><h3 class="id-h3">Lưu ý cho đơn vị tiếp nhận</h3><ul class="id-luu-y" contenteditable>' + luuY.map((s) => '<li>' + s + '</li>').join('') + '</ul></div>' +
+      '<div class="id-muc dai"><h3 class="id-h3">Danh sách hành khách · <span class="id-dem">' + tv.length + '</span></h3>' + bangKhach + '</div>' +
+      '<div class="id-muc"><h3 class="id-h3">Lưu ý cho đơn vị tiếp nhận</h3><ul class="id-luu-y">' + luuY.map((s) => '<li>' + s + '</li>').join('') + '</ul></div>' +
       '<div class="id-chan"><span><b>Rooty Trip Phú Quốc</b>' + (lienHe ? ' · Liên hệ: ' + e(lienHe) : '') + '</span><span>Xuất lúc ' + hhmm(Date.now()) + ' ' + ngayDu(Date.now()) + '</span></div>' +
       '</section>';
 
-    tt(tv.length + ' hành khách · ' + dv.length + ' dịch vụ' + (S.doiTac ? ' của ' + S.doiTac : '') + ' · bấm vào chữ trên tờ để sửa, rồi Lưu PDF');
+    /* có bản đã sửa cho đúng lựa chọn này thì dựng lại bản đó, không dựng bản gốc đè lên */
+    S.khoa = 'kol.in-doan.' + ht.id + '|' + S.doiTac + '|' + (S.kenh ? 1 : 0) + (S.giay ? 1 : 0);
+    S.goc = to; S.lui = [];
+    const daSua = docSua();
+    anCong();
+    $('#idSach').innerHTML = daSua ? daSua.html : to;
+    S.tom = tv.length + ' hành khách · ' + dv.length + ' dịch vụ' + (S.doiTac ? ' của ' + S.doiTac : '');
+    baoSua(daSua && daSua.at);
     $('#idIn').disabled = false;
     $('#idCsv').disabled = !tv.length;
   }
@@ -159,7 +167,7 @@
   /* CSV có BOM để Excel đọc đúng tiếng Việt; ô bắt đầu bằng = + - @ thêm dấu ' để Excel không chạy thành công thức */
   function taiCsv() {
     const { ht, kol, tv } = D;
-    const o = (v) => { let s = String(v == null ? '' : v); if (/^[=+\-@]/.test(s)) s = "'" + s; return /[",\n;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+    const o = (v) => { let s = String(v == null ? '' : v); if (/^[=+\-@]/.test(s)) s = "'" + s; return /[,\n;]/.test(s) || s.includes('"') ?'"' + s.replace(/"/g, '""') + '"' : s; };
     const dau = ['STT', 'Họ tên', 'Vai trò', 'Nhóm', 'Giới tính', 'Ngày sinh', 'Quốc tịch'].concat(S.giay ? ['Loại giấy tờ', 'Số giấy tờ', 'Ngày cấp', 'Ngày hết hạn'] : [], ['SĐT']);
     const dong = tv.map((x, i) => [i + 1, x.ten, x.vaiTro || '', x.nhomKhach || '', x.gioiTinh || '', ngayDu(x.ngaySinh), x.quocTich || '']
       .concat(S.giay ? [x.loaiGiay || '', x.soGiay || '', ngayDu(x.ngayCap), ngayDu(x.ngayHet)] : [], [x.sdt || '']));
@@ -172,10 +180,101 @@
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
 
+  /* ---------- chỉnh tờ (anh Hùng 28/10: "cho anh chỉnh trên file PDF này hết các vị trí") ----------
+   * Cả tờ sửa chữ được. Rê chuột (hoặc chạm) vào một dòng bảng, một ô thông tin, một câu lưu ý hay tên
+   * mục thì hiện nút: đưa lên, đưa xuống, thêm dòng (bảng), xoá. Mỗi lần đổi cất vào máy theo hợp tác
+   * + lựa chọn trên thanh công cụ, mở lại vẫn còn; "Bản gốc" bỏ hết chỗ đã sửa. */
+  const HAN_SUA = 30 * NGAY_MS;
+  function docSua() {
+    try { const v = JSON.parse(localStorage.getItem(S.khoa) || 'null'); return v && Date.now() - v.at < HAN_SUA ? v : null; } catch (_) { return null; }
+  }
+  function catSua() {
+    const to = $('.id-to'); if (!to) return;
+    const at = Date.now();
+    try { localStorage.setItem(S.khoa, JSON.stringify({ at, html: to.outerHTML })); } catch (_) {}
+    baoSua(at);
+  }
+  function baoSua(at) {
+    tt(S.tom + (at ? ' · đang dùng bản đã sửa lúc ' + hhmm(at) + ' ' + ddmm(at) : ' · bấm vào chữ để sửa, rê chuột vào dòng để đổi chỗ hay xoá'));
+    $('#idGoc').hidden = !at;
+    $('#idLui').hidden = !S.lui.length;
+  }
+  let henCat = 0;
+  $('#idSach').addEventListener('input', () => { clearTimeout(henCat); henCat = setTimeout(catSua, 500); });
+
+  const cong = document.createElement('div');
+  cong.className = 'id-cong';
+  cong.hidden = true;
+  document.body.appendChild(cong);
+  let dich = null;
+  const NUT = { len: ['↑', 'Đưa lên'], xuong: ['↓', 'Đưa xuống'], them: ['+', 'Thêm dòng bên dưới'], xoa: ['×', 'Xoá'] };
+  /* thứ có nút: dòng bảng, ô thông tin, câu lưu ý, dòng phụ dưới tiêu đề; trỏ vào tên mục thì là cả mục */
+  function chonDich(el) {
+    if (!el || !el.closest || !el.closest('.id-to')) return null;
+    const h3 = el.closest('.id-h3');
+    if (h3) return { el: h3.closest('.id-muc'), nut: ['len', 'xuong', 'xoa'], ten: 'mục' };
+    const tr = el.closest('tbody tr');
+    if (tr) return { el: tr, nut: ['len', 'xuong', 'them', 'xoa'], ten: 'dòng' };
+    const k = el.closest('.id-luu-y li, .id-o, .id-khoang, .id-gui, .id-tong');
+    return k ? { el: k, nut: k.matches('.id-khoang, .id-gui, .id-tong') ? ['xoa'] : ['len', 'xuong', 'xoa'], ten: '' } : null;
+  }
+  function hienCong(d) {
+    if (!d || !d.el.isConnected) return anCong();
+    dich = d;
+    cong.innerHTML = d.nut.map((k) => '<button type="button" data-nut="' + k + '" title="' + NUT[k][1] + (d.ten ? ' ' + d.ten : '') + '"' + (k === 'xoa' ? ' class="xoa"' : '') + '>' + NUT[k][0] + '</button>').join('');
+    const r = d.el.getBoundingClientRect();
+    cong.hidden = false;
+    cong.style.top = Math.max(0, r.top + scrollY - 14) + 'px';
+    cong.style.left = Math.max(8, Math.min(document.documentElement.clientWidth - cong.offsetWidth - 8, r.right + scrollX - cong.offsetWidth + 6)) + 'px';
+    $$('.id-dang-chon').forEach((x) => x.classList.remove('id-dang-chon'));
+    d.el.classList.add('id-dang-chon');
+  }
+  function anCong() { cong.hidden = true; dich = null; $$('.id-dang-chon').forEach((x) => x.classList.remove('id-dang-chon')); }
+  $('#idSach').addEventListener('pointerover', (ev) => { const d = chonDich(ev.target); if (d && (!dich || d.el !== dich.el)) hienCong(d); });
+  $('#idSach').addEventListener('pointerleave', (ev) => { if (!cong.contains(ev.relatedTarget)) anCong(); });
+  cong.addEventListener('pointerleave', (ev) => { if (!(ev.relatedTarget && ev.relatedTarget.closest && ev.relatedTarget.closest('.id-to'))) anCong(); });
+  cong.addEventListener('mousedown', (ev) => ev.preventDefault());   // giữ chỗ con trỏ đang gõ
+  /* hàng xóm cùng loại để đổi chỗ (bỏ qua thứ khác loại nằm xen giữa) */
+  const cungLoai = (el) => (el.tagName === 'TR' ? 'tr' : el.matches('.id-muc') ? '.id-muc' : el.tagName === 'LI' ? 'li' : '.id-o');
+  const keBen = (el, truoc) => {
+    let x = truoc ? el.previousElementSibling : el.nextElementSibling;
+    while (x && !x.matches(cungLoai(el))) x = truoc ? x.previousElementSibling : x.nextElementSibling;
+    return x;
+  };
+  cong.addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-nut]'); if (!b || !dich) return;
+    const el = dich.el, k = b.dataset.nut;
+    el.classList.remove('id-dang-chon');
+    S.lui.push($('.id-to').outerHTML);
+    if (S.lui.length > 40) S.lui.shift();
+    if (k === 'len') { const x = keBen(el, true); if (x) x.before(el); }
+    else if (k === 'xuong') { const x = keBen(el, false); if (x) x.after(el); }
+    else if (k === 'them') { const c = el.cloneNode(true); c.querySelectorAll('td').forEach((td) => { td.textContent = ''; }); el.after(c); }
+    else if (k === 'xoa') el.remove();
+    danhSo();
+    catSua();
+    if (k === 'xoa') anCong(); else hienCong(dich);
+  });
+  /* xoá, chèn, đổi chỗ khách thì số thứ tự và số đếm trên tên mục đi theo */
+  function danhSo() {
+    const b = $('.id-khach tbody'); if (!b) return;
+    const ds = [...b.rows];
+    ds.forEach((tr, i) => { if (tr.cells[0]) tr.cells[0].textContent = i + 1; });
+    const dem = $('.id-dem'); if (dem) dem.textContent = ds.length;
+  }
+  $('#idLui').onclick = () => {
+    const h = S.lui.pop(); if (!h) return;
+    anCong(); $('#idSach').innerHTML = h; catSua();
+  };
+  $('#idGoc').onclick = () => {
+    try { localStorage.removeItem(S.khoa); } catch (_) {}
+    anCong(); S.lui = []; $('#idSach').innerHTML = S.goc; baoSua(0);
+  };
+
   $('#idDoiTac').onchange = (ev) => { S.doiTac = ev.target.value; ve(); };
   $('#idKenh').onchange = (ev) => { S.kenh = ev.target.checked; ve(); };
   $('#idGiay').onchange = (ev) => { S.giay = ev.target.checked; ve(); };
-  $('#idIn').onclick = () => window.print();
+  $('#idIn').onclick = () => { anCong(); window.print(); };
   $('#idCsv').onclick = taiCsv;
   nap().catch((err) => {
     tt('Không dựng được');

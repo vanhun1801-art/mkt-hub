@@ -267,6 +267,12 @@ function chenVaoHtml(html, mod, nguoi) {
    *
    * href để NGUYÊN "/dienthoai.css": đoạn này chạy SAU lượt thêm tiền tố ở trên
    * nên nó không bị đổi thành /m/<id>/..., và file này do chính lớp vỏ phục vụ. */
+  /* Trang in giấy (lịch trình, thông tin đoàn của KOL) gửi ra ngoài công ty: luôn nền sáng, khổ A4,
+   * bảng giữ nguyên là bảng. Lớp điện thoại + iOS phủ kiểu tối và đổi bảng thành thẻ lên đó (28/10/2026,
+   * tờ thông tin đoàn hiện nền đen, đầu bảng đen). Trang tự khai <meta name="hub-trang-in"> để chỉ
+   * nhận phần sửa đường dẫn ở trên. */
+  if (/<meta\s+name="hub-trang-in"/i.test(out)) return out;
+
   const linkIos = lopIos(mod);
   const linkDt = '<link rel="stylesheet" href="/dienthoai.css?v='
     + (cfg.verChung || '1') + '" data-hub="1">\n' + linkIos;
