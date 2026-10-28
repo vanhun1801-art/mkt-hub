@@ -2706,13 +2706,17 @@ body.dang-keo-the .wcard-title { cursor: inherit; }
 /* ---- Thẻ có tin chưa đọc nháy sáng vài cái (27/10/2026) ----
    Ba nhịp rồi thôi: nháy mãi thì thành đèn báo động, nhìn một lúc là hết thấy. */
 @keyframes wc-nhay {
-  0%, 100% { background: var(--surface); box-shadow: inset 2px 0 0 0 transparent; }
-  50%      { background: var(--blue-bg); box-shadow: inset 2px 0 0 0 var(--blue); }
+  50% { background: var(--blue-bg); }
 }
 .wcard.nhay-tin { animation: wc-nhay .62s ease-in-out 3; }
+/* Nháy xong vẫn phải nhận ra: còn tin chưa đọc thì giữ nền xanh nhạt và vệt
+   xanh bên trái, đọc xong (mở tab Trao đổi) là trả về thẻ thường (28/10/2026).
+   Lớp iOS của hub đè nền thẻ và ẩn vệt ::before, nên phải nêu cả html[data-skin]. */
+:is(html, html[data-skin]) .wcard.co-tin { background: color-mix(in srgb, var(--blue-bg) 55%, var(--surface)); }
+:is(html, html[data-skin]) .wcard.co-tin::before { display: block; opacity: 1; }
+:is(html, html[data-skin]) .wcard.co-tin:hover { background: var(--blue-bg); }
 @media (prefers-reduced-motion: reduce) {
-  /* Không nháy, nhưng vẫn phải phân biệt được — giữ nguyên vệt xanh bên trái. */
-  .wcard.nhay-tin { animation: none; box-shadow: inset 2px 0 0 0 var(--blue); }
+  .wcard.nhay-tin { animation: none; }
 }
 
 /* Đang kéo thì không cho chọn chữ, kéo qua đoạn mô tả là bôi đen cả trang. */
@@ -2841,6 +2845,11 @@ html:not(#_):not(#__):not(#___) .kh-than .vc-them input {
 
 /* Khối "Tin nhắn chưa đọc" đầu Tổng quan / Việc của tôi (26/10/2026). */
 .tcd .dash-head { display: flex; align-items: center; gap: 10px; }
+/* Ở Việc của tôi khối nằm ngoài vùng cuộn .lanes nên không có lề của nó:
+   phải tự chừa lề như thanh lọc, không thì tràn sát mép phải (28/10/2026).
+   Nhiều tin thì khối tự cuộn, không đẩy danh sách việc xuống mất. */
+#tcdWork { flex: 0 0 auto; margin: 10px var(--le) 4px; }
+#tcdWork .tcd-ds { max-height: 216px; overflow-y: auto; }
 .tcd-so { margin-left: auto; font-size: 12.5px; font-weight: 600; color: var(--blue-text); }
 .tcd-ds { display: flex; flex-direction: column; padding: 4px 8px 8px; }
 .tcd-dong {

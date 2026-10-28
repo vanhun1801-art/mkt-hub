@@ -246,6 +246,8 @@ Anh Hùng, sau khi dùng thử bản kéo đầu tiên: "ấn kéo hiệu ứng 
 - **Thả hụt thì cái xấp bay về đúng chỗ cũ**, không biến mất tại chỗ: người kéo phải thấy ngay là không có gì thay đổi. **Escape** bỏ lượt kéo giữa chừng.
 - **Đang kéo thì `render()` hoãn lại** và ghi nợ, thả tay xong vẽ bù. Vẽ lại giữa lúc kéo là thay sạch thẻ dưới con trỏ, lượt kéo đứt và cái xấp kẹt lại trên màn hình — lỗi này đã xảy ra thật khi làm. `donDauKeoThe()` cũng dọn mọi xấp mồ côi, trừ cái đang bay về.
 - **Thẻ có tin chưa đọc nháy sáng ba nhịp** rồi thôi, và chỉ nháy lại khi SỐ tin đổi (nhớ theo cặp "mã việc + số tin"). Danh sách tự làm mới vài chục giây một lần; nháy theo mỗi lượt vẽ thì cả màn hình chớp liên tục. Máy xin bớt chuyển động thì không nháy nhưng vẫn giữ vệt xanh bên trái để phân biệt.
+- **Thẻ chỉ nháy khi lọt vào màn hình** (28/10/2026, IntersectionObserver): thẻ nằm dưới đáy mà nháy lúc mở trang thì kéo tới nơi đã tắt, anh Hùng không thấy gì. Nháy xong, thẻ **còn tin chưa đọc thì giữ nền xanh nhạt và vệt xanh bên trái** cho tới khi mở Trao đổi. Lớp iOS đè nền thẻ và ẩn `::before`, nên luật phải nêu cả `html[data-skin]`.
+- **Khối "Tin nhắn chưa đọc" ở Việc của tôi nằm ngoài vùng cuộn `.lanes`**, nên tự chừa lề `var(--le)` như thanh lọc (để mặc là tràn sát mép phải) và tự cuộn khi nhiều tin, không đẩy danh sách việc xuống.
 - **Khối "Việc con" trong ô chi tiết vẫn dùng cơ chế cũ** để kéo đổi thứ tự, nên chỗ đó trên điện thoại vẫn chưa kéo được. Chưa chuyển vì anh Hùng chưa yêu cầu.
 
 ## 19. Nhấc việc lên, và bỏ nghiệm thu khi tự order tự làm (27/10/2026)

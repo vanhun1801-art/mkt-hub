@@ -1152,15 +1152,35 @@ async function napChuaDoc() {
  * Chỉ nháy khi SỐ tin đổi, không nháy mỗi lần vẽ lại: danh sách tự làm mới vài
  * chục giây một lần, nháy theo thì cả màn hình chớp liên tục và không ai nhìn
  * được nữa. Nhớ theo cặp "mã việc + số tin" nên tin mới tới là nháy tiếp.
+ *
+ * 28/10/2026: thẻ nằm dưới màn hình thì nháy lúc mở trang là phí, kéo xuống
+ * tới nơi đã tắt. Giờ chờ thẻ lọt vào khung nhìn mới nháy. Ngoài nhịp nháy,
+ * thẻ còn tin chưa đọc giữ nền xanh nhạt và vệt xanh bên trái cho tới khi đọc.
  */
 const DA_NHAY = new Set();
+const NHIN_THE = 'IntersectionObserver' in window ? new IntersectionObserver((ds) => {
+  for (const e of ds) {
+    if (!e.isIntersecting) continue;
+    NHIN_THE.unobserve(e.target);
+    const khoa = e.target._khoaNhay;
+    if (DA_NHAY.has(khoa)) continue;
+    /* Ghi "đã nháy" khi nháy XONG: lượt vẽ lại chen ngang giữa chừng thì thẻ
+     * mới vẫn được nháy trọn ba nhịp. */
+    e.target.addEventListener('animationend', (ev) => {
+      if (ev.animationName === 'wc-nhay') DA_NHAY.add(khoa);
+    });
+    e.target.classList.add('nhay-tin');
+  }
+}, { threshold: 0.6 }) : null;
 function nhayTinMoi(c, t) {
   const x = S.chuaDoc && t && S.chuaDoc.get(t.id);
   if (!x || !x.n) return;
+  c.classList.add('co-tin');
   const khoa = t.id + ':' + x.n;
   if (DA_NHAY.has(khoa)) return;
-  DA_NHAY.add(khoa);
-  c.classList.add('nhay-tin');
+  if (!NHIN_THE) { DA_NHAY.add(khoa); c.classList.add('nhay-tin'); return; }
+  c._khoaNhay = khoa;
+  NHIN_THE.observe(c);
 }
 
 function vienTin(t) {
