@@ -651,7 +651,8 @@ addEventListener('resize', datVienTruot);
     await napHop();
     await napThu(false);
   } catch (e) {
-    $('#ds').innerHTML = '<div class="loi-hop"><b>' + (e.khongPhaiChu ? 'Không mở được hộp thư' : 'Chưa đọc được Lark Mail') +
+    $('#ds').innerHTML = '<div class="loi-hop"><b>' +
+      (e.khongPhaiChu ? 'Không mở được hộp thư' : e.chuaNoi ? 'Hộp thư chưa mở được ở đây' : 'Chưa đọc được Lark Mail') +
       '</b>' + esc(e.message) + '</div>';
     return;
   }

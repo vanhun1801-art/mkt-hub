@@ -8,7 +8,26 @@
  * trong hộp xác nhận.
  */
 const { execFile } = require('child_process');
+const fs = require('fs');
 const cfg = require('./config');
+
+/**
+ * Máy này không đọc được Lark Mail: không có lark-cli (bản chạy chung trên
+ * Render), hoặc phiên đăng nhập lark-cli đã hết. Không phải lỗi thoáng qua,
+ * thử lại cũng vậy, nên giao diện nói lý do thay vì bày lỗi kỹ thuật.
+ */
+class LoiChuaNoi extends Error {}
+
+/** Lỗi lark-cli thô (cả khối stack của Node) → một dòng đọc được. Bản đầy
+ * đủ giữ ở `chiTiet` để ghi log máy chủ, không đưa lên giao diện. */
+function loiGon(tho) {
+  const s = String(tho || '');
+  const dong = s.split('\n').map((d) => d.trim())
+    .find((d) => d && !/^(at |node:internal|\^|throw |\{|\}|Node\.js v)/.test(d) && !/^[\w./\\:-]+:\d+$/.test(d)) || 'không rõ lý do';
+  const e = new Error('Lark Mail chưa trả lời được: ' + dong.slice(0, 200));
+  e.chiTiet = s.slice(0, 4000);
+  return e;
+}
 
 const TRANSIENT = /timeout|timed out|ETIMEDOUT|ECONNRESET|ECONNREFUSED|EAI_AGAIN|ENOTFOUND|socket hang up|EPIPE|99991400|"type":\s*"network"/i;
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -23,9 +42,13 @@ function cliOnce(args, { timeout = 60000 } = {}) {
         const s = raw.indexOf('{'), e = raw.lastIndexOf('}');
         if (s >= 0 && e > s) { try { json = JSON.parse(raw.slice(s, e + 1)); } catch (_) {} }
         if (json && json.ok === false) {
-          return reject(new Error((json.error && json.error.message) || JSON.stringify(json.error || json)));
+          const m = (json.error && json.error.message) || JSON.stringify(json.error || json);
+          if (/not logged in|login required|token (has )?expired|refresh token|re-?authori[sz]e|auth login/i.test(m)) {
+            return reject(new LoiChuaNoi('Phiên đăng nhập Lark trên máy chạy app đã hết hạn. Đăng nhập lại lark-cli rồi tải lại trang.'));
+          }
+          return reject(new Error(m));
         }
-        if (err && !json) return reject(new Error('lark-cli lỗi: ' + String(stderr || err.message || '').slice(0, 800)));
+        if (err && !json) return reject(loiGon(stderr || err.message));
         if (!json) return reject(new Error('Không đọc được phản hồi của lark-cli'));
         /* Lệnh API trả { ok, data }; +triage --format data trả thẳng đối tượng. */
         resolve('data' in json && 'ok' in json ? (json.data || {}) : json);
@@ -34,6 +57,10 @@ function cliOnce(args, { timeout = 60000 } = {}) {
 }
 
 async function cli(args, opts = {}) {
+  if (!fs.existsSync(cfg.cliScript)) {
+    throw new LoiChuaNoi('Hộp thư chỉ đọc được trên máy đã đăng nhập Lark của chủ hộp thư. ' +
+      'Bản chạy chung chưa có bước nối hộp thư cho từng người.');
+  }
   let last;
   for (let i = 0; i < 3; i++) {
     try { return await cliOnce(args, opts); } catch (e) {
@@ -181,4 +208,4 @@ async function traLoi(hop, id, chu, { gui = false, tatCa = false } = {}) {
   return cli(a, { ghi: true });
 }
 
-module.exports = { cacHop, danhSach, doc, doi, traLoi, tachNguoi, veHtml, htmlSangChu, tachTrich };
+module.exports = { LoiChuaNoi, loiGon, cacHop, danhSach, doc, doi, traLoi, tachNguoi, veHtml, htmlSangChu, tachTrich };

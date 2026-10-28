@@ -324,8 +324,10 @@ const server = http.createServer(async (req, res) => {
     if (req.method !== 'GET') return loi(res, 405, 'Không hỗ trợ');
     return tinh(res, url.pathname, url.search);
   } catch (e) {
-    const ma = e instanceof ai.LoiAi ? 502 : 500;
-    if (!res.headersSent) loi(res, ma, e.message || String(e));
+    if (e.chiTiet) console.error('[hop-thu]', url.pathname, e.chiTiet);
+    if (res.headersSent) return;
+    if (thu.LoiChuaNoi && e instanceof thu.LoiChuaNoi) return loi(res, 503, e.message, { chuaNoi: true });
+    loi(res, e instanceof ai.LoiAi ? 502 : 500, e.message || String(e));
   }
 });
 
