@@ -33,6 +33,12 @@
 # mã dùng chung giữa các app (Tourwell…)
 !lark-chung/
 
+# skill của dự án (luật giao diện cho Claude). Phần còn lại của .claude
+# (launch.json, settings.local.json, worktrees) là đồ riêng của máy.
+!.claude/
+.claude/*
+!.claude/skills/
+
 # ---- bí mật & dữ liệu cục bộ: KHÔNG bao giờ lên GitHub ----
 .env
 *.env
