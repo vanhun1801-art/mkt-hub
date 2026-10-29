@@ -3105,12 +3105,44 @@ html:not(#_):not(#__):not(#___):not(#____) .cmt-new :is(.cmt-nut-anh, .cmt-gui) 
 
 /* ---- Việc lặp lại (29/10/2026) ---- */
 .lap-khoi { margin-top: 4px; }
-.lap-seg { display: flex; flex-wrap: wrap; gap: 6px; }
-.lap-seg .pill { border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 6px 14px; font: inherit; font-size: 13px; color: var(--text); cursor: pointer; }
-.lap-seg .pill.is-active { background: var(--blue); border-color: var(--blue); color: #fff; }
-.lap-chon { display: flex; flex-wrap: wrap; gap: 6px; }
-.lap-o { min-width: 44px; justify-content: center; cursor: pointer; border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 6px 10px; font: inherit; font-size: 13px; color: var(--text); }
-.lap-o.on { background: var(--blue-bg); border-color: var(--blue); color: var(--blue-text); font-weight: 600; }
+/* Bốn ô chu kỳ chia đều một hàng (phân đoạn), không cuộn ngang. Chọn = nền xanh. */
+html:not(#_):not(#__):not(#___) .lap-seg {
+  display: grid !important; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px;
+  overflow: visible !important; margin: 0 !important; padding: 3px !important;
+  border-radius: 999px; background: var(--surface-3);
+}
+html:not(#_):not(#__):not(#___) .lap-seg > .ios-lens { display: none !important; }
+html:not(#_):not(#__):not(#___) .lap-seg .pill {
+  min-width: 0 !important; height: 34px !important; min-height: 34px !important; padding: 0 6px !important;
+  border: 0 !important; border-radius: 999px !important; background: transparent !important;
+  font: inherit; font-size: 14px !important; color: var(--text-2) !important; cursor: pointer;
+  transition: background var(--cd-deu, .16s ease), color var(--cd-deu, .16s ease);
+}
+html:not(#_):not(#__):not(#___) .lap-seg .pill.is-active { background: var(--blue) !important; color: #fff !important; font-weight: 600; }
+/* Bảy ô thứ chia đều một hàng, ô tròn 34px. */
+.lap-chon { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+html:not(#_):not(#__):not(#___) .lap-o {
+  height: 34px !important; min-height: 34px !important; min-width: 0 !important; padding: 0 !important;
+  display: inline-flex !important; align-items: center; justify-content: center;
+  border: 1px solid var(--border) !important; border-radius: 999px !important; background: var(--surface) !important;
+  font: inherit; font-size: 13px !important; color: var(--text) !important; cursor: pointer;
+}
+html:not(#_):not(#__):not(#___) .lap-o.on { background: var(--blue) !important; border-color: var(--blue) !important; color: #fff !important; font-weight: 600; }
+/* Công tắc kiểu iOS: xanh là đang chạy. */
+.lap-cong {
+  position: relative; flex: 0 0 auto; width: 46px; height: 28px; padding: 0; border: 0; border-radius: 999px;
+  background: var(--surface-3); cursor: pointer; transition: background var(--cd-deu, .16s ease);
+}
+.lap-cong::after {
+  content: ''; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 999px;
+  background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .25); transition: transform var(--cd-deu, .16s ease);
+}
+.lap-cong.on { background: var(--green, #34c759); }
+.lap-cong.on::after { transform: translateX(18px); }
+html:not(#_):not(#__):not(#___) .lap-cong { min-height: 28px !important; height: 28px !important; width: 46px !important; min-width: 46px !important; }
+html:not(#_):not(#__):not(#___) .lap-xoa { width: 34px !important; min-width: 34px !important; height: 34px !important; min-height: 34px !important; padding: 0 !important; border-radius: 999px !important; color: var(--red-text) !important; display: inline-flex !important; align-items: center; justify-content: center; }
+.lap-dau { display: flex; align-items: center; gap: 10px; }
+.lap-dau h3 { flex: 1; margin: 0; }
 .lap-cn { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; margin: 2px 0 6px; cursor: pointer; }
 .lap-xem { border: 0; background: none; padding: 6px 0; font: inherit; font-size: 13px; color: var(--blue-text); cursor: pointer; }
 .lap-box { width: min(560px, 96vw); max-height: 86dvh; display: flex; flex-direction: column; }
@@ -3122,11 +3154,8 @@ html:not(#_):not(#__):not(#___):not(#____) .cmt-new :is(.cmt-nut-anh, .cmt-gui) 
 .lap-chu { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .lap-chu b { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
 .lap-chu span { font-size: 12.5px; color: var(--text-2); }
-.lap-nut { flex: 0 0 auto; display: flex; gap: 6px; }
-@media (max-width: 640px) {
-  .lap-dong { flex-wrap: wrap; }
-  .lap-nut { width: 100%; justify-content: flex-end; }
-}
+.lap-nut { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; }
+#mLap .modal-foot { justify-content: flex-end; }
 
 /* ---- Tải việc theo nhân sự trên điện thoại (29/10/2026) ----
    Máy tính giữ bảng 8 cột (sắp xếp được theo cột). Điện thoại thay bằng thẻ

@@ -4938,7 +4938,8 @@ function khoiLapLai(t) {
   const ve = () => {
     khoi.innerHTML = '';
     const seg = el('div', 'seg lap-seg');
-    for (const [k, nhan] of [['', 'Không'], ['ngay', 'Hằng ngày'], ['tuan', 'Hằng tuần'], ['thang', 'Hằng tháng']]) {
+    /* Nhãn ngắn để bốn ô vừa một hàng kể cả màn 320px, không phải vuốt ngang. */
+    for (const [k, nhan] of [['', 'Không'], ['ngay', 'Ngày'], ['tuan', 'Tuần'], ['thang', 'Tháng']]) {
       const n = el('button', 'pill' + (L.chuKy === k ? ' is-active' : ''), nhan);
       n.type = 'button';
       n.setAttribute('aria-pressed', String(L.chuKy === k));
@@ -4952,7 +4953,7 @@ function khoiLapLai(t) {
       };
       seg.appendChild(n);
     }
-    khoi.appendChild(field('Lặp lại', seg));
+    khoi.appendChild(field('Lặp lại theo', seg));
 
     if (L.chuKy === 'tuan') {
       const hang = el('div', 'lap-chon');
@@ -4990,7 +4991,7 @@ function khoiLapLai(t) {
     }
     if (L.chuKy) {
       khoi.appendChild(el('div', 'ro-note',
-        'Việc của hôm nay tạo ngay khi bấm Tạo. Các kỳ sau tự tạo lúc 07:00, hạn trong ngày theo giờ của ô Deadline.'));
+        'Tạo việc hôm nay, các kỳ sau tự tạo lúc 07:00. Hạn theo giờ ô Deadline.'));
     }
     const xem = el('button', 'lap-xem', 'Xem các việc lặp lại');
     xem.type = 'button';
@@ -5042,11 +5043,18 @@ function veDanhSachLap(ds) {
     const dong = el('div', 'lap-dong' + (m.tat ? ' tat' : ''));
     const chu = el('div', 'lap-chu');
     chu.appendChild(el('b', '', m.title));
-    chu.appendChild(el('span', '', (m.tat ? 'Đang tạm dừng · ' : '') + m.moTa));
+    chu.appendChild(el('span', '', (m.tat ? 'Tạm dừng · ' : '') + m.moTa));
     const ai = (m.owner || []).map((u) => u.name).filter(Boolean).join(', ');
-    chu.appendChild(el('span', 'lap-ai', ai ? 'Giao: ' + ai : 'Chưa giao ai'));
+    chu.appendChild(el('span', 'lap-ai', ai || 'Chưa giao ai'));
     dong.appendChild(chu);
-    const dung = el('button', 'btn', m.tat ? 'Chạy lại' : 'Tạm dừng');
+    /* Một dòng một mẫu: công tắc bật/tắt kiểu iOS và thùng rác nhỏ, thay hai nút
+     * chữ to rớt xuống dòng riêng (anh Hùng 29/10/2026: "chú ý giao diện"). */
+    const dung = el('button', 'lap-cong' + (m.tat ? '' : ' on'));
+    dung.type = 'button';
+    dung.setAttribute('role', 'switch');
+    dung.setAttribute('aria-checked', String(!m.tat));
+    dung.setAttribute('aria-label', (m.tat ? 'Chạy lại ' : 'Tạm dừng ') + m.title);
+    dung.title = m.tat ? 'Đang tạm dừng. Bấm để chạy lại' : 'Đang chạy. Bấm để tạm dừng';
     dung.onclick = async () => {
       dung.disabled = true;
       try {
@@ -5055,7 +5063,11 @@ function veDanhSachLap(ds) {
         veDanhSachLap(ds);
       } catch (e) { toast('Lỗi: ' + e.message, true); dung.disabled = false; }
     };
-    const xoa = el('button', 'btn btn-danger', 'Xoá');
+    const xoa = el('button', 'btn btn-icon lap-xoa');
+    xoa.type = 'button';
+    xoa.title = 'Xoá việc lặp lại';
+    xoa.setAttribute('aria-label', 'Xoá ' + m.title);
+    xoa.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>';
     xoa.onclick = async () => {
       if (!confirm('Xoá việc lặp lại "' + m.title + '"? Từ kỳ sau không tạo việc này nữa; các việc đã tạo vẫn giữ nguyên.')) return;
       xoa.disabled = true;
