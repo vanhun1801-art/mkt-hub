@@ -4915,6 +4915,162 @@ function buildCreateForm(b, t, o) {
 
   b.appendChild(field('Kênh phân phối',
     optionsDropdown(o.channel, t.channel, (v) => set('channel', v), 'Chọn kênh…')));
+
+  if (!idCha(t)) b.appendChild(khoiLapLai(t));
+}
+
+/* =======================  VIỆC LẶP LẠI (29/10/2026)  =======================
+ * Anh Hùng: "người quản lý có thể tạo những công việc lặp lại theo ngày hoặc
+ * theo tuần hoặc theo tháng, đơn giản là thêm kiểu có thể setup việc đấy".
+ *
+ * Không có form thứ hai: quản lý điền đúng form "Tạo công việc", rồi chọn ô
+ * "Lặp lại". Bấm Tạo là có việc của hôm nay, đồng thời máy chủ cất một mẫu; từ
+ * kỳ sau máy chủ tự tạo lúc 07:00, hạn trong ngày theo giờ của ô Deadline.
+ * Danh sách mẫu (tạm dừng, xoá) mở bằng nút "Việc lặp lại" hoặc ngay dưới ô này.
+ */
+const THU_LAP = [[1, 'T2'], [2, 'T3'], [3, 'T4'], [4, 'T5'], [5, 'T6'], [6, 'T7'], [0, 'CN']];
+
+function khoiLapLai(t) {
+  if (!t._lap) t._lap = { chuKy: '', thu: [], ngay: [], boCN: false };
+  if (S.moLap) { t._lap.chuKy = 'ngay'; S.moLap = false; }
+  const L = t._lap;
+  const khoi = el('div', 'lap-khoi');
+  const ve = () => {
+    khoi.innerHTML = '';
+    const seg = el('div', 'seg lap-seg');
+    for (const [k, nhan] of [['', 'Không'], ['ngay', 'Hằng ngày'], ['tuan', 'Hằng tuần'], ['thang', 'Hằng tháng']]) {
+      const n = el('button', 'pill' + (L.chuKy === k ? ' is-active' : ''), nhan);
+      n.type = 'button';
+      n.setAttribute('aria-pressed', String(L.chuKy === k));
+      n.onclick = () => {
+        L.chuKy = k;
+        /* Chọn tuần/tháng lần đầu thì điền sẵn hôm nay, khỏi bắt chọn thêm một bước. */
+        const nay = new Date();
+        if (k === 'tuan' && !L.thu.length) L.thu = [nay.getDay()];
+        if (k === 'thang' && !L.ngay.length) L.ngay = [nay.getDate()];
+        ve();
+      };
+      seg.appendChild(n);
+    }
+    khoi.appendChild(field('Lặp lại', seg));
+
+    if (L.chuKy === 'tuan') {
+      const hang = el('div', 'lap-chon');
+      for (const [so, nhan] of THU_LAP) {
+        const c = el('button', 'chip lap-o' + (L.thu.includes(so) ? ' on' : ''), nhan);
+        c.type = 'button';
+        c.setAttribute('aria-pressed', String(L.thu.includes(so)));
+        c.onclick = () => {
+          L.thu = L.thu.includes(so) ? L.thu.filter((x) => x !== so) : L.thu.concat(so);
+          ve();
+        };
+        hang.appendChild(c);
+      }
+      khoi.appendChild(field('Vào các thứ', hang));
+    }
+    if (L.chuKy === 'thang') {
+      const o = textInput(L.ngay.join(', '), (v) => {
+        L.ngay = String(v || '').split(/[^0-9]+/).map(Number).filter((n) => n >= 1 && n <= 31);
+      });
+      o.placeholder = 'VD: 1, 15';
+      o.inputMode = 'numeric';
+      const f = field('Vào các ngày trong tháng', o);
+      f.appendChild(el('div', 'ro-note', 'Tháng không có ngày 29–31 thì tạo vào ngày cuối tháng.'));
+      khoi.appendChild(f);
+    }
+    if (L.chuKy === 'ngay') {
+      const nhan = el('label', 'lap-cn');
+      const cb = el('input');
+      cb.type = 'checkbox';
+      cb.checked = !!L.boCN;
+      cb.onchange = () => { L.boCN = cb.checked; };
+      nhan.appendChild(cb);
+      nhan.appendChild(document.createTextNode(' Trừ Chủ nhật'));
+      khoi.appendChild(nhan);
+    }
+    if (L.chuKy) {
+      khoi.appendChild(el('div', 'ro-note',
+        'Việc của hôm nay tạo ngay khi bấm Tạo. Các kỳ sau tự tạo lúc 07:00, hạn trong ngày theo giờ của ô Deadline.'));
+    }
+    const xem = el('button', 'lap-xem', 'Xem các việc lặp lại');
+    xem.type = 'button';
+    xem.onclick = moDanhSachLap;
+    khoi.appendChild(xem);
+  };
+  ve();
+  return khoi;
+}
+
+/** Giờ:phút (giờ Việt Nam) của một mốc ISO, để làm giờ hạn cho mỗi kỳ. */
+function gioPhutVN(iso) {
+  const g = iso ? vnParts(iso) : null;
+  return g ? p2(g.H) + ':' + p2(g.M) : '17:00';
+}
+
+/** Gọi sau khi việc của hôm nay đã tạo xong: cất mẫu để các kỳ sau tự tạo. */
+async function luuMauLap(payload, L) {
+  const mau = Object.assign({}, payload, {
+    chuKy: L.chuKy, thu: L.thu, ngay: L.ngay, boCN: L.boCN,
+    gioHan: gioPhutVN(payload.deadline1), daTaoHomNay: true,
+  });
+  delete mau.tuNhap;
+  return req('/api/viec-lap', { method: 'POST', body: JSON.stringify(mau) });
+}
+
+async function moDanhSachLap() {
+  const box = $('#lapDs');
+  box.innerHTML = '';
+  box.appendChild(el('div', 'lap-trong', 'Đang tải…'));
+  openModal('mLap');
+  try {
+    const d = await req('/api/viec-lap');
+    veDanhSachLap(d.ds || []);
+  } catch (e) {
+    box.innerHTML = '';
+    box.appendChild(el('div', 'lap-trong', 'Không tải được: ' + e.message));
+  }
+}
+
+function veDanhSachLap(ds) {
+  const box = $('#lapDs');
+  box.innerHTML = '';
+  if (!ds.length) {
+    box.appendChild(el('div', 'lap-trong', 'Chưa có việc lặp lại nào. Bấm "+ Tạo việc lặp lại" để thêm.'));
+    return;
+  }
+  for (const m of ds) {
+    const dong = el('div', 'lap-dong' + (m.tat ? ' tat' : ''));
+    const chu = el('div', 'lap-chu');
+    chu.appendChild(el('b', '', m.title));
+    chu.appendChild(el('span', '', (m.tat ? 'Đang tạm dừng · ' : '') + m.moTa));
+    const ai = (m.owner || []).map((u) => u.name).filter(Boolean).join(', ');
+    chu.appendChild(el('span', 'lap-ai', ai ? 'Giao: ' + ai : 'Chưa giao ai'));
+    dong.appendChild(chu);
+    const dung = el('button', 'btn', m.tat ? 'Chạy lại' : 'Tạm dừng');
+    dung.onclick = async () => {
+      dung.disabled = true;
+      try {
+        const k = await req('/api/viec-lap/' + m.id, { method: 'PATCH', body: JSON.stringify({ tat: !m.tat }) });
+        Object.assign(m, k.mau);
+        veDanhSachLap(ds);
+      } catch (e) { toast('Lỗi: ' + e.message, true); dung.disabled = false; }
+    };
+    const xoa = el('button', 'btn btn-danger', 'Xoá');
+    xoa.onclick = async () => {
+      if (!confirm('Xoá việc lặp lại "' + m.title + '"? Từ kỳ sau không tạo việc này nữa; các việc đã tạo vẫn giữ nguyên.')) return;
+      xoa.disabled = true;
+      try {
+        await req('/api/viec-lap/' + m.id, { method: 'DELETE' });
+        veDanhSachLap(ds.filter((x) => x !== m));
+        toast('Đã xoá việc lặp lại');
+      } catch (e) { toast('Lỗi: ' + e.message, true); xoa.disabled = false; }
+    };
+    const nut = el('div', 'lap-nut');
+    nut.appendChild(dung);
+    nut.appendChild(xoa);
+    dong.appendChild(nut);
+    box.appendChild(dong);
+  }
 }
 
 /* Biến URL trong mô tả thành link bấm được. Yêu cầu của người order hay có
@@ -6463,7 +6619,18 @@ async function saveDrawer() {
       if (!payload.workType) throw new Error('Cần chọn loại công việc');
       if (!payload.deadline1) throw new Error('Cần chọn deadline');
 
+      const L = S.isManager && !payload.parent && t._lap && t._lap.chuKy ? t._lap : null;
+      if (L && L.chuKy === 'tuan' && !L.thu.length) throw new Error('Chọn ít nhất một thứ để lặp lại hằng tuần');
+      if (L && L.chuKy === 'thang' && !L.ngay.length) throw new Error('Nhập ít nhất một ngày để lặp lại hằng tháng');
+
       const kq = await req('/api/tasks', { method: 'POST', body: JSON.stringify(payload) });
+
+      /* Việc của hôm nay đã có; cất mẫu cho các kỳ sau. Hỏng thì nói rõ, việc
+       * vừa tạo vẫn giữ. */
+      if (L) {
+        try { await luuMauLap(payload, L); toast('Đã đặt lặp lại: ' + ({ ngay: 'hằng ngày', tuan: 'hằng tuần', thang: 'hằng tháng' })[L.chuKy]); }
+        catch (e) { toast('Việc đã tạo nhưng chưa đặt được lặp lại: ' + e.message, true); }
+      }
 
       /* Việc đã lên Base thì nháp hết vai trò. Xoá NGAY sau khi tạo xong, trước cả
        * bước tải tệp: tệp hỏng thì việc vẫn còn đó, giữ nháp lại chỉ khiến lần sau
@@ -7087,6 +7254,7 @@ function applyRoleChrome() {
   $('#btnNew').classList.toggle('hidden', !S.perm.taoMoi);
   $('#btnQuyen').classList.toggle('hidden', !S.isManager);
   $('#btnPhanPhoi').classList.toggle('hidden', !S.isManager);
+  $('#btnLap').classList.toggle('hidden', !S.isManager);
   $('#btnReport').classList.toggle('hidden', !S.isManager);
   // Ai cũng đặt việc được nên ai cũng có tab "Việc tôi order"
   const choPhep = S.isManager ? null : (xemHet ? ['work', 'order', 'board', 'table'] : ['work', 'order']);
@@ -7518,6 +7686,9 @@ function setupChrome() {
   $('#adjSubmit').onclick = submitAdjust;
   $('#btnQuyen').onclick = openQuyen;
   $('#btnPhanPhoi').onclick = openPhanPhoi;
+  $('#btnLap').onclick = moDanhSachLap;
+  $('#lapClose').onclick = () => closeModal('mLap');
+  $('#lapNew').onclick = () => { closeModal('mLap'); S.moLap = true; openDrawer(null); };
   $('#ppLoad').onclick = () => napPhanPhoi(true);
 
   /* Một chỗ bắt cho cả ba loại ô cấu hình + nút Giao ngay. Dùng `change` chứ

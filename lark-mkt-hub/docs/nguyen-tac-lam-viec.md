@@ -353,3 +353,13 @@ Anh Hùng: "giao diện cho người thuận tay phải, dời các nút về ph
 - **Làn trống ẩn hẳn trên điện thoại** ("Công việc mới 0"). Chỉ khi mọi làn đều trống mới giữ một câu "đang trống".
 - **Nhóm "(chưa điền)" của biểu đồ phân bổ ẩn trên điện thoại.** Máy tính vẫn hiện để quản lý biết mà đi điền.
 - **Thẻ có lớp chung ép lề (`!important`) thì cây việc phải tính toạ độ từ một chỗ**: tâm nút gấp, vạch dọc và lề chữ cùng đi theo `--noi-goc` / `--noi-buoc`, không đặt ba số rời.
+
+## 25. Việc lặp lại (29/10/2026)
+
+Anh Hùng: "người quản lý có thể tạo những công việc lặp lại theo ngày hoặc theo tuần hoặc theo tháng, đơn giản là thêm kiểu có thể setup việc đấy".
+
+- **Không có form thứ hai.** Quản lý điền đúng form "Tạo công việc", chọn ô **Lặp lại**: Hằng ngày (có thể trừ Chủ nhật), Hằng tuần (chọn thứ), Hằng tháng (chọn ngày; tháng không có ngày 29–31 thì tạo vào ngày cuối tháng).
+- Bấm Tạo là có việc của hôm nay; máy chủ cất một mẫu. Các kỳ sau tự tạo lúc **07:00** giờ Việt Nam, hạn trong ngày theo **giờ** của ô Deadline, trạng thái "Chờ tiếp nhận", báo Lark cho người phụ trách như khi được giao việc.
+- Mẫu cất ở kho cấu hình trên Base (dòng `viec-lap:v1:…`), không cất trên ổ Render. Logic ở `lark-task-manager/viec-lap.js`, test ở `test/viec-lap.test.js`.
+- **Chỉ bản chạy trên Render tạo việc** (máy cá nhân không tạo, kẻo mỗi máy đang mở hub thêm một bản sao). Gói Free ngủ khi không ai mở: nhịp 5 phút cộng với lượt quét kèm khi có người mở app, ngày nào lỡ thì tạo bù trong ngày, không tạo bù ngày đã qua.
+- Danh sách mẫu (Tạm dừng / Chạy lại / Xoá) mở bằng nút "Việc lặp lại" trên máy tính, hoặc "Xem các việc lặp lại" ngay dưới ô Lặp lại trong form. Xoá mẫu không đụng tới việc đã tạo ra từ nó.

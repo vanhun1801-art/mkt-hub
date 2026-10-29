@@ -34,9 +34,13 @@ const { dungBaoCao } = require('./baocao');
 const { themLuaChon } = require('./campaign');
 const nhapMod = require('./nhap');
 const botNhac = require('./nhac-nghiem-thu');
-const botStore = botNhac.storage(require('../lark-mkt-hub/base-lark').bang(
+/* Kho cấu hình trên Base: bot nhắc nghiệm thu và mẫu việc lặp lại cùng dùng. */
+const khoCauHinh = require('../lark-mkt-hub/base-lark').bang(
   process.env.HUB_PHIM_BASE || process.env.HUB_TB_BASE || 'JhZtbxv0gamk5ys3Fr0luHnsgwG',
-  process.env.HUB_PHIM_TABLE || 'tbl1rcw5ES34EeEY', 'Tệp'));
+  process.env.HUB_PHIM_TABLE || 'tbl1rcw5ES34EeEY', 'Tệp');
+const botStore = botNhac.storage(khoCauHinh);
+const VL = require('./viec-lap');
+const khoViecLap = VL.kho(khoCauHinh);
 const botNghiemThu = botNhac.create({
   store: botStore,
   getTasks: async () => (await getRecords(true)).map(toTask),
@@ -866,6 +870,37 @@ function baoTin(openIds, text) {
   })().catch(() => {});
 }
 
+/* ---- Việc lặp lại: tạo một việc thật từ mẫu (viec-lap.js) ----
+ * Đi cùng đường ghi với "Tạo công việc" của quản lý: toCells + createRecord, rồi
+ * báo người phụ trách như khi được giao việc mới. */
+async function taoViecTuMau(mau, v) {
+  const id = (ds) => (ds || []).map((u) => ({ id: u.id }));
+  const body = {
+    title: mau.title, detail: mau.detail || undefined, workType: mau.workType || undefined,
+    priority: mau.priority || undefined, campaign: mau.campaign || undefined,
+    channel: (mau.channel || []).length ? mau.channel : undefined,
+    owner: id(mau.owner), helper: id(mau.helper), requester: id(mau.requester),
+    status: 'Chờ tiếp nhận', startAt: new Date().toISOString(), deadline1: VL.hanCua(mau, v),
+  };
+  for (const k of Object.keys(body)) {
+    if (body[k] === undefined || (Array.isArray(body[k]) && !body[k].length)) delete body[k];
+  }
+  await lark.createRecord(toCells(body, { choCha: true }));
+  cache.at = 0;
+  baoTin((mau.owner || []).map((u) => u.id),
+    'Việc lặp lại hôm nay: "' + mau.title + '"' + XD + VL.moTa(mau) + duoiTin());
+}
+const viecLap = VL.create({ kho: khoViecLap, taoViec: taoViecTuMau });
+/* Chỉ bản chạy trên Render tạo việc lặp lại: máy cá nhân mà cũng tạo thì mỗi
+ * máy đang mở hub là thêm một bản sao của cùng một việc. */
+const CHAY_LICH_LAP = cfg.mode === 'api' && !!process.env.RENDER;
+let lanQuetLap = 0;
+function quetViecLap() {
+  if (!CHAY_LICH_LAP || Date.now() - lanQuetLap < 5 * 60000) return;
+  lanQuetLap = Date.now();
+  viecLap.tick().catch(() => {});
+}
+
 /**
  * Gửi tin NGAY và CHỜ kết quả — dành cho thao tác người dùng bấm trực tiếp.
  *
@@ -1461,6 +1496,7 @@ async function api(req, res, url) {
      * nhịp hẹn giờ một mình không đủ. Không chờ kết quả — người mở app không việc
      * gì phải đợi việc của người khác được giao xong. */
     quetPhanPhoi().catch(() => {});
+    quetViecLap();
     const viecPhong = records.map(toTask);
     let tasks = ganTienDoCon(await visibleFor(viecPhong, req), viecPhong);
     /* ?lienPhong=1: CHỈ giao diện Bảng công việc xin thêm việc liên phòng ban
@@ -1545,6 +1581,38 @@ async function api(req, res, url) {
       tasks = tasks.concat(lp.filter((t) => t.requester.some((u) => u && u.id === me.id)));
     }
     return json(res, { tasks, fetchedAt: cache.at });
+  }
+
+  /* ---- Việc lặp lại (29/10/2026): chỉ quản lý thiết lập ----
+   * GET danh sách mẫu · POST tạo mẫu · PATCH bật/tắt · DELETE xoá mẫu.
+   * Xoá mẫu không đụng tới các việc đã tạo ra từ nó. */
+  const mVL = p.match(/^\/api\/viec-lap(?:\/([A-Za-z0-9]+))?$/);
+  if (mVL) {
+    if (!(await isManager(req))) return json(res, { error: 'Chỉ quản lý thiết lập việc lặp lại.', code: 'MANAGER_ONLY' }, 403);
+    if (req.method === 'GET' && !mVL[1]) {
+      const ds = (await khoViecLap.list()).map((m) => Object.assign({}, m, { moTa: VL.moTa(m) }));
+      return json(res, { ds, chayLich: CHAY_LICH_LAP });
+    }
+    if (req.method === 'POST' && !mVL[1]) {
+      const body = await readBody(req);
+      const { mau, loi } = VL.chuanHoa(body);
+      if (loi) return json(res, { error: loi }, 400);
+      /* Việc của hôm nay vừa được tạo bằng form (daTaoHomNay) thì đánh dấu sẵn,
+       * kẻo nhịp lặp tạo thêm một bản nữa ngay trong ngày. */
+      if (body.daTaoHomNay) mau.lanCuoi = VL.ngayVN(Date.now()).ngay;
+      const moi = await khoViecLap.them(mau);
+      return json(res, { ok: true, mau: Object.assign(moi, { moTa: VL.moTa(moi) }) });
+    }
+    if (mVL[1] && (req.method === 'PATCH' || req.method === 'DELETE')) {
+      const mau = (await khoViecLap.list()).find((m) => m.id === mVL[1]);
+      if (!mau) return json(res, { error: 'Không thấy mẫu việc lặp lại này.' }, 404);
+      if (req.method === 'DELETE') { await khoViecLap.xoa(mau.rowId); return json(res, { ok: true }); }
+      const body = await readBody(req);
+      if (typeof body.tat === 'boolean') mau.tat = body.tat;
+      await khoViecLap.sua(mau);
+      return json(res, { ok: true, mau: Object.assign({}, mau, { moTa: VL.moTa(mau) }) });
+    }
+    return json(res, { error: 'Không hỗ trợ' }, 405);
   }
 
   if (p === '/api/tasks' && req.method === 'POST') {
@@ -3053,6 +3121,12 @@ server.listen(cfg.port, BIND, () => {
    * đường cộng lại: có người mở app thì đúng hẹn, không ai mở thì việc chờ tới
    * lần mở tiếp theo. Chậm, chứ không sai. */
   setInterval(() => { quetPhanPhoi().catch(() => {}); }, 60000).unref();
+  /* Việc lặp lại: quét 5 phút một lần, và /api/tasks quét kèm khi service vừa
+   * thức dậy (gói Free ngủ khi không ai mở) — ngày nào lỡ thì tạo bù trong ngày. */
+  if (CHAY_LICH_LAP) {
+    setTimeout(quetViecLap, 20000).unref();
+    setInterval(quetViecLap, 5 * 60000).unref();
+  }
   if (cfg.mode === 'api' && process.env.RENDER) {
     setTimeout(() => botNghiemThu.tick(), 15000).unref();
     setInterval(() => botNghiemThu.tick(), 60000).unref();

@@ -3103,6 +3103,31 @@ html:not(#_):not(#__):not(#___):not(#____) .cmt-new :is(.cmt-nut-anh, .cmt-gui) 
 .cmt-anh-lk { display: block; aspect-ratio: 1; border-radius: 12px; overflow: hidden; background: var(--surface-3); }
 .cmt-anh-lk img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
+/* ---- Việc lặp lại (29/10/2026) ---- */
+.lap-khoi { margin-top: 4px; }
+.lap-seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.lap-seg .pill { border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 6px 14px; font: inherit; font-size: 13px; color: var(--text); cursor: pointer; }
+.lap-seg .pill.is-active { background: var(--blue); border-color: var(--blue); color: #fff; }
+.lap-chon { display: flex; flex-wrap: wrap; gap: 6px; }
+.lap-o { min-width: 44px; justify-content: center; cursor: pointer; border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 6px 10px; font: inherit; font-size: 13px; color: var(--text); }
+.lap-o.on { background: var(--blue-bg); border-color: var(--blue); color: var(--blue-text); font-weight: 600; }
+.lap-cn { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; margin: 2px 0 6px; cursor: pointer; }
+.lap-xem { border: 0; background: none; padding: 6px 0; font: inherit; font-size: 13px; color: var(--blue-text); cursor: pointer; }
+.lap-box { width: min(560px, 96vw); max-height: 86dvh; display: flex; flex-direction: column; }
+.lap-ds { display: flex; flex-direction: column; overflow-y: auto; min-height: 0; margin: 8px 0; }
+.lap-trong { padding: 20px 4px; color: var(--text-2); font-size: 13px; text-align: center; }
+.lap-dong { display: flex; align-items: center; gap: 12px; padding: 12px 2px; }
+.lap-dong + .lap-dong { border-top: 1px solid var(--border); }
+.lap-dong.tat .lap-chu { opacity: .55; }
+.lap-chu { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.lap-chu b { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.lap-chu span { font-size: 12.5px; color: var(--text-2); }
+.lap-nut { flex: 0 0 auto; display: flex; gap: 6px; }
+@media (max-width: 640px) {
+  .lap-dong { flex-wrap: wrap; }
+  .lap-nut { width: 100%; justify-content: flex-end; }
+}
+
 /* ---- Tải việc theo nhân sự trên điện thoại (29/10/2026) ----
    Máy tính giữ bảng 8 cột (sắp xếp được theo cột). Điện thoại thay bằng thẻ
    từng người do theTaiViec() vẽ: tên + tổng việc mở trên đầu, thanh tải, rồi
