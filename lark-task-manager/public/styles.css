@@ -2916,6 +2916,10 @@ html:not(#_):not(#__):not(#___) .kh-than .vc-them input {
    hàng nên chỉ cần đẩy nó ra sau cùng. Nút gấp việc lớn vẫn ở bên trái: nó là
    gốc của nét cây, dời đi thì nét cây mọc từ chỗ trống. */
 .wcard > .wc-nam { order: 9; }
+/* Lớp iOS đặt `.wcard { padding: 14px 16px }` (0,2,1) nên luật thụt cấp ở
+   trên chưa từng ăn trên máy tính: việc con đứng thẳng hàng việc lớn. */
+html:not(#_):not(#__) #lanes .wcard-con.cap-2 { padding-left: 38px; }
+html:not(#_):not(#__) #lanes .wcard-con.cap-3 { padding-left: 60px; }
 
 /* Khổ hẹp: thẻ xếp dọc (.wcard thành cột từ 980px), nên nút thu gọn và tay nắm
    phải neo tuyệt đối — để mặc thì mỗi cái chiếm trọn một dòng phía trên tên
@@ -2925,13 +2929,16 @@ html:not(#_):not(#__):not(#___) .kh-than .vc-them input {
    cùng đi theo hai số đó nên không bao giờ lệch nhau. Trước đây ba thứ đặt ba
    số rời, và lớp iOS còn ép lề thẻ về 14px (!important) — vạch cây chạy xuyên
    qua nhãn và nút, tay nắm đè lên chấm đỏ trễ hạn.
-   Dùng #lanes để thắng luật lề của lớp iOS (độ ưu tiên id). */
+   Lớp iOS ép lề bằng `html[data-skin]:not(#_):not(#__) .wcard … !important`
+   (hai id giả), nên luật ở đây cần ba id: hai id giả + #lanes. */
 @media (max-width: 980px) {
   #lanes .lane-items { --noi-goc: 15px; --noi-buoc: 22px; --le-cay: 32px; }
-  #lanes .wcard { padding-left: var(--le-cay) !important; padding-right: 14px !important; row-gap: 10px; }
-  #lanes .wcard-con.cap-2 { padding-left: calc(var(--le-cay) + var(--noi-buoc)) !important; }
-  #lanes .wcard-con.cap-3 { padding-left: calc(var(--le-cay) + 2 * var(--noi-buoc)) !important; }
-  html[data-skin] #lanes .wcard-actions { margin-top: 0; }
+  html:not(#_):not(#__) #lanes .wcard { padding-left: var(--le-cay) !important; padding-right: 14px !important; row-gap: 10px; }
+  html:not(#_):not(#__) #lanes .wcard-con.cap-2 { padding-left: calc(var(--le-cay) + var(--noi-buoc)) !important; }
+  html:not(#_):not(#__) #lanes .wcard-con.cap-3 { padding-left: calc(var(--le-cay) + 2 * var(--noi-buoc)) !important; }
+  /* Thẻ xếp cột với align-items:flex-start nên khối nút co theo chữ và dính
+     trái; giãn hết bề ngang thì justify-content:flex-end mới đẩy được nút. */
+  html:not(#_):not(#__) .wcard > .wcard-actions { margin-top: 0 !important; align-self: stretch; justify-content: flex-end; }
   .wc-gap.trong { display: none; }
   .wc-gap:not(.trong) { position: absolute; left: calc(var(--noi-goc) - 10px); top: 10px; }
   .wcard-con.cap-2 > .wc-gap:not(.trong) { left: calc(var(--noi-goc) + var(--noi-buoc) - 10px); }
@@ -2949,6 +2956,13 @@ html:not(#_):not(#__):not(#___) .kh-than .vc-them input {
 @media (max-width: 640px) {
   #lanes .lane-items { --noi-goc: 14px; --noi-buoc: 18px; --le-cay: 30px; --moc-y: 21px; }
   .wc-gap:not(.trong) { top: 11px; }
+  /* Lớp iOS nới mọi nút lên 40px cho vừa ngón tay; nút gấp đã có ô bấm vô
+     hình 40px (::after bên dưới), để nó cao 40px thì mũi tên tụt xuống giữa
+     ô, lệch khỏi hàng tên và đè lên đỉnh nét cây. */
+  html:not(#_):not(#__) #lanes .wc-gap:not(.trong) { height: 20px !important; min-height: 0 !important; }
+  /* Tiêu đề làn dính trên đầu khi cuộn (sticky), mà lớp iOS cho nền trong
+     suốt: "Đang tiến hành 14" đè lên tên việc đang lướt qua bên dưới. */
+  html:not(#_):not(#__) #lanes .lane-head { background: var(--ios-nen, var(--bg)) !important; }
   .wc-nam { top: 9px; }
   .wc-gap:not(.trong)::after {
     content: ''; position: absolute; top: 50%; left: 50%;

@@ -651,6 +651,7 @@
     'Làm lại': 'Redo',
     /* thẻ Tải việc theo nhân sự trên điện thoại (29/10/2026) */
     'đang mở': 'open',
+    'Trễ': 'Late',
     'Đang làm': 'Doing',
     'Chờ chấm': 'To score',
     'Điểm TB': 'Avg score',
