@@ -83,7 +83,7 @@ const LANES = [
     hint: 'Việc của người khác, bạn được thêm vào cột Người hỗ trợ.',
     empty: 'Bạn không hỗ trợ việc nào.' },
   { key: 'doing', title: 'Đang tiến hành',
-    hint: 'Đính sản phẩm hoặc dán link kết quả trước khi bấm Đã gửi sản phẩm.',
+    hint: 'Đính sản phẩm hoặc dán link kết quả trước khi bấm Gửi sản phẩm.',
     empty: 'Bạn chưa bắt đầu việc nào.' },
   { key: 'late', title: 'Đang trễ deadline',
     hint: 'Đã bị đánh dấu trễ. Ưu tiên xử lý và báo người order.',
@@ -2291,7 +2291,10 @@ function workCard(t, lane) {
   /* Tự order cho chính mình thì nộp xong là xong — gọi đúng tên việc sắp xảy
    * ra, không hứa một bước nghiệm thu không có thật (anh Hùng 27/10/2026). */
   const tuChot = tuGiaoTuLam(t) && !laTreTheoHan(t);
-  const nhanNop = tuChot ? '✓ Hoàn thành' : '✓ Đã gửi sản phẩm';
+  /* Nút là việc SẮP làm, nên dùng động từ: "Gửi sản phẩm", không "Đã gửi"
+   * (anh Hùng 29/10/2026: việc tự order → Hoàn thành, việc được giao → Gửi
+   * sản phẩm). Tự order mà đã trễ thì vẫn phải qua nghiệm thu, nên vẫn là gửi. */
+  const nhanNop = tuChot ? '✓ Hoàn thành' : '↥ Gửi sản phẩm';
   const primary = {
     new:  { label: '▶ Bắt đầu làm', run: () => startTask(t) },
     doing: { label: nhanNop, run: () => openDone(t) },
@@ -5231,7 +5234,8 @@ function buildStaffDrawer(b, t, o) {
     const nhan = stage === 'daNop' ? '↥  Gửi lại sản phẩm'
       : treGQ ? (daGiaiQuyet(t) ? '↥  Gửi lại sản phẩm' : '↥  Gửi sản phẩm · giải quyết việc trễ')
       : stage === 'redo' ? '↻  Gửi lại sản phẩm'
-      : '✓  Đã gửi sản phẩm';
+      : (tuGiaoTuLam(t) && !laTreTheoHan(t)) ? '✓  Hoàn thành'
+      : '↥  Gửi sản phẩm';
     const bt = el('button', 'btn btn-primary sg-nut', nhan);
     bt.onclick = () => { closeDrawer(); openDone(t, treGQ ? 'giai-quyet' : ''); };
     datNut(bt);

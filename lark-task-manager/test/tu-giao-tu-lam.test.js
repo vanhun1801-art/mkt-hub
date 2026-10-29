@@ -82,7 +82,7 @@ test('không nhắn cho chính mình rằng việc mình vừa đóng đã xong'
 test('nút gọi đúng tên việc sắp xảy ra', () => {
   const w = layHam(FE, 'workCard', 'public/app.js');
   assert.ok(/const tuChot = tuGiaoTuLam\(t\) && !laTreTheoHan\(t\);/.test(w));
-  assert.ok(/tuChot \? '✓ Hoàn thành' : '✓ Đã gửi sản phẩm'/.test(w),
+  assert.ok(/tuChot \? '✓ Hoàn thành' : '↥ Gửi sản phẩm'/.test(w),
     'tự order cho mình thì nút phải nói Hoàn thành, không hứa một bước nghiệm thu không có thật');
   const d = layHam(FE, 'openDone', 'public/app.js');
   assert.ok(/tuChot \? 'Hoàn thành' : 'Gửi sản phẩm'/.test(d), 'nút trong cửa sổ cũng vậy');
