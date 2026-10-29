@@ -112,6 +112,11 @@ server.listen(0, '127.0.0.1', async () => {
     ok('xong: thư mang dấu xong', (await thuA()).xong > 0);
     await hoi('POST', duong('hunglv@rootytrip.com', 'aaaaaaaaaa==', 'doi'), { than: { xong: false } });
     ok('hoàn tác: hết dấu xong', (await thuA()).xong === 0);
+    await hoi('POST', duong('hunglv@rootytrip.com', 'aaaaaaaaaa==', 'doi'), { than: { boQua: true } });
+    ok('bỏ qua (việc người khác): không gọi Lark, thư mang dấu bỏ qua, không thành xong',
+      !goi.length && (await thuA()).boQua > 0 && (await thuA()).xong === 0);
+    await hoi('POST', duong('hunglv@rootytrip.com', 'aaaaaaaaaa==', 'doi'), { than: { xong: false, boQua: false } });
+    ok('đưa về: hết cả dấu bỏ qua', (await thuA()).boQua === 0);
     await hoi('POST', duong('hunglv@rootytrip.com', 'aaaaaaaaaa==', 'doi'), { than: { daDoc: true, sao: true } });
     const a2 = await thuA();
     ok('đã đọc + gắn sao trong app, Lark không bị gọi', !a2.chuaDoc && a2.sao && !goi.length);

@@ -10,7 +10,7 @@
  *   Mail; hộp chung sales@, marketing@ người khác vẫn thấy y nguyên.
  *     luat  "thư từ địa chỉ này luôn vào ngăn X"
  *     hen   thư hẹn nhắc lại: ẩn khỏi ngăn tới giờ hẹn
- *     tt    trạng thái từng thư: x = đã xong (giờ), s = gắn sao,
+ *     tt    trạng thái từng thư: x = đã xong (giờ), b = bỏ qua (giờ), s = gắn sao,
  *           d = 1 đã đọc trong app / 0 đánh dấu chưa đọc
  *     nhom  nhóm việc đang theo dõi
  *     chuKy chữ ký gắn vào thư trả lời
@@ -238,6 +238,8 @@ module.exports = {
     const k = khoa(hop, id);
     const cu = Object.assign({}, s.tt[k]);
     if ('xong' in doi) { if (doi.xong) cu.x = Date.now(); else delete cu.x; }
+    /* b = bỏ qua: thư của người khác trong hộp chung, mình không lo (29/10/2026). */
+    if ('boQua' in doi) { if (doi.boQua) cu.b = Date.now(); else delete cu.b; }
     if ('sao' in doi) { if (doi.sao) cu.s = 1; else delete cu.s; }
     if ('daDoc' in doi) cu.d = doi.daDoc ? 1 : 0;
     cu.l = Date.now();

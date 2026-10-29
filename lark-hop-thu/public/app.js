@@ -92,7 +92,9 @@ function chuCho(gio) {
 }
 const TUAN = 7 * 86400e3;
 /** Thư đến này còn chờ anh trả lời không. */
-const conCho = (t) => !t.daGui && t.ngan === 'xu-ly' && !t.xong && !t.daTraLoi && !t.henDen;
+const conCho = (t) => !t.daGui && t.ngan === 'xu-ly' && !t.xong && !t.boQua && !t.daTraLoi && !t.henDen;
+/* Thư đã rời ngăn: anh xử lý xong, hoặc bỏ qua vì là việc của người khác trong hộp chung. */
+const daRoi = (t) => Boolean(t.xong || t.boQua);
 
 /* Ảnh đại diện chữ cái: màu theo địa chỉ gửi, cùng người luôn cùng màu. */
 const MAU_AVT = ['#289683', '#3b82c4', '#8a5cf6', '#d9822b', '#c2417a', '#4f8a3a', '#b5651d', '#5b6fd6'];
@@ -168,7 +170,7 @@ async function xepAi() {
  * khỏi ngăn, xem lại được bằng dòng "N thư đã xong" ở cuối danh sách. */
 function hienTrong(t, ngan, xemXong = false) {
   if (S.daLuu.has(khoa(t))) return ngan === S.loc.ngan;      // giữ chỗ cho dòng "Hoàn tác"
-  if (Boolean(t.xong) !== xemXong) return false;
+  if (daRoi(t) !== xemXong) return false;
   if (ngan === 'hen') return t.henDen > 0;
   return !t.henDen && t.ngan === ngan;
 }
@@ -254,7 +256,7 @@ function menuHop(nut) {
 function dongThu(t) {
   const k = khoa(t);
   if (S.daLuu.has(k)) {
-    return '<div class="da-luu" data-k="' + esc(k) + '"><span>Đã xong: <span data-no-i18n>' + esc(t.tieuDe || '(không tiêu đề)') +
+    return '<div class="da-luu" data-k="' + esc(k) + '"><span>' + (S.daLuu.get(k)._boQua ? 'Đã bỏ qua' : 'Đã xong') + ': <span data-no-i18n>' + esc(t.tieuDe || '(không tiêu đề)') +
       '</span></span><button data-hoan="' + esc(k) + '">Hoàn tác</button></div>';
   }
   const phu = [];
@@ -264,6 +266,7 @@ function dongThu(t) {
   else if (mc.muc) phu.push('<span class="nhan cho ' + mc.muc + '">Chờ anh ' + chuCho(mc.gio) + '</span>');
   if (t.daTraLoi && !t.daGui) phu.push('<span class="nhan da-tl">Đã trả lời</span>');
   if (t.sep) phu.push('<span class="nhan sep">Ban giám đốc</span>');
+  if (t.boQua && !S.daLuu.has(k)) phu.push('<span class="nhan bo-qua">Đã bỏ qua</span>');
   if (t.rac) phu.push('<span class="nhan rac" title="Lark xếp thư này vào Thư rác">Thư rác</span>');
   if (S.hop.length > 1 && !S.loc.hop) phu.push('<span class="nhan o-hop" data-no-i18n>' + esc(tenHop(t.hop)) + '</span>');
   if (t.sao) phu.push('<span class="nhan sao" aria-label="Có gắn sao">★</span>');
@@ -354,7 +357,7 @@ function veViec() {
     (lau.length ? '<button class="dong gom lau-gom" data-mo-lau aria-expanded="' + S.moLau + '">' +
       '<span class="avt gom" aria-hidden="true">' + lau.length + '</span>' +
       '<span class="nguoi">' + lau.length + ' thư đã chờ quá 7 ngày</span><span class="gio">' + (S.moLau ? 'Thu lại' : 'Xem') + '</span>' +
-      '<span class="td">Xử lý xong thì bấm Xong để thư rời khỏi đây.</span></button>' +
+      '<span class="td">Xử lý xong thì bấm Xong. Việc của người khác thì vào ⋯ chọn Bỏ qua.</span></button>' +
       (S.moLau ? lau.map(dongThu).join('') : '') : '') +
     (cho.length > gan.length + lau.length ? '<button class="xem-xong" data-ngan="xu-ly">' + (cho.length - gan.length - lau.length) + ' thư cũ hơn 30 ngày ở ngăn Cần trả lời</button>' : ''));
   if (donMoi) {
@@ -390,7 +393,7 @@ function veDs() {
   const box = $('#ds');
   const ds = S.thu.filter((t) => hienTrong(t, S.loc.ngan, S.loc.xong) && khopLoc(t));
   let h = '';
-  if (S.loc.xong) h += '<button class="dong gom" data-xem-xong="0"><span class="avt gom" aria-hidden="true"></span><span class="nguoi">Thư đã xong</span>' +
+  if (S.loc.xong) h += '<button class="dong gom" data-xem-xong="0"><span class="avt gom" aria-hidden="true"></span><span class="nguoi">Thư đã xong và đã bỏ qua</span>' +
     '<span class="gio"></span><span class="td">Chỉ đánh dấu trong app, Lark Mail giữ nguyên. Bấm để quay lại.</span></button>';
   if (S.loi.length) {
     h += '<div class="bao-nho">Chưa đọc được ' + S.loi.length + ' hộp: ' +
@@ -410,8 +413,12 @@ function veDs() {
     h += '<div class="trong">' + (S.loc.tim ? 'Không thư nào khớp "' + esc(S.loc.tim) + '".' :
       TRONG[S.loc.ngan] || 'Không có thư nào.') + '</div>';
   } else h += ds.map(dongThu).join('');
-  const soXong = S.loc.xong ? 0 : S.thu.filter((t) => hienTrong(t, S.loc.ngan, true) && khopLoc(t)).length;
-  if (soXong) h += '<button class="xem-xong" data-xem-xong="1">' + soXong + ' thư đã xong trong ngăn này</button>';
+  const roi = S.loc.xong ? [] : S.thu.filter((t) => hienTrong(t, S.loc.ngan, true) && khopLoc(t));
+  const soBo = roi.filter((t) => t.boQua).length, soXong = roi.length - soBo;
+  if (roi.length) {
+    h += '<button class="xem-xong" data-xem-xong="1">' +
+      [soXong ? soXong + ' thư đã xong' : '', soBo ? soBo + ' thư đã bỏ qua' : ''].filter(Boolean).join(', ') + ' trong ngăn này</button>';
+  }
   box.innerHTML = h;
 }
 
@@ -488,6 +495,7 @@ const nutChu = (viec, ic, nhan, lop = '') =>
   '<svg viewBox="0 0 24 24" aria-hidden="true">' + ic + '</svg><span>' + nhan + '</span></button>';
 const IC_THEM = '<circle cx="5.5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="18.5" cy="12" r="1.4"/>';
 const IC_XONG = '<path d="M5 12.5l4.5 4.5L19 7.5"/>';
+const IC_VE = '<path d="M9 7L4 12l5 5"/><path d="M4 12h11a5 5 0 0 1 0 10h-2"/>';
 
 /* tam: dòng thư trong danh sách, vẽ khuôn trong lúc chờ tải nội dung. */
 function veDoc(tam) {
@@ -499,7 +507,7 @@ function veDoc(tam) {
    * những người nhận ban đầu; không có Xong vì thư không nằm trong Hộp đến. */
   $('#hangNut').innerHTML = nutChu('tra-loi', IC.traLoi, tom.daGui ? 'Nhắc lại' : 'Trả lời') +
     nutChu('viec', IC.viec, 'Giao việc') +
-    (tom.daGui ? '' : nutChu('luu', IC_XONG, 'Xong', 'chinh')) +
+    (tom.daGui ? '' : daRoi(tom) ? nutChu('bo-xong', IC_VE, 'Đưa về') : nutChu('luu', IC_XONG, 'Xong', 'chinh')) +
     '<button class="nut-tron" data-viec="them" title="Thêm" aria-label="Thêm" aria-haspopup="menu">' +
     '<svg viewBox="0 0 24 24" aria-hidden="true">' + IC_THEM + '</svg></button>';
 
@@ -1041,29 +1049,45 @@ async function danhDau(t, thay, im) {
   }
 }
 
-/* Xong: dấu riêng trong app, thư vẫn nằm nguyên trong Hộp đến trên Lark. */
-async function luuTru(t) {
+/* Xong: dấu riêng trong app, thư vẫn nằm nguyên trong Hộp đến trên Lark.
+ * boQua: thư của người khác trong hộp chung (anh Hùng 29/10/2026: "ấn xong thì
+ * có thể ảnh hưởng đến công việc của bạn khác"). Cũng chỉ là sổ riêng của
+ * mình, người khác vẫn thấy thư y nguyên; khác Xong ở chữ và ở nhãn. */
+async function luuTru(t, boQua = false) {
   const k = khoa(t);
+  const truong = boQua ? 'boQua' : 'xong';
+  t._boQua = boQua;                  // dòng "Hoàn tác" nói đúng việc vừa làm
   S.daLuu.set(k, t);
   if (S.chon === k) dongDoc();
   ve();
-  try { await api(duongThu(t, 'doi'), { body: { xong: true } }); t.xong = Date.now(); }
+  /* Gắn dấu sau khi máy chủ nhận: gắn trước thì Việc cần làm lọc mất dòng
+   * ngay, không còn chỗ cho "Hoàn tác". */
+  /* Gắn cả vào bản thư đang nằm trong danh sách: lượt đọc ngầm (napDu) có thể
+   * đã thay S.thu bằng đối tượng mới, gắn mỗi `t` cũ là thư hiện lại sau 8 giây. */
+  try { await api(duongThu(t, 'doi'), { body: { [truong]: true } }); for (const x of [t, timThu(k)]) if (x) x[truong] = Date.now(); }
   catch (e) {
     S.daLuu.delete(k); ve();
-    bao('Chưa đánh dấu xong được: ' + e.message, 'loi');
+    bao((boQua ? 'Chưa bỏ qua được: ' : 'Chưa đánh dấu xong được: ') + e.message, 'loi');
     return;
   }
   /* Dòng "Hoàn tác" ở lại 8 giây rồi thư chuyển xuống mục "đã xong". */
   setTimeout(() => {
     if (!S.daLuu.has(k)) return;
     S.daLuu.delete(k);
+    const x = timThu(k);
+    if (x && !x[truong]) x[truong] = Date.now();
     ve();
   }, 8000);
 }
 
+/* Đưa thư về ngăn: gỡ cả dấu Xong lẫn dấu Bỏ qua. */
 async function boXong(t) {
-  try { await api(duongThu(t, 'doi'), { body: { xong: false } }); t.xong = 0; ve(); bao('Thư đã quay lại ngăn', 'ok'); }
-  catch (e) { bao('Chưa đưa thư về được: ' + e.message, 'loi'); }
+  try {
+    await api(duongThu(t, 'doi'), { body: { xong: false, boQua: false } });
+    for (const x of [t, timThu(khoa(t))]) if (x) { x.xong = 0; x.boQua = 0; }
+    ve(); if (S.chon === khoa(t) && S.ct) veDoc();
+    bao('Thư đã quay lại ngăn', 'ok');
+  } catch (e) { bao('Chưa đưa thư về được: ' + e.message, 'loi'); }
 }
 
 async function hoanTac(k) {
@@ -1229,6 +1253,7 @@ $('#cotDoc').addEventListener('click', (e) => {
   else if (v === 'sao') danhDau(t, { sao: !t.sao });
   else if (v === 'chua-doc') { danhDau(t, { daDoc: false }); dongDoc(); }
   else if (v === 'luu') luuTru(t);
+  else if (v === 'bo-xong') boXong(t);
   else if (v === 'phan-tich') phanTich();
   else if (v === 'dich') dichThu();
   else if (v === 'xem-goc') { const bd = banDich.get(S.chon); if (bd) { bd.xemGoc = !bd.xemGoc; veBanDich(); } }
@@ -1249,6 +1274,8 @@ function menuThem(nut, t) {
   const sau = (f) => setTimeout(f, 210);
   const nhom = nhomCuaThu(t);
   moMenu(nut,
+    /* Hộp chung: thư người khác lo thì bỏ qua, không bấm Xong thay họ. */
+    (t.daGui || daRoi(t) ? '' : '<button data-lam="bo-qua">Bỏ qua, việc của người khác</button><hr>') +
     '<button data-lam="lich">Thêm vào lịch</button>' +
     '<button data-lam="nhom">Theo dõi trong nhóm…</button>' +
     nhom.map((g) => '<button data-lam="bo-nhom" data-id="' + esc(g.id) + '">Bỏ khỏi nhóm <span data-no-i18n>' + esc(g.ten) + '</span></button>').join('') +
@@ -1261,7 +1288,8 @@ function menuThem(nut, t) {
     '<div class="ghi">Các thao tác này chỉ lưu trong app, Lark Mail giữ nguyên.</div>',
   (x) => {
     const lam = x.dataset.lam;
-    if (lam === 'hen') sau(() => menuHen(nut, t));
+    if (lam === 'bo-qua') luuTru(t, true);
+    else if (lam === 'hen') sau(() => menuHen(nut, t));
     else if (lam === 'ngan') sau(() => menuNgan(nut, t));
     else if (lam === 'sao') danhDau(t, { sao: !t.sao });
     else if (lam === 'chua-doc') { danhDau(t, { daDoc: false }); dongDoc(); }

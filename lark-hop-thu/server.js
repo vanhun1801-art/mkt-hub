@@ -239,7 +239,7 @@ function lamGiau(ds, hop, nguoi = '') {
     const r = tt[kho.khoa(t.hop, t.id)] || {};
     return Object.assign({}, t, {
       chuaDoc: r.d === 1 ? false : r.d === 0 ? true : Boolean(t.chuaDoc),
-      sao: Boolean(r.s), xong: r.x || 0,
+      sao: Boolean(r.s), xong: r.x || 0, boQua: r.b || 0,
       ngan: x.ngan, nguon: x.nguon, lyDo: x.lyDo, sep: x.sep,
       tomTat: a ? a.tomTat : '', canLam: a ? a.canLam : '', han: a ? a.han : '',
       henDen: henDen > nay ? henDen : 0,
@@ -466,6 +466,7 @@ async function api(req, res, url) {
     if (typeof b.daDoc === 'boolean') doi.daDoc = b.daDoc;
     if (typeof b.sao === 'boolean') doi.sao = b.sao;
     if (typeof b.xong === 'boolean') doi.xong = b.xong;
+    if (typeof b.boQua === 'boolean') doi.boQua = b.boQua;
     if (!Object.keys(doi).length) return loi(res, 400, 'Không có thay đổi nào');
     return json(res, { ok: true, tt: kho.datTT(k.hop, k.id, doi, n.nguoi) });
   }

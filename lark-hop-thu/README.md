@@ -41,7 +41,9 @@ Trong thư chỉ có ba nút có chữ: **Trả lời**, **Giao việc**, **Xong
 
 ## Chỉ đổi bên mình, Lark Mail giữ nguyên (28/10/2026)
 
-Hộp chung có nhiều người dùng, nên **Xong, đã đọc, chưa đọc, gắn sao, chuyển ngăn, hẹn, nhóm** chỉ ghi vào sổ riêng của từng người (`kho.js`). Không lệnh nào đổi nhãn hay thư mục trên Lark Mail. Sổ nằm ở kho Base của Hub (bảng của Ghi chú, ô "Ô" = `hop-thu:<băm>`, tệp `hop-thu.json.gz`), nên Render deploy lại không mất. Chạy riêng, chạy test, soát chỉ đọc thì sổ chỉ nằm trên máy.
+Thư trong hộp chung mà người khác lo thì dùng **⋯ › Bỏ qua, việc của người khác** thay vì Xong (29/10/2026). Thư rời Việc cần làm của riêng mình, mang nhãn "Đã bỏ qua" ở cuối ngăn, mở ra có nút **Đưa về** (gỡ cả Xong lẫn Bỏ qua). Sổ riêng ghi `b` cạnh `x`.
+
+Hộp chung có nhiều người dùng, nên **Xong, bỏ qua, đã đọc, chưa đọc, gắn sao, chuyển ngăn, hẹn, nhóm** chỉ ghi vào sổ riêng của từng người (`kho.js`). Không lệnh nào đổi nhãn hay thư mục trên Lark Mail. Sổ nằm ở kho Base của Hub (bảng của Ghi chú, ô "Ô" = `hop-thu:<băm>`, tệp `hop-thu.json.gz`), nên Render deploy lại không mất. Chạy riêng, chạy test, soát chỉ đọc thì sổ chỉ nằm trên máy.
 
 ## Gửi thư
 
