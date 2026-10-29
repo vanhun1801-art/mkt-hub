@@ -4694,7 +4694,11 @@ function buildDrawer() {
   nutFull.classList.toggle('hidden', isNew || !S.isManager || !!t.lienPhong);
   /* Chỉ hình, không chữ (anh Hùng 29/10/2026: "để hình cây bút là anh hiểu
    * rồi"). Tên nút nằm ở title và aria-label cho người đọc màn hình. */
-  nutFull.textContent = staff ? '✎' : '◀';
+  /* SVG chứ không ký tự ✎ / ◀: ios-app.js gỡ ký hiệu kiểu emoji khỏi nút, ký tự
+   * bị gỡ thì còn lại một ô tròn trống (anh Hùng 29/10/2026: "nút bị mất icon"). */
+  nutFull.innerHTML = staff
+    ? '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>'
+    : '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>';
   nutFull.setAttribute('aria-label', staff ? 'Sửa đầy đủ' : 'Xem bản gọn');
   nutFull.title = staff
     ? 'Mở form sửa mọi trường (deadline, người phụ trách, chiến dịch…)'
@@ -5833,7 +5837,22 @@ function khoiBinhLuan(t) {
 
   const soan = el('div', 'cmt-new');
   const ta = el('textarea', 'cmt-input');
-  ta.rows = 2;
+  /* Một dòng như ô nhắn tin của app chat, gõ dài thì tự cao lên tới 5 dòng rồi
+   * mới cuộn (anh Hùng 29/10/2026: "chỗ nhập tin nhắn đang bị cao"). */
+  ta.rows = 1;
+  const tuCao = () => {
+    /* Ô trống thì về đúng một dòng: đo scrollHeight lúc đó là đo dòng gợi ý,
+     * gợi ý dài xuống dòng là ô cao gấp đôi dù chưa gõ gì. */
+    ta.style.height = '';
+    if (!ta.value) return;
+    /* Còn một dòng thì giữ đúng cỡ gốc (bằng nút hai bên); chỉ cao lên khi chữ
+     * thật sự sang dòng thứ hai. */
+    const goc = ta.offsetHeight;
+    const can = ta.scrollHeight + (ta.offsetHeight - ta.clientHeight);
+    if (can > goc + 4) ta.style.height = Math.min(can, 132) + 'px';
+  };
+  ta.addEventListener('input', tuCao);
+  requestAnimationFrame(tuCao);
   /* Tin đang gõ dở giữ trên máy theo từng việc (02/10/2026): đóng ngăn chi tiết,
    * tải lại trang hay chuyển việc khác rồi quay lại vẫn còn. Gửi được là xoá. */
   const khoaTin = 'cong-viec.tin-do.' + t.id;
@@ -5845,7 +5864,12 @@ function khoiBinhLuan(t) {
       try { if (ta.value.trim()) localStorage.setItem(khoaTin, ta.value); else localStorage.removeItem(khoaTin); } catch (_) {}
     }, 300);
   });
-  const gui = el('button', 'btn btn-primary cmt-gui', '➤ Gửi');
+  /* Nút Gửi tròn chỉ có mũi tên, như ô nhắn của app chat: nhường chỗ cho ô gõ. */
+  const gui = el('button', 'btn btn-primary cmt-gui');
+  gui.type = 'button';
+  gui.title = 'Gửi (Enter)';
+  gui.setAttribute('aria-label', 'Gửi');
+  gui.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>';
 
   /* ---- Gắn người bằng @ (29/10/2026, anh Hùng: "cho tính năng tag tài khoản
    * khác vào khi nhắn @") ----

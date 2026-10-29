@@ -3079,6 +3079,26 @@ html:not(#_):not(#__):not(#___):not(#____) .cmt-anh-x {
   padding: 0 !important; font-size: 12px !important; line-height: 22px !important; border-radius: 999px !important;
 }
 .cmt-nut-anh { flex: 0 0 auto; align-self: flex-end; color: var(--text-2); }
+/* Hàng soạn tin: nút ảnh, ô gõ, nút Gửi cùng cao 40px, đáy thẳng hàng. Ô gõ
+   mặc định một dòng; JS (tuCao) cho nó cao dần tới 132px. Lớp iOS đặt cỡ tối
+   thiểu cho textarea nên phải ép lại. */
+html:not(#_):not(#__):not(#___):not(#____) .cmt-new .cmt-input {
+  height: 40px; min-height: 40px !important; max-height: 132px !important; box-sizing: border-box;
+  padding: 9px 14px !important; line-height: 20px !important;
+  border-radius: 20px !important; resize: none !important; overflow-y: auto;
+}
+html:not(#_):not(#__):not(#___):not(#____) .cmt-new :is(.cmt-nut-anh, .cmt-gui) {
+  height: 40px !important; min-height: 40px !important; align-self: flex-end;
+}
+html:not(#_):not(#__):not(#___):not(#____) .cmt-new :is(.cmt-nut-anh, .cmt-gui) {
+  width: 40px !important; min-width: 40px !important; padding: 0 !important; border-radius: 999px !important;
+  display: inline-flex !important; align-items: center; justify-content: center;
+}
+/* Dòng gợi ý không xuống dòng: ô hẹp thì cắt "…", không đội ô cao lên. */
+.cmt-input:placeholder-shown { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Chân ô chi tiết không có nút nào (việc mình chỉ xem) và không có dòng báo
+   tự lưu thì ẩn, khỏi một dải trống dưới đáy. */
+#drawerFoot:not(:has(.btn:not(.hidden))):has(#dStatusMsg:empty) { display: none !important; }
 .cmt-anh { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; margin-top: 6px; max-width: 280px; }
 .cmt-anh-lk { display: block; aspect-ratio: 1; border-radius: 12px; overflow: hidden; background: var(--surface-3); }
 .cmt-anh-lk img { width: 100%; height: 100%; object-fit: cover; display: block; }
