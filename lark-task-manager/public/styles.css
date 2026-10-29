@@ -2963,6 +2963,22 @@ html:not(#_):not(#__) #lanes .wcard-con.cap-3 { padding-left: 60px; }
   /* Tiêu đề làn dính trên đầu khi cuộn (sticky), mà lớp iOS cho nền trong
      suốt: "Đang tiến hành 14" đè lên tên việc đang lướt qua bên dưới. */
   html:not(#_):not(#__) #lanes .lane-head { background: var(--ios-nen, var(--bg)) !important; }
+
+  /* Thẻ việc gọn cho điện thoại (anh Hùng 29/10/2026: "bỏ phần kết quả, bỏ quá
+     hạn, bỏ chiến dịch, bỏ loại công việc, cái ô gọn lại"). Còn lại: tên, một
+     dòng mô tả, ưu tiên, hạn gần (hôm nay / còn N ngày), người order, nút.
+     Việc quá hạn vẫn nhận ra nhờ chấm đỏ trước tên; loại việc, chiến dịch và
+     tình trạng kết quả vẫn xem đủ trong ô chi tiết. */
+  /* Lớp iOS đặt display cho .tag bằng luật !important, nên ở đây cũng phải có. */
+  html:not(#_):not(#__) #lanes .wcard :is(.tag-loai, .tag-cd, .tag.due.late, .proofdot) { display: none !important; }
+  html:not(#_):not(#__) #lanes .wcard { padding-top: 10px !important; padding-bottom: 10px !important; row-gap: 6px; }
+  html:not(#_):not(#__) #lanes .wcard-meta { margin-top: 6px !important; }
+  html:not(#_):not(#__) #lanes .wcard-meta:not(:has(> :not(.tag-loai, .tag-cd, .due.late, .proofdot))) { display: none; }
+
+  /* Làn trống ("Công việc mới 0") ẩn hẳn: điện thoại chỉ giữ cái có việc. */
+  #lanes .lane.is-empty { display: none; }
+  /* Trừ khi mọi làn đều trống: khi đó giữ một câu "đang trống" thay vì màn đen. */
+  #lanes:not(:has(.lane:not(.is-empty))) .lane-l-doing.is-empty { display: block; }
   .wc-nam { top: 9px; }
   .wc-gap:not(.trong)::after {
     content: ''; position: absolute; top: 50%; left: 50%;

@@ -2246,8 +2246,9 @@ function workCard(t, lane) {
 
   const meta = el('div', 'wcard-meta');
   if (t.priority) meta.appendChild(el('span', 'tag ' + priClass(t.priority), plainLabel(t.priority)));
-  if (t.workType) meta.appendChild(el('span', 'tag', t.workType));
-  if (t.campaign) meta.appendChild(el('span', 'tag', t.campaign));
+  /* tag-loai / tag-cd: điện thoại ẩn hai nhãn này (styles.css, 29/10/2026). */
+  if (t.workType) meta.appendChild(el('span', 'tag tag-loai', t.workType));
+  if (t.campaign) meta.appendChild(el('span', 'tag tag-cd', t.campaign));
   const dl = deadlineTag(t);
   if (dl) meta.appendChild(dl);
   /* Đã nộp sản phẩm dù trễ: nói rõ ngay trên thẻ, và nói cả trễ mấy ngày — con số
