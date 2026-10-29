@@ -2974,7 +2974,37 @@ html:not(#_):not(#__) #lanes .wcard-con.cap-3 { padding-left: 60px; }
   html:not(#_):not(#__) #lanes .wcard :is(.tag-loai, .tag-cd, .tag.due.late, .proofdot) { display: none !important; }
   html:not(#_):not(#__) #lanes .wcard { padding-top: 10px !important; padding-bottom: 10px !important; row-gap: 6px; }
   html:not(#_):not(#__) #lanes .wcard-meta { margin-top: 6px !important; }
-  html:not(#_):not(#__) #lanes .wcard-meta:not(:has(> :not(.tag-loai, .tag-cd, .due.late, .proofdot))) { display: none; }
+  html:not(#_):not(#__) #lanes .wcard-meta:not(:has(> :not(.tag-loai, .tag-cd, .due.late, .proofdot, .la-toi))) { display: none; }
+
+  /* ---- Thẻ việc điện thoại, lượt 2 (anh Hùng 29/10/2026: "thẻ công việc chưa
+     đáp ứng tốt UX/UI") ----
+     Trước: mỗi thẻ một nút xanh to nằm riêng một dòng → danh sách thành một cột
+     nút xanh, thẻ cao 106–172px, màn chỉ chứa được 4 việc.
+     Nay thẻ là lưới hai cột: tên (tối đa 2 dòng) và mô tả trải hết ngang; dòng
+     cuối là nhãn bên trái, nút gọn bên phải cùng hàng. wcard-main dùng
+     display:contents để tên, mô tả, nhãn thành ô của chính lưới thẻ. */
+  html:not(#_):not(#__) #lanes .wcard {
+    display: grid !important; grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 10px; row-gap: 0; align-items: end;
+  }
+  #lanes .wcard > .wcard-main { display: contents; }
+  #lanes .wcard .wcard-title {
+    grid-column: 1 / -1; align-self: start;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  #lanes .wcard .wcard-sub { grid-column: 1 / -1; }
+  html:not(#_):not(#__) #lanes .wcard .wcard-meta { grid-column: 1; margin-top: 8px !important; align-self: center; }
+  html:not(#_):not(#__) #lanes .wcard > .wcard-actions { grid-column: 2; margin-top: 8px !important; align-self: end; }
+  /* Nút CTA điện thoại: vẫn một cỡ cho mọi thẻ, nhưng gọn để đứng cạnh nhãn. */
+  /* Sáu id: luật một cỡ chung dùng :is(…, #drawerFoot …) nên mang độ ưu tiên của id đó. */
+  html:not(#_):not(#__):not(#___):not(#____):not(#_____) #lanes .wcard-actions .btn {
+    width: 128px !important; min-width: 128px !important; height: 32px !important; min-height: 32px !important;
+    padding: 0 10px !important; font-size: 13.5px !important; white-space: nowrap;
+  }
+  /* "Order: <chính mình>" và ngày cụ thể trong "Còn N ngày" không mang thêm tin. */
+  html:not(#_):not(#__):not(#___) #lanes .wcard :is(.tag-order.la-toi, .due-ngay) { display: none !important; }
+  /* Tay nắm nhạt hơn: thấy được khi cần, không tranh mắt với tên việc. */
+  html:not(#_):not(#__) #lanes .wc-nam { opacity: .35; }
 
   /* Làn trống ("Công việc mới 0") ẩn hẳn: điện thoại chỉ giữ cái có việc. */
   #lanes .lane.is-empty { display: none; }
@@ -3041,12 +3071,12 @@ html:not(#_):not(#__):not(#___):not(#____) :is(.wcard-actions .btn, #drawerFoot 
 .cmt-anh-x {
   position: absolute; top: 3px; right: 3px; width: 22px; height: 22px; padding: 0;
   border: 0; border-radius: 999px; background: rgba(0, 0, 0, .55); color: #fff;
-  font-size: 11px; line-height: 22px; text-align: center; cursor: pointer;
+  font-size: 12px; line-height: 22px; text-align: center; cursor: pointer;
 }
 /* Lớp iOS nới mọi nút lên 40px; ✕ trên ảnh nhỏ phải giữ 22px, không thì che nửa ảnh. */
 html:not(#_):not(#__):not(#___):not(#____) .cmt-anh-x {
   width: 22px !important; height: 22px !important; min-width: 0 !important; min-height: 0 !important;
-  padding: 0 !important; font-size: 11px !important; line-height: 22px !important; border-radius: 999px !important;
+  padding: 0 !important; font-size: 12px !important; line-height: 22px !important; border-radius: 999px !important;
 }
 .cmt-nut-anh { flex: 0 0 auto; align-self: flex-end; color: var(--text-2); }
 .cmt-anh { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; margin-top: 6px; max-width: 280px; }

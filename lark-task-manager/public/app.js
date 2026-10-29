@@ -736,7 +736,13 @@ function deadlineTag(t) {
      * ghi "Hạn hôm nay" nữa — nhân sự sẽ tưỏng còn kịp. */
     else if (t.status === 'Trễ deadline') { cls += ' late'; txt = 'Trễ deadline'; }
     else if (d === 0) { cls += ' soon'; txt = 'Hạn hôm nay'; }
-    else if (d <= 3) { cls += ' soon'; txt = 'Còn ' + d + ' ngày · ' + txt; }
+    else if (d <= 3) {
+      /* Ngày tách thành một span riêng để điện thoại giấu đi: "Còn 1 ngày" đủ
+       * để biết gấp, còn cả chuỗi dài thì đẩy nhãn khác xuống dòng. */
+      const o = el('span', cls + ' soon', 'Còn ' + d + ' ngày');
+      o.appendChild(el('span', 'due-ngay', ' · ' + txt));
+      return o;
+    }
   }
   return el('span', cls, txt);
 }
@@ -2261,7 +2267,10 @@ function workCard(t, lane) {
       meta.appendChild(el('span', 'tag', 'Phụ trách: ' + t.owner.map((u) => u.name).join(', ')));
     }
   } else if ((t.requester || []).length) {
-    meta.appendChild(el('span', 'tag', 'Order: ' + t.requester[0].name));
+    /* la-toi: chính mình order → điện thoại ẩn nhãn này, nó chỉ nói lại điều
+     * người xem đã biết (29/10/2026). */
+    const toi = S.who && t.requester[0].id === S.who.id;
+    meta.appendChild(el('span', 'tag tag-order' + (toi ? ' la-toi' : ''), 'Order: ' + t.requester[0].name));
   }
   main.appendChild(meta);
   c.appendChild(main);
@@ -2293,12 +2302,15 @@ function workCard(t, lane) {
   const primary = {
     new:  { label: '▶ Bắt đầu làm', run: () => startTask(t) },
     doing: { label: nhanNop, run: () => openDone(t) },
+    /* Nhãn trên thẻ giữ NGẮN để mọi nút cùng một cỡ (anh Hùng 29/10/2026: "các
+     * nút CTA đều nhau"). Việc trễ đã có chấm đỏ trước tên; cửa sổ Gửi sản
+     * phẩm mở ra mới nói rõ là đang giải quyết việc trễ. */
     late:  treCanGQ
-      ? { label: daGiaiQuyet(t) ? '↥ Gửi lại sản phẩm' : '↥ Gửi sản phẩm · giải quyết',
+      ? { label: daGiaiQuyet(t) ? '↻ Gửi lại' : '↥ Gửi sản phẩm',
           run: () => openDone(t, 'giai-quyet') }
       : { label: nhanNop, run: () => openDone(t) },
-    redo:  { label: tuChot ? '↻ Làm lại xong' : '↻ Gửi lại sản phẩm', run: () => openDone(t) },
-    daNop: { label: '↥ Gửi lại sản phẩm', run: () => openDone(t) },
+    redo:  { label: tuChot ? '↻ Làm lại xong' : '↻ Gửi lại', run: () => openDone(t) },
+    daNop: { label: '↻ Gửi lại', run: () => openDone(t) },
   }[lane];
 
   if (primary) {
