@@ -24,13 +24,18 @@ class LoiChuaNoi extends Error {}
 function loiGon(tho) {
   const s = String(tho || '');
   const dong = s.split('\n').map((d) => d.trim())
-    .find((d) => d && !/^(at |node:internal|\^|throw |\{|\}|Node\.js v)/.test(d) && !/^[\w./\\:-]+:\d+$/.test(d)) || 'không rõ lý do';
+    /* "tip: run lark-cli … profile" là lời khuyên lark-cli in kèm, không phải lỗi:
+     * từng làm mọi hộp hỏng chỉ báo đúng câu đó (29/10/2026). */
+    .find((d) => d && !/^(at |node:internal|\^|throw |\{|\}|Node\.js v|tip:)/i.test(d) && !/^[\w./\\:-]+:\d+$/.test(d)) || 'không rõ lý do';
   const e = new Error('Lark Mail chưa trả lời được: ' + dong.slice(0, 200));
   e.chiTiet = s.slice(0, 4000);
   return e;
 }
 
-const TRANSIENT = /timeout|timed out|ETIMEDOUT|ECONNRESET|ECONNREFUSED|EAI_AGAIN|ENOTFOUND|socket hang up|EPIPE|99991400|"type":\s*"network"/i;
+const TRANSIENT = /timeout|timed out|ETIMEDOUT|ECONNRESET|ECONNREFUSED|EAI_AGAIN|ENOTFOUND|socket hang up|EPIPE|99991400|frequency|too many|"type":\s*"network"/i;
+/* Lark chặn vì gọi dồn dập: 99991400 "request trigger frequency limit",
+ * 1230008 "too many requests" (đo 29/10/2026 khi tám hộp đọc cùng lúc). */
+const LA_NHANH = /frequency limit|too many requests|rate.?limit/i;
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function cliOnce(args, { timeout = 60000 } = {}) {
@@ -38,10 +43,18 @@ function cliOnce(args, { timeout = 60000 } = {}) {
     execFile(process.execPath, [cfg.cliScript, ...args],
       { timeout, maxBuffer: 64 * 1024 * 1024, windowsHide: true },
       (err, stdout, stderr) => {
-        const raw = (stdout || '').trim();
-        let json = null;
-        const s = raw.indexOf('{'), e = raw.lastIndexOf('}');
-        if (s >= 0 && e > s) { try { json = JSON.parse(raw.slice(s, e + 1)); } catch (_) {} }
+        /* Lỗi API lark-cli in JSON { ok: false, error } ra stderr, không phải
+         * stdout. Không đọc stderr thì vừa mất lý do thật (giới hạn tốc độ…),
+         * vừa không thử lại được (29/10/2026: 5 hộp hỏng cùng lúc). */
+        const docJson = (raw) => {
+          /* JSON bắt đầu ở đầu một dòng: dòng "tip: … '{"user_mailbox_id": …}'"
+           * phía trước cũng có ngoặc nhọn, lấy ngoặc đầu tiên là đọc hỏng. */
+          const m = /^\{/m.exec(raw);
+          const s = m ? m.index : raw.indexOf('{'), e = raw.lastIndexOf('}');
+          if (s >= 0 && e > s) { try { return JSON.parse(raw.slice(s, e + 1)); } catch (_) {} }
+          return null;
+        };
+        const json = docJson((stdout || '').trim()) || (err ? docJson(String(stderr || '')) : null);
         if (json && json.ok === false) {
           const m = (json.error && json.error.message) || JSON.stringify(json.error || json);
           if (/not logged in|login required|token (has )?expired|refresh token|re-?authori[sz]e|auth login/i.test(m)) {
@@ -49,7 +62,10 @@ function cliOnce(args, { timeout = 60000 } = {}) {
           }
           return reject(new Error(m));
         }
-        if (err && !json) return reject(loiGon(stderr || err.message));
+        if (err && !json) {
+          console.error('[lark-cli] ' + args.slice(0, 2).join(' ') + ' hỏng: ' + String(stderr || err.message).slice(0, 600));
+          return reject(loiGon(stderr || err.message));
+        }
         if (!json) return reject(new Error('Không đọc được phản hồi của lark-cli'));
         /* Lệnh API trả { ok, data }; +triage --format data trả thẳng đối tượng. */
         resolve('data' in json && 'ok' in json ? (json.data || {}) : json);
@@ -68,12 +84,15 @@ async function cli(args, opts = {}) {
     throw e;
   }
   let last;
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 4; i++) {
     try { return await cliOnce(args, opts); } catch (e) {
       last = e;
       /* Lệnh ghi không thử lại: gửi thư hai lần còn tệ hơn báo lỗi một lần. */
-      if (opts.ghi || i === 2 || !TRANSIENT.test(e.message)) throw e;
-      await wait(400 * Math.pow(2, i));
+      const nhanh = LA_NHANH.test(e.message);
+      if (opts.ghi || i === (nhanh ? 3 : 2) || !TRANSIENT.test(e.message)) throw e;
+      /* Bị Lark chặn vì gọi dồn dập thì lùi lâu hơn, lệch nhau ngẫu nhiên để
+       * tám hộp không cùng gọi lại một lúc rồi lại bị chặn. */
+      await wait(nhanh ? 1200 * Math.pow(2, i) + Math.random() * 600 : 400 * Math.pow(2, i));
     }
   }
   throw last;
@@ -95,7 +114,12 @@ async function quaApi(fn) {
 
 /** Hộp thư người đang đăng nhập lark-cli được cấp quyền: hộp chính + hộp chung. */
 async function cacHop(tk) {
-  const d = tk ? await quaApi(() => mapi.cacHop(tk))
+  /* Không đọc nổi cả DANH SÁCH hộp vì thiếu quyền thì phải nối lại; còn thiếu
+   * quyền ở một hộp lẻ thì chỉ hộp đó báo lỗi (danhSach). */
+  const d = tk ? await quaApi(() => mapi.cacHop(tk).catch((e) => {
+    if (e instanceof mapi.LoiThieuQuyen) throw new mapi.LoiToken('App Marketing Hub chưa được cấp đủ quyền đọc thư. Báo quản lý cấp quyền mail rồi nối lại.');
+    throw e;
+  }))
     : await cli(['mail', 'user_mailboxes', 'accessible_mailboxes', ...U,
       '--params', JSON.stringify({ user_mailbox_id: 'me' })]);
   return (d.accessible_mailboxes || []).map((h) => ({
@@ -129,6 +153,7 @@ async function danhSach(hop, max = cfg.soThuMoiHop, tk = '', thuMuc = 'INBOX') {
       chuaDoc: nhan.includes('UNREAD'),
       sao: nhan.includes('FLAGGED'),
       nhan,
+      rac: thuMuc === 'SPAM',
     };
   });
 }

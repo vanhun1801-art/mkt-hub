@@ -264,6 +264,7 @@ function dongThu(t) {
   else if (mc.muc) phu.push('<span class="nhan cho ' + mc.muc + '">Chờ anh ' + chuCho(mc.gio) + '</span>');
   if (t.daTraLoi && !t.daGui) phu.push('<span class="nhan da-tl">Đã trả lời</span>');
   if (t.sep) phu.push('<span class="nhan sep">Ban giám đốc</span>');
+  if (t.rac) phu.push('<span class="nhan rac" title="Lark xếp thư này vào Thư rác">Thư rác</span>');
   if (S.hop.length > 1 && !S.loc.hop) phu.push('<span class="nhan o-hop" data-no-i18n>' + esc(tenHop(t.hop)) + '</span>');
   if (t.sao) phu.push('<span class="nhan sao" aria-label="Có gắn sao">★</span>');
   if (t.henDen) phu.push('<span class="nhan lam">' + esc(gioHen(t.henDen)) + '</span>');
@@ -528,7 +529,8 @@ function veDoc(tam) {
     capNhatNutGui();
     return;
   }
-  if (t.canhBao) h += '<div class="canh-bao">Lark đánh dấu thư này có dấu hiệu rủi ro. Kiểm tra người gửi trước khi bấm link hay trả lời.</div>';
+  if (tom.rac) h += '<div class="canh-bao">Lark xếp thư này vào Thư rác. Xem kỹ địa chỉ người gửi trước khi bấm link hay trả lời. Thư vẫn nằm trong Thư rác trên Lark.</div>';
+  else if (t.canhBao) h += '<div class="canh-bao">Lark đánh dấu thư này có dấu hiệu rủi ro. Kiểm tra người gửi trước khi bấm link hay trả lời.</div>';
   h += '<div id="theAi">' + theAi() + '</div>';
   h += '<div id="vungDich" class="vung-dich"></div>';
   h += '<div class="noi-dung" data-no-i18n>' + linkHoa(t.noiDung || (t.trich ? '' : '(Thư không có nội dung chữ)')) + '</div>';

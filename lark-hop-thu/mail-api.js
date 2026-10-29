@@ -22,10 +22,19 @@ const cfg = require('./config');
 class LoiToken extends Error {}
 /** Token còn sống nhưng chưa có quyền lịch: mời người dùng cho phép thêm. */
 class LoiQuyenLich extends Error {}
+/** Không được đọc MỘT hộp (hộp chung chưa chia cho người này). Chỉ hộp đó báo
+ *  lỗi, các hộp khác vẫn đọc. Đọc danh sách hộp mà gặp lỗi này thì thu.js mới
+ *  đổi thành "phải nối lại". */
+class LoiThieuQuyen extends Error {}
 
 const MA_TOKEN = new Set([99991663, 99991664, 99991665, 99991668, 99991677, 20005, 20026, 20037]);
 const MA_THIEU_QUYEN = new Set([99991672, 99991679, 99991676]);
 const TRANSIENT = /timeout|timed out|ETIMEDOUT|ECONNRESET|ECONNREFUSED|EAI_AGAIN|ENOTFOUND|socket hang up|EPIPE|fetch failed|aborted/i;
+/* Lark chặn vì gọi dồn dập. Tám hộp, mỗi hộp hai ba thư mục, mỗi thư mục tới
+ * 20 lượt gọi: chạm ngưỡng là chuyện thường, phải chờ rồi gọi lại, không được
+ * bỏ cả hộp (29/10/2026, "chưa đọc được đủ hộp thư"). */
+const MA_NHANH = new Set([99991400, 99991401, 1230008, 1254290]);
+const LA_NHANH = /frequency|too many|rate limit|limit exceeded/i;
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function goiMot(tk, method, duong, { query, body, goc = 'mail/v1/' } = {}) {
@@ -38,6 +47,9 @@ async function goiMot(tk, method, duong, { query, body, goc = 'mail/v1/' } = {})
     signal: AbortSignal.timeout(45000),
   });
   const d = await r.json().catch(() => null);
+  if (r.status === 429 || (d && (MA_NHANH.has(d.code) || LA_NHANH.test(d.msg || '')))) {
+    throw Object.assign(new Error('Lark Mail đang giới hạn tốc độ đọc. Thử lại sau ít giây.'), { nhanh: true });
+  }
   if (!d) throw new Error('Lark Mail trả về dữ liệu hỏng (HTTP ' + r.status + ')');
   if (d.code !== 0) {
     if (MA_TOKEN.has(d.code) || r.status === 401) {
@@ -47,7 +59,7 @@ async function goiMot(tk, method, duong, { query, body, goc = 'mail/v1/' } = {})
       throw new LoiQuyenLich('Marketing Hub chưa được phép thêm lịch cho anh/chị.');
     }
     if (MA_THIEU_QUYEN.has(d.code)) {
-      throw new LoiToken('App Marketing Hub chưa được cấp đủ quyền đọc thư. Báo quản lý cấp quyền mail rồi nối lại.');
+      throw new LoiThieuQuyen('Chưa được cấp quyền đọc hộp thư này.');
     }
     throw new Error('Lark Mail: ' + (d.msg || 'lỗi') + ' (' + d.code + ')');
   }
@@ -57,11 +69,13 @@ async function goiMot(tk, method, duong, { query, body, goc = 'mail/v1/' } = {})
 /** Lệnh đọc thử lại khi mạng chập chờn; lệnh ghi thì không (gửi hai lần còn tệ hơn báo lỗi). */
 async function goi(tk, method, duong, opts = {}) {
   let last;
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 4; i++) {
     try { return await goiMot(tk, method, duong, opts); } catch (e) {
       last = e;
-      if (opts.ghi || i === 2 || e instanceof LoiToken || !TRANSIENT.test(e.message)) throw e;
-      await wait(400 * Math.pow(2, i));
+      const lai = e.nhanh ? i < 3 : i < 2 && TRANSIENT.test(e.message);
+      if (opts.ghi || !lai || e instanceof LoiToken) throw e;
+      /* bị chặn vì nhanh thì lùi lâu hơn, có chút ngẫu nhiên để tám hộp không cùng gọi lại một lúc */
+      await wait(e.nhanh ? 900 * Math.pow(2, i) + Math.random() * 400 : 400 * Math.pow(2, i));
     }
   }
   throw last;
@@ -256,4 +270,4 @@ async function taoLich(tk, { tieuDe, moTa = '', batDau, ketThuc }) {
   return { event_id: (d.event || {}).event_id || '', app_link: (d.event || {}).app_link || '' };
 }
 
-module.exports = { LoiToken, LoiQuyenLich, taoLich, cacHop, triage, message, modify, traLoi, dungTraLoi, ngayVN, giaiMime, tachDsDiaChi };
+module.exports = { LoiToken, LoiQuyenLich, LoiThieuQuyen, taoLich, cacHop, triage, message, modify, traLoi, dungTraLoi, ngayVN, giaiMime, tachDsDiaChi };

@@ -116,11 +116,35 @@ function xepNgan(thu, email, { cfg, tay = {}, ai = null, minh = [] }) {
     tieuDe: bo(thu.tieuDe).replace(/^((tra loi|re|fw|fwd|chuyen tiep)\s*:\s*)+/g, ''),
     tieuDeGoc: bo(thu.tieuDe),
   };
+  if (thu.rac) return xepRac(thu, t, cfg);
   for (const l of luatCaiSan(cfg)) {
     if (l.khop(t)) return { ngan: l.ngan, nguon: 'luat', lyDo: l.ten };
   }
   if (ai && chuan(ai.ngan)) return { ngan: chuan(ai.ngan), nguon: 'ai', lyDo: 'AI xếp' };
   return { ngan: 'xu-ly', nguon: 'mac-dinh', lyDo: '' };
+}
+
+/* Tên hiển thị mạo danh một hãng lớn mà địa chỉ gửi không thuộc hãng đó
+ * ("MetaAdsSupport <x@n.tinhochay.org>", "TenTen Vn <ambul@roliambulance.be>"). */
+const TEN_HANG = /\b(meta|facebook|instagram|google|tiktok|zalo|apple|microsoft|paypal|openai|tenten|ngan hang|bank)|support|copyright|policy|verification/;
+const MIEN_HANG = /@([\w-]+\.)*(meta|facebook|facebookmail|instagram|google|tiktok|zalo|apple|microsoft|paypal|openai|tenten)\.(com|vn|me|net)$/;
+/* Khách hay đối tác hỏi dịch vụ: thứ Lark hay xếp nhầm vào Thư rác. */
+const KHACH_HOI = /\b(quot(e|ation)|bao gia|hoi gia|booking|reservation|dat (tour|phong|ve|xe)|inquir(y|ies)|enquir(y|ies)|request (for|a)|tour|trip|lich trinh|itinerary|transfer|cable car|cap treo|snorkel)/;
+
+/**
+ * Thư Lark xếp vào Thư rác. Không theo mặc định "Cần trả lời" như thư thường:
+ * rác thật (chào hàng, lừa đảo) rất nhiều. Chỉ thư có dấu hiệu khách hỏi mới
+ * vào "Cần trả lời"; thư mạo danh hãng lớn và phần còn lại vào "Chỉ để đọc".
+ * Giao diện gắn nhãn "Thư rác" và nhắc kiểm người gửi.
+ */
+function xepRac(thu, t, cfg) {
+  const ten = bo(thu.tu && thu.tu.ten);
+  if (TEN_HANG.test(ten) && !MIEN_HANG.test(t.email)) return { ngan: 'biet', nguon: 'luat', lyDo: 'Thư rác mạo danh' };
+  if (KHACH_HOI.test(t.tieuDe)) return { ngan: 'xu-ly', nguon: 'luat', lyDo: 'Thư rác có thể là khách hỏi' };
+  for (const l of luatCaiSan(cfg)) {
+    if (l.khop(t)) return { ngan: l.ngan, nguon: 'luat', lyDo: l.ten };
+  }
+  return { ngan: 'biet', nguon: 'luat', lyDo: 'Thư rác' };
 }
 
 module.exports = { NGAN, LA_NGAN, xep, luatCaiSan, chuanNgan: chuan, boDau: bo };

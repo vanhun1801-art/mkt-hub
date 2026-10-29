@@ -230,6 +230,7 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 .nhan.lam { color: var(--cam); background: color-mix(in srgb, var(--cam) 10%, transparent); }
 .nhan.sao { color: var(--cam); background: none; padding: 0; }
 .nhan.sep { color: var(--xanh); background: color-mix(in srgb, var(--xanh) 9%, transparent); font-weight: 500; }
+.nhan.rac { color: var(--cam); background: color-mix(in srgb, var(--cam) 11%, transparent); font-weight: 500; }
 
 /* Dòng gom (đơn khách đặt, thư chờ lâu): thẻ thường, chỉ chữ đầu mang màu. */
 .dong.gom { background: var(--mat); border-color: var(--vien); border-style: dashed; }

@@ -149,12 +149,22 @@ function docSau(n) {
   return sauDang.get(n.khoa);
 }
 
-async function docHet(n, ep, max = cfg.soThuMoiHop, maxGui = cfg.soThuGuiMoiHop) {
+/* Hai lượt đọc cùng cỡ của cùng một người (mở hai tab, bấm tải lại liền tay)
+ * dùng chung một lần gọi Lark. Gọi chồng lên nhau là Lark chặn vì quá nhanh,
+ * và cả hai lượt cùng thiếu hộp (29/10/2026). */
+const dangDoc = new Map();
+function docHet(n, ep, max = cfg.soThuMoiHop, maxGui = cfg.soThuGuiMoiHop) {
+  const k = n.khoa + '|' + max + '|' + maxGui;
+  if (!dangDoc.has(k)) dangDoc.set(k, docHetMot(n, ep, max, maxGui).finally(() => dangDoc.delete(k)));
+  return dangDoc.get(k);
+}
+
+async function docHetMot(n, ep, max, maxGui) {
   const c = dsDem.get(n.khoa);
   if (!ep && c && c.ds && c.max >= max && Date.now() - c.luc < (c.du ? DEM_DU_MS : DEM_MS)) return c;
   const hop = await cacHop(n);
   const loiHop = [];
-  /* Hộp đến và Đã gửi đọc cùng lúc (cùng một hàng đợi 6 lượt), không nối
+  /* Hộp đến và Đã gửi đọc cùng lúc (cùng một hàng đợi 4 lượt: 6 lượt đã chạm ngưỡng Lark), không nối
    * đuôi nhau, để thêm thư mục Đã gửi không làm trang mở chậm gấp đôi. */
   const viec = hop.map((h) => async () => {
     try { return { den: await thu.danhSach(h.email, max, n.tk) }; } catch (e) {
@@ -171,8 +181,18 @@ async function docHet(n, ep, max = cfg.soThuMoiHop, maxGui = cfg.soThuGuiMoiHop)
       if (e instanceof thu.LoiChuaNoi) throw e;
       return { gui: [] };
     }
+  })).concat(hop.map((h) => async () => {
+    /* Thư rác gần đây: Lark xếp nhầm cả thư khách hỏi giá vào đây. Chỉ đọc,
+     * không đưa thư ra khỏi Thư rác trên Lark (hộp chung). Hỏng thì thôi. */
+    try {
+      const tu = Date.now() - cfg.ngayRac * 86400e3;
+      return { den: (await thu.danhSach(h.email, cfg.soThuRac, n.tk, 'SPAM')).filter((t) => msNgay(t.ngay) >= tu) };
+    } catch (e) {
+      if (e instanceof thu.LoiChuaNoi) throw e;
+      return { den: [] };
+    }
   }));
-  const kq = await songSong(viec, 6);
+  const kq = await songSong(viec, 4);
   const phan = kq.map((x) => x.den || []);
   const daGui = kq.map((x) => x.gui || []);
   const moi = { luc: Date.now(), ds: [].concat(...phan), gui: [].concat(...daGui), loi: loiHop, max, du: max >= cfg.soThuDu };

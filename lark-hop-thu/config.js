@@ -55,6 +55,11 @@ module.exports = {
    * được khoảng một tháng. */
   soThuDu: Number(process.env.HOP_THU_SO_THU_DU || 200),
   soThuGuiDu: Number(process.env.HOP_THU_SO_THU_GUI_DU || 60),
+  /* Thư mục Thư rác: Lark đẩy cả thư khách hỏi báo giá vào đây (sales@ có 64
+   * thư rác trong hai tuần, trong đó có thư khách thật, 29/10/2026). Đọc thư
+   * rác trong ngần ấy ngày gần nhất, tối đa ngần ấy thư mỗi hộp. */
+  ngayRac: Number(process.env.HOP_THU_NGAY_RAC || 14),
+  soThuRac: Number(process.env.HOP_THU_SO_THU_RAC || 40),
 
   /* Ban giám đốc: thư từ những địa chỉ này vào "Cần trả lời" kèm nhãn "Ban giám đốc". Khai bằng env
    * để đổi người không phải sửa mã. */

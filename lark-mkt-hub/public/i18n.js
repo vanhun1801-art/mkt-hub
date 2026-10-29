@@ -1266,6 +1266,8 @@
     '(không tiêu đề)': '(no subject)',
     '(Thư không có nội dung chữ)': '(No text in this message)',
     'Lark đánh dấu thư này có dấu hiệu rủi ro. Kiểm tra người gửi trước khi bấm link hay trả lời.': 'Lark flagged this message as risky. Check the sender before clicking links or replying.',
+    'Lark xếp thư này vào Thư rác. Xem kỹ địa chỉ người gửi trước khi bấm link hay trả lời. Thư vẫn nằm trong Thư rác trên Lark.': 'Lark put this message in Spam. Check the sender address before clicking links or replying. It stays in Spam on Lark.',
+    'Thư rác': 'Spam',
 
     /* Tài khoản & gói dịch vụ (lark-mat-khau) — tên nền tảng, user, mật khẩu là DỮ LIỆU (data-no-i18n) */
     'Tài khoản & gói dịch vụ': 'Accounts & subscriptions',

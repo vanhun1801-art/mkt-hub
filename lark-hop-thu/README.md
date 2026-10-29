@@ -25,6 +25,20 @@ Trong thư chỉ có ba nút có chữ: **Trả lời**, **Giao việc**, **Xong
 - "Đã trả lời" = trong cùng chuỗi (hộp + thread_id) có thư anh gửi sau thư đó (`ghepChuoi` ở server.js).
 - **Nhóm việc anh theo dõi**: gom nhiều chuỗi thư cùng một việc; thẻ nhóm nói đang đến lượt ai.
 
+## Thư rác và giới hạn tốc độ của Lark (29/10/2026)
+
+- App đọc thêm thư mục **Thư rác** của mỗi hộp (14 ngày gần nhất, tối đa 40 thư, `ngayRac`/`soThuRac` ở config). Lark từng đẩy cả thư khách hỏi báo giá vào đó: sales@ có 64 thư rác trong hai tuần, có thư khách thật.
+  - Thư rác có dấu hiệu khách hỏi (báo giá, booking, tour…) vào "Cần trả lời".
+  - Thư mạo danh hãng lớn từ tên miền lạ ("MetaAdsSupport" gửi từ tinhochay.org) và phần còn lại vào "Chỉ để đọc".
+  - Thư nào cũng mang nhãn "Thư rác" và câu nhắc kiểm người gửi. Thư vẫn nằm trong Thư rác trên Lark: app không chuyển thư nào.
+- Đọc tám hộp cùng lúc từng chạm ngưỡng của Lark: `99991400 request trigger frequency limit`, `1230008 too many requests`. Lúc đó cả 4–5 hộp lỗi cùng lúc, mà câu báo lỗi chỉ là dòng "tip: run lark-cli … profile". Cách chống:
+  - đọc lỗi JSON trong stderr của lark-cli;
+  - gặp lỗi giới hạn thì chờ lâu dần rồi thử lại (cả lark-cli lẫn OpenAPI);
+  - mỗi lúc đọc tối đa 4 hộp;
+  - hai lượt đọc trùng nhau dùng chung một lần gọi.
+- Hộp chung chưa được chia quyền thì chỉ hộp đó báo lỗi, không đòi nối lại cả trang.
+- Hai hộp `pito@routinehotels.com` và `pito@riluxhotels.com` trống thật trên Lark (mọi thư mục 0 thư), không phải lỗi đọc.
+
 ## Chỉ đổi bên mình, Lark Mail giữ nguyên (28/10/2026)
 
 Hộp chung có nhiều người dùng, nên **Xong, đã đọc, chưa đọc, gắn sao, chuyển ngăn, hẹn, nhóm** chỉ ghi vào sổ riêng của từng người (`kho.js`). Không lệnh nào đổi nhãn hay thư mục trên Lark Mail. Sổ nằm ở kho Base của Hub (bảng của Ghi chú, ô "Ô" = `hop-thu:<băm>`, tệp `hop-thu.json.gz`), nên Render deploy lại không mất. Chạy riêng, chạy test, soát chỉ đọc thì sổ chỉ nằm trên máy.

@@ -39,6 +39,13 @@ const NGUOI = {
       head_from: { name: 'B', mail_address: 'b@x.vn' }, label_ids: [], to: [], smtp_message_id: '<x@y>',
       body_html: b64u('<p>Lịch</p>') },
   ] },
+  /* Có thêm một hộp chung chưa được chia (Lark trả "no permission"), và lượt
+   * đọc đầu tiên bị Lark chặn vì gọi dồn dập. */
+  'tk-nhieu': { hop: 'nhieu@rootytrip.com', them: ['chung@rootytrip.com'], chanNhanh: 1, thu: [
+    { message_id: 'thuNhieu0000001', thread_id: 't3', internal_date: '1793000000000', subject: 'Hỏi tour',
+      head_from: { name: 'C', mail_address: 'c@x.vn' }, label_ids: [], to: [], smtp_message_id: '<z@y>',
+      body_html: b64u('<p>Tour</p>') },
+  ] },
 };
 const ghiNhan = [];
 
@@ -55,10 +62,20 @@ const lark = http.createServer((req, res) => {
     const p = decodeURIComponent(u.pathname.replace('/open-apis/mail/v1/user_mailboxes/', ''));
     const body = raw ? JSON.parse(raw) : {};
     ghiNhan.push({ tk, method: req.method, p, body });
-    if (p === 'me/accessible_mailboxes') return tra({ code: 0, data: { accessible_mailboxes: [{ email_address: ng.hop, email_type: 'USER_PRIMARY' }] } });
+    if (p === 'me/accessible_mailboxes') {
+      return tra({ code: 0, data: { accessible_mailboxes: [{ email_address: ng.hop, email_type: 'USER_PRIMARY' }]
+        .concat((ng.them || []).map((e) => ({ email_address: e, email_type: 'PUBLIC_MAILBOX' }))) } });
+    }
     const [hop, ...con] = p.split('/');
     if (hop !== ng.hop) return tra({ code: 99991672, msg: 'no permission' });
     const duong = con.join('/');
+    if (duong === 'messages' && req.method === 'GET' && u.searchParams.get('folder_id') === 'SPAM') {
+      return tra({ code: 0, data: { items: [], has_more: false } });
+    }
+    if (duong === 'messages' && req.method === 'GET' && ng.chanNhanh) {
+      ng.chanNhanh--;
+      return tra({ code: 99991400, msg: 'request trigger frequency limit' });
+    }
     if (duong === 'messages' && req.method === 'GET') return tra({ code: 0, data: { items: ng.thu.map((t) => t.message_id), has_more: false } });
     if (duong === 'messages/batch_get') return tra({ code: 0, data: { messages: ng.thu.filter((t) => body.message_ids.includes(t.message_id)) } });
     if (duong === 'messages/batch_modify') return tra({ code: 0, data: {} });
@@ -146,6 +163,12 @@ lark.listen(0, '127.0.0.1', () => {
       const g = await goi('/api/thu/' + encodeURIComponent('hunglv@rootytrip.com') + '/thuHung00000001/tra-loi', 'tk-hung',
         { method: 'POST', body: { chu: 'Gửi luôn', gui: true } });
       ok('Gửi: tạo nháp rồi gửi nháp đó', g.j && g.j.daGui === true && ghiNhan.some((x) => x.p.endsWith('drafts/nhap1/send')), g.s.slice(0, 200));
+
+      console.log('\nLark chặn vì gọi nhanh, một hộp chưa được chia');
+      const nh = await goi('/api/thu', 'tk-nhieu');
+      ok('bị chặn vì nhanh thì chờ rồi đọc lại, thư vẫn về', nh.ma === 200 && nh.j.thu.length === 1 && nh.j.thu[0].id === 'thuNhieu0000001', nh.s.slice(0, 300));
+      ok('hộp chưa được chia chỉ báo lỗi riêng hộp đó, không đòi nối lại cả trang',
+        nh.j && nh.j.loi.length === 1 && nh.j.loi[0].hop === 'chung@rootytrip.com' && /quyền/.test(nh.j.loi[0].loi), JSON.stringify(nh.j && nh.j.loi));
 
       console.log('\nToken hết hạn');
       const het = await goi('/api/thu', 'tk-het');

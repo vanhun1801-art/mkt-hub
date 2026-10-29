@@ -79,5 +79,17 @@ ok('AI chỉ dùng khi luật không nhận',
 ok('AI đã lưu từ bản cũ ("tu-dong") vẫn dùng được', ngan('karim@gmail.com', 'x', { ai: { ngan: 'tu-dong' } }) === 'biet');
 ok('AI trả ngăn lạ thì về mặc định', ngan('karim@gmail.com', 'x', { ai: { ngan: 'rac' } }) === 'xu-ly');
 
+console.log('\nThư Lark xếp vào Thư rác (mẫu thật của sales@, 29/10/2026)');
+const rac = (ten, email, tieuDe) => xep({ tu: { ten, email }, tieuDe, rac: true }, { cfg: {} }).ngan;
+ok('khách hỏi báo giá bị xếp nhầm vào Thư rác: Cần trả lời',
+  rac('Matteo Colantoni', 'mc.gazza91@gmail.com', 'Quotation Request – Snorkeling + Hon Thom Cable Car – 3 Dec') === 'xu-ly');
+ok('mạo danh Meta từ tên miền lạ: Chỉ để đọc, kể cả tiêu đề có chữ "request"',
+  rac('MetaAdsSupport', 'x@n.tinhochay.org', 'Copyright Appeal Request for Your Page') === 'biet');
+ok('mạo danh nhà đăng ký tên miền: Chỉ để đọc', rac('TenTen Vn', 'ambul@roliambulance.be', 'Urgent: Final Notice for Domain Renewal') === 'biet');
+ok('thư rác không có dấu hiệu gì: Chỉ để đọc, không theo mặc định Cần trả lời',
+  rac('Sunset Sanato', 'sales@sunset.vn', 'Phú Quốc - Giảm 20% giá lữ hành cao điểm') === 'biet');
+ok('luật tay vẫn thắng cả thư rác',
+  xep({ tu: { ten: 'X', email: 'x@y.vn' }, tieuDe: 'Giảm giá', rac: true }, { cfg: {}, tay: { 'x@y.vn': 'xu-ly' } }).ngan === 'xu-ly');
+
 console.log('\n' + (fail ? '\x1b[31m' : '\x1b[32m') + pass + ' pass · ' + fail + ' fail\x1b[0m');
 if (fail) { console.log(fails.map((x) => ' - ' + x).join('\n')); process.exit(1); }
