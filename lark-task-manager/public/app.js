@@ -1019,7 +1019,7 @@ function renderLanes(list) {
    * không thì không ai biết là kéo được (anh Hùng 27/10/2026). */
   if (keoGomDuoc() && list.length > 1) {
     box.appendChild(el('div', 'lanes-mach',
-      'Kéo tay nắm bên trái một việc rồi thả vào việc khác để gom nó thành việc con của việc đó. '
+      'Kéo tay nắm bên phải một việc rồi thả vào việc khác để gom nó thành việc con của việc đó. '
       + 'Chia sâu tối đa ' + CAP_TOI_DA + ' cấp.'));
   }
   const who = S.who && S.who.id;
@@ -3316,8 +3316,58 @@ function renderWorkload(D) {
   }
   table.appendChild(tb);
   box.appendChild(table);
+  box.appendChild(theTaiViec(rows, maxOpen));
 
   if (!rows.length) box.appendChild(el('div', 'queue-empty', 'Chưa có dữ liệu.'));
+}
+
+/**
+ * Bản điện thoại của bảng tải việc: mỗi người một thẻ. Bảng 8 cột bị lớp chung
+ * tự bẻ thành dòng "nhãn … số" thì số "Đang mở" lơ lửng giữa dòng, tên người
+ * đẩy sang mép phải, đọc không ra ai đang quá tải (anh Hùng 29/10/2026). Thẻ
+ * đặt tên và tổng việc mở lên đầu, sáu con số còn lại xếp lưới ba cột.
+ */
+function theTaiViec(rows, maxOpen) {
+  const ds = el('div', 'wl-ds');
+  for (const r of rows) {
+    const the = el('div', 'wl-the');
+    const dau = el('div', 'wl-dau');
+    const av = el('span', 'av av-sm', initials(r.name));
+    av.style.background = colorOf(r.name);
+    dau.appendChild(av);
+    dau.appendChild(el('span', 'wl-ten', r.name));
+    const tong = el('span', 'wl-tong');
+    tong.appendChild(el('b', '', String(r.open)));
+    tong.appendChild(el('span', '', 'đang mở'));
+    dau.appendChild(tong);
+    the.appendChild(dau);
+
+    const wrap = el('div', 'wl-bar-wrap');
+    const bar = el('div', 'wl-bar' + (r.late > 0 ? ' has-late' : ''));
+    bar.style.width = Math.round(r.open / maxOpen * 100) + '%';
+    wrap.appendChild(bar);
+    the.appendChild(wrap);
+
+    const luoi = el('div', 'wl-luoi');
+    const o = (nhan, so, lop) => {
+      const c = el('div', 'wl-o' + (lop || '') + (so ? '' : ' la-0'));
+      c.appendChild(el('b', '', String(so)));
+      c.appendChild(el('span', '', nhan));
+      luoi.appendChild(c);
+    };
+    o('Đang làm', r.doing);
+    o('Trễ', r.late, r.late ? ' is-alert' : '');
+    o('Làm lại', r.redo, r.redo ? ' is-warn' : '');
+    o('Chờ chấm', r.wait);
+    o('Hoàn thành', r.done);
+    const d = el('div', 'wl-o' + (r.diem == null ? ' la-0' : ''));
+    d.appendChild(el('b', '', r.diem == null ? '—' : r.diem.toFixed(2).replace('.', ',')));
+    d.appendChild(el('span', '', 'Điểm TB'));
+    luoi.appendChild(d);
+    the.appendChild(luoi);
+    ds.appendChild(the);
+  }
+  return ds;
 }
 
 /** Thanh phân bổ theo một trường. */
@@ -3342,6 +3392,10 @@ function renderBars(sel, items, key) {
     track.appendChild(fill);
     row.appendChild(track);
     row.appendChild(el('span', 'bar-n', String(n)));
+    /* Điện thoại ẩn nhóm "(chưa điền)": nó không phải một loại việc, chỉ là
+     * việc thiếu ô — xem nhanh trên máy thì không ai làm gì với nó (anh Hùng
+     * 29/10/2026). Máy tính vẫn hiện để quản lý biết mà đi điền. */
+    if (label === '(chưa điền)') row.classList.add('bar-trong');
     box.appendChild(row);
   }
   if (!rows.length) box.appendChild(el('div', 'queue-empty', 'Không có dữ liệu.'));

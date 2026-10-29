@@ -3122,7 +3122,11 @@ html[data-skin="ios"]:not(#_) .kpi:not(.kpi-alert):not(.kpi-warn):not(.kpi-ok):n
    ========================================================================== */
 @media (max-width: 640px) {
   html[data-skin="ios"]:not(#_):not(#__) body > .app { margin-bottom: 0 !important; }
-  html[data-skin="ios"]:not(#_):not(#__) .ios-cuon-day { padding-bottom: calc(var(--ios-duoi, 0px) + 96px) !important; scroll-padding-bottom: calc(var(--ios-duoi, 0px) + 96px); }
+  /* Đệm cuối = thanh tab (58 + 10) + viên linh vật lời nhắc (44, đáy ở 78px) +
+   * 10px thở = 132px. Trước là 96px: chừa đủ thanh tab nhưng nút ở mép phải
+   * của mục cuối vẫn nằm dưới viên linh vật (anh Hùng 29/10/2026: "các app cần
+   * có nguyên tắc để hiển thị hết nội dung"). Xem nguyen-tac-lam-viec.md mục 24. */
+  html[data-skin="ios"]:not(#_):not(#__) .ios-cuon-day { padding-bottom: calc(var(--ios-duoi, 0px) + 132px) !important; scroll-padding-bottom: calc(var(--ios-duoi, 0px) + 132px); }
   html[data-skin="ios"]:not([data-app]) { --ios-duoi: env(safe-area-inset-bottom, 0px); }
 
   /* lớp mép cuộn: nằm dưới thanh tab (z 44 < 45), không nhận chạm */

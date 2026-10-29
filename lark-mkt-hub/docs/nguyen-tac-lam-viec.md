@@ -332,3 +332,13 @@ Anh Hùng (về Hộp thư): "cái giao diện này anh không biết phải là
 - **Việc chờ lâu phải tự nổi lên**: vàng khi chờ 1 ngày, đỏ và nhịp sáng khi từ 3 ngày. Chỉ những việc gần đây mới nhấp nháy; việc đã quá lâu gom một dòng, bấm mới mở. Cái gì cũng nháy thì không còn gì nổi bật.
 - **Gửi ra ngoài (thư, tin) luôn qua bản xem trước**: đúng bản bên nhận thấy, có soát chính tả, sửa từng chỗ hoặc sửa hết, rồi mới gửi.
 - **Gói một bản ghi sang app khác (giao việc từ thư) phải đọc hiểu được mà không cần mở nguồn**: tên sạch, ai gửi, nội dung chính (cả phần chuyển tiếp), bỏ chữ ký, ký tự rác, link dài, kèm thẻ dẫn về nguồn.
+
+## 24. Thuận tay phải, và chừa đáy cho thanh tab (29/10/2026)
+
+Anh Hùng: "giao diện cho người thuận tay phải, dời các nút về phải", và "mình có cái thanh tab menu bên dưới, nên các app em làm cần có nguyên tắc cho nó để hiển thị hết nội dung".
+
+- **Nút thao tác nằm mép phải.** Nút trên thẻ, dòng (Đã gửi sản phẩm, Bắt đầu làm…) canh phải ở mọi khổ; tay nắm kéo của thẻ việc cũng ở mép phải. Riêng nút gấp việc lớn vẫn ở trái vì nó là gốc của nét cây (mục 17).
+- **Chừa đáy cho lớp nổi của hub trên điện thoại.** Thanh tab kính cao 58px, đáy cách màn 10px; viên linh vật lời nhắc 44px, đáy ở 78px, nằm mép phải. Vùng cuộn chạm đáy màn phải có đệm cuối **132px + vùng thanh Home** (`.ios-cuon-day` trong `ios.css`, `ios-app.js` tự gắn) để mục cuối, kể cả nút ở mép phải, cuộn lên được phía trên cả hai. App có thanh hay nút cố định riêng ở đáy thì đặt nó phía trên mốc đó, không để chồng lên thanh tab hay viên linh vật.
+- **Bảng nhiều cột chỉ đọc mà mỗi dòng là một người hay một đối tượng thì dựng thẻ riêng cho điện thoại**, không để lớp chung tự bẻ bảng (`.ios-the-bang`) khi cột đầu là tên và các cột sau là số: tên và con số chính lên đầu, số phụ xếp lưới 3 cột, số 0 nhạt đi (mẫu: Tải việc theo nhân sự, `theTaiViec()`).
+- **Nhóm "(chưa điền)" của biểu đồ phân bổ ẩn trên điện thoại.** Máy tính vẫn hiện để quản lý biết mà đi điền.
+- **Thẻ có lớp chung ép lề (`!important`) thì cây việc phải tính toạ độ từ một chỗ**: tâm nút gấp, vạch dọc và lề chữ cùng đi theo `--noi-goc` / `--noi-buoc`, không đặt ba số rời.

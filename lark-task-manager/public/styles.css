@@ -1129,7 +1129,9 @@ html[data-skin="ios"] .soan-chu .sc-bang th { background: var(--ios-the); }
   .topbar { flex-wrap: wrap; }
   .search { width: 140px; }
   .wcard { flex-direction: column; }
-  .wcard-actions { max-width: none; justify-content: flex-start; }
+  /* Nút về mép phải: người dùng thuận tay phải, ngón cái với tới đó trước
+     (anh Hùng 29/10/2026). */
+  .wcard-actions { max-width: none; justify-content: flex-end; }
   .drawer { width: 100%; min-width: 0; }
   .row2 { grid-template-columns: 1fr; }
 }
@@ -2909,31 +2911,45 @@ html:not(#_):not(#__):not(#___) .kh-than .vc-them input {
 .tcd-mo { flex: 0 0 auto; font-size: 13px; font-weight: 600; color: var(--blue-text); }
 @media (max-width: 640px) { .tcd-mo { display: none; } }
 
+/* Tay nắm kéo nằm mép PHẢI của thẻ, mọi khổ màn (anh Hùng 29/10/2026: "giao
+   diện cho người thuận tay phải, dời các nút về phải"). Máy tính: thẻ là một
+   hàng nên chỉ cần đẩy nó ra sau cùng. Nút gấp việc lớn vẫn ở bên trái: nó là
+   gốc của nét cây, dời đi thì nét cây mọc từ chỗ trống. */
+.wcard > .wc-nam { order: 9; }
+
 /* Khổ hẹp: thẻ xếp dọc (.wcard thành cột từ 980px), nên nút thu gọn và tay nắm
-   kéo phải neo vào góc trái — để mặc thì mỗi cái chiếm trọn một dòng phía trên
-   tên việc, nhìn như hai ô trống. Thẻ chừa lề trái đúng bằng chỗ chúng đứng. */
+   phải neo tuyệt đối — để mặc thì mỗi cái chiếm trọn một dòng phía trên tên
+   việc, nhìn như hai ô trống.
+   Mọi toạ độ của cây tính từ HAI số: --noi-goc (tâm nút gấp của việc gốc) và
+   --noi-buoc (mỗi cấp thụt thêm bao nhiêu). Tâm nút gấp, vạch dọc và lề chữ
+   cùng đi theo hai số đó nên không bao giờ lệch nhau. Trước đây ba thứ đặt ba
+   số rời, và lớp iOS còn ép lề thẻ về 14px (!important) — vạch cây chạy xuyên
+   qua nhãn và nút, tay nắm đè lên chấm đỏ trễ hạn.
+   Dùng #lanes để thắng luật lề của lớp iOS (độ ưu tiên id). */
 @media (max-width: 980px) {
-  .wcard { padding-left: 32px; }
-  .wcard-con.cap-2 { padding-left: 54px; }
-  .wcard-con.cap-3 { padding-left: 76px; }
-  .lane-items { --noi-goc: 41px; --noi-buoc: 22px; }
+  #lanes .lane-items { --noi-goc: 15px; --noi-buoc: 22px; --le-cay: 32px; }
+  #lanes .wcard { padding-left: var(--le-cay) !important; padding-right: 14px !important; row-gap: 10px; }
+  #lanes .wcard-con.cap-2 { padding-left: calc(var(--le-cay) + var(--noi-buoc)) !important; }
+  #lanes .wcard-con.cap-3 { padding-left: calc(var(--le-cay) + 2 * var(--noi-buoc)) !important; }
+  html[data-skin] #lanes .wcard-actions { margin-top: 0; }
   .wc-gap.trong { display: none; }
-  .wc-gap:not(.trong) { position: absolute; left: 5px; top: 10px; }
+  .wc-gap:not(.trong) { position: absolute; left: calc(var(--noi-goc) - 10px); top: 10px; }
+  .wcard-con.cap-2 > .wc-gap:not(.trong) { left: calc(var(--noi-goc) + var(--noi-buoc) - 10px); }
   .wc-nam {
-    position: absolute; left: 8px; top: 12px;
-    width: 14px; height: 20px; min-height: 0; align-self: auto; opacity: .55;
+    position: absolute; right: 6px; top: 10px;
+    width: 14px; height: 22px; min-height: 0; align-self: auto; opacity: .55;
   }
-  /* Có nút thu gọn thì tay nắm xuống dưới nó, không chồng lên nhau. */
-  .wcard:has(.wc-gap:not(.trong)) .wc-nam { top: 36px; }
+  /* Chừa chỗ cho tay nắm ở dòng tên thôi, các dòng dưới dùng hết bề ngang. */
+  .wcard:has(> .wc-nam) .wcard-title { padding-right: 18px; }
 }
 
 /* Điện thoại: thụt ít lại, không thì tên việc cấp 3 chỉ còn một nhúm chữ.
    Nút thu gọn nới vùng bấm cho vừa ngón tay bằng một ô vô hình rộng hơn, chứ
    không nới chỗ nó chiếm — chữ bên cạnh giữ nguyên vị trí. */
 @media (max-width: 640px) {
-  .wcard-con.cap-2 { padding-left: 48px; }
-  .wcard-con.cap-3 { padding-left: 62px; }
-  .lane-items { --noi-goc: 40px; --noi-buoc: 14px; }
+  #lanes .lane-items { --noi-goc: 14px; --noi-buoc: 18px; --le-cay: 30px; --moc-y: 21px; }
+  .wc-gap:not(.trong) { top: 11px; }
+  .wc-nam { top: 9px; }
   .wc-gap:not(.trong)::after {
     content: ''; position: absolute; top: 50%; left: 50%;
     width: 40px; height: 40px; transform: translate(-50%, -50%);
@@ -2951,3 +2967,31 @@ html:not(#_):not(#__):not(#___) .kh-than .vc-them input {
 }
 .btn.btn-primary.btn-lp:hover { filter: brightness(1.08); }
 .btn.btn-primary.btn-lp:disabled { opacity: .55; }
+
+/* ---- Tải việc theo nhân sự trên điện thoại (29/10/2026) ----
+   Máy tính giữ bảng 8 cột (sắp xếp được theo cột). Điện thoại thay bằng thẻ
+   từng người do theTaiViec() vẽ: tên + tổng việc mở trên đầu, thanh tải, rồi
+   lưới 3 cột số. Số 0 nhạt đi để mắt dừng ở số khác 0. */
+.wl-ds { display: none; }
+@media (max-width: 640px) {
+  .workload > .wl-table { display: none; }
+  .wl-ds { display: flex; flex-direction: column; }
+  .wl-the { padding: 12px 16px 14px; }
+  .wl-the + .wl-the { border-top: 1px solid var(--border); }
+  .wl-dau { display: flex; align-items: center; gap: 10px; }
+  .wl-ten { flex: 1; min-width: 0; font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wl-tong { flex: 0 0 auto; display: flex; align-items: baseline; gap: 5px; }
+  .wl-tong b { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .wl-tong span { font-size: 13px; color: var(--text-2); }
+  .wl-the .wl-bar-wrap { height: 5px; margin: 10px 0 12px; }
+  .wl-luoi { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 8px; }
+  .wl-o { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .wl-o b { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .wl-o span { font-size: 12px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .wl-o.la-0 b { color: var(--text-3); font-weight: 500; }
+  .wl-o.is-alert b { color: var(--red-text); }
+  .wl-o.is-warn b { color: var(--orange-text); }
+
+  /* Nhóm "(chưa điền)" của biểu đồ phân bổ: chỉ hiện trên máy tính. */
+  .bar-row.bar-trong { display: none; }
+}

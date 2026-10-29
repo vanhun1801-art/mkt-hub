@@ -649,6 +649,11 @@
     'Trễ deadline': 'Late',
     'Tạm dừng': 'On hold',
     'Làm lại': 'Redo',
+    /* thẻ Tải việc theo nhân sự trên điện thoại (29/10/2026) */
+    'đang mở': 'open',
+    'Đang làm': 'Doing',
+    'Chờ chấm': 'To score',
+    'Điểm TB': 'Avg score',
     'Cao': 'High',
     'Trung bình': 'Medium',
     'Thấp': 'Low',
