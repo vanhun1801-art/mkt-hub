@@ -346,6 +346,8 @@ Anh Hùng: "giao diện cho người thuận tay phải, dời các nút về ph
 - **Thẻ việc điện thoại là lưới hai cột**: tên (tối đa 2 dòng) và một dòng mô tả trải ngang; dòng cuối là nhãn bên trái, nút bên phải cùng hàng. Không để nút đứng riêng một dòng: cả danh sách thành một cột nút xanh, mỗi màn chỉ còn 4 việc. Ẩn "Order: <chính mình>" và ngày cụ thể trong "Còn N ngày".
 - **Tiêu đề làn không dính đầu khi cuộn trên điện thoại.** Không bày dòng hướng dẫn kéo tay nắm: sáu chấm tự nói là kéo được.
 - **Đầu cửa sổ chi tiết: tiêu đề và nút cùng một hàng.** Nút phụ chỉ còn hình (✎ sửa đầy đủ, ✕ đóng), tên nằm ở `title`/`aria-label`. Không đặt nút "Đóng" ở chân khi đầu đã có ✕.
+- **Nút chỉ có hình thì vẽ bằng SVG, không dùng ký tự** (✎ ◀ ➤…): `ios-app.js` gỡ ký hiệu kiểu emoji khỏi nút, ký tự bị gỡ là còn lại một ô tròn trống (gặp ở nút Sửa đầy đủ, 29/10/2026).
+- **Ô nhắn tin một dòng**, cao bằng các nút bên cạnh, gõ sang dòng mới mới cao dần (tối đa 132px). Nút gửi tròn chỉ có mũi tên.
 - **Ô gõ nhanh việc con ghi "Sub-task & ấn Enter".**
 - **Trao đổi**: chưa có tin thì hiện biểu tượng trò chuyện và "Trao đổi ngay", không câu giải thích. Dưới ô gõ ghi ai sẽ nhận báo Lark. Gõ `@` để gắn người trong danh bạ app; người được gắn cũng nhận báo Lark (máy chủ chỉ nhận id có trong danh bạ). Dán ảnh thẳng vào ô gõ hoặc bấm nút ảnh (tối đa 10 ảnh, 15 MB mỗi ảnh); ảnh nằm ở cột "Ảnh" của bảng Bình luận, chỉ người viết tin gắn được ảnh vào tin. Việc liên phòng nối Rooty Workspace chưa nhận ảnh trong Trao đổi.
 - **Làn trống ẩn hẳn trên điện thoại** ("Công việc mới 0"). Chỉ khi mọi làn đều trống mới giữ một câu "đang trống".
