@@ -4926,13 +4926,13 @@ function buildCreateForm(b, t, o) {
  * Không có form thứ hai: quản lý điền đúng form "Tạo công việc", rồi chọn ô
  * "Lặp lại". Bấm Tạo là có việc của hôm nay, đồng thời máy chủ cất một mẫu; từ
  * kỳ sau máy chủ tự tạo lúc 07:00, hạn trong ngày theo giờ của ô Deadline.
- * Danh sách mẫu (tạm dừng, xoá) mở bằng nút "Việc lặp lại" hoặc ngay dưới ô này.
+ * Danh sách mẫu (tạm dừng, xoá) mở bằng link ngay dưới ô này. Không có nút tạo
+ * riêng nào khác (anh Hùng 29/10/2026: "gom chung vào nút tạo việc").
  */
 const THU_LAP = [[1, 'T2'], [2, 'T3'], [3, 'T4'], [4, 'T5'], [5, 'T6'], [6, 'T7'], [0, 'CN']];
 
 function khoiLapLai(t) {
   if (!t._lap) t._lap = { chuKy: '', thu: [], ngay: [], boCN: false };
-  if (S.moLap) { t._lap.chuKy = 'ngay'; S.moLap = false; }
   const L = t._lap;
   const khoi = el('div', 'lap-khoi');
   const ve = () => {
@@ -5036,7 +5036,7 @@ function veDanhSachLap(ds) {
   const box = $('#lapDs');
   box.innerHTML = '';
   if (!ds.length) {
-    box.appendChild(el('div', 'lap-trong', 'Chưa có việc lặp lại nào. Bấm "+ Tạo việc lặp lại" để thêm.'));
+    box.appendChild(el('div', 'lap-trong', 'Chưa có việc lặp lại nào. Tạo việc như thường rồi chọn ô "Lặp lại theo".'));
     return;
   }
   for (const m of ds) {
@@ -7266,7 +7266,6 @@ function applyRoleChrome() {
   $('#btnNew').classList.toggle('hidden', !S.perm.taoMoi);
   $('#btnQuyen').classList.toggle('hidden', !S.isManager);
   $('#btnPhanPhoi').classList.toggle('hidden', !S.isManager);
-  $('#btnLap').classList.toggle('hidden', !S.isManager);
   $('#btnReport').classList.toggle('hidden', !S.isManager);
   // Ai cũng đặt việc được nên ai cũng có tab "Việc tôi order"
   const choPhep = S.isManager ? null : (xemHet ? ['work', 'order', 'board', 'table'] : ['work', 'order']);
@@ -7698,9 +7697,7 @@ function setupChrome() {
   $('#adjSubmit').onclick = submitAdjust;
   $('#btnQuyen').onclick = openQuyen;
   $('#btnPhanPhoi').onclick = openPhanPhoi;
-  $('#btnLap').onclick = moDanhSachLap;
   $('#lapClose').onclick = () => closeModal('mLap');
-  $('#lapNew').onclick = () => { closeModal('mLap'); S.moLap = true; openDrawer(null); };
   $('#ppLoad').onclick = () => napPhanPhoi(true);
 
   /* Một chỗ bắt cho cả ba loại ô cấu hình + nút Giao ngay. Dùng `change` chứ

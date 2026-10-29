@@ -49,7 +49,6 @@
     <button id="btnNew" class="btn btn-primary">+ Công việc</button>
     <button id="btnReport" class="btn hidden" title="Xuất báo cáo tổng quan">Báo cáo</button>
     <button id="btnPhanPhoi" class="btn hidden" title="Trung tâm phân phối công việc">Phân phối</button>
-    <button id="btnLap" class="btn hidden" title="Việc tự tạo theo ngày, tuần, tháng">Việc lặp lại</button>
     <button id="btnQuyen" class="btn hidden" title="Phân quyền quản lý">Quyền</button>
     <button id="btnRefresh" class="btn" title="Đọc lại số mới nhất từ Base">Làm mới</button>
     <a id="linkLark" class="btn" title="Mở bảng dữ liệu gốc trên Lark" target="_blank" rel="noreferrer">Mở Base</a>
@@ -117,7 +116,8 @@
 </section>
 
 <!-- Việc lặp lại (29/10/2026): danh sách mẫu, tạm dừng / chạy lại / xoá.
-     Tạo mẫu mới thì đi qua form "Tạo công việc", ô "Lặp lại". -->
+     Không có nút tạo riêng (anh Hùng: "gom chung vào nút tạo việc"): tạo mẫu
+     đi qua nút tạo việc, ô "Lặp lại"; cửa sổ này mở từ link ngay dưới ô đó. -->
 <div id="mLap" class="modal" role="dialog" aria-modal="true" aria-labelledby="lapTitle">
   <div class="modal-box lap-box">
     <div class="lap-dau">
@@ -125,9 +125,6 @@
       <button class="btn btn-icon modal-x" id="lapClose" aria-label="Đóng" title="Đóng"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
     </div>
     <div id="lapDs" class="lap-ds"></div>
-    <div class="modal-foot">
-      <button class="btn btn-primary" id="lapNew">+ Tạo việc lặp lại</button>
-    </div>
   </div>
 </div>
 
