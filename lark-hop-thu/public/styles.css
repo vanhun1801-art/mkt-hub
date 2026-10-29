@@ -225,8 +225,8 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
   background: var(--mat-2); color: var(--chu-2); white-space: nowrap;
 }
 /* Hộp thư là thông tin phụ: chữ xám, không nền màu, để mắt dồn vào tên và tiêu đề. */
-.nhan.hop { color: var(--chu-3); background: none; padding: 0; }
-.nhan.hop::before { content: '@ '; opacity: .6; }
+.nhan.o-hop { color: var(--chu-3); background: none; padding: 0; }
+.nhan.o-hop::before { content: '@ '; opacity: .6; }
 .nhan.lam { color: var(--cam); background: color-mix(in srgb, var(--cam) 10%, transparent); }
 .nhan.sao { color: var(--cam); background: none; padding: 0; }
 .nhan.sep { color: var(--xanh); background: color-mix(in srgb, var(--xanh) 9%, transparent); font-weight: 500; }
@@ -252,6 +252,11 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 
 .xuong { display: flex; flex-direction: column; gap: 6px; }
 .xuong i { display: block; height: 62px; border-radius: 14px; background: var(--mat); border: 1px solid var(--vien); animation: tho 1.4s ease-in-out infinite; }
+/* Nội dung thư đang tải: vài dòng chữ giả, đầu thư đã vẽ thật. */
+.xuong-chu { display: flex; flex-direction: column; gap: 10px; padding-top: 14px; }
+.xuong-chu i { display: block; height: 12px; border-radius: 6px; background: var(--mat-2); animation: tho 1.4s ease-in-out infinite; }
+.xuong-chu i:nth-child(2) { width: 92%; } .xuong-chu i:nth-child(3) { width: 84%; } .xuong-chu i:nth-child(4) { width: 46%; }
+@media (prefers-reduced-motion: reduce) { .xuong-chu i { animation: none; } }
 @keyframes tho { 50% { opacity: .55; } }
 
 /* ---------- đọc thư ---------- */

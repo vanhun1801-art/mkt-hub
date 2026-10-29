@@ -264,7 +264,7 @@ function dongThu(t) {
   else if (mc.muc) phu.push('<span class="nhan cho ' + mc.muc + '">Chờ anh ' + chuCho(mc.gio) + '</span>');
   if (t.daTraLoi && !t.daGui) phu.push('<span class="nhan da-tl">Đã trả lời</span>');
   if (t.sep) phu.push('<span class="nhan sep">Ban giám đốc</span>');
-  if (S.hop.length > 1 && !S.loc.hop) phu.push('<span class="nhan hop" data-no-i18n>' + esc(tenHop(t.hop)) + '</span>');
+  if (S.hop.length > 1 && !S.loc.hop) phu.push('<span class="nhan o-hop" data-no-i18n>' + esc(tenHop(t.hop)) + '</span>');
   if (t.sao) phu.push('<span class="nhan sao" aria-label="Có gắn sao">★</span>');
   if (t.henDen) phu.push('<span class="nhan lam">' + esc(gioHen(t.henDen)) + '</span>');
   else if (t.canLam) phu.push('<span class="nhan lam">Cần làm</span>');
@@ -438,10 +438,10 @@ async function mo(k) {
   const cot = $('#cotDoc');
   cot.classList.remove('dong-lai');
   cot.hidden = false;
-  $('#hangNut').innerHTML = '';
-  $('#docThan').innerHTML = '<div class="xuong"><i></i><i style="height:200px"></i></div>';
-  $('#docThan').dataset.k = '';
-  if ($('#docSoan').dataset.k !== k) { $('#docSoan').hidden = true; $('#docSoan').innerHTML = ''; $('#docSoan').dataset.k = ''; }
+  /* Vẽ ngay khuôn thư từ dòng trong danh sách (nút, tiêu đề, người gửi, ô trả
+   * lời), chỉ phần nội dung chờ tải. Trước đây khung đọc trắng trơn một nhịp
+   * rồi mọi thứ mới bật ra (29/10/2026, "ấn vào thì hiện các thứ không bình thường"). */
+  veDoc(t);
   try {
     const d = await api(duongThu(t));
     if (S.chon !== k) return;
@@ -488,8 +488,9 @@ const nutChu = (viec, ic, nhan, lop = '') =>
 const IC_THEM = '<circle cx="5.5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="18.5" cy="12" r="1.4"/>';
 const IC_XONG = '<path d="M5 12.5l4.5 4.5L19 7.5"/>';
 
-function veDoc() {
-  const d = S.ct;
+/* tam: dòng thư trong danh sách, vẽ khuôn trong lúc chờ tải nội dung. */
+function veDoc(tam) {
+  const d = tam ? { thu: Object.assign({ den: [], cc: [], tep: [] }, tam) } : S.ct;
   if (!d) return;
   const t = d.thu;
   const tom = timThu(S.chon) || {};
@@ -510,7 +511,7 @@ function veDoc() {
     '<div class="dong-2">Tới ' + (t.den.map(nguoi).join(', ') || esc(t.hop)) +
     (t.cc.length ? ' · CC ' + t.cc.map(nguoi).join(', ') : '') + '</div></div></div>' +
     '<div class="nhan-thu">' +
-    '<span class="nhan hop" data-no-i18n>' + esc(t.hop) + '</span>' +
+    '<span class="nhan o-hop" data-no-i18n>' + esc(t.hop) + '</span>' +
     (tom.daGui ? '<span class="nhan cho-ho' + (mc.muc ? ' ' + mc.muc : '') + '">Chờ bên kia hồi âm ' + chuCho(mc.gio) + '</span>' : '') +
     (!tom.daGui && mc.muc ? '<span class="nhan cho ' + mc.muc + '">Chờ anh trả lời ' + chuCho(mc.gio) + '</span>' : '') +
     (tom.daTraLoi ? '<span class="nhan da-tl">Đã trả lời</span>' : '') +
@@ -518,6 +519,15 @@ function veDoc() {
     (tom.henDen ? '<span class="nhan lam">Hẹn ' + esc(gioHen(tom.henDen)) + '</span>' : '') +
     (nhomCuaThu(tom).map((g) => '<button class="nhan nhom" data-nhom="' + esc(g.id) + '" data-no-i18n>' + esc(g.ten) + '</button>').join('')) +
     '<span id="lienQuan" class="lien-quan"></span></div>';
+  if (tam) {
+    h += '<div class="xuong-chu" aria-busy="true"><i></i><i></i><i></i><i></i></div>';
+    $('#docThan').innerHTML = h;
+    $('#docThan').dataset.k = '';
+    $('#docThan').scrollTop = 0;
+    ganSoan(tom.daGui);
+    capNhatNutGui();
+    return;
+  }
   if (t.canhBao) h += '<div class="canh-bao">Lark đánh dấu thư này có dấu hiệu rủi ro. Kiểm tra người gửi trước khi bấm link hay trả lời.</div>';
   h += '<div id="theAi">' + theAi() + '</div>';
   h += '<div id="vungDich" class="vung-dich"></div>';

@@ -657,6 +657,7 @@
   const thay = (e, s) => s.display !== 'none' && s.visibility !== 'hidden' && e.getClientRects().length > 0;   // KHÔNG xét opacity: lúc vừa mở hộp còn đang hiện dần từ 0
   function dong(e, r) {
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (!(r.cha && r.cha.isConnected) && !/fixed|absolute/.test(r.vi || '')) return;   // vẽ lại, không phải đóng (xem ios-app.js)
     const cha = r.cha && r.cha.isConnected ? r.cha : document.body;
     const c = e.cloneNode(true);
     c.className = r.lop; c.removeAttribute('hidden'); c.removeAttribute('style');
@@ -700,7 +701,8 @@
     document.querySelectorAll(HOP).forEach((e) => {
       if (e.closest('.ios-bong-dong') || (e.parentElement && e.parentElement.closest(HOP))) return;
       const s = getComputedStyle(e);
-      if (thay(e, s)) { if (!dangMo.has(e)) danhDauHop(e); dangMo.set(e, { hien: s.display, lop: e.className, kieu: e.getAttribute('style'), cha: e.parentNode, ke: e.nextSibling }); }
+      if (/^inline/.test(s.display) && !dangMo.has(e)) return;   // nhãn trong dòng chữ không phải cửa sổ
+      if (thay(e, s)) { if (!dangMo.has(e)) danhDauHop(e); dangMo.set(e, { hien: s.display, lop: e.className, kieu: e.getAttribute('style'), cha: e.parentNode, ke: e.nextSibling, vi: s.position }); }
       else if (dangMo.has(e)) { const r = dangMo.get(e); dangMo.delete(e); if (s.display === 'none' || e.hidden) dong(e, r); }
     });
     dangMo.forEach((r, e) => { if (!e.isConnected) { dangMo.delete(e); if (!thayThe(e, r)) dong(e, r); } });

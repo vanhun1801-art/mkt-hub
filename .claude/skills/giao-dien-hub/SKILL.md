@@ -43,6 +43,8 @@ Bo góc theo thang cố định (mục 2 của tệp nguyên tắc). Ngắn gọ
 
 Nút tròn phải tròn thật: rộng bằng cao.
 
+**Tên lớp dành riêng cho cửa sổ:** `.modal`, `.modal-wrap`, `.md`, `.xt`, `.hop`, `.mask`, `.scrim`, `.ngan`, `.ng-pop`, `.goi-y`, `.pk-panel`, `[role=dialog]`. Lớp đóng mượt chung (`ios-app.js`) coi mọi phần tử mang các lớp này là cửa sổ, và dựng bản sao khi nó biến mất. Nhãn, chip, dòng danh sách không được đặt các tên này: nhãn "@ sales" của Hộp thư từng mang `.hop`, mỗi lần vẽ lại sinh 120 bản sao rơi xuống cuối trang (29/10/2026).
+
 Kính (`--lg-*`) chỉ dùng cho lớp điều khiển (thanh tab, thanh bên, bảng thông báo). Thẻ nội dung và hộp cửa sổ có **nền đặc một màu**. Bảng chọn xổ xuống phải đục hẳn.
 
 ## 3. Dấu AI slop về hình: cấm
