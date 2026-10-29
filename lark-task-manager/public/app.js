@@ -1015,13 +1015,8 @@ function renderCounters() {
 function renderLanes(list) {
   const box = $('#lanes');
   box.innerHTML = '';
-  /* Tay nắm kéo ẩn tới khi rê chuột vào thẻ, nên phải nói ra một lần ở đây —
-   * không thì không ai biết là kéo được (anh Hùng 27/10/2026). */
-  if (keoGomDuoc() && list.length > 1) {
-    box.appendChild(el('div', 'lanes-mach',
-      'Kéo tay nắm bên phải một việc rồi thả vào việc khác để gom nó thành việc con của việc đó. '
-      + 'Chia sâu tối đa ' + CAP_TOI_DA + ' cấp.'));
-  }
+  /* Dòng hướng dẫn kéo tay nắm đã bỏ (anh Hùng 29/10/2026): tay nắm sáu chấm
+   * tự nói được là kéo được, và dòng chữ chiếm chỗ ngay đầu danh sách. */
   const who = S.who && S.who.id;
 
   const groups = {};
@@ -2157,7 +2152,7 @@ function khoiViecCon(t) {
     const inp = el('input');
     inp.type = 'text';
     inp.maxLength = 200;
-    inp.placeholder = 'Thêm việc con, gõ tên rồi Enter';
+    inp.placeholder = 'Sub-task & ấn Enter';
     inp.setAttribute('aria-label', 'Tên việc con mới');
     inp.classList.add('ios-khong-nhap');
     o.appendChild(dau);
@@ -4685,7 +4680,10 @@ function buildDrawer() {
   $('#dDelete').classList.toggle('hidden', isNew || staff || orderRO || !!t.lienPhong);
   const nutFull = $('#dFull');
   nutFull.classList.toggle('hidden', isNew || !S.isManager || !!t.lienPhong);
-  nutFull.textContent = staff ? '✎ Sửa đầy đủ' : '◀ Xem bản gọn';
+  /* Chỉ hình, không chữ (anh Hùng 29/10/2026: "để hình cây bút là anh hiểu
+   * rồi"). Tên nút nằm ở title và aria-label cho người đọc màn hình. */
+  nutFull.textContent = staff ? '✎' : '◀';
+  nutFull.setAttribute('aria-label', staff ? 'Sửa đầy đủ' : 'Xem bản gọn');
   nutFull.title = staff
     ? 'Mở form sửa mọi trường (deadline, người phụ trách, chiến dịch…)'
     : 'Về bản gọn — đúng những gì nhân sự nhìn thấy';
@@ -5824,7 +5822,6 @@ function khoiBinhLuan(t) {
   const soan = el('div', 'cmt-new');
   const ta = el('textarea', 'cmt-input');
   ta.rows = 2;
-  ta.placeholder = 'Nhắn tin… (Enter gửi, Shift+Enter xuống dòng)';
   /* Tin đang gõ dở giữ trên máy theo từng việc (02/10/2026): đóng ngăn chi tiết,
    * tải lại trang hay chuyển việc khác rồi quay lại vẫn còn. Gửi được là xoá. */
   const khoaTin = 'cong-viec.tin-do.' + t.id;
@@ -5837,14 +5834,72 @@ function khoiBinhLuan(t) {
     }, 300);
   });
   const gui = el('button', 'btn btn-primary cmt-gui', '➤ Gửi');
+
+  /* ---- Gắn người bằng @ (29/10/2026, anh Hùng: "cho tính năng tag tài khoản
+   * khác vào khi nhắn @") ----
+   * Gõ @ rồi vài chữ là hiện danh sách người trong phòng (so không dấu, như mọi
+   * ô chọn người). Chọn xong chèn "@Tên " vào tin; lúc gửi, ai còn "@Tên" trong
+   * tin thì máy chủ báo Lark cho người đó, kể cả khi họ không có tên trên việc. */
+  const ganTen = new Map();        // id -> tên đã chọn qua danh sách @
+  const hop = el('div', 'cmt-nhac hidden');
+  hop.setAttribute('role', 'listbox');
+  let goiY = [], chonO = 0;
+  const doanGo = () => {
+    const truoc = ta.value.slice(0, ta.selectionStart);
+    const m = /(^|\s)@([^\s@]{0,30})$/.exec(truoc);
+    return m ? { tu: truoc.length - m[2].length - 1, q: m[2] } : null;
+  };
+  const dongHop = () => { hop.classList.add('hidden'); goiY = []; };
+  const veHop = () => {
+    const d = doanGo();
+    if (!d) return dongHop();
+    const meId = S.meta.me && S.meta.me.id;
+    const q = khongDau(d.q).toLowerCase();
+    goiY = dsNguoi().filter((p) => p && p.id && p.id !== meId && khongDau(p.name).toLowerCase().includes(q)).slice(0, 6);
+    if (!goiY.length) return dongHop();
+    chonO = Math.min(chonO, goiY.length - 1);
+    hop.innerHTML = '';
+    goiY.forEach((p, i) => {
+      const o = el('button', 'cmt-nhac-o' + (i === chonO ? ' on' : ''));
+      o.type = 'button';
+      const av = el('span', 'av av-sm', initials(p.name));
+      av.style.background = colorOf(p.name);
+      o.appendChild(av);
+      o.appendChild(el('span', '', p.name));
+      /* mousedown chứ không click: click tới sau khi ô gõ mất tiêu điểm. */
+      o.onmousedown = (e) => { e.preventDefault(); chenTen(p); };
+      hop.appendChild(o);
+    });
+    hop.classList.remove('hidden');
+  };
+  const chenTen = (p) => {
+    const d = doanGo();
+    if (!d) return;
+    const sau = ta.value.slice(ta.selectionStart);
+    const chen = '@' + p.name + ' ';
+    ta.value = ta.value.slice(0, d.tu) + chen + sau;
+    const vt = d.tu + chen.length;
+    ta.setSelectionRange(vt, vt);
+    ganTen.set(p.id, p.name);
+    dongHop();
+    veNguoiNhan();
+    ta.dispatchEvent(new Event('input'));
+    ta.focus();
+  };
+  ta.addEventListener('input', () => { chonO = 0; veHop(); veNguoiNhan(); });
+  ta.addEventListener('blur', () => setTimeout(dongHop, 120));
+  /* Người được gắn mà sau đó bị xoá "@Tên" khỏi tin thì thôi không báo. */
+  const dsGan = () => [...ganTen].filter(([, ten]) => ta.value.includes('@' + ten)).map(([id]) => id);
+
   gui.onclick = async () => {
     const noi = ta.value.trim();
     if (!noi) return;
+    const mentions = dsGan();
     gui.disabled = true;
     /* Hiện ngay bong bóng "đang gửi" — không bắt người gõ ngồi chờ Base. */
     const tam = bongBong({ content: noi, author: S.meta.me ? [S.meta.me] : [], at: new Date().toISOString() }, true);
     tam.classList.add('dang-gui');
-    const rong = list.querySelector('.cmt-load');
+    const rong = list.querySelector('.cmt-load, .cmt-rong');
     if (rong) rong.remove();
     list.appendChild(tam);
     list.scrollTop = list.scrollHeight;
@@ -5852,9 +5907,11 @@ function khoiBinhLuan(t) {
     clearTimeout(henTin);
     try {
       const d = await req('/api/tasks/' + t.id + '/comments', {
-        method: 'POST', body: JSON.stringify({ content: noi }),
+        method: 'POST', body: JSON.stringify({ content: noi, mentions }),
       });
       try { localStorage.removeItem(khoaTin); } catch (_) {}
+      ganTen.clear();
+      veNguoiNhan();
       /* Báo tin hỏng thì phải NÓI RA. Trước đây máy chủ bắn tin rồi quên, màn
        * hình không biết gì, nên tin không tới nơi mà vẫn im như đã tới. */
       const b = d && d.bao;
@@ -5867,8 +5924,21 @@ function khoiBinhLuan(t) {
     } finally { gui.disabled = false; ta.focus(); }
   };
   ta.onkeydown = (e) => {
+    /* Danh sách @ đang mở: mũi tên chọn, Enter/Tab chèn tên, Esc đóng. */
+    if (goiY.length) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        chonO = (chonO + (e.key === 'ArrowDown' ? 1 : goiY.length - 1)) % goiY.length;
+        veHop();
+        return;
+      }
+      if ((e.key === 'Enter' || e.key === 'Tab') && !e.isComposing) { e.preventDefault(); chenTen(goiY[chonO]); return; }
+      if (e.key === 'Escape') { e.stopPropagation(); dongHop(); return; }
+    }
     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); gui.click(); }
   };
+  ta.placeholder = 'Nhắn tin, gõ @ để gắn người';
+  soan.appendChild(hop);
   soan.appendChild(ta);
   soan.appendChild(gui);
   f.appendChild(soan);
@@ -5879,13 +5949,22 @@ function khoiBinhLuan(t) {
    * phụ trách trống, có khi người gõ là người duy nhất có tên: không ai nhận
    * được gì, mà dòng chữ vẫn hứa như thường. Đọc tên ra thì nhìn một cái là
    * biết tin sẽ đi đâu, và biết luôn khi nó chẳng đi đâu cả. */
-  const ai = [...(t.owner || []), ...(t.helper || []), ...(t.requester || [])]
-    .filter((u) => u && u.id && (!S.meta.me || u.id !== S.meta.me.id))
-    .filter((u, i, a) => a.findIndex((x) => x.id === u.id) === i)
-    .map((u) => u.name).filter(Boolean);
-  f.appendChild(el('div', 'ro-note cmt-goi-y', ai.length
-    ? 'Gửi xong sẽ báo Lark cho: ' + ai.join(', ') + '.'
-    : 'Việc này chưa có ai khác ngoài bạn — tin sẽ không báo Lark cho ai.'));
+  /* Người được gắn @ cộng vào danh sách ngay lúc gõ, để thấy trước tin đi đâu. */
+  const note = el('div', 'ro-note cmt-goi-y');
+  function veNguoiNhan() {
+    if (note._rw) return;            // việc nối Rooty Workspace: napBinhLuan đã ghi câu riêng
+    const meId = S.meta.me && S.meta.me.id;
+    const ai = [...(t.owner || []), ...(t.helper || []), ...(t.requester || []),
+      ...dsGan().map((id) => ({ id, name: ganTen.get(id) }))]
+      .filter((u) => u && u.id && u.id !== meId)
+      .filter((u, i, a) => a.findIndex((x) => x.id === u.id) === i)
+      .map((u) => u.name).filter(Boolean);
+    note.textContent = ai.length
+      ? 'Báo Lark cho: ' + ai.join(', ')
+      : 'Chưa có ai khác trên việc này. Gõ @ để gắn người nhận.';
+  }
+  veNguoiNhan();
+  f.appendChild(note);
 
   napBinhLuan(t, list);
   return f;
@@ -5918,6 +5997,7 @@ async function napBinhLuan(t, list, im) {
     /* Việc liên phòng đã nối Rooty Workspace (15/10/2026): một luồng tin chung hai bên. */
     const goiY = list.parentElement && list.parentElement.querySelector('.cmt-goi-y');
     if (goiY && d.rw) {
+      goiY._rw = true;
       goiY.textContent = d.rw.loi
         ? 'Chưa đọc được trao đổi bên Rooty Workspace: ' + d.rw.loi
         : 'Chung một luồng với Rooty Workspace (' + d.rw.ma + '): nhắn ở đây thì bên đó thấy y vậy, bên đó báo Lark cho người liên quan.';
@@ -5950,7 +6030,12 @@ async function napBinhLuan(t, list, im) {
     const oCuoi = list.scrollHeight - list.scrollTop - list.clientHeight < 40;
     list.innerHTML = '';
     if (!d.comments.length) {
-      list.appendChild(el('div', 'cmt-load', 'Chưa có trao đổi nào — nhắn tin đầu tiên cho việc này.'));
+      /* Màn trống: một biểu tượng trò chuyện và một dòng mời, không giảng giải
+       * (anh Hùng 29/10/2026). */
+      const rong = el('div', 'cmt-rong');
+      rong.innerHTML = '<svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z"/><path d="M8.5 11h.01M12 11h.01M15.5 11h.01"/></svg>';
+      rong.appendChild(el('span', '', 'Trao đổi ngay'));
+      list.appendChild(rong);
       return;
     }
     const meId = S.meta.me && S.meta.me.id;
@@ -7286,7 +7371,7 @@ function setupChrome() {
     buildDrawer();
   };
   $('#dClose').onclick = closeDrawer;
-  $('#dCancel').onclick = closeDrawer;
+  /* Nút "Đóng" ở chân ngăn đã bỏ (29/10/2026): dấu ✕ trên đầu làm đúng việc đó. */
   $('#scrim').onclick = () => luuRoiDong();
   $('#dSave').onclick = saveDrawer;
   $('#dDelete').onclick = deleteCurrent;

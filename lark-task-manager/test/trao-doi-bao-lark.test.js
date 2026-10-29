@@ -75,9 +75,11 @@ ok('phản hồi kèm số người báo hỏng', /hong:/.test(post.slice(0, 200
 /* ---- 4. màn hình nói thật, không hứa suông ---- */
 ok('bỏ câu hứa chung chung cũ',
   !/Người phụ trách, người hỗ trợ và người order sẽ nhận thông báo trong Lark/.test(fe));
-ok('màn hình đọc tên người sẽ nhận', /Gửi xong sẽ báo Lark cho: /.test(fe));
-ok('việc chưa có ai khác thì nói thẳng là không báo ai',
-  /sẽ không báo Lark cho ai/.test(fe));
+ok('màn hình đọc tên người sẽ nhận', /'Báo Lark cho: '/.test(fe));
+ok('việc chưa có ai khác thì nói thẳng là chưa ai nhận, và chỉ cách gắn người',
+  /Chưa có ai khác trên việc này\. Gõ @ để gắn người nhận\./.test(fe));
+ok('tin gửi kèm danh sách người được gắn @', /JSON\.stringify\(\{ content: noi, mentions \}\)/.test(fe));
+ok('máy chủ chỉ nhận người gắn @ có trong danh bạ app', /filter\(\(x\) => hopLe\.has\(x\)\)/.test(sv));
 ok('báo hỏng thì hiện ra cho người gửi', /không báo được Lark cho/.test(fe));
 
 /* ---- 5. phép tính người nhận, chạy thật trên dữ liệu giả ----
@@ -86,8 +88,8 @@ ok('báo hỏng thì hiện ra cho người gửi', /không báo được Lark c
 const mBt = /const nguoiNhan = (\[[\s\S]*?);\n/.exec(post);
 ok('đọc được biểu thức tính người nhận từ chính server.js', !!mBt);
 if (mBt) {
-  const tinh = (t, me) => eval(                            // eslint-disable-line no-eval
-    '(function(t, me){ return ' + mBt[1].replace(/\s+/g, ' ') + '; })')(t, me);
+  const tinh = (t, me, gan) => eval(                       // eslint-disable-line no-eval
+    '(function(t, me, gan){ return ' + mBt[1].replace(/\s+/g, ' ') + '; })')(t, me, gan || []);
 
   const NGOC = { id: 'ou_ngoc', name: 'Nguyễn Hồng Ngọc' };
   const HUNG = { id: 'ou_hung', name: 'Lê Văn Hùng' };
@@ -114,6 +116,12 @@ if (mBt) {
   /* Có người hỗ trợ thì người hỗ trợ cũng phải nhận. */
   r = tinh({ owner: [NGOC], helper: [BINH], requester: [HUNG] }, NGOC);
   ok('người hỗ trợ cũng được báo', r.length === 2 && r.some((u) => u.id === 'ou_binh'));
+
+  /* Gắn @ một người không có tên trên việc: người đó cũng nhận. Gắn @ người đã
+   * có tên thì vẫn chỉ một tin. */
+  r = tinh({ owner: [NGOC], helper: [], requester: [HUNG] }, NGOC, [BINH, HUNG]);
+  ok('người được gắn @ cũng được báo, không trùng tin',
+    r.length === 2 && r.some((u) => u.id === 'ou_binh'), JSON.stringify(r.map((u) => u.name)));
 
   /* Việc chưa ai nhận, chỉ có mình người gõ: không có ai để báo — và đây đúng
    * là trường hợp màn hình phải nói thẳng thay vì hứa suông. */

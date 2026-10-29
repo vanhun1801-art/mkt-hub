@@ -2960,9 +2960,10 @@ html:not(#_):not(#__) #lanes .wcard-con.cap-3 { padding-left: 60px; }
      hình 40px (::after bên dưới), để nó cao 40px thì mũi tên tụt xuống giữa
      ô, lệch khỏi hàng tên và đè lên đỉnh nét cây. */
   html:not(#_):not(#__) #lanes .wc-gap:not(.trong) { height: 20px !important; min-height: 0 !important; }
-  /* Tiêu đề làn dính trên đầu khi cuộn (sticky), mà lớp iOS cho nền trong
-     suốt: "Đang tiến hành 14" đè lên tên việc đang lướt qua bên dưới. */
-  html:not(#_):not(#__) #lanes .lane-head { background: var(--ios-nen, var(--bg)) !important; }
+  /* Tiêu đề làn KHÔNG dính đầu khi cuộn trên điện thoại (anh Hùng 29/10/2026:
+     "tiêu đề các tab đang lôi hiển thị khi kéo xuống"). Màn hẹp chỉ vài thẻ một
+     lần, tiêu đề làn đi theo thì ăn mất một dòng mà còn đè lên tên việc. */
+  html:not(#_):not(#__) #lanes .lane-head { position: static !important; background: transparent !important; }
 
   /* Thẻ việc gọn cho điện thoại (anh Hùng 29/10/2026: "bỏ phần kết quả, bỏ quá
      hạn, bỏ chiến dịch, bỏ loại công việc, cái ô gọn lại"). Còn lại: tên, một
@@ -2997,6 +2998,39 @@ html:not(#_):not(#__) #lanes .wcard-con.cap-3 { padding-left: 60px; }
 }
 .btn.btn-primary.btn-lp:hover { filter: brightness(1.08); }
 .btn.btn-primary.btn-lp:disabled { opacity: .55; }
+
+/* ---- Nút CTA một cỡ (29/10/2026) ----
+   Anh Hùng: "làm các nút CTA đều nhau có rule". Nút việc tiếp theo trên thẻ
+   (Gửi sản phẩm, Hoàn thành, Bắt đầu làm…) và nút chính ở chân ô chi tiết: cùng
+   cao 34px, cùng rộng tối thiểu 152px, chữ canh giữa. Chữ dài hơn thì nút giãn
+   ra, không cắt chữ. Lớp iOS đặt cỡ nút trong thẻ bằng luật bốn id giả, nên ở
+   đây cần năm. */
+html:not(#_):not(#__):not(#___):not(#____) :is(.wcard-actions .btn, #drawerFoot .btn-primary) {
+  min-width: 152px !important; height: 34px !important; min-height: 34px !important;
+  padding: 0 16px !important; justify-content: center; text-align: center;
+  font-size: 14px !important; font-weight: 600;
+}
+
+/* ---- Trao đổi: màn trống và danh sách gắn @ (29/10/2026) ---- */
+.cmt-rong {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  min-height: 180px; height: 100%; color: var(--text-3); font-size: 13px;
+}
+.cmt-rong svg { color: var(--text-4, var(--text-3)); }
+.cmt-new { position: relative; }
+.cmt-nhac {
+  position: absolute; left: 0; right: 0; bottom: calc(100% + 6px); z-index: 20;
+  display: flex; flex-direction: column; padding: 4px; border-radius: 14px;
+  background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow);
+  max-height: 260px; overflow-y: auto;
+}
+.cmt-nhac.hidden { display: none; }
+.cmt-nhac-o {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 40px; padding: 6px 10px;
+  border: 0; border-radius: 9px; background: transparent; font: inherit; font-size: 14px;
+  color: var(--text); text-align: left; cursor: pointer;
+}
+.cmt-nhac-o.on, .cmt-nhac-o:hover { background: var(--surface-3); }
 
 /* ---- Tải việc theo nhân sự trên điện thoại (29/10/2026) ----
    Máy tính giữ bảng 8 cột (sắp xếp được theo cột). Điện thoại thay bằng thẻ

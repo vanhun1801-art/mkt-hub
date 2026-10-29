@@ -2149,7 +2149,20 @@ async function api(req, res, url) {
       /* Giữ cả TÊN chứ không chỉ id: để còn nói được với người gửi là tin đã
        * tới tay ai. Trước chỉ lấy id rồi bắn đi, nên màn hình không có gì để
        * nói ngoài một câu hứa chung chung. */
-      const nguoiNhan = [...(t.owner || []), ...(t.helper || []), ...(t.requester || [])]
+      /* Người được gắn @ trong tin (29/10/2026) cũng nhận báo Lark, kể cả khi
+       * không có tên trên việc. Chỉ nhận người thật sự trong danh bạ app (có tên
+       * trên một việc nào đó, hoặc trong phạm vi khả dụng): màn hình gửi id lên,
+       * không tin thẳng id đó thì ai cũng nhờ bot nhắn được cho người lạ. */
+      const hopLe = new Map();
+      if (!laKhach(req)) {
+        for (const p of collectPeople(recs.map(toTask))) hopLe.set(p.id, p.name);
+        for (const p of (cache.scope || [])) if (!hopLe.has(p.id)) hopLe.set(p.id, p.name);
+      }
+      const gan = (Array.isArray(body.mentions) ? body.mentions : []).slice(0, 20)
+        .map((x) => String(x || ''))
+        .filter((x) => hopLe.has(x))
+        .map((x) => ({ id: x, name: hopLe.get(x) }));
+      const nguoiNhan = [...(t.owner || []), ...(t.helper || []), ...(t.requester || []), ...gan]
         .filter((u) => u && u.id && (!me || u.id !== me.id))
         .filter((u, i, a) => a.findIndex((x) => x.id === u.id) === i);
       const kqBao = await baoTraoDoi(nguoiNhan.map((u) => u.id), t, me, noiDung);

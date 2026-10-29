@@ -342,6 +342,11 @@ Anh Hùng: "giao diện cho người thuận tay phải, dời các nút về ph
 - **Bảng nhiều cột chỉ đọc mà mỗi dòng là một người hay một đối tượng thì dựng thẻ riêng cho điện thoại**, không để lớp chung tự bẻ bảng (`.ios-the-bang`) khi cột đầu là tên và các cột sau là số: tên và con số chính lên đầu, số phụ xếp lưới 3 cột, số 0 nhạt đi (mẫu: Tải việc theo nhân sự, `theTaiViec()`).
 - **Thẻ việc trên điện thoại chỉ giữ thứ cần để làm tiếp** (anh Hùng: "bỏ phần kết quả; bỏ quá hạn, bỏ chiến dịch; bỏ loại công việc, cái ô gọn lại"): tên, một dòng mô tả, ưu tiên, hạn gần (hôm nay / còn N ngày), người order, một nút. Ẩn nhãn loại việc, chiến dịch, "Quá hạn N ngày" (chấm đỏ trước tên đã báo trễ) và "Chưa nộp / Đã có kết quả". Mọi thứ đó vẫn ở ô chi tiết.
 - **Nút nộp việc gọi bằng việc sắp làm, không bằng việc đã xong**: việc mình tự order là "Hoàn thành", việc được giao là "Gửi sản phẩm" (không phải "Đã gửi sản phẩm"). Tự order mà đã trễ thì vẫn qua nghiệm thu nên vẫn là "Gửi sản phẩm".
+- **Nút CTA một cỡ**: nút việc tiếp theo trên thẻ và nút chính ở chân ô chi tiết cao 34px, rộng tối thiểu 152px, chữ canh giữa, ký hiệu + động từ. Chữ dài hơn thì nút giãn, không cắt chữ.
+- **Tiêu đề làn không dính đầu khi cuộn trên điện thoại.** Không bày dòng hướng dẫn kéo tay nắm: sáu chấm tự nói là kéo được.
+- **Đầu cửa sổ chi tiết: tiêu đề và nút cùng một hàng.** Nút phụ chỉ còn hình (✎ sửa đầy đủ, ✕ đóng), tên nằm ở `title`/`aria-label`. Không đặt nút "Đóng" ở chân khi đầu đã có ✕.
+- **Ô gõ nhanh việc con ghi "Sub-task & ấn Enter".**
+- **Trao đổi**: chưa có tin thì hiện biểu tượng trò chuyện và "Trao đổi ngay", không câu giải thích. Dưới ô gõ ghi ai sẽ nhận báo Lark. Gõ `@` để gắn người trong danh bạ app; người được gắn cũng nhận báo Lark (máy chủ chỉ nhận id có trong danh bạ).
 - **Làn trống ẩn hẳn trên điện thoại** ("Công việc mới 0"). Chỉ khi mọi làn đều trống mới giữ một câu "đang trống".
 - **Nhóm "(chưa điền)" của biểu đồ phân bổ ẩn trên điện thoại.** Máy tính vẫn hiện để quản lý biết mà đi điền.
 - **Thẻ có lớp chung ép lề (`!important`) thì cây việc phải tính toạ độ từ một chỗ**: tâm nút gấp, vạch dọc và lề chữ cùng đi theo `--noi-goc` / `--noi-buoc`, không đặt ba số rời.

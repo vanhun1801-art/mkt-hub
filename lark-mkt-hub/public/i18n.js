@@ -652,6 +652,7 @@
     /* thẻ Tải việc theo nhân sự trên điện thoại (29/10/2026) */
     'đang mở': 'open',
     'Trễ': 'Late',
+    'Trao đổi ngay': 'Start the conversation',
     'Đang làm': 'Doing',
     'Chờ chấm': 'To score',
     'Điểm TB': 'Avg score',
