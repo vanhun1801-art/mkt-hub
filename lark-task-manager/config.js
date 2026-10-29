@@ -195,6 +195,8 @@ module.exports = {
     /* record_id của việc LIÊN PHÒNG (Base Giao việc công ty) — ô liên kết không trỏ
      * sang Base khác được. Thêm 01/10/2026. */
     lienPhong: { id: 'fldsyQJPsC', name: 'Việc liên phòng', type: 'text' },
+    /* Ảnh dán vào tin Trao đổi. Thêm 29/10/2026 (anh Hùng: "cho paste ảnh vào"). */
+    anh: { id: 'fldRa7sMRk', name: 'Ảnh', type: 'attachment' },
   },
 
   // Bảng "Trao đổi · đã xem"

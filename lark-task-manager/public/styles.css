@@ -3032,6 +3032,27 @@ html:not(#_):not(#__):not(#___):not(#____) :is(.wcard-actions .btn, #drawerFoot 
 }
 .cmt-nhac-o.on, .cmt-nhac-o:hover { background: var(--surface-3); }
 
+/* Ảnh trong tin: dải ảnh chờ gửi trên ô gõ, và lưới ảnh trong bong bóng. */
+.cmt-new { flex-wrap: wrap; }
+.cmt-anh-cho { flex: 1 0 100%; display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 6px; scrollbar-width: none; }
+.cmt-anh-cho.hidden { display: none; }
+.cmt-anh-o { position: relative; flex: 0 0 auto; width: 64px; height: 64px; border-radius: 12px; overflow: hidden; background: var(--surface-3); }
+.cmt-anh-o img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cmt-anh-x {
+  position: absolute; top: 3px; right: 3px; width: 22px; height: 22px; padding: 0;
+  border: 0; border-radius: 999px; background: rgba(0, 0, 0, .55); color: #fff;
+  font-size: 11px; line-height: 22px; text-align: center; cursor: pointer;
+}
+/* Lớp iOS nới mọi nút lên 40px; ✕ trên ảnh nhỏ phải giữ 22px, không thì che nửa ảnh. */
+html:not(#_):not(#__):not(#___):not(#____) .cmt-anh-x {
+  width: 22px !important; height: 22px !important; min-width: 0 !important; min-height: 0 !important;
+  padding: 0 !important; font-size: 11px !important; line-height: 22px !important; border-radius: 999px !important;
+}
+.cmt-nut-anh { flex: 0 0 auto; align-self: flex-end; color: var(--text-2); }
+.cmt-anh { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; margin-top: 6px; max-width: 280px; }
+.cmt-anh-lk { display: block; aspect-ratio: 1; border-radius: 12px; overflow: hidden; background: var(--surface-3); }
+.cmt-anh-lk img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
 /* ---- Tải việc theo nhân sự trên điện thoại (29/10/2026) ----
    Máy tính giữ bảng 8 cột (sắp xếp được theo cột). Điện thoại thay bằng thẻ
    từng người do theTaiViec() vẽ: tên + tổng việc mở trên đầu, thanh tải, rồi

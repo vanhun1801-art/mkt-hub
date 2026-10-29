@@ -346,7 +346,7 @@ Anh Hùng: "giao diện cho người thuận tay phải, dời các nút về ph
 - **Tiêu đề làn không dính đầu khi cuộn trên điện thoại.** Không bày dòng hướng dẫn kéo tay nắm: sáu chấm tự nói là kéo được.
 - **Đầu cửa sổ chi tiết: tiêu đề và nút cùng một hàng.** Nút phụ chỉ còn hình (✎ sửa đầy đủ, ✕ đóng), tên nằm ở `title`/`aria-label`. Không đặt nút "Đóng" ở chân khi đầu đã có ✕.
 - **Ô gõ nhanh việc con ghi "Sub-task & ấn Enter".**
-- **Trao đổi**: chưa có tin thì hiện biểu tượng trò chuyện và "Trao đổi ngay", không câu giải thích. Dưới ô gõ ghi ai sẽ nhận báo Lark. Gõ `@` để gắn người trong danh bạ app; người được gắn cũng nhận báo Lark (máy chủ chỉ nhận id có trong danh bạ).
+- **Trao đổi**: chưa có tin thì hiện biểu tượng trò chuyện và "Trao đổi ngay", không câu giải thích. Dưới ô gõ ghi ai sẽ nhận báo Lark. Gõ `@` để gắn người trong danh bạ app; người được gắn cũng nhận báo Lark (máy chủ chỉ nhận id có trong danh bạ). Dán ảnh thẳng vào ô gõ hoặc bấm nút ảnh (tối đa 10 ảnh, 15 MB mỗi ảnh); ảnh nằm ở cột "Ảnh" của bảng Bình luận, chỉ người viết tin gắn được ảnh vào tin. Việc liên phòng nối Rooty Workspace chưa nhận ảnh trong Trao đổi.
 - **Làn trống ẩn hẳn trên điện thoại** ("Công việc mới 0"). Chỉ khi mọi làn đều trống mới giữ một câu "đang trống".
 - **Nhóm "(chưa điền)" của biểu đồ phân bổ ẩn trên điện thoại.** Máy tính vẫn hiện để quản lý biết mà đi điền.
 - **Thẻ có lớp chung ép lề (`!important`) thì cây việc phải tính toạ độ từ một chỗ**: tâm nút gấp, vạch dọc và lề chữ cùng đi theo `--noi-goc` / `--noi-buoc`, không đặt ba số rời.

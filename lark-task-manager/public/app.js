@@ -5891,13 +5891,66 @@ function khoiBinhLuan(t) {
   /* Người được gắn mà sau đó bị xoá "@Tên" khỏi tin thì thôi không báo. */
   const dsGan = () => [...ganTen].filter(([, ten]) => ta.value.includes('@' + ten)).map(([id]) => id);
 
+  /* ---- Ảnh trong tin (29/10/2026, anh Hùng: "cho paste ảnh vào luôn") ----
+   * Dán ảnh (Ctrl+V / giữ ô gõ rồi Dán trên điện thoại) hoặc bấm nút ảnh để chọn.
+   * Ảnh chờ hiện thành dải nhỏ trên ô gõ, bấm ✕ để bỏ. Gửi: tạo tin trước,
+   * rồi tải từng ảnh vào ô "Ảnh" của chính dòng tin đó. */
+  const anhCho = [];
+  const dai = el('div', 'cmt-anh-cho hidden');
+  const veDai = () => {
+    dai.innerHTML = '';
+    anhCho.forEach((f, i) => {
+      const o = el('div', 'cmt-anh-o');
+      const img = el('img');
+      img.src = f._xem || (f._xem = URL.createObjectURL(f));
+      img.alt = f.name || 'Ảnh';
+      o.appendChild(img);
+      const x = el('button', 'cmt-anh-x', '✕');
+      x.type = 'button';
+      x.setAttribute('aria-label', 'Bỏ ảnh này');
+      x.onclick = () => { URL.revokeObjectURL(f._xem); anhCho.splice(i, 1); veDai(); };
+      o.appendChild(x);
+      dai.appendChild(o);
+    });
+    dai.classList.toggle('hidden', !anhCho.length);
+  };
+  const themAnh = (ds) => {
+    for (const f of ds) {
+      if (!f || !/^image\//.test(f.type)) continue;
+      if (f.size > 15 * 1024 * 1024) { toast('Ảnh quá 15 MB: ' + (f.name || ''), true); continue; }
+      if (anhCho.length >= 10) { toast('Mỗi tin tối đa 10 ảnh', true); break; }
+      anhCho.push(f);
+    }
+    veDai();
+  };
+  ta.addEventListener('paste', (e) => {
+    const ds = [...((e.clipboardData && e.clipboardData.files) || [])].filter((f) => /^image\//.test(f.type));
+    if (!ds.length) return;
+    e.preventDefault();
+    themAnh(ds.map((f, i) => (f.name && f.name !== 'image.png') ? f
+      : new File([f], 'anh-' + Date.now() + '-' + i + '.' + ((f.type.split('/')[1] || 'png').replace('jpeg', 'jpg')), { type: f.type })));
+  });
+  const chonAnh = el('input');
+  chonAnh.type = 'file';
+  chonAnh.accept = 'image/*';
+  chonAnh.multiple = true;
+  chonAnh.hidden = true;
+  chonAnh.onchange = () => { themAnh([...chonAnh.files]); chonAnh.value = ''; ta.focus(); };
+  const nutAnh = el('button', 'btn btn-icon cmt-nut-anh');
+  nutAnh.type = 'button';
+  nutAnh.title = 'Thêm ảnh (hoặc dán thẳng vào ô gõ)';
+  nutAnh.setAttribute('aria-label', 'Thêm ảnh');
+  nutAnh.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="1.6"/><path d="m21 16-5-5-9 9"/></svg>';
+  nutAnh.onclick = () => chonAnh.click();
+
   gui.onclick = async () => {
     const noi = ta.value.trim();
-    if (!noi) return;
+    const anh = anhCho.slice();
+    if (!noi && !anh.length) return;
     const mentions = dsGan();
     gui.disabled = true;
     /* Hiện ngay bong bóng "đang gửi" — không bắt người gõ ngồi chờ Base. */
-    const tam = bongBong({ content: noi, author: S.meta.me ? [S.meta.me] : [], at: new Date().toISOString() }, true);
+    const tam = bongBong({ content: noi || (anh.length + ' ảnh đang gửi…'), author: S.meta.me ? [S.meta.me] : [], at: new Date().toISOString() }, true);
     tam.classList.add('dang-gui');
     const rong = list.querySelector('.cmt-load, .cmt-rong');
     if (rong) rong.remove();
@@ -5907,11 +5960,31 @@ function khoiBinhLuan(t) {
     clearTimeout(henTin);
     try {
       const d = await req('/api/tasks/' + t.id + '/comments', {
-        method: 'POST', body: JSON.stringify({ content: noi, mentions }),
+        method: 'POST', body: JSON.stringify({ content: noi, mentions, soAnh: anh.length }),
       });
       try { localStorage.removeItem(khoaTin); } catch (_) {}
       ganTen.clear();
       veNguoiNhan();
+      /* Tin đã có; giờ mới tải ảnh. Ảnh nào hỏng thì nói ra, tin vẫn giữ. */
+      if (anh.length) {
+        anhCho.length = 0;
+        veDai();
+        let hong = 0;
+        for (const f of anh) {
+          try {
+            if (!d.id) throw new Error('thiếu mã tin');
+            const r = await fetch('api/tasks/' + t.id + '/comments/' + d.id + '/anh', {
+              method: 'POST',
+              headers: { 'X-File-Name': encodeURIComponent(f.name || 'anh.png'), 'Content-Type': f.type || 'image/png' },
+              body: f,
+            });
+            const k = await docPhanHoi(r);
+            if (!r.ok || k.error || k.__loi) throw new Error(k.error || k.__loi);
+          } catch (_) { hong++; }
+          URL.revokeObjectURL(f._xem);
+        }
+        if (hong) toast('Đã gửi tin, nhưng ' + hong + ' ảnh không tải lên được', true);
+      }
       /* Báo tin hỏng thì phải NÓI RA. Trước đây máy chủ bắn tin rồi quên, màn
        * hình không biết gì, nên tin không tới nơi mà vẫn im như đã tới. */
       const b = d && d.bao;
@@ -5939,6 +6012,9 @@ function khoiBinhLuan(t) {
   };
   ta.placeholder = 'Nhắn tin, gõ @ để gắn người';
   soan.appendChild(hop);
+  soan.appendChild(dai);
+  soan.appendChild(chonAnh);
+  soan.appendChild(nutAnh);
   soan.appendChild(ta);
   soan.appendChild(gui);
   f.appendChild(soan);
@@ -5971,7 +6047,7 @@ function khoiBinhLuan(t) {
 }
 
 /** Một bong bóng tin. `cuaToi` = tin của người đang xem (nằm bên phải). */
-function bongBong(c, cuaToi) {
+function bongBong(c, cuaToi, tid) {
   const ten = (c.author && c.author[0] && c.author[0].name) || 'Ẩn danh';
   const o = el('div', 'cmt' + (cuaToi ? ' cua-toi' : ''));
   if (!cuaToi) {
@@ -5985,7 +6061,26 @@ function bongBong(c, cuaToi) {
   const g = c.at ? vnParts(c.at) : null;
   head.appendChild(el('span', 'cmt-at', g ? p2(g.H) + ':' + p2(g.M) : ''));
   body.appendChild(head);
-  body.appendChild(el('div', 'cmt-txt', c.content));
+  if (c.content) body.appendChild(el('div', 'cmt-txt', c.content));
+  /* Ảnh của tin: ảnh nhỏ trong bong bóng, bấm mở ảnh đủ cỡ ở thẻ mới. Kích
+   * thước khung đặt sẵn để ảnh tải về không làm cả luồng tin nhảy. */
+  if (tid && c.id && (c.anh || []).length) {
+    const luoi = el('div', 'cmt-anh');
+    for (const a of c.anh) {
+      const src = 'api/tasks/' + tid + '/comments/anh?cmt=' + encodeURIComponent(c.id) + '&token=' + encodeURIComponent(a.token);
+      const lk = el('a', 'cmt-anh-lk');
+      lk.href = src;
+      lk.target = '_blank';
+      lk.rel = 'noopener';
+      const img = el('img');
+      img.loading = 'lazy';
+      img.src = src;
+      img.alt = a.name || 'Ảnh';
+      lk.appendChild(img);
+      luoi.appendChild(lk);
+    }
+    body.appendChild(luoi);
+  }
   o.appendChild(body);
   return o;
 }
@@ -6006,7 +6101,8 @@ async function napBinhLuan(t, list, im) {
     const b = list.closest('.drawer-body');
     if (b && b._datSo) b._datSo('chat', d.comments.length);
     /* Nạp lại định kỳ: không có gì mới thì khỏi vẽ lại (giữ chỗ đang cuộn). */
-    const dau = d.comments.map((c) => c.id).join(',');
+    /* Kèm số ảnh: ảnh tải vào một tin đã có thì danh sách id không đổi. */
+    const dau = d.comments.map((c) => c.id + ':' + (c.anh || []).length).join(',');
     /* Nhưng "mới" không chỉ là có thêm TIN. Người kia mở ra đọc cũng là tin
      * mới cần vẽ lại — mà dấu đã xem đổi thì danh sách tin thì không, nên nếu
      * chỉ so id tin thì lượt nạp thoát ngay ở đây và dòng "Chưa ai xem" đứng
@@ -6060,7 +6156,7 @@ async function napBinhLuan(t, list, im) {
         vachMoi = el('div', 'cmt-moi', 'Tin mới');
         list.appendChild(vachMoi);
       }
-      list.appendChild(bongBong(c, !!meId && tacGia === meId));
+      list.appendChild(bongBong(c, !!meId && tacGia === meId, t.id));
     }
     veDaXem(list, d.comments, d.daXem || [], meId);
     /* Lần đầu mở: đưa vạch "Tin mới" lên gần đầu khung thay vì cuộn xuống đáy,

@@ -2044,6 +2044,79 @@ async function api(req, res, url) {
     return json(res, daGhi);
   }
 
+  /* ---- ảnh trong tin Trao đổi (29/10/2026) ----
+   * Tin tạo trước (POST /comments, báo trước soAnh), ảnh tải lên sau vào ô "Ảnh"
+   * của chính dòng tin. Đọc ảnh cũng đi qua đây, không qua /api/attachment: tệp
+   * nằm ở bảng Bình luận chứ không ở bảng việc, và quyền xem tính theo VIỆC mà
+   * tin thuộc về. */
+  const mAnh = p.match(/^\/api\/tasks\/(rec[A-Za-z0-9]+)\/comments\/(?:(rec[A-Za-z0-9]+)\/)?anh$/);
+  if (mAnh) {
+    const id = mAnh[1];
+    const CF = cfg.commentFields;
+    const timTin = async (cmtId) => {
+      const r = (await lark.listAllRecords(cfg.commentTableId)).find((x) => x.record_id === cmtId);
+      if (!r) return null;
+      const ids = Array.isArray(r.cells[CF.task.id])
+        ? r.cells[CF.task.id].map((x) => (x && (x.record_ids ? x.record_ids[0] : x.id)) || x) : [];
+      const thuoc = ids.includes(id) || asText(r.cells[CF.lienPhong.id]).trim() === id;
+      return thuoc ? r : null;
+    };
+
+    if (req.method === 'POST' && mAnh[2]) {
+      const tin = await timTin(mAnh[2]);
+      if (!tin) return json(res, { error: 'Không tìm thấy tin' }, 404);
+      const me = await whoAmI(req);
+      const tacGia = asUsers(tin.cells[CF.author.id]);
+      /* Chỉ người viết tin mới gắn ảnh vào tin của mình. */
+      if (!me || !tacGia.some((u) => u.id === me.id)) return json(res, { error: 'Đây không phải tin của bạn', code: 'NOT_YOUR_TASK' }, 403);
+      const ten = (decodeURIComponent(req.headers['x-file-name'] || '') || 'anh.png').replace(/[\\/:*?"<>|]/g, '_').slice(-80);
+      if (!/^image\//.test(String(req.headers['content-type'] || ''))) return json(res, { error: 'Chỉ nhận ảnh' }, 400);
+      const buf = await readRawBody(req, 15 * 1024 * 1024);
+      if (!buf.length) return json(res, { error: 'Ảnh trống' }, 400);
+      const slug = 'cmt-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+      const absDir = path.join(__dirname, '.tmp', slug);
+      fs.mkdirSync(absDir, { recursive: true });
+      fs.writeFileSync(path.join(absDir, ten), buf);
+      try {
+        await lark.uploadAttachment(mAnh[2], CF.anh.name, './.tmp/' + slug + '/' + ten, cfg.commentTableId);
+      } finally {
+        try { fs.rmSync(absDir, { recursive: true, force: true }); } catch (_) {}
+      }
+      return json(res, { ok: true });
+    }
+
+    if (req.method === 'GET' && !mAnh[2]) {
+      const cmtId = url.searchParams.get('cmt') || '';
+      const token = url.searchParams.get('token') || '';
+      if (!/^rec[A-Za-z0-9]+$/.test(cmtId) || !/^[A-Za-z0-9]+$/.test(token)) return json(res, { error: 'Tham số không hợp lệ' }, 400);
+      if (!(await requireXemViec(res, id, req))) return;
+      const tin = await timTin(cmtId);
+      const coAnh = tin && (tin.cells[CF.anh.id] || []).some((a) => a && (a.file_token || a.token) === token);
+      if (!coAnh) return json(res, { error: 'Không tìm thấy ảnh' }, 404);
+      const slug = 'cmta-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+      let dir = null;
+      try {
+        dir = await lark.downloadAttachment(cmtId, token, slug, cfg.commentTableId);
+        const names = fs.existsSync(dir) ? fs.readdirSync(dir) : [];
+        if (!names.length) return json(res, { error: 'Không tải được ảnh' }, 502);
+        const target = path.join(dir, names[0]);
+        const buf = fs.readFileSync(target);
+        const kieu = FILE_MIME[path.extname(target).toLowerCase()] || 'image/png';
+        res.writeHead(200, {
+          'Content-Type': /^image\//.test(kieu) ? kieu : 'application/octet-stream',
+          'Content-Length': buf.length,
+          'Content-Disposition': 'inline; filename="' + encodeURIComponent(path.basename(target)) + '"',
+          /* Ảnh của một tin không đổi: cho trình duyệt giữ lâu, mở lại tab khỏi tải. */
+          'Cache-Control': 'private, max-age=86400',
+        });
+        res.end(buf);
+      } finally {
+        if (dir) { try { fs.rmSync(dir, { recursive: true, force: true }); } catch (_) {} }
+      }
+      return;
+    }
+  }
+
   /* ---- bình luận ---- */
 
   const mCmt = p.match(/^\/api\/tasks\/(rec[A-Za-z0-9]+)\/comments$/);
@@ -2068,6 +2141,11 @@ async function api(req, res, url) {
           author: asUsers(r.cells[CF.author.id]),
           at: r.cells[CF.at.id] || null,
           lienPhong: asText(r.cells[CF.lienPhong.id]).trim(),
+          /* Chỉ đưa token và tên: màn hình tải ảnh qua /comments/anh, không cầm
+           * đường dẫn tạm của Lark (hết hạn sau vài phút, lại lộ ra ngoài). */
+          anh: (Array.isArray(r.cells[CF.anh.id]) ? r.cells[CF.anh.id] : [])
+            .map((a) => a && (a.file_token || a.token) && { token: a.file_token || a.token, name: a.name || '' })
+            .filter(Boolean),
         }))
         .filter((c) => c.taskIds.includes(id) || c.lienPhong === id || (maLPCmt && c.lienPhong === maLPCmt))
         .sort((a, b) => new Date(a.at || 0) - new Date(b.at || 0));
@@ -2111,7 +2189,10 @@ async function api(req, res, url) {
 
       const body = await readBody(req);
       const noiDung = String(body.content || '').trim();
-      if (!noiDung) return json(res, { error: 'Chưa nhập nội dung' }, 400);
+      /* Tin chỉ có ảnh (không chữ) vẫn hợp lệ: màn hình báo trước số ảnh sẽ tải
+       * lên ngay sau, qua /comments/<id>/anh. */
+      const soAnh = Math.max(0, Math.min(10, Number(body.soAnh) || 0));
+      if (!noiDung && !soAnh) return json(res, { error: 'Chưa nhập nội dung' }, 400);
       if (noiDung.length > 2000) return json(res, { error: 'Bình luận quá dài (tối đa 2000 ký tự)' }, 400);
 
       const me = await whoAmI(req);
@@ -2121,6 +2202,7 @@ async function api(req, res, url) {
        * người liên quan, báo thêm ở đây là mỗi tin hai thông báo. */
       const ma = await maRW(id, rec ? asText(rec.cells[F.maLienPhong.id]).trim() : '');
       if (ma) {
+        if (soAnh) return json(res, { error: 'Việc liên phòng nối Rooty Workspace chưa nhận ảnh trong Trao đổi. Đính ảnh vào ô Tệp của việc.' }, 400);
         try {
           await RW.gui(ma, emailToi(req), noiDung);
         } catch (e) {
@@ -2165,7 +2247,8 @@ async function api(req, res, url) {
       const nguoiNhan = [...(t.owner || []), ...(t.helper || []), ...(t.requester || []), ...gan]
         .filter((u) => u && u.id && (!me || u.id !== me.id))
         .filter((u, i, a) => a.findIndex((x) => x.id === u.id) === i);
-      const kqBao = await baoTraoDoi(nguoiNhan.map((u) => u.id), t, me, noiDung);
+      const kqBao = await baoTraoDoi(nguoiNhan.map((u) => u.id), t, me,
+        noiDung || (soAnh > 1 ? '[' + soAnh + ' ảnh]' : '[Ảnh]'));
 
       /* Nói thẳng kết quả báo tin cho màn hình. Ba trường hợp đều có thật và
        * đều phải phân biệt được: báo xong, không có ai để báo (việc chưa ai
@@ -2173,6 +2256,7 @@ async function api(req, res, url) {
       return json(res, {
         ok: true,
         result: kq,
+        id: ((kq && kq.record_id_list) || (kq && kq.data && kq.data.record_id_list) || [])[0] || null,
         bao: {
           ten: nguoiNhan.map((u) => u.name).filter(Boolean),
           gui: kqBao.gui,

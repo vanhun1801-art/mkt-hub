@@ -78,7 +78,7 @@ ok('bỏ câu hứa chung chung cũ',
 ok('màn hình đọc tên người sẽ nhận', /'Báo Lark cho: '/.test(fe));
 ok('việc chưa có ai khác thì nói thẳng là chưa ai nhận, và chỉ cách gắn người',
   /Chưa có ai khác trên việc này\. Gõ @ để gắn người nhận\./.test(fe));
-ok('tin gửi kèm danh sách người được gắn @', /JSON\.stringify\(\{ content: noi, mentions \}\)/.test(fe));
+ok('tin gửi kèm danh sách người được gắn @', /JSON\.stringify\(\{ content: noi, mentions, soAnh: anh\.length \}\)/.test(fe));
 ok('máy chủ chỉ nhận người gắn @ có trong danh bạ app', /filter\(\(x\) => hopLe\.has\(x\)\)/.test(sv));
 ok('báo hỏng thì hiện ra cho người gửi', /không báo được Lark cho/.test(fe));
 
