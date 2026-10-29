@@ -211,7 +211,7 @@ async function lichTacNghiep(mod, khoang, nguoi) {
       return { muc: 'cao', ly: 'Đã qua ngày mà chưa báo cáo' };
     }
     if (satNgay && CHUA_DUYET.includes(t.status)) {
-      return { muc: 'cao', ly: 'Còn ' + conNgay + ' ngày là tác nghiệp mà chưa duyệt' };
+      return { muc: 'cao', ly: conNgay ? 'Còn ' + conNgay + ' ngày là tác nghiệp mà chưa duyệt' : 'Hôm nay tác nghiệp mà chưa duyệt' };
     }
     if (satNgay && !(t.staff || []).length) {
       return { muc: 'cao', ly: 'Sát ngày mà chưa có nhân sự' };
@@ -377,7 +377,7 @@ async function quangCao(mod, khoang, nguoi) {
     { chinh: true, nhan: 'Chi tiêu', so: k.spend || 0, dinhDang: 'vnd', lech: d.spend },
     { nhan: 'Doanh thu từ QC', so: k.revenue || 0, dinhDang: 'vnd', lech: d.revenue,
       ghi: k.revenueCongTy
-        ? (k.tyLeTuQuangCao != null ? k.tyLeTuQuangCao + '% của ' + dinhDangTien(k.revenueCongTy) + ' toàn công ty' : '')
+        ? (k.tyLeTuQuangCao != null ? String(k.tyLeTuQuangCao).replace('.', ',') + '% của ' + dinhDangTien(k.revenueCongTy) + ' toàn công ty' : '')
         : '' },
     { nhan: 'ROAS', so: k.roas || 0, dinhDang: 'x', lech: d.roas,
       ghi: k.revenue ? 'chỉ tính phần từ quảng cáo' : 'chưa ghi công được đơn nào' },

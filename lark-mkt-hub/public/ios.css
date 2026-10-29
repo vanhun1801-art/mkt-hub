@@ -2757,7 +2757,9 @@ html[data-skin="ios"]:not(#_) :is(td .tag, td .badge) { height: auto; white-spac
   html[data-skin="ios"]:not(#_):not(#__) .nhom-base .the:not(.chinh) .ghi { display: none !important; }
   html[data-skin="ios"]:not(#_):not(#__) .nhom-base .the .lech { font-size: 11.5px !important; line-height: 15px; }
   html[data-skin="ios"]:not(#_):not(#__) .nhom-base .the.chinh .so { font-size: 26px !important; line-height: 31px !important; }
-  html[data-skin="ios"]:not(#_):not(#__) .nhom-base .the .nhan { font-size: 11.5px !important; line-height: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* Nhãn xuống tối đa 2 dòng như máy tính, không cắt "Lịch có nguy c…" (29/10/2026:
+     luật này từng ép một dòng, cắt cụt 18 nhãn ở khổ 390px). */
+  html[data-skin="ios"]:not(#_):not(#__) .nhom-base .the .nhan { font-size: 12px !important; line-height: 15px; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: clip; }
   html[data-skin="ios"]:not(#_):not(#__) .nhom-base .canh-bao {
     margin: 4px 12px 12px !important; padding: 7px 11px !important; border-radius: 12px !important;
     font-size: 12.5px !important; line-height: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block !important;

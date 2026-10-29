@@ -283,7 +283,8 @@ function tongQuan({ tk, goi }) {
     { nhan: 'Gói đã hết hạn', so: daHet.length, dinhDang: 'so', muc: daHet.length ? 'cao' : 'ok' },
     { nhan: 'Gói hết hạn ≤ ' + cfg.sapHetNgay + ' ngày', so: sapHet.length, dinhDang: 'so',
       muc: sapHet.length ? 'vua' : 'ok' },
-    { nhan: 'Mật khẩu > ' + cfg.cuNgay + ' ngày chưa đổi', so: cu.length, dinhDang: 'so',
+    /* Ngưỡng ngày nằm ở cfg.cuNgay; nhãn ngắn để ô 1/3 thẻ không bị cắt (29/10/2026). */
+    { nhan: 'Quá hạn đổi mật khẩu', so: cu.length, dinhDang: 'so',
       muc: cu.length ? 'thap' : 'ok' },
   ];
   if (chuaMaHoa) the.push({ nhan: 'Ô mật khẩu chưa mã hoá', so: chuaMaHoa, dinhDang: 'so', muc: 'cao' });

@@ -1245,7 +1245,7 @@ function theHtml(t, moduleId, lopTang = '') {
     : '';
   // dòng ghi chú cũng mở được nhóm riêng của nó (VD "8 việc chưa có deadline")
   const ghi = t.ghi
-    ? '<div class="ghi' + (t.ghiKhoa ? ' ghi-mo" data-ghi-khoa="' + esc(t.ghiKhoa) + '"' : '"') + '>' +
+    ? '<div class="ghi' + (t.ghiKhoa ? ' ghi-mo" data-ghi-khoa="' + esc(t.ghiKhoa) + '"' : '"') + ' title="' + esc(t.ghi) + '">' +
       esc(t.ghi) + '</div>'
     : '';
   /* Ô chính rộng hết hàng, nên gói dòng so sánh + ghi chú vào MỘT cột rồi đẩy
@@ -1254,10 +1254,20 @@ function theHtml(t, moduleId, lopTang = '') {
   const duoi = lopTang === 'chinh' && (lech || ghi)
     ? '<div class="ben-phai">' + lech + ghi + '</div>'
     : lech + ghi;
+  /* Ô phụ chỉ rộng ~1/3 thẻ (85px ở khổ 1024 và 320): tiền từ 1 triệu in đủ
+   * chữ số là bị cắt ("566.629.00…", "11.179.5…"). Mọi ô phụ in gọn cùng một
+   * kiểu "11,2 tr" / "1,2 tỷ", số đủ nằm ở title (29/10/2026). */
+  const n = Number(t.so) || 0;
+  const gon = lopTang !== 'chinh' && t.dinhDang === 'vnd' && Math.abs(n) >= 1e6;
+  const chuSo = gon
+    ? (n < 0 ? '−' : '') + (Math.abs(n) >= 1e9
+      ? String(Math.round(Math.abs(n) / 1e8) / 10).replace('.', ',') + ' tỷ'
+      : String(Math.round(Math.abs(n) / 1e5) / 10).replace('.', ',') + ' tr')
+    : so(t.so, t.dinhDang);
   return '<div class="the ' + muc + trong + (lopTang ? ' ' + lopTang : '')
     + (moduleId ? ' bam-duoc' : '') + '"' + mo + '>' +
     '<div class="nhan">' + esc(t.nhan) + '</div>' +
-    '<div class="so' + dai + '">' + so(t.so, t.dinhDang) + '</div>' + duoi + '</div>';
+    '<div class="so' + (gon ? '' : dai) + '"' + (gon ? ' title="' + esc(so(t.so, t.dinhDang)) + '"' : '') + '>' + chuSo + '</div>' + duoi + '</div>';
 }
 
 /* Chip lọc "Cần xử lý" theo base — nhớ lựa chọn trong S rồi vẽ lại trang. */

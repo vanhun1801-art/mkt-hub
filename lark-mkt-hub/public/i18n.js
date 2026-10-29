@@ -1281,6 +1281,8 @@
     'Thanh toán': 'Payments',
     '🔒 chưa được cấp quyền': '🔒 not granted',
     'lâu chưa đổi': 'stale',
+    'Quá hạn đổi mật khẩu': 'Password change overdue',
+    'Hôm nay tác nghiệp mà chưa duyệt': 'Trip is today and still not approved',
     'Mở ↗': 'Open ↗',
     'Đăng nhập': 'Sign-in',
     'Mật khẩu': 'Password',

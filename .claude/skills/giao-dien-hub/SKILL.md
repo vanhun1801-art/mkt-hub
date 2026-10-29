@@ -31,6 +31,8 @@ Skill **không chép lại** tệp nguyên tắc. Tệp đó là nguồn duy nh�
 | Cửa sổ có nền tối phía sau | `window.__HUB__.che` (ios-app.js tự phát hiện) | lớp phủ tự chế, nền trong suốt |
 | Vùng cuộn | thanh cuộn ẩn + `.cd-mep` mờ mép | để lộ thanh cuộn của trình duyệt |
 | Đang nạp | khung xương `.kx` (kiểu C kính nhoè) | vòng xoay giữa màn, chữ "Đang tải..." trơ trọi |
+| Số tiền trong ô hẹp | ô phụ (1/3 thẻ) từ 1 triệu in gọn "11,2 tr" / "1,2 tỷ", số đủ ở `title`; số chính của thẻ in đủ | để số bị cắt "566.629.00…"; mỗi chỗ một kiểu viết tắt |
+| Số thập phân, phần trăm | dấu phẩy kiểu Việt: "4,86%", "10,02x" | "5.06%" |
 | Luật CSS mới | cuối `ios.css`, dưới `html[data-skin="ios"]:not(#_):not(#__)` | sửa lẻ từng app khi luật chung làm được |
 
 Bo góc theo thang cố định (mục 2 của tệp nguyên tắc). Ngắn gọn:

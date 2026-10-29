@@ -739,11 +739,11 @@ button { font: inherit; }
 .viec-dong .tieu-de { font-weight: 550; font-size: 13.5px; }
 .viec-dong .phu { font-size: 12px; color: var(--chu-mo); margin-top: 1px; }
 .viec-dong .mod {
-  flex: 0 0 auto; font-size: 11.5px; color: var(--chu-mo); background: var(--trang-2);
+  flex: 0 0 auto; font-size: 12px; color: var(--chu-mo); background: var(--trang-2);
   border: 1px solid var(--vien); border-radius: 999px; padding: 3px 10px; white-space: nowrap;
 }
 .the-nho {
-  display: inline-block; font-size: 11px; color: var(--chu-mo); background: var(--trang-2);
+  display: inline-block; font-size: 12px; color: var(--chu-mo); background: var(--trang-2);
   border: 1px solid var(--vien-mem); border-radius: 6px; padding: 1px 7px; margin: 4px 4px 0 0;
 }
 
@@ -1060,14 +1060,14 @@ code { background: var(--trang-2); border: 1px solid var(--vien-mem); border-rad
 .tn-o.ng-ca.m3, .tn-o.ng-ca.m4, .tn-o.ng-nua.m3, .tn-o.ng-nua.m4 { color: rgba(255, 255, 255, .85); }
 .tn-chu-llv { font-weight: 700; color: color-mix(in srgb, var(--chu-nhat) 85%, transparent); letter-spacing: .03em; }
 .ng-nghi {
-  font-size: 11px; font-weight: 650; color: var(--chu-nhat);
+  font-size: 12px; font-weight: 650; color: var(--chu-nhat);
   margin-left: 6px;
 }
 
 /* chú thích trong tiêu đề khối */
 .chu-thich {
   display: inline-flex; align-items: center; gap: 5px; margin-left: 10px;
-  font-size: 10.5px; font-weight: 650; color: var(--chu-nhat);
+  font-size: 12px; font-weight: 650; color: var(--chu-nhat);
 }
 .tn-diem-tho { position: static; width: 6px; height: 6px; box-shadow: none; }
 
@@ -1339,7 +1339,7 @@ code { background: var(--trang-2); border: 1px solid var(--vien-mem); border-rad
 /* Hai nhãn cùng một khuôn: cùng cỡ chữ, cùng bo, cùng chiều cao — khác nhau
    đúng một thứ là màu. */
 .tin-muc, .tin-moi {
-  font-size: 10px; font-weight: 700; line-height: 16px; height: 16px;
+  font-size: 11px; font-weight: 700; line-height: 18px; height: 18px;
   padding: 0 7px; border-radius: 999px; white-space: nowrap;
 }
 .tin-muc {
@@ -1353,8 +1353,8 @@ code { background: var(--trang-2); border: 1px solid var(--vien-mem); border-rad
 /* Ngày: chữ số đều bề ngang (tabular-nums) và ô rộng cố định, nên ngày của mọi
    dòng xếp thành một cột thẳng chứ không so le theo độ dài chữ. */
 .tin-ngay {
-  font-size: 11px; color: var(--chu-nhat);
-  font-variant-numeric: tabular-nums; width: 38px; text-align: right; flex: 0 0 auto;
+  font-size: 12px; color: var(--chu-nhat);
+  font-variant-numeric: tabular-nums; width: 40px; text-align: right; flex: 0 0 auto;
 }
 /* "+ Tạo việc" trên từng dòng tin (21/10/2026). Máy tính: chỉ hiện khi rê vào
    dòng hoặc khi bấm Tab tới, để cột tin vẫn gọn.
@@ -1362,7 +1362,7 @@ code { background: var(--trang-2); border: 1px solid var(--vien-mem); border-rad
    ngoài danh sách trông chưa đẹp). Chạm vào tin là mở cửa sổ đọc, trong đó đã
    có nút "Tạo việc từ tin này". */
 .tin-tao {
-  font: inherit; font-size: 11px; font-weight: 600; line-height: 20px; height: 20px;
+  font: inherit; font-size: 12px; font-weight: 600; line-height: 20px; height: 20px;
   padding: 0 9px; border-radius: 999px; border: 0; cursor: pointer; white-space: nowrap;
   background: var(--xanh-nhat); color: var(--xanh); flex: 0 0 auto;
   opacity: 0; transition: opacity var(--cd-deu, .16s ease), background var(--cd-deu, .16s ease);
