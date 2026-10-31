@@ -74,6 +74,17 @@ const bangGia = {
     await kho.nap('u:lan', '');
     ok('chị Lan không thấy sổ anh Hùng', !kho.tt('u:lan')['sales@x.vn|m1'] && !kho.luat('u:lan')['a@b.vn']);
 
+    console.log('\nSổ chung: gộp hai bản theo mốc thời gian');
+    const nay = Date.now();
+    const g = kho.gopLo(
+      { 's|a': { id: 'u:hung', ten: 'Hùng', luc: nay - 1000 }, 's|b': { id: 'u:lan', ten: 'Lan', luc: nay - 500 } },
+      { 's|a': { id: 'u:lan', ten: 'Lan', luc: nay }, 's|b': { id: '', luc: nay - 900 }, 's|c': { id: 'u:mai', ten: 'Mai', luc: nay - 200 * 86400e3 } });
+    ok('bản mới hơn thắng (người nhận đổi trên máy khác)', g['s|a'].id === 'u:lan');
+    ok('lệnh thôi nhận cũ hơn không xoá người nhận mới hơn', g['s|b'].id === 'u:lan');
+    ok('mục quá 90 ngày tự bỏ', !g['s|c']);
+    kho.datLo('sales@x.vn', 't1', { id: 'u:hung', ten: 'Lê Văn Hùng' });
+    ok('ghi người lo vào sổ chung, ai mở cũng đọc chung một sổ', kho.lo()['sales@x.vn|t1'].ten === 'Lê Văn Hùng');
+
     console.log('\nĐọc Base hỏng');
     kho._quen();
     hong = true; soGhi = 0;

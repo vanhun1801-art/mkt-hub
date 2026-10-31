@@ -18,6 +18,7 @@ const S = {
   hop: [], chinh: '', ngan: [], ai: false,
   thu: [], loi: [], luc: 0,
   cho: [],             // thư anh gửi đi mà bên kia chưa hồi âm (từ thư mục Đã gửi)
+  gui: [],             // thư đã gửi thuộc chủ đề có thư đến: bong bóng bên phải của luồng
   nhom: [],            // nhóm việc đang theo dõi
   moLau: false,        // đang mở dòng "thư đã chờ quá 7 ngày"
   /* Mở app là vào "Việc cần làm" (anh Hùng 28/10/2026: "một nơi cho anh biết cần làm gì"). */
@@ -80,7 +81,7 @@ function msCua(s) {
  * Thư Ban giám đốc lên mức sớm hơn một nấc (nửa ngày đã vàng, 1 ngày đã đỏ).
  */
 function mucCho(t) {
-  const gio = (Date.now() - msCua(t.ngay)) / 3600e3;
+  const gio = (Date.now() - msCua(t._cu || t.ngay)) / 3600e3;
   if (!(gio > 0)) return { gio: 0, muc: '' };
   const vang = t.sep ? 12 : 24, ma = t.sep ? 24 : 72;
   return { gio, muc: gio >= ma ? 'do' : gio >= vang ? 'vang' : '' };
@@ -92,9 +93,56 @@ function chuCho(gio) {
 }
 const TUAN = 7 * 86400e3;
 /** Thư đến này còn chờ anh trả lời không. */
-const conCho = (t) => !t.daGui && t.ngan === 'xu-ly' && !t.xong && !t.boQua && !t.daTraLoi && !t.henDen;
+/* Thư người khác đã nhận (sổ chung của phòng) thì không còn chờ mình. */
+const conCho = (t) => !t.daGui && t.ngan === 'xu-ly' && !t.xong && !t.boQua && !t.daTraLoi && !t.henDen && !(t.lo && !t.lo.minh);
+/* "Lê Văn Hùng" → "Hùng": nhãn người lo nằm trên dòng thư, phải ngắn. */
+const tenGon = (ten) => String(ten || '').trim().split(/\s+/).pop() || 'Ai đó';
 /* Thư đã rời ngăn: anh xử lý xong, hoặc bỏ qua vì là việc của người khác trong hộp chung. */
 const daRoi = (t) => Boolean(t.xong || t.boQua);
+
+/* ---------------- chủ đề: luồng hội thoại ----------------
+ * Anh Hùng 31/10/2026: "nó cứ hiển thị thư mới mãi thôi… theo chủ đề thì nó
+ * sẽ hiển thị theo luồng như các ứng dụng nhắn tin". Máy chủ gắn mã chủ đề
+ * `cd` lên từng thư (chu-de.js: cùng chuỗi Lark, hoặc cùng tiêu đề và người
+ * gửi, vì Agoda gửi mỗi tin của khách thành một thư mới). Danh sách vẽ mỗi
+ * chủ đề một dòng; mở ra là cả luồng, thư đến bên trái, thư mình gửi bên phải. */
+const maCd = (t) => t.cd || t.chuoi || 'id:' + t.id;
+const khoaCd = (t) => t.hop + '|' + maCd(t);
+let chiMucCd = new Map();            // khoá chủ đề → mọi thư (đến + đã gửi), cũ trước
+function lapChiMuc() {
+  chiMucCd = new Map();
+  const co = new Set();
+  for (const x of S.thu.concat(S.gui, S.cho)) {
+    if (co.has(khoa(x))) continue;
+    co.add(khoa(x));
+    const k = khoaCd(x);
+    if (!chiMucCd.has(k)) chiMucCd.set(k, []);
+    chiMucCd.get(k).push(x);
+  }
+  for (const ds of chiMucCd.values()) ds.sort((a, b) => (a.ngay < b.ngay ? -1 : a.ngay > b.ngay ? 1 : 0));
+}
+const luongCua = (t) => (t ? chiMucCd.get(khoaCd(t)) || [t] : []);
+/* Thư đến của cùng chủ đề: Xong, đã đọc, người lo áp cho cả luồng. */
+const cungChuDe = (t) => S.thu.filter((x) => khoaCd(x) === khoaCd(t));
+const demCd = (ds) => new Set(ds.map(khoaCd)).size;
+
+/* Mỗi chủ đề một dòng: thư mới nhất của chủ đề trong danh sách này đứng đại
+ * diện, mang số thư của cả luồng, chấm chưa đọc nếu thư nào chưa đọc, và mốc
+ * chờ tính từ thư chờ LÂU NHẤT (khách nhắn ba lần thì đã chờ từ lần đầu). */
+function gomDs(ds) {
+  const gom = new Map();
+  for (const t of ds) {
+    const k = khoaCd(t);
+    const x = gom.get(k);
+    if (!x) gom.set(k, { dau: t, cu: t.ngay });
+    else if (t.ngay < x.cu) x.cu = t.ngay;
+  }
+  return [...gom.values()].map(({ dau, cu }) => {
+    const l = luongCua(dau);
+    if (l.length < 2) return dau;
+    return Object.assign({}, dau, { _so: l.length, _cu: cu, chuaDoc: l.some((x) => x.chuaDoc) });
+  });
+}
 
 /* Ảnh đại diện chữ cái: màu theo địa chỉ gửi, cùng người luôn cùng màu. */
 const MAU_AVT = ['#289683', '#3b82c4', '#8a5cf6', '#d9822b', '#c2417a', '#4f8a3a', '#b5651d', '#5b6fd6'];
@@ -125,7 +173,9 @@ async function napThu(ep) {
     const d = await api('thu' + (ep ? '?lam=1' : ''));
     S.thu = d.thu; S.loi = d.loi || []; S.luc = d.luc;
     S.cho = (d.cho || []).map((g) => Object.assign({ daGui: true, tu: { ten: 'Anh gửi', email: g.hop } }, g));
+    S.gui = (d.gui || []).map((g) => Object.assign({ daGui: true, tu: { ten: 'Anh gửi', email: g.hop } }, g));
     S.nhom = d.nhom || [];
+    lapChiMuc();
     ve();
     if (ep) bao('Đã đọc lại hộp thư', 'ok');
     if (!d.du) napDu();
@@ -147,7 +197,9 @@ async function napDu() {
     const d = await api('thu?du=1');
     S.thu = d.thu; S.loi = d.loi || []; S.luc = d.luc;
     S.cho = (d.cho || []).map((g) => Object.assign({ daGui: true, tu: { ten: 'Anh gửi', email: g.hop } }, g));
+    S.gui = (d.gui || []).map((g) => Object.assign({ daGui: true, tu: { ten: 'Anh gửi', email: g.hop } }, g));
     S.nhom = d.nhom || [];
+    lapChiMuc();
     const cuon = $('#cotDs').scrollTop;
     ve();
     $('#cotDs').scrollTop = cuon;
@@ -170,6 +222,7 @@ async function xepAi() {
  * khỏi ngăn, xem lại được bằng dòng "N thư đã xong" ở cuối danh sách. */
 function hienTrong(t, ngan, xemXong = false) {
   if (S.daLuu.has(khoa(t))) return ngan === S.loc.ngan;      // giữ chỗ cho dòng "Hoàn tác"
+  if (ngan === 'tat-ca') return !xemXong;                     // không tách mục "đã xong"
   if (daRoi(t) !== xemXong) return false;
   if (ngan === 'hen') return t.henDen > 0;
   return !t.henDen && t.ngan === ngan;
@@ -190,22 +243,27 @@ function veMoc() {
   $('#moc').textContent = 'Đọc lúc ' + new Date(S.luc).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
 }
 
-const dem = (id) => S.thu.filter((t) => !S.daLuu.has(khoa(t)) && hienTrong(t, id) && khopLoc(t)).length;
+/* Đếm theo CHỦ ĐỀ: tám tin của cùng một khách là một việc, không phải tám. */
+const dem = (id) => demCd(S.thu.filter((t) => !S.daLuu.has(khoa(t)) && hienTrong(t, id) && khopLoc(t)));
 
 function veNgan() {
   const nav = $('#dsNgan');
   /* "Hẹn lại" chỉ hiện khi có thư đang hẹn: ngăn trống là thêm một chữ phải đoán nghĩa. */
+  /* "Tất cả thư" không nằm trong dải này mà là viên riêng ở hàng chọn hộp
+   * (veHop): nhét thành ô thứ năm thì nó khuất sau mép dải trên máy tính. */
   const ds = [{ id: 'viec', ten: 'Việc cần làm' }].concat(S.ngan,
     dem('hen') || S.loc.ngan === 'hen' ? [{ id: 'hen', ten: 'Hẹn lại' }] : []);
   /* Số trên ngăn là thư CHƯA ĐỌC, như app thư trên điện thoại: "117" cả cũ
    * lẫn mới thì không biết hôm nay còn bao nhiêu việc. Ngăn Hẹn lại đếm hết.
    * "Việc cần làm" đếm số việc đã chờ quá hạn (vàng, đỏ), và đỏ thì số đỏ. */
-  const chuaDoc = (id) => S.thu.filter((t) => !S.daLuu.has(khoa(t)) && hienTrong(t, id) && khopLoc(t) && t.chuaDoc).length;
-  const tre = S.thu.filter((t) => conCho(t) && khopLoc(t) && msCua(t.ngay) >= Date.now() - TUAN).map(mucCho);
+  const chuaDoc = (id) => demCd(S.thu.filter((t) => !S.daLuu.has(khoa(t)) && hienTrong(t, id) && khopLoc(t) && t.chuaDoc));
+  const tre = gomDs(S.thu.filter((t) => conCho(t) && khopLoc(t))).filter((t) => msCua(t.ngay) >= Date.now() - TUAN).map(mucCho);
   const soTre = tre.filter((x) => x.muc).length;
   const coDo = tre.some((x) => x.muc === 'do');
   nav.innerHTML = ds.map((n) => {
-    const so = n.id === 'viec' ? soTre : n.id === 'hen' ? dem(n.id) : chuaDoc(n.id);
+    /* "Chỉ để đọc" không đếm: thư ở đó không phải việc, số chưa đọc chỉ làm dải
+     * dài thêm tới mức đẩy ngăn cuối khuất mép trên máy tính. */
+    const so = n.id === 'viec' ? soTre : n.id === 'hen' ? dem(n.id) : n.id === 'biet' ? 0 : chuaDoc(n.id);
     const lop = n.id === 'viec' && soTre ? ' so-' + (coDo ? 'do' : 'vang') : '';
     return '<button role="tab" data-ngan="' + n.id + '" aria-selected="' + (S.loc.ngan === n.id && !S.loc.nhom) + '">' +
       esc(n.ten) + (so ? '<span class="so' + lop + '">' + so + '</span>' : '') + '</button>';
@@ -214,7 +272,20 @@ function veNgan() {
    * từ mép trái sang ô đang chọn, nhìn như giao diện nhảy (anh Hùng 28/10/2026). */
   nav.appendChild(vienTruot);
   datVienTruot();
+  /* Dải tràn thì cuộn ngang (luật chung cho dải tab): đưa ô đang chọn vào tầm
+   * nhìn, mép nào còn ô khuất thì mờ dần. */
+  const chon = nav.querySelector('[aria-selected="true"]');
+  if (chon && (chon.offsetLeft < nav.scrollLeft || chon.offsetLeft + chon.offsetWidth > nav.scrollLeft + nav.clientWidth)) {
+    nav.scrollTo({ left: chon.offsetLeft - 24, behavior: vienDaDat ? 'smooth' : 'auto' });
+  }
+  datMep();
 }
+function datMep() {
+  const nav = $('#dsNgan');
+  const trai = nav.scrollLeft > 2, phai = nav.scrollLeft + nav.clientWidth < nav.scrollWidth - 2;
+  nav.dataset.mep = trai && phai ? 'hai' : trai ? 'trai' : phai ? 'phai' : '';
+}
+$('#dsNgan').addEventListener('scroll', datMep, { passive: true });
 const vienTruot = Object.assign(document.createElement('span'), { className: 'vien-truot' });
 let vienDaDat = false;
 function datVienTruot() {
@@ -229,18 +300,30 @@ function datVienTruot() {
   if (!vienDaDat) { void vienTruot.offsetWidth; vienTruot.style.transition = ''; vienDaDat = true; }
 }
 /* Chữ trên ngăn đổi cỡ (dịch sang tiếng Anh, phông nạp muộn) thì đặt lại viên. */
-if (window.ResizeObserver) new ResizeObserver(() => datVienTruot()).observe($('#dsNgan'));
+if (window.ResizeObserver) new ResizeObserver(() => { datVienTruot(); datMep(); }).observe($('#dsNgan'));
 
 /* Chọn hộp thư: một nút, bấm mới bày danh sách. Tám hộp bày thành một dải
  * chip thì tràn khỏi màn và nhiều hộp trùng tên "pito@". */
 function veHop() {
   const box = $('#dsHop');
-  if (S.hop.length < 2) { box.hidden = true; return; }
   box.hidden = false;
   const ten = S.loc.hop ? tenHop(S.loc.hop) : 'Mọi hộp thư';
-  box.innerHTML = '<button class="chip chon-hop" data-viec="chon-hop" aria-haspopup="menu" aria-pressed="' + Boolean(S.loc.hop) + '">' +
-    '<span data-no-i18n>' + esc(ten) + '</span>' +
-    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>';
+  /* Viên chọn hộp theo kiểu nút phụ chung của hub (nền xám nhạt, cao 30px).
+   * Bên phải: số thư đang hiện (veDs điền) và viên "Tất cả thư": mọi thư đã
+   * đọc được, không theo ngăn, kể cả thư đã xong, bỏ qua, hẹn, thư rác, để rà
+   * một lượt là chắc không sót (anh Hùng 29/10/2026). */
+  const tatCa = S.loc.ngan === 'tat-ca';
+  const soTatCa = demCd(S.thu.filter((t) => khopLoc(t)));
+  box.innerHTML = (S.hop.length > 1
+    ? '<button class="chon-hop" data-viec="chon-hop" aria-haspopup="menu" aria-pressed="' + Boolean(S.loc.hop) + '">' +
+      '<svg class="ic-hop" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3.5 7L12 13l8.5-6"/></svg>' +
+      '<span data-no-i18n>' + esc(ten) + '</span>' +
+      '<svg class="ic-mo" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5"/></svg></button>'
+    : '') +
+    '<span class="dem-ds" id="demDs"></span>' +
+    '<button class="chon-hop xem-tat-ca" data-ngan="tat-ca" aria-pressed="' + tatCa + '">' +
+    '<svg class="ic-hop" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>' +
+    '<span>Tất cả thư</span><span class="so">' + soTatCa + '</span></button>';
 }
 function menuHop(nut) {
   const chuaDoc = (email) => S.thu.filter((t) => (!email || t.hop === email) && t.chuaDoc && !t.henDen).length;
@@ -266,6 +349,12 @@ function dongThu(t) {
   else if (mc.muc) phu.push('<span class="nhan cho ' + mc.muc + '">Chờ anh ' + chuCho(mc.gio) + '</span>');
   if (t.daTraLoi && !t.daGui) phu.push('<span class="nhan da-tl">Đã trả lời</span>');
   if (t.sep) phu.push('<span class="nhan sep">Ban giám đốc</span>');
+  /* Ở "Tất cả thư" mỗi dòng nói thư đang ở đâu, để rà một lượt là biết. */
+  if (S.loc.ngan === 'tat-ca') {
+    phu.push('<span class="nhan ngan-o">' + esc(t.henDen ? 'Hẹn lại' : tenNgan(t.ngan)) + '</span>');
+    if (t.xong) phu.push('<span class="nhan bo-qua">Đã xong</span>');
+  }
+  if (t.lo) phu.push('<span class="nhan lo' + (t.lo.minh ? ' minh' : '') + '" title="' + esc(t.lo.ten) + ' đang lo thư này"><span data-no-i18n>' + esc(tenGon(t.lo.ten)) + '</span> đang lo</span>');
   if (t.boQua && !S.daLuu.has(k)) phu.push('<span class="nhan bo-qua">Đã bỏ qua</span>');
   if (t.rac) phu.push('<span class="nhan rac" title="Lark xếp thư này vào Thư rác">Thư rác</span>');
   if (S.hop.length > 1 && !S.loc.hop) phu.push('<span class="nhan o-hop" data-no-i18n>' + esc(tenHop(t.hop)) + '</span>');
@@ -280,9 +369,10 @@ function dongThu(t) {
   /* Nhịp thở theo đồng hồ: vẽ lại danh sách không làm quầng sáng giật về đầu nhịp. */
   const nhip = mc.muc === 'do' ? ' style="--tho-tre:-' + (Date.now() % 3200) + 'ms"' : '';
   return '<button class="dong' + (t.chuaDoc ? ' chua-doc' : '') + (mc.muc ? ' muc-' + mc.muc : '') + (lauRoi ? ' lau' : '') + '" data-k="' + esc(k) + '"' + nhip +
-    (S.chon === k ? ' aria-current="true"' : '') + '>' +
+    (S.chon && timThu(S.chon) && khoaCd(timThu(S.chon)) === khoaCd(t) ? ' aria-current="true"' : '') + '>' +
     avatar(t.daGui ? 'Anh' : t.tu.ten, t.daGui ? t.hop : t.tu.email, t.daGui ? 'gui' : '') +
-    '<span class="nguoi" data-no-i18n>' + esc(t.daGui ? 'Anh gửi · ' + tenHop(t.hop) : t.tu.ten || t.tu.email) + '</span>' +
+    '<span class="nguoi"><span class="ten-ng" data-no-i18n>' + esc(t.daGui ? 'Anh gửi · ' + tenHop(t.hop) : t.tu.ten || t.tu.email) + '</span>' +
+    (t._so ? '<span class="so-cd" title="' + t._so + ' thư trong cùng chủ đề">' + t._so + '</span>' : '') + '</span>' +
     '<span class="gio">' + esc(gioNgan(t.ngay)) + '</span>' +
     '<span class="td" data-no-i18n>' + esc(t.tieuDe || '(không tiêu đề)') + '</span>' +
     '<span class="tt">' + phu.join('') + '<span' + (t.tomTat || t.canLam ? ' data-no-i18n' : '') + '>' + esc(dong2) + '</span></span>' +
@@ -294,6 +384,7 @@ const TRONG = {
   don: 'Không có đơn khách đặt nào đang chờ.',
   biet: 'Không có thư nào.',
   hen: 'Chưa hẹn nhắc thư nào.',
+  'tat-ca': 'Chưa đọc được thư nào.',
 };
 
 /* Tất cả thư của một chuỗi: thư đến + thư anh gửi đang chờ. */
@@ -335,7 +426,7 @@ function theNhom(g) {
  */
 function veViec() {
   const tu = Date.now() - 30 * 86400e3;
-  const cho = S.thu.filter((t) => conCho(t) && khopLoc(t));
+  const cho = gomDs(S.thu.filter((t) => conCho(t) && khopLoc(t)));
   const DIEM = { do: 2, vang: 1, '': 0 };
   const xep = (ds) => ds.sort((a, b) => {
     const ma = mucCho(a), mb = mucCho(b);
@@ -345,9 +436,9 @@ function veViec() {
    * thì không còn gì nổi bật: thư chờ 7 đến 30 ngày gom một dòng, bấm mới mở. */
   const gan = xep(cho.filter((t) => msCua(t.ngay) >= Date.now() - TUAN));
   const lau = xep(cho.filter((t) => msCua(t.ngay) < Date.now() - TUAN && msCua(t.ngay) >= tu));
-  const doiHo = S.cho.filter((g) => !S.loc.hop || g.hop === S.loc.hop)
+  const doiHo = gomDs(S.cho.filter((g) => !S.loc.hop || g.hop === S.loc.hop))
     .filter((g) => !S.loc.tim || g.tieuDe.toLowerCase().includes(S.loc.tim.trim().toLowerCase()));
-  const donMoi = S.thu.filter((t) => hienTrong(t, 'don') && khopLoc(t) && t.chuaDoc).length;
+  const donMoi = demCd(S.thu.filter((t) => hienTrong(t, 'don') && khopLoc(t) && t.chuaDoc));
   const khuc = (ten, so, than, them = '') => '<section class="khuc"><h3>' + ten + (so ? '<span class="so">' + so + '</span>' : '') + them + '</h3>' + than + '</section>';
 
   let h = '';
@@ -389,9 +480,11 @@ function veNhom() {
 
 function veDs() {
   if (S.loc.nhom) return veNhom();
-  if (S.loc.ngan === 'viec' && !S.loc.xong) return veViec();
+  const oDem = $('#demDs');
+  if (S.loc.ngan === 'viec' && !S.loc.xong) { if (oDem) oDem.textContent = ''; return veViec(); }
   const box = $('#ds');
-  const ds = S.thu.filter((t) => hienTrong(t, S.loc.ngan, S.loc.xong) && khopLoc(t));
+  const ds = gomDs(S.thu.filter((t) => hienTrong(t, S.loc.ngan, S.loc.xong) && khopLoc(t)));
+  if (oDem) oDem.textContent = ds.length ? ds.length + (ds.some((t) => t._so) ? ' hội thoại' : ' thư') : '';
   let h = '';
   if (S.loc.xong) h += '<button class="dong gom" data-xem-xong="0"><span class="avt gom" aria-hidden="true"></span><span class="nguoi">Thư đã xong và đã bỏ qua</span>' +
     '<span class="gio"></span><span class="td">Chỉ đánh dấu trong app, Lark Mail giữ nguyên. Bấm để quay lại.</span></button>';
@@ -403,7 +496,7 @@ function veDs() {
    * mà không để hàng chục form giống hệt nhau chôn mất thư người thật viết. */
   const soDon = S.loc.ngan === 'xu-ly' && !S.loc.xong ? dem('don') : 0;
   if (soDon) {
-    const moi = S.thu.filter((t) => hienTrong(t, 'don') && khopLoc(t) && t.chuaDoc).length;
+    const moi = demCd(S.thu.filter((t) => hienTrong(t, 'don') && khopLoc(t) && t.chuaDoc));
     h += '<button class="dong gom" data-ngan="don">' +
       '<span class="avt gom" aria-hidden="true"></span><span class="nguoi">'+ soDon + ' đơn khách đặt</span>' +
       '<span class="gio">' + (moi ? moi + ' chưa đọc' : '') + '</span>' +
@@ -413,7 +506,7 @@ function veDs() {
     h += '<div class="trong">' + (S.loc.tim ? 'Không thư nào khớp "' + esc(S.loc.tim) + '".' :
       TRONG[S.loc.ngan] || 'Không có thư nào.') + '</div>';
   } else h += ds.map(dongThu).join('');
-  const roi = S.loc.xong ? [] : S.thu.filter((t) => hienTrong(t, S.loc.ngan, true) && khopLoc(t));
+  const roi = S.loc.xong ? [] : gomDs(S.thu.filter((t) => hienTrong(t, S.loc.ngan, true) && khopLoc(t)));
   const soBo = roi.filter((t) => t.boQua).length, soXong = roi.length - soBo;
   if (roi.length) {
     h += '<button class="xem-xong" data-xem-xong="1">' +
@@ -424,10 +517,13 @@ function veDs() {
 
 /* ---------------- đọc một thư ---------------- */
 
-function linkHoa(chu) {
+/* gon: chỉ hiện tên miền thay cho cả đường link (bong bóng trong luồng:
+ * link theo dõi của Agoda dài năm dòng, đẩy lời khách xuống dưới). */
+function linkHoa(chu, gon = false) {
   return esc(chu).replace(/\bhttps?:\/\/[^\s<>"']+/g, (u) => {
     const sach = u.replace(/[).,;:!?]+$/, '');
-    return '<a href="' + sach + '" target="_blank" rel="noopener noreferrer">' + sach + '</a>' + u.slice(sach.length);
+    const hien = gon ? sach.replace(/^https?:\/\/(www\.)?/, '').replace(/[/?#].*$/, '') + (/^https?:\/\/[^/?#]+[/?#]./.test(sach) ? '/…' : '') : sach;
+    return '<a href="' + sach + '" target="_blank" rel="noopener noreferrer"' + (gon ? ' title="' + sach + '"' : '') + '>' + hien + '</a>' + u.slice(sach.length);
   });
 }
 
@@ -454,8 +550,11 @@ async function mo(k) {
     const d = await api(duongThu(t));
     if (S.chon !== k) return;
     S.ct = d;
+    chiTiet.set(k, d.thu);
     veDoc();
-    if (t.chuaDoc) danhDau(t, { daDoc: true }, true);
+    /* Mở luồng là đọc cả luồng: mọi thư chưa đọc của chủ đề thành đã đọc. */
+    for (const x of cungChuDe(t)) if (x.chuaDoc) danhDau(x, { daDoc: true }, true);
+    if (luongCua(t).length > 1) napLuong(k);
     const aiDu = d.ai && !d.ai.chiXep;
     if (S.ai && !aiDu && t.ngan === 'xu-ly') phanTich();
     lienQuan(d.thu);
@@ -497,6 +596,20 @@ const IC_THEM = '<circle cx="5.5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.
 const IC_XONG = '<path d="M5 12.5l4.5 4.5L19 7.5"/>';
 const IC_VE = '<path d="M9 7L4 12l5 5"/><path d="M4 12h11a5 5 0 0 1 0 10h-2"/>';
 
+/* Hàng nhãn dưới tiêu đề thư: hộp, mức chờ, người lo, hẹn, nhóm. */
+function nhanThu(t, tom, mc) {
+  return '<div class="nhan-thu">' +
+    '<span class="nhan o-hop" data-no-i18n>' + esc(t.hop) + '</span>' +
+    (tom.daGui ? '<span class="nhan cho-ho' + (mc.muc ? ' ' + mc.muc : '') + '">Chờ bên kia hồi âm ' + chuCho(mc.gio) + '</span>' : '') +
+    (!tom.daGui && mc.muc ? '<span class="nhan cho ' + mc.muc + '">Chờ anh trả lời ' + chuCho(mc.gio) + '</span>' : '') +
+    (tom.daTraLoi ? '<span class="nhan da-tl">Đã trả lời</span>' : '') +
+    (tom.sep ? '<span class="nhan sep">Ban giám đốc</span>' : '') +
+    (tom.lo ? '<span class="nhan lo' + (tom.lo.minh ? ' minh' : '') + '"><span data-no-i18n>' + esc(tom.lo.ten) + '</span> đang lo</span>' : '') +
+    (tom.henDen ? '<span class="nhan lam">Hẹn ' + esc(gioHen(tom.henDen)) + '</span>' : '') +
+    (nhomCuaThu(tom).map((g) => '<button class="nhan nhom" data-nhom="' + esc(g.id) + '" data-no-i18n>' + esc(g.ten) + '</button>').join('')) +
+    '<span id="lienQuan" class="lien-quan"></span></div>';
+}
+
 /* tam: dòng thư trong danh sách, vẽ khuôn trong lúc chờ tải nội dung. */
 function veDoc(tam) {
   const d = tam ? { thu: Object.assign({ den: [], cc: [], tep: [] }, tam) } : S.ct;
@@ -513,21 +626,15 @@ function veDoc(tam) {
 
   const nguoi = (n) => esc(n.ten ? n.ten + ' <' + n.email + '>' : n.email);
   const mc = tom.daGui ? mucCho({ ngay: tom.ngay }) : conCho(tom) ? mucCho(tom) : { muc: '' };
+  const l = luongCua(tom);
+  if (l.length > 1) return veLuong(d, tom, l, Boolean(tam));
   let h = '<h2 data-no-i18n>' + esc(t.tieuDe || '(không tiêu đề)') + '</h2>' +
     '<div class="dau-thu">' + avatar(t.tu.ten, t.tu.email, 'lon') +
     '<div class="ai-gui" data-no-i18n><div class="dong-1"><b>' + esc(t.tu.ten || t.tu.email) + '</b>' +
     (t.tu.ten ? '<span class="mo">' + esc(t.tu.email) + '</span>' : '') + '<span class="mo gio-thu">' + esc(t.ngay) + '</span></div>' +
     '<div class="dong-2">Tới ' + (t.den.map(nguoi).join(', ') || esc(t.hop)) +
     (t.cc.length ? ' · CC ' + t.cc.map(nguoi).join(', ') : '') + '</div></div></div>' +
-    '<div class="nhan-thu">' +
-    '<span class="nhan o-hop" data-no-i18n>' + esc(t.hop) + '</span>' +
-    (tom.daGui ? '<span class="nhan cho-ho' + (mc.muc ? ' ' + mc.muc : '') + '">Chờ bên kia hồi âm ' + chuCho(mc.gio) + '</span>' : '') +
-    (!tom.daGui && mc.muc ? '<span class="nhan cho ' + mc.muc + '">Chờ anh trả lời ' + chuCho(mc.gio) + '</span>' : '') +
-    (tom.daTraLoi ? '<span class="nhan da-tl">Đã trả lời</span>' : '') +
-    (tom.sep ? '<span class="nhan sep">Ban giám đốc</span>' : '') +
-    (tom.henDen ? '<span class="nhan lam">Hẹn ' + esc(gioHen(tom.henDen)) + '</span>' : '') +
-    (nhomCuaThu(tom).map((g) => '<button class="nhan nhom" data-nhom="' + esc(g.id) + '" data-no-i18n>' + esc(g.ten) + '</button>').join('')) +
-    '<span id="lienQuan" class="lien-quan"></span></div>';
+    nhanThu(t, tom, mc);
   if (tam) {
     h += '<div class="xuong-chu" aria-busy="true"><i></i><i></i><i></i><i></i></div>';
     $('#docThan').innerHTML = h;
@@ -555,6 +662,201 @@ function veDoc(tam) {
   ganSoan(tom.daGui);
   nutDich(t);
   $('#docThan').scrollTop = cuon;           // vẽ lại cùng thư (gắn sao, AI xong) thì giữ chỗ đang đọc
+  capNhatNutGui();
+}
+
+/* ---------------- luồng hội thoại của một chủ đề ---------------- */
+
+/* Nội dung đầy đủ đã tải, theo khoá thư. Thư đã gửi không bao giờ đổi nên
+ * giữ suốt phiên: mở lại luồng là hiện ngay, không hỏi Lark lần nữa. */
+const chiTiet = new Map();
+const SO_LUONG = 20;                 // tải nội dung tối đa 20 thư gần nhất, cũ hơn thì bấm mới tải
+let luongDu = '';                    // khoá chủ đề đang xem đủ mọi thư
+
+/* Tải nội dung các thư trong luồng, ba thư một lúc (Lark giới hạn tốc độ).
+ * Thư nào về thì thay đúng bong bóng đó, không vẽ lại cả khung: vẽ lại là
+ * mất chỗ đang đọc và mất bản dịch. */
+async function napLuong(k) {
+  const t = timThu(k);
+  if (!t) return;
+  const l = luongCua(t);
+  const can = (luongDu === khoaCd(t) ? l : l.slice(-SO_LUONG)).filter((x) => !chiTiet.has(khoa(x)));
+  let i = 0;
+  const chay = async () => {
+    while (i < can.length) {
+      const x = can[i++];
+      try { chiTiet.set(khoa(x), (await api(duongThu(x))).thu); }
+      catch (e) { chiTiet.set(khoa(x), { loi: e.message }); }
+      if (S.chon === k) thayBong(x);
+    }
+  };
+  await Promise.all([chay(), chay(), chay()]);
+}
+
+/**
+ * Tiến độ xử lý một chủ đề, bốn bước: Nhận thư → Có người lo → Trả lời → Xong.
+ * Khách nhắn thêm sau lần trả lời thì bước Trả lời quay lại "đang làm": đến
+ * lượt bên mình lần nữa.
+ */
+function tinhTienDo(l) {
+  const den = l.filter((x) => !x.daGui), di = l.filter((x) => x.daGui);
+  const cuoi = l[l.length - 1];
+  const loAi = (den.find((x) => x.lo) || {}).lo;
+  const xong = den.length > 0 && den.every(daRoi);
+  const cuoiDi = di[di.length - 1];
+  let cau, phu = '', muc = '';
+  if (xong) cau = 'Đã xong';
+  else if (cuoi.daGui) {
+    cau = 'Đang chờ bên kia hồi âm'; phu = chuCho(mucCho({ ngay: cuoi.ngay }).gio);
+  } else {
+    /* Chờ tính từ thư đầu tiên chưa ai trả lời. */
+    const chua = den.filter((x) => !cuoiDi || x.ngay > cuoiDi.ngay);
+    const m = mucCho({ ngay: chua[0].ngay, sep: chua.some((x) => x.sep) });
+    cau = 'Đến lượt bên mình'; phu = 'chờ ' + chuCho(m.gio); muc = m.muc;
+  }
+  const buoc = [
+    { ten: 'Nhận thư', xong: true },
+    { ten: loAi ? tenGon(loAi.ten) + ' lo' : 'Có người lo', xong: Boolean(loAi) || di.length > 0 },
+    { ten: di.length > 1 ? 'Trả lời ' + di.length + ' lần' : 'Trả lời', xong: xong || Boolean(cuoi.daGui) },
+    { ten: 'Xong', xong },
+  ];
+  return { buoc, dang: buoc.findIndex((b) => !b.xong), cau, phu, muc, so: l.length, tu: l[0].ngay };
+}
+
+function veTienTrinh(l) {
+  const td = tinhTienDo(l);
+  /* Vạch xanh chạy tới bước đang làm (hết thì tới bước cuối). */
+  const toi = td.dang < 0 ? td.buoc.length - 1 : td.dang;
+  return '<div class="tien-trinh' + (td.muc ? ' muc-' + td.muc : '') + (td.dang < 0 ? ' het' : '') + '">' +
+    '<div class="tt-dau"><b>' + esc(td.cau) + '</b>' + (td.phu ? '<span class="tt-phu">' + esc(td.phu) + '</span>' : '') +
+    '<span class="tt-dem">' + td.so + ' thư · từ ' + esc(ngayLuong(td.tu).toLowerCase()) + '</span></div>' +
+    '<ol class="tt-buoc" style="--da:' + (toi / (td.buoc.length - 1)).toFixed(3) + '">' +
+    td.buoc.map((b, i) => '<li class="' + (b.xong ? 'xong' : i === td.dang ? 'dang' : '') + '"><i aria-hidden="true"></i><span data-no-i18n>' + esc(b.ten) + '</span></li>').join('') +
+    '</ol></div>';
+}
+
+/* "Re: Reply from X" → "Reply from X": tên chủ đề sạch trên đầu luồng. */
+const tenChuDe = (s) => String(s || '').replace(/^\s*((re|fw|fwd|tl|trả lời|chuyển tiếp)\s*:\s*)+/i, '').trim() || '(không tiêu đề)';
+
+function ngayLuong(s) {
+  const g = gioNgan(s);
+  return /^\d\d:\d\d$/.test(g) ? 'Hôm nay' : g;
+}
+
+/* Một bong bóng. Thư đến bên trái (ảnh đại diện + tên khi đổi người), thư
+ * mình gửi bên phải màu thương hiệu. Thư đang mở (thư sẽ trả lời) mở hết;
+ * thư khác dài thì gập, bấm "Xem hết". */
+function veBong(x, truoc) {
+  const k = khoa(x);
+  const ct = k === S.chon && S.ct ? S.ct.thu : chiTiet.get(k);
+  const di = Boolean(x.daGui);
+  const noi = truoc && Boolean(truoc.daGui) === di && (di || truoc.tu.email === x.tu.email) &&
+    msCua(x.ngay) - msCua(truoc.ngay) < 3 * 3600e3 && x.ngay.slice(0, 10) === truoc.ngay.slice(0, 10);
+  const dau = di ? '<span data-no-i18n>' + esc(tenHop(x.hop)) + '</span> gửi' : '<span data-no-i18n>' + esc(x.tu.ten || x.tu.email) + '</span>';
+  return '<div class="bong ' + (di ? 'di' : 'den') + (noi ? ' noi' : '') + (k === S.chon ? ' dang-mo' : '') + '" data-k="' + esc(k) + '">' +
+    (di ? '' : noi ? '<span class="avt-cho" aria-hidden="true"></span>' : avatar(x.tu.ten, x.tu.email)) +
+    '<div class="vo-bong">' +
+    (noi ? '' : '<div class="ai-bong">' + dau + '<span class="gio-bong">' + esc((x.ngay || '').slice(11, 16)) + '</span></div>') +
+    '<div class="than-bong' + (k === S.chon ? '' : ' gon') + '">' + thanBong(ct, k === S.chon) + '</div>' +
+    '<button class="xem-het" data-viec="xem-het" hidden>Xem hết</button>' +
+    '</div></div>';
+}
+
+/*
+ * Lời nhắn mới trong thư báo của nền tảng đặt phòng. Agoda gửi mỗi tin của
+ * khách thành một thư dài: lời chào, "Du khách này có đặt phòng…", lời khách,
+ * rồi quảng cáo app YCS và CẢ lịch sử trò chuyện. Bong bóng chỉ cần lời khách:
+ * phần nằm sau "Mã số đặt phòng: …" và trước "Nội dung trên được tự động
+ * dịch" / "Did you know?". Không khớp mẫu thì trả rỗng, bong bóng hiện cả thư.
+ */
+/* Hai mẫu thư Agoda: "Thắc mắc mới… Mã số đặt phòng: 123" và "Tin nhắn mới
+ * từ <tên>" kèm một hai dòng giờ "… ICT". */
+const MOC_DAU = /(?:Mã số đặt phòng|Booking ID|Booking reference)\s*:\s*\d+\s*\n|(?:Tin nhắn mới từ|New message from)[^\n]*\n+[^\n]*\n(?:[^\n]*\bICT\s*\n+){1,2}/i;
+const MOC_CUOI = /\n\s*(?:Nội dung trên được tự động dịch|The above (?:message|content) (?:was|has been) (?:automatically )?translated|Did you know\?|Bạn có biết|TRẢ LỜI TRONG ỨNG DỤNG|Trả lời qua YCS|REPLY (?:IN|VIA) (?:THE )?YCS)/i;
+function loiNhanMoi(chu) {
+  const d = MOC_DAU.exec(chu || '');
+  if (!d) return '';
+  const sau = chu.slice(d.index + d[0].length);
+  const c = MOC_CUOI.exec(sau);
+  /* Bỏ dòng chào khách sạn ("Kính gửi Pito Hotel…,"): không phải lời khách. */
+  const loi = (c ? sau.slice(0, c.index) : '').replace(/^\s*(?:Kính gửi|Dear)[^\n]*,\s*\n/i, '').trim();
+  return loi.length >= 2 && loi.length < 3000 ? loi : '';
+}
+
+function thanBong(ct, chinh, ca = false) {
+  if (!ct) return '<div class="xuong-chu nho" aria-busy="true"><i></i><i></i></div>';
+  if (ct.loi) return '<span class="loi-bong">Chưa tải được thư này: ' + esc(ct.loi) + '</span>';
+  const loi = ca ? '' : loiNhanMoi(ct.noiDung);
+  return '<div class="noi-dung' + (ca ? ' hien-ca' : '') + '"' + (chinh ? ' id="ndChinh"' : '') + ' data-no-i18n>' + linkHoa(loi || ct.noiDung || '(Thư không có nội dung chữ)', true) + '</div>' +
+    /* Chỉ thư đang mở mới có nút: hai mươi nút giống nhau là nhiễu. */
+    (loi && chinh ? '<button class="xem-ca" data-viec="xem-ca">Xem cả thư</button>' : '') +
+    (ct.tep && ct.tep.length ? '<div class="tep" data-no-i18n>' + ct.tep.map((f) => '<span class="nhan">📎 ' + esc(f.ten) + '</span>').join('') + '</div>' : '');
+}
+
+/* Thay nội dung đúng một bong bóng khi thư đó tải xong. */
+function thayBong(x) {
+  const b = $('#luong .bong[data-k="' + CSS.escape(khoa(x)) + '"] .than-bong');
+  if (!b) return;
+  b.innerHTML = thanBong(chiTiet.get(khoa(x)), khoa(x) === S.chon);
+  doBong(b);
+}
+
+/* Bong bóng gập chỉ hiện nút "Xem hết" khi thật sự bị cắt. */
+function doBong(b) {
+  const nut = b.nextElementSibling;
+  if (!b.classList.contains('gon') || b.classList.contains('mo') || !nut) return;
+  nut.hidden = b.scrollHeight <= b.clientHeight + 4;
+  b.classList.toggle('cat', !nut.hidden);
+}
+
+/* Mở / gập một bong bóng dài, có hiệu ứng cả hai chiều. */
+function moBong(nut) {
+  const b = nut.previousElementSibling;
+  const mo = !b.classList.contains('mo');
+  b.style.maxHeight = b.scrollHeight + 'px';
+  if (!mo) { void b.offsetHeight; }
+  b.classList.toggle('mo', mo);
+  b.classList.toggle('cat', !mo);
+  if (!mo) b.style.maxHeight = '';
+  nut.textContent = mo ? 'Thu gọn' : 'Xem hết';
+}
+
+function veLuong(d, tom, l, tam) {
+  const t = d.thu;
+  const an = luongDu === khoaCd(tom) ? 0 : Math.max(0, l.length - SO_LUONG);
+  const o = $('#docThan');
+  const moi = o.dataset.k !== S.chon;
+  let h = '<div class="dau-luong"><h2 data-no-i18n>' + esc(tenChuDe(t.tieuDe || tom.tieuDe)) + '</h2>' + veTienTrinh(l) + '</div>' +
+    nhanThu(t, Object.assign({}, tom, { daGui: false, daTraLoi: false }), { muc: '' });
+  if (!tam) {
+    if (tom.rac) h += '<div class="canh-bao">Lark xếp thư này vào Thư rác. Xem kỹ địa chỉ người gửi trước khi bấm link hay trả lời. Thư vẫn nằm trong Thư rác trên Lark.</div>';
+    else if (t.canhBao) h += '<div class="canh-bao">Lark đánh dấu thư này có dấu hiệu rủi ro. Kiểm tra người gửi trước khi bấm link hay trả lời.</div>';
+    h += '<div id="theAi">' + theAi() + '</div>';
+  }
+  h += '<div class="luong" id="luong">' +
+    (an ? '<button class="xem-xong" data-viec="luong-du">Xem ' + an + ' thư cũ hơn</button>' : '');
+  let truoc = null;
+  for (const x of l.slice(an)) {
+    if (!truoc || x.ngay.slice(0, 10) !== truoc.ngay.slice(0, 10)) h += '<div class="ngay-luong"><span>' + esc(ngayLuong(x.ngay)) + '</span></div>';
+    h += veBong(x, truoc);
+    if (khoa(x) === S.chon && !tam) h += '<div id="vungDich" class="vung-dich"></div>';
+    truoc = x;
+  }
+  h += '</div>';
+  const cuon = moi ? -1 : o.scrollTop;
+  o.innerHTML = h;
+  o.dataset.k = tam ? '' : S.chon;
+  o.querySelectorAll('.than-bong.gon').forEach(doBong);
+  ganSoan(tom.daGui);
+  if (!tam) nutDich(t);
+  /* Mở luồng mới thì cuộn tới thư đang mở (thường là thư mới nhất), như app
+   * nhắn tin; vẽ lại cùng luồng thì giữ chỗ đang đọc. */
+  if (cuon >= 0) o.scrollTop = cuon;
+  else {
+    const b = o.querySelector('.bong.dang-mo');
+    const dau = o.querySelector('.dau-luong');
+    o.scrollTop = b ? Math.max(0, b.offsetTop - (dau ? dau.offsetHeight : 0) - 40) : o.scrollHeight;
+  }
   capNhatNutGui();
 }
 
@@ -789,7 +1091,7 @@ function veBanDich() {
     (bd.xemGoc ? '' : (bd.td ? '<div class="td-dich" data-no-i18n>' + esc(bd.td) + '</div>' : '') +
       '<div class="noi-dung" data-no-i18n>' + linkHoa(bd.than) + '</div>') + '</div>';
   /* Đang xem bản dịch thì ẩn thân gốc, đỡ phải đọc hai lần. */
-  const goc = $('#docThan > .noi-dung');
+  const goc = $('#docThan > .noi-dung') || $('#ndChinh');
   if (goc) goc.hidden = !bd.xemGoc;
 }
 
@@ -801,7 +1103,7 @@ async function dichThu() {
   o.innerHTML = '<div class="ban-dich cho">Đang dịch… Lần đầu dịch một ngôn ngữ, trình duyệt tải gói dịch mất ít giây.</div>';
   try {
     const ngu = await doanNgonNgu((t.tieuDe || '') + '\n' + (t.noiDung || ''));
-    const [td, than] = await Promise.all([dich(t.tieuDe || '', 'vi', ngu), dich(t.noiDung || '', 'vi', ngu)]);
+    const [td, than] = await Promise.all([dich(t.tieuDe || '', 'vi', ngu), dich(loiNhanMoi(t.noiDung) || t.noiDung || '', 'vi', ngu)]);
     banDich.set(k, { ngu, td, than, xemGoc: false });
     if (S.chon === k) veBanDich();
   } catch (e) {
@@ -909,7 +1211,9 @@ async function guiThat() {
   if (!b) return;
   $('#btnGui') && ($('#btnGui').disabled = true);
   try {
-    await api(duongThu(b.t, 'tra-loi'), { body: { chu: b.chu, tatCa: b.tatCa, coChuKy: b.coChuKy, gui: true } });
+    const dong = timThu(khoa(b.t));
+    await api(duongThu(b.t, 'tra-loi'), { body: { chu: b.chu, tatCa: b.tatCa, coChuKy: b.coChuKy, gui: true, chuoi: dong && maCd(dong) } });
+    if (dong) dong.lo = { ten: 'Bạn', minh: true };     // máy chủ đã ghi mình là người lo; lượt đọc sau thay bằng tên thật
     bao('Đã gửi thư trả lời', 'ok');
     const o = $('#oSoan');
     if (o && S.ct && S.ct.thu === b.t) o.value = '';
@@ -1064,7 +1368,13 @@ async function luuTru(t, boQua = false) {
    * ngay, không còn chỗ cho "Hoàn tác". */
   /* Gắn cả vào bản thư đang nằm trong danh sách: lượt đọc ngầm (napDu) có thể
    * đã thay S.thu bằng đối tượng mới, gắn mỗi `t` cũ là thư hiện lại sau 8 giây. */
-  try { await api(duongThu(t, 'doi'), { body: { [truong]: true } }); for (const x of [t, timThu(k)]) if (x) x[truong] = Date.now(); }
+  /* Xong / Bỏ qua áp cho mọi thư đến còn mở của cùng chủ đề: xong một luồng
+   * là xong cả tám tin khách nhắn, không phải bấm tám lần. */
+  const ca = [t].concat(cungChuDe(t).filter((x) => khoa(x) !== k && !daRoi(x)));
+  try {
+    await Promise.all(ca.map((x) => api(duongThu(x, 'doi'), { body: { [truong]: true } })));
+    for (const x of ca.concat(timThu(k) || [])) x[truong] = Date.now();
+  }
   catch (e) {
     S.daLuu.delete(k); ve();
     bao((boQua ? 'Chưa bỏ qua được: ' : 'Chưa đánh dấu xong được: ') + e.message, 'loi');
@@ -1080,11 +1390,36 @@ async function luuTru(t, boQua = false) {
   }, 8000);
 }
 
+/* Nhận / thôi nhận chuỗi thư trong sổ chung của phòng. */
+async function nhanLo(t, nhan) {
+  try {
+    const r = await api(duongThu(t, 'lo'), { body: { nhan, chuoi: maCd(t) } });
+    /* cả chủ đề đổi người lo, không chỉ thư đang mở */
+    for (const x of cungChuDe(t)) x.lo = r.lo;
+    ve(); if (S.ct) veDoc();
+    bao(nhan ? 'Cả phòng sẽ thấy bạn đang lo thư này' : 'Đã thôi nhận thư này', 'ok');
+  } catch (e) { bao('Chưa ghi được: ' + e.message, 'loi'); }
+}
+
+/* Bỏ qua thư chưa ai nhận là cách để thư khách không ai trả lời: nói rõ hậu
+ * quả và mời nhận trước. Thư đã có người nhận thì bỏ qua ngay. */
+function hoiBoQua(t) {
+  if (t.lo && !t.lo.minh) { luuTru(t, true); return; }
+  moNho({
+    tieu: 'Chưa ai nhận thư này',
+    than: '<p>Bỏ qua thì thư rời khỏi danh sách của bạn. Nếu người khác cũng bỏ qua, khách sẽ không được trả lời.</p>' +
+      '<p>Nên nhắn người phụ trách nhận thư (⋯ › Tôi lo thư này), hoặc Giao việc cho họ.</p>',
+    nutOk: 'Vẫn bỏ qua',
+    ok: async () => { luuTru(t, true); },
+  });
+}
+
 /* Đưa thư về ngăn: gỡ cả dấu Xong lẫn dấu Bỏ qua. */
 async function boXong(t) {
   try {
-    await api(duongThu(t, 'doi'), { body: { xong: false, boQua: false } });
-    for (const x of [t, timThu(khoa(t))]) if (x) { x.xong = 0; x.boQua = 0; }
+    const ca = [t].concat(cungChuDe(t).filter((x) => khoa(x) !== khoa(t) && daRoi(x)));
+    await Promise.all(ca.map((x) => api(duongThu(x, 'doi'), { body: { xong: false, boQua: false } })));
+    for (const x of ca.concat(timThu(khoa(t)) || [])) { x.xong = 0; x.boQua = 0; }
     ve(); if (S.chon === khoa(t) && S.ct) veDoc();
     bao('Thư đã quay lại ngăn', 'ok');
   } catch (e) { bao('Chưa đưa thư về được: ' + e.message, 'loi'); }
@@ -1199,14 +1534,22 @@ $('#dsNgan').addEventListener('click', (e) => {
   if (!b) return;
   S.loc.ngan = b.dataset.ngan;
   S.loc.xong = false;
-  veNgan(); veDs();
+  veNgan(); veHop(); veDs();
   $('#cotDs').scrollTop = 0;
 });
 $('#dsHop').addEventListener('click', (e) => {
   const b = e.target.closest('[data-viec="chon-hop"]');
-  if (b) menuHop(b);
+  if (b) { menuHop(b); return; }
+  /* Viên "Tất cả thư": bấm lần nữa thì về Việc cần làm. */
+  const tc = e.target.closest('[data-ngan="tat-ca"]');
+  if (tc) {
+    S.loc.ngan = S.loc.ngan === 'tat-ca' ? 'viec' : 'tat-ca';
+    S.loc.xong = false; S.loc.nhom = '';
+    veNgan(); veHop(); veDs();
+    $('#cotDs').scrollTop = 0;
+  }
 });
-$('#oTim').addEventListener('input', (e) => { S.loc.tim = e.target.value; veNgan(); veDs(); });
+$('#oTim').addEventListener('input', (e) => { S.loc.tim = e.target.value; veNgan(); veHop(); veDs(); });
 $('#btnLamMoi').addEventListener('click', () => napThu(true).catch((e) => bao(e.message, 'loi')));
 $('#btnVe').addEventListener('click', dongDoc);
 
@@ -1226,7 +1569,7 @@ $('#ds').addEventListener('click', (e) => {
   const sn = e.target.closest('[data-sua-nhom]');
   if (sn) { suaNhom(S.loc.nhom); return; }
   const g = e.target.closest('[data-ngan]');
-  if (g) { S.loc.ngan = g.dataset.ngan; S.loc.nhom = ''; veNgan(); veDs(); $('#cotDs').scrollTop = 0; return; }
+  if (g) { S.loc.ngan = g.dataset.ngan; S.loc.nhom = ''; veNgan(); veHop(); veDs(); $('#cotDs').scrollTop = 0; return; }
   const x = e.target.closest('[data-xem-xong]');
   if (x) { S.loc.xong = x.dataset.xemXong === '1'; veDs(); $('#cotDs').scrollTop = 0; return; }
   const d = e.target.closest('.dong');
@@ -1248,6 +1591,19 @@ $('#cotDoc').addEventListener('click', (e) => {
   }
   if (b.dataset.goiY) { aiViet(b.dataset.goiY); return; }
   const v = b.dataset.viec;
+  if (v === 'xem-het') { moBong(b); return; }
+  if (v === 'xem-ca') {
+    /* Bày cả thư gốc (kèm lịch sử trò chuyện) ngay trong bong bóng. */
+    const bb = b.closest('.bong'), than = bb && bb.querySelector('.than-bong');
+    const ct = bb && (bb.dataset.k === S.chon && S.ct ? S.ct.thu : chiTiet.get(bb.dataset.k));
+    if (!ct || !than) return;
+    than.classList.remove('gon', 'cat');
+    than.style.maxHeight = '';
+    than.innerHTML = thanBong(ct, bb.dataset.k === S.chon, true);
+    bb.querySelector('.xem-het').hidden = true;
+    return;
+  }
+  if (v === 'luong-du') { luongDu = khoaCd(t); veDoc(); napLuong(S.chon); return; }
   if (v === 'tra-loi') $('#oSoan').focus();
   else if (v === 'viec') giaoViec(t);
   else if (v === 'sao') danhDau(t, { sao: !t.sao });
@@ -1274,8 +1630,12 @@ function menuThem(nut, t) {
   const sau = (f) => setTimeout(f, 210);
   const nhom = nhomCuaThu(t);
   moMenu(nut,
-    /* Hộp chung: thư người khác lo thì bỏ qua, không bấm Xong thay họ. */
-    (t.daGui || daRoi(t) ? '' : '<button data-lam="bo-qua">Bỏ qua, việc của người khác</button><hr>') +
+    /* Hộp chung: nhận thư để cả phòng biết ai đang lo (sổ chung); thư người
+     * khác lo thì bỏ qua, không bấm Xong thay họ. */
+    (t.daGui ? '' :
+      (t.lo && t.lo.minh ? '<button data-lam="tha-lo">Thôi nhận thư này</button>'
+        : '<button data-lam="nhan-lo">' + (t.lo ? 'Nhận thay <span data-no-i18n>' + esc(tenGon(t.lo.ten)) + '</span>' : 'Tôi lo thư này') + '</button>') +
+      (daRoi(t) ? '' : '<button data-lam="bo-qua">Bỏ qua, việc của người khác</button>') + '<hr>') +
     '<button data-lam="lich">Thêm vào lịch</button>' +
     '<button data-lam="nhom">Theo dõi trong nhóm…</button>' +
     nhom.map((g) => '<button data-lam="bo-nhom" data-id="' + esc(g.id) + '">Bỏ khỏi nhóm <span data-no-i18n>' + esc(g.ten) + '</span></button>').join('') +
@@ -1288,7 +1648,8 @@ function menuThem(nut, t) {
     '<div class="ghi">Các thao tác này chỉ lưu trong app, Lark Mail giữ nguyên.</div>',
   (x) => {
     const lam = x.dataset.lam;
-    if (lam === 'bo-qua') luuTru(t, true);
+    if (lam === 'nhan-lo' || lam === 'tha-lo') nhanLo(t, lam === 'nhan-lo');
+    else if (lam === 'bo-qua') sau(() => hoiBoQua(t));
     else if (lam === 'hen') sau(() => menuHen(nut, t));
     else if (lam === 'ngan') sau(() => menuNgan(nut, t));
     else if (lam === 'sao') danhDau(t, { sao: !t.sao });

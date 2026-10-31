@@ -30,6 +30,7 @@ const mapi = require('./mail-api');
 const kho = require('./kho');
 const ai = require('./ai');
 const chinhTa = require('./chinh-ta');
+const { gomChuDe } = require('./chu-de');
 const { NGAN, LA_NGAN, xep } = require('./phan-loai');
 
 const BIND = process.env.BIND || '127.0.0.1';
@@ -210,25 +211,46 @@ const msNgay = (s) => { const m = /^(\d{4})-(\d\d)-(\d\d) (\d\d):(\d\d)/.exec(s 
  */
 function ghepChuoi(den, gui) {
   const cuoiGui = new Map(), cuoiDen = new Map();
-  const k = (t) => t.hop + '|' + t.chuoi;
-  for (const g of gui) if (g.chuoi && (!cuoiGui.has(k(g)) || cuoiGui.get(k(g)).ngay < g.ngay)) cuoiGui.set(k(g), g);
-  for (const t of den) if (t.chuoi && (!cuoiDen.has(k(t)) || cuoiDen.get(k(t)).ngay < t.ngay)) cuoiDen.set(k(t), t);
-  const daTraLoi = new Set(den.filter((t) => t.chuoi && cuoiGui.has(k(t)) && cuoiGui.get(k(t)).ngay >= t.ngay).map((t) => t.hop + '|' + t.id));
+  /* Ghép theo chủ đề (cd, chu-de.js) khi có, không thì theo chuỗi Lark. */
+  const c = (t) => t.cd || t.chuoi;
+  const k = (t) => t.hop + '|' + c(t);
+  for (const g of gui) if (c(g) && (!cuoiGui.has(k(g)) || cuoiGui.get(k(g)).ngay < g.ngay)) cuoiGui.set(k(g), g);
+  for (const t of den) if (c(t) && (!cuoiDen.has(k(t)) || cuoiDen.get(k(t)).ngay < t.ngay)) cuoiDen.set(k(t), t);
+  const daTraLoi = new Set(den.filter((t) => c(t) && cuoiGui.has(k(t)) && cuoiGui.get(k(t)).ngay >= t.ngay).map((t) => t.hop + '|' + t.id));
   const tu = Date.now() - NGAY_CHO * 86400e3;
   const cho = [...cuoiGui.values()]
     .filter((g) => msNgay(g.ngay) >= tu && !(cuoiDen.has(k(g)) && cuoiDen.get(k(g)).ngay > g.ngay))
     .sort((a, b) => (a.ngay < b.ngay ? -1 : 1))
-    .map((g) => ({ hop: g.hop, id: g.id, chuoi: g.chuoi, ngay: g.ngay, tieuDe: g.tieuDe }));
+    .map((g) => ({ hop: g.hop, id: g.id, chuoi: g.chuoi, cd: g.cd, ngay: g.ngay, tieuDe: g.tieuDe }));
   return { daTraLoi, cho };
 }
 
 /** Gắn ngăn, kết quả AI đã có, hẹn nhắc và trạng thái riêng lên từng thư. */
+/* Người nhận một chuỗi thư trong sổ chung. Chạy riêng một mình (không qua hub)
+ * thì không có mã người: coi là chủ máy. */
+const nguoiLo = (n) => ({ id: n.nguoi || 'chu-may', ten: n.ten || 'Chủ hộp thư' });
+const khoaChuoi = (t) => t.chuoi || 'id:' + t.id;
+
 function lamGiau(ds, hop, nguoi = '') {
   const tay = kho.luat(nguoi);
   const hen = kho.hen(nguoi);
   const tt = kho.tt(nguoi);
+  const lo = kho.lo();
+  const toi = nguoi || 'chu-may';
   const minh = [hopChinh(hop)].concat(cfg.cuaMinh).filter(Boolean);
   const nay = Date.now();
+  /* Người lo tính theo CẢ chủ đề: sổ ghi theo mã chủ đề (bản mới) hoặc mã
+   * chuỗi của từng thư (bản cũ, và khi chủ đề vừa gom thêm chuỗi mới). Lấy
+   * mục mới nhất, kể cả lệnh thôi nhận. */
+  const loCd = new Map();
+  for (const t of ds) {
+    const cd = t.cd || khoaChuoi(t);
+    for (const kh of [cd, khoaChuoi(t)]) {
+      const l = lo[t.hop + '|' + kh];
+      const cu = loCd.get(t.hop + '|' + cd);
+      if (l && (!cu || (l.luc || 0) > (cu.luc || 0))) loCd.set(t.hop + '|' + cd, l);
+    }
+  }
   return ds.map((t) => {
     const a = kho.layAi(t.hop, t.id);
     const x = xep(t, { cfg, tay, ai: a, minh });
@@ -240,6 +262,7 @@ function lamGiau(ds, hop, nguoi = '') {
     return Object.assign({}, t, {
       chuaDoc: r.d === 1 ? false : r.d === 0 ? true : Boolean(t.chuaDoc),
       sao: Boolean(r.s), xong: r.x || 0, boQua: r.b || 0,
+      lo: (() => { const l = loCd.get(t.hop + '|' + (t.cd || khoaChuoi(t))); return l && l.id ? { ten: l.ten, minh: l.id === toi } : null; })(),
       ngan: x.ngan, nguon: x.nguon, lyDo: x.lyDo, sep: x.sep,
       tomTat: a ? a.tomTat : '', canLam: a ? a.canLam : '', han: a ? a.han : '',
       henDen: henDen > nay ? henDen : 0,
@@ -329,6 +352,7 @@ async function api(req, res, url) {
       : 'App chỉ mở được qua Marketing Hub.', { khongPhaiChu: true });
   }
   await kho.nap(n.nguoi, n.khoa);
+  await kho.napChung();
 
   if (p === '/api/hop' && m === 'GET') {
     const hop = await cacHop(n);
@@ -340,9 +364,20 @@ async function api(req, res, url) {
     const d = muonDu ? await docSau(n) : await docHet(n, url.searchParams.get('lam') === '1');
     if (!d.du && !muonDu) docSau(n).catch((e) => console.error('[hop-thu] đọc sâu hỏng:', e.message));
     const hop = await cacHop(n);
-    const { daTraLoi, cho } = ghepChuoi(d.ds, d.gui || []);
-    const ds = lamGiau(d.ds, hop, n.nguoi).map((t) => (daTraLoi.has(t.hop + '|' + t.id) ? Object.assign(t, { daTraLoi: true }) : t));
-    return json(res, { luc: d.luc, thu: ds, cho, nhom: kho.nhom(n.nguoi), loi: d.loi, du: Boolean(d.du) });
+    /* Gắn mã chủ đề lên bản sao, không sửa bộ đệm danh sách. */
+    /* Đơn khách đặt không gom theo tiêu đề: mỗi đơn một khách (chu-de.js). */
+    const ngan = new Map(lamGiau(d.ds, hop, n.nguoi).map((t) => [t.hop + '|' + t.id, t.ngan]));
+    const maCd = gomChuDe(d.ds, d.gui || [], { khongGom: (t) => ngan.get(t.hop + '|' + t.id) === 'don' });
+    const gan = (t) => Object.assign({}, t, { cd: maCd.get(t.hop + '|' + t.id) });
+    const den = d.ds.map(gan), daGui = (d.gui || []).map(gan);
+    const { daTraLoi, cho } = ghepChuoi(den, daGui);
+    const ds = lamGiau(den, hop, n.nguoi).map((t) => (daTraLoi.has(t.hop + '|' + t.id) ? Object.assign(t, { daTraLoi: true }) : t));
+    /* Thư mình gửi thuộc chủ đề có thư đến: giao diện vẽ thành bong bóng bên
+     * phải trong luồng hội thoại. */
+    const coCd = new Set(den.map((t) => t.hop + '|' + t.cd));
+    const gui = daGui.filter((g) => coCd.has(g.hop + '|' + g.cd))
+      .map((g) => ({ hop: g.hop, id: g.id, chuoi: g.chuoi, cd: g.cd, ngay: g.ngay, tieuDe: g.tieuDe }));
+    return json(res, { luc: d.luc, thu: ds, cho, gui, nhom: kho.nhom(n.nguoi), loi: d.loi, du: Boolean(d.du) });
   }
 
   /* Chữ ký: lần đầu gợi ý từ Lark Mail (máy có lark-cli), sau đó là bản người dùng tự sửa. */
@@ -471,6 +506,16 @@ async function api(req, res, url) {
     return json(res, { ok: true, tt: kho.datTT(k.hop, k.id, doi, n.nguoi) });
   }
 
+  /* Nhận / thôi nhận một chuỗi thư: sổ CHUNG của phòng, không đổi gì trên Lark. */
+  if (viec === 'lo' && m === 'POST') {
+    const b = await docThan(req);
+    if (typeof b.nhan !== 'boolean') return loi(res, 400, 'Thiếu nhan: true/false');
+    const chuoi = String(b.chuoi || 'id:' + k.id).slice(0, 200);
+    kho.datLo(k.hop, chuoi, b.nhan ? nguoiLo(n) : null);
+    const l = kho.lo()[k.hop + '|' + chuoi];
+    return json(res, { ok: true, lo: l && l.id ? { ten: l.ten, minh: true } : null });
+  }
+
   if (viec === 'hen' && m === 'POST') {
     const b = await docThan(req);
     const den = Number(b.den) || 0;
@@ -517,6 +562,9 @@ async function api(req, res, url) {
     if (chu.length > 20000) return loi(res, 400, 'Thư trả lời quá dài');
     const chuKy = b.coChuKy === false ? '' : await layChuKy(n);
     const kq =await thu.traLoi(k.hop, k.id, chu, { gui: b.gui === true, tatCa: b.tatCa === true, chuKy }, n.tk);
+    /* Ai gửi trả lời là người đang lo chuỗi thư đó: cả phòng thấy ngay, khỏi
+     * hai người cùng trả lời một khách. */
+    if (b.gui === true) kho.datLo(k.hop, String(b.chuoi || 'id:' + k.id).slice(0, 200), nguoiLo(n));
     quenDs(n);
     return json(res, { ok: true, daGui: b.gui === true, kq });
   }

@@ -117,6 +117,14 @@ server.listen(0, '127.0.0.1', async () => {
       !goi.length && (await thuA()).boQua > 0 && (await thuA()).xong === 0);
     await hoi('POST', duong('hunglv@rootytrip.com', 'aaaaaaaaaa==', 'doi'), { than: { xong: false, boQua: false } });
     ok('đưa về: hết cả dấu bỏ qua', (await thuA()).boQua === 0);
+
+    console.log('\nSổ chung: ai đang lo chuỗi thư');
+    const chuoiA = (await thuA()).chuoi;
+    await hoi('POST', duong('hunglv@rootytrip.com', 'aaaaaaaaaa==', 'lo'), { than: { nhan: true, chuoi: chuoiA } });
+    ok('nhận: thư mang tên người lo, của mình, không gọi Lark', (await thuA()).lo && (await thuA()).lo.minh === true && !goi.length);
+    await hoi('POST', duong('hunglv@rootytrip.com', 'aaaaaaaaaa==', 'lo'), { than: { nhan: false, chuoi: chuoiA } });
+    ok('thôi nhận: hết người lo', (await thuA()).lo === null);
+    ok('thiếu nhan: 400', (await hoi('POST', duong('hunglv@rootytrip.com', 'aaaaaaaaaa==', 'lo'), { than: {} })).ma === 400);
     await hoi('POST', duong('hunglv@rootytrip.com', 'aaaaaaaaaa==', 'doi'), { than: { daDoc: true, sao: true } });
     const a2 = await thuA();
     ok('đã đọc + gắn sao trong app, Lark không bị gọi', !a2.chuaDoc && a2.sao && !goi.length);

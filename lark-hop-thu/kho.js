@@ -67,7 +67,33 @@ function chuanSo(d) {
   for (const k of ['luat', 'hen', 'tt']) if (d[k] && typeof d[k] === 'object' && !Array.isArray(d[k])) s[k] = d[k];
   if (Array.isArray(d.nhom)) s.nhom = d.nhom;
   if (typeof d.chuKy === 'string') s.chuKy = d.chuKy;
+  if (d.lo && typeof d.lo === 'object' && !Array.isArray(d.lo)) s.lo = d.lo;
   return s;
+}
+
+/* ---------------- sổ chung của phòng: ai đang lo chuỗi thư nào ----------------
+ * Anh Hùng 29/10/2026 ("Làm đi", sau khi thấy sales@ có 53 thư khách chờ quá
+ * 7 ngày mà không ai biết ai lo): sổ riêng làm mỗi người tự rút thư khỏi danh
+ * sách của mình, nên "ai cũng nghĩ là việc của người khác". Sổ chung ghi người
+ * nhận theo CHUỖI thư (hộp + thread_id), cả phòng cùng thấy. Vẫn không đổi gì
+ * trên Lark Mail.
+ *   lo  { "hộp|chuỗi": { id, ten, luc } }   id rỗng = đã thôi nhận (giữ mốc
+ *       thời gian để khi gộp hai bản, lệnh thôi nhận mới hơn vẫn thắng)
+ * Cùng cơ chế lưu với sổ riêng (một dòng trên Base), khoá riêng. Máy cá nhân và
+ * Render có thể cùng ghi một dòng, nên đọc lại và GỘP theo mốc thời gian trước
+ * mỗi lần ghi, không ghi đè. */
+const CHUNG = '*so-chung-phong';
+const NGAY_GIU_LO = 90;
+
+function gopLo(cua, them) {
+  const ra = Object.assign({}, cua);
+  for (const [k, v] of Object.entries(them || {})) {
+    if (!v || typeof v !== 'object') continue;
+    if (!ra[k] || (v.luc || 0) > (ra[k].luc || 0)) ra[k] = v;
+  }
+  const han = Date.now() - NGAY_GIU_LO * 86400e3;
+  for (const k of Object.keys(ra)) if ((ra[k].luc || 0) < han) delete ra[k];
+  return ra;
 }
 
 const dungBase = () => process.env.HOP_THU_KHO === 'base' ||
@@ -145,7 +171,9 @@ function soTep(nguoi, khoaCu) {
 /** Nạp sổ của một người (gọi trước mọi lệnh API). Không bao giờ ném lỗi. */
 async function nap(nguoi = '', khoaCu) {
   const c = soNguoi.get(nguoi);
-  if (c && (c.base || !dungBase() || Date.now() - c.luc < 60000)) return c.so;
+  /* Sổ chung đọc lại Base mỗi phút (người khác nhận thư từ máy khác); sổ riêng
+   * đọc được một lần là đủ. */
+  if (c && ((c.base && nguoi !== CHUNG) || !dungBase() || Date.now() - c.luc < 60000)) return c.so;
   if (c && c.dangNap) return c.dangNap;
   const muc = c || { so: soTep(nguoi, khoaCu), recordId: '', luc: 0, base: false };
   soNguoi.set(nguoi, muc);
@@ -154,7 +182,8 @@ async function nap(nguoi = '', khoaCu) {
     try {
       const kq = await docBase(nguoi);
       muc.recordId = kq.recordId;
-      if (kq.so) muc.so = kq.so;
+      if (kq.so && nguoi === CHUNG) muc.so.lo = gopLo(muc.so.lo, kq.so.lo);
+      else if (kq.so) muc.so = kq.so;
       muc.base = true;
       /* Chưa có sổ trên Base mà máy đã có (luật, hẹn từ bản trước): đẩy lên. */
       if (!kq.so && Object.keys(muc.so.luat).length + Object.keys(muc.so.hen).length + Object.keys(muc.so.tt).length) luuSo(nguoi);
@@ -187,7 +216,14 @@ function luuSo(nguoi) {
   clearTimeout(c.hen);
   c.hen = setTimeout(() => {
     c.dangGhi = (c.dangGhi || Promise.resolve()).catch(() => {}).then(async () => {
-      try { c.recordId = await ghiBase(nguoi, c.so, c.recordId); } catch (e) {
+      try {
+        if (nguoi === CHUNG) {
+          const kq = await docBase(nguoi);
+          if (kq.recordId) c.recordId = kq.recordId;
+          if (kq.so) c.so.lo = gopLo(c.so.lo, kq.so.lo);
+        }
+        c.recordId = await ghiBase(nguoi, c.so, c.recordId);
+      } catch (e) {
         console.error('[hop-thu] chưa ghi được sổ lên Base:', e.message);
       }
     });
@@ -255,6 +291,25 @@ module.exports = {
     so(nguoi).chuKy = String(chu || '').slice(0, 1000);
     luuSo(nguoi);
   },
+
+  /* Sổ chung: ai đang lo chuỗi thư nào. `ai` = { id, ten } hoặc null (thôi nhận). */
+  CHUNG,
+  /* Lần đầu chờ đọc Base; các lần sau đọc lại ngầm mỗi phút, không bắt lệnh
+   * đang mở trang phải đợi Lark. */
+  napChung() {
+    const c = soNguoi.get(CHUNG);
+    if (c && c.base) { nap(CHUNG).catch(() => {}); return Promise.resolve(c.so); }
+    return nap(CHUNG);
+  },
+  lo: () => so(CHUNG).lo || {},
+  datLo(hop, chuoi, ai) {
+    const s = so(CHUNG);
+    const k = hop + '|' + chuoi;
+    s.lo = gopLo(s.lo, { [k]: ai && ai.id ? { id: ai.id, ten: String(ai.ten || '').slice(0, 80), luc: Date.now() } : { id: '', luc: Date.now() } });
+    luuSo(CHUNG);
+    return s.lo[k];
+  },
+  gopLo,
 
   nhom: (nguoi = '') => so(nguoi).nhom,
   datNhom(ds, nguoi = '') {

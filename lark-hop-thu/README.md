@@ -39,6 +39,30 @@ Trong thư chỉ có ba nút có chữ: **Trả lời**, **Giao việc**, **Xong
 - Hộp chung chưa được chia quyền thì chỉ hộp đó báo lỗi, không đòi nối lại cả trang.
 - Hai hộp `pito@routinehotels.com` và `pito@riluxhotels.com` trống thật trên Lark (mọi thư mục 0 thư), không phải lỗi đọc.
 
+## Theo chủ đề, đọc như nhắn tin (31/10/2026)
+
+Anh Hùng: "nó cứ hiển thị thư mới mãi thôi… theo chủ đề thì nó sẽ hiển thị theo luồng như các ứng dụng nhắn tin", kèm "thanh tiến trình… tiến độ công việc này đang xử lý tới đâu".
+
+- **Gom chủ đề** ở máy chủ (`chu-de.js`, mã `cd` trên từng thư): cùng hộp và cùng chuỗi Lark, hoặc cùng hộp + cùng tiêu đề (bỏ Re:/Fwd:/TL:) + cùng người gửi. Agoda gửi mỗi tin của khách thành một thư mới, chuỗi mới, nên chỉ ghép chuỗi thì không đủ. Thư mình gửi nhập theo tiêu đề chỉ khi tiêu đề đó trong hộp thuộc đúng một chủ đề.
+- **Không gom theo tiêu đề**: tiêu đề ngắn hoặc chung chung ("Hello", "Báo giá"), form web (tiêu đề kết thúc bằng tên form trong ngoặc kép), đơn khách đặt. Cùng người gửi, cùng tiêu đề nhưng mỗi thư là một khách khác.
+- **Danh sách**: mỗi chủ đề một dòng, số thư của luồng cạnh tên, chấm chưa đọc nếu thư nào chưa đọc. Số trên ngăn đếm theo chủ đề. Mốc "chờ N" tính từ thư chờ lâu nhất.
+- **Khung đọc**: chủ đề từ hai thư trở lên thành luồng bong bóng, thư đến bên trái, thư mình gửi bên phải màu thương hiệu, vạch ngày. Tải nội dung 20 thư gần nhất (3 thư một lúc), cũ hơn bấm "Xem N thư cũ hơn". Thư đang mở mở hết; thư khác dài thì gập, "Xem hết". Link dài chỉ hiện tên miền.
+- **Thư báo Agoda** chỉ hiện lời khách (sau "Mã số đặt phòng" / "Tin nhắn mới từ…", trước "Nội dung trên được tự động dịch" / "Did you know?" / "Trả lời qua YCS"); "Xem cả thư" bày lại bản đầy đủ. Dịch cũng chỉ dịch lời khách.
+- **Thanh tiến trình** đứng yên trên đầu luồng: Nhận thư → Có người lo → Trả lời → Xong, kèm câu "Đến lượt bên mình · chờ 12 giờ" hoặc "Đang chờ bên kia hồi âm". Khách nhắn thêm sau lần trả lời thì bước Trả lời quay lại đang làm. Câu chờ đổi vàng, đỏ theo đúng mức chờ của danh sách.
+- **Xong, Bỏ qua, Đưa về, đã đọc, Tôi lo thư này** áp cho cả chủ đề. "Đã trả lời" và "Anh đang chờ người khác" tính theo chủ đề.
+- Chưa thấy: lời khách sạn trả lời trong app YCS của Agoda không phải thư nên không thành bong bóng bên phải; tiến trình chỉ biết khi trả lời bằng thư.
+
+## Ai đang lo thư này (sổ chung của phòng, 29/10/2026)
+
+- ⋯ › **Tôi lo thư này** ghi tên mình vào chuỗi thư (hộp + thread_id). Cả phòng thấy nhãn "Hùng đang lo" trên dòng thư; thư người khác đã nhận rời khỏi "Người khác đang chờ anh" của mình. Gửi trả lời từ app thì tự thành người lo.
+- Sổ chung nằm cùng bảng Base với sổ riêng, khoá `*so-chung-phong`. Máy cá nhân và Render cùng ghi một dòng nên mỗi lần ghi đọc lại rồi gộp theo mốc thời gian (`gopLo`), thôi nhận cũng giữ mốc để không bị bản cũ đè. Đọc lại ngầm mỗi phút. Mục quá 90 ngày tự bỏ.
+- Bỏ qua thư chưa ai nhận thì hộp hỏi "Chưa ai nhận thư này" nói rõ hậu quả trước khi bỏ.
+- Vẫn không đổi gì trên Lark Mail.
+
+## Tất cả thư (29/10/2026)
+
+Viên **Tất cả thư** ở hàng chọn hộp: mọi thư đã đọc được, không lọc theo ngăn, kể cả đã xong, bỏ qua, hẹn, thư rác. Mỗi dòng ghi ngăn của thư. Bấm lần nữa về Việc cần làm. Dải tab trên chỉ giữ bốn ngăn, rãnh phân đoạn như thanh lọc Tổng quan, tràn thì cuộn ngang và mờ mép.
+
 ## Chỉ đổi bên mình, Lark Mail giữ nguyên (28/10/2026)
 
 Thư trong hộp chung mà người khác lo thì dùng **⋯ › Bỏ qua, việc của người khác** thay vì Xong (29/10/2026). Thư rời Việc cần làm của riêng mình, mang nhãn "Đã bỏ qua" ở cuối ngăn, mở ra có nút **Đưa về** (gỡ cả Xong lẫn Bỏ qua). Sổ riêng ghi `b` cạnh `x`.
