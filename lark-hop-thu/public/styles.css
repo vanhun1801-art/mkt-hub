@@ -706,3 +706,6 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 .xem-ca:hover { background: var(--xanh-nhat); }
 .than-bong .hien-ca { animation: hien-ca .32s var(--vao); }
 @keyframes hien-ca { from { opacity: 0; transform: translateY(-4px); } }
+/* Hộp đọc tới đâu, dòng phụ trong menu chọn hộp (31/10/2026). */
+.menu-noi .phu-hop { display: block; font-size: 12px; color: var(--chu-3); margin-top: 1px; }
+.menu-noi .phu-hop.thieu { color: var(--cam); }

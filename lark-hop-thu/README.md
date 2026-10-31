@@ -52,6 +52,14 @@ Anh Hùng: "nó cứ hiển thị thư mới mãi thôi… theo chủ đề thì
 - **Xong, Bỏ qua, Đưa về, đã đọc, Tôi lo thư này** áp cho cả chủ đề. "Đã trả lời" và "Anh đang chờ người khác" tính theo chủ đề.
 - Chưa thấy: lời khách sạn trả lời trong app YCS của Agoda không phải thư nên không thành bong bóng bên phải; tiến trình chỉ biết khi trả lời bằng thư.
 
+## Không sót thư (31/10/2026)
+
+Anh Hùng: "anh sợ bị miss email đó". Đo thật: 60 thư Đã gửi của sales@ chỉ phủ 9 ngày, 200 thư đến chỉ phủ 27 ngày, Thư rác chạm trần 40, thư lưu trữ trên Lark không đọc.
+
+- Nhịp đọc sau đọc **theo ngày**: Hộp đến và Đã gửi đọc tới khi đủ 30 ngày (`docTheoNgay`, trần 600 / 400 thư mỗi hộp). Thư rác tối đa 100 thư trong 14 ngày.
+- Đọc thêm **Lưu trữ** 30 ngày gần nhất: nhãn "Lưu trữ trên Lark", vẫn ở ngăn của nó và Tất cả thư, không vào Việc cần làm.
+- Mỗi hộp báo đã đọc tới đâu: menu chọn hộp ghi "Đã đọc đủ 30 ngày", chưa đủ thì ghi màu cam "thư đến mới đọc tới …", và Việc cần làm có dòng báo "Có thể còn thư chưa hiện".
+
 ## Ai đang lo thư này (sổ chung của phòng, 29/10/2026)
 
 - ⋯ › **Tôi lo thư này** ghi tên mình vào chuỗi thư (hộp + thread_id). Cả phòng thấy nhãn "Hùng đang lo" trên dòng thư; thư người khác đã nhận rời khỏi "Người khác đang chờ anh" của mình. Gửi trả lời từ app thì tự thành người lo.

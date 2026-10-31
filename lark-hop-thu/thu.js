@@ -154,6 +154,7 @@ async function danhSach(hop, max = cfg.soThuMoiHop, tk = '', thuMuc = 'INBOX') {
       sao: nhan.includes('FLAGGED'),
       nhan,
       rac: thuMuc === 'SPAM',
+      luuTru: thuMuc === 'ARCHIVED',
     };
   });
 }

@@ -160,15 +160,43 @@ function docHet(n, ep, max = cfg.soThuMoiHop, maxGui = cfg.soThuGuiMoiHop) {
   return dangDoc.get(k);
 }
 
+/**
+ * Đọc một thư mục tới khi phủ đủ `ngay` ngày gần nhất (31/10/2026, anh Hùng sợ
+ * sót thư). Bắt đầu bằng `dau` thư; thư cũ nhất vẫn còn trong khoảng ngày mà
+ * thư mục còn thư thì đọc lại sâu hơn (gấp 2,5 lần), tới `tran` thư.
+ * Trả { ds, du, cu }: du = đã phủ đủ số ngày (hoặc đọc hết thư mục), cu = ngày
+ * của thư cũ nhất đọc được, để giao diện nói được mỗi hộp đọc tới đâu.
+ */
+async function docTheoNgay(hop, thuMuc, { dau, ngay, tran }, tk) {
+  const moc = Date.now() - ngay * 86400e3;
+  let max = dau;
+  for (;;) {
+    const ds = await thu.danhSach(hop, max, tk, thuMuc);
+    const cu = ds.reduce((m, t) => (t.ngay && (!m || t.ngay < m) ? t.ngay : m), '');
+    const het = ds.length < max;
+    const du = het || (cu && msNgay(cu) < moc);
+    if (du || max >= tran) return { ds, du: Boolean(du), cu };
+    max = Math.min(tran, Math.round(max * 2.5));
+  }
+}
+
 async function docHetMot(n, ep, max, maxGui) {
   const c = dsDem.get(n.khoa);
   if (!ep && c && c.ds && c.max >= max && Date.now() - c.luc < (c.du ? DEM_DU_MS : DEM_MS)) return c;
   const hop = await cacHop(n);
   const loiHop = [];
+  /* Nhịp đầu đọc số thư cố định để trang hiện ngay; nhịp sau (du) đọc theo
+   * số ngày, tới khi phủ đủ (docTheoNgay). */
+  const du = max >= cfg.soThuDu;
+  const phu = {};                    // hộp → { den, gui, rac }: { du, cu }, cho giao diện nói đọc tới đâu
+  const ghiPhu = (h, loai, kq) => { (phu[h] = phu[h] || {})[loai] = { du: kq.du, cu: kq.cu }; return kq.ds; };
+  const doc = (h, thuMuc, dau, ngay, tran) => (du
+    ? docTheoNgay(h, thuMuc, { dau, ngay, tran }, n.tk)
+    : thu.danhSach(h, dau, n.tk, thuMuc).then((ds) => ({ ds, du: false, cu: ds.reduce((m, t) => (t.ngay && (!m || t.ngay < m) ? t.ngay : m), '') })));
   /* Hộp đến và Đã gửi đọc cùng lúc (cùng một hàng đợi 4 lượt: 6 lượt đã chạm ngưỡng Lark), không nối
    * đuôi nhau, để thêm thư mục Đã gửi không làm trang mở chậm gấp đôi. */
   const viec = hop.map((h) => async () => {
-    try { return { den: await thu.danhSach(h.email, max, n.tk) }; } catch (e) {
+    try { return { den: ghiPhu(h.email, 'den', await doc(h.email, 'INBOX', max, cfg.ngayDen, cfg.tranDen)) }; } catch (e) {
       /* Token hết giữa chừng thì cả trang phải mời nối lại, không lặng lẽ
        * thành tám hộp trống. */
       if (e instanceof thu.LoiChuaNoi) throw e;
@@ -178,7 +206,7 @@ async function docHetMot(n, ep, max, maxGui) {
   }).concat(hop.map((h) => async () => {
     /* Thư mục Đã gửi: để biết thư nào mình đã trả lời, và thư nào mình gửi
      * đi mà bên kia chưa hồi âm. Hỏng thì thôi, Hộp đến vẫn hiện. */
-    try { return { gui: await thu.danhSach(h.email, maxGui, n.tk, 'SENT') }; } catch (e) {
+    try { return { gui: ghiPhu(h.email, 'gui', await doc(h.email, 'SENT', maxGui, cfg.ngayGui, cfg.tranGui)) }; } catch (e) {
       if (e instanceof thu.LoiChuaNoi) throw e;
       return { gui: [] };
     }
@@ -187,16 +215,34 @@ async function docHetMot(n, ep, max, maxGui) {
      * không đưa thư ra khỏi Thư rác trên Lark (hộp chung). Hỏng thì thôi. */
     try {
       const tu = Date.now() - cfg.ngayRac * 86400e3;
-      return { den: (await thu.danhSach(h.email, cfg.soThuRac, n.tk, 'SPAM')).filter((t) => msNgay(t.ngay) >= tu) };
+      const ds = await thu.danhSach(h.email, cfg.soThuRac, n.tk, 'SPAM');
+      const cu = ds.reduce((m, t) => (t.ngay && (!m || t.ngay < m) ? t.ngay : m), '');
+      ghiPhu(h.email, 'rac', { ds, du: ds.length < cfg.soThuRac || (cu && msNgay(cu) < tu), cu });
+      return { den: ds.filter((t) => msNgay(t.ngay) >= tu) };
+    } catch (e) {
+      if (e instanceof thu.LoiChuaNoi) throw e;
+      return { den: [] };
+    }
+  })).concat(!du ? [] : hop.map((h) => async () => {
+    /* Lưu trữ (31/10/2026): thư ai đó bấm lưu trữ trên Lark. Ở hộp chung một
+     * người lưu trữ là thư biến khỏi app của cả phòng, trái với "chỉ đổi bên
+     * mình". Đọc 30 ngày gần nhất, giao diện gắn nhãn "Đã lưu trữ trên Lark"
+     * và không đưa vào Việc cần làm (người lưu trữ thường đã xử lý xong). */
+    try {
+      const tu = Date.now() - cfg.ngayLuuTru * 86400e3;
+      return { den: (await thu.danhSach(h.email, cfg.soThuLuuTru, n.tk, 'ARCHIVED')).filter((t) => msNgay(t.ngay) >= tu) };
     } catch (e) {
       if (e instanceof thu.LoiChuaNoi) throw e;
       return { den: [] };
     }
   }));
   const kq = await songSong(viec, 4);
-  const phan = kq.map((x) => x.den || []);
-  const daGui = kq.map((x) => x.gui || []);
-  const moi = { luc: Date.now(), ds: [].concat(...phan), gui: [].concat(...daGui), loi: loiHop, max, du: max >= cfg.soThuDu };
+  /* Một thư không được hiện hai lần (thư vừa chuyển thư mục giữa hai lượt gọi). */
+  const daCo = new Set();
+  const motLan = (ds) => ds.filter((t) => { const k = t.hop + '|' + t.id; if (daCo.has(k)) return false; daCo.add(k); return true; });
+  const phan = motLan([].concat(...kq.map((x) => x.den || [])));
+  const daGui = [].concat(...kq.map((x) => x.gui || []));
+  const moi = { luc: Date.now(), ds: phan, gui: daGui, loi: loiHop, max, du, phu };
   dsDem.set(n.khoa, moi);
   return moi;
 }
@@ -377,7 +423,7 @@ async function api(req, res, url) {
     const coCd = new Set(den.map((t) => t.hop + '|' + t.cd));
     const gui = daGui.filter((g) => coCd.has(g.hop + '|' + g.cd))
       .map((g) => ({ hop: g.hop, id: g.id, chuoi: g.chuoi, cd: g.cd, ngay: g.ngay, tieuDe: g.tieuDe }));
-    return json(res, { luc: d.luc, thu: ds, cho, gui, nhom: kho.nhom(n.nguoi), loi: d.loi, du: Boolean(d.du) });
+    return json(res, { luc: d.luc, thu: ds, cho, gui, nhom: kho.nhom(n.nguoi), loi: d.loi, du: Boolean(d.du), phu: d.phu || {} });
   }
 
   /* Chữ ký: lần đầu gợi ý từ Lark Mail (máy có lark-cli), sau đó là bản người dùng tự sửa. */
@@ -594,4 +640,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { server, aiGoi, lamGiau, ghepChuoi };
+module.exports = { server, aiGoi, lamGiau, ghepChuoi, docTheoNgay };
