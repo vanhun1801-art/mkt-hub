@@ -709,3 +709,44 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 /* Hộp đọc tới đâu, dòng phụ trong menu chọn hộp (31/10/2026). */
 .menu-noi .phu-hop { display: block; font-size: 12px; color: var(--chu-3); margin-top: 1px; }
 .menu-noi .phu-hop.thieu { color: var(--cam); }
+
+/* ---------- thân thư theo mục đích (31/10/2026) ----------
+   Anh Hùng: "định dạng trên email… thể hiện đúng với mục đích của nó".
+   app.js (veChu) dựng thân thư thành đoạn, danh sách, bảng nhãn–giá trị;
+   khuôn theo mục đích: tờ thư (kieu-thu), thẻ đơn (kieu-don), thẻ thông báo
+   (kieu-tb). */
+.noi-dung.cau-truc { white-space: normal; overflow-wrap: anywhere; }
+.cau-truc p { margin: 0 0 10px; }
+.cau-truc > :last-child, .cau-truc .loi-khach > :last-child { margin-bottom: 0; }
+.cau-truc ul, .cau-truc ol { margin: 0 0 10px; padding-left: 22px; }
+.cau-truc li { margin: 2px 0; padding-left: 2px; }
+.cau-truc .chan-thu { font-size: 12px; color: var(--chu-3); line-height: 1.45; }
+.cau-truc dl.cap {
+  margin: 0 0 12px; display: grid; grid-template-columns: fit-content(42%) minmax(0, 1fr);
+  border: 1px solid var(--vien); border-radius: 14px; overflow: hidden; background: var(--mat);
+}
+.cau-truc dl.cap > div { display: grid; grid-template-columns: subgrid; grid-column: 1 / -1; }
+.cau-truc dl.cap > div + div { border-top: 1px solid var(--vien); }
+.cau-truc dl.cap dt { padding: 7px 12px; color: var(--chu-2); font-size: 13px; background: var(--mat-2); }
+.cau-truc dl.cap dd { margin: 0; padding: 7px 12px; font-weight: 500; }
+.cau-truc dl.cap > div.dai { display: block; }
+.cau-truc dl.cap > div.dai dt { padding-bottom: 4px; }
+.cau-truc dl.cap > div.dai dd { padding-top: 6px; font-weight: 400; }
+/* Tờ thư: dòng vừa mắt, đoạn thưa. */
+.cau-truc.kieu-thu { max-width: 72ch; font-size: 14.5px; line-height: 1.65; }
+.cau-truc.kieu-thu p { margin-bottom: 12px; }
+/* Thẻ đơn: lời khách nổi lên đầu, rồi bảng thông tin. */
+.cau-truc .loi-khach {
+  margin: 0 0 12px; padding: 12px 14px; border-radius: 14px;
+  background: var(--xanh-nhat); color: var(--chu);
+}
+.cau-truc .nhan-loi { font-size: 12px; font-weight: 650; color: var(--xanh); margin-bottom: 4px; }
+.cau-truc.kieu-don { max-width: 720px; }
+/* Thẻ thông báo: chữ gọn, bảng là phần chính. */
+.cau-truc.kieu-tb { max-width: 720px; font-size: 13.5px; color: var(--chu-2); }
+.cau-truc.kieu-tb dl.cap dd { color: var(--chu); }
+.than-bong .cau-truc dl.cap { background: var(--mat); }
+@media (max-width: 640px) {
+  .cau-truc dl.cap { grid-template-columns: fit-content(46%) minmax(0, 1fr); }
+  .cau-truc dl.cap dt, .cau-truc dl.cap dd { padding: 7px 10px; }
+}

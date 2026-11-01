@@ -52,6 +52,18 @@ Anh Hùng: "nó cứ hiển thị thư mới mãi thôi… theo chủ đề thì
 - **Xong, Bỏ qua, Đưa về, đã đọc, Tôi lo thư này** áp cho cả chủ đề. "Đã trả lời" và "Anh đang chờ người khác" tính theo chủ đề.
 - Chưa thấy: lời khách sạn trả lời trong app YCS của Agoda không phải thư nên không thành bong bóng bên phải; tiến trình chỉ biết khi trả lời bằng thư.
 
+## Thân thư hiện theo mục đích (31/10/2026)
+
+Anh Hùng: "định dạng trên email em chú ý làm sao cho nó thể hiện đúng với mục đích của nó". Thân thư đã thành chữ ở máy chủ nhưng còn dấu cấu trúc; giao diện (`veChu`, `tachKhoi` trong `public/app.js`) dựng lại thành đoạn văn, danh sách, bảng nhãn–giá trị, bỏ ký tự ẩn và chỗ giữ mẫu (`##…##`), link chỉ hiện tên miền. Khuôn theo mục đích (`kieuThu`):
+
+| Mục đích | Khi nào | Khuôn |
+|---|---|---|
+| Tờ thư | thư người viết: đề xuất, trao đổi | đoạn thưa, dòng vừa mắt (72 ký tự), gạch đầu dòng thành danh sách thật |
+| Thẻ đơn | ngăn Đơn khách đặt, form web | "Khách nhắn" nổi lên đầu (cả đoạn và danh sách đánh số phía sau), còn lại là bảng thông tin; bỏ dòng "Sent from", "Subject" |
+| Thẻ thông báo | ngăn Chỉ để đọc (UNC, hoá đơn, mã) | chữ gọn, bảng số liệu là phần chính |
+
+Bong bóng trong luồng dùng cùng bộ vẽ. "Nhãn: câu dài" lẻ giữa đoạn ("Lưu ý: …", "Mục tiêu: …") vẫn là câu văn, không thành bảng.
+
 ## Không sót thư (31/10/2026)
 
 Anh Hùng: "anh sợ bị miss email đó". Đo thật: 60 thư Đã gửi của sales@ chỉ phủ 9 ngày, 200 thư đến chỉ phủ 27 ngày, Thư rác chạm trần 40, thư lưu trữ trên Lark không đọc.

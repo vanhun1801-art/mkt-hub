@@ -553,6 +553,132 @@ function linkHoa(chu, gon = false) {
   });
 }
 
+/* ---------------- vẽ thân thư theo mục đích ----------------
+ * Anh Hùng 31/10/2026: "định dạng trên email… thể hiện đúng với mục đích của
+ * nó". Thư đã thành chữ ở máy chủ (htmlSangChu) nhưng vẫn giữ dấu cấu trúc:
+ * form ghi "Nhãn: giá trị", bảng ghi "Nhãn | giá trị", danh sách "- " hoặc
+ * "1. ". Ở đây dựng lại thành khối: đoạn văn, danh sách, bảng nhãn–giá trị.
+ * Rồi chọn khuôn theo mục đích:
+ *   thu  thư người viết (đề xuất, trao đổi): tờ thư, đoạn thưa, danh sách thật
+ *   don  đơn khách đặt, form web: thẻ thông tin, lời khách nhắn nổi lên đầu
+ *   tb   thông báo tự động (UNC, hoá đơn, mã): thẻ gọn, phần dài gập lại
+ * Mọi chữ vẫn đi qua esc()/linkHoa(), không chèn HTML của thư. */
+
+/* Ký tự ẩn mà thư quảng cáo nhét vào dòng xem trước (preheader). */
+const KY_AN = /[­͏؜ᅟᅠ឴឵᠎​-‏‪-‮⁠-⁤⁪-⁯ㅤ﻿ﾠ]/g;
+const LA_NHAN = /^([^:|]{1,42}?)\s*:\s*(\S.*)?$/;        // "Nhãn: giá trị" hoặc "Nhãn:" (giá trị ở dòng sau)
+const LA_BANG = /^([^|]{1,80}?)\s+\|\s+(.+)$/;          // "Nhãn | giá trị" (hàng bảng, kể cả "CN, 01/11 | 7.173.912 ₫")
+const LA_MUC = /^\s*(?:[-•*·]|\d{1,2}[.)])\s+(.+)$/;
+/* Dòng chân của thư máy gửi: chữ nhỏ, mờ. */
+const LA_CHAN = /^(this (e-?mail|message) (was|is) (sent|an automated)|email tự động|đây là email tự động|vui lòng không trả lời|please do not reply|unsubscribe|--\s*$)/i;
+/* Nhãn mà giá trị là URL, giờ hay ngày không coi là nhãn (vd "Lúc 10:30", "https://"). */
+const nhanThat = (n) => n && !/https?$|^\d|\d$|[.!?,]$/.test(n.trim()) && n.trim().split(/\s+/).length <= 7;
+/* Hàng bảng đã rõ là bảng (dấu |): nhãn được có số, dài hơn. */
+const nhanBang = (n) => n && !/https?$/.test(n.trim()) && n.trim().split(/\s+/).length <= 12;
+
+function tachKhoi(chu) {
+  const dong = String(chu || '').replace(KY_AN, '').split('\n').map((d) => d.replace(/\s+$/, ''));
+  const khoi = [];
+  const cuoi = () => khoi[khoi.length - 1];
+  for (let i = 0; i < dong.length; i++) {
+    const d = dong[i].trim();
+    /* Dòng trống ngắt đoạn, nhưng không ngắt bảng: hoá đơn MISA cách mỗi
+     * dòng "Số:", "Ngày:" bằng một dòng trống. */
+    if (!d) { if (!cuoi() || cuoi().loai !== 'cap') khoi.push({ loai: 'trong' }); continue; }
+    if (/^##.*##$/.test(d)) continue;                 // chỗ giữ của mẫu thư (##DownloadAttackFileInjectPosition##)
+    if (LA_CHAN.test(d)) { khoi.push({ loai: 'chan', chu: d }); continue; }
+    const m = LA_MUC.exec(d);
+    if (m) {
+      if (cuoi() && cuoi().loai === 'ds' && cuoi().so === /^\s*\d/.test(d)) cuoi().muc.push(m[1]);
+      else khoi.push({ loai: 'ds', so: /^\s*\d/.test(d), muc: [m[1]] });
+      continue;
+    }
+    const b = LA_BANG.exec(d);
+    const n = !b && LA_NHAN.exec(d);
+    if ((b && nhanBang(b[1])) || (n && nhanThat(n[1]))) {
+      let nhan = b ? b[1] : n[1], gt = b ? b[2] : (n[2] || '');
+      /* "Nhãn:" một mình: giá trị là các dòng sau, tới dòng trống hoặc nhãn khác. */
+      if (!b && !n[2]) {
+        const tiep = [];
+        while (i + 1 < dong.length && dong[i + 1].trim()) {
+          const sau = dong[i + 1].replace(KY_AN, '').trim();
+          const ln = LA_NHAN.exec(sau);
+          if (ln && nhanThat(ln[1])) break;            // dòng sau là nhãn khác
+          tiep.push(sau); i++;
+        }
+        gt = tiep.join('\n');
+      }
+      gt = gt.replace(/\s*\|\s*/g, ' · ');
+      if (!gt || /:\s*$/.test(gt)) continue;            // "Tel:" bỏ trống: không bày ô rỗng
+      /* nhieuDong: giá trị lấy từ các dòng sau ("Message:" rồi lời nhắn). */
+      const cap = [nhan, gt, !b && !n[2]];
+      if (cuoi() && cuoi().loai === 'cap') cuoi().cap.push(cap);
+      else khoi.push({ loai: 'cap', cap: [cap] });
+      continue;
+    }
+    if (cuoi() && cuoi().loai === 'doan') cuoi().dong.push(d);
+    else khoi.push({ loai: 'doan', dong: [d] });
+  }
+  /* Bảng nhãn chỉ một cặp lọt giữa đoạn văn ("Lưu ý: …") là câu, không phải bảng. */
+  /* Một cặp lẻ là câu văn ("Lưu ý: …", "… xin thông báo: Số tiền đã…") thì
+   * trả về đoạn. Lời nhắn nhiều dòng sau "Nhãn:" thì giữ là cặp. */
+  const laCau = ([n, g, nhieu]) => !nhieu && (g.length > 60 || (/[.!?]$/.test(g) && g.length > 25) || n.split(/\s+/).length > 4);
+  return khoi.filter((k) => k.loai !== 'trong').map((k) => (k.loai === 'cap' && k.cap.length === 1 && laCau(k.cap[0])
+    ? { loai: 'doan', dong: [k.cap[0][0] + ': ' + k.cap[0][1]] } : k));
+}
+
+/* Nhãn chứa lời khách tự viết trong form: nổi lên đầu thẻ đơn. */
+const NHAN_LOI = /^(message|lời nhắn|tin nhắn|need advice.*|yêu cầu|ghi chú|note|notes|nội dung|special request.*|comment.*)$/i;
+/* Nhãn lặp lại thông tin đầu thư, bỏ khỏi thẻ đơn. */
+const NHAN_THUA = /^(sent from|subject)$/i;
+
+function veKhoi(k) {
+  const lk = (s) => linkHoa(s, true);
+  if (k.loai === 'doan') return '<p>' + k.dong.map(lk).join('<br>') + '</p>';
+  if (k.loai === 'chan') return '<p class="chan-thu">' + lk(k.chu) + '</p>';
+  if (k.loai === 'ds') return '<' + (k.so ? 'ol' : 'ul') + '>' + k.muc.map((m) => '<li>' + lk(m) + '</li>').join('') + '</' + (k.so ? 'ol' : 'ul') + '>';
+  return '<dl class="cap">' + k.cap.map(([n, g]) => {
+    const dai = g.length > 70 || g.includes('\n');
+    return '<div' + (dai ? ' class="dai"' : '') + '><dt>' + esc(n) + '</dt><dd>' + g.split('\n').map(lk).join('<br>') + '</dd></div>';
+  }).join('') + '</dl>';
+}
+
+/** Mục đích của thư, để chọn khuôn. */
+function kieuThu(tom, t) {
+  if ((tom && tom.ngan === 'don') || /["“][^"”]{2,60}["”]\s*$/.test((t && t.tieuDe) || '')) return 'don';
+  if (tom && tom.ngan === 'biet' && !tom.sep) return 'tb';
+  return 'thu';
+}
+
+/** Thân thư đã dựng khối. `gon`: thông báo dài thì chỉ bày phần đầu. */
+function veChu(chu, kieu = 'thu') {
+  let khoi = tachKhoi(chu);
+  if (!khoi.length) return '<p class="trong-o">(Thư không có nội dung chữ)</p>';
+  let dau = '';
+  if (kieu === 'don') {
+    /* Lời khách tự viết lên đầu, phần còn lại là bảng thông tin. Lời nhắn
+     * dài có cả đoạn và danh sách phía sau ("Need advice…:" rồi 1. 2. 3.):
+     * kéo theo các khối chữ ngay sau nó, tới bảng nhãn kế tiếp. */
+    const loi = [], con = [];
+    let dangLoi = false;
+    for (const k of khoi) {
+      if (k.loai === 'cap') {
+        dangLoi = false;
+        k.cap = k.cap.filter(([n, g, nhieu], i) => {
+          if (NHAN_THUA.test(n.trim())) return false;
+          if (NHAN_LOI.test(n.trim())) { loi.push({ loai: 'doan', dong: g.split('\n') }); dangLoi = Boolean(nhieu) && i === k.cap.length - 1; return false; }
+          return true;
+        });
+        if (k.cap.length) con.push(k);
+      } else if (dangLoi && (k.loai === 'doan' || k.loai === 'ds')) loi.push(k);
+      else { dangLoi = false; con.push(k); }
+    }
+    khoi = con;
+    if (loi.length) dau = '<div class="loi-khach"><div class="nhan-loi">Khách nhắn</div>' + loi.map(veKhoi).join('') + '</div>';
+  }
+  return dau + khoi.map(veKhoi).join('');
+}
+
 const laHep = () => matchMedia('(max-width: 900px)').matches;
 
 /** Thư theo khoá: thư đến, hoặc thư anh gửi đang chờ hồi âm. */
@@ -675,10 +801,12 @@ function veDoc(tam) {
   else if (t.canhBao) h += '<div class="canh-bao">Lark đánh dấu thư này có dấu hiệu rủi ro. Kiểm tra người gửi trước khi bấm link hay trả lời.</div>';
   h += '<div id="theAi">' + theAi() + '</div>';
   h += '<div id="vungDich" class="vung-dich"></div>';
-  h += '<div class="noi-dung" data-no-i18n>' + linkHoa(t.noiDung || (t.trich ? '' : '(Thư không có nội dung chữ)')) + '</div>';
+  /* Khuôn theo mục đích thư: tờ thư, thẻ đơn, thẻ thông báo (veChu). */
+  const kieu = kieuThu(tom, t);
+  h += '<div class="noi-dung cau-truc kieu-' + kieu + '" data-no-i18n>' + (t.noiDung || !t.trich ? veChu(t.noiDung, kieu) : '') + '</div>';
   if (t.trich) {
     h += '<button class="nut mo-trich" data-viec="trich" aria-expanded="false">Thư trước</button>' +
-      '<div class="trich-cu"><div><div class="noi-dung" data-no-i18n>' + linkHoa(t.trich) + '</div></div></div>';
+      '<div class="trich-cu"><div><div class="noi-dung cau-truc" data-no-i18n>' + veChu(t.trich) + '</div></div></div>';
   }
   if (t.tep.length) {
     h += '<div class="tep" data-no-i18n>' + t.tep.map((x) => '<span class="nhan">📎 ' + esc(x.ten) + '</span>').join('') + '</div>';
@@ -784,7 +912,7 @@ function veBong(x, truoc) {
     (di ? '' : noi ? '<span class="avt-cho" aria-hidden="true"></span>' : avatar(x.tu.ten, x.tu.email)) +
     '<div class="vo-bong">' +
     (noi ? '' : '<div class="ai-bong">' + dau + '<span class="gio-bong">' + esc((x.ngay || '').slice(11, 16)) + '</span></div>') +
-    '<div class="than-bong' + (k === S.chon ? '' : ' gon') + '">' + thanBong(ct, k === S.chon) + '</div>' +
+    '<div class="than-bong' + (k === S.chon ? '' : ' gon') + '">' + thanBong(ct, k === S.chon, false, kieuThu(x, ct)) + '</div>' +
     '<button class="xem-het" data-viec="xem-het" hidden>Xem hết</button>' +
     '</div></div>';
 }
@@ -810,11 +938,11 @@ function loiNhanMoi(chu) {
   return loi.length >= 2 && loi.length < 3000 ? loi : '';
 }
 
-function thanBong(ct, chinh, ca = false) {
+function thanBong(ct, chinh, ca = false, kieu = 'thu') {
   if (!ct) return '<div class="xuong-chu nho" aria-busy="true"><i></i><i></i></div>';
   if (ct.loi) return '<span class="loi-bong">Chưa tải được thư này: ' + esc(ct.loi) + '</span>';
   const loi = ca ? '' : loiNhanMoi(ct.noiDung);
-  return '<div class="noi-dung' + (ca ? ' hien-ca' : '') + '"' + (chinh ? ' id="ndChinh"' : '') + ' data-no-i18n>' + linkHoa(loi || ct.noiDung || '(Thư không có nội dung chữ)', true) + '</div>' +
+  return '<div class="noi-dung' + (ca ? ' hien-ca' : '') + '"' + (chinh ? ' id="ndChinh"' : '') + ' data-no-i18n>' + veChu(loi || ct.noiDung, kieu === 'don' ? 'don' : 'thu') + '</div>' +
     /* Chỉ thư đang mở mới có nút: hai mươi nút giống nhau là nhiễu. */
     (loi && chinh ? '<button class="xem-ca" data-viec="xem-ca">Xem cả thư</button>' : '') +
     (ct.tep && ct.tep.length ? '<div class="tep" data-no-i18n>' + ct.tep.map((f) => '<span class="nhan">📎 ' + esc(f.ten) + '</span>').join('') + '</div>' : '');
@@ -824,7 +952,7 @@ function thanBong(ct, chinh, ca = false) {
 function thayBong(x) {
   const b = $('#luong .bong[data-k="' + CSS.escape(khoa(x)) + '"] .than-bong');
   if (!b) return;
-  b.innerHTML = thanBong(chiTiet.get(khoa(x)), khoa(x) === S.chon);
+  b.innerHTML = thanBong(chiTiet.get(khoa(x)), khoa(x) === S.chon, false, kieuThu(x, chiTiet.get(khoa(x))));
   doBong(b);
 }
 
@@ -1626,7 +1754,7 @@ $('#cotDoc').addEventListener('click', (e) => {
     if (!ct || !than) return;
     than.classList.remove('gon', 'cat');
     than.style.maxHeight = '';
-    than.innerHTML = thanBong(ct, bb.dataset.k === S.chon, true);
+    than.innerHTML = thanBong(ct, bb.dataset.k === S.chon, true, kieuThu(timThu(bb.dataset.k), ct));
     bb.querySelector('.xem-het').hidden = true;
     return;
   }
