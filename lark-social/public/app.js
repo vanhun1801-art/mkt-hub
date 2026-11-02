@@ -101,8 +101,16 @@
   /** [{ k, ten, tu, den }] — mốc của lớp vỏ khi có, bộ riêng khi chạy một mình. */
   function mocLoc() {
     if (duoiHub()) {
-      return window.HUB_LOC.danhSachTheoVai(window.__HUB__.quanLy)
-        .map((x) => ({ k: x.tu + '|' + x.den, ten: x.ten, tu: x.tu, den: x.den }));
+      const ql = window.__HUB__.quanLy;
+      const ds = window.HUB_LOC.danhSachTheoVai(ql).slice();
+      /* Số organic chốt theo tháng, nên nhân sự ở app này được xem cả tháng trước
+       * (anh Hùng chốt 02/11/2026). Bộ chung của loc.js vẫn giữ nguyên cho app khác. */
+      if (!ql && !ds.some((x) => x.k === 'thang-truoc')) {
+        const kh = window.HUB_LOC.khoangCua('thang-truoc');
+        const i = ds.findIndex((x) => x.k === 'thang');
+        if (kh) ds.splice(i < 0 ? ds.length : i, 0, { k: 'thang-truoc', ten: 'Tháng trước', ...kh });
+      }
+      return ds.map((x) => ({ k: x.tu + '|' + x.den, ten: x.ten, tu: x.tu, den: x.den }));
     }
     const den = homNay();
     return [
