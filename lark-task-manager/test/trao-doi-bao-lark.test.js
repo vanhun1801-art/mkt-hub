@@ -70,7 +70,7 @@ ok('gửi hỏng thì ghi vào log máy chủ', /\[trao-doi\][^\n]*console\.erro
 const post = sv.slice(sv.indexOf('const kq = await lark.createRecord(cells, cfg.commentTableId)'));
 ok('chỗ gọi có CHỜ baoTraoDoi', /await baoTraoDoi\(/.test(post.slice(0, 1500)));
 ok('phản hồi kèm danh sách người được báo', /bao: \{[\s\S]{0,200}ten:/.test(post.slice(0, 2000)));
-ok('phản hồi kèm số người báo hỏng', /hong:/.test(post.slice(0, 2000)));
+ok('phản hồi kèm số người báo hỏng', /hong:/.test(post.slice(0, 2400)));
 
 /* ---- 4. màn hình nói thật, không hứa suông ---- */
 ok('bỏ câu hứa chung chung cũ',

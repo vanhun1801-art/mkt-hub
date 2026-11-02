@@ -1967,7 +1967,7 @@ function moChonViecLon(con) {
    * gắn con của phòng vào là tạo một quan hệ chỉ Hub nhìn thấy. */
   const gop = new Map();
   for (const x of [...(S.tasks || []), ...(S.orders || [])]) {
-    if (gop.has(x.id) || x.id === con.id || x.isNew) continue;
+    if (gop.has(x.id) || x.id === con.id || x.isNew || x.duocGan) continue;   // việc chỉ được gắn @ thì chỉ xem
     /* Cùng một bộ luật với viền xanh lúc kéo thả — danh sách này không được
      * mời anh chọn một chỗ mà kéo tay vào thì bị chặn. Giữ lại đúng việc lớn
      * đang chứa nó để còn hiện nhãn "đang ở đây". */
@@ -4684,7 +4684,9 @@ function buildDrawer() {
 
   // Tab "Việc đã order": người order chỉ XEM (trạng thái/sản phẩm read-only).
   // Quản lý vẫn bấm "Sửa đầy đủ" để chuyển sang form sửa.
-  const orderRO = !isNew && S.view === 'order' && !S.suaDayDu;
+  /* Việc mình chỉ được gắn @ trong Trao đổi (02/11/2026): mở bản chỉ xem, ở
+   * tab nào cũng vậy. Máy chủ cũng chỉ cho xem và nhắn, không cho sửa. */
+  const orderRO = !isNew && ((S.view === 'order' && !S.suaDayDu) || (!!t.duocGan && !S.isManager));
 
   $('#dRecId').textContent = isNew ? 'CÔNG VIỆC MỚI' : t.lienPhong ? ((t.nguonMa || '') + ' · Liên phòng ban') : t.id;
   $('#dTitleView').textContent = isNew ? 'Tạo công việc mới' : (t.title || '(chưa có tên)');
@@ -5548,6 +5550,9 @@ function buildOrderDrawer(b, t, o) {
     sv.than.appendChild(r);
     b.appendChild(sv.the);
   }
+  /* Chỉ được gắn @: xem và nhắn trong Trao đổi, không gửi tệp, không nghiệm thu. */
+  const gan = !!t.duocGan && !S.isManager;
+  if (gan) b.appendChild(el('div', 'sg-nguon', 'Bạn được nhắc tên trong Trao đổi · chỉ xem'));
   // Thẻ 1: yêu cầu mình đã đặt (chỉ đọc)
   const yc = theKhoi('Nội dung yêu cầu');
   yc.than.appendChild(el('div', 'ro-note', 'Người order: ' +
@@ -5564,9 +5569,9 @@ function buildOrderDrawer(b, t, o) {
   /* Người order gửi thêm / gỡ tài liệu kèm ngay đây (anh Hùng 02/10/2026: "anh
    * chưa thể tải lên các tệp từ đây nữa"). Việc liên phòng: vào "File đính kèm"
    * của Base công ty; việc của phòng: ô "Tệp đính kèm". */
-  yc.than.appendChild(khoiTep(t, 'Tài liệu yêu cầu', t.attachment, '', true,
+  yc.than.appendChild(khoiTep(t, 'Tài liệu yêu cầu', t.attachment, '', !gan,
     'Chưa có tài liệu kèm theo.'));
-  yc.than.appendChild(oTaiLen(t, ''));
+  if (!gan) yc.than.appendChild(oTaiLen(t, ''));
   b.appendChild(yc.the);
 
   // Thẻ 2: tình trạng & sản phẩm (chỉ đọc)
@@ -5592,13 +5597,13 @@ function buildOrderDrawer(b, t, o) {
   b.appendChild(tt.the);
 
   // Editor đã gửi sản phẩm & chưa đóng → mời người order nghiệm thu
-  if (t.daGiaiQuyet && !isClosed(t)) b.appendChild(nghiemThuBox(t));
+  if (t.daGiaiQuyet && !isClosed(t) && !gan) b.appendChild(nghiemThuBox(t));
 
   // trao đổi vẫn mở (đọc + gửi bình luận), không phải sửa việc
   b.appendChild(khoiBinhLuan(t));
 
   // hành động duy nhất của người order: gửi yêu cầu điều chỉnh
-  if (t.lienPhong) return;   // việc liên phòng: người giao tự sửa ngay ở trên
+  if (t.lienPhong || gan) return;   // việc liên phòng: người giao tự sửa ngay ở trên
   if (S.isManager) return; // quản lý dùng Sửa đầy đủ khi cần điều chỉnh
   const dc = el('div', 'sd-dc');
   dc.appendChild(el('div', 'sd-dc-txt',
@@ -7199,7 +7204,9 @@ function timViecTheoMa(rec) {
 /** Việc mình order và, với quản lý, sản phẩm chờ nghiệm thu trong base. */
 async function napOrders(force) {
   try {
-    const d = await req('/api/my-orders?lienPhong=1&nghiemThu=1' + (force ? '&refresh=1' : ''));
+    /* gan=1: kèm việc mình được gắn @ trong Trao đổi, để bấm thẻ báo là mở xem
+     * được. Danh sách Việc đã order vẫn lọc theo người order nên không lẫn vào. */
+    const d = await req('/api/my-orders?lienPhong=1&nghiemThu=1&gan=1' + (force ? '&refresh=1' : ''));
     S.orders = (d && d.tasks) || [];
     S.ordersError = '';
   } catch (e) {

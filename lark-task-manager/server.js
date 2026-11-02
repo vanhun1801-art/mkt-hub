@@ -1159,8 +1159,54 @@ async function tinChuaDoc(me, tasks) {
   return kq;
 }
 
+/**
+ * Việc mà người này được gắn @ trong Trao đổi (02/11/2026, anh Hùng: tag người
+ * vào trao đổi thì "người đó chỉ nhận được thông báo mà không thể xem task").
+ *
+ * Đọc từ chữ "@Tên" trong tin, đúng chữ ô gõ chèn vào khi chọn người. Không
+ * thêm cột lên Base, nên người đã được gắn từ trước cũng xem được luôn. Tên
+ * ngắn nằm trong một tên dài hơn của danh bạ ("@Ngọc" trong "@Ngọc Anh") không
+ * tính là gắn người tên ngắn. Được gắn chỉ cho XEM việc và nhắn trong Trao đổi,
+ * không cho sửa. Đệm 60 giây theo người; có tin mới thì xoá hết đệm.
+ */
+const demGan = new Map();
+function coGanTen(noiDung, ten, tenKhac) {
+  const s = String(noiDung || '');
+  const nhan = '@' + ten;
+  const dai = tenKhac.filter((x) => x.length > ten.length && x.startsWith(ten)).map((x) => '@' + x);
+  for (let i = s.indexOf(nhan); i >= 0; i = s.indexOf(nhan, i + 1)) {
+    if (/[\p{L}\p{N}]/u.test(s.charAt(i + nhan.length))) continue;
+    if (dai.some((x) => s.startsWith(x, i))) continue;
+    return true;
+  }
+  return false;
+}
+async function viecDuocGan(me, tasks) {
+  if (!me || !me.id || !me.name) return new Set();
+  const daDem = demGan.get(me.id);
+  if (daDem && Date.now() - daDem.at < 60000) return daDem.ids;
+  const CF = cfg.commentFields;
+  const tenKhac = [...new Set([...collectPeople(tasks), ...(cache.scope || [])]
+    .map((u) => u && u.name).filter((x) => x && x !== me.name))];
+  const ids = new Set();
+  for (const r of await lark.listAllRecords(cfg.commentTableId)) {
+    if (!coGanTen(asText(r.cells[CF.content.id]), me.name, tenKhac)) continue;
+    const v = r.cells[CF.task.id];
+    if (Array.isArray(v)) {
+      for (const x of v) {
+        const id = (x && (x.record_ids ? x.record_ids[0] : x.id)) || x;
+        if (id) ids.add(id);
+      }
+    }
+    const lp = asText(r.cells[CF.lienPhong.id]).trim();
+    if (lp) ids.add(lp);
+  }
+  demGan.set(me.id, { at: Date.now(), ids });
+  return ids;
+}
+
 /** Đuôi tin nhắn: link mở app. */
-const duoiTin = () => (cfg.publicUrl ? XD + cfg.publicUrl : '');
+const duoiTin =() => (cfg.publicUrl ? XD + cfg.publicUrl : '');
 
 /* ==========================================================================
    TRUNG TÂM PHÂN PHỐI CÔNG VIỆC
@@ -1350,8 +1396,17 @@ async function requireXemViec(res, id, req) {
   if (!t) { json(res, { error: 'Không tìm thấy công việc' }, 404); return false; }
   const co = (arr) => (arr || []).some((u) => u && me && u.id === me.id);
   if (co(t.owner) || co(t.helper) || co(t.requester)) return true;
+  if (await duocGanVao(t, req)) return true;
   json(res, { error: 'Đây không phải công việc của bạn.', code: 'NOT_YOUR_TASK' }, 403);
   return false;
+}
+
+/** Người đang xem có được gắn @ trong Trao đổi của việc này không. Lỗi đọc thì coi như không. */
+async function duocGanVao(t, req) {
+  try {
+    const ids = await viecDuocGan(await whoAmI(req), (await getRecords()).map(toTask));
+    return ids.has(t.id) || (!!t.maLienPhong && ids.has(String(t.maLienPhong).trim()));
+  } catch (_) { return false; }
 }
 
 function collectPeople(tasks) {
@@ -1579,6 +1634,20 @@ async function api(req, res, url) {
       const daLuu = new Set(tatCa.map((t) => String(t.maLienPhong || '').trim()).filter(Boolean));
       const lp = LP.lienQuan(await LP.docHet(lark), tatCa).filter((v) => !daLuu.has(v.id));
       tasks = tasks.concat(lp.filter((t) => t.requester.some((u) => u && u.id === me.id)));
+    }
+    /* ?gan=1: CHỈ Bảng công việc xin thêm việc mình được gắn @ trong Trao đổi
+     * (02/11/2026), mang dấu duocGan để mở bản chỉ xem. Việc mình đã thấy sẵn
+     * (phụ trách, hỗ trợ, đã order) thì không thêm. Quản lý và người được "Xem
+     * toàn bộ" vốn thấy hết. Đọc hỏng thì bỏ phần này, không hỏng cả danh sách. */
+    if (url.searchParams.get('gan') === '1' && !(await isManager(req)) && !xemToanBo(req)) {
+      try {
+        const ids = await viecDuocGan(me, tatCaViec);
+        const da = new Set(tasks.map((t) => t.id));
+        const them = tatCaViec.filter((t) => ids.has(t.id) && !da.has(t.id) && !ownedBy(t, me.id));
+        tasks = tasks.concat(ganTienDoCon(them, tatCaViec).map((t) => Object.assign({}, t, { duocGan: true })));
+      } catch (e) {
+        console.error('  [gắn @] đọc hỏng: ' + e.message);
+      }
     }
     return json(res, { tasks, fetchedAt: cache.at });
   }
@@ -2250,10 +2319,11 @@ async function api(req, res, url) {
         const me0 = await whoAmI(req);
         const coTen = me0 && [...lpCmt.owner, ...lpCmt.requester].some((u) => u.id === me0.id);
         if (!coTen && !(await requireOwnTask(res, lpCmt, req))) return;
-      } else if (!(await laNguoiOrder(toTask(rec), req)) &&
+      } else if (!(await laNguoiOrder(toTask(rec), req)) && !(await duocGanVao(toTask(rec), req)) &&
         !(await requireOwnTask(res, toTask(rec), req))) return;
       /* Người order nhắn được: việc "Chờ tiếp nhận" chưa ai phụ trách, người order
-       * là người duy nhất có tên — chặn thì tab Trao đổi mở ra mà không gõ được. */
+       * là người duy nhất có tên — chặn thì tab Trao đổi mở ra mà không gõ được.
+       * Người được gắn @ cũng trả lời được ngay trong Trao đổi (02/11/2026). */
 
       const body = await readBody(req);
       const noiDung = String(body.content || '').trim();
@@ -2294,6 +2364,7 @@ async function api(req, res, url) {
       cells[CF.at.name] = chuoiGioVN(new Date());
 
       const kq = await lark.createRecord(cells, cfg.commentTableId);
+      demGan.clear();   // tin mới có thể vừa gắn ai đó: người đó phải mở được việc ngay
 
       const t = lpCmt || toTask(rec);
       /* Giữ cả TÊN chứ không chỉ id: để còn nói được với người gửi là tin đã
