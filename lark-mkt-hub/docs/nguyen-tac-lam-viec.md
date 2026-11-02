@@ -369,3 +369,9 @@ Anh Hùng: "người quản lý có thể tạo những công việc lặp lại
 - **Chỉ bản chạy trên Render tạo việc** (máy cá nhân không tạo, kẻo mỗi máy đang mở hub thêm một bản sao). Gói Free ngủ khi không ai mở: nhịp 5 phút cộng với lượt quét kèm khi có người mở app, ngày nào lỡ thì tạo bù trong ngày, không tạo bù ngày đã qua.
 - **Không có nút tạo việc lặp lại riêng** (anh Hùng: "gom chung vào nút tạo việc"): tạo qua nút tạo việc, ô "Lặp lại theo". Danh sách mẫu mở bằng link "Xem các việc lặp lại" ngay dưới ô đó, cửa sổ danh sách cũng không có nút tạo. Mỗi mẫu một dòng: công tắc kiểu iOS (xanh là đang chạy) và nút thùng rác. Xoá mẫu không đụng tới việc đã tạo ra từ nó.
 - Chọn chu kỳ là phân đoạn bốn ô chia đều "Không / Ngày / Tuần / Tháng"; bảy ô thứ chia đều một hàng. Không dùng dải cuộn ngang cho lựa chọn chỉ có vài ô.
+
+## 26. Mốc thời gian của nhân sự (02/11/2026)
+
+- Nhân sự có tám mốc: Hôm qua · Hôm nay · Ngày mai · Tuần này · Tuần tới · **Tháng trước** · Tháng này · Tháng tiếp theo. Anh Hùng chốt thêm "Tháng trước" để nhân sự xem lại số đã chốt của tháng vừa qua.
+- Vẫn không có khoảng tuỳ chọn, không có "toàn bộ" cho nhân sự.
+- Danh sách nằm một chỗ ở `lark-mkt-hub/public/loc.js` (mảng `MUC`); lớp vỏ và mọi app con đều đọc từ đó. Đổi mốc thì sửa ở đó, không thêm riêng trong từng app.

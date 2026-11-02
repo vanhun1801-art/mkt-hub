@@ -2,9 +2,9 @@
 /*
  * BỘ LỌC THỜI GIAN CỦA NHÂN SỰ — một danh sách duy nhất cho cả bốn app.
  *
- * Nhân sự chỉ cần nhìn quanh hôm nay: không có "tháng trước", không có khoảng tuỳ
- * chọn, không có "toàn bộ". Bảy lựa chọn dưới đây là tất cả những gì họ thấy, ở
- * lớp vỏ và trong cả ba app con.
+ * Nhân sự chủ yếu nhìn quanh hôm nay, cộng thêm "Tháng trước" để xem lại số đã
+ * chốt (anh Hùng chốt 02/11/2026). Không có khoảng tuỳ chọn, không có "toàn bộ".
+ * Tám lựa chọn dưới đây là tất cả những gì họ thấy, ở lớp vỏ và trong mọi app con.
  *
  * Lớp vỏ nạp file này; shim của proxy chèn nó vào từng app con (cùng origin) —
  * nên sửa danh sách chỉ sửa một chỗ, không phải mở bốn app.
@@ -58,6 +58,7 @@
     { k: 'ngay-mai', ten: 'Ngày mai', khoang: () => ngay(1) },
     { k: 'tuan', ten: 'Tuần này', khoang: () => tuan(0) },
     { k: 'tuan-sau', ten: 'Tuần tới', khoang: () => tuan(1) },
+    { k: 'thang-truoc', ten: 'Tháng trước', khoang: () => thang(-1) },
     { k: 'thang', ten: 'Tháng này', khoang: () => thang(0) },
     { k: 'thang-sau', ten: 'Tháng tiếp theo', khoang: () => thang(1) },
   ];

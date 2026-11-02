@@ -1037,7 +1037,7 @@ function moHome() {
 /* ---------------- thanh lọc thời gian (dùng chung cho các trang) ---------------- */
 const dmy = (s) => String(s || '').split('-').reverse().join('/');
 
-/* Nhân sự chỉ được bảy mốc quanh hôm nay (loc.js) — không tháng trước, không
+/* Nhân sự chỉ được tám mốc của loc.js (quanh hôm nay và tháng trước) — không
  * khoảng tuỳ chọn, không "toàn bộ". Quản lý giữ nguyên bộ lọc đầy đủ. */
 function dsKy() {
   if (!window.HUB_LOC) return KY;

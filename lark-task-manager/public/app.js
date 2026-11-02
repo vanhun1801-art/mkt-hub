@@ -335,9 +335,9 @@ function fillDueSelect(sel, placeholder) {
   const keep = sel.value;
   sel.innerHTML = '';
 
-  /* Nhân sự chỉ được bảy mốc quanh hôm nay — danh sách do lớp vỏ cấp (loc.js),
-   * dùng chung với Tổng quan và hai base kia. Không có "tất cả", không quá hạn
-   * cả tháng trước: nhìn xa hơn là việc của quản lý. */
+  /* Nhân sự chỉ được tám mốc của lớp vỏ (loc.js): quanh hôm nay và tháng trước,
+   * dùng chung với Tổng quan và các base kia. Không có "tất cả": nhìn xa hơn là
+   * việc của quản lý. */
   const moc = MOC_HUB();
   if (moc) {
     /* Khoảng tuỳ chỉnh chỉ đặt được ở thanh lọc của lớp vỏ (có hai ô ngày) — ở đây
