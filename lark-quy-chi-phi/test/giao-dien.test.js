@@ -271,15 +271,23 @@ function chay(meta) {
     ok('danh sách tháng có THÁNG NÀY dù chưa khoản nào', ds.includes(nayVN), ds.join(' '));
     ok('ô chọn tháng in ra tháng này', String(loc).includes('value="' + nayVN + '"'),
       String(loc).slice(0, 300));
-    ok('tháng mới nhất đứng đầu danh sách', ds[0] === nayVN, ds.join(' '));
+    /* Đủ 12 tháng mỗi năm (anh Hùng chốt 02/11/2026): không còn kiểu tới tháng
+     * nào mới hiện tháng đó. Năm mới nhất đứng trước, trong năm tháng 1 → 12. */
+    const namNay = nayVN.slice(0, 4);
+    const thangNamNay = ds.filter((t) => t.startsWith(namNay));
+    ok('năm nay có đủ 12 tháng, cả tháng chưa tới',
+      thangNamNay.length === 12 && thangNamNay[0] === namNay + '-01'
+      && thangNamNay[11] === namNay + '-12', ds.join(' '));
+    ok('năm mới nhất đứng đầu danh sách', ds[0] === namNay + '-01', ds.join(' '));
+    ok('mỗi năm một nhóm trong ô chọn', String(loc).includes('<optgroup label="Năm ' + namNay + '">'),
+      String(loc).slice(0, 300));
 
-    /* Liền mạch: một tháng không tiêu đồng nào vẫn là một kỳ có sổ, và tinhKy()
-     * tính được cho mọi tháng. Có lỗ hổng thì đúng tháng đó không ai mở được. */
+    /* Liền mạch trong từng năm: một tháng không tiêu đồng nào vẫn là một kỳ có
+     * sổ, và tinhKy() tính được cho mọi tháng. */
     const lien = ds.every((t, i) => {
-      if (i === ds.length - 1) return true;
-      const [y, m] = ds[i + 1].split('-').map(Number);
-      const keTiep = m === 12 ? (y + 1) + '-01' : y + '-' + String(m + 1).padStart(2, '0');
-      return keTiep === t;
+      if (i === ds.length - 1 || t.endsWith('-12')) return true;
+      const [y, m] = t.split('-').map(Number);
+      return ds[i + 1] === y + '-' + String(m + 1).padStart(2, '0');
     });
     ok('danh sách tháng liền mạch, không hụt tháng nào ở giữa', lien, ds.join(' '));
     ok('vẫn tới được tháng xưa nhất của sổ', ds.includes('2026-08'), ds.join(' '));

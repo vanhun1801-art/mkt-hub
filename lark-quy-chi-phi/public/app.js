@@ -402,42 +402,46 @@ function veTong() {
 const TRAN_THANG = 120;
 
 /**
- * Danh sách tháng cho ô lọc: LIỀN MẠCH từ tháng xưa nhất của sổ tới THÁNG NÀY.
+ * Danh sách tháng cho ô lọc: ĐỦ 12 THÁNG của mọi năm, từ tháng 1 của năm xưa
+ * nhất trong sổ tới tháng 12 của năm nay (hoặc năm xa nhất có khoản ghi).
  *
- * Bản trước chỉ lấy những tháng ĐÃ CÓ khoản chi. Nên sang tháng mới mà chưa ai
- * kịp nhập khoản nào thì tháng đó không hề có trong ô lọc — anh Hùng mở app
- * ngày 01/10/2026 và không chọn được tháng 10. Hỏng đúng lúc cần nhất: đầu
- * tháng là lúc người giữ quỹ cần nhìn số dư đầu kỳ để mở sổ, và đó chính là
- * con số tinhKy() trả về cho một tháng chưa tiêu đồng nào.
+ * Bản đầu chỉ lấy những tháng ĐÃ CÓ khoản chi, nên ngày 01/10/2026 anh Hùng
+ * không chọn được tháng 10. Bản sau lấp liền mạch tới THÁNG NÀY, nhưng vẫn là
+ * "tới tháng nào mới hiện tháng đó". Ngày 02/11/2026 anh Hùng chốt: bày đủ cả
+ * năm, sang năm mới thì năm mới tự có đủ 12 tháng.
  *
- * Lấp luôn tháng trống ở giữa, và tính cả tháng chỉ có NẠP: một tháng không
- * tiêu đồng nào vẫn là một kỳ có sổ. tinhKy() tính được cho mọi tháng (đầu kỳ
- * + nạp − chi), nó không cần tháng đó phải có khoản chi nào.
+ * Tháng chưa tiêu đồng nào vẫn chọn được: tinhKy() tính được cho mọi tháng
+ * (đầu kỳ + nạp − chi), không cần tháng đó có khoản chi.
+ *
+ * Trả về theo NĂM, năm mới nhất trước; trong một năm tháng 1 → 12.
  */
 function dsThang() {
   const moc = S.chi.map((c) => thangCua(c.ngayChi || c.ngayDeNghi))
     .concat(S.nap.map((n) => thangCua(n.ngay)))
     .filter(Boolean);
   const nay = thangCua(new Date().toISOString());
-  /* Mốc đầu/cuối đều lấy THÁNG NÀY làm giá trị khởi đầu: sổ rỗng thì danh sách
-     vẫn có đúng một tháng để chọn, và tháng này luôn nằm trong dải. Khoản ghi
-     ngày tương lai (thanh toán tháng sau) vẫn được tính vào mốc cuối. */
-  const dau = moc.reduce((a, b) => (a < b ? a : b), nay);
-  const cuoi = moc.reduce((a, b) => (a > b ? a : b), nay);
+  const dau = Number(moc.reduce((a, b) => (a < b ? a : b), nay).slice(0, 4));
+  const cuoi = Number(moc.reduce((a, b) => (a > b ? a : b), nay).slice(0, 4));
 
   const ds = [];
-  let [y, m] = cuoi.split('-').map(Number);
-  for (let i = 0; i < TRAN_THANG; i++) {
-    const t = y + '-' + String(m).padStart(2, '0');
-    ds.push(t);
-    if (t <= dau) break;
-    if (--m < 1) { m = 12; y -= 1; }
+  for (let y = cuoi; y >= dau && ds.length < TRAN_THANG; y--) {
+    for (let m = 1; m <= 12; m++) ds.push(y + '-' + String(m).padStart(2, '0'));
   }
-  return ds;                                  // mới nhất đứng trước
+  return ds;
+}
+
+/* Ô chọn tháng: mỗi năm một nhóm, để mười hai dòng "Tháng ../2026" không lẫn
+   với mười hai dòng của năm khác. */
+function oThang(sel) {
+  const ds = dsThang();
+  const nam = [...new Set(ds.map((t) => t.slice(0, 4)))];
+  return '<option value="">Mọi tháng</option>' + nam.map((y) => '<optgroup label="Năm ' + y + '">'
+    + ds.filter((t) => t.startsWith(y)).map((t) => '<option value="' + t + '"'
+      + (t === sel ? ' selected' : '') + '>Tháng ' + t.slice(5) + '/' + y + '</option>').join('')
+    + '</optgroup>').join('');
 }
 
 function veLoc() {
-  const thangs = dsThang();
   const opt = (ds, sel, rong) => '<option value="">' + rong + '</option>'
     + ds.map((x) => '<option value="' + esc(x.v != null ? x.v : x) + '"'
       + ((x.v != null ? x.v : x) === sel ? ' selected' : '') + '>'
@@ -459,7 +463,7 @@ function veLoc() {
       '<div class="loc">'
       + '<input id="lTim" placeholder="Tìm nội dung, mã đơn RT, mã điều hành SG, mã quyết toán…" value="'
         + esc(S.loc.tim) + '">'
-      + '<select id="lThang">' + opt(thangs.map((m) => ({ v: m, t: 'Tháng ' + m.slice(5) + '/' + m.slice(0, 4) })), S.loc.thang, 'Mọi tháng') + '</select>'
+      + '<select id="lThang">' + oThang(S.loc.thang) + '</select>'
       + '<select id="lLoai">' + opt(S.options.loaiChi, S.loc.loai, 'Mọi loại') + '</select>'
       + '<select id="lTT">' + opt(S.options.tinhTrang, S.loc.tinhTrang, 'Mọi tình trạng') + '</select>'
       + '</div>')
