@@ -172,6 +172,14 @@ const ok = (dieu, ten) => {
   const src = require('fs').readFileSync(path.join(__dirname, '..', 'bao-loi-api.js'), 'utf8');
   ok(src.includes("'/_noi-bo/nhip'"), 'hub có mở đường xin lượt');
   ok(src.includes('HUB_NHIP_URL'), 'và có báo địa chỉ đó cho app con');
+
+  /* Lark chặn vì gọi dày bằng HTTP 400 mã 99991400 (14:40 03/11 Hộp thư): một nhịp lẻ chưa nhắn */
+  const { _laTamThoi } = require('../bao-loi-api');
+  ok(_laTamThoi({ kieu: 'http', status: 400, ma: 99991400 }), '400 · 99991400 là lỗi tự hết');
+  ok(_laTamThoi({ kieu: 'http', status: 400, ma: '99991400' }), 'mã dạng chữ cũng nhận');
+  ok(_laTamThoi({ kieu: 'http', status: 429 }), '429 vẫn là lỗi tự hết');
+  ok(!_laTamThoi({ kieu: 'http', status: 400, ma: 99991672 }), 'thiếu quyền thì vẫn báo ngay');
+  ok(!_laTamThoi({ kieu: 'http', status: 401 }), 'token hỏng thì vẫn báo ngay');
   const canhSrc = require('fs').readFileSync(
     path.join(__dirname, '..', '..', 'lark-chung', 'canh-api.js'), 'utf8');
   ok(canhSrc.includes('nhip.xinLuot(u.hostname)'),

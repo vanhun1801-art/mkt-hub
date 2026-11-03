@@ -51,11 +51,19 @@ function goiY(s) {
   const ma = Number(s.ma) || 0;
   if (s.status === 401 || /^9999166[1-8]$/.test(String(ma)) || ma === 190) return 'Token / khoá truy cập hết hạn hoặc sai — cần cấp lại.';
   if (s.status === 403 || [1254302, 1254301, 91403, 99991672, 99991679, 40004].includes(ma)) return 'Thiếu quyền — app chưa được cấp quyền hoặc chưa được thêm vào Base/nhóm.';
-  if (s.status === 429 || [99991400, 1254290].includes(ma)) return 'Gọi quá dày, dịch vụ đang chặn tạm — thường tự hết sau vài phút.';
+  if (s.status === 429 || MA_CHAN_NHANH.includes(ma)) return 'Gọi quá dày, dịch vụ đang chặn tạm — thường tự hết sau vài phút.';
   if (s.kieu === 'mang') return 'Không nối được tới dịch vụ (mạng/DNS/hết giờ chờ) — thường tự hết; kéo dài thì dịch vụ đang sập.';
   if (s.status >= 500) return 'Máy chủ của dịch vụ đang lỗi — thường tự hết.';
   return '';
 }
+
+/* Lỗi tự hết: một nhịp lẻ thì chưa nhắn. Lark báo "gọi quá dày" bằng HTTP 400
+ * kèm mã 99991400 chứ không phải 429 (14:40 03/11, Hộp thư đọc tám hộp cùng lúc,
+ * đã tự chờ rồi đọc lại được mà vẫn nổ thẻ đỏ). */
+const MA_CHAN_NHANH = [99991400, 1254290];
+const laTamThoi = (s, loi) => s.kieu === 'mang' || s.status === 429 || s.status >= 500 ||
+  MA_CHAN_NHANH.includes(Number(s.ma) || 0) ||
+  /internal[_ ]error|frequency limit/i.test(String(loi || s.loi || ''));
 
 let guiTin = null, tenApp = (id) => id, docQuyen = null, urlHub = 'https://mkt-hub-w6hi.onrender.com';
 const cho = new Map();                                    // khoá → nhóm đang gom
@@ -133,9 +141,7 @@ async function xa() {
     const motNhip = !g.coTruoc && g.cuoi - g.dau < 60000;
     /* Lỗi nội bộ của máy chủ Lark (mã 800100001 "internal_error", 13:36 15/10 ở Bảng
      * công việc) cũng là loại tự hết: một nhịp lẻ thì chưa nhắn. */
-    const tamThoi = g.s.kieu === 'mang' || g.s.status === 429 || g.s.status >= 500 ||
-      /internal[_ ]error/i.test(String(g.loi || g.s.loi || ''));
-    if (tamThoi && motNhip && !g.lapLai) nghi.set(k, g.dau);
+    if (laTamThoi(g.s, g.loi) && motNhip && !g.lapLai) nghi.set(k, g.dau);
     else nhom.push(g);
   }
   cho.clear();
@@ -215,4 +221,4 @@ async function guiAnhHung({ card, khoa }) {
   return canh.imLang(() => guiTin({ userId: id, card, khoa }));
 }
 
-module.exports = { bat, xuLy, nhan, theLoi, ganDay: () => ganDay.slice().reverse(), _xa: xa };
+module.exports = { bat, xuLy, nhan, theLoi, ganDay: () => ganDay.slice().reverse(), _xa: xa, _laTamThoi: laTamThoi };
