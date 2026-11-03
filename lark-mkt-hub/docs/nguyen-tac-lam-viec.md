@@ -386,3 +386,13 @@ Anh Hùng: "bộ lọc cần thông minh hơn, nhưng vẫn gọn như vậy, d�
 - Bảng nổi gắn vào `body`, đặt `fixed` theo nút, không để trong thanh lọc: trên điện thoại thanh lọc là dải cuộn nên cắt mất nó. Thiếu chỗ bên dưới thì lật lên trên; điện thoại chừa đáy 132px cho thanh tab. Trang cuộn thì bảng đóng.
 - **Bảng nổi tự làm không mang `role="dialog"`**: lớp chung coi mọi `role="dialog"` là cửa sổ lớn và kéo giãn nó. Lớp trạng thái đặt tên có tiền tố (`lk-tu`, `lk-giua`…), không dùng tên trần như `dau`, `trong`, `on`: luật chung của hub đã dùng mấy tên đó và làm vỡ lưới.
 - Mã ở `lark-quy-chi-phi/public/app.js` (khối "LỊCH CHỌN KHOẢNG"). App khác cần lọc theo khoảng thì mang khuôn này sang.
+
+## 28. In chứng từ (03/11/2026, Quỹ chi phí)
+
+Anh Hùng: "kế toán đang có nhu cầu in mấy cái này, bổ sung vào các vị trí để in từng cái hoặc in hàng loạt".
+
+- **In được ở bốn chỗ**: nút máy in trên từng thẻ chứng từ; nút "In" trong khung xem tệp; "In tất cả (N)" ở chân cửa sổ Chứng từ; "In chứng từ N khoản" trên thanh chọn khi tích nhiều khoản. Thêm nút "In chứng từ" trên đầu trang in mọi khoản đang hiện theo bộ lọc (lọc tháng 10 rồi bấm là ra cả xấp); nút này ẩn trên điện thoại.
+- **Gom thành một lệnh in**, mỗi tệp một trang A4. Đầu trang ghi khoản chi, số tiền, ngày, mã RT/SG và "Hoá đơn 2/6 · tên tệp", để tờ giấy rời khỏi sổ vẫn biết thuộc khoản nào.
+- PDF dựng từng trang thành ảnh bằng pdf.js (cdnjs, chỉ nạp khi có PDF; worker dựng từ blob vì khác origin). Link Drive cũ và tệp không phải ảnh/PDF thì bỏ qua và **nói ra là bỏ mấy tệp**; tệp tải hỏng vẫn có một trang ghi lý do, không lặng lẽ thiếu.
+- **Quá 40 tệp thì hỏi trước** ("In 210 chứng từ?"), vì giấy in ra là thật.
+- In bằng khung ẩn riêng (`#khungIn`), không in cả trang app.

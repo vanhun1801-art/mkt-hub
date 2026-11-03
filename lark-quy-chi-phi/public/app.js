@@ -354,7 +354,9 @@ function ve() {
   [['#btnNap', laChuQuy()], ['#btnChiMoi', laChuQuy()],
     /* Kế toán cũng xuất được: lọc ra một tháng, một mã quyết toán rồi cần bản
      * Excel để đối chiếu — đó là việc chính của chị ấy. */
-    ['#btnXuatSo', duocQuyetToan() && S.tab !== 'ung' && S.tab !== 'bao']].forEach(([sel, hien]) => {
+    ['#btnXuatSo', duocQuyetToan() && S.tab !== 'ung' && S.tab !== 'bao'],
+    /* In chứng từ của mọi khoản đang hiện: lọc tháng 10 rồi bấm là ra cả xấp. */
+    ['#btnInCt', S.tab !== 'ung' && S.tab !== 'bao']].forEach(([sel, hien]) => {
     const e = $(sel);
     if (e) e.hidden = !hien;
   });
@@ -865,9 +867,12 @@ function veThanhChon() {
     || c.tinhTrang === 'Đã quyết toán');
   const chuaDongSo = ds.filter((c) => !daDongSo.includes(c));
   return '<div class="thanhchon">'
-    + '<b>' + ds.length + ' khoản</b> · ' + tien(tong) + ' đ'
+    + '<span class="tc-tom"><b>' + ds.length + ' khoản</b> · ' + tien(tong) + ' đ</span>'
     + '<div class="sp"></div>'
     + '<button class="btn" data-bochon="1">Bỏ chọn</button>'
+    + (ds.some((c) => taiLieuCua(c).some(inDuoc))
+      ? '<button class="btn" data-inchon="1">' + SVG_IN + ' In chứng từ '
+        + ds.filter((c) => taiLieuCua(c).some(inDuoc)).length + ' khoản</button>' : '')
     + (daDongSo.length
       ? '<button class="btn nguyhiem" data-boqt="1">Bỏ quyết toán '
         + daDongSo.length + ' khoản</button>' : '')
@@ -1093,6 +1098,12 @@ async function moXemTep(recId, token, ten) {
   tai.dataset.rec = recId;
   tai.dataset.token = token;
   tai.dataset.ten = ten || '';
+  const nutIn = $('#xtIn');
+  if (nutIn) {
+    nutIn.hidden = !(laAnh(ten) || laPdf(ten));
+    nutIn.dataset.in = token;
+    nutIn.dataset.rec = recId;
+  }
   $('#xtThan').innerHTML = '<div class="xt-khong"><div class="ic">ĐANG MỞ</div></div>';
   $('#xemTep').classList.add('on');
 
@@ -1136,6 +1147,174 @@ function dongXemTep() {
   $('#xemTep').classList.remove('on');
   $('#xtThan').innerHTML = '';
   if (xtUrl) { URL.revokeObjectURL(xtUrl); xtUrl = null; }
+}
+
+/* ---------------------------------------------------------------------------
+ * IN CHỨNG TỪ (03/11/2026)
+ * -------------------------------------------------------------------------
+ * Kế toán cần bản giấy để kẹp vào sổ. Trước đây phải tải từng tệp rồi mở từng
+ * cái ra in. Giờ in được ở bốn chỗ: một tệp (nút máy in trên thẻ, hoặc trong
+ * khung xem tệp), cả khoản (cửa sổ Chứng từ), các khoản đang tích (thanh chọn),
+ * và mọi khoản đang hiện theo bộ lọc (nút "In chứng từ" trên đầu).
+ *
+ * Tất cả gom thành MỘT lệnh in: mỗi tệp một trang A4, đầu trang ghi khoản chi
+ * nào, bao nhiêu tiền, ngày nào, mã đơn, "Hoá đơn 2/6". Tờ rời khỏi sổ vẫn
+ * biết nó thuộc khoản nào.
+ *
+ * PDF không nhét thẳng vào trang in được, nên dựng từng trang thành ảnh bằng
+ * pdf.js, chỉ nạp thư viện khi thật sự có PDF. Link Drive cũ và tệp không phải
+ * ảnh/PDF thì không in được: bỏ qua và nói ra là bỏ mấy tệp.
+ */
+const inDuoc = (t) => !t.linkCu && (laAnh(t.ten) || laPdf(t.ten));
+const SVG_IN = '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M4 5V1.8h6V5M4 10.5H2.6A1.1 1.1 0 0 1 1.5 9.4V6.1A1.1 1.1 0 0 1 2.6 5h8.8a1.1 1.1 0 0 1 1.1 1.1v3.3a1.1 1.1 0 0 1-1.1 1.1H10" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M4 8.5h6v3.7H4z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>';
+
+/* Danh sách tệp cần in của nhiều khoản, đúng thứ tự: khoản theo thứ tự đang
+ * hiện, trong khoản thì hoá đơn trước rồi UNC. `chi` lọc riêng một tệp. */
+function tepCanIn(khoan, chi) {
+  const ra = [];
+  let boQua = 0;
+  khoan.forEach((c) => {
+    const ds = taiLieuCua(c);
+    const tong = {};
+    ds.forEach((t) => { tong[t.nhan] = (tong[t.nhan] || 0) + 1; });
+    const thu = {};
+    ds.forEach((t) => {
+      thu[t.nhan] = (thu[t.nhan] || 0) + 1;
+      if (chi && t.token !== chi) return;
+      if (!inDuoc(t)) { boQua++; return; }
+      ra.push({ c, t, vt: t.nhan + ' ' + thu[t.nhan] + '/' + tong[t.nhan] });
+    });
+  });
+  return { ra, boQua };
+}
+
+const PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+let henPdfjs = null;
+/* Worker của pdf.js nằm khác origin nên không dựng Worker thẳng từ địa chỉ
+ * CDN được: tải về rồi dựng từ blob. */
+function napPdfjs() {
+  if (henPdfjs) return henPdfjs;
+  henPdfjs = new Promise((xong, hong) => {
+    const s = document.createElement('script');
+    s.src = PDFJS + 'pdf.min.js';
+    s.onload = async () => {
+      try {
+        const ma = await (await fetch(PDFJS + 'pdf.worker.min.js')).text();
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(new Blob([ma], { type: 'text/javascript' }));
+        xong(window.pdfjsLib);
+      } catch (e) { hong(e); }
+    };
+    s.onerror = () => hong(new Error('không tải được bộ đọc PDF'));
+    document.head.appendChild(s);
+  }).catch((e) => { henPdfjs = null; throw e; });
+  return henPdfjs;
+}
+
+/* Mỗi trang PDF thành một ảnh, đủ nét để in (gấp đôi cỡ gốc). */
+async function anhTrangPdf(blob) {
+  const pdfjs = await napPdfjs();
+  const doc = await pdfjs.getDocument({ data: await blob.arrayBuffer() }).promise;
+  const ra = [];
+  for (let i = 1; i <= doc.numPages; i++) {
+    const trang = await doc.getPage(i);
+    const vp = trang.getViewport({ scale: 2 });
+    const cv = document.createElement('canvas');
+    cv.width = vp.width; cv.height = vp.height;
+    await trang.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+    ra.push(await new Promise((r) => cv.toBlob((b) => r(URL.createObjectURL(b)), 'image/jpeg', 0.92)));
+  }
+  doc.destroy();
+  return ra;
+}
+
+let dangIn = false;
+async function inTep(ds, boQua, nut) {
+  if (dangIn) return toast('Đang chuẩn bị một lệnh in khác, chờ chút nhé.');
+  if (!ds.length) {
+    return toast(boQua ? 'Chứng từ ở đây là link Drive cũ hoặc tệp không in được, mở trên Drive để in.'
+      : 'Không có chứng từ nào để in.', 'err');
+  }
+  dangIn = true;
+  const chuCu = nut ? nut.innerHTML : '';
+  const bao = (i) => { if (nut) nut.textContent = 'Đang chuẩn bị ' + i + '/' + ds.length + '…'; };
+  if (nut) nut.disabled = true;
+  const url = [];
+  const trang = [];
+  let loi = 0;
+  try {
+    for (let i = 0; i < ds.length; i++) {
+      bao(i + 1);
+      const { c, t, vt } = ds[i];
+      const dau = '<div class="dau"><span><b>' + esc(c.noiDung || '(không tên)') + '</b> · '
+        + tien(c.tien) + ' đ · ' + esc(ngayVN(c.ngayChi || c.ngayDeNghi))
+        + (tachDon(c) ? ' · ' + esc(tachDon(c).ma) : '') + (c.maDieuHanh ? ' · ' + esc(c.maDieuHanh) : '')
+        + '</span><span>' + esc(vt) + ' · ' + esc(t.ten) + '</span></div>';
+      try {
+        const blob = await layTep(t.recId, t.token);
+        const anh = laPdf(t.ten) ? await anhTrangPdf(blob) : [URL.createObjectURL(blob)];
+        url.push(...anh);
+        anh.forEach((u, k) => trang.push('<section class="tr">'
+          + dau.replace('</span></div>', (anh.length > 1 ? ' · trang ' + (k + 1) + '/' + anh.length : '') + '</span></div>')
+          + '<div class="than"><img src="' + u + '"></div></section>'));
+      } catch (e) {
+        loi++;
+        trang.push('<section class="tr">' + dau + '<div class="than loi">Không tải được tệp này: '
+          + esc(e.message) + '</div></section>');
+      }
+    }
+    await moBanIn(trang);
+    toast('Đã mở lệnh in ' + ds.length + ' chứng từ'
+      + (loi ? ' · ' + loi + ' tệp không tải được' : '')
+      + (boQua ? ' · bỏ qua ' + boQua + ' tệp không in được' : ''), loi ? 'err' : 'ok');
+  } catch (e) {
+    toast('Không in được: ' + e.message, 'err');
+  } finally {
+    dangIn = false;
+    if (nut) { nut.disabled = false; nut.innerHTML = chuCu; }
+    setTimeout(() => url.forEach((u) => URL.revokeObjectURL(u)), 60000);
+  }
+}
+
+/* Dựng bản in trong một khung ẩn rồi gọi lệnh in của chính khung đó: in cả
+ * trang app thì ra luôn bảng, thanh lọc và cửa sổ đang mở. */
+async function moBanIn(trang) {
+  const cu = $('#khungIn');
+  if (cu) cu.remove();
+  const f = document.createElement('iframe');
+  f.id = 'khungIn';
+  f.setAttribute('aria-hidden', 'true');
+  f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
+  document.body.appendChild(f);
+  const d = f.contentDocument;
+  d.open();
+  d.write('<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>Chứng từ quỹ chi phí</title><style>'
+    + '@page{size:A4;margin:10mm}'
+    + 'html,body{margin:0;background:#fff;color:#111;font:10.5px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}'
+    + '.tr{height:276mm;display:flex;flex-direction:column;break-after:page;page-break-after:always;overflow:hidden}'
+    + '.tr:last-child{break-after:auto;page-break-after:auto}'
+    + '.dau{display:flex;justify-content:space-between;gap:12px;padding-bottom:2mm;margin-bottom:3mm;border-bottom:.3mm solid #999}'
+    + '.dau span:last-child{color:#555;text-align:right;max-width:40%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
+    + '.than{flex:1;min-height:0;display:flex;justify-content:center;align-items:flex-start}'
+    + '.than img{max-width:100%;max-height:100%;object-fit:contain}'
+    + '.than.loi{align-items:center;color:#b42318;font-size:13px}'
+    + '</style></head><body>' + trang.join('') + '</body></html>');
+  d.close();
+  await Promise.all([...d.images].map((im) => (im.complete ? 0
+    : new Promise((r) => { im.onload = im.onerror = r; }))));
+  f.contentWindow.focus();
+  f.contentWindow.print();
+}
+
+/* In nhiều khoản: quá 40 tệp thì hỏi trước, vì giấy in ra là thật. */
+function inNhieuKhoan(khoan, nut) {
+  const { ra, boQua } = tepCanIn(khoan);
+  if (ra.length <= 40) return inTep(ra, boQua, nut);
+  moModal('In ' + ra.length + ' chứng từ?',
+    '<div class="nhac">' + ra.length + ' chứng từ của ' + khoan.length + ' khoản, mỗi tệp một trang A4 trở lên. '
+    + 'Muốn in ít hơn thì lọc theo tháng hoặc tích chọn từng khoản.</div>',
+    '<div class="sp"></div><button class="btn" data-close="1">Thôi</button>'
+    + '<button class="btn primary" data-chinh="1" data-indongy="1">In ' + ra.length + ' chứng từ</button>');
+  inNhieuKhoan.cho = { ra, boQua };
 }
 
 const o = (nhan, html, rong) => '<label class="o' + (rong ? ' rong' : '') + '">'
@@ -1418,7 +1597,9 @@ function moChungTu(id) {
       : '<span class="ct-xem" data-xem="' + esc(t.token) + '" data-rec="' + esc(t.recId)
         + '" data-ten="' + esc(t.ten) + '">Xem</span>'
         + '<span class="ct-tai" data-tai="1" data-rec="' + esc(t.recId) + '" data-token="'
-        + esc(t.token) + '" data-ten="' + esc(t.ten) + '" title="Tải về máy">⇩</span>';
+        + esc(t.token) + '" data-ten="' + esc(t.ten) + '" title="Tải về máy">⇩</span>'
+        + (inDuoc(t) ? '<button type="button" class="ct-in" data-in="' + esc(t.token) + '" data-rec="' + esc(t.recId)
+          + '" title="In tệp này" aria-label="In tệp này">' + SVG_IN + '</button>' : '');
     return '<figure class="ct-the" data-ct="' + i + '">'
       + '<div class="ct-anh" id="ctAnh' + i + '"'
         + (t.linkCu ? '' : ' data-xem="' + esc(t.token) + '" data-rec="' + esc(t.recId)
@@ -1447,7 +1628,9 @@ function moChungTu(id) {
     + (ds.length ? '' : '<div class="nhac">Khoản này chưa có chứng từ nào.</div>')
     + nhom('Hoá đơn')
     + (laKeToan() ? '' : nhom('UNC')),
-    '<div class="sp"></div><button class="btn" data-close="1">Đóng</button>',
+    (ds.some(inDuoc) ? '<button class="btn" data-inkhoan="' + esc(c.id) + '">' + SVG_IN
+      + ' In tất cả (' + ds.filter(inDuoc).length + ')</button>' : '')
+    + '<div class="sp"></div><button class="btn" data-close="1">Đóng</button>',
     'rong');
 
   napAnhChungTu(ds);
@@ -1718,6 +1901,24 @@ document.addEventListener('click', async (e) => {
   }
 
   if (T.closest('#btnXuatSo')) return xuatSoDangXem(T.closest('#btnXuatSo'));
+  if (T.closest('#btnInCt')) return inNhieuKhoan(locChi(), T.closest('#btnInCt'));
+  const inMot = T.closest('[data-in]');
+  if (inMot) {
+    const c = S.chi.find((x) => x.id === inMot.dataset.rec);
+    if (c) { const { ra, boQua } = tepCanIn([c], inMot.dataset.in); return inTep(ra, boQua, inMot.classList.contains('ct-in') ? null : inMot); }
+    return;
+  }
+  const inKhoan = T.closest('[data-inkhoan]');
+  if (inKhoan) return inNhieuKhoan(S.chi.filter((x) => x.id === inKhoan.dataset.inkhoan), inKhoan);
+  if (T.closest('[data-inchon]')) {
+    return inNhieuKhoan(locChi().filter((c) => S.chon.has(c.id)), T.closest('[data-inchon]'));
+  }
+  if (T.closest('[data-indongy]')) {
+    const cho = inNhieuKhoan.cho;
+    inNhieuKhoan.cho = null;
+    dongModal();
+    return cho ? inTep(cho.ra, cho.boQua, $('#btnInCt')) : undefined;
+  }
 
   if (T.closest('#btnNap') || T.closest('#btnNap2')) {
     return laChuQuy() ? moNapQuy() : toast('Chỉ người giữ quỹ mới ghi tiền ứng.', 'err');

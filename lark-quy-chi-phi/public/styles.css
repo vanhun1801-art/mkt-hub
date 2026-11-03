@@ -232,6 +232,9 @@ tfoot td { background: var(--surface-2); font-weight: 600; border-bottom: 0; }
 /* Chừa đáy trang đúng bằng thanh, để hàng cuối không nằm dưới nó. Đệm ở đáy
    thì thêm bao nhiêu cũng không xê dịch hàng nào. */
 body.co-thanhchon { padding-bottom: 84px; }
+/* Số khoản và tổng tiền đi liền một dòng, kể cả khi thanh đông nút. */
+.thanhchon .tc-tom { white-space: nowrap; }
+.thanhchon .btn { white-space: nowrap; }
 
 /* ---- cửa sổ ---- */
 .modal { position: fixed; inset: 0; background: rgba(16,22,34,.5); display: none;
@@ -307,6 +310,14 @@ body.co-thanhchon { padding-bottom: 84px; }
   background: var(--primary-bg); border: 1px solid var(--primary-border);
 }
 .ct-xem:hover, .ct-tai:hover { background: var(--primary); color: #fff; }
+/* Nút in trên thẻ: chỉ có hình, vẽ bằng SVG, cùng dáng với Xem / Tải. */
+.ct-in {
+  display: inline-flex; align-items: center; justify-content: center; padding: 1px 7px; height: 21px;
+  color: var(--primary); background: var(--primary-bg); border: 1px solid var(--primary-border);
+  border-radius: 6px; cursor: pointer; font: inherit;
+}
+.ct-in:hover { background: var(--primary); color: #fff; }
+[data-inkhoan] svg, [data-inchon] svg { vertical-align: -2px; margin-right: 4px; }
 
 /* ---- toast ---- */
 #toasts { position: fixed; right: 16px; bottom: 16px; display: flex; flex-direction: column;
@@ -687,4 +698,6 @@ html[data-skin="ios"] .lk-nut { border-color: transparent; }
 @media (max-width: 640px) {
   .lk-nut { font-size: 15px; }
   .lk-ngay { width: 38px; height: 38px; font-size: 15px; }
+  /* In cả xấp là việc của máy tính; in từng khoản vẫn có trong cửa sổ Chứng từ. */
+  #btnInCt { display: none !important; }
 }

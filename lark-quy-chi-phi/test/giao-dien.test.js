@@ -301,6 +301,19 @@ function chay(meta) {
     ok('lưới tháng có 12 tháng', (lichThang.match(/data-lkthang=/g) || []).length === 12);
     ctx.__goi('S.loc.tu = ""; S.loc.den = ""; LK.che = "ngay"');
 
+    /* ---- in chứng từ (03/11/2026) ----
+     * Tệp in theo thứ tự hoá đơn rồi UNC, mỗi tệp ghi "Hoá đơn 1/1". Link Drive
+     * cũ không in được: bỏ ra và đếm, không lặng lẽ biến mất. */
+    const inC1 = ctx.__goi('JSON.stringify(tepCanIn(S.chi.filter((c) => c.id === "recC1")).ra.map((x) => x.vt + " " + x.t.ten))');
+    ok('in một khoản: hoá đơn trước rồi UNC', inC1 === JSON.stringify(['Hoá đơn 1/1 hd1.jpg', 'UNC 1/1 unc1.jpg']), inC1);
+    const inMot = ctx.__goi('tepCanIn(S.chi.filter((c) => c.id === "recC1"), "tk9").ra.length');
+    ok('in một tệp chỉ lấy đúng tệp đó', inMot === 1, String(inMot));
+    const inCu = ctx.__goi('tepCanIn(S.chi.filter((c) => c.id === "recC2"))');
+    ok('link Drive cũ bị bỏ ra và được đếm', inCu.ra.length === 0 && inCu.boQua === 1, JSON.stringify(inCu.boQua));
+    ctx.__goi('S.chon.add("recC1")');
+    ok('thanh chọn có nút in chứng từ', /data-inchon="1"[^>]*>.*In chứng từ 1 khoản/.test(String(ctx.veThanhChon())));
+    ctx.__goi('S.chon.clear()');
+
     /* Chọn tháng chưa có khoản nào thì dải số vẫn phải nói được số dư đầu kỳ —
      * đó chính là con số kế toán cần để mở sổ tháng mới. */
     ctx.__goi('S.loc.tu = ' + JSON.stringify(nayVN + '-01') + '; S.loc.den = cuoiThang(' + JSON.stringify(nayVN) + ')');

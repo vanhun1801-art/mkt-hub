@@ -126,6 +126,10 @@
     'T2': 'Mon', 'T3': 'Tue', 'T4': 'Wed', 'T5': 'Thu', 'T6': 'Fri', 'T7': 'Sat', 'CN': 'Sun',
     'Th 1': 'Jan', 'Th 2': 'Feb', 'Th 3': 'Mar', 'Th 4': 'Apr', 'Th 5': 'May', 'Th 6': 'Jun',
     'Th 7': 'Jul', 'Th 8': 'Aug', 'Th 9': 'Sep', 'Th 10': 'Oct', 'Th 11': 'Nov', 'Th 12': 'Dec',
+    /* Quỹ chi phí · in chứng từ (03/11/2026) */
+    'In chứng từ': 'Print documents',
+    'In': 'Print',
+    'In tệp này': 'Print this file',
     /* Bảng công việc · tab Order: chuyển kiểu xem (28/10/2026) */
     'Lưới': 'Grid',
     'Xem dạng thẻ ô': 'Card grid view',
@@ -1678,6 +1682,10 @@
     [/^Tháng (\d{2})\/(\d{4})$/, 'Month $1/$2'],
     [/^Tháng (\d{2}) – (\d{2})\/(\d{4})$/, 'Months $1 – $2/$3'],
     [/^Năm (\d{4})$/, 'Year $1'],
+    [/^\s*In tất cả \((\d+)\)$/, ' Print all ($1)'],
+    [/^\s*In chứng từ (\d+) khoản$/, ' Print documents of $1 items'],
+    [/^In (\d+) chứng từ\?$/, 'Print $1 documents?'],
+    [/^In (\d+) chứng từ$/, 'Print $1 documents'],
     [/^(\d+) khách$/, '$1 guests'],
     [/^(\d+) quản lý:$/, '$1 manager(s):'],
     [/^(\d+) quản lý$/, '$1 manager(s)'],
