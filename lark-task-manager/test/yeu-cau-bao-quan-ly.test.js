@@ -20,16 +20,17 @@ const ok = (ten, dk) => {
 const SV = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
 const tu = (dau, dai) => { const i = SV.indexOf(dau); return i < 0 ? '' : SV.slice(i, i + dai); };
 
-const post = tu("if (p === '/api/requests' && req.method === 'POST')", 1800);
+const post = tu("if (p === '/api/requests' && req.method === 'POST')", 2600);
 ok('POST /api/requests gọi baoYeuCau', /await baoYeuCau\(/.test(post));
 ok('báo SAU khi đã lưu vào Base',
   post.indexOf('createRecord') > -1 && post.indexOf('createRecord') < post.indexOf('baoYeuCau'));
 ok('gửi hỏng không làm hỏng yêu cầu (có .catch)', /baoYeuCau\([\s\S]*?\)\.catch\(/.test(post));
 
-const bao = tu('async function baoYeuCau(', 1200);
-ok('người nhận là danh sách quản lý', /cfg\.loadManagerIds\(\)/.test(bao));
-ok('không gửi cho chính người gửi', /id !== \(nguoiGui && nguoiGui\.id\)/.test(bao));
+const bao = tu('async function baoYeuCau(', 600);
+ok('gửi qua lark-chung/gui-anh-hung (Hub tìm đúng open_id theo app)', /gui-anh-hung/.test(bao));
+ok('không gửi thẳng tới id trong quyen.json', !/loadManagerIds/.test(bao));
 ok('không xét cfg.notify', !/cfg\.notify/.test(bao));
+ok('quản lý tự gửi cho mình thì không báo', /if \(!\(ql && nguoiGui === me\.id\)\)/.test(post));
 
 /* Dựng thẻ chạy thật: tách hàm ra cùng hai hàm phụ nó cần. */
 const lay = (dau) => { const i = SV.indexOf(dau); let j = SV.indexOf('\n}\n', i); return SV.slice(i, j + 2); };

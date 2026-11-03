@@ -1006,9 +1006,14 @@ async function baoTraoDoi(openIds, t, me, noiDung) {
  * anh." Trước đây yêu cầu chỉ nằm trong bảng Base, quản lý phải tự mở hàng đợi
  * mới thấy, còn người gửi thì ngồi chờ.
  *
- * Người nhận: danh sách quản lý (quyen.json), trừ chính người gửi. Không xét
- * cfg.notify, cùng lý lẽ với baoTraoDoi(): người bấm Gửi là ý muốn rõ ràng, không
- * phải tin máy tự bắn. Gửi hỏng chỉ ghi log, không làm hỏng yêu cầu đã lưu. */
+ * Gửi qua lark-chung/gui-anh-hung.js, KHÔNG gửi thẳng tới cfg.loadManagerIds():
+ * id trong quyen.json là open_id của anh dưới app lark-cli, còn Render gửi bằng
+ * bot Marketing Hub, mà open_id thì riêng theo từng app (99992361 cross app).
+ * Hub tự tìm đúng id của anh trong bảng Phân quyền.
+ *
+ * Không xét cfg.notify, cùng lý lẽ với baoTraoDoi(): người bấm Gửi là ý muốn rõ
+ * ràng, không phải tin máy tự bắn. Gửi hỏng chỉ ghi log, không làm hỏng yêu cầu
+ * đã lưu. Quản lý tự gửi yêu cầu cho mình thì không báo. */
 function theYeuCau(nguoiGui, tenViec, parts, deXuat, lyDo, taskId) {
   const ten = (nguoiGui && nguoiGui.name) || 'Ai đó';
   const viec = String(tenViec || '(chưa có tên)').replace(/\s+/g, ' ').trim();
@@ -1032,25 +1037,14 @@ function theYeuCau(nguoiGui, tenViec, parts, deXuat, lyDo, taskId) {
   };
 }
 
-async function baoYeuCau(nguoiGui, tenViec, parts, deXuat, lyDo, taskId) {
-  const ds = [...new Set(cfg.loadManagerIds())].filter((id) => id && id !== (nguoiGui && nguoiGui.id));
-  if (!ds.length) return { gui: 0, loi: [] };
-  const the = theYeuCau(nguoiGui, tenViec, parts, deXuat, lyDo, taskId);
-  const chu = ((nguoiGui && nguoiGui.name) || 'Ai đó') + ' gửi yêu cầu điều chỉnh "' + (tenViec || '') + '"' + XD +
-    'Cần sửa: ' + (parts || []).join(', ') + XD + 'Đề xuất: ' + String(deXuat || '').slice(0, 200) + duoiTin();
-  let gui = 0;
-  const loi = [];
-  for (const id of ds) {
-    try {
-      const ok = lark.sendCard ? await lark.sendCard(id, the) : false;
-      if (!ok) await lark.sendMessage(id, chu);
-      gui += 1;
-    } catch (e) {
-      loi.push(String((e && e.message) || e).slice(0, 200));
-    }
-  }
-  if (loi.length) console.error('[yeu-cau] không báo được cho', loi.length, 'quản lý:', loi[0]);
-  return { gui, loi };
+async function baoYeuCau(nguoiGui, tenViec, parts, deXuat, lyDo, taskId, khoa) {
+  const r = await require('../lark-chung/gui-anh-hung').gui({
+    card: theYeuCau(nguoiGui, tenViec, parts, deXuat, lyDo, taskId),
+    khoa: khoa || undefined,
+    cli: lark.cli,
+  });
+  if (!r.ok && !r.boQua) console.error('[yeu-cau] không báo được anh Hùng:', r.loi);
+  return r;
 }
 
 /* ==========================================================================
@@ -2776,10 +2770,16 @@ async function api(req, res, url) {
 
     const result = await lark.createRecord(cells, cfg.requestTableId);
     cacheYC.at = 0;
-    /* Báo quản lý sau khi đã lưu: lưu hỏng thì không báo một yêu cầu không có. */
-    const bao = await baoYeuCau({ id: nguoiGui, name: nguoiGui === me.id ? me.name : '' },
-      body.taskTitle, body.parts, body.proposal, body.reason, body.taskId).catch(() => ({ gui: 0, loi: ['lỗi'] }));
-    return json(res, { ok: true, result, daBao: bao.gui });
+    /* Báo anh Hùng sau khi đã lưu: lưu hỏng thì không báo một yêu cầu không có.
+     * Quản lý tự gửi cho mình thì thôi. */
+    let bao = { ok: false, boQua: true };
+    if (!(ql && nguoiGui === me.id)) {
+      const maYC = (result && (result.record_id || (result.record && result.record.record_id))) || '';
+      bao = await baoYeuCau({ id: nguoiGui, name: nguoiGui === me.id ? me.name : '' },
+        body.taskTitle, body.parts, body.proposal, body.reason, body.taskId,
+        maYC ? 'yeu-cau-' + maYC : '').catch((e) => ({ ok: false, loi: e.message }));
+    }
+    return json(res, { ok: true, result, daBao: !!bao.ok });
   }
 
   /* Quản lý đánh dấu đã xử lý một yêu cầu điều chỉnh. Việc sửa thật (đổi
