@@ -700,7 +700,12 @@ const server = http.createServer(async (req, res) => {
   } catch (e) {
     if (e.chiTiet) console.error('[hop-thu]', url.pathname, e.chiTiet);
     if (res.headersSent) return;
-    if (thu.LoiChuaNoi && e instanceof thu.LoiChuaNoi) return loi(res, 503, e.message, { chuaNoi: true, noiDuoc: Boolean(e.noiDuoc) });
+    if (thu.LoiChuaNoi && e instanceof thu.LoiChuaNoi) {
+      /* Hub nói vì sao không có token (x-hub-thu-ly-do): in kèm để biết đường sửa. */
+      let lyDo = '';
+      try { lyDo = decodeURIComponent(String(req.headers['x-hub-thu-ly-do'] || '')).slice(0, 240); } catch (_) {}
+      return loi(res, 503, e.message + (e.noiDuoc && lyDo ? ' Lý do: ' + lyDo : ''), { chuaNoi: true, noiDuoc: Boolean(e.noiDuoc) });
+    }
     loi(res, e instanceof ai.LoiAi ? 502 : 500, e.message || String(e));
   }
 });

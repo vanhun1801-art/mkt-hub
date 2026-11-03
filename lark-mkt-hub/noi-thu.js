@@ -135,7 +135,10 @@ async function goiToken(than) {
     a: d.access_token,
     ae: bayGio + (Number(d.expires_in) || 7200) * 1000,
     r: d.refresh_token || '',
-    re: bayGio + (Number(d.refresh_token_expires_in) || 0) * 1000,
+    /* Lark không ghi hạn refresh token thì tạm coi 7 ngày. Để 0 là phiên vừa
+     * nối bị coi như đã quá hạn và xoá ngay ở request kế tiếp. Hạn thật ngắn
+     * hơn thì Lark từ chối lúc làm mới, người dùng nối lại là xong. */
+    re: bayGio + (Number(d.refresh_token_expires_in) || 7 * 86400) * 1000,
     scope: String(d.scope || ''),
   };
 }
@@ -160,9 +163,16 @@ function lamMoi(u, r) {
  * app Hộp thư tự mời nối, hub không chặn đường vào.
  */
 async function tokenCho(req, res, nguoi) {
-  if (!nguoi || !nguoi.id || !cfg.sessionSecret) return '';
-  const c = mo(docCookie(req));
-  if (!c || c.u !== nguoi.id || !c.r) return '';
+  /* Lý do thiếu token ghi vào req.thuLyDo để hub chuyển xuống Hộp thư: người
+   * dùng thấy ngay vì sao chưa nối được, thay vì chỉ một câu "chưa nối". */
+  const thieu = (lyDo) => { req.thuLyDo = lyDo; return ''; };
+  if (!nguoi || !nguoi.id) return thieu('Chưa rõ ai đang đăng nhập.');
+  if (!cfg.sessionSecret) return thieu('Máy chủ thiếu SESSION_SECRET.');
+  const tho = docCookie(req);
+  if (!tho) return thieu('Trình duyệt chưa giữ phiên nối hộp thư.');
+  const c = mo(tho);
+  if (!c || !c.r) return thieu('Phiên nối cũ không còn mở được (máy chủ đã đổi khoá).');
+  if (c.u !== nguoi.id) return thieu('Phiên nối thuộc một tài khoản Lark khác.');
   const bayGio = Date.now();
 
   /* RAM có bản mới hơn cookie (vừa làm mới ở request khác) thì theo RAM;
@@ -176,7 +186,7 @@ async function tokenCho(req, res, nguoi) {
     if (s.r !== c.r) datCookie(res, nguoi.id, s);
     return s.a;
   }
-  if (s.re && s.re < bayGio) { ram.delete(nguoi.id); xoaCookie(res); return ''; }
+  if (s.re && s.re < bayGio) { ram.delete(nguoi.id); xoaCookie(res); return thieu('Phiên nối hộp thư đã quá hạn.'); }
   try {
     const moi = await lamMoi(nguoi.id, s.r);
     datCookie(res, nguoi.id, moi);
@@ -185,7 +195,7 @@ async function tokenCho(req, res, nguoi) {
     /* Lark từ chối refresh token (bị thu hồi, đã dùng rồi) thì nối lại; còn
      * mạng chập thì giữ nguyên, lần sau thử tiếp. */
     if (e.laLark) { ram.delete(nguoi.id); xoaCookie(res); }
-    return '';
+    return thieu((e.laLark ? 'Lark không gia hạn phiên nối: ' : 'Chưa gọi được Lark: ') + String(e.message || e).slice(0, 160));
   }
 }
 

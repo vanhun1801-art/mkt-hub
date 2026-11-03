@@ -2543,7 +2543,10 @@ const server = http.createServer(async (req, res) => {
      * cookie của quản lý, không phải của người đang được xem. */
     if (mod.id === 'hop-thu' && cfg.mode === 'api' && nguoi && !xemNhu) {
       const that = auth.sessionUser(req);
-      if (that && that.id === nguoi.id) nguoi.thuToken = await noiThu.tokenCho(req, res, that);
+      if (that && that.id === nguoi.id) {
+        nguoi.thuToken = await noiThu.tokenCho(req, res, that);
+        nguoi.thuLyDo = nguoi.thuToken ? '' : (req.thuLyDo || '');
+      }
     }
     return chuyenTiep(req, res, mod, mm[2] + (u.search || ''), vai);
   }

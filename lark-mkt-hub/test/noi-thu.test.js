@@ -98,6 +98,12 @@ lark.listen(0, '127.0.0.1', async () => {
     const sua = c1.slice(0, -3) + (c1.slice(-3) === 'AAA' ? 'BBB' : 'AAA');
     ok('cookie bị sửa: không mở được', (await noi.tokenCho(reqVoi(sua), resGia(), HUNG)) === '');
     ok('không có cookie: không có gì', (await noi.tokenCho({ headers: {} }, resGia(), HUNG)) === '');
+    const rq = { headers: {} };
+    await noi.tokenCho(rq, resGia(), HUNG);
+    ok('không có cookie: ghi lý do để Hộp thư in ra', /chưa giữ phiên/.test(rq.thuLyDo || ''));
+    const rq2 = reqVoi(c1);
+    await noi.tokenCho(rq2, resGia(), { id: 'ou_la' });
+    ok('cookie của người khác: lý do nói rõ', /tài khoản Lark khác/.test(rq2.thuLyDo || ''));
 
     console.log('\nMáy chủ khởi động lại (RAM trắng), năm request cùng lúc');
     noi._ram.clear();

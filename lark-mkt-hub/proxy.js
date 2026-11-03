@@ -337,7 +337,7 @@ function chuyenTiep(req, res, mod, duongDan, nguoi) {
   delete opts.headers['x-hub-user-email'];
   delete opts.headers['x-hub-user-email-phu'];
   ['x-hub-user-manager','x-hub-perm-toan-bo','x-hub-perm-khong-tao','x-hub-perm-chi-phi',
-    'x-hub-perm-kenh', 'x-hub-khach', 'x-hub-thu-token']
+    'x-hub-perm-kenh', 'x-hub-khach', 'x-hub-thu-token', 'x-hub-thu-ly-do']
     .forEach((h) => { delete opts.headers[h]; });
   /* Cookie nối hộp thư chỉ hub mở được; app con không cần thấy nó. */
   if (opts.headers.cookie) {
@@ -371,6 +371,8 @@ function chuyenTiep(req, res, mod, duongDan, nguoi) {
     if (nguoi.kenhQC) opts.headers['x-hub-perm-kenh'] = nguoi.kenhQC;
     // token đọc thư của chính người này (chỉ app Hộp thư, xem noi-thu.js)
     if (nguoi.thuToken && mod.id === 'hop-thu') opts.headers['x-hub-thu-token'] = nguoi.thuToken;
+    // không có token thì nói vì sao, để Hộp thư in ra thay cho câu "chưa nối" chung chung
+    if (nguoi.thuLyDo && mod.id === 'hop-thu') opts.headers['x-hub-thu-ly-do'] = encodeURIComponent(nguoi.thuLyDo);
   }
 
   const upstream = http.request(opts, (r) => {
