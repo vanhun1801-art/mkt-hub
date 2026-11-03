@@ -91,7 +91,10 @@ function aiGoi(req) {
   const de = (v) => { try { return decodeURIComponent(v || ''); } catch (_) { return v || ''; } };
   const quaHub = ['x-hub-user-id', 'x-hub-user-email', 'x-hub-user-name'].some((k) => k in h);
   if (!quaHub) {
-    const motMinh = process.env.HUB !== '1' && ['127.0.0.1', 'localhost', '::1'].includes(BIND);
+    /* Chạy riêng, hoặc qua hub trên máy cá nhân (HUB_MODE=cli, không đăng nhập
+     * nên không có header danh tính): người mở là chủ máy, đọc bằng lark-cli. */
+    const motMinh = (process.env.HUB !== '1' || process.env.HUB_MODE === 'cli') &&
+      ['127.0.0.1', 'localhost', '::1'].includes(BIND);
     return { quaHub: false, motMinh, ten: '', emails: [], tk: '', khoa: '', nguoi: '' };
   }
   /* Token chỉ có nghĩa khi đi kèm open_id: hub luôn gửi cả hai. */

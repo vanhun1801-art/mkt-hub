@@ -128,6 +128,11 @@ async function khoiDong(mod) {
         HUB: '1',
         HUB_PREFIX: '/m/' + mod.id,
         HUB_PORT: String(require('./config').port),
+        /* cli = hub trên máy cá nhân, không đăng nhập: người ngồi trước máy là
+         * chủ máy. App con không có danh tính nào khác để dựa vào (Hộp thư).
+         * Hub mở ra mạng (HUB_HOST khác 127.0.0.1) thì không còn là "một mình". */
+        HUB_MODE: require('./config').mode === 'cli' &&
+          ['', '127.0.0.1', 'localhost', '::1'].includes(process.env.HUB_HOST || '') ? 'cli' : 'chung',
         /* bộ canh lỗi API (bao-loi-api.js): NODE_OPTIONS --require + địa chỉ báo về */
         ...envThem,
       },
