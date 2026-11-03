@@ -325,7 +325,7 @@ Base "OTA Routine Hospitality" › bảng "Booking khách sạn"
 | `ROUTINE_HOP_THU` | Hộp thư, mặc định `pito@routinehospitality.vn` |
 | `ROUTINE_BASE_TOKEN`, `ROUTINE_TABLE_ID` | Base và bảng booking khách sạn |
 | `ROUTINE_SO_THU` | Số thư mới nhất đọc mỗi thư mục (Hộp đến, Lưu trữ), mặc định 200 |
-| `ROUTINE_CHU_KY_MS` | Chu kỳ tự đọc thư, mặc định 600000 (10 phút); 0 = chỉ đọc khi bấm |
+| `ROUTINE_CHU_KY_MS` | Chu kỳ tự đọc thư, mặc định 300000 (5 phút, anh Hùng chốt 03/11/2026); 0 = chỉ đọc khi bấm |
 
 Chạy tay: `node routine/dong-bo.js --thu` (chỉ đọc, báo sẽ thêm/sửa gì) hoặc
 `node routine/dong-bo.js` (ghi thật). Test: `node test/routine.test.js`.

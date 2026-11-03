@@ -85,7 +85,7 @@ module.exports = {
     tableId: process.env.ROUTINE_TABLE_ID || 'tblQeITmu24D9URY',
     soThu: Number(process.env.ROUTINE_SO_THU || 200),
     /* Chu kỳ tự đọc thư mới. 0 = tắt (chỉ đọc khi bấm). */
-    chuKyMs: Math.max(0, Number(process.env.ROUTINE_CHU_KY_MS ?? 600000)),
+    chuKyMs: Math.max(0, Number(process.env.ROUTINE_CHU_KY_MS ?? 300000)),
     get baseUrl() { return 'https://rootytrip2.sg.larksuite.com/base/' + this.baseToken + '?table=' + this.tableId; },
   },
 
